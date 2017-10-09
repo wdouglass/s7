@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby -w
+# make-snd-diffs -- create snd-diffs and patch them in new snd path
+
+# make-snd-diffs --patch --snd-path "./test-snd"
+
+require "getoptlong"
+require "ftools"
+
+file = File.basename(__FILE__, ".rb")
+diff = false
+patch = false
+diff_path = "./snd-diffs"
+snd_path = "./new-snd"
+help = false
+GetoptLong.new(["--diff",      "-d", GetoptLong::NO_ARGUMENT],
+               ["--patch",     "-p", GetoptLong::NO_ARGUMENT],
+               ["--diff-path", "-D", GetoptLong::REQUIRED_ARGUMENT],
+               ["--snd-path",  "-P", GetoptLong::REQUIRED_ARGUMENT],
+               ["--help",      "-h", GetoptLong::NO_ARGUMENT]).each do |name, arg|
+  case name
+  when "--diff"
+    diff = true
+  when "--patch"
+    patch = true
+  when "--diff-path"
+    diff_path = arg
+  when "--snd-path"
+    snd_path = arg
+  when "--help"
+    help = true
+  end
+end
+
+if help || !(diff || patch)
+  puts "Usage: #{file} [ options ]
+   -d, --diff             create diffs
+   -p, --patch            patch diffs
+   -D, --diff-path PATH   diffs path (#{diff_path})
+   -P, --snd-path PATH    snd path (#{snd_path})
+   -h, --help             display this help message and exit"
+  exit 0
+end
+
+unless File.directory?(diff_path = File.expand_path(diff_path))
+  puts "path #{diff_path} does not exist!"
+  exit 1
+end
+
+unless File.directory?(snd_path = File.expand_path(snd_path))
+  puts "path #{snd_path} does not exist!"
+  exit 1
+end
+
+if diff
+  File.makedirs(diff_path, true)
+  Dir["#{diff_path}/*.diff"].each do |f| File.unlink(f) end
+  Dir.chdir(snd_path)
+  Dir["*.orig"].each do |orig|
+    new = File.basename(orig, ".orig")
+    system("diff --context=5 #{orig} #{new} > #{new}.diff")
+  end
+elsif patch
+  dirs = Dir["#{diff_path}/*.diff"]
+  Dir.chdir(snd_path)
+  # patch defaults to --fuzz=2
+  # one hunk to xm.c has problems with --fuzz=2 resp. 3
+  dirs.each do |patch| system("patch --silent --fuzz=4 -i #{patch}") end
+end
+
+# make-snd-diffs ends here

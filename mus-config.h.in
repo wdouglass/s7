@@ -1,0 +1,148 @@
+#ifndef MUS_CONFIG_H_LOADED
+#define MUS_CONFIG_H_LOADED
+
+/* --disable-deprecated */
+#undef DISABLE_DEPRECATED
+
+/* --with-temp-dir */
+#undef MUS_DEFAULT_TEMP_DIR
+
+/* --with-save-dir */
+#undef MUS_DEFAULT_SAVE_DIR
+
+/* --with-doc-dir */
+#undef MUS_DEFAULT_DOC_DIR
+
+/* --with-gmp */
+#undef WITH_GMP
+
+/* --with-pulseaudio */
+#undef MUS_PULSEAUDIO
+
+/* --with-portaudio -- obsolete? hard to tell from the website
+ */
+#undef MUS_PORTAUDIO
+
+/* --with-ladspa */
+#undef HAVE_LADSPA
+
+/* --with-fftw or if fftw.pc exists */
+#undef HAVE_FFTW3
+
+/* --with-gsl or if gsl.pc exists */
+#undef HAVE_GSL
+
+/* --with-gl, also glu if glu.pc exists */
+#undef HAVE_GL
+#undef HAVE_GLU
+
+/* --with-gl2ps */
+#undef WITH_GL2PS
+
+/* the default or --with-s7 */
+#undef HAVE_SCHEME
+
+/* --with-ruby */
+#undef HAVE_RUBY
+
+/* --with-forth */
+#undef HAVE_FORTH
+
+/* the default or --with-gtk */
+#undef USE_GTK
+
+/* --with-motif */
+#undef USE_MOTIF
+
+/* --with-editres (requires --with-motif) */
+#undef WITH_EDITRES
+
+/* --without-gui */
+#undef USE_NO_GUI
+
+/* --with-oss */
+#undef HAVE_OSS
+
+/* --with-alsa and default in linux */
+#undef HAVE_ALSA
+
+/* --with-jack */
+#undef MUS_JACK
+
+/* --without-audio */
+#undef WITH_AUDIO
+
+
+/* paths to various audio decoders */
+#undef HAVE_OGG
+#undef PATH_OGGDEC
+#undef PATH_OGGENC
+/* ogg.pc, exec_prefix/bin/ogg* */
+
+#undef HAVE_FLAC
+#undef PATH_FLAC
+
+#undef HAVE_SPEEX
+#undef PATH_SPEEXDEC
+#undef PATH_SPEEXENC
+
+#undef HAVE_TIMIDITY
+#undef PATH_TIMIDITY
+
+#undef HAVE_MPEG
+#undef PATH_MPG123
+#undef HAVE_MPG321
+#undef PATH_MPG321
+
+#undef HAVE_WAVPACK
+#undef PATH_WAVPACK
+#undef PATH_WVUNPACK
+
+/* --with-webserver */
+#undef ENABLE_WEBSERVER
+
+
+#undef WORDS_BIGENDIAN
+/* __LITTLE_ENDIAN__ = 1 if gcc osx, but not linux __x86_64?
+   I think it's worth a try to simply use __BIG_ENDIAN__ here
+   it won't work everywhere, but neither will the rest of the code
+ */
+
+#ifdef __SIZEOF__POINTER__
+  #define SIZEOF_VOID_P __SIZEOF_POINTER__
+#else
+  #undef SIZEOF_VOID_P
+#endif
+
+
+
+
+/* ---------------------------------------- */
+
+#ifndef USE_SND
+  #define USE_SND 1
+#endif
+
+#if HAVE_SCHEME
+  #define WITH_SYSTEM_EXTRAS 1
+#endif
+
+#ifndef HAVE_EXTENSION_LANGUAGE
+  #define HAVE_EXTENSION_LANGUAGE (HAVE_SCHEME || HAVE_RUBY || HAVE_FORTH)
+#endif
+
+#define HAVE_COMPLEX_NUMBERS    ((!_MSC_VER) && ((!HAVE_FORTH) || HAVE_COMPLEX))   /* the latter defined in fth-lib.h I think */
+#define HAVE_COMPLEX_TRIG       ((!_MSC_VER) && (!__cplusplus) && (!__FreeBSD__))  /* this assumes sys/param.h has been included */
+#define HAVE_MAKE_RATIO         (HAVE_SCHEME)
+
+#ifdef _MSC_VER
+  #define ssize_t int 
+  #define snprintf _snprintf 
+  #define strtoll strtol
+  #if _MSC_VER > 1200
+    #define _CRT_SECURE_NO_DEPRECATE 1
+    #define _CRT_NONSTDC_NO_DEPRECATE 1
+    #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
+  #endif
+#endif
+#endif

@@ -1,0 +1,1662 @@
+Snd change log
+
+ 11-Sep:    Snd 17.7.
+ 2-Aug:     Snd 17.6.
+ 16-Jun:    Snd 17.5.
+ 6-May:     Snd 17.4. New clm optimizer.
+ 28-Mar:    Snd 17.3. 
+ 22-Feb:    Snd 17.2.
+ 16-Jan:    Snd 17.1.
+ 
+2017 ----------------------------------------------------------------
+
+ 5-Dec:     Snd 17.0.
+ 24-Oct:    Snd 16.9.
+ 6-Sep:     Snd 16.8.
+ 28-Jul:    Snd 16.7.
+ 14-Jun:    Snd 16.6.
+ 30-May:    snd-lint.scm, symbol takes any number of args.
+ 6-May:     Snd 16.5.
+ 29-Mar:    --with-webserver configuration  (Kjetil Matheussen)
+ 28-Mar:    Snd 16.4.
+ 18-Mar:    s7webserver directory (Kjetil Matheussen)
+ 20-Feb:    Snd 16.3.
+ 11-Jan-16: Snd 16.2.
+ 
+2016 ----------------------------------------------------------------
+
+ 30-Nov:    Snd 16.1.
+ 19-Oct:    Snd 16.0.
+ 11-Sep:    Snd 15.9.
+ 1-Aug:     Snd 15.8.
+ 15-Jun:    Snd 15.7.
+ 11-May:    Snd 15.6.
+ 3-Apr:     Snd 15.5.
+ 20-Mar:    changed the no-gui repl to use repl.scm in the s7 case.
+ 27-Feb:    Snd 15.4.
+ 25-Jan:    Snd 15.3.
+ 
+2015 ----------------------------------------------------------------
+
+ 18-Dec:    Snd 15.2.
+ 5-Nov:     moved all the motif stuff (xm.c, snd-motif.scm etc) to the *motif* environment,
+              OpenGL (gl.c, snd-gl.scm) to *gl*, and gtk (xg.c, snd-gtk.scm etc) to *gtk*.
+ 4-Nov:     Snd 15.1.
+ 25-Sep:    Snd 15.0.
+ 17-Sep:    moved snd-x*.c to snd-motif.c
+ 18-Aug:    Snd 14.9.
+ 9-July:    Snd 14.8.
+ 31-May:    Snd 14.7.
+ 23-Apr:    Snd 14.6.
+ 18-Mar:    Snd 14.5.
+ 12-Feb:    Snd 14.4.
+ 4-Jan:	    Snd 14.3.
+
+2014 ----------------------------------------------------------------
+
+ 22-Nov:    Snd 14.2.
+ 15-Oct:    Snd 14.1.
+ 11-Oct:    removed frame.scm and mixer.scm: frames and mixers are obsolete in the scheme version of Snd.
+ 11-Sep:    Snd 14.0.  Homogenous vectors, write readably, libc.scm, libgsl.scm.
+ 5-Sep:     removed kmenu.scm and oscope.scm.
+ 9-Aug:     write.scm, removed pretty-print.scm.
+ 3-Aug:     Snd 13.9.
+ 17-Jul:    many changes to the configure script, added tools/make-config-pc.rb.
+ 30-Jun:    Snd 13.8.
+ 11-Jun:    removed the view files dialog from the gtk version, including all the
+              related extension language functions, and view-files-select-hook.
+ 25-May:    Snd 13.7.
+ 14-May:    glistener.c/h (gtk listener).
+ 22-Apr:    Snd 13.6.
+ 12-Mar:    Snd 13.5.
+ 4-Feb:     Snd 13.4.
+
+2013 ----------------------------------------------------------------
+
+ 25-Dec:    Snd 13.3.
+ 30-Oct:    Snd 13.2.
+ 20-Sep:    Snd 13.1.
+ 8-Aug:     Snd 13.0.
+ 3-July:    removed ptree-channel and max-virtual-ptrees, optimization, run.c.
+              (clm 5.0, sndlib 22.0).
+ 26-Jun:    Snd 12.12.
+ 4-Jun:     removed the --with-static-* configuration switches.
+ 21-May:    Snd 12.11.
+ 11-May:    all scheme-side hook code changed.  removed print-hook.
+ 1-May:     removed mus-audio-describe, ESD audio support, audinfo.
+ 12-Apr:    Snd 12.10.     
+ 5-Mar:     Snd 12.9.
+ Feb:       s7: added random-state?, hash-table-iterator?, and morally-equal?
+            clm/cmn/snd/s7: removed snd1.html and snd-contents.html (these were
+                 using Javascript for stuff that is now built into html), and 
+                 translated the rest of the html files to html5.
+            snd: removed the recorder, recorder-dialog, snd-g|xrec.c,
+                 changed various menu names and added a view:with-grid menu
+                 moved dialog buttons around at random,
+                 removed save-macros and named keyboard macros,
+                 added context-sensitive tooltips to the gtk version,
+                 changed the gtk listener default font to Monospace 11,
+                 the "minibuffer" is now a "statusbar".  This means it is not 
+                    editable, so all the key sequences that used to prompt for 
+                    info are either undefined now, or use a dialog instead.
+                 removed minibuffer-history-length, prompt-in-minibuffer, clear-minibuffer,
+                    and report-in-minibuffer.  Replaced the latter two with status-report.
+                 removed sound-specific search-procedures (i.e. there is only one search procedure)
+                 removed the bomb function
+  2-Feb:    Snd 12.8.
+  27-Jan:   removed snd10.scm.
+
+2012 ----------------------------------------------------------------
+
+ 30-Dec:    Snd 12.7.
+ 8-Nov:     Snd 12.6.
+ 29-Sep:    Snd 12.5.
+ 19-Aug:    Snd 12.4.
+ 18-Aug:    removed snd9.scm.
+ 14-Jul:    removed thread stuff.
+ 11-Jul:    Snd 12.3. 
+ 30-May:    Snd 12.2.
+ 24-Apr:    Snd 12.1.
+ 5-Apr:     lint.scm.
+ 25-Mar:    show-full-range, info-popup-hook.
+ 21-Mar:    with-interrupts.
+ 18-Mar:    Snd 12.0.
+ 18-Mar:    removed time-graph-hook; replaced by combined-data-color.
+ 10-Mar:    space=play or pause, tracking-cursor stuff changed.
+ 4-Mar:     'src' button in Save-as dialogs to do automatic sampling rate conversion.
+ 1-Mar:     delete-selection-and-smooth, delete-samples-and-smooth.
+ 23-Feb:    sync-style variable: sync-none, sync-all, or sync-by-sound (the new default).
+            Options:Controls menu item, and Edit:Unselect
+	    show-selection and unselect-all.
+            show-full-duration, initial-beg, initial-dur, ask-about-unsaved-edits.
+            with-toolbar, with-tooltips, remember-sound-state, with-smpte-label.
+	    new built-in toolbars, removed toolbar.scm and panic.scm.
+            removed Snd.gtkrc, Snd.ad, and the totally obsolete X resources stuff.
+            The built-in popup menus are now context sensitive, and the files popup.scm
+              and gtk-popup.scm have been removed.
+            with-menu-icons (Gtk only).
+            play-arrow-size
+ 12-Feb:    Snd 11.13.
+ 7-Jan:     Snd 11.12.
+
+2011 ----------------------------------------------------------------
+
+ 29-Nov:    Snd 11.11.
+ 5-Nov:     add|delete-watchers removed, replaced by effects-hook.
+ 25-Oct:    Snd 11.10.
+ 22-Sep:    def-clm-struct is now just a synonym for defgenerator.
+ 19-Sep:    removed snd7.scm and snd8.scm.
+ 18-Sep:    Snd 11.9.
+ 19-Aug:    removed the Gdk backend option; cairo is now the only choice.
+ 12-Aug:    Snd 11.8.
+ 9-Aug:     make-index.scm (replaces index.cl and indexer.scm).
+ 30-Jul:    removed *-button-color.
+ 8-July:    Snd 11.7.
+ 12-Jun:    removed window-property, window-property-changed-hook, send-mozilla.
+            removed snd-gxutils.c.
+ 7-June:    Snd 11.6.
+ 27-May:    removed snd6.scm. added binary-io.scm.
+ 29-Apr:    Snd 11.5.
+ 7-Apr:     autoload support via s7's *unbound-variable-hook*.
+ 20-Mar:    Snd 11.4.
+ 27-Feb:    the run macro's argument no longer has to be a thunk.
+ 11-Feb:    Snd 11.3.
+ 9-Feb:     removed NLS support (the po directory and so on).
+ 8-Feb:     moved sound|channel|mix|mark|edit-property to C.
+ 23-Jan:    The rest of the Guile-dependent files have been removed.
+              This includes pd-*, rt-*, and the --with-snd-as-pd-external
+              --with-hobbit, and --with-rt configuration switches.
+ 5-Jan:     Snd 11.2.
+
+2010 ----------------------------------------------------------------
+
+ 26-Dec:    tools/sam.c.
+ 21-Dec:    moved focus-follows-mouse to C as with-pointer-focus.
+ 	    removed def-optkey-fun and def-optkey-instrument (use define* and definstrument).
+ 16-Dec:    make-current-window-display (draw.scm) moved to C as with-inset-graph.
+            removed Guile support.
+ 14-Dec:    peak-env support moved to C, added peak-env-dir, removed peak-env.*,
+              peak-env-info, read-peak-env-info-file, and write-peak-env-info-file.
+ 11-Dec:    removed midi.c and Alsa < 1.0 support.
+ 7-Dec:     removed SGI support.
+ 4-Dec:     portaudio support.
+ 1-Dec:     removed --with-modules configuration switch.
+ 30-Nov:    Snd 11.1.
+ 23-Nov:    colormaps are objects now.  integer->colormap, colormap->integer.
+            transforms are also objects.  integer->transform, transform->integer.
+ 20-Nov:    play is generic now, "old-play" is the previous form.
+ 6-Nov:     removed all support for gtkglext.
+ 2-Nov:     selection function/object. selection->mix.
+ 28-Oct:    pretty-print.scm. 
+ 22-Oct:    Snd 11.0.
+ 16-Oct:    clm.rb and grani.rb (thanks to Mike Scholz).
+ 12-Oct:    generic length, srate, channels, frames, file-name, sync, maxamp.
+ 7-Oct:     removed run-safety; the run macro only works in s7.
+ 6-Oct:     removed *snd-loaded-files* and *snd-remember-paths*.
+            removed tools/sed-href, tools/lines.scm, and tools/check-gtk.scm.
+ 29-Sep:    mixes are objects (not ints), integer->mix and mix->integer.
+            all "sample-reader" and "sample_reader" names changed to "sampler".
+            marks are objects (not ints), integer->mark and mark->integer.
+	    regions are objects, integer->region, region->integer.
+            several region functions now take the region argument first:
+              insert-region, make-region-sampler, mix-region, region-sample, 
+              region->vct, region->frame, make-region-frame-reader.
+            sounds are objects, but integers are still ok, integer->sound and sound->integer.
+	    players are objects.
+            removed export-all.scm, snd4.scm, snd5.scm.
+ 17-Sep:    Snd 10.9.
+ 10-Sep:    removed show-backtrace. default optimization is 6.
+ 9-Aug:     Snd 10.8.
+ 6-Jul:     Snd 10.7.
+ 2-Jul:     default audio in Linux is now ALSA.
+ 28-May:    Snd 10.6.
+ 17-Apr:    Snd 10.5.
+ 26-Feb:    Snd 10.4.
+ 30-Jan:    big-gens.scm (scheme-only versions of the built-in generators).
+ 15-Jan:    Snd 10.3.
+ 8-Jan:     multiprecision math support for all scheme (s7) numeric
+              types and functions via gmp, mpfr, and mpc.  In configure,
+              use --with-gmp.
+
+2009 ----------------------------------------------------------------
+
+ 29-Dec:     jcvoi.scm.
+ 11-Dec:     snd10.scm for sum-of-sines and friends.
+ 28-Nov:     Snd 10.2.
+ 17-Nov:     removed s7-optargs.scm -- define* is now built-in in s7.
+ 11-Nov:     removed s7-format.scm -- format is now built-in in s7.
+ 4-Nov:      moved snd-run.c to run.c (for sndlib).
+ 29-Oct:     osc.scm thanks to Kjetil.
+ 16-Oct:     removed Gauche support.
+ 15-Oct:     Snd 10.1.
+ 3-Sep:      Snd 10.0.
+ 1-Sep:      S7 extension language.
+ 14-Jul:     Snd 9.11.
+ 7-July:     with-threaded-channels.
+ 30-Jun:     flatten-partials.
+ 27-Jun:     axis-color.
+ 20-Jun:     time-graph-hook.
+ 6-June:     with-threaded-sound (ws.scm)
+ 2-June:     Snd 9.10.
+ 30-May:     peak-phases.scm.
+ 20-May:     rt-various.[ch], rt-coroutines.scm, rt-stalin.scm, rt-DotEmacs, and
+               many other changes thanks to Kjetil.
+	     many const char* changes for g++ 4.3.0.
+ 17-May:     normalize-partials is now built-in.
+ 12-May:     expandn (clm-ins.scm) thanks to Michael Klingbeil.
+ 10-May:     merged green.scm into generators.scm.
+ 5-May:      music5 port: music5.f, music5-examples, old-music5.f
+ 24-Apr:     Snd 9.9.
+ 29-Mar:     wz_data.js.
+ 25-Mar:     with-mixed-sound and with-mixed-sound->notelist (ws.scm).
+ 18-Mar:     selection.scm.
+ 17-Mar:     Snd 9.8.
+ 7-Mar:      rt-faust.scm and rt-DotEmacs (thanks to Kjetil).
+ 25-Feb:     defgenerator.
+ 24-Feb:     envelopes can be in the form '((0 0) (100 1)).
+ 11-Feb:     the "stream" arg to outa and friends now defaults to *output*.
+ 7-Feb:      Snd 9.7.
+
+2008 ----------------------------------------------------------------
+
+ 26-Dec:     Snd 9.6.
+ 17-Nov:     fft-with-phases.
+ 12-Nov:     Open recent item in File menu.
+ 8-Nov:      Snd 9.5.
+ 4-Nov:      mingw changes thanks to Kjetil.
+ 2-Nov:      animals.scm.
+ 11-Oct:     changed default srate to 44100.
+ 29-Sep:     Snd 9.4.
+ 20-Sep:     export-all.scm.
+ 4-Sep:      generators.scm.
+ 24-Aug:     Snd 9.3.
+ 7-Aug:      renamed "correlate" in examp.scm to "display-correlation".
+ 3-Aug:      blackman5..10 and rv2..4 fft windows.
+             rt-clm-ins.scm thanks to Kjetil.
+             Savitzky-Golay filter (dsp.scm).
+ 1-Aug:      numerics.scm.
+ 19-Jul:     sndclm.html (Snd-specific version of clm.html).
+ 12-Jul:     Snd 9.2.
+ 9-July:     snddiff.scm.
+ 1-July:     max-virtual-ptrees. 
+ 7-June:     Snd 9.1.
+ 1-June:     mix-sync-max.
+ 28-May:     mus-sound-mark-info.
+ 21-May:     background-gradient (gtk+cairo only).
+  9-May:     peak-env-hook, draw-mix-hook.
+  1-May:     Snd 9.0.
+ 16-Apr:     removed mix-chans, mix-locked?, mix-inverted?, all track stuff
+               track-colors.scm, mix-menu.scm
+             moved mix-properties into C.
+             added edit-properties, mix-sync.
+             spokenword.scm thanks to Ville Koskinen.
+ 23-Mar:     recorder dialog removed.
+ 22-Mar:     Snd 8.9.
+ 14-Mar:     cairo graphics backend (--with-cairo configure choice).
+  1-Mar:     open-file-dialog-directory.
+ 26-Feb:     clean.scm (noise reduction).
+ 17-Feb:     File:Close all menu if more than one sound open.
+ 14-Feb:     three new fft windows.
+  9-Feb:     Snd 8.8.
+  1-Feb:     CAFF headers.
+  2-Jan:     Snd 8.7.
+
+2007 ----------------------------------------------------------------
+
+  29-Dec:    -nogtkrc startup switch.
+  27-Dec:    add-source-file-extension.
+             pi is now defined by default in Scheme.
+  21-Dec:    unclip-channel.
+  17-Dec:    region-home.
+  14-Dec:    bird.fsm (Mike Scholz).
+  12-Dec:    clip-hook.
+  11-Dec:    sound-data-multiply! sound-data-add! sound-data-offset! sound-data* sound-data+ sound-data-copy sound-data-reverse! sound-data-peak.
+  4-Dec:     frame.scm:
+               sound->frame frame->sound region->frame  
+               make-frame-reader frame-reader? frame-reader-at-end frame-reader-position 
+                 frame-reader-home free-frame-reader copy-frame-reader frame-reader-chans
+                 next-frame previous-frame read-frame make-region-frame-reader make-selection-frame-reader 
+                 make-track-frame-reader read-track-frame make-sync-frame-reader
+               frame->sound-data, sound-data->frame sound->sound-data sound-data->sound
+                 region->sound-data track->sound-data selection->sound-data
+               file->vct vct->file frame->vct vct->frame file->sound-data sound-data->file
+               insert-sound-data insert-frame insert-vct  mix-sound-data mix-frame
+               scan-sound map-sound simultaneous-zero-crossing compand-sound sync-all
+               pad-sound contrast-sound dither-sound scale-sound offset-sound normalize-sound 
+             moved open-sound-file, close-sound-file, and vct->sound-file to snd8.scm.
+  29-Nov:    Snd 8.6.
+  21-Nov:    sound-data-scale! and sound-data-fill! with vct/sound-data with-sound output.
+             mus-float-equal-fudge-factor
+             fade.scm instruments changed to use outa rather than vct-map!
+  20-Nov:    generic out-any, in-any, locsig, move-sound, mus-length, mus-channels.
+  13-Nov:    RF64 headers.
+  3-Nov:     mix-name->id, track-name->id (mix.scm, mix.rb).
+  1-Nov:     ->frequency, ->samples (ws.scm).  mix-name, track-name, track-tag-y.
+  24-Oct:    filter-fft in examp.scm.
+  23-Oct:    Snd 8.5.
+  16-Oct:    add-watcher, delete-watcher.
+  12-Oct:    removed selection-changed-hook (use simpler watcher mechanism instead).
+  11-Oct:    gtk-effects-utils.scm and gtk support for *-menu.scm.
+  9-Oct:     with-file-monitor.
+  2-Oct:     gl2ps support, gl-graph->ps function, --with-gl2ps switch, gl2ps.[ch].
+  26-Sep:    save-marks changed to keep matching sync values, add-marks takes name and sync args.
+             moved config.h to mus-config.h.
+  12-Sep:    Snd 8.4.
+  6-Sep:     def-optkey-instrument.
+  1-Sep:     snd_frg.scm thanks to Olivier Doare.
+  28-Aug:    removed vu-font and vu-font-size, added vu-in-dB.
+  16-Aug:    display-bark-fft (dsp.scm).
+             after-lisp-graph-hook, snd-color, snd-font, show-bare-x-axis.
+  4-Aug:     analog-filter.rb thanks to Mike.
+             "scheme" instead of "guile" in various names in inf-snd.el (for gauche).
+  3-Aug:     granulated-sound-interp (examp.scm).
+             poly-resultant and poly-discriminant (poly.scm).
+  1-Aug:     Snd 8.3.
+  31-Jul:    windowed-maxamp renamed moving-max, added moving-rms, moving-sum, moving-length (dsp.scm)
+             average renamed moving-average in clm.
+             overlay-rms-env in draw.scm.
+  28-Jul:    snd8.scm, removed make-ppolar|zpolar (use make-two-pole|zero).
+  27-Jul:    mfilter in dsp.scm.
+  17-Jul:    merged new-icons.scm into new-buttons.scm and renamed the latter toolbar.scm.
+  12-Jul:    green.scm.
+  10-Jul:    dlocsig.scm.
+  3-July:    removed vct-map.
+  28-Jun:    moved rmsgain code to clm-ins.scm.
+  23-Jun:    Snd 8.2.
+  12-Jun:    fmviolin.clm.
+  6-Jun:     changed after-apply-hook to after-apply-controls-hook.
+  2-Jun:     removed mus-make-error.
+  25-May:    Walter Zorn's wz_tooltip.js to spruce up the documentation.
+  7-May:     Snd 8.1.
+  21-Apr:    many .fs files thanks to Mike Scholz (removed obsolete gfm directory).
+  15-Apr:    Gauche as extension language.
+  12-Apr:    clm-load (ws.scm) for cm.
+  31-Mar:    rt-player.scm (Kjetil).
+  28-Mar:    Snd 8.0.
+             Forth as extension language, thanks to Mike Scholz.
+	     shorten, tta, wavpack support.
+  20-Mar:    heart.scm (use Snd with non-sound data).
+  14-Mar:    x-axis-as-clock for more informative x-axis tick labels in very large files.
+  10-Mar:    added a stop sign to interrupt long computations (equivalent to C-g).
+  8-Mar:     kmenu.scm thanks to Maxim Krikun.
+  3-Mar:     show-selection (extensions.scm).
+  27-Feb:    Snd 7.19.
+	     tracking-cursor-style.
+  21-Feb:    bind-key now takes a character or string 1st arg (as well as an integer); if a string, it's treated
+               as the X/Gtk key name (e.g. "Home" or "plus").  It also has a 6th optional arg, a preferences
+               dialog name (so that the dialog can reflect current key bindings by functionality).
+             with-tracking-cursor and with-verbose-cursor as synonyms for cursor-follows-play and verbose-cursor.
+  17-Feb:    mus-file-data-clipped -> mus-clipping, added mus-file-clipping for local settings
+             data-clipped -> clipping
+             mus-prescaler (global) alongside previous mus-file-prescaler
+             added pausing -- returns #t if DAC is paused, can be set to #t or #f to start/stop pausing
+               similarly playing -- #t if DAC is running (may be paused), settable to start/stop playing
+               removed dac-is-running (it's in snd7.scm)
+  9-Feb:     Bill Sack's stochastic.scm and snd-stochastic.pd, stochastic.png in grfsnd.html.
+  2-Feb:     mus_audio_sun_outputs -> mus_sun_set_outputs, added mus_netbsd_set_outputs.
+             mus_audio_set_oss_buffers -> mus_oss_set_buffers.
+             changed ALSA environment variable names to use MUS, not SNDLIB.
+             changed ALSA default device to "default" from "hw:0"
+  30-Jan:    new-sound-dialog.
+  15-Jan:    Snd 7.18.
+  5-Jan:     sound-file? for easier file-filter definition.
+  2-Jan:     removed the sorting indices (sort-by-name|size|date|entry), and changed the way the user-defined sorter works.
+             Also removed file-filters, file-sorters, and just-sounds-hook.
+
+2006 ----------------------------------------------------------------
+
+  26-Dec:    help-snd-fm.pd and pd-fm.scm thanks to Kjetil.
+	     default sample type is now float.
+  19-Dec:    analog-filter.scm: Butterworth, Chebyshev, inverse-Chebyshev, Bessel(-Thompson), Elliptic filters.
+             new fft windows: samaraki and ultraspherical (related to the dolph-chebyshev window).
+	     fft-window-alpha (ultraspherical xmu parameter).
+  5-Dec:     snd_pd_external.c and other changes for Pd, thanks to Kjetil.
+             sinc-train (clm.html), reverse-by-blocks and reverse-within-blocks (examp.scm), pulse-voice (examp.scm).
+  28-Nov:    Snd 7.17.
+  21-Nov:    if --with-float-samples and --with-doubles, the internal sample data type is double.
+  18-Nov:    moved snd-apropos to snd7.scm.
+  15-Nov:    sync-max.
+  12-Nov:    all dlp directory files moved to main directory (to simplify load-path handling).
+             SND_PATH environment variable (optional load path directory list).
+  3-Nov:     ws.scm definstrument macro changed to support :notehook arg in with-sound and *definstrument-hook* for CM.
+  27-Oct:    effects-utils.scm to make various added menus independent.
+  12-Oct.    Snd 7.16.
+  3-Oct:     snd-g|xprefs.c, preferences-dialog function.
+  26-Sep:    save-region-dialog, more buttons.
+  15-Sep:    --enable-threads configure switch, and first use thereof (FIR filtering).
+  6-Sep:     snd-error is now (throw 'snd-error ...).
+  31-Aug:    mix|track-speed-style.
+             changed recorder-in|out-format -> recorder-in|out-data-format,
+                     recorder-out-type -> recorder-out-header-type
+  28-Aug:    Snd 7.15.
+  18-Aug:    _sndlib.h and sndlib.h.in.
+  15-Aug:    in View:Files, click of file name no longer opens that file.
+             view-files-select-hook return type no longer matters, and args are: dialog file-name.
+             optional dialog arg to view-files-sort (local set).
+             -init startup switch to set init filename as arg
+	     snd-file.h
+  8-Aug:     removed previous|view-files-sort-procedure.
+             sort-files-by-name|size|date|entry.
+             view-files-amp|speed|amp-env|speed-style|files|selected-files.
+             removed keep-mix-dialog-open-upon-ok from snd-motif.scm
+             before-exit|close-hook.
+  2-Aug:     sound-file-extensions as settable list.
+  30-Jul:    preload-directory -> add-directory-to-view-files-list, preload-file -> add-file-to-view-files-list.
+  29-Jul:    previous-files-* -> view-files-* (sort, select-hook).
+  28-Jul:    File:Insert menu item and dialog added, also insert-file-dialog.
+             File:Save as can write OGG, Speex, and Flac files.
+  21-Jul:    clear-minibuffer, new as-error arg to report-in-minibuffer.
+  15-Jul:    removed yes-or-no? with associated dialog (and snd-g|xerror.c).
+  14-Jul:    Snd 7.14.
+  5-Jul:     default-output-type -> default-output-header-type,
+             default-output-format -> default-output-data-format.
+  1-Jul:     --with-fam configuration switch.
+	     tools/check-gtk.scm.
+  27-Jun:    output-name-hook now takes an argument, the current output file name.
+             changed find to find-channel to avoid collision with Scheme's srfi-1.
+  24-Jun:    channels-combined is now the default channel-style.
+  20-Jun:    'Extract' option to Save as dialogs (to extract a channel).
+  13-Jun:    folded gl-ruby.c into gl.c, xm-ruby.c into xm.c, xg-ruby.c into xg.c.
+  6-June:    removed save-options (use save-state).
+  1-June:    Snd 7.13.
+	     show-axes View:Axes menu.
+  26-May:    beats-per-measure and x-axis-style x-axis-in-measures.
+  25-May:    create-audit-dialog in snd-motif.scm.
+  23-May:    maraca.rb, play.rb, prc95.rb, singer.rb, and zip.rb thanks to Mike Scholz.
+             rt.tex thanks to Kjetil Matheussen.
+  16-May:    before-save-as-hook.
+  2-May:     region-|selection-|maxamp-position.
+             windowed-maxamp generator (dsp.scm)
+	     harmonicizer (dsp.scm)
+  26-Apr:    Snd 7.12.
+  25-Apr:    y-axis-label.
+  20-Apr:    draw.rb, poly.rb, musglyphs.rb thanks to Mike Scholz.
+             zip.scm (zipper) changed (takes env args now, not thunks, uses def-clm-struct, etc).
+             changed mus-error-to-string to mus-error-type->string.
+               moved mus-data-format->string and mus-header-type->string from ws.scm to C.
+  18-Apr:    removed xen->sample generator.
+	     changed moog.scm to use def-clm-struct, rather than a list.
+  12-Apr:    before-save-state-hook.
+  8-Apr:     poly.scm.
+  7-Apr:     moved load-font to snd-motif.scm and snd-gtk.scm.
+  6-Apr:     volterra-filter in dsp.scm
+  4-Apr:     rt-examples.scm (Kjetil Matheussen).
+  30-Mar:    marks.rb (Mike Scholz).
+  25-Mar:    mixer.scm with various matrix/vector related functions (determinant, inverse,
+               solve simultaneous linear equations, etc) as applied to mixers/frames.
+             invert-filter in dsp.scm.
+  23-Mar:    changed interpretation of frame->frame args.
+  18-Mar:    Snd 7.11.
+  17-Mar:    gc-on|off are no-ops now in Guile.
+             pvoc.rb thanks to Mike Scholz.
+  10-Mar:    dsp.rb thanks to Mike Scholz.
+  1-Mar:     rt-engine.scm thanks to Kjetil Matheussen!
+             zoom-focus-style can be a function
+  28-Feb:    env-channel-with-base.
+             Ruby side of edit-list->function.
+  24-Feb:    mix.rb thanks to Mike Scholz.
+  22-Feb:    changed libxm to libxg in gtk case, also xm-version to xg-version
+               --with-static-xg configure option
+  21-Feb:    removed snd_test.rb, replaced by snd-test.rb thanks to Mike Scholz!
+	     oo.scm and rt-compiler.scm thanks to Kjetil Matheussen!
+  11-Feb:    Snd 7.10.
+  8-Feb:     grani.scm and grani in clm-ins.rb thanks to Mike Scholz.
+             CLM sndwarp (B Battey) translated to Scheme: sndwarp.scm.
+  31-Jan:    removed support for Motif 1 and Lesstif.
+             changed memo-sound to *snd-opened-sound*.
+                     snd-load-files to *snd-loaded-files*.
+                     snd-remember-paths to *snd-remember-paths* (default value is now #t).
+  26-Jan:    removed useless edpos arg to controls->channel.
+  20-Jan:    translation of CLM scentroid (B Battey) in dsp.scm.
+  19-Jan:    changed send-netscape to send-mozilla.
+             transform?, delete-transform.
+  18-Jan:    changed transform-hook to after-transform-hook.
+             variable-graph?, free-player.
+  14-Jan:    moved makesnd.* into makefile.in.
+  10-Jan:    colormap?
+             moved sndsine.c to documentation
+  5-Jan:     Snd 7.9.
+  3-Jan:     removed next-to-last (xen fallback) arg to ptree-channel, and associated xen-channel stuff.
+
+2005 ----------------------------------------------------------------
+
+  29-Dec:    eval-c.scm (Kjetil Matheussen).
+  7-Dec:     after-save-as-hook, replacing emacs-style-save-as.
+  3-Dec:     mark-tag-width|height.
+  29-Nov:    quick.html
+  17-Nov:    Snd 7.8.
+  16-Nov:    moved the 'Apply' button and friends from the Controls pane to a popup menu.
+  5-Nov:     recorder-in-chans.
+  1-Nov:     edit history pane popup menu (popup.scm).
+  28-Oct:    rms-envelope in env.scm.
+	     removed edpos arg to play-selection.
+  18-Oct:    oscope.scm.
+  15-Oct:    normalize-channel.
+  11-Oct:    vct->string
+             moved scale-sound-by and scale-sound-to to snd7.scm.
+	     sndins and gfm directories (Mike Scholz sndlib/clm code)
+             controls->channel
+  5-Oct:     Snd 7.7.
+  4-Oct:     moved vct->samples and samples->vct to snd7.scm.
+             edit-list->function
+             changed transform-samples->vct to transform->vct, region-samples->vct to region->vct,
+	       transform-samples-size to transform-frames. (Old forms are in snd7.scm).
+  1-Oct:     grid-density (controls axis tick spacing)
+  30-Sep:    mus-audio-mixer-read|write vector arg is now a vct.
+  27-Sep:    do? (examp.scm -- do that can be interrupted and continued)
+  20-Sep:    show-sonogram-cursor.
+  13-Sep:    removed buffer generator.
+             log-freq-start.
+  9-Sep:     vct-reverse!
+  8-Sep:     create-ssb-dialog in snd-motif.scm.
+  6-Sep:     removed vct-convolve! (see snd7.scm).
+             removed float vector as possible arg to formant-bank (use vct) (see snd7.scm).
+	     removed oscil-bank, mus-bank (snd7.scm)
+  2-Sep:     vct|channel|spectral-polynomial in dsp.scm.
+  23-Aug:    Snd 7.6.
+  16-Aug:    removed built-in Hadamard transform
+             out-chan argument to add-player so that channel data can be sent to any audio channel
+		(also play, play-and-wait, play-channel)
+  12-Aug:    major gtk-version bugfix thanks to Kjetil
+  2-Aug:     players: returns list of active players
+             run-safety: add error checking to run macro code
+             clm-table-size: default table size in clm
+	     --with-midi configuration switch
+  27-Jul:    --with-hobbit and --with-builtin-gtkrc configure switches
+             clm23.scm
+  14-Jul:    new file: NEWS
+  30-Jun:    snd-hobbit.scm thanks to Kjetil
+             Snd 7.5.
+  23-Jun:    new configure variables GUILE_CONFIG_name and GUILE_name (for OSX/fink)
+	     cursor-location-offset.
+  18-Jun:    ssb-fm in dsp.scm.
+  10-Jun:    gtk support in fft-menu.scm thanks to Kjetil
+             ssb-bank in dsp.scm.
+  9-Jun:     new CLM generator ssb-am.
+  4-Jun:     add-colormap, delete-colormap, colormap-size, colormap-name, changed colormap-ref
+             removed 2 previously built-in colormaps, added rainbow colormap, default colormap is 0.
+  1-Jun:     read-ascii in examp.scm.
+  27-May:    cursor-update-interval.
+  25-May:    removed stop-playing-region-hook, stop-playing-channel-hook, before-apply-hook
+             added stop-function arg to play, play-and-wait, play-selection, play-region, add-player
+  21-May:    --with-doc-dir configuration switch.
+  17-May:    Snd 7.4.
+  6-May:     mono->stereo, mono-files->stereo, stereo->mono (extensions.scm).
+             channel-variance etc in dsp.scm, taken from J Smith "Mathematics of the DFT"
+  5-May:     reverse-channels, scramble-channels, rotate-channel, scramble-channel (extsnd.html, examp.scm)
+  22-Apr:    complexify in snd-gl.scm.
+  19-Apr:    add-to-menu now returns the new menu label widget.
+  13-Apr:    removed forward|backward-graph|mix|mark -- see snd7.scm for Scheme versions.
+  12-Apr:    dither-channel.
+             goertzel in dsp.scm (faster version of find-sine).
+  5-Apr:     Snd 7.3.
+  24-Mar:    dialog function consistency changes: added find-dialog, print-dialog
+               changed region-dialog to view-regions-dialog, edit-save-as-dialog -> save-selection-dialog
+               file-dialog -> view-files-dialog, mix-dialog -> view-mixes-dialog, track-dialog -> view-tracks-dialog
+               file-save-as-dialog -> save-sound-dialog
+  19-Mar:    change-window-property is now a procedure-with-setter named window-property.
+             removed change-menu-label, menu-sensitive, recolor-widget.
+  16-Mar:    def-optkey-fun in ws.scm.
+  15-Mar:    exported mus_optkey_* from sndlib and began incorporating optkey args into Snd.
+             region-position and optional channel arg to region-frames suggested by Matt Wright
+  10-Mar:    make-font-selector-dialog and make-color-selector-dialog in snd-gtk
+             replaced snd-motif.rb with snd-xm.rb (thanks to Michael Scholz).
+  4-Mar:     tempo-control-bounds, and all other such variables' global defaults can be set
+               including cursor-follows-play.
+  3-Mar:     read|write-speex for Speex files and read|write-flac for FLAC files (examp.scm)
+  1-Mar:     show-grid.
+             C-_ deletes text in listener to previous command.
+  23-Feb:    speed-control-tones, speed-control-style, reverb-control-decay now handled like other control settings
+             removed Options:Speed Style menu
+  20-Feb:    Snd 7.2.
+  19-Feb:    filter-channel (regularized filter-sound)
+  18-Feb:    an enormous number of improvements to the Ruby code and inf-snd.el thanks to Michael Scholz.
+               also new: snd-motif.rb.
+  16-Feb:    *-control-bounds.
+  12-Feb:    gui.scm and many other improvements thanks to Kjetil S. Matheussen.
+  11-Feb:    added optional truncate arg to file-selection.
+  9-Feb:     channels-equal? and channels=? in extensions.scm.
+             play-sine, play-sines, open-play-oputput in play.scm.
+             notch-channel and notch-selection in dsp.scm.
+  6-Feb:     expand-control-jitter.
+  29-Jan:    removed X resources epsfile (use eps-file) and overwriteCheck (use ask-before-overwrite)
+  26-Jan:    changed filter-control-env to filter-control-envelope, filter-waveform-color to filter-control-waveform-color,
+               also filter-env-in-hz to filter-control-in-hz as a sound-local variable
+  13-Jan:    Motif version of draw-string now adds in the font height to y0 (to mimic Gtk version).
+  12-Jan:    removed enved-selected-env, changed enved-active-env to enved-envelope.
+  9-Jan:     Snd 7.1.
+  8-Jan:     extensions.rb thanks to Michael Scholz.
+  5-Jan:     envelopes can now have the property 'envelope-base.
+             added dur arg to make-env for duration in samples.
+	     hooks.rb and hooks support in Ruby thanks to Michael Scholz.
+
+2004 ----------------------------------------------------------------
+
+  22-Dec:    selection-changed-hook.
+             changed enved-exp? to enved-style (envelope-linear, envelope-exponential).
+  15-Dec:    kosine-summation in dsp.scm -- sum-of-cosines with an "FM index".
+             sine-ramp and sine-env-channel for envelopes that connect the dots
+                with a sinusoidal curve.  Also env-squared-channel, and (x^n for any positive n)
+                env-expt-channel.
+             offset-channel, contrast-channel, ring-modulate-channel.
+  28-Nov:    pan-mix-selection|region|vct in mix.scm.
+  26-Nov:    rtio.rb thanks to Michael Scholz.
+  25-Nov:    copy-sample-reader, read-region-sample, region-sample-reader?.
+             removed free-mix|track-sample-reader (use free-sample-reader).
+             sample-reader-position|home|at-end? are generic.
+  24-Nov:    Snd 7.0.
+  20-Nov:    track-tempo.
+  17-Nov:    mix-dialog-mix, track-dialog-track, mix-inverted?
+  10-Nov:    removed next-mix-sample, next-track-sample.
+             renamed mix-panel to mix-dialog, added track-dialog.
+  5-Nov:     Jack audio support thanks to Kjetil S. Matheussen.
+             mix-anchor -> mix-tag-position.
+  4-Nov:     copy-mix, copy-track.
+  31-Oct:    removed 'snd' arg to make-track-sample-reader.
+  30-Oct:    Kjetil S. Matheussen's snd_conffile.scm.
+  27-Oct:    removed notion of a selected mix (selected-mix, selected-mix-color, select-mix, select-mix-hook).
+             moved find-mix to mix.scm, changed mix-locked to mix-locked?
+             renamed mix-dragged-hook to mix-release-hook.
+             removed mix-amp|speed|amp-env-changed-hooks and multichannel-mix-hook.
+  24-Oct:    data-location bugfixes in save-region|selection (thanks to Kjetil S. Matheussen).
+  21-Oct:    track-property in mix.scm.
+             added (or moved from mix.scm into C): track, tracks, track?, make-track, track-amp,
+               track-position, track-frames, track-speed, track-amp-env, track-track, delete-track, 
+               delete-mix, track-color, lock-track, track-chans.
+             env-track is now track-amp-env, unused-track and new-track are now make-track.
+             mix-frames is no longer settable.
+  13-Oct:    recorder-file-hook to set or modify recorder output file name, recorder-out-type.
+             changed multichannel-mix-hook.
+  10-Oct:    removed mix-sync (use mix-track).
+  9-Oct:     removed the mix-id in list option for various functions.
+  8-Oct:     optional filename arg for save-marks (and Ruby case implemented).
+  6-Oct:     cursor-style and cursor-size can be set globally.
+  24-Sep:    snd 6.12.
+  22-Sep:    env.rb, spectr.rb, and spectr.scm thanks to Michael Scholz.
+  19-Sep:    clm-ins.rb thanks to Michael Scholz.
+             removed menu-hook.
+  18-Sep:    info-dialog (for info-only stuff now that the help dialog has gotten complicated).
+  17-Sep:    removed finder.scm, changed index.scm|rb to use snd-xref.c tables.
+  15-Sep:    just-sounds support in Gtk.
+  12-Sep:    quit-button-color, help-button-color, reset-button-color,
+               doit-button-color, doit-again-button-color.
+  8-Sep:     show-all-axes-unlabelled and show-x-axis-unlabelled.
+             removed parse-rc-file, added support for Snd.gtkrc.
+  2-Sep:     removed bold-button-font and boldbuttonFont resource.
+  29-Aug:    gcc complex trig replaces GSL if it's available.
+  21-Aug:    snd->sample and xen->sample (Snd-specific) generators to redirect
+               ina and friends automatically to Snd data.
+  19-Aug:    removed mouse-release-hook (use mouse-click-hook).
+  15-Aug:    snd 6.11.
+  11-Aug:    start-playing-selection-hook (suggested by Kjetil S. Matheussen).
+             removed dlp/dp-new-effects.scm and plugins-menu.scm.
+             int -> bool changes (ISO C99).
+  7-Aug:     dac-is-running.
+  1-Aug:     ladspa.scm and ladspa-help.scm thanks to Kjetil S. Matheussen.
+             ladspa struct constants and accessors.
+  28-Jul:    Sun disk space bugfix (thanks to Russell Aspinwall).
+  22-Jul:    removed protect-region.
+  18-Jul:    removed button-font and buttonFont resource, help-text-font and helpTextFont.
+  10-Jul:    record->raw file segfault bugfix (thanks to Russell Aspinwall).
+  1-July:    optional 'nth' arg to find-sound.
+             optional begin time to make-track-sample-reader, play-track, and play-mix.
+  30-Jun:    snd 6.10.
+  24-Jun:    moved mix-name and mix-name->id to snd6.scm.
+  23-Jun:    mix-amp-env-changed-hook.
+             changed mix-amp-changed-hook to take 2nd chan arg.
+  18-Jun:    mix-sound moved to mix.scm.
+  16-Jun:    mark-drag-triangle-hook.
+             renamed mix-position-changed-hook to mix-dragged-hook.
+             mix.scm name changes (see snd6.scm for old forms).
+             with-mix (ws.scm).
+  12-Jun:    bess1.scm and bess1.rb from Michael Scholz.
+  10-Jun:    initial-length arg to new-sound.
+  2-June:    debug.scm and with-sound debugger in ws.scm.
+  28-May:    snd 6.9.
+  26-May:    x-axis-label.
+  20-May:    make-variable-display in snd-motif.scm.
+  16-May:    definstrument changes, clm-ins.scm.
+  14-May:    optional begin-time arg to make-mix-sample-reader.
+  12-May:    removed --with-html and associated variables. html-program.
+  7-May:     or-hooks now run all functions on the hook list.
+             mix-drag-hook.
+  5-May:     after-save-state-hook.
+             removed gm.scm.
+             more IIR filters in dsp.scm, including arbitrary (even) order Butterworths, hum-eliminator
+  2-May:     data-size, samples field in edit-header dialog.
+  1-May:     mark-property in marks.scm.
+  30-Apr:    mix-property in mix.scm.
+             property-changed-hook -> window-property-changed-hook.
+  29-Apr:    mix-click-hook
+  28-Apr:    snd 6.8.
+             freeverb.rb and freeverb.scm from Michael Scholz.
+  22-Apr:    samples function returns a vct, not a vector.
+  15-Apr:    removed fix-bar, makefile.motif.osx, and makefile.gtk.osx.
+  11-Apr:    moved dismiss-all-dialogs to snd6.scm.
+             change-property -> change-window-property (old form in snd6.scm)
+  9-Apr:     nb.rb, ws.rb, dlocsig.rb from Michael Scholz.
+  3-Apr:     noise.scm and noise.rb from Michael Scholz.
+  2-Apr:     init-with-sound and finish-with-sound in ws.scm.
+  31-Mar:    removed audio-state-file.
+             mus_set_srate -> set_mus_srate in Ruby, mus-set-srate removed from Guile.
+             similarly for mus_sound_set_maxamp, mus_set_rand_seed, mus_file_data_clipped, and mus_file_set_prescaler.
+  28-Mar:    file arg to save-macros.
+  26-Mar:    maxf.scm and maxf.rb from Michael Scholz.
+  21-Mar:    snd 6.7.
+  19-Mar:    xm-enved.rb and rubber.rb thanks to Michael Scholz.
+             listener-click-hook with click-for-listener-help in draw.scm.
+  17-Mar:    Mac OSX Record implemented.
+             piano.rb, rgb.rb, strad.scm, and strad.rb thanks to Michael Scholz.
+             moved contrib/* to the main directory.
+  13-Mar:    removed use-sinc-interp.
+  12-Mar:    select-mix, clear-audio-inputs and append-to-minibuffer moved to snd6.scm.
+  10-Mar:    Ruby-related bugfixes thanks to Michael Scholz.
+  5-Mar:     contrib/popup.rb from Michael Scholz.
+  4-Mar:     redo renamed redo_edit in Ruby version, and in -> call_in.
+  3-Mar:     contrib/effects.rb from Michael Scholz.
+  1-Mar:     make-power-env and power-env in env.scm.
+  28-Feb:    new-effects.scm bugfixes from Michael Scholz.
+  21-Feb:    convolve-arrays renamed vct-convolve!.
+  20-Feb:    removed transform-samples and region-samples.
+  17-Feb:    snd 6.6.
+  10-Feb:    removed click-for-help option.
+  7-Feb:     German translation (po/de.po) thanks to Michael Scholz.
+  30-Jan:    gettext changes.
+  12-Jan:    snd 6.5.
+  8-Jan:     removed loop-samples.
+  7-Jan:     various simple FIR filters to dsp.scm.
+  6-Jan:     xramp-channel for virtual exp envs.
+             edpos args for swap-channels.
+             map-channel arg for ptree-channel (xen-channel) for generalized virtual ops.
+             orientation-hook and color-hook.
+             waterfall spectrum in snd-gl.scm.
+             channel-amp-envs now returns vcts, not vectors.
+
+2003 ----------------------------------------------------------------
+
+  16-Dec:    snd 6.4.
+  11-Dec:    --with-shared-sndlib configure switch.
+  10-Dec:    contrib/inf-snd.el from Michael Scholz.
+  9-Dec:     init-func arg to ptree-channel.
+  1-Dec:     removed Chebyshev and Hankel transforms.
+             def-clm-struct support in run completed.
+	     new-sound-hook, sound-let (ws.scm).
+             -nostdin switch for CLM/Snd communication.
+  22-Nov:    contrib/v.rb thanks to Michael Scholz.
+  13-Nov:    snd 6.3.
+  8-Nov:     gtk-effects.scm.
+  1-Nov:     snd-gtk.scm.
+  31-Oct:    gtk-popup.scm.
+  28-Oct:    peaks-font and bold-peaks-font.
+  25-Oct:    -I switch to add dir to load path.
+  23-Oct:    origin arg to bind-key, edpos arg to find-mark.
+  16-Oct:    snd 6.2.
+  14-Oct:    removed max-sounds.
+  11-Oct:    add-find-to-listener in snd-motif.scm.
+  18-Sep:    show-font-name et al in snd-motif.scm.
+  16-Sep:    snd 6.1.
+  12-Sep:    removed "set-" names.
+  11-Sep:    save-state-hook.
+  10-Sep:    new edit123.scm thanks to Tom Roth.
+  9-Sep:     bess.scm.
+             set-oss-buffers -> mus-audio-set-oss-buffers.
+  4-Sep:     --with-modules for modularized sndlib.
+  2-Sep:     removed gtk-1 and gtkextra support.
+  1-Sep:     bugfix: if no extension language, edit position could get confused.
+  26-Aug:    filter-control-coeffs.
+             graph-lisp|time|transform? inverted to be lisp|time|transform-graph?
+             graph-time-once -> graph-once, graph-transform-once -> graph-once
+             graph-time-as-wavogram -> graph-as-wavogram, graph-transform-as-sonogram -> graph-as-sonogram
+             graph-transform-as-spectrogram -> graph-as-spectrogram.
+	     snd6.scm.
+             ccrma-ftp: old-cmdist.html.
+             dont-normalize-transform -> dont-normalize
+             normalize-transform-by-channel -> normalize-by-channel
+             normalize-transform-by-sound -> normalize-by-sound
+             normalize-transform-globally -> normalize-globally
+  16-Aug:    IBM adpcm from Perry Cook's adpcmdec.c.
+  15-Aug:    set-channel-drop in snd-motif.scm.
+  13-Aug:    snd 6.0.
+  1-Aug:     def-clm-struct (ws.scm).
+  30-Jul:    list constant ops in optimizer.
+  23-Jul:    "|" removed from *.scm (r5rs restriction).
+  19-Jul:    contrib/rmsgain.scm thanks to Fabio Furlanete.
+	     with-relative-panes.
+  17-Jul:    mix-length -> mix-frames, region-length -> region-frames, selection-length -> selection-frames.
+  15-Jul:    snd 5.12.
+             continue-sample->file, read/write-ogg in examp.scm.
+  11-Jul:    run macro for Snd.
+  8-Jul:     update-transform changed to update-transform-graph.
+             sample-reader-position.
+  3-Jul:     contrib/DotEmacs thanks to Fernando.
+  27-Jun:    bad-header-hook.
+  20-Jun:    ptree-channel -- func as virtual edit.
+             env-channel can take envelope (list) arg.
+  18-Jun:    snd colors now mimic xm/xg, snd-pixel is a no-op.
+  12-Jun:    snd 5.11.
+             moved forward|backward-sample to snd5.scm.
+  10-Jun:    mix panel amp envs are now editable.
+  7-Jun:     fftw support, removed fht.
+  6-Jun:     removed --with-big-colormap switch (use -DCOLORMAP_SIZE=64 to get old form).
+  4-Jun:     Gtk OpenGL support via the gtkglext library.
+  3-Jun:     removed "colour" spelling option (snd5.scm has backwards compatible definitions).
+  28-May:    Dave Phillips' Snd tutorial added in contrib/tutorial.
+  24-May:    with-gl to choose between GL/X graphics, snd-gl.scm
+  23-May:    gl1.png (spectrogram uses GL now if mono and HAVE_GL).
+  20-May:    removed glfft.c and glfft.scm
+             snd-gxl-context on -DHAVE_GL switch (configure --with-gl)
+             gl.c, makegl.scm, gldata.scm. (GL example in grfsnd.html).
+  15-May:    update-hook.
+  13-May:    snd 5.10.
+  9-May:     sound-loop-info bugfix (thanks to Dave Phillips).
+  6-May:     support for files larger than 2^31 bytes.
+  1-May:     maraca.scm, piano.scm.
+  30-Apr:    vct-map.
+  29-Apr:    snd5.scm, singer.scm, fade.scm.
+  15-Apr:    snd 5.9.
+  12-Apr:    optimization variable, --with-run configure switch, snd-run.c.
+  9-Apr:     ramp-channel.
+  8-Apr:     virtualized envelopes.
+  4-Apr:     improvements in contrib/dlp, thanks to Dave Phillips.
+  3-Apr:     read-sample, read-mix-sample, read-track-sample, selection-maxamp.
+  1-Apr:     insert-samples and set-samples no longer delete file passed as 'data'.
+  29-Mar:    Mac-OSX with Motif (thanks to Charles Nichols).
+  28-Mar:    removed movies function.
+  27-Mar:    selected-mix, selected-sound, and selected-channel return #f if none selected (not -1).
+  24-Mar:    removed ALSA 0.5 support.
+             cosine-summation, legendre-summation in dsp.scm.
+             mus-sound-forget and mus-sound-prune bindings.
+             clear-listener (bound to C-M-g). C-? tries to invoke snd-help. help-hook.
+             M-p and M-n now work in the listener (it has a history of previous forms).
+             added bad-type error and removed internal catch from map-chan et al
+             removed cursor-no-action, cursor-update-display.
+  18-Mar:    squelch-vowels in examp.scm (and ramp gen).
+  13-Mar:    snd 5.8.
+  12-Mar:    header editor bugfix (thanks to Ludger Brummer).
+  11-Mar:    removed channel-sync.
+  28-Feb:    edit-position bugfix (thanks to Ludger Brummer).
+  27-Feb:    color-scale bugfix (thanks to Anders Vinjar).
+  25-Feb:    gtk2 port with xg (see example in grfsnd.html).
+  11-Feb:    snd 5.7.
+             xg.c (gtk2 bindings), makexg.scm, xgdata.scm.
+  30-Jan:    removed stats dialog, snd-xstats.c, snd-gstats.c, show-usage-stats, update-usage-stats.
+  28-Jan:    Alpha bugfix thanks to Stefan Schwandter.
+  23-Jan:    color-samples (draw.scm).
+  21-Jan:    bird.rb.
+             channel-properties, sound-properties (accessors in extensions.scm).
+  18-Jan:    zip-channel (zip.scm).
+             removed old-sndlib.h and old-sndlib2scm.scm.
+  14-Jan:    gsl-error.
+             snd.rb (Ruby code and tests).
+  11-Jan:    snd 5.6. flute.scm.
+  7-Jan:     mix-channel, insert-channel in extensions.scm.
+             event.scm.
+             the Snd widget lists now return objects compatible with the xm module,
+               so the various "cast" functions such as |Widget are no-ops.
+  4-Jan:     removed loop.scm.
+
+2002 ----------------------------------------------------------------
+
+  26-Dec:    explode-sf2 in examp.scm.
+  14-Dec:    removed icons.scm and backgrounds.scm (replaced by contrib/dlp code).
+             removed reverb-control-procedures and contrast-control-procedure.
+  10-Dec:    midi.c.
+  6-Dec:     play.scm.
+  3-Dec:     snd 5.5.
+  28-Nov:    add-tooltip in snd-motif.scm.
+  23-Nov:    draw-mark-hook.
+  20-Nov:    xm-enved.scm.
+  19-Nov:    reopen menu example in examp.scm.
+  13-Nov:    edit123.scm by Tom Roth added to contrib directory.
+             emacs-style-save-as.
+  10-Nov:    new-widget-hook.
+  5-Nov:     snd 5.4.
+  29-Oct:    contrib/dlp directory with Dave Phillips' ladspa plugin stuff.
+  15-Oct:    multichannel ladspa plugins, ladspa-dir.
+  12-Oct:    various regularized *-channel functions.
+  8-Oct:     snap-mix|mark-to-beat.
+  5-Oct:     x-axis-in-beats, beats-per-minute.
+  1-Oct:     Snd 5.3.
+  26-Sep:    after-edit-hook.
+  24-Sep:    changed mus-sound-max-amp to mus-sound-maxamp to match all other such cases (old name still exists)
+  18-Sep:    backwards incompatible change to save-state of small regions.
+  17-Sep:    section-scale-by renamed scale-sound-by (more consistent), also scale-sound-to.
+  14-Sep:    peak-env.scm.
+  7-Sep:     define-selection-via-marks in marks.scm. 
+	     removed --with-snd-conf and --with-ccrma, added --with-temp-dir, --with-save-dir.
+  4-Sep:     eps-size.
+  3-Sep:     mix-file-dialog.
+             optional position arg to add-to-menu.
+  1-Sep:     zero-phase, rotate-phase in dsp.scm (Scott McNab).
+             region-play-list in examp.scm.
+  31-Aug:    snd 5.2.
+  29-Aug:    edit-menu.scm and merged in Dave Phillips' changes for effects.scm.
+  28-Aug:    after-apply-hook, before-apply-hook.
+  24-Aug:    add-amp-controls in snd-motif.scm, add-notes in examp.scm.
+  21-Aug:    explicit FIR/FFT choice to envelope editor (enved-filter).
+             fft-squelch in examp.scm.
+  20-Aug:    add-listener-popup, fft-popup in popup.scm.
+  17-Aug:    GSL 0.9. Gtk+extra 0.99.16.
+  16-Aug:    removed load-colormap.
+  14-Aug:    recorder-in-device for OSS.
+  13-Aug:    stop-dac-hook, file-save-as-dialog, stop-playing-selection-hook.
+             remember-sound-state in extensions.scm.
+  10-Aug:    make-level-meter, with-level-meters in snd-motif.scm.
+             dac-hook, sound-data-maxamp.
+  9-Aug:     show-smpte-label in snd-motif.scm.
+             region-graph-style.
+  7-Aug:     snd-print locale bugfix (thanks to Ludger Brummer).
+             makefile.in prefix bugfix (thanks to Marc Herbert).
+             edit-save-as-dialog (for selection popup menu in snd-motif.scm).
+  6-Aug:     drop file into channel graph mixes at cursor.
+             make-sound-box, select-file, snd-clock-icon in snd-motif.scm.
+  3-Aug:     moved listener widget to main-widgets list.
+             add-selection-popup in snd-motif.scm.
+  2-Aug:     mark-hook and add-mark-pane in snd-motif.scm.
+  1-Aug:     region browser display bugfix (thanks to Dave Phillips).
+             check-for-unsaved-edits in extensions.scm.
+  28-Jul:    removed set-pixmap, make-pixmap (see snd-motif.scm replacement).
+  27-Jul:    zync/unzync, make-hidden-controls-dialog in snd-motif.scm.
+  26-Jul:    'play selected sound' button to open file dialog.
+             previous-files-select-hook, open-file-dialog, install-searcher (grfsnd.html).
+             snd-motif.scm.
+  25-Jul:    snd 5.1.
+             removed snd-gtk.scm (guile-gtk is no longer supported).
+             removed add/remove-idler/input.
+  23-Jul:    xm.c (Motif module).
+  12-Jul:    ALSA 0.9 support from Fernando.
+  9-Jul:     xen.c, xen.html.  
+  6-Jul:     sg.h, sl.h, noguile.h, sr.h, sz.h -> xen.h.
+             snd-scm.c, clm2scm.[ch], sndlib2scm.[ch] -> xen for scm.
+             many internal name changes to change scm to xen.
+  5-Jul:     Ruby support.
+  3-Jul:     added -b (-batch) switch for scripts.
+             snd-4 compatibility names are no longer built-in (use snd4.scm).
+  1-Jul:     gtk+extra 0.99.15.
+             snd-trace in extensions.scm.
+  28-Jun:    find enhancements (see snd.html and examp.scm); find-pitch.
+             colormap-ref, colormap-size.
+  26-Jun:    sound-files-in-directory returns a list, not a vector (to be consistent with CLM).
+  25-Jun:    gcc 3.0.
+	     added type and comment args to save-region, and moved format arg after type (to be consistent with other such calls).
+             mouse-click-hook.
+             reverse-track (mix.scm).
+             mus-sound-max-amp now returns (and takes) a list, not a vector.
+  21-Jun:    dsp.scm, autosave.scm, extensions.scm.
+             find-mix.
+  20-Jun:    read-hook. hooks.scm. snd-debug in extensions.scm.
+  19-Jun:    removed snd-main-shell -- use (cadr (main-widgets)) instead.
+             make-pixmap and set-pixmap.
+             moved Snd-4 stuff from examp.scm to snd4.scm.
+             clone-sound-as in extsnd.html, remove-clicks in examp.scm.
+  18-Jun:    GSL 0.8. Gtk+-1.2.10.
+             display-current-window-location in draw.scm.
+             example of Snd as script engine in grfsnd.html with added script-arg and script-args.
+  16-Jun:    snd 5.0.
+             corruption-time -> auto-update-interval.
+  13-Jun:    previous-files-sort-procedure (for View:Files dialog).
+  12-Jun:    x-axis-style can be channel-local.
+  7-June:    added Reset button to envelope editor (to return to initial state).
+	     yes-or-no-p -> yes-or-no?
+  5-June:    replaced wavo by time-graph-type, graph-time-once, graph-time-as-wavogram (analogous to transform-graph-type).
+  4-June:    configure.ac for autoconf 2.50.
+             prepended "zoom-" to the zoom-focus-style choices (e.g. zoom-focus-left).
+             added axis- to x-axis-style choices (e.g. x-axis-in-samples). x-to-one -> x-axis-as-percentage.
+             print-hook.
+             graphing -> graph-lisp?, ffting -> graph-transform?, waving -> graph-time?,
+             fft-graph -> transform-graph, fft-beta -> fft-window-beta, fft-hook -> transform-hook,
+             transform-size -> transform-samples-size, fft-size -> transform-size, fft-style -> transform-graph-type,
+             before-fft-hook -> before-transform-hook, max-fft-peaks -> max-transform-peaks,
+             show-fft-peaks -> show-transform-peaks, normal-fft -> graph-transform-once,
+             sonogram -> graph-transform-as-sonogram, spectrogram -> graph-transform-as-spectrogram,
+             normalize-by-channel -> normalize-transform-by-channel, normalize-by-sound -> normalize-transform-by-sound,
+             normalize-globally -> normalize-transform-globally, normalize-transform -> transform-normalization,
+             update-fft -> update-transform, update-graph -> update-time-graph, dont-normalize -> dont-normalize-transform.
+  1-June:    add-to-menu and remove-from-menu can affect the popup menu.
+             region handling changed to use the region "id", not its current stack position.
+               many related changes: 
+                 region-* procedures take the id as the region number argument.
+                 removed: select-region, select-region-hook, id-region, region-id
+                 renamed: delete-region -> forget-region.
+             selection-chans, selection-srate (since regions may be disassociated from the selection).
+             with-big-colormap is now the default.
+             removed all the map and scan functions except map-chan and scan-chan
+               (the rest can be easily re-implemented using loops, sample-readers, set-samples, and sync -- see examp.scm).
+             removed all the temp-to-sound|selection (and vice versa) functions (and temp-filenames)
+               (these were redundant since set-samples can take a filename -- see examp.scm for re-implementations)
+             Snd version 5.0 due to these changes.
+             added channel arg to save-selection and set-samples (for multi-file selection saves)
+	     make-selection (examp.scm).
+	     removed env-base.
+  29-May:    combined channel-style and uniting under the name channel-style (uniting removed).
+             dac-folding -> dac-combines-channels (not sure about this name change).
+             C-x x|n|x_x|n key support ("eval expression") removed (was useless and broken).
+               These four keys can be re-implemented using bind-key and as-one-edit.
+             c-g! (simulates typing C-g).
+  28-May:    renamed enved-exping -> enved-exp?, enved-waving -> enved-wave?, enved-clipping -> enved-clip?
+               amplitude-env -> enved-amplitude, srate-env -> enved-srate, spectrum-env -> enved-spectrum
+             removed save-state-on-exit (use exit-hook with save-state).
+             removed activate-listener and hide-listener (the latter is now (set! (show-listener) #f)).
+  27-May:    replaced mix-sound-channel and mix-sound-index by mix-home.
+             player-home.  
+             Added "control" to the various control panel names:
+               amp -> amp-control, contrast -> contrast-control, contrast-amp -> contrast-control-amp, 
+               contrast-func -> contrast-control-procedure, contrasting -> contrast-control?, expand -> expand-control, 
+               expand-hop -> expand-control-hop, expand-length -> expand-control-length, expand-ramp -> expand-control-ramp, 
+               expanding -> expand-control?, filtering -> filter-control?, filter-order -> filter-control-order, 
+               filter-env -> filter-control-env, reverb-decay -> reverb-control-decay, reverb-feedback -> reverb-control-feedback, 
+               reverb-funcs -> reverb-control-procedures, reverb-length -> reverb-control-length, reverb-lowpass -> reverb-control-lowpass, 
+               reverb-scale -> reverb-control-scale, reverbing -> reverb-control?, speed -> speed-control, speed-as-float -> speed-control-as-float, 
+               speed-as-ratio -> speed-control-as-ratio, speed-as-semitone -> speed-control-as-semitone, speed-style -> speed-control-style, 
+               speed-tones -> speed-control-tones, filter-dBing -> filter-control-in-dB, enved-dBing -> enved-in-dB.
+             renamed filter-env-order -> enved-filter-order.
+	     Some rationale: 
+                Scheme uses "procedure" rather than "function" and "?" for booleans.
+	        The control names ("amp" in particular) were too likely to be confused or shadowed.
+                filter-env-order was too similar to filter-order (and not obvious it meant the envelope editor filter order)
+                These names actually predated the decision to use Guile -- I didn't foresee 4 years ago where Snd was headed.
+  26-May:    removed fit-data-on-open; here's a replacement:
+               (define (fit-data snd chn dur)
+                 (let ((mx (maxamp snd chn)))
+                   (list 0.0 dur (- mx) mx "time" (- mx) mx)))
+               (add-hook! initial-graph-hook fit-data #t) ; #t to make sure env restorers get to function first
+             added 'extended' arg to bind-key et al so C-x keys can be bound.
+             example of zero-crossing based C-p, C-n, and C-k in extsnd.html (bind-key).
+             save-control-panel renamed save-controls, similarly for reset-controls and restore-controls 
+               (these now parallel show-controls and apply-controls).
+             mark->sound renamed mark-home (the arrow is out of place here, and it's returning the sound-channel list).
+	     sample-reader-home.
+  25-May:    removed open-alternate-sound -- is exactly the same as close-sound + open-sound.
+             removed earlier scm_apply optimizations ("Rule #1 of optimization: don't do it").
+             removed normalize-on-open (use after-open-hook and equalize-panes):
+               (add-hook! after-open-hook (lambda (snd) (equalize-panes)))
+             renamed normalize-view to equalize-panes.
+  24-May:    removed line-size, prefix-arg (it's now an optional arg to the key function).
+             ignore-prefix arg to bind-key removed, Snd no longer handles prefix itself.
+             removed cut (use delete-selection).
+	     call-apply renamed apply-controls.
+	     prompt-in-minibuffer callback func now takes only the response arg (no longer the snd index).
+  23-May:    OSS fragment defaults changed -- see extsnd.html or HISTORY.sndlib.
+   	         old default was (set-oss-buffers 4 12) but 2 12 is usable in most cases.
+             fft-smoother added to examp.scm.
+             smooth renamed smooth-sound.
+  22-May:    widget-text (mainly for auto-testing).
+  21-May:    Gtk version can now use the mozilla embedded browser for the help dialog.
+             hankel-jn (default 0.0) for Bessel choice in Hankel transform.
+             removed raw-srate, raw-chans, raw-format, and use-raw-defaults (use open-raw-sound-hook instead), erase-rectangle.
+             mouse-enter|leave-text-hook now works in Gtk version as well as Motif.
+  20-May:    snd 4.14.
+  18-May:    Gtk+ version was forgetting to make the listener menu active! (thanks to Dave Phillips)
+  14-May:    continuable errors -- deleted the next day (gc troubles).
+  11-May:    selection-to-temp was writing files that Sox et al can't read (thanks to Matti Koskinen).
+  9-May:     support for GSL 0.7+.
+  7-May:     added edit-position arg to various play functions, save-sound-as, scan/map/find funcs, frames and maxamps.
+             "vector synthesis" in examp.scm.
+             Guile 1.5.
+  1-May:     Alpha (64-bit) and FreeBSD (Old OSS) fixups.
+  29-Apr:    describe-audio replaced by mus-audio-describe.
+  28-Apr:    noguile play segfault caused by backwards NOT_BOUND_P macro (thanks to Bob Sturm).
+  26-Apr:    in user-written makefiles, -DHAVE_GUILE=0 should be changed to -DHAVE_EXTENSION_LANGUAGE=0
+  25-Apr:    snd.1 (and mandir business in makefile.in)
+  24-Apr:    mouse-enter|leave-text-hook.
+  23-Apr:    snd 4.13.
+  19-Apr:    use GSL_IEEE_MODE if it exists.
+  17-Apr:    Haar transform.
+  16-Apr:    mus-out-format, listener-selection.
+  9-Apr:     noguile.h, sl.h (moving toward Librep support, and maybe Ruby).  
+  29-Mar:    drop-hook.
+  23-Mar:    removed syncing (use sync), and abort? (use c-g?).
+             removed support for Guile 1.3.0 (Snd now needs 1.3.4 or later).
+             select-region-hook, select-mix-hook.
+  22-Mar:    removed snd-noscm.c.
+             sndlib-scm calls that fail throw 'mus-error now, rather than returning -1.
+             files-popup-buffer in examp.scm (thanks to Anders Vinjar).
+             select-sound-hook, select-channel-hook.
+  21-Mar:    mus-expand-filename.
+             open-raw-sound-hook (old raw-* variables are obsolete).
+  20-Mar:    mouse-enter-label hook function needs full filename (thanks to Anders Vinjar).
+  19-Mar:    snd 4.12.
+             removed gdbm support from sndlib.
+  16-Mar:    read|write-peak-env-info-file.
+  15-Mar:    tested ok with gtk 1.2.9.
+             src-sound with negative envelope bugfix, also the interpretation of the
+               envelope arg is changed to be consistent with the envelope editor src function.
+               '(0 1 1 1) now returns no change (src ratio of 1 throughout -- the value is used
+               directly, rather than being an offset from 1.0.
+  14-Mar:    dac reverb segfault in ALSA with Midiman delta bugfix (thanks to Oded Ben-Tal).
+             peak-env-info.
+  13-Mar:    removed initial-x0, initial-x1, initial-y0, initial-y1, and replaced with
+               initial-graph-hook -- this is a non-backwards compatible change!
+             add-idler, remove-idler (background process)
+             removed (long obsolete) showing-controls (replaced by show-controls)
+  12-Mar:    musglyphs.scm.
+  10-Mar:    moved grfsnd.html index to new file: index.html.
+  9-Mar:     removed *.txt
+             mouse-enter|leave-graph|listener-hook.
+             show-widget, hide-widget, focus-widget.
+  7-Mar:     mouse-enter|leave-label-hook, listener-text-color, axis-info.
+             nb.scm
+  5-Mar:     Guile-level graphics changes (to unify Motif and Gtk in this regard):
+             removed all the guile-gtk-specific procedures (except sg-options-menu-widget and sg-menu-bar-widget).
+             added cursor-size, cursor-position, cursor-style can be a procedure.
+               time-graph, fft-graph, lisp-graph, cursor-context, copy-context.
+               position->x, position->y, x->position, y->position.
+               foreground-color, load-font, current-font, widget-position, widget-size.
+               draw-dot, draw-line, draw-dots, draw-lines, draw-string.
+               fill-rectangle, erase-rectangle, fill-polygon.
+               main-widgets, menu-widgets, sound-widgets, channel-widgets, dialog-widgets.
+               lisp-graph-hook, recolor-widget, show-backtrace.
+               make-graph-data, graph-data, property-changed-hook.
+  28-Feb:    enved-hook with enved-add-point, enved-delete-point, and enved-move-point.
+  27-Feb:    removed cursor-claim-selection (was identical to cursor-update-display).
+  26-Feb:    Tab-completion is much smarter in Guile 1.4.1.
+  23-Feb:    --with-gsl is the default in configure.
+  21-Feb:    snd 4.11.
+  14-Feb:    vct func now built-in (was in examp.scm).
+  13-Feb:    search-procedure, key-binding.
+  12-Feb:    added Wakefield's freeverb, changed user-defined reverb handlers.
+  6-Feb:     removed expand-funcs: it could not have worked given the "hidden controls" exposure.
+  30-Jan:    rtio.scm.
+  29-Jan:    pvf headers.
+  23-Jan:    no-gui version now reads ~/.snd (thanks to Eliot Handelman).
+  16-Jan:    fm.html, sndscm.html.
+  15-Jan:    snd 4.10.
+  9-Jan:     rubber-sound in rubber.scm.
+
+2001 ----------------------------------------------------------------
+
+  28-Dec:    filter-sound|selection can be passed any CLM filtering gen (Butterworth in examp.scm).
+  21-Dec:    env|src-sound|selection can be passed CLM env.
+  18-Dec:    enved.scm (suggested by Anders Vinjar).
+             play-hook, player?.
+  15-Dec:    update-lisp-graph. graph data arg can be envelope.
+             graph-style can apply to time, transform, and lisp graphs independently.
+  13-Dec:    prc95.scm (Perry Cook's physical modelling examples).
+  12-Dec:    ws.scm (more elaborate with-sound implementation).
+             save-listener.
+             play-syncd-marks (marks.scm).
+  11-Dec:    snd 4.9.
+  7-Dec:     zero-pad bugfixes.
+  29-Nov:    before-fft-hook, string completion from help list.
+  28-Nov:    BSD support thanks to Steven Schultz.
+             Dolph-Chebyshev window if HAVE_GSL.
+  24-Nov:    fht (Hartley transform).
+  21-Nov:    abort? -> C-g?.  edit-tree and display-edits documented.
+  17-Nov:    esd support thanks to Nick Bailey.
+  14-Nov:    un-normalized fft display bugfix.
+  13-Nov:    mark-drag-hook.
+  11-Nov:    insert-silence.
+  10-Nov:    snd 4.8.
+  8-Nov:     filter text field also has history (M-p) now.
+  7-Nov:     shell style M-p and M-n in minibuffer with variable minibuffer-history-length (8).
+  6-Nov:     various cosmetic changes for the new g++ (Redhat 7.0).
+             insert-sound arguments changed (to match mix-sound more closely).
+             TODO.Snd.
+  2-Nov:     insert-selection, mix-selection, delete-selection.
+  1-Nov:     filter-env-in-hz switch.
+  31-Oct:    syncing -> sync. Set! extended to frames, maxamp, x|y-zoom|position-slider.
+  30-Oct:    examp.scm soft-port example of redirecting display to Snd's listener.
+             support for GSL 0.7.
+             scale-selection-to bugfix.
+             selection-creates-region switch.
+  25-Oct:    emacs subjob 'read: unexpected ")"' bugfix.
+  24-Oct:    eps-bottom-margin and eps-left-margin (for Print command). menu-hook.
+  23-Oct:    interface to mixes changed:
+               mix consoles are now in a separate dialog, each mix displayed with a tag and its waveform.
+               removed mix-console-state, mix-console-state-changed-hook, show-mix-consoles.
+               removed mix-console-amp-scaler, mix-console-speed-scaler, mix-waveform-color.
+               changed mix-console-y to mix-tag-y, Show Consoles menu item to Mix Panel.
+               changed with-mix-consoles to with-mix-tags, mix-focus-color to selected-mix-color.
+               show-mix-waveforms default is #t.
+               removed snd-gtkfixed.*.
+               added mix-tag-width and height, mix-panel.
+             removed .sndrc and other related stuff.
+             removed Show Marks menu item.
+  16-Oct:    snd 4.7.  
+             optional environ arg to loop-samples and clm example to grfsnd.html.
+  11-Oct:    delete button in envelope editor.
+  10-Oct:    removed scaler arg to mix-region and associated kbd scaler arg.
+  9-Oct:     bird.scm.  added origin arg to as-one-edit.
+  6-Oct:     removed chans arg to mix-vct.
+  4-Oct:     enved-active-env and enved-selected-env.
+  3-Oct:     scale-by and scale-to now use embedded fragment scalers.
+  2-Oct:     audio-input-device.
+  27-Sep:    showing-controls -> show-controls. data-format and header-type now return just the sndlib int.
+  22-Sep:    removed override-data-format|header-type|data-location and replaced with
+               generalized set! of header fields.
+  18-Sep:    snd 4.6.
+	     selection now follows the edit history lists.
+             selection-beg is now selection-position (to be consistent with everything else).
+  12-Sep:    effects.scm.
+  11-Sep:    generalized set! now built-in (the set-* forms still exist for old versions of Guile).
+               removed setf.scm.
+               x-bounds and y-bounds setters now take a list of (low high) values.
+  8-Sep:     make-player, add-player, stop-player, start-playing (and make-amp-controls example in snd-gtk.scm).
+             changed setf.scm to use Guile 1.4's generalized set! (rather than setf).
+  6-Sep:     gtk menu accelerators, stop-playing-channel-hook, just-sounds-hook.
+  5-Sep:     changed Apply button handling -- control-click now for selection.
+             HAVE_GTKEXTRA to support libgtkextra's icon-oriented file selector.
+  31-Aug:    gtk popup menu fixed.
+  30-Aug:    new snd.spec thanks to Fernando Lopez-Lezcano.
+             snd-emacs errors now go to emacs, play-region notices its wait argument (thanks to Anders Vinjar).
+             sash-color, gtk CLM/Snd connection finally works.
+  28-Aug:    more gtk-related bugfixes.
+  24-Aug:    drag-and-drop bugfixes.
+  23-Aug:    removed -s startup switch.
+  22-Aug:    removed snd-gdac.c, snd-xdac.c.
+  19-Aug:    removed special-case Lesstif support.
+  18-Aug:    scan and map-chan and friends (including find and count-matches)
+               no longer call the function with #f at the end -- this is a non-backwards-compatible change.
+               The #f call can be implemented using closures (see data-max example), the early exit
+               with continuations, and the possible end-extension with insert and as-one-edit.
+  17-Aug:    recorder work (one serious bug fixed).
+  14-Aug:    snd 4.5.
+  10-Aug:    extsnd.html re-organized.
+             wavo,wavo-hop,wavo-trace,line-size,max-fft-peaks,show-fft-peaks,zero-pad,fft-style,fft-window,
+               verbose-cursor,fft-log-frequency,fft-log-magnitude,min-dB,wavelet-type,fft-size,fft-beta,transform-type,
+               normalize-fft,show-mix-consoles,show-mix-waveforms,graph-style,dot-size,show-axes,graphs-horizontal,
+               spectro-x|y|z-angle|scale,spectro-hop,spectro-cutoff,spectro-start can be treated as channel-local.
+             reverb-decay,speed-tones,speed-style can be treated as sound-local.
+             Snd builds and runs in Mac OS-X.
+  3-Aug:     C-q with moving cursor bug, extended normalize-fft choices (Daniel Aronovitch).
+             show-y-zero, show-marks can be local to a given sound or channel.
+  2-Aug:     compute-uniform-circular-string in examp.scm.
+  1-Aug:     removed xmin,xmax,ymin,ymax (redundant and pointless).
+  31-Jul:    amp env subsampling, C-x v, and superimposed fft bugs (thanks to Daniel Aronovitch).
+             control panel funcs (set-amp etc) can take snd arg = #t -> all sounds.
+             snd-gtk.scm make-control-dialog to expose hidden control-panel variables.
+  28-Jul:    use throw for error handling.
+  27-Jul:    (read-set! keywords 'prefix) is now built-in.
+  26-Jul:    Snd now uses clm for all control-panel functions (play/apply).
+             name-click-hook, show-indices.
+             ladspa-related bugfix thanks to Jorn Nettingsmeier.
+  24-Jul:    snd-tempnam, sound-interp gen in examp.scm and env-sound-interp
+  20-Jul:    sum-of-sines, phase-vocoder.
+  18-Jul:    play-selection and added end arg to play etc.
+             C-u 0 C-x p -> play region 0, C-x p -> play selection.
+  17-Jul:    optargs keyword bug was caused by string-length which existed for guile 1.3.0 (fixed).
+  14-Jul:    Snd appears to work in FreeBSD (thanks to Heiko Recktenwald).
+             pvoc.scm, loop.scm, fmv.scm.
+             -l no longer necessary -- if file has .scm extension, it is assumed to be Scheme.
+  10-Jul:    added sounds (list of currently active sounds).
+             region-id and id-region, regions now returns a list of active region ids.
+             mixes now returns a list similar to marks.
+	     removed active-sounds.
+  6-Jul:     snd 4.4.
+             user-specified menu callbacks must be functions (not strings).
+             removed dsp-devices.
+  5-Jul:     experimental erase-zeros flag.
+             swap-channels.
+  3-Jul:     save-hook and auto-save (examp.scm) improvements.
+             ok? renamed sound?, mix-ok? -> mix?, new mark?, region?, selection?
+             setf.scm for (setf (<var>) <val>) in place of (set-<var> <val>).
+             control-panel reverb can handle any number of chans (and now gets input from all).
+             show-axes variable changed: now has 3 values, show-all-axes (default), show-no-axes, show-x-axis.
+               removed View:Show Axes menu item; also these no longer affect the control-panel filter graph.
+             removed edit-history list support from Motif 1.
+  29-Jun:    many ardour-related improvements from Paul Barton-Davis.
+  28-Jun:    new channel argument to save-sound-as (for channel extraction).
+             removed OSS-specific set-dsp-reset.
+  27-Jun:    update configure for gsl 0.6.
+  26-Jun:    as-one-edit now handles mark changes correctly.
+             make-sample-reader snd arg can be filename (to read external files without opening them).
+             Guile 1.4 is now the default -- if you are using 1.3.4, include -DHAVE_GUILE_1_3.
+             various bugs fixed (thanks to Daniel Aronovitch)
+  22-Jun:    version renamed snd-version (old name collides with guile) -- similarly for apropos and help.
+  21-Jun:    marks.scm.
+  19-Jun:    changes to GC handling for new guile.
+             sync field in marks and changed much of the Guile interface to marks:
+               marks -> list of mark ids
+               mark-sync, set-mark-sync, syncd-marks
+               mark-sample, set-mark-sample, mark-name, set-mark-name no longer take (useless) snd/chn args.
+               new mark->sound returns '(sound channel) (holders of mark)
+               syncd marks can be moved together, played, etc
+             edits function now returns a list, not a vector
+  15-Jun:    changed edit|undo-hook procedure to take no args.
+  13-Jun:    snd-error, snd-warning; cursor-style (default cursor-cross, also cursor-line).
+             channel-specific edit-hook and undo-hook.
+  12-Jun:    experimental multifile-sound support (under FILE_PER_CHAN switch).
+  9-Jun:     bugfixes and improvements from Paul Barton-Davis.
+  8-Jun:     OSS/ALSA choice at run-time (snd-xrec/snd-dac changes thanks to Fernando Lopez-Lezcano).
+  7-Jun:     snd-error-hook, snd-warning-hook.
+  5-Jun:     snd 4.3.
+  30-May:    transform-size for glfft, glfft.scm, glfft.c.
+  29-May:    mix-sound to help with CLM/Snd explode support.
+  25-May:    removed snd-clm.c, snd-xclm.c, snd-gclm.c.
+  24-May:    sndctrl.c and related X properties in Snd.
+  23-May:    snd-ladspa.c (LADSPA support thanks to Richard W.E. Furse).
+             'sync' arg to play and play-and-wait.
+  22-May:    set-reverb-funcs, set-contrast-func, set-expand-funcs. 
+             bind-key in guile version no longer takes a string as the "code" arg -- must be procedure.
+             snd-gxutils for better communication with netscape.
+  18-May:    new error symbols for many functions: 'no-such-sound etc. 
+             removed vax float support.
+  16-May:    stop-playing-region-hook and 2nd wait arg to play-region.
+  15-May:    index.scm.
+  12-May:    mus-error-hook.
+  8-May:     help function.
+  5-May:     dac-folding variable (default #t).
+  2-May:     replaced Legendre transform with cepstrum.
+  1-May:     snd 4.2.
+  27-Apr:    graphs-horizontal variable.
+  25-Apr:    split out the drag-and-drop stuff into snd-[xg]drop.c.
+             removed XmHTML? function -- now using the *features* list instead.
+  21-Apr:    extended scope of scm evaluation to most user interface text widgets.
+             update-var renamed define-envelope.
+             make-formant radius arg now matches CLM (lisp) version (1.0-old-value).
+  20-Apr:    convolve-files.
+  19-Apr:    filter-sound 'env' can now be the filter coefficients, and vector->vct, both changes for gmeteor support.
+  18-Apr:    added spectrum of window to fft window graph in transform dialog.
+  17-Apr:    bell.scm, moog.scm, prompt-in-minibuffer.
+  12-Apr:    Fernando Lopez-Lezcano provided a new ALSA port!
+             changed clm2scm to use built-in keyword support (use (read-set! keywords 'prefix))
+  11-Apr:    new sndlib names (mus-aiff etc) (old names will eventually be moved to old-sndlib2scm.scm)
+  10-Apr:    updated Be audio support, added no-gui option.
+  7-Apr:     interrupted save-as in kde/kfm when launched via icon bugfix (thanks to
+               Marcus Roeckrath, Patrick Pagano, and Victor Yarosh).
+  6-Apr:     quad playback bug introduced in 27-Mar version fixed.
+  3-Apr:     soundfont-info.
+  29-Mar:    snd 4.1.
+  28-Mar:    add-transform.
+  27-Mar:    MUS_SAMPLE_BITS and SNDLIB_USE_FLOATS: you can choose Snd's internal sample representation.
+             changed use-sinc-interp default to #t
+  22-Mar:    raw-type variable removed.
+  21-Mar:    multi-channel control-panel apply bug fix.
+  20-Mar:    gdbm (under HAVE_GDBM) to handle headers.
+             samples->sound-data and sndlib2scm.h.
+             removed snd-parser.c and all C expression stuff.
+  17-Mar:    edit-fragment, mark-loops example in examp.scm.
+  15-Mar:    snd 4.0.
+	     Gtk+ port.  Since .Xdefaults is ignored by Gtk, new variables added to set fonts
+               in ~/.snd.  Gtk version reads ~/.sndrc instead of .Xdefaults (untested).  New
+               font variables are button-font, bold-button-font, axis-label-font, axis-numbers-font,
+               help-text-font, and listener-font.  To keep file names sensible, snd-gh.c -> snd.scm.c,
+               snd-xgh.c -> snd-xscm.c, snd-xvulab.c -> snd-gxbitmaps.s, added snd-gxcolormaps.c.
+             Removed the "record" and "replay" buttons for real-time control panel changes.
+             added during-open-hook and mus-prescaler to handle float files with tiny maxamps.
+             added after-open-hook and removed the "default-*" variables related to the control panel.
+	     Removed -scrollers option.
+	     Added many widget and graphics-context functions to support guile-gtk.
+             split extsnd.html into extsnd.html and grfsnd.html, added snd-gtk.scm.
+             after-graph-hook.
+             changed find dialog to provide next and previous buttons.
+	     snd_plug mechanism changed (greatly simplified); removed call-plug etc, added loop-samples.
+             removed snd-plugin.h, anoi.c.
+  14-Feb:    snd 3.7.
+             HAVE_MAKE_SMOB_TYPE is now the default -- use HAVE_GUILE_1_3_0 for the old case.
+             HAVE_GUILE_1_4 for the new (fixed!) backtrace.
+  11-Feb:    removed y1..y8 business and "{}" support in "C expressions".
+             removed clm? function (it's always loaded now).
+  10-Feb:    save-dir for simplified saved-state files.
+             with-mix-consoles to turn off mix consoles globally.
+  7-Feb:     better mix movies. added multichannel-mix-hook (see mix.scm).
+             superimpose-ffts in examp.scm, based on extension of graph function.
+  2-Feb:     pqwvox.scm, makefile.msv.
+  31-Jan:    src-sound now takes the usual snd and chn args.
+  27-Jan:    env.scm.
+  26-Jan:    various envelope editor improvements for mix envs.
+  21-Jan:    underlying mix input data can now be edited just like any displayed sound data.
+  20-Jan:    Snd can now be run as an emacs scheme subjob.
+             play-track, track-sample-readers.
+  17-Jan:    amp env improvements, individual mix colors settable, edit-position.
+  13-Jan:    snd 3.6.
+  12-Jan:    selected-mix, select-mix.
+  11-Jan:    mix-locked, mixed-related hooks.  Guile GC-related bugfixes.
+   5-Jan:    mix.scm.
+             data-clipped. 
+	     removed all group support.
+             added mix-name, mix-track, mix-chans, mix-ok?, mix-amp-env, mixes, mix-vct, 
+                   mix-sound-channel, mix-sound-index, mix-console-y, removed mix-groups.
+             removed --with-clm option -- clm is now always included.
+             added mix-sample-reader support.
+             replaced snd-test.cl with snd-test.scm.
+
+2000 ----------------------------------------------------------------
+
+   16-Dec:   changed mixer-save-state-file to audio-state-file.
+             also mix-amp-scaler to mix-console-amp-scaler, mix-speed-scaler to mix-console-speed-scaler, and mix-state to mix-console-state.
+   15-Dec:   changed as-one-edit to omit the snd and chn args and apply across all chans.
+   9-Dec:    use-sinc-interp for high quality src from control panel.
+   6-Dec:    snd 3.5.
+   3-Dec:    gif -> png.
+   2-Dec:    as-one-edit, apropos.
+   30-Nov:   snd1.html, snd-contents.html; spectro-start.
+   29-Nov:   --with-doubles configure switch.
+   26-Nov:   changed aiff-sound-file to aifc-sound-file and old-style-aiff-sound-file to aiff-sound-file.
+             add-to-menu callback can be a function now.
+   24-Nov:   make-region-sample-reader, frame->list, xy slider readers.
+   19-Nov:   sample-reader functions and vct-map! (et al) to speed up data accesses from Guile.
+             Also formant-bank, oscil-bank, vct-peak.
+   15-Nov:   removed max-fft-size and fft.c.
+   12-Nov:   removed defaultOutputType resource.  Added default-ouput-chans, default-output-srate, output-name-hook.
+   11-Nov:   default-output-format and old-style-AIFF-sound-file, output-comment-hook.
+   8-Nov:    snd 3.4.
+   5-Nov:    memory leaks plugged?  marks bugfix (add mark, save edit, add mark -> segfault).
+   1-Nov:    start-playing-hook, enved-power.  Error History Edit menu option.
+             if Motif 2, edit history portion is now a horizontal pane of the channel window, so Edit History menu option is removed.
+   28-Oct:   listener-prompt, graph-cursor.
+   25-Oct:   'env' is 'env-sound' and 'snd-env' is deleted.  Similarly, convolve -> convolve-arrays,
+             filter -> filter-sound, src -> src-sound (and snd-src deleted), spectrum -> snd-spectrum.
+             These changes to avoid confusion with the CLM module.
+   22-Oct:   audio-output-device.  sync is now an integer, allowing complex grouping.
+   15-Oct:   changed variable 'spectro-color' to 'colormap'
+   11-Oct:   changed axis drawer so the x axis doesn't jump around.
+   8-Oct:    dsp-devices (Linux OSS) for setting audio ports by hand, bomb function.
+             hook handlers are now taken from Guile (version 1.3.4) and use Scheme functions, rather than strings.
+   7-Oct:    count-matches (and bind-key) arg can now be a Scheme function, as in find.
+             load-colormap.
+   6-Oct:    play can handle any number of channels (will fold them into available DAC chans).
+   5-Oct:    snd 3.3.
+   4-Oct:    list->vct, selection-beg, selection-length, selection-member, play-and-wait, squelch-update, file->array, array->file.
+   27-Sep:   'print' renamed 'graph->ps'.  snd-print. added width arg to make-src (accidentally forgotten).
+   23-Sep:   bugfixes related to Sonorus Studio. more configure options. snd-xgh.c added.
+   22-Sep:   Guile 1.3.4 support.
+   17-Sep:   ALSA port thanks to Paul Barton-Davis.
+   13-Sep:   added -separate switch at suggestion of Anders Vinjar: each sound has its own window.
+             Linux alpha port thanks to Guenter Geiger.
+   9-Sep:    more CLM-2 changes (fit-data-on-open is now a boolean, open-raw-sound).
+             reverse -> reverse-sound (old name collides with scheme built-in)
+   5-Sep:    CLM to Snd connection changes (removed .debugdata, .marks and .explode files, added snd-memo check for .scm).
+   30-Aug:   Alpha CLM-2 mixup untangled?  Added trap-segfault.
+   27-Aug:   Guile 1.3.2 support
+   20-Aug:   infinite zoom-in segfault bugfix.
+   19-Aug:   snd 3-2.
+             'snd -p .' followed by attempt to play read-protected 'previous' file segfault bugfix.
+   5-Aug:    setlocale in save-options to keep "." decimal point while writing Scheme code.
+   8-July:   stereo 'unite' ctrl-click 'play' c-t c-q segfault bugfix.
+             Changed 'guile' to 'guile?' 
+   1-July:   spectrum function.
+   13-Jun:   snd 3.1.
+   7-June:   snd_as_widget.
+   3-June:   new notebook and scroller outer widget choices.
+   2-June:   mark-click-hook. removed save/mark-segments -- will replace later.
+   31-May:   mix-save-state-file, vct->sound-file, open-sound-file, close-sound-file.
+   28-May:   multi-channel recording bugfix.  Y2K compliance!!
+   24-May:   scanning and mapping functions. More examples in examp.scm. 
+             snd-length replaced by frames. progress-report handlers (hourglass icon).
+   19-May:   find/eval via C-s, C-r, C-x C-x, etc can now handle Scheme functions.
+   18-May:   -e (-eval) switch.  global-set-key replaced by bind-key.
+   11-May:   configure guile version bugfix(?).  Removed support for versions of Guile before 1.3.
+   10-May:   snd 3.0.
+   5-May:    several resource name changes, other color-related stuff.
+   28-Apr:   all the colors now have guile equivalents, also new functions make-color and color?, rgb.scm.
+   26-Apr:   graphcolor, markcolor, selectedgraphcolor, datacolor, selecteddatacolor resources.
+   23-Apr:   show-axes view menu option and vars.  Moved all customization documentation to extsnd.html.
+   20-Apr:   rpm version now assumes guile 1.3. vct guile smob to optimize data access from scheme.
+   12-Apr:   multi-channel impulse response convolution (with-convolve).
+   5-Apr:    snd 2.8.
+             save-defvar renamed update-var.
+   1-Apr:    call-apply.
+   29-Mar:   extsnd.html, external program linkages. auto-save via "in" in examp.scm.
+   23-Mar:   added args to new-sound and save-sound-as.
+   22-Mar:   smooth, smooth-selection.
+             Removed the trailing "?" from all the functions that had a corresponding set- function without the "?".
+   16-Mar:   graph-dots-and-lines and graph-lollipops options.
+   15-Mar:   activate-listener.
+   11-Mar:   added ignore_prefix arg to global-set-key.
+   10-Mar:   file save-as under same name segfault bugfix.
+   8-Mar:    snd 2.7.
+             show-usage-stats with Options menu choice.
+   3-Mar:    various bugfixes related to empty files.  Changed "stop" function to "stop-playing".
+             Added sample argument to insert-region function.
+   1-Mar:    dismiss-all-dialogs.
+   26-Feb:   select-all function.
+   23-Feb:   fft.c, convolve, convolve-with, convolve-selection-with functions.
+   22-Feb:   find and count-matches functions. MixWaveColor resource.
+   19-Feb:   removed mix-duration-brackets, replaced with show-mix-waveforms and mix-waveform-height.   
+   18-Feb:   snd multichannel mix segfault bugfix.  New sort option in files dialog ('entry'). LinuxPPC audio.
+   15-Feb:   more colormaps.  selection-transform option.
+   12-Feb:   C++ fixups. src-selection, filter-selection, call-plug-selection, reverse, reverse-selection.
+             added file arg to peaks function (and it follows sync buttons now).
+   9-Feb:    removed lispcall.c.
+   8-Feb:    snd 2.6.
+             snd-plugin.h, anoi.c for plug-in support.  new resources (zoomSliderWidth et al).
+   1-Feb:    C-h deletes previous sample; linux save/restore mixer state finally works; much Sun audio work.
+             NIST-sphere headers are now writable. Hadamard transform.  audio-outputs function on Sun.
+   27-Jan:   Sun-related word alignment bugfixes.  AIFF headers retained (not changed to AIFC).
+   19-Jan:   regions can now be edited.
+   14-Jan:   sort choices to Previous Files dialog (previous-files-choice variable).
+   6-Jan:    snd 2.5.
+   5-Jan:    port to Cygwin Windows 95 system, and MS C.
+   1-Jan:    removed subsampling option.
+
+1999 ----------------------------------------------------------------
+
+   28-Dec:   lisp listener improvements, apply to selection.
+   21-Dec:   improved guile error handling. max-fft-peaks and corruption-time variables.
+   15-Dec:   SND_CONF for global initializations (/etc/snd.conf), and flags -noglob and -noinit.
+   11-Dec:   expanded AIFC/RIFF possibilities.
+   7-Dec:    max_regions variable.
+   4-Dec:    lesstif bugfixes.
+   30-Nov:   snd 2.4.
+             Select all Edit menu.  Sonorus Studi/o linux card support. News Help menu.
+   19-Nov:   stop-playing-hook.
+   18-Nov:   abort? function to interrupt guile computation. Removed Session dialog.  session-file changed to save-state-file.
+   17-Nov:   auto-trigger scale to recorder, recorder-trigger, recorder-max-duration.
+   16-Nov:   Metrolink ctrl-click->segfault bugfix.  Recorder vu-size != 1 depth != 8 bugfix. 
+             Comment field text preload and take-focus bugfix.
+   13-Nov:   CD (analog) support in linux audio.  env editor now clips x axis.
+   11-Nov:   OSS Lite (Linux audio) work. auto-update switch.
+   9-Nov:    snd 2.3.
+             autoconf fixups
+   4-Nov:    added editable frequency response graph to control panel, removed ability to load filter coeffs from file.
+   30-Oct:   save-region has new format arg, delete-marks, mark-segments, save-segments.
+             dB button (enved-dBing) in env editor and freq response if spectrum.
+             envedwavecolor, min-dB variable, enved filter order text field.
+   26-Oct:   tab-completion in listener, cursor/selection color should work.
+   19-Oct:   Walsh Transform and built-in autocorrelation, changed to correlation in examp.scm.
+   12-Oct:   dac-size variable; more headers.
+   5-Oct:    snd 2.2.
+             guile 1.3 changes. mkLinux SWiM port, rpm files, statically loaded image.
+             add-sound-file-extension.  Command and filename completion upon TAB in text widgets.
+             Unixware 7 makefile thanks to Larry Plona.
+   23-Sep:   clm/Snd interface changes.
+   21-Sep:   asf headers.
+   16-Sep:   set-oss-buffers and various lisp graph mouse/key hooks.
+   14-Sep:   y0 and y1 args to graph (Lisp function).  XmHTML support.
+   9-Sept:   control-click 'f' or 'w' buttons affects all chans.
+   7-Sept:   save-state implemented. global-unset-key. change-menu-label.  set-menu-sensitive.
+   3-Sept:   snd 2.1.
+             save-edit-history.
+   1-Sept:   global-set-key (re)implemented.  Edit history feature.
+   27-Aug:   removed old clipboard support (never worked right).
+   25-Aug:   remove-from-menu for Buffers in examp.scm. removed -remote switch (linux bugs).
+   18-Aug:   changed snd/clm fifo names to try to use current home directory.
+   17-Aug:   better text handling in lisp listener (action procs), listenerFont, snd-env/clm-env.
+   14-Aug:   horizontal-pane normalization, control panel expand typo.
+   10-Aug:   snd 2.0.
+             Guile added (snd-gh.c).  Many non-backwards-compatible changes to snd-clm (M-x) interface.
+             Snd compiles in Hummingbird Exceed X/Motif in Windows 95; does not yet load however.
+	     .marks and .explode clm/snd files now omit the intermediate extension (due to linux-msdos bug).
+	     Lisp listener window added below control panel.
+	     removed support for backup file (.snd-backup), all "ufun" stuff, and the escape to CLM (M-X with-sound).
+             graph-filled option (to View Graph style menu).
+   30-June:  better symlink handling. Transform dialog replaces 5 or 6 menu items (snd-xfft.c).
+             fft beta now handled differently. View Info menu moved to Edit: Edit Header.
+	     New -h flag to Snd: position sounds horizontally, not vertically (vertical paned window).
+   25-June:  DEC Alpha port.
+   24-June:  exponential and step envelopes. Sun-related bugfixes and HPUX port thanks to Seppo Ingalsuo.
+             control-panel related variables have new (longer) names: explen becomes expand-length
+	     and so on -- all panel settings now have parallel defaults settable via .snd or
+	     M-X: default-expand-length, etc.
+   12-June:  snd 1.4.
+             recorder-buffer-size variable.  Recorder can read multiple card inputs in Linux.
+   8-June:   log freq sonogram drawing bug fixed (low components didn't fill their bin completely).
+   2-June:   print interruptible. Multi-card support in linux (quad via 2 soundcards).
+   27-May:   more elaborate checks for write-permission problems.
+   28-Apr:   group_max_out_chans now a variable (for n-channel mixes).
+   13-Apr:   added amps to show-peaks in fft.
+   30-Mar:   snd 1.3.
+   26-Mar:   sndplay, sndinfo, audinfo, various autoconf configuration files added.
+   23-Mar:   sound.c, sndlib.h, sndlib.html added, cmus_prototypes.h, sound_types.h removed.
+   20-Mar:   apply in control panel now clears the panel.
+   19-Mar:   click or drag fft to get description.
+   10-Mar:   8-channel ADAT support; audio.c. Fixed major bug in multi-channel scale-by and several selection-related problems.
+   12-Feb:   3 more header formats; Most C-x C-x built-in vars removed; override-data-location and override-sound-format.
+   5-Feb:    8 more header formats; show-marks is now the default.
+   28-Jan:   Oki adpcm and snd-trans.c little-endian cases.
+   21-Jan:   Transform type option menu with wavelet choice window.
+   19-Jan:   src in env editor and M-X (src-width, src-style). find and expr interruptible.
+   12-Jan:   autoResize resource.
+   8-Jan:    snd 1.2.
+             various env vars to customize envelope editor. Print dialog for enved print button.
+   1-Jan-98: save selection output file size calc was off in multi-channel case.
+
+1998 ----------------------------------------------------------------
+
+   22-Dec:   envelope editor dialog, Sun support except for recorder. filter-env function.
+   12-Dec:   defvar, named envelopes.
+   8-Dec:    fft freq axis is now dragable.
+   3-Dec:    Mix dialog is now a file selection box.  global-explen and friends.
+   6-Oct:    ports to UnixWare2 and OpenServer5 courtesy of Larry Plona.
+   30-Sep:   snd 1.1.
+             digital line-in recording fixed on the SGI.  snd.spec.
+   22-Sep:   iconify closes all active dialogs.
+   9-Sep:    read-only variable and icon.
+   8-Sep:    Lesstif 0.80 port (see README.Snd for caveats).  Raw data handling improved.
+   1-Sep:    record window implemented, save-as dialog uses file selection box.
+   13-Aug:   [space] to pause/continue playback.
+   11-Aug:   an icon and other sound support improvements in Linux.
+   20-July:  searching bugs fixed. global-set-key. space cancels selection. Snd to CLM communication improved (m-x lisp expr).
+   8-July:   cursor play stuff caused seg fault in region play.  no-rld stuff removed.
+   26-June:  y1..8 in parser.
+   24-June:  click mix console brings it to top of stack.
+   23-June:  C-x C-j: goto mix and other mix-<> functions. cursor follows play upon control-click.
+   20-June:  group/mixer support.  File save-as now remains in current file, rather than switching to new.
+   10-June:  print dialog. superimposed channel graphs (part 1).
+   4-June:   group editor.
+   19-May:   click file name for info.  
+   16-May:   cursor changes. sync'd mixes. green sashes!
+   13-May:   %spectrum works for normal fft.  Sound control labels are clickable.  initial-x0 and friends.
+   5-May:    support for explode in CLM with-sound. dB for sonogram etc.
+   23-Apr:   normalize-fft, better spectrum rotations.
+   14-Apr:   first mix console step. expand clicks fixed. 
+   4-Apr:    speed style option menu, associated variables.
+   20-Mar:   file update option. Most dialogs now not transient (not auto-raised). -remote switch.
+   18-Mar:   x axis units option.
+   17-Mar:   session options. selection play fixed.
+   14-Mar:   scale-by, scale-to, amp-envelope, with selection cases. More header types.
+   1-Mar:    data command for clm through-snd.
+   24-Feb:   Next switches, sessions, ufun action lists.
+   17-Feb:   file browser (view files).
+   10-Feb:   view color and orientation menu options, with associated color variables.
+   31-Jan:   file-loadable filter/envelopes.
+   20-Jan:   improved spectrogram rotation, keypad keymap, wavogram.
+   17-Jan:   dot-size. 'unite' button and Combine channels menu option. zoom focus choices (option menu).
+   8-Jan-97: fixed bug in fft peak calculation. Save-As in Edit menu improved.
+
+1997 ----------------------------------------------------------------
+
+   30-Dec:   clm display hooks.
+   23-Dec:   amp env improved.
+   18-Dec:   new file option smarter, spectrogram improved.
+   16-Dec:   more clm-snd connections, peaks command.
+   9-Dec:    Info menu option, save-marks.
+   4-Dec:    Linux fixups (XmCreateMessageDialog -> bad drawable)
+   20-Nov:   clm marks, fixed several apply and aiff header bugs
+   18-Oct:   Linux port. info option, c-X c-V
+   30-Sep:   snd-trans.c
+   17-Sep:   better support for schemes, cross disk saves
+   9-Sep-96: launched!
+
+1996 ----------------------------------------------------------------

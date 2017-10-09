@@ -1,0 +1,23 @@
+This directory contains various random scripts, scraps, snippets;
+a collection of tools used in Snd maintenance and development.
+The interested reader needs to keep in mind that these are quick
+hacks to do boring tasks; they are not intended for enshrinement
+in the Smithsonian. 
+
+Contents:
+
+va.scm		             	Check for common spelling mistakes, lack of trailing NULLs, etc.
+compsnd				Run a bazillion configuration/compilation tests
+testsnd				Run a bazillion tests
+gtk-headers-diffs		Find changes in Gtk headers (for xgdata.scm)
+sarchive                        Update backup directory, report changes
+table.scm			make snd-test contents list
+nor.scm				change \r\n to \n
+crossref.c			simple-minded cross referencer
+makexg.scm + xgdata.scm      	Build xg.c
+makegl.scm + gldata.scm        	Build gl.c
+make-index.scm         		Build index.html, snd-xref.c, elaborate html error checking
+snd.supp			Valgrind suppressions
+make-snd-diffs
+exs7.c                          some s7 examples (extracted from s7.h)
+sam.c				Samson box emulator

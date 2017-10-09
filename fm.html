@@ -1,0 +1,2655 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+<title>An Introduction to FM</title>
+
+<style type="text/css">
+        EM.noem {font-style: normal}
+        PRE.indented {padding-left: 1.0cm;}
+        TD.greenish {background-color: #eefdee}
+	TD.bluish {background-color: #f6f8ff}
+	TD.beige {background-color: beige}
+	TD.center {text-align: center}
+	TD.spaced {
+	          margin-left: 0.2cm;
+		  }
+	TD.bluishcentered {background-color: #f2f4ff;
+	                   text-align: center;
+			   }
+	TD.bluishb {background-color: #f2f4ff;
+	            text-align: center;
+		    border: 1px solid lightgray;
+		    padding-top: 0.1cm;
+		    padding-bottom: 0.1cm;
+		    }
+	IMG.indented {margin-left: 2.0cm}
+        DIV.spacer {margin-top: 1.0cm;
+	           }
+        TABLE.spaced {margin-left: 1.0cm;
+	              }		   
+	TABLE.bordered {border: 1px solid black;
+	                padding-left: 0.1cm;
+	                padding-right: 0.1cm;
+	                }
+	TABLE.borderedm {border: 1px solid black;
+	                padding-left: 0.2cm;
+	                padding-right: 0.2cm;
+			margin-left: 1.0cm;
+			margin-top: 0.5cm;
+			margin-right: 1.0cm;
+			padding-top: 0.2cm;
+			padding-bottom: 0.2cm;
+	                }
+
+	DIV.greenish {border: 1px solid gray;
+ 	              background-color: #eefdee;
+		      /* margin-left: 1.0cm; */
+		      margin-right: 1.0cm;
+		      margin-top: 0.5cm;
+			   padding-left: 0.4cm;
+			   padding-right: 0.4cm;
+			   padding-top: 0.5cm;
+			   padding-bottom: 0.5cm;
+		      }
+
+        DIV.header {margin-top: 60px;
+	            margin-bottom: 30px;
+	            border: 4px solid #00ff00; /* green */
+		    background-color: #eefdee; /* lightgreen */
+		    padding-left: 30px;
+	           }
+        DIV.topheader {margin-top: 10px;
+	            margin-bottom: 40px;
+	            border: 4px solid #00ff00; /* green */
+		    background-color: #f5f5dc; /* beige */
+		    font-family: 'Helvetica';
+		    font-size: 30px;
+		    text-align: center;
+		    padding-top: 10px;
+		    padding-bottom: 10px;
+	           }
+        DIV.centered {text-align: center;
+	               padding-bottom: 0.5cm;
+	             }
+        DIV.centered1 {padding-left: 30%;
+	               padding-bottom: 0.5cm;
+		       }
+	DIV.bordered { background-color: #f2f4ff; 
+	                   border: 1px solid gray;
+			   padding-left: 0.4cm;
+			   padding-right: 0.4cm;
+			   padding-top: 0.5cm;
+			   padding-bottom: 0.5cm;
+			   margin-left: 2.0cm;
+			   margin-right: 1.0cm;
+			   }
+        BODY.body {background-color: #ffffff;    /* white */
+	           margin-left: 0.5cm; 
+		   margin-right: 0.5cm;
+                   }
+</style>
+</head>
+<body class="body">
+
+<div class="topheader" id="fmintro">An Introduction To FM</div>
+<div class="centered1">
+<img src="pix/fmad1.png" alt="radio ad">
+<img src="pix/fmad2.png" alt="intro">
+
+<!--
+	this Zenith brochure is probably from around 1952: these 3 models were introduced
+	between 1950 and 1952.  Schematics are available online,
+	http://www.nostalgiaair.org/PagesByModel/573/M0025573.pdf
+	for example (the others are at the same site).  There are
+	much better photos online for the H models, but I think this
+	is the best picture of the "Waldorf".  They used 7 or 8 tubes.
+	H723 and H725 were from 1951. Earliest FM radios (using a different
+	frequency band) were from ca 1940.  There are good pictures at various websites,
+	http://userpages.bright.net/~geary/fm/index.html for example.
+-->
+</div>
+<div class="centered">Bill Schottstaedt</div>
+
+<!-- the latex stuff is always embedded in:
+
+\documentclass{amsart}
+\begin{document}
+\thispagestyle{empty}
+\Large
+...
+\end{document}
+
+-->
+
+<!-- INDEX fmintro:Frequency Modulation -->
+
+<p>In frequency modulation we modulate the frequency &mdash; "modulation" here is just a latinate word for 
+"change".  Vibrato and glissando are frequency modulation.  John Chowning tells me that he 
+stumbled on FM when he sped up vibrato to the point that it was creating audible sidebands 
+(perceived as a timbral change) rather than faster warbling (perceived as a frequency change).  We 
+can express this (the vibrato, not the neat story) as:
+</p>
+
+<!-- LATEX \[\cos \, (\omega_{c}t+f(t))\] -->
+
+<img class="indented" src="pix/fmeq1.png" alt="cos(wt + f)">
+
+<p>where the c subscript stands for "carrier" and f(t) means "some arbitrary function added to the 
+carrier".  Since cos takes an angle as its argument, f(t) modulates (that is, changes) the angle 
+passed to the cosine, hence the generic name "angle modulation".  We can add that change either to
+the argument to cos
+("phase modulation", <code>cos(angle + change)</code>), or add it to the current phase, then take cos of that 
+("frequency modulation", <code>cos(angle += change)</code>), so
+our formula can viewed either way.  Since the angle is being incremented by the carrier frequency in
+either case, the difference is between:
+</p>
+<pre class="indented">
+PM: cos((angle += incr) + change)
+FM: cos(angle += (incr + change))
+</pre>
+<p>
+To make the difference clear, textbooks
+put in an integral when they mean 
+frequency modulation:
+</p>
+
+
+<!-- LATEX
+fmeq3:
+\cos \, (\omega_{c}t + \!\int_{0}^{t}\! f(t) \, \mathrm{d} t)
+-->
+
+<img class="indented" src="pix/fmeq3.png" alt="cos + integral">
+
+
+<p>In PM we change the phase, in FM we change the phase increment, and
+to go from FM to PM, integrate the FM modulating signal.
+But you can't tell which is in use 
+from the output waveform; you have to know 
+what the modulating signal is.  In sound synthesis, where we can do what we want with the modulating signal,
+there is no essential difference between frequency and phase modulation. 
+</p>
+
+
+<div class="bordered">
+
+<p>I would call this issue a dead horse, but it is still causing confusion, even 40 years
+down the road. So,
+here are two CLM instruments, one performing 
+phase modulation, the other performing frequency modulation.  I have tried to make the innards 
+explicit at each step, and match the indices so that the instruments produce the same results given 
+the same parameters.  Also, to lay a different controversy to rest, it should be obvious from these two 
+functions that there is no difference in run-time computational expense or accuracy.
+</p>
+
+<!-- CLM CASE
+<pre class="indented">
+(definstrument pm (beg end freq amp mc-ratio index) ; "mc-ratio" = modulator to carrier frequency ratio
+  (let ((carrier-phase 0.0) ; set to pi/2 if someone tells you PM can't generate energy at DC
+        (carrier-phase-incr (hz-&gt;radians freq))
+        (modulator-phase 0.0)
+        (modulator-phase-incr (hz-&gt;radians (* freq mc-ratio)))
+        (modulation 0.0)
+        (val 0.0))
+   (run
+     (loop for i from beg to end do
+       (setf modulation (* index (sin modulator-phase)))
+       (setf val (* amp (sin (+ carrier-phase modulation)))) 
+       ;; no integration in phase modulation
+       (incf carrier-phase carrier-phase-incr)
+       (incf modulator-phase modulator-phase-incr)
+       (outa i val)))))
+
+(definstrument fm (beg end freq amp mc-ratio index)
+  (let* ((carrier-phase 0.0)
+         (carrier-phase-incr (hz-&gt;radians freq))
+         (modulator-phase-incr (hz-&gt;radians (* freq mc-ratio)))
+         (modulator-phase (* 0.5 (+ pi modulator-phase-incr)))
+	 ;; (pi+incr)/2 to get (centered) sin after integration, to match pm case above
+         (fm-index (hz-&gt;radians (* freq mc-ratio index)))  
+	 ;; fix up fm index (it's a frequency change)
+         (val 0.0)
+         (modulation 0.0))
+   (run
+     (loop for i from beg to end do
+       (setf modulation (* fm-index (sin modulator-phase)))
+       (incf carrier-phase modulation)      
+       ;; here is the fm integration
+       (setf val (* amp (sin carrier-phase)))
+       (incf carrier-phase carrier-phase-incr)
+       (incf modulator-phase modulator-phase-incr)
+       (outa i val)))))
+
+(with-sound () (pm 0 10000 1000 .5 0.25 4))
+(with-sound () (fm 0 10000 1000 .5 0.25 4))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (pm beg end freq amp mc-ratio index)  ; "mc-ratio" = modulator to carrier frequency ratio
+  (let ((carrier-phase 0.0) ; set to pi/2 if someone tells you PM can't produce energy at 0Hz
+        (carrier-phase-incr (hz-&gt;radians freq))
+        (modulator-phase 0.0)
+        (modulator-phase-incr (hz-&gt;radians (* mc-ratio freq))))
+    (do ((i beg (+ i 1)))
+	((= i end))
+      (let* ((modulation (* index (sin modulator-phase)))
+	     (pm-val (* amp (sin (+ carrier-phase modulation))))) 
+	     ;; no integration in phase modulation
+	(set! carrier-phase (+ carrier-phase carrier-phase-incr))
+	(set! modulator-phase (+ modulator-phase modulator-phase-incr))
+	(outa i pm-val)))))
+
+(define (fm beg end freq amp mc-ratio index)
+  (let* ((carrier-phase 0.0)
+	 (carrier-phase-incr (hz-&gt;radians freq))
+	 (modulator-phase-incr (hz-&gt;radians (* mc-ratio freq)))
+	 (modulator-phase (* 0.5 (+ pi modulator-phase-incr)))
+	 ;; (pi+incr)/2 to get (centered) sin after integration, to match pm case above
+	 (fm-index (hz-&gt;radians (* mc-ratio freq index))))
+	 ;; fix up fm index (it's a frequency change)
+    (do ((i beg (+ i 1)))
+	((= i end))
+      (let ((modulation (* fm-index (sin modulator-phase)))
+	    (fm-val (* amp (sin carrier-phase))))
+	(set! carrier-phase (+ carrier-phase modulation carrier-phase-incr))
+	(set! modulator-phase (+ modulator-phase modulator-phase-incr))
+	(outb i fm-val)))))
+
+(with-sound (:channels 2) 
+  (pm 0 10000 1000 .5 0.25 4)
+  (fm 0 10000 1000 .5 0.25 4))
+
+(with-sound (:channels 2) 
+  (pm 0 10000 1000 .5 0.5 10)
+  (fm 0 10000 1000 .5 0.5 10))
+</pre>
+<!-- -->
+
+</div>
+
+
+<!-- a check of these instruments:
+
+(define (channel-distance-max s1 c1 s2 c2)
+  (let* ((r1 (make-sampler 0 s1 c1))
+	 (r2 (make-sampler 0 s2 c2))
+	 (sum 0.0)
+	 (mx 0.0)
+	 (mxloc 0)
+	 (N (min (framples s1 c1) (framples s2 c2))))
+    (do ((i 0 (+ i 1)))
+	((= i N))
+      (let ((diff (- (r1) (r2))))
+	(if (> (abs diff) mx)
+	    (begin
+	      (set! mx (abs diff))
+	      (set! mxloc i)))
+	(set! sum (+ sum (* diff diff)))))
+    (list (sqrt sum) mx mxloc)))
+
+
+(with-sound (:channels 2 :srate 44100)
+	    (pm 0 100000 1000 .25 0.5 4)
+	    (fm 0 100000 1000 .25 0.5 4))
+
+(channel-distance-max 0 0 0 1)
+(0.0295699815499316 2.01372429728508e-4 54261)
+
+
+(with-sound (:channels 2 :srate 44100)
+	    (pm 0 100000 1000 .25 0.5 10)
+	    (fm 0 100000 1000 .25 0.5 10))
+
+(channel-distance-max 0 0 0 1)
+(0.0930102199004151 5.19216060638428e-4 97657)
+
+
+(with-sound (:channels 2 :srate 44100)
+	    (pm 0 100000 4000 .5 .25 10)
+	    (fm 0 100000 4000 .5 .25 10))
+
+(channel-distance-max 0 0 0 1)
+(0.619834957208772 0.00419910810887814 99588)
+
+
+(with-sound (:channels 2 :srate 441000)
+	    (pm 0 100000 4000 .5 .25 10)
+	    (fm 0 100000 4000 .5 .25 10))
+
+(channel-distance-max 0 0 0 1)
+(0.00620158844593978 4.19728457927704e-5 339)
+
+
+(with-sound (:channels 2 :srate 22050)
+	    (fmdoc-pm 0 100000 4000 .5 .25 10)
+	    (fmdoc-fm 0 100000 4000 .5 .25 10))
+
+(channel-distance-max 0 0 0 1)
+(2.47456807755109 0.0168174412101507 99627)
+
+;;; the difference is proportional to the inverse square of the sampling rate,
+;;;   which I interpret as caused by the "centering"; it is hard to say what
+;;;   the "true" or effective FM modulator initial-phase is, so a naive comparison
+;;;   with the bessel functions makes FM look "inaccurate".  We can turn the
+;;;   tables by using cos, and a PM modulator initial phase of
+;;;       (+ pi (* 0.5 (+ pi (hz->radians mfreq))))
+;;;   (to match outputs), then complain that PM is inaccurate. Just to add to 
+;;;   the confusion, in the latter case, the difference seems to be directly 
+;;;   proportional to srate(?); enough...
+
+-->
+
+
+<div class="greenish">simple FM: sin(sin)</div>
+
+<p>Given our formula for FM, let's assume, for starters, that f(t) is a sinusoid:
+</p>
+
+<!-- LATEX \[  \cos \, (\omega_{c}t+B\sin \omega_{m}t)  \] -->
+
+<img class="indented" src="pix/fmeq4.png" alt="cos(sin)">
+
+
+<p>where the "m" stands for "modulator" and the "B" factor is usually called the modulation index.
+The corresponding CLM code is:
+</p>
+
+<pre class="indented">
+(oscil carrier (* B (oscil modulator)))
+</pre>
+
+<p>where oscil is (essentially):
+</p>
+
+<!-- CLM CASE 
+<pre class="indented">
+(defun oscil (oscillator &amp;optional (fm-input 0.0) (pm-input 0.0))
+  (prog1 
+    (sin (+ (mus-phase oscillator) pm-input))
+    (incf (mus-phase oscillator) (+ (mus-frequency oscillator) fm-input))))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define* (oscil oscillator (fm-input 0.0) (pm-input 0.0))
+  (let ((result (sin (+ oscillator-phase pm-input))))
+    (set! oscillator-phase (+ oscillator-phase (+ oscillator-phase-increment fm-input)))
+    result))
+</pre>
+<!-- -->
+
+<p>Since it is generally believed that the ear performs some sort of projection of the time domain 
+waveform into the frequency domain (a Fourier Transform), and that timbre is at least partly a matter 
+of the mix of frequencies present (the spectrum), our main interest in the FM formula is in the 
+spectrum it produces.  To determine that spectrum, we have to endure some tedious mathematics.  
+By the trigonometric identity:
+</p>
+
+<!-- LATEX \[  \cos (a+b)=\cos a\cos b - \sin a \sin b  \] -->
+
+<img class="indented" src="pix/fmeq5.png" alt="cos a+b">
+
+
+<!-- LATEX \[B\sin \omega_{m}t  \] -->
+
+<p>we can substitute <img src="pix/fmeq23.png" alt="wct"> for "a" and
+<img src="pix/fmeq9.png" alt="bsin">
+for "b" and get:
+</p>
+
+
+<!-- LATEX \[  \cos (\omega_{c}t+B\sin \omega_{m}t)=\cos \omega_{c}t \, \cos (B \sin \omega_{m}t) - \sin \omega_{c}t \, \sin (B\sin \omega_{m}t)  \] -->
+
+<img class="indented" src="pix/fmeq6.png" alt="cos (sin) expanded">
+
+
+<p>If we can get a Fourier transform of the two inner portions: 
+<img src="pix/fmeq41.png" alt="cos sin"> and
+<img src="pix/fmeq40.png" alt="sin sin">, we can use:
+</p>
+
+<!-- LATEX \[  \cos (B \sin \omega_{m}t) \textrm{ and } \sin (B\sin \omega_{m}t)  \]: fmeq7 -->
+<!-- LATEX \sin (B\sin \omega_{m}t): fmeq40 -->
+<!-- LATEX \cos (B \sin \omega_{m}t): fmeq41 -->
+
+<!-- <img src="pix/fmeq7.png" alt="cos and sin"> -->
+
+
+<!-- LATEX 
+\Large
+\begin{eqnarray*}
+\cos a \, \cos b = \frac{1}{2}(\cos (a-b) + \cos(a+b)) \\
+\sin a \, \sin b = \frac{1}{2}(\cos (a-b) - \cos(a+b)) \\
+\end{eqnarray*}
+-->
+
+<img class="indented" src="pix/fmeq8.png" alt="coscos and sinsin">
+
+
+<!-- LATEX \omega_{c}t -->
+<p>to get the final results.  "A" here is
+<img src="pix/fmeq23.png" alt="wct">
+in the earlier formulas,  and "B" is either
+<img src="pix/fmeq41.png" alt="cos sin"> or
+<img src="pix/fmeq40.png" alt="sin sin">.
+The Fourier transform we want is not obvious to us (not to me, certainly!), so we go to Abramowitz and Stegun, 
+"Handbook of Mathematical Functions" and find (formulas 9.1.42 and 9.1.43):
+</p>
+
+
+<!-- LATEX \cos(B\sin\omega_{m}t)=J_{0}(B)+2J_{2}(B)\cos 2\omega_{m}t + \,\cdots\, + 2J_{2n}(B)\cos 2n\omega_{m}t + \,\cdots -->
+
+<img class="indented" src="pix/fmeq10.png" alt="cos B sin t">
+
+<!-- LATEX \sin(B\sin\omega_{m}t)=2J_{1}(B)\sin\omega_{m}t+2J_{3}(B)\sin 3\omega_{m}t + \,\cdots\, + 2J_{2n-1}(B)\sin (2n-1)\omega_{m}t + \,\cdots -->
+<img class="indented" src="pix/fmeq11.png" alt="sin B sin t">
+
+<table>
+<tr><td>
+
+<p>Here the J's refer to the Bessel functions which we will return to later. 
+First, let's finish this 
+expansion; we take these two sums and 
+<img src="pix/fmeq23.png" alt="wct">
+and plug them into our first expansion of the FM 
+formula, and out pops:
+</p>
+
+
+<!-- LATEX
+\Large
+\begin{eqnarray*}
+\lefteqn{ \cos(\omega_{c}t + B\sin\omega_{m}t) } \\
+&& {} =J_{0}(B)\cos \omega_{c}t \\
+&& {} -J_{1}(B)(\cos(\omega_{c} - \omega_{m})t - \cos(\omega_{c} + \omega_{m})t) \\
+&& {} +J_{2}(B)(\cos(\omega_{c} - 2\omega_{m})t + \cos(\omega_{c} + 2\omega_{m})t) \\
+&& {} -J_{3}(B)(\cos(\omega_{c} - 3\omega_{m})t - \cos(\omega_{c} + 3\omega_{m})t) + \cdots
+\end{eqnarray*}
+-->
+
+<img class="indented" src="pix/fmeq12.png" alt="cos w+sin">
+
+
+<p>or in a slightly more compact form:
+</p>
+
+<!-- LATEX \sum_{n=-\infty}^{\infty} \! \! J_{n}(B)\cos(\omega_{c} + n\omega_{m})t -->
+
+<img class="indented" src="pix/fmeq13.png" alt="sum J cos">
+
+
+<!-- LATEX J_{-n}(x) = (-1)^{n}J_{n}(x) -->
+
+<p>Here we are using the fact that
+<img src="pix/fmeq14.png" alt="J - J">.
+We can change our point of view on the first part of the expansion given above, and ask for the 
+amplitude of a given sideband:
+</p>
+
+<!-- LATEX J_{n}(B) = \frac{2}{\pi} \int_{0}^{\frac{\pi}{2}} \sin(B\sin\omega) \sin n\omega \: \mathrm{d}\omega \qquad \textrm{(n odd)} -->
+
+<img class="indented" src="pix/fmeq15.png" alt="J sin int"><br>
+
+<!-- LATEX J_{n}(B) = \frac{2}{\pi} \int_{0}^{\frac{\pi}{2}} \cos(B\sin\omega) \cos n\omega \: \mathrm{d}\omega \qquad \textrm{(n even)} -->
+
+<img class="indented" src="pix/fmeq16.png" alt="J cos int">
+
+
+<!-- LATEX \omega_{m} : fmeq42 -->
+<!-- LATEX \omega_{c} : fmeq43 -->
+
+<p>We end up with a spectrum made up of a "carrier" at 
+<img src="pix/fmeq43.png" alt="wc">
+and symmetrically placed sidebands 
+separated by
+<img src="pix/fmeq42.png" alt="wm">.  
+The amplitudes follow the Bessel functions.  I put carrier in quotes because in 
+computer music we listen to the result of the modulation (this was Chowning's idea &mdash; see "The 
+Synthesis of Complex Audio Spectra by Means of Frequency Modulation").  The Bessel functions 
+are nearly 0 until the index (B) equals the order (n).  Then they have a bump and tail off as
+a sort of damped sinusoid:
+</p>
+
+</td><td>
+<table class="bordered">
+<tr><td>
+<img src="pix/jacobi.png" alt="page from Jacobi's works">
+</td></tr>
+<tr>
+<td class="bluishb">
+C G J Jacobi, Gesammelte Werke, VI 101
+</td></tr></table>
+</td></tr></table>
+
+<img src="pix/bessel.png" alt="bessel functions">
+
+<p>
+As the index sweeps 
+upward, energy is swept gradually outward into higher order side bands; this is the originally 
+exciting, now extremely annoying "FM sweep".
+The important thing to get from these Bessel functions is that the higher the index, the 
+more dispersed the spectral energy &mdash; normally a brighter sound.
+</p>
+
+<table class="bordered">
+
+<tr>
+<td class="bluishb">carrier=1000, mod=100, index=1.0</td>
+<td class="bluishb">carrier=1000, mod=100, index=2.0</td>
+<td class="bluishb">carrier=1000, mod=100, index=3.0</td>
+</tr>
+
+<tr>
+<td><img src="pix/fm10.png" alt="fm 1.0"></td>
+<td><img src="pix/fm20.png" alt="fm 2.0"></td>
+<td><img src="pix/fm30.png" alt="fm 3.0"></td>
+</tr>
+
+<tr>
+<td>
+<pre>
+  J0(1.0) = 0.765 -&gt; 1.0 (*)
+  J1(1.0) = 0.440 -&gt; 0.575
+  J2(1.0) = 0.115 -&gt; 0.150
+  J3(1.0) = 0.019 -&gt; 0.025
+  J4(1.0) = 0.002 -&gt; 0.003
+
+(* Jn values normalized to match
+the peak values given above)
+</pre>
+</td><td>
+<pre>
+  J0(2.0) = 0.224 -&gt; 0.388 (*)
+  J1(2.0) = 0.577 -&gt; 1.0
+  J2(2.0) = 0.353 -&gt; 0.611
+  J3(2.0) = 0.129 -&gt; 0.223
+  J4(2.0) = 0.034 -&gt; 0.058
+  J5(2.0) = 0.007 -&gt; 0.012
+  J6(2.0) = 0.001 -&gt; 0.002
+</pre>
+<small>(A larger FFT reduces the mismatch)</small>
+<!-- well, sort of; almost exact: Dolph-Chebyshev window, B=0.9, (also Blackman10), size=2^22, srate=1000000, carfreq=1000 -->
+</td>
+<td>
+<pre>
+  J0(3.0) = -0.260 -&gt; -0.534 (*)
+  J1(3.0) = 0.339 -&gt;  0.697
+  J2(3.0) = 0.486 -&gt;  1.0
+  J3(3.0) = 0.309 -&gt;  0.635
+  J4(3.0) = 0.132 -&gt;  0.271
+  J5(3.0) = 0.043 -&gt;  0.088
+  J6(3.0) = 0.011 -&gt;  0.023
+</pre>
+</td>
+</tr>
+</table>
+
+<!-- in code:
+(let ((amps (make-vector 20 0.0))
+      (freq (hz->radians 100)))
+  (vector-set! amps 10 (bes-jn 0 1.0))
+  (do ((i 1 (+ i 1)))
+      ((= i 5))
+    (vector-set! amps (- 10 i) (bes-jn (- i) 1.0))
+    (vector-set! amps (+ 10 i) (bes-jn i 1.0)))
+
+  (with-sound (:channels 2)
+    (do ((i 0 (+ i 1))
+	 (x 0.0 (+ x freq)))
+	((= i 44100))
+      (let ((y 0.0))
+	(do ((j 5 (+ j 1)))
+	    ((= j 16))
+	  (set! y (+ y (* (amps j) (sin (* x j))))))
+	(outa i y)
+	(outb i (sin (+ (* x 10) (sin x))))))))
+-->
+
+<p>There is a rule of thumb, Mr Carson's rule, about the overall bandwidth of the resultant spectrum (it 
+follows from our description of the Bessel functions): Roughly speaking, there are fm-index+1 
+significant sidebands on each side of the carrier, so our total bandwidth is more or less
+</p>
+
+<pre class="indented">
+2 * modulator-frequency * (fm-index + 1)
+</pre>
+
+<p>This is a good approximation &mdash; 99% of the signal power is within its limits.  To turn that around, we can 
+reduce the danger of aliasing by limiting the FM index to approximately (srate/2 - carrier_frequency) / modulator_frequency;
+use srate/4 to be safer.  (Mr Carson's opinion of FM: "this method of modulation inherently distorts without any compensating
+advantages whatsoever").
+</p>
+
+<p>One hidden aspect of the FM expansion is that it produces a time domain waveform that is not "spikey".
+If we add cosines at the amplitudes given by the Bessel functions (using additive synthesis to
+produce the same magnitude spectrum as FM produces), we get a very different waveform.  Doesn't the
+FM version sound richer and, far more importantly, louder? 
+</p>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/fmtime.png" alt="time domain comparisons">
+</td></tr>
+<tr><td class="bluishcentered">
+FM waveform (index: 3.0) vs sum of cosines with the same (relative) component amplitudes
+</td></tr>
+</table>
+
+<p>
+From one point of view (looking at FM as changing the phase passed to 
+the sin function), it's obvious that the output waveform should be this well behaved, but looking at it from its components,
+it strikes me as a minor miracle that there is a set of amplitudes (courtesy of the Bessel functions) that fits together so perfectly.
+Here is an attempt to graph
+the 15 main components, with their sum in black:
+</p>
+
+<!-- the min peak attribute is surprising because it means FM is a worst case;
+  yet searches so far have come up empty!
+  and oddly there seem to be bazillions of cases at 1.0: symmetry?
+  (accidentally deleted the data, but see t738.scm to recompute it)
+-->
+
+<img src="pix/fmadd.png" alt="fm components">
+<br>
+
+<!--
+(define (fm-it freq index)
+  (with-sound (:channels 1 :clipped #f)
+    (let* ((angle 0.0)
+	   (incr (hz->radians 1.0))
+	   (n (ceiling (+ index 5)))
+	   (cur-phases (make-vct (* (+ n 1) 3 2))))
+
+      (do ((i 0 (+ i 1))
+	   (j 0 (+ j 3)))
+	  ((> i n))
+	(set! (cur-phases j) (+ 10 i))
+	(set! (cur-phases (+ j 1)) (abs (bes-jn i index)))
+	(set! (cur-phases (+ j 2)) (/ pi 2)))
+
+      (do ((i 1 (+ i 1))
+	   (j (* (+ n 1) 3) (+ j 3)))
+	  ((> i n))
+	(set! (cur-phases j) (- 10 i))
+	(set! (cur-phases (+ j 1)) (abs (bes-jn i index)))
+	(set! (cur-phases (+ j 2)) (/ pi 2)))
+
+      (let ((gen (make-polyoid freq cur-phases)))
+	 (do ((i 0 (+ i 1)))
+	     ((= i 88200))
+	   (outa i (polyoid gen 0.0)))))))
+
+(with-sound ("test1.snd")
+  (let* ((cgen (make-oscil 1000))
+         (mgen (make-oscil 100))
+	 (index (hz->radians (* 3 100))))
+    (do ((i 0 (+ i 1)))
+	((= i 44100))
+      (outa i (oscil cgen (* index (oscil mgen)))))))
+
+
+(define (all-fm freq index tries)
+  (let* ((incr (/ (* 2 pi) tries))
+	 (max-rms 0.0)
+	 (min-rms 1.0)
+	 (fm-index (hz->radians (* index freq))))
+
+    (with-sound (:clipped #f)
+      (do ((try 0 (+ 1 try))
+	   (mod-phase 0.0 (+ mod-phase incr)))
+	  ((= try tries))
+	(let* ((cargen (make-oscil (* freq 10) (/ pi 2))) ; or 0 phase
+	       (modgen (make-oscil freq mod-phase))
+	       (samps 44100)
+	       (sum 0.0))
+	  (do ((samp 0 (+ 1 samp)))
+	      ((= samp samps))
+	    (let ((val (oscil cargen (* fm-index (oscil modgen)))))
+	      (set! sum (+ sum (* val val)))))
+	  (let ((rms (sqrt (/ sum samps))))
+	    (set! max-rms (max max-rms rms))
+	    (set! min-rms (min min-rms rms))
+	    (outa try rms)))))
+    (list min-rms max-rms)))
+-->
+
+
+<!-- LATEX sceq42: \frac{1}{2i}(e^{ix} - e^{-ix}) -->
+
+<!-- LATEX 
+fmeq17: 
+OLD:
+\int_{-\pi}^{\pi}e^{i(B\sin \omega_{m}t - n\omega_{m}t)} \, \mathrm{d}t
+NEW:
+fmeq17: e^{\frac{1}{2}(t - \frac{1}{t})}
+-->
+
+<!-- LATEX fmeq45.png: e^{iz \cos \theta} \! = \sum i^{n} J_{n}(z) \, e^{i n \theta} -->
+
+<!-- LATEX fmeq59.png:
+& \mathrm{define} \ J_{n}(x) = \sum_{0}^{\infty}\frac{(-1)^{s}x^{n+2s}}{2^{n+2s}s!(n+s)!} \quad
+\mathrm{now}\ e^{\frac{x}{2}\left(t - \frac{1}{t}\right)} = \left(e^{\frac{xt}{2}}\right) \left(e^{\frac{-x}{2t}}\right) = \left(\sum_{0}^{\infty} \frac{x^{r} t^{r}}{2^{r} r!}\right) \left(\sum_{0}^{\infty} \frac{(-1)^{s} x^{s} t^{-s}}{2^{s} s!}\right) = \sum \sum \frac{(-1)^{s}x^{r+s} t^{r-s}}{2^{r+s}\, r! s!} = \sum_{-\infty}^{\infty} J_{n}(x) t^{n} \quad
+\mathrm{and}\ \mathrm{let}\  t = e^{i\phi} \\
+-->
+
+
+<table class="borderedm">
+<tr><td>
+Then there's the perennial question "why Bessel functions?". 
+Most explanations start with <img src="pix/fmeq45.png" alt="jacobi formula">: <em>obscurum per obscurius</em>!  
+A different tack might be to start with <img src="pix/sceq42.png" alt="sin in terms of e">, a definition of sine,
+and call the "e^(ix)" terms "t", 
+then cos(sin) involves terms like <img src="pix/fmeq17.png" alt="cos(sin) in e">,
+which is one (convoluted) way to define Bessel functions. 
+Or perhaps most forthright, start with the formula for Jn(B) given above (the integral), and say "we want cos(sin) expanded as a sum of cosines, and we
+define Jn to be the nth coefficient in that sum".
+This was the approach of Bessel and other 19th century mathematicians, but it is not very satisfying for some reason.  Perhaps history can help?
+These functions were
+studied by Daniel Bernoulli (the vibrations of a heavy chain, 1738), 
+Euler (the vibrations of a membrane, 1764), Lagrange (planetary motion, 1770),
+and Fourier (the motion of heat in a cylinder, 1822); Bessel studied them in the context of Kepler's equation, and wrote a monograph
+about them in 1824. 
+For an explanation of the connection between planetary motion and FM, see Benson, "Music: A Mathematical Offering".
+Just for completeness, here's a derivation following Gray and Mathews, "A Treatise on Bessel Functions":
+<img src="pix/fmeq59.png" alt="et again">
+</td></tr></table>
+
+
+<!-- should we do the expansion by hand? -->
+
+
+<div class="greenish">simple FM examples</div>
+
+<p>Here's a simple FM instrument:
+</p>
+
+
+<!-- CLM CASE 
+<pre class="indented">
+(definstrument fm (beg dur freq amp mc-ratio index &amp;optional (index-env '(0 1 100 1)))
+  (let* ((start (seconds-&gt;samples beg))
+         (end (+ start (seconds-&gt;samples dur)))
+         (cr (make-oscil freq))
+         (md (make-oscil (* freq mc-ratio)))
+         (fm-index (hz-&gt;radians (* index mc-ratio freq)))
+         (ampf (make-env index-env :scaler amp :duration dur)) 
+         (indf (make-env index-env :scaler fm-index :duration dur))) 
+    (run
+      (loop for i from start to end do
+        (outa i (* (env ampf) 
+                   (oscil cr (* (env indf) 
+                                (oscil md)))))))))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define* (fm beg dur freq amp mc-ratio index (index-env '(0 1 100 1)))
+  (let* ((start (seconds-&gt;samples beg))
+         (end (+ start (seconds-&gt;samples dur)))
+         (cr (make-oscil freq))
+         (md (make-oscil (* freq mc-ratio)))
+         (fm-index (hz-&gt;radians (* index mc-ratio freq)))
+         (ampf (make-env index-env :scaler amp :duration dur)) 
+         (indf (make-env index-env :scaler fm-index :duration dur)))
+    (do ((i start (+ i 1)))
+        ((= i end))
+      (outa i (* (env ampf)                       ; amplitude env
+                 (oscil cr (* (env indf)          ; carrier + modulation env
+                              (oscil md))))))))   ; modulation
+</pre>
+<!-- -->
+
+
+<p>I put an envelope on the fm-index ("indf" above) to try out dynamic spectra ("dynamic" means 
+"changing" here).  For now, don't worry too much about the actual side band amplitudes.  They
+will not always match Chowning's description, but we'll get around to an explanation eventually.
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 100 .5 1.0 4.0))
+</pre>
+
+<p>is Chowning's first example.  Sure enough, it's a complex spectrum (that is, it has lots of 
+components; try an index of 0 to hear a sine wave, if you're suspicious).  Since our modulating 
+frequency to carrier frequency ratio (mc-ratio above) is 1.0, we get sidebands at harmonics of the 
+carrier. If we use an mc-ratio of .25 and a carrier of 400:
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 400 .5 0.25 4.0))
+</pre>
+
+<p>we end up with the same perceived pitch because the sidebands are still at multiples of 100 Hz.
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 400 .5 1.1414 4.0))
+</pre>
+
+<p>has inharmonic sidebands.  Most real sounds seem to change over the course of a note, and it was at one time thought that most 
+of this change was spectral.  To get a changing spectrum, we need only put an envelope on the fm-index:
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 0.5 400 .5 1.0 5.0 '(0 0 20 1 40 .6 90 .5 100 0)))
+</pre>
+
+<p>making a brass-like sound.  Similarly, Chowning suggests that
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 900 .5 1/3 2.0 '(0 0 6 .5 10 1 90 1 100 0)))
+</pre>
+
+<p>is a woodwind-like tone,
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 500 .5 .2 1.5 '(0 0 6 .5 10 1 90 1 100 0)))
+</pre>
+
+<p>is bassoon-like, and finally
+</p>
+
+<pre class="indented">
+(with-sound () (fm 0 1.0 900 .5 2/3 2 '(0 0 25 1 75 1 100 0)))
+</pre>
+
+<p>is clarinet-like.  Now start at 2000 Hz, set the mc-ratio to .1, and
+sweep the FM index from 0 to 10, and the spectrogram looks like this:
+</p>
+
+<img src="pix/fmsweep.png" alt="sweep index">
+
+<p>
+There is a lot of music in simple FM.  You get a full spectrum at little computational expense, and
+the index gives you a simple and intuitive way to change that spectrum.
+Since the output peak amplitude
+is not affected by the modulating signal (cos(x) is between -1 and 1 no matter what x is, as long as it is real),
+we can wrench the index around with wild abandon.
+And since the number of significant components in the spectrum is nearly proportional to the index
+(Carson's rule), we can usually predict more or less what index we want for a given spectral result.
+</p>
+
+<!-- LATEX fmeq54: & J_{n}(ix) = i^{n} I_{n}(x) G&R 8.406 -->
+<!-- LATEX fmeq55: & \sum i^{n} I_{n}(b)\cos(\omega_{c} + n\omega_{m})t -->
+<!-- LATEX fmeq56: & \sum \sum i^{k} J_{n}(a) I_{k}(b)\cos(\omega_{c} + (n + k)\omega_{m})t -->
+
+
+
+<table class="borderedm">
+<tr><td>
+<p>A slightly bizarre sidelight: there's no law against a modulating signal made up of complex numbers.
+In this case, cos is no longer bounded, so the output can peak at anything, but
+we still get FM-like spectra.  <img src="pix/fmeq54.png" alt="J=I">, where "I" is
+the modified Bessel function,
+so if our index is purely imaginary, we can expand cos(wc + bi sin wm)t as
+</p>
+
+<img class="indented" src="pix/fmeq55.png" alt="i case">
+
+<p>If our index is a + bi, we get
+</p>
+
+<img class="indented" src="pix/fmeq56.png" alt="a=bi case">
+
+<p>This looks similar to normal FM,
+but with normalization headaches.  Perhaps we can take advantage of the split betweeen the
+real and imaginary parts &mdash; unexplored territory!
+</p>
+</td></tr>
+<tr><td>
+<table>
+<tr><td>
+<img src="pix/fmc63.png" alt="complex index fm 6.0+3.0i 0.5 interp">
+</td></tr>
+<tr><td class="bluishb">here the index is 6+3i
+</td></tr></table>
+</td></tr></table>
+
+<!-- here's an instrument to test complex indices:
+
+(define* (fmc beg dur freq amp mc-ratio index)
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+         (cr 0.0)
+	 (cr-incr (hz->radians freq))
+	 (md-incr (hz->radians (* freq mc-ratio)))
+	 (md 0.0) ; (* 0.5 (+ pi md-incr)))
+         (fm-index (/ (* 2 pi index mc-ratio freq) *clm-srate*))) ; hz->radians with complex arg and result
+    (do ((i start (+ i 1)))
+	((= i end))
+      (outa i (* amp (real-part (sin cr)))) ; or magnitude in place of real-part
+      (set! cr (+ cr cr-incr (* fm-index (sin md))))
+      (set! md (+ md md-incr)))))
+
+; (with-sound (:clipped #f :statistics #t) (fmc 0 1 1000.0 1.0 0.1 0.5+1.0i))
+
+(define* (pmc beg dur freq amp mc-ratio fm-index)
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+         (cr 0.0)
+	 (cr-incr (hz->radians freq))
+	 (md-incr (hz->radians (* freq mc-ratio)))
+	 (md 0.0))
+    (do ((i start (+ i 1)))
+	((= i end))
+      (outa i (* amp (real-part (sin (+ cr (* fm-index (sin md)))))))
+      (set! cr (+ cr cr-incr))
+      (set! md (+ md md-incr)))))
+
+; (with-sound (:clipped #f :statistics #t) (pmc 0 1 1000.0 1.0 0.1 0.5+1.0i))
+
+(define* (fpmc beg dur freq amp mc-ratio fm-index interp)
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+         (cr 0.0)
+	 (cr-incr (hz->radians freq))
+	 (md-incr (hz->radians (* freq mc-ratio)))
+	 (md 0.0))
+    (do ((i start (+ i 1)))
+	((= i end))
+      (let ((val (sin (+ cr (* fm-index (sin md))))))
+        (outa i (* amp (+ (* (- 1.0 interp) (real-part val))
+                          (* interp (imag-part val)))))
+        (set! cr (+ cr cr-incr))
+        (set! md (+ md md-incr))))))
+
+;(with-sound (:clipped #f :statistics #t) (fpmc 0 1 1000.0 1.0 0.1 0.5+0.5i 0.5))
+;(with-sound (:clipped #f :statistics #t) (fpmc 0 1 1000.0 1.0 0.1 3.0+1.0i 0.5))
+
+;(with-sound (:clipped #f :statistics #t) (fpmc 0 2 1000.0 1.0 0.1 0.0+3.0i 0.5)) use 65536 as fft size, mark the imag part? (maxamp 7.03)
+(bes-in 0 3)
+4.88079258586502 [1.0]
+(/ (bes-in 1 3) (bes-in 0 3))
+0.809985293903298 [.816]
+(/ (bes-in 2 3) (bes-in 0 3))
+0.460009804028997 [.463]
+(/ (bes-in 3 3) (bes-in 0 3))
+0.196638888584509 [.198]
+(/ (bes-in 4 3) (bes-in 0 3))
+0.0667320268599799 [.067]
+(/ (bes-in 5 3) (bes-in 0 3))
+0.0186868169578955 [.018]
+
+;(with-sound (:clipped #f :statistics #t) (fpmc 0 2 1000.0 1.0 0.1 6.0+3.0i 0.5)); shows same cancellation as earlier 3+1 case
+;(with-sound (:clipped #f :statistics #t :srate (* 4 16384)) (fpmc 0 2 1000.0 1.0 0.1 6.0+3.0i 0.5)); need srate change to get freqs rounded correctly
+
+(fm-a+bi 1000 1000 100 6.0 3.0 0.5 #f)
+;add -0.00533062568641282 from J-6(6.0) = 0.245836863364327 and I6(3.0) = 0.0216835897328909
+;add -0.0-0.0330246867072196i from J-5(6.0) = -0.362087074887172 and I5(3.0) = 0.0912064776615134
+;add 0.116485720696706 from J-4(6.0) = 0.357641594780961 and I4(3.0) = 0.325705181937936
+;add 0.0+0.110149373883134i from J-3(6.0) = -0.114768384820775 and I3(3.0) = 0.959753629496008
+;add 0.5453019525712 from J-2(6.0) = -0.242873209960185 and I2(3.0) = 2.24521244092995
+;add 0.0+1.09383372428571i from J-1(6.0) = 0.276683858127566 and I1(3.0) = 3.95337021714292
+;add 0.735268254686395 from J0(6.0) = 0.150645257250997 and I0(3.0) = 4.88079258586502
+;add -0.0+1.09383372428571i from J1(6.0) = -0.276683858127566 and I-1(3.0) = 3.95337021714292
+;add 0.5453019525712 from J2(6.0) = -0.242873209960185 and I-2(3.0) = 2.24521244092995
+;add -0.0+0.110149373883134i from J3(6.0) = 0.114768384820775 and I-3(3.0) = 0.959753629496008
+;add 0.116485720696706 from J4(6.0) = 0.357641594780961 and I-4(3.0) = 0.325705181937936
+;add 0.0-0.0330246867072196i from J5(6.0) = 0.362087074887172 and I-5(3.0) = 0.0912064776615134
+;add -0.00533062568641282 from J6(6.0) = 0.245836863364327 and I-6(3.0) = 0.0216835897328909
+(2.04827407952567+2.34307028395662i 2.19567218174114)
+
+(fm-a+bi 1100 1000 100 6.0 3.0 0.5 #f)
+;add -0.0-0.00109941164116366i from J-6(6.0) = 0.245836863364327 and I7(3.0) = 0.00447211872994957
+;add 0.00785134757943601 from J-5(6.0) = -0.362087074887172 and I6(3.0) = 0.0216835897328909
+;add 0.0+0.0326192301252177i from J-4(6.0) = 0.357641594780961 and I5(3.0) = 0.0912064776615134
+;add -0.0373806576587736 from J-3(6.0) = -0.114768384820775 and I4(3.0) = 0.325705181937936
+;add 0.0+0.233098444766634i from J-2(6.0) = -0.242873209960185 and I3(3.0) = 0.959753629496008
+;add -0.621214040472508 from J-1(6.0) = 0.276683858127566 and I2(3.0) = 2.24521244092995
+;add 0.0+0.595556473369924i from J0(6.0) = 0.150645257250997 and I1(3.0) = 3.95337021714292
+;add -1.35043652337755 from J1(6.0) = -0.276683858127566 and I0(3.0) = 4.88079258586502
+;add -0.0+0.960167714798496i from J2(6.0) = -0.242873209960185 and I-1(3.0) = 3.95337021714292
+;add -0.257679405425041 from J3(6.0) = 0.114768384820775 and I-2(3.0) = 2.24521244092995
+;add -0.0+0.343247818649768i from J4(6.0) = 0.357641594780961 and I-3(3.0) = 0.959753629496008
+;add 0.117933636603501 from J5(6.0) = 0.362087074887172 and I-4(3.0) = 0.325705181937936
+;add 0.0-0.022421914386815i from J6(6.0) = 0.245836863364327 and I-5(3.0) = 0.0912064776615134
+;add -0.00280990379338964 from J7(6.0) = 0.129586651841481 and I-6(3.0) = 0.0216835897328909
+(-2.14382339773855+2.14142771818658i -0.00119783977598686) [0]
+
+(fm-a+bi 1200 1000 100 6.0 3.0 0.5 #f)
+;add 0.0+0.00161929638947558i from J-5(6.0) = -0.362087074887172 and I7(3.0) = 0.00447211872994957
+;add -0.00775495361264718 from J-4(6.0) = 0.357641594780961 and I6(3.0) = 0.0216835897328909
+;add -0.0-0.010467620126404i from J-3(6.0) = -0.114768384820775 and I5(3.0) = 0.0912064776615134
+;add -0.0791050630379326 from J-2(6.0) = -0.242873209960185 and I4(3.0) = 0.325705181937936
+;add -0.0-0.26554833706089i from J-1(6.0) = 0.276683858127566 and I3(3.0) = 0.959753629496008
+;add -0.338230605747031 from J0(6.0) = 0.150645257250997 and I2(3.0) = 2.24521244092995
+;add -0.0-1.09383372428571i from J1(6.0) = -0.276683858127566 and I1(3.0) = 3.95337021714292
+;add -1.18541376247891 from J2(6.0) = -0.242873209960185 and I0(3.0) = 4.88079258586502
+;add 0.0-0.45372191442005i from J3(6.0) = 0.114768384820775 and I-1(3.0) = 3.95337021714292
+;add -0.802981357996241 from J4(6.0) = 0.357641594780961 and I-2(3.0) = 2.24521244092995
+;add -0.0+0.347514384316557i from J5(6.0) = 0.362087074887172 and I-3(3.0) = 0.959753629496008
+;add 0.0800703403091294 from J6(6.0) = 0.245836863364327 and I-4(3.0) = 0.325705181937936
+;add 0.0-0.0118191420664103i from J7(6.0) = 0.129586651841481 and I-5(3.0) = 0.0912064776615134
+;add -0.00122581649816301 from J8(6.0) = 0.0565319909324618 and I-6(3.0) = 0.0216835897328909
+(-2.33443662315078-1.48617977275652i -1.91030819795365) [(/ 1.91 2.19) = .872 == .874]
+
+(fm-a+bi 1300 1000 100 6.0 3.0 0.5 #f)
+;add -0.0-0.00159941567462897i from J-4(6.0) = 0.357641594780961 and I7(3.0) = 0.00447211872994957
+;add 0.00248859057076024 from J-3(6.0) = -0.114768384820775 and I6(3.0) = 0.0216835897328909
+;add -0.0-0.0221516099988137i from J-2(6.0) = -0.242873209960185 and I5(3.0) = 0.0912064776615134
+;add 0.0901173663507287 from J-1(6.0) = 0.276683858127566 and I4(3.0) = 0.325705181937936
+;add -0.0-0.144582332413004i from J0(6.0) = 0.150645257250997 and I3(3.0) = 0.959753629496008
+;add 0.621214040472508 from J1(6.0) = -0.276683858127566 and I2(3.0) = 2.24521244092995
+;add -0.0-0.960167714798496i from J2(6.0) = -0.242873209960185 and I1(3.0) = 3.95337021714292
+;add 0.560160681724944 from J3(6.0) = 0.114768384820775 and I0(3.0) = 4.88079258586502
+;add 0.0-1.41388962921855i from J4(6.0) = 0.357641594780961 and I-1(3.0) = 3.95337021714292
+;add -0.812962405236614 from J5(6.0) = 0.362087074887172 and I-2(3.0) = 2.24521244092995
+;add -0.0+0.235942821877827i from J6(6.0) = 0.245836863364327 and I-3(3.0) = 0.959753629496008
+;add 0.0422070440147574 from J7(6.0) = 0.129586651841481 and I-4(3.0) = 0.325705181937936
+;add 0.0-0.00515608376814245i from J8(6.0) = 0.0565319909324618 and I-5(3.0) = 0.0912064776615134
+(0.502475925962626-2.31154049748365i -0.90453228576051) [(/ (/ 0.90 2.19) = 0.411 == .413]
+
+(fm-a+bi 1400 1000 100 6.0 3.0 0.5 #f)
+;add 0.00526636304188694 from J-2(6.0) = -0.242873209960185 and I6(3.0) = 0.0216835897328909
+;add 0.0+0.0252353601256131i from J-1(6.0) = 0.276683858127566 and I5(3.0) = 0.0912064776615134
+;add 0.0490659409210231 from J0(6.0) = 0.150645257250997 and I4(3.0) = 0.325705181937936
+;add 0.0+0.26554833706089i from J1(6.0) = -0.276683858127566 and I3(3.0) = 0.959753629496008
+;add 0.5453019525712 from J2(6.0) = -0.242873209960185 and I2(3.0) = 2.24521244092995
+;add 0.0+0.45372191442005i from J3(6.0) = 0.114768384820775 and I1(3.0) = 3.95337021714292
+;add 1.74557444420386 from J4(6.0) = 0.357641594780961 and I0(3.0) = 4.88079258586502
+;add 0.0-1.43146425787134i from J5(6.0) = 0.362087074887172 and I-1(3.0) = 3.95337021714292
+;add -0.551955984064783 from J6(6.0) = 0.245836863364327 and I-2(3.0) = 2.24521244092995
+;add -0.0+0.124371259439097i from J7(6.0) = 0.129586651841481 and I-3(3.0) = 0.959753629496008
+;add 0.0184127623919712 from J8(6.0) = 0.0565319909324618 and I-4(3.0) = 0.325705181937936
+;add 0.0-0.00193041464863622i from J9(6.0) = 0.0211653239784174 and I-5(3.0) = 0.0912064776615134
+(1.81180116486504-0.564042995574322i 0.623879084645359) [(/ 0.623 2.19) = 0.284 == .287]
+
+1500: [(/ 0.936 2.19) = 0.427 == .428]
+1600: [(/ 0.496 2.19) = 0.226 == .228]
+1700: [(/ 0.102 2.19) = 0.047 == .047]
+-->
+
+<div class="spacer"></div>
+
+<p>
+I am getting carried away &mdash; 
+we need to back up a bit and clear up one source of confusion.  If you 
+looked at the spectrum of our first example, and compared it to the spectrum Chowning works out, 
+you may wonder what's gone awry.  We have to return to our initial set of formulas.  If we consider 
+that:
+</p>
+
+<!-- LATEX \sin(a+b)=\sin a \cos b + \cos a \sin b -->
+
+<img class="indented" src="pix/fmeq18.png" alt="sin split"><br>
+
+<!-- LATEX \sin(\omega_{c}t+B\sin \omega_{m}t) = \sin \omega_{c}t \cos(B \sin \omega_{m}t) + \cos \omega_{c}t \sin(B \sin \omega_{m}t) -->
+
+<img class="indented" src="pix/fmeq19.png" alt="sin split">
+
+<p>and using our previous formulas for the expansion of the cos(sin) and sin(sin) terms, with the 
+identity:
+</p>
+
+<!-- LATEX \sin a \cos b = \frac{1}{2} (\sin (a-b) + \sin (a+b)) -->
+
+<img class="indented" src="pix/fmeq20.png" alt="sin cos again">
+
+
+<p>we see that we still have a spectrum symmetric around the carrier, and the amplitude and frequencies 
+are just as they were before, but the initial phases of the side bands have changed. Our result is now 
+</p>
+
+<!-- LATEX fmeq21: \sin (\omega_{c}t+B\sin \omega_{m}t) = \! \! \sum_{n=-\infty}^{\infty} \! \! J_{n}(B)\sin(\omega_{c} + n\omega_{m})t -->
+
+<img class="indented" src="pix/fmeq21.png" alt="sin sin case">
+
+<p>This is Chowning's version of the expansion. 
+In general:
+</p>
+
+<!-- Gagliardi 2.2.11 -->
+<!-- LATEX \cos(\omega_{c}t+B\sin(\omega_{m}t + \theta_{m}) + \phi) = \sum_{k=-\infty}^{\infty}J_{k}(B)\cos((\omega_{c}+k\omega_{m})t + k\theta_{m} + \phi) -->
+
+<img class="indented" src="pix/fmeq22.png" alt="big formula">
+
+
+<!-- LATEX:
+\small
+\begin{align*}
+& \cos(B \sin x) = J_{0}(B) + 2 \sum_{k=1}^{\infty} J_{2k}(B) \cos 2kx \\
+& \cos(B \cos x) = J_{0}(B) + 2 \sum_{k=1}^{\infty} (-1)^{k} J_{2k}(B) \cos 2kx \\
+& \sin(B \sin x) = 2 \sum_{k=0}^{\infty} J_{2k+1}(B) \sin (2k+1)x \\
+& \sin(B \cos x) = 2 \sum_{k=0}^{\infty} (-1)^{k} J_{2k+1}(B) \cos (2k+1)x \\
+\end{align*}
+-->
+
+<!--
+<table><tr><td>
+<table>
+<tr><td colspan=3>
+Or perhaps more readable:
+</td></tr>
+<td>
+<img src="pix/fmeq49.png" alt="cos cos cases">
+</td><td></td>
+<td>
+<img src="pix/fmeq50.png" alt="cos cos cases">
+</td>
+</tr></table>
+</td></tr></table>
+-->
+
+<!-- LATEX fmeq24: \omega_{c}-2\omega_{m} = -\omega_{c} -->
+<!-- LATEX fmeq52: \sin(-x) = - \sin(x) -->
+<!-- LATEX fmeq53: \cos(-x) = \cos(x) -->
+
+<p>Our first reaction is, "well so what if one's a sine and the other's a cosine &mdash; they'll sound the 
+same", but we are being hasty.  What if (for example), the modulator has the same frequency as the 
+carrier, and its index (B) is high enough that some significant energy appears at
+<img src="pix/fmeq24.png" alt="w-m=-w">?
+Where does energy at a negative frequency go?  We once again fall back on
+trigonometry: <img src="pix/fmeq52.png" alt="sin(-x)=-sin(x)">,
+but <img src="pix/fmeq53.png" alt="cos(-x)=cos(x)">,
+so the negative frequency component adds to the positive frequency component if it's a cosine, but 
+subtracts if it's a sine.  We get a different 
+pattern of cancellations depending on the initial phases of the carrier and modulator.  Take the CLM
+instrument:
+</p>
+
+<!-- CLM CASE
+<pre class="indented">
+(definstrument pm (beg end freq amp fm-index mod-phase)
+  (let ((cr (make-oscil freq))
+        (md (make-oscil freq mod-phase)))
+    (run
+      (loop for i from beg to end do
+        (outa i (* amp (oscil cr 0.0 
+                         (* fm-index (oscil md)))))))))
+
+(with-sound () (fm 0 10000 100 .5 8 0))
+(with-sound () (fm 0 10000 100 .5 8 0 (* .5 pi)))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (pm beg dur freq amp fm-index mod-phase)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (cr (make-oscil freq))
+	 (md (make-oscil freq mod-phase)))
+    (do ((i start (+ i 1)))
+        ((= i end))
+      (outa i (* amp (oscil cr 0.0 
+                       (* fm-index (oscil md))))))))
+
+(with-sound () (pm 0 1.0 100 .5 8 0))
+(with-sound () (pm 0 1.0 100 .5 8 (* .5 pi)))
+</pre>
+
+
+<table class="borderedm">
+<tr><td>
+  <img src="pix/fmeq25.png" alt="mod phase 0">
+</td><td>
+  <img src="pix/fmeq26.png" alt="mod phase pi/2">
+  </td></tr>
+<tr><td class="bluishb">mod phase = 0.0
+</td><td class="bluishb">mod phase = pi/2
+</td></tr></table>
+
+
+<div class="spacer"></div>
+
+<p>There is a slight difference!  We're using phase-modulation for simplicity (the integration in FM
+changes the effective initial phase).
+By varying the relative phases, we can get a changing spectrum from these cancellations.  Here is a 
+CLM instrument that shows this (subtle) effect:
+</p>
+
+<!-- CLM CASE 
+<pre class="indented">
+(definstrument fm (beg end freq amp mc-ratio index car-phase mod-phase skew-func skew)
+  (let ((cr (make-oscil freq car-phase))
+        (md (make-oscil (* freq mc-ratio) mod-phase))
+        (skewf (make-env skew-func :scaler (hz-&gt;radians (* skew mc-ratio freq)) :length (+ 1 (- end beg))))
+        (fm-index (hz-&gt;radians (* index mc-ratio freq))))
+    (run
+      (loop for i from beg to end do
+        (outa i (* amp (oscil cr (* fm-index (oscil md (env skewf))))))))))
+
+(with-sound () (fm 0 40000 100 .25 1.0 4.0 0 0 '(0 0 50 1 100 0) .02))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (fm beg dur freq amp mc-ratio index)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (cr (make-oscil freq))
+	 (md (make-oscil (* freq mc-ratio)))
+	 (skewf (make-env (list 0.0 0.0 1.0 pi) :duration dur)))
+    (do ((i start (+ i 1)))
+        ((= i end))
+      (outa i (* amp (oscil cr 0.0 (* index (oscil md 0.0 (env skewf)))))))))
+
+(with-sound () (fm 0 2 100 0.5 1.0 30.0))
+</pre>
+
+<p>The next question is "if we can get cancellations, can we fiddle with the phases and get 
+asymmetric FM spectra?".  There are several approaches; an obvious one uses the
+fact that:
+</p>
+
+
+<!-- LATEX see above -->
+
+<img class="indented" src="pix/fmeq8.png" alt="coscos and sinsin">
+
+<p>If we have a spectrum B made up entirely of sines (or entirely cosines), we can multiply it by 
+sin A (or cos A), add the two resulting spectra, and the (A + B) parts cancel. 
+Unfortunately, in this case there are some pesky -1's floating around, so we get asymmetric or gapped spectra,
+but not anything we'd claim was single side-band.
+</p>
+
+<!-- CLM CASE
+
+<pre class="indented">
+(definstrument fm (beg end freq amp mc-ratio index cr0p cr1p md0p md1p)
+  (let ((cr0 (make-oscil 0 cr0p))
+        (cr1 (make-oscil 0 cr1p))
+        (md0 (make-oscil (* freq mc-ratio) md0p))
+        (md1 (make-oscil (* freq mc-ratio) md1p))
+        (am0 (make-oscil freq 0))
+        (am1 (make-oscil freq (* .5 pi)))
+        (fm-index (hz-&gt;radians (* index mc-ratio freq))))
+    (run
+      (loop for i from beg to end do
+        (outa i (* amp (+ (* (oscil am0) (oscil cr0 (* fm-index (oscil md0))))
+                          (* (oscil am1) (oscil cr1 (* fm-index (oscil md1)))))))))))
+
+(with-sound () (fm 0 10000 1000 .25 .1 1.0 0 (* .5 pi) (* .5 pi) 0))
+</pre>
+
+-->
+
+<!-- SND CASE -->
+
+<pre class="indented">
+(define (pm-cancellation beg dur carfreq modfreq amp index)
+  (let* ((cx 0.0)
+	 (mx 0.0)
+	 (car-incr (hz-&gt;radians carfreq))
+	 (mod-incr (hz-&gt;radians modfreq))
+	 (start (seconds-&gt;samples beg))
+	 (stop (+ start (seconds-&gt;samples dur))))
+    (do ((i start (+ i 1)))
+	((= i stop))
+      (outa i (* amp (- (* (cos cx)  ; cos * sum-of-cos
+			   (sin (* index (cos mx))))
+			(* (sin cx)  ; sin * sum-of-sin
+			   (* (sin (* index (sin mx))))))))
+      (set! cx (+ cx car-incr))
+      (set! mx (+ mx mod-incr)))))
+
+(with-sound () (pm-cancellation 0 1 1000.0 100.0 0.3 9.0))
+</pre>
+
+
+  <table class="borderedm">
+  <tr><td><img src="pix/fmeq27.png" alt="uncancelled"></td></tr>
+  <tr><td class="bluishb">cos side by itself</td></tr>
+  <tr><td><img src="pix/fmcancel.png" alt="fm cancellation"></td></tr>
+  <tr><td class="bluishb">both sides (showing cancellations)</td></tr>
+  </table>
+
+
+<p>I really like the sounds you get from this cancellation;  I can't resist adding the following
+examples which come from a collection of "imaginary machines":
+</p>
+
+<pre class="indented">
+(definstrument (machine1 beg dur cfreq mfreq amp index gliss)
+  (let* ((gen (make-fmssb cfreq mfreq :index 1.0)) ; defined in generators.scm
+	 (start (seconds-&gt;samples beg))
+	 (stop (+ start (seconds-&gt;samples dur)))
+	 (ampf (make-env '(0 0 1 .75 2 1 3 .1 4 .7 5 1 6 .8 100 0) :base 32 :scaler amp :duration dur))
+	 (indf (make-env '(0 0 1 1 3 0) :duration dur :base 32 :scaler index))
+	 (frqf (make-env (if (&gt; gliss 0.0) '(0 0 1 1) '(0 1 1 0)) 
+                 :duration dur :scaler (hz-&gt;radians (abs gliss)))))
+     (do ((i start (+ i 1)))
+         ((= i stop)) 
+       (set! (fmssb-index gen) (env indf))
+       (outa i (* (env ampf) (fmssb gen (env frqf)))))))
+
+(with-sound (:play #t)
+  (do ((i 0.0 (+ i .2)))
+      ((&gt;= i 2.0))
+    (machine1 i .3 100 540 0.5 4.0 0.0)
+    (machine1 (+ i .1) .3 200 540 0.5 3.0 0.0))
+  (do ((i 0.0 (+ i .6)))
+      ((&gt;= i 2.0))
+    (machine1 i .3 1000 540 0.5 6.0 0.0)
+    (machine1 (+ i .1) .1 2000 540 0.5 1.0 0.0)))
+
+(with-sound (:scaled-to .5 :play #t)
+  (let ((gen (make-rkoddssb 1000.0 2000.0 0.875)) ; defined in generators.scm
+	(noi (make-rand 15000 .04))
+	(gen1 (make-rkoddssb 100.0 10.0 0.9))
+	(ampf (make-env '(0 0 1 1 11 1 12 0) :duration 11.0 :scaler .5))
+	(frqf (make-env '(0 0 1 1 2 0 10 0 11 1 12 0 20 0) :duration 11.0 :scaler (hz-&gt;radians 1.0))))
+     (do ((i 0 (+ i 1)))
+         ((= i (* 12 44100)))
+       (outa i (* (env ampf) 
+	          (+ (rkoddssb gen1 (env frqf))
+		     (* .2 (sin (rkoddssb gen (rand noi)))))))))
+  (do ((i 0.0 (+ i 2)))
+      ((&gt;= i 10.0))
+    (machine1 i 3 100 700 0.5 4.0 0.0)
+    (machine1 (+ i 1) 3 200 700 0.5 3.0 0.0))
+  (do ((i 0.0 (+ i 6)))
+      ((&gt;= i 10.0))
+    (machine1 i 3 1000 540 0.5 6.0 0.0)
+    (machine1 (+ i 1) 1 2000 540 0.5 1.0 0.0)))
+</pre>
+
+
+<!-- LATEX fmeq44: &\sum_{k=0}^{\infty} \frac{a^{k}}{k!} \cos(x + ky) = e^{a \cos y} \cos (x + a \sin y) \\ -->
+
+<p>A different approach, also using a form of amplitude modulation, is mentioned by Moorer in "Signal Processing Aspects of Computer Music":
+</p>
+
+<img class="indented" src="pix/fmeq44.png" alt="jam case">
+
+<p>This is the rxyk!cos generator in generators.scm.  It produces beautiful single-sided spectra.  We might grumble
+that the sideband amplitudes don't leave us much room for maneuver, but the factorial in the denominator overwhelms
+any exponential in the numerator, so we can get many interesting effects: moving formants, for example.
+</p>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/jam.png" alt="jam pict">
+</td></tr>
+<tr>
+<td class="bluishb">a: 2, x:1000, y: 100
+</td></tr></table>
+
+<!--
+(with-sound (:clipped #f :statistics #t :play #t :scaled-to .5)
+  (let ((gen (make-rxyk!cos 1000 100 2)))
+     (do ((i 0 (+ i 1)))
+         ((= i 10000))
+       (outa i (rxyk!cos gen 0.0)))))
+-->
+
+<div class="spacer"></div>
+
+<p>
+Palamin et al in "A Method of Generating and Controlling Musical Asymmetrical Spectra"
+came up with a slightly more complicated version:
+</p>
+
+<!-- LATEX e^{(\frac{B}{2}(r-\frac{1}{r})\cos \omega_{m}t)}\sin(\omega_{c}t+\frac{B}{2}(r+\frac{1}{r})\sin \omega_{m}t)=\sum r^{n}J_{n}(B)\sin(\omega_{c}t+n\omega_{m}t) -->
+
+<img class="indented" src="pix/fmeq29.png" alt="e sin">
+
+
+<p>But the peak amplitude of this formula is hard to predict; we'd rather have a sum of cosines:
+</p>
+
+<!--LATEX: e^{(\frac{B}{2}(r-\frac{1}{r})\cos \omega_{m}t)}\cos(\omega_{c}t+\frac{B}{2}(r+\frac{1}{r})\sin \omega_{m}t)=\sum_{n=-\infty}^{\infty} r^{n}J_{n}(B)\cos(\omega_{c}t+n\omega_{m}t) -->
+
+<img class="indented" src="pix/fmeq47.png" alt="better asy">
+
+<!-- LATEX: e^{\frac{B}{2}\big(r-\frac{1}{r}\big)}=\sum_{n=-\infty}^{\infty} r^{n}J_{n}(B) -->
+
+<p>so we can use</p>
+
+<img class="indented" src="pix/fmeq48.png" alt="sum of Js">
+
+<p>to normalize the output to -1.0 to 1.0.
+The spectrum produced for a given "r" is mirrored by -1/r (remembering that 
+<img src="pix/fmeq14.png" alt="J - J">).  
+</p>
+
+<!-- LATEX:
+\documentclass{amsart}
+\begin{document}
+\thispagestyle{empty}
+\begin{align*}
+& 0.5^{-5}J_{-5}(2.0) = -0.225 \Rightarrow -0.160 \quad \textrm{(normalized to match fft)} \\
+& 0.5^{-4}J_{-4}(2.0) = 0.544 \Rightarrow 0.385 \\
+& 0.5^{-3}J_{-3}(2.0) = -1.031 \Rightarrow -0.730 \\
+& 0.5^{-2}J_{-2}(2.0) = 1.411 \Rightarrow 1.0 \\
+& 0.5^{-1}J_{-1}(2.0) = -1.153 \Rightarrow -0.817 \\
+& 0.5^{0}J_{0}(2.0) = 0.224 \Rightarrow 0.159 \\
+& 0.5^{1}J_{1}(2.0) = 0.288 \Rightarrow 0.204 \\
+& 0.5^{2}J_{2}(2.0) = 0.088 \Rightarrow 0.062 \\
+\end{align*}
+\end{document}
+-->
+
+<pre class="indented">
+(with-sound ()
+  (let ((gen (make-asymmetric-fm 2000.0 :ratio .2 :r 0.5)))
+    (do ((i 0 (+ i 1)))
+        ((= i 20000))
+      (outa i (asymmetric-fm gen 2.0)))))
+</pre>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/asyfm1.png" alt="asy fm">
+</td></tr>
+<tr>
+<td>
+<img src="pix/asyfm2.png" alt="peaks">
+</td></tr></table>
+
+<div class="spacer"></div>
+
+<p>We can put an envelope on either the index or "r"; the index
+affects how broad the spectrum is, and "r" affects its placement relative to the carrier (giving the effect of
+a moving formant).  Here we sweep "r" from -1.0 to -20.0, with an index of 3, m/c ratio of .2, and carrier at 1000 Hz:
+</p>
+
+<img class="indented" src="pix/asyfm.png" alt="asy spectra">
+
+
+
+<div class="greenish">complex FM: sin(sin+sin)</div>
+
+<p>
+So far we have been using just a sinusoid for the modulator; what if we make it a more complicated 
+signal?  Here again trigonometry can be used to expand
+</p>
+
+<!-- LATEX \sin(\omega_{c}t + B_{1}\sin \omega_{m1}t + B_{2}\sin \omega_{m2}t) -->
+
+<img class="indented" src="pix/fmeq30.png" alt="multiple sins">
+
+
+<!-- LATEX sceq41.png: x - \frac{x^{3}}{3!} + \frac{x^{5}}{5!} - \cdots -->
+
+<p>The modulating signal is now made up of two sinusoids (don't despair; this is a terminating 
+sequence).  Since sine is not linear (it is <img src="pix/sceq41.png" alt="x-x^3/3!+x^5/5!...">), this is not the same thing as
+</p>
+
+<!-- LATEX \sin(\omega_{c}t + B_{1}\sin \omega_{m1}t) + \sin(B_{2}\sin \omega_{m2}t) -->
+
+<img class="indented" src="pix/fmeq31.png" alt="bad sins">
+
+
+<p>In the second case we just add together the two simple FM spectra, but in the first case 
+we get a more complex mixture involving all the sums and differences of the modulating frequencies. 
+These sum and difference tones ("intermodulation products") are not limited to FM.  Any
+nonlinear synthesis technique produces them.  Being non-linear, it must have something that involves
+a power of its input other than 0 or 1; if we feed in sin a + sin b, for example, that term will produce
+not just (sin a)^n and (sin b)^n, but all sorts of stuff involving sin a * sin b (in various powers),
+and this produces things like cos(a+b) and cos(a-b).
+For a less impressionistic derivation of the spectrum, see Le Brun,
+"A Derivation of the Spectrum of FM with a Complex Modulating Wave".  The result can be 
+expressed:
+</p>
+
+<!-- LATEX fmeq32:
+     \sin(\omega_{c}t + B_{1}\sin \omega_{m1}t + B_{2}\sin \omega_{m2}t) = \sum_{i=-\infty}^{\infty} \sum_{k=-\infty}^{\infty} J_{i}(B_{1})J_{k}(B_{2})\sin(\omega_{c} + i\omega_{m1} + k\omega_{m2})t \\
+-->
+<img class="indented" src="pix/fmeq32.png" alt="2 sums">
+
+<p>You can chew up any amount of free time calculating the resulting side band amplitudes &mdash; see the immortal classic:
+Schottstaedt, "The Simulation of Natural Instrument Tones Using Frequency Modulation with a 
+Complex Modulating Wave".  (There's a function to do it for you in dsp.scm: fm-parallel-component). 
+In simple cases, the extra modulating components flatten and spread out the 
+spectrum somewhat (see below and <a href="sndclm.html#ncosdoc">ncos</a> for discussions of very different not-so-simple cases).
+In general:
+</p>
+
+<!-- Gagliardi 2.2.16 -->
+
+<!-- LATEX 
+\cos(\omega_{c}t+\Big(\sum_{i=1}^{k}B_{i}\sin(\omega_{i}t + \theta_{i})\Big) + \phi) = \sum_{k_{k}} \cdots \sum_{k_{1}}\Big(\prod_{i=1}^{k}J_{k_{i}}(B_{i})\Big)\cos(\omega_{c}t+\Big(\sum_{i=1}^{k}k_{i}(\omega_{i}t+\theta_{i})\Big)+\phi)
+-->
+
+<img class="indented" src="pix/fmeq33.png" alt="silly formula">
+
+
+<p>A CLM instrument to produce this is:
+</p>
+
+<!-- CLM CASE
+<pre class="indented">
+(definstrument fm (beg end freq amp mc-ratios indexes carrier-phase mod-phases)
+  (let* ((cr (make-oscil freq carrier-phase))
+         (n (length mc-ratios))
+         (md-arr (make-array n :element-type 'osc))
+         (fm-index-arr (make-array n :element-type 'short-float)))
+    (loop for i from 0 below n do
+      (setf (aref md-arr i)
+        (make-oscil (* freq (aref mc-ratios i)) 
+                    (aref mod-phases i)))
+      (setf (aref fm-ind-arr i) (hz-&gt;radians (* (aref indexes i) (aref mc-ratios i) freq))))
+    (run
+      (loop for i from beg to end do
+        (let ((sum 0.0))
+          (dotimes (k n) 
+            (incf sum (* (aref fm-ind-arr k) (oscil (aref md-arr k)))))
+          (outa i (* amp (oscil cr sum))))))))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (fm beg dur freq amp mc-ratios indexes carrier-phase mod-phases)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (cr (make-oscil freq carrier-phase))
+         (n (length mc-ratios))
+         (modulators (make-vector n))
+         (fm-indices (make-vct n)))
+    (do ((i 0 (+ i 1)))
+	((= i n))
+      (set! (modulators i) (make-oscil (* freq (mc-ratios i)) (mod-phases i)))
+      (set! (fm-indices i) (hz-&gt;radians (* freq (indexes i) (mc-ratios i)))))
+    (do ((i start (+ i 1)))
+        ((= i end))
+      (let ((sum 0.0))
+        (do ((k 0 (+ k 1)))
+	    ((= k n))
+	  (set! sum (+ sum (* (fm-indices k) (oscil (modulators k))))))
+	(outa i (* amp (oscil cr sum)))))))
+
+(with-sound () (fm 0 2.0 440 .3 '(1 3 4) '(1.0 0.5 0.1) 0.0 '(0.0 0.0 0.0)))
+</pre>
+<!-- -->
+
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/multifm.png" alt="multi fm picture">
+</td>
+<td class="spaced">
+<pre>
+  200Hz is -0.106 (i = -1, k = -1)
+           -0.106 (i = -1, k = 1) 
+           -0.213 -&gt; 0.306 normalized
+
+  2000Hz:  -0.023 (i = -2, k = 0)
+            0.718 (i = 0, k = 0)
+            0.695 -&gt; 1.0 normalized
+
+  1800Hz:  -0.013 (i = -2, k = 1)
+           -0.413 (i = 0, k = -1)
+           -0.426 -&gt; 0.614 normalized
+</pre>
+<pre class="indented">
+i is the 2000 Hz part, k the 200 Hz,
+red dots mark pure sum/difference tones
+</pre>
+</td></tr>
+<tr><td colspan=2 class="bluishb">(with-sound () (fm 0 2.0 2000 .5 '(1 .1) '(0.5 1.0) 0.0 '(1.855 1.599)))</td></tr>
+</table>
+
+<!--
+here's the code to get that info:
+
+(with-sound () 
+  (fm 0 2.0 2000 .5 '(1 .1) '(0.5 1.0) 0.0 (list (* 0.5 (+ pi (hz->radians 2000))) (* 0.5 (+ pi (hz->radians 200))))))
+
+;(multifm-component 200 2000.0 (list 2000.0 200.0) (list 0.5 1.0) () () #t)
+
+(define (multifm-component freq-we-want wc wms inds ns bs using-sine)
+  (if (pair? wms)
+      (let* ((sum 0.0)
+	     (index (car inds))
+	     (mx (ceiling (* 5 index)))
+	     (wm (car wms)))
+	(do ((k (- mx) (+ k 1)))
+	    ((>= k mx) sum)
+	  (set! sum (+ sum (multifm-component freq-we-want (+ wc (* k wm)) (cdr wms) (cdr inds) 
+					      (append ns (list k)) (append bs (list index)) 
+					      using-sine)))))
+      (if (< (abs (- freq-we-want (abs wc))) .1)
+	  (let ((bmult 1.0))
+	    (for-each
+	     (lambda (n index)
+	       (set! bmult (* bmult (bes-jn n index))))
+	     ns bs)
+	    (if (and using-sine (< wc 0.0)) (set! bmult (- bmult)))
+	    (snd-display ";add ~A from ~A ~A" bmult ns bs)
+	    bmult)
+	  0.0)))
+-->
+
+<p>
+My favorite computer instrument, the FM violin, uses three sinusoidal components in the 
+modulating wave; for more complex spectra these violins are then 
+ganged together (see fmviolin.clm for many examples).  By using a few sines in the modulator, you 
+get away from the simple FM index sweep that has become tiresome, and the broader, flatter spectrum 
+is somewhat closer to that of a real violin.
+A pared down version of the fm-violin is:
+</p>
+
+
+<!-- CLM CASE 
+<pre class="indented">
+(definstrument violin (beg dur frequency amplitude fm-index)
+  (let* ((start (seconds-&gt;samples beg))
+         (stop (+ beg (seconds-&gt;samples dur)))
+         (frq-scl (hz-&gt;radians frequency))
+         (maxdev (* frq-scl fm-index))
+         (index1 (* maxdev (/ 5.0 (log frequency))))
+         (index2 (* maxdev 3.0 (/ (- 8.5 (log frequency)) (+ 3.0 (/ frequency 1000)))))
+         (index3 (* maxdev (/ 4.0 (sqrt frequency))))
+         (carrier (make-oscil frequency))
+         (fmosc1 (make-oscil frequency))
+         (fmosc2 (make-oscil (* 3 frequency)))
+         (fmosc3 (make-oscil (* 4 frequency)))
+         (ampf  (make-env '(0 0 25 1 75 1 100 0) :scaler amplitude :duration dur))
+         (indf1 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index1))
+         (indf2 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index2))
+         (indf3 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index3))
+         (pervib (make-triangle-wave 5 :amplitude (* .0025 frq-scl)))
+         (ranvib (make-rand-interp 16 :amplitude (* .005 frq-scl)))
+         (vib 0.0))
+    (run
+     (loop for i from start to stop do
+       (setf vib (+ (triangle-wave pervib) (rand-interp ranvib)))
+       (outa i (* (env ampf)
+                  (oscil carrier
+                         (+ vib 
+                            (* (env indf1) (oscil fmosc1 vib))
+                            (* (env indf2) (oscil fmosc2 (* 3.0 vib)))
+                            (* (env indf3) (oscil fmosc3 (* 4.0 vib)))))))))))
+
+(with-sound () (violin 0 1 440 .1 1.0))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (violin beg dur frequency amplitude fm-index)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (frq-scl (hz-&gt;radians frequency))
+         (maxdev (* frq-scl fm-index))
+         (index1 (* maxdev (/ 5.0 (log frequency))))
+         (index2 (* maxdev 3.0 (/ (- 8.5 (log frequency)) (+ 3.0 (/ frequency 1000)))))
+         (index3 (* maxdev (/ 4.0 (sqrt frequency))))
+         (carrier (make-oscil frequency))
+         (fmosc1 (make-oscil frequency))
+         (fmosc2 (make-oscil (* 3 frequency)))
+         (fmosc3 (make-oscil (* 4 frequency)))
+         (ampf  (make-env '(0 0 25 1 75 1 100 0) :scaler amplitude :duration dur))
+         (indf1 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index1 :duration dur))
+         (indf2 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index2 :duration dur))
+         (indf3 (make-env '(0 1 25 .4 75 .6 100 0) :scaler index3 :duration dur))
+         (pervib (make-triangle-wave 5 :amplitude (* .0025 frq-scl)))
+         (ranvib (make-rand-interp 16 :amplitude (* .005 frq-scl))))
+     (do ((i start (+ i 1)))
+         ((= i end))
+       (let ((vib (+ (triangle-wave pervib) (rand-interp ranvib))))
+	 (outa i (* (env ampf)
+	            (oscil carrier
+		           (+ vib 
+			      (* (env indf1) (oscil fmosc1 vib))
+			      (* (env indf2) (oscil fmosc2 (* 3.0 vib)))
+			      (* (env indf3) (oscil fmosc3 (* 4.0 vib)))))))))))
+
+(with-sound () (violin 0 1.0 440 .1 1.0))
+</pre>
+<!-- -->
+
+
+<p>There is one surprising aspect of the parallel FM equation.  Since we can fiddle with the initial phases of the modulating signal's components,
+we can get very different spectra from modulating signals with the same magnitude spectrum.  In the next two graphs, both cases involve a
+modulating signal made up of 6 equal amplitude harmonically related sinusoids, but the first uses all cosines, and the second uses a
+set of initial phases that minimizes the modulating signal's peak amplitude:
+</p>
+
+<img src="pix/fmpar6.png" alt="comparison of 2 6-sinusoid spectra">
+
+
+<!--
+(with-sound (:clipped #f :statistics #t :channels 4 :srate 441000)
+  (let* ((freq 100.0)
+	 (n 6)
+	 (mods1 (make-vector n #f))
+	 (mods2 (make-vector n #f))
+	 (car1 (make-oscil freq))
+	 (car2 (make-oscil freq))
+	 (phases (if (= n 4)
+		     #(0.0 9.429973765023149656627765580196864902973E-1 1.340090256365081833322960846999194473028E0 1.112605206055434337031329050660133361816E0)
+		     (if (= n 6) 
+			 #(0.0 0.88722838124921 0.26020415169852 1.2966409163042 1.3233535939997 1.15281977798) ;#(0 0 0 0 1 0)
+			 (if (= n 8)
+			     #(0.0 1.6766927120402 0.81654336999861 0.62403216688615 0.85406407763019 1.0608486873128 0.16723371585947 0.90568594225519)
+			     (if (= n 12)
+				 #(0 1 1 0 0 1 0 1 0 0 0 0)
+				 (if (= n 24)
+				     #(0 1 1 0 0 1 1 0 0 0 1 1 1 0 1 0 1 1 0 1 0 0 0 0)
+				     #(0 0 0 0 0 0 0 1 1 0 1 0 1 0 0 1 0 1 0 0 0 0 0 1 0 0 1 1 1 0 1 0 1 0 1 1 1 0 1 1 0 0 1 0 1 0 0 0 0 1 1 0 1 1 0 1 1 0 0 1 1 1 1 1)
+				     )))))))
+
+    (do ((i 0 (+ i 1)))
+	((= i n))
+      (set! (mods1 i) (make-oscil (* (+ i 1) freq) (/ pi 2)))
+      (set! (mods2 i) (make-oscil (* (+ i 1) freq) (* pi (phases i)))))
+
+     (do ((i 0 (+ i 1 ))) 
+         ((= i 441000))
+       (let ((mod1 0.0)
+	     (mod2 0.0))
+	 (do ((k 0 (+ k 1)))
+	     ((= k n))
+	   (set! mod1 (+ mod1 (oscil (mods1 k))))
+	   (set! mod2 (+ mod2 (oscil (mods2 k)))))
+	 (outa i (/ mod1 n))
+	 (outb i (oscil car1 (/ mod1 (* n n))))
+	 (outc i (/ mod2 n))
+	 (outd i (oscil car2 (/ mod2 (* n n))))
+	 ))))
+
+(set! (selected-graph-color) (make-color 1 1 1))
+(set! (selected-data-color) (make-color 0 0 0))
+-->
+
+
+
+<div class="greenish">cascade FM: sin(sin(sin))</div>
+
+<p>We can, of course, use FM (or anything) to produce the modulating signal.  When FM is used, it is 
+sometimes called "cascade FM":
+</p>
+
+<!-- LATEX \sin(\omega_{c}t + B_{1}\sin(\omega_{m1}t + B_{2}\sin(\omega_{m2}t))) -->
+
+<img class="indented" src="pix/fmeq35.png" alt="cascade fm">
+
+
+<p>In CLM:
+</p>
+
+<pre class="indented">
+(* A (oscil carrier (* B (oscil modulator (* C (oscil cascade))))))
+</pre>
+
+<p>Each component of the
+lower pair of oscillators is surrounded by the spectrum produced by the upper pair,
+sort of like a set of formant regions.
+</p>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/cascade.png" alt="cascade fm picture">
+</td></tr>
+<tr><td class="bluishb">osc A: 2000 Hz, osc B: 500 Hz, index 1.5, osc C: 50 Hz, index 1.0</td></tr>
+</table>
+
+<!--
+cascade.png:
+
+(define (cascade1 beg dur freq amp modfreq modind modpha casfreq casind caspha)
+  (let* ((start (seconds->samples beg))
+	 (end (+ start (seconds->samples dur)))
+	 (cr (make-oscil freq))
+	 (md (make-oscil modfreq modpha))
+	 (ca (make-oscil casfreq caspha))
+	 (fm-ind0 (hz->radians (* modind modfreq)))
+	 (fm-ind1 (hz->radians (* casind casfreq))))
+     (do ((i start (+ i 1)))
+         ((= i end))
+       (outa i (* amp 
+                  (oscil cr (* fm-ind0 
+                               (oscil md (* fm-ind1 
+                                            (oscil ca))))))))))	
+
+(with-sound () 
+  (cascade1 0 1.0 2000 .25  500 1.5 (* 0.5 (+ pi (hz->radians 500)))  50 1.0 (+ pi (* 0.5 (hz->radians 550)))))
+				      
+-->
+
+<p>The resemblance of cascade FM to parallel FM is not an accident:
+</p>
+
+<!-- LATEX fmeq57: 
+    & \sin(\omega_{c}t + B_{1}\sin(\omega_{m1}t + B_{2}\sin(\omega_{m2}t))) = \sum_{n=-\infty}^{\infty} \sum_{k=-\infty}^{\infty} J_{n}(B_{1}) J_{k}(n B_{2}) \sin(\omega_{c} + n \omega_{m1} + k \omega_{m2})t \\
+-->
+
+<img class="indented" src="pix/fmeq57.png" alt="cascade FM">
+
+<p>
+Unfortunately, FM and PM can produce energy 
+at 0Hz (when, for example, the carrier frequency equals the modulating frequency), and in FM that 0Hz component becomes a constant offset in the 
+phase increment (the "instantaneous frequency") of the outer or lowermost
+carrier. 
+Our fundamental frequency no longer has any obvious relation to
+<img src="pix/fmeq43.png" alt="wc">!
+That is, we 
+can expand our cascade formula (in the sin(x + cos(sin)) case) into:
+</p>
+
+<!-- LATEX old version: \sin(\omega_{c}t + \sum J_{n}(B)\cos(\omega_{c}t + n\omega_{m_{n}}t)) -->
+<!-- LATEX fmeq36.png: \sin \big(\omega_{c}t + \int_{0}^{t} \! \sum J_{n}(B)\cos(\omega_{m1} + n\omega_{m2})t \, \mathrm{d} t\big) -->
+
+<img class="indented" src="pix/fmeq36.png" alt="more sins">
+
+
+<!-- LATEX old version (fmeq46.png): \omega_{c} = -n\omega_{m}\textrm{, we get }J_{n}(B)\cos(0) = J_{n}(B) -->
+<!-- LATEX fmeq46.png: \omega_{m1} = -n\omega_{m2} -->
+<!-- LATEX fmeq51.png: J_{n}(B)\cos(0) = J_{n}(B) -->
+
+<p>but now whenever the 
+<img src="pix/fmeq46.png" alt="wc">, we get
+<img src="pix/fmeq51.png" alt="j0 case">,
+and the carrier is offset by <code>(radians-&gt;hz (bes-jn B))</code>, that is, (Jn(B) * srate / (2 * pi)).
+For example, if we have <code>(oscil gen 0.05)</code>, where we've omitted everything except
+the constant (DC) term (0.05 in this case), this oscil produces a sine wave at its nominal frequency + (radians-&gt;hz 0.05),
+an offset of about 351 Hz at a 44100 Hz sampling rate.
+This extra offset could be a disaster, because 
+in most cases where we care about the perceived fundamental, we are trying to create harmonic 
+spectra, and that is harder if our modulator/carrier ratio depends on the current FM index.
+If you are using low indices and the top pair's 
+mc-ratios are below 1.0 (in vibrato, for example), you have a good chance of getting usable results.  
+If you want cascade FM to work in other situations, make sure the top oscil has an initial phase of 
+(pi + mod-incr)/2.  The middle FM spectrum will then have only sines (not cosines), so the DC component
+will be thoroughly discouraged.  Or use phase modulation instead; in that case, we
+have effectively <code>(oscil gen 0.0 0.05)</code>, which has no effect on the pitch, but offsets the
+phase by a constant (0.05), usually not a big deal.
+</p>
+
+
+<p>The irascible reader may be grumbling about angels and pins, so here's an example of cascade FM 
+to show how strong this effect is:
+</p>
+
+<!-- CLM CASE
+<pre class="indented">
+(definstrument cascade (beg end freq amp modrat modind casrat casind caspha)
+  (let ((cr (make-oscil freq))
+        (md (make-oscil (* freq modrat)))
+        (ca (make-oscil (* freq casrat) caspha))
+        (fm-ind0 (hz-&gt;radians (* modind modrat freq)))
+        (fm-ind1 (hz-&gt;radians (* casind casrat freq))))
+    (run
+     (loop for i from beg to end do
+       (outa i (* amp (oscil cr (* fm-ind0 (oscil md (* fm-ind1 (oscil ca)))))))))))
+
+(with-sound () (cascade 0 10000 400 .25 1.0 1.0 1.0 1.0 0))
+(with-sound () (cascade 0 10000 400 .25 1.0 1.0 1.0 1.0 (* .5 pi)))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define (cascade beg dur freq amp modrat modind casrat casind caspha)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (cr (make-oscil freq))
+	 (md (make-oscil (* freq modrat)))
+	 (ca (make-oscil (* freq casrat) caspha))
+	 (fm-ind0 (hz-&gt;radians (* modind modrat freq)))
+	 (fm-ind1 (hz-&gt;radians (* casind casrat freq))))
+     (do ((i start (+ i 1)))
+         ((= i end))
+       (outa i (* amp 
+                  (oscil cr (* fm-ind0 
+                               (oscil md (* fm-ind1 
+                                            (oscil ca))))))))))
+
+(with-sound () 
+  (cascade 0 1.0 400 .25 1.0 1.0 1.0 1.0 0)
+  (cascade 1.5 1.0 400 .25 1.0 1.0 1.0 1.0 (* .5 pi)))
+
+;;; clean it up by using the no-DC initial phase:
+(with-sound () 
+  (cascade 0 1.0 400 .25 1 1.0 1 1.0 (* 0.5 (+ pi (hz-&gt;radians 400)))))
+</pre>
+<!-- -->
+
+<div class="spacer"></div>
+
+<p>Why stop at three sins?  Here's an experiment that calls sin(sin(sin...)) k times;
+it seems to be approaching a square wave as k heads into the stratosphere:
+</p>
+
+<!--
+(with-sound () 
+  (let ((angle 0.0)
+	(incr (hz->radians 100.0)))
+    (do ((i 0 (+ i 1)))
+	((= i 20000))
+      (let* ((result (sin angle)))
+	(do ((k 0 (+ k 1)))
+	    ((= k 2))
+	  (set! result (sin result)))
+	(set! angle (+ angle incr))
+	(outa i result)))))
+-->
+
+<table class="borderedm">
+<tr>
+<td>
+<img src="pix/sin3.png" alt="3 sins">
+</td>
+<td>
+<img src="pix/sin30.png" alt="30 sins">
+</td>
+<td>
+<img src="pix/sin300.png" alt="300 sins">
+</td>
+</tr>
+<tr>
+<td class="bluishb">k=3</td>
+<td class="bluishb">k=30</td>
+<td class="bluishb">k=300</td>
+</tr></table>
+
+<div class="spacer"></div>
+
+<p>
+If we use "cos" here instead of "sin", we get a constant, as Bill Gosper has shown:
+</p>
+
+<img class="indented" src="pix/coscoscos.png" alt="nested cos equation">
+
+<p>As z increases above 1.27, we get a square wave, then period doubling, and finally (ca. 1.97) chaos.
+<!-- googling "cosine map" gets 1.974133 -->
+</p>
+
+<!--
+(with-sound (:clipped #f :statistics #t) 
+  (let ((angle 0.0) 
+	(z 1.18)
+	(incr (hz->radians 100.0)))
+    (do ((i 0 (+ i 1)))
+	((= i 20000))
+      (let* ((result (* z (cos angle))))
+	(do ((k 0 (+ k 1)))
+	    ((= k 100))
+	  (set! result (* z (cos result))))
+	(set! angle (+ angle incr))
+	(outa i result)))))
+
+
+http://www.tweedledum.com/rwg/idents.htm
+
+A sum of Bessels wherein the
+argument and subscript both ramp with the index is called a Kapteyn series.  The
+alternate text if you roll over the formula with IE is "Continued cosine, A036778"
+which is the sequence number (q.v.) of its expansion coefficients in Sloane's
+Encyclopedia, http://akpublic.research.att.com/~njas/sequences/ .  I think the
+iterated cosine stops converging near z = 1.42, where it begins a period 2
+oscillation, presumably with Feigenbaum behavior thereafter.  I guess these
+things are just called iterated functions or fixed-point equations.
+-->
+
+<!-- LATEX
+\large
+\begin{align*}
+&z \cos(z \cos(z\cdots)) = 2 \sum_{k=0}^{\infty} (-1)^{k} \frac{J_{2k+1}((2k+1)z)}{2k+1} & z<1.27 \\
+\end{align*}
+-->
+
+
+<div class="spacer"></div>
+<div class="greenish">feedback FM: sin(x=sin(x))</div>
+
+<p>A similar trick comes up in feedback FM used in some synthesizers. Here the output of the modulator
+is fed back into its input:
+</p>
+
+<pre class="indented">
+sin(y &lt;= w + B sin y)
+</pre>
+
+<p>This is expanded by Tomisawa as:
+</p>
+
+<!-- LATEX \sum_{n=1}^{\infty}\frac{2}{nB}J_{n}(nB)\sin n\omega_{c}t -->
+
+<img class="indented" src="pix/fmeq37.png" alt="feedback fm">
+
+<p>As Tomisawa points out, this is very close to the other FM formulas, except that 
+the argument to the Bessel function depends on the order, we have only multiples of the carrier frequency 
+in the expansion, and the elements of the sequence are multiplied by 2/nB.  The result is a much 
+broader, flatter spectrum than you normally get from FM.  If you just push the index up in normal 
+FM, the energy is pushed outward in a lumpy sort of fashion, not evenly spread across the spectrum.  
+In effect we've turned the axis of the Bessel functions so that the higher order functions start at 
+nearly the same time as the lower order functions.  The new function Jn(nB) decreases (very!) gradually.  
+For example if the index (B) is 1:
+</p>
+
+<!-- LATEX
+\begin{eqnarray*}
+J_{1}(1) = .440 \\
+J_{2}(2) = .353 \\
+J_{3}(3) = .309 \\
+J_{200}(200) = .076 \\
+J_{2000}(2000) = .035
+\end{eqnarray*}
+-->
+
+<!-- J100000(100000) = .0096
+     J1000000(1000000) = .0044
+     J10000000(10000000) = .002
+     after that they are repeating; factor of 10 -> factor of 2 in result; probably an artifact
+-->
+
+<img class="indented" src="pix/fmeq28.png" alt="Jn vals">
+
+<p>Since the other part of the equation goes down as 1/n, we get essentially a sawtooth wave 
+out of this equation (its harmonics go down as 1/n).  Tomisawa suggests that B should be between 0 
+and 1.5. Since we are dividing by B in the equation, we might worry that as B heads toward 0, all 
+hell breaks loose, but luckily 
+</p>
+
+<!-- LATEX fmeq38: \lim_{B \to 0}\frac{2}{B}J_{1}(B) = 1 -->
+
+<img class="indented" src="pix/fmeq38.png" alt="lim1 case">
+
+
+<p>and for all the other components
+</p>
+
+<!-- LATEX fmeq39: \lim_{B \to 0}\frac{2}{nB}J_{n}(nB) = 0 -->
+
+<img class="indented" src="pix/fmeq39.png" alt="all cases">
+
+
+<p>so, just as in normal FM, if the index is 0, we get a pure sine wave.
+</p>
+
+<pre class="indented">
+(define (feedbk beg dur freq amp index)
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (y 0.0)
+	 (x-incr (hz-&gt;radians freq)))
+    (do ((i start (+ i 1))
+         (x 0.0 (+ x x-incr)))
+        ((= i end))
+      (set! y (+ x (* index (sin y))))
+      (outa i (* amp (sin y))))))
+
+(with-sound () (feedbk 0 1 100.0 1.0 1.0))
+</pre>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/fdbk.png" alt="feedback fm">
+</td></tr>
+<tr>
+<td>
+<pre>
+  2/1 J1(1) = 0.880 -&gt; 1.000 (normalized to match fft)
+  2/2 J2(2) = 0.353 -&gt; 0.401
+  2/3 J3(3) = 0.206 -&gt; 0.234
+  2/4 J4(4) = 0.141 -&gt; 0.159
+  2/5 J5(5) = 0.104 -&gt; 0.118
+  2/6 J6(6) = 0.082 -&gt; 0.093
+  2/7 J7(7) = 0.066 -&gt; 0.076
+</pre>
+</td></tr></table>
+
+
+<p>Why does the FFT show a 0 Hz component?
+Increasing the sampling rate, or decreasing the carrier frequency reduces this component without
+affecting the others, but low-pass filtering the output does not affect it (so it's unlikely
+to be an artifact of aliasing which is a real problem in feedback FM).  Change the sine to
+cosine in <code>(* amp (sin y))</code> and suddenly there's a ton of DC.  Fiddle with the
+initial phase in that line, and there's always some choice that reduces it to 0.0.
+Groan &mdash; it appears to be another "centering" problem, but I haven't found
+the magic formula yet (a reasonable stab at it is: <code>-(phase-incr^(1-(B/3))</code>)).
+</p>
+
+<table class="borderedm">
+<tr><td>
+<img src="pix/blip.png" alt="feedback noise">
+</td></tr>
+<tr><td class="bluishb">
+Tomisawa's picture of the noise
+</td></tr></table>
+
+<p>Why does an index over 1.0 create bursts of noise?
+Each burst happens as the modulator phase goes through an odd multiple of pi (where sine is going negative as the phase increases). Since the
+index (B) is high enough, the change between successive samples in (B * sin(y)) is eventually greater in magnitude than the phase increment.
+When that happens on the downslope of the sine curve, B * sin(y) + phase-increment (our overall phase increment) is so much more negative
+on the current sample than the previous one that the phase actually backs up.  (This is confusing to analyze because at this point in
+the curve, the feedback is already holding the phase back, so we need to reach a point where the increase in the backup overwhelms the
+increment on that sample, thereby backing up the overall phase beyond its previous held back value).
+So the modulator phase backs into the
+less negative part of the sine curve: our next y value is less negative (it can even be positive)!  
+But now B * sin(y) is also less negative, so
+the phase increment lurches us forward, and y is now even more negative.
+We've started to zig-zag down the sine curve.  Depending on the index, this bouncing
+can reach any amplitude, and start anywhere after the high point of the curve.  Eventually,
+the sine slope lessens (as it reaches its bottom), the overall phase catches up, and
+the bouncing stops for that cycle. 
+The noise is not chaos (in the sense of period doubling), or an error in the computation.
+Our largest safe index is increment/sin(increment) which is just over 1.0.  If we change
+the code to make sure the carrier phase doesn't back up, the bursts go away until the
+index reaches about 1.4, then we start to zigzag at the zero crossing.
+The take-home message is: "keep the index below 1.0!".
+</p>
+
+<!--
+(define (feedbk beg dur freq amp index)
+  (let* ((start (seconds->samples beg))
+	 (end (+ start (seconds->samples dur)))
+	 (y 0.0)
+	 (x-incr (hz->radians freq)))
+     (do ((i start (+ i 1))
+          (x 0.0 (+ x x-incr)))
+	 ((= i end))
+       (out-any i y 0)                    ;0: previous y (effective phase)
+       (out-any i x 1)                    ;1: x (carrier phase) = old x + x-incr
+       (let ((md (* index (sin y))))
+         (out-any i (- (+ x md) y) 2)     ;2: new y - old y
+         (set! y (+ x md))
+         (out-any i md 3)                 ;3: output (* amp (sin y))
+         (out-any i y 4)))))              ;4: new y
+
+(with-sound (:srate 44100 :sample-type mus-ldouble :channels 5 :statistics #t :clipped #f) (feedbk 0 2 100.0 1.0 1.22))
+ channel 2 (outc) is our actual per-sample phase increment; notice that at the trouble spot it
+ is zigzagging itself, and after interspersed 0's, finally dips negative, then the bounces start
+ (at the bad spot y goes from -.57 to -.59 but the phase incr is .014, we back up).
+
+:(samps 9096)
+(129.160781860352 129.596038818359 2.01292452402413e-4 -0.435052901506424 129.160980224609)
+:(samps 9097)
+(129.160980224609 129.610275268555 0.0140117099508643 -0.4352887570858 129.174987792969)
+:(samps 9098)
+(129.174987792969 129.624526977539 -0.00212752283550799 -0.451663881540298 129.172866821289) ; trouble -.45 - -.43
+:(samps 9099)
+(129.172866821289 129.638778686523 0.0167283322662115 -0.449183136224747 129.189590454102)
+:(samps 9100)
+(129.189590454102 129.653030395508 -0.00520234555006027 -0.468633055686951 129.184387207031)
+:
+:(samps 9130)
+(129.506851196289 130.080459594727 -0.233158811926842 -0.806757867336273 129.273696899414)
+:(samps 9131)
+(129.273696899414 130.094696044922 0.256685614585876 -0.564319849014282 129.530380249023)
+:(samps 9132)
+(129.530380249023 130.108947753906 -0.25042849779129 -0.828995883464813 129.27995300293)
+
+
+we can use the phase to minimize the difference with the sum:
+
+(define (feedbk beg dur freq amp index iters pha1)
+  (let* ((start (seconds->samples beg))
+	 (end (+ start (seconds->samples dur)))
+	 (y 0.0)
+	 (x-incr (hz->radians freq)))
+     (do ((i start (+ i 1))
+          (x 0.0 (+ x x-incr)))
+         ((or (c-g?)
+	      (= i end)))
+       (set! y (+ x (* index (sin y))))
+
+       (let ((result (* amp (sin y)))
+             (sum 0.0))
+	 (do ((n 1 (+ n 1))) 
+             ((= n iters)) 
+           (set! sum (+ sum (/ (* 2.0 
+			          (bes-jn n (* index n))
+			          (sin (* n x)))
+			    (* n index)))))
+	 (outb i (* amp sum))
+         (outc i (- sum (sin (+ y pha1))))
+         (outa i (* amp (sin (+ y pha1))))))))
+
+(with-sound (:channels 3 :statistics #t :clipped #f) (feedbk 0 1 100 1.0 0.5 100 0.01265)) ; .0005 0.1 100
+the sum has DC! and the difference is a pulse train, but higher srate fixes that
+
+-->
+
+<div class="spacer"></div>
+
+<div class="greenish">FM and noise: sin(sin(rand))</div>
+
+<p>
+One way to make noise 
+(deliberately) with FM is to increase the index until massive aliasing is taking place. 
+A more controllable approach is to use a random number generator as our modulator.
+In this case, the power spectral density of the output has the same form 
+as the value distribution function (amplitude distribution as opposed to frequency) of the modulating noise, centered around the carrier. 
+The bandwidth of the result is about 4 times the peak deviation (the 
+random number frequency times its index &mdash; is this just Mr Carson again?):
+</p>
+
+
+<table class="borderedm">
+<tr><td colspan=3>
+<pre class="indented">
+(with-sound ()
+  (let ((gen (make-oscil 5000))
+	(noise (make-rand 1000 :envelope '(-1 1 0 0 1 1))) ; "eared"
+	(index (hz-&gt;radians 1000))) ; index=1.0 so bandwith=4 Khz (2 Khz on each side)
+    (do ((i 0 (+ i 1)))
+	((= i 50000))
+      (outa i (oscil gen (* index (rand noise)))))))
+</pre>
+</td></tr>
+<tr>
+<td>
+<img src="pix/white-noise.png" alt="white-noise">
+</td>
+<td>
+<img src="pix/gaussian-noise.png" alt="gaussian-noise">
+</td>
+<td>
+<img src="pix/split-noise.png" alt="split-noise">
+</td>
+</tr>
+<tr>
+<td class="bluishb">flat</td>
+<td class="bluishb">gaussian (bell curve)</td>
+<td class="bluishb">eared</td>
+</tr></table>
+
+<div class="spacer"></div>
+
+<p>
+Simple FM with noise gives both whooshing sounds (high index) and hissing or whistling sounds (low index),
+useful for Oceanic Music, but more subtle kinds of noise can be hard to reach.
+Heinrich Taube had the inspired idea
+of feeding the noise (as a sort of cascade FM) into the 
+parallel modulators of an fm-flute, but not into the carrier.  The modulating signal becomes a sum of 
+two or three narrow band noises (narrow because normally the amplitude of the noise is low), and 
+these modulate the carrier.  In CLM:
+</p>
+
+<!--
+It is my belief that you get the normal spectrum with each component 
+smeared out by a copy of the noise band:
+
+<table>
+<tr>
+<td colspan=3 class="bluish">(with-sound () (fm-violin 0 1 400.0 .5 :fm-index 3.0 :noise-amount 0.007))</td></tr>
+<tr>
+<td><img src="pix/fmvnoise0.png" alt="fmv no noise"></td>
+<td><img src="pix/fmvnoise2.png" alt="fmv noise .002"></td>
+<td><img src="pix/fmvnoise7.png" alt="fmv noise .007"></td>
+</tr>
+<tr>
+<td class="bluish">noise-amount: 0.0</td>
+<td class="bluish">noise-amount: 0.002</td>
+<td class="bluish">noise-amount: 0.007</td>
+</tr></table>
+
+<p>In CLM:
+</p>
+-->
+
+
+<pre class="indented">
+(oscil carrier (* fm-index (oscil fm (* noise-index (rand noise)))))
+</pre>
+
+<p>You may have noticed that this is one case where phase modulation is different from FM.  Previously,
+we could fix up each modulating sinusoid (both in amplitude and initial phase), but here we have no such
+handles on the components of the incoming signal.  If someone insists, we can still match outputs by
+integrating the modulating signal: 
+FM(white-noise) = PM(brownian-noise).  Similarly,
+FM(square-wave) = PM(triangle-wave), 
+FM(nxy1sin) = PM(square-wave), and
+FM(e^x) = PM(e^x).  FM(square-wave) is:
+</p>
+
+<img class="indented" src="pix/fmeq58.png" alt="fm(noise)">.
+
+<!-- LATEX fmeq58:  (Klapper p102)
+  &\sum_{n=-\infty}^{\infty} \frac{2B}{\pi(B^{2}-n^{2})} \sin(\frac{\pi}{2} (B-n)) \sin (\omega_{c}+n\omega_{m})t
+-->
+
+
+<!--
+;; FM(sq)=PM(tri):
+(define* (fmpmsq beg dur freq amp (mc-ratio 1) (index 1.0) (phase (* 0.5 pi)))
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+	 (fm-carrier (make-oscil freq))
+	 (pm-carrier (make-oscil freq))
+	 (fm-modulator (make-square-wave (* freq mc-ratio) 2.0 phase))
+	 (pm-modulator (make-triangle-wave (* freq mc-ratio) (* 0.5 pi)))
+	 (fm-index (hz->radians (* index freq mc-ratio)))
+	 (ampf (make-env '(0 0 1 1 10 1 11 0) :scaler amp :duration dur))
+	 (sqsum 0.0))
+     (do ((i start (+ i 1)))
+         ((= i end))
+       (let ((vol (env ampf))
+             (sq (* fm-index (- (square-wave fm-modulator) 1.0)))
+             (tri (* index (triangle-wave pm-modulator))))
+         (outa i (* vol (oscil fm-carrier sq)))
+         (outb i (* vol (oscil pm-carrier 0.0 tri)))
+         (outc i sqsum)
+         (outd i tri)
+         (set! sqsum (+ sqsum sq))))))
+
+(with-sound (:clipped #f :statistics #t :channels 4) (fmpmsq 0 1 1000 .5 .1 1 (+ (* 0.5 pi) .005)))
+;; almost a match, the pi/2 triangle amp is to take into account the square wave's internal table size (2 pi)
+;;   there is a drift in sqsum that eventually turns around, raise srate to 441000 and it goes away
+
+
+;; FM(e^x)=PM(e^x):
+(define* (fmpmex beg dur freq amp)
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+	 (fm-carrier (make-oscil freq))
+	 (pm-carrier (make-oscil freq))
+	 (ampf (make-env '(0 0 1 1 10 1 11 0) :scaler amp :duration dur))
+	 (sumex 0.0))
+     (do ((i start (+ i 1))
+          (x 0.0 (+ x .0001)))
+         ((= i end))
+       (let ((vol (env ampf))
+            (ex (exp x)))
+         (outa i (* vol (oscil fm-carrier (* .0001 ex)))) ; sampled ex...
+         (outb i (* vol (oscil pm-carrier 0.0 ex)))
+         (outc i ex)
+         (outd i sumex)
+         (set! sumex (+ sumex (* .0001 ex)))))))
+
+(with-sound (:clipped #f :statistics #t :channels 4) (fmpmex 0 1 1000 .5))
+
+
+;; FM(white)=PM(brown):
+(define* (fmpmran beg dur freq amp (index 1.0))
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+	 (fm-carrier (make-oscil freq))
+	 (pm-carrier (make-oscil freq))
+	 (ampf (make-env '(0 0 1 1 10 1 11 0) :scaler amp :duration dur))
+	 (sumex 0.0)
+	 (fm-index (hz->radians (* index freq))))
+     (do ((i start (+ i 1))
+          (x 0.0 (+ x .0001)))
+         ((= i end))
+       (let ((vol (env ampf))
+             (ex (- (random 2.0) 1.0)))
+         (outa i (* vol (oscil fm-carrier (* fm-index ex))))
+         (outb i (* vol (oscil pm-carrier 0.0 (* index sumex))))
+         (outc i ex)
+         (outd i sumex)
+         (set! sumex (+ sumex (* fm-index ex)))))))
+
+(with-sound (:clipped #f :statistics #t :channels 4) (fmpmran 0 1 1000 .5 1))
+
+;; FM(odd-sines-alternating-sign) = PM(sq)
+(define* (fmpmodd beg dur freq amp (mc-ratio 1) (index 1.0) (phase (* 0.5 pi)))
+  (let* ((start (seconds->samples beg))
+         (end (+ start (seconds->samples dur)))
+	 (fm-carrier (make-oscil freq))
+	 (pm-carrier (make-oscil freq))
+	 (fm-modulator (make-nxy1sin (* freq mc-ratio) (* 2 freq mc-ratio) 100))
+	 (pm-modulator (make-square-wave (* freq mc-ratio) 1.0 phase))
+	 (fm-index (hz->radians (* index freq mc-ratio)))
+	 (ampf (make-env '(0 0 1 1 10 1 11 0) :scaler amp :duration dur))
+	 (sqsum 0.0))
+     (do ((i start (+ i 1)))
+         ((= i end))
+       (let ((vol (env ampf))
+             (pulse (* index (nxy1sin fm-modulator)))
+             (sq (* index (square-wave pm-modulator))))
+         (outa i (* vol (oscil fm-carrier pulse)))
+         (outb i (* vol (oscil pm-carrier 0.0 sq)))
+         (outc i sqsum)
+         (outd i sq)
+         (set! sqsum (+ sqsum pulse))))))
+
+(with-sound (:clipped #f :statistics #t :channels 4) (fmpmodd 0 1 1000 .5 .1 1))
+
+-->
+
+
+<p>
+In the realm of "anything" as the modulating signal, consider 
+</p>
+
+<pre class="indented">
+(sin (+ sound-file (* index (sin (* 2 pi sound-file)))))
+</pre>
+
+<p>where "sound file" is any recorded sound.  I call this "contrast-enhancement" in the CLM package.  It 
+makes a sound crisper; "Wait for Me!" uses it whenever a sound needs to cut through a huge 
+mix. 
+</p>
+
+
+<div class="spacer"></div>
+<div class="greenish">FM voice</div>
+
+<p>We can use more than one sinusoidal component in our carrier, or multiple banks of carriers and 
+modulators, and depend upon vibrato and "spectral fusion" to make the result sound like one voice.  
+In this cross between additive synthesis (the multiple carriers) and FM (the formant centered on 
+each carrier), we get around many of the limitations of the Bessel functions.  There are numerous 
+examples in fmviolin.clm.  One of the raspier 
+versions of the fm-violin used a sawtooth wave as the carrier, and some sci-fi sound effects use
+triangle waves as both carrier and modulator.  See generators.scm for many other FM-inspired synthesis
+techniques, including J0(B sin x): "Bessel FM".
+An elaborate multi-carrier FM instrument is the voice instrument written by Marc Le Brun,
+used in "Colony" and other pieces:
+</p>
+
+
+<!-- CLM CASE
+<pre class="indented">
+(definstrument vox (beg end freq amp 
+                    &amp;optional (indexes '(.005 .01 .02)) (formant-amps '(.86 .13 .01)))
+  (let* ((car-os (make-oscil 0))
+         (evens (make-array 3))
+         (odds (make-array 3))
+         (amps (make-array 3 :element-type 'short-float :initial-contents formant-amps))
+         (ampf (make-env '(0 0 25 1 75 1 100 0) :scaler amp))
+         (frmfs (make-array 3))
+         (indices (make-array 3 :element-type 'short-float :initial-contents indexes))
+         (frq 0.0) (car 0.0) (frm 0.0) (frm-int 0) (frm0 0.0) 
+         (even-amp 0.0) (odd-amp 0.0) (even-freq 0.0) 
+         (odd-freq 0.0) (sum 0.0)
+         (per-vib (make-triangle-wave 6 :amplitude (* freq .03)))
+         (ran-vib (make-rand-interp 20 :amplitude (* freq .5 .02))))
+    (dotimes (i 3)
+      (setf (aref evens i) (make-oscil 0))
+      (setf (aref odds i) (make-oscil 0)))
+    (setf (aref frmfs 0) (make-env '(0 520 100 490))) 
+    (setf (aref frmfs 1) (make-env '(0 1190 100 1350))) 
+    (setf (aref frmfs 2) (make-env '(0 2390 100 1690))) 
+    (run
+     (loop for i from beg to end do
+       (setf frq (+ freq (triangle-wave per-vib) (rand-interp ran-vib)))
+       (setf car (oscil car-os (hz-&gt;radians frq)))
+       (setf sum 0.0)
+       (dotimes (k 3)
+         (setf frm (env (aref frmfs k)))
+         (setf frm0 (/ frm frq))
+         (setf frm-int (floor frm0))
+         (if (evenp frm-int)
+             (progn
+               (setf even-freq (hz-&gt;radians (* frm-int frq)))
+               (setf odd-freq (hz-&gt;radians (* (+ frm-int 1) frq)))
+               (setf odd-amp (- frm0 frm-int))
+               (setf even-amp (- 1.0 odd-amp)))
+           (progn
+             (setf odd-freq (hz-&gt;radians (* frm-int frq)))
+             (setf even-freq (hz-&gt;radians (* (+ frm-int 1) frq)))
+             (setf even-amp (- frm0 frm-int))
+             (setf odd-amp (- 1.0 even-amp))))
+         (incf sum (+ (* (aref amps k) 
+                      (+ (* even-amp 
+                            (oscil (aref evens k) 
+                              (+ even-freq (* (aref indices k) car))))
+                         (* odd-amp 
+                             (oscil (aref odds k) 
+                               (+ odd-freq (* (aref indices k) car)))))))))
+      (outa i (* (env ampf) sum))))))
+
+(with-sound () (vox 0 10000 110 .5 '(0.02 0.01 0.02) '(.9 .09 .01)))
+</pre>
+-->
+
+<!-- SND CASE -->
+<pre class="indented">
+(define* (vox beg dur freq amp (indexes '(.005 .01 .02)) (formant-amps '(.86 .13 .01)))
+  (let* ((start (seconds-&gt;samples beg))
+	 (end (+ start (seconds-&gt;samples dur)))
+	 (car-os (make-oscil 0))
+         (evens (make-vector 3))
+         (odds (make-vector 3))
+         (amps (apply vct formant-amps))
+         (ampf (make-env '(0 0 25 1 75 1 100 0) :scaler amp :duration dur))
+         (frmfs (make-vector 3))
+         (indices (apply vct indexes))
+         (per-vib (make-triangle-wave 6 :amplitude (* freq .03)))
+         (ran-vib (make-rand-interp 20 :amplitude (* freq .5 .02))))
+    (do ((i 0 (+ i 1)))
+	((= i 3))
+      (set! (evens i) (make-oscil 0))
+      (set! (odds i) (make-oscil 0)))
+
+    (set! (frmfs 0) (make-env '(0 520 100 490) :duration dur)) 
+    (set! (frmfs 1) (make-env '(0 1190 100 1350) :duration dur)) 
+    (set! (frmfs 2) (make-env '(0 2390 100 1690) :duration dur))
+
+    (do ((i start (+ i 1)))
+        ((= i end))
+      (let* ((frq (+ freq (triangle-wave per-vib) (rand-interp ran-vib)))
+	     (car (oscil car-os (hz-&gt;radians frq)))
+	     (sum 0.0))
+        (do ((k 0 (+ k 1)))
+            ((= k 3))
+          (let* ((frm (env (frmfs k)))
+	         (frm0 (/ frm frq))
+	         (frm-int (floor frm0))
+	         (even-amp 0.0) (odd-amp 0.0) 
+	         (even-freq 0.0) (odd-freq 0.0))
+            (if (even? frm-int)
+	        (begin
+	          (set! even-freq (hz-&gt;radians (* frm-int frq)))
+	          (set! odd-freq (hz-&gt;radians (* (+ frm-int 1) frq)))
+	          (set! odd-amp (- frm0 frm-int))
+	          (set! even-amp (- 1.0 odd-amp)))
+	        (begin
+	          (set! odd-freq (hz-&gt;radians (* frm-int frq)))
+	          (set! even-freq (hz-&gt;radians (* (+ frm-int 1) frq)))
+	          (set! even-amp (- frm0 frm-int))
+	          (set! odd-amp (- 1.0 even-amp))))
+            (set! sum (+ sum (+ (* (amps k) 
+		                   (+ (* even-amp 
+				          (oscil (evens k) 
+					         (+ even-freq (* (indices k) car))))
+				      (* odd-amp 
+				          (oscil (odds k) 
+					         (+ odd-freq (* (indices k) car)))))))))))
+          (outa i (* (env ampf) sum))))))
+
+(with-sound () 
+  (vox 0 1.0 220.0 0.5)
+  (vox 1.5 1.0 110 .5 '(0.02 0.01 0.02) '(.9 .09 .01)))
+</pre>
+<!-- -->
+
+<p>which produces this spectrogram:
+</p>
+
+<img src="pix/voxspectrum.png" alt="voice spectrum">
+
+
+
+<h2>References</h2>
+<pre class="indented">
+Abramowitz and Stegun, "Handbook of Mathematical Functions", Dover 1965.
+
+Benson, "Music: A Mathematical Offering", Cambridge University Press, Nov 2006. Also available
+     on-line: http://www.maths.abdn.ac.uk/~bensondj/html/music.pdf.  If the math side of my
+     article is of any interest, you might like Benson's discussion of FM.
+
+Chowning, "The Synthesis of Complex Audio Spectra by Means of Frequency Modulation", JAES 21:526-534, 1973
+
+Frost, "Early FM Radio", Johns Hopkins Univ Press, 2010
+     I am apparently unfair to Mr Carson; Armstrong quoted him out of context, and I did not dig up
+     the original paper.
+
+Gagliardi, "Introduction to Communications Engineering", Wiley Interscience, 1978.
+
+Gray and Mathews, "A Treatise on Bessel Functions and Their Applications to Physics", MacMillan and Co, 1895.
+
+Klapper, "Selected Papers on Frequency Modulation", Dover 1970. (Out of print, but available
+     via used book markets such as abebooks or amazon &mdash; usually about $25).
+     The Bessel function graph is from Corrington, "Variation of Bandwidth with Modulation Index in FM",
+     The picture below of an early radio is from Armstrong, "A Method of Reducing Disturbances in Radio
+     Signaling by a System of FM".  The Carson quote is also from that paper (originally published
+     in Proc. IRE, Vol 24, No 5, pp 689-740, May, 1936, with Carson's paper referred to as
+     "Notes on the theory of modulation", Proc. IRE, vol 10, pp 57-82, Feb 1922).
+
+LeBrun, "A Derivation of the Spectrum of FM with a Complex Modulating Wave", CMJ vol1, no 4 1977 p51-52
+
+Moorer, "Signal Processing Aspects of Computer Music: A Survey" Proc IEEE  vol 65 1977.
+
+Palamin, Palamin, Ronveaux "A Method of Generating and Controlling Asymmetrical Spectra", JAES vol 36, 
+     no 9, Sept 88, p671-685.
+
+Schottstaedt, "The Simulation of Natural Instrument Tones Using Frequency Modulation 
+     with a Complex Modulating Wave", CMJ vol 1 no 4 1977 p46-50
+
+Taub and Schilling, "Principles of Communications Systems", McGraw-Hill, 1986.
+
+Tomisawa, "Tone Production Method for an Electronic Musical Instrument" US Patent 4,249,447, 1981.
+
+Watson, "A Treatise on the Theory of Bessel Functions", Cambridge, 1922.
+</pre>
+
+
+<table class="spaced">
+<tr><td>
+<table><tr><td>
+<img src="pix/fmradio.png" alt="early FM radio">
+</td></tr>
+<tr><td class="bluishb">FM (and AM) radio ca 1934
+</td></tr></table>
+
+</td><td>
+
+<table class="spaced">
+<tr><td>
+<img src="pix/m5fm1.png" alt="music v source"><br>
+<img src="pix/m5fm2.png" alt="music v source">
+</td></tr>
+<tr><td class="bluishb">Music 5 FM?
+</td></tr></table>
+
+</td></tr></table>
+
+<!-- omitted stuff 
+
+John Chowning noticed that if the m:c ratio is the
+golden mean (1.618...), several of the sidebands
+fall at powers of that number.  That is, 1 + 1.618
+(the first higher partial) is 1.618^2, .618
+(the first wrapped-around lower partial) is
+1.618^-1, and 1 + 2*1.618 (the second upper partial)
+is 1.618^3.  For the first partials to
+match is to ask that x^2 = 1 + x, which has
+the golden mean as a solution.  In the second case,
+x^3 = 2*x + 1 also has the golden mean as a solution.
+Sadly, this sequence does not continue.  The golden
+mean is obviously not unique in this regard; 
+if our ratio is 2+sqrt(3) then the wrap-around
+fourth sideband is the ratio squared.  A table of
+Pisot numbers gives many more such numbers.
+
+1+sqrt(2) squared = 1 + 2* same
+
+-->
+
+<!-- PM producing a frequency shift:
+(with-sound ()
+  (let ((o (make-oscil 200.0))
+        (e (make-env '(0 0 1 1) :scaler 300.0 :duration 1.0)))
+    (do ((i 0 (+ i 1)))
+        ((= i 44100))
+      (outa i (oscil o 0.0 (env e))))))
+-->
+
+</body>
+</html>

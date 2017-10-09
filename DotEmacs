@@ -1,0 +1,176 @@
+;;; DotEmacs Version 1.0
+;;; Copyright 2001 Fernando Lopez-Lezcano <nando@ccrma.stanford.edu>
+;;;   Tested under RedHat Linux 7.0 (rpm: xemacs-21.1.14-2.7):
+;;;   xemacs 21.1 patch 14, ilisp 5.10.1
+;;;
+;;; this .emacs file should work correctly with the PlanetCCRMA
+;;; cm/clm/cmn rpms and should autodetect which binary rpm has
+;;; been installed, setting the correct path for executing it.
+;;; Getting all this work has been a REAL pain, most of the time
+;;; trying to interpret emacs lisp code in the ilisp module...
+;;;
+;;; Todo: more key bindings should be local for the buffer, this
+;;;       is a problem when using several lisps concurrently...
+
+;;; For standard gnu emacs and Xemacs
+
+;;; figure out which flavor we are running
+
+(defvar xemacs-flavor (string-match "XEmacs\\|Lucid" emacs-version))
+
+;;; For Xemacs only
+
+(cond (xemacs-flavor
+
+       ;; if you always want partial minibuffer completion
+       (require 'completer)
+
+       ;; configuration of Erik Naggum's HyperSpec access package.
+       (setq common-lisp-hyperspec-root "file:/usr/lib/lisp/reference/HyperSpec/")
+
+       ;; don't send output to a separate frame
+       (setq ilisp-*use-frame-for-output* nil)
+       ;; arglist will end up on minibuffer
+       (setq ilisp-*use-frame-for-arglist-output-p* nil)
+       ;; no message on startup
+       (setq ilisp-motd nil)
+       ;; activate fsf keybindings
+       (setq ilisp-*use-fsf-compliant-keybindings* t)
+
+       ;; initialization and load hooks
+       (add-hook 'ilisp-load-hook
+                 '(lambda ()
+                    ;; Change default key prefix to C-c
+                    (setq ilisp-*prefix* "\C-c")
+                    ;; do not do arglist expansion by default
+                    ;; necessary to avoid errors on .lisp buffers
+
+                    ;; (define-key ilisp-mode-map " " 'self-insert-command)
+                    ;; output to minibuffer for arglist expansion
+                    (setq lisp-no-popper t)
+                    ;; by default disable arglist expansion on #\\Space
+                    (setq ilisp-*arglist-message-lisp-space-p* nil)))
+       (add-hook 'ilisp-mode-hook
+                 '(lambda ()))
+
+       ;; HACK: we set window-system to nil temporarily while we load ilisp
+       ;; so that it does not create extra frames for its output. There is
+       ;; currently no way to turn this off with configuration variables
+       ;; for ilisp 5.10.1 (AFAIK). The code for the output functions is in:
+       ;;     /usr/lib/xemacs/xemacs-packages/lisp/ilisp/ilis-out.el
+       (let ((window-system nil))
+         ;; now we load ilisp, we need it active to define our dialects
+         (require 'ilisp))
+
+       ;; define a dialect for Snd's guile interpreter
+
+       (defdialect snd "Snd" guile
+         (setq comint-prompt-regexp "^>+")
+         (setq ilisp-complete-command nil)
+         ;; try to autodetect the binary
+         (unless snd-program
+           (cond
+            ((file-executable-p "/usr/bin/snd")
+             (setq snd-program "/usr/bin/snd"))
+            (t (setq snd-program "snd")))))
+
+       (add-hook 'snd-hook
+                 (lambda ()
+
+                   ))
+       ;; if you have the binary somewhere else:
+       ;; (setq snd-program "snd")
+
+       ;; define a dialect for CM/CLM/CMN (under allegro common lisp)
+
+       (defdialect acl "AclLisp" allegro
+         ;; try to autodetect the binary (at ccrma)
+         (unless acl-program
+           (cond
+            ;;((file-executable-p "/usr/ccrma/lbin/cm2-clm2")
+            ;; (setq acl-program "/usr/ccrma/lbin/cm2-clm2"))
+            ((file-executable-p "/usr/ccrma/lbin/acl5.0")
+             (setq acl-program "/usr/ccrma/lbin/acl5.0"))
+            (t (setq acl-program "cm2-clm2")))))
+
+       (add-hook 'acl-hook
+                 (lambda ()
+                   ;; the following is necessary so that we can have separate
+                   ;; keymaps for snd and other lisps, if we run them concurrently
+                   ;; we need to have some local (to the buffer) key bindings.
+                   (make-local-variable 'overriding-local-map)
+                   (setq overriding-local-map (copy-keymap ilisp-mode-map))
+                   (define-key overriding-local-map " "
+                     'ilisp-arglist-message-lisp-space)
+                   ;; enable arglist expansion on this buffer
+                   (make-local-variable 'ilisp-*arglist-message-lisp-space-p*)
+                   (setq ilisp-*arglist-message-lisp-space-p* t)))
+
+       ;; if you have the binary somewhere else
+       ;; (setq acl-program "/usr/ccrma/lbin/cm2-clm2")
+
+       ;; define a dialect for CmuCL;
+       ;; we need to patch the cmuclisp.lisp init file including CMU18 in the
+       ;; #+ #- switches if we want the symbol description to work correctly,
+       ;; see /usr/lib/xemacs/xemacs-packages/lisp/ilisp/cmulisp.lisp
+
+       (defdialect cmucl "CmuLisp" cmulisp
+         ;; set the correct file name
+         (setq ilisp-cmulisp-init-file "cmulisp.lisp")
+         ;; try to autodetect the binary
+         (unless cmucl-program
+           (cond
+            ((file-executable-p "/usr/bin/cmucl-cm-clm-cmn")
+             (setq cmucl-program "/usr/bin/cmucl-cm-clm-cmn"))
+            ((file-executable-p "/usr/bin/cmucl-cm-clm")
+             (setq cmucl-program "/usr/bin/cmucl-cm-clm"))
+            ((file-executable-p "/usr/bin/cmucl-clm")
+             (setq cmucl-program "/usr/bin/cmucl-clm"))
+            (t (setq cmucl-program "lisp")))))
+
+       (add-hook 'cmucl-hook
+                 (lambda ()
+                   (make-local-variable 'overriding-local-map)
+                   (setq overriding-local-map (copy-keymap ilisp-mode-map))
+                   (define-key overriding-local-map " "
+                     'ilisp-arglist-message-lisp-space)
+                   ;; enable arglist expansion on this buffer
+                   (make-local-variable 'ilisp-*arglist-message-lisp-space-p*)
+                   (setq ilisp-*arglist-message-lisp-space-p* t)))
+
+       ;; if you have the binary somewhere else:
+       ;; (setq cmucl-program "lisp")
+
+       ;; define a dialect for Clisp
+
+       (defdialect clisp "CLisp" clisp-hs
+         ;; try to autodetect the binary
+         (unless clisp-program
+           (cond
+            ((file-executable-p "/usr/bin/clisp-cm-clm-cmn")
+             (setq clisp-program "/usr/bin/clisp-cm-clm-cmn"))
+            ((file-executable-p "/usr/bin/clisp-cm-clm")
+             (setq clisp-program "/usr/bin/clisp-cm-clm"))
+            ((file-executable-p "/usr/bin/clisp-clm")
+             (setq clisp-program "/usr/bin/clisp-clm"))
+            (t (setq clisp-program "clisp")))))
+
+       (add-hook 'clisp-hook
+                 (lambda ()
+                   (make-local-variable 'overriding-local-map)
+                   (setq overriding-local-map (copy-keymap ilisp-mode-map))
+                   (define-key overriding-local-map " "
+                     'ilisp-arglist-message-lisp-space)
+                   ;; enable arglist expansion on this buffer
+                   (make-local-variable 'ilisp-*arglist-message-lisp-space-p*)
+                   (setq ilisp-*arglist-message-lisp-space-p* t)))
+
+       ;; if you have the binary somewhere else:
+       ;; (setq clisp-program "clisp")
+
+       ;; Bind acl startup
+       (global-set-key "\C-x\C-l" 'acl)
+       (global-set-key "\C-x\L"   'acl)
+       ))
+
+;;; End Xemacs customization

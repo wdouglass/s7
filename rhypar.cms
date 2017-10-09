@@ -1,0 +1,209 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Jean Claude Risset's rhythm paradox: the increasing beat.
+;;;                        ===================================
+;;;        Docs: 
+;;;        Risset, J. C. (1991). 
+;;;        Current Directions in Computer Music Research, 
+;;;        chapter Paradoxical Sounds,  (pp. 149-158)
+;;;
+;;;        John Pierce, The Science of Musical Sound.
+;;;
+;;;        Snd (guile scheme) code by Juan Reyes 
+;;;                                juanig <at> ccrma.Stanford (dot) EDU
+;;;        (c) MMVII
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;  Snd initialize (if needed)
+;;;
+;;
+;; (use-modules (ice-9 optargs))
+;;
+;; (provide 'snd-clm-ins.scm)
+
+;; (if (not (provided? 'snd-ws.scm)) (load-from-path "ws.scm"))
+;; (if (not (provided? 'snd-env.scm)) (load-from-path "env.scm"))
+
+;;;  Dependency:
+;;;
+;;; (load "ws.scm")
+;;;
+
+;;;
+;;;  Overall amplitude gaussian
+;;;
+
+
+
+
+(define ampgaussian
+  (lambda (t m)
+    (let* ((s m)                       ;;  Max Iterations
+	   (r (/ s 2))                 ;;  Half Max Iterations
+	   (sigma 4.0))                ;;  sigma > 1 convex curve
+      ;;
+      (exp (* (* (/ -1 2) (* sigma sigma)) (expt (- (/ t r) 1) 2)))
+      )))
+
+
+;;; define e
+(define e (exp 1))
+
+;;;
+;;; Normal curve for increasing / decreasing beat
+;;;
+
+(define jcrcurve
+  (lambda (t m)  ;; m = max number of iterations
+    (let ((k (* (/ -1 m) (log 32))))
+      (expt e (*  k t)))) )
+
+;;;
+;;; Simple one OSCIL intrument with a fast attack (percussive) ADSR envelope
+;;;
+
+
+(definstrument  (beats start duration  freq amp :key 
+	(percu-env '(0 0 8 1 100 0))
+	) 
+  (let* ((beg (seconds->samples start))
+	 (length (+ beg (seconds->samples duration)))
+	 (signal (make-oscil :frequency freq))
+		;;;
+		;;; here we have our envelope
+ 		;;;
+	 (percuenv (make-env :envelope percu-env
+			     :scaler amp
+			     :base 32
+			     :duration duration )))
+    (run
+     (lambda ()
+       (do ((i beg (1+ i)))
+	   ((= i length))
+	 (begin 
+	   (outa i (* (env percuenv) (oscil signal)) *output* ) )
+	 )))))
+
+;;; (with-sound () (beats 0 1.25 1000 0.7))
+
+
+;;;
+;;;   Simple case:
+;;;   ===========
+;;;   This case is shown on J. Pierce The Science of Musical Sound
+;;;
+;;;     Each of the beats is constructed with a sine frequency of (1000Hz)
+;;;     the beats are multiplied by a percussive envelope (see definstrument).
+;;;
+;;;     The individual beat is repeated at a rate 'r' (Hz) over a 
+;;;     specific time period [see (define jcrcuve) ].
+;;; 
+;;;     A number of patterns in geometric relation are constructed. Each
+;;;     of this patterns has a different envelope for the amplitude (overall
+;;;     amplitude gaussian) which furthermore be summed and multiplied to
+;;;     create a single beat.
+;;;
+;;;     When these patterns are combined, they create a perception illusion 
+;;;     of tempo increasing, when in reality , tempo remains the same.
+;;;
+
+(define simpleparad 
+  (lambda (notes r)
+    (with-sound()
+	       (let ((sta 0.00)
+		     (sta2 0.00)            
+		     (rhy (/ 1 r)))
+		 ;;;
+		 (do ((i 0 (1+ i)))
+		     ((= i notes))
+		   (begin
+		     (let ((rhythm (+  3.35464e-4 (* rhy (jcrcurve i notes)))))
+		       (beats sta rhythm 600 0.25)
+		       (set! sta (+ sta rhy))) ))
+		 ;;;
+		 (do ((h 2 (* 2  h)))
+		     ((= h 32))
+		   (begin
+		     (set! sta2 0.0)
+		     (do ((i 0 (1+ i)))
+			 ((= i h))
+		       (do ((j 0 (1+ j)))
+			   ((= j notes )) 
+			 (begin
+			   (let ((rhythm (+  3.35464e-4 (* (/ 1 (* h r))  (jcrcurve i notes)))))
+			     (beats sta2 rhythm 600 0.25)
+			     (set! sta2 (+ sta2  (/ 1 (* h r))   ))) )
+			 ))) )
+		 ))
+    ))
+
+
+
+
+
+
+;;;	       
+;;; (simpleparad 33 0.425)
+;;; (simpleparad 10 0.5)	      
+;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Complex case:
+;;;   ===========
+;;;   This case is shown on J.C. Risset's Pradoxical Sounds
+;;;
+;;;     The concept for the complex case is almost the same although, the
+;;;     illusion is achieved by having the listener focus on the beat which
+;;;     has the loudest amplitude. Here we use a normal curve [(ampgaussian)]
+;;;     to handle the amplitude on each of the patterns. By the same token
+;;;     amplitudes are further superimposed against each other and
+;;;     against rhythm beats.
+;;; 
+;;;
+
+
+(define complexparad 
+  (lambda (notes r)
+    (with-sound()
+	       (let ((sta 0.00)
+		     (sta2 0.00)            
+		     (rhy (/ 1 r)))
+		 ;;;
+		 (do ((i 0 (1+ i)))
+		     ((= i notes))
+		   (begin
+		     (let ((rhythm (+  3.35464e-4 (* rhy (jcrcurve i notes)))))
+		       (beats sta rhythm 400 (* 0.25 (ampgaussian i notes)))
+		       (set! sta (+ sta rhy))) ))
+		 ;;;
+		 (do ((h 2 (* 2  h)))
+		     ((= h 32))
+		   (begin
+		     (set! sta2 0.0)
+		     (do ((i 0 (1+ i)))
+			 ((= i h))
+		       (do ((j 0 (1+ j)))
+			   ((= j notes )) 
+			 (begin
+			   (let ((rhythm (+  3.35464e-4 (* (/ 1 (* h r))  (jcrcurve i notes)))))
+			     (beats sta2 rhythm 400 (* 0.25 (ampgaussian j notes)))
+			     (set! sta2 (+ sta2  (/ 1 (* h r))   ))) )
+			 ))) )
+		 ))
+    ))
+
+;;;
+;;; (complexparad 66 1.25)
+;;; (complexparad 66 1.45)
+;;;
+;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+

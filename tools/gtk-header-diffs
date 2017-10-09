@@ -1,0 +1,96 @@
+#!/bin/csh -f
+
+set gtkolddir = /home/bil/test/gtk+-3.91.1
+set gtknewdir = /home/bil/test/gtk+-3.91.2
+# set pangoolddir = /home/bil/test/pango-1.36.8
+# set pangonewdir = /home/bil/test/pango-1.40.2
+# set glibolddir = /home/bil/test/glib-2.39.3
+# set glibnewdir = /home/bil/test/glib-2.49.6
+# set cairoolddir = /home/bil/test/cairo-1.14.0
+# set caironewdir = /home/bil/test/cairo-1.14.6
+
+set curdir = $cwd
+
+date > $curdir/hi
+echo ' ' >> $curdir/hi
+
+chdir $gtknewdir/gdk
+foreach file (*.h)
+  echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+  if (-e $gtkolddir/gdk/$file) then
+    diff -bcw $gtkolddir/gdk/$file $gtknewdir/gdk/$file >> $curdir/hi
+  else
+    echo '(new)' >> $curdir/hi
+  endif
+end
+
+chdir $gtknewdir/gtk
+foreach file (*.h)
+  echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+  if (-e $gtkolddir/gtk/$file) then
+    diff -bcw $gtkolddir/gtk/$file $gtknewdir/gtk/$file >> $curdir/hi
+  else
+    echo '(new)' >> $curdir/hi
+  endif
+end
+
+# chdir $pangonewdir/pango
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $pangoolddir/pango/$file) then
+#     diff -bcw $pangoolddir/pango/$file $pangonewdir/pango/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+# 
+# chdir $glibnewdir/glib
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $glibolddir/glib/$file) then
+#     diff -bcw $glibolddir/glib/$file $glibnewdir/glib/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+# 
+# chdir $glibnewdir/gio
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $glibolddir/gio/$file) then
+#     diff -bcw $glibolddir/gio/$file $glibnewdir/gio/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+# 
+# chdir $glibnewdir/gobject
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $glibolddir/gobject/$file) then
+#     diff -bcw $glibolddir/gobject/$file $glibnewdir/gobject/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+# 
+# chdir $glibnewdir/gmodule
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $glibolddir/gmodule/$file) then
+#     diff -bcw $glibolddir/gmodule/$file $glibnewdir/gmodule/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+# 
+# chdir $caironewdir/src
+# foreach file (*.h)
+#   echo '---------------------------------  ' $file '        --------------------------------' >> $curdir/hi
+#   if (-e $cairoolddir/src/$file) then
+#     diff -bcw $cairoolddir/src/$file $caironewdir/src/$file >> $curdir/hi
+#   else
+#     echo '(new)' >> $curdir/hi
+#   endif
+# end
+

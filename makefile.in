@@ -1,0 +1,201 @@
+CC = @CC@
+SHELL = @SHELL@
+INSTALL = @INSTALL@
+INSTALL_DATA = ${INSTALL} -m 0644
+
+CFLAGS = @CPPFLAGS@ @CFLAGS@
+GTK_CFLAGS = @GTK_CFLAGS@
+XEN_CFLAGS = @XEN_CFLAGS@
+CAIRO_CFLAGS = @CAIRO_CFLAGS@
+FFTW_CFLAGS = @FFTW_CFLAGS@
+GL_FLAGS = @GL_FLAGS@
+GSL_FLAGS = @GSL_CFLAGS@
+JACK_FLAGS = @JACK_FLAGS@
+
+ORIGINAL_LDFLAGS = @ORIGINAL_LDFLAGS@
+LDFLAGS = @LDFLAGS@
+
+LIBS = @LIBS@
+XEN_LIBS = @XEN_LIBS@
+GTK_LIBS = @GTK_LIBS@
+GTK_LD_LIBS = @GTK_LD_LIBS@
+AUDIO_LIB = @AUDIO_LIB@
+GSL_LIBS = @GSL_LIBS@
+GL_LIBS = @GL_LIBS@
+GL_FILES = @GL_FILES@
+FFTW_LIBS = @FFTW_LIBS@
+WEBSERVER_LIBS = @WEBSERVER_LIBS@
+WEBSERVER_FILES = @WEBSERVER_FILES@
+JACK_LIBS = @JACK_LIBS@
+GMP_LIBS = @GMP_LIBS@
+
+LDSO_FLAGS = @LDSO_FLAGS@
+SO_FLAGS = @SO_FLAGS@
+SO_LD = @SO_LD@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+datadir = @datadir@
+bindir = @bindir@
+srcdir = @srcdir@
+VPATH = @srcdir@
+mandir = @mandir@
+top_srcdir = @top_srcdir@
+
+datarootdir = ${prefix}/share
+pkgdatadir = ${datarootdir}/snd
+DEFS = -DSCRIPTS_DIR=\"$(pkgdatadir)\"
+
+GX_FILES = $(@GX_FILES@)
+GX_HEADERS = $(@GX_HEADERS@)
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+.c.o:
+	$(CC) -c $(DEFS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(GL_FLAGS) $(JACK_FLAGS) $(FFTW_CFLAGS) $<
+
+SND_SCRIPTS = *.scm *.fs *.rb *.fsm
+SNDLIB_HEADERS = mus-config.h sndlib.h _sndlib.h sndlib-strings.h clm.h vct.h sndlib2xen.h clm2xen.h xen.h clm-strings.h
+SND_HEADERS = mus-config.h sndlib.h _sndlib.h clm.h snd.h snd-0.h snd-1.h snd-strings.h xen.h snd-menu.h snd-file.h
+SND_X_HEADERS = snd-x0.h snd-x1.h
+SND_G_HEADERS = snd-g0.h snd-g1.h glistener.h
+SNDLIB_O_FILES = headers.o audio.o io.o sound.o clm.o xen.o vct.o sndlib2xen.o clm2xen.o
+
+S7_HEADERS = s7.h mus-config.h
+S7_FILES = s7.c
+S7_O_FILES = @S7_LIB@
+
+NO_GUI_HEADERS = snd-nogui0.h snd-nogui1.h
+
+O_FILES = snd-io.o snd-utils.o snd-listener.o snd-completion.o snd-menu.o snd-axis.o snd-data.o snd-fft.o snd-marks.o snd-file.o snd-edits.o snd-chn.o snd-dac.o snd-region.o snd-select.o snd-find.o snd-snd.o snd-help.o snd-main.o snd-print.o snd-trans.o snd-mix.o snd.o snd-env.o snd-xen.o snd-ladspa.o snd-kbd.o snd-sig.o snd-draw.o
+
+MOTIF_O_FILES = snd-gxbitmaps.o snd-gxcolormaps.o snd-motif.o xm.o
+
+GTK_O_FILES = snd-gutils.o snd-ghelp.o snd-gfind.o snd-gmenu.o snd-gdraw.o snd-glistener.o glistener.o snd-gchn.o snd-gsnd.o snd-gregion.o snd-gmain.o snd-gmix.o snd-genv.o snd-gxbitmaps.o snd-gxcolormaps.o snd-gfft.o snd-gfile.o snd-gprefs.o xg.o
+# xg.o is optional, and the functionality can be loaded at run-time (libxg.so or libgtk_s7.so), but there's no obvious reason to wait (core sizes are nearly the same, etc)
+
+NO_GUI_O_FILES = snd-nogui.o
+GM_FILES = xm.o
+GM_SO_FILE = xm.so
+GG_FILES = xg.o
+GG_SO_FILE = xg.so
+NO_FILES =
+
+main_target: @MAKE_TARGET@
+
+snd: $(SNDLIB_HEADERS) $(SND_HEADERS) $(GX_HEADERS) $(S7_HEADERS) $(S7_O_FILES) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES) $(WEBSERVER_FILES)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(S7_O_FILES) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES)  $(WEBSERVER_FILES) -o snd $(SNDLIB_LIB) $(XEN_LIBS) $(GTK_LIBS) $(GL_LIBS) $(WEBSERVER_LIBS) $(JACK_LIBS) $(AUDIO_LIB) $(FFTW_LIBS) $(GSL_LIBS) $(GMP_LIBS) $(LIBS)
+
+xm: 	xen.h mus-config.h $(S7_HEADERS)
+	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
+	$(SO_LD) $(GM_FILES) -o $(GM_SO_FILE) $(SO_FLAGS) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GL_LIBS) $(GMP_LIBS) $(LIBS)
+
+xg: 	xen.h mus-config.h $(S7_HEADERS)
+	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
+	$(SO_LD) $(GG_FILES) -o $(GG_SO_FILE) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(LIBS)
+
+
+libxm:  xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
+	rm -f xen.o 
+	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
+	$(SO_LD) xen.o $(S7_O_FILES) $(GM_FILES) -o libxm.so $(SO_FLAGS) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GL_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
+
+libxg:	xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
+	rm -f xen.o 
+	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(SO_LD) xen.o $(S7_O_FILES) $(GG_FILES) -o libxg.so $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
+
+widget: snd_widget.o
+
+snd_widget.o: $(SNDLIB_HEADERS) $(SND_HEADERS) $(GX_HEADERS) $(S7_HEADERS) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES)
+	$(LD) -r $(LDFLAGS) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES) -o snd_widget.o
+
+$(SNDLIB_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(S7_HEADERS)
+$(O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
+$(MOTIF_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
+$(GTK_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_G_HEADERS) $(S7_HEADERS)
+$(S7_O_FILES): $(S7_HEADERS) $(S7_FILES)
+
+s7webserver/s7webserver.o: s7webserver/s7webserver.cpp
+	cd s7webserver && make s7webserver.o
+
+s7webserver/qhttpserver-master/lib/libqhttpserver.a:
+	cd s7webserver && make qhttpserver-master/lib/libqhttpserver.a
+
+clean:
+	rm -f $(SNDLIB_O_FILES)
+	rm -f $(O_FILES)
+	rm -f $(MOTIF_O_FILES)
+	rm -f $(GTK_O_FILES)
+	rm -f $(NO_GUI_O_FILES)
+	rm -f $(GM_FILES)
+	rm -f $(GM_SO_FILE)
+	rm -f $(GG_FILES)
+	rm -f $(GG_SO_FILE)
+	rm -f $(GL_FILES)
+	rm -f $(S7_O_FILES)
+	rm -f sndplay.o sndinfo.o
+	rm -f snd sndplay sndinfo
+
+distclean: clean
+	rm -f mus-config.h config.log config.status makefile
+
+clmclean:
+	rm io.o headers.o audio.o sound.o clm.o
+
+allclean:
+	rm -f *.o
+	rm -f *.so
+	rm -f *.a
+	rm -f snd sndplay sndinfo
+
+sndplay: $(SNDLIB_HEADERS) $(S7_HEADERS)
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 headers.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 io.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 audio.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 sound.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 sndplay.c
+	$(CC) $(LDFLAGS) $(CFLAGS) headers.o io.o audio.o sound.o sndplay.o -o sndplay $(JACK_LIBS) $(AUDIO_LIB) $(LIBS)
+
+sndinfo: $(SNDLIB_HEADERS) $(S7_HEADERS)
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 headers.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 io.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 audio.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 sound.c
+	$(CC) -c $(DEFS) $(CFLAGS) -DUSE_SND=0 -DHAVE_EXTENSION_LANGUAGE=0 sndinfo.c
+	$(CC) $(LDFLAGS) $(CFLAGS) headers.o io.o audio.o sound.o sndinfo.o -o sndinfo $(JACK_LIBS) $(AUDIO_LIB) $(LIBS)
+
+install: snd
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${bindir}
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${mandir}
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${mandir}/man1
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${pkgdatadir}
+	$(INSTALL) snd $(DESTDIR)${bindir}/snd
+	$(INSTALL_DATA) ${top_srcdir}/snd.1 $(DESTDIR)${mandir}/man1
+	(cd ${top_srcdir} && for f in ${SND_SCRIPTS}; do ${INSTALL_DATA} $${f} $(DESTDIR)${pkgdatadir}/$${f}; done)
+
+uninstall:
+	rm -f $(DESTDIR)${bindir}/snd
+	rm -f $(DESTDIR)${mandir}/man1/snd.1
+	for f in ${SND_SCRIPTS};  do rm -f $(DESTDIR)${pkgdatadir}/$${f}; done
+
+install-strip: snd
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${bindir}
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${mandir}
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${mandir}/man1
+	${SHELL} ${top_srcdir}/mkinstalldirs $(DESTDIR)${pkgdatadir}
+	$(INSTALL) -s snd $(DESTDIR)${bindir}/snd
+	$(INSTALL_DATA) ${top_srcdir}/snd.1 $(DESTDIR)${mandir}/man1
+	(cd ${top_srcdir} && for f in ${SND_SCRIPTS}; do ${INSTALL_DATA} $${f} $(DESTDIR)${pkgdatadir}/$${f}; done) 
+
+Makefile: Makefile.in config.status
+	./config.status
+
+config.status: configure
+	./config.status --recheck
+
+configure: configure.in
+	cd $(srcdir); autoconf

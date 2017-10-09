@@ -1,0 +1,12 @@
+Snd 17.7:
+
+Mike Scholz provided changes for Ruby 2.5.
+
+s7: changed various "object" names to "c_object" in s7.h ("object" was ambiguous)
+    c-pointers can participate in the generic function stuff
+    gtkex.scm
+    json.scm (aimed at the Language Server Protocol, eventually in emacs perhaps)
+
+checked: gtk 3.91.2, sbcl 1.3.21
+
+Thanks!: Kjetil Mattheussen, Mike Scholz

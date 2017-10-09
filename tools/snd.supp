@@ -1,0 +1,2355 @@
+# Snd valgrind suppressions file
+# valgrind --error-limit=no -v --gen-suppressions=yes --suppressions=/home/bil/cl/snd.supp snd
+# valgrind --error-limit=no -v --gen-suppressions=yes --suppressions=/home/bil/cl/snd.supp --leak-check=yes --show-reachable=no --num-callers=6 snd
+# valgrind --error-limit=no -v --gen-suppressions=no --suppressions=/home/bil/cl/snd.supp --leak-check=yes --leak-resolution=high --show-reachable=no --num-callers=12 snd
+# valgrind --error-limit=no -v --gen-suppressions=no --suppressions=/home/bil/cl/snd.supp --leak-check=yes --show-reachable=no --track-origins=yes --track-fds=yes --read-var-info=yes snd -l snd-test
+# valgrind --error-limit=no -v --gen-suppressions=no --suppressions=/home/bil/cl/snd.supp --leak-check=yes --show-reachable=no --track-origins=yes snd -l snd-test
+# valgrind --error-limit=no -v --gen-suppressions=no --suppressions=/home/bil/cl/snd.supp --leak-check=yes --show-reachable=yes --track-origins=yes --leak-check=full --show-leak-kinds=all repl t480.scm
+#
+# --tool=exp-ptrcheck
+#
+# valgrind --tool=helgrind snd
+#
+# valgrind --tool=callgrind snd
+#   writes callgrind.out.<pid>
+#   (remember -g switch)
+#   callgrind_annotate --auto=yes callgrind.out.<pid> > hi
+#                      --inclusive=yes|no
+#                      --threshold=100
+
+
+# first section copied (unnecessarily) from default: /usr/local/lib/valgrind/default.supp
+
+# This is a generated file, composed of the following suppression rules:
+#
+#       glibc-2.3.supp xfree-4.supp xfree-3.supp
+#
+
+
+##----------------------------------------------------------------------##
+
+# Errors to suppress by default with glibc 2.3.x
+
+# Format of this file is:
+# {
+#     name_of_suppression
+#     skin_name:supp_kind
+#     (optional extra info for some suppression types)
+#     caller0 name, or /name/of/so/file.so
+#     caller1 name, or ditto
+#     (optionally: caller2 name)
+#     (optionally: caller3 name)
+#  }
+#
+# For Memcheck, the supp_kinds are:
+#
+#     Param Value1 Value2 Value4 Value8 Value16
+#     Free Addr1 Addr2 Addr4 Addr8 Addr16
+#     Cond (previously known as Value0)
+#
+# and the optional extra info is:
+#     if Param: name of system call param
+#     if Free: name of free-ing fn)
+
+{
+   __GI___stpcpy/*
+   Memcheck:Cond
+   fun:__GI___stpcpy
+   fun:*
+}
+{
+   strlen/__GI__dl_open/dlopen_doit
+   Memcheck:Cond
+   fun:strlen
+   fun:__GI__dl_open
+   fun:dlopen_doit
+}
+{
+   strlen/_dl_signal_cerror/_dl_lookup_symbol_internal/do_dlsym
+   Memcheck:Cond
+   fun:_dl_signal_cerror
+   fun:_dl_lookup_symbol_internal
+   fun:do_dlsym
+}
+{
+   strlen/*dl_map_object*(Cond)
+   Memcheck:Cond
+   fun:strlen
+   fun:*dl_map_object*
+}
+
+{
+   strlen/*dl_open_worker*(Cond)
+   Memcheck:Cond
+   fun:strlen
+   fun:*dl_open_worker*
+}
+{
+   strlen/_dl_sym/dlsym_doit
+   Memcheck:Cond
+   fun:strlen
+   fun:_dl_sym
+   fun:dlsym_doit
+}
+{
+   realpath is inefficiently coded
+   Addrcheck,Memcheck:Overlap
+   fun:memcpy
+   fun:realpath*
+}
+
+{
+   realpath stupidity part II
+   Addrcheck,Memcheck:Overlap
+   fun:strcpy
+   fun:realpath*
+}
+{
+   strlen/decompose_rpath/_dl_map_object
+   Memcheck:Cond
+   fun:strlen
+   fun:decompose_rpath
+   fun:*dl_map_object*
+}
+{
+   stpcpy/_dl_sym*
+   Memcheck:Cond
+   fun:__stpcpy
+   fun:_dl_*
+}
+
+#-------- For R H 8.0
+{
+   elf_dynamic_do_rel.7/_dl_relocate_object_internal/dl_open_worker(Cond)
+   Memcheck:Cond
+   fun:elf_dynamic_do_rel.7
+   fun:_dl_relocate_object_internal
+   fun:dl_open_worker
+}
+{
+   dl_relocate/dl_open_worker
+   Memcheck:Cond
+   fun:_dl_relocate_object_internal
+   fun:dl_open_worker
+}
+
+
+##----------------------------------------------------------------------##
+## For a leak in Valgrind's own libpthread.so :(
+{
+   my_malloc/get_or_allocate_specifics_ptr/__pthread_key_create(Leak)
+   Memcheck:Leak
+   fun:my_malloc
+   fun:get_or_allocate_specifics_ptr
+   fun:__pthread_key_create
+}
+
+##----------------------------------------------------------------------##
+## Bugs in helper library supplied with Intel Icc 7.0 (65)
+## in /opt/intel/compiler70/ia32/lib/libcxa.so.3
+{
+   Intel compiler70/ia32/lib/libcxa.so.3 below-esp accesses
+   Addrcheck,Memcheck:Addr4
+   obj:/opt/intel/compiler70/ia32/lib/libcxa.so.3
+}
+
+##----------------------------------------------------------------------##
+
+# Errors to suppress by default with XFree86 4.1.0)
+
+# Format of this file is:
+# {
+#     name_of_suppression
+#     skin_name:supp_kind
+#     (optional extra info for some suppression types)
+#     caller0 name, or /name/of/so/file.so
+#     caller1 name, or ditto
+#     (optionally: caller2 name)
+#     (optionally: caller3 name)
+#  }
+#
+# For memcheck, the supp_kinds are:
+#
+#     Param Value1 Value2 Value4 Value8 Value16
+#     Free Addr1 Addr2 Addr4 Addr8 Addr16
+#     Cond (previously known as Value0)
+#
+# and the optional extra info is:
+#     if Param: name of system call param
+#     if Free: name of free-ing fn)
+
+# Resulting from R H 8.0
+{
+   *libc_write/libX11.so.6.2/*X11TransWrite(Param)
+   Addrcheck,Memcheck:Param
+   write(buf)
+   fun:*libc_write
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:*X11TransWrite
+}
+
+{
+   libX11.so.6.2/libX11.so.6.2/libX11.so.6.2(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   libXt.so.6.2/libXt.so.6.2/libXt.so.6.2(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+
+{
+   libXaw.so.7.0/libXaw.so.7.0/libXaw.so.7.0(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+}
+
+{
+   libXmu.so.6.2/libXmu.so.6.2/libXmu.so.6.2(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXmu.so.6.2
+   obj:/usr/X11R6/lib/libXmu.so.6.2
+   obj:/usr/X11R6/lib/libXmu.so.6.2
+}
+
+{
+   libXt.so.6.0/libXt.so.6.0/libXaw.so.7.0(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+}
+
+{
+   libXaw.so.7.0/libXaw.so.7.0/libXt.so.6.0(Value4)
+   Memcheck:Value4
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   libXaw.so.7.0/libXaw.so.7.0/libXt.so.6.0(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   libX11.so.6.2/libX11.so.6.2/libXaw.so.7.0(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+}
+
+{
+   libX11.so.6.2/libXaw.so.7.0/libXaw.so.7.0(Cond)
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+   obj:/usr/X11R6/lib/libXaw.so.7.0
+}
+
+{
+   libXpm.so.4.11/libXpm.so.4.11/libXpm.so.4.11
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXpm.so.4.11
+   obj:/usr/X11R6/lib/libXpm.so.4.11
+   obj:/usr/X11R6/lib/libXpm.so.4.11
+}
+
+
+##----------------------------------------------------------------------##
+
+
+##----------------------------------------------------------------------##
+
+# Errors to suppress by default with XFree86 3.3.6)
+
+# Format of this file is:
+# {
+#     name_of_suppression
+#     skin_name:supp_kind
+#     (optional extra info for some suppression types)
+#     caller0 name, or /name/of/so/file.so
+#     caller1 name, or ditto
+#     (optionally: caller2 name)
+#     (optionally: caller3 name)
+#  }
+#
+# For Memcheck, the supp_kinds are:
+#
+#     Param Value1 Value2 Value4 Value8 Value16
+#     Free Addr1 Addr2 Addr4 Addr8 Addr16
+#     Cond (previously known as Value0)
+#
+# and the optional extra info is:
+#     if Param: name of system call param
+#     if Free: name of free-ing fn)
+
+##----------------------------------------------------------------------##
+
+{
+   X11-Cond-0
+   Memcheck:Cond
+   obj:*libXt.so.6.0
+   obj:*libXt.so.6.0
+   obj:*libXt.so.6.0
+}
+{
+   X11-Cond-1
+   Memcheck:Cond
+   fun:__rawmemchr
+   obj:*libXt.so.6.0
+   obj:*libXt.so.6.0
+}
+
+
+# Suppressions for XFree86-3.3.X
+
+{
+   X11-Addr4-1
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libX11.so.6.1
+}
+
+{
+   X11-Addr4-2
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-3
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-4
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-5
+   Addrcheck,Memcheck:Addr4
+   fun:__rawmemchr
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-6
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXmu.so.6.0
+   obj:/usr/X11R6/lib/libXmu.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-7
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXawXpm_posing_as_Xaw.so.6.1
+}
+
+{
+   X11-Param-1
+   Addrcheck,Memcheck:Param
+   write(buf)
+   fun:__libc_write
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libX11.so.6.1
+}
+
+{
+   X11-Addr4-8
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libX11.so.6.1
+   obj:/usr/X11R6/lib/libXpm.so.4.11
+   obj:/usr/X11R6/lib/libXpm.so.4.11
+}
+
+{
+   X11-Addr4-8
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXawXpm_posing_as_Xaw.so.6.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-9
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXaw.so.6.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-10
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXaw.so.6.1
+   obj:/usr/X11R6/lib/libXaw.so.6.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   X11-Addr4-11
+   Addrcheck,Memcheck:Addr4
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   obj:/usr/X11R6/lib/libXaw.so.6.1
+}
+
+{
+   Xt-1
+   Memcheck:Overlap
+   fun:memcpy
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   fun:_XtGetResources
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   Xt-2
+   Memcheck:Overlap
+   fun:memcpy
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   fun:_XtGetSubresources
+   fun:XtGetSubresources
+}
+
+{
+   Xt-3
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+}
+
+{
+   Xt-4
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:_XtMakeGeometryRequest
+}
+
+{
+   Xt-5
+   Memcheck:Cond
+   fun:_XtMakeGeometryRequest
+   fun:*
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+}
+
+{
+   Xt-6
+   Memcheck:Param
+   write(buf)
+   fun:__write_nocancel
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_X11TransWrite
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   X11-1
+   Memcheck:Param
+   writev(vector[...])
+   fun:vgAllRoadsLeadToRome_writev
+   fun:__writev
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_X11TransWritev
+}
+
+{
+   Xm-1
+   Memcheck:Addr4
+   fun:_XmTextFindScroll
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+}
+
+{
+   Xm-2
+   Memcheck:Cond
+   fun:_XmTextFindScroll
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+}
+
+{
+   Xm-3
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:_XmTextShowPosition
+   fun:XmTextShowPosition
+   fun:command_return
+}
+
+{
+   Xm-4
+   Memcheck:Addr4
+   fun:XmRenderTableGetRendition
+   fun:help_font
+   fun:help_text_width
+   fun:word_wrap
+}
+
+{
+   Xbug-1
+   Memcheck:Addr1
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:change_pixmap_background
+   fun:make_sound_icons_transparent_again
+   fun:g_set_basic_color
+}
+
+{
+   Xbug-2
+   Memcheck:Param
+   write(buf)
+   fun:__GI___libc_write
+   fun:_X11TransWrite
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_XFlush
+}
+
+{
+   Xbug-3
+   Memcheck:Param
+   write(buf)
+   fun:__GI___libc_write
+   fun:_X11TransWrite
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_XReply
+}
+
+{
+   Xm-5
+   Memcheck:Cond
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:_XmTextShowPosition
+   fun:XmTextShowPosition
+   fun:listener_append_and_prompt
+}
+
+{
+   Xm-6
+   Memcheck:Cond
+   fun:strlen
+   fun:_XmStringNCreate
+   fun:XmStringCreate
+   fun:set_label
+}
+
+{
+   Xm-7
+   Memcheck:Cond
+   fun:XTextExtents
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:XmStringExtent
+}
+
+{
+   Xm-8
+   Memcheck:Value4
+   fun:XTextExtents
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:XmStringExtent
+}
+
+{
+   Xm-9
+   Memcheck:Cond
+   fun:XInsertModifiermapEntry
+   fun:gxm_XInsertModifiermapEntry
+   fun:*
+}
+
+{
+   Xm-10
+   Memcheck:Cond
+   fun:XmStringTableProposeTablist
+   fun:gxm_XmStringTableProposeTablist
+   fun:*
+}
+
+{
+   Xm-11
+   Memcheck:Addr4
+   fun:XmRenderTableCvtFromProp
+   fun:gxm_XmRenderTableCvtFromProp
+   fun:*
+}
+
+{
+   Xm-12
+   Memcheck:Cond
+   fun:XDeleteModifiermapEntry
+   fun:gxm_XDeleteModifiermapEntry
+   fun:*
+}
+
+{
+   Xm-13
+   Memcheck:Addr1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:XmCvtByteStreamToXmString
+   fun:XmStringNCopy
+}
+
+{
+   Xm-14
+   Memcheck:Addr1
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:XmCvtByteStreamToXmString
+   fun:XmStringNCopy
+   fun:XmStringNConcat
+}
+
+{
+   Xm-15
+   Memcheck:Addr1
+   fun:strncmp
+   fun:_XmStringIndexCacheTag
+   fun:_XmStringCacheTag
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+}
+
+{
+   Glibc-1
+   Memcheck:Cond
+   fun:strlen
+   fun:_IO_str_init_static_internal
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+}
+
+{
+   Glibc-2
+   Memcheck:Value4
+   fun:_IO_vfprintf_internal
+   fun:*
+}
+
+{
+   Glibc-3
+   Memcheck:Cond
+   fun:_IO_vfprintf_internal
+   fun:*
+}
+
+{
+   Glibc-4
+   Memcheck:Cond
+   fun:_IO_vfscanf_internal
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+   fun:*
+}
+
+# --------------------------------------------------------------------------------
+
+# I don't think any of these are actually my bugs -- everything is initialized and so forth in my code
+{
+   snd-1
+   Memcheck:Value4
+   fun:_IO_vfscanf_internal
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+   fun:read_nist_header
+}
+
+{
+   snd-2
+   Memcheck:Cond
+   fun:_IO_sputbackc_internal
+   fun:_IO_vfscanf_internal
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+}
+
+{
+   snd-4
+   Memcheck:Cond
+   fun:rawmemchr
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+   fun:read_nist_header
+}
+
+{
+   snd-5
+   Memcheck:Cond
+   fun:rawmemchr
+   fun:_IO_vsscanf
+   fun:__GI_sscanf
+   fun:read_nist_header
+}
+
+# ==4291== Syscall param statfs64(buf) contains unaddressable byte(s)
+# ==4291==    at 0x1C051B9F: statfs64 (in /lib/tls/libc-2.3.3.so)
+# ==4291==    by 0x80D4E59: disk_kspace (snd-file.c:63)
+# ==4291==    by 0x80B8215: close_temp_file (snd-io.c:580)
+# ==4291==    by 0x80ED0C0: snd_make_file (snd-edits.c:4387)
+# ==4291==  Address 0x54 is not stack'd, malloc'd or (recently) free'd
+
+{
+   snd-6
+   Memcheck:Param
+   statfs64(buf)
+   fun:statfs64
+   fun:disk_kspace
+   fun:*
+}
+
+# ==4291== Conditional jump or move depends on uninitialised value(s)
+# ==4291==    at 0x80D4E79: disk_kspace (snd-file.c:68)
+# ==4291==    by 0x80B8215: close_temp_file (snd-io.c:580)
+# ==4291==    by 0x80ED0C0: snd_make_file (snd-edits.c:4387)
+# ==4291==    by 0x80F4DB0: save_edits_without_display (snd-edits.c:6915)
+
+{
+   snd-7
+   Memcheck:Cond
+   fun:disk_kspace
+   fun:*
+}
+
+# ==4291== Use of uninitialised value of size 4
+# ==4291==    at 0x80D4EB8: disk_kspace (snd-file.c:70)
+# ==4291==    by 0x80B8215: close_temp_file (snd-io.c:580)
+# ==4291==    by 0x80ED0C0: snd_make_file (snd-edits.c:4387)
+# ==4291==    by 0x80F4DB0: save_edits_without_display (snd-edits.c:6915)
+
+{
+   snd-8
+   Memcheck:Value4
+   fun:disk_kspace
+   fun:*
+}
+
+# ==4291== Use of uninitialised value of size 8
+# ==4291==    at 0x80D4EC1: disk_kspace (snd-file.c:70)
+# ==4291==    by 0x80B8215: close_temp_file (snd-io.c:580)
+# ==4291==    by 0x80ED0C0: snd_make_file (snd-edits.c:4387)
+# ==4291==    by 0x80F4DB0: save_edits_without_display (snd-edits.c:6915)
+
+{
+   snd-10
+   Memcheck:Value8
+   fun:disk_kspace
+   fun:*
+}
+
+{
+   gtk-1
+   Memcheck:Addr1
+   fun:g_option_context_parse
+   fun:gtk_parse_args
+   fun:*
+}
+
+{
+   gtk-3
+   Memcheck:Cond
+   fun:g_strdup
+   fun:*
+}
+
+{
+   gtk-3111
+   Memcheck:Leak
+   fun:malloc
+   fun:g_malloc
+   fun:*
+}
+
+{
+   gtk-3112
+   Memcheck:Leak
+   fun:calloc
+   fun:g_malloc0
+   fun:*
+}
+
+{
+   gtk-315
+   Memcheck:Leak
+   fun:malloc
+   fun:cairo_font_options_copy
+   fun:*
+}
+
+{
+   gtk-317
+   Memcheck:Leak
+   fun:malloc
+   fun:cairo_font_options_create
+   fun:*
+}
+
+{
+   gtk-320
+   Memcheck:Leak
+   fun:malloc
+   fun:FT_New_Memory
+   fun:*
+}
+
+{
+   gtk-321
+   Memcheck:Leak
+   fun:malloc
+   fun:ft_mem_qalloc
+   fun:*
+}
+
+{
+   gtk-322
+   Memcheck:Leak
+   fun:calloc
+   fun:XkbGetMap
+   fun:*
+}
+
+{
+   gtk-329
+   Memcheck:Leak
+   fun:calloc
+   fun:XkbGetNames
+   fun:*
+}
+
+{
+   gtk-323
+   Memcheck:Leak
+   fun:calloc
+   fun:XkbAllocServerMap
+   fun:*
+}
+
+{
+   gtk-324
+   Memcheck:Leak
+   fun:malloc
+   fun:XOpenDevice
+   fun:*
+}
+
+{
+   gtk-325
+   Memcheck:Leak
+   fun:calloc
+   fun:_XkbReadGetMapReply
+   fun:*
+}
+
+{
+   gtk-326
+   Memcheck:Leak
+   fun:memalign
+   fun:posix_memalign
+   fun:*
+}
+
+{
+   gtk-327
+   Memcheck:Leak
+   fun:calloc
+   fun:XkbAllocClientMap
+   fun:*
+}
+
+
+{
+   gtk-319
+   Memcheck:Leak
+   fun:realloc
+   fun:g_realloc
+   fun:*
+}
+
+{
+   gtk-318
+   Memcheck:Leak
+   fun:malloc
+   fun:FcPatternCreate
+   fun:*
+}
+
+{
+   gtk-316
+   Memcheck:Leak
+   fun:realloc
+   fun:g_realloc
+   fun:*
+}
+
+{
+   gtk-311
+   Memcheck:Leak
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:*
+}
+
+{
+   gtk-312
+   Memcheck:Leak
+   fun:malloc
+   fun:g_malloc
+   fun:g_pattern_spec_new
+   fun:*
+}
+
+{
+   gtk-313
+   Memcheck:Leak
+   fun:malloc
+   fun:g_malloc
+   fun:g_strjoinv
+   fun:*
+}
+
+{
+   gtk-314
+   Memcheck:Leak
+   fun:malloc
+   fun:realloc
+   fun:g_realloc
+   fun:*
+}
+
+{
+   gtk-4
+   Memcheck:Cond
+   fun:g_utf8_validate
+   fun:pango_layout_set_text
+   fun:*
+}
+
+{
+   gtk-000
+   Memcheck:Leak
+   fun:malloc
+   fun:XInitExtension
+   fun:*
+}
+
+{
+   snd-000
+   Memcheck:Leak
+   fun:malloc
+   fun:new_xen_transform
+}
+
+{
+   gtk-5
+   Memcheck:Value4
+   fun:g_strdup
+   fun:gtk_label_set_text
+   fun:*
+}
+
+{
+   gtk-6
+   Memcheck:Value4
+   fun:g_strdup
+   fun:gtk_label_recalculate
+   fun:*
+}
+
+{
+   gtk-7
+   Memcheck:Value4
+   fun:ps_set_color
+   fun:*
+}
+
+{
+   gtk-10
+   Memcheck:Addr4
+   fun:gtk_file_filter_set_name
+   fun:*
+}
+
+{
+   gtk-11
+   Memcheck:Addr4
+   fun:gtk_file_filter_add_mime_type
+   fun:*
+}
+
+{
+   gtk-12
+   Memcheck:Addr4
+   fun:gtk_file_filter_add_pattern
+   fun:*
+}
+
+{
+   gtk-13
+   Memcheck:Cond
+   fun:gtk_entry_insert_text
+   fun:*
+}
+
+{
+   ladspa-1
+   Memcheck:Free
+   fun:__builtin_vec_delete
+   fun:*
+   obj:/home/bil/test/ladspa_sdk/plugins/sine.so
+}
+
+# ==6650== 4080 bytes in 255 blocks are definitely lost in loss record 394 of 448
+# ==6650==    at 0x40029B2A: calloc (vg_replace_malloc.c:284)
+# ==6650==    by 0x81CD4AC: make_xen_value (snd-run.c:521)
+# ==6650==    by 0x81D2535: add_global_var_to_ptree (snd-run.c:2094)
+# ==6650==    by 0x8211920: walk (snd-run.c:10240)
+# but I don't immediately see why...
+
+{
+   gtk-14
+   Memcheck:Addr4
+   fun:gtk_file_filter_get_needed
+   fun:*
+}
+
+{
+   gtk-15
+   Memcheck:Addr4
+   fun:g_type_check_instance_is_a
+   fun:gtk_file_filter_set_name
+   fun:gxg_gtk_file_filter_set_name
+   fun:*
+}
+
+{
+   gtk-16
+   Memcheck:Addr4
+   fun:g_type_check_instance_is_a
+   fun:gtk_file_filter_add_mime_type
+   fun:gxg_gtk_file_filter_add_mime_type
+   fun:*
+}
+
+{
+   gtk-17
+   Memcheck:Addr4
+   fun:g_type_check_instance_is_a
+   fun:gtk_file_filter_add_pattern
+   fun:gxg_gtk_file_filter_add_pattern
+   fun:*
+}
+
+{
+   gtk-18
+   Memcheck:Cond
+   fun:pango_attr_list_change
+   fun:gxg_pango_attr_list_change
+   fun:*
+}
+
+{
+   gtk-19
+   Memcheck:Cond
+   fun:pango_attr_list_insert_internal
+   fun:pango_attr_list_insert
+   fun:gxg_pango_attr_list_insert
+   fun:*
+}
+
+{
+   gtk-20
+   Memcheck:Cond
+   fun:pango_attr_list_insert_internal
+   fun:pango_attr_list_insert_before
+   fun:gxg_pango_attr_list_insert_before
+   fun:*
+}
+
+{
+   gtk-21
+   Memcheck:Cond
+   fun:pango_attr_list_change
+   fun:pango_attr_list_splice
+   fun:gxg_pango_attr_list_splice
+   fun:*
+}
+
+{
+   gtk-22
+   Memcheck:Cond
+   fun:pango_attr_iterator_next
+   fun:pango_attr_list_get_iterator
+   fun:gxg_pango_attr_list_get_iterator
+   fun:*
+}
+
+{
+   gtk-23
+   Memcheck:Cond
+   fun:pango_attr_iterator_next
+   fun:gxg_pango_attr_iterator_next
+   fun:*
+}
+
+{
+   gtk-24
+   Memcheck:Cond
+   fun:pango_xft_font_get_glyph_extents
+   fun:pango_font_get_glyph_extents
+   fun:pango_glyph_string_extents_range
+   fun:pango_glyph_string_extents
+}
+
+{
+   gtk-25
+   Memcheck:Cond
+   fun:pango_glyph_string_extents_range
+   fun:pango_glyph_string_extents
+   fun:gxg_pango_glyph_string_extents
+   fun:*
+}
+
+{
+   gtk-26
+   Memcheck:Cond
+   fun:XftFontCheckGlyph
+   fun:XftGlyphExtents
+   fun:get_glyph_extents_xft
+   fun:pango_font_get_glyph_extents
+}
+
+{
+   gtk-27
+   Memcheck:Cond
+   fun:XftGlyphExtents
+   fun:get_glyph_extents_xft
+   fun:pango_font_get_glyph_extents
+   fun:pango_glyph_string_extents_range
+}
+
+{
+   gtk-28
+   Memcheck:Addr1
+   fun:gdk_rgb_convert_0888
+   fun:gdk_draw_rgb_image_core
+   fun:gdk_draw_rgb_image
+   fun:gxg_gdk_draw_rgb_image
+}
+
+{
+   gtk-29
+   Memcheck:Addr1
+   fun:gdk_rgb_32_to_stage
+   fun:gdk_rgb_convert_32_generic
+   fun:gdk_draw_rgb_image_core
+   fun:gdk_draw_rgb_32_image
+}
+
+{
+   gtk-30
+   Memcheck:Addr4
+   fun:gtk_icon_size_register_alias
+   fun:gxg_gtk_icon_size_register_alias
+   fun:*
+}
+
+{
+   gtk-31
+   Memcheck:Cond
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-32
+   Memcheck:Value4
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-33
+   Memcheck:Value4
+   fun:getword
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-34
+   Memcheck:Value4
+   fun:__GI___strtod_internal
+   fun:g_ascii_strtod
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-35
+   Memcheck:Cond
+   fun:__GI___strtod_internal
+   fun:g_ascii_strtod
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-36
+   Memcheck:Value4
+   fun:__GI___strtod_internal
+   fun:g_ascii_strtod
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-37
+   Memcheck:Cond
+   fun:g_ascii_strcasecmp
+   fun:find_field_any
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-38
+   Memcheck:Cond
+   fun:find_field_any
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-39
+   Memcheck:Cond
+   fun:g_ascii_strncasecmp
+   fun:find_field
+   fun:find_field_any
+   fun:pango_font_description_from_string
+}
+
+{
+   gtk-40
+   Memcheck:Cond
+   fun:find_field
+   fun:find_field_any
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   gtk-41
+   Memcheck:Cond
+   fun:strncpy
+   fun:g_strndup
+   fun:pango_font_description_from_string
+   fun:*
+}
+
+{
+   ruby-1
+   Memcheck:Cond
+   fun:mark_locations_array
+   fun:rb_gc
+   fun:*
+}
+
+{
+   ruby-2
+   Memcheck:Cond
+   fun:rb_gc_mark
+   fun:mark_locations_array
+   fun:*
+}
+
+{
+   ruby-3
+   Memcheck:Value4
+   fun:rb_gc_mark
+   fun:mark_locations_array
+   fun:*
+}
+
+{
+   ruby-4
+   Memcheck:Value4
+   fun:st_lookup
+   fun:rb_mark_generic_ivar
+   fun:rb_gc_mark
+   fun:*
+}
+
+{
+   ruby-5
+   Memcheck:Cond
+   fun:st_lookup
+   fun:rb_mark_generic_ivar
+   fun:rb_gc_mark
+   fun:*
+}
+
+{
+   ruby-6
+   Memcheck:Cond
+   fun:rb_gc_mark_children
+   fun:mark_locations_array
+   fun:*
+}
+
+{
+   ruby-7
+   Memcheck:Value4
+   fun:rb_gc_mark_children
+   fun:mark_locations_array
+   fun:*
+}
+
+{
+   r1
+   Memcheck:Cond
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:*
+}
+
+{
+   r2
+   Memcheck:Cond
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   fun:rb_newobj
+   obj:/usr/lib/libruby.so.1.8.4
+   fun:rb_hash_new
+   fun:*
+}
+
+{
+   r3
+   Memcheck:Value4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:*
+}
+
+{
+   r4
+   Memcheck:Value4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   fun:rb_gc_mark_locations
+   obj:/usr/lib/libruby.so.1.8.4
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r5
+   Memcheck:Value4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   obj:/usr/lib/libruby.so.1.8.4
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r6
+   Memcheck:Cond
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r7
+   Memcheck:Cond
+   fun:gc_mark_children
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r8
+   Memcheck:Value8
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r9
+   Memcheck:Value8
+   fun:gc_mark_children
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_newobj
+   fun:*
+}
+
+{
+   r10
+   Memcheck:Cond
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_node_newnode
+   fun:*
+}
+
+{
+   r11
+   Memcheck:Value8
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_node_newnode
+   fun:*
+}
+
+{
+   r12
+   Memcheck:Cond
+   fun:gc_mark_children
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_node_newnode
+   fun:*
+}
+
+{
+   r13
+   Memcheck:Value8
+   fun:gc_mark_children
+   fun:mark_current_machine_context
+   fun:garbage_collect
+   fun:rb_node_newnode
+   fun:*
+}
+
+
+# addcheck
+
+{
+   addr1
+   Addrcheck:Overlap
+   fun:memcpy
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   fun:_XtGetResources
+}
+
+{
+   addr2
+   Addrcheck:Overlap
+   fun:memcpy
+   obj:/usr/X11R6/lib/libXt.so.6.0
+   fun:_XtGetSubresources
+   fun:XtGetSubresources
+}
+
+{
+   mem-1
+   Memcheck:Leak
+   fun:malloc
+   fun:_XlcDefaultMapModifiers
+   fun:XSetLocaleModifiers
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   mem-2
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/X11/locale/lib/common/ximcp.so.2
+   fun:_XimOpenIM
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-3
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_X11TransOpenCOTSClient
+}
+
+{
+   mem-4
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:XrmPutLineResource
+}
+
+{
+   mem-5
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/X11/locale/lib/common/ximcp.so.2
+   fun:_XimOpenIM
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-6
+   Memcheck:Leak
+   fun:malloc
+   fun:_XimOpenIM
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:XOpenIM
+}
+
+{
+   mem-7
+   Memcheck:Leak
+   fun:malloc
+   fun:_XimOpenIM
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:XOpenIM
+}
+
+{
+   mem-8
+   Memcheck:Leak
+   fun:malloc
+   fun:_X11TransConnectDisplay
+   fun:XOpenDisplay
+   fun:*
+}
+
+{
+   mem-9
+   Memcheck:Leak
+   fun:malloc
+   fun:_XlcCreateLC
+   fun:_XlcDefaultLoader
+   fun:_XlcDynamicLoad
+}
+
+{
+   mem-10
+   Memcheck:Leak
+   fun:realloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-11
+   Memcheck:Leak
+   fun:malloc
+   fun:XCreateRegion
+   fun:*
+}
+
+{
+   mem-12
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:XrmCombineFileDatabase
+}
+
+{
+   mem-13
+   Memcheck:Leak
+   fun:malloc
+   fun:_XrmDefaultInitParseInfo
+   fun:_XrmInitParseInfo
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-14
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-17
+   Memcheck:Leak
+   fun:malloc
+   fun:_XOpenLC
+   fun:_XrmInitParseInfo
+   obj:/usr/X11R6/lib/libX11.so.6.2
+}
+
+{
+   mem-18
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/X11R6/lib/libX11.so.6.2
+   fun:_XlcCreateLC
+   fun:_XlcDefaultLoader
+}
+
+{
+   mem-19
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:XmRenderTableCopy
+   fun:*
+}
+
+{
+   mem20
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:_XmCachePixmap
+   fun:*
+}
+
+{
+   mem21
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:Xm*
+}
+
+{
+   mem22
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:_XmStringSourceCreate
+}
+
+{
+   mem24
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:Xt*
+}
+
+{
+   mem25
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:_Xm*
+}
+
+{
+   alsa-1
+   Memcheck:Leak
+   fun:malloc
+   fun:strdup
+   obj:/lib64/libasound.so.2.0.0
+   obj:*
+   fun:*
+}
+
+{
+   alsa-2
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib64/libasound.so.2.0.0
+   obj:*
+   fun:*
+}
+
+{
+   alsa-3
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib64/libasound.so.2.0.0
+   obj:*
+   fun:*
+}
+
+{
+   transform-1
+   Memcheck:Leak
+   fun:malloc
+   fun:xen_transform_make
+   fun:*
+}
+
+{
+   colormap-1
+   Memcheck:Leak
+   fun:malloc
+   fun:xen_colormap_make
+   fun:*
+}
+
+{
+   mem27
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   fun:Xm*
+}
+
+{
+   mem28
+   Memcheck:Leak
+   fun:calloc
+   fun:XtCalloc
+   obj:/usr/X11R6/lib/libXm.so.3.0.1
+   obj:/usr/X11R6/lib/libXt.so.6.0
+}
+
+{
+   s71a
+   Memcheck:Leak
+   fun:alloc_pointer
+   fun:s7_make_permanent_string
+   fun:*
+}
+
+{
+   s71a1
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_init
+   fun:*
+}
+
+{
+   s71a11
+   Memcheck:Leak
+   fun:malloc
+   fun:new_symbol
+   fun:*
+}
+
+{
+   s71ab
+   Memcheck:Leak
+   fun:calloc
+   fun:alloc_pointer
+   fun:*
+}
+
+{
+   s71af
+   Memcheck:Leak
+   fun:calloc
+   fun:store_choices
+   fun:*
+}
+
+{
+   s71abcd
+   Memcheck:Leak
+   fun:calloc
+   fun:s7_make_function
+   fun:*
+}
+
+{
+   s71abcd1
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_make_function
+   fun:*
+}
+
+{
+   s71abcde
+   Memcheck:Leak
+   fun:calloc
+   fun:make_permanent_string
+   fun:*
+}
+
+{
+   s71abcde
+   Memcheck:Leak
+   fun:malloc
+   fun:make_permanent_string
+   fun:*
+}
+
+{
+   s71abcde1
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_make_permanent_string
+   fun:*
+}
+
+{
+   s71abcde1
+   Memcheck:Leak
+   fun:calloc
+   fun:init_ctables
+   fun:*
+}
+
+{
+   s71abcde1
+   Memcheck:Leak
+   fun:malloc
+   fun:copy_string_with_length
+   fun:copy_string
+   fun:s7_define_constant_with_documentation
+   fun:*
+}
+
+{
+   s71abcde2
+   Memcheck:Leak
+   fun:malloc
+   fun:make_permanent_string_with_length
+   fun:*
+}
+
+{
+   s71abcde3
+   Memcheck:Leak
+   fun:malloc
+   fun:make_permanent_string_with_length_and_hash
+   fun:*
+}
+
+{
+   s71abcdef
+   Memcheck:Leak
+   fun:calloc
+   fun:s7_make_permanent_string
+   fun:*
+}
+
+{
+   s71abc
+   Memcheck:Leak
+   fun:calloc
+   fun:make_choices
+   fun:*
+}
+
+{
+   s71abcd
+   Memcheck:Leak
+   fun:malloc
+   fun:copy_string_with_len
+   fun:*
+}
+
+{
+   s71ac
+   Memcheck:Leak
+   fun:malloc
+   fun:alloc_pointer
+   fun:*
+}
+
+{ 
+  s71aa 
+  Memcheck:Leak 
+  fun:calloc 
+  fun:make_permanent_integer
+  fun:*
+}
+
+{
+   s71b
+   Memcheck:Leak
+   fun:alloc_pointer
+   fun:s7_remove_from_heap
+   fun:*
+}
+
+{
+   s71
+   Memcheck:Leak
+   fun:calloc
+   fun:s7_remove_from_heap
+   fun:*
+}
+
+{
+   s72
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_remove_from_heap
+   fun:*
+}
+
+{
+   s73
+   Memcheck:Leak
+   fun:realloc
+   fun:s7_remove_from_heap
+   fun:*
+}
+
+{
+   s76
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_make_string_with_length
+   fun:*
+}
+
+{
+   s77
+   Memcheck:Leak
+   fun:malloc
+   fun:copy_string_with_len
+   fun:copy_string
+   fun:make_standard_ports
+   fun:s7_init
+   fun:s7_xen_initialize
+}
+
+{
+   walker-1
+   Memcheck:Leak
+   fun:calloc
+   fun:make_walker
+   fun:*
+}
+
+{
+   walker-2
+   Memcheck:Leak
+   fun:calloc
+   fun:walker_with_declare
+   fun:*
+}
+
+{
+   pws-1
+   Memcheck:Leak
+   fun:malloc
+   fun:copy_string_with_len
+   fun:copy_string
+   fun:s7_dilambda
+   fun:*
+}
+
+{
+   pws-2
+   Memcheck:Leak
+   fun:calloc
+   fun:s7_dilambda
+   fun:*
+}
+
+{
+   s75
+   Memcheck:Leak
+   fun:calloc
+   fun:permanent_calloc
+   fun:*
+}
+
+{
+   Xm_entry
+   Memcheck:Addr8
+   fun:_XmEntryTextGet
+   fun:_XmStringDrawSegment
+   fun:*
+}
+
+{
+   run-1
+   Memcheck:Leak
+   fun:malloc
+   fun:make_walker
+}
+
+{
+   run-1a
+   Memcheck:Leak
+   fun:calloc
+   fun:clm_make_function
+   fun:*
+}
+
+{
+   run-2
+   Memcheck:Leak
+   fun:calloc
+   fun:add_clm_type
+   fun:g_add_clm_field
+   fun:g_add_clm_field_w
+   fun:eval
+   fun:s7_load
+}
+
+{
+   xmn1
+   Memcheck:Cond
+   fun:XmRenderTableCopy
+   fun:*
+}
+
+{
+   xn1
+   Memcheck:Param
+   write(buf)
+   fun:__write_nocancel
+   fun:_X11TransWrite
+   fun:*
+}
+
+{
+   xn2
+   Memcheck:Cond
+   fun:_XmXftDrawCreate
+   fun:*
+}
+
+{
+   xmn2
+   Memcheck:Cond
+   fun:XmRenderTableFree
+   fun:*
+}
+
+{
+   xn3
+   Memcheck:Param
+   writev(vector[...])
+   fun:writev
+   obj:/usr/lib/libX11.so.6.2.0
+   fun:_X11TransWritev
+   fun:*
+}
+
+{
+   xmn3
+   Memcheck:Cond
+   fun:XmRenderTableAddRenditions
+   fun:*
+}
+
+{
+   g1
+   Memcheck:Cond
+   fun:XInitImage
+   obj:*
+}
+
+{
+   xmn4
+   Memcheck:Cond
+   fun:MakePositionVisible
+   fun:_XmTextShowPosition
+   fun:*
+}
+
+{
+   lad1
+   Memcheck:Free
+   fun:__builtin_vec_delete
+   fun:__static_initialization_and_destruction_0
+   fun:*
+}
+
+{
+   xmn5
+   Memcheck:Cond
+   fun:MakePositionVisible
+   fun:*
+}
+
+{
+   xmn6
+   Memcheck:Cond
+   fun:_XmRenderTableRemoveRenditions
+   fun:*
+}
+
+{
+   xmn7
+   Memcheck:Addr1
+   fun:_read_asn1_length
+   fun:XmStringNCopy
+   fun:*
+}
+
+{
+   xmn8
+   Memcheck:Addr1
+   fun:XmCvtByteStreamToXmString
+   fun:XmStringNCopy
+   fun:*
+}
+
+{
+   xmn9
+   Memcheck:Addr1
+   fun:strncmp
+   fun:_XmStringIndexCacheTag
+   fun:*
+}
+
+{
+   xmn10
+   Memcheck:Addr1
+   obj:/usr/lib/libX11.so.6.2.0
+   obj:/usr/lib/libX11.so.6.2.0
+   fun:gxm_XSubImage
+   fun:*
+}
+
+{
+   xmn11
+   Memcheck:Addr1
+   obj:/usr/lib/libXm.so.4.0.0
+   fun:XmStringNCopy
+   fun:XmStringNConcat
+   fun:*
+}
+
+{
+   xmn12
+   Memcheck:Cond
+   obj:/usr/lib/libXm.so.4.0.0
+   obj:/usr/lib/libXm.so.4.0.0
+   obj:/usr/lib/libXm.so.4.0.0
+   fun:_XtMakeGeometryRequest
+   fun:*
+}
+
+{
+   xmn13
+   Memcheck:Cond
+   fun:_XtMakeGeometryRequest
+   fun:*
+}
+
+{
+   gl1
+   Memcheck:Cond
+   fun:smooth_8R8G8B_z_triangle
+   fun:_swrast_validate_triangle
+   fun:_swrast_Triangle
+   fun:*
+}
+
+{
+   gl2
+   Memcheck:Cond
+   fun:smooth_8R8G8B_z_triangle
+   fun:_swrast_Triangle
+   fun:*
+}
+
+{
+   gl3
+   Memcheck:Cond
+   fun:_swrast_depth_test_span
+   fun:_swrast_write_rgba_span
+   fun:*
+}
+
+{
+   xmn14
+   Memcheck:Cond
+   obj:/usr/lib/libXm.so.4.0.0
+   fun:_XmTextShowPosition
+   fun:*
+}
+
+{
+   init-1
+   Memcheck:Leak
+   fun:calloc
+   fun:g_init_edits
+   fun:*
+}
+
+{
+   init-2
+   Memcheck:Leak
+   fun:malloc
+   fun:make_vector_1
+   fun:s7_make_and_fill_vector
+   fun:define_procedures
+   fun:*
+}
+
+{
+   init-3
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:CopyRendition
+   fun:XmRenderTableAddRenditions
+   fun:get_xm_font
+   fun:*
+}
+
+{
+   init-4
+   Memcheck:Leak
+   fun:malloc
+   fun:s7_make_terminated_string_with_length
+   fun:read_string_constant
+   fun:eval
+   fun:s7_eval_c_string
+   fun:Init_libxm
+   fun:*
+}
+
+{
+   init-5
+   Memcheck:Leak
+   fun:calloc
+   fun:XtCalloc
+   fun:XmSetToolTipString
+   fun:*
+}
+
+{
+   init-6
+   Memcheck:Leak
+   fun:malloc
+   fun:__gmp_default_allocate
+   fun:*
+}
+
+{
+   init-7
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:LookupContextBlock
+   fun:*
+}
+
+{
+   init-8
+   Memcheck:Leak
+   fun:malloc
+   fun:xen_make_vct
+   fun:g_init_edits
+   fun:*
+}
+
+{
+   init-9
+   Memcheck:Leak
+   fun:realloc
+   fun:XtRealloc
+   fun:*
+}
+
+{
+   init-10
+   Memcheck:Leak
+   fun:calloc
+   fun:XtCalloc
+   fun:CreateInfo
+   fun:*
+}
+
+{
+   init-11
+   Memcheck:Leak
+   fun:calloc
+   fun:XtCalloc
+   fun:InsertInfo
+   fun:*
+}
+
+{
+   init-12
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:InitializePrehook
+   fun:*
+}
+
+{
+   init-13
+   Memcheck:Leak
+   fun:malloc
+   fun:XCreateGC
+   fun:*
+}
+
+{
+   init-14
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/lib64/libX11.so.6.3.0
+   fun:XLoadQueryFont
+   fun:*
+}
+
+{
+   init-15
+   Memcheck:Leak
+   fun:malloc
+   fun:XtMalloc
+   fun:InitializeImageSet
+   fun:*
+}
+
+{
+   heap-1
+   Memcheck:Leak
+   fun:calloc
+   fun:s7_init
+   fun:s7_xen_initialize
+   fun:xen_initialize
+   fun:main
+}
+
+{
+   init-16
+   Memcheck:Leak
+   fun:calloc
+   fun:gxm_XGCValues
+   fun:*
+}

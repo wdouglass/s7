@@ -1,0 +1,39 @@
+.\" Written by Bill Schottstaedt (bil@ccrma.stanford.edu)
+.TH SND 1 "April 2001" "4.13"
+.SH NAME
+snd \- a sound editor
+.SH SYNOPSIS
+.B snd 
+.I [\-l FILE] [\-p DIR] [\-v] [\-h] [\-notebook] [\-separate] [\-noglob] [\-noinit] [\-\-help] [\-\-version]
+.SH DESCRIPTION
+Snd is a sound editor.
+.PP
+.B Snd
+is free software.
+It's available at ftp://ccrma-ftp.stanford.edu/pub/Lisp/.
+
+.SH USAGE
+snd oboe.snd
+loads oboe.snd into Snd.
+
+.SH OPTIONS
+.IP "\-l file"
+Load extension language code in file.
+.IP "\-p dir"
+Preload sound files found in directory dir.
+.IP \-noinit
+Don't load any initialization files (~/.snd et al).
+.IP \-\-help
+Give some help.
+.IP \-\-version
+Describe current Snd.
+
+.SH FILES
+.I ~/.snd 
+a file that can contain local customization code.
+
+.SH AUTHORS
+Bill Schottstaedt <bil@ccrma.stanford.edu>
+Michael Scholz
+with many generous far-flung helpers.
+

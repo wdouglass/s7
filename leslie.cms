@@ -1,0 +1,262 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;   leslie.cms
+;;
+;;   Time varying delay-lines
+;;   ========================
+;;   Doppler shift for Leslie
+;;
+;;   Based on: 
+;;             Abel, Berners, Serafin, Smith J.O 
+;;             "Doppler Simulation and the Leslie",
+;;             Proc. of  DAFx-02, September, 2002
+;;
+;;             Thanks to Patty Huang 
+;; 
+;; 
+;;   Syntax: CLM-4, S7
+;;                 
+;;
+;;                 juanig@ccrma
+;;
+;;   First version March 20, 2004
+;;   Last update   September 12, 2014
+;;
+;;   NOTES:  
+;;   Get Leslie effect on a pulse-train waveshape. Try acceleration with the vel-envelope.
+;;   It can also be used to apply a Leslie effect to a soundfile. Just switch to the 
+;;   'make-readin', readin ug.
+;;
+;;   06/20/2014  fixed delays and delay lines length
+;;   09/10/2014  added reflection delay lines
+;;   09/12/2014  added lowport baffle section using a lowpass butterworth
+;;   09/18/2014  S7 .cms version
+;;
+;;
+
+(define sspeed 345.12)  ;; Velocity of sound
+(define twopi (* 2 pi))
+(define oneturn (* pi 2))
+
+
+
+;; We need a Lowpass filter for the lower part, low frequency  (baffle)
+;; of the Leslie cabinet
+
+
+;; A butterworth Lowpass filter (as in dsp.scm).
+
+(define  (make-butter-low-pass fq)
+  (let* ((r (/ 1.0 (tan (/ (* pi fq) *clm-srate*))))
+	 (r2 (* r r))
+	 (c1 (/ 1.0 (+ 1.0 (* r (sqrt 2.0)) r2)))
+	 (c2 (* 2.0 c1))
+	 (c3 c1)
+	 (c4 (* 2.0 (- 1.0 r2) c1))
+	 (c5  (* (+ (- 1.0 (* r (sqrt 2.0))) r2) c1))
+	 (arra (make-float-vector 3 ))
+	 (arrb (make-float-vector 3 )))
+    (set! (arra 0) c1)
+    (set! (arra 1) c2)
+    (set! (arra 2) c3)
+    (set! (arrb 0) 0.0)
+    (set! (arrb 1) c4)
+    (set! (arrb 2) c5)
+    (make-filter 3 arra arrb) ))
+
+
+;;; Macros to handle Lowpass filter
+;;
+
+(define (butter f sample0)
+  (filter f sample0))
+
+
+;; macro to sweep frequencies
+;;
+
+(define  (sweep-butterfq b freq)
+  `(let* ((fq ,freq)
+	  (r (/ 1.0 (tan (/ (* pi fq) *srate*))))
+	  (r2 (* r r))
+	  (c1 (/ 1.0 (+ 1.0 (* r (sqrt 2.0)) r2))))
+     	 (set! (mus-xcoeff ,b 0) c1)
+	 (set! (mus-xcoeff ,b 1) (* 2.0 c1))
+	 (set! (mus-xcoeff ,b 2) c1)
+	 (set! (mus-ycoeff ,b 1) (* 2.0 (- 1.0 r2) c1))
+	 (set! (mus-ycoeff ,b 2) (* (+ (- 1.0 (* r (sqrt 2.0))) r2) c1))
+	 ))
+
+
+
+(definstrument (rotates start dur freq 
+			(speedsl 3.33)          ;; Speed source listener mts/sec
+			(velenv '(0 1 100 1))   ;; Velocity envelope
+			(gain 0.125)            ;; scales output
+			;; (onset 0.0)          ;; onset values in case of reading a soundfile
+			(rev-amount 0.025))     ;; very short reverb
+  
+  (let* ((beg (seconds->samples start))
+	 (sig (make-pulse-train :frequency freq))
+ 	 ;;; (rdA (make-readin :file file                        ;; just in case you want to read 
+	 ;;;	               :start (seconds->samples onset))  ;; a soundfile  instead
+	 ;;;
+	 (maxddelayl (if (= *clm-srate* 44100) (values 96)    
+			 (values 104)))
+	 (startddelay (if (= *clm-srate* 44100) (values 48)    
+			  (values 52)))
+	 (m2samp (/ *clm-srate* sspeed))
+	 (vel-env (make-env velenv  :duration (* dur 0.5)))
+	 ;;;
+	 ;;; Doppler delay lines
+	 ;;;
+	 (dpdelays (make-vector 4))
+	 (dshift (make-vector 4 startddelay))
+	 ;;
+	 ;;;
+	 ;;; Reflection path delay arrays
+	 ;;;
+	 (refldelays (make-vector 4))
+	 (reflectlen (make-vector 4))
+	 (reflections (make-vector 4 0.0))
+	 (hornout (make-vector 4 0.0))
+	 ;;
+	 ;;  Lowpass (baffle) 'frequency shift' array
+	 (fshift  (make-vector 4))
+	 (baffleout (make-vector 4))
+	 ;;
+	 (bfila (make-butter-low-pass 200))
+	 (bfilb (make-butter-low-pass 200))
+	 (bfilc (make-butter-low-pass 200))
+	 (bfild (make-butter-low-pass 200))
+	 ;;
+	 (growf0 0.0)
+	 (growf1 0.0)
+	 (growfa 0.0)
+	 (growfb 0.0)
+	 ;;
+	 (hornangvel 1.0)
+	 (baffleangvel 1.0)
+	 (hornangle 0.0)
+	 (hornradius 0.18)
+	 (baffleangle 0.0)
+	 (baffleradius 0.19050)
+	 ;;
+	 (xdev 0.0)
+	 (ydev 0.0)
+	 (cabinetlen 0.71)
+	 (cabinetwid 0.52)   
+	 ;;
+	 (end (+ beg (seconds->samples dur)))
+	 )
+    ;;
+    ;; Make delays 
+    ;;
+    (do ((i 0 (1+ i)))
+	  ((= i 4 ))
+      (set! (dpdelays i) (make-delay :size startddelay 
+				     :max-size maxddelayl 
+				     :type  mus-interp-linear))
+      (set! (refldelays i) (make-delay )))
+    ;;
+    ;;
+      ;;;
+      ;;; main loop
+      ;;;
+    (do ((i beg (1+ i)))
+	((= i end ))
+      ;;
+      (let ((sample (pulse-train sig))
+	    ;;;  (sample (readin rdA))  switch in case of reading a soundfile
+	    (deltavel (env vel-env))
+	    (sigouta 0.0) (sigoutb 0.0)  ;; horn
+	    (sigoutc 0.0) (sigoutd 0.0)  ;; reflections
+	    (woofera 0.0) (wooferb 0.0))  ;; low baffle output
+	;;
+	;; set acceleration of horn
+	(set! hornangvel (* speedsl deltavel))
+	(set! hornangle (+ hornangle (* twopi (/ hornangvel *clm-srate*))))
+	;; baffle lower port
+	(set! baffleangvel (* 0.98 speedsl ))
+	(set! baffleangle (+ baffleangle (* twopi (/ baffleangvel *clm-srate*))))
+	;;
+	(if (> hornangle twopi) (set! hornangle (- hornangle twopi)))
+	(if (> baffleangle twopi) (set! baffleangle (- baffleangle twopi)))
+	;;
+	;; calculate grow functions for delay line size (horn Doppler shifts)
+	(set! growf0 (/ (*(* (- twopi) hornradius) (* hornangvel (cos hornangle))) sspeed))
+	(set! growf1 (/ (*(* (- twopi) hornradius) (* hornangvel (sin hornangle))) sspeed))
+	;;
+	(set! (dshift 0) (- (dshift 0) growf0))
+	(set! (dshift 1) (- (dshift 1) growf1))
+	(set! (dshift 2) (- (dshift 2) (- growf0)))
+	(set! (dshift 3) (- (dshift 3) (- growf1)))
+	;;
+	(do ((j 0 (1+ j)))
+	    ((= j 4))
+	  (set! (hornout j ) (delay (dpdelays j) sample (dshift j)))
+	  )
+	;;
+	;; Reflections
+	;; 
+	(set! xdev (* hornradius (cos hornangle)))
+	(set! ydev (* hornradius (sin hornangle)))
+	(set! (reflectlen 0) (* (+ (/ cabinetwid 2) ydev) m2samp))
+	(set! (reflectlen 1) (* (- cabinetlen xdev) m2samp))
+	(set! (reflectlen 2) (* 1.5 (- cabinetwid ydev) m2samp))
+	(set! (reflectlen 3) (* (+ cabinetlen xdev) m2samp))
+	;;
+	;;  Need to add these reflections to *reverb*
+	(do ((j 0 (1+ j)))
+	    ((= j 4))
+	  (set! (reflections j) (delay (refldelays j)  
+				       (hornout j) 
+				       (reflectlen j))))
+	;; 
+	(set! sigouta (+ (hornout 0) (hornout 2)))
+	(set! sigoutb (+ (hornout 1) (hornout 3)))
+	(set! sigoutc (+ (reflections 0) (reflections 2)))
+	(set! sigoutd (+ (reflections 1) (reflections 3)))
+	;;
+	;; Grow functions baffle low port section 
+	(set! growfa (* (- twopi) baffleradius baffleangvel (cos baffleangle)))
+	(set! growfb (* (- twopi) baffleradius baffleangvel (sin baffleangle)))
+	;;
+	(set! (fshift 0) (+ 250 (* growfa 50)))
+	(set! (fshift 1) (+ 250 (* growfb 50)))
+	(set! (fshift 2) (+ 250 (* (- growfa) 50)))
+	(set! (fshift 3) (+ 250 (* (- growfb) 50)))
+	;;
+	(sweep-butterfq bfila (fshift 0))
+	(sweep-butterfq bfilb (fshift 1))
+	(sweep-butterfq bfilc (fshift 2))
+	(sweep-butterfq bfild (fshift 3))
+	;;
+	(set! (baffleout 0) (butter bfila sample))
+	(set! (baffleout 1) (butter bfilb sample))
+	(set! (baffleout 2) (butter bfilc sample))
+	(set! (baffleout 3) (butter bfild sample))
+	;;
+	(set! woofera (+ (baffleout 0) (baffleout 2)))
+	(set! wooferb (+ (baffleout 1) (baffleout 3)))
+	;;
+	(outa i (* gain (+ sigouta sigoutc woofera))) 
+	(outb i (* gain (+ sigoutb sigoutd wooferb)))
+	      ;;;
+	(if *reverb*
+	    (progn
+	     (outa i (* (* 0.5 gain)  (+ sigoutc woofera) rev-amount) *reverb*) 
+	     (outb i (* (* 0.5 gain)  (+ sigoutd wooferb) rev-amount) *reverb*) )) 
+	))
+    ))
+
+;;; (with-sound (:channels 2)  (rotates 0 1 800))
+;;; (with-sound (:channels 2)  (rotates 0 3 200))
+;;; (with-sound (:channels 2)  (rotates 0 8 300 :speedsl 1.0))
+;;; (with-sound (:channels 2)  (rotates 0 3 500 :speedsl 1.0))
+;;; (with-sound (:channels 2)  (rotates 0 3 500 :velenv '(0 0 100 1)))
+;;; (with-sound (:channels 2)  (rotates 0 3 500 :velenv '(0 1 100 0.25)))
+
+;;; (load "nrev.ins")
+
+;;; (with-sound (:channels 2 :reverb nrev :reverb-channels 2)  (rotates 0 5 500 :velenv '(0 1 100 0.25)))

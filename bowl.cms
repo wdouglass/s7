@@ -1,0 +1,211 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;  Banded Waveguide Tibetan Bowl Instrument based on
+;;;  ====== ========= ======= ==== ==========
+;;;
+;;;    Essl, G. and Cook, P. "Banded
+;;;    Waveguides: Towards Physical Modelling of Bar
+;;;    Percussion Instruments", Proceedings of the
+;;;    1999 International Computer Music Conference.
+;;;
+;;;    Also, Essl, Serafin, Cook, and Smith J.O., 
+;;;    "Theory of Banded Waveguides", CMJ, 28:1,
+;;;    pp37-50, Spring 2004.    
+;;;
+;;;
+;;;  CLM version by Juan Reyes 2004-2005, 
+;;;  NOTES:
+;;;        As with all physical models, initial conditions matter.
+;;;        Frequency range is not too broad. 220Hz. is a good
+;;;        starting point.
+;;;
+;;;
+;;;  08/24/2013  replaced delay line macros with DelayL using clm's delay ug  
+;;;  08/29/2014  fixed waveguide with feed and reflections
+;;;  08/30/2014  Try different delay line lengths. Fixing bandpass radius param.
+;;;  09/08/2014  Tibetan bowl, using formant filter ug.
+;;;  09/14/2014  This SND's S7 version
+;;;
+
+
+(define* (make-bowtable (offset 0.0) (slope 1.0))
+  (float-vector offset slope))
+
+(define (bowtable b samp)
+  (max 0.0 (- 1.0 (abs (* (b 1) (+ samp (b 0)))))))
+
+
+;;; Let's try a formant for bandpass filtering
+
+(define (make-formantbp freq radius)
+  (make-formant freq radius))
+
+(define (formantbp f sample0)
+  (formant f sample0))
+
+
+;;; Delay line structures and functions using SND's delay generator (as per prc95.scm)
+
+(defgenerator dlya (outp 0) (input #f))
+
+(define (make-delayl len lag)
+  (make-dlya :input (make-delay len :max-size (ceiling (+ len lag 1)))
+	     :outp (- lag len)))
+
+(define (delayl d samp)
+  (delay-tick (d 'input) samp)
+  (tap (d 'input) (d 'outp)))
+
+
+;;;;;;;;;;;;;;;;;;;;
+
+(definstrument (singbowl beg dur freq amplitude 
+			 (maxa 0.9998)           ;; max bow velocity
+			 (bv 1.0)                ;; bow velocity scaler
+			 ;; velocity envelope
+			 (vel-env '(0 1.0 .95 1.1 1 1.0))
+			 (amp-env '(0 0  0.5 1 1 0))    ;;'(0 0.0  .95 1.0 .99 0.00))
+			 (rev-amount .08) )
+  (let ((nrmodes 12)
+	(ratius 0.45))
+
+
+    (let* ((start (seconds->samples beg))
+	   (baselen (/ *clm-srate* (* freq ratius)))           ;; original stk delayl length
+	   (baselag (/ *clm-srate* (* 0.9 freq ratius)))
+	   (dtapoffs 7.0)                       ;; tap offset is 0.0 in StK's version 
+	   (bandpass    (make-vector nrmodes))
+	   (delayslft   (make-vector nrmodes))
+	   (delaysrfl   (make-vector nrmodes))
+	   (modes       (make-float-vector nrmodes))
+	   (gains       (make-float-vector nrmodes))
+	   (basegains   (make-float-vector nrmodes))
+	   (excitations (make-float-vector nrmodes))
+	   (delastout   (make-float-vector nrmodes))
+	   ;;
+	   (fradius 0.0)   ;; radius for bandpass filter
+	   (dlength 0.0)   ;; delay-line length
+	   (dlag 0.0)      ;; delay lag (for tap)
+	   ;;
+	   (bowtab (make-bowtable :slope 3.0 :offset 0.001))  
+	   (ampenv (make-env amp-env :scaler amplitude :duration dur))
+	   ;; (vel-env (make-env vel-env :scaler bv :duration dur))
+	   ;;
+	   (maxvelocity maxa)
+	   (end (+ start (seconds->samples dur)))
+	   )
+      ;;
+      ;;
+      ;; Tibetan Prayer Bowl (ICMC'02)
+      ;;
+      
+      (set! (modes 0) 0.996108344)
+      (set! (basegains 0) 0.999925960128219)
+      (set! (modes 1) 1.0038916562)
+      (set! (basegains 1) 0.999925960128219)
+      (set! (modes 2) 2.979178)
+      (set! (basegains 2) 0.999982774366897)
+      (set! (modes 3) 2.99329767)
+      (set! (basegains 3) 0.999982774366897)
+      (set! (modes 4) 5.704452)
+      (set! (basegains 4) 1.0)    ;; 0.999999999999999999987356406352
+      (set! (modes 5)  5.704452)
+      (set! (basegains 5)  1.0)    ;; 0.999999999999999999987356406352
+      (set! (modes 6)  8.9982)
+      (set! (basegains 6)  1.0)    ;;0.999999999999999999996995497558225
+      (set! (modes 7)  9.01549726)
+      (set! (basegains 7)  1.0)   ;;0.999999999999999999996995497558225
+      (set! (modes 8)  12.83303)
+      (set! (basegains 8)  0.99965497558225)
+      (set! (modes 9)  12.807382)
+      (set! (basegains 9)  0.999965497558225)
+      (set! (modes 10)  17.2808219)
+      (set! (basegains 10)  0.9999999999999999999965497558225)
+      (set! (modes 11)  21.97602739726)
+      (set! (basegains 11)  0.999999999999999965497558225)
+      ;;
+      ;;
+      (set! (excitations 0)  (/ 11.900357 10))
+      (set! (excitations 1)  (/ 11.900357 10))
+      (set! (excitations 2)  (/ 10.914886 10))
+      (set! (excitations 3)  (/ 10.914886 10))
+      (set! (excitations 4)  (/ 42.995041 10))
+      (set! (excitations 5)  (/ 42.995041 10))
+      (set! (excitations 6)  (/ 40.063034 10))
+      (set! (excitations 7)  (/ 40.063034 10))
+      (set! (excitations 8)  (/ 7.063034 10))
+      (set! (excitations 9)  (/ 7.063034 10))
+      (set! (excitations 10)  (/ 57.063034 10))
+      (set! (excitations 11)  (/ 57.063034 10))
+      
+      ;;
+      ;; setFrequency method in STK's BandedWG
+      ;;
+     
+     
+      (set! fradius (- 0.79998 (* pi (/ 32 *clm-srate*))))
+      (do ((i 0 (+ i 1)))
+	  ((= i nrmodes))
+	(set! dlength (floor  (/ baselen (modes i))))
+	(set! dlag    (floor  (/ baselag (modes i))))  ;; (- lag len) --> tap offset
+	(set! (delayslft i) (make-delayl dlength dlag))
+	(set! (delaysrfl i) (make-delayl dlength dlag))
+	(set! (gains i) ( basegains i))
+	(set! (bandpass i) 
+	      (make-formantbp (* freq (modes i)) fradius)) )
+      ;;
+;;;;;;;;;;;;
+      ;;
+      
+      (do ((i start (+ i 1)))
+	  ((= i end))
+	;;
+	(let ((input 0.00)
+	      (velinput  0.00)
+	      (bowvelocity 0.00)
+	      (bplastout 0.0)
+	      (dlastsampl 0.00)
+	      (sample0 0.00)
+		  )
+	      
+	  (do ((k 0 (+ k 1)))
+	      ((= k nrmodes))
+	    (set! velinput (+ velinput (*  (basegains k)  (delastout k)))))
+	      ;;
+	      ;;
+	      ;; (set! bowvelocity (* 0.3 (env vel-env) maxvelocity))
+	      (set! bowvelocity (* 0.3  maxvelocity))
+	      (set! input  (- bowvelocity velinput))
+	      (set! input (* input (bowtable bowtab input)))
+	      (set! input (/ input nrmodes ))
+	      ;;
+	      ;; Here the waveguide
+	      ;;
+	      (do ((j 0 (1+ j)))
+		  ((= j nrmodes))
+		(set! bplastout 
+		      (+ bplastout (formantbp (bandpass j) 
+					      (delayl (delayslft j) 
+						      (+ input (* (gains j) dlastsampl)) ))))
+		;;
+		(set! dlastsampl (+ dlastsampl (delayl ( delaysrfl j) bplastout)))
+		(set! (delastout j) dlastsampl)
+		)
+	      ;;
+	      ;;
+	      (set! sample0 (*  2.0 (env ampenv)  bplastout))
+	      ;;
+	      (outa i sample0)
+	      ;;
+	      (if *reverb*
+		  (begin
+		    (outa i (*  sample0 rev-amount)  *reverb*)))
+	      )))
+      ))
+  
+
+;;; (with-sound () (singbowl 0 1 200 0.4 ))
+;;; (with-sound () (singbowl 0 1 220 0.4 ))
+;;; (with-sound () (singbowl 0 1 180 0.2 ))
+
+

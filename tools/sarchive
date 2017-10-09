@@ -1,0 +1,122 @@
+#!/bin/csh -f
+
+date > /home/bil/cl/hi
+echo ' ' >> /home/bil/cl/hi
+
+chdir /home/bil/s7
+foreach file (*.h *.c *.html *.scm gdbinit)
+  if (-e /home/bil/cl/$file) then
+    find /home/bil/cl/$file -newer /home/bil/s7/$file -exec echo ' updating ' $file \;
+    find /home/bil/cl/$file -newer /home/bil/s7/$file -exec cp /home/bil/cl/$file /home/bil/s7 \;
+  else
+    echo $file 'does not exist in /home/bil/cl'
+  endif
+end
+
+chdir /home/bil/dist/snd
+foreach file (*.h *.c *.cl *.el *.clm *.html makefile.* make.* *.in *.scm *.lisp *.fs *.fsm *.js *.Snd snd.1 configure.ac *.rb *.m4 config.guess config.sub NEWS *.tex COPYING DotEmacs *.f music5-examples)
+  if (-e /home/bil/cl/$file) then
+    diff -bcw /home/bil/cl/$file /home/bil/dist/snd/$file >> /home/bil/cl/hi
+    find /home/bil/cl/$file -newer /home/bil/dist/snd/$file -exec echo ' updating ' $file \;
+    find /home/bil/cl/$file -newer /home/bil/dist/snd/$file -exec cp /home/bil/dist/snd/$file /home/bil/old-dist \;
+    find /home/bil/cl/$file -newer /home/bil/dist/snd/$file -exec cp /home/bil/cl/$file /home/bil/dist/snd \;
+  else
+    echo $file 'does not exist in /home/bil/cl'
+  endif
+end
+
+chdir /home/bil/dist/snd/pix
+foreach file (*.png)
+  if (-e /home/bil/cl/pix/$file) then
+    find /home/bil/cl/pix/$file -newer /home/bil/dist/snd/pix/$file -exec echo ' updating ' pix/$file \;
+    find /home/bil/cl/pix/$file -newer /home/bil/dist/snd/pix/$file -exec cp /home/bil/dist/snd/pix/$file /home/bil/old-dist \;
+    find /home/bil/cl/pix/$file -newer /home/bil/dist/snd/pix/$file -exec cp /home/bil/cl/pix/$file /home/bil/dist/snd/pix \;
+  else
+    echo pix/$file 'does not exist in /home/bil/cl/pix'
+  endif
+end
+
+chdir /home/bil/cl/tools
+foreach file (*)
+  if (-e /home/bil/cl/$file) then
+    find /home/bil/cl/$file -newer /home/bil/cl/tools/$file -exec echo ' updating ' cl/tools/$file \;
+    find /home/bil/cl/$file -newer /home/bil/cl/tools/$file -exec cp /home/bil/cl/tools/$file /home/bil/old-dist \;
+    find /home/bil/cl/$file -newer /home/bil/cl/tools/$file -exec cp /home/bil/cl/$file /home/bil/cl/tools \;
+  endif
+end
+
+chdir /home/bil/dist/snd/tools
+foreach file (*)
+  if (-e /home/bil/cl/tools/$file) then
+    diff -bcw /home/bil/cl/tools/$file /home/bil/dist/snd/tools/$file >> /home/bil/cl/hi
+    find /home/bil/cl/tools/$file -newer /home/bil/dist/snd/tools/$file -exec echo ' updating ' snd/tools/$file \;
+    find /home/bil/cl/tools/$file -newer /home/bil/dist/snd/tools/$file -exec cp /home/bil/dist/snd/tools/$file /home/bil/old-dist \;
+    find /home/bil/cl/tools/$file -newer /home/bil/dist/snd/tools/$file -exec cp /home/bil/cl/tools/$file /home/bil/dist/snd/tools \;
+  else
+    echo $file '(snd tools) does not exist in /home/bil/cl/tools'
+  endif
+end
+
+  
+chdir /home/bil/dist/snd/s7webserver
+foreach file (*)
+  if (-e /home/bil/cl/s7webserver/$file) then
+    diff -bcw /home/bil/cl/s7webserver/$file /home/bil/dist/snd/s7webserver/$file >> /home/bil/cl/hi
+    find /home/bil/cl/s7webserver/$file -newer /home/bil/dist/snd/s7webserver/$file -exec echo ' updating ' snd/s7webserver/$file \;
+    find /home/bil/cl/s7webserver/$file -newer /home/bil/dist/snd/s7webserver/$file -exec cp /home/bil/dist/snd/s7webserver/$file /home/bil/old-dist \;
+    find /home/bil/cl/s7webserver/$file -newer /home/bil/dist/snd/s7webserver/$file -exec cp /home/bil/cl/s7webserver/$file /home/bil/dist/snd/s7webserver \;
+  else
+    echo $file '(snd s7webserver) does not exist in /home/bil/cl/s7webserver'
+  endif
+end
+
+  
+chdir /home/bil/dist/snd/sndins
+foreach file (*.h *.c *.in README)
+  if (-e /home/bil/cl/sndins/$file) then
+    diff -bcw /home/bil/cl/sndins/$file /home/bil/dist/snd/sndins/$file >> /home/bil/cl/hi
+    find /home/bil/cl/sndins/$file -newer /home/bil/dist/snd/sndins/$file -exec echo ' updating ' sndins/$file \;
+    find /home/bil/cl/sndins/$file -newer /home/bil/dist/snd/sndins/$file -exec cp /home/bil/dist/snd/sndins/$file /home/bil/old-dist \;
+    find /home/bil/cl/sndins/$file -newer /home/bil/dist/snd/sndins/$file -exec cp /home/bil/cl/sndins/$file /home/bil/dist/snd/sndins \;
+  else
+    echo $file '(snd sndins) does not exist in /home/bil/cl/sndins'
+  endif
+end
+
+  
+chdir /home/bil/dist/snd/sndins/samples
+foreach file (*.rb *.scm *.fth *.fs)
+  if (-e /home/bil/cl/sndins/samples/$file) then
+    diff -bcw /home/bil/cl/sndins/samples/$file /home/bil/dist/snd/sndins/samples/$file >> /home/bil/cl/hi
+    find /home/bil/cl/sndins/samples/$file -newer /home/bil/dist/snd/sndins/samples/$file -exec echo ' updating ' sndins/samples/$file \;
+    find /home/bil/cl/sndins/samples/$file -newer /home/bil/dist/snd/sndins/samples/$file -exec cp /home/bil/dist/snd/sndins/samples/$file /home/bil/old-dist \;
+    find /home/bil/cl/sndins/samples/$file -newer /home/bil/dist/snd/sndins/samples/$file -exec cp /home/bil/cl/sndins/samples/$file /home/bil/dist/snd/sndins/samples \;
+  else
+    echo $file '(snd sndins/samples) does not exist in /home/bil/cl/sndins/samples'
+  endif
+end
+
+chdir /home/bil/cl
+foreach file (*.rb *.fth *.fs)
+  if (-e /home/bil/dist/snd/$file) then
+  else
+    echo $file ' does not exist in /home/bil/dist/snd'
+  endif
+end
+
+chdir /home/bil/cl/pix
+foreach file (*.png)
+  if (-e /home/bil/dist/snd/pix/$file) then
+  else
+    echo $file ' does not exist in /home/bil/dist/snd/pix'
+  endif
+end
+
+chdir /home/bil/dist/snd
+cp /home/bil/cl/configure /home/bil/dist/snd
+
+rm snd.tar
+tar -chf snd.tar *
+
+chdir /home/bil/cl
+wc hi
