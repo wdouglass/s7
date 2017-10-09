@@ -140,15 +140,15 @@ cmdist@ccrma.stanford.edu.  To subscribe, visit
 
   http://ccrma-mail.stanford.edu/mailman/listinfo/cmdist
 
-To follow the Snd CVS repository, the first time you need to
+To follow the Snd SVN repository, the first time you need to
 
-       cvs -d:pserver:anonymous@snd.cvs.sourceforge.net:/cvsroot/snd login 
-       cvs -z3 -d:pserver:anonymous@snd.cvs.sourceforge.net:/cvsroot/snd co cvs-snd
+  svn checkout svn://svn.code.sf.net/p/snd/svn1/trunk snd
 
-When prompted for a password for anonymous, press the Enter key. 
-After that, you go to your local cvs-snd directory and
+This creates a local snd directory with the files. 
 
-       cvs update 
+  svn update
+
+updates any changed files.
 
 
 
