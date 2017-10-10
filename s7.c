@@ -7661,7 +7661,22 @@ static s7_pointer g_let_set(s7_scheme *sc, s7_pointer args)
   return(s7_let_set(sc, car(args), cadr(args), caddr(args)));
 }
 
-static s7_pointer let_set_p_ppp(s7_pointer p1, s7_pointer p2, s7_pointer p3) {return(s7_let_set(cur_sc, p1, p2, p3));}
+static s7_pointer let_set_p_ppp(s7_pointer p1, s7_pointer p2, s7_pointer p3) 
+{
+  return(s7_let_set(cur_sc, p1, p2, p3));
+}
+
+static s7_pointer let_set_p_ppp_1(s7_pointer p1, s7_pointer p2, s7_pointer p3) 
+{
+  return(let_set_1(cur_sc, p1, p2, p3));
+}
+
+static s7_pointer let_set_p_ppp_2(s7_pointer p1, s7_pointer p2, s7_pointer p3) 
+{
+  if (!is_symbol(p2))
+    return(wrong_type_argument_with_type(cur_sc, cur_sc->let_set_symbol, 2, p2, a_symbol_string));
+  return(let_set_1(cur_sc, p1, p2, p3));
+}
 
 static s7_pointer lint_let_set, local_lint_let_set;
 static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym, s7_pointer val)
@@ -51770,6 +51785,10 @@ static bool p_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		  opc->v4.p = cadr(arg2);
 		  opc->v2.p = val_slot;
 		  opc->v7.fp = opt_p_ppp_scs;
+		  if ((opc->v3.p_ppp_f == let_set_p_ppp) &&
+		      (is_let(slot_value(slot))) &&        /* checked has_methods and is_immutable above */
+		      (is_symbol(cadr(arg2))))
+		    opc->v3.p_ppp_f = let_set_p_ppp_1;
 		  return(true);
 		}
 	    }
@@ -52307,7 +52326,13 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 		      break;
 
 		    case T_LET:        
-		      opc->v3.p_ppp_f = let_set_p_ppp;
+		      /* here we know the let is a covered mutable let */
+		      if ((is_keyword(cadr(cadr(car_x)))) ||
+			  ((is_pair(cadr(cadr(car_x)))) &&
+			   (caadr(cadr(car_x)) == sc->quote_symbol) &&
+			   (is_symbol(cadadr(cadr(car_x))))))
+			opc->v3.p_ppp_f = let_set_p_ppp_1;
+		      else opc->v3.p_ppp_f = let_set_p_ppp_2;
 		      break;
 
 		    default:           
@@ -64436,9 +64461,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
       break;
       
     case T_LET:
-      if (is_immutable(obj))
-	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, obj));
-      sc->value = s7_let_set(sc, obj, arg, value);
+      sc->value = s7_let_set(sc, obj, arg, value); /* this checks immutable */
       break;
       
     case T_C_OPT_ARGS_FUNCTION:
@@ -82449,7 +82472,7 @@ s7_scheme *s7_init(void)
   sc->let_ref_symbol =               defun("let-ref",		let_ref,		2, 0, false);
   sc->let_set_symbol =               defun("let-set!",		let_set,		3, 0, false);
   sc->let_ref_fallback_symbol = make_symbol(sc, "let-ref-fallback");
-  sc->let_set_fallback_symbol = make_symbol(sc, "let-set!-fallback");
+  sc->let_set_fallback_symbol = make_symbol(sc, "let-set-fallback"); /* was let-set!-fallback until 9-Oct-17 */
 
   sc->make_iterator_symbol =         defun("make-iterator",	make_iterator,		1, 1, false);
   sc->iterate_symbol =               defun("iterate",		iterate,		1, 0, false);
@@ -83605,10 +83628,6 @@ s7_scheme *s7_init(void)
 	       s7_cons(sc, sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer"))))));
 
   /* obsolete */
-  s7_eval_c_string(sc, "(begin                                                    \n\
-                          (define procedure-setter           setter)              \n\
-                          (define procedure-signature        signature)           \n\
-                          (define procedure-documentation    documentation))");
   sc->procedure_documentation_symbol = s7_make_symbol(sc, "procedure-documentation");
   sc->procedure_signature_symbol = s7_make_symbol(sc, "procedure-signature");
   sc->procedure_setter_symbol = s7_make_symbol(sc, "procedure-setter");
@@ -83623,6 +83642,9 @@ s7_scheme *s7_init(void)
                           (define make-complex               complex)             \n\
                           (define make-keyword               string->keyword)     \n\
                           (define symbol-access              symbol-setter)       \n\
+                          (define procedure-setter           setter)              \n\
+                          (define procedure-signature        signature)           \n\
+                          (define procedure-documentation    documentation)       \n\
                           (define (procedure-arity obj) (let ((c (arity obj))) (list (car c) (- (cdr c) (car c)) (> (cdr c) 100000)))))");
 #endif
 #if DEBUGGING
@@ -83727,22 +83749,17 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  *
- * libgtk:
- *   callback funcs need calling check -- 5 list as fields of c-pointer?
- *   several more special funcs
- *
+ * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
  * test opt_sizes escape in sort et al -- perhaps save sc->envir, make sure it is ok if optimize fails
  * opt let? opt_float_begin in s7_float_optimize for map-channel in snd?
- * check glob/libc.scm in openbsd -- some problem loading libc_s7.so (it works in snd, not in repl?)
+ * check glob/libc.scm in openbsd -- some problem loading libc_s7.so (it works in snd, not in repl? missing lib?)
  * libc needs many type checks
  * is_type replacing is_symbol etc [all_x_is_*_s if_is_* safe_is_*]
  *   is_type_car|cdr|a in all 3 cases
  *   need symbol->type-checker-recog->type -- symbol_type: object.sym.info->type
  * maybe pass \u... through in read_constant_string unchanged, or read in s7??  no worse than \x..;
- *
  * c_object type table entries should also be s7_function, reported by object->let perhaps
  *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
- * maybe c-object-setter should be available as c-object-set! (currently #<c-object-setter>), c-object-ref?
  *
  * ex lint for specific ques: turn off lint-format, seek all calls of f global|local|with a specific arg etc
  *   (requires lint on set of files, then specialize report-usage)
@@ -83753,14 +83770,16 @@ int main(int argc, char **argv)
  * *s7* should be a normal let
  * syms_tag may need 64-bits
  * set symbol-setter -> set setter?
- * cowlet t707.scm -- this has uncovered a bunch of bugs...
+ * setter for hash-table/vector/string could give cow-obj (t707.scm for plausible code)
+ *   possibly using ht dproc and a bit to distinguish cases or third entry for dproc '(#f #f setter)
+ * (openlet (curlet))?
  *
  * --------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  | 17.4  17.7  17.8
  * tmac          |      |      |      || 9052 |  615   261   261
  * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1053  1050
- * tref          |      |      | 2372 || 2125 | 1375  1109  1121
+ * tref          |      |      | 2372 || 2125 | 1375  1109  1105
  * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1378  1376
  * teq           |      |      | 6612 || 2777 | 2129  1921  1924
  * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2172  2067

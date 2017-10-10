@@ -1592,12 +1592,13 @@
 				   (begin
 				     (set! cur-href (substring dline 0 epos))
 				     (let ((pos (char-position #\# cur-href)))
-				       (if (not (or pos
-						    (<= epos 5)
-						    (file-exists? cur-href)
-						    (string=? (substring cur-href 0 4) "ftp:")
-						    (string=? (substring cur-href 0 5) "http:")))
-					   (format () "~A[~D]: reference to missing file ~S~%" file linectr cur-href)))))
+				       (unless (or pos
+						   (<= epos 5)
+						   (file-exists? cur-href)
+						   (string=? (substring cur-href 0 4) "ftp:")
+						   (string=? (substring cur-href 0 5) "http:")
+						   (string=? (substring cur-href 0 6) "https:"))
+					 (format () "~A[~D]: reference to missing file ~S~%" file linectr cur-href)))))
 			       
 			       ;; cur-href here is the full link: sndclm.html#make-filetosample for example
 			       ;;   it can also be a bare file name

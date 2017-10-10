@@ -2821,7 +2821,7 @@ such as abs, we need to put it back to its original form:
 
 
 <p><b>openlet</b> marks its argument, either an environment, a closure, a c-object, or a c-pointer
-as open.  I need better terminology here!  An open object is one that the
+as open; <b>coverlet</b> as closed.  I need better terminology here!  An open object is one that the
 built-in s7 functions handle specially.  If they encounter one in their
 argument list, they look in the object for their own name, and call that
 function if it exists.  A bare-bones example:
@@ -2859,6 +2859,49 @@ A slightly more complex example:
 <p>Perhaps these names would be better: openlet -&gt; with-methods, coverlet -&gt; without-methods,
 and openlet? -&gt; methods?.
 </p>
+
+<blockquote>
+<details>
+<summary class="indented">let-ref and let-set! methods</summary>
+<div class="indented">
+<p>let-ref and let-set! are problematic as methods.  It is very easy to get into an infinite
+loop, especially with let-ref since any reference to the let within the method body probably
+calls let-ref, which notices the let-ref method... One way around this is to call coverlet 
+on the let before doing anything, then at the end, call openlet:
+</p>
+<pre class="indented">
+&gt; (let ((hi (openlet 
+              (inlet 'a 1 
+		     'let-ref (lambda (obj val)
+				(<em class="red">coverlet</em> obj)
+				(let ((res (+ (obj val) 1)))
+				  (<em class="red">openlet</em> obj)
+				  res))))))
+  (hi 'a))
+<em class="gray">2</em>
+</pre>
+
+<p>Use let-ref-fallback and let-set-fallback instead, if possible.  A let-set!
+method can implement a copy-on-write let:
+</p>
+
+<pre class="indented">
+(define (cowlet . fields) ; copy-on-write let
+  (openlet (apply inlet 
+                  'let-set! (lambda (obj field val)
+                              (let ((new-obj (copy (coverlet obj))))
+                                (set! (new-obj field) val)
+                                (openlet obj)
+                                (openlet new-obj)))
+                  fields)))
+(let ((lt1 (cowlet 'a 1 'b 2)))
+  (set! (lt1 'b) 1)) ; this leaves lt1 unchanged, returns a new let with b=1
+</pre>
+
+</div>
+</details>
+</blockquote>
+
 
 <p><b>object-&gt;let</b> returns an environment (more of a dictionary really) that
 contains details about its argument.  It
@@ -6145,7 +6188,6 @@ definition, and a later redefinition does not affect earlier uses.
 <li>change with-output-to-* and with-input-from-* to omit the pointless lambda.
 <li>remove the with-* IO functions (e.g. with-input-from-string), keeping the call-with-* versions (call-with-input-string).
 <li>remove assq, assv, memq, and memv (these are pointless now that assoc and member can be passed eq? and eqv?).
-<li>remove unless: it is much harder to read than when.  The 'not should not be hidden.
 </ul>
 
 <p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
@@ -9507,7 +9549,7 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 	    :let-ref-fallback (lambda (obj sym)
 				(eval-string (gdbm_fetch (obj 'file) (symbol-&gt;string sym))))
 	    
-	    :let-set!-fallback (lambda (obj sym val)
+	    :let-set-fallback (lambda (obj sym val)
 				 (gdbm_store (obj 'file)
 					     (symbol-&gt;string sym)
 					     (object-&gt;string val :readable)
