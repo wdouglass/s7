@@ -83735,6 +83735,10 @@ int main(int argc, char **argv)
  *   the problem is less obvious:
  *     "The window 0x5555564dab00 already has a drawing context. You cannot call gdk_window_begin_draw_frame() without calling gdk_window_end_draw_frame() first."
  *   and the stupid thing segfaults.  This is called in make-cairo, end in free-cairo. 
+ *   The basic draw-bass-clef (sndscm.html) works ok, t410.scm crashes
+ *   even with this check (make_cairo in snd-gutils.c), it still crashes:
+ *   if ((last_context) && (GDK_IS_DRAWING_CONTEXT(last_context)) && (gdk_drawing_context_is_valid(last_context)) && (win == gdk_drawing_context_get_window(last_context)))
+ *     gdk_window_end_draw_frame(win, last_context);
  *
  * Snd:
  * dac loop [need start/end of loop in dac_info, reader goes to start when end reached (requires rebuffering)
@@ -83761,18 +83765,12 @@ int main(int argc, char **argv)
  * c_object type table entries should also be s7_function, reported by object->let perhaps
  *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
- * ex lint for specific ques: turn off lint-format, seek all calls of f global|local|with a specific arg etc
- *   (requires lint on set of files, then specialize report-usage)
- *   does this give who-calls?
- *   or change to new call, reporting changes etc
- *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
  * *s7* should be a normal let
  * syms_tag may need 64-bits
  * set symbol-setter -> set setter?
  * setter for hash-table/vector/string could give cow-obj (t707.scm for plausible code)
  *   possibly using ht dproc and a bit to distinguish cases or third entry for dproc '(#f #f setter)
- * (openlet (curlet))?
  *
  * --------------------------------------------------------------
  *
@@ -83786,9 +83784,9 @@ int main(int argc, char **argv)
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2436  2426
  * lint          |      |      |      || 4041 | 3376  2726  2677
  * lg            |      |      |      || 211  | 161   134.9 133.0
- * tform         |      |      | 6816 || 3714 | 3530  2746  2750
+ * tform         |      |      | 6816 || 3714 | 3530  2746  2739
  * tcopy         |      |      | 13.6 || 3183 | 3404  3071  2918
- * tmap          |      |      |  9.3 || 5279 |       3386  3382
+ * tmap          |      |      |  9.3 || 5279 |       3386  3386
  * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964
  * tsort         |      |      |      || 8584 | 4869  4012  4012
  * titer         |      |      |      || 5971 | 5224  4562  4537
