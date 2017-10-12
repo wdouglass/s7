@@ -1090,14 +1090,14 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
       (define (pinner cur nvals len)
 	(if (= len 1)
 	    (apply func (car nvals) cur)
-	    (do ((i 0 (+ i 1)))                       ; I suppose a named let would be more Schemish
+	    (do ((i 0 (+ i 1))                       ; I suppose a named let would be more Schemish
+		 (start nvals nvals))
 		((= i len))
-	      (let ((start nvals))
-		(set! nvals (cdr nvals))
-		(let ((cur1 (cons (car nvals) cur)))  ; add (car nvals) to our arg list
-		  (set! (cdr start) (cdr nvals))      ; splice out that element and 
-		  (pinner cur1 (cdr start) (- len 1)) ;   pass a smaller circle on down, "wheels within wheels"
-		  (set! (cdr start) nvals))))))       ; restore original circle
+	      (set! nvals (cdr nvals))
+	      (let ((cur1 (cons (car nvals) cur)))  ; add (car nvals) to our arg list
+		(set! (cdr start) (cdr nvals))      ; splice out that element and 
+		(pinner cur1 (cdr start) (- len 1)) ;   pass a smaller circle on down, "wheels within wheels"
+		(set! (cdr start) nvals)))))        ; restore original circle
       (let ((len (length vals)))
 	(set-cdr! (list-tail vals (- len 1)) vals)    ; make vals into a circle
 	(pinner () vals len)

@@ -7139,19 +7139,25 @@
 	;; ---------------- copy ----------------
 	(let ()
 	  (define (sp-copy caller head form env)
-	    (cond ((and (pair? (cdr form))          ; (copy (copy x)) could be (copy x)
-			(or (number? (cadr form))
-			    (boolean? (cadr form))
-			    (char? (cadr form))
-			    (and (pair? (cadr form))
-				 (memq (caadr form) '(copy string-copy))) ; or any maker?
-			    (and (pair? (cddr form))
-				 (equal? (cadr form) (caddr form)))))
+	    (cond ((not (pair? (cdr form))))        ; (copy) argnum error reported elsewhere
+
+		  ((or (number? (cadr form))        ; (copy 1)
+		       (boolean? (cadr form))
+		       (char? (cadr form))
+		       (and (pair? (cadr form))     ; (copy (copy x)) -> (copy x)
+			    (memq (caadr form) '(copy string-copy)))) ; or any maker?
 		   (lint-format "~A could be ~A" caller (truncated-list->string form) (cadr form)))
 		  
-		  ((and (pair? (cdr form))          ; (copy (owlet)) could be (owlet)
-			(equal? (cadr form) '(owlet)))
+		  ((equal? (cadr form) '(owlet))    ; (copy (owlet)) -> (owlet)
 		   (lint-format "~A could be (owlet): owlet is copied internally" caller form))
+
+		  ((not (pair? (cddr form))))
+
+		  ((and (eq? (cadr form) (caddr form))  ; (copy x x)
+			(or (null? (cdddr form))
+			    (and (eqv? (cadddr form) 0) ; (copy x x 0)
+				 (null? (cddddr form)))))
+		   (lint-format "~A is a no-op" caller form))
 		  
 		  ((= (length form) 5)
 		   (check-start-and-end caller 'copy (cdddr form) form env))))

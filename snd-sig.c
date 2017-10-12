@@ -3628,6 +3628,45 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
 		return(res);
 	      }
 	  }
+
+	  if ((s7_list_length(s7, res) == 2) &&
+	      (s7_is_symbol(s7_cadr(res))))
+	    {
+	      if (s7_car(res) == s7_make_symbol(s7, "granulate"))
+		{
+		  s7_pointer gp;
+		  mus_any *g;
+		  gp = s7_symbol_value(s7, s7_cadr(res));
+		  if ((mus_is_xen(gp)) &&
+		      (mus_is_granulate(g = Xen_to_mus_any(gp))))
+		    {
+		      data = (mus_float_t *)calloc(num, sizeof(mus_float_t));
+		      for (kp = 0; kp < num; kp++)
+			data[kp] = mus_granulate_with_editor(g, NULL, NULL);
+		      free_snd_fd(sf);
+		      change_samples(beg, num, data, cp, caller, pos, -1.0);
+		      free(data);
+		      return(res);
+		    }
+		}
+	      if (s7_car(res) == s7_make_symbol(s7, "phase-vocoder"))
+		{
+		  s7_pointer gp;
+		  mus_any *g;
+		  gp = s7_symbol_value(s7, s7_cadr(res));
+		  if ((mus_is_xen(gp)) &&
+		      (mus_is_phase_vocoder(g = Xen_to_mus_any(gp))))
+		    {
+		      data = (mus_float_t *)calloc(num, sizeof(mus_float_t));
+		      for (kp = 0; kp < num; kp++)
+			data[kp] = mus_phase_vocoder(g, NULL);
+		      free_snd_fd(sf);
+		      change_samples(beg, num, data, cp, caller, pos, -1.0);
+		      free(data);
+		      return(res);
+		    }
+		}
+	    }
 	} /* is one expr body */
 
       arg = s7_car(s7_closure_args(s7, proc));

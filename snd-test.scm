@@ -39477,9 +39477,6 @@ EDITS: 1
       (fullmix "oboe.snd" #f #f #f (list (list (list 0 0 1 1 2 0) 0.5)))
       (fullmix "oboe.snd" 3 2 0 (list (list .1 (make-env '(0 0 1 1) :duration 2 :scaler .5)))))
     
-    
-    (load "fullmix.scm") ; this is also in clm-ins.scm so we need a separate set of tests
-    
     (with-sound (:channels 2 :statistics #t)
       (fullmix "pistol.snd")
       (fullmix "oboe.snd" 1 2 0 (list (list .1 (make-env '(0 0 1 1) :duration 2 :scaler .5)))))

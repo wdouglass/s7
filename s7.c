@@ -24688,7 +24688,6 @@ static void leave_lock_scope(lock_scope_t *st)
 #define TRACK(Sc)
 #endif
 
-
 static FILE *search_load_path(s7_scheme *sc, const char *name)
 {
   int32_t i, len;
@@ -24710,7 +24709,6 @@ static FILE *search_load_path(s7_scheme *sc, const char *name)
     }
   return(NULL);
 }
-
 
 s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_pointer e)
 {
@@ -24765,7 +24763,6 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
     sc->value = splice_in_values(sc, multiple_value(sc->value));
  return(sc->value);
 }
-
 
 s7_pointer s7_load(s7_scheme *sc, const char *filename)
 {
@@ -24979,7 +24976,6 @@ static s7_pointer g_cload_directory_set(s7_scheme *sc, s7_pointer args)
 
 
 /* ---------------- autoload ---------------- */
-
 void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
 {
   /* the idea here is that by sticking to string constants we can handle 90% of the work at compile-time,
@@ -25044,7 +25040,6 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
   sc->autoload_names_loc++;
 }
 
-
 static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *already_loaded, bool loading)
 {
   int32_t l = 0, pos = -1, lib, libs;
@@ -25081,7 +25076,6 @@ static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *al
   return(NULL);
 }
 
-
 s7_pointer s7_autoload(s7_scheme *sc, s7_pointer symbol, s7_pointer file_or_function)
 {
   /* add '(symbol . file) to s7's autoload table */
@@ -25090,7 +25084,6 @@ s7_pointer s7_autoload(s7_scheme *sc, s7_pointer symbol, s7_pointer file_or_func
   s7_hash_table_set(sc, sc->autoload_table, symbol, file_or_function);
   return(file_or_function);
 }
-
 
 static s7_pointer g_autoload(s7_scheme *sc, s7_pointer args)
 {
@@ -25155,6 +25148,7 @@ static s7_pointer g_autoloader(s7_scheme *sc, s7_pointer args)
 }
 
 
+/* ---------------- require ---------------- */
 static s7_pointer g_require(s7_scheme *sc, s7_pointer args)
 {
   #define H_require "(require . symbols) loads each file associated with each symbol if it has not been loaded already.\
@@ -25183,16 +25177,136 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	  f = g_autoloader(sc, list_1(sc, sym));
 	  if (is_string(f))
 	    s7_load_with_environment(sc, string_value(f), sc->envir);
-	  else
-	    {
-	      sc->temp5 = sc->nil; 
-	      return(s7_error(sc, make_symbol(sc, "autoload-error"), 
-			      set_elist_2(sc, s7_make_string_wrapper(sc, "require: no autoload info for ~S"), sym)));
-	    }
+	  else return(s7_error(sc, make_symbol(sc, "autoload-error"), 
+			       set_elist_2(sc, s7_make_string_wrapper(sc, "require: no autoload info for ~S"), sym)));
 	}
     }
   sc->stack_end -= 4;  
   return(sc->T);
+}
+
+
+static bool is_memq(s7_pointer sym, s7_pointer lst)
+{
+  s7_pointer x;
+  for (x = lst; is_pair(x); x = cdr(x))
+    if (sym == car(x))
+      return(true);
+  return(false);
+}
+
+/* ---------------- provided? ---------------- */
+static s7_pointer g_is_provided(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_provided "(provided? symbol) returns #t if symbol is a member of the *features* list"
+  #define Q_is_provided s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->is_symbol_symbol)
+  s7_pointer sym, topf, x;
+
+  sym = car(args);
+  if (!is_symbol(sym))
+    method_or_bust_one_arg(sc, sym, sc->is_provided_symbol, list_1(sc, sym), T_SYMBOL);
+
+  /* here the *features* list is spread out (or can be anyway) along the curlet chain,
+   *   so we need to travel back all the way to the top level checking each *features* list in turn.
+   *   Since *features* grows via cons (newest first), we can stop the scan if we hit the shared
+   *   top-level at least.
+   */
+  topf = slot_value(global_slot(sc->features_symbol));
+  if (is_memq(sym, topf))
+    return(sc->T);
+
+  if (is_global(sc->features_symbol))
+    return(sc->F);
+  for (x = sc->envir; symbol_id(sc->features_symbol) < let_id(x); x = outlet(x));
+  for (; is_let(x); x = outlet(x))
+    {
+      s7_pointer y;
+      for (y = let_slots(x); is_slot(y); y = next_slot(y))
+	if (slot_symbol(y) == sc->features_symbol)
+	  {
+	    if ((slot_value(y) != topf) &&
+		(is_memq(sym, slot_value(y))))
+	      return(sc->T);
+	  }
+    }
+  return(sc->F);
+}
+
+bool s7_is_provided(s7_scheme *sc, const char *feature)
+{
+  return(is_memq(s7_make_symbol(sc, feature), s7_symbol_value(sc, sc->features_symbol))); /* this goes from local outward */
+}
+
+bool is_provided_b(s7_pointer sym) 
+{
+  if (!is_symbol(sym))
+    simple_wrong_type_argument(cur_sc, cur_sc->is_provided_symbol, sym, T_SYMBOL);
+  return(is_memq(sym, s7_symbol_value(cur_sc, cur_sc->features_symbol)));
+}
+
+
+/* ---------------- provide ---------------- */
+static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
+{
+  /* this has to be relative to the curlet: (load file env)
+   *   the things loaded are only present in env, and go away with it, so should not be in the global *features* list
+   */
+  s7_pointer p, lst;
+  if (!is_symbol(sym))
+    method_or_bust_one_arg(sc, sym, sc->provide_symbol, list_1(sc, sym), T_SYMBOL);
+
+  p = find_local_symbol(sc, sc->features_symbol, sc->envir); /* if sc->envir is nil, this returns the global slot, else local slot */
+  lst = slot_value(find_symbol(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
+
+  if (p == sc->undefined)
+    make_slot_1(sc, sc->envir, sc->features_symbol, cons(sc, sym, lst));
+  else
+    {
+      if (!is_memq(sym, lst))
+	slot_set_value(p, cons(sc, sym, lst));
+      else
+	{
+	  /* if two different provide statements provide the same symbol, is that an error?  
+	   * Should we warn about it if safety>0?
+	   */
+#if DEBUGGING
+	  fprintf(stderr, "%s provided twice?\n", symbol_name(sym));
+#endif
+	  /* similarly should autoload warn about an overwrite? */
+	}
+    }
+
+  /* require looks up its symbol argument to see if the associated code (dsp.scm etc) has been autoloaded,
+   *   so here we're defining the provided symbol for that possibility.  Perhaps better would be to forgo
+   *   the definition here, and in require check *features* -- it is local to the current env.
+   */
+  if (!is_slot(find_symbol(sc, sym))) /* *features* name might be the same as an existing function */
+    s7_define(sc, sc->envir, sym, sym);
+
+  return(sym);
+}
+
+static s7_pointer g_provide(s7_scheme *sc, s7_pointer args)
+{
+  #define H_provide "(provide symbol) adds symbol to the *features* list"
+  #define Q_provide s7_make_signature(sc, 2, sc->is_symbol_symbol, sc->is_symbol_symbol)
+
+  if ((is_immutable(sc->envir)) && 
+      (sc->envir != sc->nil))
+    s7_error(sc, sc->error_symbol, 
+	     set_elist_2(sc, make_string_wrapper_with_length(sc, "can't provide '~S (current environment is immutable)", 51), car(args)));
+
+  return(c_provide(sc, car(args)));
+}
+
+void s7_provide(s7_scheme *sc, const char *feature) {c_provide(sc, s7_make_symbol(sc, feature));}
+
+static s7_pointer g_features_set(s7_scheme *sc, s7_pointer args)
+{
+  /* symbol_setter for set/let of *features* which can only be changed via provide */
+  if (s7_is_list(sc, cadr(args)))
+    return(cadr(args));
+  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set *features* to ~S"), cadr(args))));
 }
 
 
@@ -33390,120 +33504,6 @@ static s7_pointer member_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
 }
 
 
-static bool is_memq(s7_pointer sym, s7_pointer lst)
-{
-  s7_pointer x;
-  for (x = lst; is_pair(x); x = cdr(x))
-    if (sym == car(x))
-      return(true);
-  return(false);
-}
-
-
-static s7_pointer g_is_provided(s7_scheme *sc, s7_pointer args)
-{
-  #define H_is_provided "(provided? symbol) returns #t if symbol is a member of the *features* list"
-  #define Q_is_provided s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->is_symbol_symbol)
-  s7_pointer sym, topf, x;
-
-  sym = car(args);
-  if (!is_symbol(sym))
-    method_or_bust_one_arg(sc, sym, sc->is_provided_symbol, list_1(sc, sym), T_SYMBOL);
-
-  /* here the *features* list is spread out (or can be anyway) along the curlet chain,
-   *   so we need to travel back all the way to the top level checking each *features* list in turn.
-   *   Since *features* grows via cons (newest first), we can stop the scan if we hit the shared
-   *   top-level at least.
-   */
-  topf = slot_value(global_slot(sc->features_symbol));
-  if (is_memq(sym, topf))
-    return(sc->T);
-
-  if (is_global(sc->features_symbol))
-    return(sc->F);
-  for (x = sc->envir; symbol_id(sc->features_symbol) < let_id(x); x = outlet(x));
-  for (; is_let(x); x = outlet(x))
-    {
-      s7_pointer y;
-      for (y = let_slots(x); is_slot(y); y = next_slot(y))
-	if (slot_symbol(y) == sc->features_symbol)
-	  {
-	    if ((slot_value(y) != topf) &&
-		(is_memq(sym, slot_value(y))))
-	      return(sc->T);
-	  }
-    }
-  return(sc->F);
-}
-
-
-bool s7_is_provided(s7_scheme *sc, const char *feature)
-{
-  return(is_memq(s7_make_symbol(sc, feature), s7_symbol_value(sc, sc->features_symbol))); /* this goes from local outward */
-}
-
-bool is_provided_b(s7_pointer sym) 
-{
-  if (!is_symbol(sym))
-    simple_wrong_type_argument(cur_sc, cur_sc->is_provided_symbol, sym, T_SYMBOL);
-  return(is_memq(sym, s7_symbol_value(cur_sc, cur_sc->features_symbol)));
-}
-
-
-static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
-{
-  /* this has to be relative to the curlet: (load file env)
-   *   the things loaded are only present in env, and go away with it, so should not be in the global *features* list
-   */
-  s7_pointer p, lst;
-  if (!is_symbol(sym))
-    method_or_bust_one_arg(sc, sym, sc->provide_symbol, list_1(sc, sym), T_SYMBOL);
-
-  p = find_local_symbol(sc, sc->features_symbol, sc->envir); /* if sc->envir is nil, this returns the global slot, else local slot */
-  lst = slot_value(find_symbol(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
-
-  if (p == sc->undefined)
-    make_slot_1(sc, sc->envir, sc->features_symbol, cons(sc, sym, lst));
-  else
-    {
-      if (!is_memq(sym, lst))
-	slot_set_value(p, cons(sc, sym, lst));
-    }
-
-  /* require looks up its symbol argument to see if the associated code (dsp.scm etc) has been autoloaded,
-   *   so here we're defining the provided symbol for that possibility.  Perhaps better would be to forgo
-   *   the definition here, and in require check *features* -- it is local to the current env.
-   */
-  if (!is_slot(find_symbol(sc, sym))) /* *features* name might be the same as an existing function */
-    s7_define(sc, sc->envir, sym, sym);
-
-  return(sym);
-}
-
-static s7_pointer g_provide(s7_scheme *sc, s7_pointer args)
-{
-  #define H_provide "(provide symbol) adds symbol to the *features* list"
-  #define Q_provide s7_make_signature(sc, 2, sc->is_symbol_symbol, sc->is_symbol_symbol)
-
-  if ((is_immutable(sc->envir)) && 
-      (sc->envir != sc->nil))
-    s7_error(sc, sc->error_symbol, 
-	     set_elist_2(sc, make_string_wrapper_with_length(sc, "can't provide '~S (current environment is immutable)", 51), car(args)));
-
-  return(c_provide(sc, car(args)));
-}
-
-void s7_provide(s7_scheme *sc, const char *feature) {c_provide(sc, s7_make_symbol(sc, feature));}
-
-
-static s7_pointer g_features_set(s7_scheme *sc, s7_pointer args)
-{
-  /* symbol_setter for set/let of *features* which can only be changed via provide */
-  if (s7_is_list(sc, cadr(args)))
-    return(cadr(args));
-  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set *features* to ~S"), cadr(args))));
-}
-
 static s7_pointer g_list(s7_scheme *sc, s7_pointer args)
 {
   #define H_list "(list ...) returns its arguments in a list"
@@ -39126,6 +39126,14 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
   return(c_set_setter(sc, p, setter));
 }
 
+/* setter for hash-table could give cow-obj:
+ *   (define (cowtable . fields) (let ((ht (apply hash-table* fields))) (set! (setter ht) (let ((old-setter (setter ht)))
+ *      (lambda (table key value) (let ((new-table (copy table))) (old-setter new-table key value) new-table)))) ht))
+ *   but if the underlyng setter changes due to a new key, the saved setter won't work.
+ *   there's room for vector-setter but not string-setter, so perhaps this extension is 
+ *   not doable.  So set symbol-setter -> set setter is also out for the time being.
+ */
+
 #if (!DISABLE_DEPRECATED)
 void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, s7_function set_fnc, int32_t req_args, int32_t opt_args, const char *doc)
 {
@@ -40982,6 +40990,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
       break;
 
     case T_HASH_TABLE:
+      if (source == dest) return(dest);
       end = hash_table_entries(source);
       break;
 
@@ -41000,6 +41009,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
       break;
 
     case T_LET:
+      if (source == dest) return(dest);
       check_method(sc, source, sc->copy_symbol, args);
       if (source == sc->rootlet)
 	return(wrong_type_argument_with_type(sc, sc->copy_symbol, 1, source, s7_make_string_wrapper(sc, "a sequence other than the rootlet")));
@@ -41190,10 +41200,19 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 	if (start > 0)
 	  for (i = 0; i < start; i++)
 	    p = cdr(p);
-	/* dest won't be a pair here -- the pair->pair case was caught above */
+	/* dest won't be a pair here if source != dest -- the pair->pair case was caught above */
 	if (is_string(dest)) set_string_error_source(sc, source);
-	for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
-	  set(sc, dest, j, car(p));
+	if (source == dest) /* here start != 0 (see above) */
+	  {
+	    s7_pointer dp;
+	    for (dp = source, i = start; i < end; i++, p = cdr(p), dp = cdr(dp))
+	      set_car(dp, car(p));
+	  }
+	else
+	  {
+	    for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
+	      set(sc, dest, j, car(p));
+	  }
 	return(dest);
       }
 
@@ -73591,8 +73610,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      goto BEGIN1;
 	      
 	    case T_C_MACRO:
-	      sc->value = c_macro_call(sc->code)(sc, sc->args);
-	      goto START;
+	      {
+		int32_t len;
+		len = safe_list_length(sc, sc->args);
+		if (len < (int32_t)c_macro_required_args(sc->code))
+		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->not_enough_arguments_string, sc->code, sc->args));
+		if ((int32_t)c_macro_all_args(sc->code) < len)
+		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, sc->code, sc->args));
+		sc->value = c_macro_call(sc->code)(sc, sc->args);
+		goto START;
+	      }
 	    }
 	  eval_error(sc, "macroexpand argument is not a macro call: ~A", sc->args);
 	  
@@ -83762,15 +83789,12 @@ int main(int argc, char **argv)
  *   is_type_car|cdr|a in all 3 cases
  *   need symbol->type-checker-recog->type -- symbol_type: object.sym.info->type
  * maybe pass \u... through in read_constant_string unchanged, or read in s7??  no worse than \x..;
- * c_object type table entries should also be s7_function, reported by object->let perhaps
+ * c_object type table entries should also be s7_function, reported by object->let perhaps [and (obj 'reverse) -> type table reverse wrapped?]
  *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
  * *s7* should be a normal let
- * syms_tag may need 64-bits
- * set symbol-setter -> set setter?
- * setter for hash-table/vector/string could give cow-obj (t707.scm for plausible code)
- *   possibly using ht dproc and a bit to distinguish cases or third entry for dproc '(#f #f setter)
+ * syms_tag may need 64-bits -- seems ok at 32 bits so far...
  *
  * --------------------------------------------------------------
  *
@@ -83794,7 +83818,7 @@ int main(int argc, char **argv)
  * thash         |      |      | 50.7 || 8778 | 8488  7537  7531
  * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.9  11.8
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  39.4  38.6
+ * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  39.4  38.4
  *                                    || 139  | 129   83.4  82.0
  * 
  * --------------------------------------------------------------

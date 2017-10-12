@@ -507,7 +507,7 @@
 	   (format *stderr* ";~S says it is in ~S which does not exist~%" symbol file))
        
        (let ((cur-names (hash-table-ref names file)))
-	 (hash-table-set! names file (if cur-names (cons symbol cur-names) (list symbol))))))
+	 (hash-table-set! names file (cons symbol (or cur-names ()))))))
    '((*libm* "libm.scm")
     (*libgdbm* "libgdbm.scm")
     (*libdl* "libdl.scm")
