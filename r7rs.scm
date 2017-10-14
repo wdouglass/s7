@@ -131,7 +131,7 @@
 (define write-simple write)
 
 (define (eof-object) #<eof>)
-(define (features) *features*)
+(define-macro (features) '*features*) ; needs to be the local *features*
 
 
 (define (with-exception-handler handler thunk) (catch #t thunk handler))

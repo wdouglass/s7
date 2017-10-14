@@ -406,8 +406,13 @@ static point_t *vector_to_points(Xen pts, const char *caller, int *vector_len)
 
   for (i = 0, j = 0; i < len; i++, j += 2)
     {
-      pack_pts[i].x = Xen_integer_to_C_int(Xen_vector_ref(pts, j));
-      pack_pts[i].y = Xen_integer_to_C_int(Xen_vector_ref(pts, j + 1));
+      Xen p;
+      p = Xen_vector_ref(pts, j);
+      Xen_check_type(Xen_is_integer(p), p, j, caller, "an integer");
+      pack_pts[i].x = Xen_integer_to_C_int(p);
+      p = Xen_vector_ref(pts, j + 1);
+      Xen_check_type(Xen_is_integer(p), p, j + 1, caller, "an integer");
+      pack_pts[i].y = Xen_integer_to_C_int(p);
     }
   return(pack_pts);
 }

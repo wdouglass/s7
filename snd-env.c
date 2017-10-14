@@ -1286,7 +1286,9 @@ env *xen_to_env(Xen res)
 		    {
 		      Xen el;
 		      el = Xen_car(lst);
-		      if ((!(Xen_is_number(Xen_car(el)))) ||
+		      if ((!Xen_is_pair(el)) ||
+			  (!(Xen_is_number(Xen_car(el)))) ||
+			  (!(Xen_is_pair(Xen_cdr(el)))) ||
 			  (!(Xen_is_number(Xen_cadr(el)))))
 			{
 			  free(data);

@@ -4,13 +4,13 @@
 
 (if (provided? 'snd)
     (begin
-      (format *stderr* "this won't work in Snd!~%") ; see t705.scm
+      (format *stderr* "this won't work in Snd!~%")
       (exit)))
 
 ;(load "stuff.scm")
 ;(load "r7rs.scm")
 (require mockery.scm)
-
+;(load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 (define max-args 3)
 (define-constant one 1)
 
@@ -54,6 +54,11 @@
 			(byte-vector 0 1 2) (byte-vector) (byte-vector 255 0 127) (make-iterator #((a . 2)))
 			(lambda (dir) 1.0) (float-vector) (make-float-vector '(2 32)) 
 			'((a . 1)) #i(1) '((((A . B) C . D) (E . F) G . H) ((I . J) K . L) (M . N) O . P)
+
+			;(make-block 2) (block 1.0 2.0 3.0) (block) 
+			#u8(0 1 2) (openlet (inlet 'abs (lambda (x) (- x))))
+			(make-iterator (list 1 2 3)) (make-iterator (string #\1)) #<eof> #r2d((.1 .2) (.3 .4))
+			(dilambda (lambda () 1) (lambda (a) a))
 
 			(mock-number 0) (mock-number 1-i) (mock-number 4/3) (mock-number 2.0)
 			(mock-string #\h #\o #\h #\o)

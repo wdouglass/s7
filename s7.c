@@ -884,7 +884,7 @@ typedef struct s7_cell {
   int32_t file_and_line;
 #endif
 #if DEBUGGING
-  int32_t current_alloc_line, previous_alloc_line, gc_line, alloc_line, uses;
+  int32_t current_alloc_line, previous_alloc_line, gc_line, alloc_line, uses, explicit_free_line;
   int64_t current_alloc_type, previous_alloc_type, debugger_bits;
   const char *current_alloc_func, *previous_alloc_func, *gc_func, *alloc_func;
 #endif
@@ -1488,6 +1488,7 @@ static s7_scheme *cur_sc = NULL;
       p->current_alloc_line = __LINE__;					\
       p->current_alloc_func = __func__;					\
       p->current_alloc_type = f;					\
+      p->explicit_free_line = 0;					\
       p->uses++; 					                \
       if ((((f) & 0xff) == T_FREE) || (((f) & 0xff) >= NUM_TYPES))	\
         fprintf(stderr, "%d: set free %p type to %" PRIx64 "\n", __LINE__, p, (int64_t)(f)); \
@@ -2886,7 +2887,6 @@ static void memclr(void *s, size_t n)
 /* ---------------- forward decls ---------------- */
 
 static char *number_to_string_base_10(s7_pointer obj, int32_t width, int32_t precision, char float_choice, int32_t *nlen, use_write_t choice);
-static s7_pointer iterator_finished(s7_scheme *sc, s7_pointer iterator);
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op);
 static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg);
 static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *descr, const char *name);
@@ -2895,7 +2895,6 @@ static void s7_warn(s7_scheme *sc, int32_t len, const char *ctrl, ...);
 static s7_pointer safe_reverse_in_place(s7_scheme *sc, s7_pointer list);
 static s7_pointer cons_unchecked(s7_scheme *sc, s7_pointer a, s7_pointer b);
 static s7_pointer permanent_cons(s7_pointer a, s7_pointer b, uint64_t type);
-static s7_pointer permanent_list(s7_scheme *sc, int32_t len);
 static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
 static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args);
 static int32_t remember_file_name(s7_scheme *sc, const char *file);
@@ -2915,8 +2914,6 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
 static void free_hash_table(s7_pointer table);
 void s7_show_let(s7_scheme *sc);
 static s7_pointer g_cdr(s7_scheme *sc, s7_pointer args);
-
-static bool is_all_x_safe(s7_scheme *sc, s7_pointer p);
 static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e);
 static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e);
 static bool float_optimize(s7_scheme *sc, s7_pointer expr);
@@ -5253,10 +5250,16 @@ static void add_permanent_object(s7_scheme *sc, s7_pointer obj)
   sc->permanent_objects = g;
 }
 
+#if DEBUGGING
+#define free_cell(Sc, P) free_cell_1(Sc, P, __LINE__)
+static void free_cell_1(s7_scheme *sc, s7_pointer p, int32_t line)
+#else
 static void free_cell(s7_scheme *sc, s7_pointer p)
+#endif
 {
 #if DEBUGGING
   p->debugger_bits = 0;
+  p->explicit_free_line = line;
 #endif
   clear_type(p);
   (*(sc->free_heap_top++)) = p;
@@ -5264,6 +5267,7 @@ static void free_cell(s7_scheme *sc, s7_pointer p)
 
 static void free_vlist(s7_scheme *sc, s7_pointer lst)
 {
+  /* this is perhaps unsafe (testing...) */
   if (is_pair(lst))
     {
       s7_pointer p, np;
@@ -7406,15 +7410,6 @@ static s7_pointer g_let_ref(s7_scheme *sc, s7_pointer args)
        */
       if (has_let_ref_fallback(env))
 	apply_known_method(sc, env, sc->let_ref_fallback_symbol, set_plist_2(sc, env, symbol));
-      
-#if 0
-      /* TODO: define-class bug */
-      /* this happens in s7test for add-1 and subtract? is this a bug in the define-class stuff -- varlet add-1 -> rootlet?
-       */
-      if (is_slot(global_slot(symbol)))
-	fprintf(stderr, "%s global ignored in %s %s: %s\n", DISPLAY(symbol), DISPLAY(env), DISPLAY(sc->cur_code), DISPLAY(slot_value(global_slot(symbol))));
-      /* yes -- that code is buggy.  If another let is added, class-name is undefined -- it is a global?? */
-#endif
     }
   else
     {
@@ -25270,7 +25265,8 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
 	   * Should we warn about it if safety>0?
 	   */
 #if DEBUGGING
-	  fprintf(stderr, "%s provided twice?\n", symbol_name(sym));
+	  fprintf(stderr, "%s provided twice?\n", symbol_name(sym)); 
+	  /* TODO: this should tell where the provides are! could the symbol's value be the file-name/line-number? looks like autoloader is using sym? */
 #endif
 	  /* similarly should autoload warn about an overwrite? */
 	}
@@ -43190,7 +43186,7 @@ s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, int32_t arg_
 
 s7_pointer s7_wrong_number_of_args_error(s7_scheme *sc, const char *caller, s7_pointer args)
 {
-  return(s7_error(sc, sc->wrong_number_of_args_symbol,  set_elist_2(sc, s7_make_string_wrapper(sc, caller), args))); /* "caller" includes the format directives */
+  return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, caller), args))); /* "caller" includes the format directives */
 }
 
 
@@ -54953,6 +54949,7 @@ static s7_function s7_optimize_1(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
+  if (!is_pair(expr)) return(NULL);
   if ((sc->safety > CLM_OPTIMIZATION_SAFETY) || (pair_no_opt(expr))) 
     return(NULL);
 #if OPT_PRINT
@@ -83802,24 +83799,24 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 |  615   261   261
  * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1053  1050
  * tref          |      |      | 2372 || 2125 | 1375  1109  1105
- * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1378  1376
- * teq           |      |      | 6612 || 2777 | 2129  1921  1924
- * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2172  2067
+ * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1378  1496
+ * teq           |      |      | 6612 || 2777 | 2129  1921  1927
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2172  2117
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2436  2426
  * lint          |      |      |      || 4041 | 3376  2726  2677
- * lg            |      |      |      || 211  | 161   134.9 133.0
- * tform         |      |      | 6816 || 3714 | 3530  2746  2739
+ * lg            |      |      |      || 211  | 161   134.9 132.4
+ * tform         |      |      | 6816 || 3714 | 3530  2746  2733
  * tcopy         |      |      | 13.6 || 3183 | 3404  3071  2918
  * tmap          |      |      |  9.3 || 5279 |       3386  3386
  * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964
  * tsort         |      |      |      || 8584 | 4869  4012  4012
  * titer         |      |      |      || 5971 | 5224  4562  4537
- * bench         |      |      |      || 7012 | 6378  5106  5078
+ * bench         |      |      |      || 7012 | 6378  5106  5077
  * thash         |      |      | 50.7 || 8778 | 8488  7537  7531
  * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.9  11.8
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8
  * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  39.4  38.4
- *                                    || 139  | 129   83.4  82.0
+ *                                    || 139  | 129   83.4  81.8
  * 
  * --------------------------------------------------------------
  */

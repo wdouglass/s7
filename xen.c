@@ -1612,6 +1612,7 @@ static Xen g_tmpnam(void)
 
 static Xen g_ftell(Xen fd)
 {
+  Xen_check_type(Xen_is_integer(fd), fd, 1, "ftell", "an integer");
   return(C_int_to_Xen_integer(lseek(Xen_integer_to_C_int(fd), 0, SEEK_CUR)));
 }
 

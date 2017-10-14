@@ -17089,7 +17089,7 @@ static Xen g_view_files_set_selected_files(Xen dialog, Xen files)
       for (i = 0; i < len; i++)
 	if (!(Xen_is_string(Xen_list_ref(files, i))))
 	  {
-	    Xen_check_type(0, Xen_list_ref(files, i), i, S_set S_view_files_selected_files, "a filename (string)");
+	    Xen_check_type(false, Xen_list_ref(files, i), i, S_set S_view_files_selected_files, "a filename (string)");
 	    return(Xen_false);
 	  }
       cfiles = (char **)calloc(len, sizeof(char *));
@@ -17134,7 +17134,7 @@ static Xen g_view_files_set_files(Xen dialog, Xen files)
       for (i = 0; i < len; i++)
 	if (!(Xen_is_string(Xen_list_ref(files, i))))
 	  {
-	    Xen_check_type(0, Xen_list_ref(files, i), i, S_set S_view_files_files, "a filename (string)");
+	    Xen_check_type(false, Xen_list_ref(files, i), i, S_set S_view_files_files, "a filename (string)");
 	    return(Xen_false);
 	  }
       cfiles = (char **)calloc(len, sizeof(char *));

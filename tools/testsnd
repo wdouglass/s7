@@ -184,7 +184,7 @@ make
 echo ' '
 echo ' '
 ./snd --version
-./snd -l snd-test 23
+# ./snd -l snd-test 23
 ./snd -noinit -l snd-test
 make clmclean
 make sndinfo
@@ -193,7 +193,7 @@ make sndplay
 ./sndplay oboe.snd
 echo ' '
 echo ' '
-echo ' -------------------------------- that was motif? and test 23 -------------------------------- '
+echo ' -------------------------------- that was motif -------------------------------- '
 echo ' '
 echo ' '
 

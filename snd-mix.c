@@ -3531,8 +3531,12 @@ auto-delete is " PROC_TRUE ", the input file is deleted when it is no longer nee
   if (!cp) return(Xen_false);
 
   if (Xen_is_llong(chn_samp_n))
-    beg = Xen_llong_to_C_llong(chn_samp_n);
-
+    {
+      beg = Xen_llong_to_C_llong(chn_samp_n);
+      if ((beg < 0) ||
+	  (beg > 4294967296LL))
+	Xen_out_of_range_error(S_mix, 2, chn_samp_n, "begin time should be reasonable");
+    }
   chans = mus_sound_chans(name);
   if (chans <= 0)
     {

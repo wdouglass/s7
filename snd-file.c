@@ -2927,7 +2927,7 @@ static Xen g_set_sound_file_extensions(Xen lst)
   for (i = 0; i < len; i++)
     if (!(Xen_is_string(Xen_list_ref(lst, i))))
       {
-	Xen_check_type(0, Xen_list_ref(lst, i), i, S_set S_sound_file_extensions, "a filename extension (a string like \"snd\")");
+	Xen_check_type(false, Xen_list_ref(lst, i), i, S_set S_sound_file_extensions, "a filename extension (a string like \"snd\")");
 	return(Xen_false);
       }
   for (i = 0; i < len; i++)

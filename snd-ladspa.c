@@ -611,7 +611,7 @@ Information about parameters can be acquired using " S_analyse_ladspa "."
   if ((Xen_list_length(ladspa_plugin_configuration) < 2) ||
       (!(Xen_is_string(Xen_car(ladspa_plugin_configuration)))) ||
       (!(Xen_is_string(Xen_cadr(ladspa_plugin_configuration)))))
-    Xen_check_type(0, ladspa_plugin_configuration, 2, S_apply_ladspa, "a list of 2 or more strings");
+    Xen_check_type(false, ladspa_plugin_configuration, 2, S_apply_ladspa, "a list of 2 or more strings");
 
   /* Third parameter is the number of samples to process. */
   Xen_check_type(Xen_is_number(samples),

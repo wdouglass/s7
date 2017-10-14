@@ -508,8 +508,9 @@ static s7_pointer g_set_prompt_tag(s7_scheme *sc, s7_pointer args)
   /* args: (#<c_pointer 0x2dfbed0> (GtkTextTag_ #<c_pointer 0x2e8f180>))
    */
   GtkTextTag *new_tag = NULL;
-  if (s7_is_pair(s7_cadr(args)))
-    new_tag = (GtkTextTag *)(s7_c_pointer(s7_cadr(s7_cadr(args))));
+  if ((s7_is_pair(s7_cadr(args))) &&
+      (s7_is_pair(s7_cdadr(args))))
+    new_tag = (GtkTextTag *)(s7_c_pointer(s7_cadadr(args)));
 
   glistener_set_prompt_tag(unwrap_glistener(sc, "set listener prompt tag", s7_car(args)), new_tag);
   return(s7_cadr(args));

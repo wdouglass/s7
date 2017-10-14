@@ -7868,7 +7868,7 @@ static mus_float_t *g_floats_to_samples(Xen obj, int *size, const char *caller, 
 	      for (i = 0; i < num; i++) 
 		vals[i] = (vdata[i]);
 	    }
-	  else Xen_check_type(0, obj, position, caller, "a " S_vct ", vector, or list");
+	  else Xen_check_type(false, obj, position, caller, "a " S_vct ", vector, or list");
 	}
     }
   (*size) = num;

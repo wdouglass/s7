@@ -2967,7 +2967,7 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   } 
 
 #if HAVE_SCHEME
-  Xen_define_typed_procedure("_snd_s7_error_handler_", g_snd_s7_error_handler_w,  0, 1, 0, "internal error redirection for snd/s7",
+  Xen_define_typed_procedure("_snd_s7_error_handler_", g_snd_s7_error_handler_w,  1, 0, 0, "internal error redirection for snd/s7",
 			     s7_make_signature(s7, 2, b, s));
 
   Xen_eval_C_string("(define redo-edit redo)");        /* consistency with Ruby */

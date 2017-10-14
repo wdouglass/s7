@@ -103,7 +103,7 @@ void get_current_color(int index, int n, rgb_t *r, rgb_t *g, rgb_t *b)
 	{
 	  if (color_map_size(ss) != c->size)
 	    rebuild_colormap(c);
-	  if (n < c->size)
+	  if ((n >= 0) && (n < c->size))
 	    {
 	      (*r) = c->r[n];
 	      (*g) = c->g[n];
@@ -993,6 +993,8 @@ static Xen s7_xen_colormap_length(s7_scheme *sc, Xen obj)
 static Xen g_colormap_ref(Xen map, Xen pos);
 static Xen s7_colormap_apply(s7_scheme *sc, Xen obj, Xen args)
 {
+  if (!s7_is_pair(args))
+    s7_wrong_number_of_args_error(sc, "colormap ref", args);
   return(g_colormap_ref(obj, Xen_car(args)));
 }
 #endif
@@ -1072,7 +1074,7 @@ static Xen g_colormap_ref(Xen map, Xen pos)
 			 map));
 
   x = Xen_real_to_C_double(pos);
-  if ((x < 0.0) || (x > 1.0))
+  if ((isnan(x)) || (x < 0.0) || (x > 1.0))
     Xen_out_of_range_error(S_colormap_ref, 2, pos, "x must be between 0.0 and 1.0");
 
   get_current_color(index, (int)(color_map_size(ss) * x + 0.5), &r, &g, &b);

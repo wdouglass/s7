@@ -3893,6 +3893,7 @@ static Xen g_map_chan_1(Xen proc_and_list, Xen s_beg, Xen s_end, Xen org, Xen sn
   return(res);
 }
 
+
 static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, const char *caller, bool counting, Xen edpos, int arg_pos, Xen s_dur)
 {
   chan_info *cp;
@@ -3933,6 +3934,14 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
       free(errmsg);
       return(snd_bad_arity_error(caller, errstr, proc));
     }
+#if HAVE_SCHEME
+  {
+    Xen arity;
+    arity = Xen_arity(proc);
+    if (Xen_integer_to_C_int(Xen_car(arity)) != Xen_integer_to_C_int(Xen_cdr(arity)))
+      return(snd_bad_arity_error(caller, C_string_to_Xen_string("function should not accept optional arguments"), proc));
+  }
+#endif
 
   sp = cp->sound;
   if (end == 0) 
