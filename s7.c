@@ -8815,22 +8815,16 @@ static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
   #define H_c_pointer "(c-pointer int type info) returns a c-pointer object. The type and info args are optional, defaulting to #f."
   #define Q_c_pointer s7_make_signature(sc, 4, sc->is_c_pointer_symbol, sc->is_integer_symbol, sc->T, sc->T)
 
-  s7_pointer arg, type, info;
+  s7_pointer arg;
   intptr_t p;
 
   arg = car(args);
   if (!s7_is_integer(arg))
     method_or_bust(sc, arg, sc->c_pointer_symbol, list_1(sc, arg), T_INTEGER, 1);
   p = (intptr_t)s7_integer(arg);             /* (c-pointer (bignum "1234")) */
-  info = sc->F;
   if (is_pair(cdr(args)))
-    {
-      type = cadr(args);
-      if (is_pair(cddr(args)))
-	info = caddr(args);
-    }
-  else type = sc->F;
-  return(s7_make_c_pointer_with_type(sc, (void *)p, type, info));
+    return(s7_make_c_pointer_with_type(sc, (void *)p, cadr(args), (is_pair(cddr(args))) ? caddr(args) : sc->F));
+  return(s7_make_c_pointer_with_type(sc, (void *)p, sc->F, sc->F));
 }
 
 
@@ -25264,7 +25258,7 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
 	  /* if two different provide statements provide the same symbol, is that an error?  
 	   * Should we warn about it if safety>0?
 	   */
-#if DEBUGGING
+#if 0
 	  fprintf(stderr, "%s provided twice?\n", symbol_name(sym)); 
 	  /* TODO: this should tell where the provides are! could the symbol's value be the file-name/line-number? looks like autoloader is using sym? */
 #endif
@@ -38276,11 +38270,7 @@ s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
 }
 
 
-bool s7_is_macro(s7_scheme *sc, s7_pointer x)
-{
-  return(is_any_macro(x));
-}
-
+bool s7_is_macro(s7_scheme *sc, s7_pointer x) {return(is_any_macro(x));}
 static bool is_macro_b(s7_pointer x) {return(is_any_macro(x));}
 
 
@@ -39245,7 +39235,6 @@ s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
     case T_MACRO:
     case T_BACRO:
     case T_CLOSURE:
-      /* TODO: here and below check_closure_for(sc, sc->local_arity_symbol) */
       return(closure_arity_to_cons(sc, x, closure_args(x)));
 
     case T_MACRO_STAR:
@@ -83778,8 +83767,6 @@ int main(int argc, char **argv)
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
- * test opt_sizes escape in sort et al -- perhaps save sc->envir, make sure it is ok if optimize fails
- * opt let? opt_float_begin in s7_float_optimize for map-channel in snd?
  * check glob/libc.scm in openbsd -- some problem loading libc_s7.so (it works in snd, not in repl? missing lib?)
  * libc needs many type checks
  * is_type replacing is_symbol etc [all_x_is_*_s if_is_* safe_is_*]
@@ -83790,33 +83777,43 @@ int main(int argc, char **argv)
  *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
- * *s7* should be a normal let
+ * *s7* should be a normal let -- defined? symbol->value: *s7* is a let, but its contents are behind let_*_fallback
  * syms_tag may need 64-bits -- seems ok at 32 bits so far...
+ *
+ * (char-alphabetic? (string-ref #u8(0 1) 1)) -> error: char-alphabetic? argument, 1, is an integer but should be a character
+ *   (let () (define (hi) (do ((i 0 (+ i 1))) ((= i 1)) (char-alphabetic? (string-ref #u8(0 1) 1)))) (hi))
+ *   -> is_char_alphabetic_c[20350]: not a character, but an integer (1)
+ *   from opt_b_p_f
+ *   so... byte-vectors should be a separate type from strings
+ *   (byte-vector-ref "123" 0)
+ *   -> byte-vector-ref argument 1, "123", is a string but should be a string
+ *   (let ((bv (byte-vector 1))) (set! (bv 0) #\1)) -> #\1
+ *   for many more examples see t716.scm.
  *
  * --------------------------------------------------------------
  *
- *           12  |  13  |  14  |  15  ||  16  | 17.4  17.7  17.8
- * tmac          |      |      |      || 9052 |  615   261   261
- * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1053  1050
- * tref          |      |      | 2372 || 2125 | 1375  1109  1105
- * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1378  1496
- * teq           |      |      | 6612 || 2777 | 2129  1921  1927
- * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2172  2117
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2436  2426
- * lint          |      |      |      || 4041 | 3376  2726  2677
- * lg            |      |      |      || 211  | 161   134.9 132.4
- * tform         |      |      | 6816 || 3714 | 3530  2746  2733
- * tcopy         |      |      | 13.6 || 3183 | 3404  3071  2918
- * tmap          |      |      |  9.3 || 5279 |       3386  3386
- * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964
- * tsort         |      |      |      || 8584 | 4869  4012  4012
- * titer         |      |      |      || 5971 | 5224  4562  4537
- * bench         |      |      |      || 7012 | 6378  5106  5077
- * thash         |      |      | 50.7 || 8778 | 8488  7537  7531
- * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.9  11.8
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  39.4  38.4
- *                                    || 139  | 129   83.4  81.8
+ *           12  |  13  |  14  |  15  ||  16  | 17.4  17.8  17.9
+ * tmac          |      |      |      || 9052 |  615   261
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050
+ * tref          |      |      | 2372 || 2125 | 1375  1105
+ * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1496
+ * teq           |      |      | 6612 || 2777 | 2129  1927
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426
+ * lint          |      |      |      || 4041 | 3376  2677
+ * lg            |      |      |      || 211  | 161   132.4
+ * tform         |      |      | 6816 || 3714 | 3530  2733
+ * tcopy         |      |      | 13.6 || 3183 | 3404  2918
+ * tmap          |      |      |  9.3 || 5279 |       3386
+ * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964
+ * tsort         |      |      |      || 8584 | 4869  4012
+ * titer         |      |      |      || 5971 | 5224  4537
+ * bench         |      |      |      || 7012 | 6378  5077
+ * thash         |      |      | 50.7 || 8778 | 8488  7531
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8
+ * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4
+ *                                    || 139  | 129   81.8
  * 
  * --------------------------------------------------------------
  */

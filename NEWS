@@ -1,12 +1,26 @@
-Snd 17.7:
+Snd 17.8:
 
-Mike Scholz provided changes for Ruby 2.5.
+Snd: moved from cvs to svn at sourceforge:
+     svn checkout svn://svn.code.sf.net/p/snd/svn1/trunk snd
 
-s7: changed various "object" names to "c_object" in s7.h ("object" was ambiguous)
-    c-pointers can participate in the generic function stuff
-    gtkex.scm
-    json.scm (aimed at the Language Server Protocol, eventually in emacs perhaps)
+s7: added immutable!, immutable?
+    define-constant follows normal lexical scoping rules now
+    symbol-access renamed symbol-setter
+    added third optional argument to the symbol-setter: the relevant environment
+    deprecated s7_procedure_with_setter, s7_symbol_access
+    renamed let-set!-fallback to let-set-fallback since I never remember the "!"
+    renamed procedure-signature -> signature, 
+            procedure-documentation -> documentation, 
+            procedure-setter -> setter.
+      these are all generic, so the "procedure" part is misleading, but
+      unfortunately these new names collide with the previous function-local
+      variables (for example, documentation accessed by procedure-documentation).  
+      Since those variables are normally constants, and since I can't think of
+      anything better, they are now of the form +documentation+.  
 
-checked: gtk 3.91.2, sbcl 1.3.21
+clm: removed *clm-default-frequency*; Mike fixed the Ruby and Forth cases.
 
-Thanks!: Kjetil Mattheussen, Mike Scholz
+checked: sbcl 1.4.0
+
+Thanks!: Mike Scholz.
+
