@@ -1231,7 +1231,7 @@ struct s7_scheme {
   s7_pointer safe_lists[NUM_SAFE_LISTS];
   int32_t current_safe_list;
 
-  s7_pointer autoload_table, libraries, profile_info;
+  s7_pointer autoload_table, libraries, profile_info, s7_let;
   const char ***autoload_names;
   int32_t *autoload_names_sizes;
   bool **autoloaded_already;
@@ -1904,8 +1904,7 @@ static s7_scheme *cur_sc = NULL;
 /* used in iterators for GC mark of sequence */
 
 #define T_BYTE_VECTOR                 T_MUTABLE
-#define is_byte_vector(p)             ((is_string(p)) && ((typeflag(p) & T_BYTE_VECTOR) != 0))
-#define is_byte_vector_not_string(p)  ((typeflag(p) & T_BYTE_VECTOR) != 0)
+#define is_byte_vector(p)             ((typeflag(p) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define is_mutable_byte_vector(p)     ((typeflag(p) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define set_byte_vector(p)            typeflag(_TStr(p)) |= T_BYTE_VECTOR
 /* marks a string that the caller considers a byte_vector */
@@ -2018,6 +2017,10 @@ static s7_scheme *cur_sc = NULL;
 #define has_let_arg(p)                ((typeflag(_NFre(p)) & T_HAS_LET_ARG) != 0)
 #define set_has_let_arg(p)            typeflag(_NFre(p)) |= T_HAS_LET_ARG
 /* p is_procedure, but no checker for it, so use _NFre */
+
+#define T_S7_LET_FIELD                (1LL << (TYPE_BITS + 25))
+#define is_s7_let_field(p)            ((typeflag(_TSym(p)) & T_S7_LET_FIELD) != 0)
+#define set_s7_let_field(p)           typeflag(_TSym(p)) |= T_S7_LET_FIELD
 
 
 #define T_GC_MARK                     0x8000000000000000
@@ -2276,6 +2279,8 @@ static int64_t not_heap = -1;
 #define list_4(Sc, A, B, C, D)        cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons_unchecked(Sc, C, cons(Sc, D, Sc->nil))))
 
 #define is_string(p)                  (type(p) == T_STRING)
+#define is_string_not_byte_vector(p)  ((typeflag(p) & (0xff | T_BYTE_VECTOR)) == T_STRING)
+#define is_byte_vector_not_string(p)  ((typeflag(_TStr(p)) & T_BYTE_VECTOR) != 0)
 #define is_mutable_string(p)          ((typeflag(p) & (0xff | T_IMMUTABLE)) == T_STRING)
 #define string_value(p)               (_TStr(p))->object.string.svalue
 #define string_length(p)              (_TStr(p))->object.string.length
@@ -8102,6 +8107,8 @@ s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local
 
 #define find_global_symbol_checked(Sc, Sym) ((is_global(Sym)) ? slot_value(global_slot(Sym)) : find_symbol_checked(Sc, Sym))
 
+static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args);
+
 static s7_pointer g_symbol_to_value(s7_scheme *sc, s7_pointer args)
 {
   #define H_symbol_to_value "(symbol->value sym (env (curlet))) returns the binding of (the value associated with) the \
@@ -8125,6 +8132,9 @@ symbol sym in the given environment: (let ((x 32)) (symbol->value 'x)) -> 32"
 
       if (!is_let(local_env))
 	method_or_bust_with_type(sc, local_env, sc->symbol_to_value_symbol, args, a_let_string, 2);
+
+      if (local_env == sc->s7_let)
+	return(g_s7_let_ref_fallback(sc, set_plist_2(sc, local_env, sym)));
 
       return(s7_symbol_local_value(sc, sym, local_env));
     }
@@ -8511,9 +8521,12 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
   if (is_pair(cdr(args)))
     {
       s7_pointer e, b, x;
+
       e = cadr(args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->is_defined_symbol, 2, e, a_let_string));
+      if (e == sc->s7_let)
+	return(make_boolean(sc, is_s7_let_field(sym)));
 
       if (is_pair(cddr(args)))
 	{
@@ -21305,7 +21318,7 @@ static s7_pointer g_string_ref_2(s7_scheme *sc, s7_pointer strng, s7_pointer arg
     return(out_of_range(sc, caller, small_int(2), index, its_too_large_string));
 
   str = string_value(strng);
-  if (is_byte_vector_not_string(strng))
+  if (caller == sc->byte_vector_ref_symbol)
     return(small_int((unsigned char)(str[ind])));
   return(s7_make_character(sc, ((unsigned char *)str)[ind]));
 }
@@ -21317,7 +21330,7 @@ static s7_pointer g_string_ref(s7_scheme *sc, s7_pointer args)
 
   s7_pointer strng;
   strng = car(args);
-  if (!is_string(strng))
+  if (!is_string_not_byte_vector(strng))
     method_or_bust(sc, strng, sc->string_ref_symbol, args, T_STRING, 1);
   return(g_string_ref_2(sc, strng, args, sc->string_ref_symbol));
 }
@@ -22417,13 +22430,8 @@ static s7_pointer g_string_to_byte_vector(s7_scheme *sc, s7_pointer args)
   #define Q_string_to_byte_vector s7_make_signature(sc, 2, sc->is_byte_vector_symbol, sc->is_string_symbol)
   s7_pointer str;
   str = car(args);
-  if (is_integer(str))
-    str = s7_make_string_with_length(sc, (const char *)(&(integer(str))), sizeof(s7_int));
-  else
-    {
-      if (!is_string(str))
-	method_or_bust(sc, str, sc->string_to_byte_vector_symbol, set_plist_1(sc, str), T_STRING, 1);
-    }
+  if (!is_string(str))
+    method_or_bust(sc, str, sc->string_to_byte_vector_symbol, set_plist_1(sc, str), T_STRING, 1);
   set_byte_vector(str);
   return(str);
 }
@@ -28879,7 +28887,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	{
 	  s7_pointer seq;
 	  seq = iterator_sequence(obj);
-	  if ((is_string(seq)) && (!is_byte_vector_not_string(seq)))
+	  if (is_string_not_byte_vector(seq))
 	    {
 	      port_write_string(port)(sc, "(make-iterator \"", 16, port);
 	      port_write_string(port)(sc, (char *)(string_value(seq) + iterator_position(obj)), string_length(seq) - iterator_position(obj), port);
@@ -38518,7 +38526,7 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_INT_VECTOR:   return(sc->int_vector_signature);
     case T_ITERATOR:     return(sc->iterator_signature);
     case T_PAIR:         return(sc->pair_signature);
-    case T_STRING:       if (is_byte_vector(p))	return(sc->byte_vector_signature); return(sc->string_signature);
+    case T_STRING:       if (is_byte_vector_not_string(p)) return(sc->byte_vector_signature); return(sc->string_signature);
 
     case T_C_OBJECT: 
       check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
@@ -39064,7 +39072,7 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
       return(slot_value(global_slot(sc->hash_table_set_symbol)));
 
     case T_STRING:
-      if (is_byte_vector(p))
+      if (is_byte_vector_not_string(p))
 	return(slot_value(global_slot(sc->byte_vector_set_symbol)));
       return(slot_value(global_slot(sc->string_set_symbol)));
 
@@ -41840,7 +41848,7 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
   s7_pointer new_str;
   s7_int len;
 
-  len = total_sequence_length(sc, args, sc->string_append_symbol, (is_byte_vector(car(args))) ? T_INTEGER : T_CHARACTER);
+  len = total_sequence_length(sc, args, sc->string_append_symbol, (is_byte_vector_not_string(car(args))) ? T_INTEGER : T_CHARACTER);
   new_str = make_empty_string(sc, len, 0);
   if (is_byte_vector_not_string(car(args)))
     set_byte_vector(new_str);
@@ -42394,7 +42402,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    if (is_input_port(obj))
 	      s7_varlet(sc, let, s7_make_symbol(sc, "line"), g_port_line_number(sc, set_plist_1(sc, obj)));
 	  }
-	if (port_data_size(obj) > 0)
+	if ((port_data(obj)) &&  /* file port might not have a data buffer */
+	    (port_data_size(obj) > 0))
 	  {
 	    s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, port_data_size(obj)));
 	    s7_varlet(sc, let, s7_make_symbol(sc, "position"), s7_make_integer(sc, port_position(obj)));
@@ -80992,55 +81001,63 @@ static void s7_gmp_init(s7_scheme *sc)
 
 /* -------------------------------- *s7* environment -------------------------------- */
 
+static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
+{
+  s7_pointer sym;
+  sym = s7_make_symbol(sc, name);
+  set_s7_let_field(sym); 
+  return(sym);
+}
+
 static void init_s7_let(s7_scheme *sc)
 {
-  sc->stack_top_symbol =                     s7_make_symbol(sc, "stack-top");
-  sc->stack_size_symbol =                    s7_make_symbol(sc, "stack-size");
-  sc->stacktrace_defaults_symbol =           s7_make_symbol(sc, "stacktrace-defaults");
-  sc->heap_size_symbol =                     s7_make_symbol(sc, "heap-size");
-  sc->free_heap_size_symbol =                s7_make_symbol(sc, "free-heap-size");
-  sc->gc_freed_symbol =                      s7_make_symbol(sc, "gc-freed");
-  sc->gc_protected_objects_symbol =          s7_make_symbol(sc, "gc-protected-objects");
+  sc->stack_top_symbol =                     s7_let_field(sc, "stack-top");
+  sc->stack_size_symbol =                    s7_let_field(sc, "stack-size");
+  sc->stacktrace_defaults_symbol =           s7_let_field(sc, "stacktrace-defaults");
+  sc->heap_size_symbol =                     s7_let_field(sc, "heap-size");
+  sc->free_heap_size_symbol =                s7_let_field(sc, "free-heap-size");
+  sc->gc_freed_symbol =                      s7_let_field(sc, "gc-freed");
+  sc->gc_protected_objects_symbol =          s7_let_field(sc, "gc-protected-objects");
   set_immutable(sc->gc_protected_objects_symbol);
 
-  sc->input_ports_symbol =                   s7_make_symbol(sc, "input-ports");
-  sc->output_ports_symbol =                  s7_make_symbol(sc, "output-ports");
-  sc->strings_symbol =                       s7_make_symbol(sc, "strings");
-  sc->gensyms_symbol =                       s7_make_symbol(sc, "gensyms");
-  sc->vectors_symbol =                       s7_make_symbol(sc, "vectors");
-  sc->hash_tables_symbol =                   s7_make_symbol(sc, "hash-tables");
-  sc->continuations_symbol =                 s7_make_symbol(sc, "continuations");
+  sc->input_ports_symbol =                   s7_let_field(sc, "input-ports");
+  sc->output_ports_symbol =                  s7_let_field(sc, "output-ports");
+  sc->strings_symbol =                       s7_let_field(sc, "strings");
+  sc->gensyms_symbol =                       s7_let_field(sc, "gensyms");
+  sc->vectors_symbol =                       s7_let_field(sc, "vectors");
+  sc->hash_tables_symbol =                   s7_let_field(sc, "hash-tables");
+  sc->continuations_symbol =                 s7_let_field(sc, "continuations");
 
-  sc->c_objects_symbol =                     s7_make_symbol(sc, "c-objects");
-  sc->file_names_symbol =                    s7_make_symbol(sc, "file-names");
-  sc->rootlet_size_symbol =                  s7_make_symbol(sc, "rootlet-size");
-  sc->c_types_symbol =                       s7_make_symbol(sc, "c-types");
-  sc->safety_symbol =                        s7_make_symbol(sc, "safety");
-  sc->undefined_identifier_warnings_symbol = s7_make_symbol(sc, "undefined-identifier-warnings");
-  sc->gc_stats_symbol =                      s7_make_symbol(sc, "gc-stats");
-  sc->max_stack_size_symbol =                s7_make_symbol(sc, "max-stack-size");
-  sc->cpu_time_symbol =                      s7_make_symbol(sc, "cpu-time");
-  sc->catches_symbol =                       s7_make_symbol(sc, "catches");
-  sc->exits_symbol =                         s7_make_symbol(sc, "exits");
-  sc->stack_symbol =                         s7_make_symbol(sc, "stack");
-  sc->max_string_length_symbol =             s7_make_symbol(sc, "max-string-length");
-  sc->max_list_length_symbol =               s7_make_symbol(sc, "max-list-length");
-  sc->max_vector_length_symbol =             s7_make_symbol(sc, "max-vector-length");
-  sc->max_vector_dimensions_symbol =         s7_make_symbol(sc, "max-vector-dimensions");
-  sc->default_hash_table_length_symbol =     s7_make_symbol(sc, "default-hash-table-length");
-  sc->initial_string_port_length_symbol =    s7_make_symbol(sc, "initial-string-port-length");
-  sc->default_rationalize_error_symbol =     s7_make_symbol(sc, "default-rationalize-error");
-  sc->default_random_state_symbol =          s7_make_symbol(sc, "default-random-state");
-  sc->morally_equal_float_epsilon_symbol =   s7_make_symbol(sc, "morally-equal-float-epsilon");
-  sc->hash_table_float_epsilon_symbol =      s7_make_symbol(sc, "hash-table-float-epsilon");
-  sc->print_length_symbol =                  s7_make_symbol(sc, "print-length");
-  sc->bignum_precision_symbol =              s7_make_symbol(sc, "bignum-precision");
-  sc->memory_usage_symbol =                  s7_make_symbol(sc, "memory-usage");
-  sc->float_format_precision_symbol =        s7_make_symbol(sc, "float-format-precision");
-  sc->history_symbol =                       s7_make_symbol(sc, "history");
-  sc->history_size_symbol =                  s7_make_symbol(sc, "history-size");
-  sc->profile_info_symbol =                  s7_make_symbol(sc, "profile-info");
-  sc->autoloading_symbol =                   s7_make_symbol(sc, "autoloading?");
+  sc->c_objects_symbol =                     s7_let_field(sc, "c-objects");
+  sc->file_names_symbol =                    s7_let_field(sc, "file-names");
+  sc->rootlet_size_symbol =                  s7_let_field(sc, "rootlet-size");
+  sc->c_types_symbol =                       s7_let_field(sc, "c-types");
+  sc->safety_symbol =                        s7_let_field(sc, "safety");
+  sc->undefined_identifier_warnings_symbol = s7_let_field(sc, "undefined-identifier-warnings");
+  sc->gc_stats_symbol =                      s7_let_field(sc, "gc-stats");
+  sc->max_stack_size_symbol =                s7_let_field(sc, "max-stack-size");
+  sc->cpu_time_symbol =                      s7_let_field(sc, "cpu-time");
+  sc->catches_symbol =                       s7_let_field(sc, "catches");
+  sc->exits_symbol =                         s7_let_field(sc, "exits");
+  sc->stack_symbol =                         s7_let_field(sc, "stack");
+  sc->max_string_length_symbol =             s7_let_field(sc, "max-string-length");
+  sc->max_list_length_symbol =               s7_let_field(sc, "max-list-length");
+  sc->max_vector_length_symbol =             s7_let_field(sc, "max-vector-length");
+  sc->max_vector_dimensions_symbol =         s7_let_field(sc, "max-vector-dimensions");
+  sc->default_hash_table_length_symbol =     s7_let_field(sc, "default-hash-table-length");
+  sc->initial_string_port_length_symbol =    s7_let_field(sc, "initial-string-port-length");
+  sc->default_rationalize_error_symbol =     s7_let_field(sc, "default-rationalize-error");
+  sc->default_random_state_symbol =          s7_let_field(sc, "default-random-state");
+  sc->morally_equal_float_epsilon_symbol =   s7_let_field(sc, "morally-equal-float-epsilon");
+  sc->hash_table_float_epsilon_symbol =      s7_let_field(sc, "hash-table-float-epsilon");
+  sc->print_length_symbol =                  s7_let_field(sc, "print-length");
+  sc->bignum_precision_symbol =              s7_let_field(sc, "bignum-precision");
+  sc->memory_usage_symbol =                  s7_let_field(sc, "memory-usage");
+  sc->float_format_precision_symbol =        s7_let_field(sc, "float-format-precision");
+  sc->history_symbol =                       s7_let_field(sc, "history");
+  sc->history_size_symbol =                  s7_let_field(sc, "history-size");
+  sc->profile_info_symbol =                  s7_let_field(sc, "profile-info");
+  sc->autoloading_symbol =                   s7_let_field(sc, "autoloading?");
 }
 
 #ifdef __linux__
@@ -83634,11 +83651,10 @@ s7_scheme *s7_init(void)
 					"*rootlet-redefinition-hook* functions are called when a top-level variable's value is changed, (hook 'name 'value).");
   /* first parameter was originally 'symbol, but that collides with the built-in symbol function */
 
-  s7_define_constant(sc, "*s7*",
-    s7_openlet(sc, s7_inlet(sc,
-       s7_list(sc, 2,
-	       s7_cons(sc, sc->let_ref_fallback_symbol, s7_make_function(sc, "s7-let-ref", g_s7_let_ref_fallback, 2, 0, false, "*s7* reader")),
-	       s7_cons(sc, sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer"))))));
+  sc->s7_let = s7_inlet(sc, s7_list(sc, 2,
+	         s7_cons(sc, sc->let_ref_fallback_symbol, s7_make_function(sc, "s7-let-ref", g_s7_let_ref_fallback, 2, 0, false, "*s7* reader")),
+	         s7_cons(sc, sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer"))));
+  s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
 
   /* obsolete */
   sc->procedure_documentation_symbol = s7_make_symbol(sc, "procedure-documentation");
@@ -83765,6 +83781,7 @@ int main(int argc, char **argv)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
+ * port to Snd: freeverb* dlocsig.html
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
  * check glob/libc.scm in openbsd -- some problem loading libc_s7.so (it works in snd, not in repl? missing lib?)
@@ -83777,7 +83794,6 @@ int main(int argc, char **argv)
  *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
- * *s7* should be a normal let -- defined? symbol->value: *s7* is a let, but its contents are behind let_*_fallback
  * syms_tag may need 64-bits -- seems ok at 32 bits so far...
  *
  * (char-alphabetic? (string-ref #u8(0 1) 1)) -> error: char-alphabetic? argument, 1, is an integer but should be a character
@@ -83789,6 +83805,7 @@ int main(int argc, char **argv)
  *   -> byte-vector-ref argument 1, "123", is a string but should be a string
  *   (let ((bv (byte-vector 1))) (set! (bv 0) #\1)) -> #\1
  *   for many more examples see t716.scm.
+ *
  *
  * --------------------------------------------------------------
  *
