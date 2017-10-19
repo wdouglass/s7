@@ -6199,7 +6199,7 @@ static mus_float_t *vector_to_float_array(Xen v)
 
 static Xen g_chebyshev_tu_sum(Xen x, Xen tn, Xen un)
 {
-  #define H_chebyshev_tu_sum "(" S_mus_chebyshev_tu_sum " x tn un) returns the sum of the weighted\
+  #define H_chebyshev_tu_sum "(" S_mus_chebyshev_tu_sum " x tn un) returns the sum of the weighted \
 Chebyshev polynomials Tn and Un (vectors or " S_vct "s), with phase x."
 
   bool need_free = false;
@@ -11059,6 +11059,8 @@ it in conjunction with matrix to scale/envelope all the various ins and outs. \
 
   /* -------- setup input gen -------- */
   arg = Xen_cdr(arg); 
+  if (!Xen_is_pair(arg))
+    Xen_error(NO_SUCH_FILE, Xen_list_1(C_string_to_Xen_string(S_mus_file_mix ": input file or generator (second argument) missing")));
   in = Xen_car(arg);
   Xen_check_type(Xen_is_string(in) || ((mus_is_xen(in)) && (mus_is_input(Xen_to_mus_any(in)))), 
 		 in, 2, S_mus_file_mix, "a filename or a " S_file_to_frample " generator");
@@ -13717,7 +13719,7 @@ static void mus_xen_init(void)
   Xen_define_typed_procedure(S_make_oscil_bank,         g_make_oscil_bank_w,        2, 2, 0, H_make_oscil_bank,	
 			     s7_make_circular_signature(s7, 1, 2, s7_make_symbol(s7, S_is_oscil_bank), t));
 
-  Xen_define_typed_procedure(S_mus_file_mix, 	        g_mus_file_mix_w,           0, 0, 1, H_mus_file_mix,		NULL);
+  Xen_define_typed_procedure(S_mus_file_mix, 	        g_mus_file_mix_w,           0, 0, 1, H_mus_file_mix,		NULL); /* actually 2 0 1? */
   Xen_define_typed_procedure(S_mus_file_mix_with_envs,	g_mus_file_mix_with_envs_w, 0, 0, 1, H_mus_file_mix_with_envs,	NULL); /* actually 8 2 0 I think */
   Xen_define_typed_procedure(S_frample_to_frample,	g_frample_to_frample_w,     5, 0, 0, H_frample_to_frample,	pl_fffifi);
 

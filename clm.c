@@ -3285,6 +3285,7 @@ mus_float_t mus_chebyshev_tu_sum(mus_float_t x, int n, mus_float_t *tn, mus_floa
   mus_float_t x2, tb, tb1 = 0.0, tb2, cx, ub, ub1 = 0.0;
   mus_float_t *tp, *up;
 
+  if (n == 1) return(tn[0]); /* added 18-Oct-17 -- looks plausible */
   cx = cos(x);
   x2 = 2.0 * cx;
 

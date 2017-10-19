@@ -616,14 +616,11 @@ There is also a port in /usr/ports/audio/snd with version 13.0 from August
 The last time I installed Debian (25-Jan-17) I installed the following
 Snd-related packages by hand:
    libfftw3-3 libgsl2 libgtk-3-dev libmotif-dev libxpm-dev libxt-dev libmpfr-dev libmpc-dev
-   libgsl-dev libfftw3-dev libgl-dev libglu-dev libutf8proc-dev libjack-dev ruby-dev libasound2-dev
-
+   libgsl-dev libfftw3-dev libgl-dev libglu-dev libjack-dev ruby-dev libasound2-dev
 
 and for Fedora Core 22:
   yum install gcc tcsh rxvt emacs fftw3 fftw3-devel gtk3 gtk3-devel 
               alsa-lib alsa-lib-devel gsl gsl-devel gmp gmp-devel 
               mpfr mpfr-devel libmpc libmpc-devel ruby ruby-devel motif 
-              motif-devel libXpm-devel clang mesa-libGLU-devel
-	      xorg-x11-fonts-misc valgrind 
-  yum groupinstall "LXDE"
-  reboot to get LXDE listed in the login settings
+              motif-devel libXpm-devel mesa-libGLU-devel
+
