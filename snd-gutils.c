@@ -15,9 +15,13 @@ cairo_t *make_cairo(GdkDrawable *win)
 {
   ss->line_width = -1.0;
 #if GTK_CHECK_VERSION(3, 22, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
+  return(NULL);
+#else
   last_window = win;
   last_context = gdk_window_begin_draw_frame(win, gdk_window_get_visible_region(win));
   return(gdk_drawing_context_get_cairo_context(last_context));
+#endif
 #else
   return(gdk_cairo_create(win));
 #endif
@@ -27,7 +31,11 @@ void free_cairo(cairo_t *cr)
 {
   ss->line_width = -1.0;
 #if GTK_CHECK_VERSION(3, 22, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
+  return;
+#else
   gdk_window_end_draw_frame(last_window, last_context);
+#endif
 #else
   cairo_destroy(cr);
 #endif
@@ -583,7 +591,8 @@ GdkColor *rgb_to_gdk_color(color_t col)
 #endif
 
 
-void widget_modify_bg(GtkWidget *w, GtkStateType type, color_t color)
+#if (!GTK_CHECK_VERSION(3, 92, 1))
+void sg_widget_modify_bg(GtkWidget *w, GtkStateType type, color_t color)
 {
   /* the color has to stick around??? */
   /* another stop-gap: allocate a color each time... */
@@ -597,7 +606,7 @@ void widget_modify_bg(GtkWidget *w, GtkStateType type, color_t color)
 }
 
 
-void widget_modify_fg(GtkWidget *w, GtkStateType type, color_t color)
+void sg_widget_modify_fg(GtkWidget *w, GtkStateType type, color_t color)
 {
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   gtk_widget_modify_fg(w, type, rgb_to_gdk_color(color));
@@ -609,7 +618,7 @@ void widget_modify_fg(GtkWidget *w, GtkStateType type, color_t color)
 }
 
 
-void widget_modify_base(GtkWidget *w, GtkStateType type, color_t color)
+void sg_widget_modify_base(GtkWidget *w, GtkStateType type, color_t color)
 {
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   gtk_widget_modify_base(w, type, rgb_to_gdk_color(color));
@@ -619,6 +628,23 @@ void widget_modify_base(GtkWidget *w, GtkStateType type, color_t color)
 #endif
 #endif
 }
+#endif
+
+#if (GTK_CHECK_VERSION(3, 92, 1))
+guint sg_event_get_keyval(GdkEvent *e)
+{
+  guint val = 0;
+  gdk_event_get_keyval(e, &val);
+  return(val);
+}
+
+guint sg_event_get_button(const GdkEvent *e)
+{
+  guint val = 0;
+  gdk_event_get_button(e, &val);
+  return(val);
+}
+#endif
 
 
 void recolor_graph(chan_info *cp, bool selected)
@@ -822,7 +848,7 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(new_text), editable);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(new_text), 4);
   gtk_container_add(GTK_CONTAINER(sw), new_text);
-  if (editable) gtk_widget_set_events(new_text, GDK_ALL_EVENTS_MASK);
+  if (editable) sg_widget_set_events(new_text, GDK_ALL_EVENTS_MASK);
   gtk_widget_show(new_text);
 
   switch (add_choice)
@@ -835,7 +861,7 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
       break;
     case 2:
     default:
-      gtk_box_pack_start(GTK_BOX(parent), sw, true, true, 0);
+      sg_box_pack_start(GTK_BOX(parent), sw, true, true, 0);
       break;
     }
   gtk_widget_show(sw);
@@ -1145,13 +1171,13 @@ static GtkWidget *slist_new_item(slist *lst, const char *label, int row)
 
   item = gtk_button_new_with_label(label);
   slist_set_row(item, row);
-  gtk_button_set_relief(GTK_BUTTON(item), GTK_RELIEF_HALF);
+  gtk_button_set_relief(GTK_BUTTON(item), SG_RELIEF_HALF);
 #if GTK_CHECK_VERSION(3, 14, 0)
   gtk_widget_set_halign(GTK_WIDGET(item), GTK_ALIGN_START);
 #else
   gtk_button_set_alignment(GTK_BUTTON(item), 0.05, 1.0);
 #endif
-  gtk_box_pack_start(GTK_BOX(lst->topics), item, false, false, 0);
+  sg_box_pack_start(GTK_BOX(lst->topics), item, false, false, 0);
 
   widget_modify_bg(item, GTK_STATE_NORMAL, ss->white);
   widget_modify_bg(item, GTK_STATE_PRELIGHT, ss->light_blue);
@@ -1183,7 +1209,7 @@ slist *slist_new_with_title_and_table_data(const char *title,
       widget_set_vexpand(lst->box, true);
 
       lst->label = snd_gtk_highlight_label_new(title);
-      gtk_box_pack_start(GTK_BOX(lst->box), lst->label, false, false, 0);
+      sg_box_pack_start(GTK_BOX(lst->box), lst->label, false, false, 0);
       topw = lst->box;
     }
 
@@ -1193,7 +1219,7 @@ slist *slist_new_with_title_and_table_data(const char *title,
 
   if (!title) 
     topw = lst->scroller;
-  else gtk_box_pack_start(GTK_BOX(lst->box), lst->scroller, true, true, 0);
+  else sg_box_pack_start(GTK_BOX(lst->box), lst->scroller, true, true, 0);
 
   switch (paned)
     {
@@ -1202,7 +1228,7 @@ slist *slist_new_with_title_and_table_data(const char *title,
       break;
 
     case BOX_PACK: 
-      gtk_box_pack_start(GTK_BOX(parent), topw, true, true, 4); 
+      sg_box_pack_start(GTK_BOX(parent), topw, true, true, 4); 
       break;
 
     case TABLE_ATTACH: 

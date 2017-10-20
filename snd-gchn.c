@@ -795,8 +795,8 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 	{
 	  cw[W_main_window] = gtk_hpaned_new();
 	  add_paned_style(cw[W_main_window]);
-	  gtk_container_set_border_width(GTK_CONTAINER(cw[W_main_window]), 2);
-	  gtk_box_pack_start(GTK_BOX(w_snd_pane_box(sp)), cw[W_main_window], true, true, 0);
+	  sg_container_set_border_width(GTK_CONTAINER(cw[W_main_window]), 2);
+	  sg_box_pack_start(GTK_BOX(w_snd_pane_box(sp)), cw[W_main_window], true, true, 0);
 	  cp->edhist_list = slist_new(cw[W_main_window], NULL, 0, PANED_ADD1);
 #if GTK_CHECK_VERSION(3, 0, 0)
 	  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(cp->edhist_list->scroller), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
@@ -814,7 +814,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
       else
 	{
 	  if ((GTK_IS_VBOX(cw[W_main_window])) || (GTK_IS_HBOX(cw[W_main_window])))
-	    gtk_box_pack_start(GTK_BOX(cw[W_main_window]), cw[W_graph_window], true, true, 4);
+	    sg_box_pack_start(GTK_BOX(cw[W_main_window]), cw[W_graph_window], true, true, 4);
 	  else gtk_container_add(GTK_CONTAINER(cw[W_main_window]), cw[W_graph_window]);
 	}
       gtk_widget_set_size_request(cw[W_graph_window], -1, chan_y);
@@ -822,7 +822,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
       cw[W_graph] = gtk_drawing_area_new();
       add_drag_and_drop(cw[W_graph], channel_drop_watcher, channel_drag_watcher, NULL);
       set_user_int_data(G_OBJECT(cw[W_graph]), pack_sound_and_channel(sp->index, cp->chan));
-      gtk_widget_set_events(cw[W_graph], GDK_ALL_EVENTS_MASK);
+      sg_widget_set_events(cw[W_graph], GDK_ALL_EVENTS_MASK);
       SET_CAN_FOCUS(cw[W_graph]);
 
       widget_set_hexpand(cw[W_graph], true);
@@ -858,7 +858,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 
       adjs[W_sx_adj] = (GtkAdjustment *)gtk_adjustment_new(0.0, 0.0, 1.00, 0.001, 0.01, .01);
       cw[W_sx] = gtk_hscrollbar_new(GTK_ADJUSTMENT(adjs[W_sx_adj]));
-      gtk_box_pack_start(GTK_BOX(cw[W_bottom_scrollers]), cw[W_sx], true, true, 0);
+      sg_box_pack_start(GTK_BOX(cw[W_bottom_scrollers]), cw[W_sx], true, true, 0);
       set_user_data(G_OBJECT(adjs[W_sx_adj]), (gpointer)cp);
       SG_SIGNAL_CONNECT(adjs[W_sx_adj], "value_changed", sx_valuechanged_callback, cp);
       gtk_widget_show(cw[W_sx]);
@@ -866,7 +866,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 
       adjs[W_zx_adj] = (GtkAdjustment *)gtk_adjustment_new(0.0, 0.0, 1.1, 0.001, 0.01, .1);
       cw[W_zx] = gtk_hscrollbar_new(GTK_ADJUSTMENT(adjs[W_zx_adj]));
-      gtk_box_pack_start(GTK_BOX(cw[W_bottom_scrollers]), cw[W_zx], true, true, 0);
+      sg_box_pack_start(GTK_BOX(cw[W_bottom_scrollers]), cw[W_zx], true, true, 0);
       set_user_data(G_OBJECT(adjs[W_zx_adj]), (gpointer)cp);
       SG_SIGNAL_CONNECT(adjs[W_zx_adj], "value_changed", zx_valuechanged_callback, cp);
       gtk_widget_set_name(cw[W_zx], "zx_slider");
@@ -881,7 +881,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 	{
 	  cw[W_f] = gtk_check_button_new_with_label("f");
 	  add_tooltip(cw[W_f], "show fft");
-	  gtk_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_f], true, true, 0);
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_f], true, true, 0);
 	  gtk_widget_show(cw[W_f]);
 	  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cw[W_f]), false);
 	  SG_SIGNAL_CONNECT(cw[W_f], "button_press_event", f_toggle_callback, cp);
@@ -889,7 +889,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
   
 	  cw[W_w] = gtk_check_button_new_with_label("w");
 	  add_tooltip(cw[W_f], "show wave");
-	  gtk_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_w], true, true, 0);
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_w], true, true, 0);
 	  gtk_widget_show(cw[W_w]);
 	  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cw[W_w]), true);
 	  SG_SIGNAL_CONNECT(cw[W_w], "button_press_event", w_toggle_callback, cp);
@@ -902,7 +902,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 	  icon_theme = gtk_icon_theme_get_default();
 #endif
 	  cw[W_up_ev] = gtk_event_box_new();
-	  gtk_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_up_ev], true, true, 0);
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_up_ev], true, true, 0);
 	  gtk_widget_show(cw[W_up_ev]);
 
 	  /* gtk_arrow is deprecated -- docs say: use GtkImage with a suitable icon
@@ -918,7 +918,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 	  gtk_widget_show(cw[W_f]);
 
 	  cw[W_down_ev] = gtk_event_box_new();
-	  gtk_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_down_ev], true, true, 0);
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_down_ev], true, true, 0);
 	  gtk_widget_show(cw[W_down_ev]);
 
 #if GTK_CHECK_VERSION(3, 14, 0)

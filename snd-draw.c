@@ -1621,7 +1621,9 @@ void set_selected_graph_color(color_t color)
 #if USE_MOTIF
       XtVaSetValues(channel_graph(cp), XmNbackground, ss->selected_graph_color, NULL);
 #else
+#if (!GTK_CHECK_VERSION(3, 0, 0))
       widget_modify_bg(channel_graph(cp), GTK_STATE_NORMAL, ss->selected_graph_color);
+#endif
 #endif
     }
 }

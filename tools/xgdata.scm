@@ -540,8 +540,8 @@
 ;;; 2.90.6 (CFNC "GdkColormap* gdk_gc_get_colormap GdkGC* gc")
 ;;; 2.90.6 (CFNC "void gdk_gc_set_rgb_fg_color GdkGC* gc GdkColor* color")
 ;;; 2.90.6 (CFNC "void gdk_gc_set_rgb_bg_color GdkGC* gc GdkColor* color")
-(CFNC "void gdk_init gint* {argc} gchar*** |argv|")
-(CFNC "gboolean gdk_init_check gint* {argc} gchar*** |argv|")
+;;; 3.92.1 (CFNC "void gdk_init gint* {argc} gchar*** |argv|")
+;;; 3.92.1 (CFNC "gboolean gdk_init_check gint* {argc} gchar*** |argv|")
 ;;; (CFNC-gtk2 "gchar* gdk_set_locale void")
 (CFNC "char* gdk_get_program_class void")
 (CFNC "void gdk_set_program_class char* program_class")
@@ -1282,8 +1282,8 @@
 ;;; 3.22.3 (CFNC "void gdk_query_visual_types GdkVisualType** [visual_types] gint* [count]")
 ;;; 3.22.3 (CFNC "GList* gdk_list_visuals void")
 
-(CINT "GDK_INPUT_OUTPUT" "GdkWindowClass") ; GdkWindowWindowClass in gtk 3
-(CINT "GDK_INPUT_ONLY" "GdkWindowClass")
+;;; 3.92.1 (CINT "GDK_INPUT_OUTPUT" "GdkWindowClass") ; GdkWindowWindowClass in gtk 3
+;;; 3.92.1 (CINT "GDK_INPUT_ONLY" "GdkWindowClass")
 
 (CINT "GDK_WINDOW_ROOT" "GdkWindowType")
 (CINT "GDK_WINDOW_TOPLEVEL" "GdkWindowType")
@@ -1291,14 +1291,14 @@
 ;;; 2.90.7 (CINT "GDK_WINDOW_DIALOG" "GdkWindowType")
 (CINT "GDK_WINDOW_TEMP" "GdkWindowType")
 (CINT "GDK_WINDOW_FOREIGN" "GdkWindowType")
-(CINT "GDK_WA_TITLE" "GdkWindowAttributesType")
-(CINT "GDK_WA_X" "GdkWindowAttributesType")
-(CINT "GDK_WA_Y" "GdkWindowAttributesType")
-(CINT "GDK_WA_CURSOR" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_TITLE" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_X" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_Y" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_CURSOR" "GdkWindowAttributesType")
 ;;; 2.91.0 (CINT "GDK_WA_COLORMAP" "GdkWindowAttributesType")
-(CINT "GDK_WA_VISUAL" "GdkWindowAttributesType")
-(CINT "GDK_WA_WMCLASS" "GdkWindowAttributesType")
-(CINT "GDK_WA_NOREDIR" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_VISUAL" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_WMCLASS" "GdkWindowAttributesType")
+;;; 3.92.1 (CINT "GDK_WA_NOREDIR" "GdkWindowAttributesType")
 (CINT "GDK_HINT_POS" "GdkWindowHints")
 (CINT "GDK_HINT_MIN_SIZE" "GdkWindowHints")
 (CINT "GDK_HINT_MAX_SIZE" "GdkWindowHints")
@@ -1647,8 +1647,10 @@
 (CFNC "void gtk_box_set_spacing GtkBox* box gint spacing")
 (CFNC "gint gtk_box_get_spacing GtkBox* box")
 (CFNC "void gtk_box_reorder_child GtkBox* box GtkWidget* child gint position")
-(CFNC "void gtk_box_query_child_packing GtkBox* box GtkWidget* child gboolean* [expand] gboolean* [fill] guint* [padding] GtkPackType* [pack_type]")
-(CFNC "void gtk_box_set_child_packing GtkBox* box GtkWidget* child gboolean expand gboolean fill guint padding GtkPackType pack_type")
+;;; 3.92.1 (CFNC "void gtk_box_query_child_packing GtkBox* box GtkWidget* child gboolean* [expand] gboolean* [fill] guint* [padding] GtkPackType* [pack_type]")
+;;; different args
+;;; 3.92.1 (CFNC "void gtk_box_set_child_packing GtkBox* box GtkWidget* child gboolean expand gboolean fill guint padding GtkPackType pack_type")
+;;; same
 (CCAST "GTK_BUTTON(obj)" "GtkButton*")
 (CCHK "GTK_IS_BUTTON(obj)" "GtkButton*")
 ;;;;(CFNC "GType gtk_button_get_type void")
@@ -2031,11 +2033,11 @@
 (CINT "GTK_POS_TOP" "GtkPositionType")
 (CINT "GTK_POS_BOTTOM" "GtkPositionType")
 (CINT "GTK_RELIEF_NORMAL" "GtkReliefStyle")
-(CINT "GTK_RELIEF_HALF" "GtkReliefStyle")
+;;; 3.92.1?? (CINT "GTK_RELIEF_HALF" "GtkReliefStyle")
 (CINT "GTK_RELIEF_NONE" "GtkReliefStyle")
-(CINT "GTK_RESIZE_PARENT" "GtkResizeMode")
-(CINT "GTK_RESIZE_QUEUE" "GtkResizeMode")
-(CINT "GTK_RESIZE_IMMEDIATE" "GtkResizeMode")
+;;; 3.92.1 (CINT "GTK_RESIZE_PARENT" "GtkResizeMode")
+;;; 3.92.1 (CINT "GTK_RESIZE_QUEUE" "GtkResizeMode")
+;;; 3.92.1 (CINT "GTK_RESIZE_IMMEDIATE" "GtkResizeMode")
 (CINT "GTK_SCROLL_NONE" "GtkScrollType")
 (CINT "GTK_SCROLL_JUMP" "GtkScrollType")
 (CINT "GTK_SCROLL_STEP_BACKWARD" "GtkScrollType")
@@ -2263,8 +2265,8 @@
 ;;; 2.91.0 (CINT "GTK_IMAGE_PIXMAP" "GtkImageType")
 ;;; 2.90.6 (CINT "GTK_IMAGE_IMAGE" "GtkImageType")
 (CINT "GTK_IMAGE_PIXBUF" "GtkImageType")
-(CINT "GTK_IMAGE_STOCK" "GtkImageType")
-(CINT "GTK_IMAGE_ICON_SET" "GtkImageType")
+;;; 3.92.1 (CINT "GTK_IMAGE_STOCK" "GtkImageType")
+;;; 3.92.1 (CINT "GTK_IMAGE_ICON_SET" "GtkImageType")
 (CINT "GTK_IMAGE_ANIMATION" "GtkImageType")
 ;;;;(CFNC "GType gtk_image_get_type void")
 (CFNC "GtkWidget* gtk_image_new void")
@@ -3252,10 +3254,10 @@
 (CFNC "gint gtk_text_tag_get_priority GtkTextTag* tag")
 (CFNC "void gtk_text_tag_set_priority GtkTextTag* tag gint priority")
 (CFNC "gboolean gtk_text_tag_event GtkTextTag* tag GObject* event_object GdkEvent* event GtkTextIter* iter")
-(CFNC "GtkTextAttributes* gtk_text_attributes_new void")
-(CFNC "GtkTextAttributes* gtk_text_attributes_copy GtkTextAttributes* src")
-(CFNC "void gtk_text_attributes_copy_values GtkTextAttributes* src GtkTextAttributes* dest")
-(CFNC "void gtk_text_attributes_unref GtkTextAttributes* values")
+;;; 3.92.1 (CFNC "GtkTextAttributes* gtk_text_attributes_new void")
+;;; 3.92.1 (CFNC "GtkTextAttributes* gtk_text_attributes_copy GtkTextAttributes* src")
+;;; 3.92.1 (CFNC "void gtk_text_attributes_copy_values GtkTextAttributes* src GtkTextAttributes* dest")
+;;; 3.92.1 (CFNC "void gtk_text_attributes_unref GtkTextAttributes* values")
 
 ;;;(CFNC "void gtk_text_attributes_ref GtkTextAttributes* values")
 ;;; return type changed 2.8.6
@@ -3915,7 +3917,7 @@
 (CFNC "gboolean gtk_window_get_resizable GtkWindow* window")
 (CFNC "void gtk_window_set_gravity GtkWindow* window GdkGravity gravity")
 (CFNC "GdkGravity gtk_window_get_gravity GtkWindow* window")
-(CFNC "void gtk_window_set_geometry_hints GtkWindow* window GtkWidget* geometry_widget GdkGeometry* geometry GdkWindowHints geom_mask")
+;;; 3.92.1 (CFNC "void gtk_window_set_geometry_hints GtkWindow* window GtkWidget* geometry_widget GdkGeometry* geometry GdkWindowHints geom_mask")
 ;;; (CFNC-gtk2 "void gtk_window_set_has_frame GtkWindow* window gboolean setting")
 ;;; (CFNC-gtk2 "gboolean gtk_window_get_has_frame GtkWindow* window")
 ;;; (CFNC-gtk2 "void gtk_window_set_frame_dimensions GtkWindow* window gint left gint top gint right gint bottom")
@@ -5696,7 +5698,7 @@
 
 
 
-(CFNC "GtkTextAttributes* gtk_text_attributes_ref GtkTextAttributes* values")
+;;; 3.92.1 (CFNC "GtkTextAttributes* gtk_text_attributes_ref GtkTextAttributes* values")
 
 (CINT "PANGO_SCRIPT_NEW_TAI_LUE" "PangoScript")
 (CINT "PANGO_SCRIPT_BUGINESE" "PangoScript")
@@ -7114,7 +7116,7 @@
 
 ;;; 2.17.3
 
-(CINT-2.18 "GDK_WINDOW_OFFSCREEN" "GdkWindowType")
+;;; 3.92.1 (CINT-2.18 "GDK_WINDOW_OFFSCREEN" "GdkWindowType")
 
 ;;; (CFNC-2.18 "gboolean gdk_region_rect_equal GdkRegion* region GdkRectangle* rectangle" 'const)
 ;;; 3.89.2 (CFNC-2.18 "gboolean gdk_window_ensure_native GdkWindow* window")
@@ -8286,7 +8288,7 @@
 (CINT-3.4 "GDK_MODIFIER_INTENT_NO_TEXT_INPUT" "GdkModifierIntent")
 (CINT-3.4 "GDK_MODIFIER_INTENT_SHIFT_GROUP" "GdkModifierIntent")
 
-(CINT-3.4 "GTK_REGION_ONLY" "GtkRegionFlags")
+;;; (CINT-3.4 "GTK_REGION_ONLY" "GtkRegionFlags")
 (CINT-3.4 "GDK_WINDOW_STATE_FOCUSED" "GdkWindowState")
 ;;; (CINT-3.4 "GTK_STATE_FLAG_WINDOW_UNFOCUSED" "GtkStateFlags")
  
@@ -9052,7 +9054,7 @@
 (CFNC-3.16 "void gtk_render_line GtkStyleContext* context cairo_t* cr gdouble x0 gdouble y0 gdouble x1 gdouble y1")
 (CFNC-3.16 "void gtk_render_slider GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height GtkOrientation orientation")
 (CFNC-3.16 "void gtk_render_frame_gap GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height GtkPositionType gap_side gdouble xy0_gap gdouble xy1_gap")
-(CFNC-3.16 "void gtk_render_extension GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height GtkPositionType gap_side")
+;;; 3.92.1 (CFNC-3.16 "void gtk_render_extension GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height GtkPositionType gap_side")
 (CFNC-3.16 "void gtk_render_handle GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height")
 (CFNC-3.16 "void gtk_render_activity GtkStyleContext* context cairo_t* cr gdouble x gdouble y gdouble width gdouble height")
 (CFNC-3.16 "void gtk_render_icon GtkStyleContext* context cairo_t* cr GdkPixbuf* pixbuf gdouble x gdouble y")
@@ -9634,7 +9636,7 @@
 (CFNC-3.99 "int gtk_spin_button_get_max_width_chars GtkSpinButton* spin_button")
 (CFNC-3.99 "void gtk_spin_button_set_max_width_chars GtkSpinButton* spin_button int max_width_chars")
 (CFNC-3.99 "int gtk_spin_button_get_width_chars GtkSpinButton* spin_button")
-(CFNC-3.99 "void gtk_spin_button_set_width_chars GtkSpinButton* spin_button int width_chars;")
+(CFNC-3.99 "void gtk_spin_button_set_width_chars GtkSpinButton* spin_button int width_chars")
 (CFNC-3.99 "void gtk_widget_size_allocate GtkWidget* widget GtkAllocation* allocation int baseline GtkAllocation* out_clip")
  
  

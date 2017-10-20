@@ -83764,6 +83764,10 @@ int main(int argc, char **argv)
  *   even with this check (make_cairo in snd-gutils.c), it still crashes:
  *   if ((last_context) && (GDK_IS_DRAWING_CONTEXT(last_context)) && (gdk_drawing_context_is_valid(last_context)) && (win == gdk_drawing_context_get_window(last_context)))
  *     gdk_window_end_draw_frame(win, last_context);
+ *   for gtk 4:
+ *     all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
+ *     iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
+ *     GtkTextAttributes* not found in xg?
  *
  * Snd:
  * dac loop [need start/end of loop in dac_info, reader goes to start when end reached (requires rebuffering)

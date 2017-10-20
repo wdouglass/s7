@@ -57,11 +57,17 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 
 
 /* no accessors: */
+#if (GTK_CHECK_VERSION(3, 92, 1))
+#define EVENT_WINDOW(Ev)      gdk_event_get_window((GdkEvent *)(Ev))
+#define EVENT_BUTTON(Ev)      sg_event_get_button((const GdkEvent *)(Ev))
+#define EVENT_KEYVAL(Ev)      sg_event_get_keyval((GdkEvent *)(Ev))
+#define EVENT_IS_HINT(Ev)     false
+#else
 #define EVENT_WINDOW(Ev)      (Ev)->window
 #define EVENT_BUTTON(Ev)      (Ev)->button
-/* #define EVENT_TYPE(Ev)        (Ev)->type */
 #define EVENT_KEYVAL(Ev)      (Ev)->keyval
 #define EVENT_IS_HINT(Ev)     (Ev)->is_hint
+#endif
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
 #define EVENT_AREA_WIDTH(Ev)  (Ev)->area.width

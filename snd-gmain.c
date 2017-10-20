@@ -56,6 +56,7 @@ static GtkWidget **iconify_active_dialogs = NULL;
 
 static gint window_iconify(GtkWidget *w, GdkEventWindowState *event, gpointer context)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   int i;
   if ((!ss) || (!(ss->dialogs)))
     return(false);
@@ -90,6 +91,7 @@ static gint window_iconify(GtkWidget *w, GdkEventWindowState *event, gpointer co
 	    }
 	}
     }
+#endif
   return(0);
 }
 
@@ -604,7 +606,7 @@ void snd_doit(int argc, char **argv)
 
       sound_pane(ss) = gtk_vpaned_new();
       add_paned_style(sound_pane(ss));
-      gtk_container_set_border_width(GTK_CONTAINER(sound_pane(ss)), 0);
+      sg_container_set_border_width(GTK_CONTAINER(sound_pane(ss)), 0);
       gtk_container_add(GTK_CONTAINER(main_pane(ss)), sound_pane(ss));
 
       if (sound_style(ss) == SOUNDS_IN_NOTEBOOK)

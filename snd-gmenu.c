@@ -448,7 +448,7 @@ GtkWidget *add_menu(void)
   main_menu = gtk_menu_bar_new();
   ml[m_menu] = NULL;
   add_drag_and_drop(main_menu, menu_drop_watcher, menu_drag_watcher, NULL);
-  gtk_box_pack_start(GTK_BOX(main_pane(ss)), main_menu, false, true, 0);
+  sg_box_pack_start(GTK_BOX(main_pane(ss)), main_menu, false, true, 0);
   add_menu_style(main_menu);
   gtk_widget_show(main_menu);
 
@@ -956,7 +956,7 @@ void post_basic_popup_menu(void *e)
     {
       basic_popup_menu = gtk_menu_new();
       add_menu_style(basic_popup_menu);
-      gtk_widget_set_events(basic_popup_menu, GDK_ALL_EVENTS_MASK);
+      sg_widget_set_events(basic_popup_menu, GDK_ALL_EVENTS_MASK);
       gtk_widget_show(basic_popup_menu);
 
       SG_SIGNAL_CONNECT(basic_popup_menu, "button_release_event", popup_menu_button_release, NULL);
@@ -1118,7 +1118,7 @@ void post_selection_popup_menu(void *e)
     {
       selection_popup_menu = gtk_menu_new();
       add_menu_style(selection_popup_menu);
-      gtk_widget_set_events(selection_popup_menu, GDK_ALL_EVENTS_MASK);
+      sg_widget_set_events(selection_popup_menu, GDK_ALL_EVENTS_MASK);
       gtk_widget_show(selection_popup_menu);
 
       SG_SIGNAL_CONNECT(selection_popup_menu, "button_release_event", popup_menu_button_release, NULL);
@@ -1236,7 +1236,7 @@ void post_fft_popup_menu(void *e)
       GtkWidget *outer_menu, *cascade_menu;
       fft_popup_menu = gtk_menu_new();
       add_menu_style(fft_popup_menu);
-      gtk_widget_set_events(fft_popup_menu, GDK_ALL_EVENTS_MASK);
+      sg_widget_set_events(fft_popup_menu, GDK_ALL_EVENTS_MASK);
       gtk_widget_show(fft_popup_menu);
 
       SG_SIGNAL_CONNECT(fft_popup_menu, "button_release_event", popup_menu_button_release, NULL);
@@ -1873,7 +1873,7 @@ void show_toolbar(void)
       add_toolbar_style(toolbar);
       gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_SMALL_TOOLBAR);
 #endif
-      gtk_box_pack_start(GTK_BOX(main_pane(ss)), toolbar, false, false, 0); /* main_pane = top level vbox */
+      sg_box_pack_start(GTK_BOX(main_pane(ss)), toolbar, false, false, 0); /* main_pane = top level vbox */
       gtk_box_reorder_child(GTK_BOX(main_pane(ss)), toolbar, 1);            /* put toolbar just under the top level menubar */
 
 

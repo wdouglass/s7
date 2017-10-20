@@ -114,7 +114,7 @@ static void make_edit_find_dialog(bool managed, chan_info *cp)
       SG_SIGNAL_CONNECT(edit_find_dialog, "delete_event", edit_find_delete, NULL);
       gtk_window_set_title(GTK_WINDOW(edit_find_dialog), I_FIND);
       sg_make_resizable(edit_find_dialog);
-      gtk_container_set_border_width (GTK_CONTAINER(edit_find_dialog), 10);
+      sg_container_set_border_width (GTK_CONTAINER(edit_find_dialog), 10);
       gtk_window_resize(GTK_WINDOW(edit_find_dialog), 350, 120);
       gtk_widget_realize(edit_find_dialog);
 
@@ -147,23 +147,23 @@ static void make_edit_find_dialog(bool managed, chan_info *cp)
       
 
       rc = gtk_hbox_new(false, 0);
-      gtk_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), rc, true, true, 4);
+      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), rc, true, true, 4);
       gtk_widget_show(rc);
 
       dl = gtk_label_new(I_find);
-      gtk_box_pack_start(GTK_BOX(rc), dl, false, false, 4);
+      sg_box_pack_start(GTK_BOX(rc), dl, false, false, 4);
       gtk_widget_show(dl);
 
       edit_find_text = snd_entry_new(rc, NULL, WITH_WHITE_BACKGROUND);
       SG_SIGNAL_CONNECT(edit_find_text, "activate", edit_find_next, NULL);
       
       edit_find_label = gtk_label_new("");
-      gtk_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), edit_find_label, false, false, 4);
+      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), edit_find_label, false, false, 4);
       gtk_widget_show(edit_find_label);
 
 
       find_error_frame = gtk_frame_new(NULL);
-      gtk_box_pack_end(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), find_error_frame, false, false, 4);
+      sg_box_pack_end(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), find_error_frame, false, false, 4);
 
       find_error_label = gtk_label_new("");
       gtk_container_add(GTK_CONTAINER(find_error_frame), find_error_label);

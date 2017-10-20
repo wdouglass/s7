@@ -66,7 +66,18 @@ struct glistener {
   #define GDK_KEY_y         GDK_y
 #endif 
 
-#define EVENT_KEYVAL(Ev) (Ev)->keyval
+#if GTK_CHECK_VERSION(3, 92, 1)
+static guint EVENT_KEYVAL(GdkEvent *e)
+{
+  guint val = 0;
+  gdk_event_get_keyval(e, &val);
+  return(val);
+}
+#define sg_widget_set_events(Wid, Ev)
+#else
+  #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
+  #define EVENT_KEYVAL(Ev) (Ev)->keyval
+#endif
 
 #if (GTK_CHECK_VERSION(3, 0, 0) && defined(__GNUC__) && (!(defined(__cplusplus))))
   #define EVENT_STATE(Ev) ({ GdkModifierType Type;  gdk_event_get_state((GdkEvent *)Ev, &Type); Type; })
@@ -2792,7 +2803,7 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(g->text), true);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(g->text), 4);
   gtk_container_add(GTK_CONTAINER(g->scroller), g->text);
-  gtk_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
+  sg_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
 
   if (default_font)
     glistener_set_font(g, default_font);

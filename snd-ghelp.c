@@ -215,7 +215,7 @@ static void create_help_monolog(void)
 
   gtk_window_set_title(GTK_WINDOW(help_dialog), I_HELP);
   sg_make_resizable(help_dialog);
-  gtk_container_set_border_width (GTK_CONTAINER(help_dialog), 10);
+  sg_container_set_border_width (GTK_CONTAINER(help_dialog), 10);
   gtk_window_resize(GTK_WINDOW(help_dialog), HELP_COLUMNS * 9, HELP_ROWS * 40);
   gtk_widget_realize(help_dialog);
 
@@ -228,11 +228,13 @@ static void create_help_monolog(void)
   gtk_widget_show(ok_button);
 
   frame = gtk_frame_new(NULL);
-  gtk_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), frame, true, true, 10); 
+  sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), frame, true, true, 10); 
   gtk_widget_show(frame);
 
   help_text = make_scrolled_text(frame, false, CONTAINER_ADD, false); /* last arg ignored */
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   gtk_widget_add_events(help_text, GDK_BUTTON_RELEASE);
+#endif
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(help_text), 10);
   SG_SIGNAL_CONNECT(help_text, "button_release_event", text_release_callback, NULL);
 
@@ -243,11 +245,11 @@ static void create_help_monolog(void)
     GtkWidget *label, *hbox;
 #if (!HAVE_GTK_GRID_NEW)
     hbox = gtk_hbox_new(false, 0);
-    gtk_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), hbox, false, false, 10); 
+    sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), hbox, false, false, 10); 
     gtk_widget_show(hbox);
 
     label = gtk_label_new("help topic:");
-    gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0); 
+    sg_box_pack_start(GTK_BOX(hbox), label, false, false, 0); 
     gtk_widget_show(label);
     
     search = snd_entry_new(hbox, NULL, WITH_WHITE_BACKGROUND);

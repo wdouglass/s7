@@ -274,9 +274,30 @@ void color_selected_data(color_info *color);
 void color_graph(color_info *color);
 void color_selected_graph(color_info *color);
 void set_mix_color(color_info *color);
-void widget_modify_bg(GtkWidget *w, GtkStateType type, color_t color);
-void widget_modify_fg(GtkWidget *w, GtkStateType type, color_t color);
-void widget_modify_base(GtkWidget *w, GtkStateType type, color_t color);
+#if (!GTK_CHECK_VERSION(3, 92, 0))
+  void sg_widget_modify_bg(GtkWidget *w, GtkStateType type, color_t color);
+  void sg_widget_modify_fg(GtkWidget *w, GtkStateType type, color_t color);
+  void sg_widget_modify_base(GtkWidget *w, GtkStateType type, color_t color);
+  #define widget_modify_bg(W, T, C) sg_widget_modify_bg(W, T, C)
+  #define widget_modify_fg(W, T, C) sg_widget_modify_fg(W, T, C)
+  #define widget_modify_base(W, T, C) sg_widget_modify_base(W, T, C)
+  #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child, Expand, Fill, Pad)
+  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child, Expand, Fill, Pad)
+  #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
+  #define SG_RELIEF_HALF GTK_RELIEF_HALF
+  #define sg_container_set_border_width(Container, Width) gtk_container_set_border_width(Container, Width)
+#else
+  #define widget_modify_bg(W, T, C)
+  #define widget_modify_fg(W, T, C)
+  #define widget_modify_base(W, T, C)
+  #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child)
+  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child)
+  #define sg_widget_set_events(Wid, Ev)
+  #define SG_RELIEF_HALF GTK_RELIEF_NORMAL
+  #define sg_container_set_border_width(Container, Width)
+  guint sg_event_get_keyval(GdkEvent *e);
+  guint sg_event_get_button(const GdkEvent *e);
+#endif
 color_t rgb_to_color(mus_float_t r, mus_float_t g, mus_float_t b);
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
