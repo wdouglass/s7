@@ -621,6 +621,8 @@
 	(cons "GtkPrintPages" "INT")
 	(cons "GtkPrintDuplex" "INT")
 	(cons "GtkPrintQuality" "INT")
+
+	(cons "GtkEventControllerScrollFlags" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)

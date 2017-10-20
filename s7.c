@@ -307,7 +307,7 @@
     #endif
   #endif
   #include <io.h>
-  #pragma warning(disable: 4244)
+  #pragma warning(disable: 4244) /* conversion might cause loss of data warning */
 #endif
 
 #include <stdio.h>
@@ -6663,10 +6663,13 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
 	}
       set_global_slot(symbol, slot);
       
-      if (symbol_id(symbol) == 0) /* never defined locally? */
+      if (symbol_id(symbol) == 0)    /* never defined locally? */
 	{
-	  if (initial_slot(symbol) == sc->undefined)
-	    set_initial_slot(symbol, permanent_slot(symbol, value));
+	  if (symbol_info(symbol))   /* if a gensym, symbol_info is null */
+	    {
+	      if (initial_slot(symbol) == sc->undefined)
+		set_initial_slot(symbol, permanent_slot(symbol, value));
+	    }
 	  set_local_slot(symbol, slot);
 	  symbol_increment_ctr(symbol);
 	  set_global(symbol);
@@ -6733,7 +6736,7 @@ static void save_unlet(s7_scheme *sc)
       {
 	s7_pointer sym;
 	sym = car(x);
-	if (is_slot(initial_slot(sym)))
+	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
 	  {
 	    s7_pointer val;
 	    val = slot_value(initial_slot(sym));
@@ -11208,7 +11211,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, int32_t radix, 
       {
 	s7_pointer sym;
 	sym = make_symbol(sc, (char *)(name + 1));
-	if (is_slot(initial_slot(sym)))
+	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
 	  return(slot_value(initial_slot(sym)));
 	return(s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "#~A is undefined"), s7_make_string_wrapper(sc, name))));
 	/* return(sc->undefined); */
@@ -24855,7 +24858,7 @@ defaults to the rootlet.  To load into the current environment instead, pass (cu
 	    library = dlopen((pwd_name) ? pwd_name : fname, RTLD_NOW);
 	    if (library)
 	      {
-		const char *init_name = NULL;
+		const char *init_name;
 		void *init_func;
 
 		init_name = symbol_name(init);
@@ -60985,7 +60988,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	  if ((happy) &&       /* all_x* will work */
 	      (is_null(p)))    /* catch the syntax error later: (or #f . 2) etc */
 	    {
-	      int32_t args, symbols = 0, pairs = 0, rest = 0;
+	      int32_t args, symbols = 0, pairs = 0;
 	      s7_pointer sym = NULL;
 	      bool c_s_is_ok = true;
 
@@ -60995,9 +60998,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		    symbols++;
 		  else
 		    {
-		      if (!is_pair(car(p)))
-			rest++;
-		      else
+		      if (is_pair(car(p)))
 			{
 			  pairs++;
 			  if ((c_s_is_ok) &&
@@ -66209,7 +66210,7 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 
 static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool safe_step)
 {
-  int32_t i, body_len;
+  int32_t body_len;
   s7_int end;
 
   if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(false);
@@ -66354,6 +66355,7 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	    }
 	  else
 	    {
+	      int32_t i;
 	      end = denominator(slot_value(sc->args));
 	      if (safe_step)
 		{
@@ -66407,6 +66409,7 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	}
       if (is_null(p))
 	{
+	  int32_t i;
 	  end = denominator(slot_value(sc->args));
 	  if (safe_step)
 	    {
@@ -83774,7 +83777,7 @@ int main(int argc, char **argv)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
- * port to Snd: freeverb.html dlocsig.html
+ * port to Snd: dlocsig.html
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
@@ -83785,11 +83788,10 @@ int main(int argc, char **argv)
  *   need symbol->type-checker-recog->type -- symbol_type: object.sym.info->type
  * maybe pass \u... through in read_constant_string unchanged, or read in s7??  no worse than \x..;
  * c_object type table entries should also be s7_function, reported by object->let perhaps [and (obj 'reverse) -> type table reverse wrapped?]
- *    wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
+ *   wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
  * syms_tag may need 64-bits -- seems ok at 32 bits so far...
- * include the sauto baffled call/cc in t480
  *
  * --------------------------------------------------------------
  *
