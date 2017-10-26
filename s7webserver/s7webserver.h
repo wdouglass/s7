@@ -8,7 +8,7 @@
   * Ways to access it:
 
     * Using curl:
-    curl -i -X POST -H "Content-Type: text/plain" -d '(display 50)' http://localhost:5080
+    curl -i -X POST -H "Content-Type: text/plain" -d '(display 50)' http://localhost:6080
 
     * Using s7webserver_repl.py:
     ./s7webserver_repl.py
