@@ -1614,7 +1614,9 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
 #endif
       add_tooltip(CLOSE_BUTTON(sp), "close current sound");
       gtk_button_set_relief(GTK_BUTTON(CLOSE_BUTTON(sp)), GTK_RELIEF_NONE);
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       gtk_button_set_image(GTK_BUTTON(CLOSE_BUTTON(sp)), image_new_with_icon(ICON_CLOSE, GTK_ICON_SIZE_MENU));
+#endif
       sg_box_pack_start(GTK_BOX(NAME_HBOX(sp)), CLOSE_BUTTON(sp), false, false, 8);
       SG_SIGNAL_CONNECT(CLOSE_BUTTON(sp), "clicked", close_button_callback, sp);
       g_signal_connect(CLOSE_BUTTON(sp), "query-tooltip", G_CALLBACK(close_button_tooltip), (gpointer)sp);

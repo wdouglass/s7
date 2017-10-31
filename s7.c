@@ -15068,6 +15068,7 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
     default:
       method_or_bust_with_type(sc, x, sc->add_symbol, args, a_number_string, 1);
     }
+  return(NULL); /* make the compiler happy */
 }
 
 
@@ -15658,6 +15659,7 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
     default:
       method_or_bust_with_type(sc, x, sc->subtract_symbol, args, a_number_string, 1);
     }
+  return(NULL); /* make the compiler happy */
 }
 
 
@@ -16250,6 +16252,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
     default:
       method_or_bust_with_type(sc, x, sc->multiply_symbol, args, a_number_string, 1);
     }
+  return(NULL); /* make the compiler happy */
 }
 
 #if (!WITH_GMP)
@@ -16933,6 +16936,7 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
     default:
       method_or_bust_with_type(sc, x, sc->divide_symbol, args, a_number_string, 1);
     }
+  return(NULL); /* make the compiler happy */
 }
 
 
@@ -81813,6 +81817,7 @@ s7_scheme *s7_init(void)
   {
     s7_pointer p1, p2;
     for (p1 = sc->eval_history1, p2 = sc->eval_history2; is_pair(cdr(p1)); p1 = cdr(p1), p2 = cdr(p2));
+    /* permanent_list sets all cars to nil */
     set_cdr(p1, sc->eval_history1);
     set_cdr(p2, sc->eval_history2);
     sc->cur_code = sc->eval_history1;
@@ -83767,7 +83772,6 @@ int main(int argc, char **argv)
  *   for gtk 4:
  *     all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
  *     iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
- *     GtkTextAttributes* not found in xg?
  *
  * Snd:
  * dac loop [need start/end of loop in dac_info, reader goes to start when end reached (requires rebuffering)
@@ -83824,3 +83828,4 @@ int main(int argc, char **argv)
  * 
  * --------------------------------------------------------------
  */
+
