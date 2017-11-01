@@ -282,7 +282,7 @@ void set_mix_color(color_info *color);
   #define widget_modify_fg(W, T, C) sg_widget_modify_fg(W, T, C)
   #define widget_modify_base(W, T, C) sg_widget_modify_base(W, T, C)
   #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child, Expand, Fill, Pad)
-  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child, Expand, Fill, Pad)
+  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_end(Parent, Child, Expand, Fill, Pad)
   #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
   #define SG_RELIEF_HALF GTK_RELIEF_HALF
   #define sg_container_set_border_width(Container, Width) gtk_container_set_border_width(Container, Width)
@@ -291,7 +291,7 @@ void set_mix_color(color_info *color);
   #define widget_modify_fg(W, T, C)
   #define widget_modify_base(W, T, C)
   #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child)
-  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child)
+  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_end(Parent, Child)
   #define sg_widget_set_events(Wid, Ev)
   #define SG_RELIEF_HALF GTK_RELIEF_NORMAL
   #define sg_container_set_border_width(Container, Width)
