@@ -1904,8 +1904,8 @@ static s7_scheme *cur_sc = NULL;
 /* used in iterators for GC mark of sequence */
 
 #define T_BYTE_VECTOR                 T_MUTABLE
-#define is_byte_vector(p)             ((typeflag(p) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
-#define is_mutable_byte_vector(p)     ((typeflag(p) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
+#define is_byte_vector(p)             ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
+#define is_mutable_byte_vector(p)     ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define set_byte_vector(p)            typeflag(_TStr(p)) |= T_BYTE_VECTOR
 /* marks a string that the caller considers a byte_vector */
 
@@ -1943,7 +1943,7 @@ static s7_scheme *cur_sc = NULL;
 #define T_SAFE_STEPPER                (1 << (TYPE_BITS + 19))
 #define is_safe_stepper(p)            ((typeflag(_TSlp(p)) & T_SAFE_STEPPER) != 0)
 #define set_safe_stepper(p)           typeflag(_TSlp(p)) |= T_SAFE_STEPPER
-#define clear_safe_stepper(p)         typeflag(p) &= (~T_SAFE_STEPPER)
+#define clear_safe_stepper(p)         typeflag(_NFre(p)) &= (~T_SAFE_STEPPER)
 /* an experiment */
 
 #define T_PRINT_NAME                  T_SAFE_STEPPER
@@ -2048,7 +2048,7 @@ static int64_t not_heap = -1;
 #endif
 
 #define is_pair(p)                    (type(p) == T_PAIR)
-#define is_mutable_pair(p)            ((typeflag(p) & (0xff | T_IMMUTABLE)) == T_PAIR)
+#define is_mutable_pair(p)            ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
 #define is_null(p)                    ((_NFre(p)) == sc->nil)
 #define is_not_null(p)                ((_NFre(p)) != sc->nil)
 
@@ -2279,9 +2279,9 @@ static int64_t not_heap = -1;
 #define list_4(Sc, A, B, C, D)        cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons_unchecked(Sc, C, cons(Sc, D, Sc->nil))))
 
 #define is_string(p)                  (type(p) == T_STRING)
-#define is_string_not_byte_vector(p)  ((typeflag(p) & (0xff | T_BYTE_VECTOR)) == T_STRING)
+#define is_string_not_byte_vector(p)  ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == T_STRING)
 #define is_byte_vector_not_string(p)  ((typeflag(_TStr(p)) & T_BYTE_VECTOR) != 0)
-#define is_mutable_string(p)          ((typeflag(p) & (0xff | T_IMMUTABLE)) == T_STRING)
+#define is_mutable_string(p)          ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_STRING)
 #define string_value(p)               (_TStr(p))->object.string.svalue
 #define string_length(p)              (_TStr(p))->object.string.length
 #define byte_vector_length(p)         (_TStr(p))->object.string.length
@@ -2360,6 +2360,7 @@ static int64_t not_heap = -1;
 #define slot_symbol(p)                _TSym((_TSlt(p))->object.slt.sym)
 #define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
 #define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
+#define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
 #define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
@@ -2448,7 +2449,7 @@ static int64_t not_heap = -1;
 #define vector_dimensions_allocated(p) ((_TVec(p))->object.vector.dim_info->dimensions_allocated)
 
 #define is_hash_table(p)              (type(p) == T_HASH_TABLE)
-#define is_mutable_hash_table(p)      ((typeflag(p) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
+#define is_mutable_hash_table(p)      ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
 #define hash_table_mask(p)            (_THsh(p))->object.hasher.mask
 #define hash_table_element(p, i)      ((_THsh(p))->object.hasher.elements[i])
 #define hash_table_elements(p)        (_THsh(p))->object.hasher.elements
@@ -4454,6 +4455,28 @@ static void mark_let(s7_pointer env)
     }
 }
 
+static void mark_owlet(s7_scheme *sc)
+{
+  /* s7_pointer p; */
+  /* sc->error_type and friends are slots in owlet */
+  mark_slot(sc->error_type);
+  slot_set_value(sc->error_data, sc->F);
+  mark_slot(sc->error_data);
+  /* error_data is normally a permanent list with impermanent contents, so we have to traverse it explicitly
+   *   mark_owlet is not called very often
+   */
+  /* for (p = sc->error_data; is_pair(p); p = cdr(p)) S7_MARK(car(p)); */
+  mark_slot(sc->error_code);
+  /* can sc->code be garbage at EVAL: when sc->cur_code is set? or freed later by hand? */
+  mark_slot(sc->error_line);
+  mark_slot(sc->error_file);
+#if WITH_HISTORY
+  mark_slot(sc->error_history);
+#endif
+  set_mark(sc->owlet);
+  mark_let(outlet(sc->owlet));
+}
+
 static void just_mark(s7_pointer p)
 {
   set_mark(p);
@@ -4822,13 +4845,13 @@ static int32_t gc(s7_scheme *sc)
   mark_rootlet(sc);
   S7_MARK(sc->args);
   mark_let(sc->envir);
-
-  slot_set_value(sc->error_data, sc->F); 
+  /* slot_set_value(sc->error_data, sc->F); */
   /* the other choice here is to explicitly mark slot_value(sc->error_data) as we do eval_history1/2 below.
    *    in both cases, the values are permanent lists that do not mark impermanent contents.
    *    this will need circular list checks, and can't depend on marked to exit early
    */
-  mark_let(sc->owlet);
+  /* mark_let(sc->owlet); */
+
 #if WITH_HISTORY
   {
     s7_pointer p1, p2;
@@ -4841,6 +4864,7 @@ static int32_t gc(s7_scheme *sc)
       }
   }
 #endif
+  mark_owlet(sc);
 
   S7_MARK(sc->code);
   mark_current_code(sc);
@@ -42998,6 +43022,7 @@ static const char *type_name_from_type(s7_scheme *sc, int32_t typ, int32_t artic
   static const char *inputs[2] =         {"input port",         "an input port"};
   static const char *outputs[2] =        {"output port",        "an output port"};
   static const char *c_objects[2] =      {"c_object",           "a c_object"};
+  static const char *stacks[2] =         {"stack",              "a stack"};
 
   switch (typ)
     {
@@ -43030,7 +43055,8 @@ static const char *type_name_from_type(s7_scheme *sc, int32_t typ, int32_t artic
     case T_MACRO:           return(macros[article]);
     case T_BACRO_STAR:
     case T_BACRO:           return(bacros[article]);
-    case T_CATCH:           return(catches[article]); /* are these 2 possible? */
+    case T_CATCH:           return(catches[article]);
+    case T_STACK:           return(stacks[article]);
     case T_DYNAMIC_WIND:    return(dynamic_winds[article]);
     case T_HASH_TABLE:      return(hash_tables[article]);
     case T_ITERATOR:        return(iterators[article]);
@@ -43447,6 +43473,10 @@ static s7_pointer init_owlet(s7_scheme *sc)
   return(e);
 }
 
+static bool type_is_bad(s7_pointer p)
+{
+  return((is_free(p)) || (unchecked_type(p) >= NUM_TYPES)); /* type is unsigned */
+}
 
 static s7_pointer g_owlet(s7_scheme *sc, s7_pointer args)
 {
@@ -43458,19 +43488,81 @@ It has the additional local variables: error-type, error-data, error-code, error
 It has the additional local variables: error-type, error-data, error-code, error-line, and error-file."
 #endif
   #define Q_owlet s7_make_signature(sc, 1, sc->is_let_symbol)
-  /* if owlet is not copied, (define e (owlet)), e changes as owlet does!
-   */
+  /* if owlet is not copied, (define e (owlet)), e changes as owlet does! */
+
   s7_pointer e, x;
   uint32_t gc_loc;
+
+  /* try_to_call_gc(sc); */
+
+  /* since error-data et al can be set at any time, and owlet can be called at any time, these fields
+   *   can be free cells (or anything) without that representing an error. So, before copying, we need
+   *   to check that all cells (that will be copied) look ok.
+   */
+  for (x = let_slots(sc->owlet); is_slot(x); x = next_slot(x))
+    {
+      s7_pointer val;
+      val = unchecked_slot_value(x);
+      if (type_is_bad(val))
+	slot_set_value(x, sc->F);
+    }
 
   e = let_copy(sc, sc->owlet);
   gc_loc = s7_gc_protect(sc, e);
 
-  /* also make sure the pairs are copied: should be error-data, error-code, and possibly error-history */
+  for (x = let_slots(e); is_slot(x); x = next_slot(x))
+    {
+      s7_pointer val;
+      val = unchecked_slot_value(x);
+      if (type_is_bad(val))
+	slot_set_value(x, sc->F);
+      else
+	{
+	  if (is_pair(val)) 
+	    {
+	      s7_pointer slow;
+	      slow = val;
+	      while (true)
+		{
+		  if ((type_is_bad(car(val))) ||
+		      (type_is_bad(cdr(val))))
+		    {
+		      slot_set_value(x, sc->F);
+		      break;
+		    }
+		  val = cdr(val);
+		  if (type_is_bad(val))
+		    {
+		      slot_set_value(x, sc->F);
+		      break;
+		    }
+		  if (is_pair(val))
+		    {
+		      if ((type_is_bad(car(val))) ||
+			  (type_is_bad(cdr(val))))
+			{
+			  slot_set_value(x, sc->F);
+			  break;
+			}
+		      slow = cdr(slow);
+		      if (slow == val)
+			break;
+		      val = cdr(val);
+		    }
+		  else break;
+		}
+	    }
+	}
+    }
+
+  /* make sure the pairs are copied: should be error-data, error-code, and possibly error-history */
+  sc->gc_off = true;
+
   for (x = let_slots(e); is_slot(x); x = next_slot(x))
     if (is_pair(slot_value(x)))
       slot_set_value(x, protected_list_copy(sc, slot_value(x)));
 
+  sc->gc_off = false;
   s7_gc_unprotect_at(sc, gc_loc);
   return(e);
 }
@@ -63159,6 +63251,7 @@ static inline s7_pointer check_quote(s7_scheme *sc, s7_pointer code)
     }
   if (is_not_null(cdr(code)))             /* (quote . (1 2)) or (quote 1 1) */
     eval_error(sc, "quote: too many arguments ~A", code);
+
 #if 0
   /* the problem here is set-cdr! */
   if ((is_overlaid(code)) &&

@@ -2581,8 +2581,6 @@ GtkWidget *snd_entry_new_with_size(GtkWidget *container, int size)
 }
 
 
-
-
 void g_init_gxsnd(void) 
 {
   Xen_add_to_hook_list(ss->snd_open_file_hook, reflect_file_close_in_sync_w, "sync-open-file-watcher", "sound sync open-file-hook handler");
