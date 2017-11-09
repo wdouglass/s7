@@ -11279,6 +11279,7 @@
 			  (car scope))))))
 		   
 	;; -------- unused-var
+	;;   (eval ...) in the form may have hidden var refs confusing this check
 	(define (unused-var caller head local-var otype)
 	  (let ((vname (var-name local-var)))
 	    (when (and (or (not (equal? head ""))

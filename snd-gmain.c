@@ -52,11 +52,11 @@ static gint window_close(GtkWidget *w, GdkEvent *event, gpointer context)
 }
 
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 static GtkWidget **iconify_active_dialogs = NULL;
 
 static gint window_iconify(GtkWidget *w, GdkEventWindowState *event, gpointer context)
 {
-#if (!GTK_CHECK_VERSION(3, 92, 1))
   int i;
   if ((!ss) || (!(ss->dialogs)))
     return(false);
@@ -91,9 +91,9 @@ static gint window_iconify(GtkWidget *w, GdkEventWindowState *event, gpointer co
 	    }
 	}
     }
-#endif
   return(0);
 }
+#endif
 
 
 static guint auto_update_proc = 0;
@@ -308,8 +308,11 @@ static void startup_funcs(void)
 
   /* trap outer-level Close for cleanup check */
   SG_SIGNAL_CONNECT(main_shell(ss), "delete_event", window_close, NULL);
+
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   /* when iconified, we need to hide any dialogs as well */
   SG_SIGNAL_CONNECT(main_shell(ss), "window_state_event", window_iconify, NULL);
+#endif
 
   ss->graph_cursor = GDK_CURSOR_NEW((GdkCursorType)in_graph_cursor(ss));
   ss->wait_cursor = GDK_CURSOR_NEW(GDK_WATCH);

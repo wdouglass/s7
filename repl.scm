@@ -35,8 +35,7 @@
 			       (string=? text (substring sym 0 text-len)))
 		      (if match
 			  ;; more than one match, save the longest text that all syms match
-			  (let* ((match-len (string-length match))
-				 (min-len (min match-len sym-len)))
+			  (let ((min-len (min (string-length match) sym-len)))
 			    (do ((i text-len (+ i 1)))
 				((or (= i min-len)
 				     (not (char=? (match i) (sym i))))

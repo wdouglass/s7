@@ -3460,16 +3460,16 @@
 	 )
     (hey "  Xg_define_procedure(~A, gxg_~A_w, ~D, ~D, ~D, H_~A, ~A);~%"
 	 (car func) (car func) 
-	 (if (>= cargs max-args) 0 args)
-	 (if (>= cargs max-args) 0 refargs)
-	 (if (>= cargs max-args) 1 0)
+	 (if (>= cargs max-args) 
+             (values 0 0 1)
+             (values args refargs 0))
 	 (car func)
 	 (sig-name (make-signature func)))
     (hay "  s7_define_typed_function(sc, \"~A\", lg_~A, ~D, ~D, ~D, H_~A, ~A);~%"
 	 (car func) (car func) 
-	 (if (>= cargs max-args) 0 args)
-	 (if (>= cargs max-args) 0 refargs)
-	 (if (>= cargs max-args) 1 0)
+	 (if (>= cargs max-args) 
+             (values 0 0 1)
+             (values args refargs 0))
 	 (car func)
 	 (sig-name (make-signature func)))))
 

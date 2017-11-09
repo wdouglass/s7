@@ -873,6 +873,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
   /* this is now the same as s7_dilambda (different args) */
 #endif
 
+/* obsolete names, will be deprecated eventually */
 #define s7_procedure_setter        s7_setter
 #define s7_procedure_documentation s7_documentation
 #define s7_procedure_signature     s7_signature

@@ -1970,8 +1970,11 @@ static s7_scheme *cur_sc = NULL;
 
 #define T_LOCAL_SYMBOL                T_COPY_ARGS
 #define is_local_symbol(p)            ((typeflag(_NFre(p)) & T_LOCAL_SYMBOL) != 0)
+#if (!DEBUGGING)
 #define set_local_symbol(p)           typeflag(_TPair(p)) |= T_LOCAL_SYMBOL
-
+#else
+#define set_local_symbol(p) do {if (is_keyword(car(p))) fprintf(stderr, "local key %s\n", symbol_name(car(p))); typeflag(_TPair(p)) |= T_LOCAL_SYMBOL;} while (0)
+#endif
 
 #define T_GENSYM                      (1 << (TYPE_BITS + 21))
 #define is_gensym(p)                  ((typeflag(_TSym(p)) & T_GENSYM) != 0)
@@ -6367,7 +6370,7 @@ static s7_pointer reuse_as_slot(s7_pointer slot, s7_pointer symbol, s7_pointer v
 #if DEBUGGING
   slot->debugger_bits = 0;
 #endif
-  set_type(slot, T_SLOT);
+  set_type(slot, T_SLOT); /* debugger "unsets line_number" here can be ignored */
   slot_set_symbol(slot, symbol);
   slot_set_value(slot, _NFre(value));
   return(slot);
@@ -28877,7 +28880,7 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
 }
 
 #if DEBUGGING
-static s7_pointer g_is_local_symbol(s7_scheme *sc, s7_pointer p) {return(make_boolean(sc, is_local_symbol(car(p))));}
+static s7_pointer g_is_local_symbol(s7_scheme *sc, s7_pointer p) {return(make_boolean(sc, is_local_symbol(p)));} /* was car(p)?? */
 #endif
 
 static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, int32_t line, const char *func)
@@ -38221,7 +38224,7 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p, e;
   #define H_funclet "(funclet func) tries to return an object's environment"
-  #define Q_funclet s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_procedure_symbol)
+  #define Q_funclet s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_null_symbol), sc->is_procedure_symbol)
 
   /* this procedure gives direct access to a function's closure -- see s7test.scm
    *   for some wild examples.  At least it provides a not-too-kludgey way for several functions
@@ -38242,7 +38245,7 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
 
   e = find_let(sc, p);
   if ((is_null(e)) &&
-      (!is_c_object(p)))
+      (!is_c_object(p))) /* why this complication? */
     return(sc->rootlet);
 
   return(e);

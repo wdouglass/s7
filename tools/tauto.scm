@@ -57,7 +57,7 @@
 
 			;(make-block 2) (block 1.0 2.0 3.0) (block) 
 			#u8(0 1 2) (openlet (inlet 'abs (lambda (x) (- x))))
-			(make-iterator (list 1 2 3)) (make-iterator (string #\1)) #<eof> #r2d((.1 .2) (.3 .4))
+			(make-iterator (list 1 2 3)) (make-iterator "1") #<eof> #r2d((.1 .2) (.3 .4))
 			(dilambda (lambda () 1) (lambda (a) a))
 
 			(mock-number 0) (mock-number 1-i) (mock-number 4/3) (mock-number 2.0)
