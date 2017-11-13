@@ -22190,7 +22190,8 @@
 			     (list 'unsyntax (if (string=? str ",") (read) (string->symbol (substring str 1))))))
 		 
 		 (cons #\& (lambda (str)                      ; ancient Guile code
-			     (string->keyword (substring str 1))))
+			     (and (> (length str) 1)
+				  (string->keyword (substring str 1)))))
 		 
 		 (cons #\\ (lambda (str)
 			     (cond ((assoc str '(("\\x0"        . #\null)

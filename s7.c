@@ -8765,10 +8765,15 @@ static s7_pointer g_string_to_keyword(s7_scheme *sc, s7_pointer args)
 {
   #define H_string_to_keyword "(string->keyword str) prepends ':' to str and defines that as a keyword"
   #define Q_string_to_keyword s7_make_signature(sc, 2, sc->is_keyword_symbol, sc->is_string_symbol)
-
-  if (!is_string(car(args)))
-    method_or_bust_one_arg(sc, car(args), sc->string_to_keyword_symbol, args, T_STRING);
-  return(s7_make_keyword(sc, string_value(car(args))));
+  
+  s7_pointer str;
+  str = car(args);
+  if (!is_string(str))
+    method_or_bust_one_arg(sc, str, sc->string_to_keyword_symbol, args, T_STRING);
+  if ((string_length(str) == 0) ||
+      (string_value(str)[0] == '\0'))
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "a non-null string"), str)));
+  return(s7_make_keyword(sc, string_value(str)));
 }
 
 /* -------------------------------- keyword->symbol -------------------------------- */
@@ -22275,7 +22280,7 @@ static bool string_ci_eq_b(s7_pointer p1, s7_pointer p2)
 static s7_pointer g_string_fill(s7_scheme *sc, s7_pointer args)
 {
   #define H_string_fill "(string-fill! str chr start end) fills the string str with the character chr"
-  #define Q_string_fill s7_make_circular_signature(sc, 3, 4, s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_integer_symbol), sc->is_string_symbol, sc->is_char_symbol, sc->is_integer_symbol)
+  #define Q_string_fill s7_make_circular_signature(sc, 3, 4, s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_integer_symbol), sc->is_string_symbol, sc->is_char_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_boolean_symbol))
 
   s7_pointer x, chr;
   s7_int start = 0, end, byte = 0;
@@ -22791,7 +22796,7 @@ static s7_pointer g_current_output_port(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_set_current_output_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_output_port "(set-current-output-port port) sets the current-output port to port and returns the previous value of the output port"
-  #define Q_set_current_output_port s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_output_port_symbol)
+  #define Q_set_current_output_port s7_make_signature(sc, 2, sc->is_output_port_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
 
   s7_pointer old_port, port;
   old_port = sc->output_port;
@@ -22835,7 +22840,7 @@ static s7_pointer g_current_error_port(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_set_current_error_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_error_port "(set-current-error-port port) sets the current-error port to port and returns the previous value of the error port"
-  #define Q_set_current_error_port s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_output_port_symbol)
+  #define Q_set_current_error_port s7_make_signature(sc, 2, sc->is_output_port_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer old_port, port;
 
   old_port = sc->error_port;
@@ -22981,7 +22986,7 @@ void s7_flush_output_port(s7_scheme *sc, s7_pointer p)
 static s7_pointer g_flush_output_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_flush_output_port "(flush-output-port port) flushes the port"
-  #define Q_flush_output_port s7_make_signature(sc, 2, sc->T, sc->is_output_port_symbol)
+  #define Q_flush_output_port s7_make_signature(sc, 2, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer pt;
 
   if (is_null(args))
@@ -23420,7 +23425,7 @@ static void stderr_display(s7_scheme *sc, const char *s, s7_pointer port)
 static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_write_string "(write-string str port start end) writes str to port."
-  #define Q_write_string s7_make_circular_signature(sc, 3, 4, sc->is_string_symbol, sc->is_string_symbol, sc->is_output_port_symbol, sc->is_integer_symbol)
+  #define Q_write_string s7_make_circular_signature(sc, 3, 4, sc->is_string_symbol, sc->is_string_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol), sc->is_integer_symbol)
   s7_pointer str, port;
   s7_int start = 0, end;
 
@@ -24375,7 +24380,7 @@ static s7_pointer g_read_char(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_write_char(s7_scheme *sc, s7_pointer args)
 {
   #define H_write_char "(write-char char (port (current-output-port))) writes char to the output port"
-  #define Q_write_char s7_make_signature(sc, 3, sc->is_char_symbol, sc->is_char_symbol, sc->is_output_port_symbol)
+  #define Q_write_char s7_make_signature(sc, 3, sc->is_char_symbol, sc->is_char_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer port, chr;
 
   chr = car(args);
@@ -24468,7 +24473,7 @@ static s7_pointer g_read_byte(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_write_byte(s7_scheme *sc, s7_pointer args)
 {
   #define H_write_byte "(write-byte byte (port (current-output-port))): writes byte to the output port"
-  #define Q_write_byte s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_integer_symbol, sc->is_output_port_symbol)
+  #define Q_write_byte s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer port, b;
   s7_int val;
 
@@ -29456,7 +29461,7 @@ void s7_newline(s7_scheme *sc, s7_pointer port)
 static s7_pointer g_newline(s7_scheme *sc, s7_pointer args)
 {
   #define H_newline "(newline (port (current-output-port))) writes a carriage return to the port"
-  #define Q_newline s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_output_port_symbol)
+  #define Q_newline s7_make_signature(sc, 2, sc->is_char_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer port;
 
   if (is_not_null(args))
@@ -29506,7 +29511,7 @@ void s7_write(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 static s7_pointer g_write(s7_scheme *sc, s7_pointer args)
 {
   #define H_write "(write obj (port (current-output-port))) writes (object->string obj) to the output port"
-  #define Q_write s7_make_signature(sc, 3, sc->T, sc->T, sc->is_output_port_symbol)
+  #define Q_write s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer port;
 
   if (is_pair(cdr(args)))
@@ -29553,7 +29558,7 @@ void s7_display(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 static s7_pointer g_display(s7_scheme *sc, s7_pointer args)
 {
   #define H_display "(display obj (port (current-output-port))) prints obj"
-  #define Q_display s7_make_signature(sc, 3, sc->T, sc->T, sc->is_output_port_symbol)
+  #define Q_display s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_boolean_symbol))
   s7_pointer port;
 
   if (is_pair(cdr(args)))
@@ -30768,7 +30773,7 @@ static s7_pointer g_directory_to_list(s7_scheme *sc, s7_pointer args)
   s7_pointer result;
 
   #define H_directory_to_list "(directory->list directory) returns the contents of the directory as a list of strings (filenames)."
-  #define Q_directory_to_list s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_string_symbol)
+  #define Q_directory_to_list s7_make_signature(sc, 2, sc->is_list_symbol, sc->is_string_symbol)   /* can return nil */
 
   name = car(args);
   if (!is_string(name))
@@ -31337,7 +31342,7 @@ static s7_int tree_leaves_i(s7_pointer p) {return(tree_len(cur_sc, p));}
 static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_leaves "(tree-leaves tree) returns the number of leaves in the tree"
-  #define Q_tree_leaves s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_list_symbol)
+  #define Q_tree_leaves s7_make_signature(sc, 2, sc->is_integer_symbol, sc->T)
   return(s7_make_integer(sc, tree_len(sc, car(args))));
 }
 
@@ -31372,7 +31377,7 @@ bool s7_tree_memq(s7_scheme *sc, s7_pointer sym, s7_pointer tree)
 static s7_pointer g_tree_memq(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_memq "(tree-memq obj tree) is a tree-oriented version of memq, but returning #t if the object is in the tree."
-  #define Q_tree_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->is_list_symbol)
+  #define Q_tree_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->T)
   return(make_boolean(sc, s7_tree_memq(sc, car(args), cadr(args))));
 }
 
@@ -31397,7 +31402,7 @@ static bool tree_set_memq(s7_scheme *sc, s7_pointer tree)
 static s7_pointer g_tree_set_memq(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_set_memq "(tree-set-memq symbols tree) returns #t if any of the list of symbols is in the tree"
-  #define Q_tree_set_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->is_list_symbol, sc->is_list_symbol)
+  #define Q_tree_set_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->T)
   s7_pointer syms, p;
   syms = car(args);
   if (!is_pair(syms)) return(sc->F);
@@ -31457,13 +31462,18 @@ static inline s7_int tree_count_at_least(s7_scheme *sc, s7_pointer x, s7_pointer
 static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_count "(tree-count obj tree max-count) returns how many times obj is in tree, stopping at max-count (if specified)"
-  #define Q_tree_count s7_make_signature(sc, 4, sc->is_integer_symbol, sc->T, sc->is_list_symbol, sc->is_integer_symbol)
+  #define Q_tree_count s7_make_signature(sc, 4, sc->is_integer_symbol, sc->T, sc->T, sc->is_integer_symbol)
   s7_pointer obj, tree, count;
 
   obj = car(args);
   tree = cadr(args);
   if (!is_pair(tree))
-    return((obj == tree) ? small_int(1) : small_int(0));
+    {
+      if ((is_pair(cddr(args))) &&
+	  (!is_integer(caddr(args))))
+	return(simple_wrong_type_argument(sc, sc->tree_count_symbol, caddr(args), T_INTEGER));
+      return((obj == tree) ? small_int(1) : small_int(0));
+    }
   if (is_null(cddr(args)))
     return(s7_make_integer(sc, tree_count(sc, obj, tree, 0)));
   count = caddr(args);
@@ -32053,7 +32063,7 @@ static s7_pointer g_list_set_ic(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_list_tail(s7_scheme *sc, s7_pointer args)
 {
   #define H_list_tail "(list-tail lst i) returns the list from the i-th element on"
-  #define Q_list_tail s7_make_signature(sc, 3, sc->is_list_symbol, sc->is_pair_symbol, sc->is_integer_symbol)
+  #define Q_list_tail s7_make_signature(sc, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol) /* #t: (list-tail '(1 . 2) 1) -> 2 */
   s7_pointer lst, p;
   s7_int i, index;
 
@@ -34411,7 +34421,7 @@ static s7_pointer g_vector_to_list(s7_scheme *sc, s7_pointer args)
   s7_int i, start = 0, end;
   s7_pointer p, vec;
   #define H_vector_to_list "(vector->list v start end) returns the elements of the vector v as a list; (map values v)"
-  #define Q_vector_to_list s7_make_circular_signature(sc, 2, 3, sc->is_proper_list_symbol, sc->is_vector_symbol, sc->is_integer_symbol)
+  #define Q_vector_to_list s7_make_circular_signature(sc, 2, 3, sc->is_proper_list_symbol, sc->is_vector_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_boolean_symbol))
 
   vec = car(args);
   if (!s7_is_vector(vec))
@@ -38534,7 +38544,7 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p;
   #define H_signature "(signature obj) returns obj's signature"
-  #define Q_signature s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_boolean_symbol), sc->is_procedure_symbol)
+  #define Q_signature s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_boolean_symbol), sc->T)
 
   p = car(args);
   if (is_symbol(p))
@@ -39539,8 +39549,18 @@ static s7_pointer g_symbol_setter(s7_scheme *sc, s7_pointer args)
   sym = car(args);
   if (!is_symbol(sym))
     method_or_bust_one_arg(sc, sym, sc->symbol_setter_symbol, args, T_SYMBOL);
+
   if (is_keyword(sym))
-    return(sc->F);
+    {
+      if (is_pair(cdr(args)))
+	{
+	  s7_pointer e;
+	  e = cadr(args);
+	  if (!((is_let(e)) || (e == sc->rootlet) || (e == sc->nil)))
+	    return(wrong_type_argument(sc, sc->symbol_setter_symbol, 2, e, T_LET));
+	}
+      return(sc->F);
+    }
 
   if (is_pair(cdr(args)))
     {
@@ -83702,7 +83722,7 @@ s7_scheme *s7_init(void)
                                   ())))))");
 
   s7_eval_c_string(sc, "(define hook-functions                                                                \n\
-                          (let ((+signature+ '(list? procedure?))                                             \n\
+                          (let ((+signature+ '(#t procedure?))                                             \n\
                                 (+documentation+ \"(hook-functions hook) gets or sets the list of functions associated with the hook\")) \n\
                             (dilambda                                                                         \n\
                               (lambda (hook)                                                                  \n\
@@ -83896,6 +83916,10 @@ int main(int argc, char **argv)
  *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
  * syms_tag may need 64-bits -- seems ok at 32 bits so far...
+ * signature 'boolean? is usually specifically #f or #t -- use not perhaps, or specific value: #t #f :readable, but then if 'boolean? is the specific arg?
+ *   ideally anon func in sig: s7_make_sig(..., s7_make_closure(...))? or s7_make_function?
+ *   then the other sig special cases need not be in rootlet etc, but need func name so sig is human-readable, an anonymous named lambda
+ *   integer:real? is just the symbol -- interpreted in lint, so add eq#f eq#t eq:readable?
  *
  * --------------------------------------------------------------
  *
@@ -83924,4 +83948,3 @@ int main(int argc, char **argv)
  * 
  * --------------------------------------------------------------
  */
-
