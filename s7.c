@@ -21806,7 +21806,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
     {
       choice = write_choice(sc, cadr(args));
       if (choice == USE_WRITE_WRONG)
-	method_or_bust(sc, cadr(args), sc->object_to_string_symbol, args, T_BOOLEAN, 2);
+	return(wrong_type_argument_with_type(sc, sc->object_to_string_symbol, 2, cadr(args), s7_make_string_wrapper(sc, "a boolean or :readable")));
 
       if (is_not_null(cddr(args)))
 	{
@@ -31384,6 +31384,27 @@ static s7_pointer g_tree_memq(s7_scheme *sc, s7_pointer args)
 static bool tree_memq_b_pp(s7_pointer sym, s7_pointer tree) {return(s7_tree_memq(cur_sc, sym, tree));}
 
 
+static bool pair_set_memq(s7_scheme *sc, s7_pointer tree)
+{
+  while (true)
+    {
+      s7_pointer p;
+      p = car(tree);
+      if (is_symbol(p))
+	{
+	  if (symbol_is_in_list(sc, p)) 
+	    return(true);
+	}
+      if ((is_pair(p)) &&
+	  (car(p) != sc->quote_symbol) &&
+	  (pair_set_memq(sc, p)))
+	return(true);
+      tree = cdr(tree);
+      if (!is_pair(tree)) break;
+    }
+  return((is_symbol(tree)) && (symbol_is_in_list(sc, tree)));
+}
+
 static bool tree_set_memq(s7_scheme *sc, s7_pointer tree)
 {
   if (is_symbol(tree))
@@ -31391,12 +31412,7 @@ static bool tree_set_memq(s7_scheme *sc, s7_pointer tree)
   if ((!is_pair(tree)) ||
       (car(tree) == sc->quote_symbol))
     return(false);
-  do {
-    if (tree_set_memq(sc, car(tree)))
-      return(true);
-    tree = cdr(tree);
-  } while (is_pair(tree));
-  return((is_symbol(tree)) && (symbol_is_in_list(sc, tree)));
+  return(pair_set_memq(sc, tree));
 }
 
 static s7_pointer g_tree_set_memq(s7_scheme *sc, s7_pointer args)
@@ -83927,12 +83943,12 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 |  615   261   261
  * tref          |      |      | 2372 || 2125 | 1375  1105  1033
  * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053
- * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1496  1496
+ * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433
  * teq           |      |      | 6612 || 2777 | 2129  1927  1928
  * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426
- * lint          |      |      |      || 4041 | 3376  2677  2677
- * lg            |      |      |      || 211  | 161   132.4 132.4
+ * lint          |      |      |      || 4041 | 3376  2677  2672
+ * lg            |      |      |      || 211  | 161   132.4 132.2
  * tform         |      |      | 6816 || 3714 | 3530  2733  2746
  * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918
  * tmap          |      |      |  9.3 || 5279 |       3386  3378

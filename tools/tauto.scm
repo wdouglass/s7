@@ -79,7 +79,7 @@
 (define-constant (autotest func args args-now args-left sig)
   ;; args-left is at least 1, args-now starts at 0, args starts at ()
   ;; (format *stderr* "~A: ~D ~D (~D ~D): ~A~%" func (length args) args-now low args-left args)
-  ;(if (pair? args) (format *stderr* "~A " (car args)))
+  ;; (if (pair? args) (format *stderr* "~A " (car args)))
 
   (call-with-exit
    (lambda (quit)
@@ -93,18 +93,19 @@
 		      (memq type '(wrong-type-arg wrong-number-of-args out-of-range syntax-error io-error
 				   division-by-zero format-error missing-method error invalid-escape-function)))
 		 (quit)))))
-     
+
      (let ((c-args (vector-ref auto-arglists args-now)))
        (copy args c-args)
 
        (let ((p (list-tail c-args args-now))
-	     (checker (and (pair? sig) (car sig))))
+	     (checker (and (pair? sig) (car sig)))) ; see map-values
 	 
 	 (define (call-func1 c)
 	   (when (checker c)
 	     (catch #t 
 	       (lambda () 
 		 (set-car! p c)
+		 ;(format *stderr* "c-args: ~A~%" c-args)
 		 (apply func c-args))
 	       (lambda any 
 		 'error))))
@@ -113,6 +114,7 @@
 	   (catch #t 
 	     (lambda () 
 	       (set-car! p c)
+	       ;(format *stderr* "c-args: ~A~%" c-args)
 	       (apply func c-args))
 	     (lambda any 
 	       'error)))
@@ -123,6 +125,7 @@
 		(set-car! p car-auto-constants)
 		(catch #t
 		  (lambda ()
+		    ;(format *stderr* "c-args: ~A~%" c-args)
 		    (apply func c-args))
 		  (lambda (type info)
 		    (if (or (memq type '(wrong-number-of-args out-of-range syntax-error io-error
@@ -183,6 +186,7 @@
 		  *mock-number* *mock-pair* *mock-string* *mock-char* *mock-vector*
 		  *mock-symbol* *mock-port* *mock-hash-table* mp ms mv
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
+		  tree-count ; signature is kinda silly here
 
 		  c-define-1 apropos map-values
 		  outlet-member make-method make-object))
@@ -201,7 +205,7 @@
 		    ;(if (not (signature f)) (format *stderr* "~A~%" sym))
 		    (if (< top bottom)
 			(format *stderr* ";~A (bottom: ~A, top: ~A)...~%" sym bottom top))
-					;(format *stderr* ";~A...~%" sym)
+			;(format *stderr* ";~A...~%" sym))
 		    (set! low bottom)
 		    (if (positive? (cdr argn))
 			(let ((sig (cond ((eq? sym 'append)
