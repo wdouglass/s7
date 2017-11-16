@@ -41,8 +41,9 @@
    (lambda (caller+file)
      (system "rm callg*")
      (format *stderr* "~%~NC~%~NC ~A ~NC~%~NC~%" 40 #\- 16 #\- (cadr caller+file) 16 #\- 40 #\-)
-     (system (format #f "/home/bil/test/valgrind-3.12.0/vg-in-place --tool=callgrind ./~A ~A" (car caller+file) (cadr caller+file)))
-     ;; new valgrind blathers endlessly -- I made this change:
+     ;(system (format #f "/home/bil/test/valgrind-3.12.0/vg-in-place --tool=callgrind ./~A ~A" (car caller+file) (cadr caller+file)))
+     (system (format #f "valgrind --tool=callgrind ./~A ~A" (car caller+file) (cadr caller+file)))
+     ;; valgrind 3.12 blathers endlessly -- I made this change:
      ;;   /home/bil/test/valgrind-3.12.0/coregrind/m_syswrap/syswrap-generic.c
      ;;   comment out lines 1333 to 1341
      (let ((outfile (cdr (assoc (cadr caller+file) file-names))))

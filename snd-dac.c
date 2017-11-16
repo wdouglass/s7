@@ -3671,3 +3671,10 @@ If it returns " PROC_TRUE ", the sound is not played."
   s7_symbol_set_documentation(s7, ss->with_tracking_cursor_symbol, "*with-tracking-cursor*: #t if cursor always moves along in waveform display as sound is played");
 #endif
 }
+
+/* dac loop [need start/end of loop in dac_info, reader goes to start when end reached (requires rebuffering)
+ *   looper does not stop/restart -- just keep going]
+ *   play_selection_1 could put ends somewhere, set ends to NO_END_SPECIFIED, dac_loop_sample can
+ *   use begs/other-ends to get loop points, so free_dac_info does not need to restart the loop(?)
+ *   If start/end selection changed while playing, are these loop points updated?
+ */

@@ -625,11 +625,11 @@ typedef struct {
 } opt_info;
 
 typedef struct {
-  s7_pointer initial_slot;      /* for built-in symbols (unlet) */
-  uint32_t type;                /* for is_type opts */
+  s7_pointer initial_slot;        /* for built-in symbols (unlet) */
+  uint32_t type;                  /* for is_type opts */
 } symbol_info_t;
 
-#define symbol_tag_t uint32_t
+#define symbol_tag_t uint32_t     /* syms_tag may need 64-bits -- seems ok at 32 bits so far (16 bits was too few) */
 
 /* cell structure */
 typedef struct s7_cell {
@@ -39724,8 +39724,7 @@ static s7_pointer g_is_eq(s7_scheme *sc, s7_pointer args)
   #define Q_is_eq pcl_bt
   return(make_boolean(sc, ((car(args) == cadr(args)) ||
 			   ((is_unspecified(car(args))) && (is_unspecified(cadr(args)))))));
-  /* (eq? (apply apply apply values '(())) #<unspecified>) should return #t
-   */
+  /* (eq? (apply apply apply values '(())) #<unspecified>) should return #t */
 }
 
 
@@ -39739,7 +39738,7 @@ bool s7_is_eqv(s7_pointer a, s7_pointer b)
   if (type(a) != type(b))
     return(false);
 
-  if ((a == b) && (!is_number(a)))
+  if ((a == b) && (!is_number(a)))                   /* if a is NaN, a == b doesn't mean (eqv? a b) */
     return(true);
 
   if (is_string(a))
@@ -42328,33 +42327,33 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 
     case T_HASH_TABLE:
       {
-	s7_pointer let;
+	s7_pointer let, func_sym;
 	let = s7_inlet(sc, s7_list(sc, 10, sc->value_symbol, obj,
 				   sc->type_symbol, sc->is_hash_table_symbol,
 				   sc->length_symbol, s7_length(sc, obj),
 				   s7_make_symbol(sc, "entries"), s7_make_integer(sc, hash_table_entries(obj)),
 				   s7_make_symbol(sc, "locked"), s7_make_boolean(sc, hash_table_checker_locked(obj))));
-
+	func_sym = s7_make_symbol(sc, "function");
 	if ((hash_table_checker(obj) == hash_eq) ||
 	    (hash_table_checker(obj) == hash_c_function) ||
 	    (hash_table_checker(obj) == hash_closure) ||
 	    (hash_table_checker(obj) == hash_equal_eq) ||
 	    (hash_table_checker(obj) == hash_equal_syntax) ||
 	    (hash_table_checker(obj) == hash_symbol))
-	  s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->is_eq_symbol);
+	  s7_varlet(sc, let, func_sym, sc->is_eq_symbol);
 	else
 	  {
 	    if (hash_table_checker(obj) == hash_eqv) 
-	      s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->is_eqv_symbol);
+	      s7_varlet(sc, let, func_sym, sc->is_eqv_symbol);
 	    else
 	      {
 		if ((hash_table_checker(obj) == hash_equal) || 
 		    (hash_table_checker(obj) == hash_empty))
-		  s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->is_equal_symbol);
+		  s7_varlet(sc, let, func_sym, sc->is_equal_symbol);
 		else
 		  {
 		    if (hash_table_checker(obj) == hash_morally_equal) 
-		      s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->is_morally_equal_symbol);
+		      s7_varlet(sc, let, func_sym, sc->is_morally_equal_symbol);
 		    else
 		      {
 			if ((hash_table_checker(obj) == hash_number) ||
@@ -42362,24 +42361,24 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 			    (hash_table_checker(obj) == hash_float) ||
 			    (hash_table_checker(obj) == hash_equal_real) ||
 			    (hash_table_checker(obj) == hash_equal_complex))
-			  s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->eq_symbol);
+			  s7_varlet(sc, let, func_sym, sc->eq_symbol);
 			else
 			  {
 			    if (hash_table_checker(obj) == hash_string) 
-			      s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->string_eq_symbol);
+			      s7_varlet(sc, let, func_sym, sc->string_eq_symbol);
 			    else
 			      {
 				if (hash_table_checker(obj) == hash_char) 
-				  s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->char_eq_symbol);
+				  s7_varlet(sc, let, func_sym, sc->char_eq_symbol);
 #if (!WITH_PURE_S7)
 				else
 				  {
 				    if (hash_table_checker(obj) == hash_ci_char) 
-				      s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->char_ci_eq_symbol);
+				      s7_varlet(sc, let, func_sym, sc->char_ci_eq_symbol);
 				    else
 				      {
 					if (hash_table_checker(obj) == hash_ci_string) 
-					  s7_varlet(sc, let, s7_make_symbol(sc, "function"), sc->string_ci_eq_symbol);
+					  s7_varlet(sc, let, func_sym, sc->string_ci_eq_symbol);
 				      }}
 #endif
 			      }}}}}}
@@ -42389,7 +42388,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_LET:
       {
 	s7_pointer let;
-	let = s7_inlet(sc, s7_list(sc, 10, sc->value_symbol, obj,
+	let = s7_inlet(sc, s7_list(sc, 10, 
+				   sc->value_symbol, obj,
 				   sc->type_symbol, sc->is_let_symbol,
 				   sc->length_symbol, s7_length(sc, obj),
 				   s7_make_symbol(sc, "open"), s7_make_boolean(sc, has_methods(obj)),
@@ -44133,9 +44133,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	    (catcher(sc, i, type, info, &reset_error_hook)))
 	  {
 	    if (sc->longjmp_ok) longjmp(sc->goto_start, CATCH_JUMP);
-	    /* all the rest of the code expects s7_error to jump, not return, 
-	     *   so presumably if we get here, we're in trouble -- try to send out an error message
-	     */
+	    /* all the rest of the code expects s7_error to jump, not return, so presumably if we get here, we're in trouble */
 	    /* return(type); */
 	  }
       }
@@ -55967,7 +55965,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       return(splice_in_values(sc, args));
       
     case OP_EXPANSION:
-      /* we get here if a reader-macro (define-expansion) returned multiple values.
+      /* we get here if a reader-macro (define-expansion) returns multiple values.
        *    these need to be read in order into the current reader lists (we'll assume OP_READ_LIST is next in the stack.
        *    and that it will be expecting the next arg entry in sc->value).
        */
@@ -61916,8 +61914,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 {
   s7_pointer expr;
   body_t result = VERY_SAFE_BODY;
-
-  if (!is_pair(x)) return(result);
+#if DEBUGGING
+  if (!is_pair(x)) {fprintf(stderr, "form_is_safe x is not a pair! %s\n", DISPLAY(x)); abort();}
+#endif
   expr = car(x);
   if (is_syntactic_symbol(expr))
     {
@@ -62066,9 +62065,12 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 		if ((!is_pair(car(p))) ||
 		    (!is_pair(cdar(p))))
 		  return(UNSAFE_BODY);
-		result = min_body(result, form_is_safe(sc, sc->F, cadar(p), main_args, false));
-		if (result == UNSAFE_BODY)
-		  return(UNSAFE_BODY);
+		if (is_pair(cadar(p)))
+		  {
+		    result = min_body(result, form_is_safe(sc, sc->F, cadar(p), main_args, false));
+		    if (result == UNSAFE_BODY)
+		      return(UNSAFE_BODY);
+		  }
 	      }
 	    return(min_body(result, body_is_safe(sc, sc->F, cddr(x), main_args, at_end)));
 	  }
@@ -62182,8 +62184,10 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 		    cancel_sym(sc, car(do_var), top);
 		    top = add_sym(sc, car(do_var), top);
 		    
-		    result = min_body(result, form_is_safe(sc, func, cadr(do_var), top, false));
-		    if (is_pair(cddr(do_var)))
+		    if (is_pair(cadr(do_var)))
+		      result = min_body(result, form_is_safe(sc, func, cadr(do_var), top, false));
+		    if ((is_pair(cddr(do_var))) &&
+			(is_pair(caddr(do_var))))
 		      result = min_body(result, form_is_safe(sc, func, caddr(do_var), top, false));
 		    if (result == UNSAFE_BODY) 
 		      {
@@ -83887,12 +83891,9 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * s7:
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  *
- * gtk_box_pack* has changed -- many uses!
- * gtk4: no draw signal -- need to set the draw func
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
  *     "The window 0x5555564dab00 already has a drawing context. You cannot call gdk_window_begin_draw_frame() without calling gdk_window_end_draw_frame() first."
@@ -83901,23 +83902,18 @@ int main(int argc, char **argv)
  *   even with this check (make_cairo in snd-gutils.c), it still crashes:
  *   if ((last_context) && (GDK_IS_DRAWING_CONTEXT(last_context)) && (gdk_drawing_context_is_valid(last_context)) && (win == gdk_drawing_context_get_window(last_context)))
  *     gdk_window_end_draw_frame(win, last_context);
- *   for gtk 4:
- *     all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
- *     iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
+ * for gtk 4:
+ *   all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
+ *   iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
+ *   gtk_box_pack* has changed -- many uses!
+ *   no draw signal -- need to set the draw func
+ *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *
- * Snd:
- * dac loop [need start/end of loop in dac_info, reader goes to start when end reached (requires rebuffering)
- *   looper does not stop/restart -- just keep going]
- *   play_selection_1 could put ends somewhere, set ends to NO_END_SPECIFIED, dac_loop_sample can
- *   use begs/other-ends to get loop points, so free_dac_info does not need to restart the loop(?)
- *   If start/end selection changed while playing, are these loop points updated?
- *
- * gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  * the old mus-audio-* code needs to use play or something, especially bess*
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
- * port to Snd: dlocsig.html
+ * port to Snd: ~/clm/dlocsig.html
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
@@ -83930,37 +83926,34 @@ int main(int argc, char **argv)
  * c_object type table entries should also be s7_function, reported by object->let perhaps [and (obj 'reverse) -> type table reverse wrapped?]
  *   wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
  *
- * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct)
- * syms_tag may need 64-bits -- seems ok at 32 bits so far...
- * signature 'boolean? is usually specifically #f or #t -- use not perhaps, or specific value: #t #f :readable, but then if 'boolean? is the specific arg?
- *   ideally anon func in sig: s7_make_sig(..., s7_make_closure(...))? or s7_make_function?
- *   then the other sig special cases need not be in rootlet etc, but need func name so sig is human-readable, an anonymous named lambda
- *   integer:real? is just the symbol -- interpreted in lint, so add eq#f eq#t eq:readable?
+ * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct) -- what cases?
+ * (let ((v (vector 1))) (set! (v 0) (values 1 2))): error: vector-set! argument 1, 1, is an integer but should be a vector? (similarly fv iv)
+ * (let ((p (list 1))) (set! (p 0) (values 1 2))): error: can't list-set! 1 (it is immutable)
  *
  * --------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  | 17.4  17.8  17.9
- * tmac          |      |      |      || 9052 |  615   261   261
- * tref          |      |      | 2372 || 2125 | 1375  1105  1033
- * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053
- * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433
- * teq           |      |      | 6612 || 2777 | 2129  1927  1928
- * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426
- * lint          |      |      |      || 4041 | 3376  2677  2672
- * lg            |      |      |      || 211  | 161   132.4 132.2
- * tform         |      |      | 6816 || 3714 | 3530  2733  2746
- * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918
- * tmap          |      |      |  9.3 || 5279 |       3386  3378
- * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964
- * tsort         |      |      |      || 8584 | 4869  4012  4012
- * titer         |      |      |      || 5971 | 5224  4537  4537
- * bench         |      |      |      || 7012 | 6378  5077  5077
- * thash         |      |      | 50.7 || 8778 | 8488  7531  7541
- * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8  11.8
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4  38.5
- *                                    || 139  | 129   81.8  81.9
+ * tmac          |      |      |      || 9052 |  615   261   261   263
+ * tref          |      |      | 2372 || 2125 | 1375  1105  1033  1036
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053  1168
+ * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433  1457
+ * teq           |      |      | 6612 || 2777 | 2129  1927  1928  1931
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2126
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426  2467
+ * lint          |      |      |      || 4041 | 3376  2677  2672  2700
+ * lg            |      |      |      || 211  | 161   132.4 132.2 133.3
+ * tform         |      |      | 6816 || 3714 | 3530  2733  2746  2762
+ * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2978
+ * tmap          |      |      |  9.3 || 5279 |       3386  3378  3445
+ * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964  3966
+ * tsort         |      |      |      || 8584 | 4869  4012  4012  4111
+ * titer         |      |      |      || 5971 | 5224  4537  4537  4646
+ * bench         |      |      |      || 7012 | 6378  5077  5077  5093
+ * thash         |      |      | 50.7 || 8778 | 8488  7531  7541  7697
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8  11.8  11.8
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8  18.8
+ * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4  38.5  40.4
+ *                                    || 139  | 129   81.8  81.9  85.9
  * 
  * --------------------------------------------------------------
  */
