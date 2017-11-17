@@ -249,9 +249,9 @@
 					 (eq? (car sig) (cadr sig))))
 			       sig)))
 		(set! cyclic (not (= len (length sig)))))
-	      (set! sig (reverse sig))
-	      (unless (signatures sig) ; it's not in our collection yet
-		(let ((pl (make-string (+ (if cyclic 4 3) (length sig))))
+	      (set! sig (cons cyclic (reverse sig)))      ; need to include cyclic in key else trailing same-type args are dropped from the signature
+	      (unless (signatures sig)                    ; it's not in our collection yet
+		(let ((pl (make-string (+ (if cyclic 3 2) (length sig))))
 		      (loc (if cyclic 4 3)))
 		  (set! (pl 0) #\p) 
 		  (if cyclic
@@ -264,7 +264,7 @@
 				      (assq 't sig-symbols))))
 		       (set-cdr! count (+ (cdr count) 1)))
 		     (set! loc (+ loc 1)))
-		   sig)
+		   (cdr sig))
 		  (set! (signatures sig) pl)))
 	      sig))))
       
@@ -473,10 +473,11 @@
 	(format p "~%")
 	(for-each
 	 (lambda (sig)
-	   (let ((cyclic (char=? ((cdr sig) 1) #\c)))
+	   (let ((siglen (length (cdar sig)))
+		 (cyclic (char=? ((cdr sig) 1) #\c)))
 	     (format p (if cyclic 
-			   (values "    ~A = s7_make_circular_signature(sc, ~D, ~D" (cdr sig) (- (length (car sig)) 1) (length (car sig)))
-			   (values "    ~A = s7_make_signature(sc, ~D" (cdr sig) (length (car sig)))))
+			   (values "    ~A = s7_make_circular_signature(sc, ~D, ~D" (cdr sig) (- siglen 1) siglen)
+			   (values "    ~A = s7_make_signature(sc, ~D" (cdr sig) siglen)))
 	     (format p "~{~^, ~C~}" (substring (cdr sig) (if cyclic 4 3)))
 	     (format p ");~%")))
 	 signatures)

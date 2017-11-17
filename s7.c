@@ -31989,8 +31989,12 @@ static s7_pointer g_list_set_1(s7_scheme *sc, s7_pointer lst, s7_pointer args, i
     }
   if (is_null(cddr(args)))
     set_car(p, cadr(args));
-  else return(g_list_set_1(sc, car(p), cdr(args), arg_num + 1));
-
+  else 
+    {
+      if (!s7_is_pair(car(p)))
+	return(s7_wrong_number_of_args_error(sc, "too many args for list-set!: ~S", args));
+      return(g_list_set_1(sc, car(p), cdr(args), arg_num + 1));
+    }
   return(cadr(args));
 }
 
@@ -35023,6 +35027,8 @@ static s7_pointer g_vector_set(s7_scheme *sc, s7_pointer args)
       if (is_not_null(cdddr(args)))
 	{
 	  set_car(sc->temp_cell_2, vector_getter(vec)(sc, vec, index));
+	  if (!s7_is_vector(car(sc->temp_cell_2)))
+	    return(s7_wrong_number_of_args_error(sc, "too many args for vector-set!: ~S", args));
 	  set_cdr(sc->temp_cell_2, cddr(args));
 	  return(g_vector_set(sc, sc->temp_cell_2));
 	}
@@ -42873,8 +42879,12 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
 		      if ((notes) && (notes != newstr) && (is_let(e)) && (e != sc->rootlet)) free(notes); /* double free somehow?? */
 
 		      newlen = strlen(newstr) + 1 + ((str) ? strlen(str) : 0);
-		      codestr = (char *)malloc(newlen * sizeof(char));
-		      snprintf(codestr, newlen, "%s%s", (str) ? str : "", newstr);
+		      if (newlen > 0)
+			{
+			  codestr = (char *)malloc(newlen * sizeof(char));
+			  snprintf(codestr, newlen, "%s%s", (str) ? str : "", newstr);
+			}
+		      else codestr = NULL;
 		      if (str) free(str);
 		      free(newstr);
 		      str = codestr;
@@ -42926,7 +42936,7 @@ line to be preceded by a semicolon."
 	      if (s7_is_integer(car(args)))
 		{
 		  code_cols = s7_integer(car(args));
-		  if ((code_cols <= 8) || (code_cols > s7_int32_max))
+		  if ((code_cols <= 8) || (code_cols > 1024))
 		    code_cols = 50;
 		  args = cdr(args);
 		  if (!is_null(args))
@@ -45054,7 +45064,7 @@ pass (rootlet):\n\
       else sc->envir = e;
     }
   sc->code = car(args);
-  if (sc->safety > NO_SAFETY)
+  if ((sc->safety > NO_SAFETY) && (is_pair(sc->code)))
     {
       if (cyclic_sequences(sc, sc->code, false) == sc->T)
 	return(wrong_type_argument_with_type(sc, sc->eval_symbol, 1, sc->code, a_proper_list_string));
@@ -55835,7 +55845,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       return(car(x));
       
       /* in the next set, the main evaluator branches blithely assume no multiple-values,
-       *   and if it happens anyway, we vector to a different branch here
+       *   and if it happens anyway, we go to a different branch here
        */
     case OP_EVAL_ARGS_AAP_1:
       vector_element(sc->stack, top) = (s7_pointer)OP_EVAL_ARGS_AAP_MV;
@@ -83925,10 +83935,7 @@ int main(int argc, char **argv)
  * maybe pass \u... through in read_constant_string unchanged, or read in s7??  no worse than \x..;
  * c_object type table entries should also be s7_function, reported by object->let perhaps [and (obj 'reverse) -> type table reverse wrapped?]
  *   wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
- *
  * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct) -- what cases?
- * (let ((v (vector 1))) (set! (v 0) (values 1 2))): error: vector-set! argument 1, 1, is an integer but should be a vector? (similarly fv iv)
- * (let ((p (list 1))) (set! (p 0) (values 1 2))): error: can't list-set! 1 (it is immutable)
  *
  * --------------------------------------------------------------
  *
