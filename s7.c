@@ -1135,9 +1135,8 @@ struct s7_scheme {
 
   /* *s7* fields */
   s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol,
-             free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, c_objects_symbol, float_format_precision_symbol,
+             free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol,
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
-             strings_symbol, vectors_symbol, input_ports_symbol, output_ports_symbol, continuations_symbol, hash_tables_symbol, gensyms_symbol,
              catches_symbol, exits_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
              hash_table_float_epsilon_symbol, morally_equal_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol,
@@ -23367,7 +23366,7 @@ static void file_display(s7_scheme *sc, const char *s, s7_pointer port)
 
 static void file_write_string(s7_scheme *sc, const char *str, int32_t len, s7_pointer pt)
 {
-  int32_t new_len;
+  uint32_t new_len;
   new_len = port_position(pt) + len;
   if (new_len >= PORT_DATA_SIZE)
     {
@@ -24062,7 +24061,7 @@ static s7_pointer g_open_output_file(s7_scheme *sc, s7_pointer args)
   return(s7_open_output_file(sc, string_value(name), "w"));
 }
 
-static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, int32_t len)
+static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, uint32_t len)
 {
   s7_pointer x;
   new_cell(sc, x, T_INPUT_PORT);
@@ -24131,7 +24130,7 @@ static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
  *   64 is much slower (realloc dominates)
  */
 
-static s7_pointer open_output_string(s7_scheme *sc, int32_t len)
+static s7_pointer open_output_string(s7_scheme *sc, uint32_t len)
 {
   s7_pointer x;
   new_cell(sc, x, T_OUTPUT_PORT);
@@ -26677,7 +26676,7 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 		       *   readable version could be: open file, read-char to the current port_position.
 		       *   s7_port_filename(port) has the char* name if any.
 		       */
-		      int32_t data_len;
+		      uint32_t data_len;
 		      data_len = port_data_size(obj) - port_position(obj);
 		      if (data_len > 100)
 			{
@@ -29368,7 +29367,7 @@ static s7_pointer format_ports = NULL;
 static s7_pointer open_format_port(s7_scheme *sc)
 {
   s7_pointer x;
-  int32_t len;
+  uint32_t len;
 
   if (format_ports)
     {
@@ -34758,19 +34757,6 @@ a vector that points to the same elements as the original-vector but with differ
   return(x);
 }
 
-
-static s7_pointer make_vector_wrapper(s7_scheme *sc, s7_int size, s7_pointer *elements)
-{
-  s7_pointer x;
-  new_cell(sc, x, T_VECTOR | T_SAFE_PROCEDURE);
-  vector_length(x) = size;
-  vector_elements(x) = elements;
-  vector_getter(x) = default_vector_getter;
-  vector_setter(x) = default_vector_setter;
-  vector_dimension_info(x) = NULL;
-  /* don't add_vector -- no need for sweep to see this */
-  return(x);
-}
 
 static s7_pointer make_subvector(s7_scheme *sc, s7_pointer v)
 {
@@ -43471,7 +43457,6 @@ static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
 #define remembered_line_number(Line) ((Line) & 0xfffff)
 #define remembered_file_name(Line)   ((((Line) >> 20) <= sc->file_names_top) ? sc->file_names[Line >> 20] : sc->F)
 /* this gives room for 4000 files each of 1000000 lines */
-
 
 static int32_t remember_file_name(s7_scheme *sc, const char *file)
 {
@@ -81166,15 +81151,6 @@ static void init_s7_let(s7_scheme *sc)
   sc->gc_protected_objects_symbol =          s7_let_field(sc, "gc-protected-objects");
   set_immutable(sc->gc_protected_objects_symbol);
 
-  sc->input_ports_symbol =                   s7_let_field(sc, "input-ports");
-  sc->output_ports_symbol =                  s7_let_field(sc, "output-ports");
-  sc->strings_symbol =                       s7_let_field(sc, "strings");
-  sc->gensyms_symbol =                       s7_let_field(sc, "gensyms");
-  sc->vectors_symbol =                       s7_let_field(sc, "vectors");
-  sc->hash_tables_symbol =                   s7_let_field(sc, "hash-tables");
-  sc->continuations_symbol =                 s7_let_field(sc, "continuations");
-
-  sc->c_objects_symbol =                     s7_let_field(sc, "c-objects");
   sc->file_names_symbol =                    s7_let_field(sc, "file-names");
   sc->rootlet_size_symbol =                  s7_let_field(sc, "rootlet-size");
   sc->c_types_symbol =                       s7_let_field(sc, "c-types");
@@ -81224,6 +81200,11 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 #ifdef __linux__
   struct rusage info;
   struct timeval ut;
+#endif
+
+  if (!is_output_port(sc->output_port)) return(sc->F); /* might be #f */
+
+#ifdef __linux__
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
   n = snprintf(buf, 1024, "process size: %" PRId64 ", time: %ld.%d\n", (s7_int)(info.ru_maxrss * 1024), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
@@ -81429,25 +81410,18 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->initial_string_port_length_symbol)                      /* initial-string-port-length */
     return(s7_make_integer(sc, sc->initial_string_port_length));
 
-  if (sym == sc->input_ports_symbol)                                     /* input-ports */
-    return(make_vector_wrapper(sc, sc->input_ports->loc, sc->input_ports->list));
-  if (sym == sc->output_ports_symbol)                                    /* output-ports */
-    return(make_vector_wrapper(sc, sc->output_ports->loc, sc->output_ports->list));
-  if (sym == sc->strings_symbol)                                         /* strings */
-    return(make_vector_wrapper(sc, sc->strings->loc, sc->strings->list));
-  if (sym == sc->gensyms_symbol)                                         /* gensyms */
-    return(make_vector_wrapper(sc, sc->gensyms->loc, sc->gensyms->list));
-  if (sym == sc->vectors_symbol)                                         /* vectors */
-    return(make_vector_wrapper(sc, sc->vectors->loc, sc->vectors->list));
-  if (sym == sc->hash_tables_symbol)                                     /* hash-tables */
-    return(make_vector_wrapper(sc, sc->hash_tables->loc, sc->hash_tables->list));
-  if (sym == sc->continuations_symbol)                                   /* continuations */
-    return(make_vector_wrapper(sc, sc->continuations->loc, sc->continuations->list));
-  if (sym == sc->c_objects_symbol)                                       /* c-objects */
-    return(make_vector_wrapper(sc, sc->c_objects->loc, sc->c_objects->list));
-
   if (sym == sc->file_names_symbol)                                      /* file-names (loaded files) */
-    return(make_vector_wrapper(sc, sc->file_names_top, sc->file_names));
+    {
+      int32_t i;
+      s7_pointer p;
+      sc->w = sc->nil;
+      for (i = 0; i <= sc->file_names_top; i++)
+	sc->w = cons(sc, sc->file_names[i], sc->w);
+      p = sc->w;
+      sc->w = sc->nil;
+      return(p);
+    }
+
   if (sym == sc->c_types_symbol)                                         /* c-types */
     {
       s7_pointer res;
@@ -81613,19 +81587,19 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->morally_equal_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->morally_equal_float_epsilon = s7_real(val); return(val);}
+      if (s7_is_real(val)) {sc->morally_equal_float_epsilon = real_to_double(sc, val, "(*s7* 'morally-equal-float-epsilon)"); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->hash_table_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->hash_table_float_epsilon = s7_real(val); return(val);}
+      if (s7_is_real(val)) {sc->hash_table_float_epsilon = real_to_double(sc, val, "(*s7* 'hash-table-float-epsilon)"); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->default_rationalize_error_symbol)
     {
-      if (s7_is_real(val)) {sc->default_rationalize_error = real_to_double(sc, val, "set! default-rationalize-error"); return(val);}
+      if (s7_is_real(val)) {sc->default_rationalize_error = real_to_double(sc, val, "(*s7* 'default-rationalize-error)"); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
