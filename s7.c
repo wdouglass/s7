@@ -10128,7 +10128,7 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x, bool with_error)
 	s7_int numer = 0, denom = 1;
 	s7_double val;
 
-	val = s7_real(x);
+	val = real(x); /* no fall through */
 	if ((is_inf(val)) || (is_NaN(val)))
 	  {
 	    if (with_error)
@@ -10241,13 +10241,25 @@ s7_int s7_integer(s7_pointer p)
 }
 
 
-s7_double s7_real(s7_pointer p)
+s7_double s7_real(s7_pointer x)
 {
+  /* s7_is_real inlcudes ratios and integers, so s7_real should do the same, 18-Nov-17 */
+  if (is_t_real(x))
+    return(real(x));
+
+  switch (type(x))
+    {
+    case T_INTEGER:     return((s7_double)integer(x));
+    case T_RATIO:       return((s7_double)numerator(x) / (s7_double)denominator(x));
+    case T_REAL:        return(real(x));
 #if WITH_GMP
-  if (is_t_big_real(p))
-    return((s7_double)mpfr_get_d(big_real(p), GMP_RNDN));
+    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
+    case T_BIG_RATIO:   return((s7_double)((long double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
+					   (long double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
-  return(real(p));
+    }
+  return(0.0);
 }
 
 
@@ -10611,7 +10623,7 @@ static char *number_to_string_base_10(s7_pointer obj, int32_t width, int32_t pre
 	  frmt = (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e");
 	else frmt = (float_choice == 'g') ? "%*.*Lg" : ((float_choice == 'f') ? "%*.*Lf" : "%*.*Le");
 
-	len = snprintf(num_to_str, num_to_str_size - 4, frmt, width, precision, s7_real(obj)); /* -4 for floatify */
+	len = snprintf(num_to_str, num_to_str_size - 4, frmt, width, precision, real(obj)); /* -4 for floatify */
 	(*nlen) = len;
 	floatify(num_to_str, nlen);
       }
@@ -10748,7 +10760,7 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32_t 
 	bool sign = false;
 	char n[128], d[256];
 
-	x = s7_real(obj);
+	x = real(obj);
 
 	if (is_NaN(x))
 	  return(copy_string_with_length("nan.0", *nlen = 5));
@@ -10911,10 +10923,10 @@ static s7_pointer g_number_to_string_1(s7_scheme *sc, s7_pointer args, bool temp
        */
       if (radix == 10)
 	{
-	  if (is_real(x))
+	  if (is_t_real(x))
 	    {
 	      s7_double val;
-	      val = fabs(s7_real(x));
+	      val = fabs(real(x));
 	      if ((val > (s7_int32_max / 4)) || (val < 1.0e-6))
 		size += 4;
 	    }
@@ -12427,8 +12439,7 @@ static s7_pointer g_rationalize(s7_scheme *sc, s7_pointer args)
 	s7_double rat;
 	s7_int numer = 0, denom = 1;
 
-	rat = real_to_double(sc, x, "rationalize");
-
+	rat = s7_real(x); /* possible fall through from above */
 	if ((is_NaN(rat)) || (is_inf(rat)))
 	  return(wrong_type_argument_with_type(sc, sc->rationalize_symbol, 1, x, a_normal_real_string));
 
@@ -12798,7 +12809,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	    }
 	  if ((s7_is_real(x)) &&
 	      (s7_is_positive(x)))
-	    return(make_real(sc, log(real_to_double(sc, x, "log")) * LOG_2));
+	    return(make_real(sc, log(s7_real(x)) * LOG_2));
 	  return(s7_from_c_complex(sc, clog(s7_to_c_complex(x)) * LOG_2));
 	}
 
@@ -12837,7 +12848,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 		return(make_integer(sc, ires));   /* (log 8 2) -> 3 or (log 1/8 2) -> -3 */
 	      return(make_real(sc, res));         /* perhaps use rationalize here? (log 2 8) -> 1/3 */
 	    }
-	  return(make_real(sc, log(real_to_double(sc, x, "log")) / log(real_to_double(sc, y, "log"))));
+	  return(make_real(sc, log(s7_real(x)) / log(s7_real(y))));
 	}
       return(s7_from_c_complex(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
     }
@@ -12845,8 +12856,8 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
   if (s7_is_real(x))
     {
       if (s7_is_positive(x))
-	return(make_real(sc, log(real_to_double(sc, x, "log"))));
-      return(s7_make_complex(sc, log(-real_to_double(sc, x, "log")), M_PI));
+	return(make_real(sc, log(s7_real(x))));
+      return(s7_make_complex(sc, log(-s7_real(x)), M_PI));
     }
   return(s7_from_c_complex(sc, clog(s7_to_c_complex(x))));
 }
@@ -13122,7 +13133,7 @@ static s7_pointer g_atan(s7_scheme *sc, s7_pointer args)
 
 	case T_RATIO:
 	case T_REAL:
-	  return(make_real(sc, atan(real_to_double(sc, x, "atan"))));
+	  return(make_real(sc, atan(s7_real(x))));
 
 	case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
@@ -13143,8 +13154,8 @@ static s7_pointer g_atan(s7_scheme *sc, s7_pointer args)
   if (!s7_is_real(y))
     method_or_bust(sc, y, sc->atan_symbol, args, T_REAL, 2);
   
-  x1 = real_to_double(sc, x, "atan");
-  x2 = real_to_double(sc, y, "atan");
+  x1 = s7_real(x);
+  x2 = s7_real(y);
   return(make_real(sc, atan2(x1, x2)));
 }
 
@@ -13166,7 +13177,7 @@ static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
 
     case T_REAL:
     case T_RATIO:
-      return(make_real(sc, sinh(real_to_double(sc, x, "sinh"))));
+      return(make_real(sc, sinh(s7_real(x))));
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
@@ -13206,7 +13217,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
        * :(cosh 0)
        * 1
        */
-      return(make_real(sc, cosh(real_to_double(sc, x, "cosh"))));
+      return(make_real(sc, cosh(s7_real(x))));
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
@@ -13238,7 +13249,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 
     case T_REAL:
     case T_RATIO:
-      return(make_real(sc, tanh(real_to_double(sc, x, "tanh"))));
+      return(make_real(sc, tanh(s7_real(x))));
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
@@ -13313,7 +13324,7 @@ static s7_pointer g_acosh(s7_scheme *sc, s7_pointer args)
     case T_RATIO:
       {
 	double x1;
-	x1 = real_to_double(sc, x, "acosh");
+	x1 = s7_real(x);
 	if (x1 >= 1.0)
 	  return(make_real(sc, acosh(x1)));
       }
@@ -13353,7 +13364,7 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
     case T_RATIO:
       {
 	double x1;
-	x1 = real_to_double(sc, x, "atanh");
+	x1 = s7_real(x);
 	if (fabs(x1) < 1.0)
 	  return(make_real(sc, atanh(x1)));
       }
@@ -13683,14 +13694,14 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	  if (denominator(pw) == 2)
 	    return(g_sqrt(sc, args));
 	  if (denominator(pw) == 3)
-	    return(make_real(sc, cbrt(real_to_double(sc, n, "expt")))); /* (expt 27 1/3) should be 3, not 3.0... */
+	    return(make_real(sc, cbrt(s7_real(n)))); /* (expt 27 1/3) should be 3, not 3.0... */
 
 	  /* but: (expt 512/729 1/3) -> 0.88888888888889 */
 	  /* and 4 -> sqrt(sqrt...) etc? */
 	}
 
-      x = real_to_double(sc, n, "expt");
-      y = real_to_double(sc, pw, "expt");
+      x = s7_real(n);
+      y = s7_real(pw);
 
       if (is_NaN(x)) return(n);
       if (is_NaN(y)) return(pw);
@@ -17014,7 +17025,7 @@ static s7_pointer g_divide_1r(s7_scheme *sc, s7_pointer args)
   if (s7_is_real(cadr(args)))
     {
       s7_double rl;
-      rl = real_to_double(sc, cadr(args), "/");
+      rl = s7_real(cadr(args));
       if (rl == 0.0)
 	return(division_by_zero_error(sc, sc->divide_symbol, args));
       return(make_real(sc, 1.0 / rl));
@@ -19812,7 +19823,7 @@ sign of 'x' (1 = positive, -1 = negative).  (integer-decode-float 0.0): (0 0 1)"
 
 #if WITH_GMP
     case T_BIG_REAL:
-      num.value.fx = (double)real_to_double(sc, x, "integer-decode-float");
+      num.value.fx = (double)s7_real(x);
       break;
 #endif
 
@@ -34009,7 +34020,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       else
 	{
 	  s7_double x;
-	  x = real_to_double(sc, obj, "vector-fill!");
+	  x = s7_real(obj);
 	  if (x == 0.0)
 	    memclr((void *)float_vector_elements(vec), len * sizeof(s7_double));
 	  else
@@ -34168,7 +34179,7 @@ static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
 	      if (is_float_vector(x))
 		{
 		  s7_double y;
-		  y = real_to_double(sc, fill, "vector-fill!");
+		  y = s7_real(fill);
 		  if (y == 0.0)
 		    memclr((void *)(float_vector_elements(x) + start), (end - start) * sizeof(s7_double));
 		  else
@@ -34529,7 +34540,7 @@ static s7_pointer g_float_vector(s7_scheme *sc, s7_pointer args)
       for (x = args, i = 0; is_pair(x); x = cdr(x), i++)
 	{
 	  if (s7_is_real(car(x))) /* bignum is ok here */
-	    float_vector_element(vec, i) = real_to_double(sc, car(x), "float-vector");
+	    float_vector_element(vec, i) = s7_real(car(x));
 	  else return(simple_wrong_type_argument(sc, sc->float_vector_symbol, car(x), T_REAL));
 	}
     }
@@ -35253,7 +35264,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
 	    method_or_bust(sc, init, sc->make_float_vector_symbol, args, T_REAL, 2);
 #if WITH_GMP
 	  if (s7_is_bignum(init))
-	    return(g_make_vector_1(sc, set_plist_3(sc, p, make_real(sc, real_to_double(sc, init, "make-float-vector")), sc->T), sc->make_float_vector_symbol));
+	    return(g_make_vector_1(sc, set_plist_3(sc, p, make_real(sc, s7_real(init)), sc->T), sc->make_float_vector_symbol));
 #endif
 	  if (is_rational(init))
 	    return(g_make_vector_1(sc, set_plist_3(sc, p, make_real(sc, rational_to_double(sc, init)), sc->T), sc->make_float_vector_symbol));
@@ -35688,7 +35699,7 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, bool flt)
     {
       if (!s7_is_real(val))
 	method_or_bust(sc, val, caller, args, T_REAL, 3);
-      float_vector_element(vec, index) = real_to_double(sc, val, "float-vector-set!");
+      float_vector_element(vec, index) = s7_real(val);
     }
   else
     {
@@ -78623,7 +78634,7 @@ static s7_pointer c_big_complex(s7_scheme *sc, s7_pointer args)
   if (!s7_is_real(p1))
     method_or_bust(sc, p1, sc->complex_symbol, args, T_REAL, 2);
 
-  if ((!is_big_number(p1)) && (real_to_double(sc, p1, "complex") == 0.0)) /* imag-part is not bignum and is 0.0 */
+  if ((!is_big_number(p1)) && (s7_real(p1) == 0.0)) /* imag-part is not bignum and is 0.0 */
     return(p0);
 
   mpfr_init_set(im, big_real(promote_number(sc, T_BIG_REAL, p1)), GMP_RNDN);
@@ -79847,7 +79858,7 @@ static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
 
       if (is_big_number(p1))
 	mpfr_init_set(error, big_real(promote_number(sc, T_BIG_REAL, p1)), GMP_RNDN);
-      else mpfr_init_set_d(error, real_to_double(sc, p1, "rationalize"), GMP_RNDN);
+      else mpfr_init_set_d(error, s7_real(p1), GMP_RNDN);
 
       err_x = mpfr_get_d(error, GMP_RNDN);
       if (is_NaN(err_x))
@@ -81587,19 +81598,19 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->morally_equal_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->morally_equal_float_epsilon = real_to_double(sc, val, "(*s7* 'morally-equal-float-epsilon)"); return(val);}
+      if (s7_is_real(val)) {sc->morally_equal_float_epsilon = s7_real(val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->hash_table_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->hash_table_float_epsilon = real_to_double(sc, val, "(*s7* 'hash-table-float-epsilon)"); return(val);}
+      if (s7_is_real(val)) {sc->hash_table_float_epsilon = s7_real(val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->default_rationalize_error_symbol)
     {
-      if (s7_is_real(val)) {sc->default_rationalize_error = real_to_double(sc, val, "(*s7* 'default-rationalize-error)"); return(val);}
+      if (s7_is_real(val)) {sc->default_rationalize_error = s7_real(val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
