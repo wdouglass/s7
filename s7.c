@@ -28655,6 +28655,7 @@ static s7_pointer set_opt1_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t
   p->object.cons.opt1 = x;
   set_opt1_role(p, role);
   set_opt1_is_set(p);
+  if (role != E_BACK) clear_overlay(p); /* TODO: this should happen independent of the debugging flag */
   return(x);
 }
 
@@ -57633,9 +57634,9 @@ static s7_pointer hash_table_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
        *   need some way to ensure it is safe before changing to (say) hash_table_ref_ss which
        *   assumes that (coming from op_safe_c_ss normally).  But we get here more than once on
        *   the same expression somehow, so we have to recognize the initial case (h_safe_c_ss),
-       *   then kludge up thge returning case (h_safe_c_c).  Using is_slot(find_symbol()) is
+       *   then kludge up the returning case (h_safe_c_c).  Using is_slot(find_symbol()) is
        *   no good because in context we use the current walker's "e" env to see the symbol,
-       *   no the running environment.
+       *   not the running environment.
        */
       if (ops)
 	{
@@ -57662,38 +57663,7 @@ static s7_pointer hash_table_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
   return(f);
 }
 
-
 #if (!WITH_GMP)
-/* an experiment in non-safe_c_c overrides for (a (b,.))
- *   expt is disabled by setting its c_function to cons
- *   modulo is rerouted by setting its function to exptmod
- *   this appears to work even in the clm-opt world because
- *   cons/exptmod are called there as well.
- */
-static s7_int exptmod_1(s7_int a, s7_int b, s7_int n)
-{
-  s7_int d;
-  if (b == 0) return(1);
-  d = exptmod_1((a * a) % n, b >> 1, n);
-  if ((b & 1) == 0) return(d);
-  return((a * d) % n);
-}
-
-static s7_pointer exptmod;
-static s7_pointer g_exptmod(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer a, b, n;
-  a = caar(args);
-  b = cdar(args);
-  /* free_cell(sc, car(args)); */ /* seems to be safe */
-  n = cadr(args);
-  if ((!is_t_integer(a)) || (integer(a) < 0) ||
-      (!is_t_integer(b)) || (integer(b) < 0) ||
-      (!is_t_integer(n)) || (integer(n) <= 0))                                   /* floating exception if n==0 */
-    return(g_modulo(sc, set_plist_2(sc, g_expt(sc, set_elist_2(sc, a, b)), n))); /* fallback on (modulo (expt a b) n) */
-  return(make_integer(sc, exptmod_1(integer(a), integer(b), integer(n))));
-}
-
 static s7_pointer modulo_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (!ops) return(f);
@@ -57707,14 +57677,6 @@ static s7_pointer modulo_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       set_optimize_op(expr, HOP_SAFE_C_C);
       return(mod_si);
     }
-  
-  if ((is_pair(cadr(expr))) &&
-      (caadr(expr) == sc->expt_symbol))
-    {
-      set_c_function(cadr(expr), slot_value(initial_slot(sc->cons_symbol)));
-      return(exptmod);
-    }
-
   return(f);
 }
 #endif
@@ -58501,7 +58463,6 @@ static void init_choosers(s7_scheme *sc)
   /* modulo */
   f = set_function_chooser(sc, sc->modulo_symbol, modulo_chooser);
   mod_si = make_function_with_class(sc, f, "modulo", g_mod_si, 2, 0, false, "modulo opt");
-  exptmod = make_function_with_class(sc, f, "modulo", g_exptmod, 3, 0, false, "modulo opt");
 
   /* = */
   f = set_function_chooser(sc, sc->eq_symbol, equal_chooser);
@@ -61067,13 +61028,20 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
     case OP_CASE:
       if ((is_pair(cadr(expr))) &&
+	  (!is_checked(cadr(expr))) &&
 	  (optimize_expression(sc, cadr(expr), hop, e) == OPT_OOPS))
 	return(OPT_OOPS);
       for (p = cddr(expr); is_pair(p); p = cdr(p))
 	if ((is_pair(car(p))) &&
-	    (is_pair(cdar(p))) &&
-	    (optimize_expression(sc, cdar(p), hop, e) == OPT_OOPS))
-	  return(OPT_OOPS);
+	    (is_pair(cdar(p))))
+	  {
+	    s7_pointer rst;
+	    for (rst = cdar(p); is_pair(rst); rst = cdr(rst))
+	      if ((is_pair(car(rst))) && 
+		  (!is_checked(car(rst))) &&
+		  (optimize_expression(sc, car(rst), hop, e) == OPT_OOPS))
+		return(OPT_OOPS);
+	  }
       return(OPT_F);
       break;
 
@@ -61081,13 +61049,18 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       for (p = cdr(expr); is_pair(p); p = cdr(p))
 	if (is_pair(car(p)))
 	  {
-	    s7_pointer test, rest;
+	    s7_pointer test, rst;
 	    test = caar(p);
-	    rest = cdar(p);
-	    e = cons(sc, sc->key_rest_symbol, e);
-	    if (((is_pair(test)) && (optimize_expression(sc, test, hop, e) == OPT_OOPS)) ||
-		((is_pair(rest)) && (optimize_expression(sc, rest, hop, e) == OPT_OOPS)))
+	    e = cons(sc, sc->key_rest_symbol, e);  /* I think this is a marker in case define is encounter? (see above) */
+	    if ((is_pair(test)) &&
+		(!is_checked(test)) &&
+		(optimize_expression(sc, test, hop, e) == OPT_OOPS))
 	      return(OPT_OOPS);
+	    for (rst = cdar(p); is_pair(rst); rst = cdr(rst))
+	      if ((is_pair(car(rst))) && 
+		  (!is_checked(car(rst))) &&
+		  (optimize_expression(sc, car(rst), hop, e) == OPT_OOPS))
+		return(OPT_OOPS);
 	  }
       return(OPT_F);
       break;
@@ -61264,10 +61237,9 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e)
 {
   s7_pointer car_expr;
-
-  /* fprintf(stderr, "opt-expr %d %s %s\n", hop, DISPLAY_80(expr), DISPLAY(e)); */
-  /* if (is_checked(expr)) return(OPT_T); */
-
+#if DEBUGGING
+  if (is_checked(expr)) {fprintf(stderr, "%s is checked\n", DISPLAY(expr)); abort();}
+#endif
   set_checked(expr);
   car_expr = car(expr);
 
@@ -61382,6 +61354,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		}
 	      if (is_null(p))                    /* if not null, dotted list of args? */
 		{
+		  /* fprintf(stderr, "%d %s\n", args, DISPLAY_80(expr)); */
 		  switch (args)
 		    {
 		    case 0:  return(optimize_thunk(sc, expr, func, hop));
@@ -61432,11 +61405,9 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		pairs++;
 		if ((hop != 0) && (car(car_p) == sc->quote_symbol))
 		  quotes++;
-		if (!is_checked(car_p))
-		  {
-		    if (optimize_expression(sc, car_p, hop, e) == OPT_OOPS)
-		      return(OPT_OOPS);
-		  }
+		if ((!is_checked(car_p)) &&
+		    (optimize_expression(sc, car_p, hop, e) == OPT_OOPS))
+		  return(OPT_OOPS);
 	      }
 	    else
 	      {
@@ -61564,9 +61535,10 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 
       for (p = expr; is_pair(p); p = cdr(p))
 	{
-	  if ((is_pair(car(p))) && (!is_checked(car(p))))
-	    if (optimize_expression(sc, car(p), hop, e) == OPT_OOPS)
-	      return(OPT_OOPS);
+	  if ((is_pair(car(p))) && 
+	      (!is_checked(car(p))) &&
+	      (optimize_expression(sc, car(p), hop, e) == OPT_OOPS))
+	    return(OPT_OOPS);
 	}
 
       if ((is_pair(cdr(expr))) &&
@@ -61621,7 +61593,8 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
   for (x = code; (is_pair(x)) && (!is_checked(x)); x = cdr(x))
     {
       set_checked(x);
-      if ((is_pair(car(x))) && (!is_checked(car(x))))
+      if ((is_pair(car(x))) && 
+	  (!is_checked(car(x))))
 	{
 	  if (optimize_expression(sc, car(x), hop, e) == OPT_OOPS)
 	    return(OPT_OOPS);
@@ -83930,12 +83903,12 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433  1457
  * teq           |      |      | 6612 || 2777 | 2129  1927  1928  1931
- * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2126
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2110
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426  2467
  * lint          |      |      |      || 4041 | 3376  2677  2672  2700
  * lg            |      |      |      || 211  | 161   132.4 132.2 133.3
  * tform         |      |      | 6816 || 3714 | 3530  2733  2746  2762
- * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2978
+ * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2974
  * tmap          |      |      |  9.3 || 5279 |       3386  3378  3445
  * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964  3966
  * tsort         |      |      |      || 8584 | 4869  4012  4012  4111
