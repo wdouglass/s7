@@ -28529,7 +28529,7 @@ static void print_gc_info(s7_pointer obj, int32_t line)
   else
     {
       if (unchecked_type(obj) != T_FREE)
-	fprintf(stderr, "[%d]: %p type is %d?\n", line, obj, type(obj));
+	fprintf(stderr, "[%d]: %p type is %d?\n", line, obj, unchecked_type(obj));
       else
 	{
 	  fprintf(stderr, "%s%p is free (line %d), current: %s[%d], previous: %s[%d],  gc call: %s[%d], alloc: %s[%d]%s\n",
@@ -65569,6 +65569,25 @@ static bool is_simple_expression(s7_scheme *sc, s7_pointer x)
 	  (is_all_x_safe(sc, x))));
 }
 	
+static bool tree_set_memq_including_quote(s7_scheme *sc, s7_pointer tree)
+{
+  /* tree_set_memq but also scanning quoted lists */
+  if (is_symbol(tree))
+    return(symbol_is_in_list(sc, tree));
+  if (!is_pair(tree))
+    return(false);
+  do {
+    if (is_symbol(cdr(tree)))
+      return(symbol_is_in_list(sc, cdr(tree)));
+    if (tree_set_memq_including_quote(sc, car(tree)))
+      return(true);
+    tree = cdr(tree);
+  } while (is_pair(tree));
+  return((is_symbol(tree)) &&
+	 (symbol_is_in_list(sc, tree)));
+}
+
+
 static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
 {
   clear_symbol_list(sc);
@@ -65582,7 +65601,7 @@ static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
   add_symbol_to_list(sc, sc->define_constant_symbol);
   add_symbol_to_list(sc, sc->varlet_symbol);
   add_symbol_to_list(sc, sc->provide_symbol);             /* local *features*! */
-  return(tree_set_memq(sc, tree));
+  return(tree_set_memq_including_quote(sc, tree));
 }
 
 static s7_pointer check_do(s7_scheme *sc)
@@ -65676,8 +65695,11 @@ static s7_pointer check_do(s7_scheme *sc)
       /* an annoying kludge -- define in the body can clobber the step expressions set up below! 
        *      (let ((x 2)) (do ((i 0 (+ i x))) ((= i 4)) (define x 1) (display i)) (newline)) -- steps by 1
        *  but varlet is actually ok most of the time, so handle it separately
+       *  tree_has_definers can't ignore a quoted list because the 'quote might be interpreted separately:
+       *   ... (cond '(define x 0)) ...
        */
       body = cddr(sc->code);
+      /* fprintf(stderr, "body: %s %d\n", DISPLAY(body), tree_has_definers(sc, body)); */
       if (tree_has_definers(sc, body))
 	return(sc->code);
 
@@ -83881,19 +83903,10 @@ int main(int argc, char **argv)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
- * port to Snd: ~/clm/dlocsig.html
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
- * check glob/libc.scm in openbsd -- some problem loading libc_s7.so (it works in snd, not in repl? missing lib?)
  * libc needs many type checks
- * is_type replacing is_symbol etc [all_x_is_*_s if_is_* safe_is_*]
- *   is_type_car|cdr|a in all 3 cases
- *   need symbol->type-checker-recog->type -- symbol_type: object.sym.info->type
- * maybe pass \u... through in read_constant_string unchanged, or read in s7??  no worse than \x..;
- * c_object type table entries should also be s7_function, reported by object->let perhaps [and (obj 'reverse) -> type table reverse wrapped?]
- *   wrappers in the meantime? c_object_type_to_let -- also there's repetition now involving local obj->let methods
- * new proc-sig cases could be used elsewhere in opt (as in b_pp_direct) -- what cases?
  *
  * --------------------------------------------------------------
  *
