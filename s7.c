@@ -28655,7 +28655,7 @@ static s7_pointer set_opt1_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t
   p->object.cons.opt1 = x;
   set_opt1_role(p, role);
   set_opt1_is_set(p);
-  if (role != E_BACK) clear_overlay(p); /* TODO: this should happen independent of the debugging flag */
+  if (role != E_BACK) clear_overlay(p);  /* TODO: this should happen independent of the debugging flag */
   return(x);
 }
 
@@ -31329,10 +31329,24 @@ static s7_int tree_len_1(s7_scheme *sc, s7_pointer p)
   s7_int sum;
   for (sum = 0; is_pair(p); p = cdr(p))
     {
-      if ((!is_pair(car(p))) ||
-	  (caar(p) == sc->quote_symbol))
+      s7_pointer cp;
+      cp = car(p);
+      if ((!is_pair(cp)) ||
+	  (car(cp) == sc->quote_symbol))
 	sum++;
-      else sum += tree_len_1(sc, car(p));
+      else 
+	{
+	  do {
+	    s7_pointer ccp;
+	    ccp = car(cp);
+	    if ((!is_pair(ccp)) ||
+		(car(ccp) == sc->quote_symbol))
+	      sum++;
+	    else sum += tree_len_1(sc, ccp);
+	    cp = cdr(cp);
+	    } while (is_pair(cp));
+	  if (!is_null(cp)) sum++;
+	}
     }
   if (!is_null(p)) return(sum + 1);
   return(sum);
@@ -40117,15 +40131,10 @@ static bool closure_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 	 (s7_is_morally_equal_1(sc, closure_body(x), closure_body(y), ci)));
 }
 
-static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool pair_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   shared_info *nci;
   s7_pointer px, py;
-
-  if (x == y)
-    return(true);
-  if (!is_pair(y))
-    return(false);
 
   if (ci)
     {
@@ -40143,6 +40152,15 @@ static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
   if (px == py) /* normally nil? */
     return(true);
   return(s7_is_equal_1(sc, px, py, nci));
+}
+
+static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  if (x == y)
+    return(true);
+  if (!is_pair(y))
+    return(false);
+  return(pair_equal_1(sc, x, y, ci));
 }
 
 static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -65587,7 +65605,6 @@ static bool tree_set_memq_including_quote(s7_scheme *sc, s7_pointer tree)
 	 (symbol_is_in_list(sc, tree)));
 }
 
-
 static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
 {
   clear_symbol_list(sc);
@@ -65699,7 +65716,6 @@ static s7_pointer check_do(s7_scheme *sc)
        *   ... (cond '(define x 0)) ...
        */
       body = cddr(sc->code);
-      /* fprintf(stderr, "body: %s %d\n", DISPLAY(body), tree_has_definers(sc, body)); */
       if (tree_has_definers(sc, body))
 	return(sc->code);
 
@@ -83918,8 +83934,8 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 || 2777 | 2129  1927  1928  1931
  * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2110
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426  2467
- * lint          |      |      |      || 4041 | 3376  2677  2672  2700
- * lg            |      |      |      || 211  | 161   132.4 132.2 133.3
+ * lint          |      |      |      || 4041 | 3376  2677  2672  2697
+ * lg            |      |      |      || 211  | 161   132.4 132.2 133.2
  * tform         |      |      | 6816 || 3714 | 3530  2733  2746  2762
  * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2974
  * tmap          |      |      |  9.3 || 5279 |       3386  3378  3445
