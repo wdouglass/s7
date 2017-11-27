@@ -2024,6 +2024,9 @@ static s7_scheme *cur_sc = NULL;
 #define is_s7_let_field(p)            ((typeflag(_TSym(p)) & T_S7_LET_FIELD) != 0)
 #define set_s7_let_field(p)           typeflag(_TSym(p)) |= T_S7_LET_FIELD
 
+#define T_DEFINER                     (1LL << (TYPE_BITS + 26))
+#define is_definer(p)                 ((typeflag(_NFre(p)) & T_DEFINER) != 0)
+
 
 #define T_GC_MARK                     0x8000000000000000
 #define is_marked(p)                  ((typeflag(p) &  T_GC_MARK) != 0)
@@ -38191,8 +38194,7 @@ static s7_pointer g_is_procedure(s7_scheme *sc, s7_pointer args)
 
 static void s7_function_set_setter(s7_scheme *sc, const char *getter, const char *setter)
 {
-  /* this is internal, used only with c_function setters, so we don't need to worry about the GC mark choice
-   */
+  /* this is internal, used only with c_function setters, so we don't need to worry about the GC mark choice */
   c_function_set_setter(s7_name_to_value(sc, getter), s7_name_to_value(sc, setter));
 }
 
@@ -38243,6 +38245,7 @@ static s7_pointer g_procedure_source(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer body;
       body = closure_body(p);
+      /* perhaps if this function has been removed from the heap, it would be better to use copy_body (as in s7_copy)? */
       if (is_safe_closure(body))
 	clear_safe_closure(body);
       return(append_in_place(sc, list_2(sc, ((is_closure_star(p)) || 
@@ -57113,6 +57116,14 @@ static s7_pointer assign_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   return(x);
 }
 
+static s7_pointer define_syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
+{
+  s7_pointer x;
+  x = assign_syntax(sc, name, op, min_args, max_args, doc);
+  typeflag(x) |= T_DEFINER;
+  return(x);
+}
+
 static s7_pointer assign_internal_syntax(s7_scheme *sc, const char *name, opcode_t op)
 {
   s7_pointer x, str, syn;
@@ -60793,12 +60804,13 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
-static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e);
+static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e, bool export_ok);
 
-static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, s7_pointer e)
+static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, s7_pointer e, bool export_ok)
 {
   opcode_t op;
   s7_pointer p, body;
+  bool body_export_ok = true;
 
   op = (opcode_t)syntax_opcode(func);
   sc->w = e;
@@ -60838,7 +60850,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	      return(OPT_OOPS);
 	    if ((is_pair(cadr(var))) &&
 		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e) == OPT_OOPS))
+		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
 	      return(OPT_OOPS);
 	  }
 	e = collect_variables(sc, vars, e);
@@ -60879,7 +60891,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
 	    if ((is_pair(cadr(var))) &&
 		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e) == OPT_OOPS))
+		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
 	      return(OPT_OOPS);
 
 	    e = cons(sc, add_symbol_to_list(sc, car(var)), e);
@@ -60907,7 +60919,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		(is_pair(cadr(var))) &&
 		(!is_checked(cadr(var))))
 	      {
-		if (optimize_expression(sc, cadr(var), hop, e) == OPT_OOPS)
+		if (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)
 		  return(OPT_OOPS);
 	      }
 	  }
@@ -60933,7 +60945,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	      return(OPT_OOPS);
 	    if ((is_pair(cadr(var))) &&
 		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e) == OPT_OOPS)) /* the init field -- locals are not defined yet */
+		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)) /* the init field -- locals are not defined yet */
 	      return(OPT_OOPS);
 	  }
 	e = collect_variables(sc, vars, e);
@@ -60944,10 +60956,14 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	    if ((is_pair(var)) &&
 		(is_pair(car(var))) &&
 		(!is_checked(car(var))) &&
-		(optimize_expression(sc, car(var), hop, e) == OPT_OOPS)) /* the step field -- locals are defined */
+		(optimize_expression(sc, car(var), hop, e, false) == OPT_OOPS)) /* the step field -- locals are defined */
 	      return(OPT_OOPS);
 	  }
       }
+      break;
+
+    case OP_BEGIN:
+      body_export_ok = export_ok;
       break;
 
     case OP_DEFINE_MACRO:
@@ -60967,14 +60983,18 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
        *   Then find_uncomplicated_symbol can use has_keyword to tell if the keyword search is needed.
        * An oddity: if we're not defining a function, the name is not defined in the body:
        *   (define x (+ x 1)) the inner x is not the x-being-defined.
+       * export_ok is trying to protect against optimizing (list x (define x 0)) as op_safe_c_sp and all related cases
        */
       {
 	s7_pointer name_args;
 	name_args = cadr(expr);
 	body = cddr(expr);
+	/* fprintf(stderr, "name: %s, body: %s\n", DISPLAY(name_args), DISPLAY(body)); */
+
 	if (is_pair(name_args))
 	  {
-	    if (is_symbol(car(name_args)))
+	    if ((export_ok) &&
+		(is_symbol(car(name_args))))
 	      {
 		add_symbol_to_list(sc, car(name_args));
 		if (is_pair(e))
@@ -60986,10 +61006,12 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		else e = cons(sc, car(name_args), e);
 	      }
 	    e = collect_parameters(sc, cdr(name_args), e);
+	    body_export_ok = export_ok;
 	  }
 	else 
 	  {
-	    if (is_symbol(name_args))
+	    if ((export_ok) &&
+		(is_symbol(name_args)))
 	      {
 		/* actually if this is defining a function, the name should probably be included in the local env 
 		 *   but that's next-to-impossible to guarantee unless it's (define x (lambda...)) of course.
@@ -60998,7 +61020,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		for (p = body; is_pair(p); p = cdr(p))
 		  if ((is_pair(car(p))) && 
 		      (!is_checked(car(p))) && /* ((typeflag & (0xff | T_CHECKED)) == T_PAIR) is not faster */
-		      (optimize_expression(sc, car(p), hop, e) == OPT_OOPS))
+		      (optimize_expression(sc, car(p), hop, e, false) == OPT_OOPS)) /* "body" here is not body in terms of export_ok */
 		    return(OPT_OOPS);
 		sc->temp9 = sc->nil;
 
@@ -61012,6 +61034,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		else e = cons(sc, name_args, e);
 		return(OPT_F);
 	      }
+	    body_export_ok = false;
 	  }
       }
       break;
@@ -61047,7 +61070,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
     case OP_CASE:
       if ((is_pair(cadr(expr))) &&
 	  (!is_checked(cadr(expr))) &&
-	  (optimize_expression(sc, cadr(expr), hop, e) == OPT_OOPS))
+	  (optimize_expression(sc, cadr(expr), hop, e, false) == OPT_OOPS))
 	return(OPT_OOPS);
       for (p = cddr(expr); is_pair(p); p = cdr(p))
 	if ((is_pair(car(p))) &&
@@ -61057,7 +61080,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	    for (rst = cdar(p); is_pair(rst); rst = cdr(rst))
 	      if ((is_pair(car(rst))) && 
 		  (!is_checked(car(rst))) &&
-		  (optimize_expression(sc, car(rst), hop, e) == OPT_OOPS))
+		  (optimize_expression(sc, car(rst), hop, e, false) == OPT_OOPS))
 		return(OPT_OOPS);
 	  }
       return(OPT_F);
@@ -61072,12 +61095,12 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	    e = cons(sc, sc->key_rest_symbol, e);  /* I think this is a marker in case define is encounter? (see above) */
 	    if ((is_pair(test)) &&
 		(!is_checked(test)) &&
-		(optimize_expression(sc, test, hop, e) == OPT_OOPS))
+		(optimize_expression(sc, test, hop, e, false) == OPT_OOPS))
 	      return(OPT_OOPS);
 	    for (rst = cdar(p); is_pair(rst); rst = cdr(rst))
 	      if ((is_pair(car(rst))) && 
 		  (!is_checked(car(rst))) &&
-		  (optimize_expression(sc, car(rst), hop, e) == OPT_OOPS))
+		  (optimize_expression(sc, car(rst), hop, e, false) == OPT_OOPS))
 		return(OPT_OOPS);
 	  }
       return(OPT_F);
@@ -61099,7 +61122,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
   for (p = body; is_pair(p); p = cdr(p))
     if ((is_pair(car(p))) && 
 	(!is_checked(car(p))) && /* ((typeflag & (0xff | T_CHECKED)) == T_PAIR) is not faster */
-	(optimize_expression(sc, car(p), hop, e) == OPT_OOPS))
+	(optimize_expression(sc, car(p), hop, e, body_export_ok) == OPT_OOPS))
       {
 	sc->temp9 = sc->nil;
 	return(OPT_OOPS);
@@ -61252,7 +61275,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 }
 
 
-static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e)
+static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e, bool export_ok)
 {
   s7_pointer car_expr;
 #if DEBUGGING
@@ -61268,7 +61291,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	{
 	  if (!is_pair(cdr(expr)))
 	    return(OPT_OOPS);
-	  return(optimize_syntax(sc, expr, _TSyn(slot_value(global_slot(car_expr))), hop, e));
+	  return(optimize_syntax(sc, expr, _TSyn(slot_value(global_slot(car_expr))), hop, e, export_ok));
 	}
 
       func = find_uncomplicated_symbol(sc, car_expr, e); /* local vars (recursive calls too??) are considered "complicated" */
@@ -61279,7 +61302,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	    {
 	      if (!is_pair(cdr(expr)))
 		return(OPT_OOPS);
-	      return(optimize_syntax(sc, expr, func, hop, e));  /* e can be extended via set-cdr! here */
+	      return(optimize_syntax(sc, expr, func, hop, e, export_ok));  /* e can be extended via set-cdr! here */
 	    }
 	  /* we miss implicit indexing here because at this time, the data are not set */
 	  if ((is_t_procedure(func)) ||
@@ -61342,7 +61365,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			  if (!is_checked(car_p))
 			    {
 			      opt_t res;
-			      res = optimize_expression(sc, car_p, orig_hop, e);
+			      res = optimize_expression(sc, car_p, orig_hop, e, false);
 			      if (res == OPT_F)
 				{
 				  bad_pairs++;
@@ -61424,7 +61447,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		if ((hop != 0) && (car(car_p) == sc->quote_symbol))
 		  quotes++;
 		if ((!is_checked(car_p)) &&
-		    (optimize_expression(sc, car_p, hop, e) == OPT_OOPS))
+		    (optimize_expression(sc, car_p, hop, e, false) == OPT_OOPS))
 		  return(OPT_OOPS);
 	      }
 	    else
@@ -61555,7 +61578,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	{
 	  if ((is_pair(car(p))) && 
 	      (!is_checked(car(p))) &&
-	      (optimize_expression(sc, car(p), hop, e) == OPT_OOPS))
+	      (optimize_expression(sc, car(p), hop, e, false) == OPT_OOPS))
 	    return(OPT_OOPS);
 	}
 
@@ -61614,7 +61637,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
       if ((is_pair(car(x))) && 
 	  (!is_checked(car(x))))
 	{
-	  if (optimize_expression(sc, car(x), hop, e) == OPT_OOPS)
+	  if (optimize_expression(sc, car(x), hop, e, true) == OPT_OOPS)
 	    return(OPT_OOPS);
 	}
     }
@@ -65587,38 +65610,21 @@ static bool is_simple_expression(s7_scheme *sc, s7_pointer x)
 	  (is_all_x_safe(sc, x))));
 }
 	
-static bool tree_set_memq_including_quote(s7_scheme *sc, s7_pointer tree)
+static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
 {
-  /* tree_set_memq but also scanning quoted lists */
   if (is_symbol(tree))
-    return(symbol_is_in_list(sc, tree));
+    return(is_definer(tree));
   if (!is_pair(tree))
     return(false);
   do {
     if (is_symbol(cdr(tree)))
-      return(symbol_is_in_list(sc, cdr(tree)));
-    if (tree_set_memq_including_quote(sc, car(tree)))
+      return(is_definer(cdr(tree)));
+    if (tree_has_definers(sc, car(tree)))
       return(true);
     tree = cdr(tree);
   } while (is_pair(tree));
   return((is_symbol(tree)) &&
-	 (symbol_is_in_list(sc, tree)));
-}
-
-static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
-{
-  clear_symbol_list(sc);
-  add_symbol_to_list(sc, sc->define_symbol);
-  add_symbol_to_list(sc, sc->define_macro_symbol);
-  add_symbol_to_list(sc, sc->define_bacro_symbol);
-  add_symbol_to_list(sc, sc->define_star_symbol);
-  add_symbol_to_list(sc, sc->define_macro_star_symbol);
-  add_symbol_to_list(sc, sc->define_bacro_star_symbol);
-  add_symbol_to_list(sc, sc->define_expansion_symbol);
-  add_symbol_to_list(sc, sc->define_constant_symbol);
-  add_symbol_to_list(sc, sc->varlet_symbol);
-  add_symbol_to_list(sc, sc->provide_symbol);             /* local *features*! */
-  return(tree_set_memq_including_quote(sc, tree));
+	 (is_definer(tree)));
 }
 
 static s7_pointer check_do(s7_scheme *sc)
@@ -82298,14 +82304,14 @@ s7_scheme *s7_init(void)
   sc->do_symbol =                assign_syntax(sc, "do",              OP_DO,                small_int(2), max_arity,    do_help); /* 2 because body can be null */
   sc->lambda_symbol =            assign_syntax(sc, "lambda",          OP_LAMBDA,            small_int(2), max_arity,    lambda_help);
   sc->lambda_star_symbol =       assign_syntax(sc, "lambda*",         OP_LAMBDA_STAR,       small_int(2), max_arity,    lambda_star_help);
-  sc->define_symbol =            assign_syntax(sc, "define",          OP_DEFINE,            small_int(2), max_arity,    define_help);
-  sc->define_star_symbol =       assign_syntax(sc, "define*",         OP_DEFINE_STAR,       small_int(2), max_arity,    define_star_help);
-  sc->define_constant_symbol =   assign_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   small_int(2), max_arity,    define_constant_help);
-  sc->define_macro_symbol =      assign_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      small_int(2), max_arity,    define_macro_help);
-  sc->define_macro_star_symbol = assign_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, small_int(2), max_arity,    define_macro_star_help);
-  sc->define_expansion_symbol =  assign_syntax(sc, "define-expansion",OP_DEFINE_EXPANSION,  small_int(2), max_arity,    define_expansion_help);
-  sc->define_bacro_symbol =      assign_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      small_int(2), max_arity,    define_bacro_help);
-  sc->define_bacro_star_symbol = assign_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    define_bacro_star_help);
+  sc->define_symbol =            define_syntax(sc, "define",          OP_DEFINE,            small_int(2), max_arity,    define_help);
+  sc->define_star_symbol =       define_syntax(sc, "define*",         OP_DEFINE_STAR,       small_int(2), max_arity,    define_star_help);
+  sc->define_constant_symbol =   define_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   small_int(2), max_arity,    define_constant_help);
+  sc->define_macro_symbol =      define_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      small_int(2), max_arity,    define_macro_help);
+  sc->define_macro_star_symbol = define_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, small_int(2), max_arity,    define_macro_star_help);
+  sc->define_expansion_symbol =  define_syntax(sc, "define-expansion",OP_DEFINE_EXPANSION,  small_int(2), max_arity,    define_expansion_help);
+  sc->define_bacro_symbol =      define_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      small_int(2), max_arity,    define_bacro_help);
+  sc->define_bacro_star_symbol = define_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    define_bacro_star_help);
   sc->with_baffle_symbol =       assign_syntax(sc, "with-baffle",     OP_WITH_BAFFLE,       small_int(1), max_arity,    with_baffle_help);
   sc->macroexpand_symbol =       assign_syntax(sc, "macroexpand",     OP_MACROEXPAND,       small_int(1), small_int(1), macroexpand_help);
   sc->with_let_symbol =          assign_syntax(sc, "with-let",        OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
@@ -82637,6 +82643,7 @@ s7_scheme *s7_init(void)
   /* unlet (and with-let) don't actually need to be immutable, but s7.html says they are... */
   sc->sublet_symbol =                defun("sublet",		sublet,			1, 0, true);
   sc->varlet_symbol =                unsafe_defun("varlet",	varlet,			1, 0, true);
+  typeflag(sc->varlet_symbol) |= T_DEFINER;
   sc->cutlet_symbol =                unsafe_defun("cutlet",	cutlet,			1, 0, true);
   sc->inlet_symbol =                 defun("inlet",		inlet,			0, 0, true);
   sc->owlet_symbol =                 defun("owlet",		owlet,			0, 0, false);
@@ -82654,6 +82661,7 @@ s7_scheme *s7_init(void)
 
   sc->is_provided_symbol =           defun("provided?",	        is_provided,		1, 0, false);
   sc->provide_symbol =               defun("provide",		provide,		1, 0, false);
+  typeflag(sc->provide_symbol) |= T_DEFINER;
   sc->is_defined_symbol =            defun("defined?",		is_defined,		1, 2, false);
 
   sc->c_pointer_symbol =             defun("c-pointer",	        c_pointer,		1, 2, false);
@@ -83899,6 +83907,7 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
+ * perhaps include sc->envir in history?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83927,14 +83936,14 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  | 17.4  17.8  17.9
- * tmac          |      |      |      || 9052 |  615   261   261   263
+ * tmac          |      |      |      || 9052 |  615   261   261   264
  * tref          |      |      | 2372 || 2125 | 1375  1105  1033  1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433  1457
  * teq           |      |      | 6612 || 2777 | 2129  1927  1928  1931
  * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2110
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426  2467
- * lint          |      |      |      || 4041 | 3376  2677  2672  2697
+ * lint          |      |      |      || 4041 | 3376  2677  2672  2702
  * lg            |      |      |      || 211  | 161   132.4 132.2 133.2
  * tform         |      |      | 6816 || 3714 | 3530  2733  2746  2762
  * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2974
@@ -83944,9 +83953,9 @@ int main(int argc, char **argv)
  * titer         |      |      |      || 5971 | 5224  4537  4537  4646
  * bench         |      |      |      || 7012 | 6378  5077  5077  5093
  * thash         |      |      | 50.7 || 8778 | 8488  7531  7541  7697
- * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8  11.8  11.8
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8  11.8  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8  18.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4  38.5  40.4
+ * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4  38.5  40.5
  *                                    || 139  | 129   81.8  81.9  85.9
  * 
  * --------------------------------------------------------------

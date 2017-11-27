@@ -6853,7 +6853,8 @@ the point it is defined.  However,
 </pre>
 
 <p>returns 2 in s7 because the x in y's function body is not evaluated
-until after the second x is defined. 
+until after the second x is defined.  Even worse,
+<code>(list x (define x 0))</code>, or <code>(list x (begin (define x 0) x))</code>.
 </p>
 </div>
 
