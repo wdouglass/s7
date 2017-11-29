@@ -2589,7 +2589,9 @@ puts it back to its original value.
     ((ourlet 'b-func)))
 <em class="gray">4</em>
 </pre>
-
+<p>Despite the name, no new environment is created by let-temporarily:
+<code>(let () (let-temporarily () (define x 2)) (+ x 1))</code> is 3.
+</p>
 
 <p>
 <b>sublet</b> adds bindings (symbols with associated values) to an environment.
@@ -3489,7 +3491,7 @@ but that has drawbacks.  First, <code>(abs -1 (values))</code>, or worse <code>(
 is no longer an error at the level of the program text; you lose the ability to see at a glance that
 a normal function has the right number of arguments.  Second, a lot of code currently assumes that
 (values) returns #&lt;unspecified&gt;, and that implies that <code>(apply values ())</code> does as well.
-
+But it would be nice if <code>((lambda* ((x 1)) x) (values))</code> returned 1!
 <!--
 Is <code>(apply apply func arglist)</code> the same as <code>(apply func (apply values arglist))</code>,
 or (leaving aside <code>'(()))</code>, <code>(func (apply values (apply values arglist)))</code>?
@@ -6195,6 +6197,7 @@ same kind of name (or +pi+ to show it is a constant?).
 get-output-string should be current-output-string. write-char behaves like display, not write.
 provided? should be feature? or *features* should be *provisions*.
 list-ref, list-set!, and list-tail actually only apply to pairs.
+And let-temporarily should be templet.
 </p>
 
 <p>
@@ -6853,7 +6856,8 @@ the point it is defined.  However,
 </pre>
 
 <p>returns 2 in s7 because the x in y's function body is not evaluated
-until after the second x is defined.  Even worse,
+until after the second x is defined.  
+The define propagates backwards, but:
 <code>(list x (define x 0))</code>, or <code>(list x (begin (define x 0) x))</code>.
 </p>
 </div>

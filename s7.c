@@ -1134,7 +1134,7 @@ struct s7_scheme {
 #endif
 
   /* *s7* fields */
-  s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol,
+  s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol, 
              free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol,
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
              catches_symbol, exits_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol,
@@ -2056,6 +2056,7 @@ static int64_t not_heap = -1;
 #define is_mutable_pair(p)            ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
 #define is_null(p)                    ((_NFre(p)) == sc->nil)
 #define is_not_null(p)                ((_NFre(p)) != sc->nil)
+#define is_list(p)                    ((is_pair(p)) || (type(p) == T_NIL))
 
 #define raw_opt1(p)                   ((p)->object.cons.opt1)
 
@@ -4872,7 +4873,7 @@ static int32_t gc(s7_scheme *sc)
   mark_owlet(sc);
 
   S7_MARK(sc->code);
-  mark_current_code(sc);
+  mark_current_code(sc); /* isn't this redundant if with_history? */
   mark_stack_1(sc->stack, s7_stack_top(sc));
   S7_MARK(sc->v);
   S7_MARK(sc->w);
@@ -5657,15 +5658,19 @@ static void stack_reset(s7_scheme *sc)
   push_stack_op(sc, OP_BARRIER);
 }
 
-
+#if DEBUGGING
+#define resize_stack(Sc) resize_stack_1(Sc, __func__, __LINE__)
+static void resize_stack_1(s7_scheme *sc, const char *func, int line)
+#else
 static void resize_stack(s7_scheme *sc)
+#endif
 {
   uint32_t i, new_size, loc;  /* int64_ts?? sc->stack_size also is an uint32_t */
 
   loc = s7_stack_top(sc);
   new_size = sc->stack_size * 2;
 
-  /* how can we trap infinite recursions?  Is a warning in order here?
+  /* how can we trap infinite recursion?  Is a warning in order here?
    *   I think I'll add 'max-stack-size
    *   size currently reaches 8192 in s7test
    */
@@ -5687,7 +5692,11 @@ static void resize_stack(s7_scheme *sc)
 
   if (show_stack_stats(sc))
     {
+#if DEBUGGING
+      fprintf(stderr, "%s[%d]: stack grows to %u, %s\n", func, line, new_size, DISPLAY_80(sc->code));
+#else
       fprintf(stderr, "stack grows to %u, %s\n", new_size, DISPLAY_80(sc->code));
+#endif
       s7_show_let(sc);
     }
 }
@@ -7147,7 +7156,6 @@ static s7_pointer g_cutlet(s7_scheme *sc, s7_pointer args)
 static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_pointer caller)
 {
   s7_pointer new_e;
-  /* fprintf(stderr, "%s sublet: %s %s\n", DISPLAY(caller), DISPLAY(e), DISPLAY(bindings)); */
 
   if (e == sc->rootlet)
     new_e = new_frame_in_env(sc, sc->nil);
@@ -11260,7 +11268,6 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, int32_t radix, 
 	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
 	  return(slot_value(initial_slot(sym)));
 	return(s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "#~A is undefined"), s7_make_string_wrapper(sc, name))));
-	/* return(sc->undefined); */
       }
 
 
@@ -24280,20 +24287,6 @@ static void pop_input_port(s7_scheme *sc)
   else sc->input_port = sc->standard_input;
 }
 
-#if DEBUGGING && (0)
-static void print_input_stack(s7_scheme *sc)
-{
-  if (is_null(sc->input_port_stack))
-    fprintf(stderr, "no input stack\n");
-  else
-    {
-      s7_pointer p;
-      for (p = sc->input_port_stack; is_pair(p); p = cdr(p))
-	fprintf(stderr, "%s\n", s7_object_to_c_string(sc, car(p)));
-    }
-}
-#endif
-
 
 static int32_t inchar(s7_pointer pt)
 {
@@ -31808,7 +31801,7 @@ static s7_pointer g_is_pair(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- list? proper-list? -------------------------------- */
-bool s7_is_list(s7_scheme *sc, s7_pointer p)
+bool s7_is_list(s7_scheme *sc, s7_pointer p) /* sc for is_null */
 {
   return((is_pair(p)) ||
 	 (is_null(p)));
@@ -32126,7 +32119,7 @@ static s7_pointer g_list_tail(s7_scheme *sc, s7_pointer args)
     }
   index = s7_integer(p);
 
-  if (!s7_is_list(sc, lst))
+  if (!is_list(lst))
     method_or_bust_with_type(sc, lst, sc->list_tail_symbol, list_2(sc, lst, make_integer(sc, index)), a_list_string, 1);
 
   if ((index < 0) || (index > sc->max_list_length))
@@ -39724,7 +39717,7 @@ s7_pointer s7_hook_functions(s7_scheme *sc, s7_pointer hook)
 
 s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer functions)
 {
-  if (s7_is_list(sc, functions))
+  if (is_list(functions))
     s7_let_set(sc, closure_let(hook), sc->body_symbol, functions);
   return(functions);
 }
@@ -44101,9 +44094,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
   slot_set_value(sc->error_code, cur_code);
 #if WITH_HISTORY
   slot_set_value(sc->error_history, sc->cur_code);
-  if (sc->using_history1)
-    sc->cur_code = sc->eval_history2;
-  else sc->cur_code = sc->eval_history1;
+  sc->cur_code = (sc->using_history1) ? sc->eval_history2 : sc->eval_history1;
   sc->using_history1 = (!sc->using_history1);
 #endif
 
@@ -44199,7 +44190,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
        *
        * if at all possible, get some indication of where we are!
        */
-      if ((!s7_is_list(sc, info)) ||
+      if ((!is_list(info)) ||
 	  (!is_string(car(info))))
 	format_to_port(sc, sc->error_port, "\n;~S ~S", set_plist_2(sc, type, info), NULL, false, 7);
       else
@@ -47135,7 +47126,6 @@ static s7_function all_x_optimize(s7_scheme *sc, s7_pointer expr)
       (is_all_x_safe(sc, car(expr))))
     {
       sc->unwraps++;
-      /* fprintf(stderr, "%s\n", DISPLAY_80(expr)); */
       /* lt: (if (eq? (var-name v) named-let) (values) (var-initial-value v))
        * s7test (eq? (car a) 'car) (list (cdr slot) '(gensym))
        * tgen: (out-any i x 0)
@@ -52137,7 +52127,6 @@ static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
       if ((is_closure(obj)) && /* need larger opts array if has_optlist removed */
 	  (has_optlist(obj))) 
 	{
-	  /* fprintf(stderr, "%d opt: %s %s\n", __LINE__, DISPLAY(car_x), DISPLAY(obj)); */
 	  return(funcall_optimize(sc, car_x, obj));
 	}
       
@@ -54040,7 +54029,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	{
 	  int32_t rtn_len = 0;
 	  opc->v1.i = sc->pc - 1;
-	  if (!s7_is_list(sc, cdr(end)))
+	  if (!is_list(cdr(end)))
 	    {
 	      sc->stack_end -= 4;
 	      sc->envir = old_e;
@@ -56169,10 +56158,9 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   /* it's a list, so return the list with each element handled as above.
    *    we try to support dotted lists which makes the code much messier.
+   *
+   * if no element of the list is a list or unquote, just return the original quoted 
    */
-
-  /* if no element of the list is a list or unquote, just return the original quoted */
-
   if ((cyclic_sequences(sc, form, false) == sc->T) ||
       (is_simple_code(sc, form))) 
     return(list_2(sc, sc->quote_symbol, form));
@@ -59012,7 +59000,7 @@ static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
     {
 #if DEBUGGING
       s7_function allx;
-      allx = all_x_eval(sc, p, e, (s7_is_list(sc, e)) ? pair_symbol_is_safe : let_symbol_is_safe);
+      allx = all_x_eval(sc, p, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe);
       if (!allx)
 	{
 	  fprintf(stderr, "%s: is_all_x_safe: %d, all_x_eval null?\n", DISPLAY(p), is_all_x_safe(sc, car(p)));
@@ -59020,7 +59008,7 @@ static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
 	}
       set_x_call(p, allx);
 #else
-      set_x_call(p, all_x_eval(sc, p, e, (s7_is_list(sc, e)) ? pair_symbol_is_safe : let_symbol_is_safe));
+      set_x_call(p, all_x_eval(sc, p, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
 #endif
     }
 }
@@ -59028,7 +59016,7 @@ static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
 static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 {
   /* if sc->envir is sc->nil, we're at the top-level, but the global_slot check should suffice for that */
-  set_x_call(arg, all_x_eval(sc, arg, e, (s7_is_list(sc, e)) ? pair_symbol_is_safe : let_symbol_is_safe));
+  set_x_call(arg, all_x_eval(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
 #if DEBUGGING
   if (!c_call(arg))
     abort();
@@ -60809,7 +60797,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, s7_pointer e, bool export_ok)
 {
   opcode_t op;
-  s7_pointer p, body;
+  s7_pointer p, body, vars;
   bool body_export_ok = true;
 
   op = (opcode_t)syntax_opcode(func);
@@ -60824,146 +60812,156 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
     case OP_LET:
     case OP_LETREC:
-      {
-	s7_pointer vars;
-	if (is_symbol(cadr(expr)))
-	  {
-	    if (!is_pair(cddr(expr))) /* (let name . x) */
-	      return(OPT_F);
-	    vars = caddr(expr);
-	    body = cdddr(expr);
-	  }
-	else
-	  {
-	    vars = cadr(expr);
-	    body = cddr(expr);
-	    if (is_null(vars))
-	      e = cons(sc, sc->nil, e);
-	  }
-	for (p = vars; is_pair(p); p = cdr(p))
-	  {
-	    s7_pointer var;
-	    var = car(p);
-	    if ((!is_pair(var)) ||
-		(!is_symbol(car(var))) ||
-		(!is_pair(cdr(var))))
-	      return(OPT_OOPS);
-	    if ((is_pair(cadr(var))) &&
-		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
-	      return(OPT_OOPS);
-	  }
-	e = collect_variables(sc, vars, e);
-	if (is_symbol(cadr(expr)))
-	  {
-	    e = cons(sc, add_symbol_to_list(sc, cadr(expr)), e);
-	    sc->w = e;
-	  }
-      }
+      if (is_symbol(cadr(expr)))
+	{
+	  if (!is_pair(cddr(expr))) /* (let name . x) */
+	    return(OPT_F);
+	  vars = caddr(expr);
+	  if (!is_list(vars)) return(OPT_OOPS);
+	  body = cdddr(expr);
+	}
+      else
+	{
+	  vars = cadr(expr);
+	  body = cddr(expr);
+	  if (is_null(vars))
+	    e = cons(sc, sc->nil, e);
+	  else
+	    {
+	      if (!is_pair(vars)) 
+		return(OPT_OOPS);
+	    }
+	}
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = car(p);
+	  if ((!is_pair(var)) ||
+	      (!is_symbol(car(var))) ||
+	      (!is_pair(cdr(var))))
+	    return(OPT_OOPS);
+	  if ((is_pair(cadr(var))) &&
+	      (!is_checked(cadr(var))) &&
+	      (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
+	    return(OPT_OOPS);
+	}
+      e = collect_variables(sc, vars, e);
+      if (is_symbol(cadr(expr)))
+	{
+	  e = cons(sc, add_symbol_to_list(sc, cadr(expr)), e);
+	  sc->w = e;
+	}
       break;
 	  
     case OP_LET_STAR:
     case OP_LETREC_STAR:
-      {
-	s7_pointer vars;
-	if (is_symbol(cadr(expr)))
-	  {
-	    if (!is_pair(cddr(expr))) /* (let name . x) */
-	      return(OPT_F);
-	    vars = caddr(expr);
-	    body = cdddr(expr);
-	  }
-	else
-	  {
-	    vars = cadr(expr);
-	    body = cddr(expr);
-	    if (is_null(vars))
-	      e = cons(sc, sc->nil, e);
-	  }
-	for (p = vars; is_pair(p); p = cdr(p))
-	  {
-	    s7_pointer var;
-	    var = car(p);
-	    if ((!is_pair(var)) ||
-		(!is_symbol(car(var))) ||
-		(!is_pair(cdr(var))))
-	      return(OPT_OOPS);
-
-	    if ((is_pair(cadr(var))) &&
-		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
-	      return(OPT_OOPS);
-
-	    e = cons(sc, add_symbol_to_list(sc, car(var)), e);
-	    sc->w = e;
-	  }
-	if (is_symbol(cadr(expr)))
-	  {
-	    e = cons(sc, add_symbol_to_list(sc, cadr(expr)), e);
-	    sc->w = e;
-	  }
-      }
+      if (is_symbol(cadr(expr)))
+	{
+	  if (!is_pair(cddr(expr))) /* (let name . x) */
+	    return(OPT_F);
+	  vars = caddr(expr);
+	  if (!is_list(vars)) return(OPT_OOPS);
+	  body = cdddr(expr);
+	}
+      else
+	{
+	  vars = cadr(expr);
+	  body = cddr(expr);
+	  if (is_null(vars))
+	    e = cons(sc, sc->nil, e);
+	  else
+	    {
+	      if (!is_pair(vars)) 
+		return(OPT_OOPS);
+	    }
+	}
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = car(p);
+	  if ((!is_pair(var)) ||
+	      (!is_symbol(car(var))) ||
+	      (!is_pair(cdr(var))))
+	    return(OPT_OOPS);
+	  
+	  if ((is_pair(cadr(var))) &&
+	      (!is_checked(cadr(var))) &&
+	      (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
+	    return(OPT_OOPS);
+	  
+	  e = cons(sc, add_symbol_to_list(sc, car(var)), e);
+	  sc->w = e;
+	}
+      if (is_symbol(cadr(expr)))
+	{
+	  e = cons(sc, add_symbol_to_list(sc, cadr(expr)), e);
+	  sc->w = e;
+	}
       break;
       
     case OP_LET_TEMPORARILY:
-      {
-	s7_pointer vars;
-	vars = cadr(expr);
-	body = cddr(expr);
-	for (p = vars; is_pair(p); p = cdr(p))
-	  {
-	    s7_pointer var;
-	    var = car(vars);
-	    if ((is_pair(var)) &&
-		(is_pair(cdr(var))) &&
-		(is_pair(cadr(var))) &&
-		(!is_checked(cadr(var))))
-	      {
-		if (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)
-		  return(OPT_OOPS);
-	      }
-	  }
-      }
+      vars = cadr(expr);
+      if (!is_list(vars)) return(OPT_OOPS);
+      body = cddr(expr);
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = car(vars);
+	  if ((is_pair(var)) &&
+	      (is_pair(cdr(var))) &&
+	      (is_pair(cadr(var))) &&
+	      (!is_checked(cadr(var))))
+	    {
+	      if (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)
+		return(OPT_OOPS);
+	    }
+	}
+      /* e = cons(sc, sc->nil, e); */ /* !? currently let-temporarily does not make a new let, so it is like begin? */
       break;
 
     case OP_DO:
-      {
-	s7_pointer vars;
-
-	vars = cadr(expr);
-	if (is_null(vars))
-	  e = cons(sc, sc->nil, e);
-	body = cddr(expr);
-
-	for (p = vars; is_pair(p); p = cdr(p))
-	  {
-	    s7_pointer var;
-	    var = car(p);
-	    if ((!is_pair(var)) ||
-		(!is_symbol(car(var))) ||
-		(!is_pair(cdr(var))))
-	      return(OPT_OOPS);
-	    if ((is_pair(cadr(var))) &&
-		(!is_checked(cadr(var))) &&
-		(optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)) /* the init field -- locals are not defined yet */
-	      return(OPT_OOPS);
-	  }
-	e = collect_variables(sc, vars, e);
-	for (p = vars; is_pair(p); p = cdr(p))
-	  {
-	    s7_pointer var;
-	    var = cddar(p);
-	    if ((is_pair(var)) &&
-		(is_pair(car(var))) &&
-		(!is_checked(car(var))) &&
-		(optimize_expression(sc, car(var), hop, e, false) == OPT_OOPS)) /* the step field -- locals are defined */
-	      return(OPT_OOPS);
-	  }
-      }
+      vars = cadr(expr);
+      if (is_null(vars))
+	e = cons(sc, sc->nil, e);
+      else
+	{
+	  if (!is_pair(vars))
+	    return(OPT_OOPS);
+	}
+      body = cddr(expr);
+      
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = car(p);
+	  if ((!is_pair(var)) ||
+	      (!is_symbol(car(var))) ||
+	      (!is_pair(cdr(var))))
+	    return(OPT_OOPS);
+	  if ((is_pair(cadr(var))) &&
+	      (!is_checked(cadr(var))) &&
+	      (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS)) /* the init field -- locals are not defined yet */
+	    return(OPT_OOPS);
+	}
+      e = collect_variables(sc, vars, e);
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = cddar(p);
+	  if ((is_pair(var)) &&
+	      (is_pair(car(var))) &&
+	      (!is_checked(car(var))) &&
+	      (optimize_expression(sc, car(var), hop, e, false) == OPT_OOPS)) /* the step field -- locals are defined */
+	    return(OPT_OOPS);
+	}
       break;
 
     case OP_BEGIN:
-      body_export_ok = export_ok;
+      body_export_ok = export_ok; /* (list x (begin (define x 0))) */
+      break;
+
+    case OP_WITH_BAFFLE:
+      e = cons(sc, sc->nil, e);
       break;
 
     case OP_DEFINE_MACRO:
@@ -60985,65 +60983,66 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
        *   (define x (+ x 1)) the inner x is not the x-being-defined.
        * export_ok is trying to protect against optimizing (list x (define x 0)) as op_safe_c_sp and all related cases
        */
-      {
-	s7_pointer name_args;
-	name_args = cadr(expr);
-	body = cddr(expr);
-	/* fprintf(stderr, "name: %s, body: %s\n", DISPLAY(name_args), DISPLAY(body)); */
-
-	if (is_pair(name_args))
-	  {
-	    if ((export_ok) &&
-		(is_symbol(car(name_args))))
-	      {
-		add_symbol_to_list(sc, car(name_args));
-		if (is_pair(e))
-		  {
-		    if (car(e) != sc->key_rest_symbol)
-		      set_cdr(e, cons(sc, car(name_args), cdr(e))); /* export it */
-		    else add_symbol_to_list(sc, symbol_to_keyword(sc, car(name_args)));
-		  }
-		else e = cons(sc, car(name_args), e);
-	      }
-	    e = collect_parameters(sc, cdr(name_args), e);
-	    body_export_ok = export_ok;
-	  }
-	else 
-	  {
-	    if ((export_ok) &&
-		(is_symbol(name_args)))
-	      {
-		/* actually if this is defining a function, the name should probably be included in the local env 
-		 *   but that's next-to-impossible to guarantee unless it's (define x (lambda...)) of course.
-		 */
-		sc->temp9 = e;
-		for (p = body; is_pair(p); p = cdr(p))
-		  if ((is_pair(car(p))) && 
-		      (!is_checked(car(p))) && /* ((typeflag & (0xff | T_CHECKED)) == T_PAIR) is not faster */
-		      (optimize_expression(sc, car(p), hop, e, false) == OPT_OOPS)) /* "body" here is not body in terms of export_ok */
-		    return(OPT_OOPS);
-		sc->temp9 = sc->nil;
-
-		add_symbol_to_list(sc, name_args);
-		if (is_pair(e))
-		  {
-		    if (car(e) != sc->key_rest_symbol)
-		      set_cdr(e, cons(sc, name_args, cdr(e)));     /* export it */
-		    else add_symbol_to_list(sc, symbol_to_keyword(sc, name_args));
-		  }
-		else e = cons(sc, name_args, e);
-		return(OPT_F);
-	      }
-	    body_export_ok = false;
-	  }
-      }
+      vars = cadr(expr);
+      body = cddr(expr);
+      if (is_pair(vars))
+	{
+	  if ((export_ok) &&
+	      (is_symbol(car(vars))))
+	    {
+	      add_symbol_to_list(sc, car(vars));
+	      if (is_pair(e))
+		{
+		  if (car(e) != sc->key_rest_symbol)
+		    set_cdr(e, cons(sc, car(vars), cdr(e))); /* export it */
+		  else add_symbol_to_list(sc, symbol_to_keyword(sc, car(vars)));
+		}
+	      else e = cons(sc, car(vars), e);
+	    }
+	  e = collect_parameters(sc, cdr(vars), e);
+	  body_export_ok = export_ok;
+	}
+      else 
+	{
+	  if ((export_ok) &&
+	      (is_symbol(vars)))
+	    {
+	      /* actually if this is defining a function, the name should probably be included in the local env 
+	       *   but that's next-to-impossible to guarantee unless it's (define x (lambda...)) of course.
+	       */
+	      sc->temp9 = e;
+	      for (p = body; is_pair(p); p = cdr(p))
+		if ((is_pair(car(p))) && 
+		    (!is_checked(car(p))) && /* ((typeflag & (0xff | T_CHECKED)) == T_PAIR) is not faster */
+		    (optimize_expression(sc, car(p), hop, e, false) == OPT_OOPS)) /* "body" here is not body in terms of export_ok */
+		  return(OPT_OOPS);
+	      sc->temp9 = sc->nil;
+	      
+	      add_symbol_to_list(sc, vars);
+	      if (is_pair(e))
+		{
+		  if (car(e) != sc->key_rest_symbol)
+		    set_cdr(e, cons(sc, vars, cdr(e)));     /* export it */
+		  else add_symbol_to_list(sc, symbol_to_keyword(sc, vars));
+		}
+	      else e = cons(sc, vars, e);
+	      return(OPT_F);
+	    }
+	  body_export_ok = false;
+	}
       break;
 
     case OP_LAMBDA:
     case OP_LAMBDA_STAR:
-      if (is_null(cadr(expr)))
+      vars = cadr(expr);
+      if (is_null(vars))
 	e = cons(sc, sc->nil, e);
-      e = collect_parameters(sc, cadr(expr), e);
+      else
+	{
+	  if ((!is_pair(vars)) && (!is_symbol(vars)))
+	    return(OPT_OOPS);
+	}
+      e = collect_parameters(sc, vars, e);
       body = cddr(expr);
       break;
 
@@ -61052,6 +61051,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	  (caadr(expr) == sc->outlet_symbol))
 	return(OPT_OOPS);
       body = cddr(expr); 
+      body_export_ok = false; /* (list x (set! y (define x 0))) -- can body here have more than one expression? */
       break;
 
     case OP_WITH_LET:
@@ -61411,8 +61411,6 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
       else
 	{
 	  /* car_expr is "complicated" */
-	  /* fprintf(stderr, "  %s is complicated\n", DISPLAY_80(expr)); */
-
 	  if ((sc->undefined_identifier_warnings) &&
 	      (func == sc->undefined) &&           /* car_expr is not in e or global */
 	      (symbol_tag(car_expr) == 0))         /*    and we haven't looked it up earlier */
@@ -61667,7 +61665,6 @@ static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *ari
 {
   s7_pointer x;
   int32_t i;
-  /* fprintf(stderr, "check lambda args %s\n", DISPLAY(args)); */
 
   if ((!is_pair(args)) && (!is_null(args)))
     {
@@ -61715,7 +61712,7 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, int32_t
   s7_pointer top, v, w;
   int32_t i;
 
-  if (!s7_is_list(sc, args))
+  if (!is_list(args))
     {
       if (is_constant(sc, args))                                  /* (lambda* :a ...) */
 	eval_error(sc, "lambda* parameter '~S is a constant", args);
@@ -62604,7 +62601,7 @@ static s7_pointer check_case(s7_scheme *sc)
 	eval_error(sc, "case clause ~A messed up", x);
       car_x = car(x);
 
-      if (!s7_is_list(sc, cdr(car_x)))                               /* (case 1 ((1))) */
+      if (!is_list(cdr(car_x)))                                       /* (case 1 ((1))) */
 	eval_error(sc, "case clause result messed up: ~A", car_x);
 
       if ((bodies_simple) &&
@@ -62896,7 +62893,7 @@ static s7_pointer check_let(s7_scheme *sc)
   if (!is_pair(cdr(sc->code)))          /* (let () ) */
     eval_error(sc, "let has no body: ~A", sc->code);
 
-  if ((!s7_is_list(sc, car(sc->code))) && /* (let 1 ...) */
+  if ((!is_list(car(sc->code))) &&      /* (let 1 ...) */
       (!is_symbol(car(sc->code))))
     eval_error(sc, "let variable list is messed up or missing: ~A", sc->code);
 
@@ -63217,7 +63214,7 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
   caller = (letrec) ? sc->letrec_symbol : sc->letrec_star_symbol;
   if ((!is_pair(sc->code)) ||                 /* (letrec . 1) */
       (!is_pair(cdr(sc->code))) ||            /* (letrec) */
-      (!s7_is_list(sc, car(sc->code))))       /* (letrec 1 ...) */
+      (!is_list(car(sc->code))))              /* (letrec 1 ...) */
     eval_error_with_caller(sc, "~A: variable list is messed up: ~A", caller, sc->code);
 
   clear_symbol_list(sc);
@@ -63267,7 +63264,7 @@ static s7_pointer check_let_temporarily(s7_scheme *sc)
   s7_pointer x;
 
   if ((!is_pair(sc->code)) ||                 /* (let-temporarily . 1) */
-      (!s7_is_list(sc, car(sc->code))))       /* (let-temporarily 1 ...) */
+      (!is_list(car(sc->code))))              /* (let-temporarily 1 ...) */
     eval_error(sc, "let-temporarily: variable list is messed up: ~A", sc->code);
   /* cdr(sc->code) = body can be nil */
 
@@ -63927,7 +63924,7 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
     eval_error_with_caller(sc, "~A ~A, but no body?", caller, x);
 
   y = cdar(sc->code);            /* the arglist */
-  if ((!s7_is_list(sc, y)) &&
+  if ((!is_list(y)) &&
       (!is_symbol(y)))
     return(s7_error(sc, sc->syntax_error_symbol,                                      /* (define-macro (mac . 1) ...) */
 		    set_elist_3(sc, s7_make_string_wrapper(sc, "macro ~A argument list is ~S?"), x, y)));
@@ -64522,7 +64519,6 @@ static s7_pointer check_set(s7_scheme *sc)
 
 static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_pointer value)
 {
-  /* fprintf(stderr, "p_3: %s\n", DISPLAY(obj)); */
   if (is_slot(obj))
     obj = slot_value(obj);
   else eval_error(sc, "no generalized set for ~A", caar(sc->code));
@@ -66629,7 +66625,6 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
   int32_t body_len, var_len;
 
   if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(fall_through);
-  /* fprintf(stderr, "let_ok: %s\n", DISPLAY(scc)); */
   /* do_let with non-float vars doesn't get many fixable hits */
 
   let_code = caddr(scc);
@@ -68371,6 +68366,15 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 	  car_lx = car(lx);
 	  if (has_methods(car_lx))
 	    car_lx = check_values(sc, car_lx, lx);
+
+	  /* if (car_lx == sc->no_value) {lx = cdr(lx); continue;} */
+	  /* ((lambda* ((x 1) (y 2)) (list x y)) (values) 3): '(3 2)
+	   * ((lambda* ((x 1) (y 2)) (list x y)) 3 (values)): '(3 2)
+	   * ((lambda* ((x 1) (y 2)) (list x y)) (values) (values)): '(1 2)
+	   * ((lambda* ((x 1) (y 2)) (list x y))): '(1 2)
+	   * but ((lambda (x y) (list x y)) 3 (values)): '(3 #<unspecified>) etc
+	   */
+
 	  if (is_keyword(car_lx))
 	    {
 	      s7_pointer sym;
@@ -72665,7 +72669,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto EVAL;
 		  
 		case OP_CLOSURE_A:
-		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; fprintf(stderr, "closure_a gives up\n"); break;}		  
+		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}		  
 		case HOP_CLOSURE_A:
 		  sc->value = c_call(cdr(code))(sc, cadr(code));
 		  check_stack_size(sc);
@@ -73820,12 +73824,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      /* set_immutable(sym); */ /* obsolete */
 	      set_immutable(global_slot(sym)); /* id == 0 so its global */
 	      set_possibly_constant(sym);
+#if DEBUGGING
 	      {
 		s7_pointer slot;
 		slot = find_symbol(sc, sym);
 		if (slot != global_slot(sym))
 		  fprintf(stderr, "%s slots: %p %p %p\n", DISPLAY(sym), slot, global_slot(sym), local_slot(sym));
 	      }
+#endif
 	      sc->value = find_symbol_checked(sc, car(sc->code));
 	      goto START;
 	    }
@@ -81506,6 +81512,9 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	   ((sym != sc->print_length_symbol) &&
 	    (sym != sc->float_format_precision_symbol))))
 	return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be a positive integer")));
+
+      /* float-format-precision should not be huge => hangs in snprintf -- what's a reasonable limit here? */
+      if (sym == sc->float_format_precision_symbol)     {float_format_precision = (iv < 100) ? iv : 100; return(val);}
       
       if (sym == sc->print_length_symbol)               {sc->print_length = iv;               return(val);}
       if (sym == sc->default_hash_table_length_symbol)  {sc->default_hash_table_length = iv;  return(val);}
@@ -81513,7 +81522,6 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (sym == sc->max_vector_dimensions_symbol)      {sc->max_vector_dimensions = iv;      return(val);}
       if (sym == sc->max_list_length_symbol)            {sc->max_list_length = iv;            return(val);}
       if (sym == sc->max_string_length_symbol)          {sc->max_string_length = iv;          return(val);}
-      if (sym == sc->float_format_precision_symbol)     {float_format_precision = iv;         return(val);}
       if (sym == sc->initial_string_port_length_symbol) {sc->initial_string_port_length = iv; return(val);}
       if (sym == sc->history_size_symbol)
 	{
@@ -83907,7 +83915,8 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * perhaps include sc->envir in history?
+ * perhaps include sc->envir in history? 
+ *   backwards compatible if a separate circle used, but under what name? (*s7* 'history-annotated)? 
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83923,6 +83932,7 @@ int main(int argc, char **argv)
  *   gtk_box_pack* has changed -- many uses!
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
+ * object->let for gtk widgets?
  *
  * the old mus-audio-* code needs to use play or something, especially bess*
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
