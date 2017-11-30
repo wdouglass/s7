@@ -1,26 +1,7 @@
-Snd 17.8:
+Snd 17.9:
 
-Snd: moved from cvs to svn at sourceforge:
-     svn checkout svn://svn.code.sf.net/p/snd/svn1/trunk snd
+various bugs fixed.
 
-s7: added immutable!, immutable?
-    define-constant follows normal lexical scoping rules now
-    symbol-access renamed symbol-setter
-    added third optional argument to the symbol-setter: the relevant environment
-    deprecated s7_procedure_with_setter, s7_symbol_access
-    renamed let-set!-fallback to let-set-fallback since I never remember the "!"
-    renamed procedure-signature -> signature, 
-            procedure-documentation -> documentation, 
-            procedure-setter -> setter.
-      these are all generic, so the "procedure" part is misleading, but
-      unfortunately these new names collide with the previous function-local
-      variables (for example, documentation accessed by procedure-documentation).  
-      Since those variables are normally constants, and since I can't think of
-      anything better, they are now of the form +documentation+.  
+checked: FC 27, gsl 2.4, gtk 3.92.1, sbcl 1.4.1, OSX 10.13.1, Ubuntu 17.10
 
-clm: removed *clm-default-frequency*; Mike fixed the Ruby and Forth cases.
-
-checked: sbcl 1.4.0
-
-Thanks!: Mike Scholz.
-
+Thanks!: Tito Latini, Michael Edwards

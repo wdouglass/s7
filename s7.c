@@ -247,6 +247,7 @@
   #define DEFAULT_HISTORY_SIZE 8
   /* this is the default length of the eval history buffer */
 #endif
+#define MAX_HISTORY_SIZE 1048576
 
 #ifndef WITH_PROFILE
   #define WITH_PROFILE 0
@@ -370,6 +371,7 @@
 #define UNBOLD_TEXT "\033[22m"
 
 #define WRITE_REAL_PRECISION 16
+#define MAX_FLOAT_FORMAT_PRECISION 128
 static int32_t float_format_precision = WRITE_REAL_PRECISION;
 
 #if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))
@@ -1122,9 +1124,9 @@ struct s7_scheme {
              with_input_from_file_symbol, with_input_from_string_symbol, with_output_to_file_symbol, with_output_to_string_symbol,
              write_byte_symbol, write_char_symbol, write_string_symbol, write_symbol,
              local_documentation_symbol, local_signature_symbol, local_setter_symbol;
-
-  s7_pointer procedure_documentation_symbol, procedure_signature_symbol, procedure_setter_symbol; /* obsolete */
-         
+#if (!DISABLE_DEPRECATED)
+  s7_pointer procedure_documentation_symbol, procedure_signature_symbol, procedure_setter_symbol;
+#endif         
 #if (!WITH_PURE_S7)
   s7_pointer is_char_ready_symbol, char_ci_leq_symbol, char_ci_lt_symbol, char_ci_eq_symbol, char_ci_geq_symbol, char_ci_gt_symbol, 
              let_to_list_symbol, integer_length_symbol, string_ci_leq_symbol, string_ci_lt_symbol, string_ci_eq_symbol,
@@ -8127,7 +8129,7 @@ s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym)
 
 s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local_env)
 {
-  /* use find_local_symbol above to restrict the search to local_env */
+  /* restrict the search to local_env outward */
   if ((local_env == sc->rootlet) || (is_global(sym)))
     {
       if (is_slot(global_slot(sym)))
@@ -8147,6 +8149,12 @@ s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local
 	    if (slot_symbol(y) == sym)
 	      return(slot_value(y));
 	}
+      /* need to check rootlet before giving up */
+      if (is_slot(global_slot(sym)))
+	return(slot_value(global_slot(sym)));
+
+      /* (let ((e (curlet))) (let ((a 1)) (symbol->value 'a e))) -> #<undefined> not 1 */
+      return(sc->undefined); /* 29-Nov-17 */
     }
   return(s7_symbol_value(sc, sym));
 }
@@ -8229,7 +8237,6 @@ static s7_pointer find_dynamic_value(s7_scheme *sc, s7_pointer x, s7_pointer sym
     }
   return(sc->gc_nil);
 }
-
 
 static s7_pointer g_symbol_to_dynamic_value(s7_scheme *sc, s7_pointer args)
 {
@@ -8599,21 +8606,6 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
       if (b == sc->T)
 	return(sc->F);
 
-      /* here we can't fall back on find_symbol:
-       *    (let ((b 2))
-       *      (let ((e (curlet)))
-       *        (let ((a 1))
-       *          (if (defined? 'a e)
-       *              (format #t "a: ~A in ~{~A ~}" (symbol->value 'a e) e))))
-       *    "a: 1 in (b . 2)"
-       *
-       * but we also can't just return #f:
-       *    (let ((b 2))
-       *      (let ((e (curlet)))
-       *        (let ((a 1))
-       *          (format #t "~A: ~A" (defined? 'abs e) (eval '(abs -1) e)))))
-       *    "#f: 1"
-       */
       return(make_boolean(sc, is_slot(global_slot(sym))));
     }
   else
@@ -38509,8 +38501,11 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
 	return(s7_make_string(sc, symbol_help(p)));
       p = s7_symbol_value(sc, p);
     }
-
-  check_two_methods(sc, p, sc->documentation_symbol, sc->procedure_documentation_symbol, list_1(sc, p));
+#if DISABLE_DEPRECATED
+  check_method(sc, p, sc->documentation_symbol, args);
+#else
+  check_two_methods(sc, p, sc->documentation_symbol, sc->procedure_documentation_symbol, args);
+#endif
   if ((!is_procedure(p)) &&
       (!is_any_macro(p)))
     return(simple_wrong_type_argument_with_type(sc, sc->documentation_symbol, p, a_procedure_string));
@@ -38605,11 +38600,19 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_STRING:       if (is_byte_vector_not_string(p)) return(sc->byte_vector_signature); return(sc->string_signature);
 
     case T_C_OBJECT: 
+#if DISABLE_DEPRECATED
+      check_method(sc, p, sc->signature_symbol, args);
+#else
       check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
+#endif
       return(sc->c_object_signature);
  
     case T_LET:
+#if DISABLE_DEPRECATED
+      check_method(sc, p, sc->signature_symbol, args);
+#else
       check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
+#endif
       return(sc->let_signature);
 
     default:
@@ -39132,7 +39135,11 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
       return(sc->F);
 
     case T_LET:
+#if DISABLE_DEPRECATED
+      check_method(sc, p, sc->setter_symbol, args);
+#else
       check_two_methods(sc, p, sc->setter_symbol, sc->procedure_setter_symbol, args);
+#endif
       return(slot_value(global_slot(sc->let_set_symbol)));
       break;
 
@@ -40373,9 +40380,12 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	                  (vector_equal(sc, iterator_sequence(x), iterator_sequence(y), ci))));
 
     case T_PAIR:
+      if (iterator_next(x) != iterator_next(y)) return(false);     /* even if seqs are equal, one might be at end (next is a procedure) */
+      if (morally)
+	return((pair_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)) &&
+	       (pair_equal(sc, iterator_current(x), iterator_current(y), ci)));  /* this repeats the previous calc */
       return((iterator_sequence(x) == iterator_sequence(y)) &&
-	     (iterator_next(x) == iterator_next(y)) &&           /* even if seqs are equal, one might be at end */
-	     (iterator_current(x) == iterator_current(y)));      /* current pointer into the sequence */
+	     (iterator_current(x) == iterator_current(y)));        /* current pointer into the sequence */
 
     case T_HASH_TABLE:
       return((iterator_sequence(x) == iterator_sequence(y)) &&
@@ -68841,7 +68851,7 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 {
   if (cyclic_sequences(sc, code, false) == sc->T)
     eval_error(sc, "attempt to evaluate a circular list: ~A", code);
-  resize_stack(sc);
+  resize_stack(sc); /* we've already checked that resize_stack is needed */
   return(sc->F);
 }
 
@@ -81514,7 +81524,11 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be a positive integer")));
 
       /* float-format-precision should not be huge => hangs in snprintf -- what's a reasonable limit here? */
-      if (sym == sc->float_format_precision_symbol)     {float_format_precision = (iv < 100) ? iv : 100; return(val);}
+      if (sym == sc->float_format_precision_symbol)
+	{
+	  float_format_precision = (iv < MAX_FLOAT_FORMAT_PRECISION) ? iv : MAX_FLOAT_FORMAT_PRECISION; 
+	  return(val);
+	}
       
       if (sym == sc->print_length_symbol)               {sc->print_length = iv;               return(val);}
       if (sym == sc->default_hash_table_length_symbol)  {sc->default_hash_table_length = iv;  return(val);}
@@ -81527,6 +81541,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	{
 #if WITH_HISTORY
 	  s7_pointer p1, p2;
+	  if (iv > MAX_HISTORY_SIZE) iv = MAX_HISTORY_SIZE;
 	  if (iv > sc->true_history_size)
 	    {
 	      /* splice in the new cells, reattach the circles */
@@ -83815,12 +83830,11 @@ s7_scheme *s7_init(void)
 	         s7_cons(sc, sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer"))));
   s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
 
-  /* obsolete */
+#if (!DISABLE_DEPRECATED)
   sc->procedure_documentation_symbol = s7_make_symbol(sc, "procedure-documentation");
   sc->procedure_signature_symbol = s7_make_symbol(sc, "procedure-signature");
   sc->procedure_setter_symbol = s7_make_symbol(sc, "procedure-setter");
 
-#if (!DISABLE_DEPRECATED)
   s7_eval_c_string(sc, "(begin                                                    \n\
                           (define global-environment         rootlet)             \n\
                           (define current-environment        curlet)              \n\
@@ -83945,28 +83959,28 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------
  *
- *           12  |  13  |  14  |  15  ||  16  | 17.4  17.8  17.9
- * tmac          |      |      |      || 9052 |  615   261   261   264
- * tref          |      |      | 2372 || 2125 | 1375  1105  1033  1036
- * index    44.3 | 3291 | 1725 | 1276 || 1255 | 1158  1050  1053  1168
- * tauto     265 |   89 |  9   |  8.4 || 2993 | 3255  1433  1433  1457
- * teq           |      |      | 6612 || 2777 | 2129  1927  1928  1931
- * s7test   1721 | 1358 |  995 | 1194 || 2926 | 2645  2117  2093  2110
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 | 3616  2426  2426  2467
- * lint          |      |      |      || 4041 | 3376  2677  2672  2702
- * lg            |      |      |      || 211  | 161   132.4 132.2 133.2
- * tform         |      |      | 6816 || 3714 | 3530  2733  2746  2762
- * tcopy         |      |      | 13.6 || 3183 | 3404  2918  2918  2974
- * tmap          |      |      |  9.3 || 5279 |       3386  3378  3445
- * tfft          |      | 15.5 | 16.4 || 17.3 | 4901  3964  3964  3966
- * tsort         |      |      |      || 8584 | 4869  4012  4012  4111
- * titer         |      |      |      || 5971 | 5224  4537  4537  4646
- * bench         |      |      |      || 7012 | 6378  5077  5077  5093
- * thash         |      |      | 50.7 || 8778 | 8488  7531  7541  7697
- * tgen          |   71 | 70.6 | 38.0 || 12.6 | 12.4  11.8  11.8  11.9
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 | 20.4  17.8  17.8  18.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 | 42.5  38.4  38.5  40.5
- *                                    || 139  | 129   81.8  81.9  85.9
+ *           12  |  13  |  14  |  15  ||  16  ||  17  |  18
+ * tmac          |      |      |      || 9052 ||  264 |
+ * tref          |      |      | 2372 || 2125 || 1036 |
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 |
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 |
+ * teq           |      |      | 6612 || 2777 || 1931 |
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 |
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 |
+ * lint          |      |      |      || 4041 || 2702 |
+ * lg            |      |      |      || 211  || 133  |
+ * tform         |      |      | 6816 || 3714 || 2762 |
+ * tcopy         |      |      | 13.6 || 3183 || 2974 |
+ * tmap          |      |      |  9.3 || 5279 || 3445 |
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 |
+ * tsort         |      |      |      || 8584 || 4111 |
+ * titer         |      |      |      || 5971 || 4646 |
+ * bench         |      |      |      || 7012 || 5093 |
+ * thash         |      |      | 50.7 || 8778 || 7697 |
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 |
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 |
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 |
+ *                                    || 139  || 85.9 |
  * 
  * --------------------------------------------------------------
  */
