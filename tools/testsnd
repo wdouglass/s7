@@ -248,7 +248,7 @@ echo ' '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --without-gui --quiet CC=/home/bil/test/llvm-3.1.src/build/Release+Asserts/bin/clang CFLAGS="-Wall" LDFLAGS="-Wl,-export-dynamic"
+./configure --without-gui --quiet CC=clang CFLAGS="-Wall" LDFLAGS="-Wl,-export-dynamic"
 make
 ./snd --version
 ./snd -l snd-test

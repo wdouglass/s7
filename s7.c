@@ -32296,6 +32296,11 @@ static s7_pointer g_set_cdr(s7_scheme *sc, s7_pointer args)
   if (!is_mutable_pair(p))
     mutable_method_or_bust(sc, p, sc->set_cdr_symbol, args, T_PAIR, 1);
 
+#if DEBUGGING
+  if (not_in_heap(p))
+    fprintf(stderr, "unheap set-cdr! %s\n", DISPLAY(p));
+#endif
+
   set_cdr(p, cadr(args));
   return(cdr(p));
 }
@@ -32304,6 +32309,10 @@ static s7_pointer set_cdr_p_pp(s7_pointer p1, s7_pointer p2)
 {
   if (!is_mutable_pair(p1))
     simple_wrong_type_argument(cur_sc, cur_sc->set_cdr_symbol, p1, T_PAIR);
+#if DEBUGGING
+  if (not_in_heap(p1)) 
+    fprintf(stderr, "unheap opt set-cdr! %s\n", s7_object_to_c_string(cur_sc, p1));
+#endif
   set_cdr(p1, p2);
   return(p2);
 }
@@ -60927,6 +60936,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	    }
 	}
       /* e = cons(sc, sc->nil, e); */ /* !? currently let-temporarily does not make a new let, so it is like begin? */
+      body_export_ok = export_ok;     /* (list x (let-temporarily () (define x 0))) just as in begin */
       break;
 
     case OP_DO:
@@ -83929,8 +83939,6 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * perhaps include sc->envir in history? 
- *   backwards compatible if a separate circle used, but under what name? (*s7* 'history-annotated)? 
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

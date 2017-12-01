@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/07/05 13:09:37
-\ Changed: 15/01/29 23:39:32
+\ Changed: 17/12/01 00:14:41
 \
-\ @(#)examp.fs	1.68 1/29/15
+\ @(#)examp.fs	1.69 12/1/17
 
 \ With original comments and doc strings from examp.scm.
 \
@@ -296,6 +296,7 @@ require rgb
 	wl  wr wl - 1+  snd chn #f channel->vct
 ;
 
+\ graph data xlabel x0 x1 y0 y1 snd chn force-display show-axes-choice
 : display-energy <{ snd chn -- v }>
 	doc" A lisp-graph-hook function to display the time \
 domain data as energy (squared).\n\
@@ -308,8 +309,9 @@ list-graph-hook <'> display-energy add-hook!."
 		snd chn right-sample { rs }
 		snd srate { sr }
 		snd chn y-zoom-slider { y-max }
-		data data vct-multiply! "energy" ls sr f/ rs sr f/
-		    0.0 y-max dup f*  snd chn #t undef graph
+		data data vct-multiply! "energy"
+		    ls sr f/ rs sr f/ 0.0 y-max dup f*
+		    snd chn #t show-all-axes graph
 	else
 		#f
 	then
@@ -339,7 +341,8 @@ list-graph-hook <'> display-db add-hook!."
 		snd srate { sr }
 		data map
 			*key* fabs db-calc 60.0 f+
-		end-map "dB" ls sr f/ rs sr f/ 0.0 60.0 snd chn #t undef graph
+		end-map "dB" ls sr f/ rs sr f/ 0.0 60.0
+		    snd chn #t show-all-axes graph
 	else
 		#f
 	then
@@ -428,7 +431,7 @@ y0 and y1 are ignored."
 			data3 tmprl 0 vct-add! drop
 			data3 fftscale vct-scale! drop
 			data3 "lag time" 0 fftlen2
-			    undef undef snd chn #t undef graph
+			    32768.0 -32768.0 snd chn #t show-all-axes graph
 		then
 	else
 		get-func-name " wants stereo input" $+ snd status-report
@@ -492,7 +495,7 @@ time-domain window size (use with graph-hook)."
 				then
 			end-each
 			ffts "spectra" 0.0 0.5 y0 y1
-			    snd chn #t undef graph drop
+			    snd chn #t show-all-axes graph drop
 		then
 	then
 	#f
