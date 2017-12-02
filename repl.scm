@@ -420,6 +420,7 @@
 	    
 	    ;; to enable mouse click coords (in xterm anyway), (format *stderr* "~C[?9h" #\escape)
 	    ;;    disable: (format *stderr* "~C[?9l" #\escape)
+	    ;;    this is X10_MOUSE -- probably better to use SET_ANY_EVENT_MOUSE 1003
 	    ;; while enabled, mouse selection instead sends coords to repl (so it's annoying)
 	    ;;    also it's sticky!  exit repl does not clear this flag so mouse is effectively dead
 	    ;; upon click, we get ESC [ M b x y (b = button info, x/y are coords starting at 32=0 -- 6 chars received)
