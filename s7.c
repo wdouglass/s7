@@ -55799,6 +55799,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
   int64_t top;
   s7_pointer x;
   top = s7_stack_top(sc) - 1; /* stack_end - stack_start: if this is negative, we're in big trouble */
+  /* fprintf(stderr, "splice %s %s\n", op_names[stack_op(sc->stack, top)], DISPLAY(sc->args)); */
 
   switch (stack_op(sc->stack, top))
     {
@@ -60797,6 +60798,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		return(OPT_OOPS);
 	    }
 	}
+      if (!is_pair(body)) return(OPT_OOPS);
       for (p = vars; is_pair(p); p = cdr(p))
 	{
 	  s7_pointer var;
@@ -60840,6 +60842,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		return(OPT_OOPS);
 	    }
 	}
+      if (!is_pair(body)) return(OPT_OOPS);
       for (p = vars; is_pair(p); p = cdr(p))
 	{
 	  s7_pointer var;
@@ -63038,10 +63041,11 @@ static s7_pointer check_let_star(s7_scheme *sc)
   s7_pointer vars;
   bool named_let;
 
+  /* sc->code is cdr of let form (no let*) */
   if (!is_pair(sc->code))                           /* (let* . 1) */
     eval_error(sc, "let* variable list is messed up: ~A", sc->code);
-  if (!is_pair(cdr(sc->code)))                      /* (let*) */
-    eval_error(sc, "let* variable list is messed up: ~A", sc->code);
+  if (!is_pair(cdr(sc->code)))                      /* (let* ()) */
+    eval_error(sc, "let* has no body: ~A", sc->code);
 
   named_let = (is_symbol(car(sc->code)));
 
@@ -63179,9 +63183,11 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
   s7_pointer x, caller;
   caller = (letrec) ? sc->letrec_symbol : sc->letrec_star_symbol;
   if ((!is_pair(sc->code)) ||                 /* (letrec . 1) */
-      (!is_pair(cdr(sc->code))) ||            /* (letrec) */
       (!is_list(car(sc->code))))              /* (letrec 1 ...) */
     eval_error_with_caller(sc, "~A: variable list is messed up: ~A", caller, sc->code);
+
+  if (!is_pair(cdr(sc->code)))               /* (letrec ()) */
+    eval_error_with_caller(sc, "~A has no body: ~A", caller, sc->code);
 
   clear_symbol_list(sc);
   for (x = car(sc->code); is_not_null(x); x = cdr(x))
@@ -65357,6 +65363,8 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 			if (!s7_is_list(sc, cadr(expr)))
 			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
+			if (!is_pair(cddr(expr)))
+			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 
 			for (vars = cadr(expr); is_pair(vars); vars = cdr(vars))
 			  {
@@ -65713,12 +65721,12 @@ static s7_pointer check_do(s7_scheme *sc)
        * also cdr as step to is_null as end
        * also do body is optimized expr: vector_set_3 via hop_safe_c_sss for example or (vset v i (vref w i))
        */
+
       if ((is_pair(end)) && (is_pair(car(end))) &&
 	  (is_pair(vars)) && (is_null(cdr(vars))) &&
 	  (is_pair(body)))
 	{
-	  /* loop has one step variable, and normal-looking end test
-	   */
+	  /* loop has one step variable, and normal-looking end test */
 	  s7_pointer v;
 	  v = car(vars);
 	  if ((is_pair(car(body))) &&
@@ -65739,8 +65747,7 @@ static s7_pointer check_do(s7_scheme *sc)
 		     (opt_cfunc(step_expr) == subtract_cs1) || (opt_cfunc(step_expr) == subtract_cl1))) ||
 		   ((optimize_op(step_expr) == HOP_SAFE_C_CS) && (car(v) == caddr(step_expr)))))
 		{
-		  /* step var is (var const|symbol (op var const)|(op const var))
-		   */
+		  /* step var is (var const|symbol (op var const)|(op const var)) */
 		  end = car(end);
 
 		  if ((is_optimized(end)) &&
@@ -65801,8 +65808,7 @@ static s7_pointer check_do(s7_scheme *sc)
 			  /* 5 bench, -60 gen, 653 all, 1423 snd-test */
 			}
 
-		      /* now look for the very common dotimes case
-		       */
+		      /* now look for the very common dotimes case */
 		      if ((((s7_is_integer(caddr(step_expr))) &&
 			    (s7_integer(caddr(step_expr)) == 1)) ||
 			   ((s7_is_integer(cadr(step_expr))) &&
@@ -66596,6 +66602,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
   let_code = caddr(scc);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
+  if (body_len <= 0) return(fall_through);
   let_star = (symbol_syntax_op(car(let_code)) == OP_LET_STAR);
   let_vars = cadr(let_code);
   set_safe_stepper(step_slot);
@@ -73245,8 +73252,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 	case OP_EVAL_ARGS_P_3_MV:      /* (define (hi a) (+ (values 1 2) a)) */
-	  sc->w = sc->value;
-	  sc->args = cons(sc, find_symbol_unchecked(sc, caddr(sc->code)), sc->w);
+	  sc->w = sc->value;           /*    so we want (append sw->w (list symbol-value)) */
+	  /* sc->args = cons(sc, find_symbol_unchecked(sc, caddr(sc->code)), sc->w); */
+	  sc->args = s7_append(sc, sc->w, list_1(sc, find_symbol_unchecked(sc, caddr(sc->code))));
 	  sc->code = c_function_base(opt_cfunc(sc->code));
 	  goto APPLY;
 	  
