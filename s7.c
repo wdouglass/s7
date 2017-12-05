@@ -3107,7 +3107,7 @@ enum {OP_NO_OP, OP_GC_PROTECT,
       OP_DO_NO_VARS, OP_DO_NO_VARS_NO_OPT, OP_DO_NO_VARS_NO_OPT_1,
 
       OP_SAFE_C_P_1, OP_SAFE_C_PP_1, OP_SAFE_C_PP_3, OP_SAFE_C_PP_5, OP_SAFE_C_PP_6,
-      OP_EVAL_ARGS_P_2, OP_EVAL_ARGS_P_2_MV, OP_EVAL_ARGS_P_3, OP_EVAL_ARGS_P_4, OP_EVAL_ARGS_P_3_MV,
+      OP_EVAL_ARGS_P_2, OP_EVAL_ARGS_P_2_MV, OP_EVAL_ARGS_P_3, OP_EVAL_ARGS_P_4, OP_EVAL_ARGS_P_3_MV, OP_EVAL_ARGS_P_4_MV,
       OP_EVAL_ARGS_AAP_1, OP_EVAL_ARGS_AAP_MV, OP_EVAL_MACRO_MV, OP_MACROEXPAND_1, OP_APPLY_LAMBDA,
       OP_SAFE_CLOSURE_P_1, OP_CLOSURE_P_1, OP_SAFE_CLOSURE_AP_1, OP_SAFE_CLOSURE_PA_1, 
       OP_SAFE_C_ZZ_1, OP_SAFE_C_ZA_1, OP_INCREMENT_SZ_1, OP_SAFE_C_SZ_SZ,
@@ -3336,7 +3336,7 @@ static const char *op_names[OP_MAX_DEFINED_1] = {
       "do_no_vars", "do_no_vars_no_opt", "do_no_vars_no_opt_1",
 
       "safe_c_p_1", "safe_c_pp_1", "safe_c_pp_3", "safe_c_pp_5", "safe_c_pp_6",
-      "eval_args_p_2", "eval_args_p_2_mv", "eval_args_p_3", "eval_args_p_4", "eval_args_p_3_mv",
+      "eval_args_p_2", "eval_args_p_2_mv", "eval_args_p_3", "eval_args_p_4", "eval_args_p_3_mv", "eval_args_p_4_mv",
       "eval_args_aap_1", "eval_args_aap_mv", "eval_macro_mv", "macroexpand_1", "apply_lambda",
       "safe_closure_p_1", "closure_p_1", "safe_closure_ap_1", "safe_closure_pa_1", 
       "safe_c_zz_1", "safe_c_za_1", "increment_sz_1", "safe_c_sz_sz",
@@ -20396,7 +20396,12 @@ static s7_pointer g_is_char_alphabetic(s7_scheme *sc, s7_pointer args)
   /* isalpha returns #t for (integer->char 226) and others in that range */
 }
 
-static bool is_char_alphabetic_b(s7_pointer c) {return((s7_is_character(c)) && (is_char_alphabetic(c)));}
+static bool is_char_alphabetic_b(s7_pointer c) 
+{
+  if (!s7_is_character(c))
+    simple_wrong_type_argument(cur_sc, cur_sc->is_char_alphabetic_symbol, c, T_CHARACTER);
+  return(is_char_alphabetic(c));
+}
 static bool is_char_alphabetic_c(s7_pointer c) {return(is_char_alphabetic(c));}
 
 
@@ -20412,7 +20417,12 @@ static s7_pointer g_is_char_numeric(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, is_char_numeric(arg)));
 }
 
-static bool is_char_numeric_b(s7_pointer c) {return((s7_is_character(c)) && (is_char_numeric(c)));}
+static bool is_char_numeric_b(s7_pointer c) 
+{
+  if (!s7_is_character(c))
+    simple_wrong_type_argument(cur_sc, cur_sc->is_char_numeric_symbol, c, T_CHARACTER);
+  return(is_char_numeric(c));
+}
 static bool is_char_numeric_c(s7_pointer c) {return(is_char_numeric(c));}
 
 
@@ -20428,7 +20438,12 @@ static s7_pointer g_is_char_whitespace(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, is_char_whitespace(arg)));
 }
 
-static bool is_char_whitespace_b(s7_pointer c) {return((s7_is_character(c)) && (is_char_whitespace(c)));}
+static bool is_char_whitespace_b(s7_pointer c) 
+{
+  if (!s7_is_character(c))
+    simple_wrong_type_argument(cur_sc, cur_sc->is_char_whitespace_symbol, c, T_CHARACTER);
+  return(is_char_whitespace(c));
+}
 static bool is_char_whitespace_c(s7_pointer c) {return(is_char_whitespace(c));}
 
 
@@ -33530,11 +33545,11 @@ static s7_pointer member_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
 	}
       else
 	{
-	  if ((optimize_op(expr) == HOP_SAFE_C_SQ) ||
-	      ((is_h_safe_c_c(expr)) &&
-	       (is_symbol(cadr(expr))) &&
-	       (is_proper_quote(sc, caddr(expr))) &&
-	       (is_pair(cadr(caddr(expr))))))
+	  if (((optimize_op(expr) == HOP_SAFE_C_SQ) || /* watch out for (member x '3) etc */
+	       (is_h_safe_c_c(expr))) &&
+	      (is_symbol(cadr(expr))) &&
+	      (is_proper_quote(sc, caddr(expr))) &&
+	      (is_pair(cadr(caddr(expr)))))
 	    {
 	      set_optimize_op(expr, HOP_SAFE_C_C);
 	      return(member_sq);                    /* (member q '(quote lambda case)) */
@@ -33546,7 +33561,6 @@ static s7_pointer member_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       (is_symbol(cadddr(expr))) &&
       (cadddr(expr) == sc->is_eq_symbol))
     return(memq_chooser(sc, f, 2, expr, ops));
-
   return(f);
 }
 
@@ -55828,12 +55842,15 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       
     case OP_C_AP_1:
     case OP_EVAL_ARGS_P_2:
-    case OP_EVAL_ARGS_P_4:
       vector_element(sc->stack, top) = (s7_pointer)OP_EVAL_ARGS_P_2_MV;
       return(args);
       
     case OP_EVAL_ARGS_P_3:
       vector_element(sc->stack, top) = (s7_pointer)OP_EVAL_ARGS_P_3_MV;
+      return(args);
+      
+    case OP_EVAL_ARGS_P_4:
+      vector_element(sc->stack, top) = (s7_pointer)OP_EVAL_ARGS_P_4_MV;
       return(args);
       
     case OP_C_P_1:
@@ -57482,20 +57499,23 @@ static s7_pointer not_chooser(s7_scheme *sc, s7_pointer g, int32_t args, s7_poin
 	      set_optimize_op(expr, HOP_SAFE_C_C);
 	      return(not_is_symbol_s);
 	    }
-	  /* g_is_number is c_function_call(slot_value(global_slot(sc->is_number_symbol)))
-	   *   so if this is changed (via openlet??) the latter is perhaps better??
-	   * but user might have (#_number? e), so we can't change later and catch this.
-	   */
-	  if ((f == g_is_number) || (f == g_is_complex))
+	  if (!is_keyword(cadadr(expr)))
 	    {
-	      set_optimize_op(expr, HOP_SAFE_C_C);
-	      return(not_is_number_s);
-	    }
-
-	  if (f == g_is_zero)
-	    {
-	      set_optimize_op(expr, HOP_SAFE_C_C);
-	      return(not_is_zero_s);
+	      /* g_is_number is c_function_call(slot_value(global_slot(sc->is_number_symbol)))
+	       *   so if this is changed (via openlet??) the latter is perhaps better??
+	       * but user might have (#_number? e), so we can't change later and catch this.
+	       */
+	      if ((f == g_is_number) || (f == g_is_complex))
+		{
+		  set_optimize_op(expr, HOP_SAFE_C_C);
+		  return(not_is_number_s);
+		}
+	      
+	      if (f == g_is_zero)
+		{
+		  set_optimize_op(expr, HOP_SAFE_C_C);
+		  return(not_is_zero_s);
+		}
 	    }
 	}
       if ((optimize_op(cadr(expr)) == HOP_SAFE_C_SQ) &&
@@ -59032,7 +59052,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
   s7_pointer arg1;
   /* very often, expr is already optimized, quoted stuff is counted under "bad_pairs"! as well as quotes */
   /* fprintf(stderr, "opt 1: %s, hop: %d, pairs: %d, symbols: %d, quotes: %d, bad: %d\n", DISPLAY_80(expr), hop, pairs, symbols, quotes, bad_pairs); */
-
+  
   arg1 = cadr(expr);
   if ((bad_pairs == quotes) &&
       (is_possibly_constant(car(expr))))
@@ -59425,6 +59445,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       return(OPT_T);
     }
   /* unknown_* is set later */
+
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
@@ -61273,6 +61294,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		return(OPT_OOPS);
 	      return(optimize_syntax(sc, expr, func, hop, e, export_ok));  /* e can be extended via set-cdr! here */
 	    }
+	  if (is_any_macro(func)) return(OPT_F);
+
 	  /* we miss implicit indexing here because at this time, the data are not set */
 	  if ((is_t_procedure(func)) ||
 	      /* (is_c_function(func)) || */
@@ -73230,7 +73253,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto APPLY;
 	  }
 	  
-	  /* tricky cases here all involve values (i.e. multiple-values) */
+	  /* tricky cases involve multiple values */
 	case OP_EVAL_ARGS_P_2:
 	  set_car(sc->t2_1, sc->args);
 	  set_car(sc->t2_2, sc->value);
@@ -73251,10 +73274,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = c_call(sc->code)(sc, sc->t2_1);
 	  break;
 	  
+	  /* PERHAPS: can't we skip the copy in both s7_appends below (first arg is from values -- is it always a new list?) */
 	case OP_EVAL_ARGS_P_3_MV:      /* (define (hi a) (+ (values 1 2) a)) */
-	  sc->w = sc->value;           /*    so we want (append sw->w (list symbol-value)) */
-	  /* sc->args = cons(sc, find_symbol_unchecked(sc, caddr(sc->code)), sc->w); */
-	  sc->args = s7_append(sc, sc->w, list_1(sc, find_symbol_unchecked(sc, caddr(sc->code))));
+	  sc->args = s7_append(sc, sc->value, list_1(sc, find_symbol_unchecked(sc, caddr(sc->code))));
+	  sc->code = c_function_base(opt_cfunc(sc->code));
+	  goto APPLY;
+	  
+	case OP_EVAL_ARGS_P_4_MV:
+	  sc->args = s7_append(sc, sc->value, list_1(sc, sc->args));
 	  sc->code = c_function_base(opt_cfunc(sc->code));
 	  goto APPLY;
 	  
@@ -83857,26 +83884,26 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  ||  17  |  18
- * tmac          |      |      |      || 9052 ||  264 |
- * tref          |      |      | 2372 || 2125 || 1036 |
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 |
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 |
- * teq           |      |      | 6612 || 2777 || 1931 |
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 |
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 |
- * lint          |      |      |      || 4041 || 2702 |
+ * tmac          |      |      |      || 9052 ||  264 |  264
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1455
+ * teq           |      |      | 6612 || 2777 || 1931 | 1920
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2109
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
+ * lint          |      |      |      || 4041 || 2702 | 2695
  * lg            |      |      |      || 211  || 133  |
- * tform         |      |      | 6816 || 3714 || 2762 |
- * tcopy         |      |      | 13.6 || 3183 || 2974 |
- * tmap          |      |      |  9.3 || 5279 || 3445 |
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 |
- * tsort         |      |      |      || 8584 || 4111 |
- * titer         |      |      |      || 5971 || 4646 |
- * bench         |      |      |      || 7012 || 5093 |
- * thash         |      |      | 50.7 || 8778 || 7697 |
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 |
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 |
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 |
+ * tform         |      |      | 6816 || 3714 || 2762 | 2763
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2974
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966
+ * tsort         |      |      |      || 8584 || 4111 | 4111
+ * titer         |      |      |      || 5971 || 4646 | 4646
+ * bench         |      |      |      || 7012 || 5093 | 5089
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7699
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 11.9
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.8
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 41.0
  *                                    || 139  || 85.9 |
  * 
  * --------------------------------------------------------------
