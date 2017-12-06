@@ -19631,7 +19631,8 @@ s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n)
 static s7_pointer g_exact_to_inexact(s7_scheme *sc, s7_pointer args)
 {
   #define H_exact_to_inexact "(exact->inexact num) converts num to an inexact number; (exact->inexact 3/2) = 1.5"
-  #define Q_exact_to_inexact pcl_r
+  #define Q_exact_to_inexact s7_make_signature(sc, 2, sc->is_number_symbol, sc->is_number_symbol)
+  /* arg can be complex -> itself! */
   return(exact_to_inexact(sc, car(args)));
 }
 
@@ -22619,9 +22620,10 @@ static s7_pointer c_port_line_number(s7_scheme *sc, s7_pointer x)
 static s7_pointer g_port_line_number(s7_scheme *sc, s7_pointer args)
 {
   #define H_port_line_number "(port-line-number input-file-port) returns the current read line number of port"
-  #define Q_port_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_null_symbol))
+  /* #define Q_port_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_null_symbol)) */
+  #define Q_port_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_input_port_symbol)
 
-  if ((is_null(args)) || (is_null(car(args))))
+  if (is_null(args)) /* || (is_null(car(args)))) -- why () as *stdin*? */
     return(c_port_line_number(sc, sc->input_port));
   return(c_port_line_number(sc, car(args)));
 }
@@ -57436,14 +57438,12 @@ static s7_pointer is_eq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
 }
 
 
-static s7_pointer not_is_pair_s, not_is_symbol_s, not_is_null_s, not_is_number_s;
-static s7_pointer not_is_zero_s, not_is_eq_sq, not_is_eq_ss;
+static s7_pointer not_is_pair_s, not_is_symbol_s, not_is_null_s, not_is_number_s, not_is_eq_sq, not_is_eq_ss;
 
 static s7_pointer g_not_is_pair_s(s7_scheme *sc, s7_pointer args)   {check_boolean_not_method(sc, is_pair,         sc->is_pair_symbol, args);}
 static s7_pointer g_not_is_null_s(s7_scheme *sc, s7_pointer args)   {check_boolean_not_method(sc, is_null,         sc->is_null_symbol, args);}
 static s7_pointer g_not_is_symbol_s(s7_scheme *sc, s7_pointer args) {check_boolean_not_method(sc, is_symbol,       sc->is_symbol_symbol, args);}
 static s7_pointer g_not_is_number_s(s7_scheme *sc, s7_pointer args) {check_boolean_not_method(sc, s7_is_number,    sc->is_number_symbol, args);}
-static s7_pointer g_not_is_zero_s(s7_scheme *sc, s7_pointer args)   {check_boolean_not_method(sc, s7_is_zero,      sc->is_zero_symbol, args);}
 
 /* eq? does not check for methods */
 static s7_pointer g_not_is_eq_sq(s7_scheme *sc, s7_pointer args)
@@ -57499,23 +57499,15 @@ static s7_pointer not_chooser(s7_scheme *sc, s7_pointer g, int32_t args, s7_poin
 	      set_optimize_op(expr, HOP_SAFE_C_C);
 	      return(not_is_symbol_s);
 	    }
-	  if (!is_keyword(cadadr(expr)))
+
+	  /* g_is_number is c_function_call(slot_value(global_slot(sc->is_number_symbol)))
+	   *   so if this is changed (via openlet??) the latter is perhaps better??
+	   * but user might have (#_number? e), so we can't change later and catch this.
+	   */
+	  if ((f == g_is_number) || (f == g_is_complex))
 	    {
-	      /* g_is_number is c_function_call(slot_value(global_slot(sc->is_number_symbol)))
-	       *   so if this is changed (via openlet??) the latter is perhaps better??
-	       * but user might have (#_number? e), so we can't change later and catch this.
-	       */
-	      if ((f == g_is_number) || (f == g_is_complex))
-		{
-		  set_optimize_op(expr, HOP_SAFE_C_C);
-		  return(not_is_number_s);
-		}
-	      
-	      if (f == g_is_zero)
-		{
-		  set_optimize_op(expr, HOP_SAFE_C_C);
-		  return(not_is_zero_s);
-		}
+	      set_optimize_op(expr, HOP_SAFE_C_C);
+	      return(not_is_number_s);
 	    }
 	}
       if ((optimize_op(cadr(expr)) == HOP_SAFE_C_SQ) &&
@@ -58598,7 +58590,6 @@ static void init_choosers(s7_scheme *sc)
   not_is_null_s = make_function_with_class(sc, f, "not", g_not_is_null_s, 1, 0, false, "not opt");
   not_is_symbol_s = make_function_with_class(sc, f, "not", g_not_is_symbol_s, 1, 0, false, "not opt");
   not_is_number_s = make_function_with_class(sc, f, "not", g_not_is_number_s, 1, 0, false, "not opt");
-  not_is_zero_s = make_function_with_class(sc, f, "not", g_not_is_zero_s, 1, 0, false, "not opt");
   not_is_eq_ss = make_function_with_class(sc, f, "not", g_not_is_eq_ss, 1, 0, false, "not opt");
   not_is_eq_sq = make_function_with_class(sc, f, "not", g_not_is_eq_sq, 1, 0, false, "not opt");
   not_is_pair_car_s = make_function_with_class(sc, f, "not", g_not_is_pair_car_s, 1, 0, false, "not opt");
@@ -74250,7 +74241,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		else
 		  {
-		    if (is_syntax(slot_value(lx)))
+		    if (is_syntax(slot_value(lx)))  /* slot_symbol?? */
 		      eval_error(sc, "can't set! ~A", sc->code);
 		  }
 		slot_set_value(lx, sc->value);
