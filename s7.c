@@ -2347,7 +2347,16 @@ static int64_t not_heap = -1;
 #define initial_slot(p)               (symbol_name_cell(p))->object.string.info->initial_slot
 #define set_initial_slot(p, Val)      (symbol_name_cell(p))->object.string.info->initial_slot = _TSld(Val)
 #define local_slot(p)                 (_TSym(p))->object.sym.local_slot
+#if DEBUGGING
+static void set_local_slot(s7_pointer p, s7_pointer val)
+{
+  if ((is_keyword(p)) && (val->object.slt.val != p))
+    {fprintf(stderr, "setting local %s to %s\n", s7_object_to_c_string(cur_sc, p), s7_object_to_c_string(cur_sc, val)); abort();}
+  p->object.sym.local_slot = val;
+}
+#else
 #define set_local_slot(p, Val)        (_TSym(p))->object.sym.local_slot = _TSln(Val)
+#endif
 #define keyword_symbol(p)             (symbol_name_cell(p))->object.string.doc.ksym
 #define keyword_set_symbol(p, Val)    (symbol_name_cell(p))->object.string.doc.ksym = _TSym(Val)
 #define symbol_help(p)                (symbol_name_cell(p))->object.string.doc.documentation
@@ -2369,7 +2378,17 @@ static int64_t not_heap = -1;
 #define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
 #define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
+#if DEBUGGING
+static void slot_set_value(s7_pointer p, s7_pointer val)
+{
+  if ((is_keyword(slot_symbol(p))) &&
+      (p == local_slot(slot_symbol(p))))
+    fprintf(stderr, "slot_set_value(%s, %s)\n", s7_object_to_c_string(cur_sc, p), s7_object_to_c_string(cur_sc, val));
+  p->object.slt.val = val;
+}
+#else
 #define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
+#endif
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
 #define next_slot(p)                  (_TSlt(p))->object.slt.nxt
@@ -7196,7 +7215,15 @@ static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_
 	    return(wrong_type_argument_with_type(sc, caller, position_of(x, bindings), sym, a_non_constant_symbol_string));
 	  if ((is_slot(global_slot(sym))) &&
 	      (is_syntax(slot_value(global_slot(sym)))))
-	    return(wrong_type_argument_with_type(sc, sc->sublet_symbol, 2, sym, s7_make_string_wrapper(sc, "a non-syntactic name")));
+	    return(wrong_type_argument_with_type(sc, caller, 2, sym, s7_make_string_wrapper(sc, "a non-syntactic name")));
+#if DEBUGGING
+      if ((is_slot(global_slot(sym))) &&
+	  (is_syntactic(slot_value(global_slot(sym)))))
+	fprintf(stderr, "sublet: %s %s %s\n", 
+		DISPLAY(sym), 
+		(is_slot(global_slot(sym))) ? DISPLAY(slot_value(global_slot(sym))) : "unglob",
+		(is_slot(global_slot(sym))) ? type_name(sc, slot_value(global_slot(sym)), 0) : "no type");
+#endif
 
 	  /* here we know new_e is a let and is not rootlet */
 	  make_slot_1(sc, new_e, sym, val);
@@ -7264,6 +7291,16 @@ static s7_pointer g_simple_inlet(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer symbol, slot;
       symbol = car(x);
+      if (is_keyword(symbol))                 /* (inlet ':allow-other-keys 3) */
+	symbol = keyword_symbol(symbol);
+#if DEBUGGING
+      if ((is_slot(global_slot(symbol))) &&
+	  (is_syntactic(slot_value(global_slot(symbol)))))
+	fprintf(stderr, "simple_inlet: %s %s %s\n", 
+		DISPLAY(symbol), 
+		(is_slot(global_slot(symbol))) ? DISPLAY(slot_value(global_slot(symbol))) : "unglob",
+		(is_slot(global_slot(symbol))) ? type_name(sc, slot_value(global_slot(symbol)), 0) : "no type");
+#endif
       new_cell(sc, slot, T_SLOT);
       slot_set_symbol(slot, symbol);
       slot_set_value(slot, cadr(x));
@@ -7280,7 +7317,8 @@ static bool is_proper_quote(s7_scheme *sc, s7_pointer p)
 {
   return((is_pair(p)) &&
 	 (car(p) == sc->quote_symbol) &&
-	 (is_pair(cdr(p))));
+	 (is_pair(cdr(p))) &&
+	 (is_null(cddr(p))));
 }
 
 static s7_pointer inlet_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -7293,11 +7331,14 @@ static s7_pointer inlet_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
       for (p = cdr(expr); is_pair(p); p = cddr(p))
 	{
 	  s7_pointer sym;
-	  if (!is_proper_quote(sc, car(p)))
+	  if (!is_proper_quote(sc, car(p)))             /* 'abs etc, but tricky: ':abs */
 	    return(f);
 	  sym = cadar(p);
 	  if ((!is_symbol(sym)) ||
-	      (is_possibly_constant(sym)) ||
+	      (is_possibly_constant(sym)) ||            /* define-constant etc */
+	      (is_syntactic(sym))  ||                   /* (inlet 'if 3) */
+	      ((is_slot(global_slot(sym))) &&
+	       (is_syntactic(slot_value(global_slot(sym))))) ||
 	      (sym == sc->let_ref_fallback_symbol) ||
 	      (sym == sc->let_set_fallback_symbol))
 	    return(f);
@@ -28459,6 +28500,9 @@ static s7_pointer check_sym(s7_scheme *sc, s7_pointer sym)
 	  fprintf(stderr, "%s ", DISPLAY_80(local_val));
 	  fprintf(stderr, "%s", DISPLAY_80(search_val));
 	  fprintf(stderr, "\n");
+	  /* (let () (define (f x) x) (define* (f (y (f 1))) (+ y 1)) (f)) -> local y: 0x7f1082849098 0x7f1082849120 1 2 
+	   *   which depends on (+ ... 1)!
+	   */
 	}
       return(local_val);
     }
@@ -46731,7 +46775,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	    case HOP_SAFE_C_S:
 	      {
 		bool is_local;
-		is_local = (is_local_symbol(cdr(arg)) || (is_immutable(cadr(arg))));
+		is_local = (is_local_symbol(cdr(arg)) || ((is_immutable(cadr(arg))) && (!is_keyword(cadr(arg)))));
 		if (car(arg) == sc->cdr_symbol) return((is_local) ? local_x_cdr_s : all_x_cdr_s);
 		if (car(arg) == sc->car_symbol) return((is_local) ? local_x_car_s : all_x_car_s);
 		if (car(arg) == sc->cadr_symbol) return((is_local) ? local_x_cadr_s : all_x_cadr_s);
@@ -54139,7 +54183,7 @@ static bool p_syntax(s7_scheme *sc, s7_pointer car_x, int32_t len)
   switch (op)
     {
     case OP_QUOTE:
-      if (is_pair(cdr(car_x)))
+      if ((is_pair(cdr(car_x))) && (is_null(cddr(car_x))))
 	return(opt_cell_quote(sc, car_x));
       break;
       
@@ -59907,7 +59951,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	       */
 	      if (car(arg2) == sc->quote_symbol)
 		{
-		  if (!is_pair(cdr(arg2)))
+		  if ((!is_pair(cdr(arg2))) || (!is_null(cddr(arg2))))
 		    return(OPT_OOPS);
 		  set_safe_optimize_op(expr, hop + OP_SAFE_C_opSq_Q);
 		  set_opt_con1(cdr(expr), cadadr(expr));
@@ -61279,7 +61323,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
       if (is_slot(func))
 	{
 	  func = slot_value(func);
-	  if (is_syntax(func))   /* 12-8-16 was is_syntactic, but that is only appropriate above -- here we have the value */
+	  if (is_syntax(func))                           /* 12-8-16 was is_syntactic, but that is only appropriate above -- here we have the value */
 	    {
 	      if (!is_pair(cdr(expr)))
 		return(OPT_OOPS);
@@ -61290,13 +61334,13 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	  /* we miss implicit indexing here because at this time, the data are not set */
 	  if ((is_t_procedure(func)) ||
 	      /* (is_c_function(func)) || */
-	      (is_safe_procedure(func))) /* built-in applicable objects like vectors */
+	      (is_safe_procedure(func)))                 /* built-in applicable objects like vectors */
 	    {
 	      int32_t pairs = 0, symbols = 0, args = 0, bad_pairs = 0, quotes = 0, orig_hop;
 	      s7_pointer p;
 
 	      orig_hop = hop;
-	      if ((!is_immutable(car_expr)) &&     /* can't depend on opt1 here because it might not be global, or might be redefined locally */
+	      if ((!is_immutable(car_expr)) &&           /* can't depend on opt1 here because it might not be global, or might be redefined locally */
 		  ((is_any_closure(func)) ||
 		   ((!is_global(car_expr)) &&
 		    ((!is_slot(global_slot(car_expr))) ||
@@ -61933,6 +61977,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 	  return(UNSAFE_BODY);
 	  
 	case OP_QUOTE:
+	  if ((!is_pair(cdr(x))) || (!is_null(cddr(x))))  /* (quote . 1) or (quote 1 2) etc */
+	    return(UNSAFE_BODY);
 	  return(VERY_SAFE_BODY);
 	  
 	case OP_IF:
@@ -65363,6 +65409,8 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 		      {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 
 		    case OP_QUOTE:
+		      if ((!is_pair(cdr(expr))) || (!is_null(cddr(expr))))  /* (quote . 1) or (quote 1 2) etc */
+			{if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 		      break;
 
 		    case OP_LET:
@@ -75874,7 +75922,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   *   13
 	   *   (+ 10 (or (or #f (values 1 2)) #f))
 	   *   11
-	   *
 	   * The tail recursion is more important.  This behavior matches that of "begin" -- if the
 	   * values statement is last, it splices into the next outer arglist.
 	   */
@@ -76443,8 +76490,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	  /* -------------------------------- the reader -------------------------------- */
 	POP_READ_LIST:
-	  /* push-stack OP_READ_LIST is always no_code and op is always OP_READ_LIST (and not used), sc->envir is apparently not needed here
-	   */
+	  /* push-stack OP_READ_LIST is always no_code and op is always OP_READ_LIST (and not used), sc->envir is apparently not needed here */
 	  sc->stack_end -= 4;
 	  sc->args = sc->stack_end[2];
 	  
@@ -83846,6 +83892,7 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
+ * lint no-gmp (< int most-negative-fixnum) etc?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83874,7 +83921,7 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------
  *
- *           12  |  13  |  14  |  15  ||  16  ||  17  |  18
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0
  * tmac          |      |      |      || 9052 ||  264 |  264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
@@ -83883,7 +83930,7 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2109
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
  * lint          |      |      |      || 4041 || 2702 | 2695
- * lg            |      |      |      || 211  || 133  |
+ * lg            |      |      |      || 211  || 133  | 133.7
  * tform         |      |      | 6816 || 3714 || 2762 | 2763
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2974
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445
@@ -83894,8 +83941,8 @@ int main(int argc, char **argv)
  * thash         |      |      | 50.7 || 8778 || 7697 | 7699
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 41.0
- *                                    || 139  || 85.9 |
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 41.1
+ *                                    || 139  || 85.9 | 86.5
  * 
  * --------------------------------------------------------------
  */
