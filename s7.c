@@ -2347,16 +2347,7 @@ static int64_t not_heap = -1;
 #define initial_slot(p)               (symbol_name_cell(p))->object.string.info->initial_slot
 #define set_initial_slot(p, Val)      (symbol_name_cell(p))->object.string.info->initial_slot = _TSld(Val)
 #define local_slot(p)                 (_TSym(p))->object.sym.local_slot
-#if DEBUGGING
-static void set_local_slot(s7_pointer p, s7_pointer val)
-{
-  if ((is_keyword(p)) && (val->object.slt.val != p))
-    {fprintf(stderr, "setting local %s to %s\n", s7_object_to_c_string(cur_sc, p), s7_object_to_c_string(cur_sc, val)); abort();}
-  p->object.sym.local_slot = val;
-}
-#else
 #define set_local_slot(p, Val)        (_TSym(p))->object.sym.local_slot = _TSln(Val)
-#endif
 #define keyword_symbol(p)             (symbol_name_cell(p))->object.string.doc.ksym
 #define keyword_set_symbol(p, Val)    (symbol_name_cell(p))->object.string.doc.ksym = _TSym(Val)
 #define symbol_help(p)                (symbol_name_cell(p))->object.string.doc.documentation
@@ -2378,17 +2369,7 @@ static void set_local_slot(s7_pointer p, s7_pointer val)
 #define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
 #define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
-#if DEBUGGING
-static void slot_set_value(s7_pointer p, s7_pointer val)
-{
-  if ((is_keyword(slot_symbol(p))) &&
-      (p == local_slot(slot_symbol(p))))
-    fprintf(stderr, "slot_set_value(%s, %s)\n", s7_object_to_c_string(cur_sc, p), s7_object_to_c_string(cur_sc, val));
-  p->object.slt.val = val;
-}
-#else
 #define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
-#endif
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
 #define next_slot(p)                  (_TSlt(p))->object.slt.nxt
@@ -5326,7 +5307,6 @@ static void free_cell(s7_scheme *sc, s7_pointer p)
 
 static void free_vlist(s7_scheme *sc, s7_pointer lst)
 {
-  /* this is perhaps unsafe (testing...) */
   if (is_pair(lst))
     {
       s7_pointer p, np;
@@ -7216,14 +7196,6 @@ static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_
 	  if ((is_slot(global_slot(sym))) &&
 	      (is_syntax(slot_value(global_slot(sym)))))
 	    return(wrong_type_argument_with_type(sc, caller, 2, sym, s7_make_string_wrapper(sc, "a non-syntactic name")));
-#if DEBUGGING
-      if ((is_slot(global_slot(sym))) &&
-	  (is_syntactic(slot_value(global_slot(sym)))))
-	fprintf(stderr, "sublet: %s %s %s\n", 
-		DISPLAY(sym), 
-		(is_slot(global_slot(sym))) ? DISPLAY(slot_value(global_slot(sym))) : "unglob",
-		(is_slot(global_slot(sym))) ? type_name(sc, slot_value(global_slot(sym)), 0) : "no type");
-#endif
 
 	  /* here we know new_e is a let and is not rootlet */
 	  make_slot_1(sc, new_e, sym, val);
@@ -7293,14 +7265,6 @@ static s7_pointer g_simple_inlet(s7_scheme *sc, s7_pointer args)
       symbol = car(x);
       if (is_keyword(symbol))                 /* (inlet ':allow-other-keys 3) */
 	symbol = keyword_symbol(symbol);
-#if DEBUGGING
-      if ((is_slot(global_slot(symbol))) &&
-	  (is_syntactic(slot_value(global_slot(symbol)))))
-	fprintf(stderr, "simple_inlet: %s %s %s\n", 
-		DISPLAY(symbol), 
-		(is_slot(global_slot(symbol))) ? DISPLAY(slot_value(global_slot(symbol))) : "unglob",
-		(is_slot(global_slot(symbol))) ? type_name(sc, slot_value(global_slot(symbol)), 0) : "no type");
-#endif
       new_cell(sc, slot, T_SLOT);
       slot_set_symbol(slot, symbol);
       slot_set_value(slot, cadr(x));
@@ -7695,6 +7659,8 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
       if (has_let_set_fallback(env))
 	apply_known_method(sc, env, sc->let_set_fallback_symbol, sc->w = list_3(sc, env, symbol, value));
     }
+#if 0 
+  /* why this? (let-ref (inlet 'a 1) 'lambda) -> lambda, but surely (let-set! (inlet 'a 1) 'lambda #f) should not clobber lambda! */
   else
     {
       y = global_slot(symbol);
@@ -7706,6 +7672,7 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
 	  return(slot_value(y));
 	}
     }
+#endif
 
   if (!err) err = s7_make_permanent_string("let-set! ~A is not defined in ~A");
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, symbol, env)));
@@ -9386,8 +9353,8 @@ static void call_with_exit(s7_scheme *sc)
 	    s7_pointer x;
 	    x = stack_code(sc->stack, i);                /* "code" = port that we opened */
 	    s7_close_output_port(sc, x);
-	    x = stack_args(sc->stack, i);                /* "args" = port that we shadowed, if not #f */
-	    if (x != sc->F)
+	    x = stack_args(sc->stack, i);                /* "args" = port that we shadowed, if not #<gc-nil> */
+	    if (x != sc->gc_nil)
 	      sc->output_port = x;
 	  }
 	  break;
@@ -20544,12 +20511,10 @@ s7_pointer s7_make_character(s7_scheme *sc, uint32_t c)
   return(chars[c]);
 }
 
-
 bool s7_is_character(s7_pointer p)
 {
   return(type(p) == T_CHARACTER);
 }
-
 
 char s7_character(s7_pointer p)
 {
@@ -22661,12 +22626,8 @@ static s7_pointer c_port_line_number(s7_scheme *sc, s7_pointer x)
 static s7_pointer g_port_line_number(s7_scheme *sc, s7_pointer args)
 {
   #define H_port_line_number "(port-line-number input-file-port) returns the current read line number of port"
-  /* #define Q_port_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_null_symbol)) */
   #define Q_port_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_input_port_symbol)
-
-  if (is_null(args)) /* || (is_null(car(args)))) -- why () as *stdin*? */
-    return(c_port_line_number(sc, sc->input_port));
-  return(c_port_line_number(sc, car(args)));
+  return(c_port_line_number(sc, (is_null(args)) ? sc->input_port : car(args)));
 }
 
 int32_t s7_port_line_number(s7_pointer p)
@@ -22731,20 +22692,12 @@ static s7_pointer g_port_filename(s7_scheme *sc, s7_pointer args)
 {
   #define H_port_filename "(port-filename file-port) returns the filename associated with port"
   #define Q_port_filename s7_make_signature(sc, 2, sc->is_string_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_output_port_symbol))
-
-  if (is_null(args))
-    return(c_port_filename(sc, sc->input_port));
-  return(c_port_filename(sc, car(args)));
+  return(c_port_filename(sc, (is_null(args)) ? sc->input_port : car(args)));
 }
 
 
-bool s7_is_input_port(s7_scheme *sc, s7_pointer p)
-{
-  return(is_input_port(p));
-}
-
+bool s7_is_input_port(s7_scheme *sc, s7_pointer p) {return(is_input_port(p));}
 static bool is_input_port_b(s7_pointer p) {return(is_input_port(p));}
-
 
 static s7_pointer g_is_input_port(s7_scheme *sc, s7_pointer args)
 {
@@ -22754,13 +22707,8 @@ static s7_pointer g_is_input_port(s7_scheme *sc, s7_pointer args)
 }
 
 
-bool s7_is_output_port(s7_scheme *sc, s7_pointer p)
-{
-  return(is_output_port(p));
-}
-
+bool s7_is_output_port(s7_scheme *sc, s7_pointer p) {return(is_output_port(p));}
 static bool is_output_port_b(s7_pointer p) {return(is_output_port(p));}
-
 
 static s7_pointer g_is_output_port(s7_scheme *sc, s7_pointer args)
 {
@@ -22770,11 +22718,7 @@ static s7_pointer g_is_output_port(s7_scheme *sc, s7_pointer args)
 }
 
 
-s7_pointer s7_current_input_port(s7_scheme *sc)
-{
-  return(sc->input_port);
-}
-
+s7_pointer s7_current_input_port(s7_scheme *sc) {return(sc->input_port);}
 
 static s7_pointer g_current_input_port(s7_scheme *sc, s7_pointer args)
 {
@@ -22813,11 +22757,7 @@ s7_pointer s7_set_current_input_port(s7_scheme *sc, s7_pointer port)
 }
 
 
-s7_pointer s7_current_output_port(s7_scheme *sc)
-{
-  return(sc->output_port);
-}
-
+s7_pointer s7_current_output_port(s7_scheme *sc) {return(sc->output_port);}
 
 s7_pointer s7_set_current_output_port(s7_scheme *sc, s7_pointer port)
 {
@@ -22857,11 +22797,8 @@ static s7_pointer g_set_current_output_port(s7_scheme *sc, s7_pointer args)
 }
 #endif
 
-s7_pointer s7_current_error_port(s7_scheme *sc)
-{
-  return(sc->error_port);
-}
 
+s7_pointer s7_current_error_port(s7_scheme *sc) {return(sc->error_port);}
 
 s7_pointer s7_set_current_error_port(s7_scheme *sc, s7_pointer port)
 {
@@ -22871,14 +22808,12 @@ s7_pointer s7_set_current_error_port(s7_scheme *sc, s7_pointer port)
   return(old_port);
 }
 
-
 static s7_pointer g_current_error_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_current_error_port "(current-error-port) returns the current error port"
   #define Q_current_error_port s7_make_signature(sc, 1, sc->is_output_port_symbol)
   return(sc->error_port);
 }
-
 
 static s7_pointer g_set_current_error_port(s7_scheme *sc, s7_pointer args)
 {
@@ -22990,7 +22925,6 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
   port_is_closed(p) = true;
 }
 
-
 static s7_pointer g_close_input_port(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer pt;
@@ -23098,7 +23032,6 @@ void s7_close_output_port(s7_scheme *sc, s7_pointer p)
     return;
   close_output_port(sc, p);
 }
-
 
 static s7_pointer g_close_output_port(s7_scheme *sc, s7_pointer args)
 {
@@ -29501,6 +29434,7 @@ static s7_pointer g_newline(s7_scheme *sc, s7_pointer args)
       if (port == sc->F) return(newline_char);
       method_or_bust_with_type_one_arg(sc, port, sc->newline_symbol, args, an_output_port_string);
     }
+  /* shouldn't we check for closed output port? */
   s7_newline(sc, port);
   return(newline_char);
   /* return(sc->unspecified) until 28-Sep-17, but for example (display c) returns c */
@@ -29636,7 +29570,7 @@ static s7_pointer g_call_with_output_string(s7_scheme *sc, s7_pointer args)
     return(wrong_type_argument_with_type(sc, sc->call_with_output_string_symbol, 1, proc, a_normal_procedure_string));
 
   port = s7_open_output_string(sc);
-  push_stack(sc, OP_GET_OUTPUT_STRING_1, sc->F, port); /* args checked in call_with_exit */
+  push_stack(sc, OP_GET_OUTPUT_STRING_1, sc->gc_nil, port); /* args checked in call_with_exit */
   push_stack(sc, OP_APPLY, list_1(sc, port), proc);
   return(sc->F);
 }
@@ -29661,7 +29595,7 @@ static s7_pointer g_call_with_output_file(s7_scheme *sc, s7_pointer args)
     return(wrong_type_argument_with_type(sc, sc->call_with_output_file_symbol, 2, proc, a_normal_procedure_string));
 
   port = s7_open_output_file(sc, string_value(file), "w");
-  push_stack(sc, OP_UNWIND_OUTPUT, sc->F, port);
+  push_stack(sc, OP_UNWIND_OUTPUT, sc->gc_nil, port);
   push_stack(sc, OP_APPLY, list_1(sc, port), proc);
   return(sc->F);
 }
@@ -43968,8 +43902,8 @@ static bool catch_out_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_poi
   s7_pointer x;
   x = stack_code(sc->stack, i);                /* "code" = port that we opened */
   s7_close_output_port(sc, x);
-  x = stack_args(sc->stack, i);                /* "args" = port that we shadowed, if not #f */
-  if (x != sc->F)
+  x = stack_args(sc->stack, i);                /* "args" = port that we shadowed, if not #<gc-nil> */
+  if (x != sc->gc_nil)
     sc->output_port = x;
   return(false);
 }
@@ -56024,6 +55958,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       return(car(x));              /* sc->value from OP_READ_LIST point of view */
       
     default:
+      /* fprintf(stderr, "splice on: %s\n", op_names[stack_op(sc->stack, top)]); */
       break;
     }
 
@@ -59262,7 +59197,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 			      return(OPT_F);
 			    }
 			}
-		      set_unsafe_optimize_op(expr, hop + ((is_optimized(arg1)) ? OP_C_Z : OP_C_P));
+		      set_unsafe_optimize_op(expr, hop + ((is_safely_optimized(arg1)) ? OP_C_Z : OP_C_P));
 		      choose_c_function(sc, expr, func, 1);
 		      return(OPT_F);
 		    }
@@ -59277,8 +59212,8 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	}
       
       if (func_is_safe)
-	set_unsafe_optimize_op(expr, hop + ((is_optimized(arg1)) ? OP_SAFE_C_Z : ((car(expr) == sc->not_symbol) ? OP_NOT_P : OP_SAFE_C_P)));
-      else set_unsafe_optimize_op(expr, hop + ((is_optimized(arg1)) ? OP_C_Z : OP_C_P));
+	set_unsafe_optimize_op(expr, hop + ((is_safely_optimized(arg1)) ? OP_SAFE_C_Z : ((car(expr) == sc->not_symbol) ? OP_NOT_P : OP_SAFE_C_P)));
+      else set_unsafe_optimize_op(expr, hop + ((is_safely_optimized(arg1)) ? OP_C_Z : OP_C_P));
       choose_c_function(sc, expr, func, 1);
       return(OPT_F);
 
@@ -59662,6 +59597,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      choose_c_function(sc, expr, func, 2);
 	      if (is_safe_procedure(opt_cfunc(expr)))
 		{
+		  fprintf(stderr, "is safe after all? %s\n", DISPLAY(expr));
 		  clear_unsafe(expr);
 		  /* symbols can be 0..2 here, no pairs */
 		  set_optimized(expr);
@@ -59870,8 +59806,9 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      set_optimized(expr);
 	      if (is_symbol(arg1))
 		{
-		  if ((bad_pairs == 0) || (is_optimized(arg2))) /* bad_pair && h_optimized happens a lot */
+		  if ((bad_pairs == 0) || (is_safely_optimized(arg2))) /* bad_pair && h_optimized happens a lot */
 		    {
+		      /* fprintf(stderr, "safe: %s %d %d %s\n", DISPLAY(expr), bad_pairs, is_h_optimized(arg2), opt_names[optimize_op(arg2)]); */
 		      set_optimize_op(expr, hop + OP_SAFE_C_SZ);
 		      choose_c_function(sc, expr, func, 2);
 		      /* if hop is on, is it the case that opt1 is unused?  where besides c_function_is_ok is it referenced?
@@ -59887,7 +59824,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		}
 
 	      /* arg2 is a symbol */
-	      if ((bad_pairs == 0) || (is_optimized(arg1)))
+	      if ((bad_pairs == 0) || (is_safely_optimized(arg1)))
 		{
 		  set_optimize_op(expr, hop + OP_SAFE_C_ZS);
 		  choose_c_function(sc, expr, func, 2);
@@ -59907,7 +59844,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      set_optimized(expr);
 	      if (is_pair(arg1))
 		{
-		  if ((bad_pairs == 0) || (is_optimized(arg2)))
+		  if ((bad_pairs == 0) || (is_safely_optimized(arg2)))
 		    {
 		      set_optimize_op(expr, hop + OP_SAFE_C_ZC);
 		      choose_c_function(sc, expr, func, 2);
@@ -59923,7 +59860,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		}
 	      else
 		{
-		  if ((bad_pairs == 0) || (is_optimized(arg1)))
+		  if ((bad_pairs == 0) || (is_safely_optimized(arg1)))
 		    {
 		      set_optimize_op(expr, hop + OP_SAFE_C_CZ);
 		      choose_c_function(sc, expr, func, 2);
@@ -59970,7 +59907,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  set_unsafely_optimized(expr);
 		  if (is_all_x_safe(sc, arg1))
 		    {
-		      set_optimize_op(expr, hop + ((is_optimized(arg2)) ? OP_SAFE_C_AZ : OP_SAFE_C_AP));
+		      set_optimize_op(expr, hop + ((is_safely_optimized(arg2)) ? OP_SAFE_C_AZ : OP_SAFE_C_AP));
 		      annotate_arg(sc, cdr(expr), e);
 		    }
 		  else set_optimize_op(expr, hop + OP_SAFE_C_PP);
@@ -59985,7 +59922,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 			set_optimize_op(expr, hop + OP_SAFE_C_QP);
 		      else 
 			{
-			  set_optimize_op(expr, hop + ((is_optimized(arg1)) ? OP_SAFE_C_ZQ : OP_SAFE_C_PQ));
+			  set_optimize_op(expr, hop + ((is_safely_optimized(arg1)) ? OP_SAFE_C_ZQ : OP_SAFE_C_PQ));
 			  set_opt_con2(cdr(expr), cadr(caddr(expr)));
 			}
 		      set_unsafely_optimized(expr);
@@ -67776,8 +67713,9 @@ static void unwind_output_ex(s7_scheme *sc)
       (!port_is_closed(sc->code)))
     s7_close_output_port(sc, sc->code); /* may call fflush */
   
-  if ((is_output_port(sc->args)) &&
-      (!port_is_closed(sc->args)))
+  if (((is_output_port(sc->args)) &&
+       (!port_is_closed(sc->args))) ||
+      (sc->args == sc->F))
     sc->output_port = sc->args;
   
   if ((is_file) &&
@@ -73313,7 +73251,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = c_call(sc->code)(sc, sc->t2_1);
 	  break;
 	  
-	  /* PERHAPS: can't we skip the copy in both s7_appends below (first arg is from values -- is it always a new list?) */
 	case OP_EVAL_ARGS_P_3_MV:      /* (define (hi a) (+ (values 1 2) a)) */
 	  sc->args = s7_append(sc, sc->value, list_1(sc, find_symbol_unchecked(sc, caddr(sc->code))));
 	  sc->code = c_function_base(opt_cfunc(sc->code));
@@ -83946,3 +83883,4 @@ int main(int argc, char **argv)
  * 
  * --------------------------------------------------------------
  */
+ 
