@@ -1,8 +1,10 @@
 \ bird.fsm -- clm/bird.clm
 
 \ Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
-\ Created: Tue Dec 12 03:26:27 CET 2006
-\ Changed: Wed Nov 21 22:48:47 CET 2012
+\ Created: 06/12/12 03:26:27
+\ Changed: 17/12/02 03:07:58
+\
+\ @(#)bird.fsm	1.14 12/2/17
 
 \ Usage: <'> bird-test with-sound
 \        or ws-bird-test

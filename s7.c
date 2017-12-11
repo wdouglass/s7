@@ -22451,6 +22451,9 @@ static s7_pointer g_string_to_list(s7_scheme *sc, s7_pointer args)
     {
       if (end == 0) return(sc->nil);
     }
+  if ((end - start) > sc->max_list_length)
+    return(out_of_range(sc, sc->string_to_list_symbol, small_int(1), car(args), its_too_large_string));
+
   if ((start == 0) && (end == string_length(str)))
     return(s7_string_to_list(sc, string_value(str), string_length(str)));
 
@@ -22576,6 +22579,7 @@ static s7_pointer byte_vector_to_list(s7_scheme *sc, const char *str, int32_t le
   int32_t i;
   s7_pointer p;
   if (len == 0) return(sc->nil);
+  /* like s7_string_to_list, so no max list length check? */
   sc->w = sc->nil;
   for (i = len - 1; i >= 0; i--)
     sc->w = cons(sc, small_int((uint32_t)((unsigned char)(str[i]))), sc->w); /* extra cast is not redundant! */
@@ -23314,13 +23318,6 @@ static void string_write_string(s7_scheme *sc, const char *str, int32_t len, s7_
   memcpy((void *)(port_data(pt) + port_position(pt)), (void *)str, len);
   /* memcpy is much faster than the equivalent while loop, and faster than using the 4-bytes-at-a-time shuffle */
   port_position(pt) = new_len;
-}
-
-
-static s7_pointer write_string_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
-{
-  check_for_substring_temp(sc, expr);
-  return(f);
 }
 
 
@@ -32880,19 +32877,20 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
 
   if (eq_func)
     {
-      /* now maybe there's a simple case */
-      if (s7_list_length(sc, x) > 0)
+      /* here we know x is a pair, but need to protect against circular lists */
+      if (s7_list_length(sc, x) != 0)
 	{
+	  /* now maybe there's a simple case */
 	  if ((is_safe_procedure(eq_func)) &&
 	      (is_c_function(eq_func)))
 	    {
 	      s7_function func;
-
+	      
 	      func = c_function_call(eq_func);
 	      if (func == g_is_eq) return(s7_assq(sc, car(args), x));
 	      if (func == g_is_eqv) return(g_assv(sc, args));
 	      set_car(sc->t2_1, car(args));
-
+	      
 	      for (; is_pair(x); x = cdr(x))
 		{
 		  if (is_pair(car(x)))
@@ -32900,14 +32898,13 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
 		      set_car(sc->t2_2, caar(x));
 		      if (is_true(sc, func(sc, sc->t2_1)))
 			return(car(x));
-		      /* I wonder if the assoc equality function should get the cons, not just caar?
-		       */
+		      /* I wonder if the assoc equality function should get the cons, not just caar? */
 		    }
 		  else return(wrong_type_argument_with_type(sc, sc->assoc_symbol, 2, cadr(args), an_association_list_string));
 		}
 	      return(sc->F);
 	    }
-
+	  
 	  if ((is_closure(eq_func)) &&
 	      (is_pair(closure_args(eq_func))) &&
 	      (is_pair(cdr(closure_args(eq_func))))) /* not dotted arg list */
@@ -32917,14 +32914,14 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
 	      if (is_null(cdr(body)))
 		{
 		  s7_function func;
-
+		  
 		  new_frame_with_two_slots(sc, sc->envir, sc->envir, car(closure_args(eq_func)), car(args), cadr(closure_args(eq_func)), sc->F);
 		  func = s7_bool_optimize(sc, body);
 		  if (func)
 		    {
 		      s7_pointer b;
 		      b = next_slot(let_slots(sc->envir));
-
+		      
 		      if (func == opt_bool_any)
 			{
 			  opt_info *o;
@@ -32947,9 +32944,12 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
       y = cons(sc, args, sc->nil);
       set_opt_fast(y, x);
       set_opt_slow(y, x);
+      push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
       push_stack(sc, OP_ASSOC_IF, y, eq_func);
-      push_stack(sc, OP_APPLY, list_2(sc, car(args), caar(x)), eq_func);
-      return(sc->unspecified);
+      sc->args = list_2(sc, car(args), caar(x));
+      sc->code = eq_func;
+      eval(sc, OP_APPLY);
+      return(sc->value);
     }
 
   x = cadr(args);
@@ -34431,6 +34431,9 @@ static s7_pointer g_vector_to_list(s7_scheme *sc, s7_pointer args)
       if (p != sc->gc_nil) return(p);
       if (start == end) return(sc->nil);
     }
+  if ((end - start) > sc->max_list_length)
+    return(out_of_range(sc, sc->vector_to_list_symbol, small_int(1), car(args), its_too_large_string));
+
   if ((start == 0) && (end == vector_length(vec)))
     return(s7_vector_to_list(sc, vec));
 
@@ -35387,7 +35390,6 @@ static s7_pointer s7_multivector_error(s7_scheme *sc, const char *message, s7_po
 static s7_pointer g_multivector(s7_scheme *sc, s7_int dims, s7_pointer data)
 {
   /* get the dimension bounds from data, make the new vector, fill it from data
-   *
    * dims needs to be s7_int so we can at least give correct error messages.
    * also should we let an empty vector have any number of dimensions? currently ndims is an int.
    */
@@ -36982,8 +36984,7 @@ static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, uint32_t loc,
 
 static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  /* give the equality check some room. also inf == inf and nan == nan
-   */
+  /* give the equality check some room. also inf == inf and nan == nan */
   if (type(key) == T_REAL)
     {
       s7_double keyval;
@@ -38323,7 +38324,7 @@ static s7_pointer s7_macroexpand(s7_scheme *sc, s7_pointer mac, s7_pointer args)
 {
   push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
   sc->code = mac;
-  sc->args = copy_list(sc, args);
+  sc->args = copy_list_with_arglist_error(sc, args);
   new_frame(sc, closure_let(sc->code), sc->envir);
   eval(sc, OP_APPLY_LAMBDA);
   return(sc->value);
@@ -39343,8 +39344,7 @@ static s7_pointer g_arity(s7_scheme *sc, s7_pointer args)
 
 static bool closure_is_aritable(s7_scheme *sc, s7_pointer x, s7_pointer x_args, int32_t args)
 {
-  /* x_args is unprocessed -- it is exactly the list as used in the closure definition
-   */
+  /* x_args is unprocessed -- it is exactly the list as used in the closure definition */
   int32_t len;
 
   if (args == 0)
@@ -40009,9 +40009,9 @@ static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *
 
   for (ex = x; (is_let(ex)) && (ex != sc->rootlet); ex = outlet(ex))
     for (px = let_slots(ex); is_slot(px); px = next_slot(px))
-      if (symbol_tag(slot_symbol(px)) == 0)                /* unshadowed */
+      if (symbol_tag(slot_symbol(px)) == 0)                  /* unshadowed */
 	{
-	  symbol_set_tag(slot_symbol(px), sc->syms_tag);      /* values don't match */
+	  symbol_set_tag(slot_symbol(px), sc->syms_tag);     /* values don't match */
 	  if (((!morally) && (!slots_match(sc, px, y, nci))) ||
 	      ((morally) && (!slots_morally_match(sc, px, y, nci))))
 	    return(false);
@@ -42807,8 +42807,7 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
 	  free(errstr);
 	}
 
-      /* now if OP_ERROR_HOOK_QUIT is in the stack, jump past it!
-       */
+      /* now if OP_ERROR_HOOK_QUIT is in the stack, jump past it! */
       loc = stacktrace_find_error_hook_quit(sc);
       if (loc > 0) top = (loc + 1) / 4;
     }
@@ -58073,7 +58072,9 @@ static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr)
 {
   s7_pointer p, np = NULL, ap = NULL, sp = NULL, arg;
   int32_t pairs = 0;
-  /* a bit tricky -- accept temp only if there's just one inner expression and it calls substring */
+  /* a bit tricky -- accept temp only if there's just one inner expression and it calls substring 
+   *   and don't use this for arg if arg is returned: (reverse! (write-string (symbol->string x)))
+   */
   for (p = cdr(expr); is_pair(p); p = cdr(p))
     {
       arg = car(p);
@@ -58611,9 +58612,6 @@ static void init_choosers(s7_scheme *sc)
   /* read-line */
   read_line_uncopied = s7_make_function(sc, "read-line", g_read_line_uncopied, 1, 1, false, "read-line opt");
   s7_function_set_class(read_line_uncopied, slot_value(global_slot(sc->read_line_symbol)));
-
-  /* write-string */
-  set_function_chooser(sc, sc->write_string_symbol, write_string_chooser);
 
   /* eval-string */
   set_function_chooser(sc, sc->eval_string_symbol, eval_string_chooser);
@@ -62937,7 +62935,7 @@ static s7_pointer check_let(s7_scheme *sc)
   /* (let ('1) quote) -> 1 */
 
   if (is_not_null(x))                  /* (let* ((a 1) . b) a) */
-    eval_error(sc, "let var list improper?: ~A", sc->code);
+    eval_error(sc, "let variable list improper?: ~A", sc->code);
 
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
@@ -65512,7 +65510,7 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 		} /* is_syntactic(x=car(expr)) */
 	      else
 		{
-		  /* is a macro, we'll eventually expand it (if *_optimize), but that requires a symbol lookup here and s7_macroexpand */
+		  /* if a macro, we'll eventually expand it (if *_optimize), but that requires a symbol lookup here and s7_macroexpand */
 		  if ((!is_optimized(expr)) ||
 		      (!do_is_safe(sc, cdr(expr), steppers, var_list, has_set)))
 		    {if (DO_PRINT) fprintf(stderr, "%d, opt: %d\n", __LINE__, is_optimized(expr)); return(false);}
@@ -65603,7 +65601,7 @@ static s7_pointer check_do(s7_scheme *sc)
   if ((!is_pair(sc->code)) ||                             /* (do . 1) */
       ((!is_pair(car(sc->code))) &&                       /* (do 123) */
        (is_not_null(car(sc->code)))))                     /* (do () ...) is ok */
-    eval_error(sc, "do: var list is not a list: ~S", sc->code);
+    eval_error(sc, "do: variable list is not a list: ~S", sc->code);
 
   if (!is_pair(cdr(sc->code)))                            /* (do () . 1) */
     eval_error(sc, "do body is messed up: ~A", sc->code);
@@ -68817,7 +68815,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       pop_stack(sc);
       
     START_WITHOUT_POP_STACK:
-      /* fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
+     /*  fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
 
 #if WITH_PROFILE
       profile_at_start = sc->code;

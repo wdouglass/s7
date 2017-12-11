@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/10/27 04:51:42
-\ Changed: 14/04/28 03:52:17
+\ Changed: 17/12/02 03:19:40
 \
-\ @(#)env.fs	1.25 4/28/14
+\ @(#)env.fs	1.26 12/2/17
 
 \ From env.scm|rb with original comments and doc strings from env.scm.
 \ 

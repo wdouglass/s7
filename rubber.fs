@@ -2,9 +2,9 @@
 
 \ Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 06/01/06 05:32:57
-\ Changed: 14/04/28 03:52:17
+\ Changed: 17/12/02 03:19:40
 \
-\ @(#)rubber.fs	1.15 4/28/14
+\ @(#)rubber.fs	1.16 12/2/17
 
 \ original comments are taken from rubber.scm [ms]
 \

@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/10/16 23:04:30
-\ Changed: 14/04/28 03:52:17
+\ Changed: 17/12/09 22:54:08
 \
-\ @(#)effects.fs	1.56 4/28/14
+\ @(#)effects.fs	1.58 12/9/17
 
 \ General (nogui/motif/gtk)
 \
@@ -40,7 +40,7 @@
 \
 \ Requires --with-motif|gtk
 \
-\ Tested with Snd 14.x
+\ Tested with Snd 18.x
 \             Fth 1.3.x
 \             Motif 2.3.3 X11R6
 \

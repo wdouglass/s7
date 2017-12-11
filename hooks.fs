@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 06/08/08 23:27:50
-\ Changed: 15/02/27 22:24:42
+\ Changed: 17/12/02 03:14:03
 \
-\ @(#)hooks.fs	1.25 2/27/15
+\ @(#)hooks.fs	1.26 12/2/17
 
 \ snd-hooks         Array with all Snd hooks.
 \ reset-all-hooks   ( -- )

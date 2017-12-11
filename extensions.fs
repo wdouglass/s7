@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/18 19:21:00
-\ Changed: 14/12/03 17:15:55
+\ Changed: 17/12/02 03:19:40
 \
-\ @(#)extensions.fs	1.50 12/3/14
+\ @(#)extensions.fs	1.51 12/2/17
 
 \ With comments and doc strings from extensions.scm.
 \

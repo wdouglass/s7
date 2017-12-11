@@ -1,16 +1,18 @@
 \ snd-xm.fs -- snd-motif|gtk.scm|snd-xm.rb --> snd-xm.fs
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-\ Created: Mon Dec 26 22:36:46 CET 2005
-\ Changed: Tue Dec 11 01:55:54 CET 2012
+\ Created: 05/12/26 22:36:46
+\ Changed: 17/12/02 03:01:37
+\
+\ @(#)snd-xm.fs	1.40 12/2/17
 
 \ Commentary:
 \
 \ Requires --with-motif|gtk
 \
-\ Tested with Snd 13.x
+\ Tested with Snd 18.x
 \             Fth 1.3.x
-\             Motif 2.3.4 X11R6
+\             Motif 2.3.3 X11R6
 \             Gtk+ 3.0.12, Glib 2.28.8, Pango 1.28.4, Cairo 1.10.2
 \ 
 \ Motif and Gtk:

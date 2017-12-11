@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 06/02/03 10:36:51
-\ Changed: 14/04/28 03:52:17
+\ Changed: 17/12/02 03:50:06
 \
-\ @(#)clm-ins.fs	1.49 4/28/14
+\ @(#)clm-ins.fs	1.50 12/2/17
 
 \ jc-reverb	( keyword-args -- )
 \ violin	( start dur freq amp keyword-args -- )

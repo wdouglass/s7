@@ -1,8 +1,10 @@
 \ rgb.fs -- rgb.scm|rb --> rgb.fs
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-\ Created: Fri Aug 18 16:57:43 CEST 2006
-\ Changed: Fri Mar 23 22:50:07 CET 2012
+\ Created: 06/08/18 16:57:43
+\ Changed: 17/12/02 02:59:12
+\
+\ @(#)rgb.fs	1.10 12/2/17
 
 \ Commentary:
 \

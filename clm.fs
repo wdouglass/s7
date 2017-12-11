@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 04/03/15 19:25:58
-\ Changed: 17/09/25 22:08:35
+\ Changed: 17/12/08 03:01:31
 \
-\ @(#)clm.fs	1.122 9/25/17
+\ @(#)clm.fs	1.124 12/8/17
 
 \ clm-print		( fmt :optional args -- )
 \ clm-message		( fmt :optional args -- )
@@ -281,7 +281,7 @@ set-current
 previous
 
 \ === Global User Variables (settable in ~/.snd_forth or ~/.fthrc) ===
-"fth 2017/09/25"  value *clm-version*
+"fth 2017/12/08"  value *clm-version*
 #f 	      	  value *locsig*
 mus-lshort    	  value *clm-audio-format*
 #f            	  value *clm-comment*
@@ -612,7 +612,7 @@ set-current
 	"  format: %s [%s]"
 	    #( output mus-sound-sample-type mus-sample-type-name
 	       output mus-sound-header-type mus-header-type-name ) clm-message
-	"  length: %.3f  (%d frames)" #( dur frms ) clm-message
+	"  length: %.3f  (%d framples)" #( dur frms ) clm-message
 	timer timer? if
 		timer .timer
 		srate frms timer .timer-ratio
@@ -631,14 +631,14 @@ previous
 : clm-mix <{ infile :key
     output #f
     output-frame 0
-    frames #f
+    framples #f
     input-frame 0
     scaler #f -- }>
 	doc" Mix files in with-sound's *output* generator.\n\
 \"oboe.snd\" clm-mix\n\
 Mixes oboe.snd in *output* at *output*'s \
 location 0 from oboe.snd's location 0 on.  \
-The whole oboe.snd file will be mixed in because :frames is not specified."
+The whole oboe.snd file will be mixed in because :framples is not specified."
 	0 { chans }
 	*output* mus-output? { outgen }
 	output unless
@@ -656,10 +656,10 @@ The whole oboe.snd file will be mixed in because :frames is not specified."
 		'file-not-found
 		    #( "%s: can't find %S" get-func-name infile ) fth-throw
 	then
-	frames
+	framples
 	infile mus-sound-framples || dup unless
 		drop undef
-	then to frames
+	then to framples
 	outgen if
 		*output* mus-close drop
 	then
@@ -673,7 +673,7 @@ The whole oboe.snd file will be mixed in because :frames is not specified."
 	output       ( outfile )
 	infile       ( infile )
 	output-frame ( outloc )
-	frames       ( frames )
+	framples     ( framples )
 	input-frame  ( inloc )
 	mx           ( matrix )
 	#f           ( envs ) mus-file-mix drop
@@ -881,9 +881,6 @@ defer ws-play
 	:srate             *clm-srate*            ws set-args
 	:statistics        *clm-statistics*       ws set-args
 	:verbose           *clm-verbose*          ws set-args
-	\ for backward compatibility
-	:data-format *clm-sample-type* get-optkey
-	    ws :sample-type rot ws-set! to ws
 	ws
 ;  
 
@@ -914,9 +911,6 @@ defer ws-play
 	:reverb-channels   ws1 :reverb-channels  ws-ref ws set-args
 	:reverb-file-name  ws1 :reverb-file-name ws-ref ws set-args
 	:decay-time        ws1 :decay-time       ws-ref ws set-args
-	\ for backward compatibility
-	:data-format ws1 :sample-type ws-ref get-optkey
-	    ws :sample-type rot ws-set! to ws
 	ws
 ;
 
@@ -1054,7 +1048,7 @@ previous
 :locsig-type       *clm-locsig-type*      (mus-interp-linear)\n\
 :header-type       *clm-header-type*      (mus-next)\n\
 :sample-type       *clm-sample-type*      (mus-lfloat)\n\
-:clipped           *clm-clipped*          (#t)\n\
+:clipped           *clm-clipped*          (#f)\n\
 :comment           *clm-comment*          (#f)\n\
 :notehook          *clm-notehook*         (#f)\n\
 :scaled-to                                (#f)\n\  

@@ -1,8 +1,10 @@
 \ marks.fs -- marks.scm|rb -> marks.fs
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-\ Created: Tue Dec 27 19:22:06 CET 2005
-\ Changed: Wed Nov 21 19:52:34 CET 2012
+\ Created: 05/12/27 19:22:06
+\ Changed: 17/12/02 07:56:15
+\
+\ @(#)marks.fs	1.28 12/2/17
 
 \ Commentary:
 \
@@ -118,13 +120,12 @@ the channel's edit history."
 \ --- Mark Properties ---
 hide
 : mark-writeit { mp mhome msamp io -- }
-	io "\t%S 0 find-sound to snd\n"
-	    #( mhome 0 array-ref file-name ) io-write-format
+	io "\t%S 0 find-sound to snd\n" #( mhome car file-name ) io-write-format
 	io "\tsnd sound? if\n" io-write
-	io "    %d snd %d find-mark to mk\n"
-	    #( msamp mhome 1 array-ref ) io-write-format
+	io "\t\t%d snd %d find-mark to mk\n"
+	    #( msamp mhome cadr ) io-write-format
 	io "\t\tmk mark? if\n" io-write
-	io "\t\t\tmk %S set-mark-properties\n" #( mp ) io-write-format
+	io "\t\t\tmk %S set-mark-properties drop\n" #( mp ) io-write-format
 	io "\t\tthen\n" io-write
 	io "\tthen\n" io-write
 ;
@@ -166,20 +167,23 @@ previous
 	doc" A mark-click-hook function that describes a \
 mark and its properties.\n\
 mark-click-hook <'> mark-click-info add-hook!."
-	"      mark id: %s\n" #( id ) string-format
-	    make-string-output-port { prt }
-	id mark-name empty? unless
-		prt "         name: %s\n" #( id mark-name ) port-puts-format
-	then
-	prt "       sample: %s (%.3f secs)\n"
-	    #( id undef mark-sample dup id mark-home 0 array-ref srate f/ )
-	    port-puts-format
-	id mark-sync if
-		prt "         sync: %s\n" #( id mark-sync ) port-puts-format
-	then
+	id mark-name { name }
+	id undef mark-sample { samp }
+	id mark-home car { snd }
+	id mark-sync { syn }
 	id mark-properties { props }
+	"\n   mark id: %s\n\n" #( id ) string-format
+	    make-string-output-port { prt }
+	name empty? unless
+		prt "      name: %s\n" #( name ) port-puts-format
+	then
+	prt "    sample: %s (%.3f secs)\n"
+	    #( samp samp snd srate f/ ) port-puts-format
+	syn if
+		prt "      sync: %s\n" #( syn ) port-puts-format
+	then
 	props empty? unless
-		prt "   properties: %s" #( props ) port-puts-format
+		prt "properties: %s" #( props ) port-puts-format
 	then
 	"Mark Info" prt port->string info-dialog drop
 	#t
@@ -191,12 +195,12 @@ mark-click-hook <'> mark-click-info add-hook!."
 : marks->string { snd -- str }
 	"\nrequire marks\n" make-string-output-port { prt }
 	prt "let: ( -- )\n" port-puts
-	prt "\t#f { mr }\n" port-puts
+	prt "\t#f { mk }\n" port-puts
 	snd marks each { chan-marks }
 		prt "\n\t\\ channel %d\n" #( i ) port-puts-format
 		chan-marks each { m }
 			m nil? ?leave
-			"\t%s #f %d %S %d add-mark to mk\n"
+			prt "\t%s #f %d %S %d add-mark to mk\n"
 			    #( m undef mark-sample
 			       j ( chn )
 			       m mark-name length 0= if
@@ -207,7 +211,7 @@ mark-click-hook <'> mark-click-info add-hook!."
 			       m mark-sync ) port-puts-format
 			m mark-properties { props }
 			props if
-				"\tmk %S set-mark-properties\n"
+				prt "\tmk %S set-mark-properties drop\n"
 				    #( props ) port-puts-format
 			then
 		end-each
@@ -217,7 +221,7 @@ mark-click-hook <'> mark-click-info add-hook!."
 ;
 
 0 [if]
-	output-comment-hook lambda: <{ str }>
+	output-comment-hook lambda: <{ str -- str' }>
 		selected-sound marks->string
 	; add-hook!
 

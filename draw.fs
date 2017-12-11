@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/18 23:36:09
-\ Changed: 14/04/28 03:52:17
+\ Changed: 17/12/02 03:19:40
 \
-\ @(#)draw.fs	1.19 4/28/14
+\ @(#)draw.fs	1.20 12/2/17
 
 \ make-current-window-display  ( -- )
 \ close-current-window-display ( -- )

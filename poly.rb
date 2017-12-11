@@ -2,7 +2,7 @@
 
 # Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 05/04/09 23:55:07
-# Changed: 14/11/21 05:06:17
+# Changed: 17/11/30 22:57:04
 
 # class Complex
 #  to_f
@@ -53,7 +53,10 @@ require "mix"
 include Math
 
 class Complex
-  attr_writer :real, :imag
+  # XXX: attr_writer :real, :imag
+  #      Doesn't work any longer.
+  #      Complex objects are now frozen objects.
+  #      (Thu Nov 30 21:29:10 CET 2017)
   with_silence do
     def to_f
       self.real.to_f
@@ -267,7 +270,8 @@ class Poly < Vec
 
   def roots
     rts = poly()
-    if (deg = self.length - 1).zero?
+    deg = self.length - 1
+    if deg.zero?
       rts
     else
       if self[0].zero?
@@ -544,7 +548,9 @@ class Poly < Vec
       (a.real.abs < Poly_roots_epsilon2) ? 0.0 : a.real.to_f
     else
       if a.real.abs < Poly_roots_epsilon2
-        a.real = 0.0
+        # XXX: a.real = 0.0
+        #      Doesn't work any longer (see above, class Complex).
+        a = Complex(0.0, a.imag)
       end
       a
     end

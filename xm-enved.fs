@@ -1,16 +1,18 @@
 \ xm-enved.fs -- xm-enved.scm -> xm-enved.fs
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-\ Created: Fri Oct 21 18:22:57 CEST 2005
-\ Changed: Sat Dec  1 19:09:08 CET 2012
+\ Created: 05/10/21 18:22:57
+\ Changed: 17/12/02 03:04:44
+\
+\ @(#)xm-enved.fs	1.36 12/2/17
 
 \ Commentary:
 \
 \ Requires --with-motif|gtk
 \
-\ Tested with Snd 13.x
+\ Tested with Snd 18.x
 \             Fth 1.3.x
-\             Motif 2.3.4 X11R6
+\             Motif 2.3.3 X11R6
 \             (Glib 2.28.8, Pango 1.28.4, Cairo 1.10.2)
 \
 \ This is an example of an object type written in Forth.
