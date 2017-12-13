@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "5.12"
-#define S7_DATE "3-Oct-17"
+#define S7_DATE "11-Dec-17"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -126,6 +126,8 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc);
 s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc);
+s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
+
 s7_pointer s7_gc_on(s7_scheme *sc, bool on);
 void s7_gc_stats(s7_scheme *sc, bool on);
 int64_t s7_heap_size(s7_scheme *sc);
@@ -428,7 +430,6 @@ bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_na
    */
 
 s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish);
-
 
 void s7_define(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
 bool s7_is_defined(s7_scheme *sc, const char *name);
@@ -883,6 +884,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 11-Dec:    s7_gc_protect_via_stack
  * 3-Oct:     renamed procedure-signature -> signature, procedure-documentation -> documentation, and procedure-setter -> setter.
  * 18-Sep:    s7_immutable, s7_is_immutable. define-constant follows lexical scope now.
  *            s7_symbol_access -> s7_symbol_setter, symbol-access -> symbol-setter.

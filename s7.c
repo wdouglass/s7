@@ -465,7 +465,9 @@ typedef struct {
   bool needs_free;
   FILE *file;
   char *filename;
-  int32_t filename_length, gc_loc; /* gc_loc uses -1 as unset flag -- kinda ugly */
+  int32_t filename_length;
+  uint32_t gc_loc;
+  bool needs_unprotect;
   void *next;
   s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
   void (*output_function)(s7_scheme *sc, unsigned char c, s7_pointer port);
@@ -959,6 +961,9 @@ struct s7_scheme {
   uint32_t *gpofl;
   uint32_t protected_objects_size, protected_setters_size, protected_setters_loc;
   int32_t gpofl_loc;
+#if DEBUGGING
+  int *protected_lines;
+#endif
 
   s7_pointer nil;                     /* empty list */
   s7_pointer T;                       /* #t */
@@ -2517,6 +2522,7 @@ static int64_t not_heap = -1;
 #define port_read_name(p)             port_port(p)->read_name
 #define port_read_sharp(p)            port_port(p)->read_sharp
 #define port_gc_loc(p)                port_port(p)->gc_loc
+#define port_needs_unprotect(p)       port_port(p)->needs_unprotect
 
 #define is_c_function(f)              (type(f) >= T_C_FUNCTION)
 #define is_c_function_star(f)         (type(f) == T_C_FUNCTION_STAR)
@@ -3880,6 +3886,19 @@ static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
  *   case) to manage them in the sweep process by tracking lets.  
  */
 
+#if DEBUGGING
+static uint32_t s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
+{
+  uint32_t loc;
+  loc = s7_gc_protect(sc, x);
+  sc->protected_lines[loc] = line;
+  return(loc);
+}
+#define s7_gc_protect_1(Sc, X) s7_gc_protect_2(Sc, X, __LINE__)
+#else
+#define s7_gc_protect_1(Sc, X) s7_gc_protect(Sc, X)
+#endif
+
 uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
 {
   uint32_t loc;
@@ -3893,6 +3912,22 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
       vector_length(sc->protected_objects) = new_size;
       sc->protected_objects_size = new_size;
       sc->gpofl = (uint32_t *)realloc(sc->gpofl, new_size * sizeof(uint32_t));
+#if DEBUGGING
+      sc->protected_lines = (int *)realloc(sc->protected_lines, new_size * sizeof(int));
+      for (i = size; i < new_size; i++) sc->protected_lines[i] = -1;
+      {
+	int *protected_count;
+	protected_count = (int *)calloc(85000, sizeof(int));
+	for (i = 0; i < size; i++)
+	  if ((sc->protected_lines[i] >= 0) &&
+	      (vector_element(sc->protected_objects, i) != sc->gc_nil))
+	    protected_count[sc->protected_lines[i]]++;
+	for (i = 0; i < 85000; i++)
+	  if (protected_count[i] > 0)
+	    fprintf(stderr, "line[%d]: %d\n", i, protected_count[i]);
+	free(protected_count);
+      }
+#endif
       for (i = size; i < new_size; i++)
 	{
 	  vector_element(sc->protected_objects, i) = sc->gc_nil;
@@ -3906,6 +3941,7 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
     fprintf(stderr, "sc->gpofl loc: %u (%d)\n", loc, sc->protected_objects_size);
   if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
     fprintf(stderr, "protected object at %u about to be clobbered? %s\n", loc, DISPLAY(vector_element(sc->protected_objects, loc)));
+  sc->protected_lines[loc] = 1;
 #endif
   vector_element(sc->protected_objects, loc) = x;
   return(loc);
@@ -3914,7 +3950,6 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
 void s7_gc_unprotect(s7_scheme *sc, s7_pointer x)
 {
   uint32_t i;
-
   for (i = 0; i < sc->protected_objects_size; i++)
     if (vector_element(sc->protected_objects, i) == x)
       {
@@ -3922,6 +3957,9 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x)
 	sc->gpofl[++sc->gpofl_loc] = i;
 	return;
       }
+#if DEBUGGING
+  fprintf(stderr, "can't unprotect %s\n", DISPLAY(x));
+#endif
 }
 
 void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc)
@@ -3930,8 +3968,14 @@ void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc)
     {
       if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
 	sc->gpofl[++sc->gpofl_loc] = loc;
+#if DEBUGGING
+      else fprintf(stderr, "already unprotected at %u?\n", loc);
+#endif
       vector_element(sc->protected_objects, loc) = sc->gc_nil;
     }
+#if DEBUGGING
+  else fprintf(stderr, "unprotect at %u >= %u\n", loc, sc->protected_objects_size);
+#endif
 }
 
 s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc)
@@ -3941,6 +3985,9 @@ s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc)
   obj = sc->unspecified;
   if (loc < sc->protected_objects_size)
     obj = vector_element(sc->protected_objects, loc);
+#if DEBUGGING
+  else fprintf(stderr, "protected_at %u >= %u\n", loc, sc->protected_objects_size);
+#endif
 
   if (obj == sc->gc_nil)
     return(sc->unspecified);
@@ -4205,6 +4252,26 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
+	      if (!port_is_closed(s1))
+		{
+		  if (is_file_port(s1))
+		    {
+		      if (port_file(s1))
+			{
+			  fclose(port_file(s1));
+			  port_file(s1) = NULL;
+			}
+		    }
+		  else
+		    {
+		      if ((is_string_port(s1)) &&
+			  (port_needs_unprotect(s1)))
+			{
+			  s7_gc_unprotect_at(sc, port_gc_loc(s1));
+			  port_needs_unprotect(s1) = false;
+			}
+		    }
+		}
 	      if (port_needs_free(s1))
 		{
 		  if (port_data(s1))
@@ -5659,10 +5726,14 @@ static void resize_stack_1(s7_scheme *sc, const char *func, int line)
 static void resize_stack(s7_scheme *sc)
 #endif
 {
-  uint32_t i, new_size, loc;  /* int64_ts?? sc->stack_size also is an uint32_t */
+  uint64_t i, loc;
+  uint32_t new_size;
 
   loc = s7_stack_top(sc);
   new_size = sc->stack_size * 2;
+#if DEBUGGING
+  fprintf(stderr, "stack: %lu %ld %ld\n", loc, (long int)(sc->stack_resize_trigger - sc->stack_start), (long int)(sc->stack_end - sc->stack_start));
+#endif
 
   /* how can we trap infinite recursion?  Is a warning in order here?
    *   I think I'll add 'max-stack-size
@@ -5692,6 +5763,12 @@ static void resize_stack(s7_scheme *sc)
       fprintf(stderr, "stack grows to %u, %s\n", new_size, DISPLAY_80(sc->code));
 #endif
       s7_show_let(sc);
+#if DEBUGGING
+      fprintf(stderr, "stack_top: %ld\n", (long int)(s7_stack_top(sc) - 1));
+      for (i = s7_stack_top(sc) - 1; i >= 4; i -= 4)
+	fprintf(stderr, "%s ", op_names[stack_op(sc->stack, i)]);
+      fprintf(stderr, "\n");
+#endif
     }
 }
 
@@ -5701,6 +5778,12 @@ static void resize_stack(s7_scheme *sc)
       if ((Sc->begin_hook) && (call_begin_hook(Sc))) return(Sc->F); \
       resize_stack(Sc); \
     }
+
+s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x) 
+{
+  push_stack(sc, OP_GC_PROTECT, sc->args, sc->code); 
+  return(x);
+}
 
 
 /* -------------------------------- symbols -------------------------------- */
@@ -5746,7 +5829,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, uint32_t len, uint
   x = (s7_pointer)base;
   str = (s7_pointer)(base + sizeof(s7_cell));
   p = (s7_pointer)(base + 2 * sizeof(s7_cell));
-  val = (unsigned char *)(base + 3 * sizeof(s7_cell));
+  val = (unsigned char *)(base + 3 * sizeof(s7_cell) + sizeof(symbol_info_t));
   memcpy((void *)val, (void *)name, len);
   val[len] = '\0';
 
@@ -5761,7 +5844,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, uint32_t len, uint
   typeflag(x) = T_SYMBOL;
   symbol_set_name_cell(x, str);
   set_global_slot(x, sc->undefined);                       /* was sc->nil */
-  symbol_info(x) = (symbol_info_t *)(base + 3 * sizeof(s7_cell) + len + 1);
+  symbol_info(x) = (symbol_info_t *)(base + 3 * sizeof(s7_cell));
   set_initial_slot(x, sc->undefined);
   symbol_set_local(x, 0LL, sc->nil);
   symbol_set_tag(x, 0);
@@ -5785,7 +5868,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, uint32_t len, uint
 	    {
 	      char *kstr;
 	      uint32_t klen;
-	      klen = symbol_name_length(x) - 1;           /* can't use tmpbuf_* here (or not safely I think) because name is already using tmpbuf */
+	      klen = symbol_name_length(x) - 1;            /* can't use tmpbuf_* here (or not safely I think) because name is already using tmpbuf */
 	      kstr = (char *)malloc((klen + 1) * sizeof(char));
 	      memcpy((void *)kstr, (void *)name, klen);
 	      kstr[klen] = 0;
@@ -6617,7 +6700,7 @@ static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
 	      
 	      len = hash_table_entries(val);
 	      iterator = s7_make_iterator(sc, val);
-	      gc_iter = s7_gc_protect(sc, iterator);
+	      gc_iter = s7_gc_protect_1(sc, iterator);
 	      p = cons(sc, sc->F, sc->F);
 	      iterator_current(iterator) = p;
 	      set_mark_seq(iterator);
@@ -22888,8 +22971,13 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
 #endif
   if ((is_immutable_port(p)) ||
       ((is_input_port(p)) && (port_is_closed(p))))
-    return;
-
+    {
+#if DEBUGGING
+      if (port_needs_free(p))
+	fprintf(stderr, "closed input needs free\n");
+#endif
+      return;
+    }
   if (port_filename(p))
     {
       free(port_filename(p));
@@ -22907,8 +22995,11 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
   else
     {
       if ((is_string_port(p)) &&
-	  (port_gc_loc(p) != -1))
-	s7_gc_unprotect_at(sc, port_gc_loc(p));
+	  (port_needs_unprotect(p)))
+	{
+	  s7_gc_unprotect_at(sc, port_gc_loc(p));
+	  port_needs_unprotect(p) = false;
+	}
     }
   if (port_needs_free(p))
     {
@@ -22927,6 +23018,7 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
   port_write_string(p) = closed_port_write_string;
   port_display(p) = closed_port_display;
   port_is_closed(p) = true;
+  port_position(p) = 0;
 }
 
 static s7_pointer g_close_input_port(s7_scheme *sc, s7_pointer args)
@@ -23705,7 +23797,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
   uint32_t port_loc;
 
   new_cell(sc, port, T_INPUT_PORT);
-  port_loc = s7_gc_protect(sc, port);
+  port_loc = s7_gc_protect_1(sc, port);
   port_port(port) = alloc_port(sc);
   port_is_closed(port) = false;
   port_original_input_string(port) = sc->nil;
@@ -23753,7 +23845,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
       port_data_size(port) = size;
       port_position(port) = 0;
       port_needs_free(port) = true;
-      port_gc_loc(port) = -1;
+      port_needs_unprotect(port) = false;
       port_read_character(port) = string_read_char;
       port_read_line(port) = string_read_line;
       port_display(port) = input_display;
@@ -24048,7 +24140,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, uin
   port_file_number(x) = 0; /* uint32_t */
   port_line_number(x) = 0;
   port_needs_free(x) = false;
-  port_gc_loc(x) = -1;
+  port_needs_unprotect(x) = false;
   port_read_character(x) = string_read_char;
   port_read_line(x) = string_read_line;
   port_display(x) = input_display;
@@ -24071,7 +24163,8 @@ static s7_pointer open_and_protect_input_string(s7_scheme *sc, s7_pointer str)
 {
   s7_pointer p;
   p = open_input_string(sc, string_value(str), string_length(str));
-  port_gc_loc(p) = s7_gc_protect(sc, str);
+  port_gc_loc(p) = s7_gc_protect_1(sc, str);
+  port_needs_unprotect(p) = true;
   return(p);
 }
 
@@ -27533,7 +27626,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
     }
 
   iterator = s7_make_iterator(sc, hash);
-  gc_iter = s7_gc_protect(sc, iterator);
+  gc_iter = s7_gc_protect_1(sc, iterator);
   p = cons(sc, sc->F, sc->F);
   iterator_current(iterator) = p;
   set_mark_seq(iterator);
@@ -27968,7 +28061,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
   arglist = closure_args(obj);
   pe = closure_let(obj);               /* perhaps check for documentation? */
 
-  gc_loc = s7_gc_protect(sc, sc->nil);
+  gc_loc = s7_gc_protect_1(sc, sc->nil);
   collect_locals(sc, body, pe, arglist, gc_loc);   /* collect locals used only here */
   if (s7_is_dilambda(obj))
     {
@@ -35432,7 +35525,7 @@ static s7_pointer g_multivector(s7_scheme *sc, s7_int dims, s7_pointer data)
     }
 
   vec = g_make_vector(sc, set_plist_1(sc, sc->w = safe_reverse_in_place(sc, sc->w)));
-  vec_loc = s7_gc_protect(sc, vec);
+  vec_loc = s7_gc_protect_1(sc, vec);
   sc->w = sc->nil;
 
   /* now fill the vector checking that all the lists match */
@@ -36206,7 +36299,8 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	  s7_pointer vec, p;
 
 	  vec = g_vector(sc, data);
-	  gc_loc = s7_gc_protect(sc, vec);
+	  push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
+	  /* gc_loc = s7_gc_protect_1(sc, vec); */
 	  elements = s7_vector_elements(vec);
 
 	  sc->v = vec;
@@ -36214,7 +36308,8 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	  for (p = data, i = 0; i < len; i++, p = cdr(p))
 	    set_car(p, elements[i]);
 
-	  s7_gc_unprotect_at(sc, gc_loc);
+	  /* s7_gc_unprotect_at(sc, gc_loc); */
+	  sc->stack_end -= 4; /* not pop_stack! */
 	  return(data);
 	}
 
@@ -36252,7 +36347,8 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 #endif
 
 	vec = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-	gc_loc = s7_gc_protect(sc, vec);
+	/* gc_loc = s7_gc_protect_1(sc, vec); */
+	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);	   
 	elements = s7_vector_elements(vec);
 	chrs = (unsigned char *)string_value(data);
 
@@ -36282,13 +36378,15 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 		for (i = 0; i < len; i++)
 		  chrs[i] = character(elements[i]);
 	      }
-	    s7_gc_unprotect_at(sc, gc_loc);
+	    /* s7_gc_unprotect_at(sc, gc_loc); */
+	    sc->stack_end -= 4; /* not pop_stack! */
 	    return(data);
 	  }
 
+	sc->stack_end -= 4; /* not pop_stack! */
 	push_stack(sc, OP_SORT_STRING_END, cons(sc, data, lessp), sc->code);
 	set_car(args, vec);
-	s7_gc_unprotect_at(sc, gc_loc);
+	/* s7_gc_unprotect_at(sc, gc_loc); */
       }
       break;
 
@@ -36331,7 +36429,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 *   at any time during that loop, and the GC mark process expects the vector to have an s7_pointer
 	 *   at every element.
 	 */
-	gc_loc = s7_gc_protect(sc, vec);
+	gc_loc = s7_gc_protect_1(sc, vec);
 	elements = s7_vector_elements(vec);
 
 	for (i = 0; i < len; i++)
@@ -36423,7 +36521,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
   k = ((int32_t)(n / 2)) + 1;
 
   lx = s7_make_vector(sc, (sc->safety == NO_SAFETY) ? 4 : 6);
-  gc_loc = s7_gc_protect(sc, lx);
+  gc_loc = s7_gc_protect_1(sc, lx);
   sc->v = lx;
 
   vector_element(lx, 0) = make_mutable_integer(sc, n);
@@ -37806,7 +37904,7 @@ That is, (hash-table '(\"hi\" . 3) (\"ho\" . 32)) returns a new hash-table with 
   if (len > 0)
     {
       uint32_t ht_loc;
-      ht_loc = s7_gc_protect(sc, ht); /* hash_table_set can cons, so we need to protect this */
+      ht_loc = s7_gc_protect_1(sc, ht); /* hash_table_set can cons, so we need to protect this */
       for (x = args; is_pair(x); x = cdr(x))
 	if (is_pair(car(x)))
 	  s7_hash_table_set(sc, ht, caar(x), cdar(x));
@@ -37836,7 +37934,7 @@ That is, (hash-table* 'a 1 'b 2) returns a new hash-table with the two key/value
     {
       uint32_t ht_loc;
       s7_pointer x, y;
-      ht_loc = s7_gc_protect(sc, ht); /* hash_table_set can cons, so we need to protect this */
+      ht_loc = s7_gc_protect_1(sc, ht); /* hash_table_set can cons, so we need to protect this */
 
       for (x = args, y = cdr(args); is_pair(x); x = cddr(x), y = unchecked_cdr(cdr(y)))
 	s7_hash_table_set(sc, ht, car(x), car(y));
@@ -38011,7 +38109,7 @@ static s7_pointer hash_table_reverse(s7_scheme *sc, s7_pointer old_hash)
 
   len = hash_table_mask(old_hash) + 1;
   new_hash = s7_make_hash_table(sc, len);
-  gc_loc = s7_gc_protect(sc, new_hash);
+  gc_loc = s7_gc_protect_1(sc, new_hash);
 
   /* I don't think the original hash functions can make any sense in general, so ignore them */
   old_lists = hash_table_elements(old_hash);
@@ -38343,7 +38441,7 @@ s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fn
   tmpbuf_malloc(internal_arglist, len);
   snprintf(internal_arglist, len, "'(%s)", arglist);
   local_args = s7_eval_c_string(sc, internal_arglist);
-  gc_loc = s7_gc_protect(sc, local_args);
+  gc_loc = s7_gc_protect_1(sc, local_args);
   tmpbuf_free(internal_arglist, len);
   n_args = safe_list_length(sc, local_args);  /* currently rest arg not supported, and we don't notice :allow-other-keys etc */
 
@@ -40937,7 +41035,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 	    uint32_t gc_loc;
 	    s7_pointer new_hash;
 	    new_hash = s7_make_hash_table(sc, hash_table_mask(source) + 1);
-	    gc_loc = s7_gc_protect(sc, new_hash);
+	    gc_loc = s7_gc_protect_1(sc, new_hash);
 	    hash_table_checker(new_hash) = hash_table_checker(source);
 	    if (hash_chosen(source)) hash_set_chosen(new_hash);
 	    hash_table_mapper(new_hash) = hash_table_mapper(source);
@@ -41191,8 +41289,8 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 
 	    mi = make_mutable_integer(sc, start);
 	    mj = make_mutable_integer(sc, end);
-	    gc_loc1 = s7_gc_protect(sc, mi);
-	    gc_loc2 = s7_gc_protect(sc, mj);
+	    gc_loc1 = s7_gc_protect_1(sc, mi);
+	    gc_loc2 = s7_gc_protect_1(sc, mj);
 	    ref = c_object_ref(sc, source);
 	    set = c_object_set(sc, dest);
 
@@ -41947,13 +42045,12 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
 static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer new_hash, p;
-  uint32_t gc_loc;
   new_hash = s7_make_hash_table(sc, sc->default_hash_table_length);
-  gc_loc = s7_gc_protect(sc, new_hash);
+  push_stack(sc, OP_GC_PROTECT, args, new_hash);
   for (p = args; is_pair(p); p = cdr(p))
     s7_copy(sc, set_plist_2(sc, car(p), new_hash));
   set_plist_2(sc, sc->nil, sc->nil);
-  s7_gc_unprotect_at(sc, gc_loc);
+  sc->stack_end -= 4;
   return(new_hash);
 }
 
@@ -42147,7 +42244,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 	result = make_list(sc, len, sc->nil);
 	sc->temp8 = result;
 	z = list_1(sc, sc->F);
-	gc_z = s7_gc_protect(sc, z);
+	gc_z = s7_gc_protect_1(sc, z);
 
 	set_car(sc->z2_1, sc->x);
 	set_car(sc->z2_2, sc->z);
@@ -42270,7 +42367,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	s7_pointer let;
 	uint32_t gc_loc;
 	let = s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol));
-	gc_loc = s7_gc_protect(sc, let);
+	gc_loc = s7_gc_protect_1(sc, let);
 	s7_varlet(sc, let, s7_make_symbol(sc, "stack"), stack_entries(sc, continuation_stack(obj), continuation_stack_top(obj)));
 	s7_gc_unprotect_at(sc, gc_loc);
 	return(let);
@@ -42405,7 +42502,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    if (func != sc->undefined)
 	      {
 		uint32_t gc_loc;
-		gc_loc = s7_gc_protect(sc, let);
+		gc_loc = s7_gc_protect_1(sc, let);
 		s7_apply_function(sc, func, list_2(sc, obj, let));
 		s7_gc_unprotect_at(sc, gc_loc);
 	      }
@@ -42431,7 +42528,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    if (func != sc->undefined)
 	      {
 		uint32_t gc_loc;
-		gc_loc = s7_gc_protect(sc, let);
+		gc_loc = s7_gc_protect_1(sc, let);
 		s7_apply_function(sc, func, list_2(sc, obj, let));
 		s7_gc_unprotect_at(sc, gc_loc);
 	      }
@@ -42450,7 +42547,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				     (is_string_port(obj)) ? sc->string_symbol : 
 				       ((is_file_port(obj)) ? s7_make_symbol(sc, "file") : s7_make_symbol(sc, "function")),
 				   s7_make_symbol(sc, "closed"), s7_make_boolean(sc, port_is_closed(obj))));
-	gc_loc = s7_gc_protect(sc, let);
+	gc_loc = s7_gc_protect_1(sc, let);
 	if (is_file_port(obj))
 	  {
 	    s7_varlet(sc, let, s7_make_symbol(sc, "file"), g_port_filename(sc, set_plist_1(sc, obj)));
@@ -42484,7 +42581,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	let = s7_inlet(sc, s7_list(sc, 6, sc->value_symbol, obj,
 				   sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
 				   s7_make_symbol(sc, "arity"), s7_arity(sc, obj)));
-	gc_loc = s7_gc_protect(sc, let);
+	gc_loc = s7_gc_protect_1(sc, let);
 
 	sig = signature(sc, obj);
 	if (is_pair(sig))
@@ -42784,7 +42881,7 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
   int64_t loc, top, frames = 0;
   uint32_t gc_syms;
 
-  gc_syms = s7_gc_protect(sc, sc->nil);
+  gc_syms = s7_gc_protect_1(sc, sc->nil);
   str = NULL;
   top = (sc->stack_end - sc->stack_start) / 4; /* (*s7* 'stack_top), not s7_stack_top! */
 
@@ -43438,7 +43535,6 @@ static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-/* s7_catch(sc, tag, body, error): return(g_catch(sc, list(sc, 3, tag, body, error))) */
 
 /* error reporting info -- save filename and line number */
 
@@ -43531,7 +43627,7 @@ It has the additional local variables: error-type, error-data, error-code, error
     }
 
   e = let_copy(sc, sc->owlet);
-  gc_loc = s7_gc_protect(sc, e);
+  gc_loc = s7_gc_protect_1(sc, e);
 
   for (x = let_slots(e); is_slot(x); x = next_slot(x))
     {
@@ -47082,6 +47178,7 @@ static bool return_false(s7_scheme *sc, s7_pointer expr, const char *func, int32
 /* all_x fallback for all optimizers */
 static s7_function all_x_optimize(s7_scheme *sc, s7_pointer expr)
 {
+  /* fprintf(stderr, "all_x: %s\n", DISPLAY(expr)); */
   if ((is_optimized(car(expr))) &&
       (is_all_x_safe(sc, car(expr))))
     {
@@ -47501,6 +47598,10 @@ static bool i_ii_fc_combinable(s7_scheme *sc, opt_info *opc)
 }
 #endif
 
+#if DEBUGGING
+static s7_pointer i_ii_arg1, i_ii_arg2, i_ii_car_x;
+#endif
+
 static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
 {
   s7_i_ii_t ifunc;
@@ -47562,6 +47663,12 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			    {
 			      opc->v2.i = integer(arg2);
 			      opc->v7.fi = opt_i_ii_sc;
+			      /* fprintf(stderr, "ii: %s %s %s\n", DISPLAY(car_x), DISPLAY(slot_value(opc->v1.p)), DISPLAY(arg2)); */
+#if DEBUGGING
+			      i_ii_car_x = car_x;
+			      i_ii_arg1 = slot_value(opc->v1.p);
+			      i_ii_arg2 = arg2;
+#endif
 #if (!WITH_GMP)
 			      if ((car(car_x) == sc->modulo_symbol) &&
 				  (integer(arg2) > 1))
@@ -54352,6 +54459,7 @@ static bool opt_bool_call_1_1(void *p)       {return(opt_call_1_1(p) != cur_sc->
 
 static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 {
+  /* fprintf(stderr, "funcall opt %s\n", DISPLAY(car_x)); */
   if (sc->safety > CLM_OPTIMIZATION_SAFETY)
     return(false);
 
@@ -54360,6 +54468,10 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
       opt_info *opc;
       int32_t i;
       s7_pointer p;
+
+      /* PERHAPS: this is probably not needed */
+      if (!s7_is_aritable(sc, s_func, (int32_t)s7_list_length(sc, cdr(car_x))))
+	return(return_false(sc, car_x, __func__, __LINE__));
 
       opc = alloc_opo(sc, car_x);
       for (i = 0, p = cdr(car_x); is_pair(p); i++, p = cdr(p))
@@ -56148,7 +56260,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 	dotted = true;
       }
     old_scw = sc->w;
-    loc = s7_gc_protect(sc, old_scw);
+    loc = s7_gc_protect_1(sc, old_scw);
 
     sc->w = sc->nil;
     for (i = 0; i <= len; i++)
@@ -67723,6 +67835,10 @@ static void unwind_output_ex(s7_scheme *sc)
 
 static void unwind_input_ex(s7_scheme *sc)
 {
+#if DEBUGGING
+  if (!is_input_port(sc->code))
+    fprintf(stderr, "unwind no input\n");
+#endif
   if ((is_input_port(sc->code)) &&
       (!port_is_closed(sc->code)))
     s7_close_input_port(sc, sc->code);
@@ -68706,7 +68822,7 @@ static void profile(s7_scheme *sc, s7_pointer expr)
   if (is_null(sc->profile_info))
     {
       sc->profile_info = s7_make_hash_table(sc, 65536);
-      s7_gc_protect(sc, sc->profile_info);
+      s7_gc_protect_1(sc, sc->profile_info);
     }
   if ((is_pair(expr)) &&
       (profile_location(expr) > 0))
@@ -77875,7 +77991,7 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       /* we'll be calling new_cell below, hence the GC, so make sure the elements are markable,
        *   and the vector itself is GC protected (we can be called within make-vector).
        */
-      gc_loc = s7_gc_protect(sc, vec);
+      gc_loc = s7_gc_protect_1(sc, vec);
       vector_fill(sc, vec, sc->nil);
 
       switch (type(obj))
@@ -81970,6 +82086,9 @@ s7_scheme *s7_init(void)
       vector_element(sc->protected_setters, i) = sc->gc_nil;
       sc->gpofl[i] = i;
     }
+#if DEBUGGING
+  sc->protected_lines = (int *)calloc(INITIAL_PROTECTED_OBJECTS_SIZE, sizeof(int));
+#endif
 
   sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
   sc->stack_start = vector_elements(sc->stack);
@@ -83881,4 +84000,5 @@ int main(int argc, char **argv)
  * 
  * --------------------------------------------------------------
  */
+ 
  
