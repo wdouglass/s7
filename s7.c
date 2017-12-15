@@ -2932,6 +2932,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
 static void free_hash_table(s7_pointer table);
 void s7_show_let(s7_scheme *sc);
 static s7_pointer g_cdr(s7_scheme *sc, s7_pointer args);
+static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
 static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e);
 static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e);
 static bool float_optimize(s7_scheme *sc, s7_pointer expr);
@@ -5719,26 +5720,15 @@ static void stack_reset(s7_scheme *sc)
   push_stack_op(sc, OP_BARRIER);
 }
 
-#if DEBUGGING
-#define resize_stack(Sc) resize_stack_1(Sc, __func__, __LINE__)
-static void resize_stack_1(s7_scheme *sc, const char *func, int line)
-#else
 static void resize_stack(s7_scheme *sc)
-#endif
 {
   uint64_t i, loc;
   uint32_t new_size;
 
   loc = s7_stack_top(sc);
   new_size = sc->stack_size * 2;
-#if DEBUGGING
-  fprintf(stderr, "stack: %lu %ld %ld\n", loc, (long int)(sc->stack_resize_trigger - sc->stack_start), (long int)(sc->stack_end - sc->stack_start));
-#endif
 
-  /* how can we trap infinite recursion?  Is a warning in order here?
-   *   I think I'll add 'max-stack-size
-   *   size currently reaches 8192 in s7test
-   */
+  /* how can we trap infinite recursion?  Is a warning in order here? I think I'll add 'max-stack-size */
   if (new_size > sc->max_stack_size)
     s7_error(sc, s7_make_symbol(sc, "stack-too-big"), set_elist_1(sc, s7_make_string_wrapper(sc, "stack has grown past (*s7* 'max-stack-size)")));
 
@@ -5757,18 +5747,8 @@ static void resize_stack(s7_scheme *sc)
 
   if (show_stack_stats(sc))
     {
-#if DEBUGGING
-      fprintf(stderr, "%s[%d]: stack grows to %u, %s\n", func, line, new_size, DISPLAY_80(sc->code));
-#else
       fprintf(stderr, "stack grows to %u, %s\n", new_size, DISPLAY_80(sc->code));
-#endif
       s7_show_let(sc);
-#if DEBUGGING
-      fprintf(stderr, "stack_top: %ld\n", (long int)(s7_stack_top(sc) - 1));
-      for (i = s7_stack_top(sc) - 1; i >= 4; i -= 4)
-	fprintf(stderr, "%s ", op_names[stack_op(sc->stack, i)]);
-      fprintf(stderr, "\n");
-#endif
     }
 }
 
@@ -9159,8 +9139,7 @@ static s7_pointer make_baffle(s7_scheme *sc)
 
 static bool find_baffle(s7_scheme *sc, int32_t key)
 {
-  /* search backwards through sc->envir for sc->baffle_symbol with key as value
-   */
+  /* search backwards through sc->envir for sc->baffle_symbol with key as value */
   s7_pointer x, y;
   for (x = sc->envir; is_let(x); x = outlet(x))
     for (y = let_slots(x); is_slot(y); y = next_slot(y))
@@ -9178,8 +9157,7 @@ static bool find_baffle(s7_scheme *sc, int32_t key)
 
 static int32_t find_any_baffle(s7_scheme *sc)
 {
-  /* search backwards through sc->envir for any sc->baffle_symbol
-   */
+  /* search backwards through sc->envir for any sc->baffle_symbol */
   if (sc->baffle_ctr > 0)
     {
       s7_pointer x, y;
@@ -9232,6 +9210,7 @@ static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code)
 
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
+  /* called only from call_with_current_continuation */
   int64_t i, s_base = 0, c_base = -1;
   opcode_t op;
 
@@ -9341,8 +9320,7 @@ static bool call_with_current_continuation(s7_scheme *sc)
   if (!check_for_dynamic_winds(sc, c)) /* if OP_BARRIER on stack deeper than continuation top(?), but can this happen? (it doesn't in s7test) */
     return(true);
 
-  /* we push_stack sc->code before calling an embedded eval above, so sc->code should still be c here, etc
-   */
+  /* we push_stack sc->code before calling an embedded eval above, so sc->code should still be c here, etc */
   sc->stack = copy_stack(sc, continuation_stack(c), continuation_stack_top(c));
   sc->stack_size = continuation_stack_size(c);
   sc->stack_start = vector_elements(sc->stack);
@@ -17750,7 +17728,6 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
     case T_NIL:          return(make_boolean(sc, ilen == 0));
     case T_STRING:       return(make_boolean(sc, string_length(val) == ilen));
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) == ilen));
-    case T_ITERATOR:     return(make_boolean(sc, iterator_length(val) == ilen));
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) == ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) == ilen));
     case T_INT_VECTOR:
@@ -17758,7 +17735,14 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) == ilen));
     case T_CLOSURE:
     case T_CLOSURE_STAR: if (has_methods(val)) return(make_boolean(sc, closure_length(sc, val) == ilen));
-    default:             return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string));
+    case T_ITERATOR:
+      {
+	s7_pointer len;
+	len = s7_length(sc, iterator_sequence(val));
+	return(make_boolean(sc, (is_integer(len)) && (integer(len) == ilen)));
+      }
+    default:             
+      return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string));
       /* here we already lost because we checked for the length above */
     }
   return(sc->F);
@@ -18653,7 +18637,6 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
     case T_NIL:          return(make_boolean(sc, ilen > 0));
     case T_STRING:       return(make_boolean(sc, string_length(val) < ilen));
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) < ilen)); /* was <=? -- changed 15-Dec-15, then again 6-Jan-17: mask is len-1 */
-    case T_ITERATOR:     return(make_boolean(sc, iterator_length(val) < ilen));
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) < ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) < ilen));  /* this works because let_length handles the length method itself! */
     case T_INT_VECTOR:
@@ -18661,7 +18644,14 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) < ilen));
     case T_CLOSURE:
     case T_CLOSURE_STAR: if (has_methods(val)) return(make_boolean(sc, closure_length(sc, val) < ilen));
-    default:             return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string)); /* no check method here because we checked above */
+    case T_ITERATOR:
+      {
+	s7_pointer len;
+	len = s7_length(sc, iterator_sequence(val));
+	return(make_boolean(sc, (is_integer(len)) && (integer(len) < ilen)));
+      }
+    default:             
+      return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string)); /* no check method here because we checked above */
     }
   return(sc->F);
 }
@@ -21192,8 +21182,8 @@ static s7_pointer make_empty_string(s7_scheme *sc, int32_t len, char fill)
 {
   s7_pointer x;
   new_cell(sc, x, T_STRING);
-  string_value(x) = alloc_string(sc, len);
-  if (fill != 0)
+  string_value(x) = alloc_string(sc, len); /* returns char* of len+1 */
+  if ((fill != 0) && (len > 0))
     memset((void *)(string_value(x)), fill, len);
   string_value(x)[len] = 0;
   string_hash(x) = 0;
@@ -29705,6 +29695,7 @@ static s7_pointer g_with_output_to_string(s7_scheme *sc, s7_pointer args)
   old_output_port = sc->output_port;
   sc->output_port = s7_open_output_string(sc);
   push_stack(sc, OP_GET_OUTPUT_STRING_1, old_output_port, sc->output_port);
+  push_stack(sc, OP_BARRIER, sc->nil, sc->nil); /* block call/cc backup? */
   push_stack(sc, OP_APPLY, sc->nil, p);
   return(sc->F);
 }
@@ -29732,6 +29723,7 @@ static s7_pointer g_with_output_to_file(s7_scheme *sc, s7_pointer args)
   old_output_port = sc->output_port;
   sc->output_port = s7_open_output_file(sc, string_value(file), "w");
   push_stack(sc, OP_UNWIND_OUTPUT, old_output_port, sc->output_port);
+  push_stack(sc, OP_BARRIER, sc->nil, sc->nil);
   push_stack(sc, OP_APPLY, sc->nil, proc);
   return(sc->F);
 }
@@ -40811,11 +40803,11 @@ static s7_pointer pair_length(s7_scheme *sc, s7_pointer a)
   return(real_infinity);
 }
 
-static s7_pointer nil_length(s7_scheme *sc, s7_pointer lst) {return(small_int(0));}
-static s7_pointer v_length(s7_scheme *sc, s7_pointer v) {return(make_integer(sc, vector_length(v)));}
-static s7_pointer str_length(s7_scheme *sc, s7_pointer v) {return(make_integer(sc, string_length(v)));}
-static s7_pointer iter_length(s7_scheme *sc, s7_pointer lst) {return(make_integer(sc, iterator_length(lst)));} /* in several cases, this is incorrect */
-static s7_pointer h_length(s7_scheme *sc, s7_pointer lst) {return(make_integer(sc, hash_table_mask(lst) + 1));}
+static s7_pointer nil_length(s7_scheme *sc, s7_pointer lst)  {return(small_int(0));}
+static s7_pointer v_length(s7_scheme *sc, s7_pointer v)      {return(make_integer(sc, vector_length(v)));}
+static s7_pointer str_length(s7_scheme *sc, s7_pointer v)    {return(make_integer(sc, string_length(v)));}
+static s7_pointer h_length(s7_scheme *sc, s7_pointer lst)    {return(make_integer(sc, hash_table_mask(lst) + 1));}
+static s7_pointer iter_length(s7_scheme *sc, s7_pointer lst) {return(s7_length(sc, iterator_sequence(lst)));}
 
 static s7_pointer c_obj_length(s7_scheme *sc, s7_pointer lst)
 {
@@ -40861,7 +40853,6 @@ static void init_length_functions(void)
   length_functions[T_CLOSURE_STAR] = fnc_length;
   length_functions[T_INPUT_PORT]   = io_length;
 }
-
 
 static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst)
 {
@@ -54468,11 +54459,11 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
       opt_info *opc;
       int32_t i;
       s7_pointer p;
-
+#if 0
       /* PERHAPS: this is probably not needed */
       if (!s7_is_aritable(sc, s_func, (int32_t)s7_list_length(sc, cdr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
-
+#endif
       opc = alloc_opo(sc, car_x);
       for (i = 0, p = cdr(car_x); is_pair(p); i++, p = cdr(p))
 	if (!cell_optimize(sc, p))
@@ -56039,7 +56030,11 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_BARRIER:
       pop_stack(sc);
       return(splice_in_values(sc, args));
-      
+
+    case OP_GC_PROTECT:
+      sc->stack_end -= 4;
+      return(splice_in_values(sc, args));
+
     case OP_BEGIN1:
       /* here we have a values call with nothing to splice into.  So flush it...
        *   otherwise the multiple-values bit gets set in some innocent list and never unset:
@@ -61127,15 +61122,14 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       break;
 
     case OP_WITH_LET:
-      if (sc->safety > NO_SAFETY)
-	hop = 0;
       e = sc->nil;
+      hop = 0;
       /* we can't trust anything here, so hop ought to be off.  For example,
-       *    (define (hi)
-       *      (let ((e (sublet (curlet)
-       *                 (cons 'abs (lambda (a) (- a 1))))))
-       *        (with-let e (abs -1))))
-       * returns 1 if hop is 1, but -2 outside the function body.
+       *   (define (hi)
+       *     (let ((e (sublet (curlet)
+       *                (cons :abs (lambda (a) (- a 1))))))
+       *       (with-let e (abs -1))))
+       * returns 1 if hop is 1, but -2 otherwise
        */
       break;
 
@@ -62143,8 +62137,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 
 	case OP_WITH_LET:
 	  if (!is_pair(cddr(x))) return(UNSAFE_BODY);
-	  if (is_pair(cadr(x)))
-	    return(UNSAFE_BODY);
+	  if (is_pair(cadr(x))) return(UNSAFE_BODY);
 	  return(min_body(body_is_safe(sc, sc->F, cddr(x), main_args, at_end), SAFE_BODY));
 	  /* shadowing can happen in with-let -- symbols are global so local_slots are shadowable */
 	  break;
@@ -68599,6 +68592,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
    *   cause any arg to be set at any point in the arg list.
    *
    * the frame-making step below could be precalculated, but where to store it?
+   * Since normally arg order isn't specified, (eq? (exit)) might exit or raise an error (it exits in s7, Guile, sbcl)
    */
   s7_pointer z, top, nxt;
   top = NULL;
@@ -68931,7 +68925,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       pop_stack(sc);
       
     START_WITHOUT_POP_STACK:
-     /*  fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
+     /* fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
 
 #if WITH_PROFILE
       profile_at_start = sc->code;
@@ -84000,5 +83994,3 @@ int main(int argc, char **argv)
  * 
  * --------------------------------------------------------------
  */
- 
- 

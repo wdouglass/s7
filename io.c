@@ -2206,7 +2206,7 @@ char *mus_getcwd(void)
   int i, path_max = 0;
   char *pwd = NULL;
   if (saved_cwd) return(saved_cwd);
-#ifndef _MSC_VER
+#if (!defined(_MSC_VER)) && (!defined(_WIN32)) /* _WIN32 for mingw */
   path_max = pathconf("/", _PC_PATH_MAX);
 #endif
   if (path_max < 1024)
