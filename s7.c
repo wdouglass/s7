@@ -1044,7 +1044,7 @@ struct s7_scheme {
 
   void (*begin_hook)(s7_scheme *sc, bool *val);
 
-  int32_t no_values, current_line, s7_call_line, safety;
+  int32_t current_line, s7_call_line, safety;
   const char *current_file, *s7_call_file, *s7_call_name;
 
   shared_info *circle_info;
@@ -4022,7 +4022,8 @@ static void mark_symbol(s7_pointer p)
 
 static void mark_noop(s7_pointer p) {}
 
-/* ports can be alloc'd and freed at a frightening pace, so I think I'll make a special free_list for them. */
+
+/* ports can be alloc'd and freed at a frightening pace, so I think I'll make a special free-list for them. */
 
 static port_t *alloc_port(s7_scheme *sc)
 {
@@ -4036,15 +4037,12 @@ static port_t *alloc_port(s7_scheme *sc)
   return((port_t *)calloc(1, sizeof(port_t)));
 }
 
-
 static void free_port(s7_scheme *sc, port_t *p)
 {
   p->next = (void *)(sc->port_heap);
   sc->port_heap = p;
 }
 
-static void close_output_port(s7_scheme *sc, s7_pointer p);
-static void free_optlist(s7_scheme *sc, s7_pointer p);
 
 #define STRING_LISTS 256
 #define STRING_LIST_INIT_SIZE 2
@@ -4104,6 +4102,8 @@ static void string_to_free_list(s7_scheme *sc, char *value, int32_t len)
     }
 }
 
+static void close_output_port(s7_scheme *sc, s7_pointer p);
+static void free_optlist(s7_scheme *sc, s7_pointer p);
 
 static void sweep(s7_scheme *sc)
 {
@@ -4419,21 +4419,21 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 }
 
 
-#define add_c_object(sc, p)     {add_to_gc_list(sc->c_objects, p);}
-#define add_optlist(sc, p)      {add_to_gc_list(sc->optlists, p);}
-#define add_hash_table(sc, p)   {add_to_gc_list(sc->hash_tables, p);}
-#define add_string(sc, p)       {add_to_gc_list(sc->strings, p);}
-#define add_string1(sc, p)      {add_to_gc_list(sc->strings1, p);}
-#define add_vector(sc, p)       {add_to_gc_list(sc->vectors, p);}
-#define add_input_port(sc, p)   {add_to_gc_list(sc->input_ports, p);}
-#define add_output_port(sc, p)  {add_to_gc_list(sc->output_ports, p);}
-#define add_continuation(sc, p) {add_to_gc_list(sc->continuations, p);}
+#define add_c_object(sc, p)     add_to_gc_list(sc->c_objects, p)
+#define add_optlist(sc, p)      add_to_gc_list(sc->optlists, p)
+#define add_hash_table(sc, p)   add_to_gc_list(sc->hash_tables, p)
+#define add_string(sc, p)       add_to_gc_list(sc->strings, p)
+#define add_string1(sc, p)      add_to_gc_list(sc->strings1, p)
+#define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
+#define add_input_port(sc, p)   add_to_gc_list(sc->input_ports, p)
+#define add_output_port(sc, p)  add_to_gc_list(sc->output_ports, p)
+#define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
 
 #if WITH_GMP
-#define add_bigint(sc, p)    {add_to_gc_list(sc->bigints, p);}
-#define add_bigratio(sc, p)  {add_to_gc_list(sc->bigratios, p);}
-#define add_bigreal(sc, p)   {add_to_gc_list(sc->bigreals, p);}
-#define add_bignumber(sc, p) {add_to_gc_list(sc->bignumbers, p);}
+#define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
+#define add_bigratio(sc, p)     add_to_gc_list(sc->bigratios, p)
+#define add_bigreal(sc, p)      add_to_gc_list(sc->bigreals, p)
+#define add_bignumber(sc, p)    add_to_gc_list(sc->bignumbers, p)
 #endif
 
 
@@ -5199,6 +5199,9 @@ static bool for_any_other_reason(s7_scheme *sc, int32_t line)
     } while (0)
 #endif
 
+#if DEBUGGING
+static s7_pointer describe_memory_usage(s7_scheme *sc);
+#endif
 
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
@@ -5256,6 +5259,13 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
     {
       fprintf(stderr, "heap grows to %" PRId64 "\n", sc->heap_size);
 #if DEBUGGING
+      {
+	s7_pointer old_out;
+	old_out = sc->output_port;
+	sc->output_port = sc->standard_error;
+	describe_memory_usage(sc);
+	sc->output_port = old_out;
+      }
       if (sc->heap_size > 50000000) /* maybe a max-heap-size? */
 	{
 	  s7_show_let(sc);
@@ -5748,6 +5758,14 @@ static void resize_stack(s7_scheme *sc)
   if (show_stack_stats(sc))
     {
       fprintf(stderr, "stack grows to %u, %s\n", new_size, DISPLAY_80(sc->code));
+#if 0
+      for (i = 0; i < loc; i += 4)
+	{
+	  opcode_t op;
+	  op = (opcode_t)sc->stack_start[i + 3];
+	  fprintf(stderr, "  %s\n", op_names[op]);
+	}
+#endif
       s7_show_let(sc);
     }
 }
@@ -9316,7 +9334,7 @@ static bool call_with_current_continuation(s7_scheme *sc)
   if ((continuation_key(c) >= 0) &&
       (!(find_baffle(sc, continuation_key(c))))) /* should this raise an error? */
     return(false);
-
+  
   if (!check_for_dynamic_winds(sc, c)) /* if OP_BARRIER on stack deeper than continuation top(?), but can this happen? (it doesn't in s7test) */
     return(true);
 
@@ -9461,7 +9479,7 @@ static void call_with_exit(s7_scheme *sc)
 
 static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
 {
-  #define H_call_cc "(call-with-current-continuation func) is always a mistake!"
+  #define H_call_cc "(call-with-current-continuation (lambda (continuer)...)) is always a mistake!"
   #define Q_call_cc s7_make_signature(sc, 2, sc->values_symbol, sc->is_procedure_symbol)
   /* I think the intent is that sc->values_symbol as the proc-sig return type indicates multiple values are possible (otherwise use #t). */
 
@@ -9490,7 +9508,7 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
 {
-  #define H_call_with_exit "(call-with-exit func) is call/cc without the ability to jump back into a previous computation."
+  #define H_call_with_exit "(call-with-exit (lambda (exiter) ...)) is call/cc without the ability to jump back into a previous computation."
   #define Q_call_with_exit s7_make_signature(sc, 2, sc->values_symbol, sc->is_procedure_symbol)
 
   s7_pointer p, x;
@@ -9518,14 +9536,12 @@ static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
    *   deactivates itself.  Otherwise the block returns, we pop to OP_DEACTIVATE_GOTO,
    *   and it finds the goto in sc->args.
    * Even worse:
-   *
        (let ((cc #f))
          (call-with-exit
            (lambda (c3)
              (call/cc (lambda (ret) (set! cc ret)))
              (c3)))
          (cc))
-   *
    * where we jump back into a call-with-exit body via call/cc, the goto has to be
    * re-established.
    *
@@ -44121,7 +44137,6 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
    *   call its error-handler, else if *error-hook* is bound, call it,
    *   else send out the error info ourselves.
    */
-  sc->no_values = 0;
   sc->format_depth = -1;
   sc->gc_off = false;            /* this is in case we were triggered from the sort function -- clumsy! */
 
@@ -56103,9 +56118,6 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 
   s7_pointer x, y, px;
 
-  if (sc->no_values == 0)
-    return(args);
-
   for (x = args; is_pair(x); x = cdr(x))
     if (car(x) == sc->no_value)
       break;
@@ -56113,11 +56125,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
   if (is_null(x))
     return(args);
 
-  /* this is not maximally efficient, but it's not important:
-   *   we've hit the rare special case where (apply-values ())) needs to be ignored
-   *   in the splicing process (i.e. the arglist acts as if the thing never happened)
-   *   (list-values (apply-values ())) -> (), also (list-values (apply-values)) -> ()
-   */
+  /* splice out #<no-values>, (list-values (apply-values ())) -> () etc */
   px = sc->nil;
   for (x = args, y = args; is_pair(y); y = cdr(y))
     if (car(y) != sc->no_value)
@@ -56132,7 +56140,6 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
     set_cdr(x, cdr(y));
   else
     {
-      sc->no_values--;
       if (is_null(px))
 	return(sc->nil);
       set_cdr(px, sc->nil);
@@ -56140,18 +56147,16 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
   return(args);
 }
 
-
 static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
 {
   #define H_apply_values "(apply-values var) applies values to var.  This is an internal function."
   #define Q_apply_values s7_make_signature(sc, 2, sc->T, sc->is_list_symbol)
   s7_pointer x;
 
+  /* fprintf(stderr, "apply_values %s\n", DISPLAY(args)); */
   if (is_null(args))
-    {
-      sc->no_values++;
-      return(sc->no_value);
-    }
+    return(sc->no_value);
+
   if (is_null(cdr(args)))
     x = car(args);
   else x = apply_list_star(sc, args);
@@ -56159,10 +56164,8 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
   if (!s7_is_proper_list(sc, x))
     return(apply_list_error(sc, args));
   if (is_null(x))
-    {
-      sc->no_values++;
-      return(sc->no_value);
-    }
+    return(sc->no_value);
+
   return(g_values(sc, x));
 }
 
@@ -62968,20 +62971,13 @@ static s7_pointer check_let(s7_scheme *sc)
 
   /* we accept these (other schemes complain, but I can't see why -- a no-op is the user's business!):
    *   (let () (define (hi) (+ 1 2)))
-   *   (let () (begin (define x 3)))
-   *   (let () 3 (begin (define x 3)))
-   *   (let () (define x 3))
    *   (let () (if #t (define (x) 3)))
-   *
-   * similar cases:
    *   (case 0 ((0) (define (x) 3) (x)))
    *   (cond (0 (define (x) 3) (x)))
    *   (and (define (x) x) 1)
    *   (begin (define (x y) y) (x (define (x y) y)))
    *   (if (define (x) 1) 2 3)
    *   (do () ((define (x) 1) (define (y) 2)))
-   *
-   * but we can get some humorous results:
    *   (let ((x (lambda () 3))) (if (define (x) 4) (x) 0)) -> 4
    */
 
@@ -68593,6 +68589,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
    *
    * the frame-making step below could be precalculated, but where to store it?
    * Since normally arg order isn't specified, (eq? (exit)) might exit or raise an error (it exits in s7, Guile, sbcl)
+   *   s7 can't check arity first: (eq? (values (exit)...))
    */
   s7_pointer z, top, nxt;
   top = NULL;
@@ -68683,14 +68680,12 @@ static int32_t define1_ex(s7_scheme *sc)
    *   if sc->value is a closure, car is of the form ((args...) body...)
    *   so the doc string if any is (cadr (car value))
    *   and the arg list gives the number of optional args up to the dot
-   */
-  
-  /* it's not possible to expand and replace macros at this point without evaluating
+   *
+   * it's not possible to expand and replace macros at this point without evaluating
    *   the body.  Just as examples, say we have a macro "mac",
    *   (define (hi) (call/cc (lambda (mac) (mac 1))))
    *   (define (hi) (quote (mac 1))) or macroexpand etc
-   *   (define (hi mac) (mac 1)) assuming mac here is a function passed as an arg,
-   * etc...
+   *   (define (hi mac) (mac 1)) assuming mac here is a function passed as an arg, etc...
    */
   
   /* the immutable constant check needs to wait until we have the actual new value because
@@ -68807,9 +68802,7 @@ static void define2_ex(s7_scheme *sc)
 
 static void profile(s7_scheme *sc, s7_pointer expr)
 {
-  /* I tried using SIGPROF and a tick counter below (in addition to the line counter), but the added info
-   *   did not seem very useful.
-   */
+  /* I tried using SIGPROF and a tick counter below (in addition to the line counter), but the added info did not seem very useful. */
   if ((sc->free_heap_top - sc->free_heap) < 32)
     gc(sc);
 
@@ -81264,6 +81257,9 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 #endif
 
+  n = snprintf(buf, 1024, "rootlet size: %" PRId64 "\n", sc->rootlet_entries);
+  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+
   n = snprintf(buf, 1024, "heap: %" PRId64 " (%" PRId64 " bytes)", sc->heap_size, (s7_int)(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell))));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
@@ -81281,7 +81277,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 	  }
 	
-	if (ts[i] > 100)
+	if (ts[i] > 50)
 	  n = snprintf(buf, 1024, " (%s): %d", type_name_from_type(sc, i, NO_ARTICLE), ts[i]);
 	else n = snprintf(buf, 1024, " %d", ts[i]);
 	port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
@@ -81291,6 +81287,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   }
   n = snprintf(buf, 1024, "permanent cells: %d (%" PRId64 " bytes)\n", permanent_cells, (s7_int)(permanent_cells * sizeof(s7_cell)));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+
   n = snprintf(buf, 1024, "gc protected size: %u, unused: %d\n", sc->protected_objects_size, sc->gpofl_loc);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       
@@ -81303,6 +81300,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 
   n = snprintf(buf, 1024, "stack: %u (%" PRId64 " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+
   n = snprintf(buf, 1024, "c_functions: %d (%d bytes)\n", c_functions, (int)(c_functions * sizeof(c_proc_t)));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
@@ -81346,7 +81344,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	    else len += vector_length(v);
 	  }
       }
-    n = snprintf(buf, 1024, "vectors: %u (%" PRId64 " %" PRId64 " %" PRId64 ")\n", sc->vectors->loc, len, flen, ilen);
+    n = snprintf(buf, 1024, "vectors: %u (size: %" PRId64 ", float: %" PRId64 ", int: %" PRId64 ")\n", sc->vectors->loc, len, flen, ilen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -81363,7 +81361,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	      len += port_data_size(v);
 	  }
       }
-    n = snprintf(buf, 1024, "input ports: %d (%" PRId64 " %" PRId64 ")\n", sc->input_ports->loc, len, flen);
+    n = snprintf(buf, 1024, "input ports: %d (bytes (free): %" PRId64 ", (in use): %" PRId64 ")\n", sc->input_ports->loc, len, flen - len);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -81376,10 +81374,10 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
-    n = snprintf(buf, 1024, "output ports: %u, free port: %d\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u\n",
-	    sc->output_ports->loc, fs, 
-	    gp->loc, cc_stacks,
-	    sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc);
+    n = snprintf(buf, 1024, "output ports: %u, free port: %d (%ld bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u\n",
+		 sc->output_ports->loc, fs, fs * sizeof(port_t),
+		 gp->loc, cc_stacks,
+		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   return(sc->F);
@@ -81941,7 +81939,11 @@ s7_scheme *s7_init(void)
   sc->eof_object =  make_unique_object("#<eof>",         T_EOF_OBJECT);
   sc->undefined =   make_unique_object("#<undefined>",   T_UNDEFINED);
   sc->unspecified = make_unique_object("#<unspecified>", T_UNSPECIFIED);
+#if DEBUGGING
+  sc->no_value =    make_unique_object("#<no-value>", T_UNSPECIFIED);
+#else
   sc->no_value =    make_unique_object("#<unspecified>", T_UNSPECIFIED);
+#endif
 
   unique_car(sc->nil) = sc->unspecified;
   unique_cdr(sc->nil) = sc->unspecified;
@@ -82158,7 +82160,6 @@ s7_scheme *s7_init(void)
   sc->file_names = NULL;
   sc->file_names_size = 0;
   sc->file_names_top = -1;
-  sc->no_values = 0;
   sc->s7_call_line = 0;
   sc->s7_call_file = NULL;
   sc->s7_call_name = NULL;
@@ -83941,6 +83942,7 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  * lint no-gmp (< int most-negative-fixnum) etc?
+ * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83973,23 +83975,23 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1455
- * teq           |      |      | 6612 || 2777 || 1931 | 1920
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2109
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1468
+ * teq           |      |      | 6612 || 2777 || 1931 | 1918
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2104
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
- * lint          |      |      |      || 4041 || 2702 | 2695
+ * lint          |      |      |      || 4041 || 2702 | 2696
  * lg            |      |      |      || 211  || 133  | 133.7
- * tform         |      |      | 6816 || 3714 || 2762 | 2763
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2974
+ * tform         |      |      | 6816 || 3714 || 2762 | 2757
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966
  * tsort         |      |      |      || 8584 || 4111 | 4111
- * titer         |      |      |      || 5971 || 4646 | 4646
- * bench         |      |      |      || 7012 || 5093 | 5089
- * thash         |      |      | 50.7 || 8778 || 7697 | 7699
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 11.9
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.8
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 41.1
+ * titer         |      |      |      || 5971 || 4646 | 4654
+ * bench         |      |      |      || 7012 || 5093 | 5108
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7698
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0
  *                                    || 139  || 85.9 | 86.5
  * 
  * --------------------------------------------------------------
