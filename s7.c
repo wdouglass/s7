@@ -999,7 +999,7 @@ struct s7_scheme {
   uint32_t gensym_counter, f_class, add_class, multiply_class, subtract_class, equal_class;
   int32_t format_column;
   uint64_t capture_let_counter;
-  bool short_print, is_autoloading;
+  bool short_print, is_autoloading, in_with_let;
   int64_t let_number;
   double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
@@ -5199,10 +5199,6 @@ static bool for_any_other_reason(s7_scheme *sc, int32_t line)
     } while (0)
 #endif
 
-#if DEBUGGING
-static s7_pointer describe_memory_usage(s7_scheme *sc);
-#endif
-
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
   /* alloc more heap */
@@ -5259,13 +5255,6 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
     {
       fprintf(stderr, "heap grows to %" PRId64 "\n", sc->heap_size);
 #if DEBUGGING
-      {
-	s7_pointer old_out;
-	old_out = sc->output_port;
-	sc->output_port = sc->standard_error;
-	describe_memory_usage(sc);
-	sc->output_port = old_out;
-      }
       if (sc->heap_size > 50000000) /* maybe a max-heap-size? */
 	{
 	  s7_show_let(sc);
@@ -36437,7 +36426,8 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 *   at any time during that loop, and the GC mark process expects the vector to have an s7_pointer
 	 *   at every element.
 	 */
-	gc_loc = s7_gc_protect_1(sc, vec);
+	/* gc_loc = s7_gc_protect_1(sc, vec); */
+	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
 	elements = s7_vector_elements(vec);
 
 	for (i = 0; i < len; i++)
@@ -36451,13 +36441,14 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	    for (i = 0; i < len; i++)
 	      vector_setter(data)(sc, data, i, elements[i]);
 
-	    s7_gc_unprotect_at(sc, gc_loc);
+	    /* s7_gc_unprotect_at(sc, gc_loc); */
+	    sc->stack_end -= 4;
 	    return(data);
 	  }
-
-	push_stack(sc, OP_SORT_VECTOR_END, cons(sc, data, lessp), sc->code); /* save and gc protect the original homogeneous vector and func */
+	sc->stack_end -= 4;
 	set_car(args, vec);
-	s7_gc_unprotect_at(sc, gc_loc);
+	push_stack(sc, OP_SORT_VECTOR_END, cons(sc, data, lessp), sc->code); /* save and gc protect the original homogeneous vector and func */
+	/* s7_gc_unprotect_at(sc, gc_loc); */
       }
       break;
 
@@ -41784,7 +41775,11 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 
     default:
       if (is_immutable(p))
-	return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
+	{
+	  if (is_simple_sequence(p))
+	    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
+	  return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, a_sequence_string));
+	}
       if ((is_simple_sequence(p)) &&
 	  (!has_methods(p)))
 	return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, s7_make_string_wrapper(sc, "a vector, string, or list")));
@@ -42547,14 +42542,15 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_OUTPUT_PORT:
       {
 	s7_pointer let;
-	uint32_t gc_loc;
+	/* uint32_t gc_loc; */
 	let = s7_inlet(sc, s7_list(sc, 8, sc->value_symbol, obj,
 				   sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
 				   s7_make_symbol(sc, "port-type"), 
 				     (is_string_port(obj)) ? sc->string_symbol : 
 				       ((is_file_port(obj)) ? s7_make_symbol(sc, "file") : s7_make_symbol(sc, "function")),
 				   s7_make_symbol(sc, "closed"), s7_make_boolean(sc, port_is_closed(obj))));
-	gc_loc = s7_gc_protect_1(sc, let);
+	/* gc_loc = s7_gc_protect_1(sc, let); */
+	push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
 	if (is_file_port(obj))
 	  {
 	    s7_varlet(sc, let, s7_make_symbol(sc, "file"), g_port_filename(sc, set_plist_1(sc, obj)));
@@ -42569,9 +42565,11 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    /* I think port_data need not be null-terminated, but s7_make_string assumes it is:
 	     *   both valgrind and lib*san complain about the uninitialized data during strlen.
 	     */
-	    s7_varlet(sc, let, s7_make_symbol(sc, "data"), s7_make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
+	    if (port_position(obj) < sc->max_string_length)
+	      s7_varlet(sc, let, s7_make_symbol(sc, "data"), s7_make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
 	  }
-	s7_gc_unprotect_at(sc, gc_loc);
+	sc->stack_end -= 4;
+	/* s7_gc_unprotect_at(sc, gc_loc); */
 	return(let);
       }
 
@@ -43135,7 +43133,7 @@ static const char *type_name_from_type(s7_scheme *sc, int32_t typ, int32_t artic
   static const char *dynamic_winds[2] =  {"dynamic-wind",       "a dynamic-wind"};
   static const char *hash_tables[2] =    {"hash-table",         "a hash-table"};
   static const char *iterators[2] =      {"iterator",           "an iterator"};
-  static const char *environments[2] =   {"environment",        "an environment"};
+  static const char *lets[2] =           {"let",                "a let"};
   static const char *integers[2] =       {"integer",            "an integer"};
   static const char *big_integers[2] =   {"big integer",        "a big integer"};
   static const char *ratios[2] =         {"ratio",              "a ratio"};
@@ -43188,7 +43186,7 @@ static const char *type_name_from_type(s7_scheme *sc, int32_t typ, int32_t artic
     case T_DYNAMIC_WIND:    return(dynamic_winds[article]);
     case T_HASH_TABLE:      return(hash_tables[article]);
     case T_ITERATOR:        return(iterators[article]);
-    case T_LET:             return(environments[article]);
+    case T_LET:             return(lets[article]);
     case T_COUNTER:         return(counters[article]);
     case T_OPTLIST:         return(optlists[article]);
     case T_BAFFLE:          return(baffles[article]);
@@ -50035,6 +50033,7 @@ static bool opt_bool_not_pair(s7_scheme *sc, s7_pointer car_x)
       if (!s7_is_boolean(car_x))
 	return(return_false(sc, car_x, __func__, __LINE__)); /* i.e. use cell_optimize */
       opc = alloc_opo(sc, car_x);
+      /* fprintf(stderr, "opt_b_f|t: %s\n", DISPLAY(car_x)); */
       opc->v7.fb = ((car_x == sc->F) ? opt_b_f : opt_b_t);
       return(true);
     }
@@ -52842,6 +52841,7 @@ static bool opt_cell_when(s7_scheme *sc, s7_pointer car_x, int32_t len)
 static s7_pointer opt_cond(void *p)
 {
   opt_info *o = (opt_info *)p;
+  /* fprintf(stderr, "opt_cond\n"); */
   o->v2.p = cur_sc->unspecified;
   while (cur_sc->pc < o->v1.i)
     {
@@ -52884,6 +52884,7 @@ static s7_pointer opt_cond_2(void *p)
   opt_info *o = (opt_info *)p;
   opt_info *o1, *o2;
   s7_pointer res;
+  /* fprintf(stderr, "opt_cond_2\n"); */
   cur_sc->pc += 2;
   o2 = cur_sc->opts[cur_sc->pc];     /* this is the boolean expr of the first clause */
   if (!o2->v7.fb(o2))
@@ -52902,7 +52903,7 @@ static bool opt_cell_cond(s7_scheme *sc, s7_pointer car_x)
   s7_pointer p, last_clause = NULL;
   opt_info *top;
   int32_t branches = 0, max_blen = 0, start_pc;
-  
+  /* fprintf(stderr, "opt_cell_cond %s\n", DISPLAY(car_x)); */
   top = alloc_opo(sc, car_x);
   start_pc = sc->pc;
   for (p = cdr(car_x); is_pair(p); p = cdr(p), branches++)
@@ -52941,6 +52942,7 @@ static bool opt_cell_cond(s7_scheme *sc, s7_pointer car_x)
     }
   top->v1.i = sc->pc - 1;
   top->v7.fp = opt_cond;
+  /* fprintf(stderr, "cond %d\n", sc->pc); */
   if (branches == 2)
     {
       if ((max_blen == 1) &&
@@ -59124,22 +59126,30 @@ static bool is_lambda(s7_scheme *sc, s7_pointer sym)
   /* symbol_id==0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
 }
 
+static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
+{
+  if (pair_symbol_is_safe(sc, arg1, e)) return(true); /* includes global_slot check */
+  return((!sc->in_with_let) &&
+	 (is_slot(find_symbol(sc, arg1))));
+}
+/* TODO: extend to other bad arg cases */
 
 static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
   s7_pointer arg1;
   /* very often, expr is already optimized, quoted stuff is counted under "bad_pairs"! as well as quotes */
-  /* fprintf(stderr, "opt 1: %s, hop: %d, pairs: %d, symbols: %d, quotes: %d, bad: %d\n", DISPLAY_80(expr), hop, pairs, symbols, quotes, bad_pairs); */
+  /* fprintf(stderr, "opt 1 arg: %s, hop: %d, pairs: %d, symbols: %d, quotes: %d, bad: %d\n", DISPLAY_80(expr), hop, pairs, symbols, quotes, bad_pairs); */
   
   arg1 = cadr(expr);
   if ((bad_pairs == quotes) &&
       (is_possibly_constant(car(expr))))
     hop = 1;
 
+  /* need in_with_let -> search only rootlet not find_symbol */
+
   if ((symbols == 1) &&
       (!is_keyword(arg1)) &&
-      (!pair_symbol_is_safe(sc, arg1, e)) &&
-      (!is_slot(find_symbol(sc, arg1))))
+      (!arg_findable(sc, arg1, e)))
     {
       /* wrap the bad arg in a check symbol lookup */
       if (s7_is_aritable(sc, func, 1))
@@ -59608,11 +59618,9 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
     hop = 1;
 
   if (((is_symbol(arg1)) &&
-       (!pair_symbol_is_safe(sc, arg1, e)) &&
-       (!is_slot(find_symbol(sc, arg1)))) ||
+       (!arg_findable(sc, arg1, e))) ||
       ((is_symbol(arg2)) &&
-       (!pair_symbol_is_safe(sc, arg2, e)) &&
-       (!is_slot(find_symbol(sc, arg2)))))
+       (!arg_findable(sc, arg2, e))))
     {
       /* wrap bad args */
       if ((is_all_x_safe(sc, arg1)) &&
@@ -60269,14 +60277,11 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
   arg3 = cadddr(expr);
 
   if (((is_symbol(arg1)) &&
-       (!pair_symbol_is_safe(sc, arg1, e)) &&
-       (!is_slot(find_symbol(sc, arg1)))) ||
+       (!arg_findable(sc, arg1, e))) ||
       ((is_symbol(arg2)) &&
-       (!pair_symbol_is_safe(sc, arg2, e)) &&
-       (!is_slot(find_symbol(sc, arg2)))) ||
+       (!arg_findable(sc, arg2, e))) ||
       ((is_symbol(arg3)) &&
-       (!pair_symbol_is_safe(sc, arg3, e)) &&
-       (!is_slot(find_symbol(sc, arg3)))))
+       (!arg_findable(sc, arg3, e))))
     {
       /* wrap bad args */
       if ((is_all_x_safe(sc, arg1)) &&
@@ -60710,8 +60715,7 @@ static bool symbols_are_safe(s7_scheme *sc, s7_pointer args, s7_pointer e)
       s7_pointer arg;
       arg = car(p);
       if ((is_symbol(arg)) &&
-	  (!pair_symbol_is_safe(sc, arg, e)) &&
-	  (!is_slot(find_symbol(sc, arg))))
+	  (!arg_findable(sc, arg, e)))
 	return(false);
     }
   return(true);
@@ -60866,6 +60870,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
   opcode_t op;
   s7_pointer p, body, vars;
   bool body_export_ok = true;
+  /* fprintf(stderr, "optimize_syntax %s %d %s\n", DISPLAY(expr), hop, DISPLAY(e)); */
 
   op = (opcode_t)syntax_opcode(func);
   sc->w = e;
@@ -61125,8 +61130,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       break;
 
     case OP_WITH_LET:
-      e = sc->nil;
-      hop = 0;
       /* we can't trust anything here, so hop ought to be off.  For example,
        *   (define (hi)
        *     (let ((e (sublet (curlet)
@@ -61134,7 +61137,21 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
        *       (with-let e (abs -1))))
        * returns 1 if hop is 1, but -2 otherwise
        */
-      break;
+      {
+	bool old_with_let;
+	old_with_let = sc->in_with_let;
+	sc->in_with_let = true;
+	for (p = body; is_pair(p); p = cdr(p))
+	  if ((is_pair(car(p))) && 
+	      (!is_checked(car(p))) &&
+	      (optimize_expression(sc, car(p), 0, sc->nil, body_export_ok) == OPT_OOPS))
+	    {
+	      sc->in_with_let = old_with_let;
+	      return(OPT_OOPS);
+	    }
+	sc->in_with_let = old_with_let;
+	return(OPT_F);
+      }
 
     case OP_CASE:
       if ((is_pair(cadr(expr))) &&
@@ -61350,6 +61367,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 #if DEBUGGING
   if (is_checked(expr)) {fprintf(stderr, "%s is checked\n", DISPLAY(expr)); abort();}
 #endif
+  /* fprintf(stderr, "optimize_expression %s %d %s\n", DISPLAY(expr), hop, DISPLAY(e)); */
   set_checked(expr);
   car_expr = car(expr);
 
@@ -61384,7 +61402,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	      s7_pointer p;
 
 	      orig_hop = hop;
-	      if ((!is_immutable(car_expr)) &&           /* can't depend on opt1 here because it might not be global, or might be redefined locally */
+	      if ((hop != 0) &&
+		  (!is_immutable(car_expr)) &&           /* can't depend on opt1 here because it might not be global, or might be redefined locally */
 		  ((is_any_closure(func)) ||
 		   ((!is_global(car_expr)) &&
 		    ((!is_slot(global_slot(car_expr))) ||
@@ -81291,13 +81310,21 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   n = snprintf(buf, 1024, "gc protected size: %u, unused: %d\n", sc->protected_objects_size, sc->gpofl_loc);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       
-  for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
-    for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
-      syms++;
-  n = snprintf(buf, 1024, "symbol table: %d (%d symbols, %" PRId64 " bytes)\n", SYMBOL_TABLE_SIZE, syms, 
-	       (s7_int)(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell)));
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
+  {
+    int32_t gens = 0, keys = 0;
+    for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
+      for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
+	{
+	  syms++;
+	  if (is_gensym(car(x))) gens++;
+	  if (is_keyword(car(x))) keys++;
+	}
+    n = snprintf(buf, 1024, "symbol table: %d (%d symbols, %" PRId64 " bytes, gensyms: %d, keywords: %d)\n", 
+		 SYMBOL_TABLE_SIZE, syms, 
+		 (s7_int)(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell)),
+		 gens, keys);
+    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+  }
   n = snprintf(buf, 1024, "stack: %u (%" PRId64 " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
@@ -81922,6 +81949,7 @@ s7_scheme *s7_init(void)
   sc->tmpbuf = (char *)calloc(TMPBUF_SIZE, sizeof(char));
   sc->print_width = sc->max_string_length;
   sc->short_print = false;
+  sc->in_with_let = false;
 
   sc->initial_string_port_length = 128;
   sc->format_depth = -1;
