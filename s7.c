@@ -1976,11 +1976,7 @@ static s7_scheme *cur_sc = NULL;
 
 #define T_LOCAL_SYMBOL                T_COPY_ARGS
 #define is_local_symbol(p)            ((typeflag(_NFre(p)) & T_LOCAL_SYMBOL) != 0)
-#if (!DEBUGGING)
 #define set_local_symbol(p)           typeflag(_TPair(p)) |= T_LOCAL_SYMBOL
-#else
-#define set_local_symbol(p) do {if (is_keyword(car(p))) fprintf(stderr, "local key %s\n", symbol_name(car(p))); typeflag(_TPair(p)) |= T_LOCAL_SYMBOL;} while (0)
-#endif
 
 #define T_GENSYM                      (1 << (TYPE_BITS + 21))
 #define is_gensym(p)                  ((typeflag(_TSym(p)) & T_GENSYM) != 0)
@@ -3508,10 +3504,11 @@ s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method)
 /* if a method is shadowing a built-in like abs, it should expect the same args as abs and
  *   behave the same -- no multiple values etc.
  */
-#define check_method(Sc, Obj, Method, Args)     \
-  {                                             \
+#define check_method(Sc, Obj, Method, Args)		\
+  {							\
     s7_pointer func; 	                        \
-    if ((has_methods(Obj)) && ((func = find_method(Sc, find_let(Sc, Obj), Method)) != Sc->undefined)) \
+    if ((has_methods(Obj)) &&				\
+	((func = find_method(Sc, find_let(Sc, Obj), Method)) != Sc->undefined)) \
       return(s7_apply_function(Sc, func, Args)); \
   }
 
@@ -6541,7 +6538,8 @@ static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
       return(c_object_let(obj));
 
     case T_C_POINTER:
-      if (is_let(raw_pointer_info(obj)))
+      if ((is_let(raw_pointer_info(obj))) &&
+	  (raw_pointer_info(obj) != sc->rootlet))
 	return(raw_pointer_info(obj));
     }
   return(sc->nil);
@@ -6943,24 +6941,21 @@ static s7_pointer g_openlet(s7_scheme *sc, s7_pointer args)
 {
   #define H_openlet "(openlet e) tells the built-in generic functions that the let 'e might have an over-riding method."
   #define Q_openlet pcl_e
-  s7_pointer e;
+  s7_pointer e, elet, func;
 
   e = car(args);
-  check_method(sc, e, sc->openlet_symbol, args);
-
-  if (e == sc->rootlet)
+  elet = find_let(sc, e);
+  if ((elet == sc->rootlet) || (elet == sc->nil))
     s7_error(sc, sc->error_symbol, set_elist_1(sc, s7_make_string(sc, "can't openlet rootlet")));
-    
-  if ((is_let(e)) ||
-      (has_closure_let(e)) ||
-      ((is_c_object(e)) && (c_object_let(e) != sc->nil)) ||
-      ((is_c_pointer(e)) && (is_let(raw_pointer_info(e)))))
-    {
-      set_has_methods(e);
-      return(e);
-    }
+  if (!is_let(elet))
+    return(simple_wrong_type_argument_with_type(sc, sc->openlet_symbol, e, a_let_string));
 
-  return(simple_wrong_type_argument_with_type(sc, sc->openlet_symbol, e, a_let_string));
+  if ((has_methods(e)) &&
+      ((func = find_method(sc, elet, sc->openlet_symbol)) != sc->undefined))
+    return(s7_apply_function(sc, func, args));
+
+  set_has_methods(e);
+  return(e);
 }
 
 
@@ -8838,7 +8833,7 @@ static s7_pointer g_string_to_keyword(s7_scheme *sc, s7_pointer args)
     method_or_bust_one_arg(sc, str, sc->string_to_keyword_symbol, args, T_STRING);
   if ((string_length(str) == 0) ||
       (string_value(str)[0] == '\0'))
-    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "a non-null string"), str)));
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "string->keyword wants a non-null string"), str)));
   return(s7_make_keyword(sc, string_value(str)));
 }
 
@@ -8938,16 +8933,21 @@ static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
   #define H_c_pointer "(c-pointer int type info) returns a c-pointer object. The type and info args are optional, defaulting to #f."
   #define Q_c_pointer s7_make_signature(sc, 4, sc->is_c_pointer_symbol, sc->is_integer_symbol, sc->T, sc->T)
 
-  s7_pointer arg;
+  s7_pointer arg, type, info;
   intptr_t p;
 
+  type = sc->F;
+  info = sc->F;
   arg = car(args);
   if (!s7_is_integer(arg))
     method_or_bust(sc, arg, sc->c_pointer_symbol, list_1(sc, arg), T_INTEGER, 1);
   p = (intptr_t)s7_integer(arg);             /* (c-pointer (bignum "1234")) */
   if (is_pair(cdr(args)))
-    return(s7_make_c_pointer_with_type(sc, (void *)p, cadr(args), (is_pair(cddr(args))) ? caddr(args) : sc->F));
-  return(s7_make_c_pointer_with_type(sc, (void *)p, sc->F, sc->F));
+    {
+      type = cadr(args);
+      if (is_pair(cddr(args))) info = caddr(args);
+    }
+  return(s7_make_c_pointer_with_type(sc, (void *)p, type, info));
 }
 
 
@@ -27770,7 +27770,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	      for (x = let_slots(obj); is_slot(x); x = next_slot(x))
 		{
 		  port_write_string(port)(sc, "(cons ", 6, port);
-		  symbol_to_port(sc, slot_symbol(x), port, use_write, NULL);
+		  symbol_to_port(sc, slot_symbol(x), port, USE_READABLE_WRITE, NULL);
 		  port_write_character(port)(sc, ' ', port);
 		  object_to_port_with_circle_check(sc, slot_value(x), port, use_write, ci);
 		  port_write_character(port)(sc, ')', port);
@@ -29249,9 +29249,8 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 
 static void slot_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (use_write != USE_READABLE_WRITE)
-    port_write_character(port)(sc, '\'', port);
-  symbol_to_port(sc, slot_symbol(obj), port, use_write, ci);
+  /* the slot symbol might need (symbol...) in which case we don't want the preceding quote */
+  symbol_to_port(sc, slot_symbol(obj), port, USE_READABLE_WRITE, ci);
   port_write_character(port)(sc, ' ', port);
   object_to_port_with_circle_check(sc, slot_value(obj), port, use_write, ci);
 }
@@ -33035,7 +33034,7 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
       set_opt_fast(y, x);
       set_opt_slow(y, x);
       push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
-      push_stack(sc, OP_ASSOC_IF, y, eq_func);
+      push_stack(sc, OP_ASSOC_IF, cons(sc, y, sc->nil), eq_func);
       sc->args = list_2(sc, car(args), caar(x));
       sc->code = eq_func;
       eval(sc, OP_APPLY);
@@ -33432,7 +33431,7 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
    * here as in assoc, sort, and make-hash-table we accept macros, but I can't think of a good reason to do so.
    */
 
-  s7_pointer x, y, obj, eq_func = NULL;
+  s7_pointer x, obj, eq_func = NULL;
   x = cadr(args);
 
   if ((!is_pair(x)) && (!is_null(x)))
@@ -33453,7 +33452,7 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
   if (is_null(x)) return(sc->F);
   if (eq_func)
     {
-      s7_pointer slow;
+      s7_pointer y, slow;
 	  
       /* now maybe there's a simple case */
       if ((is_safe_procedure(eq_func)) &&
@@ -33529,11 +33528,11 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
 		}
 	    }
 	}
-
+      
       y = cons(sc, args, sc->nil); /* this could probably be handled with a counter cell (cdr here is unused) */
       set_opt_fast(y, x);
       set_opt_slow(y, x);
-      push_stack(sc, OP_MEMBER_IF, y, eq_func);
+      push_stack(sc, OP_MEMBER_IF, cons(sc, y, sc->nil), eq_func);
       if (needs_copied_args(eq_func))
 	push_stack(sc, OP_APPLY, list_2(sc, car(args), car(x)), eq_func);
       else
@@ -38975,7 +38974,8 @@ s7_pointer s7_c_object_let(s7_pointer obj)
 
 s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e)
 {
-  if (!is_immutable(obj))
+  if ((!is_immutable(obj)) &&
+      (is_let(e)))
     c_object_set_let(obj, e);
   return(e);
 }
@@ -47602,10 +47602,6 @@ static bool i_ii_fc_combinable(s7_scheme *sc, opt_info *opc)
 }
 #endif
 
-#if DEBUGGING
-static s7_pointer i_ii_arg1, i_ii_arg2, i_ii_car_x;
-#endif
-
 static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
 {
   s7_i_ii_t ifunc;
@@ -47667,12 +47663,6 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			    {
 			      opc->v2.i = integer(arg2);
 			      opc->v7.fi = opt_i_ii_sc;
-			      /* fprintf(stderr, "ii: %s %s %s\n", DISPLAY(car_x), DISPLAY(slot_value(opc->v1.p)), DISPLAY(arg2)); */
-#if DEBUGGING
-			      i_ii_car_x = car_x;
-			      i_ii_arg1 = slot_value(opc->v1.p);
-			      i_ii_arg2 = arg2;
-#endif
 #if (!WITH_GMP)
 			      if ((car(car_x) == sc->modulo_symbol) &&
 				  (integer(arg2) > 1))
@@ -50033,7 +50023,6 @@ static bool opt_bool_not_pair(s7_scheme *sc, s7_pointer car_x)
       if (!s7_is_boolean(car_x))
 	return(return_false(sc, car_x, __func__, __LINE__)); /* i.e. use cell_optimize */
       opc = alloc_opo(sc, car_x);
-      /* fprintf(stderr, "opt_b_f|t: %s\n", DISPLAY(car_x)); */
       opc->v7.fb = ((car_x == sc->F) ? opt_b_f : opt_b_t);
       return(true);
     }
@@ -52841,7 +52830,6 @@ static bool opt_cell_when(s7_scheme *sc, s7_pointer car_x, int32_t len)
 static s7_pointer opt_cond(void *p)
 {
   opt_info *o = (opt_info *)p;
-  /* fprintf(stderr, "opt_cond\n"); */
   o->v2.p = cur_sc->unspecified;
   while (cur_sc->pc < o->v1.i)
     {
@@ -52884,7 +52872,6 @@ static s7_pointer opt_cond_2(void *p)
   opt_info *o = (opt_info *)p;
   opt_info *o1, *o2;
   s7_pointer res;
-  /* fprintf(stderr, "opt_cond_2\n"); */
   cur_sc->pc += 2;
   o2 = cur_sc->opts[cur_sc->pc];     /* this is the boolean expr of the first clause */
   if (!o2->v7.fb(o2))
@@ -52903,7 +52890,6 @@ static bool opt_cell_cond(s7_scheme *sc, s7_pointer car_x)
   s7_pointer p, last_clause = NULL;
   opt_info *top;
   int32_t branches = 0, max_blen = 0, start_pc;
-  /* fprintf(stderr, "opt_cell_cond %s\n", DISPLAY(car_x)); */
   top = alloc_opo(sc, car_x);
   start_pc = sc->pc;
   for (p = cdr(car_x); is_pair(p); p = cdr(p), branches++)
@@ -52942,7 +52928,6 @@ static bool opt_cell_cond(s7_scheme *sc, s7_pointer car_x)
     }
   top->v1.i = sc->pc - 1;
   top->v7.fp = opt_cond;
-  /* fprintf(stderr, "cond %d\n", sc->pc); */
   if (branches == 2)
     {
       if ((max_blen == 1) &&
@@ -53475,13 +53460,19 @@ static s7_pointer opt_let_temporarily(void *p)
 
 static bool opt_cell_let_temporarily(s7_scheme *sc, s7_pointer car_x, int32_t len)
 {
-  if ((len > 2) &&
-      (is_pair(cadr(car_x))) &&
-      (is_pair(caadr(car_x))) &&
-      (is_null(cdadr(car_x))) &&        /* just one var for now */
-      (is_symbol(caaadr(car_x))) &&
-      (!is_immutable(caaadr(car_x))) &&
-      (!is_syntactic(caaadr(car_x))))
+  s7_pointer vars;
+  if (len <= 2)
+    return(false);
+
+  vars = cadr(car_x);
+  if ((is_pair(vars)) &&
+      (is_pair(car(vars))) &&
+      (is_null(cdr(vars))) &&        /* just one var for now */
+      (is_symbol(caar(vars))) &&     /*   and var is (sym val) */
+      (is_pair(cdar(vars))) &&
+      (is_null(cddar(vars))) &&
+      (!is_immutable(caar(vars))) &&
+      (!is_syntactic(caar(vars))))
     {
       s7_pointer p;
       opt_info *opc;
@@ -54503,10 +54494,8 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 	  s7_pointer olst;
 	  olst = closure_optlist(s_func);
 	  if (optlist_num_args(olst) != opc->v1.i)
-	    {
-	      /* fprintf(stderr, "wrong argnum: %" PRId64 " %d\n", opc->v1.i, optlist_num_args(olst)); */
-	      return(return_false(sc, car_x, __func__, __LINE__));
-	    }
+	    return(return_false(sc, car_x, __func__, __LINE__));
+
 	  opc->v3.i = optlist_num_exprs(olst);
 	  opc->v4.i = optlist_pc(olst);
 	  opc->v5.i = sc->pc - 1;
@@ -54704,8 +54693,8 @@ static bool float_optimize(s7_scheme *sc, s7_pointer expr)
 	{
 	  if (is_macro(s_func))
 	    {
-	      if (!pair_no_opt(expr))
-		return(float_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
+ 	      if (!pair_no_opt(expr))
+ 		return(float_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
 	    }
 	  else
 	    {
@@ -54795,8 +54784,8 @@ static bool int_optimize(s7_scheme *sc, s7_pointer expr)
 	{
 	  if (is_macro(s_func))
 	    {
-	      if (!pair_no_opt(expr))
-		return(int_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
+ 	      if (!pair_no_opt(expr))
+ 		return(int_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
 	    }
 	  else
 	    {
@@ -54985,14 +54974,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
       else
 	{
 	  if (is_macro(s_func))
-	    {
-	      if (!pair_no_opt(expr))
-		{
-		  if (cell_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))))
-		    return(true);
-		  set_pair_no_opt(expr);
-		}
-	    }
+	    return(return_false(sc, car_x, __func__, __LINE__)); /* macroexpand+cell_optimize here restarts the optimize process */
 	  else
 	    {
 	      if ((!pair_no_opt(car_x)) &&
@@ -55094,15 +55076,7 @@ static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr)
       else
 	{
 	  if (is_macro(s_func))
-	    {
-#if 0
-	      if (!pair_no_opt(expr))
-		{
-		  return(bool_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
-		}
-#endif
-	    }
-#if 1
+	    return(false);
 	  else
 	    {
 	      if ((!pair_no_opt(car_x)) &&
@@ -55123,7 +55097,6 @@ static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr)
 		  set_pair_no_opt(car_x);
 		}
 	    }
-#endif
 	}
     }
   return(return_false(sc, car_x, __func__, __LINE__));
@@ -55662,8 +55635,6 @@ static s7_pointer g_map_closure(s7_scheme *sc, s7_pointer args)
   f = car(args);
   body = closure_body(f);
 
-  /* fprintf(stderr, "f: %p, args: %s, body: %s %s\n", f, DISPLAY(args), DISPLAY(body), DISPLAY(closure_let(f))); */
-
   if ((is_pair(seq)) &&
       (!pair_no_opt(body)) &&
       (is_optimized(car(body)))) /* for index.scm? */
@@ -56155,7 +56126,6 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
   #define Q_apply_values s7_make_signature(sc, 2, sc->T, sc->is_list_symbol)
   s7_pointer x;
 
-  /* fprintf(stderr, "apply_values %s\n", DISPLAY(args)); */
   if (is_null(args))
     return(sc->no_value);
 
@@ -56209,14 +56179,13 @@ static bool is_simple_code(s7_scheme *sc, s7_pointer form)
 }
 
 
-static s7_pointer g_quasiquote_1(s7_scheme *sc, s7_pointer form)
+static s7_pointer g_quasiquote_1(s7_scheme *sc, s7_pointer form, bool check_cycles)
 {
   #define H_quasiquote "(quasiquote arg) is the same as `arg.  If arg is a list, it can contain \
 comma (\"unquote\") and comma-atsign (\"apply values\") to pre-evaluate portions of the list. \
 unquoted expressions are evaluated and plugged into the list, apply-values evaluates the expression \
 and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -> (1 2 3 4)."
 
-  /* fprintf(stderr, "g_quasiquote_1: form: %s %s\n", DISPLAY(form), type_name(sc, form, NO_ARTICLE)); */
   if (!is_pair(form))
     {
       if ((is_symbol(form)) &&
@@ -56235,10 +56204,9 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   /* it's a list, so return the list with each element handled as above.
    *    we try to support dotted lists which makes the code much messier.
-   *
    * if no element of the list is a list or unquote, just return the original quoted 
    */
-  if ((cyclic_sequences(sc, form, false) == sc->T) ||
+  if (((check_cycles) && (cyclic_sequences(sc, form, false) == sc->T)) ||
       (is_simple_code(sc, form))) 
     return(list_2(sc, sc->quote_symbol, form));
 
@@ -56281,12 +56249,12 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 		 *     This now becomes (1 unquote (apply-values ('(2 3)))) -> (append (list-values 1) (apply-values ('(2 3)))) -> error
 		 * `(1 . (,@'(2 3))) works in both cases, and `(1 . (,(+ 1 1)))
 		 */
-		set_car(bq, g_quasiquote_1(sc, car(orig)));
+		set_car(bq, g_quasiquote_1(sc, car(orig), false));
 		set_cdr(bq, sc->nil);
 		sc->w = list_3(sc, sc->append_symbol, sc->w, caddr(orig));
 		break;
 	      }
-	    else set_car(bq, g_quasiquote_1(sc, car(orig)));
+	    else set_car(bq, g_quasiquote_1(sc, car(orig), false));
 	  }
       }
     else
@@ -56294,10 +56262,10 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 	/* `(1 2 . 3) */
 	len--;
 	for (orig = form, bq = cdr(sc->w), i = 0; i < len; i++, orig = cdr(orig), bq = cdr(bq))
-	  set_car(bq, g_quasiquote_1(sc, car(orig)));
-	set_car(bq, g_quasiquote_1(sc, car(orig)));
+	  set_car(bq, g_quasiquote_1(sc, car(orig), false));
+	set_car(bq, g_quasiquote_1(sc, car(orig), false));
 
-	sc->w = list_3(sc, sc->append_symbol, sc->w, g_quasiquote_1(sc, cdr(orig)));
+	sc->w = list_3(sc, sc->append_symbol, sc->w, g_quasiquote_1(sc, cdr(orig), false));
 	/* quasiquote might quote a symbol in cdr(orig), so it's not completely pointless */
       }
 
@@ -56312,7 +56280,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 static s7_pointer g_quasiquote(s7_scheme *sc, s7_pointer args)
 {
   /* this is for explicit quasiquote support, not the backquote stuff in macros */
-  return(g_quasiquote_1(sc, car(args)));
+  return(g_quasiquote_1(sc, car(args), true));
 }
 
 
@@ -59132,7 +59100,6 @@ static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
   return((!sc->in_with_let) &&
 	 (is_slot(find_symbol(sc, arg1))));
 }
-/* TODO: extend to other bad arg cases */
 
 static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -59460,14 +59427,6 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
   if (is_closure_star(func))
     {
       bool safe_case;
-#if 0
-      fprintf(stderr, "%s: %d %d %d %d %d\n", DISPLAY(expr), 
-	      has_simple_arg_defaults(closure_body(func)), 
-	      is_null(closure_args(func)), 
-	      is_safe_closure(func),
-	      arglist_has_rest(sc, closure_args(func)), 
-	      all_x_count(sc, expr));
-#endif
       if ((!has_simple_arg_defaults(closure_body(func))) ||
 	  (is_null(closure_args(func))))
 	return(OPT_F);
@@ -59713,7 +59672,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      choose_c_function(sc, expr, func, 2);
 	      if (is_safe_procedure(opt_cfunc(expr)))
 		{
-		  fprintf(stderr, "is safe after all? %s\n", DISPLAY(expr));
 		  clear_unsafe(expr);
 		  /* symbols can be 0..2 here, no pairs */
 		  set_optimized(expr);
@@ -59924,7 +59882,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		{
 		  if ((bad_pairs == 0) || (is_safely_optimized(arg2))) /* bad_pair && h_optimized happens a lot */
 		    {
-		      /* fprintf(stderr, "safe: %s %d %d %s\n", DISPLAY(expr), bad_pairs, is_h_optimized(arg2), opt_names[optimize_op(arg2)]); */
 		      set_optimize_op(expr, hop + OP_SAFE_C_SZ);
 		      choose_c_function(sc, expr, func, 2);
 		      /* if hop is on, is it the case that opt1 is unused?  where besides c_function_is_ok is it referenced?
@@ -61485,7 +61442,6 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		}
 	      if (is_null(p))                    /* if not null, dotted list of args? */
 		{
-		  /* fprintf(stderr, "%d %s\n", args, DISPLAY_80(expr)); */
 		  switch (args)
 		    {
 		    case 0:  return(optimize_thunk(sc, expr, func, hop));
@@ -61523,7 +61479,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
       {
 	/* else maybe it's something like a let variable binding: (sqrtfreq (sqrt frequency)) */
 	s7_pointer p;
-	int32_t len = 0, pairs = 0, symbols = 0, quotes = 0;
+	int32_t len = 0, pairs = 0, symbols = 0;
 
 	for (p = cdr(expr); is_pair(p); p = cdr(p), len++)
 	  {
@@ -61532,8 +61488,6 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	    if (is_pair(car_p))
 	      {
 		pairs++;
-		if ((hop != 0) && (car(car_p) == sc->quote_symbol))
-		  quotes++;
 		if ((!is_checked(car_p)) &&
 		    (optimize_expression(sc, car_p, hop, e, false) == OPT_OOPS))
 		  return(OPT_OOPS);
@@ -67255,8 +67209,6 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
   
   code = sc->code;
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
-  /* fprintf(stderr, "%s: local: %d, hop: %d\n", DISPLAY(code), is_local_symbol(code), hop); */
-
   switch (type(f))
     {
     case T_CLOSURE:
@@ -67314,8 +67266,6 @@ static int32_t unknown_g_ex(s7_scheme *sc, s7_pointer f)
 
   code = sc->code;
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
-  /* fprintf(stderr, "unknown_g_ex: %s, local: %d, hop: %d\n", DISPLAY_80(sc->code), is_local_symbol(sc->code), hop); */
-
   sym_case = is_symbol(cadr(code));
   if ((sym_case) &&
       (!is_slot(find_symbol(sc, cadr(code)))))
@@ -67712,7 +67662,6 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
 {
   s7_pointer code;
   int32_t hop;
-  /* fprintf(stderr, "unknown_aa: %d %s %s\n", type(f), DISPLAY(f), DISPLAY(sc->code)); */
   
   code = sc->code;
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
@@ -68170,7 +68119,6 @@ static void apply_c_any_args_function(s7_scheme *sc)                /* -------- 
 static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-based macro -------- */
 {
   int32_t len;
-  /* fprintf(stderr, "apply_c_macro: args: %s %s\n", DISPLAY(sc->args), type_name(sc, car(sc->args), NO_ARTICLE)); */
   len = safe_list_length(sc, sc->args);
   
   if (len < (int32_t)c_macro_required_args(sc->code))
@@ -69454,80 +69402,90 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  /* -------------------------------- MEMBER -------------------------------- */
 	case OP_MEMBER_IF:
 	case OP_MEMBER_IF1:
-	  /* code=func, args = (list original args) with opt_fast->position in cadr (the list), value = result of comparison
-	   */
-	  if (sc->value != sc->F)                      /* previous comparison was not #f -- return list */
-	    {
-	      sc->value = opt_fast(sc->args);
-	      goto START;
-	    }
-	  if (!is_pair(cdr(opt_fast(sc->args))))           /* no more args -- return #f */
-	    {
-	      sc->value = sc->F;
-	      goto START;
-	    }
-	  set_opt_fast(sc->args, cdr(opt_fast(sc->args)));     /* cdr down arg list */
-	  
-	  if (sc->cur_op == OP_MEMBER_IF1)
-	    {
-	      /* circular list check */
-	      if (opt_fast(sc->args) == opt_slow(sc->args))
-		{
-		  sc->value = sc->F;
-		  goto START;
-		}
-	      set_opt_slow(sc->args, cdr(opt_slow(sc->args)));  /* cdr down the slow list (check for circular list) */
-	      push_stack(sc, OP_MEMBER_IF, sc->args, sc->code);
-	    }
-	  else push_stack(sc, OP_MEMBER_IF1, sc->args, sc->code);
-
-	  if (needs_copied_args(sc->code))
-	    sc->args = list_2(sc, caar(sc->args), car(opt_fast(sc->args)));
-	  else sc->args = set_plist_2(sc, caar(sc->args), car(opt_fast(sc->args)));
-	  goto APPLY;
+	  {
+	    s7_pointer orig_args;
+	    orig_args = car(sc->args);
+	    /* code=func, args = (list (list original args)) with opt_fast->position in cadr (the list), 
+	     *   the extra indirection (list (list...)) is needed because call/cc copies arg lists
+	     * value = result of comparison
+	     */
+	    if (sc->value != sc->F)                      /* previous comparison was not #f -- return list */
+	      {
+		sc->value = opt_fast(orig_args);
+		goto START;
+	      }
+	    if (!is_pair(cdr(opt_fast(orig_args))))      /* no more args -- return #f */
+	      {
+		sc->value = sc->F;
+		goto START;
+	      }
+	    set_opt_fast(orig_args, cdr(opt_fast(orig_args))); /* cdr down arg list */
+	    
+	    if (sc->cur_op == OP_MEMBER_IF1)
+	      {
+		/* circular list check */
+		if (opt_fast(orig_args) == opt_slow(orig_args))
+		  {
+		    sc->value = sc->F;
+		    goto START;
+		  }
+		set_opt_slow(orig_args, cdr(opt_slow(orig_args))); /* cdr down the slow list (check for circular list) */
+		push_stack(sc, OP_MEMBER_IF, sc->args, sc->code);
+	      }
+	    else push_stack(sc, OP_MEMBER_IF1, sc->args, sc->code);
+	    
+	    if (needs_copied_args(sc->code))
+	      sc->args = list_2(sc, caar(orig_args), car(opt_fast(orig_args)));
+	    else sc->args = set_plist_2(sc, caar(orig_args), car(opt_fast(orig_args)));
+	    goto APPLY;
+	  }
 	  
 	  
 	  /* -------------------------------- ASSOC -------------------------------- */
 	case OP_ASSOC_IF:
 	case OP_ASSOC_IF1:
-	  /* code=func, args=(list args) with f/opt_fast=list, value=result of comparison
-	   *   (assoc 3 '((1 . a) (2 . b) (3 . c) (4 . d)) =)
-	   */
-	  if (sc->value != sc->F)            /* previous comparison was not #f -- return (car list) */
-	    {
-	      sc->value = car(opt_fast(sc->args));
-	      goto START;
-	    }
-	  if (!is_pair(cdr(opt_fast(sc->args))))     /* (assoc 3 '((1 . 2) . 3) =) or nil */
-	    {
-	      sc->value = sc->F;
-	      goto START;
-	    }
-	  set_opt_fast(sc->args, cdr(opt_fast(sc->args)));  /* cdr down arg list */
+	  {
+	    s7_pointer orig_args;
+	    orig_args = car(sc->args);
+	    /* code=func, args=(list (list args)) with f/opt_fast=list, value=result of comparison
+	     *   (assoc 3 '((1 . a) (2 . b) (3 . c) (4 . d)) =)
+	     */
+	    if (sc->value != sc->F)            /* previous comparison was not #f -- return (car list) */
+	      {
+		sc->value = car(opt_fast(orig_args));
+		goto START;
+	      }
+	    if (!is_pair(cdr(opt_fast(orig_args))))             /* (assoc 3 '((1 . 2) . 3) =) or nil */
+	      {
+		sc->value = sc->F;
+		goto START;
+	      }
+	    set_opt_fast(orig_args, cdr(opt_fast(orig_args)));  /* cdr down arg list */
 	  
-	  if (sc->cur_op == OP_ASSOC_IF1)
-	    {
-	      /* circular list check */
-	      if (opt_fast(sc->args) == opt_slow(sc->args))
-		{
-		  sc->value = sc->F;
-		  goto START;
-		}
-	      set_opt_slow(sc->args, cdr(opt_slow(sc->args)));  /* cdr down the slow list */
-	      push_stack(sc, OP_ASSOC_IF, sc->args, sc->code);
-	    }
-	  else push_stack(sc, OP_ASSOC_IF1, sc->args, sc->code);
+	    if (sc->cur_op == OP_ASSOC_IF1)
+	      {
+		/* circular list check */
+		if (opt_fast(orig_args) == opt_slow(orig_args))
+		  {
+		    sc->value = sc->F;
+		    goto START;
+		  }
+		set_opt_slow(orig_args, cdr(opt_slow(orig_args))); /* cdr down the slow list */
+		push_stack(sc, OP_ASSOC_IF, sc->args, sc->code);
+	      }
+	    else push_stack(sc, OP_ASSOC_IF1, sc->args, sc->code);
 	  
-	  if (!is_pair(car(opt_fast(sc->args))))     /* (assoc 1 '((2 . 2) 3) =) -- we access caaadr below */
-	    eval_type_error(sc, "assoc: second arg is not an alist: ~S", sc->args);
-	  /* not sure about this -- we could simply skip the entry both here and in g_assoc
-	   *   (assoc 1 '((2 . 2) 3)) -> #f
-	   *   (assoc 1 '((2 . 2) 3) =) -> error currently
-	   */
-	  if (needs_copied_args(sc->code))
-	    sc->args = list_2(sc, caar(sc->args), caar(opt_fast(sc->args)));
-	  else sc->args = set_plist_2(sc, caar(sc->args), caar(opt_fast(sc->args)));
-	  goto APPLY;
+	    if (!is_pair(car(opt_fast(orig_args))))     /* (assoc 1 '((2 . 2) 3) =) -- we access caaadr below */
+	      eval_type_error(sc, "assoc: second arg is not an alist: ~S", orig_args);
+	    /* not sure about this -- we could simply skip the entry both here and in g_assoc
+	     *   (assoc 1 '((2 . 2) 3)) -> #f
+	     *   (assoc 1 '((2 . 2) 3) =) -> error currently
+	     */
+	    if (needs_copied_args(sc->code))
+	      sc->args = list_2(sc, caar(orig_args), caar(opt_fast(orig_args)));
+	    else sc->args = set_plist_2(sc, caar(orig_args), caar(opt_fast(orig_args)));
+	    goto APPLY;
+	  }
 	  
 	  
 	  /* -------------------------------- DO -------------------------------- */
@@ -76815,7 +76773,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_READ_QUASIQUOTE:
 	  /* this was pushed when the backquote was seen, then eventually we popped back to it */
-	  sc->value = g_quasiquote_1(sc, sc->value);
+	  sc->value = g_quasiquote_1(sc, sc->value, false);
 	  /* doing quasiquote at read time means there are minor inconsistencies in
 	   *    various combinations or quote/' and quasiquote/`.  A quoted ` will expand
 	   *    but quoted quasiquote will not (` can't be redefined, but quasiquote can).
@@ -83970,7 +83928,9 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  * lint no-gmp (< int most-negative-fixnum) etc?
- * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting?
+ * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting == -1? (let ((+safety+ -1)) (with-let...))?
+ *   or maybe opt/unopt choice made at call-time (if in loop??)
+ * macroexpand before s7_optimize? or restart if macro encountered?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84017,7 +83977,7 @@ int main(int argc, char **argv)
  * titer         |      |      |      || 5971 || 4646 | 4654
  * bench         |      |      |      || 7012 || 5093 | 5108
  * thash         |      |      | 50.7 || 8778 || 7697 | 7698
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0
  *                                    || 139  || 85.9 | 86.5
