@@ -54,7 +54,7 @@ set logging off
 print s7_decode_bt()
 end
 document s7bt
-print a backtrace with s7 objects decoded as much as possible
+print a C backtrace with s7 objects decoded as much as possible
 end
 
 define s7btfull
@@ -66,7 +66,7 @@ set logging off
 print s7_decode_bt()
 end
 document s7btfull
-print a full backtrace with s7 objects decoded as much as possible
+print a full C backtrace with s7 objects decoded as much as possible
 end
 
 

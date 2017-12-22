@@ -2505,7 +2505,7 @@ static int64_t not_heap = -1;
 #define port_data_size(p)             (_TPrt(p))->object.prt.size
 #define port_position(p)              (_TPrt(p))->object.prt.point
 #define port_needs_free(p)            port_port(p)->needs_free
-#define port_output_function(p)       port_port(p)->output_function
+#define port_output_function(p)       port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)        port_port(p)->input_function
 #define port_original_input_string(p) port_port(p)->orig_str
 #define port_read_character(p)        port_port(p)->read_character
@@ -2792,7 +2792,7 @@ static s7_int s7_int_max = 0, s7_int_min = 0;
 
 /* --------------------------------------------------------------------------------
  * local versions of some standard C library functions
- * timing tests involving these are very hard to interpret -- pervasive inconsistency!
+ * timing tests involving these are very hard to interpret
  */
 
 static inline int32_t safe_strlen(const char *str)
@@ -4008,19 +4008,19 @@ static void mark_slot(s7_pointer p)
     S7_MARK(slot_setter(p));
 
   /* if (is_gensym(slot_symbol(p))) */ /* (let () (apply define (gensym) (list 32)) (gc) (gc) (curlet)) */
-    set_mark(slot_symbol(p));
+  set_mark(slot_symbol(p));
 }
 
 static void mark_symbol(s7_pointer p)
 {
   /* if (is_gensym(p)) */
-    set_mark(p);
+  set_mark(p);
 }
 
 static void mark_noop(s7_pointer p) {}
 
 
-/* ports can be alloc'd and freed at a frightening pace, so I think I'll make a special free-list for them. */
+/* ports can be alloc'd and freed at a blistering pace, so I think I'll make a special free-list for them. */
 
 static port_t *alloc_port(s7_scheme *sc)
 {
@@ -4524,7 +4524,6 @@ static void mark_let(s7_pointer env)
 
 static void mark_owlet(s7_scheme *sc)
 {
-  /* s7_pointer p; */
   /* sc->error_type and friends are slots in owlet */
   mark_slot(sc->error_type);
   slot_set_value(sc->error_data, sc->F);
@@ -4532,7 +4531,6 @@ static void mark_owlet(s7_scheme *sc)
   /* error_data is normally a permanent list with impermanent contents, so we have to traverse it explicitly
    *   mark_owlet is not called very often
    */
-  /* for (p = sc->error_data; is_pair(p); p = cdr(p)) S7_MARK(car(p)); */
   mark_slot(sc->error_code);
   /* can sc->code be garbage at EVAL: when sc->cur_code is set? or freed later by hand? */
   mark_slot(sc->error_line);
@@ -21168,7 +21166,7 @@ static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, int
 static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str, int32_t len)
 {
   s7_pointer x;
-  new_cell(sc, x, T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE);
+  new_cell(sc, x, (len > 0) ? (T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE) : T_STRING);
   string_value(x) = (char *)str;
   string_length(x) = len;
   string_hash(x) = 0;
@@ -21765,14 +21763,6 @@ static s7_pointer start_and_end(s7_scheme *sc, s7_pointer caller, s7_pointer fal
    */
   s7_pointer pstart, pend, p;
   s7_int index;
-
-#if DEBUGGING
-  if (is_null(start_and_end_args))
-    {
-      fprintf(stderr, "start_and_end_args is null\n");
-      return(sc->gc_nil);
-    }
-#endif
 
   pstart = car(start_and_end_args);
   if (!s7_is_integer(pstart))
@@ -22582,7 +22572,8 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
   if (is_null(cdr(args)))
     {
       str = g_make_string(sc, args);
-      if (is_string(str))
+      if ((is_string(str)) &&
+	  (string_length(str) > 0))
 	memclr((void *)(string_value(str)), string_length(str));
     }
   else
@@ -23853,6 +23844,9 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
     {
       port_file(port) = fp;
       port_type(port) = FILE_PORT;
+      port_data(port) = NULL;
+      port_data_size(port) = 0;
+      port_position(port) = 0;
       port_needs_free(port) = false;
       port_read_character(port) = file_read_char;
       port_read_line(port) = file_read_line;
@@ -23870,6 +23864,9 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
   port_file(port) = fp;
   port_type(port) = FILE_PORT;
   port_needs_free(port) = false;
+  port_data(port) = NULL;
+  port_data_size(port) = 0;
+  port_position(port) = 0;
   port_read_character(port) = file_read_char;
   port_read_line(port) = file_read_line;
   port_display(port) = input_display;
@@ -28505,24 +28502,31 @@ static s7_pointer check_ref11(s7_pointer p, const char *func, int32_t line)
 
 static s7_pointer check_sym(s7_scheme *sc, s7_pointer sym)
 {
-  if (!is_slot(local_slot(sym)))
-    fprintf(stderr, "%s local_slot: %s\n", DISPLAY(sym), DISPLAY(local_slot(sym)));
+  uint8_t typ;
+  typ = unchecked_type(local_slot(sym)); /* this is checking local_slot lookups, so local_slot should be a slot! */
+  if (typ == T_FREE)
+    fprintf(stderr, "%s is local, but local slot is free\n", DISPLAY(sym));
   else
     {
-      s7_pointer local_val, search_val;
-      local_val = slot_value(local_slot(sym));
-      search_val = find_symbol_checked(sc, sym);
-      if (local_val != search_val)
+      if (typ != T_SLOT)
+	fprintf(stderr, "%s local_slot: %s\n", DISPLAY(sym), DISPLAY(local_slot(sym)));
+      else
 	{
-	  fprintf(stderr, "local %s: %p %p ", symbol_name(sym), local_val, search_val);
-	  fprintf(stderr, "%s ", DISPLAY_80(local_val));
-	  fprintf(stderr, "%s", DISPLAY_80(search_val));
-	  fprintf(stderr, "\n");
-	  /* (let () (define (f x) x) (define* (f (y (f 1))) (+ y 1)) (f)) -> local y: 0x7f1082849098 0x7f1082849120 1 2 
-	   *   which depends on (+ ... 1)!
-	   */
+	  s7_pointer local_val, search_val;
+	  local_val = slot_value(local_slot(sym));
+	  search_val = find_symbol_checked(sc, sym);
+	  if (local_val != search_val)
+	    {
+	      fprintf(stderr, "local %s: %p %p ", symbol_name(sym), local_val, search_val);
+	      fprintf(stderr, "%s ", DISPLAY_80(local_val));
+	      fprintf(stderr, "%s", DISPLAY_80(search_val));
+	      fprintf(stderr, "\n");
+	      /* (let () (define (f x) x) (define* (f (y (f 1))) (+ y 1)) (f)) -> local y: 0x7f1082849098 0x7f1082849120 1 2 
+	       *   which depends on (+ ... 1)!
+	       */
+	    }
+	  return(local_val);
 	}
-      return(local_val);
     }
   return(sc->nil);
 }
@@ -30619,7 +30623,12 @@ static s7_pointer g_format_1(s7_scheme *sc, s7_pointer args)
 
   if (is_string(pt))
     return(format_to_port_1(sc, sc->F, string_value(pt), cdr(args), NULL, true, true, string_length(pt), pt));
-  if (is_null(pt)) pt = sc->output_port;     /* () -> (current-output-port) */
+  if (is_null(pt)) 
+    {
+      pt = sc->output_port;                  /* () -> (current-output-port) */
+      if (pt == sc->F)                       /*   otherwise () -> #f so we get a returned string, which is confusing */
+	return(pt);                          /*   but this means some error checks are skipped? */
+    }
 
   if (!((s7_is_boolean(pt)) ||               /* #f or #t */
 	((is_output_port(pt)) &&             /* (current-output-port) or call-with-open-file arg, etc */
@@ -42557,7 +42566,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    if (is_input_port(obj))
 	      s7_varlet(sc, let, s7_make_symbol(sc, "line"), g_port_line_number(sc, set_plist_1(sc, obj)));
 	  }
-	if ((port_data(obj)) &&  /* file port might not have a data buffer */
+	if ((is_string_port(obj)) && /* file port might not have a data buffer */
+	    (port_data(obj)) &&  
 	    (port_data_size(obj) > 0))
 	  {
 	    s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, port_data_size(obj)));
@@ -61950,13 +61960,9 @@ static inline void set_all_locals(s7_scheme *sc, s7_pointer tree, slist *args)
     {
       s7_pointer cp;
       cp = car(p);
-      if (is_symbol(cp))
+      if (is_symbol(cp)) /* local_slot even if a slot at this point can't be depended on -- it may be freed at any time even for immutable symbols */
 	{
-	  if ((memq_sym(sc, cp, args)) || 
-	      ((is_immutable(cp)) &&                         /* immutable (by itself) would work except for tricky cases like with-let (no local_slot! -- changed) */
-	       (unchecked_type(local_slot(cp)) == T_SLOT) && /* local_slot might be a free cell (so debugging free cell check is annoying) */
-	       ((is_number(slot_value(local_slot(cp)))) ||
-		(is_sequence(slot_value(local_slot(cp)))))))
+	  if (memq_sym(sc, cp, args))
 	    set_local_symbol(p);
 	}
       else 
@@ -67792,12 +67798,8 @@ static void unwind_output_ex(s7_scheme *sc)
 
 static void unwind_input_ex(s7_scheme *sc)
 {
-#if DEBUGGING
-  if (!is_input_port(sc->code))
-    fprintf(stderr, "unwind no input\n");
-#endif
-  if ((is_input_port(sc->code)) &&
-      (!port_is_closed(sc->code)))
+  /* sc->code is an input port */
+  if (!port_is_closed(sc->code))
     s7_close_input_port(sc, sc->code);
   
   if ((is_input_port(sc->args)) &&
@@ -68645,21 +68647,15 @@ static int32_t define1_ex(s7_scheme *sc)
 {	  
   /* sc->code is the symbol being defined, sc->value is its value
    *   if sc->value is a closure, car is of the form ((args...) body...)
-   *   so the doc string if any is (cadr (car value))
-   *   and the arg list gives the number of optional args up to the dot
-   *
    * it's not possible to expand and replace macros at this point without evaluating
    *   the body.  Just as examples, say we have a macro "mac",
    *   (define (hi) (call/cc (lambda (mac) (mac 1))))
    *   (define (hi) (quote (mac 1))) or macroexpand etc
    *   (define (hi mac) (mac 1)) assuming mac here is a function passed as an arg, etc...
-   */
-  
-  /* the immutable constant check needs to wait until we have the actual new value because
+   * the immutable constant check needs to wait until we have the actual new value because
    *   we want to ignore the rebinding (not raise an error) if it is the existing value.
    *   This happens when we reload a file that calls define-constant.
    */
-  /* sc->code is a symbol at this point */
   if (is_constant_symbol(sc, sc->code))                                  /* (define pi 3) or (define (pi a) a) */
     {
       s7_pointer x;
@@ -68667,12 +68663,15 @@ static int32_t define1_ex(s7_scheme *sc)
       if (is_slot(global_slot(sc->code)))
 	x = global_slot(sc->code); 
       else x = find_symbol(sc, sc->code);  /* local_slot can be free even if sc->code is immutable (local constant now defunct) */
+#if 0
       if (!is_slot(x))
 	{
-	  if ((is_slot(local_slot(sc->code))) &&
+	  if (/* (is_slot(local_slot(sc->code))) -- this can be free! */
+	      (unchecked_type(local_slot(sc->code)) == T_SLOT) && /* but this is gc dependent */
 	      (type(sc->value) == unchecked_type(slot_value(local_slot(sc->code)))))
 	    x = local_slot(sc->code);
 	}
+#endif
       if (!((is_slot(x)) &&
 	    (type(sc->value) == unchecked_type(slot_value(x))) &&
 	    (s7_is_morally_equal(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
@@ -69749,10 +69748,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-#if DEBUGGING
-	    if (sc->cur_op != OP_SIMPLE_DO_STEP)
-	      fprintf(stderr, "simple_do_step: %s\n", op_names[sc->cur_op]);
-#endif
 	    sc->code = _TPair(opt_pair2(code));
 	    goto BEGIN1;
 	  }
@@ -75885,6 +75880,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_OR_P:
 	  if (c_callee(sc->code))
 	    {
+#if DEBUGGING
+	      if (!has_all_x(sc->code))
+		fprintf(stderr, "callee: %s\n", DISPLAY(sc->code));
+#endif
 	      sc->value = c_call(sc->code)(sc, car(sc->code));
 	      if (is_true(sc, sc->value))
 		goto START;
@@ -83733,62 +83732,62 @@ s7_scheme *s7_init(void)
   s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");   
   /* (call-with-values (lambda () (values 1 2 3)) +) */
 
-  s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                            \n\
+  s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                        \n\
                           (list (cons 'lambda (cons vars body)) expression))");
 
-  s7_eval_c_string(sc, "(define-macro (cond-expand . clauses)                                                 \n\
-                          (letrec ((traverse (lambda (tree)                                                   \n\
-		                               (if (pair? tree)                                               \n\
-			                            (cons (traverse (car tree))                               \n\
-				                          (case (cdr tree) ((())) (else => traverse)))        \n\
-			                            (if (memq tree '(and or not else)) tree                   \n\
-			                                (and (symbol? tree) (provided? tree)))))))            \n\
-                            (cons 'cond (map (lambda (clause)                                                 \n\
-		                               (cons (traverse (car clause))                                  \n\
-			                             (case (cdr clause) ((()) '(#f)) (else))))                \n\
+  s7_eval_c_string(sc, "(define-macro (cond-expand . clauses)                                             \n\
+                          (letrec ((traverse (lambda (tree)                                               \n\
+		                               (if (pair? tree)                                           \n\
+			                            (cons (traverse (car tree))                           \n\
+				                          (case (cdr tree) ((())) (else => traverse)))    \n\
+			                            (if (memq tree '(and or not else)) tree               \n\
+			                                (and (symbol? tree) (provided? tree)))))))        \n\
+                            (cons 'cond (map (lambda (clause)                                             \n\
+		                               (cons (traverse (car clause))                              \n\
+			                             (case (cdr clause) ((()) '(#f)) (else))))            \n\
 		                             clauses))))");
 #endif
 
-  s7_eval_c_string(sc, "(define-expansion (reader-cond . clauses)                                             \n\
-                          (call-with-exit                                                                     \n\
-                            (lambda (return)                                                                  \n\
-                              (for-each                                                                       \n\
-                                (lambda (clause)                                                              \n\
-	                          (let ((val (eval (car clause))))                                            \n\
-                                    (when val                                                                 \n\
-                                      (return (cond ((null? (cdr clause)) val)                                \n\
-                                                    ((eq? (cadr clause) '=>) ((eval (caddr clause)) val))     \n\
-                                                    ((null? (cddr clause)) (cadr clause))                     \n\
-                                                    (else (apply values (map quote (cdr clause)))))))))       \n\
-                                clauses)                                                                      \n\
+  s7_eval_c_string(sc, "(define-expansion (reader-cond . clauses)                                         \n\
+                          (call-with-exit                                                                 \n\
+                            (lambda (return)                                                              \n\
+                              (for-each                                                                   \n\
+                                (lambda (clause)                                                          \n\
+	                          (let ((val (eval (car clause))))                                        \n\
+                                    (when val                                                             \n\
+                                      (return (cond ((null? (cdr clause)) val)                            \n\
+                                                    ((eq? (cadr clause) '=>) ((eval (caddr clause)) val)) \n\
+                                                    ((null? (cddr clause)) (cadr clause))                 \n\
+                                                    (else (apply values (map quote (cdr clause)))))))))   \n\
+                                clauses)                                                                  \n\
                               (values))))"); /* this is not redundant */
 
-  s7_eval_c_string(sc, "(define make-hook                                                                     \n\
-                          (let ((+signature+ '(procedure?))                                                   \n\
+  s7_eval_c_string(sc, "(define make-hook                                                                 \n\
+                          (let ((+signature+ '(procedure?))                                               \n\
                                 (+documentation+ \"(make-hook . pars) returns a new hook (a function) that passes the parameters to its function list.\")) \n\
-                            (lambda hook-args                                                                 \n\
-                              (let ((body ()))                                                                \n\
-                                (apply lambda* hook-args                                                      \n\
-                                  (copy '(let ((result #<unspecified>))                                       \n\
-                                           (let ((hook (curlet)))                                             \n\
-                                             (for-each (lambda (hook-function) (hook-function hook)) body)    \n\
-                                             result))                                                         \n\
-                                        :readable)                                                            \n\
+                            (lambda hook-args                                                             \n\
+                              (let ((body ()))                                                            \n\
+                                (apply lambda* hook-args                                                  \n\
+                                  (copy '(let ((result #<unspecified>))                                   \n\
+                                           (let ((hook (curlet)))                                         \n\
+                                             (for-each (lambda (hook-function) (hook-function hook)) body)\n\
+                                             result))                                                     \n\
+                                        :readable)                                                        \n\
                                   ())))))");
 
-  s7_eval_c_string(sc, "(define hook-functions                                                                \n\
-                          (let ((+signature+ '(#t procedure?))                                             \n\
+  s7_eval_c_string(sc, "(define hook-functions                                                            \n\
+                          (let ((+signature+ '(#t procedure?))                                            \n\
                                 (+documentation+ \"(hook-functions hook) gets or sets the list of functions associated with the hook\")) \n\
-                            (dilambda                                                                         \n\
-                              (lambda (hook)                                                                  \n\
-                                ((funclet hook) 'body))                                                       \n\
-                              (lambda (hook lst)                                                              \n\
-                                (if (do ((p lst (cdr p)))                                                     \n\
-                                        ((not (and (pair? p)                                                  \n\
-                                                   (procedure? (car p))                                       \n\
-                                                   (aritable? (car p) 1)))                                    \n\
-                                         (null? p)))                                                          \n\
-                                    (set! ((funclet hook) 'body) lst)                                         \n\
+                            (dilambda                                                                     \n\
+                              (lambda (hook)                                                              \n\
+                                ((funclet hook) 'body))                                                   \n\
+                              (lambda (hook lst)                                                          \n\
+                                (if (do ((p lst (cdr p)))                                                 \n\
+                                        ((not (and (pair? p)                                              \n\
+                                                   (procedure? (car p))                                   \n\
+                                                   (aritable? (car p) 1)))                                \n\
+                                         (null? p)))                                                      \n\
+                                    (set! ((funclet hook) 'body) lst)                                     \n\
                                     (error 'wrong-type-arg \"hook-functions must be a list of functions, each accepting one argument: ~S\" lst))))))");
 
 
@@ -83833,18 +83832,18 @@ s7_scheme *s7_init(void)
   sc->procedure_signature_symbol = s7_make_symbol(sc, "procedure-signature");
   sc->procedure_setter_symbol = s7_make_symbol(sc, "procedure-setter");
 
-  s7_eval_c_string(sc, "(begin                                                    \n\
-                          (define global-environment         rootlet)             \n\
-                          (define current-environment        curlet)              \n\
-                          (define make-procedure-with-setter dilambda)            \n\
-                          (define procedure-with-setter?     dilambda?)           \n\
-                          (define make-random-state          random-state)        \n\
-                          (define make-complex               complex)             \n\
-                          (define make-keyword               string->keyword)     \n\
-                          (define symbol-access              symbol-setter)       \n\
-                          (define procedure-setter           setter)              \n\
-                          (define procedure-signature        signature)           \n\
-                          (define procedure-documentation    documentation)       \n\
+  s7_eval_c_string(sc, "(begin                                                \n\
+                          (define global-environment         rootlet)         \n\
+                          (define current-environment        curlet)          \n\
+                          (define make-procedure-with-setter dilambda)        \n\
+                          (define procedure-with-setter?     dilambda?)       \n\
+                          (define make-random-state          random-state)    \n\
+                          (define make-complex               complex)         \n\
+                          (define make-keyword               string->keyword) \n\
+                          (define symbol-access              symbol-setter)   \n\
+                          (define procedure-setter           setter)          \n\
+                          (define procedure-signature        signature)       \n\
+                          (define procedure-documentation    documentation)   \n\
                           (define (procedure-arity obj) (let ((c (arity obj))) (list (car c) (- (cdr c) (car c)) (> (cdr c) 100000)))))");
 #endif
 #if DEBUGGING
@@ -83963,9 +83962,9 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1468
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475
  * teq           |      |      | 6612 || 2777 || 1931 | 1918
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2104
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2119
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
  * lint          |      |      |      || 4041 || 2702 | 2696
  * lg            |      |      |      || 211  || 133  | 133.7
@@ -83974,10 +83973,10 @@ int main(int argc, char **argv)
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966
  * tsort         |      |      |      || 8584 || 4111 | 4111
- * titer         |      |      |      || 5971 || 4646 | 4654
- * bench         |      |      |      || 7012 || 5093 | 5108
- * thash         |      |      | 50.7 || 8778 || 7697 | 7698
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.2
+ * titer         |      |      |      || 5971 || 4646 | 4646
+ * bench         |      |      |      || 7012 || 5093 | 5143
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7703
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0
  *                                    || 139  || 85.9 | 86.5
