@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/23 00:28:28
-\ Changed: 17/12/09 22:53:03
+\ Changed: 17/12/16 05:22:17
 \
-\ @(#)popup.fs	1.49 12/9/17
+\ @(#)popup.fs	1.50 12/16/17
 
 \ selection-popup-menu
 \ graph-popup-menu
@@ -684,7 +684,7 @@ let: ( -- menu )
 		"%6s %c: %.3f\n" #( "maxamp" [char] A i + mx ) string-format $+
 	end-each
 	snd comment empty? unless
-		" comment: %S\n" #( snd comment ) string-format $+
+		" comment: %s\n" #( snd comment ) string-format $+
 	then
 	snd file-name mus-sound-loop-info { loops }
 	loops nil? unless

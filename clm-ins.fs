@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 06/02/03 10:36:51
-\ Changed: 17/12/02 03:50:06
+\ Changed: 17/12/22 07:52:33
 \
-\ @(#)clm-ins.fs	1.50 12/2/17
+\ @(#)clm-ins.fs	1.51 12/22/17
 
 \ jc-reverb	( keyword-args -- )
 \ violin	( start dur freq amp keyword-args -- )
@@ -57,21 +57,6 @@
 require	clm
 require env
 
-\ Prevent name clash with possibly loaded sndins.so.
-\ sndins.so instruments can be called with fm-violin-ins etc.
-[ifdef] fm-violin
-	<'> fm-violin alias fm-violin-ins
-	<'> fm-violin-ins <'> fm-violin help-ref help-set!
-[then]
-[ifdef] jc-reverb
-	<'> jc-reverb alias jc-reverb-ins
-	<'> jc-reverb-ins <'> jc-reverb help-ref help-set!
-[then]
-[ifdef] nrev
-	<'> nrev alias nrev-ins
-	<'> nrev-ins <'> nrev help-ref help-set!
-[then]
-
 \ General input function for src, granulate etc.
 : readin-cb { gen -- prc; dir self -- val }
 	1 proc-create ( prc )
@@ -80,30 +65,85 @@ require env
 	self @ ( gen ) readin
 ;
 
-: reverb-dur ( rev -- dur )
-	mus-length samples->seconds *clm-decay-time* f+
+hide
+: (jc-reverb-simple) { flts allpasses combs volume dur -- }
+	flts length 1 = if
+		flts 0 array-ref { gen }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			volume f*			( val )
+			gen swap 0.0 delay		( samp )
+		end-run-reverb-out-1
+	else
+		flts 0 array-ref { gen1 }
+		flts 1 array-ref { gen2 }
+		0.0 { val }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			volume f* to val
+			gen2 val 0.0 delay		( samp2 )
+			gen1 val 0.0 delay		( samp1 samp2 )
+		end-run-reverb-out-2
+	then
 ;
 
-\ clm/jcrev.ins
-instrument: jc-reverb-fs <{ :key
-    volume 1.0
-    delay1 0.013
-    delay2 0.011
-    delay3 0.015
-    delay4 0.017
-    low-pass #f
-    doubled #f
-    amp-env #f -- }>
+: (jc-reverb-env) { envA flts allpasses combs volume dur -- }
+	flts length 1 = if
+		flts 0 array-ref { gen }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			envA env f*			( val )
+			gen swap 0.0 delay		( samp )
+		end-run-reverb-out-1
+	else
+		flts 0 array-ref { gen1 }
+		flts 1 array-ref { gen2 }
+		0.0 { val }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			envA env f* to val
+			gen2 val 0.0 delay		( samp2 )
+			gen1 val 0.0 delay		( samp1 samp2 )
+		end-run-reverb-out-2
+	then
+;
+
+: (jc-reverb-fir) { flt envA flts allpasses combs volume dur -- }
+	flts length 1 = if
+		flts 0 array-ref { gen }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			flt       swap fir-filter	( val )
+			envA env f*			( val )
+			gen swap 0.0 delay		( samp )
+		end-run-reverb-out-1
+	else
+		flts 0 array-ref { gen1 }
+		flts 1 array-ref { gen2 }
+		0.0 { val }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val )
+			combs     swap comb-bank	( val )
+			flt       swap fir-filter	( val )
+			envA env f* to val
+			gen2 val 0.0 delay		( samp2 )
+			gen1 val 0.0 delay		( samp1 samp2 )
+		end-run-reverb-out-2
+	then
+;
+set-current
+
+\ clm/jcrev.ins and snd/jcrev.scm
+instrument: jc-reverb <{ :key low-pass #f volume 1.0 amp-env #f -- }>
 	doc" The Chowning reverb.\n\
 0 1 440 0.2 <'> fm-violin :reverb <'> jc-reverb with-sound\n\
 0 1 440 0.2 <'> fm-violin\n\
 :reverb-data #( :low-pass #t ) :reverb <'> jc-reverb :channels 2 with-sound."
-	*output* channels { chans }
-	*reverb* channels { rev-chans }
-	*reverb* reverb-dur { dur }
-	*verbose* if
-		get-func-name rev-chans chans reverb-info
-	then
 	:feedback -0.7 :feedforward 0.7 :size 1051 make-all-pass { allpass1 }
 	:feedback -0.7 :feedforward 0.7 :size  337 make-all-pass { allpass2 }
 	:feedback -0.7 :feedforward 0.7 :size  113 make-all-pass { allpass3 }
@@ -111,77 +151,37 @@ instrument: jc-reverb-fs <{ :key
 	:scaler 0.733 :size 4999 make-comb { comb2 }
 	:scaler 0.715 :size 5399 make-comb { comb3 }
 	:scaler 0.697 :size 5801 make-comb { comb4 }
-	chans 1 > { chan2 }
-	chans 4 = { chan4 }
-	:size delay1 seconds->samples make-delay { outdel1 }
-	chan2 if
-		:size delay2 seconds->samples make-delay
+	*output* channels { chans }
+	*reverb* ws-framples samples->seconds *decay-time* f+ { dur }
+	chans 1 = if
+		\ XXX:	Building arrays like this
+		\	#( :size 0.013 seconds->samples make-delay )
+		\	doesn't work well with keyword functions.
+		:size 0.013 seconds->samples make-delay { dl }
+		#( dl )
 	else
-		#f
-	then { outdel2 }
-	doubled
-	chan4 || if
-		:size delay3 seconds->samples make-delay
-	else
-		#f
-	then { outdel3 }
-	chan4
-	doubled chan2 && || if
-		:size delay4 seconds->samples make-delay
-	else
-		#f
-	then { outdel4 }
-	amp-env if
-		:envelope amp-env :scaler volume :duration dur make-env
-	else
-		#f
-	then { env-a }
-	doubled chan4 && if
-		"jc-reverb is not set up for doubled reverb in quad" error
-	then
-	0.0 0.0 { comb-sum comb-sum-1 }
-	0.0 dur run
-		0.0 rev-chans 0 ?do
-			j i *reverb* in-any f+
-		loop { in-val }
-		allpass3 allpass2 allpass1 in-val
-		    0.0 all-pass 0.0 all-pass 0.0 all-pass { allpass-sum }
-		comb-sum-1 { comb-sum-2 }
-		comb-sum to comb-sum-1
-		    comb1 allpass-sum 0.0 comb
-		    comb2 allpass-sum 0.0 comb f+
-		    comb3 allpass-sum 0.0 comb f+
-		    comb4 allpass-sum 0.0 comb f+ to comb-sum
+		:size 0.013 seconds->samples make-delay { dl1 }
+		:size 0.011 seconds->samples make-delay { dl2 }
+		#( dl1 dl2 )
+	then { flts }
+	#( comb1 comb2 comb3 comb4 ) make-comb-bank { combs }
+	#( allpass1 allpass2 allpass3 ) make-all-pass-bank { allpasses }
+	amp-env low-pass || if
+		amp-env unless
+			'( 0 1 1 1 ) to amp-env
+		then
+		:envelope amp-env :scaler volume :duration dur make-env { envA }
 		low-pass if
-			comb-sum comb-sum-2 f+ 0.25 f* comb-sum-1 f2/ f+
+			3 vct( 0.25 0.5 0.25 ) make-fir-filter ( flt )
+			envA flts allpasses combs volume dur (jc-reverb-fir)
 		else
-			comb-sum
-		then { all-sums }
-		outdel1 all-sums 0.0 delay { del-a }
-		doubled if
-			outdel3 all-sums 0.0 delay del-a f+ to del-a
+			envA flts allpasses combs volume dur (jc-reverb-env)
 		then
-		env-a ?dup-if
-			env to volume
-		then
-		i del-a volume f* *output* outa drop
-		chan2 if
-			outdel2 all-sums 0.0 delay { del-b }
-			doubled if
-				outdel4 all-sums 0.0 delay del-b f+ to del-b
-			then
-			i del-b volume f* *output* outb drop
-		then
-		chan4 if
-			i outdel3 all-sums 0.0 delay
-			    volume f* *output* outc drop
-			i outdel4 all-sums 0.0 delay
-			    volume f* *output* outd drop
-		then
-	loop
+	else
+		flts allpasses combs volume dur (jc-reverb-simple)
+	then
 ;instrument
-<'> jc-reverb-fs alias jc-reverb
-<'> jc-reverb <'> jc-reverb-fs help-ref help-set!
+previous
 
 \ snd/fm.html
 instrument: violin <{ start dur freq amp :key
@@ -229,7 +229,7 @@ instrument: violin <{ start dur freq amp :key
 ;
 
 \ === FM-Violin (clm/v.ins, snd/v.scm|rb) ===
-instrument: fm-violin-fs <{ start dur freq amp :key
+instrument: fm-violin <{ start dur freq amp :key
     fm-index 1.0
     amp-env #( 0 0 25 1 75 1 100 0 )
     periodic-vibrato-rate 5.0
@@ -430,8 +430,6 @@ instrument: fm-violin-fs <{ start dur freq amp :key
 		end-run
 	then
 ;
-<'> fm-violin-fs alias fm-violin
-<'> fm-violin <'> fm-violin-fs help-ref help-set!
 
 : fm-violin-test <{ :optional start 0.0 dur 1.0 -- }>
 	start now!
@@ -1663,6 +1661,54 @@ instrument: canter <{ start dur pitch amp
 	4.4 step
 ;
 
+hide
+: (nrev-one) { flts combs allpasses allpass4 low volume dur -- }
+	flts 0 array-ref { gen }
+	dur run-reverb					( in-val )
+		volume f*				( val )
+		combs     swap comb-bank		( val )
+		allpasses swap all-pass-bank		( val ) 
+		low       swap one-pole			( val )
+		allpass4  swap 0.0 all-pass		( val )
+		gen       swap 0.0 all-pass		( samp )
+	end-run-reverb-out-1
+;
+
+: (nrev-two) { flts combs allpasses allpass4 low volume dur -- }
+	flts 0 array-ref { gen1 }
+	flts 1 array-ref { gen2 }
+	0.0 { val }
+	dur run-reverb					( in-val )
+		volume f*				( val )
+		combs     swap comb-bank		( val )
+		allpasses swap all-pass-bank		( val ) 
+		low       swap one-pole			( val )
+		allpass4  swap 0.0 all-pass to val
+		gen1 val 0.0 all-pass			( samp1 )
+		gen2 val 0.0 all-pass			( samp1 samp2 )
+	end-run-reverb-out-2
+;
+
+: (nrev-quad) { flts combs allpasses allpass4 low volume dur -- }
+	flts 0 array-ref { gen1 }
+	flts 1 array-ref { gen2 }
+	flts 2 array-ref { gen3 }
+	flts 3 array-ref { gen4 }
+	0.0 { val }
+	dur run-reverb					( in-val )
+		volume f*				( val )
+		combs     swap comb-bank		( val )
+		allpasses swap all-pass-bank		( val ) 
+		low       swap one-pole			( val )
+		allpass4  swap 0.0 all-pass to val
+		gen1 val 0.0 all-pass			( s1 )
+		gen2 val 0.0 all-pass			( s1 s2 )
+		gen3 val 0.0 all-pass			( s1 s2 s3 )
+		gen4 val 0.0 all-pass			( s1 s2 s3 s4 )
+	end-run-reverb-out-4
+;
+set-current
+
 \ NREV (the most popular Samson box reverb)
 \ 
 \ REVERB-FACTOR controls the length of the decay -- it should not
@@ -1670,24 +1716,16 @@ instrument: canter <{ start dur pitch amp
 \ filter inserted in the feedback loop, VOLUME can be used to boost the
 \ reverb output.
 \ 
-\ clm/nrev.ins
-instrument: nrev-fs <{ :key
-    reverb-factor 1.09
-    lp-coeff 0.7
-    lp-out-coeff 0.85
-    output-scale 1.0
-    volume 1.0
-    amp-env #( 0 1 1 1 ) -- }>
+\ clm/nrev.ins and snd/nrev.scm
+instrument: nrev <{ :key reverb-factor 1.09 lp-coeff 0.7 volume 1.0 -- }>
 	doc" NREV (the most popular Samson box reverb).\n\
+REVERB-FACTOR controls the length of the decay -- it should not \
+exceed (/ 1.0 .823), LP-COEFF controls the strength of the low pass \
+filter inserted in the feedback loop, VOLUME can be used to boost the \
+reverb output.\n\
 <'> fm-violin-test :reverb <'> nrev with-sound."
-	*output* channels { chans }
-	*reverb* channels { rev-chans }
-	*reverb* reverb-dur { dur }
-	*verbose* if
-		get-func-name rev-chans chans reverb-info
-	then
 	mus-srate 25641.0 f/ { sr }
-	#( 1433 1601 1867 2053 2251 2399 347 113 37 59 43 37 29 19 ) map
+	#( 1433 1601 1867 2053 2251 2399 347 113 37 59 53 43 37 29 19 ) map
 		sr *key* f* f>s dup 2 mod unless
 			1+
 		then ( val )
@@ -1698,82 +1736,58 @@ instrument: nrev-fs <{ :key
 		repeat ( val )
 	end-map { dly-len }
 	:scaler 0.822 reverb-factor f*
-	    :size dly-len 0 array-ref make-comb { comb0 }
+	:size dly-len 0 array-ref make-comb { comb1 }
 	:scaler 0.802 reverb-factor f*
-	    :size dly-len 1 array-ref make-comb { comb1 }
+	:size dly-len 1 array-ref make-comb { comb2 }
 	:scaler 0.773 reverb-factor f*
-	    :size dly-len 2 array-ref make-comb { comb2 }
+	:size dly-len 2 array-ref make-comb { comb3 }
 	:scaler 0.753 reverb-factor f*
-	    :size dly-len 3 array-ref make-comb { comb3 }
+	:size dly-len 3 array-ref make-comb { comb4 }
 	:scaler 0.753 reverb-factor f*
-	    :size dly-len 4 array-ref make-comb { comb4 }
+	:size dly-len 4 array-ref make-comb { comb5 }
 	:scaler 0.733 reverb-factor f*
-	    :size dly-len 5 array-ref make-comb { comb5 }
+	:size dly-len 5 array-ref make-comb { comb6 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 6 array-ref make-all-pass { allp0 }
+	:size dly-len 6 array-ref make-all-pass { allpass1 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 7 array-ref make-all-pass { allp1 }
+	:size dly-len 7 array-ref make-all-pass { allpass2 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 8 array-ref make-all-pass { allp2 }
+	:size dly-len 8 array-ref make-all-pass { allpass3 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 9 array-ref make-all-pass { allp3 }
+	:size dly-len 9 array-ref make-all-pass { allpass4 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 10 array-ref make-all-pass { allp4 }
+	:size dly-len 11 array-ref make-all-pass { allpass5 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 11 array-ref make-all-pass { allp5 }
+	:size dly-len 12 array-ref make-all-pass { allpass6 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 12 array-ref make-all-pass { allp6 }
+	:size dly-len 13 array-ref make-all-pass { allpass7 }
 	:feedback -0.7 :feedforward 0.7
-	    :size dly-len 13 array-ref make-all-pass { allp7 }
+	:size dly-len 14 array-ref make-all-pass { allpass8 }
 	lp-coeff lp-coeff 1.0 f- make-one-pole { low }
-	lp-out-coeff lp-coeff 1.0 f- make-one-pole { low-a }
-	lp-out-coeff lp-coeff 1.0 f- make-one-pole { low-b }
-	lp-out-coeff lp-coeff 1.0 f- make-one-pole { low-c }
-	lp-out-coeff lp-coeff 1.0 f- make-one-pole { low-d }
-	:envelope amp-env :scaler output-scale :duration dur make-env { ampf }
-	0.0 dur run
-		0.0 ( rev ) rev-chans 0 ?do
-			j i *reverb* in-any f+
-		loop volume f* ampf env f* { rev }
-		0.0 ( outrev )
-		    comb0 rev 0.0 comb f+
-		    comb1 rev 0.0 comb f+
-		    comb2 rev 0.0 comb f+
-		    comb3 rev 0.0 comb f+
-		    comb4 rev 0.0 comb f+
-		    comb5 rev 0.0 comb f+ { outrev }
-		allp2 allp1 allp0 outrev 0.0 all-pass 0.0 all-pass
-		    0.0 all-pass to outrev
-		allp3 low outrev one-pole 0.0 all-pass to outrev
-		low-a allp4 outrev 0.0 all-pass
-		    one-pole output-scale f* { sample-a }
-		low-b allp5 outrev 0.0 all-pass
-		    one-pole output-scale f* { sample-b }
-		low-c allp6 outrev 0.0 all-pass
-		    one-pole output-scale f* { sample-c }
-		low-d allp7 outrev 0.0 all-pass
-		    one-pole output-scale f* { sample-d }
+	*output* channels { chans }
+	*reverb* ws-framples samples->seconds *decay-time* f+ { dur }
+	chans 1 = if
+		#( allpass5 )
+	else
 		chans 2 = if
-			i sample-a sample-d f+ f2/ *output* outa drop
+			#( allpass5 allpass6 )
 		else
-			i sample-a *output* outa drop
+			#( allpass5 allpass6 allpass7 allpass8 )
 		then
-		chans 2 =
-		chans 4 = || if
-			chans 2 = if
-				i sample-b sample-c f+ f2/ *output* outb drop
-			else
-				i sample-b *output* outb drop
-			then
+	then { flts }
+	#( comb1 comb2 comb3 comb4 comb5 comb6 ) make-comb-bank { combs }
+	#( allpass1 allpass2 allpass3 ) make-all-pass-bank { allpasses }
+	chans 1 = if
+		flts combs allpasses allpass4 low volume dur (nrev-one)
+	else
+		chans 2 = if
+			flts combs allpasses allpass4 low volume dur (nrev-two)
+		else
+			flts combs allpasses allpass4 low volume dur (nrev-quad)
 		then
-		chans 4 = if
-			i sample-c *output* outc drop
-			i sample-d *output* outd drop
-		then
-	loop
+	then
 ;instrument
-<'> nrev-fs alias nrev
-<'> nrev <'> nrev-fs help-ref help-set!
+previous
 
 #( "reson-carriers"
    "reson-ampfs"
@@ -1966,60 +1980,36 @@ instrument: cellon <{ start dur pitch0 amp ampfun
 ;
 
 \ JL-REVERB
-instrument: jl-reverb <{ -- }>
-	*output* channels { chans }
-	*reverb* channels { rev-chans }
-	*reverb* reverb-dur { dur }
-	*verbose* if
-		get-func-name rev-chans chans reverb-info
-	then
+instrument: jl-reverb <{ :key decay 3.0 volume 1.0 -- }>
 	:feedback -0.7 :feedforward 0.7 :size 2111 make-all-pass { allpass1 }
-	:feedback -0.7 :feedforward 0.7 :size 673 make-all-pass { allpass2 }
-	:feedback -0.7 :feedforward 0.7 :size 223 make-all-pass { allpass3 }
-	:scaler 0.742 :size 9601 make-comb { comb1 }
+	:feedback -0.7 :feedforward 0.7 :size  673 make-all-pass { allpass2 }
+	:feedback -0.7 :feedforward 0.7 :size  223 make-all-pass { allpass3 }
+	:scaler 0.742 :size  9601 make-comb { comb1 }
 	:scaler 0.733 :size 10007 make-comb { comb2 }
 	:scaler 0.715 :size 10799 make-comb { comb3 }
 	:scaler 0.697 :size 11597 make-comb { comb4 }
 	:size 0.013 seconds->samples make-delay { outdel1 }
-	chans 1 > if
-		:size 0.011 seconds->samples make-delay
+	:size 0.011 seconds->samples make-delay { outdel2 }
+	#( comb1 comb2 comb3 comb4 ) make-comb-bank { combs }
+	#( allpass1 allpass2 allpass3 ) make-all-pass-bank { allpasses }
+	*reverb* ws-framples samples->seconds decay f+ { dur }
+	*output* channels 1 = if
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val ) 
+			combs     swap comb-bank	( val )
+			volume f*			( val )
+			outdel1   swap 0.0 delay	( samp )
+		end-run-reverb-out-1
 	else
-		#f
-	then { outdel2 }
-	chans 2 > if
-		:size 0.015 seconds->samples make-delay
-	else
-		#f
-	then { outdel3 }
-	chans 3 > if
-		:size 0.017 seconds->samples make-delay
-	else
-		#f
-	then { outdel4 }
-	0.0 { allpass-sum }
-	0.0 { all-sums }
-	0.0 dur run
-		0.0 ( sum )
-		rev-chans 0 ?do
-			j i *reverb* in-any f+ ( sum += ... )
-		loop { in-val }
-		allpass3 allpass2 allpass1 in-val 0.0 all-pass
-		    0.0 all-pass 0.0 all-pass to allpass-sum
-		comb1 allpass-sum 0.0 comb
-		    comb2 allpass-sum 0.0 comb f+
-		    comb3 allpass-sum 0.0 comb f+
-		    comb4 allpass-sum 0.0 comb f+ to all-sums
-		i outdel1 all-sums 0.0 delay *output* outa drop
-		outdel2 if
-			i outdel2 all-sums 0.0 delay *output* outb drop
-		then
-		outdel3 if
-			i outdel3 all-sums 0.0 delay *output* outc drop
-		then
-		outdel4 if
-			i outdel4 all-sums 0.0 delay *output* outd drop
-		then
-	loop
+		0.0 { val }
+		dur run-reverb				( in-val )
+			allpasses swap all-pass-bank	( val ) 
+			combs     swap comb-bank	( val )
+			volume f* to val
+			outdel1   val 0.0 delay		( samp1 )
+			outdel2   val 0.0 delay		( samp1 samp2 )
+		end-run-reverb-out-2
+	then
 ;instrument
 
 \ GRAN-SYNTH

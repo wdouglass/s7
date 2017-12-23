@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/07/05 13:09:37
-\ Changed: 17/12/01 00:14:41
+\ Changed: 17/12/15 06:14:01
 \
-\ @(#)examp.fs	1.69 12/1/17
+\ @(#)examp.fs	1.70 12/15/17
 
 \ With original comments and doc strings from examp.scm.
 \
@@ -75,8 +75,8 @@
 \ hello-dentist		( frq amp :optional snd chn -- vct )
 \ fp			( sr osamp osfrq :optional snd chn -- vct )
 \ compand		( -- prc; y self -- val )
-\ expsrc		( rate :optional snd chn -- val )
-\ expsnd		( gr-env :optional snd chn -- vct )
+\ expsrc		( rate snd chn -- val )
+\ expsnd		( gr-env snd chn -- vct )
 \ cross-synthesis	( cross-snd amp fftsize r -- prc; y self -- val )
 \ voiced->unvoiced	( amp fftsize r tempo :optional snd chn -- vct )
 \ pulse-voice		( cos :optional freq amp fftsize r snd chn -- vct )
@@ -1526,23 +1526,15 @@ vct( -1.000 -0.960 -0.900 -0.820
 \ ;;;   In this case, src calls granulate which reads the currently
 \ ;;;   selected file.  CLM version is in expsrc.ins
 
-hide
-: expgr-cb { v snd chn -- prc; dir self -- val }
+\ general reader for expsrc, expsnd, cnvtest
+: sampler-cb { rd -- prc; dir self -- val }
 	1 proc-create ( prc )
-	v , snd , chn , 0 ,
+	rd ,
   does> { dir self -- val }
-	self @ { v }
-	v cycle-ref ( val )
-	v cycle-start@ 0= if
-		self cell+ @ { snd }
-		self 2 cells + @ { chn }
-		self 3 cells + @ { vbeg }
-		vbeg v vct-length + dup self 3 cells + ! ( vbeg += v-len )
-		vbeg v vct-length snd chn #f channel->vct drop
-	then
-	( val )
+	self @ ( rd ) next-sample
 ;
 
+hide
 : expsr-cb { gr -- prc; dir self -- val }
 	1 proc-create ( prc )
 	gr ,
@@ -1551,17 +1543,33 @@ hide
 ;
 set-current
 
-: expsrc <{ rate :optional snd #f chn #f -- val }>
+: expsrc { rate snd chn -- prc; y self -- val }
 	doc" Use sampling-rate conversion and granular synthesis to \
 produce a sound at a new pitch but at the original tempo.  \
 It returns a function for map-channel."
-	0 1024 snd chn #f channel->vct { v }
-	:input v snd chn expgr-cb :expansion rate make-granulate { gr }
+	0 snd chn 1 #f make-sampler { rd }
+	:input rd sampler-cb :expansion rate make-granulate { gr }
 	:input gr expsr-cb :srate rate make-src { sr }
 	1 proc-create ( prc )
 	sr ,
   does> { y self -- val }
 	self @ ( sr ) 0.0 #f src
+;
+
+\ 0.5       expsrc-test		- current sound and channel
+\ 2.0 #f #t expsrc-test		- current sound and all channels
+\ 2.0  0  0 expsrc-test		- sound 0 and channel 0
+: expsrc-test <{ rate :optional snd #f chn #f start 0 dur #f -- }>
+	"%s %s %s expsrc %s %s map-channel"
+	'( rate snd chn start dur ) string-format { origin }
+	chn true? if
+		snd channels 0 do
+			rate snd i expsrc start dur snd i #f origin
+			    map-channel drop
+		loop
+	else
+		rate snd chn expsrc start dur snd chn #f origin map-channel drop
+	then
 ;
 previous
 
@@ -1569,26 +1577,17 @@ previous
 \ ;;; duration will depend on the expansion envelope -- we integrate it to get
 \ ;;; the overall expansion, then use that to decide the new length.
 
-hide
-: es-input-cb { sf -- prc; dir self -- val }
-	1 proc-create ( prc )
-	sf ,
-  does> { dir self -- val }
-	self @ ( sf ) next-sample
-;
-set-current
-
-: expsnd <{ gr-env :optional snd #f chn #f -- vct }>
+: expsnd { gr-env snd chn -- vct }
 	doc" Use the granulate generator to change tempo \
 according to an envelope:\n\
-#( 0 0.5 2 2.0 ) #f #f expsnd."
+'( 0 0.5 2 2.0 ) #f #f expsnd."
 	snd chn #f framples { len }
 	len snd srate f/ gr-env integrate-envelope f*
 	    gr-env envelope-last-x f/ { dur }
-	0 snd chn 1 #f make-sampler { sf }
-	:expansion gr-env 1 array-ref
+	0 snd chn 1 #f make-sampler { rd }
+	:expansion gr-env cadr
 	    :jitter 0
-	    :input sf es-input-cb make-granulate { gr }
+	    :input rd sampler-cb make-granulate { gr }
 	:envelope gr-env :duration dur make-env { ge }
 	snd srate dur f* fround->s { sound-len }
 	sound-len len max to len
@@ -1597,9 +1596,21 @@ according to an envelope:\n\
 		gr #f granulate ( val )
 		gr ge env set-mus-increment drop
 	end-map ( out-data ) 0 len snd chn #f origin vct->channel ( vct )
-	sf free-sampler drop
+	rd free-sampler drop
 ;
-previous
+
+\ '( 0 0.5 2 2.0 )       expsnd-test	- current sound and channel
+\ '( 0 0.5 2 2.0 ) #f #t expsnd-test	- current sound and all channels
+\ '( 0 0.5 2 2.0 )  0  0 expsnd-test	- sound 0 and channel 0
+: expsnd-test <{ gr-env :optional snd #f chn #f -- }>
+	chn true? if
+		snd channels 0 do
+			gr-env snd i expsnd drop
+		loop
+	else
+		gr-env snd chn expsnd drop
+	then
+;
 
 \ ;;; -------- cross-synthesis
 \ ;;;
@@ -1615,126 +1626,151 @@ and the currently selected sound:\n\
 	fftsize 0.0 make-vct { fdi }
 	freq-inc 0.0 make-vct { spectr }
 	1.0 r fftsize f/ f- { radius }
-	#f srate fftsize / { bin }
+	mus-srate { osr }
+	#f srate { csr }
+	csr fftsize / { bin }
+	\ The comment from examp.scm applies of course here as well:
+	\ ;; if mus-srate is 44.1k and srate is 48k, make-formant
+	\ ;;    thinks we're trying to go past srate/2
+	\ ;;    and in any case it's setting its formants incorrectly
+	\ ;;    for the actual output srate
+	\ begin of temporary mus-srate
+	csr set-mus-srate drop
 	freq-inc make-array map!
-	  i bin * radius make-formant
-	end-map spectr make-formant-bank { formants }
+		:radius radius :frequency bin i * make-formant
+	end-map ( formants ) spectr make-formant-bank { formants }
+	osr set-mus-srate drop
+	\ end of temporary mus-srate
 	1 proc-create ( prc )
 	fdr , fdi , spectr , formants ,
 	amp , freq-inc , cross-snd , fftsize , 0 ,
   does> { y self -- val }
-	self @ { fdr }
-	self cell+ @ { fdi }
+	self           @ { fdr }
+	self    cell+  @ { fdi }
 	self 2 cells + @ { spectr }
 	self 3 cells + @ { formants }
 	self 4 cells + @ { amp }
 	self 5 cells + @ { ctr }
-	ctr formants length = if
-		self 6 cells + @ { cross-snd }
-		self 7 cells + @ { fftsize }
-		self 8 cells + @ { inctr }
+	self 6 cells + @ { cross-snd }
+	self 7 cells + @ { fftsize }
+	self 8 cells + @ { inctr }
+	fftsize 2/ { freq-inc }
+	ctr freq-inc = if
 		inctr fftsize cross-snd 0 #f channel->vct dup self ! to fdr
-		inctr fftsize 2/ + self 8 cells + ! ( inctr += freq-inc )
+		inctr freq-inc + self 8 cells + ! ( inctr += freq-inc )
 		fdr fdi #f 2 spectrum ( fdr )
-		    spectr vct-subtract! ( fdr ) fftsize 2/ 1/f
-		vct-scale! drop
+		    spectr vct-subtract! ( fdr )
+		    fftsize 2/ 1/f vct-scale! drop
 		0 self 5 cells + ! ( ctr = 0 )
 	then
-	1 self 5 cells + +! ( ctr++ )
+	ctr 1+ self 5 cells + ! ( ctr++ )
 	spectr fdr 0 vct-add! drop
-	formants y formant-bank amp f*
+	formants y formant-bank amp f* ( val )
 ;
 
 : voiced->unvoiced <{ amp fftsize r tempo :optional snd #f chn #f -- vct }>
-	doc" Turn vocal sound into \
-whispering: 1.0 256 2.0 2.0 #f #f voiced->unvoiced."
+	doc" Turn a vocal sound into whispering: \
+1.0 256 2.0 2.0 #f #f voiced->unvoiced."
 	fftsize 2/ { freq-inc }
+	snd chn #f framples { len }
+	len tempo f/ fround->s { out-len }
 	nil { fdr }
 	fftsize 0.0 make-vct { fdi }
 	freq-inc 0.0 make-vct { spectr }
-	snd srate 3.0 f/ make-rand { noi }
-	0 { inctr }
+	mus-srate { osr }
+	snd srate { csr }
+	\ See cross-synthesis above.
+	\ begin of temporary mus-srate
+	csr set-mus-srate drop
+	csr fftsize / { bin }
 	1.0 r fftsize f/ f- { radius }
-	snd srate fftsize / { bin }
-	snd chn #f framples { len }
-	len tempo f/ fround->s len max { out-len }
+	freq-inc make-array map!
+		:radius radius :frequency bin i * make-formant
+	end-map ( formants ) spectr make-formant-bank { formants }
+	osr set-mus-srate drop
+	\ end of temporary mus-srate
+	csr 3.0 f/ make-rand { noi }
+	0 0 { ctr inctr }
 	freq-inc tempo f* fround->s { hop }
-	0.0 0.0 { old-peak-amp new-peak-amp }
+	0.0 { old-peak-amp }
+	2.0 freq-inc f/ { 2/freq-inc }
+ 	len out-len max 0.0 make-vct { out-data }
+	out-len 0 do
+		out-len i - freq-inc min to ctr
+		ctr odd? if ctr -1 to ctr then
+		inctr fftsize snd chn #f channel->vct to fdr
+		fdr vct-peak old-peak-amp fmax to old-peak-amp
+		fdr fdi #f 2 spectrum ( fdr )
+		    spectr vct-subtract! ( fdr )
+		    2/freq-inc vct-scale! drop
+		hop inctr + to inctr
+		i { idx }
+		ctr 0 ?do
+			spectr fdr 0 vct-add! drop
+			out-data idx
+			    formants noi 0.0 rand formant-bank
+			    vct-set! drop
+			out-data idx 1+
+			    formants noi 0.0 rand formant-bank
+			    vct-set! drop
+			idx 2 + to idx
+		2 +loop
+	freq-inc +loop
 	"%s %s %s %s %s"
 	    #( amp fftsize r tempo get-func-name ) string-format { origin }
-	freq-inc make-array map!
-		i bin * radius make-formant
-	end-map ( formants ) spectr make-formant-bank { formants }
-	freq-inc 1/f { 1/freq-inc }
-
- 	out-len 0.0 make-vct map!
- 		i freq-inc mod 0= if
- 			inctr fftsize snd chn #f channel->vct to fdr
- 			fdr vct-peak old-peak-amp fmax to old-peak-amp
- 			fdr fdi #f 2 spectrum ( fdr )
- 			    spectr vct-subtract! ( fdr )
- 			    1/freq-inc vct-scale! drop
- 			hop inctr + to inctr
- 		then
- 		spectr fdr 0 vct-add! drop
-		formants noi 0.0 rand formant-bank ( outval )
- 	end-map { out-data }
 	out-data old-peak-amp out-data vct-peak f/ amp f* vct-scale! ( odata )
- 	    0 out-len snd chn #f origin vct->channel ( odata )
+ 	    0 len out-len max snd chn #f origin vct->channel ( odata )
 ;
 
 : pulse-voice
     <{ co :optional freq 440.0 amp 1.0 fftsize 256 r 2.0 snd #f chn #f -- vct }>
-	doc" Use sum-of-cosines to manipulate speech sounds."
+	doc" Use ncos to manipulate speech sounds."
 	fftsize 2/ { freq-inc }
-	fftsize 0.0 make-vct { fdr }
-	fftsize 0.0 make-vct { fdi }
 	freq-inc 0.0 make-vct { spectr }
-	:cosines co :frequency freq make-sum-of-cosines { pulse }
-	0 { inctr }
-	1.0 r fftsize f/ f- { radius }
-	snd srate fftsize / { bin }
 	snd chn #f framples { len }
-	0.0 0.0 { old-peak-amp new-peak-amp }
-	"%s %s %s %s %s %s"
-	    #( co freq amp fftsize r get-func-name ) string-format { origin }
+	mus-srate { osr }
+	snd srate { csr }
+	\ See cross-synthesis above.
+	\ begin of temporary mus-srate
+	csr set-mus-srate drop
+	csr fftsize / { bin }
+	1.0 r fftsize f/ f- { radius }
 	freq-inc make-array map!
-		i bin * radius make-formant
-	end-map spectr make-formant-bank { formants }
+		:radius radius :frequency bin i * make-formant
+	end-map ( formants ) spectr make-formant-bank { formants }
+	osr set-mus-srate drop
+	\ end of temporary mus-srate
+	0.0 { old-peak-amp }
+	freq co make-ncos { pulse }
+	nil { fdr }
+	0 { inctr }
+	fftsize 0.0 make-vct { fdi }
+	freq-inc 1/f { 1/freq-inc }
 	len 0.0 make-vct map!
 		i freq-inc mod 0= if
 			inctr fftsize snd chn #f channel->vct to fdr
 			fdr vct-peak old-peak-amp fmax to old-peak-amp
 			fdr fdi #f 2 spectrum ( fdr )
 			    spectr vct-subtract! ( fdr )
-			    freq-inc 1/f vct-scale! drop
+			    1/freq-inc vct-scale! drop
 			freq-inc inctr + to inctr
 		then
 		spectr fdr 0 vct-add! drop
-		formants pulse 0.0 sum-of-cosines formant-bank ( outval )
-		    dup fabs new-peak-amp fmax to new-peak-amp
-		( outval )
-	end-map
-	old-peak-amp new-peak-amp f/ amp f* vct-scale!
+		formants pulse 0.0 ncos formant-bank ( outval )
+	end-map { out-data }
+	"%s %s %s %s %s %s"
+	    #( co freq amp fftsize r get-func-name ) string-format { origin }
+	out-data old-peak-amp out-data vct-peak f/ amp f* vct-scale! ( odata )
 	    0 len snd chn #f origin vct->channel ( vct )
 ;
-\   20.0 1.0 1024 0.01 pulse-voice
-\  120.0 1.0 1024 0.2  pulse-voice
-\  240.0 1.0 1024 0.1  pulse-voice
-\  240.0 1.0 2048      pulse-voice
-\ 1000.0 1.0  512      pulse-voice
+\ 80   20.0 1.0 1024 0.01 pulse-voice
+\ 80  120.0 1.0 1024 0.2  pulse-voice
+\ 30  240.0 1.0 1024 0.1  pulse-voice
+\ 30  240.0 1.0 2048      pulse-voice
+\  6 1000.0 1.0  512      pulse-voice
 
 'snd-nogui provided? [unless]
 	\ ;;; -------- convolution example
-
-	hide
-	: cnv-cb { sf -- prc; dir self -- val }
-		1 proc-create ( prc )
-		sf ,
-	  does> { dir self -- val }
-		self @ ( sf ) next-sample
-	;
-	set-current
 
 	: cnvtest ( snd0 snd1 amp -- mx )
 		doc" Convolve SND0 and SND1, scaling by AMP, \
@@ -1742,21 +1778,19 @@ returns new max amp: 0 1 0.1 cnvtest."
 		{ snd0 snd1 amp }
 		snd0 #f #f framples { flt-len }
 		snd1 #f #f framples flt-len + { total-len }
-		0 snd1 0 1 #f make-sampler { sf }
-		:input sf cnv-cb :filter 0 flt-len
+		0 snd1 0 1 #f make-sampler { rd }
+		:input rd sampler-cb :filter 0 flt-len
 		    snd0 #f #f channel->vct make-convolve { cnv }
 		total-len 0.0 make-vct map!
 			cnv #f convolve
 		end-map amp vct-scale! ( out-data )
-		0 total-len snd1 #f #f get-func-name
-		    vct->channel vct-peak { max-samp }
-		sf free-sampler drop
+		0 total-len snd1 #f #f #f vct->channel vct-peak { max-samp }
+		rd free-sampler drop
 		max-samp 1.0 f> if
 			#( max-samp fnegate max-samp ) snd1 #f set-y-bounds drop
 		then
 		max-samp
 	;
-	previous
 [then]
 
 \ ;;; -------- swap selection chans

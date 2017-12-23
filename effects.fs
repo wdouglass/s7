@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/10/16 23:04:30
-\ Changed: 17/12/09 22:54:08
+\ Changed: 17/12/15 06:30:08
 \
-\ @(#)effects.fs	1.58 12/9/17
+\ @(#)effects.fs	1.59 12/15/17
 
 \ General (nogui/motif/gtk)
 \
@@ -554,43 +554,9 @@ previous
 \ effects-cross-synthesis ( snd amp fftsize r -- prc; inval self -- res )
 \ effects-cross-synthesis-1 ( snd amp fft r :optional beg dur snd chn -- res )
 
-: effects-cross-synthesis ( snd amp fftsize r -- prc; inval self -- res )
-	{ snd amp fftsize r }
-	fftsize 2/ { freq-inc }
-	fftsize 0.0 make-vct { fdr }
-	fftsize 0.0 make-vct { fdi }
-	freq-inc 0.0 make-vct { spectr }
-	1.0 r fftsize f/ f- { radius }
-	#f srate fftsize / { bin }
-	freq-inc make-array map!
-		:radius radius :frequency bin i * make-formant
-	end-map spectr make-formant-bank { formants }
-	1 proc-create ( inctr ) 0 , ( ctr ) freq-inc ,
-	fdr , fdi , spectr , formants , snd , amp , ( prc )
-  does> { inval self -- res }
-	self @ { inctr }
-	self 1 cells + @ { ctr }
-	self 2 cells + @ { fdr }
-	self 3 cells + @ { fdi }
-	self 4 cells + @ { spectr }
-	self 5 cells + @ { formants }
-	self 6 cells + @ { snd }
-	self 7 cells + @ { amp }
-	fdr vct-length { fftsize }
-	spectr vct-length { freq-inc }
-	0.0 { outval }
-	ctr freq-inc = if
-		inctr fftsize snd 0 #f channel->vct self 2 cells + ! ( fdr )
-		inctr freq-inc + self ! ( inctr )
-		fdr fdi #f 2 spectrum drop
-		fdr spectr vct-subtract! drop
-		fdr freq-inc 1/f vct-scale! drop
-		0 self 1 cells + ! ( ctr=0 )
-	then
-	ctr 1+ self 1 cells + ! ( ctr++ )
-	spectr fdr 0 vct-add! drop
-	formants inval formant-bank amp f*
-;
+\ cross-synthesis from examp.fs
+<'> cross-synthesis
+    alias effects-cross-synthesis ( snd amp fftsize r -- prc; y self -- res )
 
 : effects-cross-synthesis-1
   <{ csnd amp fftsize r :optional beg 0 dur #f snd #f  chn #f -- res }>

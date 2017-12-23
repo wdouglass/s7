@@ -2,13 +2,13 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 2006/08/05 00:09:28
-\ Changed: 2017/09/25 22:10:36
+\ Changed: 2017/12/23 06:12:07
 
 \ Tags:  FIXME - something is wrong
 \        XXX   - info marker
 \
 \ Tested with:
-\   Snd 17.x
+\   Snd 18.x
 \   Fth 1.3.x
 \
 \ The most Gtk tests will be skipped if not gtk3.
@@ -132,7 +132,13 @@
 \ :statistics
 \ :verbose (event (bird) and instrument names)
 #f value *snd-test-ws-play*
-#f value *snd-test-ws-player*
+lambda: <{ output -- }>
+  \ Snd's play doesn't complain about more than 2 chans, see
+  \ test23-balance
+  save-stack { s }
+  output play drop
+  s restore-stack
+; value *snd-test-ws-player*
 #f value *snd-test-ws-statistics*
 #f value *snd-test-ws-verbose*
 
@@ -146,7 +152,6 @@
 "HOME" getenv value *home*
 save-dir *home* "/zap/snd" $+ || value original-save-dir
 temp-dir *home* "/zap/tmp" $+ || value original-temp-dir
-sound-file-extensions value original-sound-file-extensions
 listener-prompt value original-prompt
 mus-file-buffer-size value default-file-buffer-size
 8 value *info-array-print-length*
@@ -155,6 +160,7 @@ mus-file-buffer-size value default-file-buffer-size
 "/home/bil/zap/sounds/bigger.snd" value bigger-snd
 #f value with-big-file
 #f value all-args
+1000 value base-length
 
 \ Global variables may be overridden in `pwd`/.sndtest.fs or ~/.sndtest.fs.
 ".sndtest.fs" load-init-file
@@ -513,14 +519,14 @@ reset-all-hooks
 
 : (snd-test-any-neq) { res req func fmt args lno -- }
   res req func execute unless
-    res req "!=" fmt args snd-format { str }
+    res req func xt->name fmt args snd-format { str }
     "\\ [%d] %s\n" #( lno str ) fth-print
   then
 ;
 
 : (snd-test-any-eq) { res req func fmt args lno -- }
   res req func execute if
-    res req "==" fmt args snd-format { str }
+    res req func xt->name fmt args snd-format { str }
     "\\ [%d] %s\n" #( lno str ) fth-print
   then
 ;
@@ -657,14 +663,13 @@ reset-all-hooks
   10  set-window-y drop
   #t  set-show-listener drop
   reset-almost-all-hooks
-  22050 set-mus-srate f>s to *clm-srate*
+  44100 to *clm-srate*
   stack-reset
   make-timer to overall-start-time
 ;
 
 : finish-snd-test ( -- )
   overall-start-time stop-timer
-  .stack
   stack-reset
   regions each ( r )
     forget-region drop
@@ -695,7 +700,9 @@ reset-all-hooks
   "test.snd" file-exists? if
     "test.snd" 0o644 file-chmod
   then
-  #( "aaa.eps"
+  #( "1"
+     "aaa.eps"
+     "accelmap"
      "envs.save"
      "fmv.snd"
      "fmv.wav"
@@ -705,8 +712,8 @@ reset-all-hooks
      "fmv3.snd"
      "fmv4.reverb"
      "fmv4.snd"
+     "gtk-errors"
      "hiho.marks"
-     "hiho.snd"
      "hiho.snd"
      "hiho.tmp"
      "hiho.wave"
@@ -715,7 +722,19 @@ reset-all-hooks
      "oboe.marks"
      "obtest.snd.stereo"
      "remembered-oboe.snd.fs"
+     "s1.fsm"
+     "s1.snd"
+     "s6.fsm"
+     "s6.reverb"
+     "s6.snd"
+     "s7.fsm"
+     "s7.snd"
      "saved-snd.fs"
+     "sec1.fsm"
+     "sec1.snd"
+     "sec2.fsm"
+     "sec2.reverb"
+     "sec2.snd"
      "snd.eps"
      "test-1.snd"
      "test-2.snd"
@@ -731,26 +750,23 @@ reset-all-hooks
      "test2.snd"
      "test3.snd"
      "tmp.snd"
-     "with-mix.snd"
-     "1"
-     "gtk-errors"
-     "accelmap" ) each ( file )
+     "with-mix.snd" ) each ( file )
        file-delete
      end-each
-  #( "mus10.snd.snd"
-     "ieee-text-16.snd.snd"
-     "trumps22.adp.snd"
-     "oki.wav.snd"
-     "nasahal.avi.snd"
-     "hcom-16.snd.snd"
+  #( "bad_data_format.snd.snd"
      "ce-c3.w02.snd"
+     "hcom-16.snd.snd"
+     "ieee-text-16.snd.snd"
+     "mus10.snd.snd"
+     "nasahal.avi.snd"
+     "nist-shortpack.wav.snd"
+     "o2_dvi.wave.snd"
+     "oboe.g721.snd"
      "oboe.g723_24.snd"
      "oboe.g723_40.snd"
-     "oboe.g721.snd"
-     "wood.sds.snd"
-     "o2_dvi.wave.snd"
-     "nist-shortpack.wav.snd"
-     "bad_data_format.snd.snd" ) each ( file )
+     "oki.wav.snd"
+     "trumps22.adp.snd"
+     "wood.sds.snd" ) each ( file )
        sf-dir swap $+ file-delete
      end-each
   #t set-show-listener drop
@@ -4320,8 +4336,8 @@ half-pi fnegate constant -half-pi
 
 \ ---------------- test 08: clm ----------------
 
-lambda: <{ -- r }> 0.0 ; value 08-clm-lambda-0.0
-lambda: <{ dir -- r }> 1.0 ; value 08-clm-lambda-dir-1.0
+lambda: <{ -- r }>       0.0 ; value 08-clm-lambda-0.0
+lambda: <{ dir -- r }>   1.0 ; value 08-clm-lambda-dir-1.0
 lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 32 make-delay constant make-delay-32
 
@@ -4342,9 +4358,9 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   nil { arg }
   gen mus-generator? if
     random-args each to arg
-      \ ~608.375s apply
-      \ ~701.320s mus-run
-      \ ~500.867s mus-apply
+      \ ~133.630s apply
+      \ ~144.490s mus-run
+      \ ~122.690s mus-apply
       \ gen '( arg ) <'> apply #t nil fth-catch
       \ gen arg undef <'> mus-run #t nil fth-catch
       gen arg <'> mus-apply #t nil fth-catch
@@ -4354,8 +4370,8 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 ;
 
 : random-gen ( -- )
-  #( 2.0 21.5 **
-     2.0 -18.0 **
+  #( 2.0 21.5 f**
+     2.0 -18.0 f**
      1.5
      "/hiho"
      list( 0 1 )
@@ -4381,6 +4397,12 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
      '()
      32
      '( 1 2 ) ) { random-args }
+  \
+  \ XXX: make-asymmetric-fm
+  \      Starting with 3 args, make-asymmetric-fm makes trouble
+  \      resulting in #<undefined-word in interpret: 10> exception
+  \      after! finishing the entire 08-clm test.
+  \
   #( <'> make-all-pass <'> make-asymmetric-fm <'> make-moving-average
      <'> make-moving-max <'> make-moving-norm <'> make-table-lookup
      <'> make-triangle-wave <'> make-comb <'> make-delay <'> make-env
@@ -4407,11 +4429,15 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
       end-each
       random-args each to arg3
         gen-make-procs each to make-prc
-          arg1 arg2 arg3 make-prc random-args random-gen-run
+          <'> make-asymmetric-fm make-prc <> if 
+            arg1 arg2 arg3 make-prc random-args random-gen-run
+          then
         end-each
         random-args each to arg4
           gen-make-procs each to make-prc
-            arg1 arg2 arg3 arg4 make-prc random-args random-gen-run
+            <'> make-asymmetric-fm make-prc <> if 
+              arg1 arg2 arg3 arg4 make-prc random-args random-gen-run
+            then
           end-each
         end-each
       end-each
@@ -4561,6 +4587,8 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 [then]
 
 : 15-chan-local-vars ( -- )
+  mus-srate f>s { old-srate }
+  22050 to *clm-srate*
   \ dsp.fs
   "test.snd" 1 22050 mus-bfloat mus-next "src-* tests" 10000 new-sound { ind }
   \ src-duration tests
@@ -4844,6 +4872,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   else
     1 >array "envelope-exp (1): %s?" swap snd-display
   then
+  old-srate to *clm-srate*
 ;
 
 \ ---------------- test 19: save and restore ----------------
@@ -5076,30 +5105,46 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 \ ---------------- test 23: with-sound ----------------
 
 : test23-notehook { ins start dur -- }
-  "%14s: %5.2f  %5.2f" #( ins start dur ) snd-test-message
+  "%7.3f %0.3f %s" #( start dur ins ) snd-test-message
 ;
 
 : test23-balance ( -- )
   make-rmsgain    { rg }
   40 make-rmsgain { rg1 }
   2  make-rmsgain { rg2 }
-  #( 0 0 1 1 2 0 )      :length 10000 make-env { e }
-  #( 0 0 1 1 )          :length 10000 make-env { e1 }
-  #( 0 0 1 1 2 0 10 0 ) :length 10000 make-env { e2 }
+  #( 0 0 1 1 2 0 )      :length base-length make-env { e }
+  #( 0 0 1 1 )          :length base-length make-env { e1 }
+  #( 0 0 1 1 2 0 10 0 ) :length base-length make-env { e2 }
   440.0 make-oscil { o }
+  *output* sound? if
+    *output* channels make-array map!
+      base-length 0.0 make-vct
+    end-map
+  else
+    *output*
+  then { gen }
   nil { sig }
-  10000 0 do
+  base-length 0 do
     e env to sig
-    i  rg  sig                    e2 env rmsgain-balance  *output*  outa drop
-    i  rg1 sig                    e1 env rmsgain-balance  *output*  outb drop
-    i  rg2 o 0.0 0.0 oscil 0.1 f* e2 env rmsgain-balance  *output*  outc drop
+    i  rg  sig                    e2 env rmsgain-balance  gen ws-outa
+    i  rg1 sig                    e1 env rmsgain-balance  gen ws-outb
+    i  rg2 o 0.0 0.0 oscil 0.1 f* e2 env rmsgain-balance  gen ws-outc
   loop
-  rg rmsgain-gain-avg 0.98402 fneq if
-    "rmsgain gain-avg: %f (0.98402)?" #( rg rmsgain-gain-avg ) snd-display
+  gen array? if
+    gen each ( v )
+      0 *output* i #f undef mix-vct drop
+    end-each
   then
-  rg2 rmsgain-avgc 10000 <> if
-    "rmsgain count: %d (10000)?" #( rg2 rmsgain-avgc ) snd-display
-  then
+  *clm-srate* 22050 = if
+    0.98402
+  else
+    1.4227 ( 44100 )
+  then { req }
+  rg rmsgain-gain-avg { res }
+  res req "rmsgain gain-avg" #() snd-test-neq
+  base-length to req
+  rg2 rmsgain-avgc to res
+  res req "rmsgain count" #() snd-test-neq
 ;
 
 : test23-ssb-fm ( gen mg -- proc; y self -- val )
@@ -5110,64 +5155,168 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   gen   mg 0.0 0.0 oscil 0.02 f*  ssb-fm
 ;
 
+\ CLM examples (see clm.html) and their Snd/Forth counterparts:
+
+\ (with-sound () 
+\   (mix (with-sound (:output "hiho.snd") 
+\          (fm-violin 0 1 440 .1))
+\        :amplitude .5))
+
+: test23-clm-examp-1 ( -- )
+  0.0 1.0 440 0.1 <'> fm-violin
+  :output "hiho.snd" with-sound ws-output { fname }
+  fname :scaler 2.0 clm-mix
+  fname ws-close-snd
+;
+
+\ (with-sound ()
+\   (with-mix () "s1" 0
+\     (sound-let ((tmp () (fm-violin 0 1 440 .1)))
+\       (mix tmp))))
+
+: test23-clm-examp-2 ( -- )
+  "
+  '( '( '() 0.0 1.0 440 0.1 <'> fm-violin ) )
+  lambda: <{ tmp -- }>
+    tmp clm-mix
+  ; sound-let
+  " '() "s1" 0 with-mix
+;
+
+\ (with-sound (:verbose t)
+\   (with-mix () "s6" 0
+\     (sound-let ((tmp () (fm-violin 0 1 440 .1))
+\                 (tmp1 (:reverb nrev) (mix "oboe.snd")))
+\       (mix tmp1)
+\       (mix tmp :amplitude .2 :output-frame *srate*))
+\     (fm-violin .5 .1 330 .1)))
+
+: test23-clm-examp-3 ( -- )
+  "
+  '( '( '() 0.0 1.0 440 0.1 <'> fm-violin )
+     '( '( :reverb <'> nrev ) \"oboe.snd\" <'> clm-mix ) )
+  lambda: <{ tmp tmp1 -- }>
+    tmp1 clm-mix
+    tmp :scaler 5.0 :output-frame 1.0 seconds->samples clm-mix
+  ; sound-let
+  0.5 0.1 330 0.1 fm-violin
+  " '() "s6" 0 with-mix
+;
+
+\ (with-sound (:verbose t)
+\   (sound-let ((tmp () (with-mix () "s7" 0
+\                    (sound-let ((tmp () (fm-violin 0 1 440 .1))
+\                                (tmp1 () (mix "oboe.snd")))
+\                      (mix tmp1)
+\                      (mix tmp :output-frame *srate*))
+\                    (fm-violin .5 .1 330 .1))))
+\      (mix tmp :amplitude .5)))
+
+: test23-clm-4-cb <{ tmp -- }>
+  tmp :scaler 2.0 clm-mix
+;
+
+: test23-clm-examp-4 ( -- )
+  '( '( '() "
+    '( '( '() 0.0 1.0 440 0.1 <'> fm-violin )
+        '( '()      \"oboe.snd\" <'> clm-mix ) )
+    lambda: <{ tmp tmp1 -- }>
+      tmp1 clm-mix
+      tmp :output-frame 1.0 seconds->samples clm-mix
+    ; sound-let
+    0.5 0.1 330 0.1 fm-violin
+    " '() "s7" 0 <'> with-mix ) )
+  <'> test23-clm-4-cb sound-let
+;
+
+: test23-sl-cb <{ tmp1 tmp2 tmp3 -- }>
+  *snd-test-ws-verbose* if
+    tmp1 . cr
+    tmp2 . cr
+    tmp3 . cr
+  then
+  tmp1 clm-mix
+  tmp2 clm-mix
+;
+
+: test23-sound-let ( -- )
+  '( '( '( :reverb <'> jc-reverb ) 0.0 1.0 220 0.2 <'> fm-violin )
+     '( '()                        0.5 1 440 0.3 <'> fm-violin )
+     '( '()                        '( 10 'a ) ) )
+  <'> test23-sl-cb sound-let
+;
+
+: test23-with-mix ( -- )
+  0.0 0.1 440 0.1 fm-violin
+  "
+  0.0 0.2 550 0.1 fm-violin
+  0.1 0.1 660 0.1 fm-violin
+  " #() "sec1" 0.5 with-mix
+  "
+  0.0 0.1  880 0.1 :reverb-amount 0.2 fm-violin
+  0.1 0.1 1320 0.1 :reverb-amount 0.2 fm-violin
+  " #( :reverb <'> jc-reverb ) "sec2" 1.0 with-mix
+  2.0 0.1 220 0.1 fm-violin
+;
+
 \ examples from sndclm.html
 : sndclm-oscil-test ( -- )
   440.0 make-oscil { gen }
-  44100 0 do
-    i  gen 0 0 oscil  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 0 oscil  f2/
+  end-run
 ;
 
 : sndclm-env-test ( -- )
   440.0 make-oscil { gen }
   '( 0 0 0.01 1 0.25 0.1 0.5 0.01 1 0 )
   :scaler 0.5 :length 44100 make-env { ampf }
-  44100 0 do
-    i  gen 0 0 oscil  ampf env  f* *output*  outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 0 oscil  ampf env  f*
+  end-run
 ;
 
 : sndclm-table-lookup-test ( -- )
   440.0 :wave '( 1 0.5  2 0.5 ) #f #f partials->wave make-table-lookup { gen }
-  44100 0 do
-    i  gen 0 table-lookup  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 table-lookup  f2/
+  end-run
 ;
 
 : sndclm-polywave-test ( -- )
   440.0 :partials '( 1 0.5 2 0.5 ) make-polywave { gen }
-  44100 0 do
-    i  gen 0 polywave  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 polywave  f2/
+  end-run
 ;
 
 : sndclm-triangle-wave-test ( -- )
   440.0 make-triangle-wave { gen }
-  44100 0 do
-    i  gen 0 triangle-wave  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 triangle-wave  f2/
+  end-run
 ;
 
 : sndclm-ncos-test ( -- )
   440.0 10 make-ncos { gen }
-  44100 0 do
-    i  gen 0 ncos  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 ncos  f2/
+  end-run
 ;
 
 : sndclm-nrxycos-test ( -- )
   440.0 :n 10 make-nrxycos { gen }
-  44100 0 do
-    i  gen 0 nrxycos  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 nrxycos  f2/
+  end-run
 ;
 
 : sndclm-ssb-am-test ( -- )
   440.0 20 make-ssb-am { shifter }
   440.0 make-oscil { osc }
-  44100 0 do
-    i  shifter  osc 0 0 oscil  0 ssb-am f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    shifter  osc 0 0 oscil  0 ssb-am f2/
+  end-run
 ;
 
 : sndclm-wave-train-test ( -- )
@@ -5177,9 +5326,9 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
     g 0 ncos
   end-map { v }
   440.0 :wave v make-wave-train { gen }
-  44100 0 do
-    i  gen 0 wave-train  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    gen 0 wave-train  f2/
+  end-run
 ;
 
 : sndclm-rand-test ( -- )
@@ -5187,94 +5336,104 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   5.0 330.0 hz->radians make-rand-interp { ran2 }
    440.0 make-oscil { osc1 }
   1320.0 make-oscil { osc2 }
-  88200 0 do
-    i  osc1  ran1 0 rand         0 oscil  f2/ *output* outa drop
-    i  osc2  ran2 0 rand-interp  0 oscil  f2/ *output* outb drop
+  2.0 seconds->samples { len }
+  *output* sound? if
+    2 make-array map!
+      len 0.0 make-vct
+    end-map
+  else
+    *output*
+  then { gen }
+  len 0 do
+    i  osc1  ran1 0 rand         0 oscil  f2/ gen ws-outa
+    i  osc2  ran2 0 rand-interp  0 oscil  f2/ gen ws-outb
   loop
+  gen array? if
+    gen each ( v )
+      0 *output* i #f undef mix-vct drop
+    end-each
+  then
 ;
 
 : sndclm-two-pole-test ( -- )
   1000.0 0.999 make-two-pole { flt }
   10000.0 0.002 make-rand { ran1 }
-  44100 0 do
-    i  flt  ran1 0 rand  two-pole  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    flt  ran1 0 rand  two-pole  f2/
+  end-run
 ;
 
 : sndclm-firmant-test ( -- )
   1000.0 0.999 make-firmant { flt }
   10000.0 5.0 make-rand { ran1 }
-  44100 0 do
-    i  flt  ran1 0 rand  #f firmant  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    flt  ran1 0 rand  #f firmant  f2/
+  end-run
 ;
 
 : sndclm-iir-filter-test ( -- )
   3 vct( 0.0 -1.978 0.998 ) make-iir-filter { flt }
   10000.0 0.002 make-rand { ran1 }
-  44100 0 do
-    i  flt  ran1 0 rand  iir-filter  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    flt  ran1 0 rand  iir-filter  f2/
+  end-run
 ;
 
 : sndclm-delay-test ( -- )
   0.5 seconds->samples make-delay { dly }
   440.0 make-oscil { osc1 }
   660.0 make-oscil { osc2 }
-  44100 0 do
-    i
+  0 1 nil run-instrument
     osc1 0 0 oscil
-    dly  osc2 0 0 oscil  0 delay f+
-    f2/ *output* outa drop
-  loop
+    dly  osc2 0 0 oscil  0 delay  f+
+    f2/
+  end-run
 ;
 
 : sndclm-comb-test ( -- )
   0.4 0.4 seconds->samples make-comb { cmb }
   440.0 make-oscil { osc }
   '( 0 0 1 1 2 1 3 0 ) :length 4410 make-env { ampf }
-  88200 0 do
-    i
+  0 2 nil run-instrument
     cmb ( gen )
     ampf env  osc 0 0 oscil  f* ( val )
-    0 ( pm )
-    comb f2/ *output* outa drop
-  loop
+    0 ( pm )  comb f2/
+  end-run
 ;
 
 : sndclm-all-pass-test ( -- )
   -0.4 0.4 0.4 seconds->samples make-all-pass { alp }
   440.0 make-oscil { osc }
   '( 0 0 1 1 2 1 3 0 ) :length 4410 make-env { ampf }
-  88200 0 do
-    i
+  0 2 nil run-instrument
     alp ( gen )
     ampf env  osc 0 0 oscil  f* ( val )
     0 ( pm )
-    all-pass f2/ *output* outa drop
-  loop
+    all-pass f2/
+  end-run
 ;
 
 : sndclm-moving-average-test ( -- )
   4410 make-moving-average { avg }
   440.0 make-oscil { osc }
-  44100 4410 - { stop }
+  1.0 0.1 f- { stop }
   0.0 { val }
-  stop 0 ?do
+  0 stop nil run-instrument
     osc 0 0 oscil to val
-    i  avg val fabs moving-average  val f* *output* outa drop
-  loop
-  44100 stop ?do
-    i  avg 0.0 moving-average  osc 0 0 oscil f*  *output* outa drop
-  loop
+    avg val fabs moving-average  val f*
+  end-run
+  stop 1.0 nil run-instrument
+    avg 0.0 moving-average  osc 0 0 oscil f*
+  end-run
 ;
 
 : sndclm-src1-test ( -- )
   "oboe.snd" make-readin { rd }
   rd 0.5 make-src { sr }
-  "oboe.snd" mus-sound-framples 2* ( len ) 0 ?do
-    i  sr 0 #f src  *output* outa drop
-  loop
+  "oboe.snd" mus-sound-duration f2* { dur }
+  0 dur nil run-instrument
+    sr 0 #f src
+  end-run
 ;
 
 : make-src-proc { osc -- prc; dir self -- val }
@@ -5287,33 +5446,34 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   440.0 make-oscil { osc }
   osc make-src-proc { prc }
   :srate 2.0 make-src { sr }
-  44100 0 do
-    i  sr 0 prc src  *output* outa drop
-  loop
+  0 1 nil run-instrument
+    sr 0 prc src
+  end-run
 ;
 
 : sndclm-convolve1-test ( -- )
   "pistol.snd" make-readin ( rd )
   "oboe.snd" file->vct ( v ) make-convolve { cnv }
-  88200 0 do
-    i  cnv #f convolve  0.25 f* *output* outa drop
-  loop
+  0 2 nil run-instrument
+    cnv #f convolve  0.25 f*
+  end-run
 ;
 
 : sndclm-convolve2-test ( -- )
   "oboe.snd" "pistol.snd" 0.5 "convolved.snd" convolve-files { tempfile }
   tempfile make-readin { reader }
-  tempfile mus-sound-framples ( len ) 0 ?do
-    i  reader readin  *output* outa drop
-  loop
+  tempfile mus-sound-duration { dur }
+  0 dur nil run-instrument
+    reader readin
+  end-run
   tempfile file-delete
 ;
 
 : sndclm-granulate1-test ( -- )
   "oboe.snd" make-readin 2.0 make-granulate { grn }
-  44100 0 do
-    i  grn #f #f granulate  *output* outa drop
-  loop
+  0 1 nil run-instrument
+    grn #f #f granulate
+  end-run
 ;
 
 : make-granulate-proc { osc sweep -- prc; dir self -- val }
@@ -5327,118 +5487,177 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   '( 0 0 1 1 ) :scaler 440.0 hz->radians :length 44100 make-env { sweep }
   osc sweep make-granulate-proc :expansion 2.0 :length 0.5
     make-granulate { grn }
-  88200 0 do
-    i  grn #f #f granulate  *output* outa drop
-  loop
+  0 2 nil run-instrument
+    grn #f #f granulate
+  end-run
 ;
 
 : sndclm-phase-vocoder1-test ( -- )
   "oboe.snd" make-readin :pitch 2.0 make-phase-vocoder { pv }
-  44100 0 do
-    i  pv #f #f #f #f phase-vocoder  *output* outa drop
-  loop
+  0 1 nil run-instrument
+    pv #f #f #f #f phase-vocoder
+  end-run
 ;
 
 : sndclm-phase-vocoder2-test ( -- )
   "oboe.snd" make-readin :interp 256 make-phase-vocoder { pv }
-  "oboe.snd" mus-sound-framples 2* ( samps ) 0 ?do
-    i  pv #f #f #f #f phase-vocoder  *output* outa drop
-  loop
+  "oboe.snd" mus-sound-duration f2* { dur }
+  0 dur nil run-instrument
+    pv #f #f #f #f phase-vocoder
+  end-run
 ;
 
 : sndclm-asymmetric-fm-test ( -- )
   440.0 0.0 0.9 0.5 make-asymmetric-fm { fm }
-  44100 0 do
-    i  fm 1.0 0 asymmetric-fm  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    fm 1.0 0 asymmetric-fm  f2/
+  end-run
 ;
 
 : sndclm-file->frample->file-test ( -- )
   "stereo.snd" make-file->frample { input }
   2 0.0 make-vct { frm }
+  "stereo.snd" mus-sound-framples { len }
+  *output* channels { chans }
+  *output* sound? if
+    *output* short-file-name { fname }
+    "frample-" fname $+ to fname
+    fname chans undef undef undef make-frample->file
+  else
+    *output*
+  then { gen }
   0.0 0.0 { val0 val1 }
-  "stereo.snd" mus-sound-framples ( len ) 0 ?do
+  len 0 ?do
     input i frm file->frample to frm
     frm 0 vct-ref to val0
     frm 1 vct-ref to val1
     frm 0 val1 vct-set! drop
     frm 1 val0 vct-set! drop
-    *output* i frm frample->file drop
+    gen i frm frample->file drop
   loop
+  *output* sound? if
+    gen mus-close drop
+    chans 0 do
+      0 len fname *output* i #f undef i #f #f set-samples drop
+    loop
+    fname file-delete
+  then
 ;
 
 : sndclm-readin-test ( -- )
   "oboe.snd" make-readin { reader }
-  44100 0 do
-    i  reader readin  f2/ *output* outa drop
-  loop
+  0 1 nil run-instrument
+    reader readin  f2/
+  end-run
 ;
 
 : sndclm-in-out-any-test ( -- )
   "oboe.snd" make-file->sample { infile }
-  44100 0 do
-    i  i 0 infile in-any  0 *output* out-any drop
-  loop
+  0 1 nil run-instrument
+    i 0 infile in-any
+  end-run
 ;
 
 : sndclm-locsig-test ( -- )
-  60.0 make-locsig { loc }
+  44100 { len }
+  *output* channels { chans }
+  *output* sound? if
+    *output* short-file-name { fname }
+    "frample-" fname $+ to fname
+    fname chans undef undef undef make-frample->file
+  else
+    *output*
+  then { gen }
+  60.0 :output gen make-locsig { loc }
   440.0 make-oscil { osc }
-  44100 0 do
+  len 0 do
     loc i  osc 0 0 oscil f2/  locsig drop
   loop
+  *output* sound? if
+    gen mus-close drop
+    chans 0 do
+      0 len fname *output* i #f undef i #f #f set-samples drop
+    loop
+    fname file-delete
+  then
 ;
 
 : sndclm-amplitude-modulate-test ( -- )
   440.0 make-oscil { osc1 }
   220.0 make-oscil { osc2 }
-  44100 0 do
-    i
+  0 1 nil run-instrument
     0.3            ( car )
     osc1 0 0 oscil ( in1 )
-    osc2 0 0 oscil ( in2 ) amplitude-modulate  f2/ *output* outa drop
-  loop
+    osc2 0 0 oscil ( in2 ) amplitude-modulate  f2/
+  end-run
 ;
 
-: check-maxamp { fname name lno -- }
-  fname mus-sound-maxamp { amps }
-  amps each { val }
-    i 2 mod if
-      val 1.1 f> if
-        "%s (%s)[%d]: maxamp chn %d > 1.0: %.3f (at %d)"
-          '( name fname lno i 1- 2/ val amps i object-ref ) snd-display
-      then
-    then
-  end-each
-;
-
-: (ws-close-sound) { ws lno -- }
-  ws ws-output 0 find-sound dup sound? if
-    close-sound
-  then drop
-  ws :statistics ws-ref unless
-    ws ws-output ws :comment ws-ref lno check-maxamp
+: ws-test-close-sound { ws -- }
+  ws ws-output 0 find-sound { ind }
+  ind sound? if
+    ind close-sound drop
   then
 ;
 
-: ws-close-sound ( ws -- )
+: check-maxamp { ind req name lno -- }
+  ind 0 #f maxamp { res }
+  res req <'> f> "%s (%s)[%s]: maxamp"
+    #( name ind short-file-name lno ) snd-test-any-eq
+;
+
+: (ws-test-close-sound-check) { ws req lno -- }
+  ws ws-output 0 find-sound { ind }
+  ind sound? if
+    ws :statistics ws-ref unless
+      ind req ws :comment ws-ref lno check-maxamp
+    then
+    ind close-sound drop
+  then
+;
+
+: ws-test-close-sound-check ( ws req -- )
   postpone *lineno*
-  postpone (ws-close-sound)
+  postpone (ws-test-close-sound-check)
 ; immediate
 
-: 23-with-sound ( -- )
+: (23-with-sound) ( -- )
   1024 1024 * to *clm-file-buffer-size*
-  *clm-play*       { old-play }
-  *clm-statistics* { old-stats }
+  *clm-play*               { old-play }
+  *clm-player*             { old-player }
+  *clm-statistics*         { old-stats }
   *snd-test-ws-play*       to *clm-play*
   *snd-test-ws-player*     to *clm-player*
   *snd-test-ws-statistics* to *clm-statistics*
-  mus-bfloat               to *clm-sample-type*
+  \ from clm.fs
+  <'> test23-clm-examp-1
+    :comment over object->string with-sound ws-test-close-sound
+  <'> test23-clm-examp-2
+    :comment over object->string with-sound ws-test-close-sound
+  <'> test23-clm-examp-3
+    :comment over object->string with-sound ws-test-close-sound
+  <'> test23-clm-examp-4
+    :comment over object->string with-sound ws-test-close-sound
+  <'> test23-sound-let
+    :comment over object->string with-sound ws-test-close-sound
+  <'> test23-with-mix
+    :comment over object->string with-sound ws-test-close-sound
+  <'> run-test
+    :comment over object->string with-sound ws-test-close-sound
+  <'> src-test
+    :comment over object->string with-sound ws-test-close-sound
+  <'> conv1-test
+    :comment over object->string with-sound ws-test-close-sound
+  <'> conv2-test
+    :comment over object->string with-sound ws-test-close-sound
+  <'> inst-test
+    :comment over object->string with-sound ws-test-close-sound
+  <'> arpeggio-test
+    :comment over object->string with-sound ws-test-close-sound
   \ from bird.fsm
   <'> bird-test
-  :comment  over object->string
-  :verbose  *snd-test-ws-verbose*
-  :channels 2 with-sound ws-close-sound
+  :comment over object->string
+  :verbose *snd-test-ws-verbose*
+  :channels 2 with-sound ws-test-close-sound
   \ from clm-ins.fs
   0.0 0.3 <'> clm-ins-test
   :comment  over object->string
@@ -5447,16 +5666,16 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   else
     #f
   then
-  :channels 2 with-sound ws-close-sound
+  :channels 2 with-sound 1.2 ws-test-close-sound-check
   <'> test23-balance
   :comment  over object->string
+  :srate    22050
   :channels 3 with-sound ws-output 0 find-sound { ind }
   ind sound? if
     ind close-sound drop
   else
     "with-sound balance?" snd-display
   then
-  "test.snd" "test23-balance" *lineno* check-maxamp
   "tmp.snd" 1 22050 mus-bfloat mus-next new-sound to ind
   0 1000 ind 0 pad-channel drop
   100.0 make-oscil { mg }
@@ -5465,69 +5684,77 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   ind close-sound drop
   \ examples from sndclm.html
   <'> sndclm-oscil-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-env-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-table-lookup-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-polywave-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-triangle-wave-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-ncos-test 
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-nrxycos-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-ssb-am-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-wave-train-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-rand-test
-    :comment over object->string :channels 2 with-sound ws-close-sound
+    :comment over object->string :channels 2 with-sound ws-test-close-sound
   <'> sndclm-two-pole-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-firmant-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-iir-filter-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-delay-test 
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-comb-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-all-pass-test 
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-moving-average-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-src1-test
-    :comment over object->string :srate 22050 with-sound ws-close-sound
+    :comment over object->string :srate 22050 with-sound ws-test-close-sound
   <'> sndclm-src2-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-convolve1-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-convolve2-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-granulate1-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-granulate2-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-phase-vocoder1-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-phase-vocoder2-test
-    :comment over object->string :srate 22050 with-sound ws-close-sound
+    :comment over object->string :srate 22050 with-sound ws-test-close-sound
   <'> sndclm-asymmetric-fm-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-file->frample->file-test
-    :comment over object->string :channels 2 with-sound ws-close-sound
+   :comment over object->string :channels 2 with-sound ws-test-close-sound
   <'> sndclm-readin-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-in-out-any-test
-    :comment over object->string with-sound ws-close-sound
+    :comment over object->string with-sound ws-test-close-sound
   <'> sndclm-locsig-test
-    :comment over object->string :channels 2 with-sound ws-close-sound
+   :comment over object->string :channels 2 with-sound ws-test-close-sound
   <'> sndclm-amplitude-modulate-test
-    :comment over object->string with-sound ws-close-sound
-  old-play  to *clm-play*
-  old-stats to *clm-statistics*
+    :comment over object->string with-sound ws-test-close-sound
+  old-play   to *clm-play*
+  old-player to *clm-player*
+  old-stats  to *clm-statistics*
+;
+
+: 23-with-sound ( -- )
+  #f to *clm-to-snd*
+  (23-with-sound)
+  #t to *clm-to-snd*
+  (23-with-sound)
 ;
 
 \ ---------------- test 27: general ----------------
@@ -5969,7 +6196,6 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
     spd 1.0 fneq if
       "mix-speed: %s?" #( spd ) snd-display
     then
-    .stack
     mix-id <'> play #t nil fth-catch if
       drop                      \ on stack: mix-id
       "cannot play mix" #() snd-display
@@ -5984,7 +6210,6 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
       drop                      \ on stack: play's return value
       stack-reset
     then
-    .stack
     \
     mix-id 200 set-mix-position drop
     mix-id 0.5 set-mix-amp drop
@@ -8271,17 +8496,17 @@ set-procs <'> set-arity-not-ok 5 array-reject constant set-procs04
   \ from clm-ins.fs
   <'> test23-balance
   :comment  over object->string
+  :srate    22050
   :channels 3 with-sound ws-output 0 find-sound { ind }
   ind sound? if
     ind close-sound drop
   else
     "with-sound balance?" snd-display
   then
-  "test.snd" "test23-balance" *lineno* check-maxamp
   \ 0.0 0.3 <'> clm-ins-test
   \ :comment  over object->string
   \ :notehook *snd-test-ws-verbose* if <'> test23-notehook else #f then
-  \ :channels 2 with-sound ws-close-sound
+  \ :channels 2 with-sound ws-test-close-sound
 ;
 
 let: ( -- )
@@ -8322,6 +8547,7 @@ let: ( -- )
   <'> 27-sel-from-snd    run-fth-test
   <'> 28-errors          run-fth-test
   <'> 30-test            run-fth-test  \ local fragment test
+  .stack
   finish-snd-test
   0 snd-exit drop
 ;let

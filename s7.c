@@ -3746,54 +3746,22 @@ static s7_pointer set_plist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_po
 
 /* -------------------------------- constants -------------------------------- */
 
-s7_pointer s7_f(s7_scheme *sc)
-{
-  return(sc->F);
-}
+/* #f and #t */
+s7_pointer s7_f(s7_scheme *sc) {return(sc->F);}
+s7_pointer s7_t(s7_scheme *sc) {return(sc->T);}
 
-
-s7_pointer s7_t(s7_scheme *sc)
-{
-  return(sc->T);
-}
-
-
-s7_pointer s7_nil(s7_scheme *sc)
-{
-  return(sc->nil);
-}
-
-
-bool s7_is_null(s7_scheme *sc, s7_pointer p)
-{
-  return(is_null(p));
-}
-
+/* () */
+s7_pointer s7_nil(s7_scheme *sc) {return(sc->nil);}
+bool s7_is_null(s7_scheme *sc, s7_pointer p) {return(is_null(p));}
 static bool is_null_b(s7_pointer p) {return(type(p) == T_NIL);}
 
+/* #<undefined> and #<unspecified> */
+s7_pointer s7_undefined(s7_scheme *sc) {return(sc->undefined);}
+s7_pointer s7_unspecified(s7_scheme *sc) {return(sc->unspecified);}
+bool s7_is_unspecified(s7_scheme *sc, s7_pointer val) {return(is_unspecified(val));}
 
-s7_pointer s7_undefined(s7_scheme *sc)
-{
-  return(sc->undefined);
-}
-
-
-s7_pointer s7_unspecified(s7_scheme *sc)
-{
-  return(sc->unspecified);
-}
-
-
-bool s7_is_unspecified(s7_scheme *sc, s7_pointer val)
-{
-  return(is_unspecified(val));
-}
-
-
-s7_pointer s7_eof_object(s7_scheme *sc)          /* returns #<eof> -- not equivalent to "eof-object?" */
-{
-  return(sc->eof_object);
-}
+/* #<eof> */
+s7_pointer s7_eof_object(s7_scheme *sc) {return(sc->eof_object);}
 
 
 static s7_pointer g_not(s7_scheme *sc, s7_pointer args)
@@ -4805,7 +4773,6 @@ static void init_mark_functions(void)
   mark_function[T_SLOT]                = mark_slot;
 }
 
-
 static void mark_op_stack(s7_scheme *sc)
 {
   s7_pointer *p, *tp;
@@ -5156,31 +5123,9 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
    *   to check it repeatedly after the first such check.
    */
 #else
-/* DEBUGGING */
-static bool for_any_other_reason(s7_scheme *sc, int32_t line)
-{
-#if 0
-  static int32_t ctr = 0;
-  if ((sc->default_rng) &&
-      (!sc->gc_off) &&
-      (ctr > GC_TRIGGER_SIZE))
-    {
-      s7_double x;
-      x = next_random(sc->default_rng);
-      if (x > .999)
-	{
-	  ctr = 0;
-	  return(true);
-	}
-    }
-  ctr++;
-#endif
-  return(false);
-}
-
 #define new_cell(Sc, Obj, Type)			\
   do {						\
-    if ((Sc->free_heap_top <= Sc->free_heap_trigger) || (for_any_other_reason(Sc, __LINE__))) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc);} \
+    if (Sc->free_heap_top <= Sc->free_heap_trigger) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc);} \
     Obj = (*(--(Sc->free_heap_top))); \
     Obj->alloc_line = __LINE__; Obj->alloc_func = __func__; Obj->debugger_bits = 0;	\
     set_type(Obj, Type);	      \
@@ -22658,15 +22603,7 @@ static s7_pointer byte_vector_to_list(s7_scheme *sc, const char *str, int32_t le
 }
 
 
-/* -------------------------------- ports --------------------------------
- *
- * originally nil served as stdin and friends, but that made it impossible to catch an error
- *   like (read-line (current-output-port)) when the latter was stdout.  So we now have
- *   the built-in constant ports *stdin*, *stdout*, and *stderr*.  Some way is needed to
- *   refer to these directly so that (read-line *stdin*) for example can insist on reading
- *   from the terminal, or whatever stdin is.
- */
-
+/* -------------------------------- ports -------------------------------- */
 static s7_pointer g_is_port_closed(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_port_closed "(port-closed? p) returns #t if the port p is closed."
@@ -22676,6 +22613,7 @@ static s7_pointer g_is_port_closed(s7_scheme *sc, s7_pointer args)
   x = car(args);
   if ((is_input_port(x)) || (is_output_port(x)))
     return(make_boolean(sc, port_is_closed(x)));
+  /* if (x == sc->F) return(sc->F); */ /* not sure about this -- current-output-port can be #f */
 
   method_or_bust_with_type_one_arg(sc, x, sc->is_port_closed_symbol, args, s7_make_string_wrapper(sc, "a port"));
 }
@@ -29700,6 +29638,9 @@ static s7_pointer g_with_output_to_string(s7_scheme *sc, s7_pointer args)
   if (!is_thunk(sc, p))
     method_or_bust_with_type(sc, p, sc->with_output_to_string_symbol, args, a_thunk_string, 1);
 
+  if ((is_continuation(p)) || (is_goto(p)))
+    return(wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, 1, p, a_normal_procedure_string));
+
   old_output_port = sc->output_port;
   sc->output_port = s7_open_output_string(sc);
   push_stack(sc, OP_GET_OUTPUT_STRING_1, old_output_port, sc->output_port);
@@ -29727,6 +29668,9 @@ static s7_pointer g_with_output_to_file(s7_scheme *sc, s7_pointer args)
   proc = cadr(args);
   if (!is_thunk(sc, proc))
     method_or_bust_with_type(sc, proc, sc->with_output_to_file_symbol, args, a_thunk_string, 2);
+
+  if ((is_continuation(proc)) || (is_goto(proc)))
+    return(wrong_type_argument_with_type(sc, sc->with_output_to_file_symbol, 1, proc, a_normal_procedure_string));
 
   old_output_port = sc->output_port;
   sc->output_port = s7_open_output_file(sc, string_value(file), "w");
@@ -45091,10 +45035,6 @@ s7_pointer s7_eval(s7_scheme *sc, s7_pointer code, s7_pointer e)
 	fprintf(stderr, "bad environment arg to %s: %p\n", __func__, e);
     }
 
-#if DEBUGGING
-  _NFre(code);
-#endif
-
   store_jump_info(sc);
   set_jump_info(sc, EVAL_SET_JUMP);
   if (jump_loc != NO_JUMP)
@@ -45185,7 +45125,7 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
       if (jump_loc != ERROR_JUMP)
 	eval(sc, sc->cur_op);
 
-      if ((jump_loc == CATCH_JUMP) &&        /* we're returning (back to eval) from an error in catch */
+      if ((jump_loc == CATCH_JUMP) &&                /* we're returning (back to eval) from an error in catch */
 	  (sc->stack_end == sc->stack_start))
 	push_stack_op(sc, OP_ERROR_QUIT);
     }
@@ -45382,7 +45322,6 @@ static s7_pointer s7_version_p(void) {return(s7_make_string(cur_sc, "s7 " S7_VER
 void s7_quit(s7_scheme *sc)
 {
   sc->longjmp_ok = false;
-
   pop_input_port(sc);
   stack_reset(sc);
   push_stack_op_let(sc, OP_EVAL_DONE);
@@ -56978,8 +56917,7 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
 
 static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 {
-  /* this always occurs in a context where we're trying to find anything, so I'll move a couple of those checks here
-   */
+  /* this always occurs in a context where we're trying to find anything, so I'll move a couple of those checks here */
   if (has_let_ref_fallback(sc->envir)) /* an experiment -- see s7test (with-let *db* (+ int32_t (length str))) */
     apply_known_method(sc, sc->envir, sc->let_ref_fallback_symbol, sc->w = list_2(sc, sc->envir, sym));
   /* but if the thing we want to hit this fallback happens to exist at a higher level, oops... */
@@ -57006,8 +56944,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
   if (safe_strcmp(symbol_name(sym), "|#"))
     return(read_error(sc, "unmatched |#"));
 
-  /* check *autoload*, autoload_names, then *unbound-variable-hook*
-   */
+  /* check *autoload*, autoload_names, then *unbound-variable-hook* */
   if ((sc->autoload_names) ||
       (is_hash_table(sc->autoload_table)) ||
       (hook_has_functions(sc->unbound_variable_hook)))
@@ -58325,8 +58262,8 @@ static s7_pointer g_or_3(s7_scheme *sc, s7_pointer args)
 static s7_pointer and_n, and_2, and_sc, and_3;
 static s7_pointer g_and_n(s7_scheme *sc, s7_pointer args)
 {
-  s7_pointer p, x = sc->T;
-
+  s7_pointer p, x;
+  x = sc->T;
   for (p = args; is_pair(p); p = cdr(p))
     {
       x = c_call(p)(sc, car(p));
@@ -68472,7 +68409,7 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 				    set_elist_3(sc, s7_make_string_wrapper(sc, "~A: not a key/value pair: ~S"), closure_name(sc, code), lx)));
 		  /* errors not caught?
 		   *    ((lambda* (a :allow-other-keys) a) :a 1 :a 2)
-		   *    ((lambda* (:allow-other-keys ) #f) :b :a :a :b)
+		   *    ((lambda* (:allow-other-keys) #f) :b :a :a :b)
 		   */
 		  lx = cddr(lx);
 		}
@@ -68841,7 +68778,7 @@ static s7_pointer g_profile_filename(s7_scheme *sc, s7_pointer args)
 #else
 #define new_cell(Sc, Obj, Type)			\
   do {						\
-    if ((Sc->free_heap_top <= Sc->free_heap_trigger) || (for_any_other_reason(sc, __LINE__))) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc); if ((Sc->begin_hook) && (call_begin_hook(Sc))) return(Sc->F);} \
+    if (Sc->free_heap_top <= Sc->free_heap_trigger) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc); if ((Sc->begin_hook) && (call_begin_hook(Sc))) return(Sc->F);} \
     Obj = (*(--(Sc->free_heap_top))); \
     Obj->alloc_line = __LINE__;	Obj->alloc_func = __func__; Obj->debugger_bits = 0;	\
     set_type(Obj, Type);	      \
@@ -76869,7 +76806,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 #else
 #define new_cell(Sc, Obj, Type)			\
   do {									\
-    if ((Sc->free_heap_top <= Sc->free_heap_trigger) || (for_any_other_reason(sc, __LINE__))) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc);} \
+    if (Sc->free_heap_top <= Sc->free_heap_trigger) {last_gc_line = __LINE__; last_gc_func = __func__; try_to_call_gc(Sc);} \
     Obj = (*(--(Sc->free_heap_top)));					\
     Obj->alloc_line = __LINE__;	Obj->alloc_func = __func__; Obj->debugger_bits = 0;		\
     set_type(Obj, Type);						\
@@ -83927,8 +83864,9 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  * lint no-gmp (< int most-negative-fixnum) etc?
- * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting == -1? (let ((+safety+ -1)) (with-let...))?
+ * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting == -1? (let-temporarily (((*s7* 'safety) -1)) (with-let...))?
  *   or maybe opt/unopt choice made at call-time (if in loop??)
+ *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
  * macroexpand before s7_optimize? or restart if macro encountered?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
