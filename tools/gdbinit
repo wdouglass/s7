@@ -11,6 +11,7 @@ end
 # so for example, to see the current local variables, s7p sc->envir
 # source ~/.gdbinit reloads
 
+# set print elements 123123 in gdb to get full string
 
 define s7eval
 print s7_object_to_c_string(cur_sc, s7_eval_c_string(cur_sc, $arg0))

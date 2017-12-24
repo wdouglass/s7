@@ -166,7 +166,7 @@
 
 
 (define copy-tree 
-  (let ((+documentation+ "(copy-tree lst) returns a full copy of lst"))
+  (let ((+documentation+ "(copy-tree lst) returns a full copy of lst")) ; but it does not handle cycles correctly
     (lambda (lis)
       (if (pair? lis)
 	  (cons (copy-tree (car lis))

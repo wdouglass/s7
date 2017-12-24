@@ -1502,8 +1502,6 @@ static s7_scheme *cur_sc = NULL;
 	{								\
 	  if (((typeflag(p) & T_IMMUTABLE) != 0) && ((typeflag(p) != (f))))						\
 	    {fprintf(stderr, "%s[%d]: set immutable %p type %d to %" PRId64 "\n", __func__, __LINE__, p, unchecked_type(p), (int64_t)(f)); abort();} \
-	  if (((typeflag(p) & T_LINE_NUMBER) != 0) && (((typeflag(p)) & 0xff) == T_PAIR) && (((f) & T_LINE_NUMBER) == 0)) \
-            fprintf(stderr, "%d unsets line_number\n", __LINE__); \
 	}								\
       typeflag(p) = f;							\
     } while (0)
@@ -6383,7 +6381,7 @@ static s7_pointer reuse_as_slot(s7_pointer slot, s7_pointer symbol, s7_pointer v
 #if DEBUGGING
   slot->debugger_bits = 0;
 #endif
-  set_type(slot, T_SLOT); /* debugger "unsets line_number" here can be ignored */
+  set_type(slot, T_SLOT);
   slot_set_symbol(slot, symbol);
   slot_set_value(slot, _NFre(value));
   return(slot);
@@ -36024,7 +36022,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
   s7_int len = 0, n, k;
   int32_t (*sort_func)(const void *v1, const void *v2);
   s7_pointer *elements;
-  uint32_t gc_loc = 0;
 
   /* both the intermediate vector (if any) and the current args pointer need GC protection,
    *   but it is a real bother to unprotect args at every return statement, so I'll use temp3
@@ -36249,7 +36246,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 
 	  vec = g_vector(sc, data);
 	  push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
-	  /* gc_loc = s7_gc_protect_1(sc, vec); */
 	  elements = s7_vector_elements(vec);
 
 	  sc->v = vec;
@@ -36257,7 +36253,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	  for (p = data, i = 0; i < len; i++, p = cdr(p))
 	    set_car(p, elements[i]);
 
-	  /* s7_gc_unprotect_at(sc, gc_loc); */
 	  sc->stack_end -= 4; /* not pop_stack! */
 	  return(data);
 	}
@@ -36296,7 +36291,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 #endif
 
 	vec = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-	/* gc_loc = s7_gc_protect_1(sc, vec); */
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);	   
 	elements = s7_vector_elements(vec);
 	chrs = (unsigned char *)string_value(data);
@@ -36327,7 +36321,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 		for (i = 0; i < len; i++)
 		  chrs[i] = character(elements[i]);
 	      }
-	    /* s7_gc_unprotect_at(sc, gc_loc); */
 	    sc->stack_end -= 4; /* not pop_stack! */
 	    return(data);
 	  }
@@ -36335,7 +36328,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	sc->stack_end -= 4; /* not pop_stack! */
 	push_stack(sc, OP_SORT_STRING_END, cons(sc, data, lessp), sc->code);
 	set_car(args, vec);
-	/* s7_gc_unprotect_at(sc, gc_loc); */
       }
       break;
 
@@ -36378,7 +36370,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 *   at any time during that loop, and the GC mark process expects the vector to have an s7_pointer
 	 *   at every element.
 	 */
-	/* gc_loc = s7_gc_protect_1(sc, vec); */
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
 	elements = s7_vector_elements(vec);
 
@@ -36393,14 +36384,12 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	    for (i = 0; i < len; i++)
 	      vector_setter(data)(sc, data, i, elements[i]);
 
-	    /* s7_gc_unprotect_at(sc, gc_loc); */
 	    sc->stack_end -= 4;
 	    return(data);
 	  }
 	sc->stack_end -= 4;
 	set_car(args, vec);
 	push_stack(sc, OP_SORT_VECTOR_END, cons(sc, data, lessp), sc->code); /* save and gc protect the original homogeneous vector and func */
-	/* s7_gc_unprotect_at(sc, gc_loc); */
       }
       break;
 
@@ -36472,21 +36461,23 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
   k = ((int32_t)(n / 2)) + 1;
 
   lx = s7_make_vector(sc, (sc->safety == NO_SAFETY) ? 4 : 6);
-  gc_loc = s7_gc_protect_1(sc, lx);
-  sc->v = lx;
-
-  vector_element(lx, 0) = make_mutable_integer(sc, n);
-  vector_element(lx, 1) = make_mutable_integer(sc, k);
-  vector_element(lx, 2) = make_mutable_integer(sc, 0);
-  vector_element(lx, 3) = make_mutable_integer(sc, 0);
-  if (sc->safety > NO_SAFETY)
-    {
-      vector_element(lx, 4) = make_mutable_integer(sc, 0);
-      vector_element(lx, 5) = make_integer(sc, n * n);
-    }
-  push_stack(sc, OP_SORT, args, lx);
-  s7_gc_unprotect_at(sc, gc_loc);
-
+  {
+    uint32_t gc_loc;
+    gc_loc = s7_gc_protect_1(sc, lx);
+    sc->v = lx;
+    
+    vector_element(lx, 0) = make_mutable_integer(sc, n);
+    vector_element(lx, 1) = make_mutable_integer(sc, k);
+    vector_element(lx, 2) = make_mutable_integer(sc, 0);
+    vector_element(lx, 3) = make_mutable_integer(sc, 0);
+    if (sc->safety > NO_SAFETY)
+      {
+	vector_element(lx, 4) = make_mutable_integer(sc, 0);
+	vector_element(lx, 5) = make_integer(sc, n * n);
+      }
+    push_stack(sc, OP_SORT, args, lx);
+    s7_gc_unprotect_at(sc, gc_loc);
+  }
   return(sc->F);
   /* if the comparison function waffles, sort! can hang: (sort! '(1 2 3) (lambda (a b) (= a b)))
    * set 'safety to 1 to add a check for this loop, but the "safe" procedures are direct, so unchecked.
@@ -42495,14 +42486,12 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_OUTPUT_PORT:
       {
 	s7_pointer let;
-	/* uint32_t gc_loc; */
 	let = s7_inlet(sc, s7_list(sc, 8, sc->value_symbol, obj,
 				   sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
 				   s7_make_symbol(sc, "port-type"), 
 				     (is_string_port(obj)) ? sc->string_symbol : 
 				       ((is_file_port(obj)) ? s7_make_symbol(sc, "file") : s7_make_symbol(sc, "function")),
 				   s7_make_symbol(sc, "closed"), s7_make_boolean(sc, port_is_closed(obj))));
-	/* gc_loc = s7_gc_protect_1(sc, let); */
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
 	if (is_file_port(obj))
 	  {
@@ -42523,7 +42512,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	      s7_varlet(sc, let, s7_make_symbol(sc, "data"), s7_make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
 	  }
 	sc->stack_end -= 4;
-	/* s7_gc_unprotect_at(sc, gc_loc); */
 	return(let);
       }
 
@@ -54416,11 +54404,10 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
       opt_info *opc;
       int32_t i;
       s7_pointer p;
-#if 0
-      /* PERHAPS: this is probably not needed */
+
       if (!s7_is_aritable(sc, s_func, (int32_t)s7_list_length(sc, cdr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
-#endif
+
       opc = alloc_opo(sc, car_x);
       for (i = 0, p = cdr(car_x); is_pair(p); i++, p = cdr(p))
 	if (!cell_optimize(sc, p))
@@ -56146,6 +56133,8 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   if (car(form) == sc->unquote_symbol)
     {
+      if (is_null(cdr(form)))
+	eval_error(sc, "unquote: no argument, ~S", form); /* (unquote) can hit this */
       if (is_not_null(cddr(form)))
 	eval_error(sc, "unquote: too many arguments, ~S", form);
       return(cadr(form));
@@ -56161,7 +56150,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   {
     int32_t len, i;
-    uint32_t loc;
+    /* uint32_t loc; */
     s7_pointer orig, bq, old_scw;
     bool dotted = false;
 
@@ -56177,7 +56166,8 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 	dotted = true;
       }
     old_scw = sc->w;
-    loc = s7_gc_protect_1(sc, old_scw);
+    /* loc = s7_gc_protect_1(sc, old_scw); */
+    push_stack_no_let_no_code(sc, OP_GC_PROTECT, sc->w);
 
     sc->w = sc->nil;
     for (i = 0; i <= len; i++)
@@ -56220,7 +56210,8 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
     bq = sc->w;
     sc->w = old_scw;
-    s7_gc_unprotect_at(sc, loc);
+    /* s7_gc_unprotect_at(sc, loc); */
+    sc->stack_end -= 4;
     return(bq);
   }
 }
@@ -58680,6 +58671,7 @@ static void init_choosers(s7_scheme *sc)
 
 static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop)
 {
+  /* fprintf(stderr, "opt 0: %s %d\n", DISPLAY(expr), hop); */
   if (is_possibly_constant(car(expr)))
     hop = 1;
 
@@ -69606,8 +69598,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    /* body might not be safe in this case, but the step and end exprs are easy
 	     *   "not safe" merely means we hit something that the optimizer can't specialize
-	     */
-	    /* simple_do: set up local env, check end (c_c?), goto simple_do_ex
+	     *
+	     * simple_do: set up local env, check end (c_c?), goto simple_do_ex
 	     *   if latter gets s7_optimize, run locally, else goto simple_do_step.
 	     *   but is not 1 expr body, etc -- just goto simple_do_step,
 	     */
@@ -69908,7 +69900,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (op == sc->safe_dotimes_symbol) goto SAFE_DOTIMES;
 	      if (op == sc->dotimes_p_symbol)    goto DOTIMES_P;
 	      if (op == sc->safe_do_symbol)	 goto SAFE_DO;
-
 	      if (op == sc->do_no_vars_symbol)   goto DO_NO_VARS;
 	      goto SIMPLE_DO;
 	    }
@@ -75715,8 +75706,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	AND_P:
 	case OP_AND_P:
-	  if (c_callee(sc->code)) /* all c_callee's are set via all_x_eval which can return nil */
-	    {
+	  if (has_all_x(sc->code)) /* all c_callee's are set via all_x_eval which can return nil, but it is not cleared when type is */
+	    {                      /*   so, if (c_callee(sc->code)) here and in OR_P is not safe */
 	      sc->value = c_call(sc->code)(sc, car(sc->code));
 	      if (is_false(sc, sc->value))
 		goto START;
@@ -75815,12 +75806,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	OR_P:
 	case OP_OR_P:
-	  if (c_callee(sc->code))
+	  if (has_all_x(sc->code))
 	    {
-#if DEBUGGING
-	      if (!has_all_x(sc->code))
-		fprintf(stderr, "callee: %s\n", DISPLAY(sc->code));
-#endif
 	      sc->value = c_call(sc->code)(sc, car(sc->code));
 	      if (is_true(sc, sc->value))
 		goto START;
