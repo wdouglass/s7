@@ -3921,9 +3921,6 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x)
 	sc->gpofl[++sc->gpofl_loc] = i;
 	return;
       }
-#if DEBUGGING
-  fprintf(stderr, "can't unprotect %s\n", DISPLAY(x));
-#endif
 }
 
 void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc)
@@ -3932,14 +3929,8 @@ void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc)
     {
       if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
 	sc->gpofl[++sc->gpofl_loc] = loc;
-#if DEBUGGING
-      else fprintf(stderr, "already unprotected at %u?\n", loc);
-#endif
       vector_element(sc->protected_objects, loc) = sc->gc_nil;
     }
-#if DEBUGGING
-  else fprintf(stderr, "unprotect at %u >= %u\n", loc, sc->protected_objects_size);
-#endif
 }
 
 s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc)
@@ -3949,10 +3940,6 @@ s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc)
   obj = sc->unspecified;
   if (loc < sc->protected_objects_size)
     obj = vector_element(sc->protected_objects, loc);
-#if DEBUGGING
-  else fprintf(stderr, "protected_at %u >= %u\n", loc, sc->protected_objects_size);
-#endif
-
   if (obj == sc->gc_nil)
     return(sc->unspecified);
 
@@ -6467,9 +6454,6 @@ static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
   if (is_let(obj)) return(obj);
   switch (type(obj))
     {
-    case T_LET:
-      return(obj);
-
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
@@ -7635,7 +7619,7 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
 
   if (env == sc->rootlet)
     {
-      if (is_constant_symbol(sc, symbol))  /* (let-set! (rootlet) :rest #f) */
+      if (is_constant_symbol(sc, symbol))  /* (let-set! (rootlet) 'pi #f) */
 	return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, a_non_constant_symbol_string));
       y = global_slot(symbol);
       if (is_slot(y))
@@ -7646,7 +7630,7 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
 	  return(slot_value(y));
 	}
 
-      if (!err) err = s7_make_permanent_string("let-set! ~A is not defined in ~A");
+      if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
       return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, symbol, env)));
     }
 
@@ -7680,7 +7664,7 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
     }
 #endif
 
-  if (!err) err = s7_make_permanent_string("let-set! ~A is not defined in ~A");
+  if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, symbol, env)));
   /* not sure about this -- what's the most useful choice? */
 }
@@ -7757,7 +7741,7 @@ static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym
 	  else slot_set_value(y, val);
 	  return(slot_value(y));
 	}
-      if (!err) err = s7_make_permanent_string("let-set! ~A is not defined in ~A");
+      if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
       return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, sym, lt)));
     }
 
@@ -7787,7 +7771,7 @@ static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym
 	  return(slot_value(y));
 	}
     }
-  if (!err) err = s7_make_permanent_string("let-set! ~A is not defined in ~A");
+  if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, sym, lt)));
 }
 
@@ -28870,9 +28854,7 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
   tmpbuf_free(str, len);
 }
 
-#if DEBUGGING
 static s7_pointer g_is_local_symbol(s7_scheme *sc, s7_pointer p) {return(make_boolean(sc, is_local_symbol(p)));} /* was car(p)?? */
-#endif
 
 static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, int32_t line, const char *func)
 {
@@ -28883,24 +28865,6 @@ static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, in
     }
   return(p);
 }
-
-#if 0
-/* these are bits usable on (say) let code without colliding with other pair-wise uses */
-/*    we need has_all_x = T_SETTER currently
- *    T_MUTABLE and T_SAFE_STEPPER are let_ref|set fallback bits 
- *    T_IMMUTABLE is hard to predict, 
- *    maybe T_SAFE_STEPPER for unsafe_locals
- */
-static void check_pair_bits(s7_scheme *sc, s7_pointer p)
-{
-  /* if ((typeflag(p) & T_MUTABLE) != 0) fprintf(stderr, "mutable: %s\n", DISPLAY_80(p)); */ /* now no_opt flag */
-  if ((typeflag(p) & T_IMMUTABLE) != 0) fprintf(stderr, "immutable: %s\n", DISPLAY_80(p));
-  if ((typeflag(p) & T_GENSYM) != 0) fprintf(stderr, "gensym: %s\n", DISPLAY_80(p));
-  if ((typeflag(p) & T_SETTER) != 0) fprintf(stderr, "setter: %s\n", DISPLAY_80(p));
-  if ((typeflag(p) & T_COPY_ARGS) != 0) fprintf(stderr, "copy_args: %s\n", DISPLAY_80(p));
-  if ((typeflag(p) & T_SAFE_STEPPER) != 0) fprintf(stderr, "safe_stepper: %s\n", DISPLAY_80(p));
-}
-#endif
 #endif
 
 static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -38461,9 +38425,9 @@ void s7_define_typed_function_star(s7_scheme *sc, const char *name, s7_function 
 
 
 /* -------------------------------- documentation -------------------------------- */
-static s7_pointer get_doc(s7_scheme *sc, s7_pointer x)
+static s7_pointer funclet_entry(s7_scheme *sc, s7_pointer x, s7_pointer sym)
 {
-  check_closure_for(sc, x, sc->local_documentation_symbol);
+  check_closure_for(sc, x, sym);
   return(NULL);
 }
 
@@ -38482,7 +38446,7 @@ const char *s7_documentation(s7_scheme *sc, s7_pointer x)
       (is_c_macro(x)))
     return((char *)c_function_documentation(x));
 
-  val = get_doc(sc, x);
+  val = funclet_entry(sc, x, sc->local_documentation_symbol);
   if ((val) && (is_string(val)))
     return(string_value(val));
 
@@ -38503,6 +38467,20 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
 	return(s7_make_string(sc, symbol_help(p)));
       p = s7_symbol_value(sc, p);
     }
+
+  /* (documentation func) should act like (documentation abs) -- available without (openlet (funclet func)) or (openlet func)
+   *   so we check that case ahead of time here, rather than going through check_method which does not
+   *   call find_let unless has_methods(func).  Adding T_HAS_METHODS to all closures causes other troubles.
+   */
+  if (has_closure_let(p))
+    {
+      s7_pointer func;
+      func = funclet_entry(sc, p, sc->documentation_symbol);
+      if (func)
+	return(s7_apply_function(sc, func, args));
+    }
+
+  /* it would be neat if this would worK (define x (let ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
 #if DISABLE_DEPRECATED
   check_method(sc, p, sc->documentation_symbol, args);
 #else
@@ -38590,8 +38568,14 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
-      check_closure_for(sc, p, sc->local_signature_symbol); /* this examines funclet */
-      return(sc->F);
+      {
+	s7_pointer func;
+	func = funclet_entry(sc, p, sc->local_signature_symbol);
+	if (func) return(func);
+	func = funclet_entry(sc, p, sc->signature_symbol);
+	if (func) return(s7_apply_function(sc, func, args));
+	return(sc->F);
+      }
 
     case T_HASH_TABLE:   return(sc->hash_table_signature);
     case T_VECTOR:       return(sc->vector_signature);
@@ -39037,6 +39021,8 @@ static s7_pointer c_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
       closure_set_setter(p, setter);
+      if (setter == sc->F) 
+	closure_set_no_setter(p);
       break;
 
     case T_C_FUNCTION:
@@ -39087,12 +39073,6 @@ s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj)
   return(closure_setter(obj));
 }
 
-static s7_pointer funclet_setter(s7_scheme *sc, s7_pointer fnc)
-{
-  check_closure_for(sc, fnc, sc->local_setter_symbol);
-  return(sc->F);
-}
-
 static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
 {
   #define H_setter "(setter obj) returns the setter associated with obj, or #f"
@@ -39105,16 +39085,30 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
-      if ((!is_procedure(closure_setter(p))) &&
-	  (!closure_no_setter(p)))
+      if (is_any_procedure(closure_setter(p)))                /* setter already known */
+	return(closure_setter(p));
+      if (!closure_no_setter(p))
 	{
 	  s7_pointer f;
-	  f = funclet_setter(sc, p);
-	  if (is_procedure(f))
-	    closure_set_setter(p, f);
-	  else closure_set_no_setter(p);
+	  f = funclet_entry(sc, p, sc->local_setter_symbol); /* look for +setter+, save value as closure_setter(p) */
+	  if (f)
+	    {
+	      if (f == sc->F)
+		{
+		  closure_set_no_setter(p);
+		  return(sc->F);
+		}
+	      if (!is_any_procedure(f))
+		return(s7_wrong_type_arg_error(sc, "setter", 0, p, "a procedure or a reasonable facsimile thereof"));
+	      closure_set_setter(p, f);
+	      return(f);
+	    }
+	  f = funclet_entry(sc, p, sc->setter_symbol);       /* look for setter */
+	  if (f)
+	    return(s7_apply_function(sc, f, args));
+	  closure_set_no_setter(p);
 	}
-      return(closure_setter(p));
+      return(sc->F);
 
     case T_C_FUNCTION:
     case T_C_FUNCTION_STAR:
@@ -54469,6 +54463,12 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 	      optlist_set_pc(op, start);                          /* loaded at this position below */
 
 	      sc->envir = closure_let(s_func);
+	      /* since this is a safe function, the closure_let reflects the previous call in its slot values
+	       *    normally we can't make any optimizations based on that
+	       */
+	      for (p = let_slots(sc->envir); is_slot(p); p = next_slot(p))
+		slot_set_value(p, sc->gc_nil);
+
 	      for (p = closure_body(s_func); is_pair(p); p = cdr(p))
 		if (!cell_optimize(sc, p))
 		  break;
@@ -65068,8 +65068,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
       /* sc->code = cons(sc, sc->let_set_function, s7_append(sc, car(sc->code), cdr(sc->code))); */
       {
 	s7_pointer settee, key;
-	/* code: ((gen 'input) input) from (set! (gen 'input) input)
-	 */
+	/* code: ((gen 'input) input) from (set! (gen 'input) input) */
 	
 	if (is_null(cdr(sc->code)))
 	  s7_wrong_number_of_args_error(sc, "no value for let-set!: ~S", sc->code);
@@ -65078,7 +65077,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	
 	settee = car(sc->code);
 	if (is_null(cdr(settee)))
-	  s7_wrong_number_of_args_error(sc, "no identifier for let-set!: ~S", sc->code);
+	  s7_wrong_number_of_args_error(sc, "no symbol (variable name) for let-set!: ~S", sc->code);
 	if (is_immutable(cx))
 	  immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, cx));
 	
@@ -65214,6 +65213,9 @@ static int32_t set_pair_ex(s7_scheme *sc)
       {
 	s7_pointer setter;
 	setter = closure_setter(cx);
+	if ((setter == sc->F) &&
+	    (!closure_no_setter(cx)))
+	  setter = g_setter(sc, cons(sc, cx, sc->nil));
 	if (is_t_procedure(setter))          /* appears to be caar_code */
 	  {
 	    /* (set! (o g) ...), here cx = o, sc->code = ((o g) ...) */
@@ -68143,11 +68145,6 @@ static int32_t apply_pair(s7_scheme *sc)                              /* -------
       /* car of values can be anything, so conjure up a new expression, and apply again */
       sc->x = multiple_value(sc->code);                             /* ((values + 1 2) 3) */
       sc->code = car(sc->x);
-#if 0
-      /* this can't happen? */
-      if (!s7_is_proper_list(sc, cdr(sc->x)))
-	s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "values arglist is a dotted list: ~A"), sc->x));
-#endif
       sc->args = s7_append(sc, cdr(sc->x), sc->args);
       sc->x = sc->nil;
       return(goto_APPLY);
@@ -68592,15 +68589,6 @@ static int32_t define1_ex(s7_scheme *sc)
       if (is_slot(global_slot(sc->code)))
 	x = global_slot(sc->code); 
       else x = find_symbol(sc, sc->code);  /* local_slot can be free even if sc->code is immutable (local constant now defunct) */
-#if 0
-      if (!is_slot(x))
-	{
-	  if (/* (is_slot(local_slot(sc->code))) -- this can be free! */
-	      (unchecked_type(local_slot(sc->code)) == T_SLOT) && /* but this is gc dependent */
-	      (type(sc->value) == unchecked_type(slot_value(local_slot(sc->code)))))
-	    x = local_slot(sc->code);
-	}
-#endif
       if (!((is_slot(x)) &&
 	    (type(sc->value) == unchecked_type(slot_value(x))) &&
 	    (s7_is_morally_equal(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
@@ -69868,7 +69856,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *   every previous reference gets changed as a side-effect.  In the current code, we're "binding"
 	       *   the value in the sense that on each step, a new value is assigned to the step variable.
 	       *   In the "direct" case, (let ((v #(0 0 0))) (do ((i 0 (+ i 1))) ((= i 3) v) (set! (v i) i))
-	       *   would return #(3 3 3).
+	       *   would return #(3 3 3).  But here we can use copy: (set! (v i) (copy i)). 
 	       *
 	       * if sc->capture_let_counter changes, would it be sufficient to simply make a new slot?
 	       *   I think not; the closure retains the current env chain, not the slots, so we need a new env.
@@ -81842,7 +81830,7 @@ s7_scheme *s7_init(void)
   sc->read_line_buf_size = 0;
 
   sc->nil =         make_unique_object("()",             T_NIL);
-  sc->gc_nil =      make_unique_object("#<nil>",         T_NIL);        /* ?? perhaps a unique type for this? */
+  sc->gc_nil =      make_unique_object("#<gc-nil>",      T_NIL);        /* ?? perhaps a unique type for this? */
   sc->T =           make_unique_object("#t",             T_BOOLEAN);
   sc->F =           make_unique_object("#f",             T_BOOLEAN);
   sc->eof_object =  make_unique_object("#<eof>",         T_EOF_OBJECT);
@@ -83889,7 +83877,7 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475
  * teq           |      |      | 6612 || 2777 || 1931 | 1918
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2119
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2105
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
  * lint          |      |      |      || 4041 || 2702 | 2696
  * lg            |      |      |      || 211  || 133  | 133.7

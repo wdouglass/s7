@@ -4127,6 +4127,17 @@ in the procedure's local environment:
 &gt; (documentation func)
 <em class="gray">"helpful info"</em>
 </pre>
+<p>Since documentation is a method, a function's documentation can be computed at run-time:
+</p>
+<pre class="indented">
+(define func
+  (let ((documentation (lambda (f) (format #f "this is func's funclet: ~S" (funclet f)))))
+    (lambda (x)
+      (+ x 1))))
+
+&gt; (documentation func)
+<em class="gray">"this is func's funclet: (inlet 'x ())"</em>
+</pre>
 
 <p>
 <b>arity</b> takes any object and returns either #f if it is not applicable,
