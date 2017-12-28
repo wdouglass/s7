@@ -2653,7 +2653,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if USE_MOTIF
   void Init_libxm(s7_scheme *sc);
 #else
-  void Init_libxg(s7_scheme *sc);
+  /* void Init_libxg(s7_scheme *sc); */
 #endif
 #if HAVE_GL
  void Init_libgl(s7_scheme *sc);
@@ -2662,7 +2662,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if USE_MOTIF
   void Init_libxm(void);
 #else
-  void Init_libxg(void);
+  /* void Init_libxg(void); */
 #endif
 #if HAVE_GL
  void Init_libgl(void);
@@ -3073,13 +3073,13 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
     s7_define_constant(s7, "*gtk*", gtk = s7_inlet(s7, s7_nil(s7)));
     old_shadow = s7_shadow_rootlet(s7);
     s7_set_shadow_rootlet(s7, gtk);
-    Init_libxg(s7);
+    /* Init_libxg(s7); */
     s7_set_shadow_rootlet(s7, old_shadow);
   }
 #else
-  Init_libxg();
+  /* Init_libxg(); */
 #endif
-  #if HAVE_FORTH
+  #if HAVE_FORTH && (0)
     fth_add_loaded_files("libxg.so");
   #endif
 #endif

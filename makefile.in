@@ -72,7 +72,7 @@ O_FILES = snd-io.o snd-utils.o snd-listener.o snd-completion.o snd-menu.o snd-ax
 
 MOTIF_O_FILES = snd-gxbitmaps.o snd-gxcolormaps.o snd-motif.o xm.o
 
-GTK_O_FILES = snd-gutils.o snd-ghelp.o snd-gfind.o snd-gmenu.o snd-gdraw.o snd-glistener.o glistener.o snd-gchn.o snd-gsnd.o snd-gregion.o snd-gmain.o snd-gmix.o snd-genv.o snd-gxbitmaps.o snd-gxcolormaps.o snd-gfft.o snd-gfile.o snd-gprefs.o xg.o
+GTK_O_FILES = snd-gutils.o snd-ghelp.o snd-gfind.o snd-gmenu.o snd-gdraw.o snd-glistener.o glistener.o snd-gchn.o snd-gsnd.o snd-gregion.o snd-gmain.o snd-gmix.o snd-genv.o snd-gxbitmaps.o snd-gxcolormaps.o snd-gfft.o snd-gfile.o snd-gprefs.o
 # xg.o is optional, and the functionality can be loaded at run-time (libxg.so or libgtk_s7.so), but there's no obvious reason to wait (core sizes are nearly the same, etc)
 
 NO_GUI_O_FILES = snd-nogui.o

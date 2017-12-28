@@ -103,7 +103,7 @@
 	"GtkDestroyNotify"
 	
 	"GtkAssistant*" "GtkRecentChooser*" "GtkRecentChooserMenu*"
-	"GtkTextBufferSerializeFunc" "GtkTextBufferDeserializeFunc" 
+	;"GtkTextBufferSerializeFunc" "GtkTextBufferDeserializeFunc" 
 	"GtkRecentData*" "GtkNotebookWindowCreationFunc"
 	
 	"GtkUnit" "GtkPageSetupDoneFunc"
@@ -623,6 +623,8 @@
 	(cons "GtkPrintQuality" "INT")
 
 	(cons "GtkEventControllerScrollFlags" "INT")
+	(cons "GdkDeviceType" "INT")
+	(cons "GtkIconSize" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
@@ -1398,7 +1400,6 @@
 (hey " *    (xg-version): date string.~%")
 (hey " *    (c-array->list arr len) derefs each member of arr, returning lisp list, len=#f: null terminated array~%")
 (hey " *    (list->c-array lst ctype) packages each member of list as c-type \"type\" returning (wrapped) c array~%")
-(hey " *    (make-target-entry lst) returns a GtkTargetEntry table, each member of 'lst' should be (list target flags info)~%")
 (hey " *    (GtkTextIter): GtkTextIter struct~%")
 (hey " *    (GtkTreeIter): GtkTreeIter struct~%")
 (hey " *    (PangoRectangle): PangoRectangle struct~%")
@@ -2879,26 +2880,6 @@
 (hey "}~%")
 (hoy "#endif~%~%")
 
-(hey "static Xen gxg_make_target_entry(Xen lst)~%")
-(hey "{~%")
-(hey "  GtkTargetEntry* targets;~%")
-(hey "  int i, len;~%")
-(hey "  #define H_make_target_entry \"(make-target-entry lst): GtkTargetEntry*, each member of 'lst' should be (list target flags info)\"~%")
-(hey "  Xen_check_type(Xen_is_list(lst), lst, 1, \"make-target-entry\", \"a list of lists describing each target\");~%")
-(hey "  len = Xen_list_length(lst);~%")
-(hey "  if (len == 0) return(Xen_false);~%")
-(hey "  targets = (GtkTargetEntry *)calloc(len, sizeof(GtkTargetEntry));~%")
-(hey "  for (i = 0; i < len; i++)~%")
-(hey "    {~%")
-(hey "      Xen val;~%")
-(hey "      val = Xen_list_ref(lst, i);~%")
-(hey "      targets[i].target = xen_strdup(Xen_string_to_C_string(Xen_list_ref(val, 0)));~%")
-(hey "      targets[i].flags = (guint)Xen_ulong_to_C_ulong(Xen_list_ref(val, 1));~%")
-(hey "      targets[i].info = (guint)Xen_ulong_to_C_ulong(Xen_list_ref(val, 2));~%")
-(hey "    }~%")
-(hey "  return(C_to_Xen_GtkTargetEntry_(targets));~%")
-(hey "}~%")
-
 (define (array->list type)
   (hey "  if (ctype == xg_~A_symbol)~%" (no-stars type))
   (hey "    {~%")
@@ -3254,7 +3235,6 @@
 (hey "Xen_wrap_1_arg(gxg_GPOINTER_w, gxg_GPOINTER)~%")
 (hey "Xen_wrap_2_args(c_array_to_xen_list_w, c_array_to_xen_list)~%")
 (hey "Xen_wrap_2_args(xen_list_to_c_array_w, xen_list_to_c_array)~%")
-(hey "Xen_wrap_1_arg(gxg_make_target_entry_w, gxg_make_target_entry)~%")
 (hey "Xen_wrap_3_args(xg_object_get_w, xg_object_get)~%")
 (hey "Xen_wrap_3_args(xg_object_set_w, xg_object_set)~%")
 (hey "Xen_wrap_1_arg(xg_gtk_event_keyval_w, xg_gtk_event_keyval)~%")
@@ -3510,7 +3490,6 @@
 
 (hey "  Xg_define_procedure(c-array->list, c_array_to_xen_list_w, 2, 0, 0, NULL, NULL);~%")
 (hey "  Xg_define_procedure(list->c-array, xen_list_to_c_array_w, 2, 0, 0, NULL, NULL);~%")
-(hey "  Xg_define_procedure(make-target-entry, gxg_make_target_entry_w, 1, 0, 0, H_make_target_entry, NULL);~%")
 (hey "  Xg_define_procedure(g_object_get, xg_object_get_w, 3, 0, 0, NULL, NULL);~%")
 (hey "  Xg_define_procedure(g_object_set, xg_object_set_w, 3, 0, 0, NULL, NULL);~%")
 (hey "  Xg_define_procedure(gtk_event_keyval, xg_gtk_event_keyval_w, 1, 0, 0, NULL, NULL);~%")
