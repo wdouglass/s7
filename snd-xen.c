@@ -2663,6 +2663,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
   void Init_libxm(void);
 #else
   /* void Init_libxg(void); */
+  /* replacement for now: make xg, then (load "xg.so" (sublet (curlet) (cons 'init_func 'Init_libxg))) */
 #endif
 #if HAVE_GL
  void Init_libgl(void);

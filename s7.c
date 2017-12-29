@@ -5124,6 +5124,8 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
     } while (0)
 #endif
 
+/* static s7_pointer describe_memory_usage(s7_scheme *sc); */
+
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
   /* alloc more heap */
@@ -5179,6 +5181,15 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   if (show_heap_stats(sc))
     {
       fprintf(stderr, "heap grows to %" PRId64 "\n", sc->heap_size);
+#if 0
+      {
+	s7_pointer old_out;
+	old_out = sc->output_port;
+	sc->output_port = sc->standard_error;
+	describe_memory_usage(sc);
+	sc->output_port = old_out;
+      }
+#endif
 #if DEBUGGING
       if (sc->heap_size > 50000000) /* maybe a max-heap-size? */
 	{
@@ -59040,7 +59051,8 @@ static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
 	 (is_slot(find_symbol(sc, arg1))));
 }
 
-static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
+static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func, 
+				   int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
   s7_pointer arg1;
   /* very often, expr is already optimized, quoted stuff is counted under "bad_pairs"! as well as quotes */
@@ -59206,15 +59218,17 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      s7_pointer lambda_expr;
 		      lambda_expr = arg1;
 		      if ((is_pair(lambda_expr)) &&
-			  (is_lambda(sc, car(lambda_expr))) && /* check for stuff like (define (f) (eval (lambda 2))) */
+			  (is_lambda(sc, car(lambda_expr))) &&     /* check for stuff like (define (f) (eval (lambda 2))) */
 			  (is_pair(cdr(lambda_expr))) &&
 			  (is_pair(cddr(lambda_expr))))
 			{
 			  if ((c_function_call(func) == g_call_with_exit) &&
 			      (is_pair(cadr(lambda_expr))) &&
 			      (is_null(cdadr(lambda_expr))) &&
-			      (is_symbol(caadr(lambda_expr))))
+			      (is_symbol(caadr(lambda_expr))) &&
+			      (!direct_memq(car(lambda_expr), e))) /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
 			    {
+			      /* fprintf(stderr, "call-with-exit %s %s %s\n", DISPLAY(lambda_expr), DISPLAY(sc->envir), DISPLAY(e)); */
 			      set_unsafe_optimize_op(expr, hop + OP_CALL_WITH_EXIT);
 			      choose_c_function(sc, expr, func, 1);
 			      set_opt_pair2(expr, cdr(lambda_expr));
