@@ -5009,6 +5009,8 @@ static int32_t gc(s7_scheme *sc)
 	      {
 #if DEBUGGING
 		p->debugger_bits = 0;
+		if ((is_goto(p)) && (call_exit_active(p)))
+		  fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT);
 #endif
 		clear_type(p); /* (this is needed -- otherwise we try to free some objects twice) */
 		(*fp++) = p;
@@ -55918,36 +55920,30 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       stack_code(sc->stack, top) = car(x);
       return(cadr(x));
       
-      /* look for errors here rather than glomming up the set! and let code */
+      /* look for errors here rather than glomming up the set! and let code. */
     case OP_SET_SAFE:
     case OP_SET1:                                             /* (set! var (values 1 2 3)) */
-      set_multiple_value(args);
-      eval_error(sc, "can't set! some variable to ~S", args);
+      eval_error(sc, "can't set! some variable to ~S", cons(sc, sc->values_symbol, args));
       
     case OP_SET_PAIR_P_1:
-      set_multiple_value(args);
-      eval_error(sc, "too many values to set! ~S", args);
+      eval_error(sc, "too many values to set! ~S", cons(sc, sc->values_symbol, args));
       
     case OP_LET1:                                             /* (let ((var (values 1 2 3))) ...) */
     case OP_LET_ONE_1:
     case OP_LET_Z_1:
-      set_multiple_value(args);
-      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->let_symbol, args);
+      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->let_symbol, cons(sc, sc->values_symbol, args)); 
       /* "some variable" is ugly, but the actual name is tricky to find at this point --
        *   it's in main_stack_args, but finding the right one is a mess.  It isn't sc->code.
        */
       
     case OP_LET_STAR1:
-      set_multiple_value(args);
-      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->let_star_symbol, args);
+      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->let_star_symbol, cons(sc, sc->values_symbol, args));
       
     case OP_LETREC1:
-      set_multiple_value(args);
-      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->letrec_symbol, args);
+      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->letrec_symbol, cons(sc, sc->values_symbol, args));
 
     case OP_LETREC_STAR1:
-      set_multiple_value(args);
-      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->letrec_star_symbol, args);
+      eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->letrec_star_symbol, cons(sc, sc->values_symbol, args));
       
       /* handle 'and' and 'or' specially */
     case OP_AND1:
@@ -55980,6 +55976,9 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
        */
       return(args);
       
+    case OP_DEACTIVATE_GOTO:  /* (+ (call-with-exit (lambda (ret) (values 1 2 3)))) */
+      call_exit_active(stack_args(sc->stack, top)) = false;
+
     case OP_CATCH:
     case OP_CATCH_1:
     case OP_CATCH_2:
@@ -56003,7 +56002,11 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       break;
     }
 
-  /* let it meander back up the call chain until someone knows where to splice it */
+  /* let it meander back up the call chain until someone knows where to splice it
+   *   the is_immutable check protects against setting the multiple value bit on (say) sc->hash_table_signature
+   */
+  if (is_immutable(args))
+    args = copy_list(sc, args);
   set_multiple_value(args);
   return(args);
 }
@@ -56087,7 +56090,6 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
 
   return(g_values(sc, x));
 }
-
 
 /* (apply values ...) replaces (unquote_splicing ...)
  *
