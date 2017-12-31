@@ -2028,12 +2028,13 @@ static s7_scheme *cur_sc = NULL;
 #define T_DEFINER                     (1LL << (TYPE_BITS + 26))
 #define is_definer(p)                 ((typeflag(_NFre(p)) & T_DEFINER) != 0)
 
+#define UNUSED_BITS                   0x7ffffff800000000
 
 #define T_GC_MARK                     0x8000000000000000
 #define is_marked(p)                  ((typeflag(p) &  T_GC_MARK) != 0)
 #define set_mark(p)                   typeflag(_NFre(p)) |= T_GC_MARK
 #define clear_mark(p)                 typeflag(p) &= (~T_GC_MARK)
-/* using bit 23 for this makes a big difference in the GC */
+/* using the sign bit, bit 23 (or 55) == 31 (or 63) for this makes a big difference in the GC */
 
 static int64_t not_heap = -1;
 #define heap_location(p)              (p)->hloc
@@ -3047,7 +3048,7 @@ enum {OP_NO_OP, OP_GC_PROTECT,
       OP_DEFINE_BACRO, OP_DEFINE_BACRO_STAR,
       OP_GET_OUTPUT_STRING, OP_GET_OUTPUT_STRING_1,
       OP_SORT, OP_SORT1, OP_SORT2, OP_SORT3, OP_SORT_PAIR_END, OP_SORT_VECTOR_END, OP_SORT_STRING_END,
-      OP_EVAL_STRING_1, 
+      OP_EVAL_STRING, 
       OP_MEMBER_IF, OP_ASSOC_IF, OP_MEMBER_IF1, OP_ASSOC_IF1,
 
       OP_QUOTE_UNCHECKED, OP_LAMBDA_UNCHECKED, OP_LET_UNCHECKED, OP_CASE_UNCHECKED, OP_WHEN_UNCHECKED, OP_UNLESS_UNCHECKED,
@@ -3275,7 +3276,7 @@ static const char *op_names[OP_MAX_DEFINED_1] = {
       "define_bacro", "define_bacro*",
       "get_output_string", "get_output_string_1",
       "sort", "sort1", "sort2", "sort3", "sort_pair_end", "sort_vector_end", "sort_string_end",
-      "eval_string_1", 
+      "eval_string", 
       "member_if", "assoc_if", "member_if1", "assoc_if1",
 
       "quote_unchecked", "lambda_unchecked", "let_unchecked", "case_unchecked", "when_unchecked", "unless_unchecked",
@@ -4813,6 +4814,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 #if DEBUGGING
 static int32_t last_gc_line = 0;
 static const char *last_gc_func = NULL;
+static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
 #endif
 
 #define GC_STATS 1
@@ -4822,7 +4824,6 @@ static const char *last_gc_func = NULL;
 #define show_gc_stats(Sc) ((Sc->gc_stats & GC_STATS) != 0)
 #define show_stack_stats(Sc) ((Sc->gc_stats & STACK_STATS) != 0)
 #define show_heap_stats(Sc) ((Sc->gc_stats & HEAP_STATS) != 0)
-
 
 static int32_t gc(s7_scheme *sc)
 {
@@ -4838,6 +4839,10 @@ static int32_t gc(s7_scheme *sc)
         if (!is_free_and_clear(p))		\
           {								\
 	    p->debugger_bits = 0; p->gc_line = last_gc_line; p->gc_func = last_gc_func;	\
+	    if ((is_goto(p)) && (call_exit_active(p))) \
+              fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT); \
+	    if ((typeflag(p) & UNUSED_BITS) != 0) \
+	      fprintf(stderr, "unused bits on: %s\n", describe_type_bits(sc, p)); \
             clear_type(p);	\
             (*fp++) = p;\
           }}
@@ -5009,8 +5014,12 @@ static int32_t gc(s7_scheme *sc)
 	      {
 #if DEBUGGING
 		p->debugger_bits = 0;
+		p->gc_line = last_gc_line; 
+		p->gc_func = last_gc_func;
 		if ((is_goto(p)) && (call_exit_active(p)))
 		  fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT);
+		if ((typeflag(p) & UNUSED_BITS) != 0)
+		  fprintf(stderr, "unused bits on: %s\n", describe_type_bits(sc, p));
 #endif
 		clear_type(p); /* (this is needed -- otherwise we try to free some objects twice) */
 		(*fp++) = p;
@@ -9336,7 +9345,7 @@ static void call_with_exit(s7_scheme *sc)
 	  }
 	  break;
 
-	case OP_EVAL_STRING_1:  /* was 2 */
+	case OP_EVAL_STRING:
 	  s7_close_input_port(sc, sc->input_port);
 	  pop_input_port(sc);
 	  break;
@@ -25366,7 +25375,7 @@ static s7_pointer g_eval_string(s7_scheme *sc, s7_pointer args)
   push_input_port(sc, port);
 
   sc->temp3 = sc->args;
-  push_stack(sc, OP_EVAL_STRING_1, args, sc->code); 
+  push_stack(sc, OP_EVAL_STRING, args, sc->code); 
   push_stack_op_let(sc, OP_READ_INTERNAL);
 
   return(sc->F);
@@ -28084,7 +28093,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   full_typ,
@@ -28181,6 +28190,13 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   ((full_typ & T_SYMCONS) != 0) ?        ((is_symbol(obj)) ? " possibly-constant" : 
 						   ((is_procedure(obj)) ? " has-let-arg" :
 						    " ?24?")) : "",
+	   /* bit 25 */
+	   ((full_typ & T_S7_LET_FIELD) != 0) ?   " s7-let-field" : "",
+	   /* bit 26 */
+	   ((full_typ & T_DEFINER) != 0) ?        " definer" : "",
+
+	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
+	   
 	   /* bit 55 */
 	   (((full_typ & T_GC_MARK) != 0) && (in_heap(obj))) ? " gc-marked" : "");
   return(buf);
@@ -31569,8 +31585,7 @@ static s7_pointer reverse_in_place(s7_scheme *sc, s7_pointer term, s7_pointer li
   while (is_not_null(p))
     {
       q = cdr(p);
-      if ((!is_pair(q)) &&
-	  (is_not_null(q)))
+      if (!is_list(q))
 	return(sc->nil); /* improper list? */
       set_cdr(p, result);
       result = p;
@@ -37815,8 +37830,7 @@ That is, (hash-table '(\"hi\" . 3) (\"ho\" . 32)) returns a new hash-table with 
 
   /* this accepts repeated keys: (hash-table '(a . 1) '(a . 1)) */
   for (len = 0, x = args; is_pair(x); x = cdr(x), len++)
-    if ((!is_pair(car(x))) &&
-	(!is_null(car(x))))
+    if (!is_list(car(x)))
       return(wrong_type_argument(sc, sc->hash_table_symbol, position_of(x, args), car(x), T_PAIR));
 
   ht = s7_make_hash_table(sc, (len > sc->default_hash_table_length) ? len : sc->default_hash_table_length);
@@ -44016,7 +44030,7 @@ static void init_catchers(void)
   catchers[OP_UNWIND_OUTPUT] =       catch_out_function;
   catchers[OP_UNWIND_INPUT] =        catch_in_function;
   catchers[OP_READ_DONE] =           catch_read_function;      /* perhaps an error during (read) */
-  catchers[OP_EVAL_STRING_1] =       catch_eval_function; 
+  catchers[OP_EVAL_STRING] =         catch_eval_function; 
   catchers[OP_BARRIER] =             catch_barrier_function;
   catchers[OP_DEACTIVATE_GOTO] =     catch_goto_function;
   catchers[OP_ERROR_HOOK_QUIT] =     catch_hook_function;
@@ -56146,8 +56160,8 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   if (car(form) == sc->unquote_symbol)
     {
-      if (is_null(cdr(form)))
-	eval_error(sc, "unquote: no argument, ~S", form); /* (unquote) can hit this */
+      if (!is_pair(cdr(form)))
+	eval_error(sc, (is_null(cdr(form))) ? "unquote: no argument, ~S" : "unquote: stray dot, ~S", form);  /* (unquote) or (unquote . 1) */
       if (is_not_null(cddr(form)))
 	eval_error(sc, "unquote: too many arguments, ~S", form);
       return(cadr(form));
@@ -56163,7 +56177,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   {
     int32_t len, i;
-    /* uint32_t loc; */
     s7_pointer orig, bq, old_scw;
     bool dotted = false;
 
@@ -56179,7 +56192,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 	dotted = true;
       }
     old_scw = sc->w;
-    /* loc = s7_gc_protect_1(sc, old_scw); */
     push_stack_no_let_no_code(sc, OP_GC_PROTECT, sc->w);
 
     sc->w = sc->nil;
@@ -56201,6 +56213,12 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 		 *     This now becomes (1 unquote (apply-values ('(2 3)))) -> (append (list-values 1) (apply-values ('(2 3)))) -> error
 		 * `(1 . (,@'(2 3))) works in both cases, and `(1 . (,(+ 1 1)))
 		 */
+		if (!is_pair(cddr(orig)))
+		  {
+		    sc->w = old_scw;
+		    sc->stack_end -= 4;
+		    eval_error(sc, "unquote: no argument, ~S", form);
+		  }
 		set_car(bq, g_quasiquote_1(sc, car(orig), false));
 		set_cdr(bq, sc->nil);
 		sc->w = list_3(sc, sc->append_symbol, sc->w, caddr(orig));
@@ -56223,7 +56241,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
     bq = sc->w;
     sc->w = old_scw;
-    /* s7_gc_unprotect_at(sc, loc); */
     sc->stack_end -= 4;
     return(bq);
   }
@@ -61639,8 +61656,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 	}
     }
   handle_optimizer_fixups(sc);
-  if ((!is_null(x)) &&
-      (!is_pair(x)))
+  if (!is_list(x))
     eval_error_no_return(sc, sc->syntax_error_symbol, "stray dot in function body: ~S", code);
   return(OPT_F);
 }
@@ -61665,7 +61681,7 @@ static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *ari
   s7_pointer x;
   int32_t i;
 
-  if ((!is_pair(args)) && (!is_null(args)))
+  if (!is_list(args))
     {
       if (is_constant(sc, args))                       /* (lambda :a ...) */
 	eval_error(sc, "lambda parameter '~S is a constant", args); /* not ~A here, (lambda #\null do) for example */
@@ -62911,10 +62927,8 @@ static s7_pointer check_let(s7_scheme *sc)
     {
       if (!s7_is_list(sc, cadr(sc->code)))      /* (let hi #t) */
 	eval_error(sc, "let variable list is messed up: ~A", sc->code);
-      if (is_null(cddr(sc->code)))              /* (let hi () ) */
-	eval_error(sc, "named let has no body: ~A", sc->code);
-      if (!is_pair(cddr(sc->code)))             /* (let hi () . =>) */
-	eval_error(sc, "named let stray dot? ~A", sc->code);
+      if (!is_pair(cddr(sc->code)))             /* (let hi () . =>) or (let hi () ) */
+	eval_error(sc, (is_null(cddr(sc->code))) ? "named let has no body: ~A" : "named let stray dot? ~A", sc->code);
       if (is_constant_symbol(sc, car(sc->code)))
 	return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't bind an immutable object: ~S"), sc->code)));
       set_local(car(sc->code));
@@ -63073,21 +63087,17 @@ static s7_pointer check_let_star(s7_scheme *sc)
     {
       if (!s7_is_list(sc, cadr(sc->code)))          /* (let* hi #t) */
 	eval_error(sc, "let* variable list is messed up: ~A", sc->code);
-      if (is_null(cddr(sc->code)))                  /* (let* hi () ) */
-	eval_error(sc, "named let* has no body: ~A", sc->code);
-      if (!is_pair(cddr(sc->code)))                 /* (let* hi () . =>) */
-	eval_error(sc, "named let* stray dot? ~A", sc->code);
+      if (!is_pair(cddr(sc->code)))                 /* (let* hi () . =>) or (let* hi () ) */
+	eval_error(sc, (is_null(cddr(sc->code))) ? "named let* has no body: ~A" : "named let* stray dot? ~A", sc->code);
       if (is_constant_symbol(sc, car(sc->code)))
 	return(s7_error(sc, sc->wrong_type_arg_symbol,	set_elist_2(sc, s7_make_string_wrapper(sc, "can't bind an immutable object: ~S"), sc->code)));
       set_local(car(sc->code));
-      if ((!is_null(cadr(sc->code))) &&
-	  (!is_pair(cadr(sc->code))))               /* (let* hi x ... ) */
+      if (!is_list(cadr(sc->code)))                 /* (let* hi x ... ) */
 	eval_error(sc, "named let* variable declaration value is missing: ~A", sc->code);
     }
   else
     {
-      if ((!is_null(car(sc->code))) &&
-	  (!is_pair(car(sc->code))))                /* (let* x ... ) */
+      if (!is_list(car(sc->code)))                  /* (let* x ... ) */
 	eval_error(sc, "let* variable declaration value is missing: ~A", sc->code);
     }
 
@@ -63099,11 +63109,8 @@ static s7_pointer check_let_star(s7_scheme *sc)
       if (!is_pair(var_and_val))                    /* (let* (3) ... */
 	eval_error(sc, "let* variable list is messed up? ~A", var_and_val);
 
-      if (is_null(cdr(var_and_val)))                /* (let* ((x)) ...) */
-	eval_error(sc, "let* variable declaration, but no value?: ~A", var_and_val);
-
       if (!(is_pair(cdr(var_and_val))))             /* (let* ((x . 1))...) */
-	eval_error(sc, "let* variable declaration is not a proper list?: ~A", var_and_val);
+	eval_error(sc, (is_null(cdr(var_and_val))) ? "let* variable declaration, but no value?: ~A" : "let* variable declaration is not a proper list?: ~A", var_and_val);
 
       if (!is_null(cddr(var_and_val)))              /* (let* ((c 1 2)) ...) */
 	eval_error(sc, "let* variable declaration has more than one value?: ~A", var_and_val);
@@ -68817,7 +68824,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       pop_stack(sc);
       
     START_WITHOUT_POP_STACK:
-     /* fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
+      /* fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
 
 #if WITH_PROFILE
       profile_at_start = sc->code;
@@ -73779,7 +73786,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 
-	case OP_EVAL_STRING_1:
+	case OP_EVAL_STRING:
 	  s7_close_input_port(sc, sc->input_port);
 	  pop_input_port(sc);
 	  sc->code = sc->value;
@@ -76030,8 +76037,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = _TLst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
-		  goto START;
-		
+		  {
+		    if (is_multiple_value(sc->value))
+		      sc->value = splice_in_values(sc, sc->value);
+		    goto START;
+		  }
 		if (is_null(cdr(sc->code)))
 		  {
 		    sc->code = car(sc->code);
@@ -76239,8 +76249,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = _TLst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
-		  goto START;
-
+		  {
+		    if (is_multiple_value(sc->value))
+		      sc->value = splice_in_values(sc, sc->value);
+		    goto START;
+		  }
 	      ELSE_CASE_2:
 		if (is_null(cdr(sc->code)))
 		  {
