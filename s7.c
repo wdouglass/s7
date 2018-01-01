@@ -4815,6 +4815,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 static int32_t last_gc_line = 0;
 static const char *last_gc_func = NULL;
 static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
+static bool has_odd_bits(s7_scheme *sc, s7_pointer obj);
 #endif
 
 #define GC_STATS 1
@@ -4841,8 +4842,8 @@ static int32_t gc(s7_scheme *sc)
 	    p->debugger_bits = 0; p->gc_line = last_gc_line; p->gc_func = last_gc_func;	\
 	    if ((is_goto(p)) && (call_exit_active(p))) \
               fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT); \
-	    if ((typeflag(p) & UNUSED_BITS) != 0) \
-	      fprintf(stderr, "unused bits on: %s\n", describe_type_bits(sc, p)); \
+	    if (has_odd_bits(sc, p)) \
+	      fprintf(stderr, "odd bits: %s\n", describe_type_bits(sc, p)); \
             clear_type(p);	\
             (*fp++) = p;\
           }}
@@ -28098,9 +28099,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   type_name(sc, obj, NO_ARTICLE),
 	   full_typ,
 	   /* bit 0 (the first 8 bits are easy...) */
-	   ((full_typ & T_KEYWORD) != 0) ?        " keyword" : "",
+	   ((full_typ & T_KEYWORD) != 0) ?        ((is_symbol(obj)) ? " keyword" : " ?0?") : "",
 	   /* bit 1 */
-	   ((full_typ & T_SYNTACTIC) != 0) ?      " syntactic" : "",
+	   ((full_typ & T_SYNTACTIC) != 0) ?      (((is_pair(obj)) || (is_syntax(obj))) ? " syntactic" : " ?1?") : "",
 	   /* bit 2 */
 	   ((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) ? ((is_pair(obj)) ? " simple-args|in-use" : " ?2?") : "",
 
@@ -28129,7 +28130,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   ((full_typ & T_LINE_NUMBER) != 0) ?    ((is_pair(obj)) ? " line-number" : 
 						   ((is_input_port(obj)) ? " loader-port" : 
 						    ((is_let(obj)) ? " with-let" : 
-						     ((is_c_function(obj)) ? " simple-defaults" : 
+						     ((is_any_procedure(obj)) ? " simple-defaults" : 
 						      (((is_symbol(obj)) || (is_slot(obj))) ? " has-setter" :
 						       " ?10?"))))) : "",
 	   /* bit 11 */
@@ -28170,9 +28171,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 						   ((is_slot(obj)) ? " safe-stepper" : 
 						    ((is_c_function(obj)) ? " maybe-safe" :
 						     ((is_number(obj)) ? " print-name" :
-						      " ?19?")))) : "",
+						      ((is_pair(obj)) ? " direct_x_opt" :
+						       " ?19?"))))) : "",
 	   /* bit 20 */
-	   ((full_typ & T_COPY_ARGS) != 0) ?      ((is_pair(obj))? " local-symbol" : 
+	   ((full_typ & T_COPY_ARGS) != 0) ?      ((is_pair(obj)) ? " local-symbol" : 
 						   (((is_any_macro(obj)) || (is_any_closure(obj))) ? " copy-args" :
 						    "?20?")) : "",
 	   /* bit 21 */
@@ -28200,6 +28202,46 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   /* bit 55 */
 	   (((full_typ & T_GC_MARK) != 0) && (in_heap(obj))) ? " gc-marked" : "");
   return(buf);
+}
+
+static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
+{
+  uint64_t full_typ;
+  full_typ = typeflag(obj);
+
+  if ((full_typ & UNUSED_BITS) != 0) return(true);
+  if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_SAFE_CLOSURE) != 0) && (!is_any_closure(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_EXPANSION) != 0) && (!is_symbol(obj)) && (!is_macro(obj))) return(true);
+  if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
+  if (((full_typ & T_S7_LET_FIELD) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_DEFINER) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
+  if (((full_typ & T_OVERLAY) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_COPY_ARGS) != 0) && (!is_pair(obj)) && (!is_any_macro(obj)) && (!is_any_closure(obj))) return(true);
+  if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_SAFE_STEPPER) != 0) && 
+      (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)))
+    return(true);
+  if (((full_typ & T_SETTER) != 0) && 
+      (!is_symbol(obj)) && (!is_pair(obj)) && (!is_closure(obj)) && (!is_hash_table(obj)) && (!is_let(obj))) 
+    return(true);
+  if (((full_typ & T_LINE_NUMBER) != 0) && 
+      (!is_pair(obj)) && (!is_input_port(obj)) && (!is_let(obj)) && (!is_any_procedure(obj)) && (!is_symbol(obj)) && (!is_slot(obj)))
+    return(true);
+  if (((full_typ & T_MUTABLE) != 0) &&
+      (!is_number(obj)) && (!is_string(obj)) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_iterator(obj)) &&
+      (!is_slot(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_closure(obj)))
+    return(true);
+  if (((full_typ & T_GENSYM) != 0) &&
+      (!is_let(obj)) && (!is_symbol(obj)) && (!is_string(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)))
+    return(true);
+  return(false);
 }
 
 
