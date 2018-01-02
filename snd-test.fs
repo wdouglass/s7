@@ -2,7 +2,7 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 2006/08/05 00:09:28
-\ Changed: 2017/12/23 06:12:07
+\ Changed: 2017/12/29 08:50:08
 
 \ Tags:  FIXME - something is wrong
 \        XXX   - info marker
@@ -184,7 +184,15 @@ mus-file-buffer-size value default-file-buffer-size
   ;
 
   : set-x-bounds <{ bounds :optional snd 0 chn 0 axis 0 -- res }>
-    bounds dup to x-bounds-value
+    bounds number? if
+      '( bounds dup fnegate )
+    else
+      bounds length 1 = if
+        '( bounds car dup fnegate )
+      else
+        bounds
+      then
+    then dup to x-bounds-value
   ;
 
   '( -1.0 1.0 ) value y-bounds-value
@@ -193,7 +201,15 @@ mus-file-buffer-size value default-file-buffer-size
   ;
 
   : set-y-bounds <{ bounds :optional snd 0 chn 0 axis 0 -- res }>
-    bounds dup to y-bounds-value
+    bounds number? if
+      '( bounds dup fnegate )
+    else
+      bounds length 1 = if
+        '( bounds car dup fnegate )
+      else
+        bounds
+      then
+    then dup to y-bounds-value
   ;
 
   : position->x <{ val :optional snd 0 chn 0 ax time-graph -- res }>
@@ -335,7 +351,7 @@ reset-all-hooks
 
 : cneq   ( a b -- f ) 0.001 cneq-err ;
 
-: fequal-err ( r1 r2 err -- f ) -rot ( r1 r2 ) f- fabs f> ;
+: fequal-err ( r1 r2 err -- f ) -rot ( err r1 r2 ) f- fabs f> ;
 
 : fequal? ( a b -- f ) 0.001 fequal-err ;
 
@@ -492,13 +508,14 @@ reset-all-hooks
 ;
 
 : snd-test-equal? { res req -- f }
-  res req  req float? if
-    fequal?
+  res number?
+  req number? && if
+    res req fequal?
   else
     req snd-test-vector? if
-      vequal?
+      res req vequal?
     else
-      equal?
+      res req equal?
     then
   then
 ;
@@ -564,8 +581,14 @@ reset-all-hooks
 1 0 0 make-color constant safe-color
 
 : make-color-with-catch { c1 c2 c3 -- color }
-  c1 c2 c3 <'> make-color 'no-such-color #t fth-catch if
-    stack-reset
+  c1 c2 c3 <'> make-color 'no-such-color nil fth-catch if
+    \ XXX: stack-reset <= wrong!
+    \ Only top, second, and third should be dropped!
+    \ The rest may be not of your business,
+    \ for example #( 'a 'b 'c   1 2 3 make-color-with-catch   'd 'e 'f )
+    \ would return #( #( Pixel 0x1111 ) 'd 'e 'f )
+    \ not #( 'a 'b 'c #( Pixel 0x1111 ) 'd 'e 'f ) 
+    drop drop drop
     safe-color
   then
 ;
@@ -618,7 +641,7 @@ reset-all-hooks
     stack-reset
     gc-run
     make-timer { tm }
-    xt execute
+    xt #t nil fth-catch drop
     tm stop-timer
     stack-reset
     sounds if
@@ -629,7 +652,9 @@ reset-all-hooks
     then
     #f set-ask-about-unsaved-edits drop
     #f set-remember-sound-state drop
-    "%s: %s\n\\ " #( name tm ) snd-test-message
+    "%s: %s" #( name tm ) snd-test-message
+    "" #f snd-test-message
+    .stack
   then
 ;
 
@@ -4336,41 +4361,43 @@ half-pi fnegate constant -half-pi
 
 \ ---------------- test 08: clm ----------------
 
+\ xen-mus-apply (using mus-run):
+\     args are optional, defaulting to 0.0
+\        S7: (gen arg1 arg2)
+\      Ruby: gen.call(arg1, arg2)
+\     Forth: gen '( arg1 arg2 ) apply
+\
+\ mus-apply ( args -- res ) args => gen arg1=0.0 arg2=0.0
+\ mus-apply ( -- 0.0 )      if gen is omitted, 0.0 is returned
+\ mus-run ( gen :optional arg1 0.0 arg2 0.0 -- res )
+
 lambda: <{ -- r }>       0.0 ; value 08-clm-lambda-0.0
 lambda: <{ dir -- r }>   1.0 ; value 08-clm-lambda-dir-1.0
 lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 32 make-delay constant make-delay-32
 
-\ xen-mus-apply (using mus-run):
-\ S7:    (gen arg)
-\ Ruby:  gen.call(arg)
-\ Forth: gen '( arg ) apply
-\
-\ mus-apply ( args -- res )
-\ mus-run ( gen :optional arg1 0.0 arg2 0.0 -- res )
-
 : random-gen-run ( ?? make-prc random-args -- )
   { make-prc random-args }
   make-prc #t nil fth-catch if
-    stack-reset
-    nil
+    #f
   then { gen }
+  stack-reset
   nil { arg }
-  gen mus-generator? if
+  gen if
     random-args each to arg
-      \ ~133.630s apply
-      \ ~144.490s mus-run
-      \ ~122.690s mus-apply
-      \ gen '( arg ) <'> apply #t nil fth-catch
-      \ gen arg undef <'> mus-run #t nil fth-catch
-      gen arg <'> mus-apply #t nil fth-catch
+      \ ~438.780s apply
+      \ ~513.470s mus-run
+      \ ~499.570s mus-apply
+      gen '( arg 0.0 ) <'> apply #t nil fth-catch
+      \ gen arg 0.0 <'> mus-run #t nil fth-catch
+      \ gen arg 0.0 <'> mus-apply #t nil fth-catch
       stack-reset
     end-each
   then
 ;
 
 : random-gen ( -- )
-  #( 2.0 21.5 f**
+  #( 2.0  21.5 f**
      2.0 -18.0 f**
      1.5
      "/hiho"
@@ -4397,12 +4424,6 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
      '()
      32
      '( 1 2 ) ) { random-args }
-  \
-  \ XXX: make-asymmetric-fm
-  \      Starting with 3 args, make-asymmetric-fm makes trouble
-  \      resulting in #<undefined-word in interpret: 10> exception
-  \      after! finishing the entire 08-clm test.
-  \
   #( <'> make-all-pass <'> make-asymmetric-fm <'> make-moving-average
      <'> make-moving-max <'> make-moving-norm <'> make-table-lookup
      <'> make-triangle-wave <'> make-comb <'> make-delay <'> make-env
@@ -4429,26 +4450,27 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
       end-each
       random-args each to arg3
         gen-make-procs each to make-prc
-          <'> make-asymmetric-fm make-prc <> if 
-            arg1 arg2 arg3 make-prc random-args random-gen-run
-          then
+          arg1 arg2 arg3 make-prc random-args random-gen-run
         end-each
-        random-args each to arg4
-          gen-make-procs each to make-prc
-            <'> make-asymmetric-fm make-prc <> if 
+        all-args if
+          random-args each to arg4
+            gen-make-procs each to make-prc
               arg1 arg2 arg3 arg4 make-prc random-args random-gen-run
-            then
+            end-each
           end-each
-        end-each
+        then
       end-each
     end-each
   end-each
 ;
 
 : 08-clm ( -- )
-  all-args if
-    random-gen
-  then
+  random-gen
+  \ XXX: asymmetric-fm brings fth out of sync resulting in
+  \      #<undefined-word in interpret: 10>.
+  \      With this trick we are in sync again.
+  "0" <'> string->number 'undefined-word nil fth-catch
+  stack-reset
 ;
 
 \ ---------------- test 10: marks ----------------
@@ -5262,8 +5284,8 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 \ examples from sndclm.html
 : sndclm-oscil-test ( -- )
   440.0 make-oscil { gen }
-  0 1 nil run-instrument
-    gen 0 0 oscil  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 0.0 oscil  f2/
   end-run
 ;
 
@@ -5271,51 +5293,51 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   440.0 make-oscil { gen }
   '( 0 0 0.01 1 0.25 0.1 0.5 0.01 1 0 )
   :scaler 0.5 :length 44100 make-env { ampf }
-  0 1 nil run-instrument
-    gen 0 0 oscil  ampf env  f*
+  0.0 1.0 nil run-instrument
+    gen 0.0 0.0 oscil  ampf env  f*
   end-run
 ;
 
 : sndclm-table-lookup-test ( -- )
   440.0 :wave '( 1 0.5  2 0.5 ) #f #f partials->wave make-table-lookup { gen }
-  0 1 nil run-instrument
-    gen 0 table-lookup  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 table-lookup  f2/
   end-run
 ;
 
 : sndclm-polywave-test ( -- )
   440.0 :partials '( 1 0.5 2 0.5 ) make-polywave { gen }
-  0 1 nil run-instrument
-    gen 0 polywave  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 polywave  f2/
   end-run
 ;
 
 : sndclm-triangle-wave-test ( -- )
   440.0 make-triangle-wave { gen }
-  0 1 nil run-instrument
-    gen 0 triangle-wave  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 triangle-wave  f2/
   end-run
 ;
 
 : sndclm-ncos-test ( -- )
   440.0 10 make-ncos { gen }
-  0 1 nil run-instrument
-    gen 0 ncos  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 ncos  f2/
   end-run
 ;
 
 : sndclm-nrxycos-test ( -- )
   440.0 :n 10 make-nrxycos { gen }
-  0 1 nil run-instrument
-    gen 0 nrxycos  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 nrxycos  f2/
   end-run
 ;
 
 : sndclm-ssb-am-test ( -- )
   440.0 20 make-ssb-am { shifter }
   440.0 make-oscil { osc }
-  0 1 nil run-instrument
-    shifter  osc 0 0 oscil  0 ssb-am f2/
+  0.0 1.0 nil run-instrument
+    shifter  osc 0.0 0.0 oscil  0.0 ssb-am f2/
   end-run
 ;
 
@@ -5323,11 +5345,11 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   400 10 make-ncos { g }
   g -0.5 pi f* set-mus-phase drop
   64 make-vct map!
-    g 0 ncos
+    g 0.0 ncos
   end-map { v }
   440.0 :wave v make-wave-train { gen }
-  0 1 nil run-instrument
-    gen 0 wave-train  f2/
+  0.0 1.0 nil run-instrument
+    gen 0.0 wave-train  f2/
   end-run
 ;
 
@@ -5345,8 +5367,8 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
     *output*
   then { gen }
   len 0 do
-    i  osc1  ran1 0 rand         0 oscil  f2/ gen ws-outa
-    i  osc2  ran2 0 rand-interp  0 oscil  f2/ gen ws-outb
+    i  osc1  ran1 0.0 rand         0.0 oscil  f2/ gen ws-outa
+    i  osc2  ran2 0.0 rand-interp  0.0 oscil  f2/ gen ws-outb
   loop
   gen array? if
     gen each ( v )
@@ -5358,24 +5380,24 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 : sndclm-two-pole-test ( -- )
   1000.0 0.999 make-two-pole { flt }
   10000.0 0.002 make-rand { ran1 }
-  0 1 nil run-instrument
-    flt  ran1 0 rand  two-pole  f2/
+  0.0 1.0 nil run-instrument
+    flt  ran1 0.0 rand  two-pole  f2/
   end-run
 ;
 
 : sndclm-firmant-test ( -- )
   1000.0 0.999 make-firmant { flt }
   10000.0 5.0 make-rand { ran1 }
-  0 1 nil run-instrument
-    flt  ran1 0 rand  #f firmant  f2/
+  0.0 1.0 nil run-instrument
+    flt  ran1 0.0 rand  0.0 firmant  f2/
   end-run
 ;
 
 : sndclm-iir-filter-test ( -- )
   3 vct( 0.0 -1.978 0.998 ) make-iir-filter { flt }
   10000.0 0.002 make-rand { ran1 }
-  0 1 nil run-instrument
-    flt  ran1 0 rand  iir-filter  f2/
+  0.0 1.0 nil run-instrument
+    flt  ran1 0.0 rand  iir-filter  f2/
   end-run
 ;
 
@@ -5383,9 +5405,9 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   0.5 seconds->samples make-delay { dly }
   440.0 make-oscil { osc1 }
   660.0 make-oscil { osc2 }
-  0 1 nil run-instrument
-    osc1 0 0 oscil
-    dly  osc2 0 0 oscil  0 delay  f+
+  0.0 1.0 nil run-instrument
+    osc1 0.0 0.0 oscil
+    dly  osc2 0.0 0.0 oscil  0.0 delay  f+
     f2/
   end-run
 ;
@@ -5394,10 +5416,10 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   0.4 0.4 seconds->samples make-comb { cmb }
   440.0 make-oscil { osc }
   '( 0 0 1 1 2 1 3 0 ) :length 4410 make-env { ampf }
-  0 2 nil run-instrument
+  0.0 2.0 nil run-instrument
     cmb ( gen )
-    ampf env  osc 0 0 oscil  f* ( val )
-    0 ( pm )  comb f2/
+    ampf env  osc 0.0 0.0 oscil  f* ( val )
+    0.0 ( pm )  comb f2/
   end-run
 ;
 
@@ -5405,10 +5427,10 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   -0.4 0.4 0.4 seconds->samples make-all-pass { alp }
   440.0 make-oscil { osc }
   '( 0 0 1 1 2 1 3 0 ) :length 4410 make-env { ampf }
-  0 2 nil run-instrument
+  0.0 2.0 nil run-instrument
     alp ( gen )
-    ampf env  osc 0 0 oscil  f* ( val )
-    0 ( pm )
+    ampf env  osc 0.0 0.0 oscil  f* ( val )
+    0.0 ( pm )
     all-pass f2/
   end-run
 ;
@@ -5418,12 +5440,12 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   440.0 make-oscil { osc }
   1.0 0.1 f- { stop }
   0.0 { val }
-  0 stop nil run-instrument
-    osc 0 0 oscil to val
+  0.0 stop nil run-instrument
+    osc 0.0 0.0 oscil to val
     avg val fabs moving-average  val f*
   end-run
   stop 1.0 nil run-instrument
-    avg 0.0 moving-average  osc 0 0 oscil f*
+    avg 0.0 moving-average  osc 0.0 0.0 oscil f*
   end-run
 ;
 
@@ -5431,30 +5453,30 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   "oboe.snd" make-readin { rd }
   rd 0.5 make-src { sr }
   "oboe.snd" mus-sound-duration f2* { dur }
-  0 dur nil run-instrument
-    sr 0 #f src
+  0.0 dur nil run-instrument
+    sr 0.0 #f src
   end-run
 ;
 
 : make-src-proc { osc -- prc; dir self -- val }
   1 proc-create osc , ( prc )
  does> { dir self -- val }
-  self @ ( osc ) 0 0 oscil
+  self @ ( osc ) 0.0 0.0 oscil
 ;
 
 : sndclm-src2-test ( -- )
   440.0 make-oscil { osc }
   osc make-src-proc { prc }
   :srate 2.0 make-src { sr }
-  0 1 nil run-instrument
-    sr 0 prc src
+  0.0 1.0 nil run-instrument
+    sr 0.0 prc src
   end-run
 ;
 
 : sndclm-convolve1-test ( -- )
   "pistol.snd" make-readin ( rd )
   "oboe.snd" file->vct ( v ) make-convolve { cnv }
-  0 2 nil run-instrument
+  0.0 2.0 nil run-instrument
     cnv #f convolve  0.25 f*
   end-run
 ;
@@ -5463,7 +5485,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   "oboe.snd" "pistol.snd" 0.5 "convolved.snd" convolve-files { tempfile }
   tempfile make-readin { reader }
   tempfile mus-sound-duration { dur }
-  0 dur nil run-instrument
+  0.0 dur nil run-instrument
     reader readin
   end-run
   tempfile file-delete
@@ -5471,7 +5493,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 
 : sndclm-granulate1-test ( -- )
   "oboe.snd" make-readin 2.0 make-granulate { grn }
-  0 1 nil run-instrument
+  0.0 1.0 nil run-instrument
     grn #f #f granulate
   end-run
 ;
@@ -5479,7 +5501,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 : make-granulate-proc { osc sweep -- prc; dir self -- val }
   1 proc-create osc , sweep , ( prc )
  does> { dir self -- val }
-  self @ ( osc )  self cell+ @ ( sweep ) env  0 oscil  0.2 f*
+  self @ ( osc )  self cell+ @ ( sweep ) env  0.0 oscil  0.2 f*
 ;
 
 : sndclm-granulate2-test ( -- )
@@ -5487,14 +5509,14 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   '( 0 0 1 1 ) :scaler 440.0 hz->radians :length 44100 make-env { sweep }
   osc sweep make-granulate-proc :expansion 2.0 :length 0.5
     make-granulate { grn }
-  0 2 nil run-instrument
+  0.0 2.0 nil run-instrument
     grn #f #f granulate
   end-run
 ;
 
 : sndclm-phase-vocoder1-test ( -- )
   "oboe.snd" make-readin :pitch 2.0 make-phase-vocoder { pv }
-  0 1 nil run-instrument
+  0.0 1.0 nil run-instrument
     pv #f #f #f #f phase-vocoder
   end-run
 ;
@@ -5502,15 +5524,15 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 : sndclm-phase-vocoder2-test ( -- )
   "oboe.snd" make-readin :interp 256 make-phase-vocoder { pv }
   "oboe.snd" mus-sound-duration f2* { dur }
-  0 dur nil run-instrument
+  0.0 dur nil run-instrument
     pv #f #f #f #f phase-vocoder
   end-run
 ;
 
 : sndclm-asymmetric-fm-test ( -- )
   440.0 0.0 0.9 0.5 make-asymmetric-fm { fm }
-  0 1 nil run-instrument
-    fm 1.0 0 asymmetric-fm  f2/
+  0.0 1.0 nil run-instrument
+    fm 1.0 0.0 asymmetric-fm  f2/
   end-run
 ;
 
@@ -5546,14 +5568,14 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
 
 : sndclm-readin-test ( -- )
   "oboe.snd" make-readin { reader }
-  0 1 nil run-instrument
+  0.0 1.0 nil run-instrument
     reader readin  f2/
   end-run
 ;
 
 : sndclm-in-out-any-test ( -- )
   "oboe.snd" make-file->sample { infile }
-  0 1 nil run-instrument
+  0.0 1.0 nil run-instrument
     i 0 infile in-any
   end-run
 ;
@@ -5571,7 +5593,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   60.0 :output gen make-locsig { loc }
   440.0 make-oscil { osc }
   len 0 do
-    loc i  osc 0 0 oscil f2/  locsig drop
+    loc i  osc 0.0 0.0 oscil f2/  locsig drop
   loop
   *output* sound? if
     gen mus-close drop
@@ -5587,8 +5609,8 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   220.0 make-oscil { osc2 }
   0 1 nil run-instrument
     0.3            ( car )
-    osc1 0 0 oscil ( in1 )
-    osc2 0 0 oscil ( in2 ) amplitude-modulate  f2/
+    osc1 0.0 0.0 oscil ( in1 )
+    osc2 0.0 0.0 oscil ( in2 ) amplitude-modulate  f2/
   end-run
 ;
 
@@ -7891,10 +7913,7 @@ set-procs <'> set-arity-not-ok 5 array-reject constant set-procs04
   3 :xcoeffs vct-3 :ycoeffs vct-3 make-filter 4 1.0 <'> set-mus-ycoeff
     'mus-error check-error-tag
   :ycoeffs 4 0 make-vct :order 12 <'> make-filter 'mus-error check-error-tag
-  \ XXX: Switch to float here okay according to clm2xen.c!
-  \ was: make-oscil 1 ==> wrong-type-arg fixnum, wanted a float
-  make-oscil 1.0 <'> set-mus-offset 'mus-error check-error-tag
-  make-oscil 1 <'> set-mus-offset 'wrong-type-arg check-error-tag
+  make-oscil 1 <'> set-mus-offset 'mus-error check-error-tag
   :channels 2 30 f** f>s <'> make-locsig 'out-of-range check-error-tag
   :width 3000 <'> make-src 'out-of-range check-error-tag
   *with-test-gui* if
@@ -8547,7 +8566,6 @@ let: ( -- )
   <'> 27-sel-from-snd    run-fth-test
   <'> 28-errors          run-fth-test
   <'> 30-test            run-fth-test  \ local fragment test
-  .stack
   finish-snd-test
   0 snd-exit drop
 ;let

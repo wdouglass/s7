@@ -3590,18 +3590,10 @@ static s7_pointer immutable_object_error(s7_scheme *sc, s7_pointer info) {return
   do {									\
     if (has_methods(Obj))						\
       return(find_and_apply_method(Sc, find_let(Sc, Obj), Method, Args)); \
+    if (type(Obj) != Type)						\
+      return(wrong_type_argument(Sc, Method, Num, Obj, Type));		\
     if (is_immutable(Obj))						\
       return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, Method, Obj))); \
-    return(wrong_type_argument(Sc, Method, Num, Obj, Type));		\
-  } while (0)
-
-#define mutable_method_or_bust_with_type(Sc, Obj, Method, Args, Type, Num)	\
-  do {									\
-    if (has_methods(Obj))						\
-      return(find_and_apply_method(Sc, find_let(Sc, Obj), Method, Args)); \
-    if (is_immutable(Obj))						\
-      return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, Method, Obj))); \
-    return(wrong_type_argument_with_type(Sc, Method, Num, Obj, Type));		\
   } while (0)
 
 #define method_or_bust_one_arg(Sc, Obj, Method, Args, Type)		\
@@ -4840,8 +4832,6 @@ static int32_t gc(s7_scheme *sc)
         if (!is_free_and_clear(p))		\
           {								\
 	    p->debugger_bits = 0; p->gc_line = last_gc_line; p->gc_func = last_gc_func;	\
-	    if ((is_goto(p)) && (call_exit_active(p))) \
-              fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT); \
 	    if (has_odd_bits(sc, p)) \
 	      fprintf(stderr, "odd bits: %s\n", describe_type_bits(sc, p)); \
             clear_type(p);	\
@@ -5017,10 +5007,8 @@ static int32_t gc(s7_scheme *sc)
 		p->debugger_bits = 0;
 		p->gc_line = last_gc_line; 
 		p->gc_func = last_gc_func;
-		if ((is_goto(p)) && (call_exit_active(p)))
-		  fprintf(stderr, "%sfree active goto%s\n", BOLD_TEXT, UNBOLD_TEXT);
-		if ((typeflag(p) & UNUSED_BITS) != 0)
-		  fprintf(stderr, "unused bits on: %s\n", describe_type_bits(sc, p));
+		if (has_odd_bits(sc, p))
+		  fprintf(stderr, "odd bits: %s\n", describe_type_bits(sc, p));
 #endif
 		clear_type(p); /* (this is needed -- otherwise we try to free some objects twice) */
 		(*fp++) = p;
@@ -21565,7 +21553,13 @@ static s7_pointer g_byte_vector_set(s7_scheme *sc, s7_pointer args)
   s7_pointer v;
   v = car(args);
   if (!is_mutable_byte_vector(v))
-    mutable_method_or_bust_with_type(sc, v, sc->byte_vector_set_symbol, args, a_byte_vector_string, 1);
+    {
+      if (has_methods(v))
+	return(find_and_apply_method(sc, find_let(sc, v), sc->byte_vector_set_symbol, args));
+      if (!is_byte_vector(v))
+	simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, v, a_byte_vector_string);
+      return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->byte_vector_set_symbol, v)));
+    }
   return(g_string_set_2(sc, v, args, sc->byte_vector_set_symbol));
 }
 
@@ -25180,7 +25174,7 @@ static s7_pointer g_autoloader(s7_scheme *sc, s7_pointer args)
 /* ---------------- require ---------------- */
 static s7_pointer g_require(s7_scheme *sc, s7_pointer args)
 {
-  #define H_require "(require . symbols) loads each file associated with each symbol if it has not been loaded already.\
+  #define H_require "(require symbol . symbols) loads each file associated with each symbol if it has not been loaded already.\
 The symbols refer to the argument to \"provide\".  (require lint.scm)"
   #define Q_require s7_make_circular_signature(sc, 1, 2, sc->T, sc->is_symbol_symbol)
 
@@ -28204,6 +28198,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
   return(buf);
 }
 
+#if DEBUGGING
 static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
 {
   uint64_t full_typ;
@@ -28243,7 +28238,7 @@ static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
     return(true);
   return(false);
 }
-
+#endif
 
 void s7_show_let(s7_scheme *sc) /* debugging convenience */
 {
@@ -32276,12 +32271,10 @@ static s7_pointer g_set_car(s7_scheme *sc, s7_pointer args)
   s7_pointer p;
 
   p = car(args);
-  if (is_mutable_pair(p)) /* this is currently 2.5x slower than is_pair */
-    {
-      set_car(p, cadr(args));
-      return(car(p));
-    }
-  mutable_method_or_bust(sc, p, sc->set_car_symbol, args, T_PAIR, 1);
+  if (!is_mutable_pair(p)) /* this is currently 2.5x slower than is_pair */
+    mutable_method_or_bust(sc, p, sc->set_car_symbol, args, T_PAIR, 1);
+  set_car(p, cadr(args));
+  return(car(p));
 }
 
 static s7_pointer set_car_p_pp(s7_pointer p1, s7_pointer p2)
@@ -74280,7 +74273,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		else
 		  {
-		    if (is_syntax(slot_value(lx)))  /* slot_symbol?? */
+		    if (is_syntactic_symbol(slot_symbol(lx)))
 		      eval_error(sc, "can't set! ~A", sc->code);
 		  }
 		slot_set_value(lx, sc->value);
@@ -83111,7 +83104,7 @@ s7_scheme *s7_init(void)
   s7_autoload(sc, make_symbol(sc, "libgdbm.scm"),     s7_make_permanent_string("libgdbm.scm"));
   s7_autoload(sc, make_symbol(sc, "libutf8proc.scm"), s7_make_permanent_string("libutf8proc.scm"));
 
-  sc->require_symbol = s7_define_macro(sc, "require", g_require, 0, 0, true, H_require);
+  sc->require_symbol = s7_define_macro(sc, "require", g_require, 1, 0, true, H_require);
   sc->stacktrace_defaults = s7_list(sc, 5, small_int(3), small_int(45), small_int(80), small_int(45), sc->T);
 
   /* -------- *#readers* -------- */
@@ -83914,6 +83907,7 @@ int main(int argc, char **argv)
  *   or maybe opt/unopt choice made at call-time (if in loop??)
  *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
  * macroexpand before s7_optimize? or restart if macro encountered?
+ * t725/mockery.scm need pure-s7 fixups
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83945,21 +83939,21 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0
  * tmac          |      |      |      || 9052 ||  264 |  264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1168
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475
  * teq           |      |      | 6612 || 2777 || 1931 | 1918
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2105
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2096
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
  * lint          |      |      |      || 4041 || 2702 | 2696
  * lg            |      |      |      || 211  || 133  | 133.7
- * tform         |      |      | 6816 || 3714 || 2762 | 2757
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966
  * tsort         |      |      |      || 8584 || 4111 | 4111
  * titer         |      |      |      || 5971 || 4646 | 4646
  * bench         |      |      |      || 7012 || 5093 | 5143
- * thash         |      |      | 50.7 || 8778 || 7697 | 7703
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0

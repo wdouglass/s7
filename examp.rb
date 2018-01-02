@@ -2,7 +2,7 @@
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 02/09/04 18:34:00
-# Changed: 15/01/29 23:09:30
+# Changed: 17/12/24 22:01:05
 
 # module Examp (examp.scm)
 #  selection_rms
@@ -1378,10 +1378,21 @@ map_channel(cross_synthesis(1, 0.5, 128, 6.0))")
     inctr = 0
     ctr = freq_inc
     radius = 1.0 - r / fftsize.to_f
-    bin = srate() / fftsize.to_f
+    osr = mus_srate()
+    csr = srate()
+    bin = csr / fftsize
+    # The comment from examp.scm applies of course here as well:
+    # ;; if mus-srate is 44.1k and srate is 48k, make-formant
+    # ;;    thinks we're trying to go past srate/2
+    # ;;    and in any case it's setting its formants incorrectly
+    # ;;    for the actual output srate
+    # begin of temporary mus-srate
+    set_mus_srate(csr)
     fmts = make_array(freq_inc) do |i|
       make_formant(i * bin, radius)
     end
+    set_mus_srate(osr)
+    # end of temporary mus-srate
     formants = make_formant_bank(fmts, spectr)
     lambda do |inval|
       if ctr == freq_inc
@@ -1411,8 +1422,13 @@ Turns a vocal sound into whispering: voiced2unvoiced(1.0, 256, 2.0, 2.0)")
     noi = make_rand(:frequency, srate(snd) / 3.0)
     inctr = 0
     ctr = freq_inc
+    osr = mus_srate()
+    csr = srate()
+    # See cross_synthesis above.
+    # begin of temporary mus-srate
+    set_mus_srate(csr)
     radius = 1.0 - r.to_f / fftsize
-    bin = srate(snd).to_f / fftsize
+    bin = csr / fftsize
     len = framples(snd, chn)
     outlen = (len / tempo).floor
     hop = (freq_inc * tempo).floor
@@ -1420,6 +1436,8 @@ Turns a vocal sound into whispering: voiced2unvoiced(1.0, 256, 2.0, 2.0)")
     fmts = make_array(freq_inc) do |i|
       make_formant(i * bin, radius)
     end
+    set_mus_srate(osr)
+    # end of temporary mus-srate
     formants = make_formant_bank(fmts, spectr)
     old_peak_amp = new_peak_amp = 0.0
     outlen.times do |i|
@@ -1453,44 +1471,44 @@ Turns a vocal sound into whispering: voiced2unvoiced(1.0, 256, 2.0, 2.0)")
   add_help(:pulse_voice,
            "pulse_voice(cosin, freq=440.0, amp=1.0, fftsize=256, r=2.0, \
 snd=false, chn=false)  \
-Uses sum-of-cosines to manipulate speech sounds.")
+Use ncos to manipulate speech sounds.")
   def pulse_voice(cosin, freq = 440.0, amp = 1.0,
                   fftsize = 256, r = 2.0, snd = false, chn = false)
     freq_inc = fftsize / 2
-    fdr = make_vct(fftsize)
-    fdi = make_vct(fftsize)
     spectr = make_vct(freq_inc)
-    pulse = make_sum_of_cosines(cosin, freq)
-    inctr = 0
-    ctr = freq_inc
-    radius = 1.0 - r / fftsize
-    bin = srate(snd) / fftsize
     len = framples(snd, chn)
-    out_data = make_vct(len)
-    old_peak_amp = new_peak_amp = 0.0
+    osr = mus_srate()
+    csr = srate(snd)
+    # See cross_synthesis above.
+    # begin of temporary mus-srate
+    set_mus_srate(csr)
+    bin = csr / fftsize
+    radius = 1.0 - (r.to_f / fftsize)
     fmts = make_array(freq_inc) do |i|
-      make_formant(i * bin, radius)
+      make_formant(:radius, radius, :frequency, i * bin)
     end
     formants = make_formant_bank(fmts, spectr)
-    out_data.map do |i|
-      outval = 0.0
-      if ctr == freq_inc
+    set_mus_srate(osr)
+    # end of temporary mus-srate
+    old_peak_amp = 0.0
+    pulse = make_ncos(freq, cosin)
+    fdr = nil
+    inctr = 0
+    fdi = make_vct(fftsize)
+    inv_freq_inc = 1.0 / freq_inc
+    out_data = make_vct!(len) do |i|
+      if i.modulo(freq_inc) == 0
         fdr = channel2vct(inctr, fftsize, snd, chn)
-        pk = vct_peak(fdr)
-        if pk > old_peak_amp then old_peak_amp = pk end
+        old_peak_amp = [vct_peak(fdr), old_peak_amp].max
         spectrum(fdr, fdi, false, 2)
-        inctr += freq_inc
         vct_subtract!(fdr, spectr)
-        vct_scale!(fdr, 1.0 / freq_inc)
-        ctr = 0
+        vct_scale!(fdr, inv_freq_inc)
+        inctr += freq_inc
       end
-      ctr += 1
       vct_add!(spectr, fdr)
-      outval = formant_bank(formants, sum_of_cosines(pulse))
-      if outval.abs > new_peak_amp then new_peak_amp = outval.abs end
-      outval
+      formant_bank(formants, ncos(pulse))
     end
-    vct_scale!(out_data, amp * (old_peak_amp / new_peak_amp))
+    vct_scale!(out_data, (old_peak_amp / vct_peak(out_data)) * amp)
     vct2channel(out_data, 0, len, snd, chn)
   end
   # pulse_voice(80,   20.0, 1.0, 1024, 0.01)

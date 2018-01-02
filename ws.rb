@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 # Created: 03/04/08 17:05:03
-# Changed: 17/09/25 22:15:33
+# Changed: 17/12/28 08:46:52
 
 # module WS
 #   ws_getlogin
@@ -282,7 +282,7 @@
 #
 # def my_notehook(name, start, dur)
 #   if name =~ /violin/
-#     Snd.message("%s: start %1.3f, dur %1.3f", name, start, dur)
+#     Snd.message("%s: start %0.3f, dur %0.3f", name, start, dur)
 #   end
 # end
 #
@@ -437,7 +437,7 @@ end
 
 with_silence do
   # warning: undefined variable
-  $clm_version            = "ruby 2017/09/25"
+  $clm_version            = "ruby 2017/12/28"
   $output                 ||= false
   $reverb                 ||= false
   $clm_array_print_length ||= 8
@@ -611,7 +611,7 @@ Usage: with_sound(:play, 1, :statistics, true) do fm_violin end"
   # require "v"
   # with_dac(:statistics, true,
   #          :info, true,
-  #          :dac_size, 8192 * 4,
+  #          :dac_size, 8192,
   #          :srate, 22050) do
   #   violin(0.5, 2.5, 440, 0.2, 0.1, [0, 0, 25, 1, 75, 1, 100, 0])
   #   fm_violin(0, 5, 330, 0.2, :fm_index, 10.5)
@@ -885,7 +885,7 @@ called with the instrument name INST_NAME, the start time START, and \
 the duration DUR.
 def my_notehook(name, start, dur)
   if name =~ /violin/
-    Snd.message(\"%s: start %1.3f, dur %1.3f\", name, start, dur)
+    Snd.message(\"%s: start %0.3f, dur %0.3f\", name, start, dur)
   end
 end
 with_sound(:notehook, :my_notehook) do
@@ -918,7 +918,7 @@ installs the @with_sound_note_hook and prints the line
       @clm_instruments.sort do |a, b|
         a[1][1] <=> b[1][1]
       end.each do |k, v|
-        s += format("%s [%1.3f-%1.3f]\n", *v)
+        s += format("%s [%0.3f-%0.3f]\n", *v)
         s += " " * 19
       end
       s.strip!
@@ -1062,7 +1062,7 @@ installs the @with_sound_note_hook and prints the line
     end
     if snd_time == :load or rbm_time == :load or snd_time < rbm_time
       if @verbose 
-        Snd.message("mix remake %s at %1.3f", out_file, start)
+        Snd.message("mix remake %s at %0.3f", out_file, start)
       end
       comm  = format("# written %s (Snd: %s)\n", Time.now, snd_version)
       comm += format("[%s, %s]\n", args.to_s.inspect, body_str.inspect)
@@ -1074,7 +1074,7 @@ installs the @with_sound_note_hook and prints the line
       end
     else
       if @verbose
-        Snd.message("mix %s at %1.3f", out_file, start)
+        Snd.message("mix %s at %0.3f", out_file, start)
       end
     end
     clm_mix(out_file, :output_frame, seconds2samples(start))
@@ -1083,7 +1083,7 @@ installs the @with_sound_note_hook and prints the line
   def with_sound_info(name, start, dur, body = binding)
     @clm_instruments.store(body, [name, start, dur])
     if @info and (not @notehook)
-      Snd.message("%s: start %1.3f, dur %1.3f", name, start, dur)
+      Snd.message("%s: start %0.3f, dur %0.3f", name, start, dur)
     end
     if @notehook
       @with_sound_note_hook.call(name, start, dur)
@@ -1224,7 +1224,7 @@ installs the @with_sound_note_hook and prints the line
     @clm_instruments.sort do |a, b|
       a[1][1] <=> b[1][1]
     end.each do |proc, vals|
-      Snd.message("=== %s [%1.3f-%1.3f] ===", *vals)
+      Snd.message("=== %s [%0.3f-%0.3f] ===", *vals)
       each_variables(binding?(proc) ? proc : proc.binding) do |var, val|
         Snd.message("%s = %s", var, val)
       end
@@ -1284,10 +1284,10 @@ installs the @with_sound_note_hook and prints the line
                   mus_header_type_name(@stat_header_type))
     end
     if @stat_framples > 0
-      Snd.message("  length: %1.3f (%d frames)",
+      Snd.message("  length: %0.3f (%d framples)",
                   @stat_framples / @srate.to_f, @stat_framples)
     end
-    Snd.message("    real: %1.3f  (utime %1.3f, stime %1.3f)",
+    Snd.message("    real: %0.3f  (utime %0.3f, stime %0.3f)",
                 @rtime, @utime, @stime)
     if @stat_framples > 1
       rt = (@srate.to_f / @stat_framples)
@@ -1648,16 +1648,16 @@ class With_Snd < Snd_Instrument
            "clm_mix(infile, *args)
         :output       = false
         :output_frame = 0
-        :frames       = framples(infile)
+        :framples     = framples(infile)
         :input_frame  = 0
         :scaler       = false
 Example: clm_mix(\"tmp\")")
   def clm_mix(infile, *args)
-    output, output_frame, frames, input_frame, scaler = nil
+    output, output_frame, framples, input_frame, scaler = nil
     optkey(args, binding,
            [:output, false],            # dummy arg
            [:output_frame, 0],
-           [:frames, framples(infile)],
+           [:framples, framples(infile)],
            [:input_frame, 0],
            [:scaler, false])
     unless sound?(snd = find_sound(infile))
@@ -1667,9 +1667,9 @@ Example: clm_mix(\"tmp\")")
     end
     [channels(snd), @channels].min.times do |chn|
       if scaler and scaler.nonzero?
-        scale_channel(scaler, input_frame, frames, snd, chn)
+        scale_channel(scaler, input_frame, framples, snd, chn)
       end
-      mix_vct(channel2vct(input_frame, frames, snd, chn),
+      mix_vct(channel2vct(input_frame, framples, snd, chn),
               output_frame, snd, chn, false)
     end
     snd.revert
@@ -1863,16 +1863,16 @@ class With_CLM < CLM_Instrument
            "clm_mix(infile, *args)
         :output       = false
         :output_frame = 0
-        :frames       = mus_sound_framples(infile)
+        :framples     = mus_sound_framples(infile)
         :input_frame  = 0
         :scaler       = false
 Example: clm_mix(\"tmp\")")
   def clm_mix(infile, *args)
-    output, output_frame, frames, input_frame, scaler = nil
+    output, output_frame, framples, input_frame, scaler = nil
     optkey(args, binding,
            [:output, false],
            [:output_frame, 0],
-           [:frames, mus_sound_framples(infile)],
+           [:framples, mus_sound_framples(infile)],
            [:input_frame, 0],
            [:scaler, false])
     chans = 0
@@ -1895,7 +1895,7 @@ Example: clm_mix(\"tmp\")")
     if chans > 0 and scaler and scaler != 0.0
       mx = Vct.new(chans * chans, scaler)
     end
-    mus_file_mix(output, infile, output_frame, frames, input_frame, mx)
+    mus_file_mix(output, infile, output_frame, framples, input_frame, mx)
     if outgen
       @ws_output = continue_sample2file(output)
     end
@@ -1964,7 +1964,7 @@ Example: clm_mix(\"tmp\")")
         mx = 1.0
       end
       clm_mix(@output, :output_frame, beg,
-              :frames, len, :scaler, @scaled_to / mx)
+              :framples, len, :scaler, @scaled_to / mx)
     end
   end
 
@@ -1977,7 +1977,7 @@ Example: clm_mix(\"tmp\")")
         @out_snd.save
       end
     else
-      clm_mix(@output, :output_frame, beg, :frames, len, :scaler, @scaled_by)
+      clm_mix(@output, :output_frame, beg, :framples, len, :scaler, @scaled_by)
     end
   end
 
@@ -1996,14 +1996,14 @@ Example: clm_mix(\"tmp\")")
     sr = @srate.to_f
     ch = "@"
     @stat_maxamp.each_pair do |s, v|
-      Snd.message("maxamp %s: %1.3f (near %1.3f secs)%s",
+      Snd.message("maxamp %s: %0.3f (near %0.3f secs)%s",
                   ch.next!, v, s / sr,
                   (@scaled_to or @scaled_by) ? " (before scaling)" : "")
     end
     if @reverb
       ch = "@"
       @stat_revamp.each_pair do |s, v|
-        Snd.message("revamp %s: %1.3f (near %1.3f secs)", ch.next!, v, s / sr)
+        Snd.message("revamp %s: %0.3f (near %0.3f secs)", ch.next!, v, s / sr)
       end
     end
   end
@@ -2040,8 +2040,8 @@ class With_DAC < Snd_Instrument
     set_mus_file_buffer_size($clm_file_buffer_size)
     init_process_time
     run_body(&body)
-    play_it
     stop_process_time
+    play_it
     if @statistics
       statistics
     end
@@ -2051,10 +2051,10 @@ class With_DAC < Snd_Instrument
   def statistics
     Snd.message("filename: %s", @output)
     Snd.message("   chans: %d, srate: %d", @channels, @srate.to_i)
-    Snd.message("    real: %1.3f  (utime %1.3f, stime %1.3f)",
+    Snd.message("    real: %0.3f  (utime %0.3f, stime %0.3f)",
                 @rtime, @utime, @stime)
     if @stat_framples > 0
-      Snd.message("  length: %1.3f (%d frames)",
+      Snd.message("  length: %0.3f (%d framples)",
                   @stat_framples / @srate.to_f, @stat_framples)
     end
   end
@@ -2077,8 +2077,6 @@ class With_DAC < Snd_Instrument
     set_mus_clipping(true)
     od = dac_size()
     set_dac_size(@dac_size)
-    len += @dac_size
-    len += mus_file_buffer_size()
     @stat_framples = len
     s = 0
     play(lambda do
