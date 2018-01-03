@@ -11176,6 +11176,23 @@ static bool is_abnormal(s7_pointer x)
     }
 }
 
+static s7_pointer make_unknown(s7_scheme *sc, const char* name)
+{
+  s7_pointer p;
+  char *newstr;
+  int32_t len;
+  new_cell(sc, p, T_UNDEFINED | T_IMMUTABLE);
+  len = safe_strlen(name);
+  newstr = (char *)malloc((len + 2) * sizeof(char));
+  newstr[0] = '#';
+  if (len > 0)
+    memcpy((void *)(newstr + 1), (void *)name, len);
+  newstr[len + 1] = '\0';
+  unique_name_length(p) = len + 1;
+  unique_name(p) = newstr;
+  return(p);
+}
+
 static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
 {
   /* check *read-error-hook* */
@@ -11186,7 +11203,8 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
       if (result != sc->unspecified)
 	return(result);
     }
-  return(sc->nil);
+  /* old: return(sc->nil); */
+  return(make_unknown(sc, name));
 }
 
 #define SYMBOL_OK true
@@ -11253,7 +11271,12 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, int32_t radix, 
 	sym = make_symbol(sc, (char *)(name + 1));
 	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
 	  return(slot_value(initial_slot(sym)));
-	return(s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "#~A is undefined"), s7_make_string_wrapper(sc, name))));
+
+	/* here we should not necessarily raise an error that *_... is undefined.  reader-cond, for example, needs to
+	 *    read undefined #_ vals that it will eventually discard. 
+	 * old: return(s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "#~A is undefined"), s7_make_string_wrapper(sc, name))));
+	 */
+	return(make_unknown(sc, name));    /* (define x (with-input-from-string "(#_asdf 1 2)" read)) (type-of (car x)) -> undefined? */
       }
 
 
@@ -22737,7 +22760,6 @@ static s7_pointer g_current_input_port(s7_scheme *sc, s7_pointer args)
   return(sc->input_port);
 }
 
-#if (!WITH_PURE_S7)
 static s7_pointer g_set_current_input_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_input_port "(set-current-input-port port) sets the current-input port to port and returns the previous value of the input port"
@@ -22756,7 +22778,6 @@ static s7_pointer g_set_current_input_port(s7_scheme *sc, s7_pointer args)
     }
   return(old_port);
 }
-#endif
 
 s7_pointer s7_set_current_input_port(s7_scheme *sc, s7_pointer port)
 {
@@ -22785,7 +22806,6 @@ static s7_pointer g_current_output_port(s7_scheme *sc, s7_pointer args)
   return(sc->output_port);
 }
 
-#if (!WITH_PURE_S7)
 static s7_pointer g_set_current_output_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_output_port "(set-current-output-port port) sets the current-output port to port and returns the previous value of the output port"
@@ -22805,7 +22825,6 @@ static s7_pointer g_set_current_output_port(s7_scheme *sc, s7_pointer args)
     }
   return(old_port);
 }
-#endif
 
 
 s7_pointer s7_current_error_port(s7_scheme *sc) {return(sc->error_port);}
@@ -56922,19 +56941,7 @@ static s7_pointer read_expression(s7_scheme *sc)
 	  return(sc->value);
 
 	case TOKEN_SHARP_CONST:
-	  sc->value = port_read_sharp(sc->input_port)(sc, sc->input_port);
-
-	  /* here we need the following character and form
-	   *   strbuf[0] == '#', false above = # case, not an atom
-	   */
-	  if (is_null(sc->value))
-	    {
-	      return(read_error(sc, "undefined # expression"));
-	      /* a read error here seems draconian -- this unknown constant doesn't otherwise get in our way
-	       *   but how to alert the caller to the problem without stopping the read?
-	       */
-	    }
-	  return(sc->value);
+	  return(port_read_sharp(sc->input_port)(sc, sc->input_port));
 
 	case TOKEN_DOT:                                             /* (catch #t (lambda () (+ 1 . . )) (lambda args 'hiho)) */
 	  back_up_stack(sc);
@@ -76672,8 +76679,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      
 	    case TOKEN_SHARP_CONST:
 	      sc->value = port_read_sharp(sc->input_port)(sc, sc->input_port);
-	      if (is_null(sc->value))
-		return(read_error(sc, "undefined # expression"));
 	      if (sc->value == sc->no_value)
 		{
 		  /* (set! *#readers* (cons (cons #\; (lambda (s) (read) (values))) *#readers*))
@@ -81818,7 +81823,7 @@ char *s7_decode_bt(void)
 
 /* -------------------------------- initialization -------------------------------- */
 
-static s7_pointer make_unique_object(const char* name, uint64_t typ)
+static s7_pointer make_unique(const char* name, uint64_t typ)
 {
   s7_pointer p;
   p = alloc_pointer();
@@ -81893,17 +81898,17 @@ s7_scheme *s7_init(void)
   sc->read_line_buf = NULL;
   sc->read_line_buf_size = 0;
 
-  sc->nil =         make_unique_object("()",             T_NIL);
-  sc->gc_nil =      make_unique_object("#<gc-nil>",      T_NIL);        /* ?? perhaps a unique type for this? */
-  sc->T =           make_unique_object("#t",             T_BOOLEAN);
-  sc->F =           make_unique_object("#f",             T_BOOLEAN);
-  sc->eof_object =  make_unique_object("#<eof>",         T_EOF_OBJECT);
-  sc->undefined =   make_unique_object("#<undefined>",   T_UNDEFINED);
-  sc->unspecified = make_unique_object("#<unspecified>", T_UNSPECIFIED);
+  sc->nil =         make_unique("()",             T_NIL);
+  sc->gc_nil =      make_unique("#<gc-nil>",      T_NIL);        /* ?? perhaps a unique type for this? */
+  sc->T =           make_unique("#t",             T_BOOLEAN);
+  sc->F =           make_unique("#f",             T_BOOLEAN);
+  sc->eof_object =  make_unique("#<eof>",         T_EOF_OBJECT);
+  sc->undefined =   make_unique("#<undefined>",   T_UNDEFINED);
+  sc->unspecified = make_unique("#<unspecified>", T_UNSPECIFIED);
 #if DEBUGGING
-  sc->no_value =    make_unique_object("#<no-value>", T_UNSPECIFIED);
+  sc->no_value =    make_unique("#<no-value>", T_UNSPECIFIED);
 #else
-  sc->no_value =    make_unique_object("#<unspecified>", T_UNSPECIFIED);
+  sc->no_value =    make_unique("#<unspecified>", T_UNSPECIFIED);
 #endif
 
   unique_car(sc->nil) = sc->unspecified;
@@ -83219,7 +83224,13 @@ s7_scheme *s7_init(void)
   set_setter(sc->set_car_symbol);
   set_setter(sc->set_cdr_symbol);
 
-#if (!WITH_PURE_S7)
+#if (WITH_PURE_S7)
+  /* we need to be able at least to set (current-output-port) to #f */
+  c_function_set_setter(slot_value(global_slot(sc->current_input_port_symbol)), 
+			s7_make_function(sc, "(set *stdin*)", g_set_current_input_port, 1, 0, false, "*stdin* setter"));
+  c_function_set_setter(slot_value(global_slot(sc->current_output_port_symbol)), 
+			s7_make_function(sc, "(set *stdout*)", g_set_current_output_port, 1, 0, false, "*stdout* setter"));
+#else
   set_setter(s7_make_symbol(sc, "set-current-input-port"));
   set_setter(s7_make_symbol(sc, "set-current-output-port"));
   s7_function_set_setter(sc, "current-input-port",  "set-current-input-port");
@@ -83907,7 +83918,6 @@ int main(int argc, char **argv)
  *   or maybe opt/unopt choice made at call-time (if in loop??)
  *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
  * macroexpand before s7_optimize? or restart if macro encountered?
- * t725/mockery.scm need pure-s7 fixups
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83945,7 +83955,7 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2096
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
  * lint          |      |      |      || 4041 || 2702 | 2696
- * lg            |      |      |      || 211  || 133  | 133.7
+ * lg            |      |      |      || 211  || 133  | 133.4
  * tform         |      |      | 6816 || 3714 || 2762 | 2751
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445

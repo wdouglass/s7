@@ -750,6 +750,9 @@ with_extension_language
 with_s7
 with_forth
 with_ruby
+with_pure_s7
+with_s7_history
+with_s7_profiling
 with_gsl
 with_fftw
 with_gmp
@@ -1421,6 +1424,9 @@ Optional Packages:
   --with-s7  	          use S7, default=yes
   --with-forth	  	  use Forth as the extension language
   --with-ruby             use Ruby as the extension language
+  --with-pure-s7	  s7 WITH_PURE_S7
+  --with-s7-history	  s7 WITH_HISTORY
+  --with-s7-profiling	  s7 WITH_PROFILE
   --with-gsl		  use GSL, default=yes
   --with-fftw		  use fftw, default=yes
   --with-gmp		  include multiprecision arithmetic via gmp, mpfr, and mpc, default=no
@@ -3332,7 +3338,10 @@ VERSION=18.0
 #   --with-gui            make Snd with(out) any graphics support
 #   --with-forth          use Forth as the extension language
 #   --with-ruby           use Ruby as the extension language
-#   --with-s7             use S7 as the extension language (default = yes)
+#   --with-s7             use s7 as the extension language (default = yes)
+#   --with-pure-s7        s7 WITH_PURE_S7
+#   --with-s7-history     s7 WITH_HISTORY
+#   --with-s7-profiling   s7 WITH_PROFILE
 #   --with-extension-language use some extension language (default=yes)
 #   --with-temp-dir       directory to use for temp files
 #   --with-save-dir       directory to use for saved-state files
@@ -3443,6 +3452,25 @@ fi
 # Check whether --with-ruby was given.
 if test "${with_ruby+set}" = set; then :
   withval=$with_ruby;
+fi
+
+
+
+# Check whether --with-pure-s7 was given.
+if test "${with_pure_s7+set}" = set; then :
+  withval=$with_pure_s7;
+fi
+
+
+# Check whether --with-s7-history was given.
+if test "${with_s7_history+set}" = set; then :
+  withval=$with_s7_history;
+fi
+
+
+# Check whether --with-s7-profiling was given.
+if test "${with_s7_profiling+set}" = set; then :
+  withval=$with_s7_profiling;
 fi
 
 
@@ -6183,6 +6211,31 @@ if test "$enable_deprecated" = no ; then
   CFLAGS="-DGTK_DISABLE_DEPRECATED -DG_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DPANGO_DISABLE_DEPRECATED -DCAIRO_DISABLE_DEPRECATED -DGSL_DISABLE_DEPRECATED -Wall $CFLAGS"
   $as_echo "#define DISABLE_DEPRECATED 1" >>confdefs.h
 
+fi
+
+
+#--------------------------------------------------------------------------------
+# pure-s7
+#--------------------------------------------------------------------------------
+
+if test "$with_pure_s7" = yes ; then
+  CFLAGS="-DWITH_PURE_S7 $CFLAGS"
+fi
+
+#--------------------------------------------------------------------------------
+# s7-history
+#--------------------------------------------------------------------------------
+
+if test "$with_s7_history" = yes ; then
+  CFLAGS="-DWITH_HISTORY $CFLAGS"
+fi
+
+#--------------------------------------------------------------------------------
+# s7-profiling
+#--------------------------------------------------------------------------------
+
+if test "$with_s7_profiling" = yes ; then
+  CFLAGS="-DWITH_S7_PROFILE $CFLAGS"
 fi
 
 

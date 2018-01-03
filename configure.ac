@@ -40,7 +40,10 @@ VERSION=18.0
 #   --with-gui            make Snd with(out) any graphics support
 #   --with-forth          use Forth as the extension language
 #   --with-ruby           use Ruby as the extension language
-#   --with-s7             use S7 as the extension language (default = yes)
+#   --with-s7             use s7 as the extension language (default = yes)
+#   --with-pure-s7        s7 WITH_PURE_S7
+#   --with-s7-history     s7 WITH_HISTORY
+#   --with-s7-profiling   s7 WITH_PROFILE
 #   --with-extension-language use some extension language (default=yes)
 #   --with-temp-dir       directory to use for temp files
 #   --with-save-dir       directory to use for saved-state files
@@ -73,6 +76,10 @@ AC_ARG_WITH(extension-language, [  --with-extension-language use some extension 
 AC_ARG_WITH(s7,          [  --with-s7  	          use S7, default=yes])
 AC_ARG_WITH(forth,       [  --with-forth	  	  use Forth as the extension language])
 AC_ARG_WITH(ruby,        [  --with-ruby             use Ruby as the extension language])
+
+AC_ARG_WITH(pure-s7,     [  --with-pure-s7	  s7 WITH_PURE_S7])
+AC_ARG_WITH(s7-history,  [  --with-s7-history	  s7 WITH_HISTORY])
+AC_ARG_WITH(s7-profiling, [  --with-s7-profiling	  s7 WITH_PROFILE])
 
 AC_ARG_WITH(gsl,         [  --with-gsl		  use GSL, default=yes])
 AC_ARG_WITH(fftw,        [  --with-fftw		  use fftw, default=yes])
@@ -793,6 +800,31 @@ esac
 if test "$enable_deprecated" = no ; then
   CFLAGS="-DGTK_DISABLE_DEPRECATED -DG_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DPANGO_DISABLE_DEPRECATED -DCAIRO_DISABLE_DEPRECATED -DGSL_DISABLE_DEPRECATED -Wall $CFLAGS"
   AC_DEFINE(DISABLE_DEPRECATED)
+fi
+
+
+#--------------------------------------------------------------------------------
+# pure-s7
+#--------------------------------------------------------------------------------
+
+if test "$with_pure_s7" = yes ; then
+  CFLAGS="-DWITH_PURE_S7 $CFLAGS"
+fi
+
+#--------------------------------------------------------------------------------
+# s7-history
+#--------------------------------------------------------------------------------
+
+if test "$with_s7_history" = yes ; then
+  CFLAGS="-DWITH_HISTORY $CFLAGS"
+fi
+
+#--------------------------------------------------------------------------------
+# s7-profiling
+#--------------------------------------------------------------------------------
+
+if test "$with_s7_profiling" = yes ; then
+  CFLAGS="-DWITH_S7_PROFILE $CFLAGS"
 fi
 
 
