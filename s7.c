@@ -2043,6 +2043,7 @@ static int64_t not_heap = -1;
 #define unheap(p)                     (p)->hloc = not_heap--
 
 #define is_eof(p)                     ((_NFre(p)) == sc->eof_object)
+#define is_undefined(p)               (type(p) == T_UNDEFINED)
 #define is_true(Sc, p)                ((_NFre(p)) != Sc->F)
 #define is_false(Sc, p)               ((_NFre(p)) == Sc->F)
 
@@ -3751,6 +3752,21 @@ s7_pointer s7_undefined(s7_scheme *sc) {return(sc->undefined);}
 s7_pointer s7_unspecified(s7_scheme *sc) {return(sc->unspecified);}
 bool s7_is_unspecified(s7_scheme *sc, s7_pointer val) {return(is_unspecified(val));}
 
+static s7_pointer g_is_undefined(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_undefined "(undefined? val) returns #t if val is #<undefined> or its reader equivalent"
+  #define Q_is_undefined pl_bt
+  check_boolean_method(sc, is_undefined, sc->is_undefined_symbol, args);
+}
+
+static s7_pointer g_is_unspecified(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_unspecified "(unspecified? val) returns #t if val is #<unspecified>"
+  #define Q_is_unspecified pl_bt
+  check_boolean_method(sc, is_unspecified, sc->is_unspecified_symbol, args);
+}
+
+
 /* #<eof> */
 s7_pointer s7_eof_object(s7_scheme *sc) {return(sc->eof_object);}
 
@@ -4022,7 +4038,7 @@ static char *alloc_string(s7_scheme *sc, int32_t len)
   if ((len < STRING_LISTS) &&
       (sc->string_locs[len] > 0))
     return(sc->string_lists[len][--sc->string_locs[len]]);
-  return((char *)malloc((len + 1) * sizeof(char)));
+  return((char *)malloc((len + 2) * sizeof(char)));
 }
 
 static void string_to_free_list(s7_scheme *sc, char *value, int32_t len)
@@ -4699,7 +4715,7 @@ static void mark_input_port(s7_pointer p)
 static void init_mark_functions(void)
 {
   mark_function[T_FREE]                = mark_noop;
-  mark_function[T_UNDEFINED]           = mark_noop;
+  mark_function[T_UNDEFINED]           = just_mark;
   mark_function[T_EOF_OBJECT]          = mark_noop;
   mark_function[T_UNSPECIFIED]         = mark_noop;
   mark_function[T_NIL]                 = mark_noop;
@@ -21103,6 +21119,7 @@ s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, int32_t le
   if (len != 0)                                  /* memcpy can segfault if string_value(x) is NULL */
     memcpy((void *)string_value(x), (void *)str, len);
   string_value(x)[len] = 0;
+  string_value(x)[len + 1] = 0;
   string_length(x) = len;
   string_hash(x) = 0;
   string_needs_free(x) = true;
@@ -21146,10 +21163,11 @@ static s7_pointer make_empty_string(s7_scheme *sc, int32_t len, char fill)
 {
   s7_pointer x;
   new_cell(sc, x, T_STRING);
-  string_value(x) = alloc_string(sc, len); /* returns char* of len+1 */
+  string_value(x) = alloc_string(sc, len); /* returns char* of len+2 -- terminated_string_read_white_space needs the second #\null */
   if ((fill != 0) && (len > 0))
     memset((void *)(string_value(x)), fill, len);
   string_value(x)[len] = 0;
+  string_value(x)[len + 1] = 0;
   string_hash(x) = 0;
   string_length(x) = len;
   string_needs_free(x) = true;
@@ -23521,6 +23539,7 @@ static int32_t terminated_string_read_white_space(s7_scheme *sc, s7_pointer pt)
   const unsigned char *str;
   unsigned char c;
   /* here we know we have null termination and white_space[#\null] is false. */
+
   str = (const unsigned char *)(port_data(pt) + port_position(pt));
 
   while (white_space[c = *str++]) /* (let ((ÿa 1)) ÿa) -- 255 is not -1 = EOF */
@@ -42306,7 +42325,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_unspecified_symbol)));
 
     case T_UNDEFINED:
-      return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, obj)));
+      return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_undefined_symbol)));
 
     case T_SYNTAX:
       return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_syntax_symbol)));
@@ -57176,7 +57195,7 @@ static s7_pointer assign_internal_syntax(s7_scheme *sc, const char *name, opcode
 
   x = alloc_pointer();
   unheap(x);
-  set_type(x, T_SYMBOL);
+  set_type(x, T_SYMBOL); /* see below */
   symbol_set_name_cell(x, str);
   symbol_info(x) = (symbol_info_t *)calloc(1, sizeof(symbol_info_t));
   symbol_set_local(x, 0LL, sc->nil);
@@ -59118,14 +59137,18 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
   s7_pointer arg1;
   /* very often, expr is already optimized, quoted stuff is counted under "bad_pairs"! as well as quotes */
   /* fprintf(stderr, "opt 1 arg: %s, hop: %d, pairs: %d, symbols: %d, quotes: %d, bad: %d\n", DISPLAY_80(expr), hop, pairs, symbols, quotes, bad_pairs); */
-  
+
+  if (quotes > 0)
+    {
+      if (direct_memq(sc->quote_symbol, e))
+	return(OPT_OOPS);
+      if ((bad_pairs == quotes) &&
+	  (is_possibly_constant(car(expr))))
+	hop = 1;
+    }
+
   arg1 = cadr(expr);
-  if ((bad_pairs == quotes) &&
-      (is_possibly_constant(car(expr))))
-    hop = 1;
-
   /* need in_with_let -> search only rootlet not find_symbol */
-
   if ((symbols == 1) &&
       (!is_keyword(arg1)) &&
       (!arg_findable(sc, arg1, e)))
@@ -59262,12 +59285,12 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		{
 		  annotate_arg(sc, cdr(expr), e);
 		  set_arglist_length(expr, small_int(1));
-                 if (func_is_safe)
-                   {
-                     set_safe_optimize_op(expr, hop + OP_SAFE_C_A);
-                     choose_c_function(sc, expr, func, 1);
-                     return(OPT_T);
-                   }
+		  if (func_is_safe)
+		    {
+		      set_safe_optimize_op(expr, hop + OP_SAFE_C_A);
+		      choose_c_function(sc, expr, func, 1);
+		      return(OPT_T);
+		    }
 		  set_unsafe_optimize_op(expr, hop + OP_C_A);
 		  choose_c_function(sc, expr, func, 1);
 		  return(OPT_F);
@@ -59584,12 +59607,17 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 
   /* fprintf(stderr, "opt 2: %s, hop: %d, pairs: %d, symbols: %d, quotes: %d, bad: %d\n", DISPLAY_80(expr), hop, pairs, symbols, quotes, bad_pairs); */
 
+  if (quotes > 0)
+    {
+      if (direct_memq(sc->quote_symbol, e))
+	return(OPT_OOPS);
+      if ((bad_pairs == quotes) &&
+	  (is_possibly_constant(car(expr))))
+	hop = 1;
+    }
+
   arg1 = cadr(expr);
   arg2 = caddr(expr);
-  if ((bad_pairs == quotes) &&
-      (is_possibly_constant(car(expr))))
-    hop = 1;
-
   if (((is_symbol(arg1)) &&
        (!arg_findable(sc, arg1, e))) ||
       ((is_symbol(arg2)) &&
@@ -60243,6 +60271,10 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 {
   s7_pointer arg1, arg2, arg3;
 
+  if ((quotes > 0) &&
+      (direct_memq(sc->quote_symbol, e)))
+    return(OPT_OOPS);
+
   arg1 = cadr(expr);
   arg2 = caddr(expr);
   arg3 = cadddr(expr);
@@ -60697,9 +60729,14 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
   bool func_is_closure;
 
   if (bad_pairs > quotes) return(OPT_F);
-  if ((bad_pairs == quotes) &&
-      (is_possibly_constant(car(expr))))
-    hop = 1;
+  if (quotes > 0)
+    {
+      if (direct_memq(sc->quote_symbol, e))
+	return(OPT_OOPS);
+      if ((bad_pairs == quotes) &&
+	  (is_possibly_constant(car(expr))))
+	hop = 1;
+    }
 
   if ((is_c_function(func)) &&
       (c_function_required_args(func) <= (uint32_t)args) &&
@@ -81906,7 +81943,7 @@ s7_scheme *s7_init(void)
   sc->undefined =   make_unique("#<undefined>",   T_UNDEFINED);
   sc->unspecified = make_unique("#<unspecified>", T_UNSPECIFIED);
 #if DEBUGGING
-  sc->no_value =    make_unique("#<no-value>", T_UNSPECIFIED);
+  sc->no_value =    make_unique("#<no-value>",    T_UNSPECIFIED);
 #else
   sc->no_value =    make_unique("#<unspecified>", T_UNSPECIFIED);
 #endif
@@ -82591,10 +82628,10 @@ s7_scheme *s7_init(void)
   sc->is_proper_list_symbol =        defun("proper-list?",      is_proper_list,         1, 0, false);
   sc->is_sequence_symbol =           defun("sequence?",	        is_sequence,		1, 0, false);
   sc->is_null_symbol =               defun("null?",		is_null,		1, 0, false); symbol_type(sc->is_null_symbol) = T_NIL;
+  sc->is_undefined_symbol =          defun("undefined?",        is_undefined,           1, 0, false); symbol_type(sc->is_undefined_symbol) = T_UNDEFINED;
+  sc->is_unspecified_symbol =        defun("unspecified?",      is_unspecified,         1, 0, false); symbol_type(sc->is_unspecified_symbol) = T_UNSPECIFIED;
 
   /* these are for signatures */
-  sc->is_unspecified_symbol = s7_make_symbol(sc, "unspecified?");
-  sc->is_undefined_symbol = s7_make_symbol(sc, "undefined?");
   sc->is_integer_or_real_at_end_symbol = s7_make_symbol(sc, "integer:real?");
   sc->is_integer_or_any_at_end_symbol =  s7_make_symbol(sc, "integer:any?");
 
@@ -83117,7 +83154,10 @@ s7_scheme *s7_init(void)
   sc->sharp_readers = global_slot(sym);
   s7_symbol_set_setter(sc, sym, s7_make_function(sc, "(set *#readers*)", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
 
-  /* sigh... I don't like these! */
+  /* sigh... I don't like these! perhaps positive|negative-infinity|nan? to parallel most-positive-fixnum etc 
+   *    "real" below should be "float" since we're trying to say these things are not "exact" = rational
+   *    or maybe #<inf> and #<nan> using (- ...) for the negative cases
+   */
   s7_define_constant(sc, "nan.0", real_NaN);
   s7_define_constant(sc, "-nan.0", real_NaN);
   s7_define_constant(sc, "inf.0", real_infinity);
@@ -83918,6 +83958,7 @@ int main(int argc, char **argv)
  *   or maybe opt/unopt choice made at call-time (if in loop??)
  *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
  * macroexpand before s7_optimize? or restart if macro encountered?
+ * sweep undefineds to free name
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83951,10 +83992,10 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475
- * teq           |      |      | 6612 || 2777 || 1931 | 1918
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2096
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
- * lint          |      |      |      || 4041 || 2702 | 2696
+ * lint          |      |      |      || 4041 || 2702 | 2696 2744?
  * lg            |      |      |      || 211  || 133  | 133.4
  * tform         |      |      | 6816 || 3714 || 2762 | 2751
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965
