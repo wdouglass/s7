@@ -3022,6 +3022,7 @@ static char *snd_finder(const char *name, bool got_help)
   const char *defines[NUM_DEFINES] = {": ", "instrument: ", "event: "};
 #endif
 
+  if ((!name) || (mus_strlen(name) == 0)) return(NULL);
   is_defined = Xen_is_defined(name);
 
 #if HAVE_SCHEME
@@ -3629,7 +3630,8 @@ and its value is returned."
 	  (mus_strlen(str) == 0) ||
 	  (strcmp(str, PROC_FALSE) == 0)) /* Ruby returns "false" here */
 	{
-	  if (!subject) return(Xen_false);
+	  if ((!subject) || (mus_strlen(subject) == 0))
+	    return(Xen_false);
 	  str = snd_finder(subject, false);
 	  need_free = true;
 	}

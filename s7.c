@@ -837,7 +837,10 @@ typedef struct s7_cell {
       s7_pointer unused_slots, unused_nxt;
       int64_t unused_id;
       /* these two fields are for some special case objects like #<unspecified> */
-      const char *name;
+      union {
+	const char *name;
+	char *unknown_name;
+      } nm;
       int32_t len;
     } unq;
 
@@ -1051,7 +1054,7 @@ struct s7_scheme {
   format_data **fdats;
   int32_t num_fdats;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_3, qlist_2;
-  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *optlists;
+  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *optlists, *unknowns;
   s7_pointer *setters;
   uint32_t setters_size, setters_loc;
   char ***string_lists;
@@ -1158,7 +1161,8 @@ struct s7_scheme {
              let_star_symbol, key_rest_symbol, key_allow_other_keys_symbol, key_readable_symbol, value_symbol, type_symbol, 
              baffled_symbol, __func___symbol, set_symbol, body_symbol, class_name_symbol, feed_to_symbol, format_error_symbol, 
              wrong_number_of_args_symbol, read_error_symbol, string_read_error_symbol, syntax_error_symbol, division_by_zero_symbol, 
-             no_catch_symbol, io_error_symbol, invalid_escape_function_symbol, wrong_type_arg_symbol, out_of_range_symbol, missing_method_symbol;
+             no_catch_symbol, io_error_symbol, invalid_escape_function_symbol, wrong_type_arg_symbol, out_of_range_symbol, 
+             missing_method_symbol, unbound_variable_symbol;
 
   /* optimizer symbols */
   s7_pointer and_ap_symbol, and_az_symbol, and_p_symbol, and_safe_aa_symbol, and_safe_p_symbol, 
@@ -2426,7 +2430,8 @@ static int64_t not_heap = -1;
 #define dox_slot2_unchecked(p)        _TLet(p)->object.envr.edat.dox.dox2
 #define dox_set_slot2_unchecked(p, S) _TLet(p)->object.envr.edat.dox.dox2 = (S)
 
-#define unique_name(p)                (p)->object.unq.name
+#define unique_name(p)                (p)->object.unq.nm.name
+#define unknown_name(p)               (p)->object.unq.nm.unknown_name
 #define unique_name_length(p)         (p)->object.unq.len
 #define is_unspecified(p)             (type(p) == T_UNSPECIFIED)
 #define unique_car(p)                 (p)->object.unq.unused_slots
@@ -4130,6 +4135,19 @@ static void sweep(s7_scheme *sc)
       if (j == 0) mark_function[T_SYMBOL] = mark_noop;
     }
 
+  gp = sc->unknowns;
+  if (gp->loc > 0)
+    {
+      for (i = 0, j = 0; i < gp->loc; i++)
+	{
+	  s1 = gp->list[i];
+	  if (is_free_and_clear(s1))
+	    free(unknown_name(s1));
+	  else gp->list[j++] = s1;
+	}
+      gp->loc = j;
+    }
+
   gp = sc->c_objects;
   if (gp->loc > 0)
     {
@@ -4387,6 +4405,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_input_port(sc, p)   add_to_gc_list(sc->input_ports, p)
 #define add_output_port(sc, p)  add_to_gc_list(sc->output_ports, p)
 #define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
+#define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
 
 #if WITH_GMP
 #define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
@@ -4402,6 +4421,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->strings = make_gc_list();
   sc->strings1 = make_gc_list();
   sc->gensyms = make_gc_list();
+  sc->unknowns = make_gc_list();
   sc->vectors = make_gc_list();
   sc->hash_tables = make_gc_list();
   sc->input_ports = make_gc_list();
@@ -5142,7 +5162,12 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
 
 /* static s7_pointer describe_memory_usage(s7_scheme *sc); */
 
+#if DEBUGGING
+#define resize_heap_to(Sc, Size) resize_heap_to_1(Sc, Size, __func__, __LINE__)
+static void resize_heap_to_1(s7_scheme *sc, int64_t size, const char *func, int line)
+#else
 static void resize_heap_to(s7_scheme *sc, int64_t size)
+#endif
 {
   /* alloc more heap */
   int64_t old_size, old_free, k;
@@ -5196,7 +5221,10 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   if (show_heap_stats(sc))
     {
-      fprintf(stderr, "heap grows to %" PRId64 "\n", sc->heap_size);
+#if DEBUGGING
+      fprintf(stderr, "%s[%d]: ", func, line);
+#endif
+      fprintf(stderr, "heap grows to %" PRId64 " (old free/size: %" PRId64 "/%" PRId64 ")\n", sc->heap_size, old_free, old_size);
 #if 0
       {
 	s7_pointer old_out;
@@ -8996,7 +9024,6 @@ static s7_pointer copy_counter(s7_scheme *sc, s7_pointer obj)
   return(nobj);
 }
 
-
 static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
 {
   #define CC_INITIAL_STACK_SIZE 256 /* 128 is too small here */
@@ -9113,7 +9140,6 @@ static bool find_baffle(s7_scheme *sc, int32_t key)
   return(false);
 }
 
-
 static int32_t find_any_baffle(s7_scheme *sc)
 {
   /* search backwards through sc->envir for any sc->baffle_symbol */
@@ -9165,7 +9191,6 @@ static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code)
   sc->code = code;
   eval(sc, OP_LET_TEMP_DONE);
 }
-
 
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
@@ -9307,6 +9332,34 @@ static bool call_with_current_continuation(s7_scheme *sc)
   return(true);
 }
 
+static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
+{
+  #define H_call_cc "(call-with-current-continuation (lambda (continuer)...)) is always a mistake!"
+  #define Q_call_cc s7_make_signature(sc, 2, sc->values_symbol, sc->is_procedure_symbol)
+  /* I think the intent is that sc->values_symbol as the proc-sig return type indicates multiple values are possible (otherwise use #t). */
+
+  s7_pointer p;
+  p = car(args);                             /* this is the procedure passed to call/cc */
+  if (!is_t_procedure(p))                    /* this includes continuations */
+    {
+      check_two_methods(sc, p, sc->call_cc_symbol, sc->call_with_current_continuation_symbol, args);
+      return(simple_wrong_type_argument_with_type(sc, sc->call_cc_symbol, p, a_procedure_string));
+    }
+  if (!s7_is_aritable(sc, p, 1))
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "call/cc procedure, ~A, should take one argument"), p)));
+
+  sc->w = s7_make_continuation(sc);
+  push_stack(sc, OP_APPLY, list_1(sc, sc->w), p);
+  sc->w = sc->nil;
+
+  return(sc->nil);
+}
+
+/* we can't naively optimize call/cc to call-with-exit if the continuation is only
+ *   used as a function in the call/cc body because it might (for example) be wrapped
+ *   in a lambda form that is being exported.  See b-func in s7test for an example.
+ */
+
 
 static void call_with_exit(s7_scheme *sc)
 {
@@ -9416,36 +9469,6 @@ static void call_with_exit(s7_scheme *sc)
 	push_stack_op_let(sc, OP_EVAL_DONE);
     }
 }
-
-
-static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
-{
-  #define H_call_cc "(call-with-current-continuation (lambda (continuer)...)) is always a mistake!"
-  #define Q_call_cc s7_make_signature(sc, 2, sc->values_symbol, sc->is_procedure_symbol)
-  /* I think the intent is that sc->values_symbol as the proc-sig return type indicates multiple values are possible (otherwise use #t). */
-
-  s7_pointer p;
-  p = car(args);                             /* this is the procedure passed to call/cc */
-  if (!is_t_procedure(p))                    /* this includes continuations */
-    {
-      check_two_methods(sc, p, sc->call_cc_symbol, sc->call_with_current_continuation_symbol, args);
-      return(simple_wrong_type_argument_with_type(sc, sc->call_cc_symbol, p, a_procedure_string));
-    }
-  if (!s7_is_aritable(sc, p, 1))
-    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "call/cc procedure, ~A, should take one argument"), p)));
-
-  sc->w = s7_make_continuation(sc);
-  push_stack(sc, OP_APPLY, list_1(sc, sc->w), p);
-  sc->w = sc->nil;
-
-  return(sc->nil);
-}
-
-/* we can't naively optimize call/cc to call-with-exit if the continuation is only
- *   used as a function in the call/cc body because it might (for example) be wrapped
- *   in a lambda form that is being exported.  See b-func in s7test for an example.
- */
-
 
 static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
 {
@@ -11205,7 +11228,8 @@ static s7_pointer make_unknown(s7_scheme *sc, const char* name)
     memcpy((void *)(newstr + 1), (void *)name, len);
   newstr[len + 1] = '\0';
   unique_name_length(p) = len + 1;
-  unique_name(p) = newstr;
+  unknown_name(p) = newstr;
+  add_unknown(sc, p);
   return(p);
 }
 
@@ -31892,7 +31916,6 @@ bool s7_is_proper_list(s7_scheme *sc, s7_pointer lst)
   return(true);
 }
 
-
 static s7_pointer g_is_list(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_list "(list? obj) returns #t if obj is a pair or null"
@@ -31912,10 +31935,9 @@ static s7_pointer make_list(s7_scheme *sc, int32_t len, s7_pointer init)
     case 2: return(cons_unchecked(sc, init, cons(sc, init, sc->nil)));
     case 3: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil))));
     case 4: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil)))));
-    case 5: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init,
-		    cons_unchecked(sc, init, cons(sc, init, sc->nil))))));
-    case 6: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init,
-		    cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil)))))));
+    case 5: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil))))));
+    case 6: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init, 
+                    cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil)))))));
     case 7: return(cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init,
 		    cons_unchecked(sc, init, cons_unchecked(sc, init, cons_unchecked(sc, init, cons(sc, init, sc->nil))))))));
     default:
@@ -31929,7 +31951,6 @@ static s7_pointer make_list(s7_scheme *sc, int32_t len, s7_pointer init)
 	    while (len >= (sc->free_heap_top - sc->free_heap))
 	      resize_heap(sc);
 	  }
-
 	sc->v = sc->nil;
 	for (i = 0; i < len; i++)
 	  sc->v = cons_unchecked(sc, init, sc->v);
@@ -57144,7 +57165,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	  (result != sc->unspecified))
 	return(result);
     }
-  eval_error(sc, "~A: unbound variable", sym);
+  eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", sym);
 }
 
 
@@ -59310,9 +59331,9 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 			      (is_pair(cadr(lambda_expr))) &&
 			      (is_null(cdadr(lambda_expr))) &&
 			      (is_symbol(caadr(lambda_expr))) &&
-			      (!direct_memq(car(lambda_expr), e))) /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
+			      (!direct_memq(car(lambda_expr), e)) && /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
+			      (s7_is_proper_list(sc, cddr(lambda_expr))))
 			    {
-			      /* fprintf(stderr, "call-with-exit %s %s %s\n", DISPLAY(lambda_expr), DISPLAY(sc->envir), DISPLAY(e)); */
 			      set_unsafe_optimize_op(expr, hop + OP_CALL_WITH_EXIT);
 			      choose_c_function(sc, expr, func, 1);
 			      set_opt_pair2(expr, cdr(lambda_expr));
@@ -60888,7 +60909,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
     {
     case OP_QUOTE:
     case OP_MACROEXPAND:
-      return(OPT_F);
+      return(((is_pair(body)) && (is_null(cdr(body)))) ? OPT_F : OPT_OOPS);
 
     case OP_LET:
     case OP_LETREC:
@@ -61731,7 +61752,13 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 	  (!is_checked(car(x))))
 	{
 	  if (optimize_expression(sc, car(x), hop, e, true) == OPT_OOPS)
-	    return(OPT_OOPS);
+	    {
+	      s7_pointer p;
+	      for (p = cdr(x); is_pair(p); p = cdr(p));
+	      if (!is_null(p))
+		eval_error_no_return(sc, sc->syntax_error_symbol, "stray dot in function body: ~S", code);
+	      return(OPT_OOPS);
+	    }
 	}
     }
   handle_optimizer_fixups(sc);
@@ -63055,6 +63082,9 @@ static s7_pointer check_let(s7_scheme *sc)
   if (is_not_null(x))                  /* (let* ((a 1) . b) a) */
     eval_error(sc, "let variable list improper?: ~A", sc->code);
 
+  if (!s7_is_proper_list(sc, cdr(sc->code)))
+    eval_error(sc, "stray dot in let body: ~S", cdr(sc->code));
+
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
     {
@@ -63208,6 +63238,9 @@ static s7_pointer check_let_star(s7_scheme *sc)
   if (!is_null(vars))
     eval_error(sc, "let* variable list is not a proper list?: ~A", vars);
 
+  if (!s7_is_proper_list(sc, cdr(sc->code)))
+    eval_error(sc, "stray dot in let* body: ~S", cdr(sc->code));
+
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
     {
@@ -63283,7 +63316,6 @@ static s7_pointer check_let_star(s7_scheme *sc)
   return(sc->code);
 }
 
-
 static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
 {
   s7_pointer x, caller;
@@ -63329,6 +63361,9 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
       set_local(y);
     }
 
+  if (!s7_is_proper_list(sc, cdr(sc->code)))
+    eval_error_with_caller(sc, "stray dot in ~A body: ~S", caller, cdr(sc->code));
+
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
     pair_set_syntax_symbol(sc->code, (letrec) ? sc->letrec_unchecked_symbol : sc->letrec_star_unchecked_symbol);
@@ -63371,6 +63406,9 @@ static s7_pointer check_let_temporarily(s7_scheme *sc)
 	eval_error(sc, "let-temporarily: variable declaration has more than one value?: ~A", carx);
     }
   
+  if (!s7_is_proper_list(sc, cdr(sc->code)))
+    eval_error(sc, "stray dot in let-temporarily body: ~S", cdr(sc->code));
+
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
     pair_set_syntax_symbol(sc->code, sc->let_temporarily_unchecked_symbol);
@@ -64035,7 +64073,7 @@ static int32_t expansion_ex(s7_scheme *sc)
    * second, figuring out that we're quoted is not easy -- we have to march all the
    * way to the bottom of the stack looking for op_read_quote or op_read_vector
    *    #(((hi)) 2) or '(((hi)))
-   * or op_read_list with args not equal (quote) or (macroexapand)
+   * or op_read_list with args not equal (quote) or (macroexpand)
    *    '(hi 3) or (macroexpand (hi 3) or (quote (hi 3))
    * and those are only the problems I noticed!
    *
@@ -64118,6 +64156,8 @@ static s7_pointer check_with_let(s7_scheme *sc)
   if ((!is_pair(cddr(sc->code))) &&
       (!is_null(cddr(sc->code))))
     eval_error(sc, "with-let body has stray dot? ~A", sc->code);
+  if (!s7_is_proper_list(sc, cdr(sc->code)))
+    eval_error(sc, "stray dot in with-let body: ~S", cdr(sc->code));
 
   if ((is_overlaid(sc->code)) &&
       (has_opt_back(sc->code)))
@@ -71958,21 +71998,33 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_C_FA: /* op_c_fs was not faster if all_x_s below */
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_FA:
-		  sc->code = cdadr(code);
-		  make_closure_with_let(sc, sc->value, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
-		  /* sc->value=new closure cell, car=args, cdr=body */
-		  sc->args = list_2(sc, sc->value, c_call(cddr(code))(sc, caddr(code)));
-		  sc->value = c_call(code)(sc, sc->args);
-		  goto START;
+		  {
+		    s7_pointer f;
+		    int32_t tx;
+		    tx = next_tx(sc);
+		    sc->code = cdadr(code);
+		    make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
+		    sc->t_temps[tx] = f;
+		    /* f=new closure cell, car=args, cdr=body, can't use sc->value here because c_call below may clobber it */
+		    sc->args = list_2(sc, f, c_call(cddr(code))(sc, caddr(code)));
+		    sc->value = c_call(code)(sc, sc->args);
+		    goto START;
+		  }
 
 		case OP_C_FA_1: 
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_FA_1:
-		  sc->code = cdadr(code);
-		  make_closure_with_let(sc, sc->value, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
-		  sc->value = c_call(code)(sc, set_plist_2(sc, sc->value, c_call(cddr(code))(sc, caddr(code))));
-		  set_plist_2(sc, sc->nil, sc->nil); /* hooboy -- GC protects plists */
-		  goto START;
+		  {
+		    s7_pointer f;
+		    int32_t tx;
+		    tx = next_tx(sc);
+		    sc->code = cdadr(code);
+		    make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
+		    sc->t_temps[tx] = f;
+		    sc->value = c_call(code)(sc, set_plist_2(sc, f, c_call(cddr(code))(sc, caddr(code))));
+		    set_plist_2(sc, sc->nil, sc->nil); /* hooboy -- GC protects plists */
+		    goto START;
+		  }
 
 		case OP_C_AA:
 		  if (!c_function_is_ok(sc, code)) break;
@@ -81376,10 +81428,10 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
-    n = snprintf(buf, 1024, "output ports: %u, free port: %d (%ld bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u\n",
+    n = snprintf(buf, 1024, "output ports: %u, free port: %d (%ld bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u, unknowns: %u\n",
 		 sc->output_ports->loc, fs, fs * sizeof(port_t),
 		 gp->loc, cc_stacks,
-		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc);
+		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   return(sc->F);
@@ -82528,6 +82580,7 @@ s7_scheme *s7_init(void)
   sc->read_error_symbol =           make_symbol(sc, "read-error");
   sc->string_read_error_symbol =    make_symbol(sc, "string-read-error");
   sc->syntax_error_symbol =         make_symbol(sc, "syntax-error");
+  sc->unbound_variable_symbol =     make_symbol(sc, "unbound-variable");
   sc->wrong_type_arg_symbol =       make_symbol(sc, "wrong-type-arg");
   sc->wrong_number_of_args_symbol = make_symbol(sc, "wrong-number-of-args");
   sc->format_error_symbol =         make_symbol(sc, "format-error");
@@ -83958,7 +84011,6 @@ int main(int argc, char **argv)
  *   or maybe opt/unopt choice made at call-time (if in loop??)
  *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
  * macroexpand before s7_optimize? or restart if macro encountered?
- * sweep undefineds to free name
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
