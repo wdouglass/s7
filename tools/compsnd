@@ -290,6 +290,10 @@ echo ' -------------------------------------------------------------------------
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'snd-motif"
+
+make clmclean
+make sndinfo
+make sndplay
 make allclean
 
 echo ' '
@@ -478,6 +482,10 @@ echo ' '
 echo ' '
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby, :snd_motif"
+
+make clmclean
+make sndinfo
+make sndplay
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '

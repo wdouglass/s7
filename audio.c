@@ -5129,6 +5129,7 @@ int mus_audio_write(int line, char *buf, int bytes)
 {
   int error;
   pa_simple_write(pa_out, (unsigned char *)buf, (size_t)bytes, &error);
+  return(error);
 }
 
 
@@ -5138,6 +5139,7 @@ int mus_audio_close(int line)
   pa_simple_drain(pa_out, &error);
   pa_simple_free(pa_out);
   pa_out = NULL;
+  return(error);
 }
 
 

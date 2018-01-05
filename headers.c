@@ -468,8 +468,8 @@ const char *mus_sample_type_short_name(mus_sample_t samp_type)
 }
 
 
-#if HAVE_RUBY
-#define TO_LANG(Str) (const char *)xen_scheme_constant_to_ruby(Str)
+#if (HAVE_EXTENSION_LANGUAGE) && (HAVE_RUBY) /* HAVE_EXTENSION_LANGUAGE is not redundant -- make sndinfo for example */
+  #define TO_LANG(Str) (const char *)xen_scheme_constant_to_ruby(Str)
 #else
   #define TO_LANG(Str) Str
 #endif

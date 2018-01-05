@@ -62,7 +62,7 @@ The configure script has a bunch of arguments:
   
      --with-jack       use the Jack library which needs libsamplerate
 
-     --with-pulseaudio use PulseAudio (untested)
+     --with-pulseaudio use PulseAudio (untested), libpulse-dev in ubuntu
 
      --without-audio   do not include audio support.  This also affects the
                          GUI (play buttons are omitted).

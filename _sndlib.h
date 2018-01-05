@@ -89,7 +89,8 @@
 #define MUS_MAX_CHANS 256
 
 #include "sndlib.h"
-#include "xen.h"
-#include "vct.h"
-
+#if (HAVE_EXTENSION_LANGUAGE)  /* make sndinfo for example sets this to 0 but does not change mus-config.h */
+  #include "xen.h"
+  #include "vct.h"
+#endif
 #endif
