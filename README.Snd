@@ -4,11 +4,11 @@ Snd is a sound editor.  It currently runs on nearly all
 Unix-based systems, including Mac OSX and Cygwin.
 To build Snd, get the sources from
 
-  ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-17.tar.gz
+  ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-18.tar.gz
 
-  gzip -d snd-17.tar.gz
-  tar xf snd-17.tar
-  cd snd-17
+  gzip -d snd-18.tar.gz
+  tar xf snd-18.tar
+  cd snd-18
   ./configure
   make
 
@@ -62,7 +62,7 @@ The configure script has a bunch of arguments:
   
      --with-jack       use the Jack library which needs libsamplerate
 
-     --with-pulseaudio use PulseAudio (untested), libpulse-dev in ubuntu
+     --with-pulseaudio use PulseAudio (untested), libpulse-dev in debian, puleaudio-libs-devel in Fedora
 
      --without-audio   do not include audio support.  This also affects the
                          GUI (play buttons are omitted).
@@ -164,7 +164,7 @@ Authors:
 Bill Schottstaedt
 Michael Scholz
 
-Rick Taube, Andrew Burnson, Donny Ward: C++ and Windows wizardry.
+Rick Taube, Andrew Burnson, Donny Ward, Greg Santucci: C++ and Windows wizardry.
 Kjetil S. Matheussen:                   the Jack support and many other improvements.
 Dave Phillips:                          the tutorial, new-effects.scm, and many other files.
 Fernando Lopez-Lezcano:                 the current ALSA support.
@@ -194,7 +194,7 @@ Plus many other contributions from
 
 
 In terms of number of lines, the languages used in Snd/Sndlib are:
-C, Scheme, Ruby, Forth, Emacs Lisp, Fortran, and Lua (altogether about 750k lines).
+C, Scheme, Ruby, Forth, Emacs Lisp, Fortran, and Lua (altogether about 850k lines).
 
 
 ----------------------------------------------------------------

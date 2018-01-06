@@ -53286,7 +53286,8 @@ static bool opt_cell_if(s7_scheme *sc, s7_pointer car_x, int32_t len)
       opt_info *next;
       next = sc->opts[sc->pc];
       if ((is_pair(cadr(car_x))) &&
-	  (caadr(car_x) == sc->not_symbol))
+	  (caadr(car_x) == sc->not_symbol) &&
+	  (is_pair(cdadr(car_x)))) /* (if (not)... */
 	{
 	  if ((bool_optimize(sc, cdadr(car_x))) &&
 	      (cell_optimize(sc, cddr(car_x))))
@@ -56343,7 +56344,11 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
 static s7_pointer g_quasiquote(s7_scheme *sc, s7_pointer args)
 {
-  /* this is for explicit quasiquote support, not the backquote stuff in macros */
+  /* this is for explicit quasiquote support, not the backquote stuff in macros
+   *   but it is problematic.  g_quasiquote_1 above expands (for example) `(+ ,x) into (list (quote +) x),
+   *   so (multiple-value-bind (quote) quasiquote `(+ ,x)) expands to ((lambda (quote) (list '+ x)) quasiquote)
+   *   which is an infinite loop.  Guile says syntax error (because it thinks "quote" can't be a parameter name, I think).
+   */
   return(g_quasiquote_1(sc, car(args), true));
 }
 
@@ -56620,7 +56625,6 @@ static token_t read_dot(s7_scheme *sc, s7_pointer pt)
   if (c != EOF)
     {
       backchar(c, pt);
-
       if ((!char_ok_in_a_name[c]) && (c != 0))
 	return(TOKEN_DOT);
     }
@@ -76052,7 +76056,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  else 
 	    {
 	      if (is_pair(sc->value))
-		annotate_expansion(sc->value);
+		/* annotate_expansion(sc->value); */
+		sc->value = copy_body(sc, sc->value);
+	      /* TODO: can the copy be avoided? */
 	    }
 	  break;
 	  
@@ -76805,30 +76811,42 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 	case OP_READ_DOT:
-	  if (token(sc) != TOKEN_RIGHT_PAREN)
-	    {
-	      back_up_stack(sc);
-	      read_error(sc, "stray dot?");            /* (+ 1 . 2 3) or (list . ) */
-	    }
-	  /* args = previously read stuff, value = thing just after the dot and before the ')':
-	   *   (list 1 2 . 3)
-	   *   value: 3, args: (2 1 list)
-	   *   '(1 . 2)
-	   *   value: 2, args: (1)
-	   *
-	   * but we also get here in a lambda arg list:
-	   *   (lambda (a b . c) #f)
-	   *   value: c, args: (b a)
-	   *
-	   * so we have to leave any error checks until later, I guess
-	   *   -- in eval_args1, if we end with non-pair-not-nil then
-	   *      something is fishy
-	   */
-	  sc->value = reverse_in_place(sc, sc->value, sc->args);
-	  pair_set_dotted(sc->value);
-	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
+	  {
+	    token_t c;
+	    c = token(sc);
+	    if (c != TOKEN_RIGHT_PAREN) /* '(1 . (2) 3) -> '(1 2 3), Guile says "missing close paren" */
+	      {
+		if (is_pair(sc->value))
+		  {
+		    s7_pointer p;
+		    for (p = sc->value; is_pair(p); p = cdr(p))
+		      sc->args = cons(sc, car(p), sc->args);
+		    sc->tok = c;
+		    goto READ_TOK;
+		  }
+		back_up_stack(sc);
+		read_error(sc, "stray dot?");            /* (+ 1 . 2 3) or (list . ) */
+	      }
+	    /* args = previously read stuff, value = thing just after the dot and before the ')':
+	     *   (list 1 2 . 3)
+	     *   value: 3, args: (2 1 list)
+	     *   '(1 . 2)
+	     *   value: 2, args: (1)
+	     *
+	     * but we also get here in a lambda arg list:
+	     *   (lambda (a b . c) #f)
+	     *   value: c, args: (b a)
+	     *
+	     * so we have to leave any error checks until later, I guess
+	     *   -- in eval_args1, if we end with non-pair-not-nil then
+	     *      something is fishy
+	     */
+	    sc->value = reverse_in_place(sc, sc->value, sc->args);
+	    pair_set_dotted(sc->value);
+	    if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
+	  }
 	  break;
-	  
+
 	case OP_READ_QUOTE:
 	  /* can't check for sc->value = sc->nil here because we want ''() to be different from '() */
 	  if ((sc->safety > IMMUTABLE_VECTOR_SAFETY) &&
