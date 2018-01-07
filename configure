@@ -5222,6 +5222,42 @@ if test "$with_ruby" = yes ; then
   if test x$PKG_CONFIG != xno ; then
 
       if test "$ac_snd_extension_language" = none ; then
+        if $PKG_CONFIG ruby-2.5 --exists ; then
+          $as_echo "#define HAVE_RUBY 1" >>confdefs.h
+
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.5 --cflags`"
+          # this depends on building ruby itself with the --enable-shared flag
+          XEN_LIBS="`$PKG_CONFIG ruby-2.5 --libs`"
+          LOCAL_LANGUAGE="Ruby"
+          ac_snd_extension_language=Ruby
+        fi
+      fi
+
+      if test "$ac_snd_extension_language" = none ; then
+        if $PKG_CONFIG ruby-2.4 --exists ; then
+          $as_echo "#define HAVE_RUBY 1" >>confdefs.h
+
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.4 --cflags`"
+          # this depends on building ruby itself with the --enable-shared flag
+          XEN_LIBS="`$PKG_CONFIG ruby-2.4 --libs`"
+          LOCAL_LANGUAGE="Ruby"
+          ac_snd_extension_language=Ruby
+        fi
+      fi
+
+      if test "$ac_snd_extension_language" = none ; then
+        if $PKG_CONFIG ruby-2.3 --exists ; then
+          $as_echo "#define HAVE_RUBY 1" >>confdefs.h
+
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.3 --cflags`"
+          # this depends on building ruby itself with the --enable-shared flag
+          XEN_LIBS="`$PKG_CONFIG ruby-2.3 --libs`"
+          LOCAL_LANGUAGE="Ruby"
+          ac_snd_extension_language=Ruby
+        fi
+      fi
+
+      if test "$ac_snd_extension_language" = none ; then
         if $PKG_CONFIG ruby-2.2 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 

@@ -2222,7 +2222,7 @@ char *mus_getcwd(void)
       char *res;
       if (pwd) free(pwd);
       pwd = (char *)calloc(i, sizeof(char));
-#if (defined(_MSC_VER) || __CYGWIN__)
+#if _WIN32 /* (defined(_MSC_VER) || __CYGWIN__) */
       res = _getcwd(pwd, i);
 #else
       res = getcwd(pwd, i);

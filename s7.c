@@ -5162,12 +5162,7 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
 
 /* static s7_pointer describe_memory_usage(s7_scheme *sc); */
 
-#if DEBUGGING
-#define resize_heap_to(Sc, Size) resize_heap_to_1(Sc, Size, __func__, __LINE__)
-static void resize_heap_to_1(s7_scheme *sc, int64_t size, const char *func, int line)
-#else
 static void resize_heap_to(s7_scheme *sc, int64_t size)
-#endif
 {
   /* alloc more heap */
   int64_t old_size, old_free, k;
@@ -5221,9 +5216,6 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   if (show_heap_stats(sc))
     {
-#if DEBUGGING
-      fprintf(stderr, "%s[%d]: ", func, line);
-#endif
       fprintf(stderr, "heap grows to %" PRId64 " (old free/size: %" PRId64 "/%" PRId64 ")\n", sc->heap_size, old_free, old_size);
 #if 0
       {
@@ -26898,8 +26890,8 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 
 
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
-			       int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
-			       use_write_t use_write, shared_info *ci)
+				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
+				   use_write_t use_write, shared_info *ci)
 {
   int32_t i;
 
@@ -27180,11 +27172,9 @@ static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_point
   if (len == 0)
     {
       if (vector_rank(vect) > 1)
-	{
-	  plen = snprintf(buf, 32, "#%c%uD()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
-	  port_write_string(port)(sc, buf, plen, port);
-	}
-      else port_write_string(port)(sc, "#()", 3, port);
+	plen = snprintf(buf, 32, "#%c%uD()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+      else plen = snprintf(buf, 32, "#%c()", (is_int_vector(vect)) ? 'i' : 'r');
+      port_write_string(port)(sc, buf, plen, port);
       return;
     }
 
@@ -56061,6 +56051,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 	  return(sc->F);
       return(car(x));
       
+    case OP_OR_P1:
     case OP_OR1:
       for (x = args; is_not_null(cdr(x)); x = cdr(x))
 	if (car(x) != sc->F)
@@ -68220,10 +68211,19 @@ static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-bas
 static void apply_syntax(s7_scheme *sc)                            /* -------- syntactic keyword as applicable object -------- */
 {                                                                  /* current reader-cond macro uses this via (map quote ...) */
   int32_t len;                                                     /*    ((apply lambda '((x) (+ x 1))) 4) */
-  if (is_pair(sc->args))
+  if (is_pair(sc->args))                                           /* this is ((pars) . body) */
     {
       len = s7_list_length(sc, sc->args);
-      if (len == 0) eval_error_no_return(sc, sc->syntax_error_symbol, "attempt to evaluate a circular list: ~A", sc->args);
+      if (len == 0) 
+	eval_error_no_return(sc, sc->syntax_error_symbol, "attempt to evaluate a circular list: ~S", sc->args);
+      if (is_pair(car(sc->args)))                                  /* this is the arglist */
+	{
+	  int32_t alen;
+	  alen = s7_list_length(sc, car(sc->args));                /* (apply lambda (signature +)...) */
+	  if (alen == 0) 
+	    s7_error(sc, sc->syntax_error_symbol, 
+		     set_elist_3(sc, s7_make_string_wrapper(sc, "apply ~S involves a circular list: ~S"), sc->code, sc->args));
+	}
     }
   else len = 0;
   
@@ -68338,6 +68338,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 {             /* load up the current args into the ((args) (lambda)) layout [via the current environment] */
   s7_pointer x, z, e;
   uint64_t id;
+  /* fprintf(stderr, "apply_lambda: %s\n", DISPLAY(sc->code)); */
   e = sc->envir;
   id = let_id(e);
   for (x = closure_args(sc->code), z = _TLst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
@@ -68930,6 +68931,8 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
   static s7_pointer profile_at_start = NULL;
 #endif
 
+#define SHOW_EVAL_OPS 0
+
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
   sc->cur_op = first_op;
@@ -68947,7 +68950,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       pop_stack(sc);
       
     START_WITHOUT_POP_STACK:
-      /* fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code)); */
+#if SHOW_EVAL_OPS
+      fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code));
+#endif
 
 #if WITH_PROFILE
       profile_at_start = sc->code;
@@ -70218,8 +70223,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      /* fprintf(stderr, "    %s %s\n", opt_names[optimize_op(sc->code)], DISPLAY_80(sc->code)); */
 
 	    OPT_EVAL:
-	     /* fprintf(stderr, "opt_eval: %s %s\n", opt_names[optimize_op(sc->code)], DISPLAY_80(sc->code)); */
-
+#if SHOW_EVAL_OPS
+	     fprintf(stderr, "opt_eval: %s %s\n", opt_names[optimize_op(sc->code)], DISPLAY_80(sc->code));
+#endif
 #if WITH_PROFILE
 	      if (sc->code != profile_at_start)
 		profile(sc, sc->code);
@@ -73785,7 +73791,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto BEGIN1;
 	  
 	case OP_MACROEXPAND_1:
-	  sc->args = _TLst(cdar(sc->code));
+	  sc->args = copy_list(sc, cdar(sc->code));
 	  sc->code = sc->value;
 	  goto MACROEXPAND;
 	  
@@ -73798,9 +73804,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    eval_error(sc, "macroexpand argument is not a macro call: ~A", sc->code);
 	  if (!is_null(cdr(sc->code)))
 	    eval_error(sc, "macroexpand: too many arguments: ~A", sc->code);
-	  if (!s7_is_proper_list(sc, car(sc->code)))
-	    eval_error(sc, "macroexpand: improper arg list: ~A", car(sc->code));
-	  /* this seems to happen when it should not? */
+
+	  if ((is_pair(cdar(sc->code))) &&
+	      (is_pair(cadar(sc->code))) &&
+	      (!s7_is_proper_list(sc, cadar(sc->code))))
+	    eval_error(sc, "macroexpand: improper arg list: ~A", sc->code);
 	  
 	  if (is_pair(caar(sc->code)))                            /* (macroexpand ((symbol->value 'mac) (+ 1 2))) */
 	    {
@@ -73809,7 +73817,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      goto EVAL;
 	    }
 
-	  sc->args = _TLst(cdar(sc->code));
+	  sc->args = copy_list(sc, cdar(sc->code));               /* apply_lambda reuses args as slots, and these have not been copied yet */
 	  if (!is_symbol(caar(sc->code)))
 	    eval_error(sc, "macroexpand argument is not a macro call: ~A", sc->code);
 	  sc->code = find_symbol_checked(sc, caar(sc->code));

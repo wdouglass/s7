@@ -2695,6 +2695,7 @@ static Xen g_snd_gl_context(void)
 {
 #if USE_GTK
   /* return(Xen_list_2(C_string_to_Xen_symbol("GLContext"), Xen_wrap_C_pointer(ss->cx))); */
+  return(XEN_FALSE);
 #else
 #if USE_MOTIF
   return(Xen_list_2(C_string_to_Xen_symbol("GLXContext"), Xen_wrap_C_pointer(ss->cx)));

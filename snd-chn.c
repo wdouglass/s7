@@ -3162,6 +3162,8 @@ static bool make_gl_spectrogram(chan_info *cp)
 
 #if USE_MOTIF
   return(XtAppPending(main_app(ss)) == 0); /* return true if there are no pending events to force current buffer to be displayed */
+#else
+  return(false); /* make the compiler happy */
 #endif
 }
 #endif
