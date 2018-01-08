@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Exec=snd
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=snd
+Name=snd
+Comment[en_US]=
+Comment=

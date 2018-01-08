@@ -1,7 +1,12 @@
-Snd 17.9:
+Snd 18.0:
 
-various bugs fixed.
+many Forth/Ruby improvements thanks to Mike.
 
-checked: FC 27, gsl 2.4, gtk 3.92.1, sbcl 1.4.1, OSX 10.13.1, Ubuntu 17.10
+in Snd, xg.c is no longer included automatically.  The changes for
+  gtk 4 are very extensive.
 
-Thanks!: Tito Latini, Michael Edwards
+added snd.desktop and tools/auto-tester.scm.
+
+checked: sbcl 1.4.2|3, gtk 3.93.0
+
+Thanks!: Mike Scholz, Kjetil Matheussen, Yuri, Daniel Hensel

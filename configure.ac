@@ -378,6 +378,8 @@ fi
 # Ruby
 #--------------------------------------------------------------------------------
 
+# Yuri suggests: ruby -r rbconfig -e 'C = RbConfig::CONFIG' -e 'puts C["ruby_version"]' | sed -E 's|([[:digit:]]+\.[[:digit:]]+).*|\1|'
+
 if test "$with_ruby" = yes ; then
   if test x$PKG_CONFIG != xno ; then
     m4_foreach([ruby_version], [[ruby-2.5], [ruby-2.4], [ruby-2.3], [ruby-2.2], [ruby-2.1], [ruby-2.0], [ruby], [ruby-1.9.3], [ruby-1.9], [ruby-1.8]],

@@ -56045,6 +56045,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       eval_error_with_caller(sc, "~A: can't bind some variable to ~S", sc->letrec_star_symbol, cons(sc, sc->values_symbol, args));
       
       /* handle 'and' and 'or' specially */
+    case OP_AND_P1:
     case OP_AND1:
       for (x = args; is_not_null(cdr(x)); x = cdr(x))
 	if (car(x) == sc->F)
@@ -73374,6 +73375,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer x;
 	    sc->code = pop_op_stack(sc);
+	    /* fprintf(stderr, "code: %s, args: %s, value: %s\n", DISPLAY(sc->code), DISPLAY(sc->args), DISPLAY(sc->value)); */
 	    new_cell(sc, x, T_PAIR);
 	    set_car(x, sc->value);
 	    set_cdr(x, sc->args);
@@ -81445,8 +81447,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
-    int32_t fs;
-    uint32_t cc_stacks;
+    uint32_t fs, cc_stacks;
     port_t *p;
     for (fs = 0, p = sc->port_heap; p; p = (port_t *)(p->next), fs++);
     gp = sc->continuations;
@@ -81454,7 +81455,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
-    n = snprintf(buf, 1024, "output ports: %u, free port: %d (%ld bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u, unknowns: %u\n",
+    n = snprintf(buf, 1024, "output ports: %u, free port: %u (%lu bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u, unknowns: %u\n",
 		 sc->output_ports->loc, fs, fs * sizeof(port_t),
 		 gp->loc, cc_stacks,
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
