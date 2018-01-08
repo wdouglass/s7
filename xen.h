@@ -315,7 +315,7 @@
 #define XEN_NAME_AS_C_STRING_TO_VALUE(a) xen_rb_gv_get(a)
 #define XEN_EVAL_C_STRING(Arg)          xen_rb_eval_string_with_error(Arg)
 #define XEN_TO_STRING(Obj)              xen_rb_obj_as_string(Obj)
-#define XEN_LOAD_FILE(a)                rb_load(C_TO_XEN_STRING(a), 0)
+#define XEN_LOAD_FILE(a)                xen_rb_load_file_with_error(a)
 #define XEN_LOAD_PATH                   XEN_NAME_AS_C_STRING_TO_VALUE("$LOAD_PATH")
 #define XEN_ADD_TO_LOAD_PATH(Path)      xen_rb_add_to_load_path(Path)
 
@@ -649,7 +649,7 @@ XEN xen_rb_list_set(XEN obj, int index, XEN value);
 void xen_rb_raise(XEN type, XEN info);
 XEN xen_rb_obj_as_string(XEN obj);
 XEN xen_rb_eval_string_with_error(const char *str);
-XEN xen_rb_load_file_with_error(XEN file);
+void xen_rb_load_file_with_error(const char *file);
 XEN xen_rb_ary_new_with_initial_element(long num, XEN element);
 XEN xen_rb_apply(XEN func, XEN args);
 XEN xen_rb_funcall_0(XEN func);

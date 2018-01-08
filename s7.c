@@ -47196,6 +47196,13 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
 #endif
       longjmp(sc->opt_exit, 1);
     }
+#if DEBUGGING
+  if (sc->pc < 0)
+    {
+      fprintf(stderr, "sc->pc: %d\n", sc->pc);
+      abort();
+    }
+#endif
   o = sc->opts[sc->pc++];
   o->v8.fd = NULL;
 #if DEBUGGING
@@ -47924,12 +47931,12 @@ static bool i_pii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	  if (car(car_x) == sc->int_vector_set_symbol)
 	    return(opt_int_vector_set(sc, opc, cadr(car_x), cddr(car_x), cdddr(car_x)));
 	  
-	  checker = s7_symbol_value(sc, cadr(sig));
 	  obj = s7_symbol_value(sc, cadr(car_x));
 	  if ((is_immutable(obj)) &&
 	      (car(car_x) == sc->byte_vector_set_symbol))
 	    return(false);
 
+	  checker = s7_symbol_value(sc, cadr(sig));
 	  if (s7_apply_function(sc, checker, set_plist_1(sc, obj)) == sc->T)
 	    {
 	      int32_t start;
@@ -54931,7 +54938,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 				f = s7_d_pi_function(s_func);
 				if (f)
 				  {
-				    sc->pc--;
+				    sc->pc = pstart - 1;
 				    if (float_optimize(sc, expr))
 				      {
 					opc->v8.fd = opc->v7.fd;
@@ -54946,7 +54953,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 		  }
 
 		ifunc = s7_i_ii_function(s_func);
-		sc->pc--;
+		sc->pc = pstart - 1;
 		if ((ifunc) &&
 		    (int_optimize(sc, expr)))
 		  {
@@ -54989,7 +54996,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 			    }
 			  else
 			    {
-			      sc->pc--;
+			      sc->pc = pstart - 1;
 			      if ((car(sig) == sc->is_integer_symbol) &&
 				  (s7_i_pii_function(s_func)) &&
 				  (i_pii_ok(sc, alloc_opo(sc, expr), s_func, car_x)))
@@ -68730,7 +68737,9 @@ static int32_t define1_ex(s7_scheme *sc)
    *   we want to ignore the rebinding (not raise an error) if it is the existing value.
    *   This happens when we reload a file that calls define-constant.
    */
-  if (is_constant_symbol(sc, sc->code))                                  /* (define pi 3) or (define (pi a) a) */
+  if (is_multiple_value(sc->value))                 /* (define x (values 1 2)) */
+    eval_error_no_return(sc, sc->syntax_error_symbol, "define: more than one value: ~S", sc->value);
+  if (is_constant_symbol(sc, sc->code))             /* (define pi 3) or (define (pi a) a) */
     {
       s7_pointer x;
       
@@ -84053,6 +84062,7 @@ int main(int argc, char **argv)
  *   gtk_box_pack* has changed -- many uses!
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
+ * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
  *
  * the old mus-audio-* code needs to use play or something, especially bess*
@@ -84066,7 +84076,7 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------
  *
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
  * tmac          |      |      |      || 9052 ||  264 |  264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165

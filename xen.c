@@ -502,13 +502,23 @@ Xen xen_rb_eval_string_with_error(const char *str)
 }
 
 
-Xen xen_rb_load_file_with_error(Xen file)
+void xen_rb_load_file_with_error(const char *file)
 {
-  int status = 0;
-  rb_load_protect(file, 0, &status);
-  if (status != 0)
-    return(xen_rb_obj_as_string(rb_gv_get("$!")));
-  return(Xen_true);
+  int status = 0, i;
+  Xen err, info;
+  rb_load_protect(C_string_to_Xen_string(file), 0, &status);
+  if (status == 0)
+    return;
+  fprintf(stderr, "Can't load %s", file);
+  err = rb_gv_get("$!");
+  if (err != Qnil)
+    fprintf(stderr, ": %s", Xen_object_to_C_string(err));
+  fprintf(stderr, "\n");
+  info = rb_gv_get("$@");
+  if (info == Qnil)
+    return;
+  for (i = 0; i < Xen_vector_length(info); i++)
+    fprintf(stderr, "%s\n", Xen_string_to_C_string(Xen_vector_ref(info, i)));
 }
 
 

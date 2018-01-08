@@ -5,7 +5,7 @@
 #   gmp, mpfr, and mpc deliberately have none!
 
 
-AC_INIT(snd, 18.0, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-18.tar.gz)
+AC_INIT(snd, 18.1, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-18.tar.gz)
 
 AC_CONFIG_SRCDIR(snd.c)
 AC_CANONICAL_HOST # needed by case $host below
@@ -24,7 +24,7 @@ LOCAL_LANGUAGE="None"
 GRAPHICS_TOOLKIT="None"
 
 PACKAGE=Snd
-VERSION=18.0
+VERSION=18.1
 
 #--------------------------------------------------------------------------------
 # configuration options
@@ -390,7 +390,7 @@ if test "$with_ruby" = yes ; then
           XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby_version --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
           XEN_LIBS="`$PKG_CONFIG ruby_version --libs`"
-          LOCAL_LANGUAGE="Ruby"
+          LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby_version --modversion`
           ac_snd_extension_language=Ruby
         fi
       fi

@@ -1541,7 +1541,7 @@ if you have an executable file with:
 </p>
 
 <pre class="indented">
-#!/home/bil/test/snd-17/snd -l
+#!/home/bil/test/snd-18/snd -l
 !#
 (define a-test 32)
 (display "hiho")
@@ -1552,12 +1552,12 @@ if you have an executable file with:
 </p>
 
 <pre class="indented">
-/home/bil/test/snd-17/ script
+/home/bil/test/snd-18/ script
 hiho
 &gt; a-test
 32
 &gt; (<a class=quiet href="extsnd.html#exit">exit</a>)
-/home/bil/test/snd-17/ 
+/home/bil/test/snd-18/ 
 </pre>
 
 <p>
@@ -1574,7 +1574,7 @@ writes the result as "test.snd":
 <tr>
 <td class="scheme">
 <pre class="indented">
-#!/home/bil/snd-17/snd -l
+#!/home/bil/snd-18/snd -l
 !#
 (open-sound "oboe.snd")
 (scale-by 2.0)
@@ -1585,7 +1585,7 @@ writes the result as "test.snd":
 
 <td class="ruby">
 <pre class="indented">
-#!/home/bil/snd-17/snd -batch
+#!/home/bil/snd-18/snd -batch
 open_sound "oboe.snd"
 scale_by 2.0
 save_sound_as "test.snd"
@@ -1616,7 +1616,7 @@ as it scans the startup arguments (see snd-test.scm).
 </p>
 
 <pre class="indented">
-#!/home/bil/test/snd-17/snd -l
+#!/home/bil/test/snd-18/snd -l
 !#
 (if (= (length (<a class=quiet href="extsnd.html#scriptargs">script-args</a>)) 2) ;i.e. ("-l" "script")
   (display "usage: script file-name...")
