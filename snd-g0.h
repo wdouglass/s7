@@ -305,7 +305,11 @@ typedef enum {WITHOUT_COMMENT_FIELD, WITH_COMMENT_FIELD} dialog_comment_t;
 #define PEAKS_FONT(a) (a)->peaks_fnt
 #define BOLD_PEAKS_FONT(a) (a)->bold_peaks_fnt
 #define KEY_TO_NAME(key) gdk_keyval_name(key)
-#define DEFAULT_GRAPH_CURSOR GDK_CROSSHAIR
+#if (GTK_CHECK_VERSION(3, 93, 0))
+  #define DEFAULT_GRAPH_CURSOR 0
+#else
+  #define DEFAULT_GRAPH_CURSOR GDK_CROSSHAIR
+#endif
 
 #define snd_ShiftMask GDK_SHIFT_MASK
 #define snd_ControlMask GDK_CONTROL_MASK

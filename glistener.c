@@ -352,7 +352,9 @@ static int glistener_cursor(glistener *g, GtkTextIter *cursor)
 
 void glistener_set_cursor_shape(glistener *g, GdkCursor *cursor_shape)
 {
+#if (!GTK_CHECK_VERSION(3, 93, 0))
   gdk_window_set_cursor(gtk_text_view_get_window(GTK_TEXT_VIEW(g->text), GTK_TEXT_WINDOW_TEXT), cursor_shape);
+#endif
 }
 
 

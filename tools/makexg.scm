@@ -64,7 +64,7 @@
 	"GtkAlignment*" "GtkAllocation*" 
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
-	"GtkCheckMenuItem*" "GtkClipboardTargetsReceivedFunc" 
+	"GtkCheckMenuItem*" ;"GtkClipboardTargetsReceivedFunc" 
 	"GtkCombo*" "GtkComboBox*" "GtkComboBoxEntry*" "GtkContainer*" "GtkCurve*" "GtkDialog*" "GtkDrawingArea*" "GtkEditable*"
 	"GtkEventBox*" "GtkExpander*" "GtkFileChooser*" "GtkFileFilterFunc"
 	"GtkFileSelection*" "GtkFixed*" "GtkFontButton*" "GtkFontSelection*" "GtkFontSelectionDialog*" "GtkFrame*" "GtkGammaCurve*"
@@ -79,7 +79,8 @@
 	"GtkViewport*" "PangoAnalysis*" "PangoAttrList**" "PangoFontDescription**" "PangoRectangle*"
 	"gchar***" "gfloat*" "gint8*" "gssize" "guint16*" "gunichar*" "GtkFileChooserButton*" ;"GtkPathPriorityType"
 	"GtkCellView*" "GValue*" "GtkAboutDialog*" "PangoAttrFilterFunc" "PangoScript*" "GtkMenuToolButton*"
-	"GtkClipboardImageReceivedFunc" "PangoMatrix*" "GdkTrapezoid*" "GdkPangoRenderer*" "PangoRenderPart"
+	;"GtkClipboardImageReceivedFunc" 
+	"PangoMatrix*" "GdkTrapezoid*" "GdkPangoRenderer*" "PangoRenderPart"
 	"GLogFunc" "GError*" "guint32*"
 	
 	"GConnectFlags" "GSignalFlags" "GSignalMatchType" 
@@ -901,6 +902,7 @@
 	 "tree_selection_func"
 	 (parse-args "GtkTreeModel* model GtkTreePath* path GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'temporary)
+#|
    (list 'GtkClipboardReceivedFunc
 	 "void"
 	 "clip_received"
@@ -916,6 +918,7 @@
 	 "clip_targets_received"
 	 (parse-args "GtkClipboard* clipboard GdkAtom* atoms gint n_atoms lambda_data func_info" 'callback)
 	 'temporary)
+|#
 					;			(list 'GtkMenuDetachFunc
 					;			      "void"
 					;			      "menu_detach_func"
@@ -957,6 +960,7 @@
 	 "tree_selection"
 	 (parse-args "GtkTreeSelection* selection GtkTreeModel* model GtkTreePath* path gboolean path_currently_selected lambda_data func_info" 'callback)
 	 'permanent)
+#|
    (list 'GtkClipboardGetFunc
 	 "void"
 	 "clip_get"
@@ -967,6 +971,7 @@
 	 "clip_clear"
 	 (parse-args "GtkClipboard* clipboard lambda_data func_info" 'callback)
 	 'permanent)
+|#
    
 					; GCallback 'lambda can be whatever is indicated by caller (2 or more args)
    
@@ -991,7 +996,7 @@
 	 "icon_view_foreach"
 	 (parse-args "GtkIconView* icon_view GtkTreePath* path lambda_data func_info" 'callback)
 	 'permanent)
-   
+#|   
    (list 'GtkClipboardImageReceivedFunc
 	 "void"
 	 "clip_image_received"
@@ -1002,18 +1007,21 @@
 	 ;;   are not new in version 2.5.6, we don't want the callback flag to sequester them
 	 ;;   on the 256-type list.
 	 'permanent)
+|#
    (list 'GLogFunc
 	 "void"
 	 "g_message_log_func"
 	 (parse-args "gchar* domain GLogLevelFlags log_level gchar* message lambda_data func_info" 'callback)
 	 'permanent)
    
+#|
    (list 'GtkClipboardRichTextReceivedFunc
 	 "void"
 	 "clip_rich_text_received"
 	 (parse-args "GtkClipboard* clipboard GdkAtom format guint8* text gsize length lambda_data func_info" 'callback); 'callback)
 	 ;; guint8* is const
 	 'permanent-gcc)
+|#
 					;			(list 'GtkRecentFilterFunc
 					;			      "gboolean"
 					;			      "recent_filter"
@@ -1931,8 +1939,8 @@
 		 (hay "static ~A lg_~A(" type name)
 		 (let ((previous-arg #f)
 		       (ctr 0)
-		       (ctr1 (memq fname '(GtkClipboardTextReceivedFunc GtkAccelMapForeach GtkEntryCompletionMatchFunc)))
-		       (ctr2 (memq fname '(GtkTreeViewSearchEqualFunc GLogFunc GtkClipboardRichTextReceivedFunc)))
+		       (ctr1 (memq fname '(GtkAccelMapForeach GtkEntryCompletionMatchFunc)))
+		       (ctr2 (memq fname '(GtkTreeViewSearchEqualFunc GLogFunc)))
 		       (ctr0 (memq fname '(GtkFileFilterFunc GtkRecentFilterFunc GLogFunc))))
 		   (for-each
 		    (lambda (arg)
@@ -1966,12 +1974,12 @@
 			(if (null? args) "no" (length args))
 			(if (and (pair? args) (null? (cdr args))) "" "s")
 			(case fname 
-			  ((GtkClipboardClearFunc) "Xen_caddr")
+			  ;((GtkClipboardClearFunc) "Xen_caddr")
 			  ((GtkDestroyNotify)      "Xen_cadddr")
 			  (else                    "Xen_car")))
 		   (hay "s7_apply_function(cbsc, ~%    ~A((s7_pointer)func_info), ~A~%"
 			(case fname 
-			  ((GtkClipboardClearFunc) "s7_caddr")
+			  ;((GtkClipboardClearFunc) "s7_caddr")
 			  ((GtkDestroyNotify)      "s7_cadddr")
 			  (else                    "s7_car"))
 			(if (null? args) "s7_nil(cbsc" (format #f "~%           s7_list(cbsc, ~D," (length args))))
@@ -2373,9 +2381,12 @@
 		    (begin
 		      (hey "    xm_protect(gxg_ptr);~%")
 		      (hay "    s7_gc_protect(sc, lg_ptr);~%")
+#|
 		      (when (eq? lambda-type 'GtkClipboardGetFunc)
 			(hey "    Xen_list_set(gxg_ptr, 2, clear_func);~%")
-			(hay "    s7_list_set(sc, lg_ptr, 2, clear_func);~%"))))
+			(hay "    s7_list_set(sc, lg_ptr, 2, clear_func);~%"))
+|#
+		      ))
 
 		(for-each
 		 (lambda (arg)

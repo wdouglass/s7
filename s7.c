@@ -3563,17 +3563,6 @@ static s7_pointer missing_method_error(s7_scheme *sc, s7_pointer method, s7_poin
     return((apply_boolean_method(Sc, p, Method) == sc->F) ? sc->T : sc->F); \
   }
 
-#define eval_boolean_method(Sc, Checker, Method, Arg) \
-    if (Checker(Arg))				      \
-      Sc->value = Sc->T;			      \
-    else					      \
-      {						      \
-	s7_pointer func;						\
-	if ((has_methods(Arg)) && ((func = find_method(Sc, find_let(Sc, Arg), Method)) != Sc->undefined)) \
-	  Sc->value = s7_apply_function(Sc, func, list_1(Sc, Arg));	\
-	else Sc->value = Sc->F;						\
-      }
-
 static s7_pointer find_and_apply_method(s7_scheme *sc, s7_pointer lt, s7_pointer sym, s7_pointer args)
 {
   s7_pointer func;
@@ -82677,7 +82666,7 @@ s7_scheme *s7_init(void)
   #define defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
   #define unsafe_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_unsafe_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
 
-  /* we need the sc->IS_* symbols first for the procedure signature lists */
+  /* we need the sc->is_* symbols first for the procedure signature lists */
   sc->is_boolean_symbol = make_symbol(sc, "boolean?");
   pl_bt = s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->T);
 
@@ -83876,7 +83865,7 @@ s7_scheme *s7_init(void)
                                                     ((null? (cddr clause)) (cadr clause))                 \n\
                                                     (else (apply values (map quote (cdr clause)))))))))   \n\
                                 clauses)                                                                  \n\
-                              (values))))"); /* this is not redundant */
+                              (values))))"); /* this is not redundant */  /* map above ignores trailing cdr if improper */
 
   s7_eval_c_string(sc, "(define make-hook                                                                 \n\
                           (let ((+signature+ '(procedure?))                                               \n\
@@ -83954,8 +83943,7 @@ s7_scheme *s7_init(void)
                           (define make-procedure-with-setter dilambda)        \n\
                           (define procedure-with-setter?     dilambda?)       \n\
                           (define make-random-state          random-state)    \n\
-                          (define make-complex               complex)         \n\
-                          (define make-keyword               string->keyword) \n\
+                          (define make-keyword               string->keyword) \n \
                           (define symbol-access              symbol-setter)   \n\
                           (define procedure-setter           setter)          \n\
                           (define procedure-signature        signature)       \n\
@@ -84046,7 +84034,7 @@ int main(int argc, char **argv)
  * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting == -1? (let-temporarily (((*s7* 'safety) -1)) (with-let...))?
  *   or maybe opt/unopt choice made at call-time (if in loop??)
  *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
- * macroexpand before s7_optimize? or restart if macro encountered?
+ * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84084,7 +84072,7 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 || 2777 || 1931 | 1913
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467
- * lint          |      |      |      || 4041 || 2702 | 2696 2744?
+ * lint          |      |      |      || 4041 || 2702 | 2696  2744?
  * lg            |      |      |      || 211  || 133  | 133.4
  * tform         |      |      | 6816 || 3714 || 2762 | 2751
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965

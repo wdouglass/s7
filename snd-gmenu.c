@@ -1871,7 +1871,9 @@ void show_toolbar(void)
       toolbar = gtk_toolbar_new();
 #if GTK_CHECK_VERSION(3, 0, 0)
       add_toolbar_style(toolbar);
+#if (!GTK_CHECK_VERSION(3, 93, 0))
       gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_SMALL_TOOLBAR);
+#endif
 #endif
       sg_box_pack_start(GTK_BOX(main_pane(ss)), toolbar, false, false, 0); /* main_pane = top level vbox */
       gtk_box_reorder_child(GTK_BOX(main_pane(ss)), toolbar, 1);            /* put toolbar just under the top level menubar */
