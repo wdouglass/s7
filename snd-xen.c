@@ -3127,10 +3127,14 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 
 #if USE_GTK
   Xen_provide_feature("snd-gtk");
-#if GTK_CHECK_VERSION(3, 0, 0)
-  Xen_provide_feature("gtk3");
+#if GTK_CHECK_VERSION(3, 91, 0)
+  Xen_provide_feature("gtk4");
 #else
-  Xen_provide_feature("gtk2");
+  #if GTK_CHECK_VERSION(3, 0, 0)
+    Xen_provide_feature("gtk3");
+  #else
+    Xen_provide_feature("gtk2");
+  #endif
 #endif
 #endif
 

@@ -9954,3 +9954,32 @@
 (CFNC-3.99 "GtkContentFormats* gtk_drag_source_get_target_list GtkWidget* widget")
 (CFNC-3.99 "void gtk_drag_source_set_target_list GtkWidget* widget GtkContentFormats* @target_list")
 (CFNC-3.99 "GtkWidget* gtk_scale_button_new gdouble min gdouble max gdouble step gchar** icons" 'const)
+
+(CCAST-3.99 "GTK_APPLICATION" "GtkApplication*")
+(CCHK-3.99 "GTK_IS_APPLICATION" "GtkApplication*")
+(CINT-3.99 "GTK_APPLICATION_INHIBIT_LOGOUT" "GtkApplicationInhibitFlags")
+(CINT-3.99 "GTK_APPLICATION_INHIBIT_SWITCH" "GtkApplicationInhibitFlags")
+(CINT-3.99 "GTK_APPLICATION_INHIBIT_SUSPEND" "GtkApplicationInhibitFlags")
+(CINT-3.99 "GTK_APPLICATION_INHIBIT_IDLE" "GtkApplicationInhibitFlags")
+
+(CFNC-3.99 "GtkApplication* gtk_application_new gchar* application_id GApplicationFlags flags" 'const)
+(CFNC-3.99 "void gtk_application_add_window GtkApplication* application GtkWindow* window")
+(CFNC-3.99 "void gtk_application_remove_window GtkApplication* application GtkWindow* window")
+(CFNC-3.99 "GList* gtk_application_get_windows GtkApplication* application")
+;for these see above (CFNC-3.99 "GMenuModel* gtk_application_get_app_menu GtkApplication* application")
+;(CFNC-3.99 "void gtk_application_set_app_menu GtkApplication* application GMenuModel* app_menu")
+;(CFNC-3.99 "GMenuModel* gtk_application_get_menubar GtkApplication* application")
+;(CFNC-3.99 "void gtk_application_set_menubar GtkApplication* application GMenuModel* menubar")
+;(CFNC-3.99 "GtkWindow* gtk_application_get_active_window GtkApplication* application")
+(CFNC-3.99 "guint gtk_application_inhibit GtkApplication* application GtkWindow* window GtkApplicationInhibitFlags flags gchar* reason" 'const)
+(CFNC-3.99 "void gtk_application_uninhibit GtkApplication* application guint cookie")
+(CFNC-3.99 "GtkWindow* gtk_application_get_window_by_id GtkApplication* application guint id")
+(CFNC-3.99 "gchar** gtk_application_list_action_descriptions GtkApplication* application")
+(CFNC-3.99 "gchar** gtk_application_get_accels_for_action GtkApplication* application gchar* detailed_action_name" 'const)
+(CFNC-3.99 "gchar** gtk_application_get_actions_for_accel GtkApplication* application gchar* accel" 'const)
+(CFNC-3.99 "void gtk_application_set_accels_for_action GtkApplication* application gchar* detailed_action_name gchar* accels" 'const)
+(CFNC-3.99 "gboolean gtk_application_prefers_app_menu GtkApplication* application")
+(CFNC-3.99 "GMenu* gtk_application_get_menu_by_id GtkApplication* application gchar* id" 'const)
+
+;;; TODO: g_application_run and various G_APPLICATION flags
+;;; /usr/incude/glib-2.0/gio/gapplication.h gapplicationcommandline.h gioenumtypes.h?

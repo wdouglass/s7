@@ -113,7 +113,7 @@ if test "$with_fftw" != no; then
       FFTW_LIBS="`$PKG_CONFIG fftw3 --libs`"
       FFTW_CFLAGS="`$PKG_CONFIG fftw3 --cflags`"
       AC_DEFINE(HAVE_FFTW3)
-      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES fftw3"
+      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES fftw-`$PKG_CONFIG fftw3 --modversion`"
       AC_MSG_RESULT(yes)
     else
       AC_MSG_RESULT(no)
@@ -158,7 +158,7 @@ if test "$with_gsl" != no; then
       GSL_LIBS="`$PKG_CONFIG gsl --libs`"
       GSL_CFLAGS="`$PKG_CONFIG gsl --cflags`"
       AC_DEFINE(HAVE_GSL)
-      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES gsl"
+      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES gsl-`$PKG_CONFIG gsl --modversion`"
       AC_MSG_RESULT(yes)
     else
       AC_MSG_RESULT(no)
@@ -260,40 +260,43 @@ fi
 
 if test "$ac_snd_gui_choice" = none ; then
   if test x$PKG_CONFIG != xno ; then
-    if $PKG_CONFIG gtk+-3.0 --exists ; then
-      GTK_CFLAGS="`$PKG_CONFIG gtk+-3.0 --cflags`"
-      GTK_LIBS="`$PKG_CONFIG gtk+-3.0 --libs`"
-      GTK_LD_LIBS="`$PKG_CONFIG gtk+-3.0 --libs-only-L` `$PKG_CONFIG gtk+-3.0 --libs-only-l`"
-      ac_snd_gui_choice=gtk
-    else
-      if $PKG_CONFIG gtk+-2.0 --exists ; then
-        GTK_CFLAGS="`$PKG_CONFIG gtk+-2.0 --cflags`"
-        GTK_LIBS="`$PKG_CONFIG gtk+-2.0 --libs`"
-        GTK_LD_LIBS="`$PKG_CONFIG gtk+-2.0 --libs-only-L` `$PKG_CONFIG gtk+-2.0 --libs-only-l`"
-        ac_snd_gui_choice=gtk
-      fi
-    fi
-  fi
-  if test "$ac_snd_gui_choice" = gtk ; then  
-    GX_FILES="GTK_O_FILES"
-    GX_HEADERS="SND_G_HEADERS"
-    AC_DEFINE(USE_GTK)
-    GRAPHICS_TOOLKIT="Gtk"
 
-    if test x$PKG_CONFIG != xno ; then
-      CAIRO_CFLAGS="`$PKG_CONFIG cairo --cflags-only-I`"
-      AC_SUBST(CAIRO_CFLAGS)
+     m4_foreach([gtk_version], [[gtk+-4.0], [gtk+-3.0], [gtk+-2.0]],
+       [
+       if test "$ac_snd_gui_choice" = none ; then
+         if $PKG_CONFIG gtk_version --exists ; then
+           GTK_CFLAGS="`$PKG_CONFIG gtk_version --cflags`"
+           GTK_LIBS="`$PKG_CONFIG gtk_version --libs`"
+           GTK_LD_LIBS="`$PKG_CONFIG gtk_version --libs-only-L` `$PKG_CONFIG gtk_version --libs-only-l`"
+           ac_snd_gui_choice=gtk
+           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk_version --modversion`
+         fi
+       fi
+       ])
+ 
+    if test "$ac_snd_gui_choice" = gtk ; then  
+      GX_FILES="GTK_O_FILES"
+      GX_HEADERS="SND_G_HEADERS"
+      AC_DEFINE(USE_GTK)
+ 
+      if test x$PKG_CONFIG != xno ; then
+        CAIRO_CFLAGS="`$PKG_CONFIG cairo --cflags-only-I`"
+        AC_SUBST(CAIRO_CFLAGS)
+      fi
     fi
   fi
 fi
 
+
+#--------------------------------------------------------------------------------
+# no GUI
+#--------------------------------------------------------------------------------
 
 if test "$ac_snd_gui_choice" = none ; then
   AC_DEFINE(USE_NO_GUI)
   GX_FILES="NO_GUI_O_FILES"
   GX_HEADERS="NO_GUI_HEADERS"
 fi
-
 
 # fallback on no-gui
 if test "$with_gui" = no ; then
@@ -302,6 +305,7 @@ if test "$with_gui" = no ; then
   GX_HEADERS="NO_GUI_HEADERS"
   ac_snd_gui_choice=no
 fi
+
 
 AC_SUBST(XLIBS)
 AC_SUBST(XFLAGS)

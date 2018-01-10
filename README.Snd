@@ -46,7 +46,7 @@ The configure script has a bunch of arguments:
                          in *BSD, pkg install open-motif, or perhaps use pkgin?
                          in Debian, apt-get install libmotif4, libmotif-dev, libxt-dev, libxpm-dev
 
-     --with-gtk        use Gtk+ (Debian package libgtk-3-dev).
+     --with-gtk        use Gtk+ (Debian package libgtk-3-dev, Fedora gtk3-devel or gtk4-devel)
   
      --with-gui        make Snd with graphics support (actually intended for use as --without-gui)
   
@@ -98,7 +98,7 @@ Here at CCRMA, we use this configure invocation:
 
 
 Version info:
-  if Gtk, then Gtk+ 2.13 or later and Cairo 1.6.4 or later
+  if Gtk, then Gtk+ 2.13 or later (but anything after gtk 3.22 is work-in-progress), and Cairo 1.6.4 or later
   if Motif, then Motif 2.n but not Lesstif
   in Linux, if ALSA, then ALSA 1.0 or later
   if Ruby, Ruby 1.8.0 or later.  

@@ -4254,7 +4254,7 @@ $as_echo_n "checking for fftw3... " >&6; }
       FFTW_CFLAGS="`$PKG_CONFIG fftw3 --cflags`"
       $as_echo "#define HAVE_FFTW3 1" >>confdefs.h
 
-      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES fftw3"
+      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES fftw-`$PKG_CONFIG fftw3 --modversion`"
       { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
     else
@@ -4304,7 +4304,7 @@ $as_echo_n "checking for gsl... " >&6; }
       GSL_CFLAGS="`$PKG_CONFIG gsl --cflags`"
       $as_echo "#define HAVE_GSL 1" >>confdefs.h
 
-      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES gsl"
+      OPTIONAL_LIBRARIES="$OPTIONAL_LIBRARIES gsl-`$PKG_CONFIG gsl --modversion`"
       { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
     else
@@ -5094,34 +5094,57 @@ fi
 
 if test "$ac_snd_gui_choice" = none ; then
   if test x$PKG_CONFIG != xno ; then
-    if $PKG_CONFIG gtk+-3.0 --exists ; then
-      GTK_CFLAGS="`$PKG_CONFIG gtk+-3.0 --cflags`"
-      GTK_LIBS="`$PKG_CONFIG gtk+-3.0 --libs`"
-      GTK_LD_LIBS="`$PKG_CONFIG gtk+-3.0 --libs-only-L` `$PKG_CONFIG gtk+-3.0 --libs-only-l`"
-      ac_snd_gui_choice=gtk
-    else
-      if $PKG_CONFIG gtk+-2.0 --exists ; then
-        GTK_CFLAGS="`$PKG_CONFIG gtk+-2.0 --cflags`"
-        GTK_LIBS="`$PKG_CONFIG gtk+-2.0 --libs`"
-        GTK_LD_LIBS="`$PKG_CONFIG gtk+-2.0 --libs-only-L` `$PKG_CONFIG gtk+-2.0 --libs-only-l`"
-        ac_snd_gui_choice=gtk
+
+
+       if test "$ac_snd_gui_choice" = none ; then
+         if $PKG_CONFIG gtk+-4.0 --exists ; then
+           GTK_CFLAGS="`$PKG_CONFIG gtk+-4.0 --cflags`"
+           GTK_LIBS="`$PKG_CONFIG gtk+-4.0 --libs`"
+           GTK_LD_LIBS="`$PKG_CONFIG gtk+-4.0 --libs-only-L` `$PKG_CONFIG gtk+-4.0 --libs-only-l`"
+           ac_snd_gui_choice=gtk
+           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-4.0 --modversion`
+         fi
+       fi
+
+       if test "$ac_snd_gui_choice" = none ; then
+         if $PKG_CONFIG gtk+-3.0 --exists ; then
+           GTK_CFLAGS="`$PKG_CONFIG gtk+-3.0 --cflags`"
+           GTK_LIBS="`$PKG_CONFIG gtk+-3.0 --libs`"
+           GTK_LD_LIBS="`$PKG_CONFIG gtk+-3.0 --libs-only-L` `$PKG_CONFIG gtk+-3.0 --libs-only-l`"
+           ac_snd_gui_choice=gtk
+           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-3.0 --modversion`
+         fi
+       fi
+
+       if test "$ac_snd_gui_choice" = none ; then
+         if $PKG_CONFIG gtk+-2.0 --exists ; then
+           GTK_CFLAGS="`$PKG_CONFIG gtk+-2.0 --cflags`"
+           GTK_LIBS="`$PKG_CONFIG gtk+-2.0 --libs`"
+           GTK_LD_LIBS="`$PKG_CONFIG gtk+-2.0 --libs-only-L` `$PKG_CONFIG gtk+-2.0 --libs-only-l`"
+           ac_snd_gui_choice=gtk
+           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-2.0 --modversion`
+         fi
+       fi
+
+
+    if test "$ac_snd_gui_choice" = gtk ; then
+      GX_FILES="GTK_O_FILES"
+      GX_HEADERS="SND_G_HEADERS"
+      $as_echo "#define USE_GTK 1" >>confdefs.h
+
+
+      if test x$PKG_CONFIG != xno ; then
+        CAIRO_CFLAGS="`$PKG_CONFIG cairo --cflags-only-I`"
+
       fi
-    fi
-  fi
-  if test "$ac_snd_gui_choice" = gtk ; then
-    GX_FILES="GTK_O_FILES"
-    GX_HEADERS="SND_G_HEADERS"
-    $as_echo "#define USE_GTK 1" >>confdefs.h
-
-    GRAPHICS_TOOLKIT="Gtk"
-
-    if test x$PKG_CONFIG != xno ; then
-      CAIRO_CFLAGS="`$PKG_CONFIG cairo --cflags-only-I`"
-
     fi
   fi
 fi
 
+
+#--------------------------------------------------------------------------------
+# no GUI
+#--------------------------------------------------------------------------------
 
 if test "$ac_snd_gui_choice" = none ; then
   $as_echo "#define USE_NO_GUI 1" >>confdefs.h
@@ -5129,7 +5152,6 @@ if test "$ac_snd_gui_choice" = none ; then
   GX_FILES="NO_GUI_O_FILES"
   GX_HEADERS="NO_GUI_HEADERS"
 fi
-
 
 # fallback on no-gui
 if test "$with_gui" = no ; then
@@ -5139,6 +5161,7 @@ if test "$with_gui" = no ; then
   GX_HEADERS="NO_GUI_HEADERS"
   ac_snd_gui_choice=no
 fi
+
 
 
 

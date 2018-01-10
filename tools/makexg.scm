@@ -151,6 +151,7 @@
 	"GdkDevicePadFeature" "GtkPadActionType"
 
 	"GtkShortcutLabel*" "GtkPadActionEntry*" "GdkDevicePad*" "GActionGroup*"
+	"GtkDrawingAreaFunc"
 	))
 
 (define no-xen-p 
@@ -626,6 +627,7 @@
 	(cons "GtkEventControllerScrollFlags" "INT")
 	(cons "GdkDeviceType" "INT")
 	(cons "GtkIconSize" "INT")
+	(cons "GtkApplicationInhibitFlags" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
@@ -3617,32 +3619,32 @@
 (hay "}~%~%")
 ;;; ----------------
 
-
-(hey "/* -------------------------------- predefined Atoms -------------------------------- */~%")
-(hey "~%")
-(hey "static void define_atoms(void)~%")
-(hey "{~%")
-(hey "#define define_atom(Name) Xen_define(Xg_pre #Name Xg_post, C_to_Xen_GdkAtom(Name))~%~%")
-(for-each
- (lambda (atom)
-   (hey "  define_atom(~A);~%" atom))
- (reverse atoms))
-(hey "}~%~%")
-
-;;; ----------------
-(hay "~%")
-(hay "static void define_atoms(s7_scheme *sc)~%")
-(hay "{~%")
-(hay "  s7_pointer cur_env, gdkatom_symbol;~%")
-(hay "  cur_env = s7_curlet(sc);~%")
-(hay "  gdkatom_symbol = s7_make_symbol(sc, \"GdkAtom\");~%~%")
-(for-each
- (lambda (atom)
-   (hay "  s7_define(sc, cur_env, s7_make_symbol(sc, \"~A\"), s7_make_c_pointer_with_type(sc, ~A, gdkatom_symbol, lg_false));~%" atom atom))
- (reverse atoms))
-(hay "}~%~%")
-;;; ----------------
-
+(when (pair? atoms)
+  (hey "/* -------------------------------- predefined Atoms -------------------------------- */~%")
+  (hey "~%")
+  (hey "static void define_atoms(void)~%")
+  (hey "{~%")
+  (hey "#define define_atom(Name) Xen_define(Xg_pre #Name Xg_post, C_to_Xen_GdkAtom(Name))~%~%")
+  (for-each
+   (lambda (atom)
+     (hey "  define_atom(~A);~%" atom))
+   (reverse atoms))
+  (hey "}~%~%")
+  
+  ;; ----------------
+  (hay "~%")
+  (hay "static void define_atoms(s7_scheme *sc)~%")
+  (hay "{~%")
+  (hay "  s7_pointer cur_env, gdkatom_symbol;~%")
+  (hay "  cur_env = s7_curlet(sc);~%")
+  (hay "  gdkatom_symbol = s7_make_symbol(sc, \"GdkAtom\");~%~%")
+  (for-each
+   (lambda (atom)
+     (hay "  s7_define(sc, cur_env, s7_make_symbol(sc, \"~A\"), s7_make_c_pointer_with_type(sc, ~A, gdkatom_symbol, lg_false));~%" atom atom))
+   (reverse atoms))
+  (hay "}~%~%")
+  ;; ----------------
+  )
 
 (hey "/* -------------------------------- symbols -------------------------------- */~%")
 (hey "~%")
@@ -3868,7 +3870,8 @@
 (hey "      define_integers();~%")
 (hey "      define_doubles();~%")
 (hey "      define_functions();~%")
-(hey "      define_atoms();~%")
+(when (pair? atoms)
+  (hey "      define_atoms();~%"))
 (hey "      define_strings();~%")
 (hey "      define_structs();~%")
 (hey " #if HAVE_SCHEME~%")
@@ -3929,7 +3932,8 @@
 (hay "  define_xm_obj(sc);~%")
 (hay "  define_integers(sc);~%")
 (hay "  define_doubles(sc);~%")
-(hay "  define_atoms(sc);~%")
+(when (pair? atoms)
+  (hay "  define_atoms(sc);~%"))
 (hay "  define_strings(sc);~%")
 (hay "  define_symbols(sc);~%")
 (hay "  define_lint(sc);~%")

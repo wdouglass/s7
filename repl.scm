@@ -28,8 +28,8 @@
 	    (call-with-exit
 	     (lambda (return)
 	       (for-each
-		(lambda (symbol)
-		  (let* ((sym (symbol->string symbol))
+		(lambda (par)
+		  (let* ((sym (symbol->string par))
 			 (sym-len (length sym)))
 		    (when (and (>= sym-len text-len)
 			       (string=? text (substring sym 0 text-len)))
