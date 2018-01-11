@@ -455,9 +455,8 @@ typedef intptr_t opcode_t;
 
 /* T_STACK, T_SLOT, T_BAFFLE, T_DYNAMIC_WIND, T_OPTLIST, and T_COUNTER are internal */
 
-typedef enum {TOKEN_EOF, TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN, TOKEN_DOT, TOKEN_ATOM, TOKEN_QUOTE, TOKEN_DOUBLE_QUOTE,
-	      TOKEN_BACK_QUOTE, TOKEN_COMMA, TOKEN_AT_MARK, TOKEN_SHARP_CONST,
-	      TOKEN_VECTOR, TOKEN_BYTE_VECTOR, TOKEN_INT_VECTOR, TOKEN_FLOAT_VECTOR} token_t;
+typedef enum {TOKEN_EOF, TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN, TOKEN_DOT, TOKEN_ATOM, TOKEN_QUOTE, TOKEN_DOUBLE_QUOTE, TOKEN_BACK_QUOTE, 
+	      TOKEN_COMMA, TOKEN_AT_MARK, TOKEN_SHARP_CONST, TOKEN_VECTOR, TOKEN_BYTE_VECTOR, TOKEN_INT_VECTOR, TOKEN_FLOAT_VECTOR} token_t;
 
 typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
@@ -1561,7 +1560,7 @@ static s7_scheme *cur_sc = NULL;
   #define _TApp(P) check_ref11(P,                    __func__, __LINE__) /* setter (any_procedure or #f) */
   #define _NFre(P) check_nref(P,                     __func__, __LINE__) /* not free */
   #define _Cell(P) check_cell(P,                     __func__, __LINE__) /* any cell */
-  #define _TSet(P) check_seti(sc, P,                 __func__, __LINE__) /* set of immutable value */
+  #define _TSet(P) check_seti(cur_sc, P,             __func__, __LINE__) /* set of immutable value */
 
 #else
   #define unchecked_type(p)           ((p)->tf.type_field)
@@ -1913,7 +1912,7 @@ static s7_scheme *cur_sc = NULL;
 #define T_BYTE_VECTOR                 T_MUTABLE
 #define is_byte_vector(p)             ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define is_mutable_byte_vector(p)     ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
-#define set_byte_vector(p)            typeflag(_TStr(p)) |= T_BYTE_VECTOR
+#define set_byte_vector(p)            typeflag(_TSet(_TStr(p))) |= T_BYTE_VECTOR
 /* marks a string that the caller considers a byte_vector */
 
 #define T_STEP_END                    T_MUTABLE
@@ -2376,7 +2375,7 @@ static int64_t not_heap = -1;
 #define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
 #define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
-#define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
+#define slot_set_value(p, Val)        (_TSlt(_TSet(p)))->object.slt.val = _NFre(Val)
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
 #define next_slot(p)                  (_TSlt(p))->object.slt.nxt
@@ -3834,9 +3833,21 @@ s7_pointer s7_immutable(s7_pointer p)
 
 static s7_pointer g_immutable(s7_scheme *sc, s7_pointer args)
 {
-  #define H_immutable "(immutable sequence) declares that the sequence's entries can't be changed. The sequence is returned. (This function is work-in-progress)"
+  #define H_immutable "(immutable! sequence) declares that the sequence's entries can't be changed. The sequence is returned. (This function is work-in-progress)"
   #define Q_immutable s7_make_signature(sc, 2, sc->T, sc->T)
-  return(s7_immutable(car(args)));
+  s7_pointer p;
+  p = car(args);
+  if (is_symbol(p))
+    {
+      s7_pointer slot;
+      slot = find_symbol(sc, p);
+      if (is_slot(slot))
+	{
+	  set_immutable(slot);
+	  return(p);
+	}
+    }
+  return(s7_immutable(p));
 }
 
 static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
@@ -10890,15 +10901,17 @@ static s7_pointer number_to_string_p(s7_pointer p)
 }
 
 
-static void prepare_temporary_string(s7_scheme *sc, int32_t len, int32_t which)
+static s7_pointer prepare_temporary_string(s7_scheme *sc, int32_t len, int32_t which)
 {
   s7_pointer p;
   p = sc->tmp_strs[which];
+  set_type(p, T_STRING | T_SAFE_PROCEDURE); /* clear left overs like T_BYTE_VECTOR or T_IMMUTABLE */
   if (len > string_temp_true_length(p))
     {
       string_value(p) = (char *)realloc(string_value(p), len * sizeof(char));
       string_temp_true_length(p) = len;
     }
+  return(p);
 }
 
 static s7_pointer g_number_to_string_1(s7_scheme *sc, s7_pointer args, bool temporary)
@@ -10972,8 +10985,7 @@ static s7_pointer g_number_to_string_1(s7_scheme *sc, s7_pointer args, bool temp
   if (temporary)
     {
       s7_pointer p;
-      prepare_temporary_string(sc, nlen + 1, 1);
-      p = sc->tmp_strs[1];
+      p = prepare_temporary_string(sc, nlen + 1, 1);
       string_length(p) = nlen;
       memcpy((void *)(string_value(p)), (void *)res, nlen);
       string_value(p)[nlen] = 0;
@@ -21245,8 +21257,7 @@ static s7_pointer make_permanent_string_wrapper(void)
 static s7_pointer make_temporary_string(s7_scheme *sc, const char *str, int32_t len)
 {
   s7_pointer p;
-  p = sc->tmp_strs[0];
-  prepare_temporary_string(sc, len + 1, 0);
+  p = prepare_temporary_string(sc, len + 1, 0);
   string_length(p) = len;
   if (len > 0)
     memmove((void *)(string_value(p)), (void *)str, len); /* not memcpy because str might be a temp string (i.e. sc->tmp_str_chars -> itself) */
@@ -21698,8 +21709,7 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, bool use_tem
 				make_integer(sc, sc->max_string_length))));
   if (use_temp)
     {
-      newstr = sc->tmp_strs[0];
-      prepare_temporary_string(sc, len + 1, 0);
+      newstr = prepare_temporary_string(sc, len + 1, 0);
       string_length(newstr) = len;
       string_value(newstr)[len] = 0;
     }
@@ -22547,9 +22557,13 @@ static s7_pointer g_string_to_byte_vector(s7_scheme *sc, s7_pointer args)
   #define H_string_to_byte_vector "(string->byte-vector obj) turns a string into a byte-vector."
   #define Q_string_to_byte_vector s7_make_signature(sc, 2, sc->is_byte_vector_symbol, sc->is_string_symbol)
   s7_pointer str;
+
   str = car(args);
+  if (is_immutable(str))
+    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->string_to_byte_vector_symbol, str)));
   if (!is_string(str))
     method_or_bust(sc, str, sc->string_to_byte_vector_symbol, set_plist_1(sc, str), T_STRING, 1);
+
   set_byte_vector(str);
   return(str);
 }
@@ -22659,16 +22673,19 @@ static s7_pointer g_is_port_closed(s7_scheme *sc, s7_pointer args)
   x = car(args);
   if ((is_input_port(x)) || (is_output_port(x)))
     return(make_boolean(sc, port_is_closed(x)));
-  /* if (x == sc->F) return(sc->F); */ /* not sure about this -- current-output-port can be #f */
-
+  if ((x == sc->output_port) && (x == sc->F))
+    return(sc->F);
   method_or_bust_with_type_one_arg(sc, x, sc->is_port_closed_symbol, args, s7_make_string_wrapper(sc, "a port"));
 }
 
 static bool is_port_closed_b(s7_pointer x)
 {
-  if ((!is_input_port(x)) && (!is_output_port(x)))
-    simple_wrong_type_argument_with_type(cur_sc, cur_sc->is_port_closed_symbol, x, s7_make_string_wrapper(cur_sc, "a port"));
-  return(port_is_closed(x));
+  if ((is_input_port(x)) || (is_output_port(x)))
+    return(port_is_closed(x));
+  if ((x == cur_sc->output_port) && (x == cur_sc->F))
+    return(false);
+  simple_wrong_type_argument_with_type(cur_sc, cur_sc->is_port_closed_symbol, x, s7_make_string_wrapper(cur_sc, "a port"));
+  return(false);
 }
 
 
@@ -61687,6 +61704,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		      {
 			if (car(expr) == sc->quote_symbol)
 			  {
+			    if (direct_memq(sc->quote_symbol, e))
+			      return(OPT_OOPS);
 			    set_unsafe_optimize_op(expr, HOP_SAFE_QUOTE); /* see also below */
 			    set_c_function(expr, slot_value(global_slot(sc->cadr_symbol)));
 			    return(OPT_F);
@@ -61730,6 +61749,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		    if ((len == 1) &&
 			(car(expr) == sc->quote_symbol))
 		      {
+			if (direct_memq(sc->quote_symbol, e))
+			  return(OPT_OOPS);
 			set_safe_optimize_op(expr, HOP_SAFE_QUOTE);
 			set_c_function(expr, slot_value(global_slot(sc->cadr_symbol)));
 			return(OPT_T);
@@ -74477,6 +74498,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    if (is_syntactic_symbol(slot_symbol(lx)))
 		      eval_error(sc, "can't set! ~A", sc->code);
 		  }
+		if (is_immutable(lx))
+		  immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, lx));
 		slot_set_value(lx, sc->value);
 		goto START;
 	      }
@@ -74484,6 +74507,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 	  
 	case OP_SET_WITH_SETTER:
+	  if (is_immutable(sc->code))
+	    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, sc->code));
 	  slot_set_value(sc->code, sc->value);
 	  break;
 

@@ -9815,7 +9815,7 @@
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults
 					max-stack-size stack catches exits float-format-precision bignum-precision default-rationalize-error 
 					default-random-state morally-equal-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
-					gc-stats symbol-table-locked? c-objects history-size profile-info autoloading?))
+					gc-stats symbol-table-locked? c-objects history-size history profile-info autoloading?))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)
