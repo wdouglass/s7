@@ -27883,10 +27883,14 @@ static s7_pointer find_closure(s7_scheme *sc, s7_pointer closure, s7_pointer cur
   s7_pointer e, y;
   for (e = cur_env; is_let(e); e = outlet(e))
     {
-      if ((is_funclet(e)) &&
-	  (is_global(funclet_function(e))) &&         /* (define (f1) (lambda () 1)) shouldn't say the returned closure is named f1 */
-	  (slot_value(global_slot(funclet_function(e))) == closure))
-	return(funclet_function(e));
+      if (is_funclet(e))
+	{
+	  s7_pointer sym, f;
+	  sym = funclet_function(e);
+	  f = s7_symbol_local_value(sc, sym, e);
+	  if (f == closure)
+	    return(sym);
+	}
 
       for (y = let_slots(e); is_slot(y); y = next_slot(y))
 	if (slot_value(y) == closure)
@@ -27899,13 +27903,19 @@ static void write_closure_name(s7_scheme *sc, s7_pointer closure, s7_pointer por
 {
   s7_pointer x;
   x = find_closure(sc, closure, closure_let(closure));
-  /* this can be confusing!  In some cases, the function is in its environment, and in other very similar-looking cases it isn't:
+  /* this can be confusing!
    * (let ((a (lambda () 1))) a)
    * #<lambda ()>
    * (letrec ((a (lambda () 1))) a)
    * a
    * (let () (define (a) 1) a)
    * a
+   * (let () (define a (lambda () 1)))
+   * a
+   * (let () (define a (lambda () 1)))
+   * a
+   * (let () (define (a) (lambda () 1)) (a))
+   * #<lambda ()>
    */
   if (is_symbol(x)) /* after find_closure */
     {
@@ -33599,32 +33609,27 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
 	      
 	      new_frame_with_two_slots(sc, sc->envir, sc->envir, car(closure_args(eq_func)), car(args), cadr(closure_args(eq_func)), sc->F);
 	      func = s7_bool_optimize(sc, body);
-
-	      if (func)
+	      if (func == opt_bool_any)
 		{
+		  opt_info *o;
 		  s7_pointer b;
+		  o = sc->opts[0];
 		  b = next_slot(let_slots(sc->envir));
-		  
-		  if (func == opt_bool_any)
+		  for (slow = x; is_pair(x); x = cdr(x), slow = cdr(slow))
 		    {
-		      opt_info *o;
-		      o = sc->opts[0];
-		      for (slow = x; is_pair(x); x = cdr(x), slow = cdr(slow))
-			{
-			  slot_set_value(b, car(x));
-			  sc->pc = 0;
-			  if (o->v7.fb(o)) return(x);
-
-			  if (!is_pair(cdr(x))) return(sc->F);
-			  x = cdr(x);
-			  if (x == slow) return(sc->F);
-
-			  slot_set_value(b, car(x));
-			  sc->pc = 0;
-			  if (o->v7.fb(o)) return(x);
-			}
-		      return(sc->F);
+		      slot_set_value(b, car(x));
+		      sc->pc = 0;
+		      if (o->v7.fb(o)) return(x);
+		      
+		      if (!is_pair(cdr(x))) return(sc->F);
+		      x = cdr(x);
+		      if (x == slow) return(sc->F);
+		      
+		      slot_set_value(b, car(x));
+		      sc->pc = 0;
+		      if (o->v7.fb(o)) return(x);
 		    }
+		  return(sc->F);
 		}
 	    }
 	}
@@ -54974,7 +54979,8 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	  opt_info *opc;
 	  s7_pointer sig;
 	  int32_t start;
-	  
+	  /* fprintf(stderr, "s_func: %s %d %d\n", DISPLAY(s_func), symbol_id(head) == 0, is_global(head)); */
+
 	  start = sc->pc;
 	  sig = signature(sc, s_func);
 	  opc = alloc_opo(sc, car_x);
@@ -73494,6 +73500,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    if (!is_null(sc->args))
 	      sc->args = safe_reverse_in_place(sc, x);
 	    else sc->args = x;
+	    /* fprintf(stderr, "goto apply %s %s\n", DISPLAY(sc->code), DISPLAY(sc->args)); */
 	    goto APPLY;
 	  }
 	  

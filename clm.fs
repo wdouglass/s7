@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 04/03/15 19:25:58
-\ Changed: 18/01/02 07:20:24
+\ Changed: 18/01/06 06:54:06
 \
-\ @(#)clm.fs	2.2 1/2/18
+\ @(#)clm.fs	2.4 1/6/18
 
 \ clm-print		( fmt :optional args -- )
 \ clm-message		( fmt :optional args -- )
@@ -345,7 +345,7 @@ set-current
 previous
 
 \ === Global User Variables (settable in ~/.snd_forth or ~/.fthrc) ===
-"fth 2018/01/02"	value *clm-version*
+"fth 2018/01/06"	value *clm-version*
 mus-lshort	value *clm-audio-format*
 #f		value *clm-comment*
 1.0		value *clm-decay-time*
@@ -1246,45 +1246,47 @@ set-current
 <'> noop	alias end-run-gen
 <'> hash-ref	alias args@
 
-: run-gen-body { samp y -- y' }
-	0 0 { beg end }
-	nil nil { args prc }
+: run-gen-body { samp -- res }
+	nil nil 0 0 { args prc beg end }
+	0.0 { sum }
 	*dac-instruments* each to args
 		args 0 array-ref to prc
 		args 1 array-ref to beg
 		args 2 array-ref to end
 		samp beg end within if
-			samp prc execute y f+ to y
+			samp prc execute sum f+ to sum
 		then
 	end-each
-	y
+	sum
 ;
 
 \ Returns a proc ( y -- res ) for use with map-channel.
 \ Requires a filled *dac-instruments* variable, usually done with
 \ run-gen-instrument ... end-run-gen prepared functions, see simp-gen
 \ and violin-gen at the end of this file.
-: run-gen ( -- prc; y self -- y' )
+: run-gen ( -- prc; y self -- res )
 	*dac-instruments* empty? if
 		'with-sound-error
 		    #( "%s: filled *dac-instruments* required"
 		       get-func-name ) fth-throw
 	then
-	0 { len }
-	*dac-instruments* each { el }
-		el 2 array-ref len max to len
+	nil nil 0 0 0 { args prc beg end len }
+	*dac-instruments* each to args
+		args 2 array-ref len max to len
+	end-each
+	len 0.0 make-vct { v }
+	*dac-instruments* each to args
+		args 0 array-ref to prc
+		args 1 array-ref to beg
+		args 2 array-ref to end
+		end beg ?do
+			i prc execute v i rot object-set+!
+		loop
 	end-each
 	1 proc-create ( prc )
-	0 , len ,
-  does> { y self -- val }
-	self @ { samp }
-	self cell+ @ { len }
-	samp len <= if
-		samp y run-gen-body ( y' )
-		samp 1+ self !
-	else
-		0.0
-	then
+	v ,
+  does> { y self -- res }
+	self @ ( v ) cycle-ref y f+
 ;
 previous
 
@@ -1622,7 +1624,7 @@ hide
 	self @ { samp }
 	self cell+ @ { len }
 	samp len <= if
-		samp 0.0 run-gen-body ( sum )
+		samp run-gen-body ( sum )
 		samp 1+ self !
 	else
 		#f
