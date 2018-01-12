@@ -778,9 +778,8 @@ stops autosaving, and (auto-save) restarts it.
 <div class="header" id="bessdoc">bess</div>
 
 <p>bess.scm creates a dialog (named "FM Forever!"),
-opens the DAC, puts up a bunch of scale widgets, and starts two CLM oscils doing
-frequency modulation in semi-real-time (how "real-time" it is depends on your
-audio setup).
+puts up a bunch of scale widgets, and starts two CLM oscils doing
+frequency modulation.
 Michael Scholz has contributed a Ruby translation of this with many improvements:
 bess.rb.  
 </p>
@@ -788,7 +787,7 @@ bess.rb.
 <img class="indented" src="pix/fm.png" alt="fm dialog">
 
 <pre class="indented">
-;; bess opens the DAC and continuously sends the following:
+;; bess plays the following:
 (* amp 
    (<a class=quiet href="sndclm.html#oscil">oscil</a> carosc 
      (+ (<a class=quiet href="sndclm.html#hztoradians">hz-&gt;radians</a> frequency)

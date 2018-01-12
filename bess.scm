@@ -1,12 +1,8 @@
-;;; this is obsolete -- it needs some replacement for the mus-audio* functions
-
 (when (provided? 'snd-motif)
   (with-let (sublet *motif*)
 
     ;; set up our user-interface
-    (let* ((app (car (main-widgets)))
-	   
-	   (shell (let* ((xdismiss (XmStringCreate "Go away" XmFONTLIST_DEFAULT_TAG))
+    (let* ((shell (let* ((xdismiss (XmStringCreate "Go away" XmFONTLIST_DEFAULT_TAG))
 			 (xhelp (XmStringCreate "Help" XmFONTLIST_DEFAULT_TAG))
 			 (titlestr (XmStringCreate "FM Forever!" XmFONTLIST_DEFAULT_TAG))
 			 (dialog (XmCreateTemplateDialog (cadr (main-widgets)) "FM Forever!"
@@ -14,6 +10,7 @@
 							       XmNhelpLabelString     xhelp
 							       XmNautoUnmanage        #f
 							       XmNdialogTitle         titlestr
+							       XmNwidth               600
 							       XmNresizePolicy        XmRESIZE_GROW
 							       XmNnoResize            #f
 							       XmNtransient           #f))))
@@ -27,7 +24,6 @@
 	   
 	   (dpy (XtDisplay shell))
 	   (screen (DefaultScreenOfDisplay dpy))
-	   ;; (cmap (DefaultColormap dpy (DefaultScreen dpy)))
 	   (black (BlackPixelOfScreen screen))
 	   (white (WhitePixelOfScreen screen))
 	   
@@ -153,7 +149,7 @@
       (let ((frequency 220.0)
 	    (low-frequency 40.0)
 	    (high-frequency 2000.0)
-	    (amplitude 0.5)
+	    (amplitude 0.25)
 	    (index 1.0)
 	    (high-index 3.0)
 	    (ratio 1)
@@ -189,6 +185,17 @@
 	(define (ratio-callback w c i)
 	  (set! ratio (floor (* (.value i) (/ high-ratio 100.0))))
 	  (set-ilabel cm-label ratio))
+
+	(define (fm)
+	  (* amplitude playing
+	     (oscil carosc 
+		    (+ (hz->radians frequency)
+		       (* index 
+			  (oscil modosc 
+				 (hz->radians (* ratio frequency))))))))
+
+	;; go-away button
+	(XtAddCallback shell XmNcancelCallback (lambda (w c i) (stop-playing) (XtUnmanageChild w)))
 	
 	;; add scale-change (drag and value-changed) callbacks
 	(XtAddCallback freq-scale XmNdragCallback freq-callback)
@@ -204,6 +211,7 @@
 	(XtAddCallback cm-scale XmNvalueChangedCallback ratio-callback)
 	
 	(XtAddCallback play-button XmNvalueChangedCallback (lambda (w c i) (set! playing (if (.set i) 1.0 0.0))))
+	(XmAddWMProtocolCallback (XtParent shell) (XmInternAtom (XtDisplay (cadr (main-widgets))) "WM_DELETE_WINDOW" #f) (lambda (w c i) (stop-playing)) #f)
 	
 	;; set initial values
 	(set-flabel freq-label frequency)
@@ -219,34 +227,6 @@
 	(XtManageChild shell)
 	(XtRealizeWidget shell)
 	
-	;; send fm data to dac
-	(let ((bufsize 256)
-	      (work-proc #f))
-	  (let ((port (mus-audio-open-output mus-audio-default 22050 1 mus-lshort (* bufsize 2))))
-	    (if (< port 0) 
-		(format () "can't open DAC!"))
-	    
-	    (XmAddWMProtocolCallback (cadr (main-widgets)) ; shell
-				     (XmInternAtom dpy "WM_DELETE_WINDOW" #f)
-				     (lambda (w c i)
-				       (XtRemoveWorkProc work-proc) ; odd that there's no XtAppRemoveWorkProc
-				       (mus-audio-close port))
-				     #f)
-	    (XtAddCallback shell
-			   XmNcancelCallback (lambda (w context info)
-					       (XtRemoveWorkProc work-proc)
-					       (mus-audio-close port)
-					       (XtUnmanageChild shell)))
-	    (set! work-proc (XtAppAddWorkProc app 
-					      (lambda (ignored-arg)
-						(let ((data (make-float-vector bufsize)))
-						  (do ((i 0 (+ 1 i)))
-						      ((= i bufsize))
-						    (float-vector-set! data i (* amplitude playing
-										 (oscil carosc 
-											(+ (hz->radians frequency)
-											   (* index 
-											      (oscil modosc 
-												     (hz->radians (* ratio frequency)))))))))
-						  (mus-audio-write port data bufsize)
-						  #f))))))))))
+	(play fm)))))
+
+

@@ -9058,7 +9058,10 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
       s7_pointer p;
       p = ov[i];                            /* args */
       if (is_pair(p))                       /* args need not be a list (it can be a port or #f, etc) */
-	nv[i] = protected_list_copy(sc, p); /* args (copy is needed -- see s7test.scm) */
+	{
+	  nv[i] = protected_list_copy(sc, p); /* args (copy is needed -- see s7test.scm) */
+	  set_type(nv[i], typeflag(p));       /* carry over T_IMMUTABLE etc */
+	}
       /* lst can be dotted or circular here.  The circular list only happens in a case like:
        *    (dynamic-wind (lambda () (eq? (let ((lst (cons 1 2))) (set-cdr! lst lst) lst) (call/cc (lambda (k) k)))) (lambda () #f) (lambda () #f))
        */
@@ -43048,7 +43051,7 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
       int32_t true_loc;
 
       true_loc = (int32_t)(loc + 1) * 4 - 1;
-      code = stack_code(sc->stack, true_loc); /* can code be free here? [hit this once, could not repeat it] */
+      code = stack_code(sc->stack, true_loc);
 
       if (is_pair(code))
 	{
@@ -43082,7 +43085,7 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
 			notes = stacktrace_walker(sc, code, e, NULL, gc_syms, code_cols, total_cols, notes_start_col, as_comment);
 		      newstr = stacktrace_add_func(sc, f, code, codestr, notes, code_cols, as_comment);
 		      free(codestr);
-		      if ((notes) && (notes != newstr) && (is_let(e)) && (e != sc->rootlet)) free(notes); /* double free somehow?? */
+		      if ((notes) && (notes != newstr) && (is_let(e)) && (e != sc->rootlet)) free(notes);
 
 		      newlen = strlen(newstr) + 1 + ((str) ? strlen(str) : 0);
 		      if (newlen > 0)
@@ -43114,7 +43117,6 @@ s7_pointer s7_stacktrace(s7_scheme *sc)
   str = stacktrace_1(sc, 30, 45, 80, 45, false);
   return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
 }
-
 
 static s7_pointer g_stacktrace(s7_scheme *sc, s7_pointer args)
 {
@@ -55159,6 +55161,9 @@ static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr)
       
       if (is_c_function(s_func))
 	{
+	  /* fprintf(stderr, "%s: %ld %d\n", DISPLAY(head), symbol_id(head), is_global(head)); */
+	  if (symbol_id(head) != 0)             /* (float-vector? (block)) -- both safe c_funcs, but this is a method invocation */
+	    return(return_false(sc, car_x, __func__, __LINE__));
 	  switch (len)
 	    {
 	    case 2:
@@ -73835,7 +73840,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	APPLY:
 	case OP_APPLY:
-	  /* fprintf(stderr, "apply %s to %s\n", DISPLAY(sc->code), DISPLAY(sc->args)); */
+#if SHOW_EVAL_OPS
+	  fprintf(stderr, "  apply %s to %s\n", DISPLAY(sc->code), DISPLAY(sc->args)); 
+#endif
 	  switch (type(sc->code))
 	    {
 	    case T_C_FUNCTION:          apply_c_function(sc);           goto START;
@@ -84177,7 +84184,7 @@ int main(int argc, char **argv)
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
  *
- * the old mus-audio-* code needs to use play or something, especially bess*
+ * the old mus-audio-* code needs to use play or something, especially bess* -- use bess.rb
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
