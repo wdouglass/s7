@@ -9999,8 +9999,8 @@ addStyle();
 <!--
 circular env without set!: 
 (let ()
-   (let ((b (curlet)))
-      (curlet)))
+  (let ((b (curlet)))
+    (curlet)))
 
 circular func (implicit set!):
 (letrec* ((b (lambda () (a)))
@@ -10010,4 +10010,8 @@ circular func (implicit set!):
 (letrec ((b (lambda () (a)))
 	 (a (lambda () (b))))
   (a))
+
+circular macro result:
+((define-macro (_m_) 
+   (signature int-vector)))
 -->

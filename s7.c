@@ -15923,8 +15923,7 @@ static s7_pointer g_subtract_cl1(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_subtract_s1(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer x;
-  x = car(args);
-  /* this one seems to hit reals as often as integers */
+  x = car(args);  /* this one seems to hit reals as often as integers */
   switch (type(x))
     {
 #if HAVE_OVERFLOW_CHECKS
@@ -23819,8 +23818,11 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
 	{
 	  char tmp[256];
 	  int32_t len;
-	  len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" PRId64 "?", caller, name, (long)bytes, size);
-	  port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
+	  if (sc->output_port != sc->F)
+	    {
+	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" PRId64 "?", caller, name, (long)bytes, size);
+	      port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
+	    }
 	  size = bytes;
 	}
       content[size] = '\0';
@@ -28630,6 +28632,7 @@ static s7_pointer check_sym(s7_scheme *sc, s7_pointer sym)
 	      fprintf(stderr, "local %s: %p %p ", symbol_name(sym), local_val, search_val);
 	      fprintf(stderr, "%s ", DISPLAY_80(local_val));
 	      fprintf(stderr, "%s", DISPLAY_80(search_val));
+	      fprintf(stderr, ", cur_code: %s\n", DISPLAY(sc->cur_code));
 	      fprintf(stderr, "\n");
 	      /* (let () (define (f x) x) (define* (f (y (f 1))) (+ y 1)) (f)) -> local y: 0x7f1082849098 0x7f1082849120 1 2 
 	       *   which depends on (+ ... 1)!
@@ -29064,7 +29067,12 @@ static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, in
 {
   if (!p)
     {
+      s7_pointer slot;
       fprintf(stderr, "%s%s[%d]: %s unbound%s\n", BOLD_TEXT, func, line, symbol_name(sym), UNBOLD_TEXT);
+      fprintf(stderr, "  symbol_id: %ld, let_id: %ld, bits: %s", symbol_id(sym), let_id(sc->envir), describe_type_bits(sc, sym));
+      slot = find_local_symbol(sc, sym, sc->envir);
+      if (is_slot(slot)) fprintf(stderr, ", slot: %s", DISPLAY(slot));
+      fprintf(stderr, "\n");
       if (stop_at_error) abort();
     }
   return(p);
@@ -54542,11 +54550,11 @@ static s7_pointer opt_call_1_1(void *p)
   env = o->v2.p;
   let_id(env) = id;
   x = let_slots(env);
+  sym = slot_symbol(x);
+  symbol_set_local(sym, id, x); /* this has to precede call below which might involve sym (symbol_id in particular) */
 
   o1 = cur_sc->opts[++cur_sc->pc];
   slot_set_value(x, o1->v7.fp(o1));
-  sym = slot_symbol(x);
-  symbol_set_local(sym, id, x);
 
   old_e = cur_sc->envir;
   cur_sc->envir = env;
@@ -84184,7 +84192,7 @@ int main(int argc, char **argv)
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
  *
- * the old mus-audio-* code needs to use play or something, especially bess* -- use bess.rb
+ * the old mus-audio-* code needs to use play (see bess.scm)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
