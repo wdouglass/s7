@@ -1263,9 +1263,7 @@ struct s7_scheme {
 
 /* (*s7* 'safety) settings */
 #define NO_SAFETY 0
-#define CLM_OPTIMIZATION_SAFETY 1
-#define ALL_OPTIMIZATION_SAFETY 2
-#define IMMUTABLE_VECTOR_SAFETY 3
+#define IMMUTABLE_VECTOR_SAFETY 1
 
 typedef enum {USE_DISPLAY, USE_WRITE, USE_READABLE_WRITE, USE_WRITE_WRONG} use_write_t;
 
@@ -1663,11 +1661,10 @@ static s7_scheme *cur_sc = NULL;
 
 #define T_SYNTACTIC                   (1 << (TYPE_BITS + 1))
 #define is_syntactic(p)               ((typesflag(_NFre(p)) & T_SYNTACTIC) != 0)
-#define is_syntactic_symbol(p)        ((typesflag(_NFre(p)) & (T_SYNTACTIC | 0xff)) == (T_SYMBOL | T_SYNTACTIC))
-#define SYNTACTIC_SYMBOL              (uint16_t)(T_SYMBOL | T_DONT_EVAL_ARGS | T_SYNTACTIC)
-#define SYNTACTIC_PAIR                (uint16_t)(T_PAIR | T_SYNTACTIC)
+#define is_syntactic_symbol(p)        (typesflag(_NFre(p)) == (uint16_t)(T_SYMBOL | T_SYNTACTIC))
+#define is_syntactic_pair(p)          (typesflag(_NFre(p)) == (uint16_t)(T_PAIR | T_SYNTACTIC))
+#define set_syntactic_pair(p)         typeflag(_TPair(p)) = (T_PAIR | T_SYNTACTIC | (typeflag(p) & 0xffff0000))
 /* this marks symbols that represent syntax objects, it should be in the second byte */
-#define set_syntactic_pair(p)         typeflag(_TPair(p)) = (SYNTACTIC_PAIR | (typeflag(p) & 0xffff0000))
 
 
 #define T_SIMPLE_ARG_DEFAULTS         (1 << (TYPE_BITS + 2))
@@ -21131,6 +21128,9 @@ static s7_pointer g_string_position(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- strings -------------------------------- */
 
+/* prebuilding sc->empty_string and using it wherever len==0 did not produce more than about %.2 speedup
+ *   (in index.scm where 11% of the strings are empty).  s7test max 4% empty, elsewhere much less.
+ */
 s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, int32_t len)
 {
   s7_pointer x;
@@ -24546,7 +24546,7 @@ static s7_pointer g_write_byte(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_read_line(s7_scheme *sc, s7_pointer args)
 {
-  #define H_read_line "(read-line port (with-eol #f)) returns the next line from port, or #<eof>.\
+  #define H_read_line "(read-line port (with-eol #f)) returns the next line from port, or #<eof>. \
 If 'with-eol' is not #f, read-line includes the trailing end-of-line character."
   #define Q_read_line s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_string_symbol, sc->is_eof_object_symbol), sc->is_input_port_symbol, sc->is_boolean_symbol)
 
@@ -36356,7 +36356,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 		  if (is_null(compare_begin))
 		    sort_func = closure_compare;
 		  else sort_func = closure_compare_begin;
-		  if (typesflag(compare_args) == SYNTACTIC_PAIR)
+		  if (is_syntactic_pair(compare_args))
 		    {
 		      compare_op = (opcode_t)pair_syntax_op(compare_args);
 		      compare_args = cdr(compare_args);
@@ -42503,15 +42503,13 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				  s7_make_symbol(sc, "info"), raw_pointer_info(obj))));
 
     case T_CONTINUATION:
-      {
-	s7_pointer let;
-	uint32_t gc_loc;
-	let = s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol));
-	gc_loc = s7_gc_protect_1(sc, let);
-	s7_varlet(sc, let, s7_make_symbol(sc, "stack"), stack_entries(sc, continuation_stack(obj), continuation_stack_top(obj)));
-	s7_gc_unprotect_at(sc, gc_loc);
-	return(let);
-      }
+      return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol)));
+#if 0
+      /* is this ever useful? */
+      gc_loc = s7_gc_protect_1(sc, let);
+      s7_varlet(sc, let, s7_make_symbol(sc, "stack"), stack_entries(sc, continuation_stack(obj), continuation_stack_top(obj)));
+      s7_gc_unprotect_at(sc, gc_loc);
+#endif
 
     case T_ITERATOR:
       {
@@ -54600,9 +54598,6 @@ static bool opt_bool_call_1_1(void *p)       {return(opt_call_1_1(p) != cur_sc->
 static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 {
   /* fprintf(stderr, "funcall opt %s\n", DISPLAY(car_x)); */
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY)
-    return(false);
-
   if (!closure_no_opt(s_func))
     {
       opt_info *opc;
@@ -54776,7 +54771,7 @@ static bool float_optimize(s7_scheme *sc, s7_pointer expr)
       /* need to check int_opt here */
 
       if ((is_syntactic(head)) ||
-	  (typesflag(car_x) == SYNTACTIC_PAIR))
+	  (is_syntactic_pair(car_x)))
 	return(d_syntax_ok(sc, car_x, len));
 
       if ((is_global(head)) ||
@@ -54883,7 +54878,7 @@ static bool int_optimize(s7_scheme *sc, s7_pointer expr)
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
-	  (typesflag(car_x) == SYNTACTIC_PAIR))
+	  (is_syntactic_pair(car_x)))
 	return(i_syntax_ok(sc, car_x, len));
 
       if ((is_global(head)) ||
@@ -54975,7 +54970,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
-	  (typesflag(car_x) == SYNTACTIC_PAIR))
+	  (is_syntactic_pair(car_x)))
 	return(p_syntax(sc, car_x, len));
 
       if ((is_global(head)) ||
@@ -55152,7 +55147,7 @@ static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr)
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
-	  (typesflag(car_x) == SYNTACTIC_PAIR))
+	  (is_syntactic_pair(car_x)))
 	{
 	  if (head == sc->and_symbol)
 	    return(opt_b_and(sc, car_x, len));
@@ -55277,7 +55272,6 @@ static s7_function s7_bool_optimize(s7_scheme *sc, s7_pointer expr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(NULL);
 #if OPT_PRINT
   fprintf(stderr, "bool opt: %s\n", DISPLAY(expr));
 #endif
@@ -55296,7 +55290,6 @@ s7_float_function s7_float_optimize(s7_scheme *sc, s7_pointer expr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(NULL);
 #if OPT_PRINT
   fprintf(stderr, "fl opt: %s\n", DISPLAY(expr));
 #endif
@@ -55315,8 +55308,7 @@ static s7_function s7_optimize_1(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if (!is_pair(expr)) return(NULL);
-  if ((sc->safety > CLM_OPTIMIZATION_SAFETY) || (pair_no_opt(expr))) 
+  if ((!is_pair(expr)) || (pair_no_opt(expr)))
     return(NULL);
 #if OPT_PRINT
   fprintf(stderr, "opt: %s\n", DISPLAY(expr));
@@ -55400,7 +55392,6 @@ static s7_function s7_cell_optimize(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(NULL);
   if (setjmp(sc->opt_exit) == 0)
     {
       start_opts(sc);
@@ -56028,13 +56019,16 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
 
 /* -------------------------------- multiple-values -------------------------------- */
 
+#define SHOW_EVAL_OPS 0
+
 static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 {
   int64_t top;
   s7_pointer x;
   top = s7_stack_top(sc) - 1; /* stack_end - stack_start: if this is negative, we're in big trouble */
-  /* fprintf(stderr, "splice %s %s\n", op_names[stack_op(sc->stack, top)], DISPLAY(sc->args)); */
-
+#if SHOW_EVAL_OPS
+  fprintf(stderr, "splice %s %s\n", op_names[stack_op(sc->stack, top)], DISPLAY(sc->args));
+#endif
   switch (stack_op(sc->stack, top))
     {
       /* the normal case -- splice values into caller's args */
@@ -56185,6 +56179,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_CATCH:
     case OP_CATCH_1:
     case OP_CATCH_2:
+    case OP_CATCH_ALL:
       /* (+ (catch #t (lambda () (values 3 4)) (lambda args args))) */
       pop_stack(sc);
       return(splice_in_values(sc, args));
@@ -57290,7 +57285,7 @@ static s7_pointer assign_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   set_global_slot(x, permanent_slot(x, syn));
   set_initial_slot(x, permanent_slot(x, syn));
   /* set_local_slot(x, global_slot(x)); */
-  typeflag(x) = SYNTACTIC_SYMBOL | T_GLOBAL; 
+  typeflag(x) = T_SYMBOL | T_SYNTACTIC | T_GLOBAL; 
   symbol_set_local(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0;)
   return(x);
@@ -57333,7 +57328,7 @@ static s7_pointer assign_internal_syntax(s7_scheme *sc, const char *name, opcode
   set_global_slot(x, permanent_slot(x, syn));
   set_initial_slot(x, permanent_slot(x, syn));
   set_local_slot(x, global_slot(x));
-  typeflag(x) = SYNTACTIC_SYMBOL | T_GLOBAL;
+  typeflag(x) = T_SYMBOL | T_SYNTACTIC | T_GLOBAL;
   return(x);
 }
 
@@ -58905,7 +58900,7 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 			  (is_syntactic(caar(body))))
 			{
 			  set_optimize_op(expr, hop + OP_SAFE_THUNK_P);
-			  if (typesflag(car(body)) != SYNTACTIC_PAIR)
+			  if (!is_syntactic_pair(car(body)))
 			    {
 			      pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			      set_syntactic_pair(car(body));
@@ -59501,7 +59496,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 			      (is_syntactic(car(bexpr))))
 			    {
 			      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_P);
-			      if (typesflag(bexpr) != SYNTACTIC_PAIR)
+			      if (!is_syntactic_pair(bexpr))
 				{
 				  pair_set_syntax_op(bexpr, symbol_syntax_op(car(bexpr)));
 				  set_syntactic_pair(bexpr);
@@ -59548,7 +59543,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 			  (is_syntactic(caar(body))))
 			{
 			  set_optimize_op(expr, hop + OP_CLOSURE_A_P);
-			  if (typesflag(car(body)) != SYNTACTIC_PAIR)
+			  if (!is_syntactic_pair(car(body)))
 			    {
 			      pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			      set_syntactic_pair(car(body));
@@ -60269,7 +60264,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      (is_syntactic(caar(body))))
 		    {
 		      set_optimize_op(expr, hop + OP_CLOSURE_SS_P);
-		      if (typesflag(car(body)) != SYNTACTIC_PAIR)
+		      if (!is_syntactic_pair(car(body)))
 			{
 			  pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			  set_syntactic_pair(car(body));
@@ -61847,7 +61842,6 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 {
   s7_pointer x;
   /* fprintf(stderr, "optimize: %s %s\n", DISPLAY_80(code), DISPLAY(e)); */
-  if (sc->safety > ALL_OPTIMIZATION_SAFETY) return(OPT_F);
   for (x = code; (is_pair(x)) && (!is_checked(x)); x = cdr(x))
     {
       set_checked(x);
@@ -64130,7 +64124,7 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
   x = caar(sc->code);
   if (!is_symbol(x))
     eval_error_with_caller(sc, "~A: ~S is not a symbol?", caller, x);
-  if (dont_eval_args(x))                                               /* (define-macro (quote a) quote) */
+  if (is_syntactic_symbol(x))
     {
       if (sc->safety > NO_SAFETY)
 	s7_warn(sc, 128, "%s: syntactic keywords tend to behave badly if redefined", DISPLAY(x));
@@ -66472,12 +66466,12 @@ static int32_t dox_ex(s7_scheme *sc)
     {
       code = car(code);
       
-      if ((typesflag(code) == SYNTACTIC_PAIR) ||
-	  (typesflag(car(code)) == SYNTACTIC_SYMBOL))
+      if ((is_syntactic_pair(code)) ||
+	  (is_syntactic_symbol(car(code))))
 	{
 	  push_stack_no_args(sc, OP_DOX_STEP_P, sc->code);
 	  
-	  if (typesflag(code) == SYNTACTIC_PAIR)
+	  if (is_syntactic_pair(code))
 	    sc->cur_op = (opcode_t)pair_syntax_op(code);
 	  else
 	    {
@@ -66596,8 +66590,6 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 {
   int32_t body_len;
   s7_int end;
-
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(false);
 
   if (safe_step)
     set_safe_stepper(sc->args);
@@ -66849,9 +66841,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
   s7_pointer old_e, stepper;
   int32_t body_len, var_len;
 
-  if (sc->safety > CLM_OPTIMIZATION_SAFETY) return(fall_through);
   /* do_let with non-float vars doesn't get many fixable hits */
-
   let_code = caddr(scc);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
@@ -66977,8 +66967,8 @@ static bool dotimes(s7_scheme *sc, s7_pointer code, bool safe_case)
   body = caddr(code);
   /* here we assume one expr in body */
 
-  if (((typesflag(body) == SYNTACTIC_PAIR) ||
-       (typesflag(car(body)) == SYNTACTIC_SYMBOL)) &&
+  if (((is_syntactic_pair(body)) ||
+       (is_syntactic_symbol(car(body)))) &&
       ((symbol_syntax_op(car(body)) == OP_LET) ||
        (symbol_syntax_op(car(body)) == OP_LET_STAR)))
     return(do_let(sc, sc->args, code, safe_case) == goto_SAFE_DO_END_CLAUSES);
@@ -67042,8 +67032,8 @@ static int32_t safe_dotimes_ex(s7_scheme *sc)
 	      sc->code = car(sc->code);
 	      set_opt_pair2(code, sc->code); /* is_pair above */
 	      
-	      if ((typesflag(sc->code) == SYNTACTIC_PAIR) ||
-		  (typesflag(car(sc->code)) == SYNTACTIC_SYMBOL))
+	      if ((is_syntactic_pair(sc->code)) ||
+		  (is_syntactic_symbol(car(sc->code))))
 		{
 		  if (!is_unsafe_do(code))
 		    {
@@ -67052,7 +67042,7 @@ static int32_t safe_dotimes_ex(s7_scheme *sc)
 		      set_unsafe_do(code);
 		    }
 		  push_stack(sc, OP_SAFE_DOTIMES_STEP_P, sc->args, code);
-		  if (typesflag(sc->code) == SYNTACTIC_PAIR)
+		  if (is_syntactic_pair(sc->code))
 		    sc->cur_op = (opcode_t)pair_syntax_op(sc->code);
 		  else
 		    {
@@ -67412,7 +67402,7 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
 			  (is_syntactic_symbol(caar(body))))
 			{
 			  set_optimize_op(code, hop + ((is_local_symbol(code)) ? OP_SAFE_LTHUNK_P : OP_SAFE_THUNK_P));
-			  if (typesflag(car(body)) != SYNTACTIC_PAIR)
+			  if (!is_syntactic_pair(car(body)))
 			    {
 			      pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			      set_syntactic_pair(car(body));
@@ -67500,7 +67490,7 @@ static int32_t unknown_g_ex(s7_scheme *sc, s7_pointer f)
 		      (is_syntactic_symbol(caar(body))))
 		    {
 		      set_optimize_op(code, hop + (((is_local_symbol(code)) && (is_local_symbol(cdr(code)))) ? OP_SAFE_LCLOSURE_L_P : OP_SAFE_CLOSURE_S_P));
-		      if (typesflag(car(body)) != SYNTACTIC_PAIR)
+		      if (!is_syntactic_pair(car(body)))
 			{
 			  pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			  set_syntactic_pair(car(body));
@@ -67646,7 +67636,7 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
 			  (is_syntactic(caar(body))))
 			{
 			  set_optimize_op(code, hop + OP_CLOSURE_SS_P);
-			  if (typesflag(car(body)) != SYNTACTIC_PAIR)
+			  if (!is_syntactic_pair(car(body)))
 			    {
 			      pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			      set_syntactic_pair(car(body));
@@ -67800,7 +67790,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		      (is_syntactic_symbol(caar(body))))
 		    {
 		      set_optimize_op(code, hop + OP_CLOSURE_A_P);
-		      if (typesflag(car(body)) != SYNTACTIC_PAIR)
+		      if (!is_syntactic_pair(car(body)))
 			{
 			  pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			  set_syntactic_pair(car(body));
@@ -69042,8 +69032,6 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 #if WITH_PROFILE
   static s7_pointer profile_at_start = NULL;
 #endif
-
-#define SHOW_EVAL_OPS 0
 
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
@@ -70316,7 +70304,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   */
 	  /* fprintf(stderr, "    eval: %s\n", DISPLAY_80(sc->code)); */
 
-	  if (typesflag(sc->code) == SYNTACTIC_PAIR)  /* xor is not faster here, and bit check is slower */
+	  if (is_syntactic_pair(sc->code))  /* xor is not faster here, and bit check is slower */
 	    {
 #if WITH_PROFILE
 	      if (sc->code != profile_at_start)
@@ -73382,7 +73370,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		set_current_code(sc, code);
 		carc = car(code);
 		
-		if (typesflag(carc) == SYNTACTIC_SYMBOL)
+		if (is_syntactic_symbol(carc))
 		  {
 		    set_syntactic_pair(code);      /* leave other bits (T_LINE_NUMBER) intact */
 		    set_car(code, syntax_symbol(slot_value(initial_slot(carc)))); /* clear possible optimization confusion */
@@ -73413,7 +73401,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			if (sc->stack_end >= sc->stack_resize_trigger)
 			  check_for_cyclic_code(sc, code);
 			push_stack(sc, OP_EVAL_ARGS, sc->nil, cdr(code));
-			if (typesflag(car(carc)) == SYNTACTIC_SYMBOL)
+			if (is_syntactic_symbol(car(carc)))
 			  /* was checking for is_syntactic here but that can be confused by successive optimizer passes:
 			   *  (define (hi) (((lambda () list)) 1 2 3)) etc
 			   */
@@ -74066,6 +74054,22 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 
 	case OP_EVAL_STRING:
+	  while (s7_peek_char(sc, sc->input_port) != EOF) /* (eval-string "(+ 1 2) this is a mistake") */
+	    {
+	      int32_t tk;
+	      tk = token(sc);                             /* (eval-string "(+ 1 2) ; a comment (not a mistake)") */
+	      if (tk != TOKEN_EOF)
+		{
+		  int32_t trail_len;
+		  s7_pointer trail_data;
+		  trail_len = port_data_size(sc->input_port) - port_position(sc->input_port) + 1;
+		  if (trail_len > 32) trail_len = 32;
+		  trail_data = s7_make_string_with_length(sc, (const char *)(port_data(sc->input_port) + port_position(sc->input_port) - 1), trail_len);
+		  s7_close_input_port(sc, sc->input_port);
+		  pop_input_port(sc);
+		  s7_error(sc, sc->read_error_symbol, set_elist_2(sc, make_string_wrapper_with_length(sc, "eval-string trailing junk: ~S", 29), trail_data));
+		}
+	    }
 	  s7_close_input_port(sc, sc->input_port);
 	  pop_input_port(sc);
 	  sc->code = sc->value;
@@ -74956,6 +74960,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_C_P_2:
 	  /* op_c_p_1 -> mv case: (define (hi) (format (values #f "~A ~D" 1 2))) */
+	  /* fprintf(stderr, "op_c_p_2: code: %s, value: %s\n", DISPLAY(sc->code), DISPLAY(sc->value)); */
 	  sc->code = c_function_base(opt_cfunc(sc->code)); /* see comment above */
 	  sc->args = copy_list(sc, sc->value);
 	  goto APPLY;
@@ -76996,6 +77001,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 
 	case OP_READ_QUOTE:
+	  /* fprintf(stderr, "op_read_quote: %s %d\n", DISPLAY(sc->value), sc->safety); */
 	  /* can't check for sc->value = sc->nil here because we want ''() to be different from '() */
 	  if ((sc->safety > IMMUTABLE_VECTOR_SAFETY) &&
 	      ((is_pair(sc->value)) || (s7_is_vector(sc->value)) || (is_string(sc->value))))
@@ -81833,7 +81839,13 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->safety_symbol)
     {
-      if (s7_is_integer(val)) {sc->safety = s7_integer(val); return(val);}
+      if (s7_is_integer(val)) 
+	{
+	  if ((s7_integer(val) > 2) || (s7_integer(val) < 0))
+	    return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be between 0 (no safety) and 2 (max safety)")));
+	  sc->safety = s7_integer(val); 
+	  return(val);
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
     }
 
@@ -84206,20 +84218,20 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
  * tmac          |      |      |      || 9052 ||  264 |  264   264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1036
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1165
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1476
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1921
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2138
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2117
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467
- * lint          |      |      |      || 4041 || 2702 | 2696  2743
+ * lint          |      |      |      || 4041 || 2702 | 2696  2745
  * lg            |      |      |      || 211  || 133  | 133.4
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2762
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2975
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2978
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3444
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
  * tsort         |      |      |      || 8584 || 4111 | 4111  4112
- * titer         |      |      |      || 5971 || 4646 | 4646  4662
- * bench         |      |      |      || 7012 || 5093 | 5143  5144
+ * titer         |      |      |      || 5971 || 4646 | 4646  4677
+ * bench         |      |      |      || 7012 || 5093 | 5143  5151
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7699
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.1
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9

@@ -6058,11 +6058,9 @@ Use the standard environment syntax to access these fields:
    more info in (*s7* 'history) for s7_apply_function, s7_call and s7_eval
    less aggressive optimization in with-let and lambda
    warnings about syntax redefinition
-2: incoming s7_pointer checks in some FFI functions
-   clm optimization off
+   incoming s7_pointer checks in some FFI functions
    bignum int to s7_int conversion checks
-3: all optimization off
-4: vector, string, and pair constants are immutable (but checks for this are currently sparse)
+2: vector, string, and pair constants are immutable (but checks for this are currently sparse)
 </pre>
 
 <p><code>(*s7* 'stacktrace-defaults)</code> is a list of four integers and a boolean that tell the error
