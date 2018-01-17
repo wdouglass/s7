@@ -379,6 +379,7 @@ static int32_t float_format_precision = WRITE_REAL_PRECISION;
 #endif
 
 #define DISPLAY(Obj) s7_object_to_c_string(sc, Obj)
+#define OPT_DISPLAY(Obj) s7_object_to_c_string(cur_sc, Obj)
 #define DISPLAY_80(Obj) object_to_truncated_string(sc, Obj, 80)
 
 typedef intptr_t opcode_t;
@@ -2911,6 +2912,7 @@ static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x);
 static void s7_warn(s7_scheme *sc, int32_t len, const char *ctrl, ...);
 static s7_pointer safe_reverse_in_place(s7_scheme *sc, s7_pointer list);
 static s7_pointer cons_unchecked(s7_scheme *sc, s7_pointer a, s7_pointer b);
+static s7_pointer cons_unchecked_with_type(s7_scheme *sc, s7_pointer p, s7_pointer a, s7_pointer b);
 static s7_pointer permanent_cons(s7_pointer a, s7_pointer b, uint64_t type);
 static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
 static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args);
@@ -7666,9 +7668,13 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
     {
       if (is_constant_symbol(sc, symbol))  /* (let-set! (rootlet) 'pi #f) */
 	return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, a_non_constant_symbol_string));
+
       y = global_slot(symbol);
       if (is_slot(y))
 	{
+	  if (is_syntax(slot_value(y)))
+	    return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, s7_make_string_wrapper(sc, "a non-syntactic keyword")));
+
 	  if (slot_has_setter(y))
 	    slot_set_value(y, call_setter(sc, y, value));
 	  else slot_set_value(y, value);
@@ -7694,20 +7700,6 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
       if (has_let_set_fallback(env))
 	apply_known_method(sc, env, sc->let_set_fallback_symbol, sc->w = list_3(sc, env, symbol, value));
     }
-#if 0 
-  /* why this? (let-ref (inlet 'a 1) 'lambda) -> lambda, but surely (let-set! (inlet 'a 1) 'lambda #f) should not clobber lambda! */
-  else
-    {
-      y = global_slot(symbol);
-      if (is_slot(y))
-	{
-	  if (slot_has_setter(y))
-	    slot_set_value(y, call_setter(sc, y, value));
-	  else slot_set_value(y, value);
-	  return(slot_value(y));
-	}
-    }
-#endif
 
   if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, symbol, env)));
@@ -8392,8 +8384,6 @@ static s7_pointer collect_parameters(s7_scheme *sc, s7_pointer lst, s7_pointer e
 }
 
 
-/* make macros and closures */
-
 typedef enum {OPT_F, OPT_T, OPT_OOPS} opt_t;
 static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e);
 
@@ -8524,10 +8514,31 @@ static int32_t closure_length(s7_scheme *sc, s7_pointer e)
 	return(slot_value(val));				    \
     }
 
+
+static s7_pointer copy_tree_with_type(s7_scheme *sc, s7_pointer tree)
+{
+  /* if sc->safety > 0, '(1 2) is set immutable by the reader, but eval (in that safety case) calls
+   *   copy_body on the incoming tree, so we have to preserve T_IMMUTABLE in that case.
+   */
+#if WITH_GCC
+  #define COPY_TREE_WITH_TYPE(P) ({s7_pointer _p; _p = P; \
+                                   cons_unchecked_with_type(sc, _p, (is_pair(car(_p))) ? copy_tree_with_type(sc, car(_p)) : car(_p), \
+                                                                    (is_pair(cdr(_p))) ? copy_tree_with_type(sc, cdr(_p)) : cdr(_p));})
+#else
+  #define COPY_TREE_WITH_TYPE(P) copy_tree_with_type(sc, P)
+#endif
+
+  return(cons_unchecked_with_type(sc, tree,
+				  (is_pair(car(tree))) ? COPY_TREE_WITH_TYPE(car(tree)) : car(tree),
+				  (is_pair(cdr(tree))) ? COPY_TREE_WITH_TYPE(cdr(tree)) : cdr(tree)));
+}
+
 static s7_pointer copy_tree(s7_scheme *sc, s7_pointer tree)
 {
 #if WITH_GCC
-  #define COPY_TREE(P) ({s7_pointer _p; _p = P; cons_unchecked(sc, (is_pair(car(_p))) ? copy_tree(sc, car(_p)) : car(_p), (is_pair(cdr(_p))) ? copy_tree(sc, cdr(_p)) : cdr(_p));})
+  #define COPY_TREE(P) ({s7_pointer _p; _p = P; \
+                         cons_unchecked(sc, (is_pair(car(_p))) ? copy_tree(sc, car(_p)) : car(_p), \
+                                            (is_pair(cdr(_p))) ? copy_tree(sc, cdr(_p)) : cdr(_p));})
 #else
   #define COPY_TREE(P) copy_tree(sc, P)
 #endif
@@ -8542,6 +8553,8 @@ static inline void annotate_expansion(s7_pointer p)
   if ((is_symbol(car(p))) &&
       (is_pair(cdr(p))))
     {
+      if (is_syntactic(car(p)))
+	set_car(p, syntax_symbol(slot_value(initial_slot(car(p))))); /* clear syntax opt */
       set_opt_back(p);
       set_overlay(cdr(p));
     }
@@ -8564,7 +8577,9 @@ static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
       while (8192 >= (sc->free_heap_top - sc->free_heap))
 	resize_heap(sc);
     }
-  sc->w = copy_tree(sc, p);
+  if (sc->safety > 0)
+    sc->w = copy_tree_with_type(sc, p);
+  else sc->w = copy_tree(sc, p);
   annotate_expansion(sc->w);
   p = sc->w;
   sc->w = sc->nil;
@@ -23816,10 +23831,10 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
       bytes = fread(content, sizeof(unsigned char), size, fp);
       if (bytes != (size_t)size)
 	{
-	  char tmp[256];
-	  int32_t len;
 	  if (sc->output_port != sc->F)
 	    {
+	      char tmp[256];
+	      int32_t len;
 	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" PRId64 "?", caller, name, (long)bytes, size);
 	      port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
 	    }
@@ -31005,6 +31020,16 @@ static s7_pointer cons_unchecked(s7_scheme *sc, s7_pointer a, s7_pointer b)
   /* apparently slightly faster as a function? */
   s7_pointer x;
   new_cell_no_check(sc, x, T_PAIR | T_SAFE_PROCEDURE);
+  set_car(x, a);
+  set_cdr(x, b);
+  return(x);
+}
+
+static s7_pointer cons_unchecked_with_type(s7_scheme *sc, s7_pointer p, s7_pointer a, s7_pointer b)
+{
+  /* apparently slightly faster as a function? */
+  s7_pointer x;
+  new_cell_no_check(sc, x, typeflag(p) & (0xff | T_IMMUTABLE | T_SAFE_PROCEDURE));
   set_car(x, a);
   set_cdr(x, b);
   return(x);

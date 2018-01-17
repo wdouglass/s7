@@ -4764,7 +4764,7 @@
 					 
 					 (else (cons '* val)))))
 				
-				((and (number? arg1)                  ; (* 2 (random 3.0)) -> (random 6.0)
+				((and (number? arg1)                  ; (* 2 (random 3.0)) -> (random 6.0) [except for (random 1)...
 				      (eq? (car arg2) 'random)
 				      (pair? (cdr arg2))
 				      (number? (cadr arg2))
@@ -5241,7 +5241,7 @@
 		    (integer-length (cadr form))
 		    form))
 	      (hash-table-set! h 'integer-length numintlen))
-	    
+
 	    (let ()
 	      (define (numsqrt args form env)
 		(cond ((not (pair? args))
@@ -5391,13 +5391,13 @@
 		(cond ((not (and (len=1? args)
 				 (number? (car args))))
 		       (cons 'random args))  
-		      ((eqv? (car args) 0)
+		      ((memv (car args) '(0 1 -1))
 		       0)
-		      ((morally-equal? (car args) 0.0)
+		      ((zero? (car args))
 		       0.0)
 		      (else (cons 'random args))))
 	      (hash-table-set! h 'random numran))
-	    
+
 	    (let ()
 	      (define (numcmplx args form env)
 		;; (complex (/ a b) (/ c b)) can't be simplified because a b c might be complex and
