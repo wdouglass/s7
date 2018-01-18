@@ -946,7 +946,7 @@ struct s7_scheme {
   uint32_t op_stack_size, max_stack_size;
 
   s7_cell **heap, **free_heap, **free_heap_top, **free_heap_trigger, **previous_free_heap_top;
-  int64_t heap_size, gc_freed;
+  int64_t heap_size, gc_freed, max_heap_size;
 
 #if WITH_HISTORY
   s7_pointer eval_history1, eval_history2, error_history;
@@ -1145,7 +1145,7 @@ struct s7_scheme {
 
   /* *s7* fields */
   s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol, 
-             free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol,
+             free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol, max_heap_size_symbol,
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
              catches_symbol, exits_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
@@ -3193,7 +3193,7 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OP_CLOSURE_S, HOP_CLOSURE_S, OP_CLOSURE_C, HOP_CLOSURE_C, OP_CLOSURE_P, HOP_CLOSURE_P, 
       OP_CLOSURE_SS, HOP_CLOSURE_SS, OP_CLOSURE_SS_P, HOP_CLOSURE_SS_P, 
       OP_CLOSURE_SC, HOP_CLOSURE_SC, OP_CLOSURE_CS, HOP_CLOSURE_CS,
-      OP_CLOSURE_A, HOP_CLOSURE_A, OP_CLOSURE_AA, HOP_CLOSURE_AA, OP_CLOSURE_A_P, HOP_CLOSURE_A_P,
+      OP_CLOSURE_A, HOP_CLOSURE_A, OP_CLOSURE_AA, HOP_CLOSURE_AA, OP_CLOSURE_A_P, HOP_CLOSURE_A_P, OP_CLOSURE_AA_P, HOP_CLOSURE_AA_P,
       OP_CLOSURE_ALL_X, HOP_CLOSURE_ALL_X, OP_CLOSURE_ALL_S, HOP_CLOSURE_ALL_S, OP_CLOSURE_ALL_S_P, HOP_CLOSURE_ALL_S_P,
       OP_CLOSURE_FA, HOP_CLOSURE_FA,
       OP_CLOSURE_AP, HOP_CLOSURE_AP, OP_CLOSURE_PA, HOP_CLOSURE_PA, 
@@ -3214,7 +3214,7 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OP_SAFE_CLOSURE_S_P, HOP_SAFE_CLOSURE_S_P, OP_SAFE_LCLOSURE_L_P, HOP_SAFE_LCLOSURE_L_P, 
       OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, OP_SAFE_CLOSURE_S_C, HOP_SAFE_CLOSURE_S_C,
       OP_SAFE_CLOSURE_A_C, HOP_SAFE_CLOSURE_A_C, 
-      OP_SAFE_CLOSURE_ALL_X, HOP_SAFE_CLOSURE_ALL_X, OP_SAFE_CLOSURE_AA, HOP_SAFE_CLOSURE_AA,
+      OP_SAFE_CLOSURE_ALL_X, HOP_SAFE_CLOSURE_ALL_X, OP_SAFE_CLOSURE_AA, HOP_SAFE_CLOSURE_AA, OP_SAFE_CLOSURE_AA_P, HOP_SAFE_CLOSURE_AA_P,
       OP_SAFE_CLOSURE_AP, HOP_SAFE_CLOSURE_AP, OP_SAFE_CLOSURE_PA, HOP_SAFE_CLOSURE_PA, 
 
       OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
@@ -3419,7 +3419,7 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "closure_s", "h_closure_s", "closure_c", "h_closure_c", "closure_p", "h_closure_p", 
       "closure_ss", "h_closure_ss", "closure_ss_p", "h_closure_ss_p", 
       "closure_sc", "h_closure_sc", "closure_cs", "h_closure_cs",
-      "closure_a", "h_closure_a", "closure_aa", "h_closure_aa", "closure_a_p", "h_closure_a_p", 
+      "closure_a", "h_closure_a", "closure_aa", "h_closure_aa", "closure_a_p", "h_closure_a_p", "closure_aa_p", "h_closure_aa_p", 
       "closure_all_x", "h_closure_all_x", "closure_all_s", "h_closure_all_s", "closure_all_s_p", "h_closure_all_s_p",
       "closure_fa", "h_closure_fa",
       "closure_ap", "h_closure_ap", "closure_pa", "h_closure_pa", 
@@ -3439,7 +3439,7 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "safe_closure_s_p", "h_safe_closure_s_p", "safe_lclosure_l_p", "h_safe_lclosure_l_p", 
       "safe_closure_saa", "h_safe_closure_saa", "safe_closure_s_c", "h_safe_closure_s_c",
       "safe_closure_a_c", "h_safe_closure_a_c", 
-      "safe_closure_all_x", "h_safe_closure_all_x", "safe_closure_aa", "h_safe_closure_aa",
+      "safe_closure_all_x", "h_safe_closure_all_x", "safe_closure_aa", "h_safe_closure_aa", "safe_closure_aa_p", "h_safe_closure_aa_p",
       "safe_closure_ap", "h_safe_closure_ap", "safe_closure_pa", "h_safe_closure_pa", 
 
       "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
@@ -5195,8 +5195,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
   sc->free_heap_top = sc->free_heap + old_free; /* incremented below, added old_free 21-Aug-12?!? */
 
-  /* optimization suggested by K Matheussen */
-  cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell));
+  cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell)); /* optimization suggested by K Matheussen */
   for (p = cells, k = old_size; k < sc->heap_size;)
     {
       sc->heap[k] = p;
@@ -5215,24 +5214,16 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->previous_free_heap_top = sc->free_heap_top;
 
   if (show_heap_stats(sc))
+    fprintf(stderr, "heap grows to %" PRId64 " (old free/size: %" PRId64 "/%" PRId64 ")\n", sc->heap_size, old_free, old_size);
+
+  if (sc->heap_size >= sc->max_heap_size)
     {
-      fprintf(stderr, "heap grows to %" PRId64 " (old free/size: %" PRId64 "/%" PRId64 ")\n", sc->heap_size, old_free, old_size);
-#if 0
-      {
-	s7_pointer old_out;
-	old_out = sc->output_port;
-	sc->output_port = sc->standard_error;
-	describe_memory_usage(sc);
-	sc->output_port = old_out;
-      }
-#endif
 #if DEBUGGING
-      if (sc->heap_size > 50000000) /* maybe a max-heap-size? */
-	{
-	  s7_show_let(sc);
-	  abort();
-	}
+      fprintf(stderr, "heap %" PRId64 ", %s\n", sc->heap_size, DISPLAY(sc->cur_code));
+      s7_show_let(sc);
+      abort();
 #endif
+      s7_error(sc, s7_make_symbol(sc, "heap-too-big"), set_elist_1(sc, s7_make_string_wrapper(sc, "heap has grown past (*s7* 'max-heap-size)")));
     }
 }
 
@@ -19918,7 +19909,7 @@ sign of 'x' (1 = positive, -1 = negative).  (integer-decode-float 0.0): (0 0 1)"
 /* -------------------------------- logior -------------------------------- */
 static s7_pointer g_logior(s7_scheme *sc, s7_pointer args)
 {
-  #define H_logior "(logior int32_t ...) returns the bitwise OR of its integer arguments (the bits that are on in any of the arguments)"
+  #define H_logior "(logior int32_t ...) returns the OR of its integer arguments (the bits that are on in any of the arguments)"
   #define Q_logior pcl_i
   s7_int result = 0;
   s7_pointer x;
@@ -19938,7 +19929,7 @@ static s7_int logior_i_ii(s7_int i1, s7_int i2) {return(i1 | i2);}
 /* -------------------------------- logxor -------------------------------- */
 static s7_pointer g_logxor(s7_scheme *sc, s7_pointer args)
 {
-  #define H_logxor "(logxor int32_t ...) returns the bitwise XOR of its integer arguments (the bits that are on in an odd number of the arguments)"
+  #define H_logxor "(logxor int32_t ...) returns the XOR of its integer arguments (the bits that are on in an odd number of the arguments)"
   #define Q_logxor pcl_i
   s7_int result = 0;
   s7_pointer x;
@@ -19958,7 +19949,7 @@ static s7_int logxor_i_ii(s7_int i1, s7_int i2) {return(i1 ^ i2);}
 /* -------------------------------- logand -------------------------------- */
 static s7_pointer g_logand(s7_scheme *sc, s7_pointer args)
 {
-  #define H_logand "(logand int32_t ...) returns the bitwise AND of its integer arguments (the bits that are on in every argument)"
+  #define H_logand "(logand int32_t ...) returns the AND of its integer arguments (the bits that are on in every argument)"
   #define Q_logand pcl_i
   s7_int result = -1;
   s7_pointer x;
@@ -19979,7 +19970,7 @@ static s7_int logand_i_ii(s7_int i1, s7_int i2) {return(i1 & i2);}
 
 static s7_pointer g_lognot(s7_scheme *sc, s7_pointer args)
 {
-  #define H_lognot "(lognot num) returns the bitwise negation (the complement, the bits that are not on) in num: (lognot 0) -> -1"
+  #define H_lognot "(lognot num) returns the negation of num (its complement, the bits that are not on): (lognot 0) -> -1"
   #define Q_lognot pcl_i
   if (!s7_is_integer(car(args)))
     method_or_bust_one_arg(sc, car(args), sc->lognot_symbol, args, T_INTEGER);
@@ -35584,7 +35575,7 @@ static s7_pointer g_vector_dimensions(s7_scheme *sc, s7_pointer args)
 
 static int32_t traverse_vector_data(s7_scheme *sc, s7_pointer vec, int32_t flat_ref, int32_t dimension, int32_t dimensions, int32_t *sizes, s7_pointer lst)
 {
-  /* we're filling vec, we're currently looking for element (flat-wise) flat_ref,
+  /* we're filling vec, we're currently looking for element flat_ref,
    *   we're at ref in dimension of dimensions, where sizes gives the bounds, and lst is our data
    *   #3D(((1 2 3) (4 5 6)) ((7 8 9) (10 11 12)))
    */
@@ -46964,7 +46955,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	    case HOP_SAFE_C_S:
 	      {
 		bool is_local;
-		is_local = (is_local_symbol(cdr(arg)) || ((is_immutable(cadr(arg))) && (!is_keyword(cadr(arg)))));
+		is_local = is_local_symbol(cdr(arg));
 		if (car(arg) == sc->cdr_symbol) return((is_local) ? local_x_cdr_s : all_x_cdr_s);
 		if (car(arg) == sc->car_symbol) return((is_local) ? local_x_car_s : all_x_car_s);
 		if (car(arg) == sc->cadr_symbol) return((is_local) ? local_x_cadr_s : all_x_cadr_s);
@@ -59780,7 +59771,9 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      (!arglist_has_rest(sc, closure_args(func))))
 	    {
 	      set_unsafely_optimized(expr);
-	      set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
+	      if (is_pair(cdr(closure_body(func))))
+		set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
+	      else set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_AA_P : OP_CLOSURE_AA_P));
 	      set_opt_lambda(expr, func);
 	      return(OPT_F);
 	    }
@@ -60324,9 +60317,9 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	    {
 	      if (is_symbol(arg1))
 		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SA);
-	      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA);
+	      else set_optimize_op(expr, hop + ((is_pair(cdr(closure_body(func)))) ? OP_SAFE_CLOSURE_AA : OP_SAFE_CLOSURE_AA_P));
 	    }
-	  else set_optimize_op(expr, hop + OP_CLOSURE_AA);
+	  else set_optimize_op(expr, hop + ((is_pair(cdr(closure_body(func)))) ? OP_CLOSURE_AA : OP_CLOSURE_AA_P));
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt_lambda(expr, func);
 	  set_arglist_length(expr, small_int(2));
@@ -68541,7 +68534,7 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
    *   template in the car of the closure, binding as we go.
    *
    * for each actual arg, if it's not a keyword that matches a member of the
-   *   template, bind it to its current (place-wise) arg, else bind it to
+   *   template, bind it to its current (place) arg, else bind it to
    *   that arg.  If it's :rest bind the next arg to the trailing args at this point.
    *   All args can be accessed by their name as a keyword.
    *
@@ -72632,8 +72625,23 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    z = c_call(args)(sc, car(args));
 		    sc->envir = old_frame_with_two_slots(sc, closure_let(opt_lambda(code)), sc->t_temps[tx], z);
 		    sc->code = _TPair(closure_body(opt_lambda(code)));
-		    sc->t_temps[tx] = sc->F;
 		    goto BEGIN1;
+		  }
+		  
+		case OP_SAFE_CLOSURE_AA_P:
+		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}
+		case HOP_SAFE_CLOSURE_AA_P:
+		  {
+		    s7_pointer args, z;
+		    int32_t tx;
+		    tx = next_tx(sc);
+		    args = cdr(code);
+		    sc->t_temps[tx] = c_call(args)(sc, car(args));
+		    args = cdr(args);
+		    z = c_call(args)(sc, car(args));
+		    sc->envir = old_frame_with_two_slots(sc, closure_let(opt_lambda(code)), sc->t_temps[tx], z);
+		    sc->code = car(closure_body(opt_lambda(code)));
+		    goto EVAL;
 		  }
 		  
 		case OP_SAFE_CLOSURE_SAA:
@@ -73009,8 +73017,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    args = closure_args(f);
 		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, car(args), sc->t_temps[tx], cadr(args), c_call(cdr(a_args))(sc, cadr(a_args)));
 		    sc->code = _TPair(closure_body(f));
-		    sc->t_temps[tx] = sc->F;
 		    goto BEGIN1;
+		  }
+
+		case OP_CLOSURE_AA_P:
+		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}		  
+		case HOP_CLOSURE_AA_P:
+		  {
+		    s7_pointer f, args, a_args;
+		    int32_t tx;
+		    check_stack_size(sc);
+		    tx = next_tx(sc);
+		    a_args = cdr(code);
+		    sc->t_temps[tx] = c_call(a_args)(sc, car(a_args));
+		    f = opt_lambda(sc->code);
+		    args = closure_args(f);
+		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, car(args), sc->t_temps[tx], cadr(args), c_call(cdr(a_args))(sc, cadr(a_args)));
+		    sc->code = car(closure_body(f));
+		    goto EVAL;
 		  }
 
 		case OP_CLOSURE_AP:
@@ -74031,6 +74055,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      /* set_immutable(sc->code); */ /* obsolete */
 	      set_possibly_constant(sc->code);
 	      set_immutable(slot);
+	      if (is_any_closure(slot_value(slot))) 
+		set_immutable(slot_value(slot)); /* for the optimizer mainly */
 	    }
 	  break;
 	  
@@ -81446,6 +81472,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->safety_symbol =                        s7_let_field(sc, "safety");
   sc->undefined_identifier_warnings_symbol = s7_let_field(sc, "undefined-identifier-warnings");
   sc->gc_stats_symbol =                      s7_let_field(sc, "gc-stats");
+  sc->max_heap_size_symbol =                 s7_let_field(sc, "max-heap-size");
   sc->max_stack_size_symbol =                s7_let_field(sc, "max-stack-size");
   sc->cpu_time_symbol =                      s7_let_field(sc, "cpu-time");
   sc->catches_symbol =                       s7_let_field(sc, "catches");
@@ -81672,6 +81699,8 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->stack_symbol)                                           /* stack */
     return(stack_entries(sc, sc->stack, s7_stack_top(sc)));
 
+  if (sym == sc->max_heap_size_symbol)                                   /* max-heap-size */
+    return(s7_make_integer(sc, sc->max_heap_size));
   if (sym == sc->heap_size_symbol)                                       /* heap-size */
     return(s7_make_integer(sc, sc->heap_size));
   if (sym == sc->free_heap_size_symbol)                                  /* free-heap-size (number of unused cells in the heap) */
@@ -81858,6 +81887,22 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	      return(val);
 	    }
 	  return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be greater than the initial stack size (512)")));
+	}
+      return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+    }
+
+  if (sym == sc->max_heap_size_symbol)
+    {
+      if (s7_is_integer(val))
+	{
+	  s7_int size;
+	  size = s7_integer(val);
+	  if (size > 0)
+	    {
+	      sc->max_heap_size = size;
+	      return(val);
+	    }
+	  return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be greater than 0")));
 	}
       return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
     }
@@ -82321,6 +82366,7 @@ s7_scheme *s7_init(void)
  	heap_location(sc->heap[i]) = i;
      }
   }
+  sc->max_heap_size = (1LL << 62);
 
   /* this has to precede s7_make_* allocations */
   sc->protected_objects_size = INITIAL_PROTECTED_OBJECTS_SIZE;
@@ -84245,23 +84291,23 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1476
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1921
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2117
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1926
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2102
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467
- * lint          |      |      |      || 4041 || 2702 | 2696  2745
- * lg            |      |      |      || 211  || 133  | 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2762
+ * lint          |      |      |      || 4041 || 2702 | 2696  2691
+ * lg            |      |      |      || 211  || 133  | 133.4 133.4
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2765
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2978
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3444
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
- * tsort         |      |      |      || 8584 || 4111 | 4111  4112
- * titer         |      |      |      || 5971 || 4646 | 4646  4677
- * bench         |      |      |      || 7012 || 5093 | 5143  5151
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7699
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.1
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4111
+ * titer         |      |      |      || 5971 || 4646 | 4646  4646
+ * bench         |      |      |      || 7012 || 5093 | 5143  5144
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7703
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0
- *                                    || 139  || 85.9 | 86.5
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1
+ *                                    || 139  || 85.9 | 86.5  87.4
  * 
  * --------------------------------------------------------------
  */
