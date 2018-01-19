@@ -46986,7 +46986,13 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 		    if (car(arg) == sc->is_symbol_symbol) return(local_x_is_symbol_s);
 		  }
 	      return(local_x_c_s);
-	      
+
+	    case HOP_SAFE_CAR_S:
+	      return((is_local_symbol(cdr(arg))) ? local_x_car_s : all_x_car_s);
+
+	    case HOP_SAFE_CDR_S:
+	      return((is_local_symbol(cdr(arg))) ? local_x_cdr_s : all_x_cdr_s);
+
 	    case HOP_SAFE_C_opSq:
 	      if (car(arg) == sc->not_symbol)   return((is_local_symbol(cdadr(arg))) ? local_x_c_not_opsq : all_x_c_not_opsq);
 	      if (caadr(arg) == sc->car_symbol) 
@@ -48399,6 +48405,9 @@ static bool d_d_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
       opc->v3.d_d_f = func;
       if (is_real(cadr(car_x)))
 	{
+	  if ((!is_float(cadr(car_x))) &&                          /* (random 1) != (random 1.0) */
+	      (car(car_x) == sc->random_symbol))
+	    return(return_false(sc, car_x, __func__, __LINE__));
 	  opc->v1.x = s7_number_to_real(sc, cadr(car_x));
 	  opc->v7.fd = opt_d_d_c;
 	  return(true);
@@ -62679,7 +62688,7 @@ static s7_pointer optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_point
 	  /* this is really tricky.  If a function has been defined earlier locally, it has no global slot.
 	   *   If it is later defined globally, make_slot creates the global slot but does not touch the
 	   *   (possibly free) local slot (it can't because as s7test 24981 shows, both can be in play).
-	   *   If we than use the local_symbol mark set here to call (say) OP_LCLOSURE_A, it looks at
+	   *   If we then use the local_symbol mark set here to call (say) OP_LCLOSURE_A, it looks at
 	   *   the local_slot.  If that is invalid (normally a free_cell), oops... So the code above,
 	   *   checks for a global function that has been previously defined locally.  
 	   */
@@ -72629,7 +72638,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		  
 		case OP_SAFE_CLOSURE_AA_P:
-		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}
+		  if (!closure_is_equal(sc, code)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}
 		case HOP_SAFE_CLOSURE_AA_P:
 		  {
 		    s7_pointer args, z;
@@ -73021,7 +73030,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 
 		case OP_CLOSURE_AA_P:
-		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}		  
+		  if (!closure_is_equal(sc, code)) {if (unknown_aa_ex(sc, sc->last_function) == goto_OPT_EVAL) goto OPT_EVAL; break;}		  
 		case HOP_CLOSURE_AA_P:
 		  {
 		    s7_pointer f, args, a_args;
@@ -75633,17 +75642,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  check_letrec(sc, true);
 	  
 	case OP_LETREC_UNCHECKED:
-	  /* get all local vars and set to #<undefined>
-	   * get parallel list of values
-	   * eval each member of values list with env still full of #<undefined>'s
-	   * assign each value to its variable
-	   * eval body
-	   *
+	  /*   get all local vars and set to #<undefined>
+	   *   get parallel list of values
+	   *   eval each member of values list with env still full of #<undefined>'s
+	   *   assign each value to its variable
+	   *   eval body
 	   * which means that (letrec ((x x)) x) is not an error!
 	   * but this assumes the environment is not changed by evaluating the exprs?
 	   * (letrec ((a (define b 1))) b) -- if let, the define takes place in the calling env, not the current env
 	   * (letrec ((f1 (lambda (x) (f2 (* 2 x))))) (define (f2 y) (- y 1)) (f1 3)) -> 5 (Guile says unbound f2)
-	   *
 	   * I think I need to check here that slot_pending_value is set (using the is_checked bit below).
 	   */
 	  sc->envir = new_frame_in_env(sc, sc->envir);

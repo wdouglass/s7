@@ -6515,6 +6515,12 @@
 		     (if (len=3? arg)
 			 (lint-format "perhaps ~A" caller (lists->string form (list 'list-ref (cadr arg) (caddr arg))))))
 
+		    ((list)                        ; (car (list x ...)) -> x, (car (list)) is handled elsewhere, (car (cons...)) is below
+		     (lint-format "perhaps ~A" caller (lists->string form (cadr arg))))
+
+		    ((append)                      ; (car (append x ...)) -> (car x)
+		     (lint-format "perhaps ~A" caller (lists->string form (list 'car (cadr arg)))))
+
 		    ((memq memv member assq assv assoc)
 		     (if (pair? (cdr arg))         ; (car (memq x ...)) is either x or (car #f) -> error
 			 (lint-format "~A is ~A, or an error" caller (truncated-list->string form) (cadr arg))))))
