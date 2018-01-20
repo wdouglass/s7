@@ -1068,7 +1068,6 @@ struct s7_scheme {
   int32_t ht_iter_tag, baffle_ctr, bignum_precision;
   s7_pointer default_rng;
 
-  /* these symbols are primarily for the generic function search */
   s7_pointer abs_symbol, acos_symbol, acosh_symbol, add_symbol, angle_symbol, append_symbol, apply_symbol, apply_values_symbol, arity_symbol,
              ash_symbol, asin_symbol, asinh_symbol, assoc_symbol, assq_symbol, assv_symbol, atan_symbol, atanh_symbol,
              autoload_symbol, autoloader_symbol,
@@ -47324,8 +47323,6 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
 
 #define OPT_PRINT 0
 
-/* t600 has tests, t593 runs t*.scm */
-
 static bool return_false(s7_scheme *sc, s7_pointer expr, const char *func, int32_t line)
 {
 #if OPT_PRINT
@@ -48251,7 +48248,8 @@ static bool i_syntax_ok(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	      (symbol_has_setter(cadr(car_x))))
 	    return(return_false(sc, car_x, __func__, __LINE__));
 	  settee = find_symbol(sc, cadr(car_x));
-	  if (is_slot(settee))
+	  if ((is_slot(settee)) &&
+	      (!is_immutable(settee)))
 	    {
 	      opc->v1.p = settee;
 	      if ((is_integer(slot_value(settee))) &&
@@ -50092,7 +50090,8 @@ static bool d_syntax_ok(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	      (symbol_has_setter(cadr(car_x))))
 	    return(return_false(sc, car_x, __func__, __LINE__));
 	  settee = find_symbol(sc, cadr(car_x));
-	  if (is_slot(settee))
+	  if ((is_slot(settee)) &&
+	      (!is_immutable(settee)))
 	    {
 	      opc->v1.p = settee;
 	      if ((is_t_real(slot_value(settee))) &&
@@ -52611,6 +52610,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 	return(return_false(sc, car_x, __func__, __LINE__));
       settee = find_symbol(sc, cadr(car_x));
       if ((is_slot(settee)) &&
+	  (!is_immutable(settee)) &&
 	  (!is_syntax(slot_value(settee))))
 	{
 	  /* type changes here can confuse the rest of the optimizer */
@@ -55529,7 +55529,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer args)
       
       old_e = sc->envir;
       pars = closure_args(f);
-      sc->envir = new_frame_in_env(sc, sc->envir);
+      sc->envir = new_frame_in_env(sc, closure_let(f)); /* (for-each (let ((x 0)) (lambda ....)) ...), so closure_let(f) */
       if (is_pair(seq))
 	slot = make_slot_1(sc, sc->envir, car(pars), sc->F);
       else
@@ -84259,10 +84259,10 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * lint no-gmp (< int most-negative-fixnum) etc?
- * with-let signature? (i.e. guarantee types etc) or local safety/optimize setting == -1? (let-temporarily (((*s7* 'safety) -1)) (with-let...))?
- *   or maybe opt/unopt choice made at call-time (if in loop??)
- *   need non-numeric safety choices = bits -- maybe (*s7* 'speed|optimize)?
+ * let signature? (i.e. declare types etc): (inlet 'a 1 'b 2 'signature (lambda (obj) (circular-list 'integer?)
+ *   but order in let is unspecified: maybe (since obj passed as arg) calc first time called?
+ *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
+ *   too clumsy, and type should accompany var/val [procedure args?]
  * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)

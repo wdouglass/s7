@@ -3,9 +3,12 @@
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
 (load "stuff.scm")
-;(load "write.scm")
+(load "write.scm")
+
+;(set! (*s7* 'safety) 1)
 
 (set! (*s7* 'max-stack-size) 32768)
+(set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
 (set! (*s7* 'gc-stats) 6)
 (set! (*s7* 'print-length) 1000)
 (define ostr "")
@@ -217,7 +220,7 @@
   `(member 1 (list 3 2) (lambda (a b) ,@args)))
 
 (define-expansion (_mem2_ . args)
-  `(begin ((lambda (a b) ,@args) 1 3) ((lambda (a b) ,@args) 1 2) #f))
+  `(assoc 1 (list (list 3 2) (cons 2 2)) (lambda (a b) ,@args)))
 
 (define-expansion (_ft1_ . args)
   `(let ((_f_ (lambda () ,@args))) (_f_) (_f_)))
@@ -227,6 +230,12 @@
 
 (define-expansion (_lt2_ . args)
   `(let ((mx max)) ((lambda* ((max min) (min mx)) ,@args))))
+
+(define-expansion (_rf1_ . args)
+  `(let ((y 0)) (define (_rf11_ i x) (if (> i 0) (_rf11_ (- i 1) x) (x))) (_rf11_ 1 (lambda () ,@args))))
+
+(define-expansion (_rf2_ . args) 
+  `(let () (define (_rf22_ i x) (if (> i 0) (_rf22_ (- i 1) x) (x i))) (_rf22_ 1 (lambda (y) (begin ,@args)))))
 
 (set! (hook-functions *unbound-variable-hook*) ())
 
@@ -351,19 +360,14 @@
 			  'list-values 'random-state 'byte-vector? 'openlet? 'iterator? 
 			  'string->byte-vector
 
-			  's7-memory-usage 
-			  ;;'s7-safety 's7-set-safety ;-- these need work...
 #|
 			  's7-profile-info 
 			  's7-undefined-identifier-warnings 
                           ;'s7-autoloading? 
-			  's7-catches 's7-exits 's7-c-types 
+			  's7-catches 's7-exits 
 			  's7-stack-top 's7-stack 's7-stacktrace-defaults 
 			  's7-symbol-table 
 			  's7-gc-protected-objects
-			  ;'s7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 
-			  ;'s7-gc-stats
-			  
 
 			  's7-set-print-length 
 			  's7-set-max-string-length 
@@ -375,8 +379,16 @@
 			  's7-set-undefined-identifier-warnings 's7-set-autoloading? 's7-set-max-stack-size
 			  's7-set-stacktrace-defaults
 			  's7-set-gc-stats
+			  ;;'s7-set-default-rationalize-error
+			  ;;'s7-set-morally-equal-float-epsilon 
+			  ;;'s7-set-hash-table-float-epsilon 
+			  ;;'s7-set-bignum-precision 
+			  ;;'s7-set-float-format-precision
 |#
-			  ;;'s7-history -- causes stack to grow?
+			  's7-memory-usage 
+			  ;'s7-safety 's7-set-safety ;-- these need work...
+			  's7-c-types 
+			  ;;'s7-history ;-- causes stack to grow?
 			  's7-print-length 's7-max-string-length 's7-max-list-length 's7-max-vector-length 's7-max-vector-dimensions 's7-default-hash-table-length
 			  's7-initial-string-port-length 's7-history-size
 			  's7-default-rationalize-error 's7-morally-equal-float-epsilon
@@ -387,12 +399,6 @@
 			  's7-file-names
 			  's7-autoloading?
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
-
-			  ;;'s7-set-default-rationalize-error
-			  ;;'s7-set-morally-equal-float-epsilon 
-			  ;;'s7-set-hash-table-float-epsilon 
-			  ;;'s7-set-bignum-precision 
-			  ;;'s7-set-float-format-precision
 
 			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'unspecified? 'block-append 'undefined? 'block-let
 
@@ -408,7 +414,7 @@
 			  'log-n-of ; stack grows if n < 0?
 
 			  'kar
-			  ;'pp
+			  'pp
 			  ))
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
@@ -418,12 +424,12 @@
 		    ;;"1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" 
 		    "cons" "''2" "\"ra\""
 		    "(make-hook)" "(make-hook '__x__)"
-		    "1+i" "0+i" 
+		    "1+i" "0+i" "(ash 1 43)" 
 		    "(integer->char 255)" "(string (integer->char 255))" "(string #\\null)" "(byte-vector 0)"
 		    ;;"most-positive-fixnum" "most-negative-fixnum"
 		    "pi" "nan.0" "inf.0"
 		    "(list)" "(string)" "#r()" "#u8()" "(vector)" "#i()" "(make-iterator #(1 2))" "#i(1)"
-		    "0" "1" "1.0" "-1.0" "1.0+123.0i" "3/4" "(make-vector 3)" "(make-string 3)" "(make-vector '(2 3))"
+		    "0" "1" "2" "3" "4" "1.0" "-1.0" "1.0+123.0i" "3/4" "(make-vector 3)" "(make-string 3)" "(make-vector '(2 3))"
 		    "'((1 2) (3 4))" "'((1 (2)) (((3) 4)))" "(byte-vector 255)" 
 		    "#(1 2)" "(vector 1 '(3))" "(let ((x 3)) (lambda (y) (+ x y)))" "abs" "(lambda sym-args sym-args)" "#u8(0 1)"
 		    "(dilambda (lambda () 1) (lambda (a) a))" "quasiquote" "macroexpand" "(lambda* ((a 1) (b 2)) (+ a b))" 
@@ -475,6 +481,11 @@
 		    "(immutable! (hash-table* 'a 1 'b 2))"
 		    "(immutable! (list 0 1 2))"
 		    ;"(immutable! 'x)"
+
+		    "(make-list 128 0)" "(make-vector 128 0)" "(make-int-vector 128 0)" "(make-float-vector 128 0)" "(make-byte-vector 128 0)"
+		    "(make-string 128 #\\0)"
+		    "(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 128) hash) (hash-table-set! hash i 0)))"
+		    "(let ((lt (inlet))) (do ((i 0 (+ i 1))) ((= i 128) lt) (varlet lt (symbol \"i\" (number->string i)) 0)))"
 		    
 		    " #| a comment |# "
 		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
@@ -486,7 +497,6 @@
 		    ))
 
       (codes (vector 
-
 	      (list "(do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (set! x " "(let ((x 0) (i 0)) (set! x ")
 	      (list "(let () (let () " "((lambda () ")
 	      (list "((lambda x " "((lambda* ((x ())) ")
@@ -498,7 +508,7 @@
 	      (list "(cond ((not false) " "(unless false (begin ")
 	      (list "(list (let-temporarily ((x 1)) " "(list (let ((x 1)) ")
 	      (list "(begin (_dw_ " "((lambda () ")
-	      (list "(begin (vector " "(apply vector (list ")
+	      (list "(begin (append " "(apply append (list ")
 	      (list "(begin (with-let (inlet 'i 0) " "(with-let (inlet) (let ((i 0)) ")
 	      (list "(list (_cw_ " "(list (values ")
 	      (list "(set! __var1__ (list " "(list (let () ")
@@ -515,7 +525,8 @@
 	      (list "(list (when (not false) " "(list (begin ")
 	      (list "(with-output-to-string (lambda () " "(begin (_dw_out_ ")
 	      (list "(list (let _m_ " "(list (let* _m_ ")
-	      
+	      (list "(vector-set! (vector 0) 0 (list " "(hash-table-set! (hash-table) 'a (list ")
+	      (list "(list (_rf1_ " "(list (_rf2_ ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -537,8 +548,7 @@
 	((do) "do ((i 0 (+ i 1))) ((= i 1) 1)")
 	((call-with-output-file) "call-with-output-file \"/dev/null\" ")
 	((with-output-to-file) "with-output-to-file \"/dev/null\" ")
-	((define define* define-macro define-macro* define-bacro define-bacro*)
-	 (format #f "~A _definee_ " op))
+	((define define* define-macro define-macro* define-bacro define-bacro*) (format #f "~A _definee_ " op))
 	((format) "format #t ")
 	((eval) "checked-eval")
 	(else (symbol->string op))))
@@ -626,6 +636,57 @@
 	;(format #t "~A~%" (substring str 0 j))
 	(substring str 0 j)))
 
+    (define (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
+      (if (and (eq? (type-of val1) (type-of val2))
+	       (eq? (type-of val1) (type-of val3))
+	       (eq? (type-of val1) (type-of val4)))
+	  (unless (or (openlet? val1)
+		      (string-position "set!" str1)
+		      (string-position "gensym" str1))
+	    (if (or (and (symbol? val1)
+			 (not (gensym? val1)))
+		    (boolean? val1)
+		    (syntax? val1))
+		(if (not (and (eq? val1 val2)
+			      (eq? val1 val3)
+			      (eq? val1 val4)))
+		    (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%~%" 
+			    str str1 str2 str3 str4 
+			    val1 val2 val3 val4))
+		(if (sequence? val1)
+		    (let ((len1 (length val1)))
+		      (if (not (and (eqv? len1 (length val2))
+				    (eqv? len1 (length val3))
+				    (eqv? len1 (length val4))))
+			  (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+				  str str1 str2 str3 str4 
+				  val1 val2 val3 val4))
+		      (if (or (and (string? val1)
+				   (not (and (eq? (byte-vector? val1) (byte-vector? val2))
+					     (eq? (byte-vector? val1) (byte-vector? val3))
+					     (eq? (byte-vector? val1) (byte-vector? val4)))))
+			      (and (gensym? val1)
+				   (not (and (gensym? val2) (gensym? val3) (gensym? val4))))
+			      (and (keyword? val1)
+				   (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
+			  (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+				  str str1 str2 str3 str4 
+				  val1 val2 val3 val4)
+			  (if (and (> len1 0)
+				   (not (memq (type-of val1) '(hash-table? let?))))
+			    (same-type? (val1 0) (val2 0) (val3 0) (val4 0) str str1 str2 str3 str4)))))))
+	  (begin
+	    (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
+		    str1 str2 str3 str4 
+		    val1 val2 val3 val4)
+	    (if (or (eq? val1 'error)
+		    (eq? val2 'error)
+		    (eq? val3 'error)
+		    (eq? val4 'error))
+		(format *stderr* "    ~S ~S~%" 
+			error-type error-info))
+	    (format *stderr* "~%~%"))))
+
     (define (eval-it str) ;(format #t "~A~%" str)
       (catch #t 
 	(lambda ()
@@ -654,52 +715,7 @@
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
-	  (if (and (eq? (type-of val1) (type-of val2))
-		   (eq? (type-of val1) (type-of val3))
-		   (eq? (type-of val1) (type-of val4)))
-	      (unless (or (let? val1)
-			  (string-position "set!" str1)
-			  (string-position "gensym" str1))
-		(if (or (and (symbol? val1)
-			     (not (gensym? val1)))
-			(boolean? val1)
-			(syntax? val1))
-		    (if (not (and (eq? val1 val2)
-				  (eq? val1 val3)
-				  (eq? val1 val4)))
-			(format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%~%" 
-				str str1 str2 str3 str4 
-				val1 val2 val3 val4))
-		    (if (sequence? val1)
-			(let ((len1 (length val1)))
-			  (if (not (and (eqv? len1 (length val2))
-					(eqv? len1 (length val3))
-					(eqv? len1 (length val4))))
-			      (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
-				      str str1 str2 str3 str4 
-				      val1 val2 val3 val4))
-			  (if (or (and (string? val1)
-				       (not (and (eq? (byte-vector? val1) (byte-vector? val2))
-						 (eq? (byte-vector? val1) (byte-vector? val3))
-						 (eq? (byte-vector? val1) (byte-vector? val4)))))
-				  (and (gensym? val1)
-				       (not (and (gensym? val2) (gensym? val3) (gensym? val4))))
-				  (and (keyword? val1)
-				       (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
-			      (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
-				      str str1 str2 str3 str4 
-				      val1 val2 val3 val4))))))
-	      (begin
-		(format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
-			str1 str2 str3 str4 
-			val1 val2 val3 val4)
-		(if (or (eq? val1 'error)
-			(eq? val2 'error)
-			(eq? val3 'error)
-			(eq? val4 'error))
-		    (format *stderr* "    ~S ~S~%" 
-			    error-type error-info))
-		(format *stderr* "~%~%"))))))
+	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4))))
 
     (define (test-it)
       (do ((m 0 (+ m 1)))
