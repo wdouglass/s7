@@ -119,7 +119,7 @@
 	      macro? magnitude make-byte-vector make-float-vector make-int-vector make-hash-table make-hook make-iterator make-list make-polar
 	      make-rectangular make-shared-vector make-string make-vector map max member memq memv min modulo morally-equal?
 	      nan? negative? not null? number->string number? numerator
-	      object->string odd? openlet? or outlet output-port? owlet
+	      object->let object->string odd? openlet? or outlet output-port? owlet
 	      pair-line-number pair-filename pair? port-closed? port-filename port-line-number positive? documentation
 	      setter signature procedure-source procedure? proper-list? provided?
 	      quasiquote quote quotient
@@ -127,9 +127,9 @@
 	      sequence? sin sinh square sqrt stacktrace string string->list string->number string->symbol string->keyword string-append 
 	      string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-downcase string-length
 	      string-position string-ref string-upcase string<=? string<? string=? string>=? string>? string?
-	      sublet substring symbol symbol->dynamic-value symbol->keyword symbol->string symbol->value symbol?
+	      sublet substring symbol symbol->dynamic-value symbol->keyword symbol->string symbol->value symbol? syntax?
 	      tan tanh tree-leaves tree-memq truncate type-of
-	      unless
+	      unless unspecified? undefined?
 	      values vector vector-append vector->list vector-dimensions vector-length vector-ref vector?
 	      when with-baffle with-let with-input-from-file with-input-from-string with-output-to-string
 	      zero?
@@ -181,8 +181,9 @@
 			         catch throw error documentation signature help procedure-source funclet 
 			         setter arity aritable? not eq? eqv? equal? morally-equal? gc s7-version emergency-exit 
 			         exit dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
-				 getenv directory? file-exists? type-of immutable! immutable?
-				 list-values apply-values unquote))
+				 getenv directory? file-exists? type-of immutable! immutable? byte-vector-set! syntax?
+				 list-values apply-values unquote set-current-output-port unspecified? undefined? byte-vector-ref
+				 set-current-input-port set-current-error-port directory->list system tree-count tree-set-memq))
 			      ht))
 
 	(makers (let ((h (make-hash-table)))
@@ -233,7 +234,7 @@
 		  '(symbol? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		    char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		    output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
-		    unspecified? c-object? immutable? constant?))
+		    unspecified? c-object? immutable? constant? syntax? unspecified? undefined?))
 		 h))
 
 	(booleans (let ((h (make-hash-table)))
@@ -244,7 +245,8 @@
 		     char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		     output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer? c-object?
 		     unspecified? exact? inexact? defined? provided? even? odd? char-whitespace? char-numeric? char-alphabetic?
-		     negative? positive? zero? immutable? constant? infinite? nan? char-upper-case? char-lower-case? directory? file-exists?))
+		     negative? positive? zero? immutable? constant? syntax? unspecified? undefined?
+		     infinite? nan? char-upper-case? char-lower-case? directory? file-exists?))
 		  h))
 
 	(notables (let ((h (make-hash-table)))
@@ -333,7 +335,9 @@
 	(fragmin *fragment-max-size*)
 	(fragmax 0)
 	(*max-cdr-len* 16)) ; 40 is too high, 24 questionable, if #f the let+do rewrite is turned off
-    
+
+    ;; (let ((st (symbol-table))) (for-each (lambda (x) (if (and (procedure? (symbol->value x)) (not (hash-table-ref built-in-functions x))) (format *stderr* "~A~%" x))) st))
+
     (set! *e* (curlet))
     (set! *lint* (curlet))                ; external access to (for example) the built-in-functions hash-table via (*lint* 'built-in-functions)
 
@@ -854,11 +858,10 @@
 	   (symbol? (cadr x))))
     
     (denote (just-symbols? form)
-      (or (symbol? form)
-	  (do ((p form (cdr p)))
-	      ((not (and (pair? p)
-			 (symbol? (car p))))
-	       (null? p)))))
+      (do ((p form (cdr p)))
+	  ((not (and (pair? p)
+		     (symbol? (car p))))
+	   (null? p))))
     
     (denote (code-constant? x)
       (and (constant? x)
@@ -902,8 +905,9 @@
 				     sequence? sin sinh square sqrt string->number string->symbol 
 				     string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-downcase string-length
 				     string-position string-ref string-upcase string<=? string<? string=? string>=? string>? string?
-				     substring symbol symbol->keyword symbol->string symbol?
+				     substring symbol symbol->keyword symbol->string symbol? syntax?
 				     tan tanh tree-leaves tree-memq truncate
+				     unspecified? undefined?
 				     vector-dimensions vector-length vector-ref vector?
 				     zero?))
 				  ht)))
@@ -976,39 +980,51 @@
 			 (cddr initial-value))))
 	  (and (pair? body)
 	       (let ((sig (let signer ((endb (last-ref body)))
-			    (and (not (side-effect? endb env))
-				 (cond ((not (pair? endb))
-					(and (not (symbol? endb))
-					     (list (->lint-type endb))))
-				       
-				       ((arg-signature (car endb) env) 
-					=> (lambda (a)
-					     (and (pair? a) 
-						  (list (car a)))))
-				       (else
-					(let ((len (length endb)))
-					  (case (car endb)
-					    ((if)
-					     (and (= len 4)
-						  (let ((a1 (signer (caddr endb)))
-							(a2 (signer (cadddr endb))))
-						    (and (equal? a1 a2) a1))))
-					    
-					    ((let let* letrec letrec* unless when with-let let-temporarily with-baffle)
-					     (and (> len 2)
-						  (signer (list-ref endb (- len 1)))))
-					    
-					    ((begin)
-					     (and (> len 1)
-						  (signer (list-ref endb (- len 1)))))
+			    (cond ((not (pair? endb))
+				   (and (not (symbol? endb))
+					(list (->lint-type endb))))
+				  
+				  ((side-effect? endb env)
+				   (list (case (car endb)
+					   ((display write)
+					    (->lint-type (cadr endb)))
 
-					    ((do)
-					     (and (> len 2)
-						  (pair? (caddr endb))
-						  (pair? (cdaddr endb)) ; if nil -> unspecified?
-						  (signer (last-ref (cdaddr endb)))))
-					    
-					    (else #f)))))))))
+					   ((write-char write-byte string-copy openlet float-vector-set! read-char read-byte
+					    open-output-string open-input-file int-vector-set! dilambda open-input-string
+					    get-output-string read-line newline close-output-port close-input-port coverlet
+					    peek-char open-output-file string->byte-vector read-string file-exists? directory?)
+					    (->lint-type (car endb)))
+
+					   (else #t))))
+				  
+				  ((arg-signature (car endb) env) 
+				   => (lambda (a)
+					(and (pair? a) 
+					     (list (car a)))))
+				  (else
+				   (let ((len (length endb)))
+				     (case (car endb)
+				       ((if)
+					(and (= len 4)
+					     (let ((a1 (signer (caddr endb)))
+						   (a2 (signer (cadddr endb))))
+					       (and (equal? a1 a2) a1))))
+				       
+				       ((let let* letrec letrec* unless when with-let let-temporarily with-baffle)
+					(and (> len 2)
+					     (signer (list-ref endb (- len 1)))))
+				       
+				       ((begin)
+					(and (> len 1)
+					     (signer (list-ref endb (- len 1)))))
+				       
+				       ((do)
+					(and (> len 2)
+					     (pair? (caddr endb))
+					     (pair? (cdaddr endb)) ; if nil -> unspecified?
+					     (signer (last-ref (cdaddr endb)))))
+				       
+				       (else #f))))))))
 		 (if (not (pair? sig))
 		     (set! sig (list #t)))
 		 
@@ -7260,8 +7276,9 @@
 	  (for-each (lambda (f)
 		      (hash-special f sp-symbol?))
 		    '(symbol? rational? real? complex? float? keyword? gensym? byte-vector? proper-list? sequence? constant?
-			      char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? c-object?
-			      output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?)))
+		      char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? c-object?
+		      output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
+		      syntax? undefined? unspecified?)))
 	
 	;; ---------------- pair? list? ----------------	
 	(let ()

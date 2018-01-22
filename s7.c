@@ -8558,9 +8558,22 @@ static inline void annotate_expansion(s7_pointer p)
       annotate_expansion(car(p));
 }
 
+#define DEBUGGING_EXIT 0
+
+#if DEBUGGING_EXIT
+static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
+#endif
+
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   /* ideally we'd use tree_len here, but it currently does not protect against cycles */
+#if DEBUGGING_EXIT
+  if (cyclic_sequences(sc, p, false) == sc->T)
+    {
+      fprintf(stderr, "attempt to copy circular body\n");
+      abort();
+    }
+#endif
   if (8192 >= (sc->free_heap_top - sc->free_heap))
     {
       gc(sc);
@@ -8590,6 +8603,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
   closure_set_let(x, closure_let(fnc));
   return(x);
 }
+
 
 /* -------------------------------- defined? -------------------------------- */
 static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
@@ -45535,6 +45549,12 @@ static s7_pointer g_emergency_exit(s7_scheme *sc, s7_pointer args)
   #define EXIT_SUCCESS 0
   #define EXIT_FAILURE 1
 #endif
+
+#if DEBUGGING_EXIT
+  fprintf(stderr, "(exit %s)\n", DISPLAY(args));
+  abort();
+#endif
+
   if (is_null(args))
     _exit(EXIT_SUCCESS);          /* r7rs spec says use _exit here */
   obj = car(args);
@@ -45545,7 +45565,6 @@ static s7_pointer g_emergency_exit(s7_scheme *sc, s7_pointer args)
   _exit((int)s7_integer(obj));
   return(sc->F);
 }
-
 
 static s7_pointer g_exit(s7_scheme *sc, s7_pointer args)
 {
@@ -47834,7 +47853,11 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 					    opc->v3.i_ii_f = rsh_i_i2_direct;
 					  else opc->v3.i_ii_f = rsh_i_ii_direct;
 					}
-				      else opc->v3.i_ii_f = lsh_i_ii_direct;
+				      else 
+					{
+					  if (opc->v2.i < s7_int_bits)
+					    opc->v3.i_ii_f = lsh_i_ii_direct;
+					}
 				    }
 				  else
 				    {
@@ -82177,6 +82200,14 @@ static s7_pointer make_unique(const char* name, uint64_t typ)
   return(p);
 }
 
+#if DEBUGGING_EXIT
+static void upon_exit(void)
+{
+  fprintf(stderr, "upon_exit\n");
+  abort();
+}
+#endif
+
 s7_scheme *s7_init(void)
 {
   int32_t i;
@@ -83676,6 +83707,10 @@ s7_scheme *s7_init(void)
 
   init_choosers(sc);
   init_typers(sc);
+
+#if DEBUGGING_EXIT
+  atexit(upon_exit);
+#endif
 
 #if DEBUGGING
   s7_define_safe_function(sc, "local-symbol?",   g_is_local_symbol,   1, 0, false, "an experiment");

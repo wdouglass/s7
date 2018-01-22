@@ -124,12 +124,7 @@
 	    ((null? p) lst)
 	  (set! (car p) i))))))
 
-(define (cdr* lst n)
-  (do ((i n (- i 1))
-       (result lst (cdr result))) 
-      ((or (null? result)
-	   (zero? i)) 
-       result)))
+;(define cdr* list-tail)
 
 (define make-circular-list 
   (let ((+documentation+ "(make-circular-list n init) returns a circular list with n entries initialized to init:\n\
@@ -1673,7 +1668,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		   #f))
 
           ((not end) 
-	   (cdr* obj start))
+	   (list-tail obj start))
 
           (else
            (do ((lst (make-list new-len #f))
