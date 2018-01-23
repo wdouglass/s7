@@ -9209,7 +9209,6 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
   /* called only from call_with_current_continuation */
   int64_t i, s_base = 0, c_base = -1;
   opcode_t op;
-
   for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
     {
       op = stack_op(sc->stack, i);
@@ -9292,11 +9291,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	{
 	  if (op == OP_DEACTIVATE_GOTO)
 	    call_exit_active(stack_args(continuation_stack(c), i)) = true;
-	  else
-	    {
-	      if (op == OP_LET_TEMP_DONE)
-		let_temp_done(sc, stack_args(continuation_stack(c), i), stack_code(continuation_stack(c), i));
-	    }
+	  /* not let_temp_done here! */
 	}
     }
   return(true);
@@ -9375,7 +9370,8 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
 
 static void call_with_exit(s7_scheme *sc)
 {
-  int64_t i, new_stack_top, quit = 0;
+  int64_t i, new_stack_top;
+  int quit = 0;
 
   if (!call_exit_active(sc->code))
     {
@@ -16637,8 +16633,31 @@ static s7_pointer g_sqr_ss(s7_scheme *sc, s7_pointer args)
 }
 #endif /* with-gmp */
 
-static s7_int multiply_i_ii(s7_int i1, s7_int i2) {return(i1 * i2);}
-static s7_int multiply_i_iii(s7_int i1, s7_int i2, s7_int i3) {return(i1 * i2 * i3);}
+static s7_int multiply_i_ii(s7_int i1, s7_int i2) 
+{
+#if HAVE_OVERFLOW_CHECKS
+  s7_int val;
+  if (multiply_overflow(i1, i2, &val))
+    return(s7_int_max);
+  return(val);
+#else
+  return(i1 * i2);
+#endif
+}
+
+static s7_int multiply_i_iii(s7_int i1, s7_int i2, s7_int i3) 
+{
+#if HAVE_OVERFLOW_CHECKS
+  s7_int val1, val2;
+  if (multiply_overflow(i1, i2, &val1))
+    return(s7_int_max);
+  if (multiply_overflow(val1, i3, &val2))
+    return(s7_int_max);
+  return(val2);
+#else
+  return(i1 * i2 * i3);
+#endif
+}
 
 static s7_double multiply_d_d(s7_double x) {return(x);}
 static s7_double multiply_d_dd(s7_double x1, s7_double x2) {return(x1 * x2);}
@@ -16647,7 +16666,7 @@ static s7_double multiply_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_do
 static s7_double multiply_d_id(s7_int x1, s7_double x2) {return((s7_double)x1 * x2);}
 #if (!WITH_GMP)
 static s7_pointer mul_p_dd(s7_double x1, s7_double x2) {return(make_real(cur_sc, x1 * x2));}
-static s7_pointer mul_p_ii(s7_int x1, s7_int x2) {return(make_integer(cur_sc, x1 * x2));}
+static s7_pointer mul_p_ii(s7_int x1, s7_int x2) {return(make_integer(cur_sc, multiply_i_ii(x1, x2)));}
 
 static s7_pointer multiply_p_pp(s7_pointer x1, s7_pointer x2) {return(g_multiply_2(cur_sc, set_plist_2(cur_sc, x1, x2)));}
 #endif
@@ -24869,7 +24888,7 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
   restore_jump_info(sc);
   if (is_multiple_value(sc->value))
     sc->value = splice_in_values(sc, multiple_value(sc->value));
- return(sc->value);
+  return(sc->value);
 }
 
 s7_pointer s7_load(s7_scheme *sc, const char *filename)
@@ -33179,16 +33198,22 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
 	    }
 	}
 
-      /* sc->value = sc->F; */
+      /* member_if is similar.  Do not call eval here with op_eval_done to return!  An error will longjmp past the
+       *   assoc point, leaving the op_eval_done on the stack, causing s7 to quit.
+       */
       y = cons(sc, args, sc->nil);
       set_opt_fast(y, x);
       set_opt_slow(y, x);
-      push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
       push_stack(sc, OP_ASSOC_IF, cons(sc, y, sc->nil), eq_func);
-      sc->args = list_2(sc, car(args), caar(x));
-      sc->code = eq_func;
-      eval(sc, OP_APPLY);
-      return(sc->value);
+      if (needs_copied_args(eq_func))
+	push_stack(sc, OP_APPLY, list_2(sc, car(args), caar(x)), eq_func);
+      else
+	{
+	  set_car(sc->t2_1, car(args));
+	  set_car(sc->t2_2, caar(x));
+	  push_stack(sc, OP_APPLY, sc->t2_1, eq_func);
+	}
+      return(sc->unspecified);
     }
 
   x = cadr(args);
@@ -44139,6 +44164,7 @@ static bool catch_1_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_point
        *  but putting it here (via eval(sc, OP_APPLY)) means the C stack is not cleared correctly in non-s7-call cases,
        *  so defer it until s7_call
        */
+      /* fprintf(stderr, "stack %s %s\n", op_names[stack_op(sc->stack, s7_stack_top(sc) - 1)], op_names[stack_op(sc->stack, s7_stack_top(sc) - 5)]); */
       return(true);
     }
   return(false);
@@ -69085,6 +69111,9 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
+#if SHOW_EVAL_OPS
+  fprintf(stderr, "eval %s\n", op_names[first_op]);
+#endif
   sc->cur_op = first_op;
 
   /* this procedure can be entered recursively (via s7_call for example), so it's no place for a setjmp
@@ -69130,7 +69159,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   */
 	  
 	  if (port_is_closed(sc->input_port))
-	    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, "our input port got clobbered!"))));
+	    s7_error(sc, sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, "our input port got clobbered!")));
 	  
 	  sc->tok = token(sc);
 	  switch (sc->tok)
@@ -72217,7 +72246,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  sc->code = find_symbol_unchecked(sc, cadr(code));      /* global search here was slower */
 		  sc->args = find_symbol_unchecked(sc, opt_sym2(code));  /* is this right if code=macro? */
 		  if (!s7_is_proper_list(sc, sc->args))                  /* (apply + #f) etc */
-		    return(apply_list_error(sc, sc->args));
+		    apply_list_error(sc, sc->args);
 		  if (needs_copied_args(sc->code))
 		    sc->args = copy_list(sc, sc->args);
 		  goto APPLY;
@@ -73490,7 +73519,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			    if ((car(carc) == sc->quote_symbol) &&        /* ('and #f) */
 				((!is_pair(cdr(carc))) ||                 /* ((quote . #\h) (2 . #\i)) ! */
 				 (is_syntactic(cadr(carc)))))
-			      return(apply_error(sc, (is_pair(cdr(carc))) ? cadr(carc) : carc, cdr(code)));
+			      apply_error(sc, (is_pair(cdr(carc))) ? cadr(carc) : carc, cdr(code));
 			    sc->cur_op = (opcode_t)symbol_syntax_op(car(carc));
 			    sc->code = cdr(carc);
 			    goto START_WITHOUT_POP_STACK;
@@ -73978,7 +74007,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      goto BEGIN1;
 
 	    default:
-	      return(apply_error(sc, sc->code, sc->args));
+	      apply_error(sc, sc->code, sc->args);
 	    }
 
 	APPLY_LAMBDA:
@@ -74641,7 +74670,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  {
 		    e = find_symbol_checked(sc, e); /* the let */
 		    if (!is_let(e))
-		      return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, e, a_let_string));
+		      wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, e, a_let_string);
 		    sc->value = let_set_1(sc, e, b, x);
 		    goto START;
 		  }
@@ -74663,7 +74692,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    s7_pointer b, x;
 	    /* here sc->value = let = 'e, args = '(b x) where 'b might be a pair */
 	    if (!is_let(sc->value))
-	      return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, sc->value, a_let_string));
+	      wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, sc->value, a_let_string);
 	    b = car(sc->args);
 	    x = cadr(sc->args);
 	    if (is_symbol(b))   /* b is a symbol -- everything else is ready so call let-set! */
@@ -74687,7 +74716,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (choice == goto_APPLY) goto APPLY;
 	      goto EVAL_ARGS;
 	    }
-	  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set ~S"), sc->args)));	  
+	  s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set ~S"), sc->args));	  
 	  
 	  
 	  /* -------------------------------- if -------------------------------- */
@@ -76904,7 +76933,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		if (sc->tok == TOKEN_DOT)
 		  {
 		    do {c = inchar(pt);} while ((c != ')') && (c != EOF));
-		    return(read_error(sc, "stray dot after '('?"));      /* (car '( . )) */
+		    read_error(sc, "stray dot after '('?");      /* (car '( . )) */
 		  }
 		
 		if (sc->tok == TOKEN_EOF)
@@ -76941,7 +76970,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		if (sc->value == sc->F)                                /* can happen if input code ends in the middle of a string */
 		  return(string_read_error(sc, "end of input encountered while in a string"));
 		if (sc->value == sc->T)
-		  return(read_error(sc, "unknown backslash usage -- perhaps you meant two backslashes?"));
+		  read_error(sc, "unknown backslash usage -- perhaps you meant two backslashes?");
 		if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
 		goto READ_LIST;
 		
@@ -77024,7 +77053,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (sc->value == sc->F)                                /* can happen if input code ends in the middle of a string */
 		return(string_read_error(sc, "end of input encountered while in a string"));
 	      if (sc->value == sc->T)
-		return(read_error(sc, "unknown backslash usage -- perhaps you meant two backslashes?"));
+		read_error(sc, "unknown backslash usage -- perhaps you meant two backslashes?");
 	      if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
 	      goto READ_LIST;
 	      
@@ -77106,7 +77135,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_READ_VECTOR:
 	  if (is_dotted_pair(sc->value))            /* #(1 . 2) */
-	    return(read_error(sc, "vector constant data is not a proper list"));
+	    read_error(sc, "vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
 	    sc->value = g_vector(sc, sc->value);
@@ -77119,7 +77148,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_READ_INT_VECTOR:
 	  if (is_dotted_pair(sc->value))
-	    return(read_error(sc, "vector constant data is not a proper list"));
+	    read_error(sc, "vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
 	    sc->value = g_int_vector(sc, sc->value);
@@ -77131,7 +77160,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_READ_FLOAT_VECTOR:
 	  if (is_dotted_pair(sc->value))
-	    return(read_error(sc, "vector constant data is not a proper list"));
+	    read_error(sc, "vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
 	    sc->value = g_float_vector(sc, sc->value);
@@ -77143,7 +77172,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_READ_BYTE_VECTOR:
 	  if (is_dotted_pair(sc->value))
-	    return(read_error(sc, "byte-vector constant data is not a proper list"));
+	    read_error(sc, "byte-vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  sc->value = g_byte_vector(sc, sc->value);
 	  free_vlist(sc, sc->v);

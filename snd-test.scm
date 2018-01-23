@@ -22832,7 +22832,7 @@ EDITS: 2
 			      (lambda args #f)))))
 	
 	(marks->string (lambda (sndf)
-			 (let ((str (format #f "(require snd-marks.scm)~%(let ((m #f))~%"))
+			 (let ((str (format #f "(let ((m #f))~%"))
 			       (chan 0))
 			   (for-each
 			    (lambda (chan-marks)
