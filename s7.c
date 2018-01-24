@@ -31811,16 +31811,27 @@ s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a)
 
 static s7_pointer reverse_in_place(s7_scheme *sc, s7_pointer term, s7_pointer list)
 {
-  s7_pointer p = list, result = term, q;
+  s7_pointer p, result;
 
-  while (is_not_null(p))
+  if (is_null(list)) return(term);
+  p = list;
+  result = term;
+  while (true)
     {
+      s7_pointer q;
       q = cdr(p);
-      if (!is_list(q))
-	return(sc->nil); /* improper list? */
-      set_cdr(p, result);
-      result = p;
-      p = q;
+      if (is_null(q))
+	{
+	  set_cdr(p, result);
+	  return(p);
+	}
+      if ((is_pair(q)) && (!is_immutable(q))) 
+	{
+	  set_cdr(p, result);
+	  result = p;
+	  p = q;
+	}
+      else return(sc->nil); /* improper or immutable */
     }
   return(result);
 }
@@ -41897,7 +41908,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	  return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
 	np = reverse_in_place(sc, sc->nil, p);
 	if (is_null(np))
-	  return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, a_proper_list_string));
+	  return(s7_wrong_type_arg_error(sc, "reverse!", 1, car(args), "a mutable, proper list"));
 	return(np);
       }
       break;
@@ -41907,6 +41918,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
        *    for (l = p, r = cdr(p); is_pair(r); l = r, r = cdr(r)) opt1(r) = l;
        *    if (!is_null(r)) return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, a_proper_list_string));
        *    for (r = l, l = p; l != r; l = cdr(l)) {t = car(l); set_car(l, car(r)); set_car(r, t); if (cdr(l) != r) r = opt1(r);}
+       * immutable check is needed else (reverse! (catch #t 1 cons)) clobbers sc->wrong_type_arg_info
        */
 
     case T_STRING:
@@ -42552,7 +42564,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       /* raw_pointer_info can be a let and might have an object->let method (see c_object below) */
       return(s7_inlet(sc, s7_list(sc, 10, sc->value_symbol, obj, 
 				  sc->type_symbol, sc->is_c_pointer_symbol,
-				  s7_make_symbol(sc, "c-pointer"), s7_make_integer(sc, (s7_int)raw_pointer(obj)),
+				  s7_make_symbol(sc, "c-pointer"), 
+				  s7_make_integer(sc, (s7_int)((intptr_t)raw_pointer(obj))),
 				  s7_make_symbol(sc, "c-type"), raw_pointer_type(obj),
 				  s7_make_symbol(sc, "info"), raw_pointer_info(obj))));
 
@@ -73687,10 +73700,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 	case OP_SAFE_C_ZA_1:
-	  set_car(sc->t2_2, c_call(cddr(sc->code))(sc, caddr(sc->code)));
-	  set_car(sc->t2_1, sc->value);
-	  sc->value = c_call(sc->code)(sc, sc->t2_1);
-	  break;
+	  {
+	    s7_pointer val1;
+	    val1 = sc->value;
+	    set_car(sc->t2_2, c_call(cddr(sc->code))(sc, caddr(sc->code))); /* possible method call here, so sc->value needs to be saved first */
+	    set_car(sc->t2_1, val1);
+	    sc->value = c_call(sc->code)(sc, sc->t2_1);
+	    break;
+	  }
 	  
 	case OP_SAFE_C_ZZ_1:
 	  push_stack(sc, OP_EVAL_ARGS_P_2, sc->value, sc->code);
@@ -73710,11 +73727,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 	  
 	case OP_SAFE_C_AZA_1:
-	  set_car(sc->t3_3, c_call(cdddr(sc->code))(sc, cadddr(sc->code)));
-	  set_car(sc->t3_2, sc->value);
-	  set_car(sc->t3_1, sc->args);
-	  sc->value = c_call(sc->code)(sc, sc->t3_1);
-	  break;
+	  {
+	    s7_pointer val1;
+	    val1 = sc->value;
+	    set_car(sc->t3_3, c_call(cdddr(sc->code))(sc, cadddr(sc->code)));
+	    set_car(sc->t3_2, val1);
+	    set_car(sc->t3_1, sc->args);
+	    sc->value = c_call(sc->code)(sc, sc->t3_1);
+	    break;
+	  }
 	  
 	case OP_SAFE_C_AAZ_1:
 	  set_car(sc->t3_1, pop_op_stack(sc));
@@ -81711,7 +81732,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
     n = snprintf(buf, 1024, "output ports: %u, free port: %u (%lu bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u, unknowns: %u\n",
-		 sc->output_ports->loc, fs, fs * sizeof(port_t),
+		 sc->output_ports->loc, fs, (uint64_t)(fs * sizeof(port_t)),
 		 gp->loc, cc_stacks,
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);

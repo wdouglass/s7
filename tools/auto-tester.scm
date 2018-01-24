@@ -32,6 +32,8 @@
 (define __var2__ 3)
 (set! (symbol-setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
 
+(define (finite? n) (not (or (nan? n) (infinite? n))))
+
 (define (s7-print-length) (*s7* 'print-length))
 (define (s7-max-string-length) (*s7* 'max-string-length))
 (define (s7-max-list-length) (*s7* 'max-list-length))
@@ -451,7 +453,7 @@
 		    ;;"most-positive-fixnum" "most-negative-fixnum"
 		    "pi" "nan.0" "inf.0"
 		    "(list)" "(string)" "#r()" "#u8()" "(vector)" "#i()" "(make-iterator #(1 2))" "#i(1)"
-		    "0" "1" "2" "3" "4" "1.0" "-1.0" "1.0+123.0i" "3/4" "(make-vector 3)" "(make-string 3)" "(make-vector '(2 3))"
+		    "0" "1" "4" "1.0" "-1.0" "1.0+123.0i" "3/4" "(make-vector 3)" "(make-string 3)" "(make-vector '(2 3))"
 		    "'((1 2) (3 4))" "'((1 (2)) (((3) 4)))" "(byte-vector 255)" 
 		    "#(1 2)" "(vector 1 '(3))" "(let ((x 3)) (lambda (y) (+ x y)))" "abs" "(lambda sym-args sym-args)" "#u8(0 1)"
 		    "(dilambda (lambda () 1) (lambda (a) a))" "quasiquote" "macroexpand" "(lambda* ((a 1) (b 2)) (+ a b))" 
@@ -466,9 +468,10 @@
 		    "(c-pointer 0 'integer?)" "(c-pointer -1)" "(c-pointer 1234)"
 		    "'(1 2 . 3)" " . "
 		    "((i 0 (+ i 1)))" "(null? i)" "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
-		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" "(A (f x) B)" 
-		    "(begin (f x) B)" 
-		    "(f x) i" "x y z" "1 2" "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
+		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" 
+		    ;;"(begin (f x) B)" "(A (f x) B)" 
+		    ;;"(f x) i" "x y z" "1 2"
+		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
 		    "_definee_" ;; "(_definee_ wxyz)"
 		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" "(openlet (inlet 'abs (lambda (x) (- x))))" 
 		    "(hash-table* 'a 1)" "(hash-table)" 
@@ -485,6 +488,7 @@
 		    "(let ((x 1)) (dynamic-wind (lambda () (set! x 2)) (lambda () (+ x 1)) (lambda () (set! x 1))))"
 
 		    "1+1e10i" "1e15+1e15i" "0+1e18i" "1e18" 
+		    "(real-part (random 0+i))" 
 		    ;;"(random 1.0)" ; number->string so lengths differ
 		    "(random 1)"
 		    ;;"(else ())" "(else (f x) B)"
@@ -512,6 +516,9 @@
 		    
 		    " #| a comment |# "
 		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
+		    "(vector-dimensions (block))" 
+		    "(append (block) (block))"
+		    "(let-temporarily ((x 1234)) (+ x 1))"
 
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
@@ -675,41 +682,52 @@
 	  (unless (or (openlet? val1)
 		      (string-position "set!" str1)
 		      (string-position "gensym" str1))
-	    (if (or (and (symbol? val1)
-			 (not (gensym? val1)))
-		    (boolean? val1)
-		    (syntax? val1))
-		(unless (and (eq? val1 val2)
-			     (eq? val1 val3)
-			     (eq? val1 val4))
-		  (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%~%" 
-			  str str1 str2 str3 str4 
-			  val1 val2 val3 val4))
-		(when (sequence? val1)
-		  (let ((len1 (length val1)))
-		    (unless (or (let? val1)
-				(and (eqv? len1 (length val2))
-				     (eqv? len1 (length val3))
-				     (eqv? len1 (length val4))))
-		      (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
-			      str str1 str2 str3 str4 
-			      val1 val2 val3 val4))
-		    (if (or (and (string? val1)
-				 (not (and (eq? (byte-vector? val1) (byte-vector? val2))
-					   (eq? (byte-vector? val1) (byte-vector? val3))
-					   (eq? (byte-vector? val1) (byte-vector? val4)))))
-			    (and (gensym? val1)
-				 (not (and (gensym? val2) (gensym? val3) (gensym? val4))))
-			    (and (keyword? val1)
-				 (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
-			(format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
-				str str1 str2 str3 str4 
-				val1 val2 val3 val4)
-			(unless (or (<= len1 0)
-				    (memq (type-of val1) '(hash-table? let?))
-				    (infinite? len1)
-				    (eq? val1 (val1 0)))
-			  (same-type? (val1 0) (val2 0) (val3 0) (val4 0) str str1 str2 str3 str4)))))))
+	    (cond ((or (and (symbol? val1)
+			    (not (gensym? val1)))
+		       (boolean? val1)
+		       (syntax? val1))
+		   (unless (and (eq? val1 val2)
+				(eq? val1 val3)
+				(eq? val1 val4))
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%~%" 
+			     str str1 str2 str3 str4 
+			     val1 val2 val3 val4)))
+		  ((sequence? val1)
+		   (let ((len1 (length val1)))
+		     (unless (or (let? val1)
+				 (and (eqv? len1 (length val2))
+				      (eqv? len1 (length val3))
+				      (eqv? len1 (length val4))))
+		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+			       str str1 str2 str3 str4 
+			       val1 val2 val3 val4))
+		     (if (or (and (string? val1)
+				  (not (and (eq? (byte-vector? val1) (byte-vector? val2))
+					    (eq? (byte-vector? val1) (byte-vector? val3))
+					    (eq? (byte-vector? val1) (byte-vector? val4)))))
+			     (and (gensym? val1)
+				  (not (and (gensym? val2) (gensym? val3) (gensym? val4))))
+			     (and (keyword? val1)
+				  (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
+			 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+				 str str1 str2 str3 str4 
+				 val1 val2 val3 val4)
+			 (unless (or (<= len1 0)
+				     (memq (type-of val1) '(hash-table? let?))
+				     (infinite? len1)
+				     (eq? val1 (val1 0)))
+			   ;; TODO: check all members
+			   (same-type? (val1 0) (val2 0) (val3 0) (val4 0) str str1 str2 str3 str4)))))
+		  ((number? val1)
+		   (if (or (and (nan? val1)
+				(not (and (nan? val2) (nan? val3) (nan? val4))))
+			   (and (infinite? val1)
+				(not (and (infinite? val2) (infinite? val3) (infinite? val4))))
+			   (and (finite? val1)
+				(not (and (finite? val2) (finite? val3) (finite? val4)))))
+		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+			       str str1 str2 str3 str4 
+			       val1 val2 val3 val4)))))
 	  (begin
 	    (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
 		    str1 str2 str3 str4 
@@ -720,7 +738,7 @@
 		    (eq? val4 'error))
 		(format *stderr* "    ~S ~S~%" 
 			error-type error-info))
-	    (format *stderr* "~%~%"))))
+	    (format *stderr* "~S~%~%" (stacktrace)))))
 
     (define (eval-it str) ;(format #t "~A~%" str)
       (catch #t 
