@@ -53,11 +53,11 @@ echo ' -------------------------------- that was snd-test without-gui sanitized?
 echo ' '
 echo ' '
 
-echo ' -------------------------------- without-gui DEBUGGING=1 -------------------------------- '
+echo ' -------------------------------- without-gui S7_DEBUGGING=1 -------------------------------- '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include -DDEBUGGING" --without-gui --disable-deprecated
+./configure --quiet CFLAGS="-Wall -I/usr/local/include -DS7_DEBUGGING" --without-gui --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -162,7 +162,7 @@ echo ' -------------------------------- without-gui --with-gmp debugging -------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -DDEBUGGING=1" --without-gui --with-gmp --disable-deprecated
+./configure --quiet CFLAGS="-Wall -DS7_DEBUGGING=1" --without-gui --with-gmp --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -232,7 +232,7 @@ echo ' -------------------------------- motif + gl + debug ---------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet --with-gl --with-motif CFLAGS="-DDEBUGGING -Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
+./configure --quiet --with-gl --with-motif CFLAGS="-DS7_DEBUGGING -Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
 make
 echo ' '
 echo ' '
@@ -288,7 +288,7 @@ echo ' -------------------------------- with-gtk + debug -----------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-DDEBUGGING -Wall" --with-gtk --disable-deprecated
+./configure --quiet CFLAGS="-DS7_DEBUGGING -Wall" --with-gtk --disable-deprecated
 make
 echo ' '
 echo ' '

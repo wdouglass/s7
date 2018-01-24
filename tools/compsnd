@@ -408,7 +408,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gsl                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DDEBUGGING" --with-motif --with-gsl
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-motif --with-gsl
 make
 echo ' '
 echo ' '
@@ -500,7 +500,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby  --with-gl --with-alsa '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DDEBUGGING" --with-ruby  --with-motif --with-gl --with-alsa
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-motif --with-gl --with-alsa
 make
 echo ' '
 echo ' '
@@ -536,7 +536,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-ruby  --with-gtk --without-gsl '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DDEBUGGING" --with-ruby  --with-gtk --without-gsl
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-gtk --without-gsl
 make
 echo ' '
 echo ' '
@@ -572,7 +572,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby --without-gui                             ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DDEBUGGING" --with-ruby --without-gui
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui
 make
 echo ' '
 echo ' '
@@ -583,7 +583,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++ --with-ruby --without-gui        ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DDEBUGGING" --with-ruby --without-gui 
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui 
 make
 echo ' '
 echo ' '

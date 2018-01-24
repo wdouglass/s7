@@ -284,8 +284,8 @@
   /* debugging aid if using s7 in a multithreaded program -- this code courtesy of Kjetil Matheussen */
 #endif
  
-#ifndef DEBUGGING
-  #define DEBUGGING 0
+#ifndef S7_DEBUGGING
+  #define S7_DEBUGGING 0
 #endif
 #ifndef OP_NAMES
   #define OP_NAMES 0
@@ -623,7 +623,7 @@ typedef union {
 
 typedef struct {
   vunion v1, v2, v3, v4, v5, v6, v7, v8;
-#if DEBUGGING
+#if S7_DEBUGGING
   s7_pointer expr;
 #endif
 } opt_info;
@@ -890,7 +890,7 @@ typedef struct s7_cell {
 #if WITH_PROFILE
   int32_t file_and_line;
 #endif
-#if DEBUGGING
+#if S7_DEBUGGING
   int32_t current_alloc_line, previous_alloc_line, gc_line, alloc_line, uses, explicit_free_line;
   int64_t current_alloc_type, previous_alloc_type, debugger_bits;
   const char *current_alloc_func, *previous_alloc_func, *gc_func, *alloc_func;
@@ -964,7 +964,7 @@ struct s7_scheme {
   uint32_t *gpofl;
   uint32_t protected_objects_size, protected_setters_size, protected_setters_loc;
   int32_t gpofl_loc;
-#if DEBUGGING
+#if S7_DEBUGGING
   int *protected_lines;
 #endif
 
@@ -1442,7 +1442,7 @@ static void init_types(void)
 
 static s7_scheme *cur_sc = NULL;
 
-#if DEBUGGING
+#if S7_DEBUGGING
   static const char *check_name(int32_t typ);
   static s7_pointer check_seti(s7_scheme *sc, s7_pointer x, const char *func, int32_t line);
   static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *func, int32_t line, const char *func1, const char *func2);
@@ -2065,7 +2065,7 @@ static int64_t not_heap = -1;
 
 #define raw_opt1(p)                   ((p)->object.cons.opt1)
 
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
 
 #define opt1(p, r)                    ((p)->object.cons.opt1)
 #define set_opt1(p, x, r)             (p)->object.cons.opt1 = x
@@ -2224,7 +2224,7 @@ static int64_t not_heap = -1;
 
 #define c_callee(f)                   ((s7_function)opt2(f,      F_CALL))
 #define c_call(f)                     ((s7_function)opt2(f,      F_CALL))
-#if DEBUGGING
+#if S7_DEBUGGING
   #define set_c_call(f, _X_)          do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] c_call null\n", __func__, __LINE__); set_opt2(f, X, F_CALL);} while (0)
   #define set_x_call_checked(f, _X_)  do {s7_pointer X; X = (s7_pointer)(_X_); if ((!(X)) && (strcmp(__func__, "check_and") != 0) && (strcmp(__func__, "check_or") != 0)) fprintf(stderr, "%s[%d] x_call null\n", __func__, __LINE__); set_opt2(f, X, F_CALL); if (X) set_has_all_x(f); else clear_has_all_x(f);} while (0)
   #define set_x_call(f, _X_)          do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null: %s\n", __func__, __LINE__, DISPLAY(f)); set_opt2(f, X, F_CALL); if (X) set_has_all_x(f); else clear_has_all_x(f);} while (0)
@@ -2314,7 +2314,7 @@ static int64_t not_heap = -1;
 #define character_name(p)             (_TChr(p))->object.chr.c_name
 #define character_name_length(p)      (_TChr(p))->object.chr.length
 
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
   #define optimize_op(p)              (_TPair(p))->object.sym_cons.op
   #define set_optimize_op(P, Op)      optimize_op(P) = Op
 #else
@@ -2384,7 +2384,7 @@ static int64_t not_heap = -1;
 #define slot_setter(p)                slot_expression(p)
 #define slot_set_setter(p, Val)       slot_expression(p) = _TApp(Val)
 
-#if DEBUGGING
+#if S7_DEBUGGING
   #define local_symbol_value(Sym)     check_sym(sc, _TSym(Sym))
 #else
   #define local_symbol_value(Sym)     slot_value(local_slot(Sym))
@@ -2398,7 +2398,7 @@ static int64_t not_heap = -1;
 #define syntax_max_args(p)            (_TSyn(p))->object.syn.max_args
 #define syntax_documentation(p)       sc->syn_docs[syntax_opcode(p)]
 
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
   #define pair_syntax_op(p)           (p)->object.sym_cons.op
   #define pair_set_syntax_op(p, X)    do {unoptimize(p); (p)->object.sym_cons.op = X;} while (0)
 #else
@@ -2949,7 +2949,7 @@ static s7_int big_integer_to_s7_int(mpz_t n);
 static double next_random(s7_pointer r);
 #endif
 
-#if DEBUGGING && WITH_GCC
+#if S7_DEBUGGING && WITH_GCC
   static s7_pointer find_symbol_unchecked_1(s7_scheme *sc, s7_pointer symbol);
   #define find_symbol_unchecked(Sc, Sym) check_null_sym(Sc, find_symbol_unchecked_1(Sc, Sym), Sym, __LINE__, __func__)
   static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, int32_t line, const char *func);
@@ -2961,7 +2961,7 @@ static double next_random(s7_pointer r);
 #endif
 
 #if WITH_GCC
-  #if DEBUGGING
+  #if S7_DEBUGGING
     #define find_symbol_checked(Sc, Sym) ({s7_pointer _x_; _x_ = find_symbol_unchecked_1(Sc, Sym); ((_x_) ? _x_ : unbound_variable(Sc, Sym));})
   #else
     #define find_symbol_checked(Sc, Sym) ({s7_pointer _x_; _x_ = find_symbol_unchecked(Sc, Sym); ((_x_) ? _x_ : unbound_variable(Sc, Sym));})
@@ -3249,7 +3249,7 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OPT_MAX_DEFINED
 };
 
-#if DEBUGGING || OP_NAMES
+#if S7_DEBUGGING || OP_NAMES
 
 static const char *op_names[OP_MAX_DEFINED_1] = {
       "no_op", "gc_protect", 
@@ -3864,7 +3864,7 @@ static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
  *   case) to manage them in the sweep process by tracking lets.  
  */
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static uint32_t s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
 {
   uint32_t loc;
@@ -3890,7 +3890,7 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
       vector_length(sc->protected_objects) = new_size;
       sc->protected_objects_size = new_size;
       sc->gpofl = (uint32_t *)realloc(sc->gpofl, new_size * sizeof(uint32_t));
-#if DEBUGGING
+#if S7_DEBUGGING
       sc->protected_lines = (int *)realloc(sc->protected_lines, new_size * sizeof(int));
       for (i = size; i < new_size; i++) sc->protected_lines[i] = -1;
       {
@@ -3914,7 +3914,7 @@ uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x)
     }
 
   loc = sc->gpofl[sc->gpofl_loc--];
-#if DEBUGGING
+#if S7_DEBUGGING
   if (loc >= sc->protected_objects_size)
     fprintf(stderr, "sc->gpofl loc: %u (%d)\n", loc, sc->protected_objects_size);
   if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
@@ -4839,7 +4839,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 #endif
 
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static int32_t last_gc_line = 0;
 static const char *last_gc_func = NULL;
 static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
@@ -4858,7 +4858,7 @@ static int32_t gc(s7_scheme *sc)
 {
   s7_cell **old_free_heap_top;
   /* mark all live objects (the symbol table is in permanent memory, not the heap) */
-#if DEBUGGING
+#if S7_DEBUGGING
   #define gc_call(P, Tp) \
     p = (*tp++); \
     if (is_marked(_Cell(p))) \
@@ -4880,7 +4880,7 @@ static int32_t gc(s7_scheme *sc)
   if (show_gc_stats(sc))
     {
       fprintf(stdout, "gc ");
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stdout, "%s[%d] ", last_gc_func, last_gc_line);
 #endif
 #if (!MS_WINDOWS)
@@ -5038,7 +5038,7 @@ static int32_t gc(s7_scheme *sc)
 	  {
 	    if (!is_free_and_clear(p)) /* if T_FREE, it's an already-free object -- the free_heap is usually not empty when we call the GC */
 	      {
-#if DEBUGGING
+#if S7_DEBUGGING
 		p->debugger_bits = 0;
 		p->gc_line = last_gc_line; 
 		p->gc_func = last_gc_func;
@@ -5130,7 +5130,7 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
  *   does not return it to the free list: a memory leak.
  */
 
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
 #define new_cell(Sc, Obj, Type)			\
   do {						\
     if (Sc->free_heap_top <= Sc->free_heap_trigger) try_to_call_gc(Sc); \
@@ -5217,7 +5217,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   if (sc->heap_size >= sc->max_heap_size)
     {
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stderr, "heap %" PRId64 ", %s\n", sc->heap_size, DISPLAY(sc->cur_code));
       s7_show_let(sc);
       abort();
@@ -5238,7 +5238,7 @@ static void try_to_call_gc(s7_scheme *sc)
     }
   else
     {
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
       int64_t freed_heap;
       freed_heap = gc(sc);
       if ((freed_heap < sc->heap_size / 2) &&
@@ -5273,7 +5273,7 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
       if (sc->gc_off)
 	return(sc->F);
     }
-#if DEBUGGING
+#if S7_DEBUGGING
   last_gc_line = __LINE__; 
   last_gc_func = __func__;
 #endif
@@ -5319,14 +5319,14 @@ static void add_permanent_object(s7_scheme *sc, s7_pointer obj)
   sc->permanent_objects = g;
 }
 
-#if DEBUGGING
+#if S7_DEBUGGING
 #define free_cell(Sc, P) free_cell_1(Sc, P, __LINE__)
 static void free_cell_1(s7_scheme *sc, s7_pointer p, int32_t line)
 #else
 static void free_cell(s7_scheme *sc, s7_pointer p)
 #endif
 {
-#if DEBUGGING
+#if S7_DEBUGGING
   p->debugger_bits = 0;
   p->explicit_free_line = line;
 #endif
@@ -5468,7 +5468,7 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 
 #define OP_STACK_INITIAL_SIZE 32
 
-#if DEBUGGING
+#if S7_DEBUGGING
 #define stop_at_error true
 
 static void push_op_stack(s7_scheme *sc, s7_pointer op)
@@ -5528,7 +5528,7 @@ static void resize_op_stack(s7_scheme *sc)
 #define stack_args(Stack, Loc)  vector_element(_TStk(Stack), Loc - 1)
 #define stack_op(Stack, Loc)    ((opcode_t)(vector_element(_TStk(Stack), Loc)))
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static void pop_stack(s7_scheme *sc)
 {
   sc->stack_end -= 4;
@@ -5771,7 +5771,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, uint32_t len, uint
   size = sizeof(s7_cell) * 3 + sizeof(symbol_info_t) + len + 1;
 
   base = (unsigned char *)malloc(size);
-#if DEBUGGING
+#if S7_DEBUGGING
   /* clear at least debugger_bits here and below */
   memset((void *)base, 0, size);
 #endif
@@ -6008,7 +6008,7 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
 	      return;
 	    }
 	}
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stderr, "could not remove %s?\n", string_value(name));
 #endif
     }
@@ -6097,13 +6097,13 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   location = hash % SYMBOL_TABLE_SIZE;
 
   /* make-string for symbol name */
-#if DEBUGGING
+#if S7_DEBUGGING
   str = (s7_cell *)calloc(1, sizeof(s7_cell));
 #else
   str = (s7_cell *)malloc(sizeof(s7_cell));
 #endif
   unheap(str);
-#if DEBUGGING
+#if S7_DEBUGGING
   typeflag(str) = 0;
 #endif
   set_type(str, T_STRING | T_IMMUTABLE);
@@ -6122,12 +6122,12 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   symbol_set_ctr(x, 0);
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
-#if DEBUGGING
+#if S7_DEBUGGING
   stc = (s7_cell *)calloc(1, sizeof(s7_cell));
 #else
   stc = (s7_cell *)malloc(sizeof(s7_cell));
 #endif
-#if DEBUGGING
+#if S7_DEBUGGING
   typeflag(stc) = 0;
 #endif
   unheap(stc);
@@ -6273,7 +6273,7 @@ static s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
   return(sym);
 }
 
-#if DEBUGGING
+#if S7_DEBUGGING
 #define clear_symbol_list(Sc) {Sc->syms_tag++; if (Sc->syms_tag == 0) fprintf(stderr, "syms tag wrapped around\n");}
 #else
 #define clear_symbol_list(Sc) Sc->syms_tag++
@@ -6390,7 +6390,7 @@ static inline s7_pointer make_simple_let(s7_scheme *sc)
 static s7_pointer reuse_as_let(s7_scheme *sc, s7_pointer frame, s7_pointer next_frame)
 {
   /* we're reusing frame here as a let -- it was probably a pair */
-#if DEBUGGING
+#if S7_DEBUGGING
   frame->debugger_bits = 0;
 #endif
   set_type(frame, T_LET | T_SAFE_PROCEDURE);
@@ -6402,7 +6402,7 @@ static s7_pointer reuse_as_let(s7_scheme *sc, s7_pointer frame, s7_pointer next_
 
 static s7_pointer reuse_as_slot(s7_pointer slot, s7_pointer symbol, s7_pointer value)
 {
-#if DEBUGGING
+#if S7_DEBUGGING
   slot->debugger_bits = 0;
 #endif
   set_type(slot, T_SLOT);
@@ -6808,7 +6808,7 @@ static void save_unlet(s7_scheme *sc)
 	     * if these initial_slot values are added to unlet, they need explicit GC protection.
 	     */
 	    /* (let ((begin +)) (with-let (unlet) (begin 1 2))) */
-#if DEBUGGING
+#if S7_DEBUGGING
 	    if (k >= UNLET_ENTRIES)
 	      fprintf(stderr, "unlet overflow\n");
 #endif
@@ -7751,7 +7751,7 @@ static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym
   lt = (is_pair(lt1)) ? cdr(lt1) : g_cdr(sc, set_plist_1(sc, lt1));
   if (!is_let(lt))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, lt, a_let_string));
-#if DEBUGGING
+#if S7_DEBUGGING
   if (has_methods(lt))
     fprintf(stderr, "has methods %s\n", __func__);
 #endif
@@ -8046,7 +8046,7 @@ static s7_pointer find_symbol(s7_scheme *sc, s7_pointer symbol)
   return(global_slot(symbol));
 }
 
-#if WITH_GCC && DEBUGGING
+#if WITH_GCC && S7_DEBUGGING
 static s7_pointer find_symbol_unchecked_1(s7_scheme *sc, s7_pointer symbol)
 #else
 static inline s7_pointer find_symbol_unchecked(s7_scheme *sc, s7_pointer symbol) /* find_symbol_checked includes the unbound_variable call */
@@ -8558,16 +8558,16 @@ static inline void annotate_expansion(s7_pointer p)
       annotate_expansion(car(p));
 }
 
-#define DEBUGGING_EXIT 0
+#define S7_DEBUGGING_EXIT 0
 
-#if DEBUGGING_EXIT
+#if S7_DEBUGGING_EXIT
 static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
 #endif
 
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   /* ideally we'd use tree_len here, but it currently does not protect against cycles */
-#if DEBUGGING_EXIT
+#if S7_DEBUGGING_EXIT
   if (cyclic_sequences(sc, p, false) == sc->T)
     {
       fprintf(stderr, "attempt to copy circular body\n");
@@ -22988,14 +22988,14 @@ static void closed_port_display(s7_scheme *sc, const char *s, s7_pointer port);
 
 void s7_close_input_port(s7_scheme *sc, s7_pointer p)
 {
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!is_input_port(p))
     fprintf(stderr, "s7_close_input_port: %s\n", DISPLAY(p));
 #endif
   if ((is_immutable_port(p)) ||
       ((is_input_port(p)) && (port_is_closed(p))))
     {
-#if DEBUGGING
+#if S7_DEBUGGING
       if (port_needs_free(p))
 	fprintf(stderr, "closed input needs free\n");
 #endif
@@ -24178,7 +24178,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, uin
   port_read_line(x) = string_read_line;
   port_display(x) = input_display;
   port_read_semicolon(x) = string_read_semicolon;
-#if DEBUGGING
+#if S7_DEBUGGING
   if (input_string[len] != '\0')
     fprintf(stderr, "read_white_space string is not terminated: %s", input_string);
 #endif
@@ -28312,7 +28312,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
   return(buf);
 }
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
 {
   uint64_t full_typ;
@@ -28375,7 +28375,7 @@ void s7_show_let(s7_scheme *sc) /* debugging convenience */
     }
 }
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static const char *check_name(int32_t typ)
 {
   if ((typ >= 0) && (typ < NUM_TYPES))
@@ -28394,13 +28394,17 @@ static const char *check_name(int32_t typ)
   return("unknown type!");
 }
 
+#define S7_DEBUGGING_SET 0
+
 static s7_pointer check_seti(s7_scheme *sc, s7_pointer x, const char *func, int32_t line)
 {
+#if S7_DEBUGGING_SET
   if (is_immutable(x))
     {
       fprintf(stderr, "%s%s[%d]: set! immutable %s: %s%s\n", BOLD_TEXT, func, line, type_name(sc, x, NO_ARTICLE), DISPLAY(x), UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
+#endif
   return(x);
 }
 
@@ -29216,7 +29220,7 @@ static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 
 static void display_any(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-#if DEBUGGING
+#if S7_DEBUGGING
   print_debugging_state(sc, obj, port);
 #else
   {
@@ -32519,7 +32523,7 @@ static s7_pointer g_set_cdr(s7_scheme *sc, s7_pointer args)
   if (!is_mutable_pair(p))
     mutable_method_or_bust(sc, p, sc->set_cdr_symbol, args, T_PAIR, 1);
 
-#if DEBUGGING
+#if S7_DEBUGGING
   if (not_in_heap(p))
     fprintf(stderr, "unheap set-cdr! %s\n", DISPLAY(p));
 #endif
@@ -32532,7 +32536,7 @@ static s7_pointer set_cdr_p_pp(s7_pointer p1, s7_pointer p2)
 {
   if (!is_mutable_pair(p1))
     simple_wrong_type_argument(cur_sc, cur_sc->set_cdr_symbol, p1, T_PAIR);
-#if DEBUGGING
+#if S7_DEBUGGING
   if (not_in_heap(p1)) 
     fprintf(stderr, "unheap opt set-cdr! %s\n", s7_object_to_c_string(cur_sc, p1));
 #endif
@@ -33888,7 +33892,7 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 	   *   but this is inconsistent with (append (list 1) "hi" "hi") -> '(1 #\h #\i . "hi") ?
 	   *   Perhaps if all args but last are lists, returned dotted list?
 	   */
-#if DEBUGGING
+#if S7_DEBUGGING
 	  if (!np) fprintf(stderr, "%s[%d]: np is null\n", __func__, __LINE__);
 #endif
 	  if (args_are_lists || (is_null(p)))
@@ -35288,7 +35292,7 @@ static s7_pointer vector_set_p_pip(s7_pointer v, s7_int i, s7_pointer p)
 
 static s7_pointer vector_set_p_pip_direct(s7_pointer v, s7_int i, s7_pointer p) 
 {
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!is_normal_vector(v)) abort();
 #endif
   if ((i < 0) || (i >= vector_length(v)))
@@ -35299,7 +35303,7 @@ static s7_pointer vector_set_p_pip_direct(s7_pointer v, s7_int i, s7_pointer p)
 
 static s7_pointer vector_set_unchecked(s7_pointer v, s7_int i, s7_pointer p) 
 {  
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!is_normal_vector(v)) abort();
 #endif
   vector_element(v, i) = p;
@@ -37505,7 +37509,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   uint32_t hash_len, loc;
 
   hash_len = hash_table_mask(table);
-#if DEBUGGING
+#if S7_DEBUGGING
   if (p->raw_hash != hash_loc(sc, table, key)) 
     fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
 #endif
@@ -42852,7 +42856,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       }
 
     default:
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stderr, "object->let: %s, type: %d\n", DISPLAY(obj), type(obj));
 #endif
       return(sc->F);
@@ -43961,7 +43965,7 @@ static s7_pointer stack_entries(s7_scheme *sc, s7_pointer stack, int64_t top)
 	  (s7_is_valid(sc, e)) &&
 	  (op < OP_MAX_DEFINED))
 	{
-#if DEBUGGING
+#if S7_DEBUGGING
 	  if (op < OP_MAX_DEFINED_1)
 	    lst = cons(sc, list_4(sc, func, args, e, s7_make_string_wrapper(sc, op_names[op])), lst);
 	  else lst = cons(sc, list_4(sc, func, args, e, make_integer(sc, op)), lst);
@@ -45089,7 +45093,7 @@ static s7_pointer g_apply(s7_scheme *sc, s7_pointer args)
 s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
   TRACK(sc);
-#if DEBUGGING
+#if S7_DEBUGGING
   {
     s7_pointer p;
     int32_t argnum;
@@ -45589,7 +45593,7 @@ static s7_pointer g_emergency_exit(s7_scheme *sc, s7_pointer args)
   #define EXIT_FAILURE 1
 #endif
 
-#if DEBUGGING_EXIT
+#if S7_DEBUGGING_EXIT
   fprintf(stderr, "(exit %s)\n", DISPLAY(args));
   abort();
 #endif
@@ -45615,7 +45619,7 @@ static s7_pointer g_exit(s7_scheme *sc, s7_pointer args)
 }
 
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static s7_pointer g_abort(s7_scheme *sc, s7_pointer args) {abort();}
 #endif
 
@@ -47349,7 +47353,7 @@ static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
 
 
-#if DEBUGGING
+#if S7_DEBUGGING
 static opt_info *alloc_opo(s7_scheme *sc, s7_pointer expr)
 #else
 #define alloc_opo(Sc, Expr) alloc_opo_1(Sc)
@@ -47359,12 +47363,12 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
   opt_info *o;
   if (sc->pc >= OPTS_SIZE)
     {
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stderr, "opts overflow: %s\n", DISPLAY(expr));
 #endif
       longjmp(sc->opt_exit, 1);
     }
-#if DEBUGGING
+#if S7_DEBUGGING
   if (sc->pc < 0)
     {
       fprintf(stderr, "sc->pc: %d\n", sc->pc);
@@ -47373,7 +47377,7 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
 #endif
   o = sc->opts[sc->pc++];
   o->v8.fd = NULL;
-#if DEBUGGING
+#if S7_DEBUGGING
   o->expr = expr;
 #endif
   return(o);
@@ -55514,7 +55518,7 @@ static void clear_optimizer_fixups(s7_scheme *sc)
 static void add_optimizer_fixup(s7_scheme *sc, s7_pointer expr, uint32_t op)
 {
   hash_entry_t *p;
-#if DEBUGGING
+#if S7_DEBUGGING
   if (((op & 1) != 0) && (!all_x_function[op])) fprintf(stderr, "no all_x fixup for %s\n", opt_names[op]);
 #endif
   p = make_hash_entry(expr, sc->nil, op);
@@ -56452,7 +56456,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
     bool dotted = false;
 
     len = s7_list_length(sc, form);
-#if DEBUGGING
+#if S7_DEBUGGING
     if (len == 0)
       fprintf(stderr, "quasiquote_1: cyclic?? %s\n", DISPLAY(form));
 #endif
@@ -59264,7 +59268,7 @@ static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
   s7_pointer p;
   for (p = args; is_pair(p); p = cdr(p))
     {
-#if DEBUGGING
+#if S7_DEBUGGING
       s7_function allx;
       allx = all_x_eval(sc, p, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe);
       if (!allx)
@@ -59283,7 +59287,7 @@ static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 {
   /* if sc->envir is sc->nil, we're at the top-level, but the global_slot check should suffice for that */
   set_x_call(arg, all_x_eval(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!c_call(arg))
     abort();
 #endif
@@ -61576,7 +61580,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7_pointer e, bool export_ok)
 {
   s7_pointer car_expr;
-#if DEBUGGING
+#if S7_DEBUGGING
   if (is_checked(expr)) {fprintf(stderr, "%s is checked\n", DISPLAY(expr)); abort();}
 #endif
   /* fprintf(stderr, "optimize_expression %s %d %s\n", DISPLAY(expr), hop, DISPLAY(e)); */
@@ -62234,7 +62238,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 {
   s7_pointer expr;
   body_t result = VERY_SAFE_BODY;
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!is_pair(x)) {fprintf(stderr, "form_is_safe x is not a pair! %s\n", DISPLAY(x)); abort();}
 #endif
   expr = car(x);
@@ -64306,7 +64310,7 @@ static int32_t expansion_ex(s7_scheme *sc)
     {
       s7_pointer symbol, slot;
       /* we're playing fast and loose with sc->envir in the reader, so here we need a disaster check */
-#if DEBUGGING
+#if S7_DEBUGGING
       if (unchecked_type(sc->envir) != T_LET) sc->envir = sc->nil;
 #else
       if (!is_let(sc->envir)) sc->envir = sc->nil;
@@ -66586,7 +66590,7 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 
   body = car(opt_pair2(code));
 
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!is_symbol(car(body)))
     {
       fprintf(stderr, "simple_do_ex car(body) not symbol: %s\n", DISPLAY_80(code));
@@ -66774,7 +66778,7 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		{
 		  sc->pc = 0;
 		  fp(o);
-#if DEBUGGING
+#if S7_DEBUGGING
 		  if (!is_integer(slot_value(step_slot)))
 		    fprintf(stderr, "%d not int: %s\n", __LINE__, DISPLAY(step_slot));
 #endif
@@ -66788,7 +66792,7 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	      while (true)
 		{
 		  func(sc, car(code));
-#if DEBUGGING
+#if S7_DEBUGGING
 		  if (!is_integer(slot_value(step_slot)))
 		    fprintf(stderr, "%d not int: %s\n", __LINE__, DISPLAY(step_slot));
 #endif
@@ -67841,7 +67845,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
   code = sc->code;
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
 
-#if DEBUGGING
+#if S7_DEBUGGING
   if (!has_all_x(cdr(code)))
     fprintf(stderr, "unknown_a_ex missing _a support? %s\n", DISPLAY_80(code));
 #endif
@@ -68387,7 +68391,7 @@ static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-bas
   sc->code = c_macro_call(sc->code)(sc, sc->args);
   if (is_multiple_value(sc->code)) /* can this happen? s7_values splices before returning, and `(values ...) is handled later */
     {
-#if DEBUGGING
+#if S7_DEBUGGING
       fprintf(stderr, "%d unexpected mv code: %s\n", __LINE__, DISPLAY(sc->code));
 #endif
       push_stack(sc, OP_EVAL_MACRO_MV, sc->nil, cdr(sc->code));
@@ -69086,7 +69090,7 @@ static s7_pointer g_profile_filename(s7_scheme *sc, s7_pointer args)
 
 #if WITH_GCC
 #undef new_cell
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
 #define new_cell(Sc, Obj, Type)			\
   do {						\
     if (Sc->free_heap_top <= Sc->free_heap_trigger) {try_to_call_gc(Sc); if ((Sc->begin_hook) && (call_begin_hook(Sc))) return(Sc->F);} \
@@ -74156,7 +74160,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      /* set_immutable(sym); */ /* obsolete */
 	      set_immutable(global_slot(sym)); /* id == 0 so its global */
 	      set_possibly_constant(sym);
-#if DEBUGGING
+#if S7_DEBUGGING
 	      {
 		s7_pointer slot;
 		slot = find_symbol(sc, sym);
@@ -76719,7 +76723,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  push_stack_op(sc, OP_ERROR_QUIT);                /* added 3-Dec-16: try to make sure we actually exit! */
 	  sc->cur_op = OP_ERROR_QUIT;
 	  if (sc->longjmp_ok) longjmp(sc->goto_start, ERROR_QUIT_JUMP);
-#if DEBUGGING
+#if S7_DEBUGGING
 	  fprintf(stderr, "%d: op_error_hook_quit did not jump, returns %s\n", __LINE__, DISPLAY(sc->value));
 #endif
 	  return(sc->value); /* not executed I hope */
@@ -77216,7 +77220,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	default:
 	  fprintf(stderr, "unknown operator: %" PRIdPTR " in %s\n", sc->cur_op, DISPLAY(current_code(sc)));
-#if DEBUGGING
+#if S7_DEBUGGING
 	  fprintf(stderr, "stack size: %u\n", sc->stack_size);
 	  if (sc->stack_end < sc->stack_start) 
 	    fprintf(stderr, "%sstack underflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
@@ -77232,7 +77236,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 #if WITH_GCC
 #undef new_cell
-#if (!DEBUGGING)
+#if (!S7_DEBUGGING)
 #define new_cell(Sc, Obj, Type)			\
   do {									\
     if (Sc->free_heap_top <= Sc->free_heap_trigger) try_to_call_gc(Sc); \
@@ -81732,7 +81736,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
     n = snprintf(buf, 1024, "output ports: %u, free port: %u (%lu bytes)\ncontinuations: %u (total stack: %u), c_objects: %u, gensyms: %u, setters: %u, optlists: %u, unknowns: %u\n",
-		 sc->output_ports->loc, fs, (uint64_t)(fs * sizeof(port_t)),
+		 sc->output_ports->loc, fs, (unsigned long)(fs * sizeof(port_t)),
 		 gp->loc, cc_stacks,
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
@@ -82250,7 +82254,7 @@ static s7_pointer make_unique(const char* name, uint64_t typ)
   return(p);
 }
 
-#if DEBUGGING_EXIT
+#if S7_DEBUGGING_EXIT
 static void upon_exit(void)
 {
   fprintf(stderr, "upon_exit\n");
@@ -82329,7 +82333,7 @@ s7_scheme *s7_init(void)
   sc->eof_object =  make_unique("#<eof>",         T_EOF_OBJECT);
   sc->undefined =   make_unique("#<undefined>",   T_UNDEFINED);
   sc->unspecified = make_unique("#<unspecified>", T_UNSPECIFIED);
-#if DEBUGGING
+#if S7_DEBUGGING
   sc->no_value =    make_unique("#<no-value>",    T_UNSPECIFIED);
 #else
   sc->no_value =    make_unique("#<unspecified>", T_UNSPECIFIED);
@@ -82472,7 +82476,7 @@ s7_scheme *s7_init(void)
       vector_element(sc->protected_setters, i) = sc->gc_nil;
       sc->gpofl[i] = i;
     }
-#if DEBUGGING
+#if S7_DEBUGGING
   sc->protected_lines = (int *)calloc(INITIAL_PROTECTED_OBJECTS_SIZE, sizeof(int));
 #endif
 
@@ -83455,7 +83459,7 @@ s7_scheme *s7_init(void)
   sc->s7_version_symbol =            defun("s7-version",	s7_version,		0, 0, false);
                                      defun("emergency-exit",	emergency_exit,		0, 1, false);
   sc->exit_symbol =                  defun("exit",		exit,			0, 1, false);
-#if DEBUGGING
+#if S7_DEBUGGING
   s7_define_function(sc, "abort", g_abort, 0, 0, true, "drop into gdb I hope");
 #endif
   s7_define_function(sc, "s7-optimize", g_optimize, 1, 0, false, "short-term debugging aid");
@@ -83575,7 +83579,7 @@ s7_scheme *s7_init(void)
 #if WITH_IMMUTABLE_UNQUOTE
   s7_provide(sc, "immutable-unquote");
 #endif
-#if DEBUGGING
+#if S7_DEBUGGING
   s7_provide(sc, "debugging");
 #endif
 #if WITH_PROFILE
@@ -83758,11 +83762,11 @@ s7_scheme *s7_init(void)
   init_choosers(sc);
   init_typers(sc);
 
-#if DEBUGGING_EXIT
+#if S7_DEBUGGING_EXIT
   atexit(upon_exit);
 #endif
 
-#if DEBUGGING
+#if S7_DEBUGGING
   s7_define_safe_function(sc, "local-symbol?",   g_is_local_symbol,   1, 0, false, "an experiment");
 #endif
 
@@ -84264,7 +84268,7 @@ s7_scheme *s7_init(void)
                           (define procedure-documentation    documentation)   \n\
                           (define (procedure-arity obj) (let ((c (arity obj))) (list (car c) (- (cdr c) (car c)) (> (cdr c) 100000)))))");
 #endif
-#if DEBUGGING
+#if S7_DEBUGGING
   if (strcmp(opt_names[HOP_SAFE_C_AAP], "h_safe_c_aap") != 0)
     fprintf(stderr, "opt_name: %s\n", opt_names[HOP_SAFE_C_AAP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0)
