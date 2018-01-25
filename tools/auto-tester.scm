@@ -12,6 +12,8 @@
 (set! (*s7* 'gc-stats) 6)
 (set! (*s7* 'print-length) 1000)
 (define ostr "")
+(define ostr1 "")
+(define ostr2 "")
 (set! (*s7* 'max-string-length) 100000)
 (set! (*s7* 'max-list-length) 10000)
 (set! (*s7* 'max-vector-length) 10000)
@@ -260,7 +262,7 @@
        ,@(map (lambda (x)
 		`(display ,x))
 	      args))))
-  
+
 (set! (hook-functions *unbound-variable-hook*) ())
 
 (define max-stack (*s7* 'stack-top))
@@ -488,7 +490,7 @@
 		    "(let ((x 1)) (dynamic-wind (lambda () (set! x 2)) (lambda () (+ x 1)) (lambda () (set! x 1))))"
 
 		    "1+1e10i" "1e15+1e15i" "0+1e18i" "1e18" 
-		    "(real-part (random 0+i))" 
+		    ;;"(real-part (random 0+i))" -- (cond (real-part...))!
 		    ;;"(random 1.0)" ; number->string so lengths differ
 		    "(random 1)"
 		    ;;"(else ())" "(else (f x) B)"
@@ -500,7 +502,7 @@
 		    "let-temporarily"
 		    ;;"+signature+" "+documentation+" "+setter+" 
 		    "__var2__"
-		    "~S~%" "~A~D~X" "~{~A~^~}~%" "~NC~&"
+		    "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
 		    "(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
 		    "(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
 		    "(immutable! (inlet 'a 1 'b 2))" 
@@ -519,6 +521,8 @@
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
+		    
+		    ;;"(catch #t 1 cons)" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
@@ -558,6 +562,8 @@
 	      (list "(vector-set! (vector 0) 0 (list " "(hash-table-set! (hash-table) 'a (list ")
 	      (list "(list (_rf1_ " "(list (_rf2_ ")
 	      (list "(let () (_do1_ " "(let () (_do2_ ")
+	      (list "(list (let-temporarily ((x 1234)) (call-with-exit (lambda (goto) (goto 1))) "
+		    "(list (let-temporarily ((x 1234)) (call/cc (lambda (goto) (goto 1))) ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -680,7 +686,7 @@
 	       (eq? (type-of val1) (type-of val3))
 	       (eq? (type-of val1) (type-of val4)))
 	  (unless (or (openlet? val1)
-		      (string-position "set!" str1)
+		      (string-position "(set!" str1)
 		      (string-position "gensym" str1))
 	    (cond ((or (and (symbol? val1)
 			    (not (gensym? val1)))
@@ -716,7 +722,6 @@
 				     (memq (type-of val1) '(hash-table? let?))
 				     (infinite? len1)
 				     (eq? val1 (val1 0)))
-			   ;; TODO: check all members
 			   (same-type? (val1 0) (val2 0) (val3 0) (val4 0) str str1 str2 str3 str4)))))
 		  ((number? val1)
 		   (if (or (and (nan? val1)
@@ -750,7 +755,8 @@
           'error)))
 
     (define (try-both str)
-      ;(format *stderr* "~S~%" str)
+      (set! ostr2 ostr1)
+      (set! ostr1 ostr)
       (set! ostr str)
       (catch #t 
 	(lambda () 

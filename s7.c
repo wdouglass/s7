@@ -4947,6 +4947,7 @@ static int32_t gc(s7_scheme *sc)
   S7_MARK(sc->autoload_table);
   S7_MARK(sc->default_rng);
 
+  /* permanent lists that might escape and therefore need GC protection */
   mark_pair(sc->temp_cell_1);
   mark_pair(sc->temp_cell_2);
   S7_MARK(car(sc->t1_1));
@@ -4964,11 +4965,23 @@ static int32_t gc(s7_scheme *sc)
   S7_MARK(car(sc->plist_1));
   S7_MARK(car(sc->plist_2));
   S7_MARK(cadr(sc->plist_2));
-  S7_MARK(car(sc->plist_3));
-  S7_MARK(cadr(sc->plist_3));
-  S7_MARK(caddr(sc->plist_3));
   S7_MARK(car(sc->qlist_2));
   S7_MARK(cadr(sc->qlist_2));
+
+  {
+    s7_pointer p;
+    for (p = sc->wrong_type_arg_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->simple_wrong_type_arg_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->out_of_range_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->simple_out_of_range_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    S7_MARK(car(sc->elist_1));
+    S7_MARK(car(sc->elist_2));
+    S7_MARK(cadr(sc->elist_2));
+    for (p = sc->plist_3; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->elist_3; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->elist_4; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->elist_5; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+  }
 
   {
     uint32_t i;
@@ -84386,19 +84399,19 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264   264
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1036
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1476
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1474
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1926
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2102
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2121
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467
  * lint          |      |      |      || 4041 || 2702 | 2696  2691
  * lg            |      |      |      || 211  || 133  | 133.4 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2765
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2978
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3444
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2762
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2980
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
- * tsort         |      |      |      || 8584 || 4111 | 4111  4111
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4112
  * titer         |      |      |      || 5971 || 4646 | 4646  4646
- * bench         |      |      |      || 7012 || 5093 | 5143  5144
+ * bench         |      |      |      || 7012 || 5093 | 5143  5136
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7703
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
