@@ -8571,16 +8571,14 @@ static inline void annotate_expansion(s7_pointer p)
       annotate_expansion(car(p));
 }
 
-#define S7_DEBUGGING_EXIT 0
-
-#if S7_DEBUGGING_EXIT
+#if S7_DEBUGGING
 static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
 #endif
 
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   /* ideally we'd use tree_len here, but it currently does not protect against cycles */
-#if S7_DEBUGGING_EXIT
+#if S7_DEBUGGING
   if (cyclic_sequences(sc, p, false) == sc->T)
     {
       fprintf(stderr, "attempt to copy circular body\n");
@@ -8777,7 +8775,6 @@ char *s7_symbol_documentation(s7_scheme *sc, s7_pointer sym)
   return(NULL);
 }
 
-
 char *s7_symbol_set_documentation(s7_scheme *sc, s7_pointer sym, const char *new_doc)
 {
   if (is_keyword(sym)) return(NULL);
@@ -8797,7 +8794,6 @@ bool s7_is_keyword(s7_pointer obj)
 {
   return(is_keyword(obj));
 }
-
 
 static s7_pointer g_is_keyword(s7_scheme *sc, s7_pointer args)
 {
@@ -8822,7 +8818,6 @@ s7_pointer s7_make_keyword(s7_scheme *sc, const char *key)
   tmpbuf_free(name, slen + 2);
   return(sym);
 }
-
 
 static s7_pointer g_string_to_keyword(s7_scheme *sc, s7_pointer args)
 {
@@ -10148,9 +10143,6 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
 
   return(x);
 }
-/* in fc19 as a guest running in virtualbox on OSX, the line  a /= divisor can abort with an arithmetic exception (SIGFPE)
- *    if leastfix/mostfix -- apparently this is a bug in virtualbox.
- */
 
 
 #define WITH_OVERFLOW_ERROR true
@@ -10159,9 +10151,7 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
 #if (!WITH_PURE_S7) && (!WITH_GMP)
 static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
 {
-  /* this is tricky because a big int32_t can mess up when turned into a double:
-   *   (truncate (exact->inexact most-positive-fixnum)) -> -9223372036854775808
-   */
+  /* this is tricky because a big int32_t can mess up when turned into a double: (truncate (exact->inexact most-positive-fixnum)) -> -9223372036854775808 */
   switch (type(x))
     {
     case T_INTEGER: return(make_real(sc, (s7_double)(integer(x))));
@@ -11156,9 +11146,7 @@ static s7_pointer check_sharp_readers(s7_scheme *sc, const char *name)
   if (need_loader_port)
     clear_loader_port(sc->input_port);
 
-  /* normally read* can't read from sc->input_port if it is in use by the loader,
-   *   but here we are deliberately making that possible.
-   */
+  /* normally read* can't read from sc->input_port if it is in use by the loader, but here we are deliberately making that possible. */
   for (reader = slot_value(sc->sharp_readers); is_not_null(reader); reader = cdr(reader))
     {
       if (name[0] == s7_character(caar(reader)))
@@ -13642,9 +13630,9 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 
   if (s7_is_one(pw))
     {
-      if (s7_is_integer(pw))
+      if (s7_is_integer(pw))                                   /* (expt x 1) */
 	return(n);
-      if (is_rational(n))
+      if (is_rational(n))                                      /* (expt ratio 1.0) */
 	return(make_real(sc, rational_to_double(sc, n)));
       return(n);
     }
@@ -17984,7 +17972,6 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 	  method_or_bust(sc, y, sc->lt_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
 
-
     case T_RATIO:
     RATIO_LESS:
       y = car(p);
@@ -18056,7 +18043,6 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 	default:
 	  method_or_bust(sc, y, sc->lt_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
-
 
     case T_REAL:
       if (is_NaN(real(x))) goto NOT_LESS;
@@ -18161,7 +18147,6 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 	  method_or_bust(sc, y, sc->leq_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
 
-
     case T_RATIO:
     RATIO_LEQ:
       y = car(p);
@@ -18232,7 +18217,6 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 	default:
 	  method_or_bust(sc, y, sc->leq_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
-
 
     case T_REAL:
       if (is_NaN(real(x))) goto NOT_LEQ;
@@ -18336,7 +18320,6 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 	  method_or_bust(sc, y, sc->gt_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
 
-
     case T_RATIO:
     RATIO_GREATER:
       y = car(p);
@@ -18407,7 +18390,6 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 	default:
 	  method_or_bust(sc, y, sc->gt_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
-
 
     case T_REAL:
       if (is_NaN(real(x))) goto NOT_GREATER;
@@ -18512,7 +18494,6 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 	  method_or_bust(sc, y, sc->geq_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
 
-
     case T_RATIO:
     RATIO_GEQ:
       y = car(p);
@@ -18583,7 +18564,6 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 	default:
 	  method_or_bust(sc, y, sc->geq_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1);
 	}
-
 
     case T_REAL:
       if (is_NaN(real(x))) goto NOT_GEQ;
@@ -29116,8 +29096,6 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
   tmpbuf_free(str, len);
 }
 
-static s7_pointer g_is_local_symbol(s7_scheme *sc, s7_pointer p) {return(make_boolean(sc, is_local_symbol(p)));} /* was car(p)?? */
-
 static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, int32_t line, const char *func)
 {
   if (!p)
@@ -37521,6 +37499,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   hash_entry_t *x;
   uint32_t hash_len, loc;
 
+  if (!p) return(sc->F);
   hash_len = hash_table_mask(table);
 #if S7_DEBUGGING
   if (p->raw_hash != hash_loc(sc, table, key)) 
@@ -37996,54 +37975,49 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
     }
 }
 
-static void extend_hash_free_list(void)
+static hash_entry_t *extend_hash_free_list(void)
 {
   int32_t i;
   hash_entry_t *p;
-  hash_free_list = (hash_entry_t *)malloc(16 * sizeof(hash_entry_t));
-  for (p = hash_free_list, i = 0; i < 15; i++) {p->next = p + 1; p++;}
+  hash_free_list = (hash_entry_t *)malloc(32 * sizeof(hash_entry_t));
+  for (p = hash_free_list, i = 0; i < 31; i++) {p->next = p + 1; p++;}
   p->next = NULL;
+  return(hash_free_list);
 }
 
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
-  hash_entry_t *x;
-  x = (*hash_table_checker(table))(sc, table, key);
+  uint32_t hash_len, loc;
+  hash_entry_t *p, *x;
 
+  if (value == sc->F)
+    return(remove_from_hash_table(sc, table, key, (*hash_table_checker(table))(sc, table, key)));
+
+  x = (*hash_table_checker(table))(sc, table, key);      
   if (x)
     {
-      if (value == sc->F)
-	return(remove_from_hash_table(sc, table, key, x));
       x->value = _NFre(value);
+      return(value);
     }
-  else 
-    {
-      uint32_t hash_len, raw_hash, loc;
-      hash_entry_t *p;
-      if (value == sc->F) return(sc->F);
-      
-      if (!hash_chosen(table))
-	hash_table_set_checker(table, type(key));
 
-      hash_len = hash_table_mask(table);
-      if (hash_table_entries(table) > hash_len)
-	hash_len = resize_hash_table(sc, table);
-      raw_hash = hash_loc(sc, table, key);
+  if (!hash_chosen(table))
+    hash_table_set_checker(table, type(key));
 
-      if (!hash_free_list)
-	extend_hash_free_list();
+  hash_len = hash_table_mask(table);
+  if (hash_table_entries(table) > hash_len)
+    hash_len = resize_hash_table(sc, table);
 
-      p = hash_free_list;
-      hash_free_list = p->next;
-      p->key = key;
-      p->value = _NFre(value);
-      p->raw_hash = raw_hash;
+  p = hash_free_list;
+  if (!p) p = extend_hash_free_list();
+  hash_free_list = p->next;
+  p->key = key;
+  p->value = _NFre(value);
+  p->raw_hash = hash_loc(sc, table, key);
 
-      loc = raw_hash & hash_len;
-      p->next = hash_table_element(table, loc);
-      hash_table_element(table, loc) = p;
-      hash_table_entries(table)++;
-    }
+  loc = p->raw_hash & hash_len;
+  p->next = hash_table_element(table, loc);
+  hash_table_element(table, loc) = p;
+  hash_table_entries(table)++;
   return(value);
 }
 
@@ -45604,11 +45578,6 @@ static s7_pointer g_emergency_exit(s7_scheme *sc, s7_pointer args)
 #ifndef EXIT_SUCCESS
   #define EXIT_SUCCESS 0
   #define EXIT_FAILURE 1
-#endif
-
-#if S7_DEBUGGING_EXIT
-  fprintf(stderr, "(exit %s)\n", DISPLAY(args));
-  abort();
 #endif
 
   if (is_null(args))
@@ -82267,14 +82236,6 @@ static s7_pointer make_unique(const char* name, uint64_t typ)
   return(p);
 }
 
-#if S7_DEBUGGING_EXIT
-static void upon_exit(void)
-{
-  fprintf(stderr, "upon_exit\n");
-  abort();
-}
-#endif
-
 s7_scheme *s7_init(void)
 {
   int32_t i;
@@ -83775,14 +83736,6 @@ s7_scheme *s7_init(void)
   init_choosers(sc);
   init_typers(sc);
 
-#if S7_DEBUGGING_EXIT
-  atexit(upon_exit);
-#endif
-
-#if S7_DEBUGGING
-  s7_define_safe_function(sc, "local-symbol?",   g_is_local_symbol,   1, 0, false, "an experiment");
-#endif
-
   /* -------------------------------------------------------------------------------- */
   s7_set_d_pi_function(slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_d);
   s7_set_d_pid_function(slot_value(global_slot(sc->float_vector_set_symbol)), float_vector_set_d);
@@ -84364,7 +84317,7 @@ int main(int argc, char **argv)
  * let signature? (i.e. declare types etc): (inlet 'a 1 'b 2 'signature (lambda (obj) (circular-list 'integer?)
  *   but order in let is unspecified: maybe (since obj passed as arg) calc first time called?
  *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
- *   too clumsy, and type should accompany var/val [procedure args?]
+ *   too clumsy, and type should accompany var/val [procedure args?], typed/let: (let ((var val type)...) ) as macro -> setters
  * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
@@ -84412,7 +84365,7 @@ int main(int argc, char **argv)
  * tsort         |      |      |      || 8584 || 4111 | 4111  4112
  * titer         |      |      |      || 5971 || 4646 | 4646  4646
  * bench         |      |      |      || 7012 || 5093 | 5143  5136
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7703
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7684
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1
