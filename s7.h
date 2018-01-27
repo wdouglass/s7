@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "5.12"
-#define S7_DATE "11-Dec-17"
+#define S7_VERSION "5.13"
+#define S7_DATE "26-Jan-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -468,6 +468,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc);                             /* c
 
 const char *s7_documentation(s7_scheme *sc, s7_pointer p);                  /* (documentation x) if any (don't free the string) */
 s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj);                        /* (setter obj) */
+s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter);   /* (set! (setter p) setter) */
 s7_pointer s7_signature(s7_scheme *sc, s7_pointer func);                    /* (signature obj) */
 s7_pointer s7_make_signature(s7_scheme *sc, int32_t len, ...);              /* procedure-signature data */
 s7_pointer s7_make_circular_signature(s7_scheme *sc, int32_t cycle_point, int32_t len, ...);
@@ -884,6 +885,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 26-Jan-18: s7_set_setter.
  * 11-Dec:    s7_gc_protect_via_stack
  * 3-Oct:     renamed procedure-signature -> signature, procedure-documentation -> documentation, and procedure-setter -> setter.
  * 18-Sep:    s7_immutable, s7_is_immutable. define-constant follows lexical scope now.

@@ -22641,3 +22641,4 @@
 ;;; 62 910885
 
 
+;;; lint redundant catch? let-temp? impossible catch? (catch 'wrong-type-arg (lambda () (pair? x))...)

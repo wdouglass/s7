@@ -5172,7 +5172,6 @@ int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
     } while (0)
 #endif
 
-/* static s7_pointer describe_memory_usage(s7_scheme *sc); */
 
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
@@ -25837,11 +25836,7 @@ static s7_pointer pair_iterate(s7_scheme *sc, s7_pointer obj)
       result = car(iterator_current(obj));
       iterator_current(obj) = cdr(iterator_current(obj));
       if (iterator_current(obj) == iterator_slow(obj))
-	{
-	  iterator_next(obj) = iterator_finished;
-	  clear_iter_ok(obj);
-	  return(result);
-	}
+	iterator_current(obj) = sc->nil;
       iterator_next(obj) = pair_iterate_1;
       return(result);
     }
@@ -25858,12 +25853,8 @@ static s7_pointer pair_iterate_1(s7_scheme *sc, s7_pointer obj)
       result = car(iterator_current(obj));
       iterator_current(obj) = cdr(iterator_current(obj));
       if (iterator_current(obj) == iterator_slow(obj))
-	{
-	  iterator_next(obj) = iterator_finished;
-	  clear_iter_ok(obj);
-	  return(result);
-	}
-      iterator_set_slow(obj, cdr(iterator_slow(obj)));
+	iterator_current(obj) = sc->nil;
+      else iterator_set_slow(obj, cdr(iterator_slow(obj)));
       iterator_next(obj) = pair_iterate;
       return(result);
     }
@@ -39256,10 +39247,24 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 
 bool s7_is_dilambda(s7_pointer obj)
 {
-  return(((is_c_function(obj)) &&
-	  (is_c_function(c_function_setter(obj)))) ||
-	 ((is_any_closure(obj)) &&
-	  (is_procedure(closure_setter(obj)))));
+  switch (type(obj))
+    {
+    case T_MACRO:   case T_MACRO_STAR:
+    case T_BACRO:   case T_BACRO_STAR:
+    case T_CLOSURE: case T_CLOSURE_STAR:
+      return(is_any_procedure(closure_setter(obj))); /* type >= T_CLOSURE (excludes goto/continuation) */
+
+    case T_C_FUNCTION:
+    case T_C_ANY_ARGS_FUNCTION:
+    case T_C_OPT_ARGS_FUNCTION:
+    case T_C_RST_ARGS_FUNCTION:
+    case T_C_FUNCTION_STAR:
+      return(is_any_procedure(c_function_setter(obj)));
+ 
+    case T_C_MACRO:
+      return(is_any_procedure(c_macro_setter(obj)));
+    }
+  return(false);
 }
 
 static s7_pointer g_is_dilambda(s7_scheme *sc, s7_pointer args)
@@ -39269,7 +39274,7 @@ static s7_pointer g_is_dilambda(s7_scheme *sc, s7_pointer args)
   check_boolean_method(sc, s7_is_dilambda, sc->is_dilambda_symbol, args);
 }
 
-static s7_pointer c_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
+s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
 {
   switch (type(p))
     {
@@ -39293,10 +39298,10 @@ static s7_pointer c_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
       break;
 
     case T_C_MACRO:
+      c_macro_set_setter(p, setter);
       if ((is_any_closure(setter)) ||
 	  (is_any_macro(setter)))
 	add_setter(sc, p, setter);
-      c_macro_set_setter(p, setter);
       break;
     }
   return(setter);
@@ -39316,7 +39321,7 @@ static s7_pointer g_dilambda(s7_scheme *sc, s7_pointer args)
   if (!is_any_procedure(setter))
     return(wrong_type_argument_with_type(sc, sc->dilambda_symbol, 2, setter, s7_make_string_wrapper(sc, "a procedure or macro")));
   
-  c_set_setter(sc, getter, setter);
+  s7_set_setter(sc, getter, setter);
   return(getter);
 }
 
@@ -39452,7 +39457,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
    *   #t
    * can this make sense?
    */
-  return(c_set_setter(sc, p, setter));
+  return(s7_set_setter(sc, p, setter));
 }
 
 /* setter for hash-table could give cow-obj:
@@ -81584,7 +81589,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   struct timeval ut;
 #endif
 
-  if (!is_output_port(sc->output_port)) return(sc->F); /* might be #f */
+  if (!is_output_port(sc->output_port)) return(sc->F); /* might be #f -- if #f should we set up a string port and return the string at the end? */
 
 #ifdef __linux__
   getrusage(RUSAGE_SELF, &info);
@@ -81624,7 +81629,10 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   n = snprintf(buf, 1024, "permanent cells: %d (%" PRId64 " bytes)\n", permanent_cells, (s7_int)(permanent_cells * sizeof(s7_cell)));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
-  n = snprintf(buf, 1024, "gc protected size: %u, unused: %d\n", sc->protected_objects_size, sc->gpofl_loc);
+  n = snprintf(buf, 1024, "gc protected objects size: %u, unused: %d\n", sc->protected_objects_size, sc->gpofl_loc);
+  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+      
+  n = snprintf(buf, 1024, "gc protected setters: %u\n", sc->protected_setters_loc);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       
   {
@@ -84319,6 +84327,7 @@ int main(int argc, char **argv)
  *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
  *   too clumsy, and type should accompany var/val [procedure args?], typed/let: (let ((var val type)...) ) as macro -> setters
  * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
+ * (object->let *s7*) and *autoload*??
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

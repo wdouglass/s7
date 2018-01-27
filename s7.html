@@ -6202,6 +6202,11 @@ definition, and a later redefinition does not affect earlier uses.
 <li>move all the "*var*" names to *s7*: *load-hook* becomes (*s7* 'load-hook) for example.
 </ul>
 
+<p>With the move to s7_setter and s7_set_setter (setter in Scheme), 
+dilambda and dilambda? have been reduced to trivial conveniences, so perhaps they can also be
+removed.
+</p>
+
 <p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
 *most-positive-fixnum* (*fixleast* and *fixmost*?) so that all the built-in variables and constants have the
 same kind of name (or +pi+ to show it is a constant?).  
