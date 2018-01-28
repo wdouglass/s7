@@ -57547,7 +57547,12 @@ static s7_pointer g_format_just_newline(s7_scheme *sc, s7_pointer args)
   pt = car(args);
   str = cadr(args);
 
-  if (is_null(pt)) pt = sc->output_port;
+  if (is_null(pt)) 
+    {
+      pt = sc->output_port;
+      if (pt == sc->F)
+	return(sc->F);
+    }
   if (pt == sc->F)
     return(s7_make_string_with_length(sc, string_value(str), string_length(str)));
 
@@ -57575,7 +57580,12 @@ static s7_pointer g_format_allg_no_column(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer pt, str;
   pt = car(args);
-  if (is_null(pt)) pt = sc->output_port;
+  if (is_null(pt)) 
+    {
+      pt = sc->output_port;
+      if (pt == sc->F)
+	return(sc->F);
+    }
 
   if (!((s7_is_boolean(pt)) ||
 	((is_output_port(pt)) &&             /* (current-output-port) or call-with-open-file arg, etc */
@@ -65713,7 +65723,8 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 		    case OP_DO:
 		      {
 			s7_pointer nv;
-			if (DO_PRINT) fprintf(stderr, "do loop\n");
+			if (!is_pair(cddr(expr)))  /* (do ()) */
+			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 			nv = var_list;
 			for (vars = cadr(expr); is_pair(vars); vars = cdr(vars))
 			  {
@@ -84327,7 +84338,6 @@ int main(int argc, char **argv)
  *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
  *   too clumsy, and type should accompany var/val [procedure args?], typed/let: (let ((var val type)...) ) as macro -> setters
  * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
- * (object->let *s7*) and *autoload*??
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84373,7 +84383,6 @@ int main(int argc, char **argv)
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
  * tsort         |      |      |      || 8584 || 4111 | 4111  4112
  * titer         |      |      |      || 5971 || 4646 | 4646  4646
- * bench         |      |      |      || 7012 || 5093 | 5143  5136
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7684
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
