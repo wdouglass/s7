@@ -11298,14 +11298,14 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, int32_t radix, 
       return(unknown_sharp_constant(sc, name));
 
 
-      /* -------- #o #d #x #b -------- */
+      /* -------- #o #x #b -------- */
     case 'o':   /* #o (octal) */
     case 'x':   /* #x (hex) */
     case 'b':   /* #b (binary) */
       {
 	int32_t num_at = 1;
 	/* the #b or whatever overrides any radix passed in earlier */
-	x = make_atom(sc, (char *)(name + num_at), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : ((name[0] == 'b') ? 2 : 10)), NO_SYMBOLS, with_error);
+	x = make_atom(sc, (char *)(name + num_at), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error);
 	if (is_abnormal(x))
 	  return(unknown_sharp_constant(sc, name));
 	return(x);
@@ -11463,8 +11463,26 @@ static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 	  dig = digits[(unsigned char)(*tmp++)];
 	  if (dig >= radix) break;
 #if HAVE_OVERFLOW_CHECKS
-	  if (multiply_overflow(lval, (s7_int)radix, &lval)) break;
-	  if (add_overflow(lval, (s7_int)dig, &lval)) break;
+	  {
+	    s7_int oval = 0;
+	    if (multiply_overflow(lval, (s7_int)radix, &oval)) 
+	      {
+		/* maybe a bad idea!  #xffffffffffffffff -> -1??? this is needed for 64-bit number hacks (see s7test.scm bit-reverse) */
+		if ((radix == 16) &&
+		    (digits[(unsigned char)(*tmp)] >= radix))
+		  {
+		    lval -= 576460752303423488LL; /* turn off sign bit */
+		    lval *= radix;
+		    lval += dig;
+		    lval -= 9223372036854775807LL;
+		    return(lval - 1);
+		  }
+		else lval = oval; /* old case */
+		break;
+	      }
+	    else lval = oval;
+	    if (add_overflow(lval, (s7_int)dig, &lval)) break;
+	  }
 #else
 	  lval = dig + (lval * radix);
 	  dig = digits[(unsigned char)(*tmp++)];
@@ -14367,7 +14385,7 @@ static s7_double floor_d_d(s7_double x)
 static s7_int floor_i_p(s7_pointer p)
 {
   if (is_t_integer(p)) return(s7_integer(p));
-  if (is_t_real(p)) return((s7_int)floor(real(p)));
+  if (is_t_real(p)) return(floor_i_d(real(p)));
   if (is_t_ratio(p)) return((s7_int)(floor(fraction(p))));
   s7_wrong_type_arg_error(cur_sc, "floor", 0, p, "a real number");
   return(0);
@@ -14437,6 +14455,15 @@ static s7_double ceiling_d_d(s7_double x)
       (x < -REAL_TO_INT_LIMIT))
     simple_out_of_range(cur_sc, cur_sc->ceiling_symbol, make_real(cur_sc, x), its_too_large_string);
   return(ceil(x));
+}
+
+static s7_int ceiling_i_p(s7_pointer p)
+{
+  if (is_t_integer(p)) return(s7_integer(p));
+  if (is_t_real(p)) return(ceiling_i_d(real(p)));
+  if (is_t_ratio(p)) return((s7_int)(ceil(fraction(p))));
+  s7_wrong_type_arg_error(cur_sc, "ceiling", 0, p, "a real number");
+  return(0);
 }
 
 
@@ -26080,7 +26107,6 @@ static s7_pointer g_iterator_is_at_end(s7_scheme *sc, s7_pointer args)
     return(simple_wrong_type_argument(sc, sc->iterator_is_at_end_symbol, iter, T_ITERATOR));
   return(sc->T);
 }
-
 
 static s7_pointer g_iterator_sequence(s7_scheme *sc, s7_pointer args)
 {
@@ -42498,9 +42524,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_BOOLEAN:
       return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_boolean_symbol)));
       
-    case T_SYMBOL:
-      return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : sc->is_symbol_symbol)));
-      
     case T_CHARACTER:
       return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_char_symbol)));
       
@@ -42520,6 +42543,12 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_BIG_COMPLEX:
       return(s7_inlet(sc, s7_list(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_complex_symbol)));
 
+    case T_SYMBOL:
+      return(s7_inlet(sc, s7_list(sc, 6, 
+				  sc->value_symbol, obj, 
+				  sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : sc->is_symbol_symbol,
+				  sc->setter_symbol, (is_keyword(obj)) ? sc->F : g_symbol_setter(sc, args))));
+      
     case T_STRING:
       return(s7_inlet(sc, s7_list(sc, 6, sc->value_symbol, obj, 
 				  sc->type_symbol, (is_byte_vector_not_string(obj)) ? sc->is_byte_vector_symbol : sc->is_string_symbol,
@@ -42841,7 +42870,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	if (doc)
 	  s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
 
-	if (c_function_setter(obj) != sc->F)
+	if (c_function_setter(obj) != sc->F) /* c_macro_setter is the same underlying field */
 	  s7_varlet(sc, let, sc->local_setter_symbol, c_function_setter(obj));
 	
 	return(let);
@@ -52658,6 +52687,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
   if (is_symbol(cadr(car_x)))
     {
       s7_pointer settee;
+      /* fprintf(stderr, "%s: %d %d\n", DISPLAY(car_x), (is_constant_symbol(sc, cadr(car_x))), (symbol_has_setter(cadr(car_x)))); */
       if ((is_constant_symbol(sc, cadr(car_x))) ||
 	  (symbol_has_setter(cadr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
@@ -67325,8 +67355,10 @@ static int32_t do_init_ex(s7_scheme *sc)
 {
   s7_pointer x, y, z;
   /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY_80(sc->code)); */
-  while (true)
+  while (true)  /* at start, first value is the loop (for GC protection?), returning sc->value is the next value */
     {
+      if (is_multiple_value(sc->value))           /* (do ((i (values 1 2)))...) */
+	eval_error_no_return(sc, sc->wrong_type_arg_symbol, "do: variable initial value can't be ~S", cons(sc, sc->values_symbol, sc->value)); 
       sc->args = cons(sc, sc->value, sc->args);    /* code will be last element (first after reverse) */
       if (is_pair(sc->code))
 	{
@@ -70207,19 +70239,18 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *   I think not; the closure retains the current env chain, not the slots, so we need a new env.
 	       */
 	      
-	      /* sc->value = sc->nil; */
 	      pop_stack_no_op(sc);
 	      goto DO_END;
 	    }
 	  push_stack(sc, OP_DO_STEP2, sc->args, sc->code);
 	  
-	  /* here sc->args is a list like (((i . 0) (+ i 1) 0) ...)
-	   *   so sc->code becomes (+ i 1) in this case
-	   */
+	  /* here sc->args is a list like (((i . 0) (+ i 1) 0) ...) so sc->code becomes (+ i 1) in this case */
 	  sc->code = DO_VAR_STEP_EXPR(car(sc->args));
 	  goto EVAL;
 	  
 	case OP_DO_STEP2:
+	  if (is_multiple_value(sc->value))
+	    eval_error(sc, "do: variable step value can't be ~S", cons(sc, sc->values_symbol, sc->value)); 
 	  DO_VAR_SET_NEW_VALUE(sc->args, sc->value);  /* save current value */
 	  sc->args = cdr(sc->args);                   /* go to next step var */
 	  goto DO_STEP1;
@@ -83903,6 +83934,7 @@ s7_scheme *s7_init(void)
   s7_set_i_d_function(slot_value(global_slot(sc->round_symbol)), round_i_d);
   s7_set_i_d_function(slot_value(global_slot(sc->floor_symbol)), floor_i_d);
   s7_set_i_p_function(slot_value(global_slot(sc->floor_symbol)), floor_i_p);
+  s7_set_i_p_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_p);
   s7_set_i_d_function(slot_value(global_slot(sc->truncate_symbol)), truncate_i_d);
   s7_set_i_d_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_d);
   s7_set_i_i_function(slot_value(global_slot(sc->random_symbol)), random_i_i);
@@ -84368,21 +84400,21 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
- * tmac          |      |      |      || 9052 ||  264 |  264   264
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1036
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
+ * tmac          |      |      |      || 9052 ||  264 |  264   265
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1169
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1474
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1926
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2121
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2118
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467
- * lint          |      |      |      || 4041 || 2702 | 2696  2691
+ * lint          |      |      |      || 4041 || 2702 | 2696  2699
  * lg            |      |      |      || 211  || 133  | 133.4 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2762
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2980
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2760
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2981
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
  * tsort         |      |      |      || 8584 || 4111 | 4111  4112
- * titer         |      |      |      || 5971 || 4646 | 4646  4646
+ * titer         |      |      |      || 5971 || 4646 | 4646  4640
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7684
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
