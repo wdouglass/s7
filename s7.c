@@ -6857,7 +6857,7 @@ static s7_pointer g_unlet(s7_scheme *sc, s7_pointer args)
       s7_pointer sym;
       x = slot_value(inits[i]);
       sym = slot_symbol(inits[i]);
-      if (!is_immutable(sym))
+      if (!is_immutable_symbol(sym))
 	{
 	  if (is_t_procedure(x))
 	    {
@@ -51182,6 +51182,12 @@ static s7_pointer opt_p_cf_s(void *p)
   return(o->v2.cf(cur_sc, set_plist_1(cur_sc, slot_value(o->v1.p))));
 }
 
+static s7_pointer opt_p_cf_c(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  return(o->v2.cf(cur_sc, set_plist_1(cur_sc, o->v1.p)));
+}
+
 static bool p_p_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
 {
   s7_p_p_t ppf;
@@ -51236,6 +51242,12 @@ static bool p_p_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
 	}
       else
 	{
+	  if (!is_pair(cadr(car_x)))
+	    {
+	      opc->v1.p = cadr(car_x);
+	      opc->v7.fp = opt_p_cf_c;
+	      return(true);
+	    }
 	  if (cell_optimize(sc, cdr(car_x)))
 	    {
 	      opc->v7.fp = opt_p_cf_f;
@@ -53690,6 +53702,8 @@ static s7_pointer opt_let_temporarily(void *p)
 
   o->v4.p = slot_value(o->v1.p);         /* save and protect old value */
   cur_sc->t_temps[tx] = o->v4.p;
+  if (is_immutable_slot(o->v1.p))
+    immutable_object_error(cur_sc, set_elist_3(cur_sc, immutable_error_string, cur_sc->let_temporarily_symbol, slot_symbol(o->v1.p)));
   slot_set_value(o->v1.p, o1->v7.fp(o1)); /* set new value */
 
   len = o->v2.i - 1;
@@ -65786,6 +65800,8 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 		    case OP_SET:
 		      {
 			s7_pointer settee;
+			if (!is_pair(cdr(expr)))            /* (set!) */
+			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
 			settee = cadr(expr);
 			if (!is_symbol(settee))             /* (set! (...) ...) which is tricky due to setter functions/macros */
 			  {
@@ -70326,8 +70342,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  /* sc->value is the result of end-test evaluation */
 	  if (is_true(sc, sc->value))
 	    {
-	      /* we're done -- deal with result exprs
-	       *   if there isn't an end test, there also isn't a result (they're in the same list)
+	      /* we're done -- deal with result exprs, if there isn't an end test, there also isn't a result (they're in the same list)
+	       * multiple-value end-test result is ok
 	       */
 	      sc->code = _TLst(cddr(sc->args));   /* result expr (a list -- implicit begin) */
 	      free_cell(sc, sc->args);
@@ -74071,6 +74087,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_LAMBDA_STAR_DEFAULT:
 	  /* sc->args is the current closure arg list position, sc->value is the default expression's value */
+	  if (is_multiple_value(sc->value))
+	    eval_error(sc, "lambda*: argument default value can't be ~S", cons(sc, sc->values_symbol, sc->value)); 
 	  slot_set_value(sc->args, sc->value);
 	  sc->args = slot_pending_value(sc->args);
 	  if (lambda_star_default(sc) == goto_EVAL) goto EVAL;
@@ -75899,7 +75917,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  /* now eval set car new-val, cadr=settees, cadddr= new_values */
 	  while (is_pair(car(sc->args)))
 	    {
-	      s7_pointer settee, new_value;
+	      s7_pointer settee, new_value, slot;
 	      settee = caar(sc->args);
 	      new_value = car(cadddr(sc->args));
 	      cadddr(sc->args) = cdr(cadddr(sc->args));
@@ -75912,9 +75930,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  sc->code = list_3(sc, sc->set_symbol, settee, new_value);
 		  goto EVAL;
 		}
+	      slot = find_symbol(sc, settee);
+	      if (is_immutable_slot(slot))
+		immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
 	      if (is_symbol(new_value))
 		new_value = find_symbol_checked(sc, new_value);
-	      slot_set_value(find_symbol(sc, settee), new_value);
+	      slot_set_value(slot, new_value);
 	    }
 
 	  car(sc->args) = cadr(sc->args);
@@ -75931,7 +75952,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_TEMP_DONE1:
 	  while (is_pair(car(sc->args)))
 	    {
-	      s7_pointer settee, old_value;
+	      s7_pointer settee, old_value, slot;
 	      settee = caar(sc->args);
 	      old_value = caaddr(sc->args);
 	      caddr(sc->args) = cdaddr(sc->args);
@@ -75945,7 +75966,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  else sc->code = list_3(sc, sc->set_symbol, settee, old_value);
 		  goto EVAL;
 		}
-	      slot_set_value(find_symbol(sc, settee), old_value);
+	      slot = find_symbol(sc, settee);
+	      if (is_immutable_slot(slot))
+		immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
+	      slot_set_value(slot, old_value);
 	    }
 	  pop_stack(sc);
 	  sc->value = sc->code;
@@ -84370,6 +84394,9 @@ int main(int argc, char **argv)
  *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
  *   too clumsy, and type should accompany var/val [procedure args?], typed/let: (let ((var val type)...) ) as macro -> setters
  * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
+ * (set! case 3) -> error, but (begin (let ((case 3)) case) (set! case 3)) -> 3? -- and subsequently global_slot value is freed!
+ *   similarly (define (f case) (+ case 1)), or (define case 3) but how can local_slot be nil and global freed in this case?
+ *   if safety>0 should we complain about (lambda (case)...) etc?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

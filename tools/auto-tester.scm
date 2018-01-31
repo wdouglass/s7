@@ -2,8 +2,8 @@
 
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
-(load "stuff.scm")
-(load "write.scm")
+;(load "stuff.scm")
+;(load "write.scm")
 
 ;(set! (*s7* 'safety) 1)
 
@@ -12,8 +12,7 @@
 (set! (*s7* 'gc-stats) 6)
 (set! (*s7* 'print-length) 1000)
 (define ostr "")
-(define ostr1 "")
-(define ostr2 "")
+(define nostr "")
 (set! (*s7* 'max-string-length) 100000)
 (set! (*s7* 'max-list-length) 10000)
 (set! (*s7* 'max-vector-length) 10000)
@@ -263,8 +262,12 @@
 		`(display ,x))
 	      args))))
 
-(set! (hook-functions *unbound-variable-hook*) ())
+(define-expansion (_do3_ . args)
+  `(let ((exiter (vector #f))) (do ,(car args) ((vector-ref exiter 0) 1) ,@(cdr args) (vector-set! exiter 0 #t))))
 
+
+(set! (hook-functions *unbound-variable-hook*) ())
+(define x 0)
 (define max-stack (*s7* 'stack-top))
 
 (let ((functions (vector 'not '= '+ 'cdr 'real? 'rational? 'number? '> '- 'integer? 'apply 
@@ -427,7 +430,7 @@
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
 
 			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append 'block-let
-
+#|
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
 			  ;'copy-tree ; cycles cause stack overflow
@@ -438,9 +441,9 @@
 			  'sequence->string 
 			  ;'*s7*->list ; reverse! etc 
 			  'log-n-of ; stack grows if n < 0?
-
-			  'kar '_dilambda_
 			  'pp
+|#
+			  'kar '_dilambda_
 			  ))
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
@@ -454,21 +457,21 @@
 		    "(integer->char 255)" "(string (integer->char 255))" "(string #\\null)" "(byte-vector 0)"
 		    ;;"most-positive-fixnum" "most-negative-fixnum"
 		    "pi" "nan.0" "inf.0"
-		    "(list)" "(string)" "#r()" "#u8()" "(vector)" "#i()" "(make-iterator #(1 2))" "#i(1)"
+		    "(list)" "(string)" "#r()" "#u8()" "(vector)" "#i()" "(make-iterator #(10 20))" "#i(1)"
 		    "0" "1" "4" "1.0" "-1.0" "1.0+123.0i" "3/4" "(make-vector 3)" "(make-string 3)" "(make-vector '(2 3))"
-		    "'((1 2) (3 4))" "'((1 (2)) (((3) 4)))" "(byte-vector 255)" 
-		    "#(1 2)" "(vector 1 '(3))" "(let ((x 3)) (lambda (y) (+ x y)))" "abs" "(lambda sym-args sym-args)" "#u8(0 1)"
+		    "'((111 2222) (3 4))" "'((1 (2)) (((3) 4)))" "(byte-vector 255)" 
+		    "#(123 223)" "(vector 1 '(3))" "(let ((x 3)) (lambda (y) (+ x y)))" "abs" "(lambda sym-args sym-args)" "#u8(0 1)"
 		    "(dilambda (lambda () 1) (lambda (a) a))" "quasiquote" "macroexpand" "(lambda* ((a 1) (b 2)) (+ a b))" 
 		    "((lambda (a) (+ a 1)) 2)" "((lambda* ((a 1)) (+ a 1)) 1)" "(lambda (a) (values a (+ a 1)))" "((lambda (a) (values a (+ a 1))) 2)"
 		    "(define-macro (_m1_ a) `(+ ,a 1))"
-		    "(string #\\c #\\null #\\b)" "#2d((1 2) (3 4))" "#r(0 1)" "#i2d((1 2) (3 4))" "#r2d((.1 .2) (.3 .4))" "#i1d(1 2)"
+		    "(string #\\c #\\null #\\b)" "#2d((100 200) (3 4))" "#r(0 1)" "#i2d((101 201) (3 4))" "#r2d((.1 .2) (.3 .4))" "#i1d(15 25)"
 		    "(values 1 2)" "(values)" "(values #\\c 3 1.2)" "(values \"ho\")"
 		    "`(x)" "`(+ x 1)" "`(x 1)" "`((x))" "`((+ x 1))" "`(((+ x 1)))" "`((set! x (+ x 1)) (* x 2))" "`((x 1))" "`(((x 1))) "
 		    "`(x . 1)" "`((x . 1))" "`(1)" "`((1))" "`((1) . x)" "'(- 1)" "(+ i 1)"
 		    ;;"'((X . 1) . 2)" "'((x 1) . 2)" "'((x 1) (y . 2))" "'((x 1) y . 2)" "'((x 1) (y) . 2)" "'((x 1 . 2) . 3)" "'((x 1) 2)" "'(((x 1) 2) 3)" 
 		    "'(())" "'((()))" "(random-state 1234)" 
 		    "(c-pointer 0 'integer?)" "(c-pointer -1)" "(c-pointer 1234)"
-		    "'(1 2 . 3)" " . "
+		    "'(15 26 . 36)" " . "
 		    "((i 0 (+ i 1)))" "(null? i)" "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
 		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" 
 		    ;;"(begin (f x) B)" "(A (f x) B)" 
@@ -477,14 +480,14 @@
 		    "_definee_" ;; "(_definee_ wxyz)"
 		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" "(openlet (inlet 'abs (lambda (x) (- x))))" 
 		    "(hash-table* 'a 1)" "(hash-table)" 
-		    "(make-iterator (list 1 2 3))" "(make-iterator (vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
+		    "(make-iterator (list 11 22 33))" "(make-iterator (vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
 		    "#<eof>" "#<undefined>" "#<unspecified>"
-		    "#o123" "#b101" "#\\newline" "#_cons" "#x123.123" "#\\x65" "_1234_" "kar"
+		    "#o123" "#b101" "#\\newline" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
 		    
 		    "(call-with-exit (lambda (goto) goto))"
 		    "(with-baffle (call/cc (lambda (cc) cc)))"
 		    "(symbol->string 'x)" "(symbol \"a b\")"
-		    "(setter _definee_)" "(setter x)" "(setter car)" "(setter kar)"
+		    "(setter _definee_)" "(setter car)" "(setter kar)"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(let ((x 1)) (dynamic-wind (lambda () (set! x 2)) (lambda () (+ x 1)) (lambda () (set! x 1))))"
@@ -497,50 +500,51 @@
 		    "(else)"
 		    "else" "x" "(+ x 1)" "(+ 1/2 x)" "(abs x)" "(+ x 1 2+i)" "(* 2 x 3.0 4)" "((x 1234))" "((x 1234) (y 1/2))" "'x" "(x 1)"
 		    "_undef_"
-		    "if" "begin" "cond" "case" "when" "unless"
-		    "letrec" "letrec*" "or" "and" 
-		    "let-temporarily"
+		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
 		    ;;"+signature+" "+documentation+" "+setter+" 
 		    "__var2__"
-		    "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
+		    ;;"\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
 		    "(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
 		    "(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
 		    "(immutable! (inlet 'a 1 'b 2))" 
 		    "(immutable! (block 0.0 1.0 2.0))" 
 		    "(immutable! (hash-table* 'a 1 'b 2))"
-		    "(immutable! (list 0 1 2))"
+		    "(immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ()))))))"
 		    ;"(immutable! 'x)"
 
-		    "(make-list 128 0)" "(make-vector 128 0)" "(make-int-vector 128 0)" "(make-float-vector 128 0)" "(make-byte-vector 128 0)"
-		    "(make-string 128 #\\0)"
-		    "(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 128) hash) (hash-table-set! hash i 0)))"
-		    "(let ((lt (inlet))) (do ((i 0 (+ i 1))) ((= i 128) lt) (varlet lt (symbol \"i\" (number->string i)) 0)))"
+		    ;;"(make-list 16 0)" "(make-vector 16 0)" "(make-int-vector 16 0)" "(make-float-vector 16 0)" "(make-byte-vector 16 0)"
+		    ;;"(make-string 16 #\\0)"
+		    ;;"(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 16) hash) (hash-table-set! hash i 0)))"
+		    ;;"(let ((lt (inlet))) (do ((i 0 (+ i 1))) ((= i 16) lt) (varlet lt (symbol \"i\" (number->string i)) 0)))"
 		    
 		    " #| a comment |# "
 		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
+		    "(error 'oops \"an error!\")"
 		    
 		    ;;"(catch #t 1 cons)" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
 		    "lambda*" "lambda"
-		    ; "let" "let*" "do" "set!" "with-let" "define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
+		    ;; "let" "let*" "do" "set!" "with-let" "define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 		    ))
 
       (codes (vector 
 	      (list "(do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (set! x " "(let ((x 0) (i 0)) (set! x ")
-	      (list "(let () (let () " "((lambda () ")
+	      ;;(list "(let () (let () " "((lambda () ")
 	      (list "((lambda x " "((lambda* ((x ())) ")
-	      (list "((lambda* ((x 1)) " "(let* ((_aaa_ 1) (x _aaa_)) (begin ")
+	      ;;(list "((lambda* ((x 1)) " "(let* ((_aaa_ 1) (x _aaa_)) (begin ")
 	      (list "(cond (else " "(case x (else ")
 	      (list "(case false ((#f) " "(case false ((1) #t) (else ")
 	      (list "(call-with-exit (lambda (_x_) " "(call/cc (lambda (_x_) ")
 	      (list "(if (not x) (begin " "(if x #<unspecified> (begin ")
 	      (list "(cond ((not false) " "(unless false (begin ")
-	      (list "(list (let-temporarily ((x 1)) " "(list (let ((x 1)) ")
+	      (list "(let () (let-temporarily ((x 1)) " "(let () (let ((x 1)) ")
+	      (list "(let-temporarily ((x 1)) (call-with-exit (lambda (go) "
+		    "(call-with-exit (lambda (go) (let-temporarily ((x 1)) ")
 	      (list "(begin (_dw_ " "((lambda () ")
 	      (list "(begin (append " "(apply append (list ")
 	      (list "(begin (with-let (inlet 'i 0) " "(with-let (inlet) (let ((i 0)) ")
@@ -549,21 +553,24 @@
 	      (list "(do () ((not false) " "(begin (when (not false) ")
 	      ;;(list "((define-macro (_m_) " "((define-bacro (_m_) ") ; circular source if signature in body
 	      ;;(list "(let ((mx max)) (let ((max min) (min mx)) " "(begin (_lt2_ ") ; loops?
-	      ;;(list "(list (letrec ((x 1)) " "(list (letrec* ((x 1)) ")
+	      ;;(list "(begin (letrec ((x 1)) " "(begin (letrec* ((x 1)) ")
 	      (reader-cond ((not (provided? 'pure-s7)) (list "(with-input-from-string \"1234\" (lambda () " "(begin (_dw_string_ ")))
-	      (list "(map abs (list " "(map (lambda (x) (if (>= x 0.0) x (- x))) (list ")
+	      (list "(map abs (begin " "(map (lambda (x) (if (>= x 0.0) x (- x))) (begin ")
 	      (list "(for-each display (list " "(for-each (lambda (x) (display x)) (list ")
-	      ;;(list "(list (_ct1_ " "(list (_ct2_ ")
-	      (list "(list (_mem1_ " "(list (_mem2_ ")
-	      (list "(list (_ft1_ " "(list (_ft2_ ")
-	      (list "(list (when (not false) " "(list (begin ")
+	      ;;(list "(begin (_ct1_ " "(begin (_ct2_ ")
+	      (list "(begin (_mem1_ " "(begin (_mem2_ ")
+	      (list "(begin (_ft1_ " "(begin (_ft2_ ")
+	      ;;(list "(begin (when (not false) " "(begin (begin ")
 	      (list "(with-output-to-string (lambda () " "(begin (_dw_out_ ")
-	      (list "(list (let _m_ " "(list (let* _m_ ")
-	      (list "(vector-set! (vector 0) 0 (list " "(hash-table-set! (hash-table) 'a (list ")
-	      (list "(list (_rf1_ " "(list (_rf2_ ")
+	      ;;(list "(begin (let _m_ " "(begin (let* _m_ ")
+	      ;;(list "(vector-set! (vector 0) 0 (list " "(hash-table-set! (hash-table) 'a (list ")
+	      (list "(begin (_rf1_ " "(begin (_rf2_ ")
 	      (list "(let () (_do1_ " "(let () (_do2_ ")
-	      (list "(list (let-temporarily ((x 1234)) (call-with-exit (lambda (goto) (goto 1))) "
-		    "(list (let-temporarily ((x 1234)) (call/cc (lambda (goto) (goto 1))) ")
+	      (list "(let () (let-temporarily ((x 1234)) (call-with-exit (lambda (goto) (goto 1))) "
+		    "(let () (let-temporarily ((x 1234)) (call/cc (lambda (goto) (goto 1))) ")
+	      (list "(let ((x 1)) (immutable! 'x) (begin " "((lambda* ((x 1)) (immutable! 'x) ")
+	      (list "(do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) "
+		    "(do ((i 0 (+ i 1))) ((= i 1)) (let ((j 0)) ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -578,18 +585,20 @@
     ;(do ((p (vector->list args) (cdr p))) ((null? p)) (if (member (car p) (cdr p) string=?) (format *stderr* "~A repeats~%" (car p))))
 
     ;;(let ((st (symbol-table))) (for-each (lambda (x) (if (and (procedure? (symbol->value x)) (not (memq x (vector->list functions)))) (format *stderr* "~A~%" x))) st))
-    
+
     (define (fix-op op)
       (case op
 	((set!) "set! __var__")
-	;((set-cdr!) "set-cdr! __var2__")
-	((let) "let ()")
-	((let*) "let* ()")
-	((do) "do ((i 0 (+ i 1))) ((= i 1) 1)")
+	;;((let) "let ()")
+	;;((let*) "let* ()")
+	((let) "let _let_")
+	((let*) "let* _let*_")
+	;; ((do) "do ((i 0 (+ i 1))) ((= i 1) 1)")
+	((do) "_do3_")
 	((call-with-output-file) "call-with-output-file \"/dev/null\" ")
 	((with-output-to-file) "with-output-to-file \"/dev/null\" ")
 	((define define* define-macro define-macro* define-bacro define-bacro*) (format #f "~A _definee_ " op))
-	((format) "format #t ")
+	;((format) "format #t ")
 	((eval) "checked-eval")
 	(else => symbol->string)))
 
@@ -688,6 +697,7 @@
 	  (unless (or (openlet? val1)
 		      (string-position "(set!" str1)
 		      (string-position "gensym" str1))
+
 	    (cond ((or (and (symbol? val1)
 			    (not (gensym? val1)))
 		       (boolean? val1)
@@ -695,9 +705,10 @@
 		   (unless (and (eq? val1 val2)
 				(eq? val1 val3)
 				(eq? val1 val4))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%~%" 
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
 			     str str1 str2 str3 str4 
 			     val1 val2 val3 val4)))
+
 		  ((sequence? val1)
 		   (let ((len1 (length val1)))
 		     (unless (or (let? val1)
@@ -717,12 +728,8 @@
 				  (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
 			 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
 				 str str1 str2 str3 str4 
-				 val1 val2 val3 val4)
-			 (unless (or (<= len1 0)
-				     (memq (type-of val1) '(hash-table? let?))
-				     (infinite? len1)
-				     (eq? val1 (val1 0)))
-			   (same-type? (val1 0) (val2 0) (val3 0) (val4 0) str str1 str2 str3 str4)))))
+				 val1 val2 val3 val4))))
+
 		  ((number? val1)
 		   (if (or (and (nan? val1)
 				(not (and (nan? val2) (nan? val3) (nan? val4))))
@@ -743,20 +750,19 @@
 		    (eq? val4 'error))
 		(format *stderr* "    ~S ~S~%" 
 			error-type error-info))
-	    (format *stderr* "~S~%~%" (stacktrace)))))
+	    ;(format *stderr* "~S~%~%" (stacktrace))
+	    )))
 
     (define (eval-it str) ;(format #t "~A~%" str)
       (catch #t 
 	(lambda ()
-	  ((lambda* args (car args)) (eval-string str)))
+	  (car (list (eval-string str))))
 	(lambda (type info)
 	  (set! error-type type)
 	  (set! error-info info)
           'error)))
 
     (define (try-both str)
-      (set! ostr2 ostr1)
-      (set! ostr1 ostr)
       (set! ostr str)
       (catch #t 
 	(lambda () 
@@ -765,7 +771,7 @@
 				 (with-input-from-string str read))
 			       (lambda args ())))))
 	(lambda arg 'error))
-      (let* ((outer (codes (random codes-len)))
+      (let* ((outer (codes (random codes-len)))	     
 	     (str1 (string-append "(let ((x #f) (i 0)) " (car outer) str ")))"))
 	     (str2 (string-append "(let () (define (func) " str1 ") (define (hi) (func)) (hi))"))
 	     (str3 (string-append "(let ((x #f) (i 0)) " (cadr outer) str ")))"))
@@ -774,21 +780,51 @@
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
-	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4))))
+	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)))
+      (let ((nstr (make-expr (+ 1 (random 6)))))
+	(set! nostr nstr)
+	(catch #t 
+	  (lambda () 
+	    (s7-optimize (list (catch #t 
+				 (lambda ()
+				   (with-input-from-string nstr read))
+				 (lambda args ())))))
+	  (lambda arg 'error))
+	(let ((str5 (string-append "(let ((_y_ (begin " nstr "))) (define (f x) " str ") (define (g) (f _y_)) (g))"))
+	      (str6 (string-append "((lambda (x) " str ") (begin " nstr "))"))
+	      (str7 (string-append "(let ((x (begin " nstr "))) " str ")"))
+	      (str8 (string-append "(do ((x (begin " nstr "))) (#t " str "))")))
+	  (let ((val5 (eval-it str5))
+		(val6 (eval-it str6))
+		(val7 (eval-it str7))
+		(val8 (eval-it str8)))
+	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8)))))
 
+    (define dots (vector "." "-" "+" "-"))
     (define (test-it)
-      (do ((m 0 (+ m 1)))
+      (do ((m 0 (+ m 1))
+	   (n 0))
 	  ((= m 100000000) 
 	   (format *stderr* "reached end of loop??~%"))
 	
 	(when (zero? (modulo m 100000))
 	  (set! m 0)
-	  (format *stderr* "."))
-	
+	  (set! n (+ n 1))
+	  (if (= n 4) (set! n 0))
+	  (format *stderr* "~A" (vector-ref dots n)))
+
+	(try-both (make-expr (+ 1 (random 9)))) ; min 1 here not 0
+	(set! __var__ #f)
+#|	
 	(catch #t
 	  (lambda ()
-	    (try-both (make-expr (+ 1 (random 8))))) ; min 1 here not 0
+	    (try-both (make-expr (+ 1 (random 9))))) ; min 1 here not 0
 	  (lambda (type info)
-	    (format *stderr* "~A: ~A ~A ~A~%" type (apply format #f info) ostr (owlet))))))
+	    (format *stderr* "~A: ~S ~S ~S~%" type (apply format #f info) ostr (owlet))))
+|#
+	))
 
     (test-it)))
+
+;;; arity/signature checks? -- need access to returning caller
+
