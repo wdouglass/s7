@@ -1744,7 +1744,15 @@ static s7_scheme *cur_sc = NULL;
   static void set_local_1(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
   {
     if (is_global(symbol))
-      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code));
+      {
+	s7_pointer val;
+	val = s7_symbol_value(sc, s7_make_symbol(sc, "str"));
+	if (val != sc->undefined)
+	  {
+	    fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code));
+	    fprintf(stderr, "    %s\n", DISPLAY(val));
+	  }
+      }
     typeflag(symbol) = (typeflag(symbol) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC));
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
@@ -28683,9 +28691,11 @@ static s7_pointer check_sym(s7_scheme *sc, s7_pointer sym)
 	    {
 	      fprintf(stderr, "local %s: %p %p ", symbol_name(sym), local_val, search_val);
 	      fprintf(stderr, "%s ", DISPLAY_80(local_val));
-	      fprintf(stderr, "%s", DISPLAY_80(search_val));
-	      fprintf(stderr, ", cur_code: %s\n", DISPLAY(sc->cur_code));
+	      fprintf(stderr, "%s\n", DISPLAY_80(search_val));
+#if 0
+	      fprintf(stderr, "   cur_code: %s\n", DISPLAY(sc->cur_code));
 	      fprintf(stderr, "\n");
+#endif
 	      /* (let () (define (f x) x) (define* (f (y (f 1))) (+ y 1)) (f)) -> local y: 0x7f1082849098 0x7f1082849120 1 2 
 	       *   which depends on (+ ... 1)!
 	       */
@@ -47369,6 +47379,7 @@ static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
 
 
+#define DEBUGGING_ALLOC_OPO 0
 #if S7_DEBUGGING
 static opt_info *alloc_opo(s7_scheme *sc, s7_pointer expr)
 #else
@@ -47390,6 +47401,9 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
       fprintf(stderr, "sc->pc: %d\n", sc->pc);
       abort();
     }
+#if DEBUGGING_ALLOC_OPO
+  fprintf(stderr, "alloc_opo: %p %d for %s\n", sc->opts[sc->pc], sc->pc, DISPLAY(expr));
+#endif
 #endif
   o = sc->opts[sc->pc++];
   o->v8.fd = NULL;
@@ -47398,6 +47412,17 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
 #endif
   return(o);
 }
+
+#if DEBUGGING_ALLOC_OPO
+static void backup_pc_1(s7_scheme *sc, const char *func, int line)
+{
+  sc->pc--;
+  fprintf(stderr, "%s[%d]: backup pc to %d\n", func, line, sc->pc);
+}
+#define backup_pc(sc) backup_pc_1(sc, __func__, __LINE__)
+#else
+#define backup_pc(sc) sc->pc--
+#endif
 
 #define OPT_PRINT 0
 
@@ -47829,7 +47854,7 @@ static bool i_ii_fc_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v1.p = o1->v1.p;
 	  opc->v2.p = o1->v2.p;	
 	  opc->v7.fi = opt_i_ii_fco;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -48309,7 +48334,7 @@ static bool set_i_i_f_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v3.p = o1->v1.p;
 	  opc->v2.i = o1->v2.i;
 	  opc->v7.fi = opt_set_i_i_fo;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -48837,7 +48862,7 @@ static bool d_vd_f_combinable(s7_scheme *sc, int32_t start)
       opc->v6.obj = o1->v5.obj;
       opc->v4.d_v_f = o1->v3.d_v_f;
       opc->v7.fd = opt_d_vd_o;
-      sc->pc--;
+      backup_pc(sc);
       return(true);
     }
   if (o1->v7.fd == opt_d_vd_s)
@@ -48848,7 +48873,7 @@ static bool d_vd_f_combinable(s7_scheme *sc, int32_t start)
       opc->v5.d_vd_f = o1->v3.d_vd_f;
       opc->v3.p = o1->v2.p;
       opc->v7.fd = opt_d_vd_o2;
-      sc->pc--;
+      backup_pc(sc);
       return(true);
     }
   if (o1->v7.fd == opt_d_dd_cs)
@@ -48857,7 +48882,7 @@ static bool d_vd_f_combinable(s7_scheme *sc, int32_t start)
       opc->v6.x = o1->v2.x;
       opc->v2.p = o1->v1.p;
       opc->v7.fd = opt_d_vd_o3;
-      sc->pc--;
+      backup_pc(sc);
       return(true);
     }
   if (o1->v7.fd == opt_d_dd_sf)
@@ -48990,7 +49015,7 @@ static bool d_id_sf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v5.d_vd_f = o1->v3.d_vd_f;
 	  opc->v3.p = o1->v2.p;
 	  opc->v7.fd = opt_d_id_sfo;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
       if (o1->v7.fd == opt_d_v)
@@ -48999,7 +49024,7 @@ static bool d_id_sf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v2.obj = o1->v5.obj;
 	  opc->v5.d_v_f = o1->v3.d_v_f;
 	  opc->v7.fd = opt_d_id_sfo1;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -49129,7 +49154,7 @@ static bool d_dd_fs_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v3.p = o1->v2.p;
 	  opc->v5.d_pi_f = o1->v3.d_pi_f;
 	  opc->v7.fd = opt_d_dd_fso;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -49278,7 +49303,7 @@ static bool d_dd_cf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v1.obj = o1->v5.obj;
 	  opc->v4.d_v_f = o1->v3.d_v_f;
 	  opc->v7.fd = opt_d_dd_cfo;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
       if (o1->v7.fd == opt_d_vd_s)
@@ -49289,7 +49314,7 @@ static bool d_dd_cf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v2.p = o1->v2.p;
 	  opc->v5.d_vd_f = o1->v3.d_vd_f;
 	  opc->v7.fd = opt_d_dd_cfo1;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -49683,7 +49708,7 @@ static bool d_pid_ssf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v3.obj = o1->v5.obj;
 	  opc->v5.d_v_f = o1->v3.d_v_f;
 	  opc->v7.fd = opt_d_pid_sso;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
       if (o1->v7.fd == opt_d_pi_ss)
@@ -49692,7 +49717,7 @@ static bool d_pid_ssf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v5.p = o1->v1.p;
 	  opc->v6.p = o1->v2.p;
 	  opc->v7.fd = opt_d_pid_ss_ss;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -50371,7 +50396,7 @@ static bool b_idp_ok(s7_scheme *sc, s7_pointer s_func, s7_pointer car_x, s7_poin
 		  opc->v7.fb = opt_zero_mod;
 		  opc->v1.p = o1->v1.p;
 		  opc->v2.i = o1->v2.i;
-		  sc->pc--;
+		  backup_pc(sc);
 		}
 	      else 
 #endif
@@ -50570,7 +50595,7 @@ static bool b_pp_sf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v2.p = o1->v1.p; 
 	  opc->v4.p_p_f = o1->v2.p_p_f;
 	  opc->v7.fb = opt_b_pp_sfo;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -51161,7 +51186,7 @@ static bool p_p_f_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v3.p_p_f = o1->v2.p_p_f;
 	  opc->v1.p = o1->v1.p;
 	  opc->v7.fp = opt_p_p_f1;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -51506,7 +51531,7 @@ static bool p_pi_fc_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v4.p_p_f = o1->v2.p_p_f;
 	  opc->v1.p = o1->v1.p;	
 	  opc->v7.fp = opt_p_pi_fco;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -51929,14 +51954,14 @@ static bool p_pip_ssf_combinable(s7_scheme *sc, opt_info *opc, int32_t start)
 	  opc->v3.p = o1->v1.p;
 	  opc->v4.p = o1->v2.p;
 	  opc->v7.fp = opt_p_pip_sso;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
       if (o1->v7.fp == opt_p_p_c)
 	{
 	  opc->v5.p_p_f = o1->v2.p_p_f;
 	  opc->v4.p = o1->v1.p;
-	  sc->pc--;
+	  backup_pc(sc);
 	  opc->v7.fp = opt_p_pip_c;
 	  return(true);
 	}
@@ -52332,13 +52357,19 @@ static s7_pointer opt_p_cf_ppp(void *p)
   int32_t tx1, tx2;
   s7_pointer po3;
   o1 = cur_sc->opts[++cur_sc->pc];
+
+  /* fprintf(stderr, "cf_ppp %p at %d\n", o1, cur_sc->pc); */
+
   tx1 = next_tx(cur_sc);
   cur_sc->t_temps[tx1] = o1->v7.fp(o1);
+  /* fprintf(stderr, "%s at %d\n", OPT_DISPLAY(cur_sc->t_temps[tx1]), tx1); */
   o1 = cur_sc->opts[++cur_sc->pc];
   tx2 = next_tx(cur_sc);
   cur_sc->t_temps[tx2] = o1->v7.fp(o1);
+  /* fprintf(stderr, "%s at %d\n", OPT_DISPLAY(cur_sc->t_temps[tx2]), tx2); */
   o1 = cur_sc->opts[++cur_sc->pc];
   po3 = o1->v7.fp(o1);
+  /* fprintf(stderr, "po3: %s\n", OPT_DISPLAY(po3)); */
   return(o->v2.cf(cur_sc, set_plist_3(cur_sc, cur_sc->t_temps[tx1], cur_sc->t_temps[tx2], po3)));
 }
 
@@ -52355,6 +52386,7 @@ static bool p_cf_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poin
     {
       opc->v2.cf = cf_call(sc, car_x, s_func, 3);
       opc->v7.fp = opt_p_cf_ppp;
+      /* fprintf(stderr, "cf_ppp: %s %p at %d\n", DISPLAY(car_x), opc, start); */
       return(true);
     }
   pc_fallback(sc, start);
@@ -52666,7 +52698,7 @@ static bool set_p_i_f_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v2.p = o1->v1.p;
 	  opc->v3.p = o1->v2.p;	
 	  opc->v7.fp = opt_set_p_i_fo;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
       if (o1->v7.fi == opt_i_ii_sc)
@@ -52675,7 +52707,7 @@ static bool set_p_i_f_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v2.p = o1->v1.p;
 	  opc->v3.i = o1->v2.i;
 	  opc->v7.fp = opt_set_p_i_fo1;
-	  sc->pc--;
+	  backup_pc(sc);
 	  return(true);
 	}
     }
@@ -54071,13 +54103,13 @@ static s7_pointer opt_do_ifbp(void *p)
   f = o1->v7.fb;
   while (integer(vp) < end)
     {
+      cur_sc->pc = loop;
       if (f(o1))
 	{
 	  opt_info *o2;
 	  o2 = cur_sc->opts[++cur_sc->pc];
 	  o2->v7.fp(o2);
 	}
-      cur_sc->pc = loop;
       integer(vp)++;
     }
   return(NULL);
@@ -54540,10 +54572,19 @@ static void start_opts(s7_scheme *sc)
   sc->pc = 0;
 }
 
+#if DEBUGGING_ALLOC_OPO
+static void pc_fallback_1(s7_scheme *sc, int32_t new_pc, const char *func, int line)
+{
+  sc->pc = new_pc;
+  fprintf(stderr, "%s[%d]: set pc to %d\n", func, line, sc->pc);
+}
+#define pc_fallback(sc, new_pc) pc_fallback_1(sc, new_pc, __func__, __LINE__)
+#else
 static void pc_fallback(s7_scheme *sc, int32_t new_pc)
 {
   sc->pc = new_pc;
 }
+#endif
 
 static void free_optlist(s7_scheme *sc, s7_pointer p)
 {
@@ -62169,20 +62210,6 @@ static body_t min_body(body_t b1, body_t b2) {return((b1 < b2) ? b1 : b2);}
 typedef struct slist {s7_pointer sym; struct slist *next;} slist;
 static slist *syms_free_list = NULL;
 
-static inline slist *add_sym(s7_scheme *sc, s7_pointer symbol, slist *lst)
-{
-  slist *top;
-  if (syms_free_list)
-    {
-      top = syms_free_list;
-      syms_free_list = syms_free_list->next;
-    }
-  else top = (slist *)malloc(sizeof(slist));
-  top->sym = add_symbol_to_list(sc, symbol);
-  top->next = lst;
-  return(top);
-}
-
 static bool memq_sym(s7_scheme *sc, s7_pointer symbol, slist *top)
 {
   slist *p;
@@ -62206,6 +62233,21 @@ static void cancel_sym(s7_scheme *sc, s7_pointer symbol, slist *top)
 	if (p->sym == symbol)
 	  p->sym = sc->gc_nil;
     }
+}
+
+static inline slist *add_sym(s7_scheme *sc, s7_pointer symbol, slist *lst)
+{
+  slist *top;
+  if (syms_free_list)
+    {
+      top = syms_free_list;
+      syms_free_list = syms_free_list->next;
+    }
+  else top = (slist *)malloc(sizeof(slist));
+  cancel_sym(sc, symbol, lst);
+  top->sym = add_symbol_to_list(sc, symbol);
+  top->next = lst;
+  return(top);
 }
 
 static void free_syms(slist *top)
@@ -62249,6 +62291,7 @@ static slist *split_slist(slist *top, slist *main_args)
 static inline void set_all_locals(s7_scheme *sc, s7_pointer tree, slist *args)
 {
   s7_pointer p;
+  return;
 #if WITH_SYMS_PRINT
   fprintf(stderr, "set_all_locals: %s: ", DISPLAY_80(tree));
   display_syms(sc, args);
@@ -62487,7 +62530,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 		    return(UNSAFE_BODY); 
 		  }
 
-		cancel_sym(sc, var_name, top);
+		/* cancel_sym(sc, var_name, top); */
 		top = add_sym(sc, var_name, top);
 		
 		if (is_pair(cadr(let_var)))
@@ -62547,7 +62590,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 			return(UNSAFE_BODY);
 		      }
 		    
-		    cancel_sym(sc, car(do_var), top);
+		    /* cancel_sym(sc, car(do_var), top); */
 		    top = add_sym(sc, car(do_var), top);
 		    
 		    if (is_pair(cadr(do_var)))
@@ -62688,7 +62731,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, slist *
 				  free_syms(split_slist(top, main_args));
 				  return(UNSAFE_BODY); 
 				}
-			      cancel_sym(sc, car(q), top);
+			      /* cancel_sym(sc, car(q), top); */
 			      top = add_sym(sc, car(q), top);
 			    }
 			  lresult = body_is_safe(sc, func, lbody, top, false);
@@ -63231,6 +63274,7 @@ static s7_pointer check_let(s7_scheme *sc)
   s7_pointer x, start;
   bool named_let;
   int32_t vars;
+  /* fprintf(stderr, "check let %s\n", DISPLAY(sc->code)); */
 
   if (!is_pair(sc->code))               /* (let . 1) */
     {
@@ -65697,13 +65741,14 @@ static bool tree_match(s7_pointer tree)
     return((tree_match(car(tree))) || (tree_match(cdr(tree))));
   return(false);
 }
+
 #define DO_PRINT 0
 
 static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_pointer var_list, bool *has_set)
 {
   /* here any (unsafe?) closure or jumping-op (call/cc) or shadowed variable is trouble */
   s7_pointer p;
-  if (DO_PRINT) fprintf(stderr, "%s\n", DISPLAY_80(body));
+  if (DO_PRINT) fprintf(stderr, "do_is_safe: %s\n", DISPLAY_80(body));
 
   for (p = body; is_pair(p); p = cdr(p))
     {
@@ -66186,6 +66231,7 @@ static s7_pointer check_do(s7_scheme *sc)
 			  ((c_function_class(opt_cfunc(end)) == sc->equal_class) ||
 			   (opt_cfunc(end) == geq_2)))
 			{
+			  /* fprintf(stderr, "%s[%d]: dotimes\n", __func__, __LINE__); */
 			  pair_set_syntax_op(car(body), symbol_syntax_op(caar(body)));
 			  set_opt_pair2(sc->code, caddr(caar(sc->code)));
 			  pair_set_syntax_symbol(sc->code, sc->dotimes_p_symbol);           /* dotimes_p: simple + syntax body + 1 expr */
@@ -66978,8 +67024,12 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
   s7_pointer old_e, stepper;
   int32_t body_len, var_len;
 
+  /* fprintf(stderr, "do_let: %s\n", DISPLAY(scc)); */
+
   /* do_let with non-float vars doesn't get many fixable hits */
   let_code = caddr(scc);
+  if (!is_list(cadr(let_code))) /* (do ((j 0 (+ j 1))) ((= j 1)) (let name 123)) */
+    return(fall_through);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
   if (body_len <= 0) return(fall_through);
@@ -83104,7 +83154,7 @@ s7_scheme *s7_init(void)
   sc->symbol_to_dynamic_value_symbol = defun("symbol->dynamic-value", symbol_to_dynamic_value, 1, 0, false);
   s7_typed_dilambda(sc, "symbol-setter", g_symbol_setter, 1, 1, g_symbol_set_setter,	2, 1, H_symbol_setter, Q_symbol_setter, NULL);
   sc->symbol_setter_symbol = make_symbol(sc, "symbol-setter");
-  sc->immutable_symbol =             defun("immutable!",	immutable,		1, 0, false);
+  sc->immutable_symbol =             unsafe_defun("immutable!",	immutable,		1, 0, false);
   sc->is_immutable_symbol =          defun("immutable?",	is_immutable,		1, 0, false);
   sc->is_constant_symbol =           defun("constant?",	        is_constant,		1, 0, false);
 
@@ -84397,6 +84447,9 @@ int main(int argc, char **argv)
  * (set! case 3) -> error, but (begin (let ((case 3)) case) (set! case 3)) -> 3? -- and subsequently global_slot value is freed!
  *   similarly (define (f case) (+ case 1)), or (define case 3) but how can local_slot be nil and global freed in this case?
  *   if safety>0 should we complain about (lambda (case)...) etc?
+ * error for change of arg type in inlet/sublet: 'a 1 (b . 2)..., what about key?
+ * \"hiho\"  -- \ as symbol, error message is messed up: (symbol "\\")bol "\\") with no unbound variable
+ * remove all local symbol support
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84426,26 +84479,26 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------
  *
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
- * tmac          |      |      |      || 9052 ||  264 |  264   265
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1169
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1474
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1926
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2118
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467
- * lint          |      |      |      || 4041 || 2702 | 2696  2699
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  no locals
+ * tmac          |      |      |      || 9052 ||  264 |  264   265   265
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1169  1169
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1474  1474
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1926  1926
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2118  2153 (35)
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2467  2886 (420)
+ * lint          |      |      |      || 4041 || 2702 | 2696  2699  2708 (5)
  * lg            |      |      |      || 211  || 133  | 133.4 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2760
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2981
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3445
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967
- * tsort         |      |      |      || 8584 || 4111 | 4111  4112
- * titer         |      |      |      || 5971 || 4646 | 4646  4640
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7684
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2760  2759
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2981  2993 (14)
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3445  3450 (5)
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3967  3988 (20)
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4112  4206 (93)
+ * titer         |      |      |      || 5971 || 4646 | 4646  4640  5207 (568)
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7684  7837 (147)
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  12.2  12.0 (-149)!
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9 (15)
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1  42.3 (15)
  *                                    || 139  || 85.9 | 86.5  87.4
  * 
  * --------------------------------------------------------------

@@ -49,6 +49,35 @@
   #define TWO_PI (2.0 * M_PI)
 #endif
 
+#if (!USE_SND)
+#define mus_clear_floats(Arr, Len)		\
+  do {						\
+    mus_long_t K;				\
+    mus_float_t *dst;				\
+    dst = Arr;					\
+    for (K = Len; K > 0; K--)			\
+      *dst++ = 0.0;				\
+  } while (0)
+#define mus_copy_floats(Dst, Src, Len)		\
+  do {						\
+    mus_long_t K;				\
+    mus_float_t *dst, *src;			\
+    dst = Dst;					\
+    src = Src;					\
+    for (K = Len; K > 0; K--)			\
+      *dst++ = *src++;				\
+    } while (0)
+#define mus_add_floats(Dst, Src, Len)		\
+  do {						\
+    mus_long_t K;				\
+    mus_float_t *dst, *src;			\
+    dst = Dst;					\
+    src = Src;					\
+    for (K = Len; K > 0; K--)			\
+      *dst++ += *src++;				\
+    } while (0)
+#endif
+
 struct mus_any_class {
   int type;
   char *name;
