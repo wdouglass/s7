@@ -1124,7 +1124,7 @@ struct s7_scheme {
              sublet_symbol, substring_symbol, subtract_symbol, symbol_setter_symbol, symbol_symbol, symbol_to_dynamic_value_symbol,
              symbol_to_keyword_symbol, symbol_to_string_symbol, symbol_to_value_symbol, s7_version_symbol,
              tan_symbol, tanh_symbol, throw_symbol, string_to_byte_vector_symbol, 
-             tree_count_symbol, tree_leaves_symbol, tree_memq_symbol, tree_set_memq_symbol, truncate_symbol, type_of_symbol,
+             tree_count_symbol, tree_leaves_symbol, tree_memq_symbol, tree_set_memq_symbol, tree_is_cyclic_symbol, truncate_symbol, type_of_symbol,
              unlet_symbol, 
              values_symbol, varlet_symbol, vector_append_symbol, vector_dimensions_symbol, vector_fill_symbol, vector_ref_symbol,
              vector_set_symbol, vector_symbol, 
@@ -8471,7 +8471,7 @@ static int32_t closure_length(s7_scheme *sc, s7_pointer e)
 
 static s7_pointer copy_tree_with_type(s7_scheme *sc, s7_pointer tree)
 {
-  /* if sc->safety > 0, '(1 2) is set immutable by the reader, but eval (in that safety case) calls
+  /* if sc->safety > NO_SAFETY, '(1 2) is set immutable by the reader, but eval (in that safety case) calls
    *   copy_body on the incoming tree, so we have to preserve T_IMMUTABLE in that case.
    */
 #if WITH_GCC
@@ -8522,27 +8522,21 @@ static inline void annotate_expansion(s7_pointer p)
       annotate_expansion(car(p));
 }
 
-#if S7_DEBUGGING
-static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
-#endif
+
+static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
 
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
-  /* ideally we'd use tree_len here, but it currently does not protect against cycles */
-#if S7_DEBUGGING
-  if (cyclic_sequences(sc, p, false) == sc->T)
-    {
-      fprintf(stderr, "attempt to copy circular body\n");
-      abort();
-    }
-#endif
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, p)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "copy: tree is cyclic"));
   if (8192 >= (sc->free_heap_top - sc->free_heap))
     {
       gc(sc);
       while (8192 >= (sc->free_heap_top - sc->free_heap))
 	resize_heap(sc);
     }
-  if (sc->safety > 0)
+  if (sc->safety > NO_SAFETY)
     sc->w = copy_tree_with_type(sc, p);
   else sc->w = copy_tree(sc, p);
   annotate_expansion(sc->w);
@@ -26208,7 +26202,7 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
       if ((has_structure(cdr(top))) &&
 	  (collect_shared_info(sc, ci, cdr(top), stop_at_print_length)))
 	top_cyclic = true;
-#endif
+#else
       {
 	s7_pointer p, cp;
 	if ((has_structure(car(top))) &&
@@ -26242,6 +26236,7 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	  for (cp = top; is_pair(cp); cp = cdr(cp)) set_shared(cp);
 	return(top_cyclic);
       }
+#endif
       break;
       
     case T_VECTOR:
@@ -26332,6 +26327,43 @@ static shared_info *new_shared_info(s7_scheme *sc)
   ci->has_hits = false;
   return(ci);
 }
+
+
+static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree, shared_info *ci)
+{
+  if (is_collected_or_shared(tree))
+    return(!is_shared(tree));
+
+  set_collected(tree);
+  if (ci->top == ci->size)
+    enlarge_shared_info(ci);
+  ci->objs[ci->top++] = tree;
+
+  if ((is_pair(car(tree))) &&
+      (tree_is_cyclic_1(sc, car(tree), ci)))
+    return(true);
+  if ((is_pair(cdr(tree))) &&
+      (tree_is_cyclic_1(sc, cdr(tree), ci)))
+    return(true);
+
+  set_shared(tree);
+  return(false);
+}
+
+static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
+{
+  if (is_pair(tree))
+    return(tree_is_cyclic_1(sc, tree, new_shared_info(sc))); /* new_shared_info clears collected bits */
+  return(false);
+}
+
+static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
+{
+  #define H_tree_is_cyclic "(tree-cyclic? tree) returns #t if the tree has a cycle."
+  #define Q_tree_is_cyclic pl_bt
+  return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
+}
+
 
 static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at_print_length)
 {
@@ -31447,6 +31479,7 @@ static bool symbol_is_in_arg_list(s7_pointer sym, s7_pointer lst)
   return(sym == x);
 }
 
+/* ---------------- tree-leaves ---------------- */
 static s7_int tree_len_1(s7_scheme *sc, s7_pointer p)
 {
   s7_int sum;
@@ -31491,10 +31524,16 @@ static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_leaves "(tree-leaves tree) returns the number of leaves in the tree"
   #define Q_tree_leaves s7_make_signature(sc, 2, sc->is_integer_symbol, sc->T)
-  return(s7_make_integer(sc, tree_len(sc, car(args))));
+
+  s7_pointer tree;
+  tree = car(args);
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, tree)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-leaves: tree is cyclic"));
+  return(s7_make_integer(sc, tree_len(sc, tree)));
 }
 
-
+/* ---------------- tree-memq ---------------- */
 static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)
 {
   if (car(tree) == sc->quote_symbol)
@@ -31526,12 +31565,18 @@ static s7_pointer g_tree_memq(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_memq "(tree-memq obj tree) is a tree-oriented version of memq, but returning #t if the object is in the tree."
   #define Q_tree_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->T)
-  return(make_boolean(sc, s7_tree_memq(sc, car(args), cadr(args))));
+
+  s7_pointer tree;
+  tree = cadr(args);
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, tree)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-memq: tree is cyclic"));
+  return(make_boolean(sc, s7_tree_memq(sc, car(args), tree)));
 }
 
-static bool tree_memq_b_pp(s7_pointer sym, s7_pointer tree) {return(s7_tree_memq(cur_sc, sym, tree));}
+static bool tree_memq_b_pp(s7_pointer sym, s7_pointer tree) {return(g_tree_memq(cur_sc, set_plist_2(cur_sc, sym, tree)) != cur_sc->F);}
 
-
+/* ---------------- tree-set-memq ---------------- */
 static bool pair_set_memq(s7_scheme *sc, s7_pointer tree)
 {
   while (true)
@@ -31567,14 +31612,19 @@ static s7_pointer g_tree_set_memq(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_set_memq "(tree-set-memq symbols tree) returns #t if any of the list of symbols is in the tree"
   #define Q_tree_set_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->T)
-  s7_pointer syms, p;
+
+  s7_pointer syms, p, tree;
+  tree = cadr(args);
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, tree)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-set-memq: tree is cyclic"));
   syms = car(args);
   if (!is_pair(syms)) return(sc->F);
   clear_symbol_list(sc);
   for (p = syms; is_pair(p); p = cdr(p))
     if (is_symbol(car(p)))
       add_symbol_to_list(sc, car(p));
-  return(make_boolean(sc, tree_set_memq(sc, cadr(args))));
+  return(make_boolean(sc, tree_set_memq(sc, tree)));
 }
 
 static bool tree_set_memq_b_pp(s7_pointer syms, s7_pointer tree) {return(g_tree_set_memq(cur_sc, set_plist_2(cur_sc, syms, tree)) != cur_sc->F);}
@@ -31582,11 +31632,15 @@ static bool tree_set_memq_b_pp(s7_pointer syms, s7_pointer tree) {return(g_tree_
 static s7_pointer tree_set_memq_syms;
 static s7_pointer g_tree_set_memq_1(s7_scheme *sc, s7_pointer args)
 {
-  s7_pointer p;
+  s7_pointer p, tree;
+  tree = cadr(args);
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, tree)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-set-memq: tree is cyclic"));
   clear_symbol_list(sc);
   for (p = car(args); is_pair(p); p = cdr(p))
     add_symbol_to_list(sc, car(p));
-  return(make_boolean(sc, tree_set_memq(sc, cadr(args))));
+  return(make_boolean(sc, tree_set_memq(sc, tree)));
 }
 
 static s7_pointer tree_set_memq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -31604,7 +31658,7 @@ static s7_pointer tree_set_memq_chooser(s7_scheme *sc, s7_pointer f, int32_t arg
   return(f);
 }
 
-
+/* ---------------- tree-count ---------------- */
 static s7_int tree_count(s7_scheme *sc, s7_pointer x, s7_pointer p, s7_int count)
 {
   if (p == x)
@@ -31638,6 +31692,9 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
 	return(simple_wrong_type_argument(sc, sc->tree_count_symbol, caddr(args), T_INTEGER));
       return((obj == tree) ? small_int(1) : small_int(0));
     }
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, tree)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-count: tree is cyclic"));
   if (is_null(cddr(args)))
     return(s7_make_integer(sc, tree_count(sc, obj, tree, 0)));
   count = caddr(args);
@@ -44187,6 +44244,12 @@ static bool catch_goto_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_po
   return(false);
 }
 
+static bool catch_let_temporarily_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_pointer info, bool *reset_hook)
+{
+  let_temp_done(sc, stack_args(sc->stack, i), stack_code(sc->stack, i));
+  return(false);
+}
+
 static void init_catchers(void)
 {
   int32_t i;
@@ -44203,6 +44266,7 @@ static void init_catchers(void)
   catchers[OP_EVAL_STRING] =         catch_eval_function; 
   catchers[OP_BARRIER] =             catch_barrier_function;
   catchers[OP_DEACTIVATE_GOTO] =     catch_goto_function;
+  catchers[OP_LET_TEMP_DONE] =       catch_let_temporarily_function;
   catchers[OP_ERROR_HOOK_QUIT] =     catch_hook_function;
 }
 
@@ -45264,11 +45328,7 @@ pass (rootlet):\n\
     }
   sc->code = car(args);
   if ((sc->safety > NO_SAFETY) && (is_pair(sc->code)))
-    {
-      if (cyclic_sequences(sc, sc->code, false) == sc->T)
-	return(wrong_type_argument_with_type(sc, sc->eval_symbol, 1, sc->code, a_proper_list_string));
-      sc->code = copy_body(sc, sc->code);
-    }
+    sc->code = copy_body(sc, sc->code);
   else
    {
      if (is_optimized(sc->code))
@@ -56122,7 +56182,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
    *    we try to support dotted lists which makes the code much messier.
    * if no element of the list is a list or unquote, just return the original quoted 
    */
-  if (((check_cycles) && (cyclic_sequences(sc, form, false) == sc->T)) ||
+  if (((check_cycles) && (tree_is_cyclic(sc, form))) ||
       (is_simple_code(sc, form))) 
     return(list_2(sc, sc->quote_symbol, form));
 
@@ -68561,7 +68621,7 @@ static s7_pointer g_profile_filename(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 {
-  if (cyclic_sequences(sc, code, false) == sc->T)
+  if (tree_is_cyclic(sc, code))
     eval_error(sc, "attempt to evaluate a circular list: ~A", code);
   resize_stack(sc); /* we've already checked that resize_stack is needed */
   return(sc->F);
@@ -75729,9 +75789,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  else 
 	    {
 	      if (is_pair(sc->value))
-		/* annotate_expansion(sc->value); */
 		sc->value = copy_body(sc, sc->value);
-	      /* TODO: can the copy be avoided? */
 	    }
 	  break;
 	  
@@ -82868,10 +82926,11 @@ s7_scheme *s7_init(void)
   set_scope_safe(slot_value(global_slot(sc->apply_values_symbol)));
   set_scope_safe(slot_value(global_slot(sc->list_values_symbol)));
 
-  sc->tree_leaves_symbol =   defun("tree-leaves",   tree_leaves,   1, 0, false);
-  sc->tree_memq_symbol =     defun("tree-memq",     tree_memq,     2, 0, false);
-  sc->tree_set_memq_symbol = defun("tree-set-memq", tree_set_memq, 2, 0, false);
-  sc->tree_count_symbol =    defun("tree-count",    tree_count,    2, 1, false);
+  sc->tree_leaves_symbol =    defun("tree-leaves",   tree_leaves,    1, 0, false);
+  sc->tree_memq_symbol =      defun("tree-memq",     tree_memq,      2, 0, false);
+  sc->tree_set_memq_symbol =  defun("tree-set-memq", tree_set_memq,  2, 0, false);
+  sc->tree_count_symbol =     defun("tree-count",    tree_count,     2, 1, false);
+  sc->tree_is_cyclic_symbol = defun("tree-cyclic?",  tree_is_cyclic, 1, 0, false);
 
 
   /* -------- *features* -------- */
@@ -83528,7 +83587,7 @@ s7_scheme *s7_init(void)
   s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                        \n\
                           (list (cons 'lambda (cons vars body)) expression))");
 
-  s7_eval_c_string(sc, "(define-expansion (cond-expand . clauses)                                         \n\
+  s7_eval_c_string(sc, "(define-macro (cond-expand . clauses)                                             \n\
                           (letrec ((traverse (lambda (tree)                                               \n\
 		                               (if (pair? tree)                                           \n\
 			                           (cons (traverse (car tree))                            \n\
@@ -83729,8 +83788,6 @@ int main(int argc, char **argv)
  *   similarly (define (f case) (+ case 1)), or (define case 3) but how can local_slot be nil and global freed in this case?
  *   if safety>0 should we complain about (lambda (case)...) etc?
  * error for change of arg type in inlet/sublet: 'a 1 (b . 2)..., what about key?
- * \"hiho\"  -- \ as symbol, error message is messed up: (symbol "\\")bol "\\") with no unbound variable
- * set! in t725
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83763,15 +83820,15 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
  * tmac          |      |      |      || 9052 ||  264 |  264   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1169
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1170
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1475
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1936
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2134
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2129
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2938
  * lint          |      |      |      || 4041 || 2702 | 2696  2705
  * lg            |      |      |      || 211  || 133  | 133.4 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2798
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2993
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2793
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2998
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4206

@@ -128,7 +128,7 @@
 	      string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-downcase string-length
 	      string-position string-ref string-upcase string<=? string<? string=? string>=? string>? string?
 	      sublet substring symbol symbol->dynamic-value symbol->keyword symbol->string symbol->value symbol? syntax?
-	      tan tanh tree-leaves tree-memq truncate type-of
+	      tan tanh tree-leaves tree-memq tree-set-memq tree-count tree-cyclic? truncate type-of
 	      unless unspecified? undefined?
 	      values vector vector-append vector->list vector-dimensions vector-length vector-ref vector?
 	      when with-baffle with-let with-input-from-file with-input-from-string with-output-to-string
@@ -183,7 +183,7 @@
 			         exit dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
 				 getenv directory? file-exists? type-of immutable! immutable? byte-vector-set! syntax?
 				 list-values apply-values unquote set-current-output-port unspecified? undefined? byte-vector-ref
-				 set-current-input-port set-current-error-port directory->list system tree-count tree-set-memq))
+				 set-current-input-port set-current-error-port directory->list system tree-count tree-set-memq tree-cyclic?))
 			      ht))
 
 	(makers (let ((h (make-hash-table)))
@@ -234,7 +234,7 @@
 		  '(symbol? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		    char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		    output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
-		    unspecified? c-object? immutable? constant? syntax? unspecified? undefined?))
+		    unspecified? c-object? immutable? constant? syntax? unspecified? undefined? tree-cyclic?))
 		 h))
 
 	(booleans (let ((h (make-hash-table)))

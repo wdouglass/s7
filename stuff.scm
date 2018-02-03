@@ -2207,7 +2207,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      call-with-exit apply for-each map dynamic-wind values type-of
 	      catch throw error documentation signature help procedure-source
 	      setter arity aritable? not eq? eqv? equal? morally-equal? s7-version
-	      dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
+	      dilambda make-hook hook-functions stacktrace tree-leaves tree-memq tree-set-memq tree-cyclic? tree-count object->let
 	      pi most-positive-fixnum most-negative-fixnum nan.0 inf.0 -nan.0 -inf.0
 	      *stderr* *stdout* *stdin*
 	      apply-values list-values
