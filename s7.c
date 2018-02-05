@@ -287,7 +287,8 @@
 #ifndef S7_DEBUGGING
   #define S7_DEBUGGING 0
 #endif
-#define NEWFUN S7_DEBUGGING
+#define NEWFUN 1
+#define S7_DEBUGGING_SET 0
 
 #ifndef OP_NAMES
   #define OP_NAMES 0
@@ -5437,7 +5438,6 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	  free_cell(sc, sc->heap[loc]);
 	  heap_location(sc->heap[loc]) = loc;
 
-	  /* unheap(x); */
 	  heap_location(x) = -heap_location(x);
 	  /* if gensym is a hash-table key, then is removed from the heap, we need to be sure the hash-table map to it
 	   *   continues to be valid.  symbol_hmap is abs(heap_location), and the possible overlap with other not-in-heap
@@ -28386,8 +28386,6 @@ static const char *check_name(int32_t typ)
   return("unknown type!");
 }
 
-#define S7_DEBUGGING_SET 1
-
 static s7_pointer check_seti(s7_scheme *sc, s7_pointer x, const char *func, int32_t line)
 {
 #if S7_DEBUGGING_SET
@@ -45671,6 +45669,15 @@ static s7_pointer all_x_c_add1(s7_scheme *sc, s7_pointer arg)
   return(g_add_s1_1(sc, x, cdr(arg))); /* arg=(+ x 1) */
 }
 
+static s7_pointer all_x_c_sub1(s7_scheme *sc, s7_pointer arg)  
+{
+  s7_pointer x;
+  x = find_symbol_unchecked(sc, cadr(arg));
+  if (is_integer(x))
+    return(make_integer(sc, integer(x) - 1));
+  return(minus_c1(sc, x));
+}
+
 static s7_pointer all_x_c_addi(s7_scheme *sc, s7_pointer arg)  
 {
   s7_pointer x;
@@ -46752,6 +46759,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 		  return(all_x_is_pair_cdr_s);
 		}
 	      if (c_call(arg) == g_add_cs1) return(all_x_c_add1);
+	      if (c_call(arg) == g_subtract_cs1) return(all_x_c_sub1);
 	      if (c_call(arg) == g_if_x2) return(all_x_if_x2);	      /* g_if_x1 doesn't happen much */
 	      if (c_call(arg) == g_and_2) return(all_x_and2);
 	      if (c_call(arg) == g_or_2) return(all_x_or2);
@@ -61698,9 +61706,6 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 #define goto_APPLY 8
 #define goto_EVAL_ARGS 9
 #define goto_DO_UNCHECKED 10
-#if NEWFUN
-#define goto_CURRENT 11
-#endif
 
 static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity)
 {
@@ -67384,9 +67389,9 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
   int32_t hop;
 
   code = sc->code;
-#if NEWFUN
-  if (f != find_symbol_unchecked(sc, car(code)))
-    fprintf(stderr, "%s != %s in %s\n", DISPLAY(f), DISPLAY(find_symbol_unchecked(sc, car(code))), DISPLAY_80(code));
+#if NEWFUN && S7_DEBUGGING
+  if (f != find_symbol_checked(sc, car(code)))
+    fprintf(stderr, "%s != %s in %s\n", DISPLAY(f), DISPLAY(find_symbol_checked(sc, car(code))), DISPLAY_80(code));
 #endif
 
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
@@ -67418,15 +67423,11 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	  if (is_safe_closure(f))
 	    {
 	      s7_pointer s;
-	      int32_t old_op;
-	      old_op = optimize_op(code);
-	      /* if (opt2_is_set(code)) code->debugger_bits &= (~F_SET); */
 	      set_optimize_op(code, hop + OP_SAFE_FUN_A);
 	      s = find_symbol(sc, car(code));
-	      code->object.cons.opt2 = sc->envir;
+	      code->object.cons.opt2 = sc->envir; /* TODO: macros for these */
 	      code->object.cons.opt1 = s;
-	      /* fprintf(stderr, "cur op: %s\n", opt_names[optimize_op(code)]); */
-	      return((old_op == OP_SAFE_FUN_A) ? goto_CURRENT : goto_OPT_EVAL);
+	      return(goto_OPT_EVAL);
 	    }
 #else
 	  if (is_safe_closure(f))
@@ -72112,17 +72113,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		   */
 		  if (sc->envir != code->object.cons.opt2)
 		    {
-		      int32_t go;
-		      /* fprintf(stderr, "not cur env %p %p\n", sc->envir, code->object.cons.opt2); */
 		      sc->last_function = find_symbol_unchecked(sc, car(code));
-		      /* fprintf(stderr, "a_ex: %s\n", opt_names[optimize_op(code)]); */
-		      go = unknown_a_ex(sc, sc->last_function);
-		      if (go == goto_OPT_EVAL)
-			goto INNER_OPT_EVAL; 
-		      if (go != goto_CURRENT)
-			break;
+		      if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; 
+		      break;
 		    }
-		  /* else fprintf(stderr, "."); */
 
 		case HOP_SAFE_FUN_A:
 		  {
@@ -72132,6 +72126,23 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->code = _TPair(closure_body(f));
 		    goto BEGIN1;
 		  }
+
+		  /* c_call(cdr(code))(sc, cadr(code)) below, arg to all_x_* is cadr, caller is car (func (- x 1)), so opts here are from outer eval, not allx
+		     arg = cadr:
+		     p DISPLAY(arg->object.cons.opt1) "-" [E_SET: E_CFUNC = c_function: subtract_cs1]
+		     p arg->object.cons.opt2 <g_subtract_cs1>
+		     p arg->object.cons.opt3 is set, optimize_op = h_safe_c_c
+		     
+		     cdr(code)->object.cons.opt1 is E_BACK: ptr to code: "(func (- x 1))"
+		     cdr(code)->object.cons.opt2 is <all_x_c_sub1>
+		     cdr(code)->object.cons.opt3 is arglen:  p DISPLAY(cdr(code)->object.cons.opt3) "1"
+
+		     cadr: (- x 1), so cdadr is possible
+		     opt2 and opt3 are 0, G|F_SET are off
+		     opt1 is EBACK:  p DISPLAY(cdadr(code)->object.cons.opt1) "(- count 1)"
+		       but even that seems unnecessary -- where is it used?
+		     so... sc->envir->opt2, slot->opt3 and check in all_x_c_sub1 -- need all_f_sub1 until this settles
+		  */
 #endif
 		case OP_SAFE_CLOSURE_A_C:
 		  if (!closure_is_equal(sc, code)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
@@ -83831,9 +83842,9 @@ int main(int argc, char **argv)
   return(0);
 }
 
-/* in Linux:  gcc s7.c -o repl -DWITH_MAIN -I. -g3 -ldl -lm -Wl,-export-dynamic
- * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -I. -g3 -lm -Wl,-export-dynamic
- * in OSX:    gcc s7.c -o repl -DWITH_MAIN -I. -g3 -lm
+/* in Linux:  gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -ldl -lm -Wl,-export-dynamic
+ * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -lm -Wl,-export-dynamic
+ * in OSX:    gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -lm
  *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux)
  */
 #endif
@@ -83886,24 +83897,24 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1
  * tmac          |      |      |      || 9052 ||  264 |  264   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1170
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1475
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2129
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2938 [2618 newfun, difference from previous is subtract_cs1 vs local_x_c_sub1]
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2121
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2547
  * lint          |      |      |      || 4041 || 2702 | 2696  2705
- * lg            |      |      |      || 211  || 133  | 133.4 133.4
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2793
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2998
+ * lg            |      |      |      || 211  || 133  | 133.4 134.0
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2792
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2997
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4206
- * titer         |      |      |      || 5971 || 4646 | 4646  5183
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7842
+ * titer         |      |      |      || 5971 || 4646 | 4646  5168 [all local/find]
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7832 [same]
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.2
- *                                    || 139  || 85.9 | 86.5  87.4
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1
+ *                                    || 139  || 85.9 | 86.5  87.3
  * 
  * --------------------------------------------------------------
  */

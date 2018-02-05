@@ -3143,7 +3143,7 @@
 (hay "   }~%")
 (hay "#else~%")
 (hay "  gtk_text_view_get_iter_at_position((GtkTextView*)s7_c_pointer(text_view), (GtkTextIter*)s7_c_pointer(iter), &ref_trailing, s7_integer(x), s7_integer(y));~%")
-(hay "  return(s7_list(sc, 1, s7_make_integer(sc, (ref_trailing)));~%")
+(hay "  return(s7_list(sc, 1, s7_make_integer(sc, ref_trailing)));~%")
 (hay "#endif~%")
 (hay "}~%~%")
 (hay "static s7_pointer lg_gtk_text_view_get_iter_at_location(s7_scheme *sc, s7_pointer args)~%")

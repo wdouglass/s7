@@ -6116,6 +6116,20 @@ the generic functions mechanism, much like a c-object:
 <em class="gray">"I am pointer 1 of type 'abc!"</em>
 </pre>
 
+
+<div class="separator"></div>
+
+<p>There are several tree-oriented functions currently built into s7:
+</p>
+<pre class="indented">
+(<em class=def id="treecyclic">tree-cyclic?</em> tree) returns #t if tree contains a cycle.
+(<em class=def id="treeleaves">tree-leaves</em> tree) returns the number of leaves in tree.
+(<em class=def id="treememq">tree-memq</em> obj tree) returns #t if obj is in tree (using eq?).
+(<em class=def id="treesetmemq">tree-set-memq</em> set tree) returns #t if any member of the list set is in tree.
+(<em class=def id="treecount">tree-count</em> obj tree) returns how many times obj is in tree.
+</pre>
+
+
 <div class="separator"></div>
 
 <blockquote>
