@@ -1,4 +1,4 @@
-
+;;; this is not ready for use 
 (if (provided? 'gtk4)
     (gtk_init)
     (gtk_init 0 #f))
@@ -85,7 +85,8 @@
       
       (if (provided? 'gtk4)
 	  (gdk_window_set_event_compression (gtk_widget_get_window repl) #f)
-	  (gtk_widget_set_events repl GDK_ALL_EVENTS_MASK))
+	  ;(gtk_widget_set_events repl GDK_ALL_EVENTS_MASK)
+	  )
       (g_signal_connect (G_OBJECT repl) "key_press_event" repl-key-press)
       ;; TODO in gtk4 I think repl-key-press receives 2 args
 
@@ -118,8 +119,10 @@ void libgtk_s7_init(s7_scheme *sc);
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
+
   sc = s7_init();  
   libgtk_s7_init(sc);
+
   s7_load(sc, "gtkex.scm");
 }
 
