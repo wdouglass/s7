@@ -1216,6 +1216,18 @@ snd_info *finish_opening_sound(snd_info *sp, bool selected)
 	  else superimpose_sound(sp);
 	}
     }
+#if USE_GTK
+#if GTK_CHECK_VERSION(3, 0, 0)
+  if ((listener_exists()) &&
+      (sound_style(ss) != SOUNDS_IN_SEPARATE_WINDOWS))
+    {
+      int hgt;
+      hgt = widget_height(sound_pane(ss));
+      if (hgt > 50)
+	gtk_paned_set_position(GTK_PANED(sound_pane(ss)), (gint)(hgt * .8));
+    }
+#endif
+#endif
   return(sp);
 }
 

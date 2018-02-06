@@ -287,7 +287,6 @@
 #ifndef S7_DEBUGGING
   #define S7_DEBUGGING 0
 #endif
-#define NEWFUN 1
 #define S7_DEBUGGING_SET 1
 
 #ifndef OP_NAMES
@@ -3212,9 +3211,7 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OP_SAFE_CLOSURE_ALL_X, HOP_SAFE_CLOSURE_ALL_X, OP_SAFE_CLOSURE_AA, HOP_SAFE_CLOSURE_AA, OP_SAFE_CLOSURE_AA_P, HOP_SAFE_CLOSURE_AA_P,
       OP_SAFE_CLOSURE_AP, HOP_SAFE_CLOSURE_AP, OP_SAFE_CLOSURE_PA, HOP_SAFE_CLOSURE_PA, 
 
-#if NEWFUN
       OP_SAFE_FUN_A, HOP_SAFE_FUN_A,
-#endif
 
       OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
       OP_SAFE_CLOSURE_STAR_S0, HOP_SAFE_CLOSURE_STAR_S0, OP_SAFE_CLOSURE_STAR_ALL_X, HOP_SAFE_CLOSURE_STAR_ALL_X,
@@ -3438,9 +3435,7 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "safe_closure_all_x", "h_safe_closure_all_x", "safe_closure_aa", "h_safe_closure_aa", "safe_closure_aa_p", "h_safe_closure_aa_p",
       "safe_closure_ap", "h_safe_closure_ap", "safe_closure_pa", "h_safe_closure_pa", 
 
-#if NEWFUN
       "safe_fun_a", "h_safe_fun_a",
-#endif
 
       "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
       "safe_closure*_s0", "h_safe_closure*_s0", "safe_closure*_all_x", "h_safe_closure*_all_x",
@@ -7203,6 +7198,7 @@ static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_
 	  p = car(x);
 	  switch (type(p))
 	    {
+	      /* should this insist on one style of field arg?  i.e. (cons sym val) throughout, or :sym val etc? */
 	    case T_SYMBOL:
 	      if (is_keyword(p))
 		sym = keyword_symbol(p);
@@ -26679,12 +26675,12 @@ static void output_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, 
 	    port_write_string(port)(sc, "(let ((p (open-output-string))) (close-output-port p) p)", 56, port);
 	  else 
 	    {
-	      char *str;
 	      if (is_string_port(obj))
 		{
 		  port_write_string(port)(sc, "(let ((p (open-output-string)))", 31, port);
 		  if (port_position(obj) > 0)
 		    {
+		      char *str;
 		      port_write_string(port)(sc, " (display ", 10, port);
 		      str = slashify_string(sc, (const char *)port_data(obj), port_position(obj), IN_QUOTES, &nlen);
 		      port_write_string(port)(sc, str, nlen, port);
@@ -26694,10 +26690,9 @@ static void output_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, 
 		}
 	      else 
 		{
-		  str = (char *)malloc(256 * sizeof(char));
+		  char str[256];
 		  nlen = snprintf(str, 256, "(open-output-file \"%s\" \"a\")", port_filename(obj));
 		  port_write_string(port)(sc, str, nlen, port);
-		  free(str);
 		}
 	    }
 	}
@@ -26735,13 +26730,11 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 		port_write_string(port)(sc, "#<function input port>", 22, port);
 	      else
 		{
-		  char *str;
 		  if (is_file_port(obj))
 		    {
-		      str = (char *)malloc(256 * sizeof(char));
+		      char str[256];
 		      nlen = snprintf(str, 256, "(open-input-file \"%s\")", port_filename(obj));
 		      port_write_string(port)(sc, str, nlen, port);
-		      free(str);
 		    }
 		  else
 		    {
@@ -26751,6 +26744,7 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 		       *   s7_port_filename(port) has the char* name if any.
 		       */
 		      uint32_t data_len;
+		      char *str;
 		      data_len = port_data_size(obj) - port_position(obj);
 		      if (data_len > 100)
 			{
@@ -29098,11 +29092,9 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	      if (iterator_position(obj) > 0)
 		{
 		  int32_t nlen;
-		  char *str;
-		  str = (char *)malloc(128 * sizeof(char));
+		  char str[128];
 		  nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" PRId64 ") iter) (iterate iter)))", iterator_position(obj));
 		  port_write_string(port)(sc, str, nlen, port);
-		  free(str);
 		}
 	      else port_write_character(port)(sc, ')', port);
 	    }
@@ -67389,11 +67381,6 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
   int32_t hop;
 
   code = sc->code;
-#if NEWFUN && S7_DEBUGGING
-  if (f != symbol_to_value_checked(sc, car(code)))
-    fprintf(stderr, "%s != %s in %s\n", DISPLAY(f), DISPLAY(symbol_to_value_checked(sc, car(code))), DISPLAY_80(code));
-#endif
-
   hop = (is_constant_symbol(sc, car(code))) ? 1 : 0;
 
 #if S7_DEBUGGING
@@ -67419,20 +67406,15 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
       if ((!has_methods(f)) &&
 	  (closure_arity_to_int(sc, f) == 1))
 	{
-#if NEWFUN
 	  if (is_safe_closure(f))
 	    {
 	      s7_pointer s;
 	      set_optimize_op(code, hop + OP_SAFE_FUN_A);
 	      s = symbol_to_slot(sc, car(code));
-	      code->object.cons.opt2 = sc->envir; /* TODO: macros for these */
+	      code->object.cons.opt2 = (s7_pointer)((intptr_t)(sc->envir) | symbol_ctr(car(code))); /* TODO: macros for these */
 	      code->object.cons.opt1 = s;
 	      return(goto_OPT_EVAL);
 	    }
-#else
-	  if (is_safe_closure(f))
-	    set_optimize_op(code, hop + OP_SAFE_CLOSURE_A);
-#endif
 	  else 
 	    {
 	      set_optimize_op(code, hop + OP_CLOSURE_A);
@@ -72106,21 +72088,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  sc->envir = old_frame_with_slot(sc, closure_let(opt_lambda(code)), c_call(cdr(code))(sc, cadr(code)));
 		  sc->code = _TPair(closure_body(opt_lambda(code)));
 		  goto BEGIN1;
-#if NEWFUN
+
 		case OP_SAFE_FUN_A:
 		  /* opt_lambda is opt1, opt3 is line/op, optimize_op(code) = OP_SAFE_FUN_A is object->sym_cons.op = half of opt3 
 		   *   opt2 is sc->envir, opt1 is now the slot
 		   * let_id(sc->envir) changes on every call (sc->envir if recursive call is closure_let(f) from old_frame below)
-		   *   but using bare sc->envir as below is dangerous -- between calls, closure+let might be gc'd, then by
+		   *   but using bare sc->envir is dangerous -- between calls, closure+let might be gc'd, then by
 		   *   sheer bad luck, the newly allocated closure_let is the same cell as the previous!
+		   *   To fix this, logior in symbol_ctr using intptr_t etc, costs: old: 40M, clo1: 340M, new: 40M, new|ctr: 50M (in tlet)
 		   */
-		  if (sc->envir != code->object.cons.opt2)
+		  if (((intptr_t)(sc->envir) | symbol_ctr(car(code))) != (intptr_t)(code->object.cons.opt2))
 		    {
 		      sc->last_function = symbol_to_value_unchecked(sc, car(code));
 		      if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; 
 		      break;
 		    }
-
 		case HOP_SAFE_FUN_A:
 		  {
 		    s7_pointer f;
@@ -72129,7 +72111,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->code = _TPair(closure_body(f));
 		    goto BEGIN1;
 		  }
-#endif
+
 		case OP_SAFE_CLOSURE_A_C:
 		  if (!closure_is_equal(sc, code)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_SAFE_CLOSURE_A_C:
@@ -83849,8 +83831,6 @@ int main(int argc, char **argv)
  *   but order in let is unspecified: maybe (since obj passed as arg) calc first time called?
  *   (let ((a 1) (b pi) (signature (lambda (obj) (map (lambda (c) (if (eq? (car c) 'a) 'integer? 'float?)) obj)))) ...) -> setters on each var
  *   too clumsy, and type should accompany var/val [procedure args?], typed/let: (let ((var val type)...) ) as macro -> setters
- * macroexpand before s7_optimize? or restart if macro encountered? -- only works for non-local macros
- * error for change of arg type in inlet/sublet: 'a 1 (b . 2)..., what about key?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83887,7 +83867,7 @@ int main(int argc, char **argv)
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2121
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2547
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2566 [part clo1, part local]
  * lint          |      |      |      || 4041 || 2702 | 2696  2705
  * lg            |      |      |      || 211  || 133  | 133.4 134.0
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2792

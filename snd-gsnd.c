@@ -2050,12 +2050,6 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       reset_controls(sp);
     }
   if (free_filename) free(filename);
-  
-#if GTK_CHECK_VERSION(3, 0, 0)
-  if (listener_exists())
-    gtk_paned_set_position(GTK_PANED(sound_pane(ss)), 50);
-  /* actually we haven't reached full size here at start-up */
-#endif
   return(sp);
 }
 
