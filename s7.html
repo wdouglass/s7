@@ -5162,7 +5162,8 @@ is also passed (the weird argument order is an historical artifact).
 <em class="gray">#(1 2 0)</em>
 </pre>
 
-<p>define-constant is more restrictive than a symbol-setter that raises an error: the latter
+<p>See also typed-let in stuff.scm.
+define-constant is more restrictive than a symbol-setter that raises an error: the latter
 does not block nested (possibly non-constant) bindings of the symbol.  The symbol-setters
 are kind of ugly.  Here's a macro that lets you put the let variable's setter after
 the initial value:

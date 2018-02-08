@@ -2,14 +2,15 @@
 
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
-;(load "stuff.scm")
+(load "stuff.scm")
 ;(load "write.scm")
+;(load "mockery.scm")
 
-;(set! (*s7* 'safety) 1)
+;(set! (*s7* 'safety) 2)
 
 (set! (*s7* 'max-stack-size) 32768)
 (set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
-(set! (*s7* 'gc-stats) 6)
+;(set! (*s7* 'gc-stats) 6)
 (set! (*s7* 'print-length) 1000)
 (define ostr "")
 (define nostr "")
@@ -292,7 +293,8 @@
 			  'lognot 'cdar 'char-ci>=? 'string>=? 
 			  'dilambda 'string-ci<? 'char<=? 'logior 'char-ci<=? 'assv 
 			  'string>? 'char-ci>? 'char-lower-case? 'string-ci>=? 'string-ci>? 'string<=? 'caadr 'char-ci<? 'reverse! 
-			  'string-ci<=? 'cadadr 'cdadr 'provided? 'caaaar 'caaddr 'caddar 'cdaaar 'cdaadr 'cdaddr 'cddar 'fill!
+			  'string-ci<=? 'cadadr 'cdadr 'provided? 'caaaar 'caaddr 'caddar 'cdaaar 'cdaadr 'cdaddr 'cddar 
+			  'fill!
 			  'hash-table-ref 'list->vector 'caaadr 'caaar 'caadar 'cadaar 'cdadar 'cdddar 'string-fill! 'cdaar 'cddaar 'cddadr 
 			  'keyword? 'memv 'char-ready? 
 			  'symbol->keyword 'logxor 
@@ -318,7 +320,18 @@
 			  'symbol-setter ;'unlet -- spurious diffs
 			  's7-version 
 			  'dilambda?
-			  'hook-functions 'make-hook 
+			  'hook-functions 
+
+			  ;; -------- naming funcs
+			  'make-hook 
+			  'let 'let* 'letrec 
+			  'lambda 'lambda*
+			  'multiple-value-bind 'call-with-values
+			  'inlet 
+			  'object->let
+			  ;; --------
+
+                          ;'pair-line-number 
 			  'open-input-string 'open-output-string 
 			  'open-input-file 
 			  'define
@@ -328,8 +341,11 @@
 			  'random-state ;;'port-line-number -- too many spurious diffs
 			  'gensym
 			  ;'quote
-			  'if 'begin 'let 'let* 'letrec 'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless
-			  'lambda 'lambda* 'let-temporarily
+			  'if 'begin 
+			  
+			  'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless
+			  
+			  'let-temporarily
 			  'byte-vector-set! 'make-byte-vector 
 			  'write-char 'call/cc 'write-byte 'write-string 
 			  'file-mtime
@@ -365,8 +381,9 @@
 			  'block 'make-block 'block?
 			  
 			  'constant?
-			  'openlet 'multiple-value-bind 'call-with-values
-			  'cond-expand 
+			  'openlet 
+			  
+			  ;;'cond-expand 
 			  '*unbound-variable-hook* '*load-hook* '*rootlet-redefinition-hook* '*missing-close-paren-hook* '*read-error-hook* 
 			  '*autoload*
 			  ;;'*error-hook*
@@ -375,11 +392,12 @@
 			  'random-state? 'throw 'float-vector-set! 'make-iterator 'complex 
 			  'let-ref 'int-vector 'aritable? 'gensym? 'syntax? 'iterator-at-end? 'let? 
 			  'make-shared-vector 'float-vector 'iterator-sequence 'getenv 'float-vector-ref 
-			  'cyclic-sequences 'let->list 'inlet 'setter 'int-vector? 
+			  'cyclic-sequences 'let->list 
+			  
+			  'setter 'int-vector? 
 			  'int-vector-set! 'c-object? 'proper-list? 'symbol->dynamic-value 'vector-append 
 			  ;'random-state->list ;'pair-filename 
 			  'flush-output-port 'c-pointer 'make-float-vector 
-			  'object->let ;'pair-line-number 
 			  'iterate 'float-vector? 
 			  'apply-values 'values
 			  'byte-vector-ref 'file-exists? 'make-int-vector 'string-downcase 'string-upcase 
@@ -394,7 +412,7 @@
 			  's7-undefined-identifier-warnings 
                           ;'s7-autoloading? 
 			  's7-catches 's7-exits 
-			  's7-stack-top 's7-stack 's7-stacktrace-defaults 
+			  's7-stack-top 's7-stack 
 			  's7-symbol-table 
 			  's7-gc-protected-objects
 
@@ -415,7 +433,7 @@
 			  ;;'s7-set-float-format-precision
 |#
 			  's7-memory-usage 
-			  ;'s7-safety 's7-set-safety ;-- these need work...
+			  ;;'s7-safety 's7-set-safety ;-- these need work...
 			  's7-c-types 
 			  ;;'s7-history ;-- causes stack to grow?
 			  's7-print-length 's7-max-string-length 's7-max-list-length 's7-max-vector-length 's7-max-vector-dimensions 's7-default-hash-table-length
@@ -428,29 +446,32 @@
 			  's7-file-names
 			  's7-autoloading?
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
+			  's7-stacktrace-defaults
 
 			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append 'block-let
-#|
+
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
 			  ;'copy-tree ; cycles cause stack overflow
 			  'adjoin 'cdr-assoc
-			  'progv ;'value->symbol -- correctly different values sometimes
+			  ;'progv ;'value->symbol -- correctly different values sometimes, progv localizes
 			  'and-let* 'string-case 'hash-table->alist 'concatenate
 			  'union '2^n? 'lognor 'ldb 'clamp 
 			  'sequence->string 
 			  ;'*s7*->list ; reverse! etc 
 			  'log-n-of ; stack grows if n < 0?
 			  'pp
-|#
+
 			  'kar '_dilambda_
+
+			  'tree-cyclic?
 			  ))
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
 		    "(make-block 2)" "(block 1.0 2.0 3.0)" "(block)"
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
-		    ;;"1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" 
+		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" 
 		    "cons" "''2" "\"ra\""
 		    "(make-hook)" "(make-hook '__x__)"
 		    "1+i" "0+i" "(ash 1 43)" 
@@ -471,14 +492,16 @@
 		    ;;"'((X . 1) . 2)" "'((x 1) . 2)" "'((x 1) (y . 2))" "'((x 1) y . 2)" "'((x 1) (y) . 2)" "'((x 1 . 2) . 3)" "'((x 1) 2)" "'(((x 1) 2) 3)" 
 		    "'(())" "'((()))" "(random-state 1234)" 
 		    "(c-pointer 0 'integer?)" "(c-pointer -1)" "(c-pointer 1234)"
-		    "'(15 26 . 36)" " . "
-		    "((i 0 (+ i 1)))" "(null? i)" "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
-		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" 
+		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" "(openlet (inlet 'abs (lambda (x) (- x))))" 
+		    "'(15 26 . 36)" 
+		    " . "
+		    "((i 0 (+ i 1)))" "(null? i)" 
+		    "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
+		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" "(or x y)"
 		    ;;"(begin (f x) B)" "(A (f x) B)" 
 		    ;;"(f x) i" "x y z" "1 2"
 		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
-		    "_definee_" ;; "(_definee_ wxyz)"
-		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" "(openlet (inlet 'abs (lambda (x) (- x))))" 
+		    "_definee_" "(_definee_ __var__)" "(_definee_ x)" 
 		    "(hash-table* 'a 1)" "(hash-table)" 
 		    "(make-iterator (list 11 22 33))" "(make-iterator (vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
 		    "#<eof>" "#<undefined>" "#<unspecified>"
@@ -486,7 +509,7 @@
 		    
 		    "(call-with-exit (lambda (goto) goto))"
 		    "(with-baffle (call/cc (lambda (cc) cc)))"
-		    "(symbol->string 'x)" "(symbol \"a b\")"
+		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\")\")"
 		    "(setter _definee_)" "(setter car)" "(setter kar)"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
@@ -500,10 +523,9 @@
 		    "(else)"
 		    "else" "x" "(+ x 1)" "(+ 1/2 x)" "(abs x)" "(+ x 1 2+i)" "(* 2 x 3.0 4)" "((x 1234))" "((x 1234) (y 1/2))" "'x" "(x 1)"
 		    "_undef_"
-		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
-		    ;;"+signature+" "+documentation+" "+setter+" 
+		    "+signature+" "+documentation+" "+setter+" 
 		    "__var2__"
-		    ;;"\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
+		    "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
 		    "(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
 		    "(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
 		    "(immutable! (inlet 'a 1 'b 2))" 
@@ -517,17 +539,19 @@
 		    ;;"(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 16) hash) (hash-table-set! hash i 0)))"
 		    ;;"(let ((lt (inlet))) (do ((i 0 (+ i 1))) ((= i 16) lt) (varlet lt (symbol \"i\" (number->string i)) 0)))"
 		    
-		    " #| a comment |# "
+		    ;;" #| a comment |# "
 		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
 		    "(error 'oops \"an error!\")"
-		    
-		    ;;"(catch #t 1 cons)" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
+		    "(set! (symbol-setter 'x) (lambda (s v) 1))"
+
+		    "(catch #t 1 cons)" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
+		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
 		    "lambda*" "lambda"
 		    ;; "let" "let*" "do" "set!" "with-let" "define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 		    ))
@@ -557,13 +581,10 @@
 	      (reader-cond ((not (provided? 'pure-s7)) (list "(with-input-from-string \"1234\" (lambda () " "(begin (_dw_string_ ")))
 	      (list "(map abs (begin " "(map (lambda (x) (if (>= x 0.0) x (- x))) (begin ")
 	      (list "(for-each display (list " "(for-each (lambda (x) (display x)) (list ")
-	      ;;(list "(begin (_ct1_ " "(begin (_ct2_ ")
+	      (list "(begin (_ct1_ " "(begin (_ct2_ ")
 	      (list "(begin (_mem1_ " "(begin (_mem2_ ")
 	      (list "(begin (_ft1_ " "(begin (_ft2_ ")
-	      ;;(list "(begin (when (not false) " "(begin (begin ")
 	      (list "(with-output-to-string (lambda () " "(begin (_dw_out_ ")
-	      ;;(list "(begin (let _m_ " "(begin (let* _m_ ")
-	      ;;(list "(vector-set! (vector 0) 0 (list " "(hash-table-set! (hash-table) 'a (list ")
 	      (list "(begin (_rf1_ " "(begin (_rf2_ ")
 	      (list "(let () (_do1_ " "(let () (_do2_ ")
 	      (list "(let () (let-temporarily ((x 1234)) (call-with-exit (lambda (goto) (goto 1))) "
@@ -578,7 +599,7 @@
 	(flen (length functions))
 	(alen (length args))
 	(codes-len (length codes)))
-    
+
     ;(for-each (lambda (x) (if (not (symbol? x)) (format *stderr* "~A " x))) functions)
     ;(for-each (lambda (x) (if (not (string? x)) (format *stderr* "~A " x))) args)
     ;(do ((p (vector->list functions) (cdr p))) ((null? p)) (if (memq (car p) (cdr p)) (format *stderr* "~A repeats~%" (car p))))
@@ -589,16 +610,12 @@
     (define (fix-op op)
       (case op
 	((set!) "set! __var__")
-	;;((let) "let ()")
-	;;((let*) "let* ()")
-	((let) "let _let_")
-	((let*) "let* _let*_")
-	;; ((do) "do ((i 0 (+ i 1))) ((= i 1) 1)")
+	((let) "let ()")
+	((let*) "let* ()")
 	((do) "_do3_")
 	((call-with-output-file) "call-with-output-file \"/dev/null\" ")
 	((with-output-to-file) "with-output-to-file \"/dev/null\" ")
 	((define define* define-macro define-macro* define-bacro define-bacro*) (format #f "~A _definee_ " op))
-	;((format) "format #t ")
 	((eval) "checked-eval")
 	(else => symbol->string)))
 
@@ -754,6 +771,7 @@
 	    )))
 
     (define (eval-it str) ;(format #t "~A~%" str)
+      ;(format *stderr* "~S~%" str)
       (catch #t 
 	(lambda ()
 	  (car (list (eval-string str))))
@@ -813,7 +831,7 @@
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))
 
-	(try-both (make-expr (+ 1 (random 9)))) ; min 1 here not 0
+	(try-both (make-expr (+ 1 (random 8)))) ; min 1 here not 0
 	(set! __var__ #f)
 #|	
 	(catch #t

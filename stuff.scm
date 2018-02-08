@@ -97,6 +97,22 @@
 	      (format *stderr* "~%~A~%" (stacktrace)))))
 |#
 
+;;; ----------------
+(define-macro (typed-let vals . body) ; vals: ((var init [type])...)...) as in (typed-let ((i 0 integer?))...)
+  `(let ,(map (lambda (val)
+		 (list (car val) (cadr val)))
+	       vals)
+     ,@(map (lambda (val)
+	      (if (pair? (cddr val))
+		  `(set! (symbol-setter ',(car val)) 
+			 (lambda (s v)
+			   (if (not (,(caddr val) v))
+			       (error 'wrong-type-arg "(set! ~S ~S) but ~S is not ~A" s v v ',(caddr val)))
+			   v))
+		  (values)))
+	    vals)
+     ,@body))
+
 
 ;;; ----------------
 (define (first obj)  (if (sequence? obj) (obj 0) (error 'wrong-type-arg "first argument, ~S, is not a sequence" obj)))
