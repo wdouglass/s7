@@ -287,7 +287,6 @@
 #ifndef S7_DEBUGGING
   #define S7_DEBUGGING 0
 #endif
-#define S7_DEBUGGING_SET 1
 
 #ifndef OP_NAMES
   #define OP_NAMES 0
@@ -1445,7 +1444,6 @@ static s7_scheme *cur_sc = NULL;
 
 #if S7_DEBUGGING
   static const char *check_name(int32_t typ);
-  static s7_pointer check_seti(s7_scheme *sc, s7_pointer x, const char *func, int32_t line);
   static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *func, int32_t line, const char *func1, const char *func2);
   static s7_pointer check_ref2(s7_pointer p, uint8_t expected_type, int32_t other_type, const char *func, int32_t line, const char *func1, const char *func2);
   static s7_pointer check_ref3(s7_pointer p, const char *func, int32_t line);
@@ -1559,13 +1557,11 @@ static s7_scheme *cur_sc = NULL;
   #define _TApp(P) check_ref11(P,                    __func__, __LINE__) /* setter (any_procedure or #f) */
   #define _NFre(P) check_nref(P,                     __func__, __LINE__) /* not free */
   #define _Cell(P) check_cell(P,                     __func__, __LINE__) /* any cell */
-  #define _TSet(P) check_seti(cur_sc, P,             __func__, __LINE__) /* set of immutable value */
 
 #else
   #define unchecked_type(p)           ((p)->tf.type_field)
   #define type(p)                     ((p)->tf.type_field)
   #define set_type(p, f)              typeflag(p) = f
-  #define _TSet(P)                    P
   #define _TI(P)                      P
   #define _TR(P)                      P
   #define _TF(P)                      P
@@ -1918,7 +1914,7 @@ static s7_scheme *cur_sc = NULL;
 #define T_BYTE_VECTOR                 T_MUTABLE
 #define is_byte_vector(p)             ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define is_mutable_byte_vector(p)     ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
-#define set_byte_vector(p)            typeflag(_TSet(_TStr(p))) |= T_BYTE_VECTOR
+#define set_byte_vector(p)            typeflag(_TStr(p)) |= T_BYTE_VECTOR
 /* marks a string that the caller considers a byte_vector */
 
 #define T_STEP_END                    T_MUTABLE
@@ -2377,7 +2373,7 @@ static int64_t not_heap = -1;
 #define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
 #define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
-#define slot_set_value(p, Val)        (_TSlt(_TSet(p)))->object.slt.val = _NFre(Val)
+#define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
 #define next_slot(p)                  (_TSlt(p))->object.slt.nxt
@@ -11070,13 +11066,12 @@ static void init_ctables(void)
   number_table[(unsigned char)'#'] = true;
 }
 
-
 #define is_white_space(C) white_space[C]
   /* this is much faster than C's isspace, and does not depend on the current locale.
    * if c == EOF (-1), it indexes into the empty (0) slot we preallocated below white_space
    */
 
-
+/* -------------------------------- *#readers* -------------------------------- */
 static s7_pointer check_sharp_readers(s7_scheme *sc, const char *name)
 {
   s7_pointer reader, value, args;
@@ -11114,7 +11109,6 @@ static s7_pointer check_sharp_readers(s7_scheme *sc, const char *name)
     set_loader_port(sc->input_port);
   return(value);
 }
-
 
 static s7_pointer g_sharp_readers_set(s7_scheme *sc, s7_pointer args)
 {
@@ -12199,6 +12193,8 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 }
 
 
+/* -------------------------------- string->number -------------------------------- */
+
 static s7_pointer s7_string_to_number(s7_scheme *sc, char *str, int32_t radix)
 {
   s7_pointer x;
@@ -12207,7 +12203,6 @@ static s7_pointer s7_string_to_number(s7_scheme *sc, char *str, int32_t radix)
     return(x);
   return(sc->F);
 }
-
 
 static s7_pointer g_string_to_number_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
@@ -12267,7 +12262,6 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
     }
   return(s7_string_to_number(sc, str, radix));
 }
-
 
 static s7_pointer g_string_to_number(s7_scheme *sc, s7_pointer args)
 {
@@ -21486,7 +21480,7 @@ static s7_pointer g_string_set_2(s7_scheme *sc, s7_pointer x, s7_pointer args, s
     return(wrong_type_argument_with_type(sc, caller, 2, index, a_non_negative_integer_string));
   if (ind >= string_length(x))
     return(out_of_range(sc, caller, small_int(2), index, its_too_large_string));
-  str = string_value(_TSet(x));
+  str = string_value(x);
 
   c = caddr(args);
   if ((typeflag(x) & T_BYTE_VECTOR) == 0)
@@ -25968,13 +25962,17 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 
   if (is_pair(cdr(args)))
     {
-      if (is_pair(cadr(args)))
+      s7_pointer ip;
+      ip = cadr(args);
+      if (is_pair(ip))
 	{
+	  if (is_immutable(ip))
+	    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->make_iterator_symbol, ip)));
 	  if (is_hash_table(seq))
 	    {
 	      s7_pointer iter;
 	      iter = s7_make_iterator(sc, seq);
-	      iterator_current(iter) = cadr(args);
+	      iterator_current(iter) = ip;
 	      set_mark_seq(iter);
 	      return(iter);
 	    }
@@ -25982,7 +25980,7 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 	    {
 	      s7_pointer iter;
 	      iter = s7_make_iterator(sc, seq);
-	      iterator_let_cons(iter) = cadr(args);
+	      iterator_let_cons(iter) = ip;
 	      set_mark_seq(iter);
 	      return(iter);
 	    }
@@ -28377,18 +28375,6 @@ static const char *check_name(int32_t typ)
 	}
     }
   return("unknown type!");
-}
-
-static s7_pointer check_seti(s7_scheme *sc, s7_pointer x, const char *func, int32_t line)
-{
-#if S7_DEBUGGING_SET
-  if (is_immutable(x))
-    {
-      fprintf(stderr, "%s%s[%d]: set! immutable %s: %s%s\n", BOLD_TEXT, func, line, type_name(sc, x, NO_ARTICLE), DISPLAY(x), UNBOLD_TEXT);
-      if (stop_at_error) abort();
-    }
-#endif
-  return(x);
 }
 
 static char *safe_object_to_string(s7_pointer p)
@@ -31542,13 +31528,14 @@ static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)
       return(sym == cadr(tree));
     }
   do {
-    if ((sym == cdr(tree)) ||    /* "sym" need not be a symbol */
-	(sym == car(tree)))
+    if (sym == car(tree))    /* "sym" need not be a symbol */
       return(true);
     if ((is_pair(car(tree))) &&
 	(tree_memq_1(sc, sym, car(tree))))
       return(true);
     tree = cdr(tree);
+    if (sym == tree)
+      return(true);
   } while (is_pair(tree));
   return(false);
 }
@@ -38790,9 +38777,6 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
   #define Q_signature s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_boolean_symbol), sc->T)
 
   p = car(args);
-  if (is_symbol(p))
-    p = s7_symbol_value(sc, p);  /* lint depends on this currently */
-
   switch (type(p))
     {
     case T_C_FUNCTION:
@@ -38838,6 +38822,12 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
       check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
 #endif
       return(sc->let_signature);
+
+    case T_SYMBOL:
+      p = s7_symbol_value(sc, p);
+      if (!is_symbol(p))
+	return(g_signature(sc, set_plist_1(sc, p)));  /* lint depends on this currently */
+      break;
 
     default:
       break;
@@ -40284,7 +40274,7 @@ static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *
     for (py = let_slots(ey); is_slot(py); py = next_slot(py))
       if (symbol_tag(slot_symbol(py)) != 0)
 	{
-	  y_len ++;
+	  y_len++;
 	  symbol_set_tag(slot_symbol(py), 0);
 	}
   
@@ -42779,7 +42769,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   s7_make_symbol(sc, "arity"), s7_arity(sc, obj)));
 	gc_loc = s7_gc_protect_1(sc, let);
 
-	sig = signature(sc, obj);
+	sig = s7_signature(sc, obj);
 	if (is_pair(sig))
 	  s7_varlet(sc, let, sc->local_signature_symbol, sig);
 	
@@ -42825,7 +42815,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
 				   s7_make_symbol(sc, "arity"), s7_arity(sc, obj)));
 
-	sig = signature(sc, obj);
+	sig = c_function_signature(obj);
 	if (is_pair(sig))
 	  s7_varlet(sc, let, sc->local_signature_symbol, sig);
 	
@@ -53911,7 +53901,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 			  if (is_c_function(sf))
 			    {
 			      s7_pointer sig;
-			      sig = signature(sc, sf);
+			      sig = c_function_signature(sf);
 			      if ((is_pair(sig)) &&
 				  ((car(sig) == sc->is_integer_symbol) ||
 				   ((is_pair(car(sig))) &&
@@ -54553,7 +54543,7 @@ static s7_pointer func_returns(s7_scheme *sc, s7_pointer func)
       if (!is_symbol(rtnf)) return(sc->F);
       rtnf = symbol_to_value_checked(sc, rtnf);
       if (!is_c_function(rtnf)) return(sc->F);
-      rtnf = signature(sc, rtnf);
+      rtnf = c_function_signature(rtnf);
       if (!is_pair(rtnf)) return(sc->F);
       return(car(rtnf));
     }
@@ -54824,7 +54814,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	  /* fprintf(stderr, "s_func: %s %d %d\n", DISPLAY(s_func), symbol_id(head) == 0, is_global(head)); */
 
 	  start = sc->pc;
-	  sig = signature(sc, s_func);
+	  sig = c_function_signature(s_func);
 	  opc = alloc_opo(sc, car_x);
 	  switch (len)
 	    {
@@ -65787,8 +65777,8 @@ static s7_pointer check_do(s7_scheme *sc)
 		   (car(step_expr) == sc->cdr_symbol) ||
 		   (car(step_expr) == sc->cddr_symbol) ||	
 		   ((is_pair(cadr(var))) &&
-		    (is_pair(signature(sc, c_function_base(opt_cfunc(step_expr))))) &&
-		    (car(signature(sc, c_function_base(opt_cfunc(step_expr)))) != sc->T) &&
+		    (is_pair(c_function_signature(c_function_base(opt_cfunc(step_expr))))) &&
+		    (car(c_function_signature(c_function_base(opt_cfunc(step_expr)))) != sc->T) &&
 		    (caadr(var) == car(step_expr)))))
 		/* i.e. accept char-position as init/step, but not iterate */
 		set_safe_stepper(cddr(var));
@@ -67409,7 +67399,8 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	      s7_pointer s;
 	      set_optimize_op(code, hop + OP_SAFE_FUN_A);
 	      s = symbol_to_slot(sc, car(code));
-	      code->object.cons.opt2 = (s7_pointer)((intptr_t)(sc->envir) | symbol_ctr(car(code))); /* TODO: macros for these */
+	      /* code->object.cons.opt2 = (s7_pointer)((intptr_t)(sc->envir) | symbol_ctr(car(code))); *//* TODO: macros for these */
+	      code->object.cons.opt2 = sc->envir;
 	      code->object.cons.opt1 = s;
 	      return(goto_OPT_EVAL);
 	    }
@@ -72094,8 +72085,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		   *   but using bare sc->envir is dangerous -- between calls, closure+let might be gc'd, then by
 		   *   sheer bad luck, the newly allocated closure_let is the same cell as the previous!
 		   *   To fix this, logior in symbol_ctr using intptr_t etc, costs: old: 40M, clo1: 340M, new: 40M, new|ctr: 50M (in tlet)
+		   * but the logior code confuses valgrind!  (It dies in lg.scm).  Explicit stores to intptr_t vars did not fix the problem.
 		   */
-		  if (((intptr_t)(sc->envir) | symbol_ctr(car(code))) != (intptr_t)(code->object.cons.opt2))
+		  /* if (((intptr_t)(sc->envir) | symbol_ctr(car(code))) != (intptr_t)(code->object.cons.opt2)) */
+		  if (sc->envir != code->object.cons.opt2)
 		    {
 		      sc->last_function = symbol_to_value_unchecked(sc, car(code));
 		      if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; 
@@ -73879,7 +73872,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  case Op:							\
 	    {								\
 	      s7_pointer lx;						\
-	      lx = symbol_to_slot(sc, _TSet(car(sc->code)));		\
+	      lx = symbol_to_slot(sc, car(sc->code));		\
 	      if (!is_slot(lx)) eval_type_error(sc, "set! ~A: unbound variable", sc->code); \
 	      Code;							\
 	      sc->value = slot_value(lx);				\
@@ -73961,7 +73954,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SET_SAFE:
 	  {
 	    s7_pointer lx;
-	    lx = symbol_to_slot(sc, _TSet(sc->code)); /* SET_CASE above looks for car(sc->code) */
+	    lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
 	    if (!is_slot(lx)) eval_type_error(sc, "set! ~A: unbound variable", sc->code);
 	    slot_set_value(lx, sc->value);
 	    sc->value = slot_value(lx);
@@ -74090,7 +74083,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer lx;
 	    /* if unbound variable hook here, we need the binding, not the current value */
-	    lx = symbol_to_slot(sc, _TSet(sc->code));
+	    lx = symbol_to_slot(sc, sc->code);
 	    if (is_slot(lx))
 	      {
 		if (slot_has_setter(lx))
@@ -83860,13 +83853,13 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2121
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2566 [part clo1, part local]
- * lint          |      |      |      || 4041 || 2702 | 2696  2705
- * lg            |      |      |      || 211  || 133  | 133.4 134.0
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2792
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2997
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1925
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2157
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2547 [part clo1, part local]
+ * lint          |      |      |      || 4041 || 2702 | 2696  2700
+ * lg            |      |      |      || 211  || 133  | 133.4 133.9
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2783
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4206
