@@ -5698,8 +5698,13 @@ static void resize_stack(s7_scheme *sc)
 
   vector_elements(sc->stack) = (s7_pointer *)realloc(vector_elements(sc->stack), new_size * sizeof(s7_pointer));
   if (!vector_elements(sc->stack))
-    s7_error(sc, s7_make_symbol(sc, "stack-too-big"), set_elist_1(sc, s7_make_string_wrapper(sc, "no room to expand stack?")));
-
+    {
+      fprintf(stderr, "can't allocate additional stack\n");
+#if S7_DEBUGGING
+      abort();
+#endif
+      s7_error(sc, s7_make_symbol(sc, "stack-too-big"), set_elist_1(sc, s7_make_string_wrapper(sc, "no room to expand stack?")));
+    }
   for (i = sc->stack_size; i < new_size; i++)
     vector_element(sc->stack, i) = sc->nil;
   vector_length(sc->stack) = new_size;
@@ -26194,54 +26199,43 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
   
   top_cyclic = false;
   /* now search the rest of this structure */
-  switch (type(top))
+  if (is_pair(top))
     {
-    case T_PAIR:
-#if 0
-      /* old form: simple understandable slow */
+      s7_pointer p, cp;
       if ((has_structure(car(top))) &&
 	  (collect_shared_info(sc, ci, car(top), stop_at_print_length)))
 	top_cyclic = true;
-      if ((has_structure(cdr(top))) &&
-	  (collect_shared_info(sc, ci, cdr(top), stop_at_print_length)))
-	top_cyclic = true;
-#else
-      {
-	s7_pointer p, cp;
-	if ((has_structure(car(top))) &&
-	    (collect_shared_info(sc, ci, car(top), stop_at_print_length)))
-	  top_cyclic = true;
-	for (p = cdr(top); is_pair(p); p = cdr(p))
-	  {
-	    if (is_collected_or_shared(p))
-	      {
-		if (is_shared(p))
-		  {
-		    if (!top_cyclic)
-		      for (cp = top; cp != p; cp = cdr(cp)) set_shared(cp);
-		    return(top_cyclic);
-		  }
-		return(check_collected(p, ci));
-	      }
-	    set_collected(p);
-	    if (ci->top == ci->size)
-	      enlarge_shared_info(ci);
-	    ci->objs[ci->top++] = p;
-	    if ((has_structure(car(p))) &&
-		(collect_shared_info(sc, ci, car(p), stop_at_print_length)))
-	      top_cyclic = true;
-	  }
-	if ((has_structure(p)) &&
-	    (collect_shared_info(sc, ci, p, stop_at_print_length)))
-	  return(true);
-
-	if (!top_cyclic)
-	  for (cp = top; is_pair(cp); cp = cdr(cp)) set_shared(cp);
-	return(top_cyclic);
-      }
-#endif
-      break;
+      for (p = cdr(top); is_pair(p); p = cdr(p))
+	{
+	  if (is_collected_or_shared(p))
+	    {
+	      if (is_shared(p))
+		{
+		  if (!top_cyclic)
+		    for (cp = top; cp != p; cp = cdr(cp)) set_shared(cp);
+		  return(top_cyclic);
+		}
+	      return(check_collected(p, ci));
+	    }
+	  set_collected(p);
+	  if (ci->top == ci->size)
+	    enlarge_shared_info(ci);
+	  ci->objs[ci->top++] = p;
+	  if ((has_structure(car(p))) &&
+	      (collect_shared_info(sc, ci, car(p), stop_at_print_length)))
+	    top_cyclic = true;
+	}
+      if ((has_structure(p)) &&
+	  (collect_shared_info(sc, ci, p, stop_at_print_length)))
+	return(true);
       
+      if (!top_cyclic)
+	for (cp = top; is_pair(cp); cp = cdr(cp)) set_shared(cp);
+      return(top_cyclic);
+    }
+
+  switch (type(top))
+    {
     case T_VECTOR:
       if (collect_vector_info(sc, ci, top, stop_at_print_length))
 	top_cyclic = true;
@@ -26317,7 +26311,7 @@ static shared_info *init_circle_info(void)
   return(ci);
 }
 
-static shared_info *new_shared_info(s7_scheme *sc)
+static inline shared_info *new_shared_info(s7_scheme *sc)
 {
   shared_info *ci;
   int32_t i;
@@ -26366,7 +26360,6 @@ static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
   #define Q_tree_is_cyclic pl_bt
   return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
 }
-
 
 static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at_print_length)
 {
@@ -38840,8 +38833,6 @@ s7_pointer s7_signature(s7_scheme *sc, s7_pointer func)
   return(g_signature(sc, set_plist_1(sc, func)));
 }
 
-#define signature(Sc, _P_) ((is_any_c_function(_P_)) ? ((s7_pointer)c_function_signature(_P_)) : s7_signature(Sc, _P_))
-
 
 /* -------------------------------- new types (c_objects) -------------------------------- */
 
@@ -40250,6 +40241,7 @@ static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *
 
   if (!is_let(y))
     return(false);
+
   if ((x == sc->rootlet) || (y == sc->rootlet))
     return(false);
 
@@ -40294,7 +40286,6 @@ static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *
 	}
   return(true);
 }
-
 
 static bool let_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
@@ -47379,7 +47370,7 @@ static bool i_pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
   if (pfunc)
     {
       s7_pointer sig;
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if (is_pair(sig))
 	{
 	  s7_pointer arg1, arg2;
@@ -47530,7 +47521,7 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
   if (ifunc)
     {
       s7_pointer sig;
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if (is_pair(sig))
 	{
 	  s7_pointer arg1, arg2;
@@ -47798,7 +47789,7 @@ static bool i_pii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
   if (pfunc)
     {
       s7_pointer sig;
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_symbol(cadr(car_x))))
 	{
@@ -47940,7 +47931,7 @@ static bool int_all_x_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poi
 {
   s7_pointer sig;
   s7_function opt;
-  sig = signature(sc, s_func);	  
+  sig = c_function_signature(s_func);	  
   if ((is_pair(sig)) &&
       (car(sig) == sc->is_integer_symbol))
     {
@@ -48222,7 +48213,7 @@ static bool d_v_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
   if (flt_func)
     {
       s7_pointer sig;
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_symbol(cadr(car_x))))           /* look for (oscil g) */
 	{
@@ -48573,7 +48564,7 @@ static bool d_vd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
       if (vfunc)
 	{
 	  s7_pointer sig;
-	  sig = signature(sc, s_func);
+	  sig = c_function_signature(s_func);
 	  if ((is_pair(sig)) &&
 	      (is_symbol(cadr(sig))))
 	    {
@@ -49548,7 +49539,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	{
 	  s7_pointer sig;
 	  opc->v4.d_vid_f = flt;
-	  sig = signature(sc, s_func);
+	  sig = c_function_signature(s_func);
 	  if (is_pair(sig))
 	    {
 	      int32_t start;
@@ -49609,7 +49600,7 @@ static bool d_vdd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
     {
       s7_pointer sig;
       opc->v4.d_vdd_f = flt;
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if (is_pair(sig))
 	{
 	  s7_pointer slot, obj, checker;
@@ -49803,7 +49794,7 @@ static bool float_all_x_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_p
 {
   s7_pointer sig;
   s7_function opt;
-  sig = signature(sc, s_func);	  
+  sig = c_function_signature(s_func);	  
   if ((is_pair(sig)) &&
       ((car(sig) == sc->is_float_symbol) ||
        (car(sig) == sc->is_real_symbol)))
@@ -50144,7 +50135,7 @@ static s7_pointer opt_arg_type(s7_scheme *sc, s7_pointer argp)
 	      if (is_c_function(a_func))
 		{
 		  s7_pointer sig;
-		  sig = signature(sc, a_func);
+		  sig = c_function_signature(a_func);
 		  if (is_pair(sig))
 		    {
 		      if ((car(sig) == sc->is_integer_symbol) ||
@@ -50353,7 +50344,7 @@ static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
       if (s7_b_pp_direct_function(s_func))
 	{
 	  s7_pointer call_sig, arg1_type, arg2_type;
-	  call_sig = signature(sc, s_func);
+	  call_sig = c_function_signature(s_func);
 	  arg1_type = opt_arg_type(sc, cdr(car_x));
 	  arg2_type = opt_arg_type(sc, cddr(car_x));
 	  if ((cadr(call_sig) == arg1_type) &&                   /* not car(arg1_type) here: (string>? (string) (read-line)) */
@@ -51090,7 +51081,7 @@ static bool p_pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
     {
       s7_pointer obj = NULL, slot1, sig, checker = NULL;
 
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_pair(cdr(sig))) &&
 	  (is_symbol(cadr(sig))))
@@ -51267,7 +51258,7 @@ static bool p_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
     {
       s7_pointer slot, sig, checker = NULL;
       
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_pair(cdr(sig))) &&
 	  (is_symbol(cadr(sig))))
@@ -51646,7 +51637,7 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
     {
       s7_pointer obj = NULL, slot1, sig, checker = NULL;
 
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_pair(cdr(sig))) &&
 	  (is_symbol(cadr(sig))))
@@ -51874,7 +51865,7 @@ static bool p_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
       int32_t start;
       s7_pointer sig, checker = NULL;
 
-      sig = signature(sc, s_func);
+      sig = c_function_signature(s_func);
       if ((is_pair(sig)) &&
 	  (is_pair(cdr(sig))) &&
 	  (is_symbol(cadr(sig))))
@@ -83819,6 +83810,8 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
+ * t725 + begin_hook?
+ * unknown_a|gg_ex t_closure first?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83853,12 +83846,12 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1925
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2157
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2116
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2547 [part clo1, part local]
- * lint          |      |      |      || 4041 || 2702 | 2696  2700
- * lg            |      |      |      || 211  || 133  | 133.4 133.9
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2783
+ * lint          |      |      |      || 4041 || 2702 | 2696  2697
+ * lg            |      |      |      || 211  || 133  | 133.4 133.8
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
