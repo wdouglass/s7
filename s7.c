@@ -4558,7 +4558,7 @@ static void mark_pair(s7_pointer p)
   for (x = cdr(p); (is_pair(x)) && (!is_marked(x)); x = cdr(x))
     {
       set_mark(x);
-      S7_MARK(car(x));
+      S7_MARK(car(x));      /* this can be expanded into an embedded mark_pair call, but the savings is miniscule (.1%) */
     }
   S7_MARK(x);
 }
@@ -6275,17 +6275,17 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
 }
 
 
-static s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
+static inline s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
 {
   symbol_set_tag(sym, sc->syms_tag);
   return(sym);
 }
 
-#if S7_DEBUGGING
-#define clear_symbol_list(Sc) {Sc->syms_tag++; if (Sc->syms_tag == 0) fprintf(stderr, "syms tag wrapped around\n");}
-#else
-#define clear_symbol_list(Sc) Sc->syms_tag++
-#endif
+static inline void clear_symbol_list(s7_scheme *sc)
+{
+  sc->syms_tag++;
+  if (sc->syms_tag == 0) sc->syms_tag = 1; /* we're assuming (in let_equal) that this tag is not 0 */
+}
 
 #define symbol_is_in_list(Sc, Sym) (symbol_tag(Sym) == Sc->syms_tag)
 
@@ -7035,11 +7035,9 @@ to the let env, and returns env."
       check_method(sc, e, sc->varlet_symbol, args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->varlet_symbol, 1, e, a_let_string));
+      if (is_immutable(e))
+	return(s7_wrong_type_arg_error(sc, "varlet", 1, e, "a mutable let"));
     }
-
-  if (is_immutable(e))
-    return(s7_wrong_type_arg_error(sc, "varlet", 1, e, "a mutable let"));
-
   for (x = cdr(args); is_pair(x); x = cdr(x))
     {
       p = car(x);
@@ -7118,14 +7116,13 @@ static s7_pointer g_cutlet(s7_scheme *sc, s7_pointer args)
       check_method(sc, e, sc->cutlet_symbol, args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->cutlet_symbol, 1, e, a_let_string));
+      if (is_immutable(e))
+	return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->cutlet_symbol, e)));
     }
   /* besides removing the slot we have to make sure the symbol_id does not match else
    *   let-ref and others will use the old slot!  What's the un-id?  Perhaps the next one?
    *   (let ((b 1)) (let ((b 2)) (cutlet (curlet) 'b)) b)
    */
-
-  if (is_immutable(e))
-    return(s7_wrong_type_arg_error(sc, "cutlet", 1, e, "a mutable let"));
 
   for (syms = cdr(args); is_pair(syms); syms = cdr(syms))
     {
@@ -40319,6 +40316,7 @@ static bool let_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_
   return(let_equal_1(sc, x, y, ci, true));
 }
 
+
 static bool closure_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y)
@@ -40357,10 +40355,15 @@ static bool closure_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 	 (s7_is_morally_equal_1(sc, closure_body(x), closure_body(y), ci)));
 }
 
-static bool pair_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   shared_info *nci;
   s7_pointer px, py;
+
+  if (x == y)
+    return(true);
+  if (!is_pair(y))
+    return(false);
 
   if (ci)
     {
@@ -40378,15 +40381,6 @@ static bool pair_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
   if (px == py) /* normally nil? */
     return(true);
   return(s7_is_equal_1(sc, px, py, nci));
-}
-
-static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
-{
-  if (x == y)
-    return(true);
-  if (!is_pair(y))
-    return(false);
-  return(pair_equal_1(sc, x, y, ci));
 }
 
 static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -46778,7 +46772,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	      return(all_x_c_s);
 
 	    case HOP_SAFE_C_opSq:
-	      if (car(arg) == sc->not_symbol)   return(all_x_c_not_opsq);
+	      if (car(arg) == sc->not_symbol) return(all_x_c_not_opsq);
 	      if (caadr(arg) == sc->car_symbol) 
 		{
 		  set_opt_sym2(cdr(arg), cadadr(arg));
@@ -63707,8 +63701,7 @@ static void define_funchecked(s7_scheme *sc)
   else closure_set_let(new_func, sc->envir);
   /* unsafe closures created by other functions do not support __func__ */
 
-  if (is_let(sc->envir))
-    add_slot(sc->envir, sc->value, new_func);
+  add_slot(sc->envir, sc->value, new_func);
   set_local(sc->value);
   sc->value = new_func;
 }
@@ -72677,6 +72670,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		  
 		case OP_CLOSURE_ALL_X:
+		  /* lt: 3=11: 36409 5=101: 20546 b=1011: 64123 b: 4 is main=100 */
 		  check_stack_size(sc);
 		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, integer(arglist_length(code)))) 
 		    {
@@ -72691,11 +72685,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    new_frame(sc, closure_let(func), e);
 		    sc->z = e;
 		    for (p = closure_args(func), args = cdr(code); is_pair(p); p = cdr(p), args = cdr(args))
-		      {
-			s7_pointer val;
-			val = c_call(args)(sc, car(args));
-			add_slot_checked(e, car(p), val); /* can't use add_slot here -- all_x_c_* hit trigger? */
-		      }
+		      add_slot_checked(e, car(p), c_call(args)(sc, car(args)));  /* can't use add_slot here -- all_x_c_* hit GC trigger? */
 		    sc->envir = e;
 		    sc->z = sc->nil;
 		    sc->code = _TPair(closure_body(func));
@@ -73053,8 +73043,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto APPLY;                      /* not UNSAFE_CLOSURE because it might be a bacro */
 		}
 	      /* (define progn begin) (progn (display "hi") (+ 1 23)) */
+#if S7_DEBUGGING
 	      if (!is_syntax(sc->value))
 		eval_error(sc, "attempt to evaluate: ~A?", sc->code);
+#endif
 	      sc->cur_op = (opcode_t)syntax_opcode(sc->value);
 	      goto START_WITHOUT_POP_STACK;
 	    }
@@ -75856,7 +75848,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 	  if ((is_immutable(sc->envir)) && 
 	      (is_let(sc->envir))) /* not () */
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", caar(sc->code));
+	    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", caar(sc->code)); /* need eval_error_no_return_with_caller? */
 	  sc->value = make_macro(sc, sc->cur_op);
 	  break;
 	  
@@ -83811,7 +83803,8 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  * t725 + begin_hook?
- * unknown_a|gg_ex t_closure first?
+ * all_x_c_opsq is_pair|null|symbol cadr|caddr|cddr -> is_pair_cddr|cadr is_null_cddr is_symbol_cadr maybe pair_caddr?
+ * what are define_funchecked closures from lint?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
