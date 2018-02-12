@@ -16660,380 +16660,231 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
   #define H_divide "(/ x1 ...) divides its first argument by the rest, or inverts the first if there is only one argument"
   #define Q_divide pcl_n
 
-  s7_pointer x, p;
-  s7_int num_a, den_a;
-  s7_double rl_a, im_a;
+  s7_pointer x, y, p;
 
   x = car(args);
   p = cdr(args);
-  if (is_null(p))
+
+  if (is_null(p))            /* (/ x) */
     {
       if (!is_number(x))
 	method_or_bust_with_type_one_arg(sc, x, sc->divide_symbol, args, a_number_string);
-      if (s7_is_zero(x))
+      if (s7_is_zero(x))     /* (/ 0) */
 	return(division_by_zero_error(sc, sc->divide_symbol, args));
       return(s7_invert(sc, x));
     }
+  if (is_null(cdr(p)))
+    y = cadr(args);
+  else y = g_multiply(sc, p);
 
   switch (type(x))
     {
-    case T_INTEGER:
-      num_a = integer(x);
-      if (num_a == 0)
+    case T_INTEGER: 
+      switch (type(y))
 	{
-	  bool return_nan = false, return_real_zero = false;
-	  for (; is_pair(p); p = cdr(p))
-	    {
-	      s7_pointer n;
-	      n = car(p);
-	      if (!s7_is_number(n))
-		{
-		  n = check_values(sc, n, p);
-		  if (!s7_is_number(n))
-		    return(wrong_type_argument_with_type(sc, sc->divide_symbol, position_of(p, args), n, a_number_string));
-		}
-	      if (s7_is_zero(n))
-		return(division_by_zero_error(sc, sc->divide_symbol, args));
-	      if (type(n) > T_RATIO)
-		{
-		  return_real_zero = true;
-		  if (is_NaN(s7_real_part(n)))
-		    return_nan = true;
-		}
-	    }
-	  if (return_nan)
-	    return(real_NaN);
-	  if (return_real_zero)
-	    return(real_zero);
-	  return(small_int(0));
-	}
-
-    DIVIDE_INTEGERS:
-#if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
-	return(big_divide(sc, cons(sc, s7_int_to_big_integer(sc, num_a), p)));
-#endif
-      x = car(p);
-      p = cdr(p);
-
-      switch (type(x))
-	{
+	  /* -------- integer x -------- */
 	case T_INTEGER:
-	  if (integer(x) == 0)
-	    return(division_by_zero_error(sc, sc->divide_symbol, args));
-
-	  /* to be consistent, I suppose we should search first for NaNs in the divisor list.
-	   *   (* 0 0/0) is NaN, so (/ 1 0 0/0) should equal (/ 1 0/0) = NaN.  But the whole
-	   *   thing is ridiculous.
-	   */
-	  if (is_null(p))
-	    return(s7_make_ratio(sc, num_a, integer(x)));
-
-	  den_a = integer(x);
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
-	    goto DIVIDE_INTEGERS;
-	  goto DIVIDE_RATIOS;
+	  return(s7_make_ratio(sc, integer(x), integer(y)));
 
 	case T_RATIO:
-	  den_a = denominator(x);
 #if HAVE_OVERFLOW_CHECKS
 	  {
 	    s7_int dn;
-	    if (multiply_overflow(num_a, den_a, &dn))
-	      {
-		if (is_null(p)) return(make_real(sc, num_a * inverted_fraction(x)));
-		rl_a = (s7_double)num_a * inverted_fraction(x);
-		goto DIVIDE_REALS;
-	      }
-	    num_a = dn;
+	    if (multiply_overflow(integer(x), denominator(y), &dn))
+	      return(make_real(sc, integer(x) * inverted_fraction(y)));
+	    return(s7_make_ratio(sc, dn, numerator(y)));
 	  }
 #else
-	  num_a *= den_a;
+	  return(s7_make_ratio(sc, integer(x) * denominator(y), numerator(y)));
 #endif
-	  den_a = numerator(x);
-	  if (is_null(p)) return(s7_make_ratio(sc, num_a, den_a));
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
-	    goto DIVIDE_INTEGERS;
-	  goto DIVIDE_RATIOS;
-
+	  
 	case T_REAL:
-	  rl_a = (s7_double)num_a;
-	  if (real(x) == 0.0)
+	  if (is_NaN(real(y))) return(real_NaN);
+	  if (is_inf(real(y))) return(real_zero);
+	  if (real(y) == 0.0)
 	    return(division_by_zero_error(sc, sc->divide_symbol, args));
-	  if (is_null(p)) return(make_real(sc, rl_a / real(x)));
-	  rl_a /= real(x);
-	  goto DIVIDE_REALS;
+	  return(make_real(sc, (s7_double)(integer(x)) / real(y)));
 
 	case T_COMPLEX:
 	  {
-	    s7_double i2, r2, den;
-	    rl_a = (s7_double)num_a;
-	    r2 = real_part(x);
-	    i2 = imag_part(x);
+	    s7_double r1, i2, r2, den;
+	    r1 = (s7_double)integer(x);
+	    r2 = real_part(y);
+	    i2 = imag_part(y);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    /* we could avoid the squaring (see Knuth II p613 16)
-	     *    not a big deal: (/ 1.0e308+1.0e308i 2.0e308+2.0e308i) => nan
-	     *    (gmp case is ok here)
-	     */
-	    if (is_null(p))
-	      return(s7_make_complex(sc, rl_a * r2 * den, -(rl_a * i2 * den)));
-	    im_a = -rl_a * i2 * den;
-	    rl_a *= r2 * den;
-	    goto DIVIDE_COMPLEX;
+	    /* we could avoid the squaring (see Knuth II p613 16), not a big deal: (/ 1.0e308+1.0e308i 2.0e308+2.0e308i) => nan, (gmp case is ok here) */
+	    return(s7_make_complex(sc, r1 * r2 * den, -(r1 * i2 * den)));
 	  }
 
 	default:
-	  method_or_bust_with_type(sc, x, sc->divide_symbol, cons_unchecked(sc, s7_make_integer(sc, num_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1);
+#if WITH_GMP
+	  if (s7_is_bignum(y))
+	    return(big_divide(sc, list_2(sc, x, y)));
+#endif
+	  method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2);
 	}
       break;
 
+      /* -------- ratio x -------- */
     case T_RATIO:
-      num_a = numerator(x);
-      den_a = denominator(x);
-    DIVIDE_RATIOS:
-#if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (den_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
-	return(big_divide(sc, cons(sc, s7_ratio_to_big_ratio(sc, num_a, den_a), p)));
-#endif
-      x = car(p);
-      p = cdr(p);
-
-      switch (type(x))
+      switch (type(y))
 	{
 	case T_INTEGER:
-	  if (integer(x) == 0)
-	    return(division_by_zero_error(sc, sc->divide_symbol, args));
 #if HAVE_OVERFLOW_CHECKS
 	  {
 	    s7_int dn;
-	    if (multiply_overflow(den_a, integer(x), &dn))
-	      {
-		if (is_null(p)) return(make_real(sc, (long double)num_a / ((long double)den_a * (s7_double)integer(x))));
-		rl_a = (long double)num_a / ((long double)den_a * (s7_double)integer(x));
-		goto DIVIDE_REALS;
-	      }
-	    den_a = dn;
+	    if (multiply_overflow(denominator(x), integer(y), &dn))
+	      return(make_real(sc, (long double)numerator(x) / ((long double)denominator(x) * (s7_double)integer(y))));
+	    return(s7_make_ratio(sc, numerator(x), dn));
 	  }
 #else
-	  den_a *= integer(x);
+	  return(s7_make_ratio(sc, numerator(x), denominator(x) * integer(y)));
 #endif
-	  if (is_null(p)) return(s7_make_ratio(sc, num_a, den_a));
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
-	    goto DIVIDE_INTEGERS;
-	  goto DIVIDE_RATIOS;
 
 	case T_RATIO:
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = den_a;
-	    n1 = num_a;
-	    d2 = denominator(x);
-	    n2 = numerator(x);
+	    d1 = denominator(x);
+	    n1 = numerator(x);
+	    d2 = denominator(y);
+	    n2 = numerator(y);
 	    if (d1 == d2)
-	      {
-		if (is_null(p))
-		  return(s7_make_ratio(sc, n1, n2));
-		den_a = n2;
-	      }
-	    else
-	      {
+	      return(s7_make_ratio(sc, n1, n2));
 #if (!WITH_GMP) && HAVE_OVERFLOW_CHECKS
-		if ((multiply_overflow(n1, d2, &n1)) ||
-		    (multiply_overflow(n2, d1, &d1)))
-		  {
-		    s7_double r1, r2;
-		    r1 = ((long double)num_a / (long double)den_a);
-		    r2 = inverted_fraction(x);
-		    if (is_null(p)) return(make_real(sc, r1 * r2));
-		    rl_a = r1 * r2;
-		    goto DIVIDE_REALS;
-		  }
-		num_a = n1;
-		den_a = d1;
-#else
-		num_a *= d2;
-		den_a *= n2;
-#endif
-		if (is_null(p))
-		  return(s7_make_ratio(sc, num_a, den_a));
+	    if ((multiply_overflow(n1, d2, &n1)) ||
+		(multiply_overflow(n2, d1, &d1)))
+	      {
+		s7_double r1, r2;
+		r1 = fraction(x);
+		r2 = inverted_fraction(y);
+		return(make_real(sc, r1 * r2));
 	      }
-	    if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
-	      goto DIVIDE_INTEGERS;
-	    goto DIVIDE_RATIOS;
+	    return(s7_make_ratio(sc, n1, d1));
+#else
+	    return(s7_make_ratio(sc, n1 * d2, n2 * d1));
+#endif
 	  }
 
 	case T_REAL:
-	  {
-	    s7_double r1;
-	    if (real(x) == 0.0)
-	      return(division_by_zero_error(sc, sc->divide_symbol, args));
-	    r1 = ((long double)num_a / (long double)den_a);
-	    if (is_null(p)) return(make_real(sc, r1 / real(x)));
-	    rl_a = r1 / real(x);
-	    goto DIVIDE_REALS;
-	  }
+	  if (real(y) == 0.0)
+	    return(division_by_zero_error(sc, sc->divide_symbol, args));
+	  return(make_real(sc, fraction(x) / real(y)));
 
 	case T_COMPLEX:
 	  {
-	    s7_double den, i2, r2;
-	    rl_a = ((long double)num_a / (long double)den_a);
-	    r2 = real_part(x);
-	    i2 = imag_part(x);
+	    s7_double rx, r2, i2, den;
+	    rx = fraction(x);
+	    r2 = real_part(y);
+	    i2 = imag_part(y);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    if (is_null(p))
-	      return(s7_make_complex(sc, rl_a * r2 * den, -rl_a * i2 * den));
-	    im_a = -rl_a * i2 * den;
-	    rl_a *= r2 * den;
-	    goto DIVIDE_COMPLEX;
+	    return(s7_make_complex(sc, rx * r2 * den, -rx * i2 * den));
 	  }
 
 	default:
-	  method_or_bust_with_type(sc, x, sc->divide_symbol, cons_unchecked(sc, s7_make_ratio(sc, num_a, den_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1);
+	  method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2);
 	}
-      break;
 
+      /* -------- real x -------- */
     case T_REAL:
-      rl_a = real(x);
-      if (rl_a == 0)
-	{
-	  bool return_nan = false;
-	  for (; is_pair(p); p = cdr(p))
-	    {
-	      s7_pointer n;
-	      n = car(p);
-	      if (!s7_is_number(n))
-		{
-		  n = check_values(sc, n, p);
-		  if (!s7_is_number(n))
-		    return(wrong_type_argument_with_type(sc, sc->divide_symbol, position_of(p, args), n, a_number_string));
-		}
-	      if (s7_is_zero(n))
-		return(division_by_zero_error(sc, sc->divide_symbol, args));
-	      if ((is_t_real(n)) &&
-		  (is_NaN(real(n))))
-		return_nan = true;
-	    }
-	  if (return_nan)
-	    return(real_NaN);
-	  return(real_zero);
-	}
-
-    DIVIDE_REALS:
-      x = car(p);
-      p = cdr(p);
-
-      switch (type(x))
+      switch (type(y))
 	{
 	case T_INTEGER:
-	  if (integer(x) == 0)
+	  if (integer(y) == 0)
 	    return(division_by_zero_error(sc, sc->divide_symbol, args));
-	  if (is_null(p)) return(make_real(sc, rl_a / integer(x)));
-	  rl_a /= (s7_double)integer(x);
-	  goto DIVIDE_REALS;
+	  if (is_NaN(real(x))) return(real_NaN); /* what is (/ nan.0 0)? */
+	  if (is_inf(real(x))) return(real_infinity);
+	  return(make_real(sc, real(x) / (s7_double)integer(y)));
 
 	case T_RATIO:
-	  if (is_null(p)) return(make_real(sc, rl_a * inverted_fraction(x)));
-	  rl_a *= (s7_double)inverted_fraction(x);
-	  goto DIVIDE_REALS;
+	  if (is_NaN(real(x))) return(real_NaN);
+	  if (is_inf(real(x))) return(real_infinity);
+	  return(make_real(sc, real(x) * inverted_fraction(y)));
 
 	case T_REAL:
-	  if (real(x) == 0.0)
+	  if (is_NaN(real(y))) return(real_NaN);
+	  if (real(y) == 0.0)
 	    return(division_by_zero_error(sc, sc->divide_symbol, args));
-	  if (is_null(p)) return(make_real(sc, rl_a / real(x)));
-	  rl_a /= real(x);
-	  goto DIVIDE_REALS;
+	  if (is_NaN(real(x))) return(real_NaN);
+	  if (is_inf(real(y))) 
+	    {
+	      if (is_inf(real(x))) return(real_NaN);
+	      return(real_zero);
+	    }
+	  return(make_real(sc, real(x) / real(y)));
 
 	case T_COMPLEX:
 	  {
 	    s7_double den, r2, i2;
-	    r2 = real_part(x);
-	    i2 = imag_part(x);
+	    if (is_NaN(real(x))) return(real_NaN);
+	    if (is_NaN(real_part(y))) return(real_NaN);
+	    if (is_NaN(imag_part(y))) return(real_NaN);
+	    if (is_inf(real_part(y))) return(real_zero);
+	    r2 = real_part(y);
+	    i2 = imag_part(y);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    if (is_null(p))
-	      return(s7_make_complex(sc, rl_a * r2 * den, -rl_a * i2 * den));
-	    im_a = -rl_a * i2 * den;
-	    rl_a *= r2 * den;
-	    goto DIVIDE_COMPLEX;
+	    return(s7_make_complex(sc, real(x) * r2 * den, -real(x) * i2 * den));
 	  }
 
 	default:
-	  method_or_bust_with_type(sc, x, sc->divide_symbol, cons_unchecked(sc, make_real(sc, rl_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1);
+	  method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2);
 	}
-      break;
 
+      /* -------- complex x -------- */
     case T_COMPLEX:
-      rl_a = real_part(x);
-      im_a = imag_part(x);
-
-    DIVIDE_COMPLEX:
-      x = car(p);
-      p = cdr(p);
-
-      switch (type(x))
+      switch (type(y))
 	{
 	case T_INTEGER:
 	  {
 	    s7_double r1;
-	    if (integer(x) == 0)
+	    if (integer(y) == 0)
 	      return(division_by_zero_error(sc, sc->divide_symbol, args));
-	    r1 = 1.0 / (s7_double)integer(x);
-	    if (is_null(p)) return(s7_make_complex(sc, rl_a * r1, im_a * r1));
-	    rl_a *= r1;
-	    im_a *= r1;
-	    goto DIVIDE_COMPLEX;
+	    r1 = 1.0 / (s7_double)integer(y);
+	    return(s7_make_complex(sc, real_part(x) * r1, imag_part(x) * r1));
 	  }
 
 	case T_RATIO:
 	  {
 	    s7_double frac;
-	    frac = inverted_fraction(x);
-	    if (is_null(p)) return(s7_make_complex(sc, rl_a * frac, im_a * frac));
-	    rl_a *= frac;
-	    im_a *= frac;
-	    goto DIVIDE_COMPLEX;
+	    frac = inverted_fraction(y);
+	    return(s7_make_complex(sc, real_part(x) * frac, imag_part(x) * frac));
 	  }
 
 	case T_REAL:
 	  {
 	    s7_double r1;
-	    if (real(x) == 0.0)
+	    if (real(y) == 0.0)
 	      return(division_by_zero_error(sc, sc->divide_symbol, args));
-	    r1 = 1.0 / real(x);
-	    if (is_null(p)) return(s7_make_complex(sc, rl_a * r1, im_a * r1));
-	    rl_a *= r1;
-	    im_a *= r1;
-	    goto DIVIDE_COMPLEX;
+	    r1 = 1.0 / real(y);
+	    return(s7_make_complex(sc, real_part(x) * r1, imag_part(x) * r1));
 	  }
 
 	case T_COMPLEX:
 	  {
 	    s7_double r1, r2, i1, i2, den;
-	    r1 = rl_a;
-	    i1 = im_a;
-	    r2 = real_part(x);
-	    i2 = imag_part(x);
+	    r1 = real_part(x);
+	    if (is_NaN(r1)) return(real_NaN);
+	    i1 = imag_part(x);
+	    if (is_NaN(i1)) return(real_NaN);
+	    r2 = real_part(y);
+	    if (is_NaN(r2)) return(real_NaN);
+	    i2 = imag_part(y);
+	    if (is_NaN(i2)) return(real_NaN);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    if (is_null(p))
-	      return(s7_make_complex(sc, (r1 * r2 + i1 * i2) * den, (r2 * i1 - r1 * i2) * den));
-	    rl_a = (r1 * r2 + i1 * i2) * den;
-	    im_a = (r2 * i1 - r1 * i2) * den;
-	    goto DIVIDE_COMPLEX;
+	    return(s7_make_complex(sc, (r1 * r2 + i1 * i2) * den, (r2 * i1 - r1 * i2) * den));
 	  }
 
 	default:
-	  method_or_bust_with_type(sc, x, sc->divide_symbol, cons_unchecked(sc, s7_make_complex(sc, rl_a, im_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1);
+	  method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2);
 	}
-      break;
 
+      /* -------- any other type x -------- */
     default:
       method_or_bust_with_type(sc, x, sc->divide_symbol, args, a_number_string, 1);
+      break;
     }
+
   return(NULL); /* make the compiler happy */
 }
-
 
 #if (!WITH_GMP)
 static s7_pointer invert_1;
@@ -83898,9 +83749,8 @@ int main(int argc, char **argv)
  * fun*_is_ok throughout and remove symbol_ctr and the extension struct
  *   can this symbol handling be used in all opt'd (unchecked) accesses? see ~/old/sym-s7.c
  *   fun_a -> closure_a (perhaps closure_a*? -- this requires fun_is_equal in op_safe_fun_a)
- * division-by-zero error needs more careful checks:
- *   (* nan.0 0)=nan.0, (* inf.0 0)=-nan.0.0 so (/ x ... 0 ...) is an error only if ... has no nan.0 or inf.0!
- * s7test needs nan/inf cases I think
+ * division-by-zero gmp cases (still stops on (* 0 nan.0) etc
+ *   s7test needs nan/inf cases I think
  * does (define-constant first car) fully optimize (first p)?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)

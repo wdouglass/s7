@@ -886,6 +886,17 @@ unknown key handling is not good, :allow-key-values?
   ((lambda* (hi ho) (list hi ho)) (symbol->keyword a) b))
 (f8 'hi 32) -> (32 #f)
 (f8 'ho 32) -> (#f 32)
+
+
+another amusing lambda* case:
+(call/cc 
+ (lambda* (a (b (call/cc (lambda (c) c)))) ; even with-baffle still a loop (legit)
+   (b (call/cc (lambda (d) d)))))
+
+;; equivalent to:
+(let ((c (call/cc (lambda (c) c))))
+  (call/cc (lambda (a)
+	     (c (call/cc (lambda (d) d))))))
 -->
 
 </blockquote>
