@@ -2130,7 +2130,8 @@ static int64_t not_heap = -1;
 #define F_CON                         (1 << 22)  /* constant as above */
 #define F_CALL                        (1 << 23)  /* c-func */
 #define F_LAMBDA                      (1 << 24)  /* lambda form */
-#define F_MASK                        (F_KEY | F_SLOW | F_SYM | F_PAIR | F_CON | F_CALL | F_LAMBDA | S_NAME)
+#define F_ID                          (1 << 31)  /* symbol id */
+#define F_MASK                        (F_KEY | F_SLOW | F_SYM | F_PAIR | F_CON | F_CALL | F_LAMBDA | F_ID | S_NAME)
 
 #define opt2_is_set(p)                (((p)->debugger_bits & F_SET) != 0)
 #define set_opt2_is_set(p)            (p)->debugger_bits |= F_SET
@@ -2194,8 +2195,8 @@ static int64_t not_heap = -1;
 #define opt_slot1(P)                  _TSlt(opt1(P,              E_SLOT))
 #define set_opt_slot1(P, X)           set_opt1(P, _TSlt(X),      E_SLOT)
 
-#define opt_any2(P)                    _NFre(opt2(P,             F_KEY))
-#define set_opt_any2(P, X)             set_opt2(P, _NFre(X),     F_KEY)
+#define opt_any2(P)                   _NFre(opt2(P,              F_KEY))
+#define set_opt_any2(P, X)            set_opt2(P, _NFre(X),      F_KEY)
 #define opt_slow(P)                   _TLst(opt2(P,              F_SLOW))
 #define set_opt_slow(P, X)            set_opt2(P, _TPair(X),     F_SLOW)
 #define opt_sym2(P)                   _TSym(opt2(P,              F_SYM))
@@ -2208,6 +2209,8 @@ static int64_t not_heap = -1;
 #define set_opt_lambda2(P, X)         set_opt2(P, _TPair(X),     F_LAMBDA)
 #define opt_direct_x_call(P)          opt2(P,                    F_LAMBDA)
 #define set_opt_direct_x_call(P, X)   set_opt2(P, (s7_pointer)(X), F_LAMBDA)
+#define opt_id2(P)                    (int64_t)(opt2(P,          F_ID))
+#define set_opt_id2(P, X)             set_opt2(P, (s7_pointer)(X), F_ID)
 
 #define arglist_length(P)             _TI(opt3(cdr(P),           G_ARGLEN))
 #define set_arglist_length(P, X)      set_opt3(cdr(P), _TI(X),   G_ARGLEN)
@@ -26313,7 +26316,8 @@ static inline shared_info *new_shared_info(s7_scheme *sc)
   shared_info *ci;
   int32_t i;
   ci = sc->circle_info;
-  memclr((void *)(ci->refs), ci->top * sizeof(int32_t));
+  if (ci->top > 0)
+    memclr((void *)(ci->refs), ci->top * sizeof(int32_t));
   for (i = 0; i < ci->top; i++)
     clear_collected_and_shared(ci->objs[i]);
   ci->top = 0;
@@ -28700,6 +28704,7 @@ static const char *opt2_role_name(int32_t role)
   if (role == F_PAIR) return("opt_pair2");
   if (role == F_CON) return("opt_con2");
   if (role == F_LAMBDA) return("opt_lambda2");
+  if (role == F_ID) return("opt_id2");
   return("unknown");
 }
 
@@ -28721,7 +28726,7 @@ static char* show_debugger_bits(uint32_t bits)
 {
   char *bits_str;
   bits_str = (char *)calloc(512, sizeof(char));
-  snprintf(bits_str, 512, " %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(bits_str, 512, " %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	  ((bits & E_SET) != 0) ? " e-set" : "",
 	  ((bits & E_FAST) != 0) ? " opt_fast" : "",
 	  ((bits & E_CFUNC) != 0) ? " opt_cfunc" : "",
@@ -28742,6 +28747,7 @@ static char* show_debugger_bits(uint32_t bits)
 	  ((bits & F_CON) != 0) ? " opt_con2" : "",
 	  ((bits & F_CALL) != 0) ? " c_call(ee)" : "",
 	  ((bits & F_LAMBDA) != 0) ? " opt_lambda2" : "",
+	  ((bits & F_ID) != 0) ? " opt_id2" : "",
 	  ((bits & G_SET) != 0) ? " g-set" : "",
 	  ((bits & G_ARGLEN) != 0) ? " arglist_length" : "",
 	  ((bits & G_SYM) != 0) ? " opt_sym3" : "",
@@ -28812,7 +28818,7 @@ static void show_opt2_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
-  fprintf(stderr, "%s%s[%d]: opt2: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x%s%s%s%s%s%s%s%s%s%s\n", 
+  fprintf(stderr, "%s%s[%d]: opt2: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x%s%s%s%s%s%s%s%s%s%s%s\n", 
 	  BOLD_TEXT, 
 	  func, line, p, p->object.cons.opt2, 
 	  opt2_role_name(role),
@@ -28825,6 +28831,7 @@ static void show_opt2_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_
 	  ((role & F_CON) != 0) ? " con" : "",
 	  ((role & F_CALL) != 0) ? " call" : "",
 	  ((role & F_LAMBDA) != 0) ? " lambda" : "",
+	  ((role & F_ID) != 0) ? " id" : "",
 	  ((role & S_NAME) != 0) ? " raw-name" : "",
 	  UNBOLD_TEXT);
   free(bits);
@@ -66959,6 +66966,81 @@ static bool closure_star_is_ok_1(s7_scheme *sc, s7_pointer code, uint16_t type, 
    (closure_star_is_ok_1(Sc, Code, Type, Args)))
 
 
+
+static inline bool fun_is_ok_1(s7_scheme *sc, s7_pointer code, uint16_t type, int32_t args) /* see op_safe_fun_a */
+{
+  s7_pointer f;
+  f = symbol_to_value_unexamined(sc, car(code));
+  if (f == opt_lambda_unchecked(code))
+    {
+      set_opt_id2(code, symbol_id(car(code)));
+      return(true);
+    }
+  if ((f) &&
+      (typesflag(f) == type) &&
+      ((closure_arity(f) == args) || 
+       (closure_arity_to_int(sc, f) == args)))
+    {
+      set_opt_lambda(code, f);
+      set_opt_id2(code, symbol_id(car(code)));
+      return(true);
+    }
+  sc->last_function = f;
+  return(false);
+}
+
+#define fun_is_ok(Sc, Code, Type, Args)					\
+  (((symbol_id(car(Code)) == opt_id2(Code)) &&				\
+    (slot_value(local_slot(car(Code))) == opt_lambda(Code))) ||		\
+   (fun_is_ok_1(Sc, Code, Type, Args)))
+
+static inline bool fun_is_equal_1(s7_scheme *sc, s7_pointer code, uint16_t type, int32_t args) /* see op_safe_fun_a */
+{
+  s7_pointer f;
+  f = symbol_to_value_unexamined(sc, car(code));
+  if (f == opt_lambda_unchecked(code))
+    {
+      set_opt_id2(code, symbol_id(car(code)));
+      return(true);
+    }
+  sc->last_function = f;
+  return(false);
+}
+
+#define fun_is_equal(Sc, Code, Type, Args)				\
+  (((symbol_id(car(Code)) == opt_id2(Code)) &&				\
+    (slot_value(local_slot(car(Code))) == opt_lambda(Code))) ||		\
+   (fun_is_equal_1(Sc, Code)))
+
+static bool fun_star_is_ok_1(s7_scheme *sc, s7_pointer code, uint16_t type, int32_t args)
+{
+  s7_pointer val; 
+  val = symbol_to_value_unexamined(sc, car(code));
+  if (val == opt_lambda_unchecked(code))
+    {
+      set_opt_id2(code, symbol_id(car(code)));
+      return(true);
+    }
+  if ((val) &&
+      (typesflag(val) == (uint16_t)type) &&
+      ((closure_arity(val) >= args) || 
+       (closure_star_arity_to_int(sc, val) >= args)))
+    {
+      set_opt_lambda(code, val);
+      set_opt_id2(code, symbol_id(car(code)));
+      return(true);
+    }
+  sc->last_function = val;
+  return(false);
+}
+
+#define fun_star_is_ok(Sc, Code, Type, Args)				\
+  (((symbol_id(car(Code)) == opt_id2(Code)) &&				\
+    (slot_value(local_slot(car(Code))) == opt_lambda(Code))) ||		\
+   (fun_star_is_ok_1(Sc, Code, Type, Args)))
+
+
+
 #define MATCH_UNSAFE_CLOSURE      (T_CLOSURE)
 #define MATCH_SAFE_CLOSURE        (T_CLOSURE      | T_SAFE_CLOSURE)
 #define MATCH_UNSAFE_CLOSURE_STAR (T_CLOSURE_STAR)
@@ -67380,12 +67462,10 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	{
 	  if (is_safe_closure(f))
 	    {
-	      s7_pointer s;
 	      set_optimize_op(code, hop + OP_SAFE_FUN_A);
-	      s = symbol_to_slot(sc, car(code));
-	      /* code->object.cons.opt2 = (s7_pointer)((intptr_t)(sc->envir) | symbol_ctr(car(code))); *//* TODO: macros for these */
-	      code->object.cons.opt2 = sc->envir;
-	      code->object.cons.opt1 = s;
+	      set_opt_id2(code, symbol_id(car(code)));
+	      set_opt_lambda(code, f);
+	      set_local_slot(car(code), symbol_to_slot(sc, car(code)));
 	      return(goto_OPT_EVAL);
 	    }
 	  else 
@@ -72005,7 +72085,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  sc->cur_op = (opcode_t)pair_syntax_op(sc->code);
 		  sc->code = cdr(sc->code);
 		  goto START_WITHOUT_POP_STACK;
-		  
+
 		case OP_SAFE_CLOSURE_S:
 		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 1)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_SAFE_CLOSURE_S:
@@ -72021,10 +72101,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  /* here and below the closure has to be the original -- matches are no good */
 		  if (!closure_is_equal(sc, code)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_SAFE_CLOSURE_S_C:
-		  sc->envir = old_frame_with_slot(sc, closure_let(opt_lambda(code)), symbol_to_value_unchecked(sc, opt_sym2(code)));
-		  sc->code = car(closure_body(opt_lambda(code)));
-		  sc->value = c_call(sc->code)(sc, cdr(sc->code));
-		  goto START;
+		  {
+		    s7_pointer f;
+		    f = opt_lambda(code);
+		    sc->envir = old_frame_with_slot(sc, closure_let(f), symbol_to_value_unchecked(sc, opt_sym2(code)));
+		    sc->code = car(closure_body(f));
+		    sc->value = c_call(sc->code)(sc, cdr(sc->code));
+		    goto START;
+		  }
 
 		case OP_SAFE_CLOSURE_S_P:
 		  if (!closure_is_equal(sc, code)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
@@ -72038,9 +72122,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_SAFE_CLOSURE_C:
 		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 1)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_SAFE_CLOSURE_C:
-		  sc->envir = old_frame_with_slot(sc, closure_let(opt_lambda(code)), cadr(code));
-		  sc->code = _TPair(closure_body(opt_lambda(code)));
-		  goto BEGIN1;
+		  {
+		    s7_pointer f;
+		    f = opt_lambda(code);
+		    sc->envir = old_frame_with_slot(sc, closure_let(f), cadr(code));
+		    sc->code = _TPair(closure_body(f));
+		    goto BEGIN1;
+		  }
 		  
 		case OP_SAFE_CLOSURE_P:
 		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 1)) 
@@ -72063,28 +72151,36 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto BEGIN1;
 
 		case OP_SAFE_FUN_A:
-		  /* opt_lambda is opt1, opt3 is line/op, optimize_op(code) = OP_SAFE_FUN_A is object->sym_cons.op = half of opt3 
-		   *   opt2 is sc->envir, opt1 is now the slot
-		   * let_id(sc->envir) changes on every call (sc->envir if recursive call is closure_let(f) from old_frame below)
-		   *   but using bare sc->envir is dangerous -- between calls, closure+let might be gc'd, then by
-		   *   sheer bad luck, the newly allocated closure_let is the same cell as the previous!
-		   *   To fix this, logior in symbol_ctr using intptr_t etc, costs: old: 40M, clo1: 340M, new: 40M, new|ctr: 50M (in tlet)
-		   * but the logior code confuses valgrind!  (It dies in lg.scm).  Explicit stores to intptr_t vars did not fix the problem.
+		  /* symbol_id unchanged means local_slot is unchanged, so check current value against value used for optimization
+		   *   if either has changed, check as in closure_is_ok_1, reopt if type/arity changed
 		   */
-		  /* if (((intptr_t)(sc->envir) | symbol_ctr(car(code))) != (intptr_t)(code->object.cons.opt2)) */
-		  if (sc->envir != code->object.cons.opt2)
-		    {
-		      sc->last_function = symbol_to_value_unchecked(sc, car(code));
-		      if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; 
-		      break;
-		    }
+#if S7_DEBUGGING
+		  {
+		    s7_pointer slot;
+		    slot = symbol_to_slot(sc, car(code));
+		    if ((symbol_id(car(code)) == (int64_t)(code->object.cons.opt2)) &&
+			(slot_value(slot) != code->object.cons.opt1))
+		      fprintf(stderr, "trouble in func lookup: %s %" PRId64 " %" PRId64 " %p %p\n", 
+			      DISPLAY(code), 
+			      symbol_id(car(code)),
+			      (int64_t)(code->object.cons.opt2),
+			      slot,
+			      code->object.cons.opt1);
+		    if ((symbol_id(car(code)) == (int64_t)(code->object.cons.opt2)) &&
+			(slot_value(local_slot(car(code))) != slot_value(slot)))
+		      fprintf(stderr, "trouble in local_slot: %s %s %s\n",
+			      DISPLAY(code), DISPLAY(local_slot(car(code))), DISPLAY(slot));
+		  }
+#endif
+		  if (!fun_is_ok(sc, code, MATCH_SAFE_CLOSURE, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_SAFE_FUN_A:
 		  {
 		    s7_pointer f;
-		    f = slot_value(code->object.cons.opt1);
+		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), c_call(cdr(code))(sc, cadr(code)));
 		    sc->code = _TPair(closure_body(f));
 		    goto BEGIN1;
+		    /* safe_fun_a_p also? */
 		  }
 
 		case OP_SAFE_CLOSURE_A_C:
@@ -73850,18 +73946,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DECREMENT_1:
 	  decrement_1_ex(sc);
 	  break;
-	  
+
         #define SET_CASE(Op, Code)					\
 	  case Op:							\
 	    {								\
 	      s7_pointer lx;						\
 	      lx = symbol_to_slot(sc, car(sc->code));		\
-	      if (!is_slot(lx)) eval_type_error(sc, "set! ~A: unbound variable", sc->code); \
 	      Code;							\
 	      sc->value = slot_value(lx);				\
 	      goto START;						\
 	    }
-	  
 	    SET_CASE(OP_SET_SYMBOL_C, slot_set_value(lx, cadr(sc->code)))
 	    
 	    SET_CASE(OP_SET_SYMBOL_Q, slot_set_value(lx, cadadr(sc->code)))
@@ -73938,7 +74032,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer lx;
 	    lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
-	    if (!is_slot(lx)) eval_type_error(sc, "set! ~A: unbound variable", sc->code);
 	    slot_set_value(lx, sc->value);
 	    sc->value = slot_value(lx);
 	  }
@@ -73959,13 +74052,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer sym;
 	    sym = symbol_to_slot(sc, car(sc->code));
-	    if (is_slot(sym))
-	      {
-		push_stack(sc, OP_INCREMENT_SZ_1, sym, sc->code);
-		sc->code = _TPair(opt_pair2(sc->code)); /* caddr(cadr(sc->code)); */
-		goto OPT_EVAL_CHECKED;
-	      }
-	    eval_type_error(sc, "set! ~A: unbound variable", sc->code);
+	    push_stack(sc, OP_INCREMENT_SZ_1, sym, sc->code);
+	    sc->code = _TPair(opt_pair2(sc->code)); /* caddr(cadr(sc->code)); */
+	    goto OPT_EVAL_CHECKED;
 	  }
 	  
 	case OP_INCREMENT_SZ_1:
@@ -83804,7 +83893,15 @@ int main(int argc, char **argv)
  *   (profile-count file line)?
  * t725 + begin_hook?
  * all_x_c_opsq is_pair|null|symbol cadr|caddr|cddr -> is_pair_cddr|cadr is_null_cddr is_symbol_cadr maybe pair_caddr?
- * what are define_funchecked closures from lint?
+ * what are define_funchecked closures from lint? local funcs like shadowed -- count these
+ * f=opt_lambda throughout
+ * fun*_is_ok throughout and remove symbol_ctr and the extension struct
+ *   can this symbol handling be used in all opt'd (unchecked) accesses? see ~/old/sym-s7.c
+ *   fun_a -> closure_a (perhaps closure_a*? -- this requires fun_is_equal in op_safe_fun_a)
+ * division-by-zero error needs more careful checks:
+ *   (* nan.0 0)=nan.0, (* inf.0 0)=-nan.0.0 so (/ x ... 0 ...) is an error only if ... has no nan.0 or inf.0!
+ * s7test needs nan/inf cases I think
+ * does (define-constant first car) fully optimize (first p)?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -83839,18 +83936,18 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1915
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2116
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2547 [part clo1, part local]
- * lint          |      |      |      || 4041 || 2702 | 2696  2697
- * lg            |      |      |      || 211  || 133  | 133.4 133.8
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1911
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2135
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2557
+ * lint          |      |      |      || 4041 || 2702 | 2696  2695
+ * lg            |      |      |      || 211  || 133  | 133.4 133.7
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
- * tsort         |      |      |      || 8584 || 4111 | 4111  4206
- * titer         |      |      |      || 5971 || 4646 | 4646  5168 [all local/find]
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7832 [same]
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200
+ * titer         |      |      |      || 5971 || 4646 | 4646  5168
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1
