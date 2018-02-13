@@ -1069,20 +1069,19 @@
     (define (out-vars func-name arglist body)
       (let ((ref ())
 	    (set ()))
-	(let var-walk ((tree body)
-		       (e (cons func-name arglist)))
+	
+	(define (var-walk-body tree e) 
+	  (when (pair? tree)
+	    (for-each (lambda (p) (set! e (var-walk p e))) tree)))
 
-	  (define (var-walk-body tree e) 
-	    (when (pair? tree)
-	      (for-each (lambda (p) (set! e (var-walk p e))) tree)))
+	(define (shadowed v e) 
+	  (if (and (or (memq v e) 
+		       (memq v ref))
+		   (not (memq v set)))
+	      (set! set (cons v set)))
+	  v)
 
-	  (define (shadowed v) 
-	    (if (and (or (memq v e) 
-			 (memq v ref))
-		     (not (memq v set)))
-		(set! set (cons v set)))
-	    v)
-
+	(define (var-walk tree e)
 	  (if (symbol? tree)
 	      (if (not (or (memq tree e) 
 			   (memq tree ref) 
@@ -1109,14 +1108,14 @@
 			  ((let letrec)
 			   (let* ((named (symbol? (cadr tree)))
 				  (vars (if named
-					    (list (shadowed (cadr tree)))
+					    (list (shadowed (cadr tree) e))
 					    ()))
 				  (varlist ((if named caddr cadr) tree)))
 			     (when (pair? varlist)
 			       (for-each (lambda (v)
 					   (when (len>1? v)
 					     (var-walk (cadr v) e)
-					     (set! vars (cons (shadowed (car v)) vars))))
+					     (set! vars (cons (shadowed (car v) e) vars))))
 					 ((if named caddr cadr) tree)))
 			     (var-walk-body ((if named cdddr cddr) tree) (append vars e))))
 			  
@@ -1128,7 +1127,7 @@
 			       (for-each (lambda (v)
 					   (when (len>1? v)
 					     (var-walk (cadr v) (append vars e))
-					     (set! vars (cons (shadowed (car v)) vars))))
+					     (set! vars (cons (shadowed (car v) e) vars))))
 					 varlist))
 			     (var-walk-body ((if named cdddr cddr) tree) (append vars e))))
 			  
@@ -1147,7 +1146,7 @@
 			       (for-each (lambda (v)
 					   (when (len>1? v) 
 					     (var-walk (cadr v) e)
-					     (set! vars (cons (shadowed (car v)) vars))))
+					     (set! vars (cons (shadowed (car v) e) vars))))
 					 (cadr tree))
 			       (for-each (lambda (v)
 					   (if (len>2? v)
@@ -1176,6 +1175,7 @@
 			   (var-walk (car tree) e)
 			   (var-walk (cdr tree) e)))))))
 	  e)
+	(var-walk body (cons func-name arglist))
 	(list ref set)))
 
     (define (get-side-effect v)
@@ -10373,6 +10373,18 @@
 	  (when (pair? checkers)
 	    (let ((arg-number 1)
 		  (flen (- (length form) 1)))
+
+	      (define (check-cond-arg expr checker)
+		(unless (symbol? expr)
+		  (let ((op (->lint-type expr)))
+		    (when (pair? op)
+		      (set! op (remove 'boolean? op)) ; this is for cond test, no result -- returns test if not #f, so it can't be #f!
+		      (if (null? (cdr op))
+			  (set! op (car op))))
+		    (if (not (or (memq op '(#f #t values))
+				 (every-compatible? checker op)))
+			(report-arg-trouble caller form head arg-number checker expr op env)))))
+	      
 	      (call-with-exit
 	       (lambda (done)
 		 (for-each 
@@ -10386,18 +10398,7 @@
 			    (if (not (or (memq op '(#f #t values))
 					 (every-compatible? checker op)))
 				(report-arg-trouble caller form head arg-number checker expr op env)))))
-		      
-		      (define (check-cond-arg expr)
-			(unless (symbol? expr)
-			  (let ((op (->lint-type expr)))
-			    (when (pair? op)
-			      (set! op (remove 'boolean? op)) ; this is for cond test, no result -- returns test if not #f, so it can't be #f!
-			      (if (null? (cdr op))
-				  (set! op (car op))))
-			    (if (not (or (memq op '(#f #t values))
-					 (every-compatible? checker op)))
-				(report-arg-trouble caller form head arg-number checker expr op env)))))
-		      
+	      
 		      ;; special case checker?
 		      (if (and (symbol? checker)
 			       (not (memq checker '(unused-parameter? unused-set-parameter?)))
@@ -10515,7 +10516,7 @@
 					    (if (and (not (eq? (cadr clause) '=>))
 						     (proper-list? (cdr clause)))
 						(check-arg (last-ref clause)))
-					    (check-cond-arg (car clause)))))
+					    (check-cond-arg (car clause) checker))))
 				  (cdr arg))))
 			      
 			      ((call/cc call-with-exit call-with-current-continuation)
@@ -21397,8 +21398,16 @@
 			  (and (pair? a)
 			       (pair? b)
 			       (equal-ignoring-constants? (car a) (car b))
-			       (equal-ignoring-constants? (cdr a) (cdr b)))))))
-	    
+			       (equal-ignoring-constants? (cdr a) (cdr b))))))
+		   (constable? (lambda (cp)
+				 (and (len>1? cp)
+				      (memq (car cp) '(list vector int-vector float-vector byte-vector))
+				      (lint-every? (lambda (inp) 
+						     (and (or (not (symbol? inp)) ; leave (list pi *stderr*) unrewritten
+							      (keyword? inp))
+							  (or (code-constant? inp)
+							      (constable? inp))))
+						   (cdr cp))))))
 	    (lambda (caller head form env)
 	      (let ((v (var-member head env)))
 		(when (and v (not (memq form (var-history v))))
@@ -21537,15 +21546,7 @@
 			       (hash-table-ref no-side-effect-functions head)
 			       (not (memq head unsafe-makers)))
 			  (for-each (lambda (p)
-				      (when (let constable? ((cp p))
-					      (and (len>1? cp)
-						   (memq (car cp) '(list vector int-vector float-vector byte-vector))
-						   (lint-every? (lambda (inp) 
-								  (and (or (not (symbol? inp)) ; leave (list pi *stderr*) unrewritten
-									   (keyword? inp))
-								       (or (code-constant? inp)
-									   (constable? inp))))
-								(cdr cp))))
+				      (when (constable? p)
 					(let ((pval (eval/error caller p)))
 					  (if (not (eq? pval :error))
 					      (lint-format "perhaps ~A -> ~A~A" caller 
