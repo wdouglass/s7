@@ -59,12 +59,6 @@
   #pragma warning(disable: 4244)
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ >= 5) && (!CLM)
-  #define WITH_VECTORIZE 1
-#else
-  #define WITH_VECTORIZE 0
-#endif
-
 #include "_sndlib.h"
 #include "xen.h"
 #include "clm.h"

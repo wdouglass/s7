@@ -17818,7 +17818,8 @@
 				 ;; (do ((i 0 (+ i 1))) ((= i 0)) ...)
 				 (when (and (not (tree-memq 'eof-object? end))
 					    (lint-every? (lambda (stepper)
-							   (and (pair? (cdr stepper))
+							   (and (pair? stepper)         ; (do ((i 0) ())...)
+								(pair? (cdr stepper))   ; (do ((i))...)
 								(not (and (symbol? (cadr stepper))
 									  (tree-memq (car stepper) end)))))
 							 (cadr form))
@@ -17838,7 +17839,9 @@
 						      ,end))
 					  (val (catch #t 
 						 (lambda () 
-						   (eval new-end (inlet)))
+						   ((lambda args            ; lambda here and below to catch multiple values, if any
+						      (car args))           ; no need to check (pair? args) since in this context (values)->#<unpecified>
+						    (eval new-end (inlet)))) 
 						 (lambda args
 						   :eval-error))))
 				     (if (and val (not (eq? val :eval-error)))
@@ -17854,7 +17857,9 @@
 							     ,end))
 						(val (catch #t
 						       (lambda ()
-							 (eval step-end (inlet)))
+							 ((lambda args 
+							    (car args))
+							  (eval step-end (inlet))))
 						       (lambda args
 							 :eval-error))))
 					   (if (and val (not (eq? val :eval-error)))

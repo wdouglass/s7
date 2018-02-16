@@ -108,6 +108,22 @@ echo ' -------------------------------- that was snd-test without choosers -----
 echo ' '
 echo ' '
 
+echo ' -------------------------------- no vectorize -------------------------------- '
+make allclean
+rm -f snd
+rm -f config.cache
+./configure --quiet CFLAGS="-Wall -I/usr/local/include -DWITH_VECTORIZE=0 -DHAVE_OVERFLOW_CHECKS=0" --without-gui --disable-deprecated
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -l snd-test
+echo ' '
+echo ' '
+echo ' -------------------------------- that was snd-test without vectorize -------------------------------- '
+echo ' '
+echo ' '
+
 echo ' -------------------------------- without-gui CC=g++ --disable-deprecated -------------------------------- '
 make allclean
 rm -f snd

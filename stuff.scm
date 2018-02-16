@@ -19,6 +19,10 @@
 
 ;(define sequence? length) -- now built-in for signatures
 
+(define (nth-value n . args) ; untested...
+  (and (> (length args) n)
+       (list-ref args n)))
+
 (define indexable? 
   (let ((+documentation+ "(indexable? obj) returns #t if obj can be applied to an index: (obj 0)"))
     (lambda (obj)

@@ -3519,8 +3519,17 @@ the same as <code>(set! x ...)</code>.  <code>(string-set! (values string) ...)<
 works because string-set! does evaluate its first argument.  <code>((values + 1 2) (values 3 4) 5)</code>
 is 15, as anyone would expect.
 </p>
-
 </div>
+
+<p>One problem with this way of handling multiple values involves cases where you can't
+tell whether an expression will return multiple values.  Then you have, for example, <code>(let ((val (expr)))...)</code>
+and need to accept either a normal single value from <code>expr</code>, or one member of the
+possible set of multiple values.  In lint.scm, I'm currently handling this with lambda:
+<code>(let ((val ((lambda args (car args)) (expr))))...)</code>, but this feels kludgey.
+CL has nth-value which appears to do "the right thing" in this context; perhaps s7 needs
+it too.
+</p>
+
 
 
 <!--

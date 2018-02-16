@@ -11,7 +11,15 @@ typedef struct vct vct;
 extern "C" {
 #endif
 
+#ifndef WITH_VECTORIZE
 #if (defined(__GNUC__) && __GNUC__ >= 5) && (!CLM)
+  #define WITH_VECTORIZE 1
+#else
+  #define WITH_VECTORIZE 0
+#endif
+#endif
+
+#if WITH_VECTORIZE
 MUS_EXPORT void mus_clear_floats(mus_float_t *arr, mus_long_t len) __attribute__ ((optimize("tree-vectorize")));
 MUS_EXPORT void mus_copy_floats(mus_float_t *dst, mus_float_t *src, mus_long_t len) __attribute__ ((optimize("tree-vectorize")));
 MUS_EXPORT void mus_add_floats(mus_float_t *dst, mus_float_t *src, mus_long_t len) __attribute__ ((optimize("tree-vectorize")));
@@ -48,7 +56,7 @@ MUS_EXPORT void mus_abs_floats(mus_float_t *dst, mus_long_t len) __attribute__ (
     mus_long_t K;				\
     mus_float_t *dst;				\
     dst = Dst;					\
-    for (K = Len; K > 0; K--)			\
+    for (K = 0; K < Len; K++)			\
       dst[K] = fabs(dst[K]);			\
     } while (0)
 #endif

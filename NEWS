@@ -1,12 +1,7 @@
-Snd 18.0:
+Snd 18.1
 
-many Forth/Ruby improvements thanks to Mike.
+s7: added (*s7* 'max-heap-size)
 
-in Snd, xg.c is no longer included automatically.  The changes for
-  gtk 4 are very extensive.
+checked: sbcl 1.4.4
 
-added snd.desktop and tools/auto-tester.scm.
-
-checked: sbcl 1.4.2|3, gtk 3.93.0
-
-Thanks!: Mike Scholz, Kjetil Matheussen, Yuri, Daniel Hensel
+Thanks!: Mike Scholz, Kjetil Matheussen, Marty Hayman, Yuri

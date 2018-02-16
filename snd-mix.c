@@ -2,7 +2,6 @@
 
 static void mix_set_file_name(int id, int chans, const char *name);
 
-
 static bool mix_vct_untagged(vct *v, chan_info *cp, mus_long_t beg, const char *origin)
 {
   mus_float_t *data, *vdata;
