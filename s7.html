@@ -9310,20 +9310,21 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 </p>
 
 <pre class="indented">
-#1  0x000000000042104e in find_symbol_unchecked (sc=0x97edf0, symbol=<b>vars</b>) at s7.c:6677
-        x = <b>(inlet 'f import-lambda-definition-2)</b>
-        __FUNCTION__ = "find_symbol_unchecked"
-#2  0x00000000006e3424 in eval (sc=0x97edf0, first_op=9) at s7.c:63673
-        _x_ = <b>import-lambda-definition-2</b>
-        _slot_ = <b>'form import-lambda-definition-2</b>
-        _sym_ = <b>env</b>
-        _val_ = <b>import-lambda-definition-2</b>
-        args = <b>(vars)</b>
-        p = <b>(env)</b>
-        func = <b>lint-walk</b>
-        e = <b>(inlet 'name import-lambda-definition-2 'form import-lambda-definition-2)</b>
-        code = <b>(lint-walk name f vars)</b>
-        __FUNCTION__ = "eval"
+(gdb) s7bt
+#0  0x000055555567f7ca in check_cell (p=<b>#&lt;lambda (lst ind)&gt;</b>, 
+    func=0x5555559106e0 &lt;__FUNCTION__.10273&gt; "mark_slot", line=3976) at s7.c:28494
+#1  0x000055555567f84d in check_nref (p=<b>#&lt;lambda (lst ind)&gt;</b>, 
+    func=0x5555559106e0 &lt;__FUNCTION__.10273&gt; "mark_slot", line=3976) at s7.c:28507
+#2  0x0000555555563201 in mark_slot (p=<b>'list-ref #&lt;lambda (lst ind)&gt;</b>) at s7.c:3976
+#3  0x0000555555564ce0 in mark_let (env=<b>#&lt;mock-number-class&gt;</b>) at s7.c:4506
+#4  0x0000555555563239 in mark_slot (p=<b>'mock-number-class #&lt;mock-number-class&gt;</b>) at s7.c:3976
+#5  0x0000555555564ce0 in mark_let (env=<b>(inlet 'mock-number-class #&lt;mock-number-class&gt; 'mock-number mock-number)</b>) at s7.c:4506
+#6  0x0000555555563239 in mark_slot (p=<b>'*mock-number* (inlet 'mock-number-class #&lt;mock-number-class&gt; 'mock-number...)</b>) at s7.c:3976
+#7  0x0000555555564ce0 in mark_let (env=<b>(inlet '*features* (mockery.scm stuff.scm linux autoload dlopen...))</b>) at s7.c:4506
+#8  0x0000555555565697 in mark_closure (p=<b>reactive-vector</b>) at s7.c:4590
+#9  0x0000555555566872 in mark_rootlet (sc=0x555555b41eb0) at s7.c:4813
+#10 0x0000555555566a2f in gc (sc=0x555555b41eb0) at s7.c:4897
+#11 0x000055555558e903 in copy_stack (sc=0x555555b41eb0, old_v=<b>[sc-&gt;stack] #&lt;stack&gt;</b>) at s7.c:9024
 </pre>
 
 <br><br>

@@ -34,6 +34,10 @@
 (define __var2__ 3)
 (set! (symbol-setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
 
+(define (free1) (set! x (- (+ x 1) 1)))
+(define (free2) (x i))
+(define (free3) (local-func 0))
+
 (define (finite? n) (not (or (nan? n) (infinite? n))))
 
 (define (s7-print-length) (*s7* 'print-length))
@@ -238,6 +242,12 @@
 (define-expansion (_ft2_ . args)
   `(let () (define (_f_) ,@args) (_f_) (_f_)))
 
+(define-expansion (_fa1_ . args)
+  `(let ((_y_ (begin ,@args))) (define (f x) (x)) (f _y_)))
+
+(define-expansion (_fa2_ . args)
+  `((lambda (x) (apply x ())) (begin ,@args)))
+
 (define-expansion (_lt2_ . args)
   `(let ((mx max)) ((lambda* ((max min) (min mx)) ,@args))))
 
@@ -266,6 +276,15 @@
 (define-expansion (_do3_ . args)
   `(let ((exiter (vector #f))) (do ,(car args) ((vector-ref exiter 0) 1) ,@(cdr args) (vector-set! exiter 0 #t))))
 
+(define ims (immutable! (string #\a #\b #\c)))
+(define imbv (immutable! (byte-vector 0 1 2)))
+(define imv (immutable! (vector 0 1 2)))
+(define imiv (immutable! (int-vector 0 1 2)))
+(define imfv (immutable! (float-vector 0 1 2)))
+(define imi (immutable! (inlet 'a 1 'b 2)))
+(define imb (immutable! (block 0.0 1.0 2.0)))
+(define imh (immutable! (hash-table* 'a 1 'b 2)))
+;(define imp (immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ())))))))
 
 (set! (hook-functions *unbound-variable-hook*) ())
 (define x 0)
@@ -321,7 +340,7 @@
 			  's7-version 
 			  'dilambda?
 			  'hook-functions 
-
+#|
 			  ;; -------- naming funcs
 			  'make-hook 
 			  'let 'let* 'letrec 
@@ -330,7 +349,7 @@
 			  'inlet 
 			  'object->let
 			  ;; --------
-
+|#
                           ;'pair-line-number 
 			  'open-input-string 'open-output-string 
 			  'open-input-file 
@@ -463,6 +482,7 @@
 			  'pp
 
 			  'kar '_dilambda_
+			  'free1 'free2 'free3
 
 			  'tree-cyclic?
 			  ))
@@ -510,10 +530,13 @@
 		    "(call-with-exit (lambda (goto) goto))"
 		    "(with-baffle (call/cc (lambda (cc) cc)))"
 		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\")\")"
-		    "(setter _definee_)" "(setter car)" "(setter kar)"
+		    ;;"(setter _definee_)"
+		    "(setter car)" "(setter kar)"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(let ((x 1)) (dynamic-wind (lambda () (set! x 2)) (lambda () (+ x 1)) (lambda () (set! x 1))))"
+
+		    "(let ((x 1)) (free1))" "(let ((x #(1)) (i 0)) (free2))" "(let () (define (local-func x) x) (free3))"
 
 		    "1+1e10i" "1e15+1e15i" "0+1e18i" "1e18" 
 		    ;;"(real-part (random 0+i))" -- (cond (real-part...))!
@@ -525,13 +548,14 @@
 		    "_undef_"
 		    "+signature+" "+documentation+" "+setter+" 
 		    "__var2__"
-		    "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\""
-		    "(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
-		    "(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
-		    "(immutable! (inlet 'a 1 'b 2))" 
-		    "(immutable! (block 0.0 1.0 2.0))" 
-		    "(immutable! (hash-table* 'a 1 'b 2))"
-		    "(immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ()))))))"
+		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" -- creates files by these names!
+		    "ims" "imbv" "imv" "imiv" "imfv" "imi" "imb" "imh" ;;"imp"--many ways to cloober this
+		    ;"(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
+		    ;"(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
+		    ;"(immutable! (inlet 'a 1 'b 2))" 
+		    ;"(immutable! (block 0.0 1.0 2.0))" 
+		    ;"(immutable! (hash-table* 'a 1 'b 2))"
+		    ;"(immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ()))))))"
 		    ;"(immutable! 'x)"
 
 		    ;;"(make-list 16 0)" "(make-vector 16 0)" "(make-int-vector 16 0)" "(make-float-vector 16 0)" "(make-byte-vector 16 0)"
@@ -547,7 +571,7 @@
 		    "(error 'oops \"an error!\")"
 		    "(set! (symbol-setter 'x) (lambda (s v) 1))"
 
-		    "(catch #t 1 cons)" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
+		    ;;"(catch #t 1 (lambda (a b) b))" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
@@ -584,6 +608,7 @@
 	      (list "(begin (_ct1_ " "(begin (_ct2_ ")
 	      (list "(begin (_mem1_ " "(begin (_mem2_ ")
 	      (list "(begin (_ft1_ " "(begin (_ft2_ ")
+	      (list "(begin (_fa1_ " "(begin (_fa2_ ")
 	      (list "(with-output-to-string (lambda () " "(begin (_dw_out_ ")
 	      (list "(begin (_rf1_ " "(begin (_rf2_ ")
 	      (list "(let () (_do1_ " "(let () (_do2_ ")
@@ -630,8 +655,8 @@
 	  (set! j 1)
 	  (fill! str #\space)
 	  (set! (str 0) #\()
-	  (let* ((op (functions (random flen)))
-		 (opstr (fix-op op)))
+
+	  (let ((opstr (fix-op (functions (random flen)))))
 	    (do ((oplen (length opstr))
 		 (n 0 (+ n 1))
 		 (k j (+ k 1)))
@@ -753,7 +778,10 @@
 			   (and (infinite? val1)
 				(not (and (infinite? val2) (infinite? val3) (infinite? val4))))
 			   (and (finite? val1)
-				(not (and (finite? val2) (finite? val3) (finite? val4)))))
+				(not (and (finite? val2) (finite? val3) (finite? val4))))
+			   (and (real? val1) (real? val2) (real? val3) (real? val4) 
+				(or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
+				    (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
 		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
 			       str str1 str2 str3 str4 
 			       val1 val2 val3 val4)))))
