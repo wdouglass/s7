@@ -55942,6 +55942,13 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_WHEN_PP:
     case OP_UNLESS1:
     case OP_WITH_LET1:
+    case OP_CASE_G_G:
+    case OP_CASE_G_S:
+    case OP_CASE_E_G:
+    case OP_CASE_E_S:
+    case OP_CASE_I_S:
+    case OP_COND1:
+    case OP_COND1_SIMPLE:
       return(car(args));
       
     case OP_BARRIER:
@@ -60655,12 +60662,9 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	    {
 	      if (is_symbol(arg1))
 		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SAA);
-	      else 
-		{
-		  set_optimize_op(expr, hop + OP_SAFE_CLOSURE_ALL_X);
-		  set_opt_id2(expr, symbol_id(car(expr)));
-		  set_local_slot(car(expr), symbol_to_slot(sc, car(expr)));
-		}
+	      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_ALL_X);
+	      set_opt_id2(expr, symbol_id(car(expr)));
+	      set_local_slot(car(expr), symbol_to_slot(sc, car(expr)));
 	    }
 	  else set_optimize_op(expr, hop + OP_CLOSURE_ALL_X);
 	  set_unsafely_optimized(expr);
@@ -67723,12 +67727,9 @@ static int32_t unknown_all_x_ex(s7_scheme *sc, s7_pointer f)
 	      if ((is_symbol(cadr(code))) &&
 		  (num_args == 3))
 		set_optimize_op(code, hop + OP_SAFE_CLOSURE_SAA);
-	      else 
-		{
-		  set_opt_id2(code, symbol_id(car(code)));
-		  set_local_slot(car(code), symbol_to_slot(sc, car(code)));
-		  set_optimize_op(code, hop + OP_SAFE_CLOSURE_ALL_X);
-		}
+	      else set_optimize_op(code, hop + OP_SAFE_CLOSURE_ALL_X); 
+	      set_opt_id2(code, symbol_id(car(code)));
+	      set_local_slot(car(code), symbol_to_slot(sc, car(code)));
 	    }
 	  else set_optimize_op(code, hop + OP_CLOSURE_ALL_X);
 	  set_opt_lambda(code, f);
@@ -72438,7 +72439,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		  
 		case OP_SAFE_CLOSURE_SAA:
-		  if (!closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 3)) break;
+		  if (!safe_closure_is_ok(sc, code, MATCH_SAFE_CLOSURE, 3)) break;
 		case HOP_SAFE_CLOSURE_SAA:
 		  {
 		    s7_pointer args, z, f;
@@ -76163,11 +76164,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = _TLst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
-		  {
-		    if (is_multiple_value(sc->value))
-		      sc->value = splice_in_values(sc, sc->value);
-		    goto START;
-		  }
+		  goto START;
 		if (is_null(cdr(sc->code)))
 		  {
 		    sc->code = car(sc->code);
@@ -76375,11 +76372,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = _TLst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
-		  {
-		    if (is_multiple_value(sc->value))
-		      sc->value = splice_in_values(sc, sc->value);
-		    goto START;
-		  }
+		  goto START;
+
 	      ELSE_CASE_2:
 		if (is_null(cdr(sc->code)))
 		  {
@@ -84151,26 +84145,11 @@ int main(int argc, char **argv)
  *   (profile-count file line)?
  *
  * is_type_||cdr|cddr|cadr|_s?
- * safe_closure*_is_ok throughout safe closures [thunks done, all_x done], package this stuff eventually
+ * safe_closure*_is_ok throughout safe closures [thunks done, all_x done, 3-args done], package this stuff eventually
  *   can the two cases be combined by setting unsafe id2 to 1?
- *   need 1/2/3 arg cases
+ *   need 1|2 arg cases
  * does (define-constant first car) fully optimize (first p)?
  * nth-value?
- * is this intentional: [(if (begin (values #t #f))) -> error (same for when)]
- *                      [<7> (if (values #t #t) 0) 0, <8> (if (values #f #t) 0) 0, <9> (if (values #f #f) 0) 0!]
- *                      [so it doesn't see the mv as arg]
- *   neither does cond but the latter passes it via =>
- *   (case (values 1 2) ((1) 0)) #<unspecified>
- *   (with-let (values...)) -> error that mv is not a let
- *   but splicing here is trouble: (if (expr) x y) if expr -> mv! implicit nth-value 0?
- *   CL acts as if nth-value 0: (if (values 1 ()) 3 4) 3, (if (values () 1) 3 4) 4
- *   TODO: rest of these cases with tests (opt too) and doc
- *   [cond needs to check explicitly?  or change how => works?]
- *   (cond ((values #f #t) 1) ((values #f #t)))??
- *   sbcl: (cond ((values () t) 1) (t 2)) 2, (cond ((values t ()) 1) (t 2)) 1
- *   more cases: do test and case selector
- *   all errors checked as in values section (need report by line num+code+error result, merge by line num)
- * s7test symbol section?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84201,25 +84180,25 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------
  *
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2
- * tmac          |      |      |      || 9052 ||  264 |  264   266
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1904
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2596
- * lint          |      |      |      || 4041 || 2702 | 2696  2642
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   266
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1167
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1468
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1904  1904
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2127
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2596  2627
+ * lint          |      |      |      || 4041 || 2702 | 2696  2642  2643
  * lg            |      |      |      || 211  || 133  | 133.4 132.2
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988
- * tsort         |      |      |      || 8584 || 4111 | 4111  4198
- * titer         |      |      |      || 5971 || 4646 | 4646  5121
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2784
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3018
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4198  4196
+ * titer         |      |      |      || 5971 || 4646 | 4646  5121  5144
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7828
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
  *                                    || 139  || 85.9 | 86.5  87.2
  * 
  * ----------------------------------------------------------------------

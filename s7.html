@@ -3529,6 +3529,13 @@ possible set of multiple values.  In lint.scm, I'm currently handling this with 
 CL has nth-value which appears to do "the right thing" in this context; perhaps s7 needs
 it too.
 </p>
+<p>A similar difficulty arises in <code>(if (expr) ...)</code> where <code>(expr)</code> might
+return multiple values. CL (or sbcl anyway) treats this as if it were wrapped in <code>(nth-value 0 (expr))</code>.
+Splicing the values in, on the other hand, could lead to disaster: there would be no way to tell from the code
+that the if statement
+was valid, or which branch would be taken!  So, in those cases where a syntactic form evaluates
+an argument, s7 follows CL, and uses only the first of the values (this affects if, when, unless, cond, and case).
+</p>
 
 
 
@@ -3548,124 +3555,6 @@ it too.
 <div class="indented">
 </details>
 -->
-
-
-<details>
-<summary class="indented">more on values</summary>
-<div class="indented">
-
-<p>In some Schemes, values behaves like CL's prog1:
-</p>
-
-<pre class="indented">
-(not s7)&gt; (let ((x 1)) (cond ((values #f (set! x 2) #t) 3) (#t x)))
-<em class="gray">2</em>
-(not s7)&gt; (if (values #f #t) 1 2)
-<em class="gray">2</em>
-</pre>
-
-<p>But in s7 we're trying to implement real multiple values (else why have them at all?).
-There are many ways we could interpret <code>(cond ((values ...))...)</code> and
-<code>(cond ((values...) =&gt; func))</code>, but surely
-equivalent uses of "cond" and "if" should give the same result.
-Currently in s7, where a test is in progress, only <code>(values #f)</code> is the same as #f.
-</p>
-
-<pre class="indented">
-&gt; (if (values #f #f) 1 2)            ; (values #f #f) is not #f
-<em class="gray">1</em>
-&gt; (cond ((values #f #f) 1) (#t 2))
-<em class="gray">1</em>
-;;; but if we interpreted this as splicing in the values, we get an inconsistency:
-&gt; (cond (#f #f 1) (#t 2))
-<em class="gray">2</em>
-&gt; (if (values #f) 1 2)
-<em class="gray">2</em>
-&gt; (cond ((values #f) 1) (#t 2))
-<em class="gray">2</em>
-&gt; (if (values) 1 2)
-<em class="gray">1</em>
-&gt; (cond ((values) 1) (#t 2))
-<em class="gray">1</em>
-;;; this is consistent with (cond (1) (#t 2))
-</pre>
-
-<p>
-So "if" and "cond" agree, but it requires that in one case the "values"
-behavior is slightly weird.  <code>(or (values #f #f))</code> is #f, but that isn't inconsistent because
-"or" is not testing anything.
-We might choose to say that <code>(if (values #f #f)...)</code>
-is an error, but that would be hasty &mdash;
-our troubles have only begun.  First, "cond" can omit the expressions that follow the test, unlike "if":
-</p>
-
-<pre class="indented">
-&gt; (cond (3))
-<em class="gray">3</em>
-</pre>
-
-<p>and even trickier, "cond" can pass the test value to a function:
-</p>
-
-<pre class="indented">
-&gt; (cond (3 =&gt; +))
-<em class="gray">3</em>
-</pre>
-
-<p>The various standards agree that in the "=&gt;" case, the "fed to" function
-receives one argument, so
-</p>
-
-<pre class="indented">
-(not s7)&gt; (cond ((values 1 2) =&gt; +))
-<em class="gray">1</em>
-</pre>
-
-<p>If we were following the "splice immediately" model, this would be <code>(cond (1 2 =&gt; +))</code>
-which is an error in some Schemes.
-So something has to give.  My druthers is to make "values" work as consistently as possible, and hope
-that the one odd corner will not trip anyone.  From that point of view, the "one argument" standard
-looks like a wasted opportunity.
-s7 handles it this way:
-</p>
-
-<pre class="indented">
-&gt; (+ 1 (cond ((values 2 3))) 4)   ; trailing values are not ignored
-<em class="gray">10</em>
-&gt; (cond ((values 1 2 3) =&gt; +))
-<em class="gray">6</em>
-&gt; (cond 
-       ((cond 
-          ((cond ((assoc 'x '((x 1 2 3))) =&gt; cdr)
-                 (else #f))
-            =&gt; apply-values) 
-          (else #f))
-         =&gt; +)
-       (else #f))
-<em class="gray">6</em>
-</pre>
-
-<p>Of course, it is unproblematic that the expression can itself involve multiple values:
-</p>
-
-<pre class="indented">
-&gt; (+ (cond (#t (values 1 2))))
-<em class="gray">3</em>
-</pre>
-
-<p>Ideally we'd have a way to tie the values into the
-normal use of =&gt;.  That is, (cond ((assoc x y) =&gt; f)...) would have some nice
-way to take the non-#f value from assoc, wrap it arbitrarily in values and pass that
-to the fed-to function; or equivalently, indicate which argument in the fed-to function
-gets the assoc value (=&lt;?).
-Currently you have to use let or lambda, which partly defeats the
-purpose of =&gt;.  The multi-cond example above is as close as I've come so far,
-but it depends on an s7-internal function (the quasiquote helper apply-values)
-which I'd much rather avoid.
-</p>
-
-</div>
-</details>
 
 </blockquote>
 

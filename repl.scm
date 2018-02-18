@@ -903,7 +903,11 @@
 				    ;; get the newline out if the expression does not involve a read error
 				    (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
 				      (newline *stderr*)
-				      (let ((val (eval form (*repl* 'top-level-let))))
+				      (let ((val ((lambda args
+						    (if (pair? (cdr args))
+							(cons 'values args)
+							(car args)))
+						  (eval form (*repl* 'top-level-let)))))
 					(if unbound-case
 					    (set! unbound-case #f)
 					    (begin
