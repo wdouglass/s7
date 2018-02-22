@@ -288,6 +288,9 @@
   #define S7_DEBUGGING 0
 #endif
 
+#undef DEBUGGING
+#define DEBUGGING typo!
+
 #ifndef OP_NAMES
   #define OP_NAMES 0
 #endif
@@ -1131,9 +1134,6 @@ struct s7_scheme {
              with_input_from_file_symbol, with_input_from_string_symbol, with_output_to_file_symbol, with_output_to_string_symbol,
              write_byte_symbol, write_char_symbol, write_string_symbol, write_symbol,
              local_documentation_symbol, local_signature_symbol, local_setter_symbol;
-#if (!DISABLE_DEPRECATED)
-  s7_pointer procedure_documentation_symbol, procedure_signature_symbol, procedure_setter_symbol;
-#endif         
 #if (!WITH_PURE_S7)
   s7_pointer is_char_ready_symbol, char_ci_leq_symbol, char_ci_lt_symbol, char_ci_eq_symbol, char_ci_geq_symbol, char_ci_gt_symbol, 
              let_to_list_symbol, integer_length_symbol, string_ci_leq_symbol, string_ci_lt_symbol, string_ci_eq_symbol,
@@ -25777,6 +25777,12 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
       iterator_set_slow(iter, e);
       break;
 
+    case T_NIL: /* (make-iterator #()) -> #<iterator: vector>, so I guess () should also work */
+      iterator_length(iter) = 0;
+      iterator_next(iter) = iterator_finished;
+      clear_iter_ok(iter);
+      break;
+
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
@@ -25823,7 +25829,6 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
     }
   return(iter);
 }
-
 
 static s7_pointer g_make_iterator(s7_scheme *sc, s7_pointer args)
 {
@@ -27429,7 +27434,6 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
     }
 }
 
-
 static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t i, len;
@@ -27536,7 +27540,6 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
   free_cell(sc, iterator);
 }
 
-
 static int32_t slot_to_port_1(s7_scheme *sc, s7_pointer x, s7_pointer port, use_write_t use_write, shared_info *ci, int32_t n)
 {
   if (is_slot(x))
@@ -27636,7 +27639,6 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     }
 }
 
-
 static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 {
   s7_pointer arglist, body, expr;
@@ -27728,7 +27730,6 @@ static void collect_locals(s7_scheme *sc, s7_pointer body, s7_pointer e, s7_poin
 	}
     }
 }
-
 
 static s7_pointer find_closure(s7_scheme *sc, s7_pointer closure, s7_pointer cur_env)
 {
@@ -27872,7 +27873,6 @@ static s7_pointer closure_name(s7_scheme *sc, s7_pointer closure)
   return(closure); /* desperation -- the parameter list (caar here) will cause endless confusion in OP_APPLY errors! */
 }
 
-
 static void write_closure_readably_1(s7_scheme *sc, s7_pointer obj, s7_pointer arglist, s7_pointer body, s7_pointer port)
 {
   s7_int old_print_length;
@@ -28009,7 +28009,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   full_typ,
@@ -28112,6 +28112,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 						    " ?25?")) : "",
 	   /* bit 26 */
 	   ((full_typ & T_DEFINER) != 0) ?        ((is_symbol(obj)) ? " definer" : " ?26?") : "",
+	   /* bit 27 */
+	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : " ?27?") : "",
+	   /* bit 28 */
+	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
@@ -28128,6 +28132,7 @@ static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
 
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_RECUR) != 0) && (!is_slot(obj))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -28142,6 +28147,7 @@ static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
   if (((full_typ & T_OVERLAY) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) && 
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)))
     return(true);
@@ -28998,6 +29004,12 @@ static void display_any(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 
 static void unique_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
+#if S7_DEBUGGING
+  if ((obj == sc->no_value) && 
+      (use_write == USE_READABLE_WRITE))
+    port_write_string(port)(sc, "#<unspecified>", 14, port);
+  else
+#endif
   port_write_string(port)(sc, unique_name(obj), unique_name_length(obj), port);
 }
 
@@ -38553,11 +38565,7 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
     }
 
   /* it would be neat if this would worK (define x (let ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
-#if DISABLE_DEPRECATED
   check_method(sc, p, sc->documentation_symbol, args);
-#else
-  check_two_methods(sc, p, sc->documentation_symbol, sc->procedure_documentation_symbol, args);
-#endif
   if ((!is_procedure(p)) &&
       (!is_any_macro(p)))
     return(simple_wrong_type_argument_with_type(sc, sc->documentation_symbol, p, a_procedure_string));
@@ -38655,19 +38663,11 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_STRING:       if (is_byte_vector_not_string(p)) return(sc->byte_vector_signature); return(sc->string_signature);
 
     case T_C_OBJECT: 
-#if DISABLE_DEPRECATED
       check_method(sc, p, sc->signature_symbol, args);
-#else
-      check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
-#endif
       return(sc->c_object_signature);
  
     case T_LET:
-#if DISABLE_DEPRECATED
       check_method(sc, p, sc->signature_symbol, args);
-#else
-      check_two_methods(sc, p, sc->signature_symbol, sc->procedure_signature_symbol, args);
-#endif
       return(sc->let_signature);
 
     case T_SYMBOL:
@@ -38857,7 +38857,6 @@ void s7_c_type_set_reverse(s7_scheme *sc, int32_t tag, s7_pointer (*reverse)(s7_
 }
 
 
-/* #if (!DISABLE_DEPRECATED) */
 void s7_object_type_set_direct(int32_t tag, 
 			       s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index), 
 			       s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
@@ -39218,11 +39217,7 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
       return(sc->F);
 
     case T_LET:
-#if DISABLE_DEPRECATED
       check_method(sc, p, sc->setter_symbol, args);
-#else
-      check_two_methods(sc, p, sc->setter_symbol, sc->procedure_setter_symbol, args);
-#endif
       return(slot_value(global_slot(sc->let_set_symbol)));
       break;
 
@@ -40478,6 +40473,7 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
     case T_STRING:
       return((is_string(iterator_sequence(y))) &&
 	     (iterator_position(x) == iterator_position(y)) &&
+	     (iterator_length(x) == iterator_length(y)) &&
 	     (string_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
 
     case T_VECTOR:
@@ -40485,23 +40481,48 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
     case T_FLOAT_VECTOR:
       return((s7_is_vector(iterator_sequence(y))) &&
 	     (iterator_position(x) == iterator_position(y)) &&
+	     (iterator_length(x) == iterator_length(y)) &&
 	     ((morally) ? (vector_morally_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)) : 
 	                  (vector_equal(sc, iterator_sequence(x), iterator_sequence(y), ci))));
 
+      /* iterator_next is a function (pair_iterate, iterator_finished etc) */
     case T_PAIR:
-      if (iterator_next(x) != iterator_next(y)) return(false);     /* even if seqs are equal, one might be at end (next is a procedure) */
+      if (iterator_next(x) != iterator_next(y)) return(false);     /* even if seqs are equal, one might be at end */
       if (morally)
 	return((pair_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)) &&
 	       (pair_equal(sc, iterator_current(x), iterator_current(y), ci)));  /* this repeats the previous calc */
       return((iterator_sequence(x) == iterator_sequence(y)) &&
 	     (iterator_current(x) == iterator_current(y)));        /* current pointer into the sequence */
 
+    case T_NIL:                                                    /* (make-iterator #()) works, so () should too */
+      return(is_null(iterator_sequence(y))); /* perhaps for morally case, check position in y as well as pair(seq(y))? */
+
+    case T_C_OBJECT:
+      return((is_c_object(iterator_sequence(y))) &&
+	     (iterator_position(x) == iterator_position(y)) &&
+	     (iterator_length(x) == iterator_length(y)) &&
+	     (c_object_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
+
+    case T_LET:
+      return((is_let(iterator_sequence(y))) &&
+	     (iterator_position(x) == iterator_position(y)) &&
+	     (iterator_next(x) == iterator_next(y)) &&
+	     (let_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
+
     case T_HASH_TABLE:
+      if (!is_hash_table(iterator_sequence(y))) return(false);
+      if (hash_table_entries(iterator_sequence(x)) != hash_table_entries(iterator_sequence(y))) return(false);
+      if (hash_table_entries(iterator_sequence(x)) == 0) return(true);
       return((iterator_sequence(x) == iterator_sequence(y)) &&
 	     (iterator_next(x) == iterator_next(y)) &&
 	     (iterator_current(x) == iterator_current(y)) &&
 	     (iterator_hash_current(x) == iterator_hash_current(y)) &&
 	     (iterator_position(x) == iterator_position(y)));
+
+      /* no morally-equal for hash etc, can t_lets be (morally-)equal?
+       * let case: (make-iterator (inlet 'integer? (lambda (f) #f)))
+       * hash case: (make-iterator (hash-table* 'a 1))
+       */
 
     default:
       break;
@@ -62343,7 +62364,7 @@ static s7_pointer optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_point
 #if SAFE_FORM_PRINT
       fprintf(stderr, "optimize_lambda %s: %s\n", DISPLAY_80(body), display_min_body(result));
 #endif
-      clear_symbol_list(sc);  /* tracks locals */
+      clear_symbol_list(sc);
 
       /* if the body is safe, we can optimize the calling sequence */
       if (!arglist_has_rest(sc, args))
@@ -62417,7 +62438,7 @@ static void check_lambda(s7_scheme *sc)
   
   /* in many cases, this is a no-op -- we already checked at define */
   check_lambda_args(sc, car(code), NULL);
-  clear_symbol_list(sc); /* tracks locals to this function */
+  clear_symbol_list(sc);
   
   /* look for (define f (let (...) (lambda ...))) and treat as equivalent to (define (f ...)...)
    *   one problem the hop=0 fixes is that safe closures assume the old frame exists, so we need to check for define below
@@ -67449,9 +67470,9 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	      if ((is_very_safe_closure(f)) && 
 		  (is_recur(slot)))
 		{
-#if DEBUGGING
+#if S7_DEBUGGING
 		  if (slot != local_slot(car(code)))
-		    fprintf(stderr, "%s[%d]: local slot != slot\n", __func__, __LINE__, local_slot(car(code)), slot);
+		    fprintf(stderr, "%s[%d]: local slot %p != slot %p\n", __func__, __LINE__, local_slot(car(code)), slot);
 #endif
 		  set_optimize_op(code, hop + OP_SAFE_LCLOSURE_A);
 		}
@@ -83209,7 +83230,7 @@ s7_scheme *s7_init(void)
    *    or maybe #<inf> and #<nan> using (- ...) for the negative cases
    */
   s7_define_constant(sc, "nan.0", real_NaN);
-  s7_define_constant(sc, "-nan.0", real_NaN);
+  s7_define_constant(sc, "-nan.0", real_NaN); /* for the reader's benefit */
   s7_define_constant(sc, "inf.0", real_infinity);
   s7_define_constant(sc, "-inf.0", real_minus_infinity);
 
@@ -83904,10 +83925,6 @@ s7_scheme *s7_init(void)
   s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
 
 #if (!DISABLE_DEPRECATED)
-  sc->procedure_documentation_symbol = s7_make_symbol(sc, "procedure-documentation");
-  sc->procedure_signature_symbol = s7_make_symbol(sc, "procedure-signature");
-  sc->procedure_setter_symbol = s7_make_symbol(sc, "procedure-setter");
-
   s7_eval_c_string(sc, "(begin                                                \n\
                           (define global-environment         rootlet)         \n\
                           (define current-environment        curlet)          \n\
@@ -84001,9 +84018,8 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- *
- * is_type_||cdr|cddr|cadr|_s?
- * nth-value? [mv with-baffle] dont_copy_args: values-ref? (indicates set!) 
+ * t745.scm has innumerable :readable print problems [could also run lint over both]
+ *   what about copy->equal?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84021,7 +84037,6 @@ int main(int argc, char **argv)
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
- * maybe NO_VECTORIZE or fixup WITH_VECTORIZE and OVERFLOW_CHECKS testsnd/compsnd compiler flag
  *
  * the old mus-audio-* code needs to use play (see bess.scm)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
@@ -84052,7 +84067,7 @@ int main(int argc, char **argv)
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7831
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42,1
- *                                    || 139  || 85.9 | 86.5  87.2
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
+ *                                    || 139  || 85.9 | 86.5  87.2  86.8
  * ----------------------------------------------------------------------
  */
