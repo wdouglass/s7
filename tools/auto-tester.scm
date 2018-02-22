@@ -37,7 +37,7 @@
 (define (free1) (set! x (- (+ x 1) 1)))
 (define (free2) (x i))
 (define (free3) (local-func 0))
-
+(define (_vals_) (values #f 1 2))
 (define (finite? n) (not (or (nan? n) (infinite? n))))
 
 (define (s7-print-length) (*s7* 'print-length))
@@ -240,7 +240,7 @@
   `(let ((_f_ (lambda () ,@args))) (_f_) (_f_)))
 
 (define-expansion (_ft2_ . args)
-  `(let () (define (_f_) ,@args) (_f_) (_f_)))
+  `(let () (define (_f_) ,@args) (define (g) (_f_)) (g) (g)))
 
 (define-expansion (_fa1_ . args)
   `(let ((_y_ (begin ,@args))) (define (f x) (x)) (f _y_)))
@@ -481,7 +481,7 @@
 			  'log-n-of ; stack grows if n < 0?
 			  'pp
 
-			  'kar '_dilambda_
+			  'kar '_dilambda_ '_vals_
 			  'free1 'free2 'free3
 
 			  'tree-cyclic?
@@ -529,7 +529,7 @@
 		    
 		    "(call-with-exit (lambda (goto) goto))"
 		    "(with-baffle (call/cc (lambda (cc) cc)))"
-		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\")\")"
+		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\\\")\")"
 		    ;;"(setter _definee_)"
 		    "(setter car)" "(setter kar)"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
@@ -545,7 +545,7 @@
 		    ;;"(else ())" "(else (f x) B)"
 		    "(else)"
 		    "else" "x" "(+ x 1)" "(+ 1/2 x)" "(abs x)" "(+ x 1 2+i)" "(* 2 x 3.0 4)" "((x 1234))" "((x 1234) (y 1/2))" "'x" "(x 1)"
-		    "_undef_"
+		    "_undef_" "(begin |undef1|)"
 		    "+signature+" "+documentation+" "+setter+" 
 		    "__var2__"
 		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" -- creates files by these names!
@@ -569,7 +569,6 @@
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
 		    "(error 'oops \"an error!\")"
-		    "(set! (symbol-setter 'x) (lambda (s v) 1))"
 
 		    ;;"(catch #t 1 (lambda (a b) b))" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
@@ -740,16 +739,20 @@
 		      (string-position "(set!" str1)
 		      (string-position "gensym" str1))
 
-	    (cond ((or (and (symbol? val1)
-			    (not (gensym? val1)))
-		       (boolean? val1)
-		       (syntax? val1))
-		   (unless (and (eq? val1 val2)
-				(eq? val1 val3)
-				(eq? val1 val4))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
-			     str str1 str2 str3 str4 
-			     val1 val2 val3 val4)))
+	    (cond ((symbol? val1)
+		   (if (gensym? val1)
+		       (unless (and (gensym? val2)
+				    (gensym? val3)
+				    (gensym? val4))
+			 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+				 str str1 str2 str3 str4 
+				 val1 val2 val3 val4))
+		       (unless (and (eq? val1 val2)
+				    (eq? val1 val3)
+				    (eq? val1 val4))
+			 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+				 str str1 str2 str3 str4 
+				 val1 val2 val3 val4))))
 
 		  ((sequence? val1)
 		   (let ((len1 (length val1)))
@@ -760,14 +763,10 @@
 		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
 			       str str1 str2 str3 str4 
 			       val1 val2 val3 val4))
-		     (if (or (and (string? val1)
-				  (not (and (eq? (byte-vector? val1) (byte-vector? val2))
-					    (eq? (byte-vector? val1) (byte-vector? val3))
-					    (eq? (byte-vector? val1) (byte-vector? val4)))))
-			     (and (gensym? val1)
-				  (not (and (gensym? val2) (gensym? val3) (gensym? val4))))
-			     (and (keyword? val1)
-				  (not (and (keyword? val2) (keyword? val3) (keyword? val4)))))
+		     (if (and (string? val1)
+			      (not (and (eq? (byte-vector? val1) (byte-vector? val2))
+					(eq? (byte-vector? val1) (byte-vector? val3))
+					(eq? (byte-vector? val1) (byte-vector? val4)))))
 			 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
 				 str str1 str2 str3 str4 
 				 val1 val2 val3 val4))))
@@ -784,7 +783,38 @@
 				    (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
 		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
 			       str str1 str2 str3 str4 
-			       val1 val2 val3 val4)))))
+			       val1 val2 val3 val4)))
+
+		  ((or (boolean? val1)
+		       (syntax? val1)
+		       (unspecified? val1)
+		       (char? val1)
+		       (eof-object? val1)
+		       (null? val1))
+		   (unless (and (eq? val1 val2)
+				(eq? val1 val3)
+				(eq? val1 val4))
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+			     str str1 str2 str3 str4 
+			     val1 val2 val3 val4)))
+
+		  ((c-pointer? val1)
+		   (unless (and (morally-equal? val1 val2)
+				(morally-equal? val1 val3)
+				(morally-equal? val1 val4))
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+			     str str1 str2 str3 str4 
+			     val1 val2 val3 val4)))
+
+		  ((or (undefined? val1)
+		       (c-object? val1))
+		   (unless (and (equal? val1 val2)
+				(equal? val1 val3)
+				(equal? val1 val4))
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+			     str str1 str2 str3 str4 
+			     val1 val2 val3 val4)))
+		  ))
 	  (begin
 	    (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
 		    str1 str2 str3 str4 
@@ -827,7 +857,7 @@
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)))
-      (let ((nstr (make-expr (+ 1 (random 6)))))
+      (let ((nstr (make-expr (+ 1 (random 4)))))
 	(set! nostr nstr)
 	(catch #t 
 	  (lambda () 
@@ -844,7 +874,29 @@
 		(val6 (eval-it str6))
 		(val7 (eval-it str7))
 		(val8 (eval-it str8)))
-	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8)))))
+	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8)))
+	(let ((str5 (string-append "(let ((x 0)) (cond ((not ((lambda args (car args)) (let () " nstr "))) #<unspecified>) (else " str ")))"))
+	      (str6 (string-append "(let ((x 0)) (when (let () " nstr ") " str "))"))
+	      (str7 (string-append "(let ((x 0)) (unless (not ((lambda args (car args)) (let () " nstr "))) " str "))"))
+	      (str8 (string-append "(let ((x 0)) (cond ((let () " nstr ") " str ")))")))
+	  (let ((val5 (eval-it str5))
+		(val6 (eval-it str6))
+		(val7 (eval-it str7))
+		(val8 (eval-it str8)))
+	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8)))
+#|
+	(let ((mstr (make-expr (+ 1 (random 4)))))
+	  (let* ((str5 (string-append "(let () (if (begin " mstr " ) (begin " nstr ") (begin " str ")))"))
+		 (str6 (string-append "(let () (define (func) " str5 ") (define (hi) (func)) (hi))"))
+		 (str7 (string-append "(let () (cond ((begin " mstr ") " nstr ") (else " str ")))"))
+		 (str8 (string-append "(let () (define (func) " str7 ") (define (hi) (func)) (hi))")))
+	    (let ((val5 (eval-it str5))
+		  (val6 (eval-it str6))
+		  (val7 (eval-it str7))
+		  (val8 (eval-it str8)))
+	      (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8))))
+|#
+	))
 
     (define dots (vector "." "-" "+" "-"))
     (define (test-it)
@@ -859,7 +911,7 @@
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))
 
-	(try-both (make-expr (+ 1 (random 8)))) ; min 1 here not 0
+	(try-both (make-expr (+ 1 (random 4)))) ; min 1 here not 0
 	(set! __var__ #f)
 #|	
 	(catch #t
