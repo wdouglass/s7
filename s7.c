@@ -2485,19 +2485,33 @@ static int64_t not_heap = -1;
 #define hash_table_procedures_checker(p) car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
 
+#if S7_DEBUGGING
+#define _TItr_Pos(p)  titr_pos(_TItr(p), __func__, __LINE__)
+#define _TItr_Len(p)  titr_len(_TItr(p), __func__, __LINE__)
+#define _TItr_Hash(p) titr_hash(_TItr(p), __func__, __LINE__)
+#define _TItr_Let(p)  titr_let(_TItr(p), __func__, __LINE__)
+#define _TItr_Pair(p) titr_pair(_TItr(p), __func__, __LINE__)
+#else
+#define _TItr_Pos(p)  p
+#define _TItr_Len(p)  p
+#define _TItr_Hash(p) p
+#define _TItr_Let(p)  p
+#define _TItr_Pair(p) p
+#endif
+
 #define is_iterator(p)                (type(p) == T_ITERATOR)
 #define iterator_sequence(p)          (_TItr(p))->object.iter.obj
-#define iterator_position(p)          (_TItr(p))->object.iter.lc.loc
-#define iterator_length(p)            (_TItr(p))->object.iter.lw.len
-#define iterator_slow(p)              _TLst((_TItr(p))->object.iter.lw.slow)
-#define iterator_set_slow(p, Val)     (_TItr(p))->object.iter.lw.slow = _TLst(Val)
-#define iterator_hash_current(p)      (_TItr(p))->object.iter.lw.hcur
-#define iterator_current(p)           (_TItr(p))->object.iter.cur
-#define iterator_current_slot(p)      _TSln((_TItr(p))->object.iter.lc.lcur)
-#define iterator_set_current_slot(p, Val) (_TItr(p))->object.iter.lc.lcur = _TSln(Val)
-#define iterator_let_cons(p)          (_TItr(p))->object.iter.cur
+#define iterator_position(p)          (_TItr_Pos(p))->object.iter.lc.loc
+#define iterator_length(p)            (_TItr_Len(p))->object.iter.lw.len
 #define iterator_next(p)              (_TItr(p))->object.iter.next
 #define iterator_is_at_end(p)         ((typeflag(_TItr(p)) & T_ITER_OK) == 0)
+#define iterator_slow(p)              _TLst((_TItr_Pair(p))->object.iter.lw.slow)
+#define iterator_set_slow(p, Val)     (_TItr_Pair(p))->object.iter.lw.slow = _TLst(Val)
+#define iterator_hash_current(p)      (_TItr_Hash(p))->object.iter.lw.hcur
+#define iterator_current(p)           (_TItr(p))->object.iter.cur
+#define iterator_current_slot(p)      _TSln((_TItr_Let(p))->object.iter.lc.lcur)
+#define iterator_set_current_slot(p, Val) (_TItr_Let(p))->object.iter.lc.lcur = _TSln(Val)
+#define iterator_let_cons(p)          (_TItr_Let(p))->object.iter.cur
 
 #define ITERATOR_END eof_object
 #define ITERATOR_END_NAME "#<eof>"
@@ -25434,6 +25448,61 @@ static s7_pointer g_with_input_from_file(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- iterators -------------------------------- */
 
+#if S7_DEBUGGING
+static s7_pointer titr_let(s7_pointer p, const char *func, int line)
+{
+  if (!is_let(iterator_sequence(p)))
+    {
+      fprintf(stderr, "%s%s[%d]: let iterator sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      if (stop_at_error) abort();
+    }
+  return(p);
+}
+
+static s7_pointer titr_pair(s7_pointer p, const char *func, int line)
+{
+  if (!is_pair(iterator_sequence(p)))
+    {
+      fprintf(stderr, "%s%s[%d]: pair iterator sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      if (stop_at_error) abort();
+    }
+  return(p);
+}
+
+static s7_pointer titr_hash(s7_pointer p, const char *func, int line)
+{
+  if (!is_hash_table(iterator_sequence(p)))
+    {
+      fprintf(stderr, "%s%s[%d]: hash iterator sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      if (stop_at_error) abort();
+    }
+  return(p);
+}
+
+static s7_pointer titr_len(s7_pointer p, const char *func, int line)
+{
+  if ((is_hash_table(iterator_sequence(p))) ||
+      (is_pair(iterator_sequence(p))))
+    {
+      fprintf(stderr, "%s%s[%d]: iterator length sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      if (stop_at_error) abort();
+    }
+  return(p);
+}
+
+static s7_pointer titr_pos(s7_pointer p, const char *func, int line)
+{
+  if (((is_let(iterator_sequence(p))) &&
+       (iterator_sequence(p) != cur_sc->rootlet)) ||
+      (is_pair(iterator_sequence(p))))
+    {
+      fprintf(stderr, "%s%s[%d]: iterator position sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      if (stop_at_error) abort();
+    }
+  return(p);
+}
+#endif
+
 static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_iterator "(iterator? obj) returns #t if obj is an iterator."
@@ -25450,14 +25519,13 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer iterator_copy(s7_scheme *sc, s7_pointer p)
 {
-  /* fields are obj cur [loc|lcur] [len|slow|hcur] next */
+  /* fields are obj cur [loc|lcur] [len|slow|hcur] next, but untangling them in debugging case is a pain */
   s7_pointer iter;
-  new_cell(sc, iter, T_ITERATOR | T_SAFE_PROCEDURE | (iter_ok(p) ? T_ITER_OK : 0));
-  iterator_sequence(iter) = iterator_sequence(p);   /* obj */
-  iterator_position(iter) = iterator_position(p);   /* loc|lcur (loc is s7_int) */
-  iterator_length(iter) = iterator_length(p);       /* len|slow|hcur (len is s7_int) */
-  iterator_current(iter) = iterator_current(p);     /* cur */
-  iterator_next(iter) = iterator_next(p);           /* next */
+  int64_t hloc;
+  new_cell(sc, iter, T_ITERATOR | T_SAFE_PROCEDURE);
+  hloc = heap_location(iter);
+  memcpy((void *)iter, (void *)p, sizeof(s7_cell));
+  heap_location(iter) = hloc;
   return(iter);
 }
 
@@ -25719,7 +25787,8 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 
   new_cell(sc, iter, T_ITERATOR | T_SAFE_PROCEDURE | T_ITER_OK);
   iterator_sequence(iter) = e;
-  iterator_position(iter) = 0;
+  if ((!is_let(e)) && (!is_pair(e)))
+    iterator_position(iter) = 0;
 
   switch (type(e))
     {
@@ -25727,6 +25796,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
       if (e == sc->rootlet)
 	{
 	  iterator_current(iter) = vector_element(e, 0); /* unfortunately tricky -- let_iterate uses different fields */
+	  iterator_position(iter) = 0;
 	  iterator_next(iter) = rootlet_iterate;
 	}
       else
@@ -26638,14 +26708,20 @@ static bool symbol_needs_slashification(s7_pointer obj)
   unsigned char *p, *pend;
   const char *str;
   int32_t len;
+  bool all_digits = true;
   str = symbol_name(obj);
   if (str[0] == '#')
     return(true);
   len = symbol_name_length(obj);
   pend = (unsigned char *)(str + len);
   for (p = (unsigned char *)str; p < pend; p++)
-    if (symbol_slashify_table[*p])
-      return(true);
+    {
+      if (symbol_slashify_table[*p])
+	return(true);
+      if (digits[*p] > 9)
+	all_digits = false;
+    }
+  if (all_digits) return(true); /* (symbol "12") ! */
   set_clean_symbol(obj);
   return(false);
 }
@@ -26654,6 +26730,7 @@ static void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 {
   /* I think this is the only place we print a symbol's name
    *   but in the readable case, what about (symbol "1;3")? it actually seems ok!
+   *   or worse (symbol "12")
    */
   if ((!is_clean_symbol(obj)) &&
       (symbol_needs_slashification(obj)))
@@ -27297,7 +27374,9 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
        *   or (object->string (apply . `''1)) -> "'quote 1"
        * so (quote x) = 'x but (quote x y z) should be left alone (if evaluated, it's an error)
        */
-      port_write_character(port)(sc, '\'', port);
+      if (use_write == USE_READABLE_WRITE)
+	port_write_string(port)(sc, "''", 2, port);
+      else port_write_character(port)(sc, '\'', port);
       object_to_port_with_circle_check(sc, cadr(lst), port, USE_WRITE, ci);
       if ((use_write == USE_READABLE_WRITE) &&
 	  (is_immutable(lst)))
@@ -28891,7 +28970,39 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
   if (use_write == USE_READABLE_WRITE)
     {
       if (iterator_is_at_end(obj))
-	port_write_string(port)(sc, "(make-iterator #())", 19, port);
+	{
+	  switch (type(iterator_sequence(obj)))
+	    {
+	    case T_NIL:
+	    case T_PAIR:
+	      port_write_string(port)(sc, "(make-iterator ())", 18, port);
+	      break;
+	    case T_STRING:
+	      if (is_byte_vector(iterator_sequence(obj)))
+		port_write_string(port)(sc, "(make-iterator #u8())", 21, port);
+	      else port_write_string(port)(sc, "(make-iterator \"\")", 18, port);
+	      break;
+	    case T_VECTOR:
+	      port_write_string(port)(sc, "(make-iterator #())", 19, port);
+	      break;
+	    case T_INT_VECTOR:
+	      port_write_string(port)(sc, "(make-iterator #i())", 20, port);
+	      break;
+	    case T_FLOAT_VECTOR:
+	      port_write_string(port)(sc, "(make-iterator #r())", 20, port);
+	      break;
+	    case T_LET:
+	      port_write_string(port)(sc, "(make-iterator (inlet))", 23, port);
+	      break;
+	    case T_HASH_TABLE:
+	      port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);
+	      break;
+	    default:
+	      /* c-object?? */
+	      port_write_string(port)(sc, "(make-iterator ())", 18, port);
+	      break;
+	    }
+	}
       else
 	{
 	  s7_pointer seq;
@@ -28904,18 +29015,45 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	    }
 	  else
 	    {
-	      if (iterator_position(obj) > 0)
-		port_write_string(port)(sc, "(let ((iter (make-iterator ", 27, port);
-	      else port_write_string(port)(sc, "(make-iterator ", 15, port);
-	      object_to_port_with_circle_check(sc, iterator_sequence(obj), port, use_write, ci);
-	      if (iterator_position(obj) > 0)
+	      if (is_pair(seq))
 		{
-		  int32_t nlen;
-		  char str[128];
-		  nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" PRId64 ") iter) (iterate iter)))", iterator_position(obj));
-		  port_write_string(port)(sc, str, nlen, port);
+		  port_write_string(port)(sc, "(make-iterator ", 15, port);
+		  object_to_port_with_circle_check(sc, iterator_current(obj), port, use_write, ci);
+		  port_write_character(port)(sc, ')', port);
 		}
-	      else port_write_character(port)(sc, ')', port);
+	      else
+		{
+		  if ((is_let(seq)) && (seq != sc->rootlet))
+		    {
+		      s7_pointer slot;
+		      port_write_string(port)(sc, "(let ((iter (make-iterator ", 27, port);
+		      object_to_port_with_circle_check(sc, seq, port, use_write, ci);
+		      port_write_string(port)(sc, "))) ", 4, port);
+		      for (slot = let_slots(seq); slot != iterator_current_slot(obj); slot = next_slot(slot))
+			port_write_string(port)(sc, "(iter) ", 7, port);
+		      port_write_string(port)(sc, "iter)", 5, port);
+		    }
+		  else
+		    {
+		      if (iterator_position(obj) > 0)
+			port_write_string(port)(sc, "(let ((iter (make-iterator ", 27, port);
+		      else port_write_string(port)(sc, "(make-iterator ", 15, port);
+		      object_to_port_with_circle_check(sc, seq, port, use_write, ci);
+		      if (iterator_position(obj) > 0)
+			{
+			  if (iterator_position(obj) == 1)
+			    port_write_string(port)(sc, "))) (iter) iter)", 16, port);
+			  else
+			    {
+			      int32_t nlen;
+			      char str[128];
+			      nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" PRId64 ") iter) (iter)))", iterator_position(obj));
+			      port_write_string(port)(sc, str, nlen, port);
+			    }
+			}
+		      else port_write_character(port)(sc, ')', port);
+		    }
+		}
 	    }
 	}
     }
@@ -39860,12 +39998,18 @@ static bool s7_is_morally_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 
 static bool floats_are_morally_equal(s7_scheme *sc, s7_double x, s7_double y)
 {
+  s7_double diff, eps;
   if (x == y) return(true);
 
   if ((is_NaN(x)) || (is_NaN(y)))
     return((is_NaN(x)) && (is_NaN(y)));
 
-  return(fabs(x - y) <= sc->morally_equal_float_epsilon);
+  eps = sc->morally_equal_float_epsilon;
+  diff = fabs(x - y);
+  if (diff <= eps) return(true);
+  if (x < 0.0) x = -x;
+  return((x > 1.0) &&
+	 (diff < (x * eps)));
 }
 
 static bool eq_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -39961,12 +40105,22 @@ static bool port_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
 static bool port_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
-  if ((type(x) != type(y)) || (port_type(x) != port_type(y))) return(false);
+  if (type(x) != type(y)) return(false);
   if ((port_is_closed(x)) && (port_is_closed(y))) return(true);
-  return((is_string_port(x)) &&
-	 (port_position(x) == port_position(y)) &&
-	 (port_data_size(x) == port_data_size(y)) &&
-	 (local_strncmp((const char *)port_data(x), (const char *)port_data(y), (is_input_port(x)) ? port_data_size(x) : port_position(x))));
+  if (port_type(x) != port_type(y)) return(false);
+  switch (port_type(x))
+    {
+    case STRING_PORT:
+      return((port_position(x) == port_position(y)) &&
+	     (port_data_size(x) == port_data_size(y)) &&
+	     (local_strncmp((const char *)port_data(x), (const char *)port_data(y), (is_input_port(x)) ? port_data_size(x) : port_position(x))));
+    case FILE_PORT:
+      return((port_position(x) == port_position(y)) &&
+	     (local_strncmp((const char *)port_filename(x), (const char *)port_filename(y), port_filename_length(x))));
+    default:
+      return(false);
+    }
+  return(false);
 }
 
 #define equal_ref(Sc, X, Y, Ci) \
@@ -40504,8 +40658,8 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	     (c_object_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
 
     case T_LET:
+      /* TODO: check position here somehow -- rootlet uses it */
       return((is_let(iterator_sequence(y))) &&
-	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_next(x) == iterator_next(y)) &&
 	     (let_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
 
@@ -40584,14 +40738,14 @@ static bool integer_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 
   if (is_t_real(y))
     return((!is_NaN(real(y))) &&
-	   (fabs(integer(x) - real(y)) <= sc->morally_equal_float_epsilon));
+	   (floats_are_morally_equal(sc, (s7_double)integer(x), real(y))));
 
   if (is_t_ratio(y))
-    return(s7_fabsl(integer(x) - fraction(y)) <= sc->morally_equal_float_epsilon);
+    return(floats_are_morally_equal(sc, (s7_double)integer(x), (s7_double)fraction(y)));
 
   return((!is_NaN(real_part(y))) &&
 	 (!is_NaN(imag_part(y))) &&
-	 (fabs(integer(x) - real_part(y)) <= sc->morally_equal_float_epsilon) &&
+	 (floats_are_morally_equal(sc, (s7_double)integer(x), real_part(y))) &&
 	 (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
 }
 
@@ -40614,18 +40768,18 @@ static bool fraction_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
     return(big_equal(sc, set_plist_2(sc, x, y)) != sc->F);
 #endif
   if (is_t_ratio(y))
-    return(s7_fabsl(fraction(x) - fraction(y)) <= sc->morally_equal_float_epsilon);
+    return(floats_are_morally_equal(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
 
   if (is_t_real(y))
-    return(floats_are_morally_equal(sc, fraction(x), real(y)));
+    return(floats_are_morally_equal(sc, (s7_double)fraction(x), real(y)));
 
   if (is_integer(y))
-    return(s7_fabsl(fraction(x) - integer(y)) <= sc->morally_equal_float_epsilon);
+    return(floats_are_morally_equal(sc, (s7_double)fraction(x), (s7_double)integer(y)));
 
   if (is_t_complex(y))
     return((!is_NaN(real_part(y))) &&
 	   (!is_NaN(imag_part(y))) &&
-	   (s7_fabsl(fraction(x) - real_part(y)) <= sc->morally_equal_float_epsilon) &&
+	   (floats_are_morally_equal(sc, (s7_double)fraction(x), real_part(y))) &&
 	   (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
   return(false);
 }
@@ -40653,10 +40807,10 @@ static bool real_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 
   if (is_integer(y))
     return((!is_NaN(real(x))) &&
-	   (fabs(real(x) - integer(y)) <= sc->morally_equal_float_epsilon));
+	   (floats_are_morally_equal(sc, real(x), (s7_double)integer(y))));
 
   if (is_t_ratio(y))
-    return(floats_are_morally_equal(sc, real(x), fraction(y)));
+    return(floats_are_morally_equal(sc, real(x), (s7_double)fraction(y)));
 
   if (is_NaN(real(x)))
     return((is_NaN(real_part(y))) &&
@@ -40665,8 +40819,7 @@ static bool real_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
   return((!is_NaN(real(x))) &&
 	 (!is_NaN(real_part(y))) &&
 	 (!is_NaN(imag_part(y))) &&
-	 ((real(x) == real_part(y)) ||
-	  (fabs(real(x) - real_part(y)) <= sc->morally_equal_float_epsilon)) &&
+	 (floats_are_morally_equal(sc, real(x), real_part(y))) &&
 	 (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
 }
 
@@ -40694,13 +40847,13 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
   if (is_integer(y))
     return((!is_NaN(real_part(x))) &&
 	   (!is_NaN(imag_part(x))) &&
-	   (fabs(real_part(x) - integer(y)) <= sc->morally_equal_float_epsilon) &&
+	   (floats_are_morally_equal(sc, real_part(x), (s7_double)integer(y))) &&
 	   (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
 
   if (s7_is_ratio(y))
     return((!is_NaN(real_part(x))) &&
 	   (!is_NaN(imag_part(x))) &&
-	   (s7_fabsl(real_part(x) - fraction(y)) <= sc->morally_equal_float_epsilon) &&
+	   (floats_are_morally_equal(sc, real_part(x), (s7_double)fraction(y))) &&
 	   (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
 
   if (is_real(y))
@@ -40710,8 +40863,7 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
       if (is_NaN(real(y)))
 	return((is_NaN(real_part(x))) &&
 	       (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
-      return(((real_part(x) == real(y)) ||
-	      (fabs(real_part(x) - real(y)) <= sc->morally_equal_float_epsilon)) &&
+      return((floats_are_morally_equal(sc, real_part(x), real(y))) &&
 	     (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
     }
 
@@ -40719,22 +40871,18 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
   if (is_NaN(real_part(x)))
     return((is_NaN(real_part(y))) &&
 	   (((is_NaN(imag_part(x))) && (is_NaN(imag_part(y)))) ||
-	    (imag_part(x) == imag_part(y)) ||
-	    (fabs(imag_part(x) - imag_part(y)) <= sc->morally_equal_float_epsilon)));
+	    (floats_are_morally_equal(sc, imag_part(x), imag_part(y)))));
 
   if (is_NaN(imag_part(x)))
     return((is_NaN(imag_part(y))) &&
-	   ((real_part(x) == real_part(y)) ||
-	    (fabs(real_part(x) - real_part(y)) <= sc->morally_equal_float_epsilon)));
+	   (floats_are_morally_equal(sc, real_part(x), real_part(y))));
 
   if ((is_NaN(real_part(y))) ||
       (is_NaN(imag_part(y))))
     return(false);
 
-  return(((real_part(x) == real_part(y)) ||
-	  (fabs(real_part(x) - real_part(y)) <= sc->morally_equal_float_epsilon)) &&
-	 ((imag_part(x) == imag_part(y)) ||
-	  (fabs(imag_part(x) - imag_part(y)) <= sc->morally_equal_float_epsilon)));
+  return((floats_are_morally_equal(sc, real_part(x), real_part(y))) &&
+	 (floats_are_morally_equal(sc, imag_part(x), imag_part(y))));
 }
 
 static bool rng_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -81517,13 +81665,10 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	}
       if (sym == sc->bignum_precision_symbol)
 	{
-	  if (s7_is_integer(val))
-	    {
-	      sc->bignum_precision = s7_integer(val);
+	  sc->bignum_precision = s7_integer(val);
 #if WITH_GMP
-	      set_bignum_precision(sc, sc->bignum_precision);
+	  set_bignum_precision(sc, sc->bignum_precision);
 #endif
-	    }
 	}
       return(val);
     }
@@ -81606,19 +81751,37 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->morally_equal_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->morally_equal_float_epsilon = s7_real(val); return(val);}
+      if (s7_is_real(val))
+	{
+	  if (s7_real(val) < 0.0)
+	    return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be positive")));
+	  sc->morally_equal_float_epsilon = s7_real(val); 
+	  return(val);
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->hash_table_float_epsilon_symbol)
     {
-      if (s7_is_real(val)) {sc->hash_table_float_epsilon = s7_real(val); return(val);}
+      if (s7_is_real(val)) 
+	{
+	  if (s7_real(val) < 0.0)
+	    return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be positive")));
+	  sc->hash_table_float_epsilon = s7_real(val);
+	  return(val);
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
   if (sym == sc->default_rationalize_error_symbol)
     {
-      if (s7_is_real(val)) {sc->default_rationalize_error = s7_real(val); return(val);}
+      if (s7_is_real(val)) 
+	{
+	  if (s7_real(val) < 0.0)
+	    return(simple_out_of_range(sc, sym, val, s7_make_string_wrapper(sc, "should be positive")));
+	  sc->default_rationalize_error = s7_real(val);
+	  return(val);
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
     }
 
@@ -82291,9 +82454,13 @@ s7_scheme *s7_init(void)
       real_zero = make_permanent_real(0.0);
       real_one = make_permanent_real(1.0);
       real_NaN = make_permanent_real(NAN); /* in Guile, -nan.0 prints as +nan.0, (eq? +nan.0 -nan.0) is #t */
+      set_print_name(real_NaN, "nan.0", 5);
       real_infinity = make_permanent_real(INFINITY);
+      set_print_name(real_infinity, "inf.0", 5);
       real_minus_infinity = make_permanent_real(-INFINITY);
+      set_print_name(real_minus_infinity, "-inf.0", 6);
       real_pi = make_permanent_real(3.1415926535897932384626433832795029L); /* M_PI is not good enough for s7_double = long double */
+      set_print_name(real_pi, "pi", 2);
       arity_not_set = make_permanent_integer_unchecked(CLOSURE_ARITY_NOT_SET);
       max_arity = make_permanent_integer_unchecked(MAX_ARITY);
       minus_one = make_permanent_integer_unchecked(-1);
@@ -83144,6 +83311,7 @@ s7_scheme *s7_init(void)
 
   sc->c_object_set_function = s7_make_function(sc, "#<c-object-setter>", g_c_object_set, 1, 0, true, "c-object setter");
   /* c_function_signature(sc->c_object_set_function) = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T); */
+  /* this can't be printed readably via object->string because (currently anyway) it is not an s7_function or any_closure */
 
   set_scope_safe(slot_value(global_slot(sc->call_with_input_string_symbol)));
   set_scope_safe(slot_value(global_slot(sc->call_with_input_file_symbol)));
@@ -84018,8 +84186,11 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * t745.scm has innumerable :readable print problems [could also run lint over both]
- *   what about copy->equal?
+ * t745.scm has innumerable cycle print problems
+ *   readable trouble: (setter (block)), (sublet (inlet...)), fixable: iterator of two equal-but-different hash-tables, hash-function?
+ *   could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
+ *   need equal(h1,h2) in hash_equal+position=same (esp 0)
+ *   could let look for local outlet?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

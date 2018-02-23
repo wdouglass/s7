@@ -1,17 +1,13 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "5.13"
-#define S7_DATE "26-Jan-18"
+#define S7_VERSION "5.14"
+#define S7_DATE "22-Feb-18"
 
 #include <stdint.h>           /* for int64_t */
 
 typedef int64_t s7_int;       /* This sets the size of integers in Scheme; it needs to be big enough to accomodate a C pointer. */
 typedef double s7_double;     /*   similarly for Scheme reals; only double works in C++ */
-
-/* old forms... */
-typedef s7_int s7_Int;
-typedef s7_double s7_Double;
 
 #ifndef __cplusplus
 #ifndef _MSC_VER
@@ -819,6 +815,10 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 
 
 #if (!DISABLE_DEPRECATED)
+/* old forms... */
+typedef s7_int s7_Int;
+typedef s7_double s7_Double;
+
 /* cm uses this: */
 #define s7_UNSPECIFIED(Sc) s7_unspecified(Sc)
 #define s7_NIL(Sc) s7_nil(Sc)
@@ -886,6 +886,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  *        s7 changes
  *
  * 26-Jan-18: s7_set_setter.
+ * --------
  * 11-Dec:    s7_gc_protect_via_stack
  * 3-Oct:     renamed procedure-signature -> signature, procedure-documentation -> documentation, and procedure-setter -> setter.
  * 18-Sep:    s7_immutable, s7_is_immutable. define-constant follows lexical scope now.
