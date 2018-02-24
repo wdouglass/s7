@@ -397,6 +397,8 @@ typedef intptr_t opcode_t;
   #define POINTER_32 false
 #endif
 
+#define NEW_CYCLES S7_DEBUGGING
+
 
 /* types */
 #define T_FREE                 0
@@ -1320,6 +1322,7 @@ static void init_types(void)
   t_structure_p[T_SLOT] = true;
   t_structure_p[T_LET] = true;
   t_structure_p[T_ITERATOR] = true;
+  t_structure_p[T_C_POINTER] = true;
 
   t_sequence_p[T_NIL] = true;
   t_sequence_p[T_PAIR] = true;
@@ -10667,14 +10670,14 @@ static char *number_to_string_base_10(s7_pointer obj, int32_t width, int32_t pre
 	    char rbuf[128], ibuf[128];
 	    char *rp, *ip;
 	    if (is_NaN(real_part(obj)))
-	      rp = (char *)"nan.0";
+	      rp = (char *)"+nan.0";
 	    else
 	      {
 		if (is_inf(real_part(obj)))
 		  {
 		    if (real_part(obj) < 0.0)
 		      rp = (char *)"-inf.0";
-		    else rp = (char *)"inf.0";
+		    else rp = (char *)"+inf.0";
 		  }
 		else
 		  {
@@ -10683,14 +10686,14 @@ static char *number_to_string_base_10(s7_pointer obj, int32_t width, int32_t pre
 		  }
 	      }
 	    if (is_NaN(imag_part(obj)))
-	      ip = (char *)"nan.0";
+	      ip = (char *)"+nan.0";
 	    else
 	      {
 		if (is_inf(imag_part(obj)))
 		  {
 		    if (imag_part(obj) < 0.0)
 		      ip = (char *)"-inf.0";
-		    else ip = (char *)"inf.0";
+		    else ip = (char *)"+inf.0";
 		  }
 		else
 		  {
@@ -10793,12 +10796,12 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32_t 
 	x = real(obj);
 
 	if (is_NaN(x))
-	  return(copy_string_with_length("nan.0", *nlen = 5));
+	  return(copy_string_with_length("+nan.0", *nlen = 6));
 	if (is_inf(x))
 	  {
 	    if (x < 0.0)
 	      return(copy_string_with_length("-inf.0", *nlen = 6));
-	    return(copy_string_with_length("inf.0", *nlen = 5));
+	    return(copy_string_with_length("+inf.0", *nlen = 6));
 	  }
 
 	if (x < 0.0)
@@ -11859,7 +11862,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
   p = q;
   c = *p++;
 
-  /* a number starts with + - . or digit, but so does 1+ for example */
+  /* a number starts with + - . or digit, but so does 1+ for example (and there's also +nan.0 and +inf.0) */
 
   switch (c)
     {
@@ -11874,8 +11877,25 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	  has_dec_point1 = true;
 	  c = *p++;
 	}
-      if ((!c) || (!IS_DIGIT(c, radix)))
+      if (!c)
 	return((want_symbol) ? make_symbol(sc, q) : sc->F);
+      if (!IS_DIGIT(c, radix))
+	{
+	  if (c == 'n')
+	    {
+	      if (local_strcmp(p, "an.0"))
+		return(real_NaN);
+	    }
+	  else
+	    {
+	      if (c == 'i')
+		{
+		  if (local_strcmp(p, "nf.0"))
+		    return((q[0] == '+') ? real_infinity : real_minus_infinity);
+		}
+	    }
+	  return((want_symbol) ? make_symbol(sc, q) : sc->F);
+	}
       break;
 
     case '.':
@@ -12075,10 +12095,10 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	(*((char *)(plus - 1))) = '\0';
 
 	/* there is a slight inconsistency here:
-	   1/0      -> nan.0
-           1/0+0i   -> inf.0 (0/1+0i is 0.0)
-	   #i1/0+0i -> inf.0
-	   0/0      -> nan.0
+	   1/0      -> +nan.0
+           1/0+0i   -> +inf.0 (0/1+0i is 0.0)
+	   #i1/0+0i -> +inf.0
+	   0/0      -> +nan.0
 	   0/0+0i   -> -nan.0
 	*/
 
@@ -12276,12 +12296,12 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
   switch (str[0])
     {
     case 'n':
-      if (safe_strcmp(str, "nan.0"))
+      if (safe_strcmp(str, "+nan.0"))
 	return(real_NaN);
       break;
 
     case 'i':
-      if (safe_strcmp(str, "inf.0"))
+      if (safe_strcmp(str, "+inf.0"))
 	return(real_infinity);
       break;
 
@@ -12386,7 +12406,7 @@ static s7_pointer g_abs(s7_scheme *sc, s7_pointer args)
       return(x);
 
     case T_REAL:
-      if (is_NaN(real(x)))                  /* (abs -nan.0) -> nan.0, not -nan.0 */
+      if (is_NaN(real(x)))                  /* (abs -nan.0) -> +nan.0, not -nan.0 */
 	return(real_NaN);
       if (real(x) < 0.0)
 	return(make_real(sc, -real(x)));
@@ -12438,7 +12458,7 @@ static s7_pointer g_magnitude(s7_scheme *sc, s7_pointer args)
       return(x);
 
     case T_REAL:
-      if (is_NaN(real(x)))                 /* (magnitude -nan.0) -> nan.0, not -nan.0 */
+      if (is_NaN(real(x)))                 /* (magnitude -nan.0) -> +nan.0, not -nan.0 */
 	return(real_NaN);
       if (real(x) < 0.0)
 	return(make_real(sc, -real(x)));
@@ -16707,7 +16727,7 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
     }
   if (is_null(cdr(p)))
     y = cadr(args);
-  else y = g_multiply(sc, p); /* in some schemes (/ 1 0 nan.0) is not equal to (/ 1 (* 0 nan.0)), in s7 they're both nan.0 */
+  else y = g_multiply(sc, p); /* in some schemes (/ 1 0 +nan.0) is not equal to (/ 1 (* 0 +nan.0)), in s7 they're both +nan.0 */
 
   switch (type(x))
     {
@@ -16823,7 +16843,7 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
 	case T_INTEGER:
 	  if (integer(y) == 0)
 	    return(division_by_zero_error(sc, sc->divide_symbol, args));
-	  if (is_NaN(real(x))) return(real_NaN); /* what is (/ nan.0 0)? */
+	  if (is_NaN(real(x))) return(real_NaN); /* what is (/ +nan.0 0)? */
 	  if (is_inf(real(x))) return((real(x) > 0.0) ? ((integer(y) > 0) ? real_infinity : real_minus_infinity) : ((integer(y) > 0) ? real_minus_infinity : real_infinity));
 	  return(make_real(sc, real(x) / (s7_double)integer(y)));
 
@@ -17154,7 +17174,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 	  goto MAX_INTEGERS;
 
 	case T_REAL:
-	  /* (max 3/4 nan.0) should probably return NaN */
+	  /* (max 3/4 +nan.0) should probably return NaN */
 	  if (is_NaN(real(y)))
 	    {
 	      for (; is_not_null(p); p = cdr(p))
@@ -17348,7 +17368,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 	  goto MIN_INTEGERS;
 
 	case T_REAL:
-	  /* (min 3/4 nan.0) should probably return NaN */
+	  /* (min 3/4 +nan.0) should probably return NaN */
 	  if (is_NaN(real(y)))
 	    {
 	      for (; is_not_null(p); p = cdr(p))
@@ -19145,7 +19165,7 @@ static s7_pointer g_imag_part(s7_scheme *sc, s7_pointer args)
   #define H_imag_part "(imag-part num) returns the imaginary part of num"
   #define Q_imag_part s7_make_signature(sc, 2, sc->is_real_symbol, sc->is_number_symbol)  
   s7_pointer p;
-  /* currently (imag-part nan.0) -> 0.0 ? it's true but maybe confusing */
+  /* currently (imag-part +nan.0) -> 0.0 ? it's true but maybe confusing */
 
   p = car(args);
   switch (type(p))
@@ -26034,7 +26054,6 @@ static int32_t shared_ref(shared_info *ci, s7_pointer p)
   return(0);
 }
 
-
 static int32_t peek_shared_ref(shared_info *ci, s7_pointer p)
 {
   /* returns 0 if not found, otherwise the ref value for p */
@@ -26047,7 +26066,6 @@ static int32_t peek_shared_ref(shared_info *ci, s7_pointer p)
 
   return(0);
 }
-
 
 static void enlarge_shared_info(shared_info *ci)
 {
@@ -26237,6 +26255,15 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 		(collect_shared_info(sc, ci, slot_value(p), stop_at_print_length)))
 	      top_cyclic = true;
 	}
+      break;
+
+    case T_C_POINTER:
+      if ((has_structure(raw_pointer_type(top))) &&
+	  (collect_shared_info(sc, ci, raw_pointer_type(top), stop_at_print_length)))
+	top_cyclic = true;
+      if ((has_structure(raw_pointer_info(top))) &&
+	  (collect_shared_info(sc, ci, raw_pointer_info(top), stop_at_print_length)))
+	top_cyclic = true;
       break;
     }
   if (!top_cyclic)
@@ -26703,25 +26730,24 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
     }
 }
 
-static bool symbol_needs_slashification(s7_pointer obj)
+static bool symbol_needs_slashification(s7_scheme *sc, s7_pointer obj)
 {
   unsigned char *p, *pend;
   const char *str;
   int32_t len;
-  bool all_digits = true;
+
   str = symbol_name(obj);
   if (str[0] == '#')
     return(true);
+  if (s7_string_to_number(sc, (char *)str, 10) != sc->F)
+    return(true);
+
   len = symbol_name_length(obj);
   pend = (unsigned char *)(str + len);
   for (p = (unsigned char *)str; p < pend; p++)
-    {
-      if (symbol_slashify_table[*p])
-	return(true);
-      if (digits[*p] > 9)
-	all_digits = false;
-    }
-  if (all_digits) return(true); /* (symbol "12") ! */
+    if (symbol_slashify_table[*p])
+      return(true);
+
   set_clean_symbol(obj);
   return(false);
 }
@@ -26733,7 +26759,7 @@ static void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
    *   or worse (symbol "12")
    */
   if ((!is_clean_symbol(obj)) &&
-      (symbol_needs_slashification(obj)))
+      (symbol_needs_slashification(sc, obj)))
     {
       port_write_string(port)(sc, "(symbol \"", 9, port);
       slashify_string_to_port(sc, port, symbol_name(obj), symbol_name_length(obj), NOT_IN_QUOTES);
@@ -26952,7 +26978,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
   if (use_write != USE_READABLE_WRITE)
     {
-      if (sc->print_length <= 0)
+      if (sc->print_length == 0)
 	{
 	  if (vector_rank(vect) > 1)
 	    {
@@ -26962,7 +26988,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  else port_write_string(port)(sc, "#(...)", 6, port);
 	  return;
 	}
-
       if (len > sc->print_length)
 	{
 	  too_long = true;
@@ -27101,12 +27126,9 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     }
 }
 
-
-static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ignored)
+static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write)
 {
-  s7_int i, len;
-  int32_t plen;
-  bool too_long = false;
+  int32_t len, plen;
   char buf[128];
 
   len = vector_length(vect);
@@ -27116,14 +27138,13 @@ static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_point
 	plen = snprintf(buf, 32, "#%c%uD()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
       else plen = snprintf(buf, 32, "#%c()", (is_int_vector(vect)) ? 'i' : 'r');
       port_write_string(port)(sc, buf, plen, port);
-      return;
+      return(-1);
     }
 
   if (use_write == USE_READABLE_WRITE)
-    plen = len;
-  else plen = sc->print_length;
+    return(len);
 
-  if (plen <= 0)
+  if (sc->print_length == 0)
     {
       if (vector_rank(vect) > 1)
 	{
@@ -27136,14 +27157,24 @@ static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_point
 	    port_write_string(port)(sc, "#i(...)", 7, port);
 	  else port_write_string(port)(sc, "#r(...)", 7, port);
 	}
-      return;
+      return(-1);
     }
 
-  if (len > plen)
-    {
-      too_long = true;
-      len = plen;
-    }
+  if (len > sc->print_length)
+    return(sc->print_length);
+  return(len);
+}
+
+static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ignored)
+{
+  s7_int i, len;
+  int32_t plen;
+  bool too_long;
+  char buf[128];
+
+  len = print_vector_length(sc, vect, port, use_write);
+  if (len < 0) return;
+  too_long = (len < vector_length(vect));
 
   if ((use_write == USE_READABLE_WRITE) &&
       (is_immutable(vect)))
@@ -27152,98 +27183,66 @@ static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_point
   if (len > 1000)
     {
       s7_int vlen;
+      s7_int first;
+      s7_int *els;
       vlen = vector_length(vect);
-      if (is_float_vector(vect))
-	{
-	  s7_double first;
-	  s7_double *els;
-	  els = float_vector_elements(vect);
-	  first = els[0];
-	  for (i = 1; i < vlen; i++)
-	    if (els[i] != first)
-	      break;
-	}
-      else
-	{
-	  s7_int first;
-	  s7_int *els;
-	  els = int_vector_elements(vect);
-	  first = els[0];
-	  for (i = 1; i < vlen; i++)
-	    if (els[i] != first)
-	      break;
-	}
+      els = int_vector_elements(vect);
+      first = els[0];
+      for (i = 1; i < vlen; i++)
+	if (els[i] != first)
+	  break;
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-	  if (is_float_vector(vect))
-	    plen = snprintf(buf, 128, float_format_g, float_format_precision, float_vector_element(vect, 0));
-	  else plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
+	  plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
 	  port_write_string(port)(sc, buf, plen, port);
 	  port_write_character(port)(sc, ')', port);
+	  return;
 	}
-      return;
     }
 
   if (vector_rank(vect) == 1)
     {
-      if (is_int_vector(vect))
+      port_write_string(port)(sc, "#i(", 3, port);
+      if (!is_string_port(port))
 	{
-	  port_write_string(port)(sc, "#i(", 3, port);
-	  if (!is_string_port(port))
+	  plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
+	  port_write_string(port)(sc, buf, plen, port);
+	  for (i = 1; i < len; i++)
 	    {
-	      plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
+	      plen = snprintf(buf, 128, " %" PRId64, int_vector_element(vect, i));
 	      port_write_string(port)(sc, buf, plen, port);
-	      for (i = 1; i < len; i++)
-		{
-		  plen = snprintf(buf, 128, " %" PRId64, int_vector_element(vect, i));
-		  port_write_string(port)(sc, buf, plen, port);
-		}
 	    }
-	  else
+	}
+      else
+	{
+	  /* an experiment */
+	  uint32_t new_len, next_len;
+	  unsigned char *dbuf;
+	  new_len = port_position(port);
+	  next_len = port_data_size(port) - 128;
+	  dbuf = port_data(port);
+	  
+	  if (new_len >= next_len)
 	    {
-	      /* an experiment */
-	      uint32_t new_len, next_len;
-	      unsigned char *dbuf;
-	      new_len = port_position(port);
+	      resize_port_data(port, port_data_size(port) * 2);
 	      next_len = port_data_size(port) - 128;
 	      dbuf = port_data(port);
-	      
+	    }
+	  plen = snprintf((char *)(dbuf + new_len), 128, "%" PRId64, int_vector_element(vect, 0));
+	  new_len += plen;
+	  for (i = 1; i < len; i++)
+	    {
 	      if (new_len >= next_len)
 		{
 		  resize_port_data(port, port_data_size(port) * 2);
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-	      plen = snprintf((char *)(dbuf + new_len), 128, "%" PRId64, int_vector_element(vect, 0));
+	      plen = snprintf((char *)(dbuf + new_len), 128, " %" PRId64, int_vector_element(vect, i));
 	      new_len += plen;
-	      for (i = 1; i < len; i++)
-		{
-		  if (new_len >= next_len)
-		    {
-		      resize_port_data(port, port_data_size(port) * 2);
-		      next_len = port_data_size(port) - 128;
-		      dbuf = port_data(port);
-		    }
-		  plen = snprintf((char *)(dbuf + new_len), 128, " %" PRId64, int_vector_element(vect, i));
-		  new_len += plen;
-		}
-	      port_position(port) = new_len;
 	    }
-	}
-      else
-	{
-	  port_write_string(port)(sc, "#r(", 3, port);
-	  plen = snprintf(buf, 124, float_format_g, float_format_precision, float_vector_element(vect, 0)); /* 124 so floatify has room */
-	  floatify(buf, &plen);
-	  port_write_string(port)(sc, buf, plen, port);
-	  for (i = 1; i < len; i++)
-	    {
-	      port_write_character(port)(sc, ' ', port);
-	      plen = snprintf(buf, 124, float_format_g, float_format_precision, float_vector_element(vect, i));
-	      floatify(buf, &plen);
-	      port_write_string(port)(sc, buf, plen, port);
-	    }
+	  port_position(port) = new_len;
 	}
       
       if (too_long)
@@ -27255,7 +27254,76 @@ static void int_or_float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_point
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#%c%uD", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+    plen = snprintf(buf, 32, "#i%uD", vector_ndims(vect));
+    port_write_string(port)(sc, buf, plen, port);
+    multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, USE_DISPLAY, NULL);
+  }
+
+  if ((use_write == USE_READABLE_WRITE) &&
+      (is_immutable(vect)))
+    port_write_character(port)(sc, ')', port);
+}
+
+
+static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ignored)
+{
+  s7_int i, len;
+  int32_t plen;
+  bool too_long;
+  char buf[128];
+  s7_double *els;
+
+  len = print_vector_length(sc, vect, port, use_write);
+  if (len < 0) return;
+  too_long = (len < vector_length(vect));
+  els = float_vector_elements(vect);
+
+  if ((use_write == USE_READABLE_WRITE) &&
+      (is_immutable(vect)))
+    port_write_string(port)(sc, "(immutable! ", 12, port);
+
+  if (len > 1000)
+    {
+      s7_int vlen;
+      s7_double first;
+      vlen = vector_length(vect);
+      first = els[0];
+      for (i = 1; i < vlen; i++)
+	if (els[i] != first)
+	  break;
+      if (i == vlen)
+	{
+	  make_vector_to_port(sc, vect, port);
+	  plen = snprintf(buf, 128, float_format_g, float_format_precision, first);
+	  port_write_string(port)(sc, buf, plen, port);
+	  port_write_character(port)(sc, ')', port);
+	  return;
+	}
+    }
+
+  if (vector_rank(vect) == 1)
+    {
+      port_write_string(port)(sc, "#r(", 3, port);
+      plen = snprintf(buf, 124, float_format_g, float_format_precision, els[0]); /* 124 so floatify has room */
+      floatify(buf, &plen);
+      port_write_string(port)(sc, buf, plen, port);
+      for (i = 1; i < len; i++)
+	{
+	  port_write_character(port)(sc, ' ', port);
+	  plen = snprintf(buf, 124, float_format_g, float_format_precision, els[i]);
+	  floatify(buf, &plen);
+	  port_write_string(port)(sc, buf, plen, port);
+	}
+      if (too_long)
+	port_write_string(port)(sc, " ...)", 5, port);
+      else port_write_character(port)(sc, ')', port);
+      return;
+    }
+
+  /* multidimensional case */
+  {
+    bool last = false;
+    plen = snprintf(buf, 32, "#r%uD", vector_ndims(vect));
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, USE_DISPLAY, NULL);
   }
@@ -29281,6 +29349,17 @@ static void macro_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_wr
 
 static void c_function_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
+  if (use_write == USE_READABLE_WRITE)
+    {
+      s7_pointer sym;
+      sym = s7_make_symbol(sc, c_function_name(obj));
+      if ((is_slot(initial_slot(sym))) && (!is_global(sym)))
+	{
+	  port_write_string(port)(sc, "#_", 2, port);
+	  port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
+	  return;
+	}
+    }
   port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
 }
 
@@ -29341,8 +29420,8 @@ static void init_display_functions(void)
 {
   int32_t i;
   for (i = 0; i < 256; i++) display_functions[i] = display_any;
-  display_functions[T_FLOAT_VECTOR] = int_or_float_vector_to_port;
-  display_functions[T_INT_VECTOR] =   int_or_float_vector_to_port;
+  display_functions[T_FLOAT_VECTOR] = float_vector_to_port;
+  display_functions[T_INT_VECTOR] =   int_vector_to_port;
   display_functions[T_VECTOR] =       vector_to_port;
   display_functions[T_PAIR] =         pair_to_port;
   display_functions[T_HASH_TABLE] =   hash_table_to_port;
@@ -40193,10 +40272,10 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
       for (p = lists[i]; p; p = p->next)
 	{
 	  hash_entry_t *y_val;
-	  y_val = (*hash_table_checker(y))(sc, y, p->key);
-
-	  if ((!y_val) ||
-	      (!s7_is_morally_equal_1(sc, p->value, y_val->value, nci)))
+	  y_val = hash_morally_equal(sc, y, p->key);  /* hash_table_checker(y) might be hash_equal */
+	  if (!y_val)
+	    return(false);
+	  if (!s7_is_morally_equal_1(sc, p->value, y_val->value, nci))
 	    return(false);
 	}
     }
@@ -40208,6 +40287,7 @@ static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
   hash_entry_t **lists;
   int32_t i, len;
   shared_info *nci = ci;
+  hash_check_t hf;
 
   if (x == y)
     return(true);
@@ -40231,16 +40311,17 @@ static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
   lists = hash_table_elements(x);
   if (!nci) nci = new_shared_info(sc);
 
+  hf = hash_table_checker(y);
   for (i = 0; i < len; i++)
     {
       hash_entry_t *p;
       for (p = lists[i]; p; p = p->next)
 	{
 	  hash_entry_t *y_val;
-	  y_val = (*hash_table_checker(y))(sc, y, p->key);
-
-	  if ((!y_val) ||
-	      (!s7_is_equal_1(sc, p->value, y_val->value, nci)))
+	  y_val = hf(sc, y, p->key); /* or hash_equal? */
+	  if (!y_val)
+	    return(false);
+	  if (!s7_is_equal_1(sc, p->value, y_val->value, nci))
 	    return(false);
 	}
     }
@@ -40619,61 +40700,88 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
 
 static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool morally)
 {
+  s7_pointer x_seq, y_seq, xs, ys;
+
   if (x == y) return(true);
   if (!is_iterator(y)) return(false);
 
-  switch (type(iterator_sequence(x)))
+  x_seq = iterator_sequence(x);
+  y_seq = iterator_sequence(y);
+
+  switch (type(x_seq))
     {
     case T_STRING:
-      return((is_string(iterator_sequence(y))) &&
+      return((is_string(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
-	     (string_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
+	     (string_equal(sc, x_seq, y_seq, ci)));
 
     case T_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-      return((s7_is_vector(iterator_sequence(y))) &&
+      return((s7_is_vector(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
-	     ((morally) ? (vector_morally_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)) : 
-	                  (vector_equal(sc, iterator_sequence(x), iterator_sequence(y), ci))));
+	     ((morally) ? (vector_morally_equal(sc, x_seq, y_seq, ci)) : 
+	                  (vector_equal(sc, x_seq, y_seq, ci))));
 
       /* iterator_next is a function (pair_iterate, iterator_finished etc) */
     case T_PAIR:
       if (iterator_next(x) != iterator_next(y)) return(false);     /* even if seqs are equal, one might be at end */
       if (morally)
-	return((pair_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)) &&
-	       (pair_equal(sc, iterator_current(x), iterator_current(y), ci)));  /* this repeats the previous calc */
-      return((iterator_sequence(x) == iterator_sequence(y)) &&
-	     (iterator_current(x) == iterator_current(y)));        /* current pointer into the sequence */
+	{
+	  if (!pair_morally_equal(sc, x_seq, y_seq, ci)) 
+	    return(false);
+	}
+      else
+	{
+	  if (!pair_equal(sc, x_seq, y_seq, ci))
+	    return(false);
+	}
+      for (xs = x_seq, ys = y_seq; is_pair(xs) && is_pair(ys); xs = cdr(xs), ys = cdr(ys))
+	if (xs == iterator_current(x))
+	  return(ys == iterator_current(y));
+      return(is_null(xs) && is_null(ys));
 
     case T_NIL:                                                    /* (make-iterator #()) works, so () should too */
-      return(is_null(iterator_sequence(y))); /* perhaps for morally case, check position in y as well as pair(seq(y))? */
+      return(is_null(y_seq));   /* perhaps for morally case, check position in y as well as pair(seq(y))? */
 
     case T_C_OBJECT:
-      return((is_c_object(iterator_sequence(y))) &&
+      return((is_c_object(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
-	     (c_object_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
+	     (c_object_equal(sc, x_seq, y_seq, ci)));
 
     case T_LET:
-      /* TODO: check position here somehow -- rootlet uses it */
-      return((is_let(iterator_sequence(y))) &&
-	     (iterator_next(x) == iterator_next(y)) &&
-	     (let_equal(sc, iterator_sequence(x), iterator_sequence(y), ci)));
+      if (!is_let(y_seq)) return(false);
+      if (iterator_next(x) != iterator_next(y)) return(false);
+      if (x_seq == sc->rootlet)
+	return(iterator_position(x) == iterator_position(y)); /* y_seq must also be sc->rootlet since nexts are the same (rootlet_iterate) */
+      if (morally)
+	{
+	  if (!let_morally_equal(sc, x_seq, y_seq, ci))
+	    return(false);
+	}
+      else
+	{
+	  if (!let_equal(sc, x_seq, y_seq, ci))
+	    return(false);
+	}
+      for (xs = let_slots(x_seq), ys = let_slots(y_seq); is_slot(xs) && is_slot(ys); xs = next_slot(xs), ys = next_slot(ys))
+	if (xs == iterator_current_slot(x))
+	  return(ys == iterator_current_slot(y));
+      return(is_null(xs) && is_null(ys));
 
     case T_HASH_TABLE:
-      if (!is_hash_table(iterator_sequence(y))) return(false);
-      if (hash_table_entries(iterator_sequence(x)) != hash_table_entries(iterator_sequence(y))) return(false);
-      if (hash_table_entries(iterator_sequence(x)) == 0) return(true);
-      return((iterator_sequence(x) == iterator_sequence(y)) &&
-	     (iterator_next(x) == iterator_next(y)) &&
-	     (iterator_current(x) == iterator_current(y)) &&
-	     (iterator_hash_current(x) == iterator_hash_current(y)) &&
-	     (iterator_position(x) == iterator_position(y)));
+      if (!is_hash_table(y_seq)) return(false);
+      if (hash_table_entries(x_seq) != hash_table_entries(y_seq)) return(false);
+      if (hash_table_entries(x_seq) == 0) return(true);
+      if (iterator_position(x) != iterator_position(y)) return(false);
+      if (!morally)
+	return(hash_table_equal(sc, x_seq, y_seq, ci));
+      return(hash_table_morally_equal(sc, x_seq, y_seq, ci));
 
-      /* no morally-equal for hash etc, can t_lets be (morally-)equal?
+      /* no morally-equal for lets etc?, can t_lets be (morally-)equal? yes: let_morally_equal
        * let case: (make-iterator (inlet 'integer? (lambda (f) #f)))
        * hash case: (make-iterator (hash-table* 'a 1))
        */
@@ -40867,7 +40975,7 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 	     (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
     }
 
-  /* should (morally-equal? nan.0 (complex nan.0 nan.0)) be #t (it's #f above)? */
+  /* should (morally-equal? +nan.0 (complex +nan.0 +nan.0)) be #t (it's #f above)? */
   if (is_NaN(real_part(x)))
     return((is_NaN(real_part(y))) &&
 	   (((is_NaN(imag_part(x))) && (is_NaN(imag_part(y)))) ||
@@ -77014,11 +77122,11 @@ static char *mpfr_to_string(mpfr_t val, int32_t radix)
     return(copy_string("0.0"));
   
   if (mpfr_nan_p(val))
-    return(copy_string("nan.0"));
+    return(copy_string("+nan.0"));
   if (mpfr_inf_p(val))
     {
       if (mpfr_signbit(val) == 0)
-	return(copy_string("inf.0"));
+	return(copy_string("+inf.0"));
       return(copy_string("-inf.0"));
     }
   
@@ -82454,9 +82562,9 @@ s7_scheme *s7_init(void)
       real_zero = make_permanent_real(0.0);
       real_one = make_permanent_real(1.0);
       real_NaN = make_permanent_real(NAN); /* in Guile, -nan.0 prints as +nan.0, (eq? +nan.0 -nan.0) is #t */
-      set_print_name(real_NaN, "nan.0", 5);
+      set_print_name(real_NaN, "+nan.0", 6);
       real_infinity = make_permanent_real(INFINITY);
-      set_print_name(real_infinity, "inf.0", 5);
+      set_print_name(real_infinity, "+inf.0", 6);
       real_minus_infinity = make_permanent_real(-INFINITY);
       set_print_name(real_minus_infinity, "-inf.0", 6);
       real_pi = make_permanent_real(3.1415926535897932384626433832795029L); /* M_PI is not good enough for s7_double = long double */
@@ -83309,9 +83417,8 @@ s7_scheme *s7_init(void)
 #endif
   s7_define_function(sc, "s7-optimize", g_optimize, 1, 0, false, "short-term debugging aid");
 
-  sc->c_object_set_function = s7_make_function(sc, "#<c-object-setter>", g_c_object_set, 1, 0, true, "c-object setter");
+  sc->c_object_set_function = s7_make_function(sc, "(c-object setter)", g_c_object_set, 1, 0, true, "c-object setter");
   /* c_function_signature(sc->c_object_set_function) = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T); */
-  /* this can't be printed readably via object->string because (currently anyway) it is not an s7_function or any_closure */
 
   set_scope_safe(slot_value(global_slot(sc->call_with_input_string_symbol)));
   set_scope_safe(slot_value(global_slot(sc->call_with_input_file_symbol)));
@@ -83393,15 +83500,6 @@ s7_scheme *s7_init(void)
   sc->sharp_readers = global_slot(sym);
   s7_symbol_set_setter(sc, sym, s7_make_function(sc, "(set *#readers*)", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
 
-  /* sigh... I don't like these! perhaps positive|negative-infinity|nan? to parallel most-positive-fixnum etc 
-   *    "real" below should be "float" since we're trying to say these things are not "exact" = rational
-   *    or maybe #<inf> and #<nan> using (- ...) for the negative cases
-   */
-  s7_define_constant(sc, "nan.0", real_NaN);
-  s7_define_constant(sc, "-nan.0", real_NaN); /* for the reader's benefit */
-  s7_define_constant(sc, "inf.0", real_infinity);
-  s7_define_constant(sc, "-inf.0", real_minus_infinity);
-
   /* *features* */
   s7_provide(sc, "s7");
   s7_provide(sc, "s7-" S7_VERSION);
@@ -83410,6 +83508,10 @@ s7_scheme *s7_init(void)
   sc->local_documentation_symbol = s7_make_symbol(sc, "+documentation+");
   sc->local_signature_symbol =     s7_make_symbol(sc, "+signature+");
   sc->local_setter_symbol =        s7_make_symbol(sc, "+setter+");
+
+  /* for backwards compatibility */
+  s7_define_constant(sc, "nan.0", real_NaN);
+  s7_define_constant(sc, "inf.0", real_infinity);
 
 #if WITH_PURE_S7
   s7_provide(sc, "pure-s7");
@@ -84186,11 +84288,9 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * t745.scm has innumerable cycle print problems
- *   readable trouble: (setter (block)), (sublet (inlet...)), fixable: iterator of two equal-but-different hash-tables, hash-function?
+ * t745.scm has innumerable cycle print problems, t718.scm has auto-tester stuff
+ *   readable trouble: (setter (block))
  *   could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
- *   need equal(h1,h2) in hash_equal+position=same (esp 0)
- *   could let look for local outlet?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84224,7 +84324,7 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1167
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1900
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1888
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2115
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2547
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2642
@@ -84235,7 +84335,7 @@ int main(int argc, char **argv)
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5176
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7831
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7849
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1

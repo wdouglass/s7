@@ -453,9 +453,8 @@ In s7, "@" is an exponent marker.
 
 <div class="indented">
 
-<p>Should s7 predefine the numbers +inf.0, -inf.0, and nan.0?  It doesn't currently, but you can
-get them via log or 1/0 (see <a href="#r7rs">below</a>).
-But what is <code>(/ 1.0 0.0)</code>?  s7 gives a "division by zero" error here, and also in <code>(/ 1 0)</code>.
+<p>
+What is <code>(/ 1.0 0.0)</code>?  s7 gives a "division by zero" error here, and also in <code>(/ 1 0)</code>.
 Guile returns +inf.0 in the first case, which seems reasonable, but a "numerical overflow" error in the second.
 Slightly weirder is <code>(expt 0.0 0+i)</code>.  Currently s7 returns 0.0, Guile returns +nan.0+nan.0i,
 Clisp and sbcl throw an error.  Everybody agrees that <code>(expt 0 0)</code> is 1, and Guile thinks
@@ -480,7 +479,7 @@ scheme@(guile-user)&gt;  (&lt; (/ 1.0 -0.0) -1e100 1e100 (/ 1.0 0.0))
 How can they be equal? In s7, the sign
 of -0.0 is ignored, and they really are equal.
 One other oddity: two floats can satisfy eq? and yet not be eqv?:
-<code>(eq? nan.0 nan.0)</code> might be #t (it is unspecified), but <code>(eqv? nan.0 nan.0)</code> is #f.
+<code>(eq? +nan.0 +nan.0)</code> might be #t (it is unspecified), but <code>(eqv? +nan.0 +nan.0)</code> is #f.
 The same problem afflicts memq and assq.  
 </p>
 </div>
@@ -4608,8 +4607,8 @@ via the error function, and can be trapped and dealt with via <em class=def id="
 <em class="gray">"abs: too many arguments: (1 2)"</em>
 &gt; (<em class=red>catch</em> 'division-by-zero
     (lambda () (/ 1.0 0.0))
-    (lambda args (string-&gt;number "inf.0")))
-<em class="gray">inf.0</em>
+    (lambda args (string-&gt;number "+inf.0")))
+<em class="gray">+inf.0</em>
 
 (define-macro (catch-all . body)
   `(<em class=red>catch</em> #t (lambda () ,@body) (lambda args args)))
@@ -6200,7 +6199,7 @@ Better ideas are always welcome!
 <li>pi
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
-<li>nan.0 -nan.0 inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
+<li>nan.0 +nan.0 -nan.0 inf.0 +inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
 <li>most-positive-fixnum most-negative-fixnum
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
@@ -6663,8 +6662,8 @@ how to get pi into a key list?
 <em class="gray">1</em>
 &gt; (let ((lst '(1 2))) (apply case 'lst `(((,lst) 1) (else 0))))
 <em class="gray">1</em>         ; same trick puts a list in the keys
-&gt; (apply case 'nan.0 `(((,nan.0) 1) (else 0)))
-<em class="gray">0</em>         ; (eqv? nan.0 nan.0) is #f
+&gt; (apply case '+nan.0 `(((,+nan.0) 1) (else 0)))
+<em class="gray">0</em>         ; (eqv? +nan.0 +nan.0) is #f
 </pre>
 
 <p><code>(apply define ...)</code> is similar to CL's set.

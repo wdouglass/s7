@@ -75,10 +75,7 @@
 (define (digit-value c) (and (char-numeric? c) (- (char->integer c) (char->integer #\0))))
 
 
-(define +inf.0 inf.0)
-(define +nan.0 nan.0)
 (define (finite? n) (and (number? n) (not (nan? n)) (not (infinite? n))))
-
 (define exact-integer? integer?)	
 (define (exact-integer-sqrt i) (let ((sq (floor (sqrt i)))) (values sq (- i (* sq sq)))))
 (define inexact exact->inexact)
