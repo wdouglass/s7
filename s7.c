@@ -2954,7 +2954,6 @@ static void pop_input_port(s7_scheme *sc);
 static char *object_to_truncated_string(s7_scheme *sc, s7_pointer p, int32_t len);
 static token_t token(s7_scheme *sc);
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
-static bool s7_is_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y);
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
 static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
 static void free_hash_table(s7_pointer table);
@@ -7465,31 +7464,24 @@ static s7_pointer g_let_to_list(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- let-ref -------------------------------- */
 
-static s7_pointer g_let_ref(s7_scheme *sc, s7_pointer args)
+s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
 {
-  #define H_let_ref "(let-ref env sym) returns the value of the symbol sym in the environment env"
-  #define Q_let_ref s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->is_symbol_symbol)
-  s7_pointer env, symbol, x, y;
-
+  s7_pointer x, y;
   /* (let ((a 1)) ((curlet) 'a))
    * ((rootlet) 'abs)
    */
-
-  env = car(args);
-  symbol = cadr(args);
-
   if (!is_let(env))
     return(wrong_type_argument_with_type(sc, sc->let_ref_symbol, 1, env, a_let_string));
 
   if (!is_symbol(symbol))
     {
       if (has_let_ref_fallback(env))
-	check_method(sc, env, sc->let_ref_fallback_symbol, args);
+	check_method(sc, env, sc->let_ref_fallback_symbol, set_qlist_2(sc, env, symbol));
       return(wrong_type_argument_with_type(sc, sc->let_ref_symbol, 2, symbol, a_symbol_string));
     }
 
   if (has_methods(env))
-    check_method(sc, env, sc->let_ref_symbol, args);
+    check_method(sc, env, sc->let_ref_symbol, set_qlist_2(sc, env, symbol));
   /* a let-ref method is almost impossible to write without creating an infinite loop:
    *   any reference to the let will probably call let-ref somewhere, calling us again, and looping.
    *   This is not a problem in c-objects and funclets because c-object-ref and funclet-ref don't
@@ -7525,7 +7517,7 @@ static s7_pointer g_let_ref(s7_scheme *sc, s7_pointer args)
        *   get into infinite recursion.  So, 'let-ref-fallback...
        */
       if (has_let_ref_fallback(env))
-	apply_known_method(sc, env, sc->let_ref_fallback_symbol, set_plist_2(sc, env, symbol));
+	apply_known_method(sc, env, sc->let_ref_fallback_symbol, set_qlist_2(sc, env, symbol));
     }
   else
     {
@@ -7536,6 +7528,12 @@ static s7_pointer g_let_ref(s7_scheme *sc, s7_pointer args)
   return(sc->undefined);
 }
 
+static s7_pointer g_let_ref(s7_scheme *sc, s7_pointer args)
+{
+  #define H_let_ref "(let-ref env sym) returns the value of the symbol sym in the environment env"
+  #define Q_let_ref s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->is_symbol_symbol)
+  return(s7_let_ref(sc, car(args), cadr(args)));
+}
 
 static s7_pointer lint_let_ref_1(s7_scheme *sc, s7_pointer lt, s7_pointer sym)
 {
@@ -7548,7 +7546,7 @@ static s7_pointer lint_let_ref_1(s7_scheme *sc, s7_pointer lt, s7_pointer sym)
   if (has_methods(lt))
     {
       if (has_let_ref_fallback(lt))
-	apply_known_method(sc, lt, sc->let_ref_fallback_symbol, set_plist_2(sc, lt, sym));
+	apply_known_method(sc, lt, sc->let_ref_fallback_symbol, set_qlist_2(sc, lt, sym));
     }
   else
     {
@@ -7559,8 +7557,7 @@ static s7_pointer lint_let_ref_1(s7_scheme *sc, s7_pointer lt, s7_pointer sym)
   return(sc->undefined);
 }
 
-s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol) {return(g_let_ref(sc, set_plist_2(sc, env, symbol)));}
-static s7_pointer let_ref_p_pp(s7_pointer p1, s7_pointer p2) {return(g_let_ref(cur_sc, set_plist_2(cur_sc, p1, p2)));}
+static s7_pointer let_ref_p_pp(s7_pointer p1, s7_pointer p2) {return(s7_let_ref(cur_sc, p1, p2));}
 
 static s7_pointer lint_let_ref;
 static s7_pointer g_lint_let_ref(s7_scheme *sc, s7_pointer args)
@@ -8204,7 +8201,7 @@ symbol sym in the given environment: (let ((x 32)) (symbol->value 'x)) -> 32"
 	method_or_bust_with_type(sc, local_env, sc->symbol_to_value_symbol, args, a_let_string, 2);
 
       if (local_env == sc->s7_let)
-	return(g_s7_let_ref_fallback(sc, set_plist_2(sc, local_env, sym)));
+	return(g_s7_let_ref_fallback(sc, set_qlist_2(sc, local_env, sym)));
 
       return(s7_symbol_local_value(sc, sym, local_env));
     }
@@ -17248,7 +17245,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int max_i_ii(s7_int i1, s7_int i2) {return((i1 > i2) ? i1 : i2);}
-static s7_double max_d_dd(s7_double x1, s7_double x2) {return((x1 > x2) ? x1 : x2);}
+static s7_double max_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 > x2) ? x1 : x2);}
 
 static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 {
@@ -17441,7 +17438,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int min_i_ii(s7_int i1, s7_int i2) {return((i1 < i2) ? i1 : i2);}
-static s7_double min_d_dd(s7_double x1, s7_double x2) {return((x1 < x2) ? x1 : x2);}
+static s7_double min_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 < x2) ? x1 : x2);}
 
 
 /* ---------------------------------------- = > < >= <= ---------------------------------------- */
@@ -24826,7 +24823,7 @@ defaults to the rootlet.  To load into the current environment instead, pass (cu
       {
 	s7_pointer init;
 
-	init = g_let_ref(sc, set_plist_2(sc, (is_null(sc->envir)) ? sc->rootlet : sc->envir, s7_make_symbol(sc, "init_func")));
+	init = s7_let_ref(sc, (is_null(sc->envir)) ? sc->rootlet : sc->envir, s7_make_symbol(sc, "init_func"));
 	if (is_symbol(init))
 	  {
 	    void *library;
@@ -26737,7 +26734,7 @@ static bool symbol_needs_slashification(s7_scheme *sc, s7_pointer obj)
   int32_t len;
 
   str = symbol_name(obj);
-  if (str[0] == '#')
+  if ((str[0] == '#') || (str[0] == '\'') || (str[0] == ','))
     return(true);
   if (s7_string_to_number(sc, (char *)str, 10) != sc->F)
     return(true);
@@ -27011,8 +27008,8 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  make_vector_to_port(sc, vect, port);
 	  object_to_port(sc, p0, port, use_write, NULL);
 	  port_write_character(port)(sc, ')', port);
+	  return;
 	}
-      return;
     }
 
   if (use_write == USE_READABLE_WRITE)
@@ -34229,8 +34226,7 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int 
 
 s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *data, int32_t dims, s7_int *dim_info, bool free_data)
 {
-  /* this wraps up a C-allocated/freed double array as an s7 vector.
-   */
+  /* this wraps up a C-allocated/freed double array as an s7 vector. */
   s7_pointer x;
 
   new_cell(sc, x, T_FLOAT_VECTOR | T_SAFE_PROCEDURE);
@@ -40176,6 +40172,18 @@ static bool c_object_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_inf
   return((is_c_object(y)) && (c_objects_are_equal(sc, x, y)));
 }
 
+static bool c_object_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  if (has_methods(x))
+    {
+      s7_pointer equal_func;
+      equal_func = find_method(sc, find_let(sc, x), sc->is_morally_equal_symbol);
+      if (equal_func != sc->undefined)
+	return(s7_boolean(sc, s7_apply_function(sc, equal_func, list_2(sc, x, y))));
+    }
+  return((is_c_object(y)) && (c_objects_are_equal(sc, x, y)));
+}
+
 static bool port_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   return(x == y);
@@ -40668,14 +40676,8 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       else
 	{
 	  for (i = 0; i < len; i++)
-	    {
-	      s7_double diff;
-	      diff = fabs(arr1[i] - arr2[i]);
-	      if (diff > fudge) return(false);
-	      if ((is_NaN(diff)) &&
-		  ((!is_NaN(arr1[i])) || (!is_NaN(arr2[i]))))
-		return(false);
-	    }
+	    if (!floats_are_morally_equal(sc, arr1[i], arr2[i]))
+	      return(false);
 	}
       return(true);
     }
@@ -41050,7 +41052,7 @@ static void init_equals(void)
   morally_equals[T_UNDEFINED] =    undefined_equal;
   morally_equals[T_STRING] =       string_equal;
   morally_equals[T_SYNTAX] =       syntax_equal;
-  morally_equals[T_C_OBJECT] =     c_object_equal;
+  morally_equals[T_C_OBJECT] =     c_object_morally_equal;
   morally_equals[T_RANDOM_STATE] = rng_equal;
   morally_equals[T_ITERATOR] =     iterator_morally_equal;
   morally_equals[T_INPUT_PORT] =   port_morally_equal;
@@ -73265,7 +73267,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			  }
 			break;
 		      }
-		    sc->value = g_let_ref(sc, set_qlist_2(sc, s, cadadr(code)));
+		    sc->value = s7_let_ref(sc, s, cadadr(code));
 		    goto START;
 		  }
 		  
@@ -73279,7 +73281,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			if (unknown_a_ex(sc, s) == goto_OPT_EVAL) goto INNER_OPT_EVAL;
 			break;
 		      }
-		    sc->value = g_let_ref(sc, set_qlist_2(sc, s, c_call(cdr(code))(sc, cadr(code))));
+		    sc->value = s7_let_ref(sc, s, c_call(cdr(code))(sc, cadr(code)));
 		    goto START;
 		  }
 		  

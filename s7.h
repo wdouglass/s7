@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "5.14"
-#define S7_DATE "22-Feb-18"
+#define S7_VERSION "5.15"
+#define S7_DATE "25-Feb-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -153,7 +153,7 @@ int64_t s7_gc_freed(s7_scheme *sc);
 bool s7_is_eq(s7_pointer a, s7_pointer b);                                   /* (eq? a b) */
 bool s7_is_eqv(s7_pointer a, s7_pointer b);                                  /* (eqv? a b) */
 bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);                 /* (equal? a b) */
-
+bool s7_is_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y);         /* (morally-equal? x y) */
 
 bool s7_is_boolean(s7_pointer x);                                            /* (boolean? x) */
 bool s7_boolean(s7_scheme *sc, s7_pointer x);                                /* Scheme boolean -> C bool */
