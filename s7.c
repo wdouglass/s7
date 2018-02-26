@@ -27409,6 +27409,15 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
   s7_pointer x;
   s7_int i, len, true_len;
 
+#if S7_DEBUGGING
+  if ((lst == cdr(lst)) &&
+      ((!ci) || (!is_collected(lst)) || (peek_shared_ref(ci, lst) == 0)))
+    {
+      fprintf(stderr, "missed cycle: %s\n", DISPLAY(sc->cur_code));
+      abort();
+    }
+#endif
+
   true_len = s7_list_length(sc, lst);
   if (true_len < 0)                    /* a dotted list -- handle cars, then final cdr */
     len = (-true_len + 1);
@@ -27460,6 +27469,19 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  int32_t plen;
 	  char buf[128];
 
+#if NEW_CYCLES
+/* for cyclic:
+ *   go through ci->objs
+ *   (let (({1}...)...) where the basic struct is allocated and filled except for {n} cases -- leave #f there
+ *     this part happens when ci is set up so here we would simply insert #f's [assuming we're in this block already]
+ *     (set! ({1} index) {n}) for each c->obj [the n/index could be left by the preceding scan? (index as symbol etc)]
+ *     {1}) -- or does this need to be saved at ci setup?
+ * so #1=(1 . #1#) is (let ((<1> (list 1))) (set-cdr! <1> <1>)) etc
+ * in #f scan, can the holders be identified and named? these could be ((let (<1-n> #f))) at start and set directly?
+ * so #1=(1 2 (#1#)) is (let ((<1> (list 1 2 (set! <1-1> (list #f))))) (set-car! <1-1> <1>))
+ *                      (let ((<1> (list 1 2 (list #f)))) (set-car! (list-ref <1> 2) <1>)) looks better for this simple case
+ */
+#endif
 	  port_write_string(port)(sc, "let (({lst} (make-list ", 23, port);
 	  plen = snprintf(buf, 128, "%" PRId64 "))) ", len);
 	  port_write_string(port)(sc, buf, plen, port);
@@ -27738,36 +27760,60 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	   * or (let ((b #f)) (set! b (curlet)) (curlet))
 	   *    #1=#<let 'b #1#>
 	   */
-	  if ((use_write == USE_READABLE_WRITE) &&
-	      (is_immutable(obj)))
-	    port_write_string(port)(sc, "(immutable! ", 12, port);
-
-	  if ((use_write == USE_READABLE_WRITE) &&
-	      (ci) &&
-	      (is_collected(obj)) &&
-	      (peek_shared_ref(ci, obj) != 0))
+	  if (use_write == USE_READABLE_WRITE)
 	    {
-	      s7_pointer x;
-	      port_write_string(port)(sc, "(let (({e} (inlet))) ", 21, port);
+	      if (has_methods(obj))
+		port_write_string(port)(sc, "(openlet ", 9, port);
+	      if (is_immutable(obj))
+		port_write_string(port)(sc, "(immutable! ", 12, port);
+
 	      if ((ci) &&
-		  (shared_ref(ci, obj) < 0))
+		  (is_collected(obj)) &&
+		  (peek_shared_ref(ci, obj) != 0))
 		{
-		  int32_t plen;
-		  char buf[64];
-		  plen = snprintf(buf, 64, "(set! {%d} {e}) ", -shared_ref(ci, obj));
-		  port_write_string(port)(sc, buf, plen, port);
+		  s7_pointer x;
+		  /* TODO: follow outlet chain here as below */
+		  port_write_string(port)(sc, "(let (({e} (inlet))) ", 21, port);
+		  if ((ci) &&
+		      (shared_ref(ci, obj) < 0))
+		    {
+		      int32_t plen;
+		      char buf[64];
+		      plen = snprintf(buf, 64, "(set! {%d} {e}) ", -shared_ref(ci, obj));
+		      port_write_string(port)(sc, buf, plen, port);
+		    }
+		  
+		  port_write_string(port)(sc, "(apply varlet {e} (reverse (list ", 33, port);
+		  for (x = let_slots(obj); is_slot(x); x = next_slot(x))
+		    {
+		      port_write_string(port)(sc, "(cons ", 6, port);
+		      symbol_to_port(sc, slot_symbol(x), port, USE_READABLE_WRITE, NULL);
+		      port_write_character(port)(sc, ' ', port);
+		      object_to_port_with_circle_check(sc, slot_value(x), port, use_write, ci);
+		      port_write_character(port)(sc, ')', port);
+		    }
+		  port_write_string(port)(sc, "))) {e})", 8, port);
 		}
-	      
-	      port_write_string(port)(sc, "(apply varlet {e} (reverse (list ", 33, port);
-	      for (x = let_slots(obj); is_slot(x); x = next_slot(x))
+	      else
 		{
-		  port_write_string(port)(sc, "(cons ", 6, port);
-		  symbol_to_port(sc, slot_symbol(x), port, USE_READABLE_WRITE, NULL);
-		  port_write_character(port)(sc, ' ', port);
-		  object_to_port_with_circle_check(sc, slot_value(x), port, use_write, ci);
+		  /* check outlet in curlet chain; if not, use sublet and follow outlet */
+		  s7_pointer lt = NULL;
+		  if (outlet(obj) != sc->rootlet)
+		    for (lt = sc->envir; is_let(lt) && (lt != sc->rootlet); lt = outlet(lt))
+		      if (lt == outlet(obj)) break;
+		  if (lt != outlet(obj))
+		    {
+		      port_write_string(port)(sc, "(sublet ", 8, port);
+		      let_to_port(sc, outlet(obj), port, use_write, ci);
+		    }
+		  else port_write_string(port)(sc, "(inlet", 6, port);
+		  slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
 		  port_write_character(port)(sc, ')', port);
 		}
-	      port_write_string(port)(sc, "))) {e})", 8, port);
+	      if (is_immutable(obj))
+		port_write_character(port)(sc, ')', port); 
+	      if (has_methods(obj))
+		port_write_character(port)(sc, ')', port); 
 	    }
 	  else
 	    {
@@ -27775,10 +27821,6 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	      slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
 	      port_write_character(port)(sc, ')', port);
 	    }
-
-	  if ((use_write == USE_READABLE_WRITE) &&
-	      (is_immutable(obj)))
-	    port_write_character(port)(sc, ')', port);	  
 	}
     }
 }
@@ -29074,8 +29116,14 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  seq = iterator_sequence(obj);
 	  if (is_string_not_byte_vector(seq))
 	    {
+	      char *iter_str;
+	      int32_t len;
+	      iter_str = (char *)(string_value(seq) + iterator_position(obj));
+	      len = string_length(seq) - iterator_position(obj);
 	      port_write_string(port)(sc, "(make-iterator \"", 16, port);
-	      port_write_string(port)(sc, (char *)(string_value(seq) + iterator_position(obj)), string_length(seq) - iterator_position(obj), port);
+	      if (!string_needs_slashification(iter_str, len))
+		port_write_string(port)(sc, iter_str, len, port);
+	      else slashify_string_to_port(sc, port, iter_str, len, NOT_IN_QUOTES);
 	      port_write_string(port)(sc, "\")", 2, port);
 	    }
 	  else

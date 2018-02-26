@@ -12,14 +12,17 @@
 (set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
 ;(set! (*s7* 'gc-stats) 6)
 (set! (*s7* 'print-length) 1000)
-(define ostr "")
-(define nostr "")
 (set! (*s7* 'max-string-length) 100000)
 (set! (*s7* 'max-list-length) 10000)
 (set! (*s7* 'max-vector-length) 10000)
 (set! (*s7* 'max-vector-dimensions) 10)
 (set! (*s7* 'autoloading?) #f)
+(set! (*s7* 'morally-equal-float-epsilon) 1.0e-6)
 (set! (current-output-port) #f)
+
+(define ostr "")
+(define nostr "")
+
 (define __var__ #f)
 (define __var1__ #f)
 (define error-type #f)
@@ -276,6 +279,14 @@
 (define-expansion (_do3_ . args)
   `(let ((exiter (vector #f))) (do ,(car args) ((vector-ref exiter 0) 1) ,@(cdr args) (vector-set! exiter 0 #t))))
 
+(define-expansion (_cop1_ . args)
+  `(let ((x begin ,@args))
+     x))
+
+(define-expansion (_cop2_ . args)
+  `(let ((x begin ,@args))
+     (copy x)))
+
 (define ims (immutable! (string #\a #\b #\c)))
 (define imbv (immutable! (byte-vector 0 1 2)))
 (define imv (immutable! (vector 0 1 2)))
@@ -290,8 +301,11 @@
 (define x 0)
 (define max-stack (*s7* 'stack-top))
 
+;;; TODO: ip/op str IO -- read checked etc, nested call/exit str/nstr?, openlet in obj->str, stacktrace trapped (no evalstr), let-set! similarly
+;;;    reorder num args? check eqops?
+
 (let ((functions (vector 'not '= '+ 'cdr 'real? 'rational? 'number? '> '- 'integer? 'apply 
-			    'catch 'length 'eq? 'car '< 'assq 'complex? 'vector-ref 
+			  'catch 'length 'eq? 'car '< 'assq 'complex? 'vector-ref 
 			  'abs '* 'null? 'imag-part '/ 'vector-set! 'equal? 'magnitude 'real-part 'pair? 'max 'nan? 'string->number 'list
 			  'negative? 'cons 'string-set! 'list-ref 'eqv? 'positive? '>= 'expt 'number->string 'zero? 'floor 'denominator 'integer->char 
 			  'string? 'min '<= 'char->integer 'cos 'rationalize 'cadr 'sin 'char=? 'map 'list-set! 'defined? 'memq 'string-ref 'log 
@@ -467,7 +481,7 @@
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
 			  's7-stacktrace-defaults
 
-			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append 'block-let
+			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append ;'block-let
 
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
@@ -504,7 +518,7 @@
 		    "#(123 223)" "(vector 1 '(3))" "(let ((x 3)) (lambda (y) (+ x y)))" "abs" "(lambda sym-args sym-args)" "#u8(0 1)"
 		    "(dilambda (lambda () 1) (lambda (a) a))" "quasiquote" "macroexpand" "(lambda* ((a 1) (b 2)) (+ a b))" 
 		    "((lambda (a) (+ a 1)) 2)" "((lambda* ((a 1)) (+ a 1)) 1)" "(lambda (a) (values a (+ a 1)))" "((lambda (a) (values a (+ a 1))) 2)"
-		    "(define-macro (_m1_ a) `(+ ,a 1))"
+		    "(define-macro (_m1_ a) `(+ ,a 1))" "(define-bacro (_b1_ a) `(* ,a 2))"
 		    "(string #\\c #\\null #\\b)" "#2d((100 200) (3 4))" "#r(0 1)" "#i2d((101 201) (3 4))" "#r2d((.1 .2) (.3 .4))" "#i1d(15 25)"
 		    "(values 1 2)" "(values)" "(values #\\c 3 1.2)" "(values \"ho\")"
 		    "`(x)" "`(+ x 1)" "`(x 1)" "`((x))" "`((+ x 1))" "`(((+ x 1)))" "`((set! x (+ x 1)) (* x 2))" "`((x 1))" "`(((x 1))) "
@@ -518,7 +532,6 @@
 		    "((i 0 (+ i 1)))" "(null? i)" 
 		    "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
 		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" "(or x y)"
-		    ;;"(begin (f x) B)" "(A (f x) B)" 
 		    ;;"(f x) i" "x y z" "1 2"
 		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
 		    "_definee_" "(_definee_ __var__)" "(_definee_ x)" 
@@ -576,7 +589,7 @@
 		    ;"quote" "'"
 		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
 		    "lambda*" "lambda"
-		    ;; "let" "let*" "do" "set!" "with-let" "define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
+		    ;;"let" "let*" "do" "set!" "with-let" ;"define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 		    ))
 
       (codes (vector 
@@ -616,6 +629,7 @@
 	      (list "(let ((x 1)) (immutable! 'x) (begin " "((lambda* ((x 1)) (immutable! 'x) ")
 	      (list "(do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) "
 		    "(do ((i 0 (+ i 1))) ((= i 1)) (let ((j 0)) ")
+	      (list "(or (_cop1_ " "(and (_cop2_ ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -798,14 +812,6 @@
 			     str str1 str2 str3 str4 
 			     val1 val2 val3 val4)))
 
-		  ((c-pointer? val1)
-		   (unless (and (morally-equal? val1 val2)
-				(morally-equal? val1 val3)
-				(morally-equal? val1 val4))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
-			     str str1 str2 str3 str4 
-			     val1 val2 val3 val4)))
-
 		  ((or (undefined? val1)
 		       (c-object? val1))
 		   (unless (and (equal? val1 val2)
@@ -814,6 +820,16 @@
 		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
 			     str str1 str2 str3 str4 
 			     val1 val2 val3 val4)))
+#|
+		  ((iterator? val1) ; hash input block let 
+		   (unless (or (memq (type-of (iterator-sequence val1)) '(hash-table? let?))
+			       (and (morally-equal? val1 val2)
+				    (morally-equal? val1 val3)
+				    (morally-equal? val1 val4)))
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+			     str str1 str2 str3 str4 
+			     val1 val2 val3 val4)))
+|#
 		  ))
 	  (begin
 	    (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
@@ -840,6 +856,7 @@
 
     (define (try-both str)
       (set! ostr str)
+
       (catch #t 
 	(lambda () 
 	  (s7-optimize (list (catch #t 
@@ -847,6 +864,24 @@
 				 (with-input-from-string str read))
 			       (lambda args ())))))
 	(lambda arg 'error))
+
+      (catch #t
+	(lambda ()
+	  (let ((val1 (car (list (eval-string str)))))
+	    (let ((newstr (object->string val1 :readable)))
+	      (let ((val2 (eval-string newstr)))
+		(if (not (or (morally-equal? val1 val2)
+			     (and (let? val1)
+				  (= (length val1) 0))))
+		    (format *stderr* "~%~S~%~S~%    ~A -> ~A~%" str newstr val1 val2))))))
+	(lambda arg 'error))
+
+#|
+      (catch #t
+	(lambda ()
+	  (pretty-print (with-input-from-string str read)))
+	(lambda arg 'error))
+|#	    
       (let* ((outer (codes (random codes-len)))	     
 	     (str1 (string-append "(let ((x #f) (i 0)) " (car outer) str ")))"))
 	     (str2 (string-append "(let () (define (func) " str1 ") (define (hi) (func)) (hi))"))
@@ -913,13 +948,6 @@
 
 	(try-both (make-expr (+ 1 (random 4)))) ; min 1 here not 0
 	(set! __var__ #f)
-#|	
-	(catch #t
-	  (lambda ()
-	    (try-both (make-expr (+ 1 (random 9))))) ; min 1 here not 0
-	  (lambda (type info)
-	    (format *stderr* "~A: ~S ~S ~S~%" type (apply format #f info) ostr (owlet))))
-|#
 	))
 
     (test-it)))
