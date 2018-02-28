@@ -10613,6 +10613,7 @@ static char *number_to_string_base_10(s7_pointer obj, int32_t width, int32_t pre
    */
   int32_t len;
   len = 1024;
+
   if (width > len) len = 2 * width;
   if (len > num_to_str_size)
     {
@@ -26055,6 +26056,21 @@ static int32_t shared_ref(shared_info *ci, s7_pointer p)
   return(0);
 }
 
+#if NEW_CYCLES
+static void flip_ref(shared_info *ci, s7_pointer p)
+{
+  int32_t i;
+  s7_pointer *objs;
+  objs = ci->objs;
+  for (i = 0; i < ci->top; i++)
+    if (objs[i] == p) 
+      {
+	ci->refs[i] = -ci->refs[i];
+	break;
+      }
+}
+#endif
+
 static int32_t peek_shared_ref(shared_info *ci, s7_pointer p)
 {
   /* returns 0 if not found, otherwise the ref value for p */
@@ -26272,10 +26288,18 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
     case T_C_POINTER:
       if ((has_structure(raw_pointer_type(top))) &&
 	  (collect_shared_info(sc, ci, raw_pointer_type(top), stop_at_print_length)))
-	top_cyclic = true;
+	{
+	  if (peek_shared_ref(ci, raw_pointer_type(top)) == 0)
+	    check_collected(raw_pointer_type(top), ci);
+	  top_cyclic = true;
+	}
       if ((has_structure(raw_pointer_info(top))) &&
 	  (collect_shared_info(sc, ci, raw_pointer_info(top), stop_at_print_length)))
-	top_cyclic = true;
+	{
+	  if (peek_shared_ref(ci, raw_pointer_info(top)) == 0)
+	    check_collected(raw_pointer_info(top), ci);
+	  top_cyclic = true;
+	}
       break;
     }
   if (!top_cyclic)
@@ -27050,23 +27074,30 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 #if NEW_CYCLES
 	  s7_pointer *els;
+	  int32_t vref;
+	  vref = peek_shared_ref(ci, vect);
+	  if (vref < 0) vref = -vref;
+
 	  els = vector_elements(vect);
 	  port_write_string(port)(sc, "(vector", 7, port); /* top level let */
-	  for (i = 0; i < len; i++)\
+	  for (i = 0; i < len; i++)
 	    {
 	      if (has_structure(els[i]))
 		{
 		  char buf[128];
 		  size_t len;
+		  int32_t eref;
 		  port_write_string(port)(sc, " #f", 3, port);
-		  if (shared_ref(ci, els[i]) < 0)
+		  eref = peek_shared_ref(ci, els[i]);
+		  if (eref != 0)
 		    {
-		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") <%d>)\n", -peek_shared_ref(ci, vect), i, -peek_shared_ref(ci, els[i]));
+		      if (eref < 0) eref = -eref;
+		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") <%d>)\n", vref, i, eref);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 		    }
 		  else
 		    {
-		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") ", -peek_shared_ref(ci, vect), i);
+		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") ", vref, i);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 		      object_to_port_with_circle_check(sc, els[i], ci->cycle_port, USE_READABLE_WRITE, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
@@ -27713,6 +27744,8 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       (is_collected(hash)) &&
       (peek_shared_ref(ci, hash) != 0))
     {
+#if NEW_CYCLES
+#else
       port_write_string(port)(sc, "(let (({ht} (make-hash-table)))", 31, port);
       if (shared_ref(ci, hash) < 0)
 	{
@@ -27740,6 +27773,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	  port_write_character(port)(sc, ')', port);
 	}
       port_write_string(port)(sc, " {ht})", 6, port);
+#endif
     }
   else
     {
@@ -27780,7 +27814,8 @@ static int32_t slot_to_port_1(s7_scheme *sc, s7_pointer x, s7_pointer port, use_
 #if NEW_CYCLES
 	  if (ci)
 	    {
-	      if (shared_ref(ci, slot_value(x)) < 0)
+	      if ((has_structure(slot_value(x))) &&
+		  (shared_ref(ci, slot_value(x)) < 0))
 		fprintf(stderr, "circular: %p\n", slot_value(x));
 	    }
 #endif
@@ -27821,17 +27856,20 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	{
 	  char buf[128];
 	  size_t len;
+	  int32_t symref;
 	  port_write_string(port)(sc, " :", 2, port);
 	  port_write_string(port)(sc, symbol_name(sym), symbol_name_length(sym), port);
 	  port_write_string(port)(sc, " #f", 3, port);
-	  if (shared_ref(ci, val) < 0)
+	  symref = peek_shared_ref(ci, val);
+	  if (symref != 0)
 	    {
-	      len = sprintf(buf, "  (set! (<%d> :%s) <%d>)\n", -peek_shared_ref(ci, obj), symbol_name(sym), -peek_shared_ref(ci, val));
+	      if (symref < 0) symref = -symref;
+	      len = sprintf(buf, "  (set! (<%d> :%s) <%d>)\n", -peek_shared_ref(ci, obj), symbol_name(sym), symref);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	    }
 	  else
 	    {
-	      len = sprintf(buf, "  (set! (<%d> %s) ", -peek_shared_ref(ci, obj), symbol_name(sym));
+	      len = sprintf(buf, "  (set! (<%d> :%s) ", -peek_shared_ref(ci, obj), symbol_name(sym));
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	      object_to_port_with_circle_check(sc, val, ci->cycle_port, USE_READABLE_WRITE, ci);
 	      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
@@ -27925,7 +27963,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      (outlet(obj) != sc->rootlet))
 		    {
 		      port_write_string(port)(sc, "(sublet ", 8, port);
-		      if (shared_ref(ci, outlet(obj)) < 0)
+		      if (peek_shared_ref(ci, outlet(obj)) < 0)
 			{
 			  char buf[128];
 			  size_t len;
@@ -27999,7 +28037,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	      port_write_character(port)(sc, ')', port); 
 	  }
 #endif
-	  else
+	  else /* not readable write */
 	    {
 	      port_write_string(port)(sc, "(inlet", 6, port);
 	      slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
@@ -29376,7 +29414,58 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 {
   int32_t nlen;
   char buf[128];
+#if NEW_CYCLES
+  if (use_write == USE_READABLE_WRITE)
+    {
+      if ((ci) &&
+	  (is_collected(obj)) &&
+	  (peek_shared_ref(ci, obj) != 0))
+	{
+	  port_write_string(port)(sc, "#f", 2, port);
+	  nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" PRIdPTR, -peek_shared_ref(ci, obj), (intptr_t)raw_pointer(obj));
+	  port_write_string(ci->cycle_port)(sc, buf, nlen, ci->cycle_port);
 
+	  if ((raw_pointer_type(obj) != sc->F) ||
+	      (raw_pointer_info(obj) != sc->F))
+	    {
+	      flip_ref(ci, raw_pointer_type(obj)); 
+
+	      port_write_character(ci->cycle_port)(sc, ' ', ci->cycle_port);
+	      object_to_port_with_circle_check(sc, raw_pointer_type(obj), ci->cycle_port, use_write, ci);
+
+	      flip_ref(ci, raw_pointer_type(obj)); 
+	      flip_ref(ci, raw_pointer_info(obj)); 
+
+	      port_write_character(ci->cycle_port)(sc, ' ', ci->cycle_port);
+	      object_to_port_with_circle_check(sc, raw_pointer_info(obj), ci->cycle_port, use_write, ci);
+
+	      flip_ref(ci, raw_pointer_info(obj)); 
+	    }
+	  port_write_string(ci->cycle_port)(sc, "))\n", 2, ci->cycle_port);
+	}
+      else
+	{
+	  nlen = snprintf(buf, 128, "(c-pointer %" PRIdPTR, (intptr_t)raw_pointer(obj));
+	  port_write_string(port)(sc, buf, nlen, port);
+	  if ((raw_pointer_type(obj) != sc->F) ||
+	      (raw_pointer_info(obj) != sc->F))
+	    {
+	      port_write_character(port)(sc, ' ', port);
+	      object_to_port_with_circle_check(sc, raw_pointer_type(obj), port, use_write, ci);
+	      port_write_character(port)(sc, ' ', port);
+	      object_to_port_with_circle_check(sc, raw_pointer_info(obj), port, use_write, ci);
+	    }
+	  port_write_character(port)(sc, ')', port);
+	}
+    }
+  else 
+    {
+      if (is_symbol(raw_pointer_type(obj)))
+	nlen = snprintf(buf, 128, "#<%s %p>", symbol_name(raw_pointer_type(obj)), raw_pointer(obj));
+      else nlen = snprintf(buf, 128, "#<c_pointer %p>", raw_pointer(obj));
+      port_write_string(port)(sc, buf, nlen, port);
+    }
+#else
   if (use_write == USE_READABLE_WRITE)
     {
       nlen = snprintf(buf, 128, "(c-pointer %" PRIdPTR, (intptr_t)raw_pointer(obj));
@@ -29398,6 +29487,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       else nlen = snprintf(buf, 128, "#<c_pointer %p>", raw_pointer(obj));
       port_write_string(port)(sc, buf, nlen, port);
     }
+#endif
 }
 
 static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -29510,7 +29600,11 @@ static void number_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
       char *str;
       nlen = 0;
       str = number_to_string_base_10(obj, 0, float_format_precision, 'g', &nlen, use_write); /* was 14 */
-      set_print_name(obj, str, nlen);
+      if ((nlen < PRINT_NAME_SIZE) &&
+	  (str[0] != 'n') && (str[0] != 'i') &&
+	  ((!(is_t_complex(obj))) || 
+	   ((!is_NaN(imag_part(obj))) && (!is_inf(imag_part(obj))))))
+	set_print_name(obj, str, nlen);
       port_write_string(port)(sc, str, nlen, port);
     }
 }
@@ -29797,11 +29891,12 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     {
       size_t len;
       char buf[128];
-      len = snprintf(buf, 128, "(<%d> ", i + 1);
+      len = snprintf(buf, 128, "%s(<%d> ", (i == 0) ? "" : "\n      ", i + 1);
       port_write_string(port)(sc, buf, len, port);
       object_to_port_with_circle_check(sc, ci->objs[i], port, USE_READABLE_WRITE, ci);
+      port_write_character(port)(sc, ')', port);
     }
-  port_write_string(port)(sc, "))\n", 3, port);
+  port_write_string(port)(sc, ")\n", 2, port);
 
   port_write_string(port)(sc, (const char *)(port_data(ci->cycle_port)), port_position(ci->cycle_port), port);
   s7_close_output_port(sc, ci->cycle_port);
@@ -34201,9 +34296,9 @@ static s7_int sequence_length(s7_scheme *sc, s7_pointer lst);
 static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer y, tp, np = NULL, pp;
-  bool args_are_lists = true;
+  bool all_args_are_lists = true;
 
-  /* we know here that args is a pair and cdr(args) is a pair */
+  /* we know here that args is a pair and cdr(args) is not nil */
   tp = sc->nil;
   for (y = args; is_pair(y); y = cdr(y)) /* arglist so not dotted */
     {
@@ -34223,7 +34318,7 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 #if S7_DEBUGGING
 	  if (!np) fprintf(stderr, "%s[%d]: np is null\n", __func__, __LINE__);
 #endif
-	  if (args_are_lists || (is_null(p)))
+	  if ((all_args_are_lists) || (is_null(p)))
 	    set_cdr(np, p);
 	  else 
 	    {
@@ -34272,8 +34367,8 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 	  else
 	    {
 	      s7_int len;
-	      args_are_lists = false;
 	      len = sequence_length(sc, p);
+	      all_args_are_lists = false;
 	      if (len > 0)
 		{
 		  if (is_null(tp))
@@ -41056,7 +41151,7 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	  (iterator_length(x) == iterator_length(y)))
 	{
 	  if (morally)
-	    return(s7_is_morally_equal(sc, x_seq, y_seq));
+	    return(c_object_morally_equal(sc, x_seq, y_seq, ci));
 	  return(c_object_equal(sc, x_seq, y_seq, ci));
 	}
       return(false);
@@ -43541,7 +43636,8 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
     {
       s7_pointer err_code;
       err_code = slot_value(sc->error_code);
-      if (is_pair(err_code))
+      if ((is_pair(err_code)) &&
+	  (!tree_is_cyclic(sc, err_code)))
 	{
 	  char *errstr, *notes = NULL;
 	  s7_pointer cur_env, f;
@@ -43569,7 +43665,8 @@ static char *stacktrace_1(s7_scheme *sc, int32_t frames_max, int32_t code_cols, 
       true_loc = (int32_t)(loc + 1) * 4 - 1;
       code = stack_code(sc->stack, true_loc);
 
-      if (is_pair(code))
+      if ((is_pair(code)) &&
+	  (!tree_is_cyclic(sc, code)))
 	{
 	  char *codestr;
 	  codestr = s7_object_to_c_string(sc, code);
@@ -84633,13 +84730,13 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1167
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1888
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1887
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2115
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2547
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2642
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.1
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2785
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3018
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2834
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3045
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198
