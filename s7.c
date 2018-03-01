@@ -22651,7 +22651,6 @@ const char *s7_port_filename(s7_pointer x)
   return(NULL);
 }
 
-
 static s7_pointer c_port_filename(s7_scheme *sc, s7_pointer x)
 {
   if (((is_input_port(x)) ||
@@ -22967,7 +22966,7 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 {
   if (is_file_port(p))
     {
-      if (port_filename(p)) /* only a file (output) port has a filename */
+      if (port_filename(p)) /* only a file port has a filename(?) */
 	{
 	  free(port_filename(p));
 	  port_filename(p) = NULL;
@@ -26222,7 +26221,11 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
       
     case T_ITERATOR:
       if (collect_shared_info(sc, ci, iterator_sequence(top), stop_at_print_length))
-	top_cyclic = true;
+	{
+	  if (peek_shared_ref(ci, iterator_sequence(top)) == 0)
+	    check_collected(iterator_sequence(top), ci);
+	  top_cyclic = true;
+	}
       break;
       
     case T_HASH_TABLE:
@@ -26567,8 +26570,6 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
 static void (*display_functions[256])(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci); 
 #define object_to_port(Sc, Obj, Port, Use_Write, Ci) (*display_functions[unchecked_type(Obj)])(Sc, Obj, Port, Use_Write, Ci)
 
-static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, use_write_t choice);
-
 static bool string_needs_slashification(const char *str, int32_t len)
 {
   /* we have to go by len (str len) not *s==0 because s7 strings can have embedded nulls */
@@ -26836,7 +26837,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
   if (string_length(obj) > 0)
     {
       /* since string_length is a scheme length, not C, this write can embed nulls from C's point of view */
-      if (string_length(obj) > 10000)
+      if (string_length(obj) > 1000) /* was 10000 28-Feb-18 */
 	{
 	  size_t size;
 	  char buf[128];
@@ -26847,10 +26848,11 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 	    {
 	      int32_t nlen;
 	      s7_pointer c;
-	      c = chars[(int32_t)buf[0]];
+	      c = chars[(int32_t)((unsigned char)(buf[0]))];
 	      nlen = snprintf(buf, 128, "(make-string %u ", string_length(obj));
 	      port_write_string(port)(sc, buf, nlen, port);
 	      port_write_string(port)(sc, character_name(c), character_name_length(c), port);
+	      /* (string-ref (eval-string (object->string (make-string 14766 (integer->char 255)) :readable)) 0) */
 	      port_write_character(port)(sc, ')', port);
 	      return;
 	    }
@@ -27576,6 +27578,13 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  int32_t plen;
 	  char buf[128];
 
+#if NEW_CYCLES
+	  fprintf(stderr, "lst: %s %d %d\n", DISPLAY(car(lst)), is_collected(lst), peek_shared_ref(ci, lst));
+	  /* #1=(1 . #1#) is_col and ref=-1
+	   * (cons 1 #1=(cons 2 #1#)), 2 (cdr) here with ref=-1, top is elsewhere -- "(1 . #1=(2 . #1#))"
+	   * (let ((<1> (list 1 2))) (set-cdr! (cdr <1>) (cdr <1>)) <1>)
+	   */
+#else
 	  port_write_string(port)(sc, "let (({lst} (make-list ", 23, port);
 	  plen = snprintf(buf, 128, "%" PRId64 "))) ", len);
 	  port_write_string(port)(sc, buf, plen, port);
@@ -27602,6 +27611,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	      port_write_string(port)(sc, ") ", 2, port);
 	    }
 	  port_write_string(port)(sc, ") {lst})", 8, port);
+#endif
 	}
       else
 	{
@@ -27745,6 +27755,56 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       (peek_shared_ref(ci, hash) != 0))
     {
 #if NEW_CYCLES
+      
+      /* TODO: eq-func if chosen, key-as-struct */
+      /* (let ((<1> (make-hash-table <default-size> morally-equal?)))
+       *   and then fill all fields in cycle_port
+       *   hash_table_checker_locked?
+       */
+
+      int32_t href;
+      href = peek_shared_ref(ci, hash);
+      if (href < 0) href = -href;
+      port_write_string(port)(sc, "(hash-table*", 12, port); /* top level let */
+      for (i = 0; i < len; i++)
+	{
+	  s7_pointer key_val, key, val;
+
+	  key_val = hash_table_iterate(sc, iterator);
+	  key = car(key_val);
+	  val = cdr(key_val);
+	  if (has_structure(val))
+	    {
+	      char buf[128];
+	      size_t plen;
+	      int32_t eref;
+	      eref = peek_shared_ref(ci, val);
+	      plen = snprintf(buf, 128, "  (set! (<%d> ", href);
+	      port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
+	      object_to_port(sc, key, ci->cycle_port, USE_READABLE_WRITE, ci); /* key */
+	      if (eref != 0)
+		{
+		  if (eref < 0) eref = -eref;
+		  plen = snprintf(buf, 128, ") <%d>)\n", eref);
+		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
+		}
+	      else
+		{
+		  port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
+		  object_to_port_with_circle_check(sc, val, ci->cycle_port, USE_READABLE_WRITE, ci);
+		  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+		}
+	    }
+	  else
+	    {
+	      port_write_character(port)(sc, ' ', port);
+	      object_to_port_with_circle_check(sc, key, port, USE_READABLE_WRITE, ci);
+	      port_write_character(port)(sc, ' ', port);
+	      object_to_port_with_circle_check(sc, val, port, USE_READABLE_WRITE, ci);
+	    }
+	}
+      port_write_character(port)(sc, ')', port);
+
 #else
       port_write_string(port)(sc, "(let (({ht} (make-hash-table)))", 31, port);
       if (shared_ref(ci, hash) < 0)
@@ -27777,6 +27837,21 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
     }
   else
     {
+#if NEW_CYCLES
+      port_write_string(port)(sc, "(hash-table*", 12, port);
+      for (i = 0; i < len; i++)
+	{
+	  s7_pointer key_val;
+	  if (use_write == USE_READABLE_WRITE)
+	    port_write_character(port)(sc, ' ', port);
+	  else port_write_string(port)(sc, " '", 2, port);
+	  key_val = hash_table_iterate(sc, iterator);
+
+	  object_to_port_with_circle_check(sc, car(key_val), port, DONT_USE_DISPLAY(use_write), ci);
+	  port_write_character(port)(sc, ' ', port);
+	  object_to_port_with_circle_check(sc, cdr(key_val), port, DONT_USE_DISPLAY(use_write), ci);
+	}
+#else
       port_write_string(port)(sc, "(hash-table", 11, port);
       for (i = 0; i < len; i++)
 	{
@@ -27787,7 +27862,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	  key_val = hash_table_iterate(sc, iterator);
 	  object_to_port_with_circle_check(sc, key_val, port, DONT_USE_DISPLAY(use_write), ci);
 	}
-
+#endif
       if (too_long)
 	port_write_string(port)(sc, " ...)", 5, port);
       else port_write_character(port)(sc, ')', port);
@@ -28343,7 +28418,9 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 	  port_write_character(port)(sc, '(', port);
 	  port_write_string(port)(sc, symbol_name(slot_symbol(slot)), symbol_name_length(slot_symbol(slot)), port);
 	  port_write_character(port)(sc, ' ', port);
-	  object_out(sc, slot_value(slot), port, USE_WRITE);
+	  /* (object->string (list (let ((local 1)) (lambda (x) (+ x local)))) :readable) */
+	  /* object_out(sc, slot_value(slot), port, USE_WRITE); */
+	  object_to_port(sc, slot_value(slot), port, USE_WRITE, NULL);
 	  if (is_null(cdr(x)))
 	    port_write_character(port)(sc, ')', port);
 	  else port_write_string(port)(sc, ") ", 2, port);
@@ -29336,6 +29413,29 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	{
 	  s7_pointer seq;
 	  seq = iterator_sequence(obj);
+#if NEW_CYCLES
+	  if ((ci) &&
+	      (is_collected(obj)) &&
+	      (peek_shared_ref(ci, obj) != 0))
+	    {
+	      /* basically the same as c_pointer_to_port */
+	      int32_t iter_ref, nlen;
+	      char buf[128];
+	      iter_ref = peek_shared_ref(ci, obj);
+	      if (iter_ref < 0) iter_ref = -iter_ref;
+	      
+	      port_write_string(port)(sc, "#f", 2, port);
+	      nlen = snprintf(buf, 128, "  (set! <%d> (make-iterator ", iter_ref);
+	      port_write_string(ci->cycle_port)(sc, buf, nlen, ci->cycle_port);
+	      
+	      flip_ref(ci, seq);
+	      object_to_port_with_circle_check(sc, seq, ci->cycle_port, use_write, ci);
+	      flip_ref(ci, seq); 
+	      
+	      port_write_string(ci->cycle_port)(sc, "))\n", 3, ci->cycle_port);
+	      return;
+	    }
+#endif
 	  if (is_string_not_byte_vector(seq))
 	    {
 	      char *iter_str;
@@ -29441,7 +29541,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 
 	      flip_ref(ci, raw_pointer_info(obj)); 
 	    }
-	  port_write_string(ci->cycle_port)(sc, "))\n", 2, ci->cycle_port);
+	  port_write_string(ci->cycle_port)(sc, "))\n", 3, ci->cycle_port);
 	}
       else
 	{
@@ -29825,6 +29925,7 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
 		}
 	      else
 		{
+		  /* "normal" printout involving #n= and #n# */
 		  p = pos_int_to_str((s7_int)ref, &len, '=');
 		  *--p = '#';
 		  port_write_string(port)(sc, p, len, port);
@@ -84694,9 +84795,18 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * t745.scm has innumerable cycle print problems, t718.scm has auto-tester stuff
+ *
+ * t745.scm has innumerable cycle print problems, t718.scm has auto-tester stuff. t747.scm has cycle print tests
  *   readable trouble: (setter (block))
- *   could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
+ *     could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
+ *   morally-equal/readable c_object: need cyclic-sequences info (and a way to participate with local cell) etc.
+ *     cyclic-sequences method? => ask built-in to include objs and map to indices in print?
+ *     so c-object cyclic-sequences method would pass (list obj local1 ...)
+ *   readable iterate+func? see t747, iterator? -> +iterator+?? (all +*+ locals need to be included in readable write, copy)
+ *   still need: pairs, multidim vectors, hash key/eq-func
+ * check t1 for unexercised sections
+ * port-filename clobbered (t718)
+ * eval-string syntax/symbol oddness (t718)
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
