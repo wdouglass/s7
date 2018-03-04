@@ -1931,14 +1931,14 @@ instead of eof-object?.
 </p>
 
 <p>The argument to make-iterator can also be a function or macro.  
-There should be a variable named 'iterator with a non-#f
+There should be a variable named '+iterator+ with a non-#f
 value in the closure's environment:
 </p>
 <pre class="indented">
 (define (make-circular-iterator obj)
   (let ((iter (make-iterator obj)))
     (make-iterator 
-     (let ((iterator? #t))
+     (let ((+iterator+ #t))
        (lambda ()
          (case (iter) 
            ((#&lt;eof&gt;) ((set! iter (make-iterator obj))))
@@ -6128,6 +6128,8 @@ definition, and a later redefinition does not affect earlier uses.
 <p>With the move to s7_setter and s7_set_setter (setter in Scheme), 
 dilambda and dilambda? have been reduced to trivial conveniences, so perhaps they can also be
 removed.
+And, in retrospect, hash-table* is clearly superior to hash-table, so hash-table should be removed,
+and hash-table* renamed.
 </p>
 
 <p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
@@ -9508,7 +9510,7 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 			     (let ((key #f)
 				   (length (lambda (obj) (expt 2 20))))
 			       (#_make-iterator
-                                (let ((iterator? #t))
+                                (let ((+iterator+ #t))
 				  (openlet 
 				   (lambda ()
 				     (if key

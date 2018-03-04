@@ -613,7 +613,7 @@ If func approves of one, index-if returns the index that gives that element's po
 	    (make-iterator
 	     (cond ((infinite? len)      ; circular list
 		    (let ((cur p)
-			  (iterator? #t))
+			  (+iterator+ #t))
 		      (lambda ()
 			(if (memq cur seen-cycles)
 			    #<eof>
@@ -626,7 +626,7 @@ If func approves of one, index-if returns the index that gives that element's po
 		    p)
 		   (else 
 		    (let ((cur p)        ; dotted list
-			  (iterator? #t))
+			  (+iterator+ #t))
 		      (lambda ()
 			(if (pair? cur)
 			    (let ((result (car cur)))
@@ -638,7 +638,7 @@ If func approves of one, index-if returns the index that gives that element's po
     
     (make-iterator
      (let ((iter (make-careful-iterator obj))
-	   (iterator? #t))       
+	   (+iterator+ #t))       
        (define (iterloop) ; define returns the new value
 	 (define (iter-memq p q)
 	   (and (pair? q)
@@ -2118,7 +2118,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	 (let ((dir (opendir name)))
 	   (if (equal? dir NULL)
 	       (error 'io-error "can't open ~S: ~S" name (strerror (errno)))
-	       (let ((iterator? #t))
+	       (let ((+iterator+ #t))
 		 (define reader
 		   (let ((dirs ())
 			 (dir-names ())

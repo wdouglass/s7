@@ -11328,7 +11328,7 @@
 				     vname (truncated-list->string (var-initial-value local-var)) (var-definer local-var))))
 		  
 		  ;; not ref'd or set
-		  (if (not (memq vname '(+documentation+ +signature+ +setter+ iterator? define-animal)))
+		  (if (not (memq vname '(+documentation+ +signature+ +setter+ +iterator+ define-animal)))
 		      (let ((val (truncated-list->string
 				  (if (pair? (var-history local-var)) 
 				      (car (var-history local-var))
@@ -13494,7 +13494,7 @@
 			       (if (zero? (var-ref arg-var))
 				   (if (positive? (var-set arg-var))
 				       (set! set (cons (var-name arg-var) set))
-				       (if (not (memq (var-name arg-var) '(+documentation+ +signature+ +setter+ iterator?)))
+				       (if (not (memq (var-name arg-var) '(+documentation+ +signature+ +setter+ +iterator+)))
 					   (set! unused (cons (var-name arg-var) unused))))))
 			     args-as-vars)
 			    (when (or (pair? set)

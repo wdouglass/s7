@@ -397,8 +397,6 @@ typedef intptr_t opcode_t;
   #define POINTER_32 false
 #endif
 
-#define NEW_CYCLES 0
-
 
 /* types */
 #define T_FREE                 0
@@ -910,10 +908,9 @@ typedef struct {
   int32_t size, top, ref, size2;
   bool has_hits;
   int32_t *refs;
-#if NEW_CYCLES
-  s7_pointer cycle_port;
-  uint32_t cycle_loc;
-#endif
+  s7_pointer cycle_port, init_port;
+  uint32_t cycle_loc, init_loc;
+  bool *defined;
 } shared_info;
 
 
@@ -1139,7 +1136,7 @@ struct s7_scheme {
              vector_set_symbol, vector_symbol, 
              with_input_from_file_symbol, with_input_from_string_symbol, with_output_to_file_symbol, with_output_to_string_symbol,
              write_byte_symbol, write_char_symbol, write_string_symbol, write_symbol,
-             local_documentation_symbol, local_signature_symbol, local_setter_symbol;
+             local_documentation_symbol, local_signature_symbol, local_setter_symbol, local_iterator_symbol;
 #if (!WITH_PURE_S7)
   s7_pointer is_char_ready_symbol, char_ci_leq_symbol, char_ci_lt_symbol, char_ci_eq_symbol, char_ci_geq_symbol, char_ci_gt_symbol, 
              let_to_list_symbol, integer_length_symbol, string_ci_leq_symbol, string_ci_lt_symbol, string_ci_eq_symbol,
@@ -1812,8 +1809,8 @@ static s7_scheme *cur_sc = NULL;
 #define T_SHARED                      (1 << (TYPE_BITS + 11))
 #define is_shared(p)                  ((typeflag(_TSeq(p)) & T_SHARED) != 0)
 #define set_shared(p)                 typeflag(_TSeq(p)) |= T_SHARED
-#define clear_collected_and_shared(p) typeflag(p) &= (~(T_COLLECTED | T_SHARED)) /* this can clear free cells = calloc */
 #define is_collected_or_shared(p)     ((typeflag(p) & (T_COLLECTED | T_SHARED)) != 0)
+#define clear_collected_and_shared(p) typeflag(p) &= (~(T_COLLECTED | T_SHARED)) /* this can clear free cells = calloc */
 
 #define T_OVERLAY                     (1 << (TYPE_BITS + 12))
 #define set_overlay(p)                typeflag(_TPair(p)) |= T_OVERLAY
@@ -2042,8 +2039,19 @@ static s7_scheme *cur_sc = NULL;
 #define is_very_safe_closure(p)       ((typeflag(_NFre(p)) & T_VERY_SAFE_CLOSURE) != 0)
 #define set_very_safe_closure(p)      typeflag(p) |= T_VERY_SAFE_CLOSURE
 #define safe_closure_bits(p)          (typeflag(p) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
+
+#define T_CYCLIC                      (1LL << (TYPE_BITS + 29))
+#define is_cyclic(p)                  ((typeflag(_NFre(p)) & T_CYCLIC) != 0)
+#define clear_cyclic(p)               typeflag(_NFre(p)) &= (~T_CYCLIC)
+#define set_cyclic(p)                 typeflag(_NFre(p)) |= T_CYCLIC
+
+#define T_CYCLIC_SET                  (1LL << (TYPE_BITS + 30))
+#define is_cyclic_set(p)              ((typeflag(_NFre(p)) & T_CYCLIC_SET) != 0)
+#define set_cyclic_set(p)             typeflag(_NFre(p)) |= T_CYCLIC_SET
+#define clear_cyclic_bits(p)          typeflag(p) &= (~(T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET))
+
  
-#define UNUSED_BITS                   0x7fffffe000000000
+#define UNUSED_BITS                   0x7fffff8000000000
 
 #define T_GC_MARK                     0x8000000000000000
 #define is_marked(p)                  ((typeflag(p) &  T_GC_MARK) != 0)
@@ -2533,6 +2541,7 @@ static int64_t not_heap = -1;
 #define port_line_number(p)           (_TPrt(p))->object.prt.line_number
 #define port_file_number(p)           (_TPrt(p))->object.prt.file_number
 #define port_filename(p)              port_port(p)->filename
+#define port_set_filename(p, Name, Len) port_port(p)->filename = copy_string_with_length(Name, Len)
 #define port_filename_length(p)       port_port(p)->filename_length
 #define port_file(p)                  port_port(p)->file
 #define port_is_closed(p)             (_TPrt(p))->object.prt.is_closed
@@ -3899,6 +3908,13 @@ static uint32_t s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
   uint32_t loc;
   loc = s7_gc_protect(sc, x);
   sc->protected_lines[loc] = line;
+#if S7_DEBUGGING
+  if (loc > 8192)
+    {
+      fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, sc->cur_code));
+      abort();
+    }
+#endif
   return(loc);
 }
 #define s7_gc_protect_1(Sc, X) s7_gc_protect_2(Sc, X, __LINE__)
@@ -22658,7 +22674,7 @@ static s7_pointer c_port_filename(s7_scheme *sc, s7_pointer x)
       (!port_is_closed(x)))
     {
       if (port_filename(x))
-	return(make_string_wrapper_with_length(sc, port_filename(x), port_filename_length(x)));
+	return(s7_make_string_with_length(sc, port_filename(x), port_filename_length(x))); /* not wrapper here! */
       return(s7_make_string_with_length(sc, "", 0));
       /* otherwise (eval-string (port-filename)) and (string->symbol (port-filename)) segfault */
     }
@@ -23694,7 +23710,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, int64_t m
    *   memory, we gradually core-up.
    */
   port_filename_length(port) = safe_strlen(name);
-  port_filename(port) = copy_string_with_length(name, port_filename_length(port));
+  port_set_filename(port, name, port_filename_length(port));
   port_line_number(port) = 1;  /* first line is numbered 1 */
   add_input_port(sc, port);
 
@@ -23892,7 +23908,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_data(x) = NULL;
   port_is_closed(x) = false;
   port_filename_length(x) = 8;
-  port_filename(x) = copy_string_with_length("*stdout*", 8);
+  port_set_filename(x, "*stdout*", 8);
   port_file_number(x) = remember_file_name(sc, port_filename(x)); /* these numbers need to be correct for the evaluator (__FUNC__ data) */
   port_line_number(x) = 0;
   port_file(x) = stdout;
@@ -23913,7 +23929,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_data(x) = NULL;
   port_is_closed(x) = false;
   port_filename_length(x) = 8;
-  port_filename(x) = copy_string_with_length("*stderr*", 8);
+  port_set_filename(x, "*stderr*", 8);
   port_file_number(x) = remember_file_name(sc, port_filename(x));
   port_line_number(x) = 0;
   port_file(x) = stderr;
@@ -23934,7 +23950,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_is_closed(x) = false;
   port_original_input_string(x) = sc->nil;
   port_filename_length(x) = 7;
-  port_filename(x) = copy_string_with_length("*stdin*", 7);
+  port_set_filename(x, "*stdin*", 7);
   port_file_number(x) = remember_file_name(sc, port_filename(x));
   port_line_number(x) = 0;
   port_file(x) = stdin;
@@ -23984,7 +24000,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_type(x) = FILE_PORT;
   port_is_closed(x) = false;
   port_filename_length(x) = safe_strlen(name);
-  port_filename(x) = copy_string_with_length(name, port_filename_length(x));
+  port_set_filename(x, name, port_filename_length(x));
   port_line_number(x) = 1;
   port_file(x) = fp;
   port_needs_free(x) = false;
@@ -25532,7 +25548,7 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 
   x = car(args);
   if (is_iterator(x)) return(sc->T);
-  check_closure_for(sc, x, sc->is_iterator_symbol);
+  check_closure_for(sc, x, sc->local_iterator_symbol);
   check_boolean_method(sc, is_iterator, sc->is_iterator_symbol, args);
   return(sc->F);
 }
@@ -26055,7 +26071,6 @@ static int32_t shared_ref(shared_info *ci, s7_pointer p)
   return(0);
 }
 
-#if NEW_CYCLES
 static void flip_ref(shared_info *ci, s7_pointer p)
 {
   int32_t i;
@@ -26068,7 +26083,6 @@ static void flip_ref(shared_info *ci, s7_pointer p)
 	break;
       }
 }
-#endif
 
 static int32_t peek_shared_ref(shared_info *ci, s7_pointer p)
 {
@@ -26090,6 +26104,7 @@ static void enlarge_shared_info(shared_info *ci)
   ci->size2 = ci->size - 2;
   ci->objs = (s7_pointer *)realloc(ci->objs, ci->size * sizeof(s7_pointer));
   ci->refs = (int32_t *)realloc(ci->refs, ci->size * sizeof(int32_t));
+  ci->defined = (bool *)realloc(ci->defined, ci->size * sizeof(bool));
   for (i = ci->top; i < ci->size; i++)
     {
       ci->refs[i] = 0;
@@ -26113,26 +26128,6 @@ static void add_shared_ref(shared_info *ci, s7_pointer x, int32_t ref_x)
 static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length);
 static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key);
 
-static bool collect_vector_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length)
-{
-  s7_int i, plen;
-  bool cyclic = false;
-
-  if (stop_at_print_length)
-    {
-      plen = sc->print_length;
-      if (plen > vector_length(top))
-	plen = vector_length(top);
-    }
-  else plen = vector_length(top);
-
-  for (i = 0; i < plen; i++)
-    if ((has_structure(vector_element(top, i))) &&
-	(collect_shared_info(sc, ci, vector_element(top, i), stop_at_print_length)))
-      cyclic = true;
-  return(cyclic);
-}
-
 static bool check_collected(s7_pointer top, shared_info *ci)
 {
   s7_pointer *p, *objs_end;
@@ -26149,7 +26144,39 @@ static bool check_collected(s7_pointer top, shared_info *ci)
 	  }
 	break;
       }
+  set_cyclic(top);
   return(true);
+}
+
+static bool collect_vector_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length)
+{
+  s7_int i, plen;
+  bool cyclic = false;
+
+  if (stop_at_print_length)
+    {
+      plen = sc->print_length;
+      if (plen > vector_length(top))
+	plen = vector_length(top);
+    }
+  else plen = vector_length(top);
+
+  for (i = 0; i < plen; i++)
+    {
+      s7_pointer vel;
+      vel = vector_element(top, i);
+      if ((has_structure(vel)) &&
+	  (collect_shared_info(sc, ci, vel, stop_at_print_length)))
+	{
+	  set_cyclic(vel);
+	  cyclic = true;
+	  if ((is_c_pointer(vel)) ||
+	      (is_iterator(vel)))
+	    check_collected(top, ci);
+	}
+    }
+  if (cyclic) set_cyclic(top);
+  return(cyclic);
 }
 
 static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length)
@@ -26183,10 +26210,13 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
       if ((has_structure(car(top))) &&
 	  (collect_shared_info(sc, ci, car(top), stop_at_print_length)))
 	top_cyclic = true;
+
       for (p = cdr(top); is_pair(p); p = cdr(p))
 	{
 	  if (is_collected_or_shared(p))
 	    {
+	      set_cyclic(top);
+	      set_cyclic(p);
 	      if (is_shared(p))
 		{
 		  if (!top_cyclic)
@@ -26205,10 +26235,13 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	}
       if ((has_structure(p)) &&
 	  (collect_shared_info(sc, ci, p, stop_at_print_length)))
-	return(true);
-      
+	{
+	  set_cyclic(top);
+	  return(true);
+	}
       if (!top_cyclic)
 	for (cp = top; is_pair(cp); cp = cdr(cp)) set_shared(cp);
+      else set_cyclic(top);
       return(top_cyclic);
     }
 
@@ -26249,13 +26282,18 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 		    top_cyclic = true;
 		  if ((has_structure(p->value)) &&
 		      (collect_shared_info(sc, ci, p->value, stop_at_print_length)))
-		    top_cyclic = true;
+		    {
+		      if ((is_c_pointer(p->value)) ||
+			  (is_iterator(p->value)))
+			check_collected(top, ci);
+		      top_cyclic = true;
+		    }
 		}
 	    }
 	}
       break;
       
-    case T_SLOT:
+    case T_SLOT: /* this can be hit if we somehow collect_shared_info on sc->rootlet via collect_vector_info (see the let case below) */
       if ((has_structure(slot_value(top))) &&
 	  (collect_shared_info(sc, ci, slot_value(top), stop_at_print_length)))
 	top_cyclic = true;
@@ -26269,22 +26307,19 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	}
       else
 	{
-#if NEW_CYCLES
 	  s7_pointer p, q;
 	  for (q = top; is_let(q) && (q != sc->rootlet); q = outlet(q))
 	    {
 	      for (p = let_slots(q); is_slot(p); p = next_slot(p))
 		if ((has_structure(slot_value(p))) &&
 		    (collect_shared_info(sc, ci, slot_value(p), stop_at_print_length)))
-		  top_cyclic = true;
+		  {
+		    top_cyclic = true;
+		    if ((is_c_pointer(slot_value(p))) ||
+			(is_iterator(slot_value(p))))
+		      check_collected(top, ci);
+		  }
 	    }
-#else
-	  s7_pointer p;
-	  for (p = let_slots(top); is_slot(p); p = next_slot(p))
-	    if ((has_structure(slot_value(p))) &&
-		(collect_shared_info(sc, ci, slot_value(p), stop_at_print_length)))
-	      top_cyclic = true;
-#endif
 	}
       break;
 
@@ -26307,10 +26342,11 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
     }
   if (!top_cyclic)
     set_shared(top);
+  else set_cyclic(top);
   return(top_cyclic);
 }
 
-static shared_info *init_circle_info(void)
+static shared_info *init_circle_info(s7_scheme *sc)
 {
   shared_info *ci;
   ci = (shared_info *)calloc(1, sizeof(shared_info));
@@ -26318,6 +26354,9 @@ static shared_info *init_circle_info(void)
   ci->size2 = ci->size - 2;
   ci->objs = (s7_pointer *)malloc(ci->size * sizeof(s7_pointer));
   ci->refs = (int32_t *)calloc(ci->size, sizeof(int32_t));   /* finder expects 0 = unseen previously */
+  ci->defined = (bool *)calloc(ci->size, sizeof(bool));
+  ci->cycle_port = sc->F;
+  ci->init_port = sc->F;
   return(ci);
 }
 
@@ -26328,8 +26367,10 @@ static inline shared_info *new_shared_info(s7_scheme *sc)
   ci = sc->circle_info;
   if (ci->top > 0)
     memclr((void *)(ci->refs), ci->top * sizeof(int32_t));
+  if (ci->top > 0)
+    memclr((void *)(ci->defined), ci->top * sizeof(bool));
   for (i = 0; i < ci->top; i++)
-    clear_collected_and_shared(ci->objs[i]);
+    clear_cyclic_bits(ci->objs[i]);
   ci->top = 0;
   ci->ref = 0;
   ci->has_hits = false;
@@ -26881,7 +26922,6 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
     port_write_character(port)(sc, ')', port);
 }
 
-
 static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_pointer vect, char *str, int32_t cur_dim)
 {
   s7_int size, ind;
@@ -26900,7 +26940,6 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 #endif
   return(str);
 }
-
 
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
 				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
@@ -26922,21 +26961,6 @@ static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer por
 	{
 	  if (flat_ref < out_len)
 	    {
-	      if (use_write == USE_READABLE_WRITE)
-		{
-#if NEW_CYCLES
-#else
-		  int32_t plen;
-		  char buf[128];
-		  char *indices;
-		  /* need to translate flat_ref into a set of indices
-		   */
-		  tmpbuf_calloc(indices, 128);
-		  plen = snprintf(buf, 128, "(set! ({v}%s) ", multivector_indices_to_string(sc, flat_ref, vec, indices, dimension));
-		  port_write_string(port)(sc, buf, plen, port);
-		  tmpbuf_free(indices, 128);
-#endif
-		}
 	      object_to_port_with_circle_check(sc, vector_getter(vec)(sc, vec, flat_ref), port, DONT_USE_DISPLAY(use_write), ci);
 
 	      if (use_write == USE_READABLE_WRITE)
@@ -27005,7 +27029,7 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
       port_write_string(port)(sc, buf, plen, port);
     }
 }
-  
+
 static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   s7_int i, len;
@@ -27066,21 +27090,30 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
   if (use_write == USE_READABLE_WRITE)
     {
-#if (!NEW_CYCLES)
-      if (is_immutable(vect))
-	port_write_string(port)(sc, "(immutable! ", 12, port);
-#endif
       if ((ci) &&
-	  (is_collected(vect)) &&
+	  (is_cyclic(vect)) &&
+	  /* (is_collected(vect)) && */
 	  (peek_shared_ref(ci, vect) != 0))
 	{
-#if NEW_CYCLES
 	  s7_pointer *els;
 	  int32_t vref;
 	  vref = peek_shared_ref(ci, vect);
 	  if (vref < 0) vref = -vref;
 
 	  els = vector_elements(vect);
+
+	  if ((ci->defined[vref]) || (port == ci->cycle_port))
+	    {
+	      char buf[128];
+	      size_t plen;
+	      plen = snprintf(buf, 128, "<%d>", vref);
+	      port_write_string(port)(sc, buf, plen, port);
+	      return;
+	    }
+
+	  if (vector_rank(vect) > 1)
+	    port_write_string(port)(sc, "(make-shared-vector ", 20, port);
+
 	  port_write_string(port)(sc, "(vector", 7, port); /* top level let */
 	  for (i = 0; i < len; i++)
 	    {
@@ -27088,19 +27121,47 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 		{
 		  char buf[128];
 		  size_t len;
+		  char *indices;
 		  int32_t eref;
 		  port_write_string(port)(sc, " #f", 3, port);
 		  eref = peek_shared_ref(ci, els[i]);
+
 		  if (eref != 0)
 		    {
 		      if (eref < 0) eref = -eref;
-		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") <%d>)\n", vref, i, eref);
-		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+		      if (vector_rank(vect) > 1)
+			{
+			  int32_t dimension;
+			  dimension = vector_rank(vect) - 1;
+			  tmpbuf_calloc(indices, 128);
+			  plen = snprintf(buf, 128, "(set! (<%d>%s) <%d>)\n ", vref, multivector_indices_to_string(sc, i, vect, indices, dimension), eref);
+			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
+			  tmpbuf_free(indices, 128);
+			}
+		      else
+			{
+			  len = sprintf(buf, "  (set! (<%d> %" PRId64 ") <%d>)\n", vref, i, eref);
+			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			}
+		      
 		    }
 		  else
 		    {
-		      len = sprintf(buf, "  (set! (<%d> %" PRId64 ") ", vref, i);
-		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+		      if (vector_rank(vect) > 1)
+			{
+			  int32_t dimension;
+			  dimension = vector_rank(vect) - 1;
+			  tmpbuf_calloc(indices, 128);
+			  plen = snprintf(buf, 128, "(set! (<%d>%s) ", vref, multivector_indices_to_string(sc, i, vect, indices, dimension));
+			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
+			  tmpbuf_free(indices, 128);
+			}
+		      else
+			{
+			  len = sprintf(buf, "  (set! (<%d> %" PRId64 ") ", vref, i);
+			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			}
+		      
 		      object_to_port_with_circle_check(sc, els[i], ci->cycle_port, USE_READABLE_WRITE, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 		    }
@@ -27110,77 +27171,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 		  port_write_character(port)(sc, ' ', port);
 		  object_to_port_with_circle_check(sc, els[i], port, USE_READABLE_WRITE, ci);
 		}
-	    }
-	  port_write_character(port)(sc, ')', port);
-#else
-	  port_write_string(port)(sc, "(let (({v} (make-vector ", 24, port);
-	  if (vector_rank(vect) > 1)
-	    {
-	      uint32_t dim;
-	      port_write_string(port)(sc, "'(", 2, port);
-	      for (dim = 0; dim < vector_ndims(vect); dim++)
-		{
-		  plen = snprintf(buf, 128, "%" PRId64 " ", vector_dimension(vect, dim));
-		  port_write_string(port)(sc, buf, plen, port);
-		}
-	      port_write_string(port)(sc, ")))) ", 5, port);
-	    }
-	  else 
-	    {
-	      plen = snprintf(buf, 128, "%" PRId64 "))) ", vector_length(vect));
-	      port_write_string(port)(sc, buf, plen, port);
-	    }
-	  if (shared_ref(ci, vect) < 0)
-	    {
-	      plen = snprintf(buf, 128, "(set! {%d} {v}) ", -shared_ref(ci, vect));
-	      port_write_string(port)(sc, buf, plen, port);
-	    }
-	  
-	  if (vector_rank(vect) > 1)
-	    {
-	      bool last = false;
-	      multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, use_write, ci);
-	    }
-	  else
-	    {
-	      for (i = 0; i < len; i++)
-		{
-		  port_write_string(port)(sc, "(set! ({v} ", 11, port);
-		  plen = snprintf(buf, 128, "%" PRId64 ") ", i);
-		  port_write_string(port)(sc, buf, plen, port);
-		  object_to_port_with_circle_check(sc, vector_element(vect, i), port, use_write, ci);
-		  port_write_string(port)(sc, ") ", 2, port);
-		}
-	    }
-	  port_write_string(port)(sc, "{v})", 4, port);
-#endif
-	}
-      else /* simple readable case */
-#if NEW_CYCLES
-	{
-	  /* first check for elements that contain cyclic refs -- if any, write "#f " and (set! ??? (vector ...)) */
-	  if (is_immutable(vect))
-	    port_write_string(port)(sc, "(immutable! (vector", 19, port);
-	  else port_write_string(port)(sc, "(vector", 7, port);
-	  for (i = 0; i < len; i++)
-	    {
-	      port_write_character(port)(sc, ' ', port);
-	      object_to_port_with_circle_check(sc, vector_element(vect, i), port, use_write, ci);
-	    }
-	  if (is_immutable(vect))
-	    port_write_string(port)(sc, "))", 2, port);
-	  else port_write_character(port)(sc, ')', port);
-	}
-#else
-	{
-	  if (vector_rank(vect) > 1)
-	    port_write_string(port)(sc, "(make-shared-vector (vector", 27, port);
-	  else port_write_string(port)(sc, "(vector", 7, port);
-
-	  for (i = 0; i < len; i++)
-	    {
-	      port_write_character(port)(sc, ' ', port);
-	      object_to_port_with_circle_check(sc, vector_element(vect, i), port, use_write, ci);
 	    }
 	  port_write_character(port)(sc, ')', port);
 
@@ -27198,11 +27188,44 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      port_write_string(port)(sc, "))", 2, port);
 	    }
 	}
-      if (is_immutable(vect))
-	port_write_character(port)(sc, ')', port);
-#endif
-    }
-  else
+      else 
+	{
+	  if ((ci) && (peek_shared_ref(ci, vect) != 0)) fprintf(stderr, "cyclic vect missed\n");
+	  
+	  if (vector_rank(vect) > 1)
+	    port_write_string(port)(sc, "(make-shared-vector ", 20, port);
+	  
+	  if (is_immutable(vect))
+	    port_write_string(port)(sc, "(immutable! ", 12, port);
+	  
+	  port_write_string(port)(sc, "(vector", 7, port);
+	  for (i = 0; i < len; i++)
+	    {
+	      port_write_character(port)(sc, ' ', port);
+	      object_to_port_with_circle_check(sc, vector_element(vect, i), port, USE_READABLE_WRITE, ci);
+	    }
+	  port_write_character(port)(sc, ')', port);
+	  if (is_immutable(vect))
+	    port_write_character(port)(sc, ')', port);
+	  
+	  if (vector_rank(vect) > 1)
+	    {
+	      size_t plen;
+	      char buf[128];
+	      uint32_t dim;
+	      port_write_string(port)(sc, " '(", 3, port);
+	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
+		{
+		  plen = snprintf(buf, 128, "%" PRId64 " ", vector_dimension(vect, dim));
+		  port_write_string(port)(sc, buf, plen, port);
+		}
+	      plen = snprintf(buf, 128, "%" PRId64, vector_dimension(vect, dim));
+	      port_write_string(port)(sc, buf, plen, port);
+	      port_write_string(port)(sc, "))", 2, port);
+	    }
+	}
+    } 
+  else /* not readable write */
     {
       if (vector_rank(vect) > 1)
 	{
@@ -27511,21 +27534,50 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
     port_write_character(port)(sc, ')', port);
 }
 
+static void simple_list_readable_display(s7_scheme *sc, s7_pointer lst, s7_int true_len, s7_int len, s7_pointer port, shared_info *ci)
+{
+  /* the easier cases: no circles or shared refs to patch up */
+  s7_pointer x;
+  s7_int i;
+
+  if (is_immutable(lst))
+    port_write_string(port)(sc, "immutable! (", 12, port);
+
+  if (true_len > 0)
+    {
+      port_write_string(port)(sc, "list", 4, port);
+      for (x = lst; is_pair(x); x = cdr(x))
+	{
+	  port_write_character(port)(sc, ' ', port);
+	  object_to_port_with_circle_check(sc, car(x), port, USE_READABLE_WRITE, ci);
+	}
+      port_write_character(port)(sc, ')', port);
+    }
+  else
+    {
+      port_write_string(port)(sc, "cons ", 5, port);
+      object_to_port_with_circle_check(sc, car(lst), port, USE_READABLE_WRITE, ci);
+      for (x = cdr(lst); is_pair(x); x = cdr(x))
+	{
+	  port_write_character(port)(sc, ' ', port);
+	  port_write_string(port)(sc, "(cons ", 6, port);
+	  object_to_port_with_circle_check(sc, car(x), port, USE_READABLE_WRITE, ci);
+	}
+      port_write_character(port)(sc, ' ', port);
+      object_to_port_with_circle_check(sc, x, port, USE_READABLE_WRITE, ci);
+      for (i = 1; i < len; i++)
+	port_write_character(port)(sc, ')', port);
+    }
+  if (is_immutable(lst))
+    port_write_character(port)(sc, ')', port);
+}
+
 
 static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   /* we need list_to_starboard... */
   s7_pointer x;
   s7_int i, len, true_len;
-
-#if S7_DEBUGGING
-  if ((lst == cdr(lst)) &&
-      ((!ci) || (!is_collected(lst)) || (peek_shared_ref(ci, lst) == 0)))
-    {
-      fprintf(stderr, "missed cycle: %s\n", DISPLAY(sc->cur_code));
-      abort();
-    }
-#endif
 
   true_len = s7_list_length(sc, lst);
   if (true_len < 0)                    /* a dotted list -- handle cars, then final cdr */
@@ -27546,8 +27598,22 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
     }
 
   if ((use_write == USE_READABLE_WRITE) &&
-      (is_immutable(lst)))
-    port_write_string(port)(sc, "(immutable! ", 12, port);
+      (ci) &&
+      /* (is_collected(lst)) && */
+      (peek_shared_ref(ci, lst) != 0))
+    {
+      int32_t href;
+      href = peek_shared_ref(ci, lst);
+      if (href < 0) href = -href;
+      if ((ci->defined[href]) || (port == ci->cycle_port))
+	{
+	  char buf[128];
+	  size_t plen;
+	  plen = snprintf(buf, 128, "<%d>", href);
+	  port_write_string(port)(sc, buf, plen, port);
+	  return;
+	}
+    }
 
   if (((car(lst) == sc->quote_symbol) ||
        (car(lst) == sc->quote_unchecked_symbol)) && /* this can happen (see lint.scm) */
@@ -27558,12 +27624,19 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
        * so (quote x) = 'x but (quote x y z) should be left alone (if evaluated, it's an error)
        */
       if (use_write == USE_READABLE_WRITE)
-	port_write_string(port)(sc, "''", 2, port);
-      else port_write_character(port)(sc, '\'', port);
-      object_to_port_with_circle_check(sc, cadr(lst), port, USE_WRITE, ci);
-      if ((use_write == USE_READABLE_WRITE) &&
-	  (is_immutable(lst)))
-	port_write_character(port)(sc, ')', port);
+	{
+	  if (is_immutable(lst))
+	    port_write_string(port)(sc, "(immutable! ", 12, port);
+	  port_write_string(port)(sc, "''", 2, port);
+	  object_to_port_with_circle_check(sc, cadr(lst), port, USE_WRITE, ci);
+	  if (is_immutable(lst))
+	    port_write_character(port)(sc, ')', port);
+	}
+      else 
+	{
+	  port_write_character(port)(sc, '\'', port);
+	  object_to_port_with_circle_check(sc, cadr(lst), port, USE_WRITE, ci);
+	}
       return;
     }
   else port_write_character(port)(sc, '(', port);
@@ -27573,83 +27646,153 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 
   if (use_write == USE_READABLE_WRITE)
     {
+      if (!is_cyclic(lst))
+	{
+#if S7_DEBUGGING
+	  if ((ci) && (peek_shared_ref(ci, lst) != 0))
+	    fprintf(stderr, "pair cycle missed %p\n", lst);
+#endif
+	  simple_list_readable_display(sc, lst, true_len, len, port, ci);
+	  return;
+	}
       if (ci)
 	{
 	  int32_t plen;
 	  char buf[128];
+	  int32_t lst_ref;
+	  const char *lst_name = NULL;
+	  bool lst_local = false;
+	  s7_pointer local_port;
 
-#if NEW_CYCLES
-	  fprintf(stderr, "lst: %s %d %d\n", DISPLAY(car(lst)), is_collected(lst), peek_shared_ref(ci, lst));
-	  /* #1=(1 . #1#) is_col and ref=-1
-	   * (cons 1 #1=(cons 2 #1#)), 2 (cdr) here with ref=-1, top is elsewhere -- "(1 . #1=(2 . #1#))"
-	   * (let ((<1> (list 1 2))) (set-cdr! (cdr <1>) (cdr <1>)) <1>)
-	   */
-#else
-	  port_write_string(port)(sc, "let (({lst} (make-list ", 23, port);
-	  plen = snprintf(buf, 128, "%" PRId64 "))) ", len);
-	  port_write_string(port)(sc, buf, plen, port);
-
-	  if ((shared_ref(ci, lst) < 0))
+	  lst_ref = peek_shared_ref(ci, lst);
+	  if (lst_ref == 0)
 	    {
-	      plen = snprintf(buf, 128, "(set! {%d} {lst}) ", -shared_ref(ci, lst));
-	      port_write_string(port)(sc, buf, plen, port);
-	    }
-
-	  port_write_string(port)(sc, "(let (({x} {lst})) ", 19, port);
-	  for (i = 0, x = lst; (i < len) && (is_pair(x)); i++, x = cdr(x))
-	    {
-	      port_write_string(port)(sc, "(set-car! {x} ", 14, port);
-	      object_to_port_with_circle_check(sc, car(x), port, use_write, ci);
-	      port_write_string(port)(sc, ") ", 2, port);
-	      if (i < len - 1)
-		port_write_string(port)(sc, "(set! {x} (cdr {x})) ", 21, port);
-	    }
-	  if (!is_null(x))
-	    {
-	      port_write_string(port)(sc, "(set-cdr! {x} ", 14, port);
-	      object_to_port_with_circle_check(sc, x, port, use_write, ci);
-	      port_write_string(port)(sc, ") ", 2, port);
-	    }
-	  port_write_string(port)(sc, ") {lst})", 8, port);
-#endif
-	}
-      else
-	{
-	  /* the easier cases: no circles or shared refs to patch up */
-	  if (true_len > 0)
-	    {
-	      port_write_string(port)(sc, "list", 4, port);
-	      for (x = lst; is_pair(x); x = cdr(x))
+	      s7_pointer p;
+	      for (p = lst; is_pair(p); p = cdr(p))
+		if ((has_structure(car(p))) ||
+		    ((is_pair(cdr(p))) &&
+		     (peek_shared_ref(ci, cdr(p)) != 0)))
+		  {
+		    lst_name = "<L>";
+		    lst_local = true;
+		    port_write_string(port)(sc, "let ((<L> (list", 15, port); /* '(' above */
+		    break;
+		  }
+	      if ((!lst_local) && (!is_null(p)))
 		{
-		  port_write_character(port)(sc, ' ', port);
-		  object_to_port_with_circle_check(sc, car(x), port, use_write, ci);
+		  if (has_structure(p))
+		    {
+		      lst_name = "<L>";
+		      lst_local = true;
+		      port_write_string(port)(sc, "let ((<L> (list", 15, port); /* '(' above */
+		    }
 		}
-	      port_write_character(port)(sc, ')', port);
+	      if (!lst_local)
+		{
+		  simple_list_readable_display(sc, lst, true_len, len, port, ci);
+		  return;
+		}
 	    }
 	  else
 	    {
-	      port_write_string(port)(sc, "cons ", 5, port);
-	      object_to_port_with_circle_check(sc, car(lst), port, use_write, ci);
-	      for (x = cdr(lst); is_pair(x); x = cdr(x))
+	      if (lst_ref < 0) lst_ref = -lst_ref;
+
+	      if (ci->defined[lst_ref]) fprintf(stderr, "%s[%d]: redefined\n", __func__, __LINE__);
+
+	      plen = snprintf(buf, 128, "<%d>", lst_ref);
+	      lst_name = (const char *)copy_string_with_length(buf, plen);
+	      port_write_string(port)(sc, "list", 4, port); /* '(' above */
+	    }
+	  
+	  for (i = 0, x = lst; (i < len) && (is_pair(x)); x = cdr(x), i++)
+	    {
+	      if ((has_structure(car(x))) && 
+		  (is_cyclic(car(x))))
+		port_write_string(port)(sc, " #f", 3, port);
+	      else
 		{
 		  port_write_character(port)(sc, ' ', port);
-		  port_write_string(port)(sc, "(cons ", 6, port);
 		  object_to_port_with_circle_check(sc, car(x), port, use_write, ci);
 		}
-	      port_write_character(port)(sc, ' ', port);
-	      object_to_port_with_circle_check(sc, x, port, use_write, ci);
-	      for (i = 1; i < len; i++)
-		port_write_character(port)(sc, ')', port);
+	      if ((is_pair(cdr(x))) && 
+		  (peek_shared_ref(ci, cdr(x)) != 0))
+		break;
+	    }
+
+	  if (lst_local)
+	    port_write_string(port)(sc, ")))\n", 4, port);
+	  else port_write_character(port)(sc, ')', port);
+	  
+	  local_port = ((lst_local) || (ci->cycle_port == sc->F)) ? port : ci->cycle_port; /* (object->string (list-values `(x . 1) (signature (int-vector))) :readable) */
+	  for (x = lst, i = 0; (i < len) && (is_pair(x)); x = cdr(x), i++)
+	    {
+	      if ((has_structure(car(x))) &&
+		  (is_cyclic(car(x))))
+		{
+		  int32_t lref;
+		  if (i == 0)
+		    plen = snprintf(buf, 128, "  (set-car! %s ", lst_name);
+		  else plen = snprintf(buf, 128, "  (set! (%s %" PRId64 ") ", lst_name, i);
+		  port_write_string(local_port)(sc, buf, plen, local_port);
+		  lref = peek_shared_ref(ci, car(x));
+		  if (lref == 0)
+		    object_to_port_with_circle_check(sc, car(x), local_port, use_write, ci);
+		  else
+		    {
+		      if (lref < 0) lref = -lref;
+		      plen = snprintf(buf, 128, "<%d>", lref);
+		      port_write_string(local_port)(sc, buf, plen, local_port);
+		    }
+		  port_write_string(local_port)(sc, ")\n", 2, local_port);
+		}
+	      if ((is_pair(cdr(x))) && 
+		  (peek_shared_ref(ci, cdr(x)) != 0))
+		{
+		  int32_t ref;
+		  ref = peek_shared_ref(ci, cdr(x));
+		  if (ref < 0) ref = -ref;
+		  if (i == 0)
+		    plen = snprintf(buf, 128, "%s(set-cdr! %s <%d>)\n", (lst_local) ? "    " : "  ", lst_name, ref);
+		  else
+		    {
+		      if (i == 1)
+			plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) <%d>)\n", (lst_local) ? "    " : "  ", lst_name, ref);
+		      else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" PRId64 ") <%d>)\n", (lst_local) ? "    " : "  ", lst_name, i, ref);
+		    }
+		  port_write_string(local_port)(sc, buf, plen, local_port);
+		  break;
+		}
+	    }
+	  if (true_len < 0) /* dotted list */
+	    {
+	      if (true_len == -1) /* cons cell */
+		plen = snprintf(buf, 128, "%s(set-cdr! %s ", (lst_local) ? "    " : "  ", lst_name);
+	      else
+		{
+		  if (true_len == -2)
+		    plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) ", (lst_local) ? "    " : "  ", lst_name);
+		  else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" PRId64 ") ", (lst_local) ? "    " : "  ", lst_name, len - 2);
+		}
+	      port_write_string(local_port)(sc, buf, plen, local_port);
+	      object_to_port_with_circle_check(sc, x, local_port, use_write, ci);
+	      port_write_string(local_port)(sc, ")\n", 2, local_port);
+	    }
+
+	  if (lst_local)
+	    port_write_string(local_port)(sc, "    <L>)", 8, local_port);
+	  else 
+	    {
+	      /* port_write_character(port)(sc, ')', port); */
+	      if (lst_name) free((char *)lst_name);
 	    }
 	}
-      if (is_immutable(lst))
-	port_write_character(port)(sc, ')', port);
+      else simple_list_readable_display(sc, lst, true_len, len, port, ci);
     }
-  else
+  else /* not :readable */
     {
       if (ci)
 	{
-	  for (x = lst, i = 0; (is_pair(x)) && (i < len) && ((!ci) || (i == 0) || (!is_collected(x)) || (peek_shared_ref(ci, x) == 0)); i++, x = cdr(x))
+	  for (x = lst, i = 0; (is_pair(x)) && (i < len) && ((i == 0) || (peek_shared_ref(ci, x) == 0)); i++, x = cdr(x))
 	    {
 	      object_to_port_with_circle_check(sc, car(x), port, DONT_USE_DISPLAY(use_write), ci);
 	      if (i < (len - 1))
@@ -27739,6 +27882,24 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	}
     }
 
+  if ((use_write == USE_READABLE_WRITE) &&
+      (ci) &&
+      /* (is_collected(hash)) && */
+      (peek_shared_ref(ci, hash) != 0))
+    {
+      int32_t href;
+      href = peek_shared_ref(ci, hash);
+      if (href < 0) href = -href;
+      if ((ci->defined[href]) || (port == ci->cycle_port))
+	{
+	  char buf[128];
+	  size_t plen;
+	  plen = snprintf(buf, 128, "<%d>", href);
+	  port_write_string(port)(sc, buf, plen, port);
+	  return;
+	}
+    }
+
   iterator = s7_make_iterator(sc, hash);
   gc_iter = s7_gc_protect_1(sc, iterator);
   p = cons(sc, sc->F, sc->F);
@@ -27749,13 +27910,12 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       (is_immutable(hash)))
     port_write_string(port)(sc, "(immutable! ", 12, port);
 
-  if ((use_write == USE_READABLE_WRITE) &&
+  if ((use_write == USE_READABLE_WRITE) && 
       (ci) &&
-      (is_collected(hash)) &&
+      (is_cyclic(hash)) &&
+      /* (is_collected(hash)) && */
       (peek_shared_ref(ci, hash) != 0))
     {
-#if NEW_CYCLES
-      
       /* TODO: eq-func if chosen, key-as-struct */
       /* (let ((<1> (make-hash-table <default-size> morally-equal?)))
        *   and then fill all fields in cycle_port
@@ -27765,6 +27925,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       int32_t href;
       href = peek_shared_ref(ci, hash);
       if (href < 0) href = -href;
+
       port_write_string(port)(sc, "(hash-table*", 12, port); /* top level let */
       for (i = 0; i < len; i++)
 	{
@@ -27773,15 +27934,28 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	  key_val = hash_table_iterate(sc, iterator);
 	  key = car(key_val);
 	  val = cdr(key_val);
-	  if (has_structure(val))
+	  if ((has_structure(val)) ||
+	      (has_structure(key)))
 	    {
 	      char buf[128];
 	      size_t plen;
-	      int32_t eref;
+	      int32_t eref, kref;
 	      eref = peek_shared_ref(ci, val);
+	      kref = peek_shared_ref(ci, key);
 	      plen = snprintf(buf, 128, "  (set! (<%d> ", href);
 	      port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
-	      object_to_port(sc, key, ci->cycle_port, USE_READABLE_WRITE, ci); /* key */
+
+	      if (kref != 0)
+		{
+		  if (kref < 0) kref = -kref;
+		  plen = snprintf(buf, 128, "<%d>", kref);
+		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
+		}
+	      else 
+		{
+		  object_to_port(sc, key, ci->cycle_port, USE_READABLE_WRITE, ci);
+		}
+	      
 	      if (eref != 0)
 		{
 		  if (eref < 0) eref = -eref;
@@ -27804,65 +27978,25 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	    }
 	}
       port_write_character(port)(sc, ')', port);
-
-#else
-      port_write_string(port)(sc, "(let (({ht} (make-hash-table)))", 31, port);
-      if (shared_ref(ci, hash) < 0)
-	{
-	  int32_t plen;
-	  char buf[64];
-	  plen = snprintf(buf, 64, "(set! {%d} {ht}) ", -shared_ref(ci, hash));
-	  port_write_string(port)(sc, buf, plen, port);
-	}
-      for (i = 0; i < len; i++)
-	{
-	  s7_pointer key_val, key, val;
-
-	  key_val = hash_table_iterate(sc, iterator);
-	  key = car(key_val);
-	  val = cdr(key_val);
-
-	  port_write_string(port)(sc, " (set! ({ht} ", 13, port);
-	  if (key == hash)
-	    port_write_string(port)(sc, "{ht}", 4, port);
-	  else object_to_port_with_circle_check(sc, key, port, USE_READABLE_WRITE, ci);
-	  port_write_string(port)(sc, ") ", 2, port);
-	  if (val == hash)
-	    port_write_string(port)(sc, "{ht}", 4, port);
-	  else object_to_port_with_circle_check(sc, val, port, USE_READABLE_WRITE, ci);
-	  port_write_character(port)(sc, ')', port);
-	}
-      port_write_string(port)(sc, " {ht})", 6, port);
-#endif
     }
   else
     {
-#if NEW_CYCLES
       port_write_string(port)(sc, "(hash-table*", 12, port);
       for (i = 0; i < len; i++)
 	{
 	  s7_pointer key_val;
-	  if (use_write == USE_READABLE_WRITE)
-	    port_write_character(port)(sc, ' ', port);
-	  else port_write_string(port)(sc, " '", 2, port);
+	  port_write_character(port)(sc, ' ', port);
 	  key_val = hash_table_iterate(sc, iterator);
-
+	  if (use_write != USE_READABLE_WRITE)
+	    {
+	      if ((is_symbol(car(key_val))) &&
+		  (!is_keyword(car(key_val))))
+		port_write_character(port)(sc, '\'', port);
+	    }
 	  object_to_port_with_circle_check(sc, car(key_val), port, DONT_USE_DISPLAY(use_write), ci);
 	  port_write_character(port)(sc, ' ', port);
 	  object_to_port_with_circle_check(sc, cdr(key_val), port, DONT_USE_DISPLAY(use_write), ci);
 	}
-#else
-      port_write_string(port)(sc, "(hash-table", 11, port);
-      for (i = 0; i < len; i++)
-	{
-	  s7_pointer key_val;
-	  if (use_write == USE_READABLE_WRITE)
-	    port_write_character(port)(sc, ' ', port);
-	  else port_write_string(port)(sc, " '", 2, port);
-	  key_val = hash_table_iterate(sc, iterator);
-	  object_to_port_with_circle_check(sc, key_val, port, DONT_USE_DISPLAY(use_write), ci);
-	}
-#endif
       if (too_long)
 	port_write_string(port)(sc, " ...)", 5, port);
       else port_write_character(port)(sc, ')', port);
@@ -27886,14 +28020,6 @@ static int32_t slot_to_port_1(s7_scheme *sc, s7_pointer x, s7_pointer port, use_
       if (n <= sc->print_length)
 	{
 	  port_write_character(port)(sc, ' ', port);
-#if NEW_CYCLES
-	  if (ci)
-	    {
-	      if ((has_structure(slot_value(x))) &&
-		  (shared_ref(ci, slot_value(x)) < 0))
-		fprintf(stderr, "circular: %p\n", slot_value(x));
-	    }
-#endif
 	  object_to_port_with_circle_check(sc, x, port, use_write, ci);
 	}
       if (n == (sc->print_length + 1))
@@ -27902,7 +28028,6 @@ static int32_t slot_to_port_1(s7_scheme *sc, s7_pointer x, s7_pointer port, use_
   return(n + 1);
 }
 
-#if NEW_CYCLES
 static void slot_list_to_port(s7_scheme *sc, s7_pointer slot, s7_pointer port, shared_info *ci)
 {
   if (is_slot(slot))
@@ -27959,7 +28084,6 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	}
     }
 }
-#endif
 
 static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
@@ -28010,14 +28134,28 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	   *    #1=#<let 'b #1#>
 	   */
 	  if (use_write == USE_READABLE_WRITE)
-#if NEW_CYCLES
 	    {
 	      if (has_methods(obj))
 		port_write_string(port)(sc, "(openlet ", 9, port);
+
 	      if ((ci) &&
-		  (is_collected(obj)) &&
+		  (is_cyclic(obj)) &&
+		  /* (is_collected(obj)) && */
 		  (peek_shared_ref(ci, obj) != 0))
 		{
+		  {
+		    int32_t lref;
+		    lref = peek_shared_ref(ci, obj);
+		    if (lref < 0) lref = -lref;
+		    if ((ci->defined[lref]) || (port == ci->cycle_port))
+		      {
+			char buf[128];
+			size_t len;
+			len = snprintf(buf, 128, "<%d>", lref);
+			port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			return;
+		      }
+		  }
 		  if ((outlet(obj) != sc->nil) && 
 		      (outlet(obj) != sc->rootlet))
 		    {
@@ -28034,11 +28172,13 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		}
 	      else
 		{
+		  if (is_immutable(obj))
+		    port_write_string(port)(sc, "(immutable! ", 12, port);
 		  if ((outlet(obj) != sc->nil) &&
 		      (outlet(obj) != sc->rootlet))
 		    {
 		      port_write_string(port)(sc, "(sublet ", 8, port);
-		      if (peek_shared_ref(ci, outlet(obj)) < 0)
+		      if ((ci) && (peek_shared_ref(ci, outlet(obj)) < 0))
 			{
 			  char buf[128];
 			  size_t len;
@@ -28050,68 +28190,12 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		  else port_write_string(port)(sc, "(inlet", 6, port);
 		  slot_list_to_port(sc, let_slots(obj), port, ci);
 		  port_write_character(port)(sc, ')', port);
+		  if (is_immutable(obj))
+		    port_write_character(port)(sc, ')', port);
 		}
 	      if (has_methods(obj))
 		port_write_character(port)(sc, ')', port); 
 	    }
-#else
-	  /* -------------------------------------------------------------------------------- */
-	  /* OLD CYCLES */
-	  {
-	    if (has_methods(obj))
-	      port_write_string(port)(sc, "(openlet ", 9, port);
-	    if (is_immutable(obj))
-	      port_write_string(port)(sc, "(immutable! ", 12, port);
-	    
-	    if ((ci) &&
-		(is_collected(obj)) &&
-		(peek_shared_ref(ci, obj) != 0))
-	      /* TODO: follow outlet chain here as below */
-	      {
-		s7_pointer x;
-		port_write_string(port)(sc, "(let (({e} (inlet))) ", 21, port);
-		if ((ci) &&
-		    (shared_ref(ci, obj) < 0))
-		  {
-		    int32_t plen;
-		    char buf[64];
-		    plen = snprintf(buf, 64, "(set! {%d} {e}) ", -shared_ref(ci, obj));
-		    port_write_string(port)(sc, buf, plen, port);
-		  }
-		
-		port_write_string(port)(sc, "(apply varlet {e} (reverse (list ", 33, port);
-		for (x = let_slots(obj); is_slot(x); x = next_slot(x))
-		  {
-		    port_write_string(port)(sc, "(cons ", 6, port);
-		    symbol_to_port(sc, slot_symbol(x), port, USE_READABLE_WRITE, NULL);
-		    port_write_character(port)(sc, ' ', port);
-		    object_to_port_with_circle_check(sc, slot_value(x), port, use_write, ci);
-		    port_write_character(port)(sc, ')', port);
-		  }
-		port_write_string(port)(sc, "))) {e})", 8, port);
-	      }
-	    else
-	      {
-		/* check outlet in curlet chain; if not, use sublet and follow outlet */
-		s7_pointer lt = NULL;
-		if (outlet(obj) != sc->rootlet)
-		  for (lt = sc->envir; is_let(lt) && (lt != sc->rootlet); lt = outlet(lt))
-		    if (lt == outlet(obj)) break;
-		if (lt != outlet(obj))
-		  {
-		    port_write_string(port)(sc, "(sublet ", 8, port);
-		    let_to_port(sc, outlet(obj), port, use_write, ci);
-		  }
-		else port_write_string(port)(sc, "(inlet", 6, port);
-		slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
-		port_write_character(port)(sc, ')', port);
-	      }
-	    if (is_immutable(obj))
-	      port_write_character(port)(sc, ')', port); 
-	    if (has_methods(obj))
-	      port_write_character(port)(sc, ')', port); 
-	  }
-#endif
 	  else /* not readable write */
 	    {
 	      port_write_string(port)(sc, "(inlet", 6, port);
@@ -28192,6 +28276,17 @@ static bool arg_memq(s7_pointer symbol, s7_pointer args)
   return(false);
 }
 
+static void collect_symbol(s7_scheme *sc, s7_pointer sym, s7_pointer e, s7_pointer args, uint32_t gc_loc)
+{
+  if ((!arg_memq(_TSym(sym), args)) &&
+      (!slot_memq(sym, gc_protected_at(sc, gc_loc))))
+    {
+      s7_pointer slot;
+      slot = match_symbol(sc, sym, e);
+      if (slot)
+	gc_protected_at(sc, gc_loc) = cons(sc, slot, gc_protected_at(sc, gc_loc));
+    }
+}
 
 static void collect_locals(s7_scheme *sc, s7_pointer body, s7_pointer e, s7_pointer args, uint32_t gc_loc)
 {
@@ -28200,18 +28295,19 @@ static void collect_locals(s7_scheme *sc, s7_pointer body, s7_pointer e, s7_poin
       collect_locals(sc, car(body), e, args, gc_loc);
       collect_locals(sc, cdr(body), e, args, gc_loc);
     }
-  else
+  else 
     {
-      if ((is_symbol(body)) &&
-	  (!arg_memq(body, args)) &&
-	  (!slot_memq(body, gc_protected_at(sc, gc_loc))))
-	{
-	  s7_pointer slot;
-	  slot = match_symbol(sc, body, e);
-	  if (slot)
-	    gc_protected_at(sc, gc_loc) = cons(sc, slot, gc_protected_at(sc, gc_loc));
-	}
+      if (is_symbol(body))
+	collect_symbol(sc, body, e, args, gc_loc);
     }
+}
+
+static void collect_specials(s7_scheme *sc, s7_pointer e, s7_pointer args, uint32_t gc_loc)
+{
+  collect_symbol(sc, sc->local_signature_symbol, e, args, gc_loc);
+  collect_symbol(sc, sc->local_setter_symbol, e, args, gc_loc);
+  collect_symbol(sc, sc->local_documentation_symbol, e, args, gc_loc);
+  collect_symbol(sc, sc->local_iterator_symbol, e, args, gc_loc);
 }
 
 static s7_pointer find_closure(s7_scheme *sc, s7_pointer closure, s7_pointer cur_env)
@@ -28392,10 +28488,11 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
   
   body = closure_body(obj);
   arglist = closure_args(obj);
-  pe = closure_let(obj);               /* perhaps check for documentation? */
+  pe = closure_let(obj);
 
   gc_loc = s7_gc_protect_1(sc, sc->nil);
-  collect_locals(sc, body, pe, arglist, gc_loc);   /* collect locals used only here */
+  collect_locals(sc, body, pe, (is_list(arglist)) ? arglist : sc->nil, gc_loc);   /* collect locals used only here (and below) */
+  collect_specials(sc, pe, (is_list(arglist)) ? arglist : sc->nil, gc_loc);
   if (s7_is_dilambda(obj))
     {
       setter = closure_setter(obj);
@@ -28405,8 +28502,8 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
     }
   if (setter)
     collect_locals(sc, closure_body(setter), pe, closure_args(setter), gc_loc);
-  local_slots = _TLst(gc_protected_at(sc, gc_loc)); /* possibly a list of slots */
 
+  local_slots = _TLst(gc_protected_at(sc, gc_loc)); /* possibly a list of slots */
   if (!is_null(local_slots))
     {
       s7_pointer x;
@@ -28420,7 +28517,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 	  port_write_character(port)(sc, ' ', port);
 	  /* (object->string (list (let ((local 1)) (lambda (x) (+ x local)))) :readable) */
 	  /* object_out(sc, slot_value(slot), port, USE_WRITE); */
-	  object_to_port(sc, slot_value(slot), port, USE_WRITE, NULL);
+	  object_to_port(sc, slot_value(slot), port, USE_READABLE_WRITE, NULL);
 	  if (is_null(cdr(x)))
 	    port_write_character(port)(sc, ')', port);
 	  else port_write_string(port)(sc, ") ", 2, port);
@@ -28494,7 +28591,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 512, "type: %d (%s), flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   full_typ,
@@ -28601,6 +28698,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : " ?27?") : "",
 	   /* bit 28 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
+	   /* bit 29 */
+	   ((full_typ & T_CYCLIC) != 0) ?         " cyclic" : "",
+	   /* bit 30 */
+	   ((full_typ & T_CYCLIC_SET) != 0) ?     " cyclic-set" : "",
 
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
@@ -29404,7 +29505,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	      port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);
 	      break;
 	    default:
-	      /* c-object?? */
+	      /* c-object?? function? */
 	      port_write_string(port)(sc, "(make-iterator ())", 18, port);
 	      break;
 	    }
@@ -29413,29 +29514,38 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	{
 	  s7_pointer seq;
 	  seq = iterator_sequence(obj);
-#if NEW_CYCLES
 	  if ((ci) &&
-	      (is_collected(obj)) &&
+	      (is_cyclic(obj)) &&
+	      /* (is_collected(obj)) && */
 	      (peek_shared_ref(ci, obj) != 0))
 	    {
 	      /* basically the same as c_pointer_to_port */
-	      int32_t iter_ref, nlen;
-	      char buf[128];
-	      iter_ref = peek_shared_ref(ci, obj);
-	      if (iter_ref < 0) iter_ref = -iter_ref;
-	      
-	      port_write_string(port)(sc, "#f", 2, port);
-	      nlen = snprintf(buf, 128, "  (set! <%d> (make-iterator ", iter_ref);
-	      port_write_string(ci->cycle_port)(sc, buf, nlen, ci->cycle_port);
-	      
-	      flip_ref(ci, seq);
-	      object_to_port_with_circle_check(sc, seq, ci->cycle_port, use_write, ci);
-	      flip_ref(ci, seq); 
-	      
-	      port_write_string(ci->cycle_port)(sc, "))\n", 3, ci->cycle_port);
-	      return;
+	      if (!is_cyclic_set(obj))
+		{
+		  int32_t iter_ref, nlen;
+		  char buf[128];
+		  iter_ref = peek_shared_ref(ci, obj);
+		  if (iter_ref < 0) iter_ref = -iter_ref;
+
+		  if (ci->init_port == sc->F)
+		    {
+		      ci->init_port = s7_open_output_string(sc);
+		      ci->init_loc = s7_gc_protect(sc, ci->init_port);
+		    }
+		  port_write_string(port)(sc, "#f", 2, port);
+		  nlen = snprintf(buf, 128, "  (set! <%d> (make-iterator ", iter_ref);
+		  port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
+		  
+		  flip_ref(ci, seq);
+		  object_to_port_with_circle_check(sc, seq, ci->init_port, use_write, ci);
+		  flip_ref(ci, seq); 
+		  
+		  port_write_string(ci->init_port)(sc, "))\n", 3, ci->init_port);
+		  set_cyclic_set(obj);
+		  return;
+		}
 	    }
-#endif
+
 	  if (is_string_not_byte_vector(seq))
 	    {
 	      char *iter_str;
@@ -29514,34 +29624,49 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 {
   int32_t nlen;
   char buf[128];
-#if NEW_CYCLES
+
   if (use_write == USE_READABLE_WRITE)
     {
       if ((ci) &&
-	  (is_collected(obj)) &&
+	  (is_cyclic(obj)) &&
+	  /* (is_collected(obj)) && */
 	  (peek_shared_ref(ci, obj) != 0))
 	{
 	  port_write_string(port)(sc, "#f", 2, port);
-	  nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" PRIdPTR, -peek_shared_ref(ci, obj), (intptr_t)raw_pointer(obj));
-	  port_write_string(ci->cycle_port)(sc, buf, nlen, ci->cycle_port);
 
-	  if ((raw_pointer_type(obj) != sc->F) ||
-	      (raw_pointer_info(obj) != sc->F))
+	  if (!is_cyclic_set(obj))
 	    {
-	      flip_ref(ci, raw_pointer_type(obj)); 
-
-	      port_write_character(ci->cycle_port)(sc, ' ', ci->cycle_port);
-	      object_to_port_with_circle_check(sc, raw_pointer_type(obj), ci->cycle_port, use_write, ci);
-
-	      flip_ref(ci, raw_pointer_type(obj)); 
-	      flip_ref(ci, raw_pointer_info(obj)); 
-
-	      port_write_character(ci->cycle_port)(sc, ' ', ci->cycle_port);
-	      object_to_port_with_circle_check(sc, raw_pointer_info(obj), ci->cycle_port, use_write, ci);
-
-	      flip_ref(ci, raw_pointer_info(obj)); 
+	      int32_t cref;
+	      cref = peek_shared_ref(ci, obj);
+	      if (cref < 0) cref = -cref;
+	  
+	      if (ci->init_port == sc->F)
+		{
+		  ci->init_port = s7_open_output_string(sc);
+		  ci->init_loc = s7_gc_protect(sc, ci->init_port);
+		}
+	      nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" PRIdPTR, -peek_shared_ref(ci, obj), (intptr_t)raw_pointer(obj));
+	      port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
+	      
+	      if ((raw_pointer_type(obj) != sc->F) ||
+		  (raw_pointer_info(obj) != sc->F))
+		{
+		  flip_ref(ci, raw_pointer_type(obj)); 
+		  
+		  port_write_character(ci->init_port)(sc, ' ', ci->init_port);
+		  object_to_port_with_circle_check(sc, raw_pointer_type(obj), ci->init_port, use_write, ci);
+		  
+		  flip_ref(ci, raw_pointer_type(obj)); 
+		  flip_ref(ci, raw_pointer_info(obj)); 
+		  
+		  port_write_character(ci->init_port)(sc, ' ', ci->init_port);
+		  object_to_port_with_circle_check(sc, raw_pointer_info(obj), ci->init_port, use_write, ci);
+		  
+		  flip_ref(ci, raw_pointer_info(obj)); 
+		}
+	      port_write_string(ci->init_port)(sc, "))\n", 3, ci->init_port);
+	      set_cyclic_set(obj);
 	    }
-	  port_write_string(ci->cycle_port)(sc, "))\n", 3, ci->cycle_port);
 	}
       else
 	{
@@ -29565,29 +29690,6 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       else nlen = snprintf(buf, 128, "#<c_pointer %p>", raw_pointer(obj));
       port_write_string(port)(sc, buf, nlen, port);
     }
-#else
-  if (use_write == USE_READABLE_WRITE)
-    {
-      nlen = snprintf(buf, 128, "(c-pointer %" PRIdPTR, (intptr_t)raw_pointer(obj));
-      port_write_string(port)(sc, buf, nlen, port);
-      if ((raw_pointer_type(obj) != sc->F) ||
-	  (raw_pointer_info(obj) != sc->F))
-	{
-	  port_write_character(port)(sc, ' ', port);
-	  object_to_port_with_circle_check(sc, raw_pointer_type(obj), port, use_write, ci);
-	  port_write_character(port)(sc, ' ', port);
-	  object_to_port_with_circle_check(sc, raw_pointer_info(obj), port, use_write, ci);
-	}
-      port_write_character(port)(sc, ')', port);
-    }
-  else 
-    {
-      if (is_symbol(raw_pointer_type(obj)))
-	nlen = snprintf(buf, 128, "#<%s %p>", symbol_name(raw_pointer_type(obj)), raw_pointer(obj));
-      else nlen = snprintf(buf, 128, "#<c_pointer %p>", raw_pointer(obj));
-      port_write_string(port)(sc, buf, nlen, port);
-    }
-#endif
 }
 
 static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -29914,14 +30016,15 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
 	    {
 	      if (use_write == USE_READABLE_WRITE)
 		{
-#if NEW_CYCLES
+		  if (ci->defined[ref]) 
+		    {
+		      /* fprintf(stderr, "%s[%d]: already defined\n", __func__, __LINE__); */
+		      flip_ref(ci, vr);
+		      nlen = snprintf(buf, 32, "<%d>", ref);
+		      port_write_string(port)(sc, buf, nlen, port);
+		      return;
+		    }
 		  object_to_port(sc, vr, port, USE_READABLE_WRITE, ci);
-#else
-		  nlen = snprintf(buf, 32, "(set! {%d} ", ref);
-		  port_write_string(port)(sc, buf, nlen, port);
-		  object_to_port(sc, vr, port, USE_READABLE_WRITE, ci);
-		  port_write_character(port)(sc, ')', port);
-#endif
 		}
 	      else
 		{
@@ -29936,13 +30039,9 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
 	    {
 	      if (use_write == USE_READABLE_WRITE)
 		{
-#if NEW_CYCLES
+		  /* if ((!ci->defined[-ref]) && (port != ci->cycle_port)) fprintf(stderr, "%s[%d]: not yet defined\n", __func__, __LINE__); */
 		  nlen = snprintf(buf, 32, "<%d>", -ref);
 		  port_write_string(port)(sc, buf, nlen, port);
-#else
-		  nlen = snprintf(buf, 32, "{%d}", -ref);
-		  port_write_string(port)(sc, buf, nlen, port);
-#endif
 		}
 	      else 
 		{
@@ -29957,32 +30056,11 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
   object_to_port(sc, vr, port, use_write, ci);
 }
 
-#if (!NEW_CYCLES)
-static void setup_shared_reads(s7_scheme *sc, s7_pointer port, shared_info *ci)
-{
-  int32_t i;
-  char buf[64];
-
-  port_write_string(port)(sc, "(let (", 6, port);
-  for (i = 1; i <= ci->top; i++)
-    {
-      int32_t len;
-      len = snprintf(buf, 64, "({%d} #f)", i);
-      port_write_string(port)(sc, buf, len, port);
-    }
-  port_write_string(port)(sc, ") ", 2, port);
-}
-
-static void finish_shared_reads(s7_scheme *sc, s7_pointer port, shared_info *ci)
-{
-  port_write_character(port)(sc, ')', port);
-}
-#endif
-
-#if NEW_CYCLES
 static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, shared_info *ci)
 {
-  int32_t i;
+  int32_t i, ref;
+  size_t len;
+  char buf[128];
 
   ci->cycle_port = s7_open_output_string(sc);
   ci->cycle_loc = s7_gc_protect(sc, ci->cycle_port);
@@ -29990,14 +30068,25 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
   port_write_string(port)(sc, "(let (", 6, port);
   for (i = 0; i < ci->top; i++)
     {
-      size_t len;
-      char buf[128];
-      len = snprintf(buf, 128, "%s(<%d> ", (i == 0) ? "" : "\n      ", i + 1);
+      ref = peek_shared_ref(ci, ci->objs[i]); /* refs may be in any order */
+      if (ref < 0) {ref = -ref; flip_ref(ci, ci->objs[i]);}
+      len = snprintf(buf, 128, "%s(<%d> ", (i == 0) ? "" : "\n      ", ref);
       port_write_string(port)(sc, buf, len, port);
+      ci->defined[ref] = false;
       object_to_port_with_circle_check(sc, ci->objs[i], port, USE_READABLE_WRITE, ci);
       port_write_character(port)(sc, ')', port);
+      ci->defined[ref] = true;
+      if (peek_shared_ref(ci, ci->objs[i]) > 0) flip_ref(ci, ci->objs[i]); /* ref < 0 -> use <%d> in object_to_port */
     }
   port_write_string(port)(sc, ")\n", 2, port);
+
+  if (ci->init_port != sc->F)
+    {
+      port_write_string(port)(sc, (const char *)(port_data(ci->init_port)), port_position(ci->init_port), port);
+      s7_close_output_port(sc, ci->init_port);
+      s7_gc_unprotect_at(sc, ci->init_loc);
+      ci->init_port = sc->F;
+    }
 
   port_write_string(port)(sc, (const char *)(port_data(ci->cycle_port)), port_position(ci->cycle_port), port);
   s7_close_output_port(sc, ci->cycle_port);
@@ -30008,9 +30097,15 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     port_write_string(port)(sc, "  (immutable! ", 14, port);
   else port_write_string(port)(sc, "  ", 2, port);
 
-  if (peek_shared_ref(ci, obj) == 0)
+  ref = peek_shared_ref(ci, obj);
+  if (ref == 0)
     object_to_port_with_circle_check(sc, obj, port, USE_READABLE_WRITE, ci);
-  else port_write_string(port)(sc, "<1>", 3, port);
+  else 
+    {
+      if (ref < 0) ref = -ref;
+      len = snprintf(buf, 128, "<%d>", ref);
+      port_write_string(port)(sc, buf, len, port);
+    }
 
   if (is_immutable(obj))
     port_write_string(port)(sc, "))\n", 3, port);
@@ -30018,7 +30113,6 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
 
   return(obj);
 }
-#endif
 
 static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, use_write_t choice)
 {
@@ -30040,15 +30134,7 @@ static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, 
       if (ci)
 	{
 	  if (choice == USE_READABLE_WRITE)
-	    {
-#if NEW_CYCLES
-              cyclic_out(sc, obj, strport, ci);
-#else
-	      setup_shared_reads(sc, strport, ci);
-	      object_to_port_with_circle_check(sc, obj, strport, choice, ci);
-	      finish_shared_reads(sc, strport, ci);
-#endif
-	    }
+	    cyclic_out(sc, obj, strport, ci);
 	  else object_to_port_with_circle_check(sc, obj, strport, choice, ci);
 #if S7_DEBUGGING
 	  object_out_locked = false;
@@ -35404,7 +35490,7 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, int32_t ski
    * (let ((v #3d(((0 1 2 3) (4 5 6 7) (8 9 10 11)) ((12 13 14 15) (16 17 18 19) (20 21 22 23))))) (v 0 1))
    */
 
-  new_cell(sc, x, typeflag(vect) | T_SAFE_PROCEDURE);
+  new_cell(sc, x, typeflag(vect) | T_SAFE_PROCEDURE); /* typeflag(vect) picks up T_IMMUTABLE */
   vector_length(x) = 0;
   vector_elements(x) = NULL;
   vector_getter(x) = vector_getter(vect);
@@ -83023,7 +83109,7 @@ s7_scheme *s7_init(void)
   sc->baffle_ctr = 0;
   sc->syms_tag = 0;
   sc->class_name_symbol = make_symbol(sc, "class-name");
-  sc->circle_info = init_circle_info();
+  sc->circle_info = init_circle_info(sc);
   sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
   sc->num_fdats = 8;
   sc->plist_1 = permanent_list(sc, 1);
@@ -84015,6 +84101,7 @@ s7_scheme *s7_init(void)
   sc->local_documentation_symbol = s7_make_symbol(sc, "+documentation+");
   sc->local_signature_symbol =     s7_make_symbol(sc, "+signature+");
   sc->local_setter_symbol =        s7_make_symbol(sc, "+setter+");
+  sc->local_iterator_symbol =      s7_make_symbol(sc, "+iterator+");
 
   /* for backwards compatibility */
   s7_define_constant(sc, "nan.0", real_NaN);
@@ -84796,17 +84883,19 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  *
- * t745.scm has innumerable cycle print problems, t718.scm has auto-tester stuff. t747.scm has cycle print tests
+ * t748.scm for cycle print problems, t718.scm has auto-tester stuff
  *   readable trouble: (setter (block))
  *     could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
  *   morally-equal/readable c_object: need cyclic-sequences info (and a way to participate with local cell) etc.
  *     cyclic-sequences method? => ask built-in to include objs and map to indices in print?
  *     so c-object cyclic-sequences method would pass (list obj local1 ...)
- *   readable iterate+func? see t747, iterator? -> +iterator+?? (all +*+ locals need to be included in readable write, copy)
- *   still need: pairs, multidim vectors, hash key/eq-func
+ *   still need: hash eq-func: instead of (hash-table* ...), use 
+ *     (let ((<H> (make-hash-table 8 morally-equal?)))
+ *        (set! (<H> (car p)) (cadr p)) across original using iterator
+ *   readable (vector (lambda...))
  * check t1 for unexercised sections
- * port-filename clobbered (t718)
  * eval-string syntax/symbol oddness (t718)
+ * clean out debugging in new_cycles, can new flags be used in equality checks? (cyclic != -> #f)
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84845,7 +84934,7 @@ int main(int argc, char **argv)
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2547
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2642
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.1
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2834
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2852
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3045
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988

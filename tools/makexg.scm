@@ -1,4 +1,4 @@
-;;; makexg.scm creates the gtk2|3/gdk/pango/glib/cairo bindings using xgdata.scm, writes xg.c
+;;; makexg.scm creates the gtk2|3/4/gdk/pango/glib/cairo bindings using xgdata.scm, writes xg.c and libgtk_s7.c
 
 (define xg-file (open-output-file "xg.c"))
 (define lib-file (open-output-file "libgtk_s7.c"))
@@ -1979,7 +1979,7 @@
 			  ;((GtkClipboardClearFunc) "Xen_caddr")
 			  ((GtkDestroyNotify)      "Xen_cadddr")
 			  (else                    "Xen_car")))
-		   (hay "s7_apply_function(cbsc, ~%    ~A((s7_pointer)func_info), ~A~%"
+		   (hay "s7_call(cbsc, ~%    ~A((s7_pointer)func_info), ~A~%" ; bugfix thanks to Martin Hayman
 			(case fname 
 			  ;((GtkClipboardClearFunc) "s7_caddr")
 			  ((GtkDestroyNotify)      "s7_cadddr")
@@ -2050,18 +2050,18 @@
 
 (hay "~%static gboolean lg_func3(GtkWidget *w, GdkEventAny *ev, gpointer data)~%")
 (hay "{~%")
-(hay "  return(s7_apply_function(cbsc, s7_car((s7_pointer)data),~%")
-(hay "                             s7_list(cbsc, 3, s7_make_c_pointer_with_type(cbsc, w, GtkWidget__sym, lg_false),~%")
-(hay "                                              s7_make_c_pointer_with_type(cbsc, ev, GdkEventAny__sym, lg_false),~%")
-(hay "                                              s7_cadr((s7_pointer)data))) != lg_false);~%")
+(hay "  return(s7_call(cbsc, s7_car((s7_pointer)data),~%")
+(hay "                       s7_list(cbsc, 3, s7_make_c_pointer_with_type(cbsc, w, GtkWidget__sym, lg_false),~%")
+(hay "                                        s7_make_c_pointer_with_type(cbsc, ev, GdkEventAny__sym, lg_false),~%")
+(hay "                                        (s7_is_pair(s7_cdr((s7_pointer)data))) ? (s7_cadr((s7_pointer)data)) : s7_nil(cbsc))) != lg_false);~%")
 (hay "}~%")
 (hay "~%static gboolean lg_func4(GtkPrintOperation *op, GtkPrintContext *context, gint page_nr, gpointer data)~%")
 (hay "{~%")
-(hay "  return(s7_apply_function(cbsc, s7_car((s7_pointer)data),~%")
-(hay "                            s7_list(cbsc, 4, s7_make_c_pointer_with_type(cbsc, op, GtkPrintOperation__sym, lg_false),~%")
-(hay "                                             s7_make_c_pointer_with_type(cbsc, context, GtkPrintContext__sym, lg_false),~%")
-(hay "                                             s7_make_integer(cbsc, page_nr),~%")
-(hay "                                             s7_cadr((s7_pointer)data))) != lg_false);~%")
+(hay "  return(s7_call(cbsc, s7_car((s7_pointer)data),~%")
+(hay "                       s7_list(cbsc, 4, s7_make_c_pointer_with_type(cbsc, op, GtkPrintOperation__sym, lg_false),~%")
+(hay "                                        s7_make_c_pointer_with_type(cbsc, context, GtkPrintContext__sym, lg_false),~%")
+(hay "                                        s7_make_integer(cbsc, page_nr),~%")
+(hay "                                        (s7_is_pair(s7_cdr((s7_pointer)data))) ? (s7_cadr((s7_pointer)data)) : s7_nil(cbsc))) != lg_false);~%")
 (hay "}~%~%")
 
 (hoy "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
