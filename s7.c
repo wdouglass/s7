@@ -34296,7 +34296,6 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
 	  if (is_null(cdr(body)))
 	    {
 	      s7_function func;
-	      
 	      new_frame_with_two_slots(sc, sc->envir, sc->envir, car(closure_args(eq_func)), car(args), cadr(closure_args(eq_func)), sc->F);
 	      func = s7_bool_optimize(sc, body);
 	      if (func == opt_bool_any)
@@ -34323,7 +34322,7 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
 		}
 	    }
 	}
-      
+
       y = cons(sc, args, sc->nil); /* this could probably be handled with a counter cell (cdr here is unused) */
       set_opt_fast(y, x);
       set_opt_slow(y, x);
@@ -53124,6 +53123,17 @@ static s7_pointer opt_set_p_i_f(void *p)
   return(x);
 }
 
+static s7_pointer opt_set_p_d_s(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  s7_pointer val;
+  val = slot_value(o->v2.p);
+  if (is_mutable(val))
+    val = make_real(cur_sc, real(val));
+  slot_set_value(o->v1.p, val);
+  return(val);
+}
+
 static s7_pointer opt_set_p_d_f(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -53213,6 +53223,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 	  (symbol_has_setter(cadr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
       settee = symbol_to_slot(sc, cadr(car_x));
+
       if ((is_slot(settee)) &&
 	  (!is_immutable(settee)) &&
 	  (!is_syntax(slot_value(settee))))
@@ -53255,12 +53266,27 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 		  opc->v7.fp = opt_set_p_c;
 		  return(true);
 		}
-	      if (float_optimize(sc, cddr(car_x)))
+	      if (is_symbol(caddr(car_x)))
 		{
-		  opc->v7.fp = opt_set_p_d_f;
-		  return(true);
+		  s7_pointer val_slot;
+		  val_slot = symbol_to_slot(sc, caddr(car_x));
+		  if ((is_slot(val_slot)) &&
+		      (is_t_real(slot_value(val_slot))))
+		    {
+		      opc->v2.p = val_slot;
+		      opc->v7.fp = opt_set_p_d_s;
+		      return(true);
+		    }
 		}
-	      return(return_false(sc, car_x, __func__, __LINE__));
+	      else
+		{
+		  if (float_optimize(sc, cddr(car_x)))
+		    {
+		      opc->v7.fp = opt_set_p_d_f;
+		      return(true);
+		    }
+		  return(return_false(sc, car_x, __func__, __LINE__));
+		}
 	    }
 	  atype = opt_arg_type(sc, cddr(car_x));
 	  
@@ -84883,19 +84909,11 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  *
- * t748.scm for cycle print problems, t718.scm has auto-tester stuff
  *   readable trouble: (setter (block))
  *     could c-object-setter have a back-pointer? or a local name="(setter (block))" etc
  *   morally-equal/readable c_object: need cyclic-sequences info (and a way to participate with local cell) etc.
  *     cyclic-sequences method? => ask built-in to include objs and map to indices in print?
- *     so c-object cyclic-sequences method would pass (list obj local1 ...)
- *   still need: hash eq-func: instead of (hash-table* ...), use 
- *     (let ((<H> (make-hash-table 8 morally-equal?)))
- *        (set! (<H> (car p)) (cadr p)) across original using iterator
- *   readable (vector (lambda...))
- * check t1 for unexercised sections
- * eval-string syntax/symbol oddness (t718)
- * clean out debugging in new_cycles, can new flags be used in equality checks? (cyclic != -> #f)
+ *     so c-object cyclic-sequences method would pass (list obj local1 ...) and get refs somehow?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

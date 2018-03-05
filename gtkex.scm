@@ -31,7 +31,7 @@
 	(let ((pos (GtkTextIter))
 	      (result (catch #t
 			     (lambda ()
-			       (object->string (eval-string expr)))
+			       (object->string (eval-string expr (rootlet)))) ; default is (curlet)
 			     (lambda args
 			       (format #f "~A: ~S" (car args) (apply format #f (cadr args)))))))
 	  (gtk_text_buffer_get_end_iter repl_buf pos)

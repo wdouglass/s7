@@ -6,7 +6,7 @@
 ;(load "write.scm")
 ;(load "mockery.scm")
 
-;(set! (*s7* 'safety) 2)
+(set! (*s7* 'safety) 1)
 
 (set! (*s7* 'max-stack-size) 32768)
 (set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
@@ -189,6 +189,23 @@
   (and (null? (cyclic-sequences code))
        (eval code)))
 
+(define (checked-hash-table* . args)
+  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) morally-equal?)))
+    (do ((key/value args (cddr key/value)))
+	((null? key/value) _h_)
+      (if (not (pair? (cdr key/value)))
+	  (error 'wrong-number-of-args "no value")
+	  (set! (_h_ (car key/value)) (cadr key/value))))))
+
+(define (checked-hash-table . args)
+  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) morally-equal?)))
+    (do ((key/value args (cdr key/value)))
+	((null? key/value) _h_)
+      (if (not (pair? key/value))
+	  (error 'wrong-type-args "not a pair")
+	  (set! (_h_ (car key/value)) (cdr key/value))))))
+
+
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
 (define-expansion (_dw_ . args)
@@ -287,6 +304,22 @@
   `(let ((x begin ,@args))
      (copy x)))
 
+(define-expansion (_rd1_ . args)
+  `(let ((port #f))
+     (dynamic-wind
+	 (lambda ()
+	   (set! port (open-input-string (format #f "~{~W~^ ~}" (list ,@args)))))
+	 (lambda ()
+	   (read port))
+	 (lambda ()
+	   (close-input-port port)))))
+
+(define-expansion (_rd2_ . args)
+  `(with-input-from-string
+       (object->string (car (list ,@args)) :readable)
+     read))
+
+
 (define ims (immutable! (string #\a #\b #\c)))
 (define imbv (immutable! (byte-vector 0 1 2)))
 (define imv (immutable! (vector 0 1 2)))
@@ -301,8 +334,8 @@
 (define x 0)
 (define max-stack (*s7* 'stack-top))
 
-;;; TODO: ip/op str IO -- read checked etc, nested call/exit str/nstr?, openlet in obj->str, stacktrace trapped (no evalstr), let-set! similarly
-;;;    reorder num args? check eqops?
+;;; TODO: ip/op str IO -- read checked etc, nested call/exit str/nstr?, reorder num args? check eqops?
+;;;   cycles injected here, check via tree_cyclic in s7 if safety>0, check setting *s7* fields
 
 (let ((functions (vector 'not '= '+ 'cdr 'real? 'rational? 'number? '> '- 'integer? 'apply 
 			  'catch 'length 'eq? 'car '< 'assq 'complex? 'vector-ref 
@@ -346,7 +379,9 @@
 			  'call-with-input-string 'documentation 
 			  'continuation? 'hash-table? 'port-closed? 
 			  'output-port? 'input-port? 
-			  'provide 'call-with-output-string 'hash-table 
+			  'provide 'call-with-output-string 
+			  ;; 'hash-table 
+			  ;; 'checked-hash-table 'checked-hash-table*
 			  ;;'current-output-port 
 			  'with-output-to-string 
 			  ;;'current-input-port -- too many (read...)
@@ -364,6 +399,7 @@
 			  'object->let
 			  ;; --------
 |#
+
                           ;'pair-line-number 
 			  'open-input-string 'open-output-string 
 			  'open-input-file 
@@ -421,7 +457,9 @@
 			  '*autoload*
 			  ;;'*error-hook*
 
-			  'sequence? 'directory? 'hash-table-entries 'hash-table* 'arity 'logbit? 
+			  'sequence? 'directory? 'hash-table-entries 
+			  ;;'hash-table* -- handled as morally equal
+			  'arity 'logbit? 
 			  'random-state? 'throw 'float-vector-set! 'make-iterator 'complex 
 			  'let-ref 'int-vector 'aritable? 'gensym? 'syntax? 'iterator-at-end? 'let? 
 			  'make-shared-vector 'float-vector 'iterator-sequence 'getenv 'float-vector-ref 
@@ -436,7 +474,9 @@
 			  'byte-vector-ref 'file-exists? 'make-int-vector 'string-downcase 'string-upcase 
 			  'byte-vector 'morally-equal? 
 			  ;;'let-set! -- rootlet troubles?
-			  'c-pointer? 'int-vector-ref 'coverlet 'float? 
+			  'c-pointer? 'int-vector-ref ;
+			  ;;'coverlet -- blocks block's morally-equal?
+			  'float? 
 			  'list-values 'byte-vector? 'openlet? 'iterator? 
 			  'string->byte-vector
 
@@ -481,7 +521,8 @@
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
 			  's7-stacktrace-defaults
 
-			  'macroexpand 'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append ;'block-let
+			  ;'macroexpand ;-- uninteresting objstr stuff
+			  'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append ;'block-let
 
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
@@ -501,7 +542,7 @@
 			  'tree-cyclic?
 			  ))
 	 
-      (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
+      (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
 		    "(make-block 2)" "(block 1.0 2.0 3.0)" "(block)"
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
@@ -538,7 +579,7 @@
 		    "(hash-table* 'a 1)" "(hash-table)" 
 		    "(make-iterator (list 11 22 33))" "(make-iterator (vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
 		    "#<eof>" "#<undefined>" "#<unspecified>"
-		    "#o123" "#b101" "#\\newline" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
+		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
 		    
 		    "(call-with-exit (lambda (goto) goto))"
 		    "(with-baffle (call/cc (lambda (cc) cc)))"
@@ -590,6 +631,15 @@
 		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
 		    "lambda*" "lambda"
 		    ;;"let" "let*" "do" "set!" "with-let" ;"define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
+
+		    "(begin (string? (stacktrace)))"
+
+		    "(let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>)"
+		    "(let ((<1> (inlet :a #f))) (set! (<1> :a) <1>) <1>)"
+		    "(let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>)"
+		    "(let ((<1> #f) (<2> (vector #f))) (set! <1> (make-iterator <2>)) (set! (<2> 0) <1>) <1>)"
+		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
+
 		    ))
 
       (codes (vector 
@@ -630,6 +680,7 @@
 	      (list "(do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) "
 		    "(do ((i 0 (+ i 1))) ((= i 1)) (let ((j 0)) ")
 	      (list "(or (_cop1_ " "(and (_cop2_ ")
+	      (list "(values (_rd1_ " "(append (_rd2_ ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -864,18 +915,32 @@
 				 (with-input-from-string str read))
 			       (lambda args ())))))
 	(lambda arg 'error))
-
+#|
       (catch #t
 	(lambda ()
 	  (let ((val1 (car (list (eval-string str)))))
 	    (let ((newstr (object->string val1 :readable)))
 	      (let ((val2 (eval-string newstr)))
-		(if (not (or (morally-equal? val1 val2)
-			     (and (let? val1)
-				  (= (length val1) 0))))
-		    (format *stderr* "~%~S~%~S~%    ~A -> ~A~%" str newstr val1 val2))))))
+		(if (not (morally-equal? val1 val2))
+		    (format *stderr* "~%~S~%~S~%    ~W -> ~W~%" str newstr val1 val2))))))
 	(lambda arg 'error))
-
+|#
+#|
+      (catch #t
+	(lambda ()
+	  (let ((val1 (list (eval-string str))))
+	    (let ((val2 (list (eval (with-input-from-string str read)))))
+	      (call-with-exit 
+	       (lambda (ok)
+		 (for-each
+		  (lambda (x y)
+		    (unless (and (morally-equal x y)
+				 (not (gensym? x)))
+		      (format *stderr* "eval/string ~%~S~%    ~W -> ~W~%" str val1 val2)
+		      (ok)))
+		  val1 val2))))))
+	(lambda arg 'error))
+|#
 #|
       (catch #t
 	(lambda ()
@@ -892,6 +957,7 @@
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)))
+
       (let ((nstr (make-expr (+ 1 (random 4)))))
 	(set! nostr nstr)
 	(catch #t 
