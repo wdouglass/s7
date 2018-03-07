@@ -1459,25 +1459,25 @@ static s7_scheme *cur_sc = NULL;
   static s7_pointer check_cell(s7_pointer p, const char *func, int32_t line);
   static void print_gc_info(s7_pointer obj, int32_t line);
 
-  static s7_pointer opt1_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line);
-  static s7_pointer set_opt1_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
-  static s7_pointer opt2_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line);
-  static void set_opt2_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
-  static s7_pointer opt3_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line);
-  static void set_opt3_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
+  static s7_pointer opt1_1(s7_pointer p, uint32_t role, const char *func, int32_t line);
+  static s7_pointer set_opt1_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
+  static s7_pointer opt2_1(s7_pointer p, uint32_t role, const char *func, int32_t line);
+  static void set_opt2_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
+  static s7_pointer opt3_1(s7_pointer p, uint32_t role, const char *func, int32_t line);
+  static void set_opt3_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line);
 
-  static uint64_t s_hash_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_hash_1(s7_scheme *sc, s7_pointer p, uint64_t x, const char *func, int32_t line);
-  static const char *s_name_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_name_1(s7_scheme *sc, s7_pointer p, const char *str, const char *func, int32_t line);
-  static uint32_t s_line_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_line_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line);
-  static uint32_t s_len_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_len_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line);
-  static uint32_t s_op_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_op_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line);
-  static uint32_t s_syn_op_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line);
-  static void set_s_syn_op_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line);
+  static uint64_t s_hash_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_hash_1(s7_pointer p, uint64_t x, const char *func, int32_t line);
+  static const char *s_name_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_name_1(s7_pointer p, const char *str, const char *func, int32_t line);
+  static uint32_t s_line_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_line_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
+  static uint32_t s_len_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_len_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
+  static uint32_t s_op_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_op_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
+  static uint32_t s_syn_op_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_syn_op_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
 
   #define unchecked_type(p)           ((p)->tf.type_field)
 #if WITH_GCC
@@ -2142,8 +2142,8 @@ static int64_t not_heap = -1;
 #define set_opt1_is_set(p)            (p)->debugger_bits |= E_SET
 #define opt1_role_matches(p, Role)    (((p)->debugger_bits & E_MASK) == Role)
 #define set_opt1_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~E_MASK))
-#define opt1(p, Role)                 opt1_1(cur_sc, _TPair(p), Role, __func__, __LINE__)
-#define set_opt1(p, x, Role)          set_opt1_1(cur_sc, _TPair(p), x, Role, __func__, __LINE__)
+#define opt1(p, Role)                 opt1_1(_TPair(p), Role, __func__, __LINE__)
+#define set_opt1(p, x, Role)          set_opt1_1(_TPair(p), x, Role, __func__, __LINE__)
 
 #define F_SET                         (1 << 1)   
 #define F_KEY                         (1 << 18)  /* case key */
@@ -2160,8 +2160,8 @@ static int64_t not_heap = -1;
 #define set_opt2_is_set(p)            (p)->debugger_bits |= F_SET
 #define opt2_role_matches(p, Role)    (((p)->debugger_bits & F_MASK) == Role)
 #define set_opt2_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~F_MASK))
-#define opt2(p, Role)                 opt2_1(cur_sc, _TPair(p), Role, __func__, __LINE__)
-#define set_opt2(p, x, Role)          set_opt2_1(cur_sc, _TPair(p), (s7_pointer)x, Role, __func__, __LINE__)
+#define opt2(p, Role)                 opt2_1(_TPair(p), Role, __func__, __LINE__)
+#define set_opt2(p, x, Role)          set_opt2_1(_TPair(p), (s7_pointer)x, Role, __func__, __LINE__)
 
 /* opt3 collides with optimization and line number stuff (T_LINE_NUMBER, T_OPTIMIZED) */
 #define G_SET                         (1 << 2)
@@ -2175,22 +2175,22 @@ static int64_t not_heap = -1;
 #define set_opt3_is_set(p)            (p)->debugger_bits |= G_SET
 #define opt3_role_matches(p, Role)    (((p)->debugger_bits & G_MASK) == Role)
 #define set_opt3_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~G_MASK))
-#define opt3(p, Role)                 opt3_1(cur_sc, _TPair(p), Role, __func__, __LINE__)
-#define set_opt3(p, x, Role)          set_opt3_1(cur_sc, _TPair(p), x, Role, __func__, __LINE__)
+#define opt3(p, Role)                 opt3_1(_TPair(p), Role, __func__, __LINE__)
+#define set_opt3(p, x, Role)          set_opt3_1(_TPair(p), x, Role, __func__, __LINE__)
 
 /* opt1 == s_hash, opt2 == s_fstr, opt3 == s_op|len|line and op==len so they are contradictory (but only op/line|opt3 actually collide)
  * line|len|op: uint32_t set G_SET and S_* if S_LEN -> not op and vice versa
  * another collider: pair_syntax_op|optimize_op below.  Both need bits: S_SYNOP?
  */
 
-#define pair_line(p)                  s_line_1(sc, _TPair(p), __func__, __LINE__)
-#define pair_set_line(p, X)           set_s_line_1(sc, _TPair(p), X, __func__, __LINE__)
-#define pair_raw_hash(p)              s_hash_1(sc, _TPair(p), __func__, __LINE__)
-#define pair_set_raw_hash(p, X)       set_s_hash_1(sc, _TPair(p), X, __func__, __LINE__)
-#define pair_raw_len(p)               s_len_1(sc, _TPair(p), __func__, __LINE__)
-#define pair_set_raw_len(p, X)        set_s_len_1(sc, _TPair(p), X, __func__, __LINE__)
-#define pair_raw_name(p)              s_name_1(sc, _TPair(p), __func__, __LINE__)
-#define pair_set_raw_name(p, X)       set_s_name_1(sc, _TPair(p), X, __func__, __LINE__)
+#define pair_line(p)                  s_line_1(_TPair(p), __func__, __LINE__)
+#define pair_set_line(p, X)           set_s_line_1(_TPair(p), X, __func__, __LINE__)
+#define pair_raw_hash(p)              s_hash_1(_TPair(p), __func__, __LINE__)
+#define pair_set_raw_hash(p, X)       set_s_hash_1(_TPair(p), X, __func__, __LINE__)
+#define pair_raw_len(p)               s_len_1(_TPair(p), __func__, __LINE__)
+#define pair_set_raw_len(p, X)        set_s_len_1(_TPair(p), X, __func__, __LINE__)
+#define pair_raw_name(p)              s_name_1(_TPair(p), __func__, __LINE__)
+#define pair_set_raw_name(p, X)       set_s_name_1(_TPair(p), X, __func__, __LINE__)
 
 #endif
 
@@ -2353,8 +2353,8 @@ static int64_t not_heap = -1;
   #define optimize_op(p)              (_TPair(p))->object.sym_cons.op
   #define set_optimize_op(P, Op)      optimize_op(P) = Op
 #else
-  #define optimize_op(p)              s_op_1(cur_sc, _TPair(p), __func__, __LINE__)
-  #define set_optimize_op(p, Op)      set_s_op_1(cur_sc, _TPair(p), Op, __func__, __LINE__)
+  #define optimize_op(p)              s_op_1(_TPair(p), __func__, __LINE__)
+  #define set_optimize_op(p, Op)      set_s_op_1(_TPair(p), Op, __func__, __LINE__)
 #endif
 
 #define optimize_op_match(P, Q)       ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == Q))
@@ -2431,8 +2431,8 @@ static int64_t not_heap = -1;
   #define pair_syntax_op(p)           (p)->object.sym_cons.op
   #define pair_set_syntax_op(p, X)    do {unoptimize(p); (p)->object.sym_cons.op = X;} while (0)
 #else
-  #define pair_syntax_op(p)           s_syn_op_1(cur_sc, _TPair(p), __func__, __LINE__)
-  #define pair_set_syntax_op(p, Op)   do {unoptimize(p); set_s_syn_op_1(cur_sc, _TPair(p), Op, __func__, __LINE__);} while (0)
+  #define pair_syntax_op(p)           s_syn_op_1(_TPair(p), __func__, __LINE__)
+  #define pair_set_syntax_op(p, Op)   do {unoptimize(p); set_s_syn_op_1(_TPair(p), Op, __func__, __LINE__);} while (0)
 #endif
 #define pair_syntax_symbol(P)         car(opt_back(P))
 #define pair_set_syntax_symbol(p, op) do {set_car(opt_back(p), op); pair_set_syntax_op(opt_back(p), symbol_syntax_op(op));} while (0)
@@ -3723,7 +3723,7 @@ static s7_pointer set_elist_5(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_po
   return(sc->elist_5);
 } 
 
-static s7_pointer set_wlist_3(s7_scheme *sc, s7_pointer lst, s7_pointer x1, s7_pointer x2, s7_pointer x3)
+static s7_pointer set_wlist_3(s7_pointer lst, s7_pointer x1, s7_pointer x2, s7_pointer x3)
 {
   s7_pointer p;
   p = lst;
@@ -3733,7 +3733,7 @@ static s7_pointer set_wlist_3(s7_scheme *sc, s7_pointer lst, s7_pointer x1, s7_p
   return(lst);
 } 
 
-static s7_pointer set_wlist_4(s7_scheme *sc, s7_pointer lst, s7_pointer x1, s7_pointer x2, s7_pointer x3, s7_pointer x4)
+static s7_pointer set_wlist_4(s7_pointer lst, s7_pointer x1, s7_pointer x2, s7_pointer x3, s7_pointer x4)
 {
   s7_pointer p;
   p = lst;
@@ -3766,7 +3766,7 @@ static s7_pointer set_qlist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
 
 static s7_pointer set_plist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_pointer x3)
 {
-  return(set_wlist_3(sc, sc->plist_3, x1, x2, x3));
+  return(set_wlist_3(sc->plist_3, x1, x2, x3));
 } 
 
 
@@ -4891,7 +4891,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 static int32_t last_gc_line = 0;
 static const char *last_gc_func = NULL;
 static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
-static bool has_odd_bits(s7_scheme *sc, s7_pointer obj);
+static bool has_odd_bits(s7_pointer obj);
 #endif
 
 #define GC_STATS 1
@@ -4916,7 +4916,7 @@ static int32_t gc(s7_scheme *sc)
         if (!is_free_and_clear(p))		\
           {								\
 	    p->debugger_bits = 0; p->gc_line = last_gc_line; p->gc_func = last_gc_func;	\
-	    if (has_odd_bits(sc, p)) \
+	    if (has_odd_bits(p)) \
 	      fprintf(stderr, "odd bits: %s\n", describe_type_bits(sc, p)); \
             clear_type(p);	\
             (*fp++) = p;\
@@ -5103,7 +5103,7 @@ static int32_t gc(s7_scheme *sc)
 		p->debugger_bits = 0;
 		p->gc_line = last_gc_line; 
 		p->gc_func = last_gc_func;
-		if (has_odd_bits(sc, p))
+		if (has_odd_bits(p))
 		  fprintf(stderr, "odd bits: %s\n", describe_type_bits(sc, p));
 #endif
 		clear_type(p); /* (this is needed -- otherwise we try to free some objects twice) */
@@ -11265,7 +11265,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
 #define SYMBOL_OK true
 #define NO_SYMBOLS false
 
-static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, int32_t radix, bool with_error)
+static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error)
 {
   /* name is the stuff after the '#', return sc->nil if not a recognized #... entity */
   s7_pointer x;
@@ -11889,7 +11889,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
   switch (c)
     {
     case '#':
-      return(make_sharp_constant(sc, p, radix, with_error)); /* make_sharp_constant expects the '#' to be removed */
+      return(make_sharp_constant(sc, p, with_error)); /* make_sharp_constant expects the '#' to be removed */
 
     case '+':
     case '-':
@@ -14876,7 +14876,7 @@ static s7_pointer g_mod_si(s7_scheme *sc, s7_pointer args)
 /* !WITH_GMP */
 
 
-static int32_t reduce_fraction(s7_scheme *sc, s7_int *numer, s7_int *denom)
+static int32_t reduce_fraction(s7_int *numer, s7_int *denom)
 {
   /* we're assuming in several places that we have a normal s7 rational after returning,
    *    so the denominator needs to be positive.
@@ -15089,7 +15089,7 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 #endif
 	  if (is_null(p)) return(s7_make_ratio(sc, dn, den_a));
 	  num_a = dn;
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	  if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto ADD_INTEGERS;
 	  goto ADD_RATIOS;
 
@@ -15134,7 +15134,7 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 	      }
 	    /* (+ 1/100 99/100 (- most-positive-fixnum 2)) should not be converted to real
 	     */
-	    if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	    if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto ADD_INTEGERS;
 	  goto ADD_RATIOS;
 	  }
@@ -15624,7 +15624,7 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 #endif
 	    if (is_null(p)) return(s7_make_ratio(sc, dn, den_a));
 	    num_a = dn;
-	    if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	    if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	      goto SUBTRACT_INTEGERS;
 	    goto SUBTRACT_RATIOS;
 	  }
@@ -15678,7 +15678,7 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 	  if (is_null(p)) return(s7_make_ratio(sc, num_a - (den_a * integer(x)), den_a));
 	  num_a -= (den_a * integer(x));
 #endif
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	  if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto SUBTRACT_INTEGERS;
 	  goto SUBTRACT_RATIOS;
 
@@ -15716,7 +15716,7 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 		if (is_null(p))
 		  return(s7_make_ratio(sc, num_a, den_a));
 	      }
-	    if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	    if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto SUBTRACT_INTEGERS;
 	  goto SUBTRACT_RATIOS;
 	  }
@@ -16188,7 +16188,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 #endif
 	  den_a = denominator(x);
 	  if (is_null(p)) return(s7_make_ratio(sc, num_a, den_a));
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	  if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto MULTIPLY_INTEGERS;
 	  goto MULTIPLY_RATIOS;
 
@@ -16247,7 +16247,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  num_a *= integer(x);
 #endif
 	  if (is_null(p)) return(s7_make_ratio(sc, num_a, den_a));
-	  if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	  if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto MULTIPLY_INTEGERS;
 	  goto MULTIPLY_RATIOS;
 
@@ -16282,7 +16282,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	    den_a *= d2;
 #endif
 	    if (is_null(p)) return(s7_make_ratio(sc, num_a, den_a));
-	    if (reduce_fraction(sc, &num_a, &den_a) == T_INTEGER)
+	    if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	      goto MULTIPLY_INTEGERS;
 	    goto MULTIPLY_RATIOS;
 	  }
@@ -23547,7 +23547,7 @@ static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool ato
   if (atom_case)
     return(make_atom(sc, sc->strbuf, BASE_10, SYMBOL_OK, WITH_OVERFLOW_ERROR));
 
-  return(make_sharp_constant(sc, sc->strbuf, BASE_10, WITH_OVERFLOW_ERROR));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
 }
 
 static s7_pointer file_read_name(s7_scheme *sc, s7_pointer pt)
@@ -23638,7 +23638,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
 	  port_position(pt)++;
 	}
       else sc->strbuf[1] = '\0';
-      return(make_sharp_constant(sc, sc->strbuf, BASE_10, WITH_OVERFLOW_ERROR));
+      return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
     }
 
   orig_str = (char *)(str - 1);
@@ -23654,7 +23654,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
 
   memcpy((void *)(sc->strbuf), (void *)orig_str, k);
   sc->strbuf[k] = '\0';
-  return(make_sharp_constant(sc, sc->strbuf, BASE_10, WITH_OVERFLOW_ERROR));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
 }
 
 
@@ -28527,15 +28527,19 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 	{
 	  s7_pointer slot;
 	  slot = car(x);
-	  port_write_character(port)(sc, '(', port);
-	  port_write_string(port)(sc, symbol_name(slot_symbol(slot)), symbol_name_length(slot_symbol(slot)), port);
-	  port_write_character(port)(sc, ' ', port);
-	  /* (object->string (list (let ((local 1)) (lambda (x) (+ x local)))) :readable) */
-	  /* object_out(sc, slot_value(slot), port, P_WRITE); */
-	  object_to_port(sc, slot_value(slot), port, P_READABLE, NULL);
-	  if (is_null(cdr(x)))
-	    port_write_character(port)(sc, ')', port);
-	  else port_write_string(port)(sc, ") ", 2, port);
+	  if ((!is_any_closure(slot_value(slot))) && /* mutually referencing closures? ./snd -l snd-test 24 hits this in the effects dialogs */
+	      (!has_structure(slot_value(slot))))    /* see s7test example, vector has closure that refers to vector */
+	    {
+	      port_write_character(port)(sc, '(', port);
+	      port_write_string(port)(sc, symbol_name(slot_symbol(slot)), symbol_name_length(slot_symbol(slot)), port);
+	      port_write_character(port)(sc, ' ', port);
+	      /* (object->string (list (let ((local 1)) (lambda (x) (+ x local)))) :readable) */
+	      /* object_out(sc, slot_value(slot), port, P_WRITE); */
+	      object_to_port(sc, slot_value(slot), port, P_READABLE, NULL);
+	      if (is_null(cdr(x)))
+		port_write_character(port)(sc, ')', port);
+	      else port_write_string(port)(sc, ") ", 2, port);
+	    }
 	}
       port_write_string(port)(sc, ") ", 2, port);
     }
@@ -28726,7 +28730,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 }
 
 #if S7_DEBUGGING
-static bool has_odd_bits(s7_scheme *sc, s7_pointer obj)
+static bool has_odd_bits(s7_pointer obj)
 {
   uint64_t full_typ;
   full_typ = typeflag(obj);
@@ -28831,7 +28835,7 @@ static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *fun
     {
       uint8_t typ;
 #if CHECK_ALL_BITS
-      if (has_odd_bits(cur_sc, p))
+      if (has_odd_bits(p))
 	fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
       typ = unchecked_type(p);
@@ -28867,7 +28871,7 @@ static s7_pointer check_ref2(s7_pointer p, uint8_t expected_type, int32_t other_
     {
       uint8_t typ;
 #if CHECK_ALL_BITS
-      if (has_odd_bits(cur_sc, p))
+      if (has_odd_bits(p))
 	fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
       typ = unchecked_type(p);
@@ -28881,7 +28885,7 @@ static s7_pointer check_ref3(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -28900,7 +28904,7 @@ static s7_pointer check_ref4(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -28919,7 +28923,7 @@ static s7_pointer check_ref5(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -28938,7 +28942,7 @@ static s7_pointer check_ref6(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -28959,7 +28963,7 @@ static s7_pointer check_ref7(s7_pointer p, const char *func, int32_t line)
     {
       uint8_t typ;
 #if CHECK_ALL_BITS
-      if (has_odd_bits(cur_sc, p))
+      if (has_odd_bits(p))
 	fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
       typ = unchecked_type(p);
@@ -28979,7 +28983,7 @@ static s7_pointer check_ref8(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -28998,7 +29002,7 @@ static s7_pointer check_ref9(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -29017,7 +29021,7 @@ static s7_pointer check_ref10(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -29036,7 +29040,7 @@ static s7_pointer check_ref11(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
 #if CHECK_ALL_BITS
-  if (has_odd_bits(cur_sc, p))
+  if (has_odd_bits(p))
     fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
   typ = unchecked_type(p);
@@ -29062,7 +29066,7 @@ static s7_pointer check_cell(s7_pointer p, const char *func, int32_t line)
     {
       uint8_t typ;
 #if CHECK_ALL_BITS
-      if (has_odd_bits(cur_sc, p))
+      if (has_odd_bits(p))
 	fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
       typ = unchecked_type(p);
@@ -29088,7 +29092,7 @@ static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line)
   else
     {
 #if CHECK_ALL_BITS
-      if (has_odd_bits(cur_sc, p))
+      if (has_odd_bits(p))
 	fprintf(stderr, "odd bits: %s\n", describe_type_bits(cur_sc, p));
 #endif
     }
@@ -29200,7 +29204,7 @@ static char* show_debugger_bits(uint32_t bits)
   return(bits_str);
 }
 
-static void show_opt1_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_t line, uint32_t role)
+static void show_opt1_bits(s7_pointer p, const char *func, int32_t line, uint32_t role)
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
@@ -29213,19 +29217,19 @@ static void show_opt1_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_
   free(bits);
 }
 
-static s7_pointer opt1_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line)
+static s7_pointer opt1_1(s7_pointer p, uint32_t role, const char *func, int32_t line)
 {
   if ((!opt1_is_set(p)) ||
       ((!opt1_role_matches(p, role)) &&
        (role != E_ANY)))
     {
-      show_opt1_bits(sc, p, func, line, role);
+      show_opt1_bits(p, func, line, role);
       if (stop_at_error) abort();
     }
   return(p->object.cons.opt1);
 }
 
-static s7_pointer set_opt1_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
+static s7_pointer set_opt1_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
 {
   p->object.cons.opt1 = x;
   set_opt1_role(p, role);
@@ -29234,25 +29238,25 @@ static s7_pointer set_opt1_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t
   return(x);
 }
 
-static uint64_t s_hash_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static uint64_t s_hash_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt1_is_set(p)) ||
       (!opt1_role_matches(p, S_HASH)))
     {
-      show_opt1_bits(sc, p, func, line, (uint32_t)S_HASH);
+      show_opt1_bits(p, func, line, (uint32_t)S_HASH);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.hash);
 }
 
-static void set_s_hash_1(s7_scheme *sc, s7_pointer p, uint64_t x, const char *func, int32_t line)
+static void set_s_hash_1(s7_pointer p, uint64_t x, const char *func, int32_t line)
 {
   p->object.sym_cons.hash = x;
   set_opt1_role(p, S_HASH);
   set_opt1_is_set(p);
 }
 
-static void show_opt2_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_t line, uint32_t role)
+static void show_opt2_bits(s7_pointer p, const char *func, int32_t line, uint32_t role)
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
@@ -29275,51 +29279,51 @@ static void show_opt2_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_
   free(bits);
 }
 
-static s7_pointer opt2_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line)
+static s7_pointer opt2_1(s7_pointer p, uint32_t role, const char *func, int32_t line)
 {
   if ((!opt2_is_set(p)) ||
       (!opt2_role_matches(p, role)))
     {
-      show_opt2_bits(sc, p, func, line, role);
-      fprintf(stderr, "p: %s\n", DISPLAY(p));
+      show_opt2_bits(p, func, line, role);
+      fprintf(stderr, "p: %s\n", s7_object_to_c_string(cur_sc, p));
       if (stop_at_error) abort();
     }
   return(p->object.cons.opt2);
 }
 
-static void set_opt2_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
+static void set_opt2_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
 {
   if ((role == F_CALL) &&
       (x == NULL))  /* this happens apparently innocuously in check_and|or */
     {
       if ((safe_strcmp(func, "check_and") != 0) &&
 	  (safe_strcmp(func, "check_or") != 0))
-	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, DISPLAY_80(p));
+	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, object_to_truncated_string(cur_sc, p, 80));
     }
   p->object.cons.opt2 = x;
   set_opt2_role(p, role);
   set_opt2_is_set(p);
 }
 
-static const char *s_name_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static const char *s_name_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt2_is_set(p)) ||
       (!opt2_role_matches(p, S_NAME)))
     {
-      show_opt2_bits(sc, p, func, line, (uint32_t)S_NAME);
+      show_opt2_bits(p, func, line, (uint32_t)S_NAME);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.fstr);
 }
 
-static void set_s_name_1(s7_scheme *sc, s7_pointer p, const char *str, const char *func, int32_t line)
+static void set_s_name_1(s7_pointer p, const char *str, const char *func, int32_t line)
 {
   p->object.sym_cons.fstr = str;
   set_opt2_role(p, S_NAME);
   set_opt2_is_set(p);
 }
 
-static void show_opt3_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_t line, int32_t role)
+static void show_opt3_bits(s7_pointer p, const char *func, int32_t line, int32_t role)
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
@@ -29330,18 +29334,18 @@ static void show_opt3_bits(s7_scheme *sc, s7_pointer p, const char *func, int32_
   free(bits);
 }
 
-static s7_pointer opt3_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char *func, int32_t line)
+static s7_pointer opt3_1(s7_pointer p, uint32_t role, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) || 
       (!opt3_role_matches(p, role)))
     {
-      show_opt3_bits(sc, p, func, line, role);
+      show_opt3_bits(p, func, line, role);
       if (stop_at_error) abort();
     }
   return(p->object.cons.opt3);
 }
 
-static void set_opt3_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
+static void set_opt3_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
 {
   typeflag(p) &= ~(T_OPTIMIZED | T_LINE_NUMBER);
   p->object.cons.opt3 = x;
@@ -29350,19 +29354,19 @@ static void set_opt3_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role,
 }
 
 /* S_LINE */
-static uint32_t s_line_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static uint32_t s_line_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) || 
       ((p->debugger_bits & S_LINE) == 0) ||
       (!has_line_number(p)))
     {
-      show_opt3_bits(sc, p, func, line, (uint32_t)S_LINE);
+      show_opt3_bits(p, func, line, (uint32_t)S_LINE);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.line);
 }
 
-static void set_s_line_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_line_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
 {
   p->object.sym_cons.line = x;
   (p)->debugger_bits = (S_LINE | (p->debugger_bits & ~S_LEN)); /* turn on line, cancel len */
@@ -29370,19 +29374,19 @@ static void set_s_line_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *fu
 }
 
 /* S_LEN (collides with S_LINE) */
-static uint32_t s_len_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static uint32_t s_len_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) || 
       ((p->debugger_bits & S_LEN) == 0) ||
       (has_line_number(p)))
     {
-      show_opt3_bits(sc, p, func, line, (uint32_t)S_LEN);
+      show_opt3_bits(p, func, line, (uint32_t)S_LEN);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.line);
 }
 
-static void set_s_len_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_len_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
 {
   typeflag(p) &= ~(T_LINE_NUMBER);
   p->object.sym_cons.line = x;
@@ -29391,18 +29395,18 @@ static void set_s_len_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *fun
 }
 
 /* S_OP */
-static uint32_t s_op_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static uint32_t s_op_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) || 
       ((p->debugger_bits & (S_OP | S_SYNOP)) == 0))
     {
-      show_opt3_bits(sc, p, func, line, (uint32_t)S_SYNOP);
+      show_opt3_bits(p, func, line, (uint32_t)S_SYNOP);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.op);
 }
 
-static void set_s_op_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_op_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
 {
   p->object.sym_cons.op = x;
   (p)->debugger_bits = (S_OP | (p->debugger_bits & ~(S_SYNOP)));
@@ -29410,18 +29414,18 @@ static void set_s_op_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func
 }
 
 /* S_SYNOP (collides with S_OP, but the optimize bit needs to stay on) */
-static uint32_t s_syn_op_1(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
+static uint32_t s_syn_op_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) || 
       ((p->debugger_bits & (S_SYNOP | S_OP)) == 0))
     {
-      show_opt3_bits(sc, p, func, line, (uint32_t)S_OP);
+      show_opt3_bits(p, func, line, (uint32_t)S_OP);
       if (stop_at_error) abort();
     }
   return(p->object.sym_cons.op);
 }
 
-static void set_s_syn_op_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_syn_op_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
 {
   p->object.sym_cons.op = x;
   (p)->debugger_bits = (S_SYNOP | (p->debugger_bits & ~(S_OP)));
@@ -32787,7 +32791,6 @@ static s7_pointer list_ref_1(s7_scheme *sc, s7_pointer lst, s7_pointer ind)
     }
   return(car(p));
 }
-
 
 static s7_pointer g_list_ref(s7_scheme *sc, s7_pointer args)
 {
@@ -36353,7 +36356,7 @@ static s7_pointer g_int_multivector(s7_scheme *sc, s7_int dims, s7_pointer data)
   /* dims > 1, sc->value is a pair (not null) */
   s7_pointer *src;
   s7_int i, len;
-  sc->value = g_multivector(sc, dims, sc->value);
+  sc->value = g_multivector(sc, dims, data);
   src = (s7_pointer *)vector_elements(sc->value);
   len = vector_length(sc->value);
   for (i = 0; i < len; i++)
@@ -36368,7 +36371,7 @@ static s7_pointer g_float_multivector(s7_scheme *sc, s7_int dims, s7_pointer dat
   /* dims > 1, sc->value is a pair (not null) */
   s7_pointer *src;
   s7_int i, len;
-  sc->value = g_multivector(sc, dims, sc->value);
+  sc->value = g_multivector(sc, dims, data);
   src = (s7_pointer *)vector_elements(sc->value);
   len = vector_length(sc->value);
   for (i = 0; i < len; i++)
@@ -37711,7 +37714,7 @@ static uint32_t hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(slots);
 }
 
-static uint32_t len_upto_8(s7_scheme *sc, s7_pointer p)
+static uint32_t len_upto_8(s7_pointer p)
 {
   s7_pointer x;
   uint32_t i;   /* unrolling this loop saves 10-15% */
@@ -37748,7 +37751,7 @@ static uint32_t hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
 	    loc += hash_loc(sc, table, caar(p1)) + 1;
 	}
     }
-  loc = (loc << 3) | len_upto_8(sc, key);
+  loc = (loc << 3) | len_upto_8(key);
   return(loc);
 }
 
@@ -38470,7 +38473,7 @@ void init_hash_maps(void)
 }
 
 
-static uint32_t resize_hash_table(s7_scheme *sc, s7_pointer table)
+static uint32_t resize_hash_table(s7_pointer table)
 {
   /* resize the table */
   uint32_t hash_len, loc, i, old_size, new_size;
@@ -38642,7 +38645,7 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
 
   hash_len = hash_table_mask(table);
   if (hash_table_entries(table) > hash_len)
-    hash_len = resize_hash_table(sc, table);
+    hash_len = resize_hash_table(table);
 
   p = hash_free_list;
   if (!p) p = extend_hash_free_list();
@@ -44046,7 +44049,7 @@ static const char *make_type_name(s7_scheme *sc, const char *name, int32_t artic
 }
 
 
-static const char *type_name_from_type(s7_scheme *sc, int32_t typ, int32_t article)
+static const char *type_name_from_type(int32_t typ, int32_t article)
 {
   static const char *frees[2] =          {"free cell",          "a free cell"};
   static const char *nils[2] =           {"nil",                "nil"};
@@ -44178,7 +44181,7 @@ static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article)
     default:
       {
 	const char *str;
-	str = type_name_from_type(sc, unchecked_type(arg), article);
+	str = type_name_from_type(unchecked_type(arg), article);
 	if (str) return(str);
       }
     }
@@ -44238,7 +44241,7 @@ static s7_pointer wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer cal
 
 static s7_pointer simple_wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer typnam, s7_pointer descr)
 {
-  set_wlist_4(sc, cdr(sc->simple_wrong_type_arg_info), caller, arg, (typnam == sc->gc_nil) ? prepackaged_type_name(sc, arg) : typnam, descr);
+  set_wlist_4(cdr(sc->simple_wrong_type_arg_info), caller, arg, (typnam == sc->gc_nil) ? prepackaged_type_name(sc, arg) : typnam, descr);
   return(s7_error(sc, sc->wrong_type_arg_symbol, sc->simple_wrong_type_arg_info));
 }
 
@@ -44261,14 +44264,14 @@ s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, int32_t ar
 static s7_pointer out_of_range_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg_n, s7_pointer arg, s7_pointer descr)
 {
   /* info list is '(format_string caller arg_n arg descr) */
-  set_wlist_4(sc, cdr(sc->out_of_range_info), caller, arg_n, arg, descr);
+  set_wlist_4(cdr(sc->out_of_range_info), caller, arg_n, arg, descr);
   return(s7_error(sc, sc->out_of_range_symbol, sc->out_of_range_info));
 }
 
 
 static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer descr)
 {
-  set_wlist_3(sc, cdr(sc->simple_out_of_range_info), caller, arg, descr);
+  set_wlist_3(cdr(sc->simple_out_of_range_info), caller, arg, descr);
   return(s7_error(sc, sc->out_of_range_symbol, sc->simple_out_of_range_info));
 }
 
@@ -45544,7 +45547,6 @@ static char *truncate_string(char *form, int32_t len, use_write_t use_write, int
   return(form);
 }
 
-
 static char *object_to_truncated_string(s7_scheme *sc, s7_pointer p, int32_t len)
 {
   char *s;
@@ -45714,12 +45716,10 @@ void (*s7_begin_hook(s7_scheme *sc))(s7_scheme *sc, bool *val)
   return(sc->begin_hook);
 }
 
-
 void s7_set_begin_hook(s7_scheme *sc, void (*hook)(s7_scheme *sc, bool *val))
 {
   sc->begin_hook = hook;
 }
-
 
 static bool call_begin_hook(s7_scheme *sc)
 {
@@ -45780,11 +45780,11 @@ static s7_pointer apply_list_star(s7_scheme *sc, s7_pointer d)
   return(q);
 }
 
+
 static s7_pointer apply_list_error(s7_scheme *sc, s7_pointer lst)
 {
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "apply's last argument should be a proper list: ~S"), lst)));
 }
-
 
 static s7_pointer g_apply(s7_scheme *sc, s7_pointer args)
 {
@@ -45834,7 +45834,6 @@ static s7_pointer g_apply(s7_scheme *sc, s7_pointer args)
   return(sc->nil);
 }
 
-
 s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
   TRACK(sc);
@@ -45862,6 +45861,69 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
    *   happens to fallback on a method -- we can't just push OP_APPLY and drop back into the evaluator normally.
    */
   return(sc->value);
+}
+
+
+static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices)
+{
+  /* (let ((lst '("12" "34"))) (lst 0 1)) -> #\2
+   * (let ((lst (list #(1 2) #(3 4)))) (lst 0 1)) -> 2
+   *
+   * this can get tricky:
+   *   ((list (lambda (a) (+ a 1)) (lambda (b) (* b 2))) 1 2) -> 4
+   * but what if func takes rest/optional args, etc?
+   *   ((list (lambda args (car args))) 0 "hi" 0)
+   *   should this return #\h or "hi"??
+   *   currently it is "hi" which is consistent with
+   *  ((lambda args (car args)) "hi" 0)
+   * but...
+   *   ((lambda (arg) arg) "hi" 0)
+   * is currently an error (too many arguments)
+   * it should be (((lambda (arg) arg) "hi") 0) -> #\h
+   *
+   * this applies to non-homogeneous cases, so float|int-vectors don't get here
+   */
+
+  switch (type(obj))
+    {
+    case T_VECTOR:                       /* (#(#(1 2) #(3 4)) 1 1) -> 4 */
+      return(vector_ref_1(sc, obj, indices));
+
+    case T_STRING:                       /* (#("12" "34") 0 1) -> #\2 */
+      if (is_null(cdr(indices)))
+	{
+	  if (is_byte_vector_not_string(obj)) /* ((vector (byte-vector 1)) 0 0) */
+	    return(small_int((uint32_t)(character(string_ref_1(sc, obj, car(indices))))));
+	  return(string_ref_1(sc, obj, car(indices)));
+	}
+      return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, obj, indices)));
+
+    case T_PAIR:                         /* (#((1 2) (3 4)) 1 0) -> 3, (#((1 (2 3))) 0 1 0) -> 2 */
+      obj = list_ref_1(sc, obj, car(indices));
+      if (is_pair(cdr(indices)))
+	return(implicit_index(sc, obj, cdr(indices)));
+      return(obj);
+
+    case T_HASH_TABLE:                   /* ((vector (hash-table '(a . 1) '(b . 2))) 0 'a) -> 1 */
+      obj = s7_hash_table_ref(sc, obj, car(indices));
+      if (is_pair(cdr(indices)))
+	return(implicit_index(sc, obj, cdr(indices)));
+      return(obj);
+
+    case T_C_OBJECT:
+      return((*(c_object_ref(sc, obj)))(sc, obj, indices));
+
+    case T_LET:
+      obj = s7_let_ref(sc, obj, car(indices));
+      if (is_pair(cdr(indices)))
+	return(implicit_index(sc, obj, cdr(indices)));
+      return(obj);
+
+    default:                             /* (#(a b c) 0 1) -> error, but ((list (lambda (x) x)) 0 "hi") -> "hi" */
+      if (is_applicable(obj))
+	return(g_apply(sc, list_2(sc, obj, indices)));
+      return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, obj, indices)));
+    }
 }
 
 
@@ -46142,7 +46204,6 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
   return(sc->value);
 }
 
-
 s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args, const char *caller, const char *file, int32_t line)
 {
   s7_pointer result;
@@ -46163,69 +46224,6 @@ s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args
       sc->s7_call_line = -1;
     }
   return(result);
-}
-
-
-static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices)
-{
-  /* (let ((lst '("12" "34"))) (lst 0 1)) -> #\2
-   * (let ((lst (list #(1 2) #(3 4)))) (lst 0 1)) -> 2
-   *
-   * this can get tricky:
-   *   ((list (lambda (a) (+ a 1)) (lambda (b) (* b 2))) 1 2) -> 4
-   * but what if func takes rest/optional args, etc?
-   *   ((list (lambda args (car args))) 0 "hi" 0)
-   *   should this return #\h or "hi"??
-   *   currently it is "hi" which is consistent with
-   *  ((lambda args (car args)) "hi" 0)
-   * but...
-   *   ((lambda (arg) arg) "hi" 0)
-   * is currently an error (too many arguments)
-   * it should be (((lambda (arg) arg) "hi") 0) -> #\h
-   *
-   * this applies to non-homogeneous cases, so float|int-vectors don't get here
-   */
-
-  switch (type(obj))
-    {
-    case T_VECTOR:                       /* (#(#(1 2) #(3 4)) 1 1) -> 4 */
-      return(vector_ref_1(sc, obj, indices));
-
-    case T_STRING:                       /* (#("12" "34") 0 1) -> #\2 */
-      if (is_null(cdr(indices)))
-	{
-	  if (is_byte_vector_not_string(obj)) /* ((vector (byte-vector 1)) 0 0) */
-	    return(small_int((uint32_t)(character(string_ref_1(sc, obj, car(indices))))));
-	  return(string_ref_1(sc, obj, car(indices)));
-	}
-      return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, obj, indices)));
-
-    case T_PAIR:                         /* (#((1 2) (3 4)) 1 0) -> 3, (#((1 (2 3))) 0 1 0) -> 2 */
-      obj = list_ref_1(sc, obj, car(indices));
-      if (is_pair(cdr(indices)))
-	return(implicit_index(sc, obj, cdr(indices)));
-      return(obj);
-
-    case T_HASH_TABLE:                   /* ((vector (hash-table '(a . 1) '(b . 2))) 0 'a) -> 1 */
-      obj = s7_hash_table_ref(sc, obj, car(indices));
-      if (is_pair(cdr(indices)))
-	return(implicit_index(sc, obj, cdr(indices)));
-      return(obj);
-
-    case T_C_OBJECT:
-      return((*(c_object_ref(sc, obj)))(sc, obj, indices));
-
-    case T_LET:
-      obj = s7_let_ref(sc, obj, car(indices));
-      if (is_pair(cdr(indices)))
-	return(implicit_index(sc, obj, cdr(indices)));
-      return(obj);
-
-    default:                             /* (#(a b c) 0 1) -> error, but ((list (lambda (x) x)) 0 "hi") -> "hi" */
-      if (is_applicable(obj))
-	return(g_apply(sc, list_2(sc, obj, indices)));
-      return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, obj, indices)));
-    }
 }
 
 
@@ -50596,6 +50594,11 @@ static bool d_add_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer car_x, int32_t
 	}
       if (is_null(p))
 	{
+	  /* since 2|3|4-arg case is split out above, can cur_len ever be 2? */
+#if S7_DEBUGGING
+	  if (cur_len == 2)
+	    fprintf(stderr, "%sd[%d]: cur_len is 2! %s\n", __func__, __LINE__, DISPLAY(car_x));
+#endif
 	  opc->v1.i = cur_len;
 	  if (cur_len == 2)
 	    opc->v7.fd = (head == sc->add_symbol) ? opt_d_add2 :opt_d_mul2;
@@ -82100,7 +82103,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	  }
 	
 	if (ts[i] > 50)
-	  n = snprintf(buf, 1024, " (%s): %d", type_name_from_type(sc, i, NO_ARTICLE), ts[i]);
+	  n = snprintf(buf, 1024, " (%s): %d", type_name_from_type(i, NO_ARTICLE), ts[i]);
 	else n = snprintf(buf, 1024, " %d", ts[i]);
 	port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       }
@@ -83559,7 +83562,7 @@ s7_scheme *s7_init(void)
   for (i = 0; i < NUM_TYPES; i++)
     {
       const char *str;
-      str = type_name_from_type(sc, i, INDEFINITE_ARTICLE);
+      str = type_name_from_type(i, INDEFINITE_ARTICLE);
       if (str)
 	prepackaged_type_names[i] = s7_make_permanent_string(str);
       else prepackaged_type_names[i] = sc->F;
@@ -84927,7 +84930,6 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
- * combine t725 + t748 so new cycles as args
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

@@ -857,6 +857,10 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   (and (integer? x)
        (zero? (logand x (+ x 1)))))
 
+(define (2-ruler n) ; translated from CLOCC cllib/math.lisp, ruler
+  ;; The exponent of the largest power of 2 which divides the given number.
+  (- (integer-length (logand n (- n))) 1))
+
 (define (lognand . ints) 
   (lognot (apply logand ints)))
 
