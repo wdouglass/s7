@@ -1501,19 +1501,16 @@ void play_help(void)
     #define play_cursor_example "(play (cursor))"
     #define play_file_example "(play \"oboe.snd\")"
     #define play_previous_version_example "(play 0 #f #f #f #f (1- (edit-position)))"
-    #define H_cursor_line S_cursor_line
   #endif
   #if HAVE_RUBY
     #define play_cursor_example "play(cursor())"
     #define play_file_example "play(\"oboe.snd\")"
     #define play_previous_version_example "play(0, false, false, false, false, edit_position() - 1)"
-    #define H_cursor_line "Cursor_line"
   #endif
   #if HAVE_FORTH
     #define play_cursor_example "cursor play"
     #define play_file_example "\"oboe.snd\" play"
     #define play_previous_version_example "0 #f #f #f #f 0 0 edit-position 1- play"
-    #define H_cursor_line S_cursor_line
   #endif
 
   snd_help_with_xrefs("Play",

@@ -284,8 +284,8 @@ s7_int *s7_vector_offsets(s7_pointer vec);                                  /* p
 s7_pointer *s7_vector_elements(s7_pointer vec);                             /* a pointer to the array of s7_pointers */
 s7_int *s7_int_vector_elements(s7_pointer vec);
 s7_double *s7_float_vector_elements(s7_pointer vec);
-bool s7_is_float_vector(s7_pointer p);                                    
-bool s7_is_int_vector(s7_pointer p);                                      
+bool s7_is_float_vector(s7_pointer p);                                      /* (float-vector? p) */
+bool s7_is_int_vector(s7_pointer p);                                        /* (int-vector? p) */
 
 s7_pointer s7_vector_ref(s7_scheme *sc, s7_pointer vec, s7_int index);                            /* (vector-ref vec index) */
 s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer a);              /* (vector-set! vec index a) */

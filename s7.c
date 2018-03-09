@@ -287,6 +287,7 @@
 #ifndef S7_DEBUGGING
   #define S7_DEBUGGING 0
 #endif
+#define CYCLE_DEBUGGING S7_DEBUGGING
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -466,12 +467,11 @@ typedef enum {TOKEN_EOF, TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN, TOKEN_DOT, TOKEN_A
 typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 typedef struct {
-  bool needs_free;
+  bool needs_free, needs_unprotect;
   FILE *file;
   char *filename;
   int32_t filename_length;
   uint32_t gc_loc;
-  bool needs_unprotect;
   void *next;
   s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
   void (*output_function)(s7_scheme *sc, unsigned char c, s7_pointer port);
@@ -1009,7 +1009,7 @@ struct s7_scheme {
   uint32_t gensym_counter, f_class, add_class, multiply_class, subtract_class, equal_class;
   int32_t format_column;
   uint64_t capture_let_counter;
-  bool short_print, is_autoloading, in_with_let;
+  bool short_print, is_autoloading, in_with_let, object_out_locked;
   int64_t let_number;
   double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
@@ -1551,7 +1551,6 @@ static s7_scheme *cur_sc = NULL;
   #define _TVec(P) check_ref4(P,                     __func__, __LINE__) /* any vector or free */
   #define _TClo(P) check_ref5(P,                     __func__, __LINE__) /* has closure let */
   #define _TFnc(P) check_ref6(P,                     __func__, __LINE__) /* any c_function|c_macro */
-  #define _TFnc(P) check_ref6(P,                     __func__, __LINE__) /* any c_function|c_macro */
   #define _TNum(P) check_ref7(P,                     __func__, __LINE__) /* any number (not bignums I think) */
   #define _TSeq(P) check_ref8(P,                     __func__, __LINE__) /* any sequence or structure */
   #define _TMet(P) check_ref9(P,                     __func__, __LINE__) /* anything that might contain a method */
@@ -2053,6 +2052,11 @@ static s7_scheme *cur_sc = NULL;
 #define set_cyclic_set(p)             typeflag(_NFre(p)) |= T_CYCLIC_SET
 #define clear_cyclic_bits(p)          typeflag(p) &= (~(T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET))
 
+#define T_TREE_COLLECTED              T_RECUR
+#define is_tree_collected(p)          ((typeflag(_TPair(p)) & T_TREE_COLLECTED) != 0)
+#define is_tree_collected_or_shared(p) ((typeflag(_TPair(p)) & (T_TREE_COLLECTED | T_SHARED)) != 0)
+#define set_tree_collected(p)         typeflag(_TPair(p)) |= T_TREE_COLLECTED
+#define clear_tree_bits(p)            typeflag(_TPair(p)) &= (~(T_TREE_COLLECTED | T_SHARED))
  
 #define UNUSED_BITS                   0x7fffff8000000000
 
@@ -4462,8 +4466,6 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_bignumber(sc, p)    add_to_gc_list(sc->bignumbers, p)
 #endif
 
-
-#define INIT_GC_CACHE_SIZE 4
 static void init_gc_caches(s7_scheme *sc)
 {
   sc->strings = make_gc_list();
@@ -8580,7 +8582,62 @@ static inline void annotate_expansion(s7_pointer p)
 }
 
 
-static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
+static s7_pointer *tree_pointers = NULL;
+static int32_t tree_pointers_size = 0, tree_pointers_top = 0;
+
+static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
+{
+  if (is_tree_collected_or_shared(tree))
+    return(!is_shared(tree));
+  set_tree_collected(tree);
+
+  if (tree_pointers_top == tree_pointers_size)
+    {
+      if (tree_pointers_size == 0)
+	{
+	  tree_pointers_size = 8;
+	  tree_pointers = (s7_pointer *)malloc(tree_pointers_size * sizeof(s7_pointer));
+	}
+      else
+	{
+	  tree_pointers_size *= 2;
+	  tree_pointers = (s7_pointer *)realloc(tree_pointers, tree_pointers_size * sizeof(s7_pointer));
+	}
+    }
+  tree_pointers[tree_pointers_top++] = tree;
+
+  if ((is_pair(car(tree))) &&
+      (tree_is_cyclic_1(sc, car(tree))))
+    return(true);
+  if ((is_pair(cdr(tree))) &&
+      (tree_is_cyclic_1(sc, cdr(tree))))
+    return(true);
+
+  set_shared(tree);
+  return(false);
+}
+
+static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
+{
+  if (is_pair(tree))
+    {
+      bool result;
+      int32_t i;
+      result = tree_is_cyclic_1(sc, tree);
+      for (i = 0; i < tree_pointers_top; i++)
+	clear_tree_bits(tree_pointers[i]);
+      tree_pointers_top = 0;
+      return(result);
+    }
+  return(false);
+}
+
+static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
+{
+  #define H_tree_is_cyclic "(tree-cyclic? tree) returns #t if the tree has a cycle."
+  #define Q_tree_is_cyclic pl_bt
+  return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
+}
 
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
@@ -20962,11 +21019,16 @@ static s7_pointer char_position_p_ppi(s7_pointer p1, s7_pointer p2, s7_int start
   c = character(p1);
   if (!is_string(p2))
     simple_wrong_type_argument(cur_sc, cur_sc->char_position_symbol, p2, T_STRING);
-  len = string_length(p2);
-  porig = string_value(p2);
-  if (start >= len) return(cur_sc->F);
-  p = strchr((const char *)(porig + start), (int)c);
-  if (p) return(make_integer(cur_sc, p - porig));
+  if (start < 0)
+    wrong_type_argument_with_type(cur_sc, cur_sc->char_position_symbol, 3, s7_make_integer(cur_sc, start), a_non_negative_integer_string);
+  else
+    {
+      len = string_length(p2);
+      porig = string_value(p2);
+      if (start >= len) return(cur_sc->F);
+      p = strchr((const char *)(porig + start), (int)c);
+      if (p) return(make_integer(cur_sc, p - porig));
+    }
   return(cur_sc->F);  
 }
 
@@ -25951,8 +26013,9 @@ static s7_pointer g_make_iterator(s7_scheme *sc, s7_pointer args)
 in the sequence each time it is called.  When it reaches the end, it returns " ITERATOR_END_NAME "."
   #define Q_make_iterator s7_make_signature(sc, 3, sc->is_iterator_symbol, sc->is_sequence_symbol, sc->is_pair_symbol)
   
-  s7_pointer seq;
-  seq = car(args);
+  s7_pointer iter;
+  /* we need to call s7_make_iterator before fixing up the optional second arg in case let->method */
+  iter = s7_make_iterator(sc, car(args));
 
   if (is_pair(cdr(args)))
     {
@@ -25962,26 +26025,24 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 	{
 	  if (is_immutable(ip))
 	    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->make_iterator_symbol, ip)));
-	  if (is_hash_table(seq))
+	  if (is_hash_table(iterator_sequence(iter)))
 	    {
-	      s7_pointer iter;
-	      iter = s7_make_iterator(sc, seq);
 	      iterator_current(iter) = ip;
 	      set_mark_seq(iter);
-	      return(iter);
 	    }
-	  if ((is_let(seq)) && (seq != sc->rootlet))
+	  else
 	    {
-	      s7_pointer iter;
-	      iter = s7_make_iterator(sc, seq);
-	      iterator_let_cons(iter) = ip;
-	      set_mark_seq(iter);
-	      return(iter);
+	      if ((is_let(iterator_sequence(iter))) && 
+		  (iterator_sequence(iter) != sc->rootlet))
+		{
+		  iterator_let_cons(iter) = ip;
+		  set_mark_seq(iter);
+		}
 	    }
 	}
-      else return(simple_wrong_type_argument(sc, sc->make_iterator_symbol, cadr(args), T_PAIR));
+      else return(simple_wrong_type_argument(sc, sc->make_iterator_symbol, ip, T_PAIR));
     }
-  return(s7_make_iterator(sc, seq));
+  return(iter);
 }
 
 static s7_pointer g_iterate(s7_scheme *sc, s7_pointer args)
@@ -26385,42 +26446,6 @@ static inline shared_info *new_shared_info(s7_scheme *sc)
   return(ci);
 }
 
-
-static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree, shared_info *ci)
-{
-  if (is_collected_or_shared(tree))
-    return(!is_shared(tree));
-
-  set_collected(tree);
-  if (ci->top == ci->size)
-    enlarge_shared_info(ci);
-  ci->objs[ci->top++] = tree;
-
-  if ((is_pair(car(tree))) &&
-      (tree_is_cyclic_1(sc, car(tree), ci)))
-    return(true);
-  if ((is_pair(cdr(tree))) &&
-      (tree_is_cyclic_1(sc, cdr(tree), ci)))
-    return(true);
-
-  set_shared(tree);
-  return(false);
-}
-
-static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
-{
-  if (is_pair(tree))
-    return(tree_is_cyclic_1(sc, tree, new_shared_info(sc))); /* new_shared_info clears collected bits */
-  return(false);
-}
-
-static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
-{
-  #define H_tree_is_cyclic "(tree-cyclic? tree) returns #t if the tree has a cycle."
-  #define Q_tree_is_cyclic pl_bt
-  return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
-}
-
 static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at_print_length)
 {
   /* for the printer */
@@ -26488,7 +26513,7 @@ static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at
 	  (!is_null(x)) &&
 	  (has_structure(x)))
 	no_problem = false;
-	      
+
       if (no_problem)
 	return(NULL);
     }
@@ -26559,20 +26584,14 @@ static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at
 
 /* -------------------------------- cyclic-sequences -------------------------------- */
 
-#if S7_DEBUGGING
-static bool object_out_locked = false;
-#endif
-
 static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list)
 {
   if (has_structure(obj))
     {
       shared_info *ci;
-#if S7_DEBUGGING
-      if (object_out_locked)
-	fprintf(stderr, "cyclic_sequences steps on object_out info\n");
-#endif
-      ci = make_shared_info(sc, obj, false); /* false=don't stop at print length (vectors etc) */
+      if (sc->object_out_locked)
+	ci = sc->circle_info;
+      else ci = make_shared_info(sc, obj, false); /* false=don't stop at print length (vectors etc) */
       if (ci)
 	{
 	  if (return_list)
@@ -26614,8 +26633,6 @@ static int32_t circular_list_entries(s7_pointer lst)
 }
 
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci);
-/* static void object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci); */
-
 static void (*display_functions[256])(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci); 
 #define object_to_port(Sc, Obj, Port, Use_Write, Ci) (*display_functions[unchecked_type(Obj)])(Sc, Obj, Port, Use_Write, Ci)
 
@@ -27100,7 +27117,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     {
       if ((ci) &&
 	  (is_cyclic(vect)) &&
-	  /* (is_collected(vect)) && */
 	  (peek_shared_ref(ci, vect) != 0))
 	{
 	  s7_pointer *els;
@@ -27112,8 +27128,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
 	  if ((ci->defined[vref]) || (port == ci->cycle_port))
 	    {
-	      char buf[128];
-	      size_t plen;
 	      plen = snprintf(buf, 128, "<%d>", vref);
 	      port_write_string(port)(sc, buf, plen, port);
 	      return;
@@ -27127,7 +27141,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    {
 	      if (has_structure(els[i]))
 		{
-		  char buf[128];
 		  size_t len;
 		  char *indices;
 		  int32_t eref;
@@ -27198,8 +27211,9 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	}
       else 
 	{
+#if CYCLE_DEBUGGING
 	  if ((ci) && (peek_shared_ref(ci, vect) != 0)) fprintf(stderr, "cyclic vect missed\n");
-	  
+#endif	  
 	  if (vector_rank(vect) > 1)
 	    port_write_string(port)(sc, "(make-shared-vector ", 20, port);
 	  
@@ -27209,6 +27223,13 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  port_write_string(port)(sc, "(vector", 7, port);
 	  for (i = 0; i < len; i++)
 	    {
+#if CYCLE_DEBUGGING
+	      if ((!ci) && (vector_element(vect, i) == vect))
+		{
+		  fprintf(stderr, "missed vector cycle\n");
+		  abort();
+		}
+#endif
 	      port_write_character(port)(sc, ' ', port);
 	      object_to_port_with_circle_check(sc, vector_element(vect, i), port, P_READABLE, ci);
 	    }
@@ -27218,8 +27239,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  
 	  if (vector_rank(vect) > 1)
 	    {
-	      size_t plen;
-	      char buf[128];
 	      uint32_t dim;
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
@@ -27607,7 +27626,6 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 
   if ((use_write == P_READABLE) &&
       (ci) &&
-      /* (is_collected(lst)) && */
       (peek_shared_ref(ci, lst) != 0))
     {
       int32_t href;
@@ -27616,7 +27634,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
       if ((ci->defined[href]) || (port == ci->cycle_port))
 	{
 	  char buf[128];
-	  size_t plen;
+	  int32_t plen;
 	  plen = snprintf(buf, 128, "<%d>", href);
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
@@ -27656,7 +27674,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
     {
       if (!is_cyclic(lst))
 	{
-#if S7_DEBUGGING
+#if CYCLE_DEBUGGING
 	  if ((ci) && (peek_shared_ref(ci, lst) != 0))
 	    fprintf(stderr, "pair cycle missed %p\n", lst);
 #endif
@@ -27892,7 +27910,6 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 
   if ((use_write == P_READABLE) &&
       (ci) &&
-      /* (is_collected(hash)) && */
       (peek_shared_ref(ci, hash) != 0))
     {
       int32_t href;
@@ -27901,7 +27918,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       if ((ci->defined[href]) || (port == ci->cycle_port))
 	{
 	  char buf[128];
-	  size_t plen;
+	  int32_t plen;
 	  plen = snprintf(buf, 128, "<%d>", href);
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
@@ -27921,7 +27938,6 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
   if ((use_write == P_READABLE) && 
       (ci) &&
       (is_cyclic(hash)) &&
-      /* (is_collected(hash)) && */
       (peek_shared_ref(ci, hash) != 0))
     {
       /* TODO: eq-func if chosen, key-as-struct */
@@ -27946,8 +27962,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      (has_structure(key)))
 	    {
 	      char buf[128];
-	      size_t plen;
-	      int32_t eref, kref;
+	      int32_t eref, kref, plen;
 	      eref = peek_shared_ref(ci, val);
 	      kref = peek_shared_ref(ci, key);
 	      plen = snprintf(buf, 128, "  (set! (<%d> ", href);
@@ -28001,7 +28016,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 		  (!is_keyword(car(key_val))))
 		port_write_character(port)(sc, '\'', port);
 	    }
-#if S7_DEBUGGING
+#if CYCLE_DEBUGGING
 	  if ((!ci) && ((car(key_val) == hash) || (cdr(key_val) == hash)))
 	    {
 	      fprintf(stderr, "missed hash cycle\n");
@@ -28070,8 +28085,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
       if (has_structure(val))
 	{
 	  char buf[128];
-	  size_t len;
-	  int32_t symref;
+	  int32_t symref, len;
 	  port_write_string(port)(sc, " :", 2, port);
 	  port_write_string(port)(sc, symbol_name(sym), symbol_name_length(sym), port);
 	  port_write_string(port)(sc, " #f", 3, port);
@@ -28104,7 +28118,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 {
   /* if outer env points to (say) method list, the object needs to specialize object->string itself */
   /* fprintf(stderr, "let_to_port %p -> %p\n", obj, outlet(obj)); */
-#if S7_DEBUGGING
+#if CYCLE_DEBUGGING
   if (outlet(obj) == obj)
     {
       fprintf(stderr, "circlar let?\n");
@@ -28155,7 +28169,6 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 
 	      if ((ci) &&
 		  (is_cyclic(obj)) &&
-		  /* (is_collected(obj)) && */
 		  (peek_shared_ref(ci, obj) != 0))
 		{
 		  {
@@ -28165,7 +28178,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		    if ((ci->defined[lref]) || (port == ci->cycle_port))
 		      {
 			char buf[128];
-			size_t len;
+			int32_t len;
 			len = snprintf(buf, 128, "<%d>", lref);
 			port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			return;
@@ -28175,7 +28188,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      (outlet(obj) != sc->rootlet))
 		    {
 		      char buf[128];
-		      size_t len;
+		      int32_t len;
 		      len = snprintf(buf, 128, "  (set! (outlet <%d>) ", -peek_shared_ref(ci, obj));
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 		      let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
@@ -28196,7 +28209,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      if ((ci) && (peek_shared_ref(ci, outlet(obj)) < 0))
 			{
 			  char buf[128];
-			  size_t len;
+			  int32_t len;
 			  len = sprintf(buf, "<%d>", -peek_shared_ref(ci, outlet(obj)));
 			  port_write_string(port)(sc, buf, len, port);
 			}
@@ -28304,7 +28317,7 @@ static void collect_symbol(s7_scheme *sc, s7_pointer sym, s7_pointer e, s7_point
 }
 
 static void collect_locals(s7_scheme *sc, s7_pointer body, s7_pointer e, s7_pointer args, uint32_t gc_loc)
-{
+{ /* currently called only in write_closure_readably */
   if (is_pair(body))
     {
       collect_locals(sc, car(body), e, args, gc_loc);
@@ -28500,8 +28513,12 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 {
   s7_pointer body, arglist, pe, local_slots, setter = NULL;
   uint32_t gc_loc;
-  
+
   body = closure_body(obj);
+  if ((sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(sc, body)))
+    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "write_closure: body is cyclic"));
+  
   arglist = closure_args(obj);
   pe = closure_let(obj);
 
@@ -28527,8 +28544,9 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 	{
 	  s7_pointer slot;
 	  slot = car(x);
-	  if ((!is_any_closure(slot_value(slot))) && /* mutually referencing closures? ./snd -l snd-test 24 hits this in the effects dialogs */
-	      (!has_structure(slot_value(slot))))    /* see s7test example, vector has closure that refers to vector */
+	  if ((!is_any_closure(slot_value(slot))) &&    /* mutually referencing closures? ./snd -l snd-test 24 hits this in the effects dialogs */
+	      ((!has_structure(slot_value(slot))) ||    /* see s7test example, vector has closure that refers to vector */
+	       (slot_symbol(slot) == sc->local_signature_symbol)))
 	    {
 	      port_write_character(port)(sc, '(', port);
 	      port_write_string(port)(sc, symbol_name(slot_symbol(slot)), symbol_name_length(slot_symbol(slot)), port);
@@ -28714,7 +28732,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj)
 	   /* bit 26 */
 	   ((full_typ & T_DEFINER) != 0) ?        ((is_symbol(obj)) ? " definer" : " ?26?") : "",
 	   /* bit 27 */
-	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : " ?27?") : "",
+	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : 
+						   ((is_pair(obj)) ? " tree-collected" : 
+						    " ?27?")) : "",
 	   /* bit 28 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29 */
@@ -29535,7 +29555,6 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  seq = iterator_sequence(obj);
 	  if ((ci) &&
 	      (is_cyclic(obj)) &&
-	      /* (is_collected(obj)) && */
 	      (peek_shared_ref(ci, obj) != 0))
 	    {
 	      /* basically the same as c_pointer_to_port */
@@ -29648,7 +29667,6 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
     {
       if ((ci) &&
 	  (is_cyclic(obj)) &&
-	  /* (is_collected(obj)) && */
 	  (peek_shared_ref(ci, obj) != 0))
 	{
 	  port_write_string(port)(sc, "#f", 2, port);
@@ -30018,8 +30036,39 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
+#if CYCLE_DEBUGGING
+  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
+   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
+   *   and abort leaving us pointers we can decode.
+   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
+   *   so... let's try 100000 for starters.
+   */
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
+
   if ((ci) &&
       (has_structure(vr)))
     {
@@ -30077,8 +30126,7 @@ static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_po
 
 static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, shared_info *ci)
 {
-  int32_t i, ref;
-  size_t len;
+  int32_t i, ref, len;
   char buf[128];
 
   ci->cycle_port = s7_open_output_string(sc);
@@ -30139,32 +30187,30 @@ static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, 
       (obj != sc->rootlet))
     {
       shared_info *ci;
-#if S7_DEBUGGING
-      if (object_out_locked)
+
+      if (sc->object_out_locked)
 	{
+	  /* if obj has an object->string method and choice == P_READABLE, #_object->string will be called, calling us.
+	   *   if that happens in an ongoing display, we can't step on the current cycle info, but I'm not sure
+	   *   it is always ok to simply carry through the outer one.  We might need support in cyclic_sequences.
+	   */
+#if CYCLE_DEBUGGING
 	  fprintf(stderr, "stepping on shared info\n");
-	  abort();
-	}
 #endif
-      ci = make_shared_info(sc, obj, choice != P_READABLE);
-#if S7_DEBUGGING
-      object_out_locked = true;
-#endif      
+	  ci = sc->circle_info;
+	}
+      else ci = make_shared_info(sc, obj, choice != P_READABLE);
       if (ci)
 	{
+	  sc->object_out_locked = true;
 	  if (choice == P_READABLE)
 	    cyclic_out(sc, obj, strport, ci);
 	  else object_to_port_with_circle_check(sc, obj, strport, choice, ci);
-#if S7_DEBUGGING
-	  object_out_locked = false;
-#endif      
+	  sc->object_out_locked = false;
 	  return(obj);
 	}
     }
   object_to_port(sc, obj, strport, choice, NULL);
-#if S7_DEBUGGING
-  object_out_locked = false;
-#endif      
   return(obj);
 }
   
@@ -35245,7 +35291,6 @@ s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, int32_t indices, ..
     }
   return(s7_wrong_number_of_args_error(sc, "s7_vector_ref_n: wrong number of indices: ~A", s7_make_integer(sc, indices)));
 }
-
 
 s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, int32_t indices, ...)
 {
@@ -44063,8 +44108,8 @@ static const char *type_name_from_type(int32_t typ, int32_t article)
   static const char *pairs[2] =          {"pair",               "a pair"};
   static const char *gotos[2] =          {"goto",               "a goto (from call-with-exit)"};
   static const char *continuations[2] =  {"continuation",       "a continuation"};
-  static const char *c_functions[2] =    {"c-function",         "a c-function"};
-  static const char *c_function_s[2] =   {"c-function*",        "a c-function*"};
+  static const char *c_funcs[2] =    {"c-function",         "a c-function"};
+  static const char *c_funcs_star[2] =   {"c-function*",        "a c-function*"};
   static const char *macros[2] =         {"macro",              "a macro"};
   static const char *c_macros[2] =       {"c-macro",            "a c-macro"};
   static const char *bacros[2] =         {"bacro",              "a bacro"};
@@ -44115,8 +44160,8 @@ static const char *type_name_from_type(int32_t typ, int32_t article)
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_RST_ARGS_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
-    case T_C_FUNCTION:      return(c_functions[article]);
-    case T_C_FUNCTION_STAR: return(c_function_s[article]);
+    case T_C_FUNCTION:      return(c_funcs[article]);
+    case T_C_FUNCTION_STAR: return(c_funcs_star[article]);
     case T_CLOSURE:         return(functions[article]);
     case T_CLOSURE_STAR:    return(function_stars[article]);
     case T_C_MACRO:         return(c_macros[article]);
@@ -48716,6 +48761,58 @@ static s7_int opt_i_mul2(void *p)
   return(sum * o1->v7.fi(o1));
 }
 
+static s7_int opt_i_add3(void *p)
+{
+  s7_int sum;
+  opt_info *o1;
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum = o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum += o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  return(sum + o1->v7.fi(o1));
+}
+
+static s7_int opt_i_mul3(void *p)
+{
+  s7_int sum;
+  opt_info *o1;
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum = o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum *= o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  return(sum * o1->v7.fi(o1));
+}
+
+static s7_int opt_i_add4(void *p)
+{
+  s7_int sum;
+  opt_info *o1;
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum = o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum += o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum += o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  return(sum + o1->v7.fi(o1));
+}
+
+static s7_int opt_i_mul4(void *p)
+{
+  s7_int sum;
+  opt_info *o1;
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum = o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum *= o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  sum *= o1->v7.fi(o1);
+  o1 = cur_sc->opts[++cur_sc->pc];
+  return(sum * o1->v7.fi(o1));
+}
+
 static s7_int opt_i_multiply_any_f(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -48733,31 +48830,28 @@ static s7_int opt_i_multiply_any_f(void *p)
 static bool i_add_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer car_x)
 {
   s7_pointer p, head;
-  int32_t cur_len = 0, start;
+  int32_t cur_len, start;
   start = sc->pc;
   head = car(car_x);
-  for (p = cdr(car_x); is_pair(p); p = cdr(p))
-    {
-      if (is_pair(cdr(p)))
-	{
-	  if (!int_optimize(sc, set_plist_1(sc, set_elist_3(sc, head, car(p), cadr(p)))))
-	    break;
-	  cur_len++;
-	  p = cdr(p);
-	}
-      else
-	{
-	  if (!int_optimize(sc, p))
-	    break;
-	  cur_len++;
-	}
-    }
+  for (cur_len = 0, p = cdr(car_x); is_pair(p); p = cdr(p), cur_len++)
+    if (!int_optimize(sc, p))
+      break;
   if (is_null(p))
     {
       opc->v1.i = cur_len;
       if (cur_len == 2)
-	opc->v7.fi = (head == sc->add_symbol) ? opt_i_add2 :opt_i_mul2;
-      else opc->v7.fi = (head == sc->add_symbol) ? opt_i_add_any_f : opt_i_multiply_any_f;
+	opc->v7.fi = (head == sc->add_symbol) ? opt_i_add2 : opt_i_mul2;
+      else 
+	{
+	  if (cur_len == 3)
+	    opc->v7.fi = (head == sc->add_symbol) ? opt_i_add3 : opt_i_mul3;
+	  else 
+	    {
+	      if (cur_len == 4)
+		opc->v7.fi = (head == sc->add_symbol) ? opt_i_add4 : opt_i_mul4;
+	      else opc->v7.fi = (head == sc->add_symbol) ? opt_i_add_any_f : opt_i_multiply_any_f;
+	    }
+	}
       return(true);
     }
   pc_fallback(sc, start);
@@ -50531,26 +50625,6 @@ static s7_double opt_d_subtract_any_f(void *p)
   return(sum);
 }
 
-static s7_double opt_d_add2(void *p)
-{
-  s7_double sum;
-  opt_info *o1;
-  o1 = cur_sc->opts[++cur_sc->pc];
-  sum = o1->v7.fd(o1);
-  o1 = cur_sc->opts[++cur_sc->pc];
-  return(sum + o1->v7.fd(o1));
-}
-
-static s7_double opt_d_mul2(void *p)
-{
-  s7_double sum;
-  opt_info *o1;
-  o1 = cur_sc->opts[++cur_sc->pc];
-  sum = o1->v7.fd(o1);
-  o1 = cur_sc->opts[++cur_sc->pc];
-  return(sum * o1->v7.fd(o1));
-}
-
 static s7_double opt_d_multiply_any_f(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -50575,34 +50649,15 @@ static bool d_add_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer car_x, int32_t
       (head == sc->multiply_symbol))
     {
       s7_pointer p;
-      int32_t cur_len = 0;
-      for (p = cdr(car_x); is_pair(p); p = cdr(p))
-	{
-	  if (is_pair(cdr(p)))
-	    {
-	      if (!float_optimize(sc, set_plist_1(sc, set_elist_3(sc, head, car(p), cadr(p)))))
-		break;
-	      cur_len++;
-	      p = cdr(p);
-	    }
-	  else
-	    {
-	      if (!float_optimize(sc, p))
-		break;
-	      cur_len++;
-	    }
-	}
+      int32_t cur_len;
+      for (cur_len = 0, p = cdr(car_x); is_pair(p); p = cdr(p), cur_len++)
+	if (!float_optimize(sc, p))
+	  break;
       if (is_null(p))
 	{
 	  /* since 2|3|4-arg case is split out above, can cur_len ever be 2? */
-#if S7_DEBUGGING
-	  if (cur_len == 2)
-	    fprintf(stderr, "%sd[%d]: cur_len is 2! %s\n", __func__, __LINE__, DISPLAY(car_x));
-#endif
 	  opc->v1.i = cur_len;
-	  if (cur_len == 2)
-	    opc->v7.fd = (head == sc->add_symbol) ? opt_d_add2 :opt_d_mul2;
-	  else opc->v7.fd = (head == sc->add_symbol) ? opt_d_add_any_f : opt_d_multiply_any_f;
+	  opc->v7.fd = (head == sc->add_symbol) ? opt_d_add_any_f : opt_d_multiply_any_f;
 	  return(true);
 	}
     }
@@ -55523,7 +55578,7 @@ static bool float_optimize(s7_scheme *sc, s7_pointer expr)
 	  if (is_macro(s_func))
 	    {
  	      if (!pair_no_opt(expr))
- 		return(float_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr)))));
+ 		return(float_optimize(sc, set_plist_1(sc, s7_macroexpand(sc, s_func, cdar(expr))))); /* is this use of plist safe? */
 	    }
 	  else
 	    {
@@ -70931,7 +70986,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 
 		case OP_SAFE_C_C:
-		  if (!c_function_is_ok(sc, code)) {if (is_null(cddr(code))) {set_optimize_op(code, OP_S_C); goto INNER_OPT_EVAL;} break;}
+		  if (!c_function_is_ok(sc, code)) 
+		    {
+		      if ((is_pair(cdr(code))) && /* code here can be (values) for example, if values is a method in lt and we're in (with-let lt ...) */
+			  (is_null(cddr(code))))
+			{
+			  set_optimize_op(code, OP_S_C); 
+			  goto INNER_OPT_EVAL;
+			} 
+		      break;
+		    }
 		  /* break = fall into the "trailers" section where optimizations are cleared */
 		case HOP_SAFE_C_C:
 		  sc->value = c_call(code)(sc, cdr(code)); /* this includes all safe calls where all args are constants */
@@ -79381,7 +79445,6 @@ static s7_pointer big_abs(s7_scheme *sc, s7_pointer args)
     }
 }
 
-
 static s7_pointer big_magnitude(s7_scheme *sc, s7_pointer args)
 {
   #define H_magnitude "(magnitude z) returns the magnitude of z"
@@ -79474,7 +79537,6 @@ static s7_pointer big_angle(s7_scheme *sc, s7_pointer args)
     }
 }
 
-
 static s7_pointer c_big_complex(s7_scheme *sc, s7_pointer args)
 {
   #define H_complex "(complex x1 x2) returns a complex number with real-part x1 and imaginary-part x2"
@@ -79514,7 +79576,6 @@ static s7_pointer c_big_complex(s7_scheme *sc, s7_pointer args)
   mpfr_clear(im);
   return(p);
 }
-
 
 /* (make-polar 0 (real-part (log 0))) = 0? or nan? */
 
@@ -79591,7 +79652,6 @@ static s7_pointer big_make_polar(s7_scheme *sc, s7_pointer args)
   return(p);
 }
 #endif
-
 
 static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
 {
@@ -79716,7 +79776,6 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_sqrt(s7_scheme *sc, s7_pointer args)
 {
   /* real >= 0 -> real, else complex */
@@ -79825,7 +79884,6 @@ static s7_pointer big_sqrt(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 /* (define (diff f a) (magnitude (- (f a) (f (bignum (number->string a))))))
  * (sin 1e15+1e15i) hangs in mpc 0.8.2, but appears to be fixed in the current svn sources
  */
@@ -79911,7 +79969,6 @@ static s7_pointer big_trig(s7_scheme *sc, s7_pointer args,
   }
 }
 
-
 static s7_pointer big_sin(s7_scheme *sc, s7_pointer args)
 {
   #define H_sin "(sin z) returns sin(z)"
@@ -79919,7 +79976,6 @@ static s7_pointer big_sin(s7_scheme *sc, s7_pointer args)
 
   return(big_trig(sc, args, mpfr_sin, mpc_sin, TRIG_NO_CHECK, sc->sin_symbol));
 }
-
 
 static s7_pointer big_cos(s7_scheme *sc, s7_pointer args)
 {
@@ -79929,12 +79985,10 @@ static s7_pointer big_cos(s7_scheme *sc, s7_pointer args)
   return(big_trig(sc, args, mpfr_cos, mpc_cos, TRIG_NO_CHECK, sc->cos_symbol));
 }
 
-
 s7_pointer s7_cos(s7_scheme *sc, s7_pointer x)
 {
   return(big_cos(sc, cons(sc, x, sc->nil)));
 }
-
 
 static s7_pointer big_tan(s7_scheme *sc, s7_pointer args)
 {
@@ -79943,7 +79997,6 @@ static s7_pointer big_tan(s7_scheme *sc, s7_pointer args)
 
   return(big_trig(sc, args, mpfr_tan, mpc_tan, TRIG_TAN_CHECK, sc->tan_symbol));
 }
-
 
 static s7_pointer big_sinh(s7_scheme *sc, s7_pointer args)
 {
@@ -79954,7 +80007,6 @@ static s7_pointer big_sinh(s7_scheme *sc, s7_pointer args)
   return(big_trig(sc, args, mpfr_sinh, mpc_sinh, TRIG_NO_CHECK, sc->sinh_symbol));
 }
 
-
 static s7_pointer big_cosh(s7_scheme *sc, s7_pointer args)
 {
   #define H_cosh "(cosh z) returns cosh(z)"
@@ -79962,7 +80014,6 @@ static s7_pointer big_cosh(s7_scheme *sc, s7_pointer args)
 
   return(big_trig(sc, args, mpfr_cosh, mpc_cosh, TRIG_NO_CHECK, sc->cosh_symbol));
 }
-
 
 static s7_pointer big_tanh(s7_scheme *sc, s7_pointer args)
 {
@@ -79972,7 +80023,6 @@ static s7_pointer big_tanh(s7_scheme *sc, s7_pointer args)
   return(big_trig(sc, args, mpfr_tanh, mpc_tanh, TRIG_TANH_CHECK, sc->tanh_symbol));
 }
 
-
 static s7_pointer big_exp(s7_scheme *sc, s7_pointer args)
 {
   #define H_exp "(exp z) returns e^z, (exp 1) is 2.718281828459"
@@ -79980,7 +80030,6 @@ static s7_pointer big_exp(s7_scheme *sc, s7_pointer args)
 
   return(big_trig(sc, args, mpfr_exp, mpc_exp, TRIG_NO_CHECK, sc->exp_symbol));
 }
-
 
 static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 {
@@ -82912,6 +82961,7 @@ s7_scheme *s7_init(void)
   sc->print_width = sc->max_string_length;
   sc->short_print = false;
   sc->in_with_let = false;
+  sc->object_out_locked = false;
 
   sc->initial_string_port_length = 128;
   sc->format_depth = -1;
@@ -84283,7 +84333,7 @@ s7_scheme *s7_init(void)
   c_function_set_setter(slot_value(global_slot(sc->port_line_number_symbol)), s7_make_function(sc, "(set! port-line-number)", g_set_port_line_number, 1, 1, false, "port line setter"));
 
   {
-    int32_t i, top;
+    int32_t top;
 #if WITH_GMP
     #define S7_LOG_LLONG_MAX 36.736800
     #define S7_LOG_LONG_MAX  16.6355322
@@ -84930,6 +84980,8 @@ int main(int argc, char **argv)
  *
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
+ * print readably closure that refers to vector that contains closure -- need to scan structs for closures
+ *   or maybe add protection via another type bit?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84959,16 +85011,16 @@ int main(int argc, char **argv)
  *
  * ----------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2
- * tmac          |      |      |      || 9052 ||  264 |  264   266   266
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1167
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1468
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1887
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2115
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2547
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2642
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2135
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2645
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.1
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2852
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2848
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3045
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
