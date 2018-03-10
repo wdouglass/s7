@@ -3548,12 +3548,14 @@ s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method)
 /* if a method is shadowing a built-in like abs, it should expect the same args as abs and
  *   behave the same -- no multiple values etc.
  */
+static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
+
 #define check_method(Sc, Obj, Method, Args)		\
   {							\
     s7_pointer func; 	                        \
     if ((has_methods(Obj)) &&				\
 	((func = find_method(Sc, find_let(Sc, Obj), Method)) != Sc->undefined)) \
-      return(s7_apply_function(Sc, func, Args)); \
+      return(s7_apply_function(Sc, func, copy_list(sc, Args))); \
   }
 
 #define apply_known_method(Sc, Let, Method, Args) return(s7_apply_function(Sc, find_method(Sc, Let, Method), Args))
@@ -30128,7 +30130,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
 {
   int32_t i, ref, len;
   char buf[128];
-
+  
   ci->cycle_port = s7_open_output_string(sc);
   ci->cycle_loc = s7_gc_protect(sc, ci->cycle_port);
 
@@ -30154,7 +30156,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
       s7_gc_unprotect_at(sc, ci->init_loc);
       ci->init_port = sc->F;
     }
-
+  
   port_write_string(port)(sc, (const char *)(port_data(ci->cycle_port)), port_position(ci->cycle_port), port);
   s7_close_output_port(sc, ci->cycle_port);
   s7_gc_unprotect_at(sc, ci->cycle_loc);
@@ -30194,9 +30196,6 @@ static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, 
 	   *   if that happens in an ongoing display, we can't step on the current cycle info, but I'm not sure
 	   *   it is always ok to simply carry through the outer one.  We might need support in cyclic_sequences.
 	   */
-#if CYCLE_DEBUGGING
-	  fprintf(stderr, "stepping on shared info\n");
-#endif
 	  ci = sc->circle_info;
 	}
       else ci = make_shared_info(sc, obj, choice != P_READABLE);
@@ -34542,6 +34541,7 @@ s7_pointer s7_list(s7_scheme *sc, int32_t num_values, ...)
 }
 
 static s7_int sequence_length(s7_scheme *sc, s7_pointer lst);
+static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args);
 
 static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 {
@@ -34575,7 +34575,7 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 	      s7_int len;
 	      len = sequence_length(sc, p);
 	      if (len > 0)
-		set_cdr(np, s7_copy(sc, set_plist_2(sc, p, make_list(sc, len, sc->F))));
+		set_cdr(np, s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, p, make_list(sc, len, sc->F))));
 	      else 
 		{
 		  if (len < 0)
@@ -34623,11 +34623,11 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 		{
 		  if (is_null(tp))
 		    {
-		      tp = s7_copy(sc, set_plist_2(sc, p, make_list(sc, len, sc->F)));
+		      tp = s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, p, make_list(sc, len, sc->F)));
 		      np = tp;
 		      sc->y = tp;
 		    }
-		  else set_cdr(np, s7_copy(sc, set_plist_2(sc, p, make_list(sc, len, sc->F))));
+		  else set_cdr(np, s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, p, make_list(sc, len, sc->F))));
 		  for (; is_pair(cdr(np)); np = cdr(np));
 		}
 	      else 
@@ -36408,7 +36408,7 @@ static s7_pointer g_int_multivector(s7_scheme *sc, s7_int dims, s7_pointer data)
     if (!is_t_integer(src[i]))
       return(s7_wrong_type_arg_error(sc, "#i(...)", i + 1, src[i], "an integer"));
   sc->args = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, sc->value)), small_int(0), sc->T), sc->make_int_vector_symbol);
-  return(s7_copy(sc, set_plist_2(sc, sc->value, sc->args)));
+  return(s7_copy_1(sc, sc->int_vector_symbol, set_plist_2(sc, sc->value, sc->args)));
 }
 
 static s7_pointer g_float_multivector(s7_scheme *sc, s7_int dims, s7_pointer data)
@@ -36423,7 +36423,7 @@ static s7_pointer g_float_multivector(s7_scheme *sc, s7_int dims, s7_pointer dat
     if (!s7_is_real(src[i]))
       return(s7_wrong_type_arg_error(sc, "#r(...)", i + 1, src[i], "a real"));
   sc->args = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, sc->value)), real_zero, sc->T), sc->make_float_vector_symbol);
-  return(s7_copy(sc, set_plist_2(sc, sc->value, sc->args)));
+  return(s7_copy_1(sc, sc->float_vector_symbol, set_plist_2(sc, sc->value, sc->args)));
 }
 
 #if WITH_VECTORIZE
@@ -41982,7 +41982,7 @@ static s7_pointer hash_table_setter(s7_scheme *sc, s7_pointer e, s7_int loc, s7_
 }
 
 
-s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
+static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 {
   #define H_copy "(copy obj) returns a copy of obj, (copy src dest) copies src into dest, (copy src dest start end) copies src from start to end."
   /* #define Q_copy s7_make_circular_signature(sc, 3, 4, sc->T, sc->is_sequence_symbol, sc->is_sequence_symbol, sc->is_integer_symbol) */
@@ -42145,7 +42145,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
       if (source == dest) return(dest);
       check_method(sc, source, sc->copy_symbol, args);
       if (source == sc->rootlet)
-	return(wrong_type_argument_with_type(sc, sc->copy_symbol, 1, source, s7_make_string_wrapper(sc, "a sequence other than the rootlet")));
+	return(wrong_type_argument_with_type(sc, caller, 1, source, s7_make_string_wrapper(sc, "a sequence other than the rootlet")));
       end = let_length(sc, source);
       break;
 
@@ -42155,7 +42155,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 	break;
 
     default:
-      return(wrong_type_argument_with_type(sc, sc->copy_symbol, 1, source, a_sequence_string));
+      return(wrong_type_argument_with_type(sc, caller, 1, source, a_sequence_string));
       /* copy doesn't have to duplicate fill!, so (copy 1 #(...)) need not be supported */
     }
 
@@ -42163,7 +42163,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
   if (have_indices)
     {
       s7_pointer p;
-      p = start_and_end(sc, sc->copy_symbol, NULL, cddr(args), args, 3, &start, &end);
+      p = start_and_end(sc, caller, NULL, cddr(args), args, 3, &start, &end);
       if (p != sc->gc_nil) return(p);
     }
   if ((start == 0) && (source == dest))
@@ -42172,7 +42172,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
   if (source_len == 0)
     {
       if (!is_sequence(dest))
-	return(wrong_type_argument_with_type(sc, sc->copy_symbol, 2, dest, a_sequence_string));	
+	return(wrong_type_argument_with_type(sc, caller, 2, dest, a_sequence_string));	
       return(dest);
     }
 
@@ -42212,7 +42212,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 
     case T_LET:
       if (dest == sc->rootlet)
-	return(wrong_type_argument_with_type(sc, sc->copy_symbol, 2, dest, s7_make_string_wrapper(sc, "a sequence other than the rootlet")));
+	return(wrong_type_argument_with_type(sc, caller, 2, dest, s7_make_string_wrapper(sc, "a sequence other than the rootlet")));
       set = let_setter;
       dest_len = source_len;                     /* grows via set, so dest_len isn't relevant */
       break;
@@ -42221,7 +42221,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
       return(sc->nil);
 
     default:
-      return(wrong_type_argument_with_type(sc, sc->copy_symbol, 2, dest, a_sequence_string));
+      return(wrong_type_argument_with_type(sc, caller, 2, dest, a_sequence_string));
     }
 
   if (dest_len == 0)
@@ -42422,7 +42422,7 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
 		{
 		  while (!x) x = elements[++loc];
 		  if (!is_symbol(x->key))
-		    return(simple_wrong_type_argument(sc, sc->copy_symbol, x->key, T_SYMBOL));
+		    return(simple_wrong_type_argument(sc, caller, x->key, T_SYMBOL));
 		  make_slot_1(sc, dest, x->key, x->value);
 		  x = x->next;
 		}
@@ -42543,6 +42543,11 @@ s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
    *   (copy (make-hash-table) "1") ; nothing to copy (empty hash table), so no error
    */
   return(dest);
+}
+
+s7_pointer s7_copy(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_copy_1(sc, sc->copy_symbol, args));
 }
 
 #define g_copy s7_copy
@@ -42965,7 +42970,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
 	  if (n > 0)
 	    {
 	      vector_length(sv) = n;
-	      s7_copy(sc, set_plist_2(sc, x, sv));
+	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, sv));
 	      vector_length(sv) = 0; /* so GC doesn't march off the end */
 	      i += n;
 	      if (typ == T_VECTOR)
@@ -43018,7 +43023,7 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
 	  if (n > 0)
 	    {
 	      string_length(sv) = n;
-	      s7_copy(sc, set_plist_2(sc, x, sv));
+	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, sv));
 	      i += n;
 	      string_value(sv) = (char *)(string_value(new_str) + i);
 	    }
@@ -43039,7 +43044,7 @@ static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
   new_hash = s7_make_hash_table(sc, sc->default_hash_table_length);
   push_stack(sc, OP_GC_PROTECT, args, new_hash);
   for (p = args; is_pair(p); p = cdr(p))
-    s7_copy(sc, set_plist_2(sc, car(p), new_hash));
+    s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, car(p), new_hash));
   set_plist_2(sc, sc->nil, sc->nil);
   sc->stack_end -= 4;
   return(new_hash);
@@ -43053,7 +43058,7 @@ static s7_pointer let_append(s7_scheme *sc, s7_pointer args)
   check_method(sc, e, sc->append_symbol, args);
   new_let = new_frame_in_env(sc, sc->nil);
   for (p = args; is_pair(p); p = cdr(p))
-    s7_copy(sc, set_plist_2(sc, car(p), new_let)); 
+    s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, car(p), new_let)); 
   set_plist_2(sc, sc->nil, sc->nil);
   return(new_let);
 }
@@ -68062,7 +68067,9 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
     case T_ITERATOR: return(fixup_unknown_op(sc, code, f, hop + OP_ITERATE));
 
     default:
-      return(fixup_unknown_op(sc, code, f, OP_S));
+      if ((is_symbol(car(code))) &&
+	  (!is_slot(symbol_to_slot(sc, car(code)))))
+	eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
     }
   return(fall_through);
 }
@@ -68202,6 +68209,9 @@ static int32_t unknown_g_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fixup_unknown_op(sc, code, f, (sym_case) ? OP_S_S : OP_S_C));
 }
 		  
@@ -68310,6 +68320,9 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fall_through);
 }
 
@@ -68378,6 +68391,9 @@ static int32_t unknown_all_s_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fall_through);
 }
 
@@ -68475,6 +68491,9 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
       /* macro, continuation */
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fixup_unknown_op(sc, code, f, OP_S_A)); /* closure with methods etc */
   /* return(fall_through); */
 }
@@ -68527,6 +68546,9 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fall_through);
 }
 
@@ -68588,6 +68610,9 @@ static int32_t unknown_all_x_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
+  if ((is_symbol(car(code))) &&
+      (!is_slot(symbol_to_slot(sc, car(code)))))
+    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", car(code));
   return(fall_through);
 }
 

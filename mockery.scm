@@ -17,13 +17,7 @@
 
 
 (define (mock->string obj . args)
-  (if (openlet? obj)
-      (dynamic-wind
-	  (lambda () (coverlet obj))
-	  (lambda () (apply #_object->string (obj 'value) args))
-	  (lambda () (openlet obj)))
-      (apply #_object->string (obj 'value) args)))
-
+  (format #f (if (or (null? args) (car args)) "~S" "~A") (obj 'value)))
 
 (define (make-local-method f)
   (make-method f (lambda (obj) (obj 'value))))
@@ -57,7 +51,10 @@
 		  'sort!              (lambda (obj f) (#_sort! (obj 'value) f))
 		  'make-iterator      (lambda (obj) (#_make-iterator (obj 'value)))
 		  'arity              (lambda (obj) (#_arity (obj 'value)))
-		  'object->string     (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-vector*" "#<mock-vector-class>")))
+		  'object->string     (lambda args 
+					(let ((obj (car args))
+					      (w (or (null? (cdr args)) (cadr args))))
+					  (copy (if (eq? w :readable) "*mock-vector*" "#<mock-vector-class>"))))
 		  'vector-dimensions  (lambda (obj) (#_vector-dimensions (obj 'value)))
 		  'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
 		  
@@ -184,7 +181,10 @@
 		  
 		  'fill!              (lambda (obj val)      (#_fill! (obj 'mock-hash-table-table) val))
 		  'reverse            (lambda (obj)          (#_reverse (obj 'mock-hash-table-table)))
-		  'object->string     (lambda* (obj (w #t))  (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>")))
+		  'object->string     (lambda args 
+					(let ((obj (car args))
+					      (w (or (null? (cdr args)) (cadr args))))
+					  (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>"))))
 		  'arity              (lambda (obj)          (#_arity (obj 'mock-hash-table-table)))
 		  'copy               (lambda* (source dest . args)
 					(if (mock-hash-table? source)
@@ -208,10 +208,7 @@
 	 
 	 ;; object->string here is a problem -- don't set any value to the object itself!
 	 'object->string (lambda (obj . args) ; can't use mock->string because the value is not in the 'value field
-			   (dynamic-wind
-			       (lambda () (coverlet obj))
-			       (lambda () (apply #_object->string (obj 'mock-hash-table-table) args))
-			       (lambda () (openlet obj)))))))
+			   (format #f "~S" (obj 'mock-hash-table-table))))))
     
     (define (mock-hash-table . args)
       (let ((v (make-mock-hash-table)))
@@ -267,11 +264,14 @@
 	  (openlet
 	   (inlet 'morally-equal?         (lambda (x y) (#_morally-equal? (x 'value) y))
 		  'reverse                (lambda (obj) (#_reverse (obj 'value)))
-		  'object->string         (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-string*" "#<mock-string-class>")))
+		  'object->string         (lambda args 
+					    (let ((obj (car args))
+						  (w (or (null? (cdr args)) (cadr args))))
+					  (copy (if (eq? w :readable) "*mock-string*" "#<mock-string-class>"))))
 		  'arity                  (lambda (obj) (#_arity (obj 'value)))
 		  'make-iterator          (lambda (obj) (#_make-iterator (obj 'value)))
 		  'let-ref-fallback       (lambda (obj i) (#_string-ref (obj 'value) i))           ; these are the implicit cases
-		  'let-set-fallback      (lambda (obj i val) (string-set! (obj 'value) i val))
+		  'let-set-fallback       (lambda (obj i val) (string-set! (obj 'value) i val))
 		  'string-length          (lambda (obj) (#_length (obj 'value)))
 		  'string-append          (make-local-method #_string-append)
 		  'string-copy            (lambda (obj) (#_copy (obj 'value)))
@@ -310,7 +310,7 @@
 						(#_fill! (obj 'value) val)
 						(error 'wrong-type-arg "fill! ~S ~S" obj val)))
 		  
-		  'copy                   (lambda* (obj . args) 
+		  'copy                   (lambda* (obj . args)
 					    (if (mock-string? obj)
 						(apply #_copy (obj 'value) args)
 						(error 'wrong-type-arg "copy ~S ~S" obj args)))
@@ -368,7 +368,7 @@
 		  'string?                (lambda (obj) #t)
 		  'values                 (lambda (obj . args) (obj 'value))
 		  'length                 (lambda (obj) (#_string-length (obj 'value)))
-		  'append             (make-local-method #_append)
+		  'append                 (make-local-method #_append)
 		  'class-name             'mock-string))))
     
     (define* (make-mock-string len (init #\null))
@@ -441,7 +441,10 @@
 		  'char-ci<=?         (make-local-method #_char-ci<=?)
 		  'char-ci>=?         (make-local-method #_char-ci>=?)
 		  'string             (make-local-method #_string)
-		  'object->string     (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-char*" "#<mock-char-class>")))
+		  'object->string     (lambda args 
+					(let ((obj (car args))
+					      (w (or (null? (cdr args)) (cadr args))))
+					  (copy (if (eq? w :readable) "*mock-char*" "#<mock-char-class>"))))
 		  'arity              (lambda (obj) (#_arity (obj 'value)))
 		  'append             (lambda args (error 'wrong-type-arg "append argument is a character"))
 		  'format             (make-local-method #_format)
@@ -520,7 +523,10 @@
 	   (openlet
 	    (inlet 
 		   'morally-equal?   (lambda (x y) (#_morally-equal? (x 'value) y))
-		   'object->string   (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-number*" "#<mock-number-class>")))
+		   'object->string   (lambda args 
+				       (let ((obj (car args))
+					     (w (or (null? (cdr args)) (cadr args))))
+					 (copy (if (eq? w :readable) "*mock-number*" "#<mock-number-class>"))))
 		   'arity            (lambda (obj) (#_arity (obj 'value)))
 		   'real-part        (lambda (obj) (#_real-part (obj 'value)))
 		   'imag-part        (lambda (obj) (#_imag-part (obj 'value)))
@@ -860,7 +866,10 @@
 	   (inlet 'morally-equal?   (lambda (x y) (#_morally-equal? (x 'value) y))
 		  'pair-line-number (lambda (obj) (#_pair-line-number (obj 'value)))
 		  'list->string     (lambda (obj) (#_list->string (obj 'value)))
-		  'object->string   (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-pair*" "#<mock-pair-class>")))
+		  'object->string   (lambda args 
+				      (let ((obj (car args))
+					    (w (or (null? (cdr args)) (cadr args))))
+					(copy (if (eq? w :readable) "*mock-pair*" "#<mock-pair-class>"))))
 		  'list?            (lambda (obj) (#_list? (obj 'value)))
 		  'car              (lambda (obj) (#_car (obj 'value)))
 		  'cdr              (lambda (obj) (#_cdr (obj 'value)))
@@ -930,9 +939,6 @@
 				      (if (mock-pair? dims)
 					  (apply #_make-vector obj (dims 'value) args)
 					  (error 'wrong-type-arg "make-vector ~S ~S ~S" obj dims args)))
-		  
-		  'append           (make-local-method #_append)
-		  
 		  'list-ref         (lambda (obj ind) 
 				      (if (mock-pair? obj)
 					  (#_list-ref (obj 'value) ind)
@@ -946,14 +952,19 @@
 		  'pair?            (lambda (obj) #t)
 		  'length           (lambda (obj) (#_length (obj 'value)))
 		  'values           (lambda (obj . args) (obj 'value))
-		  'append             (make-local-method #_append)
+		  'append           (make-local-method #_append)
 		  'class-name       'mock-pair))))
     
     (define (mock-pair . args)
       (openlet
        (sublet (*mock-pair* 'mock-pair-class)
 	 'value (copy args)
-	 'object->string mock->string)))
+	 'object->string (lambda (obj . args)
+			   (format #f (if (null? args) "~S"
+					  (if (car args)
+					      (if (eq? (car args) :readable) "'~S" "~S")
+					      "~A"))
+				   (obj 'value))))))
     
     (set! mock-pair? (lambda (obj)
 		       (and (openlet? obj)
@@ -999,7 +1010,10 @@
 (define *mock-symbol*
   (let ((mock-symbol-class
 	 (openlet
-	  (inlet 'object->string        (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-symbol*" "#<mock-symbol-class>")))
+	  (inlet 'object->string        (lambda args 
+					  (let ((obj (car args))
+						(w (or (null? (cdr args)) (cadr args))))
+					    (copy (if (eq? w :readable) "*mock-symbol*" "#<mock-symbol-class>"))))
 		 'morally-equal?        (lambda (x y) (#_morally-equal? (x 'value) y))
 		 'gensym?               (lambda (obj) (#_gensym? (obj 'value)))
 		 'append                (lambda args (error 'wrong-type-arg "append argument is a symbol"))
@@ -1062,7 +1076,10 @@
 		  'char-ready?         (lambda (obj) (#_char-ready? (obj 'value)))
 		  'port-line-number    (lambda (obj) (#_port-line-number (obj 'value)))
 		  'port-filename       (lambda (obj) (#_port-filename (obj 'value)))
-		  'object->string      (lambda* (obj (w #t)) (copy (if (eq? w :readable) "*mock-port*" "#<mock-port-class>")))
+		  'object->string      (lambda args 
+					 (let ((obj (car args))
+					       (w (or (null? (cdr args)) (cadr args))))
+					   (copy (if (eq? w :readable) "*mock-port*" "#<mock-port-class>"))))
 		  'format              (make-local-method #_format)
 		  
 		  'set-current-output-port (lambda (obj) (#_set-current-output-port (obj 'value)))
