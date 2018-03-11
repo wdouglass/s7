@@ -9,7 +9,10 @@
   (lambda args
     (if (let? (car args))
 	(apply f (accessor (car args)) (cdr args))
-	(apply f (car args) (accessor (cadr args)) (cddr args)))))
+	(if (or (null? (cdr args))
+		(not (let? (cadr args))))
+	    (apply f args)
+	    (apply f (car args) (accessor (cadr args)) (cddr args))))))
 
 (define (make-object . args)
   (openlet
@@ -37,7 +40,7 @@
 					    (#_vector-set! (obj 'value) i val)
 					    (error 'wrong-type-arg "vector-set! ~S ~S ~S" obj i val))) ; the wrong arg here is 'i
 		  'vector-set!        (lambda (obj i val) ((obj 'local-set!) obj i val) val)
-		  'let-set-fallback  (lambda (obj i val) ((obj 'local-set!) obj i val) val)
+		  'let-set-fallback   (lambda (obj i val) ((obj 'local-set!) obj i val) val)
 		  
 		  'vector-ref         (lambda (obj i) 
 					(if (mock-vector? obj)
@@ -91,7 +94,6 @@
 						  nobj))
 					    (error 'wrong-type-arg "copy ~S ~S ~S" source dest args)))
 		  'vector?            (lambda (obj) #t)
-		  'values             (lambda (obj . args) (obj 'value))
 		  'length             (lambda (obj) (#_length (obj 'value)))
 		  'append             (make-local-method #_append)
 		  'class-name         'mock-vector))))
@@ -158,18 +160,18 @@
   (let* ((mock-hash-table? #f)
 	 (mock-hash-table-class
 	  (openlet
-	   (inlet 'morally-equal?     (lambda (x y)          (#_morally-equal? (x 'mock-hash-table-table) y))
-		  'hash-table-ref     (lambda (obj key)      (#_hash-table-ref (obj 'mock-hash-table-table) key))
-		  'hash-table-set!    (lambda (obj key val)  (#_hash-table-set! (obj 'mock-hash-table-table) key val))
-		  'hash-table-entries (lambda (obj)          (#_hash-table-entries (obj 'mock-hash-table-table)))
-		  'make-iterator      (lambda (obj)          (#_make-iterator (obj 'mock-hash-table-table)))
+	   (inlet 'morally-equal?     (lambda (x y)          (#_morally-equal? (x 'value) y))
+		  'hash-table-ref     (lambda (obj key)      (#_hash-table-ref (obj 'value) key))
+		  'hash-table-set!    (lambda (obj key val)  (#_hash-table-set! (obj 'value) key val))
+		  'hash-table-entries (lambda (obj)          (#_hash-table-entries (obj 'value)))
+		  'make-iterator      (lambda (obj)          (#_make-iterator (obj 'value)))
 		  
 		  'let-ref-fallback   (lambda (obj key)
-					(if (defined? 'mock-hash-table-table obj)
-					    (#_hash-table-ref (obj 'mock-hash-table-table) key)))
+					(if (defined? 'value obj)
+					    (#_hash-table-ref (obj 'value) key)))
 		  'let-set-fallback  (lambda (obj key val)  
-					(if (defined? 'mock-hash-table-table obj)
-					    (#_hash-table-set! (obj 'mock-hash-table-table) key val)))
+					(if (defined? 'value obj)
+					    (#_hash-table-set! (obj 'value) key val)))
 		  
 		  ;; the fallbacks are needed because hash-tables and lets use exactly the same syntax in implicit indexing:
 		  ;;   (x 'y) but s7 can't tell that in this one case, we actually want the 'y to be a key not a field.
@@ -179,45 +181,44 @@
 		  ;;
 		  ;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
 		  
-		  'fill!              (lambda (obj val)      (#_fill! (obj 'mock-hash-table-table) val))
-		  'reverse            (lambda (obj)          (#_reverse (obj 'mock-hash-table-table)))
+		  'fill!              (lambda (obj val)      (#_fill! (obj 'value) val))
+		  'reverse            (lambda (obj)          (#_reverse (obj 'value)))
 		  'object->string     (lambda args 
 					(let ((obj (car args))
 					      (w (or (null? (cdr args)) (cadr args))))
 					  (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>"))))
-		  'arity              (lambda (obj)          (#_arity (obj 'mock-hash-table-table)))
+		  'arity              (lambda (obj)          (#_arity (obj 'value)))
 		  'copy               (lambda* (source dest . args)
 					(if (mock-hash-table? source)
 					    (if (and dest (not (let? dest)))
-						(apply copy (source 'mock-hash-table-table) dest args)
+						(apply copy (source 'value) dest args)
 						(let ((nobj (or dest (openlet (copy (coverlet source))))))
 						  (openlet source)
-						  (set! (nobj 'mock-hash-table-table) (copy (source 'mock-hash-table-table)))
+						  (set! (nobj 'value) (copy (source 'value)))
 						  nobj))
 					    (error 'wrong-type-arg "copy ~S ~S ~S" source dest args)))
 		  'hash-table?        (lambda (obj) #t)
-		  'values             (lambda (obj . args) (obj 'mock-hash-table-table))
-		  'length             (lambda (obj)          (#_length (obj 'mock-hash-table-table)))
+		  'length             (lambda (obj)          (#_length (obj 'value)))
 		  'append             (make-local-method #_append)
 		  'class-name         'mock-hash-table))))
     
     (define* (make-mock-hash-table (len 511))
       (openlet 
        (sublet mock-hash-table-class 
-	 'mock-hash-table-table (#_make-hash-table len)
+	 'value (#_make-hash-table len)
 	 
 	 ;; object->string here is a problem -- don't set any value to the object itself!
 	 'object->string (lambda (obj . args) ; can't use mock->string because the value is not in the 'value field
-			   (format #f "~S" (obj 'mock-hash-table-table))))))
+			   (format #f "~S" (obj 'value))))))
     
     (define (mock-hash-table . args)
       (let ((v (make-mock-hash-table)))
-	(set! (v 'mock-hash-table-table) (apply #_hash-table args))
+	(set! (v 'value) (apply #_hash-table args))
 	v))
     
     (define (mock-hash-table* . args)
       (let ((v (make-mock-hash-table)))
-	(set! (v 'mock-hash-table-table) (apply #_hash-table* args))
+	(set! (v 'value) (apply #_hash-table* args))
 	v))
     
     (set! mock-hash-table? (lambda (obj)
@@ -233,23 +234,23 @@
 (define gloomy-hash-table
   (openlet
    (sublet (*mock-hash-table* 'mock-hash-table-class) ; ideally this would be a separate (not copied) gloomy-hash-table-class 
-     'mock-hash-table-table #f
+     'value #f
      'false (gensym)
      'not-a-key #f
      'hash-table-ref (lambda (obj key)
-		       (let ((val (#_hash-table-ref (obj 'mock-hash-table-table) key)))
+		       (let ((val (#_hash-table-ref (obj 'value) key)))
 			 (if (eq? val (obj 'false))
 			     #f
 			     (or val (obj 'not-a-key)))))
      'hash-table-key? (lambda (obj key)
-			(#_hash-table-ref (obj 'mock-hash-table-table) key)))))
+			(#_hash-table-ref (obj 'value) key)))))
 
 (define (hash-table-key? obj key) 
   ((obj 'hash-table-key?) obj key))
 
 (define* (make-gloomy-hash-table (len 511) not-a-key)
   (let ((ht (copy gloomy-hash-table)))
-    (set! (ht 'mock-hash-table-table) (make-hash-table len))
+    (set! (ht 'value) (make-hash-table len))
     (set! (ht 'not-a-key) not-a-key)
     ht))
 |#
@@ -366,7 +367,6 @@
 					      (make-local-method #_string-ci>=?))
 
 		  'string?                (lambda (obj) #t)
-		  'values                 (lambda (obj . args) (obj 'value))
 		  'length                 (lambda (obj) (#_string-length (obj 'value)))
 		  'append                 (make-local-method #_append)
 		  'class-name             'mock-string))))
@@ -468,8 +468,7 @@
 					    (error 'wrong-type-arg "copy: ~S ~S" obj args)))
 		  'char?              (lambda (obj) #t)
 		  'class-name         'mock-char
-		  'length             (lambda (obj) #f)
-		  'values             (lambda (obj . args) (obj 'value))))))
+		  'length             (lambda (obj) #f)))))
     
     (define (mock-char c) 
       (if (and (char? c)
@@ -719,7 +718,6 @@
 
 		   'length           (lambda (obj) #f)
 		   'number?          (lambda (obj) #t)
-		   'values           (lambda (obj . args) (obj 'value))
 		   'class-name       'mock-number))))
       
       (define (mock-number x)
@@ -909,8 +907,22 @@
 		  'memq             (lambda (val obj) (#_memq val (obj 'value)))
 		  'memv             (lambda (val obj) (#_memv val (obj 'value)))
 		  'member           (lambda (val obj . args) (apply #_member val (obj 'value) args))
-		  'let-ref-fallback (lambda (obj ind) (coverlet obj) (let ((val (#_list-ref (obj 'value) ind))) (openlet obj) val))
-		  'let-set-fallback (lambda (obj ind val) (coverlet obj) (#_list-set! (obj 'value) ind val) (openlet obj) val)
+		  'let-ref-fallback (lambda (obj ind) 
+				      (if (eq? ind 'value)
+					  #<undefined>
+					  (let ((val (begin 
+						       (coverlet obj)
+						       (#_list-ref (obj 'value) ind))))
+					    (openlet obj) 
+					    val)))
+		  'let-set-fallback (lambda (obj ind val) 
+				      (if (eq? ind 'value)
+					  #<undefined>
+					  (let ((val (begin 
+						       (coverlet obj)
+						       (#_list-set! (obj 'value) ind val))))
+					    (openlet obj)
+					    val)))
 		  'arity            (lambda (obj) (#_arity (obj 'value)))
 		  'fill!            (lambda (obj val) (#_fill! (obj 'value) val))
 		  'reverse          (lambda (obj) (#_reverse (obj 'value)))
@@ -951,7 +963,6 @@
 		  
 		  'pair?            (lambda (obj) #t)
 		  'length           (lambda (obj) (#_length (obj 'value)))
-		  'values           (lambda (obj . args) (obj 'value))
 		  'append           (make-local-method #_append)
 		  'class-name       'mock-pair))))
     
@@ -1030,7 +1041,6 @@
 		 'format                (lambda (str s . args) (#_symbol->string s))
 		 'symbol?               (lambda (obj) #t)
 		 'class-name            'mock-symbol
-		 'values                (lambda (obj . args) (obj 'value))
 		 ))))
 
     (define (mock-symbol s)
@@ -1105,7 +1115,6 @@
 					 (if (mock-port? obj)
 					     (#_read-string k (obj 'value))
 					     (error 'wrong-type-arg "read-string ~S ~S" k obj)))
-		  'values              (lambda (obj . args) (obj 'value))
 		  'class-name          'mock-port
 		  ))))
     
