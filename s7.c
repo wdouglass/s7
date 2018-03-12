@@ -24253,7 +24253,8 @@ If the optional 'clear-port' is #t, the current string is flushed."
     return(simple_wrong_type_argument_with_type(sc, sc->get_output_string_symbol, p, s7_make_string_wrapper(sc, "an active (open) string port")));
 
   if (port_position(p) > sc->max_string_length)
-    return(s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(p)), "port position is greater than (*s7* 'max-string-length)"));
+    return(s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(p)), 
+				 "output string length is greater than (*s7* 'max-string-length)"));
   /* this includes (port_position(p) >= 2147483648) which will be a negative length in s7_make_string_with_length */
 
   result = s7_make_string_with_length(sc, (const char *)port_data(p), port_position(p));
@@ -26272,6 +26273,7 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
    *   Once the collection pass is done, we run through our list, and clear all these bits.
    */
   bool top_cyclic;
+
   if (is_collected_or_shared(top))
     {
       if (is_shared(top))
@@ -26406,6 +26408,8 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	    }
 	}
       break;
+
+      /* should we traverse function/macro bodies?  They can be cyclic. */
 
     case T_C_POINTER:
       if ((has_structure(raw_pointer_type(top))) &&
@@ -30202,16 +30206,16 @@ static s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer strport, 
       (obj != sc->rootlet))
     {
       shared_info *ci;
-
       if (sc->object_out_locked)
 	{
-	  /* if obj has an object->string method and choice == P_READABLE, #_object->string will be called, calling us.
+	  /* if obj has an object->string (or format) method and choice == P_READABLE, #_object->string will be called, calling us.
 	   *   if that happens in an ongoing display, we can't step on the current cycle info, but I'm not sure
 	   *   it is always ok to simply carry through the outer one.  We might need support in cyclic_sequences.
 	   */
-	  ci = sc->circle_info;
+	  object_to_port_with_circle_check(sc, obj, strport, choice, sc->circle_info);
+	  return(obj);
 	}
-      else ci = make_shared_info(sc, obj, choice != P_READABLE);
+      ci = make_shared_info(sc, obj, choice != P_READABLE);
       if (ci)
 	{
 	  sc->object_out_locked = true;
@@ -46308,7 +46312,16 @@ s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args
 
 
 /* -------------------------------- type-of -------------------------------- */
+
 static s7_pointer type_to_typers[NUM_TYPES];
+
+static bool gen_type_match(s7_scheme *sc, s7_pointer val, uint8_t typ)  /* opt_con3 = uint8_t */
+{
+  return((type(val) == typ) ||
+	 ((has_methods(val)) &&
+	  (apply_boolean_method(sc, val, type_to_typers[typ]) != sc->F)));
+}
+
 static void init_typers(s7_scheme *sc)
 {
   type_to_typers[T_FREE] =                sc->F;
@@ -75362,15 +75375,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (is_false(sc, c_call(cadar(sc->code))(sc, opt_pair2(sc->code)))))
 
 	  IF_CASE(OP_IF_IS_TYPE_S,
-		  if (type(symbol_to_value_unchecked(sc, opt_sym2(sc->code))) == opt_con3(sc->code)),
-		  if (type(symbol_to_value_unchecked(sc, opt_sym2(sc->code))) != opt_con3(sc->code)))
+		  if (gen_type_match(sc, symbol_to_value_unchecked(sc, opt_sym2(sc->code)), opt_con3(sc->code))),
+		  if (!gen_type_match(sc, symbol_to_value_unchecked(sc, opt_sym2(sc->code)), opt_con3(sc->code))))
 	    
 	  IF_CASE(OP_IF_IS_TYPE_opSq, 
 		  set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code))); \
-		  if (type(c_call(cadar(sc->code))(sc, sc->t1_1)) == opt_con3(sc->code)),
+		  if (gen_type_match(sc, c_call(cadar(sc->code))(sc, sc->t1_1), opt_con3(sc->code))),
 		  set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code))); \
-		  if (type(c_call(cadr(cadar(sc->code)))(sc, sc->t1_1)) != opt_con3(sc->code)))
-	    
+		  if (!gen_type_match(sc, c_call(cadr(cadar(sc->code)))(sc, sc->t1_1), opt_con3(sc->code))))
+
 	  IF_CASE(OP_IF_CS, 
 		  set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code))); if (is_true(sc, c_call(car(sc->code))(sc, sc->t1_1))),
 		  set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code))); if (is_false(sc, c_call(cadar(sc->code))(sc, sc->t1_1))))
@@ -77327,7 +77340,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_GET_OUTPUT_STRING:          /* from get-output-string -- return a new string */
 	  if (port_position(sc->code) > sc->max_string_length)
-	    s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(sc->code)), "port position is greater than (*s7* 'max-string-length)");
+	    s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(sc->code)), 
+				  "output string length is greater than (*s7* 'max-string-length)");
 	  sc->value = s7_make_string_with_length(sc, (const char *)port_data(sc->code), port_position(sc->code));
 	  break;
 	  
@@ -77336,6 +77350,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      (port_is_closed(sc->code)))
 	    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, sc->code, s7_make_string_wrapper(sc, "an open string output port"));
 	  
+	  if (port_position(sc->code) > sc->max_string_length)
+	    s7_out_of_range_error(sc, "with-output-to-string", 0, s7_make_integer(sc, port_position(sc->code)), 
+				  "output string length is greater than (*s7* 'max-string-length)");
 	  if (port_position(sc->code) >= port_data_size(sc->code))
 	    resize_port_data(sc->code, port_position(sc->code) + 1); /* need room for the trailing #\null */
 	  sc->value = make_string_uncopied_with_length(sc, (char *)port_data(sc->code), port_position(sc->code));
@@ -85029,7 +85046,9 @@ int main(int argc, char **argv)
  * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
  *   (profile-count file line)?
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
- *   or maybe add protection via another type bit?
+ *   add shared_info collection of closure args/body for print/morally-equal
+ * cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
+ * lambda morally-equal with symbol match
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

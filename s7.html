@@ -3367,6 +3367,21 @@ know the field names in advance,
 </p>
 <!-- add a field and it disappears, or sublet and read back -->
 </div>
+
+
+<div class="indented">
+<p>Here's one way to add a method to a closure:
+</p>
+<pre class="indented">
+(define sf (let ((object-&gt;string (lambda (obj . arg) 
+				   "#&lt;secret function!&gt;")))
+	     (openlet (lambda (x) 
+			(+ x 1)))))
+<15> sf
+#&lt;secret function!&gt;
+</pre>
+</div>
+
 </blockquote>
 
 
