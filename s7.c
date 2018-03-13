@@ -3569,15 +3569,6 @@ static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
 
 #define apply_known_method(Sc, Let, Method, Args) return(s7_apply_function(Sc, find_method(Sc, Let, Method), Args))
 
-#define check_two_methods(Sc, Obj, Method1, Method2, Args)	                            \
-  if (has_methods(Obj))                                                                     \
-    {                                                                                       \
-      s7_pointer func;							                    \
-      func = find_method(Sc, find_let(Sc, Obj), Method1);                           \
-      if ((func == Sc->undefined) && (Method1 != Method2) && (Method2)) func = find_method(Sc, find_let(Sc, Obj), Method2); \
-      if (func != Sc->undefined) return(s7_apply_function(Sc, func, copy_list(Sc, Args))); \
-    }
-
 static s7_pointer check_value_slot(s7_scheme *sc, s7_pointer obj)
 {
   if (has_methods(obj))
@@ -9426,7 +9417,8 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
   p = car(args);                             /* this is the procedure passed to call/cc */
   if (!is_t_procedure(p))                    /* this includes continuations */
     {
-      check_two_methods(sc, p, sc->call_cc_symbol, sc->call_with_current_continuation_symbol, args);
+      check_method(sc, p, sc->call_cc_symbol, args);
+      check_method(sc, p, sc->call_with_current_continuation_symbol, args);
       return(simple_wrong_type_argument_with_type(sc, sc->call_cc_symbol, p, a_procedure_string));
     }
   if (!s7_is_aritable(sc, p, 1))
@@ -21288,7 +21280,7 @@ static s7_pointer g_is_string(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- make-string -------------------------------- */
-static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_make_string_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 {
   #define H_make_string "(make-string len (val #\\space)) makes a string of length len filled with the character val (default: space)"
   #define Q_make_string s7_make_signature(sc, 3, sc->is_string_symbol, sc->is_integer_symbol, sc->is_char_symbol)
@@ -21300,7 +21292,7 @@ static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
   n = car(args);
   if (!s7_is_integer(n))
     {
-      check_two_methods(sc, n, sc->make_string_symbol, sc->make_byte_vector_symbol, args);
+      check_method(sc, n, caller, args);
       return(wrong_type_argument(sc, sc->make_string_symbol, 1, n, T_INTEGER));
     }
 
@@ -21320,6 +21312,10 @@ static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
   return(n);
 }
 
+static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
+{
+  return(g_make_string_1(sc, sc->make_string_symbol, args));
+}
 
 #if (!WITH_PURE_S7)
 static s7_pointer g_string_length(s7_scheme *sc, s7_pointer args)
@@ -21760,27 +21756,24 @@ static s7_pointer g_string_copy(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- substring -------------------------------- */
-static s7_pointer start_and_end(s7_scheme *sc, s7_pointer caller, s7_pointer fallback,
-				s7_pointer start_and_end_args, s7_pointer args, int32_t position, s7_int *start, s7_int *end)
+static s7_pointer start_and_end(s7_scheme *sc, s7_pointer caller, s7_pointer start_and_end_args, s7_pointer args, int32_t position, s7_int *start, s7_int *end)
 {
   /* we assume that *start=0 and *end=length, that end is "exclusive"
    *   return true if the start/end points are not changed.
    */
-  s7_pointer pstart, pend, p;
+  s7_pointer pstart, pend;
   s7_int index;
 
   pstart = car(start_and_end_args);
   if (!s7_is_integer(pstart))
     {
-      if (!s7_is_integer(p = check_value_slot(sc, pstart)))
-	{
-	  check_two_methods(sc, pstart, caller, fallback, args);
-	  return(wrong_type_argument(sc, caller, position, pstart, T_INTEGER));
-	}
-      else pstart = p;
+      s7_pointer p;
+      p = check_value_slot(sc, pstart);
+      if (!s7_is_integer(p))
+	return(wrong_type_argument(sc, caller, position, pstart, T_INTEGER));
+      index = s7_integer(p);
     }
-
-  index = s7_integer(pstart);
+  else index = s7_integer(pstart);
   if ((index < 0) ||
       (index > *end)) /* *end == length here */
     return(out_of_range(sc, caller, small_int(position), pstart, (index < 0) ? its_negative_string : its_too_large_string));
@@ -21792,15 +21785,13 @@ static s7_pointer start_and_end(s7_scheme *sc, s7_pointer caller, s7_pointer fal
   pend = cadr(start_and_end_args);
   if (!s7_is_integer(pend))
     {
-      if (!s7_is_integer(p = check_value_slot(sc, pend)))
-	{
-	  check_two_methods(sc, pend, caller, fallback,
-			    (position == 2) ? list_3(sc, car(args), pstart, pend) : list_4(sc, car(args), cadr(args), pstart, pend));
-	  return(wrong_type_argument(sc, caller, position + 1, pend, T_INTEGER));
-	}
-      else pend = p;
+      s7_pointer p;
+      p = check_value_slot(sc, pend);
+      if (!s7_is_integer(p))
+	return(wrong_type_argument(sc, caller, position + 1, pend, T_INTEGER));
+      index = s7_integer(p);
     }
-  index = s7_integer(pend);
+  else index = s7_integer(pend);
   if ((index < *start) ||
       (index > *end))
     return(out_of_range(sc, caller, small_int(position + 1), pend, (index < *start) ? its_too_small_string : its_too_large_string));
@@ -21827,7 +21818,7 @@ end: (substring \"01234\" 1 2) -> \"1\""
   end = string_length(str);
   if (!is_null(cdr(args)))
     {
-      x = start_and_end(sc, sc->substring_symbol, NULL, cdr(args), args, 2, &start, &end);
+      x = start_and_end(sc, sc->substring_symbol, cdr(args), args, 2, &start, &end);
       if (x != sc->gc_nil) return(x);
     }
   s = string_value(str);
@@ -21852,7 +21843,7 @@ static s7_pointer g_substring_to_temp(s7_scheme *sc, s7_pointer args)
   if (!is_null(cdr(args)))
     {
       s7_pointer x;
-      x = start_and_end(sc, sc->substring_symbol, NULL, cdr(args), args, 2, &start, &end);
+      x = start_and_end(sc, sc->substring_symbol, cdr(args), args, 2, &start, &end);
       if (x != sc->gc_nil) return(x);
     }
   return(make_temporary_string(sc, (const char *)(string_value(str) + start), (int32_t)(end - start)));
@@ -22374,16 +22365,22 @@ static s7_pointer g_string_fill(s7_scheme *sc, s7_pointer args)
     {
       if (!s7_is_character(chr))
 	{
-	  check_two_methods(sc, chr, sc->string_fill_symbol, sc->fill_symbol, args);
-	  return(wrong_type_argument(sc, sc->string_fill_symbol, 2, chr, T_CHARACTER));
+	  s7_pointer p;
+	  p = check_value_slot(sc, chr);
+	  if (!s7_is_character(p))
+	    return(wrong_type_argument(sc, sc->string_fill_symbol, 2, chr, T_CHARACTER));
+	  chr = p;
 	}
     }
   else
     {
       if (!is_integer(chr))
 	{
-	  check_two_methods(sc, chr, sc->string_fill_symbol, sc->fill_symbol, args);
-	  return(wrong_type_argument(sc, sc->fill_symbol, 2, chr, T_INTEGER));
+	  s7_pointer p;
+	  p = check_value_slot(sc, chr);
+	  if (!s7_is_integer(p))
+	    return(wrong_type_argument(sc, sc->string_fill_symbol, 2, chr, T_INTEGER));
+	  chr = p;
 	}
       byte = integer(chr);
       if ((byte < 0) || (byte > 255))
@@ -22394,7 +22391,7 @@ static s7_pointer g_string_fill(s7_scheme *sc, s7_pointer args)
   if (!is_null(cddr(args)))
     {
       s7_pointer p;
-      p = start_and_end(sc, sc->string_fill_symbol, sc->fill_symbol, cddr(args), args, 3, &start, &end);
+      p = start_and_end(sc, sc->string_fill_symbol, cddr(args), args, 3, &start, &end);
       if (p != sc->gc_nil) return(p);
       if (start == end) return(chr);
     }
@@ -22513,7 +22510,7 @@ static s7_pointer g_string_to_list(s7_scheme *sc, s7_pointer args)
   end = string_length(str);
   if (!is_null(cdr(args)))
     {
-      p = start_and_end(sc, sc->string_to_list_symbol, NULL, cdr(args), args, 2, &start, &end);
+      p = start_and_end(sc, sc->string_to_list_symbol, cdr(args), args, 2, &start, &end);
       if (p != sc->gc_nil) return(p);
       if (start == end) return(sc->nil);
     }
@@ -22577,7 +22574,7 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
   s7_pointer str;
   if (is_null(cdr(args)))
     {
-      str = g_make_string(sc, args);
+      str = g_make_string_1(sc, sc->make_byte_vector_symbol, args);
       if ((is_string(str)) &&
 	  (string_length(str) > 0))
 	memclr((void *)(string_value(str)), string_length(str));
@@ -22597,7 +22594,7 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
       b = s7_integer(byte);
       if ((b < 0) || (b > 255))
 	return(simple_wrong_type_argument_with_type(sc, sc->make_byte_vector_symbol, byte, an_unsigned_byte_string));
-      str = g_make_string(sc, set_plist_2(sc, len, chars[b]));
+      str = g_make_string_1(sc, sc->make_byte_vector_symbol, set_plist_2(sc, len, chars[b]));
     }
   set_byte_vector(str);
   return(str);
@@ -23076,7 +23073,6 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 	    {
 	      if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != port_position(p))
 		s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
-	      port_position(p) = 0;
 	    }
 	  free(port_data(p));
 	  fflush(port_file(p));
@@ -23101,6 +23097,7 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
   port_write_string(p) = closed_port_write_string;
   port_display(p) = closed_port_display;
   port_is_closed(p) = true;
+  port_position(p) = 0;
 }
 
 void s7_close_output_port(s7_scheme *sc, s7_pointer p)
@@ -23488,7 +23485,7 @@ static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
       if (!is_null(inds))
 	{
 	  s7_pointer p;
-	  p = start_and_end(sc, sc->write_string_symbol, NULL, inds, args, 3, &start, &end);
+	  p = start_and_end(sc, sc->write_string_symbol, inds, args, 3, &start, &end);
 	  if (p != sc->gc_nil) return(p);
 	}
     }
@@ -35061,8 +35058,11 @@ static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
     {
       if (!s7_is_real(fill)) /* possibly a bignum */
 	{
-	  check_two_methods(sc, fill, sc->vector_fill_symbol, sc->fill_symbol, args);
-	  s7_wrong_type_arg_error(sc, "(float) vector-fill!", 2, fill, "a real");
+	  s7_pointer p;
+	  p = check_value_slot(sc, fill);
+	  if (!s7_is_real(p))
+	    return(wrong_type_argument(sc, sc->vector_fill_symbol, 2, fill, T_REAL));
+	  fill = p;
 	}
     }
   else
@@ -35071,8 +35071,11 @@ static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
 	{
 	  if (!s7_is_integer(fill))
 	    {
-	      check_two_methods(sc, fill, sc->vector_fill_symbol, sc->fill_symbol, args);
-	      s7_wrong_type_arg_error(sc, "int-vector fill!", 2, fill, "an integer");
+	      s7_pointer p;
+	      p = check_value_slot(sc, fill);
+	      if (!s7_is_integer(p))
+		return(wrong_type_argument(sc, sc->vector_fill_symbol, 2, fill, T_INTEGER));
+	      fill = p;
 	    }
 	}
     }
@@ -35081,7 +35084,7 @@ static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
   if (!is_null(cddr(args)))
     {
       s7_pointer p;
-      p = start_and_end(sc, sc->vector_fill_symbol, sc->fill_symbol, cddr(args), args, 3, &start, &end);
+      p = start_and_end(sc, sc->vector_fill_symbol, cddr(args), args, 3, &start, &end);
       if (p != sc->gc_nil) return(p);
       if (start == end) return(fill);
     }
@@ -35397,7 +35400,7 @@ static s7_pointer g_vector_to_list(s7_scheme *sc, s7_pointer args)
   end = vector_length(vec);
   if (!is_null(cdr(args)))
     {
-      p = start_and_end(sc, sc->vector_to_list_symbol, NULL, cdr(args), args, 2, &start, &end);
+      p = start_and_end(sc, sc->vector_to_list_symbol, cdr(args), args, 2, &start, &end);
       if (p != sc->gc_nil) return(p);
       if (start == end) return(sc->nil);
     }
@@ -36984,15 +36987,14 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 
   if (is_immutable(data))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->sort_symbol, data)));
+  if (!is_sequence(data))
+    return(wrong_type_argument_with_type(sc, sc->sort_symbol, 1, data, a_sequence_string));
 
   lessp = cadr(args);
-  if (type(lessp) < T_GOTO)
-    method_or_bust_with_type(sc, lessp, sc->sort_symbol, args, a_procedure_string, 2);
+  if (type(lessp) <= T_CONTINUATION) /* includes T_GOTO */
+    return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, a_normal_procedure_string));
   if (!s7_is_aritable(sc, lessp, 2))
     return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, an_eq_func_string));
-
-  if ((is_continuation(lessp)) || is_goto(lessp))
-    return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, a_normal_procedure_string));
 
   sort_func = vector_compare;
   compare_func = NULL;
@@ -42197,7 +42199,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
   if (have_indices)
     {
       s7_pointer p;
-      p = start_and_end(sc, caller, NULL, cddr(args), args, 3, &start, &end);
+      p = start_and_end(sc, caller, cddr(args), args, 3, &start, &end);
       if (p != sc->gc_nil) return(p);
     }
   if ((start == 0) && (source == dest))
@@ -42836,7 +42838,7 @@ static s7_pointer pair_fill(s7_scheme *sc, s7_pointer args)
   if (end < 0) end = -end; else {if (end == 0) end = 123123123;}
   if (!is_null(cddr(args)))
     {
-      p = start_and_end(sc, sc->fill_symbol, sc->fill_symbol, cddr(args), args, 3, &start, &end);
+      p = start_and_end(sc, sc->fill_symbol, cddr(args), args, 3, &start, &end);
       if (p != sc->gc_nil) return(p);
       if (start == end) return(val);
     }
@@ -85047,8 +85049,13 @@ int main(int argc, char **argv)
  *   (profile-count file line)?
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
  *   add shared_info collection of closure args/body for print/morally-equal
- * cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
- * lambda morally-equal with symbol match
+ *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
+ *   lambda morally-equal with symbol match
+ *   tricky -- see ~/old/cyclic-lambda-s7.c
+ *   (define (f2) #(0)) (set! ((f2) 0) (f2))
+ *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
+ *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
+ *   see t752.scm for more examples etc
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -85080,20 +85087,20 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1167
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1468
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1887
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2135
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2645
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.1
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2848
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3045
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5176
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7849
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
