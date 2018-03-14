@@ -6584,7 +6584,7 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
 
   if (e == sc->rootlet)
     return(out_of_range(sc, sc->fill_symbol, small_int(1), e, s7_make_string_wrapper(sc, "can't fill! rootlet")));
-  if (e == sc->owlet)
+  if (e == sc->owlet) /* (owlet) copies sc->owlet, so this probably can't happen */
     return(out_of_range(sc, sc->fill_symbol, small_int(1), e, s7_make_string_wrapper(sc, "can't fill! owlet")));
   if (is_funclet(e))
     return(out_of_range(sc, sc->fill_symbol, small_int(1), e, s7_make_string_wrapper(sc, "can't fill! a funclet")));
@@ -6975,9 +6975,9 @@ static s7_pointer g_openlet(s7_scheme *sc, s7_pointer args)
   s7_pointer e, elet, func;
 
   e = car(args);
-  elet = find_let(sc, e);
-  if ((elet == sc->rootlet) || (elet == sc->nil))
+  if ((e == sc->rootlet) || (e == sc->nil))
     s7_error(sc, sc->error_symbol, set_elist_1(sc, s7_make_string(sc, "can't openlet rootlet")));
+  elet = find_let(sc, e); /* returns nil if no let found, so has to follow error check above */
   if (!is_let(elet))
     return(simple_wrong_type_argument_with_type(sc, sc->openlet_symbol, e, a_let_string));
 
@@ -8889,7 +8889,7 @@ static s7_pointer g_string_to_keyword(s7_scheme *sc, s7_pointer args)
     method_or_bust_one_arg(sc, str, sc->string_to_keyword_symbol, args, T_STRING);
   if ((string_length(str) == 0) ||
       (string_value(str)[0] == '\0'))
-    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "string->keyword wants a non-null string"), str)));
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "string->keyword wants a non-null string: ~S"), str)));
   return(s7_make_keyword(sc, string_value(str)));
 }
 
@@ -12376,12 +12376,12 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
   switch (str[0])
     {
     case 'n':
-      if (safe_strcmp(str, "+nan.0"))
+      if (safe_strcmp(str, "nan.0"))
 	return(real_NaN);
       break;
 
     case 'i':
-      if (safe_strcmp(str, "+inf.0"))
+      if (safe_strcmp(str, "inf.0"))
 	return(real_infinity);
       break;
 
@@ -28773,7 +28773,7 @@ static bool has_odd_bits(s7_pointer obj)
 
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_RECUR) != 0) && (!is_slot(obj))) return(true);
+  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -77353,8 +77353,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, sc->code, s7_make_string_wrapper(sc, "an open string output port"));
 	  
 	  if (port_position(sc->code) > sc->max_string_length)
-	    s7_out_of_range_error(sc, "with-output-to-string", 0, s7_make_integer(sc, port_position(sc->code)), 
-				  "output string length is greater than (*s7* 'max-string-length)");
+	    {
+	      /* back out to the old output port -- equivalent to catch_out_function or unwind_output_ex */
+	      s7_close_output_port(sc, sc->code); /* may call fflush */
+	      if (((is_output_port(sc->args)) &&
+		   (!port_is_closed(sc->args))) ||
+		  (sc->args == sc->F))
+		sc->output_port = sc->args;
+
+	      s7_out_of_range_error(sc, "with-output-to-string", 0, s7_make_integer(sc, port_position(sc->code)), 
+				    "output string length is greater than (*s7* 'max-string-length)");
+	      /* perhaps this should make the string and place it in owlet somewhere?  Seems
+	       *   kinda dumb to throw it away simply because it is too long -- what if this is
+	       *   just a temp before writing to an output file?
+	       */
+	    }
 	  if (port_position(sc->code) >= port_data_size(sc->code))
 	    resize_port_data(sc->code, port_position(sc->code) + 1); /* need room for the trailing #\null */
 	  sc->value = make_string_uncopied_with_length(sc, (char *)port_data(sc->code), port_position(sc->code));
@@ -85056,6 +85069,11 @@ int main(int argc, char **argv)
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
  *   see t752.scm for more examples etc
+ * strings/port-positions are uint32_t, but s7_make_string_with_length is int32_t -- why not s7_int?
+ *   vector length is int64_t
+ *   perhaps ptr: port_t *port; unsigned char *data; s7_int size, point; uint32_t line_number; uint32_t file_number (29 bits) + is_closed flag (1 bit) + ptype (2 bits)
+ *     or move stuff to the port struct
+ *   and string could juggle symbol stuff to get s7_int length
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

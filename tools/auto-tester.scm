@@ -2,9 +2,65 @@
 
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
+(define (cycler size)
+  (let ((cp-lst (make-list 3 #f))
+	(it-lst (make-list 3 #f)))
+    (let ((bases (vector (make-list 3 #f)
+			 (make-vector 3 #f)
+			 (hash-table* 'a 1 'b 2 'c 3)
+			 (inlet 'a 1 'b 2 'c 3)
+			 (make-iterator it-lst)
+			 (c-pointer 1 cp-lst)))
+	  (sets ()))
+	  
+      (do ((blen (length bases))
+	   (i 0 (+ i 1)))
+	  ((= i size))
+	(let ((r1 (random blen))
+	      (r2 (random blen))
+	      (loc (random 3)))
+	  (let ((b1 (bases r1))
+		(b2 (bases r2)))
+	    (case (type-of b1)
+	      ((pair?)
+	       (if (> (random 10) 3)
+		   (begin
+		     (set! (b1 loc) b2)
+		     (set! sets (cons (list r1 loc r2) sets)))
+		   (begin
+		     (set-cdr! (list-tail b1 2) (case loc ((0) b1) ((1) (cdr b1)) (else (cddr b1))))
+		     (set! sets (cons (list r1 (+ loc 3) r2) sets)))))
+
+	      ((vector?)
+	       (set! (b1 loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))
+
+	      ((hash-table? let?)
+	       (let ((key (#(a b c) loc)))
+		 (set! (b1 key) b2)
+		 (set! sets (cons (list r1 key r2) sets))))
+
+	      ((c-pointer?)
+	       (set! (cp-lst loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))
+		
+	      ((iterator?)
+	       (set! (it-lst loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))))))
+
+      (object->string (bases (random 6)) :readable))))
+
 (load "stuff.scm")
 ;(load "write.scm")
-;(load "mockery.scm")
+(load "mockery.scm")
+
+(define mock-number (*mock-number* 'mock-number))
+(define mock-pair (*mock-pair* 'mock-pair))
+(define mock-string (*mock-string* 'mock-string))
+(define mock-char (*mock-char* 'mock-char))
+(define mock-vector (*mock-vector* 'mock-vector))
+(define mock-symbol (*mock-symbol* 'mock-symbol))
+(define mock-hash-table* (*mock-hash-table* 'mock-hash-table*))
 
 (set! (*s7* 'safety) 1)
 
@@ -19,11 +75,13 @@
 (set! (*s7* 'autoloading?) #f)
 (set! (*s7* 'morally-equal-float-epsilon) 1.0e-6)
 (set! (current-output-port) #f)
+(define startup-input-port (current-input-port))
 
 (define ostr "")
 (define nostr "")
 
 (define __var__ #f)
+(define __old_var__ #f)
 (define __var1__ #f)
 (define error-type #f)
 (define error-info #f)
@@ -138,8 +196,8 @@
 (define (s7-free-heap-size) (*s7* 'free-heap-size))
 (define (s7-gc-freed) (*s7* 'gc-freed))
 (define (s7-gc-protected-objects) (*s7* 'gc-protected-objects))
-(define (s7-memory-usage) (*s7* 'memory-usage))
 |#
+(define (s7-memory-usage) (string? (with-output-to-string (lambda () (*s7* 'memory-usage)))))
 (define (s7-history) (*s7* 'history))
 (define (s7-history-size) (*s7* 'history-size))
 
@@ -389,16 +447,17 @@
 			  's7-version 
 			  'dilambda?
 			  'hook-functions 
-#|
+
 			  ;; -------- naming funcs
 			  'make-hook 
 			  'let 'let* 'letrec 
+#|
 			  'lambda 'lambda*
+|#
 			  'multiple-value-bind 'call-with-values
 			  'inlet 
 			  'object->let
 			  ;; --------
-|#
 
                           ;'pair-line-number 
 			  'open-input-string 'open-output-string 
@@ -505,7 +564,8 @@
 			  ;;'s7-set-bignum-precision 
 			  ;;'s7-set-float-format-precision
 |#
-			  's7-memory-usage 
+			  's7-memory-usage
+			  'undefined-function
 			  ;;'s7-safety 's7-set-safety ;-- these need work...
 			  's7-c-types 
 			  ;;'s7-history ;-- causes stack to grow?
@@ -522,7 +582,7 @@
 			  's7-stacktrace-defaults
 
 			  ;'macroexpand ;-- uninteresting objstr stuff
-			  'block-reverse! 'subblock 'local-symbol? 'unquote 'block-append ;'block-let
+			  'block-reverse! 'subblock 'unquote 'block-append ;'block-let
 
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
@@ -612,6 +672,14 @@
 		    ;"(immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ()))))))"
 		    ;"(immutable! 'x)"
 
+		    "(mock-number 0)" "(mock-number 1-i)" "(mock-number 4/3)" "(mock-number 2.0)"
+		    "(mock-string #\\h #\\o #\\h #\\o)"
+		    "(mock-pair '(2 3 4))"
+		    "(mock-char #\\b)"
+		    "(mock-symbol 'c)"
+		    "(mock-vector 1 2 3 4)"
+		    "(mock-hash-table* 'b 2)"
+
 		    ;;"(make-list 16 0)" "(make-vector 16 0)" "(make-int-vector 16 0)" "(make-float-vector 16 0)" "(make-byte-vector 16 0)"
 		    ;;"(make-string 16 #\\0)"
 		    ;;"(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 16) hash) (hash-table-set! hash i 0)))"
@@ -640,6 +708,7 @@
 		    "(let ((<1> #f) (<2> (vector #f))) (set! <1> (make-iterator <2>)) (set! (<2> 0) <1>) <1>)"
 		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
 
+		    #f #f
 		    ))
 
       (codes (vector 
@@ -688,6 +757,12 @@
 	(flen (length functions))
 	(alen (length args))
 	(codes-len (length codes)))
+
+    (define (get-arg)
+      (let ((str (args (random alen))))
+	(if (string? str)
+	    str
+	    (cycler 4))))
 
     ;(for-each (lambda (x) (if (not (symbol? x)) (format *stderr* "~A " x))) functions)
     ;(for-each (lambda (x) (if (not (string? x)) (format *stderr* "~A " x))) args)
@@ -766,7 +841,7 @@
 		   (let ((nargs (random 5)))
 		     (do ((n 0 (+ n 1)))
 			 ((= n nargs))
-		       (let ((argstr (args (random alen))))
+		       (let ((argstr (get-arg)))
 			 (do ((arglen (length argstr))
 			      (n 0 (+ n 1))
 			      (k (+ j 1) (+ k 1)))
@@ -897,12 +972,15 @@
 
     (define (eval-it str) ;(format #t "~A~%" str)
       ;(format *stderr* "~S~%" str)
+      (set! __var__ __old_var__)
       (catch #t 
 	(lambda ()
 	  (car (list (eval-string str))))
 	(lambda (type info)
 	  (set! error-type type)
 	  (set! error-info info)
+	  (if (eq? type 'stack-too-big)
+	      (format *stderr* "stack overflow from ~S~%" str))
           'error)))
 
     (define (try-both str)
@@ -915,6 +993,7 @@
 				 (with-input-from-string str read))
 			       (lambda args ())))))
 	(lambda arg 'error))
+      
 #|
       (catch #t
 	(lambda ()
@@ -956,8 +1035,16 @@
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
-	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)))
+	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4))
 
+	(when (current-output-port)
+	  (format *stderr* "current-output-port is ~S from ~S and ~S~%" (current-output-port) str1 str2)
+	  (set! (current-output-port) #f))
+	(unless (eq? (current-input-port) startup-input-port)
+	  (format *stderr* "current-input-port is ~S from ~S and ~S~%" (current-input-port) str1 str2)
+	  (set! (current-input-port) startup-input-port))
+	)
+#|
       (let ((nstr (make-expr (+ 1 (random 4)))))
 	(set! nostr nstr)
 	(catch #t 
@@ -984,7 +1071,8 @@
 		(val6 (eval-it str6))
 		(val7 (eval-it str7))
 		(val8 (eval-it str8)))
-	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8)))
+	    (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8))))
+|#
 #|
 	(let ((mstr (make-expr (+ 1 (random 4)))))
 	  (let* ((str5 (string-append "(let () (if (begin " mstr " ) (begin " nstr ") (begin " str ")))"))
@@ -997,7 +1085,7 @@
 		  (val8 (eval-it str8)))
 	      (same-type? val5 val6 val7 val8 nstr str5 str6 str7 str8))))
 |#
-	))
+	)
 
     (define dots (vector "." "-" "+" "-"))
     (define (test-it)
@@ -1012,11 +1100,12 @@
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))
 
-	(try-both (make-expr (+ 1 (random 4)))) ; min 1 here not 0
-	(set! __var__ #f)
+	(try-both (make-expr (+ 1 (random 6)))) ; min 1 here not 0
+	(set! __var__ ((lambda args (car args)) (catch #t (lambda () (eval-string (get-arg))) (lambda () #f))))
+	(if (iterator? __var__) (set! __var__ #f))
+	(set! __old_var__ __var__)
 	))
 
     (test-it)))
 
-;;; arity/signature checks? -- need access to returning caller
 
