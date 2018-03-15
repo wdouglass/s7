@@ -20,7 +20,9 @@
 
 
 (define (mock->string obj . args)
-  (format #f (if (or (null? args) (car args)) "~S" "~A") (obj 'value)))
+  (if (let? obj)
+      (format #f (if (or (null? args) (car args)) "~S" "~A") (obj 'value))
+      "??"))
 
 (define (make-local-method f)
   (make-method f (lambda (obj) (obj 'value))))

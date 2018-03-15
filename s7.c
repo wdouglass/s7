@@ -29689,10 +29689,11 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 
 	  if (!is_cyclic_set(obj))
 	    {
+#if 0
 	      int32_t cref;
 	      cref = peek_shared_ref(ci, obj);
 	      if (cref < 0) cref = -cref;
-	  
+#endif	  
 	      if (ci->init_port == sc->F)
 		{
 		  ci->init_port = s7_open_output_string(sc);
@@ -44996,19 +44997,14 @@ static bool catch_1_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_point
        */
 
       if (!s7_is_aritable(sc, sc->code, 2))
-	{
-	  s7_wrong_number_of_args_error(sc, "catch error handler should accept 2 args: ~S", sc->code);
-	  return(false);
-	}
+	s7_wrong_number_of_args_error(sc, "catch error handler should accept 2 args: ~S", sc->code);
       
       sc->args = list_2(sc, type, info); /* almost never able to skip this -- costs more to check! */
       sc->cur_op = OP_APPLY;
-
       /* explicit eval needed if s7_call called into scheme where a caught error occurred (ex6 in exs7.c)
        *  but putting it here (via eval(sc, OP_APPLY)) means the C stack is not cleared correctly in non-s7-call cases,
        *  so defer it until s7_call
        */
-      /* fprintf(stderr, "stack %s %s\n", op_names[stack_op(sc->stack, s7_stack_top(sc) - 1)], op_names[stack_op(sc->stack, s7_stack_top(sc) - 5)]); */
       return(true);
     }
   return(false);
@@ -45258,6 +45254,9 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	    if (sc->longjmp_ok) longjmp(sc->goto_start, CATCH_JUMP);
 	    /* all the rest of the code expects s7_error to jump, not return, so presumably if we get here, we're in trouble */
 	    /* return(type); */
+#if S7_DEBUGGING
+	    fprintf(stderr, "fall through in s7_error!\n");
+#endif
 	  }
       }
   }
@@ -46543,8 +46542,8 @@ static s7_pointer all_x_not_is_eq_car_q(s7_scheme *sc, s7_pointer arg)
   a = opt_pair2(cdr(arg));
   lst = symbol_to_value_unchecked(sc, opt_sym2(a));
   if (!is_pair(lst))
-    return(make_boolean(sc, is_false(sc, g_is_eq(sc, set_plist_2(sc, g_car(sc, set_plist_1(sc, lst)), opt_sym3(a))))));
-  return(make_boolean(sc, car(lst) != opt_sym3(a)));
+    return(make_boolean(sc, is_false(sc, g_is_eq(sc, set_plist_2(sc, g_car(sc, set_plist_1(sc, lst)), opt_any3(a))))));
+  return(make_boolean(sc, car(lst) != opt_any3(a)));
 }
 
 static s7_pointer all_x_is_pair_cdr_s(s7_scheme *sc, s7_pointer arg)
@@ -53917,10 +53916,9 @@ static s7_pointer opt_or_any_p(void *p)
 {
   opt_info *o = (opt_info *)p;
   int32_t i;
-  s7_pointer val;
-  val = cur_sc->F; /* (or) -> #f */
   for (i = 0; i < o->v1.i; i++)
     {
+      s7_pointer val;
       opt_info *o1;
       o1 = cur_sc->opts[++cur_sc->pc];
       val = o1->v7.fp(o1);
@@ -58493,8 +58491,8 @@ static s7_pointer g_is_eq_car_q(s7_scheme *sc, s7_pointer args)
   s7_pointer lst;
   lst = symbol_to_value_unchecked(sc, opt_sym2(args));
   if (is_pair(lst))
-    return(make_boolean(sc, car(lst) == opt_sym3(args)));
-  return(g_is_eq(sc, set_plist_2(sc, g_car(sc, set_plist_1(sc, lst)), opt_sym3(args))));
+    return(make_boolean(sc, car(lst) == opt_any3(args)));
+  return(g_is_eq(sc, set_plist_2(sc, g_car(sc, set_plist_1(sc, lst)), opt_any3(args))));
 }
 
 static s7_pointer g_is_eq_caar_q(s7_scheme *sc, s7_pointer args)
@@ -58503,8 +58501,8 @@ static s7_pointer g_is_eq_caar_q(s7_scheme *sc, s7_pointer args)
   s7_pointer lst;
   lst = symbol_to_value_unchecked(sc, opt_sym2(args));
   if ((!is_pair(lst)) || (!is_pair(car(lst))))
-    return(g_is_eq(sc, set_plist_2(sc, g_caar(sc, set_plist_1(sc, lst)), opt_sym3(args))));
-  return(make_boolean(sc, caar(lst) == opt_sym3(args)));
+    return(g_is_eq(sc, set_plist_2(sc, g_caar(sc, set_plist_1(sc, lst)), opt_any3(args))));
+  return(make_boolean(sc, caar(lst) == opt_any3(args)));
 }
 
 static s7_pointer is_eq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -58522,18 +58520,19 @@ static s7_pointer is_eq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
 	}
       if (is_proper_quote(sc, caddr(expr)))
 	{
+	  /* is_proper_quote does not check the quoted object, so it might not be a symbol */
 	  if (c_callee(cadr(expr)) == g_car)
 	    {
 	      set_optimize_op(expr, HOP_SAFE_C_C);
-	      set_opt_sym2(cdr(expr), cadr(cadr(expr)));
-	      set_opt_sym3(cdr(expr), cadr(caddr(expr)));
+	      set_opt_sym2(cdr(expr), cadr(cadr(expr)));    /* cadr(expr) is hop_safe_c_s */
+	      set_opt_any3(cdr(expr), cadr(caddr(expr)));   /* but cadr(caddr(expr)) might not be a symbol */
 	      return(is_eq_car_q);
 	    }
 	  if (c_callee(cadr(expr)) == g_caar)
 	    {
 	      set_optimize_op(expr, HOP_SAFE_C_C);
 	      set_opt_sym2(cdr(expr), cadr(cadr(expr)));
-	      set_opt_sym3(cdr(expr), cadr(caddr(expr)));
+	      set_opt_any3(cdr(expr), cadr(caddr(expr)));
 	      return(is_eq_caar_q);
 	    }
 	}
@@ -61435,7 +61434,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		      (is_safe_c_s(arg1)))
 		    {
 		      set_safe_optimize_op(expr, hop + OP_SAFE_C_opSq_QS);
-		      set_opt_con1(cdr(expr), cadr(arg2));
+		      set_opt_con1(cdr(expr), cadr(arg2)); /* opt_con1 is _NFre (unchecked) */
 		      set_opt_sym2(cdr(expr), arg3);
 		      choose_c_function(sc, expr, func, 3);
 		      return(OPT_T);
@@ -62105,7 +62104,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		    set_cdr(e, cons(sc, vars, cdr(e)));     /* export it */
 		  else add_symbol_to_list(sc, symbol_to_keyword(sc, vars));
 		}
-	      else e = cons(sc, vars, e);
+	      /* else e = cons(sc, vars, e); */ /* ?? should this be set-cdr etc? */
 	      return(OPT_F);
 	    }
 	  body_export_ok = false;
@@ -62466,8 +62465,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			      if (res == OPT_F)
 				{
 				  bad_pairs++;
-				  if ((is_proper_quote(sc, car_p)) &&
-				      (is_null(cddr(car_p))))
+				  if (is_proper_quote(sc, car_p))
 				    quotes++;
 				}
 			      else
@@ -62482,8 +62480,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 				  (is_unsafe(car_p)))
 				{
 				  bad_pairs++;
-				  if ((is_proper_quote(sc, car_p)) &&
-				      (is_null(cddr(car_p))))
+				  if (is_proper_quote(sc, car_p))
 				    quotes++;
 				}
 			    }
@@ -72992,12 +72989,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_S:
 		case HOP_S:
 		  sc->code = symbol_to_value_unchecked(sc, car(code));
+		  if (!is_applicable(sc->code))
+		    apply_error(sc, sc->code, sc->nil);
 		  sc->args = sc->nil;
 		  goto APPLY;
 
 		case OP_S_C:
 		case HOP_S_C:
 		  sc->code = symbol_to_value_unchecked(sc, car(code));
+		  if (!is_applicable(sc->code))
+		    apply_error(sc, sc->code, cdr(code));
 		  if (dont_eval_args(sc->code))
 		    sc->args = cdr(code);
 		  else 
@@ -73012,6 +73013,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_S_S:
 		case HOP_S_S:
 		  sc->code = symbol_to_value_unchecked(sc, car(code));
+		  if (!is_applicable(sc->code))
+		    apply_error(sc, sc->code, cdr(code));
 		  if (dont_eval_args(sc->code))
 		    sc->args = cdr(code);
 		  else 
@@ -73026,6 +73029,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_S_A:
 		case HOP_S_A:
 		  sc->code = symbol_to_value_unchecked(sc, car(code));
+		  if (!is_applicable(sc->code))
+		    apply_error(sc, sc->code, cdr(code));
 		  if (dont_eval_args(sc->code))
 		    sc->args = cdr(code);
 		  else 
@@ -85111,7 +85116,7 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.1
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
@@ -85122,6 +85127,6 @@ int main(int argc, char **argv)
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
- *                                    || 139  || 85.9 | 86.5  87.2  86.8
+ *                                    || 139  || 85.9 | 86.5  87.2  87.1
  * ----------------------------------------------------------------------
  */
