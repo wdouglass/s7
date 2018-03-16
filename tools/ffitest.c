@@ -622,8 +622,35 @@ int main(int argc, char **argv)
     {fprintf(stderr, "%d: (number->string %s) is not \"1+1i\"?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   free(s2);
 
-  s7_gc_unprotect_at(sc, gc_loc);
+  s7_immutable(p);
+  if (!s7_is_immutable(p))
+    fprintf(stderr, "s7_immutable failed?\n");
+  s7_gc_unprotect(sc, p);
 
+  {
+    int64_t size;
+    size = s7_heap_size(sc);
+    if (size <= 0) fprintf(stderr, "heap_size: %" PRId64 "?\n", size);
+    size = s7_gc_freed(sc);
+    if (size < 0) fprintf(stderr, "gc_freed: %" PRId64 "?\n", size);
+    s7_gc_stats(sc, false);
+  }
+
+  {
+    s7_pointer p;
+    p = s7_shadow_rootlet(sc);
+    if ((!s7_is_null(sc, p)) &&
+	(!s7_is_let(p)))
+      fprintf(stderr, "shadow rootlet is %s\n", s7_object_to_c_string(sc, p));
+    s7_set_shadow_rootlet(sc, p);
+  }
+
+  if (s7_c_pointer(s7_make_c_pointer(sc, NULL)))
+    fprintf(stderr, "s7_c_pointer 0 is not null\n");
+  if (s7_c_pointer_type(s7_make_c_pointer_with_type(sc, NULL, s7_nil(sc), s7_f(sc))) != s7_nil(sc))
+    fprintf(stderr, "s7_c_pointer_type is not ()\n");
+  if (!s7_is_int_vector(s7_make_int_vector(sc, 3, 1, NULL)))
+    fprintf(stderr, "s7_make_int_vector did not make an int-vector\n");
 
   p = s7_rationalize(sc, 1.5, 1e-12);
   gc_loc = s7_gc_protect(sc, p);
@@ -633,6 +660,10 @@ int main(int argc, char **argv)
   free(s1);
   s7_gc_unprotect_at(sc, gc_loc);
   
+  s7_random(sc, NULL);
+  s7_stacktrace(sc);
+  if (s7_list(sc, 0) != s7_nil(sc))
+    fprintf(stderr, "s7_list 0 is not ()\n");
 
   p = s7_make_vector(sc, 12);
   gc_loc = s7_gc_protect(sc, p);
