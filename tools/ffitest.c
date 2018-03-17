@@ -381,6 +381,10 @@ static s7_pointer g_block_fill(s7_scheme *sc, s7_pointer args)
   return(obj);
 }
 
+static bool symbol_func(const char *symbol_name, void *data)
+{
+  return(false);
+}
 
 int main(int argc, char **argv)
 {
@@ -924,6 +928,9 @@ int main(int argc, char **argv)
     {fprintf(stderr, "%d: %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   s7_gc_unprotect_at(sc, gc_loc);
 #endif
+
+  s7_for_each_symbol_name(sc, symbol_func, NULL);
+  s7_symbol_name(s7_make_symbol(sc, "a_symbol"));
 
   p = s7_make_hash_table(sc, 255);
   gc_loc = s7_gc_protect(sc, p);

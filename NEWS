@@ -1,7 +1,12 @@
-Snd 18.1
+Snd 18.2:
 
-s7: added (*s7* 'max-heap-size)
+s7: added +nan.0 and +inf.0 to be compatible with other schemes
+    +iterator+ now instead of iterator? for closure-as-iterator
+    deprecated the s7_ulong and s7_ulong_long functions.
 
-checked: sbcl 1.4.4
+Marty Hayman got libgtk_s7.c to work in gtkex.c.
 
-Thanks!: Mike Scholz, Kjetil Matheussen, Marty Hayman, Yuri
+checked: sbcl 1.4.5 (in linux)
+
+Thanks!: Marty Hayman
+

@@ -270,7 +270,7 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, int32_t radix);    /* (
 
 bool s7_is_vector(s7_pointer p);                                            /* (vector? p) */
 s7_int s7_vector_length(s7_pointer vec);                                    /* (vector-length vec) */
-int32_t s7_vector_rank(s7_pointer vect);                                    /* number of dimensions in vect */
+s7_int s7_vector_rank(s7_pointer vect);                                     /* number of dimensions in vect */
 s7_int *s7_vector_dimensions(s7_pointer vec);                               /* dimensions (don't free the pointer) */
 s7_int *s7_vector_offsets(s7_pointer vec);                                  /* precalculated offsets to speed-up addressing (don't free) */
 s7_pointer *s7_vector_elements(s7_pointer vec);                             /* a pointer to the array of s7_pointers */
@@ -322,7 +322,7 @@ s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer func
 bool s7_is_input_port(s7_scheme *sc, s7_pointer p);                         /* (input-port? p) */
 bool s7_is_output_port(s7_scheme *sc, s7_pointer p);                        /* (output-port? p) */
 const char *s7_port_filename(s7_pointer x);                                 /* (port-filename p) */
-int32_t s7_port_line_number(s7_pointer p);                                      /* (port-line-number p) */
+int32_t s7_port_line_number(s7_pointer p);                                  /* (port-line-number p) */
 
 s7_pointer s7_current_input_port(s7_scheme *sc);                            /* (current-input-port) */
 s7_pointer s7_set_current_input_port(s7_scheme *sc, s7_pointer p);          /* (set-current-input-port) */
@@ -813,16 +813,16 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 #define s7_is_ulong_long(arg)     s7_is_c_pointer((void *)arg)
 #define s7_ulong_long(p)          (uint64_t)s7_c_pointer(arg)
 #define s7_make_ulong_long(sc, n) s7_make_c_pointer(sc, (void *)n)
+
 #else
+
 bool s7_is_ulong(s7_pointer arg);
 unsigned long s7_ulong(s7_pointer p);
 s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n);
 bool s7_is_ulong_long(s7_pointer arg);
 uint64_t s7_ulong_long(s7_pointer p);
 s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n);
-#endif
 
-#if (!DISABLE_DEPRECATED)
 /* old forms... */
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
@@ -881,12 +881,11 @@ void s7_object_type_set_direct(int32_t tag,
 void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, 
 				    s7_function set_fnc, int32_t req_args, int32_t opt_args, const char *doc);
   /* this is now the same as s7_dilambda (different args) */
-#endif
 
-/* obsolete names, will be deprecated eventually */
 #define s7_procedure_setter        s7_setter
 #define s7_procedure_documentation s7_documentation
 #define s7_procedure_signature     s7_signature
+#endif
 
 
 /* --------------------------------------------------------------------------------

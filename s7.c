@@ -3254,7 +3254,7 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OP_SAFE_CLOSURE_AP, HOP_SAFE_CLOSURE_AP, OP_SAFE_CLOSURE_PA, HOP_SAFE_CLOSURE_PA, 
 
       OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
-      OP_SAFE_CLOSURE_STAR_S0, HOP_SAFE_CLOSURE_STAR_S0, OP_SAFE_CLOSURE_STAR_ALL_X, HOP_SAFE_CLOSURE_STAR_ALL_X,
+      OP_SAFE_CLOSURE_STAR_ALL_X, HOP_SAFE_CLOSURE_STAR_ALL_X,
 
       /* these can't be embedded, and have to be the last thing called */
       OP_APPLY_SS, HOP_APPLY_SS, 
@@ -3476,7 +3476,7 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "safe_closure_ap", "h_safe_closure_ap", "safe_closure_pa", "h_safe_closure_pa", 
 
       "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
-      "safe_closure*_s0", "h_safe_closure*_s0", "safe_closure*_all_x", "h_safe_closure*_all_x",
+      "safe_closure*_all_x", "h_safe_closure*_all_x",
 
       "apply_ss", "h_apply_ss",
       "c_all_x", "h_c_all_x", "call_with_exit", "h_call_with_exit", 
@@ -5506,6 +5506,9 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
     case T_CLOSURE: case T_CLOSURE_STAR: /* can this happen? */
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
+#if S7_DEBUGGING
+      fprintf(stderr, "remove_from_heap: closure removal!\n");
+#endif
       petrify(sc, x, loc);
       s7_remove_from_heap(sc, closure_args(x));
       s7_remove_from_heap(sc, closure_body(x));
@@ -36263,9 +36266,9 @@ static s7_pointer g_is_vector(s7_scheme *sc, s7_pointer args)
 }
 
 
-int s7_vector_rank(s7_pointer vect)
+s7_int s7_vector_rank(s7_pointer vect)
 {
-  return(vector_rank(vect));
+  return((s7_int)(vector_rank(vect)));
 }
 
 
@@ -43476,7 +43479,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  s7_varlet(sc, let, s7_make_symbol(sc, "alias"), sc->rootlet_symbol);
 	else
 	  {
-	    if (obj == sc->owlet)
+	    if (obj == sc->owlet) /* this can't happen, I think -- owlet is always copied first */
 	      s7_varlet(sc, let, s7_make_symbol(sc, "alias"), sc->owlet_symbol);
 	    else
 	      {
@@ -60041,37 +60044,6 @@ static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 #endif
 }
 
-
-static void opt_generator(s7_scheme *sc, s7_pointer func, s7_pointer expr, int32_t hop)
-{
-  /* this is an optimization aimed at generators.  So we might as well go all out... */
-  if (is_global(car(expr))) /* not a function argument for example */
-    {
-      s7_pointer body;
-      body = closure_body(func);
-      if ((s7_list_length(sc, body) == 2) &&
-	  (caar(body) == sc->let_set_symbol) &&
-	  (is_optimized(car(body))) &&
-	  (optimize_op(car(body)) == HOP_SAFE_C_SQS) &&
-	  (caadr(body) == sc->with_let_symbol) &&
-	  (is_symbol(cadadr(body))))
-	{
-	  s7_pointer args;
-	  args = closure_args(func);
-	  if ((cadadr(body) == car(args)) &&
-	      (is_pair(cdr(args))) &&
-	      (is_pair(cadr(args))) &&
-	      (cadddr(car(body)) == caadr(closure_args(func))))
-	    {
-	      if (is_global(car(expr))) hop = 1; /* it's my party... */
-	      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_STAR_S0);
-	      set_opt_sym1(cdr(expr), cadr(caddar(body)));
-	      set_opt_pair2(cdr(expr), cddadr(body));
-	    }
-	}
-    }
-}
-
 static bool is_lambda(s7_scheme *sc, s7_pointer sym)
 {
   return((sym == sc->lambda_symbol) && (symbol_id(sym) == 0));
@@ -60428,19 +60400,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	  set_unsafely_optimized(expr);
 	  annotate_arg(sc, cdr(expr), e);
 	  set_arglist_length(expr, small_int(1));
-	  if (safe_case)
-	    {
-	      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_STAR_A);
-	      if (closure_star_arity_to_int(sc, func) == 2)
-		{
-		  s7_pointer defarg2;
-		  defarg2 = cadr(closure_args(func));
-		  if ((is_pair(defarg2)) &&
-		      (s7_is_zero(cadr(defarg2))))
-		    opt_generator(sc, func, expr, hop);
-		}
-	    }
-	  else set_optimize_op(expr, hop + OP_CLOSURE_STAR_A);
+	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_A : OP_CLOSURE_STAR_A));
 	  set_opt_lambda(expr, func);
 	  /* set_opt_sym2(expr, arg1); */
 	  return(OPT_F);
@@ -71627,7 +71587,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_SQS:
 		  {
-		    /* (let-set! gen 'fm fm);  many of these are handled in safe_closure_star_s0 */
+		    /* (let-set! gen 'fm fm) */
 		    s7_pointer val1, args;
 		    args = cdr(code);
 		    val1 = symbol_to_value_unchecked(sc, car(args));
@@ -73393,43 +73353,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      }
 		    sc->envir = old_frame_with_two_slots(sc, clet, arg1, arg2);
 		    sc->code = _TPair(closure_body(opt_lambda(code)));
-		    goto BEGIN1;
-		  }
-		  
-		case OP_SAFE_CLOSURE_STAR_S0:
-		  /* an old (probably now unnecessary) kludge to speed up generators.scm */
-		  if (!closure_is_equal(sc, code)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
-		case HOP_SAFE_CLOSURE_STAR_S0:
-		  /* here we know we have (let-set! arg1 'name arg2) (with-env arg1 ...) as the safe closure body.
-		   *   since no errors can come from the first, there's no need for the procedure env.
-		   *   so do the set and with-env by hand, leaving with the env body.
-		   */
-		  {
-		    s7_pointer e;
-		    e = symbol_to_value_unchecked(sc, cadr(code));         /* S of S0 above */
-		    if (e == sc->rootlet)
-		      sc->envir = sc->nil;
-		    else
-		      {
-			if (!is_let(e))
-			  eval_type_error(sc, "with-let takes an environment argument: ~A", e);
-			sc->envir = e;
-			set_with_let_let(e);
-		      }
-		    
-		    if (e != sc->rootlet)
-		      {
-			s7_pointer p;
-			let_id(e) = ++sc->let_number;
-			for (p = let_slots(e); is_slot(p); p = next_slot(p))
-			  {
-			    s7_pointer sym;
-			    sym = slot_symbol(p);
-			    symbol_set_local(sym, sc->let_number, p);
-			  }
-			slot_set_value(local_slot(opt_sym1(cdr(code))), real_zero); /* "arg2" above */
-		      }
-		    sc->code = _TPair(opt_pair2(cdr(code)));
 		    goto BEGIN1;
 		  }
 		  
@@ -82314,7 +82237,11 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
     return(sc->default_rng);
 
   if (sym == sc->history_symbol)                                         /* history (eval history circular buffer) */
+#if WITH_HISTORY
     return(sc->cur_code);
+#else
+    return(sc->F);
+#endif
   if (sym == sc->history_size_symbol)                                    /* history-size (eval history circular buffer size) */
     return(s7_make_integer(sc, sc->history_size));
   if (sym == sc->profile_info_symbol)                                    /* profile-info -- profiling data hash-table */
@@ -83599,14 +83526,7 @@ s7_scheme *s7_init(void)
     init_car_a_list();
 
   for (i = 0; i < NUM_TYPES; i++)
-    {
-      const char *str;
-      str = type_name_from_type(i, INDEFINITE_ARTICLE);
-      if (str)
-	prepackaged_type_names[i] = s7_make_permanent_string(str);
-      else prepackaged_type_names[i] = sc->F;
-    }
-  /* unset built-ins: T_STACK (can't happen), T_C_OBJECT (want actual name), T_INPUT|OUTPUT_PORT (want string|file|etc included) */
+    prepackaged_type_names[i] = s7_make_permanent_string((const char *)type_name_from_type(i, INDEFINITE_ARTICLE));
 
   sc->gc_off = false;
 
@@ -85017,8 +84937,8 @@ int main(int argc, char **argv)
  * 17.6: 16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
  * now:  15.997 23.216 33.063 49.034 | 16.254 23.518 33.750 48.322 : 243.154
  *
- * ----------------------------------------------------------------------
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2
+ * ------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162
@@ -85039,5 +84959,5 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
  *                                    || 139  || 85.9 | 86.5  87.2  87.1
- * ----------------------------------------------------------------------
+ * ------------------------------------------------------------------------------
  */
