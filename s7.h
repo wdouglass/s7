@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "5.15"
-#define S7_DATE "25-Feb-18"
+#define S7_VERSION "5.16"
+#define S7_DATE "17-Mar-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -267,14 +267,6 @@ s7_pointer s7_make_complex(s7_scheme *sc, s7_double a, s7_double b);        /* r
 s7_double s7_real_part(s7_pointer z);                                       /* (real-part z) */
 s7_double s7_imag_part(s7_pointer z);                                       /* (imag-part z) */
 char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, int32_t radix);    /* (number->string obj radix) */
-
-bool s7_is_ulong(s7_pointer arg);
-unsigned long s7_ulong(s7_pointer p);
-s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n);
-bool s7_is_ulong_long(s7_pointer arg);
-uint64_t s7_ulong_long(s7_pointer p);
-s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n);
-
 
 bool s7_is_vector(s7_pointer p);                                            /* (vector? p) */
 s7_int s7_vector_length(s7_pointer vec);                                    /* (vector-length vec) */
@@ -813,6 +805,23 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 #endif
 
 
+#if DISABLE_DEPRECATED
+#define s7_is_ulong(arg)          s7_is_integer(arg)
+#define s7_ulong(p)               (uint64_t)s7_integer(p)
+#define s7_make_ulong(sc, n)      s7_make_integer(sc, (s7_int)n)
+
+#define s7_is_ulong_long(arg)     s7_is_c_pointer((void *)arg)
+#define s7_ulong_long(p)          (uint64_t)s7_c_pointer(arg)
+#define s7_make_ulong_long(sc, n) s7_make_c_pointer(sc, (void *)n)
+#else
+bool s7_is_ulong(s7_pointer arg);
+unsigned long s7_ulong(s7_pointer p);
+s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n);
+bool s7_is_ulong_long(s7_pointer arg);
+uint64_t s7_ulong_long(s7_pointer p);
+s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n);
+#endif
+
 #if (!DISABLE_DEPRECATED)
 /* old forms... */
 typedef s7_int s7_Int;
@@ -884,6 +893,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 17-Mar:    deprecate s7_ulong and s7_ulong_long functions.
  * 26-Jan-18: s7_set_setter.
  * --------
  * 11-Dec:    s7_gc_protect_via_stack

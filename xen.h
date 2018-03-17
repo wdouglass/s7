@@ -1062,13 +1062,13 @@ extern size_t xen_s7_number_location, xen_s7_denominator_location;
 #define C_TO_XEN_INT(Arg)                          s7_make_integer(s7, Arg)
 #define XEN_TO_C_INT(Arg)                          s7_integer(Arg)
 
-#define XEN_ULONG_P(Arg)                           s7_is_ulong(Arg)
-#define XEN_TO_C_ULONG(Arg)                        s7_ulong(Arg)
-#define C_TO_XEN_ULONG(Arg)                        s7_make_ulong(s7, (unsigned long)Arg)
+#define XEN_ULONG_P(Arg)                           s7_is_integer(Arg)
+#define XEN_TO_C_ULONG(Arg)                        (uint64_t)s7_integer(Arg)
+#define C_TO_XEN_ULONG(Arg)                        s7_make_integer(s7, (s7_int)((intptr_t)Arg))
 
-#define XEN_ULONG_LONG_P(Arg)                      s7_is_ulong_long(Arg) 
-#define XEN_TO_C_ULONG_LONG(Arg)                   s7_ulong_long(Arg) 
-#define C_TO_XEN_ULONG_LONG(Arg)                   s7_make_ulong_long(s7, (uint64_t)Arg) 
+#define XEN_ULONG_LONG_P(Arg)                      s7_is_c_pointer(Arg) 
+#define XEN_TO_C_ULONG_LONG(Arg)                   (uint64_t)s7_c_pointer(Arg) 
+#define C_TO_XEN_ULONG_LONG(Arg)                   s7_make_c_pointer(s7, (void *)Arg) 
 
 #define C_TO_XEN_LONG_LONG(Arg)                    s7_make_integer(s7, Arg)
 #define XEN_TO_C_LONG_LONG(Arg)                    s7_integer(Arg)

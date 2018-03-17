@@ -902,7 +902,7 @@ int main(int argc, char **argv)
     s7_gc_on(sc, true);
   }
 
-
+#if 0
   p = s7_make_ulong(sc, 123);
   gc_loc = s7_gc_protect(sc, p);
 
@@ -923,7 +923,7 @@ int main(int argc, char **argv)
   if (s7_ulong_long(p) != (unsigned long long)123)
     {fprintf(stderr, "%d: %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   s7_gc_unprotect_at(sc, gc_loc);
-
+#endif
 
   p = s7_make_hash_table(sc, 255);
   gc_loc = s7_gc_protect(sc, p);

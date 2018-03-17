@@ -441,8 +441,8 @@ typedef intptr_t opcode_t;
 #define T_RANDOM_STATE        35
 #define T_OPTLIST             36
 
-#define T_GOTO                37
-#define T_CONTINUATION        38
+#define T_CONTINUATION        37
+#define T_GOTO                38
 #define T_CLOSURE             39
 #define T_CLOSURE_STAR        40
 #define T_C_MACRO             41
@@ -668,9 +668,10 @@ typedef struct s7_cell {
 	s7_double im;
       } complex_value;
 
+#if (!DISABLE_DEPRECATED)
       unsigned long ul_value;    /* these two are not used by s7 in any way -- "unsigned long" for backwards compatibility */
       uint64_t ull_value;
-
+#endif
 #if WITH_GMP
       mpz_t big_integer;          /* bignums */
       mpq_t big_ratio;
@@ -1743,15 +1744,7 @@ static s7_scheme *cur_sc = NULL;
   static void set_local_1(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
   {
     if (is_global(symbol))
-      {
-	s7_pointer val;
-	val = s7_symbol_value(sc, s7_make_symbol(sc, "str"));
-	if (val != sc->undefined)
-	  {
-	    fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code));
-	    fprintf(stderr, "    %s\n", DISPLAY(val));
-	  }
-      }
+      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code));
     typeflag(symbol) = (typeflag(symbol) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC));
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
@@ -19664,7 +19657,7 @@ static bool is_negative_b(s7_pointer p)
 static bool is_negative_i(s7_int p) {return(p < 0);}
 static bool is_negative_d(s7_double p) {return(p < 0.0);}
 
-
+#if (!DISABLE_DEPRECATED)
 bool s7_is_ulong(s7_pointer arg) {return(is_integer(arg));}
 unsigned long s7_ulong(s7_pointer p)  {return((_NFre(p))->object.number.ul_value);}
 
@@ -19686,6 +19679,7 @@ s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n)
   x->object.number.ull_value = n;
   return(x);
 }
+#endif
 
 
 #if (!WITH_PURE_S7)
@@ -33800,7 +33794,7 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
       /* check third arg before second (trailing arg error check) */
       eq_func = caddr(args);
 
-      if (type(eq_func) < T_GOTO)
+      if (type(eq_func) < T_CONTINUATION)
 	method_or_bust_with_type_one_arg(sc, eq_func, sc->assoc_symbol, args, a_procedure_string);
 
       if (!s7_is_aritable(sc, eq_func, 2))
@@ -34292,7 +34286,7 @@ member uses equal?  If 'func' is a function of 2 arguments, it is used for the c
       /* check third arg before second (trailing arg error check) */
       eq_func = caddr(args);
 
-      if (type(eq_func) < T_GOTO)
+      if (type(eq_func) < T_CONTINUATION)
 	method_or_bust_with_type(sc, eq_func, sc->member_symbol, args, a_procedure_string, 3);
 
       if (!s7_is_aritable(sc, eq_func, 2))
@@ -36948,7 +36942,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
     {
       /* (apply sort! () #f) should be an error I think */
       lessp = cadr(args);
-      if (type(lessp) < T_GOTO)
+      if (type(lessp) < T_CONTINUATION)
 	method_or_bust_with_type(sc, lessp, sc->sort_symbol, args, a_procedure_string, 2);
       if (!s7_is_aritable(sc, lessp, 2))
 	return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, an_eq_func_string));
@@ -36961,7 +36955,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
     return(wrong_type_argument_with_type(sc, sc->sort_symbol, 1, data, a_sequence_string));
 
   lessp = cadr(args);
-  if (type(lessp) <= T_CONTINUATION) /* includes T_GOTO */
+  if (type(lessp) <= T_GOTO)
     return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, a_normal_procedure_string));
   if (!s7_is_aritable(sc, lessp, 2))
     return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, an_eq_func_string));
@@ -43736,7 +43730,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
 	      int32_t typ;
 
 	      typ = type(val);
-	      if (typ < T_GOTO)
+	      if (typ < T_CONTINUATION)
 		{
 		  char *objstr, *str;
 		  const char *spaces;
@@ -55227,9 +55221,7 @@ static s7_pointer opt_call(void *p)
   s7_pointer x, env;
   uint64_t id;
 
-  id = ++cur_sc->let_number;
   env = o->v2.p;
-  let_id(env) = id;
   x = let_slots(env);
 
   /* arguments */
@@ -55240,6 +55232,8 @@ static s7_pointer opt_call(void *p)
 	{
 	  o1 = cur_sc->opts[++cur_sc->pc];
 	  slot_set_value(x, o1->v7.fp(o1));
+	  id = ++cur_sc->let_number; /* let_id update has to follow arg calc here and below */
+	  let_id(env) = id;
 	  sym = slot_symbol(x);
 	  symbol_set_local(sym, id, x);
 	}
@@ -55255,6 +55249,8 @@ static s7_pointer opt_call(void *p)
 	      o1 = cur_sc->opts[++cur_sc->pc];
 	      car(arg) = o1->v7.fp(o1);
 	    }
+	  id = ++cur_sc->let_number;
+	  let_id(env) = id;
 	  for (arg = cur_sc->t_temps[tx], fp = x; is_pair(arg); fp = next_slot(fp), arg = cdr(arg))
 	    {
 	      slot_set_value(fp, car(arg));
@@ -77363,17 +77359,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (is_symbol(sc->value))
 		sc->value = symbol_to_value_checked(sc, sc->value);
 	      sc->code = cdr(sc->code);
-	      
-	      if (!is_pair(sc->code))
-		{
-		  if (!is_let(sc->value))            /* (with-let e abs) */
-		    eval_type_error(sc, "with-let takes an environment argument: ~A", sc->value);
-		  if (is_symbol(sc->code))
-		    sc->value = s7_symbol_local_value(sc, sc->code, sc->value);
-		  else sc->value = sc->code;
-		  goto START;
-		}
-	      /* else fall through */
+	      /* fall through */
 	    }
 	  else
 	    {
@@ -77711,7 +77697,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_READ_INT_VECTOR:
 	  if (is_dotted_pair(sc->value))
-	    read_error(sc, "vector constant data is not a proper list");
+	    read_error(sc, "int-vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
 	    sc->value = g_int_vector(sc, sc->value);
@@ -77723,7 +77709,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_READ_FLOAT_VECTOR:
 	  if (is_dotted_pair(sc->value))
-	    read_error(sc, "vector constant data is not a proper list");
+	    read_error(sc, "float-vector constant data is not a proper list");
 	  sc->v = sc->value;
 	  if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
 	    sc->value = g_float_vector(sc, sc->value);
@@ -84998,6 +84984,7 @@ int main(int argc, char **argv)
  *     or move stuff to the port struct
  *   and string could juggle symbol stuff to get s7_int length
  *   (loops through strings will need s7_ints)
+ * check all non-s7_int pars in s7.h, 78 int32_t, 9 int64_t (some unsigned)
  * many stuff.scm funcs are not cycle-safe (e.g. union)
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)

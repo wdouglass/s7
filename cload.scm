@@ -490,7 +490,7 @@
 	   (format p "  ~A~%" init-str))
 	 (reverse inits))
 	
-	;; "constants" -- actually variables in s7 because we want them to be local to the current environment
+	;; "constants" -- actually variables in s7 because we want them to be local to the current environment (this comment is obsolete)
 	(if (pair? constants)
 	    (begin
 	      (format p "~%")
