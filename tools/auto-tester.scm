@@ -75,7 +75,7 @@
 (set! (*s7* 'autoloading?) #f)
 (set! (*s7* 'morally-equal-float-epsilon) 1.0e-6)
 (set! (current-output-port) #f)
-(define startup-input-port (current-input-port))
+(define startup-input-port (open-input-string "asdf"))
 
 (define ostr "")
 (define nostr "")
@@ -88,7 +88,6 @@
 (define false #f)
 (define _undef_ (car (with-input-from-string "(#_asdf 1 2)" read)))
 (define kar car)
-;(set! (setter kar) (lambda (x) car))
 (set! (setter kar) (lambda (x) (error 'oops "kar not settable: ~A" ostr)))
 (define-constant _1234_ 1234)
 (define _dilambda_ (dilambda (lambda (x) (+ x 1)) (lambda (x y) (+ x y))))
@@ -110,83 +109,29 @@
 (define (s7-initial-string-port-length) (*s7* 'initial-string-port-length))
 (define (s7-safety) (*s7* 'safety))
 (define (s7-set-safety val) (set! (*s7* 'safety) val))
-#|
-(define (s7-undefined-identifier-warnings) (*s7* 'undefined-identifier-warnings))
 (define (s7-autoloading?) (*s7* 'autoloading?))
 (define (s7-max-stack-size) (*s7* 'max-stack-size))
 (define (s7-stacktrace-defaults) (*s7* 'stacktrace-defaults))
 (define (s7-gc-stats) (*s7* 'gc-stats))
+(define (s7-undefined-identifier-warnings) (*s7* 'undefined-identifier-warnings))
 
-(define (s7-set-print-length x) 
-  ;(format *stderr* "(~A ~A)~%" 'print-length (object->string x #t 16)) 
-  (set! (*s7* 'print-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'print-length))
-  )
-(define (s7-set-max-string-length x) 
-  ;(format *stderr* "(~A ~A)~%" 'max-string-length (object->string x #t 16)) 
-  (set! (*s7* 'max-string-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'max-string-length))
-  )
-(define (s7-set-max-list-length x) 
-  ;(format *stderr* "(~A ~A)~%" 'max-list-length (object->string x #t 16)) 
-  (set! (*s7* 'max-list-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'max-list-length))
-  )
-(define (s7-set-max-vector-length x)
-  ;(format *stderr* "(~A ~A)~%" 'max-vector-length (object->string x #t 16)) 
-  (set! (*s7* 'max-vector-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'max-vector-length))
-  )
-(define (s7-set-max-vector-dimensions x)
-  ;(format *stderr* "(~A ~A)~%" 'max-vector-dimensions (object->string x #t 16)) 
-  (set! (*s7* 'max-vector-dimensions) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'max-vector-dimensions))
-  )
-(define (s7-set-default-hash-table-length x)
-  ;(format *stderr* "(~A ~A)~%" 'default-hash-table-length (object->string x #t 16)) 
-  (set! (*s7* 'default-hash-table-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'default-hash-table-length))
-  )
-(define (s7-set-initial-string-port-length x)
-  ;(format *stderr* "(~A ~A)~%" 'initial-string-port-length (object->string x #t 16)) 
-  (set! (*s7* 'initial-string-port-length) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'initial-string-port-length))
-  )
-(define (s7-set-undefined-identifier-warnings x)
-  ;(format *stderr* "(~A ~A)~%" 'undefined-identifier-warnings (object->string x #t 16))
-  (set! (*s7* 'undefined-identifier-warnings) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'undefined-identifier-warnings))
-  )
-(define (s7-set-autoloading? x)
-  ;(format *stderr* "(~A ~A)~%" 'autoloading? (object->string x #t 16))
-  (set! (*s7* 'autoloading?) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'autoloading?))
-  )
-(define (s7-set-max-stack-size x)
-  ;(format *stderr* "(~A ~A)~%" 'max-stack-size (object->string x #t 16))
-  (set! (*s7* 'max-stack-size) x)
-  ;(format *stderr* "  -> ~A~%" *s7* 'max-stack-size)
-  )
-(define (s7-set-stacktrace-defaults x) 
-  ;(format *stderr* "(~A ~A)~%" 'stacktrace-defaults (object->string x #t 16))
-  (set! (*s7* 'stacktrace-defaults) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'stacktrace-defaults))
-  )
-(define (s7-set-gc-stats x) 
-  ;(format *stderr* "(~A ~A)~%" 'gc-stats (object->string x #t 16))
-  (set! (*s7* 'gc-stats) x)
-  ;(format *stderr* "  -> ~A~%" *s7* 'gc-stats)
-  )
-(define (s7-set-default-rationalize-error x)
-  ;(format *stderr* "(~A ~A)~%" 'default-rationalize-error (object->string x #t 16)) 
-  (set! (*s7* 'default-rationalize-error) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'default-rationalize-error))
-  )
+#|
+(define (s7-set-print-length x) (set! (*s7* 'print-length) x))
+(define (s7-set-max-string-length x) (set! (*s7* 'max-string-length) x))
+(define (s7-set-max-list-length x) (set! (*s7* 'max-list-length) x))
+(define (s7-set-max-vector-length x) (set! (*s7* 'max-vector-length) x))
+(define (s7-set-max-vector-dimensions x) (set! (*s7* 'max-vector-dimensions) x))
+(define (s7-set-default-hash-table-length x) (set! (*s7* 'default-hash-table-length) x))
+(define (s7-set-initial-string-port-length x) (set! (*s7* 'initial-string-port-length) x))
+(define (s7-set-undefined-identifier-warnings x) (set! (*s7* 'undefined-identifier-warnings) x))
+(define (s7-set-autoloading? x) (set! (*s7* 'autoloading?) x))
+(define (s7-set-max-stack-size x) (set! (*s7* 'max-stack-size) x))
+(define (s7-set-stacktrace-defaults x) (set! (*s7* 'stacktrace-defaults) x))
+(define (s7-set-gc-stats x) (set! (*s7* 'gc-stats) x))
+(define (s7-set-default-rationalize-error x) (set! (*s7* 'default-rationalize-error) x))
 
-(define (s7-profile-info) (*s7* 'profile-info))
 (define (s7-catches) (*s7* 'catches))
 (define (s7-exits) (*s7* 'exits))
-(define (s7-c-types) (*s7* 'c-types))
 (define (s7-stack-top) (*s7* 'stack-top))
 (define (s7-stack-size) (*s7* 'stack-size))
 (define (s7-stack) (*s7* 'stack))
@@ -197,30 +142,16 @@
 (define (s7-gc-freed) (*s7* 'gc-freed))
 (define (s7-gc-protected-objects) (*s7* 'gc-protected-objects))
 |#
+(define (s7-c-types) (*s7* 'c-types))
+(define (s7-profile-info) (*s7* 'profile-info))
 (define (s7-memory-usage) (string? (with-output-to-string (lambda () (*s7* 'memory-usage)))))
 (define (s7-history) (*s7* 'history))
 (define (s7-history-size) (*s7* 'history-size))
 
-(define (s7-set-morally-equal-float-epsilon x)
-  ;(format *stderr* "(~A ~A)~%" 'morally-equal-float-epsilon (object->string x #t 16)) 
-  (set! (*s7* 'morally-equal-float-epsilon) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'morally-equal-float-epsilon))
-  )
-(define (s7-set-hash-table-float-epsilon x)
-  ;(format *stderr* "(~A ~A)~%" 'hash-table-float-epsilon (object->string x #t 16))
-  (set! (*s7* 'hash-table-float-epsilon) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'hash-table-float-epsilon))
-  )
-(define (s7-set-bignum-precision x)
-  ;(format *stderr* "(~A ~A)~%" 'bignum-precision (object->string x #t 16)) 
-  (set! (*s7* 'bignum-precision) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'bignum-precision))
-  )
-(define (s7-set-float-format-precision x)
-  ;(format *stderr* "(~A ~A)~%" 'float-format-precision (object->string x #t 16)) 
-  (set! (*s7* 'float-format-precision) x)
-  ;(format *stderr* "  -> ~A~%" (*s7* 'float-format-precision))
-  )
+(define (s7-set-morally-equal-float-epsilon x) (set! (*s7* 'morally-equal-float-epsilon) x))
+(define (s7-set-hash-table-float-epsilon x) (set! (*s7* 'hash-table-float-epsilon) x))
+(define (s7-set-bignum-precision x) (set! (*s7* 'bignum-precision) x))
+(define (s7-set-float-format-precision x) (set! (*s7* 'float-format-precision) x))
 
 (define (s7-default-rationalize-error) (*s7* 'default-rationalize-error))
 (define (s7-morally-equal-float-epsilon) (*s7* 'morally-equal-float-epsilon))
@@ -399,7 +330,6 @@
 			  'negative? 'cons 'string-set! 'list-ref 'eqv? 'positive? '>= 'expt 'number->string 'zero? 'floor 'denominator 'integer->char 
 			  'string? 'min '<= 'char->integer 'cos 'rationalize 'cadr 'sin 'char=? 'map 'list-set! 'defined? 'memq 'string-ref 'log 
 			  'for-each 'round 'ceiling 'truncate 'string=? 'atan 'eof-object? 'numerator 'char? 'cosh 'member 'vector 
-			  ;;'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
 			  'even? 'string-append 'char-upcase 'sqrt 'make-string
 			  'char-alphabetic? 'odd? 'call-with-exit 'tanh 'copy 'sinh 'make-vector
 			  'string 'char-ci=? 'caddr 'tan 'reverse 'cddr 'append 'vector? 'list? 'exp 'acos 'asin 'symbol? 'char-numeric? 'string-ci=? 
@@ -411,7 +341,6 @@
 			  'object->string 'char>? 'symbol->value 'cadar 'integer-decode-float 'string-copy 'cdddr 'logand 'cadddr 
 			  'with-input-from-string 'substring 'string->list 'char-upper-case? 
 			  'hash-table-set! 'cddddr 'string<? 'dynamic-wind 'call-with-input-file 'error 
-			  ;;'close-output-port 
 			  'lognot 'cdar 'char-ci>=? 'string>=? 
 			  'dilambda 'string-ci<? 'char<=? 'logior 'char-ci<=? 'assv 
 			  'string>? 'char-ci>? 'char-lower-case? 'string-ci>=? 'string-ci>? 'string<=? 'caadr 'char-ci<? 'reverse! 
@@ -425,8 +354,8 @@
 			  'with-input-from-file 'type-of
 			  'vector-fill! 
 			  'symbol 'peek-char 'make-hash-table 
-			  'close-input-port ;'current-error-port ;-- spurious output
-			  'macro? ;'load
+			  'close-input-port 
+			  'macro? 
 			  'quasiquote 
 			  'immutable? 'char-position 'string-position
 			  'infinite? 
@@ -436,12 +365,9 @@
 			  'continuation? 'hash-table? 'port-closed? 
 			  'output-port? 'input-port? 
 			  'provide 'call-with-output-string 
-			  ;; 'hash-table 
-			  ;; 'checked-hash-table 'checked-hash-table*
-			  ;;'current-output-port 
+			  'checked-hash-table 'checked-hash-table*
 			  'with-output-to-string 
-			  ;;'current-input-port -- too many (read...)
-			  'symbol-setter ;'unlet -- spurious diffs
+			  'symbol-setter 
 			  's7-version 
 			  'dilambda?
 			  'hook-functions 
@@ -457,16 +383,12 @@
 			  'object->let
 			  ;; --------
 
-                          ;'pair-line-number 
 			  'open-input-string 'open-output-string 
 			  'open-input-file 
 			  'define
 			  'newline
-			  ;'funclet
-			  ;'random 
-			  'random-state ;;'port-line-number -- too many spurious diffs
+			  'random-state 
 			  'gensym
-			  ;'quote
 			  'if 'begin 
 			  
 			  'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless
@@ -480,42 +402,58 @@
 			  'outlet 
 			  'directory->list 
 			  'define* 'define-macro 'define-macro* 'define-bacro 'define-bacro*
-			  'set! 'set-car! ;'set-cdr!
+			  'set! 'set-car! 
 			  'call-with-output-file 'with-output-to-file 
+                          ;'set-cdr!
+                          ;'unlet -- spurious diffs
+                          ;'port-line-number -- too many spurious diffs
+			  ;'load  ;'current-error-port ;-- spurious output
+			  'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
+			  ;'close-output-port 
+			  ; 'hash-table 'hash-table*; -- handled as morally equal via checked-hash-table
+			  ;'current-output-port 
+			  ;'current-input-port -- too many (read...)
 			  ;'cutlet 
 			  ;'set-current-error-port ;-- too many bogus eq? complaints
 			  ;'stacktrace ; -- with eval-string, causes stack to grow continuously? (length (stacktrace)) 
-			  'signature ; -- circular lists cause infinite loops with (e.g.) for-each??
 			  ;'define-constant 
 			  ;'curlet ; (length (curlet)) too many times
-			  ;'rootlet  ; cyclic-sequences oddness
  			  ;'open-output-file
 			  ;'delete-file 'set-current-output-port 
 			  ;'autoload ;-- possibly causes stack growth
 			  ;'varlet ;-- error exits, chaos in rootlet
-			  ;'tree-count 'tree-leaves 'tree-memq 'tree-set-memq ;-- no cycle checks and we have signature creating circular lists
 			  ;'eval ; -- can't use if signature (circular program)
 			  ;'immutable!
 			  ;'procedure-source -- appears to be the culprit when hook body becomes (apply) after optimization
-			  'eval-string 
-			  ;;'owlet ;too many uninteresting diffs
+			  ;'owlet ;too many uninteresting diffs
 			  ;'gc
 			  ;'reader-cond -- cond test clause can involve unbound vars: (null? i) for example
-                          'require ;'help -- snd goes crazy
+                          ;'pair-line-number 
+			  ;'funclet
+			  ;'random 
+			  ;'quote
+			  ;'*error-hook*
+			  ;'cond-expand 
+			  ;'random-state->list 'pair-filename 
+			  ;'let-set! -- rootlet troubles?
+			  ;'coverlet -- blocks block's morally-equal?
+                          ;'help -- snd goes crazy
+			  ;'macroexpand ;-- uninteresting objstr stuff
+			  'signature ; -- circular lists cause infinite loops with (e.g.) for-each??
+			  'rootlet  ; cyclic-sequences oddness
+			  'eval-string 
+			  'tree-count 'tree-leaves 'tree-memq 'tree-set-memq ;-- no cycle checks and we have signature creating circular lists
+			  'tree-cyclic?
+                          'require
 			  'else '_mac_ '_mac*_ '_bac_ '_bac*_ 
 			  '_fnc_ '_fnc*_ '_fnc1_ '_fnc2_ '_fnc3_ '_fnc4_ '_fnc5_
 			  'block 'make-block 'block?
 			  
 			  'constant?
 			  'openlet 
-			  
-			  ;;'cond-expand 
 			  '*unbound-variable-hook* '*load-hook* '*rootlet-redefinition-hook* '*missing-close-paren-hook* '*read-error-hook* 
 			  '*autoload*
-			  ;;'*error-hook*
-
 			  'sequence? 'directory? 'hash-table-entries 
-			  ;;'hash-table* -- handled as morally equal
 			  'arity 'logbit? 
 			  'random-state? 'throw 'float-vector-set! 'make-iterator 'complex 
 			  'let-ref 'int-vector 'aritable? 'gensym? 'syntax? 'iterator-at-end? 'let? 
@@ -524,27 +462,22 @@
 			  
 			  'setter 'int-vector? 
 			  'int-vector-set! 'c-object? 'proper-list? 'symbol->dynamic-value 'vector-append 
-			  ;'random-state->list ;'pair-filename 
 			  'flush-output-port 'c-pointer 'make-float-vector 
 			  'iterate 'float-vector? 
 			  'apply-values 'values
 			  'byte-vector-ref 'file-exists? 'make-int-vector 'string-downcase 'string-upcase 
 			  'byte-vector 'morally-equal? 
-			  ;;'let-set! -- rootlet troubles?
-			  'c-pointer? 'int-vector-ref ;
-			  ;;'coverlet -- blocks block's morally-equal?
+			  'c-pointer? 'int-vector-ref
 			  'float? 
 			  'list-values 'byte-vector? 'openlet? 'iterator? 
 			  'string->byte-vector
 
 #|
-			  's7-profile-info 
-			  's7-undefined-identifier-warnings 
-                          ;'s7-autoloading? 
 			  's7-catches 's7-exits 
 			  's7-stack-top 's7-stack 
 			  's7-symbol-table 
 			  's7-gc-protected-objects
+			  's7-stacktrace-defaults ; clobbered by reverse!
 
 			  's7-set-print-length 
 			  's7-set-max-string-length 
@@ -556,15 +489,19 @@
 			  's7-set-undefined-identifier-warnings 's7-set-autoloading? 's7-set-max-stack-size
 			  's7-set-stacktrace-defaults
 			  's7-set-gc-stats
-			  ;;'s7-set-default-rationalize-error
-			  ;;'s7-set-morally-equal-float-epsilon 
-			  ;;'s7-set-hash-table-float-epsilon 
-			  ;;'s7-set-bignum-precision 
-			  ;;'s7-set-float-format-precision
+			  's7-set-default-rationalize-error
+			  's7-set-morally-equal-float-epsilon 
+			  's7-set-hash-table-float-epsilon 
+			  's7-set-bignum-precision 
+			  's7-set-float-format-precision
+			  's7-set-safety
 |#
+			  's7-undefined-identifier-warnings 
+			  's7-profile-info 
+			  's7-autoloading? 
+
 			  's7-memory-usage
-			  'undefined-function
-			  ;;'s7-safety 's7-set-safety ;-- these need work...
+			  's7-safety 
 			  's7-c-types 
 			  ;;'s7-history ;-- causes stack to grow?
 			  's7-print-length 's7-max-string-length 's7-max-list-length 's7-max-vector-length 's7-max-vector-dimensions 's7-default-hash-table-length
@@ -577,27 +514,24 @@
 			  's7-file-names
 			  's7-autoloading?
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
-			  's7-stacktrace-defaults
 
-			  ;'macroexpand ;-- uninteresting objstr stuff
 			  'block-reverse! 'subblock 'unquote 'block-append ;'block-let
 
+			  'undefined-function
 			  ;'subsequence 
 			  'empty? 'indexable? 'first
 			  ;'copy-tree ; cycles cause stack overflow
 			  'adjoin 'cdr-assoc
 			  ;'progv ;'value->symbol -- correctly different values sometimes, progv localizes
 			  'and-let* 'string-case 'hash-table->alist 'concatenate
-			  'union '2^n? 'lognor 'ldb 'clamp 
-			  'sequence->string 
+			  ;'union -- heap overflow if cyclic arg
+			  '2^n? 'lognor 'ldb 'clamp 
+			  ;'sequence->string ;-- either this or rootlet but not both (endless printout)
 			  ;'*s7*->list ; reverse! etc 
 			  'log-n-of ; stack grows if n < 0?
-			  'pp
-
+			  ;'pp
 			  'kar '_dilambda_ '_vals_
 			  'free1 'free2 'free3
-
-			  'tree-cyclic?
 			  ))
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
@@ -605,7 +539,7 @@
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
 		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" 
-		    "cons" "''2" "\"ra\"" "gad1.data"
+		    "cons" "''2" "\"ra\"" 
 		    "(make-hook)" "(make-hook '__x__)"
 		    "1+i" "0+i" "(ash 1 43)" 
 		    "(integer->char 255)" "(string (integer->char 255))" "(string #\\null)" "(byte-vector 0)"
@@ -662,13 +596,6 @@
 		    "__var2__"
 		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" -- creates files by these names!
 		    "ims" "imbv" "imv" "imiv" "imfv" "imi" "imb" "imh" ;;"imp"--many ways to cloober this
-		    ;"(immutable! (string #\\a #\\b #\\c))" "(immutable! (byte-vector 0 1 2))" 
-		    ;"(immutable! (vector 0 1 2))" "(immutable! (int-vector 0 1 2))" "(immutable! (float-vector 0 1 2))" 
-		    ;"(immutable! (inlet 'a 1 'b 2))" 
-		    ;"(immutable! (block 0.0 1.0 2.0))" 
-		    ;"(immutable! (hash-table* 'a 1 'b 2))"
-		    ;"(immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ()))))))"
-		    ;"(immutable! 'x)"
 
 		    "(mock-number 0)" "(mock-number 1-i)" "(mock-number 4/3)" "(mock-number 2.0)"
 		    "(mock-string #\\h #\\o #\\h #\\o)"
@@ -678,11 +605,6 @@
 		    "(mock-vector 1 2 3 4)"
 		    "(mock-hash-table* 'b 2)"
 
-		    ;;"(make-list 16 0)" "(make-vector 16 0)" "(make-int-vector 16 0)" "(make-float-vector 16 0)" "(make-byte-vector 16 0)"
-		    ;;"(make-string 16 #\\0)"
-		    ;;"(let ((hash (make-hash-table))) (do ((i 0 (+ i 1))) ((= i 16) hash) (hash-table-set! hash i 0)))"
-		    ;;"(let ((lt (inlet))) (do ((i 0 (+ i 1))) ((= i 16) lt) (varlet lt (symbol \"i\" (number->string i)) 0)))"
-		    
 		    ;;" #| a comment |# "
 		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
@@ -973,12 +895,15 @@
 	  (if (eq? type 'stack-too-big)
 	      (format *stderr* "stack overflow from ~S~%" str))
 	  (when (eq? type 'heap-too-big)
-	    (format *stderr* "heap overflow from ~S~%" str)
-	    (abort))
+	    (format *stderr* "heap overflow from ~S~%" str))
           'error)))
 
     (define (try-both str)
       (set! ostr str)
+
+      (if (port-closed? startup-input-port)
+	  (set! startup-input-port (open-input-string "asdf")))
+      (set! (current-input-port) startup-input-port)
 
       (catch #t 
 	(lambda () 
@@ -989,7 +914,7 @@
 	(lambda arg 'error))
 
       (set! last-error-type #f)
-      (let* ((outer (codes (random codes-len)))	     
+      (let* ((outer (codes (random codes-len)))
 	     (str1 (string-append "(let ((x #f) (i 0)) " (car outer) str ")))"))
 	     (str2 (string-append "(let () (define (func) " str1 ") (define (hi) (func)) (hi))"))
 	     (str3 (string-append "(let ((x #f) (i 0)) " (cadr outer) str ")))"))
@@ -1094,7 +1019,7 @@
 	  (set! n (+ n 1))
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))
-
+	
 	(try-both (make-expr (+ 1 (random 6)))) ; min 1 here not 0
 	(set! __var__ ((lambda args (car args)) (catch #t (lambda () (eval-string (get-arg))) (lambda () #f))))
 	(if (iterator? __var__) (set! __var__ #f))
@@ -1102,5 +1027,3 @@
 	))
 
     (test-it)))
-
-

@@ -1226,7 +1226,7 @@ typedef XEN (*XEN_CATCH_BODY_TYPE)                                    (void *dat
 #define XEN_MAKE_AND_RETURN_OBJECT(Tag, Val, ig1, ig2)                return(s7_make_c_object(s7, Tag, Val))
 #define XEN_MAKE_OBJECT(Tag, Val, ig1, ig2)                           s7_make_c_object(s7, Tag, Val)
 #define XEN_OBJECT_REF(Arg)                                           s7_c_object_value(Arg)
-#define XEN_OBJECT_TYPE                                               int /* tag type */
+#define XEN_OBJECT_TYPE                                               s7_int /* tag type */
 #define XEN_OBJECT_TYPE_P(Obj, Tag)                                   (s7_c_object_type(Obj) == Tag)
 
 #define XEN_HOOK_P(Arg)                                               ((Arg) != XEN_FALSE)

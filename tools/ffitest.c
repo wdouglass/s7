@@ -101,7 +101,7 @@ static void mark_dax(void *val)
   if (o) s7_mark_c_object(o->data);
 }
 
-static int dax_type_tag = 0;
+static s7_int dax_type_tag = 0;
 
 static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
 {
@@ -260,7 +260,7 @@ typedef struct {
   double *data;
 } g_block;    
 
-static int g_block_type = 0;
+static s7_int g_block_type = 0;
 static s7_pointer g_block_methods;
 
 static s7_pointer g_make_block(s7_scheme *sc, s7_pointer args)
@@ -631,6 +631,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "s7_immutable failed?\n");
   s7_gc_unprotect(sc, p);
 
+#if 0
   {
     int64_t size;
     size = s7_heap_size(sc);
@@ -639,6 +640,7 @@ int main(int argc, char **argv)
     if (size < 0) fprintf(stderr, "gc_freed: %" PRId64 "?\n", size);
     s7_gc_stats(sc, false);
   }
+#endif
 
   {
     s7_pointer p;
@@ -1557,9 +1559,9 @@ int main(int argc, char **argv)
       {fprintf(stderr, "%d: g_block %s is not a c_object?\n", __LINE__, s1 = TO_STR(gp)); free(s1);}
     g = (g_block *)s7_c_object_value(gp);
     if (s7_c_object_type(gp) != g_block_type)
-      {fprintf(stderr, "%d: g_block types: %d %d\n", __LINE__, g_block_type, s7_c_object_type(gp));}
+      {fprintf(stderr, "%d: g_block types: %" PRId64 " %" PRId64 "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
     if (s7_c_object_value_checked(gp, g_block_type) != g)
-      {fprintf(stderr, "%d: checked g_block types: %d %d\n", __LINE__, g_block_type, s7_c_object_type(gp));}
+      {fprintf(stderr, "%d: checked g_block types: %" PRId64 " %" PRId64 "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
 
     s7_gc_unprotect_at(sc, gc_loc);
   }

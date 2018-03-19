@@ -383,7 +383,6 @@ static int32_t float_format_precision = WRITE_REAL_PRECISION;
 #endif
 
 #define DISPLAY(Obj) s7_object_to_c_string(sc, Obj)
-#define OPT_DISPLAY(Obj) s7_object_to_c_string(cur_sc, Obj)
 #define DISPLAY_80(Obj) object_to_truncated_string(sc, Obj, 80)
 
 typedef intptr_t opcode_t;
@@ -525,8 +524,7 @@ typedef struct vdims_t {
 
 
 typedef struct {
-  int32_t type;
-  uint32_t outer_type;
+  s7_int type, outer_type;
   s7_pointer scheme_name;
   char *(*print)(s7_scheme *sc, void *value);
   void (*free)(void *value);
@@ -863,7 +861,7 @@ typedef struct s7_cell {
     } rng;
 
     struct {                        /* additional object types (C) */
-      int32_t type;
+      s7_int type;
       void *value;                  /*  the value the caller associates with the c_object */
       s7_pointer e;                 /*   the method list, if any (openlet) */
       void (*mark)(void *val);
@@ -1501,7 +1499,7 @@ static s7_scheme *cur_sc = NULL;
         fprintf(stderr, "%d: set free %p type to %" PRIx64 "\n", __LINE__, p, (int64_t)(f)); \
       else								\
 	{								\
-	  if (((typeflag(p) & T_IMMUTABLE) != 0) && ((typeflag(p) != (f))))						\
+	  if (((typeflag(p) & T_IMMUTABLE) != 0) && ((typeflag(p) != (uint64_t)(f))))						\
 	    {fprintf(stderr, "%s[%d]: set immutable %p type %d to %" PRId64 "\n", __func__, __LINE__, p, unchecked_type(p), (int64_t)(f)); abort();} \
 	}								\
       typeflag(p) = f;							\
@@ -2037,7 +2035,6 @@ static s7_scheme *cur_sc = NULL;
 
 #define T_CYCLIC                      (1LL << (TYPE_BITS + 29))
 #define is_cyclic(p)                  ((typeflag(_NFre(p)) & T_CYCLIC) != 0)
-#define clear_cyclic(p)               typeflag(_NFre(p)) &= (~T_CYCLIC)
 #define set_cyclic(p)                 typeflag(_NFre(p)) |= T_CYCLIC
 
 #define T_CYCLIC_SET                  (1LL << (TYPE_BITS + 30))
@@ -2046,7 +2043,6 @@ static s7_scheme *cur_sc = NULL;
 #define clear_cyclic_bits(p)          typeflag(p) &= (~(T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET))
 
 #define T_TREE_COLLECTED              T_RECUR
-#define is_tree_collected(p)          ((typeflag(_TPair(p)) & T_TREE_COLLECTED) != 0)
 #define is_tree_collected_or_shared(p) ((typeflag(_TPair(p)) & (T_TREE_COLLECTED | T_SHARED)) != 0)
 #define set_tree_collected(p)         typeflag(_TPair(p)) |= T_TREE_COLLECTED
 #define clear_tree_bits(p)            typeflag(_TPair(p)) &= (~(T_TREE_COLLECTED | T_SHARED))
@@ -2703,7 +2699,6 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define c_object_direct_ref(Sc, p)    c_object_info(Sc, p)->direct_ref
 #define c_object_direct_set(Sc, p)    c_object_info(Sc, p)->direct_set
 #define c_object_scheme_name(Sc, p)   _TStr(c_object_info(Sc, p)->scheme_name)
-/* #define c_object_outer_type(Sc, p) c_object_info(Sc, p)->outer_type */
 
 #define raw_pointer(p)                (_TPtr(p))->object.cptr.c_pointer
 #define raw_pointer_type(p)           (_TPtr(p))->object.cptr.c_type
@@ -2852,6 +2847,10 @@ static inline int32_t safe_strlen(const char *str)
 static char *copy_string_with_length(const char *str, int32_t len)
 {
   char *newstr;
+#if S7_DEBUGGING
+  if ((len <= 0) || (!str))
+    fprintf(stderr, "%s[%d]: len: %d, str: %s\n", __func__, __LINE__, len, str);
+#endif
   newstr = (char *)malloc((len + 1) * sizeof(char));
   if (len != 0)
     memcpy((void *)newstr, (void *)str, len);
@@ -5178,9 +5177,11 @@ static int32_t gc(s7_scheme *sc)
 }
 
 void s7_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
+
+#if (!DISABLE_DEPRECATED)
 int64_t s7_heap_size(s7_scheme *sc) {return(sc->heap_size);}
 int64_t s7_gc_freed(s7_scheme *sc) {return(sc->gc_freed);}
-
+#endif
 
 #define GC_TRIGGER_SIZE 64
 
@@ -5502,21 +5503,9 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	      }
 	}
       return;
-
-    case T_CLOSURE: case T_CLOSURE_STAR: /* can this happen? */
-    case T_MACRO:   case T_MACRO_STAR:
-    case T_BACRO:   case T_BACRO_STAR:
-#if S7_DEBUGGING
-      fprintf(stderr, "remove_from_heap: closure removal!\n");
-#endif
-      petrify(sc, x, loc);
-      s7_remove_from_heap(sc, closure_args(x));
-      s7_remove_from_heap(sc, closure_body(x));
-      if (has_optlist(x))
-	s7_remove_from_heap(sc, closure_optlist(x));
-      return;
-
+      
     default:
+      /* I don't think any_closure can happen here (code in tmp) */
       break;
     }
   
@@ -10112,16 +10101,10 @@ s7_pointer s7_make_mutable_real(s7_scheme *sc, s7_double n)
 static s7_pointer make_permanent_real(s7_double n)
 {
   s7_pointer x;
-  int32_t nlen = 0;
-  char *str;
-
   x = (s7_pointer)calloc(1, sizeof(s7_cell));
   set_type(x, T_IMMUTABLE | T_REAL);
   unheap(x);
   set_real(x, n);
-
-  str = number_to_string_base_10(x, 0, float_format_precision, 'g', &nlen, P_WRITE);
-  set_print_name(x, str, nlen);
   return(x);
 }
 
@@ -25400,7 +25383,6 @@ s7_pointer s7_eval_c_string_with_environment(s7_scheme *sc, const char *str, s7_
   return(s7_eval(sc, _NFre(code), e));
 }
 
-
 s7_pointer s7_eval_c_string(s7_scheme *sc, const char *str)
 {
   return(s7_eval_c_string_with_environment(sc, str, sc->nil));
@@ -25436,7 +25418,6 @@ static s7_pointer g_eval_string(s7_scheme *sc, s7_pointer args)
 
   return(sc->F);
 }
-
 
 static s7_pointer eval_string_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -25505,7 +25486,6 @@ static s7_pointer g_call_with_input_file(s7_scheme *sc, s7_pointer args)
 
   return(call_with_input(sc, open_input_file_1(sc, string_value(str), "r", "call-with-input-file"), args));
 }
-
 
 static s7_pointer with_input(s7_scheme *sc, s7_pointer port, s7_pointer args)
 {
@@ -25632,7 +25612,6 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-
 static s7_pointer iterator_copy(s7_scheme *sc, s7_pointer p)
 {
   /* fields are obj cur [loc|lcur] [len|slow|hcur] next, but untangling them in debugging case is a pain */
@@ -25644,7 +25623,6 @@ static s7_pointer iterator_copy(s7_scheme *sc, s7_pointer p)
   heap_location(iter) = hloc;
   return(iter);
 }
-
 
 static s7_pointer iterator_finished(s7_scheme *sc, s7_pointer iterator)
 {
@@ -30019,39 +29997,8 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#if S7_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-#if S7_DEBUGGING
-  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
-   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
-   *   and abort leaving us pointers we can decode.
-   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
-   *   so... let's try 100000 for starters.
-   */
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   if ((ci) &&
       (has_structure(vr)))
     {
@@ -32203,7 +32150,13 @@ static s7_int tree_len(s7_scheme *sc, s7_pointer p)
   return(tree_len_1(sc, p));
 }
 
-static s7_int tree_leaves_i(s7_pointer p) {return(tree_len(cur_sc, p));}
+static s7_int tree_leaves_i(s7_pointer p) 
+{
+  if ((cur_sc->safety > NO_SAFETY) &&
+      (tree_is_cyclic(cur_sc, p)))
+    s7_error(cur_sc, cur_sc->wrong_type_arg_symbol, s7_make_string_wrapper(cur_sc, "tree-leaves: tree is cyclic"));
+  return(tree_len(cur_sc, p));
+}
 
 static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 {
@@ -32300,12 +32253,16 @@ static s7_pointer g_tree_set_memq(s7_scheme *sc, s7_pointer args)
   #define Q_tree_set_memq s7_make_signature(sc, 3, sc->is_boolean_symbol, sc->T, sc->T)
 
   s7_pointer syms, p, tree;
-  tree = cadr(args);
-  if ((sc->safety > NO_SAFETY) &&
-      (tree_is_cyclic(sc, tree)))
-    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-set-memq: tree is cyclic"));
   syms = car(args);
   if (!is_pair(syms)) return(sc->F);
+  tree = cadr(args);
+  if (sc->safety > NO_SAFETY)
+    {
+      if (tree_is_cyclic(sc, syms))
+	s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-set-memq: symbol list is cyclic"));
+      if (tree_is_cyclic(sc, tree))
+	s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "tree-set-memq: tree is cyclic"));
+    }
   clear_symbol_list(sc);
   for (p = syms; is_pair(p); p = cdr(p))
     if (is_symbol(car(p)))
@@ -39612,9 +39569,9 @@ static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-int32_t s7_make_c_type(s7_scheme *sc, const char *name)
+s7_int s7_make_c_type(s7_scheme *sc, const char *name)
 {
-  int32_t tag;
+  s7_int tag;
   tag = sc->num_c_object_types++;
   if (tag >= sc->c_object_types_size)
     {
@@ -39649,75 +39606,75 @@ int32_t s7_make_c_type(s7_scheme *sc, const char *name)
   return(tag);
 }
 
-void s7_c_type_set_print(s7_scheme *sc, int32_t tag, char *(*print)(s7_scheme *sc, void *value)) 
+void s7_c_type_set_print(s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value)) 
 { 
   sc->c_object_types[tag]->print = print;
 }
 
-void s7_c_type_set_print_readably(s7_scheme *sc, int32_t type, char *(*printer)(s7_scheme *sc, void *val))
+void s7_c_type_set_print_readably(s7_scheme *sc, s7_int type, char *(*printer)(s7_scheme *sc, void *val))
 {
   sc->c_object_types[type]->print_readably = printer;
 }
 
-void s7_c_type_set_free(s7_scheme *sc, int32_t tag, void (*gc_free)(void *value))
+void s7_c_type_set_free(s7_scheme *sc, s7_int tag, void (*gc_free)(void *value))
 {
   sc->c_object_types[tag]->free = gc_free;
 }
 
-void s7_c_type_set_equal(s7_scheme *sc, int32_t tag, bool (*equal)(void *val1, void *val2))
+void s7_c_type_set_equal(s7_scheme *sc, s7_int tag, bool (*equal)(void *val1, void *val2))
 {
   sc->c_object_types[tag]->equal = equal;
 }
 
-void s7_c_type_set_mark(s7_scheme *sc, int32_t tag, void (*gc_mark)(void *val))
+void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*gc_mark)(void *val))
 {
   sc->c_object_types[tag]->gc_mark = gc_mark;
 }
 
-void s7_c_type_set_apply(s7_scheme *sc, int32_t tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+void s7_c_type_set_apply(s7_scheme *sc, s7_int tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
 {
   sc->c_object_types[tag]->ref = ref;
   if (sc->c_object_types[tag]->ref != fallback_ref)
     sc->c_object_types[tag]->outer_type = (T_C_OBJECT | T_SAFE_PROCEDURE);
 }
 
-void s7_c_type_set_apply_direct(s7_scheme *sc, int32_t tag, s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index))
+void s7_c_type_set_apply_direct(s7_scheme *sc, s7_int tag, s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index))
 {
   sc->c_object_types[tag]->direct_ref = dref;  
 }
 
-void s7_c_type_set_set(s7_scheme *sc, int32_t tag, s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+void s7_c_type_set_set(s7_scheme *sc, s7_int tag, s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
 {
   sc->c_object_types[tag]->set = set;
 }
 
-void s7_c_type_set_set_direct(s7_scheme *sc, int32_t tag, s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
+void s7_c_type_set_set_direct(s7_scheme *sc, s7_int tag, s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
 {
   sc->c_object_types[tag]->direct_set = dset;
 }
 
-void s7_c_type_set_length(s7_scheme *sc, int32_t tag, s7_pointer (*length)(s7_scheme *sc, s7_pointer obj))
+void s7_c_type_set_length(s7_scheme *sc, s7_int tag, s7_pointer (*length)(s7_scheme *sc, s7_pointer obj))
 {
   sc->c_object_types[tag]->length = length;
 }
 
-void s7_c_type_set_copy(s7_scheme *sc, int32_t tag, s7_pointer (*copy)(s7_scheme *sc, s7_pointer args))
+void s7_c_type_set_copy(s7_scheme *sc, s7_int tag, s7_pointer (*copy)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->copy = copy;
 }
 
-void s7_c_type_set_fill(s7_scheme *sc, int32_t tag, s7_pointer (*fill)(s7_scheme *sc, s7_pointer args))
+void s7_c_type_set_fill(s7_scheme *sc, s7_int tag, s7_pointer (*fill)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->fill = fill;
 }
 
-void s7_c_type_set_reverse(s7_scheme *sc, int32_t tag, s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args))
+void s7_c_type_set_reverse(s7_scheme *sc, s7_int tag, s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->reverse = reverse;
 }
 
 
-void s7_object_type_set_direct(int32_t tag, 
+void s7_object_type_set_direct(s7_int tag, 
 			       s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index), 
 			       s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
 {
@@ -39725,15 +39682,15 @@ void s7_object_type_set_direct(int32_t tag,
   cur_sc->c_object_types[tag]->direct_set = dset;
 }
 
-int s7_new_type(const char *name,
-		char *(*print)(s7_scheme *sc, void *value),
-		void (*gc_free)(void *value),
-		bool (*equal)(void *val1, void *val2),
-		void (*gc_mark)(void *val),
-                s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-                s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+s7_int s7_new_type(const char *name,
+		   char *(*print)(s7_scheme *sc, void *value),
+		   void (*gc_free)(void *value),
+		   bool (*equal)(void *val1, void *val2),
+		   void (*gc_mark)(void *val),
+		   s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
+		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
 {
-  int32_t tag;
+  s7_int tag;
   tag = s7_make_c_type(cur_sc, name);
 
   if (gc_free) cur_sc->c_object_types[tag]->free = gc_free;
@@ -39749,20 +39706,20 @@ int s7_new_type(const char *name,
   return(tag);
 }
 
-int s7_new_type_x(s7_scheme *sc,
-		  const char *name,
-		  char *(*print)(s7_scheme *sc, void *value),
-		  void (*free)(void *value),
-		  bool (*equal)(void *val1, void *val2),
-		  void (*gc_mark)(void *val),
-		  s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-		  s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-		  s7_pointer (*length)(s7_scheme *sc, s7_pointer obj),
-		  s7_pointer (*copy)(s7_scheme *sc, s7_pointer args),
-		  s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args),
-		  s7_pointer (*fill)(s7_scheme *sc, s7_pointer args))
+s7_int s7_new_type_x(s7_scheme *sc,
+		     const char *name,
+		     char *(*print)(s7_scheme *sc, void *value),
+		     void (*free)(void *value),
+		     bool (*equal)(void *val1, void *val2),
+		     void (*gc_mark)(void *val),
+		     s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
+		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
+		     s7_pointer (*length)(s7_scheme *sc, s7_pointer obj),
+		     s7_pointer (*copy)(s7_scheme *sc, s7_pointer args),
+		     s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args),
+		     s7_pointer (*fill)(s7_scheme *sc, s7_pointer args))
 {
-  int32_t tag;
+  s7_int tag;
   tag = s7_new_type(name, print, free, equal, gc_mark, apply, set);
   if (length) sc->c_object_types[tag]->length = length;
   sc->c_object_types[tag]->copy = copy;
@@ -39786,7 +39743,7 @@ void *s7_c_object_value(s7_pointer obj)
 }
 
 
-void *s7_c_object_value_checked(s7_pointer obj, int32_t type)
+void *s7_c_object_value_checked(s7_pointer obj, s7_int type)
 {
   if ((is_c_object(obj)) &&
       (c_object_type(obj) == type))
@@ -39795,7 +39752,7 @@ void *s7_c_object_value_checked(s7_pointer obj, int32_t type)
 }
 
 
-int s7_c_object_type(s7_pointer obj)
+s7_int s7_c_object_type(s7_pointer obj)
 {
   if (is_c_object(obj))
     return(c_object_type(obj));
@@ -39803,7 +39760,7 @@ int s7_c_object_type(s7_pointer obj)
 }
 
 
-s7_pointer s7_make_c_object_with_let(s7_scheme *sc, int32_t type, void *value, s7_pointer let)
+s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7_pointer let)
 {
   s7_pointer x;
   new_cell(sc, x, sc->c_object_types[type]->outer_type);
@@ -39820,7 +39777,7 @@ s7_pointer s7_make_c_object_with_let(s7_scheme *sc, int32_t type, void *value, s
   return(x);
 }
 
-s7_pointer s7_make_c_object(s7_scheme *sc, int32_t type, void *value) 
+s7_pointer s7_make_c_object(s7_scheme *sc, s7_int type, void *value) 
 {
   return(s7_make_c_object_with_let(sc, type, value, sc->nil));
 }
@@ -83168,7 +83125,9 @@ s7_scheme *s7_init(void)
       }
 
       real_zero = make_permanent_real(0.0);
+      set_print_name(real_zero, "0.0", 3);
       real_one = make_permanent_real(1.0);
+      set_print_name(real_one, "1.0", 3);
       real_NaN = make_permanent_real(NAN); /* in Guile, -nan.0 prints as +nan.0, (eq? +nan.0 -nan.0) is #t */
       set_print_name(real_NaN, "+nan.0", 6);
       real_infinity = make_permanent_real(INFINITY);
@@ -84904,8 +84863,11 @@ int main(int argc, char **argv)
  *     or move stuff to the port struct
  *   and string could juggle symbol stuff to get s7_int length
  *   (loops through strings will need s7_ints)
+ *   func argnums will also need rejuggling
  * check all non-s7_int pars in s7.h, 78 int32_t, 9 int64_t (some unsigned)
+ *   [got c_object tag]
  * many stuff.scm funcs are not cycle-safe (e.g. union)
+ * loading port can be closed by top-level close curinp? Can this be protected?  Why is it curinp?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84939,25 +84901,25 @@ int main(int argc, char **argv)
  *
  * ------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3
- * tmac          |      |      |      || 9052 ||  264 |  264   266   280
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1038
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1162
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1489
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1892
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2129
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2546
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2654
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2817
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3092
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3988
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4198
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5230
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7822
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.4
  *                                    || 139  || 85.9 | 86.5  87.2  87.1
  * ------------------------------------------------------------------------------
  */
