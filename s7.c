@@ -22989,7 +22989,8 @@ static s7_pointer g_close_input_port(s7_scheme *sc, s7_pointer args)
   pt = car(args);
   if (!is_input_port(pt))
     method_or_bust_with_type_one_arg(sc, pt, sc->close_input_port_symbol, set_plist_1(sc, pt), an_input_port_string);
-  if (!is_immutable_port(pt))
+  if ((!is_immutable_port(pt)) &&  /* (close-input-port *stdin*) */
+      (!is_loader_port(pt)))       /* top-level unmatched (close-input-port (current-input-port)) should not clobber the loader's input port */
     s7_close_input_port(sc, pt);
   return(sc->unspecified);
 }
@@ -27591,16 +27592,8 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
     len = (-true_len + 1);
   else
     {
-      if (true_len == 0)               /* either () or a circular list */
-	{
-	  if (is_not_null(lst))
-	    len = circular_list_entries(lst);
-	  else
-	    {
-	      port_write_string(port)(sc, "()", 2, port);
-	      return;
-	    }
-	}
+      if (true_len == 0)               /* circular list (nil is handled by unique_to_port) */
+	len = circular_list_entries(lst);
       else len = true_len;
     }
 
@@ -29997,8 +29990,39 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
+
+#if S7_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
+#if S7_DEBUGGING
+  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
+   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
+   *   and abort leaving us pointers we can decode.
+   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
+   *   so... let's try 100000 for starters.
+   */
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
   if ((ci) &&
       (has_structure(vr)))
     {
@@ -32288,8 +32312,7 @@ static s7_pointer g_tree_set_memq_1(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer tree_set_memq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
-  if ((is_pair(cadr(expr))) &&
-      (caadr(expr) == sc->quote_symbol) &&
+  if ((is_proper_quote(sc, cadr(expr))) &&   /* not (tree-set-memq (quote) ... */
       (is_pair(cadadr(expr))))
     {
       s7_pointer p;
@@ -46385,9 +46408,7 @@ static bool is_all_x_safe(s7_scheme *sc, s7_pointer p)
       if (optimize_op(p) == HOP_SAFE_C_AA)
 	return((!is_pair(cadr(p))) || (!is_pair(caddr(p))));
     }
-  return((car(p) == sc->quote_symbol) && 
-	 (is_pair(cdr(p))) &&
-	 (is_null(cddr(p)))) ; /* (if #t (quote . -1)) */
+  return(is_proper_quote(sc, p));
 }
 
 static int32_t all_x_count(s7_scheme *sc, s7_pointer x)
@@ -67588,7 +67609,6 @@ static int32_t safe_dotimes_ex(s7_scheme *sc)
 		    return(goto_SAFE_DO_END_CLAUSES);
 		  set_unsafe_do(code);
 
-		  /* matters in tcopy 50 */
 		  push_stack(sc, OP_SAFE_DOTIMES_STEP_O, sc->args, code);
 		  return(goto_OPT_EVAL);
 		}
@@ -69669,6 +69689,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->code = sc->value;
 	      goto EVAL;             /* we read an expression, now evaluate it, and return to read the next */
 	    }
+#if S7_DEBUGGING
+	  if (!is_loader_port(sc->input_port))
+	    fprintf(stderr, "%s not loading?\n", DISPLAY(sc->input_port));
+	  /* if *#readers* func hits error, clear_loader_port might not be undone? */
+#endif
 	  s7_close_input_port(sc, sc->input_port);
 	  pop_input_port(sc);
 	  sc->current_file = NULL;
@@ -84867,7 +84892,9 @@ int main(int argc, char **argv)
  * check all non-s7_int pars in s7.h, 78 int32_t, 9 int64_t (some unsigned)
  *   [got c_object tag]
  * many stuff.scm funcs are not cycle-safe (e.g. union)
- * loading port can be closed by top-level close curinp? Can this be protected?  Why is it curinp?
+ * (*s7* 'describe-type) to call describe_type_bits?
+ * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
+ * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

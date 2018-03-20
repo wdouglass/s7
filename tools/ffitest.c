@@ -630,7 +630,7 @@ int main(int argc, char **argv)
   if (!s7_is_immutable(p))
     fprintf(stderr, "s7_immutable failed?\n");
   s7_gc_unprotect(sc, p);
-
+  
 #if 0
   {
     int64_t size;
@@ -1479,6 +1479,10 @@ int main(int argc, char **argv)
     s3 = s7_help(sc, p1);
     if (strcmp(s3, "(abs x) returns the absolute value of the real number x") != 0)
       {fprintf(stderr, "%d: (help abs) = %s?\n", __LINE__, s3);}
+
+    s3 = s7_documentation(sc, s7_make_symbol(sc, "abs"));
+    if (strcmp(s3, "(abs x) returns the absolute value of the real number x") != 0)
+      {fprintf(stderr, "%d: (documentation 'abs) = %s?\n", __LINE__, s3);}    
   }
 
   p = s7_eval_c_string(sc, "(lambda (a b . c) (+ a b (apply * c)))");
