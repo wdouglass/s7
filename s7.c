@@ -1742,7 +1742,7 @@ static s7_scheme *cur_sc = NULL;
   static void set_local_1(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
   {
     if (is_global(symbol))
-      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code));
+      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(current_code(sc)));
     typeflag(symbol) = (typeflag(symbol) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC));
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
@@ -3913,7 +3913,7 @@ static uint32_t s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
 #if S7_DEBUGGING
   if (loc > 8192)
     {
-      fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, sc->cur_code));
+      fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, current_code(sc)));
       abort();
     }
 #endif
@@ -5277,7 +5277,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   if (sc->heap_size >= sc->max_heap_size)
     {
 #if S7_DEBUGGING
-      fprintf(stderr, "heap %" PRId64 ", %s\n", sc->heap_size, DISPLAY(sc->cur_code));
+      fprintf(stderr, "heap %" PRId64 ", %s\n", sc->heap_size, DISPLAY(current_code(sc)));
       s7_show_let(sc);
       abort();
 #endif
@@ -21860,7 +21860,14 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	  arg = caddr(args);
 	  if (!is_integer(arg))
 	    return(wrong_type_argument(sc, sc->object_to_string_symbol, 3, arg, T_INTEGER));
+	  if (integer(arg) < 0)
+	    return(wrong_type_argument_with_type(sc, sc->object_to_string_symbol, 3, arg, a_non_negative_integer_string));	    
 	  sc->objstr_max_len = integer(arg);
+	  /* this is not fully implemented, and probably doesn't work right even when it tries:
+	   *   (object->string "1234567890" #f 4): "1234567890"
+	   *   (object->string (make-vector 8 1) #f 4): "#(1 1 1 1 1 1 1 1)"
+	   *   (object->string (make-list 8 #f) #f 4): "(#f #f"
+	   */
 	}
     }
   else choice = P_WRITE;
@@ -22539,7 +22546,7 @@ static s7_pointer g_string_to_byte_vector(s7_scheme *sc, s7_pointer args)
   if (is_immutable(str))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->string_to_byte_vector_symbol, str)));
   if (!is_string(str))
-    method_or_bust(sc, str, sc->string_to_byte_vector_symbol, set_plist_1(sc, str), T_STRING, 1);
+    method_or_bust(sc, str, sc->string_to_byte_vector_symbol, list_1(sc, str), T_STRING, 1);
 
   set_byte_vector(str);
   return(str);
@@ -22573,7 +22580,7 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
       b = s7_integer(byte);
       if ((b < 0) || (b > 255))
 	return(simple_wrong_type_argument_with_type(sc, sc->make_byte_vector_symbol, byte, an_unsigned_byte_string));
-      str = g_make_string_1(sc, sc->make_byte_vector_symbol, set_plist_2(sc, len, chars[b]));
+      str = g_make_string_1(sc, sc->make_byte_vector_symbol, list_2(sc, len, chars[b]));
     }
   set_byte_vector(str);
   return(str);
@@ -36828,13 +36835,6 @@ static int32_t vector_cdr_compare(const void *v1, const void *v2)
   return(((*(compare_func))(compare_sc, compare_args) != compare_sc->F) ? -1 : 1);
 }
 
-static int32_t all_x_compare(const void *v1, const void *v2)
-{
-  slot_set_value(compare_v1, (*(s7_pointer *)v1));
-  slot_set_value(compare_v2, (*(s7_pointer *)v2));
-  return((compare_func(compare_sc, compare_args) != compare_sc->F) ? -1 : 1);
-}
-
 static int32_t opt_bool_compare(const void *v1, const void *v2)
 {
   slot_set_value(compare_v1, (*(s7_pointer *)v1));
@@ -37035,7 +37035,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 				sort_func = opt_bool_compare_p;
 			      else sort_func = opt_bool_compare;
 			    }
-			  else sort_func = all_x_compare;
+			  else compare_func = NULL;
 			}
 		    }
 		  else
@@ -38867,14 +38867,14 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
       int32_t len;
       hash_entry_t **entries;
       entries = hash_table_elements(table);
-      len = hash_table_mask(table) + 1;
-      /* hash-table-ref returns #f if it can't find a key, so val == #f here means empty the table */
-      if (val == sc->F)
+      len = hash_table_mask(table) + 1;      /* minimum len is 2 (see s7_make_hash_table) */
+      if (val == sc->F)                      /* hash-table-ref returns #f if it can't find a key, so val == #f here means empty the table */
 	{
-	  hash_entry_t **hp;
+	  hash_entry_t **hp, **hn;
 	  hash_entry_t *p;
 	  hp = entries;
-	  if (len == 1)
+	  hn = (hash_entry_t **)(hp + len);
+	  for (; hp < hn; hp++)
 	    {
 	      if (*hp)
 		{
@@ -38883,29 +38883,13 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 		  p->next = hash_free_list;
 		  hash_free_list = *hp;
 		}
-	    }
-	  else
-	    {
-	      hash_entry_t **hn;
-	      /* here we assume we can go by 2's */
-	      hn = (hash_entry_t **)(hp + len);
-	      for (; hp < hn; hp++)
+	      hp++;
+	      if (*hp)
 		{
-		  if (*hp)
-		    {
-		      p = *hp;
-		      while (p->next) p = p->next;
-		      p->next = hash_free_list;
-		      hash_free_list = *hp;
-		    }
-		  hp++;
-		  if (*hp)
-		    {
-		      p = *hp;
-		      while (p->next) p = p->next;
-		      p->next = hash_free_list;
-		      hash_free_list = *hp;
-		    }
+		  p = *hp;
+		  while (p->next) p = p->next;
+		  p->next = hash_free_list;
+		  hash_free_list = *hp;
 		}
 	    }
 	  memset(entries, 0, len * sizeof(hash_entry_t *));
@@ -43165,7 +43149,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 		results++;
 		if (results > 10000)
 		  {
-		    fprintf(stderr, "iterator in object->list is creating a very long list!\n");
+		    fprintf(stderr, "iterator is creating a very long list!\n");
 		    results = S7_LONG_MIN;
 		  }
 	      }
@@ -44276,7 +44260,7 @@ static s7_pointer simple_wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_poin
 }
 
 
-s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, int32_t arg_n, s7_pointer arg, const char *descr)
+s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr)
 {
   /* info list is '(format_string caller arg_n arg type_name descr) */
   string_value(sc->err_wrap1) = (char *)caller;
@@ -44306,7 +44290,7 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
 }
 
 
-s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, int32_t arg_n, s7_pointer arg, const char *descr)
+s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr)
 {
   /* info list is '(format_string caller arg_n arg descr) */
   string_value(sc->err_wrap1) = (char *)caller;
@@ -44798,7 +44782,7 @@ static bool catch_2_function(s7_scheme *sc, int32_t i, s7_pointer type, s7_point
 
       if (needs_copied_args(sc->code))
 	sc->args = list_2(sc, type, info);
-      else
+      else           /* very unlikely: need c_macro as error catcher: (catch #t (lambda () (error 'oops)) require) */
 	{
 	  set_car(sc->t2_1, type);
 	  set_car(sc->t2_2, info);
@@ -45373,10 +45357,10 @@ static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args)
    */
   static s7_pointer errstr = NULL;
   if (is_null(obj))
-    return(s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, make_string_wrapper_with_length(sc, "attempt to apply nil to ~S?", 27), args)));
+    return(s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, make_string_wrapper_with_length(sc, "attempt to apply nil to ~S in ~S?", 33), args, current_code(sc))));
   if (!errstr)
-    errstr = s7_make_permanent_string("attempt to apply ~A ~S to ~S?");
-  return(s7_error(sc, sc->syntax_error_symbol, set_elist_4(sc, errstr, type_name_string(sc, obj), obj, args)));
+    errstr = s7_make_permanent_string("attempt to apply ~A ~S to ~S in ~S?");
+  return(s7_error(sc, sc->syntax_error_symbol, set_elist_5(sc, errstr, type_name_string(sc, obj), obj, args, current_code(sc))));
 }
 
 
@@ -55200,7 +55184,6 @@ static s7_pointer opt_call(void *p)
   s7_pointer fp, result, old_e;
   int32_t i;
   s7_pointer x, env;
-  uint64_t id;
 
   env = o->v2.p;
   x = let_slots(env);
@@ -55208,6 +55191,7 @@ static s7_pointer opt_call(void *p)
   /* arguments */
   if (o->v1.i > 0)
     {
+      uint64_t id;
       s7_pointer sym;
       if (o->v1.i == 1)
 	{
@@ -75105,9 +75089,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	     *   'b above can be a pair = generalized set in the 'e environment.
 	     */
 	    if (!is_pair(sc->args))                /* (set! (with-let) ...) */
-	      eval_error(sc, "set! (with-let)? ~A", sc->cur_code);
+	      eval_error(sc, "set! (with-let)? ~A", current_code(sc));
 	    if (!is_pair(cdr(sc->args)))           /* (set! (with-let e) ...) */
-	      eval_error(sc, "set! (with-let ...) has no symbol to set? ~A", sc->cur_code);
+	      eval_error(sc, "set! (with-let ...) has no symbol to set? ~A", current_code(sc));
 	    e = car(sc->args);
 	    b = cadr(sc->args);
 	    x = sc->value;
@@ -84889,12 +84873,13 @@ int main(int argc, char **argv)
  *   and string could juggle symbol stuff to get s7_int length
  *   (loops through strings will need s7_ints)
  *   func argnums will also need rejuggling
- * check all non-s7_int pars in s7.h, 78 int32_t, 9 int64_t (some unsigned)
- *   [got c_object tag]
+ * check all non-s7_int pars in s7.h, 55/78 int32_t, 11/9 int64_t (some unsigned)
+ *   [got c_object tag, error arg_n]
  * many stuff.scm funcs are not cycle-safe (e.g. union)
- * (*s7* 'describe-type) to call describe_type_bits?
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
+ * maybe :display and :write in place of opaque #f/#t object->string (elsewhere?)
+ * 33310/37894 2021/2490
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

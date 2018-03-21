@@ -11,7 +11,11 @@
 	(apply f (accessor (car args)) (cdr args))
 	(if (or (null? (cdr args))
 		(not (let? (cadr args))))
-	    (apply f args)
+	    (apply f (map (lambda (arg)
+			    (if (openlet? arg)
+				(coverlet arg)
+				arg))
+			  args))
 	    (apply f (car args) (accessor (cadr args)) (cddr args))))))
 
 (define (make-object . args)

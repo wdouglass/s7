@@ -386,6 +386,72 @@ static bool symbol_func(const char *symbol_name, void *data)
   return(false);
 }
 
+static bool symbol_func_1(const char *symbol_name, s7_pointer value, void *data)
+{
+  return(false);
+}
+
+static s7_scheme *cur_sc;
+static s7_pointer ap_1(s7_pointer a1) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1)));
+}
+
+static s7_pointer ap_2(s7_pointer a1, s7_pointer a2) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2)));
+}
+
+static s7_pointer ap_3(s7_pointer a1, s7_pointer a2, s7_pointer a3) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3)));
+}
+
+static s7_pointer ap_4(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4)));
+}
+
+static s7_pointer ap_5(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4, s7_pointer a5) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5)));
+}
+
+static s7_pointer ap_6(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4, s7_pointer a5, s7_pointer a6) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5) + s7_integer(a6)));
+}
+
+static s7_pointer ap_7(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4, s7_pointer a5, s7_pointer a6, s7_pointer a7) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5) + s7_integer(a6) + s7_integer(a7)));
+}
+
+static s7_pointer ap_8(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4, s7_pointer a5, s7_pointer a6, s7_pointer a7, s7_pointer a8) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5) + s7_integer(a6) + s7_integer(a7) + s7_integer(a8)));
+}
+
+static s7_pointer ap_9(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4, s7_pointer a5, s7_pointer a6, s7_pointer a7, s7_pointer a8, s7_pointer a9) 
+{
+  return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5) + s7_integer(a6) + s7_integer(a7) + s7_integer(a8) + s7_integer(a9)));
+}
+
+static s7_pointer int_list(s7_scheme *sc, int32_t len)
+{
+  int32_t i;
+  s7_pointer result;
+  uint32_t gc_loc;
+  s7_eval_c_string(sc, "(set! (*s7* 'safety) 1)");
+  result = s7_list(sc, 1, s7_nil(sc));
+  s7_eval_c_string(sc, "(set! (*s7* 'safety) 0)");
+  gc_loc = s7_gc_protect(sc, result);
+  for (i = 1; i <= len; i++)
+    s7_set_car(result, s7_cons(sc, s7_make_integer(sc, i), s7_car(result)));
+  s7_gc_unprotect_at(sc, gc_loc);
+  return(s7_reverse(sc, s7_car(result)));
+}
+
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
@@ -393,7 +459,8 @@ int main(int argc, char **argv)
   int i, gc_loc;
   char *s1, *s2;
   
-  sc = s7_init(); 
+  sc = s7_init();
+  cur_sc = sc;
   
   /* try each straight (no errors) case */
 
@@ -446,7 +513,22 @@ int main(int argc, char **argv)
 
   if (!s7_is_valid(sc, s7_t(sc)))
     {fprintf(stderr, "%d: %s is not valid?\n", __LINE__, s1 = TO_STR(s7_t(sc))); free(s1);}
-
+  {
+    typedef struct fake_cell {
+      union {
+	uint64_t flag;
+	uint8_t type_field;
+      } tf;
+      int64_t hloc, i1, i2, i3;
+    } fake_cell;
+    fake_cell *x;
+    x = calloc(1, sizeof(fake_cell));
+    x->tf.flag = 53 + (1 << 11);
+    if (s7_is_valid(sc, (s7_pointer)x))
+      fprintf(stderr, "fake_cell is ok?\n");
+    if (!s7_is_provided(sc, "debugging"))
+      s7_object_to_c_string(sc, (s7_pointer)x);
+  }
   if (s7_is_c_pointer(s7_t(sc)))
     {fprintf(stderr, "%d: %s is a raw c pointer?\n", __LINE__, s1 = TO_STR(s7_t(sc))); free(s1);}
 
@@ -618,6 +700,26 @@ int main(int argc, char **argv)
   if (s7_real_part(p) != 1.0)
     {fprintf(stderr, "%d: (real-part %s) is not 1.0?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
+  if (s7_integer(s7_apply_1(sc, int_list(sc, 1), ap_1)) != 1) fprintf(stderr, "apply_1 != 1\n");
+  if (s7_integer(s7_apply_2(sc, int_list(sc, 2), ap_2)) != 3) fprintf(stderr, "apply_2 != 3\n");
+  if (s7_integer(s7_apply_3(sc, int_list(sc, 3), ap_3)) != 6) fprintf(stderr, "apply_3 != 6\n");
+  if (s7_integer(s7_apply_4(sc, int_list(sc, 4), ap_4)) != 10) fprintf(stderr, "apply_4 != 10\n");
+  if (s7_integer(s7_apply_5(sc, int_list(sc, 5), ap_5)) != 15) fprintf(stderr, "apply_5 != 15\n");
+  if (s7_integer(s7_apply_6(sc, int_list(sc, 6), ap_6)) != 21) fprintf(stderr, "apply_6 != 21\n");
+  if (s7_integer(s7_apply_7(sc, int_list(sc, 7), ap_7)) != 28) fprintf(stderr, "apply_7 != 28\n");
+  if (s7_integer(s7_apply_8(sc, int_list(sc, 8), ap_8)) != 36) fprintf(stderr, "apply_8 != 36\n");
+  if (s7_integer(s7_apply_9(sc, int_list(sc, 9), ap_9)) != 45) fprintf(stderr, "apply_9 != 45\n");
+
+  if (s7_integer(s7_apply_n_1(sc, int_list(sc, 1), ap_1)) != 1) fprintf(stderr, "apply_1 != 1\n");
+  if (s7_integer(s7_apply_n_2(sc, int_list(sc, 2), ap_2)) != 3) fprintf(stderr, "apply_2 != 3\n");
+  if (s7_integer(s7_apply_n_3(sc, int_list(sc, 3), ap_3)) != 6) fprintf(stderr, "apply_3 != 6\n");
+  if (s7_integer(s7_apply_n_4(sc, int_list(sc, 4), ap_4)) != 10) fprintf(stderr, "apply_4 != 10\n");
+  if (s7_integer(s7_apply_n_5(sc, int_list(sc, 5), ap_5)) != 15) fprintf(stderr, "apply_5 != 15\n");
+  if (s7_integer(s7_apply_n_6(sc, int_list(sc, 6), ap_6)) != 21) fprintf(stderr, "apply_6 != 21\n");
+  if (s7_integer(s7_apply_n_7(sc, int_list(sc, 7), ap_7)) != 28) fprintf(stderr, "apply_7 != 28\n");
+  if (s7_integer(s7_apply_n_8(sc, int_list(sc, 8), ap_8)) != 36) fprintf(stderr, "apply_8 != 36\n");
+  if (s7_integer(s7_apply_n_9(sc, int_list(sc, 9), ap_9)) != 45) fprintf(stderr, "apply_9 != 45\n");
+
   if (s7_imag_part(p) != 1.0)
     {fprintf(stderr, "%d: (imag-part %s) is not 1.0?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
@@ -657,6 +759,27 @@ int main(int argc, char **argv)
     fprintf(stderr, "s7_c_pointer_type is not ()\n");
   if (!s7_is_int_vector(s7_make_int_vector(sc, 3, 1, NULL)))
     fprintf(stderr, "s7_make_int_vector did not make an int-vector\n");
+  if (s7_is_float_vector(s7_make_int_vector(sc, 3, 1, NULL)))
+    fprintf(stderr, "s7_make_int_vector made a float-vector?\n");
+  
+  {
+    s7_int* dims;
+    s7_pointer p;
+    dims = (s7_int *)malloc(2 * sizeof(s7_int));
+    dims[0] = 2;
+    dims[1] = 3;
+    p = s7_make_int_vector(sc, 6, 2, dims);
+    if (s7_vector_rank(p) != 2) fprintf(stderr, "int vector rank not 2?\n");
+    p = s7_make_float_vector(sc, 6, 2, dims);
+    if (s7_vector_rank(p) != 2) fprintf(stderr, "float vector rank not 2?\n");
+    free(dims); /* ?? */
+  }
+
+  {
+    s7_int len;
+    len = s7_print_length(sc);
+    s7_set_print_length(sc, len);
+  }
 
   p = s7_rationalize(sc, 1.5, 1e-12);
   gc_loc = s7_gc_protect(sc, p);
@@ -932,6 +1055,7 @@ int main(int argc, char **argv)
 #endif
 
   s7_for_each_symbol_name(sc, symbol_func, NULL);
+  s7_for_each_symbol(sc, symbol_func_1, NULL);
   s7_symbol_name(s7_make_symbol(sc, "a_symbol"));
 
   p = s7_make_hash_table(sc, 255);
@@ -1505,6 +1629,13 @@ int main(int argc, char **argv)
   if (strcmp(s1, "()") != 0)
     {fprintf(stderr, "%d: s7_closure_let is %s?\n", __LINE__, s1);}
   free(s1);
+  
+  if (s7_closure_body(sc, s7_name_to_value(sc, "abs")) != s7_nil(sc))
+    fprintf(stderr, "closure_body(abs) is not nil?\n");
+  if (s7_closure_args(sc, s7_name_to_value(sc, "abs"))  != s7_nil(sc))
+    fprintf(stderr, "closure_args(abs) is not nil?\n");
+  if (s7_closure_let(sc, s7_name_to_value(sc, "abs"))  != s7_nil(sc))
+    fprintf(stderr, "closure_let(abs) is not nil?\n");
   
   if (!s7_is_aritable(sc, p, 2))
     {fprintf(stderr, "%d: aritable? lambda 2 = #f?\n", __LINE__);}

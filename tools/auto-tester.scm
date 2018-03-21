@@ -75,7 +75,6 @@
 (set! (*s7* 'autoloading?) #f)
 (set! (*s7* 'morally-equal-float-epsilon) 1.0e-6)
 (set! (current-output-port) #f)
-(define startup-input-port (open-input-string "asdf"))
 
 (define ostr "")
 (define nostr "")
@@ -190,9 +189,9 @@
   (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) morally-equal?)))
     (do ((key/value args (cdr key/value)))
 	((null? key/value) _h_)
-      (if (not (pair? key/value))
+      (if (not (pair? (car key/value)))
 	  (error 'wrong-type-args "not a pair")
-	  (set! (_h_ (car key/value)) (cdr key/value))))))
+	  (set! (_h_ (caar key/value)) (cdar key/value))))))
 
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
@@ -354,7 +353,6 @@
 			  'with-input-from-file 'type-of
 			  'vector-fill! 
 			  'symbol 'peek-char 'make-hash-table 
-			  'close-input-port 
 			  'macro? 
 			  'quasiquote 
 			  'immutable? 'char-position 'string-position
@@ -375,9 +373,7 @@
 			  ;; -------- naming funcs
 			  'make-hook 
 			  'let 'let* 'letrec 
-#|
-			  'lambda 'lambda*
-|#
+			  ;'lambda 'lambda*
 			  'multiple-value-bind 'call-with-values
 			  'inlet 
 			  'object->let
@@ -389,11 +385,7 @@
 			  'newline
 			  'random-state 
 			  'gensym
-			  'if 'begin 
-			  
-			  'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless
-			  
-			  'let-temporarily
+			  'if 'begin 'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless 'let-temporarily
 			  'byte-vector-set! 'make-byte-vector 
 			  'write-char 'call/cc 'write-byte 'write-string 
 			  'file-mtime
@@ -404,43 +396,45 @@
 			  'define* 'define-macro 'define-macro* 'define-bacro 'define-bacro*
 			  'set! 'set-car! 
 			  'call-with-output-file 'with-output-to-file 
-                          ;'set-cdr!
-                          ;'unlet -- spurious diffs
-                          ;'port-line-number -- too many spurious diffs
+			  ;'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
+			  ;'close-input-port 
+			  ;'current-input-port ;-- too many (read...) also close of it can close the load port [fixed]
+                          'set-cdr!
+                          ;'unlet ;-- spurious diffs
+                          ;'port-line-number ;-- too many spurious diffs
 			  ;'load  ;'current-error-port ;-- spurious output
-			  'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
 			  ;'close-output-port 
 			  ; 'hash-table 'hash-table*; -- handled as morally equal via checked-hash-table
 			  ;'current-output-port 
-			  ;'current-input-port -- too many (read...)
 			  ;'cutlet 
 			  ;'set-current-error-port ;-- too many bogus eq? complaints
-			  ;'stacktrace ; -- with eval-string, causes stack to grow continuously? (length (stacktrace)) 
+			  ;'stacktrace ; -- tons of output, with eval-string, causes stack to grow continuously? (length (stacktrace)) 
 			  ;'define-constant 
 			  ;'curlet ; (length (curlet)) too many times
  			  ;'open-output-file
 			  ;'delete-file 'set-current-output-port 
-			  ;'autoload ;-- possibly causes stack growth
+			  'autoload ;-- possibly causes stack growth
 			  ;'varlet ;-- error exits, chaos in rootlet
-			  ;'eval ; -- can't use if signature (circular program)
+			  ;'eval ; -- can't use if signature (circular program) or (make-list (max-list-len))
 			  ;'immutable!
-			  ;'procedure-source -- appears to be the culprit when hook body becomes (apply) after optimization
+			  ;'procedure-source ;-- appears to be the culprit when hook body becomes (apply) after optimization
 			  ;'owlet ;too many uninteresting diffs
 			  ;'gc
-			  ;'reader-cond -- cond test clause can involve unbound vars: (null? i) for example
+			  ;'reader-cond ;-- cond test clause can involve unbound vars: (null? i) for example
                           ;'pair-line-number 
 			  ;'funclet
 			  ;'random 
-			  ;'quote
-			  ;'*error-hook*
+			  'quote
+			  '*error-hook*
 			  ;'cond-expand 
-			  ;'random-state->list 'pair-filename 
-			  ;'let-set! -- rootlet troubles?
-			  ;'coverlet -- blocks block's morally-equal?
-                          ;'help -- snd goes crazy
+			  ;'random-state->list 
+			  ;'pair-filename 
+			  ;'let-set! ;-- rootlet troubles?
+			  ;'coverlet ;-- blocks block's morally-equal?
+                          ;'help ;-- snd goes crazy
 			  ;'macroexpand ;-- uninteresting objstr stuff
 			  'signature ; -- circular lists cause infinite loops with (e.g.) for-each??
-			  'rootlet  ; cyclic-sequences oddness
+			  ;'rootlet  ; cyclic-sequences oddness and rootlet can be stepped on
 			  'eval-string 
 			  'tree-count 'tree-leaves 'tree-memq 'tree-set-memq ;-- no cycle checks and we have signature creating circular lists
 			  'tree-cyclic?
@@ -500,7 +494,7 @@
 			  's7-profile-info 
 			  's7-autoloading? 
 
-			  's7-memory-usage
+			  ;'s7-memory-usage ; too slow
 			  's7-safety 
 			  's7-c-types 
 			  ;;'s7-history ;-- causes stack to grow?
@@ -534,7 +528,7 @@
 			  'free1 'free2 'free3
 			  ))
 	 
-      (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" "(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
+      (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" ;;"(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
 		    "(make-block 2)" "(block 1.0 2.0 3.0)" "(block)"
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
@@ -555,16 +549,17 @@
 		    "(string #\\c #\\null #\\b)" "#2d((100 200) (3 4))" "#r(0 1)" "#i2d((101 201) (3 4))" "#r2d((.1 .2) (.3 .4))" "#i1d(15 25)"
 		    "(values 1 2)" "(values)" "(values #\\c 3 1.2)" "(values \"ho\")"
 		    "`(x)" "`(+ x 1)" "`(x 1)" "`((x))" "`((+ x 1))" "`(((+ x 1)))" "`((set! x (+ x 1)) (* x 2))" "`((x 1))" "`(((x 1))) "
-		    "`(x . 1)" "`((x . 1))" "`(1)" "`((1))" "`((1) . x)" "'(- 1)" "(+ i 1)"
+		    "`(x . 1)" "`((x . 1))" "`(1)" "`((1))" "`((1) . x)" ;; "'(- 1)" 
+		    "(+ i 1)"
 		    ;;"'((X . 1) . 2)" "'((x 1) . 2)" "'((x 1) (y . 2))" "'((x 1) y . 2)" "'((x 1) (y) . 2)" "'((x 1 . 2) . 3)" "'((x 1) 2)" "'(((x 1) 2) 3)" 
 		    "'(())" "'((()))" "(random-state 1234)" 
 		    "(c-pointer 0 'integer?)" "(c-pointer -1)" "(c-pointer 1234)"
-		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" "(openlet (inlet 'abs (lambda (x) (- x))))" 
+		    "(inlet 'integer? (lambda (f) #f))" "(inlet 'a 1)" ;;"(openlet (inlet 'abs (lambda (x) (- x))))" 
 		    "'(15 26 . 36)" 
 		    " . "
 		    "((i 0 (+ i 1)))" "(null? i)" 
 		    "(= i 2)" "(zero? i)" "((null? i) i)" "(#t ())" 
-		    "(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" "(or x y)"
+		    ;;"(x => y)" "((0 1) ())" "(- i 1)" "(if x y)" "(or x y)"
 		    ;;"(f x) i" "x y z" "1 2"
 		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
 		    "_definee_" "(_definee_ __var__)" "(_definee_ x)" 
@@ -901,10 +896,6 @@
     (define (try-both str)
       (set! ostr str)
 
-      (if (port-closed? startup-input-port)
-	  (set! startup-input-port (open-input-string "asdf")))
-      (set! (current-input-port) startup-input-port)
-
       (catch #t 
 	(lambda () 
 	  (s7-optimize (list (catch #t 
@@ -928,10 +919,6 @@
 	  (when (current-output-port)
 	    (format *stderr* "current-output-port is ~S from ~S and ~S~%" (current-output-port) str1 str2)
 	    (set! (current-output-port) #f))
-
-	  (unless (eq? (current-input-port) startup-input-port)
-	    (format *stderr* "current-input-port is ~S from ~S and ~S~%" (current-input-port) str1 str2)
-	    (set! (current-input-port) startup-input-port))
 
 	  ;; if val1 examined, remember: (if (and (let? val1) (openlet? val1)); (not (eq? val1 (rootlet)))) (coverlet val1)) ; might be open and have a length func
 	  ))
@@ -1024,6 +1011,7 @@
 	(set! __var__ ((lambda args (car args)) (catch #t (lambda () (eval-string (get-arg))) (lambda () #f))))
 	(if (iterator? __var__) (set! __var__ #f))
 	(set! __old_var__ __var__)
+	;(set! - #_-)
 	))
 
     (test-it)))
