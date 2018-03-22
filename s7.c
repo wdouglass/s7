@@ -10952,16 +10952,6 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, int32_t radix)
   /* (log top 10) so we get all the digits in base 10 (??) */
 }
 
-static s7_pointer number_to_string_p(s7_pointer p)
-{
-  int32_t nlen = 0;
-  char *res;
-  if (!is_number(p))
-    simple_wrong_type_argument_with_type(cur_sc, cur_sc->number_to_string_symbol, p, a_number_string);
-  res = number_to_string_base_10(p, 0, 20, 'g', &nlen, P_WRITE);
-  return(s7_make_string_with_length(cur_sc, res, nlen));
-}
-
 
 static s7_pointer prepare_temporary_string(s7_scheme *sc, int32_t len, int32_t which)
 {
@@ -15558,11 +15548,10 @@ static s7_double add_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double 
 
 static s7_int add_i_ii(s7_int i1, s7_int i2) {return(i1 + i2);}
 static s7_int add_i_iii(s7_int i1, s7_int i2, s7_int i3) {return(i1 + i2 + i3);}
-static s7_double add_d_id(s7_int x1, s7_double x2) {return((s7_double)x1 + x2);}
 
 #if (!WITH_GMP)
 static s7_pointer add_p_dd(s7_double x1, s7_double x2) {return(make_real(cur_sc, x1 + x2));}
-static s7_pointer add_p_ii(s7_int x1, s7_int x2) {return(make_integer(cur_sc, x1 + x2));}
+/* add_p_ii and add_d_id unhittable apparently */
 #endif
 static s7_pointer add_p_pp(s7_pointer p1, s7_pointer p2) {return(g_add_2(cur_sc, set_plist_2(cur_sc, p1, p2)));}
 
@@ -16134,10 +16123,8 @@ static s7_double subtract_d_dd(s7_double x1, s7_double x2) {return(x1 - x2);}
 static s7_double subtract_d_ddd(s7_double x1, s7_double x2, s7_double x3) {return(x1 - x2 - x3);}
 static s7_double subtract_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(x1 - x2 - x3 - x4);}
 
-static s7_double sub_d_id(s7_int x1, s7_double x2) {return((s7_double)x1 - x2);}
 #if (!WITH_GMP)
 static s7_pointer sub_p_dd(s7_double x1, s7_double x2) {return(make_real(cur_sc, x1 - x2));}
-static s7_pointer sub_p_ii(s7_int x1, s7_int x2) {return(make_integer(cur_sc, x1 - x2));}
 #endif
 static s7_pointer subtract_p_pp(s7_pointer p1, s7_pointer p2) {return(g_subtract_2(cur_sc, set_plist_2(cur_sc, p1, p2)));}
 
@@ -16740,10 +16727,8 @@ static s7_double multiply_d_d(s7_double x) {return(x);}
 static s7_double multiply_d_dd(s7_double x1, s7_double x2) {return(x1 * x2);}
 static s7_double multiply_d_ddd(s7_double x1, s7_double x2, s7_double x3) {return(x1 * x2 * x3);}
 static s7_double multiply_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(x1 * x2 * x3 * x4);}
-static s7_double multiply_d_id(s7_int x1, s7_double x2) {return((s7_double)x1 * x2);}
 #if (!WITH_GMP)
 static s7_pointer mul_p_dd(s7_double x1, s7_double x2) {return(make_real(cur_sc, x1 * x2));}
-static s7_pointer mul_p_ii(s7_int x1, s7_int x2) {return(make_integer(cur_sc, multiply_i_ii(x1, x2)));}
 
 static s7_pointer multiply_p_pp(s7_pointer x1, s7_pointer x2) {return(g_multiply_2(cur_sc, set_plist_2(cur_sc, x1, x2)));}
 #endif
@@ -34831,7 +34816,6 @@ s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int *d
   return(p);
 }
 
-
 s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int *dim_info)
 {
   s7_pointer p;
@@ -34840,7 +34824,6 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int 
     vector_dimension_info(p) = make_vdims(sc, true, dims, dim_info);
   return(p);
 }
-
 
 s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *data, int32_t dims, s7_int *dim_info, bool free_data)
 {
@@ -48140,7 +48123,7 @@ static bool i_idp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	      opc->v7.fi = opt_i_i_s;
 	      return(true);
 	    }
-	  return(return_false(sc, car_x, __func__, __LINE__));
+	  /* return(return_false(sc, car_x, __func__, __LINE__)); */
 	}
       else /* is pair arg */
 	{
@@ -48168,14 +48151,16 @@ static bool i_idp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	  if (is_slot(opc->v1.p))
 	    {
 	      if (is_float(slot_value(opc->v1.p)))
-		opc->v7.fi = opt_i_d_s;
-	      else
 		{
-		  if (float_optimize(sc, cdr(car_x)))
-		    opc->v7.fi = opt_i_d_f;
-		  else return(return_false(sc, car_x, __func__, __LINE__));
+		  opc->v7.fi = opt_i_d_s;
+		  return(true);
 		}
-	      return(true);
+	      if (float_optimize(sc, cdr(car_x)))
+		{
+		  opc->v7.fi = opt_i_d_f;
+		  return(true);
+		}
+	      pc_fallback(sc, start);
 	    }
 	}
       else /* is pair arg */
@@ -51158,6 +51143,10 @@ static bool b_pp_ff_combinable(s7_scheme *sc, opt_info *opc)
 
 static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x, s7_pointer arg1, s7_pointer arg2)
 {
+  int32_t cur_index;
+  cur_index = sc->pc;
+  
+  /* fprintf(stderr, "b_pp_ok: %s\n", DISPLAY(car_x)); */
   if ((is_symbol(arg1)) &&
       (is_symbol(arg2)))
     {
@@ -51191,22 +51180,28 @@ static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	    opc->v7.fb = opt_b_pp_sf;
 	  return(true);
 	}
-      return(return_false(sc, car_x, __func__, __LINE__));
+      /* return(return_false(sc, car_x, __func__, __LINE__)); */
+      pc_fallback(sc, cur_index);
     }
-  if (is_symbol(arg2))
+  else
     {
-      if (cell_optimize(sc, cdr(car_x)))
+      if ((is_symbol(arg2)) &&
+	  (is_pair(arg1)))
 	{
-	  opc->v1.p = symbol_to_slot(sc, arg2);
-	  if ((!is_slot(opc->v1.p)) ||
-	      (has_methods(slot_value(opc->v1.p))))
-	    return(return_false(sc, car_x, __func__, __LINE__));
-	  opc->v7.fb = opt_b_pp_fs;
-	  return(true);
+	  if (cell_optimize(sc, cdr(car_x)))
+	    {
+	      opc->v1.p = symbol_to_slot(sc, arg2);
+	      if ((!is_slot(opc->v1.p)) ||
+		  (has_methods(slot_value(opc->v1.p))))
+		return(return_false(sc, car_x, __func__, __LINE__));
+	      opc->v7.fb = opt_b_pp_fs;
+	      return(true);
+	    }
+	  /* return(return_false(sc, car_x, __func__, __LINE__)); */
+	  pc_fallback(sc, cur_index);
 	}
-      return(return_false(sc, car_x, __func__, __LINE__));
     }
-  
+  /* fprintf(stderr, "direct %s\n", DISPLAY(car_x)); */
   if ((cell_optimize(sc, cdr(car_x))) &&
       (cell_optimize(sc, cddr(car_x))))
     {
@@ -52124,6 +52119,7 @@ static s7_pointer opt_p_pp_ff(void *p)
 static bool p_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x, int32_t pstart)
 {
   s7_p_pp_t func;
+
   func = s7_p_pp_function(s_func);
   if (func)
     {
@@ -52173,7 +52169,7 @@ static bool p_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 		  return(true);
 		}
 	      pc_fallback(sc, pstart);
-	      return(return_false(sc, car_x, __func__, __LINE__));			    
+	      return(return_false(sc, car_x, __func__, __LINE__));
 	    }
 	  if ((!is_pair(caddr(car_x))) ||
 	      (is_proper_quote(sc, caddr(car_x))))
@@ -52213,7 +52209,7 @@ static bool p_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 		      return(true);
 		    }
 		  pc_fallback(sc, pstart);
-		  return(return_false(sc, car_x, __func__, __LINE__));			    
+		  return(return_false(sc, car_x, __func__, __LINE__));
 		}
 	    }
 	  if (cell_optimize(sc, cdr(car_x)))
@@ -84343,7 +84339,6 @@ s7_scheme *s7_init(void)
   s7_set_p_p_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_pp);
   s7_set_i_p_function(slot_value(global_slot(sc->port_line_number_symbol)), port_line_number_i_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p);
   s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->cons_symbol)), cons_p_pp);
@@ -84386,9 +84381,6 @@ s7_scheme *s7_init(void)
   s7_set_d_dd_function(slot_value(global_slot(sc->add_symbol)), add_d_dd);
   s7_set_d_dd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_dd);
   s7_set_d_dd_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_dd);
-  s7_set_d_id_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_id);
-  s7_set_d_id_function(slot_value(global_slot(sc->add_symbol)), add_d_id);
-  s7_set_d_id_function(slot_value(global_slot(sc->subtract_symbol)), sub_d_id);
   s7_set_d_dd_function(slot_value(global_slot(sc->divide_symbol)), divide_d_dd);
 #if (!WITH_GMP)
   s7_set_d_dd_function(slot_value(global_slot(sc->atan_symbol)), atan_d_dd);
@@ -84422,9 +84414,6 @@ s7_scheme *s7_init(void)
   s7_set_p_dd_function(slot_value(global_slot(sc->multiply_symbol)), mul_p_dd);
   s7_set_p_dd_function(slot_value(global_slot(sc->add_symbol)), add_p_dd);
   s7_set_p_dd_function(slot_value(global_slot(sc->subtract_symbol)), sub_p_dd);
-  s7_set_p_ii_function(slot_value(global_slot(sc->multiply_symbol)), mul_p_ii);
-  s7_set_p_ii_function(slot_value(global_slot(sc->add_symbol)), add_p_ii);
-  s7_set_p_ii_function(slot_value(global_slot(sc->subtract_symbol)), sub_p_ii);
   s7_set_d_p_function(slot_value(global_slot(sc->angle_symbol)), angle_d_p);
   s7_set_i_d_function(slot_value(global_slot(sc->round_symbol)), round_i_d);
   s7_set_i_d_function(slot_value(global_slot(sc->floor_symbol)), floor_i_d);
@@ -84879,7 +84868,8 @@ int main(int argc, char **argv)
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
  * maybe :display and :write in place of opaque #f/#t object->string (elsewhere?)
- * 33310/37894 2021/2490
+ * 33542/37886 2045/2489 88.5
+ * 33845/37853 2192/2473 89.4
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
