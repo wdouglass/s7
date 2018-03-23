@@ -602,6 +602,8 @@ int main(int argc, char **argv)
 
   if (s7_number_to_integer(sc, p) != 123)
     {fprintf(stderr, "%d: s7_number_to_integer %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+  if (s7_number_to_integer_with_caller(sc, p, "ffitest") != 123)
+    {fprintf(stderr, "%d: s7_number_to_integer_with_caller %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
   s7_gc_unprotect_at(sc, gc_loc);
   
@@ -674,7 +676,10 @@ int main(int argc, char **argv)
     {fprintf(stderr, "%d: s7_number_to_real %s is not 1.5?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
   s7_gc_unprotect_at(sc, gc_loc);
-  
+
+  p = s7_make_mutable_real(sc, 1.5);
+  if (!s7_is_real(p))
+    {fprintf(stderr, "%d: %s is not real?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
   p = s7_make_complex(sc, 1.0, 1.0);
   gc_loc = s7_gc_protect(sc, p);
@@ -732,6 +737,10 @@ int main(int argc, char **argv)
   if (!s7_is_immutable(p))
     fprintf(stderr, "s7_immutable failed?\n");
   s7_gc_unprotect(sc, p);
+
+  p = s7_signature(sc, s7_name_to_value(sc, "abs"));
+  if (!s7_is_pair(p))
+    {fprintf(stderr, "%d: %s is not a pair?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   
 #if 0
   {
@@ -789,6 +798,7 @@ int main(int argc, char **argv)
   free(s1);
   s7_gc_unprotect_at(sc, gc_loc);
   
+  s7_set_default_random_state(sc, 1234, 5678);
   s7_random(sc, NULL);
   s7_stacktrace(sc);
   if (s7_list(sc, 0) != s7_nil(sc))
@@ -799,6 +809,8 @@ int main(int argc, char **argv)
 
   if (!s7_is_vector(p))
     {fprintf(stderr, "%d: %s is not a vector?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+  if (s7_type_of(p) != s7_make_symbol(sc, "vector?"))
+    fprintf(stderr, "type-of(vector) confused?\n");
 
   if (s7_vector_rank(p) != 1)
     {fprintf(stderr, "%d: (dimensions %s) is not 1?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
@@ -851,6 +863,8 @@ int main(int argc, char **argv)
 
   p = s7_list(sc, 3, TO_S7_INT(1), TO_S7_INT(2), TO_S7_INT(3));
   gc_loc = s7_gc_protect(sc, p);
+  if (s7_tree_memq(sc, s7_make_symbol(sc, "oops"), p))
+    fprintf(stderr, "'oops is in the list?\n");
 
   if (!s7_is_list(sc, p))
     {fprintf(stderr, "%d: %s is not a list?\n", __LINE__, s1 = TO_STR(p)); free(s1);}

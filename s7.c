@@ -1263,7 +1263,7 @@ struct s7_scheme {
 #define NO_SAFETY 0
 #define IMMUTABLE_VECTOR_SAFETY 1
 
-typedef enum {P_DISPLAY, P_WRITE, P_READABLE} use_write_t;
+typedef enum {P_DISPLAY, P_WRITE, P_READABLE, P_KEY} use_write_t;
 
 #define INITIAL_AUTOLOAD_NAMES_SIZE 4
 
@@ -1742,7 +1742,7 @@ static s7_scheme *cur_sc = NULL;
   static void set_local_1(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
   {
     if (is_global(symbol))
-      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(current_code(sc)));
+      fprintf(stderr, "%s[%d]: %s%s%s in %s\n", func, line, BOLD_TEXT, DISPLAY(symbol), UNBOLD_TEXT, DISPLAY_80(sc->cur_code)); /* car not defined yet, so no current_code */
     typeflag(symbol) = (typeflag(symbol) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC));
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
@@ -26861,9 +26861,16 @@ static void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
     }
   else
     {
-      if ((use_write == P_READABLE) &&
-	  (!is_keyword(obj)))
-	port_write_character(port)(sc, '\'', port);
+      if (!is_keyword(obj))
+	{
+	  if (use_write == P_READABLE)
+	    port_write_character(port)(sc, '\'', port);
+	  else
+	    {
+	      if (use_write == P_KEY)
+		port_write_character(port)(sc, ':', port);
+	    }
+	}
       if (is_string_port(port))
 	{
 	  uint32_t new_len;
@@ -28016,14 +28023,11 @@ static void slot_list_to_port(s7_scheme *sc, s7_pointer slot, s7_pointer port, s
 {
   if (is_slot(slot))
     {
-      s7_pointer sym, val;
       slot_list_to_port(sc, next_slot(slot), port, ci);
-      sym = slot_symbol(slot);
-      val = slot_value(slot);
-      port_write_string(port)(sc, " :", 2, port);
-      port_write_string(port)(sc, symbol_name(sym), symbol_name_length(sym), port);
+      port_write_character(port)(sc, ' ', port); 
+      symbol_to_port(sc, slot_symbol(slot), port, P_KEY, ci);  /* (object->string (inlet (symbol "(\")") 1) :readable) */
       port_write_character(port)(sc, ' ', port);
-      object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
+      object_to_port_with_circle_check(sc, slot_value(slot), port, P_READABLE, ci);
     }
 }
 
@@ -28036,32 +28040,34 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
       sym = slot_symbol(slot);
       val = slot_value(slot);
 
+      port_write_character(port)(sc, ' ', port);
+      symbol_to_port(sc, sym, port, P_KEY, ci);
       if (has_structure(val))
 	{
 	  char buf[128];
 	  int32_t symref, len;
-	  port_write_string(port)(sc, " :", 2, port);
-	  port_write_string(port)(sc, symbol_name(sym), symbol_name_length(sym), port);
 	  port_write_string(port)(sc, " #f", 3, port);
+
+	  len = snprintf(buf, 128, "  (set! (<%d> ", -peek_shared_ref(ci, obj));
+	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+	  symbol_to_port(sc, sym, ci->cycle_port, P_KEY, ci);
+
 	  symref = peek_shared_ref(ci, val);
 	  if (symref != 0)
 	    {
 	      if (symref < 0) symref = -symref;
-	      len = sprintf(buf, "  (set! (<%d> :%s) <%d>)\n", -peek_shared_ref(ci, obj), symbol_name(sym), symref);
+	      len = snprintf(buf, 128, ") <%d>)\n", symref);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	    }
 	  else
 	    {
-	      len = sprintf(buf, "  (set! (<%d> :%s) ", -peek_shared_ref(ci, obj), symbol_name(sym));
-	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+	      port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 	      object_to_port_with_circle_check(sc, val, ci->cycle_port, P_READABLE, ci);
 	      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 	    }
 	}
       else
 	{
-	  port_write_string(port)(sc, " :", 2, port);
-	  port_write_string(port)(sc, symbol_name(sym), symbol_name_length(sym), port);
 	  port_write_character(port)(sc, ' ', port);
 	  object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
 	}
@@ -28460,9 +28466,16 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
   uint32_t gc_loc;
 
   body = closure_body(obj);
-  if ((sc->safety > NO_SAFETY) &&
-      (tree_is_cyclic(sc, body)))
-    s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "write_closure: body is cyclic"));
+  if (sc->safety > NO_SAFETY)
+    {
+      if (tree_is_cyclic(sc, body))
+	s7_error(sc, sc->wrong_type_arg_symbol, s7_make_string_wrapper(sc, "write_closure: body is cyclic"));
+      /* TODO: if any sequence in the closure_body is cyclic, complain, but how to check without clobbering ci? 
+       *   perhaps pass ci, and use make_shared_info if ci=null else continue_shared_info?
+       *   this can happen only if (apply lambda ... cyclic-seq ...) I think
+       *   long-term we need to include closure_body(obj) in the top object_out make_shared_info
+       */
+    }
   
   arglist = closure_args(obj);
   pe = closure_let(obj);
@@ -41406,25 +41419,20 @@ static bool iterator_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
   return(iterator_equal_1(sc, x, y, ci, true));
 }
 
+#if WITH_GMP
 static bool bignum_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (!s7_is_number(y)) return(false);
-#if WITH_GMP
   return(big_numbers_are_eqv(x, y));
-#else
-  return(false);
-#endif
 }
 
 static bool bignum_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (!s7_is_number(y)) return(false);
-#if WITH_GMP
   return(big_equal(sc, set_plist_2(sc, x, y)) != sc->F);
-#else
   return(false);
-#endif
 }
+#endif
 
 static bool integer_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
@@ -41643,11 +41651,12 @@ static void init_equals(void)
   equals[T_RATIO] =        fraction_equal;
   equals[T_REAL] =         real_equal;
   equals[T_COMPLEX] =      complex_equal;
+#if WITH_GMP
   equals[T_BIG_INTEGER] =  bignum_equal;
   equals[T_BIG_RATIO] =    bignum_equal;
   equals[T_BIG_REAL] =     bignum_equal;
   equals[T_BIG_COMPLEX] =  bignum_equal;
-
+#endif
   morally_equals[T_SYMBOL] =       symbol_morally_equal;
   morally_equals[T_C_POINTER] =    c_pointer_morally_equal;
   morally_equals[T_UNSPECIFIED] =  unspecified_equal;
@@ -41675,10 +41684,12 @@ static void init_equals(void)
   morally_equals[T_RATIO] =        fraction_morally_equal;
   morally_equals[T_REAL] =         real_morally_equal;
   morally_equals[T_COMPLEX] =      complex_morally_equal;
+#if WITH_GMP
   morally_equals[T_BIG_INTEGER] =  bignum_morally_equal;
   morally_equals[T_BIG_RATIO] =    bignum_morally_equal;
   morally_equals[T_BIG_REAL] =     bignum_morally_equal;
   morally_equals[T_BIG_COMPLEX] =  bignum_morally_equal;
+#endif
 }
 
 static bool s7_is_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -53325,7 +53336,6 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 		}
 	    }
 	  atype = opt_arg_type(sc, cddr(car_x));
-	  
 	  if ((is_some_number(sc, atype)) && 
 	      (!is_some_number(sc, stype))) 
 	    return(return_false(sc, car_x, __func__, __LINE__));
@@ -55690,6 +55700,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	  start = sc->pc;
 	  sig = c_function_signature(s_func);
 	  opc = alloc_opo(sc, car_x);
+
 	  switch (len)
 	    {
 	    case 1:
@@ -55798,7 +55809,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 		    }
 		  pc_fallback(sc, pstart);
 		}
-
+	      
 	      if ((p_ppi_ok(sc, opc, s_func, car_x)) ||
 		  (p_ppp_ok(sc, opc, s_func, car_x)) ||
 		  (p_cf_ppp_ok(sc, opc, s_func, car_x)))
@@ -84854,6 +84865,7 @@ int main(int argc, char **argv)
  *   (define (f2) #(0)) (set! ((f2) 0) (f2))
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
+ *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   see t752.scm for more examples etc
  * strings/port-positions are uint32_t, but s7_make_string_with_length is int32_t -- why not s7_int?
  *   vector length is int64_t
@@ -84869,7 +84881,7 @@ int main(int argc, char **argv)
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
  * maybe :display and :write in place of opaque #f/#t object->string (elsewhere?)
  * 33542/37886 2045/2489 88.5
- * 33845/37853 2192/2473 89.4
+ * 33980/37841 2217/2471 89.8
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84908,7 +84920,7 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1162
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1489
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1892
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2129
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2112
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2546
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2654
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8
