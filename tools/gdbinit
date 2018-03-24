@@ -268,15 +268,15 @@ define s7cell
   end
 
   if (($type == T_CLOSURE) || ($type == T_CLOSURE_STAR) || ($type == T_MACRO) || ($type == T_BACRO) || ($is_bad_type))
-      printf "func:           args: %p, body: %p, env: %p, setter: %p, arity: %d, opt_addr: %d\n", \
-         $cell.object.func.args, $cell.object.func.body, $cell.object.func.env, $cell.object.func.setter, \
+      printf "func:           args: %p, body: %p, env: %p, arity: %d, opt_addr: %d\n", \
+         $cell.object.func.args, $cell.object.func.body, $cell.object.func.env, \
 	 $cell.object.func.arity, $cell.object.func.opt_addr
   end
  
   if (($type >= T_C_FUNCTION_STAR) || ($is_bad_type))
-      printf "c-fnc:          c_proc: %p, ff: %p, setter: %p,\n                required_args: %d, optional_args: %d, all_args: %d, rest_arg: %d\n", \
-         $cell.object.fnc.c_proc, $cell.object.fnc.ff, $cell.object.fnc.setter, \
-         $cell.object.fnc.required_args, $cell.object.fnc.optional_args, $cell.object.fnc.all_args, $cell.object.fnc.rest_arg
+      printf "c-fnc:          c_proc: %p, ff: %p,\n                required_args: %d, optional_args: %d, all_args: %d\n", \
+         $cell.object.fnc.c_proc, $cell.object.fnc.ff, \
+         $cell.object.fnc.required_args, $cell.object.fnc.optional_args, $cell.object.fnc.all_args
       if ((!$is_bad_type) && ($cell.object.fnc.c_proc != 0))
          printf "                name: %s\n", $cell.object.fnc.c_proc->name
   end

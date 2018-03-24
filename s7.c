@@ -500,11 +500,9 @@ typedef struct {
   int32_t name_length;
   uint32_t id;
   char *doc;
-  s7_pointer generic_ff;
-  s7_pointer signature;
+  s7_pointer generic_ff, setter, signature, call_args;
   s7_pointer (*chooser)(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops);
   s7_pointer *arg_defaults, *arg_names;  /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
-  s7_pointer call_args;
   opt_funcs *opt_data;
 } c_proc_t;
 
@@ -516,7 +514,7 @@ typedef struct {               /* call/cc */
 
 
 typedef struct vdims_t {
-  uint32_t ndims;
+  s7_int ndims;
   bool elements_allocated, dimensions_allocated; /* these are allocated as bytes, not ints, so the struct size is 32 */
   s7_int *dims, *offsets;
   s7_pointer original;
@@ -754,9 +752,7 @@ typedef struct s7_cell {
     struct {
       c_proc_t *c_proc;              /* C functions, macros */
       s7_function ff;
-      s7_pointer setter;
-      uint32_t required_args, optional_args, all_args;
-      bool rest_arg;
+      s7_int required_args, optional_args, all_args;
     } fnc;
 
     struct {                         /* pairs */
@@ -1052,7 +1048,7 @@ struct s7_scheme {
 
   void (*begin_hook)(s7_scheme *sc, bool *val);
 
-  int32_t current_line, s7_call_line, safety;
+  s7_int current_line, s7_call_line, safety;
   const char *current_file, *s7_call_file, *s7_call_name;
 
   shared_info *circle_info;
@@ -1243,9 +1239,9 @@ struct s7_scheme {
 
   s7_pointer autoload_table, libraries, profile_info, s7_let;
   const char ***autoload_names;
-  int32_t *autoload_names_sizes;
+  s7_int *autoload_names_sizes;
   bool **autoloaded_already;
-  int32_t autoload_names_loc, autoload_names_top;
+  s7_int autoload_names_loc, autoload_names_top;
   port_t *port_heap;
   int32_t format_depth;
 
@@ -2197,8 +2193,8 @@ static int64_t not_heap = -1;
 #define opt_lambda_unchecked(P)       opt1(P,                    E_LAMBDA) /* can be free/null? from s7_call? */
 #define opt_lambda(P)                 _TClo(opt1(P,              E_LAMBDA))
 #define set_opt_lambda(P, X)          set_opt1(P, _NFre(X),      E_LAMBDA)
-#define opt_goto(P)                   _TGot(opt1(P,              E_GOTO))
-#define set_opt_goto(P, X)            set_opt1(P, _TGot(X),      E_GOTO)
+#define opt_goto(P)                   _NFre(opt1(P,              E_GOTO))  /* used when checking for non-goto unknown in eval, so can't be _TGot */
+#define set_opt_goto(P, X)            set_opt1(P, _NFre(X),      E_GOTO)
 #define opt_clause(P)                 _NFre(opt1(P,              E_CLAUSE))
 #define set_opt_clause(P, X)          set_opt1(P, _NFre(X),      E_CLAUSE)
 #define opt_sym1(P)                   _TSym(opt1(P,              E_SYM))
@@ -2567,14 +2563,13 @@ static int64_t not_heap = -1;
 #define c_function_call(f)            (_TFnc(f))->object.fnc.ff
 #define c_function_required_args(f)   (_TFnc(f))->object.fnc.required_args
 #define c_function_optional_args(f)   (_TFnc(f))->object.fnc.optional_args
-#define c_function_has_rest_arg(f)    (_TFnc(f))->object.fnc.rest_arg
 #define c_function_all_args(f)        (_TFnc(f))->object.fnc.all_args
-#define c_function_setter(f)          _TApp((_TFnc(f))->object.fnc.setter)
-#define c_function_set_setter(f, Val) (_TFnc(f))->object.fnc.setter = _TApp(Val)
 #define c_function_name(f)            c_function_data(f)->name
 #define c_function_name_length(f)     c_function_data(f)->name_length
 #define c_function_documentation(f)   c_function_data(f)->doc
 #define c_function_signature(f)       c_function_data(f)->signature
+#define c_function_setter(f)          _TApp(c_function_data(f)->setter)
+#define c_function_set_setter(f, Val) c_function_data(f)->setter = _TApp(Val)
 #define c_function_class(f)           c_function_data(f)->id
 #define c_function_chooser(f)         c_function_data(f)->chooser
 #define c_function_base(f)            _TApp(c_function_data(f)->generic_ff)
@@ -2592,8 +2587,8 @@ static int64_t not_heap = -1;
 #define c_macro_name_length(f)        c_macro_data(f)->name_length
 #define c_macro_required_args(f)      (_TMac(f))->object.fnc.required_args
 #define c_macro_all_args(f)           (_TMac(f))->object.fnc.all_args
-#define c_macro_setter(f)             _TApp((_TMac(f))->object.fnc.setter)
-#define c_macro_set_setter(f, Val)    (_TMac(f))->object.fnc.setter = _TApp(Val)
+#define c_macro_setter(f)             _TApp(c_macro_data(f)->setter)
+#define c_macro_set_setter(f, Val)    c_macro_data(f)->setter = _TApp(Val)
 
 #define is_random_state(p)            (type(p) == T_RANDOM_STATE)
 #if WITH_GMP
@@ -3670,11 +3665,6 @@ static s7_pointer immutable_object_error(s7_scheme *sc, s7_pointer info) {return
   do {static s7_pointer _Err_ = NULL;				\
       if (!_Err_) _Err_ = s7_make_permanent_string(ErrMsg);		\
       return(s7_error(Sc, Sc->syntax_error_symbol, set_elist_4(Sc, _Err_, Caller, Name, Obj)));} while (0)
-
-#define eval_error_with_caller_and_print_limit(Sc, ErrMsg, Caller, Obj)	\
-  do {static s7_pointer _Err_ = NULL; \
-      if (!_Err_) _Err_ = s7_make_permanent_string(ErrMsg); \
-      return(s7_error(Sc, Sc->syntax_error_symbol, set_elist_3(Sc, _Err_, Caller, print_truncate(Sc, Obj))));} while (0)
 
 static s7_pointer set_elist_1(s7_scheme *sc, s7_pointer x1)
 {
@@ -6873,7 +6863,7 @@ static void save_unlet(s7_scheme *sc)
 static s7_pointer g_unlet(s7_scheme *sc, s7_pointer args)
 {
   /* add sc->unlet bindings to the current environment */
-  #define H_unlet "(unlet) establishes the original bindings of all the predefined functions"
+  #define H_unlet "(unlet) returns a let that establishes the original bindings of all the predefined functions"
   #define Q_unlet s7_make_signature(sc, 1, sc->is_let_symbol)
 
   /* slightly confusing:
@@ -10945,7 +10935,7 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32_t 
 }
 
 
-char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, int32_t radix)
+char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix)
 {
   int32_t nlen = 0;
   return(number_to_string_with_radix(sc, obj, radix, 0, 20, 'g', &nlen));
@@ -24750,7 +24740,7 @@ static void leave_lock_scope(lock_scope_t *st)
 
 static FILE *search_load_path(s7_scheme *sc, const char *name)
 {
-  int32_t i, len;
+  s7_int i, len;
   s7_pointer lst;
 
   lst = s7_load_path(sc);
@@ -25036,7 +25026,7 @@ static s7_pointer g_cload_directory_set(s7_scheme *sc, s7_pointer args)
 
 
 /* ---------------- autoload ---------------- */
-void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
+void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
 {
   /* the idea here is that by sticking to string constants we can handle 90% of the work at compile-time,
    *   with less start-up memory.  Then eventually we'll add C libraries a la xg (gtk) as environments
@@ -25071,7 +25061,7 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
   if (!sc->autoload_names)
     {
       sc->autoload_names = (const char ***)calloc(INITIAL_AUTOLOAD_NAMES_SIZE, sizeof(const char **));
-      sc->autoload_names_sizes = (int32_t *)calloc(INITIAL_AUTOLOAD_NAMES_SIZE, sizeof(int32_t));
+      sc->autoload_names_sizes = (s7_int *)calloc(INITIAL_AUTOLOAD_NAMES_SIZE, sizeof(s7_int));
       sc->autoloaded_already = (bool **)calloc(INITIAL_AUTOLOAD_NAMES_SIZE, sizeof(bool *));
       sc->autoload_names_top = INITIAL_AUTOLOAD_NAMES_SIZE;
       sc->autoload_names_loc = 0;
@@ -25080,10 +25070,10 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
     {
       if (sc->autoload_names_loc >= sc->autoload_names_top)
 	{
-	  int32_t i;
+	  s7_int i;
 	  sc->autoload_names_top *= 2;
 	  sc->autoload_names = (const char ***)realloc(sc->autoload_names, sc->autoload_names_top * sizeof(const char **));
-	  sc->autoload_names_sizes = (int32_t *)realloc(sc->autoload_names_sizes, sc->autoload_names_top * sizeof(int32_t));
+	  sc->autoload_names_sizes = (s7_int *)realloc(sc->autoload_names_sizes, sc->autoload_names_top * sizeof(s7_int));
 	  sc->autoloaded_already = (bool **)realloc(sc->autoloaded_already, sc->autoload_names_top * sizeof(bool *));
 	  for (i = sc->autoload_names_loc; i < sc->autoload_names_top; i++)
 	    {
@@ -25102,7 +25092,7 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, int32_t size)
 
 static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *already_loaded, bool loading)
 {
-  int32_t l = 0, pos = -1, lib, libs;
+  s7_int l = 0, pos = -1, lib, libs;
   const char *name, *this_name;
 
   name = symbol_name(symbol);
@@ -25111,13 +25101,13 @@ static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *al
   for (lib = 0; lib < libs; lib++)
     {
       const char **names;
-      int32_t u;
+      s7_int u;
       u = sc->autoload_names_sizes[lib] - 1;
       names = sc->autoload_names[lib];
 
       while (true)
 	{
-	  int32_t comp;
+	  s7_int comp;
 	  if (u < l) break;
 	  pos = (l + u) / 2;
 	  this_name = names[pos * 2];
@@ -27032,7 +27022,7 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
     }
   else
     {
-      uint32_t dim;
+      s7_int dim;
       plen = snprintf(buf, 128, "(make-%svector '(", vtyp);
       port_write_string(port)(sc, buf, plen, port);
       for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
@@ -27057,7 +27047,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%uD()", vector_ndims(vect));
+	  plen = snprintf(buf, 32, "#%" PRId64 "D()", vector_ndims(vect));
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else port_write_string(port)(sc, "#()", 3, port);
@@ -27070,7 +27060,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (vector_rank(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%uD(...)", vector_ndims(vect));
+	      plen = snprintf(buf, 32, "#%" PRId64 "D(...)", vector_ndims(vect));
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_string(port)(sc, "#(...)", 6, port);
@@ -27187,7 +27177,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
 	  if (vector_rank(vect) > 1)
 	    {
-	      uint32_t dim;
+	      s7_int dim;
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
@@ -27219,7 +27209,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  
 	  if (vector_rank(vect) > 1)
 	    {
-	      uint32_t dim;
+	      s7_int dim;
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
@@ -27239,7 +27229,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  bool last = false;
 	  if (vector_ndims(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%uD", vector_ndims(vect));
+	      plen = snprintf(buf, 32, "#%" PRId64 "D", vector_ndims(vect));
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_character(port)(sc, '#', port);
@@ -27271,7 +27261,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
   if (len == 0)
     {
       if (vector_rank(vect) > 1)
-	plen = snprintf(buf, 32, "#%c%uD()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+	plen = snprintf(buf, 32, "#%c%" PRId64 "D()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
       else plen = snprintf(buf, 32, "#%c()", (is_int_vector(vect)) ? 'i' : 'r');
       port_write_string(port)(sc, buf, plen, port);
       return(-1);
@@ -27284,7 +27274,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%c%uD(...)", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+	  plen = snprintf(buf, 32, "#%c%" PRId64 "D(...)", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else 
@@ -27390,7 +27380,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#i%uD", vector_ndims(vect));
+    plen = snprintf(buf, 32, "#i%" PRId64 "D", vector_ndims(vect));
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -27459,7 +27449,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#r%uD", vector_ndims(vect));
+    plen = snprintf(buf, 32, "#r%" PRId64 "D", vector_ndims(vect));
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -29995,39 +29985,8 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-
-#if S7_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-#if S7_DEBUGGING
-  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
-   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
-   *   and abort leaving us pointers we can decode.
-   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
-   *   so... let's try 100000 for starters.
-   */
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
   if ((ci) &&
       (has_structure(vr)))
     {
@@ -31680,9 +31639,9 @@ static s7_pointer permanent_cons(s7_pointer a, s7_pointer b, uint64_t type)
   return(x);
 }
 
-static s7_pointer permanent_list(s7_scheme *sc, int32_t len)
+static s7_pointer permanent_list(s7_scheme *sc, s7_int len)
 {
-  int32_t j;
+  s7_int j;
   s7_pointer p;
   p = sc->nil;
   for (j = 0; j < len; j++)
@@ -31708,7 +31667,7 @@ static void check_sig_entry(s7_scheme *sc, s7_pointer p, s7_pointer res, bool ci
     }
 }
 
-s7_pointer s7_make_signature(s7_scheme *sc, int32_t len, ...)
+s7_pointer s7_make_signature(s7_scheme *sc, s7_int len, ...)
 {
   va_list ap;
   s7_pointer p, res;
@@ -31725,10 +31684,10 @@ s7_pointer s7_make_signature(s7_scheme *sc, int32_t len, ...)
   return((s7_pointer)res);
 }
 
-s7_pointer s7_make_circular_signature(s7_scheme *sc, int32_t cycle_point, int32_t len, ...)
+s7_pointer s7_make_circular_signature(s7_scheme *sc, s7_int cycle_point, s7_int len, ...)
 {
   va_list ap;
-  int32_t i;
+  s7_int i;
   s7_pointer p, res, back = NULL, end = NULL;
 
   res = permanent_list(sc, len);
@@ -32096,9 +32055,9 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 /* -------------------------------------------------------------------------------- */
 
 
-s7_pointer s7_list_ref(s7_scheme *sc, s7_pointer lst, int32_t num)
+s7_pointer s7_list_ref(s7_scheme *sc, s7_pointer lst, s7_int num)
 {
-  int32_t i;
+  s7_int i;
   s7_pointer x;
   for (x = lst, i = 0; (i < num) && (is_pair(x)); i++, x = cdr(x)) {}
   if ((i == num) && (is_pair(x)))
@@ -32107,9 +32066,9 @@ s7_pointer s7_list_ref(s7_scheme *sc, s7_pointer lst, int32_t num)
 }
 
 
-s7_pointer s7_list_set(s7_scheme *sc, s7_pointer lst, int32_t num, s7_pointer val)
+s7_pointer s7_list_set(s7_scheme *sc, s7_pointer lst, s7_int num, s7_pointer val)
 {
-  int32_t i;
+  s7_int i;
   s7_pointer x;
   for (x = lst, i = 0; (i < num) && (is_pair(x)); i++, x = cdr(x)) {}
   if ((i == num) &&
@@ -32374,7 +32333,6 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, tree_count_at_least(sc, obj, tree, 0, s7_integer(count))));
 }
 
-
 static s7_pointer print_truncate(s7_scheme *sc, s7_pointer code)
 {
   if (tree_len(sc, code) > sc->print_length)
@@ -32605,16 +32563,16 @@ static s7_pointer revappend(s7_scheme *sc, s7_pointer a, s7_pointer b)
   return(p);
 }
 
-static int32_t safe_list_length(s7_scheme *sc, s7_pointer a)
+static s7_int safe_list_length(s7_scheme *sc, s7_pointer a)
 {
   /* assume that "a" is a proper list */
-  int32_t i = 0;
+  s7_int i = 0;
   s7_pointer b;
   for (b = a; is_pair(b); i++, b = cdr(b)) {};
   return(i);
 }
 
-int s7_list_length(s7_scheme *sc, s7_pointer a)
+s7_int s7_list_length(s7_scheme *sc, s7_pointer a)
 {
   /* returns -len if list is dotted, 0 if it's (directly) circular */
   int32_t i;
@@ -34104,7 +34062,7 @@ static s7_pointer memq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
   if ((is_proper_quote(sc, caddr(expr))) &&
       (is_pair(cadr(caddr(expr)))))
     {
-      int32_t len;
+      s7_int len;
       len = s7_list_length(sc, cadr(caddr(expr)));
 
       if ((ops) && (is_h_safe_c_s(cadr(expr))) &&
@@ -34486,9 +34444,9 @@ static void check_list_validity(s7_scheme *sc, const char *caller, s7_pointer ls
       fprintf(stderr, "bad arg (#%d) to %s: %p\n", i, caller, car(p));
 }
 
-s7_pointer s7_list(s7_scheme *sc, int32_t num_values, ...)
+s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...)
 {
-  int32_t i;
+  s7_int i;
   va_list ap;
   s7_pointer p;
 
@@ -34786,7 +34744,7 @@ static vdims_t *make_wrap_only(s7_scheme *sc)
 
 #define make_vdims(Sc, Alloc, Dims, Info) ((((Dims) == 1) && (!(Alloc))) ? sc->wrap_only : make_vdims_1(Sc, Alloc, Dims, Info))
 
-static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, int32_t dims, s7_int *dim_info)
+static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims, s7_int *dim_info)
 {
   vdims_t *v;
 
@@ -34820,7 +34778,7 @@ static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, int32_t dim
 }
 
 
-s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int *dim_info)
+s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info)
 {
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_INT_VECTOR);
@@ -34829,7 +34787,7 @@ s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int *d
   return(p);
 }
 
-s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int *dim_info)
+s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info)
 {
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_FLOAT_VECTOR);
@@ -34838,7 +34796,7 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, int32_t dims, s7_int 
   return(p);
 }
 
-s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *data, int32_t dims, s7_int *dim_info, bool free_data)
+s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *data, s7_int dims, s7_int *dim_info, bool free_data)
 {
   /* this wraps up a C-allocated/freed double array as an s7 vector. */
   s7_pointer x;
@@ -35220,10 +35178,10 @@ static s7_pointer vector_append_p_ppp(s7_pointer p1, s7_pointer p2, s7_pointer p
 }
 #endif
 
-s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, int32_t indices, ...)
+s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, s7_int indices, ...)
 {
   /* from s7.html */
-  int32_t ndims;
+  s7_int ndims;
 
   ndims = s7_vector_rank(vector);
   if (ndims == indices)
@@ -35240,7 +35198,7 @@ s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, int32_t indices, ..
 	}
       else
 	{
-	  int32_t i;
+	  s7_int i;
 	  s7_int *offsets, *dimensions;
 
 	  dimensions = s7_vector_dimensions(vector);
@@ -35248,8 +35206,8 @@ s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, int32_t indices, ..
 
 	  for (i = 0; i < indices; i++)
 	    {
-	      int32_t ind;
-	      ind = va_arg(ap, int);
+	      s7_int ind;
+	      ind = va_arg(ap, s7_int);
 	      if ((ind < 0) ||
 		  (ind >= dimensions[i]))
 		{
@@ -35265,9 +35223,9 @@ s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, int32_t indices, ..
   return(s7_wrong_number_of_args_error(sc, "s7_vector_ref_n: wrong number of indices: ~A", s7_make_integer(sc, indices)));
 }
 
-s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, int32_t indices, ...)
+s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, s7_int indices, ...)
 {
-  int32_t ndims;
+  s7_int ndims;
 
   ndims = s7_vector_rank(vector);
   if (ndims == indices)
@@ -35285,7 +35243,7 @@ s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, i
 	}
       else
 	{
-	  int32_t i;
+	  s7_int i;
 	  s7_int *offsets, *dimensions;
 
 	  dimensions = s7_vector_dimensions(vector);
@@ -35294,7 +35252,7 @@ s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, i
 	  for (i = 0; i < indices; i++)
 	    {
 	      int32_t ind;
-	      ind = va_arg(ap, int);
+	      ind = va_arg(ap, s7_int);
 	      if ((ind < 0) ||
 		  (ind >= dimensions[i]))
 		{
@@ -35692,7 +35650,7 @@ static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indice
 
   if (vector_rank(vect) > 1)
     {
-      uint32_t i;
+      s7_int i;
       s7_pointer x;
       for (x = indices, i = 0; (is_not_null(x)) && (i < vector_ndims(vect)); x = cdr(x), i++)
 	{
@@ -35875,7 +35833,7 @@ static s7_pointer g_vector_set(s7_scheme *sc, s7_pointer args)
 
   if (vector_rank(vec) > 1)
     {
-      uint32_t i;
+      s7_int i;
       s7_pointer x;
       index = 0;
       for (x = cdr(args), i = 0; (is_not_null(cdr(x))) && (i < vector_ndims(vec)); x = cdr(x), i++)
@@ -36058,7 +36016,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 	len = s7_integer(car(x));
       else
 	{
-	  int32_t dims;
+	  s7_int dims;
 	  s7_pointer y;
 
 	  dims = s7_list_length(sc, x);
@@ -36269,7 +36227,7 @@ static s7_pointer g_vector_dimensions(s7_scheme *sc, s7_pointer args)
 
   if (vector_rank(x) > 1)
     {
-      int32_t i;
+      s7_int i;
       sc->w = sc->nil;
       for (i = vector_ndims(x) - 1; i >= 0; i--)
 	sc->w = cons(sc, make_integer(sc, vector_dimension(x, i)), sc->w);
@@ -36497,7 +36455,7 @@ static s7_pointer univect_ref(s7_scheme *sc, s7_pointer args, bool flt)
     }
   else
     {
-      uint32_t i;
+      s7_int i;
       s7_pointer x;
       ind = 0;
       for (x = cdr(args), i = 0; (is_not_null(x)) && (i < vector_ndims(v)); x = cdr(x), i++)
@@ -36548,7 +36506,7 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, bool flt)
 
   if (vector_rank(vec) > 1)
     {
-      uint32_t i;
+      s7_int i;
       s7_pointer x;
       index = 0;
       for (x = cdr(args), i = 0; (is_not_null(cdr(x))) && (i < vector_ndims(vec)); x = cdr(x), i++)
@@ -38747,7 +38705,7 @@ static s7_pointer g_hash_table_star(s7_scheme *sc, s7_pointer args)
 That is, (hash-table* 'a 1 'b 2) returns a new hash-table with the two key/value pairs preinstalled."
   #define Q_hash_table_star s7_make_circular_signature(sc, 1, 2, sc->is_hash_table_symbol, sc->T)
 
-  int32_t len;
+  s7_int len;
   s7_pointer ht;
 
   len = safe_list_length(sc, args);
@@ -38955,7 +38913,7 @@ static void s7_function_set_class(s7_pointer f, s7_pointer base_f)
 
 static int32_t c_functions = 0;
 
-s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
+s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   c_proc_t *ptr;
   uint32_t ftype = T_C_FUNCTION;
@@ -38999,7 +38957,6 @@ s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, int3
 
   c_function_required_args(x) = required_args;
   c_function_optional_args(x) = optional_args; /* T_C_FUNCTION_STAR type may be set later, so _TFst not usable here */
-  c_function_has_rest_arg(x) = rest_arg;
   if (rest_arg)
     c_function_all_args(x) = MAX_ARITY;
   else c_function_all_args(x) = required_args + optional_args;
@@ -39012,7 +38969,7 @@ s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, int3
 }
 
 s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f, 
-				 int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
+				 s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   s7_pointer p;
   p = s7_make_function(sc, name, f, required_args, optional_args, rest_arg, doc);
@@ -39022,7 +38979,7 @@ s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f,
 
 
 s7_pointer s7_make_typed_function(s7_scheme *sc, const char *name, s7_function f, 
-				  int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc, s7_pointer signature)
+				  s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc, s7_pointer signature)
 {
   s7_pointer func;
   func = s7_make_function(sc, name, f, required_args, optional_args, rest_arg, doc);
@@ -39155,7 +39112,7 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
 
 
 s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc,
-			      int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
+			      s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   s7_pointer func, sym;
   func = s7_make_function(sc, name, fnc, required_args, optional_args, rest_arg, doc);
@@ -39166,7 +39123,7 @@ s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc,
 
 
 s7_pointer s7_define_safe_function(s7_scheme *sc, const char *name, s7_function fnc,
-				   int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
+				   s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   /* returns (string->symbol name), not the c_proc_t func */
   s7_pointer func, sym;
@@ -39178,7 +39135,7 @@ s7_pointer s7_define_safe_function(s7_scheme *sc, const char *name, s7_function 
 
 
 s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function fnc,
-				    int32_t required_args, int32_t optional_args, bool rest_arg, 
+				    s7_int required_args, s7_int optional_args, bool rest_arg, 
 				    const char *doc, s7_pointer signature)
 {
   /* returns (string->symbol name), not the c_proc_t func */
@@ -39191,7 +39148,7 @@ s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function
 
 
 s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_function fnc,
-					   int32_t required_args, int32_t optional_args, bool rest_arg, 
+					   s7_int required_args, s7_int optional_args, bool rest_arg, 
 					   const char *doc, s7_pointer signature)
 {
   /* returns (string->symbol name), not the c_proc_t func */
@@ -39205,7 +39162,7 @@ s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_f
 
 
 s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
-			   int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
+			   s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   s7_pointer func, sym;
   func = s7_make_function(sc, name, fnc, required_args, optional_args, rest_arg, doc);
@@ -39851,9 +39808,9 @@ static s7_pointer c_object_type_to_let(s7_scheme *sc, s7_pointer cobj)
 s7_pointer s7_dilambda(s7_scheme *sc,
 		       const char *name,
 		       s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
-		       int32_t get_req_args, int32_t get_opt_args,
+		       s7_int get_req_args, s7_int get_opt_args,
 		       s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
-		       int32_t set_req_args, int32_t set_opt_args,
+		       s7_int set_req_args, s7_int set_opt_args,
 		       const char *documentation)
 {
   s7_pointer get_func, set_func;
@@ -39875,9 +39832,9 @@ s7_pointer s7_dilambda(s7_scheme *sc,
 s7_pointer s7_typed_dilambda(s7_scheme *sc,
 			     const char *name,
 			     s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
-			     int32_t get_req_args, int32_t get_opt_args,
+			     s7_int get_req_args, s7_int get_opt_args,
 			     s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
-			     int32_t set_req_args, int32_t set_opt_args,
+			     s7_int set_req_args, s7_int set_opt_args,
 			     const char *documentation,
 			     s7_pointer get_sig, s7_pointer set_sig)
 {
@@ -40111,7 +40068,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
  */
 
 #if (!DISABLE_DEPRECATED)
-void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, s7_function set_fnc, int32_t req_args, int32_t opt_args, const char *doc)
+void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, s7_function set_fnc, s7_int req_args, s7_int opt_args, const char *doc)
 {
   s7_dilambda(sc, name, get_fnc, req_args, opt_args, set_fnc, req_args + 1, opt_args, doc);
 }
@@ -40284,7 +40241,7 @@ static s7_pointer g_arity(s7_scheme *sc, s7_pointer args)
 static bool closure_is_aritable(s7_scheme *sc, s7_pointer x, s7_pointer x_args, int32_t args)
 {
   /* x_args is unprocessed -- it is exactly the list as used in the closure definition */
-  int32_t len;
+  s7_int len;
 
   if (args == 0)
     return(!is_pair(x_args));
@@ -40313,19 +40270,19 @@ static bool closure_star_is_aritable(s7_scheme *sc, s7_pointer x, s7_pointer x_a
 	 (args <= closure_arity(x)));
 }
 
-bool s7_is_aritable(s7_scheme *sc, s7_pointer x, int32_t args)
+bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
 {
   switch (type(x))
     {
     case T_C_RST_ARGS_FUNCTION:
     case T_C_FUNCTION:
-      return(((int32_t)c_function_required_args(x) <= args) &&
-	     ((int32_t)c_function_all_args(x) >= args));
+      return((c_function_required_args(x) <= args) &&
+	     (c_function_all_args(x) >= args));
 
     case T_C_OPT_ARGS_FUNCTION: /* any/opt req args == 0 */
     case T_C_ANY_ARGS_FUNCTION:
     case T_C_FUNCTION_STAR:
-      return((int32_t)c_function_all_args(x) >= args);
+      return(c_function_all_args(x) >= args);
 
     case T_MACRO:
     case T_BACRO:
@@ -40338,8 +40295,8 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, int32_t args)
       return(closure_star_is_aritable(sc, x, closure_args(x), args));
 
     case T_C_MACRO:
-      return(((int32_t)c_macro_required_args(x) <= args) &&
-	     ((int32_t)c_macro_all_args(x) >= args));
+      return((c_macro_required_args(x) <= args) &&
+	     (c_macro_all_args(x) >= args));
 
     case T_GOTO:
     case T_CONTINUATION:
@@ -40393,7 +40350,7 @@ static s7_pointer g_is_aritable(s7_scheme *sc, s7_pointer args)
     return(out_of_range(sc, sc->is_aritable_symbol, small_int(2), n, its_negative_string));
   if (num > MAX_ARITY) num = MAX_ARITY;
 
-  return(make_boolean(sc, s7_is_aritable(sc, car(args), (int32_t)num)));
+  return(make_boolean(sc, s7_is_aritable(sc, car(args), num)));
 }
 
 static bool is_aritable_b_pp(s7_pointer f, s7_pointer i) {return(g_is_aritable(cur_sc, set_plist_2(cur_sc, f, i)) != cur_sc->F);}
@@ -41162,7 +41119,7 @@ static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 
 static bool vector_rank_match(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  int32_t x_dims, y_dims;
+  s7_int x_dims, y_dims;
 
   if (vector_has_dimensional_info(x))
     x_dims = vector_ndims(x);
@@ -41176,7 +41133,7 @@ static bool vector_rank_match(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
   if (x_dims > 1)
     {
-      int32_t j;
+      s7_int j;
       for (j = 0; j < x_dims; j++)
 	if (vector_dimension(x, j) != vector_dimension(y, j))
 	  return(false);
@@ -42851,7 +42808,7 @@ static s7_int sequence_length(s7_scheme *sc, s7_pointer lst)
     {
     case T_PAIR:
       {
-	int32_t len;
+	s7_int len;
 	len = s7_list_length(sc, lst);
 	if (len == 0) return(-1);
 	return(len);
@@ -45417,7 +45374,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	    {
 	      len = safe_strlen(recent_input) + safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 64;
 	      msg = (char *)malloc(len * sizeof(char));
-	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%d]",
+	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" PRId64 "]",
 			     errmsg, (recent_input) ? recent_input : "", port_filename(pt), port_line_number(pt),
 			     sc->current_file, sc->current_line);
 	    }
@@ -45428,7 +45385,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 
 	      if ((sc->current_file) &&
 		  (sc->current_line >= 0))
-		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%d]",
+		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%" PRId64 "]",
 			       errmsg, (recent_input) ? recent_input : "",
 			       sc->current_file, sc->current_line);
 	      else len = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
@@ -45446,10 +45403,10 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       msg = (char *)malloc(len * sizeof(char));
 
       if (string_error)
-	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%d]",
+	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" PRId64 "]",
 		       errmsg, port_filename(pt), port_line_number(pt),
 		       sc->strbuf, sc->current_file, sc->current_line);
-      else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%d]",
+      else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" PRId64 "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_uncopied_with_length(sc, msg, len))));
@@ -45668,12 +45625,12 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       msg = (char *)malloc(len * sizeof(char));
       if (syntax_msg)
 	{
-	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%d]\n%s",
+	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" PRId64 "]\n%s",
 			 port_filename(pt), port_line_number(pt),
 			 sc->current_file, sc->current_line, syntax_msg);
 	  free(syntax_msg);
 	}
-      else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%d]",
+      else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" PRId64 "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_uncopied_with_length(sc, msg, len))));
@@ -46210,7 +46167,7 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
   return(sc->value);
 }
 
-s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args, const char *caller, const char *file, int32_t line)
+s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args, const char *caller, const char *file, s7_int line)
 {
   s7_pointer result;
 
@@ -46767,7 +46724,7 @@ static s7_pointer all_x_c_opcq_c(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
-static s7_pointer safe_list_if_possible(s7_scheme *sc, int32_t num_args)
+static s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
 {
   if ((num_args != 0) &&
       (num_args < NUM_SAFE_LISTS))
@@ -52941,8 +52898,8 @@ static s7_pointer opt_p_cf_any(void *p)
 static bool p_cf_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x, int32_t len)
 {
   if ((is_safe_procedure(s_func)) &&
-      ((int32_t)c_function_required_args(s_func) <= (len - 1)) &&
-      ((int32_t)c_function_all_args(s_func) >= (len - 1)))
+      (c_function_required_args(s_func) <= (len - 1)) &&
+      (c_function_all_args(s_func) >= (len - 1)))
     {
       s7_pointer p;
       opc->v1.i = (len - 1);
@@ -55319,7 +55276,7 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
       int32_t i;
       s7_pointer p;
 
-      if (!s7_is_aritable(sc, s_func, (int32_t)s7_list_length(sc, cdr(car_x))))
+      if (!s7_is_aritable(sc, s_func, s7_list_length(sc, cdr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
 
       opc = alloc_opo(sc, car_x);
@@ -55360,7 +55317,8 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 	  if (setjmp(sc->opt_exit) == 0)
 	    {
 	      s7_pointer op;
-	      int32_t start, tx, body_len;
+	      int32_t start, tx;
+	      s7_int body_len;
 
 	      tx = next_tx(sc);
 	      sc->t_temps[tx] = sc->envir;
@@ -55419,7 +55377,7 @@ static bool funcall_optimize(s7_scheme *sc, s7_pointer car_x, s7_pointer s_func)
 static s7_pointer func_returns(s7_scheme *sc, s7_pointer func)
 {
   s7_pointer body, last_expr;
-  int32_t len;
+  s7_int len;
   body = closure_body(func);
   len = s7_list_length(sc, body);
   if (len <= 0) return(sc->F);
@@ -55479,7 +55437,7 @@ static bool float_optimize(s7_scheme *sc, s7_pointer expr)
     {
       /* get func, check sig, check all args */
       s7_pointer s_func;
-      int32_t len;
+      s7_int len;
 
       len = s7_list_length(sc, car_x);
       /* need to check int_opt here */
@@ -55588,7 +55546,7 @@ static bool int_optimize(s7_scheme *sc, s7_pointer expr)
   if (is_symbol(head))
     {
       s7_pointer s_func;
-      int32_t len;
+      s7_int len;
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
@@ -55678,7 +55636,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
   if (is_symbol(head))
     {
       s7_pointer s_func = NULL;
-      int32_t len;
+      s7_int len;
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
@@ -55854,7 +55812,7 @@ static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr)
   if (is_symbol(head))
     {
       s7_pointer s_func;
-      int32_t len;
+      s7_int len;
       len = s7_list_length(sc, car_x);
 
       if ((is_syntactic(head)) ||
@@ -56377,7 +56335,7 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
   #define Q_for_each s7_make_circular_signature(sc, 2, 3, sc->is_unspecified_symbol, sc->is_procedure_symbol, sc->is_sequence_symbol)
 
   s7_pointer f;
-  int32_t len;
+  s7_int len;
   bool arity_ok = false;
 
   /* try the normal case first */
@@ -56566,7 +56524,7 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
 
   static s7_pointer map_args_error = NULL;
   s7_pointer p, f;
-  int32_t len;
+  s7_int len;
   bool got_nil = false;
 
   f = car(args);                                /* the function */
@@ -56584,8 +56542,8 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
     {
     case T_C_FUNCTION:
     case T_C_RST_ARGS_FUNCTION:
-      if (((int32_t)c_function_required_args(f) > len) ||
-	  ((int32_t)c_function_all_args(f) < len))
+      if ((c_function_required_args(f) > len) ||
+	  (c_function_all_args(f) < len))
 	{
 	  if (!map_args_error)
 	    map_args_error = s7_make_permanent_string("map ~A: ~A args?");
@@ -57101,7 +57059,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
     return(list_2(sc, sc->quote_symbol, form));
 
   {
-    int32_t len, i;
+    s7_int len, i;
     s7_pointer orig, bq, old_scw;
     bool dotted = false;
 
@@ -61610,8 +61568,8 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
     }
 
   if ((is_c_function(func)) &&
-      (c_function_required_args(func) <= (uint32_t)args) &&
-      (c_function_all_args(func) >= (uint32_t)args))
+      (c_function_required_args(func) <= args) &&
+      (c_function_all_args(func) >= args))
     {
       if (is_safe_procedure(func))
 	{
@@ -63213,7 +63171,7 @@ static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool
 
 static s7_pointer optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
 {
-  int32_t len;
+  s7_int len;
 
   len = s7_list_length(sc, body);
   if (len < 0)                /* (define (hi) 1 . 2) */
@@ -64488,7 +64446,11 @@ static s7_pointer check_define(s7_scheme *sc)
   if (!is_pair(car(sc->code)))
     {
       if (is_not_null(cddr(sc->code)))                                           /* (define var 1 . 2) */
-	eval_error_with_caller_and_print_limit(sc, "~A: more than one value? ~A", caller, sc->code); /* (define var 1 2) */
+	{
+	  static s7_pointer _err_ = NULL;
+	  if (!_err_) _err_ = s7_make_permanent_string("~A: more than one value? ~A");
+	  return(s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, _err_, caller, print_truncate(sc, sc->code))));
+	}
       if (starred)
 	eval_error(sc, "define* is restricted to functions: (define* ~{~S~^ ~})", sc->code);
 
@@ -64950,8 +64912,8 @@ static int32_t feed_to(s7_scheme *sc)
 	  if ((is_c_function(func)) &&
 	      (is_safe_procedure(func)))
 	    {
-	      if (((int32_t)c_function_required_args(func) <= 1) &&
-		  ((int32_t)c_function_all_args(func) >= 1))
+	      if ((c_function_required_args(func) <= 1) &&
+		  (c_function_all_args(func) >= 1))
 		{
 		  sc->value = c_function_call(func)(sc, set_plist_1(sc, sc->value));
 		  return(goto_START);
@@ -67130,8 +67092,7 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 
 static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool safe_step)
 {
-  int32_t body_len;
-  s7_int end;
+  s7_int body_len, end;
 
   if (safe_step)
     set_safe_stepper(sc->args);
@@ -67379,7 +67340,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
   s7_pointer let_body, p = NULL, let_vars, let_code;
   bool let_star;
   s7_pointer old_e, stepper;
-  int32_t body_len, var_len;
+  s7_int body_len, var_len;
 
   /* do_let with non-float vars doesn't get many fixable hits */
   let_code = caddr(scc);
@@ -68233,8 +68194,8 @@ static int32_t unknown_all_s_ex(s7_scheme *sc, s7_pointer f)
     {
     case T_C_FUNCTION:
     case T_C_RST_ARGS_FUNCTION:
-      if (((int32_t)c_function_required_args(f) > num_args) ||
-	  ((int32_t)c_function_all_args(f) < num_args))
+      if ((c_function_required_args(f) > num_args) ||
+	  (c_function_all_args(f) < num_args))
 	break;
       
     case T_C_OPT_ARGS_FUNCTION:
@@ -68454,8 +68415,8 @@ static int32_t unknown_all_x_ex(s7_scheme *sc, s7_pointer f)
     {
     case T_C_FUNCTION:
     case T_C_RST_ARGS_FUNCTION:
-      if (((int32_t)c_function_required_args(f) > num_args) ||
-	  ((int32_t)c_function_all_args(f) < num_args))
+      if ((c_function_required_args(f) > num_args) ||
+	  (c_function_all_args(f) < num_args))
 	break;
       
     case T_C_OPT_ARGS_FUNCTION:
@@ -68792,7 +68753,7 @@ static void set_pws_ex(s7_scheme *sc)
 
 static void apply_c_function(s7_scheme *sc) 	                    /* -------- C-based function -------- */
 {
-  uint32_t len;
+  s7_int len;
   len = safe_list_length(sc, sc->args);
   if (len < c_function_required_args(sc->code))
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->not_enough_arguments_string, sc->code, sc->args));
@@ -68803,7 +68764,7 @@ static void apply_c_function(s7_scheme *sc) 	                    /* -------- C-b
 
 static void apply_c_opt_args_function(s7_scheme *sc)                /* -------- C-based function that has n optional arguments -------- */
 {
-  uint32_t len;
+  s7_int len;
   len = safe_list_length(sc, sc->args);
   if (c_function_all_args(sc->code) < len)
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, sc->code, sc->args));
@@ -68812,7 +68773,7 @@ static void apply_c_opt_args_function(s7_scheme *sc)                /* -------- 
 
 static void apply_c_rst_args_function(s7_scheme *sc)                /* -------- C-based function that has n required args, then any others -------- */
 {
-  uint32_t len;
+  s7_int len;
   len = safe_list_length(sc, sc->args);
   if (len < c_function_required_args(sc->code))
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->not_enough_arguments_string, sc->code, sc->args));
@@ -68827,13 +68788,13 @@ static void apply_c_any_args_function(s7_scheme *sc)                /* -------- 
 
 static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-based macro -------- */
 {
-  int32_t len;
+  s7_int len;
   len = safe_list_length(sc, sc->args);
   
-  if (len < (int32_t)c_macro_required_args(sc->code))
+  if (len < c_macro_required_args(sc->code))
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->not_enough_arguments_string, sc->code, sc->args));
   
-  if ((int32_t)c_macro_all_args(sc->code) < len)
+  if (c_macro_all_args(sc->code) < len)
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, sc->code, sc->args));
   
   sc->code = c_macro_call(sc->code)(sc, sc->args);
@@ -68849,7 +68810,7 @@ static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-bas
 
 static void apply_syntax(s7_scheme *sc)                            /* -------- syntactic keyword as applicable object -------- */
 {                                                                  /* current reader-cond macro uses this via (map quote ...) */
-  int32_t len;                                                     /*    ((apply lambda '((x) (+ x 1))) 4) */
+  s7_int len;                                                     /*    ((apply lambda '((x) (+ x 1))) 4) */
   if (is_pair(sc->args))                                           /* this is ((pars) . body) */
     {
       len = s7_list_length(sc, sc->args);
@@ -68857,7 +68818,7 @@ static void apply_syntax(s7_scheme *sc)                            /* -------- s
 	eval_error_no_return(sc, sc->syntax_error_symbol, "attempt to evaluate a circular list: ~S", sc->args);
       if (is_pair(car(sc->args)))                                  /* this is the arglist */
 	{
-	  int32_t alen;
+	  s7_int alen;
 	  alen = s7_list_length(sc, car(sc->args));                /* (apply lambda (signature +)...) */
 	  if (alen == 0) 
 	    s7_error(sc, sc->syntax_error_symbol, 
@@ -73355,7 +73316,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!is_goto(opt_goto(code)))	{if (unknown_ex(sc, opt_goto(code)) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_GOTO:
 		  sc->args = sc->nil;
-		  sc->code = opt_goto(code);
+		  sc->code = _TGot(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73366,7 +73327,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_GOTO_C:
 		  /* (return #t) -- recognized via OP_UNKNOWN_G, opt_goto(code) is the function [parallels OP_CLOSURE_C] */
 		  sc->args = cdr(code);
-		  sc->code = opt_goto(code);
+		  sc->code = _TGot(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73376,7 +73337,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_GOTO_S:
 		  sc->args = list_1(sc, symbol_to_value_unchecked(sc, cadr(code)));
 		  /* I think this needs listification because call_with_exit might call dynamic unwinders etc. */
-		  sc->code = opt_goto(code);
+		  sc->code = _TGot(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73385,7 +73346,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!is_goto(opt_goto(code))) {if (unknown_a_ex(sc, opt_goto(code)) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}		  
 		case HOP_GOTO_A:
 		  sc->args = list_1(sc, c_call(cdr(code))(sc, cadr(code)));
-		  sc->code = opt_goto(code);
+		  sc->code = _TGot(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  /* for T_CONTINUATION, set sc->args to list_1(sc, ...) as in goto (and code?), then call_with_current_continuation */
@@ -74535,11 +74496,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      
 	    case T_C_MACRO:
 	      {
-		int32_t len;
+		s7_int len;
 		len = safe_list_length(sc, sc->args);
-		if (len < (int32_t)c_macro_required_args(sc->code))
+		if (len < c_macro_required_args(sc->code))
 		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->not_enough_arguments_string, sc->code, sc->args));
-		if ((int32_t)c_macro_all_args(sc->code) < len)
+		if (c_macro_all_args(sc->code) < len)
 		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, sc->too_many_arguments_string, sc->code, sc->args));
 		sc->value = c_macro_call(sc->code)(sc, sc->args);
 		goto START;
@@ -84866,6 +84827,7 @@ int main(int argc, char **argv)
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
+ *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples etc
  * strings/port-positions are uint32_t, but s7_make_string_with_length is int32_t -- why not s7_int?
  *   vector length is int64_t
@@ -84873,15 +84835,12 @@ int main(int argc, char **argv)
  *     or move stuff to the port struct
  *   and string could juggle symbol stuff to get s7_int length
  *   (loops through strings will need s7_ints)
- *   func argnums will also need rejuggling
- * check all non-s7_int pars in s7.h, 55/78 int32_t, 11/9 int64_t (some unsigned)
- *   [got c_object tag, error arg_n]
+ * check all non-s7_int pars in s7.h, 12/78 int32_t, 11/9 int64_t (some unsigned)
  * many stuff.scm funcs are not cycle-safe (e.g. union)
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
  * maybe :display and :write in place of opaque #f/#t object->string (elsewhere?)
- * 33542/37886 2045/2489 88.5
- * 33980/37841 2217/2471 89.8
+ * 35063/37841 2304/2471 93.2 (snd-test.scm)
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84908,7 +84867,6 @@ int main(int argc, char **argv)
  *
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
  * libc needs many type checks
- * according to lcov, we're currently getting 92% coverage from the normal tests
  *
  * 17.6: 16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
  * now:  15.997 23.216 33.063 49.034 | 16.254 23.518 33.750 48.322 : 243.154

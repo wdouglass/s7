@@ -910,11 +910,11 @@
 				       (if (mock-pair? dims)
 					   (apply #_make-shared-vector obj (dims 'value) args)
 					   (error 'wrong-type-arg "make-shared-vector ~S ~S ~S" obj dims args)))
-		 
-		 'make-vector      (lambda (obj dims . args) 
+		 'make-vector      (lambda (dims . args) 
 				     (if (mock-pair? dims)
-					 (apply #_make-vector obj (dims 'value) args)
-					 (error 'wrong-type-arg "make-vector ~S ~S ~S" obj dims args)))
+					 (apply #_make-vector (dims 'value) args)
+					 (error 'wrong-type-arg "make-vector ~S ~S" dims args)))
+
 		 'list-ref         (lambda (obj ind) 
 				     (if (mock-pair? obj)
 					 (#_list-ref (obj 'value) ind)
