@@ -967,7 +967,7 @@ void make_axes_1(axis_info *ap, x_axis_style_t x_style, int srate, show_axes_t a
       else 
 #endif
 	{
-	  fill_rectangle(ax, ap->x_axis_x0, ap->x_axis_y0, (unsigned int)(ap->x_axis_x1 - ap->x_axis_x0), axis_thickness);
+	  fill_rectangle(ax, ap->x_axis_x0, ap->x_axis_y0, (uint32_t)(ap->x_axis_x1 - ap->x_axis_x0), axis_thickness);
 	}
     }
   
@@ -1011,7 +1011,7 @@ void make_axes_1(axis_info *ap, x_axis_style_t x_style, int srate, show_axes_t a
 					(int)((ap->y_axis_y0 + ap->y_axis_y1 - y_label_width) * 0.5) - 8);
 	    }
 #endif
-	  fill_rectangle(ax, ap->y_axis_x0, ap->y_axis_y1, axis_thickness, (unsigned int)(ap->y_axis_y0 - ap->y_axis_y1));
+	  fill_rectangle(ax, ap->y_axis_x0, ap->y_axis_y1, axis_thickness, (uint32_t)(ap->y_axis_y0 - ap->y_axis_y1));
 	}
     }
   
@@ -1893,7 +1893,7 @@ static Xen g_set_x_bounds(Xen bounds, Xen snd, Xen chn, Xen ax)
 	    {
 	      if ((!Xen_is_bound(chn)) && (cp->sound->channel_style == CHANNELS_COMBINED))
 		{
-		  unsigned int i;
+		  uint32_t i;
 		  for (i = 0; i < sp->nchans; i++)
 		    if ((int)i != cp->chan)
 		      set_x_axis_x0x1(sp->chans[i], x0, x1);

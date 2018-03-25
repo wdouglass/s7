@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "5.17"
-#define S7_DATE "19-Mar-18"
+#define S7_VERSION "6.0"
+#define S7_DATE "23-Mar-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -51,7 +51,7 @@ bool s7_is_null(s7_scheme *sc, s7_pointer p);                        /* null? */
    */
 
 bool s7_is_valid(s7_scheme *sc, s7_pointer arg);                     /* does 'arg' look like an s7 object? */
-bool s7_is_c_pointer(s7_pointer arg);
+bool s7_is_c_pointer(s7_pointer arg);                                /* (c-pointer? arg) */
 bool s7_is_c_pointer_of_type(s7_pointer arg, s7_pointer type);
 void *s7_c_pointer(s7_pointer p);
 s7_pointer s7_c_pointer_type(s7_pointer p);
@@ -118,14 +118,14 @@ s7_pointer s7_stacktrace(s7_scheme *sc);
 s7_pointer s7_history(s7_scheme *sc);                                /* the current (circular backwards) history buffer */
 s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry);       /* add entry to the history buffer */
 
-uint32_t s7_gc_protect(s7_scheme *sc, s7_pointer x);
+s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
-void s7_gc_unprotect_at(s7_scheme *sc, uint32_t loc);
-s7_pointer s7_gc_protected_at(s7_scheme *sc, uint32_t loc);
+void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
+s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
 
-s7_pointer s7_gc_on(s7_scheme *sc, bool on);
-void s7_gc_stats(s7_scheme *sc, bool on);
+s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
+void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'gc-stats) */
 
   /* any s7_pointer object held in C (as a local variable for example) needs to be
    *   protected from garbage collection if there is any chance the GC may run without
@@ -224,21 +224,21 @@ bool s7_tree_memq(s7_scheme *sc, s7_pointer sym, s7_pointer tree);           /* 
 bool s7_is_string(s7_pointer p);                                             /* (string? p) */
 const char *s7_string(s7_pointer p);                                         /* Scheme string -> C string (do not free the string) */
 s7_pointer s7_make_string(s7_scheme *sc, const char *str);                   /* C string -> Scheme string (str is copied) */
-s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, int32_t len);  /* same as s7_make_string, but provides strlen */
+s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);  /* same as s7_make_string, but provides strlen */
 s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
 s7_pointer s7_make_permanent_string(const char *str);                        /* make a string that will never be GC'd */
-uint32_t s7_string_length(s7_pointer str);                                   /* (string-length str) */
+s7_int s7_string_length(s7_pointer str);                                   /* (string-length str) */
 
 
 bool s7_is_character(s7_pointer p);                                          /* (character? p) */
-char s7_character(s7_pointer p);                                             /* Scheme character -> C char */
-s7_pointer s7_make_character(s7_scheme *sc, uint32_t c);                     /* C char (as uint32_t) -> Scheme character */
+uint8_t s7_character(s7_pointer p);                                          /* Scheme character -> unsigned C char */
+s7_pointer s7_make_character(s7_scheme *sc, uint8_t c);                      /* unsigned C char -> Scheme character */
 
 
 bool s7_is_number(s7_pointer p);                                             /* (number? p) */
 bool s7_is_integer(s7_pointer p);                                            /* (integer? p) */
-s7_int s7_integer(s7_pointer p);                                             /* Scheme integer -> C integer (int64_t) */
-s7_pointer s7_make_integer(s7_scheme *sc, s7_int num);                       /* C int64_t -> Scheme integer */
+s7_int s7_integer(s7_pointer p);                                             /* Scheme integer -> C integer (s7_int) */
+s7_pointer s7_make_integer(s7_scheme *sc, s7_int num);                       /* C s7_int -> Scheme integer */
 
 bool s7_is_real(s7_pointer p);                                               /* (real? p) */
 s7_double s7_real(s7_pointer p);                                             /* Scheme real -> C double */
@@ -320,7 +320,7 @@ s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer func
 bool s7_is_input_port(s7_scheme *sc, s7_pointer p);                         /* (input-port? p) */
 bool s7_is_output_port(s7_scheme *sc, s7_pointer p);                        /* (output-port? p) */
 const char *s7_port_filename(s7_pointer x);                                 /* (port-filename p) */
-int32_t s7_port_line_number(s7_pointer p);                                  /* (port-line-number p) */
+s7_int s7_port_line_number(s7_pointer p);                                   /* (port-line-number p) */
 
 s7_pointer s7_current_input_port(s7_scheme *sc);                            /* (current-input-port) */
 s7_pointer s7_set_current_input_port(s7_scheme *sc, s7_pointer p);          /* (set-current-input-port) */
@@ -343,16 +343,16 @@ const char *s7_get_output_string(s7_scheme *sc, s7_pointer out_port);       /* (
 void s7_flush_output_port(s7_scheme *sc, s7_pointer p);                     /* (flush-output-port port) */
 
 typedef enum {S7_READ, S7_READ_CHAR, S7_READ_LINE, S7_READ_BYTE, S7_PEEK_CHAR, S7_IS_CHAR_READY} s7_read_t;
-s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, unsigned char c, s7_pointer port));  
+s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, uint8_t c, s7_pointer port));  
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port));
 
-int32_t s7_read_char(s7_scheme *sc, s7_pointer port);                       /* (read-char port) */
-int32_t s7_peek_char(s7_scheme *sc, s7_pointer port);                       /* (peek-char port) */
+s7_pointer s7_read_char(s7_scheme *sc, s7_pointer port);                    /* (read-char port) */
+s7_pointer s7_peek_char(s7_scheme *sc, s7_pointer port);                    /* (peek-char port) */
 s7_pointer s7_read(s7_scheme *sc, s7_pointer port);                         /* (read port) */
 void s7_newline(s7_scheme *sc, s7_pointer port);                            /* (newline port) */
-void s7_write_char(s7_scheme *sc, int32_t c, s7_pointer port);              /* (write-char c port) */
-void s7_write(s7_scheme *sc, s7_pointer obj, s7_pointer port);              /* (write obj port) */
-void s7_display(s7_scheme *sc, s7_pointer obj, s7_pointer port);            /* (display obj port) */
+s7_pointer s7_write_char(s7_scheme *sc, s7_pointer c, s7_pointer port);     /* (write-char c port) */
+s7_pointer s7_write(s7_scheme *sc, s7_pointer obj, s7_pointer port);        /* (write obj port) */
+s7_pointer s7_display(s7_scheme *sc, s7_pointer obj, s7_pointer port);      /* (display obj port) */
 const char *s7_format(s7_scheme *sc, s7_pointer args);                      /* (format ... */
 
 
@@ -565,18 +565,18 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 		       const char *documentation,
  		       s7_pointer get_sig, s7_pointer set_sig);
 
-s7_pointer s7_values(s7_scheme *sc, s7_pointer args);
+s7_pointer s7_values(s7_scheme *sc, s7_pointer args);          /* (values ...) */
 
-s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e);
-bool s7_is_iterator(s7_pointer obj);
-bool s7_iterator_is_at_end(s7_scheme *sc, s7_pointer obj);
-s7_pointer s7_iterate(s7_scheme *sc, s7_pointer iter);
+s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e);      /* (make-iterator e) */
+bool s7_is_iterator(s7_pointer obj);                           /* (iterator? obj) */
+bool s7_iterator_is_at_end(s7_scheme *sc, s7_pointer obj);     /* (iterator-at-end? obj) */
+s7_pointer s7_iterate(s7_scheme *sc, s7_pointer iter);         /* (iterate iter) */
 
 void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 
-s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);
-s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);
-s7_pointer s7_type_of(s7_pointer arg);
+s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);            /* (copy ...) */
+s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */
+s7_pointer s7_type_of(s7_pointer arg);                         /* (type-of arg) */
 
 
 
@@ -803,6 +803,7 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 #endif
 
 
+/* -------------------------------------------------------------------------------- */
 #if DISABLE_DEPRECATED
 #define s7_is_ulong(arg)          s7_is_integer(arg)
 #define s7_ulong(p)               (uint64_t)s7_integer(p)
@@ -892,6 +893,8 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 23-Mar:    s7_peek_char and s7_read_char now return s7_pointer, s7_write_char takes s7_pointer, not int32_t c
+ *            s7_gc_protect and friends now return/take s7_int location, not uint32_t.
  * 19-Mar:    int32_t -> s7_int in various functions.
  * 17-Mar:    deprecate s7_ulong and s7_ulong_long functions.
  * 26-Jan-18: s7_set_setter.

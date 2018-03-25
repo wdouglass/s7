@@ -132,7 +132,7 @@ static char *global_search(read_direction_t direction, bool repeating)
   for (i = 0; i < ss->max_sounds; i++)
     {
       snd_info *sp;
-      unsigned int j;
+      uint32_t j;
       sp = ss->sounds[i];
       if ((sp) &&
 	  (sp->inuse == SOUND_NORMAL))

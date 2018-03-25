@@ -17,7 +17,7 @@
   #include <stdbool.h>
 #else
 #ifndef true
-  #define bool	unsigned char
+  #define bool	uint8_t
   #define true	1
   #define false	0
 #endif
@@ -312,7 +312,7 @@ MUS_EXPORT void mus_reset_io_c(void);
 MUS_EXPORT void mus_reset_headers_c(void);
 MUS_EXPORT void mus_reset_audio_c(void);
 
-MUS_EXPORT int mus_samples_bounds(unsigned char *data, int bytes, int chan, int chans, mus_sample_t samp_type, mus_float_t *min_samp, mus_float_t *max_samp);
+MUS_EXPORT int mus_samples_bounds(uint8_t *data, int bytes, int chan, int chans, mus_sample_t samp_type, mus_float_t *min_samp, mus_float_t *max_samp);
 
 MUS_EXPORT mus_long_t mus_max_malloc(void);
 MUS_EXPORT mus_long_t mus_set_max_malloc(mus_long_t new_max);
@@ -391,30 +391,30 @@ MUS_EXPORT mus_header_write_hook_t *mus_header_write_set_hook(mus_header_write_h
 
 
   /* these are internal to sndlib */
-void mus_bint_to_char(unsigned char *j, int x);
-void mus_lint_to_char(unsigned char *j, int x);
-void mus_bfloat_to_char(unsigned char *j, float x);
-void mus_lfloat_to_char(unsigned char *j, float x);
-void mus_bshort_to_char(unsigned char *j, short x);
-void mus_lshort_to_char(unsigned char *j, short x);
-void mus_bdouble_to_char(unsigned char *j, double x);
-void mus_blong_to_char(unsigned char *j, mus_long_t x);
-void mus_llong_to_char(unsigned char *j, mus_long_t x);
-int mus_char_to_bint(const unsigned char *inp);
-int mus_char_to_lint(const unsigned char *inp);
-mus_long_t mus_char_to_llong(const unsigned char *inp);
-mus_long_t mus_char_to_blong(const unsigned char *inp);
-int mus_char_to_uninterpreted_int(const unsigned char *inp);
-float mus_char_to_bfloat(const unsigned char *inp);
-float mus_char_to_lfloat(const unsigned char *inp);
-short mus_char_to_bshort(const unsigned char *inp);
-short mus_char_to_lshort(const unsigned char *inp);
-unsigned short mus_char_to_ubshort(const unsigned char *inp);
-unsigned short mus_char_to_ulshort(const unsigned char *inp);
-double mus_char_to_ldouble(const unsigned char *inp);
-double mus_char_to_bdouble(const unsigned char *inp);
-unsigned int mus_char_to_ubint(const unsigned char *inp);
-unsigned int mus_char_to_ulint(const unsigned char *inp);
+void mus_bint_to_char(uint8_t *j, int x);
+void mus_lint_to_char(uint8_t *j, int x);
+void mus_bfloat_to_char(uint8_t *j, float x);
+void mus_lfloat_to_char(uint8_t *j, float x);
+void mus_bshort_to_char(uint8_t *j, short x);
+void mus_lshort_to_char(uint8_t *j, short x);
+void mus_bdouble_to_char(uint8_t *j, double x);
+void mus_blong_to_char(uint8_t *j, mus_long_t x);
+void mus_llong_to_char(uint8_t *j, mus_long_t x);
+int mus_char_to_bint(const uint8_t *inp);
+int mus_char_to_lint(const uint8_t *inp);
+mus_long_t mus_char_to_llong(const uint8_t *inp);
+mus_long_t mus_char_to_blong(const uint8_t *inp);
+int mus_char_to_uninterpreted_int(const uint8_t *inp);
+float mus_char_to_bfloat(const uint8_t *inp);
+float mus_char_to_lfloat(const uint8_t *inp);
+short mus_char_to_bshort(const uint8_t *inp);
+short mus_char_to_lshort(const uint8_t *inp);
+unsigned short mus_char_to_ubshort(const uint8_t *inp);
+unsigned short mus_char_to_ulshort(const uint8_t *inp);
+double mus_char_to_ldouble(const uint8_t *inp);
+double mus_char_to_bdouble(const uint8_t *inp);
+uint32_t mus_char_to_ubint(const uint8_t *inp);
+uint32_t mus_char_to_ulint(const uint8_t *inp);
 
 
 #ifdef __cplusplus

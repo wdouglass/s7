@@ -523,7 +523,7 @@ static void remake_edit_history(chan_info *cp)
   sp = cp->sound;
   if (sp->channel_style != CHANNELS_SEPARATE)
     {
-      unsigned int k;
+      uint32_t k;
       int ed, filelen;
       char *title;
       chan_info *ncp;
@@ -1103,7 +1103,7 @@ void change_channel_style(snd_info *sp, channel_style_t new_style)
 
       if (new_style != old_style)
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  int height[1];
 	  if ((new_style == CHANNELS_SEPARATE) || (old_style == CHANNELS_SEPARATE))
 	    remake_edit_history(sp->chans[0]);

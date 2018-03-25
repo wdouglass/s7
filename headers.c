@@ -63,86 +63,86 @@
 #define BIGGEST_4_BYTE_UNSIGNED_INT 4294967295UL
 
 
-static const unsigned char I_DSND[4] = {'.','s','n','d'};  /* NeXT/Sun/Dec/SGI/AFsp first word */
-static const unsigned char I_FORM[4] = {'F','O','R','M'};  /* AIFF first word */
-static const unsigned char I_AIFF[4] = {'A','I','F','F'};  /* AIFF second word */
-static const unsigned char I_AIFC[4] = {'A','I','F','C'};  /* ditto but might be compressed data */
-static const unsigned char I_COMM[4] = {'C','O','M','M'};
-static const unsigned char I_COMT[4] = {'C','O','M','T'};
-static const unsigned char I_INFO[4] = {'I','N','F','O'};
-static const unsigned char I_INST[4] = {'I','N','S','T'};
-static const unsigned char I_MARK[4] = {'M','A','R','K'};
-static const unsigned char I_SSND[4] = {'S','S','N','D'};
-static const unsigned char I_NONE[4] = {'N','O','N','E'};
-static const unsigned char I_ULAW[4] = {'U','L','A','W'};  /* AIFC compression types that we can handle */
-static const unsigned char I_ulaw[4] = {'u','l','a','w'};  /* or maybe it's lowercase (Apple) ... */
-static const unsigned char I_raw_[4] = {'r','a','w',' '};  /* AIFC offset binary OS 8.5 (others are 'MAC3' 'MAC6' 'cdx4' 'cdx2' 'str4') */
-static const unsigned char I_sowt[4] = {'s','o','w','t'};  /* AIFC 16-bit little endian -- used by Mac when extracting CD tracks */
-static const unsigned char I_fl32[4] = {'f','l','3','2'};  /* AIFC 32-bit float */
-static const unsigned char I_fl64[4] = {'f','l','6','4'};  /* AIFC 64-bit float */
-static const unsigned char I_alaw[4] = {'a','l','a','w'};  /* apple */
-static const unsigned char I_APPL[4] = {'A','P','P','L'};
-static const unsigned char I_MUS_[4] = {'C','L','M',' '};  /* I hereby claim this AIFF chunk name */
-static const unsigned char I_RIFF[4] = {'R','I','F','F'};  /* RIFF first word */
-static const unsigned char I_RIFX[4] = {'R','I','F','X'};  /* RIFX first word (big-endian RIFF file) */
-static const unsigned char I_WAVE[4] = {'W','A','V','E'};
-static const unsigned char I_fmt_[4] = {'f','m','t',' '};
-static const unsigned char I_data[4] = {'d','a','t','a'};
-static const unsigned char I_fact[4] = {'f','a','c','t'};  /* used by compressed RIFF files */
-static const unsigned char I_clm_[4] = {'c','l','m',' '};
-static const unsigned char I_NIST[4] = {'N','I','S','T'};  /* first word of NIST SPHERE files */
-static const unsigned char I_VOC0[4] = {'C','r','e','a'};  /* Actual text is "Creative Voice File" */
-static const unsigned char I_SOUN[4] = {'S','O','U','N'};  /* Sound Tools first word="SOUND" -- not unique as SMP files start with "SOUND SAMPLE" */
-static const unsigned char I_ANNO[4] = {'A','N','N','O'};
-static const unsigned char I_NAME[4] = {'N','A','M','E'};
-static const unsigned char I_AVR_[4] = {'2','B','I','T'};  /* first word of AVR files */
-static const unsigned char I_SPIB[4] = {'%','/','/','\n'}; /* first word of IEEE spib text sound files */
-static const unsigned char I_S___[4] = {'%','-','-','-'};  /* first word of other IEEE spib text sound files */
-static const unsigned char I_ALaw[4] = {'A','L','a','w'};  /* first word of PSION alaw files */
-static const unsigned char I_MThd[4] = {'M','T','h','d'};  /* sigh -- the M word */
-static const unsigned char I_DECN[4] = {'.','s','d','\0'}; /* first word of DEC files (?) */
-static const unsigned char I_LIST[4] = {'L','I','S','T'};
-static const unsigned char I_GF1P[4] = {'G','F','1','P'};  /* first word of Gravis Ultrsound patch files */
-static const unsigned char I_DSIG[4] = {'$','S','I','G'};  /* first word of Comdisco SPW file */
-static const unsigned char I_GOLD[4] = {'G','O','L','D'};  /* first word Goldwave(?) sample file */
-static const unsigned char I_SRFS[4] = {'S','R','F','S'};  /* first word Sonic Resource Foundry file(?) */
-static const unsigned char I_Diam[4] = {'D','i','a','m'};  /* first word DiamondWare file */
-static const unsigned char I_CSRE[4] = {'C','S','R','E'};  /* adf first word -- second starts with "40" */
-static const unsigned char I_SND_[4] = {'S','N','D',' '};  /* SBStudio II */
-static const unsigned char I_DDSF[4] = {'D','D','S','F'};  /* Delusion Digital Sound File */
-static const unsigned char I_FSMt[4] = {'F','S','M',(unsigned char)'\376'};  /* Farandole Composer WaveSample */
-static const unsigned char I_UWFD[4] = {'U','W','F','D'};  /* Ultratracker Wavesample */
-static const unsigned char I_LM89[4] = {'L','M','8','9'};  /* Yamaha TX-16 */
-static const unsigned char I_SY80[4] = {'S','Y','8','0'};  /* Yamaha SY-99 */
-static const unsigned char I_SY85[4] = {'S','Y','8','5'};  /* Yamaha SY-85 */
-static const unsigned char I_SCRS[4] = {'S','C','R','S'};  /* Digiplayer ST3 */
-static const unsigned char I_covox[4] = {(unsigned char)'\377','\125',(unsigned char)'\377',(unsigned char)'\252'};
-static const unsigned char I_PRAM[4] = {'P','R','A','M'};  /* Kurzweil 2000 */
-static const unsigned char I__PAF[4] = {' ','p','a','f'};  /* Paris Ensoniq */
-static const unsigned char I_FAP_[4] = {'f','a','p',' '};  /* Paris Ensoniq */
-static const unsigned char I_file[4] = {'f','i','l','e'};  /* snack "SMP" */
-static const unsigned char I_PVF1[4] = {'P','V','F','1'};  /* portable voice format (mgetty) */
-static const unsigned char I_PVF2[4] = {'P','V','F','2'};
-static const unsigned char I_riff[4] = {'r','i','f','f'};  /* SoundForge */
-static const unsigned char I_TWIN[4] = {'T','W','I','N'};  /* TwinVQ */
-static const unsigned char I_IMPS[4] = {'I','M','P','S'};  /* Impulse Tracker */
-static const unsigned char I_SMP1[4] = {'S','M','P','1'};  /* Korg */
-static const unsigned char I_Maui[4] = {'M','a','u','i'};  /* Turtle Beach */
-static const unsigned char I_SDIF[4] = {'S','D','I','F'};  /* IRCAM sdif */
+static const uint8_t I_DSND[4] = {'.','s','n','d'};  /* NeXT/Sun/Dec/SGI/AFsp first word */
+static const uint8_t I_FORM[4] = {'F','O','R','M'};  /* AIFF first word */
+static const uint8_t I_AIFF[4] = {'A','I','F','F'};  /* AIFF second word */
+static const uint8_t I_AIFC[4] = {'A','I','F','C'};  /* ditto but might be compressed data */
+static const uint8_t I_COMM[4] = {'C','O','M','M'};
+static const uint8_t I_COMT[4] = {'C','O','M','T'};
+static const uint8_t I_INFO[4] = {'I','N','F','O'};
+static const uint8_t I_INST[4] = {'I','N','S','T'};
+static const uint8_t I_MARK[4] = {'M','A','R','K'};
+static const uint8_t I_SSND[4] = {'S','S','N','D'};
+static const uint8_t I_NONE[4] = {'N','O','N','E'};
+static const uint8_t I_ULAW[4] = {'U','L','A','W'};  /* AIFC compression types that we can handle */
+static const uint8_t I_ulaw[4] = {'u','l','a','w'};  /* or maybe it's lowercase (Apple) ... */
+static const uint8_t I_raw_[4] = {'r','a','w',' '};  /* AIFC offset binary OS 8.5 (others are 'MAC3' 'MAC6' 'cdx4' 'cdx2' 'str4') */
+static const uint8_t I_sowt[4] = {'s','o','w','t'};  /* AIFC 16-bit little endian -- used by Mac when extracting CD tracks */
+static const uint8_t I_fl32[4] = {'f','l','3','2'};  /* AIFC 32-bit float */
+static const uint8_t I_fl64[4] = {'f','l','6','4'};  /* AIFC 64-bit float */
+static const uint8_t I_alaw[4] = {'a','l','a','w'};  /* apple */
+static const uint8_t I_APPL[4] = {'A','P','P','L'};
+static const uint8_t I_MUS_[4] = {'C','L','M',' '};  /* I hereby claim this AIFF chunk name */
+static const uint8_t I_RIFF[4] = {'R','I','F','F'};  /* RIFF first word */
+static const uint8_t I_RIFX[4] = {'R','I','F','X'};  /* RIFX first word (big-endian RIFF file) */
+static const uint8_t I_WAVE[4] = {'W','A','V','E'};
+static const uint8_t I_fmt_[4] = {'f','m','t',' '};
+static const uint8_t I_data[4] = {'d','a','t','a'};
+static const uint8_t I_fact[4] = {'f','a','c','t'};  /* used by compressed RIFF files */
+static const uint8_t I_clm_[4] = {'c','l','m',' '};
+static const uint8_t I_NIST[4] = {'N','I','S','T'};  /* first word of NIST SPHERE files */
+static const uint8_t I_VOC0[4] = {'C','r','e','a'};  /* Actual text is "Creative Voice File" */
+static const uint8_t I_SOUN[4] = {'S','O','U','N'};  /* Sound Tools first word="SOUND" -- not unique as SMP files start with "SOUND SAMPLE" */
+static const uint8_t I_ANNO[4] = {'A','N','N','O'};
+static const uint8_t I_NAME[4] = {'N','A','M','E'};
+static const uint8_t I_AVR_[4] = {'2','B','I','T'};  /* first word of AVR files */
+static const uint8_t I_SPIB[4] = {'%','/','/','\n'}; /* first word of IEEE spib text sound files */
+static const uint8_t I_S___[4] = {'%','-','-','-'};  /* first word of other IEEE spib text sound files */
+static const uint8_t I_ALaw[4] = {'A','L','a','w'};  /* first word of PSION alaw files */
+static const uint8_t I_MThd[4] = {'M','T','h','d'};  /* sigh -- the M word */
+static const uint8_t I_DECN[4] = {'.','s','d','\0'}; /* first word of DEC files (?) */
+static const uint8_t I_LIST[4] = {'L','I','S','T'};
+static const uint8_t I_GF1P[4] = {'G','F','1','P'};  /* first word of Gravis Ultrsound patch files */
+static const uint8_t I_DSIG[4] = {'$','S','I','G'};  /* first word of Comdisco SPW file */
+static const uint8_t I_GOLD[4] = {'G','O','L','D'};  /* first word Goldwave(?) sample file */
+static const uint8_t I_SRFS[4] = {'S','R','F','S'};  /* first word Sonic Resource Foundry file(?) */
+static const uint8_t I_Diam[4] = {'D','i','a','m'};  /* first word DiamondWare file */
+static const uint8_t I_CSRE[4] = {'C','S','R','E'};  /* adf first word -- second starts with "40" */
+static const uint8_t I_SND_[4] = {'S','N','D',' '};  /* SBStudio II */
+static const uint8_t I_DDSF[4] = {'D','D','S','F'};  /* Delusion Digital Sound File */
+static const uint8_t I_FSMt[4] = {'F','S','M',(uint8_t)'\376'};  /* Farandole Composer WaveSample */
+static const uint8_t I_UWFD[4] = {'U','W','F','D'};  /* Ultratracker Wavesample */
+static const uint8_t I_LM89[4] = {'L','M','8','9'};  /* Yamaha TX-16 */
+static const uint8_t I_SY80[4] = {'S','Y','8','0'};  /* Yamaha SY-99 */
+static const uint8_t I_SY85[4] = {'S','Y','8','5'};  /* Yamaha SY-85 */
+static const uint8_t I_SCRS[4] = {'S','C','R','S'};  /* Digiplayer ST3 */
+static const uint8_t I_covox[4] = {(uint8_t)'\377','\125',(uint8_t)'\377',(uint8_t)'\252'};
+static const uint8_t I_PRAM[4] = {'P','R','A','M'};  /* Kurzweil 2000 */
+static const uint8_t I__PAF[4] = {' ','p','a','f'};  /* Paris Ensoniq */
+static const uint8_t I_FAP_[4] = {'f','a','p',' '};  /* Paris Ensoniq */
+static const uint8_t I_file[4] = {'f','i','l','e'};  /* snack "SMP" */
+static const uint8_t I_PVF1[4] = {'P','V','F','1'};  /* portable voice format (mgetty) */
+static const uint8_t I_PVF2[4] = {'P','V','F','2'};
+static const uint8_t I_riff[4] = {'r','i','f','f'};  /* SoundForge */
+static const uint8_t I_TWIN[4] = {'T','W','I','N'};  /* TwinVQ */
+static const uint8_t I_IMPS[4] = {'I','M','P','S'};  /* Impulse Tracker */
+static const uint8_t I_SMP1[4] = {'S','M','P','1'};  /* Korg */
+static const uint8_t I_Maui[4] = {'M','a','u','i'};  /* Turtle Beach */
+static const uint8_t I_SDIF[4] = {'S','D','I','F'};  /* IRCAM sdif */
 #if G7XX
-static const unsigned char I_NVF_[4] = {'N','V','F',' '};  /* Nomad II Creative NVF */
+static const uint8_t I_NVF_[4] = {'N','V','F',' '};  /* Nomad II Creative NVF */
 #endif
-static const unsigned char I_ajkg[4] = {'a','j','k','g'};  /* shorten */
-static const unsigned char I_RF64[4] = {'R','F','6','4'};  /* EBU RF64 */
-static const unsigned char I_ds64[4] = {'d','s','6','4'};  /* EBU RF64 */
-static const unsigned char I_caff[4] = {'c','a','f','f'};  /* Apple CAFF */
-static const unsigned char I_desc[4] = {'d','e','s','c'};  /* Apple CAFF */
-static const unsigned char I_lpcm[4] = {'l','p','c','m'};  /* Apple CAFF */
-static const unsigned char I_dSoX[4] = {'.','S','o','X'};  /* Sox intermediate (little-endian?) */
-static const unsigned char I_XoSd[4] = {'X','o','S','.'};  /* Sox intermediate */
+static const uint8_t I_ajkg[4] = {'a','j','k','g'};  /* shorten */
+static const uint8_t I_RF64[4] = {'R','F','6','4'};  /* EBU RF64 */
+static const uint8_t I_ds64[4] = {'d','s','6','4'};  /* EBU RF64 */
+static const uint8_t I_caff[4] = {'c','a','f','f'};  /* Apple CAFF */
+static const uint8_t I_desc[4] = {'d','e','s','c'};  /* Apple CAFF */
+static const uint8_t I_lpcm[4] = {'l','p','c','m'};  /* Apple CAFF */
+static const uint8_t I_dSoX[4] = {'.','S','o','X'};  /* Sox intermediate (little-endian?) */
+static const uint8_t I_XoSd[4] = {'X','o','S','.'};  /* Sox intermediate */
 
 #define HDRBUFSIZ 256
-static unsigned char *hdrbuf;
+static uint8_t *hdrbuf;
 #define INITIAL_READ_SIZE 256
 
 /* AIFF files can have any number of ANNO chunks, so we'll grab at least 4 of them */
@@ -170,7 +170,7 @@ int mus_header_initialize(void)
   if (!hdrbuf_is_inited)
     {
       hdrbuf_is_inited = true;
-      hdrbuf = (unsigned char *)calloc(HDRBUFSIZ, sizeof(unsigned char));
+      hdrbuf = (uint8_t *)calloc(HDRBUFSIZ, sizeof(uint8_t));
       aux_comment_start = (mus_long_t *)calloc(AUX_COMMENTS, sizeof(mus_long_t));
       aux_comment_end = (mus_long_t *)calloc(AUX_COMMENTS, sizeof(mus_long_t));
       loop_modes = (int *)calloc(LOOPS, sizeof(int));
@@ -273,41 +273,41 @@ mus_long_t mus_bytes_to_samples (mus_sample_t samp_type, mus_long_t size)
 }
 
 
-static bool equal_big_or_little_endian(const unsigned char *n1, const unsigned int n2)
+static bool equal_big_or_little_endian(const uint8_t *n1, const uint32_t n2)
 {
   return((mus_char_to_ubint(n1) == n2) || (mus_char_to_ulint(n1) == n2));
 }
 
 
-static short big_or_little_endian_short(const unsigned char *n, bool little)
+static short big_or_little_endian_short(const uint8_t *n, bool little)
 {
   if (little) return(mus_char_to_lshort(n));
   return(mus_char_to_bshort(n));
 }
 
 
-static int big_or_little_endian_int(const unsigned char *n, bool little)
+static int big_or_little_endian_int(const uint8_t *n, bool little)
 {
   if (little) return(mus_char_to_lint(n));
   return(mus_char_to_bint(n));
 }
 
 
-static unsigned int big_or_little_endian_uint(const unsigned char *n, bool little)
+static uint32_t big_or_little_endian_uint(const uint8_t *n, bool little)
 {
   if (little) return(mus_char_to_ulint(n));
   return(mus_char_to_ubint(n));
 }
 
 
-static float big_or_little_endian_float(const unsigned char *n, bool little)
+static float big_or_little_endian_float(const uint8_t *n, bool little)
 {
   if (little) return(mus_char_to_lfloat(n));
   return(mus_char_to_bfloat(n));
 }
 
 
-static bool match_four_chars(const unsigned char *head, const unsigned char *match)
+static bool match_four_chars(const uint8_t *head, const uint8_t *match)
 { 
   return((head[0] == match[0]) &&
 	 (head[1] == match[1]) &&
@@ -316,7 +316,7 @@ static bool match_four_chars(const unsigned char *head, const unsigned char *mat
 }
 
   
-static void write_four_chars(unsigned char *head, const unsigned char *match)
+static void write_four_chars(uint8_t *head, const uint8_t *match)
 {
   head[0] = match[0];
   head[1] = match[1];
@@ -577,11 +577,11 @@ static int read_next_header(const char *filename, int fd)
 {
   int maybe_bicsf, err = MUS_NO_ERROR, i;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
-  data_location = mus_char_to_ubint((unsigned char *)(hdrbuf + 4));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
+  data_location = mus_char_to_ubint((uint8_t *)(hdrbuf + 4));
   if (data_location < 24) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data location: %" PRId64 "?", filename, data_location));
 
-  data_size = mus_char_to_ubint((unsigned char *)(hdrbuf + 8)); /* changed to unsigned 11-Nov-06 */
+  data_size = mus_char_to_ubint((uint8_t *)(hdrbuf + 8)); /* changed to unsigned 11-Nov-06 */
   /* can be bogus -- fixup if possible */
   true_file_length = SEEK_FILE_LENGTH(fd);
   if ((data_size <= 24) || (data_size > true_file_length))
@@ -592,7 +592,7 @@ static int read_next_header(const char *filename, int fd)
 	data_size = true_file_length - data_location; /* assume size field overflowed 32 bits */
     }
 
-  original_sample_type = mus_char_to_bint((unsigned char *)(hdrbuf + 12));
+  original_sample_type = mus_char_to_bint((uint8_t *)(hdrbuf + 12));
   switch (original_sample_type) 
     {
     case 1:  sample_type = MUS_MULAW;            break;
@@ -618,11 +618,11 @@ static int read_next_header(const char *filename, int fd)
     case 41: sample_type = MUS_LSHORT;           break; 
     case 42: sample_type = MUS_L24INT;           break; 
     case 43: sample_type = MUS_UBYTE;            break; 
-    default: sample_type = MUS_UNKNOWN_SAMPLE;          break;
+    default: sample_type = MUS_UNKNOWN_SAMPLE;   break;
     }
 
-  srate = mus_char_to_bint((unsigned char *)(hdrbuf + 16));
-  chans = mus_char_to_bint((unsigned char *)(hdrbuf + 20));
+  srate = mus_char_to_bint((uint8_t *)(hdrbuf + 16));
+  chans = mus_char_to_bint((uint8_t *)(hdrbuf + 20));
 
   comment_start = 0;
   comment_end = 0;
@@ -640,7 +640,7 @@ static int read_next_header(const char *filename, int fd)
       }
   if (comment_end < comment_start) comment_end = comment_start;
 
-  maybe_bicsf = mus_char_to_bint((unsigned char *)(hdrbuf + 28));
+  maybe_bicsf = mus_char_to_bint((uint8_t *)(hdrbuf + 28));
   if (maybe_bicsf == 107364) err = read_bicsf_header(filename, fd);
 
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -683,7 +683,7 @@ static int sndlib_format_to_next(mus_sample_t samp_type)
 }
 
 
-static int header_write(int fd, unsigned char *buf, int chars)
+static int header_write(int fd, uint8_t *buf, int chars)
 {
   if (chars > 0)
     {
@@ -701,7 +701,7 @@ static int header_write(int fd, unsigned char *buf, int chars)
 }
 
 
-static int header_read(int fd, unsigned char *buf, int chars)
+static int header_read(int fd, uint8_t *buf, int chars)
 {
   if (chars > 0)
     {
@@ -722,12 +722,12 @@ static int header_read(int fd, unsigned char *buf, int chars)
 static void write_next_comment(int fd, const char *comment, int len, int loc)
 {
   if (len > 0)
-    header_write(fd, (unsigned char *)comment, len);
+    header_write(fd, (uint8_t *)comment, len);
   len = loc - (len + 24);
   if (len > 0)
     {
-      unsigned char *combuf;
-      combuf = (unsigned char *)calloc(len, sizeof(unsigned char));
+      uint8_t *combuf;
+      combuf = (uint8_t *)calloc(len, sizeof(uint8_t));
       header_write(fd, combuf, len);
       free(combuf);
     }
@@ -736,15 +736,15 @@ static void write_next_comment(int fd, const char *comment, int len, int loc)
 static int mus_header_write_next_header(int fd, int wsrate, int wchans, int loc, int siz, mus_sample_t samp_type, const char *comment, int len)
 {
   int i, j;
-  write_four_chars((unsigned char *)hdrbuf, I_DSND); /* ".snd" */
+  write_four_chars((uint8_t *)hdrbuf, I_DSND); /* ".snd" */
   i = len / 4;
   j = 24 + (4 * (i + 1));
   if (loc < j) loc = j;
-  mus_bint_to_char((unsigned char *)(hdrbuf + 4), loc);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 8), siz);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 12), sndlib_format_to_next(samp_type));
-  mus_bint_to_char((unsigned char *)(hdrbuf + 16), wsrate);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 20), wchans);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 4), loc);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 8), siz);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 12), sndlib_format_to_next(samp_type));
+  mus_bint_to_char((uint8_t *)(hdrbuf + 16), wsrate);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 20), wchans);
   header_write(fd, hdrbuf, 24);
   write_next_comment(fd, comment, len, loc);
   data_location = loc;
@@ -809,10 +809,10 @@ static int mus_header_write_next_header(int fd, int wsrate, int wchans, int loc,
 /* ieee-80 conversions -- design by committee! */
 /* this code taken from CSound sources -- apparently originally written by Malcolm Slaney at Apple */
 
-#define ULPOW2TO31	((unsigned int)0x80000000)
+#define ULPOW2TO31	((uint32_t)0x80000000)
 #define DPOW2TO31	((double)2147483648.0)	/* 2^31 */
 
-static double myUlongToDouble(unsigned int ul)
+static double myUlongToDouble(uint32_t ul)
 {
   double val;
   if (ul & ULPOW2TO31) val = DPOW2TO31 + (ul & (~ULPOW2TO31));
@@ -821,21 +821,21 @@ static double myUlongToDouble(unsigned int ul)
 }
 
 
-static unsigned int myDoubleToUlong(double val)
+static uint32_t myDoubleToUlong(double val)
 {
-  unsigned int ul;
-  if (val < DPOW2TO31) ul = (unsigned int)val;
-  else ul = ULPOW2TO31 | (unsigned int)(val-DPOW2TO31);
+  uint32_t ul;
+  if (val < DPOW2TO31) ul = (uint32_t)val;
+  else ul = ULPOW2TO31 | (uint32_t)(val-DPOW2TO31);
   return ul;
 }
 
 
-static double ieee_80_to_double(unsigned char *p)
+static double ieee_80_to_double(uint8_t *p)
 {
-  unsigned char sign;
+  uint8_t sign;
   short lexp = 0;
-  unsigned int mant1 = 0;
-  unsigned int mant0 = 0;
+  uint32_t mant1 = 0;
+  uint32_t mant0 = 0;
   lexp = *p++;  lexp <<= 8;  lexp |= *p++;  sign = (lexp & 0x8000) ? 1 : 0;  lexp &= 0x7FFF;
   mant1 = *p++;  mant1 <<= 8;  mant1 |= *p++;  mant1 <<= 8;  mant1 |= *p++;  mant1 <<= 8;  mant1 |= *p++;
   mant0 = *p++;  mant0 <<= 8;  mant0 |= *p++;  mant0 <<= 8;  mant0 |= *p++;  mant0 <<= 8;  mant0 |= *p++;
@@ -852,12 +852,12 @@ static double ieee_80_to_double(unsigned char *p)
 }
 
 
-static void double_to_ieee_80(double val, unsigned char *p)
+static void double_to_ieee_80(double val, uint8_t *p)
 {
   short lexp = 0;
-  unsigned char sign = 0;
-  unsigned int mant1 = 0;
-  unsigned int mant0 = 0;
+  uint8_t sign = 0;
+  uint32_t mant1 = 0;
+  uint32_t mant0 = 0;
   if (val < 0.0)
     {  
       sign = 1;  
@@ -880,7 +880,7 @@ static void double_to_ieee_80(double val, unsigned char *p)
 
 static mus_long_t update_form_size, update_framples_location, update_ssnd_location, update_rf64_location;
 
-static int64_t seek_and_read(int fd, unsigned char *buf, mus_long_t offset, int nbytes)
+static int64_t seek_and_read(int fd, uint8_t *buf, mus_long_t offset, int nbytes)
 {
   if (offset < 0) return(-1);
   lseek(fd, offset, SEEK_SET);
@@ -888,22 +888,22 @@ static int64_t seek_and_read(int fd, unsigned char *buf, mus_long_t offset, int 
 }
 
 
-static int read_aiff_marker(int m, unsigned char *buf)
+static int read_aiff_marker(int m, uint8_t *buf)
 {
   int psize;
-  marker_ids[m] = mus_char_to_bshort((unsigned char *)buf);
-  marker_positions[m] = mus_char_to_bint((unsigned char *)(buf + 2));
+  marker_ids[m] = mus_char_to_bshort((uint8_t *)buf);
+  marker_positions[m] = mus_char_to_bint((uint8_t *)(buf + 2));
   psize = (int)buf[6] + 1; 
   if (psize & 1) psize++; 
   return(psize+6);
 }
 
 
-static void read_aif_mark_chunk(int fd, unsigned char *buf, mus_long_t offset)
+static void read_aif_mark_chunk(int fd, uint8_t *buf, mus_long_t offset)
 {
   int num_marks, m, moff, msize;
   /* unsigned short #marks, each mark: id pos name (pstring damn it) */
-  num_marks = mus_char_to_ubshort((unsigned char *)(buf + 8));
+  num_marks = mus_char_to_ubshort((uint8_t *)(buf + 8));
   if (num_marks > markers)
     {
       if (markers > 0)
@@ -918,30 +918,30 @@ static void read_aif_mark_chunk(int fd, unsigned char *buf, mus_long_t offset)
   moff = 10;
   for (m = 0; m < num_marks; m++)
     {
-      if (seek_and_read(fd, (unsigned char *)buf, offset + moff, 8) > 0)
+      if (seek_and_read(fd, (uint8_t *)buf, offset + moff, 8) > 0)
 	{
-	  msize = read_aiff_marker(m, (unsigned char *)buf);
+	  msize = read_aiff_marker(m, (uint8_t *)buf);
 	  moff += msize;
 	}
     }
 }
 
 
-static void read_aif_inst_chunk(unsigned char *buf)
+static void read_aif_inst_chunk(uint8_t *buf)
 {
   base_note = buf[8];
   base_detune = buf[9];
-  loop_modes[0] = mus_char_to_bshort((unsigned char *)(buf + 16));
-  loop_starts[0] = mus_char_to_bshort((unsigned char *)(buf + 18));
-  loop_ends[0] = mus_char_to_bshort((unsigned char *)(buf + 20));
-  loop_modes[1] = mus_char_to_bshort((unsigned char *)(buf + 22));
-  loop_starts[1] = mus_char_to_bshort((unsigned char *)(buf + 24));
-  loop_ends[1] = mus_char_to_bshort((unsigned char *)(buf + 26));
+  loop_modes[0] = mus_char_to_bshort((uint8_t *)(buf + 16));
+  loop_starts[0] = mus_char_to_bshort((uint8_t *)(buf + 18));
+  loop_ends[0] = mus_char_to_bshort((uint8_t *)(buf + 20));
+  loop_modes[1] = mus_char_to_bshort((uint8_t *)(buf + 22));
+  loop_starts[1] = mus_char_to_bshort((uint8_t *)(buf + 24));
+  loop_ends[1] = mus_char_to_bshort((uint8_t *)(buf + 26));
   /* these are mark numbers */
 }
 
 
-static void read_aif_aux_comment(unsigned char *buf, mus_long_t offset, int chunksize)
+static void read_aif_aux_comment(uint8_t *buf, mus_long_t offset, int chunksize)
 {
   int i, j = 0;
   for (i = 0; i < AUX_COMMENTS; i++) 
@@ -956,18 +956,18 @@ static void read_aif_aux_comment(unsigned char *buf, mus_long_t offset, int chun
       j = 0;
     }
   aux_comment_start[j] = offset + 8;
-  if (match_four_chars((unsigned char *)buf, I_COMT)) 
+  if (match_four_chars((uint8_t *)buf, I_COMT)) 
     aux_comment_start[j] += 8; /* skip time stamp and markerId (not ID, I assume!) */
   aux_comment_end[j] = offset + 7 + chunksize;
 }
 
 
-static void read_aif_appl_chunk(unsigned char *buf, mus_long_t offset, int chunksize)
+static void read_aif_appl_chunk(uint8_t *buf, mus_long_t offset, int chunksize)
 {
-  static const unsigned char I_SU7M[4] = {'S','U','7','M'};  
-  static const unsigned char I_SU7R[4] = {'S','U','7','R'};  
+  static const uint8_t I_SU7M[4] = {'S','U','7','M'};  
+  static const uint8_t I_SU7R[4] = {'S','U','7','R'};  
 
-  if (match_four_chars((unsigned char *)(buf + 8), I_MUS_))
+  if (match_four_chars((uint8_t *)(buf + 8), I_MUS_))
     {
       /* my chunk has an arbitrary length comment (a lisp program evaluated in the CLM package) 
        *   to handle mix et al.  Can't use the built-in chunk for this because the comment length might
@@ -978,8 +978,8 @@ static void read_aif_appl_chunk(unsigned char *buf, mus_long_t offset, int chunk
     }
   else 
     {
-      if ((match_four_chars((unsigned char *)(buf + 8), I_SU7M)) ||
-	  (match_four_chars((unsigned char *)(buf + 8), I_SU7R)))
+      if ((match_four_chars((uint8_t *)(buf + 8), I_SU7M)) ||
+	  (match_four_chars((uint8_t *)(buf + 8), I_SU7R)))
 	{
 	  mus_print("this is an SU700 ssp file?");
 	  data_location = 512;
@@ -990,9 +990,9 @@ static void read_aif_appl_chunk(unsigned char *buf, mus_long_t offset, int chunk
 }
 
 
-static void mus_ubint_to_char(unsigned char *j, unsigned int x)
+static void mus_ubint_to_char(uint8_t *j, uint32_t x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if MUS_LITTLE_ENDIAN
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -1005,12 +1005,12 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 {
   /* we know we have checked for FORM xxxx AIFF|AIFC when we arrive here */
   /* as far as I can tell, the COMM block has the header data we seek, and the SSND block has the sound data */
-  unsigned int chunkloc, ssnd_bytes = 0;
+  uint32_t chunkloc, ssnd_bytes = 0;
   int i;
   bool happy = true, got_comm = false;
   mus_long_t offset = 0;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 8 + overall_offset));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 8 + overall_offset));
   update_ssnd_location = 0;
   chunkloc = 12 + overall_offset;
   for (i = 0; i < AUX_COMMENTS; i++) aux_comment_start[i] = 0;
@@ -1024,13 +1024,13 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
   marker_positions = NULL;
 
   true_file_length = SEEK_FILE_LENGTH(fd);
-  update_form_size = mus_char_to_ubint((unsigned char *)(hdrbuf + 4 + overall_offset)); /* should be file-size - 8 unless there are multiple forms */
+  update_form_size = mus_char_to_ubint((uint8_t *)(hdrbuf + 4 + overall_offset)); /* should be file-size - 8 unless there are multiple forms */
 
   while (happy)
     {
-      unsigned int chunksize;
+      uint32_t chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	{
 	  if ((got_comm) && (data_location > 0))
 	    {
@@ -1040,23 +1040,23 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 	  return(mus_error(MUS_HEADER_READ_FAILED, "%s, aiff header: chunks confused at %" PRId64 , filename, offset));
 	}
 
-      chunksize = mus_char_to_ubint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_ubint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
 
       /* fprintf(stderr, "chunk: %c%c%c%c for %d\n", hdrbuf[0], hdrbuf[1], hdrbuf[2], hdrbuf[3], chunksize); */
 
-      if (match_four_chars((unsigned char *)hdrbuf, I_COMM))
+      if (match_four_chars((uint8_t *)hdrbuf, I_COMM))
 	{
-	  unsigned int framples;
+	  uint32_t framples;
 	  got_comm = true;
 
-	  chans = mus_char_to_bshort((unsigned char *)(hdrbuf + 8));
-	  framples = mus_char_to_ubint((unsigned char *)(hdrbuf + 10)); /* was bint 27-Jul-01 */
+	  chans = mus_char_to_bshort((uint8_t *)(hdrbuf + 8));
+	  framples = mus_char_to_ubint((uint8_t *)(hdrbuf + 10)); /* was bint 27-Jul-01 */
 	  update_framples_location = 10 + offset;
 
-	  original_sample_type = mus_char_to_bshort((unsigned char *)(hdrbuf + 14));
+	  original_sample_type = mus_char_to_bshort((uint8_t *)(hdrbuf + 14));
 	  if ((original_sample_type % 8) != 0) 
 	    {
 	      /* weird sizes are legal --
@@ -1070,35 +1070,35 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 	  else if (original_sample_type == 24) sample_type = MUS_B24INT;
 	  else if (original_sample_type == 32) sample_type = MUS_BINT;
 	  else if (original_sample_type == 64) sample_type = MUS_BDOUBLE;
-	  else return(mus_error(MUS_HEADER_READ_FAILED, "%s: bits per sample: %d?", filename, mus_char_to_bshort((unsigned char *)(hdrbuf + 14))));
+	  else return(mus_error(MUS_HEADER_READ_FAILED, "%s: bits per sample: %d?", filename, mus_char_to_bshort((uint8_t *)(hdrbuf + 14))));
 
-	  srate = (int)ieee_80_to_double((unsigned char *)(hdrbuf + 16));
+	  srate = (int)ieee_80_to_double((uint8_t *)(hdrbuf + 16));
 
 	  /* if AIFC, compression type over-rides (possibly bogus) original_sample_type */
 	  if (type_specifier == mus_char_to_uninterpreted_int((unsigned const char *)I_AIFC))
 	    {
-	      static const unsigned char I_twos[4] = {'t','w','o','s'};  /* AIFC big endian? */
+	      static const uint8_t I_twos[4] = {'t','w','o','s'};  /* AIFC big endian? */
 	      /* some aifc files assume the compression field is a new and very weird chunk!! -- surely a bug? */
 	      /* AIFF spec says COMM size is always 18, but this is amended in the newer AIFC spec */
 	      if (chunksize == 18) chunksize += (5 + ((int)hdrbuf[30]));             /* 5 = chunk header length in this case */
-	      if ((!(match_four_chars((unsigned char *)(hdrbuf + 26), I_NONE))) &&
-		  (!(match_four_chars((unsigned char *)(hdrbuf + 26), I_twos))))
+	      if ((!(match_four_chars((uint8_t *)(hdrbuf + 26), I_NONE))) &&
+		  (!(match_four_chars((uint8_t *)(hdrbuf + 26), I_twos))))
 		{
-		  static const unsigned char I_ALAW[4] = {'A','L','A','W'};
-		  original_sample_type = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 26));
-		  if ((match_four_chars((unsigned char *)(hdrbuf + 26), I_ALAW)) || 
-		      (match_four_chars((unsigned char *)(hdrbuf + 26), I_alaw)))
+		  static const uint8_t I_ALAW[4] = {'A','L','A','W'};
+		  original_sample_type = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 26));
+		  if ((match_four_chars((uint8_t *)(hdrbuf + 26), I_ALAW)) || 
+		      (match_four_chars((uint8_t *)(hdrbuf + 26), I_alaw)))
 		    sample_type = MUS_ALAW;
 		  else 
 		    {
-		      if ((match_four_chars((unsigned char *)(hdrbuf + 26), I_ULAW)) ||
-			  (match_four_chars((unsigned char *)(hdrbuf + 26), I_ulaw)))
+		      if ((match_four_chars((uint8_t *)(hdrbuf + 26), I_ULAW)) ||
+			  (match_four_chars((uint8_t *)(hdrbuf + 26), I_ulaw)))
 			sample_type = MUS_MULAW;
 		      else 
 			{
-			  static const unsigned char I_ni23[4] = {'n','i','2','3'};
-			  if ((match_four_chars((unsigned char *)(hdrbuf + 26), I_sowt)) ||
-			      (match_four_chars((unsigned char *)(hdrbuf + 26), I_ni23)))
+			  static const uint8_t I_ni23[4] = {'n','i','2','3'};
+			  if ((match_four_chars((uint8_t *)(hdrbuf + 26), I_sowt)) ||
+			      (match_four_chars((uint8_t *)(hdrbuf + 26), I_ni23)))
 			    {
 			      /* Sound.h sez sowt is just 16-bit format */
 			      if (sample_type == MUS_BSHORT) sample_type = MUS_LSHORT;
@@ -1107,38 +1107,38 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 			    }
 			  else
 			    {
-			      if (match_four_chars((unsigned char *)(hdrbuf + 26), I_raw_))
+			      if (match_four_chars((uint8_t *)(hdrbuf + 26), I_raw_))
 				{
 				  if (sample_type == MUS_BYTE) sample_type = MUS_UBYTE;
 				  else if (sample_type == MUS_BSHORT) sample_type = MUS_UBSHORT;
 				}
 			      else
 				{
-				  unsigned char I_FL32[4] = {'F','L','3','2'};  /* 32-bit float (apparently used by CSound and SoundHack) */
-				  if ((match_four_chars((unsigned char *)(hdrbuf + 26), I_fl32)) ||
-				      (match_four_chars((unsigned char *)(hdrbuf + 26), I_FL32)))
+				  uint8_t I_FL32[4] = {'F','L','3','2'};  /* 32-bit float (apparently used by CSound and SoundHack) */
+				  if ((match_four_chars((uint8_t *)(hdrbuf + 26), I_fl32)) ||
+				      (match_four_chars((uint8_t *)(hdrbuf + 26), I_FL32)))
 				    sample_type = MUS_BFLOAT;
 				  else
 				    {
-				      if (match_four_chars((unsigned char *)(hdrbuf + 26), I_fl64))
+				      if (match_four_chars((uint8_t *)(hdrbuf + 26), I_fl64))
 					sample_type = MUS_BDOUBLE;
 				      else
 					{
-					  static const unsigned char I_ima4[4] = {'i','m','a','4'};  /* AIFC IMA adpcm apparently */
-					  if (match_four_chars((unsigned char *)(hdrbuf + 26), I_ima4))
+					  static const uint8_t I_ima4[4] = {'i','m','a','4'};  /* AIFC IMA adpcm apparently */
+					  if (match_four_chars((uint8_t *)(hdrbuf + 26), I_ima4))
 					    {
 					      block_align = 34;
 					      original_sample_type = MUS_AIFF_IMA_ADPCM;
 					    }
 					  else
 					    {
-					      static const unsigned char I_in32[4] = {'i','n','3','2'};
-					      if (match_four_chars((unsigned char *)(hdrbuf + 26), I_in32))
+					      static const uint8_t I_in32[4] = {'i','n','3','2'};
+					      if (match_four_chars((uint8_t *)(hdrbuf + 26), I_in32))
 						sample_type = MUS_BINT;
 					      else
 						{
-						  static const unsigned char I_in24[4] = {'i','n','2','4'};
-						  if (match_four_chars((unsigned char *)(hdrbuf + 26), I_in24))
+						  static const uint8_t I_in24[4] = {'i','n','2','4'};
+						  if (match_four_chars((uint8_t *)(hdrbuf + 26), I_in24))
 						    sample_type = MUS_B24INT;
 						  else
 						    {
@@ -1175,11 +1175,11 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_SSND))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_SSND))
 	    {
 	      if (data_location != 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: two SSND chunks found", filename));
 	      update_ssnd_location = offset + 4;
-	      data_location = mus_char_to_bint((unsigned char *)(hdrbuf + 8)) + offset + 16; /* Baroque! */
+	      data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 8)) + offset + 16; /* Baroque! */
 
 	      /* offset is where the hdrbuf is positioned in the file, the sound data offset itself is at loc+8 and the */
 	      /* 0-based location of the sound data is at the end of the chunk = 16 (8 = header+4 = offset+4 = blocksize) */
@@ -1191,23 +1191,23 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 	    }
 	  else
 	    {
-	      static const unsigned char I_AUTH[4] = {'A','U','T','H'};
-	      if ((match_four_chars((unsigned char *)hdrbuf, I_ANNO)) || 
-		  (match_four_chars((unsigned char *)hdrbuf, I_COMT)) ||
-		  (match_four_chars((unsigned char *)hdrbuf, I_NAME)) ||
-		  (match_four_chars((unsigned char *)hdrbuf, I_AUTH)))
+	      static const uint8_t I_AUTH[4] = {'A','U','T','H'};
+	      if ((match_four_chars((uint8_t *)hdrbuf, I_ANNO)) || 
+		  (match_four_chars((uint8_t *)hdrbuf, I_COMT)) ||
+		  (match_four_chars((uint8_t *)hdrbuf, I_NAME)) ||
+		  (match_four_chars((uint8_t *)hdrbuf, I_AUTH)))
 		read_aif_aux_comment(hdrbuf, offset, chunksize);
 	      else
 		{
-		  if (match_four_chars((unsigned char *)hdrbuf, I_APPL))
+		  if (match_four_chars((uint8_t *)hdrbuf, I_APPL))
 		    read_aif_appl_chunk(hdrbuf, offset, chunksize);
 		  else
 		    {
-		      if (match_four_chars((unsigned char *)hdrbuf, I_INST))
+		      if (match_four_chars((uint8_t *)hdrbuf, I_INST))
 			read_aif_inst_chunk(hdrbuf);
 		      else
 			{
-			  if (match_four_chars((unsigned char *)hdrbuf, I_MARK))
+			  if (match_four_chars((uint8_t *)hdrbuf, I_MARK))
 			    read_aif_mark_chunk(fd, hdrbuf, offset);
 			}
 		    }
@@ -1289,10 +1289,10 @@ static int write_aif_header(int fd, int wsrate, int wchans, mus_long_t siz, mus_
 	extra = (4 - (len % 4));
     }
 
-  write_four_chars((unsigned char *)hdrbuf, I_FORM);
+  write_four_chars((uint8_t *)hdrbuf, I_FORM);
   if (aifc_header) 
-    mus_ubint_to_char((unsigned char *)(hdrbuf + 4), len + 30 + 16 + lenloop + siz + lenhdr + extra + 12 + 10);
-  else mus_ubint_to_char((unsigned char *)(hdrbuf + 4), len + 30 + 16 + lenloop + siz + lenhdr + extra);
+    mus_ubint_to_char((uint8_t *)(hdrbuf + 4), len + 30 + 16 + lenloop + siz + lenhdr + extra + 12 + 10);
+  else mus_ubint_to_char((uint8_t *)(hdrbuf + 4), len + 30 + 16 + lenloop + siz + lenhdr + extra);
 
   /* 
    * comment length + 4 for AIFF 18+8 for I_COMM info + 16 for I_SSND info + 38 for INST and MARK +
@@ -1301,36 +1301,36 @@ static int write_aif_header(int fd, int wsrate, int wchans, mus_long_t siz, mus_
    */
   if (aifc_header) 
     {
-      static const unsigned char I_FVER[4] = {'F','V','E','R'};
-      write_four_chars((unsigned char *)(hdrbuf + 8), I_AIFC); 
+      static const uint8_t I_FVER[4] = {'F','V','E','R'};
+      write_four_chars((uint8_t *)(hdrbuf + 8), I_AIFC); 
       header_write(fd, hdrbuf, 12);
       curend = 12;
-      write_four_chars((unsigned char *)hdrbuf, I_FVER);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 4), 4);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 8), 0xA2805140);
+      write_four_chars((uint8_t *)hdrbuf, I_FVER);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 4), 4);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 8), 0xA2805140);
     }
-  else write_four_chars((unsigned char *)(hdrbuf + 8), I_AIFF);
+  else write_four_chars((uint8_t *)(hdrbuf + 8), I_AIFF);
 
-  write_four_chars((unsigned char *)(hdrbuf + 12), I_COMM);
+  write_four_chars((uint8_t *)(hdrbuf + 12), I_COMM);
   if (aifc_header) 
-    mus_bint_to_char((unsigned char *)(hdrbuf + 16), 18 + 10); 
-  else mus_bint_to_char((unsigned char *)(hdrbuf + 16), 18);
+    mus_bint_to_char((uint8_t *)(hdrbuf + 16), 18 + 10); 
+  else mus_bint_to_char((uint8_t *)(hdrbuf + 16), 18);
 
-  mus_bshort_to_char((unsigned char *)(hdrbuf + 20), (short)wchans);
+  mus_bshort_to_char((uint8_t *)(hdrbuf + 20), (short)wchans);
   if (wchans > 0)
-    mus_ubint_to_char((unsigned char *)(hdrbuf + 22), siz / (wchans * mus_bytes_per_sample(samp_type)));
+    mus_ubint_to_char((uint8_t *)(hdrbuf + 22), siz / (wchans * mus_bytes_per_sample(samp_type)));
 
-  mus_bshort_to_char((unsigned char *)(hdrbuf + 26), sndlib_format_to_aiff_bits(samp_type));
-  double_to_ieee_80((double)wsrate, (unsigned char *)(hdrbuf + 28));
+  mus_bshort_to_char((uint8_t *)(hdrbuf + 26), sndlib_format_to_aiff_bits(samp_type));
+  double_to_ieee_80((double)wsrate, (uint8_t *)(hdrbuf + 28));
 
   if (aifc_header)
     {
       char *str;
       str = (char *)sndlib_format_to_aifc_name(samp_type);
-      write_four_chars((unsigned char *)(hdrbuf + 38), (const unsigned char *)str);
-      (*(unsigned char *)(hdrbuf + 42)) = 4; /* final pad null not accounted-for */
-      write_four_chars((unsigned char *)(hdrbuf + 43), (const unsigned char *)str);
-      (*(unsigned char *)(hdrbuf + 47)) = 0;
+      write_four_chars((uint8_t *)(hdrbuf + 38), (const uint8_t *)str);
+      (*(uint8_t *)(hdrbuf + 42)) = 4; /* final pad null not accounted-for */
+      write_four_chars((uint8_t *)(hdrbuf + 43), (const uint8_t *)str);
+      (*(uint8_t *)(hdrbuf + 47)) = 0;
       i = 48;
     }
   else i = 38;
@@ -1339,16 +1339,16 @@ static int write_aif_header(int fd, int wsrate, int wchans, mus_long_t siz, mus_
     {
       if (aifc_header)
 	{
-	  write_four_chars((unsigned char *)(hdrbuf + 48), I_APPL);
-	  mus_bint_to_char((unsigned char *)(hdrbuf + 52), len + 4 + extra);
-	  write_four_chars((unsigned char *)(hdrbuf + 56), I_MUS_);
+	  write_four_chars((uint8_t *)(hdrbuf + 48), I_APPL);
+	  mus_bint_to_char((uint8_t *)(hdrbuf + 52), len + 4 + extra);
+	  write_four_chars((uint8_t *)(hdrbuf + 56), I_MUS_);
 	  i = 60;
 	}
       else
 	{
-	  write_four_chars((unsigned char *)(hdrbuf + 38), I_APPL);
-	  mus_bint_to_char((unsigned char *)(hdrbuf + 42), len + 4 + extra);
-	  write_four_chars((unsigned char *)(hdrbuf + 46), I_MUS_);
+	  write_four_chars((uint8_t *)(hdrbuf + 38), I_APPL);
+	  mus_bint_to_char((uint8_t *)(hdrbuf + 42), len + 4 + extra);
+	  write_four_chars((uint8_t *)(hdrbuf + 46), I_MUS_);
 	  i = 50;
 	}
       for (j = 0; j < len; j++)
@@ -1382,58 +1382,58 @@ static int write_aif_header(int fd, int wsrate, int wchans, mus_long_t siz, mus_
 
   if ((loop_modes[0] == 0) && (loop_modes[1] == 0))
     {
-      write_four_chars((unsigned char *)hdrbuf, I_MARK);   /* SoundHack includes a blank MARK chunk for some reason */
-      mus_bint_to_char((unsigned char *)(hdrbuf + 4), 2);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 8), 0);
-      write_four_chars((unsigned char *)(hdrbuf + 10), I_INST);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 14), 20);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 18), 0x3c00007f); /* base-note = middle C, detune = 0, lownote = 0, highnote = 0x7f */
-      mus_bint_to_char((unsigned char *)(hdrbuf + 22), 0x017f0000); /* lowvelocity = 1, highvelocity = 0x7f, gain = 0 */
-      mus_bint_to_char((unsigned char *)(hdrbuf + 26), 0);          /* no loops */
-      mus_bint_to_char((unsigned char *)(hdrbuf + 30), 0); 
-      mus_bint_to_char((unsigned char *)(hdrbuf + 34), 0);
+      write_four_chars((uint8_t *)hdrbuf, I_MARK);   /* SoundHack includes a blank MARK chunk for some reason */
+      mus_bint_to_char((uint8_t *)(hdrbuf + 4), 2);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 8), 0);
+      write_four_chars((uint8_t *)(hdrbuf + 10), I_INST);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 14), 20);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 18), 0x3c00007f); /* base-note = middle C, detune = 0, lownote = 0, highnote = 0x7f */
+      mus_bint_to_char((uint8_t *)(hdrbuf + 22), 0x017f0000); /* lowvelocity = 1, highvelocity = 0x7f, gain = 0 */
+      mus_bint_to_char((uint8_t *)(hdrbuf + 26), 0);          /* no loops */
+      mus_bint_to_char((uint8_t *)(hdrbuf + 30), 0); 
+      mus_bint_to_char((uint8_t *)(hdrbuf + 34), 0);
       header_write(fd, hdrbuf, 38);
       curend += 38;
     }
   else
     {
-      write_four_chars((unsigned char *)hdrbuf, I_MARK); 
-      mus_bint_to_char((unsigned char *)(hdrbuf + 4), 8 * 4 + 2); /* 2 for mark#, then 2:id + 4:pos + 2:pstr */
+      write_four_chars((uint8_t *)hdrbuf, I_MARK); 
+      mus_bint_to_char((uint8_t *)(hdrbuf + 4), 8 * 4 + 2); /* 2 for mark#, then 2:id + 4:pos + 2:pstr */
       /* loop_info: 0..3 are markers positions (ids 1..4) */
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 8), 4);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 8), 4);
       for (j = 0; j < 4; j++)
 	{
-	  mus_bshort_to_char((unsigned char *)(hdrbuf + 10 + 8 * j), j + 1);
+	  mus_bshort_to_char((uint8_t *)(hdrbuf + 10 + 8 * j), j + 1);
 	  switch (j)
 	    {
-	    case 0: mus_bint_to_char((unsigned char *)(hdrbuf + 10 + 8 * j + 2), loop_starts[0]); break;
-	    case 1: mus_bint_to_char((unsigned char *)(hdrbuf + 10 + 8 * j + 2), loop_ends[0]);   break;
-	    case 2: mus_bint_to_char((unsigned char *)(hdrbuf + 10 + 8 * j + 2), loop_starts[1]); break;
-	    case 3: mus_bint_to_char((unsigned char *)(hdrbuf + 10 + 8 * j + 2), loop_ends[1]);   break;
+	    case 0: mus_bint_to_char((uint8_t *)(hdrbuf + 10 + 8 * j + 2), loop_starts[0]); break;
+	    case 1: mus_bint_to_char((uint8_t *)(hdrbuf + 10 + 8 * j + 2), loop_ends[0]);   break;
+	    case 2: mus_bint_to_char((uint8_t *)(hdrbuf + 10 + 8 * j + 2), loop_starts[1]); break;
+	    case 3: mus_bint_to_char((uint8_t *)(hdrbuf + 10 + 8 * j + 2), loop_ends[1]);   break;
 	    }
-	  mus_bshort_to_char((unsigned char *)(hdrbuf + 10 + 8 * j + 6), 0);
+	  mus_bshort_to_char((uint8_t *)(hdrbuf + 10 + 8 * j + 6), 0);
 	}
       header_write(fd, hdrbuf, 42);
       curend += 42;
-      write_four_chars((unsigned char *)hdrbuf, I_INST); 
-      mus_bint_to_char((unsigned char *)(hdrbuf + 4), 20);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 8), 0x3c00007f);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 12), 0x017f0000);
-      hdrbuf[8] = (unsigned char)(base_note);
-      hdrbuf[9] = (unsigned char)(base_detune);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 16), loop_modes[0]);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 18), 1);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 20), 2);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 22), loop_modes[1]);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 24), 3);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 26), 4);
+      write_four_chars((uint8_t *)hdrbuf, I_INST); 
+      mus_bint_to_char((uint8_t *)(hdrbuf + 4), 20);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 8), 0x3c00007f);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 12), 0x017f0000);
+      hdrbuf[8] = (uint8_t)(base_note);
+      hdrbuf[9] = (uint8_t)(base_detune);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 16), loop_modes[0]);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 18), 1);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 20), 2);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 22), loop_modes[1]);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 24), 3);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 26), 4);
       header_write(fd, hdrbuf, 28);
       curend += 28;
     }
-  write_four_chars((unsigned char *)(hdrbuf), I_SSND);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 4), siz + 8);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 8), 0);                        /* "offset" */
-  mus_bint_to_char((unsigned char *)(hdrbuf + 12), 0);                       /* "blocksize " */
+  write_four_chars((uint8_t *)(hdrbuf), I_SSND);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 4), siz + 8);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 8), 0);                        /* "offset" */
+  mus_bint_to_char((uint8_t *)(hdrbuf + 12), 0);                       /* "blocksize " */
   header_write(fd, hdrbuf, 16);
   data_location = 16 + curend;
   return(MUS_NO_ERROR);
@@ -1471,7 +1471,7 @@ char *mus_header_aiff_aux_comment(const char *name, mus_long_t *starts, mus_long
 		  mus_long_t len;
 		  len = end - start + 1;
 		  lseek(fd, start, SEEK_SET);
-		  header_read(fd, (unsigned char *)(sc + sc_len), len);
+		  header_read(fd, (uint8_t *)(sc + sc_len), len);
 		  for (j = 0; j < len; j++) 
 		    if (sc[j + sc_len] == 0) 
 		      sc[j + sc_len] = ' ';
@@ -1530,26 +1530,26 @@ static int read_caff_header(int fd)
     {
       offset += chunksize;
       if (offset >= true_file_length) break;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 64) <= 0) break;
-      chunksize = mus_char_to_blong((unsigned char *)(hdrbuf + 4));
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 64) <= 0) break;
+      chunksize = mus_char_to_blong((uint8_t *)(hdrbuf + 4));
       if (chunksize < 0)
 	break;
 
       /* 'desc' is always the first chunk, but easier to handle in the loop */
-      if (match_four_chars((unsigned char *)hdrbuf, I_desc))
+      if (match_four_chars((uint8_t *)hdrbuf, I_desc))
 	{
 	  int format_flags, channels_per_frample, bits_per_channel;
-	  srate = (int)mus_char_to_bdouble((unsigned char *)(hdrbuf + 12));
-	  format_flags = mus_char_to_ubint((unsigned char *)(hdrbuf + 24));
-	  /* bytes_per_packet = mus_char_to_ubint((unsigned char *)(hdrbuf + 28)); */
-	  /* framples_per_packet = mus_char_to_ubint((unsigned char *)(hdrbuf + 32)); */
-	  channels_per_frample = mus_char_to_ubint((unsigned char *)(hdrbuf + 36));
-	  bits_per_channel = mus_char_to_ubint((unsigned char *)(hdrbuf + 40));
+	  srate = (int)mus_char_to_bdouble((uint8_t *)(hdrbuf + 12));
+	  format_flags = mus_char_to_ubint((uint8_t *)(hdrbuf + 24));
+	  /* bytes_per_packet = mus_char_to_ubint((uint8_t *)(hdrbuf + 28)); */
+	  /* framples_per_packet = mus_char_to_ubint((uint8_t *)(hdrbuf + 32)); */
+	  channels_per_frample = mus_char_to_ubint((uint8_t *)(hdrbuf + 36));
+	  bits_per_channel = mus_char_to_ubint((uint8_t *)(hdrbuf + 40));
 	  chans = channels_per_frample;
 
 	  /* format id can be 'lpcm' 'alaw' 'ulaw' and a bunch of others we ignore */
-	  original_sample_type = mus_char_to_bint((unsigned char *)(hdrbuf + 20));	  
-	  if (match_four_chars((unsigned char *)(hdrbuf + 20), I_lpcm))
+	  original_sample_type = mus_char_to_bint((uint8_t *)(hdrbuf + 20));	  
+	  if (match_four_chars((uint8_t *)(hdrbuf + 20), I_lpcm))
 	    {
 	      if (format_flags & data_is_float)
 		{
@@ -1624,13 +1624,13 @@ static int read_caff_header(int fd)
 	    }
 	  else
 	    {
-	      if (match_four_chars((unsigned char *)(hdrbuf + 20), I_alaw))
+	      if (match_four_chars((uint8_t *)(hdrbuf + 20), I_alaw))
 		{
 		  sample_type = MUS_ALAW;
 		}
 	      else
 		{
-		  if (match_four_chars((unsigned char *)(hdrbuf + 20), I_ulaw))
+		  if (match_four_chars((uint8_t *)(hdrbuf + 20), I_ulaw))
 		    {
 		      sample_type = MUS_MULAW;
 		    }
@@ -1640,7 +1640,7 @@ static int read_caff_header(int fd)
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_data))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_data))
 	    {
 	      happy = true;
 	      data_location = offset + 16; /* skip the 4 bytes for "edit count" */
@@ -1718,35 +1718,35 @@ static int write_caff_header(int fd, int wsrate, int wchans, mus_long_t wsize, m
     }
   bytes_per_packet *= wchans;
 
-  write_four_chars((unsigned char *)hdrbuf, I_caff);
-  mus_bshort_to_char((unsigned char *)(hdrbuf + 4), 1);
-  mus_bshort_to_char((unsigned char *)(hdrbuf + 6), 0);
-  write_four_chars((unsigned char *)(hdrbuf + 8), I_desc);
-  mus_blong_to_char((unsigned char *)(hdrbuf + 12), 32);
-  mus_bdouble_to_char((unsigned char *)(hdrbuf + 20), (double)wsrate);
+  write_four_chars((uint8_t *)hdrbuf, I_caff);
+  mus_bshort_to_char((uint8_t *)(hdrbuf + 4), 1);
+  mus_bshort_to_char((uint8_t *)(hdrbuf + 6), 0);
+  write_four_chars((uint8_t *)(hdrbuf + 8), I_desc);
+  mus_blong_to_char((uint8_t *)(hdrbuf + 12), 32);
+  mus_bdouble_to_char((uint8_t *)(hdrbuf + 20), (double)wsrate);
   switch (samp_type)
     {
     case MUS_ALAW:
-      write_four_chars((unsigned char *)(hdrbuf + 28), I_alaw);
+      write_four_chars((uint8_t *)(hdrbuf + 28), I_alaw);
       break;
 
     case MUS_MULAW:
-      write_four_chars((unsigned char *)(hdrbuf + 28), I_ulaw);
+      write_four_chars((uint8_t *)(hdrbuf + 28), I_ulaw);
       break;
 
     default:
-      write_four_chars((unsigned char *)(hdrbuf + 28), I_lpcm);
+      write_four_chars((uint8_t *)(hdrbuf + 28), I_lpcm);
       break;
     }
-  mus_bint_to_char((unsigned char *)(hdrbuf + 32), format_flags);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 36), bytes_per_packet);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 40), framples_per_packet);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 44), wchans);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 48), bits_per_channel);
-  write_four_chars((unsigned char *)(hdrbuf + 52), I_data);
-  mus_blong_to_char((unsigned char *)(hdrbuf + 56), wsize);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 32), format_flags);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 36), bytes_per_packet);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 40), framples_per_packet);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 44), wchans);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 48), bits_per_channel);
+  write_four_chars((uint8_t *)(hdrbuf + 52), I_data);
+  mus_blong_to_char((uint8_t *)(hdrbuf + 56), wsize);
   update_framples_location = 56;
-  mus_bint_to_char((unsigned char *)(hdrbuf + 64), 0);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 64), 0);
   data_location = 68;
   header_write(fd, hdrbuf, 68);
   return(MUS_NO_ERROR);
@@ -1861,7 +1861,7 @@ static mus_sample_t wave_to_sndlib_format(int osf, int bps, bool little)
 }
 
 
-static void read_riff_fmt_chunk(unsigned char *hbuf, bool little)
+static void read_riff_fmt_chunk(uint8_t *hbuf, bool little)
 {
   /* fmt chunk (also used in RF64 below)
    *
@@ -1882,62 +1882,62 @@ static void read_riff_fmt_chunk(unsigned char *hbuf, bool little)
    *  #x000551f8 = 348664 = size in bytes - 8
    *  #x00000fe4 = 4068 [fmt_ chunk size?]
    */
-  original_sample_type = big_or_little_endian_short((unsigned char *)(hbuf + 8), little);
-  chans = big_or_little_endian_short((unsigned char *)(hbuf + 10), little);
-  srate = big_or_little_endian_int((unsigned char *)(hbuf + 12), little);
-  block_align = big_or_little_endian_short((unsigned char *)(hbuf + 20), little);
-  bits_per_sample = big_or_little_endian_short((unsigned char *)(hbuf + 22), little);
+  original_sample_type = big_or_little_endian_short((uint8_t *)(hbuf + 8), little);
+  chans = big_or_little_endian_short((uint8_t *)(hbuf + 10), little);
+  srate = big_or_little_endian_int((uint8_t *)(hbuf + 12), little);
+  block_align = big_or_little_endian_short((uint8_t *)(hbuf + 20), little);
+  bits_per_sample = big_or_little_endian_short((uint8_t *)(hbuf + 22), little);
   if (original_sample_type == -2)        /* 0xFFFE = "extensible" : short size=22, short bits, long chanmap, short format */
-    original_sample_type = big_or_little_endian_short((unsigned char *)(hbuf + 24 + 8), little);
+    original_sample_type = big_or_little_endian_short((uint8_t *)(hbuf + 24 + 8), little);
   sample_type = wave_to_sndlib_format(original_sample_type, bits_per_sample, little);
 }
 
 
-static int write_riff_fmt_chunk(int fd, unsigned char *hbuf, mus_sample_t samp_type, int wsrate, int wchans)
+static int write_riff_fmt_chunk(int fd, uint8_t *hbuf, mus_sample_t samp_type, int wsrate, int wchans)
 {
   int err = MUS_NO_ERROR;
-  write_four_chars((unsigned char *)hbuf, I_fmt_);
-  mus_lint_to_char((unsigned char *)(hbuf + 4), 16);
+  write_four_chars((uint8_t *)hbuf, I_fmt_);
+  mus_lint_to_char((uint8_t *)(hbuf + 4), 16);
   switch (samp_type)
     {
     case MUS_MULAW: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 7); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 8); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 7); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 8); 
       break;
 
     case MUS_ALAW: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 6); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 8); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 6); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 8); 
       break;
 
     case MUS_UBYTE: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 1); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 8); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 1); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 8); 
       break;
 
     case MUS_LSHORT: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 1); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 16); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 1); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 16); 
       break;
 
     case MUS_L24INT: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 1); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 24); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 1); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 24); 
       break;
 
     case MUS_LINT: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 1); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 32); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 1); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 32); 
       break;
 
     case MUS_LFLOAT: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 3); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 32); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 3); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 32); 
       break;
 
     case MUS_LDOUBLE: 
-      mus_lshort_to_char((unsigned char *)(hbuf + 8), 3); 
-      mus_lshort_to_char((unsigned char *)(hbuf + 22), 64); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 8), 3); 
+      mus_lshort_to_char((uint8_t *)(hbuf + 22), 64); 
       break;
 
     default: 
@@ -1945,17 +1945,17 @@ static int write_riff_fmt_chunk(int fd, unsigned char *hbuf, mus_sample_t samp_t
       err = MUS_UNSUPPORTED_SAMPLE_TYPE;
       break;
     }
-  mus_lshort_to_char((unsigned char *)(hbuf + 10), (short)wchans);
-  mus_lint_to_char((unsigned char *)(hbuf + 12), wsrate);
-  mus_lint_to_char((unsigned char *)(hbuf + 16), wsrate * wchans * mus_bytes_per_sample(samp_type)); /* added chans 10-Mar-99 */
-  mus_lshort_to_char((unsigned char *)(hbuf + 20), (short)(wchans * mus_bytes_per_sample(samp_type)));
+  mus_lshort_to_char((uint8_t *)(hbuf + 10), (short)wchans);
+  mus_lint_to_char((uint8_t *)(hbuf + 12), wsrate);
+  mus_lint_to_char((uint8_t *)(hbuf + 16), wsrate * wchans * mus_bytes_per_sample(samp_type)); /* added chans 10-Mar-99 */
+  mus_lshort_to_char((uint8_t *)(hbuf + 20), (short)(wchans * mus_bytes_per_sample(samp_type)));
   /* 22 short written above = bits/sample */
   header_write(fd, hbuf, 24);
   return(err);
 }
 
 
-static const unsigned char I_JUNK[4] = {'J','U','N','K'};
+static const uint8_t I_JUNK[4] = {'J','U','N','K'};
 
 static int read_riff_header(const char *filename, int fd)
 {
@@ -1964,9 +1964,9 @@ static int read_riff_header(const char *filename, int fd)
   bool little = true, got_fmt = false;
   mus_long_t offset = 0;
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_RIFX)) little = false; /* big-endian data in this case, but I've never seen one */
+  if (match_four_chars((uint8_t *)hdrbuf, I_RIFX)) little = false; /* big-endian data in this case, but I've never seen one */
   little_endian = little;
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 8));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 8));
   sample_type = MUS_UNKNOWN_SAMPLE;
   srate = 0;
   chans = 0;
@@ -1974,19 +1974,19 @@ static int read_riff_header(const char *filename, int fd)
   bits_per_sample = 0;
   for (i = 0; i < AUX_COMMENTS; i++) aux_comment_start[i] = 0;
   true_file_length = SEEK_FILE_LENGTH(fd);
-  update_form_size = big_or_little_endian_int((unsigned char *)(hdrbuf + 4), little);
+  update_form_size = big_or_little_endian_int((uint8_t *)(hdrbuf + 4), little);
 
   while (true)
     {
-      unsigned int chunksize;
+      uint32_t chunksize;
       offset += chunkloc;
       if (offset >= true_file_length) break;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 64) <= 0) break;
-      chunksize = big_or_little_endian_uint((unsigned char *)(hdrbuf + 4), little);
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 64) <= 0) break;
+      chunksize = big_or_little_endian_uint((uint8_t *)(hdrbuf + 4), little);
       if ((chunksize == 0) && /* can be empty data chunk */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
-      if (match_four_chars((unsigned char *)hdrbuf, I_fmt_))
+      if (match_four_chars((uint8_t *)hdrbuf, I_fmt_))
 	{
 	  got_fmt = true;
 	  update_framples_location = 12 + offset;
@@ -1994,23 +1994,23 @@ static int read_riff_header(const char *filename, int fd)
 	}
       else
 	{
-	  if ((match_four_chars((unsigned char *)hdrbuf, I_data)) && (data_location == 0))
+	  if ((match_four_chars((uint8_t *)hdrbuf, I_data)) && (data_location == 0))
 	    {
 	      update_ssnd_location = offset + 4;
 	      data_location = offset + 8;
-	      data_size = big_or_little_endian_uint((unsigned char *)(hdrbuf + 4), little); /* was int 27-Jul-01 */
+	      data_size = big_or_little_endian_uint((uint8_t *)(hdrbuf + 4), little); /* was int 27-Jul-01 */
 	      if (chunksize == 0) break; /* see aiff comment */
 	    }
 	  else
 	    {
-	      if (match_four_chars((unsigned char *)hdrbuf, I_fact))
+	      if (match_four_chars((uint8_t *)hdrbuf, I_fact))
 		{
-		  fact_samples = big_or_little_endian_int((unsigned char *)(hdrbuf + 8), little);
+		  fact_samples = big_or_little_endian_int((uint8_t *)(hdrbuf + 8), little);
 		}
 	      else
 		{
-		  static const unsigned char I_inst[4] = {'i','n','s','t'};  /* RIFF wants lower case, just to be different */
-		  if (match_four_chars((unsigned char *)hdrbuf, I_inst))
+		  static const uint8_t I_inst[4] = {'i','n','s','t'};  /* RIFF wants lower case, just to be different */
+		  if (match_four_chars((uint8_t *)hdrbuf, I_inst))
 		    {
 		      base_note = hdrbuf[8];
 		      base_detune = hdrbuf[9];
@@ -2018,22 +2018,22 @@ static int read_riff_header(const char *filename, int fd)
 		    }
 		  else
 		    {
-		      if (match_four_chars((unsigned char *)hdrbuf, I_clm_))
+		      if (match_four_chars((uint8_t *)hdrbuf, I_clm_))
 			{
 			  comment_start = offset + 8;
 			  comment_end = comment_start + chunksize - 1; /* end of comment not start of next chunk */
 			}
 		      else
 			{
-			  if ((match_four_chars((unsigned char *)hdrbuf, I_LIST)) &&
-			      (match_four_chars((unsigned char *)(hdrbuf + 8), I_INFO)))
+			  if ((match_four_chars((uint8_t *)hdrbuf, I_LIST)) &&
+			      (match_four_chars((uint8_t *)(hdrbuf + 8), I_INFO)))
 			    {
 			      aux_comment_start[0] = offset + 8;
 			      aux_comment_end[0] = offset + 8 + chunksize - 1;
 			    }
 			  else
 			    {
-			      if (match_four_chars((unsigned char *)hdrbuf, I_JUNK))
+			      if (match_four_chars((uint8_t *)hdrbuf, I_JUNK))
 				update_rf64_location = offset;
 			    }
 			}
@@ -2061,8 +2061,8 @@ static int read_riff_header(const char *filename, int fd)
 static void write_riff_clm_comment(int fd, const char *comment, int len, int extra)
 {
   int i = 0, j;
-  write_four_chars((unsigned char *)hdrbuf, I_clm_);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), len + extra);
+  write_four_chars((uint8_t *)hdrbuf, I_clm_);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), len + extra);
   i = 8;
   for (j = 0; j < len; j++)
     {
@@ -2090,9 +2090,9 @@ static void write_riff_clm_comment(int fd, const char *comment, int len, int ext
 }
 
 
-static void mus_ulint_to_char(unsigned char *j, unsigned int x)
+static void mus_ulint_to_char(uint8_t *j, uint32_t x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -2115,14 +2115,14 @@ static int write_riff_header(int fd, int wsrate, int wchans, mus_long_t siz, mus
   /* 36 = "RIFF" + size(4) + "WAVE" + "fmt " + size(4) + 16 for data */
   /*   second 36 is for "JUNK" chunk, 8 is data chunk header */
 
-  write_four_chars((unsigned char *)hdrbuf, I_RIFF);
-  mus_ulint_to_char((unsigned char *)(hdrbuf + 4), (unsigned int)(data_location + siz - 8)); /* added -8 25-June-07 */
-  write_four_chars((unsigned char *)(hdrbuf + 8), I_WAVE);
+  write_four_chars((uint8_t *)hdrbuf, I_RIFF);
+  mus_ulint_to_char((uint8_t *)(hdrbuf + 4), (uint32_t)(data_location + siz - 8)); /* added -8 25-June-07 */
+  write_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE);
   header_write(fd, hdrbuf, 12);
 
   /* add JUNK chunk for possible change to RF64 during write */
-  write_four_chars((unsigned char *)hdrbuf, I_JUNK);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), 28);
+  write_four_chars((uint8_t *)hdrbuf, I_JUNK);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), 28);
   for (j = 8; j < 36; j++) hdrbuf[j] = 0;
   header_write(fd, hdrbuf, 36);
 
@@ -2134,8 +2134,8 @@ static int write_riff_header(int fd, int wsrate, int wchans, mus_long_t siz, mus
     write_riff_clm_comment(fd, comment, len, extra);
 
   /* start the data chunk */
-  write_four_chars((unsigned char *)hdrbuf, I_data);
-  mus_ulint_to_char((unsigned char *)(hdrbuf + 4), (unsigned int)siz);
+  write_four_chars((uint8_t *)hdrbuf, I_data);
+  mus_ulint_to_char((uint8_t *)(hdrbuf + 4), (uint32_t)siz);
   header_write(fd, hdrbuf, 8);
   return(err);
 }
@@ -2158,14 +2158,14 @@ char *mus_header_riff_aux_comment(const char *name, mus_long_t *starts, mus_long
       k = 4;
       lseek(fd, i, SEEK_SET);
       auxcom = (char *)calloc(end - i + 2, sizeof(char));
-      header_read(fd, (unsigned char *)auxcom, end - i + 1);
+      header_read(fd, (uint8_t *)auxcom, end - i + 1);
       CLOSE(fd, name);
       i += 4;
       while (i < end)
 	{
 	  int len;
 	  for (m = 0; m < 4; m++) sc[j++] = auxcom[k++];
-	  len = mus_char_to_lint((unsigned char *)(auxcom + k));
+	  len = mus_char_to_lint((uint8_t *)(auxcom + k));
 	  if ((len <= 0) || (len > end)) break;
 	  sc[j++] = ':';
 	  sc[j++] = ' ';
@@ -2208,43 +2208,43 @@ static int read_soundforge_header(const char *filename, int fd)
   bits_per_sample = 0;
   for (i = 0; i < AUX_COMMENTS; i++) aux_comment_start[i] = 0;
   true_file_length = SEEK_FILE_LENGTH(fd);
-  update_form_size = mus_char_to_llong((unsigned char *)(hdrbuf + 4 * 2));
+  update_form_size = mus_char_to_llong((uint8_t *)(hdrbuf + 4 * 2));
   while (true)
     {
       int chunksize;
       offset += chunkloc;
       if (offset >= true_file_length) break;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 64) <= 0) break;
-      chunksize = mus_char_to_llong((unsigned char *)(hdrbuf + 16));
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 64) <= 0) break;
+      chunksize = mus_char_to_llong((uint8_t *)(hdrbuf + 16));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
 
-      if (match_four_chars((unsigned char *)hdrbuf, I_fmt_))
+      if (match_four_chars((uint8_t *)hdrbuf, I_fmt_))
 	{
 	  off = 16;
-	  original_sample_type = mus_char_to_lshort((unsigned char *)(hdrbuf + 8 + off));
-	  chans = mus_char_to_lshort((unsigned char *)(hdrbuf + 10 + off));
-	  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 12 + off));
-	  block_align = mus_char_to_lshort((unsigned char *)(hdrbuf + 20 + off));
-	  bits_per_sample = mus_char_to_lshort((unsigned char *)(hdrbuf + 22 + off));
+	  original_sample_type = mus_char_to_lshort((uint8_t *)(hdrbuf + 8 + off));
+	  chans = mus_char_to_lshort((uint8_t *)(hdrbuf + 10 + off));
+	  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 12 + off));
+	  block_align = mus_char_to_lshort((uint8_t *)(hdrbuf + 20 + off));
+	  bits_per_sample = mus_char_to_lshort((uint8_t *)(hdrbuf + 22 + off));
 	  sample_type = wave_to_sndlib_format(original_sample_type, bits_per_sample, true);
 	}
       else
 	{
-	  if ((match_four_chars((unsigned char *)hdrbuf, I_data)) && (data_location == 0))
+	  if ((match_four_chars((uint8_t *)hdrbuf, I_data)) && (data_location == 0))
 	    {
 	      data_location = offset + 16 + 8;
-	      data_size = mus_char_to_llong((unsigned char *)(hdrbuf + 16));
+	      data_size = mus_char_to_llong((uint8_t *)(hdrbuf + 16));
 	      if (chunksize == 0) break; /* see aiff comment */
 	    }
 	  else
 	    {
-	      if (match_four_chars((unsigned char *)hdrbuf, I_fact))
+	      if (match_four_chars((uint8_t *)hdrbuf, I_fact))
 		{
-		  fact_samples = mus_char_to_llong((unsigned char *)(hdrbuf + 8));
+		  fact_samples = mus_char_to_llong((uint8_t *)(hdrbuf + 8));
 		}
 	    }
 	}
@@ -2297,7 +2297,7 @@ static int read_rf64_header(const char *filename, int fd)
   bool got_fmt = false, got_ds64 = false;
   mus_long_t offset;
   little_endian = true;
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 8));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 8));
   chunkloc = 12;
   offset = 0;
   sample_type = MUS_UNKNOWN_SAMPLE;
@@ -2317,27 +2317,27 @@ static int read_rf64_header(const char *filename, int fd)
       mus_long_t chunksize;
       offset += chunkloc;
       if (offset >= true_file_length) break;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 64) <= 0) break;
-      chunksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 64) <= 0) break;
+      chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) &&                                                      /* can be empty data chunk */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < -1)
 	break;
 
-      if (match_four_chars((unsigned char *)hdrbuf, I_ds64))
+      if (match_four_chars((uint8_t *)hdrbuf, I_ds64))
 	{
 	  /* RIFF form size | data size | fact samples */
-	  update_form_size = mus_char_to_llong((unsigned char *)(hdrbuf + 8));
-	  data_size = mus_char_to_llong((unsigned char *)(hdrbuf + 16));
-	  fact_samples = (int)mus_char_to_llong((unsigned char *)(hdrbuf + 24));
+	  update_form_size = mus_char_to_llong((uint8_t *)(hdrbuf + 8));
+	  data_size = mus_char_to_llong((uint8_t *)(hdrbuf + 16));
+	  fact_samples = (int)mus_char_to_llong((uint8_t *)(hdrbuf + 24));
 	  update_rf64_location = offset + 8;
 	  got_ds64 = true;
 	  /* ignore "table" for now */
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_fmt_))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_fmt_))
 	    {
 	      got_fmt = true;
 	      update_framples_location = 12 + offset;
@@ -2345,7 +2345,7 @@ static int read_rf64_header(const char *filename, int fd)
 	    }
 	  else
 	    {
-	      if ((match_four_chars((unsigned char *)hdrbuf, I_data)) && (data_location == 0))
+	      if ((match_four_chars((uint8_t *)hdrbuf, I_data)) && (data_location == 0))
 		{
 		  update_ssnd_location = offset + 4;
 		  data_location = offset + 8;
@@ -2356,15 +2356,15 @@ static int read_rf64_header(const char *filename, int fd)
 	      else
 		{
 		  /* ignore possible fact, inst chunks */
-		  if (match_four_chars((unsigned char *)hdrbuf, I_clm_))
+		  if (match_four_chars((uint8_t *)hdrbuf, I_clm_))
 		    {
 		      comment_start = offset + 8;
 		      comment_end = comment_start + chunksize - 1; /* end of comment not start of next chunk */
 		    }
 		  else
 		    {
-		      if ((match_four_chars((unsigned char *)hdrbuf, I_LIST)) &&
-			  (match_four_chars((unsigned char *)(hdrbuf + 8), I_INFO)))
+		      if ((match_four_chars((uint8_t *)hdrbuf, I_LIST)) &&
+			  (match_four_chars((uint8_t *)(hdrbuf + 8), I_INFO)))
 			{
 			  aux_comment_start[0] = offset + 8;
 			  aux_comment_end[0] = offset + 8 + chunksize - 1;
@@ -2407,18 +2407,18 @@ static int write_rf64_header(int fd, int wsrate, int wchans, mus_long_t size, mu
       data_location += (8 + len + extra); 
     }
 
-  write_four_chars((unsigned char *)hdrbuf, I_RF64);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), -1);
-  write_four_chars((unsigned char *)(hdrbuf + 8), I_WAVE);
+  write_four_chars((uint8_t *)hdrbuf, I_RF64);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), -1);
+  write_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE);
   header_write(fd, hdrbuf, 12);
 
   /* ds64 chunk */
-  write_four_chars((unsigned char *)hdrbuf, I_ds64);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), 28);
-  mus_llong_to_char((unsigned char *)(hdrbuf + 8), data_location + size - 8); /* -8 added 25-June-07 */
-  mus_llong_to_char((unsigned char *)(hdrbuf + 16), size);
-  mus_llong_to_char((unsigned char *)(hdrbuf + 24), size);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 32), 0); /* "table size" */
+  write_four_chars((uint8_t *)hdrbuf, I_ds64);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), 28);
+  mus_llong_to_char((uint8_t *)(hdrbuf + 8), data_location + size - 8); /* -8 added 25-June-07 */
+  mus_llong_to_char((uint8_t *)(hdrbuf + 16), size);
+  mus_llong_to_char((uint8_t *)(hdrbuf + 24), size);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 32), 0); /* "table size" */
   header_write(fd, hdrbuf, 36);
 
   err = write_riff_fmt_chunk(fd, hdrbuf, samp_type, wsrate, wchans);
@@ -2426,8 +2426,8 @@ static int write_rf64_header(int fd, int wsrate, int wchans, mus_long_t size, mu
   if (len > 0)
     write_riff_clm_comment(fd, comment, len, extra);
 
-  write_four_chars((unsigned char *)hdrbuf, I_data);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), -1);
+  write_four_chars((uint8_t *)hdrbuf, I_data);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), -1);
   header_write(fd, hdrbuf, 8);
   return(err);
 }
@@ -2452,22 +2452,22 @@ static int mus_header_convert_riff_to_rf64(const char *filename, mus_long_t size
   if (fd == -1) return(false);
 
   /* change overall type to rf64 and set size to RIFF -1 */
-  write_four_chars((unsigned char *)hdrbuf, I_RF64);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), -1);
+  write_four_chars((uint8_t *)hdrbuf, I_RF64);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), -1);
   header_write(fd, hdrbuf, 8);
 
   /* set data chunk's size to -1 */
   lseek(fd, update_ssnd_location, SEEK_SET);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), -1);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), -1);
   header_write(fd, hdrbuf, 4);
 
   /* convert the "JUNK" chunk to be a "ds64" chunk */
   lseek(fd, update_rf64_location, SEEK_SET);
-  write_four_chars((unsigned char *)hdrbuf, I_ds64);
-  mus_lint_to_char((unsigned char *)(hdrbuf + 4), 28);
-  mus_llong_to_char((unsigned char *)(hdrbuf + 8), data_location + size - 8);
-  mus_llong_to_char((unsigned char *)(hdrbuf + 16), size);
-  mus_llong_to_char((unsigned char *)(hdrbuf + 24), size);
+  write_four_chars((uint8_t *)hdrbuf, I_ds64);
+  mus_lint_to_char((uint8_t *)(hdrbuf + 4), 28);
+  mus_llong_to_char((uint8_t *)(hdrbuf + 8), data_location + size - 8);
+  mus_llong_to_char((uint8_t *)(hdrbuf + 16), size);
+  mus_llong_to_char((uint8_t *)(hdrbuf + 24), size);
   header_write(fd, hdrbuf, 36);
 
   CLOSE(fd, filename);
@@ -2490,14 +2490,14 @@ static int mus_header_convert_riff_to_rf64(const char *filename, mus_long_t size
 
 static int read_avi_header(const char *filename, int fd)
 {
-  static const unsigned char I_strf[4] = {'s','t','r','f'};  
-  static const unsigned char I_movi[4] = {'m','o','v','i'};  
+  static const uint8_t I_strf[4] = {'s','t','r','f'};  
+  static const uint8_t I_movi[4] = {'m','o','v','i'};  
 
   /* we know we have checked for RIFF xxxx AVI  when we arrive here */
   int chunkloc, cksize, bits;
   bool happy = true;
   mus_long_t ckoff, cktotal, offset;
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 8));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 8));
   chunkloc = 12;
   offset = 0;
   sample_type = MUS_UNKNOWN_SAMPLE;
@@ -2508,25 +2508,25 @@ static int read_avi_header(const char *filename, int fd)
     {
       int chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s avi header: chunks confused at %" PRId64, filename, offset));
-      chunksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
-      if (match_four_chars((unsigned char *)hdrbuf, I_LIST))
+      if (match_four_chars((uint8_t *)hdrbuf, I_LIST))
 	{
 	  ckoff = offset + 12;
 	  cktotal = 12;
-	  if (match_four_chars((unsigned char *)(hdrbuf + 8), I_movi))
+	  if (match_four_chars((uint8_t *)(hdrbuf + 8), I_movi))
 	    {
 	      while (cktotal < chunksize)
 		{
 		  lseek(fd, ckoff, SEEK_SET);
 		  header_read(fd, hdrbuf, 8);
-		  cksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+		  cksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 		  if ((hdrbuf[2] == 'w') && (hdrbuf[3] == 'b'))
 		    {
 		      data_location = ckoff;
@@ -2543,10 +2543,10 @@ static int read_avi_header(const char *filename, int fd)
 		{
 		  lseek(fd, ckoff, SEEK_SET);
 		  header_read(fd, hdrbuf, 8);
-		  cksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+		  cksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 		  ckoff += (8 + cksize);
 		  cktotal += (8 + cksize);
-		  if (match_four_chars((unsigned char *)hdrbuf, I_LIST))
+		  if (match_four_chars((uint8_t *)hdrbuf, I_LIST))
 		    {
 		      mus_long_t ckoffr, cktotalr, rdsize;
 		      ckoffr = ckoff + 12;
@@ -2556,20 +2556,20 @@ static int read_avi_header(const char *filename, int fd)
 			  mus_long_t cksizer;
 			  lseek(fd, ckoffr, SEEK_SET);
 			  header_read(fd, hdrbuf, 8);
-			  cksizer = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+			  cksizer = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 			  ckoffr += (8 + cksizer);
 			  cktotalr += (8 + cksizer);
-			  if (match_four_chars((unsigned char *)hdrbuf, I_strf))
+			  if (match_four_chars((uint8_t *)hdrbuf, I_strf))
 			    {
 			      if (cksizer < HDRBUFSIZ) 
 				rdsize = cksizer; 
 			      else rdsize = HDRBUFSIZ;
 			      header_read(fd, hdrbuf, rdsize);
-			      original_sample_type = mus_char_to_lshort((unsigned char *)hdrbuf);
-			      chans = mus_char_to_lshort((unsigned char *)(hdrbuf + 2));
-			      srate = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
-			      /* block_align = mus_char_to_lshort((unsigned char *)(hdrbuf + 12)); */
-			      bits = mus_char_to_lshort((unsigned char *)(hdrbuf + 14));
+			      original_sample_type = mus_char_to_lshort((uint8_t *)hdrbuf);
+			      chans = mus_char_to_lshort((uint8_t *)(hdrbuf + 2));
+			      srate = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
+			      /* block_align = mus_char_to_lshort((uint8_t *)(hdrbuf + 12)); */
+			      bits = mus_char_to_lshort((uint8_t *)(hdrbuf + 14));
 			      /* only 16 bit linear little endian for now */
 			      if ((bits == 16) && (original_sample_type == 1))
 				sample_type = MUS_LSHORT;
@@ -2663,16 +2663,16 @@ int mus_header_sf2_loop_end(int n) {return(soundfont_loop_ends[n]);}
 
 static int read_soundfont_header(const char *filename, int fd)
 {
-  static const unsigned char I_sdta[4] = {'s','d','t','a'};
-  static const unsigned char I_shdr[4] = {'s','h','d','r'};
-  static const unsigned char I_pdta[4] = {'p','d','t','a'};
+  static const uint8_t I_sdta[4] = {'s','d','t','a'};
+  static const uint8_t I_shdr[4] = {'s','h','d','r'};
+  static const uint8_t I_pdta[4] = {'p','d','t','a'};
 
   /* we know we have checked for RIFF xxxx sfbk when we arrive here */
   int chunkloc, type, cksize, i, this_end, last_end;
   mus_long_t ckoff, offset;
   bool happy = true;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 8));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 8));
   chunkloc = 12;
   offset = 0;
   soundfont_entries = 0;
@@ -2686,18 +2686,18 @@ static int read_soundfont_header(const char *filename, int fd)
     {
       int chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s soundfont header: chunks confused at %" PRId64, filename, offset));
-      chunksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
-      if (match_four_chars((unsigned char *)hdrbuf, I_LIST))
+      if (match_four_chars((uint8_t *)hdrbuf, I_LIST))
 	{
 	  /* everything is squirreled away in LIST chunks in this format */
-	  if (match_four_chars((unsigned char *)(hdrbuf + 8), I_pdta))
+	  if (match_four_chars((uint8_t *)(hdrbuf + 8), I_pdta))
 	    {
 	      /* go searching for I_shdr -- headers this complicated should be illegal. */
 	      ckoff = offset + 12;
@@ -2712,10 +2712,10 @@ static int read_soundfont_header(const char *filename, int fd)
 		      break;
 		    }
 		  i = 0;
-		  cksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+		  cksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 		  ckoff += (8 + cksize);
 		  /* here we need to jump over subchunks! -- 4-Aug-97 */
-		  if (match_four_chars((unsigned char *)hdrbuf, I_shdr))
+		  if (match_four_chars((uint8_t *)hdrbuf, I_shdr))
 		    {
 		      /* each sound: 
 		       *  0: name
@@ -2733,17 +2733,17 @@ static int read_soundfont_header(const char *filename, int fd)
 			{
 			  header_read(fd, hdrbuf, 46);
 			  i += 46;
-			  type = mus_char_to_lshort((unsigned char *)(hdrbuf + 44));
+			  type = mus_char_to_lshort((uint8_t *)(hdrbuf + 44));
 			  if ((type == 1) &&
-			      (mus_char_to_lint((unsigned char *)(hdrbuf + 24)) > 0)) 
+			      (mus_char_to_lint((uint8_t *)(hdrbuf + 24)) > 0)) 
 			    {
 			      if (srate == 0) 
-				srate = mus_char_to_lint((unsigned char *)(hdrbuf + 36));
+				srate = mus_char_to_lint((uint8_t *)(hdrbuf + 36));
 			      soundfont_entry((char *)(hdrbuf),
-					      mus_char_to_lint((unsigned char *)(hdrbuf + 20)),
-					      this_end = mus_char_to_lint((unsigned char *)(hdrbuf + 24)),
-					      mus_char_to_lint((unsigned char *)(hdrbuf + 28)),
-					      mus_char_to_lint((unsigned char *)(hdrbuf + 32)));
+					      mus_char_to_lint((uint8_t *)(hdrbuf + 20)),
+					      this_end = mus_char_to_lint((uint8_t *)(hdrbuf + 24)),
+					      mus_char_to_lint((uint8_t *)(hdrbuf + 28)),
+					      mus_char_to_lint((uint8_t *)(hdrbuf + 32)));
 			      if (this_end > last_end) last_end = this_end;
 			    }
 			}
@@ -2759,7 +2759,7 @@ static int read_soundfont_header(const char *filename, int fd)
 	    }
 	  else
 	    {
-	      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_sdta))
+	      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_sdta))
 		{
 		  /* assume smpl follows + subchunk size */
 		  /* Convert 1.4 appears to create a separate smpl chunk */
@@ -2853,7 +2853,7 @@ static int read_nist_header(const char *filename, int fd)
   mus_long_t curbase;
   int k, hend, j, n, nm, samples, bytes, byte_format, idata_location = 0;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf); /* the actual id is "NIST_1A" */
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf); /* the actual id is "NIST_1A" */
   memset((void *)str, 0, MAX_FIELD_LENGTH);
   memset((void *)name, 0, MAX_FIELD_LENGTH);
 
@@ -2988,7 +2988,7 @@ static int write_nist_header(int fd, int wsrate, int wchans, mus_long_t size, mu
 	  ((samp_type == MUS_BSHORT) || (samp_type == MUS_B24INT) || (samp_type == MUS_BINT)) ? "10" : "01",
 	  datum * 8, 
 	  size / datum);
-  header_write(fd, (unsigned char *)header, 1024);
+  header_write(fd, (uint8_t *)header, 1024);
   data_location = 1024;
   free(header);
   return(MUS_NO_ERROR);
@@ -3020,14 +3020,14 @@ static int read_bicsf_header(const char *filename, int fd)
   int chunksize, chunkname, offset, chunkloc;
   bool happy = true;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 28));
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 28));
   header_type = MUS_BICSF;
   data_location = 1024;
   if (data_size == 0) data_size = (true_file_length - data_location);
 
   lseek(fd, 40, SEEK_SET);
   header_read(fd, hdrbuf, HDRBUFSIZ);
-  original_sample_type = mus_char_to_bint((unsigned char *)hdrbuf);
+  original_sample_type = mus_char_to_bint((uint8_t *)hdrbuf);
   switch (original_sample_type) 
     {
     case 2: sample_type = MUS_BSHORT; break;
@@ -3048,15 +3048,15 @@ static int read_bicsf_header(const char *filename, int fd)
       else
 	{
 	  offset += chunkloc;
-	  if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+	  if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	    return(mus_error(MUS_HEADER_READ_FAILED, "%s bicsf header: chunks confused at %d", filename, offset));
 
-	  chunkname = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
-	  chunksize = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+	  chunkname = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
+	  chunksize = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
 
 	  if (chunksize < 0)
 	    break;
-	  if (match_four_chars((unsigned char *)hdrbuf, I_COMM))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_COMM))
 	    {
 	      comment_start = 8 + offset;
 	      comment_end = comment_start + chunksize -1;
@@ -3104,16 +3104,16 @@ static int read_ircam_header(const char *filename, int fd)
   int offset;
   bool little, happy = true;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
-  if ((mus_char_to_lint((unsigned char *)hdrbuf) == I_IRCAM_VAX) || 
-      (mus_char_to_lint((unsigned char *)hdrbuf) == I_IRCAM_MIPS))
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
+  if ((mus_char_to_lint((uint8_t *)hdrbuf) == I_IRCAM_VAX) || 
+      (mus_char_to_lint((uint8_t *)hdrbuf) == I_IRCAM_MIPS))
     little = true;
   else little = false;
   little_endian = little;
   data_location = 1024;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - 1024);
-  original_sample_type = big_or_little_endian_int((unsigned char *)(hdrbuf + 12), little);
+  original_sample_type = big_or_little_endian_int((uint8_t *)(hdrbuf + 12), little);
   sample_type = MUS_UNKNOWN_SAMPLE;
 
   if (original_sample_type == 2) 
@@ -3126,7 +3126,7 @@ static int read_ircam_header(const char *filename, int fd)
     {
       if (little) 
 	{
-	  if (mus_char_to_lint((unsigned char *)hdrbuf) == I_IRCAM_VAX)
+	  if (mus_char_to_lint((uint8_t *)hdrbuf) == I_IRCAM_VAX)
 	    sample_type = MUS_LFLOAT_UNSCALED; /* Csound and MixViews */
 	  else sample_type = MUS_LFLOAT;
 	}
@@ -3151,8 +3151,8 @@ static int read_ircam_header(const char *filename, int fd)
       else sample_type = MUS_BDOUBLE;
     }
 
-  srate = (int)big_or_little_endian_float((unsigned char *)(hdrbuf + 4), little);
-  chans = big_or_little_endian_int((unsigned char *)(hdrbuf + 8), little);
+  srate = (int)big_or_little_endian_float((uint8_t *)(hdrbuf + 4), little);
+  chans = big_or_little_endian_int((uint8_t *)(hdrbuf + 8), little);
   bloc = 16;
   offset = 0;
 
@@ -3160,11 +3160,11 @@ static int read_ircam_header(const char *filename, int fd)
     {
       short bcode, bsize;
       offset += bloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s ircam header: chunks confused at %d", filename, offset));
 
-      bcode = big_or_little_endian_short((unsigned char *)hdrbuf, little);
-      bsize = big_or_little_endian_short((unsigned char *)(hdrbuf + 2), little);
+      bcode = big_or_little_endian_short((uint8_t *)hdrbuf, little);
+      bsize = big_or_little_endian_short((uint8_t *)(hdrbuf + 2), little);
 
       if (bcode == 2)
 	{
@@ -3201,21 +3201,21 @@ static void write_ircam_comment(int fd, const char *comment, int len)
 {
   if (len > 0)
     {
-      mus_bshort_to_char((unsigned char *)hdrbuf, 2);
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 2), (short)len);
+      mus_bshort_to_char((uint8_t *)hdrbuf, 2);
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 2), (short)len);
       header_write(fd, hdrbuf, 4);
-      header_write(fd, (unsigned char *)comment, len);
+      header_write(fd, (uint8_t *)comment, len);
     }
   else
     {
-      mus_bint_to_char((unsigned char *)hdrbuf, 0);
+      mus_bint_to_char((uint8_t *)hdrbuf, 0);
       header_write(fd, hdrbuf, 4);
     }
   len = 1024 - (len + 20);
   if (len > 0)
     {
-      unsigned char *combuf;
-      combuf = (unsigned char *)calloc(len, sizeof(unsigned char));
+      uint8_t *combuf;
+      combuf = (uint8_t *)calloc(len, sizeof(uint8_t));
       header_write(fd, combuf, len);
       free(combuf);
     }
@@ -3224,10 +3224,10 @@ static void write_ircam_comment(int fd, const char *comment, int len)
 
 static int write_ircam_header(int fd, int wsrate, int wchans, mus_sample_t samp_type, const char *comment, int len)
 {
-  mus_bint_to_char((unsigned char *)hdrbuf, 0x2a364); /* SUN id */
-  mus_bfloat_to_char((unsigned char *)(hdrbuf + 4), (float)wsrate);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 8), wchans);
-  mus_bint_to_char((unsigned char *)(hdrbuf + 12), sndlib_format_to_ircam(samp_type));
+  mus_bint_to_char((uint8_t *)hdrbuf, 0x2a364); /* SUN id */
+  mus_bfloat_to_char((uint8_t *)(hdrbuf + 4), (float)wsrate);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 8), wchans);
+  mus_bint_to_char((uint8_t *)(hdrbuf + 12), sndlib_format_to_ircam(samp_type));
   header_write(fd, hdrbuf, 16);
   data_location = 1024;
   write_ircam_comment(fd, comment, len);
@@ -3250,38 +3250,38 @@ static int write_ircam_header(int fd, int wsrate, int wchans, mus_sample_t samp_
 
 static int read_8svx_header(const char *filename, int fd, bool bytewise)
 {
-  static const unsigned char I_BODY[4] = {'B','O','D','Y'};
-  static const unsigned char I_CHAN[4] = {'C','H','A','N'};
-  static const unsigned char I_VHDR[4] = {'V','H','D','R'};
+  static const uint8_t I_BODY[4] = {'B','O','D','Y'};
+  static const uint8_t I_CHAN[4] = {'C','H','A','N'};
+  static const uint8_t I_VHDR[4] = {'V','H','D','R'};
   int offset, chunkloc;
   bool happy = true;
 
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
   chunkloc = 12;
   offset = 0;
   if (bytewise) sample_type = MUS_BYTE; else sample_type = MUS_BSHORT;
   srate = 0;
   chans = 1;
   true_file_length = SEEK_FILE_LENGTH(fd);
-  update_form_size = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+  update_form_size = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
 
   while (happy)
     {
       int chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s 8svx header: chunks confused at %d", filename, offset));
 
-      chunksize = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
 
-      if (match_four_chars((unsigned char *)hdrbuf, I_CHAN))
+      if (match_four_chars((uint8_t *)hdrbuf, I_CHAN))
 	{
-	  chans = mus_char_to_bint((unsigned char *)(hdrbuf + 8));
+	  chans = mus_char_to_bint((uint8_t *)(hdrbuf + 8));
 	  chans = (chans & 0x01) + 
 	          ((chans & 0x02) >> 1) + 
 	          ((chans & 0x04) >> 2) + 
@@ -3290,25 +3290,25 @@ static int read_8svx_header(const char *filename, int fd, bool bytewise)
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_VHDR))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_VHDR))
 	    {
 	      /* num_samples (int) at hdrbuf + 8 */
-	      srate = mus_char_to_ubshort((unsigned char *)(hdrbuf + 20));
+	      srate = mus_char_to_ubshort((uint8_t *)(hdrbuf + 20));
 	      original_sample_type = hdrbuf[23];
 	      if (original_sample_type != 0) 
 		sample_type = MUS_UNKNOWN_SAMPLE;
 	    }
 	  else
 	    {
-	      if ((match_four_chars((unsigned char *)hdrbuf, I_ANNO)) || 
-		  (match_four_chars((unsigned char *)hdrbuf, I_NAME)))
+	      if ((match_four_chars((uint8_t *)hdrbuf, I_ANNO)) || 
+		  (match_four_chars((uint8_t *)hdrbuf, I_NAME)))
 		{
 		  comment_start = offset + 8;
 		  comment_end = comment_start + chunksize - 1;
 		}
 	      else
 		{
-		  if (match_four_chars((unsigned char *)hdrbuf, I_BODY))
+		  if (match_four_chars((uint8_t *)hdrbuf, I_BODY))
 		    {
 		      data_size = chunksize;
 		      data_location = offset + 12;
@@ -3361,7 +3361,7 @@ static int read_voc_header(const char *filename, int fd)
   chans = 1;
   voc_extended = 0;
   true_file_length = SEEK_FILE_LENGTH(fd);
-  curbase = mus_char_to_lshort((unsigned char *)(hdrbuf + 20));
+  curbase = mus_char_to_lshort((uint8_t *)(hdrbuf + 20));
   if (true_file_length < curbase)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: block location %" PRId64 " > file length: %" PRId64, filename, curbase, true_file_length));
 
@@ -3393,11 +3393,11 @@ static int read_voc_header(const char *filename, int fd)
 	    {
 	      data_size = len - 1; /* was -3 */
 	      data_location = curbase + 6;
-	      srate = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+	      srate = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 	      bits = ((int)hdrbuf[8]);
 	      if (bits == 8)
 		{
-		  code = mus_char_to_lshort((unsigned char *)(hdrbuf + 10));
+		  code = mus_char_to_lshort((uint8_t *)(hdrbuf + 10));
 		  if (code == 6) 
 		    sample_type = MUS_ALAW;
 		  else
@@ -3427,13 +3427,13 @@ static int read_voc_header(const char *filename, int fd)
 		      if (type == 8) /* voc_extended */
 			{
 			  /* should voc_extended be set to 1 here? */
-			  srate = (256000000 / (65536 - mus_char_to_lshort((unsigned char *)(hdrbuf + 4))));
+			  srate = (256000000 / (65536 - mus_char_to_lshort((uint8_t *)(hdrbuf + 4))));
 			  if ((int)(hdrbuf[7]) == 0) chans = 1; else chans = 2;
 			  if ((int)(hdrbuf[6]) != 0) sample_type = MUS_UNKNOWN_SAMPLE;
 			}
 		      /* I'd add loop support here if I had any example sound files to test with */
 		    }
-		  if (seek_and_read(fd, (unsigned char *)hdrbuf, curbase + len + 4, HDRBUFSIZ) <= 0)
+		  if (seek_and_read(fd, (uint8_t *)hdrbuf, curbase + len + 4, HDRBUFSIZ) <= 0)
 		    return(mus_error(MUS_HEADER_READ_FAILED, "%s voc header: ran off end of file", filename));
 		  curbase += len;
 		}
@@ -3479,9 +3479,9 @@ static int read_voc_header(const char *filename, int fd)
 static int read_twinvq_header(const char *filename, int fd)
 {
   sample_type = MUS_UNKNOWN_SAMPLE;
-  data_location = mus_char_to_bint((unsigned char *)(hdrbuf + 12)) + 16 + 8;
-  chans = 1 + mus_char_to_bint((unsigned char *)(hdrbuf + 24));
-  srate = mus_char_to_bint((unsigned char *)(hdrbuf + 32));
+  data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 12)) + 16 + 8;
+  chans = 1 + mus_char_to_bint((uint8_t *)(hdrbuf + 24));
+  srate = mus_char_to_bint((uint8_t *)(hdrbuf + 32));
   if (srate == 11) srate = 11025; else
     if (srate == 22) srate = 22050; else
       if (srate == 44) srate = 44100; else
@@ -3502,13 +3502,13 @@ static int read_twinvq_header(const char *filename, int fd)
 
 static int read_sdif_header(const char *filename, int fd)
 {
-  static const unsigned char I_1FQ0[4] = {'1','F','Q','0'}; 
-  static const unsigned char I_1STF[4] = {'1','S','T','F'}; 
-  static const unsigned char I_1PIC[4] = {'1','P','I','C'}; 
-  static const unsigned char I_1TRC[4] = {'1','T','R','C'}; 
-  static const unsigned char I_1HRM[4] = {'1','H','R','M'}; 
-  static const unsigned char I_1RES[4] = {'1','R','E','S'}; 
-  static const unsigned char I_1TDS[4] = {'1','T','D','S'};  /* samples -- all others are useless */
+  static const uint8_t I_1FQ0[4] = {'1','F','Q','0'}; 
+  static const uint8_t I_1STF[4] = {'1','S','T','F'}; 
+  static const uint8_t I_1PIC[4] = {'1','P','I','C'}; 
+  static const uint8_t I_1TRC[4] = {'1','T','R','C'}; 
+  static const uint8_t I_1HRM[4] = {'1','H','R','M'}; 
+  static const uint8_t I_1RES[4] = {'1','R','E','S'}; 
+  static const uint8_t I_1TDS[4] = {'1','T','D','S'};  /* samples -- all others are useless */
   static const char *sdif_names[7] = {"fundamental frequency", "FFT", "spectral peak", "sinusoidal track", "harmonic track", "resonance", "unknown"};
 
   int offset;
@@ -3516,26 +3516,26 @@ static int read_sdif_header(const char *filename, int fd)
   while (true)
     {
       int size;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s, sdif header: chunks confused at %d", filename, offset));
-      size = mus_char_to_bint((unsigned char *)(hdrbuf + 4)) + 8; 
+      size = mus_char_to_bint((uint8_t *)(hdrbuf + 4)) + 8; 
 
-      if (match_four_chars((unsigned char *)hdrbuf, I_1TDS))
+      if (match_four_chars((uint8_t *)hdrbuf, I_1TDS))
 	break;
       else
 	{
 	  int type = 0;
-	  if (match_four_chars((unsigned char *)hdrbuf, I_1FQ0))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_1FQ0))
 	    type = 0;
-	  else if (match_four_chars((unsigned char *)hdrbuf, I_1STF))
+	  else if (match_four_chars((uint8_t *)hdrbuf, I_1STF))
 	    type = 1;
-	  else if (match_four_chars((unsigned char *)hdrbuf, I_1PIC))
+	  else if (match_four_chars((uint8_t *)hdrbuf, I_1PIC))
 	    type = 2;
-	  else if (match_four_chars((unsigned char *)hdrbuf, I_1TRC))
+	  else if (match_four_chars((uint8_t *)hdrbuf, I_1TRC))
 	    type = 3;
-	  else if (match_four_chars((unsigned char *)hdrbuf, I_1HRM))
+	  else if (match_four_chars((uint8_t *)hdrbuf, I_1HRM))
 	    type = 4;
-	  else if (match_four_chars((unsigned char *)hdrbuf, I_1RES))
+	  else if (match_four_chars((uint8_t *)hdrbuf, I_1RES))
 	    type = 5;
 	  else type = 6;
 	  return(mus_error(MUS_HEADER_READ_FAILED, "this SDIF file contains %s data, not sampled sound", sdif_names[type]));
@@ -3553,7 +3553,7 @@ static int read_sdif_header(const char *filename, int fd)
 
 static int read_nvf_header(const char *filename, int fd)
 {
-  static const unsigned char I_VFMT[4] = {'V','F','M','T'};  /* Nomad II Creative NVF */
+  static const uint8_t I_VFMT[4] = {'V','F','M','T'};  /* Nomad II Creative NVF */
 
   /* info from nvftools by Tom Mander: */
   /*
@@ -3577,8 +3577,8 @@ static int read_nvf_header(const char *filename, int fd)
     sample (nibble) single channel at 32kbit. When the Nomad records an NVF
     file it does it in 92 sample (46 byte) framples or 0.0115sec.
   */
-  if (mus_char_to_lint((unsigned char *)(hdrbuf + 4)) != 1) return(mus_error(MUS_HEADER_READ_FAILED, "%s: NVF[4] != 1", filename));
-  if (!(match_four_chars((unsigned char *)(hdrbuf + 12), I_VFMT))) return(mus_error(MUS_HEADER_READ_FAILED, "%s: no VFMT chunk", filename));
+  if (mus_char_to_lint((uint8_t *)(hdrbuf + 4)) != 1) return(mus_error(MUS_HEADER_READ_FAILED, "%s: NVF[4] != 1", filename));
+  if (!(match_four_chars((uint8_t *)(hdrbuf + 12), I_VFMT))) return(mus_error(MUS_HEADER_READ_FAILED, "%s: no VFMT chunk", filename));
   sample_type = MUS_UNKNOWN_SAMPLE; /* g721 --translate elsewhere */
   chans = 1;
   srate = 8000;
@@ -3611,12 +3611,12 @@ static int read_nvf_header(const char *filename, int fd)
 static int read_adc_header(const char *filename, int fd)
 {
   bool little;
-  little = (mus_char_to_uninterpreted_int((unsigned char *)(hdrbuf + 12)) != 0); /* 0 = big endian */
+  little = (mus_char_to_uninterpreted_int((uint8_t *)(hdrbuf + 12)) != 0); /* 0 = big endian */
   data_location = 16;
   if (little) sample_type = MUS_LSHORT; else sample_type = MUS_BSHORT;
-  chans = big_or_little_endian_short((unsigned char *)(hdrbuf + 4), little);
-  srate = 4000000 / big_or_little_endian_short((unsigned char *)(hdrbuf + 6), little);
-  data_size = 2 * big_or_little_endian_int((unsigned char *)(hdrbuf + 8), little);
+  chans = big_or_little_endian_short((uint8_t *)(hdrbuf + 4), little);
+  srate = 4000000 / big_or_little_endian_short((uint8_t *)(hdrbuf + 6), little);
+  data_size = 2 * big_or_little_endian_int((uint8_t *)(hdrbuf + 8), little);
   comment_start = 0;
   comment_end = 0;
   true_file_length = SEEK_FILE_LENGTH(fd);
@@ -3659,13 +3659,13 @@ static int read_adc_header(const char *filename, int fd)
 static int read_avr_header(const char *filename, int fd)
 {
   int dsize, dsigned, i;
-  chans = mus_char_to_bshort((unsigned char *)(hdrbuf + 12));
+  chans = mus_char_to_bshort((uint8_t *)(hdrbuf + 12));
   if (chans == 0) chans = 1; else if (chans == -1) chans = 2; else return(mus_error(MUS_HEADER_READ_FAILED, "%s chans: %d", filename, chans));
   data_location = 128;
-  data_size = mus_char_to_bint((unsigned char *)(hdrbuf + 26));
-  srate = mus_char_to_ubshort((unsigned char *)(hdrbuf + 24));
-  dsize = mus_char_to_bshort((unsigned char *)(hdrbuf + 14));
-  dsigned = mus_char_to_bshort((unsigned char *)(hdrbuf + 16));
+  data_size = mus_char_to_bint((uint8_t *)(hdrbuf + 26));
+  srate = mus_char_to_ubshort((uint8_t *)(hdrbuf + 24));
+  dsize = mus_char_to_bshort((uint8_t *)(hdrbuf + 14));
+  dsigned = mus_char_to_bshort((uint8_t *)(hdrbuf + 16));
   if (dsize == 16) 
     {
       if (dsigned == 0)
@@ -3682,7 +3682,7 @@ static int read_avr_header(const char *filename, int fd)
 	}
       else return(mus_error(MUS_HEADER_READ_FAILED, "%s: unknown sample type", filename));
     }
-  if (seek_and_read(fd, (unsigned char *)hdrbuf, 64, 64) <= 0)
+  if (seek_and_read(fd, (uint8_t *)hdrbuf, 64, 64) <= 0)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s avr header: ran off end of file", filename));
   comment_start = 64;
   i = 0;
@@ -3731,11 +3731,11 @@ static int read_sndt_header(const char *filename, int fd)
   if (hdrbuf[4] != 'D') return(mus_error(MUS_HEADER_READ_FAILED, "%s: SNDT[4] != 'D'", filename));
   sample_type = MUS_UBYTE;
   chans = 1;
-  srate = mus_char_to_ulshort((unsigned char *)(hdrbuf + 20));
+  srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 20));
   data_location = 126;
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 8));
-  if (data_size < 0) data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 10));
-  if (srate <= 1) srate = mus_char_to_ulshort((unsigned char *)(hdrbuf + 22));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
+  if (data_size < 0) data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 10));
+  if (srate <= 1) srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 22));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (data_size > true_file_length)
     {
@@ -3789,7 +3789,7 @@ static int read_smp_header(const char *filename, int fd)
   data_location = 116;
   lseek(fd, 112, SEEK_SET);
   if (read(fd, hdrbuf, 4) != 4) return(mus_error(MUS_HEADER_READ_FAILED, "%s: SMP header truncated?", filename));
-  data_size = (mus_char_to_lint((unsigned char *)hdrbuf));
+  data_size = (mus_char_to_lint((uint8_t *)hdrbuf));
   sample_type = MUS_LSHORT; /* just a guess */
   srate = 8000; /* docs mention an srate floating around at the end of the file, but I can't find it in any example */
   true_file_length = SEEK_FILE_LENGTH(fd);
@@ -3829,7 +3829,7 @@ static int read_sppack_header(const char *filename, int fd)
   chans = 1;
   lseek(fd, 240, SEEK_SET);
   if (read(fd, hdrbuf, 22) != 22) return(mus_error(MUS_HEADER_READ_FAILED, "%s SPPACK header truncated?", filename));
-  typ = mus_char_to_bshort((unsigned char *)hdrbuf);
+  typ = mus_char_to_bshort((uint8_t *)hdrbuf);
   sample_type = MUS_UNKNOWN_SAMPLE;
   if (typ == 1) 
     {
@@ -3837,9 +3837,9 @@ static int read_sppack_header(const char *filename, int fd)
 	{
 	  int bits;
 	  float sr;
-	  typ = mus_char_to_bshort((unsigned char *)(hdrbuf + 18));
-	  bits = mus_char_to_bshort((unsigned char *)(hdrbuf + 16));
-	  sr = mus_char_to_bfloat((unsigned char *)(hdrbuf + 4));
+	  typ = mus_char_to_bshort((uint8_t *)(hdrbuf + 18));
+	  bits = mus_char_to_bshort((uint8_t *)(hdrbuf + 16));
+	  sr = mus_char_to_bfloat((uint8_t *)(hdrbuf + 4));
 	  srate = (int)sr;
 	  switch (typ)
 	    {
@@ -3895,8 +3895,8 @@ static int read_esps_header(const char *filename, int fd)
   bool little;
   little = (hdrbuf[18] == 0);
   if (little)
-    data_location = mus_char_to_lint((unsigned char *)(hdrbuf + 8));
-  else data_location = mus_char_to_bint((unsigned char *)(hdrbuf + 8));
+    data_location = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
+  else data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 8));
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = true_file_length - data_location;
   if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
@@ -3906,17 +3906,17 @@ static int read_esps_header(const char *filename, int fd)
   header_read(fd, hdrbuf, HDRBUFSIZ);
   if (little)
     {
-      doubles = mus_char_to_lint((unsigned char *)hdrbuf);
-      floats = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
-      shorts = mus_char_to_lint((unsigned char *)(hdrbuf + 12));
-      chars = mus_char_to_lint((unsigned char *)(hdrbuf + 16));
+      doubles = mus_char_to_lint((uint8_t *)hdrbuf);
+      floats = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
+      shorts = mus_char_to_lint((uint8_t *)(hdrbuf + 12));
+      chars = mus_char_to_lint((uint8_t *)(hdrbuf + 16));
     }
   else
     {
-      doubles = mus_char_to_bint((unsigned char *)hdrbuf);
-      floats = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
-      shorts = mus_char_to_bint((unsigned char *)(hdrbuf + 12));
-      chars = mus_char_to_bint((unsigned char *)(hdrbuf + 16));
+      doubles = mus_char_to_bint((uint8_t *)hdrbuf);
+      floats = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
+      shorts = mus_char_to_bint((uint8_t *)(hdrbuf + 12));
+      chars = mus_char_to_bint((uint8_t *)(hdrbuf + 16));
     }
   if (shorts != 0)
     {
@@ -3963,12 +3963,12 @@ static int read_esps_header(const char *filename, int fd)
 	  str[k + 1] = 0;
 	  if (strcmp(str, "record_freq") == 0) 
 	    {
-	      if (seek_and_read(fd, (unsigned char *)hdrbuf, curbase + n, 32) <= 0)
+	      if (seek_and_read(fd, (uint8_t *)hdrbuf, curbase + n, 32) <= 0)
 		return(mus_error(MUS_HEADER_READ_FAILED, "%s esps header: ran off end of file", filename));
 	      n = 0;
 	      if (little)
-		srate = (int)mus_char_to_ldouble((unsigned char *)(hdrbuf + 8));
-	      else srate = (int)mus_char_to_bdouble((unsigned char *)(hdrbuf + 8));
+		srate = (int)mus_char_to_ldouble((uint8_t *)(hdrbuf + 8));
+	      else srate = (int)mus_char_to_bdouble((uint8_t *)(hdrbuf + 8));
 	      happy = false;
 	    }
 	  if ((curbase + n + 1) >= data_location) happy = false;
@@ -4046,40 +4046,40 @@ static int read_inrs_header(const char *filename, int fd, int loc)
 
 static int read_maud_header(const char *filename, int fd)
 {
-  static const unsigned char I_MHDR[4] = {'M','H','D','R'};
-  static const unsigned char I_MDAT[4] = {'M','D','A','T'};
+  static const uint8_t I_MHDR[4] = {'M','H','D','R'};
+  static const uint8_t I_MDAT[4] = {'M','D','A','T'};
 
   int offset, chunkloc;
   bool happy = true;
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
   chunkloc = 12;
   offset = 0;
   sample_type = MUS_BYTE;
   srate = 0;
   chans = 1;
-  update_form_size = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+  update_form_size = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
   while (happy)
     {
       int chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 32) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s maud header: chunks confused at %d", filename, offset));
-      chunksize = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
-      if (match_four_chars((unsigned char *)hdrbuf, I_MHDR))
+      if (match_four_chars((uint8_t *)hdrbuf, I_MHDR))
 	{
 	  int num, den;
-	  data_size = mus_char_to_bint((unsigned char *)(hdrbuf + 8));
-	  num = mus_char_to_bint((unsigned char *)(hdrbuf + 16));
-	  den = mus_char_to_bshort((unsigned char *)(hdrbuf + 20));
+	  data_size = mus_char_to_bint((uint8_t *)(hdrbuf + 8));
+	  num = mus_char_to_bint((uint8_t *)(hdrbuf + 16));
+	  den = mus_char_to_bshort((uint8_t *)(hdrbuf + 20));
 	  if (den == 0) den = 1;
 	  srate = (int)(num / den);
-	  num = mus_char_to_bshort((unsigned char *)(hdrbuf + 12));
-	  den = mus_char_to_bshort((unsigned char *)(hdrbuf + 26));
+	  num = mus_char_to_bshort((uint8_t *)(hdrbuf + 12));
+	  den = mus_char_to_bshort((uint8_t *)(hdrbuf + 26));
 	  if (num == 8)
 	    {
 	      switch (den)
@@ -4091,19 +4091,19 @@ static int read_maud_header(const char *filename, int fd)
 		}
 	    }
 	  else sample_type = MUS_BSHORT;
-	  num = mus_char_to_bshort((unsigned char *)(hdrbuf + 22));
+	  num = mus_char_to_bshort((uint8_t *)(hdrbuf + 22));
 	  if (num == 0) chans = 1; else chans = 2;
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_ANNO))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_ANNO))
 	    {
 	      comment_start = offset + 8;
 	      comment_end = comment_start + chunksize - 1;
 	    }
 	  else
 	    {
-	      if (match_four_chars((unsigned char *)hdrbuf, I_MDAT))
+	      if (match_four_chars((uint8_t *)hdrbuf, I_MDAT))
 		{
 		  data_location = offset + 12;
 		  happy = false;
@@ -4145,59 +4145,59 @@ static int read_maud_header(const char *filename, int fd)
 
 static int read_csl_header(const char *filename, int fd)
 {
-  static const unsigned char I_HEDR[4] = {'H','E','D','R'};  
-  static const unsigned char I_HDR8[4] = {'H','D','R','8'};  
-  static const unsigned char I_SDA_[4] = {'S','D','A','_'};  
-  static const unsigned char I_SDAB[4] = {'S','D','A','B'};  
-  static const unsigned char I_SD_B[4] = {'S','D','_','B'};  
-  static const unsigned char I_NOTE[4] = {'N','O','T','E'};  
+  static const uint8_t I_HEDR[4] = {'H','E','D','R'};  
+  static const uint8_t I_HDR8[4] = {'H','D','R','8'};  
+  static const uint8_t I_SDA_[4] = {'S','D','A','_'};  
+  static const uint8_t I_SDAB[4] = {'S','D','A','B'};  
+  static const uint8_t I_SD_B[4] = {'S','D','_','B'};  
+  static const uint8_t I_NOTE[4] = {'N','O','T','E'};  
 
   int offset, chunkloc;
   bool happy = true;
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
   chunkloc = 12;
   offset = 0;
   sample_type = MUS_LSHORT;
   srate = 0;
   chans = 1;
-  update_form_size = mus_char_to_lint((unsigned char *)(hdrbuf + 8));
+  update_form_size = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
   while (happy)
     {
       int chunksize;
       offset += chunkloc;
-      if (seek_and_read(fd, (unsigned char *)hdrbuf, offset, 64) <= 0)
+      if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 64) <= 0)
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s csl header: chunks confused at %d", filename, offset));
-      chunksize = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+      chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
 	break;
       if (chunksize < 0)
 	break;
-      if ((match_four_chars((unsigned char *)hdrbuf, I_HEDR)) || 
-	  (match_four_chars((unsigned char *)hdrbuf, I_HDR8)))
+      if ((match_four_chars((uint8_t *)hdrbuf, I_HEDR)) || 
+	  (match_four_chars((uint8_t *)hdrbuf, I_HDR8)))
 	{
 	  /* 8..20: date as ascii */
 	  /* 32: data length (int) in bytes */
-	  if ((mus_char_to_lshort((unsigned char *)(hdrbuf + 36)) != -1) && /* these are maxamps, -1=none */
-	      (mus_char_to_lshort((unsigned char *)(hdrbuf + 38)) != -1))
+	  if ((mus_char_to_lshort((uint8_t *)(hdrbuf + 36)) != -1) && /* these are maxamps, -1=none */
+	      (mus_char_to_lshort((uint8_t *)(hdrbuf + 38)) != -1))
 	    chans = 2;
-	  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 28));
+	  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 28));
 	}
       else
 	{
-	  if (match_four_chars((unsigned char *)hdrbuf, I_NOTE))
+	  if (match_four_chars((uint8_t *)hdrbuf, I_NOTE))
 	    {
 	      comment_start = offset + 8;
 	      comment_end = comment_start + chunksize - 1;
 	    }
 	  else
 	    {
-	      if ((match_four_chars((unsigned char *)hdrbuf, I_SDA_)) ||
-		  (match_four_chars((unsigned char *)hdrbuf, I_SDAB)) ||
-		  (match_four_chars((unsigned char *)hdrbuf, I_SD_B)))
+	      if ((match_four_chars((uint8_t *)hdrbuf, I_SDA_)) ||
+		  (match_four_chars((uint8_t *)hdrbuf, I_SDAB)) ||
+		  (match_four_chars((uint8_t *)hdrbuf, I_SD_B)))
 		{
 		  data_location = offset + 8;
-		  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 4));
+		  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
 		  happy = false;
 		}
 	    }
@@ -4235,13 +4235,13 @@ static int read_csl_header(const char *filename, int fd)
 static int read_file_samp_header(const char *filename, int fd)
 {
   int i = 0;
-  unsigned char *locbuf;
+  uint8_t *locbuf;
   data_location = 1024;
   chans = 1;
   srate = 8000;
   sample_type = MUS_LSHORT;
   lseek(fd, 10, SEEK_SET);
-  locbuf = (unsigned char *)calloc(1024, sizeof(unsigned char));
+  locbuf = (uint8_t *)calloc(1024, sizeof(uint8_t));
   header_read(fd, locbuf, 1024);
   while (i < 1024)
     {
@@ -4288,8 +4288,8 @@ static int read_sd1_header(const char *filename, int fd)
   data_location = 1336;
   lseek(fd, 1020, SEEK_SET);
   if (read(fd, hdrbuf, 64) != 64) return(mus_error(MUS_HEADER_READ_FAILED, "%s Sound Designer I header truncated?", filename));
-  srate = mus_char_to_bint((unsigned char *)hdrbuf);
-  n = mus_char_to_bshort((unsigned char *)(hdrbuf + 8));
+  srate = mus_char_to_bint((uint8_t *)hdrbuf);
+  n = mus_char_to_bshort((uint8_t *)(hdrbuf + 8));
   if (n == 16)
     sample_type = MUS_BSHORT;
   else sample_type = MUS_BYTE;
@@ -4297,7 +4297,7 @@ static int read_sd1_header(const char *filename, int fd)
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
   data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
-  n = ((unsigned char)hdrbuf[44]);
+  n = ((uint8_t)hdrbuf[44]);
   if (n != 0) 
     {
       comment_start = 1064;
@@ -4328,7 +4328,7 @@ static int read_psion_header(const char *filename, int fd)
   data_location = 32;
   srate = 8000;
   sample_type = MUS_ALAW;
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 18)); /* always little-endian? */
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 18)); /* always little-endian? */
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (data_size > true_file_length)
     {
@@ -4404,8 +4404,8 @@ static int read_gravis_header(const char *filename, int fd)
   comment_end = 81;
   lseek(fd, 239, SEEK_SET); /* try to jump to wave sample block (128+62+49) */
   header_read(fd, hdrbuf, 128);
-  srate = mus_char_to_ulshort((unsigned char *)(hdrbuf + 20));
-  data_size = mus_char_to_ulshort((unsigned char *)(hdrbuf + 8));
+  srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 20));
+  data_size = mus_char_to_ulshort((uint8_t *)(hdrbuf + 8));
   mode = hdrbuf[55];
   if (mode & 1)
     {
@@ -4442,14 +4442,14 @@ static int read_goldwave_header(const char *filename, int fd)
   chans = 1;
   data_location = 28;
   sample_type = MUS_LSHORT;
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 22));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 22));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
   if ((data_size <= 24) || (data_size > true_file_length))
     data_size = (true_file_length - data_location) / 2;
   else data_size /= 2;
-  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 18));
+  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 18));
   return(MUS_NO_ERROR);
 }
 
@@ -4468,7 +4468,7 @@ static int read_srfs_header(const char *filename, int fd)
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
   data_size = (true_file_length - data_location) / 2;
-  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 6));
+  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 6));
   sample_type = MUS_LSHORT;
   return(MUS_NO_ERROR);
 }
@@ -4513,24 +4513,24 @@ static int read_qt_header(const char *filename, int fd)
 
 static int read_sbstudio_header(const char *filename, int fd)
 {
-  static const unsigned char I_SNIN[4] = {'S','N','I','N'};
-  static const unsigned char I_SNNA[4] = {'S','N','N','A'};
-  static const unsigned char I_SNDT[4] = {'S','N','D','T'};
+  static const uint8_t I_SNIN[4] = {'S','N','I','N'};
+  static const uint8_t I_SNNA[4] = {'S','N','N','A'};
+  static const uint8_t I_SNDT[4] = {'S','N','D','T'};
 
   int i, tmp;
   bool happy = true;
-  unsigned char *bp;
+  uint8_t *bp;
   chans = 1; 
   srate = 8000; /* no sampling rate field in this header */
   sample_type = MUS_UNKNOWN_SAMPLE;
   true_file_length = SEEK_FILE_LENGTH(fd);
   i = 8;
-  bp = (unsigned char *)(hdrbuf + 8);
+  bp = (uint8_t *)(hdrbuf + 8);
   while (happy)
     {
       if (match_four_chars(bp, I_SNDT))
 	{
-	  data_size = mus_char_to_lint((unsigned char *)(bp + 4));
+	  data_size = mus_char_to_lint((uint8_t *)(bp + 4));
 	  data_location = i + 8;
 	  happy = false;
 	}
@@ -4538,7 +4538,7 @@ static int read_sbstudio_header(const char *filename, int fd)
 	{
 	  if (match_four_chars(bp, I_SNIN))
 	    {
-	      tmp = mus_char_to_lshort((unsigned char *)(bp + 15));
+	      tmp = mus_char_to_lshort((uint8_t *)(bp + 15));
 	      if ((tmp & 1) == 0) 
 		sample_type = MUS_UNKNOWN_SAMPLE;
 	      else
@@ -4554,7 +4554,7 @@ static int read_sbstudio_header(const char *filename, int fd)
 	    {
 	      if (match_four_chars(bp, I_SNNA))
 		{
-		  tmp = mus_char_to_lint((unsigned char *)(bp + 4));
+		  tmp = mus_char_to_lint((uint8_t *)(bp + 4));
 		  i += tmp;
 		  bp += tmp;
 		}
@@ -4728,7 +4728,7 @@ static int read_sy85_header(const char *filename, int fd)
 static int read_kurzweil_2000_header(const char *filename, int fd)
 {
   chans = 1; 
-  data_location = mus_char_to_bint((unsigned char *)(hdrbuf + 4));
+  data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
   if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
@@ -4751,7 +4751,7 @@ static int read_korg_header(const char *filename, int fd)
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
   if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
-  srate = mus_char_to_bint((unsigned char *)(hdrbuf + 48));
+  srate = mus_char_to_bint((uint8_t *)(hdrbuf + 48));
   sample_type = MUS_BSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4772,10 +4772,10 @@ static int read_maui_header(const char *filename, int fd)
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 8));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
   if ((data_size * 2) > true_file_length)
     data_size = (true_file_length - data_location) / 2;
-  srate = mus_char_to_lint((unsigned char *)(hdrbuf));
+  srate = mus_char_to_lint((uint8_t *)(hdrbuf));
   sample_type = MUS_LSHORT;
   return(MUS_NO_ERROR);
 }
@@ -4809,12 +4809,12 @@ static int read_impulsetracker_header(const char *filename, int fd)
 {
   if (hdrbuf[18] & 4) chans = 2; else chans = 1;
   if (hdrbuf[18] & 2) sample_type = MUS_LSHORT; else sample_type = MUS_BYTE;
-  data_location = mus_char_to_lint((unsigned char *)(hdrbuf + 72));
+  data_location = mus_char_to_lint((uint8_t *)(hdrbuf + 72));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
   data_size = (true_file_length - data_location);
-  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 60));
+  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 60));
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
 }
@@ -4849,7 +4849,7 @@ static int read_akai4_header(const char *filename, int fd)
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
   if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
-  srate = mus_char_to_ulshort((unsigned char *)(hdrbuf + 40));
+  srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 40));
   sample_type = MUS_LSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4874,7 +4874,7 @@ static int read_pvf_header(const char *filename, int fd)
   char *buf;
   int bits, i;
   if (hdrbuf[4] != '\n') return(mus_error(MUS_HEADER_READ_FAILED, "PVF header messed up"));
-  type_specifier = mus_char_to_uninterpreted_int((unsigned char *)hdrbuf);
+  type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
   buf = (char *)(hdrbuf + 5);
   sscanf(buf, "%12d %12d %12d", &chans, &srate, &bits);
   if (chans < 1) chans = 1;
@@ -4888,7 +4888,7 @@ static int read_pvf_header(const char *filename, int fd)
       }
   if (data_location == 0)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s PVF header bad data location", filename));
-  if (match_four_chars((unsigned char *)hdrbuf, I_PVF2))
+  if (match_four_chars((uint8_t *)hdrbuf, I_PVF2))
     {
       sample_type = MUS_UNKNOWN_SAMPLE; /* ascii text */
       return(mus_error(MUS_HEADER_READ_FAILED, "%s PVF header unknown sample type", filename));
@@ -4964,16 +4964,16 @@ static int read_sample_dump_header(const char *filename, int fd)
       comment_start = i + 3;
       comment_end = i + 3 + len;
       }
-  seek_and_read(fd, (unsigned char *)hdrbuf, i + 3 + len, HDRBUFSIZ);
-  srate = mus_char_to_lint((unsigned char *)(hdrbuf + 5));
+  seek_and_read(fd, (uint8_t *)hdrbuf, i + 3 + len, HDRBUFSIZ);
+  srate = mus_char_to_lint((uint8_t *)(hdrbuf + 5));
   loop_modes[0] = 0;
   if (hdrbuf[21] == 0)
     {
       loop_modes[0] = 1;
-      loop_starts[0] = mus_char_to_lint((unsigned char *)(hdrbuf + 13));
-      loop_ends[0] = mus_char_to_lint((unsigned char *)(hdrbuf + 17));
+      loop_starts[0] = mus_char_to_lint((uint8_t *)(hdrbuf + 13));
+      loop_ends[0] = mus_char_to_lint((uint8_t *)(hdrbuf + 17));
     }
-  /* data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 9)); */
+  /* data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 9)); */
   if ((srate < 100) || (srate > 100000)) srate = 8000;
   chans = 1; 
   data_location = i + 3 + len + 23;
@@ -5061,8 +5061,8 @@ static int read_adf_header(const char *filename, int fd)
   if ((hdrbuf[4] != '4') || (hdrbuf[5] != '0')) return(mus_error(MUS_HEADER_READ_FAILED, "%s csre header bad magic number", filename));
   if (read(fd, hdrbuf, 30) != 30) return(mus_error(MUS_HEADER_READ_FAILED, "%s csre header truncated?", filename));
   chans = 1;
-  numsys = mus_char_to_ulshort((unsigned char *)(hdrbuf + 20));
-  bits = mus_char_to_ulshort((unsigned char *)(hdrbuf + 18));
+  numsys = mus_char_to_ulshort((uint8_t *)(hdrbuf + 20));
+  bits = mus_char_to_ulshort((uint8_t *)(hdrbuf + 18));
   if ((bits == 16) || (bits == 12))
     {
       if (numsys == 0)
@@ -5070,8 +5070,8 @@ static int read_adf_header(const char *filename, int fd)
       else sample_type = MUS_ULSHORT;
     }
   else sample_type = MUS_UNKNOWN_SAMPLE;
-  srate = (int)(1000 * mus_char_to_lfloat((unsigned char *)(hdrbuf + 22)));
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 8));
+  srate = (int)(1000 * mus_char_to_lfloat((uint8_t *)(hdrbuf + 22)));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
   data_location = 512;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
@@ -5122,9 +5122,9 @@ static int read_diamondware_header(const char *filename, int fd)
       sample_type = MUS_UNKNOWN_SAMPLE;
       return(mus_error(MUS_HEADER_READ_FAILED, "%s unknown sample type", filename));
     }
-  srate = mus_char_to_ulshort((unsigned char *)(hdrbuf + 32));
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + 38));
-  data_location = mus_char_to_lint((unsigned char *)(hdrbuf + 46));
+  srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 32));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 38));
+  data_location = mus_char_to_lint((uint8_t *)(hdrbuf + 46));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
@@ -5141,7 +5141,7 @@ static int read_diamondware_header(const char *filename, int fd)
  *  0   paf (or fap)
  *  4  version (0)
  *  8  endianess (0 = big)
- * 12  rate (unsigned int)
+ * 12  rate (uint32_t)
  * 16  format (0: 16-bit linear, 24-bit linear)
  * 20  channels
  * 24  source (an encoded comment)
@@ -5153,22 +5153,22 @@ static int read_paf_header(const char *filename, int fd)
   int form;
   bool little = false;
   sample_type = MUS_UNKNOWN_SAMPLE;
-  if (mus_char_to_bint((unsigned char *)(hdrbuf + 8))) little = true;
+  if (mus_char_to_bint((uint8_t *)(hdrbuf + 8))) little = true;
   if (little)
     {
-      srate = mus_char_to_ulint((unsigned char *)(hdrbuf + 12));
-      form = mus_char_to_ulint((unsigned char *)(hdrbuf + 16));
+      srate = mus_char_to_ulint((uint8_t *)(hdrbuf + 12));
+      form = mus_char_to_ulint((uint8_t *)(hdrbuf + 16));
       if (form == 0) sample_type = MUS_LSHORT;
       if (form == 2) sample_type = MUS_BYTE;
-      chans = mus_char_to_ulint((unsigned char *)(hdrbuf + 20));
+      chans = mus_char_to_ulint((uint8_t *)(hdrbuf + 20));
     }
   else
     {
-      srate = mus_char_to_ubint((unsigned char *)(hdrbuf + 12));
-      form = mus_char_to_ubint((unsigned char *)(hdrbuf + 16));
+      srate = mus_char_to_ubint((uint8_t *)(hdrbuf + 12));
+      form = mus_char_to_ubint((uint8_t *)(hdrbuf + 16));
       if (form == 0) sample_type = MUS_BSHORT;
       if (form == 2) sample_type = MUS_BYTE;
-      chans = mus_char_to_ubint((unsigned char *)(hdrbuf + 20));
+      chans = mus_char_to_ubint((uint8_t *)(hdrbuf + 20));
     }
   data_location = 2048;
   true_file_length = SEEK_FILE_LENGTH(fd);
@@ -5323,15 +5323,15 @@ static int read_asf_header(const char *filename, int fd)
   bool asf_huge = false, present;
   /* apparently "huge" has some meaning in Windoze C */
 
-  len = mus_char_to_lint((unsigned char *)(hdrbuf + 16)); /* actually 64 bits */
+  len = mus_char_to_lint((uint8_t *)(hdrbuf + 16)); /* actually 64 bits */
   i = (128+64) / 8;
   srate = 0;
   chans = 0;
 
   while (i < len)
     {
-      seek_and_read(fd, (unsigned char *)hdrbuf, i, HDRBUFSIZ);
-      if ((unsigned int)(hdrbuf[1]) == 0x29) 
+      seek_and_read(fd, (uint8_t *)hdrbuf, i, HDRBUFSIZ);
+      if ((uint32_t)(hdrbuf[1]) == 0x29) 
 	switch (hdrbuf[0])
 	  {
 	  case 0xd0: 
@@ -5343,27 +5343,27 @@ static int read_asf_header(const char *filename, int fd)
 	    if (present)
 	      j = 16+8+16+8+8+ 4+4+4+4+ 4+4+ 4+ (4+4+4) + 2;
 	    else j = 16+8+16+8+8+ 4+4+4+4+ 4+4+ 4+ 2;
-	    srate = mus_char_to_lint((unsigned char *)(hdrbuf + j+11+36));
-	    bits = mus_char_to_lint((unsigned char *)(hdrbuf + j+11+32));
-	    chans = mus_char_to_ulshort((unsigned char *)(hdrbuf + j+65));
-	    original_sample_type = mus_char_to_lint((unsigned char *)(hdrbuf + j+11));
+	    srate = mus_char_to_lint((uint8_t *)(hdrbuf + j+11+36));
+	    bits = mus_char_to_lint((uint8_t *)(hdrbuf + j+11+32));
+	    chans = mus_char_to_ulshort((uint8_t *)(hdrbuf + j+65));
+	    original_sample_type = mus_char_to_lint((uint8_t *)(hdrbuf + j+11));
 	    break;
 
 	  default: 
 	    break;
 	  }
-      ilen = mus_char_to_lint((unsigned char *)(hdrbuf + 16));
+      ilen = mus_char_to_lint((uint8_t *)(hdrbuf + 16));
       if (ilen <= 0) break;
       if ((chans > 0) && (srate > 0)) break;
       i += ilen;
     }
   i = len;
-  seek_and_read(fd, (unsigned char *)hdrbuf, i, HDRBUFSIZ);
+  seek_and_read(fd, (uint8_t *)hdrbuf, i, HDRBUFSIZ);
   sample_type = MUS_UNKNOWN_SAMPLE;
-  if (((unsigned int)(hdrbuf[1]) == 0x29) && ((unsigned int)(hdrbuf[0]) == 0xd2))
+  if (((uint32_t)(hdrbuf[1]) == 0x29) && ((uint32_t)(hdrbuf[0]) == 0xd2))
     {
       int a_huge = 2;
-      ilen = mus_char_to_lint((unsigned char *)(hdrbuf + 16));
+      ilen = mus_char_to_lint((uint8_t *)(hdrbuf + 16));
       if (asf_huge) a_huge = 4;
       data_location = i + 20 + a_huge + 2+4+3+1;
       if (bits == 0) bits = 8; 
@@ -5399,24 +5399,24 @@ static int read_sox_header(const char *filename, int fd)
   int comment_len;
   mus_long_t samps;
 
-  if (match_four_chars((unsigned char *)(hdrbuf + 0), I_dSoX))
+  if (match_four_chars((uint8_t *)(hdrbuf + 0), I_dSoX))
     {
       sample_type = MUS_LINTN;
-      samps = mus_char_to_llong((unsigned char *)(hdrbuf + 8));
-      srate = (int)mus_char_to_ldouble((unsigned char *)(hdrbuf + 16));
+      samps = mus_char_to_llong((uint8_t *)(hdrbuf + 8));
+      srate = (int)mus_char_to_ldouble((uint8_t *)(hdrbuf + 16));
       little_endian = true;
     }
   else 
     { /* untested */
       sample_type = MUS_BINTN;
-      samps = mus_char_to_blong((unsigned char *)(hdrbuf + 8));
-      srate = (int)mus_char_to_bdouble((unsigned char *)(hdrbuf + 16));
+      samps = mus_char_to_blong((uint8_t *)(hdrbuf + 8));
+      srate = (int)mus_char_to_bdouble((uint8_t *)(hdrbuf + 16));
       little_endian = false;
     }
 
-  data_location = 4 + big_or_little_endian_int((unsigned char *)(hdrbuf + 4), little_endian);
-  chans = big_or_little_endian_int((unsigned char *)(hdrbuf + 24), little_endian);
-  comment_len = big_or_little_endian_int((unsigned char *)(hdrbuf + 28), little_endian);
+  data_location = 4 + big_or_little_endian_int((uint8_t *)(hdrbuf + 4), little_endian);
+  chans = big_or_little_endian_int((uint8_t *)(hdrbuf + 24), little_endian);
+  comment_len = big_or_little_endian_int((uint8_t *)(hdrbuf + 28), little_endian);
   if (comment_len > 0)
     {
       comment_start = 32;
@@ -5464,14 +5464,14 @@ static int read_matlab_5_header(const char *filename, int fd)
 	break;
       }
   
-  /* if (mus_char_to_lshort((unsigned char *)(hdrbuf + 126)) == 0x494d) swapped = true; */
+  /* if (mus_char_to_lshort((uint8_t *)(hdrbuf + 126)) == 0x494d) swapped = true; */
   /* byte swapping not handled yet */
 
-  type = mus_char_to_lint((unsigned char *)(hdrbuf + 128));
+  type = mus_char_to_lint((uint8_t *)(hdrbuf + 128));
   if (type != 14)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: unknown Matlab sample type (%d)", filename, type));
 
-  /* chunksize = mus_char_to_lint((unsigned char *)(hdrbuf + 132)); */
+  /* chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 132)); */
 
   /* now grovel through the array header */
   /*   assume the "flags" are not interesting */
@@ -5481,17 +5481,17 @@ static int read_matlab_5_header(const char *filename, int fd)
   /* should we try to handle multiple signals in a file?  as separate channels? */
 
   loc = 136 + 32 + 8;
-  size = mus_char_to_lint((unsigned char *)(hdrbuf + 172)); /* var name len -- need to round up to multiple of 8 */
+  size = mus_char_to_lint((uint8_t *)(hdrbuf + 172)); /* var name len -- need to round up to multiple of 8 */
   i = size % 8;
   if (i == 0)
     loc += size;
   else loc += size + 8 - i;
   
-  type = mus_char_to_lint((unsigned char *)(hdrbuf + loc));
+  type = mus_char_to_lint((uint8_t *)(hdrbuf + loc));
   if (type == 9)
     sample_type = MUS_LDOUBLE;
   else sample_type = MUS_LFLOAT;
-  data_size = mus_char_to_lint((unsigned char *)(hdrbuf + loc + 4));
+  data_size = mus_char_to_lint((uint8_t *)(hdrbuf + loc + 4));
   
   chans = 1;
   srate = 44100; /* a plausible guess */
@@ -5543,38 +5543,38 @@ void mus_header_raw_defaults(int *sr, int *chn, mus_sample_t *samp_type)
 
 static int mus_header_read_1(const char *filename, int fd)
 {
-  static const unsigned char I_HCOM[4] = {'H','C','O','M'};
-  static const unsigned char I_FSSD[4] = {'F','S','S','D'};
-  static const unsigned char I_8SVX[4] = {'8','S','V','X'};
-  static const unsigned char I_16SV[4] = {'1','6','S','V'};
-  static const unsigned char I_VOC1[4] = {'t','i','v','e'};
-  static const unsigned char I_Soun[4] = {'S','o','u','n'}; 
-  static const unsigned char I_MAUD[4] = {'M','A','U','D'}; 
-  static const unsigned char I_mdat[4] = {'m','d','a','t'};  /* quicktime */
-  static const unsigned char I_sfbk[4] = {'s','f','b','k'};  /* SoundFont 2.0 */
-  static const unsigned char I_ATCH[4] = {'A','T','C','H'}; 
-  static const unsigned char I_NAL_[4] = {'N','A','L','_'};
-  static const unsigned char I__WAV[4] = {' ','S','A','M'};
-  static const unsigned char I_ondW[4] = {'o','n','d','W'};
-  static const unsigned char I_SDXc[4] = {'S','D','X',':'};  /* Sample dump exchange format */
-  static const unsigned char I_AVI_[4] = {'A','V','I',' '};  /* RIFF AVI */
-  static const unsigned char I_ones[4] = {(unsigned char)'\377',(unsigned char)'\377',(unsigned char)'\377',(unsigned char)'\377'};
-  static const unsigned char I_zeros[4] = {'\0','\0','\0','\0'};
-  static const unsigned char I_asf0[4] = {(unsigned char)'\321','\051',(unsigned char)'\342',(unsigned char)'\326'};
-  static const unsigned char I_asf1[4] = {(unsigned char)'\332','\065',(unsigned char)'\321','\021'};
-  static const unsigned char I_asf2[4] = {(unsigned char)'\220','\064','\000',(unsigned char)'\240'};
-  static const unsigned char I_asf3[4] = {(unsigned char)'\311','\003','\111',(unsigned char)'\276'};
-  static const unsigned char I_DS16[4] = {'D','S','1','6'};  /* CSL */
-  static const unsigned char I__sam[4] = {'=','s','a','m'};  
-  static const unsigned char I_OggS[4] = {'O','g','g','S'};  /* Ogg-related files, apparently -- ogg123 has "vorbis" instead of "Speex" */
-  static const unsigned char I_fLaC[4] = {'f','L','a','C'};  /* FLAC */
-  static const unsigned char I_TTA1[4] = {'T','T','A','1'};  /* ttaenc */
-  static const unsigned char I_wvpk[4] = {'w','v','p','k'};  /* wavpack */
-  static const unsigned char I_MATL[4] = {'M','A','T','L'};  /* matlab 5.0 */
-  static const unsigned char I_AB_5[4] = {'A','B',' ','5'};  
+  static const uint8_t I_HCOM[4] = {'H','C','O','M'};
+  static const uint8_t I_FSSD[4] = {'F','S','S','D'};
+  static const uint8_t I_8SVX[4] = {'8','S','V','X'};
+  static const uint8_t I_16SV[4] = {'1','6','S','V'};
+  static const uint8_t I_VOC1[4] = {'t','i','v','e'};
+  static const uint8_t I_Soun[4] = {'S','o','u','n'}; 
+  static const uint8_t I_MAUD[4] = {'M','A','U','D'}; 
+  static const uint8_t I_mdat[4] = {'m','d','a','t'};  /* quicktime */
+  static const uint8_t I_sfbk[4] = {'s','f','b','k'};  /* SoundFont 2.0 */
+  static const uint8_t I_ATCH[4] = {'A','T','C','H'}; 
+  static const uint8_t I_NAL_[4] = {'N','A','L','_'};
+  static const uint8_t I__WAV[4] = {' ','S','A','M'};
+  static const uint8_t I_ondW[4] = {'o','n','d','W'};
+  static const uint8_t I_SDXc[4] = {'S','D','X',':'};  /* Sample dump exchange format */
+  static const uint8_t I_AVI_[4] = {'A','V','I',' '};  /* RIFF AVI */
+  static const uint8_t I_ones[4] = {(uint8_t)'\377',(uint8_t)'\377',(uint8_t)'\377',(uint8_t)'\377'};
+  static const uint8_t I_zeros[4] = {'\0','\0','\0','\0'};
+  static const uint8_t I_asf0[4] = {(uint8_t)'\321','\051',(uint8_t)'\342',(uint8_t)'\326'};
+  static const uint8_t I_asf1[4] = {(uint8_t)'\332','\065',(uint8_t)'\321','\021'};
+  static const uint8_t I_asf2[4] = {(uint8_t)'\220','\064','\000',(uint8_t)'\240'};
+  static const uint8_t I_asf3[4] = {(uint8_t)'\311','\003','\111',(uint8_t)'\276'};
+  static const uint8_t I_DS16[4] = {'D','S','1','6'};  /* CSL */
+  static const uint8_t I__sam[4] = {'=','s','a','m'};  
+  static const uint8_t I_OggS[4] = {'O','g','g','S'};  /* Ogg-related files, apparently -- ogg123 has "vorbis" instead of "Speex" */
+  static const uint8_t I_fLaC[4] = {'f','L','a','C'};  /* FLAC */
+  static const uint8_t I_TTA1[4] = {'T','T','A','1'};  /* ttaenc */
+  static const uint8_t I_wvpk[4] = {'w','v','p','k'};  /* wavpack */
+  static const uint8_t I_MATL[4] = {'M','A','T','L'};  /* matlab 5.0 */
+  static const uint8_t I_AB_5[4] = {'A','B',' ','5'};  
 
   #define NINRS	7
-  static const unsigned int I_INRS[NINRS] = {0xcb460020, 0xd0465555, 0xfa460000, 0x1c470040, 0x3b470080, 0x7a470000, 0x9c470040};
+  static const uint32_t I_INRS[NINRS] = {0xcb460020, 0xd0465555, 0xfa460000, 0x1c470040, 0x3b470080, 0x7a470000, 0x9c470040};
   static int inrs_srates[NINRS] = {6500, 6667, 8000, 10000, 12000, 16000, 20000};
 
   /* returns 0 on success (at least to the extent that we can report the header type), -1 for error */
@@ -5616,8 +5616,8 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_no_header(fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_DSND)) || 
-      (match_four_chars((unsigned char *)hdrbuf, I_DECN)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_DSND)) || 
+      (match_four_chars((uint8_t *)hdrbuf, I_DECN)))
     {
       if (bytes < 24) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s NeXT header truncated? found only %" PRId64 " bytes", filename, bytes));
@@ -5625,37 +5625,37 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_next_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_FORM))
+  if (match_four_chars((uint8_t *)hdrbuf, I_FORM))
     {
       /* next 4 bytes are apparently the file size or something equally useless */
       if (bytes < 12) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s AIFF header truncated? found only %" PRId64 " bytes", filename, bytes));
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_AIFF))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_AIFF))
 	{ 
 	  header_type = MUS_AIFF;
 	  return(read_aiff_header(filename, fd, 0));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_AIFC))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_AIFC))
 	{ 
 	  header_type = MUS_AIFC;
 	  return(read_aiff_header(filename, fd, 0));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_8SVX))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_8SVX))
 	{
 	  header_type = MUS_SVX;
 	  return(read_8svx_header(filename, fd, true));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_16SV))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_16SV))
 	{
 	  header_type = MUS_SVX;
 	  return(read_8svx_header(filename, fd, false));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_MAUD))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_MAUD))
 	{
 	  header_type = MUS_MAUD;
 	  return(read_maud_header(filename, fd));
@@ -5663,7 +5663,7 @@ static int mus_header_read_1(const char *filename, int fd)
 
       /* apparently SAMP here -> sampled audio data (?) */
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 4), I_DS16))
+      if (match_four_chars((uint8_t *)(hdrbuf + 4), I_DS16))
 	{
 	  header_type = MUS_CSL;
 	  return(read_csl_header(filename, fd));
@@ -5671,25 +5671,25 @@ static int mus_header_read_1(const char *filename, int fd)
       return(mus_error(MUS_HEADER_READ_FAILED,	"%s: unrecognized \"FORM\" (i.e. AIFF) header",	filename));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_RIFF)) ||
-      (match_four_chars((unsigned char *)hdrbuf, I_RIFX)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_RIFF)) ||
+      (match_four_chars((uint8_t *)hdrbuf, I_RIFX)))
     {
       if (bytes < 12) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s RIFF header truncated? found only %" PRId64 " bytes", filename, bytes));
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_WAVE))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE))
 	{
 	  header_type = MUS_RIFF;
 	  return(read_riff_header(filename, fd));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_sfbk))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_sfbk))
 	{
 	  header_type = MUS_SOUNDFONT;
 	  return(read_soundfont_header(filename, fd));
 	}
 
-      if (match_four_chars((unsigned char *)(hdrbuf + 8), I_AVI_))
+      if (match_four_chars((uint8_t *)(hdrbuf + 8), I_AVI_))
 	{
 	  header_type = MUS_AVI;
 	  return(read_avi_header(filename, fd));
@@ -5698,21 +5698,21 @@ static int mus_header_read_1(const char *filename, int fd)
       return(mus_error(MUS_HEADER_READ_FAILED, "%s: unrecognized \"RIFF\" (i.e. 'wave') header", filename));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_RF64))
+  if (match_four_chars((uint8_t *)hdrbuf, I_RF64))
     { 
       header_type = MUS_RF64;
       if (bytes < 28) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s RF64 header truncated? found only %" PRId64 " bytes", filename, bytes));
-      if ((mus_char_to_lint((unsigned char *)(hdrbuf + 4)) != -1) ||
-	  (!(match_four_chars((unsigned char *)(hdrbuf + 8), I_WAVE))))
+      if ((mus_char_to_lint((uint8_t *)(hdrbuf + 4)) != -1) ||
+	  (!(match_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE))))
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s: messed up RF64 header", filename));
       return(read_rf64_header(filename, fd));
     }
 
-  if ((equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_VAX)) || 
-      (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_SUN)) ||
-      (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_MIPS)) || 
-      (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_NEXT)))
+  if ((equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_VAX)) || 
+      (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_SUN)) ||
+      (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_MIPS)) || 
+      (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_NEXT)))
     {
       if (bytes < 24) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s IRCAM header truncated? found only %" PRId64 " bytes", filename, bytes));
@@ -5720,13 +5720,13 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_ircam_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_NIST))
+  if (match_four_chars((uint8_t *)hdrbuf, I_NIST))
     {
       header_type = MUS_NIST;
       return(read_nist_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_caff))
+  if (match_four_chars((uint8_t *)hdrbuf, I_caff))
     {
       if (bytes < 32) /* INITIAL_READ_SIZE */
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s CAFF header truncated? found only %" PRId64 " bytes", filename, bytes));
@@ -5734,8 +5734,8 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_caff_header(fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_MATL)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_AB_5)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_MATL)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_AB_5)))
     {
       if (bytes < 128) /* INITIAL_READ_SIZE=256 */
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s Matlab header truncated? found only %" PRId64 " bytes", filename, bytes));
@@ -5743,12 +5743,12 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_matlab_5_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SOUN))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SOUN))
     {
-      static const unsigned char I_D_SA[4] = {'D',' ','S','A'};
-      static const unsigned char I_MPLE[4] = {'M','P','L','E'};
-      if ((match_four_chars((unsigned char *)(hdrbuf + 4), I_D_SA)) && 
-	  (match_four_chars((unsigned char *)(hdrbuf + 8), I_MPLE)))
+      static const uint8_t I_D_SA[4] = {'D',' ','S','A'};
+      static const uint8_t I_MPLE[4] = {'M','P','L','E'};
+      if ((match_four_chars((uint8_t *)(hdrbuf + 4), I_D_SA)) && 
+	  (match_four_chars((uint8_t *)(hdrbuf + 8), I_MPLE)))
 	{
 	  header_type = MUS_SMP;
 	  return(read_smp_header(filename, fd));
@@ -5760,15 +5760,15 @@ static int mus_header_read_1(const char *filename, int fd)
 	}
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_dSoX)) ||
-      (match_four_chars((unsigned char *)hdrbuf, I_XoSd)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_dSoX)) ||
+      (match_four_chars((uint8_t *)hdrbuf, I_XoSd)))
     {
       header_type = MUS_SOX;
       return(read_sox_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_VOC0)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_VOC1)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_VOC0)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_VOC1)))
     {
       if (bytes < 24) 
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s VOC header truncated? found only %" PRId64 " bytes", filename, bytes));
@@ -5776,90 +5776,90 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_voc_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_AVR_))
+  if (match_four_chars((uint8_t *)hdrbuf, I_AVR_))
     {
       header_type = MUS_AVR;
       return(read_avr_header(filename, fd));
     }
 
-  if (mus_char_to_bshort((unsigned char *)hdrbuf) == 1336)
+  if (mus_char_to_bshort((uint8_t *)hdrbuf) == 1336)
     {
       header_type = MUS_SD1;
       return(read_sd1_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_ALaw)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_Soun)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_ALaw)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_Soun)))
     {
       header_type = MUS_PSION;
       return(read_psion_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_GF1P)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_ATCH)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_GF1P)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_ATCH)))
     {
       header_type = MUS_GRAVIS;
       return(read_gravis_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_DSIG)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_NAL_)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_DSIG)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_NAL_)))
     {
       header_type = MUS_COMDISCO;
       return(read_comdisco_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_GOLD)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I__WAV)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_GOLD)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I__WAV)))
     {
       header_type = MUS_GOLDWAVE;
       return(read_goldwave_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_Diam)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_ondW)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_Diam)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_ondW)))
     {
       header_type = MUS_DIAMONDWARE;
       return(read_diamondware_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SRFS))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SRFS))
     {
       header_type = MUS_SRFS;
       return(read_srfs_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_CSRE))
+  if (match_four_chars((uint8_t *)hdrbuf, I_CSRE))
     {
       header_type = MUS_ADF;
       return(read_adf_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_fLaC))
+  if (match_four_chars((uint8_t *)hdrbuf, I_fLaC))
     {
       header_type = MUS_FLAC;
       return(MUS_NO_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_ajkg))
+  if (match_four_chars((uint8_t *)hdrbuf, I_ajkg))
     {
       header_type = MUS_SHORTEN;
       return(MUS_NO_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_TTA1))
+  if (match_four_chars((uint8_t *)hdrbuf, I_TTA1))
     {
       header_type = MUS_TTA;
       return(MUS_NO_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_wvpk))
+  if (match_four_chars((uint8_t *)hdrbuf, I_wvpk))
     {
       header_type = MUS_WAVPACK;
       return(MUS_NO_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_OggS))
+  if (match_four_chars((uint8_t *)hdrbuf, I_OggS))
     {
       if ((hdrbuf[29] == 'v') && (hdrbuf[30] == 'o') && (hdrbuf[31] == 'r'))
 	header_type = MUS_OGG;
@@ -5871,8 +5871,8 @@ static int mus_header_read_1(const char *filename, int fd)
       return(MUS_NO_ERROR);
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_file)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I__sam)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_file)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I__sam)))
     {
       header_type = MUS_FILE_SAMP;
       return(read_file_samp_header(filename, fd));
@@ -5888,151 +5888,151 @@ static int mus_header_read_1(const char *filename, int fd)
       return(MUS_NO_ERROR);
     }
 
-  if (mus_char_to_ubint((unsigned char *)hdrbuf) == 0xAAAAAAAA)
+  if (mus_char_to_ubint((uint8_t *)hdrbuf) == 0xAAAAAAAA)
     {
       header_type = MUS_MUS10;
       return(MUS_NO_ERROR);
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_SPIB)) || 
-      (match_four_chars((unsigned char *)hdrbuf, I_S___)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_SPIB)) || 
+      (match_four_chars((uint8_t *)hdrbuf, I_S___)))
     {
       header_type = MUS_IEEE;
       return(MUS_NO_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_riff))
+  if (match_four_chars((uint8_t *)hdrbuf, I_riff))
     {
       header_type = MUS_SOUNDFORGE;
       return(read_soundforge_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_PVF1)) || 
-      (match_four_chars((unsigned char *)hdrbuf, I_PVF2)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_PVF1)) || 
+      (match_four_chars((uint8_t *)hdrbuf, I_PVF2)))
     {
       header_type = MUS_PVF;
       return(read_pvf_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_MThd))
+  if (match_four_chars((uint8_t *)hdrbuf, I_MThd))
     {
       header_type = MUS_MIDI;
       return(MUS_ERROR);
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SND_))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SND_))
     {
       header_type = MUS_SBSTUDIOII;
       return(read_sbstudio_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_FSMt))
+  if (match_four_chars((uint8_t *)hdrbuf, I_FSMt))
     {
       header_type = MUS_FARANDOLE;
       return(read_farandole_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SDXc))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SDXc))
     {
       header_type = MUS_SAMPLE_DUMP;
       return(read_sample_dump_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_DDSF))
+  if (match_four_chars((uint8_t *)hdrbuf, I_DDSF))
     {
       header_type = MUS_DELUSION;
       return(read_delusion_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_LM89))
+  if (match_four_chars((uint8_t *)hdrbuf, I_LM89))
     {
       header_type = MUS_YAMAHA_TX16W;
       return(read_tx16w_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SY85))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SY85))
     {
       header_type = MUS_YAMAHA_SY85;
       return(read_sy85_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SY80))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SY80))
     {
       header_type = MUS_YAMAHA_SY99;
       return(read_sy85_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_PRAM))
+  if (match_four_chars((uint8_t *)hdrbuf, I_PRAM))
     {
       header_type = MUS_KURZWEIL_2000;
       return(read_kurzweil_2000_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SMP1))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SMP1))
     {
       header_type = MUS_KORG;
       return(read_korg_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_Maui))
+  if (match_four_chars((uint8_t *)hdrbuf, I_Maui))
     {
       header_type = MUS_MAUI;
       return(read_maui_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_IMPS))
+  if (match_four_chars((uint8_t *)hdrbuf, I_IMPS))
     {
       header_type = MUS_IMPULSETRACKER;
       return(read_impulsetracker_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)(hdrbuf + 35), I_UWFD))
+  if (match_four_chars((uint8_t *)(hdrbuf + 35), I_UWFD))
     {
       header_type = MUS_ULTRATRACKER;
       return(read_ultratracker_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)(hdrbuf + 76), I_SCRS))
+  if (match_four_chars((uint8_t *)(hdrbuf + 76), I_SCRS))
     {
       header_type = MUS_DIGIPLAYER;
       return(read_digiplayer_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_covox))
+  if (match_four_chars((uint8_t *)hdrbuf, I_covox))
     {
       header_type = MUS_COVOX;
       return(read_covox_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I__PAF)) ||
-      (match_four_chars((unsigned char *)hdrbuf, I_FAP_)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I__PAF)) ||
+      (match_four_chars((uint8_t *)hdrbuf, I_FAP_)))
     {
       header_type = MUS_PAF;
       return(read_paf_header(filename, fd));
     }
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_SDIF))
+  if (match_four_chars((uint8_t *)hdrbuf, I_SDIF))
     {
       header_type = MUS_SDIF;
       return(read_sdif_header(filename, fd));
     }
 
 #if G7XX
-  if (match_four_chars((unsigned char *)hdrbuf, I_NVF_))
+  if (match_four_chars((uint8_t *)hdrbuf, I_NVF_))
     {
       header_type = MUS_NVF;
       return(read_nvf_header(filename, fd));
     }
 #endif
 
-  if (match_four_chars((unsigned char *)hdrbuf, I_TWIN))
+  if (match_four_chars((uint8_t *)hdrbuf, I_TWIN))
     {
       header_type = MUS_TWINVQ;
       return(read_twinvq_header(filename, fd));
     }
 
   /* ESPS is either 0x00006a1a or 0x1a6a0000 at byte 16 */
-  if (equal_big_or_little_endian((unsigned char *)(hdrbuf + 16), 0x00006a1a))
+  if (equal_big_or_little_endian((uint8_t *)(hdrbuf + 16), 0x00006a1a))
     {
       header_type = MUS_ESPS;
       return(read_esps_header(filename, fd));
@@ -6044,25 +6044,25 @@ static int mus_header_read_1(const char *filename, int fd)
       return(read_sppack_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)(hdrbuf + 65), I_FSSD)) && 
-      (match_four_chars((unsigned char *)(hdrbuf + 128), I_HCOM)))
+  if ((match_four_chars((uint8_t *)(hdrbuf + 65), I_FSSD)) && 
+      (match_four_chars((uint8_t *)(hdrbuf + 128), I_HCOM)))
     {
       header_type = MUS_HCOM;
       return(MUS_NO_ERROR);
     }
 
 #if MUS_LITTLE_ENDIAN
-  if (mus_char_to_uninterpreted_int((unsigned char *)hdrbuf) == 0x01000800)
+  if (mus_char_to_uninterpreted_int((uint8_t *)hdrbuf) == 0x01000800)
 #else
-  if (mus_char_to_uninterpreted_int((unsigned char *)hdrbuf) == 0x00080001)
+  if (mus_char_to_uninterpreted_int((uint8_t *)hdrbuf) == 0x00080001)
 #endif
     {
       header_type = MUS_ADC;
       return(read_adc_header(filename, fd));
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_ones)) &&
-      (match_four_chars((unsigned char *)(hdrbuf + 12), I_FORM)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_ones)) &&
+      (match_four_chars((uint8_t *)(hdrbuf + 12), I_FORM)))
     {
       /* possibly an OMF file with an embedded AIFF data file -- this is just a guess... */
       header_type = MUS_OMF;
@@ -6070,8 +6070,8 @@ static int mus_header_read_1(const char *filename, int fd)
       /* another (apparently) along these lines is TOC */
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_zeros)) &&
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_mdat)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_zeros)) &&
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_mdat)))
     {
       /* possibly quicktime?? */
       header_type = MUS_QUICKTIME;
@@ -6094,7 +6094,7 @@ static int mus_header_read_1(const char *filename, int fd)
 
   for (i = 0; i < NINRS; i++) 
     {
-      if (equal_big_or_little_endian((unsigned char *)hdrbuf, I_INRS[i]))
+      if (equal_big_or_little_endian((uint8_t *)hdrbuf, I_INRS[i]))
 	{
 	  loc = inrs_srates[i];
 	  header_type = MUS_INRS;
@@ -6102,10 +6102,10 @@ static int mus_header_read_1(const char *filename, int fd)
 	}
     }
 
-  if ((match_four_chars((unsigned char *)hdrbuf, I_asf0)) &&
-      (match_four_chars((unsigned char *)(hdrbuf + 4), I_asf1)) &&
-      (match_four_chars((unsigned char *)(hdrbuf + 8), I_asf2)) &&
-      (match_four_chars((unsigned char *)(hdrbuf + 12), I_asf3)))
+  if ((match_four_chars((uint8_t *)hdrbuf, I_asf0)) &&
+      (match_four_chars((uint8_t *)(hdrbuf + 4), I_asf1)) &&
+      (match_four_chars((uint8_t *)(hdrbuf + 8), I_asf2)) &&
+      (match_four_chars((uint8_t *)(hdrbuf + 12), I_asf3)))
     {
       header_type = MUS_ASF;
       return(read_asf_header(filename, fd));
@@ -6297,7 +6297,7 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
 	  size = BIGGEST_4_BYTE_UNSIGNED_INT;
 	}
       lseek(fd, 8L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 0), (unsigned int)size);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 0), (uint32_t)size);
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6318,14 +6318,14 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
 	  size = BIGGEST_4_BYTE_SIGNED_INT;
 	}
       lseek(fd, 4L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, (int)size + update_form_size - mus_samples_to_bytes(sample_type, data_size));
+      mus_bint_to_char((uint8_t *)hdrbuf, (int)size + update_form_size - mus_samples_to_bytes(sample_type, data_size));
       /* cancel old data_size from previous possible write */
       header_write(fd, hdrbuf, 4);
       lseek(fd, update_framples_location, SEEK_SET);
-      mus_ubint_to_char((unsigned char *)hdrbuf, (unsigned int)size / (chans * mus_bytes_per_sample(sample_type)));
+      mus_ubint_to_char((uint8_t *)hdrbuf, (uint32_t)size / (chans * mus_bytes_per_sample(sample_type)));
       header_write(fd, hdrbuf, 4);
       lseek(fd, update_ssnd_location, SEEK_SET);
-      mus_ubint_to_char((unsigned char *)hdrbuf, (unsigned int)size + 8);
+      mus_ubint_to_char((uint8_t *)hdrbuf, (uint32_t)size + 8);
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6337,10 +6337,10 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
 	  return(mus_header_convert_riff_to_rf64(filename, size));
 	}
       lseek(fd, 4L, SEEK_SET);
-      mus_lint_to_char((unsigned char *)hdrbuf, (unsigned int)size + update_form_size - mus_samples_to_bytes(sample_type, data_size)); 
+      mus_lint_to_char((uint8_t *)hdrbuf, (uint32_t)size + update_form_size - mus_samples_to_bytes(sample_type, data_size)); 
       header_write(fd, hdrbuf, 4);
       lseek(fd, update_ssnd_location, SEEK_SET);
-      mus_ulint_to_char((unsigned char *)hdrbuf, (unsigned int)size);
+      mus_ulint_to_char((uint8_t *)hdrbuf, (uint32_t)size);
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6348,9 +6348,9 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
       /* read sets current update_form_size, sample_type, data_size, update_ssnd_location, update_rf64_location */
       /* assume here that this really is an rf64 file (i.e. -1 for form size and data chunk size */
       lseek(fd, update_rf64_location, SEEK_SET);
-      mus_llong_to_char((unsigned char *)hdrbuf, data_location + size - 8); /* 25-June-07 */
-      mus_llong_to_char((unsigned char *)(hdrbuf + 8), size);
-      mus_llong_to_char((unsigned char *)(hdrbuf + 16), size);
+      mus_llong_to_char((uint8_t *)hdrbuf, data_location + size - 8); /* 25-June-07 */
+      mus_llong_to_char((uint8_t *)(hdrbuf + 8), size);
+      mus_llong_to_char((uint8_t *)(hdrbuf + 16), size);
       header_write(fd, hdrbuf, 24);
       break;
 
@@ -6374,7 +6374,7 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
     case MUS_CAFF:
       if (update_framples_location < 56) update_framples_location = 56;
       lseek(fd, update_framples_location, SEEK_SET);
-      mus_blong_to_char((unsigned char *)(hdrbuf + 0), size);
+      mus_blong_to_char((uint8_t *)(hdrbuf + 0), size);
       header_write(fd, hdrbuf, 8);
       break;
 
@@ -6413,15 +6413,15 @@ int mus_header_change_chans(const char *filename, mus_header_t type, int new_cha
     {
     case MUS_NEXT:
       lseek(fd, 20L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, new_chans);
+      mus_bint_to_char((uint8_t *)hdrbuf, new_chans);
       header_write(fd, hdrbuf, 4);
       break;
 
     case MUS_IRCAM:
       lseek(fd, 8L, SEEK_SET);
       if (little_endian) 
-	mus_lint_to_char((unsigned char *)hdrbuf, new_chans);
-      else mus_bint_to_char((unsigned char *)hdrbuf, new_chans);
+	mus_lint_to_char((uint8_t *)hdrbuf, new_chans);
+      else mus_bint_to_char((uint8_t *)hdrbuf, new_chans);
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6434,8 +6434,8 @@ int mus_header_change_chans(const char *filename, mus_header_t type, int new_cha
     case MUS_AIFF: case MUS_AIFC:
       lseek(fd, update_framples_location - 2, SEEK_SET);
       new_framples = data_size / new_chans;
-      mus_bshort_to_char((unsigned char *)hdrbuf, new_chans);
-      mus_bint_to_char((unsigned char *)(hdrbuf + 2), new_framples);
+      mus_bshort_to_char((uint8_t *)hdrbuf, new_chans);
+      mus_bint_to_char((uint8_t *)(hdrbuf + 2), new_framples);
       header_write(fd, hdrbuf, 6);
       break;
 
@@ -6443,14 +6443,14 @@ int mus_header_change_chans(const char *filename, mus_header_t type, int new_cha
     case MUS_RF64:
       lseek(fd, update_framples_location - 2, SEEK_SET);
       if (little_endian)
-	mus_lshort_to_char((unsigned char *)hdrbuf, new_chans);
-      else mus_bshort_to_char((unsigned char *)hdrbuf, new_chans);
+	mus_lshort_to_char((uint8_t *)hdrbuf, new_chans);
+      else mus_bshort_to_char((uint8_t *)hdrbuf, new_chans);
       header_write(fd, hdrbuf, 2);
       break;
 
     case MUS_CAFF:
       lseek(fd, 44L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, new_chans);
+      mus_bint_to_char((uint8_t *)hdrbuf, new_chans);
       header_write(fd, hdrbuf, 4);
       /* we should probably also change bytes_per_packet at 36, but... */
       break;
@@ -6485,15 +6485,15 @@ int mus_header_change_srate(const char *filename, mus_header_t type, int new_sra
     {
     case MUS_NEXT:
       lseek(fd, 16L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, new_srate);
+      mus_bint_to_char((uint8_t *)hdrbuf, new_srate);
       header_write(fd, hdrbuf, 4);
       break;
 
     case MUS_IRCAM:
       lseek(fd, 4L, SEEK_SET);
       if (little_endian) 
-	mus_lfloat_to_char((unsigned char *)hdrbuf, (float)new_srate);
-      else mus_bfloat_to_char((unsigned char *)hdrbuf, (float)new_srate);
+	mus_lfloat_to_char((uint8_t *)hdrbuf, (float)new_srate);
+      else mus_bfloat_to_char((uint8_t *)hdrbuf, (float)new_srate);
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6505,7 +6505,7 @@ int mus_header_change_srate(const char *filename, mus_header_t type, int new_sra
     case MUS_AIFF: 
     case MUS_AIFC:
       lseek(fd, update_framples_location + 6, SEEK_SET);
-      double_to_ieee_80((double)new_srate, (unsigned char *)hdrbuf);
+      double_to_ieee_80((double)new_srate, (uint8_t *)hdrbuf);
       header_write(fd, hdrbuf, 10);
       break;
 
@@ -6513,14 +6513,14 @@ int mus_header_change_srate(const char *filename, mus_header_t type, int new_sra
     case MUS_RF64:
       lseek(fd, update_framples_location, SEEK_SET);
       if (little_endian)
-	mus_lint_to_char((unsigned char *)hdrbuf, new_srate);
-      else mus_bint_to_char((unsigned char *)hdrbuf, new_srate);
+	mus_lint_to_char((uint8_t *)hdrbuf, new_srate);
+      else mus_bint_to_char((uint8_t *)hdrbuf, new_srate);
       header_write(fd, hdrbuf, 4);
       break;
 
     case MUS_CAFF:
       lseek(fd, 20, SEEK_SET);
-      mus_bdouble_to_char((unsigned char *)hdrbuf, (double)new_srate);      
+      mus_bdouble_to_char((uint8_t *)hdrbuf, (double)new_srate);      
       header_write(fd, hdrbuf, 8);
       break;
 
@@ -6543,7 +6543,7 @@ int mus_header_change_type(const char *filename, mus_header_t new_type, mus_samp
 	  int ofd, ifd, len;
 	  int64_t nbytes;
 	  mus_long_t loc;
-	  unsigned char *buf = NULL;
+	  uint8_t *buf = NULL;
 	  char *new_file, *comment = NULL;
 
 	  if ((header_type == MUS_RIFF) && 
@@ -6563,7 +6563,7 @@ int mus_header_change_type(const char *filename, mus_header_t new_type, mus_samp
 		  comment = (char *)calloc(clen + 1, sizeof(char));
 		  ifd = mus_file_open_read(filename);
 		  lseek(ifd, comment_start, SEEK_SET);
-		  header_read(ifd, (unsigned char *)comment, clen);
+		  header_read(ifd, (uint8_t *)comment, clen);
 		  CLOSE(ifd, filename);
 		}
 	      data_size = data_size * mus_bytes_per_sample(sample_type) / mus_bytes_per_sample(new_format);
@@ -6574,7 +6574,7 @@ int mus_header_change_type(const char *filename, mus_header_t new_type, mus_samp
 	  lseek(ifd, loc, SEEK_SET);
 	  ofd = mus_file_reopen_write(new_file);
 	  lseek(ofd, 0L, SEEK_END);
-	  buf = (unsigned char *)calloc(8192, sizeof(unsigned char));
+	  buf = (uint8_t *)calloc(8192, sizeof(uint8_t));
 	  while ((nbytes = read(ifd, buf, 8192))) header_write(ofd, buf, (int)nbytes);
 	  CLOSE(ifd, filename);
 	  CLOSE(ofd, new_file);
@@ -6614,13 +6614,13 @@ int mus_header_change_sample_type(const char *filename, mus_header_t type, mus_s
     {
     case MUS_NEXT:
       lseek(fd, 12L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, sndlib_format_to_next(new_format));
+      mus_bint_to_char((uint8_t *)hdrbuf, sndlib_format_to_next(new_format));
       header_write(fd, hdrbuf, 4);
       break;
 
     case MUS_IRCAM:
       lseek(fd, 12L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, sndlib_format_to_ircam(new_format));
+      mus_bint_to_char((uint8_t *)hdrbuf, sndlib_format_to_ircam(new_format));
       header_write(fd, hdrbuf, 4);
       break;
 
@@ -6633,18 +6633,18 @@ int mus_header_change_sample_type(const char *filename, mus_header_t type, mus_s
     case MUS_AIFC:
       old_bytes = data_size * mus_bytes_per_sample(sample_type);
       lseek(fd, update_framples_location, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, old_bytes / (chans * mus_bytes_per_sample(new_format)));
-      mus_bshort_to_char((unsigned char *)(hdrbuf + 4), sndlib_format_to_aiff_bits(new_format));
+      mus_bint_to_char((uint8_t *)hdrbuf, old_bytes / (chans * mus_bytes_per_sample(new_format)));
+      mus_bshort_to_char((uint8_t *)(hdrbuf + 4), sndlib_format_to_aiff_bits(new_format));
       header_write(fd, hdrbuf, 6);
       if (header_type == MUS_AIFC)
 	{
 	  const char *str;
 	  str = sndlib_format_to_aifc_name(new_format);
 	  lseek(fd, update_framples_location + 16, SEEK_SET);
-	  write_four_chars((unsigned char *)(hdrbuf + 0), (const unsigned char *)str);
-	  (*(unsigned char *)(hdrbuf + 4)) = 4; /* final pad null not accounted-for */
-	  write_four_chars((unsigned char *)(hdrbuf + 5), (const unsigned char *)str);
-	  (*(unsigned char *)(hdrbuf + 9)) = 0;
+	  write_four_chars((uint8_t *)(hdrbuf + 0), (const uint8_t *)str);
+	  (*(uint8_t *)(hdrbuf + 4)) = 4; /* final pad null not accounted-for */
+	  write_four_chars((uint8_t *)(hdrbuf + 5), (const uint8_t *)str);
+	  (*(uint8_t *)(hdrbuf + 9)) = 0;
 	  header_write(fd, hdrbuf, 10);
 	}
       break;
@@ -6653,8 +6653,8 @@ int mus_header_change_sample_type(const char *filename, mus_header_t type, mus_s
     case MUS_RF64:
       lseek(fd, update_framples_location + 24, SEEK_SET);
       if (little_endian)
-	mus_lshort_to_char((unsigned char *)hdrbuf, sndlib_format_to_aiff_bits(new_format));
-      else mus_bshort_to_char((unsigned char *)hdrbuf, sndlib_format_to_aiff_bits(new_format));
+	mus_lshort_to_char((uint8_t *)hdrbuf, sndlib_format_to_aiff_bits(new_format));
+      else mus_bshort_to_char((uint8_t *)hdrbuf, sndlib_format_to_aiff_bits(new_format));
       header_write(fd, hdrbuf, 2);
       lseek(fd, update_framples_location + 10, SEEK_SET);
       switch (new_format)
@@ -6681,8 +6681,8 @@ int mus_header_change_sample_type(const char *filename, mus_header_t type, mus_s
 	default: fr = 0; break;
 	}
       if (little_endian)
-	mus_lshort_to_char((unsigned char *)hdrbuf, fr);
-      else mus_bshort_to_char((unsigned char *)hdrbuf, fr);
+	mus_lshort_to_char((uint8_t *)hdrbuf, fr);
+      else mus_bshort_to_char((uint8_t *)hdrbuf, fr);
       header_write(fd, hdrbuf, 2);
       break;
       
@@ -6703,7 +6703,7 @@ int mus_header_change_location(const char *filename, mus_header_t type, mus_long
   if (type == MUS_NEXT)
     {
       lseek(fd, 4L, SEEK_SET);
-      mus_bint_to_char((unsigned char *)hdrbuf, new_location);
+      mus_bint_to_char((uint8_t *)hdrbuf, new_location);
       header_write(fd, hdrbuf, 4);
     }
   CLOSE(fd, filename);
@@ -6758,7 +6758,7 @@ int mus_header_change_comment(const char *filename, mus_header_t type, const cha
 	  int ofd, ifd, len;
 	  mus_long_t loc;
 	  int64_t nbytes;
-	  unsigned char *buf = NULL;
+	  uint8_t *buf = NULL;
 	  len = strlen(filename) + 5;
 	  new_file = (char *)malloc(len * sizeof(char));
 	  snprintf(new_file, len, "%s.tmp", filename);
@@ -6768,7 +6768,7 @@ int mus_header_change_comment(const char *filename, mus_header_t type, const cha
 	  lseek(ifd, loc, SEEK_SET);
 	  ofd = mus_file_reopen_write(new_file);
 	  lseek(ofd, 0L, SEEK_END);
-	  buf = (unsigned char *)calloc(8192, sizeof(unsigned char));
+	  buf = (uint8_t *)calloc(8192, sizeof(uint8_t));
 	  while ((nbytes = read(ifd, buf, 8192))) header_write(ofd, buf, (int)nbytes);
 	  CLOSE(ifd, filename);
 	  CLOSE(ofd, new_file);
@@ -6981,58 +6981,58 @@ bool mus_header_no_header(const char *filename)
   bytes = (int64_t)read(fd, hdrbuf, INITIAL_READ_SIZE);
   CLOSE(fd, filename);
   if (bytes > 4) 
-    ok = ((match_four_chars((unsigned char *)hdrbuf, I_DSND)) || 
-	  (match_four_chars((unsigned char *)hdrbuf, I_DECN)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_FORM)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_RIFF)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_RIFX)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_RF64)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_caff)) ||
-	  (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_VAX)) || 
-	  (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_SUN)) ||
-	  (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_MIPS)) || 
-	  (equal_big_or_little_endian((unsigned char *)hdrbuf, I_IRCAM_NEXT)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_NIST)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SOUN)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_VOC0)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_AVR_)) ||
-	  (mus_char_to_bshort((unsigned char *)hdrbuf) == 1336) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_ALaw)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_GF1P)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_DSIG)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_GOLD)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_Diam)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SRFS)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_CSRE)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_file)) ||
+    ok = ((match_four_chars((uint8_t *)hdrbuf, I_DSND)) || 
+	  (match_four_chars((uint8_t *)hdrbuf, I_DECN)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_FORM)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_RIFF)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_RIFX)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_RF64)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_caff)) ||
+	  (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_VAX)) || 
+	  (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_SUN)) ||
+	  (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_MIPS)) || 
+	  (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_NEXT)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_NIST)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SOUN)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_VOC0)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_AVR_)) ||
+	  (mus_char_to_bshort((uint8_t *)hdrbuf) == 1336) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_ALaw)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_GF1P)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_DSIG)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_GOLD)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_Diam)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SRFS)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_CSRE)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_file)) ||
 	  ((hdrbuf[0] == 0xf0) && (hdrbuf[1] == 0x7e) && (hdrbuf[3] == 0x01)) ||
-	  (equal_big_or_little_endian((unsigned char *)(hdrbuf + 16), 0x00006a1a)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SPIB)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_S___)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_riff)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_PVF1)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_PVF2)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_MThd)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SND_)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_FSMt)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_DDSF)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_LM89)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SY85)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SY80)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_PRAM)) ||
-	  (match_four_chars((unsigned char *)(hdrbuf + 35), I_UWFD)) ||
-	  (match_four_chars((unsigned char *)(hdrbuf + 76), I_SCRS)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_covox)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I__PAF)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_FAP_)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_TWIN)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_IMPS)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SMP1)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_Maui)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_SDIF)) ||
-	  (match_four_chars((unsigned char *)hdrbuf, I_ajkg)) 
+	  (equal_big_or_little_endian((uint8_t *)(hdrbuf + 16), 0x00006a1a)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SPIB)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_S___)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_riff)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_PVF1)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_PVF2)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_MThd)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SND_)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_FSMt)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_DDSF)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_LM89)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SY85)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SY80)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_PRAM)) ||
+	  (match_four_chars((uint8_t *)(hdrbuf + 35), I_UWFD)) ||
+	  (match_four_chars((uint8_t *)(hdrbuf + 76), I_SCRS)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_covox)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I__PAF)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_FAP_)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_TWIN)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_IMPS)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SMP1)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_Maui)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_SDIF)) ||
+	  (match_four_chars((uint8_t *)hdrbuf, I_ajkg)) 
 #if G7XX
-	  || (match_four_chars((unsigned char *)hdrbuf, I_NVF_))
+	  || (match_four_chars((uint8_t *)hdrbuf, I_NVF_))
 #endif
 	  );
   return(!ok);

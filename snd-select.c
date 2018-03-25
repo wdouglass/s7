@@ -18,7 +18,7 @@ static bool map_over_chans(bool (*func)(chan_info *ncp))
 
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -77,7 +77,7 @@ static mus_long_t mus_long_t_map_over_chans(mus_long_t (*func)(chan_info *, mus_
 
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
 
@@ -619,7 +619,7 @@ static void redraw_selection(void)
 	{
 	  if (sp->inuse == SOUND_NORMAL)
 	    {
-	      unsigned int j;
+	      uint32_t j;
 	      for (j = 0; j < sp->nchans; j++)
 		{
 		  chan_info *cp;

@@ -205,7 +205,7 @@ void revert_file_from_menu(void)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++) 
 	revert_edits(sp->chans[i]);
       reflect_file_revert_in_label(sp);

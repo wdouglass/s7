@@ -1322,7 +1322,7 @@ void snd_close_file(snd_info *sp)
    */
 
   {
-    unsigned int i;
+    uint32_t i;
     for (i = 0; i < sp->nchans; i++) 
       sp->chans[i]->squelch_update = true;
     /* check_for_event(); */
@@ -1675,7 +1675,7 @@ static snd_info *sound_store_chan_info(snd_info *sp)
 {
   chan_info **cps;
   snd_info *nsp;
-  unsigned int i;
+  uint32_t i;
 
   nsp = (snd_info *)calloc(1, sizeof(snd_info));
   cps = (chan_info **)calloc(sp->nchans, sizeof(chan_info *));
@@ -1693,7 +1693,7 @@ static snd_info *sound_store_chan_info(snd_info *sp)
 
 static void sound_restore_chan_info(snd_info *nsp, snd_info *osp)
 {
-  unsigned int i;
+  uint32_t i;
   chan_info **cps;
 
   cps = osp->chans;
@@ -2799,7 +2799,7 @@ static char *display_file_maxamps(const char *filename, int chans)
 static char *display_sound_maxamps(snd_info *sp)
 {
   char *ampstr = NULL;
-  unsigned int i;
+  uint32_t i;
   int len;
   len = sp->nchans * 32;
   ampstr = (char *)calloc(len, sizeof(char));
@@ -2871,7 +2871,7 @@ void display_info(snd_info *sp)
 
       if (mus_sound_maxamp_exists(sp->filename))
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  bool edits = false;
 	  for (i = 0; i < sp->nchans; i++)
 	    if (sp->chans[i]->edit_ctr > 0)
@@ -3590,7 +3590,7 @@ displayed whn it is opened."
       sp = ss->sounds[i];
       if ((sp) && (sp->inuse == SOUND_NORMAL))
 	{
-	  unsigned int j;
+	  uint32_t j;
 	  for (j = 0; j < sp->nchans; j++)
 	    set_x_axis_x0x1(sp->chans[j], 0.0, sp->chans[j]->axis->xmax);
 	}
@@ -3641,7 +3641,7 @@ max and min when it is opened."
       sp = ss->sounds[i];
       if ((sp) && (sp->inuse == SOUND_NORMAL))
 	{
-	  unsigned int j;
+	  uint32_t j;
 	  for (j = 0; j < sp->nchans; j++)
 	    {
 	      chan_info *cp;

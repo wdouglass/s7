@@ -151,7 +151,7 @@ static const char *helper(glistener *g, const char *text)
 #if HAVE_CHECKER
 static const char *checker(glistener *g, const char *text)
 {
-  int gc_loc, err_loc;
+  s7_int gc_loc, err_loc;
   s7_pointer port, err_port, result;
   const char *errmsg;
   bool err = false;
@@ -360,7 +360,7 @@ static s7_pointer g_set_top_level_let(s7_scheme *sc, s7_pointer args)
 
 static void evaluator(glistener *g, const char *text)
 {
-  unsigned int gc_loc;
+  s7_int gc_loc;
   s7_pointer old_port, result;
   char *errmsg = NULL;
   

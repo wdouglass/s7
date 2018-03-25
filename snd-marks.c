@@ -169,7 +169,7 @@ static mark *find_mark_from_id(int id, chan_info **cps, int pos)
     {
       chan_info *cp;
       snd_info *sp;
-      unsigned int j;
+      uint32_t j;
       sp = ss->sounds[i];
       if ((sp) && (sp->inuse == SOUND_NORMAL))
 	for (j = 0; j < sp->nchans; j++)
@@ -710,7 +710,7 @@ typedef struct {
 
 void *sound_store_marks(snd_info *sp)
 {
-  unsigned int i;
+  uint32_t i;
   mark_info **res = NULL;
   marks_info *rtn = NULL;
   res = (mark_info **)calloc(sp->nchans, sizeof(mark_info *));
@@ -2755,7 +2755,7 @@ void save_mark_list(FILE *fd, chan_info *cp, bool all_chans)
   sv->syncs = NULL;
   if (all_chans)
     {
-      unsigned int i;
+      uint32_t i;
       snd_info *sp;
       sp = cp->sound;
       for (i = 0; i < sp->nchans; i++)

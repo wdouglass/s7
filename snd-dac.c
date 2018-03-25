@@ -656,7 +656,7 @@ static void stop_playing_with_toggle(dac_info *dp, dac_toggle_t toggle, with_hoo
 	  (sp->inuse == SOUND_NORMAL) && 
 	  (sp->index >= 0))
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  for (i = 0; i < sp->nchans; i++)
 	    {
 	      chan_info *cp;
@@ -1354,7 +1354,7 @@ static dac_info *play_sound_1(snd_info *sp, mus_long_t start, mus_long_t end, pl
 			      Xen edpos, Xen stop_proc, const char *caller, int arg_pos)
 {
   /* just plays one sound (ignores possible sync) */
-  unsigned int i;
+  uint32_t i;
   dac_info *dp = NULL, *rtn_dp = NULL;
 
   if ((background == NOT_IN_BACKGROUND) && 
@@ -2614,7 +2614,7 @@ void clear_players(void)
   int i;
   for (i = 0; i < players_size; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       sp = players[i];
       if (sp)

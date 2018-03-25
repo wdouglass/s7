@@ -1442,7 +1442,7 @@ static void full_dur_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], 0.0, sp->chans[i]->axis->xmax);
     }
@@ -1455,7 +1455,7 @@ static void zoom_out_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	zx_incremented(sp->chans[i], 2.0);
     }
@@ -1468,7 +1468,7 @@ static void zoom_in_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	zx_incremented(sp->chans[i], 0.5);
     }
@@ -1481,7 +1481,7 @@ static void goto_start_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], 0.0, sp->chans[i]->axis->x1 - sp->chans[i]->axis->x0);
     }
@@ -1493,7 +1493,7 @@ static void go_back_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	sx_incremented(sp->chans[i], -1.0);
     }
@@ -1506,7 +1506,7 @@ static void go_forward_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	sx_incremented(sp->chans[i], 1.0);
     }
@@ -1519,7 +1519,7 @@ static void goto_end_callback(GtkWidget *w, gpointer info)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], sp->chans[i]->axis->xmax - sp->chans[i]->axis->x1 + sp->chans[i]->axis->x0, sp->chans[i]->axis->xmax);
     }

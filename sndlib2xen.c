@@ -928,7 +928,7 @@ Xen g_mus_sound_path(void)
 
 #if HAVE_SCHEME
   static bool have_sound_path = false;
-  static unsigned int sound_path_loc = 0;
+  static s7_int sound_path_loc = 0;
   static s7_pointer mus_sound_path_symbol;
 #endif
 

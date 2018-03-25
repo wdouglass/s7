@@ -4396,10 +4396,10 @@ bool mus_is_wave_train(mus_any *ptr)
 
 typedef struct dly {
   mus_any_class *core;
-  unsigned int loc, size;
+  uint32_t loc, size;
   bool zdly, line_allocated, filt_allocated;
   mus_float_t *line;
-  unsigned int zloc, zsize;
+  uint32_t zloc, zsize;
   mus_float_t xscl, yscl, yn1, y1, norm;
   mus_interp_t type;
   mus_any *filt;
@@ -4448,8 +4448,8 @@ static mus_float_t dtap(mus_any *ptr, mus_float_t loc)
   if (gen->size == 0) return(gen->line[0]);
   if ((int)loc == 0) return(gen->line[gen->loc]);
   taploc = (int)(gen->loc - (int)loc) % (int)gen->size;
-  /* cast to int for gen->size is needed, as Tito Latini noticed, because the % operator in C is not smart about unsigned ints:
-   *    (int)-1 % (unsigned int)10    => 5
+  /* cast to int for gen->size is needed, as Tito Latini noticed, because the % operator in C is not smart about uint32_ts:
+   *    (int)-1 % (uint32_t)10    => 5
    *    (int)-1 % (int)10             => -1
    */
   if (taploc < 0) taploc += (int)gen->size;
@@ -4639,9 +4639,9 @@ static mus_long_t delay_set_length(mus_any *ptr, mus_long_t val)
   dly *gen = (dly *)ptr;  
   if (val > 0) 
     {
-      unsigned int old_size;
+      uint32_t old_size;
       old_size = gen->size;
-      gen->size = (unsigned int)val; 
+      gen->size = (uint32_t)val; 
       if (gen->size < old_size)
 	{
 	  if (gen->loc > gen->size) gen->loc = 0;
@@ -5193,7 +5193,7 @@ mus_float_t mus_all_pass_unmodulated_noz(mus_any *ptr, mus_float_t input)
 {
   mus_float_t result, din;
   dly *gen = (dly *)ptr;
-  unsigned int loc;
+  uint32_t loc;
   loc = gen->loc++;
   din = input + (gen->yscl * gen->line[loc]);
   result = gen->line[loc] + (gen->xscl * din);
@@ -5588,7 +5588,7 @@ mus_float_t mus_moving_max(mus_any *ptr, mus_float_t input)
     {
       if (output >= gen->xscl)
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  for (i = 0; i < gen->size; i++)
 	    if (gen->line[i] > abs_input)
 	      abs_input = gen->line[i];
@@ -6568,7 +6568,7 @@ unsigned long mus_rand_seed(void) {return(randx);}
 static mus_float_t next_random(void)
 {
   randx = randx * 1103515245 + 12345;
-  return((mus_float_t)((unsigned int)(randx >> 16) & 32767));
+  return((mus_float_t)((uint32_t)(randx >> 16) & 32767));
 }
 
 
@@ -13835,7 +13835,7 @@ static int grn_irandom(grn_info *spd, int amp)
 {
   /* gen-local next_random */
   spd->randx = spd->randx * 1103515245 + 12345;
-  return((int)(amp * INVERSE_MAX_RAND2 * ((mus_float_t)((unsigned int)(spd->randx >> 16) & 32767))));
+  return((int)(amp * INVERSE_MAX_RAND2 * ((mus_float_t)((uint32_t)(spd->randx >> 16) & 32767))));
 }
 
 

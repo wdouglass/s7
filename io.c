@@ -103,9 +103,9 @@ mus_long_t mus_set_max_table_size(mus_long_t new_max)
 
 
 
-void mus_bint_to_char(unsigned char *j, int x)
+void mus_bint_to_char(uint8_t *j, int x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if MUS_LITTLE_ENDIAN
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -114,10 +114,10 @@ void mus_bint_to_char(unsigned char *j, int x)
 }
 
 
-int mus_char_to_bint(const unsigned char *inp)
+int mus_char_to_bint(const uint8_t *inp)
 {
   int o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -127,9 +127,9 @@ int mus_char_to_bint(const unsigned char *inp)
 }
 
 
-void mus_lint_to_char(unsigned char *j, int x)
+void mus_lint_to_char(uint8_t *j, int x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -138,10 +138,10 @@ void mus_lint_to_char(unsigned char *j, int x)
 }
 
 
-int mus_char_to_lint(const unsigned char *inp)
+int mus_char_to_lint(const uint8_t *inp)
 {
   int o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -151,9 +151,9 @@ int mus_char_to_lint(const unsigned char *inp)
 }
 
 
-void mus_blong_to_char(unsigned char *j, mus_long_t x)
+void mus_blong_to_char(uint8_t *j, mus_long_t x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   memcpy((void *)j, (void *)ox, 8);
 #else
@@ -162,10 +162,10 @@ void mus_blong_to_char(unsigned char *j, mus_long_t x)
 }
 
 
-mus_long_t mus_char_to_blong(const unsigned char *inp)
+mus_long_t mus_char_to_blong(const uint8_t *inp)
 {
   mus_long_t o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[7]; outp[1] = inp[6]; outp[2] = inp[5]; outp[3] = inp[4]; outp[4] = inp[3]; outp[5] = inp[2]; outp[6] = inp[1]; outp[7] = inp[0];
 #else
@@ -175,9 +175,9 @@ mus_long_t mus_char_to_blong(const unsigned char *inp)
 }
 
 
-void mus_llong_to_char(unsigned char *j, mus_long_t x)
+void mus_llong_to_char(uint8_t *j, mus_long_t x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (MUS_LITTLE_ENDIAN)
   memcpy((void *)j, (void *)ox, 8);
 #else
@@ -186,10 +186,10 @@ void mus_llong_to_char(unsigned char *j, mus_long_t x)
 }
 
 
-mus_long_t mus_char_to_llong(const unsigned char *inp)
+mus_long_t mus_char_to_llong(const uint8_t *inp)
 {
   mus_long_t o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[7]; outp[1] = inp[6]; outp[2] = inp[5]; outp[3] = inp[4]; outp[4] = inp[3]; outp[5] = inp[2]; outp[6] = inp[1]; outp[7] = inp[0];
 #else
@@ -199,9 +199,9 @@ mus_long_t mus_char_to_llong(const unsigned char *inp)
 }
 
 
-void mus_bfloat_to_char(unsigned char *j, float x)
+void mus_bfloat_to_char(uint8_t *j, float x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if MUS_LITTLE_ENDIAN
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -210,10 +210,10 @@ void mus_bfloat_to_char(unsigned char *j, float x)
 }
 
 
-float mus_char_to_bfloat(const unsigned char *inp)
+float mus_char_to_bfloat(const uint8_t *inp)
 {
   float o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -223,9 +223,9 @@ float mus_char_to_bfloat(const unsigned char *inp)
 }
 
 
-void mus_lfloat_to_char(unsigned char *j, float x)
+void mus_lfloat_to_char(uint8_t *j, float x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   j[0] = ox[3]; j[1] = ox[2]; j[2] = ox[1]; j[3] = ox[0];
 #else
@@ -234,10 +234,10 @@ void mus_lfloat_to_char(unsigned char *j, float x)
 }
 
 
-float mus_char_to_lfloat(const unsigned char *inp)
+float mus_char_to_lfloat(const uint8_t *inp)
 {
   float o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -247,9 +247,9 @@ float mus_char_to_lfloat(const unsigned char *inp)
 }
 
 
-void mus_bshort_to_char(unsigned char *j, short x)
+void mus_bshort_to_char(uint8_t *j, short x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if MUS_LITTLE_ENDIAN
   j[0] = ox[1]; j[1] = ox[0];
 #else
@@ -258,10 +258,10 @@ void mus_bshort_to_char(unsigned char *j, short x)
 }
 
 
-short mus_char_to_bshort(const unsigned char *inp)
+short mus_char_to_bshort(const uint8_t *inp)
 {
   short o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[1]; outp[1] = inp[0];
 #else
@@ -271,9 +271,9 @@ short mus_char_to_bshort(const unsigned char *inp)
 }
 
 
-void mus_lshort_to_char(unsigned char *j, short x)
+void mus_lshort_to_char(uint8_t *j, short x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   j[0] = ox[1]; j[1] = ox[0];
 #else
@@ -282,10 +282,10 @@ void mus_lshort_to_char(unsigned char *j, short x)
 }
 
 
-short mus_char_to_lshort(const unsigned char *inp)
+short mus_char_to_lshort(const uint8_t *inp)
 {
   short o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[1]; outp[1] = inp[0];
 #else
@@ -296,9 +296,9 @@ short mus_char_to_lshort(const unsigned char *inp)
 
 
 #if ((MUS_LITTLE_ENDIAN) && (!HAVE_BYTESWAP_H)) || ((!MUS_LITTLE_ENDIAN) && (HAVE_SUN))
-static void mus_ubshort_to_char(unsigned char *j, unsigned short x)
+static void mus_ubshort_to_char(uint8_t *j, unsigned short x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if MUS_LITTLE_ENDIAN
   j[0] = ox[1]; j[1] = ox[0];
 #else
@@ -308,10 +308,10 @@ static void mus_ubshort_to_char(unsigned char *j, unsigned short x)
 #endif
 
 
-unsigned short mus_char_to_ubshort(const unsigned char *inp)
+unsigned short mus_char_to_ubshort(const uint8_t *inp)
 {
   unsigned short o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[1]; outp[1] = inp[0];
 #else
@@ -322,9 +322,9 @@ unsigned short mus_char_to_ubshort(const unsigned char *inp)
 
 
 #if (!MUS_LITTLE_ENDIAN) && (!HAVE_BYTESWAP_H)
-static void mus_ulshort_to_char(unsigned char *j, unsigned short x)
+static void mus_ulshort_to_char(uint8_t *j, unsigned short x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (!MUS_LITTLE_ENDIAN)
   j[0] = ox[1]; j[1] = ox[0];
 #else
@@ -334,10 +334,10 @@ static void mus_ulshort_to_char(unsigned char *j, unsigned short x)
 #endif
 
 
-unsigned short mus_char_to_ulshort(const unsigned char *inp)
+unsigned short mus_char_to_ulshort(const uint8_t *inp)
 {
   unsigned short o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[1]; outp[1] = inp[0];
 #else
@@ -347,9 +347,9 @@ unsigned short mus_char_to_ulshort(const unsigned char *inp)
 }
 
 
-void mus_bdouble_to_char(unsigned char *j, double x)
+void mus_bdouble_to_char(uint8_t *j, double x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (MUS_LITTLE_ENDIAN)
   j[0] = ox[7]; j[1] = ox[6]; j[2] = ox[5]; j[3] = ox[4]; j[4] = ox[3]; j[5] = ox[2]; j[6] = ox[1]; j[7] = ox[0];
 #else
@@ -358,10 +358,10 @@ void mus_bdouble_to_char(unsigned char *j, double x)
 }
 
 
-double mus_char_to_ldouble(const unsigned char *inp)
+double mus_char_to_ldouble(const uint8_t *inp)
 {
   double o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (MUS_LITTLE_ENDIAN)
   memcpy((void *)outp, (void *)inp, 8);
 #else
@@ -372,9 +372,9 @@ double mus_char_to_ldouble(const unsigned char *inp)
 
 
 #if (!MUS_LITTLE_ENDIAN)
-static void mus_ldouble_to_char(unsigned char *j, double x)
+static void mus_ldouble_to_char(uint8_t *j, double x)
 {
-  unsigned char *ox = (unsigned char *)&x;
+  uint8_t *ox = (uint8_t *)&x;
 #if (MUS_LITTLE_ENDIAN)
   memcpy((void *)j, (void *)ox, 8);
 #else
@@ -384,10 +384,10 @@ static void mus_ldouble_to_char(unsigned char *j, double x)
 #endif
 
 
-double mus_char_to_bdouble(const unsigned char *inp)
+double mus_char_to_bdouble(const uint8_t *inp)
 {
   double o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (MUS_LITTLE_ENDIAN)
   outp[0] = inp[7]; outp[1] = inp[6]; outp[2] = inp[5]; outp[3] = inp[4]; outp[4] = inp[3]; outp[5] = inp[2]; outp[6] = inp[1]; outp[7] = inp[0];
 #else
@@ -397,19 +397,19 @@ double mus_char_to_bdouble(const unsigned char *inp)
 }
 
 
-int mus_char_to_uninterpreted_int(const unsigned char *inp)
+int mus_char_to_uninterpreted_int(const uint8_t *inp)
 {
   int o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint8_t *outp = (uint8_t *)&o;
   memcpy((void *)outp, (void *)inp, 4);
   return(o);
 }
 
 
-unsigned int mus_char_to_ubint(const unsigned char *inp)
+uint32_t mus_char_to_ubint(const uint8_t *inp)
 {
-  unsigned int o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint32_t o;
+  uint8_t *outp = (uint8_t *)&o;
 #if MUS_LITTLE_ENDIAN
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -419,10 +419,10 @@ unsigned int mus_char_to_ubint(const unsigned char *inp)
 }
 
 
-unsigned int mus_char_to_ulint(const unsigned char *inp)
+uint32_t mus_char_to_ulint(const uint8_t *inp)
 {
-  unsigned int o;
-  unsigned char *outp = (unsigned char *)&o;
+  uint32_t o;
+  uint8_t *outp = (uint8_t *)&o;
 #if (!MUS_LITTLE_ENDIAN)
   outp[0] = inp[3]; outp[1] = inp[2]; outp[2] = inp[1]; outp[3] = inp[0];
 #else
@@ -440,7 +440,7 @@ unsigned int mus_char_to_ulint(const unsigned char *inp)
 
   #if HAVE_BYTESWAP_H
     #define big_endian_short(n)                  ((short)(bswap_16((*((unsigned short *)n)))))
-    #define big_endian_int(n)                    ((int)(bswap_32((*((unsigned int *)n)))))
+    #define big_endian_int(n)                    ((int)(bswap_32((*((uint32_t *)n)))))
     #define big_endian_unsigned_short(n)         ((unsigned short)(bswap_16((*((unsigned short *)n)))))
   #else
     #define big_endian_short(n)                  (mus_char_to_bshort(n))
@@ -450,13 +450,13 @@ unsigned int mus_char_to_ulint(const unsigned char *inp)
 
 #if __GNUC__ && HAVE_BYTESWAP_H
     /* these work, but newer versions of gcc complain about strict aliasing rules
-     *   #define big_endian_float(n)             ({unsigned int x; x = bswap_32((*((unsigned int *)n))); (*((float *)&x));})
+     *   #define big_endian_float(n)             ({uint32_t x; x = bswap_32((*((uint32_t *)n))); (*((float *)&x));})
      *   #define big_endian_double(n)            ({uint64_t x; x = bswap_64((*((uint64_t *)n))); (*((double *)&x));})
      */
-    typedef struct {union {unsigned int i; float f;} u;} uiflt;
+    typedef struct {union {uint32_t i; float f;} u;} uiflt;
     typedef struct {union {uint64_t l; double d;} u;} uidbl;
 
-    #define big_endian_float(n)                  ({uiflt x; x.u.i = bswap_32((*((unsigned int *)n))); x.u.f;})
+    #define big_endian_float(n)                  ({uiflt x; x.u.i = bswap_32((*((uint32_t *)n))); x.u.f;})
     #define big_endian_double(n)                 ({uidbl x; x.u.l = bswap_64((*((uint64_t *)n))); x.u.d;})
 #else
     #define big_endian_float(n)                  (mus_char_to_bfloat(n))
@@ -518,7 +518,7 @@ unsigned int mus_char_to_ulint(const unsigned char *inp)
 
   #if HAVE_BYTESWAP_H
     #define little_endian_short(n)               ((short)(bswap_16((*((unsigned short *)n)))))
-    #define little_endian_int(n)                 ((int)(bswap_32((*((unsigned int *)n)))))
+    #define little_endian_int(n)                 ((int)(bswap_32((*((uint32_t *)n)))))
     #define little_endian_unsigned_short(n)      ((unsigned short)(bswap_16((*((unsigned short *)n)))))
   #else
     #define little_endian_short(n)               (mus_char_to_lshort(n))
@@ -527,7 +527,7 @@ unsigned int mus_char_to_ulint(const unsigned char *inp)
   #endif
 
 #if __GNUC__ && HAVE_BYTESWAP_H
-    #define little_endian_float(n)               ({unsigned int x; x = bswap_32((*((unsigned int *)n))); (*((float *)&x));})
+    #define little_endian_float(n)               ({uint32_t x; x = bswap_32((*((uint32_t *)n))); (*((float *)&x));})
     #define little_endian_double(n)              ({uint64_t x; x = bswap_64((*((uint64_t *)n))); (*((double *)&x));})
 #else
     #define little_endian_float(n)               (mus_char_to_lfloat(n))
@@ -887,7 +887,7 @@ static int search(int val, short *table, int size)
   return(size);
 }
 
-static unsigned char to_alaw(int pcm_val)
+static uint8_t to_alaw(int pcm_val)
 {
   int mask, seg;
   if (pcm_val >= 0) mask = 0xD5; else {mask = 0x55; pcm_val = -pcm_val - 8;}
@@ -895,7 +895,7 @@ static unsigned char to_alaw(int pcm_val)
   if (seg >= 8)	return(0x7F ^ mask);
   else 
     {
-      unsigned char aval;
+      uint8_t aval;
       aval = seg << SEG_SHIFT;
       if (seg < 2) aval |= (pcm_val >> 4) & QUANT_MASK; else aval |= (pcm_val >> (seg + 3)) & QUANT_MASK;
       return(aval ^ mask);
@@ -933,7 +933,7 @@ static const mus_float_t mus_alaw[256] = {
 
 #define	BIAS		(0x84)		/* Bias for linear code. */
 
-static unsigned char to_mulaw(int pcm_val)
+static uint8_t to_mulaw(int pcm_val)
 {
   int mask;
   int seg;
@@ -942,7 +942,7 @@ static unsigned char to_mulaw(int pcm_val)
   if (seg >= 8) return(0x7F ^ mask);
   else 
     {
-      unsigned char uval;
+      uint8_t uval;
       uval = (seg << 4) | ((pcm_val >> (seg + 3)) & 0xF);
       return(uval ^ mask);
     }
@@ -1060,7 +1060,7 @@ static mus_long_t mus_read_any_1(int tfd, mus_long_t beg, int chans, mus_long_t 
   mus_sample_t samp_type;
   int siz, siz_chans;
   mus_long_t bytes, lim, leftover, total_read, k, loc, buflim;
-  unsigned char *jchar;
+  uint8_t *jchar;
   static char *ur_charbuf = NULL;
   char *charbuf = NULL;
   mus_float_t *buffer;
@@ -1219,7 +1219,7 @@ static mus_long_t mus_read_any_1(int tfd, mus_long_t beg, int chans, mus_long_t 
 	      bufend = (mus_float_t *)(buffer + loclim - 1);
 	      bufend4 = (mus_float_t *)(bufend - 4);
 
-	      jchar = (unsigned char *)charbuf;
+	      jchar = (uint8_t *)charbuf;
 	      switch (samp_type)
 		{
 		case MUS_BSHORT:      
@@ -1333,25 +1333,25 @@ static mus_long_t mus_read_any_1(int tfd, mus_long_t beg, int chans, mus_long_t 
 		case MUS_BYTE:                
 		  while (bufnow <= bufend4)
 		    {
-		      (*bufnow++) = mus_byte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_byte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_byte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_byte[(unsigned char)(*jchar++)];
+		      (*bufnow++) = mus_byte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_byte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_byte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_byte[(uint8_t)(*jchar++)];
 		    }
 		  for (; bufnow <= bufend; jchar++)
-		    (*bufnow++) = mus_byte[(unsigned char)(*jchar)];
+		    (*bufnow++) = mus_byte[(uint8_t)(*jchar)];
 		  break;
 		  
 		case MUS_UBYTE:     	      
 		  while (bufnow <= bufend4)
 		    {
-		      (*bufnow++) = mus_ubyte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_ubyte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_ubyte[(unsigned char)(*jchar++)];
-		      (*bufnow++) = mus_ubyte[(unsigned char)(*jchar++)];
+		      (*bufnow++) = mus_ubyte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_ubyte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_ubyte[(uint8_t)(*jchar++)];
+		      (*bufnow++) = mus_ubyte[(uint8_t)(*jchar++)];
 		    }
 		  for (; bufnow <= bufend; jchar++) 
-		    (*bufnow++) = mus_ubyte[(unsigned char)(*jchar)];
+		    (*bufnow++) = mus_ubyte[(uint8_t)(*jchar)];
 		  break;
 		  
 		case MUS_BFLOAT:
@@ -1518,7 +1518,7 @@ static mus_long_t mus_read_any_1(int tfd, mus_long_t beg, int chans, mus_long_t 
 		      bufend = (mus_float_t *)(buffer + loclim - 1);
 		      bufend4 = (mus_float_t *)(bufend - 4);
 		      
-		      jchar = (unsigned char *)charbuf;
+		      jchar = (uint8_t *)charbuf;
 		      jchar += (k * siz);
 		      switch (samp_type)
 			{
@@ -1596,12 +1596,12 @@ static mus_long_t mus_read_any_1(int tfd, mus_long_t beg, int chans, mus_long_t 
 			  
 			case MUS_BYTE:                
 			  for (; bufnow <= bufend; jchar += siz_chans)
-			    (*bufnow++) = mus_byte[(unsigned char)(*jchar)];
+			    (*bufnow++) = mus_byte[(uint8_t)(*jchar)];
 			  break;
 			  
 			case MUS_UBYTE:     	      
 			  for (; bufnow <= bufend; jchar += siz_chans) 
-			    (*bufnow++) = mus_ubyte[(unsigned char)(*jchar)];
+			    (*bufnow++) = mus_ubyte[(uint8_t)(*jchar)];
 			  break;
 			  
 			case MUS_BFLOAT:
@@ -1832,7 +1832,7 @@ static int mus_write_1(int tfd, mus_long_t beg, mus_long_t end, int chans, mus_f
   mus_sample_t sample_type;
   mus_long_t bytes, k, lim, leftover, loc, buflim;
   bool clipping = false;
-  unsigned char *jchar;
+  uint8_t *jchar;
   static char *ur_charbuf = NULL;
   char *charbuf = NULL;
   mus_float_t *buffer;
@@ -1978,7 +1978,7 @@ static int mus_write_1(int tfd, mus_long_t beg, mus_long_t end, int chans, mus_f
 	  bufend = (mus_float_t *)(buffer + loclim - 1);
 	  bufend4 = (mus_float_t *)(bufend - 4);
 
-	  jchar = (unsigned char *)charbuf; /* if to_buffer we should add the loop offset here, or never loop */
+	  jchar = (uint8_t *)charbuf; /* if to_buffer we should add the loop offset here, or never loop */
 	  jchar += (k * siz); 
 	  switch (sample_type)
 	    {
@@ -2478,7 +2478,7 @@ mus_long_t mus_oclamp(mus_long_t lo, mus_long_t val, mus_long_t hi)
 
 #define SHORT_BYTES 2
 
-static void min_max_shorts(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_shorts(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   short cur_min, cur_max, tmp;
   short *sbuf;
@@ -2512,24 +2512,24 @@ static void min_max_shorts(unsigned char *data, int bytes, int chan, int chans, 
 }
 
 
-static void min_max_switch_shorts(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_switch_shorts(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   short cur_min, cur_max;
   /* frample based */
-  unsigned char *samp, *eod, *eod2;
+  uint8_t *samp, *eod, *eod2;
   int bytes_per_frample;
 
   bytes_per_frample = chans * SHORT_BYTES;
-  eod = (unsigned char *)(data + bytes);
-  eod2 = (unsigned char *)(eod - 2 * bytes_per_frample);
+  eod = (uint8_t *)(data + bytes);
+  eod2 = (uint8_t *)(eod - 2 * bytes_per_frample);
 
 #if MUS_LITTLE_ENDIAN
-  cur_min = big_endian_short((unsigned char *)(data + (chan * SHORT_BYTES)));
+  cur_min = big_endian_short((uint8_t *)(data + (chan * SHORT_BYTES)));
 #else
-  cur_min = little_endian_short((unsigned char *)(data + (chan * SHORT_BYTES)));
+  cur_min = little_endian_short((uint8_t *)(data + (chan * SHORT_BYTES)));
 #endif
   cur_max = cur_min;
-  samp = (unsigned char *)(data + (chan * SHORT_BYTES));
+  samp = (uint8_t *)(data + (chan * SHORT_BYTES));
   while (samp <= eod2)
     {
       short val;
@@ -2568,7 +2568,7 @@ static void min_max_switch_shorts(unsigned char *data, int bytes, int chan, int 
 
 /* ---------------- unsigned short ---------------- */
 
-static void min_max_ushorts(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_ushorts(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   unsigned short cur_min, cur_max;
   unsigned short *sbuf;
@@ -2598,25 +2598,25 @@ static void min_max_ushorts(unsigned char *data, int bytes, int chan, int chans,
 }
 
 
-static void min_max_switch_ushorts(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_switch_ushorts(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   unsigned short cur_min, cur_max;
   /* frample based */
-  unsigned char *samp, *eod, *eod2;
+  uint8_t *samp, *eod, *eod2;
   int bytes_per_frample;
 
   bytes_per_frample = chans * SHORT_BYTES;
-  eod = (unsigned char *)(data + bytes);
-  eod2 = (unsigned char *)(eod - 2 * bytes_per_frample);
+  eod = (uint8_t *)(data + bytes);
+  eod2 = (uint8_t *)(eod - 2 * bytes_per_frample);
 
 #if MUS_LITTLE_ENDIAN
-  cur_min = big_endian_unsigned_short((unsigned char *)(data + (chan * SHORT_BYTES)));
+  cur_min = big_endian_unsigned_short((uint8_t *)(data + (chan * SHORT_BYTES)));
 #else
-  cur_min = little_endian_unsigned_short((unsigned char *)(data + (chan * SHORT_BYTES)));
+  cur_min = little_endian_unsigned_short((uint8_t *)(data + (chan * SHORT_BYTES)));
 #endif
   cur_max = cur_min;
 
-  samp = (unsigned char *)(data + (chan * SHORT_BYTES));
+  samp = (uint8_t *)(data + (chan * SHORT_BYTES));
   while (samp <= eod2)
     {
       unsigned short val;
@@ -2656,7 +2656,7 @@ static void min_max_switch_ushorts(unsigned char *data, int bytes, int chan, int
 
 #define INT_BYTES 4
 
-static void min_max_ints(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool standard)
+static void min_max_ints(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool standard)
 {
   int cur_min, cur_max;
   int *sbuf;
@@ -2695,25 +2695,25 @@ static void min_max_ints(unsigned char *data, int bytes, int chan, int chans, mu
 /* (with-sound (:sample-type mus-lintn :statistics #t) (fm-violin 0 1 440 .1)) */
 
 
-static void min_max_switch_ints(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool standard)
+static void min_max_switch_ints(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool standard)
 {
   int cur_min, cur_max;
   /* frample based */
-  unsigned char *samp, *eod, *eod2;
+  uint8_t *samp, *eod, *eod2;
   int bytes_per_frample;
 
   bytes_per_frample = chans * INT_BYTES;
-  eod = (unsigned char *)(data + bytes);
-  eod2 = (unsigned char *)(eod - 2 * bytes_per_frample);
+  eod = (uint8_t *)(data + bytes);
+  eod2 = (uint8_t *)(eod - 2 * bytes_per_frample);
 
 #if MUS_LITTLE_ENDIAN
-  cur_min = big_endian_int((unsigned char *)(data + (chan * INT_BYTES)));
+  cur_min = big_endian_int((uint8_t *)(data + (chan * INT_BYTES)));
 #else
-  cur_min = little_endian_int((unsigned char *)(data + (chan * INT_BYTES)));
+  cur_min = little_endian_int((uint8_t *)(data + (chan * INT_BYTES)));
 #endif
   cur_max = cur_min;
 
-  samp = (unsigned char *)(data + (chan * INT_BYTES));
+  samp = (uint8_t *)(data + (chan * INT_BYTES));
   while (samp <= eod2)
     {
       int val;
@@ -2761,7 +2761,7 @@ static void min_max_switch_ints(unsigned char *data, int bytes, int chan, int ch
 
 #define FLOAT_BYTES 4
 
-static void min_max_floats(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
+static void min_max_floats(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
 {
   float cur_min, cur_max;
   float *sbuf;
@@ -2801,24 +2801,24 @@ static void min_max_floats(unsigned char *data, int bytes, int chan, int chans, 
 }
 
 
-static void min_max_switch_floats(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
+static void min_max_switch_floats(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
 {
   float cur_min, cur_max;
   /* frample based */
-  unsigned char *samp, *eod, *eod2;
+  uint8_t *samp, *eod, *eod2;
   int bytes_per_frample;
 
   bytes_per_frample = chans * FLOAT_BYTES;
-  eod = (unsigned char *)(data + bytes);
-  eod2 = (unsigned char *)(eod - 2 * bytes_per_frample);
+  eod = (uint8_t *)(data + bytes);
+  eod2 = (uint8_t *)(eod - 2 * bytes_per_frample);
 
 #if MUS_LITTLE_ENDIAN
-  cur_min = big_endian_float((unsigned char *)(data + (chan * FLOAT_BYTES)));
+  cur_min = big_endian_float((uint8_t *)(data + (chan * FLOAT_BYTES)));
 #else
-  cur_min = little_endian_float((unsigned char *)(data + (chan * FLOAT_BYTES)));
+  cur_min = little_endian_float((uint8_t *)(data + (chan * FLOAT_BYTES)));
 #endif
   cur_max = cur_min;
-  samp = (unsigned char *)(data + (chan * FLOAT_BYTES)); 
+  samp = (uint8_t *)(data + (chan * FLOAT_BYTES)); 
   while (samp <= eod2)
     {
       float val;
@@ -2869,7 +2869,7 @@ static void min_max_switch_floats(unsigned char *data, int bytes, int chan, int 
 
 #define DOUBLE_BYTES 8
 
-static void min_max_doubles(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
+static void min_max_doubles(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
 {
   double cur_min, cur_max;
   double *sbuf;
@@ -2907,24 +2907,24 @@ static void min_max_doubles(unsigned char *data, int bytes, int chan, int chans,
 }
 
 
-static void min_max_switch_doubles(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
+static void min_max_switch_doubles(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool unscaled)
 {
   double cur_min, cur_max;
   /* frample based */
-  unsigned char *samp, *eod, *eod2;
+  uint8_t *samp, *eod, *eod2;
   int bytes_per_frample;
 
   bytes_per_frample = chans * DOUBLE_BYTES;
-  eod = (unsigned char *)(data + bytes);
-  eod2 = (unsigned char *)(eod - 2 * bytes_per_frample);
+  eod = (uint8_t *)(data + bytes);
+  eod2 = (uint8_t *)(eod - 2 * bytes_per_frample);
 
 #if MUS_LITTLE_ENDIAN
-  cur_min = big_endian_double((unsigned char *)(data + (chan * DOUBLE_BYTES)));
+  cur_min = big_endian_double((uint8_t *)(data + (chan * DOUBLE_BYTES)));
 #else
-  cur_min = little_endian_double((unsigned char *)(data + (chan * DOUBLE_BYTES)));
+  cur_min = little_endian_double((uint8_t *)(data + (chan * DOUBLE_BYTES)));
 #endif
   cur_max = cur_min;
-  samp = (unsigned char *)(data + (chan * DOUBLE_BYTES)); 
+  samp = (uint8_t *)(data + (chan * DOUBLE_BYTES)); 
   while (samp <= eod2)
     {
       double val;
@@ -2974,7 +2974,7 @@ static void min_max_switch_doubles(unsigned char *data, int bytes, int chan, int
 
 #define THREE_BYTES 3
 
-static int big_three(unsigned char *data, int loc)
+static int big_three(uint8_t *data, int loc)
 {
   int val;
   val = (data[loc + 0] << 16) + (data[loc + 1] << 8) + data[loc + 2];
@@ -2982,7 +2982,7 @@ static int big_three(unsigned char *data, int loc)
   return(val);
 }
 
-static int little_three(unsigned char *data, int loc)
+static int little_three(uint8_t *data, int loc)
 {
   int val;
   val = (data[loc + 2] << 16) + (data[loc + 1] << 8) + data[loc + 0];
@@ -2990,7 +2990,7 @@ static int little_three(unsigned char *data, int loc)
   return(val);
 }
 
-static void min_max_24s(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool big_endian)
+static void min_max_24s(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp, bool big_endian)
 {
   int cur_min, cur_max;
   int i, k, bytes_per_frample, len, len2, offset;
@@ -3067,7 +3067,7 @@ static void min_max_24s(unsigned char *data, int bytes, int chan, int chans, mus
 
 /* ---------------- mulaw, alaw, byte ---------------- */
 
-static void min_max_mulaw(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_mulaw(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   mus_float_t cur_min, cur_max;
   int i, b2;
@@ -3099,7 +3099,7 @@ static void min_max_mulaw(unsigned char *data, int bytes, int chan, int chans, m
 }
 
 
-static void min_max_alaw(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_alaw(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   mus_float_t cur_min, cur_max;
   int i, b2;
@@ -3131,7 +3131,7 @@ static void min_max_alaw(unsigned char *data, int bytes, int chan, int chans, mu
 }
 
 
-static void min_max_bytes(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_bytes(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   signed char cur_min, cur_max;
   int i, b2;
@@ -3163,9 +3163,9 @@ static void min_max_bytes(unsigned char *data, int bytes, int chan, int chans, m
 }
 
 
-static void min_max_ubytes(unsigned char *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
+static void min_max_ubytes(uint8_t *data, int bytes, int chan, int chans, mus_float_t *min_samp, mus_float_t *max_samp)
 {
-  unsigned char cur_min, cur_max;
+  uint8_t cur_min, cur_max;
   int i, b2;
 
   cur_min = data[chan];
@@ -3190,7 +3190,7 @@ static void min_max_ubytes(unsigned char *data, int bytes, int chan, int chans, 
 }
 
 
-int mus_samples_bounds(unsigned char *data, int bytes, int chan, int chans, mus_sample_t samp_type, mus_float_t *min_samp, mus_float_t *max_samp)
+int mus_samples_bounds(uint8_t *data, int bytes, int chan, int chans, mus_sample_t samp_type, mus_float_t *min_samp, mus_float_t *max_samp)
 {
   switch (samp_type)
     {
@@ -3351,9 +3351,9 @@ bool mus_strcmp(const char *s1, const char *s2)
 
   while (true)
     {
-      unsigned char c1, c2;
-      c1 = (unsigned char) *s1++;
-      c2 = (unsigned char) *s2++;
+      uint8_t c1, c2;
+      c1 = (uint8_t) *s1++;
+      c2 = (uint8_t) *s2++;
       if (c1 != c2) return(false);
       if (c1 == '\0') break;
     }

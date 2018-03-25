@@ -3510,7 +3510,7 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
 
 #if HAVE_SCHEME
   mus_float_t *in_data;
-  unsigned int gc_loc, proc_loc;
+  s7_int gc_loc, proc_loc;
   bool use_apply;
   s7_pointer arg_list, body, e, slot;
 
@@ -3959,7 +3959,7 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
 #if HAVE_SCHEME
   {
   s7_pointer arg_list;
-  unsigned int gc_loc;
+  s7_int gc_loc;
   bool use_apply;
   s7_pointer body, e, slot;
 
@@ -4167,7 +4167,7 @@ if 'func' returns non-" PROC_FALSE ", the scan stops, and the current sample num
 
 #if HAVE_SCHEME
   {
-    unsigned int gc_loc;
+    s7_int gc_loc;
     s7_pointer result;
     gc_loc = s7_gc_protect(s7, proc);
     result = g_sp_scan(proc, beg, end, snd, chn, S_scan_chan, false, edpos, 6, Xen_false);
@@ -4201,7 +4201,7 @@ if func returns non-" PROC_FALSE ", the scan stops, and the current sample numbe
 
 #if HAVE_SCHEME
   {
-    unsigned int gc_loc;
+    s7_int gc_loc;
     s7_pointer result;
     gc_loc = s7_gc_protect(s7, proc);
     result = g_sp_scan(proc, beg, Xen_false, snd, chn, S_scan_channel, false, edpos, 6, (Xen_is_bound(dur)) ? dur : Xen_false);
@@ -4232,7 +4232,7 @@ apply func to samples in current channel; edname is the edit history name for th
 
 #if HAVE_SCHEME
   {
-    unsigned int gc_loc;
+    s7_int gc_loc;
     s7_pointer result;
     gc_loc = s7_gc_protect(s7, proc);
     result = g_map_chan_1(proc, s_beg, s_end, org, snd, chn, edpos, Xen_false, S_map_chan);
@@ -4263,7 +4263,7 @@ apply func to samples in current channel; edname is the edit history name for th
 
 #if HAVE_SCHEME
   {
-    unsigned int gc_loc;
+    s7_int gc_loc;
     s7_pointer result;
     gc_loc = s7_gc_protect(s7, proc);
     result = g_map_chan_1(proc, s_beg, Xen_false, org, snd, chn, edpos, (Xen_is_bound(s_dur)) ? s_dur : Xen_false, S_map_channel);
@@ -4706,7 +4706,7 @@ swap the indicated channels"
 
 static mus_float_t *load_mus_float_ts(Xen scalers, int *result_len, const char *caller)
 {
-  unsigned int len = 0, i;
+  uint32_t len = 0, i;
   mus_float_t *scls;
   vct *v = NULL;
   if (Xen_is_number(scalers))
@@ -4716,7 +4716,7 @@ static mus_float_t *load_mus_float_ts(Xen scalers, int *result_len, const char *
       if (mus_is_vct(scalers))
 	{
 	  v = Xen_to_vct(scalers);
-	  len = (unsigned int)mus_vct_length(v);
+	  len = (uint32_t)mus_vct_length(v);
 	}
       else
 	{
@@ -4726,7 +4726,7 @@ static mus_float_t *load_mus_float_ts(Xen scalers, int *result_len, const char *
 	      lst_len = Xen_list_length(scalers);
 	      if (lst_len < 0)
 		Xen_wrong_type_arg_error(caller, 1, scalers, "a proper list");
-	      len = (unsigned int)lst_len;
+	      len = (uint32_t)lst_len;
 	    }
 	  else Xen_wrong_type_arg_error(caller, 1, scalers, "a number, list, or " S_vct);
 	}

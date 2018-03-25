@@ -437,11 +437,10 @@ static s7_pointer ap_9(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a
   return(s7_make_integer(cur_sc, s7_integer(a1) + s7_integer(a2) + s7_integer(a3) + s7_integer(a4) + s7_integer(a5) + s7_integer(a6) + s7_integer(a7) + s7_integer(a8) + s7_integer(a9)));
 }
 
-static s7_pointer int_list(s7_scheme *sc, int32_t len)
+static s7_pointer int_list(s7_scheme *sc, s7_int len)
 {
-  int32_t i;
+  s7_int i, gc_loc;
   s7_pointer result;
-  uint32_t gc_loc;
   s7_eval_c_string(sc, "(set! (*s7* 'safety) 1)");
   result = s7_list(sc, 1, s7_nil(sc));
   s7_eval_c_string(sc, "(set! (*s7* 'safety) 0)");
@@ -456,7 +455,7 @@ int main(int argc, char **argv)
 {
   s7_scheme *sc;
   s7_pointer p, p1;
-  int i, gc_loc;
+  s7_int i, gc_loc;
   char *s1, *s2;
   
   sc = s7_init();
@@ -539,7 +538,7 @@ int main(int argc, char **argv)
 
   i = (*((int *)s7_c_pointer(p)));
   if (i != 32)
-    fprintf(stderr, "%d: 32 -> %d via raw c pointer?\n", __LINE__, i);
+    fprintf(stderr, "%d: 32 -> %" PRId64 " via raw c pointer?\n", __LINE__, i);
 
   s7_provide(sc, "ffitest");
   if (!s7_is_provided(sc, "ffitest"))
@@ -548,7 +547,7 @@ int main(int argc, char **argv)
   p = s7_cons(sc, s7_f(sc), s7_t(sc));
   gc_loc = s7_gc_protect(sc, p);
   if (p != s7_gc_protected_at(sc, gc_loc))
-    {fprintf(stderr, "%d: %s is not gc protected at %d: %s?\n", __LINE__, s1 = TO_STR(p), gc_loc, s2 = TO_STR(s7_gc_protected_at(sc, gc_loc))); free(s1); free(s2);}
+    {fprintf(stderr, "%d: %s is not gc protected at %" PRId64 ": %s?\n", __LINE__, s1 = TO_STR(p), gc_loc, s2 = TO_STR(s7_gc_protected_at(sc, gc_loc))); free(s1); free(s2);}
   
   if (s7_car(p) != s7_f(sc))
     {fprintf(stderr, "%d: (car %s) is not #f?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
@@ -1384,11 +1383,11 @@ int main(int argc, char **argv)
       {
 	/* (define loaded_var 321) hopefully */
 	gc_loc = s7_gc_protect(sc, port);
-	s7_write_char(sc, (int)'(', port);
+	s7_write_char(sc, s7_make_character(sc, (uint8_t)'('), port);
 	s7_write(sc, s7_make_symbol(sc, "define"), port);
-	s7_write_char(sc, (int)' ', port);
+	s7_write_char(sc, s7_make_character(sc, (uint8_t)' '), port);
 	s7_display(sc, s7_make_symbol(sc, "loaded_var"), port);
-	s7_write_char(sc, (int)' ', port);
+	s7_write_char(sc, s7_make_character(sc, (uint8_t)' '), port);
 	s7_format(sc, s7_list(sc, 3, port, s7_make_string(sc, "~A)"), TO_S7_INT(321)));
 	s7_newline(sc, port);
 	s7_flush_output_port(sc, port);
@@ -1400,7 +1399,6 @@ int main(int argc, char **argv)
 	  {fprintf(stderr, "%d: load unhappy?\n", __LINE__);}
 	else
 	  {
-	    int c;
 	    if (s7_integer(p = s7_name_to_value(sc, "loaded_var")) != 321)
 	      {fprintf(stderr, "%d: %s is not 321?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
@@ -1409,13 +1407,14 @@ int main(int argc, char **argv)
 	      {fprintf(stderr, "%d: %s is not an input port?\n", __LINE__, s1 = TO_STR(port)); free(s1);}
 	    else
 	      {
+		uint8_t c;
 		gc_loc = s7_gc_protect(sc, port);
-		c = s7_peek_char(sc, port);
+		c = s7_character(s7_peek_char(sc, port));
 		if (c != (int)'(')
 		  {fprintf(stderr, "%d: peek-char sees %c?\n", __LINE__, (unsigned char)c);}
 		
-		c = s7_read_char(sc, port);
-		if (c != (int)'(')
+		c = s7_character(s7_read_char(sc, port));
+		if (c != (uint8_t)'(')
 		  {fprintf(stderr, "%d: read-char sees %c?\n", __LINE__, (unsigned char)c);}
 		
 		s7_close_input_port(sc, port);
@@ -1513,8 +1512,8 @@ int main(int argc, char **argv)
     s7_display(sc, s7_make_character(sc, '3'), s7_current_output_port(sc));
     if (last_c != '3')
       {fprintf(stderr, "%d: last_c: %c, c: %c\n", __LINE__, last_c, '3');}
-    last_c = s7_read_char(sc, p1);
-    if (last_c != '0')
+    last_c = s7_character(s7_read_char(sc, p1));
+    if (last_c != '0') 
       {fprintf(stderr, "%d: last_c: %c\n", __LINE__, last_c);}
     s7_set_current_output_port(sc, p);
     s7_gc_unprotect_at(sc, gc_loc);

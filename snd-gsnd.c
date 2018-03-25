@@ -1658,7 +1658,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       SG_SIGNAL_CONNECT(STOP_PIX(sp), "button_press_event", stop_sign_press, sp);
 
       {
-	unsigned int i;
+	uint32_t i;
 
 	sp->clock_widgets = (GtkWidget **)calloc(sp->nchans, sizeof(GtkWidget *));
 	sp->clock_pix_ax = (graphics_context **)calloc(sp->nchans, sizeof(graphics_context *));

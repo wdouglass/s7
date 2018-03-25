@@ -4255,7 +4255,7 @@ a new one is created.  If normalize is " PROC_TRUE ", the resulting waveform goe
   mus_long_t len = 0;
   bool partials_allocated = true;
 #if HAVE_SCHEME
-  unsigned int gc_loc;
+  uint32_t gc_loc;
 #endif
 
   Xen_check_type(mus_is_vct(partials) || Xen_is_list(partials), partials, 1, S_partials_to_wave, "a list or a " S_vct);
@@ -4335,7 +4335,7 @@ static Xen g_phase_partials_to_wave(Xen partials, Xen utable, Xen normalize)
   mus_long_t len = 0;
   bool partials_allocated = true;
 #if HAVE_SCHEME
-  unsigned int gc_loc;
+  uint32_t gc_loc;
 #endif
 
   #if HAVE_SCHEME
@@ -9841,7 +9841,7 @@ static s7_pointer g_make_src(s7_scheme *sc, s7_pointer args)
     {
       Xen src_obj;
 #if HAVE_SCHEME
-      unsigned int loc;
+      uint32_t loc;
 #endif
       gn->gen = ge;
       src_obj = mus_xen_to_object(gn);
@@ -9911,7 +9911,7 @@ static Xen g_make_src(Xen arg1, Xen arg2, Xen arg3, Xen arg4, Xen arg5, Xen arg6
     {
       Xen src_obj;
 #if HAVE_SCHEME
-      unsigned int loc;
+      s7_int loc;
 #endif
 
       gn->gen = ge;

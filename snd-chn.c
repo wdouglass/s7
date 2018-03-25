@@ -310,7 +310,7 @@ void chans_field(fcp_t field, mus_float_t val)
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       sp = ss->sounds[i];
       if ((sp) && ((sp->inuse == SOUND_NORMAL) || (sp->inuse == SOUND_WRAPPER)))
@@ -820,7 +820,7 @@ void add_channel_data(char *filename, chan_info *cp, channel_graph_t graphed)
 	{
 	  if (cp->chan == (int)sp->nchans - 1)
 	    {
-	      unsigned int i;
+	      uint32_t i;
 	      ymax = 0.0;
 	      for (i = 0; i < sp->nchans; i++)
 		{
@@ -932,7 +932,7 @@ void apply_y_axis_change(chan_info *cp)
 
   if (sp->channel_style != CHANNELS_SEPARATE)
     {
-      unsigned int i;
+      uint32_t i;
       mus_float_t zy, sy;
       sy = ap->sy;
       zy = ap->zy;
@@ -1187,7 +1187,7 @@ void focus_x_axis_change(chan_info *cp, int focus_style)
 	      sync = sp->sync;
 	      if (sync != 0)
 		{
-		  unsigned int i;
+		  uint32_t i;
 		  for (i = 0; i < sp->nchans; i++)
 		    if ((int)i != ncp->chan)
 		      {
@@ -2614,8 +2614,8 @@ void make_sonogram(chan_info *cp)
 { 
   #define SAVE_FFT_SIZE 4096
   sono_info *si;
-  static unsigned int *sono_js = NULL;
-  static unsigned int sono_js_size = 0;
+  static uint32_t *sono_js = NULL;
+  static uint32_t sono_js_size = 0;
 
   if (chan_fft_in_progress(cp)) return;
   si = cp->sonogram_data;
@@ -2663,11 +2663,11 @@ void make_sonogram(chan_info *cp)
 	}
 #endif
 
-      if (sono_js_size != (unsigned int)color_map_size(ss))
+      if (sono_js_size != (uint32_t)color_map_size(ss))
 	{
 	  if (sono_js) free(sono_js);
-	  sono_js_size = (unsigned int)color_map_size(ss);
-	  sono_js = (unsigned int *)calloc(sono_js_size, sizeof(unsigned int));
+	  sono_js_size = (uint32_t)color_map_size(ss);
+	  sono_js = (uint32_t *)calloc(sono_js_size, sizeof(uint32_t));
 	}
       if (cp->printing) ps_allocate_grf_points();
       allocate_sono_rects(si->total_bins);
@@ -2728,7 +2728,7 @@ void make_sonogram(chan_info *cp)
 	{
 	  mus_float_t *fdata;
 
-	  memset((void *)sono_js, 0, color_map_size(ss) * sizeof(unsigned int));
+	  memset((void *)sono_js, 0, color_map_size(ss) * sizeof(uint32_t));
 	  fdata = si->data[slice];
 
 	  for (i = 0; i < bins; i++)
@@ -5251,7 +5251,7 @@ void waveb(chan_info *cp, bool on)
 
 static void propagate_wf_state(snd_info *sp)
 {
-  unsigned int i;
+  uint32_t i;
   bool w, f;
   chan_info *cp;
 
@@ -5283,7 +5283,7 @@ void f_button_callback(chan_info *cp, bool on, bool with_control)
       update_graph_or_warn(cp);
       if (with_control)
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  for (i = 0; i < sp->nchans; i++) 
 	    {
 	      chan_info *ncp;
@@ -5317,7 +5317,7 @@ void w_button_callback(chan_info *cp, bool on, bool with_control)
       update_graph_or_warn(cp);
       if (with_control)
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  for (i = 0; i < sp->nchans; i++) 
 	    {
 	      chan_info *ncp;
@@ -5371,7 +5371,7 @@ void key_press_callback(chan_info *ncp, int x, int y, int key_state, int keysym)
 
 chan_info *which_channel(snd_info *sp, int y)
 {
-  unsigned int i;
+  uint32_t i;
   chan_info *ncp = NULL;
 
   if (y <= 0) /* this can happen if we drag the mouse over the top of the Snd window, then release it */
@@ -5966,7 +5966,7 @@ void edit_history_select(chan_info *cp, int row)
 #if WITH_RELATIVE_PANES || USE_GTK
   if (cp->sound->channel_style != CHANNELS_SEPARATE)
     {
-      unsigned int k;
+      uint32_t k;
       snd_info *sp;
       chan_info *ncp = NULL;
       sp = cp->sound;
@@ -6290,7 +6290,7 @@ static void show_inset_graph(chan_info *cp, graphics_context *cur_ax)
 	      mus_float_t *v0data = NULL, *v1data = NULL;
 	      int data_len;
 #if HAVE_SCHEME
-	      unsigned int gc_loc;
+	      s7_int gc_loc;
 #endif
 
 	      data = make_graph_data(cp, cp->edit_ctr, 0, framples);
@@ -7580,7 +7580,7 @@ static Xen g_maxamp(Xen snd, Xen chn_n, Xen edpos)
     sp = get_sp(snd);
     if (sp)
       {
-	unsigned int i;
+	uint32_t i;
 	mus_float_t mx = 0.0;
 	mus_float_t *vals = NULL;
 	bool save_maxamp = true;

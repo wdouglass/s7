@@ -275,7 +275,7 @@ typedef struct chan_info {
 #if USE_MOTIF
   Widget *chan_widgets;
   Pixmap fft_pix;
-  unsigned int fft_pix_width, fft_pix_height;
+  uint32_t fft_pix_width, fft_pix_height;
   int fft_pix_x0, fft_pix_y0;
   bool fft_pix_ready;
   mus_float_t fft_pix_cutoff;
@@ -369,7 +369,7 @@ typedef struct snd_info {
   int selected_channel;
   char *filename;
   char *short_filename;
-  unsigned int nchans;  /* "unsigned" to make gcc 7.1 happy */
+  uint32_t nchans;  /* "unsigned" to make gcc 7.1 happy */
   Xen properties;
   int properties_loc;
   bool remembering;

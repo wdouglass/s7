@@ -2946,7 +2946,7 @@ void make_icons_transparent(const char *color)
 #if USE_GTK
 
 /* /usr/share/icons/gnome/16x16/status/changes-prevent.png */
-static unsigned char lock_data[845] = {
+static uint8_t lock_data[845] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3004,7 +3004,7 @@ static unsigned char lock_data[845] = {
 
 /* /usr/share/icons/gnome/16x16/actions/stop.png */
 
-static unsigned char stop_data[664] = {
+static uint8_t stop_data[664] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3051,7 +3051,7 @@ static unsigned char stop_data[664] = {
 
 /* /usr/share/icons/gnome/16x16/status/audio-volume-medium.png */ 
 
-static unsigned char speaker_data[709] = {
+static uint8_t speaker_data[709] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3101,7 +3101,7 @@ static unsigned char speaker_data[709] = {
 
 /* /usr/share/icons/oxygen/16x16/status/dialog-warning.png */
 
-static unsigned char bomb_data[596] = {
+static uint8_t bomb_data[596] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3142,7 +3142,7 @@ static unsigned char bomb_data[596] = {
   0256, 0102, 0140, 0202};
 
 #if 0
-static unsigned char bomb_data_24[2010] = {
+static uint8_t bomb_data_24[2010] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0030, 0000, 0000, 0000, 0030, 0010, 0006, 0000, 0000, 0000, 0340, 0167, 0075,
   0370, 0000, 0000, 0000, 0006, 0142, 0113, 0107, 0104, 0000, 0376, 0000, 0376, 0000, 0376, 0353,
@@ -3224,7 +3224,7 @@ static unsigned char bomb_data_24[2010] = {
 
 /* /usr/share/icons/gnome/16x16/actions/go-next.png */
 
-static unsigned char right_arrow_data[641] = {
+static uint8_t right_arrow_data[641] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3270,7 +3270,7 @@ static unsigned char right_arrow_data[641] = {
 
 /* /usr/share/icons/gnome/16x16/actions/go-previous.png */
 
-static unsigned char left_arrow_data[677] = {
+static uint8_t left_arrow_data[677] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0006, 0000, 0000, 0000, 0037, 0363, 0377,
   0141, 0000, 0000, 0000, 0004, 0163, 0102, 0111, 0124, 0010, 0010, 0010, 0010, 0174, 0010, 0144,
@@ -3318,7 +3318,7 @@ static unsigned char left_arrow_data[677] = {
 
 /* /usr/share/gtk-doc/html/libgnomeui/stock_menu_blank.png */
 
-static unsigned char blank_data[253] = {
+static uint8_t blank_data[253] = {
   0211, 0120, 0116, 0107, 0015, 0012, 0032, 0012, 0000, 0000, 0000, 0015, 0111, 0110, 0104, 0122,
   0000, 0000, 0000, 0020, 0000, 0000, 0000, 0020, 0010, 0002, 0000, 0000, 0000, 0220, 0221, 0150,
   0066, 0000, 0000, 0000, 0006, 0164, 0122, 0116, 0123, 0000, 0000, 0000, 0000, 0000, 0000, 0156,
@@ -3337,9 +3337,9 @@ static unsigned char blank_data[253] = {
   0215, 0000, 0000, 0000, 0000, 0111, 0105, 0116, 0104, 0256, 0102, 0140, 0202};
 
 
-typedef struct {unsigned char *png; int loc;} png_info;
+typedef struct {uint8_t *png; int loc;} png_info;
 
-static cairo_status_t png_read(void *closure, unsigned char *data, unsigned int size)
+static cairo_status_t png_read(void *closure, uint8_t *data, uint32_t size)
 {
   /* put the next size bytes in data from whatever we're reading */
   png_info *p = (png_info *)closure;
@@ -3348,7 +3348,7 @@ static cairo_status_t png_read(void *closure, unsigned char *data, unsigned int 
   return(CAIRO_STATUS_SUCCESS);
 }
 
-static cairo_surface_t *png_to_surface(unsigned char *png_data)
+static cairo_surface_t *png_to_surface(uint8_t *png_data)
 {
   png_info *p;
   p = (png_info *)malloc(sizeof(png_info));

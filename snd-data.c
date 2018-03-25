@@ -370,7 +370,7 @@ snd_info *make_snd_info(snd_info *sip, const char *filename, file_info *hdr, int
 
 void free_snd_info(snd_info *sp)
 {
-  unsigned int i;
+  uint32_t i;
 
 #if (!USE_NO_GUI)
   env_editor *edp;
@@ -474,7 +474,7 @@ void for_each_chan_with_int(void (*func)(chan_info *ncp, int val), int value)
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -491,7 +491,7 @@ void for_each_chan_with_mus_long_t(void (*func)(chan_info *ncp, mus_long_t val),
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -508,7 +508,7 @@ void for_each_chan_with_bool(void (*func)(chan_info *ncp, bool val), bool value)
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -525,7 +525,7 @@ void for_each_chan_with_float(void (*func)(chan_info *ncp, mus_float_t val), mus
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -542,7 +542,7 @@ void for_each_chan(void (*func)(chan_info *ncp))
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -559,7 +559,7 @@ void for_each_normal_chan_with_void(void (*func)(chan_info *ncp, void *ptr), voi
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -576,7 +576,7 @@ void for_each_normal_chan_with_int(void (*func)(chan_info *ncp, int val), int va
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -593,7 +593,7 @@ void for_each_normal_chan_with_refint(void (*func)(chan_info *ncp, int *val), in
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -610,7 +610,7 @@ void for_each_normal_chan(void (*func)(chan_info *ncp))
   int i;
   for (i = 0; i < ss->max_sounds; i++)
     {
-      unsigned int j;
+      uint32_t j;
       snd_info *sp;
       chan_info *cp;
       sp = ss->sounds[i];
@@ -624,7 +624,7 @@ void for_each_normal_chan(void (*func)(chan_info *ncp))
 
 void for_each_sound_chan_with_int(snd_info *sp, void (*func)(chan_info *ncp, int val1), int value)
 {
-  unsigned int j;
+  uint32_t j;
   chan_info *cp;
   for (j = 0; j < sp->nchans; j++)
     if ((cp = sp->chans[j]))
@@ -634,7 +634,7 @@ void for_each_sound_chan_with_int(snd_info *sp, void (*func)(chan_info *ncp, int
 
 bool map_over_sound_chans(snd_info *sp, bool (*func)(chan_info *ncp))
 {
-  unsigned int j;
+  uint32_t j;
   bool val = false;
   chan_info *cp;
   for (j = 0; j < sp->nchans; j++)
@@ -649,7 +649,7 @@ bool map_over_sound_chans(snd_info *sp, bool (*func)(chan_info *ncp))
 
 void for_each_sound_chan(snd_info *sp, void (*func)(chan_info *ncp))
 {
-  unsigned int j;
+  uint32_t j;
   chan_info *cp;
   for (j = 0; j < sp->nchans; j++)
     if ((cp = sp->chans[j]))
@@ -971,7 +971,7 @@ sync_info *snd_sync(int sync)
 	      (sp->inuse == SOUND_NORMAL) && 
 	      (sp->sync == sync))
 	    {
-	      unsigned int k;
+	      uint32_t k;
 	      for (k = 0; k < sp->nchans; k++, j++)
 		si->cps[j] = sp->chans[k];
 	    }

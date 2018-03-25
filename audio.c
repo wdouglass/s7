@@ -1433,7 +1433,7 @@ static char *alsa_capture_device_name = NULL;
 
 static int alsa_get_max_buffers(void)
 {
-  unsigned int max_periods = 0, max_rec_periods = 0;
+  uint32_t max_periods = 0, max_rec_periods = 0;
   int dir = 0;
 
   if (alsa_hw_params[SND_PCM_STREAM_PLAYBACK])
@@ -1451,7 +1451,7 @@ static int alsa_get_max_buffers(void)
 
 static int alsa_get_min_buffers(void)
 {
-  unsigned int min_periods = 0, min_rec_periods = 0;
+  uint32_t min_periods = 0, min_rec_periods = 0;
   int dir = 0;
   if (alsa_hw_params[SND_PCM_STREAM_PLAYBACK])
     snd_pcm_hw_params_get_periods_min(alsa_hw_params[SND_PCM_STREAM_PLAYBACK], &min_periods, &dir);
@@ -1900,7 +1900,7 @@ static int alsa_audio_open(int ur_dev, int srate, int chans, mus_sample_t samp_t
   err = snd_pcm_hw_params_set_periods(handle, hw_params, periods, 0);
   if (err < 0) 
     {
-      unsigned int minp, maxp;
+      uint32_t minp, maxp;
       int dir;
       snd_pcm_hw_params_get_periods_min(hw_params, &minp, &dir);
       snd_pcm_hw_params_get_periods_max(hw_params, &maxp, &dir);
@@ -1952,11 +1952,11 @@ total requested buffer size is %d frames, minimum allowed is %d, maximum is %d",
     }
 
   {
-    unsigned int new_rate;
+    uint32_t new_rate;
     new_rate = srate;
-    /* r is unsigned int so it can't be negative */
+    /* r is uint32_t so it can't be negative */
     err = snd_pcm_hw_params_set_rate_near(handle, hw_params, &new_rate, 0);
-    if ((new_rate != (unsigned int)srate) && (!alsa_squelch_warning))
+    if ((new_rate != (uint32_t)srate) && (!alsa_squelch_warning))
       {
 	mus_print("%s: could not set rate to exactly %d, set to %d instead",
 		  alsa_name, srate, new_rate);
@@ -2150,11 +2150,11 @@ static int alsa_chans(int ur_dev, int *info)
     }
 
   {
-    unsigned int max_channels = 0;
+    uint32_t max_channels = 0;
     snd_pcm_hw_params_get_channels_max(alsa_hw_params[alsa_stream], &max_channels);
 
     if ((alsa_stream == SND_PCM_STREAM_CAPTURE) &&
-	(max_channels > (unsigned int)alsa_max_capture_channels))
+	(max_channels > (uint32_t)alsa_max_capture_channels))
       {
 	/* limit number of capture channels to a reasonable maximum, if the user
 	   specifies a plug pcm as the capture pcm then the returned number of channels
@@ -2169,7 +2169,7 @@ static int alsa_chans(int ur_dev, int *info)
 
     if (info)
       {
-	unsigned int tmp = 0;
+	uint32_t tmp = 0;
 	info[0] = max_channels;
 	snd_pcm_hw_params_get_channels_min(alsa_hw_params[alsa_stream], &tmp); 
 	info[1] = tmp;
@@ -2486,11 +2486,11 @@ int mus_audio_open_input(int ur_dev, int srate, int chans, mus_sample_t samp_typ
 				 srate, chans,
 				 dev_name));
   ioctl(audio_fd, AUDIO_GETINFO, &info);
-  if (info.record.sample_rate != (unsigned int)srate) 
+  if (info.record.sample_rate != (uint32_t)srate) 
     mus_print("%s[%d]: sampling rate: %d != %d\n", 
 	      __FILE__, __LINE__, 
 	      info.record.sample_rate, srate);
-  if (info.record.channels != (unsigned int)chans) 
+  if (info.record.channels != (uint32_t)chans) 
     mus_print("%s[%d]: channels: %d != %d\n", 
 	      __FILE__, __LINE__, 
 	      info.record.channels, chans);
@@ -3115,7 +3115,7 @@ static const char* osx_error(OSStatus err)
 
 #define MAX_BUFS 4
 static char **bufs = NULL;
-static unsigned int in_buf = 0, out_buf = 0;
+static uint32_t in_buf = 0, out_buf = 0;
 
 static OSStatus writer(AudioDeviceID inDevice, 
 		       const AudioTimeStamp *inNow, 
@@ -3236,8 +3236,8 @@ static audio_convert_t conversion_choice = CONVERT_NOT;
 static float conversion_multiplier = 1.0;
 static int dac_out_chans, dac_out_srate;
 static int incoming_out_chans = 1, incoming_out_srate = 44100;
-static unsigned int fill_point = 0;
-static unsigned int bufsize = 0, current_bufsize = 0;
+static uint32_t fill_point = 0;
+static uint32_t bufsize = 0, current_bufsize = 0;
 static bool match_dac_to_sound = true;
 
 
@@ -3262,7 +3262,7 @@ int mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_type,
 
   device = 0;
   sizeof_device = sizeof(AudioDeviceID);
-  sizeof_bufsize = sizeof(unsigned int);
+  sizeof_bufsize = sizeof(uint32_t);
 
   /* err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &sizeof_device, (void *)(&device)); */
   {
@@ -3568,16 +3568,16 @@ static void convert_incoming(char *to_buf, int fill_point, int lim, char *buf)
 int mus_audio_write(int line, char *buf, int bytes) 
 {
   OSStatus err = noErr;
-  unsigned int lim, out_bytes;
+  uint32_t lim, out_bytes;
   UInt32 sizeof_running;
   UInt32 running;
   char *to_buf;
 
   to_buf = bufs[in_buf];
-  out_bytes = (unsigned int)(bytes * conversion_multiplier);
+  out_bytes = (uint32_t)(bytes * conversion_multiplier);
   if ((fill_point + out_bytes) > bufsize)
     out_bytes = bufsize - fill_point;
-  lim = (unsigned int)(out_bytes / conversion_multiplier);
+  lim = (uint32_t)(out_bytes / conversion_multiplier);
 
   if (!writing)
     {
@@ -3609,7 +3609,7 @@ int mus_audio_write(int line, char *buf, int bytes)
     }
   if ((fill_point == 0) && (in_buf == out_buf))
     {
-      unsigned int bp;
+      uint32_t bp;
       bp = out_buf;
       sizeof_running = sizeof(UInt32);
       while (bp == out_buf)
@@ -3645,7 +3645,7 @@ int mus_audio_open_input(int dev, int srate, int chans, mus_sample_t samp_type, 
   UInt32 sizeof_bufsize;
 
   sizeof_device = sizeof(AudioDeviceID);
-  sizeof_bufsize = sizeof(unsigned int);
+  sizeof_bufsize = sizeof(uint32_t);
 
   device = 0;
   /* err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice, &sizeof_device, (void *)(&device)); */
@@ -3718,7 +3718,7 @@ int mus_audio_read(int line, char *buf, int bytes)
 
   if (in_buf == out_buf)
     {
-      unsigned int bp;
+      uint32_t bp;
       bp = out_buf;
       sizeof_running = sizeof(UInt32);
       while (bp == out_buf)

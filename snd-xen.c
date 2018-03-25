@@ -279,7 +279,7 @@ static bool clip_hook_checker(void)
 #if HAVE_SCHEME
 
 int snd_protect(Xen obj) {return(s7_gc_protect(s7, obj));}
-void snd_unprotect_at(int loc) {s7_gc_unprotect_at(s7, (unsigned int)loc);}
+void snd_unprotect_at(int loc) {s7_gc_unprotect_at(s7, loc);}
 
 #else
 static Xen gc_protection;

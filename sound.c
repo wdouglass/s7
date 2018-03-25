@@ -1210,7 +1210,7 @@ bool mus_sound_maxamp_exists(const char *ifile)
 mus_long_t mus_sound_maxamps(const char *ifile, int chans, mus_float_t *vals, mus_long_t *times)
 {
   mus_long_t framples;
-  unsigned int ichans, chn;
+  uint32_t ichans, chn;
   sound_file *sf; 
     
   sf = get_sf(ifile); 
@@ -1221,7 +1221,7 @@ mus_long_t mus_sound_maxamps(const char *ifile, int chans, mus_float_t *vals, mu
     {
       if (chans > sf->maxamps_size) 
 	ichans = sf->maxamps_size; 
-      else ichans = (unsigned int)chans;
+      else ichans = (uint32_t)chans;
       for (chn = 0; chn < ichans; chn++)
 	{
 	  times[chn] = sf->maxtimes[chn];
@@ -1240,7 +1240,7 @@ mus_long_t mus_sound_maxamps(const char *ifile, int chans, mus_float_t *vals, mu
 
     ifd = mus_sound_open_input(ifile);
     if (ifd == MUS_ERROR) return(MUS_ERROR);
-    ichans = (unsigned int)mus_sound_chans(ifile);
+    ichans = (uint32_t)mus_sound_chans(ifile);
     framples = mus_sound_framples(ifile);
     if ((framples == 0) || (ichans > MUS_MAX_CHANS))
       {

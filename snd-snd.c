@@ -1280,7 +1280,7 @@ char *shortname_indexed(snd_info *sp)
 
 void add_sound_data(char *filename, snd_info *sp, channel_graph_t graphed)
 {
-  unsigned int i;
+  uint32_t i;
   for (i = 0; i < sp->nchans; i++) 
     add_channel_data(filename, sp->chans[i], graphed);
 }
@@ -2260,7 +2260,7 @@ static Xen s7_xen_sound_fill(s7_scheme *sc, Xen args)
     {
       mus_float_t valf;
       chan_info *cp;
-      unsigned int i;
+      uint32_t i;
       s7_pointer val;
       
       val = s7_cadr(args);
@@ -2799,7 +2799,7 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
 	  else 
 	    {
 	      /* reset x axis bounds */
-	      unsigned int i;
+	      uint32_t i;
 	      for (i = 0; i < sp->nchans; i++)
 		set_x_axis_x0x1(sp->chans[i], 0.0, (double)(current_samples(sp->chans[i])) / (double)ival);
 	    }
@@ -3891,7 +3891,7 @@ static Xen g_revert_sound(Xen index)
 {
   #define H_revert_sound "("  S_revert_sound " :optional snd): revert snd to its unedited state (undo all)"
   snd_info *sp;
-  unsigned int i;
+  uint32_t i;
 
   Snd_assert_sound(S_revert_sound, index, 1);
 

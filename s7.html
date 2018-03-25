@@ -3724,7 +3724,7 @@ from a simple procedure.
 <div class="header" id="format1"><h4>format, object-&gt;string</h4></div>
 
 <p>object-&gt;string returns the string representation of its argument.  Its optional second argument
-can be #f (use display), #t (the default, use write), or :readable.  In the latter case, object-&gt;string
+can be #f or :display (use display), #t or :write (the default, use write), or :readable.  In the latter case, object-&gt;string
 tries to produce a string that can be evaluated via eval-string to return an object equal to the
 original.  The optional third argument sets the maximum desired string length; if object-&gt;string
 notices it has exceeded this limit, it returns the partial string.
@@ -7789,7 +7789,7 @@ int main(int argc, char **argv)
 
 #include "s7.h"
 
-static void my_print(s7_scheme *sc, unsigned char c, s7_pointer port)
+static void my_print(s7_scheme *sc, uint8_t c, s7_pointer port)
 {
   fprintf(stderr, "[%c] ", c);
 }
@@ -9027,7 +9027,7 @@ static void listener_init(glistener *g, GtkWidget *w)
    *   "g" is the new glistener pointer, passed to any function that wants to talk to this
    *   listener. 
    */
-  unsigned char prompt[4] = {0xce, 0xbb, '&gt;', '\0'}; /* lambda as prompt */
+  uint8_t prompt[4] = {0xce, 0xbb, '&gt;', '\0'}; /* lambda as prompt */
   GtkTextBuffer *buffer;
 
   buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w));

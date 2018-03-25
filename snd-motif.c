@@ -227,7 +227,7 @@ static void map_over_children(Widget w, void (*func)(Widget uw))
   /* used mostly to get colors right in environments with "convenience" widgets */
   if (w)
     {
-      unsigned int i;
+      uint32_t i;
       (*func)(w);
       if (XtIsComposite(w))
 	{
@@ -247,7 +247,7 @@ void map_over_children_with_color(Widget w, void (*func)(Widget uw, color_t colo
 {
   if (w)
     {
-      unsigned int i;
+      uint32_t i;
       (*func)(w, color);
       if (XtIsComposite(w))
 	{
@@ -614,7 +614,7 @@ static Pixmap rotate_text(Widget w, const char *str, XFontStruct *font, mus_floa
   mus_float_t angle_in_radians;
   XImage *before, *after;
   Pixmap pix, rotpix;
-  unsigned int width, height, depth, nwidth, nheight, x, y, nx, ny, tx, ty, depth_bytes;
+  uint32_t width, height, depth, nwidth, nheight, x, y, nx, ny, tx, ty, depth_bytes;
   char *data;
   unsigned long px;
   Display *dp;
@@ -2340,7 +2340,7 @@ static char *find_highlighted_text(XmString xs)
   /* search xs for text in "url_text" rendition, returning first such portion */
   XtPointer text;
   bool in_red_text = false;
-  unsigned int len;
+  uint32_t len;
   char *result;
   XmStringComponentType type;
   XmStringContext ctx;
@@ -7738,7 +7738,7 @@ void reflect_regions_in_region_browser(void)
 {
   if (rsp)
     {
-      unsigned int i;
+      uint32_t i;
       rsp->active = true;
       if (rsp->chans)
 	for (i = 0; i < rsp->nchans; i++)
@@ -7751,7 +7751,7 @@ void reflect_no_regions_in_region_browser(void)
 {
   if (rsp)
     {
-      unsigned int i;
+      uint32_t i;
       rsp->active = false;
       if (rsp->chans)
 	for (i = 0; i < rsp->nchans; i++)
@@ -22164,7 +22164,7 @@ static void full_dur_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], 0.0, sp->chans[i]->axis->xmax);
     }
@@ -22177,7 +22177,7 @@ static void zoom_out_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	zx_incremented(sp->chans[i], 2.0);
     }
@@ -22190,7 +22190,7 @@ static void zoom_in_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	zx_incremented(sp->chans[i], 0.5);
     }
@@ -22203,7 +22203,7 @@ static void goto_start_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], 0.0, sp->chans[i]->axis->x1 - sp->chans[i]->axis->x0);
     }
@@ -22215,7 +22215,7 @@ static void go_back_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	sx_incremented(sp->chans[i], -1.0);
     }
@@ -22228,7 +22228,7 @@ static void go_forward_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	sx_incremented(sp->chans[i], 1.0);
     }
@@ -22240,7 +22240,7 @@ static void goto_end_callback(Widget w, XtPointer info, XtPointer context)
   sp = any_selected_sound();
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	set_x_axis_x0x1(sp->chans[i], sp->chans[i]->axis->xmax - sp->chans[i]->axis->x1 + sp->chans[i]->axis->x0, sp->chans[i]->axis->xmax);
     }
@@ -22389,7 +22389,7 @@ static bool or_over_children(Widget w, bool (*func)(Widget uw, const char *ustr)
       if ((*func)(w, str)) return(true);
       if (XtIsComposite(w))
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  CompositeWidget cw = (CompositeWidget)w;
 	  for (i = 0; i < cw->composite.num_children; i++)
 	    if (or_over_children(cw->composite.children[i], func, str))
@@ -22489,7 +22489,7 @@ Widget g_add_to_menu(int which_menu, const char *label, int callb, int position)
   if (!menw) return(NULL);
   if (label)
     {
-      unsigned int i;
+      uint32_t i;
       /* look for currently unused widget first */
       /*   but close-all and open-recent should be left alone! */
       CompositeWidget cw = (CompositeWidget)menw;
@@ -23335,7 +23335,7 @@ static void listener_return(widget_t w, int last_prompt)
 	    
 	    if ((mus_strlen(str) > 1) || (str[0] != '\n'))
 	      {
-		int gc_loc;
+		s7_int gc_loc;
 		s7_pointer old_port;
 		
 		old_port = s7_set_current_error_port(s7, s7_open_output_string(s7));
@@ -25553,7 +25553,7 @@ static void remake_edit_history(Widget lst, chan_info *cp, int from_graph)
   if (sp->channel_style != CHANNELS_SEPARATE)
     {
       chan_info *ncp;
-      unsigned int k;
+      uint32_t k;
       int all_eds = 0, ed, filelen;
       char *title;
 
@@ -26341,7 +26341,7 @@ void change_channel_style(snd_info *sp, channel_style_t new_style)
 
       if (new_style != old_style)
 	{
-	  unsigned int i, height;
+	  uint32_t i, height;
 
 #if WITH_RELATIVE_PANES
 	  if ((new_style == CHANNELS_SEPARATE) || (old_style == CHANNELS_SEPARATE))
@@ -27936,7 +27936,7 @@ static void remember_sash(Widget w)
 static void add_sash_watchers(Widget w)
 {
   /* if relative panes, add sash watchers to the outer paned window sashes (sound_pane(ss)) */
-  unsigned int i;
+  uint32_t i;
   CompositeWidget cw = (CompositeWidget)w;
   for (i = 0; i < cw->composite.num_children; i++) /* only outermost sashes count here */
     {
@@ -28351,7 +28351,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
 	SND_PANE(sp) = XtCreateManagedWidget("snd-pane", xmPanedWindowWidgetClass, sp->dialog, args, n);
       else 
 	{
-	  unsigned int i;
+	  uint32_t i;
 	  CompositeWidget cw = (CompositeWidget)sound_pane(ss);
 	  SND_PANE(sp) = XtCreateManagedWidget("snd-pane", xmPanedWindowWidgetClass, sound_pane(ss), args, n);
 
@@ -28448,7 +28448,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       LOCK_OR_BOMB(sp) = XtCreateManagedWidget("", xmLabelWidgetClass, NAME_BOX(sp), args, n);
 
       {
-	unsigned int i;
+	uint32_t i;
 	Widget left_widget;
 
 	left_widget = LOCK_OR_BOMB(sp);
@@ -30215,7 +30215,7 @@ static void SetupIcon(Widget shell)
 }
 
 
-static void muffle_warning(char *name, char *type, char *klass, char *defaultp, char **params, unsigned int *num_params)
+static void muffle_warning(char *name, char *type, char *klass, char *defaultp, char **params, uint32_t *num_params)
 {
 }
 

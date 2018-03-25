@@ -55,7 +55,7 @@ static int lInputCount, lOutputCount;
 
 static void isLADSPAPluginSupported(const LADSPA_Descriptor *psDescriptor) 
 {
-  unsigned int lIndex;
+  uint32_t lIndex;
   lInputCount = lOutputCount = 0;
   for (lIndex = 0; lIndex < psDescriptor->PortCount; lIndex++) 
     {

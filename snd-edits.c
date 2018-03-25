@@ -2986,7 +2986,7 @@ snd_info *sound_is_silence(snd_info *sp)
 {
   if (sp)
     {
-      unsigned int i;
+      uint32_t i;
       for (i = 0; i < sp->nchans; i++)
 	{
 	  chan_info *cp;
@@ -5700,7 +5700,7 @@ io_error_t save_edits_without_display(snd_info *sp, const char *new_name, mus_he
       sf[i] = init_sample_read_any(0, cp, READ_FORWARD, local_pos); 
       if (!sf[i])
 	{
-	  unsigned int k;
+	  uint32_t k;
 	  /* this should not (cannot?) happen since we've supposedly checked before getting here... */
 	  for (k = 0; k < sp->nchans; k++) 
 	    sf[k] = free_snd_fd(sf[k]);
@@ -5780,7 +5780,7 @@ io_error_t save_channel_edits(chan_info *cp, const char *ofile, int pos)
 
 bool has_unsaved_edits(snd_info *sp)
 {
-  unsigned int i;
+  uint32_t i;
   for (i = 0; i < sp->nchans; i++)
     if (sp->chans[i]->edit_ctr > 0)
       return(true);
@@ -7324,7 +7324,7 @@ static Xen g_save_edit_history(Xen filename, Xen snd, Xen chn)
 	      
 	      for (i = 0; i < ss->max_sounds; i++)
 		{
-		  unsigned int j;
+		  uint32_t j;
 		  sp = ss->sounds[i];
 		  if ((sp) && (sp->inuse == SOUND_NORMAL))
 		    for (j = 0; j < sp->nchans; j++)
