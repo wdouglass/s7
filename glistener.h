@@ -143,7 +143,7 @@ GtkTextBuffer *glistener_text_buffer(glistener *g);
  *
  *  This sets the text of the prompt.  It defaults to ">" but can be anything.
  *  One way to get, for example, the unicode lower-case lambda followed by ">" as the prompt is:
- *    unsigned char prompt[4] = {0xce, 0xbb, '>', '\0'}; 
+ *    uint8_t prompt[4] = {0xce, 0xbb, '>', '\0'}; 
  *    glistener_set_prompt(g, prompt);
  *  UTF8 lambda is 0xce 0xbb.
  *
