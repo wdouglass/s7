@@ -535,7 +535,7 @@ static void remake_edit_history(chan_info *cp)
 	  if ((ncp) && (ncp->sound))
 	    {
 	      ncp->edhist_base = ed++;
-	      snprintf(title, filelen, "chan %d: %s", k + 1, sp->filename);
+	      snprintf(title, filelen, "chan %u: %s", k + 1, sp->filename);
 	      slist_append(lst, title);
 	      eds = ncp->edit_ctr;
 	      while ((eds < (ncp->edit_size - 1)) && (ncp->edits[eds + 1])) eds++;
@@ -1301,15 +1301,17 @@ void color_unselected_graphs(color_t color)
   for (i = 0; i < ss->max_sounds; i++)
     {
       snd_info *sp;
-      int j;
       sp = ss->sounds[i];
       if ((sp) && (sp->inuse != SOUND_WRAPPER))
-	for (j = 0; j < sp->allocated_chans; j++)
-	  {
-	    chan_info *cp;
-	    cp = sp->chans[j];
-	    update_graph(cp);
-	  }
+	{
+	  int j;
+	  for (j = 0; j < sp->allocated_chans; j++)
+	    {
+	      chan_info *cp;
+	      cp = sp->chans[j];
+	      update_graph(cp);
+	    }
+	}
     }
 }
 

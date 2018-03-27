@@ -848,19 +848,6 @@ s7_int s7_new_type(const char *name,
 		   s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
 		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
 
-s7_int s7_new_type_x(s7_scheme *sc,
-		     const char *name, 
-		     char *(*print)(s7_scheme *sc, void *value), 
-		     void (*free)(void *value), 
-		     bool (*equal)(void *val1, void *val2),
-		     void (*gc_mark)(void *val),
-		     s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-		     s7_pointer (*length)(s7_scheme *sc, s7_pointer obj),
-		     s7_pointer (*copy)(s7_scheme *sc, s7_pointer args),
-		     s7_pointer (*reverse)(s7_scheme *sc, s7_pointer obj),
-		     s7_pointer (*fill)(s7_scheme *sc, s7_pointer args));
-
 void s7_object_type_set_direct(s7_int tag, 
 			       s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index), 
 			       s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val));
@@ -895,6 +882,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  *
  * 23-Mar:    s7_peek_char and s7_read_char now return s7_pointer, s7_write_char takes s7_pointer, not int32_t c
  *            s7_gc_protect and friends now return/take s7_int location, not uint32_t.
+ *            removed s7_new_type_x.
  * 19-Mar:    int32_t -> s7_int in various functions.
  * 17-Mar:    deprecate s7_ulong and s7_ulong_long functions.
  * 26-Jan-18: s7_set_setter.

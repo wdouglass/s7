@@ -25,6 +25,7 @@
 (define-constant constants (vector #f #t () #\a (/ most-positive-fixnum) (/ -1 most-positive-fixnum) 1.5+i 
 			  "hi455" "\n  \t\x65;" :key hi: 'hi (list 1) (list 1 2) (cons 1 2) (list (list 1 2)) (list (list 1)) (list ()) #() 
 			  1/0+i 0+0/0i 0+1/0i 1+0/0i 0/0+0i 0/0+0/0i 1+1/0i 0/0+i cons ''2 
+			  1024 -1024 10000 10001 30000 512 -512 
 			  1+i 1+1e10i 1e15+1e15i 0+1e18i 1e18 (integer->char 255) (string (integer->char 255)) 1e308 
 			  most-positive-fixnum most-negative-fixnum (- most-positive-fixnum 1) (+ most-negative-fixnum 1)
 			  -1 0 0.0 1 1.5 1.0-1.0i 3/4 #\null -63 (make-hash-table) (hash-table '(a . 2) '(b . 3))
@@ -113,7 +114,10 @@
       (get-output-string op #t))
     (close-output-port op)))
 
+;(do ((k 0 (+ k 1))) ((= k 100)) (test-chars))
+
 (test-chars)
+
 
 (s7-version)
 (exit)
