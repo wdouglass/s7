@@ -2178,22 +2178,18 @@ static Xen mark_get(Xen n, mark_field_t fld, Xen pos_n, const char *caller)
     {
     case MARK_SAMPLE: 
       return(C_llong_to_Xen_llong(m->samp)); 
-      break;
 
     case MARK_SYNC:   
       return(C_int_to_Xen_integer(m->sync)); 
-      break;
 
     case MARK_NAME:   
       if (m->name) 
 	return(C_string_to_Xen_string(m->name)); 
-      else return(C_string_to_Xen_string("")); 
-      break;
+      return(C_string_to_Xen_string("")); 
 
     case MARK_HOME:   
       return(Xen_list_2(C_int_to_Xen_sound((ncp[0]->sound)->index),
 			C_int_to_Xen_integer(ncp[0]->chan))); 
-      break;
     }
   return(Xen_false);
 }

@@ -3369,45 +3369,37 @@ cairo_surface_t *snd_icon(int which)
       if (!lock_icon)
 	lock_icon = png_to_surface(lock_data);
       return(lock_icon);
-      break;
 
     case SND_PNG_STOP:
       if (!stop_icon)
 	stop_icon = png_to_surface(stop_data);
       return(stop_icon);
-      break;
 
     case SND_PNG_BLANK:
       if (!blank_icon)
 	blank_icon = png_to_surface(blank_data);
       return(blank_icon);
-      break;
 
     case SND_PNG_RIGHT_ARROW:
       if (!right_arrow_icon)
 	right_arrow_icon = png_to_surface(right_arrow_data);
       return(right_arrow_icon);
-      break;
 
     case SND_PNG_LEFT_ARROW:
       if (!left_arrow_icon)
 	left_arrow_icon = png_to_surface(left_arrow_data);
       return(left_arrow_icon);
-      break;
 
     case SND_PNG_BOMB:
       if (!bomb_icon)
 	bomb_icon = png_to_surface(bomb_data);
       return(bomb_icon);
-      break;
 
     case SND_PNG_SPEAKER:
       if (!speaker_icon)
 	speaker_icon = png_to_surface(speaker_data);
       return(speaker_icon);
-      break;
     }
-  
   return(NULL);
 }
 

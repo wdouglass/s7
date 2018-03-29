@@ -8,7 +8,6 @@ bool is_graph_style(int grf)
     {
     case GRAPH_LINES: case GRAPH_DOTS: case GRAPH_FILLED: case GRAPH_DOTS_AND_LINES: case GRAPH_LOLLIPOPS: 
       return(true);
-      break;
     }
   return(false);
 }
@@ -6510,17 +6509,17 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 	  if (!cp) return(Xen_false); /* perhaps snd-error-hook cancelled the error? */
 	  switch (fld)
 	    {
-	    case CP_EDIT_CTR:                return(C_int_to_Xen_integer(cp->edit_ctr));                    break;
-	    case CP_GRAPH_TRANSFORM_ON:      return(C_bool_to_Xen_boolean(cp->graph_transform_on));         break;
-	    case CP_GRAPH_TIME_ON:           return(C_bool_to_Xen_boolean(cp->graph_time_on));              break;
-	    case CP_CURSOR:                  return(C_llong_to_Xen_llong(cursor_sample(cp)));               break;
-	    case CP_EDPOS_CURSOR:            return(C_llong_to_Xen_llong(cp->edits[to_c_edit_position(cp, cp_edpos, S_cursor, 3)]->cursor)); break;
-	    case CP_FRAMPLES:                return(C_llong_to_Xen_llong(current_samples(cp)));             break;
-	    case CP_GRAPH_LISP_ON:           return(C_bool_to_Xen_boolean(cp->graph_lisp_on));              break;
-	    case CP_LOSAMP:                  if (cp->axis) return(C_llong_to_Xen_llong(cp->axis->losamp));  break;
-	    case CP_HISAMP:                  if (cp->axis) return(C_llong_to_Xen_llong(cp->axis->hisamp));  break;
-	    case CP_SQUELCH_UPDATE:          return(C_bool_to_Xen_boolean(cp->squelch_update));             break;
-	    case CP_CURSOR_SIZE:             return(C_int_to_Xen_integer(cp->cursor_size));                 break;
+	    case CP_EDIT_CTR:                return(C_int_to_Xen_integer(cp->edit_ctr));                
+	    case CP_GRAPH_TRANSFORM_ON:      return(C_bool_to_Xen_boolean(cp->graph_transform_on));     
+	    case CP_GRAPH_TIME_ON:           return(C_bool_to_Xen_boolean(cp->graph_time_on));          
+	    case CP_CURSOR:                  return(C_llong_to_Xen_llong(cursor_sample(cp)));           
+	    case CP_EDPOS_CURSOR:            return(C_llong_to_Xen_llong(cp->edits[to_c_edit_position(cp, cp_edpos, S_cursor, 3)]->cursor));
+	    case CP_FRAMPLES:                return(C_llong_to_Xen_llong(current_samples(cp)));           
+	    case CP_GRAPH_LISP_ON:           return(C_bool_to_Xen_boolean(cp->graph_lisp_on));            
+	    case CP_LOSAMP:                  if (cp->axis) return(C_llong_to_Xen_llong(cp->axis->losamp)); break;
+	    case CP_HISAMP:                  if (cp->axis) return(C_llong_to_Xen_llong(cp->axis->hisamp)); break;
+	    case CP_SQUELCH_UPDATE:          return(C_bool_to_Xen_boolean(cp->squelch_update));           
+	    case CP_CURSOR_SIZE:             return(C_int_to_Xen_integer(cp->cursor_size));               
 
 	    case CP_CURSOR_STYLE:
 	      if (cp->cursor_style != CURSOR_PROC)
@@ -6528,11 +6527,9 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 	      if (Xen_is_procedure(cp->cursor_proc))
 		return(cp->cursor_proc);
 	      return(ss->cursor_proc);
-	      break;
 
 	    case CP_TRACKING_CURSOR_STYLE:
 	      return(C_int_to_Xen_integer((int)(cp->tracking_cursor_style)));
-	      break;
 
 	    case CP_EDIT_HOOK:
 	      if (!(Xen_is_hook(cp->edit_hook)))
@@ -6541,7 +6538,6 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 		  cp->edit_hook_loc = snd_protect(cp->edit_hook);
 		}
 	      return(cp->edit_hook);
-	      break;
 
 	    case CP_AFTER_EDIT_HOOK:
 	      if (!(Xen_is_hook(cp->after_edit_hook)))
@@ -6550,7 +6546,6 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 		  cp->after_edit_hook_loc = snd_protect(cp->after_edit_hook);
 		}
 	      return(cp->after_edit_hook);
-	      break;
 
 	    case CP_UNDO_HOOK:               
 	      if (!(Xen_is_hook(cp->undo_hook)))
@@ -6559,40 +6554,39 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 		  cp->undo_hook_loc = snd_protect(cp->undo_hook);
 		}
 	      return(cp->undo_hook);
-	      break;
 
-	    case CP_SHOW_Y_ZERO:             return(C_bool_to_Xen_boolean(cp->show_y_zero));                          break;
-	    case CP_SHOW_GRID:               return(C_bool_to_Xen_boolean((bool)(cp->show_grid)));                    break;
-	    case CP_GRID_DENSITY:            return(C_double_to_Xen_real(cp->grid_density));                          break;
-	    case CP_SHOW_SONOGRAM_CURSOR:    return(C_bool_to_Xen_boolean((bool)(cp->show_sonogram_cursor)));         break;
-	    case CP_SHOW_MARKS:              return(C_bool_to_Xen_boolean(cp->show_marks));                           break;
-	    case CP_TIME_GRAPH_TYPE:         return(C_int_to_Xen_integer((int)(cp->time_graph_type)));                break;
-	    case CP_WAVO_HOP:                return(C_int_to_Xen_integer(cp->wavo_hop));                              break;
-	    case CP_WAVO_TRACE:              return(C_int_to_Xen_integer(cp->wavo_trace));                            break;
-	    case CP_MAX_TRANSFORM_PEAKS:     return(C_int_to_Xen_integer(cp->max_transform_peaks));                   break;
-	    case CP_ZERO_PAD:                return(C_int_to_Xen_integer(cp->zero_pad));                              break;
-	    case CP_WAVELET_TYPE:            return(C_int_to_Xen_integer(cp->wavelet_type));                          break;
-	    case CP_SHOW_TRANSFORM_PEAKS:    return(C_bool_to_Xen_boolean(cp->show_transform_peaks));                 break;
-	    case CP_WITH_VERBOSE_CURSOR:     return(C_bool_to_Xen_boolean(cp->with_verbose_cursor));                  break;
-	    case CP_FFT_LOG_FREQUENCY:       return(C_bool_to_Xen_boolean(cp->fft_log_frequency));                    break;
-	    case CP_FFT_LOG_MAGNITUDE:       return(C_bool_to_Xen_boolean(cp->fft_log_magnitude));                    break;
-	    case CP_FFT_WITH_PHASES:         return(C_bool_to_Xen_boolean(cp->fft_with_phases));                      break;
-	    case CP_SPECTRO_HOP:             return(C_int_to_Xen_integer(cp->spectro_hop));                           break;
-	    case CP_TRANSFORM_SIZE:          return(C_llong_to_Xen_llong(cp->transform_size));                        break;
-	    case CP_TRANSFORM_GRAPH_TYPE:    return(C_int_to_Xen_integer((int)(cp->transform_graph_type)));           break;
-	    case CP_FFT_WINDOW:              return(C_int_to_Xen_integer((int)(cp->fft_window)));                     break;
-	    case CP_TRANSFORM_TYPE:          return(C_int_to_Xen_transform(cp->transform_type));                      break;
-	    case CP_TRANSFORM_NORMALIZATION: return(C_int_to_Xen_integer((int)(cp->transform_normalization)));        break;
-	    case CP_SHOW_MIX_WAVEFORMS:      return(C_bool_to_Xen_boolean(cp->show_mix_waveforms));                   break;
-	    case CP_TIME_GRAPH_STYLE:        return(C_int_to_Xen_integer(cp->time_graph_style));                      break;
-	    case CP_LISP_GRAPH_STYLE:        return(C_int_to_Xen_integer(cp->lisp_graph_style));                      break;
-	    case CP_TRANSFORM_GRAPH_STYLE:   return(C_int_to_Xen_integer(cp->transform_graph_style));                 break;
-	    case CP_X_AXIS_STYLE:            return(C_int_to_Xen_integer((int)(cp->x_axis_style)));                   break;
-	    case CP_DOT_SIZE:                return(C_int_to_Xen_integer(cp->dot_size));                              break;
-	    case CP_SHOW_AXES:               return(C_int_to_Xen_integer((int)(cp->show_axes)));                      break;
-	    case CP_GRAPHS_HORIZONTAL:       return(C_bool_to_Xen_boolean(cp->graphs_horizontal));                    break;
-	    case CP_CURSOR_POSITION:         return(Xen_list_2(C_int_to_Xen_integer(cp->cx), C_int_to_Xen_integer(cp->cy)));  break;
-	    case CP_EDPOS_FRAMPLES:          return(C_llong_to_Xen_llong(to_c_edit_samples(cp, cp_edpos, caller, 3))); break;
+	    case CP_SHOW_Y_ZERO:             return(C_bool_to_Xen_boolean(cp->show_y_zero));                          
+	    case CP_SHOW_GRID:               return(C_bool_to_Xen_boolean((bool)(cp->show_grid)));                    
+	    case CP_GRID_DENSITY:            return(C_double_to_Xen_real(cp->grid_density));                          
+	    case CP_SHOW_SONOGRAM_CURSOR:    return(C_bool_to_Xen_boolean((bool)(cp->show_sonogram_cursor)));         
+	    case CP_SHOW_MARKS:              return(C_bool_to_Xen_boolean(cp->show_marks));                           
+	    case CP_TIME_GRAPH_TYPE:         return(C_int_to_Xen_integer((int)(cp->time_graph_type)));                
+	    case CP_WAVO_HOP:                return(C_int_to_Xen_integer(cp->wavo_hop));                              
+	    case CP_WAVO_TRACE:              return(C_int_to_Xen_integer(cp->wavo_trace));                            
+	    case CP_MAX_TRANSFORM_PEAKS:     return(C_int_to_Xen_integer(cp->max_transform_peaks));                   
+	    case CP_ZERO_PAD:                return(C_int_to_Xen_integer(cp->zero_pad));                              
+	    case CP_WAVELET_TYPE:            return(C_int_to_Xen_integer(cp->wavelet_type));                          
+	    case CP_SHOW_TRANSFORM_PEAKS:    return(C_bool_to_Xen_boolean(cp->show_transform_peaks));                 
+	    case CP_WITH_VERBOSE_CURSOR:     return(C_bool_to_Xen_boolean(cp->with_verbose_cursor));                  
+	    case CP_FFT_LOG_FREQUENCY:       return(C_bool_to_Xen_boolean(cp->fft_log_frequency));                    
+	    case CP_FFT_LOG_MAGNITUDE:       return(C_bool_to_Xen_boolean(cp->fft_log_magnitude));                    
+	    case CP_FFT_WITH_PHASES:         return(C_bool_to_Xen_boolean(cp->fft_with_phases));                      
+	    case CP_SPECTRO_HOP:             return(C_int_to_Xen_integer(cp->spectro_hop));                           
+	    case CP_TRANSFORM_SIZE:          return(C_llong_to_Xen_llong(cp->transform_size));                        
+	    case CP_TRANSFORM_GRAPH_TYPE:    return(C_int_to_Xen_integer((int)(cp->transform_graph_type)));           
+	    case CP_FFT_WINDOW:              return(C_int_to_Xen_integer((int)(cp->fft_window)));                     
+	    case CP_TRANSFORM_TYPE:          return(C_int_to_Xen_transform(cp->transform_type));                      
+	    case CP_TRANSFORM_NORMALIZATION: return(C_int_to_Xen_integer((int)(cp->transform_normalization)));        
+	    case CP_SHOW_MIX_WAVEFORMS:      return(C_bool_to_Xen_boolean(cp->show_mix_waveforms));                   
+	    case CP_TIME_GRAPH_STYLE:        return(C_int_to_Xen_integer(cp->time_graph_style));                      
+	    case CP_LISP_GRAPH_STYLE:        return(C_int_to_Xen_integer(cp->lisp_graph_style));                      
+	    case CP_TRANSFORM_GRAPH_STYLE:   return(C_int_to_Xen_integer(cp->transform_graph_style));                 
+	    case CP_X_AXIS_STYLE:            return(C_int_to_Xen_integer((int)(cp->x_axis_style)));                   
+	    case CP_DOT_SIZE:                return(C_int_to_Xen_integer(cp->dot_size));                              
+	    case CP_SHOW_AXES:               return(C_int_to_Xen_integer((int)(cp->show_axes)));                      
+	    case CP_GRAPHS_HORIZONTAL:       return(C_bool_to_Xen_boolean(cp->graphs_horizontal));                    
+	    case CP_CURSOR_POSITION:         return(Xen_list_2(C_int_to_Xen_integer(cp->cx), C_int_to_Xen_integer(cp->cy)));
+	    case CP_EDPOS_FRAMPLES:          return(C_llong_to_Xen_llong(to_c_edit_samples(cp, cp_edpos, caller, 3))); 
 
 	    case CP_UPDATE_TIME:
 	      /* any display-oriented background process must first be run to completion
@@ -6633,29 +6627,28 @@ static Xen channel_get(Xen snd, Xen chn_n, cp_field_t fld, const char *caller)
 		  cp->properties_loc = snd_protect(cp->properties);
 		}
 	      return(Xen_vector_ref(cp->properties, 0));
-	      break;
 
 	    case CP_SX:               if (cp->axis) return(C_double_to_Xen_real(cp->axis->sx)); break;
 	    case CP_SY:               if (cp->axis) return(C_double_to_Xen_real(cp->axis->sy)); break;
 	    case CP_ZX:               if (cp->axis) return(C_double_to_Xen_real(cp->axis->zx)); break;
 	    case CP_ZY:               if (cp->axis) return(C_double_to_Xen_real(cp->axis->zy)); break;
-	    case CP_MIN_DB:           return(C_double_to_Xen_real(cp->min_dB));                 break;
-	    case CP_SPECTRO_X_ANGLE:  return(C_double_to_Xen_real(cp->spectro_x_angle));        break;
-	    case CP_SPECTRO_Y_ANGLE:  return(C_double_to_Xen_real(cp->spectro_y_angle));        break;
-	    case CP_SPECTRO_Z_ANGLE:  return(C_double_to_Xen_real(cp->spectro_z_angle));        break;
-	    case CP_SPECTRO_X_SCALE:  return(C_double_to_Xen_real(cp->spectro_x_scale));        break;
-	    case CP_SPECTRO_Y_SCALE:  return(C_double_to_Xen_real(cp->spectro_y_scale));        break;
-	    case CP_SPECTRO_Z_SCALE:  return(C_double_to_Xen_real(cp->spectro_z_scale));        break;
-	    case CP_SPECTRUM_END:     return(C_double_to_Xen_real(cp->spectrum_end));           break;
-	    case CP_SPECTRUM_START:   return(C_double_to_Xen_real(cp->spectrum_start));         break;
-	    case CP_FFT_WINDOW_ALPHA: return(C_double_to_Xen_real(cp->fft_window_alpha));       break;
-	    case CP_FFT_WINDOW_BETA:  return(C_double_to_Xen_real(cp->fft_window_beta));        break;
-	    case CP_BEATS_PER_MINUTE: return(C_double_to_Xen_real(cp->beats_per_minute));       break;
-	    case CP_BEATS_PER_MEASURE: return(C_int_to_Xen_integer(cp->beats_per_measure));        break;
-	    case CP_MAXAMP:           return(C_double_to_Xen_real(channel_maxamp(cp, AT_CURRENT_EDIT_POSITION))); break;
-	    case CP_EDPOS_MAXAMP:     return(C_double_to_Xen_real(channel_maxamp(cp, to_c_edit_position(cp, cp_edpos, S_maxamp, 3)))); break;
-	    case CP_MAXAMP_POSITION:  return(C_llong_to_Xen_llong(channel_maxamp_position(cp, AT_CURRENT_EDIT_POSITION))); break;
-	    case CP_EDPOS_MAXAMP_POSITION: return(C_llong_to_Xen_llong(channel_maxamp_position(cp, to_c_edit_position(cp, cp_edpos, S_maxamp_position, 3)))); break;
+	    case CP_MIN_DB:           return(C_double_to_Xen_real(cp->min_dB));                 
+	    case CP_SPECTRO_X_ANGLE:  return(C_double_to_Xen_real(cp->spectro_x_angle));        
+	    case CP_SPECTRO_Y_ANGLE:  return(C_double_to_Xen_real(cp->spectro_y_angle));        
+	    case CP_SPECTRO_Z_ANGLE:  return(C_double_to_Xen_real(cp->spectro_z_angle));        
+	    case CP_SPECTRO_X_SCALE:  return(C_double_to_Xen_real(cp->spectro_x_scale));        
+	    case CP_SPECTRO_Y_SCALE:  return(C_double_to_Xen_real(cp->spectro_y_scale));        
+	    case CP_SPECTRO_Z_SCALE:  return(C_double_to_Xen_real(cp->spectro_z_scale));        
+	    case CP_SPECTRUM_END:     return(C_double_to_Xen_real(cp->spectrum_end));           
+	    case CP_SPECTRUM_START:   return(C_double_to_Xen_real(cp->spectrum_start));         
+	    case CP_FFT_WINDOW_ALPHA: return(C_double_to_Xen_real(cp->fft_window_alpha));       
+	    case CP_FFT_WINDOW_BETA:  return(C_double_to_Xen_real(cp->fft_window_beta));        
+	    case CP_BEATS_PER_MINUTE: return(C_double_to_Xen_real(cp->beats_per_minute));       
+	    case CP_BEATS_PER_MEASURE: return(C_int_to_Xen_integer(cp->beats_per_measure));     
+	    case CP_MAXAMP:           return(C_double_to_Xen_real(channel_maxamp(cp, AT_CURRENT_EDIT_POSITION)));
+	    case CP_EDPOS_MAXAMP:     return(C_double_to_Xen_real(channel_maxamp(cp, to_c_edit_position(cp, cp_edpos, S_maxamp, 3))));
+	    case CP_MAXAMP_POSITION:  return(C_llong_to_Xen_llong(channel_maxamp_position(cp, AT_CURRENT_EDIT_POSITION))); 
+	    case CP_EDPOS_MAXAMP_POSITION: return(C_llong_to_Xen_llong(channel_maxamp_position(cp, to_c_edit_position(cp, cp_edpos, S_maxamp_position, 3)))); 
 	    }
 	}
     }
@@ -6743,21 +6736,18 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
 	  else undo_edit(cp, cp->edit_ctr - val);
 	}
       return(C_int_to_Xen_integer(cp->edit_ctr));
-      break;
 
     case CP_GRAPH_TRANSFORM_ON:
       bval = Xen_boolean_to_C_bool(on); 
       fftb(cp, bval);
       update_graph(cp);
       return(on);
-      break;
 
     case CP_GRAPH_TIME_ON:
       bval = Xen_boolean_to_C_bool(on);
       waveb(cp, bval);
       update_graph(cp);
       return(on);
-      break;
 
     case CP_CURSOR:
       {
@@ -6776,7 +6766,6 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
 	cp->original_cursor = samp; /* for snd-dac, track-and-return */
 	return(C_llong_to_Xen_llong(samp));
       }
-      break;
 
     case CP_EDPOS_CURSOR:
       {
@@ -6800,25 +6789,21 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
 	  }
 	return(C_llong_to_Xen_llong(samp));
       }
-      break;
 
     case CP_GRAPH_LISP_ON:
       cp->graph_lisp_on = Xen_boolean_to_C_bool(on); 
       update_graph(cp);
       return(on);
-      break;
 
     case CP_LOSAMP:
       Xen_check_type(Xen_is_integer(on), on, 1, S_set S_left_sample, "an integer");
       set_x_axis_x0(cp, beg_to_sample(on, caller));
       return(on);
-      break;
 
     case CP_HISAMP:
       Xen_check_type(Xen_is_integer(on), on, 1, S_set S_right_sample, "an integer");
       set_x_axis_x1(cp, beg_to_sample(on, caller));
       return(on);
-      break;
 
     case CP_SQUELCH_UPDATE:
       cp->squelch_update = Xen_boolean_to_C_bool(on);
@@ -6837,7 +6822,6 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       cp->cursor_size = Xen_integer_to_C_int(on);
       update_graph(cp); 
       return(C_int_to_Xen_integer(cp->cursor_size));
-      break;
 
     case CP_CURSOR_STYLE:
       if (Xen_is_procedure(on))
@@ -6876,24 +6860,20 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       cp->just_zero = (cp->cursor_style == CURSOR_LINE); /* no point in displaying y value in this case */
       update_graph(cp); 
       return(C_int_to_Xen_integer((int)(cp->cursor_style)));
-      break;
 
     case CP_TRACKING_CURSOR_STYLE:
       cp->tracking_cursor_style = (cursor_style_t)Xen_integer_to_C_int(on);
       return(C_int_to_Xen_integer((int)(cp->tracking_cursor_style)));
-      break;
 
     case CP_SHOW_Y_ZERO:
       cp->show_y_zero = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->show_y_zero));
-      break;
 
     case CP_SHOW_GRID:
       cp->show_grid = (with_grid_t)(Xen_boolean_to_C_bool(on)); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean((bool)(cp->show_grid)));
-      break;
 
     case CP_GRID_DENSITY:
       curf = Xen_real_to_C_double(on); 
@@ -6902,149 +6882,124 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       else Xen_out_of_range_error(S_set S_grid_density, 1, on, "density < 0.0?");
       update_graph(cp); 
       return(C_double_to_Xen_real(cp->grid_density));
-      break;
 
     case CP_SHOW_SONOGRAM_CURSOR:
       cp->show_sonogram_cursor = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->show_sonogram_cursor));
-      break;
 
     case CP_SHOW_MARKS:
       cp->show_marks = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->show_marks));
-      break;
 
     case CP_TIME_GRAPH_TYPE:
       cp->time_graph_type = (graph_type_t)Xen_integer_to_C_int(on); /* checked already */
       update_graph(cp); 
       return(C_int_to_Xen_integer((int)(cp->time_graph_type)));
-      break;
 
     case CP_WAVO_HOP:
       cp->wavo_hop = g_imin(1, on, DEFAULT_WAVO_HOP); 
       update_graph(cp); 
       return(C_int_to_Xen_integer(cp->wavo_hop));
-      break;
 
     case CP_WAVO_TRACE:
       cp->wavo_trace = mus_iclamp(1, g_imin(1, on, DEFAULT_WAVO_TRACE), POINT_BUFFER_SIZE);
       update_graph(cp); 
       return(C_int_to_Xen_integer(cp->wavo_trace));
-      break;
 
     case CP_MAX_TRANSFORM_PEAKS:
       cp->max_transform_peaks = g_imin(1, on, DEFAULT_MAX_TRANSFORM_PEAKS); 
       return(C_int_to_Xen_integer(cp->max_transform_peaks));
-      break;
 
     case CP_ZERO_PAD:
       cp->zero_pad = mus_iclamp(0, g_imin(0, on, DEFAULT_ZERO_PAD), MAX_ZERO_PAD); 
       update_graph(cp);
       return(C_int_to_Xen_integer(cp->zero_pad));
-      break;
 
     case CP_WAVELET_TYPE:
       cp->wavelet_type = Xen_integer_to_C_int(on); /* range checked already */
       update_graph(cp);
       return(C_int_to_Xen_integer(cp->wavelet_type));
-      break;
 
     case CP_SHOW_TRANSFORM_PEAKS:
       cp->show_transform_peaks = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->show_transform_peaks));
-      break;
 
     case CP_WITH_VERBOSE_CURSOR:
       cp->with_verbose_cursor = Xen_boolean_to_C_bool(on); 
       return(C_bool_to_Xen_boolean(cp->with_verbose_cursor));
-      break;
 
     case CP_FFT_LOG_FREQUENCY:
       cp->fft_log_frequency = Xen_boolean_to_C_bool(on); 
       if (cp->graph_transform_on) calculate_fft(cp); 
       return(C_bool_to_Xen_boolean(cp->fft_log_frequency));
-      break;
 
     case CP_FFT_LOG_MAGNITUDE:
       cp->fft_log_magnitude = Xen_boolean_to_C_bool(on); 
       if (cp->graph_transform_on) calculate_fft(cp); 
       return(C_bool_to_Xen_boolean(cp->fft_log_magnitude));
-      break;
 
     case CP_FFT_WITH_PHASES:
       cp->fft_with_phases = Xen_boolean_to_C_bool(on); 
       if (cp->graph_transform_on) calculate_fft(cp); 
       return(C_bool_to_Xen_boolean(cp->fft_with_phases));
-      break;
 
     case CP_SPECTRO_HOP:
       cp->spectro_hop = g_imin(1, on, DEFAULT_SPECTRO_HOP); 
       if (cp->graph_transform_on) calculate_fft(cp); 
       return(C_int_to_Xen_integer(cp->spectro_hop));
-      break;
 
     case CP_TRANSFORM_SIZE:
       cp->transform_size = g_omin(1, on, DEFAULT_TRANSFORM_SIZE); 
       calculate_fft(cp);
       return(C_llong_to_Xen_llong(cp->transform_size));
-      break;
 
     case CP_TRANSFORM_GRAPH_TYPE: 
       cp->transform_graph_type = (graph_type_t)Xen_integer_to_C_int(on); /* checked already */
       calculate_fft(cp); 
       return(C_int_to_Xen_integer((int)(cp->transform_graph_type))); 
-      break;
 
     case CP_FFT_WINDOW:
       cp->fft_window = (mus_fft_window_t)Xen_integer_to_C_int(on); /* checked */
       calculate_fft(cp); 
       return(C_int_to_Xen_integer((int)(cp->fft_window)));
-      break;
 
     case CP_TRANSFORM_TYPE:
       cp->transform_type = Xen_transform_to_C_int(on);
       calculate_fft(cp); 
       return(C_int_to_Xen_transform(cp->transform_type));
-      break;
 
     case CP_TRANSFORM_NORMALIZATION:      
       cp->transform_normalization = (fft_normalize_t)Xen_integer_to_C_int(on); /* range already checked */
       calculate_fft(cp); 
       return(C_int_to_Xen_integer((int)(cp->transform_normalization)));
-      break;
 
     case CP_SHOW_MIX_WAVEFORMS: 
       cp->show_mix_waveforms = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->show_mix_waveforms));
-      break;
 
     case CP_TIME_GRAPH_STYLE:
       cp->time_graph_style = (Xen_is_integer(on)) ? (graph_style_t)Xen_integer_to_C_int(on) : DEFAULT_GRAPH_STYLE;
       if (call_update_graph) update_graph(cp);
       return(C_int_to_Xen_integer((int)(cp->time_graph_style)));
-      break;
 
     case CP_LISP_GRAPH_STYLE:
       cp->lisp_graph_style = (Xen_is_integer(on)) ? (graph_style_t)Xen_integer_to_C_int(on) : DEFAULT_GRAPH_STYLE;
       if (call_update_graph) update_graph(cp);
       return(C_int_to_Xen_integer((int)(cp->lisp_graph_style)));
-      break;
 
     case CP_TRANSFORM_GRAPH_STYLE:
       cp->transform_graph_style = (Xen_is_integer(on)) ? (graph_style_t)Xen_integer_to_C_int(on) : DEFAULT_GRAPH_STYLE;
       if (call_update_graph) update_graph(cp);
       return(C_int_to_Xen_integer((int)(cp->transform_graph_style)));
-      break;
 
     case CP_X_AXIS_STYLE:
       val = Xen_integer_to_C_int(on); /* range already checked */
       chans_x_axis_style(cp, val);
       return(C_int_to_Xen_integer((int)(cp->x_axis_style)));
-      break;
 
     case CP_DOT_SIZE:
       cp->dot_size = mus_iclamp(MIN_DOT_SIZE, 
@@ -7052,19 +7007,16 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
 				MAX_DOT_SIZE); /* size > 17000 -> X segfault! */
       update_graph(cp);
       return(C_int_to_Xen_integer(cp->dot_size));
-      break;
 
     case CP_SHOW_AXES:
       cp->show_axes = (show_axes_t)Xen_integer_to_C_int(on); /* range checked already */
       update_graph(cp); 
       return(C_int_to_Xen_integer((int)(cp->show_axes)));
-      break;
 
     case CP_GRAPHS_HORIZONTAL:
       cp->graphs_horizontal = Xen_boolean_to_C_bool(on); 
       update_graph(cp); 
       return(C_bool_to_Xen_boolean(cp->graphs_horizontal));
-      break;
 
     case CP_FRAMPLES:
       if (cp->editable)
@@ -7100,7 +7052,6 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
 	}
       Xen_vector_set(cp->properties, 0, on);
       return(Xen_vector_ref(cp->properties, 0));
-      break;
 
     case CP_SX:
       reset_x_display(cp, mus_fclamp(0.0, Xen_real_to_C_double(on), 1.0), cp->axis->zx);
@@ -7143,25 +7094,21 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       cp->spectrum_end = Xen_real_to_C_double(on); /* range checked already */
       calculate_fft(cp); 
       return(C_double_to_Xen_real(cp->spectrum_end)); 
-      break;
 
     case CP_SPECTRUM_START:   
       cp->spectrum_start = Xen_real_to_C_double(on); /* range checked already */
       calculate_fft(cp); 
       return(C_double_to_Xen_real(cp->spectrum_start));   
-      break;
 
     case CP_FFT_WINDOW_ALPHA:        
       cp->fft_window_alpha = Xen_real_to_C_double(on);
       calculate_fft(cp); 
       return(C_double_to_Xen_real(cp->fft_window_alpha));             
-      break;
 
     case CP_FFT_WINDOW_BETA:        
       cp->fft_window_beta = Xen_real_to_C_double(on); /* range checked already */
       calculate_fft(cp); 
       return(C_double_to_Xen_real(cp->fft_window_beta));             
-      break;
 
     case CP_MAXAMP:
       if (cp->editable)
@@ -7190,7 +7137,7 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       cp->beats_per_measure = Xen_integer_to_C_int(on);
       update_graph(cp);
       return(on);
-      break;
+
     default:
       break;
     }

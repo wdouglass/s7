@@ -1240,12 +1240,10 @@ mus_float_t speed_changed(mus_float_t val, char *srcbuf, speed_style_t style, in
 	srcbuf[i] = numbuf[j];
       srcbuf[srcbuf_size - 1] = 0;
       return(pow(2.0, ((mus_float_t)semi / (mus_float_t)tones)));
-      break;
 
     default: 
       snprintf(srcbuf, srcbuf_size, "%.3f", val);
       return(val);
-      break;
     }
 }
 
@@ -1794,7 +1792,6 @@ static bool apply_controls(apply_state *ap)
 	  ap->i = 0;
 	  ap->slice++;
 	  return(true);
-	  break;
 	  
 	case 1:
 	  if (!(sp->apply_ok))
@@ -1816,7 +1813,6 @@ static bool apply_controls(apply_state *ap)
 		ap->slice++;
 	    }
 	  return(true);
-	  break;
 	  
 	case 2:
 	  finalize_apply(sp);
@@ -2492,74 +2488,67 @@ static Xen sound_get(Xen snd, sp_field_t fld, const char *caller)
 
   switch (fld)
     {
-    case SP_SYNC:                return(C_int_to_Xen_integer(sp->sync));                                                    break;
-    case SP_READ_ONLY:           return(C_bool_to_Xen_boolean(sp->user_read_only == FILE_READ_ONLY));                    break;
-    case SP_NCHANS:              return(C_int_to_Xen_integer(sp->nchans));                                                  break;
-    case SP_EXPANDING:           return(C_bool_to_Xen_boolean(sp->expand_control_on));                                    break;
-    case SP_CONTRASTING:         return(C_bool_to_Xen_boolean(sp->contrast_control_on));                                  break;
-    case SP_REVERBING:           return(C_bool_to_Xen_boolean(sp->reverb_control_on));                                    break;
-    case SP_FILTERING:           return(C_bool_to_Xen_boolean(sp->filter_control_on));                                    break;
-    case SP_FILTER_DBING:        return(C_bool_to_Xen_boolean(sp->filter_control_in_dB));                                break;
-    case SP_FILTER_HZING:        return(C_bool_to_Xen_boolean(sp->filter_control_in_hz));                                break;
-    case SP_FILTER_ORDER:        return(C_int_to_Xen_integer(sp->filter_control_order));                                    break;
-    case SP_SRATE:               return(C_int_to_Xen_integer(sp->hdr->srate));                                              break;
-    case SP_SAMPLE_TYPE:         return(C_int_to_Xen_integer(sp->hdr->sample_type));                                             break;
-    case SP_HEADER_TYPE:         return(C_int_to_Xen_integer(sp->hdr->type));                                               break;
-    case SP_DATA_LOCATION:       return(C_llong_to_Xen_llong(sp->hdr->data_location));                                  break;
-    case SP_DATA_SIZE:           return(C_llong_to_Xen_llong(mus_samples_to_bytes(sp->hdr->sample_type, sp->hdr->samples))); break;
-    case SP_SAVE_CONTROLS:       if (has_widgets(sp)) save_controls(sp);                                            break;
-    case SP_RESTORE_CONTROLS:    if (has_widgets(sp)) restore_controls(sp);                                         break;
-    case SP_RESET_CONTROLS:      if (has_widgets(sp)) reset_controls(sp);                                           break;
-    case SP_FILE_NAME:           return(C_string_to_Xen_string(sp->filename));                                             break;
-    case SP_SHORT_FILE_NAME:     return(C_string_to_Xen_string(sp->short_filename));                                       break;
-    case SP_CLOSE:               if (!(is_player_sound(sp))) snd_close_file(sp);                                    break;
-    case SP_SHOW_CONTROLS:       if (has_widgets(sp)) return(C_bool_to_Xen_boolean(showing_controls(sp)));               break;
-    case SP_SPEED_TONES:         return(C_int_to_Xen_integer(sp->speed_control_tones));                                     break;
-    case SP_SPEED_STYLE:         return(C_int_to_Xen_integer((int)(sp->speed_control_style)));                              break;
-    case SP_COMMENT:             return(C_string_to_Xen_string(sp->hdr->comment));                                         break;
-    case SP_AMP:                 return(C_double_to_Xen_real(sp->amp_control));                                          break;
-    case SP_CONTRAST:            return(C_double_to_Xen_real(sp->contrast_control));                                     break;
-    case SP_CONTRAST_AMP:        return(C_double_to_Xen_real(sp->contrast_control_amp));                                 break;
-    case SP_EXPAND:              return(C_double_to_Xen_real(sp->expand_control));                                       break;
-    case SP_EXPAND_LENGTH:       return(C_double_to_Xen_real(sp->expand_control_length));                                break;
-    case SP_EXPAND_RAMP:         return(C_double_to_Xen_real(sp->expand_control_ramp));                                  break;
-    case SP_EXPAND_HOP:          return(C_double_to_Xen_real(sp->expand_control_hop));                                   break;
-    case SP_EXPAND_JITTER:       return(C_double_to_Xen_real(sp->expand_control_jitter));                                break;
-    case SP_REVERB_LENGTH:       return(C_double_to_Xen_real(sp->reverb_control_length));                                break;
-    case SP_REVERB_FEEDBACK:     return(C_double_to_Xen_real(sp->reverb_control_feedback));                              break;
-    case SP_REVERB_SCALE:        return(C_double_to_Xen_real(sp->reverb_control_scale));                                 break;
-    case SP_REVERB_LOW_PASS:     return(C_double_to_Xen_real(sp->reverb_control_lowpass));                               break;
-    case SP_REVERB_DECAY:        return(C_double_to_Xen_real(sp->reverb_control_decay));                                 break;
+    case SP_SYNC:                return(C_int_to_Xen_integer(sp->sync));                             
+    case SP_READ_ONLY:           return(C_bool_to_Xen_boolean(sp->user_read_only == FILE_READ_ONLY));
+    case SP_NCHANS:              return(C_int_to_Xen_integer(sp->nchans));                           
+    case SP_EXPANDING:           return(C_bool_to_Xen_boolean(sp->expand_control_on));               
+    case SP_CONTRASTING:         return(C_bool_to_Xen_boolean(sp->contrast_control_on));             
+    case SP_REVERBING:           return(C_bool_to_Xen_boolean(sp->reverb_control_on));               
+    case SP_FILTERING:           return(C_bool_to_Xen_boolean(sp->filter_control_on));               
+    case SP_FILTER_DBING:        return(C_bool_to_Xen_boolean(sp->filter_control_in_dB));            
+    case SP_FILTER_HZING:        return(C_bool_to_Xen_boolean(sp->filter_control_in_hz));            
+    case SP_FILTER_ORDER:        return(C_int_to_Xen_integer(sp->filter_control_order));             
+    case SP_SRATE:               return(C_int_to_Xen_integer(sp->hdr->srate));                       
+    case SP_SAMPLE_TYPE:         return(C_int_to_Xen_integer(sp->hdr->sample_type));                 
+    case SP_HEADER_TYPE:         return(C_int_to_Xen_integer(sp->hdr->type));                        
+    case SP_DATA_LOCATION:       return(C_llong_to_Xen_llong(sp->hdr->data_location));               
+    case SP_DATA_SIZE:           return(C_llong_to_Xen_llong(mus_samples_to_bytes(sp->hdr->sample_type, sp->hdr->samples)));
+    case SP_SAVE_CONTROLS:       if (has_widgets(sp)) save_controls(sp);     break;
+    case SP_RESTORE_CONTROLS:    if (has_widgets(sp)) restore_controls(sp);  break;
+    case SP_RESET_CONTROLS:      if (has_widgets(sp)) reset_controls(sp);    break;
+    case SP_FILE_NAME:           return(C_string_to_Xen_string(sp->filename));                    
+    case SP_SHORT_FILE_NAME:     return(C_string_to_Xen_string(sp->short_filename));              
+    case SP_CLOSE:               if (!(is_player_sound(sp))) snd_close_file(sp); break;
+    case SP_SHOW_CONTROLS:       if (has_widgets(sp)) return(C_bool_to_Xen_boolean(showing_controls(sp))); break;
+    case SP_SPEED_TONES:         return(C_int_to_Xen_integer(sp->speed_control_tones));           
+    case SP_SPEED_STYLE:         return(C_int_to_Xen_integer((int)(sp->speed_control_style)));    
+    case SP_COMMENT:             return(C_string_to_Xen_string(sp->hdr->comment));                
+    case SP_AMP:                 return(C_double_to_Xen_real(sp->amp_control));                   
+    case SP_CONTRAST:            return(C_double_to_Xen_real(sp->contrast_control));              
+    case SP_CONTRAST_AMP:        return(C_double_to_Xen_real(sp->contrast_control_amp));          
+    case SP_EXPAND:              return(C_double_to_Xen_real(sp->expand_control));                
+    case SP_EXPAND_LENGTH:       return(C_double_to_Xen_real(sp->expand_control_length));         
+    case SP_EXPAND_RAMP:         return(C_double_to_Xen_real(sp->expand_control_ramp));           
+    case SP_EXPAND_HOP:          return(C_double_to_Xen_real(sp->expand_control_hop));            
+    case SP_EXPAND_JITTER:       return(C_double_to_Xen_real(sp->expand_control_jitter));         
+    case SP_REVERB_LENGTH:       return(C_double_to_Xen_real(sp->reverb_control_length));         
+    case SP_REVERB_FEEDBACK:     return(C_double_to_Xen_real(sp->reverb_control_feedback));       
+    case SP_REVERB_SCALE:        return(C_double_to_Xen_real(sp->reverb_control_scale));          
+    case SP_REVERB_LOW_PASS:     return(C_double_to_Xen_real(sp->reverb_control_lowpass));        
+    case SP_REVERB_DECAY:        return(C_double_to_Xen_real(sp->reverb_control_decay));          
 
     case SP_AMP_BOUNDS:          
       return(Xen_list_2(C_double_to_Xen_real(sp->amp_control_min), C_double_to_Xen_real(sp->amp_control_max))); 
-      break;
 
     case SP_CONTRAST_BOUNDS:     
       return(Xen_list_2(C_double_to_Xen_real(sp->contrast_control_min), C_double_to_Xen_real(sp->contrast_control_max))); 
-      break;
 
     case SP_EXPAND_BOUNDS:       
       return(Xen_list_2(C_double_to_Xen_real(sp->expand_control_min), C_double_to_Xen_real(sp->expand_control_max))); 
-      break;
 
     case SP_SPEED_BOUNDS:        
       return(Xen_list_2(C_double_to_Xen_real(sp->speed_control_min), C_double_to_Xen_real(sp->speed_control_max)));
-      break;
 
     case SP_REVERB_LENGTH_BOUNDS: 
       return(Xen_list_2(C_double_to_Xen_real(sp->reverb_control_length_min), C_double_to_Xen_real(sp->reverb_control_length_max))); 
-      break;
 
     case SP_REVERB_SCALE_BOUNDS: 
       return(Xen_list_2(C_double_to_Xen_real(sp->reverb_control_scale_min), C_double_to_Xen_real(sp->reverb_control_scale_max))); 
-      break;
 
     case SP_SELECTED_CHANNEL:    
       if (sp->selected_channel != NO_SELECTION) 
 	return(C_int_to_Xen_integer(sp->selected_channel));
       return(Xen_false); 
-      break;
 
     case SP_UPDATE:              
       if (!(is_player_sound(sp)))
@@ -2589,13 +2578,12 @@ static Xen sound_get(Xen snd, sp_field_t fld, const char *caller)
 	{
 	  if (sp->speed_control_direction == -1)
 	    return(Xen_make_ratio(C_int_to_Xen_integer(-sp->speed_control_numerator), C_int_to_Xen_integer(sp->speed_control_denominator)));
-	  else return(Xen_make_ratio(C_int_to_Xen_integer(sp->speed_control_numerator), C_int_to_Xen_integer(sp->speed_control_denominator)));
+	  return(Xen_make_ratio(C_int_to_Xen_integer(sp->speed_control_numerator), C_int_to_Xen_integer(sp->speed_control_denominator)));
 	}
 #endif
       if (sp->speed_control_direction == -1) 
 	return(C_double_to_Xen_real((-(sp->speed_control)))); 
-      else return(C_double_to_Xen_real(sp->speed_control)); 
-      break;
+      return(C_double_to_Xen_real(sp->speed_control)); 
 
     case SP_FILTER_COEFFS: 
       if (sp->filter_control_envelope)
@@ -2625,44 +2613,38 @@ static Xen sound_get_global(Xen snd, sp_field_t fld, const char *caller)
   if (!Xen_is_bound(snd))
     switch (fld)
       {
-      case SP_FILTER_DBING:         return(C_bool_to_Xen_boolean(filter_control_in_dB(ss)));    break;
-      case SP_FILTER_HZING:         return(C_bool_to_Xen_boolean(filter_control_in_hz(ss)));    break;
-      case SP_FILTER_ORDER:         return(C_int_to_Xen_integer(filter_control_order(ss)));        break;
-      case SP_SHOW_CONTROLS:        return(C_bool_to_Xen_boolean(in_show_controls(ss)));        break;
-      case SP_SPEED_TONES:          return(C_int_to_Xen_integer(speed_control_tones(ss)));         break;
-      case SP_SPEED_STYLE:          return(C_int_to_Xen_integer((int)(speed_control_style(ss))));  break;
-      case SP_CONTRAST_AMP:         return(C_double_to_Xen_real(contrast_control_amp(ss)));     break;
-      case SP_EXPAND_LENGTH:        return(C_double_to_Xen_real(expand_control_length(ss)));    break;
-      case SP_EXPAND_RAMP:          return(C_double_to_Xen_real(expand_control_ramp(ss)));      break;
-      case SP_EXPAND_HOP:           return(C_double_to_Xen_real(expand_control_hop(ss)));       break;
-      case SP_EXPAND_JITTER:        return(C_double_to_Xen_real(expand_control_jitter(ss)));    break;
-      case SP_REVERB_FEEDBACK:      return(C_double_to_Xen_real(reverb_control_feedback(ss)));  break;
-      case SP_REVERB_LOW_PASS:      return(C_double_to_Xen_real(reverb_control_lowpass(ss)));   break;
-      case SP_REVERB_DECAY:         return(C_double_to_Xen_real(reverb_control_decay(ss)));     break;
+      case SP_FILTER_DBING:         return(C_bool_to_Xen_boolean(filter_control_in_dB(ss)));    
+      case SP_FILTER_HZING:         return(C_bool_to_Xen_boolean(filter_control_in_hz(ss)));    
+      case SP_FILTER_ORDER:         return(C_int_to_Xen_integer(filter_control_order(ss)));     
+      case SP_SHOW_CONTROLS:        return(C_bool_to_Xen_boolean(in_show_controls(ss)));        
+      case SP_SPEED_TONES:          return(C_int_to_Xen_integer(speed_control_tones(ss)));      
+      case SP_SPEED_STYLE:          return(C_int_to_Xen_integer((int)(speed_control_style(ss))));
+      case SP_CONTRAST_AMP:         return(C_double_to_Xen_real(contrast_control_amp(ss)));     
+      case SP_EXPAND_LENGTH:        return(C_double_to_Xen_real(expand_control_length(ss)));    
+      case SP_EXPAND_RAMP:          return(C_double_to_Xen_real(expand_control_ramp(ss)));      
+      case SP_EXPAND_HOP:           return(C_double_to_Xen_real(expand_control_hop(ss)));       
+      case SP_EXPAND_JITTER:        return(C_double_to_Xen_real(expand_control_jitter(ss)));    
+      case SP_REVERB_FEEDBACK:      return(C_double_to_Xen_real(reverb_control_feedback(ss)));  
+      case SP_REVERB_LOW_PASS:      return(C_double_to_Xen_real(reverb_control_lowpass(ss)));   
+      case SP_REVERB_DECAY:         return(C_double_to_Xen_real(reverb_control_decay(ss)));     
 
       case SP_AMP_BOUNDS:           
 	return(Xen_list_2(C_double_to_Xen_real(amp_control_min(ss)), C_double_to_Xen_real(amp_control_max(ss)))); 
-	break;
 
       case SP_CONTRAST_BOUNDS:     
 	return(Xen_list_2(C_double_to_Xen_real(contrast_control_min(ss)), C_double_to_Xen_real(contrast_control_max(ss))));
-	break;
 
       case SP_EXPAND_BOUNDS:        
 	return(Xen_list_2(C_double_to_Xen_real(expand_control_min(ss)), C_double_to_Xen_real(expand_control_max(ss)))); 
-	break;
 
       case SP_SPEED_BOUNDS:         
 	return(Xen_list_2(C_double_to_Xen_real(speed_control_min(ss)), C_double_to_Xen_real(speed_control_max(ss)))); 
-	break;
 
       case SP_REVERB_LENGTH_BOUNDS: 
 	return(Xen_list_2(C_double_to_Xen_real(reverb_control_length_min(ss)), C_double_to_Xen_real(reverb_control_length_max(ss)))); 
-	break;
 
       case SP_REVERB_SCALE_BOUNDS:  
 	return(Xen_list_2(C_double_to_Xen_real(reverb_control_scale_min(ss)), C_double_to_Xen_real(reverb_control_scale_max(ss)))); 
-	break;
 
       default: 
 	break;
@@ -2917,26 +2899,22 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
       fval = Xen_real_to_C_double(val);
       if (fval >= 0.0) set_amp(sp, fval); 
       return(C_double_to_Xen_real(sp->amp_control)); 
-      break;
 
     case SP_AMP_BOUNDS:
       sp->amp_control_min = Xen_real_to_C_double(Xen_car(val));
       sp->amp_control_max = Xen_real_to_C_double(Xen_cadr(val));
       set_amp(sp, mus_fclamp(sp->amp_control_min, sp->amp_control, sp->amp_control_max));
       return(val);
-      break;
 
     case SP_CONTRAST:      
       set_contrast(sp, Xen_real_to_C_double(val));
       return(C_double_to_Xen_real(sp->contrast_control)); 
-      break;
 
     case SP_CONTRAST_BOUNDS:
       sp->contrast_control_min = Xen_real_to_C_double(Xen_car(val));
       sp->contrast_control_max = Xen_real_to_C_double(Xen_cadr(val));
       set_contrast(sp, mus_fclamp(sp->contrast_control_min, sp->contrast_control, sp->contrast_control_max));
       return(val);
-      break;
 
     case SP_CONTRAST_AMP:  
       sp->contrast_control_amp = Xen_real_to_C_double(val);
@@ -2947,14 +2925,12 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
       fval = Xen_real_to_C_double(val);
       if (fval > 0.0) set_expand(sp, fval); 
       return(C_double_to_Xen_real(sp->expand_control)); 
-      break;
 
     case SP_EXPAND_BOUNDS:
       sp->expand_control_min = Xen_real_to_C_double(Xen_car(val));
       sp->expand_control_max = Xen_real_to_C_double(Xen_cadr(val));
       set_expand(sp, mus_fclamp(sp->expand_control_min, sp->expand_control, sp->expand_control_max));
       return(val);
-      break;
 
     case SP_EXPAND_LENGTH: 
       fval = Xen_real_to_C_double(val);
@@ -2965,7 +2941,6 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
 	}
       else Xen_out_of_range_error(S_set S_expand_control_length, 1, val, "length <= 0.0?");
       return(C_double_to_Xen_real(sp->expand_control_length));
-      break;
 
     case SP_EXPAND_RAMP:   
       fval = Xen_real_to_C_double(val);
@@ -2975,7 +2950,6 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
 	  if (sp->playing) dac_set_expand_ramp(sp, fval); 
 	}
       return(C_double_to_Xen_real(sp->expand_control_ramp));
-      break;
 
     case SP_EXPAND_HOP:    
       fval = Xen_real_to_C_double(val);
@@ -2986,13 +2960,11 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
 	}
       else Xen_out_of_range_error(S_set S_expand_control_hop, 1, val, "hop <= 0.0?");
       return(C_double_to_Xen_real(sp->expand_control_hop));
-      break;
 
     case SP_EXPAND_JITTER:    
       fval = mus_fclamp(0.0, Xen_real_to_C_double(val), 100.0);
       sp->expand_control_jitter = fval; 
       return(C_double_to_Xen_real(sp->expand_control_jitter));
-      break;
 
     case SP_SPEED: 
 #if XEN_HAVE_RATIOS
@@ -3036,20 +3008,17 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
       sp->speed_control_max = Xen_real_to_C_double(Xen_cadr(val));
       set_speed(sp, mus_fclamp(sp->speed_control_min, sp->speed_control, sp->speed_control_max));
       return(val);
-      break;
 
     case SP_REVERB_LENGTH:    
       fval = Xen_real_to_C_double(val);
       if (fval >= 0.0) set_revlen(sp, fval); 
       return(C_double_to_Xen_real(sp->reverb_control_length)); 
-      break;
 
     case SP_REVERB_LENGTH_BOUNDS:
       sp->reverb_control_length_min = Xen_real_to_C_double(Xen_car(val));
       sp->reverb_control_length_max = Xen_real_to_C_double(Xen_cadr(val));
       set_revlen(sp, mus_fclamp(sp->reverb_control_length_min, sp->reverb_control_length, sp->reverb_control_length_max));
       return(val);
-      break;
 
     case SP_REVERB_FEEDBACK:  
       sp->reverb_control_feedback = mus_fclamp(0.0, Xen_real_to_C_double(val), 100.0);
@@ -3059,14 +3028,12 @@ static Xen sound_set(Xen snd, Xen val, sp_field_t fld, const char *caller)
     case SP_REVERB_SCALE:     
       set_revscl(sp, Xen_real_to_C_double(val));
       return(C_double_to_Xen_real(sp->reverb_control_scale)); 
-      break;
 
     case SP_REVERB_SCALE_BOUNDS:
       sp->reverb_control_scale_min = Xen_real_to_C_double(Xen_car(val));
       sp->reverb_control_scale_max = Xen_real_to_C_double(Xen_cadr(val));
       set_revscl(sp, mus_fclamp(sp->reverb_control_scale_min, sp->reverb_control_scale, sp->reverb_control_scale_max));
       return(val);
-      break;
 
     case SP_REVERB_LOW_PASS:  
       sp->reverb_control_lowpass = mus_fclamp(0.0, Xen_real_to_C_double(val), 1.0);
@@ -3115,120 +3082,100 @@ static Xen sound_set_global(Xen snd, Xen val, sp_field_t fld, const char *caller
       case SP_FILTER_DBING:   
 	in_set_filter_control_in_dB(ss, Xen_boolean_to_C_bool(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_FILTER_HZING:   
 	in_set_filter_control_in_hz(ss, Xen_boolean_to_C_bool(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_FILTER_ORDER:
 	Xen_check_type(Xen_is_integer(val), val, 0, caller, "an integer");
 	if (Xen_integer_to_C_int(val) > 0)
 	  in_set_filter_control_order(ss, Xen_integer_to_C_int(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_SHOW_CONTROLS:
 	in_set_show_controls(ss, Xen_boolean_to_C_bool(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_SPEED_TONES:
 	Xen_check_type(Xen_is_integer(val), val, 0, caller, "an integer");
 	in_set_speed_control_tones(ss, Xen_integer_to_C_int(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_SPEED_STYLE:
 	Xen_check_type(Xen_is_integer(val), val, 0, caller, "an integer");
 	in_set_speed_control_style(ss, (speed_style_t)Xen_integer_to_C_int(val)); /* range checked already */
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_AMP_BOUNDS:
 	in_set_amp_control_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_amp_control_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	reflect_mix_change(ANY_MIX_ID);
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_CONTRAST_BOUNDS:
 	in_set_contrast_control_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_contrast_control_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_CONTRAST_AMP:  
 	in_set_contrast_control_amp(ss, Xen_real_to_C_double(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_EXPAND_BOUNDS:
 	in_set_expand_control_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_expand_control_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_EXPAND_LENGTH: 
 	fval = Xen_real_to_C_double(val);
 	if (fval > 0.0)
 	  in_set_expand_control_length(ss, fval);
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_EXPAND_RAMP:
 	fval = Xen_real_to_C_double(val);
 	if ((fval >= 0.0) && (fval < 0.5)) 
 	  in_set_expand_control_ramp(ss, fval);
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_EXPAND_HOP:
 	fval = Xen_real_to_C_double(val);
 	if (fval > 0.0)
 	  in_set_expand_control_hop(ss, fval);
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_EXPAND_JITTER:    
 	in_set_expand_control_jitter(ss, Xen_real_to_C_double(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_SPEED_BOUNDS:
 	in_set_speed_control_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_speed_control_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	reflect_mix_change(ANY_MIX_ID);
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_REVERB_LENGTH_BOUNDS:
 	in_set_reverb_control_length_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_reverb_control_length_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_REVERB_FEEDBACK:  
 	in_set_reverb_control_feedback(ss, Xen_real_to_C_double(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_REVERB_SCALE_BOUNDS:
 	in_set_reverb_control_scale_min(ss, Xen_real_to_C_double(Xen_car(val)));
 	in_set_reverb_control_scale_max(ss, Xen_real_to_C_double(Xen_cadr(val)));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_REVERB_LOW_PASS:  
 	in_set_reverb_control_lowpass(ss, Xen_real_to_C_double(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       case SP_REVERB_DECAY:     
 	in_set_reverb_control_decay(ss, Xen_real_to_C_double(val));
 	return(sound_set(Xen_true, val, fld, caller));
-	break;
 
       default: break;
       }

@@ -1152,22 +1152,22 @@ static Xen g_snd_font(Xen choice)
   switch (Xen_integer_to_C_int(choice))
     {
 #if USE_MOTIF
-    case 0: return(WRAP_FONT(ss->peaks_fontstruct->fid));        break;
-    case 1: return(WRAP_FONT(ss->bold_peaks_fontstruct->fid));   break;
-    case 2: return(WRAP_FONT(ss->tiny_fontstruct->fid));         break;
-    case 3: return(WRAP_FONT(ss->axis_label_fontstruct->fid));   break;
-    case 4: return(WRAP_FONT(ss->axis_numbers_fontstruct->fid)); break;
-    case 5: return(WRAP_FONT(ss->listener_fontstruct->fid));     break;
+    case 0: return(WRAP_FONT(ss->peaks_fontstruct->fid));        
+    case 1: return(WRAP_FONT(ss->bold_peaks_fontstruct->fid));   
+    case 2: return(WRAP_FONT(ss->tiny_fontstruct->fid));         
+    case 3: return(WRAP_FONT(ss->axis_label_fontstruct->fid));   
+    case 4: return(WRAP_FONT(ss->axis_numbers_fontstruct->fid)); 
+    case 5: return(WRAP_FONT(ss->listener_fontstruct->fid));     
 #endif
 #if USE_GTK
-    case 0: return(WRAP_FONT(ss->peaks_fnt));                    break;
-    case 1: return(WRAP_FONT(ss->bold_peaks_fnt));               break;
-    case 2: return(WRAP_FONT(ss->tiny_fnt));                     break;
-    case 3: return(WRAP_FONT(ss->axis_label_fnt));               break;
-    case 4: return(WRAP_FONT(ss->axis_numbers_fnt));             break;
-    case 5: return(WRAP_FONT(ss->listener_fnt));                 break;
+    case 0: return(WRAP_FONT(ss->peaks_fnt));                    
+    case 1: return(WRAP_FONT(ss->bold_peaks_fnt));               
+    case 2: return(WRAP_FONT(ss->tiny_fnt));                     
+    case 3: return(WRAP_FONT(ss->axis_label_fnt));               
+    case 4: return(WRAP_FONT(ss->axis_numbers_fnt));             
+    case 5: return(WRAP_FONT(ss->listener_fnt));                 
 #endif
-    default: return(Xen_false);                                       break;
+    default: return(Xen_false);                                  
     }
   return(Xen_false);
 }

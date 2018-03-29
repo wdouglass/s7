@@ -274,7 +274,7 @@ indented and on a sort of brownish background.
 
 <p>All numeric types, integers, ratios, reals, and complex numbers are supported.
 The basic integer and real
-types are defined in s7.h, defaulting to long long int and double.  
+types are defined in s7.h, defaulting to int64_t and double.  
 A ratio consists of two integers, a complex number two reals.
 pi is predefined, as are
 most-positive-fixnum and most-negative-fixnum.
@@ -6161,14 +6161,12 @@ Perhaps <code>(define & logand) (define | logior) (define ~ lognot)</code> and s
 </p>
 
 <p>
-The name "cond-expand" is bad &mdash; we're not expanding anything, and the macro's point is to make it easy to
-operate with the *features* list; perhaps "cond-provided"?  Not only is cond-expand poorly named, but the whole
-idea is clumsy.  Take libgsl.scm; different versions of the GSL library have different functions.  We need to know
+cond-expand is dumb and its name is dumber.
+Take libgsl.scm; different versions of the GSL library have different functions.  We need to know
 when we're building the FFI what GSL version we're dealing with.  It would be nuts to start pushing and checking dozens
-of library version symbols when all we actually want is <code>(&gt; version 23.19)</code>. (We are also politely
-trying to ignore the ridiculous little language built into cond-expand; are we not running Scheme?).
+of library version symbols when all we actually want is <code>(&gt; version 23.19)</code>. 
 In place of cond-expand, s7 uses <a href="#readercond">reader-cond</a>,
-so the read-time decision involves normal evaluation.
+so the read-time decision involves normal Scheme evaluation.
 </p>
 
 <p>Then there's the case case: a case clause without a result appears to be an error in r7rs.

@@ -5934,12 +5934,12 @@ static const char *list_to_partials_error_to_string(int code)
 {
   switch (code)
     {
-    case NO_PROBLEM_IN_LIST:          return("~A: nothing wrong with partials list?? ~A");                    break;
-    case NULL_LIST:                   return("~A: partials list is null, ~A");                                break;
-    case ODD_LENGTH_LIST:             return("~A: partials list has an odd number of elements: ~A");          break;
-    case NON_NUMBER_IN_LIST:          return("~A: partials list has a non-numerical element: ~A");            break;
-    case NEGATIVE_NUMBER_IN_LIST:     return("~A: partials list has a partial number that is negative: ~A");  break;
-    case HUGE_NUMBER_IN_LIST:         return("~A: partials list has a partial number that is too large: ~A"); break;
+    case NO_PROBLEM_IN_LIST:          return("~A: nothing wrong with partials list?? ~A");                    
+    case NULL_LIST:                   return("~A: partials list is null, ~A");                                
+    case ODD_LENGTH_LIST:             return("~A: partials list has an odd number of elements: ~A");          
+    case NON_NUMBER_IN_LIST:          return("~A: partials list has a non-numerical element: ~A");            
+    case NEGATIVE_NUMBER_IN_LIST:     return("~A: partials list has a partial number that is negative: ~A");  
+    case HUGE_NUMBER_IN_LIST:         return("~A: partials list has a partial number that is too large: ~A"); 
     }
   return("~A: unknown error, ~A");
 }

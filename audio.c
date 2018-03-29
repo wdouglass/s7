@@ -489,17 +489,17 @@ static int to_oss_sample_type(mus_sample_t snd_format)
 {
   switch (snd_format)
     {
-    case MUS_BYTE:    return(AFMT_S8);     break;
-    case MUS_BSHORT:  return(AFMT_S16_BE); break;
-    case MUS_UBYTE:   return(AFMT_U8);     break;
-    case MUS_MULAW:   return(AFMT_MU_LAW); break;
-    case MUS_ALAW:    return(AFMT_A_LAW);  break;
-    case MUS_LSHORT:  return(AFMT_S16_LE); break;
-    case MUS_UBSHORT: return(AFMT_U16_BE); break;
-    case MUS_ULSHORT: return(AFMT_U16_LE); break;
+    case MUS_BYTE:    return(AFMT_S8);     
+    case MUS_BSHORT:  return(AFMT_S16_BE); 
+    case MUS_UBYTE:   return(AFMT_U8);     
+    case MUS_MULAW:   return(AFMT_MU_LAW); 
+    case MUS_ALAW:    return(AFMT_A_LAW);  
+    case MUS_LSHORT:  return(AFMT_S16_LE); 
+    case MUS_UBSHORT: return(AFMT_U16_BE); 
+    case MUS_ULSHORT: return(AFMT_U16_LE); 
 #ifdef NEW_OSS
-    case MUS_LINT:    return(AFMT_S32_LE); break;
-    case MUS_BINT:    return(AFMT_S32_BE); break;
+    case MUS_LINT:    return(AFMT_S32_LE); 
+    case MUS_BINT:    return(AFMT_S32_BE); 
 #endif
     default: break;
     }
@@ -3099,16 +3099,16 @@ static const char* osx_error(OSStatus err)
   if (err == noErr) return("no error");
   switch (err) 
     {
-    case kAudioHardwareNoError:               return("no error");                         break;
-    case kAudioHardwareUnspecifiedError:      return("unspecified audio hardware error"); break;
-    case kAudioHardwareNotRunningError:       return("audio hardware not running");       break;
-    case kAudioHardwareUnknownPropertyError:  return("unknown property");                 break;
-    case kAudioHardwareBadPropertySizeError:  return("bad property");                     break;
-    case kAudioHardwareBadDeviceError:        return("bad device");                       break;
-    case kAudioHardwareBadStreamError:        return("bad stream");                       break;
-    case kAudioHardwareIllegalOperationError: return("illegal operation");                break;
-    case kAudioDeviceUnsupportedFormatError:  return("unsupported sample type");          break;
-    case kAudioDevicePermissionsError:        return("device permissions error");         break;
+    case kAudioHardwareNoError:               return("no error");                         
+    case kAudioHardwareUnspecifiedError:      return("unspecified audio hardware error"); 
+    case kAudioHardwareNotRunningError:       return("audio hardware not running");       
+    case kAudioHardwareUnknownPropertyError:  return("unknown property");                 
+    case kAudioHardwareBadPropertySizeError:  return("bad property");                     
+    case kAudioHardwareBadDeviceError:        return("bad device");                       
+    case kAudioHardwareBadStreamError:        return("bad stream");                       
+    case kAudioHardwareIllegalOperationError: return("illegal operation");                
+    case kAudioDeviceUnsupportedFormatError:  return("unsupported sample type");          
+    case kAudioDevicePermissionsError:        return("device permissions error");         
     }
   return("unknown error");
 }
@@ -4821,19 +4821,19 @@ static mus_sample_t bsd_format_to_sndlib(int encoding)
 {
   switch (encoding)
     {
-    case AUDIO_ENCODING_ULAW:       return(MUS_MULAW);   break;
-    case AUDIO_ENCODING_ALAW:       return(MUS_ALAW);    break;
-    case AUDIO_ENCODING_LINEAR:     return(MUS_BSHORT);  break; /* "sun compatible" so probably big-endian? */
+    case AUDIO_ENCODING_ULAW:       return(MUS_MULAW);   
+    case AUDIO_ENCODING_ALAW:       return(MUS_ALAW);    
+    case AUDIO_ENCODING_LINEAR:     return(MUS_BSHORT);  /* "sun compatible" so probably big-endian? */
     case AUDIO_ENCODING_SLINEAR:
-    case AUDIO_ENCODING_LINEAR8:    return(MUS_BYTE);    break;
-    case AUDIO_ENCODING_SLINEAR_LE: return(MUS_LSHORT);  break;
-    case AUDIO_ENCODING_SLINEAR_BE: return(MUS_BSHORT);  break;
-    case AUDIO_ENCODING_ULINEAR_LE: return(MUS_ULSHORT); break;
-    case AUDIO_ENCODING_ULINEAR_BE: return(MUS_UBSHORT); break;
-    case AUDIO_ENCODING_ULINEAR:    return(MUS_UBYTE);   break;
+    case AUDIO_ENCODING_LINEAR8:    return(MUS_BYTE);    
+    case AUDIO_ENCODING_SLINEAR_LE: return(MUS_LSHORT);  
+    case AUDIO_ENCODING_SLINEAR_BE: return(MUS_BSHORT);  
+    case AUDIO_ENCODING_ULINEAR_LE: return(MUS_ULSHORT); 
+    case AUDIO_ENCODING_ULINEAR_BE: return(MUS_UBSHORT); 
+    case AUDIO_ENCODING_ULINEAR:    return(MUS_UBYTE);   
     case AUDIO_ENCODING_NONE:
     case AUDIO_ENCODING_ADPCM: 
-    default:                        return(MUS_UNKNOWN_SAMPLE); break;
+    default:                        return(MUS_UNKNOWN_SAMPLE); 
     }
   return(MUS_UNKNOWN_SAMPLE);
 }
@@ -4843,14 +4843,14 @@ static int sndlib_format_to_bsd(mus_sample_t encoding)
 {
   switch (encoding)
     {
-    case MUS_MULAW:   return(AUDIO_ENCODING_ULAW);       break;
-    case MUS_ALAW:    return(AUDIO_ENCODING_ALAW);       break;
-    case MUS_BYTE:    return(AUDIO_ENCODING_SLINEAR);    break;
-    case MUS_LSHORT:  return(AUDIO_ENCODING_SLINEAR_LE); break;
-    case MUS_BSHORT:  return(AUDIO_ENCODING_SLINEAR_BE); break;
-    case MUS_ULSHORT: return(AUDIO_ENCODING_ULINEAR_LE); break;
-    case MUS_UBSHORT: return(AUDIO_ENCODING_ULINEAR_BE); break;
-    case MUS_UBYTE:   return(AUDIO_ENCODING_ULINEAR);    break;
+    case MUS_MULAW:   return(AUDIO_ENCODING_ULAW);       
+    case MUS_ALAW:    return(AUDIO_ENCODING_ALAW);       
+    case MUS_BYTE:    return(AUDIO_ENCODING_SLINEAR);    
+    case MUS_LSHORT:  return(AUDIO_ENCODING_SLINEAR_LE); 
+    case MUS_BSHORT:  return(AUDIO_ENCODING_SLINEAR_BE); 
+    case MUS_ULSHORT: return(AUDIO_ENCODING_ULINEAR_LE); 
+    case MUS_UBSHORT: return(AUDIO_ENCODING_ULINEAR_BE); 
+    case MUS_UBYTE:   return(AUDIO_ENCODING_ULINEAR);    
     default: break;
     }
   return(AUDIO_ENCODING_NONE);

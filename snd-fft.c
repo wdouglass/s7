@@ -624,13 +624,13 @@ static const char *spectro_xlabel(chan_info *cp)
       if (cp->fft_log_frequency)
 	return("log freq");
       else return("frequency");
-      break;
-    case WAVELET:         return(wavelet_names_1[cp->wavelet_type]);          break;
-    case HAAR:            return("Haar spectrum");                         break;
-    case CEPSTRUM:        return("cepstrum");                                 break; /* "quefrency" is the jokey name */
-    case WALSH:           return("Sequency");                                 break;
-    case AUTOCORRELATION: return("Lag time");                              break;
-    default:              return(added_transform_xlabel(cp->transform_type)); break;
+
+    case WAVELET:         return(wavelet_names_1[cp->wavelet_type]); 
+    case HAAR:            return("Haar spectrum");                   
+    case CEPSTRUM:        return("cepstrum");                        
+    case WALSH:           return("Sequency");                        
+    case AUTOCORRELATION: return("Lag time");                        
+    default:              return(added_transform_xlabel(cp->transform_type));
     }
   return(NULL);
 }
@@ -894,7 +894,6 @@ static void apply_fft(fft_state *fs)
 	free_snd_fd_almost(sf);
 	return;
       }
-      break;
     }
 
   free_snd_fd(sf);
@@ -1747,7 +1746,6 @@ idle_func_t sonogram_in_slices(void *sono)
     default: 
       finish_sonogram(sg); 
       return(BACKGROUND_QUIT); 
-      break;
     }
   return(BACKGROUND_CONTINUE);
 }

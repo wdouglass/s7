@@ -2006,12 +2006,12 @@ GtkWidget *menu_widget(int which_menu)
 {
   switch (which_menu)
     {
-    case FILE_MENU:    return(file_menu);           break;
-    case EDIT_MENU:    return(edit_menu);           break;
-    case VIEW_MENU:    return(view_menu);           break;
-    case OPTIONS_MENU: return(options_menu);        break;
-    case HELP_MENU:    return(help_menu);           break;
-    default:           return(added_menus[which_menu]); break;
+    case FILE_MENU:    return(file_menu);           
+    case EDIT_MENU:    return(edit_menu);           
+    case VIEW_MENU:    return(view_menu);           
+    case OPTIONS_MENU: return(options_menu);        
+    case HELP_MENU:    return(help_menu);           
+    default:           return(added_menus[which_menu]); 
     }
   return(NULL);
 }

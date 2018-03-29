@@ -1214,7 +1214,6 @@ bool mus_is_interp_type(int val)
     case MUS_INTERP_ALL_PASS:
     case MUS_INTERP_BEZIER:
       return(true);
-      break;
     }
   return(false);
 }
@@ -1231,27 +1230,21 @@ mus_float_t mus_interpolate(mus_interp_t type, mus_float_t x, mus_float_t *table
 	if (x0 < 0) x0 += table_size;
 	return(table[x0]);
       }
-      break;
 
     case MUS_INTERP_LAGRANGE:
       return(mus_array_lagrange_interp(table, x, table_size));
-      break;
 
     case MUS_INTERP_HERMITE:
       return(mus_array_hermite_interp(table, x, table_size));
-      break;
 
     case MUS_INTERP_LINEAR:
       return(mus_array_interp(table, x, table_size));
-      break;
 
     case MUS_INTERP_ALL_PASS:
       return(mus_array_all_pass_interp(table, x, table_size, y));
-      break;
 
     case MUS_INTERP_BEZIER:
       return(mus_array_bezier_interp(table, x, table_size));
-      break;
 
     default:
       mus_error(MUS_ARG_OUT_OF_RANGE, "unknown interpolation type: %d", type);
@@ -14432,7 +14425,6 @@ bool mus_is_fft_window(int val)
     case MUS_RV2_WINDOW: case MUS_RV3_WINDOW: case MUS_RV4_WINDOW: case MUS_MLT_SINE_WINDOW: 
     case MUS_PAPOULIS_WINDOW: case MUS_DPSS_WINDOW: case MUS_SINC_WINDOW:
       return(true);
-      break;
     }
   return(false);
 }

@@ -114,9 +114,9 @@ static const char *cursor_style_name(cursor_style_t style)
 {
   switch (style)
     {
-    case CURSOR_CROSS: return(TO_VAR_NAME(S_cursor_cross)); break;
-    case CURSOR_LINE:  return(TO_VAR_NAME(S_cursor_line));  break;
-    default: /* proc?? */ return(TO_VAR_NAME(S_cursor_cross)); break;
+    case CURSOR_CROSS: return(TO_VAR_NAME(S_cursor_cross)); 
+    case CURSOR_LINE:  return(TO_VAR_NAME(S_cursor_line));  
+    default: /* proc?? */ return(TO_VAR_NAME(S_cursor_cross));
     }
 }
 
@@ -125,12 +125,12 @@ static const char *show_axes2string(show_axes_t ax)
 {
   switch (ax)
     {
-    case SHOW_NO_AXES:           return(TO_VAR_NAME(S_show_no_axes));             break;
-    case SHOW_X_AXIS:            return(TO_VAR_NAME(S_show_x_axis));              break;
-    case SHOW_X_AXIS_UNLABELLED: return(TO_VAR_NAME(S_show_x_axis_unlabelled));   break;
-    case SHOW_ALL_AXES:          return(TO_VAR_NAME(S_show_all_axes));            break;
-    case SHOW_BARE_X_AXIS:       return(TO_VAR_NAME(S_show_bare_x_axis));         break;
-    default:                     return(TO_VAR_NAME(S_show_all_axes_unlabelled)); break;
+    case SHOW_NO_AXES:           return(TO_VAR_NAME(S_show_no_axes));             
+    case SHOW_X_AXIS:            return(TO_VAR_NAME(S_show_x_axis));              
+    case SHOW_X_AXIS_UNLABELLED: return(TO_VAR_NAME(S_show_x_axis_unlabelled));   
+    case SHOW_ALL_AXES:          return(TO_VAR_NAME(S_show_all_axes));            
+    case SHOW_BARE_X_AXIS:       return(TO_VAR_NAME(S_show_bare_x_axis));         
+    default:                     return(TO_VAR_NAME(S_show_all_axes_unlabelled)); 
     }
 }
 
@@ -139,11 +139,11 @@ static const char *zoom_focus_style_name(zoom_focus_t choice)
 {
   switch (choice)
     {
-    case ZOOM_FOCUS_LEFT:   return(TO_VAR_NAME(S_zoom_focus_left));   break;
-    case ZOOM_FOCUS_RIGHT:  return(TO_VAR_NAME(S_zoom_focus_right));  break;
-    case ZOOM_FOCUS_MIDDLE: return(TO_VAR_NAME(S_zoom_focus_middle)); break;
+    case ZOOM_FOCUS_LEFT:   return(TO_VAR_NAME(S_zoom_focus_left));   
+    case ZOOM_FOCUS_RIGHT:  return(TO_VAR_NAME(S_zoom_focus_right));  
+    case ZOOM_FOCUS_MIDDLE: return(TO_VAR_NAME(S_zoom_focus_middle)); 
       /* proc?? */
-    default:                return(TO_VAR_NAME(S_zoom_focus_active)); break;
+    default:                return(TO_VAR_NAME(S_zoom_focus_active)); 
     }
 }
 
@@ -152,11 +152,11 @@ static const char *transform_normalization_name(fft_normalize_t choice)
 {
   switch (choice)
     {
-    case DONT_NORMALIZE:      return(TO_VAR_NAME(S_dont_normalize));       break;
-    case NORMALIZE_BY_CHANNEL:return(TO_VAR_NAME(S_normalize_by_channel)); break;
-    case NORMALIZE_BY_SOUND:  return(TO_VAR_NAME(S_normalize_by_sound));   break;
-    case NORMALIZE_GLOBALLY:  return(TO_VAR_NAME(S_normalize_globally));   break;
-    default:                  return(TO_VAR_NAME(S_normalize_by_channel)); break;
+    case DONT_NORMALIZE:      return(TO_VAR_NAME(S_dont_normalize));       
+    case NORMALIZE_BY_CHANNEL:return(TO_VAR_NAME(S_normalize_by_channel)); 
+    case NORMALIZE_BY_SOUND:  return(TO_VAR_NAME(S_normalize_by_sound));   
+    case NORMALIZE_GLOBALLY:  return(TO_VAR_NAME(S_normalize_globally));   
+    default:                  return(TO_VAR_NAME(S_normalize_by_channel)); 
     }
 }
 
@@ -165,12 +165,12 @@ static const char *graph_style_name(graph_style_t choice)
 {
   switch (choice)
     {
-    case GRAPH_DOTS:           return(TO_VAR_NAME(S_graph_dots));           break;
-    case GRAPH_DOTS_AND_LINES: return(TO_VAR_NAME(S_graph_dots_and_lines)); break;
-    case GRAPH_LOLLIPOPS:      return(TO_VAR_NAME(S_graph_lollipops));      break;
-    case GRAPH_FILLED:         return(TO_VAR_NAME(S_graph_filled));         break;
+    case GRAPH_DOTS:           return(TO_VAR_NAME(S_graph_dots));           
+    case GRAPH_DOTS_AND_LINES: return(TO_VAR_NAME(S_graph_dots_and_lines)); 
+    case GRAPH_LOLLIPOPS:      return(TO_VAR_NAME(S_graph_lollipops));      
+    case GRAPH_FILLED:         return(TO_VAR_NAME(S_graph_filled));         
     case GRAPH_LINES: 
-    default:                   return(TO_VAR_NAME(S_graph_lines));          break;
+    default:                   return(TO_VAR_NAME(S_graph_lines));          
     }
 }
 
@@ -179,9 +179,9 @@ static const char *transform_graph_type_name(graph_type_t choice)
 {
   switch (choice)
     {
-    case GRAPH_AS_SONOGRAM:    return(TO_VAR_NAME(S_graph_as_sonogram));    break;
-    case GRAPH_AS_SPECTROGRAM: return(TO_VAR_NAME(S_graph_as_spectrogram)); break;
-    default:                   return(TO_VAR_NAME(S_graph_once));           break;
+    case GRAPH_AS_SONOGRAM:    return(TO_VAR_NAME(S_graph_as_sonogram));    
+    case GRAPH_AS_SPECTROGRAM: return(TO_VAR_NAME(S_graph_as_spectrogram)); 
+    default:                   return(TO_VAR_NAME(S_graph_once));           
     }
 }
 
@@ -190,8 +190,8 @@ static const char *time_graph_type_name(graph_type_t choice)
 {
   switch (choice)
     {
-    case GRAPH_AS_WAVOGRAM: return(TO_VAR_NAME(S_graph_as_wavogram)); break;
-    default:                return(TO_VAR_NAME(S_graph_once));        break;
+    case GRAPH_AS_WAVOGRAM: return(TO_VAR_NAME(S_graph_as_wavogram)); 
+    default:                return(TO_VAR_NAME(S_graph_once));        
     }
 }
 
@@ -200,12 +200,12 @@ static const char *x_axis_style_name(x_axis_style_t choice)
 {
   switch (choice)
     {
-    case X_AXIS_AS_CLOCK:      return(TO_VAR_NAME(S_x_axis_as_clock));      break;
-    case X_AXIS_IN_SAMPLES:    return(TO_VAR_NAME(S_x_axis_in_samples));    break;
-    case X_AXIS_AS_PERCENTAGE: return(TO_VAR_NAME(S_x_axis_as_percentage)); break;
-    case X_AXIS_IN_BEATS:      return(TO_VAR_NAME(S_x_axis_in_beats));      break;
-    case X_AXIS_IN_MEASURES:   return(TO_VAR_NAME(S_x_axis_in_measures));   break;
-    default:                   return(TO_VAR_NAME(S_x_axis_in_seconds));    break;
+    case X_AXIS_AS_CLOCK:      return(TO_VAR_NAME(S_x_axis_as_clock));      
+    case X_AXIS_IN_SAMPLES:    return(TO_VAR_NAME(S_x_axis_in_samples));    
+    case X_AXIS_AS_PERCENTAGE: return(TO_VAR_NAME(S_x_axis_as_percentage)); 
+    case X_AXIS_IN_BEATS:      return(TO_VAR_NAME(S_x_axis_in_beats));      
+    case X_AXIS_IN_MEASURES:   return(TO_VAR_NAME(S_x_axis_in_measures));   
+    default:                   return(TO_VAR_NAME(S_x_axis_in_seconds));    
     }
 }
 
@@ -214,9 +214,9 @@ static const char *speed_control_style_name(speed_style_t choice)
 {
   switch (choice)
     {
-    case SPEED_CONTROL_AS_RATIO:    return(TO_VAR_NAME(S_speed_control_as_ratio));    break;
-    case SPEED_CONTROL_AS_SEMITONE: return(TO_VAR_NAME(S_speed_control_as_semitone)); break;
-    default:                        return(TO_VAR_NAME(S_speed_control_as_float));    break;
+    case SPEED_CONTROL_AS_RATIO:    return(TO_VAR_NAME(S_speed_control_as_ratio));    
+    case SPEED_CONTROL_AS_SEMITONE: return(TO_VAR_NAME(S_speed_control_as_semitone)); 
+    default:                        return(TO_VAR_NAME(S_speed_control_as_float));    
     }
 }
 
@@ -225,9 +225,9 @@ static const char *channel_style_name(channel_style_t choice)
 {
   switch (choice)
     {
-    case CHANNELS_COMBINED:     return(TO_VAR_NAME(S_channels_combined));     break;
-    case CHANNELS_SUPERIMPOSED: return(TO_VAR_NAME(S_channels_superimposed)); break;
-    default:                    return(TO_VAR_NAME(S_channels_separate));     break;
+    case CHANNELS_COMBINED:     return(TO_VAR_NAME(S_channels_combined));     
+    case CHANNELS_SUPERIMPOSED: return(TO_VAR_NAME(S_channels_superimposed)); 
+    default:                    return(TO_VAR_NAME(S_channels_separate));     
     }
 }
 
@@ -236,9 +236,9 @@ static const char *sync_style_name(sync_style_t choice)
 {
   switch (choice)
     {
-    case SYNC_NONE: return(TO_VAR_NAME(S_sync_none));     break;
-    case SYNC_ALL:  return(TO_VAR_NAME(S_sync_all)); break;
-    default:        return(TO_VAR_NAME(S_sync_by_sound));     break;
+    case SYNC_NONE: return(TO_VAR_NAME(S_sync_none));     
+    case SYNC_ALL:  return(TO_VAR_NAME(S_sync_all)); 
+    default:        return(TO_VAR_NAME(S_sync_by_sound)); 
     }
 }
 
@@ -247,9 +247,9 @@ static const char *enved_target_name(enved_target_t choice)
 {
   switch (choice)
     {
-    case ENVED_SPECTRUM: return(TO_VAR_NAME(S_enved_spectrum));  break;
-    case ENVED_SRATE:    return(TO_VAR_NAME(S_enved_srate));     break;
-    default:             return(TO_VAR_NAME(S_enved_amplitude)); break;
+    case ENVED_SPECTRUM: return(TO_VAR_NAME(S_enved_spectrum));  
+    case ENVED_SRATE:    return(TO_VAR_NAME(S_enved_srate));     
+    default:             return(TO_VAR_NAME(S_enved_amplitude)); 
     }
 }
 

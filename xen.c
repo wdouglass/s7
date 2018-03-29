@@ -1380,6 +1380,7 @@ void xen_repl(int argc, char **argv)
 	    }
 	}
     }
+  /* unreachable */
   free(buffer);
 }
 

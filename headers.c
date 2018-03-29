@@ -234,29 +234,29 @@ int mus_bytes_per_sample(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_BYTE:             return(1); break;
-    case MUS_BSHORT:           return(2); break;
-    case MUS_UBYTE:            return(1); break;
-    case MUS_MULAW:            return(1); break;
-    case MUS_ALAW:             return(1); break;
-    case MUS_BINT:             return(4); break;
-    case MUS_BFLOAT:           return(4); break;
-    case MUS_BFLOAT_UNSCALED:  return(4); break;
-    case MUS_B24INT:           return(3); break;
-    case MUS_BDOUBLE:          return(8); break;
-    case MUS_BDOUBLE_UNSCALED: return(8); break;
-    case MUS_LSHORT:           return(2); break;
-    case MUS_LINT:             return(4); break;
-    case MUS_LFLOAT:           return(4); break;
-    case MUS_LDOUBLE:          return(8); break;
-    case MUS_LFLOAT_UNSCALED:  return(4); break;
-    case MUS_LDOUBLE_UNSCALED: return(8); break;
-    case MUS_L24INT:           return(3); break;
-    case MUS_UBSHORT:          return(2); break;
-    case MUS_ULSHORT:          return(2); break;
-    case MUS_BINTN:            return(4); break;
-    case MUS_LINTN:            return(4); break;
-    default:                   return(1); break; /* we divide by this number, so 0 is not safe */
+    case MUS_BYTE:             return(1);
+    case MUS_BSHORT:           return(2);
+    case MUS_UBYTE:            return(1);
+    case MUS_MULAW:            return(1);
+    case MUS_ALAW:             return(1);
+    case MUS_BINT:             return(4);
+    case MUS_BFLOAT:           return(4);
+    case MUS_BFLOAT_UNSCALED:  return(4);
+    case MUS_B24INT:           return(3);
+    case MUS_BDOUBLE:          return(8);
+    case MUS_BDOUBLE_UNSCALED: return(8);
+    case MUS_LSHORT:           return(2);
+    case MUS_LINT:             return(4);
+    case MUS_LFLOAT:           return(4);
+    case MUS_LDOUBLE:          return(8);
+    case MUS_LFLOAT_UNSCALED:  return(4);
+    case MUS_LDOUBLE_UNSCALED: return(8);
+    case MUS_L24INT:           return(3);
+    case MUS_UBSHORT:          return(2);
+    case MUS_ULSHORT:          return(2);
+    case MUS_BINTN:            return(4);
+    case MUS_LINTN:            return(4);
+    default:                   return(1); /* we divide by this number, so 0 is not safe */
     }
 }
 
@@ -329,79 +329,79 @@ const char *mus_header_type_name(mus_header_t type)
 {
   switch (type)
     {
-    case MUS_NEXT:             return("Sun/Next");                break;
-    case MUS_AIFC:             return("AIFC");                    break;
-    case MUS_RIFF:             return("RIFF");                    break;
-    case MUS_BICSF:            return("BICSF");                   break;
-    case MUS_NIST:             return("NIST");                    break;
-    case MUS_INRS:             return("INRS");                    break;
-    case MUS_ESPS:             return("ESPS");                    break;
-    case MUS_SVX:              return("SVX8");                    break;
-    case MUS_VOC:              return("VOC");                     break;
-    case MUS_SNDT:             return("SNDT");                    break;
-    case MUS_SOX:              return("Sox");                     break;
-    case MUS_RAW:              return("raw (no header)");         break;
-    case MUS_SMP:              return("SMP");                     break;
-    case MUS_AVR:              return("AVR");                     break;
-    case MUS_IRCAM:            return("IRCAM");                   break;
-    case MUS_SD1:              return("Sound Designer 1");        break;
-    case MUS_SPPACK:           return("SPPACK");                  break;
-    case MUS_MUS10:            return("Mus10");                   break;
-    case MUS_HCOM:             return("HCOM");                    break;
-    case MUS_PSION:            return("PSION");                   break;
-    case MUS_MAUD:             return("MAUD");                    break;
-    case MUS_IEEE:             return("IEEE text");               break;
-    case MUS_MATLAB:           return("Matlab");                  break;
-    case MUS_ADC:              return("ADC/OGI");                 break;
-    case MUS_MIDI:             return("MIDI");                    break;
-    case MUS_SOUNDFONT:        return("SoundFont");               break;
-    case MUS_GRAVIS:           return("Gravis Ultrasound patch"); break;
-    case MUS_COMDISCO:         return("Comdisco SPW signal");     break;
-    case MUS_GOLDWAVE:         return("Goldwave sample");         break;
-    case MUS_SRFS:             return("SRFS");                    break;
-    case MUS_MIDI_SAMPLE_DUMP: return("MIDI sample dump");        break;
-    case MUS_DIAMONDWARE:      return("DiamondWare");             break;
-    case MUS_ADF:              return("CSRE adf");                break;
-    case MUS_SBSTUDIOII:       return("SBStudioII");              break;
-    case MUS_DELUSION:         return("Delusion");                break;
-    case MUS_FARANDOLE:        return("Farandole");               break;
-    case MUS_SAMPLE_DUMP:      return("Sample dump");             break;
-    case MUS_ULTRATRACKER:     return("Ultratracker");            break;
-    case MUS_YAMAHA_TX16W:     return("TX-16W");                  break;
-    case MUS_YAMAHA_SY85:      return("Sy-85");                   break;
-    case MUS_YAMAHA_SY99:      return("Sy-99");                   break;
-    case MUS_KURZWEIL_2000:    return("Kurzweil 2000");           break;
-    case MUS_KORG:             return("Korg");                    break;
-    case MUS_MAUI:             return("Turtle Beach");            break;
-    case MUS_IMPULSETRACKER:   return("Impulse Tracker");         break;
-    case MUS_AKAI4:            return("AKAI 4");                  break;
-    case MUS_DIGIPLAYER:       return("Digiplayer ST3");          break;
-    case MUS_COVOX:            return("Covox V8");                break;
-    case MUS_AVI:              return("AVI");                     break;
-    case MUS_OMF:              return("OMF");                     break;
-    case MUS_QUICKTIME:        return("Quicktime");               break;
-    case MUS_ASF:              return("asf");                     break;
-    case MUS_AIFF:             return("AIFF");                    break;
-    case MUS_PAF:              return("Ensoniq Paris");           break;
-    case MUS_CSL:              return("CSL");                     break;
-    case MUS_FILE_SAMP:        return("snack SMP");               break;
-    case MUS_PVF:              return("Portable Voice Format");   break;
-    case MUS_SOUNDFORGE:       return("SoundForge");              break;
-    case MUS_TWINVQ:           return("TwinVQ");                  break;
-    case MUS_SDIF:             return("IRCAM sdif");              break;
+    case MUS_NEXT:             return("Sun/Next");                
+    case MUS_AIFC:             return("AIFC");                    
+    case MUS_RIFF:             return("RIFF");                    
+    case MUS_BICSF:            return("BICSF");                   
+    case MUS_NIST:             return("NIST");                    
+    case MUS_INRS:             return("INRS");                    
+    case MUS_ESPS:             return("ESPS");                    
+    case MUS_SVX:              return("SVX8");                    
+    case MUS_VOC:              return("VOC");                     
+    case MUS_SNDT:             return("SNDT");                    
+    case MUS_SOX:              return("Sox");                     
+    case MUS_RAW:              return("raw (no header)");         
+    case MUS_SMP:              return("SMP");                     
+    case MUS_AVR:              return("AVR");                     
+    case MUS_IRCAM:            return("IRCAM");                   
+    case MUS_SD1:              return("Sound Designer 1");        
+    case MUS_SPPACK:           return("SPPACK");                  
+    case MUS_MUS10:            return("Mus10");                   
+    case MUS_HCOM:             return("HCOM");                    
+    case MUS_PSION:            return("PSION");                   
+    case MUS_MAUD:             return("MAUD");                    
+    case MUS_IEEE:             return("IEEE text");               
+    case MUS_MATLAB:           return("Matlab");                  
+    case MUS_ADC:              return("ADC/OGI");                 
+    case MUS_MIDI:             return("MIDI");                    
+    case MUS_SOUNDFONT:        return("SoundFont");               
+    case MUS_GRAVIS:           return("Gravis Ultrasound patch"); 
+    case MUS_COMDISCO:         return("Comdisco SPW signal");     
+    case MUS_GOLDWAVE:         return("Goldwave sample");         
+    case MUS_SRFS:             return("SRFS");                    
+    case MUS_MIDI_SAMPLE_DUMP: return("MIDI sample dump");        
+    case MUS_DIAMONDWARE:      return("DiamondWare");             
+    case MUS_ADF:              return("CSRE adf");                
+    case MUS_SBSTUDIOII:       return("SBStudioII");              
+    case MUS_DELUSION:         return("Delusion");                
+    case MUS_FARANDOLE:        return("Farandole");               
+    case MUS_SAMPLE_DUMP:      return("Sample dump");             
+    case MUS_ULTRATRACKER:     return("Ultratracker");            
+    case MUS_YAMAHA_TX16W:     return("TX-16W");                  
+    case MUS_YAMAHA_SY85:      return("Sy-85");                   
+    case MUS_YAMAHA_SY99:      return("Sy-99");                   
+    case MUS_KURZWEIL_2000:    return("Kurzweil 2000");           
+    case MUS_KORG:             return("Korg");                    
+    case MUS_MAUI:             return("Turtle Beach");            
+    case MUS_IMPULSETRACKER:   return("Impulse Tracker");         
+    case MUS_AKAI4:            return("AKAI 4");                  
+    case MUS_DIGIPLAYER:       return("Digiplayer ST3");          
+    case MUS_COVOX:            return("Covox V8");                
+    case MUS_AVI:              return("AVI");                     
+    case MUS_OMF:              return("OMF");                     
+    case MUS_QUICKTIME:        return("Quicktime");               
+    case MUS_ASF:              return("asf");                     
+    case MUS_AIFF:             return("AIFF");                    
+    case MUS_PAF:              return("Ensoniq Paris");           
+    case MUS_CSL:              return("CSL");                     
+    case MUS_FILE_SAMP:        return("snack SMP");               
+    case MUS_PVF:              return("Portable Voice Format");   
+    case MUS_SOUNDFORGE:       return("SoundForge");              
+    case MUS_TWINVQ:           return("TwinVQ");                  
+    case MUS_SDIF:             return("IRCAM sdif");              
 #if G7XX
-    case MUS_NVF:              return("Creative NVF");            break;
+    case MUS_NVF:              return("Creative NVF");            
 #endif
-    case MUS_OGG:              return("Ogg Vorbis");              break;
-    case MUS_FLAC:             return("Flac");                    break;
-    case MUS_SPEEX:            return("Speex");                   break;
-    case MUS_MPEG:             return("mpeg");                    break;
-    case MUS_SHORTEN:          return("shorten");                 break;
-    case MUS_TTA:              return("tta");                     break;
-    case MUS_WAVPACK:          return("wavpack");                 break;
-    case MUS_RF64:             return("rf64");                    break;
-    case MUS_CAFF:             return("caff");                    break;
-    default:                   return("unknown");                 break;
+    case MUS_OGG:              return("Ogg Vorbis");              
+    case MUS_FLAC:             return("Flac");                    
+    case MUS_SPEEX:            return("Speex");                   
+    case MUS_MPEG:             return("mpeg");                    
+    case MUS_SHORTEN:          return("shorten");                 
+    case MUS_TTA:              return("tta");                     
+    case MUS_WAVPACK:          return("wavpack");                 
+    case MUS_RF64:             return("rf64");                    
+    case MUS_CAFF:             return("caff");                    
+    default:                   return("unknown");                 
     }
 }
 
@@ -410,29 +410,29 @@ const char *mus_sample_type_name(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_BSHORT:           return("big endian short (16 bits)");               break;
-    case MUS_MULAW:            return("mulaw (8 bits)");                           break;
-    case MUS_BYTE:             return("signed byte (8 bits)");                     break;
-    case MUS_BFLOAT:           return("big endian float (32 bits)");               break;
-    case MUS_BFLOAT_UNSCALED:  return("big endian float (32 bits, unscaled)");     break;
-    case MUS_BINT:             return("big endian int (32 bits)");                 break;
-    case MUS_ALAW:             return("alaw (8 bits)");                            break;
-    case MUS_UBYTE:            return("unsigned byte (8 bits)");                   break;
-    case MUS_B24INT:           return("big endian int (24 bits)");                 break;
-    case MUS_BDOUBLE:          return("big endian double (64 bits)");              break;
-    case MUS_BDOUBLE_UNSCALED: return("big endian double (64 bits, unscaled)");    break;
-    case MUS_LSHORT:           return("little endian short (16 bits)");            break;
-    case MUS_LINT:             return("little endian int (32 bits)");              break;
-    case MUS_LFLOAT:           return("little endian float (32 bits)");            break;
-    case MUS_LDOUBLE:          return("little endian double (64 bits)");           break;
-    case MUS_LFLOAT_UNSCALED:  return("little endian float (32 bits, unscaled)");  break;
-    case MUS_LDOUBLE_UNSCALED: return("little endian double (64 bits, unscaled)"); break;
-    case MUS_UBSHORT:          return("unsigned big endian short (16 bits)");      break;
-    case MUS_ULSHORT:          return("unsigned little endian short (16 bits)");   break;
-    case MUS_L24INT:           return("little endian int (24 bits)");              break;
-    case MUS_BINTN:            return("normalized big endian int (32 bits)");      break;
-    case MUS_LINTN:            return("normalized little endian int (32 bits)");   break;
-    default:                   return("unknown");                                  break;
+    case MUS_BSHORT:           return("big endian short (16 bits)");               
+    case MUS_MULAW:            return("mulaw (8 bits)");                           
+    case MUS_BYTE:             return("signed byte (8 bits)");                     
+    case MUS_BFLOAT:           return("big endian float (32 bits)");               
+    case MUS_BFLOAT_UNSCALED:  return("big endian float (32 bits, unscaled)");     
+    case MUS_BINT:             return("big endian int (32 bits)");                 
+    case MUS_ALAW:             return("alaw (8 bits)");                            
+    case MUS_UBYTE:            return("unsigned byte (8 bits)");                   
+    case MUS_B24INT:           return("big endian int (24 bits)");                 
+    case MUS_BDOUBLE:          return("big endian double (64 bits)");              
+    case MUS_BDOUBLE_UNSCALED: return("big endian double (64 bits, unscaled)");    
+    case MUS_LSHORT:           return("little endian short (16 bits)");            
+    case MUS_LINT:             return("little endian int (32 bits)");              
+    case MUS_LFLOAT:           return("little endian float (32 bits)");            
+    case MUS_LDOUBLE:          return("little endian double (64 bits)");           
+    case MUS_LFLOAT_UNSCALED:  return("little endian float (32 bits, unscaled)");  
+    case MUS_LDOUBLE_UNSCALED: return("little endian double (64 bits, unscaled)"); 
+    case MUS_UBSHORT:          return("unsigned big endian short (16 bits)");      
+    case MUS_ULSHORT:          return("unsigned little endian short (16 bits)");   
+    case MUS_L24INT:           return("little endian int (24 bits)");              
+    case MUS_BINTN:            return("normalized big endian int (32 bits)");      
+    case MUS_LINTN:            return("normalized little endian int (32 bits)");   
+    default:                   return("unknown");                                  
     }
 }
 
@@ -441,29 +441,29 @@ const char *mus_sample_type_short_name(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_BSHORT:           return("short int");       break;
-    case MUS_MULAW:            return("mulaw");           break;
-    case MUS_BYTE:             return("signed byte");     break;
-    case MUS_BFLOAT:           return("float");           break;
-    case MUS_BFLOAT_UNSCALED:  return("float unscaled)"); break;
-    case MUS_BINT:             return("int");             break;
-    case MUS_ALAW:             return("alaw");            break;
-    case MUS_UBYTE:            return("unsigned byte");   break;
-    case MUS_B24INT:           return("24-bit int");      break;
-    case MUS_BDOUBLE:          return("double");          break;
-    case MUS_BDOUBLE_UNSCALED: return("double unscaled"); break;
-    case MUS_LSHORT:           return("short int");       break;
-    case MUS_LINT:             return("int");             break;
-    case MUS_LFLOAT:           return("float");           break;
-    case MUS_LDOUBLE:          return("double");          break;
-    case MUS_LFLOAT_UNSCALED:  return("float unscaled");  break;
-    case MUS_LDOUBLE_UNSCALED: return("double unscaled"); break;
-    case MUS_UBSHORT:          return("unsigned short");  break;
-    case MUS_ULSHORT:          return("unsigned short");  break;
-    case MUS_L24INT:           return("24-bit int");      break;
-    case MUS_BINTN:            return("normalized int");  break;
-    case MUS_LINTN:            return("normalized int");  break;
-    default:                   return("unknown");         break;
+    case MUS_BSHORT:           return("short int");       
+    case MUS_MULAW:            return("mulaw");           
+    case MUS_BYTE:             return("signed byte");     
+    case MUS_BFLOAT:           return("float");           
+    case MUS_BFLOAT_UNSCALED:  return("float unscaled)"); 
+    case MUS_BINT:             return("int");             
+    case MUS_ALAW:             return("alaw");            
+    case MUS_UBYTE:            return("unsigned byte");   
+    case MUS_B24INT:           return("24-bit int");      
+    case MUS_BDOUBLE:          return("double");          
+    case MUS_BDOUBLE_UNSCALED: return("double unscaled"); 
+    case MUS_LSHORT:           return("short int");       
+    case MUS_LINT:             return("int");             
+    case MUS_LFLOAT:           return("float");           
+    case MUS_LDOUBLE:          return("double");          
+    case MUS_LFLOAT_UNSCALED:  return("float unscaled");  
+    case MUS_LDOUBLE_UNSCALED: return("double unscaled"); 
+    case MUS_UBSHORT:          return("unsigned short");  
+    case MUS_ULSHORT:          return("unsigned short");  
+    case MUS_L24INT:           return("24-bit int");      
+    case MUS_BINTN:            return("normalized int");  
+    case MUS_LINTN:            return("normalized int");  
+    default:                   return("unknown");         
     }
 }
 
@@ -652,33 +652,32 @@ static int sndlib_format_to_next(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_MULAW:            return(1);  break;
-    case MUS_BYTE:             return(2);  break;
-    case MUS_BSHORT:           return(3);  break;
-    case MUS_B24INT:           return(4);  break;
-    case MUS_BINT:             return(5);  break;
-    case MUS_BFLOAT:           return(6);  break;
-    case MUS_BDOUBLE:          return(7);  break;
-    case MUS_ALAW:             return(27); break;
-    case MUS_LINT:             return(30); break; /* see above */
-    case MUS_LFLOAT:           return(31); break; 
-    case MUS_BINTN:            return(32); break; 
-    case MUS_LINTN:            return(33); break; 
-    case MUS_LDOUBLE:          return(34); break; 
-    case MUS_ULSHORT:          return(35); break; 
-    case MUS_UBSHORT:          return(36); break;
-    case MUS_LFLOAT_UNSCALED:  return(37); break;
-    case MUS_BFLOAT_UNSCALED:  return(38); break;
-    case MUS_LDOUBLE_UNSCALED: return(39); break;
-    case MUS_BDOUBLE_UNSCALED: return(40); break;
-    case MUS_LSHORT:           return(41); break;
-    case MUS_L24INT:           return(42); break;
-    case MUS_UBYTE:            return(43); break;
+    case MUS_MULAW:            return(1);  
+    case MUS_BYTE:             return(2);  
+    case MUS_BSHORT:           return(3);  
+    case MUS_B24INT:           return(4);  
+    case MUS_BINT:             return(5);  
+    case MUS_BFLOAT:           return(6);  
+    case MUS_BDOUBLE:          return(7);  
+    case MUS_ALAW:             return(27); 
+    case MUS_LINT:             return(30); 
+    case MUS_LFLOAT:           return(31); 
+    case MUS_BINTN:            return(32); 
+    case MUS_LINTN:            return(33); 
+    case MUS_LDOUBLE:          return(34); 
+    case MUS_ULSHORT:          return(35); 
+    case MUS_UBSHORT:          return(36); 
+    case MUS_LFLOAT_UNSCALED:  return(37); 
+    case MUS_BFLOAT_UNSCALED:  return(38); 
+    case MUS_LDOUBLE_UNSCALED: return(39); 
+    case MUS_BDOUBLE_UNSCALED: return(40); 
+    case MUS_LSHORT:           return(41); 
+    case MUS_L24INT:           return(42); 
+    case MUS_UBYTE:            return(43); 
     default: 
       return(mus_error(MUS_UNSUPPORTED_SAMPLE_TYPE, "Next header: can't write sample type: %d (%s)",
 		       samp_type,
 		       any_sample_type_name(samp_type)));
-      break;
     }
 }
 
@@ -1242,11 +1241,11 @@ static int sndlib_format_to_aiff_bits(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_BSHORT: case MUS_LSHORT: case MUS_UBSHORT: case MUS_ULSHORT:  return(16); break;
-    case MUS_B24INT: case MUS_L24INT:                                      return(24); break;
-    case MUS_BINT: case MUS_LINT: case MUS_BFLOAT: case MUS_LFLOAT:        return(32); break;
-    case MUS_BDOUBLE: case MUS_LDOUBLE:                                    return(64); break;
-    case MUS_BYTE: case MUS_UBYTE: case MUS_MULAW: case MUS_ALAW:          return(8);  break;
+    case MUS_BSHORT: case MUS_LSHORT: case MUS_UBSHORT: case MUS_ULSHORT:  return(16); 
+    case MUS_B24INT: case MUS_L24INT:                                      return(24); 
+    case MUS_BINT: case MUS_LINT: case MUS_BFLOAT: case MUS_LFLOAT:        return(32); 
+    case MUS_BDOUBLE: case MUS_LDOUBLE:                                    return(64); 
+    case MUS_BYTE: case MUS_UBYTE: case MUS_MULAW: case MUS_ALAW:          return(8);  
     default: 
       return(mus_error(MUS_UNSUPPORTED_SAMPLE_TYPE, "aiff header: can't write sample type: %d (%s)",
 		       samp_type,
@@ -1260,14 +1259,14 @@ static const char *sndlib_format_to_aifc_name(mus_sample_t samp_type)
 {
   switch (samp_type)
     {
-    case MUS_BSHORT: case MUS_B24INT: case MUS_BINT: case MUS_BYTE: return((const char *)I_NONE); break; /* use in24 and in32? */
-    case MUS_LSHORT: case MUS_L24INT: case MUS_LINT:                return((const char *)I_sowt); break; /* should this use ni23? */
-    case MUS_BFLOAT:                                                return((const char *)I_fl32); break;
-    case MUS_BDOUBLE:                                               return((const char *)I_fl64); break;
-    case MUS_UBYTE: case MUS_UBSHORT:                               return((const char *)I_raw_); break;
-    case MUS_MULAW:                                                 return((const char *)I_ulaw); break;
-    case MUS_ALAW:                                                  return((const char *)I_alaw); break;
-    default:                                                        return((const char *)I_NONE); break;
+    case MUS_BSHORT: case MUS_B24INT: case MUS_BINT: case MUS_BYTE: return((const char *)I_NONE); /* use in24 and in32? */
+    case MUS_LSHORT: case MUS_L24INT: case MUS_LINT:                return((const char *)I_sowt); /* should this use ni23? */
+    case MUS_BFLOAT:                                                return((const char *)I_fl32); 
+    case MUS_BDOUBLE:                                               return((const char *)I_fl64); 
+    case MUS_UBYTE: case MUS_UBSHORT:                               return((const char *)I_raw_); 
+    case MUS_MULAW:                                                 return((const char *)I_ulaw); 
+    case MUS_ALAW:                                                  return((const char *)I_alaw); 
+    default:                                                        return((const char *)I_NONE); 
     }
 }
 
@@ -3540,7 +3539,7 @@ static int read_sdif_header(const char *filename, int fd)
 	  else type = 6;
 	  return(mus_error(MUS_HEADER_READ_FAILED, "this SDIF file contains %s data, not sampled sound", sdif_names[type]));
 	}
-      
+      /* unreachable */
       offset += size;
     }
   return(MUS_HEADER_READ_FAILED);
@@ -6896,14 +6895,28 @@ const char *mus_header_original_sample_type_name(int samp_type, mus_header_t typ
     case MUS_NEXT:
       switch (samp_type)
 	{
-	case 0: return("unspecified"); break; case 8: return("indirect"); break; case 9: return("nested"); break;
-	case 10: return("dsp_core"); break; case 11: return("dsp_data_8"); break; case 12: return("dsp_data_16"); break;
-	case 13: return("dsp_data_24"); break; case 14: return("dsp_data_32"); break; case 16: return("display"); break;
-	case 17: return("mulaw_squelch"); break; case 18: return("emphasized"); break; case 19: return("compressed"); break;
-	case 20: return("compressed_emphasized"); break; case 21: return("dsp_commands"); break; case 22: return("dsp_commands_samples"); break;
-	case 23: return("adpcm_g721"); break; case 24: return("adpcm_g722"); break; case 25: return("adpcm_g723"); break;
-	case 26: return("adpcm_g723_5"); break; case 28: return("aes"); break; case 29: return("delat_mulaw_8"); break;
-	}
+	case 0: return("unspecified");
+	case 8: return("indirect");
+	case 9: return("nested");
+ 	case 10: return("dsp_core");
+	case 11: return("dsp_data_8");
+	case 12: return("dsp_data_16");
+ 	case 13: return("dsp_data_24");
+	case 14: return("dsp_data_32");
+	case 16: return("display"); 
+	case 17: return("mulaw_squelch"); 
+	case 18: return("emphasized"); 
+	case 19: return("compressed"); 	
+	case 20: return("compressed_emphasized"); 
+	case 21: return("dsp_commands"); 
+	case 22: return("dsp_commands_samples");
+ 	case 23: return("adpcm_g721"); 
+	case 24: return("adpcm_g722"); 
+	case 25: return("adpcm_g723"); 	
+	case 26: return("adpcm_g723_5"); 
+	case 28: return("aes"); 
+	case 29: return("delat_mulaw_8");
+ 	}
       break;
 
     case MUS_AIFC: 
@@ -6926,41 +6939,107 @@ const char *mus_header_original_sample_type_name(int samp_type, mus_header_t typ
     case MUS_RF64:
       switch (samp_type)
 	{
-	case 2: return("ADPCM"); break; case 4: return("VSELP"); break; case 5: return("IBM_CVSD"); break;
-	case 0x10: return("OKI_ADPCM"); break; case 0x11: return("DVI_ADPCM"); break; case 0x12: return("MediaSpace_ADPCM"); break;
-	case 0x13: return("Sierra_ADPCM"); break; case 0x14: return("G723_ADPCM"); break; case 0x15: return("DIGISTD"); break;
-	case 0x16: return("DIGIFIX"); break; case 0x17: return("Dialogic ADPCM"); break; case 0x18: return("Mediavision ADPCM"); break;
-	case 0x19: return("HP cu codec"); break; case 0x20: return("Yamaha_ADPCM"); break; case 0x21: return("SONARC"); break;
-	case 0x22: return("DSPGroup_TrueSpeech"); break; case 0x23: return("EchoSC1"); break; case 0x24: return("AudioFile_AF36"); break;
-	case 0x25: return("APTX"); break; case 0x26: return("AudioFile_AF10"); break; case 0x27: return("prosody 1612"); break;
-	case 0x28: return("lrc"); break; case 0x30: return("Dolby_Ac2"); break; case 0x31: return("GSM610"); break;
-	case 0x32: return("MSN audio codec"); break; case 0x33: return("Antext_ADPCM"); break; case 0x34: return("Control_res_vqlpc"); break;
-	case 0x35: return("DIGIREAL"); break; case 0x36: return("DIGIADPCM"); break; case 0x37: return("Control_res_cr10"); break;
-	case 0x38: return("NMS_VBXADPCM"); break; case 0x39: return("oland rdac"); break; case 0x3a: return("echo sc3"); break;
-	case 0x3b: return("Rockwell adpcm"); break; case 0x3c: return("Rockwell digitalk codec"); break; case 0x3d: return("Xebec"); break;
-	case 0x40: return("G721_ADPCM"); break; case 0x41: return("G728 CELP"); break; case 0x42: return("MS G723"); break;
-	case 0x50: return("MPEG"); break; case 0x52: return("RT24"); break; case 0x53: return("PAC"); break;
-	case 0x55: return("Mpeg layer 3"); break; case 0x59: return("Lucent G723"); break; case 0x60: return("Cirrus"); break;
-	case 0x61: return("ESS Tech pcm"); break; case 0x62: return("voxware "); break; case 0x63: return("canopus atrac"); break;
-	case 0x64: return("G726"); break; case 0x65: return("G722"); break; case 0x66: return("DSAT"); break;
-	case 0x67: return("DSAT display"); break; case 0x69: return("voxware "); break; case 0x70: return("voxware ac8 "); break;
-	case 0x71: return("voxware ac10 "); break; case 0x72: return("voxware ac16"); break; case 0x73: return("voxware ac20"); break;
-	case 0x74: return("voxware rt24"); break; case 0x75: return("voxware rt29"); break; case 0x76: return("voxware rt29hw"); break;
-	case 0x77: return("voxware vr12 "); break; case 0x78: return("voxware vr18"); break; case 0x79: return("voxware tq40"); break;
-	case 0x80: return("softsound"); break; case 0x81: return("voxware tq60 "); break; case 0x82: return("MS RT24"); break;
-	case 0x83: return("G729A"); break; case 0x84: return("MVI_MVI2"); break; case 0x85: return("DF G726"); break;
-	case 0x86: return("DF GSM610"); break; case 0x88: return("isaudio"); break; case 0x89: return("onlive"); break;
-	case 0x91: return("sbc24"); break; case 0x92: return("dolby ac3 spdif"); break; case 0x97: return("zyxel adpcm"); break;
-	case 0x98: return("philips lpcbb"); break; case 0x99: return("packed"); break; case 0x100: return("rhetorex adpcm"); break;
-	case 0x101: return("Irat"); break; case 0x102: return("IBM_alaw?"); break; case 0x103: return("IBM_ADPCM?"); break;
-	case 0x111: return("vivo G723"); break; case 0x112: return("vivo siren"); break; case 0x123: return("digital g273"); break;
-	case 0x200: return("Creative_ADPCM"); break; case 0x202: return("Creative fastspeech 8"); break; 
-	case 0x203: return("Creative fastspeech 10"); break;
-	case 0x220: return("quarterdeck"); break; case 0x300: return("FM_TOWNS_SND"); break; case 0x400: return("BTV digital"); break;
-	case 0x680: return("VME vmpcm"); break; case 0x1000: return("OLIGSM"); break; case 0x1001: return("OLIADPCM"); break;
-	case 0x1002: return("OLICELP"); break; case 0x1003: return("OLISBC"); break; case 0x1004: return("OLIOPR"); break;
-	case 0x1100: return("LH codec"); break; case 0x1400: return("Norris"); break; case 0x1401: return("isaudio"); break;
-	case 0x1500: return("Soundspace musicompression"); break; case 0x2000: return("DVM"); break; 
+	case 2: return("ADPCM"); 
+	case 4: return("VSELP"); 
+	case 5: return("IBM_CVSD"); 	
+	case 0x10: return("OKI_ADPCM"); 
+	case 0x11: return("DVI_ADPCM"); 
+	case 0x12: return("MediaSpace_ADPCM"); 	
+	case 0x13: return("Sierra_ADPCM"); 
+	case 0x14: return("G723_ADPCM"); 
+	case 0x15: return("DIGISTD"); 	
+	case 0x16: return("DIGIFIX"); 
+	case 0x17: return("Dialogic ADPCM"); 
+	case 0x18: return("Mediavision ADPCM"); 	
+	case 0x19: return("HP cu codec"); 
+	case 0x20: return("Yamaha_ADPCM"); 
+	case 0x21: return("SONARC"); 	
+	case 0x22: return("DSPGroup_TrueSpeech"); 
+	case 0x23: return("EchoSC1"); 
+	case 0x24: return("AudioFile_AF36"); 	
+	case 0x25: return("APTX"); 
+	case 0x26: return("AudioFile_AF10"); 
+	case 0x27: return("prosody 1612"); 	
+	case 0x28: return("lrc"); 
+	case 0x30: return("Dolby_Ac2"); 
+	case 0x31: return("GSM610"); 	
+	case 0x32: return("MSN audio codec"); 
+	case 0x33: return("Antext_ADPCM"); 
+	case 0x34: return("Control_res_vqlpc"); 	
+	case 0x35: return("DIGIREAL"); 
+	case 0x36: return("DIGIADPCM"); 
+	case 0x37: return("Control_res_cr10"); 	
+	case 0x38: return("NMS_VBXADPCM"); 
+	case 0x39: return("oland rdac"); 
+	case 0x3a: return("echo sc3"); 	
+	case 0x3b: return("Rockwell adpcm"); 
+	case 0x3c: return("Rockwell digitalk codec"); 
+	case 0x3d: return("Xebec"); 	
+	case 0x40: return("G721_ADPCM"); 
+	case 0x41: return("G728 CELP"); 
+	case 0x42: return("MS G723"); 	
+	case 0x50: return("MPEG"); 
+	case 0x52: return("RT24"); 
+	case 0x53: return("PAC"); 	
+	case 0x55: return("Mpeg layer 3"); 
+	case 0x59: return("Lucent G723"); 
+	case 0x60: return("Cirrus"); 	
+	case 0x61: return("ESS Tech pcm"); 
+	case 0x62: return("voxware "); 
+	case 0x63: return("canopus atrac"); 	
+	case 0x64: return("G726"); 
+	case 0x65: return("G722"); 
+	case 0x66: return("DSAT"); 	
+	case 0x67: return("DSAT display"); 
+	case 0x69: return("voxware "); 
+	case 0x70: return("voxware ac8 "); 	
+	case 0x71: return("voxware ac10 "); 
+	case 0x72: return("voxware ac16"); 
+	case 0x73: return("voxware ac20"); 	
+	case 0x74: return("voxware rt24"); 
+	case 0x75: return("voxware rt29"); 
+	case 0x76: return("voxware rt29hw"); 	
+	case 0x77: return("voxware vr12 "); 
+	case 0x78: return("voxware vr18"); 
+	case 0x79: return("voxware tq40"); 	
+	case 0x80: return("softsound"); 
+	case 0x81: return("voxware tq60 "); 
+	case 0x82: return("MS RT24"); 	
+	case 0x83: return("G729A"); 
+	case 0x84: return("MVI_MVI2"); 
+	case 0x85: return("DF G726"); 	
+	case 0x86: return("DF GSM610"); 
+	case 0x88: return("isaudio"); 
+	case 0x89: return("onlive"); 	
+	case 0x91: return("sbc24"); 
+	case 0x92: return("dolby ac3 spdif"); 
+	case 0x97: return("zyxel adpcm"); 	
+	case 0x98: return("philips lpcbb"); 
+	case 0x99: return("packed"); 
+	case 0x100: return("rhetorex adpcm"); 	
+	case 0x101: return("Irat"); 
+	case 0x102: return("IBM_alaw?"); 
+	case 0x103: return("IBM_ADPCM?"); 	
+	case 0x111: return("vivo G723"); 
+	case 0x112: return("vivo siren"); 
+	case 0x123: return("digital g273"); 	
+	case 0x200: return("Creative_ADPCM"); 
+	case 0x202: return("Creative fastspeech 8"); 
+	case 0x203: return("Creative fastspeech 10"); 	
+	case 0x220: return("quarterdeck"); 
+	case 0x300: return("FM_TOWNS_SND"); 
+	case 0x400: return("BTV digital"); 	
+	case 0x680: return("VME vmpcm"); 
+	case 0x1000: return("OLIGSM"); 
+	case 0x1001: return("OLIADPCM"); 	
+	case 0x1002: return("OLICELP"); 
+	case 0x1003: return("OLISBC"); 
+	case 0x1004: return("OLIOPR"); 	
+	case 0x1100: return("LH codec"); 
+	case 0x1400: return("Norris"); 
+	case 0x1401: return("isaudio"); 	
+	case 0x1500: return("Soundspace musicompression"); 
+	case 0x2000: return("DVM"); 
 	}
       break;
 
