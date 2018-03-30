@@ -798,8 +798,13 @@ static void reflect_changed_base(mus_float_t val)
       else
 	{
 	  if (val <= 1.0)
-	    ival = pow(val, 1.0 / (enved_power(ss) - 1.0)) * 0.5;
-	  else ival = (0.5 + ((0.5 * (pow(val, (1.0 / (enved_power(ss)))) - 1)) / 10.0));
+	    ival = 0.5 * pow(val, 1.0 / (enved_power(ss) - 1.0));
+	  else 
+	    {
+	      if (enved_power(ss) != 0.0)
+		ival = (0.5 + 0.05 * (pow(val, (1.0 / (enved_power(ss)))) - 1));
+	      else ival = 0.5; /* ?? maybe 5.0? */
+	    }
 	}
     }
   if (baseAdj)

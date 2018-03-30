@@ -3155,7 +3155,13 @@ static OSStatus reader(AudioDeviceID inDevice,
 static AudioDeviceID device = kAudioDeviceUnknown;
 static bool writing = false, open_for_input = false;
 
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#ifdef MAC_OS_X_VERSION_10_5
+  #define HAVE_OSX_10_5 1
+#else
+  #define HAVE_OSX_10_5 0
+#endif
+
+#if HAVE_OSX_10_5
   static AudioDeviceIOProcID read_procId, write_procId;
 #endif 
 
@@ -3169,7 +3175,7 @@ int mus_audio_close(int line)
       in_buf = 0;
       err = AudioDeviceStop(device, (AudioDeviceIOProc)reader);
       if (err == noErr) 
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#if HAVE_OSX_10_5
 	err = AudioDeviceDestroyIOProcID(device, read_procId);
 #else
         err = AudioDeviceRemoveIOProc(device, (AudioDeviceIOProc)reader);
@@ -3180,7 +3186,7 @@ int mus_audio_close(int line)
       if ((in_buf > 0) && (!writing))
 	{
 	  /* short enough sound that we never got started? */
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#if HAVE_OSX_10_5
 	  err = AudioDeviceCreateIOProcID(device, (AudioDeviceIOProc)writer, NULL, &write_procId);
 #else
 	  err = AudioDeviceAddIOProc(device, (AudioDeviceIOProc)writer, NULL);
@@ -3217,7 +3223,7 @@ int mus_audio_close(int line)
 	  in_buf = 0;
 	  err = AudioDeviceStop(device, (AudioDeviceIOProc)writer);
 	  if (err == noErr) 
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#if HAVE_OSX_10_5
 	    err = AudioDeviceDestroyIOProcID(device, write_procId);
 #else
 	    err = AudioDeviceRemoveIOProc(device, (AudioDeviceIOProc)writer);
@@ -3590,7 +3596,7 @@ int mus_audio_write(int line, char *buf, int bytes)
 	  if (in_buf == MAX_BUFS)
 	    {
 	      in_buf = 0;
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#if HAVE_OSX_10_5
 	      err = AudioDeviceCreateIOProcID(device, (AudioDeviceIOProc)writer, NULL, &write_procId);
 #else
 	      err = AudioDeviceAddIOProc(device, (AudioDeviceIOProc)writer, NULL);
@@ -3693,7 +3699,7 @@ int mus_audio_open_input(int dev, int srate, int chans, mus_sample_t samp_type, 
   incoming_out_srate = srate;
   incoming_out_chans = chans;
 
-#if HAVE_AUDIODEVICEDESTROYIOPROCID
+#if HAVE_OSX_10_5
   err = AudioDeviceCreateIOProcID(device, (AudioDeviceIOProc)reader, NULL, &read_procId);
 #else
   err = AudioDeviceAddIOProc(device, (AudioDeviceIOProc)reader, NULL);

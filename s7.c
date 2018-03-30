@@ -1507,111 +1507,110 @@ static s7_scheme *cur_sc = NULL;
     } while (0)
 
   /* these check most s7cell field references (and many type bits) for consistency */
-  #define _TI(P)   check_ref(P, T_INTEGER,           __func__, __LINE__, NULL, NULL)
-  #define _TR(P)   check_ref(P, T_REAL,              __func__, __LINE__, NULL, NULL)
-  #define _TF(P)   check_ref2(P, T_RATIO, T_INTEGER, __func__, __LINE__, NULL, NULL)
-  #define _TZ(P)   check_ref(P, T_COMPLEX,           __func__, __LINE__, NULL, NULL)
-  #define _TBgi(P) check_ref(P, T_BIG_INTEGER,       __func__, __LINE__, "sweep", NULL)
-  #define _TBgr(P) check_ref(P, T_BIG_REAL,          __func__, __LINE__, "sweep", NULL)
-  #define _TBgf(P) check_ref(P, T_BIG_RATIO,         __func__, __LINE__, "sweep", NULL)
-  #define _TBgz(P) check_ref(P, T_BIG_COMPLEX,       __func__, __LINE__, "sweep", NULL)
+  #define T_Int(P) check_ref(P, T_INTEGER,           __func__, __LINE__, NULL, NULL)
+  #define T_Rel(P) check_ref(P, T_REAL,              __func__, __LINE__, NULL, NULL)
+  #define T_Frc(P) check_ref2(P, T_RATIO, T_INTEGER, __func__, __LINE__, NULL, NULL)
+  #define T_Cmp(P) check_ref(P, T_COMPLEX,           __func__, __LINE__, NULL, NULL)
+  #define T_Bgi(P) check_ref(P, T_BIG_INTEGER,       __func__, __LINE__, "sweep", NULL)
+  #define T_Bgr(P) check_ref(P, T_BIG_REAL,          __func__, __LINE__, "sweep", NULL)
+  #define T_Bgf(P) check_ref(P, T_BIG_RATIO,         __func__, __LINE__, "sweep", NULL)
+  #define T_Bgz(P) check_ref(P, T_BIG_COMPLEX,       __func__, __LINE__, "sweep", NULL)
 
-  #define _TChr(P) check_ref(P, T_CHARACTER,         __func__, __LINE__, NULL, NULL)
-  #define _TCtr(P) check_ref(P, T_COUNTER,           __func__, __LINE__, NULL, NULL)
-  #define _TOpt(P) check_ref(P, T_OPTLIST,           __func__, __LINE__, "free_optlist", NULL)
-  #define _TPtr(P) check_ref(P, T_C_POINTER,         __func__, __LINE__, NULL, NULL)
-  #define _TBfl(P) check_ref(P, T_BAFFLE,            __func__, __LINE__, NULL, NULL)
-  #define _TGot(P) check_ref(P, T_GOTO,              __func__, __LINE__, NULL, NULL)
-  #define _TStk(P) check_ref(P, T_STACK,             __func__, __LINE__, NULL, NULL)
-  #define _TPair(P) check_ref(P, T_PAIR,             __func__, __LINE__, NULL, NULL)
-  #define _TCat(P) check_ref(P, T_CATCH,             __func__, __LINE__, NULL, NULL)
-  #define _TDyn(P) check_ref(P, T_DYNAMIC_WIND,      __func__, __LINE__, NULL, NULL)
-  #define _TSlt(P) check_ref(P, T_SLOT,              __func__, __LINE__, NULL, NULL)
-  #define _TSlp(P) check_ref2(P, T_SLOT, T_PAIR,     __func__, __LINE__, NULL, NULL)
-  #define _TSln(P) check_ref2(P, T_SLOT, T_NIL,      __func__, __LINE__, NULL, NULL)
-  #define _TSld(P) check_ref2(P, T_SLOT, T_UNDEFINED,__func__, __LINE__, NULL, NULL)
-  #define _TSyn(P) check_ref(P, T_SYNTAX,            __func__, __LINE__, NULL, NULL)
-  #define _TMac(P) check_ref(P, T_C_MACRO,           __func__, __LINE__, NULL, NULL)
-  #define _TLet(P) check_ref(P, T_LET,               __func__, __LINE__, NULL, NULL)
-  #define _TLid(P) check_ref2(P, T_LET, T_NIL,       __func__, __LINE__, NULL, NULL)
-  #define _TRan(P) check_ref(P, T_RANDOM_STATE,      __func__, __LINE__, NULL, NULL)
-  #define _TLst(P) check_ref2(P, T_PAIR, T_NIL,      __func__, __LINE__, "gc", NULL)
-  #define _TStr(P) check_ref(P, T_STRING,            __func__, __LINE__, "sweep", NULL)
-  #define _TObj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", NULL)
-  #define _THsh(P) check_ref(P, T_HASH_TABLE,        __func__, __LINE__, "sweep", "free_hash_table")
-  #define _TItr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", NULL)
-  #define _TCon(P) check_ref(P, T_CONTINUATION,      __func__, __LINE__, "sweep", NULL)
-  #define _TFvc(P) check_ref(P, T_FLOAT_VECTOR,      __func__, __LINE__, "sweep", NULL)
-  #define _TIvc(P) check_ref(P, T_INT_VECTOR,        __func__, __LINE__, "sweep", NULL)
-  #define _TSym(P) check_ref(P, T_SYMBOL,            __func__, __LINE__, "sweep", "remove_gensym_from_symbol_table")
-  #define _TFst(P) check_ref(P, T_C_FUNCTION_STAR,   __func__, __LINE__, "sweep", NULL) /* c_function* */
-  #define _TExp(P) check_ref2(P, T_MACRO, T_SYMBOL,  __func__, __LINE__, NULL, NULL)
-
-  #define _TPrt(P) check_ref3(P,                     __func__, __LINE__) /* input|output_port, or free */
-  #define _TVec(P) check_ref4(P,                     __func__, __LINE__) /* any vector or free */
-  #define _TClo(P) check_ref5(P,                     __func__, __LINE__) /* has closure let */
-  #define _TFnc(P) check_ref6(P,                     __func__, __LINE__) /* any c_function|c_macro */
-  #define _TNum(P) check_ref7(P,                     __func__, __LINE__) /* any number (not bignums I think) */
-  #define _TSeq(P) check_ref8(P,                     __func__, __LINE__) /* any sequence or structure */
-  #define _TMet(P) check_ref9(P,                     __func__, __LINE__) /* anything that might contain a method */
-  #define _TArg(P) check_ref10(P,                    __func__, __LINE__) /* closure arg (list, symbol) */
-  #define _TApp(P) check_ref11(P,                    __func__, __LINE__) /* setter (any_procedure or #f) */
-  #define _NFre(P) check_nref(P,                     __func__, __LINE__) /* not free */
-  #define _Cell(P) check_cell(P,                     __func__, __LINE__) /* any cell */
+  #define T_Chr(P) check_ref(P, T_CHARACTER,         __func__, __LINE__, NULL, NULL)
+  #define T_Ctr(P) check_ref(P, T_COUNTER,           __func__, __LINE__, NULL, NULL)
+  #define T_Opt(P) check_ref(P, T_OPTLIST,           __func__, __LINE__, "free_optlist", NULL)
+  #define T_Ptr(P) check_ref(P, T_C_POINTER,         __func__, __LINE__, NULL, NULL)
+  #define T_Bfl(P) check_ref(P, T_BAFFLE,            __func__, __LINE__, NULL, NULL)
+  #define T_Got(P) check_ref(P, T_GOTO,              __func__, __LINE__, NULL, NULL)
+  #define T_Stk(P) check_ref(P, T_STACK,             __func__, __LINE__, NULL, NULL)
+  #define T_Pair(P) check_ref(P, T_PAIR,             __func__, __LINE__, NULL, NULL)
+  #define T_Cat(P) check_ref(P, T_CATCH,             __func__, __LINE__, NULL, NULL)
+  #define T_Dyn(P) check_ref(P, T_DYNAMIC_WIND,      __func__, __LINE__, NULL, NULL)
+  #define T_Slt(P) check_ref(P, T_SLOT,              __func__, __LINE__, NULL, NULL)
+  #define T_Slp(P) check_ref2(P, T_SLOT, T_PAIR,     __func__, __LINE__, NULL, NULL)
+  #define T_Sln(P) check_ref2(P, T_SLOT, T_NIL,      __func__, __LINE__, NULL, NULL)
+  #define T_Sld(P) check_ref2(P, T_SLOT, T_UNDEFINED,__func__, __LINE__, NULL, NULL)
+  #define T_Syn(P) check_ref(P, T_SYNTAX,            __func__, __LINE__, NULL, NULL)
+  #define T_Mac(P) check_ref(P, T_C_MACRO,           __func__, __LINE__, NULL, NULL)
+  #define T_Let(P) check_ref(P, T_LET,               __func__, __LINE__, NULL, NULL)
+  #define T_Lid(P) check_ref2(P, T_LET, T_NIL,       __func__, __LINE__, NULL, NULL)
+  #define T_Ran(P) check_ref(P, T_RANDOM_STATE,      __func__, __LINE__, NULL, NULL)
+  #define T_Lst(P) check_ref2(P, T_PAIR, T_NIL,      __func__, __LINE__, "gc", NULL)
+  #define T_Str(P) check_ref(P, T_STRING,            __func__, __LINE__, "sweep", NULL)
+  #define T_Obj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", NULL)
+  #define T_Hsh(P) check_ref(P, T_HASH_TABLE,        __func__, __LINE__, "sweep", "free_hash_table")
+  #define T_Itr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", NULL)
+  #define T_Con(P) check_ref(P, T_CONTINUATION,      __func__, __LINE__, "sweep", NULL)
+  #define T_Fvc(P) check_ref(P, T_FLOAT_VECTOR,      __func__, __LINE__, "sweep", NULL)
+  #define T_Ivc(P) check_ref(P, T_INT_VECTOR,        __func__, __LINE__, "sweep", NULL)
+  #define T_Sym(P) check_ref(P, T_SYMBOL,            __func__, __LINE__, "sweep", "remove_gensym_from_symbol_table")
+  #define T_Fst(P) check_ref(P, T_C_FUNCTION_STAR,   __func__, __LINE__, "sweep", NULL) /* c_function* */
+  #define T_Exp(P) check_ref2(P, T_MACRO, T_SYMBOL,  __func__, __LINE__, NULL, NULL)
+  #define T_Prt(P) check_ref3(P,                     __func__, __LINE__) /* input|output_port, or free */
+  #define T_Vec(P) check_ref4(P,                     __func__, __LINE__) /* any vector or free */
+  #define T_Clo(P) check_ref5(P,                     __func__, __LINE__) /* has closure let */
+  #define T_Fnc(P) check_ref6(P,                     __func__, __LINE__) /* any c_function|c_macro */
+  #define T_Num(P) check_ref7(P,                     __func__, __LINE__) /* any number (not bignums I think) */
+  #define T_Seq(P) check_ref8(P,                     __func__, __LINE__) /* any sequence or structure */
+  #define T_Met(P) check_ref9(P,                     __func__, __LINE__) /* anything that might contain a method */
+  #define T_Arg(P) check_ref10(P,                    __func__, __LINE__) /* closure arg (list, symbol) */
+  #define T_App(P) check_ref11(P,                    __func__, __LINE__) /* setter (any_procedure or #f) */
+  #define T_Pos(P) check_nref(P,                     __func__, __LINE__) /* not free */
+  #define T_Any(P) check_cell(P,                     __func__, __LINE__) /* any cell */
 
 #else
   #define unchecked_type(p)           ((p)->tf.type_field)
   #define type(p)                     ((p)->tf.type_field)
   #define set_type(p, f)              typeflag(p) = f
-  #define _TI(P)                      P
-  #define _TR(P)                      P
-  #define _TF(P)                      P
-  #define _TZ(P)                      P
-  #define _TBgi(P)                    P
-  #define _TBgr(P)                    P
-  #define _TBgf(P)                    P
-  #define _TBgz(P)                    P
-  #define _TStr(P)                    P
-  #define _TSyn(P)                    P
-  #define _TChr(P)                    P
-  #define _TObj(P)                    P
-  #define _TCtr(P)                    P
-  #define _TOpt(P)                    P
-  #define _THsh(P)                    P
-  #define _TItr(P)                    P
-  #define _TPtr(P)                    P
-  #define _TBfl(P)                    P
-  #define _TGot(P)                    P
-  #define _TCon(P)                    P
-  #define _TStk(P)                    P
-  #define _TPrt(P)                    P
-  #define _TIvc(P)                    P
-  #define _TFvc(P)                    P
-  #define _TVec(P)                    P
-  #define _TPair(P)                   P
-  #define _TRan(P)                    P
-  #define _TDyn(P)                    P
-  #define _TCat(P)                    P
-  #define _TClo(P)                    P
-  #define _TFnc(P)                    P
-  #define _TFst(P)                    P
-  #define _TSlt(P)                    P
-  #define _TSln(P)                    P
-  #define _TSld(P)                    P
-  #define _TSlp(P)                    P
-  #define _TSym(P)                    P
-  #define _TLet(P)                    P
-  #define _TLid(P)                    P
-  #define _TLst(P)                    P
-  #define _TNum(P)                    P
-  #define _TSeq(P)                    P
-  #define _TMet(P)                    P
-  #define _TMac(P)                    P
-  #define _TArg(P)                    P
-  #define _TApp(P)                    P
-  #define _TExp(P)                    P
-  #define _NFre(P)                    P
-  #define _Cell(P)                    P
+  #define T_Int(P)                      P
+  #define T_Rel(P)                      P
+  #define T_Frc(P)                      P
+  #define T_Cmp(P)                      P
+  #define T_Bgi(P)                    P
+  #define T_Bgr(P)                    P
+  #define T_Bgf(P)                    P
+  #define T_Bgz(P)                    P
+  #define T_Str(P)                    P
+  #define T_Syn(P)                    P
+  #define T_Chr(P)                    P
+  #define T_Obj(P)                    P
+  #define T_Ctr(P)                    P
+  #define T_Opt(P)                    P
+  #define T_Hsh(P)                    P
+  #define T_Itr(P)                    P
+  #define T_Ptr(P)                    P
+  #define T_Bfl(P)                    P
+  #define T_Got(P)                    P
+  #define T_Con(P)                    P
+  #define T_Stk(P)                    P
+  #define T_Prt(P)                    P
+  #define T_Ivc(P)                    P
+  #define T_Fvc(P)                    P
+  #define T_Vec(P)                    P
+  #define T_Pair(P)                   P
+  #define T_Ran(P)                    P
+  #define T_Dyn(P)                    P
+  #define T_Cat(P)                    P
+  #define T_Clo(P)                    P
+  #define T_Fnc(P)                    P
+  #define T_Fst(P)                    P
+  #define T_Slt(P)                    P
+  #define T_Sln(P)                    P
+  #define T_Sld(P)                    P
+  #define T_Slp(P)                    P
+  #define T_Sym(P)                    P
+  #define T_Let(P)                    P
+  #define T_Lid(P)                    P
+  #define T_Lst(P)                    P
+  #define T_Num(P)                    P
+  #define T_Seq(P)                    P
+  #define T_Met(P)                    P
+  #define T_Mac(P)                    P
+  #define T_Arg(P)                    P
+  #define T_App(P)                    P
+  #define T_Exp(P)                    P
+  #define T_Pos(P)                    P
+  #define T_Any(P)                    P
 #endif
 
 #define is_number(P)                  t_number_p[type(P)]
@@ -1653,48 +1652,48 @@ static s7_scheme *cur_sc = NULL;
 #define TYPE_BITS                     8
 
 #define T_KEYWORD                     (1 << (TYPE_BITS + 0))
-#define is_keyword(p)                 ((typesflag(_NFre(p)) & T_KEYWORD) != 0)
+#define is_keyword(p)                 ((typesflag(T_Pos(p)) & T_KEYWORD) != 0)
 /* this bit distinguishes a symbol from a symbol that is also a keyword
  * this should be ok in the second byte because keywords are constants in s7 (never syntax)
  */
 
 #define T_SYNTACTIC                   (1 << (TYPE_BITS + 1))
-#define is_syntactic(p)               ((typesflag(_NFre(p)) & T_SYNTACTIC) != 0)
-#define is_syntactic_symbol(p)        (typesflag(_NFre(p)) == (uint16_t)(T_SYMBOL | T_SYNTACTIC))
-#define is_syntactic_pair(p)          (typesflag(_NFre(p)) == (uint16_t)(T_PAIR | T_SYNTACTIC))
-#define set_syntactic_pair(p)         typeflag(_TPair(p)) = (T_PAIR | T_SYNTACTIC | (typeflag(p) & 0xffff0000))
+#define is_syntactic(p)               ((typesflag(T_Pos(p)) & T_SYNTACTIC) != 0)
+#define is_syntactic_symbol(p)        (typesflag(T_Pos(p)) == (uint16_t)(T_SYMBOL | T_SYNTACTIC))
+#define is_syntactic_pair(p)          (typesflag(T_Pos(p)) == (uint16_t)(T_PAIR | T_SYNTACTIC))
+#define set_syntactic_pair(p)         typeflag(T_Pair(p)) = (T_PAIR | T_SYNTACTIC | (typeflag(p) & 0xffff0000))
 /* this marks symbols that represent syntax objects, it should be in the second byte */
 
 
 #define T_SIMPLE_ARG_DEFAULTS         (1 << (TYPE_BITS + 2))
-#define has_simple_arg_defaults(p)    ((typeflag(_TPair(p)) & T_SIMPLE_ARG_DEFAULTS) != 0)
-#define set_simple_arg_defaults(p)    typeflag(_TPair(p)) |= T_SIMPLE_ARG_DEFAULTS
+#define has_simple_arg_defaults(p)    ((typeflag(T_Pair(p)) & T_SIMPLE_ARG_DEFAULTS) != 0)
+#define set_simple_arg_defaults(p)    typeflag(T_Pair(p)) |= T_SIMPLE_ARG_DEFAULTS
 /* are all lambda* default values simple? */
 
 #define T_LIST_IN_USE                 T_SIMPLE_ARG_DEFAULTS
-#define list_is_in_use(p)             ((typeflag(_TPair(p)) & T_LIST_IN_USE) != 0)
-#define set_list_in_use(p)            typeflag(_TPair(p)) |= T_LIST_IN_USE
-#define clear_list_in_use(p)          typeflag(_TPair(p)) &= (~T_LIST_IN_USE)
+#define list_is_in_use(p)             ((typeflag(T_Pair(p)) & T_LIST_IN_USE) != 0)
+#define set_list_in_use(p)            typeflag(T_Pair(p)) |= T_LIST_IN_USE
+#define clear_list_in_use(p)          typeflag(T_Pair(p)) &= (~T_LIST_IN_USE)
 /* these could all be one permanent list, indexed from inside, and this bit is never actually protecting anything across a call */
 
 
 #define T_OPTIMIZED                   (1 << (TYPE_BITS + 3))
-#define set_optimized(p)              typesflag(_TPair(p)) |= T_OPTIMIZED
-#define clear_optimized(p)            typeflag(_TPair(p)) &= (~(T_OPTIMIZED | T_OVERLAY | T_SYNTACTIC | T_HAS_ALL_X))
+#define set_optimized(p)              typesflag(T_Pair(p)) |= T_OPTIMIZED
+#define clear_optimized(p)            typeflag(T_Pair(p)) &= (~(T_OPTIMIZED | T_OVERLAY | T_SYNTACTIC | T_HAS_ALL_X))
 #define OPTIMIZED_PAIR                (uint16_t)(T_PAIR | T_OPTIMIZED)
 #define is_optimized(p)               (typesflag(p) == OPTIMIZED_PAIR)
-#define unoptimize(p)                 typesflag(_TPair(p)) &= (~T_OPTIMIZED)
+#define unoptimize(p)                 typesflag(T_Pair(p)) &= (~T_OPTIMIZED)
 /*   this is faster than the bit extraction above and the same speed as xor */
 /* optimizer flag for an expression that has optimization info, it should be in the second byte
  */
 
 #define T_SCOPE_SAFE                  T_OPTIMIZED
-#define is_scope_safe(p)              ((typeflag(_TFnc(p)) & T_SCOPE_SAFE) != 0)
-#define set_scope_safe(p)             typeflag(_TFnc(p)) |= T_SCOPE_SAFE
+#define is_scope_safe(p)              ((typeflag(T_Fnc(p)) & T_SCOPE_SAFE) != 0)
+#define set_scope_safe(p)             typeflag(T_Fnc(p)) |= T_SCOPE_SAFE
 
 
 #define T_SAFE_CLOSURE                (1 << (TYPE_BITS + 4))
-#define is_safe_closure(p)            ((typesflag(_NFre(p)) & T_SAFE_CLOSURE) != 0)
+#define is_safe_closure(p)            ((typesflag(T_Pos(p)) & T_SAFE_CLOSURE) != 0)
 #define set_safe_closure(p)           typesflag(p) |= T_SAFE_CLOSURE
 #define clear_safe_closure(p)         typesflag(p) &= (~T_SAFE_CLOSURE)
 /* optimizer flag for a closure body that is completely simple (every expression is safe)
@@ -1707,18 +1706,18 @@ static s7_scheme *cur_sc = NULL;
  */
 
 #define T_DONT_EVAL_ARGS              (1 << (TYPE_BITS + 5))
-#define dont_eval_args(p)             ((typesflag(_NFre(p)) & T_DONT_EVAL_ARGS) != 0)
+#define dont_eval_args(p)             ((typesflag(T_Pos(p)) & T_DONT_EVAL_ARGS) != 0)
 /* this marks things that don't evaluate their arguments */
 
 #define T_EXPANSION                   (1 << (TYPE_BITS + 6))
-#define is_expansion(p)               ((typesflag(_TExp(p)) & T_EXPANSION) != 0)
-#define clear_expansion(p)            typesflag(_TSym(p)) &= (~T_EXPANSION)
+#define is_expansion(p)               ((typesflag(T_Exp(p)) & T_EXPANSION) != 0)
+#define clear_expansion(p)            typesflag(T_Sym(p)) &= (~T_EXPANSION)
 /* this marks the symbol and its run-time macro value, distinguishing it from an ordinary macro */
 
 #define T_MULTIPLE_VALUE              (1 << (TYPE_BITS + 7))
-#define is_multiple_value(p)          ((typesflag(_NFre(p)) & T_MULTIPLE_VALUE) != 0)
-#define set_multiple_value(p)         typesflag(_TPair(p)) |= T_MULTIPLE_VALUE
-#define clear_multiple_value(p)       typesflag(_TPair(p)) &= (~T_MULTIPLE_VALUE)
+#define is_multiple_value(p)          ((typesflag(T_Pos(p)) & T_MULTIPLE_VALUE) != 0)
+#define set_multiple_value(p)         typesflag(T_Pair(p)) |= T_MULTIPLE_VALUE
+#define clear_multiple_value(p)       typesflag(T_Pair(p)) &= (~T_MULTIPLE_VALUE)
 #define multiple_value(p)             p
 /* this bit marks a list (from "values") that is waiting for a
  *    chance to be spliced into its caller's argument list.  It is normally
@@ -1726,17 +1725,17 @@ static s7_scheme *cur_sc = NULL;
  */
 
 #define T_MATCHED                     T_MULTIPLE_VALUE
-#define is_matched_pair(p)            ((typesflag(_TPair(p)) & T_MATCHED) != 0)
-#define set_match_pair(p)             typesflag(_TPair(p)) |= T_MATCHED
-#define clear_match_pair(p)           typesflag(_TPair(p)) &= (~T_MATCHED)
-#define is_matched_symbol(p)          ((typesflag(_TSym(p)) & T_MATCHED) != 0)
-#define set_match_symbol(p)           typesflag(_TSym(p)) |= T_MATCHED
-#define clear_match_symbol(p)         typesflag(_TSym(p)) &= (~T_MATCHED)
+#define is_matched_pair(p)            ((typesflag(T_Pair(p)) & T_MATCHED) != 0)
+#define set_match_pair(p)             typesflag(T_Pair(p)) |= T_MATCHED
+#define clear_match_pair(p)           typesflag(T_Pair(p)) &= (~T_MATCHED)
+#define is_matched_symbol(p)          ((typesflag(T_Sym(p)) & T_MATCHED) != 0)
+#define set_match_symbol(p)           typesflag(T_Sym(p)) |= T_MATCHED
+#define clear_match_symbol(p)         typesflag(T_Sym(p)) &= (~T_MATCHED)
 
 #define T_GLOBAL                      (1 << (TYPE_BITS + 8))
 #define T_LOCAL                       (1 << (TYPE_BITS + 12))
-#define is_global(p)                  ((typeflag(_TSym(p)) & T_GLOBAL) != 0)
-#define set_global(p)                 do {if ((typeflag(_TSym(p)) & T_LOCAL) == 0) typeflag(p) |= T_GLOBAL;} while (0)
+#define is_global(p)                  ((typeflag(T_Sym(p)) & T_GLOBAL) != 0)
+#define set_global(p)                 do {if ((typeflag(T_Sym(p)) & T_LOCAL) == 0) typeflag(p) |= T_GLOBAL;} while (0)
 /* T_LOCAL marks a symbol that has been used locally */
 
 #if 0
@@ -1751,320 +1750,320 @@ static s7_scheme *cur_sc = NULL;
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
 #else
-#define set_local(p)                  typeflag(_TSym(p)) = ((typeflag(p) | T_LOCAL) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC))
+#define set_local(p)                  typeflag(T_Sym(p)) = ((typeflag(p) | T_LOCAL) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC))
 #endif
 /* this (T_GLOBAL) marks something defined (bound) at the top-level, and never defined locally */
 
 #define T_UNSAFE_DO                   T_GLOBAL
-#define is_unsafe_do(p)               ((typeflag(_TPair(p)) & T_UNSAFE_DO) != 0)
-#define set_unsafe_do(p)              typeflag(_TPair(p)) |= T_UNSAFE_DO
+#define is_unsafe_do(p)               ((typeflag(T_Pair(p)) & T_UNSAFE_DO) != 0)
+#define set_unsafe_do(p)              typeflag(T_Pair(p)) |= T_UNSAFE_DO
 /* marks do-loops that resist optimization */
 
 #define T_COLLECTED                   (1 << (TYPE_BITS + 9))
-#define is_collected(p)               ((typeflag(_TSeq(p)) & T_COLLECTED) != 0)
-#define set_collected(p)              typeflag(_TSeq(p)) |= T_COLLECTED
-/* #define clear_collected(p)         typeflag(_TSeq(p)) &= (~T_COLLECTED) */
+#define is_collected(p)               ((typeflag(T_Seq(p)) & T_COLLECTED) != 0)
+#define set_collected(p)              typeflag(T_Seq(p)) |= T_COLLECTED
+/* #define clear_collected(p)         typeflag(T_Seq(p)) &= (~T_COLLECTED) */
 /* this is a transient flag used by the printer to catch cycles.  It affects only objects that have structure.  
  *   We can't use a low bit (bit 7 for example), because collect_shared_info inspects the object's type.
  */
 
 #define T_LINE_NUMBER                 (1 << (TYPE_BITS + 10))
-#define has_line_number(p)            ((typeflag(_TPair(p)) & T_LINE_NUMBER) != 0)
-#define set_has_line_number(p)        typeflag(_TPair(p)) |= T_LINE_NUMBER
+#define has_line_number(p)            ((typeflag(T_Pair(p)) & T_LINE_NUMBER) != 0)
+#define set_has_line_number(p)        typeflag(T_Pair(p)) |= T_LINE_NUMBER
 /* pair in question has line/file info added during read, or the environment has function placement info 
  *   this bit should not be in the first byte -- SYNTACTIC_PAIR ignores it.
  */
 
 #define T_LOADER_PORT                 T_LINE_NUMBER
-#define is_loader_port(p)             ((typeflag(_TPrt(p)) & T_LOADER_PORT) != 0)
-#define set_loader_port(p)            typeflag(_TPrt(p)) |= T_LOADER_PORT
-#define clear_loader_port(p)          typeflag(_TPrt(p)) &= (~T_LOADER_PORT)
+#define is_loader_port(p)             ((typeflag(T_Prt(p)) & T_LOADER_PORT) != 0)
+#define set_loader_port(p)            typeflag(T_Prt(p)) |= T_LOADER_PORT
+#define clear_loader_port(p)          typeflag(T_Prt(p)) &= (~T_LOADER_PORT)
 /* to block random load-time reads from screwing up the load process, this bit marks a port used by the loader */
 
 #define T_HAS_SETTER                  T_LINE_NUMBER
-#define symbol_has_setter(p)          ((typeflag(_TSym(p)) & T_HAS_SETTER) != 0)
-#define symbol_set_has_setter(p)      typeflag(_TSym(p)) |= T_HAS_SETTER
-#define slot_has_setter(p)            ((typeflag(_TSlt(p)) & T_HAS_SETTER) != 0)
-#define slot_set_has_setter(p)        typeflag(_TSlt(p)) |= T_HAS_SETTER
+#define symbol_has_setter(p)          ((typeflag(T_Sym(p)) & T_HAS_SETTER) != 0)
+#define symbol_set_has_setter(p)      typeflag(T_Sym(p)) |= T_HAS_SETTER
+#define slot_has_setter(p)            ((typeflag(T_Slt(p)) & T_HAS_SETTER) != 0)
+#define slot_set_has_setter(p)        typeflag(T_Slt(p)) |= T_HAS_SETTER
 /* marks a slot that has a setter or symbol that might have a setter */
 
 #define T_WITH_LET_LET                T_LINE_NUMBER
-#define is_with_let_let(p)            ((typeflag(_TLet(p)) & T_WITH_LET_LET) != 0)
-#define set_with_let_let(p)           typeflag(_TLet(p)) |= T_WITH_LET_LET
+#define is_with_let_let(p)            ((typeflag(T_Let(p)) & T_WITH_LET_LET) != 0)
+#define set_with_let_let(p)           typeflag(T_Let(p)) |= T_WITH_LET_LET
 /* marks a let that is the argument to with-let */
 
 #define T_SIMPLE_DEFAULTS             T_LINE_NUMBER
-#define has_simple_defaults(p)        ((typeflag(_TFnc(p)) & T_SIMPLE_DEFAULTS) != 0)
-#define set_simple_defaults(p)        typeflag(_TFnc(p)) |= T_SIMPLE_DEFAULTS
-#define clear_simple_defaults(p)      typeflag(_TFnc(p)) &= (~T_SIMPLE_DEFAULTS)
+#define has_simple_defaults(p)        ((typeflag(T_Fnc(p)) & T_SIMPLE_DEFAULTS) != 0)
+#define set_simple_defaults(p)        typeflag(T_Fnc(p)) |= T_SIMPLE_DEFAULTS
+#define clear_simple_defaults(p)      typeflag(T_Fnc(p)) &= (~T_SIMPLE_DEFAULTS)
 /* flag c_func_star arg defaults that need GC protection */
 
 #define T_NO_SETTER                   T_LINE_NUMBER
-#define closure_no_setter(p)          ((typeflag(_TClo(p)) & T_NO_SETTER) != 0)
-#define closure_set_no_setter(p)      typeflag(_TClo(p)) |= T_NO_SETTER
+#define closure_no_setter(p)          ((typeflag(T_Clo(p)) & T_NO_SETTER) != 0)
+#define closure_set_no_setter(p)      typeflag(T_Clo(p)) |= T_NO_SETTER
 
 #define T_SHARED                      (1 << (TYPE_BITS + 11))
-#define is_shared(p)                  ((typeflag(_TSeq(p)) & T_SHARED) != 0)
-#define set_shared(p)                 typeflag(_TSeq(p)) |= T_SHARED
+#define is_shared(p)                  ((typeflag(T_Seq(p)) & T_SHARED) != 0)
+#define set_shared(p)                 typeflag(T_Seq(p)) |= T_SHARED
 #define is_collected_or_shared(p)     ((typeflag(p) & (T_COLLECTED | T_SHARED)) != 0)
 #define clear_collected_and_shared(p) typeflag(p) &= (~(T_COLLECTED | T_SHARED)) /* this can clear free cells = calloc */
 
 #define T_OVERLAY                     T_LOCAL
-#define set_overlay(p)                typeflag(_TPair(p)) |= T_OVERLAY
-#define is_overlaid(p)                ((typeflag(_TPair(p)) & T_OVERLAY) != 0)
-#define clear_overlay(p)              typeflag(_TPair(p)) &= (~T_OVERLAY)
+#define set_overlay(p)                typeflag(T_Pair(p)) |= T_OVERLAY
+#define is_overlaid(p)                ((typeflag(T_Pair(p)) & T_OVERLAY) != 0)
+#define clear_overlay(p)              typeflag(T_Pair(p)) &= (~T_OVERLAY)
 /* optimizer flag that marks a cell whose opt_back [ie opt1] points to the previous cell in a list */
 
 #define T_SAFE_PROCEDURE              (1 << (TYPE_BITS + 13))
-#define is_safe_procedure(p)          ((typeflag(_NFre(p)) & T_SAFE_PROCEDURE) != 0)
-#define is_safe_or_scope_safe_procedure(p) ((typeflag(_TFnc(p)) & (T_SCOPE_SAFE | T_SAFE_PROCEDURE)) != 0)
+#define is_safe_procedure(p)          ((typeflag(T_Pos(p)) & T_SAFE_PROCEDURE) != 0)
+#define is_safe_or_scope_safe_procedure(p) ((typeflag(T_Fnc(p)) & (T_SCOPE_SAFE | T_SAFE_PROCEDURE)) != 0)
 /* applicable objects that do not return or modify their arg list directly (no :rest arg in particular),
  *    and that can't call apply themselves either directly or via s7_call, and that don't mess with the stack.
  */
 
 #define T_CHECKED                     (1 << (TYPE_BITS + 14))
-#define set_checked(p)                typeflag(_TPair(p)) |= T_CHECKED
-#define is_checked(p)                 ((typeflag(_TPair(p)) & T_CHECKED) != 0)
-#define clear_checked(p)              typeflag(_TPair(p)) &= (~T_CHECKED)
-#define set_checked_slot(p)           typeflag(_TSlt(p)) |= T_CHECKED
-#define is_checked_slot(p)            ((typeflag(_TSlt(p)) & T_CHECKED) != 0)
-#define is_not_checked_slot(p)        ((typeflag(_TSlt(p)) & T_CHECKED) == 0)
+#define set_checked(p)                typeflag(T_Pair(p)) |= T_CHECKED
+#define is_checked(p)                 ((typeflag(T_Pair(p)) & T_CHECKED) != 0)
+#define clear_checked(p)              typeflag(T_Pair(p)) &= (~T_CHECKED)
+#define set_checked_slot(p)           typeflag(T_Slt(p)) |= T_CHECKED
+#define is_checked_slot(p)            ((typeflag(T_Slt(p)) & T_CHECKED) != 0)
+#define is_not_checked_slot(p)        ((typeflag(T_Slt(p)) & T_CHECKED) == 0)
 
 #define T_UNSAFE                      (1 << (TYPE_BITS + 15))
-#define set_unsafe(p)                 typeflag(_TPair(p)) |= T_UNSAFE
-#define set_unsafely_optimized(p)     typeflag(_TPair(p)) = (typeflag(p) & (~T_OVERLAY)) | (T_UNSAFE | T_OPTIMIZED)
-#define is_unsafe(p)                  ((typeflag(_TPair(p)) & T_UNSAFE) != 0)
-#define clear_unsafe(p)               typeflag(_TPair(p)) &= (~T_UNSAFE)
+#define set_unsafe(p)                 typeflag(T_Pair(p)) |= T_UNSAFE
+#define set_unsafely_optimized(p)     typeflag(T_Pair(p)) = (typeflag(p) & (~T_OVERLAY)) | (T_UNSAFE | T_OPTIMIZED)
+#define is_unsafe(p)                  ((typeflag(T_Pair(p)) & T_UNSAFE) != 0)
+#define clear_unsafe(p)               typeflag(T_Pair(p)) &= (~T_UNSAFE)
 #define is_safely_optimized(p)        ((typeflag(p) & (T_OPTIMIZED | T_UNSAFE)) == T_OPTIMIZED)
 /* optimizer flag saying "this expression is not completely self-contained.  It might involve the stack, etc" */
 
 #define T_CLEAN_SYMBOL                T_UNSAFE
-#define is_clean_symbol(p)            ((typeflag(_TSym(p)) & T_CLEAN_SYMBOL) != 0)
-#define set_clean_symbol(p)           typeflag(_TSym(p)) |= T_CLEAN_SYMBOL
+#define is_clean_symbol(p)            ((typeflag(T_Sym(p)) & T_CLEAN_SYMBOL) != 0)
+#define set_clean_symbol(p)           typeflag(T_Sym(p)) |= T_CLEAN_SYMBOL
 /* set if we know the symbol name can be printed without quotes (slashification) */
 
 #define T_HAS_STEPPER                 T_UNSAFE
-#define has_stepper(p)                ((typeflag(_TSlt(p)) & T_HAS_STEPPER) != 0)
-#define set_has_stepper(p)            typeflag(_TSlt(p)) |= T_HAS_STEPPER
+#define has_stepper(p)                ((typeflag(T_Slt(p)) & T_HAS_STEPPER) != 0)
+#define set_has_stepper(p)            typeflag(T_Slt(p)) |= T_HAS_STEPPER
 
 #define T_IMMUTABLE                   (1 << (TYPE_BITS + 16))
-#define is_immutable(p)               ((typeflag(_NFre(p)) & T_IMMUTABLE) != 0)
-#define set_immutable(p)              typeflag(_NFre(p)) |= T_IMMUTABLE
-#define is_immutable_port(p)          ((typeflag(_TPrt(p)) & T_IMMUTABLE) != 0)
-#define is_immutable_symbol(p)        ((typeflag(_TSym(p)) & T_IMMUTABLE) != 0)
-#define is_immutable_slot(p)          ((typeflag(_TSlt(p)) & T_IMMUTABLE) != 0)
-#define is_immutable_pair(p)          ((typeflag(_TPair(p)) & T_IMMUTABLE) != 0)
-#define is_immutable_vector(p)        ((typeflag(_TVec(p)) & T_IMMUTABLE) != 0)
-#define is_immutable_string(p)        ((typeflag(_TStr(p)) & T_IMMUTABLE) != 0)
+#define is_immutable(p)               ((typeflag(T_Pos(p)) & T_IMMUTABLE) != 0)
+#define set_immutable(p)              typeflag(T_Pos(p)) |= T_IMMUTABLE
+#define is_immutable_port(p)          ((typeflag(T_Prt(p)) & T_IMMUTABLE) != 0)
+#define is_immutable_symbol(p)        ((typeflag(T_Sym(p)) & T_IMMUTABLE) != 0)
+#define is_immutable_slot(p)          ((typeflag(T_Slt(p)) & T_IMMUTABLE) != 0)
+#define is_immutable_pair(p)          ((typeflag(T_Pair(p)) & T_IMMUTABLE) != 0)
+#define is_immutable_vector(p)        ((typeflag(T_Vec(p)) & T_IMMUTABLE) != 0)
+#define is_immutable_string(p)        ((typeflag(T_Str(p)) & T_IMMUTABLE) != 0)
 
 #define T_SETTER                      (1 << (TYPE_BITS + 17))
-#define set_setter(p)                 typeflag(_TSym(p)) |= T_SETTER
-#define is_setter(p)                  ((typeflag(_TSym(p)) & T_SETTER) != 0)
+#define set_setter(p)                 typeflag(T_Sym(p)) |= T_SETTER
+#define is_setter(p)                  ((typeflag(T_Sym(p)) & T_SETTER) != 0)
 /* optimizer flag for a procedure that sets some variable (set-car! for example). */
 
 #define T_ALLOW_OTHER_KEYS            T_SETTER
-#define set_allow_other_keys(p)       typeflag(_TPair(p)) |= T_ALLOW_OTHER_KEYS
-#define allows_other_keys(p)          ((typeflag(_TPair(p)) & T_ALLOW_OTHER_KEYS) != 0)
+#define set_allow_other_keys(p)       typeflag(T_Pair(p)) |= T_ALLOW_OTHER_KEYS
+#define allows_other_keys(p)          ((typeflag(T_Pair(p)) & T_ALLOW_OTHER_KEYS) != 0)
 /* marks arglist that allows keyword args other than those in the parameter list; can't allow
  *   (define* (f :allow-other-keys)...) because there's only one nil, and besides, it does say "other".
  */
 
 /* this bit is already in use on pairs, but the contexts never overlap, I hope... I need more bits. */
 #define T_HAS_ALL_X                   T_SETTER
-#define set_has_all_x(p)              typeflag(_TPair(p)) |= T_HAS_ALL_X
-#define has_all_x(p)                  ((typeflag(_TPair(p)) & T_HAS_ALL_X) != 0)
-#define clear_has_all_x(p)            typeflag(_TPair(p)) &= (~T_HAS_ALL_X)
+#define set_has_all_x(p)              typeflag(T_Pair(p)) |= T_HAS_ALL_X
+#define has_all_x(p)                  ((typeflag(T_Pair(p)) & T_HAS_ALL_X) != 0)
+#define clear_has_all_x(p)            typeflag(T_Pair(p)) &= (~T_HAS_ALL_X)
 
 /* closure stored optlists */
 #define T_HAS_OPTLIST                 T_SETTER
-#define has_optlist(p)                ((typeflag(_TClo(p)) & T_HAS_OPTLIST) != 0)
-#define set_has_optlist(p)            typeflag(_TClo(p)) |= T_HAS_OPTLIST
-#define clear_has_optlist(p)          typeflag(_TClo(p)) &= (~T_HAS_OPTLIST)
+#define has_optlist(p)                ((typeflag(T_Clo(p)) & T_HAS_OPTLIST) != 0)
+#define set_has_optlist(p)            typeflag(T_Clo(p)) |= T_HAS_OPTLIST
+#define clear_has_optlist(p)          typeflag(T_Clo(p)) &= (~T_HAS_OPTLIST)
 
 #define T_HASH_REMOVED                T_SETTER
-#define hash_table_set_removed(p)     typeflag(_THsh(p)) |= T_HASH_REMOVED
-#define hash_table_removed(p)         ((typeflag(_THsh(p)) & T_HASH_REMOVED) != 0)
+#define hash_table_set_removed(p)     typeflag(T_Hsh(p)) |= T_HASH_REMOVED
+#define hash_table_removed(p)         ((typeflag(T_Hsh(p)) & T_HASH_REMOVED) != 0)
 
 #define T_LET_REMOVED                 T_SETTER
-#define let_set_removed(p)            typeflag(_TLet(p)) |= T_LET_REMOVED
-#define let_removed(p)                ((typeflag(_TLet(p)) & T_LET_REMOVED) != 0)
+#define let_set_removed(p)            typeflag(T_Let(p)) |= T_LET_REMOVED
+#define let_removed(p)                ((typeflag(T_Let(p)) & T_LET_REMOVED) != 0)
 /* these mark objects that have been removed from the heap or checked for that possibility */
 
 
 #define T_MUTABLE                     (1 << (TYPE_BITS + 18))
-#define is_mutable(p)                 ((typeflag(_TNum(p)) & T_MUTABLE) != 0)
+#define is_mutable(p)                 ((typeflag(T_Num(p)) & T_MUTABLE) != 0)
 /* used for mutable numbers */
 
 #define T_HAS_KEYWORD                 T_MUTABLE
-#define has_keyword(p)                ((typeflag(_TSym(p)) & T_HAS_KEYWORD) != 0)
-#define set_has_keyword(p)            typeflag(_TSym(p)) |= T_HAS_KEYWORD
+#define has_keyword(p)                ((typeflag(T_Sym(p)) & T_HAS_KEYWORD) != 0)
+#define set_has_keyword(p)            typeflag(T_Sym(p)) |= T_HAS_KEYWORD
 
 #define T_MARK_SEQ                    T_MUTABLE
-#define is_mark_seq(p)                ((typeflag(_TItr(p)) & T_MARK_SEQ) != 0)
-#define set_mark_seq(p)               typeflag(_TItr(p)) |= T_MARK_SEQ
+#define is_mark_seq(p)                ((typeflag(T_Itr(p)) & T_MARK_SEQ) != 0)
+#define set_mark_seq(p)               typeflag(T_Itr(p)) |= T_MARK_SEQ
 /* used in iterators for GC mark of sequence */
 
 #define T_BYTE_VECTOR                 T_MUTABLE
-#define is_byte_vector(p)             ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
-#define is_mutable_byte_vector(p)     ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
-#define set_byte_vector(p)            typeflag(_TStr(p)) |= T_BYTE_VECTOR
+#define is_byte_vector(p)             ((typeflag(T_Pos(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
+#define is_mutable_byte_vector(p)     ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
+#define set_byte_vector(p)            typeflag(T_Str(p)) |= T_BYTE_VECTOR
 /* marks a string that the caller considers a byte_vector */
 
 #define T_STEP_END                    T_MUTABLE
-#define is_step_end(p)                ((typeflag(_TSlt(p)) & T_STEP_END) != 0)
-#define set_step_end(p)               typeflag(_TSlt(p)) |= T_STEP_END
+#define is_step_end(p)                ((typeflag(T_Slt(p)) & T_STEP_END) != 0)
+#define set_step_end(p)               typeflag(T_Slt(p)) |= T_STEP_END
 /* marks a slot that holds a do-loop's step-or-end variable, numerator=current, denominator=end */
 
 #define T_PAIR_NO_OPT                 T_MUTABLE
-#define set_pair_no_opt(p)            typeflag(_TPair(p)) |= T_PAIR_NO_OPT
-#define pair_no_opt(p)                ((typeflag(_TPair(p)) & T_PAIR_NO_OPT) != 0)
+#define set_pair_no_opt(p)            typeflag(T_Pair(p)) |= T_PAIR_NO_OPT
+#define pair_no_opt(p)                ((typeflag(T_Pair(p)) & T_PAIR_NO_OPT) != 0)
 
 #define T_CLOSURE_NO_OPT              T_MUTABLE
-#define set_closure_no_opt(p)         typeflag(_TClo(p)) |= T_CLOSURE_NO_OPT
-#define closure_no_opt(p)             ((typeflag(_TClo(p)) & T_CLOSURE_NO_OPT) != 0)
+#define set_closure_no_opt(p)         typeflag(T_Clo(p)) |= T_CLOSURE_NO_OPT
+#define closure_no_opt(p)             ((typeflag(T_Clo(p)) & T_CLOSURE_NO_OPT) != 0)
 
 #define T_NO_INT_OPT                  T_SETTER
-#define set_no_int_opt(p)             typeflag(_TPair(p)) |= T_NO_INT_OPT
-#define no_int_opt(p)                 ((typeflag(_TPair(p)) & T_NO_INT_OPT) != 0)
+#define set_no_int_opt(p)             typeflag(T_Pair(p)) |= T_NO_INT_OPT
+#define no_int_opt(p)                 ((typeflag(T_Pair(p)) & T_NO_INT_OPT) != 0)
 
 #define T_NO_FLOAT_OPT                T_UNSAFE
-#define set_no_float_opt(p)           typeflag(_TPair(p)) |= T_NO_FLOAT_OPT
-#define no_float_opt(p)               ((typeflag(_TPair(p)) & T_NO_FLOAT_OPT) != 0)
+#define set_no_float_opt(p)           typeflag(T_Pair(p)) |= T_NO_FLOAT_OPT
+#define no_float_opt(p)               ((typeflag(T_Pair(p)) & T_NO_FLOAT_OPT) != 0)
 
 #define T_NO_BOOL_OPT                 T_SAFE_STEPPER
-#define set_no_bool_opt(p)            typeflag(_TPair(p)) |= T_NO_BOOL_OPT
-#define no_bool_opt(p)                ((typeflag(_TPair(p)) & T_NO_BOOL_OPT) != 0)
+#define set_no_bool_opt(p)            typeflag(T_Pair(p)) |= T_NO_BOOL_OPT
+#define no_bool_opt(p)                ((typeflag(T_Pair(p)) & T_NO_BOOL_OPT) != 0)
 
 #define T_DIRECT_X_OPT                T_SAFE_STEPPER
-#define set_direct_x_opt(p)           typeflag(_TPair(p)) |= T_DIRECT_X_OPT
-#define has_direct_x_opt(p)           ((typeflag(_TPair(p)) & T_DIRECT_X_OPT) != 0)
+#define set_direct_x_opt(p)           typeflag(T_Pair(p)) |= T_DIRECT_X_OPT
+#define has_direct_x_opt(p)           ((typeflag(T_Pair(p)) & T_DIRECT_X_OPT) != 0)
 
 
 #define T_SAFE_STEPPER                (1 << (TYPE_BITS + 19))
-#define is_safe_stepper(p)            ((typeflag(_TSlp(p)) & T_SAFE_STEPPER) != 0)
-#define set_safe_stepper(p)           typeflag(_TSlp(p)) |= T_SAFE_STEPPER
-#define clear_safe_stepper(p)         typeflag(_NFre(p)) &= (~T_SAFE_STEPPER)
+#define is_safe_stepper(p)            ((typeflag(T_Slp(p)) & T_SAFE_STEPPER) != 0)
+#define set_safe_stepper(p)           typeflag(T_Slp(p)) |= T_SAFE_STEPPER
+#define clear_safe_stepper(p)         typeflag(T_Pos(p)) &= (~T_SAFE_STEPPER)
 
 #define T_PRINT_NAME                  T_SAFE_STEPPER
-#define has_print_name(p)             ((typeflag(_TNum(p)) & T_PRINT_NAME) != 0)
-#define set_has_print_name(p)         typeflag(_TNum(p)) |= T_PRINT_NAME
+#define has_print_name(p)             ((typeflag(T_Num(p)) & T_PRINT_NAME) != 0)
+#define set_has_print_name(p)         typeflag(T_Num(p)) |= T_PRINT_NAME
 /* marks numbers that have a saved version of their string representation */
 
 #define T_MAYBE_SAFE                  T_SAFE_STEPPER
-#define is_maybe_safe(p)              ((typeflag(_TFnc(p)) & T_MAYBE_SAFE) != 0)
-#define set_maybe_safe(p)             typeflag(_TFnc(p)) |= T_MAYBE_SAFE
+#define is_maybe_safe(p)              ((typeflag(T_Fnc(p)) & T_MAYBE_SAFE) != 0)
+#define set_maybe_safe(p)             typeflag(T_Fnc(p)) |= T_MAYBE_SAFE
 
 #define T_HAS_LET_SET_FALLBACK        T_SAFE_STEPPER
 #define T_HAS_LET_REF_FALLBACK        T_MUTABLE
-#define has_let_ref_fallback(p)       ((typeflag(_TLid(p)) & (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS))
-#define has_let_set_fallback(p)       ((typeflag(_TLid(p)) & (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS))
-#define set_has_let_ref_fallback(p)   typeflag(_TLet(p)) |= T_HAS_LET_REF_FALLBACK
-#define set_has_let_set_fallback(p)   typeflag(_TLet(p)) |= T_HAS_LET_SET_FALLBACK
-#define set_all_methods(p, e)         typeflag(_TLet(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
+#define has_let_ref_fallback(p)       ((typeflag(T_Lid(p)) & (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS))
+#define has_let_set_fallback(p)       ((typeflag(T_Lid(p)) & (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS))
+#define set_has_let_ref_fallback(p)   typeflag(T_Let(p)) |= T_HAS_LET_REF_FALLBACK
+#define set_has_let_set_fallback(p)   typeflag(T_Let(p)) |= T_HAS_LET_SET_FALLBACK
+#define set_all_methods(p, e)         typeflag(T_Let(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
 
 
 #define T_COPY_ARGS                   (1 << (TYPE_BITS + 20))
-#define needs_copied_args(p)          ((typeflag(_NFre(p)) & T_COPY_ARGS) != 0)
+#define needs_copied_args(p)          ((typeflag(T_Pos(p)) & T_COPY_ARGS) != 0)
 /* this marks something that might mess with its argument list, it should not be in the second byte */
 
 #define T_GENSYM                      (1 << (TYPE_BITS + 21))
-#define is_gensym(p)                  ((typeflag(_TSym(p)) & T_GENSYM) != 0)
+#define is_gensym(p)                  ((typeflag(T_Sym(p)) & T_GENSYM) != 0)
 /* symbol is from gensym (GC-able etc) */
 
 #define T_FUNCLET                     T_GENSYM
-#define is_funclet(p)                 ((typeflag(_TLet(p)) & T_FUNCLET) != 0)
-#define set_funclet(p)                typeflag(_TLet(p)) |= T_FUNCLET
+#define is_funclet(p)                 ((typeflag(T_Let(p)) & T_FUNCLET) != 0)
+#define set_funclet(p)                typeflag(T_Let(p)) |= T_FUNCLET
 /* this marks a funclet */
 
 #define T_HASH_CHOSEN                 T_GENSYM
-#define hash_chosen(p)                ((typeflag(_THsh(p)) & T_HASH_CHOSEN) != 0)
-#define hash_set_chosen(p)            typeflag(_THsh(p)) |= T_HASH_CHOSEN
-#define hash_clear_chosen(p)          typeflag(_THsh(p)) &= (~T_HASH_CHOSEN)
+#define hash_chosen(p)                ((typeflag(T_Hsh(p)) & T_HASH_CHOSEN) != 0)
+#define hash_set_chosen(p)            typeflag(T_Hsh(p)) |= T_HASH_CHOSEN
+#define hash_clear_chosen(p)          typeflag(T_Hsh(p)) &= (~T_HASH_CHOSEN)
 
 #define T_DOCUMENTED                  T_GENSYM
-#define is_documented(p)              ((typeflag(_TStr(p)) & T_DOCUMENTED) != 0)
-#define set_documented(p)             typeflag(_TStr(p)) |= T_DOCUMENTED
+#define is_documented(p)              ((typeflag(T_Str(p)) & T_DOCUMENTED) != 0)
+#define set_documented(p)             typeflag(T_Str(p)) |= T_DOCUMENTED
 /* this marks a symbol that has documentation (bit is set on name cell) */
 
 #define T_DOTTED_PAIR                 T_GENSYM
-#define is_dotted_pair(p)             ((typeflag(_TLst(p)) & T_DOTTED_PAIR) != 0)
-#define pair_set_dotted(p)            typeflag(_TPair(p)) |= T_DOTTED_PAIR
+#define is_dotted_pair(p)             ((typeflag(T_Lst(p)) & T_DOTTED_PAIR) != 0)
+#define pair_set_dotted(p)            typeflag(T_Pair(p)) |= T_DOTTED_PAIR
 /* reader indication that a list it just read was dotted */
 
 #define T_HAS_METHODS                 (1 << (TYPE_BITS + 22))
-#define has_methods(p)                ((typeflag(_NFre(p)) & T_HAS_METHODS) != 0)
-#define set_has_methods(p)            typeflag(_TMet(p)) |= T_HAS_METHODS
-#define clear_has_methods(p)          typeflag(_TMet(p)) &= (~T_HAS_METHODS)
+#define has_methods(p)                ((typeflag(T_Pos(p)) & T_HAS_METHODS) != 0)
+#define set_has_methods(p)            typeflag(T_Met(p)) |= T_HAS_METHODS
+#define clear_has_methods(p)          typeflag(T_Met(p)) &= (~T_HAS_METHODS)
 /* this marks an environment or closure that is "open" for generic functions etc
  * don't reuse this bit
  */
 
 #define T_ITER_OK                     (1LL << (TYPE_BITS + 23))
-#define iter_ok(p)                    ((typeflag(_NFre(p)) & T_ITER_OK) != 0)  /* not TItr(p) here because this bit is globally unique */
-#define clear_iter_ok(p)              typeflag(_TItr(p)) &= (~T_ITER_OK)
+#define iter_ok(p)                    ((typeflag(T_Pos(p)) & T_ITER_OK) != 0)  /* not TItr(p) here because this bit is globally unique */
+#define clear_iter_ok(p)              typeflag(T_Itr(p)) &= (~T_ITER_OK)
 
 #define T_SYMCONS                     (1LL << (TYPE_BITS + 24))
-#define is_possibly_constant(p)       ((typeflag(_TSym(p)) & T_SYMCONS) != 0)
-#define set_possibly_constant(p)      typeflag(_TSym(p)) |= T_SYMCONS
+#define is_possibly_constant(p)       ((typeflag(T_Sym(p)) & T_SYMCONS) != 0)
+#define set_possibly_constant(p)      typeflag(T_Sym(p)) |= T_SYMCONS
 
 #define T_HAS_LET_ARG                 T_SYMCONS
-#define has_let_arg(p)                ((typeflag(_NFre(p)) & T_HAS_LET_ARG) != 0)
-#define set_has_let_arg(p)            typeflag(_NFre(p)) |= T_HAS_LET_ARG
-/* p is_procedure, but no checker for it, so use _NFre */
+#define has_let_arg(p)                ((typeflag(T_Pos(p)) & T_HAS_LET_ARG) != 0)
+#define set_has_let_arg(p)            typeflag(T_Pos(p)) |= T_HAS_LET_ARG
+/* p is_procedure, but no checker for it, so use T_Pos */
 
 #define T_S7_LET_FIELD                (1LL << (TYPE_BITS + 25))
-#define is_s7_let_field(p)            ((typeflag(_TSym(p)) & T_S7_LET_FIELD) != 0)
-#define set_s7_let_field(p)           typeflag(_TSym(p)) |= T_S7_LET_FIELD
+#define is_s7_let_field(p)            ((typeflag(T_Sym(p)) & T_S7_LET_FIELD) != 0)
+#define set_s7_let_field(p)           typeflag(T_Sym(p)) |= T_S7_LET_FIELD
 
 #define T_HAS_LET_FILE                T_S7_LET_FIELD
-#define has_let_file(p)               ((typeflag(_TLet(p)) & T_HAS_LET_FILE) != 0)
-#define set_has_let_file(p)           typeflag(_TLet(p)) |= T_HAS_LET_FILE
-#define clear_has_let_file(p)         typeflag(_TLet(p)) &= (~T_HAS_LET_FILE)
+#define has_let_file(p)               ((typeflag(T_Let(p)) & T_HAS_LET_FILE) != 0)
+#define set_has_let_file(p)           typeflag(T_Let(p)) |= T_HAS_LET_FILE
+#define clear_has_let_file(p)         typeflag(T_Let(p)) &= (~T_HAS_LET_FILE)
 
 #define T_DEFINER                     (1LL << (TYPE_BITS + 26))
-#define is_definer(p)                 ((typeflag(_NFre(p)) & T_DEFINER) != 0)
+#define is_definer(p)                 ((typeflag(T_Pos(p)) & T_DEFINER) != 0)
 
 #define T_RECUR                       (1LL << (TYPE_BITS + 27))
-#define is_recur(p)                   ((typeflag(_TSlt(p)) & T_RECUR) != 0)
-#define set_recur(p)                  typeflag(_TSlt(p)) |= T_RECUR
+#define is_recur(p)                   ((typeflag(T_Slt(p)) & T_RECUR) != 0)
+#define set_recur(p)                  typeflag(T_Slt(p)) |= T_RECUR
 
 #define T_VERY_SAFE_CLOSURE           (1LL << (TYPE_BITS + 28))
-#define is_very_safe_closure(p)       ((typeflag(_NFre(p)) & T_VERY_SAFE_CLOSURE) != 0)
+#define is_very_safe_closure(p)       ((typeflag(T_Pos(p)) & T_VERY_SAFE_CLOSURE) != 0)
 #define set_very_safe_closure(p)      typeflag(p) |= T_VERY_SAFE_CLOSURE
 #define safe_closure_bits(p)          (typeflag(p) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
 
 #define T_CYCLIC                      (1LL << (TYPE_BITS + 29))
-#define is_cyclic(p)                  ((typeflag(_NFre(p)) & T_CYCLIC) != 0)
-#define set_cyclic(p)                 typeflag(_NFre(p)) |= T_CYCLIC
+#define is_cyclic(p)                  ((typeflag(T_Pos(p)) & T_CYCLIC) != 0)
+#define set_cyclic(p)                 typeflag(T_Pos(p)) |= T_CYCLIC
 
 #define T_CYCLIC_SET                  (1LL << (TYPE_BITS + 30))
-#define is_cyclic_set(p)              ((typeflag(_NFre(p)) & T_CYCLIC_SET) != 0)
-#define set_cyclic_set(p)             typeflag(_NFre(p)) |= T_CYCLIC_SET
+#define is_cyclic_set(p)              ((typeflag(T_Pos(p)) & T_CYCLIC_SET) != 0)
+#define set_cyclic_set(p)             typeflag(T_Pos(p)) |= T_CYCLIC_SET
 #define clear_cyclic_bits(p)          typeflag(p) &= (~(T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET))
 
 #define T_TREE_COLLECTED              T_RECUR
-#define is_tree_collected_or_shared(p) ((typeflag(_TPair(p)) & (T_TREE_COLLECTED | T_SHARED)) != 0)
-#define set_tree_collected(p)         typeflag(_TPair(p)) |= T_TREE_COLLECTED
-#define clear_tree_bits(p)            typeflag(_TPair(p)) &= (~(T_TREE_COLLECTED | T_SHARED))
+#define is_tree_collected_or_shared(p) ((typeflag(T_Pair(p)) & (T_TREE_COLLECTED | T_SHARED)) != 0)
+#define set_tree_collected(p)         typeflag(T_Pair(p)) |= T_TREE_COLLECTED
+#define clear_tree_bits(p)            typeflag(T_Pair(p)) &= (~(T_TREE_COLLECTED | T_SHARED))
  
 #define UNUSED_BITS                   0x7fffff8000000000
 
 #define T_GC_MARK                     0x8000000000000000
 #define is_marked(p)                  ((typeflag(p) &  T_GC_MARK) != 0)
-#define set_mark(p)                   typeflag(_NFre(p)) |= T_GC_MARK
+#define set_mark(p)                   typeflag(T_Pos(p)) |= T_GC_MARK
 #define clear_mark(p)                 typeflag(p) &= (~T_GC_MARK)
 /* using the sign bit, bit 23 (or 55) == 31 (or 63) for this makes a big difference in the GC */
 
 static int64_t not_heap = -1;
 #define heap_location(p)              (p)->hloc
-#define not_in_heap(p)                ((_NFre(p))->hloc < 0)
-#define in_heap(p)                    ((_NFre(p))->hloc >= 0)
+#define not_in_heap(p)                ((T_Pos(p))->hloc < 0)
+#define in_heap(p)                    ((T_Pos(p))->hloc >= 0)
 #define unheap(p)                     (p)->hloc = not_heap--
 
-#define is_eof(p)                     ((_NFre(p)) == sc->eof_object)
+#define is_eof(p)                     ((T_Pos(p)) == sc->eof_object)
 #define is_undefined(p)               (type(p) == T_UNDEFINED)
-#define is_true(Sc, p)                ((_NFre(p)) != Sc->F)
-#define is_false(Sc, p)               ((_NFre(p)) == Sc->F)
+#define is_true(Sc, p)                ((T_Pos(p)) != Sc->F)
+#define is_false(Sc, p)               ((T_Pos(p)) == Sc->F)
 
 #ifdef _MSC_VER
   #define MS_WINDOWS 1
@@ -2075,9 +2074,9 @@ static int64_t not_heap = -1;
 #endif
 
 #define is_pair(p)                    (type(p) == T_PAIR)
-#define is_mutable_pair(p)            ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
-#define is_null(p)                    ((_NFre(p)) == sc->nil)
-#define is_not_null(p)                ((_NFre(p)) != sc->nil)
+#define is_mutable_pair(p)            ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
+#define is_null(p)                    ((T_Pos(p)) == sc->nil)
+#define is_not_null(p)                ((T_Pos(p)) != sc->nil)
 #define is_list(p)                    ((is_pair(p)) || (type(p) == T_NIL))
 
 #define raw_opt1(p)                   ((p)->object.cons.opt1)
@@ -2135,8 +2134,8 @@ static int64_t not_heap = -1;
 #define set_opt1_is_set(p)            (p)->debugger_bits |= E_SET
 #define opt1_role_matches(p, Role)    (((p)->debugger_bits & E_MASK) == Role)
 #define set_opt1_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~E_MASK))
-#define opt1(p, Role)                 opt1_1(_TPair(p), Role, __func__, __LINE__)
-#define set_opt1(p, x, Role)          set_opt1_1(_TPair(p), x, Role, __func__, __LINE__)
+#define opt1(p, Role)                 opt1_1(T_Pair(p), Role, __func__, __LINE__)
+#define set_opt1(p, x, Role)          set_opt1_1(T_Pair(p), x, Role, __func__, __LINE__)
 
 #define F_SET                         (1 << 1)   
 #define F_KEY                         (1 << 18)  /* case key */
@@ -2153,8 +2152,8 @@ static int64_t not_heap = -1;
 #define set_opt2_is_set(p)            (p)->debugger_bits |= F_SET
 #define opt2_role_matches(p, Role)    (((p)->debugger_bits & F_MASK) == Role)
 #define set_opt2_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~F_MASK))
-#define opt2(p, Role)                 opt2_1(_TPair(p), Role, __func__, __LINE__)
-#define set_opt2(p, x, Role)          set_opt2_1(_TPair(p), (s7_pointer)x, Role, __func__, __LINE__)
+#define opt2(p, Role)                 opt2_1(T_Pair(p), Role, __func__, __LINE__)
+#define set_opt2(p, x, Role)          set_opt2_1(T_Pair(p), (s7_pointer)x, Role, __func__, __LINE__)
 
 /* opt3 collides with optimization and line number stuff (T_LINE_NUMBER, T_OPTIMIZED) */
 #define G_SET                         (1 << 2)
@@ -2168,61 +2167,61 @@ static int64_t not_heap = -1;
 #define set_opt3_is_set(p)            (p)->debugger_bits |= G_SET
 #define opt3_role_matches(p, Role)    (((p)->debugger_bits & G_MASK) == Role)
 #define set_opt3_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~G_MASK))
-#define opt3(p, Role)                 opt3_1(_TPair(p), Role, __func__, __LINE__)
-#define set_opt3(p, x, Role)          set_opt3_1(_TPair(p), x, Role, __func__, __LINE__)
+#define opt3(p, Role)                 opt3_1(T_Pair(p), Role, __func__, __LINE__)
+#define set_opt3(p, x, Role)          set_opt3_1(T_Pair(p), x, Role, __func__, __LINE__)
 
 /* opt1 == s_hash, opt2 == s_fstr, opt3 == s_op|len|line and op==len so they are contradictory (but only op/line|opt3 actually collide)
  * line|len|op: uint32_t set G_SET and S_* if S_LEN -> not op and vice versa
  * another collider: pair_syntax_op|optimize_op below.  Both need bits: S_SYNOP?
  */
 
-#define pair_line(p)                  s_line_1(_TPair(p), __func__, __LINE__)
-#define pair_set_line(p, X)           set_s_line_1(_TPair(p), X, __func__, __LINE__)
-#define pair_raw_hash(p)              s_hash_1(_TPair(p), __func__, __LINE__)
-#define pair_set_raw_hash(p, X)       set_s_hash_1(_TPair(p), X, __func__, __LINE__)
-#define pair_raw_len(p)               s_len_1(_TPair(p), __func__, __LINE__)
-#define pair_set_raw_len(p, X)        set_s_len_1(_TPair(p), X, __func__, __LINE__)
-#define pair_raw_name(p)              s_name_1(_TPair(p), __func__, __LINE__)
-#define pair_set_raw_name(p, X)       set_s_name_1(_TPair(p), X, __func__, __LINE__)
+#define pair_line(p)                  s_line_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_line(p, X)           set_s_line_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_hash(p)              s_hash_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_hash(p, X)       set_s_hash_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_len(p)               s_len_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_len(p, X)        set_s_len_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_name(p)              s_name_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_name(p, X)       set_s_name_1(T_Pair(p), X, __func__, __LINE__)
 
 #endif
 
-#define opt_fast(P)                   _TLst(opt1(P,              E_FAST))
-#define set_opt_fast(P, X)            set_opt1(P, _TPair(X),     E_FAST)
-#define opt_back(P)                   _TPair(opt1(P,             E_BACK))
-#define set_opt_back(P)               set_opt1(cdr(P), _TPair(P),E_BACK)
+#define opt_fast(P)                   T_Lst(opt1(P,              E_FAST))
+#define set_opt_fast(P, X)            set_opt1(P, T_Pair(X),     E_FAST)
+#define opt_back(P)                   T_Pair(opt1(P,             E_BACK))
+#define set_opt_back(P)               set_opt1(cdr(P), T_Pair(P),E_BACK)
 #define has_opt_back(P)               (cdr(opt_back(P)) == P )
-#define opt_cfunc(P)                  _NFre(opt1(P,              E_CFUNC))
-#define set_opt_cfunc(P, X)           set_opt1(P, _NFre(X),      E_CFUNC)
+#define opt_cfunc(P)                  T_Pos(opt1(P,              E_CFUNC))
+#define set_opt_cfunc(P, X)           set_opt1(P, T_Pos(X),      E_CFUNC)
 #define opt_lambda_unchecked(P)       opt1(P,                    E_LAMBDA) /* can be free/null? from s7_call? */
-#define opt_lambda(P)                 _TClo(opt1(P,              E_LAMBDA))
-#define set_opt_lambda(P, X)          set_opt1(P, _NFre(X),      E_LAMBDA)
-#define opt_goto(P)                   _NFre(opt1(P,              E_GOTO))  /* used when checking for non-goto unknown in eval, so can't be _TGot */
-#define set_opt_goto(P, X)            set_opt1(P, _NFre(X),      E_GOTO)
-#define opt_clause(P)                 _NFre(opt1(P,              E_CLAUSE))
-#define set_opt_clause(P, X)          set_opt1(P, _NFre(X),      E_CLAUSE)
-#define opt_sym1(P)                   _TSym(opt1(P,              E_SYM))
-#define set_opt_sym1(P, X)            set_opt1(P, _TSym(X),      E_SYM)
-#define opt_pair1(P)                  _TLst(opt1(P,              E_PAIR))
-#define set_opt_pair1(P, X)           set_opt1(P, _TLst(X),      E_PAIR)
-#define opt_con1(P)                   _NFre(opt1(P,              E_CON))
-#define set_opt_con1(P, X)            set_opt1(P, _NFre(X),      E_CON)
+#define opt_lambda(P)                 T_Clo(opt1(P,              E_LAMBDA))
+#define set_opt_lambda(P, X)          set_opt1(P, T_Pos(X),      E_LAMBDA)
+#define opt_goto(P)                   T_Pos(opt1(P,              E_GOTO))  /* used when checking for non-goto unknown in eval, so can't be T_Got */
+#define set_opt_goto(P, X)            set_opt1(P, T_Pos(X),      E_GOTO)
+#define opt_clause(P)                 T_Pos(opt1(P,              E_CLAUSE))
+#define set_opt_clause(P, X)          set_opt1(P, T_Pos(X),      E_CLAUSE)
+#define opt_sym1(P)                   T_Sym(opt1(P,              E_SYM))
+#define set_opt_sym1(P, X)            set_opt1(P, T_Sym(X),      E_SYM)
+#define opt_pair1(P)                  T_Lst(opt1(P,              E_PAIR))
+#define set_opt_pair1(P, X)           set_opt1(P, T_Lst(X),      E_PAIR)
+#define opt_con1(P)                   T_Pos(opt1(P,              E_CON))
+#define set_opt_con1(P, X)            set_opt1(P, T_Pos(X),      E_CON)
 #define opt_any1(P)                   opt1(P,                    E_ANY)    /* can be free in closure_is_ok */
-#define opt_slot1(P)                  _TSlt(opt1(P,              E_SLOT))
-#define set_opt_slot1(P, X)           set_opt1(P, _TSlt(X),      E_SLOT)
+#define opt_slot1(P)                  T_Slt(opt1(P,              E_SLOT))
+#define set_opt_slot1(P, X)           set_opt1(P, T_Slt(X),      E_SLOT)
 
-#define opt_any2(P)                   _NFre(opt2(P,              F_KEY))
-#define set_opt_any2(P, X)            set_opt2(P, _NFre(X),      F_KEY)
-#define opt_slow(P)                   _TLst(opt2(P,              F_SLOW))
-#define set_opt_slow(P, X)            set_opt2(P, _TPair(X),     F_SLOW)
-#define opt_sym2(P)                   _TSym(opt2(P,              F_SYM))
-#define set_opt_sym2(P, X)            set_opt2(P, _TSym(X),      F_SYM)
-#define opt_pair2(P)                  _TLst(opt2(P,              F_PAIR))
-#define set_opt_pair2(P, X)           set_opt2(P, _TLst(X),      F_PAIR)
-#define opt_con2(P)                   _NFre(opt2(P,              F_CON))
-#define set_opt_con2(P, X)            set_opt2(P, _NFre(X),      F_CON)
-#define opt_lambda2(P)                _TPair(opt2(P,             F_LAMBDA))
-#define set_opt_lambda2(P, X)         set_opt2(P, _TPair(X),     F_LAMBDA)
+#define opt_any2(P)                   T_Pos(opt2(P,              F_KEY))
+#define set_opt_any2(P, X)            set_opt2(P, T_Pos(X),      F_KEY)
+#define opt_slow(P)                   T_Lst(opt2(P,              F_SLOW))
+#define set_opt_slow(P, X)            set_opt2(P, T_Pair(X),     F_SLOW)
+#define opt_sym2(P)                   T_Sym(opt2(P,              F_SYM))
+#define set_opt_sym2(P, X)            set_opt2(P, T_Sym(X),      F_SYM)
+#define opt_pair2(P)                  T_Lst(opt2(P,              F_PAIR))
+#define set_opt_pair2(P, X)           set_opt2(P, T_Lst(X),      F_PAIR)
+#define opt_con2(P)                   T_Pos(opt2(P,              F_CON))
+#define set_opt_con2(P, X)            set_opt2(P, T_Pos(X),      F_CON)
+#define opt_lambda2(P)                T_Pair(opt2(P,             F_LAMBDA))
+#define set_opt_lambda2(P, X)         set_opt2(P, T_Pair(X),     F_LAMBDA)
 #define opt_direct_x_call(P)          opt2(P,                    F_LAMBDA)
 #define set_opt_direct_x_call(P, X)   set_opt2(P, (s7_pointer)(X), F_LAMBDA)
 #if POINTER_32
@@ -2236,14 +2235,14 @@ static int64_t not_heap = -1;
 #define set_opt_id2(P, X)             set_opt2(P, (s7_pointer)(X), F_ID)
 #endif
 
-#define arglist_length(P)             _TI(opt3(cdr(P),           G_ARGLEN))
-#define set_arglist_length(P, X)      set_opt3(cdr(P), _TI(X),   G_ARGLEN)
-#define opt_sym3(P)                   _TSym(opt3(P,              G_SYM))
-#define set_opt_sym3(P, X)            set_opt3(P, _TSym(X),      G_SYM)
-#define opt_pair3(P)                  _TPair(opt3(P,             G_AND))
-#define set_opt_pair3(P, X)           set_opt3(P, _TPair(X),     G_AND)
-#define opt_any3(P)                   _NFre(opt3(P,              G_AND))
-#define set_opt_any3(P, X)            set_opt3(P, _NFre(X),      G_AND)
+#define arglist_length(P)             T_Int(opt3(cdr(P),           G_ARGLEN))
+#define set_arglist_length(P, X)      set_opt3(cdr(P), T_Int(X),   G_ARGLEN)
+#define opt_sym3(P)                   T_Sym(opt3(P,              G_SYM))
+#define set_opt_sym3(P, X)            set_opt3(P, T_Sym(X),      G_SYM)
+#define opt_pair3(P)                  T_Pair(opt3(P,             G_AND))
+#define set_opt_pair3(P, X)           set_opt3(P, T_Pair(X),     G_AND)
+#define opt_any3(P)                   T_Pos(opt3(P,              G_AND))
+#define set_opt_any3(P, X)            set_opt3(P, T_Pos(X),      G_AND)
 #define opt_direct_x(P)               opt3(P,                    G_DIRECT)
 #define set_opt_direct_x(P, X)        set_opt3(P, (s7_pointer)(X), G_DIRECT)
 
@@ -2264,25 +2263,25 @@ static int64_t not_heap = -1;
 #define set_x_call_direct(f, X)       do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_all_x(f);} while (0)
 
 
-#define car(p)                        (_TPair(p))->object.cons.car
-#define set_car(p, Val)               (_TPair(p))->object.cons.car = _NFre(Val)
-#define cdr(p)                        (_TPair(p))->object.cons.cdr
-#define set_cdr(p, Val)               (_TPair(p))->object.cons.cdr = _NFre(Val)
-#define unchecked_car(p)              (_NFre(p))->object.cons.car
-#define unchecked_cdr(p)              (_NFre(p))->object.cons.cdr
+#define car(p)                        (T_Pair(p))->object.cons.car
+#define set_car(p, Val)               (T_Pair(p))->object.cons.car = T_Pos(Val)
+#define cdr(p)                        (T_Pair(p))->object.cons.cdr
+#define set_cdr(p, Val)               (T_Pair(p))->object.cons.cdr = T_Pos(Val)
+#define unchecked_car(p)              (T_Pos(p))->object.cons.car
+#define unchecked_cdr(p)              (T_Pos(p))->object.cons.cdr
 
 #define caar(p)                       car(car(p))
 #define cadr(p)                       car(cdr(p))
-#define set_cadr(p, Val)              (_TPair(p))->object.cons.cdr->object.cons.car = _NFre(Val)
+#define set_cadr(p, Val)              (T_Pair(p))->object.cons.cdr->object.cons.car = T_Pos(Val)
 #define cdar(p)                       cdr(car(p))
-#define set_cdar(p, Val)              (_TPair(p))->object.cons.car->object.cons.cdr = _NFre(Val)
+#define set_cdar(p, Val)              (T_Pair(p))->object.cons.car->object.cons.cdr = T_Pos(Val)
 #define cddr(p)                       cdr(cdr(p))
 
 #define caaar(p)                      car(car(car(p)))
 #define cadar(p)                      car(cdr(car(p)))
 #define cdadr(p)                      cdr(car(cdr(p)))
 #define caddr(p)                      car(cdr(cdr(p)))
-#define set_caddr(p, Val)             (_TPair(p))->object.cons.cdr->object.cons.cdr->object.cons.car = _NFre(Val)
+#define set_caddr(p, Val)             (T_Pair(p))->object.cons.cdr->object.cons.cdr->object.cons.car = T_Pos(Val)
 #define caadr(p)                      car(car(cdr(p)))
 #define cdaar(p)                      cdr(car(car(p)))
 #define cdddr(p)                      cdr(cdr(cdr(p)))
@@ -2318,36 +2317,36 @@ static int64_t not_heap = -1;
 #define list_4(Sc, A, B, C, D)        cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons_unchecked(Sc, C, cons(Sc, D, Sc->nil))))
 
 #define is_string(p)                  (type(p) == T_STRING)
-#define is_string_not_byte_vector(p)  ((typeflag(_NFre(p)) & (0xff | T_BYTE_VECTOR)) == T_STRING)
-#define is_byte_vector_not_string(p)  ((typeflag(_TStr(p)) & T_BYTE_VECTOR) != 0)
-#define is_mutable_string(p)          ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_STRING)
-#define string_value(p)               (_TStr(p))->object.string.svalue
-#define string_length(p)              (_TStr(p))->object.string.length
-#define byte_vector_length(p)         (_TStr(p))->object.string.length
-#define string_hash(p)                (_TStr(p))->object.string.hash
-#define string_needs_free(p)          (_TStr(p))->object.string.ext.str_ext.needs_free
-#define string_temp_true_length(p)    (_TStr(p))->object.string.ext.str_ext.temp_len
+#define is_string_not_byte_vector(p)  ((typeflag(T_Pos(p)) & (0xff | T_BYTE_VECTOR)) == T_STRING)
+#define is_byte_vector_not_string(p)  ((typeflag(T_Str(p)) & T_BYTE_VECTOR) != 0)
+#define is_mutable_string(p)          ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_STRING)
+#define string_value(p)               (T_Str(p))->object.string.svalue
+#define string_length(p)              (T_Str(p))->object.string.length
+#define byte_vector_length(p)         (T_Str(p))->object.string.length
+#define string_hash(p)                (T_Str(p))->object.string.hash
+#define string_needs_free(p)          (T_Str(p))->object.string.ext.str_ext.needs_free
+#define string_temp_true_length(p)    (T_Str(p))->object.string.ext.str_ext.temp_len
 
 #define tmpbuf_malloc(P, Len)         do {if ((Len) < TMPBUF_SIZE) P = sc->tmpbuf; else P = (char *)malloc((Len) * sizeof(char));} while (0)
 #define tmpbuf_calloc(P, Len)         do {if ((Len) < TMPBUF_SIZE) {P = sc->tmpbuf; memset((void *)P, 0, Len);} else P = (char *)calloc(Len, sizeof(char));} while (0)
 #define tmpbuf_free(P, Len)           do {if ((Len) >= TMPBUF_SIZE) free(P);} while (0)
 
-#define character(p)                  (_TChr(p))->object.chr.c
-#define upper_character(p)            (_TChr(p))->object.chr.up_c
-#define is_char_alphabetic(p)         (_TChr(p))->object.chr.alpha_c
-#define is_char_numeric(p)            (_TChr(p))->object.chr.digit_c
-#define is_char_whitespace(p)         (_TChr(p))->object.chr.space_c
-#define is_char_uppercase(p)          (_TChr(p))->object.chr.upper_c
-#define is_char_lowercase(p)          (_TChr(p))->object.chr.lower_c
-#define character_name(p)             (_TChr(p))->object.chr.c_name
-#define character_name_length(p)      (_TChr(p))->object.chr.length
+#define character(p)                  (T_Chr(p))->object.chr.c
+#define upper_character(p)            (T_Chr(p))->object.chr.up_c
+#define is_char_alphabetic(p)         (T_Chr(p))->object.chr.alpha_c
+#define is_char_numeric(p)            (T_Chr(p))->object.chr.digit_c
+#define is_char_whitespace(p)         (T_Chr(p))->object.chr.space_c
+#define is_char_uppercase(p)          (T_Chr(p))->object.chr.upper_c
+#define is_char_lowercase(p)          (T_Chr(p))->object.chr.lower_c
+#define character_name(p)             (T_Chr(p))->object.chr.c_name
+#define character_name_length(p)      (T_Chr(p))->object.chr.length
 
 #if (!S7_DEBUGGING)
-  #define optimize_op(p)              (_TPair(p))->object.sym_cons.op
+  #define optimize_op(p)              (T_Pair(p))->object.sym_cons.op
   #define set_optimize_op(P, Op)      optimize_op(P) = Op
 #else
-  #define optimize_op(p)              s_op_1(_TPair(p), __func__, __LINE__)
-  #define set_optimize_op(p, Op)      set_s_op_1(_TPair(p), Op, __func__, __LINE__)
+  #define optimize_op(p)              s_op_1(T_Pair(p), __func__, __LINE__)
+  #define set_optimize_op(p, Op)      set_s_op_1(T_Pair(p), Op, __func__, __LINE__)
 #endif
 
 #define optimize_op_match(P, Q)       ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == Q))
@@ -2359,13 +2358,13 @@ static int64_t not_heap = -1;
 
 #define is_symbol(p)                  (type(p) == T_SYMBOL)
 #define is_safe_symbol(p)             ((is_symbol(p)) && (is_slot(symbol_to_slot(sc, p))))
-#define symbol_name_cell(p)           _TStr((_TSym(p))->object.sym.name)
-#define symbol_set_name_cell(p, S)    (_TSym(p))->object.sym.name = _TStr(S)
+#define symbol_name_cell(p)           T_Str((T_Sym(p))->object.sym.name)
+#define symbol_set_name_cell(p, S)    (T_Sym(p))->object.sym.name = T_Str(S)
 #define symbol_name(p)                string_value(symbol_name_cell(p))
 #define symbol_name_length(p)         string_length(symbol_name_cell(p))
 #define symbol_hmap(p)                s7_int_abs(heap_location(p))
-#define symbol_id(p)                  (_TSym(p))->object.sym.id
-#define symbol_set_id(p, X)           (_TSym(p))->object.sym.id = X
+#define symbol_id(p)                  (T_Sym(p))->object.sym.id
+#define symbol_set_id(p, X)           (T_Sym(p))->object.sym.id = X
 /* we need 64-bits here, since we don't want this thing to wrap around, and frames are created at a great rate
  *    callgrind says this is faster than an uint32_t!
  */
@@ -2373,21 +2372,21 @@ static int64_t not_heap = -1;
 #define symbol_info(p)                (symbol_name_cell(p))->object.string.ext.info
 #define symbol_type(p)                symbol_info(p)->type
 #define initial_slot(p)               symbol_info(p)->initial_slot
-#define set_initial_slot(p, Val)      symbol_info(p)->initial_slot = _TSld(Val)
+#define set_initial_slot(p, Val)      symbol_info(p)->initial_slot = T_Sld(Val)
 
-#define global_slot(p)                (_TSym(p))->object.sym.global_slot
-#define set_global_slot(p, Val)       (_TSym(p))->object.sym.global_slot = _TSld(Val)
-#define local_slot(p)                 (_TSym(p))->object.sym.local_slot
-#define set_local_slot(p, Val)        (_TSym(p))->object.sym.local_slot = _TSln(Val)
+#define global_slot(p)                (T_Sym(p))->object.sym.global_slot
+#define set_global_slot(p, Val)       (T_Sym(p))->object.sym.global_slot = T_Sld(Val)
+#define local_slot(p)                 (T_Sym(p))->object.sym.local_slot
+#define set_local_slot(p, Val)        (T_Sym(p))->object.sym.local_slot = T_Sln(Val)
 #define keyword_symbol(p)             (symbol_name_cell(p))->object.string.doc.ksym
-#define keyword_set_symbol(p, Val)    (symbol_name_cell(p))->object.string.doc.ksym = _TSym(Val)
+#define keyword_set_symbol(p, Val)    (symbol_name_cell(p))->object.string.doc.ksym = T_Sym(Val)
 #define symbol_help(p)                (symbol_name_cell(p))->object.string.doc.documentation
 #define symbol_set_help(p, Doc)       (symbol_name_cell(p))->object.string.doc.documentation = Doc
-#define symbol_tag(p)                 (_TSym(p))->object.sym.tag
-#define symbol_set_tag(p, Val)        (_TSym(p))->object.sym.tag = Val
-#define symbol_ctr(p)                 (_TSym(p))->object.sym.ctr
-#define symbol_set_ctr(p, Val)        (_TSym(p))->object.sym.ctr = Val
-#define symbol_increment_ctr(p)       (_TSym(p))->object.sym.ctr++
+#define symbol_tag(p)                 (T_Sym(p))->object.sym.tag
+#define symbol_set_tag(p, Val)        (T_Sym(p))->object.sym.tag = Val
+#define symbol_ctr(p)                 (T_Sym(p))->object.sym.ctr
+#define symbol_set_ctr(p, Val)        (T_Sym(p))->object.sym.ctr = Val
+#define symbol_increment_ctr(p)       (T_Sym(p))->object.sym.ctr++
 #define symbol_has_help(p)            (is_documented(symbol_name_cell(p)))
 #define symbol_set_has_help(p)        set_documented(symbol_name_cell(p))
 
@@ -2395,59 +2394,59 @@ static int64_t not_heap = -1;
 /* set slot before id in case Slot is an expression that tries to find the current Symbol slot (using its old Id obviously) */
 
 #define is_slot(p)                    (type(p) == T_SLOT)
-#define slot_symbol(p)                _TSym((_TSlt(p))->object.slt.sym)
-#define slot_set_symbol(p, Sym)       (_TSlt(p))->object.slt.sym = _TSym(Sym)
-#define slot_value(p)                 _NFre((_TSlt(p))->object.slt.val)
-#define unchecked_slot_value(p)       (_TSlt(p))->object.slt.val
-#define slot_set_value(p, Val)        (_TSlt(p))->object.slt.val = _NFre(Val)
+#define slot_symbol(p)                T_Sym((T_Slt(p))->object.slt.sym)
+#define slot_set_symbol(p, Sym)       (T_Slt(p))->object.slt.sym = T_Sym(Sym)
+#define slot_value(p)                 T_Pos((T_Slt(p))->object.slt.val)
+#define unchecked_slot_value(p)       (T_Slt(p))->object.slt.val
+#define slot_set_value(p, Val)        (T_Slt(p))->object.slt.val = T_Pos(Val)
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
-#define next_slot(p)                  (_TSlt(p))->object.slt.nxt
-#define set_next_slot(p, Val)         (_TSlt(p))->object.slt.nxt = _TSln(Val)
-#define slot_pending_value(p)         (_TSlt(p))->object.slt.pending_value
-#define slot_set_pending_value(p, Val) (_TSlt(p))->object.slt.pending_value = _NFre(Val)
-#define slot_expression(p)            (_TSlt(p))->object.slt.expr
-#define slot_set_expression(p, Val)   (_TSlt(p))->object.slt.expr = _NFre(Val)
+#define next_slot(p)                  (T_Slt(p))->object.slt.nxt
+#define set_next_slot(p, Val)         (T_Slt(p))->object.slt.nxt = T_Sln(Val)
+#define slot_pending_value(p)         (T_Slt(p))->object.slt.pending_value
+#define slot_set_pending_value(p, Val) (T_Slt(p))->object.slt.pending_value = T_Pos(Val)
+#define slot_expression(p)            (T_Slt(p))->object.slt.expr
+#define slot_set_expression(p, Val)   (T_Slt(p))->object.slt.expr = T_Pos(Val)
 #define slot_setter(p)                slot_expression(p)
-#define slot_set_setter(p, Val)       slot_expression(p) = _TApp(Val)
+#define slot_set_setter(p, Val)       slot_expression(p) = T_App(Val)
 
 #define is_syntax(p)                  (type(p) == T_SYNTAX)
-#define syntax_symbol(p)              _TSym((_TSyn(p))->object.syn.symbol)
-#define syntax_set_symbol(p, Sym)     (_TSyn(p))->object.syn.symbol = _TSym(Sym)
-#define syntax_opcode(p)              (_TSyn(p))->object.syn.op
-#define syntax_min_args(p)            (_TSyn(p))->object.syn.min_args
-#define syntax_max_args(p)            (_TSyn(p))->object.syn.max_args
+#define syntax_symbol(p)              T_Sym((T_Syn(p))->object.syn.symbol)
+#define syntax_set_symbol(p, Sym)     (T_Syn(p))->object.syn.symbol = T_Sym(Sym)
+#define syntax_opcode(p)              (T_Syn(p))->object.syn.op
+#define syntax_min_args(p)            (T_Syn(p))->object.syn.min_args
+#define syntax_max_args(p)            (T_Syn(p))->object.syn.max_args
 #define syntax_documentation(p)       sc->syn_docs[syntax_opcode(p)]
 
 #if (!S7_DEBUGGING)
   #define pair_syntax_op(p)           (p)->object.sym_cons.op
   #define pair_set_syntax_op(p, X)    do {unoptimize(p); (p)->object.sym_cons.op = X;} while (0)
 #else
-  #define pair_syntax_op(p)           s_syn_op_1(_TPair(p), __func__, __LINE__)
-  #define pair_set_syntax_op(p, Op)   do {unoptimize(p); set_s_syn_op_1(_TPair(p), Op, __func__, __LINE__);} while (0)
+  #define pair_syntax_op(p)           s_syn_op_1(T_Pair(p), __func__, __LINE__)
+  #define pair_set_syntax_op(p, Op)   do {unoptimize(p); set_s_syn_op_1(T_Pair(p), Op, __func__, __LINE__);} while (0)
 #endif
 #define pair_syntax_symbol(P)         car(opt_back(P))
 #define pair_set_syntax_symbol(p, op) do {set_car(opt_back(p), op); pair_set_syntax_op(opt_back(p), symbol_syntax_op(op));} while (0)
 
 #define ROOTLET_SIZE 512
-#define let_id(p)                     (_TLid(p))->object.envr.id
+#define let_id(p)                     (T_Lid(p))->object.envr.id
 #define is_let(p)                     (type(p) == T_LET)
-#define let_slots(p)                  (_TLet(p))->object.envr.slots
-#define let_set_slots(p, Slot)        (_TLet(p))->object.envr.slots = _TSln(Slot)
-#define outlet(p)                     (_TLet(p))->object.envr.nxt
-#define set_outlet(p, ol)             (_TLet(p))->object.envr.nxt = _TLid(ol)
-#define funclet_function(p)           _TSym((_TLet(p))->object.envr.edat.efnc.function)
-#define funclet_set_function(p, F)    (_TLet(p))->object.envr.edat.efnc.function = _TSym(F)
-#define let_line(p)                   (_TLet(p))->object.envr.edat.efnc.line
-#define let_set_line(p, L)            (_TLet(p))->object.envr.edat.efnc.line = L
-#define let_file(p)                   (_TLet(p))->object.envr.edat.efnc.file
-#define let_set_file(p, F)            (_TLet(p))->object.envr.edat.efnc.file = F
-#define dox_slot1(p)                  _TSlt((_TLet(p))->object.envr.edat.dox.dox1)
-#define dox_set_slot1(p, S)           (_TLet(p))->object.envr.edat.dox.dox1 = _TSlt(S)
-#define dox_slot2(p)                  _TSlt((_TLet(p))->object.envr.edat.dox.dox2)
-#define dox_set_slot2(p, S)           (_TLet(p))->object.envr.edat.dox.dox2 = _TSlt(S)
-#define dox_slot2_unchecked(p)        _TLet(p)->object.envr.edat.dox.dox2
-#define dox_set_slot2_unchecked(p, S) _TLet(p)->object.envr.edat.dox.dox2 = (S)
+#define let_slots(p)                  (T_Let(p))->object.envr.slots
+#define let_set_slots(p, Slot)        (T_Let(p))->object.envr.slots = T_Sln(Slot)
+#define outlet(p)                     (T_Let(p))->object.envr.nxt
+#define set_outlet(p, ol)             (T_Let(p))->object.envr.nxt = T_Lid(ol)
+#define funclet_function(p)           T_Sym((T_Let(p))->object.envr.edat.efnc.function)
+#define funclet_set_function(p, F)    (T_Let(p))->object.envr.edat.efnc.function = T_Sym(F)
+#define let_line(p)                   (T_Let(p))->object.envr.edat.efnc.line
+#define let_set_line(p, L)            (T_Let(p))->object.envr.edat.efnc.line = L
+#define let_file(p)                   (T_Let(p))->object.envr.edat.efnc.file
+#define let_set_file(p, F)            (T_Let(p))->object.envr.edat.efnc.file = F
+#define dox_slot1(p)                  T_Slt((T_Let(p))->object.envr.edat.dox.dox1)
+#define dox_set_slot1(p, S)           (T_Let(p))->object.envr.edat.dox.dox1 = T_Slt(S)
+#define dox_slot2(p)                  T_Slt((T_Let(p))->object.envr.edat.dox.dox2)
+#define dox_set_slot2(p, S)           (T_Let(p))->object.envr.edat.dox.dox2 = T_Slt(S)
+#define dox_slot2_unchecked(p)        T_Let(p)->object.envr.edat.dox.dox2
+#define dox_set_slot2_unchecked(p, S) T_Let(p)->object.envr.edat.dox.dox2 = (S)
 
 #define unique_name(p)                (p)->object.unq.nm.name
 #define unique_name_length(p)         (p)->object.unq.len
@@ -2461,92 +2460,92 @@ static int64_t not_heap = -1;
 #define unchecked_vector_element(p, i) ((p)->object.vector.elements.objects[i])
 #define rootlet_element(p, i)         unchecked_vector_element(p, i)
 #define rootlet_elements(p)           unchecked_vector_elements(p)
-#define stack_element(p, i)           unchecked_vector_element(_TStk(p), i)
-#define stack_elements(p)             unchecked_vector_elements(_TStk(p))
-#define vector_element(p, i)          ((_TVec(p))->object.vector.elements.objects[i])
-#define vector_elements(p)            (_TVec(p))->object.vector.elements.objects
-#define vector_getter(p)              (_TVec(p))->object.vector.vget
-#define vector_setter(p)              (_TVec(p))->object.vector.vset
-#define int_vector_element(p, i)      ((_TIvc(p))->object.vector.elements.ints[i])
-#define int_vector_elements(p)        (_TIvc(p))->object.vector.elements.ints
-#define float_vector_element(p, i)    ((_TFvc(p))->object.vector.elements.floats[i])
-#define float_vector_elements(p)      (_TFvc(p))->object.vector.elements.floats
+#define stack_element(p, i)           unchecked_vector_element(T_Stk(p), i)
+#define stack_elements(p)             unchecked_vector_elements(T_Stk(p))
+#define vector_element(p, i)          ((T_Vec(p))->object.vector.elements.objects[i])
+#define vector_elements(p)            (T_Vec(p))->object.vector.elements.objects
+#define vector_getter(p)              (T_Vec(p))->object.vector.vget
+#define vector_setter(p)              (T_Vec(p))->object.vector.vset
+#define int_vector_element(p, i)      ((T_Ivc(p))->object.vector.elements.ints[i])
+#define int_vector_elements(p)        (T_Ivc(p))->object.vector.elements.ints
+#define float_vector_element(p, i)    ((T_Fvc(p))->object.vector.elements.floats[i])
+#define float_vector_elements(p)      (T_Fvc(p))->object.vector.elements.floats
 #define is_normal_vector(p)           (type(p) == T_VECTOR)
 #define is_int_vector(p)              (type(p) == T_INT_VECTOR)
 #define is_float_vector(p)            (type(p) == T_FLOAT_VECTOR)
 
-#define vector_ndims(p)               ((_TVec(p))->object.vector.dim_info->ndims)
-#define vector_dimension(p, i)        ((_TVec(p))->object.vector.dim_info->dims[i])
-#define vector_dimensions(p)          ((_TVec(p))->object.vector.dim_info->dims)
-#define vector_offset(p, i)           ((_TVec(p))->object.vector.dim_info->offsets[i])
-#define vector_offsets(p)             ((_TVec(p))->object.vector.dim_info->offsets)
-#define vector_dimension_info(p)      ((_TVec(p))->object.vector.dim_info)
-#define shared_vector(p)              ((_TVec(p))->object.vector.dim_info->original)
+#define vector_ndims(p)               ((T_Vec(p))->object.vector.dim_info->ndims)
+#define vector_dimension(p, i)        ((T_Vec(p))->object.vector.dim_info->dims[i])
+#define vector_dimensions(p)          ((T_Vec(p))->object.vector.dim_info->dims)
+#define vector_offset(p, i)           ((T_Vec(p))->object.vector.dim_info->offsets[i])
+#define vector_offsets(p)             ((T_Vec(p))->object.vector.dim_info->offsets)
+#define vector_dimension_info(p)      ((T_Vec(p))->object.vector.dim_info)
+#define shared_vector(p)              ((T_Vec(p))->object.vector.dim_info->original)
 #define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
-#define vector_elements_allocated(p)  ((_TVec(p))->object.vector.dim_info->elements_allocated)
-#define vector_dimensions_allocated(p) ((_TVec(p))->object.vector.dim_info->dimensions_allocated)
+#define vector_elements_allocated(p)  ((T_Vec(p))->object.vector.dim_info->elements_allocated)
+#define vector_dimensions_allocated(p) ((T_Vec(p))->object.vector.dim_info->dimensions_allocated)
 
 #define is_hash_table(p)              (type(p) == T_HASH_TABLE)
-#define is_mutable_hash_table(p)      ((typeflag(_NFre(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
-#define hash_table_mask(p)            (_THsh(p))->object.hasher.mask
-#define hash_table_element(p, i)      ((_THsh(p))->object.hasher.elements[i])
-#define hash_table_elements(p)        (_THsh(p))->object.hasher.elements
-#define hash_table_entries(p)         (_THsh(p))->object.hasher.entries
-#define hash_table_checker(p)         (_THsh(p))->object.hasher.hash_func
-#define hash_table_mapper(p)          (_THsh(p))->object.hasher.loc
+#define is_mutable_hash_table(p)      ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
+#define hash_table_mask(p)            (T_Hsh(p))->object.hasher.mask
+#define hash_table_element(p, i)      ((T_Hsh(p))->object.hasher.elements[i])
+#define hash_table_elements(p)        (T_Hsh(p))->object.hasher.elements
+#define hash_table_entries(p)         (T_Hsh(p))->object.hasher.entries
+#define hash_table_checker(p)         (T_Hsh(p))->object.hasher.hash_func
+#define hash_table_mapper(p)          (T_Hsh(p))->object.hasher.loc
 #define hash_table_checker_locked(p)  (hash_table_mapper(p) != default_hash_map)
-#define hash_table_procedures(p)      _TLst((_THsh(p))->object.hasher.dproc)
-#define hash_table_set_procedures(p, Lst) (_THsh(p))->object.hasher.dproc = _TLst(Lst)
+#define hash_table_procedures(p)      T_Lst((T_Hsh(p))->object.hasher.dproc)
+#define hash_table_set_procedures(p, Lst) (T_Hsh(p))->object.hasher.dproc = T_Lst(Lst)
 #define hash_table_procedures_checker(p) car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
 
 #if S7_DEBUGGING
-#define _TItr_Pos(p)  titr_pos(_TItr(p), __func__, __LINE__)
-#define _TItr_Len(p)  titr_len(_TItr(p), __func__, __LINE__)
-#define _TItr_Hash(p) titr_hash(_TItr(p), __func__, __LINE__)
-#define _TItr_Let(p)  titr_let(_TItr(p), __func__, __LINE__)
-#define _TItr_Pair(p) titr_pair(_TItr(p), __func__, __LINE__)
+#define T_Itr_Pos(p)  titr_pos(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Len(p)  titr_len(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Hash(p) titr_hash(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Let(p)  titr_let(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Pair(p) titr_pair(T_Itr(p), __func__, __LINE__)
 #else
-#define _TItr_Pos(p)  p
-#define _TItr_Len(p)  p
-#define _TItr_Hash(p) p
-#define _TItr_Let(p)  p
-#define _TItr_Pair(p) p
+#define T_Itr_Pos(p)  p
+#define T_Itr_Len(p)  p
+#define T_Itr_Hash(p) p
+#define T_Itr_Let(p)  p
+#define T_Itr_Pair(p) p
 #endif
 
 #define is_iterator(p)                (type(p) == T_ITERATOR)
-#define iterator_sequence(p)          (_TItr(p))->object.iter.obj
-#define iterator_position(p)          (_TItr_Pos(p))->object.iter.lc.loc
-#define iterator_length(p)            (_TItr_Len(p))->object.iter.lw.len
-#define iterator_next(p)              (_TItr(p))->object.iter.next
-#define iterator_is_at_end(p)         ((typeflag(_TItr(p)) & T_ITER_OK) == 0)
-#define iterator_slow(p)              _TLst((_TItr_Pair(p))->object.iter.lw.slow)
-#define iterator_set_slow(p, Val)     (_TItr_Pair(p))->object.iter.lw.slow = _TLst(Val)
-#define iterator_hash_current(p)      (_TItr_Hash(p))->object.iter.lw.hcur
-#define iterator_current(p)           (_TItr(p))->object.iter.cur
-#define iterator_current_slot(p)      _TSln((_TItr_Let(p))->object.iter.lc.lcur)
-#define iterator_set_current_slot(p, Val) (_TItr_Let(p))->object.iter.lc.lcur = _TSln(Val)
-#define iterator_let_cons(p)          (_TItr_Let(p))->object.iter.cur
+#define iterator_sequence(p)          (T_Itr(p))->object.iter.obj
+#define iterator_position(p)          (T_Itr_Pos(p))->object.iter.lc.loc
+#define iterator_length(p)            (T_Itr_Len(p))->object.iter.lw.len
+#define iterator_next(p)              (T_Itr(p))->object.iter.next
+#define iterator_is_at_end(p)         ((typeflag(T_Itr(p)) & T_ITER_OK) == 0)
+#define iterator_slow(p)              T_Lst((T_Itr_Pair(p))->object.iter.lw.slow)
+#define iterator_set_slow(p, Val)     (T_Itr_Pair(p))->object.iter.lw.slow = T_Lst(Val)
+#define iterator_hash_current(p)      (T_Itr_Hash(p))->object.iter.lw.hcur
+#define iterator_current(p)           (T_Itr(p))->object.iter.cur
+#define iterator_current_slot(p)      T_Sln((T_Itr_Let(p))->object.iter.lc.lcur)
+#define iterator_set_current_slot(p, Val) (T_Itr_Let(p))->object.iter.lc.lcur = T_Sln(Val)
+#define iterator_let_cons(p)          (T_Itr_Let(p))->object.iter.cur
 
 #define ITERATOR_END eof_object
 #define ITERATOR_END_NAME "#<eof>"
 
 #define is_input_port(p)              (type(p) == T_INPUT_PORT)
 #define is_output_port(p)             (type(p) == T_OUTPUT_PORT)
-#define port_port(p)                  (_TPrt(p))->object.prt.port
+#define port_port(p)                  (T_Prt(p))->object.prt.port
 #define is_string_port(p)             (port_type(p) == STRING_PORT)
 #define is_file_port(p)               (port_type(p) == FILE_PORT)
 #define is_function_port(p)           (port_type(p) == FUNCTION_PORT)
-#define port_line_number(p)           (_TPrt(p))->object.prt.line_number
-#define port_file_number(p)           (_TPrt(p))->object.prt.file_number
+#define port_line_number(p)           (T_Prt(p))->object.prt.line_number
+#define port_file_number(p)           (T_Prt(p))->object.prt.file_number
 #define port_filename(p)              port_port(p)->filename
 #define port_set_filename(p, Name, Len) port_port(p)->filename = copy_string_with_length(Name, Len)
 #define port_filename_length(p)       port_port(p)->filename_length
 #define port_file(p)                  port_port(p)->file
-#define port_data(p)                  (_TPrt(p))->object.prt.data
-#define port_data_size(p)             (_TPrt(p))->object.prt.size
-#define port_position(p)              (_TPrt(p))->object.prt.point
+#define port_data(p)                  (T_Prt(p))->object.prt.data
+#define port_data_size(p)             (T_Prt(p))->object.prt.size
+#define port_position(p)              (T_Prt(p))->object.prt.point
 #define port_type(p)                  port_port(p)->ptype
 #define port_is_closed(p)             port_port(p)->is_closed
 #define port_set_closed(p, Val)       port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
@@ -2569,62 +2568,62 @@ static int64_t not_heap = -1;
 #define is_c_function(f)              (type(f) >= T_C_FUNCTION)
 #define is_c_function_star(f)         (type(f) == T_C_FUNCTION_STAR)
 #define is_any_c_function(f)          (type(f) >= T_C_FUNCTION_STAR)
-#define c_function_data(f)            (_TFnc(f))->object.fnc.c_proc
-#define c_function_call(f)            (_TFnc(f))->object.fnc.ff
-#define c_function_required_args(f)   (_TFnc(f))->object.fnc.required_args
-#define c_function_optional_args(f)   (_TFnc(f))->object.fnc.optional_args
-#define c_function_all_args(f)        (_TFnc(f))->object.fnc.all_args
+#define c_function_data(f)            (T_Fnc(f))->object.fnc.c_proc
+#define c_function_call(f)            (T_Fnc(f))->object.fnc.ff
+#define c_function_required_args(f)   (T_Fnc(f))->object.fnc.required_args
+#define c_function_optional_args(f)   (T_Fnc(f))->object.fnc.optional_args
+#define c_function_all_args(f)        (T_Fnc(f))->object.fnc.all_args
 #define c_function_name(f)            c_function_data(f)->name
 #define c_function_name_length(f)     c_function_data(f)->name_length
 #define c_function_documentation(f)   c_function_data(f)->doc
 #define c_function_signature(f)       c_function_data(f)->signature
-#define c_function_setter(f)          _TApp(c_function_data(f)->setter)
-#define c_function_set_setter(f, Val) c_function_data(f)->setter = _TApp(Val)
+#define c_function_setter(f)          T_App(c_function_data(f)->setter)
+#define c_function_set_setter(f, Val) c_function_data(f)->setter = T_App(Val)
 #define c_function_class(f)           c_function_data(f)->id
 #define c_function_chooser(f)         c_function_data(f)->chooser
-#define c_function_base(f)            _TApp(c_function_data(f)->generic_ff)
-#define c_function_set_base(f, Val)   c_function_data(f)->generic_ff = _TApp(Val)
-#define c_function_arg_defaults(f)    c_function_data(_TFst(f))->arg_defaults
-#define c_function_call_args(f)       c_function_data(_TFst(f))->call_args
-#define c_function_arg_names(f)       c_function_data(_TFst(f))->arg_names
+#define c_function_base(f)            T_App(c_function_data(f)->generic_ff)
+#define c_function_set_base(f, Val)   c_function_data(f)->generic_ff = T_App(Val)
+#define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->arg_defaults
+#define c_function_call_args(f)       c_function_data(T_Fst(f))->call_args
+#define c_function_arg_names(f)       c_function_data(T_Fst(f))->arg_names
 #define set_c_function(X, f)          do {set_opt_cfunc(X, f); set_c_call(X, c_function_call(f));} while (0)
 #define c_function_opt_data(f)        c_function_data(f)->opt_data
 
 #define is_c_macro(p)                 (type(p) == T_C_MACRO)
-#define c_macro_data(f)               (_TMac(f))->object.fnc.c_proc
-#define c_macro_call(f)               (_TMac(f))->object.fnc.ff
+#define c_macro_data(f)               (T_Mac(f))->object.fnc.c_proc
+#define c_macro_call(f)               (T_Mac(f))->object.fnc.ff
 #define c_macro_name(f)               c_macro_data(f)->name
 #define c_macro_name_length(f)        c_macro_data(f)->name_length
-#define c_macro_required_args(f)      (_TMac(f))->object.fnc.required_args
-#define c_macro_all_args(f)           (_TMac(f))->object.fnc.all_args
-#define c_macro_setter(f)             _TApp(c_macro_data(f)->setter)
-#define c_macro_set_setter(f, Val)    c_macro_data(f)->setter = _TApp(Val)
+#define c_macro_required_args(f)      (T_Mac(f))->object.fnc.required_args
+#define c_macro_all_args(f)           (T_Mac(f))->object.fnc.all_args
+#define c_macro_setter(f)             T_App(c_macro_data(f)->setter)
+#define c_macro_set_setter(f, Val)    c_macro_data(f)->setter = T_App(Val)
 
 #define is_random_state(p)            (type(p) == T_RANDOM_STATE)
 #if WITH_GMP
-#define random_gmp_state(p)           (_TRan(p))->object.rng.state
+#define random_gmp_state(p)           (T_Ran(p))->object.rng.state
 #else
-#define random_seed(p)                (_TRan(p))->object.rng.seed
-#define random_carry(p)               (_TRan(p))->object.rng.carry
+#define random_seed(p)                (T_Ran(p))->object.rng.seed
+#define random_carry(p)               (T_Ran(p))->object.rng.carry
 #endif
 
-#define continuation_data(p)          (_TCon(p))->object.cwcc.continuation
-#define continuation_stack(p)         (_TCon(p))->object.cwcc.stack
-#define continuation_set_stack(p, Val) (_TCon(p))->object.cwcc.stack = _TStk(Val)
-#define continuation_stack_end(p)     (_TCon(p))->object.cwcc.stack_end
-#define continuation_stack_start(p)   (_TCon(p))->object.cwcc.stack_start
-#define continuation_stack_size(p)    (_TCon(p))->object.cwcc.continuation->stack_size
+#define continuation_data(p)          (T_Con(p))->object.cwcc.continuation
+#define continuation_stack(p)         (T_Con(p))->object.cwcc.stack
+#define continuation_set_stack(p, Val) (T_Con(p))->object.cwcc.stack = T_Stk(Val)
+#define continuation_stack_end(p)     (T_Con(p))->object.cwcc.stack_end
+#define continuation_stack_start(p)   (T_Con(p))->object.cwcc.stack_start
+#define continuation_stack_size(p)    (T_Con(p))->object.cwcc.continuation->stack_size
 #define continuation_stack_top(p)     (continuation_stack_end(p) - continuation_stack_start(p))
-#define continuation_op_stack(p)      (_TCon(p))->object.cwcc.op_stack
-#define continuation_op_loc(p)        (_TCon(p))->object.cwcc.continuation->op_stack_loc
-#define continuation_op_size(p)       (_TCon(p))->object.cwcc.continuation->op_stack_size
-#define continuation_key(p)           (_TCon(p))->object.cwcc.continuation->local_key
+#define continuation_op_stack(p)      (T_Con(p))->object.cwcc.op_stack
+#define continuation_op_loc(p)        (T_Con(p))->object.cwcc.continuation->op_stack_loc
+#define continuation_op_size(p)       (T_Con(p))->object.cwcc.continuation->op_stack_size
+#define continuation_key(p)           (T_Con(p))->object.cwcc.continuation->local_key
 
-#define call_exit_goto_loc(p)         (_TGot(p))->object.rexit.goto_loc
-#define call_exit_op_loc(p)           (_TGot(p))->object.rexit.op_stack_loc
-#define call_exit_active(p)           (_TGot(p))->object.rexit.active
+#define call_exit_goto_loc(p)         (T_Got(p))->object.rexit.goto_loc
+#define call_exit_op_loc(p)           (T_Got(p))->object.rexit.op_stack_loc
+#define call_exit_active(p)           (T_Got(p))->object.rexit.active
 
-#define temp_stack_top(p)             (_TStk(p))->object.stk.top
+#define temp_stack_top(p)             (T_Stk(p))->object.stk.top
 #define s7_stack_top(Sc)              ((Sc)->stack_end - (Sc)->stack_start)
 
 #define is_continuation(p)            (type(p) == T_CONTINUATION)
@@ -2636,17 +2635,17 @@ static int64_t not_heap = -1;
 
 #define is_closure(p)                 (type(p) == T_CLOSURE)
 #define is_closure_star(p)            (type(p) == T_CLOSURE_STAR)
-#define closure_args(p)               (_TClo(p))->object.func.args
-#define closure_set_args(p, Val)      (_TClo(p))->object.func.args = _TArg(Val)
-#define closure_body(p)               (_TPair((_TClo(p))->object.func.body))
-#define closure_set_body(p, Val)      (_TClo(p))->object.func.body = _TPair(Val)
-#define closure_let(p)                _TLid((_TClo(p))->object.func.env)
-#define closure_set_let(p, L)         (_TClo(p))->object.func.env = _TLid(L)
-#define closure_setter(p)             _TApp((_TClo(p))->object.func.setter)
-#define closure_set_setter(p, Val)    (_TClo(p))->object.func.setter = _TApp(Val)
-#define closure_arity(p)              (_TClo(p))->object.func.arity
-#define closure_optlist_addr(p)       (_TClo(p))->object.func.opt_addr
-#define closure_set_optlist_addr(p, addr) (_TClo(p))->object.func.opt_addr = addr
+#define closure_args(p)               (T_Clo(p))->object.func.args
+#define closure_set_args(p, Val)      (T_Clo(p))->object.func.args = T_Arg(Val)
+#define closure_body(p)               (T_Pair((T_Clo(p))->object.func.body))
+#define closure_set_body(p, Val)      (T_Clo(p))->object.func.body = T_Pair(Val)
+#define closure_let(p)                T_Lid((T_Clo(p))->object.func.env)
+#define closure_set_let(p, L)         (T_Clo(p))->object.func.env = T_Lid(L)
+#define closure_setter(p)             T_App((T_Clo(p))->object.func.setter)
+#define closure_set_setter(p, Val)    (T_Clo(p))->object.func.setter = T_App(Val)
+#define closure_arity(p)              (T_Clo(p))->object.func.arity
+#define closure_optlist_addr(p)       (T_Clo(p))->object.func.opt_addr
+#define closure_set_optlist_addr(p, addr) (T_Clo(p))->object.func.opt_addr = addr
 #define closure_optlist(p)            stored_optlists[closure_optlist_addr(p)]
 #define CLOSURE_ARITY_NOT_SET         0x40000000
 #define MAX_ARITY                     0x20000000
@@ -2654,43 +2653,43 @@ static int64_t not_heap = -1;
 #define is_thunk(Sc, Fnc)             ((type(Fnc) >= T_GOTO) && (s7_is_aritable(Sc, Fnc, 0)))
 
 /* #define is_optlist(p)              (type(p) == T_OPTLIST) */
-#define optlist_num_exprs(p)          (_TOpt(p))->object.opt.num_exprs
-#define optlist_set_num_exprs(p, Val) (_TOpt(p))->object.opt.num_exprs = Val
-#define optlist_addr(p)               (_TOpt(p))->object.opt.addr
-#define optlist_pc(p)                 (_TOpt(p))->object.opt.pc
-#define optlist_set_pc(p, Val)        (_TOpt(p))->object.opt.pc = Val
-#define optlist_num_args(p)           (_TOpt(p))->object.opt.num_args
-#define optlist_set_num_args(p, Val)  (_TOpt(p))->object.opt.num_args = Val
-#define optlist_len(p)                (_TOpt(p))->object.opt.len
-#define optlist_set_len(p, Val)       (_TOpt(p))->object.opt.len = Val
-/* #define optlist_opts(p)            (_TOpt(p))->object.opt.opts */
+#define optlist_num_exprs(p)          (T_Opt(p))->object.opt.num_exprs
+#define optlist_set_num_exprs(p, Val) (T_Opt(p))->object.opt.num_exprs = Val
+#define optlist_addr(p)               (T_Opt(p))->object.opt.addr
+#define optlist_pc(p)                 (T_Opt(p))->object.opt.pc
+#define optlist_set_pc(p, Val)        (T_Opt(p))->object.opt.pc = Val
+#define optlist_num_args(p)           (T_Opt(p))->object.opt.num_args
+#define optlist_set_num_args(p, Val)  (T_Opt(p))->object.opt.num_args = Val
+#define optlist_len(p)                (T_Opt(p))->object.opt.len
+#define optlist_set_len(p, Val)       (T_Opt(p))->object.opt.len = Val
+/* #define optlist_opts(p)            (T_Opt(p))->object.opt.opts */
 
-#define hook_has_functions(p)         (is_pair(s7_hook_functions(sc, _TClo(p))))
+#define hook_has_functions(p)         (is_pair(s7_hook_functions(sc, T_Clo(p))))
 
-#define catch_tag(p)                  (_TCat(p))->object.rcatch.tag
-#define catch_goto_loc(p)             (_TCat(p))->object.rcatch.goto_loc
-#define catch_op_loc(p)               (_TCat(p))->object.rcatch.op_stack_loc
-#define catch_handler(p)              (_TCat(p))->object.rcatch.handler
+#define catch_tag(p)                  (T_Cat(p))->object.rcatch.tag
+#define catch_goto_loc(p)             (T_Cat(p))->object.rcatch.goto_loc
+#define catch_op_loc(p)               (T_Cat(p))->object.rcatch.op_stack_loc
+#define catch_handler(p)              (T_Cat(p))->object.rcatch.handler
 
-#define catch_all_goto_loc(p)         (_TLet(p))->object.envr.edat.ctall.goto_loc
-#define catch_all_set_goto_loc(p, L)  (_TLet(p))->object.envr.edat.ctall.goto_loc = L
-#define catch_all_op_loc(p)           (_TLet(p))->object.envr.edat.ctall.op_stack_loc
-#define catch_all_set_op_loc(p, L)    (_TLet(p))->object.envr.edat.ctall.op_stack_loc = L
+#define catch_all_goto_loc(p)         (T_Let(p))->object.envr.edat.ctall.goto_loc
+#define catch_all_set_goto_loc(p, L)  (T_Let(p))->object.envr.edat.ctall.goto_loc = L
+#define catch_all_op_loc(p)           (T_Let(p))->object.envr.edat.ctall.op_stack_loc
+#define catch_all_set_op_loc(p, L)    (T_Let(p))->object.envr.edat.ctall.op_stack_loc = L
 
 enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
-#define dynamic_wind_state(p)         (_TDyn(p))->object.winder.state
-#define dynamic_wind_in(p)            (_TDyn(p))->object.winder.in
-#define dynamic_wind_out(p)           (_TDyn(p))->object.winder.out
-#define dynamic_wind_body(p)          (_TDyn(p))->object.winder.body
+#define dynamic_wind_state(p)         (T_Dyn(p))->object.winder.state
+#define dynamic_wind_in(p)            (T_Dyn(p))->object.winder.in
+#define dynamic_wind_out(p)           (T_Dyn(p))->object.winder.out
+#define dynamic_wind_body(p)          (T_Dyn(p))->object.winder.body
 
 #define is_c_object(p)                (type(p) == T_C_OBJECT)
-#define c_object_value(p)             (_TObj(p))->object.c_obj.value
-#define c_object_type(p)              (_TObj(p))->object.c_obj.type
-#define c_object_let(p)               _TLid((_TObj(p))->object.c_obj.e)
-#define c_object_set_let(p, L)        (_TObj(p))->object.c_obj.e = _TLid(L)
-#define c_object_mark(p)              (_TObj(p))->object.c_obj.mark
+#define c_object_value(p)             (T_Obj(p))->object.c_obj.value
+#define c_object_type(p)              (T_Obj(p))->object.c_obj.type
+#define c_object_let(p)               T_Lid((T_Obj(p))->object.c_obj.e)
+#define c_object_set_let(p, L)        (T_Obj(p))->object.c_obj.e = T_Lid(L)
+#define c_object_mark(p)              (T_Obj(p))->object.c_obj.mark
 
-#define c_object_info(Sc, p)          Sc->c_object_types[c_object_type(_TObj(p))]
+#define c_object_info(Sc, p)          Sc->c_object_types[c_object_type(T_Obj(p))]
 #define c_object_free(Sc, p)          c_object_info(Sc, p)->free
 #define c_object_ref(Sc, p)           c_object_info(Sc, p)->ref
 #define c_object_set(Sc, p)           c_object_info(Sc, p)->set
@@ -2703,27 +2702,27 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define c_object_reverse(Sc, p)       c_object_info(Sc, p)->reverse
 #define c_object_direct_ref(Sc, p)    c_object_info(Sc, p)->direct_ref
 #define c_object_direct_set(Sc, p)    c_object_info(Sc, p)->direct_set
-#define c_object_scheme_name(Sc, p)   _TStr(c_object_info(Sc, p)->scheme_name)
+#define c_object_scheme_name(Sc, p)   T_Str(c_object_info(Sc, p)->scheme_name)
 
-#define raw_pointer(p)                (_TPtr(p))->object.cptr.c_pointer
-#define raw_pointer_type(p)           (_TPtr(p))->object.cptr.c_type
-#define raw_pointer_info(p)           (_TPtr(p))->object.cptr.info
+#define raw_pointer(p)                (T_Ptr(p))->object.cptr.c_pointer
+#define raw_pointer_type(p)           (T_Ptr(p))->object.cptr.c_type
+#define raw_pointer_info(p)           (T_Ptr(p))->object.cptr.info
 #define is_c_pointer(p)               (type(p) == T_C_POINTER)
 
 #define is_counter(p)                 (type(p) == T_COUNTER)
-#define counter_result(p)             (_TCtr(p))->object.ctr.result
-#define counter_set_result(p, Val)    (_TCtr(p))->object.ctr.result = _NFre(Val)
-#define counter_list(p)               (_TCtr(p))->object.ctr.list
-#define counter_set_list(p, Val)      (_TCtr(p))->object.ctr.list = _NFre(Val)
-#define counter_capture(p)            (_TCtr(p))->object.ctr.cap
-#define counter_set_capture(p, Val)   (_TCtr(p))->object.ctr.cap = Val
-#define counter_let(p)                _TLid((_TCtr(p))->object.ctr.env)
-#define counter_set_let(p, L)         (_TCtr(p))->object.ctr.env = _TLid(L)
-#define counter_slots(p)              (_TCtr(p))->object.ctr.slots
-#define counter_set_slots(p, Val)     (_TCtr(p))->object.ctr.slots = _TSln(Val)
+#define counter_result(p)             (T_Ctr(p))->object.ctr.result
+#define counter_set_result(p, Val)    (T_Ctr(p))->object.ctr.result = T_Pos(Val)
+#define counter_list(p)               (T_Ctr(p))->object.ctr.list
+#define counter_set_list(p, Val)      (T_Ctr(p))->object.ctr.list = T_Pos(Val)
+#define counter_capture(p)            (T_Ctr(p))->object.ctr.cap
+#define counter_set_capture(p, Val)   (T_Ctr(p))->object.ctr.cap = Val
+#define counter_let(p)                T_Lid((T_Ctr(p))->object.ctr.env)
+#define counter_set_let(p, L)         (T_Ctr(p))->object.ctr.env = T_Lid(L)
+#define counter_slots(p)              (T_Ctr(p))->object.ctr.slots
+#define counter_set_slots(p, Val)     (T_Ctr(p))->object.ctr.slots = T_Sln(Val)
 
 #define is_baffle(p)                  (type(p) == T_BAFFLE)
-#define baffle_key(p)                 (_TBfl(p))->object.baffle_key
+#define baffle_key(p)                 (T_Bfl(p))->object.baffle_key
 
 #if __cplusplus && HAVE_COMPLEX_NUMBERS
   using namespace std;                /* the code has to work in C as well as C++, so we can't scatter std:: all over the place */
@@ -2732,34 +2731,34 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
   static s7_double Imag(complex<s7_double> x) {return(imag(x));}
 #endif
 
-#define integer(p)                    (_TI(p))->object.number.integer_value
-#define real(p)                       (_TR(p))->object.number.real_value
+#define integer(p)                    (T_Int(p))->object.number.integer_value
+#define real(p)                       (T_Rel(p))->object.number.real_value
 #define set_real(p, x)                real(p) = x
-#define numerator(p)                  (_TF(p))->object.number.fraction_value.numerator
-#define denominator(p)                (_TF(p))->object.number.fraction_value.denominator
+#define numerator(p)                  (T_Frc(p))->object.number.fraction_value.numerator
+#define denominator(p)                (T_Frc(p))->object.number.fraction_value.denominator
 #define fraction(p)                   (((long double)numerator(p)) / ((long double)denominator(p)))
 #define inverted_fraction(p)          (((long double)denominator(p)) / ((long double)numerator(p)))
-#define real_part(p)                  (_TZ(p))->object.number.complex_value.rl
+#define real_part(p)                  (T_Cmp(p))->object.number.complex_value.rl
 #define set_real_part(p, x)           real_part(p) = x
-#define imag_part(p)                  (_TZ(p))->object.number.complex_value.im
+#define imag_part(p)                  (T_Cmp(p))->object.number.complex_value.im
 #define set_imag_part(p, x)           imag_part(p) = x
 #if HAVE_COMPLEX_NUMBERS
   #define as_c_complex(p)             CMPLX(real_part(p), imag_part(p))
 #endif
 
 #if WITH_GMP
-#define big_integer(p)                ((_TBgi(p))->object.number.big_integer)
-#define big_ratio(p)                  ((_TBgf(p))->object.number.big_ratio)
-#define big_real(p)                   ((_TBgr(p))->object.number.big_real)
-#define big_complex(p)                ((_TBgz(p))->object.number.big_complex)
+#define big_integer(p)                ((T_Bgi(p))->object.number.big_integer)
+#define big_ratio(p)                  ((T_Bgf(p))->object.number.big_ratio)
+#define big_real(p)                   ((T_Bgr(p))->object.number.big_real)
+#define big_complex(p)                ((T_Bgz(p))->object.number.big_complex)
 #endif
 
 #define NUM_SMALL_INTS 2048
 #define small_int(Val)                small_ints[Val]
 #define is_small(n)                   ((n & ~(NUM_SMALL_INTS - 1)) == 0)
 
-#define print_name(p)                 (char *)((_TNum(p))->object.number.pval.name + 1)
-#define print_name_length(p)          (_TNum(p))->object.number.pval.name[0]
+#define print_name(p)                 (char *)((T_Num(p))->object.number.pval.name + 1)
+#define print_name_length(p)          (T_Num(p))->object.number.pval.name[0]
 
 static void set_print_name(s7_pointer p, const char *name, int32_t len)
 {
@@ -4915,7 +4914,7 @@ static int64_t gc(s7_scheme *sc)
 #if S7_DEBUGGING
   #define gc_call(P, Tp) \
     p = (*tp++); \
-    if (is_marked(_Cell(p))) \
+    if (is_marked(T_Any(p))) \
        clear_mark(p); \
     else \
       { \
@@ -5099,7 +5098,7 @@ static int64_t gc(s7_scheme *sc)
 	/* from here down is gc_call, but I wanted one case explicit for readability */
 	p = (*tp++);
 
-	if (is_marked(_Cell(p)))          /* this order is faster than checking typeflag(p) != T_FREE first */
+	if (is_marked(T_Any(p)))          /* this order is faster than checking typeflag(p) != T_FREE first */
 	  clear_mark(p);
 	else
 	  {
@@ -5531,7 +5530,7 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 
 static void push_op_stack(s7_scheme *sc, s7_pointer op)
 {
-  (*sc->op_stack_now++) = _NFre(op);
+  (*sc->op_stack_now++) = T_Pos(op);
   if (sc->op_stack_now > (sc->op_stack + sc->op_stack_size)) 
     {
       fprintf(stderr, "%sop_stack overflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
@@ -5548,7 +5547,7 @@ static s7_pointer pop_op_stack(s7_scheme *sc)
       fprintf(stderr, "%sop_stack underflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
-  return(_NFre(op));
+  return(T_Pos(op));
 }
 #else
 #define push_op_stack(Sc, Op) (*Sc->op_stack_now++) = Op
@@ -5599,9 +5598,9 @@ static void pop_stack(s7_scheme *sc)
    *   inline (as in named let) -- they actually don't make sense in these cases, but are ignored,
    *   and are carried around as GC protection in other cases.
    */
-  sc->code =  _NFre(sc->stack_end[0]);
-  sc->envir = _TLid(sc->stack_end[1]);
-  sc->args =  _NFre(sc->stack_end[2]);
+  sc->code =  T_Pos(sc->stack_end[0]);
+  sc->envir = T_Lid(sc->stack_end[1]);
+  sc->args =  T_Pos(sc->stack_end[2]);
   sc->cur_op = (opcode_t)(sc->stack_end[3]);
   if (sc->cur_op > OP_MAX_DEFINED) 
     {
@@ -5618,9 +5617,9 @@ static void pop_stack_no_op(s7_scheme *sc)
       fprintf(stderr, "%sstack underflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
-  sc->code =  _NFre(sc->stack_end[0]);
-  sc->envir = _TLid(sc->stack_end[1]);
-  sc->args =  _NFre(sc->stack_end[2]);
+  sc->code =  T_Pos(sc->stack_end[0]);
+  sc->envir = T_Lid(sc->stack_end[1]);
+  sc->args =  T_Pos(sc->stack_end[2]);
 }
 
 static void push_stack(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer code)
@@ -5635,9 +5634,9 @@ static void push_stack(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer c
       fprintf(stderr, "%spush_stack[%d] invalid opcode: %" PRIdPTR " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
-  if (code) sc->stack_end[0] = _NFre(code);
-  sc->stack_end[1] = _TLid(sc->envir);
-  if (args) sc->stack_end[2] = _NFre(args);
+  if (code) sc->stack_end[0] = T_Pos(code);
+  sc->stack_end[1] = T_Lid(sc->envir);
+  if (args) sc->stack_end[2] = T_Pos(args);
   sc->stack_end[3] = (s7_pointer)op;
   sc->stack_end += 4;
 }
@@ -6472,7 +6471,7 @@ static s7_pointer reuse_as_slot(s7_pointer slot, s7_pointer symbol, s7_pointer v
 #endif
   set_type(slot, T_SLOT);
   slot_set_symbol(slot, symbol);
-  slot_set_value(slot, _NFre(value));
+  slot_set_value(slot, T_Pos(value));
   return(slot);
 }
 
@@ -9844,8 +9843,7 @@ bool s7_is_rational(s7_pointer p)
 bool s7_is_ratio(s7_pointer p)
 {
 #if WITH_GMP
-  return((is_t_ratio(p)) ||
-	 (is_t_big_ratio(p)));
+  return((is_t_ratio(p)) || (is_t_big_ratio(p)));
 #else
   return(is_t_ratio(p));
 #endif
@@ -11450,7 +11448,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 	    int32_t lval = 0;
 
 	    tmp = (char *)(name + 2);
-	    while ((*tmp) && (happy) && (lval >= 0))
+	    while ((*tmp) && (happy) && (lval >= 0) && (lval < 256))
 	      {
 		int32_t dig;
 		dig = digits[(int32_t)(*tmp++)];
@@ -13251,6 +13249,10 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
 	  z = as_c_complex(n);
 	  sq1mz = csqrt(1.0 - z);
 	  sq1pz = csqrt(1.0 + z);
+#if S7_DEBUGGING
+	  if (creal(sq1pz) == 0.0)
+	    fprintf(stderr, "%d: real_part 0.0: %s\n", __LINE__, DISPLAY(n));
+#endif
 	  return(s7_make_complex(sc, 2.0 * atan(creal(sq1mz) / creal(sq1pz)), asinh(cimag(sq1mz * conj(sq1pz)))));
 	}
       return(s7_from_c_complex(sc, cacos(s7_to_c_complex(n))));
@@ -14872,6 +14874,9 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  if (b == 0.0) return(x);
 	  if (is_NaN(b)) return(y);
 	  if (is_inf(b)) return(real_NaN);
+	  /* TODO: need double_multiply_overflow here -- at least the s7_int part overflows -- conversion_overflow?? 1e18 or 1e19
+	   *   replace floor(a / b) with s7_int checked_floor(a / b) -- if abs > 1e19 error etc
+	   */
 	  return(make_real(sc, a - b * (s7_int)floor(a / b)));
 
 	default:
@@ -19648,7 +19653,7 @@ static bool is_negative_d(s7_double p) {return(p < 0.0);}
 
 #if (!DISABLE_DEPRECATED)
 bool s7_is_ulong(s7_pointer arg) {return(is_integer(arg));}
-unsigned long s7_ulong(s7_pointer p)  {return((_NFre(p))->object.number.ul_value);}
+unsigned long s7_ulong(s7_pointer p)  {return((T_Pos(p))->object.number.ul_value);}
 
 s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n)
 {
@@ -19659,7 +19664,7 @@ s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n)
 }
 
 bool s7_is_ulong_long(s7_pointer arg) {return(is_integer(arg));}
-uint64_t s7_ulong_long(s7_pointer p)  {return((_NFre(p))->object.number.ull_value);}
+uint64_t s7_ulong_long(s7_pointer p)  {return((T_Pos(p))->object.number.ull_value);}
 
 s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n)
 {
@@ -25340,7 +25345,7 @@ s7_pointer s7_eval_c_string_with_environment(s7_scheme *sc, const char *str, s7_
   port = s7_open_input_string(sc, str);
   code = s7_read(sc, port);
   s7_close_input_port(sc, port);
-  return(s7_eval(sc, _NFre(code), e));
+  return(s7_eval(sc, T_Pos(code), e));
 }
 
 s7_pointer s7_eval_c_string(s7_scheme *sc, const char *str)
@@ -28221,7 +28226,7 @@ static bool arg_memq(s7_pointer symbol, s7_pointer args)
 
 static void collect_symbol(s7_scheme *sc, s7_pointer sym, s7_pointer e, s7_pointer args, s7_int gc_loc)
 {
-  if ((!arg_memq(_TSym(sym), args)) &&
+  if ((!arg_memq(T_Sym(sym), args)) &&
       (!slot_memq(sym, gc_protected_at(sc, gc_loc))))
     {
       s7_pointer slot;
@@ -28457,7 +28462,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
   if (setter)
     collect_locals(sc, closure_body(setter), pe, closure_args(setter), gc_loc);
 
-  local_slots = _TLst(gc_protected_at(sc, gc_loc)); /* possibly a list of slots */
+  local_slots = T_Lst(gc_protected_at(sc, gc_loc)); /* possibly a list of slots */
   if (!is_null(local_slots))
     {
       s7_pointer x;
@@ -32070,7 +32075,7 @@ s7_pointer s7_list_set(s7_scheme *sc, s7_pointer lst, s7_int num, s7_pointer val
   for (x = lst, i = 0; (i < num) && (is_pair(x)); i++, x = cdr(x)) {}
   if ((i == num) &&
       (is_pair(x)))
-    set_car(x, _NFre(val));
+    set_car(x, T_Pos(val));
   return(val);
 }
 
@@ -35071,7 +35076,7 @@ s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer
   if (index >= vector_length(vec))
     return(out_of_range(sc, sc->vector_set_symbol, small_int(2), make_integer(sc, index), its_too_large_string));
 
-  vector_setter(vec)(sc, vec, index, _NFre(a));
+  vector_setter(vec)(sc, vec, index, T_Pos(a));
   return(a);
 }
 
@@ -36025,7 +36030,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 	    {
 	      if (!s7_is_integer(car(y)))
 		return(wrong_type_argument(sc, err_sym, position_of(y, x), car(y), T_INTEGER));
-	      len *= s7_integer(car(y));
+	      if (multiply_overflow(len, s7_integer(car(y)), &len)) /* or better perhaps len > sc->max_vector_length */
+		return(out_of_range(sc, err_sym, s7_make_integer(sc, position_of(y, x)), car(y), its_too_large_string));
 	      if (len < 0)
 		return(wrong_type_argument_with_type(sc, err_sym, position_of(y, x), car(y), a_non_negative_integer_string));
 	    }
@@ -37480,8 +37486,12 @@ static uint32_t hash_float_location(s7_double x)
   x = fabs(x);
   if (x < 100.0)
     loc = 1000.0 * x;     /* this means hash_table_float_epsilon only works if it is less than about .001 */
-  else loc = x;
-
+  else 
+    {
+      if (x < 1e9)
+	loc = x;
+      else return(0);
+    }
   if (loc < 0)
     return(0);
   return(loc);
@@ -38613,7 +38623,7 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   x = (*hash_table_checker(table))(sc, table, key);      
   if (x)
     {
-      x->value = _NFre(value);
+      x->value = T_Pos(value);
       return(value);
     }
 
@@ -38628,7 +38638,7 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   if (!p) p = extend_hash_free_list();
   hash_free_list = p->next;
   p->key = key;
-  p->value = _NFre(value);
+  p->value = T_Pos(value);
   p->raw_hash = hash_loc(sc, table, key);
 
   loc = p->raw_hash & hash_len;
@@ -38940,7 +38950,7 @@ s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_i
 
   c_function_data(x) = ptr;
   c_function_call(x) = f;
-  /* f is _TApp but needs cast */
+  /* f is T_App but needs cast */
   c_function_set_base(x, x);
   c_function_set_setter(x, sc->F);
   c_function_name(x) = name;   /* (procedure-name proc) => (format #f "~A" proc) */
@@ -38951,7 +38961,7 @@ s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_i
   c_function_signature(x) = sc->F;
 
   c_function_required_args(x) = required_args;
-  c_function_optional_args(x) = optional_args; /* T_C_FUNCTION_STAR type may be set later, so _TFst not usable here */
+  c_function_optional_args(x) = optional_args; /* T_C_FUNCTION_STAR type may be set later, so T_Fst not usable here */
   if (rest_arg)
     c_function_all_args(x) = MAX_ARITY;
   else c_function_all_args(x) = required_args + optional_args;
@@ -44330,9 +44340,9 @@ s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_p
       sc->args = sc->nil;
       
       new_cell(sc, p, T_DYNAMIC_WIND);
-      dynamic_wind_in(p) = _NFre(init);
-      dynamic_wind_body(p) = _NFre(body);
-      dynamic_wind_out(p) = _NFre(finish);
+      dynamic_wind_in(p) = T_Pos(init);
+      dynamic_wind_body(p) = T_Pos(body);
+      dynamic_wind_out(p) = T_Pos(finish);
       push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);
       if (init != sc->F)
 	{
@@ -44404,7 +44414,7 @@ static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
       if (is_symbol(closure_args(proc)))
 	new_frame_with_slot(sc, closure_let(proc), sc->envir, closure_args(proc), sc->nil);
       else new_frame(sc, closure_let(proc), sc->envir);
-      push_stack_no_args(sc, OP_BEGIN1, _TPair(sc->code));
+      push_stack_no_args(sc, OP_BEGIN1, T_Pair(sc->code));
     }
   else push_stack(sc, OP_APPLY, sc->nil, proc);
 
@@ -45760,9 +45770,9 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
   {
     s7_pointer p;
     int32_t argnum;
-    _NFre(fnc);
-    for (argnum = 0, p = _NFre(args); is_pair(p); argnum++, p = _NFre(cdr(p)))
-      _NFre(car(p));
+    T_Pos(fnc);
+    for (argnum = 0, p = T_Pos(args); is_pair(p); argnum++, p = T_Pos(cdr(p)))
+      T_Pos(car(p));
   }
 #endif
   if (sc->safety > NO_SAFETY)
@@ -46089,10 +46099,10 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
   else set_current_code(sc, func); 
 
   if (is_c_function(func))
-    return(c_function_call(func)(sc, _NFre(args)));  /* no check for wrong-number-of-args -- is that reasonable? */
+    return(c_function_call(func)(sc, T_Pos(args)));  /* no check for wrong-number-of-args -- is that reasonable? */
 
-  sc->temp1 = _NFre(func);                           /* this is feeble GC protection */
-  sc->temp2 = _NFre(args);
+  sc->temp1 = T_Pos(func);                           /* this is feeble GC protection */
+  sc->temp2 = T_Pos(args);
 
   store_jump_info(sc);
   set_jump_info(sc, S7_CALL_SET_JUMP);
@@ -57894,7 +57904,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	    }
 	}
 
-      sc->value = _NFre(value);
+      sc->value = T_Pos(value);
       set_current_code(sc, cur_code);
       sc->args = args;
       sc->code = code;
@@ -61215,7 +61225,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		      (is_safe_c_s(arg1)))
 		    {
 		      set_safe_optimize_op(expr, hop + OP_SAFE_C_opSq_QS);
-		      set_opt_con1(cdr(expr), cadr(arg2)); /* opt_con1 is _NFre (unchecked) */
+		      set_opt_con1(cdr(expr), cadr(arg2)); /* opt_con1 is T_Pos (unchecked) */
 		      set_opt_sym2(cdr(expr), arg3);
 		      choose_c_function(sc, expr, func, 3);
 		      return(OPT_T);
@@ -62161,7 +62171,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	{
 	  if (!is_pair(cdr(expr)))
 	    return(OPT_OOPS);
-	  return(optimize_syntax(sc, expr, _TSyn(slot_value(global_slot(car_expr))), hop, e, export_ok));
+	  return(optimize_syntax(sc, expr, T_Syn(slot_value(global_slot(car_expr))), hop, e, export_ok));
 	}
 
       slot = find_uncomplicated_symbol(sc, car_expr, e); /* local vars (recursive calls too??) are considered "complicated" */
@@ -64504,7 +64514,7 @@ static int32_t define_unchecked_ex(s7_scheme *sc)
        */
       args = cdar(sc->code);
       make_closure_with_let(sc, x, args, cdr(sc->code), sc->envir, (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET);
-      sc->value = _NFre(x);
+      sc->value = T_Pos(x);
       sc->code = caar(sc->code);
     }
   return(fall_through);
@@ -65223,7 +65233,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	  if (is_immutable(obj))
 	    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, obj));
 	  vector_setter(obj)(sc, obj, index, value);
-	  sc->value = _NFre(value);
+	  sc->value = T_Pos(value);
 	}
 #endif
       break;
@@ -65256,7 +65266,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	    if (caller == sc->byte_vector_set_symbol)
 	      eval_type_error(sc, "byte-vector-set! value must be an integer: ~S", sc->code);
 	    string_value(obj)[index] = (char)s7_character(value);
-	    sc->value = _NFre(value);
+	    sc->value = T_Pos(value);
 	  }
 	else
 	  {
@@ -65269,7 +65279,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 		if ((ic < 0) || (ic > 255))
 		  eval_type_error(sc, "byte-vector-set!: value must be a byte: ~S", sc->code);
 		string_value(obj)[index] = (char)ic;
-		sc->value = _NFre(value);
+		sc->value = T_Pos(value);
 	      }
 	    else eval_type_error(sc, "set!: value must be either a character or an integer: ~S", sc->code);
 	  }
@@ -65542,7 +65552,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
 		if (is_symbol(val))
 		  val = symbol_to_value_checked(sc, val);
 		vector_setter(cx)(sc, cx, ind, val);
-		sc->value = _NFre(val);
+		sc->value = T_Pos(val);
 		return(goto_START);
 	      }
 	    push_op_stack(sc, sc->vector_set_function);
@@ -68876,7 +68886,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
   uint64_t id;
   e = sc->envir;
   id = let_id(e);
-  for (x = closure_args(sc->code), z = _TLst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
+  for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
     {
       s7_pointer sym, args;
       /* reuse the value cells as the new frame slots */
@@ -69795,7 +69805,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		let_set_slots(counter_let(args), counter_slots(args));
 		sc->envir = old_frame_with_slot(sc, counter_let(args), x);
 	      }
-	    sc->code = _TPair(closure_body(code));
+	    sc->code = T_Pair(closure_body(code));
 	    goto BEGIN1;
 	  }
 	  
@@ -69950,7 +69960,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		sc->envir = old_frame_with_slot(sc, counter_let(counter), arg);
 	      }
 	    push_stack(sc, OP_FOR_EACH_1, counter, code);
-	    sc->code = _TPair(closure_body(code));
+	    sc->code = T_Pair(closure_body(code));
 	    goto BEGIN1;
 	  }
 
@@ -69967,7 +69977,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		sc->args = sc->nil;
 		goto START;
 	      }
-	    code = _TClo(sc->code);
+	    code = T_Clo(sc->code);
 	    arg = car(lst);
 	    counter_set_list(c, cdr(lst));
 	    if (sc->cur_op == OP_FOR_EACH_3)
@@ -70157,7 +70167,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DO_NO_VARS_NO_OPT_1:
 	  do_all_x_end(cadr(sc->code));
 	  push_stack_no_args(sc, OP_DO_NO_VARS_NO_OPT_1, sc->code);
-	  sc->code = _TPair(cddr(sc->code));
+	  sc->code = T_Pair(cddr(sc->code));
 	  goto BEGIN1;
 
 
@@ -70205,7 +70215,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SAFE_DOTIMES_STEP_O, sc->args, sc->code);
-	    sc->code = _TPair(opt_pair2(sc->code));
+	    sc->code = T_Pair(opt_pair2(sc->code));
 	    goto OPT_EVAL;
 	  }
 
@@ -70262,7 +70272,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto DO_END_CLAUSES;
 		}
 	    push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
-	    sc->code = _TPair(opt_pair2(code));
+	    sc->code = T_Pair(opt_pair2(code));
 	    goto BEGIN1;
 	  }
 	  
@@ -70317,7 +70327,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		if (choice == goto_DO_END_CLAUSES) goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-	    sc->code = _TPair(opt_pair2(code));
+	    sc->code = T_Pair(opt_pair2(code));
 	    goto BEGIN1;
 	  }
 	  
@@ -70350,7 +70360,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-	    sc->code = _TPair(opt_pair2(code));
+	    sc->code = T_Pair(opt_pair2(code));
 	    goto BEGIN1;
 	  }
 	  
@@ -70435,7 +70445,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    if (choice == goto_START_WITHOUT_POP_STACK) goto START_WITHOUT_POP_STACK;
 
 	    push_stack_no_args(sc, OP_DOX_STEP, sc->code);
-	    sc->code = _TPair(cddr(sc->code));
+	    sc->code = T_Pair(cddr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -70453,7 +70463,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    push_stack_no_args(sc, OP_DOX_STEP, sc->code);
-	    sc->code = _TPair(cddr(sc->code));
+	    sc->code = T_Pair(cddr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -70637,7 +70647,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      /* we're done -- deal with result exprs, if there isn't an end test, there also isn't a result (they're in the same list)
 	       * multiple-value end-test result is ok
 	       */
-	      sc->code = _TLst(cddr(sc->args));   /* result expr (a list -- implicit begin) */
+	      sc->code = T_Lst(cddr(sc->args));   /* result expr (a list -- implicit begin) */
 	      free_cell(sc, sc->args);
 	      sc->args = sc->nil;
 	      if (is_null(sc->code))
@@ -70724,7 +70734,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_BEGIN1:
 	  if ((sc->begin_hook) && (call_begin_hook(sc))) return(sc->F);
 	BEGIN1:
-	  if (is_pair(cdr(_TPair(sc->code))))
+	  if (is_pair(cdr(T_Pair(sc->code))))
 	    push_stack_no_args(sc, OP_BEGIN1, cdr(sc->code));
 	  sc->code = car(sc->code);
 	  /* goto EVAL; */
@@ -71012,21 +71022,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_C_Z:
 		  check_stack_size(sc);
 		  push_stack_no_args(sc, OP_SAFE_C_P_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 
 		case OP_SAFE_C_P:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_P:
 		  push_stack_no_args(sc, OP_SAFE_C_P_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto EVAL;
 		  
 		case OP_NOT_P:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_NOT_P:
 		  push_stack_no_args(sc, OP_NOT_P_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto EVAL;
 		  
 		case OP_SAFE_C_CZ:
@@ -71040,7 +71050,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		   * How to minimize the cost of this check?
 		   */
 		  push_stack(sc, OP_EVAL_ARGS_P_2, cadr(code), code);
-		  sc->code = _TPair(caddr(code));
+		  sc->code = T_Pair(caddr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_ZC:
@@ -71048,7 +71058,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_C_ZC:
 		  check_stack_size(sc);
 		  push_stack(sc, OP_EVAL_ARGS_P_4, caddr(code), code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_SZ:
@@ -71057,7 +71067,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  /* about 10% appear to be local symbols */
 		  check_stack_size(sc);
 		  push_stack(sc, OP_EVAL_ARGS_P_2, symbol_to_value_unchecked(sc, cadr(code)), code);
-		  sc->code = _TPair(caddr(code));	            /* splitting out the all_x cases here and elsewhere saves nothing */
+		  sc->code = T_Pair(caddr(code));	            /* splitting out the all_x cases here and elsewhere saves nothing */
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_ZS:
@@ -71065,7 +71075,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_C_ZS:
 		  check_stack_size(sc);
 		  push_stack_no_args(sc, OP_EVAL_ARGS_P_3, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_opAq:
@@ -71175,7 +71185,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_S_opSZq:
 		  push_stack(sc, OP_SAFE_C_SZ_SZ, symbol_to_value_unchecked(sc, cadr(caddr(code))), code);
-		  sc->code = _TPair(caddr(caddr(code)));
+		  sc->code = T_Pair(caddr(caddr(code)));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_AZ:
@@ -71185,7 +71195,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer val;
 		    val = c_call(cdr(code))(sc, cadr(code));
 		    push_stack(sc, OP_EVAL_ARGS_P_2, val, code);
-		    sc->code = _TPair(caddr(code));
+		    sc->code = T_Pair(caddr(code));
 		    goto OPT_EVAL_CHECKED;
 		  }
 		  
@@ -71194,7 +71204,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_C_ZA:
 		  /* here we can't use ZS order because we sometimes assume left->right arg evaluation (binary-io.scm for example) */
 		  push_stack_no_args(sc, OP_SAFE_C_ZA_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_ZZ:
@@ -71204,7 +71214,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		   *    264600: (+ (* even-amp (oscil (vector-ref evens k) (+ even-freq val))) (* odd-amp...
 		   */
 		  push_stack_no_args(sc, OP_SAFE_C_ZZ_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_opCq_Z:
@@ -71214,7 +71224,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer val;
 		    val = c_call(cadr(code))(sc, cdadr(code));
 		    push_stack(sc, OP_EVAL_ARGS_P_2, val, code);
-		    sc->code = _TPair(caddr(code));
+		    sc->code = T_Pair(caddr(code));
 		    goto OPT_EVAL_CHECKED;
 		  }
 		  
@@ -71225,7 +71235,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer val;
 		    val = c_call(cddr(code))(sc, caddr(code));
 		    push_stack(sc, OP_SAFE_C_ZAA_1, val, code);
-		    sc->code = _TPair(cadr(code));
+		    sc->code = T_Pair(cadr(code));
 		    goto OPT_EVAL_CHECKED;
 		  }
 		  
@@ -71236,7 +71246,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer val;
 		    val = c_call(cdr(code))(sc, cadr(code));
 		    push_stack(sc, OP_SAFE_C_AZA_1, val, code);
-		    sc->code = _TPair(caddr(code));
+		    sc->code = T_Pair(caddr(code));
 		    /* mostly stuff like h_safe_c_aaa */
 		    goto OPT_EVAL_CHECKED;
 		  }
@@ -71250,7 +71260,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    val = c_call(cddr(code))(sc, caddr(code));
 		    push_op_stack(sc, op_val);
 		    push_stack(sc, OP_SAFE_C_AAZ_1, val, code);
-		    sc->code = _TPair(cadddr(code));
+		    sc->code = T_Pair(cadddr(code));
 		    goto OPT_EVAL_CHECKED;
 		  }
 		  
@@ -71258,14 +71268,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_ZZA:
 		  push_stack_no_args(sc, OP_SAFE_C_ZZA_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_ZAZ:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_ZAZ:
 		  push_stack(sc, OP_SAFE_C_ZAZ_1, sc->nil, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_SAFE_C_AZZ:
@@ -71275,7 +71285,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer val;
 		    val = c_call(cdr(code))(sc, cadr(code));
 		    push_stack(sc, OP_SAFE_C_AZZ_1, val, code);
-		    sc->code = _TPair(caddr(code));
+		    sc->code = T_Pair(caddr(code));
 		    goto OPT_EVAL_CHECKED;
 		  }
 		  
@@ -71283,7 +71293,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_ZZZ:
 		  push_stack_no_args(sc, OP_SAFE_C_ZZZ_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 
 		case OP_SAFE_C_A:
@@ -72514,14 +72524,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_Z:
 		  push_stack_no_args(sc, OP_C_P_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto OPT_EVAL_CHECKED;
 		  
 		case OP_C_P:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_P:
 		  push_stack_no_args(sc, OP_C_P_1, code);
-		  sc->code = _TPair(cadr(code));
+		  sc->code = T_Pair(cadr(code));
 		  goto EVAL;
 		  
 		case OP_C_SS:
@@ -72663,7 +72673,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    go = make_goto(sc);
 		    push_stack(sc, OP_DEACTIVATE_GOTO, go, code); /* code arg is ignored, but perhaps this is safer in GC? */
 		    new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
-		    sc->code = _TPair(cdr(args));
+		    sc->code = T_Pair(cdr(args));
 		    goto BEGIN1;
 		  }
 		  
@@ -72697,7 +72707,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    
 		    push_stack(sc, OP_CATCH_1, code, p); /* code ignored here, except by GC */
 		    new_frame(sc, sc->envir, sc->envir);
-		    sc->code = _TPair(cddar(args));
+		    sc->code = T_Pair(cddar(args));
 		    goto BEGIN1;
 		  }
 		  
@@ -72711,7 +72721,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    catch_all_set_goto_loc(p, s7_stack_top(sc));
 		    catch_all_set_op_loc(p, sc->op_stack_now - sc->op_stack);
 		    push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
-		    sc->code = _TPair(opt_pair1(cdr(code)));       /* the body of the first lambda */
+		    sc->code = T_Pair(opt_pair1(cdr(code)));       /* the body of the first lambda */
 		    goto BEGIN1;
 		  }
 		  
@@ -72725,7 +72735,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    catch_all_set_goto_loc(p, s7_stack_top(sc));
 		    catch_all_set_op_loc(p, sc->op_stack_now - sc->op_stack);
 		    push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
-		    sc->code = _TPair(car(opt_pair1(cdr(code))));
+		    sc->code = T_Pair(car(opt_pair1(cdr(code))));
 		    goto OPT_EVAL_CHECKED;
 		  }
 
@@ -72840,7 +72850,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		   */
 		  code = opt_lambda(code);
 		  new_frame(sc, closure_let(code), sc->envir);
-		  sc->code = _TPair(closure_body(code));
+		  sc->code = T_Pair(closure_body(code));
 		  goto BEGIN1;
 		  
 		case OP_SAFE_THUNK:
@@ -72849,7 +72859,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  /* (let ((x 1)) (let () (define (f) x) (let ((x 0)) (define (g) (set! x 32) (f)) (g)))) */
 		  code = opt_lambda(code);
 		  sc->envir = closure_let(code);
-		  sc->code = _TPair(closure_body(code));
+		  sc->code = T_Pair(closure_body(code));
 		  goto BEGIN1;
 
 		case OP_SAFE_THUNK_E:
@@ -72857,7 +72867,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_THUNK_E:
 		  code = opt_lambda(code);
 		  sc->envir = closure_let(code);
-		  sc->code = _TPair(car(closure_body(code)));
+		  sc->code = T_Pair(car(closure_body(code)));
 		  goto OPT_EVAL;
 
 		case OP_SAFE_THUNK_P:
@@ -72881,7 +72891,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), symbol_to_value_unchecked(sc, opt_sym2(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -72918,7 +72928,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), cadr(code));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -72942,7 +72952,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), c_call(cdr(code))(sc, cadr(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 
@@ -72952,7 +72962,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = slot_value(local_slot(car(code)));
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), c_call(cdr(code))(sc, cadr(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
                   }
   
@@ -73013,7 +73023,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 							 symbol_to_value_unchecked(sc, cadr(code)), 
 							 symbol_to_value_unchecked(sc, opt_sym2(code)));
 		    sc->code = closure_body(f);
-		    push_stack_no_args(sc, OP_BEGIN1, _TPair(cdr(sc->code)));
+		    push_stack_no_args(sc, OP_BEGIN1, T_Pair(cdr(sc->code)));
 		    sc->code = car(sc->code);
 		    goto EVAL;
 		  }
@@ -73025,7 +73035,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_two_slots(sc, closure_let(f), symbol_to_value_unchecked(sc, cadr(code)), opt_con2(code));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -73036,7 +73046,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    s7_pointer f;
 		    f = opt_lambda(code);
 		    sc->envir = old_frame_with_two_slots(sc, closure_let(f), cadr(code), symbol_to_value_unchecked(sc, opt_sym2(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -73049,7 +73059,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    args = cddr(code);
 		    args = c_call(args)(sc, car(args));
 		    sc->envir = old_frame_with_two_slots(sc, closure_let(f), symbol_to_value_unchecked(sc, cadr(code)), args);
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 
@@ -73066,7 +73076,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    args = cdr(args);
 		    z = c_call(args)(sc, car(args));
 		    sc->envir = old_frame_with_two_slots(sc, closure_let(f), sc->t_temps[tx], z);
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -73100,7 +73110,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    args = cdr(args);
 		    z = c_call(args)(sc, car(args));
 		    sc->envir = old_frame_with_three_slots(sc, closure_let(f), symbol_to_value_unchecked(sc, cadr(code)), sc->t_temps[tx], z);
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    sc->t_temps[tx] = sc->F;
 		    goto BEGIN1;
 		  }
@@ -73176,7 +73186,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			else slot_set_value(x, sc->F);
 			symbol_set_local(slot_symbol(x), let_id(sc->envir), x);
 		      }
-		    sc->code = _TPair(closure_body(opt_lambda(sc->code)));
+		    sc->code = T_Pair(closure_body(opt_lambda(sc->code)));
 		    goto BEGIN1;
 		  }
 		  
@@ -73220,7 +73230,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 					       closure_name(sc, opt_lambda(code)), arg2, code));
 		      }
 		    sc->envir = old_frame_with_two_slots(sc, clet, arg1, arg2);
-		    sc->code = _TPair(closure_body(opt_lambda(code)));
+		    sc->code = T_Pair(closure_body(opt_lambda(code)));
 		    goto BEGIN1;
 		  }
 		  
@@ -73250,7 +73260,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!is_goto(opt_goto(code)))	{if (unknown_ex(sc, opt_goto(code)) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_GOTO:
 		  sc->args = sc->nil;
-		  sc->code = _TGot(opt_goto(code));
+		  sc->code = T_Got(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73261,7 +73271,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_GOTO_C:
 		  /* (return #t) -- recognized via OP_UNKNOWN_G, opt_goto(code) is the function [parallels OP_CLOSURE_C] */
 		  sc->args = cdr(code);
-		  sc->code = _TGot(opt_goto(code));
+		  sc->code = T_Got(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73271,7 +73281,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_GOTO_S:
 		  sc->args = list_1(sc, symbol_to_value_unchecked(sc, cadr(code)));
 		  /* I think this needs listification because call_with_exit might call dynamic unwinders etc. */
-		  sc->code = _TGot(opt_goto(code));
+		  sc->code = T_Got(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  
@@ -73280,7 +73290,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (!is_goto(opt_goto(code))) {if (unknown_a_ex(sc, opt_goto(code)) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}		  
 		case HOP_GOTO_A:
 		  sc->args = list_1(sc, c_call(cdr(code))(sc, cadr(code)));
-		  sc->code = _TGot(opt_goto(code));
+		  sc->code = T_Got(opt_goto(code));
 		  call_with_exit(sc);
 		  goto START;
 		  /* for T_CONTINUATION, set sc->args to list_1(sc, ...) as in goto (and code?), then call_with_current_continuation */
@@ -73299,7 +73309,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->w = sc->nil;
 		    sc->code = opt_lambda(code);
 		    new_frame_with_slot(sc, closure_let(sc->code), sc->envir, closure_args(sc->code), sc->args);
-		    sc->code = _TPair(closure_body(sc->code));
+		    sc->code = T_Pair(closure_body(sc->code));
 		    goto BEGIN1;
 		  }
 		  
@@ -73310,7 +73320,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  check_stack_size(sc);
 		  code = opt_lambda(code);
 		  new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), cadr(sc->code));
-		  sc->code = _TPair(closure_body(code));
+		  sc->code = T_Pair(closure_body(code));
 		  goto BEGIN1;
 
 		case OP_CLOSURE_P:
@@ -73327,7 +73337,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  check_stack_size(sc);
 		  code = opt_lambda(code);
 		  new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), sc->value);
-		  sc->code = _TPair(closure_body(code));
+		  sc->code = T_Pair(closure_body(code));
 		  goto BEGIN1;
 		  
 		case OP_CLOSURE_A_P:
@@ -73349,7 +73359,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  check_stack_size(sc);
 		  code = opt_lambda(code);
 		  new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), sc->value);
-		  sc->code = _TPair(closure_body(code));
+		  sc->code = T_Pair(closure_body(code));
 		  goto BEGIN1;
 		  
 		case OP_CLOSURE_SS:
@@ -73363,7 +73373,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, 
 					     car(args), symbol_to_value_unchecked(sc, cadr(code)),
 					     cadr(args), symbol_to_value_unchecked(sc, opt_sym2(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 
@@ -73393,7 +73403,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    f = opt_lambda(sc->code);
 		    args = closure_args(f);
 		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, car(args), symbol_to_value_unchecked(sc, cadr(code)), cadr(args), opt_con2(code));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -73406,7 +73416,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    f = opt_lambda(sc->code);
 		    args = closure_args(f);
 		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, car(args), cadr(code), cadr(args), symbol_to_value_unchecked(sc, opt_sym2(code)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 		  
@@ -73423,7 +73433,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    f = opt_lambda(sc->code);
 		    args = closure_args(f);
 		    new_frame_with_two_slots(sc, closure_let(f), sc->envir, car(args), sc->t_temps[tx], cadr(args), c_call(cdr(a_args))(sc, cadr(a_args)));
-		    sc->code = _TPair(closure_body(f));
+		    sc->code = T_Pair(closure_body(f));
 		    goto BEGIN1;
 		  }
 
@@ -73504,7 +73514,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      add_slot(e, car(p), symbol_to_value_unchecked(sc, car(args)));
 		    sc->envir = e;
 		    sc->z = sc->nil;
-		    sc->code = _TPair(closure_body(func));
+		    sc->code = T_Pair(closure_body(func));
 		    goto BEGIN1;
 		  }
 		  
@@ -73544,7 +73554,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      add_slot_checked(e, car(p), c_call(args)(sc, car(args)));  /* can't use add_slot here -- all_x_c_* hit GC trigger? */
 		    sc->envir = e;
 		    sc->z = sc->nil;
-		    sc->code = _TPair(closure_body(func));
+		    sc->code = T_Pair(closure_body(func));
 		    goto BEGIN1;
 		  }
 		  /* -------------------------------------------------------------------------------- */
@@ -73600,7 +73610,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			  let_set_slots(e, z);
 			  z = args;
 			}
-		      sc->code = _TPair(closure_body(sc->code));
+		      sc->code = T_Pair(closure_body(sc->code));
 		    }
 		    goto BEGIN1;
 		  }
@@ -73869,7 +73879,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    else
 		      {
 			/* car must be the function to be applied */
-			sc->value = _NFre(carc);
+			sc->value = T_Pos(carc);
 			sc->code = cdr(code);
 			/* drop into OP_EVAL_ARGS */
 		      }
@@ -73879,7 +73889,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		if (is_symbol(code))
 		  sc->value = symbol_to_value_checked(sc, code);
-		else sc->value = _NFre(code);
+		else sc->value = T_Pos(code);
 		goto START;
 	      }
 	  }
@@ -74035,7 +74045,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_SAFE_C_ZZ_1:
 	  push_stack(sc, OP_EVAL_ARGS_P_2, sc->value, sc->code);
-	  sc->code = _TPair(caddr(sc->code));
+	  sc->code = T_Pair(caddr(sc->code));
 	  goto OPT_EVAL;
 	  
 	case OP_SAFE_C_ZAA_1:
@@ -74071,7 +74081,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_ZZA_1:
 	  push_op_stack(sc, sc->value);
 	  push_stack(sc, OP_SAFE_C_ZZA_2, sc->args, sc->code);
-	  sc->code = _TPair(caddr(sc->code));
+	  sc->code = T_Pair(caddr(sc->code));
 	  goto OPT_EVAL_CHECKED;
 	  
 	case OP_SAFE_C_ZZA_2:
@@ -74087,14 +74097,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    push_op_stack(sc, sc->value);
 	    val = c_call(cddr(sc->code))(sc, caddr(sc->code));
 	    push_stack(sc, OP_SAFE_C_AAZ_1, val,  sc->code);
-	    sc->code = _TPair(cadddr(sc->code));
+	    sc->code = T_Pair(cadddr(sc->code));
 	    goto OPT_EVAL_CHECKED;
 	  }
 
 	case OP_SAFE_C_AZZ_1:
 	  push_op_stack(sc, sc->value);
 	  push_stack(sc, OP_SAFE_C_AZZ_2, sc->args, sc->code);
-	  sc->code = _TPair(cadddr(sc->code));
+	  sc->code = T_Pair(cadddr(sc->code));
 	  goto OPT_EVAL_CHECKED;
 	  
 	case OP_SAFE_C_AZZ_2:
@@ -74199,7 +74209,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  sc->code = cdr(sc->code);
 		  if (is_symbol(car_code))
 		    sc->value = symbol_to_value_checked(sc, car_code);
-		  else sc->value = _NFre(car_code);
+		  else sc->value = T_Pos(car_code);
 		  /* sc->value is the current arg's value, sc->code is pointing to the next */
 		  
 		  /* cdr(sc->code) may not be a pair or nil here!
@@ -74372,7 +74382,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->args = slot_pending_value(sc->args);
 	  if (lambda_star_default(sc) == goto_EVAL) goto EVAL;
 	  pop_stack_no_op(sc);
-	  sc->code = _TPair(closure_body(sc->code));
+	  sc->code = T_Pair(closure_body(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_MACROEXPAND_1:
@@ -74555,7 +74565,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_SET_PAIR_Z:
 	  push_stack_no_args(sc, OP_SET_PAIR_P_1, sc->code);
-	  sc->code = _TPair(cadr(sc->code));
+	  sc->code = T_Pair(cadr(sc->code));
 	  goto OPT_EVAL_CHECKED;
 	  
 	case OP_SET_PAIR_A:
@@ -74608,7 +74618,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    
 	case OP_SET_DILAMBDA_Z:
 	  push_stack_no_args(sc, OP_SET_DILAMBDA_Z_1, sc->code);
-	  sc->code = _TPair(cadr(sc->code));
+	  sc->code = T_Pair(cadr(sc->code));
 	  goto OPT_EVAL_CHECKED;
 
 	case OP_SET_DILAMBDA_Z_1:
@@ -74631,7 +74641,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = closure_setter(func);
 		sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), arg, value);
-		sc->code = _TPair(closure_body(sc->code));
+		sc->code = T_Pair(closure_body(sc->code));
 		goto BEGIN1;
 	      }
 	    /* fallback on set-pair */
@@ -74663,7 +74673,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		sc->code = closure_setter(func);
 		sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), arg, value);
-		sc->code = _TPair(closure_body(sc->code));
+		sc->code = T_Pair(closure_body(sc->code));
 		goto BEGIN1;
 	      }
 	    /* fallback on set-pair */
@@ -74807,7 +74817,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SET_SYMBOL_Z:
 	  /* ([set!] sum (+ sum n)) */
 	  push_stack_no_args(sc, OP_SET_SAFE, car(sc->code));
-	  sc->code = _TPair(cadr(sc->code));
+	  sc->code = T_Pair(cadr(sc->code));
 	  goto OPT_EVAL_CHECKED;
 	  
 	case OP_INCREMENT_SZ:
@@ -74815,7 +74825,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    s7_pointer sym;
 	    sym = symbol_to_slot(sc, car(sc->code));
 	    push_stack(sc, OP_INCREMENT_SZ_1, sym, sc->code);
-	    sc->code = _TPair(opt_pair2(sc->code)); /* caddr(cadr(sc->code)); */
+	    sc->code = T_Pair(opt_pair2(sc->code)); /* caddr(cadr(sc->code)); */
 	    goto OPT_EVAL_CHECKED;
 	  }
 	  
@@ -74909,7 +74919,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    
 	    if (is_symbol(x))
 	      sc->value = symbol_to_value_checked(sc, x);
-	    else sc->value = _NFre(x);
+	    else sc->value = T_Pos(x);
 	    sc->code = car(sc->code);
 	  }
 	  
@@ -75172,10 +75182,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_IF_P_P_P: push_stack_no_args(sc, OP_IF_PPP, cdr(sc->code)); sc->code = car(sc->code); goto EVAL;
 	case OP_IF_P_N_N: push_stack_no_args(sc, OP_IF_PRR, cdr(sc->code)); sc->code = cadar(sc->code); goto EVAL;
 	  
-	case OP_IF_Z_P: push_stack_no_args(sc, OP_IF_PP, cadr(sc->code)); sc->code = _TPair(car(sc->code)); goto OPT_EVAL;
+	case OP_IF_Z_P: push_stack_no_args(sc, OP_IF_PP, cadr(sc->code)); sc->code = T_Pair(car(sc->code)); goto OPT_EVAL;
 	case OP_IF_Z_N: push_stack_no_args(sc, OP_IF_PR, cadr(sc->code)); sc->code = cadar(sc->code); goto OPT_EVAL;
-	case OP_IF_Z_R: push_stack_no_args(sc, OP_IF_PR, cadr(sc->code)); sc->code = _TPair(car(sc->code)); goto OPT_EVAL;
-	case OP_IF_Z_P_P: push_stack_no_args(sc, OP_IF_PPP, cdr(sc->code)); sc->code = _TPair(car(sc->code)); goto OPT_EVAL;
+	case OP_IF_Z_R: push_stack_no_args(sc, OP_IF_PR, cadr(sc->code)); sc->code = T_Pair(car(sc->code)); goto OPT_EVAL;
+	case OP_IF_Z_P_P: push_stack_no_args(sc, OP_IF_PPP, cdr(sc->code)); sc->code = T_Pair(car(sc->code)); goto OPT_EVAL;
 	case OP_IF_Z_N_N: push_stack_no_args(sc, OP_IF_PRR, cdr(sc->code)); sc->code = cadar(sc->code); goto OPT_EVAL;
 	  
 	case OP_IF_ANDP_P: push_stack_no_args(sc, OP_IF_PP, cadr(sc->code)); sc->code = cdar(sc->code); goto AND_P;
@@ -75217,7 +75227,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_WHEN_PP:
 	  if (is_true(sc, sc->value))
 	    {
-	      push_stack_no_args(sc, OP_BEGIN1, _TPair(cdr(sc->code)));
+	      push_stack_no_args(sc, OP_BEGIN1, T_Pair(cdr(sc->code)));
 	      sc->code = car(sc->code);
 	      goto EVAL;
 	    }
@@ -75262,7 +75272,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_WHEN_S:
 	  if (is_true(sc, symbol_to_value_unchecked(sc, car(sc->code))))
 	    {
-	      push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	      push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	      sc->code = cadr(sc->code);
 	      goto EVAL;
 	    }
@@ -75272,7 +75282,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_WHEN_A:
 	  if (is_true(sc, c_call(sc->code)(sc, car(sc->code))))
 	    {
-	      push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	      push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	      sc->code = cadr(sc->code);
 	      goto EVAL;
 	    }
@@ -75301,7 +75311,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNLESS_S:
 	  if (is_false(sc, symbol_to_value_unchecked(sc, car(sc->code))))
 	    {
-	      push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	      push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	      sc->code = cadr(sc->code);
 	      goto EVAL;
 	    }
@@ -75311,7 +75321,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNLESS_A:
 	  if (is_false(sc, c_call(sc->code)(sc, car(sc->code))))
 	    {
-	      push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	      push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	      sc->code = cadr(sc->code);
 	      goto EVAL;
 	    }
@@ -75329,24 +75339,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_P_1:
 	  sc->envir = old_frame_with_slot(sc, closure_let(opt_lambda(sc->code)), sc->value);
-	  sc->code = _TPair(closure_body(opt_lambda(sc->code)));
+	  sc->code = T_Pair(closure_body(opt_lambda(sc->code)));
 	  goto BEGIN1;
 
 	case OP_SAFE_CLOSURE_AP_1:
 	  sc->envir = old_frame_with_two_slots(sc, closure_let(opt_lambda(sc->code)), sc->args, sc->value);
-	  sc->code = _TPair(closure_body(opt_lambda(sc->code)));
+	  sc->code = T_Pair(closure_body(opt_lambda(sc->code)));
 	  goto BEGIN1;
 
 	case OP_SAFE_CLOSURE_PA_1:
 	  sc->envir = old_frame_with_two_slots(sc, closure_let(opt_lambda(sc->code)), sc->value, sc->args);
-	  sc->code = _TPair(closure_body(opt_lambda(sc->code)));
+	  sc->code = T_Pair(closure_body(opt_lambda(sc->code)));
 	  goto BEGIN1;
 
 	case OP_CLOSURE_P_1:
 	  check_stack_size(sc);
 	  sc->code = opt_lambda(sc->code);
 	  new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-	  sc->code = _TPair(closure_body(sc->code));
+	  sc->code = T_Pair(closure_body(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_SAFE_C_PP_1:
@@ -75416,7 +75426,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, 
 				   car(closure_args(sc->code)), sc->args, 
 				   cadr(closure_args(sc->code)), sc->value);
-	  sc->code = _TPair(closure_body(sc->code));
+	  sc->code = T_Pair(closure_body(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_CLOSURE_AP_MV:	  /* here we got multiple values */
@@ -75430,7 +75440,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, 
 				   car(closure_args(sc->code)), sc->value, 
 				   cadr(closure_args(sc->code)), sc->args);
-	  sc->code = _TPair(closure_body(sc->code));
+	  sc->code = T_Pair(closure_body(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_CLOSURE_PA_MV:
@@ -75450,7 +75460,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  /* -------------------------------- let -------------------------------- */
 	case OP_LET_NO_VARS:
 	  new_frame(sc, sc->envir, sc->envir);
-	  sc->code = _TPair(cdr(sc->code));         /* ignore the () */
+	  sc->code = T_Pair(cdr(sc->code));         /* ignore the () */
 	  goto BEGIN1;
 	  
 	case OP_NAMED_LET_NO_VARS:
@@ -75462,7 +75472,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    /* sc->args is a temp here */
 	    slot = make_slot_1(sc, sc->envir, car(sc->code), sc->args);
 	    if (slot == local_slot(car(sc->code))) set_recur(slot);
-	    sc->code = _TPair(body);
+	    sc->code = T_Pair(body);
 	    goto BEGIN1;
 	  }
 	  
@@ -75473,9 +75483,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   *   opt_sym3 can be clobbered by a subsequent opt_back apparently?? 
 	   */
 	    s7_pointer binding;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), cadr(binding));
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75483,31 +75493,31 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	  /* one var, init is symbol, incoming sc->code is '(((var sym))...) */
 	    s7_pointer binding;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    sc->value = symbol_to_value_checked(sc, cadr(binding));
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
 	case OP_LET_S_Z:
 	  {
 	    s7_pointer binding;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    sc->value = symbol_to_value_checked(sc, cadr(binding));
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
-	    sc->code = _TPair(cadr(sc->code));
+	    sc->code = T_Pair(cadr(sc->code));
 	    goto OPT_EVAL_CHECKED;
 	  }
 	  
 	case OP_LET_opSq:
 	  {
 	    s7_pointer binding;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code)));
 	    sc->value = c_call(cadr(binding))(sc, sc->t1_1);
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
-	    push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	    push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	    sc->code = cadr(sc->code);
 	    goto EVAL;
 	  }
@@ -75515,11 +75525,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_CAR:
 	  {
 	    s7_pointer binding, val;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    val = symbol_to_value_unchecked(sc, opt_sym2(sc->code));
 	    sc->value = (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val));
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
-	    push_stack_no_args(sc, OP_BEGIN1, _TPair(cddr(sc->code)));
+	    push_stack_no_args(sc, OP_BEGIN1, T_Pair(cddr(sc->code)));
 	    sc->code = cadr(sc->code);
 	    goto EVAL;
 	  }
@@ -75527,7 +75537,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_opSq_P:
 	  {
 	    s7_pointer binding;
-	    binding = _TPair(caar(sc->code));
+	    binding = T_Pair(caar(sc->code));
 	    set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt_sym2(sc->code)));
 	    sc->value = c_call(cadr(binding))(sc, sc->t1_1);
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
@@ -75538,26 +75548,26 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_opCq:      /* one var, init is safe_c_c */
 	  sc->value = c_call(opt_pair2(sc->code))(sc, cdr(opt_pair2(sc->code)));
 	  new_frame_with_slot(sc, sc->envir, sc->envir, opt_sym3(sc->code), sc->value);
-	  sc->code = _TPair(cdr(sc->code));
+	  sc->code = T_Pair(cdr(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_LET_opSSq:      /* one var, init is safe_c_ss */
 	  {
 	    s7_pointer largs, in_val;
-	    largs = _TPair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
+	    largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
 	    in_val = symbol_to_value_unchecked(sc, cadr(largs));
 	    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym3(sc->code))); /* caddr(largs)); */
 	    set_car(sc->t2_1, in_val);
 	    sc->value = c_call(largs)(sc, sc->t2_1);
 	    new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 
 	case OP_LET_opSSq_E: 
 	  {
 	    s7_pointer largs, in_val;
-	    largs = _TPair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
+	    largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
 	    in_val = symbol_to_value_unchecked(sc, cadr(largs));
 	    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym3(sc->code))); /* caddr(largs)); */
 	    set_car(sc->t2_1, in_val);
@@ -75587,7 +75597,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	case OP_LET_Z:
 	  push_stack(sc, OP_LET_Z_1, opt_sym2(cdr(sc->code)), cadr(sc->code));
-	  sc->code = _TPair(opt_pair2(sc->code));
+	  sc->code = T_Pair(opt_pair2(sc->code));
 	  goto OPT_EVAL;
 	  
 	case OP_LET_Z_1:
@@ -75625,7 +75635,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      }
 	    if (is_symbol(sc->value))
 	      sc->value = symbol_to_value_checked(sc, sc->value);
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    sc->args = car(p);
 	    /* drop through */
 	  }
@@ -75640,7 +75650,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    new_frame(sc, sc->envir, sc->envir);
 	    for (p = car(sc->code); is_pair(p); p = cdr(p))
 	      add_slot(sc->envir, caar(p), cadar(p));
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75656,7 +75666,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      add_slot(frame, caar(p), symbol_to_value_checked(sc, cadar(p)));
 	    sc->let_number++;
 	    sc->envir = frame;
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75674,7 +75684,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      }
 	    sc->let_number++;
 	    sc->envir = frame;
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75698,7 +75708,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      }
 	    sc->let_number++;
 	    sc->envir = frame;
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75746,10 +75756,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    funclet_set_function(closure_let(sc->x), car(sc->code));
 		    slot = make_slot_1(sc, sc->envir, car(sc->code), sc->x);
 		    if (slot == local_slot(car(sc->code))) set_recur(slot);
-		    sc->code = _TPair(body);
+		    sc->code = T_Pair(body);
 		    sc->x = sc->nil;
 		  }
-		else sc->code = _TPair(cdr(sc->code));
+		else sc->code = T_Pair(cdr(sc->code));
 		goto BEGIN1;
 	      }
 	  }
@@ -75784,7 +75794,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		if (is_symbol(x))
 		  sc->value = symbol_to_value_checked(sc, x);
-		else sc->value = _NFre(x);
+		else sc->value = T_Pos(x);
 		sc->code = cdr(sc->code);
 		goto LET1;
 	      }
@@ -75847,7 +75857,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      y = args;
 		    }
 
-		  sc->code = _TPair(body);
+		  sc->code = T_Pair(body);
 		  sc->w = sc->nil;
 		  sc->x = sc->nil;
 		}
@@ -75873,7 +75883,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      
 		      y = args;
 		    }
-		  sc->code = _TPair(cdr(sc->code));
+		  sc->code = T_Pair(cdr(sc->code));
 		}
 	    }
 	    sc->y = sc->nil;
@@ -75899,7 +75909,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->envir = e;
 		  }
 	      }
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75920,7 +75930,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		arg = c_call(arg)(sc, car(arg));
 		make_slot_1(sc, sc->envir, caar(p), arg);
 	      }
-	    sc->code = _TPair(cdr(old_code));
+	    sc->code = T_Pair(cdr(old_code));
 	    goto BEGIN1;
 	  }
 	  
@@ -75946,7 +75956,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (is_null(car(sc->value)))
 		{
 		  sc->envir = new_frame_in_env(sc, sc->envir);
-		  sc->code = _TPair(cdr(sc->value));
+		  sc->code = T_Pair(cdr(sc->value));
 		  make_slot_1(sc, sc->envir, cx, make_closure(sc, sc->nil, sc->code, T_CLOSURE_STAR | safe_closure_bits(sc->code), 0));
 		  goto BEGIN1;
 		}
@@ -75956,7 +75966,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (is_null(car(sc->code)))
 		{
 		  sc->envir = new_frame_in_env(sc, sc->envir);
-		  sc->code = _TPair(cdr(sc->code));
+		  sc->code = T_Pair(cdr(sc->code));
 		  goto BEGIN1;
 		}
 	    }
@@ -76003,7 +76013,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    }
 		  if (is_symbol(x))
 		    sc->value = symbol_to_value_checked(sc, x);
-		  else sc->value = _NFre(x);
+		  else sc->value = T_Pos(x);
 		}
 	      else break;
 	    }
@@ -76019,7 +76029,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 								     (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET));
 	      sc->code = body;
 	    }
-	  else sc->code = _TPair(cdr(sc->code));
+	  else sc->code = T_Pair(cdr(sc->code));
 	  goto BEGIN1;
 	  
 	  
@@ -76056,7 +76066,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->code = slot_expression(sc->args);
 	      goto EVAL;
 	    }
-	  sc->code = _TPair(cdr(sc->code));
+	  sc->code = T_Pair(cdr(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_LETREC1:
@@ -76074,7 +76084,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
 		if (is_checked_slot(slot))
 		  slot_set_value(slot, slot_pending_value(slot));
-	      sc->code = _TPair(cdr(sc->code));
+	      sc->code = T_Pair(cdr(sc->code));
 	      goto BEGIN1;
 	    }
 	  
@@ -76114,7 +76124,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->code = slot_expression(sc->args);
 	      goto EVAL;
 	    }
-	  sc->code = _TPair(cdr(sc->code));
+	  sc->code = T_Pair(cdr(sc->code));
 	  goto BEGIN1;
 	  
 	case OP_LETREC_STAR1:
@@ -76131,7 +76141,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      }
 	    else
 	      {
-		sc->code = _TPair(cdr(sc->code));
+		sc->code = T_Pair(cdr(sc->code));
 		goto BEGIN1;
 	      }
 	  }
@@ -76276,7 +76286,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      if (res == goto_APPLY) goto APPLY;
 		      goto EVAL;
 		    }
-		  push_stack_no_args(sc, OP_BEGIN1, _TPair(cdr(sc->code)));
+		  push_stack_no_args(sc, OP_BEGIN1, T_Pair(cdr(sc->code)));
 		  sc->code = car(sc->code);
 		  goto EVAL;
 		}
@@ -76329,7 +76339,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_COND1_SIMPLE:
 	  if (is_true(sc, sc->value))
 	    {
-	      sc->code = _TLst(cdar(sc->code));
+	      sc->code = T_Lst(cdar(sc->code));
 	      if (is_null(sc->code))
 		{
 		  if (is_multiple_value(sc->value))
@@ -76354,7 +76364,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		sc->value = c_call(car(p))(sc, caar(p));
 		if (is_true(sc, sc->value))
 		  {
-		    sc->code = _TLst(cdar(p));
+		    sc->code = T_Lst(cdar(p));
 		    if (is_null(sc->code))
 		      goto START;
 		    goto BEGIN1; 
@@ -76379,7 +76389,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    goto START;
 		  }
 	      }
-	    sc->code = _TLst(cdar(p));
+	    sc->code = T_Lst(cdar(p));
 	    if (is_null(sc->code))
 	      goto START;
 	    goto BEGIN1;
@@ -76393,7 +76403,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		sc->value = c_call(car(p))(sc, caar(p));
 		if (is_true(sc, sc->value))
 		  {
-		    sc->code = _TLst(cdar(p));
+		    sc->code = T_Lst(cdar(p));
 		    if (is_null(sc->code))
 		      goto START;
 		    sc->code = car(sc->code);
@@ -76773,7 +76783,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  ELSE_CASE:
 	    if (is_not_null(x))
 	      {
-		sc->code = _TLst(cdar(x));
+		sc->code = T_Lst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
 		  goto START;
 
@@ -76980,7 +76990,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  ELSE_CASE_1:
 	    if (is_not_null(x))
 	      {
-		sc->code = _TLst(cdar(x));
+		sc->code = T_Lst(cdar(x));
 		if (is_null(sc->code))  /* sc->value is already the selector */
 		  goto START;
 
@@ -77001,7 +77011,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    goto EVAL;
 		    /* sc->code = list_2(sc, cadr(sc->code), list_2(sc, sc->quote_symbol, sc->value)); */
 		  }
-		push_stack_no_args(sc, OP_BEGIN1, _TPair(cdr(sc->code)));
+		push_stack_no_args(sc, OP_BEGIN1, T_Pair(cdr(sc->code)));
 		sc->code = car(sc->code);
 		goto EVAL;
 	      }
@@ -77125,7 +77135,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      symbol_set_local(sym, sc->let_number, p);
 		  }
 	      }
-	    sc->code = _TPair(cdr(sc->code));
+	    sc->code = T_Pair(cdr(sc->code));
 	    goto BEGIN1;
 	  }
 	  
@@ -84753,7 +84763,15 @@ int main(int argc, char **argv)
  * many stuff.scm funcs are not cycle-safe (e.g. union)
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
- * -Wconversion... -fsanitize=undefined  and -O1 as ldflag
+ * s7.c:13253:55: runtime error: division by zero
+ * s7.c:13908:30: runtime error: signed integer overflow: 2147483649 * 8796093022208 cannot be represented in type 'long'
+ * s7.c:14706:76: runtime error: value nan is outside the range of representable values of type 'long'
+ * s7.c:14743:11: runtime error: value 4.29497e+21 is outside the range of representable values of type 'long'
+ * s7.c:20039:19: runtime error: left shift of 60 by 61 places cannot be represented in type 's7_int' (aka 'long')
+ * s7.c:20063:64: runtime error: shift exponent 123 is too large for 64-bit type 's7_int' (aka 'long')
+ * s7.c:37572:10: runtime error: value inf is outside the range of representable values of type 'unsigned int'
+ * -Wconversion...
+ * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:

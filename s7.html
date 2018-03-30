@@ -6977,6 +6977,7 @@ int main(int argc, char **argv)
  *
  * for long-term happiness in linux use:
  *   gcc -o repl repl.c s7.o -Wl,-export-dynamic -lm -I. -ldl
+ *   clang also needs -fPIC I think
  * freebsd:
  *   gcc -o repl repl.c s7.o -Wl,-export-dynamic -lm -I.
  * osx:
@@ -9207,7 +9208,7 @@ show all non-global variables that are currently accessible
 end
 </pre>
 
-<p>gdbinit also has s7cell to decode every field of an s7_pointer, and two backtrace
+<p>gdbinit also has two backtrace
 decoders: s7bt and s7btfull (heh heh).  The bt replacements print the gdb backtrace info,
 replacing bare pointer numbers with their s7 value, wherever possible:
 </p>

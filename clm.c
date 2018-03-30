@@ -4286,7 +4286,9 @@ static mus_float_t mus_wave_train_any(mus_any *ptr, mus_float_t fm)
 	  if (gen->out_pos >= wave_size)
 	    gen->out_pos = gen->out_pos % wave_size; /* both are mus_long_t */
 	  result = out_data[gen->out_pos++];
-	  gen->next_wave_time = ((mus_float_t)sampling_rate / (gen->freq + fm));
+	  if (gen->freq == -fm)
+	    gen->next_wave_time = (mus_float_t)sampling_rate;
+	  else gen->next_wave_time = ((mus_float_t)sampling_rate / (gen->freq + fm));
 	}
       else 
 	{
@@ -6636,9 +6638,17 @@ mus_float_t mus_rand_interp(mus_any *ptr, mus_float_t fm)
     }
   if ((gen->phase >= TWO_PI) || (gen->phase < 0.0))
     {
+      double divisor;
       gen->phase = fmod(gen->phase, TWO_PI);
       if (gen->phase < 0.0) gen->phase += TWO_PI;
-      gen->incr = (random_any(gen) - gen->output) / (ceil(TWO_PI / (gen->freq + fm)));
+      gen->incr = random_any(gen) - gen->output;
+      divisor = gen->freq + fm;
+      if (divisor != 0.0)
+	{
+	  divisor = ceil(TWO_PI / divisor);
+	  if (divisor != 0.0)
+	    gen->incr /= divisor;
+	}
     }
   gen->phase += (gen->freq + fm);
   return(gen->output);
@@ -7188,6 +7198,7 @@ static mus_float_t two_zero_set_radius(mus_any *ptr, mus_float_t new_radius)
 static mus_float_t two_zero_frequency(mus_any *ptr)
 {
   smpflt *gen = (smpflt *)ptr;
+  if (two_zero_radius(ptr) == 0.0) return(0.0); /* or srate/2 */
   return(mus_radians_to_hz(acos(gen->xs[1] / (-2.0 * two_zero_radius(ptr)))));
 }
 
@@ -14460,6 +14471,7 @@ mus_float_t *mus_make_fft_window_with_window(mus_fft_window_t type, mus_long_t s
   if (!window) return(NULL);
 
   midn = size >> 1;
+  if (midn == 0) return(window);
   midp1 = (size + 1) / 2;
   freq = TWO_PI / (mus_float_t)size;
   rate = 1.0 / (mus_float_t)midn;

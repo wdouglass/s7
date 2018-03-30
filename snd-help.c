@@ -373,13 +373,27 @@ char *version_info(void)
 #if (defined(__DATE__)) && (!(defined(REPRODUCIBLE_BUILD)))
 	  "\n    Compiled ", __DATE__, " ", __TIME__,
 #endif
-#ifdef __VERSION__
-  #ifndef __cplusplus
+#ifndef __cplusplus
 	  "\n    C: ",
-  #else
+#else
 	  "\n    C++: ",
-  #endif
-	  __VERSION__,
+#endif
+/* the __VERSION__ macro is useless */
+#if defined(__clang__)
+	  "clang ", snd_itoa(__clang_major__), ".", snd_itoa(__clang_minor__),
+#elif defined(__ICC) || defined(__INTEL_COMPILER)
+	  "intel ",
+#elif defined(__GNUC__) || defined(__GNUG__)
+#ifndef __cplusplus
+	  "gcc ", 
+#else
+	  "g++ ",
+#endif
+	  snd_itoa(__GNUC__), ".", snd_itoa(__GNUC_MINOR__),
+#elif defined(_MSC_VER)
+	  "MS ",
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+	  "Sun ",
 #endif
 	  "\n",
 #ifndef _MSC_VER
