@@ -151,7 +151,9 @@
 	"GdkDevicePadFeature" "GtkPadActionType"
 
 	"GtkShortcutLabel*" "GtkPadActionEntry*" "GdkDevicePad*" "GActionGroup*"
-	"GtkDrawingAreaFunc"
+	;; "GtkDrawingAreaFunc" -- not currently in use?
+
+	"GtkTextWindowType" "GtkPackType" "GtkApplicationInhibitFlags"
 	))
 
 (define no-xen-p 
@@ -175,6 +177,7 @@
 	"cairo_font_type_t" "cairo_pattern_type_t" "cairo_surface_type_t" "cairo_bool_t" "cairo_region_overlap_t"
 
 	"glong" "double" "GdkAxisFlags" "GdkSubpixelLayout" 
+	"GdkTouchpadGesturePhase"
 	))
 
 (define no-xen-to-c 
@@ -200,6 +203,7 @@
 	"cairo_region_overlap_t" "cairo_device_type_t"
 
 	"glong" "GdkAxisFlags" "GdkSubpixelLayout" 
+	"GdkTouchpadGesturePhase"
 	))
 
 (define (cadr-str data)
@@ -1059,13 +1063,15 @@
 	 (parse-args "GdkSeat* seat GdkWindow* window lambda_data func_info" 'g-3.20)
 	 'permanent
 	 "3.20")
-
+#|
+   ;; not currently used anywhere??
    (list 'GtkDrawingAreaFunc
 	 "void"
 	 "draw_func"
 	 (parse-args "GtkDrawingArea* self lambda_data func_info" 'g-3.99)
 	 'permanent
 	 "3.99")
+|#
    ))
 
 
@@ -1735,11 +1741,6 @@
 (hey "#define Xm_type_Ptr(Name, XType) \\~%")
 (hey "  static Xen C_to_Xen_ ## Name (XType val) {if (val) return(wrap_for_Xen(Name, val)); return(Xen_false);} \\~%")
 (hey "  static XType Xen_to_C_ ## Name (Xen val) {if (Xen_is_false(val)) return(NULL); return((XType)Xen_unwrap_C_pointer(Xen_cadr(val)));} \\~%")
-(hey "  static bool Xen_is_ ## Name (Xen val) {return(is_wrapped(Name, val));}~%")
-(hey "~%")
-(hey "#define Xm_type_Ptr_const(Name, XType) \\~%")
-(hey "  static Xen C_to_Xen_ ## Name (const XType val) {if (val) return(wrap_for_Xen(Name, val)); return(Xen_false);} \\~%")
-(hey "  static const XType Xen_to_C_ ## Name (Xen val) {if (Xen_is_false(val)) return(NULL); return((const XType)Xen_unwrap_C_pointer(Xen_cadr(val)));} \\~%")
 (hey "  static bool Xen_is_ ## Name (Xen val) {return(is_wrapped(Name, val));}~%")
 (hey "~%")
 (hey "#define Xm_type_Ptr_1(Name, XType) \\~%")

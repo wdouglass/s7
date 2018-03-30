@@ -5798,7 +5798,9 @@ static char *describe_filtered_comb(mus_any *ptr)
   filter_str = mus_describe(((dly *)ptr)->filt);
   len = strlen(comb_str) + strlen(filter_str) + 64;
   res = (char *)malloc(len * sizeof(char));
-  snprintf(res, len, "%s, filter: [%s]", comb_str, filter_str);
+  if (filter_str)
+    snprintf(res, len, "%s, filter: [%s]", comb_str, filter_str);
+  else snprintf(res, len, "%s, filter: none?", comb_str);
   if (comb_str) free(comb_str);
   if (filter_str) free(filter_str);
   return(res);

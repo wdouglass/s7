@@ -354,7 +354,7 @@
   #endif
 
 #ifndef CMPLX
-  #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)) && !defined(__INTEL_COMPILER)
+  #if (!(defined(__cplusplus))) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)) && !defined(__INTEL_COMPILER)
     #define CMPLX(x, y) __builtin_complex ((double) (x), (double) (y))
   #else
     #define CMPLX(r, i) ((r) + ((i) * _Complex_I))
@@ -10653,7 +10653,6 @@ static char *integer_to_string_base_10_no_width(s7_pointer obj, s7_int *nlen) /*
 #define BASE_10 10
 static s7_int num_to_str_size = -1;
 static char *num_to_str = NULL;
-static const char *float_format_g = NULL;
 
 static char *floatify(char *str, s7_int *nlen)
 {
@@ -10720,16 +10719,11 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
       break;
 
     case T_REAL:
-      {
-	const char *frmt;
-	if (sizeof(double) >= sizeof(s7_double))
-	  frmt = (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e");
-	else frmt = (float_choice == 'g') ? "%*.*Lg" : ((float_choice == 'f') ? "%*.*Lf" : "%*.*Le");
-
-	len = snprintf(num_to_str, num_to_str_size - 4, frmt, width, precision, real(obj)); /* -4 for floatify */
-	(*nlen) = len;
-	floatify(num_to_str, nlen);
-      }
+      len = snprintf(num_to_str, num_to_str_size - 4, 
+		       (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
+		       (int32_t)width, (int32_t)precision, (double)real(obj)); /* -4 for floatify */
+      (*nlen) = len;
+      floatify(num_to_str, nlen);
       break;
 
     default:
@@ -10751,7 +10745,7 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 		  }
 		else
 		  {
-		    snprintf(rbuf, 128, float_format_g, precision, real_part(obj));
+		    snprintf(rbuf, 128, "%.*g", (int32_t)precision, (double)real_part(obj));
 		    rp = rbuf;
 		  }
 	      }
@@ -10767,7 +10761,7 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 		  }
 		else
 		  {
-		    snprintf(ibuf, 128, float_format_g, precision, imag_part(obj));
+		    snprintf(ibuf, 128, "%.*g", (int32_t)precision, (double)imag_part(obj));
 		    ip = ibuf;
 		  }
 	      }
@@ -10775,21 +10769,13 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 	  }
 	else
 	  {
-	    const char *frmt;
-	    if (sizeof(double) >= sizeof(s7_double))
-	      {
-		if (imag_part(obj) >= 0.0)
-		  frmt = (float_choice == 'g') ? "%.*g+%.*gi" : ((float_choice == 'f') ? "%.*f+%.*fi" : "%.*e+%.*ei");
-		else frmt = (float_choice == 'g') ? "%.*g%.*gi" : ((float_choice == 'f') ? "%.*f%.*fi" :"%.*e%.*ei"); /* minus sign comes with the imag_part */
-	      }
-	    else
-	      {
-		if (imag_part(obj) >= 0.0)
-		  frmt = (float_choice == 'g') ? "%.*Lg+%.*Lgi" : ((float_choice == 'f') ? "%.*Lf+%.*Lfi" : "%.*Le+%.*Lei");
-		else frmt = (float_choice == 'g') ? "%.*Lg%.*Lgi" : ((float_choice == 'f') ? "%.*Lf%.*Lfi" : "%.*Le%.*Lei");
-	      }
-
-	    len = snprintf(num_to_str, num_to_str_size, frmt, precision, real_part(obj), precision, imag_part(obj));
+	    if (imag_part(obj) >= 0.0)
+	      len = snprintf(num_to_str, num_to_str_size, 
+			     (float_choice == 'g') ? "%.*g+%.*gi" : ((float_choice == 'f') ? "%.*f+%.*fi" : "%.*e+%.*ei"),
+			     (int32_t)precision, (double)real_part(obj), (int32_t)precision, (double)imag_part(obj));
+	    else len = snprintf(num_to_str, num_to_str_size, 
+				(float_choice == 'g') ? "%.*g%.*gi" : ((float_choice == 'f') ? "%.*f%.*fi" :"%.*e%.*ei"), /* minus sign comes with the imag_part */
+				(int32_t)precision, (double)real_part(obj), (int32_t)precision, (double)imag_part(obj));
 	  }
 
 	if (width > len)  /* (format #f "~20g" 1+i) */
@@ -10833,18 +10819,6 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
   if (radix == 10)
     {
       p = number_to_string_base_10(obj, width, precision, float_choice, nlen, P_WRITE);
-#if S7_DEBUGGING
-      {
-	/* I think this bug is fixed now */
-	s7_int numlen;
-	numlen = safe_strlen(p);
-	if ((numlen != *nlen) || (*nlen > num_to_str_size))
-	  {
-	    fprintf(stderr, "%s[%d]: %s strlen: %ld, *nlen: %ld, num_to_str_size: %ld, radix: %ld, width: %ld, precision: %ld\n", 
-		    __func__, __LINE__, p, numlen, *nlen, num_to_str_size, radix, width, precision);
-	  }
-      }
-#endif
       return(copy_string_with_length(p, *nlen));
     }
 
@@ -13248,11 +13222,9 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
 	  s7_complex sq1mz, sq1pz, z;
 	  z = as_c_complex(n);
 	  sq1mz = csqrt(1.0 - z);
-	  sq1pz = csqrt(1.0 + z);
-#if S7_DEBUGGING
-	  if (creal(sq1pz) == 0.0)
-	    fprintf(stderr, "%d: real_part 0.0: %s\n", __LINE__, DISPLAY(n));
-#endif
+	  sq1pz = csqrt(1.0 + z);	  /* creal(sq1pz) can be 0.0 */
+	  if (creal(sq1pz) == 0.0)        /* so the atan arg will be inf, so the real part will be pi/2(?) */
+	    return(s7_make_complex(sc, M_PI / 2.0, asinh(cimag(sq1mz * conj(sq1pz)))));
 	  return(s7_make_complex(sc, 2.0 * atan(creal(sq1mz) / creal(sq1pz)), asinh(cimag(sq1mz * conj(sq1pz)))));
 	}
       return(s7_from_c_complex(sc, cacos(s7_to_c_complex(n))));
@@ -13908,7 +13880,12 @@ static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
 	    {
 	      b = integer(x);
 	      if (b < 0) b = -b;
+#if HAVE_OVERFLOW_CHECKS
+	      if (multiply_overflow(n / c_gcd(n, b), b, &n))
+		return(simple_out_of_range(sc, sc->lcm_symbol, args, result_is_too_large_string));
+#else
 	      n = (n / c_gcd(n, b)) * b;
+#endif
 	    }
 	  if (d != 0) d = 1;
 	  break;
@@ -14738,12 +14715,18 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  goto RATIO_MOD_RATIO;
 
 	case T_REAL:
-	  b = real(y);
-	  if (b == 0.0) return(x);
-	  if (is_NaN(b)) return(y);
-	  if (is_inf(b)) return(real_NaN);
-	  a = (s7_double)integer(x);
-	  return(make_real(sc, a - b * (s7_int)floor(a / b)));
+	  {
+	    double c;
+	    b = real(y);
+	    if (b == 0.0) return(x);
+	    if (is_NaN(b)) return(y);
+	    if (is_inf(b)) return(real_NaN);
+	    a = (s7_double)integer(x);
+	    c = a / b;
+	    if ((c > 1e19) || (c < -1e19))
+	      return(simple_out_of_range(sc, sc->modulo_symbol, y, s7_make_string_wrapper(sc, "intermediate (a/b) is too large")));
+	    return(make_real(sc, a - b * (s7_int)floor(c)));
+	  }
 
 	default:
 	  method_or_bust(sc, y, sc->modulo_symbol, args, T_REAL, 2);
@@ -27401,7 +27384,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-	  plen = snprintf(buf, 128, float_format_g, float_format_precision, first);
+	  plen = snprintf(buf, 128, "%.*g", float_format_precision, first);
 	  port_write_string(port)(sc, buf, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  return;
@@ -27411,13 +27394,13 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   if (vector_rank(vect) == 1)
     {
       port_write_string(port)(sc, "#r(", 3, port);
-      plen = snprintf(buf, 124, float_format_g, float_format_precision, els[0]); /* 124 so floatify has room */
+      plen = snprintf(buf, 124, "%.*g", float_format_precision, els[0]); /* 124 so floatify has room */
       floatify(buf, &plen);
       port_write_string(port)(sc, buf, plen, port);
       for (i = 1; i < len; i++)
 	{
 	  port_write_character(port)(sc, ' ', port);
-	  plen = snprintf(buf, 124, float_format_g, float_format_precision, els[i]);
+	  plen = snprintf(buf, 124, "%.*g", float_format_precision, els[i]);
 	  floatify(buf, &plen);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
@@ -29428,7 +29411,7 @@ static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, in
     {
       s7_pointer slot;
       fprintf(stderr, "%s%s[%d]: %s unbound%s\n", BOLD_TEXT, func, line, symbol_name(sym), UNBOLD_TEXT);
-      fprintf(stderr, "  symbol_id: %ld, let_id: %ld, bits: %s", symbol_id(sym), let_id(sc->envir), describe_type_bits(sc, sym));
+      fprintf(stderr, "  symbol_id: %" PRId64 ", let_id: %" PRId64 ", bits: %s", symbol_id(sym), let_id(sc->envir), describe_type_bits(sc, sym));
       slot = symbol_to_local_slot(sc, sym, sc->envir);
       if (is_slot(slot)) fprintf(stderr, ", slot: %s", DISPLAY(slot));
       fprintf(stderr, "\n");
@@ -35572,7 +35555,8 @@ a vector that points to the same elements as the original-vector but with differ
 	if ((!s7_is_integer(car(y)))        ||       /* (make-shared-vector v '((1 2) (3 4))) */
 	    (s7_integer(car(y)) > orig_len) ||
 	    (s7_integer(car(y)) < 0))
-	  return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, "a list of integers that fits the original vector"))));
+	  return(s7_error(sc, sc->wrong_type_arg_symbol, 
+			  set_elist_1(sc, s7_make_string_wrapper(sc, "make-shared-vector: new dimensions should be a list of integers that fits the original vector"))));
     }
 
   v = (vdims_t *)malloc(sizeof(vdims_t));
@@ -36030,8 +36014,12 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 	    {
 	      if (!s7_is_integer(car(y)))
 		return(wrong_type_argument(sc, err_sym, position_of(y, x), car(y), T_INTEGER));
+#if HAVE_OVERFLOW_CHECKS
 	      if (multiply_overflow(len, s7_integer(car(y)), &len)) /* or better perhaps len > sc->max_vector_length */
 		return(out_of_range(sc, err_sym, s7_make_integer(sc, position_of(y, x)), car(y), its_too_large_string));
+#else
+	      len *= s7_integer(car(y));
+#endif
 	      if (len < 0)
 		return(wrong_type_argument_with_type(sc, err_sym, position_of(y, x), car(y), a_non_negative_integer_string));
 	    }
@@ -38229,7 +38217,8 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
       else size = s7_integer(p);
       if (size <= 0)                      /* we need s7_int here to catch (make-hash-table most-negative-fixnum) etc */
 	return(simple_out_of_range(sc, sc->make_hash_table_symbol, p, s7_make_string_wrapper(sc, "should be a positive integer")));
-      if (size > sc->max_vector_length)
+      if ((size > sc->max_vector_length) ||
+	  (size >= (1LL << 32LL)))
 	return(simple_out_of_range(sc, sc->make_hash_table_symbol, p, its_too_large_string));
 
       if (is_not_null(cdr(args)))
@@ -39787,6 +39776,7 @@ s7_pointer s7_dilambda(s7_scheme *sc,
   char *internal_set_name;
   s7_int len;
 
+  if (!name) return(sc->F);
   len = 16 + safe_strlen(name);
   internal_set_name = (char *)malloc(len * sizeof(char));
   snprintf(internal_set_name, len, "[set-%s]", name);
@@ -82716,10 +82706,6 @@ s7_scheme *s7_init(void)
       all_x_function_init();
       init_catchers();
       /* sizeof(__float128) == sizeof(long double) so how to distinguish them for printf (L vs Q)? */
-      /* if (sizeof(s7_double) >= 16) float_format_g = "%.*Qg"; */      /* __float128 */
-      if (sizeof(s7_double) > 8)
-	float_format_g = "%.*Lg";   /* long double (80-bit precision?) */
-      else float_format_g = "%.*g"; /* float and double */
     }
 
   sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
@@ -84142,8 +84128,8 @@ s7_scheme *s7_init(void)
     for (i = 2; i < 17; i++)
       s7_int_digits_by_radix[i] = (int32_t)(floor(((top == 8) ? S7_LOG_LLONG_MAX : S7_LOG_LONG_MAX) / log((double)i)));
 
-    s7_define_constant(sc, "most-positive-fixnum", make_permanent_integer_unchecked((top == 8) ? s7_int_max : ((top == 4) ? S7_LONG_MAX : S7_SHORT_MAX)));
-    s7_define_constant(sc, "most-negative-fixnum", make_permanent_integer_unchecked((top == 8) ? s7_int_min : ((top == 4) ? S7_LONG_MIN : S7_SHORT_MIN)));
+    s7_define_constant(sc, "most-positive-fixnum", make_permanent_integer_unchecked(s7_int_max));
+    s7_define_constant(sc, "most-negative-fixnum", make_permanent_integer_unchecked(s7_int_min));
 
     if (top == 4) sc->default_rationalize_error = 1.0e-6;
     s7_define_constant(sc, "pi", real_pi);
@@ -84746,8 +84732,9 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * if profile, use line/file num to get at hashed count? and use that to annotate pp output via [count]-symbol pre-rewrite
- *   (profile-count file line)?
+ * if profile ('profiling in *features*), use pair line/file num as key for hashed count, and use that to annotate pp output
+ *   (profile-count file line)? (*s7* 'profile-info)
+ *
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
  *   add shared_info collection of closure args/body for print/morally-equal
  *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
@@ -84758,18 +84745,11 @@ int main(int argc, char **argv)
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
- *   see t752.scm for more examples etc
+ *   see t752.scm for more examples
  *   another cycle: (*s7* 'stack)
  * many stuff.scm funcs are not cycle-safe (e.g. union)
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
  * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
- * s7.c:13253:55: runtime error: division by zero
- * s7.c:13908:30: runtime error: signed integer overflow: 2147483649 * 8796093022208 cannot be represented in type 'long'
- * s7.c:14706:76: runtime error: value nan is outside the range of representable values of type 'long'
- * s7.c:14743:11: runtime error: value 4.29497e+21 is outside the range of representable values of type 'long'
- * s7.c:20039:19: runtime error: left shift of 60 by 61 places cannot be represented in type 's7_int' (aka 'long')
- * s7.c:20063:64: runtime error: shift exponent 123 is too large for 64-bit type 's7_int' (aka 'long')
- * s7.c:37572:10: runtime error: value inf is outside the range of representable values of type 'unsigned int'
  * -Wconversion...
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  *

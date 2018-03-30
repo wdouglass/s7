@@ -77,6 +77,7 @@
 (set! (current-output-port) #f)
 
 (define ostr "")
+(define estr "")
 (define nostr "")
 
 (define __var__ #f)
@@ -373,8 +374,8 @@
 			  ;; -------- naming funcs
 			  'make-hook 
 			  'let 'let* 'letrec 
-			  ;'lambda 'lambda*
-			  'multiple-value-bind 'call-with-values
+			  ; 'lambda 'lambda*
+			  ; 'multiple-value-bind 'call-with-values
 			  'inlet 
 			  'object->let
 			  ;; --------
@@ -424,7 +425,7 @@
                           ;'pair-line-number 
 			  ;'funclet
 			  ;'random 
-			  'quote
+			  ;'quote
 			  '*error-hook*
 			  ;'cond-expand 
 			  ;'random-state->list 
@@ -510,6 +511,7 @@
 			  's7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
 
 			  'block-reverse! 'subblock 'unquote 'block-append ;'block-let
+			  'simple-block? 'make-simple-block
 
 			  'undefined-function
 			  ;'subsequence 
@@ -529,7 +531,9 @@
 			  ))
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" ;;"(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
+		    "(ash 1 31)" "(+ (ash 1 31) 1)" "(- (ash 1 32) 1)"
 		    "(make-block 2)" "(block 1.0 2.0 3.0)" "(block)"
+		    "(make-simple-block 3)"
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
 		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" 
@@ -564,7 +568,11 @@
 		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
 		    "_definee_" "(_definee_ __var__)" "(_definee_ x)" 
 		    "(hash-table* 'a 1)" "(hash-table)" 
-		    "(make-iterator (list 11 22 33))" "(make-iterator (vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
+		    "(make-iterator (list 11 22 33))" "(make-iterator (int-vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
+		    "(make-iterator (hash-table* 'a 1 'b 2))" "(make-iterator (block 1 2 3))"
+		    "(make-iterator (let ((lst '((a . 1) (b . 2) (c . 2))) 
+                                       (+iterator+ #t)) (lambda () (if (pair? lst) (let ((res (list (caar lst) (cdar lst)))) (set! lst (cdr lst)) res) #<eof>))))"
+
 		    "#<eof>" "#<undefined>" "#<unspecified>"
 		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
 		    
@@ -612,7 +620,7 @@
 		    "#xfeedback" "#_asdf"
 		    ;"quote" "'"
 		    "if" "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
-		    "lambda*" "lambda"
+		    ;;"lambda*" "lambda" ;-- cyclic body etc
 		    ;;"let" "let*" "do" "set!" "with-let" ;"define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 
 		    "(begin (string? (stacktrace)))"
@@ -623,7 +631,17 @@
 		    "(let ((<1> #f) (<2> (vector #f))) (set! <1> (make-iterator <2>)) (set! (<2> 0) <1>) <1>)"
 		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
 
-		    #f #f
+		    "(begin (list? (*s7* 'catches)))"
+		    "(begin (list? (*s7* 'exits)))"
+		    "(begin (integer? (*s7* 'stack-top)))"
+		    ;"(begin (string? (object->string (*s7* 'stack))))"
+		    ;"(begin (string? (object->string (*s7* 'stack) :readable)))"
+		    "(begin (string? (object->string (*s7* 'catches))))"
+		    "(begin (string? (object->string (*s7* 'exits))))"
+		    "(begin (vector? (*s7* 'gc-protected-objects)))"
+		    "(begin (list? (*s7* 'stacktrace-defaults)))"
+
+		    #f #f #f #f ;#f #f #f #f #f #f 
 		    ))
 
       (codes (vector 
@@ -664,7 +682,7 @@
 	      (list "(do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) "
 		    "(do ((i 0 (+ i 1))) ((= i 1)) (let ((j 0)) ")
 	      (list "(or (_cop1_ " "(and (_cop2_ ")
-	      (list "(values (_rd1_ " "(append (_rd2_ ")
+	      ;;(list "(values (_rd1_ " "(append (_rd2_ ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -790,8 +808,8 @@
 	       (eq? (type-of val1) (type-of val3))
 	       (eq? (type-of val1) (type-of val4)))
 	  (cond ((or (openlet? val1)
-		      (string-position "(set!" str1)
-		      (string-position "gensym" str1)))
+		     (string-position "(set!" str1)
+		     (string-position "gensym" str1)))
 
 		((symbol? val1)
 		 (if (gensym? val1)
@@ -877,9 +895,10 @@
     (define (eval-it str) ;(format #t "~A~%" str)
       ;(format *stderr* "~S~%" str)
       (set! __var__ __old_var__)
+      (set! estr str)
       (catch #t 
 	(lambda ()
-	  (car (list (eval-string str))))
+	  (car (list (eval-string str)))) ; wrap in (with-let (unlet)...) to avoid changes?
 	(lambda (type info)
 	  (set! error-type type)
 	  (set! error-info info)
@@ -924,6 +943,11 @@
 	  ))
 
 #|
+      (let ((nstr (make-expr (+ 1 (random 4))))
+	    (pstr (make-expr (+ 1 (random 4)))))
+	(let ((str1 (string-append "(let ((x (car (list " nstr ")))) (do ((i 0 (+ i 1))) ((= i 2) x) " ostr " (set! x (car (list " pstr ")))))")))
+	  (eval-it str1)))
+
       (catch #t
 	(lambda ()
 	  (let ((val1 (car (list (eval-string str)))))

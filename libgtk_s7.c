@@ -61,92 +61,92 @@ static s7_pointer GMenu__sym, GtkApplicationInhibitFlags_sym, GApplicationFlags_
                   GCancellable__sym, GdkContentProvider__sym, GdkContentFormats__sym, GdkClipboard__sym, GdkAppLaunchContext__sym,
                   GtkEventControllerScroll__sym, GtkEventControllerScrollFlags_sym, GtkSnapshot__sym, GdkTouchpadGesturePhase_sym, GdkNotifyType_sym,
                   GdkCrossingMode_sym, GdkEventScroll__sym, GtkScrollbar__sym, GtkCenterBox__sym, GtkCheckButton__sym,
-                  GdkDrawContext__sym, GtkDrawingAreaDrawFunc_sym, GtkShortcutLabel__sym, GtkPadActionType_sym, GtkPadActionEntry__sym,
-                  GActionGroup__sym, GtkPadController__sym, GdkDevicePadFeature_sym, GdkDevicePad__sym, GdkDrawingContext__sym,
-                  GdkSubpixelLayout_sym, GdkMonitor__sym, GdkDeviceTool__sym, GdkAxisFlags_sym, GdkSeatGrabPrepareFunc_sym,
-                  GdkSeatCapabilities_sym, GdkGrabStatus_sym, GtkPopoverConstraint_sym, GtkShortcutsWindow__sym, GtkStackSidebar__sym,
-                  GtkSearchEntry__sym, GtkPopoverMenu__sym, GtkStyleContext__sym, GdkGLContext__sym, GtkGLArea__sym,
-                  GtkPropagationPhase_sym, GtkEventController__sym, GtkGestureZoom__sym, GtkGestureSwipe__sym, GtkGestureSingle__sym,
-                  GtkGestureRotate__sym, GtkGestureMultiPress__sym, GtkGesturePan__sym, GtkGestureDrag__sym, GdkEventSequence__sym,
-                  GtkEventSequenceState_sym, GtkGesture__sym, GtkAllocation__sym, GtkPopover__sym, GtkActionBar__sym,
-                  GtkFlowBox__sym, GtkFlowBoxChild__sym, GdkEventType_sym, GtkSearchBar__sym, GtkListBox__sym,
-                  GtkListBoxRow__sym, GtkHeaderBar__sym, GtkRevealerTransitionType_sym, GtkRevealer__sym, GtkStackTransitionType_sym,
-                  GtkStack__sym, GtkStackSwitcher__sym, GtkPlacesSidebar__sym, GtkPlacesOpenFlags_sym, GtkBaselinePosition_sym,
-                  GdkFullscreenMode_sym, GtkInputHints_sym, GtkInputPurpose_sym, GtkLevelBarMode_sym, GtkLevelBar__sym,
-                  GtkMenuButton__sym, GtkColorChooser__sym, GtkApplicationWindow__sym, GtkApplication__sym, GMenuModel__sym,
-                  guint___sym, GdkModifierIntent_sym, GtkFontChooser__sym, GdkScrollDirection_sym, GtkOverlay__sym,
-                  GtkWidgetPath__sym, GtkStateFlags_sym, GtkToolShell__sym, GtkWindowGroup__sym, GIcon__sym,
-                  GtkOrientable__sym, GtkCellArea__sym, GtkBorder__sym, GtkSwitch__sym, GtkScrollablePolicy_sym,
-                  GtkScrollable__sym, GtkGrid__sym, GdkRGBA__sym, GtkComboBoxText__sym, GtkAlign_sym,
-                  GtkSizeRequestMode_sym, cairo_region_overlap_t_sym, cairo_rectangle_int_t__sym, double__sym, cairo_rectangle_t__sym,
-                  cairo_device_t__sym, cairo_bool_t_sym, cairo_text_cluster_flags_t__sym, cairo_text_cluster_t___sym, cairo_glyph_t___sym,
-                  cairo_text_cluster_flags_t_sym, cairo_text_cluster_t__sym, cairo_region_t__sym, GtkMessageDialog__sym, GdkDevice__sym,
-                  GtkAccessible__sym, GdkModifierType__sym, GtkDestDefaults_sym, GtkToolPaletteDragTargets_sym, GtkToolItemGroup__sym,
-                  GtkToolPalette__sym, GtkPackType_sym, GtkSpinner__sym, GtkEntryBuffer__sym, GtkMessageType_sym,
-                  GtkInfoBar__sym, GtkEntryIconPosition_sym, GFile__sym, GtkScaleButton__sym, GtkCalendarDetailFunc_sym,
-                  GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym, cairo_filter_t_sym, cairo_extend_t_sym,
-                  cairo_format_t_sym, cairo_path_t__sym, cairo_destroy_func_t_sym, cairo_user_data_key_t__sym, cairo_text_extents_t__sym,
-                  cairo_font_extents_t__sym, cairo_font_face_t__sym, cairo_glyph_t__sym, cairo_scaled_font_t__sym, cairo_font_weight_t_sym,
-                  cairo_font_slant_t_sym, cairo_hint_metrics_t_sym, cairo_hint_style_t_sym, cairo_subpixel_order_t_sym, cairo_status_t_sym,
-                  bool_sym, cairo_matrix_t__sym, cairo_line_join_t_sym, cairo_line_cap_t_sym, cairo_fill_rule_t_sym,
-                  cairo_antialias_t_sym, cairo_operator_t_sym, cairo_pattern_t__sym, cairo_content_t_sym, GtkPageSet_sym,
-                  GtkPageRange__sym, GtkPrintPages_sym, GtkPrintQuality_sym, GtkPrintDuplex_sym, GtkPaperSize__sym,
-                  GtkPageOrientation_sym, GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym, GtkPrintStatus_sym, GtkPrintOperationAction_sym,
-                  GtkPrintOperationResult_sym, GtkUnit_sym, GtkPrintSettings__sym, GtkPrintOperation__sym, GtkPageSetup__sym,
-                  GtkPrintContext__sym, cairo_surface_t__sym, GtkTreeViewGridLines_sym, GtkRecentData__sym, time_t_sym,
-                  GtkRecentChooserMenu__sym, GtkRecentManager__sym, GtkRecentFilter__sym, GtkRecentSortFunc_sym, GtkRecentSortType_sym,
-                  GtkRecentChooser__sym, GtkLinkButton__sym, GtkAssistantPageType_sym, GtkAssistantPageFunc_sym, GtkAssistant__sym,
-                  GDestroyNotify_sym, GtkTreeViewSearchPositionFunc_sym, GtkSensitivityType_sym, GtkMenuBar__sym, GtkPackDirection_sym,
-                  GtkIconViewDropPosition_sym, GValue__sym, GLogFunc_sym, PangoMatrix__sym, PangoRenderPart_sym,
-                  PangoRenderer__sym, GtkMenuToolButton__sym, GtkFileChooserButton__sym, PangoScriptIter__sym, PangoScript_sym,
-                  PangoAttrFilterFunc_sym, PangoEllipsizeMode_sym, GtkIconViewForeachFunc_sym, GtkAboutDialog__sym, GtkTreeViewRowSeparatorFunc_sym,
-                  GtkCellView__sym, GtkAccelMap__sym, GtkOrientation_sym, GtkToolButton__sym, GtkIconLookupFlags_sym,
-                  GtkIconInfo__sym, gchar___sym, GtkIconTheme__sym, GtkFileChooser__sym, GtkCellLayoutDataFunc_sym,
-                  GtkCellLayout__sym, GtkFileFilterFunc_sym, GtkFileFilterFlags_sym, GtkFileFilter__sym, GSourceFunc_sym,
-                  GtkToggleToolButton__sym, GtkSeparatorToolItem__sym, GtkRadioToolButton__sym, GtkEntryCompletionMatchFunc_sym, GtkFontButton__sym,
-                  GtkExpander__sym, GtkComboBox__sym, GtkTreeModelFilter__sym, GtkFileChooserAction_sym, GtkToolItem__sym,
-                  GtkCalendarDisplayOptions_sym, GdkDisplay__sym, PangoLayoutRun__sym, PangoLayoutIter__sym, PangoLayoutLine__sym,
-                  int__sym, PangoAlignment_sym, PangoWrapMode_sym, PangoItem__sym, PangoGlyphString__sym,
-                  PangoFontMap__sym, PangoGlyph_sym, PangoFontFace__sym, PangoFontFace___sym, PangoFontFamily__sym,
-                  PangoFontMask_sym, PangoFontDescription___sym, PangoCoverageLevel_sym, PangoCoverage__sym, PangoFontMetrics__sym,
-                  PangoFontset__sym, PangoFont__sym, PangoFontFamily___sym, PangoLogAttr__sym, PangoAnalysis__sym,
-                  PangoAttrList___sym, PangoAttrIterator__sym, PangoRectangle__sym, PangoUnderline_sym, PangoStretch_sym,
-                  PangoVariant_sym, PangoWeight_sym, PangoStyle_sym, guint16_sym, PangoAttribute__sym,
-                  PangoAttrType_sym, PangoColor__sym, GdkGravity_sym, GtkWindowPosition_sym, GtkWindowType_sym,
-                  GtkWindow__sym, GtkTextDirection_sym, PangoContext__sym, AtkObject__sym, GtkDirectionType_sym,
-                  GtkViewport__sym, GtkTreeViewSearchEqualFunc_sym, GtkTreeViewDropPosition_sym, GtkTreeViewMappingFunc_sym, GtkTreeViewColumnDropFunc_sym,
-                  GtkTreeViewColumnSizing_sym, GtkTreeCellDataFunc_sym, GtkTreeStore__sym, GtkTreeIterCompareFunc_sym, GtkSortType_sym,
-                  GtkTreeSortable__sym, GtkTreeSelectionForeachFunc_sym, GtkTreeModel___sym, GtkTreeSelectionFunc_sym, GtkSelectionMode_sym,
-                  GtkTreeModelSort__sym, GtkTreeModelForeachFunc_sym, GtkTreeModelFlags_sym, GtkTreeRowReference__sym, GtkTreeDragDest__sym,
-                  GtkTreeDragSource__sym, GtkToolbarStyle_sym, GtkToolbar__sym, GtkToggleButton__sym, PangoTabArray__sym,
-                  GtkWrapMode_sym, GtkTextWindowType_sym, GtkTextView__sym, GtkTextTagTableForeach_sym, GtkTextSearchFlags_sym,
-                  GtkTextCharPredicate_sym, GtkTextMark__sym, GtkTextChildAnchor__sym, GtkTextIter__sym, GtkTextTagTable__sym,
-                  GtkTextBuffer__sym, GtkStatusbar__sym, GtkSpinType_sym, GtkSpinButtonUpdatePolicy_sym, GtkSpinButton__sym,
-                  GtkSizeGroupMode_sym, GtkSizeGroup__sym, GtkSettings__sym, GtkSelectionData__sym, GtkCornerType_sym,
-                  GtkPolicyType_sym, GtkScrolledWindow__sym, GtkScale__sym, GtkRange__sym, GtkRadioMenuItem__sym,
-                  GtkRadioButton__sym, GtkProgressBar__sym, GtkPaned__sym, GtkPositionType_sym, GtkNotebook__sym,
-                  GtkMenuShell__sym, gint__sym, GtkMenuItem__sym, GtkMenu__sym, PangoLanguage__sym,
-                  GtkListStore__sym, GtkLayout__sym, GtkJustification_sym, GtkLabel__sym, guint16__sym,
-                  GtkIMContextSimple__sym, GdkEventKey__sym, PangoAttrList__sym, GtkIMContext__sym, GtkImageType_sym,
-                  GtkImage__sym, GtkShadowType_sym, GtkFrame__sym, GtkFixed__sym, PangoLayout__sym,
-                  GtkEntry__sym, GtkEditable__sym, GdkAtom_sym, etc_sym, GtkDialog__sym,
-                  GtkCallback_sym, GtkContainer__sym, GtkCheckMenuItem__sym, GtkCellRendererToggle__sym, GtkCellRendererText__sym,
-                  GtkCellRendererState_sym, GtkCellEditable__sym, GtkCalendar__sym, GtkReliefStyle_sym, GtkButton__sym,
-                  GtkBox__sym, GtkBin__sym, GtkBindingSet__sym, GtkButtonBox__sym, GtkButtonBoxStyle_sym,
-                  GtkAspectFrame__sym, GtkAdjustment__sym, GtkAccelMapForeach_sym, GtkAccelLabel__sym, GtkAccelGroupEntry__sym,
-                  lambda3_sym, GSList__sym, GObject__sym, GtkAccelFlags_sym, GtkAccelGroup__sym,
-                  GdkInterpType_sym, double_sym, gfloat_sym, guchar_sym, char___sym,
-                  GdkPixbufDestroyNotify_sym, GError__sym, char__sym, guchar__sym, int_sym,
-                  GdkPixbuf__sym, GdkColorspace_sym, GdkCursor__sym, GdkWindowTypeHint_sym, GdkWindowHints_sym,
-                  GdkGeometry__sym, GdkWindowEdge_sym, GdkWMFunction_sym, GdkWMDecoration_sym, GdkEventMask_sym,
-                  GList__sym, GdkWindowState_sym, GdkFilterFunc_sym, GdkWindowType_sym, PangoDirection_sym,
-                  GdkKeymapKey__sym, GdkKeymap__sym, GdkRectangle__sym, GdkEventFunc_sym, gdouble_sym,
-                  guint32_sym, GdkDragAction_sym, GdkDragContext__sym, GSignalMatchType_sym, GConnectFlags_sym,
-                  GtkDestroyNotify_sym, GSignalEmissionHook_sym, gulong_sym, GSignalInvocationHint__sym, GQuark_sym,
-                  guint__sym, GSignalQuery__sym, GType__sym, GSignalCMarshaller_sym, gpointer_sym,
-                  GSignalAccumulator_sym, GSignalFlags_sym, GType_sym, GClosureNotify_sym, GCallback_sym,
-                  GNormalizeMode_sym, glong_sym, gssize_sym, gsize_sym, gunichar__sym,
-                  void_sym, GtkDrawingArea__sym, GdkSeat__sym, GtkRecentInfo__sym, GLogLevelFlags_sym,
+                  GdkDrawContext__sym, GtkDrawingAreaDrawFunc_sym, GtkDrawingArea__sym, GtkShortcutLabel__sym, GtkPadActionType_sym,
+                  GtkPadActionEntry__sym, GActionGroup__sym, GtkPadController__sym, GdkDevicePadFeature_sym, GdkDevicePad__sym,
+                  GdkDrawingContext__sym, GdkSubpixelLayout_sym, GdkMonitor__sym, GdkDeviceTool__sym, GdkAxisFlags_sym,
+                  GdkSeatGrabPrepareFunc_sym, GdkSeatCapabilities_sym, GdkGrabStatus_sym, GtkPopoverConstraint_sym, GtkShortcutsWindow__sym,
+                  GtkStackSidebar__sym, GtkSearchEntry__sym, GtkPopoverMenu__sym, GtkStyleContext__sym, GdkGLContext__sym,
+                  GtkGLArea__sym, GtkPropagationPhase_sym, GtkEventController__sym, GtkGestureZoom__sym, GtkGestureSwipe__sym,
+                  GtkGestureSingle__sym, GtkGestureRotate__sym, GtkGestureMultiPress__sym, GtkGesturePan__sym, GtkGestureDrag__sym,
+                  GdkEventSequence__sym, GtkEventSequenceState_sym, GtkGesture__sym, GtkAllocation__sym, GtkPopover__sym,
+                  GtkActionBar__sym, GtkFlowBox__sym, GtkFlowBoxChild__sym, GdkEventType_sym, GtkSearchBar__sym,
+                  GtkListBox__sym, GtkListBoxRow__sym, GtkHeaderBar__sym, GtkRevealerTransitionType_sym, GtkRevealer__sym,
+                  GtkStackTransitionType_sym, GtkStack__sym, GtkStackSwitcher__sym, GtkPlacesSidebar__sym, GtkPlacesOpenFlags_sym,
+                  GtkBaselinePosition_sym, GdkFullscreenMode_sym, GtkInputHints_sym, GtkInputPurpose_sym, GtkLevelBarMode_sym,
+                  GtkLevelBar__sym, GtkMenuButton__sym, GtkColorChooser__sym, GtkApplicationWindow__sym, GtkApplication__sym,
+                  GMenuModel__sym, guint___sym, GdkModifierIntent_sym, GtkFontChooser__sym, GdkScrollDirection_sym,
+                  GtkOverlay__sym, GtkWidgetPath__sym, GtkStateFlags_sym, GtkToolShell__sym, GtkWindowGroup__sym,
+                  GIcon__sym, GtkOrientable__sym, GtkCellArea__sym, GtkBorder__sym, GtkSwitch__sym,
+                  GtkScrollablePolicy_sym, GtkScrollable__sym, GtkGrid__sym, GdkRGBA__sym, GtkComboBoxText__sym,
+                  GtkAlign_sym, GtkSizeRequestMode_sym, cairo_region_overlap_t_sym, cairo_rectangle_int_t__sym, double__sym,
+                  cairo_rectangle_t__sym, cairo_device_t__sym, cairo_bool_t_sym, cairo_text_cluster_flags_t__sym, cairo_text_cluster_t___sym,
+                  cairo_glyph_t___sym, cairo_text_cluster_flags_t_sym, cairo_text_cluster_t__sym, cairo_region_t__sym, GtkMessageDialog__sym,
+                  GdkDevice__sym, GtkAccessible__sym, GdkModifierType__sym, GtkDestDefaults_sym, GtkToolPaletteDragTargets_sym,
+                  GtkToolItemGroup__sym, GtkToolPalette__sym, GtkPackType_sym, GtkSpinner__sym, GtkEntryBuffer__sym,
+                  GtkMessageType_sym, GtkInfoBar__sym, GtkEntryIconPosition_sym, GFile__sym, GtkScaleButton__sym,
+                  GtkCalendarDetailFunc_sym, GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym, cairo_filter_t_sym,
+                  cairo_extend_t_sym, cairo_format_t_sym, cairo_path_t__sym, cairo_destroy_func_t_sym, cairo_user_data_key_t__sym,
+                  cairo_text_extents_t__sym, cairo_font_extents_t__sym, cairo_font_face_t__sym, cairo_glyph_t__sym, cairo_scaled_font_t__sym,
+                  cairo_font_weight_t_sym, cairo_font_slant_t_sym, cairo_hint_metrics_t_sym, cairo_hint_style_t_sym, cairo_subpixel_order_t_sym,
+                  cairo_status_t_sym, bool_sym, cairo_matrix_t__sym, cairo_line_join_t_sym, cairo_line_cap_t_sym,
+                  cairo_fill_rule_t_sym, cairo_antialias_t_sym, cairo_operator_t_sym, cairo_pattern_t__sym, cairo_content_t_sym,
+                  GtkPageSet_sym, GtkPageRange__sym, GtkPrintPages_sym, GtkPrintQuality_sym, GtkPrintDuplex_sym,
+                  GtkPaperSize__sym, GtkPageOrientation_sym, GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym, GtkPrintStatus_sym,
+                  GtkPrintOperationAction_sym, GtkPrintOperationResult_sym, GtkUnit_sym, GtkPrintSettings__sym, GtkPrintOperation__sym,
+                  GtkPageSetup__sym, GtkPrintContext__sym, cairo_surface_t__sym, GtkTreeViewGridLines_sym, GtkRecentData__sym,
+                  time_t_sym, GtkRecentChooserMenu__sym, GtkRecentManager__sym, GtkRecentFilter__sym, GtkRecentSortFunc_sym,
+                  GtkRecentSortType_sym, GtkRecentChooser__sym, GtkLinkButton__sym, GtkAssistantPageType_sym, GtkAssistantPageFunc_sym,
+                  GtkAssistant__sym, GDestroyNotify_sym, GtkTreeViewSearchPositionFunc_sym, GtkSensitivityType_sym, GtkMenuBar__sym,
+                  GtkPackDirection_sym, GtkIconViewDropPosition_sym, GValue__sym, GLogFunc_sym, PangoMatrix__sym,
+                  PangoRenderPart_sym, PangoRenderer__sym, GtkMenuToolButton__sym, GtkFileChooserButton__sym, PangoScriptIter__sym,
+                  PangoScript_sym, PangoAttrFilterFunc_sym, PangoEllipsizeMode_sym, GtkIconViewForeachFunc_sym, GtkAboutDialog__sym,
+                  GtkTreeViewRowSeparatorFunc_sym, GtkCellView__sym, GtkAccelMap__sym, GtkOrientation_sym, GtkToolButton__sym,
+                  GtkIconLookupFlags_sym, GtkIconInfo__sym, gchar___sym, GtkIconTheme__sym, GtkFileChooser__sym,
+                  GtkCellLayoutDataFunc_sym, GtkCellLayout__sym, GtkFileFilterFunc_sym, GtkFileFilterFlags_sym, GtkFileFilter__sym,
+                  GSourceFunc_sym, GtkToggleToolButton__sym, GtkSeparatorToolItem__sym, GtkRadioToolButton__sym, GtkEntryCompletionMatchFunc_sym,
+                  GtkFontButton__sym, GtkExpander__sym, GtkComboBox__sym, GtkTreeModelFilter__sym, GtkFileChooserAction_sym,
+                  GtkToolItem__sym, GtkCalendarDisplayOptions_sym, GdkDisplay__sym, PangoLayoutRun__sym, PangoLayoutIter__sym,
+                  PangoLayoutLine__sym, int__sym, PangoAlignment_sym, PangoWrapMode_sym, PangoItem__sym,
+                  PangoGlyphString__sym, PangoFontMap__sym, PangoGlyph_sym, PangoFontFace__sym, PangoFontFace___sym,
+                  PangoFontFamily__sym, PangoFontMask_sym, PangoFontDescription___sym, PangoCoverageLevel_sym, PangoCoverage__sym,
+                  PangoFontMetrics__sym, PangoFontset__sym, PangoFont__sym, PangoFontFamily___sym, PangoLogAttr__sym,
+                  PangoAnalysis__sym, PangoAttrList___sym, PangoAttrIterator__sym, PangoRectangle__sym, PangoUnderline_sym,
+                  PangoStretch_sym, PangoVariant_sym, PangoWeight_sym, PangoStyle_sym, guint16_sym,
+                  PangoAttribute__sym, PangoAttrType_sym, PangoColor__sym, GdkGravity_sym, GtkWindowPosition_sym,
+                  GtkWindowType_sym, GtkWindow__sym, GtkTextDirection_sym, PangoContext__sym, AtkObject__sym,
+                  GtkDirectionType_sym, GtkViewport__sym, GtkTreeViewSearchEqualFunc_sym, GtkTreeViewDropPosition_sym, GtkTreeViewMappingFunc_sym,
+                  GtkTreeViewColumnDropFunc_sym, GtkTreeViewColumnSizing_sym, GtkTreeCellDataFunc_sym, GtkTreeStore__sym, GtkTreeIterCompareFunc_sym,
+                  GtkSortType_sym, GtkTreeSortable__sym, GtkTreeSelectionForeachFunc_sym, GtkTreeModel___sym, GtkTreeSelectionFunc_sym,
+                  GtkSelectionMode_sym, GtkTreeModelSort__sym, GtkTreeModelForeachFunc_sym, GtkTreeModelFlags_sym, GtkTreeRowReference__sym,
+                  GtkTreeDragDest__sym, GtkTreeDragSource__sym, GtkToolbarStyle_sym, GtkToolbar__sym, GtkToggleButton__sym,
+                  PangoTabArray__sym, GtkWrapMode_sym, GtkTextWindowType_sym, GtkTextView__sym, GtkTextTagTableForeach_sym,
+                  GtkTextSearchFlags_sym, GtkTextCharPredicate_sym, GtkTextMark__sym, GtkTextChildAnchor__sym, GtkTextIter__sym,
+                  GtkTextTagTable__sym, GtkTextBuffer__sym, GtkStatusbar__sym, GtkSpinType_sym, GtkSpinButtonUpdatePolicy_sym,
+                  GtkSpinButton__sym, GtkSizeGroupMode_sym, GtkSizeGroup__sym, GtkSettings__sym, GtkSelectionData__sym,
+                  GtkCornerType_sym, GtkPolicyType_sym, GtkScrolledWindow__sym, GtkScale__sym, GtkRange__sym,
+                  GtkRadioMenuItem__sym, GtkRadioButton__sym, GtkProgressBar__sym, GtkPaned__sym, GtkPositionType_sym,
+                  GtkNotebook__sym, GtkMenuShell__sym, gint__sym, GtkMenuItem__sym, GtkMenu__sym,
+                  PangoLanguage__sym, GtkListStore__sym, GtkLayout__sym, GtkJustification_sym, GtkLabel__sym,
+                  guint16__sym, GtkIMContextSimple__sym, GdkEventKey__sym, PangoAttrList__sym, GtkIMContext__sym,
+                  GtkImageType_sym, GtkImage__sym, GtkShadowType_sym, GtkFrame__sym, GtkFixed__sym,
+                  PangoLayout__sym, GtkEntry__sym, GtkEditable__sym, GdkAtom_sym, etc_sym,
+                  GtkDialog__sym, GtkCallback_sym, GtkContainer__sym, GtkCheckMenuItem__sym, GtkCellRendererToggle__sym,
+                  GtkCellRendererText__sym, GtkCellRendererState_sym, GtkCellEditable__sym, GtkCalendar__sym, GtkReliefStyle_sym,
+                  GtkButton__sym, GtkBox__sym, GtkBin__sym, GtkBindingSet__sym, GtkButtonBox__sym,
+                  GtkButtonBoxStyle_sym, GtkAspectFrame__sym, GtkAdjustment__sym, GtkAccelMapForeach_sym, GtkAccelLabel__sym,
+                  GtkAccelGroupEntry__sym, lambda3_sym, GSList__sym, GObject__sym, GtkAccelFlags_sym,
+                  GtkAccelGroup__sym, GdkInterpType_sym, double_sym, gfloat_sym, guchar_sym,
+                  char___sym, GdkPixbufDestroyNotify_sym, GError__sym, char__sym, guchar__sym,
+                  int_sym, GdkPixbuf__sym, GdkColorspace_sym, GdkCursor__sym, GdkWindowTypeHint_sym,
+                  GdkWindowHints_sym, GdkGeometry__sym, GdkWindowEdge_sym, GdkWMFunction_sym, GdkWMDecoration_sym,
+                  GdkEventMask_sym, GList__sym, GdkWindowState_sym, GdkFilterFunc_sym, GdkWindowType_sym,
+                  PangoDirection_sym, GdkKeymapKey__sym, GdkKeymap__sym, GdkRectangle__sym, GdkEventFunc_sym,
+                  gdouble_sym, guint32_sym, GdkDragAction_sym, GdkDragContext__sym, GSignalMatchType_sym,
+                  GConnectFlags_sym, GtkDestroyNotify_sym, GSignalEmissionHook_sym, gulong_sym, GSignalInvocationHint__sym,
+                  GQuark_sym, guint__sym, GSignalQuery__sym, GType__sym, GSignalCMarshaller_sym,
+                  gpointer_sym, GSignalAccumulator_sym, GSignalFlags_sym, GType_sym, GClosureNotify_sym,
+                  GCallback_sym, GNormalizeMode_sym, glong_sym, gssize_sym, gsize_sym,
+                  gunichar__sym, void_sym, GdkSeat__sym, GtkRecentInfo__sym, GLogLevelFlags_sym,
                   GtkIconView__sym, GtkEntryCompletion__sym, GtkFileFilterInfo__sym, GtkTreeSelection__sym, GtkCellRenderer__sym,
                   gint_sym, GtkTreeViewColumn__sym, GtkTreeView__sym, gunichar_sym, GtkTreeIter__sym,
                   GtkTreePath__sym, GtkTreeModel__sym, gboolean_sym, GdkModifierType_sym, guint_sym,
@@ -452,18 +452,6 @@ static void lg_prepare_func(GdkSeat* seat, GdkWindow* window, gpointer func_info
            s7_list(cbsc, 3,
                    s7_make_c_pointer(cbsc, seat),
                    s7_make_c_pointer(cbsc, window),
-                   s7_cadr((s7_pointer)func_info)));
-}
-#endif
-
-#if GTK_CHECK_VERSION(3, 99, 0)
-static void lg_draw_func(GtkDrawingArea* self, gpointer func_info)
-{
-  if (!s7_is_list(cbsc, (s7_pointer)func_info)) return;
-  s7_call(cbsc, 
-    s7_car((s7_pointer)func_info), 
-           s7_list(cbsc, 2,
-                   s7_make_c_pointer(cbsc, self),
                    s7_cadr((s7_pointer)func_info)));
 }
 #endif
@@ -48099,7 +48087,7 @@ static void define_structs(s7_scheme *sc)
 static void define_functions(s7_scheme *sc)
 {
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_bt, pl_tb, pl_bti, pl_btiib, pl_ts, pl_tsu, pl_tsi, pl_tsit, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busi, pl_buib, pl_busu, pl_buub, pl_buig, pl_buus, pl_buui, pl_buigu, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuig, pl_buuui, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_su, pl_ps, pl_pst, pl_sug, pl_sui, pl_psu, pl_psb, pl_sus, pl_psg, pl_psi, pl_psgi, pl_psiu, pl_psut, pl_suiig, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_t, pl_p, pl_sg, pl_gs, pl_g, pl_tts, pl_tti, pl_bi, pl_big, pl_pt, pl_tu, pl_si, pl_is, pl_isi, pl_tur, pl_tub, pl_tui, pl_tus, pl_tut, pl_tug, pl_sig, pl_turs, pl_tubu, pl_tusg, pl_tugb, pl_tugs, pl_tubi, pl_tuib, pl_tusr, pl_tusi, pl_turi, pl_tuui, pl_tuur, pl_tuig, pl_tusb, pl_tuub, pl_tuus, pl_tuug, pl_isgt, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuiut, pl_tugug, pl_tussu, pl_tuuur, pl_tuusb, pl_tugui, pl_tuisi, pl_turgs, pl_tuurb, pl_tuuti, pl_tuuri, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuugi, pl_tuiiut, pl_tuuiut, pl_tutisi, pl_tuuggu, pl_tugiis, pl_tuurru, pl_tuuuui, pl_tugiiu, pl_tuuugi, pl_tuuuub, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuurbr, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuurrrrg, pl_tuurrrrgr, pl_isigutttiiu, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_pusi, pl_puri, pl_pust, pl_pusu, pl_pugu, pl_puiu, pl_purru, pl_puuig, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puuiu, pl_puuugi, pl_pusiig, pl_puuiig, pl_puiiui, pl_puiigi, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pugiiu, pl_pusiigu, pl_pusiuiu, pl_pusiiugu, pl_puuusuug, pl_pusiuibu, pl_i, pl_tg, pl_gu, pl_pg, pl_gus, pl_pgr, pl_pgu, pl_pgi, pl_gug, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gussitu, pl_gurrsiu, pl_guugbuut, pl_ti, pl_it, pl_tiu, pl_tist, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_iu, pl_pi, pl_iur, pl_ius, pl_iui, pl_piu, pl_pit, pl_iug, pl_iugi, pl_iuis, pl_iusi, pl_iuui, pl_iuugs, pl_iuisi, pl_iuuui, pl_iuuuui, pl_iuisut, pl_gi, pl_igi, pl_iit, pl_iiit, pl_du, pl_pr, pl_dus, pl_dui, pl_dusr, pl_dusi, pl_prrru, pl_bsu, pl_bsigb, pl_ssi, pl_ssig, pl_b, pl_s, pl_bpt;
+  s7_pointer pl_bt, pl_tb, pl_bti, pl_btiib, pl_ts, pl_tsu, pl_tsi, pl_tsit, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busi, pl_buib, pl_busu, pl_buub, pl_buig, pl_buus, pl_buui, pl_buigu, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuig, pl_buuui, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_su, pl_ps, pl_pst, pl_sug, pl_sui, pl_psu, pl_psb, pl_sus, pl_psg, pl_psi, pl_psgi, pl_psiu, pl_psut, pl_suiig, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_t, pl_p, pl_sg, pl_gs, pl_tts, pl_tti, pl_g, pl_bi, pl_big, pl_pt, pl_tu, pl_si, pl_is, pl_isi, pl_tur, pl_tub, pl_tui, pl_tus, pl_tut, pl_tug, pl_sig, pl_turs, pl_tubu, pl_tusg, pl_tugb, pl_tugs, pl_tubi, pl_tuib, pl_tusr, pl_tusi, pl_turi, pl_tuui, pl_tuur, pl_tuig, pl_tusb, pl_tuub, pl_tuus, pl_tuug, pl_isgt, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuiut, pl_tugug, pl_tussu, pl_tuuur, pl_tuusb, pl_tugui, pl_tuisi, pl_turgs, pl_tuurb, pl_tuuti, pl_tuuri, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuugi, pl_tuiiut, pl_tuuiut, pl_tutisi, pl_tuuggu, pl_tugiis, pl_tuurru, pl_tuuuui, pl_tugiiu, pl_tuuugi, pl_tuuuub, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuurbr, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuurrrrg, pl_tuurrrrgr, pl_isigutttiiu, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_pusi, pl_puri, pl_pust, pl_pusu, pl_pugu, pl_puiu, pl_purru, pl_puuig, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puuiu, pl_puuugi, pl_pusiig, pl_puuiig, pl_puiiui, pl_puiigi, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pugiiu, pl_pusiigu, pl_pusiuiu, pl_pusiiugu, pl_puuusuug, pl_pusiuibu, pl_i, pl_tg, pl_gu, pl_pg, pl_gus, pl_pgr, pl_pgu, pl_pgi, pl_gug, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gussitu, pl_gurrsiu, pl_guugbuut, pl_ti, pl_it, pl_tiu, pl_tist, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_iu, pl_pi, pl_iur, pl_ius, pl_iui, pl_piu, pl_pit, pl_iug, pl_iugi, pl_iuis, pl_iusi, pl_iuui, pl_iuugs, pl_iuisi, pl_iuuui, pl_iuuuui, pl_iuisut, pl_gi, pl_igi, pl_iit, pl_iiit, pl_du, pl_pr, pl_dus, pl_dui, pl_dusr, pl_dusi, pl_prrru, pl_bsu, pl_bsigb, pl_ssi, pl_ssig, pl_b, pl_s, pl_bpt;
 
   s_boolean = s7_make_symbol(sc, "boolean?");
   s_integer = s7_make_symbol(sc, "integer?");
@@ -48173,9 +48161,9 @@ static void define_functions(s7_scheme *sc)
   pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
   pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
   pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
-  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
   pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
+  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
   pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
   pl_pt = s7_make_circular_signature(sc, 1, 2, s_pair, s_any);
@@ -53874,6 +53862,7 @@ static void define_symbols(s7_scheme *sc)
   GtkCheckButton__sym = s7_make_symbol(sc, "GtkCheckButton_");
   GdkDrawContext__sym = s7_make_symbol(sc, "GdkDrawContext_");
   GtkDrawingAreaDrawFunc_sym = s7_make_symbol(sc, "GtkDrawingAreaDrawFunc");
+  GtkDrawingArea__sym = s7_make_symbol(sc, "GtkDrawingArea_");
   GtkShortcutLabel__sym = s7_make_symbol(sc, "GtkShortcutLabel_");
   GtkPadActionEntry__sym = s7_make_symbol(sc, "GtkPadActionEntry_");
   GActionGroup__sym = s7_make_symbol(sc, "GActionGroup_");
@@ -54159,7 +54148,6 @@ static void define_symbols(s7_scheme *sc)
   GCallback_sym = s7_make_symbol(sc, "GCallback");
   gunichar__sym = s7_make_symbol(sc, "gunichar_");
   void_sym = s7_make_symbol(sc, "void");
-  GtkDrawingArea__sym = s7_make_symbol(sc, "GtkDrawingArea_");
   GdkSeat__sym = s7_make_symbol(sc, "GdkSeat_");
   GtkRecentInfo__sym = s7_make_symbol(sc, "GtkRecentInfo_");
   GtkIconView__sym = s7_make_symbol(sc, "GtkIconView_");
@@ -55366,7 +55354,7 @@ void libgtk_s7_init(s7_scheme *sc)
       s7_provide(sc, "gtk2");
     #endif
   #endif
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "01-Mar-18"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "30-Mar-18"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */

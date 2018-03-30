@@ -3086,7 +3086,6 @@ int mus_audio_read(int line, char *buf, int bytes)
 #define AUDIO_OK 1
 
 #include <AvailabilityMacros.h>
-#define HAVE_AUDIODEVICEDESTROYIOPROCID (defined(MAC_OS_X_VERSION_10_5))
 
 /*
 #include <CoreServices/CoreServices.h>

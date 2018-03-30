@@ -97,14 +97,16 @@ xg: 	xen.h mus-config.h $(S7_HEADERS)
 
 
 libxm:  xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
-	rm -f xen.o 
+	rm -f xen.o s7.o
 	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c s7.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
 	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
 	$(SO_LD) xen.o $(S7_O_FILES) $(GM_FILES) -o libxm.so $(SO_FLAGS) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GL_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
 
 libxg:	xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
-	rm -f xen.o 
+	rm -f xen.o s7.o
 	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c s7.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
 	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
 	$(SO_LD) xen.o $(S7_O_FILES) $(GG_FILES) -o libxg.so $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
 
