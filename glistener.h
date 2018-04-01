@@ -75,7 +75,11 @@ void glistener_set_helper          (glistener *g, const char *(*help)(glistener 
 void glistener_set_checker         (glistener *g, const char *(*check)(glistener *g, const char *text));
 void glistener_set_evaluator       (glistener *g, void (*eval)(glistener *g, const char *text));
 void glistener_set_colorizer       (glistener *g, void (*colorizer)(glistener *g, glistener_colorizer_t type, int start, int end));
+#if (GTK_CHECK_VERSION(3, 92, 1))
+void glistener_set_keyer           (glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEvent *e));
+#else
 void glistener_set_keyer           (glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEventKey *e));
+#endif
 
 /* these are for regression testing */
 char *glistener_evaluate           (glistener *g);

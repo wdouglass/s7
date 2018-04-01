@@ -36,7 +36,11 @@ struct glistener {
   void (*evaluator)(glistener *g, const char *text);
   void (*completer)(glistener *g, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
   void (*colorizer)(glistener *g, glistener_colorizer_t type, int start, int end);
+#if (GTK_CHECK_VERSION(3, 92, 1))
+  bool (*keyer)(glistener *g, GtkWidget *w, GdkEvent *e);
+#else
   bool (*keyer)(glistener *g, GtkWidget *w, GdkEventKey *e);
+#endif
 };
 
 #if ((!GTK_CHECK_VERSION(3, 0, 0))) && (!defined(GDK_KEY_Return))
@@ -66,7 +70,7 @@ struct glistener {
   #define GDK_KEY_y         GDK_y
 #endif 
 
-#if GTK_CHECK_VERSION(3, 92, 1)
+#if (GTK_CHECK_VERSION(3, 92, 1))
 static guint EVENT_KEYVAL(GdkEvent *e)
 {
   guint val = 0;
@@ -159,13 +163,20 @@ void glistener_set_colorizer(glistener *g, void (*colorizer)(glistener *g, glist
   else g->colorizer = default_colorizer;
 }
 
-
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static bool default_keyer(glistener *g, GtkWidget *w, GdkEvent *e)
+#else
 static bool default_keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
+#endif
 {
   return(false);
 }
 
+#if (GTK_CHECK_VERSION(3, 92, 1))
+void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEvent *e))
+#else
 void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEventKey *e))
+#endif
 {
   if (key)
     g->keyer = key;
@@ -1527,8 +1538,11 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 static void glistener_return_callback(glistener *g);
 static void glistener_completion(glistener *g, int end);
 
-
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static gboolean glistener_key_press(GtkWidget *w, GdkEvent *event, gpointer data)
+#else
 static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer data)
+#endif
 {
   glistener *g = (glistener *)data;
 
@@ -2892,6 +2906,8 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
 }
 
 /* changes:
+ * 31-Mar-18: gtk 4 support.
+ * --------
  * 31-Jul-17: added access to text and buffer.
  * --------
  * 19-Mar-15: changed strcopy macro.

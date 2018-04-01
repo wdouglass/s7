@@ -1562,10 +1562,10 @@ static s7_scheme *cur_sc = NULL;
   #define unchecked_type(p)           ((p)->tf.type_field)
   #define type(p)                     ((p)->tf.type_field)
   #define set_type(p, f)              typeflag(p) = f
-  #define T_Int(P)                      P
-  #define T_Rel(P)                      P
-  #define T_Frc(P)                      P
-  #define T_Cmp(P)                      P
+  #define T_Int(P)                    P
+  #define T_Rel(P)                    P
+  #define T_Frc(P)                    P
+  #define T_Cmp(P)                    P
   #define T_Bgi(P)                    P
   #define T_Bgr(P)                    P
   #define T_Bgf(P)                    P
@@ -2501,17 +2501,17 @@ static int64_t not_heap = -1;
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
 
 #if S7_DEBUGGING
-#define T_Itr_Pos(p)  titr_pos(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Len(p)  titr_len(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Hash(p) titr_hash(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Let(p)  titr_let(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Pair(p) titr_pair(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Pos(p)                  titr_pos(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Len(p)                  titr_len(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Hash(p)                 titr_hash(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Let(p)                  titr_let(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Pair(p)                 titr_pair(T_Itr(p), __func__, __LINE__)
 #else
-#define T_Itr_Pos(p)  p
-#define T_Itr_Len(p)  p
-#define T_Itr_Hash(p) p
-#define T_Itr_Let(p)  p
-#define T_Itr_Pair(p) p
+#define T_Itr_Pos(p)                  p
+#define T_Itr_Len(p)                  p
+#define T_Itr_Hash(p)                 p
+#define T_Itr_Let(p)                  p
+#define T_Itr_Pair(p)                 p
 #endif
 
 #define is_iterator(p)                (type(p) == T_ITERATOR)
@@ -2528,8 +2528,8 @@ static int64_t not_heap = -1;
 #define iterator_set_current_slot(p, Val) (T_Itr_Let(p))->object.iter.lc.lcur = T_Sln(Val)
 #define iterator_let_cons(p)          (T_Itr_Let(p))->object.iter.cur
 
-#define ITERATOR_END eof_object
-#define ITERATOR_END_NAME "#<eof>"
+#define ITERATOR_END                  eof_object
+#define ITERATOR_END_NAME             "#<eof>"
 
 #define is_input_port(p)              (type(p) == T_INPUT_PORT)
 #define is_output_port(p)             (type(p) == T_OUTPUT_PORT)
@@ -7781,10 +7781,6 @@ static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym
   lt = (is_pair(lt1)) ? cdr(lt1) : g_cdr(sc, set_plist_1(sc, lt1));
   if (!is_let(lt))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, lt, a_let_string));
-#if S7_DEBUGGING
-  if (has_methods(lt))
-    fprintf(stderr, "has methods %s\n", __func__);
-#endif
   if (is_immutable(lt))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, lt)));
 
@@ -22868,10 +22864,6 @@ static void closed_port_display(s7_scheme *sc, const char *s, s7_pointer port);
 
 void s7_close_input_port(s7_scheme *sc, s7_pointer p)
 {
-#if S7_DEBUGGING
-  if (!is_input_port(p))
-    fprintf(stderr, "s7_close_input_port: %s\n", DISPLAY(p));
-#endif
   if ((is_immutable_port(p)) ||
       ((is_input_port(p)) && (port_is_closed(p))))
     {
@@ -24984,7 +24976,7 @@ static s7_pointer g_cload_directory_set(s7_scheme *sc, s7_pointer args)
   if (!is_string(cl_dir))
     return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set *cload-directory* to ~S"), cadr(args))));
   s7_symbol_set_value(sc, sc->cload_directory_symbol, cl_dir);
-  if (safe_strlen(string_value(cl_dir)) > 0)
+  if (safe_strlen(string_value(cl_dir)) > 0) /* TODO: and not already in load path, or should add_to_load_path check that? */
     s7_add_to_load_path(sc, (const char *)(string_value(cl_dir)));
   return(cl_dir);
 }
@@ -29942,32 +29934,8 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#define CYCLE_DEBUGGING S7_DEBUGGING
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) 
-    base = &x; 
-  else 
-    {
-      if (&x > base) 
-	base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}}}}
-#endif
   if ((ci) &&
       (has_structure(vr)))
     {
@@ -33108,11 +33076,6 @@ static s7_pointer g_set_cdr(s7_scheme *sc, s7_pointer args)
   if (!is_mutable_pair(p))
     mutable_method_or_bust(sc, p, sc->set_cdr_symbol, args, T_PAIR, 1);
 
-#if S7_DEBUGGING
-  if (not_in_heap(p))
-    fprintf(stderr, "unheap set-cdr! %s\n", DISPLAY(p));
-#endif
-
   set_cdr(p, cadr(args));
   return(cdr(p));
 }
@@ -33121,10 +33084,6 @@ static s7_pointer set_cdr_p_pp(s7_pointer p1, s7_pointer p2)
 {
   if (!is_mutable_pair(p1))
     simple_wrong_type_argument(cur_sc, cur_sc->set_cdr_symbol, p1, T_PAIR);
-#if S7_DEBUGGING
-  if (not_in_heap(p1)) 
-    fprintf(stderr, "unheap opt set-cdr! %s\n", s7_object_to_c_string(cur_sc, p1));
-#endif
   set_cdr(p1, p2);
   return(p2);
 }
@@ -35894,9 +35853,6 @@ static s7_pointer vector_set_p_pip(s7_pointer v, s7_int i, s7_pointer p)
 
 static s7_pointer vector_set_p_pip_direct(s7_pointer v, s7_int i, s7_pointer p) 
 {
-#if S7_DEBUGGING
-  if (!is_normal_vector(v)) abort();
-#endif
   if ((i < 0) || (i >= vector_length(v)))
     out_of_range(cur_sc, cur_sc->vector_set_symbol, small_int(2), make_integer(cur_sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   vector_element(v, i) = p;
@@ -35905,9 +35861,6 @@ static s7_pointer vector_set_p_pip_direct(s7_pointer v, s7_int i, s7_pointer p)
 
 static s7_pointer vector_set_unchecked(s7_pointer v, s7_int i, s7_pointer p) 
 {  
-#if S7_DEBUGGING
-  if (!is_normal_vector(v)) abort();
-#endif
   vector_element(v, i) = p;
   return(p);
 }
@@ -44599,11 +44552,20 @@ static s7_pointer active_exits(s7_scheme *sc)
 	jump = stack_args(sc->stack, i);  /* call this to jump */
 
 	if (is_any_closure(func))
-	  lst = cons_unchecked(sc, cons(sc, car(closure_args(func)), jump), lst);
+	  {
+	    if (is_symbol(closure_args(func)))
+	      lst = cons_unchecked(sc, cons(sc, closure_args(func), jump), lst);
+	    else lst = cons_unchecked(sc, cons(sc, car(closure_args(func)), jump), lst);
+	  }
 	else
 	  {
-	    if ((is_pair(func)) && (car(func) == sc->call_with_exit_symbol))
-	      lst = cons_unchecked(sc, cons(sc, car(cadadr(func)), jump), lst); /* (call-with-exit (lambda (three) ...)) */
+	    if ((is_pair(func)) && 
+		(car(func) == sc->call_with_exit_symbol))
+	      {
+		if (is_symbol(cadadr(func)))                                           /* (call-with-exit (lambda arg ... */
+		  lst = cons_unchecked(sc, cons(sc, cadadr(func), jump), lst); 
+		else lst = cons_unchecked(sc, cons(sc, car(cadadr(func)), jump), lst); /* (call-with-exit (lambda (three) ...)) */
+	      }
 	    else lst = cons_unchecked(sc, cons(sc, sc->unspecified, jump), lst);
 	  }
 	sc->w = lst;
@@ -70243,15 +70205,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_DO_STEP:
 	  {
 	    s7_int step, end;
-	    s7_pointer args, code, slot;
+	    s7_pointer code, slot;
 	    
-	    args = sc->envir;
 	    code = sc->code;
-	    slot = dox_slot1(args);
-	    
+	    slot = dox_slot1(sc->envir);
 	    step = s7_integer(slot_value(slot)) + 1;
 	    slot_set_value(slot, make_integer(sc, step));
-	    end = s7_integer(slot_value(dox_slot2(args)));
+	    end = s7_integer(slot_value(dox_slot2(sc->envir)));
 
 	    if ((step == end) ||
 		((step > end) &&
@@ -70271,7 +70231,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    /* body might not be safe in this case, but the step and end exprs are easy
 	     *   "not safe" merely means we hit something that the optimizer can't specialize
-	     *
 	     * simple_do: set up local env, check end (c_c?), goto simple_do_ex
 	     *   if latter gets s7_optimize, run locally, else goto simple_do_step.
 	     *   but is not 1 expr body, etc -- just goto simple_do_step,
@@ -70631,8 +70590,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 	  
 	case OP_DO_END1:
-	  /* sc->value is the result of end-test evaluation */
-	  if (is_true(sc, sc->value))
+	  if (is_true(sc, sc->value))             /* sc->value is the result of end-test evaluation */
 	    {
 	      /* we're done -- deal with result exprs, if there isn't an end test, there also isn't a result (they're in the same list)
 	       * multiple-value end-test result is ok
@@ -83478,6 +83436,7 @@ s7_scheme *s7_init(void)
   sc->outlet_symbol =                defun("outlet",		outlet,			1, 0, false);
   sc->rootlet_symbol =               defun("rootlet",		rootlet,		0, 0, false);
   sc->curlet_symbol =                defun("curlet",		curlet,			0, 0, false);
+  typeflag(sc->curlet_symbol) |= T_DEFINER;
   sc->unlet_symbol =                 defun("unlet",		unlet,			0, 0, false);
   set_local_slot(sc->unlet_symbol, global_slot(sc->unlet_symbol)); /* for set_locals */
   set_immutable(sc->unlet_symbol);
@@ -84767,6 +84726,8 @@ int main(int argc, char **argv)
  *   gtk_box_pack* has changed -- many uses!
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
+ *   can grepl be used to get all the gtk scheme code working in gtk4? [glistener, libgtk_s7, and grepl are working in gtk4]
+ *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
  *
@@ -84793,13 +84754,13 @@ int main(int argc, char **argv)
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2556
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2655
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 132.8
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2774
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2766
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4193
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5245
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7814
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5243
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1

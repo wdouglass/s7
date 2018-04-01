@@ -262,9 +262,14 @@ int main(int argc, char **argv)
 
 /* to build glistener.o: gcc glistener.c -c `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
  */
+
 /* in gtk-2: gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-2.0 --cflags` -lm -ldl
-   in gtk-3: gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
-*/
+ * in gtk-3: gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
+ * in gtk-4: 
+ *    gcc glistener.c -c `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl
+ *    gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl
+ */
+
 /* (load "/home/bil/test/libxm/xg.so" (inlet 'init_func 'Init_libxg))
  *   previous: (gtk_window_resize (GTK_WINDOW (list 'GtkContainer_ grepl:shell)) 600 600)
  *   the list is for xg (ancient type checking kludge)

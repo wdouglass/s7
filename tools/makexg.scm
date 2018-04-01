@@ -2971,11 +2971,13 @@
 
 (hey "static Xen xg_gtk_event_keyval(Xen event)~%")
 (hey "{~%")
+(hey "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
+(hey "  GdkEvent *e;~%")
+(hey "  e = Xen_to_C_GdkEvent_(event);~%")
+(hey "  if (e) {guint val = 0; gdk_event_get_keyval(e, &val); return(C_int_to_Xen_integer((int)val));} return(XEN_ZERO);~%")
+(hey "#else~%")
 (hey "  GdkEventKey *e;~%")
 (hey "  e = Xen_to_C_GdkEventKey_(event);~%")
-(hey "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
-(hey "  if (e) {guint val = 0; gdk_event_get_keyval((GdkEvent *)e, &val); return(C_int_to_Xen_integer((int)val));} return(XEN_ZERO);~%")
-(hey "#else~%")
 (hey "  if (e) return(C_int_to_Xen_integer((int)(e->keyval)));~% return(XEN_ZERO);~%")
 (hey "#endif~%")
 (hey "}~%~%")
@@ -3016,9 +3018,15 @@
 
 (hay "static s7_pointer lg_gtk_event_keyval(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
+(hay "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
+(hay "  GdkEvent *e;~%")
+(hay "  e = (GdkEvent*)s7_c_pointer(s7_car(args));~%")
+(hay "  if (e) {guint val = 0; gdk_event_get_keyval(e, &val); return(s7_make_integer(sc, (int)val));}~% return(s7_make_integer(sc, 0));~%")
+(hay "#else~%")
 (hay "  GdkEventKey *e;~%")
 (hay "  e = (GdkEventKey*)s7_c_pointer(s7_car(args));~%")
 (hay " if (e) return(s7_make_integer(sc, (int)(e->keyval)));~% return(s7_make_integer(sc, 0));~%")
+(hay "#endif~%")
 (hay "}~%~%")
 
 

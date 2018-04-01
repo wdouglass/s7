@@ -83,20 +83,20 @@ static s7_pointer GMenu__sym, GtkApplicationInhibitFlags_sym, GApplicationFlags_
                   cairo_glyph_t___sym, cairo_text_cluster_flags_t_sym, cairo_text_cluster_t__sym, cairo_region_t__sym, GtkMessageDialog__sym,
                   GdkDevice__sym, GtkAccessible__sym, GdkModifierType__sym, GtkDestDefaults_sym, GtkToolPaletteDragTargets_sym,
                   GtkToolItemGroup__sym, GtkToolPalette__sym, GtkPackType_sym, GtkSpinner__sym, GtkEntryBuffer__sym,
-                  GtkMessageType_sym, GtkInfoBar__sym, GtkEntryIconPosition_sym, GFile__sym, GtkScaleButton__sym,
-                  GtkCalendarDetailFunc_sym, GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym, cairo_filter_t_sym,
-                  cairo_extend_t_sym, cairo_format_t_sym, cairo_path_t__sym, cairo_destroy_func_t_sym, cairo_user_data_key_t__sym,
-                  cairo_text_extents_t__sym, cairo_font_extents_t__sym, cairo_font_face_t__sym, cairo_glyph_t__sym, cairo_scaled_font_t__sym,
-                  cairo_font_weight_t_sym, cairo_font_slant_t_sym, cairo_hint_metrics_t_sym, cairo_hint_style_t_sym, cairo_subpixel_order_t_sym,
-                  cairo_status_t_sym, bool_sym, cairo_matrix_t__sym, cairo_line_join_t_sym, cairo_line_cap_t_sym,
-                  cairo_fill_rule_t_sym, cairo_antialias_t_sym, cairo_operator_t_sym, cairo_pattern_t__sym, cairo_content_t_sym,
-                  GtkPageSet_sym, GtkPageRange__sym, GtkPrintPages_sym, GtkPrintQuality_sym, GtkPrintDuplex_sym,
-                  GtkPaperSize__sym, GtkPageOrientation_sym, GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym, GtkPrintStatus_sym,
-                  GtkPrintOperationAction_sym, GtkPrintOperationResult_sym, GtkUnit_sym, GtkPrintSettings__sym, GtkPrintOperation__sym,
-                  GtkPageSetup__sym, GtkPrintContext__sym, cairo_surface_t__sym, GtkTreeViewGridLines_sym, GtkRecentData__sym,
-                  time_t_sym, GtkRecentChooserMenu__sym, GtkRecentManager__sym, GtkRecentFilter__sym, GtkRecentSortFunc_sym,
-                  GtkRecentSortType_sym, GtkRecentChooser__sym, GtkLinkButton__sym, GtkAssistantPageType_sym, GtkAssistantPageFunc_sym,
-                  GtkAssistant__sym, GDestroyNotify_sym, GtkTreeViewSearchPositionFunc_sym, GtkSensitivityType_sym, GtkMenuBar__sym,
+                  GtkMessageType_sym, GtkInfoBar__sym, GtkEntryIconPosition_sym, GFile__sym, GtkSensitivityType_sym,
+                  GtkScaleButton__sym, GtkCalendarDetailFunc_sym, GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym,
+                  cairo_filter_t_sym, cairo_extend_t_sym, cairo_format_t_sym, cairo_path_t__sym, cairo_destroy_func_t_sym,
+                  cairo_user_data_key_t__sym, cairo_text_extents_t__sym, cairo_font_extents_t__sym, cairo_font_face_t__sym, cairo_glyph_t__sym,
+                  cairo_scaled_font_t__sym, cairo_font_weight_t_sym, cairo_font_slant_t_sym, cairo_hint_metrics_t_sym, cairo_hint_style_t_sym,
+                  cairo_subpixel_order_t_sym, cairo_status_t_sym, bool_sym, cairo_matrix_t__sym, cairo_line_join_t_sym,
+                  cairo_line_cap_t_sym, cairo_fill_rule_t_sym, cairo_antialias_t_sym, cairo_operator_t_sym, cairo_pattern_t__sym,
+                  cairo_content_t_sym, GtkPageSet_sym, GtkPageRange__sym, GtkPrintPages_sym, GtkPrintQuality_sym,
+                  GtkPrintDuplex_sym, GtkPaperSize__sym, GtkPageOrientation_sym, GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym,
+                  GtkPrintStatus_sym, GtkPrintOperationAction_sym, GtkPrintOperationResult_sym, GtkUnit_sym, GtkPrintSettings__sym,
+                  GtkPrintOperation__sym, GtkPageSetup__sym, GtkPrintContext__sym, cairo_surface_t__sym, GtkTreeViewGridLines_sym,
+                  GtkRecentData__sym, time_t_sym, GtkRecentChooserMenu__sym, GtkRecentManager__sym, GtkRecentFilter__sym,
+                  GtkRecentSortFunc_sym, GtkRecentSortType_sym, GtkRecentChooser__sym, GtkLinkButton__sym, GtkAssistantPageType_sym,
+                  GtkAssistantPageFunc_sym, GtkAssistant__sym, GDestroyNotify_sym, GtkTreeViewSearchPositionFunc_sym, GtkMenuBar__sym,
                   GtkPackDirection_sym, GtkIconViewDropPosition_sym, GValue__sym, GLogFunc_sym, PangoMatrix__sym,
                   PangoRenderPart_sym, PangoRenderer__sym, GtkMenuToolButton__sym, GtkFileChooserButton__sym, PangoScriptIter__sym,
                   PangoScript_sym, PangoAttrFilterFunc_sym, PangoEllipsizeMode_sym, GtkIconViewForeachFunc_sym, GtkAboutDialog__sym,
@@ -23130,54 +23130,6 @@ GtkWidget* child, gboolean detachable)"
   if (!s7_is_boolean(detachable)) s7_wrong_type_arg_error(sc, "gtk_notebook_set_tab_detachable", 3, detachable, "gboolean");
   gtk_notebook_set_tab_detachable(s7_c_pointer(notebook), s7_c_pointer(child), lg_boolean(detachable));
   return(lg_false);
-}
-
-static s7_pointer lg_gtk_range_set_lower_stepper_sensitivity(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_range_set_lower_stepper_sensitivity "void gtk_range_set_lower_stepper_sensitivity(GtkRange* range, \
-GtkSensitivityType sensitivity)"
-  s7_pointer _p;
-  s7_pointer range, sensitivity;
-  _p = args;
-  range = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(range, GtkRange__sym)) s7_wrong_type_arg_error(sc, "gtk_range_set_lower_stepper_sensitivity", 1, range, "GtkRange*");
-  sensitivity = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(sensitivity)) s7_wrong_type_arg_error(sc, "gtk_range_set_lower_stepper_sensitivity", 2, sensitivity, "GtkSensitivityType");
-  gtk_range_set_lower_stepper_sensitivity(s7_c_pointer(range), s7_integer(sensitivity));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_range_get_lower_stepper_sensitivity(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_range_get_lower_stepper_sensitivity "GtkSensitivityType gtk_range_get_lower_stepper_sensitivity(GtkRange* range)"
-  s7_pointer range;
-  range = s7_car(args);
-  if (!s7_is_c_pointer_of_type(range, GtkRange__sym)) s7_wrong_type_arg_error(sc, "gtk_range_get_lower_stepper_sensitivity", 1, range, "GtkRange*");
-  return(s7_make_integer(sc, gtk_range_get_lower_stepper_sensitivity(s7_c_pointer(range))));
-}
-
-static s7_pointer lg_gtk_range_set_upper_stepper_sensitivity(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_range_set_upper_stepper_sensitivity "void gtk_range_set_upper_stepper_sensitivity(GtkRange* range, \
-GtkSensitivityType sensitivity)"
-  s7_pointer _p;
-  s7_pointer range, sensitivity;
-  _p = args;
-  range = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(range, GtkRange__sym)) s7_wrong_type_arg_error(sc, "gtk_range_set_upper_stepper_sensitivity", 1, range, "GtkRange*");
-  sensitivity = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(sensitivity)) s7_wrong_type_arg_error(sc, "gtk_range_set_upper_stepper_sensitivity", 2, sensitivity, "GtkSensitivityType");
-  gtk_range_set_upper_stepper_sensitivity(s7_c_pointer(range), s7_integer(sensitivity));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_range_get_upper_stepper_sensitivity(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_range_get_upper_stepper_sensitivity "GtkSensitivityType gtk_range_get_upper_stepper_sensitivity(GtkRange* range)"
-  s7_pointer range;
-  range = s7_car(args);
-  if (!s7_is_c_pointer_of_type(range, GtkRange__sym)) s7_wrong_type_arg_error(sc, "gtk_range_get_upper_stepper_sensitivity", 1, range, "GtkRange*");
-  return(s7_make_integer(sc, gtk_range_get_upper_stepper_sensitivity(s7_c_pointer(range))));
 }
 
 static s7_pointer lg_gtk_scrolled_window_unset_placement(s7_scheme *sc, s7_pointer args)
@@ -47982,10 +47934,17 @@ static s7_pointer lg_g_object_set(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer lg_gtk_event_keyval(s7_scheme *sc, s7_pointer args)
 {
+#if (GTK_CHECK_VERSION(3, 92, 1))
+  GdkEvent *e;
+  e = (GdkEvent*)s7_c_pointer(s7_car(args));
+  if (e) {guint val = 0; gdk_event_get_keyval(e, &val); return(s7_make_integer(sc, (int)val));}
+ return(s7_make_integer(sc, 0));
+#else
   GdkEventKey *e;
   e = (GdkEventKey*)s7_c_pointer(s7_car(args));
  if (e) return(s7_make_integer(sc, (int)(e->keyval)));
  return(s7_make_integer(sc, 0));
+#endif
 }
 
 static s7_pointer lg_make_GtkTextIter(s7_scheme *sc, s7_pointer args)
@@ -50096,10 +50055,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_notebook_set_tab_reorderable", lg_gtk_notebook_set_tab_reorderable, 3, 0, 0, H_gtk_notebook_set_tab_reorderable, pl_tuub);
   s7_define_typed_function(sc, "gtk_notebook_get_tab_detachable", lg_gtk_notebook_get_tab_detachable, 2, 0, 0, H_gtk_notebook_get_tab_detachable, pl_bu);
   s7_define_typed_function(sc, "gtk_notebook_set_tab_detachable", lg_gtk_notebook_set_tab_detachable, 3, 0, 0, H_gtk_notebook_set_tab_detachable, pl_tuub);
-  s7_define_typed_function(sc, "gtk_range_set_lower_stepper_sensitivity", lg_gtk_range_set_lower_stepper_sensitivity, 2, 0, 0, H_gtk_range_set_lower_stepper_sensitivity, pl_tug);
-  s7_define_typed_function(sc, "gtk_range_get_lower_stepper_sensitivity", lg_gtk_range_get_lower_stepper_sensitivity, 1, 0, 0, H_gtk_range_get_lower_stepper_sensitivity, pl_gu);
-  s7_define_typed_function(sc, "gtk_range_set_upper_stepper_sensitivity", lg_gtk_range_set_upper_stepper_sensitivity, 2, 0, 0, H_gtk_range_set_upper_stepper_sensitivity, pl_tug);
-  s7_define_typed_function(sc, "gtk_range_get_upper_stepper_sensitivity", lg_gtk_range_get_upper_stepper_sensitivity, 1, 0, 0, H_gtk_range_get_upper_stepper_sensitivity, pl_gu);
   s7_define_typed_function(sc, "gtk_scrolled_window_unset_placement", lg_gtk_scrolled_window_unset_placement, 1, 0, 0, H_gtk_scrolled_window_unset_placement, pl_tu);
   s7_define_typed_function(sc, "gtk_size_group_get_widgets", lg_gtk_size_group_get_widgets, 1, 0, 0, H_gtk_size_group_get_widgets, pl_pu);
   s7_define_typed_function(sc, "gtk_text_buffer_get_has_selection", lg_gtk_text_buffer_get_has_selection, 1, 0, 0, H_gtk_text_buffer_get_has_selection, pl_bu);
@@ -55354,7 +55309,7 @@ void libgtk_s7_init(s7_scheme *sc)
       s7_provide(sc, "gtk2");
     #endif
   #endif
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "30-Mar-18"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "31-Mar-18"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */
