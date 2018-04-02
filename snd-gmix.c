@@ -48,7 +48,10 @@ static void stop_dragging(int mix_id)
 
 /* -------- speed -------- */
 
-static GtkWidget *w_speed, *w_speed_label, *w_speed_number, *w_speed_form, *w_speed_event, *w_speed_label_event;
+static GtkWidget *w_speed, *w_speed_label, *w_speed_number, *w_speed_form;
+#if (!GTK_CHECK_VERSION(3, 92, 1))
+static GtkWidget *w_speed_event, *w_speed_label_event;
+#endif
 static GtkAdjustment *w_speed_adj;
 static bool speed_pressed = false, speed_dragged = false;
 /* can't use value_changed on adjustment and motion event happens even when the mouse merely moves across the slider without dragging */
@@ -183,7 +186,10 @@ static gboolean speed_press_callback(GtkWidget *w, GdkEventButton *ev, gpointer 
 
 /* -------- amp -------- */
 
-static GtkWidget *w_amp, *w_amp_label, *w_amp_number, *w_amp_event, *w_amp_form;
+static GtkWidget *w_amp, *w_amp_label, *w_amp_number, *w_amp_form;
+#if (!GTK_CHECK_VERSION(3, 92, 1))
+static GtkWidget *w_amp_event;
+#endif
 static GtkAdjustment *w_amp_adj;
 
 static mus_float_t scrollbar_to_amp(mus_float_t val)
@@ -792,32 +798,44 @@ GtkWidget *make_mix_dialog(void)
       w_speed_form = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(mix_dialog)), w_speed_form, false, false, 4);
       
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       w_speed_event = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(w_speed_form), w_speed_event, false, false, 4);
       gtk_widget_show(w_speed_event);
       SG_SIGNAL_CONNECT(w_speed_event, "button_press_event", mix_speed_click_callback, NULL);
-      
+#endif      
 #if (!GTK_CHECK_VERSION(3, 0, 0))
       w_speed_label = gtk_label_new("speed:");
 #else
       w_speed_label = gtk_button_new_with_label("speed:");
       add_highlight_button_style(w_speed_label);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       gtk_container_add(GTK_CONTAINER(w_speed_event), w_speed_label);
+#else
+      sg_box_pack_start(GTK_BOX(w_speed_form), w_speed_label, false, false, 4);
+      SG_SIGNAL_CONNECT(w_speed_label, "button_press_event", mix_speed_click_callback, NULL);
+#endif
       gtk_widget_show(w_speed_label);
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       w_speed_label_event = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(w_speed_form), w_speed_label_event, false, false, 4);
       gtk_widget_show(w_speed_label_event);
       SG_SIGNAL_CONNECT(w_speed_label_event, "button_press_event", speed_label_click_callback, NULL);
-
+#endif
       switch (speed_control_style(ss))
 	{
 	case SPEED_CONTROL_AS_RATIO:    w_speed_number = gtk_label_new("1/1");  break;
 	case SPEED_CONTROL_AS_SEMITONE: w_speed_number = gtk_label_new("1");    break;
 	default:                        w_speed_number = gtk_label_new("1.00"); break;
 	}
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       gtk_container_add(GTK_CONTAINER(w_speed_label_event), w_speed_number);
+#else
+      sg_box_pack_start(GTK_BOX(w_speed_form), w_speed_number, false, false, 4);
+      SG_SIGNAL_CONNECT(w_speed_number, "button_press_event", speed_label_click_callback, NULL);
+#endif
       gtk_widget_show(w_speed_number);
       
       w_speed_adj = (GtkAdjustment *)gtk_adjustment_new(0.45, 0.0, 1.0, 0.001, 0.01, .1);
@@ -835,12 +853,13 @@ GtkWidget *make_mix_dialog(void)
 
       w_amp_form = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(mix_dialog)), w_amp_form, false, false, 0);
-      
+
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       w_amp_event = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(w_amp_form), w_amp_event, false, false, 4);
       gtk_widget_show(w_amp_event);
       SG_SIGNAL_CONNECT(w_amp_event, "button_press_event", mix_amp_click_callback, NULL);
-      
+#endif      
       snprintf(amplab, LABEL_BUFFER_SIZE, "%s", "amp:");
 #if (!GTK_CHECK_VERSION(3, 0, 0))
       w_amp_label = gtk_label_new(amplab);
@@ -848,7 +867,12 @@ GtkWidget *make_mix_dialog(void)
       w_amp_label = gtk_button_new_with_label("amp:");
       add_highlight_button_style(w_amp_label);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(w_amp_event), w_amp_label);
+#else
+      sg_box_pack_start(GTK_BOX(w_amp_form), w_amp_label, false, false, 4);
+      SG_SIGNAL_CONNECT(w_amp_label, "button_press_event", mix_amp_click_callback, NULL);
+#endif
       gtk_widget_show(w_amp_label);
       
       w_amp_number = gtk_label_new("1.00");

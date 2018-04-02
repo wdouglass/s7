@@ -81,6 +81,13 @@ static void post_prefs_error(const char *msg, prefs_info *data);
 
 static GtkWidget *make_basic_row(GtkWidget *box)
 {
+#if GTK_CHECK_VERSION(3, 92, 1)
+  GtkWidget *row;
+  row = gtk_hbox_new(false, 0);
+  sg_box_pack_start(GTK_BOX(box), row, false, false, 0);
+  gtk_widget_set_hexpand(GTK_WIDGET(row), true);
+  gtk_widget_show(row);
+#else
 #if GTK_CHECK_VERSION(3, 0, 0)
   GtkWidget *row, *r;
   r = gtk_event_box_new(); /* not button! */
@@ -98,6 +105,7 @@ static GtkWidget *make_basic_row(GtkWidget *box)
   row = gtk_hbox_new(false, 0);
   sg_box_pack_start(GTK_BOX(box), row, false, false, 0);
   gtk_widget_show(row);
+#endif
 #endif
 
   return(row);
@@ -368,46 +376,67 @@ static gboolean call_arrow_up_press(GtkWidget *w, GdkEventButton *ev, gpointer c
 
 static GtkWidget *make_row_arrows(prefs_info *prf, GtkWidget *box)
 {
-  GtkWidget *ev_up, *ev_down, *up, *down;
+#if (!GTK_CHECK_VERSION(3, 92, 1))
+  GtkWidget *ev_up, *ev_down;
+#endif
+  GtkWidget *up, *down;
 #if GTK_CHECK_VERSION(3, 14, 0)
   GtkIconTheme *icon_theme; 
   icon_theme = gtk_icon_theme_get_default();
 #endif
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   ev_down = gtk_event_box_new();
   sg_box_pack_start(GTK_BOX(box), ev_down, false, false, 0);
   gtk_widget_show(ev_down);
-
+#endif
 #if GTK_CHECK_VERSION(3, 14, 0)
   down = gtk_image_new_from_pixbuf(gtk_icon_theme_load_icon(icon_theme, "pan-down-symbolic", 16, (GtkIconLookupFlags)0, NULL)); 
 #else
   down = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_ETCHED_OUT);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   gtk_container_add(GTK_CONTAINER(ev_down), down);
+#else
+  sg_box_pack_start(GTK_BOX(box), down, false, false, 0);
+#endif
   gtk_widget_show(down);
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   ev_up = gtk_event_box_new();
   sg_box_pack_start(GTK_BOX(box), ev_up, false, false, 0);
   gtk_widget_show(ev_up);
-
+#endif
 #if GTK_CHECK_VERSION(3, 14, 0)
   up = gtk_image_new_from_pixbuf(gtk_icon_theme_load_icon(icon_theme, "pan-up-symbolic", 16, (GtkIconLookupFlags)0, NULL)); 
 #else
   up = gtk_arrow_new(GTK_ARROW_UP, GTK_SHADOW_ETCHED_OUT);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   gtk_container_add(GTK_CONTAINER(ev_up), up);
+#else
+  sg_box_pack_start(GTK_BOX(box), up, false, false, 0);
+#endif
   gtk_widget_show(up);
 
   prf->arrow_up = up;
   prf->arrow_down = down;
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   SG_SIGNAL_CONNECT(ev_down, "button_press_event", call_arrow_down_press, (gpointer)prf);
   SG_SIGNAL_CONNECT(ev_down, "button_release_event", remove_arrow_func, (gpointer)prf);
   SG_SIGNAL_CONNECT(ev_up, "button_press_event", call_arrow_up_press, (gpointer)prf);
   SG_SIGNAL_CONNECT(ev_up, "button_release_event", remove_arrow_func, (gpointer)prf);
   SG_SIGNAL_CONNECT(ev_down, "button_press_event", prefs_change_callback, NULL);
   SG_SIGNAL_CONNECT(ev_up, "button_press_event", prefs_change_callback, NULL);
-
+#else
+  SG_SIGNAL_CONNECT(down, "button_press_event", call_arrow_down_press, (gpointer)prf);
+  SG_SIGNAL_CONNECT(down, "button_release_event", remove_arrow_func, (gpointer)prf);
+  SG_SIGNAL_CONNECT(up, "button_press_event", call_arrow_up_press, (gpointer)prf);
+  SG_SIGNAL_CONNECT(up, "button_release_event", remove_arrow_func, (gpointer)prf);
+  SG_SIGNAL_CONNECT(down, "button_press_event", prefs_change_callback, NULL);
+  SG_SIGNAL_CONNECT(up, "button_press_event", prefs_change_callback, NULL);
+#endif
   return(up);
 }
 

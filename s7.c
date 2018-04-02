@@ -16705,7 +16705,8 @@ static s7_int multiply_i_ii(s7_int i1, s7_int i2)
 #if HAVE_OVERFLOW_CHECKS
   s7_int val;
   if (multiply_overflow(i1, i2, &val))
-    return(s7_int_max);
+    return(s7_int_max); /* this is inconsistent with other unopt cases where an overflow -> double result */
+  /* (let () (define (func) (do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) (even? (* (ash 1 43) (ash 1 43)))))) (define (hi) (func)) (hi)) */
   return(val);
 #else
   return(i1 * i2);
@@ -19486,7 +19487,6 @@ static bool is_even_b(s7_pointer p)
 }
 
 static bool is_even_i(s7_int i1) {return((i1 & 1) == 0);}
-
 
 static s7_pointer g_is_odd(s7_scheme *sc, s7_pointer args)
 {
@@ -84726,7 +84726,8 @@ int main(int argc, char **argv)
  *   gtk_box_pack* has changed -- many uses!
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
- *   can grepl be used to get all the gtk scheme code working in gtk4? [glistener, libgtk_s7, and grepl are working in gtk4]
+ *   can grepl be used to get all the gtk scheme code working in gtk4? 
+ *     [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
@@ -84740,8 +84741,8 @@ int main(int argc, char **argv)
  * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
  * libc needs many type checks
  *
- * 17.6: 16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
- * now:  15.997 23.216 33.063 49.034 | 16.254 23.518 33.750 48.322 : 243.154
+ * 17.6:   16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
+ * 1-Apr:  15.997 23.214 33.056 48.992 | 16.249 23.517 33.733 48.283 : 243.041
  *
  * ------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3
@@ -84752,8 +84753,8 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1887
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2556
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2655
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 132.8
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2578
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 131.2
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2766
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451

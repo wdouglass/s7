@@ -2,7 +2,6 @@
 
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  /* surely nothing can go wrong... */
   static GdkWindow *last_window = NULL;
   static GdkDrawingContext *last_context = NULL;
 #endif
@@ -15,13 +14,13 @@ cairo_t *make_cairo(GdkDrawable *win)
 {
   ss->line_width = -1.0;
 #if GTK_CHECK_VERSION(3, 22, 0)
-#if GTK_CHECK_VERSION(3, 92, 0)
-  return(NULL);
-#else
   last_window = win;
+#if GTK_CHECK_VERSION(3, 92, 0)
+  last_context = gdk_window_begin_draw_frame(win, NULL, gdk_window_get_visible_region(win));
+#else
   last_context = gdk_window_begin_draw_frame(win, gdk_window_get_visible_region(win));
-  return(gdk_drawing_context_get_cairo_context(last_context));
 #endif
+  return(gdk_drawing_context_get_cairo_context(last_context));
 #else
   return(gdk_cairo_create(win));
 #endif
@@ -31,11 +30,7 @@ void free_cairo(cairo_t *cr)
 {
   ss->line_width = -1.0;
 #if GTK_CHECK_VERSION(3, 22, 0)
-#if GTK_CHECK_VERSION(3, 92, 0)
-  return;
-#else
   gdk_window_end_draw_frame(last_window, last_context);
-#endif
 #else
   cairo_destroy(cr);
 #endif

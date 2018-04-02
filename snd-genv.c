@@ -1155,8 +1155,8 @@ GtkWidget *create_envelope_editor(void)
       /* fir_button = gtk_button_new_with_label((is_FIR) ? "fir" : "fft"); */
       /* SG_SIGNAL_CONNECT(eb, "clicked", fir_button_pressed, NULL); */
       {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 	GtkWidget *eb;
-	
 	eb = gtk_event_box_new();
 	sg_box_pack_end(GTK_BOX(bottomrow), eb, false, false, 4);
 	widget_set_margin_left(eb, 8);
@@ -1168,6 +1168,12 @@ GtkWidget *create_envelope_editor(void)
 	fir_button = gtk_label_new("fir");
 	gtk_container_add(GTK_CONTAINER(eb), fir_button);
 	gtk_widget_show(fir_button);
+#else
+	fir_button = gtk_label_new("fir");
+	sg_box_pack_end(GTK_BOX(bottomrow), fir_button, false, false, 4);
+	SG_SIGNAL_CONNECT(fir_button, "button_press_event", fir_button_pressed, NULL);
+	gtk_widget_show(fir_button);
+#endif
       }
 
       gtk_widget_show(mainform);

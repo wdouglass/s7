@@ -10,7 +10,9 @@ enum {
       W_sx, W_zx,
     W_graph,
     W_gzy, W_gsy,
+#if (!GTK_CHECK_VERSION(3, 92, 1))
     W_up_ev, W_down_ev,
+#endif
     NUM_CHAN_WIDGETS
 };
 
@@ -26,9 +28,13 @@ static GtkWidget *channel_gsy(chan_info *cp) {return(cp->chan_widgets[W_gsy]);}
 static GtkWidget *channel_gzy(chan_info *cp) {return(cp->chan_widgets[W_gzy]);}
 GtkWidget *channel_w(chan_info *cp)          {return(cp->chan_widgets[W_w]);}
 GtkWidget *channel_f(chan_info *cp)          {return(cp->chan_widgets[W_f]);}
+#if (GTK_CHECK_VERSION(3, 92, 1))
+GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->chan_widgets[W_w]);}
+GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->chan_widgets[W_f]);}
+#else
 GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->chan_widgets[W_up_ev]);}
 GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->chan_widgets[W_down_ev]);}
-
+#endif
 
 #define EDIT_HISTORY_LIST(Cp) (Cp)->edhist_list
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -901,10 +907,11 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 	  GtkIconTheme *icon_theme; 
 	  icon_theme = gtk_icon_theme_get_default();
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 	  cw[W_up_ev] = gtk_event_box_new();
 	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_up_ev], true, true, 0);
 	  gtk_widget_show(cw[W_up_ev]);
-
+#endif
 	  /* gtk_arrow is deprecated -- docs say: use GtkImage with a suitable icon
 	   *   but the damned "suitable icon" is specific to some ugly Gnome theme,
 	   *   so I'll conjure up some "^" and "v" images I guess -- insert flame here.
@@ -914,19 +921,29 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
 #else
 	  cw[W_f] = gtk_arrow_new(GTK_ARROW_UP, GTK_SHADOW_ETCHED_OUT);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 	  gtk_container_add(GTK_CONTAINER(cw[W_up_ev]), GTK_WIDGET(cw[W_f]));
+#else
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_f], true, true, 0);
+#endif
 	  gtk_widget_show(cw[W_f]);
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 	  cw[W_down_ev] = gtk_event_box_new();
 	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_down_ev], true, true, 0);
 	  gtk_widget_show(cw[W_down_ev]);
+#endif
 
 #if GTK_CHECK_VERSION(3, 14, 0)
 	  cw[W_w] = gtk_image_new_from_pixbuf(gtk_icon_theme_load_icon(icon_theme, "pan-down-symbolic", 16, (GtkIconLookupFlags)0, NULL)); 
 #else
 	  cw[W_w] = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_ETCHED_OUT);
 #endif
+#if (!GTK_CHECK_VERSION(3, 92, 1))
 	  gtk_container_add(GTK_CONTAINER(cw[W_down_ev]), GTK_WIDGET(cw[W_w]));
+#else
+	  sg_box_pack_start(GTK_BOX(cw[W_wf_buttons]), cw[W_w], true, true, 0);
+#endif
 	  gtk_widget_show(cw[W_w]);
 	}
 
@@ -1196,13 +1213,15 @@ void change_channel_style(snd_info *sp, channel_style_t new_style)
 
 		  for (i = 1; i < sp->nchans; i++)
 		    {
+#if (!GTK_CHECK_VERSION(3, 90, 0))
 		      GtkWidget **cw;
+#endif
 		      chan_info *cp;
 		      cp = sp->chans[i];
 		      cp->ax->w = channel_to_widget(cp);
 		      cp->ax->wn = WIDGET_TO_WINDOW(cp->ax->w);
-		      cw = cp->chan_widgets;
 #if (!GTK_CHECK_VERSION(3, 90, 0))
+		      cw = cp->chan_widgets;
 		      gtk_widget_show_all(cw[W_main_window]);
 #endif
 		    }

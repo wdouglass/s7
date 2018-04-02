@@ -579,8 +579,11 @@ static void evaluator(glistener *g, const char *text)
 }
 #endif
 
-
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static bool keyer(glistener *g, GtkWidget *w, GdkEvent *e)
+#else
 static bool keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
+#endif
 {
   /* add C-g handling */
   guint key;

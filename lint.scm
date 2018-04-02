@@ -1786,8 +1786,8 @@
 					    define-bacro define-bacro* defmacro defmacro* define-syntax))))))))
 
     (define (any-procedure? f v env)
-      (or (and v (memq (var-ftype v) '(define define* lambda lambda*)))
-	  (hash-table-ref built-in-functions f)))
+      (or (hash-table-ref built-in-functions f)
+	  (and v (memq (var-ftype v) '(define define* lambda lambda*))))) ; this order seems a bit faster
 
     (define ->simple-type
       (let ((markers (list (cons :call/exit 'continuation?)
@@ -18176,56 +18176,16 @@
 	
 	;; ---------------- let, let*, letrec ----------------
 	(let ()	
-	  
-	  (define unsafe-definer?
-	    (let ((udefiners (let ((h (make-hash-table)))
-			       (for-each (lambda (d)
-					   (set! (h d) #t))
-					 '(define define* define-constant lambda lambda* 
-					    curlet require load eval eval-string
-					    define-macro define-macro* define-bacro define-bacro* define-expansion 
-					    definstrument define-animal define-envelope defgenerator
-					    define-values define-module define-method
-					    define-syntax define-public define-inlinable define-integrable define^
-					    call/cc call-with-current-continuation))
-			       h)))
-	      (lambda (form)
-		(and (pair? form)
-		     (or (hash-table-ref udefiners (car form))
-			 (and (pair? (car form))
-			      (unsafe-definer? (car form))) ; unfortunate -- perhaps member below?
-			 (case (car form)
-			   ((quote) #f)
-			   ((map for-each any? every? call-with-exit call-with-output-string with-output-to-string =>) ; skip lambda in cadr
-			    (and (len>1? (cdr form))
-				 (or (unsafe-definer? (cddr form))
-				     (and (len>1? (cadr form))
-					  (unsafe-definer? (cdadr form))))))
-			   ((sort! call-with-input-string call-with-input-file call-with-output-file with-output-to-file with-input-from-string with-input-from-file)
-			    (and (len>1? (cdr form))
-				 (or (unsafe-definer? (cdddr form))
-				     (and (len>1? (caddr form))
-					  (unsafe-definer? (cdaddr form))))))
-			   ((assoc member)
-			    (and (len=3? (cdr form))
-				 (len>1? (cadddr form))
-				 (unsafe-definer? (cdr (cadddr form)))))
-			   ((catch)
-			    (and (len=3? (cdr form))
-				 (or (and (len>1? (caddr form))
-					  (unsafe-definer? (cdaddr form)))
-				     (and (len>1? (cadddr form))
-					  (unsafe-definer? (cdr (cadddr form)))))))
-			   ((dynamic-wind)
-			    (and (len=3? (cdr form))
-				 (or (and (len>1? (cadr form))
-					  (unsafe-definer? (cdadr form)))
-				     (and (len>1? (caddr form))
-					  (unsafe-definer? (cdaddr form)))
-				     (and (len>1? (cadddr form))
-					  (unsafe-definer? (cdr (cadddr form)))))))
-			   (else 
-			    (unsafe-definer? (cdr form)))))))))
+	  (define (unsafe-definer? form)
+	    (tree-set-memq 
+	     '(define define* define-constant
+		curlet require load eval eval-string
+		define-macro define-macro* define-bacro define-bacro* define-expansion 
+		definstrument define-animal define-envelope defgenerator
+		define-values define-module define-method
+		define-syntax define-public define-inlinable define-integrable define^
+		call/cc call-with-current-continuation)
+	     form))
 
 	  ;; -------- walk-letx-body --------
 	  (define (walk-letx-body caller form body vars env)

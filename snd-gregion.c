@@ -107,6 +107,7 @@ void reflect_region_graph_style(void)
 
 static void unhighlight_region(void)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   if (current_region != -1)
     {
       regrow *oldr;
@@ -116,11 +117,13 @@ static void unhighlight_region(void)
       widget_modify_bg(oldr->rw, GTK_STATE_NORMAL, ss->white);
       widget_modify_base(oldr->rw, GTK_STATE_NORMAL, ss->white);
     }
+#endif
 }
 
 
 static void highlight_region(void)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   if (current_region != -1)
     {
       regrow *oldr;
@@ -130,6 +133,7 @@ static void highlight_region(void)
       widget_modify_bg(oldr->rw, GTK_STATE_NORMAL, ss->light_blue);
       widget_modify_base(oldr->rw, GTK_STATE_NORMAL, ss->light_blue);
     }
+#endif
 }
 
 
@@ -561,8 +565,11 @@ static void make_region_dialog(void)
   int i, id, rows;
   regrow *r;
   chan_info *cp;
-  GtkWidget *infobox, *labels, *labbox, *dismiss_button, *help_button;
+  GtkWidget *infobox, *labbox, *dismiss_button, *help_button;
   GtkWidget *sep1, *cww, *toppane, *tophbox, *formw;
+#if (!GTK_CHECK_VERSION(3, 92, 1))
+  GtkWidget *labels;
+#endif
 #if WITH_AUDIO
   GtkWidget *plw;
 #endif
@@ -696,14 +703,20 @@ static void make_region_dialog(void)
   /* if we turn off the relief, the colors go away */
   /* all I want is an opaque label with a background color */
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   labels = gtk_event_box_new();
   sg_box_pack_start(GTK_BOX(infobox), labels, true, true, 2);
   gtk_widget_show(labels);
   widget_modify_bg(labels, GTK_STATE_NORMAL, ss->highlight_color);
   /* SG_SIGNAL_CONNECT(labels, "enter_notify_event", region_labels_mouse_enter, NULL); */
+#endif
 
   labbox = gtk_vbox_new(true, 0);
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   gtk_container_add(GTK_CONTAINER(labels), labbox);
+#else
+  sg_box_pack_start(GTK_BOX(infobox), labbox, true, true, 2);
+#endif
   gtk_widget_show(labbox);
   widget_modify_bg(labbox, GTK_STATE_NORMAL, ss->highlight_color);
 

@@ -9,12 +9,15 @@
 enum {W_pane, W_pane_box, W_control_panel,
       W_name_form, W_name, W_name_event, W_name_pix, W_stop_pix, W_info,
       W_play, W_sync, W_unite, W_close,
-      W_amp_form, W_amp_event, W_amp, W_amp_label, W_amp_number, W_amp_sep,
-      W_speed_form, W_speed, W_speed_event, W_speed_label, W_speed_label_event, W_speed_number, W_speed_pix,
-      W_expand_form, W_expand, W_expand_event, W_expand_label, W_expand_number, W_expand_button,
-      W_contrast_form, W_contrast, W_contrast_event, W_contrast_label, W_contrast_number, W_contrast_button,
-      W_reverb_form, W_revscl, W_revscl_event, W_revscl_label, W_revscl_number,
-      W_revlen, W_revlen_event, W_revlen_label, W_revlen_number, W_reverb_button,
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
+      W_amp_event, W_speed_event, W_expand_event, W_contrast_event, W_revscl_event, W_revlen_event, 
+#endif
+      W_amp_form, W_amp, W_amp_label, W_amp_number, W_amp_sep,
+      W_speed_form, W_speed, W_speed_label, W_speed_label_event, W_speed_number, W_speed_pix,
+      W_expand_form, W_expand, W_expand_label, W_expand_number, W_expand_button,
+      W_contrast_form, W_contrast, W_contrast_label, W_contrast_number, W_contrast_button,
+      W_reverb_form, W_revscl, W_revscl_label, W_revscl_number,
+      W_revlen, W_revlen_label, W_revlen_number, W_reverb_button,
       W_filter_form, W_filter_label, W_filter_order, W_filter_env, W_filter, W_filter_button, 
       W_filter_dB, W_filter_hz, W_filter_frame,
       NUM_SND_WIDGETS
@@ -34,9 +37,19 @@ GtkWidget *w_snd_pane_box(snd_info *sp) {return(sp->snd_widgets[W_pane_box]);}
 #define SND_PANE(Sp)             Sp->snd_widgets[W_pane]
 #define PANE_BOX(Sp)             Sp->snd_widgets[W_pane_box]
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
+#define NAME_EVENT_BOX(Sp)       Sp->snd_widgets[W_name_event]
+#define AMP_EVENT_BOX(Sp)        Sp->snd_widgets[W_amp_event]
+#define SPEED_EVENT_BOX(Sp)      Sp->snd_widgets[W_speed_event]
+#define SPEED_LABEL_EVENT_BOX(Sp) Sp->snd_widgets[W_speed_label_event]
+#define EXPAND_EVENT_BOX(Sp)     Sp->snd_widgets[W_expand_event]
+#define CONTRAST_EVENT_BOX(Sp)   Sp->snd_widgets[W_contrast_event]
+#define REVSCL_EVENT_BOX(Sp)     Sp->snd_widgets[W_revscl_event]
+#define REVLEN_EVENT_BOX(Sp)     Sp->snd_widgets[W_revlen_event]
+#endif
+
 #define NAME_HBOX(Sp)            Sp->snd_widgets[W_name_form]
 #define NAME_BUTTON(Sp)          Sp->snd_widgets[W_name]
-#define NAME_EVENT_BOX(Sp)       Sp->snd_widgets[W_name_event]
 #define NAME_SEPARATOR(Sp)       Sp->snd_widgets[W_amp_sep]
 
 #define CLOSE_BUTTON(Sp)         Sp->snd_widgets[W_close]
@@ -54,37 +67,30 @@ GtkWidget *w_snd_pane_box(snd_info *sp) {return(sp->snd_widgets[W_pane_box]);}
 #define AMP_HBOX(Sp)             Sp->snd_widgets[W_amp_form]
 #define AMP_LABEL(Sp)            Sp->snd_widgets[W_amp_number]
 #define AMP_BUTTON(Sp)           Sp->snd_widgets[W_amp_label]
-#define AMP_EVENT_BOX(Sp)        Sp->snd_widgets[W_amp_event]
 #define AMP_SCROLLBAR(Sp)        Sp->snd_widgets[W_amp]
 
 #define SPEED_HBOX(Sp)           Sp->snd_widgets[W_speed_form]
 #define SPEED_ARROW(Sp)          Sp->snd_widgets[W_speed_pix]
 #define SPEED_LABEL(Sp)          Sp->snd_widgets[W_speed_number]
-#define SPEED_EVENT_BOX(Sp)      Sp->snd_widgets[W_speed_event]
-#define SPEED_LABEL_EVENT_BOX(Sp) Sp->snd_widgets[W_speed_label_event]
 #define SPEED_BUTTON(Sp)         Sp->snd_widgets[W_speed_label]
 #define SPEED_SCROLLBAR(Sp)      Sp->snd_widgets[W_speed]
 
 #define EXPAND_HBOX(Sp)          Sp->snd_widgets[W_expand_form]
 #define EXPAND_LEFT_BUTTON(Sp)   Sp->snd_widgets[W_expand_label]
-#define EXPAND_EVENT_BOX(Sp)     Sp->snd_widgets[W_expand_event]
 #define EXPAND_SCROLLBAR(Sp)     Sp->snd_widgets[W_expand]
 #define EXPAND_LABEL(Sp)         Sp->snd_widgets[W_expand_number]
 #define EXPAND_RIGHT_BUTTON(Sp)  Sp->snd_widgets[W_expand_button]
 
 #define CONTRAST_HBOX(Sp)        Sp->snd_widgets[W_contrast_form]
 #define CONTRAST_LEFT_BUTTON(Sp) Sp->snd_widgets[W_contrast_label]
-#define CONTRAST_EVENT_BOX(Sp)   Sp->snd_widgets[W_contrast_event]
 #define CONTRAST_SCROLLBAR(Sp)   Sp->snd_widgets[W_contrast]
 #define CONTRAST_LABEL(Sp)       Sp->snd_widgets[W_contrast_number]
 #define CONTRAST_RIGHT_BUTTON(Sp) Sp->snd_widgets[W_contrast_button]
 
-#define REVSCL_EVENT_BOX(Sp)     Sp->snd_widgets[W_revscl_event]
 #define REVSCL_SCROLLBAR(Sp)     Sp->snd_widgets[W_revscl]
 #define REVSCL_BUTTON(Sp)        Sp->snd_widgets[W_revscl_label]
 #define REVSCL_LABEL(Sp)         Sp->snd_widgets[W_revscl_number]
 
-#define REVLEN_EVENT_BOX(Sp)     Sp->snd_widgets[W_revlen_event]
 #define REVLEN_BUTTON(Sp)        Sp->snd_widgets[W_revlen_label]
 #define REVLEN_SCROLLBAR(Sp)     Sp->snd_widgets[W_revlen]
 #define REVLEN_LABEL(Sp)         Sp->snd_widgets[W_revlen_number]
@@ -1622,7 +1628,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       g_signal_connect(CLOSE_BUTTON(sp), "query-tooltip", G_CALLBACK(close_button_tooltip), (gpointer)sp);
       gtk_widget_show(CLOSE_BUTTON(sp));
 
-
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       NAME_EVENT_BOX(sp) = gtk_event_box_new();
 #if GTK_CHECK_VERSION(3, 0, 0)
       add_highlight_button_style(NAME_EVENT_BOX(sp));
@@ -1632,9 +1638,16 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       gtk_widget_show(NAME_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(NAME_EVENT_BOX(sp), "button_press_event", name_click_callback, sp);
       g_signal_connect(NAME_EVENT_BOX(sp), "query-tooltip", G_CALLBACK(name_button_tooltip), (gpointer)sp);
+#endif 
       
       NAME_BUTTON(sp) = gtk_label_new(shortname_indexed(sp));
+#if (!GTK_CHECK_VERSION(3, 92, 1))
       gtk_container_add(GTK_CONTAINER(NAME_EVENT_BOX(sp)), NAME_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(NAME_HBOX(sp)), NAME_BUTTON(sp), false, false, 5);
+      SG_SIGNAL_CONNECT(NAME_BUTTON(sp), "button_press_event", name_click_callback, sp);
+      g_signal_connect(NAME_BUTTON(sp), "query-tooltip", G_CALLBACK(name_button_tooltip), (gpointer)sp);
+#endif
       gtk_widget_show(NAME_BUTTON(sp));
       
       NAME_PIX(sp) = gtk_drawing_area_new();
@@ -1722,14 +1735,21 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       
       AMP_HBOX(sp) = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(CONTROL_PANEL(sp)), AMP_HBOX(sp), false, false, 0);
-      
+
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       AMP_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(AMP_HBOX(sp)), AMP_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(AMP_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(AMP_EVENT_BOX(sp), "button_press_event", amp_click_callback, sp);
+#endif
       
       AMP_BUTTON(sp) = gtk_label_new("amp:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(AMP_EVENT_BOX(sp)), AMP_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(AMP_HBOX(sp)), AMP_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(AMP_BUTTON(sp), "button_press_event", amp_click_callback, sp);
+#endif
       gtk_widget_show(AMP_BUTTON(sp));
       
       AMP_LABEL(sp) = gtk_label_new("1.00 ");
@@ -1751,27 +1771,40 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       SPEED_HBOX(sp) = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(CONTROL_PANEL(sp)), SPEED_HBOX(sp), false, false, 0);
       
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       SPEED_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(SPEED_HBOX(sp)), SPEED_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(SPEED_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(SPEED_EVENT_BOX(sp), "button_press_event", speed_click_callback, sp);
+#endif
       
       SPEED_BUTTON(sp) = gtk_label_new("speed:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(SPEED_EVENT_BOX(sp)), SPEED_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(SPEED_HBOX(sp)), SPEED_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(SPEED_BUTTON(sp), "button_press_event", speed_click_callback, sp);
+#endif
       gtk_widget_show(SPEED_BUTTON(sp));
       
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       SPEED_LABEL_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(SPEED_HBOX(sp)), SPEED_LABEL_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(SPEED_LABEL_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(SPEED_LABEL_EVENT_BOX(sp), "button_press_event", speed_label_click_callback, sp);
-
+#endif
       switch (sp->speed_control_style)
 	{
 	case SPEED_CONTROL_AS_RATIO:    SPEED_LABEL(sp) = gtk_label_new("  1/1"); break;
 	case SPEED_CONTROL_AS_SEMITONE: SPEED_LABEL(sp) = gtk_label_new("    0"); break;
 	default:                        SPEED_LABEL(sp) = gtk_label_new("1.00 "); break;
 	}
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(SPEED_LABEL_EVENT_BOX(sp)), SPEED_LABEL(sp));
+#else
+      sg_box_pack_start(GTK_BOX(SPEED_HBOX(sp)), SPEED_LABEL(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(SPEED_LABEL(sp), "button_press_event", speed_label_click_callback, sp);
+#endif
       gtk_widget_show(SPEED_LABEL(sp));
       
       SPEED_ADJUSTMENT(sp) = (GtkAdjustment *)gtk_adjustment_new(speed_to_scroll(sp->speed_control_min, 1.0, sp->speed_control_max), 0.0, 1.0, 0.001, 0.01, .1);
@@ -1800,13 +1833,20 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       EXPAND_HBOX(sp) = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(CONTROL_PANEL(sp)), EXPAND_HBOX(sp), false, false, 0);
       
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       EXPAND_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(EXPAND_HBOX(sp)), EXPAND_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(EXPAND_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(EXPAND_EVENT_BOX(sp), "button_press_event", expand_click_callback, sp);
+#endif
       
       EXPAND_LEFT_BUTTON(sp) = gtk_label_new("expand:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(EXPAND_EVENT_BOX(sp)), EXPAND_LEFT_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(EXPAND_HBOX(sp)), EXPAND_LEFT_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(EXPAND_LEFT_BUTTON(sp), "button_press_event", expand_click_callback, sp);
+#endif
       gtk_widget_show(EXPAND_LEFT_BUTTON(sp));
       
       EXPAND_LABEL(sp) = gtk_label_new("1.00 ");
@@ -1832,14 +1872,20 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       
       CONTRAST_HBOX(sp) = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(CONTROL_PANEL(sp)), CONTRAST_HBOX(sp), false, false, 0);
-      
+#if (!GTK_CHECK_VERSION(3, 92, 1))            
       CONTRAST_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(CONTRAST_HBOX(sp)), CONTRAST_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(CONTRAST_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(CONTRAST_EVENT_BOX(sp), "button_press_event", contrast_click_callback, sp);
+#endif
       
       CONTRAST_LEFT_BUTTON(sp) = gtk_label_new("contrast:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(CONTRAST_EVENT_BOX(sp)), CONTRAST_LEFT_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(CONTRAST_HBOX(sp)), CONTRAST_LEFT_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(CONTRAST_LEFT_BUTTON(sp), "button_press_event", contrast_click_callback, sp);
+#endif
       gtk_widget_show(CONTRAST_LEFT_BUTTON(sp));
       
       CONTRAST_LABEL(sp) = gtk_label_new("0.00 ");
@@ -1866,13 +1912,20 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       REVERB_HBOX(sp) = gtk_hbox_new(false, 2);
       sg_box_pack_start(GTK_BOX(CONTROL_PANEL(sp)), REVERB_HBOX(sp), false, false, 0);
       
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       REVSCL_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(REVERB_HBOX(sp)), REVSCL_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(REVSCL_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(REVSCL_EVENT_BOX(sp), "button_press_event", revscl_click_callback, sp);
+#endif
       
       REVSCL_BUTTON(sp) = gtk_label_new("reverb:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))      
       gtk_container_add(GTK_CONTAINER(REVSCL_EVENT_BOX(sp)), REVSCL_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(REVERB_HBOX(sp)), REVSCL_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(REVSCL_BUTTON(sp), "button_press_event", revscl_click_callback, sp);
+#endif
       gtk_widget_show(REVSCL_BUTTON(sp));
       
       REVSCL_LABEL(sp) = gtk_label_new("0.000 ");
@@ -1885,14 +1938,21 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
       SG_SIGNAL_CONNECT(REVSCL_ADJUSTMENT(sp), "value_changed", revscl_changed_callback, sp);
       SG_SIGNAL_CONNECT(REVSCL_SCROLLBAR(sp), "button_release_event", revscl_release_callback, sp);
       gtk_widget_show(REVSCL_SCROLLBAR(sp));
-      
+
+#if (!GTK_CHECK_VERSION(3, 92, 1))            
       REVLEN_EVENT_BOX(sp) = gtk_event_box_new();
       sg_box_pack_start(GTK_BOX(REVERB_HBOX(sp)), REVLEN_EVENT_BOX(sp), false, false, 4);
       gtk_widget_show(REVLEN_EVENT_BOX(sp));
       SG_SIGNAL_CONNECT(REVLEN_EVENT_BOX(sp), "button_press_event", revlen_click_callback, sp);
+#endif
       
       REVLEN_BUTTON(sp) = gtk_label_new("len:");
+#if (!GTK_CHECK_VERSION(3, 92, 1))            
       gtk_container_add(GTK_CONTAINER(REVLEN_EVENT_BOX(sp)), REVLEN_BUTTON(sp));
+#else
+      sg_box_pack_start(GTK_BOX(REVERB_HBOX(sp)), REVLEN_BUTTON(sp), false, false, 4);
+      SG_SIGNAL_CONNECT(REVLEN_BUTTON(sp), "button_press_event", revlen_click_callback, sp);
+#endif
       gtk_widget_show(REVLEN_BUTTON(sp));
       
       REVLEN_LABEL(sp) = gtk_label_new("1.0 ");
