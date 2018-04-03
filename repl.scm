@@ -925,6 +925,7 @@
 				 (return))))
 			   
 			   (lambda (type info)
+			     ;; possibly (with-let (unlet) ...) here for stuff like (set! car 3)
 			     (format *stderr* "~A:" (red "error"))
 			     (if (and (pair? info)
 				      (string? (car info)))
@@ -1205,7 +1206,7 @@
 					 
 					 (lambda (type info)
 					   (set! chars 0)
-					   (move-cursor prompt-row prompt-col)
+					   ;(move-cursor prompt-row prompt-col)
 					   (format *stderr* "internal error: ")
 					   (apply format *stderr* info)
 					   (format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
@@ -1254,7 +1255,7 @@
 			  (help chr)))
 		      
 		      (lambda (type info)
-			(move-cursor prompt-row prompt-col)
+			;(move-cursor prompt-row prompt-col)
 			(format *stderr* "internal error: ")
 			(apply format *stderr* info)
 			(format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))

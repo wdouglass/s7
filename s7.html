@@ -2465,7 +2465,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="curlet">curlet</em>)                the current (innermost) environment
 (<em class=def id="funclet">funclet</em> proc)          the environment at the time when proc was defined
 (owlet)                 the environment at the point of the last error
-(<em class=def id="unlet">unlet</em>)                 the current environment, but all built-in functions have their original values
+(<em class=def id="unlet">unlet</em>)                 a let with any built-in functions do not have their original value
 
 (<em class=def id="letref">let-ref</em> env sym)       get value of sym in env, same as (env sym)
 (<em class=def id="letset">let-set!</em> env sym val)  set value of sym in val to val, same as (set! (env sym) val)
@@ -2692,6 +2692,16 @@ wrap it in <code>(with-let (unlet) ...)</code>:
               (caar '((2) 3)))))
 <em class="gray">125</em>
 </pre>
+<p>Or perhaps better, to keep the current environment intact except for the 
+changed built-ins:
+</p>
+<pre class="indented">
+&gt; (let ((x 1) 
+        (display 3))
+    (with-let (sublet (curlet) (unlet)) ; (curlet) picks up 'x, (unlet) the original 'display
+      (display x)))
+<em class="gray">1</em>
+</pre>
 
 <p>
 with-let and unlet are constants, so you can
@@ -2699,8 +2709,7 @@ use them in any context without worrying about whether they've been redefined.
 As mentioned in the macro section, #_&lt;name&gt; is a built-in reader macro
 for <code>(with-let (unlet) &lt;name&gt;)</code>,
 so for example, #_+ is the built-in + function, no matter what.
-<code>(unlet)</code> cleans up the current environment whenever it's called,
-so you can use it to revert the REPL. (The environment of built-in functions
+(The environment of built-in functions
 that unlet accesses is not accessible from scheme code, so there's no way 
 that those values can be clobbered).
 </p>
@@ -5918,7 +5927,7 @@ profile.scm shows one way to sort and display this data. To clear the counts, <c
 state: 
 </p>
 <pre class="indented">
-print-length                  number of elements of a sequence to print
+print-length                  number of elements to print of a non-string sequence
 max-string-length             max size arg to make-string and read-string
 max-list-length               max size arg to make-list
 max-vector-length             max size arg to make-vector and make-hash-table

@@ -9628,20 +9628,20 @@ static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
 #endif
 
 #if (defined(__clang__) && (!POINTER_32) && ((__clang_major__ > 3) || (__clang_major__ == 3 && __clang_minor__ >= 4))) 
-  #define subtract_overflow(A, B, C)     __builtin_ssubll_overflow((long long)A, (long long)B, (long long *)C)
-  #define add_overflow(A, B, C)          __builtin_saddll_overflow((long long)A, (long long)B, (long long *)C)
-  #define multiply_overflow(A, B, C)     __builtin_smulll_overflow((long long)A, (long long)B, (long long *)C)
-  #define int_subtract_overflow(A, B, C) __builtin_ssub_overflow(A, B, C)
-  #define int_add_overflow(A, B, C)      __builtin_sadd_overflow(A, B, C)
-  #define int_multiply_overflow(A, B, C) __builtin_smul_overflow(A, B, C)
+  #define subtract_overflow(A, B, C)       __builtin_ssubll_overflow((long long)A, (long long)B, (long long *)C)
+  #define add_overflow(A, B, C)            __builtin_saddll_overflow((long long)A, (long long)B, (long long *)C)
+  #define multiply_overflow(A, B, C)       __builtin_smulll_overflow((long long)A, (long long)B, (long long *)C)
+  /* #define int32_subtract_overflow(A, B, C) __builtin_ssub_overflow(A, B, C) */
+  #define int32_add_overflow(A, B, C)      __builtin_sadd_overflow(A, B, C)
+  #define int32_multiply_overflow(A, B, C) __builtin_smul_overflow(A, B, C)
 #else
 #if (defined(__GNUC__) && __GNUC__ >= 5)
-  #define subtract_overflow(A, B, C)     __builtin_sub_overflow(A, B, C)
-  #define add_overflow(A, B, C)          __builtin_add_overflow(A, B, C)
-  #define multiply_overflow(A, B, C)     __builtin_mul_overflow(A, B, C)
-  #define int_subtract_overflow(A, B, C) __builtin_sub_overflow(A, B, C)
-  #define int_add_overflow(A, B, C)      __builtin_add_overflow(A, B, C)
-  #define int_multiply_overflow(A, B, C) __builtin_mul_overflow(A, B, C)
+  #define subtract_overflow(A, B, C)       __builtin_sub_overflow(A, B, C)
+  #define add_overflow(A, B, C)            __builtin_add_overflow(A, B, C)
+  #define multiply_overflow(A, B, C)       __builtin_mul_overflow(A, B, C)
+  /* #define int32_subtract_overflow(A, B, C) __builtin_sub_overflow(A, B, C) */
+  #define int32_add_overflow(A, B, C)      __builtin_add_overflow(A, B, C)
+  #define int32_multiply_overflow(A, B, C) __builtin_mul_overflow(A, B, C)
 #endif
 #endif
 
@@ -11612,8 +11612,8 @@ static s7_double string_to_double_with_radix(const char *ur_str, s7_int rad, boo
       while ((dig = digits[(int32_t)(*str++)]) < 10) /* exponent itself is always base 10 */
 	{
 #if HAVE_OVERFLOW_CHECKS
-	  if ((int_multiply_overflow(exponent, 10, &exponent)) ||
-	      (int_add_overflow(exponent, dig, &exponent)))
+	  if ((int32_multiply_overflow(exponent, 10, &exponent)) ||
+	      (int32_add_overflow(exponent, dig, &exponent)))
 	    {
 	      exponent = 1000000; /* see below */
 	      break;
@@ -21808,11 +21808,6 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	  if (integer(arg) < 0)
 	    return(wrong_type_argument_with_type(sc, sc->object_to_string_symbol, 3, arg, a_non_negative_integer_string));	    
 	  sc->objstr_max_len = integer(arg);
-	  /* this is not fully implemented, and probably doesn't work right even when it tries:
-	   *   (object->string "1234567890" #f 4): "1234567890"
-	   *   (object->string (make-vector 8 1) #f 4): "#(1 1 1 1 1 1 1 1)"
-	   *   (object->string (make-list 8 #f) #f 4): "(#f #f"
-	   */
 	}
     }
   else choice = P_WRITE;
@@ -21821,10 +21816,24 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
   obj = car(args);
   check_method(sc, obj, sc->object_to_string_symbol, args);
   str = s7_object_to_c_string_1(sc, obj, choice, &out_len);
+  if (!str)
+    {
+      sc->objstr_max_len = s7_int_max;
+      return(s7_make_string_with_length(sc, "", 0));
+    }
+  if ((sc->objstr_max_len >= 0) && 
+      (out_len > sc->objstr_max_len))
+    {
+      s7_int i;
+      if (out_len < 3)
+	return(s7_make_string_with_length(sc, "...", 3));
+      if (sc->objstr_max_len < 3) sc->objstr_max_len = 3;
+      for (i = sc->objstr_max_len - 3; i < sc->objstr_max_len; i++)
+	str[i] = (uint8_t)'.';
+      out_len = sc->objstr_max_len;
+    }
   sc->objstr_max_len = s7_int_max;
-  if (str)
-    return(make_string_uncopied_with_length(sc, str, out_len));
-  return(s7_make_string_with_length(sc, "", 0));
+  return(make_string_uncopied_with_length(sc, str, out_len));
 }
 
 
@@ -26594,8 +26603,11 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
    * but it would be misleading to omit them because:
    *    :(let ((str (make-string 8 #\null))) (set! (str 0) #\a) (string-append str "bc"))
    *    "a\x00\x00\x00\x00\x00\x00\x00bc"
+   *
+   * also it is problematic to use sc->print_length here (as in byte_vector_to_port) because
+   *    it is normally (say) 8 which truncates just about every string.  In CL, *print-length*
+   *    does not affect strings, symbols, or bit-vectors.
    */
-
   if (quoted) port_write_character(port)(sc, '"', port);
   for (pcur = (uint8_t *)p; pcur < pend; pcur++)
     {
@@ -27852,7 +27864,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       (is_cyclic(hash)) &&
       (peek_shared_ref(ci, hash) != 0))
     {
-      /* TODO: eq-func if chosen, key-as-struct */
+      /* TODO: eq-func if user-set */
       /* (let ((<1> (make-hash-table <default-size> morally-equal?)))
        *   and then fill all fields in cycle_port
        *   hash_table_checker_locked?
@@ -39673,7 +39685,7 @@ s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e)
   return(e);
 }
 
-static s7_pointer c_object_pi_direct(s7_pointer obj, s7_int i) {return((c_object_direct_ref(cur_sc, obj))(cur_sc, obj, i));}
+static s7_pointer c_object_pi_direct_ref(s7_pointer obj, s7_int i) {return((c_object_direct_ref(cur_sc, obj))(cur_sc, obj, i));}
 
 static s7_pointer c_object_length(s7_scheme *sc, s7_pointer obj)
 {
@@ -52907,12 +52919,14 @@ static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
 		  
 		case T_C_OBJECT:
 		  if (c_object_direct_ref(sc, obj))
-		    opc->v3.p_pi_f = c_object_pi_direct; /* we insist on int index below */
+		    opc->v3.p_pi_f = c_object_pi_direct_ref; /* we insist on int index below */
+		  else return(return_false(sc, car_x, __func__, __LINE__)); /* no pi_ref because ref assumes pp */
 		  break;
 		  
 		default: 
 		  return(return_false(sc, car_x, __func__, __LINE__));
 		}
+	      /* now v3.p_pi|pp.f is set */
 	      if (is_symbol(cadr(car_x)))
 		{
 		  s7_pointer slot;
@@ -54556,7 +54570,6 @@ static s7_pointer opt_do_setpif(void *p)
     }
   return(NULL);
 }
-
 
 static bool stop_is_safe(s7_scheme *sc, s7_pointer stop, s7_pointer body)
 {
@@ -84682,7 +84695,7 @@ int main(int argc, char **argv)
 /* in Linux:  gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -ldl -lm -Wl,-export-dynamic
  * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -lm -Wl,-export-dynamic
  * in OSX:    gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -lm
- *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux)
+ *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and maybe "-fPIC")
  */
 #endif
 
@@ -84705,10 +84718,10 @@ int main(int argc, char **argv)
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
- *   another cycle: (*s7* 'stack)
+ *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
  * many stuff.scm funcs are not cycle-safe (e.g. union)
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
- * copy_tree recurses on cdr? So a long list of args can overflow the C stack?
+ *   see t763.scm
  * -Wconversion...
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  *
@@ -84723,7 +84736,7 @@ int main(int argc, char **argv)
  * for gtk 4:
  *   all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
  *   iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
- *   gtk_box_pack* has changed -- many uses!
+ *   gtk_box_pack* has changed -- many uses! (see sg_box_pack... in snd-g1.h): gtk_widget_set_v|hexpand in snd-g0 or are these grid-specific?
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   can grepl be used to get all the gtk scheme code working in gtk4? 
