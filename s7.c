@@ -14847,16 +14847,19 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  return(make_real(sc, a - b * (s7_int)floor(a / b)));
 
 	case T_REAL:
-	  if (is_NaN(a)) return(x);
-	  if (is_inf(a)) return(real_NaN);
-	  b = real(y);
-	  if (b == 0.0) return(x);
-	  if (is_NaN(b)) return(y);
-	  if (is_inf(b)) return(real_NaN);
-	  /* TODO: need double_multiply_overflow here -- at least the s7_int part overflows -- conversion_overflow?? 1e18 or 1e19
-	   *   replace floor(a / b) with s7_int checked_floor(a / b) -- if abs > 1e19 error etc
-	   */
-	  return(make_real(sc, a - b * (s7_int)floor(a / b)));
+	  {
+	    s7_double c;
+	    if (is_NaN(a)) return(x);
+	    if (is_inf(a)) return(real_NaN);
+	    b = real(y);
+	    if (b == 0.0) return(x);
+	    if (is_NaN(b)) return(y);
+	    if (is_inf(b)) return(real_NaN);
+	    c = a / b;
+	    if ((c > 1e19) || (c < -1e19))
+	      return(simple_out_of_range(sc, sc->modulo_symbol, y, s7_make_string_wrapper(sc, "intermediate (a/b) is too large")));
+	    return(make_real(sc, a - b * (s7_int)floor(c)));
+	  }
 
 	default:
 	  method_or_bust(sc, y, sc->modulo_symbol, args, T_REAL, 2);
@@ -24985,7 +24988,7 @@ static s7_pointer g_cload_directory_set(s7_scheme *sc, s7_pointer args)
   if (!is_string(cl_dir))
     return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set *cload-directory* to ~S"), cadr(args))));
   s7_symbol_set_value(sc, sc->cload_directory_symbol, cl_dir);
-  if (safe_strlen(string_value(cl_dir)) > 0) /* TODO: and not already in load path, or should add_to_load_path check that? */
+  if (safe_strlen(string_value(cl_dir)) > 0)
     s7_add_to_load_path(sc, (const char *)(string_value(cl_dir)));
   return(cl_dir);
 }
@@ -84704,9 +84707,6 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * if profile ('profiling in *features*), use pair line/file num as key for hashed count, and use that to annotate pp output
- *   (profile-count file line)? (*s7* 'profile-info)
- *
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
  *   add shared_info collection of closure args/body for print/morally-equal
  *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
@@ -84719,9 +84719,7 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
- * many stuff.scm funcs are not cycle-safe (e.g. union)
- * pair print seems to ignore (*s7* 'print-length)? (make-list 20) etc
- *   see t763.scm
+ * pair print seems to ignore (*s7* 'print-length)? (make-list 20) see t763.scm
  * -Wconversion...
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  *

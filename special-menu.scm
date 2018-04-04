@@ -1,9 +1,13 @@
+(if (and (provided? 'snd-gtk)
+	 (not (provided? 'gtk4)))
+    (error 'gtk-error "special-menu.scm only works in gtk4"))
+
 (provide 'snd-special-menu.scm)
 
 (if (provided? 'xm)
     (require snd-effects-utils.scm snd-snd-motif.scm snd-edit-menu.scm))
 
-(if (provided? 'xg)
+(if (provided? 'gtk4)
     (require snd-gtk-effects-utils.scm snd-snd-gtk.scm))
 
 (define *e* (if (provided? 'snd-motif) *motif* *gtk*))

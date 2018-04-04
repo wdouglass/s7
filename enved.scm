@@ -197,30 +197,3 @@
 				 ;; if dac buffer size in framples is not dac-size, we should do something debonair
 				 (set! (amp-control player) (env e)))))))))
 
-#|
-(define play-panned 
-  (let ((+documentation+ "(play-panned snd) pans a mono sound following its enved envelope into a stereo sound"))
-    (lambda (sound)
-      (let* ((bufsize 256)
-	     (data (make-float-vector (list 2 bufsize) 0.0))
-	     (bytes (* bufsize 4))
-	     (audio-fd (mus-audio-open-output mus-audio-default (srate sound) 2 mus-lshort bytes))
-	     (samp 0)
-	     (len (framples sound 0)))
-	(snd-print (format #f "audio-fd: ~A " audio-fd))
-	(if (not (= audio-fd -1))
-	    (let ((e (make-env (channel-envelope sound 0) :length (floor (/ len bufsize)))))
-	      (catch #t
-		(lambda ()
-		  (do ((res #f (let* ((scaler (env e))
-				      (samps0 (channel->float-vector samp bufsize))
-				      (samps1 (copy samps0)))
-				 (copy (float-vector-scale! samps0 scaler) (data 0))
-				 (copy (float-vector-scale! samps1 (- 1.0 scaler)) (data 1))
-				 (mus-audio-write audio-fd data bufsize)
-				 (set! samp (+ samp bufsize))
-				 (>= samp len))))
-		      (res)))
-		(lambda args (format () ";play-panned error: ~A" args)))
-	      (mus-audio-close audio-fd)))))))
-|#

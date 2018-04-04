@@ -1,6 +1,21 @@
-(require snd-gtk)
+(when (not (provided? 'gtk4))
+  (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
 
+(require snd-gtk)
 (provide 'snd-gtk-effects-utils.scm)
+
+(when (or (not (defined? '*gtk*))
+	  (eq? #<undefined> (*gtk* 'gtk_window_set_title)))
+  (format *stderr* "looking for libgtk_s7~%")
+  (if (file-exists? "libgtk_s7.so")
+      (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
+      (if (file-exists? "libgtk_s7.c")
+	  (begin
+	    (format *stderr* "building libgtk_s7~%")
+	    (system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl")
+	    (system "gcc libgtk_s7.o -shared -o libgtk_s7.so")
+	    (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init))))
+	  (error 'no-such-file "can't find libgtk_s7.c"))))
 
 (with-let *gtk* 
 
@@ -76,9 +91,6 @@
 	(g_object_set_data (G_OBJECT new-dialog) "ok-button" (GPOINTER ok-button))
 	new-dialog)))
   
-  (define (change-label w new-label)
-    (if w (gtk_label_set_text (GTK_LABEL (if (GTK_IS_LABEL w) w (gtk_bin_get_child (GTK_BIN w)))) new-label)))
-  
   
   ;; -------- log scaler widget
   
@@ -108,11 +120,11 @@
     (let* ((mainform (gtk_box_new GTK_ORIENTATION_VERTICAL 2))
 	   (use-hbox (and (pair? sliders) (null? (cdr sliders))))
 	   (table (if (not use-hbox) (gtk_grid_new))))
-      (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG dialog))) mainform #f #f 4)
+      (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG dialog))) mainform)
       (gtk_widget_show mainform)
       (if (not use-hbox)
 	  (begin
-	    (gtk_box_pack_start (GTK_BOX mainform) table #f #f 4)
+	    (gtk_box_pack_start (GTK_BOX mainform) table)
 	    (gtk_grid_set_row_spacing (GTK_GRID table) 4)
 	    (gtk_grid_set_column_spacing (GTK_GRID table) 4)
 	    (gtk_widget_show table)))
@@ -142,9 +154,9 @@
 		  (scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT adj))))
 	     (if use-hbox
 		 (begin
-		   (gtk_box_pack_start (GTK_BOX mainform) hbox #f #f 2)
+		   (gtk_box_pack_start (GTK_BOX mainform) hbox)
 		   (gtk_widget_show hbox)
-		   (gtk_box_pack_start (GTK_BOX hbox) label #f #f 6))
+		   (gtk_box_pack_start (GTK_BOX hbox) label))
 		 (gtk_grid_attach (GTK_GRID table) label 0 slider 1 1))
 	     (gtk_widget_show label)
 	     (gtk_scale_set_digits (GTK_SCALE scale)
@@ -153,7 +165,7 @@
 					 (else 0)))
 	     (gtk_scale_set_draw_value (GTK_SCALE scale) (not use-log))
 	     (if use-hbox
-		 (gtk_box_pack_start (GTK_BOX hbox) scale #t #t 0)
+		 (gtk_box_pack_start (GTK_BOX hbox) scale)
 		 (begin
 		   (gtk_widget_set_hexpand (GTK_WIDGET scale) #t)
 		   (gtk_grid_attach (GTK_GRID table) scale 1 slider 1 1)
@@ -163,10 +175,10 @@
 				   func
 				   (lambda (w d) 
 				     (func w d)
-				     (change-label label 
-						   (format #f "~A: ~,2F" 
-							   title 
-							   (scale-linear->log low (gtk_adjustment_get_value (GTK_ADJUSTMENT adj)) high)))))))
+				     (gtk_label_set_text (GTL_LABEL label)
+							 (format #f "~A: ~,2F" 
+								 title 
+								 (scale-linear->log low (gtk_adjustment_get_value (GTK_ADJUSTMENT adj)) high)))))))
 	       (g_signal_connect adj "value_changed" label-func #f))
 	     adj)))
        sliders)))

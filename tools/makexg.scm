@@ -1063,15 +1063,13 @@
 	 (parse-args "GdkSeat* seat GdkWindow* window lambda_data func_info" 'g-3.20)
 	 'permanent
 	 "3.20")
-#|
-   ;; not currently used anywhere??
-   (list 'GtkDrawingAreaFunc
+
+   (list 'GtkDrawingAreaDrawFunc
 	 "void"
 	 "draw_func"
-	 (parse-args "GtkDrawingArea* self lambda_data func_info" 'g-3.99)
+	 (parse-args "GtkDrawingArea* self cairo_t* cr int width int height lambda_data func_info" 'g-3.99)
 	 'permanent
 	 "3.99")
-|#
    ))
 
 
@@ -2065,22 +2063,16 @@
 (hay "                                        (s7_is_pair(s7_cdr((s7_pointer)data))) ? (s7_cadr((s7_pointer)data)) : s7_nil(cbsc))) != lg_false);~%")
 (hay "}~%~%")
 
-(hoy "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
+(hey "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
 (hey "static Xen gxg_gtk_widget_set_events(Xen widget, Xen events)~%")
-(hay "static s7_pointer lg_gtk_widget_set_events(s7_scheme *sc, s7_pointer args)~%")
-(hoy "{~%")
-(hoy "  #define H_gtk_widget_set_events \"void gtk_widget_set_events(GtkWidget* widget, gint events)\"~%")
-(hay "  s7_pointer widget, events;~%")
-(hay "  widget = s7_car(args);~%")
-(hay "  events = s7_cadr(args);~%")
+(hey "{~%")
+(hey "  #define H_gtk_widget_set_events \"void gtk_widget_set_events(GtkWidget* widget, gint events)\"~%")
 (hey "  Xen_check_type(Xen_is_GtkWidget_(widget), widget, 1, \"gtk_widget_set_events\", \"GtkWidget*\");~%")
 (hey "  Xen_check_type(Xen_is_gint(events), events, 2, \"gtk_widget_set_events\", \"gint\");~%")
 (hey "  gtk_widget_set_events(Xen_to_C_GtkWidget_(widget), Xen_to_C_gint(events));~%")
-(hay "  gtk_widget_set_events((GtkWidget*)s7_c_pointer(widget), (gint)s7_integer(events));~%")
 (hey "  return(Xen_false);~%")
-(hay "  return(lg_false);~%")
-(hoy "}~%")
-(hoy "#endif~%~%")
+(hey "}~%")
+(hey "#endif~%~%")
 
 
 
@@ -3526,7 +3518,6 @@
 (hay "  s7_define_function(sc, \"gtk_init\", lg_gtk_init, 0, 2, 0, NULL);~%")
 (hay "  s7_define_function(sc, \"gtk_init_check\", lg_gtk_init_check, 0, 2, 0, NULL);~%")
 (hey "  Xg_define_procedure(gtk_widget_set_events, gxg_gtk_widget_set_events_w, 2, 0, 0, H_gtk_widget_set_events, pl_tui);~%")
-(hay "  s7_define_function(sc, \"gtk_widget_set_events\", lg_gtk_widget_set_events, 2, 0, 0, H_gtk_widget_set_events);~%")
 (hoy "#endif~%")
 
 (define (check-out func)
@@ -3933,8 +3924,10 @@
 (hay "void libgtk_s7_init(s7_scheme *sc);~%")
 (hay "void libgtk_s7_init(s7_scheme *sc)~%")
 (hay "{~%")
-(hay "  s7_pointer cur_env;~%")
+(hay "  s7_pointer cur_env, old_shadow;~%")
+(hay "  old_shadow = s7_shadow_rootlet(sc);~%")
 (hay "  cur_env = s7_curlet(sc);~%~%")
+(hay "  s7_set_shadow_rootlet(sc, cur_env);~%")
 (hay "  cbsc = sc;~%")
 (hay "  lg_true = s7_t(sc);~%")
 (hay "  lg_false = s7_f(sc);~%")
@@ -3949,6 +3942,7 @@
 (hay "  define_structs(sc);~%")
 (hay "  define_functions(sc);~%")
 (hay "  s7_define_function(sc, \"g_signal_connect\", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);~%")
+(hay "  s7_set_shadow_rootlet(sc, old_shadow);~%")
 
 ;;; structs
 ;;; xm_obj?  used to free the struct in GC?

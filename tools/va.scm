@@ -132,7 +132,6 @@
      "moog.scm"
      "musglyphs.scm"
      "nb.scm"
-     "new-backgrounds.scm"
      "new-effects.scm"
      "noise.scm"
      "nrev.scm"

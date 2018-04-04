@@ -6784,18 +6784,9 @@ Explode SF2 (using the code <a href="#explodesf2">explode-sf2</a> in examp.scm)
 </pre>
 
 
-<p>Associated with these menus is a group of files that change Snd's overall appearance, add a box of
-handy icons, and so on: misc.scm, and new-backgrounds.scm.
-new-backgrounds.scm defines some background pictures that can be applied to all the
-Snd widgets: wood, granite, rough, blueish, and smoke.  I think "rough" is the
-default used by misc.scm.
-</p>
-
 <p>
 misc.scm loads these menus and interface improvements, adds several sound file extensions,
-makes sure all the widget backgrounds
-reflect the current background choice (metal, granite, wood, etc), 
-adds some hook functions for mpeg files etc,
+adds some hook functions for mpeg files,
 and
 includes a number of options such as show-disk-space.
 It then adds these menu items:
@@ -10059,32 +10050,7 @@ pixmap itself using those characters.  The following defines a 16 X 12 arrow usi
 <p><code>(make-pixmap (cadr (<a class=quiet href="extsnd.html#mainwidgets">main-widgets</a>)) arrow-strs)</code> then creates the actual pixmap.
 The 'widget' argument is needed to give us access to the current colormap and so on.
 (cadr (main-widgets)) is just Snd's outer shell, which will do the trick in most cases.
-See new-backgrounds.scm for many examples.  The following example paints all of Snd's widgets using the
-same background:
 </p>
-
-<pre class="indented">
-(for-each-child 
-  (cadr (<a class=quiet href="extsnd.html#mainwidgets">main-widgets</a>))
-  (lambda (w) 
-    (XtSetValues w (list XmNbackgroundPixmap wd))
-    (if (XmIsLabel w)
-        (let ((val (cadr (XtVaGetValues w (list XmNlabelType 0)))))
-          (if (= val XmPIXMAP)
-  	      (XtVaSetValues w (list XmNlabelPixmap wd)))))))
-</pre>
-
-<p>You can also use bitmaps:
-</p>
-
-<pre class="indented">
-(define right-arrow (list
-   #x00 #x04 #x10 #x08 #x00 #x10 #x04 #x20 #x00 #x40 #xa5 #xbf
-   #x00 #x40 #x04 #x20 #x00 #x10 #x10 #x08 #x00 #x04 #x00 #x00))
-    
-(define (bitmap-&gt;pixmap widget bits width height)
-  (XCreateBitmapFromData (XtDisplay widget) (XtWindow widget) bits width height))
-</pre>
 
 <div class="spacer"></div>
 

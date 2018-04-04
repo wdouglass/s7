@@ -1452,7 +1452,7 @@ static XmString scale_label(const char *orig_label, int value, bool dec)
 
 static void scale_set_label(const char *orig_label, Widget w, int value, bool dec)
 {
-  /* in new motif (after version 2.1), showValue not XmNONE clobbers XmScale title! 
+  /* in new motif (after version 2.1), showValue not XmNONE (= 0) clobbers XmScale title! 
    *   also XmNEAR_BORDER has no effect -- same as XmNEAR_SLIDER
    * so...
    *   we create the full label by hand here.

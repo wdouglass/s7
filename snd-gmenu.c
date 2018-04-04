@@ -2095,7 +2095,8 @@ int g_add_to_main_menu(const char *label, int slot)
   add_menu_style(mc);
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(m), mc);
   new_menu++;
-  added_menus[new_menu] = m; /* was mc -- 1-Mar-06 */
+  added_menus[new_menu] = m; /* was mc -- 1-Mar-06 */ /* returned by (main-menu new_menu) */
+  /* fprintf(stderr, "new: %d %p %d\n", new_menu, m, GTK_IS_MENU_ITEM(m)); */
   return(new_menu);
 }
 

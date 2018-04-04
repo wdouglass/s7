@@ -1,5 +1,8 @@
 ;;; translation of new-effects.scm to gtk/xg
 
+(when (not (provided? 'gtk4))
+  (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
+
 (provide 'snd-gtk-effects.scm)
 (require snd-gtk snd-gtk-effects-utils.scm snd-xm-enved.scm snd-moog.scm snd-rubber.scm snd-dsp.scm)
 
@@ -91,9 +94,7 @@
     ;;   truncate-callback (if any) takes one arg: boolean representing toggle state (#t = on)
     (let (;(sep (gtk_separator_new GTK_ORIENTATION_HORIZONTAL))
 	  (rc (gtk_box_new GTK_ORIENTATION_HORIZONTAL 0)))
-      (gtk_box_pack_start (GTK_BOX mainform) rc #f #f 4)
-					;(gtk_box_pack_start (GTK_BOX rc) sep #t #t 4)
-					;(gtk_widget_show sep)
+      (gtk_box_pack_start (GTK_BOX mainform) rc)
       (gtk_widget_show rc)
       
       (let ((group #f))
@@ -101,7 +102,7 @@
 	 (lambda (name type on)
 	   (let ((button (gtk_radio_button_new_with_label group name)))
 	     (set! group (gtk_radio_button_get_group (GTK_RADIO_BUTTON button)))
-	     (gtk_box_pack_start (GTK_BOX rc) button #f #f 4)
+	     (gtk_box_pack_start (GTK_BOX rc) button)
 	     (gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON button) on)
 	     (gtk_widget_show button)
 	     (g_signal_connect button "clicked" (lambda (w d) (target-callback type)) #f)))
@@ -112,9 +113,9 @@
       (when truncate-callback
 	(let ((button (gtk_check_button_new_with_label "truncate at end")))
 	  (let ((sep (gtk_separator_new GTK_ORIENTATION_HORIZONTAL)))
-	    (gtk_box_pack_start (GTK_BOX rc) sep #t #t 4)
+	    (gtk_box_pack_start (GTK_BOX rc) sep)
 	    (gtk_widget_show sep))
-	  (gtk_box_pack_start (GTK_BOX rc) button #t #t 4)
+	  (gtk_box_pack_start (GTK_BOX rc) button)
 	  (gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON button) #t)
 	  (gtk_widget_show button)
 	  (g_signal_connect button "clicked" (lambda (w d) (truncate-callback (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON w)))) #f)))))
@@ -145,7 +146,8 @@
   
   (define effects-list ()) ; menu labels are updated to show current settings
   
-  (define effects-menu (add-to-main-menu "Effects" (lambda () (update-label effects-list))))
+  (define effects-menu (add-to-main-menu "Effects" (lambda () (update-label effects-list)))) ; an int
+  (format *stderr* "effects: ~A, ~A, ~A~%" effects-menu (main-menu effects-menu) (GTK_IS_MENU_ITEM (main-menu effects-menu)))
   
   (define* (effects-squelch-channel amp gate-size snd chn no-silence)
     (let ((squelcher (let ((f0 (make-moving-average gate-size))
@@ -244,7 +246,7 @@
 			#f)
       
       (set! amp-menu-list (cons (lambda ()
-				  (change-label child (format #f "Gain (~1,2F)"  gain-amount)))
+				  (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Gain (~1,2F)"  gain-amount)))
 				amp-menu-list)))
   
     ;; -------- Normalize
@@ -304,7 +306,7 @@
 			    (activate-dialog normalize-dialog))
 			  #f)
 	(set! amp-menu-list (cons (lambda ()
-				    (change-label child (format #f "Normalize (~1,2F)"  normalize-amount)))
+				    (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Normalize (~1,2F)"  normalize-amount)))
 				  amp-menu-list))))
     
     ;; -------- Gate (gate set by gate-amount)
@@ -354,14 +356,14 @@
 							       1000))))
 				;; now add a toggle button setting omit-silence 
 				(let ((toggle (gtk_check_button_new_with_label "Omit silence")))
-				  (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG gate-dialog))) toggle #f #f 4)
+				  (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG gate-dialog))) toggle)
 				  (gtk_widget_show toggle)
 				  (gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON toggle) omit-silence)
 				  (g_signal_connect toggle "clicked" (lambda (w d) (set! omit-silence (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON toggle)))) #f))))
 			    (activate-dialog gate-dialog))
 			  #f)
 	(set! amp-menu-list (cons (lambda ()
-				    (change-label child (format #f "Gate (~1,3F)"  gate-amount)))
+				    (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Gate (~1,3F)"  gate-amount)))
 				  amp-menu-list)))))
   
 ;;; DELAY EFFECTS
@@ -446,7 +448,7 @@
 			    (activate-dialog echo-dialog))
 			  #f)
 	(set! delay-menu-list (cons (lambda ()
-				      (change-label child (format #f "Echo (~1,2F ~1,2F)" delay-time echo-amount)))
+				      (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Echo (~1,2F ~1,2F)" delay-time echo-amount)))
 				    delay-menu-list))))
     
     ;; -------- Filtered echo
@@ -524,7 +526,7 @@
 			    (activate-dialog flecho-dialog))
 			  #f)
 	(set! delay-menu-list (cons (lambda ()
-				      (change-label child (format #f "Filtered echo (~1,2F ~1,2F)" flecho-scaler flecho-delay)))
+				      (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Filtered echo (~1,2F ~1,2F)" flecho-scaler flecho-delay)))
 				    delay-menu-list))))
     
     ;; -------- Modulated echo
@@ -623,7 +625,7 @@ the modulation frequency, and the echo amplitude."))
 			#f)
       
       (set! delay-menu-list (cons (lambda ()
-				    (change-label child (format #f "Modulated echo (~1,2F ~1,2F ~1,2F ~1,2F)" 
+				    (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Modulated echo (~1,2F ~1,2F ~1,2F ~1,2F)" 
 								zecho-scaler zecho-delay zecho-freq zecho-amp)))
 				  delay-menu-list)))
     )
@@ -717,7 +719,7 @@ the modulation frequency, and the echo amplitude."))
 			    (activate-dialog band-pass-dialog))
 			  #f)
 	(set! filter-menu-list (cons (lambda ()
-				       (change-label child (format #f "Band-pass filter (~,2F ~D)" band-pass-freq band-pass-bw)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Band-pass filter (~,2F ~D)" band-pass-freq band-pass-bw)))
 				     filter-menu-list))))
     
     ;; -------- Butterworth band-reject (notch) filter
@@ -782,7 +784,7 @@ the modulation frequency, and the echo amplitude."))
 			    (activate-dialog notch-dialog))
 			  #f)
 	(set! filter-menu-list (cons (lambda ()
-				       (change-label child (format #f "Band-reject filter (~,2F ~D)" notch-freq notch-bw)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Band-reject filter (~,2F ~D)" notch-freq notch-bw)))
 				     filter-menu-list))))
     
     ;; -------- Butterworth high-pass filter
@@ -840,7 +842,7 @@ the modulation frequency, and the echo amplitude."))
 			    (activate-dialog high-pass-dialog))
 			  #f)
 	(set! filter-menu-list (cons (lambda ()
-				       (change-label child (format #f "High-pass filter (~,2F)" high-pass-freq)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "High-pass filter (~,2F)" high-pass-freq)))
 				     filter-menu-list))))
     
     ;; -------- Butterworth low-pass filter
@@ -898,7 +900,7 @@ the modulation frequency, and the echo amplitude."))
 			    (activate-dialog low-pass-dialog))
 			  #f)
 	(set! filter-menu-list (cons (lambda ()
-				       (change-label child (format #f "Low-pass filter (~,2F)" low-pass-freq)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Low-pass filter (~,2F)" low-pass-freq)))
 				     filter-menu-list))))
     
     ;; -------- Comb filter
@@ -961,7 +963,7 @@ the modulation frequency, and the echo amplitude."))
 			    (activate-dialog comb-dialog))
 			  #f)
 	(set! filter-menu-list (cons (lambda ()
-				       (change-label child (format #f "Comb filter (~1,2F ~D)" comb-scaler comb-size)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Comb filter (~1,2F ~D)" comb-scaler comb-size)))
 				     filter-menu-list))))
     
     ;; -------- Comb-chord filter
@@ -1062,7 +1064,7 @@ Move the sliders to set the comb chord parameters."))
 			  (activate-dialog new-comb-chord-dialog))
 			#f)
       (set! filter-menu-list (cons (lambda ()
-				     (change-label child (format #f "Comb chord filter (~1,2F ~D ~1,2F ~1,2F ~1,2F)"  
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Comb chord filter (~1,2F ~D ~1,2F ~1,2F ~1,2F)"  
 								 new-comb-chord-scaler new-comb-chord-size new-comb-chord-amp 
 								 new-comb-chord-interval-one new-comb-chord-interval-two)))
 				   filter-menu-list)))
@@ -1133,7 +1135,7 @@ Move the sliders to set the filter cutoff frequency and resonance."))
 			  (activate-dialog moog-dialog))
 			#f)
       (set! filter-menu-list (cons (lambda ()
-				     (change-label child (format #f "Moog filter (~,2F ~1,2F)" moog-cutoff-frequency moog-resonance)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Moog filter (~,2F ~1,2F)" moog-cutoff-frequency moog-resonance)))
 				   filter-menu-list)))
     )
   
@@ -1201,7 +1203,7 @@ Values greater than 1.0 speed up file play, negative values reverse it."))
 			    (activate-dialog src-dialog))
 			  #f)
 	(set! freq-menu-list (cons (lambda ()
-				     (change-label child (format #f "Sample rate scaling (~1,2F)" src-amount)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Sample rate scaling (~1,2F)" src-amount)))
 				   freq-menu-list))))
     
     ;; -------- Time and pitch scaling by granular synthesis and sampling rate conversion
@@ -1298,7 +1300,7 @@ Values greater than 1.0 speed up file play, negative values reverse it."))
 			    (activate-dialog expsrc-dialog))
 			  #f)
 	(set! freq-menu-list (cons (lambda ()
-				     (change-label child (format #f "Time/pitch scaling (~1,2F ~1,2F)" time-scale pitch-scale)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Time/pitch scaling (~1,2F ~1,2F)" time-scale pitch-scale)))
 				   freq-menu-list))))
     
 ;;; -------- Time-varying sample rate conversion (resample)
@@ -1371,7 +1373,7 @@ Values greater than 1.0 speed up file play, negative values reverse it."))
 			  (activate-dialog src-timevar-dialog))
 			#f)
       (set! freq-menu-list (cons (lambda ()
-				   (change-label child "Src-Timevar"))
+				   (gtk_menu_item_set_label (GTK_MENU_ITEM child) "Src-Timevar"))
 				 freq-menu-list)))
     )
   
@@ -1460,7 +1462,7 @@ Values greater than 1.0 speed up file play, negative values reverse it."))
 			  (activate-dialog am-effect-dialog))
 			#f)
       (set! mod-menu-list (cons (lambda ()
-				  (change-label child (format #f "Amplitude modulation (~1,2F)"  am-effect-amount)))
+				  (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Amplitude modulation (~1,2F)"  am-effect-amount)))
 				mod-menu-list)))
     
     ;; -------- Ring modulation
@@ -1547,7 +1549,7 @@ Values greater than 1.0 speed up file play, negative values reverse it."))
 			  (activate-dialog rm-dialog))
 			#f)
       (set! mod-menu-list (cons (lambda ()
-				  (change-label child (format #f "Ring modulation (~D ~D)" rm-frequency rm-radians)))
+				  (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Ring modulation (~D ~D)" rm-frequency rm-radians)))
 				mod-menu-list)))
     )
   
@@ -1669,7 +1671,7 @@ Adds reverberation scaled by reverb amount, lowpass filtering, and feedback. Mov
 			    (activate-dialog reverb-dialog))
 			  #f)
 	(set! reverb-menu-list (cons (lambda ()
-				       (change-label child (format #f "McNabb reverb (~1,2F ~1,2F ~1,2F)" reverb-amount reverb-filter reverb-feedback)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "McNabb reverb (~1,2F ~1,2F ~1,2F)" reverb-amount reverb-filter reverb-feedback)))
 				     reverb-menu-list))))
     
     ;; -------- Chowning reverb
@@ -1733,7 +1735,7 @@ Adds reverberation scaled by reverb amount, lowpass filtering, and feedback. Mov
 			    (activate-dialog jc-reverb-dialog))
 			  #f)
 	(set! reverb-menu-list (cons (lambda ()
-				       (change-label child (format #f "Chowning reverb (~1,2F ~1,2F)" jc-reverb-decay jc-reverb-volume)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Chowning reverb (~1,2F ~1,2F)" jc-reverb-decay jc-reverb-volume)))
 				     reverb-menu-list))))
     
     ;; -------- Convolution
@@ -1793,7 +1795,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 			    (activate-dialog convolve-dialog))
 			  #f)
 	(set! reverb-menu-list (cons (lambda ()
-				       (change-label child (format #f "Convolution (~D ~D ~1,2F)" convolve-sound-one convolve-sound-two convolve-amp)))
+				       (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Convolution (~D ~D ~1,2F)" convolve-sound-one convolve-sound-two convolve-amp)))
 				     reverb-menu-list)))))
     
     
@@ -1970,7 +1972,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 			  (activate-dialog place-sound-dialog))
 			#f)
       (set! misc-menu-list (cons (lambda ()
-				   (change-label child (format #f "Place sound (~D ~D ~D)" mono-snd stereo-snd pan-pos)))
+				   (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Place sound (~D ~D ~D)" mono-snd stereo-snd pan-pos)))
 				 misc-menu-list)))
     
     ;; -------- Insert silence (at cursor, silence-amount in secs)
@@ -2010,7 +2012,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 			    (activate-dialog silence-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Add silence (~1,2F)" silence-amount)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Add silence (~1,2F)" silence-amount)))
 				   misc-menu-list))))
     
 ;;; -------- Contrast (brightness control)
@@ -2072,7 +2074,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 			    (activate-dialog contrast-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Contrast enhancement (~1,2F)" contrast-amount)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Contrast enhancement (~1,2F)" contrast-amount)))
 				   misc-menu-list))))
     
     ;; -------- Cross synthesis
@@ -2148,7 +2150,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog cross-synth-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Cross synthesis (~D ~1,2F ~D ~1,2F)" 
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Cross synthesis (~D ~1,2F ~D ~1,2F)" 
 								 cross-synth-sound cross-synth-amp cross-synth-fft-size cross-synth-radius)))
 				   misc-menu-list))))
       
@@ -2228,7 +2230,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog flange-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Flange (~1,2F ~1,2F ~1,3F)" flange-speed flange-amount flange-time)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Flange (~1,2F ~1,2F ~1,3F)" flange-speed flange-amount flange-time)))
 				   misc-menu-list))))
     
     ;; -------- Randomize phase
@@ -2268,7 +2270,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog random-phase-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Randomize phase (~1,2F)"  random-phase-amp-scaler)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Randomize phase (~1,2F)"  random-phase-amp-scaler)))
 				   misc-menu-list))))
     
     ;; -------- Robotize
@@ -2338,7 +2340,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog robotize-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Robotize (~1,2F ~1,2F ~1,2F)" samp-rate osc-amp osc-freq)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Robotize (~1,2F ~1,2F ~1,2F)" samp-rate osc-amp osc-freq)))
 				   misc-menu-list))))
     
     ;; -------- Rubber sound
@@ -2387,7 +2389,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog rubber-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Rubber sound (~1,2F)"  rubber-factor)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Rubber sound (~1,2F)"  rubber-factor)))
 				   misc-menu-list))))
       
     ;; -------- Wobble
@@ -2449,7 +2451,7 @@ the synthesis amplitude, the FFT size, and the radius value."))
 			    (activate-dialog wobble-dialog))
 			  #f)
 	(set! misc-menu-list (cons (lambda ()
-				     (change-label child (format #f "Wobble (~1,2F ~1,2F)" wobble-frequency wobble-amplitude)))
+				     (gtk_menu_item_set_label (GTK_MENU_ITEM child) (format #f "Wobble (~1,2F ~1,2F)" wobble-frequency wobble-amplitude)))
 				   misc-menu-list))))
     )
   

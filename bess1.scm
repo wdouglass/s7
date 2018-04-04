@@ -20,45 +20,26 @@
 ;; tests.
 ;;
 ;; (rt-motif :srate       *clm-srate*        ;; 22050
-;;           :bufsize     *clm-rt-bufsize*   ;; 128
 ;;           :sample-type *clm-sample-type*) ;; mus-lshort
 
 ;;; Code:
 
-(with-let *motif*
-
 ;(set! *clm-srate* 22050)
 
 (define *clm-sample-type* mus-lfloat)
-(define *clm-rt-bufsize* 1024)
-(define *output* #f)			;holds fd from (mus-audio-open-output)
 
-(define ctempo 0.25)
+(define ctempo 1.0)
 (define camp 1.0)
 (define cfreq 1.0)
 (define cindex 1.0)
-(define cplay #f)
+(define cplay #t)
+(define silence (lambda () 0.0))
   
 (define sliderback "lightsteelblue")
 (define background "lightsteelblue1")
 
-;(define (seconds->samples secs) (round (* secs *clm-srate*)))
-
-;; called by XtAppAddWorkProc
-(define (rt-send->dac func)
-  (if cplay
-      (let ((data (make-float-vector *clm-rt-bufsize*)))
-	(do ((i 0 (+ i 1)))
-	    ((= i *clm-rt-bufsize*))
-	  (set! (data i) (func)))
-	(mus-audio-write *output* (copy data (make-float-vector (list 1 *clm-rt-bufsize*))) *clm-rt-bufsize*)
-	#f)
-      (begin
-	(mus-audio-close *output*)
-	#t)))
-
 (define make-rt-violin 
-  (let ((+documentation+ "(make-rt-violin dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 100 0))) real time simple violin (see fm.html)"))
+  (let ((+documentation+ "(make-rt-violin dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 90 0 100 0))) real time simple violin (see fm.html)"))
     (lambda* (dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 100 0)))
       (let* ((frq-scl (hz->radians freq))
 	     (maxdev (* frq-scl fm-index)))
@@ -90,9 +71,7 @@
 (define lim 256)
 
 ;; from clm-2/rt.lisp
-(define* (make-float-vector-test (srate *clm-srate*)
-			(bufsize *clm-rt-bufsize*)
-			(sample-type *clm-sample-type*))
+(define* (make-test (srate *clm-srate*))
   (let ((vpits (make-vector (+ 1 lim) 0))
 	(vbegs (make-vector (+ 1 lim) 0)))
     (do ((i 0 (+ 1 i)))
@@ -100,8 +79,6 @@
       (set! (vpits i) (random 12))
       (set! (vbegs i) (+ 1 (random 3))))
     (set! *clm-srate* srate)
-    (set! *clm-rt-bufsize* bufsize)
-    (set! *output* (mus-audio-open-output mus-audio-default srate 1 sample-type (* bufsize 2)))
 
     (let ((cellbeg 0)
 	  (cellsiz 6)
@@ -111,10 +88,10 @@
 	  (dur 0.0)
 	  (vmode (vector 0 12 2 4 14 4 5 5 0 7 7 11 11)))
       (lambda ()
-	(if (> len 1)
+	(if (> len 0)
 	    (set! len (- len 1))
 	    (begin
-	      (set! dur (* ctempo (vbegs (+ cellctr 1))))
+	      (set! dur (/ (vbegs (+ cellctr 1)) ctempo))
 	      (set! cellctr (+ cellctr 1))
 	      (if (> cellctr (+ cellsiz cellbeg))
 		  (begin
@@ -122,22 +99,15 @@
 		    (if (> (random 1.0) 0.5) (set! cellsiz (+ 1 cellsiz)))
 		    (set! cellctr cellbeg)))
 	      
-	      (let ((freq (* cfreq 16.351 16
-			     (expt 2 (/ (vmode (vpits cellctr)) 12.0)))))
-		(format () "dur: ~A, freq: ~A, amp: ~A, index: ~A~%"
-			dur
-			(if (< (* 8 freq) *clm-srate*)
-			    freq
-			    (/ freq 4))
-			(* camp 0.3) 
-			cindex)
-		(set! func (make-rt-violin dur
-					   (if (< (* 8 freq) *clm-srate*)
-					       freq
-					       (/ freq 4))
-					   (* camp 0.3) :fm-index cindex)))
-	      (set! len (ceiling (/ (seconds->samples dur) bufsize)))))
-	func))))
+	      (if cplay
+		  (let ((freq (* cfreq 16.351 16
+				 (expt 2 (/ (vmode (vpits cellctr)) 12.0)))))
+		    (format () "dur: ~A, freq: ~,3F, amp: ~A, index: ~A~%" dur freq camp cindex)
+		    (set! func (make-rt-violin dur freq camp :fm-index cindex)))
+		  (set! func silence))
+	      (set! len (seconds->samples dur))))
+	(func)))))
+
 
 ;; from clm-2/bess5.cl and clm-2/clm-example.lisp
 (define time 60)
@@ -159,9 +129,7 @@
 (define (rbell x)
   (envelope-interp (* x 100) bell))
 
-(define* (make-agn (srate *clm-srate*)
-		   (bufsize *clm-rt-bufsize*)
-		   (sample-type *clm-sample-type*))
+(define* (make-agn (srate *clm-srate*))
   (do ((i 0 (+ i 1)))
       ((= i lim))
     (set! (octs i) (floor (+ 4 (* 2 (rbell (random 1.0))))))
@@ -172,18 +140,17 @@
 		       (random 24)))
     (set! (amps i) (floor (+ 1 (* 8 (rbell (random 1.0)))))))
   (set! *clm-srate* srate)
-  (set! *clm-rt-bufsize* bufsize)
-  (set! *output* (mus-audio-open-output mus-audio-default srate 1 sample-type (* bufsize 2)))
-  (let ((wins (vector '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 1 100 0)
+
+  (let ((wins (vector '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
 		      '(0 0 60 0.1 80 0.2 90 0.4 95 1 100 0)
-		      '(0 0 10 1 16 0 32 0.1 50 1 56 0 60 0 90 0.3 100 0)
-		      '(0 0 30 1 56 0 60 0 90 0.3 100 0)
-		      '(0 0 50 1 80 0.3 100 0)
-		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 1 100 0)
-		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 1 100 0)
-		      '(0 0 10 1 32 0.1 50 1 90 0.3 100 0)
-		      '(0 0 60 0.1 80 0.3 95 1 100 0)
-		      '(0 0 80 0.1 90 1 100 0)))
+		      '(0 0 10 1 16 0 32 0.1 50 1 56 0 60 0 80 0.3 90 0 100 0)
+		      '(0 0 30 1 56 0 60 0 80 0.3 90 0 100 0)
+		      '(0 0 50 1 80 0.3 90 0 100 0)
+		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
+		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
+		      '(0 0 10 1 32 0.1 50 1 80 0.3 90 0 100 0)
+		      '(0 0 60 0.1 80 0.3 95 0 100 0)
+		      '(0 0 80 0.1 90 0 100 0)))
 	(nextbeg 0.0)
 	(beg 0.0)
 	(dur 0.0)
@@ -197,12 +164,12 @@
 	(func #f)
 	(len 0))
     (lambda ()
-      (if (> len 1)
+      (if (> len 0)
 	  (set! len (- len 1))
 	  (begin
 	    (set! beg (+ beg nextbeg))
-	    (set! nextbeg (+ nextbeg (max 0.025 (* ctempo (+ 0.95 (random 0.1)) (begs cellctr)))))
-	    (set! dur (max 0.025 (* ctempo (+ 0.85 (random 0.1)) (rhys cellctr))))
+	    (set! nextbeg (+ nextbeg (max 0.025 (/ (* (+ 0.95 (random 0.1)) (begs cellctr)) ctempo))))
+	    (set! dur (max 0.025 (/ (* (+ 0.85 (random 0.1)) (rhys cellctr)) ctempo)))
 	    (set! freq (* cfreq 16.351 (tune (pits cellctr)) (expt 2 (octs cellctr))))
 	    (set! ampl (* camp 10 (max 0.003 (* (amps cellctr) 0.01))))
 	    (set! ind (* cindex (random 3.0)))
@@ -221,155 +188,73 @@
 			 (set! whichway 1)))
 		  (set! nextbeg (+ nextbeg (random 1.0)))
 		  (set! cellctr cellbeg)))
-	    (set! func (make-rt-violin dur freq ampl
-				       :fm-index ind
-				       :amp-env (wins (floor (* 10 (- beg (floor beg)))))))
-	    (set! len (ceiling (/ (seconds->samples dur) bufsize)))))
-      func)))
+	    (if cplay
+		(set! func (make-rt-violin dur freq ampl
+					   :fm-index ind
+					   :amp-env (wins (random 10))))
+		(set! func silence))
+	    (set! len (seconds->samples dur))))
+      (func))))
 
-#|
-;; from env.scm
-(define* (envelope-interp :rest args)
-  (let ((x (car args))
-	(env (cadr args))
-	(base (if (null? (cddr args)) #f (caddr args))))
-    (cond ((null? env) 0.0)
-	  ((or (<= x (car env))
-	       (null? (cddr env)))
-	   (cadr env))
-	  ((> (caddr env) x)
-	   (if (or (= (cadr env) (cadddr env))
-		   (and base (= base 0.0)))
-	       (cadr env)
-	       (if (or (not base) (= base 1.0))
-		   (+ (cadr env)
-		      (* (- x (car env))
-			 (/ (- (cadddr env) (cadr env))
-			    (- (caddr env) (car env)))))
-		   (+ (cadr env)
-		      (* (/ (- (cadddr env) (cadr env))
-			    (- base 1.0))
-			 (- (expt base (/ (- x (car env))
-					  (- (caddr env) (car env))))
-			    1.0))))))
-	  (else (envelope-interp x (cddr env))))))
-|#
-
-(define* (rt-motif :rest args)
-  (let* ((shell-app (XtVaOpenApplication 
-		     "FM" 0 () applicationShellWidgetClass
-		     (list XmNallowShellResize #t)))
-	 (app (cadr shell-app))
-	 (shell (car shell-app))
-	 (dpy (XtDisplay shell))
-	 (black (BlackPixelOfScreen (DefaultScreenOfDisplay dpy))))
-
-    (define (get-color color)
-      (let ((col (XColor))
-	    (cmap (DefaultColormap dpy (DefaultScreen dpy))))
-	(if (= (XAllocNamedColor dpy cmap color col col) 0)
-	    (error 'no-memory "can't allocate ~A" color)
-	    (.pixel col))))
-
-    (XtSetValues shell (list XmNtitle "FM Forever!"))
-    (let* ((light-blue (get-color sliderback))
+(when (provided? 'snd-motif)
+  (with-let (sublet *motif*)
+    
+    ;; set up our user-interface
+    (let* ((shell (let* ((xdismiss (XmStringCreate "Go away" XmFONTLIST_DEFAULT_TAG))
+			 (xhelp (XmStringCreate "Help" XmFONTLIST_DEFAULT_TAG))
+			 (titlestr (XmStringCreate "FM Forever!" XmFONTLIST_DEFAULT_TAG))
+			 (dialog (XmCreateTemplateDialog (cadr (main-widgets)) "FM Forever!"
+							 (list XmNcancelLabelString   xdismiss
+							       XmNhelpLabelString     xhelp
+							       XmNautoUnmanage        #f
+							       XmNdialogTitle         titlestr
+							       XmNwidth               600
+							       XmNresizePolicy        XmRESIZE_GROW
+							       XmNnoResize            #f
+							       XmNtransient           #f))))
+		    (XtAddCallback dialog 
+				   XmNhelpCallback (lambda (w context info)
+						     (snd-print "This dialog lets you experiment with simple FM")))
+		    (XmStringFree xhelp)
+		    (XmStringFree xdismiss)
+		    (XmStringFree titlestr)
+		    dialog))
+	   
+	   (dpy (XtDisplay shell))
+	   (screen (DefaultScreenOfDisplay dpy))
+	   (black (BlackPixelOfScreen screen))
+	   (white (WhitePixelOfScreen screen))
+	   
 	   (form (XtCreateManagedWidget "form" xmFormWidgetClass shell 
-					(list XmNbackground (get-color background)
+					(list XmNbackground white
 					      XmNforeground black
 					      XmNresizePolicy XmRESIZE_GROW)))
-	   ;; play
+	   ;; toggle named "play"
 	   (play-button (XtCreateManagedWidget "play" xmToggleButtonWidgetClass form
 					       (list XmNleftAttachment   XmATTACH_FORM
 						     XmNbottomAttachment XmATTACH_NONE
 						     XmNtopAttachment    XmATTACH_FORM
 						     XmNrightAttachment  XmATTACH_NONE
-						     XmNbackground       (get-color background))))
-	   ;; radio
-	   (radio (XmCreateRadioBox form "radio"
-				    (list XmNorientation XmHORIZONTAL
-					  XmNleftAttachment   XmATTACH_WIDGET
-					  XmNleftWidget       play-button
-					  XmNbottomAttachment XmATTACH_NONE
-					  XmNtopAttachment    XmATTACH_FORM
-					  XmNrightAttachment  XmATTACH_NONE
-					  XmNbackground       (get-color background))))
-	   ;; play agn
-	   (agn-button (XtCreateManagedWidget "agn" xmToggleButtonWidgetClass radio
-					      (list XmNleftAttachment   XmATTACH_FORM
-						    XmNbottomAttachment XmATTACH_NONE
-						    XmNtopAttachment    XmATTACH_FORM
-						    XmNrightAttachment  XmATTACH_NONE
-						    XmNbackground       (get-color background))))
-	   ;; play test
-	   (test-button (XtCreateManagedWidget "test" xmToggleButtonWidgetClass radio
-					       (list XmNleftAttachment   XmATTACH_WIDGET
-						     XmNleftWidget       agn-button
-						     XmNbottomAttachment XmATTACH_NONE
-						     XmNtopAttachment    XmATTACH_FORM
-						     XmNrightAttachment  XmATTACH_NONE
-						     XmNbackground       (get-color background))))
-	   ;; quit
-	   (quit-button (XtCreateManagedWidget " quit " xmPushButtonWidgetClass form
-					       (list XmNleftAttachment   XmATTACH_WIDGET
-						     XmNleftWidget       radio
-						     XmNbottomAttachment XmATTACH_NONE
-						     XmNtopAttachment    XmATTACH_FORM
-						     XmNrightAttachment  XmATTACH_FORM
-						     XmNbackground       (get-color background))))
-           (tempo (let ((sep (XtCreateManagedWidget "sep" xmSeparatorWidgetClass form
-						    (list XmNleftAttachment XmATTACH_FORM 
-							  XmNbottomAttachment XmATTACH_NONE
-							  XmNtopAttachment XmATTACH_WIDGET 
-							  XmNtopWidget radio 
-							  XmNrightAttachment XmATTACH_FORM 
-							  XmNheight 4 
-							  XmNorientation XmHORIZONTAL))))
-                    (XtCreateManagedWidget " tempo:" xmLabelWidgetClass form
-					   (list XmNleftAttachment XmATTACH_FORM 
-						 XmNbottomAttachment XmATTACH_NONE 
-						 XmNtopAttachment XmATTACH_WIDGET 
-						 XmNtopWidget sep 
-						 XmNrightAttachment XmATTACH_NONE 
-						 XmNrecomputeSize #f
-						 XmNbackground (get-color background)))))
-
-	   (tempo-label (XtCreateManagedWidget "label" xmLabelWidgetClass form
-					       (list XmNleftAttachment   XmATTACH_WIDGET
-						     XmNleftWidget       tempo
-						     XmNbottomAttachment XmATTACH_NONE
-						     XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						     XmNtopWidget        tempo
-						     XmNrightAttachment  XmATTACH_NONE
-						     XmNbackground       (get-color background))))
-	   (tempo-scale (XtCreateManagedWidget "tempo" xmScaleWidgetClass form
-					       (list XmNleftAttachment   XmATTACH_WIDGET
-						     XmNleftWidget       tempo-label
-						     XmNbottomAttachment XmATTACH_NONE
-						     XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						     XmNtopWidget        tempo-label
-						     XmNrightAttachment  XmATTACH_FORM
-						     XmNshowValue        #f
-						     XmNorientation      XmHORIZONTAL
-						     XmNheight           20
-						     XmNbackground       light-blue)))
-	   ;; freq
-	   (freq (XtCreateManagedWidget "  freq:" xmLabelWidgetClass form
-					(list XmNleftAttachment   XmATTACH_FORM
-					      XmNbottomAttachment XmATTACH_NONE
-					      XmNtopAttachment    XmATTACH_WIDGET
-					      XmNtopWidget        tempo
-					      XmNrightAttachment  XmATTACH_NONE
-					      XmNrecomputeSize    #f
-					      XmNbackground       (get-color background))))
+                                                     XmNset              #t
+						     XmNbackground       white)))
+	   ;; carrier freq
+	   (carrier (XtCreateManagedWidget "carrier freq:" xmLabelWidgetClass form
+					   (list XmNleftAttachment   XmATTACH_FORM
+						 XmNbottomAttachment XmATTACH_NONE
+						 XmNtopAttachment    XmATTACH_WIDGET
+						 XmNtopWidget        play-button
+						 XmNrightAttachment  XmATTACH_NONE
+						 XmNrecomputeSize    #f
+						 XmNbackground       white)))
 	   (freq-label (XtCreateManagedWidget "label" xmLabelWidgetClass form
 					      (list XmNleftAttachment   XmATTACH_WIDGET
-						    XmNleftWidget       freq
+						    XmNleftWidget       carrier
 						    XmNbottomAttachment XmATTACH_NONE
 						    XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						    XmNtopWidget        freq
+						    XmNtopWidget        carrier
 						    XmNrightAttachment  XmATTACH_NONE
-						    XmNbackground       (get-color background))))
-	   (freq-scale (XtCreateManagedWidget "freq" xmScaleWidgetClass form
+						    XmNbackground       white)))
+	   (freq-scale (XtCreateManagedWidget "carrier freq" xmScaleWidgetClass form
 					      (list XmNleftAttachment   XmATTACH_WIDGET
 						    XmNleftWidget       freq-label
 						    XmNbottomAttachment XmATTACH_NONE
@@ -378,25 +263,24 @@
 						    XmNrightAttachment  XmATTACH_FORM
 						    XmNshowValue        #f
 						    XmNorientation      XmHORIZONTAL
-						    XmNheight           20
-						    XmNbackground       light-blue)))
+						    XmNbackground       *position-color*)))
 	   ;; amp
-	   (amp (XtCreateManagedWidget "   amp:" xmLabelWidgetClass form
-				       (list XmNleftAttachment   XmATTACH_FORM
-					     XmNbottomAttachment XmATTACH_NONE
-					     XmNtopAttachment    XmATTACH_WIDGET
-					     XmNtopWidget        freq
-					     XmNrightAttachment  XmATTACH_NONE
-					     XmNrecomputeSize    #f
-					     XmNbackground       (get-color background))))
 	   (amp-label (XtCreateManagedWidget "label" xmLabelWidgetClass form
-					     (list XmNleftAttachment   XmATTACH_WIDGET
-						   XmNleftWidget       amp
-						   XmNbottomAttachment XmATTACH_NONE
-						   XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						   XmNtopWidget        amp
-						   XmNrightAttachment  XmATTACH_NONE
-						   XmNbackground       (get-color background))))
+					     (let ((amp (XtCreateManagedWidget "amp:" xmLabelWidgetClass form
+									       (list XmNleftAttachment   XmATTACH_FORM
+										     XmNbottomAttachment XmATTACH_NONE
+										     XmNtopAttachment    XmATTACH_WIDGET
+										     XmNtopWidget        carrier
+										     XmNrightAttachment  XmATTACH_NONE
+										     XmNrecomputeSize    #f
+										     XmNbackground       white))))
+					       (list XmNleftAttachment   XmATTACH_WIDGET
+						     XmNleftWidget       amp
+						     XmNbottomAttachment XmATTACH_NONE
+						     XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
+						     XmNtopWidget        amp
+						     XmNrightAttachment  XmATTACH_NONE
+						     XmNbackground       white))))
 	   (amp-scale (XtCreateManagedWidget "amp" xmScaleWidgetClass form
 					     (list XmNleftAttachment   XmATTACH_WIDGET
 						   XmNleftWidget       amp-label
@@ -406,129 +290,127 @@
 						   XmNrightAttachment  XmATTACH_FORM
 						   XmNshowValue        #f
 						   XmNorientation      XmHORIZONTAL
-						   XmNheight           20
-						   XmNbackground       light-blue)))
-	   (index-label (let ((index (XtCreateManagedWidget " index:" xmLabelWidgetClass form
-							    (list XmNleftAttachment   XmATTACH_FORM
-								  XmNbottomAttachment XmATTACH_NONE
-								  XmNtopAttachment    XmATTACH_WIDGET
-								  XmNtopWidget        amp
-								  XmNrightAttachment  XmATTACH_NONE
-								  XmNrecomputeSize    #f
-								  XmNbackground       (get-color background)))))
-			  (XtCreateManagedWidget "label" xmLabelWidgetClass form
-						 (list XmNleftAttachment   XmATTACH_WIDGET
-						       XmNleftWidget       index
-						       XmNbottomAttachment XmATTACH_NONE
-						       XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						       XmNtopWidget        index
-						       XmNrightAttachment  XmATTACH_NONE
-						       XmNbackground       (get-color background)))))
-	   (index-scale (XtCreateManagedWidget "index" xmScaleWidgetClass form
-					       (list XmNleftAttachment   XmATTACH_WIDGET
-						     XmNleftWidget       index-label
-						     XmNbottomAttachment XmATTACH_NONE
-						     XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
-						     XmNtopWidget        index-label
-						     XmNrightAttachment  XmATTACH_FORM
-						     XmNshowValue        #f
-						     XmNorientation      XmHORIZONTAL
-						     XmNheight           20
-						     XmNbackground       light-blue))))
-      (let ((low-tempo 0.05)
-	    (high-tempo 0.5)
-	    (low-freq 0.1)
-	    (high-freq 4.0)
-	    (high-index 2.0)
-	    (which-play 0)
-	    (proc #f)
-	    (func #f)
-	    (set-flabel 
-	     (lambda (label value)
-	       (let ((s1 (XmStringCreate (format #f "~5,3F" value) XmFONTLIST_DEFAULT_TAG)))
-		 (XtVaSetValues label (list XmNlabelString s1))
-		 (XmStringFree s1)))))
-	
-	(define (tempo-callback w c i)
-	  (set! ctempo (+ low-tempo (* (.value i) (/ (- high-tempo low-tempo) 100.0))))
-	  (set-flabel tempo-label ctempo))
-	
-	(define (amp-callback w c i)
-	  (let ((high-amp 1.0))
-	    (set! camp (* (.value i) (/ high-amp 100.0))))
-	  (set-flabel amp-label camp))
-	
-	(define (freq-callback w c i)
-	  (set! cfreq (+ low-freq (* (.value i) (/ (- high-freq low-freq) 100.0))))
-	  (set-flabel freq-label cfreq))
-	
-	(define (index-callback w c i)
-	  (set! cindex (* (.value i) (/ high-index 100.0)))
-	  (set-flabel index-label cindex))
-	
-	(define (set-defaults)
-	  (set! ctempo 0.25)
-	  (set! camp 1.0)
-	  (set! cfreq 1.0)
-	  (set! cindex 1.0)
-	  (set-flabel tempo-label ctempo)
-	  (set-flabel amp-label camp)
-	  (set-flabel freq-label cfreq)
-	  (set-flabel index-label cindex)
-	  (XmScaleSetValue tempo-scale (floor (* 100 (/ (- ctempo low-tempo) (- high-tempo low-tempo)))))
-	  (XmScaleSetValue freq-scale (floor (* 100 (/ (- cfreq low-freq) (- high-freq low-freq)))))
-	  (XmScaleSetValue amp-scale (floor (* 100 camp)))
-	  (XmScaleSetValue index-scale (floor (* 100 (/ cindex high-index)))))
-	
-	(XtManageChild radio)
-	;; add scale-change (drag and value-changed) callbacks
-	(XtAddCallback tempo-scale XmNdragCallback tempo-callback)
-	(XtAddCallback tempo-scale XmNvalueChangedCallback tempo-callback)
-	
-	(XtAddCallback amp-scale XmNdragCallback amp-callback)
-	(XtAddCallback amp-scale XmNvalueChangedCallback amp-callback)
-	
-	(XtAddCallback freq-scale XmNdragCallback freq-callback)
-	(XtAddCallback freq-scale XmNvalueChangedCallback freq-callback)
-	
-	(XtAddCallback index-scale XmNdragCallback index-callback)
-	(XtAddCallback index-scale XmNvalueChangedCallback index-callback)
-	
-	(XtAddCallback agn-button XmNvalueChangedCallback
-		       (lambda (w c i)
-			 (if (.set i)
-			     (set! which-play 0))
-			 (set! cplay #f)
-			 (XmToggleButtonSetState play-button cplay #f)))
-	
-	(XmToggleButtonSetState agn-button #t #f)
-	(XtAddCallback test-button XmNvalueChangedCallback
-		       (lambda (w c i)
-			 (if (.set i)
-			     (set! which-play 1))
-			 (set! cplay #f)
-			 (XmToggleButtonSetState play-button cplay #f)))
-	
-	(XtAddCallback quit-button XmNactivateCallback
-		       (lambda (w c i)
-			 (set! cplay #f)
-			 (if proc (XtRemoveWorkProc proc))
-			 (exit 0)))
-	
-	(XtAddCallback play-button XmNvalueChangedCallback
-		       (lambda (w c i)
-			 (set! cplay (.set i))
-			 (if cplay
-			     (begin
-			       (set-defaults)
-			       (set! func (apply (if (= which-play 0) make-agn make-float-vector-test) (or args ())))
-			       (set! proc (XtAppAddWorkProc app (lambda (c) (rt-send->dac func)))))
-			     (if proc (XtRemoveWorkProc proc)))))
-	(XmToggleButtonSetState play-button cplay #f)
-	(set-defaults)
-	(XtRealizeWidget shell))
-      (XtAppMainLoop app))))
+						   XmNbackground       *position-color*)))
+	   ;; fm index
+	   (fm-label (XtCreateManagedWidget "label" xmLabelWidgetClass form
+					    (let ((fm-index (XtCreateManagedWidget "fm index:" xmLabelWidgetClass form
+										   (list XmNleftAttachment   XmATTACH_FORM
+											 XmNbottomAttachment XmATTACH_NONE
+											 XmNtopAttachment    XmATTACH_WIDGET
+											 XmNtopWidget        amp-scale
+											 XmNrightAttachment  XmATTACH_NONE
+											 XmNrecomputeSize    #f
+											 XmNbackground       white))))
+					      (list XmNleftAttachment   XmATTACH_WIDGET
+						    XmNleftWidget       fm-index
+						    XmNbottomAttachment XmATTACH_NONE
+						    XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
+						    XmNtopWidget        fm-index
+						    XmNrightAttachment  XmATTACH_NONE
+						    XmNbackground       white))))
+	   (fm-scale (XtCreateManagedWidget "fm index" xmScaleWidgetClass form
+					    (list XmNleftAttachment   XmATTACH_WIDGET
+						  XmNleftWidget       fm-label
+						  XmNbottomAttachment XmATTACH_NONE
+						  XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
+						  XmNtopWidget        fm-label
+						  XmNrightAttachment  XmATTACH_FORM
+						  XmNshowValue        #f
+						  XmNorientation      XmHORIZONTAL
+						  XmNbackground       *position-color*)))
+	   ;; tempo
+	   (tempo-label (XtCreateManagedWidget "label" xmLabelWidgetClass form
+					    (let ((cm-ratio (XtCreateManagedWidget "tempo:" xmLabelWidgetClass form
+										   (list XmNleftAttachment   XmATTACH_FORM
+											 XmNbottomAttachment XmATTACH_NONE
+											 XmNtopAttachment    XmATTACH_WIDGET
+											 XmNtopWidget        fm-scale
+											 XmNrightAttachment  XmATTACH_NONE
+											 XmNrecomputeSize    #f
+											 XmNbackground       white))))
+					      (list XmNleftAttachment   XmATTACH_WIDGET
+						    XmNleftWidget       cm-ratio
+						    XmNbottomAttachment XmATTACH_NONE
+						    XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
+						    XmNtopWidget        cm-ratio
+						    XmNrightAttachment  XmATTACH_NONE
+						    XmNbackground       white))))
+	   (tempo-scale (XtCreateManagedWidget "tempo" xmScaleWidgetClass form
+					    (list XmNleftAttachment   XmATTACH_WIDGET
+						  XmNleftWidget       tempo-label
+						  XmNbottomAttachment XmATTACH_NONE
+						  XmNtopAttachment    XmATTACH_OPPOSITE_WIDGET
+						  XmNtopWidget        tempo-label
+						  XmNrightAttachment  XmATTACH_FORM
+						  XmNshowValue        #f
+						  XmNorientation      XmHORIZONTAL
+						  XmNbackground       *position-color*)))
+	   (set-flabel 
+	    (lambda (label value)
+	      (let ((s1 (XmStringCreate (format #f "~,3F" value) XmFONTLIST_DEFAULT_TAG)))
+		(XtVaSetValues label (list XmNlabelString s1))
+		(XmStringFree s1))))
+	   
+	   (set-ilabel 
+	    (lambda (label value)
+	      (let ((s1 (XmStringCreate (format #f "~D" value) XmFONTLIST_DEFAULT_TAG)))
+		(XtVaSetValues label (list XmNlabelString s1))
+		(XmStringFree s1)))))
+      
+      (define (freq-callback w c i)
+	(set! cfreq (* .05 (.value i)))
+	(set-flabel freq-label cfreq))
+      
+      (define (amp-callback w c i)
+	(set! camp (* 0.01 (.value i)))
+	(set-flabel amp-label camp))
+      
+      (define (fm-callback w c i)
+	(set! cindex (* .05 (.value i)))
+	(set-flabel fm-label cindex))
+      
+      (define (tempo-callback w c i)
+	(set! ctempo (* .1 (.value i)))
+	(set-flabel tempo-label ctempo))
+      
+      
+      ;; --------------------------------
+      ;; go-away button
+      (XtAddCallback shell XmNcancelCallback (lambda (w c i) (stop-playing) (XtUnmanageChild w)))
+      
+      ;; add scale-change (drag and value-changed) callbacks
+      (XtAddCallback freq-scale XmNdragCallback freq-callback)
+      (XtAddCallback freq-scale XmNvalueChangedCallback freq-callback)
+      
+      (XtAddCallback amp-scale XmNdragCallback amp-callback)
+      (XtAddCallback amp-scale XmNvalueChangedCallback amp-callback)
+      
+      (XtAddCallback fm-scale XmNdragCallback fm-callback)
+      (XtAddCallback fm-scale XmNvalueChangedCallback fm-callback)
+      
+      (XtAddCallback tempo-scale XmNdragCallback tempo-callback)
+      (XtAddCallback tempo-scale XmNvalueChangedCallback tempo-callback)
+      
+      (XtAddCallback play-button XmNvalueChangedCallback (lambda (w c i) (set! cplay (.set i))))
+      (XmAddWMProtocolCallback (XtParent shell) (XmInternAtom (XtDisplay (cadr (main-widgets))) "WM_DELETE_WINDOW" #f) (lambda (w c i) (stop-playing)) #f)
+      
+      ;; set initial values
+      (set-flabel freq-label 1.0)
+      (set-flabel amp-label 0.1)
+      (set-flabel fm-label 1.0)
+      (set-flabel tempo-label 1.0)
+      
+      (XmScaleSetValue freq-scale 20)
+      (set! cfreq 1.0)
+      (XmScaleSetValue amp-scale 10)
+      (set! camp 0.1)
+      (XmScaleSetValue fm-scale 20)
+      (set! cindex 1.0)
+      (XmScaleSetValue tempo-scale 10)
+      (set! ctempo 1.0)
+      
+      (XtManageChild shell)
+      (XtRealizeWidget shell)
+      
+      (play (make-test)))))
 
-(rt-motif)
-)
-;; bess1.scm ends here

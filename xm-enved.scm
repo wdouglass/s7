@@ -3,6 +3,10 @@
 ;;; (xe-create-enved name parent args axis-bounds) -> new envelope editor (returned value is list)
 ;;; (xe-envelope editor) -> current envelope (settable)
 
+(if (and (provided? 'snd-gtk)
+	 (not (provided? 'gtk4)))
+    (error 'gtk-error "xm-enved.scm only works in gtk4"))
+
 (provide 'snd-xm-enved.scm)
 
 (if (and (provided? 'snd-motif)
@@ -11,17 +15,17 @@
 
 (define xe-envelope
   (dilambda
-   (lambda (drawer)
-     (or (car drawer) 
-	 (map (drawer 3) '(0 1 2 3)))) ; bounds
-   (lambda (drawer new-env)
-     (set! (drawer 0) new-env)
-     (xe-redraw drawer))))
+   (lambda (editor)
+     (or (car editor) 
+	 (map (editor 3) '(0 1 2 3)))) ; bounds
+   (lambda (editor new-env)
+     (set! (editor 0) new-env)
+     (xe-redraw editor))))
 
 (define xe-create-enved 
-  (let ((xe-ungrfy (lambda (drawer y)
-		     (let ((bounds (drawer 3))
-			   (locs (drawer 2)))
+  (let ((xe-ungrfy (lambda (editor y)
+		     (let ((bounds (editor 3))
+			   (locs (editor 2)))
 		       (let ((ay0 (bounds 1))
 			     (ay1 (bounds 3))
 			     (py0 (locs 1))
@@ -33,9 +37,9 @@
 				       (+ ay0 (* (- ay1 ay0)
 						 (/ (- py0 y)
 						    (- py0 py1)))))))))))
-	(xe-ungrfx (lambda (drawer x)
-		     (let ((bounds (drawer 3))
-			   (locs (drawer 2)))
+	(xe-ungrfx (lambda (editor x)
+		     (let ((bounds (editor 3))
+			   (locs (editor 2)))
 		       (let ((ax0 (bounds 0))
 			     (ax1 (bounds 2))
 			     (px0 (locs 0))
@@ -79,18 +83,18 @@
 				(else
 				 (set! new-env (append new-env (list (car e) (cadr e))))
 				 (search-point (cddr e)))))))))
-	    (lambda (drawer xx yy)
-	      (let* ((cur-env (xe-envelope drawer))
-		     (x (xe-ungrfx drawer xx))
-		     (y (xe-ungrfy drawer yy))
+	    (lambda (editor xx yy)
+	      (let* ((cur-env (xe-envelope editor))
+		     (x (xe-ungrfx editor xx))
+		     (y (xe-ungrfy editor yy))
 		     (pos (xe-on-dot? x y cur-env 0)))
 		(set! xe-mouse-new (not pos))
 		(set! xe-mouse-down (get-internal-real-time))
 		(if pos
 		    (set! xe-mouse-pos pos)
 		    (begin
-		      (set! (xe-envelope drawer) (xe-add-envelope-point x y cur-env))
-		      (set! xe-mouse-pos (xe-envelope-position x (xe-envelope drawer)))))))))
+		      (set! (xe-envelope editor) (xe-add-envelope-point x y cur-env))
+		      (set! xe-mouse-pos (xe-envelope-position x (xe-envelope editor)))))))))
 	
 	
 	(define xe-mouse-drag 
@@ -102,20 +106,20 @@
 		       ((= npos pos) 
 			(append new-env (list x y) (cddr e)))
 		     (set! new-env (append new-env (list (car e) (cadr e))))))))
-	    (lambda (drawer xx yy)
+	    (lambda (editor xx yy)
 	      ;; point exists, needs to be edited with check for various bounds
-	      (let* ((cur-env (xe-envelope drawer))
-		     (x (xe-ungrfx drawer xx))
-		     (y (xe-ungrfy drawer yy))
+	      (let* ((cur-env (xe-envelope editor))
+		     (x (xe-ungrfx editor xx))
+		     (y (xe-ungrfy editor yy))
 		     (lx (if (= xe-mouse-pos 0)
 			     (car cur-env)
 			     (if (>= xe-mouse-pos (- (length cur-env) 2))
 				 (cur-env (- (length cur-env) 2))
 				 (max (cur-env (- xe-mouse-pos 2))
 				      (min x (cur-env (+ xe-mouse-pos 2))))))))
-		(set! (xe-envelope drawer) 
+		(set! (xe-envelope editor) 
 		      (xe-edit-envelope-point xe-mouse-pos lx y cur-env))
-		(xe-redraw drawer)))))
+		(xe-redraw editor)))))
 	
 	
 	(define xe-mouse-release 
@@ -133,16 +137,16 @@
 			       (begin
 				 (set! new-env (append new-env (list (car e) (cadr e))))
 				 (search-point (cddr e) (+ npos 2))))))))))
-	    (lambda (drawer)
-	      (let ((cur-env (xe-envelope drawer)))
+	    (lambda (editor)
+	      (let ((cur-env (xe-envelope editor)))
 		(set! xe-mouse-up (get-internal-real-time))
 		(if (not (or xe-mouse-new
 			     (> (- xe-mouse-up xe-mouse-down) xe-click-time)
 			     (= xe-mouse-pos 0)
 			     (>= xe-mouse-pos (- (length cur-env) 2))))
-		    (set! (xe-envelope drawer)
+		    (set! (xe-envelope editor)
 			  (xe-remove-envelope-point xe-mouse-pos cur-env))))
-	      (xe-redraw drawer)
+	      (xe-redraw editor)
 	      (set! xe-mouse-new #f))))
 	
 	(if (provided? 'snd-motif)
@@ -200,8 +204,8 @@
 		     (x1 (cadr axis-bounds))
 		     (y0 (caddr axis-bounds))
 		     (y1 (cadddr axis-bounds))
-		     (arrow-cursor (gdk_cursor_new_for_display (gdk_display_get_default) GDK_CROSSHAIR))
-		     (old-cursor (gdk_cursor_new_for_display (gdk_display_get_default) GDK_LEFT_PTR))
+		     ;(arrow-cursor (gdk_cursor_new_for_display (gdk_display_get_default) GDK_CROSSHAIR))
+		     ;(old-cursor (gdk_cursor_new_for_display (gdk_display_get_default) GDK_LEFT_PTR))
 		     (editor (list (list x0 y0 x1 y0) ; needs to be in user-coordinates (graph size can change)
 				   drawer 
 				   #f  ; axis pixel locs filled in when drawn
@@ -215,8 +219,8 @@
 					  (free-cairo cr)
 					  val))))
 		
-		(gtk_widget_set_events drawer GDK_ALL_EVENTS_MASK)
-		(gtk_box_pack_start (GTK_BOX parent) drawer #t #t 10)
+		;(gtk_widget_set_events drawer GDK_ALL_EVENTS_MASK)
+		(gtk_box_pack_start (GTK_BOX parent) drawer)
 		(gtk_widget_show drawer)
 		(gtk_widget_set_size_request drawer -1 200)
 		
@@ -263,7 +267,7 @@
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
 						  (g_signal_lookup "motion_notify_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
 						  0 gf #f))
-		
+#|		
 		(let ((gf (g_cclosure_new (lambda (w e d)
 					    (gdk_window_set_cursor (gtk_widget_get_window w) arrow-cursor)
 					    #f)
@@ -278,17 +282,18 @@
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
 						  (g_signal_lookup "leave_notify_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
 						  0 gf #f))
+|#
 		editor)))))))
 
-(define (xe-redraw drawer)
-  (let* ((cur-env (xe-envelope drawer))
-	 (widget (drawer 1))
+(define (xe-redraw editor)
+  (let* ((cur-env (xe-envelope editor))
+	 (widget (editor 1))
 	 (dpy (and (provided? 'snd-motif) ((*motif* 'XtDisplay) widget)))
 	 (wn ((if (provided? 'snd-motif) (*motif* 'XtWindow) (*gtk* 'gtk_widget_get_window)) widget))
-	 (ax-pix (drawer 2))
-	 (ax-inf (drawer 3))
-	 (gc (car (drawer 4)))
-	 (name (drawer 5))
+	 (ax-pix (editor 2))
+	 (ax-inf (editor 3))
+	 (gc (car (editor 4)))
+	 (name (editor 5))
 	 (len (and (list? cur-env) (length cur-env)))
 	 (get_realized (if (provided? 'snd-gtk) (*gtk* 'gtk_widget_get_realized))))
     (when (and (list? ax-pix)

@@ -194,6 +194,7 @@
 			  (oscil modosc 
 				 (hz->radians (* ratio frequency))))))))
 
+	;; --------------------------------
 	;; go-away button
 	(XtAddCallback shell XmNcancelCallback (lambda (w c i) (stop-playing) (XtUnmanageChild w)))
 	

@@ -9617,7 +9617,7 @@
 (CFNC-3.99 "GtkBaselinePosition gtk_center_box_get_baseline_position GtkCenterBox* self")
 (CFNC-3.99 "void gdk_event_set_coords GdkEvent* event gdouble x gdouble y")
 (CFNC-3.99 "void gdk_event_set_user_data GdkEvent* event GObject* user_data")
-(CFNC-3.99 "GObject* gdk_event_get_user_data GdkEvent* event")
+;;; ??? not in 3.93.0 (CFNC-3.99 "GObject* gdk_event_get_user_data GdkEvent* event")
 (CFNC-3.99 "gboolean gdk_rectangle_contains_point GdkRectangle* rect int x int y")
 (CFNC-3.99 "GtkWidget* gtk_get_event_target GdkEvent* event")
 ;;; GtkWidget* gtk_get_event_target_with_type GdkEvent* event GType type

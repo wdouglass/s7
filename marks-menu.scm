@@ -1,3 +1,7 @@
+(if (and (provided? 'snd-gtk)
+	 (not (provided? 'gtk4)))
+    (error 'gtk-error "marks-menu.scm only works in gtk4"))
+
 (provide 'snd-marks-menu.scm)
 
 (if (provided? 'xm)
@@ -6,14 +10,14 @@
       (if (not (defined? 'mark-sync-color)) 
 	  (load "snd-motif.scm"))))
 
-(when (provided? 'snd-motif)
-  (define mark-sync-color (*motif* 'mark-sync-color)))
-
-(if (provided? 'xg)
+(if (provided? 'gtk4)
     (begin
       (require snd-gtk-effects-utils.scm)
       (if (not (defined? 'mark-sync-color)) 
 	  (define (mark-sync-color x) x))))
+
+(when (provided? 'snd-motif)
+  (define mark-sync-color (*motif* 'mark-sync-color)))
 
 (if (not (defined? 'mark-loops)) (load "examp.scm"))
 (if (not (defined? 'play-between-marks)) (load "marks.scm"))

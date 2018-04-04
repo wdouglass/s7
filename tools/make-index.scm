@@ -35,7 +35,6 @@
        "mus-voc" "mus-svx" "mus-soundfont" "mus-unknown" "mus-bshort" "mus-lshort" "mus-mulaw" "mus-alaw" "mus-byte" "mus-ubyte"
        "mus-bfloat" "mus-lfloat" "mus-bint" "mus-lint" "mus-bintn" "mus-lintn" "mus-b24int" "mus-l24int" "mus-bdouble" "mus-ldouble"
        "mus-ubshort" "mus-ulshort" "mus-bdouble-unscaled" "mus-ldouble-unscaled" "mus-bfloat-unscaled" "mus-lfloat-unscaled"
-       "mus-audio-default"
        "rectangular-window" "hann-window" "welch-window"
        "parzen-window" "bartlett-window" "hamming-window" "blackman2-window" "blackman3-window" "blackman4-window" "exponential-window"
        "riemann-window" "kaiser-window" "cauchy-window" "poisson-window" "gaussian-window" "tukey-window" "dolph-chebyshev-window"
@@ -383,7 +382,6 @@
 					;(load "edit123.scm")		   
 					;(load "snd11.scm")
 (load "analog-filter.scm")	   
-					; (load "new-backgrounds.scm")
 (load "animals.scm")		   
 					; (load "new-effects.scm")
 (load "autosave.scm")	   
@@ -801,8 +799,6 @@
 
     (snd-clm23.scm "clm23.scm")
     (snd-edit123.scm "edit123.scm")
-;    (snd-snd11.scm "snd11.scm")
-    (snd-new-backgrounds.scm "new-backgrounds.scm")
     (snd-new-effects.scm "new-effects.scm")
     (snd-bess1.scm "bess1.scm")
     (snd-bess.scm "bess.scm")

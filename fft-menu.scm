@@ -1,8 +1,12 @@
+(if (and (provided? 'snd-gtk)
+	 (not (provided? 'gtk4)))
+    (error 'gtk-error "fft-menu.scm only works in gtk4"))
+
 (when (and (provided? 'xm)
 	   (not (provided? 'snd-effects-utils.scm)))
   (load "effects-utils.scm"))
 
-(if (and (provided? 'xg)
+(if (and (provided? 'gtk4)
 	 (not (provided? 'snd-gtk-effects-utils.scm)))
     (load "gtk-effects-utils.scm"))
 

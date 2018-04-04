@@ -3069,18 +3069,6 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 #endif
 
 #if USE_GTK
-#if HAVE_SCHEME
-  {
-    s7_pointer gtk, old_shadow;
-    s7_define_constant(s7, "*gtk*", gtk = s7_inlet(s7, s7_nil(s7)));
-    old_shadow = s7_shadow_rootlet(s7);
-    s7_set_shadow_rootlet(s7, gtk);
-    /* Init_libxg(s7); */
-    s7_set_shadow_rootlet(s7, old_shadow);
-  }
-#else
-  /* Init_libxg(); */
-#endif
   #if HAVE_FORTH && (0)
     fth_add_loaded_files("libxg.so");
   #endif
