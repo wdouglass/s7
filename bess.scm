@@ -22,8 +22,7 @@
 		    (XmStringFree titlestr)
 		    dialog))
 	   
-	   (dpy (XtDisplay shell))
-	   (screen (DefaultScreenOfDisplay dpy))
+	   (screen (DefaultScreenOfDisplay (XtDisplay shell)))
 	   (black (BlackPixelOfScreen screen))
 	   (white (WhitePixelOfScreen screen))
 	   
@@ -155,8 +154,6 @@
 	    (ratio 1)
 	    (high-ratio 10)
 	    (playing 0.0)
-	    (carosc (make-oscil 0.0))
-	    (modosc (make-oscil 0.0))
 	    
 	    (set-flabel 
 	     (lambda (label value)
@@ -186,13 +183,16 @@
 	  (set! ratio (floor (* (.value i) (/ high-ratio 100.0))))
 	  (set-ilabel cm-label ratio))
 
-	(define (fm)
-	  (* amplitude playing
-	     (oscil carosc 
-		    (+ (hz->radians frequency)
-		       (* index 
-			  (oscil modosc 
-				 (hz->radians (* ratio frequency))))))))
+	(define fm
+	  (let ((carosc (make-oscil 0.0))
+		(modosc (make-oscil 0.0)))
+	    (lambda ()
+	      (* amplitude playing
+		 (oscil carosc 
+			(+ (hz->radians frequency)
+			   (* index 
+			      (oscil modosc 
+				     (hz->radians (* ratio frequency))))))))))
 
 	;; --------------------------------
 	;; go-away button

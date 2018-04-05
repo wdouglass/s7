@@ -20,6 +20,23 @@
 (define transform->vct transform->float-vector)
 (define vct->channel float-vector->channel)
 (define channel->vct channel->float-vector)
+(define smooth-vct smooth-float-vector)
+(define vct-polynomial float-vector-polynomial)
+(define mix->vct mix->float-vector)
+(define pan-mix-vct pan-mix-float-vector)
+(define vct-size float-vector-size)
+(define vct-copy copy)
+(define vct-fill! fill!)
+(define vct float-vector)
+(define vct-length length)
+(define vct-reverse! reverse!)  ; slight difference: no optional length arg (use make-shared-vector)
+(define vct->list vector->list)
+(define (list->vct x) (apply float-vector x))
+(define make-vct make-float-vector)
+(define (vector->vct v) (copy v (make-float-vector (length v))))
+(define (vct->vector v) (copy v (make-vector (length v))))
+(define vct? float-vector?)
+
 
 (define data-format sample-type)
 (define mus-sound-data-format mus-sound-sample-type)
@@ -28,4 +45,22 @@
 (define default-output-data-format (dilambda 
 				    (lambda () *default-output-sample-type*)
 				    (lambda (val) (set! *default-output-sample-type* val))))
+
+
+(define* (if-cursor-follows-play-it-stays-where-play-stopped (enable #t))
+  (set! *with-tracking-cursor* (and enable :track-and-stay)))
+
+(define* (find-channel func (beg 0) snd chn edpos) 
+  (scan-channel func beg #f snd chn edpos))
+
+(define scan-chan scan-channel)
+
+(define* (map-chan proc beg end origin snd chn edpos) 
+  (map-channel proc beg (- (+ end 1) beg) snd chn edpos origin))
+
+(define multiply-arrays float-vector-multiply!)
+(define mus-sound-frames mus-sound-framples)
+(define region-frames region-framples)
+(define selection-frames selection-framples)
+(define transform-frames transform-framples)
 

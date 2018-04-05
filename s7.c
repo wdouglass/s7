@@ -84721,7 +84721,9 @@ int main(int argc, char **argv)
  *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
  * pair print seems to ignore (*s7* 'print-length)? (make-list 20) see t763.scm
  * -Wconversion...
+ *
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
+ * makefile.in for sndlib.so, s7test?
  *
  * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
  *   the problem is less obvious:
@@ -84734,7 +84736,6 @@ int main(int argc, char **argv)
  * for gtk 4:
  *   all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
  *   iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
- *   gtk_box_pack* has changed -- many uses! (see sg_box_pack... in snd-g1.h): gtk_widget_set_v|hexpand in snd-g0 or are these grid-specific?
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   can grepl be used to get all the gtk scheme code working in gtk4? 

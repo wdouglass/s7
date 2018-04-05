@@ -1,4 +1,4 @@
-(when (not (provided? 'gtk4))
+(unless (provided? 'gtk4)
   (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
 
 (require snd-gtk)
@@ -45,7 +45,7 @@
     ;; callbacks take 2 args: widget data
     (let ((new-dialog (gtk_dialog_new)))
       
-      (if (defined? 'gtk_widget_set_clip) ; gtk 3.14.0
+      (if (defined? 'GTK_GESTURE) ; gtk 3.14.0
 	  (gtk_window_set_transient_for (GTK_WINDOW new-dialog) (GTK_WINDOW ((main-widgets) 1))))
       (gtk_window_set_title (GTK_WINDOW new-dialog) label)
       (gtk_window_set_default_size (GTK_WINDOW new-dialog) -1 -1)
@@ -121,6 +121,7 @@
 	   (use-hbox (and (pair? sliders) (null? (cdr sliders))))
 	   (table (if (not use-hbox) (gtk_grid_new))))
       (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG dialog))) mainform)
+      (gtk_widget_set_hexpand mainform #t)
       (gtk_widget_show mainform)
       (if (not use-hbox)
 	  (begin
@@ -131,56 +132,54 @@
       (map 
        (let ((slider 0))
 	 (lambda (slider-data)
-	   (let* ((title (slider-data 0))
-		  (low (slider-data 1))
-		  (initial (slider-data 2))
-		  (high (slider-data 3))
-		  (func (slider-data 4))
-		  (scaler (slider-data 5))
-		  (use-log (and (= (length slider-data) 7)
-				(eq? (slider-data 6) 'log)))
-		  (hbox (and use-hbox (gtk_box_new GTK_ORIENTATION_HORIZONTAL 0)))
-		  (label (gtk_label_new 
-			  (format #f (if use-hbox
-					 (if use-log 
-					     (values "~A: ~,2F" title initial)
-					     (values "~A:" title))
-					 (if use-log
-					     (values "~A (~,2F)" title initial)
-					     (values "~A" title))))))
-		  (adj (if use-log 
-			   (gtk_adjustment_new (scale-log->linear low initial high) 0 log-scale-ticks 1 10 1)
-			   (gtk_adjustment_new initial low high 0.0 0.0 0.0)))
-		  (scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT adj))))
-	     (if use-hbox
-		 (begin
-		   (gtk_box_pack_start (GTK_BOX mainform) hbox)
-		   (gtk_widget_show hbox)
-		   (gtk_box_pack_start (GTK_BOX hbox) label))
-		 (gtk_grid_attach (GTK_GRID table) label 0 slider 1 1))
-	     (gtk_widget_show label)
-	     (gtk_scale_set_digits (GTK_SCALE scale)
-				   (cond (use-log 0)
-					 ((assoc scaler '((1000 . 3) (100 . 2) (10 . 1)) =) => cdr)
-					 (else 0)))
-	     (gtk_scale_set_draw_value (GTK_SCALE scale) (not use-log))
-	     (if use-hbox
-		 (gtk_box_pack_start (GTK_BOX hbox) scale)
-		 (begin
-		   (gtk_widget_set_hexpand (GTK_WIDGET scale) #t)
-		   (gtk_grid_attach (GTK_GRID table) scale 1 slider 1 1)
-		   (set! slider (+ 1 slider))))
-	     (gtk_widget_show scale)
-	     (let ((label-func (if (not use-log)
-				   func
-				   (lambda (w d) 
-				     (func w d)
-				     (gtk_label_set_text (GTL_LABEL label)
-							 (format #f "~A: ~,2F" 
-								 title 
-								 (scale-linear->log low (gtk_adjustment_get_value (GTK_ADJUSTMENT adj)) high)))))))
-	       (g_signal_connect adj "value_changed" label-func #f))
-	     adj)))
+	   (let ((title (slider-data 0))
+		 (low (slider-data 1))
+		 (initial (slider-data 2))
+		 (high (slider-data 3))
+		 (func (slider-data 4))
+		 (scaler (slider-data 5))
+		 (use-log (and (= (length slider-data) 7)
+			       (eq? (slider-data 6) 'log)))
+		 (hbox (and use-hbox (gtk_box_new GTK_ORIENTATION_HORIZONTAL 0))))
+	     (let* ((label (gtk_label_new 
+			    (if use-log
+				(format #f "~A~A ~,2F" title (if use-hbox ":" "") initial)
+				(format #f "~A~A" title (if use-hbox ":" "")))))
+		    (adj (if use-log 
+			     (gtk_adjustment_new (scale-log->linear low initial high) 0 log-scale-ticks 1 10 1)
+			     (gtk_adjustment_new initial low high 0.0 0.0 0.0)))
+		    (scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT adj))))
+	       (if use-hbox
+		   (begin
+		     (gtk_box_pack_start (GTK_BOX mainform) hbox)
+		     (gtk_widget_set_hexpand hbox #t)
+		     (gtk_widget_show hbox)
+		     (gtk_box_pack_start (GTK_BOX hbox) label))
+		   (gtk_grid_attach (GTK_GRID table) label 0 slider 1 1))
+	       (gtk_widget_show label)
+	       (gtk_scale_set_digits (GTK_SCALE scale)
+				     (cond (use-log 0)
+					   ((assoc scaler '((1000 . 3) (100 . 2) (10 . 1)) =) => cdr)
+					   (else 0)))
+	       (gtk_scale_set_draw_value (GTK_SCALE scale) (not use-log))
+	       (if use-hbox
+		   (gtk_box_pack_start (GTK_BOX hbox) scale)
+		   (begin
+		     (gtk_grid_attach (GTK_GRID table) scale 1 slider 1 1)
+		     (set! slider (+ 1 slider))))
+	       (gtk_widget_set_hexpand (GTK_WIDGET scale) #t)
+	       (gtk_widget_set_vexpand (GTK_WIDGET scale) #t)
+	       (gtk_widget_show scale)
+	       (let ((label-func (if (not use-log)
+				     func
+				     (lambda (w d) 
+				       (func w d)
+				       (gtk_label_set_text (GTL_LABEL label)
+							   (format #f "~A: ~,2F" 
+								   title 
+								   (scale-linear->log low (gtk_adjustment_get_value (GTK_ADJUSTMENT adj)) high)))))))
+		 (g_signal_connect adj "value_changed" label-func #f))
+	       adj))))
        sliders)))
   
   (define (activate-dialog w)

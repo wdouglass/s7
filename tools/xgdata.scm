@@ -2432,7 +2432,7 @@
 ;;; (CFNC "void gtk_init int* {argc} char*** |argv|")
 ;;; (CFNC "gboolean gtk_init_check int* {argc} char*** |argv|")
 ;;;   these two are done by hand in makexg.scm to improve error handling
-;;; both out gtk 4
+;;; both out gtk 4???
 
 ;(CFNC "void gtk_init_abi_check int* argc char*** argv int num_checks size_t sizeof_GtkWindow")
 ;(CFNC "gboolean gtk_init_check_abi_check int* argc char*** argv int num_checks size_t sizeof_GtkWindow")
@@ -9535,110 +9535,110 @@
 
 ;;; 3.89.1: 
 
-(CINT-3.99 "GTK_SHORTCUT_GESTURE_SWIPE_LEFT" "GtkShortcutType")
-(CINT-3.99 "GTK_SHORTCUT_GESTURE_SWIPE_RIGHT" "GtkShortcutType")
+(CINT-3.92 "GTK_SHORTCUT_GESTURE_SWIPE_LEFT" "GtkShortcutType")
+(CINT-3.92 "GTK_SHORTCUT_GESTURE_SWIPE_RIGHT" "GtkShortcutType")
 
-(CFNC-3.99 "gboolean gdk_display_is_composited GdkDisplay* display")
-(CFNC-3.99 "gboolean gdk_display_is_rgba GdkDisplay* display")
-(CFNC-3.99 "GdkWindow* gdk_window_new_toplevel GdkDisplay* display gint event_mask int width int height")
-(CFNC-3.99 "GdkWindow* gdk_window_new_popup GdkDisplay* display gint event_mask GdkRectangle* position")
-(CFNC-3.99 "GdkWindow* gdk_window_new_temp GdkDisplay* display")
-(CFNC-3.99 "GdkWindow* gdk_window_new_child GdkWindow* parent gint event_mask GdkRectangle* position")
-;;; 3.92.1 (CFNC-3.99 "GdkWindow* gdk_window_new_input GdkWindow* parent gint event_mask GdkRectangle* position")
-(CFNC-3.99 "void gtk_button_set_icon_name GtkButton* button char* icon_name")
-(CFNC-3.99 "char* gtk_button_get_icon_name GtkButton* button" 'const)
-(CFNC-3.99 "void gtk_drawing_area_set_content_width GtkDrawingArea* self int width")
-(CFNC-3.99 "int gtk_drawing_area_get_content_width GtkDrawingArea* self")
-(CFNC-3.99 "void gtk_drawing_area_set_content_height GtkDrawingArea* self int height")
-(CFNC-3.99 "int gtk_drawing_area_get_content_height GtkDrawingArea* self")
-(CFNC-3.99 "void gtk_drawing_area_set_draw_func GtkDrawingArea* self GtkDrawingAreaDrawFunc draw_func lambda_data #func_info GDestroyNotify destroy")
+(CFNC-3.92 "gboolean gdk_display_is_composited GdkDisplay* display")
+(CFNC-3.92 "gboolean gdk_display_is_rgba GdkDisplay* display")
+(CFNC-3.92 "GdkWindow* gdk_window_new_toplevel GdkDisplay* display gint event_mask int width int height")
+(CFNC-3.92 "GdkWindow* gdk_window_new_popup GdkDisplay* display gint event_mask GdkRectangle* position")
+(CFNC-3.92 "GdkWindow* gdk_window_new_temp GdkDisplay* display")
+(CFNC-3.92 "GdkWindow* gdk_window_new_child GdkWindow* parent gint event_mask GdkRectangle* position")
+;;; 3.92.1 (CFNC-3.92 "GdkWindow* gdk_window_new_input GdkWindow* parent gint event_mask GdkRectangle* position")
+(CFNC-3.92 "void gtk_button_set_icon_name GtkButton* button char* icon_name")
+(CFNC-3.92 "char* gtk_button_get_icon_name GtkButton* button" 'const)
+(CFNC-3.92 "void gtk_drawing_area_set_content_width GtkDrawingArea* self int width")
+(CFNC-3.92 "int gtk_drawing_area_get_content_width GtkDrawingArea* self")
+(CFNC-3.92 "void gtk_drawing_area_set_content_height GtkDrawingArea* self int height")
+(CFNC-3.92 "int gtk_drawing_area_get_content_height GtkDrawingArea* self")
+(CFNC-3.92 "void gtk_drawing_area_set_draw_func GtkDrawingArea* self GtkDrawingAreaDrawFunc func lambda_data #func_info GDestroyNotify destroy")
 
 ;;; 3.89.2
 
 ;;; ignoring the vulkan context stuff and gtk snapshot
 ;;;   the snapshot functions are for widget writers, I think
 
-(CFNC-3.99 "GdkDrawContext* gdk_drawing_context_get_paint_context GdkDrawingContext* context")
-(CFNC-3.99 "cairo_region_t* gdk_gl_context_get_damage GdkGLContext* context")
-(CFNC-3.99 "gboolean gdk_rgba_is_clear GdkRGBA* rgba")
-(CFNC-3.99 "gboolean gdk_rgba_is_opaque GdkRGBA* rgba")
-(CFNC-3.99 "GdkDrawingContext* gdk_window_begin_draw_frame GdkWindow* window GdkDrawContext* context cairo_region_t* region")
-(CFNC-3.99 "GtkFlowBoxChild* gtk_flow_box_get_child_at_pos GtkFlowBox* box gint x gint y")
+(CFNC-3.92 "GdkDrawContext* gdk_drawing_context_get_paint_context GdkDrawingContext* context")
+(CFNC-3.92 "cairo_region_t* gdk_gl_context_get_damage GdkGLContext* context")
+(CFNC-3.92 "gboolean gdk_rgba_is_clear GdkRGBA* rgba")
+(CFNC-3.92 "gboolean gdk_rgba_is_opaque GdkRGBA* rgba")
+(CFNC-3.92 "GdkDrawingContext* gdk_window_begin_draw_frame GdkWindow* window GdkDrawContext* context cairo_region_t* region")
+(CFNC-3.92 "GtkFlowBoxChild* gtk_flow_box_get_child_at_pos GtkFlowBox* box gint x gint y")
 
 ;;; 3.89.4
 
 ;; widget_show_all gone
 
-(CFNC-3.99 "gchar* gtk_about_dialog_get_system_information GtkAboutDialog* about" 'const-return)
-(CFNC-3.99 "void gtk_about_dialog_set_system_information GtkAboutDialog* about gchar* system_information" 'const)
-(CFNC-3.99 "void gtk_action_bar_set_revealed GtkActionBar* action_bar gboolean revealed")
-(CFNC-3.99 "gboolean gtk_action_bar_get_revealed GtkActionBar* action_bar")
-(CFNC-3.99 "void gtk_check_button_set_draw_indicator GtkCheckButton* check_button gboolean draw_indicator")
-(CFNC-3.99 "gboolean gtk_check_button_get_draw_indicator GtkCheckButton* check_button")
-(CFNC-3.99 "void gtk_check_button_set_inconsistent GtkCheckButton* check_button gboolean inconsistent")
-(CFNC-3.99 "gboolean gtk_check_button_get_inconsistent GtkCheckButton* check_button")
-(CFNC-3.99 "void gtk_info_bar_set_revealed GtkInfoBar* info_bar gboolean revealed")
-(CFNC-3.99 "gboolean gtk_info_bar_get_revealed GtkInfoBar* info_bar")
-;(CFNC-3.99 "void gtk_init void")
-;(CFNC-3.99 "gboolean gtk_init_check void")
+(CFNC-3.92 "gchar* gtk_about_dialog_get_system_information GtkAboutDialog* about" 'const-return)
+(CFNC-3.92 "void gtk_about_dialog_set_system_information GtkAboutDialog* about gchar* system_information" 'const)
+(CFNC-3.92 "void gtk_action_bar_set_revealed GtkActionBar* action_bar gboolean revealed")
+(CFNC-3.92 "gboolean gtk_action_bar_get_revealed GtkActionBar* action_bar")
+(CFNC-3.92 "void gtk_check_button_set_draw_indicator GtkCheckButton* check_button gboolean draw_indicator")
+(CFNC-3.92 "gboolean gtk_check_button_get_draw_indicator GtkCheckButton* check_button")
+(CFNC-3.92 "void gtk_check_button_set_inconsistent GtkCheckButton* check_button gboolean inconsistent")
+(CFNC-3.92 "gboolean gtk_check_button_get_inconsistent GtkCheckButton* check_button")
+(CFNC-3.92 "void gtk_info_bar_set_revealed GtkInfoBar* info_bar gboolean revealed")
+(CFNC-3.92 "gboolean gtk_info_bar_get_revealed GtkInfoBar* info_bar")
+;(CFNC-3.92 "void gtk_init void")
+;(CFNC-3.92 "gboolean gtk_init_check void")
 ;handled in makexg.scm
-(CFNC-3.99 "GtkWidget* gtk_widget_get_first_child GtkWidget* widget")
-(CFNC-3.99 "GtkWidget* gtk_widget_get_last_child GtkWidget* widget")
-(CFNC-3.99 "GtkWidget* gtk_widget_get_next_sibling GtkWidget* widget")
-(CFNC-3.99 "GtkWidget* gtk_widget_get_prev_sibling GtkWidget* widget")
-(CFNC-3.99 "void gtk_widget_set_focus_child GtkWidget* widget GtkWidget* child")
-;(CFNC-3.99 "void gtk_widget_snapshot_child GtkWidget* widget GtkWidget* child GtkSnapshot* snapshot")
+(CFNC-3.92 "GtkWidget* gtk_widget_get_first_child GtkWidget* widget")
+(CFNC-3.92 "GtkWidget* gtk_widget_get_last_child GtkWidget* widget")
+(CFNC-3.92 "GtkWidget* gtk_widget_get_next_sibling GtkWidget* widget")
+(CFNC-3.92 "GtkWidget* gtk_widget_get_prev_sibling GtkWidget* widget")
+(CFNC-3.92 "void gtk_widget_set_focus_child GtkWidget* widget GtkWidget* child")
+;(CFNC-3.92 "void gtk_widget_snapshot_child GtkWidget* widget GtkWidget* child GtkSnapshot* snapshot")
 
 ;;; 3.89.5
 
-(CFNC-3.99 "gboolean gtk_show_uri_on_window GtkWindow* parent char* uri guint32 timestamp GError** [error]" 'const)
+(CFNC-3.92 "gboolean gtk_show_uri_on_window GtkWindow* parent char* uri guint32 timestamp GError** [error]" 'const)
 
 ;;; 3.90.0
 ;;; 3.91.0
 
-(CFNC-3.99 "void gtk_box_pack_start GtkBox* box GtkWidget* child")
-(CFNC-3.99 "void gtk_box_pack_end GtkBox* box GtkWidget* child")
-(CFNC-3.99 "void gtk_widget_insert_after GtkWidget* widget GtkWidget* parent GtkWidget* previous_sibling")
-(CFNC-3.99 "void gtk_widget_insert_before GtkWidget* widget GtkWidget* parent GtkWidget* next_sibling")
+(CFNC-3.92 "void gtk_box_pack_start GtkBox* box GtkWidget* child")
+(CFNC-3.92 "void gtk_box_pack_end GtkBox* box GtkWidget* child")
+(CFNC-3.92 "void gtk_widget_insert_after GtkWidget* widget GtkWidget* parent GtkWidget* previous_sibling")
+(CFNC-3.92 "void gtk_widget_insert_before GtkWidget* widget GtkWidget* parent GtkWidget* next_sibling")
 
 
 ;;; 3.91.1
-(CCAST-3.99 "GTK_CENTER_BOX(obj)" "GtkCenterBox*")
-(CCHK-3.99 "GTK_IS_CENTER_BOX(obj)" "GtkCenterBox*")
+(CCAST-3.92 "GTK_CENTER_BOX(obj)" "GtkCenterBox*")
+(CCHK-3.92 "GTK_IS_CENTER_BOX(obj)" "GtkCenterBox*")
 
-(CFNC-3.99 "GtkWidget* gtk_center_box_new void")
-(CFNC-3.99 "void gtk_center_box_set_start_widget GtkCenterBox* self GtkWidget* child")
-(CFNC-3.99 "void gtk_center_box_set_center_widget GtkCenterBox* self GtkWidget* child")
-(CFNC-3.99 "void gtk_center_box_set_end_widget GtkCenterBox* self GtkWidget* child")
-(CFNC-3.99 "GtkWidget* gtk_center_box_get_start_widget GtkCenterBox* self")
-(CFNC-3.99 "GtkWidget* gtk_center_box_get_center_widget GtkCenterBox* self")
-(CFNC-3.99 "GtkWidget* gtk_center_box_get_end_widget GtkCenterBox* self")
-(CFNC-3.99 "void gtk_center_box_set_baseline_position GtkCenterBox* self GtkBaselinePosition position")
-(CFNC-3.99 "GtkBaselinePosition gtk_center_box_get_baseline_position GtkCenterBox* self")
-(CFNC-3.99 "void gdk_event_set_coords GdkEvent* event gdouble x gdouble y")
-(CFNC-3.99 "void gdk_event_set_user_data GdkEvent* event GObject* user_data")
-;;; ??? not in 3.93.0 (CFNC-3.99 "GObject* gdk_event_get_user_data GdkEvent* event")
-(CFNC-3.99 "gboolean gdk_rectangle_contains_point GdkRectangle* rect int x int y")
-(CFNC-3.99 "GtkWidget* gtk_get_event_target GdkEvent* event")
+(CFNC-3.92 "GtkWidget* gtk_center_box_new void")
+(CFNC-3.92 "void gtk_center_box_set_start_widget GtkCenterBox* self GtkWidget* child")
+(CFNC-3.92 "void gtk_center_box_set_center_widget GtkCenterBox* self GtkWidget* child")
+(CFNC-3.92 "void gtk_center_box_set_end_widget GtkCenterBox* self GtkWidget* child")
+(CFNC-3.92 "GtkWidget* gtk_center_box_get_start_widget GtkCenterBox* self")
+(CFNC-3.92 "GtkWidget* gtk_center_box_get_center_widget GtkCenterBox* self")
+(CFNC-3.92 "GtkWidget* gtk_center_box_get_end_widget GtkCenterBox* self")
+(CFNC-3.92 "void gtk_center_box_set_baseline_position GtkCenterBox* self GtkBaselinePosition position")
+(CFNC-3.92 "GtkBaselinePosition gtk_center_box_get_baseline_position GtkCenterBox* self")
+(CFNC-3.92 "void gdk_event_set_coords GdkEvent* event gdouble x gdouble y")
+(CFNC-3.92 "void gdk_event_set_user_data GdkEvent* event GObject* user_data")
+;;; ??? not in 3.93.0 (CFNC-3.92 "GObject* gdk_event_get_user_data GdkEvent* event")
+(CFNC-3.92 "gboolean gdk_rectangle_contains_point GdkRectangle* rect int x int y")
+(CFNC-3.92 "GtkWidget* gtk_get_event_target GdkEvent* event")
 ;;; GtkWidget* gtk_get_event_target_with_type GdkEvent* event GType type
 
 
 ;;; 3.91.2
 
-(CFNC-3.99 "void gtk_accel_label_set_label GtkAccelLabel* accel_label char* text" 'const)
-(CFNC-3.99 "char* gtk_accel_label_get_label GtkAccelLabel* accel_label" 'const-return)
-(CFNC-3.99 "void gtk_accel_label_set_use_underline GtkAccelLabel* accel_label gboolean setting")
-(CFNC-3.99 "gboolean gtk_accel_label_get_use_underline GtkAccelLabel* accel_label")
-(CFNC-3.99 "void gtk_scrollbar_set_adjustment GtkScrollbar* self GtkAdjustment* adjustment")
-(CFNC-3.99 "GtkAdjustment* gtk_scrollbar_get_adjustment GtkScrollbar* self")
-(CFNC-3.99 "double gtk_scrollbar_get_wheel_delta GtkScrollbar* self GdkEventScroll* event" 'const)
-(CFNC-3.99 "char* gtk_spin_button_get_text GtkSpinButton* spin_button" 'const-return)
-(CFNC-3.99 "void gtk_spin_button_set_text GtkSpinButton* spin_button char* text" 'const)
-(CFNC-3.99 "int gtk_spin_button_get_max_width_chars GtkSpinButton* spin_button")
-(CFNC-3.99 "void gtk_spin_button_set_max_width_chars GtkSpinButton* spin_button int max_width_chars")
-(CFNC-3.99 "int gtk_spin_button_get_width_chars GtkSpinButton* spin_button")
-(CFNC-3.99 "void gtk_spin_button_set_width_chars GtkSpinButton* spin_button int width_chars")
-(CFNC-3.99 "void gtk_widget_size_allocate GtkWidget* widget GtkAllocation* allocation int baseline GtkAllocation* out_clip")
+(CFNC-3.92 "void gtk_accel_label_set_label GtkAccelLabel* accel_label char* text" 'const)
+(CFNC-3.92 "char* gtk_accel_label_get_label GtkAccelLabel* accel_label" 'const-return)
+(CFNC-3.92 "void gtk_accel_label_set_use_underline GtkAccelLabel* accel_label gboolean setting")
+(CFNC-3.92 "gboolean gtk_accel_label_get_use_underline GtkAccelLabel* accel_label")
+(CFNC-3.92 "void gtk_scrollbar_set_adjustment GtkScrollbar* self GtkAdjustment* adjustment")
+(CFNC-3.92 "GtkAdjustment* gtk_scrollbar_get_adjustment GtkScrollbar* self")
+(CFNC-3.92 "double gtk_scrollbar_get_wheel_delta GtkScrollbar* self GdkEventScroll* event" 'const)
+(CFNC-3.92 "char* gtk_spin_button_get_text GtkSpinButton* spin_button" 'const-return)
+(CFNC-3.92 "void gtk_spin_button_set_text GtkSpinButton* spin_button char* text" 'const)
+(CFNC-3.92 "int gtk_spin_button_get_max_width_chars GtkSpinButton* spin_button")
+(CFNC-3.92 "void gtk_spin_button_set_max_width_chars GtkSpinButton* spin_button int max_width_chars")
+(CFNC-3.92 "int gtk_spin_button_get_width_chars GtkSpinButton* spin_button")
+(CFNC-3.92 "void gtk_spin_button_set_width_chars GtkSpinButton* spin_button int width_chars")
+(CFNC-3.92 "void gtk_widget_size_allocate GtkWidget* widget GtkAllocation* allocation int baseline GtkAllocation* out_clip")
  
  
 ;;; 3.92.1

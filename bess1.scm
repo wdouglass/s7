@@ -188,11 +188,11 @@
 			 (set! whichway 1)))
 		  (set! nextbeg (+ nextbeg (random 1.0)))
 		  (set! cellctr cellbeg)))
-	    (if cplay
-		(set! func (make-rt-violin dur freq ampl
+	    (set! func (if cplay
+			   (make-rt-violin dur freq ampl
 					   :fm-index ind
-					   :amp-env (wins (random 10))))
-		(set! func silence))
+					   :amp-env (wins (random 10)))
+			   silence))
 	    (set! len (seconds->samples dur))))
       (func))))
 
@@ -220,8 +220,7 @@
 		    (XmStringFree titlestr)
 		    dialog))
 	   
-	   (dpy (XtDisplay shell))
-	   (screen (DefaultScreenOfDisplay dpy))
+	   (screen (DefaultScreenOfDisplay (XtDisplay shell)))
 	   (black (BlackPixelOfScreen screen))
 	   (white (WhitePixelOfScreen screen))
 	   
@@ -349,14 +348,8 @@
 	    (lambda (label value)
 	      (let ((s1 (XmStringCreate (format #f "~,3F" value) XmFONTLIST_DEFAULT_TAG)))
 		(XtVaSetValues label (list XmNlabelString s1))
-		(XmStringFree s1))))
-	   
-	   (set-ilabel 
-	    (lambda (label value)
-	      (let ((s1 (XmStringCreate (format #f "~D" value) XmFONTLIST_DEFAULT_TAG)))
-		(XtVaSetValues label (list XmNlabelString s1))
 		(XmStringFree s1)))))
-      
+	   
       (define (freq-callback w c i)
 	(set! cfreq (* .05 (.value i)))
 	(set-flabel freq-label cfreq))

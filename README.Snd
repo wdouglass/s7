@@ -241,30 +241,6 @@ In OpenBSD, use pulseaudio:
  ./configure --with-gmp --with-gtk --with-pulseaudio CFLAGS=-ftrampolines LDFLAGS=-pthread
 
 
-In X86 Solaris, you may need to install Jurgen Keil's audio drivers.
-They can be found at http://www.tools.de/solaris.  Here are some
-suggestions from Russell Aspinwall:
-
-    Assuming you are using the Java Desktop System, then if there is sound 
-    you will find a speaker in the lower right hand corner, if there is a 
-    red line through it then it has not detected the sound card. 
-
-    To find the audio device , as root run 
-
-    # prtconf -pv > /tmp/prtconf.txt 
-
-    open prtconf.txt in text editor and search for "Audio Device", this will 
-    give the pci identifiers. grep /etc/driver_aliases for those pci 
-    identifiers and this will identify the Device Driver. 
-
-    # mixerctl 
-
-    should return [some description of the audio hardware]
-
-But I still have not managed to get output on my machine.  Apparently
-the audio card thinks it's the local network controller or something.
-
-
 ---- ALSA: ----
 
 Only versions from 1.0 of ALSA are supported.

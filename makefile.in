@@ -95,7 +95,6 @@ xg: 	xen.h mus-config.h $(S7_HEADERS)
 	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
 	$(SO_LD) $(GG_FILES) -o $(GG_SO_FILE) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(LIBS)
 
-
 libxm:  xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
 	rm -f xen.o s7.o
 	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
@@ -110,22 +109,21 @@ libxg:	xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES)
 	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
 	$(SO_LD) xen.o $(S7_O_FILES) $(GG_FILES) -o libxg.so $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
 
-widget: snd_widget.o
-
-snd_widget.o: $(SNDLIB_HEADERS) $(SND_HEADERS) $(GX_HEADERS) $(S7_HEADERS) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES)
-	$(LD) -r $(LDFLAGS) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES) -o snd_widget.o
-
-$(SNDLIB_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(S7_HEADERS)
-$(O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
-$(MOTIF_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
-$(GTK_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_G_HEADERS) $(S7_HEADERS)
-$(S7_O_FILES): $(S7_HEADERS) $(S7_FILES)
+libgtk_s7: $(S7_HEADERS)
+	$(CC) -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl
+	$(CC) libgtk_s7.o -shared -o libgtk_s7.so
 
 s7webserver/s7webserver.o: s7webserver/s7webserver.cpp
 	cd s7webserver && make s7webserver.o
 
 s7webserver/qhttpserver-master/lib/libqhttpserver.a:
 	cd s7webserver && make qhttpserver-master/lib/libqhttpserver.a
+
+$(SNDLIB_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(S7_HEADERS)
+$(O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
+$(MOTIF_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
+$(GTK_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_G_HEADERS) $(S7_HEADERS)
+$(S7_O_FILES): $(S7_HEADERS) $(S7_FILES)
 
 clean:
 	rm -f $(SNDLIB_O_FILES)

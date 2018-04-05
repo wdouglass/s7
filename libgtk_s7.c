@@ -456,7 +456,7 @@ static void lg_prepare_func(GdkSeat* seat, GdkWindow* window, gpointer func_info
 }
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
 static void lg_draw_func(GtkDrawingArea* self, cairo_t* cr, int width, int height, gpointer func_info)
 {
   if (!s7_is_list(cbsc, (s7_pointer)func_info)) return;
@@ -1129,7 +1129,7 @@ GSignalEmissionHook hook_func, lambda_data func_info, GtkDestroyNotify data_dest
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, data_destroy);
-    result = s7_make_integer(sc, g_signal_add_emission_hook(s7_integer(signal_id), s7_integer(quark), s7_c_pointer(hook_func), (gpointer)lg_ptr, s7_c_pointer(data_destroy)));
+    result = s7_make_integer(sc, g_signal_add_emission_hook(s7_integer(signal_id), s7_integer(quark), s7_c_pointer(hook_func), (gpointer)lg_ptr, lg_destroy_func));
     return(result);
    }
 }
@@ -1559,7 +1559,7 @@ GtkDestroyNotify notify)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, notify);
-    gdk_event_handler_set(s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify));
+    gdk_event_handler_set(lg_event_func, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -1953,7 +1953,7 @@ lambda_data func_info)"
   {
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gdk_window_add_filter(s7_c_pointer(window), s7_c_pointer(func), (gpointer)lg_ptr);
+    gdk_window_add_filter(s7_c_pointer(window), lg_filter_func, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -1974,7 +1974,7 @@ lambda_data func_info)"
   {
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gdk_window_remove_filter(s7_c_pointer(window), s7_c_pointer(func), (gpointer)lg_ptr);
+    gdk_window_remove_filter(s7_c_pointer(window), lg_filter_func, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -3100,7 +3100,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_c_pointer(sc, gtk_accel_group_find(s7_c_pointer(accel_group), s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_c_pointer(sc, gtk_accel_group_find(s7_c_pointer(accel_group), lg_find_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -3362,7 +3362,7 @@ static s7_pointer lg_gtk_accel_map_foreach(s7_scheme *sc, s7_pointer args)
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_accel_map_foreach((gpointer)lg_ptr, s7_c_pointer(func));
+    gtk_accel_map_foreach((gpointer)lg_ptr, lg_accel_map_foreach);
     return(lg_false);
    }
 }
@@ -3413,7 +3413,7 @@ GtkAccelMapForeach func)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_accel_map_foreach_unfiltered((gpointer)lg_ptr, s7_c_pointer(func));
+    gtk_accel_map_foreach_unfiltered((gpointer)lg_ptr, lg_accel_map_foreach);
     return(lg_false);
    }
 }
@@ -4162,7 +4162,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_container_foreach(s7_c_pointer(container), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_container_foreach(s7_c_pointer(container), lg_func2, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -9540,7 +9540,7 @@ GtkTextCharPredicate pred, lambda_data func_info, GtkTextIter* limit)"
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_boolean(sc, gtk_text_iter_forward_find_char(s7_c_pointer(iter), s7_c_pointer(pred), (gpointer)lg_ptr, s7_c_pointer(limit)));
+    result = s7_make_boolean(sc, gtk_text_iter_forward_find_char(s7_c_pointer(iter), lg_text_char_predicate, (gpointer)lg_ptr, s7_c_pointer(limit)));
     return(result);
    }
 }
@@ -9566,7 +9566,7 @@ GtkTextCharPredicate pred, lambda_data func_info, GtkTextIter* limit)"
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_boolean(sc, gtk_text_iter_backward_find_char(s7_c_pointer(iter), s7_c_pointer(pred), (gpointer)lg_ptr, s7_c_pointer(limit)));
+    result = s7_make_boolean(sc, gtk_text_iter_backward_find_char(s7_c_pointer(iter), lg_text_char_predicate, (gpointer)lg_ptr, s7_c_pointer(limit)));
     return(result);
    }
 }
@@ -9828,7 +9828,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_text_tag_table_foreach(s7_c_pointer(table), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_text_tag_table_foreach(s7_c_pointer(table), lg_text_tag_table_foreach, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -11244,7 +11244,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_tree_model_foreach(s7_c_pointer(model), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_tree_model_foreach(s7_c_pointer(model), lg_model_func, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -11476,7 +11476,7 @@ GtkTreeSelectionFunc func, lambda_data func_info, GtkDestroyNotify destroy)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_selection_set_select_function(s7_c_pointer(selection), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_selection_set_select_function(s7_c_pointer(selection), lg_tree_selection, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -11533,7 +11533,7 @@ GtkTreeSelectionForeachFunc func, lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_tree_selection_selected_foreach(s7_c_pointer(selection), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_tree_selection_selected_foreach(s7_c_pointer(selection), lg_tree_selection_func, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -11729,7 +11729,7 @@ gint sort_column_id, GtkTreeIterCompareFunc func, lambda_data func_info, GtkDest
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_sortable_set_sort_func(s7_c_pointer(sortable), s7_integer(sort_column_id), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_sortable_set_sort_func(s7_c_pointer(sortable), s7_integer(sort_column_id), lg_iter_compare, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -11753,7 +11753,7 @@ GtkTreeIterCompareFunc func, lambda_data func_info, GtkDestroyNotify destroy)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_sortable_set_default_sort_func(s7_c_pointer(sortable), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_sortable_set_default_sort_func(s7_c_pointer(sortable), lg_iter_compare, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -12168,7 +12168,7 @@ GtkCellRenderer* cell_renderer, GtkTreeCellDataFunc func, lambda_data func_info,
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_view_column_set_cell_data_func(s7_c_pointer(tree_column), s7_c_pointer(cell_renderer), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_view_column_set_cell_data_func(s7_c_pointer(tree_column), s7_c_pointer(cell_renderer), lg_cell_data, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -12845,7 +12845,7 @@ GtkDestroyNotify dnotify)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, dnotify);
-    result = s7_make_integer(sc, gtk_tree_view_insert_column_with_data_func(s7_c_pointer(tree_view), s7_integer(position), s7_string(title), s7_c_pointer(cell), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(dnotify)));
+    result = s7_make_integer(sc, gtk_tree_view_insert_column_with_data_func(s7_c_pointer(tree_view), s7_integer(position), s7_string(title), s7_c_pointer(cell), lg_cell_data, (gpointer)lg_ptr, lg_destroy_func));
     return(result);
    }
 }
@@ -12935,7 +12935,7 @@ GtkTreeViewColumnDropFunc func, lambda_data func_info, GtkDestroyNotify destroy)
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_view_set_column_drag_function(s7_c_pointer(tree_view), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_view_set_column_drag_function(s7_c_pointer(tree_view), lg_tree_column, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -13064,7 +13064,7 @@ GtkTreeViewMappingFunc func, lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_tree_view_map_expanded_rows(s7_c_pointer(tree_view), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_tree_view_map_expanded_rows(s7_c_pointer(tree_view), lg_tree_mapping, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -13369,7 +13369,7 @@ GtkTreeViewSearchEqualFunc func, lambda_data func_info, GtkDestroyNotify search_
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
     s7_list_set(sc, lg_ptr, 3, search_destroy);
-    gtk_tree_view_set_search_equal_func(s7_c_pointer(tree_view), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(search_destroy));
+    gtk_tree_view_set_search_equal_func(s7_c_pointer(tree_view), lg_tree_search, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -18453,7 +18453,7 @@ GtkEntryCompletionMatchFunc func, lambda_data func_info, GtkDestroyNotify func_n
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, func_notify);
-    gtk_entry_completion_set_match_func(s7_c_pointer(completion), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(func_notify));
+    gtk_entry_completion_set_match_func(s7_c_pointer(completion), lg_entry_completion_match, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -18682,7 +18682,7 @@ lambda_data func_info, GtkDestroyNotify notify)"
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
     s7_list_set(sc, lg_ptr, 3, notify);
-    result = s7_make_integer(sc, g_timeout_add_full(s7_integer(priority), s7_integer(interval), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify)));
+    result = s7_make_integer(sc, g_timeout_add_full(s7_integer(priority), s7_integer(interval), lg_timer_func, (gpointer)lg_ptr, lg_destroy_func));
     return(result);
    }
 }
@@ -18705,7 +18705,7 @@ static s7_pointer lg_g_timeout_add(s7_scheme *sc, s7_pointer args)
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, g_timeout_add(s7_integer(interval), s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, g_timeout_add(s7_integer(interval), lg_timer_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -18726,7 +18726,7 @@ static s7_pointer lg_g_idle_add(s7_scheme *sc, s7_pointer args)
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, g_idle_add(s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, g_idle_add(lg_timer_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -18753,7 +18753,7 @@ GtkDestroyNotify notify)"
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
     s7_list_set(sc, lg_ptr, 3, notify);
-    result = s7_make_integer(sc, g_idle_add_full(s7_integer(priority), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify)));
+    result = s7_make_integer(sc, g_idle_add_full(s7_integer(priority), lg_timer_func, (gpointer)lg_ptr, lg_destroy_func));
     return(result);
    }
 }
@@ -18855,7 +18855,7 @@ GtkFileFilterFunc func, lambda_data func_info, GtkDestroyNotify notify)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, notify);
-    gtk_file_filter_add_custom(s7_c_pointer(filter), s7_integer(needed), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify));
+    gtk_file_filter_add_custom(s7_c_pointer(filter), s7_integer(needed), lg_file_filter, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -19001,7 +19001,7 @@ GtkCellRenderer* cell, GtkCellLayoutDataFunc func, lambda_data func_info, GtkDes
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_cell_layout_set_cell_data_func(s7_c_pointer(cell_layout), s7_c_pointer(cell), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_cell_layout_set_cell_data_func(s7_c_pointer(cell_layout), s7_c_pointer(cell), s7_c_pointer(func), (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -20659,7 +20659,7 @@ GtkTreeViewRowSeparatorFunc func, lambda_data func_info, GtkDestroyNotify destro
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_tree_view_set_row_separator_func(s7_c_pointer(tree_view), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_view_set_row_separator_func(s7_c_pointer(tree_view), lg_row_separator, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -21104,7 +21104,7 @@ GtkIconViewForeachFunc func, lambda_data func_info)"
   {
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gtk_icon_view_selected_foreach(s7_c_pointer(icon_view), s7_c_pointer(func), (gpointer)lg_ptr);
+    gtk_icon_view_selected_foreach(s7_c_pointer(icon_view), lg_icon_view_foreach, (gpointer)lg_ptr);
     return(lg_false);
    }
 }
@@ -21249,7 +21249,7 @@ GtkTreeViewRowSeparatorFunc func, lambda_data func_info, GtkDestroyNotify destro
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 3, destroy);
-    gtk_combo_box_set_row_separator_func(s7_c_pointer(combo_box), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_combo_box_set_row_separator_func(s7_c_pointer(combo_box), lg_row_separator, (gpointer)lg_ptr, lg_destroy_func);
     return(lg_false);
    }
 }
@@ -22148,7 +22148,7 @@ GLogFunc func, lambda_data func_info)"
     s7_pointer result;
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    result = s7_make_integer(sc, g_log_set_handler(s7_string(log_domain), s7_integer(log_levels), s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, g_log_set_handler(s7_string(log_domain), s7_integer(log_levels), lg_g_message_log_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -23223,7 +23223,7 @@ GtkTreeViewSearchPositionFunc func, lambda_data func_info, GDestroyNotify destro
   {
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gtk_tree_view_set_search_position_func(s7_c_pointer(tree_view), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_tree_view_set_search_position_func(s7_c_pointer(tree_view), lg_search_position, (gpointer)lg_ptr, s7_c_pointer(destroy));
     return(lg_false);
    }
 }
@@ -23364,7 +23364,7 @@ GtkAssistantPageFunc page_func, lambda_data func_info, GDestroyNotify destroy)"
   {
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gtk_assistant_set_forward_page_func(s7_c_pointer(assistant), s7_c_pointer(page_func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_assistant_set_forward_page_func(s7_c_pointer(assistant), lg_page_func, (gpointer)lg_ptr, s7_c_pointer(destroy));
     return(lg_false);
    }
 }
@@ -23775,7 +23775,7 @@ GtkRecentSortFunc func, lambda_data func_info, GDestroyNotify data_destroy)"
   {
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gtk_recent_chooser_set_sort_func(s7_c_pointer(chooser), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(data_destroy));
+    gtk_recent_chooser_set_sort_func(s7_c_pointer(chooser), lg_recent_sort, (gpointer)lg_ptr, s7_c_pointer(data_destroy));
     return(lg_false);
    }
 }
@@ -26049,7 +26049,7 @@ lambda_data func_info, GDestroyNotify notify)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_idle_full(s7_integer(priority), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify)));
+    result = s7_make_integer(sc, gdk_threads_add_idle_full(s7_integer(priority), lg_timer_func, (gpointer)lg_ptr, s7_c_pointer(notify)));
     return(result);
    }
 }
@@ -26070,7 +26070,7 @@ static s7_pointer lg_gdk_threads_add_idle(s7_scheme *sc, s7_pointer args)
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_idle(s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, gdk_threads_add_idle(lg_timer_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -26098,7 +26098,7 @@ GSourceFunc func, lambda_data func_info, GDestroyNotify notify)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_timeout_full(s7_integer(priority), s7_integer(interval), s7_c_pointer(func), (gpointer)lg_ptr, s7_c_pointer(notify)));
+    result = s7_make_integer(sc, gdk_threads_add_timeout_full(s7_integer(priority), s7_integer(interval), lg_timer_func, (gpointer)lg_ptr, s7_c_pointer(notify)));
     return(result);
    }
 }
@@ -26122,7 +26122,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_timeout(s7_integer(interval), s7_c_pointer(func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, gdk_threads_add_timeout(s7_integer(interval), lg_timer_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -27222,7 +27222,7 @@ guint interval, GSourceFunc function, lambda_data func_info, GDestroyNotify noti
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_timeout_seconds_full(s7_integer(priority), s7_integer(interval), s7_c_pointer(function), (gpointer)lg_ptr, s7_c_pointer(notify)));
+    result = s7_make_integer(sc, gdk_threads_add_timeout_seconds_full(s7_integer(priority), s7_integer(interval), lg_timer_func, (gpointer)lg_ptr, s7_c_pointer(notify)));
     return(result);
    }
 }
@@ -27246,7 +27246,7 @@ lambda_data func_info)"
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     loc = s7_gc_protect(sc, lg_ptr);
     s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    result = s7_make_integer(sc, gdk_threads_add_timeout_seconds(s7_integer(interval), s7_c_pointer(function), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, gdk_threads_add_timeout_seconds(s7_integer(interval), lg_timer_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -38403,7 +38403,7 @@ gboolean owner_events, GdkCursor* cursor, GdkEvent* event, GdkSeatGrabPrepareFun
     s7_pointer result;
     s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    result = s7_make_integer(sc, gdk_seat_grab(s7_c_pointer(seat), s7_c_pointer(window), s7_integer(capabilities), lg_boolean(owner_events), s7_c_pointer(cursor), s7_c_pointer(event), s7_c_pointer(prepare_func), (gpointer)lg_ptr));
+    result = s7_make_integer(sc, gdk_seat_grab(s7_c_pointer(seat), s7_c_pointer(window), s7_integer(capabilities), lg_boolean(owner_events), s7_c_pointer(cursor), s7_c_pointer(event), lg_prepare_func, (gpointer)lg_ptr));
     return(result);
    }
 }
@@ -39244,7 +39244,7 @@ static s7_pointer lg_gtk_scrolled_window_get_propagate_natural_height(s7_scheme 
 
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
 static s7_pointer lg_gdk_display_is_composited(s7_scheme *sc, s7_pointer args)
 {
   #define H_gdk_display_is_composited "gboolean gdk_display_is_composited(GdkDisplay* display)"
@@ -39396,22 +39396,22 @@ static s7_pointer lg_gtk_drawing_area_get_content_height(s7_scheme *sc, s7_point
 static s7_pointer lg_gtk_drawing_area_set_draw_func(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_drawing_area_set_draw_func "void gtk_drawing_area_set_draw_func(GtkDrawingArea* self, \
-GtkDrawingAreaDrawFunc draw_func, lambda_data func_info, GDestroyNotify destroy)"
+GtkDrawingAreaDrawFunc func, lambda_data func_info, GDestroyNotify destroy)"
   s7_pointer _p;
-  s7_pointer self, draw_func, func_info, destroy;
+  s7_pointer self, func, func_info, destroy;
   _p = args;
   self = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_c_pointer_of_type(self, GtkDrawingArea__sym)) s7_wrong_type_arg_error(sc, "gtk_drawing_area_set_draw_func", 1, self, "GtkDrawingArea*");
-  draw_func = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(draw_func, GtkDrawingAreaDrawFunc_sym)) s7_wrong_type_arg_error(sc, "gtk_drawing_area_set_draw_func", 2, draw_func, "GtkDrawingAreaDrawFunc");
+  func = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(func, GtkDrawingAreaDrawFunc_sym)) s7_wrong_type_arg_error(sc, "gtk_drawing_area_set_draw_func", 2, func, "GtkDrawingAreaDrawFunc");
   func_info = s7_car(_p); _p = s7_cdr(_p);
   if ((!s7_is_c_pointer_of_type(func_info, lambda_data_sym)) && (func_info != lg_false)) s7_wrong_type_arg_error(sc, "gtk_drawing_area_set_draw_func", 3, func_info, "lambda_data");
   destroy = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_c_pointer_of_type(destroy, GDestroyNotify_sym)) s7_wrong_type_arg_error(sc, "gtk_drawing_area_set_draw_func", 4, destroy, "GDestroyNotify");
   {
-    s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
+    s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
     s7_gc_protect(sc, lg_ptr);
-    gtk_drawing_area_set_draw_func(s7_c_pointer(self), s7_c_pointer(draw_func), (gpointer)lg_ptr, s7_c_pointer(destroy));
+    gtk_drawing_area_set_draw_func(s7_c_pointer(self), lg_draw_func, (gpointer)lg_ptr, s7_c_pointer(destroy));
     return(lg_false);
    }
 }
@@ -40064,6 +40064,9 @@ int baseline, GtkAllocation* out_clip)"
   return(lg_false);
 }
 
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
 static s7_pointer lg_gdk_event_set_keyval(s7_scheme *sc, s7_pointer args)
 {
   #define H_gdk_event_set_keyval "void gdk_event_set_keyval(GdkEvent* event, guint keyval)"
@@ -47046,8 +47049,11 @@ static s7_pointer lg_GTK_PAD_CONTROLLER(s7_scheme *sc, s7_pointer args) {return(
 static s7_pointer lg_GTK_SHORTCUT_LABEL(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkShortcutLabel__sym, lg_false));}
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
 static s7_pointer lg_GTK_CENTER_BOX(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkCenterBox__sym, lg_false));}
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
 static s7_pointer lg_GTK_EMOJI_CHOOSER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkEmojiChooser__sym, lg_false));}
 static s7_pointer lg_GTK_EVENT_CONTROLLER_SCROLL(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkEventControllerScroll__sym, lg_false));}
 static s7_pointer lg_GTK_EVENT_CONTROLLER_MOTION(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkEventControllerMotion__sym, lg_false));}
@@ -47809,11 +47815,14 @@ static s7_pointer lg_GTK_IS_SHORTCUT_LABEL(s7_scheme *sc, s7_pointer args)
 }
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
 static s7_pointer lg_GTK_IS_CENTER_BOX(s7_scheme *sc, s7_pointer args)
 {
   return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_CENTER_BOX((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
 }
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
 static s7_pointer lg_GTK_IS_EMOJI_CHOOSER(s7_scheme *sc, s7_pointer args)
 {
   return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_EMOJI_CHOOSER((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
@@ -47895,6 +47904,11 @@ static s7_pointer lg_gtk_init_check(s7_scheme *sc, s7_pointer args)
   return(argc);
 } 
 
+#else
+static s7_pointer lg_gtk_init(s7_scheme *sc, s7_pointer args)
+{ 
+  gtk_init();
+}
 #endif
 
 static s7_pointer lg_g_object_get(s7_scheme *sc, s7_pointer args)
@@ -48044,7 +48058,7 @@ static void define_structs(s7_scheme *sc)
 static void define_functions(s7_scheme *sc)
 {
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_bt, pl_tb, pl_bti, pl_btiib, pl_ts, pl_tsu, pl_tsi, pl_tsit, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busi, pl_buib, pl_busu, pl_buub, pl_buig, pl_buus, pl_buui, pl_buigu, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuig, pl_buuui, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_su, pl_ps, pl_pst, pl_sug, pl_sui, pl_psu, pl_psb, pl_sus, pl_psg, pl_psi, pl_psgi, pl_psiu, pl_psut, pl_suiig, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_t, pl_p, pl_tts, pl_tti, pl_sg, pl_bi, pl_gs, pl_big, pl_pt, pl_tu, pl_si, pl_is, pl_isi, pl_tur, pl_tub, pl_tui, pl_tus, pl_tut, pl_tug, pl_sig, pl_turs, pl_tubu, pl_tusg, pl_tugb, pl_tugs, pl_tubi, pl_tuib, pl_tusr, pl_tusi, pl_turi, pl_tuui, pl_tuur, pl_tuig, pl_tusb, pl_tuub, pl_tuus, pl_tuug, pl_isgt, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuiut, pl_tugug, pl_tussu, pl_tuuur, pl_tuusb, pl_tugui, pl_tuisi, pl_turgs, pl_tuurb, pl_tuuti, pl_tuuri, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuugi, pl_tuiiut, pl_tuuiut, pl_tutisi, pl_tuuggu, pl_tugiis, pl_tuurru, pl_tuuuui, pl_tugiiu, pl_tuuugi, pl_tuuuub, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuurbr, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuurrrrg, pl_tuurrrrgr, pl_isigutttiiu, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_g, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_pusi, pl_puri, pl_pust, pl_pusu, pl_pugu, pl_puiu, pl_purru, pl_puuig, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puuiu, pl_puuugi, pl_pusiig, pl_puuiig, pl_puiiui, pl_puiigi, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pugiiu, pl_pusiigu, pl_pusiuiu, pl_pusiiugu, pl_puuusuug, pl_pusiuibu, pl_i, pl_tg, pl_ti, pl_it, pl_tiu, pl_tist, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_guugbuut, pl_gu, pl_pg, pl_gus, pl_pgr, pl_pgu, pl_pgi, pl_gug, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gussitu, pl_gurrsiu, pl_iu, pl_pi, pl_iur, pl_ius, pl_iui, pl_piu, pl_pit, pl_iug, pl_iugi, pl_iuis, pl_iusi, pl_iuui, pl_iuugs, pl_iuisi, pl_iuuui, pl_iuuuui, pl_iuisut, pl_gi, pl_igi, pl_iit, pl_iiit, pl_du, pl_pr, pl_dus, pl_dui, pl_dusr, pl_dusi, pl_prrru, pl_bsu, pl_bsigb, pl_ssi, pl_ssig, pl_b, pl_s, pl_bpt;
+  s7_pointer pl_sg, pl_bt, pl_gs, pl_tb, pl_bti, pl_btiib, pl_ts, pl_tsu, pl_tsi, pl_tsit, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busi, pl_buib, pl_busu, pl_buub, pl_buig, pl_buus, pl_buui, pl_buigu, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuig, pl_buuui, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_g, pl_su, pl_ps, pl_pst, pl_sug, pl_sui, pl_psu, pl_psb, pl_sus, pl_psg, pl_psi, pl_psgi, pl_psiu, pl_psut, pl_suiig, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_t, pl_p, pl_tg, pl_tts, pl_tti, pl_guugbuut, pl_gu, pl_bi, pl_pg, pl_gus, pl_pgr, pl_pgu, pl_pgi, pl_gug, pl_big, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gussitu, pl_gurrsiu, pl_pt, pl_tu, pl_si, pl_is, pl_isi, pl_tur, pl_tub, pl_tui, pl_tus, pl_tut, pl_tug, pl_sig, pl_turs, pl_tubu, pl_tusg, pl_tugb, pl_tugs, pl_tubi, pl_tuib, pl_tusr, pl_tusi, pl_turi, pl_tuui, pl_tuur, pl_tuig, pl_tusb, pl_tuub, pl_tuus, pl_tuug, pl_isgt, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuiut, pl_tugug, pl_tuuiu, pl_tussu, pl_tuuur, pl_tuusb, pl_tugui, pl_tuisi, pl_turgs, pl_tuurb, pl_tuuti, pl_tuuri, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuugi, pl_tuiiut, pl_tuuiut, pl_tutisi, pl_tuuggu, pl_tugiis, pl_tuurru, pl_tuuuui, pl_tugiiu, pl_tuuugi, pl_tuuuub, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuurbr, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuurrrrg, pl_tuurrrrgr, pl_isigutttiiu, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_pusi, pl_puri, pl_pust, pl_pusu, pl_pugu, pl_puiu, pl_purru, pl_puuig, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puuiu, pl_puuugi, pl_pusiig, pl_puuiig, pl_puiiui, pl_puiigi, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pugiiu, pl_pusiigu, pl_pusiuiu, pl_pusiiugu, pl_puuusuug, pl_pusiuibu, pl_i, pl_gi, pl_igi, pl_ti, pl_it, pl_tiu, pl_tist, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_iu, pl_pi, pl_iur, pl_ius, pl_iui, pl_piu, pl_pit, pl_iug, pl_iugi, pl_iuis, pl_iusi, pl_iuui, pl_iuugs, pl_iuisi, pl_iuuui, pl_iuuuui, pl_iuisut, pl_iit, pl_iiit, pl_du, pl_pr, pl_dus, pl_dui, pl_dusr, pl_dusi, pl_prrru, pl_bsu, pl_bsigb, pl_ssi, pl_ssig, pl_b, pl_s, pl_bpt;
 
   s_boolean = s7_make_symbol(sc, "boolean?");
   s_integer = s7_make_symbol(sc, "integer?");
@@ -48056,7 +48070,9 @@ static void define_functions(s7_scheme *sc)
   s_gtk_enum_t = s7_make_symbol(sc, "gtk_enum_t?");
   s_any = s7_t(sc);
 
+  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
   pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
+  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
   pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
   pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
   pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
@@ -48094,6 +48110,7 @@ static void define_functions(s7_scheme *sc)
   pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
   pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
   pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_su = s7_make_circular_signature(sc, 1, 2, s_string, s_pair_false);
   pl_ps = s7_make_circular_signature(sc, 1, 2, s_pair, s_string);
   pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
@@ -48116,12 +48133,25 @@ static void define_functions(s7_scheme *sc)
   pl_psiiuusu = s7_make_circular_signature(sc, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
   pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
   pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
+  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
   pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
   pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
-  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
+  pl_guugbuut = s7_make_circular_signature(sc, 7, 8, s_gtk_enum_t, s_pair_false, s_pair_false, s_gtk_enum_t, s_boolean, s_pair_false, s_pair_false, s_any);
+  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
   pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
-  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
+  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
+  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
+  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
+  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
   pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
+  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
+  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
+  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
   pl_pt = s7_make_circular_signature(sc, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(sc, 1, 2, s_any, s_pair_false);
   pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
@@ -48162,9 +48192,9 @@ static void define_functions(s7_scheme *sc)
   pl_tust = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_any);
   pl_tuiu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_pair_false);
   pl_tuit = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_any);
-  pl_tuuiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_tuiut = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tugug = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
+  pl_tuuiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_tussu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_string, s_string, s_pair_false);
   pl_tuuur = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_real);
   pl_tuusb = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_string, s_boolean);
@@ -48212,7 +48242,6 @@ static void define_functions(s7_scheme *sc)
   pl_tuiiiiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
   pl_tuuiiiirrrrg = s7_make_circular_signature(sc, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
   pl_tuuiiiirrrrgi = s7_make_circular_signature(sc, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
-  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_pu = s7_make_circular_signature(sc, 1, 2, s_pair, s_pair_false);
   pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
   pl_pub = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_boolean);
@@ -48255,7 +48284,8 @@ static void define_functions(s7_scheme *sc)
   pl_puuusuug = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
   pl_pusiuibu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
   pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
-  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
+  pl_gi = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_integer);
+  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
   pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
   pl_it = s7_make_circular_signature(sc, 1, 2, s_integer, s_any);
   pl_tiu = s7_make_circular_signature(sc, 2, 3, s_any, s_integer, s_pair_false);
@@ -48264,20 +48294,6 @@ static void define_functions(s7_scheme *sc)
   pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
   pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
   pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
-  pl_guugbuut = s7_make_circular_signature(sc, 7, 8, s_gtk_enum_t, s_pair_false, s_pair_false, s_gtk_enum_t, s_boolean, s_pair_false, s_pair_false, s_any);
-  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
-  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
-  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
-  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
-  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
   pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
   pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
   pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
@@ -48295,8 +48311,6 @@ static void define_functions(s7_scheme *sc)
   pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
-  pl_gi = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_integer);
-  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
   pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
   pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
   pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
@@ -51382,7 +51396,7 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_scrolled_window_get_propagate_natural_height", lg_gtk_scrolled_window_get_propagate_natural_height, 1, 0, 0, H_gtk_scrolled_window_get_propagate_natural_height, pl_bu);
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
   s7_define_typed_function(sc, "gdk_display_is_composited", lg_gdk_display_is_composited, 1, 0, 0, H_gdk_display_is_composited, pl_bu);
   s7_define_typed_function(sc, "gdk_display_is_rgba", lg_gdk_display_is_rgba, 1, 0, 0, H_gdk_display_is_rgba, pl_bu);
   s7_define_typed_function(sc, "gdk_window_new_toplevel", lg_gdk_window_new_toplevel, 4, 0, 0, H_gdk_window_new_toplevel, pl_pui);
@@ -51449,6 +51463,9 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_spin_button_get_width_chars", lg_gtk_spin_button_get_width_chars, 1, 0, 0, H_gtk_spin_button_get_width_chars, pl_iu);
   s7_define_typed_function(sc, "gtk_spin_button_set_width_chars", lg_gtk_spin_button_set_width_chars, 2, 0, 0, H_gtk_spin_button_set_width_chars, pl_tui);
   s7_define_typed_function(sc, "gtk_widget_size_allocate", lg_gtk_widget_size_allocate, 4, 0, 0, H_gtk_widget_size_allocate, pl_tuuiu);
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
   s7_define_typed_function(sc, "gdk_event_set_keyval", lg_gdk_event_set_keyval, 2, 0, 0, H_gdk_event_set_keyval, pl_tui);
   s7_define_typed_function(sc, "gdk_event_get_key_is_modifier", lg_gdk_event_get_key_is_modifier, 1, 1, 0, H_gdk_event_get_key_is_modifier, pl_pu);
   s7_define_typed_function(sc, "gdk_event_get_key_group", lg_gdk_event_get_key_group, 1, 1, 0, H_gdk_event_get_key_group, pl_pu);
@@ -52198,8 +52215,11 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_SHORTCUT_LABEL", lg_GTK_SHORTCUT_LABEL, 1, 0, 0, "(GTK_SHORTCUT_LABEL obj) casts obj to GTK_SHORTCUT_LABEL", pl_bpt);
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
   s7_define_typed_function(sc, "GTK_CENTER_BOX", lg_GTK_CENTER_BOX, 1, 0, 0, "(GTK_CENTER_BOX obj) casts obj to GTK_CENTER_BOX", pl_bpt);
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
   s7_define_typed_function(sc, "GTK_EMOJI_CHOOSER", lg_GTK_EMOJI_CHOOSER, 1, 0, 0, "(GTK_EMOJI_CHOOSER obj) casts obj to GTK_EMOJI_CHOOSER", pl_bpt);
   s7_define_typed_function(sc, "GTK_EVENT_CONTROLLER_SCROLL", lg_GTK_EVENT_CONTROLLER_SCROLL, 1, 0, 0, "(GTK_EVENT_CONTROLLER_SCROLL obj) casts obj to GTK_EVENT_CONTROLLER_SCROLL", pl_bpt);
   s7_define_typed_function(sc, "GTK_EVENT_CONTROLLER_MOTION", lg_GTK_EVENT_CONTROLLER_MOTION, 1, 0, 0, "(GTK_EVENT_CONTROLLER_MOTION obj) casts obj to GTK_EVENT_CONTROLLER_MOTION", pl_bpt);
@@ -52219,6 +52239,8 @@ static void define_functions(s7_scheme *sc)
 #if (!GTK_CHECK_VERSION(3, 90, 0))
   s7_define_function(sc, "gtk_init", lg_gtk_init, 0, 2, 0, NULL);
   s7_define_function(sc, "gtk_init_check", lg_gtk_init_check, 0, 2, 0, NULL);
+#else
+  s7_define_function(sc, "gtk_init", lg_gtk_init, 0, 0, 0, NULL);
 #endif
   s7_define_typed_function(sc, "GDK_IS_DRAG_CONTEXT", lg_GDK_IS_DRAG_CONTEXT, 1, 0, 0, "(GDK_IS_DRAG_CONTEXT obj): #t if obj is a GdkDragContext*", pl_bt);
   s7_define_typed_function(sc, "GDK_IS_DEVICE", lg_GDK_IS_DEVICE, 1, 0, 0, "(GDK_IS_DEVICE obj): #t if obj is a GdkDevice*", pl_bt);
@@ -52434,8 +52456,11 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_IS_SHORTCUT_LABEL", lg_GTK_IS_SHORTCUT_LABEL, 1, 0, 0, "(GTK_IS_SHORTCUT_LABEL obj): #t if obj is a GtkShortcutLabel*", pl_bt);
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
   s7_define_typed_function(sc, "GTK_IS_CENTER_BOX", lg_GTK_IS_CENTER_BOX, 1, 0, 0, "(GTK_IS_CENTER_BOX obj): #t if obj is a GtkCenterBox*", pl_bt);
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
   s7_define_typed_function(sc, "GTK_IS_EMOJI_CHOOSER", lg_GTK_IS_EMOJI_CHOOSER, 1, 0, 0, "(GTK_IS_EMOJI_CHOOSER obj): #t if obj is a GtkEmojiChooser*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_EVENT_CONTROLLER_SCROLL", lg_GTK_IS_EVENT_CONTROLLER_SCROLL, 1, 0, 0, "(GTK_IS_EVENT_CONTROLLER_SCROLL obj): #t if obj is a GtkEventControllerScroll*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_EVENT_CONTROLLER_MOTION", lg_GTK_IS_EVENT_CONTROLLER_MOTION, 1, 0, 0, "(GTK_IS_EVENT_CONTROLLER_MOTION obj): #t if obj is a GtkEventControllerMotion*", pl_bt);
@@ -53569,9 +53594,12 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_PAD_ACTION_STRIP"), s7_make_integer(sc, GTK_PAD_ACTION_STRIP));
 #endif
 
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_GESTURE_SWIPE_LEFT"), s7_make_integer(sc, GTK_SHORTCUT_GESTURE_SWIPE_LEFT));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_GESTURE_SWIPE_RIGHT"), s7_make_integer(sc, GTK_SHORTCUT_GESTURE_SWIPE_RIGHT));
+#endif
+
+#if GTK_CHECK_VERSION(3, 99, 0)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_WINDOW_STATE_TOP_TILED"), s7_make_integer(sc, GDK_WINDOW_STATE_TOP_TILED));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_WINDOW_STATE_TOP_RESIZABLE"), s7_make_integer(sc, GDK_WINDOW_STATE_TOP_RESIZABLE));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_WINDOW_STATE_RIGHT_TILED"), s7_make_integer(sc, GDK_WINDOW_STATE_RIGHT_TILED));
@@ -55131,9 +55159,11 @@ static enummer_t enum_info[] = {
         {"GDK_FULLSCREEN_ON_CURRENT_MONITOR", "GdkFullscreenMode", GDK_FULLSCREEN_ON_CURRENT_MONITOR},
         {"GDK_FULLSCREEN_ON_ALL_MONITORS", "GdkFullscreenMode", GDK_FULLSCREEN_ON_ALL_MONITORS},
 #endif
-#if GTK_CHECK_VERSION(3, 99, 0)
+#if GTK_CHECK_VERSION(3, 92, 0)
         {"GTK_SHORTCUT_GESTURE_SWIPE_LEFT", "GtkShortcutType", GTK_SHORTCUT_GESTURE_SWIPE_LEFT},
         {"GTK_SHORTCUT_GESTURE_SWIPE_RIGHT", "GtkShortcutType", GTK_SHORTCUT_GESTURE_SWIPE_RIGHT},
+#endif
+#if GTK_CHECK_VERSION(3, 99, 0)
         {"GDK_WINDOW_STATE_TOP_TILED", "GdkWindowState", GDK_WINDOW_STATE_TOP_TILED},
         {"GDK_WINDOW_STATE_TOP_RESIZABLE", "GdkWindowState", GDK_WINDOW_STATE_TOP_RESIZABLE},
         {"GDK_WINDOW_STATE_RIGHT_TILED", "GdkWindowState", GDK_WINDOW_STATE_RIGHT_TILED},
@@ -55308,7 +55338,7 @@ void libgtk_s7_init(s7_scheme *sc)
       s7_provide(sc, "gtk2");
     #endif
   #endif
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "03-Apr-18"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "04-Apr-18"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */
