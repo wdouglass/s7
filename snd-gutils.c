@@ -340,7 +340,20 @@ void set_stock_button_label(GtkWidget *w, const char *new_label)
 	     
 void set_button_label(GtkWidget *label, const char *str)
 {
-  gtk_label_set_text(GTK_LABEL(BIN_CHILD(label)), str);
+  GtkWidget *w;
+  w = BIN_CHILD(label);
+#if (GTK_CHECK_VERSION(3, 92, 0))
+  if (GTK_IS_LABEL(w))
+    gtk_label_set_text(GTK_LABEL(w), str);
+  else
+    {
+      if (GTK_IS_ACCEL_LABEL(w))
+	gtk_accel_label_set_label(GTK_ACCEL_LABEL(w), str);
+      else fprintf(stderr, "unknown widget type in set_button_label\n");
+    }
+#else
+  gtk_label_set_text(GTK_LABEL(w), str);
+#endif
 }
 
 
@@ -1002,7 +1015,7 @@ static gboolean slist_item_button_pressed(GtkWidget *w, GdkEventButton *ev, gpoi
 }
 
 
-#if ((GTK_CHECK_VERSION(3, 0, 0)) && (!(GTK_CHECK_VERSION(3, 89, 0))))
+#if (GTK_CHECK_VERSION(3, 0, 0))
 static GtkCssProvider *wb_provider, *listener_provider, *dialog_provider, *hl_provider, *tb_provider, *mu_provider;
 static GtkCssProvider *rsc_provider, *gsc_provider, *bsc_provider, *pd_provider, *cb_provider, *entry_provider;
 static GtkCssProvider *cl_provider;
@@ -1011,7 +1024,7 @@ void add_white_button_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(wb_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(wb_provider), G_MAXUINT);
   gtk_widget_set_name(w, "white_button");
 }
 
@@ -1019,7 +1032,7 @@ void add_highlight_button_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(hl_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(hl_provider), G_MAXUINT);
   gtk_widget_set_name(w, "highlight_button");
 }
 
@@ -1027,14 +1040,14 @@ void add_center_button_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(cl_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(cl_provider), G_MAXUINT);
 }
 
 void add_listener_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(listener_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(listener_provider), G_MAXUINT);
   gtk_widget_set_name(w, "listener_text");
 }
 
@@ -1042,21 +1055,22 @@ void add_dialog_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(dialog_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(dialog_provider), G_MAXUINT);
 }
 
 void add_toolbar_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(tb_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(tb_provider), G_MAXUINT);
+  if (GTK_IS_CONTAINER(w)) gtk_container_forall(GTK_CONTAINER(w), (GtkCallback)add_toolbar_style, tb_provider);
 }
 
 void add_menu_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(mu_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(mu_provider), G_MAXUINT);
 }
 
 void add_paned_style(GtkWidget *w)
@@ -1064,7 +1078,7 @@ void add_paned_style(GtkWidget *w)
 #if 0
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(pd_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(pd_provider), G_MAXUINT);
 #endif
 }
 
@@ -1072,92 +1086,51 @@ void add_red_scale_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(rsc_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(rsc_provider), G_MAXUINT);
 }
 
 void add_green_scale_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(gsc_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(gsc_provider), G_MAXUINT);
 }
 
 void add_blue_scale_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(bsc_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(bsc_provider), G_MAXUINT);
 }
 
 void add_check_button_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(cb_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(cb_provider), G_MAXUINT);
 }
 
 void add_entry_style(GtkWidget *w)
 {
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
-  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(entry_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(entry_provider), G_MAXUINT);
 }
 
 #else
-
-void add_red_scale_style(GtkWidget *w)
-{
-}
-
-void add_green_scale_style(GtkWidget *w)
-{
-}
-
-void add_blue_scale_style(GtkWidget *w)
-{
-}
-
-void add_toolbar_style(GtkWidget *w)
-{
-}
-
-void add_menu_style(GtkWidget *w)
-{
-}
-
-void add_paned_style(GtkWidget *w)
-{
-}
-
-void add_highlight_button_style(GtkWidget *w)
-{
-}
-
-void add_center_button_style(GtkWidget *w)
-{
-}
-
-void add_white_button_style(GtkWidget *w) 
-{
-  gtk_widget_set_name(w, "white_button");
-}
-
-void add_listener_style(GtkWidget *w)
-{
-  gtk_widget_set_name(w, "listener_text");
-}
-
-void add_dialog_style(GtkWidget *w)
-{
-}
-
-void add_check_button_style(GtkWidget *w)
-{
-}
-
-void add_entry_style(GtkWidget *w)
-{
-}
+void add_red_scale_style(GtkWidget *w) {}
+void add_green_scale_style(GtkWidget *w) {}
+void add_blue_scale_style(GtkWidget *w) {}
+void add_toolbar_style(GtkWidget *w) {}
+void add_menu_style(GtkWidget *w) {}
+void add_paned_style(GtkWidget *w) {}
+void add_highlight_button_style(GtkWidget *w) {}
+void add_center_button_style(GtkWidget *w) {}
+void add_white_button_style(GtkWidget *w) {gtk_widget_set_name(w, "white_button");}
+void add_listener_style(GtkWidget *w) {gtk_widget_set_name(w, "listener_text");}
+void add_dialog_style(GtkWidget *w) {}
+void add_check_button_style(GtkWidget *w) {}
+void add_entry_style(GtkWidget *w) {}
 #endif
 
 static GtkWidget *slist_new_item(slist *lst, const char *label, int row)
@@ -1483,11 +1456,132 @@ widget \"*.white_button\" style \"white_button\"\n");
 }
 
 #else
-
+/* -------------------------------------------------------------------------------- */
 #if (GTK_CHECK_VERSION(3, 89, 0))
-/* border-width and -gtk-gradient have been removed, and as far as I can tell, this stuff never works anyway */
-void init_gtk(void) {return;}
+/* border-width and -gtk-gradient have been removed(??); as far as I can tell, this stuff does not work */
+void init_gtk(void)
+{
+  GtkStyleProvider *dp;
+  provider = gtk_css_provider_new();
+  gtk_style_context_add_provider_for_display(gdk_display_get_default(), dp, G_MAXUINT);
+
+  wb_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(wb_provider),
+    "GtkButton#white_button { \n"
+    "  padding-top: 0px;\n"
+    "  padding-bottom: 0px;\n"
+    "  background-color: #ffffff;\n"
+    "}\n"
+    "GtkButton#white_button:hover { \n"
+    "}\n",
+    -1);
+
+  hl_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(hl_provider),
+    "GtkEventBox, GtkButton#highlight_button { \n"
+    "  padding-top: 0px;\n"
+    "  padding-bottom: 0px;\n"
+    "  background-color: #fffff0;\n"
+    "}\n"
+    "GtkButton#highlight_button:hover { \n"
+    "}\n",
+    -1);
+
+  cl_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(cl_provider),
+    "GtkEventBox, GtkButton { \n"
+    "  padding-top: 0px;\n"
+    "  padding-bottom: 0px;\n"
+    "  padding-left: 8px;\n"
+    "  padding-right: 8px;\n"
+    "  border-color: gray;\n"
+    "  background-color: #fffff0;\n"
+    "}\n"
+    "GtkButton:hover { \n"
+    "}\n",
+    -1);
+
+  listener_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(listener_provider),
+    "#listener_text { \n"
+     "  background-color: #ffffff;\n"
+     "  color: #000000;\n"
+    "}\n"
+    "#listener_text:selected { \n"
+     "  background-color: darker(rgb(240, 248, 255));\n"
+     "  color: #000000;\n"
+    "}\n",
+    -1);
+
+  entry_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(entry_provider),
+    "GtkEntry:selected { \n"
+    "  background-color: darker(rgb(240, 248, 255));\n"
+     "  color: #000000;\n"
+    "}\n",
+    -1);
+
+  dialog_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(dialog_provider),
+    "GtkDialog { \n"
+    "}\n",
+    -1);
+
+  tb_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(tb_provider),
+    "GtkToolbar, GtkToolButton, GtkToolItem { \n"
+    "  border-color: #fffff0;\n"				  
+    "  padding-left: 8px;\n"
+    "  padding-bottom: 4px;\n"
+    "}\n",
+    -1);
+  /* the 8px here refers to the whole bar, not each entry */
+
+  mu_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(mu_provider),
+    "GtkMenuBar, GtkMenu, GtkMenuItem { \n"
+    "  border-color: #fffff0;\n"				  
+    "  background-color: #fffff0;\n"
+    "  padding-bottom: 4px;\n"
+    "  padding-left: 8px;\n"				  
+    "}\n",
+    -1);
+
+  rsc_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(rsc_provider),
+    "GtkScale { \n"
+    "}\n",
+    -1);
+
+  gsc_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(gsc_provider),
+    "GtkScale { \n"
+    "}\n",
+    -1);
+
+  bsc_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(bsc_provider),
+    "GtkScale { \n"
+    "}\n",
+    -1);
+
+  /* I wanted to make the handle larger and set its color to #90ee90 -- no way! */
+  pd_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(pd_provider),
+    "GtkPaned { \n"
+    "  background-color: #fffff0;\n"
+    "}\n",
+    -1);
+
+  cb_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(cb_provider),
+    "GtkRadioButton:hover, GtkCheckButton:hover { \n"
+    "  background-color: rgb(200, 200, 190);\n"
+    "}\n",
+    -1);
+}
 #else
+/* -------------------------------------------------------------------------------- */
 void init_gtk(void)
 {
   wb_provider = gtk_css_provider_new();

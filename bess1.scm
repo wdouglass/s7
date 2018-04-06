@@ -39,7 +39,7 @@
 (define background "lightsteelblue1")
 
 (define make-rt-violin 
-  (let ((+documentation+ "(make-rt-violin dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 90 0 100 0))) real time simple violin (see fm.html)"))
+  (let ((+documentation+ "(make-rt-violin dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 100 0))) real time simple violin (see fm.html)"))
     (lambda* (dur freq amp (fm-index 1.0) (amp-env '(0 0 25 1 75 1 100 0)))
       (let* ((frq-scl (hz->radians freq))
 	     (maxdev (* frq-scl fm-index)))
@@ -102,7 +102,7 @@
 	      (if cplay
 		  (let ((freq (* cfreq 16.351 16
 				 (expt 2 (/ (vmode (vpits cellctr)) 12.0)))))
-		    (format () "dur: ~A, freq: ~,3F, amp: ~A, index: ~A~%" dur freq camp cindex)
+		    ;(format () "dur: ~A, freq: ~,3F, amp: ~A, index: ~A~%" dur freq camp cindex)
 		    (set! func (make-rt-violin dur freq camp :fm-index cindex)))
 		  (set! func silence))
 	      (set! len (seconds->samples dur))))
@@ -141,16 +141,16 @@
     (set! (amps i) (floor (+ 1 (* 8 (rbell (random 1.0)))))))
   (set! *clm-srate* srate)
 
-  (let ((wins (vector '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
+  (let ((wins (vector '(0 0 40 0.1 60 0.2 75 0.4 82 1 100 0)
 		      '(0 0 60 0.1 80 0.2 90 0.4 95 1 100 0)
-		      '(0 0 10 1 16 0 32 0.1 50 1 56 0 60 0 80 0.3 90 0 100 0)
-		      '(0 0 30 1 56 0 60 0 80 0.3 90 0 100 0)
-		      '(0 0 50 1 80 0.3 90 0 100 0)
-		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
-		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 90 0 100 0)
-		      '(0 0 10 1 32 0.1 50 1 80 0.3 90 0 100 0)
-		      '(0 0 60 0.1 80 0.3 95 0 100 0)
-		      '(0 0 80 0.1 90 0 100 0)))
+		      '(0 0 10 1 16 0 32 0.1 50 1 56 0 60 0 80 0.3 100 0)
+		      '(0 0 30 1 56 0 60 0 80 0.3 100 0)
+		      '(0 0 50 1 80 0.3 100 0)
+		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 100 0)
+		      '(0 0 40 0.1 60 0.2 75 0.4 82 1 100 0)
+		      '(0 0 10 1 32 0.1 50 1 80 0.3 100 0)
+		      '(0 0 60 0.1 80 0.3 100 0)
+		      '(0 0 80 0.1 100 0)))
 	(nextbeg 0.0)
 	(beg 0.0)
 	(dur 0.0)

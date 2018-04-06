@@ -3957,7 +3957,7 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
 	    protected_count[sc->protected_lines[i]]++;
 	for (i = 0; i < 85000; i++)
 	  if (protected_count[i] > 0)
-	    fprintf(stderr, "line[%" PRId64 "]: %d\n", i, protected_count[i]);
+	    fprintf(stderr, "%s[%" PRId64 "]: %d\n", __func__, i, protected_count[i]);
 	free(protected_count);
       }
 #endif
@@ -84735,16 +84735,14 @@ int main(int argc, char **argv)
  *     gdk_window_end_draw_frame(win, last_context);
  * for gtk 4:
  *   all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
- *   iconify is currently commented out, as are refs to begin|end_draw_frame [wrong # args]
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
- *   can grepl be used to get all the gtk scheme code working in gtk4? 
- *     [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
+ *   [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
+ *   perhaps add the (endless) css api to xgdata
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
  *
- * the old mus-audio-* code needs to use play (see bess.scm)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place

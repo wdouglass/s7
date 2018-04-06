@@ -1563,6 +1563,7 @@ static Xen g_localtime(Xen tm)
 {
   #define H_localtime "(localtime tm) breaks up tm into something suitable for strftime"
   time_t rtime;
+  Xen_check_type(Xen_is_integer(tm), tm, 1, "localtime", "an integer");
   rtime = (time_t)Xen_ulong_to_C_ulong(tm);
   return(Xen_wrap_C_pointer(localtime((time_t *)(&rtime))));
 }
@@ -1575,50 +1576,6 @@ static Xen g_current_time(void)
   curtime = time(NULL);
   return(C_ulong_to_Xen_ulong(curtime));
 }
-
-#if (!DISABLE_DEPRECATED)
-static Xen g_tmpnam(void)
-{
-  #define H_tmpnam "(tmpnam) returns a new (hopefully unused) temporary file name"
-  #define BUFFER_SIZE 512
-  static int file_ctr = 0;
-  char *str, *tmpdir = NULL;
-  Xen result;
-
-  str = (char *)calloc(BUFFER_SIZE, sizeof(char));
-  tmpdir = xen_strdup(getenv("TMPDIR"));
-
-#ifdef P_tmpdir
-  if (!tmpdir) 
-    tmpdir = xen_strdup(P_tmpdir); /* /usr/include/stdio.h */
-  if (tmpdir)
-    {
-      int len;
-      len = strlen(tmpdir);
-      if (len > 0)
-	{
-	  if (tmpdir[len - 1] == '/') 
-	    tmpdir[len - 1] = 0;
-	}
-      else
-	{
-	  free(tmpdir);
-	  tmpdir = xen_strdup(".");
-	}
-    }
-#else
-  if (!tmpdir) tmpdir = xen_strdup("/tmp");
-#endif
-
-  if (tmpdir) /* try to make C happy... */
-    snprintf(str, BUFFER_SIZE, "%s/xen_%d_%d", tmpdir, (int)getpid(), file_ctr++);
-  else snprintf(str, BUFFER_SIZE, "/xen_%d_%d", (int)getpid(), file_ctr++);
-  if (tmpdir) free(tmpdir);
-  result = C_string_to_Xen_string(str);
-  free(str);
-  return(result);
-}
-#endif
 
 
 static Xen g_ftell(Xen fd)
@@ -1660,9 +1617,6 @@ Xen_wrap_no_args(g_current_time_w, g_current_time)
 Xen_wrap_1_arg(g_ftell_w, g_ftell)
 Xen_wrap_no_args(g_gc_off_w, g_gc_off)
 Xen_wrap_no_args(g_gc_on_w, g_gc_on)
-#if (!DISABLE_DEPRECATED)
-Xen_wrap_no_args(g_tmpnam_w, g_tmpnam)
-#endif
 
 #if ENABLE_WEBSERVER
   #if USE_MOTIF
@@ -1747,12 +1701,6 @@ s7_scheme *s7_xen_initialize(s7_scheme *sc)
 		                     ((eq? func (car l)) (loop (cdr l) result))\n\
 		                     (else (loop (cdr l) (cons (car l) result)))))))");
 
-#if (!DISABLE_DEPRECATED)
-  Xen_define_typed_procedure("tmpnam",       g_tmpnam_w,        0, 0, 0, H_tmpnam,        s7_make_signature(s7, 1, s));
-  Xen_eval_C_string("(define load-from-path load)");
-  Xen_eval_C_string("(define (1+ x) \"add 1 to arg\" (+ x 1))");
-  Xen_eval_C_string("(define (1- x) \"subtract 1 from arg\" (- x 1))");
-#endif
   Xen_eval_C_string("(define-macro (while whether . body) `(do () ((not ,whether)) ,@body))");
   Xen_eval_C_string("(define (identity x) \"return arg\" x)");
 

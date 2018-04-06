@@ -3498,6 +3498,7 @@ static bool tree_memq(s7_scheme *sc, s7_pointer symbol, s7_pointer tree)
 }
 
 static s7_pointer gc_vect;
+enum {GC_BODY, GC_ARGS, GC_FUNC, GC_LET};
 #endif
 
 static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t beg, mus_long_t num, int pos, const char *caller)
@@ -3510,7 +3511,6 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
 
 #if HAVE_SCHEME
   mus_float_t *in_data;
-  s7_int gc_loc, proc_loc;
   bool use_apply;
   s7_pointer arg_list, body, e, slot;
 
@@ -3671,7 +3671,7 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
 
       arg = s7_car(s7_closure_args(s7, proc));
       e = s7_sublet(s7, s7_closure_let(s7, proc), s7_nil(s7));
-      gc_loc = s7_gc_protect(s7, e);
+      s7_vector_set(s7, gc_vect, GC_LET, e);
       slot = s7_make_slot(s7, e, arg, s7_make_real(s7, 0.0));
       use_apply = false;
       if (s7_is_null(s7, s7_cdr(body)))
@@ -3681,17 +3681,17 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
       else 
 	{
 	  body = s7_cons(s7, s7_make_symbol(s7, "begin"), body);
-	  s7_vector_set(s7, gc_vect, 0, body);
+	  s7_vector_set(s7, gc_vect, GC_BODY, body);
 	}
       /* fprintf(stderr, "eval %s\n", DISPLAY(body)); */
     }
   else
     {
       arg_list = Xen_list_1(Xen_false);
-      gc_loc = s7_gc_protect(s7, arg_list);
+      s7_vector_set(s7, gc_vect, GC_ARGS, arg_list);
       use_apply = true;
     }
-  proc_loc = s7_gc_protect(s7, proc);
+  s7_vector_set(s7, gc_vect, GC_FUNC, proc);
 #endif
 
   /* fprintf(stderr, "map %" PRId64 ": body: %s\n", num, s7_object_to_c_string(s7, body)); */
@@ -3764,8 +3764,6 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
 		      sf = free_snd_fd(sf);
 #if HAVE_SCHEME
 		      free(in_data);
-		      s7_gc_unprotect_at(s7, gc_loc);
-		      s7_gc_unprotect_at(s7, proc_loc);
 #endif
 		      Xen_error(BAD_TYPE,
 				Xen_list_3(C_string_to_Xen_string("~A: result of procedure must be a number, boolean, or vct: ~A"),
@@ -3780,8 +3778,6 @@ static Xen map_channel_to_buffer(chan_info *cp, snd_fd *sf, Xen proc, mus_long_t
   free_snd_fd(sf);
 #if HAVE_SCHEME
   free(in_data);
-  s7_gc_unprotect_at(s7, gc_loc);
-  s7_gc_unprotect_at(s7, proc_loc);
 #endif
 
   if (cp->active < CHANNEL_HAS_EDIT_LIST)
@@ -3959,7 +3955,7 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
 #if HAVE_SCHEME
   {
   s7_pointer arg_list;
-  s7_int gc_loc;
+  /* s7_int gc_loc; */
   bool use_apply;
   s7_pointer body, e, slot;
 
@@ -4033,24 +4029,24 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
 	  s7_set_curlet(s7, old_e);
 	}
       
-      gc_loc = s7_gc_protect(s7, e);
-      slot = s7_make_slot(s7, e, arg, s7_make_real(s7, 0.0));
-      use_apply = false;
-
-      if (s7_is_null(s7, s7_cdr(body)))
-	body = s7_car(body);
-      else
-	{
-	  body = s7_cons(s7, s7_make_symbol(s7, "begin"), body);
-	  s7_vector_set(s7, gc_vect, 0, body);
-	}
-      /* fprintf(stderr, "eval %s\n", DISPLAY(body)); */
+	s7_vector_set(s7, gc_vect, GC_LET, e);
+	slot = s7_make_slot(s7, e, arg, s7_make_real(s7, 0.0));
+	use_apply = false;
+	
+	if (s7_is_null(s7, s7_cdr(body)))
+	  body = s7_car(body);
+	else
+	  {
+	    body = s7_cons(s7, s7_make_symbol(s7, "begin"), body);
+	    s7_vector_set(s7, gc_vect, GC_BODY, body);
+	  }
+	/* fprintf(stderr, "eval %s\n", DISPLAY(body)); */
     }
   else
     {
       /* is this for built-in funcs? */
       arg_list = Xen_list_1(Xen_false);
-      gc_loc = s7_gc_protect(s7, arg_list);
+      s7_vector_set(s7, gc_vect, GC_ARGS, arg_list);
       use_apply = true;
     }
 
@@ -4095,9 +4091,6 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
 	      free_snd_fd(sf);
 	      if (reporting) 
 		finish_progress_report(cp);
-#if HAVE_SCHEME
-	      s7_gc_unprotect_at(s7, gc_loc);
-#endif
 	      return(C_llong_to_Xen_llong(kp + beg));
 	    }
 	}
@@ -4123,7 +4116,6 @@ static Xen g_sp_scan(Xen proc_and_list, Xen s_beg, Xen s_end, Xen snd, Xen chn, 
 	}
     }
 #if HAVE_SCHEME
-  s7_gc_unprotect_at(s7, gc_loc);
   }
 #endif
   if (reporting) finish_progress_report(cp);
@@ -4167,11 +4159,9 @@ if 'func' returns non-" PROC_FALSE ", the scan stops, and the current sample num
 
 #if HAVE_SCHEME
   {
-    s7_int gc_loc;
     s7_pointer result;
-    gc_loc = s7_gc_protect(s7, proc);
+    s7_vector_set(s7, gc_vect, GC_FUNC, proc);
     result = g_sp_scan(proc, beg, end, snd, chn, S_scan_chan, false, edpos, 6, Xen_false);
-    s7_gc_unprotect_at(s7, gc_loc);
     return(result);
   }
 #else
@@ -4201,11 +4191,9 @@ if func returns non-" PROC_FALSE ", the scan stops, and the current sample numbe
 
 #if HAVE_SCHEME
   {
-    s7_int gc_loc;
     s7_pointer result;
-    gc_loc = s7_gc_protect(s7, proc);
+    s7_vector_set(s7, gc_vect, GC_FUNC, proc);
     result = g_sp_scan(proc, beg, Xen_false, snd, chn, S_scan_channel, false, edpos, 6, (Xen_is_bound(dur)) ? dur : Xen_false);
-    s7_gc_unprotect_at(s7, gc_loc);
     return(result);
   }
 #else
@@ -4232,11 +4220,9 @@ apply func to samples in current channel; edname is the edit history name for th
 
 #if HAVE_SCHEME
   {
-    s7_int gc_loc;
     s7_pointer result;
-    gc_loc = s7_gc_protect(s7, proc);
+    s7_vector_set(s7, gc_vect, GC_FUNC, proc);
     result = g_map_chan_1(proc, s_beg, s_end, org, snd, chn, edpos, Xen_false, S_map_chan);
-    s7_gc_unprotect_at(s7, gc_loc);
     return(result);
   }
 #else
@@ -4263,11 +4249,9 @@ apply func to samples in current channel; edname is the edit history name for th
 
 #if HAVE_SCHEME
   {
-    s7_int gc_loc;
     s7_pointer result;
-    gc_loc = s7_gc_protect(s7, proc);
+    s7_vector_set(s7, gc_vect, GC_FUNC, proc);
     result = g_map_chan_1(proc, s_beg, Xen_false, org, snd, chn, edpos, (Xen_is_bound(s_dur)) ? s_dur : Xen_false, S_map_channel);
-    s7_gc_unprotect_at(s7, gc_loc);
     return(result);
   }
 #else
@@ -6613,7 +6597,7 @@ void g_init_sig(void)
   s7_symbol_set_setter(s7, ss->sinc_width_symbol, s7_make_function(s7, "[acc-" S_sinc_width "]", acc_sinc_width, 2, 0, false, "accessor"));
   s7_symbol_set_documentation(s7, ss->sinc_width_symbol, "*sinc-width*: sampling rate conversion sinc width (10).");
 
-  gc_vect = s7_make_vector(s7, 1);
+  gc_vect = s7_make_vector(s7, 4);
   s7_gc_protect(s7, gc_vect);
 #endif
 

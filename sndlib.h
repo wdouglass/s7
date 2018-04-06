@@ -2,8 +2,8 @@
 #define SNDLIB_H
 
 #define SNDLIB_VERSION 24
-#define SNDLIB_REVISION 6
-#define SNDLIB_DATE "3-Aug-17"
+#define SNDLIB_REVISION 7
+#define SNDLIB_DATE "5-Apr-18"
 
 #include <stdio.h>
 #include <time.h>
@@ -420,18 +420,4 @@ uint32_t mus_char_to_ulint(const uint8_t *inp);
 #ifdef __cplusplus
 }
 #endif
-
-#if (!DISABLE_DEPRECATED)
-#define mus_header_format                    mus_header_sample_type
-#define mus_header_original_format           mus_header_original_sample_type
-#define mus_header_original_format_name      mus_header_original_sample_type_name
-#define mus_header_change_format             mus_header_change_sample_type
-#define mus_sound_original_format            mus_sound_original_sample_type
-#define MUS_AUDIO_COMPATIBLE_FORMAT          MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE
-#define MUS_OUT_FORMAT                       MUS_OUT_SAMPLE_TYPE
-#define MUS_AUDIO_FORMAT_NOT_AVAILABLE       MUS_AUDIO_SAMPLE_TYPE_NOT_AVAILABLE  
-#define mus_audio_compatible_format          mus_audio_compatible_sample_type     
-#define mus_audio_device_format              mus_audio_device_sample_type         
-#endif
-
 #endif
