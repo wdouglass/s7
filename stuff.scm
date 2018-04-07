@@ -529,7 +529,7 @@ If func approves of one, index-if returns the index that gives that element's po
     (collect-if list integer? #(1.4 2/3 1 1+i 2)) -> '(1 2)"))
     (lambda (type f sequence)
       (unless (sequence? sequence)
-	(error 'wrong=type-arg "collect-if: sequence arg is ~A" sequence))
+	(error 'wrong-type-arg "collect-if: sequence arg is ~A" sequence))
       (apply type (map (lambda (arg) (if (f arg) arg (values))) sequence)))))
 
 ;;; if type=list, this is slightly wasteful because list currently copies its args, so:
@@ -542,7 +542,7 @@ If func approves of one, index-if returns the index that gives that element's po
     (remove-if list integer? #(1.4 2/3 1 1+i 2)) -> '(1.4 2/3 1+1i)"))
     (lambda (type f sequence)
       (unless (sequence? sequence)
-	(error 'wrong=type-arg "remove-if: sequence arg is ~A" sequence))
+	(error 'wrong-type-arg "remove-if: sequence arg is ~A" sequence))
       (collect-if type (lambda (obj) (not (f obj))) sequence))))
 
 (define nonce 

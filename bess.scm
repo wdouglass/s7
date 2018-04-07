@@ -231,3 +231,153 @@
 	(play fm)))))
 
 
+(when (provided? 'gtk4)
+
+  ;; if (play fm), the callbacks aren't called? 
+
+  ;; this should be a standard function somewhere
+  (when (or (not (defined? '*gtk*))
+	    (eq? #<undefined> (*gtk* 'gtk_window_set_title)))
+    (format *stderr* "looking for libgtk_s7~%")
+    (if (file-exists? "libgtk_s7.so")
+	(load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
+	(if (file-exists? "libgtk_s7.c")
+	    (begin
+	      (format *stderr* "building libgtk_s7~%")
+	      (system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl")
+	      (system "gcc libgtk_s7.o -shared -o libgtk_s7.so")
+	      (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init))))
+	    (error 'no-such-file "can't find libgtk_s7.c"))))
+
+  (with-let (sublet *gtk*)
+    (let ((fm-dialog (gtk_dialog_new)))
+      (gtk_window_set_transient_for (GTK_WINDOW fm-dialog) (GTK_WINDOW ((main-widgets) 1)))
+      (gtk_window_set_title (GTK_WINDOW fm-dialog) "FM!")
+      (gtk_window_set_default_size (GTK_WINDOW fm-dialog) 500 200)
+      (gtk_window_set_resizable (GTK_WINDOW fm-dialog) #t)
+      (gtk_widget_realize fm-dialog)
+      (g_signal_connect fm-dialog "delete_event" 
+			(lambda (w ev data)
+			  (stop-playing)
+			  (gtk_widget_hide fm-dialog) ; or destroy??
+			  #t)
+			#f)
+      (let ((dismiss-button (gtk_dialog_add_button (GTK_DIALOG fm-dialog) "Go Away" GTK_RESPONSE_NONE)))
+	(g_signal_connect dismiss-button "clicked" 
+			  (lambda (w data) 
+			    (stop-playing)
+			    (gtk_widget_hide fm-dialog))
+			  #f)
+	(gtk_widget_show dismiss-button)
+	(gtk_widget_set_name dismiss-button "quit_button"))
+      
+      (let* ((mainform (gtk_box_new GTK_ORIENTATION_VERTICAL 2))
+	     (table (gtk_grid_new)))
+	(gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG fm-dialog))) mainform)
+	(gtk_widget_set_hexpand mainform #t)
+	(gtk_widget_set_vexpand mainform #t)
+	(gtk_widget_show mainform)
+	
+	(gtk_box_pack_start (GTK_BOX mainform) table)
+	(gtk_grid_set_row_spacing (GTK_GRID table) 4)
+	(gtk_grid_set_column_spacing (GTK_GRID table) 4)
+	(gtk_widget_show table)
+	
+	(let ((frequency 220.0)
+	      (low-frequency 40.0)
+	      (high-frequency 2000.0)
+	      (amplitude 0.25)
+	      (index 1.0)
+	      (high-index 10.0)
+	      (ratio 1)
+	      (high-ratio 10)
+	      (playing 0.0))
+	  
+	  (define fm
+	    (let ((carosc (make-oscil 0.0))
+		  (modosc (make-oscil 0.0)))
+	      (lambda ()
+		(* amplitude playing
+		   (oscil carosc 
+			  (+ (hz->radians frequency)
+			     (* index 
+				(oscil modosc 
+				       (hz->radians (* ratio frequency))))))))))
+	  
+	  ;; play
+	  (let ((button (gtk_check_button_new_with_label "play")))
+	    (gtk_grid_attach (GTK_GRID table) button 0 0 1 1)        ; left top width height
+	    (gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON button) #f)
+	    (gtk_widget_show button)
+	    (g_signal_connect button "toggled" 
+			      (lambda (w d)
+				(set! playing (if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON w)) 1.0 0.0)))
+			      #f))
+	  ;; frequency
+	  (let ((freq-label (gtk_label_new "freq"))
+		(freq-adj (gtk_adjustment_new frequency low-frequency high-frequency 0.0 0.0 0.0)))
+	    (let ((freq-scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT freq-adj))))
+	      (gtk_grid_attach (GTK_GRID table) freq-label 0 1 1 1)        ; left top width height
+	      (gtk_widget_show freq-label)
+	      (gtk_scale_set_digits (GTK_SCALE freq-scale) 2)
+	      (gtk_scale_set_draw_value (GTK_SCALE freq-scale) #t)
+	      (gtk_scale_set_value_pos (GTK_SCALE freq-scale) GTK_POS_LEFT)
+	      (gtk_grid_attach (GTK_GRID table) freq-scale 1 1 1 1)
+	      (gtk_widget_set_hexpand (GTK_WIDGET freq-scale) #t)
+	      (gtk_widget_show freq-scale)
+	      (g_signal_connect freq-adj "value_changed" 
+				(lambda (w data)
+				  (set! frequency (gtk_adjustment_get_value (GTK_ADJUSTMENT freq-adj))))
+				#f)))
+	  ;; amplitude
+	  (let ((amp-label (gtk_label_new "amp"))
+		(amp-adj (gtk_adjustment_new amplitude 0.0 1.0 0.0 0.0 0.0)))
+	    (let ((amp-scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT amp-adj))))
+	      (gtk_grid_attach (GTK_GRID table) amp-label 0 2 1 1)        ; left top width height
+	      (gtk_widget_show amp-label)
+	      (gtk_scale_set_digits (GTK_SCALE amp-scale) 2)
+	      (gtk_scale_set_draw_value (GTK_SCALE amp-scale) #t)
+	      (gtk_scale_set_value_pos (GTK_SCALE amp-scale) GTK_POS_LEFT)
+	      (gtk_grid_attach (GTK_GRID table) amp-scale 1 2 1 1)
+	      (gtk_widget_set_hexpand (GTK_WIDGET amp-scale) #t)
+	      (gtk_widget_show amp-scale)
+	      (g_signal_connect amp-adj "value_changed" 
+				(lambda (w data)
+				  (set! amplitude (gtk_adjustment_get_value (GTK_ADJUSTMENT amp-adj))))
+				#f)))
+	  ;; fm-index
+	  (let ((index-label (gtk_label_new "index"))
+		(index-adj (gtk_adjustment_new index 0.0 high-index 0.0 0.0 0.0)))
+	    (let ((index-scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT index-adj))))
+	      (gtk_grid_attach (GTK_GRID table) index-label 0 3 1 1)        ; left top width height
+	      (gtk_widget_show index-label)
+	      (gtk_scale_set_digits (GTK_SCALE index-scale) 2)
+	      (gtk_scale_set_draw_value (GTK_SCALE index-scale) #t)
+	      (gtk_scale_set_value_pos (GTK_SCALE index-scale) GTK_POS_LEFT)
+	      (gtk_grid_attach (GTK_GRID table) index-scale 1 3 1 1)
+	      (gtk_widget_set_hexpand (GTK_WIDGET index-scale) #t)
+	      (gtk_widget_show index-scale)
+	      (g_signal_connect index-adj "value_changed" 
+				(lambda (w data)
+				  (set! index (gtk_adjustment_get_value (GTK_ADJUSTMENT index-adj))))
+				#f)))
+	  ;; c/m ratio
+	  (let ((ratio-label (gtk_label_new "ratio"))
+		(ratio-adj (gtk_adjustment_new ratio 0 high-ratio 0 0 1)))
+	    (let ((ratio-scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT ratio-adj))))
+	      (gtk_grid_attach (GTK_GRID table) ratio-label 0 4 1 1)        ; left top width height
+	      (gtk_widget_show ratio-label)
+	      (gtk_scale_set_digits (GTK_SCALE ratio-scale) 0)
+	      (gtk_scale_set_draw_value (GTK_SCALE ratio-scale) #t)
+	      (gtk_scale_set_value_pos (GTK_SCALE ratio-scale) GTK_POS_LEFT)
+	      (gtk_grid_attach (GTK_GRID table) ratio-scale 1 4 1 1)
+	      (gtk_widget_set_hexpand (GTK_WIDGET ratio-scale) #t)
+	      (gtk_widget_show ratio-scale)
+	      (g_signal_connect ratio-adj "value_changed" 
+				(lambda (w data)
+				  (set! ratio (gtk_adjustment_get_value (GTK_ADJUSTMENT ratio-adj))))
+				#f)))
+	  
+	  (gtk_widget_show fm-dialog)
+	  (gtk_window_present (GTK_WINDOW fm-dialog))
+	  (play fm))))))

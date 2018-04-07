@@ -1461,9 +1461,11 @@ widget \"*.white_button\" style \"white_button\"\n");
 /* border-width and -gtk-gradient have been removed(??); as far as I can tell, this stuff does not work */
 void init_gtk(void)
 {
+#if (GTK_CHECK_VERSION(3, 93, 0))
   GtkStyleProvider *dp;
-  provider = gtk_css_provider_new();
+  dp = gtk_css_provider_new();
   gtk_style_context_add_provider_for_display(gdk_display_get_default(), dp, G_MAXUINT);
+#endif
 
   wb_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(wb_provider),
@@ -1726,8 +1728,7 @@ void init_gtk(void)
     "}\n",
     -1, NULL);
 
-/* gtk3 tree view is inaccessible in filechooser and row colors can't be set!
- */
+/* gtk3 tree view is inaccessible in filechooser and row colors can't be set! */
 }
 #endif
 #endif

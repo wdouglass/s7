@@ -84739,6 +84739,7 @@ int main(int argc, char **argv)
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
  *   perhaps add the (endless) css api to xgdata
+ *   iconify in gmain is trying to (de)iconify dialogs -- is this a problem in gtk4?
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?

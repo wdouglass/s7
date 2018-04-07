@@ -1116,13 +1116,12 @@ static void pixel_to_rgb(color_t pix, double *r, double *g, double *b)
   (*b) = rgb_to_float(pix->blue);
 }
 
-
+#if GTK_CHECK_VERSION(3, 92, 0)
+static void display_color(GtkWidget *w, color_t pixel) {}
+#else
 #if GTK_CHECK_VERSION(3, 0, 0)
 static void display_color(GtkWidget *w, color_t pixel)
 {
-#if GTK_CHECK_VERSION(3, 92, 1)
-  return;
-#else
   cairo_t *cr;
 #if GTK_CHECK_VERSION(3, 22, 0)
   GdkWindow *window;
@@ -1141,10 +1140,9 @@ static void display_color(GtkWidget *w, color_t pixel)
 #else
   cairo_destroy(cr);
 #endif
-#endif
 }
 #endif
-
+#endif
 
 static void scale_set_color(prefs_info *prf, color_t pixel)
 {
@@ -1275,7 +1273,20 @@ static void prefs_call_color_func_callback(GtkWidget *w, gpointer context)
     }
 }
 
+#if GTK_CHECK_VERSION(3, 92, 0)
+static void drawer_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  prefs_info *prf = (prefs_info *)data;
+  mus_float_t r, g, b;
 
+  r = ADJUSTMENT_VALUE(prf->radj);
+  g = ADJUSTMENT_VALUE(prf->gadj);
+  b = ADJUSTMENT_VALUE(prf->badj);
+
+  cairo_set_source_rgb(cr, r, g, b);
+  cairo_paint(cr);
+}
+#else
 #if GTK_CHECK_VERSION(3, 0, 0)
 static gboolean drawer_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
@@ -1292,7 +1303,7 @@ static gboolean drawer_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)
   return(false);
 }
 #endif
-
+#endif
 
 static prefs_info *prefs_color_selector_row(const char *label, const char *varname, 
 					    color_t current_pixel,
@@ -1329,12 +1340,18 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
     prf->color = gtk_drawing_area_new();
     gtk_container_add(GTK_CONTAINER(frame), prf->color);
 
+#if GTK_CHECK_VERSION(3, 92, 0)
+    gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(prf->color), widget_width(prf->color));
+    gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(prf->color), widget_height(prf->color));
+    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(prf->color), drawer_expose, prf, NULL);
+#else
 #if GTK_CHECK_VERSION(3, 0, 0)
     SG_SIGNAL_CONNECT(prf->color, DRAW_SIGNAL, drawer_expose, prf);
     gtk_widget_set_hexpand(GTK_WIDGET(prf->color), true);
     gtk_widget_set_vexpand(GTK_WIDGET(prf->color), true);
 #else
     widget_modify_bg(prf->color, GTK_STATE_NORMAL, current_pixel);
+#endif
 #endif
     gtk_widget_show(prf->color);
     gtk_widget_show(frame);
@@ -2303,6 +2320,7 @@ widget_t make_preferences_dialog(void)
 
     /* ---------------- (graph) colors ---------------- */
 
+
     make_inter_variable_separator(grf_box); 
     make_inner_label("  colors", grf_box);
 
@@ -2671,7 +2689,6 @@ widget_t make_preferences_dialog(void)
 				aud_box,
 				dac_combines_channels_toggle);
     remember_pref(prf, reflect_dac_combines_channels, save_dac_combines_channels, help_dac_combines_channels, NULL, revert_dac_combines_channels);
-
   }
 
   set_dialog_widget(PREFERENCES_DIALOG, preferences_dialog);

@@ -1,4 +1,4 @@
-;(load "t.scm")
+(provide 'primes.scm)
 
 (define primes #i(1
        2       3       5       7      11      13      17      19      23 
@@ -4690,9 +4690,7 @@
 		   (if (= num 1)
 		       (return (reverse factors)))))))))
     (reverse factors))
-|#
 
-#|
 (do ((i 0 (+ 1 i)))
     ((= i 10))
   (let ((num (random (* 75000 75000))))
