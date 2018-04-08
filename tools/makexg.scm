@@ -151,9 +151,8 @@
 	"GdkDevicePadFeature" "GtkPadActionType"
 
 	"GtkShortcutLabel*" "GtkPadActionEntry*" "GdkDevicePad*" "GActionGroup*"
-	;; "GtkDrawingAreaFunc" -- not currently in use?
-
 	"GtkTextWindowType" "GtkPackType" "GtkApplicationInhibitFlags"
+	"GtkStyleContextPrintFlags"
 	))
 
 (define no-xen-p 
@@ -633,6 +632,8 @@
 	(cons "GdkDeviceType" "INT")
 	(cons "GtkIconSize" "INT")
 	(cons "GtkApplicationInhibitFlags" "INT")
+	(cons "GtkStyleContextPrintFlags" "INT")
+	(cons "GtkCssProviderError" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)

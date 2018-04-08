@@ -56316,7 +56316,7 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
 	      if (iterator_is_at_end(x))
 		{
 		  /* not pop_stack here since that can clobber sc->code et al, and if this for-each call is
-		   *   begin treated as safe, c_call(for-each) assumes everywhere that sc->code is left alone.
+		   *   being treated as safe, c_call(for-each) assumes everywhere that sc->code is left alone.
 		   */
 		  sc->stack_end -= 4;
 		  return(sc->unspecified);
@@ -74811,7 +74811,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
 	       *   car of the result.  This means that we can do crazy things like:
 	       *   (let ((x '(1)) (y '(2))) (set! ((if #t x y) 0) 32) x)
-	       *
 	       * the other args need to be evaluated (but not the list as if it were code):
 	       *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
 	       */
@@ -84733,8 +84732,8 @@ int main(int argc, char **argv)
  *   even with this check (make_cairo in snd-gutils.c), it still crashes:
  *   if ((last_context) && (GDK_IS_DRAWING_CONTEXT(last_context)) && (gdk_drawing_context_is_valid(last_context)) && (win == gdk_drawing_context_get_window(last_context)))
  *     gdk_window_end_draw_frame(win, last_context);
+ *   use the drawfunc's cairo_t arg
  * for gtk 4:
- *   all refs to gtk_event_box are obsolete -- do we fold that code into the widget formerly held by the box?
  *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
