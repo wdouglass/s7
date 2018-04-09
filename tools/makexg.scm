@@ -1056,6 +1056,11 @@
 	 (parse-args "GtkRecentInfo* a GtkRecentInfo* b lambda_data func_info" 'callback)
 	 'permanent)
    
+   (list 'GDestroyNotify
+	 "void"
+	 "destroy_func"
+	 (parse-args "gpointer data" 'callback)
+	 'permanent)
 
    (list 'GdkSeatGrabPrepareFunc
 	 "void"
@@ -1873,9 +1878,10 @@
 (define (typer typ)
   (cond ((assoc typ direct-types) 
 	 => (lambda (val)
-	      (cond ((member (cdr val) '("INT" "ULONG")) 's7_make_integer)
-		    ((assoc (cdr val)
-			    '(("DOUBLE" . s7_make_real) 
+	      (cond ((assoc (cdr val)
+			    '(("INT" . s7_make_integer)
+			      ("ULONG" . s7_make_integer)
+			      ("DOUBLE" . s7_make_real) 
 			      ("BOOLEAN" . s7_make_boolean) 
 			      ("CHAR" . s7_make_character) 
 			      ("String" . s7_make_string)))
@@ -2001,12 +2007,16 @@
 				       "(GtkFileFilterInfo *)"
 				       "")
 				   (cadr arg))
-			      (hay "~A(cbsc, ~A~A)"
-				   (hash-table-ref c->s7 (no-stars (car arg)))
-				   (if (member (car arg) '("GtkFileFilterInfo*" "guint8*"))
-				       "(void *)"
-				       "")
-				   (cadr arg))))
+
+			      (let ((call (hash-table-ref c->s7 (no-stars (car arg)))))
+				(if (eq? call 's7_make_c_pointer)
+				    (hay "s7_make_type_with_c_pointer(cbsc, ~A_sym, " (no-stars (car arg)))
+				    (hay "~A(cbsc, " call))
+				(hay "~A~A)" 
+				     (if (member (car arg) '("GtkFileFilterInfo*" "guint8*"))
+					 "(void *)"
+					 "")
+				     (cadr arg)))))
 			(hay (if (< ctr argnum) ",~%" ""))
 			(set! ctr (+ ctr 1)))
 		      args))
@@ -2246,10 +2256,12 @@
 				  (no-stars argtype) argname argname argname ctr name argtype)
 
 			     (if (eq? checker 's7_is_c_pointer_of_type)
-				 (hay "  if ((!~A(~A, ~A_sym)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
-				      checker
-				      argname (no-stars argtype) argname
-				      name ctr argname argtype)
+				 (if (and (not (assoc (string->symbol argtype) callbacks))
+					  (not (string=? argtype "lambda_data")))
+				     (hay "  if ((!~A(~A, ~A_sym)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
+					  checker
+					  argname (no-stars argtype) argname
+					  name ctr argname argtype))
 				 (hay "  if ((!~A(~A)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 				      checker
 				      argname argname
@@ -2262,10 +2274,11 @@
 				      (no-stars argtype) argname argname ctr name argtype)
 
 				 (if (eq? checker 's7_is_c_pointer_of_type)
-				     (hay "  if ((!~A(~A, ~A_sym)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
-					  checker
-					  argname (no-stars argtype) argname
-					  name ctr argname argtype)
+				     (if (not (string=? argtype "lambda_data"))
+					 (hay "  if ((!~A(~A, ~A_sym)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
+					      checker
+					      argname (no-stars argtype) argname
+					      name ctr argname argtype))
 				     (hay "  if ((!~A(~A)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 					  checker
 					  argname argname
@@ -2276,10 +2289,12 @@
 				      (no-stars argtype) argname argname ctr name argtype)
 
 				 (if (eq? checker 's7_is_c_pointer_of_type)
-				     (hay "  if (!~A(~A, ~A_sym)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
-					  checker
-					  argname (no-stars argtype)
-					  name ctr argname argtype)
+				     (if (and (not (assoc (string->symbol argtype) callbacks))
+					      (not (equal? argtype "GCallback")))
+					 (hay "  if (!~A(~A, ~A_sym)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
+					      checker
+					      argname (no-stars argtype)
+					      name ctr argname argtype))
 				     (hay "  if (!~A(~A)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 					  checker
 					  argname
@@ -2390,12 +2405,16 @@
 		(if using-result
 		    (begin
 		      (hey-on "    result = C_to_Xen_~A(" (no-stars return-type))
-		      (hay "    result = ~A(sc, " (hash-table-ref c->s7 (no-stars return-type))))
+		      (let ((call (hash-table-ref c->s7 (no-stars return-type))))
+			(if (eq? call 's7_make_c_pointer)
+			    (hay "    result = s7_make_type_with_c_pointer(sc, ~A_sym, " (no-stars return-type))
+			    (hay "    result = ~A(sc, " call))))
 		    (begin
 		      (heyc "    ")
 		      (hay "    ")))))
 	  
 	  ;; pass args
+	  ;; --------------------------------
 	  (if (eq? spec 'etc)
 	      ;; need to check ... list, set up locals, send out switch, return result
 	      (let ((list-name (cadr (args (- cargs 1))))
@@ -2491,6 +2510,7 @@
 			(hey "    return(C_to_Xen_~A(result));~%" (no-stars return-type))
 			(hay "    return(~A(sc, result));~%" (hash-table-ref c->s7 (no-stars return-type)))))
 		  (hoy "  }~%")))
+	      ;; --------------------------------
 	      ;; not (eq? spec 'etc) 
 	      (begin
 		(hey-on "~A(" name)
@@ -2522,10 +2542,18 @@
 					(hay "(char*)~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname))
 				       ((equal? argtype "lambda_data")
 					(hay "(gpointer)lg_ptr"))
+				       ((equal? argtype "GDestroyNotify")
+					(hay "NULL"))
+				       ((equal? argtype "GClosureNotify")
+					(hay "NULL"))
+				       ((equal? argtype "GCallback")
+					(hay "((s7_is_aritable(sc, ~A, 4)) ? (GCallback)lg_func4 : ((s7_is_aritable(sc, ~A, 3)) ? (GCallback)lg_func3 : (GCallback)lg_func2))" 
+					     argname argname))
 				       ((assoc (string->symbol argtype) callbacks) ; call the function wrapper
 					=> (lambda (callback)
-					     ;;(format *stderr* "~A: ~A~%" argtype callback)
 					     (hay (string-append "lg_" (caddr callback)))))
+				       ((equal? argtype "GClosure*")
+					(hay "(~A == lg_false) ? NULL : (GClosure*)s7_c_pointer(~A)" argname argname))
 				       (else (hay "~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname)))))))
 		       args)))
 		(if (not return-type-void)

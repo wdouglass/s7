@@ -211,78 +211,56 @@
 				   #f  ; axis pixel locs filled in when drawn
 				   (list x0 y0 x1 y1)
 				   (list gc #f)
-				   name))
-		     (dragging #f)
-		     (local-draw-axes (lambda (wid gc label x0 x1 y0 y1)
-					(let* ((cr (make-cairo wid))
-					       (val (draw-axes wid gc label x0 x1 y0 y1 x-axis-in-seconds show-all-axes cr)))
-					  (free-cairo cr)
-					  val))))
-		
-		;(gtk_widget_set_events drawer GDK_ALL_EVENTS_MASK)
+				   name
+				   #f))
+		     (dragging #f))
+
+		(define (drawer-expose drw cr width height data)
+		  (set! (editor 2) (draw-axes drw gc "hiho" x0 x1 y0 y1 x-axis-in-seconds show-all-axes cr))
+		  (set! (editor 6) cr)
+		  (xe-redraw editor))
+
 		(gtk_box_pack_start (GTK_BOX parent) drawer)
-		(gtk_widget_show drawer)
 		(gtk_widget_set_size_request drawer -1 200)
-		
-		(let ((gf (g_cclosure_new (lambda (w e d)
-					    (set! (editor 2) (apply local-draw-axes drawer gc name axis-bounds))
-					    (xe-redraw editor)
-					    #f)
-					  #f #f)))
-		  (g_signal_connect_closure_by_id (GPOINTER drawer)
-						  (g_signal_lookup "draw" (G_OBJECT_TYPE (G_OBJECT drawer)))
-						  0 gf #f))
-		(let ((gf (g_cclosure_new (lambda (w e d)
-					    (set! (editor 2) (apply local-draw-axes drawer gc name axis-bounds))
-					    (xe-redraw editor)
-					    #f)
-					  #f #f)))
-		  
-		  (g_signal_connect_closure_by_id (GPOINTER drawer)
-						  (g_signal_lookup "configure_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
-						  0 gf #f))
+		(gtk_widget_set_hexpand drawer #t)
+		(gtk_widget_set_vexpand drawer #t)
+		(gtk_widget_show drawer)
+
+		(gtk_drawing_area_set_content_width (GTK_DRAWING_AREA drawer) (gtk_widget_get_allocated_width drawer))
+		(gtk_drawing_area_set_content_height (GTK_DRAWING_AREA drawer) (gtk_widget_get_allocated_height drawer))
+		(gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA drawer) drawer-expose editor #f)
+
 		(let ((gf (g_cclosure_new (lambda (w e d) 
 					    (let ((coords (cdr (gdk_event_get_coords (GDK_EVENT e)))))
 					      (set! dragging #t)
-					      (xe-mouse-press editor (car coords) (cadr coords)))
+					      (xe-mouse-press editor (car coords) (cadr coords))
+					      (gtk_widget_queue_draw_area w (min 0 (- (car coords) 10)) (min 0 (- (cadr coords) 10)) 20 20))
 					    #f)
 					  #f #f)))
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
 						  (g_signal_lookup "button_press_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
 						  0 gf #f))
+
 		(let ((gf (g_cclosure_new (lambda (w e d) 
 					    (set! dragging #f)
 					    (xe-mouse-release editor)
+					    (gtk_widget_queue_draw_area w 0 0 100 100); (gtk_widget_get_width w) (gtk_widget_get_height w))
 					    #f)
 					  #f #f)))
+
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
 						  (g_signal_lookup "button_release_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
 						  0 gf #f))
 		(let ((gf (g_cclosure_new (lambda (w e d) 
 					    (if dragging
 						(let ((coords (cdr (gdk_event_get_coords (GDK_EVENT e)))))
-						  (xe-mouse-drag editor (car coords) (cadr coords))))
+						  (xe-mouse-drag editor (car coords) (cadr coords))
+						  (gtk_widget_queue_draw_area w (min 0 (- (car coords) 10)) (min 0 (- (cadr coords) 10)) 20 20)))
 					    #f)
 					  #f #f)))
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
 						  (g_signal_lookup "motion_notify_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
 						  0 gf #f))
-#|		
-		(let ((gf (g_cclosure_new (lambda (w e d)
-					    (gdk_window_set_cursor (gtk_widget_get_window w) arrow-cursor)
-					    #f)
-					  #f #f)))
-		  (g_signal_connect_closure_by_id (GPOINTER drawer)
-						  (g_signal_lookup "enter_notify_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
-						  0 gf #f))
-		(let ((gf (g_cclosure_new (lambda (w e d)
-					    (gdk_window_set_cursor (gtk_widget_get_window w) old-cursor)
-					    #f)
-					  #f #f)))
-		  (g_signal_connect_closure_by_id (GPOINTER drawer)
-						  (g_signal_lookup "leave_notify_event" (G_OBJECT_TYPE (G_OBJECT drawer)))
-						  0 gf #f))
-|#
 		editor)))))))
 
 (define (xe-redraw editor)
@@ -294,6 +272,7 @@
 	 (ax-inf (editor 3))
 	 (gc (car (editor 4)))
 	 (name (editor 5))
+	 (cr (editor 6))
 	 (len (and (list? cur-env) (length cur-env)))
 	 (get_realized (if (provided? 'snd-gtk) (*gtk* 'gtk_widget_get_realized))))
     (when (and (list? ax-pix)
@@ -332,6 +311,8 @@
 	(when (> py0 py1)
 	  (if (provided? 'snd-motif)
 	      (begin
+		
+		;; *motif*
 		((*motif* 'XClearWindow) dpy wn)
 		(draw-axes widget gc name ix0 ix1 iy0 iy1)
 		(do ((lx #f)
@@ -345,8 +326,9 @@
 			((*motif* 'XDrawLine) dpy wn gc lx ly cx cy))
 		    (set! lx cx)
 		    (set! ly cy))))
+
 	      ;; *gtk* 
-	      (let ((cr ((*gtk* 'make_cairo) ((*gtk* 'GDK_WINDOW) wn))))
+	      (begin
 		
 		(let ((size (widget-size ((*gtk* 'GTK_WIDGET) widget))))
 		  ((*gtk* 'cairo_push_group) cr)
@@ -375,5 +357,5 @@
 		    (set! ly cy)))
 		((*gtk* 'cairo_pop_group_to_source) cr)
 		((*gtk* 'cairo_paint) cr)
-		((*gtk* 'free_cairo) cr))))))))
+		)))))))
 

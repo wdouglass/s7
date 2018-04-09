@@ -151,7 +151,7 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
   #define GDK_CURSOR_NEW(Type) gdk_cursor_new(Type)
 #endif
 
-
+#if (!HAVE_SCHEME)
 #define Xen_wrap_widget(Value)   ((Value) ? Xen_list_2(C_string_to_Xen_symbol("GtkWidget_"), Xen_wrap_C_pointer(Value)) : Xen_false)
 #define Xen_wrap_window(Value)   ((Value) ? Xen_list_2(C_string_to_Xen_symbol("GdkWindow_"), Xen_wrap_C_pointer(Value)) : Xen_false)
 #define Xen_unwrap_widget(Value) (Xen_is_pair(Value) ? (GtkWidget *)(Xen_unwrap_C_pointer(Xen_cadr(Value))) : NULL)
@@ -164,6 +164,17 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 /* unfortunately, we can't just make PIXEL into a C type here -- it is called
  *   XM_PIXEL in xm.c and in that context, it assumes the layout given above.
  */
+#else
+#define Xen_wrap_widget(Value)   s7_make_c_pointer(s7, (void *)Value)
+#define Xen_wrap_window(Value)   s7_make_c_pointer(s7, (void *)Value)
+#define Xen_unwrap_widget(Value) s7_c_pointer(Value)
+#define Xen_is_widget(Value)     GTK_IS_WIDGET(s7_c_pointer(Value))
+
+#define Xen_wrap_pixel(Value)    s7_make_c_pointer(s7, (void *)Value)
+#define Xen_unwrap_pixel(Value)  (color_t)s7_c_pointer(Value)
+#define Xen_is_pixel(Value)      s7_is_c_pointer(Value)
+#endif
+
 
 #define NULL_WIDGET NULL
 #define SG_SIGNAL_CONNECT(Widget, Signal, Function, Data) g_signal_connect(G_OBJECT(Widget), Signal, G_CALLBACK(Function), (gpointer)Data)

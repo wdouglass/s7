@@ -38085,7 +38085,12 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   hash_len = hash_table_mask(table);
 #if S7_DEBUGGING
   if (p->raw_hash != hash_loc(sc, table, key)) 
-    fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
+    {
+      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
+      fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
+      fprintf(stderr, "%s\n", DISPLAY(key));
+      abort();
+    }
 #endif
   loc = p->raw_hash & hash_len;
 
@@ -84718,9 +84723,9 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
- * pair print seems to ignore (*s7* 'print-length)? (make-list 20) see t763.scm
+ * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
  * -Wconversion...
- *
+ * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
  *

@@ -1172,7 +1172,7 @@ static Xen g_snd_font(Xen choice)
   return(Xen_false);
 }
 
-
+#if 1
 static Xen g_make_cairo(Xen drawer)
 {
   #define H_make_cairo "(" S_make_cairo " widget) in gtk, this returns a new cairo_t to draw on the widget."
@@ -1212,6 +1212,7 @@ static Xen g_free_cairo(Xen xcr)
 #endif
   return(Xen_false);
 }
+#endif
 
 
 #if HAVE_GL
@@ -1959,8 +1960,10 @@ Xen_wrap_any_args(g_make_bezier_w, g_make_bezier)
 Xen_wrap_no_args(g_snd_gcs_w, g_snd_gcs)
 Xen_wrap_1_arg(g_snd_color_w, g_snd_color)
 Xen_wrap_1_arg(g_snd_font_w, g_snd_font)
+#if 1
 Xen_wrap_1_arg(g_make_cairo_w, g_make_cairo)
 Xen_wrap_1_arg(g_free_cairo_w, g_free_cairo)
+#endif
 
 Xen_wrap_no_args(g_selection_color_w, g_selection_color)
 Xen_wrap_1_arg(g_set_selection_color_w, g_set_selection_color)
@@ -2145,8 +2148,10 @@ void g_init_draw(void)
   Xen_define_typed_procedure(S_snd_color,     g_snd_color_w,      1, 0, 0,  H_snd_color,    s7_make_signature(s7, 2, p, i));
   Xen_define_typed_procedure(S_snd_font,      g_snd_font_w,       1, 0, 0,  H_snd_font,     s7_make_signature(s7, 2, p, i));
 
+#if 1
   Xen_define_typed_procedure(S_make_cairo,    g_make_cairo_w,     1, 0, 0,  H_make_cairo,   s7_make_signature(s7, 2, p, t));
   Xen_define_typed_procedure(S_free_cairo,    g_free_cairo_w,     1, 0, 0,  H_free_cairo,   s7_make_signature(s7, 2, b, p));
+#endif
 
   #define H_new_widget_hook S_new_widget_hook " (widget): called each time a dialog or \
 a new set of channel or sound widgets is created."

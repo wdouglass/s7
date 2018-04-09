@@ -1470,8 +1470,7 @@ void init_gtk(void)
   wb_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(wb_provider),
     "GtkButton#white_button { \n"
-    "  padding-top: 0px;\n"
-    "  padding-bottom: 0px;\n"
+    "  padding: 0px;\n"
     "  background-color: #ffffff;\n"
     "}\n"
     "GtkButton#white_button:hover { \n"
@@ -1481,8 +1480,7 @@ void init_gtk(void)
   hl_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(hl_provider),
     "GtkEventBox, GtkButton#highlight_button { \n"
-    "  padding-top: 0px;\n"
-    "  padding-bottom: 0px;\n"
+    "  padding: 0px;\n"
     "  background-color: #fffff0;\n"
     "}\n"
     "GtkButton#highlight_button:hover { \n"
@@ -1492,11 +1490,7 @@ void init_gtk(void)
   cl_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(cl_provider),
     "GtkEventBox, GtkButton { \n"
-    "  padding-top: 0px;\n"
-    "  padding-bottom: 0px;\n"
-    "  padding-left: 8px;\n"
-    "  padding-right: 8px;\n"
-    "  border-color: gray;\n"
+    "  padding: 0px;\n"
     "  background-color: #fffff0;\n"
     "}\n"
     "GtkButton:hover { \n"
@@ -1519,7 +1513,7 @@ void init_gtk(void)
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(entry_provider),
     "GtkEntry:selected { \n"
     "  background-color: darker(rgb(240, 248, 255));\n"
-     "  color: #000000;\n"
+    "  color: #000000;\n"
     "}\n",
     -1);
 
@@ -1533,8 +1527,7 @@ void init_gtk(void)
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(tb_provider),
     "GtkToolbar, GtkToolButton, GtkToolItem { \n"
     "  border-color: #fffff0;\n"				  
-    "  padding-left: 8px;\n"
-    "  padding-bottom: 4px;\n"
+    "  padding: 8px;\n"
     "}\n",
     -1);
   /* the 8px here refers to the whole bar, not each entry */
@@ -1544,8 +1537,7 @@ void init_gtk(void)
     "GtkMenuBar, GtkMenu, GtkMenuItem { \n"
     "  border-color: #fffff0;\n"				  
     "  background-color: #fffff0;\n"
-    "  padding-bottom: 4px;\n"
-    "  padding-left: 8px;\n"				  
+    "  padding: 4px;\n"
     "}\n",
     -1);
 

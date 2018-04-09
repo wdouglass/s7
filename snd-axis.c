@@ -1706,7 +1706,7 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
 			  axes = (show_axes_t)Xen_integer_to_C_int(xaxes);
 #if USE_GTK
 			  if (len > 9)
-			    ss->cr = (cairo_t *)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(args, 9)));
+			    ss->cr = (cairo_t *)Xen_unwrap_C_pointer(Xen_list_ref(args, 9));
 #endif
 			}}}}}}
 

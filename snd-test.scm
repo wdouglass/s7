@@ -5097,10 +5097,12 @@ EDITS: 5
 	    (set! (y-axis-label index) #f))
 	  (lambda args (snd-display "axis label error: ~A" args)))
 	
-	(let ((cr (make-cairo (car (channel-widgets index 0)))))
-	  (graph-data (make-float-vector 4) index 0 copy-context #f #f graph-lines cr)
-	  (free-cairo cr)
-	  (update-lisp-graph))
+	(when (or (provided? 'snd-motif)
+		  (provided? 'gtk4))
+	  (let ((cr (make-cairo (car (channel-widgets index 0)))))
+	    (graph-data (make-float-vector 4) index 0 copy-context #f #f graph-lines cr)
+	    (free-cairo cr)
+	    (update-lisp-graph)))
 	(graph #r(0 0 1 1 2 0))
 	(do ((i 0 (+ i 1))) 
 	    ((= i 32)) 
@@ -5512,7 +5514,9 @@ EDITS: 5
 	(set! (cursor index 0) 30) 
 	(set! *cursor-style* cursor-line)
 	(set! (cursor index 0) 20) 
-	(when with-gui
+	(when (and with-gui
+		   (or (provided? 'snd-motif)
+		       (provided? 'gtk4)))
 	  (set! (cursor-style index 0)
 		(lambda (snd chn ax)
 		  (let ((point (cursor-position)))
@@ -31384,7 +31388,9 @@ EDITS: 1
 
 (define (snd_test_17)
   
-  (when with-gui
+  (when (and with-gui
+	     (or (provided? 'snd-motif)
+		 (provided? 'gtk4)))
     (require snd-musglyphs.scm)
     (hook-push after-graph-hook (lambda (hook) (display-previous-edits (hook 'snd) (hook 'chn))))
     (hook-push lisp-graph-hook 
@@ -35280,7 +35286,9 @@ EDITS: 1
 		(snd-display "channels=? of pad+set 0 err"))
 	    (if (not (channels=? ind1 0 ind2 0 .2))
 		(snd-display "channels=? of pad+set .2 err"))
-	    (when with-gui
+	    (when (and with-gui
+		       (or (provided? 'snd-motif)
+			   (provided? 'gtk4)))
 	      (add-comment 1234 "sample 1234" ind1 0)
 	      (let ((comments (show-comments ind1 0)))
 		(update-time-graph)
@@ -41614,8 +41622,8 @@ EDITS: 1
 		       
 		       delay-tick playing pausing draw-axes copy-sampler html-dir html-program
 		       make-fir-coeffs mus-interp-type mus-run phase-vocoder
-		       player-home redo-edit undo-edit widget-position widget-size 
-		       focus-widget 
+		       player-home redo-edit undo-edit ;widget-position widget-size 
+		       ;focus-widget 
 		       ))
 	       
 	       (set-procs (list 
@@ -41667,7 +41675,7 @@ EDITS: 1
 			   mus-rand-seed mus-width clm-table-size mus-offset mus-reset
 			   phase-vocoder-amp-increments phase-vocoder-amps 
 			   phase-vocoder-freqs phase-vocoder-phase-increments phase-vocoder-phases 
-			   html-dir html-program mus-interp-type widget-position widget-size 
+			   html-dir html-program mus-interp-type ;widget-position widget-size 
 			   mus-clipping mus-file-clipping mus-header-raw-defaults))
 	       
 	       (procs0 (test-remove-if (lambda (n) (not (and (procedure? n) (aritable? n 0)))) procs))
@@ -42274,35 +42282,38 @@ EDITS: 1
 					  region->float-vector region-srate forget-region)))
 			(list float-vector-5 #i(0 1) 0+i "hiho" (list 0 1)))
 	      
-	      (for-each (lambda (n)
-			  (let ((tag
-				 (catch #t
-				   (lambda ()
-				     (set! (n) float-vector-5))
-				   (lambda args (car args)))))
-			    (if (not (memq tag '(error wrong-type-arg syntax-error)))
-				(snd-display " misc procs ~A: ~A" n tag))))
-			(list axis-color enved-filter-order enved-filter filter-control-waveform-color ask-before-overwrite ask-about-unsaved-edits
-			      auto-resize auto-update axis-label-font axis-numbers-font basic-color bind-key show-full-duration show-full-range initial-beg initial-dur
-			      channel-style color-cutoff color-orientation-dialog color-inverted color-scale
-			      cursor-color dac-combines-channels dac-size clipping data-color default-output-chans 
-			      default-output-sample-type default-output-srate default-output-header-type enved-envelope enved-base
-			      enved-clip? enved-in-dB enved-dialog enved-style  enved-power enved-target
-			      enved-waveform-color enved-wave? eps-file eps-left-margin eps-bottom-margin eps-size
-			      foreground-color graph-color graph-cursor highlight-color just-sounds key-binding
-			      listener-color listener-font listener-prompt listener-text-color max-regions
-			      mix-waveform-height region-graph-style position-color
-			      time-graph-style lisp-graph-style transform-graph-style peaks-font bold-peaks-font
-			      print-length play-arrow-size sash-color ladspa-dir peak-env-dir save-dir save-state-file
-			      selected-channel selected-data-color selected-graph-color 
-			      selected-sound selection-creates-region show-controls show-indices show-listener
-			      show-selection-transform sinc-width stdin-prompt temp-dir text-focus-color tiny-font
-			      with-file-monitor unbind-key with-verbose-cursor 
-			      with-inset-graph with-interrupts with-pointer-focus window-height beats-per-measure with-smpte-label
-			      with-toolbar with-tooltips with-menu-icons remember-sound-state save-as-dialog-src save-as-dialog-auto-comment
-			      window-width window-x window-y with-gl with-mix-tags x-axis-style beats-per-minute zoom-color mix-tag-height
-			      mix-tag-width with-relative-panes clm-table-size mark-tag-width mark-tag-height
-			      ))
+	      (when (and with-gui
+			 (or (provided? 'snd-motif)
+			     (provided? 'gtk4)))
+		(for-each (lambda (n)
+			    (let ((tag
+				   (catch #t
+				     (lambda ()
+				       (set! (n) float-vector-5))
+				     (lambda args (car args)))))
+			      (if (not (memq tag '(error wrong-type-arg syntax-error)))
+				  (snd-display " misc procs ~A: ~A" n tag))))
+			  (list axis-color enved-filter-order enved-filter filter-control-waveform-color ask-before-overwrite ask-about-unsaved-edits
+				auto-resize auto-update axis-label-font axis-numbers-font basic-color bind-key show-full-duration show-full-range initial-beg initial-dur
+				channel-style color-cutoff color-orientation-dialog color-inverted color-scale
+				cursor-color dac-combines-channels dac-size clipping data-color default-output-chans 
+				default-output-sample-type default-output-srate default-output-header-type enved-envelope enved-base
+				enved-clip? enved-in-dB enved-dialog enved-style  enved-power enved-target
+				enved-waveform-color enved-wave? eps-file eps-left-margin eps-bottom-margin eps-size
+				foreground-color graph-color graph-cursor highlight-color just-sounds key-binding
+				listener-color listener-font listener-prompt listener-text-color max-regions
+				mix-waveform-height region-graph-style position-color
+				time-graph-style lisp-graph-style transform-graph-style peaks-font bold-peaks-font
+				print-length play-arrow-size sash-color ladspa-dir peak-env-dir save-dir save-state-file
+				selected-channel selected-data-color selected-graph-color 
+				selected-sound selection-creates-region show-controls show-indices show-listener
+				show-selection-transform sinc-width stdin-prompt temp-dir text-focus-color tiny-font
+				with-file-monitor unbind-key with-verbose-cursor 
+				with-inset-graph with-interrupts with-pointer-focus window-height beats-per-measure with-smpte-label
+				with-toolbar with-tooltips with-menu-icons remember-sound-state save-as-dialog-src save-as-dialog-auto-comment
+				window-width window-x window-y with-gl with-mix-tags x-axis-style beats-per-minute zoom-color mix-tag-height
+				mix-tag-width with-relative-panes clm-table-size mark-tag-width mark-tag-height
+				)))
 	      
 	      
 	      (set! *ask-about-unsaved-edits* #f)
