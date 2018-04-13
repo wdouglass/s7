@@ -137,7 +137,7 @@
  *   also g++ appears to be slightly slower than gcc (though it takes forever to compile s7.c: gcc s7 compile time 37 secs, g++ 256!)
  */
 
-#if (defined(__GNUC__) || defined(__clang__))
+#if (defined(__GNUC__) || defined(__clang__)) /* s7 uses PRId64 so (for example) g++ 4.4 is too old */
   #define WITH_GCC 1
 #else
   #define WITH_GCC 0
@@ -1078,7 +1078,7 @@ struct s7_scheme {
              ash_symbol, asin_symbol, asinh_symbol, assoc_symbol, assq_symbol, assv_symbol, atan_symbol, atanh_symbol,
              autoload_symbol, autoloader_symbol,
              byte_vector_symbol, byte_vector_ref_symbol, byte_vector_set_symbol, 
-             c_pointer_symbol, caaaar_symbol, caaadr_symbol, caaar_symbol, caadar_symbol, caaddr_symbol, caadr_symbol,
+             c_pointer_symbol, c_pointer_to_list_symbol, caaaar_symbol, caaadr_symbol, caaar_symbol, caadar_symbol, caaddr_symbol, caadr_symbol,
              caar_symbol, cadaar_symbol, cadadr_symbol, cadar_symbol, caddar_symbol, cadddr_symbol, caddr_symbol, cadr_symbol,
              call_cc_symbol, call_with_current_continuation_symbol, call_with_exit_symbol, call_with_input_file_symbol, 
              call_with_input_string_symbol, call_with_output_file_symbol, call_with_output_string_symbol, car_symbol,
@@ -8987,7 +8987,7 @@ static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
   info = sc->F;
   arg = car(args);
   if (!s7_is_integer(arg))
-    method_or_bust(sc, arg, sc->c_pointer_symbol, list_1(sc, arg), T_INTEGER, 1);
+    method_or_bust(sc, arg, sc->c_pointer_symbol, args, T_INTEGER, 1);
   p = (intptr_t)s7_integer(arg);             /* (c-pointer (bignum "1234")) */
   if (is_pair(cdr(args)))
     {
@@ -8995,6 +8995,18 @@ static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
       if (is_pair(cddr(args))) info = caddr(args);
     }
   return(s7_make_c_pointer_with_type(sc, (void *)p, type, info));
+}
+
+static s7_pointer g_c_pointer_to_list(s7_scheme *sc, s7_pointer args)
+{
+  #define H_c_pointer_to_list "(c-pointer->list obj) returns the c-pointer data as (list pointer-as-int type info)"
+  #define Q_c_pointer_to_list s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_c_pointer_symbol)
+
+  s7_pointer p;
+  p = car(args);
+  if (!is_c_pointer(p))
+    method_or_bust(sc, p, sc->c_pointer_to_list_symbol, args, T_C_POINTER, 1);
+  return(s7_list(sc, 3, s7_make_integer(sc, (s7_int)raw_pointer(p)), raw_pointer_type(p), raw_pointer_info(p)));
 }
 
 
@@ -38083,17 +38095,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 
   if (!p) return(sc->F);
   hash_len = hash_table_mask(table);
-#if S7_DEBUGGING
-  if (p->raw_hash != hash_loc(sc, table, key)) 
-    {
-      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
-      fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
-      fprintf(stderr, "%s\n", DISPLAY(key));
-      abort();
-    }
-#endif
   loc = p->raw_hash & hash_len;
-
 
   x = hash_table_element(table, loc);
   if (x == p)
@@ -38108,6 +38110,17 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 	    break;
 	  }
     }
+
+#if S7_DEBUGGING
+  if (!x)
+    {
+      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
+      fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
+      fprintf(stderr, "%s\n", DISPLAY(key));
+      abort();
+    }
+#endif
+
   hash_table_entries(table)--;
   if ((hash_table_entries(table) == 0) &&
       (!hash_table_checker_locked(table)))
@@ -45137,7 +45150,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  (port_file(sc->input_port) != stdin) &&
 	  (!port_is_closed(sc->input_port)))
 	{
-	  const char *filename = NULL;
+	  const char *filename;
 	  int32_t line;
 
 	  filename = port_filename(sc->input_port);
@@ -69442,6 +69455,17 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
   static s7_pointer profile_at_start = NULL;
 #endif
 
+/* lt:       b:   4143722, 1:   2390473, 2:   964115, 3:   282338, n:   506796, opt:   824743, syn:   3043311, nop:   262125
+ * lg:       b: 266955128, 1: 151261739, 2: 60500070, 3: 19868920, n: 35324399, opt: 56906784, syn: 195629479, nop: 13706916
+ * snd-test: b:  32771442, 1:  20047982, 2:  6110730, 3:  2716569, n:  3896161, opt:  8844776, syn:  21212919, nop:   774845
+ * thash:    b:   2586823, 1:   1703740, 2:   882984, 3:       22, n:       77, opt:       99, syn:   2586686, nop:        0
+ * b:        b:   9110336, 1:   6814859, 2:   838402, 3:   298884, n:  1158191, opt:  2374425, syn:   5535064, nop:   862829
+ * index:    b:   1784797, 1:    871401, 2:   503283, 3:   273228, n:   136885, opt:    77859, syn:   1700523, nop:     3210
+ * tauto:    b:   3237588, 1:   1895858, 2:  1289968, 3:    51758, n:        4, opt:  2631503, syn:    492442, nop:    77245
+ * t725:     b:   5361546, 1:   2398871, 2:   908397, 3:   815182, n:  1239096, opt:  1046991, syn:   3508442, nop:    10357
+ * makexg:   b:   2197078, 1:   1520187, 2:   511918, 3:    70343, n:    94630, opt:   823540, syn:   1289868, nop:    29345
+ */
+
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
 #if SHOW_EVAL_OPS
@@ -79632,9 +79656,7 @@ static s7_pointer big_sqrt(s7_scheme *sc, s7_pointer args)
   }
 }
 
-/* (define (diff f a) (magnitude (- (f a) (f (bignum (number->string a))))))
- * (sin 1e15+1e15i) hangs in mpc 0.8.2, but appears to be fixed in the current svn sources
- */
+/* (define (diff f a) (magnitude (- (f a) (f (bignum (number->string a)))))) */
 
 enum {TRIG_NO_CHECK, TRIG_TAN_CHECK, TRIG_TANH_CHECK};
 
@@ -83485,6 +83507,7 @@ s7_scheme *s7_init(void)
   sc->is_defined_symbol =            defun("defined?",		is_defined,		1, 2, false);
 
   sc->c_pointer_symbol =             defun("c-pointer",	        c_pointer,		1, 2, false);
+  sc->c_pointer_to_list_symbol =     defun("c-pointer->list",   c_pointer_to_list,      1, 0, false);
 
   sc->port_line_number_symbol =      defun("port-line-number",  port_line_number,	0, 1, false);
   sc->port_filename_symbol =         defun("port-filename",	port_filename,		0, 1, false);
@@ -84729,21 +84752,12 @@ int main(int argc, char **argv)
  * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
  *
- * musglyphs gtk version is broken (probably cairo_t confusion -- make/free-cairo are obsolete for example)
- *   the problem is less obvious:
- *     "The window 0x5555564dab00 already has a drawing context. You cannot call gdk_window_begin_draw_frame() without calling gdk_window_end_draw_frame() first."
- *   and the stupid thing segfaults.  This is called in make-cairo, end in free-cairo. 
- *   The basic draw-bass-clef (sndscm.html) works ok, t410.scm crashes
- *   even with this check (make_cairo in snd-gutils.c), it still crashes:
- *   if ((last_context) && (GDK_IS_DRAWING_CONTEXT(last_context)) && (gdk_drawing_context_is_valid(last_context)) && (win == gdk_drawing_context_get_window(last_context)))
- *     gdk_window_end_draw_frame(win, last_context);
- *   use the drawfunc's cairo_t arg
  * for gtk 4:
- *   no draw signal -- need to set the draw func
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
- *   [glistener, libgtk_s7, and grepl are working in gtk4, and snd-g* compiles -- dies in make_cairo]
- *   perhaps add the (endless) css api to xgdata
- *   iconify in gmain is trying to (de)iconify dialogs -- is this a problem in gtk4?
+ *   test other func cases in libgtk_s7, several more special funcs [GDestroyNotify commented out etc]
+ *   make|free-cairo: dsp|xm-enved.fs, draw|dsp|extensions|musglyphs|snd-test|xm-enved.rb
+ *   check/enhance type checks in libgtk_s7
+ *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
@@ -84752,9 +84766,9 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
- *
- * libgtk: callback funcs need calling check -- 5 list as fields of c-pointer? several more special funcs
  * libc needs many type checks
+ *
+ * begin_pp|op|po|oo, etc -- no cdr check, no syntax/opt check -- need stats
  *
  * 17.6:   16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
  * 1-Apr:  15.997 23.214 33.056 48.992 | 16.249 23.517 33.733 48.283 : 243.041
