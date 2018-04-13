@@ -13,27 +13,27 @@ enum {
 #if (!GTK_CHECK_VERSION(3, 92, 1))
     W_up_ev, W_down_ev,
 #endif
-    NUM_CHAN_WIDGETS
+    CP_NUM_WIDGETS
 };
 
-enum {W_zy_adj, W_zx_adj, W_sy_adj, W_sx_adj, W_gzy_adj, W_gsy_adj, NUM_CHAN_ADJS};
+enum {W_zy_adj, W_zx_adj, W_sy_adj, W_sx_adj, W_gzy_adj, W_gsy_adj, NUM_ADJS};
 
 
-GtkWidget *channel_graph(chan_info *cp)      {return(cp->chan_widgets[W_graph]);}
-static GtkWidget *channel_sx(chan_info *cp)  {return(cp->chan_widgets[W_sx]);}
-static GtkWidget *channel_sy(chan_info *cp)  {return(cp->chan_widgets[W_sy]);}
-static GtkWidget *channel_zx(chan_info *cp)  {return(cp->chan_widgets[W_zx]);}
-static GtkWidget *channel_zy(chan_info *cp)  {return(cp->chan_widgets[W_zy]);}
-static GtkWidget *channel_gsy(chan_info *cp) {return(cp->chan_widgets[W_gsy]);}
-static GtkWidget *channel_gzy(chan_info *cp) {return(cp->chan_widgets[W_gzy]);}
-GtkWidget *channel_w(chan_info *cp)          {return(cp->chan_widgets[W_w]);}
-GtkWidget *channel_f(chan_info *cp)          {return(cp->chan_widgets[W_f]);}
+GtkWidget *channel_graph(chan_info *cp)      {return(cp->widgets[W_graph]);}
+static GtkWidget *channel_sx(chan_info *cp)  {return(cp->widgets[W_sx]);}
+static GtkWidget *channel_sy(chan_info *cp)  {return(cp->widgets[W_sy]);}
+static GtkWidget *channel_zx(chan_info *cp)  {return(cp->widgets[W_zx]);}
+static GtkWidget *channel_zy(chan_info *cp)  {return(cp->widgets[W_zy]);}
+static GtkWidget *channel_gsy(chan_info *cp) {return(cp->widgets[W_gsy]);}
+static GtkWidget *channel_gzy(chan_info *cp) {return(cp->widgets[W_gzy]);}
+GtkWidget *channel_w(chan_info *cp)          {return(cp->widgets[W_w]);}
+GtkWidget *channel_f(chan_info *cp)          {return(cp->widgets[W_f]);}
 #if (GTK_CHECK_VERSION(3, 92, 1))
-GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->chan_widgets[W_w]);}
-GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->chan_widgets[W_f]);}
+GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->widgets[W_w]);}
+GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->widgets[W_f]);}
 #else
-GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->chan_widgets[W_up_ev]);}
-GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->chan_widgets[W_down_ev]);}
+GtkWidget *channel_up_arrow(chan_info *cp)   {return(cp->widgets[W_up_ev]);}
+GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->widgets[W_down_ev]);}
 #endif
 
 #define EDIT_HISTORY_LIST(Cp) (Cp)->edhist_list
@@ -50,13 +50,13 @@ GtkWidget *channel_down_arrow(chan_info *cp) {return(cp->chan_widgets[W_down_ev]
  * So, in gtk3 the scrolled window does not display a horizontal scrollbar
  */
 
-static GtkWidget *channel_main_pane(chan_info *cp) {return(cp->chan_widgets[W_main_window]);}
-static GtkAdjustment *gsy_adj(chan_info *cp)           {return(cp->chan_adjs[W_gsy_adj]);}
-static GtkAdjustment *gzy_adj(chan_info *cp)           {return(cp->chan_adjs[W_gzy_adj]);}
-static GtkAdjustment *sy_adj(chan_info *cp)            {return(cp->chan_adjs[W_sy_adj]);}
-static GtkAdjustment *sx_adj(chan_info *cp)            {return(cp->chan_adjs[W_sx_adj]);}
-static GtkAdjustment *zy_adj(chan_info *cp)            {return(cp->chan_adjs[W_zy_adj]);}
-static GtkAdjustment *zx_adj(chan_info *cp)            {return(cp->chan_adjs[W_zx_adj]);}
+static GtkWidget *channel_main_pane(chan_info *cp) {return(cp->widgets[W_main_window]);}
+static GtkAdjustment *gsy_adj(chan_info *cp)           {return(cp->adjs[W_gsy_adj]);}
+static GtkAdjustment *gzy_adj(chan_info *cp)           {return(cp->adjs[W_gzy_adj]);}
+static GtkAdjustment *sy_adj(chan_info *cp)            {return(cp->adjs[W_sy_adj]);}
+static GtkAdjustment *sx_adj(chan_info *cp)            {return(cp->adjs[W_sx_adj]);}
+static GtkAdjustment *zy_adj(chan_info *cp)            {return(cp->adjs[W_zy_adj]);}
+static GtkAdjustment *zx_adj(chan_info *cp)            {return(cp->adjs[W_zx_adj]);}
 
 
 static mus_float_t sqr(mus_float_t a) {return(a * a);}
@@ -67,7 +67,7 @@ static mus_float_t cube(mus_float_t a) {return(a * a * a);}
 bool channel_graph_is_visible(chan_info *cp)
 {
   return((cp) &&
-	 (cp->chan_widgets) &&
+	 (cp->widgets) &&
 	 (channel_graph(cp)) &&
 	 (widget_is_active(channel_graph(cp))) &&
 	 (cp->sound) &&
@@ -371,11 +371,15 @@ static void gsy_valuechanged_callback(GtkAdjustment *adj, gpointer context)
 }
 
 
-static int last_f_state = 0;
+static GdkModifierType last_f_state;
 
 static gboolean f_toggle_callback(GtkWidget *w, GdkEventButton *ev, gpointer data)
 { 
-  last_f_state = EVENT_STATE(ev);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &last_f_state);
+#else
+  last_f_state = ev->state;
+#endif
   return(false);
 }
 
@@ -388,11 +392,15 @@ static void f_toggle_click_callback(GtkWidget *w, gpointer data)
 }
 
 
-static int last_w_state = 0;
+static GdkModifierType last_w_state;
 
 static gboolean w_toggle_callback(GtkWidget *w, GdkEventButton *ev, gpointer data)
 { 
-  last_w_state = EVENT_STATE(ev);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &last_w_state);
+#else
+  last_w_state = ev->state;
+#endif
   return(false);
 }
 
@@ -408,6 +416,24 @@ static void w_toggle_click_callback(GtkWidget *w, gpointer data)
 #define MIN_REGRAPH_X 12
 #define MIN_REGRAPH_Y 7
 
+#if (GTK_CHECK_VERSION(3, 89, 0))
+static void channel_expose_callback(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  chan_info *cp;
+  cp = (chan_info *)data;
+  if (!cp) return;
+  cp->graph_cr = cr;
+  cairo_set_line_width(cr, 1.0);
+  if ((cp->active >= CHANNEL_HAS_AXES) && (cp->sound))
+    { 
+      snd_info *sp;
+      sp = cp->sound;
+      if (sp->channel_style != CHANNELS_SEPARATE)
+	for_each_sound_chan(sp, update_graph_or_warn);
+      else update_graph_or_warn(cp);
+    }
+}
+#else
 static gboolean channel_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   chan_info *cp;
@@ -428,14 +454,15 @@ static gboolean channel_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpoint
   else update_graph_or_warn(cp);
   return(false);
 }
+#endif
 
-
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 static gboolean channel_resize_callback(GtkWidget *w, GdkEventConfigure *ev, gpointer data)
 {
   channel_resize((chan_info *)data);
   return(false);
 }
-
+#endif
 
 static Xen mouse_enter_graph_hook;
 static Xen mouse_leave_graph_hook;
@@ -523,7 +550,7 @@ static void remake_edit_history(chan_info *cp)
   if (!lst) return;
 
   /* if you try to update something in a closed pane, goddamn gtk grinds to a halt */
-  if (gtk_paned_get_position(GTK_PANED(cp->chan_widgets[W_main_window])) < 10) return;
+  if (gtk_paned_get_position(GTK_PANED(cp->widgets[W_main_window])) < 10) return;
 
   slist_clear(lst);
   sp = cp->sound;
@@ -619,7 +646,7 @@ void reflect_edit_counter_change(chan_info *cp)
 
       lst = EDIT_HISTORY_LIST(ncp);
       if ((!lst) || (!(lst->items))) return;
-      if (gtk_paned_get_position(GTK_PANED(cp->chan_widgets[W_main_window])) < 10) return;
+      if (gtk_paned_get_position(GTK_PANED(cp->widgets[W_main_window])) < 10) return;
 
       slist_select(lst, cp->edit_ctr + cp->edhist_base);
     }
@@ -645,22 +672,24 @@ static gboolean real_graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer dat
 {
   chan_info *cp = (chan_info *)data;
   int keysym;
+  GdkModifierType key_state;
 
   /* window_get_pointer(ev, &x, &y, &key_state); 
    * the x and y coordinates apparently refer to the mouse, 
    *   and are only used to recognize "lisp-graph" oriented keystrokes.
    *   These are then used only if there is also a key_press_hook.
    */
-
   keysym = EVENT_KEYVAL(ev);
-#if GTK_CHECK_VERSION(3, 0, 0)
-  key_press_callback(cp, 0, 0, EVENT_STATE(ev), keysym);
+
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &key_state);
+  key_press_callback(cp, 0, 0, key_state, keysym);
 #else
   {
     int x, y;
-    GdkModifierType key_state;
+    key_state = ev->state;
     window_get_pointer(ev, &x, &y, &key_state);
-    key_press_callback(cp, x, y, EVENT_STATE(ev), keysym);
+    key_press_callback(cp, x, y, key_state, keysym);
   }
 #endif
 
@@ -673,16 +702,19 @@ gboolean graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer data)
 {
   chan_info *cp = (chan_info *)data;
   int keysym;
+  GdkModifierType key_state;
 
   keysym = EVENT_KEYVAL(ev);
+
 #if GTK_CHECK_VERSION(3, 0, 0)
-  key_press_callback(cp, 0, 0, EVENT_STATE(ev), keysym);
+  gdk_event_get_state((GdkEvent *)ev, &key_state);
+  key_press_callback(cp, 0, 0, key_state, keysym);
 #else
   {
     int x, y;
-    GdkModifierType key_state;
+    key_state = ev->state;
     window_get_pointer(ev, &x, &y, &key_state);
-    key_press_callback(cp, x, y, EVENT_STATE(ev), keysym);
+    key_press_callback(cp, x, y, key_state, keysym);
   }
 #endif
   return(true);
@@ -691,36 +723,70 @@ gboolean graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer data)
 
 static gboolean graph_button_press(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
+  GdkModifierType state;
   chan_info *cp = (chan_info *)data;
+  gdouble x, y;
   ss->graph_is_active = true;
   gtk_widget_grab_focus(w);
-  graph_button_press_callback(cp, (void *)ev, (int)(EVENT_X(ev)), (int)(EVENT_Y(ev)), EVENT_STATE(ev), EVENT_BUTTON(ev), EVENT_TIME(ev));
+
+#if GTK_CHECK_VERSION(3, 0, 0)
+  gdk_event_get_state((GdkEvent *)ev, &state);
+  gdk_event_get_coords((GdkEvent *)ev, &x, &y);
+#else
+  state = ev->state;
+  x = ev->x; /* these were gdouble in gtk2 */
+  y = ev->y;
+#endif
+
+  graph_button_press_callback(cp, (void *)ev, (int)x, (int)y, state, EVENT_BUTTON(ev), event_time(ev));
   return(false);
 }
 
 
 static gboolean graph_button_release(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
-  graph_button_release_callback((chan_info *)data, (int)(EVENT_X(ev)), (int)(EVENT_Y(ev)), EVENT_STATE(ev), EVENT_BUTTON(ev));
+  GdkModifierType state;
+  gdouble x, y;
+#if GTK_CHECK_VERSION(3, 0, 0)
+  gdk_event_get_state((GdkEvent *)ev, &state);
+  gdk_event_get_coords((GdkEvent *)ev, &x, &y);
+#else
+  state = ev->state;
+  x = ev->x;
+  y = ev->y;
+#endif
+  graph_button_release_callback((chan_info *)data, (int)x, (int)y, state, EVENT_BUTTON(ev));
   return(false);
 }
 
 
 static gboolean graph_button_motion(GtkWidget *w, GdkEventMotion *ev, gpointer data)
 { 
-  int x, y;
+  gint x, y;
   GdkModifierType state;
 
   if (EVENT_IS_HINT(ev))
-    window_get_pointer(ev, &x, &y, &state);
+    window_get_pointer(ev, &x, &y, &state); /* gdk_window_get_device_position gint x and y */
   else
     {
-      x = (int)(EVENT_X(ev));
-      y = (int)(EVENT_Y(ev));
+#if GTK_CHECK_VERSION(3, 0, 0)
+      gdouble ex, ey;
+      gdk_event_get_coords((GdkEvent *)ev, &ex, &ey);
+      x = (gint)ex;
+      y = (gint)ey;
+#else
+      x = (gint)(ev->x);
+      y = (gint)(ev->y);      
+#endif
     }
 
-  if (BUTTON1_PRESSED(EVENT_STATE(ev)))
-    graph_button_motion_callback((chan_info *)data, x, y, EVENT_TIME(ev));
+#if GTK_CHECK_VERSION(3, 0, 0)
+  gdk_event_get_state((GdkEvent *)ev, &state);
+#else
+  state = ev->state;
+#endif
+  if (BUTTON1_PRESSED(state))
+    graph_button_motion_callback((chan_info *)data, x, y, event_time(ev));
   else check_cursor_shape((chan_info *)data, x, y);
 
   return(false);
@@ -781,17 +847,17 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
   sp->chans[channel] = make_chan_info(sp->chans[channel], channel, sp);
   cp = sp->chans[channel];
 
-  if (!cp->chan_widgets) 
+  if (!cp->widgets) 
     {
-      cw = (GtkWidget **)calloc(NUM_CHAN_WIDGETS, sizeof(GtkWidget *));
-      adjs = (GtkAdjustment **)calloc(NUM_CHAN_ADJS, sizeof(GtkAdjustment *));
-      cp->chan_widgets = cw;
-      cp->chan_adjs = adjs;
+      cw = (GtkWidget **)calloc(CP_NUM_WIDGETS, sizeof(GtkWidget *));
+      adjs = (GtkAdjustment **)calloc(NUM_ADJS, sizeof(GtkAdjustment *));
+      cp->widgets = cw;
+      cp->adjs = adjs;
     }
   else
     {
-      cw = cp->chan_widgets;
-      adjs = cp->chan_adjs;
+      cw = cp->widgets;
+      adjs = cp->adjs;
     }
 
   need_extra_scrollbars = ((!main) && (channel == 0));
@@ -828,9 +894,10 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
       cw[W_graph] = gtk_drawing_area_new();
       add_drag_and_drop(cw[W_graph], channel_drop_watcher, channel_drag_watcher, NULL);
       set_user_int_data(G_OBJECT(cw[W_graph]), pack_sound_and_channel(sp->index, cp->chan));
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       sg_widget_set_events(cw[W_graph], GDK_ALL_EVENTS_MASK);
       SET_CAN_FOCUS(cw[W_graph]);
-
+#endif
       widget_set_hexpand(cw[W_graph], true);
       widget_set_vexpand(cw[W_graph], true);
 
@@ -841,18 +908,26 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
       gtk_widget_show(cw[W_graph]);
       if (with_events)
 	{
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	  gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(cw[W_graph]), gtk_widget_get_allocated_width(cw[W_graph]));
+	  gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(cw[W_graph]), gtk_widget_get_allocated_height(cw[W_graph]));
+	  gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(cw[W_graph]), channel_expose_callback, (void *)cp, NULL);
+#else
 	  SG_SIGNAL_CONNECT(cw[W_graph], DRAW_SIGNAL, channel_expose_callback, cp);
 	  SG_SIGNAL_CONNECT(cw[W_graph], "configure_event", channel_resize_callback, cp);
+#endif
 	}
       SG_SIGNAL_CONNECT(cw[W_graph], "button_press_event", graph_button_press, cp);
       SG_SIGNAL_CONNECT(cw[W_graph], "button_release_event", graph_button_release, cp);
       SG_SIGNAL_CONNECT(cw[W_graph], "motion_notify_event", graph_button_motion, cp);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       if (!main)
 	{
 	  SG_SIGNAL_CONNECT(cw[W_graph], "enter_notify_event", graph_mouse_enter, NULL);
 	  SG_SIGNAL_CONNECT(cw[W_graph], "leave_notify_event", graph_mouse_leave, NULL);
 	  SG_SIGNAL_CONNECT(cw[W_graph], "key_press_event", real_graph_key_press, cp);
 	}
+#endif
 
       cw[W_bottom_scrollers] = gtk_vbox_new(true, 0);
       gtk_box_set_spacing(GTK_BOX(cw[W_bottom_scrollers]), 0);
@@ -1087,11 +1162,11 @@ void cleanup_cw(chan_info *cp)
       if (EDIT_HISTORY_LIST(cp)) 
 	{
 	  slist_clear(EDIT_HISTORY_LIST(cp));
-	  gtk_paned_set_position(GTK_PANED(cp->chan_widgets[W_main_window]), EDIT_HISTORY_CLOSED);
+	  gtk_paned_set_position(GTK_PANED(cp->widgets[W_main_window]), EDIT_HISTORY_CLOSED);
 	}
 
       cp->selected = false;
-      cw = cp->chan_widgets;
+      cw = cp->widgets;
 
       if (cw)
 	{
@@ -1221,7 +1296,7 @@ void change_channel_style(snd_info *sp, channel_style_t new_style)
 		      cp->ax->w = channel_to_widget(cp);
 		      cp->ax->wn = WIDGET_TO_WINDOW(cp->ax->w);
 #if (!GTK_CHECK_VERSION(3, 90, 0))
-		      cw = cp->chan_widgets;
+		      cw = cp->widgets;
 		      gtk_widget_show_all(cw[W_main_window]);
 #endif
 		    }
@@ -1267,7 +1342,12 @@ static Xen g_channel_widgets(Xen snd, Xen chn)
 		       Xen_cons(Xen_wrap_adj(zy_adj(cp)),
 		        Xen_cons(Xen_wrap_adj(gsy_adj(cp)),
 			 Xen_cons(Xen_wrap_adj(gzy_adj(cp)),
-                          Xen_empty_list))))))))))))))))));
+#if ((GTK_CHECK_VERSION(3, 89, 0)) && HAVE_SCHEME)
+			  Xen_cons(s7_make_c_pointer_with_type(s7, (void *)(cp->graph_cr), s7_make_symbol(s7, "cairo_t_"), Xen_false),
+#else
+		          Xen_cons(Xen_false,
+#endif
+                           Xen_empty_list)))))))))))))))))));
 }
 
 

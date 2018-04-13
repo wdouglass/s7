@@ -180,7 +180,7 @@ char *just_filename(char *name)
 char *just_directory(const char *name)
 {
   int i, len, last_slash = 0;
-  char *dirname = NULL;
+  char *dirname;
   len = strlen(name);
   dirname = (char *)calloc(len + 1, sizeof(char));
   for (i = 0; i < len - 1; i++) 
@@ -272,7 +272,7 @@ char *prettyf(double num, int tens)
 
 static char *get_tmpdir(void)
 {
-  char *tmpdir = NULL;
+  char *tmpdir;
   int len;
   tmpdir = mus_strdup(getenv("TMPDIR"));
   if ((!tmpdir) && (MUS_DEFAULT_TEMP_DIR)) tmpdir = mus_strdup(MUS_DEFAULT_TEMP_DIR);

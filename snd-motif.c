@@ -24940,7 +24940,7 @@ static Xen g_goto_listener_end(void)
 
 enum {W_top, W_form, W_main_window, W_edhist, W_wf_buttons, W_f, W_w, W_left_scrollers, W_zy, W_sy,
       W_bottom_scrollers, W_sx, W_zx, W_graph, W_gzy, W_gsy,
-      NUM_CHAN_WIDGETS
+      CP_NUM_WIDGETS
 };
 
 
@@ -24953,26 +24953,26 @@ enum {W_top, W_form, W_main_window, W_edhist, W_wf_buttons, W_f, W_w, W_left_scr
 
 Widget channel_main_pane(chan_info *cp)
 {
-  if (cp) return(cp->chan_widgets[W_form]);
+  if (cp) return(cp->widgets[W_form]);
   return(NULL);
 }
 
 
-Widget channel_graph(chan_info *cp)      {return(cp->chan_widgets[W_graph]);}
-static Widget channel_sx(chan_info *cp)  {return(cp->chan_widgets[W_sx]);}
-static Widget channel_sy(chan_info *cp)  {return(cp->chan_widgets[W_sy]);}
-static Widget channel_zx(chan_info *cp)  {return(cp->chan_widgets[W_zx]);}
-static Widget channel_zy(chan_info *cp)  {return(cp->chan_widgets[W_zy]);}
-static Widget channel_gsy(chan_info *cp) {return(cp->chan_widgets[W_gsy]);}
-static Widget channel_gzy(chan_info *cp) {return(cp->chan_widgets[W_gzy]);}
-Widget channel_w(chan_info *cp)          {return(cp->chan_widgets[W_w]);}
-Widget channel_f(chan_info *cp)          {return(cp->chan_widgets[W_f]);}
+Widget channel_graph(chan_info *cp)      {return(cp->widgets[W_graph]);}
+static Widget channel_sx(chan_info *cp)  {return(cp->widgets[W_sx]);}
+static Widget channel_sy(chan_info *cp)  {return(cp->widgets[W_sy]);}
+static Widget channel_zx(chan_info *cp)  {return(cp->widgets[W_zx]);}
+static Widget channel_zy(chan_info *cp)  {return(cp->widgets[W_zy]);}
+static Widget channel_gsy(chan_info *cp) {return(cp->widgets[W_gsy]);}
+static Widget channel_gzy(chan_info *cp) {return(cp->widgets[W_gzy]);}
+Widget channel_w(chan_info *cp)          {return(cp->widgets[W_w]);}
+Widget channel_f(chan_info *cp)          {return(cp->widgets[W_f]);}
 
 
 bool channel_graph_is_visible(chan_info *cp)
 {
   return((cp) &&
-	 (cp->chan_widgets) &&
+	 (cp->widgets) &&
 	 (channel_graph(cp)) &&
 	 (XtIsManaged(channel_graph(cp))) &&
 	 (cp->sound) &&
@@ -24985,7 +24985,7 @@ bool channel_graph_is_visible(chan_info *cp)
 }
 
 
-#define EDIT_HISTORY_LIST(Cp) (Cp)->chan_widgets[W_edhist]
+#define EDIT_HISTORY_LIST(Cp) (Cp)->widgets[W_edhist]
 
 
 static mus_float_t sqr(mus_float_t a) {return(a * a);}
@@ -25636,7 +25636,7 @@ static void watch_edit_history_sash(Widget w, XtPointer closure, XtPointer info)
     {
       chan_info *cp = (chan_info *)closure;
       Widget edhist;
-      if ((cp) && (cp->chan_widgets))
+      if ((cp) && (cp->widgets))
 	{
 	  edhist = EDIT_HISTORY_LIST(cp);
 	  if (edhist)
@@ -25845,9 +25845,9 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Wid
   sp->chans[channel] = make_chan_info(sp->chans[channel], channel, sp);
   cp = sp->chans[channel];
 
-  if (!cp->chan_widgets) 
-    cp->chan_widgets = (Widget *)calloc(NUM_CHAN_WIDGETS, sizeof(Widget));
-  cw = cp->chan_widgets;
+  if (!cp->widgets) 
+    cp->widgets = (Widget *)calloc(CP_NUM_WIDGETS, sizeof(Widget));
+  cw = cp->widgets;
   need_extra_scrollbars = ((!main) && (channel == 0));
 
   if (make_widgets)
@@ -26182,7 +26182,7 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Wid
 	XtVaSetValues(XtParent(cw[W_edhist]), XmNpaneMaximum, 1, NULL);
       if ((sp->channel_style != CHANNELS_COMBINED) || 
 	  (channel == 0))
-	for (i = 0; i < NUM_CHAN_WIDGETS - 1; i++)
+	for (i = 0; i < CP_NUM_WIDGETS - 1; i++)
 	  if ((cw[i]) && (!XtIsManaged(cw[i])))
 	    XtManageChild(cw[i]);
       recolor_graph(cp, false); /* in case selection color left over from previous use */
@@ -26312,7 +26312,7 @@ void cleanup_cw(chan_info *cp)
       free_fft_pix(cp);
 
       cp->selected = false;
-      cw = cp->chan_widgets;
+      cw = cp->widgets;
       if (cw)
 	{
 	  if (cw[W_w])
@@ -26441,9 +26441,9 @@ void change_channel_style(snd_info *sp, channel_style_t new_style)
 		      int j;
 
 		      cp = sp->chans[i];
-		      cw = cp->chan_widgets;
+		      cw = cp->widgets;
 
-		      for (j = 0; j < NUM_CHAN_WIDGETS - 1; j++)
+		      for (j = 0; j < CP_NUM_WIDGETS - 1; j++)
 			if ((cw[j]) && (!XtIsManaged(cw[j]))) 
 			  XtManageChild(cw[j]);
 
@@ -26624,64 +26624,64 @@ enum {W_pane,
       W_filter_order_down, W_filter_order_up,
       W_name, W_lock_or_bomb, W_stop_icon, W_info,
       W_play, W_sync, W_unite, W_close,
-      NUM_SND_WIDGETS
+      SP_NUM_WIDGETS
 };
 
 
-Widget unite_button(snd_info *sp) {return(sp->snd_widgets[W_unite]);}
-Widget w_snd_pane(snd_info *sp)   {return(sp->snd_widgets[W_pane]);}
+Widget unite_button(snd_info *sp) {return(sp->widgets[W_unite]);}
+Widget w_snd_pane(snd_info *sp)   {return(sp->widgets[W_pane]);}
 
-#define SND_PANE(Sp)             Sp->snd_widgets[W_pane]
-#define SND_NAME(Sp)             Sp->snd_widgets[W_name]
+#define SND_PANE(Sp)             Sp->widgets[W_pane]
+#define SND_NAME(Sp)             Sp->widgets[W_name]
 
-#define NAME_BOX(Sp)             Sp->snd_widgets[W_name_form]
-#define LOCK_OR_BOMB(Sp)         Sp->snd_widgets[W_lock_or_bomb]
-#define STOP_ICON(Sp)            Sp->snd_widgets[W_stop_icon]
-#define NAME_LABEL(Sp)           Sp->snd_widgets[W_name]
-#define STATUS_AREA(Sp)      Sp->snd_widgets[W_info]
-#define SYNC_BUTTON(Sp)          Sp->snd_widgets[W_sync]
-#define PLAY_BUTTON(Sp)          Sp->snd_widgets[W_play]
-#define UNITE_BUTTON(Sp)         Sp->snd_widgets[W_unite]
-#define CLOSE_BUTTON(Sp)         Sp->snd_widgets[W_close]
+#define NAME_BOX(Sp)             Sp->widgets[W_name_form]
+#define LOCK_OR_BOMB(Sp)         Sp->widgets[W_lock_or_bomb]
+#define STOP_ICON(Sp)            Sp->widgets[W_stop_icon]
+#define NAME_LABEL(Sp)           Sp->widgets[W_name]
+#define STATUS_AREA(Sp)          Sp->widgets[W_info]
+#define SYNC_BUTTON(Sp)          Sp->widgets[W_sync]
+#define PLAY_BUTTON(Sp)          Sp->widgets[W_play]
+#define UNITE_BUTTON(Sp)         Sp->widgets[W_unite]
+#define CLOSE_BUTTON(Sp)         Sp->widgets[W_close]
 
-#define CONTROLS(Sp)             Sp->snd_widgets[W_amp_form]
-#define AMP_SCROLLBAR(Sp)        Sp->snd_widgets[W_amp]
-#define AMP_LABEL(Sp)            Sp->snd_widgets[W_amp_number]
-#define AMP_BUTTON(Sp)           Sp->snd_widgets[W_amp_label]
+#define CONTROLS(Sp)             Sp->widgets[W_amp_form]
+#define AMP_SCROLLBAR(Sp)        Sp->widgets[W_amp]
+#define AMP_LABEL(Sp)            Sp->widgets[W_amp_number]
+#define AMP_BUTTON(Sp)           Sp->widgets[W_amp_label]
 
-#define SPEED_SCROLLBAR(Sp)      Sp->snd_widgets[W_speed]
-#define SPEED_ARROW(Sp)          Sp->snd_widgets[W_speed_arrow]
-#define SPEED_LABEL(Sp)          Sp->snd_widgets[W_speed_number]
-#define SPEED_BUTTON(Sp)         Sp->snd_widgets[W_speed_label]
+#define SPEED_SCROLLBAR(Sp)      Sp->widgets[W_speed]
+#define SPEED_ARROW(Sp)          Sp->widgets[W_speed_arrow]
+#define SPEED_LABEL(Sp)          Sp->widgets[W_speed_number]
+#define SPEED_BUTTON(Sp)         Sp->widgets[W_speed_label]
 
-#define EXPAND_SCROLLBAR(Sp)     Sp->snd_widgets[W_expand]
-#define EXPAND_LABEL(Sp)         Sp->snd_widgets[W_expand_number]
-#define EXPAND_RIGHT_BUTTON(Sp)  Sp->snd_widgets[W_expand_button]
-#define EXPAND_LEFT_BUTTON(Sp)   Sp->snd_widgets[W_expand_label]
+#define EXPAND_SCROLLBAR(Sp)     Sp->widgets[W_expand]
+#define EXPAND_LABEL(Sp)         Sp->widgets[W_expand_number]
+#define EXPAND_RIGHT_BUTTON(Sp)  Sp->widgets[W_expand_button]
+#define EXPAND_LEFT_BUTTON(Sp)   Sp->widgets[W_expand_label]
 
-#define CONTRAST_SCROLLBAR(Sp)   Sp->snd_widgets[W_contrast]
-#define CONTRAST_LABEL(Sp)       Sp->snd_widgets[W_contrast_number]
-#define CONTRAST_RIGHT_BUTTON(Sp) Sp->snd_widgets[W_contrast_button]
-#define CONTRAST_LEFT_BUTTON(Sp) Sp->snd_widgets[W_contrast_label]
+#define CONTRAST_SCROLLBAR(Sp)   Sp->widgets[W_contrast]
+#define CONTRAST_LABEL(Sp)       Sp->widgets[W_contrast_number]
+#define CONTRAST_RIGHT_BUTTON(Sp) Sp->widgets[W_contrast_button]
+#define CONTRAST_LEFT_BUTTON(Sp) Sp->widgets[W_contrast_label]
 
-#define REVSCL_SCROLLBAR(Sp)     Sp->snd_widgets[W_revscl]
-#define REVLEN_SCROLLBAR(Sp)     Sp->snd_widgets[W_revlen]
-#define REVSCL_LABEL(Sp)         Sp->snd_widgets[W_revscl_number]
-#define REVLEN_LABEL(Sp)         Sp->snd_widgets[W_revlen_number]
-#define REVSCL_BUTTON(Sp)        Sp->snd_widgets[W_revscl_label]
-#define REVLEN_BUTTON(Sp)        Sp->snd_widgets[W_revlen_label]
-#define REVERB_BUTTON(Sp)        Sp->snd_widgets[W_reverb_button]
+#define REVSCL_SCROLLBAR(Sp)     Sp->widgets[W_revscl]
+#define REVLEN_SCROLLBAR(Sp)     Sp->widgets[W_revlen]
+#define REVSCL_LABEL(Sp)         Sp->widgets[W_revscl_number]
+#define REVLEN_LABEL(Sp)         Sp->widgets[W_revlen_number]
+#define REVSCL_BUTTON(Sp)        Sp->widgets[W_revscl_label]
+#define REVLEN_BUTTON(Sp)        Sp->widgets[W_revlen_label]
+#define REVERB_BUTTON(Sp)        Sp->widgets[W_reverb_button]
 
-#define FILTER_ORDER_TEXT(Sp)    Sp->snd_widgets[W_filter_order]
-#define FILTER_COEFFS_TEXT(Sp)   Sp->snd_widgets[W_filter]
-#define FILTER_BUTTON(Sp)        Sp->snd_widgets[W_filter_button]
-#define FILTER_DB_BUTTON(Sp)     Sp->snd_widgets[W_filter_dB]
-#define FILTER_HZ_BUTTON(Sp)     Sp->snd_widgets[W_filter_hz]
-#define FILTER_LABEL(Sp)         Sp->snd_widgets[W_filter_label]
-#define FILTER_GRAPH(Sp)         Sp->snd_widgets[W_filter_env]
-#define FILTER_ORDER_UP(Sp)      Sp->snd_widgets[W_filter_order_up]
-#define FILTER_ORDER_DOWN(Sp)    Sp->snd_widgets[W_filter_order_down]
-#define FILTER_FRAME(Sp)         Sp->snd_widgets[W_filter_frame]
+#define FILTER_ORDER_TEXT(Sp)    Sp->widgets[W_filter_order]
+#define FILTER_COEFFS_TEXT(Sp)   Sp->widgets[W_filter]
+#define FILTER_BUTTON(Sp)        Sp->widgets[W_filter_button]
+#define FILTER_DB_BUTTON(Sp)     Sp->widgets[W_filter_dB]
+#define FILTER_HZ_BUTTON(Sp)     Sp->widgets[W_filter_hz]
+#define FILTER_LABEL(Sp)         Sp->widgets[W_filter_label]
+#define FILTER_GRAPH(Sp)         Sp->widgets[W_filter_env]
+#define FILTER_ORDER_UP(Sp)      Sp->widgets[W_filter_order_up]
+#define FILTER_ORDER_DOWN(Sp)    Sp->widgets[W_filter_order_down]
+#define FILTER_FRAME(Sp)         Sp->widgets[W_filter_frame]
 
 #define PROGRESS_ICON(Cp)        (Cp)->sound->progress_widgets[(Cp)->chan]
 
@@ -28284,9 +28284,9 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
   sp->bomb_ctr = 0;
   sp->write_date = file_write_date(filename); /* needed early in this process by the peak-env handlers */
 
-  if (!sp->snd_widgets) 
-    sp->snd_widgets = (Widget *)calloc(NUM_SND_WIDGETS, sizeof(Widget));
-  sw = sp->snd_widgets;
+  if (!sp->widgets) 
+    sp->widgets = (Widget *)calloc(SP_NUM_WIDGETS, sizeof(Widget));
+  sw = sp->widgets;
 
   if ((!make_widgets) && (old_chans < nchans))
     {
@@ -29240,7 +29240,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
 	  if (!XtIsManaged(sp->dialog)) XtManageChild(sp->dialog);
 	}
 
-      for (i = 0; i < NUM_SND_WIDGETS - 1; i++)
+      for (i = 0; i < SP_NUM_WIDGETS - 1; i++)
 	if ((sw[i]) && 
 	    (!XtIsManaged(sw[i])) &&
 	    (in_show_controls(ss) || (i != W_amp_form)))

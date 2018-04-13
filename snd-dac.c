@@ -1002,7 +1002,7 @@ static dac_info *make_dac_info(int slot, chan_info *cp, snd_info *sp, snd_fd *fd
 	    dp->filtering = false;
 	  else
 	    {
-	      mus_float_t *data = NULL;
+	      mus_float_t *data;
 	      data = sample_linear_env(sp->filter_control_envelope, sp->filter_control_order);
 	      if (data)
 		{
@@ -1152,7 +1152,7 @@ static dac_info *add_channel_to_play_list(chan_info *cp, snd_info *sp, mus_long_
 	      cp->cursor_on = true;
 	      cursor_moveto_without_verbosity(cp, start);
 #if USE_MOTIF
-	      if (cp->chan_widgets)
+	      if (cp->widgets)
 		update_graph(cp);
 #endif
 	    }
@@ -1324,7 +1324,7 @@ static dac_info *play_channel_1(chan_info *cp, mus_long_t start, mus_long_t end,
 				int pos, Xen stop_proc, int out_chan)
 {
   /* just plays one channel (ignores possible sync), includes start-hook */
-  snd_info *sp = NULL;
+  snd_info *sp;
   dac_info *dp = NULL;
 
   sp = cp->sound;
@@ -1488,7 +1488,7 @@ static dac_info *play_selection_1(play_process_t background, Xen stop_proc)
 
   if (selection_is_active())
     {
-      sync_info *si = NULL;
+      sync_info *si;
       si = selection_sync();
       if (si)
 	{
@@ -1633,7 +1633,7 @@ static int fill_dac_buffers(int write_ok)
 		  (dp->chn_fd) &&
 		  (!(dp->chn_fd->at_eof)) &&
 #if (!USE_NO_GUI)
-		  (dp->cp->chan_widgets) &&             /* nil if play_file */
+		  (dp->cp->widgets) &&             /* nil if play_file */
 #endif
 		  (dp->chn_fd->cb))
 		{
@@ -1716,7 +1716,7 @@ static int fill_dac_buffers(int write_ok)
 		  revincr = (sp->reverb_control_scale - rev) / (mus_float_t)(framples);
 		  if ((dp->filtering) && (sp->filter_control_changed))
 		    {
-		      mus_float_t *data = NULL;
+		      mus_float_t *data;
 		      data = sample_linear_env(sp->filter_control_envelope, sp->filter_control_order);
 		      if (data)
 			{
@@ -3133,7 +3133,7 @@ static Xen g_play(Xen arglist)
     play_sound_1(sp, start, end, background, edit_position, stop_func, S_play, edpos_argpos);
   else 
     {
-      if ((channel <(int)(sp->nchans)) &&
+      if ((channel < (int)(sp->nchans)) &&
 	  (channel >= 0))
 	{
 	  int pos;

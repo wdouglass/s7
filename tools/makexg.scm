@@ -278,6 +278,8 @@
 (define (no-stars type)
   (let ((len (length type))
 	(val (copy type)))
+    (if (not len)
+	(format *stderr* "type: ~S, len: ~S~%" type len))
     (do ((i 0 (+ i 1)))
 	((= i len) val)
       (if (char=? (val i) #\*)
@@ -408,6 +410,7 @@
 					;(cons "GdkJoinStyle" "INT")
 	(cons "GdkGrabStatus" "INT")
 	(cons "GdkEventMask" "INT")
+	(cons "GdkFilterReturn" "INT")
 					;(cons "GdkImageType" "INT")
 					;(cons "GdkInputSource" "INT")
 					;(cons "GdkInputMode" "INT")
@@ -1580,7 +1583,7 @@
 (with-cairo #f (lambda () (hay "#include <cairo/cairo.h>~%")))
 (hay "static s7_pointer lg_true, lg_false;~%")
 (hay "static bool lg_boolean(s7_pointer val) {return(val != lg_false);}~%")
-(hay "#define s7_make_type_with_c_pointer(Sc, Type, Ptr) s7_make_c_pointer_with_type(Sc, Ptr, Type, lg_false)~%")
+(hay "#define lg_make_c_pointer_with_type(Sc, Type, Ptr) s7_make_c_pointer_with_type(Sc, (void *)Ptr, Type, lg_false)~%")
 (hay "~%~%")
 ;;; ----------------
 
@@ -1671,33 +1674,51 @@
 (hey "static Xen xg_~A_symbol" (no-stars (car all-types)))
 (for-each
  (lambda (typ)
+   (if (not (string? typ))
+       (format *stderr* "in all-types: ~S~%" typ))
    (hey ", xg_~A_symbol" (no-stars typ)))
  (cdr all-types))
 
 (define other-types 
-  (list 'idler 'GtkCellRendererPixbuf_ ;'GtkScrollbar_ 
-	'GtkSeparator_ 'GtkSeparatorMenuItem_
-	'GdkEventExpose_ 'GdkEventNoExpose_ 'GdkEventVisibility_ 'GdkEventButton_ ;'GdkEventScroll_ 
-	'GdkEventCrossing_
-	'GdkEventFocus_ 'GdkEventConfigure_ 'GdkEventProperty_ 'GdkEventSelection_ 'GdkEventProximity_ 'GdkEventSetting_
-	'GdkEventWindowState_ 'GdkEventDND_ 'GtkFileChooserDialog_ 'GtkFileChooserWidget_ 'GtkColorButton_ 'GtkAccelMap
-	'GtkCellRendererCombo_ 'GtkCellRendererProgress_ 'GtkCellRendererAccel_ 'GtkCellRendererSpin_ 'GtkRecentChooserDialog_
-	'GtkRecentChooserWidget_ 'GtkCellRendererSpinner_ 'gboolean_
-	'GtkFontChooserDialog_ 'GtkFontChooserWidget_ 'GtkColorChooserDialog_ 'GtkColorChooserWidget_ 'GtkColorWidget_
-	'GtkGestureLongPress_ 
-	))
+  (list ;"idler" 
+        "GtkCellRendererPixbuf*"
+	"GtkSeparator*" "GtkSeparatorMenuItem*"
+	"GdkEventExpose*" "GdkEventNoExpose*" "GdkEventVisibility*" "GdkEventButton*"
+	"GdkEventCrossing*"
+	"GdkEventFocus*" "GdkEventConfigure*" "GdkEventProperty*" "GdkEventSelection*" "GdkEventProximity*" "GdkEventSetting*"
+	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" "GtkAccelMap"
+	"GtkCellRendererCombo*" "GtkCellRendererProgress*" "GtkCellRendererAccel*" "GtkCellRendererSpin*" "GtkRecentChooserDialog*"
+	"GtkRecentChooserWidget*" "GtkCellRendererSpinner*" ;"gboolean*"
+	"GtkFontChooserDialog*" "GtkFontChooserWidget*" "GtkColorChooserDialog*" ;"GtkColorChooserWidget*"
+	"GtkColorWidget*"
+	"GtkGestureLongPress*"))
 
 (for-each
  (lambda (typ)
-   (if (not (member typ all-types))
+   (if (not (string? typ))
+       (format *stderr* "in other-types: ~S~%" typ))
+   (if (not (member typ all-types string=?))
        (hey ", xg_~A_symbol" typ)))
  other-types)
  
 (hey ";~%~%")
 
 ;;; ----------------
+(let ((all-types-sym (map (lambda (x)
+			    (if (or (and (assoc x direct-types string=?)
+					 (not (member x '("guchar*" "gunichar*" "void" "etc"))))
+				    (string=? x "time_t"))
+				(values)
+				x))
+			  all-types))
+      (other-types-sym (map (lambda (x)
+			      (if (and (assoc x direct-types string=?)
+				       (not (member x '("guchar*" "gunichar*" "void" "etc"))))
+				  (values)
+				  x))
+			    other-types)))
 (let ((ctr 0))
-  (hay "static s7_pointer ~A_sym" (no-stars (car all-types)))
+  (hay "static s7_pointer ~A_sym" (no-stars (car all-types-sym)))
   (for-each
    (lambda (typ)
      (set! ctr (+ ctr 1))
@@ -1706,18 +1727,18 @@
 	   (set! ctr 0)
 	   (hay ",~%~NC~A_sym" 18 #\space (no-stars typ)))
 	 (hay ", ~A_sym" (no-stars typ))))
-   (cdr all-types))
+   (cdr all-types-sym))
   (for-each
    (lambda (typ)
-     (unless (member typ all-types)
+     (unless (member typ all-types string=?)
        (set! ctr (+ ctr 1))
        (if (zero? (modulo ctr 5))
 	   (begin
 	     (set! ctr 0)
-	     (hay ",~%~NC~A_sym" 18 #\space typ))
-	   (hay ", ~A_sym" typ))))
-   other-types)
-  (hay ";~%~%"))
+	     (hay ",~%~NC~A_sym" 18 #\space (no-stars typ)))
+	   (hay ", ~A_sym" (no-stars typ)))))
+   other-types-sym)
+  (hay ";~%~%")))
 ;;; ----------------
 
 
@@ -1976,7 +1997,9 @@
 		       (castlen1 19))
 		   (unless void?
 		     (hey "return(Xen_to_C_~A(" (no-stars type))
-		     (hay "return((~A)~A(" type (or (hash-table-ref s7->c (no-stars type)) 's7_c_pointer)))
+		     (hay "return((~A)~A(" type (or (hash-table-ref s7->c (no-stars type))
+						    (and (string=? type "GdkFilterReturn") 's7_integer)
+						    's7_c_pointer)))
 		   (hey "Xen_call_with_~A_arg~A(~A((Xen)func_info),~%"
 			(if (null? args) "no" (length args))
 			(if (and (pair? args) (null? (cdr args))) "" "s")
@@ -2010,7 +2033,7 @@
 
 			      (let ((call (hash-table-ref c->s7 (no-stars (car arg)))))
 				(if (eq? call 's7_make_c_pointer)
-				    (hay "s7_make_type_with_c_pointer(cbsc, ~A_sym, " (no-stars (car arg)))
+				    (hay "lg_make_c_pointer_with_type(cbsc, ~A_sym, " (no-stars (car arg)))
 				    (hay "~A(cbsc, " call))
 				(hay "~A~A)" 
 				     (if (member (car arg) '("GtkFileFilterInfo*" "guint8*"))
@@ -2323,7 +2346,7 @@
 		       (hey-on "    result = C_to_Xen_~A(" (no-stars return-type))
 		       (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			 (if (eq? call 's7_make_c_pointer)
-			     (hay "    result = s7_make_type_with_c_pointer(sc, ~A_sym, " (no-stars return-type))
+			     (hay "    result = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
 			     (hay "    result = ~A(sc, " call))))
 		      
 		      (else 
@@ -2336,7 +2359,7 @@
 			  (hey "    return(C_to_Xen_~A((~A)" (no-stars return-type) return-type)
 			  (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			    (if (eq? call 's7_make_c_pointer)
-				(hay "    return(s7_make_type_with_c_pointer(sc, ~A_sym, (~A)" (no-stars return-type) return-type)
+				(hay "    return(lg_make_c_pointer_with_type(sc, ~A_sym, (~A)" (no-stars return-type) return-type)
 				(hay "    return(~A(sc, (~A)" call return-type))))
 
 			 (else
@@ -2346,7 +2369,7 @@
 			  (hey-on "  return(C_to_Xen_~A(" (no-stars return-type))
 			  (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			    (if (eq? call 's7_make_c_pointer)
-				(hay "  return(s7_make_type_with_c_pointer(sc, ~A_sym, " (no-stars return-type))
+				(hay "  return(lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
 				(hay "  return(~A(sc, " call))))))))
 	      
 	      ;; else lambda-type is one of the callback types
@@ -2407,7 +2430,7 @@
 		      (hey-on "    result = C_to_Xen_~A(" (no-stars return-type))
 		      (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			(if (eq? call 's7_make_c_pointer)
-			    (hay "    result = s7_make_type_with_c_pointer(sc, ~A_sym, " (no-stars return-type))
+			    (hay "    result = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
 			    (hay "    result = ~A(sc, " call))))
 		    (begin
 		      (heyc "    ")
@@ -2484,8 +2507,9 @@
 						  ("GType" . "XLG("))
 					   string=?) => cdr)
 				   (else "XLA(")))
-			(hay (cond ((assoc type '(("int" . "s7_integer(s7_list_ref(sc, ") 
-						  ("gchar*" . "s7_string(s7_list_ref(sc, "))
+			(hay (cond ((assoc type '(("int" . "s7_integer(s7_list_ref(sc, ")
+						  ("gchar*" . "s7_string(s7_list_ref(sc, ")
+						  ("GtkTextTag*" . "(GtkTextTag*)s7_c_pointer(s7_list_ref(sc, "))
 					   string=?) => cdr)
 				   (else "s7_c_pointer(s7_list_ref(sc, "))))
 
@@ -2554,7 +2578,11 @@
 					     (hay (string-append "lg_" (caddr callback)))))
 				       ((equal? argtype "GClosure*")
 					(hay "(~A == lg_false) ? NULL : (GClosure*)s7_c_pointer(~A)" argname argname))
-				       (else (hay "~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname)))))))
+				       (else 
+					(unless (and (eq? spec 'const)
+						     (member argtype '("char**" "gchar**" "gchar*" "char*" "GValue*") string=?))
+					  (hay "(~A)" argtype))
+					(hay "~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname)))))))
 		       args)))
 		(if (not return-type-void)
 		    (if (not (and (eq? lambda-type 'fnc)
@@ -2717,49 +2745,6 @@
 
 (hey "~%~%/* ---------------------------------------- special functions ---------------------------------------- */~%~%")
 
-(hey "#if GTK_CHECK_VERSION(3, 0, 0)~%")
-(hey "#if GTK_CHECK_VERSION(3, 22, 0)~%")
-(hey "  static GdkWindow *last_window = NULL;~%")
-(hey "  static GdkDrawingContext *last_context = NULL;~%")
-(hey "#endif~%")
-(hey "~%")
-(hey "static cairo_t *make_cairo_1(GdkWindow *win)~%")
-(hey "{~%")
-(hey "#if GTK_CHECK_VERSION(3, 22, 0)~%")
-(hey "  last_window = win;~%")
-(hey "  /* last_context = gdk_window_begin_draw_frame(win, gdk_window_get_visible_region(win)); */~%")
-(hey "  return(gdk_drawing_context_get_cairo_context(last_context));~%")
-(hey "#else~%")
-(hey "  return(gdk_cairo_create(win));~%")
-(hey "#endif~%")
-(hey "}~%")
-(hey "~%")
-(hey "static void free_cairo_1(cairo_t *cr)~%")
-(hey "{~%")
-(hey "#if GTK_CHECK_VERSION(3, 22, 0)~%")
-(hey "  gdk_window_end_draw_frame(last_window, last_context);~%")
-(hey "#else~%")
-(hey "  cairo_destroy(cr);~%")
-(hey "#endif~%")
-(hey "}~%")
-(hey "~%")
-(hey "static Xen gxg_make_cairo(Xen window)~%")
-(hey "{~%")
-(hey "  #define H_make_cairo \"cairo_t* make_cairo(GdkWindow* window)\"~%")
-(hey "  Xen_check_type(Xen_is_GdkWindow_(window), window, 1, \"make_cairo\", \"GdkWindow*\");~%")
-(hey "  return(C_to_Xen_cairo_t_(make_cairo_1(Xen_to_C_GdkWindow_(window))));~%")
-(hey "}~%")
-(hey "~%")
-(hey "static Xen gxg_free_cairo(Xen cr)~%")
-(hey "{~%")
-(hey "  #define H_free_cairo \"void free_cairo(cairo_t* cr)\"~%")
-(hey "  Xen_check_type(Xen_is_cairo_t_(cr), cr, 1, \"free_cairo\", \"cairo_t*\");~%")
-(hey "  free_cairo_1(Xen_to_C_cairo_t_(cr));~%")
-(hey "  return(Xen_false);~%")
-(hey "}~%")
-(hey "#endif~%")
-(hey "~%")
-
 (hoy "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
 ;;; from Mike Scholz -- improve the error checking
 (hey "static Xen gxg_gtk_init(Xen argc, Xen argv) ~%")
@@ -2843,6 +2828,7 @@
 (hay "static s7_pointer lg_gtk_init(s7_scheme *sc, s7_pointer args)~%")
 (hoy "{ ~%")
 (hoy "  gtk_init();~%")
+(hoy "  return(lg_false);~%")
 (hoy "}~%")
 (hoy "#endif~%~%")
 
@@ -3143,8 +3129,6 @@
 
 (hey "#if GTK_CHECK_VERSION(3, 0, 0)~%")
 (hey "Xen_wrap_no_args(gxg_make_GdkRGBA_w, gxg_make_GdkRGBA)~%")
-(hey "Xen_wrap_1_arg(gxg_make_cairo_w, gxg_make_cairo)~%")
-(hey "Xen_wrap_1_arg(gxg_free_cairo_w, gxg_free_cairo)~%")
 (hey "#endif~%")
 
 (hey "~%~%")
@@ -3507,11 +3491,6 @@
 			 (for-each check-out (reverse check-list))))))
  all-checks all-check-withs)
 
-(hey "#if GTK_CHECK_VERSION(3, 0, 0)~%")
-(hey "Xg_define_procedure(make_cairo, gxg_make_cairo_w, 1, 0, 0, H_make_cairo, pl_pu);~%")
-(hey "Xg_define_procedure(free_cairo, gxg_free_cairo_w, 1, 0, 0, H_free_cairo, pl_pu);~%")
-(hey "#endif~%")
-
 (hoy "}~%~%")
 
 
@@ -3622,7 +3601,7 @@
  all-types)
 (for-each
  (lambda (typ)
-   (hey "  xg_~A_symbol = C_string_to_Xen_symbol(\"~A\");~%" typ typ))
+   (hey "  xg_~A_symbol = C_string_to_Xen_symbol(\"~A\");~%" (no-stars typ) (no-stars typ)))
  other-types)
 (hey "}~%~%")
 
@@ -3908,22 +3887,6 @@
 (hay "  define_functions(sc);~%")
 (hay "  s7_define_function(sc, \"g_signal_connect\", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);~%")
 (hay "  s7_set_shadow_rootlet(sc, old_shadow);~%")
-
-;;; structs
-;;; xm_obj?  used to free the struct in GC?
-;;; signals?
-
-(hay "~%")
-(hay "  s7_provide(sc, \"libgtk\");~%")
-(hay "  #if GTK_CHECK_VERSION(3, 90, 0)~%")
-(hay "    s7_provide(sc, \"gtk4\");~%")
-(hay "  #else~%")
-(hay "    #if GTK_CHECK_VERSION(3, 0, 0)~%")
-(hay "      s7_provide(sc, \"gtk3\");~%")
-(hay "    #else~%")
-(hay "      s7_provide(sc, \"gtk2\");~%")
-(hay "    #endif~%")
-(hay "  #endif~%")
 (hay "  s7_define(sc, cur_env, s7_make_symbol(sc, \"libgtk-version\"), s7_make_string(sc, \"~A\"));~%" (strftime "%d-%b-%y" (localtime (current-time))))
 (hay "}~%")
 
@@ -3951,6 +3914,7 @@
  direct-types)
 |#
 
+(s7-version)
 (exit)
 
 ;;; gcc -c libgtk_s7.c -o libgtk_s7.o -g3 -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl

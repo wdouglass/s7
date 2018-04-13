@@ -171,7 +171,7 @@ static char *xm_version(void)
 
   if (Xen_is_string(xm_val))
     {
-      char *version = NULL;
+      char *version;
       version = (char *)calloc(32, sizeof(char));
       snprintf(version, 32, "\n    %s: %s", 
 #if USE_MOTIF
@@ -281,7 +281,7 @@ static char *glx_version(void)
 
 char *version_info(void)
 {
-  char *result, *xversion = NULL, *consistent = NULL;
+  char *result, *xversion, *consistent = NULL;
 #if HAVE_GL && WITH_GL2PS
   char *gl2ps_name = NULL;
 #endif
@@ -3399,7 +3399,7 @@ static const char *html_directory(void)
     {
       bool happy;
       int len;
-      char *hd = NULL;
+      char *hd;
       len = mus_strlen(html_dir(ss)) + 16;
       hd = (char *)calloc(len, sizeof(char));
       snprintf(hd, len, "%s/snd.html", html_dir(ss));

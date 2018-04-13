@@ -934,7 +934,7 @@ int mus_sound_mark_info(const char *arg, int **mark_ids, int **mark_positions)
 char *mus_sound_comment(const char *name)
 {
   char *sc = NULL;
-  sound_file *sf = NULL;
+  sound_file *sf;
   sf = get_sf(name); 
   if (sf)
     {
@@ -1007,7 +1007,7 @@ int mus_sound_open_input(const char *arg)
     mus_error(MUS_CANT_OPEN_FILE, "mus_sound_open_input: can't open %s: %s", arg, STRERROR(errno));
   else
     {
-      sound_file *sf = NULL;
+      sound_file *sf;
       mus_sound_initialize();
       sf = get_sf(arg);
       if (sf) 
@@ -1439,7 +1439,7 @@ const char *mus_array_to_file_with_error(const char *filename, mus_float_t *ddat
 {
   /* put ddata into a sound file, taking byte order into account */
   /* assume ddata is interleaved already if more than one channel */
-  int fd, err = MUS_NO_ERROR;
+  int fd, err;
   mus_long_t oloc;
   mus_sound_forget(filename);
 
@@ -1497,7 +1497,7 @@ int mus_sound_initialize(void)
   static bool sndlib_initialized = false;
   if (!sndlib_initialized)
     {
-      int err = MUS_NO_ERROR;
+      int err;
       sndlib_initialized = true;
       mus_error_handler = default_mus_error;
       err = mus_header_initialize();

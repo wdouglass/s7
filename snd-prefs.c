@@ -274,7 +274,7 @@ static void save_prefs(void)
 
   if (fd)
     {
-      char **current_dirs = NULL;
+      char **current_dirs;
       int i, current_dirs_len = 0;
 
       fprintf(fd, "\n");
@@ -301,7 +301,7 @@ static void save_prefs(void)
 
       if (load_path_text_widget)
 	{
-	  char *unchecked_load_path = NULL;
+	  char *unchecked_load_path;
 	  unchecked_load_path = GET_TEXT(load_path_text_widget);
 	  if ((unchecked_load_path) &&                                                          /* text widget has an entry */
 	      (local_access(unchecked_load_path)) &&                                            /* it's a legit path */
@@ -1194,7 +1194,7 @@ static TIMEOUT_TYPE temp_dir_error_erase_func(TIMEOUT_ARGS)
 
 static void temp_dir_text(prefs_info *prf)
 {
-  char *str = NULL, *dir = NULL;
+  char *str, *dir;
 
   str = GET_TEXT(prf->text);
   if ((!str) || (!(*str))) 
@@ -1252,7 +1252,7 @@ static TIMEOUT_TYPE save_dir_error_erase_func(TIMEOUT_ARGS)
 
 static void save_dir_text(prefs_info *prf)
 {
-  char *str = NULL, *dir = NULL;
+  char *str, *dir;
 
   str = GET_TEXT(prf->text);
   if ((!str) || (!(*str))) 

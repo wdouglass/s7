@@ -6919,15 +6919,13 @@ replaces the normal "+" cursor with an "x":
 </p>
 
 <pre class="indented">
-(define (x-cursor snd chn ax)
+(define (x-cursor snd chn ax) ; works only in motif currently
   (let* ((point (<em class=red>cursor-position</em>))
          (x (car point))
          (y (cadr point))
-         (size (<em class=red>cursor-size</em>))
-         (cr (make-cairo (car (channel-widgets snd chn))))) ; needed in Gtk, ignored in Motif
-    (<a class=quiet href="#drawline">draw-line</a> (- x size) (- y size) (+ x size) (+ y size) snd chn <em class=red>cursor-context</em> cr)    
-    (<a class=quiet href="#drawline">draw-line</a> (- x size) (+ y size) (+ x size) (- y size) snd chn <em class=red>cursor-context</em> cr)
-    (free-cairo cr)))
+         (size (<em class=red>cursor-size</em>)))
+    (<a class=quiet href="#drawline">draw-line</a> (- x size) (- y size) (+ x size) (+ y size) snd chn <em class=red>cursor-context</em> #f)    
+    (<a class=quiet href="#drawline">draw-line</a> (- x size) (+ y size) (+ x size) (- y size) snd chn <em class=red>cursor-context</em> #f)))
 
 (set! (<em class=red>cursor-style</em>) x-cursor)
 </pre>
@@ -13973,7 +13971,7 @@ currently in the time-domain graph:
 	  (cons (list sample comment)
 		old-comments))))
 	  
-(define (show-comments snd chn)
+(define (show-comments snd chn) ; works only in motif currently
   (let ((comments (or (<a class=quiet href="#channelproperty">channel-property</a> 'comments snd chn) ())))
     (for-each
      (lambda (<a class=quiet href="#comment">comment</a>)
@@ -13985,11 +13983,9 @@ currently in the time-domain graph:
 	 (if (and (&lt; ls samp)
 		  (&gt; rs samp))
 	     (let ((xpos (<a class=quiet href="#xtoposition">x-&gt;position</a> (/ samp (<a class=quiet href="#srate">srate</a>))))
-		   (ypos (<a class=quiet href="#ytoposition">y-&gt;position</a> (<a class=quiet href="#sample">sample</a> samp)))
-                   (cr (make-cairo (car (channel-widgets snd chn)))))
-	       (<a class=quiet href="#drawline">draw-line</a> xpos 20 xpos (- ypos 4) snd chn time-graph cr)
-	       (<em class=red>draw-string</em> text (- xpos (/ text-width 2)) 18 snd chn time-graph cr)
-               (free-cairo cr)))))
+		   (ypos (<a class=quiet href="#ytoposition">y-&gt;position</a> (<a class=quiet href="#sample">sample</a> samp))))
+	       (<a class=quiet href="#drawline">draw-line</a> xpos 20 xpos (- ypos 4) snd chn time-graph #f)
+	       (<em class=red>draw-string</em> text (- xpos (/ text-width 2)) 18 snd chn time-graph #f)))))
      comments)))
 
 (hook-push <a class=quiet href="#aftergraphhook">after-graph-hook</a>

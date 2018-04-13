@@ -57,7 +57,7 @@
 	    (old-color (foreground-color snd chn))
 	    (axinf (axis-info snd chn))
 	    (old-axinf (channel-property 'rms-axis-info snd chn))
-	    (cr (make-cairo (car (channel-widgets snd chn)))))
+	    (cr (and (provided? 'gtk4) ((channel-widgets snd chn) 17))))
 	
 	(if (equal? axinf old-axinf)                    ; the previously calculated lines can be re-used
 	    (begin
@@ -106,8 +106,7 @@
 		      (set! (channel-property 'rms-lines snd chn) lines)  ; save current data for possible redisplay
 		      (set! (channel-property 'rms-axis-info snd chn) axinf))
 		    (lambda ()
-		      (set! (foreground-color snd chn) old-color))))))
-	(free-cairo cr)))))
+		      (set! (foreground-color snd chn) old-color))))))))))
     
 ;; (hook-push after-graph-hook (lambda (hook) (overlay-rms-env (hook 'snd) (hook 'chn))))
 
@@ -120,7 +119,7 @@ whenever they're in the current view."))
 	    (right (right-sample snd chn))
 	    (end (+ beg dur))
 	    (old-color (foreground-color snd chn))
-	    (cr (make-cairo (car (channel-widgets snd chn)))))
+	    (cr (and (provided? 'gtk4) ((channel-widgets snd chn) 17))))
 	(when (and (< left end)
 		   (> right beg))
 	  (let ((data (make-graph-data snd chn)))
@@ -139,8 +138,7 @@ whenever they're in the current view."))
 		       (new-high-data (float-vector-subseq (cadr data) left-bin right-bin)))
 		  (set! (foreground-color snd chn) color)
 		  (graph-data (list new-low-data new-high-data) snd chn copy-context left-bin right-bin (time-graph-style snd chn) cr)
-		  (set! (foreground-color snd chn) old-color)))))
-	(free-cairo cr)))))
+		  (set! (foreground-color snd chn) old-color)))))))))
 
 
 (define (display-samples-in-color hook)
@@ -189,7 +187,7 @@ whenever they're in the current view."))
 	    (let ((rinc (/ (- 1.0 (car clist)) (+ edits 1)))
 		  (ginc (/ (- 1.0 (cadr clist)) (+ edits 1)))
 		  (binc (/ (- 1.0 (caddr clist)) (+ edits 1)))
-		  (cr (make-cairo (car (channel-widgets snd chn))))) 
+		  (cr (and (provided? 'gtk4) ((channel-widgets snd chn) 17))))
 	      (do ((pos 0 (+ 1 pos))
 		   (re (- 1.0 rinc) (- re rinc))
 		   (ge (- 1.0 ginc) (- ge ginc))
@@ -198,9 +196,7 @@ whenever they're in the current view."))
 		(let ((data (make-graph-data snd chn pos)))
 		  (set! (foreground-color snd chn) (make-color re ge be))
 		  (graph-data data snd chn copy-context #f #f (time-graph-style snd chn) cr)))
-	      (set! (foreground-color snd chn) old-color)
-	      (free-cairo cr))))))))
-
+	      (set! (foreground-color snd chn) old-color))))))))
 
 (define overlay-sounds
   (let ((+documentation+ "(overlay-sounds . args) overlays onto its first argument all subsequent arguments: (overlay-sounds 1 0 3)"))
@@ -213,21 +209,20 @@ whenever they're in the current view."))
 		     (let ((snd (hook 'snd))
 			   (chn (hook 'chn)))
 		       (if (equal? snd base)
-			   (let ((cr (make-cairo (car (channel-widgets snd chn)))))
+			   (let ((cr (and (provided? 'gtk4) ((channel-widgets snd chn) 17))))
 			     (for-each 
 			      (lambda (nsnd)
 				(if (and (sound? nsnd)
 					 (> (chans nsnd) chn))
 				    (graph-data (make-graph-data nsnd chn) base chn copy-context #f #f graph-dots cr)))
-			      (cdr args))
-			     (free-cairo cr))))))))))
+			      (cdr args)))))))))))
 
 
 (define samples-via-colormap 
   (let ((+documentation+ "(samples-via-colormap snd chn) displays time domain graph using current colormap (just an example of colormap-ref)"))
     (lambda (snd chn)
       (let ((data (make-graph-data snd chn))
-	    (cr (make-cairo (car (channel-widgets snd chn)))))
+	    (cr (and (provided? 'gtk4) ((channel-widgets snd chn) 17))))
 	
 	(define (samples-1 cur-data)
 	  (let ((left (left-sample snd chn))
@@ -260,7 +255,5 @@ whenever they're in the current view."))
 		(samples-1 data)
 		(begin
 		  (samples-1 (car data))
-		  (samples-1 (cadr data)))))
-	(free-cairo cr)))))
-
+		  (samples-1 (cadr data)))))))))
 

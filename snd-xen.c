@@ -643,7 +643,6 @@ bool procedure_arity_ok(Xen proc, int args)
 
 char *procedure_ok(Xen proc, int args, const char *caller, const char *arg_name, int argn)
 {
-  int rargs;
   /* if string returned, needs to be freed */
 
   if (!(Xen_is_procedure(proc)))
@@ -653,6 +652,7 @@ char *procedure_ok(Xen proc, int args, const char *caller, const char *arg_name,
     }
   else
     {
+      int rargs;
       Xen arity;
       arity = Xen_arity(proc);
 
@@ -792,7 +792,7 @@ static char *g_print_1(Xen obj) /* free return val */
 
 static char *gl_print(Xen result)
 {
-  char *newbuf = NULL, *str = NULL;
+  char *newbuf, *str = NULL;
   int i, ilen, savelen;
 
 #if HAVE_SCHEME
@@ -909,7 +909,7 @@ void snd_display_result(const char *str, const char *endstr)
 
 void snd_report_result(Xen result, const char *buf)
 {
-  char *str = NULL;
+  char *str;
   str = gl_print(result);
   snd_display_result(str, buf);
   if (str) free(str);
@@ -1320,7 +1320,7 @@ static char *find_source_file(const char *orig);
 
 void snd_load_file(const char *filename)
 {
-  char *str = NULL, *str2 = NULL;
+  char *str, *str2 = NULL;
 
   str = mus_expand_filename(filename);
   if (!(mus_file_probe(str)))
@@ -1586,12 +1586,12 @@ Xen run_or_hook(Xen hook, Xen args, const char *caller)
 static Xen g_dlopen(Xen name, Xen flags)
 {
   #define H_dlopen "(dlopen lib (flags RTLD_LAZY)) loads the dynamic library 'lib' and returns a handle for it (for dlinit and dlclose)"
-  void *handle;
   const char *cname;
   Xen_check_type(Xen_is_string(name), name, 1, "dlopen", "a string (filename)");
   cname = Xen_string_to_C_string(name);
   if (cname)
     {
+      void *handle;
       handle = dlopen(cname, RTLD_LAZY);
       if (!handle)
 	{
@@ -2653,7 +2653,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if USE_MOTIF
   void Init_libxm(s7_scheme *sc);
 #else
-  /* void Init_libxg(s7_scheme *sc); */
+  void libgtk_s7_init(s7_scheme *sc);
 #endif
 #if HAVE_GL
  void Init_libgl(s7_scheme *sc);
@@ -3069,6 +3069,15 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 #endif
 
 #if USE_GTK
+  #if HAVE_SCHEME
+  {
+    s7_pointer gtk, old_curlet;
+    s7_define_constant(s7, "*gtk*", gtk = s7_inlet(s7, s7_nil(s7)));
+    old_curlet = s7_set_curlet(s7, gtk);
+    libgtk_s7_init(s7);
+    s7_set_curlet(s7, old_curlet);
+  }
+  #endif
   #if HAVE_FORTH && (0)
     fth_add_loaded_files("libxg.so");
   #endif

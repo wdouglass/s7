@@ -195,7 +195,7 @@ void drag_and_drop_mix_at_x_y(int data, const char *filename, int x, int y)
       (chn < (int)(ss->sounds[snd]->nchans)) &&
       (mus_file_probe(filename)))
     {
-      snd_info *sp = NULL;
+      snd_info *sp;
       chan_info *cp;
       mus_long_t sample;
       char *fullname = NULL;
@@ -740,7 +740,7 @@ static void mix_set_file_name(int id, int chans, const char *name)
 int mix_name_to_id(const char *name)
 {
   int i, loc_so_far = -1;
-  chan_info *selected_cp = NULL;
+  chan_info *selected_cp;
   selected_cp = selected_channel();
   for (i = 0; i < mix_infos_size; i++)
     if ((mix_infos[i]) &&
@@ -3126,13 +3126,19 @@ static Xen g_set_mix_tag_y(Xen n, Xen val)
 	  graphics_context *ax;
 	  ax = erase_context(cp);
 #if USE_GTK
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	  ss->cr = cp->graph_cr;
+#else
 	  ss->cr = make_cairo(ax->wn);
+#endif
 #endif
 	  erase_mix_tag_and_waveform(ms, cp, cp->axis, ax, md->x, cp->axis->y_offset + md->tag_y + MIX_TAG_Y_OFFSET);
 	  md->tag_y = Xen_integer_to_C_int(val);
 	  display_one_mix(ms, cp);
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 	  free_cairo(ss->cr);
+#endif
 	  ss->cr = NULL;
 	  copy_context(cp);
 #endif
@@ -3765,7 +3771,7 @@ Xen g_make_mix_sampler(Xen mix_id, Xen ubeg)
   ms = current_mix_state(md);
   if (ms)
     {
-      mix_fd *mf = NULL;
+      mix_fd *mf;
       mf = (mix_fd *)calloc(1, sizeof(mix_fd));
       mf->md = md;
       mf->sf = make_virtual_mix_reader(md->cp, beg, ms->len, ms->index, ms->scaler, READ_FORWARD);
@@ -3900,7 +3906,7 @@ static io_error_t save_mix(int id, const char *name, mus_header_t head_type, mus
 	  mus_float_t **bufs;
 	  mus_float_t *data;
 	  mus_long_t i;
-	  mix_fd *mf = NULL;
+	  mix_fd *mf;
 
 	  snd_file_open_descriptors(ofd, name, samp_type, oloc, 1, head_type);
 	  mus_file_set_clipping(ofd, clipping(ss));

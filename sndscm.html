@@ -9977,22 +9977,20 @@ load-font loads a font and returns a handle for it.
 <pre class="indented">
   (define new-font (<em class=red>load-font</em> "-*-helvetica-bold-r-*-*-14-*-*-*-*-*-*-*"))
 
-  (define* (show-greeting (snd 0) (chn 0))
+  (define* (show-greeting (snd 0) (chn 0)) ; works only in motif currently
   ;; show a red "hi!" in the helvetica bold font on a gray background
     (let ((ls (left-sample snd chn))
 	  (rs (right-sample snd chn)))
       (if (and (&lt; ls 1000)
 	       (&gt; rs 1000))
 	  (let ((pos (x-&gt;position (/ 1000.0 (srate))))
-		(old-color (foreground-color))
-		(cr (make-cairo (car (channel-widgets snd chn))))) ; make-cairo needed in Gtk, returns #f otherwise
+		(old-color (foreground-color)))
 	    (set! (foreground-color) (make-color .75 .75 .75))
-	    (fill-rectangle pos 10 50 20 snd chn time-graph #f cr)
+	    (fill-rectangle pos 10 50 20 snd chn time-graph #f #f)
 	    (set! (foreground-color) (make-color 1 0 0))
             (if new-font (set! (<em class=red>current-font</em>) new-font))
-	    (draw-string "hi!" (+ pos 5) 12 snd chn time-graph cr)
-	    (set! (foreground-color) old-color)
-	    (free-cairo cr)))))
+	    (draw-string "hi!" (+ pos 5) 12 snd chn time-graph #f)
+	    (set! (foreground-color) old-color)))))
 </pre>
 
 <div class="spacer"></div>

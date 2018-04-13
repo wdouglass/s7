@@ -53,6 +53,7 @@ static gint window_close(GtkWidget *w, GdkEvent *event, gpointer context)
 
 
 #if (!GTK_CHECK_VERSION(3, 92, 1))
+/* this seems to be unneeded in gtk 3.22 -- not sure when it was fixed */
 static GtkWidget **iconify_active_dialogs = NULL;
 
 static gint window_iconify(GtkWidget *w, GdkEventWindowState *event, gpointer context)

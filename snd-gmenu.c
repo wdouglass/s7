@@ -84,7 +84,11 @@ widget_t make_file_print_dialog(bool managed, bool direct_to_printer)
 
 static const char *ml[NUM_MENU_WIDGETS];
 
-void set_menu_label(GtkWidget *w, const char *label) {if (w) set_button_label(w, label);}
+void set_menu_label(GtkWidget *w, const char *label) 
+{
+  if (w) 
+    set_button_label(w, label);
+}
 
 
 
@@ -352,7 +356,7 @@ void check_menu_labels(int key, int state, bool extended) {}
 
 static void menu_drop_watcher(GtkWidget *w, const char *filename, int x, int y, void *data)
 {
-  snd_info *sp = NULL;
+  snd_info *sp;
   ss->open_requestor = FROM_DRAG_AND_DROP;
   sp = snd_open_file(filename, FILE_READ_WRITE);
   if (sp) select_channel(sp, 0);
@@ -976,7 +980,7 @@ void post_basic_popup_menu(void *e)
 #if GTK_CHECK_VERSION(3, 22, 0)
   gtk_menu_popup_at_pointer(GTK_MENU(basic_popup_menu), (const GdkEvent *)ev);
 #else
-  gtk_menu_popup(GTK_MENU(basic_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, EVENT_TIME(ev));
+  gtk_menu_popup(GTK_MENU(basic_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, event_time(ev));
 #endif
 }
 
@@ -1012,7 +1016,7 @@ static void popup_error_handler(const char *msg, void *data)
 static void popup_cut_to_new_callback_1(bool cut) 
 {
   char *temp_file;
-  io_error_t io_err = IO_NO_ERROR;
+  io_error_t io_err;
 
   temp_file = snd_tempnam();
   io_err = save_selection(temp_file, selection_srate(), default_output_sample_type(ss), default_output_header_type(ss), NULL, SAVE_ALL_CHANS);
@@ -1147,7 +1151,7 @@ void post_selection_popup_menu(void *e)
 #if GTK_CHECK_VERSION(3, 22, 0)
   gtk_menu_popup_at_pointer(GTK_MENU(selection_popup_menu), (const GdkEvent *)ev);
 #else
-  gtk_menu_popup(GTK_MENU(selection_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, EVENT_TIME(ev));
+  gtk_menu_popup(GTK_MENU(selection_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, event_time(ev));
 #endif
 }
 
@@ -1333,7 +1337,7 @@ void post_fft_popup_menu(void *e)
 #if GTK_CHECK_VERSION(3, 22, 0)
   gtk_menu_popup_at_pointer(GTK_MENU(fft_popup_menu), (const GdkEvent *)ev);
 #else
-  gtk_menu_popup(GTK_MENU(fft_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, EVENT_TIME(ev));
+  gtk_menu_popup(GTK_MENU(fft_popup_menu), NULL, NULL, NULL, NULL, POPUP_BUTTON, event_time(ev));
 #endif
 }
 

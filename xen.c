@@ -443,7 +443,7 @@ static Xen xen_rb_rep(Xen ig)
   Xen val;
   char *str;
   size_t size = 512;
-  char **buffer = NULL;
+  char **buffer;
   buffer = (char **)calloc(1, sizeof(char *));
   buffer[0] = (char *)calloc(size, sizeof(char));
   fprintf(stdout, "%s", rb_prompt);
@@ -1330,7 +1330,7 @@ void xen_repl(int argc, char **argv)
 {
   int size = 512;
   bool expr_ok = true;
-  char *buffer = NULL;
+  char *buffer;
   buffer = (char *)calloc(size, sizeof(char));
 
   while (true)

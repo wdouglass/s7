@@ -63,7 +63,7 @@ snd_info *snd_new_file(const char *newname, int chans, int srate, mus_sample_t s
 	  if (size > 0)
 	    {
 	      ssize_t bytes;
-	      unsigned char *buf = NULL;
+	      unsigned char *buf;
 	      buf = (unsigned char *)calloc(size, sizeof(unsigned char));
 	      bytes = write(chan, buf, size);
 	      if (bytes == 0)
@@ -1573,7 +1573,7 @@ static Xen after_apply_controls_hook;
 static void *make_apply_state(snd_info *sp)
 {
   /* set up initial state for apply_controls */
-  apply_state *ap = NULL;
+  apply_state *ap;
   ap = (apply_state *)calloc(1, sizeof(apply_state));
   ap->slice = 0;
   ap->hdr = NULL;
@@ -4140,7 +4140,7 @@ static s7_pointer g_save_sound_as(s7_scheme *sc, s7_pointer args)
   io_error_t io_err = IO_NO_ERROR;
   s7_pointer p, fp, index, edpos, pchan, filep;
   bool free_outcom = false;
-  int i, edit_position = AT_CURRENT_EDIT_POSITION;
+  int edit_position = AT_CURRENT_EDIT_POSITION;
 
   /* fprintf(stderr, "args: %s\n", s7_object_to_c_string(sc, args)); */
 
@@ -4229,7 +4229,7 @@ static Xen g_save_sound_as(Xen arglist)
   Xen args[16]; 
   Xen keys[8];
   int orig_arg[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  int vals, i, arglist_len;
+  int i, vals, arglist_len;
   Xen edpos = Xen_undefined, index = Xen_undefined, pchan;
   bool free_outcom = false, filep;
 
@@ -4335,6 +4335,7 @@ static Xen g_save_sound_as(Xen arglist)
 
   if (Xen_is_integer(edpos))
     {
+      int i;
       edit_position = to_c_edit_position(sp->chans[(chan >= 0) ? chan : 0], edpos, S_save_sound_as, 7);
       for (i = 0; i < (int)sp->nchans; i++)
 	if (edit_position > sp->chans[i]->edit_ctr)
@@ -4409,13 +4410,14 @@ static s7_pointer g_new_sound(s7_scheme *sc, s7_pointer args)
   char *str;
   int sr, ch, chan;
   mus_long_t size, len;
-  const char *com, *file;
+  const char *com;
   io_error_t io_err;
   s7_pointer p, fp;
 
   fp = s7_car(args);
   if (fp != Xen_false)
     {
+      const char *file;
       if (!s7_is_string(fp))
 	return(s7_wrong_type_arg_error(sc, S_new_sound, 1, fp, "a string (a filename)"));
       file = s7_string(fp);

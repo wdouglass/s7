@@ -233,6 +233,11 @@
 ;;; 3.93.0 (CINT "GDK_LAST_CURSOR " "GdkCursorType")
 ;;; 2.91.0 (CINT "GDK_CURSOR_IS_PIXMAP" "GdkCursorType")
 
+(CINT "GDK_FILTER_CONTINUE" "GdkFilterReturn")
+(CINT "GDK_FILTER_TRANSLATE" "GdkFilterReturn")
+(CINT "GDK_FILTER_REMOVE" "GdkFilterReturn")
+
+
 ;;; these were missed at some point:
 ;;; 3.93.0 (CFNC "GdkCursor* gdk_cursor_new_for_display GdkDisplay* display GdkCursorType cursor_type")
 ;;; 3.93.0 (CFNC "GdkDisplay* gdk_cursor_get_display GdkCursor* cursor")
@@ -3678,9 +3683,9 @@
 ;;; 3.1.6 (CCHK "GTK_IS_VBUTTON_BOX(obj)" "GtkVButtonBox*")
 ;;; 3.1.6 ;;;;(CFNC "GType gtk_vbutton_box_get_type void")
 ;;; 3.1.6 (CFNC "GtkWidget* gtk_vbutton_box_new void")
-;;;; (CINT "GTK_MAJOR_VERSION")
-;;;; (CINT "GTK_MINOR_VERSION")
-;;;; (CINT "GTK_MICRO_VERSION")
+(CINT "GTK_MAJOR_VERSION")
+(CINT "GTK_MINOR_VERSION")
+(CINT "GTK_MICRO_VERSION")
 ;;;; (CINT "GTK_BINARY_AGE")
 ;;;; (CINT "GTK_INTERFACE_AGE")
 (CCAST "GTK_VIEWPORT(obj)" "GtkViewport*")
@@ -9644,6 +9649,7 @@
 ;;; ../test/gtk+-3.93.0/gtk/gtkstylecontext.h
 ;;; ../test/gtk+-3.93.0/gtk/gtkstyleprovider.h
 ;;; ../test/gtk+-3.93.0/gtk/gtkcssprovider.h
+;;; properties are in gtkcssstylepropertyimpl.c
 
 (CCAST-3.92 "GTK_STYLE_CONTEXT(object)" "GtkStyleContext*")
 (CCHK-3.92 "GTK_IS_STYLE_CONTEXT(object)" "GtkStyleContext*")

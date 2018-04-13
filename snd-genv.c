@@ -12,6 +12,9 @@ static GtkWidget *lin_button, *lerow, *baseScale, *baseLabel, *baseValue, *enved
 static GtkAdjustment *baseAdj, *orderAdj;
 static gc_t *gc, *rgc, *ggc;
 static slist *env_list = NULL;
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  static cairo_t *enved_cr;
+#endif
 
 static const char *env_names[3] = {"amp env:", "flt env:", "src env:"};
 
@@ -204,7 +207,7 @@ static void apply_enved(void)
 	    case ENVED_SRATE:
 	      {
 		int i, j;
-		env *max_env = NULL;
+		env *max_env;
 		max_env = copy_env(active_env);
 		for (i = 0, j = 1; i < max_env->pts; i++, j += 2)
 		  if (max_env->data[j] < .01) max_env->data[j] = .01;
@@ -228,62 +231,72 @@ static void apply_enved(void)
 
 static void env_redisplay_1(printing_t printing)
 {
-  if (enved_dialog_is_active())
+  cairo_t *cr;
+  bool clear_cr = false;
+
+  if (!enved_dialog_is_active()) return;
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  cr = enved_cr;
+  if (!cr) return;
+  ss->cr = cr; /* used in make_axes etc */
+#else
+  if ((printing == NOT_PRINTING) && 
+      (!(ss->cr)))
     {
-      bool clear_cr = false;
-      if ((printing == NOT_PRINTING) && 
-	  (!(ss->cr)))
-	{
-	  /* we can get here from display_channel_data_with_size with an existing ss->cr */
-	  ss->cr = make_cairo(WIDGET_TO_WINDOW(enved_drawer));
-	  clear_cr = true;
-	}
-      if (!(ss->cr)) return;
-      
-      cairo_push_group(ss->cr);
-      cairo_set_source_rgba(ss->cr, gc->bg_color->red, gc->bg_color->green, gc->bg_color->blue, gc->bg_color->alpha);
-      cairo_rectangle(ss->cr, 0, 0, env_window_width, env_window_height);
-      cairo_fill(ss->cr);
-
-      if (showing_all_envs) 
-	{
-	  int x0, x1, y0, y1;
-	  x0 = axis->x_axis_x0;
-	  x1 = axis->x_axis_x1;
-	  y0 = axis->y_axis_y0;
-	  y1 = axis->y_axis_y1;
-	  view_envs(env_window_width, env_window_height, NOT_PRINTING); /* NOT_PRINTING because we're not using the eps stuff here */
-	  axis->x_axis_x0 = x0;
-	  axis->x_axis_x1 = x1;
-	  axis->y_axis_y0 = y0;
-	  axis->y_axis_y1 = y1;
-	}
-      else 
-	{
-	  char *name = NULL;
-	  name = (char *)gtk_entry_get_text(GTK_ENTRY(enved_text_label));
-	  if (!name) name = (char *)"noname";
-
-	  if ((enved_with_wave(ss)) &&
-	      (active_channel) &&
-	      (!(active_channel->squelch_update)))
-	    {
-	      if ((enved_target(ss) == ENVED_SPECTRUM) && (active_env) && (is_FIR) && (printing == NOT_PRINTING))
-		display_frequency_response(active_env, axis, gray_ap->ax, enved_filter_order(ss), enved_in_dB(ss));
-	      enved_show_background_waveform(axis, gray_ap, apply_to_selection, (enved_target(ss) == ENVED_SPECTRUM), NOT_PRINTING);
-	    }
-	  display_env(active_env, name, gc, 0, 0, env_window_width, env_window_height, true, NOT_PRINTING);
-	}
-
-      cairo_pop_group_to_source(ss->cr);
-      cairo_paint(ss->cr);
-      if ((printing == NOT_PRINTING) &&
-	  (clear_cr))
-	{
-	  free_cairo(ss->cr);
-	  ss->cr = NULL;
-	}
+      /* we can get here from display_channel_data_with_size with an existing ss->cr */
+      ss->cr = make_cairo(WIDGET_TO_WINDOW(enved_drawer));
+      clear_cr = true;
     }
+  if (!(ss->cr)) return;
+  cr = ss->cr;
+#endif
+      
+  cairo_push_group(cr);
+  cairo_set_source_rgba(cr, gc->bg_color->red, gc->bg_color->green, gc->bg_color->blue, gc->bg_color->alpha);
+  cairo_rectangle(cr, 0, 0, env_window_width, env_window_height);
+  cairo_fill(cr);
+  
+  if (showing_all_envs) 
+    {
+      int x0, x1, y0, y1;
+      x0 = axis->x_axis_x0;
+      x1 = axis->x_axis_x1;
+      y0 = axis->y_axis_y0;
+      y1 = axis->y_axis_y1;
+      view_envs(env_window_width, env_window_height, NOT_PRINTING); /* NOT_PRINTING because we're not using the eps stuff here */
+      axis->x_axis_x0 = x0;
+      axis->x_axis_x1 = x1;
+      axis->y_axis_y0 = y0;
+      axis->y_axis_y1 = y1;
+    }
+  else 
+    {
+      char *name;
+      name = (char *)gtk_entry_get_text(GTK_ENTRY(enved_text_label));
+      if (!name) name = (char *)"noname";
+      
+      if ((enved_with_wave(ss)) &&
+	  (active_channel) &&
+	  (!(active_channel->squelch_update)))
+	{
+	  if ((enved_target(ss) == ENVED_SPECTRUM) && (active_env) && (is_FIR) && (printing == NOT_PRINTING))
+	    display_frequency_response(active_env, axis, gray_ap->ax, enved_filter_order(ss), enved_in_dB(ss));
+	  enved_show_background_waveform(axis, gray_ap, apply_to_selection, (enved_target(ss) == ENVED_SPECTRUM), NOT_PRINTING);
+	}
+      display_env(active_env, name, gc, 0, 0, env_window_width, env_window_height, true, NOT_PRINTING);
+    }
+  
+  cairo_pop_group_to_source(cr);
+  cairo_paint(cr);
+
+#if (!GTK_CHECK_VERSION(3, 89, 0))
+  if ((printing == NOT_PRINTING) &&
+      (clear_cr))
+    {
+      free_cairo(ss->cr);
+      ss->cr = NULL;
+    }
+#endif
 }
 
 
@@ -343,7 +356,7 @@ static void errors_to_genv_text(const char *msg, void *data)
 static void text_field_activated(GtkWidget *w, gpointer context)
 { 
   /* might be breakpoints to load or an envelope name (<cr> in enved text field) */
-  char *str = NULL;
+  char *str;
   str = (char *)gtk_entry_get_text(GTK_ENTRY(w));
   if ((str) && (*str))
     {
@@ -483,15 +496,27 @@ static gboolean enved_drawer_button_motion(GtkWidget *w, GdkEventMotion *ev, gpo
   oclock_t motion_time = 0;
   ignore_button_release = false;
 
-  if (BUTTON1_PRESSED(EVENT_STATE(ev)))
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &state);
+#else
+  state = ev->state;
+#endif
+  if (BUTTON1_PRESSED(state))
     {
       if (EVENT_IS_HINT(ev))
 	window_get_pointer(ev, &evx, &evy, &state);
       else
 	{
-	  evx = (int)(EVENT_X(ev));
-	  evy = (int)(EVENT_Y(ev));
-	  motion_time = EVENT_TIME(ev);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+          gdouble x, y;
+	  gdk_event_get_coords((GdkEvent *)ev, &x, &y);
+	  evx = (int)x;
+	  evy = (int)y;
+#else
+	  evx = (int)(ev->x);
+	  evy = (int)(ev->y);
+#endif
+	  motion_time = event_time(ev);
 	  if ((motion_time - ss->enved->down_time) < 100) return(false);
 	}
     }
@@ -511,13 +536,21 @@ static gboolean enved_drawer_button_motion(GtkWidget *w, GdkEventMotion *ev, gpo
 
 static gboolean enved_drawer_button_press(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
-  ss->enved->down_time = EVENT_TIME(ev);
+  gdouble x, y;
+  ss->enved->down_time = event_time(ev);
   ss->enved->env_dragged = false;
+
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_coords((GdkEvent *)ev, &x, &y);
+#else
+  x = ev->x;
+  y = ev->y;
+#endif
 
   if (showing_all_envs)
     {
       int pos;
-      pos = hit_env((int)(EVENT_X(ev)), (int)(EVENT_Y(ev)), env_window_width, env_window_height);
+      pos = hit_env((int)x, (int)y, env_window_width, env_window_height);
       slist_select(env_list, pos);
       if ((pos >= 0) && 
 	  (pos < enved_all_envs_top())) 
@@ -534,9 +567,9 @@ static gboolean enved_drawer_button_press(GtkWidget *w, GdkEventButton *ev, gpoi
 	  active_env->base = enved_base(ss);
 	  env_redisplay(); /* needed to get current_xs set up correctly */
 	}
-      if (env_editor_button_press(ss->enved, (int)(EVENT_X(ev)), (int)(EVENT_Y(ev)), EVENT_TIME(ev), active_env))
+      if (env_editor_button_press(ss->enved, (int)x, (int)y, event_time(ev), active_env))
 	env_redisplay();
-      enved_display_point_label(ungrf_x(ss->enved->axis, EVENT_X(ev)), env_editor_ungrf_y_dB(ss->enved, (int)(EVENT_Y(ev))));
+      enved_display_point_label(ungrf_x(ss->enved->axis, x), env_editor_ungrf_y_dB(ss->enved, y)); /* was (int)y? */
       set_sensitive(enved_save_button, true);
       set_sensitive(enved_undo_button, true);
       set_sensitive(enved_revert_button, true);
@@ -561,7 +594,16 @@ static gboolean enved_drawer_button_release(GtkWidget *w, GdkEventButton *ev, gp
   return(false);
 }
 
-
+#if GTK_CHECK_VERSION(3, 89, 0)
+static void enved_drawer_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  enved_cr = cr;
+  cairo_set_line_width(cr, 1.0);
+  env_window_width = widget_width(GTK_WIDGET(w));
+  env_window_height = widget_height(GTK_WIDGET(w));
+  env_redisplay();
+}
+#else
 static gboolean enved_drawer_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   env_window_width = widget_width(w);
@@ -569,7 +611,6 @@ static gboolean enved_drawer_expose(GtkWidget *w, GdkEventExpose *ev, gpointer d
   env_redisplay();
   return(false);
 }
-
 
 static gboolean enved_drawer_resize(GtkWidget *w, GdkEventConfigure *ev, gpointer data)
 {
@@ -579,6 +620,7 @@ static gboolean enved_drawer_resize(GtkWidget *w, GdkEventConfigure *ev, gpointe
   env_redisplay();
   return(false);
 }
+#endif
 
 
 static void show_button_pressed(GtkWidget *w, gpointer context)
@@ -938,7 +980,9 @@ GtkWidget *create_envelope_editor(void)
 
       enved_drawer = gtk_drawing_area_new();
       sg_box_pack_start(GTK_BOX(mainform), enved_drawer, true, true, 0);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       sg_widget_set_events(enved_drawer, GDK_ALL_EVENTS_MASK);
+#endif
       widget_modify_bg(enved_drawer, GTK_STATE_NORMAL, ss->white);
       widget_modify_fg(enved_drawer, GTK_STATE_NORMAL, ss->black);
       gtk_widget_show(enved_drawer);
@@ -1194,8 +1238,14 @@ GtkWidget *create_envelope_editor(void)
       gray_ap->ax->gc = ggc;
       gray_ap->ax->current_font = AXIS_NUMBERS_FONT(ss);
 
+#if GTK_CHECK_VERSION(3, 89, 0)
+      gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(enved_drawer), gtk_widget_get_allocated_width(enved_drawer));
+      gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(enved_drawer), gtk_widget_get_allocated_height(enved_drawer));
+      gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(enved_drawer), enved_drawer_expose, NULL, NULL);
+#else
       SG_SIGNAL_CONNECT(enved_drawer, DRAW_SIGNAL, enved_drawer_expose, NULL);
       SG_SIGNAL_CONNECT(enved_drawer, "configure_event", enved_drawer_resize, NULL);
+#endif
       SG_SIGNAL_CONNECT(enved_drawer, "button_press_event", enved_drawer_button_press, NULL);
       SG_SIGNAL_CONNECT(enved_drawer, "button_release_event", enved_drawer_button_release, NULL);
       SG_SIGNAL_CONNECT(enved_drawer, "motion_notify_event", enved_drawer_button_motion, NULL);
@@ -1226,8 +1276,9 @@ GtkWidget *create_envelope_editor(void)
   env_window_width = widget_width(enved_drawer);
   env_window_height = widget_height(enved_drawer);
   active_channel = current_channel();
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   env_redisplay();
-
+#endif
   return(enved_dialog);
 }
 

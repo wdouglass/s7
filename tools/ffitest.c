@@ -1088,6 +1088,9 @@ int main(int argc, char **argv)
   p = s7_current_input_port(sc);
   if (!s7_is_input_port(sc, p))
     {fprintf(stderr, "%d: %s is not an input port?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+  s7_port_line_number(p);
+  s7_add_to_history(sc, s7_nil(sc));
+  s7_history(sc);
 
   p = s7_current_output_port(sc);
   if (!s7_is_output_port(sc, p))

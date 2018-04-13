@@ -162,7 +162,7 @@ rgb_t *color_map_blues(int index)
 
 static cmap *new_cmap(const char *name, int size, mus_float_t **rgb)
 {
-  cmap *c = NULL;
+  cmap *c;
   c = (cmap *)calloc(1, sizeof(cmap));
   c->name = mus_strdup(name);
   c->size = size;

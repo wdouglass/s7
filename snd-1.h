@@ -265,15 +265,18 @@ typedef struct chan_info {
   mus_float_t progress_pct;
 
 #if USE_GTK
-  GtkWidget **chan_widgets;
-  GtkAdjustment **chan_adjs;
+  GtkWidget **widgets;
+  GtkAdjustment **adjs;
   GdkCursor *current_cursor;
   slist *edhist_list;
   color_info *combined_data_color;
+#if GTK_CHECK_VERSION(3, 89, 0)
+  cairo_t *clock_pix_cr, *graph_cr;
+#endif
 #endif
 
 #if USE_MOTIF
-  Widget *chan_widgets;
+  Widget *widgets;
   Pixmap fft_pix;
   uint32_t fft_pix_width, fft_pix_height;
   int fft_pix_x0, fft_pix_y0;
@@ -378,7 +381,7 @@ typedef struct snd_info {
 
   struct env_editor *flt;
 #if USE_MOTIF
-  Widget *snd_widgets;
+  Widget *widgets;
   Widget *progress_widgets;
   int num_progress_widgets;
   Widget tab;
@@ -386,7 +389,7 @@ typedef struct snd_info {
   int bomb_ctr;
 #endif
 #if USE_GTK
-  GtkWidget **snd_widgets;
+  GtkWidget **widgets;
   GtkAdjustment **snd_adjs;
   GtkWidget *dialog;
   int page;
@@ -394,9 +397,12 @@ typedef struct snd_info {
   graphics_context **clock_pix_ax;
   GtkWidget **clock_widgets;
   int num_clock_widgets;
+#if GTK_CHECK_VERSION(3, 89, 0)
+  cairo_t *stop_pix_cr, *name_pix_cr, *speed_arrow_cr, *filter_drawer_cr;
+#endif
 #endif
 #if USE_NO_GUI
-  bool snd_widgets;
+  bool widgets;
 #endif
 
   file_info *hdr;             /* header of file that would be affected if we were to save current edits */
@@ -416,7 +422,7 @@ typedef struct snd_info {
 } snd_info;
 
 #define snd_srate(Sp) (((Sp)->hdr)->srate)
-#define has_widgets(Sp) ((Sp) && ((Sp)->snd_widgets))
+#define has_widgets(Sp) ((Sp) && ((Sp)->widgets))
 
 typedef struct snd_state {
   int selected_sound;         /* NO_SELECTION = none selected = which sound is currently receiving user's attention */

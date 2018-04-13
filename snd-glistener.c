@@ -73,7 +73,11 @@ static gboolean listener_key_press(GtkWidget *w, GdkEventKey *event, gpointer da
   /* glistener_clear_status(ss->listener); */
 
   key = EVENT_KEYVAL(event);
-  state = (GdkModifierType)EVENT_STATE(event);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)event, &state);
+#else
+  state = event->state;
+#endif
 
   if ((state & snd_ControlMask) &&
       ((key == snd_K_g) || (key == snd_K_G)))
@@ -590,7 +594,11 @@ static bool keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
   GdkModifierType state;
 
   key = EVENT_KEYVAL(e);
-  state = (GdkModifierType)EVENT_STATE(e);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)e, &state);
+#else
+  state = e->state;
+#endif
   if (((key == snd_K_g) || (key == snd_K_G)) &&
       (state & snd_ControlMask))
     {

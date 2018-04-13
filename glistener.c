@@ -83,12 +83,6 @@ static guint EVENT_KEYVAL(GdkEvent *e)
   #define EVENT_KEYVAL(Ev) (Ev)->keyval
 #endif
 
-#if (GTK_CHECK_VERSION(3, 0, 0) && defined(__GNUC__) && (!(defined(__cplusplus))))
-  #define EVENT_STATE(Ev) ({ GdkModifierType Type;  gdk_event_get_state((GdkEvent *)Ev, &Type); Type; })
-#else
-  #define EVENT_STATE(Ev) (Ev)->state
-#endif
-
 #define ControlMask GDK_CONTROL_MASK
 #define MetaMask GDK_MOD1_MASK
 
@@ -668,7 +662,7 @@ void glistener_clear(glistener *g)
 
 bool glistener_write(glistener *g, FILE *fp)
 {
-  char *str = NULL;
+  char *str;
   GtkTextIter start, end;
 
   gtk_text_buffer_get_start_iter(g->buffer, &start);
@@ -1553,7 +1547,11 @@ static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer d
       GdkModifierType state;
 
       key = EVENT_KEYVAL(event);
-      state = (GdkModifierType)EVENT_STATE(event);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+      gdk_event_get_state((GdkEvent *)event, &state);
+#else
+      state = (GdkModifierType)(event->state);
+#endif
       
       /* fprintf(stderr, "key: %d, state: %x\n", key, state); */
       
@@ -1821,8 +1819,14 @@ static void check_for_empty_listener(GtkTextView *w, gpointer data)
 static gboolean glistener_button_release(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
   glistener *g = (glistener *)data;
+  GdkModifierType state;
 
-  if (EVENT_STATE(ev) & GDK_BUTTON2_MASK)
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &state);
+#else
+  state = (GdkModifierType)(ev->state);
+#endif
+  if (state & GDK_BUTTON2_MASK)
     glistener_set_cursor_position(g, g->insertion_position);
   else
     {
@@ -1844,8 +1848,6 @@ static gboolean glistener_button_release(GtkWidget *w, GdkEventButton *ev, gpoin
   post_help(g, glistener_cursor_position(g));
   return(false);
 }
-
-
 
 
 

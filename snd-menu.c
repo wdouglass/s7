@@ -6,7 +6,7 @@
 void edit_menu_update(void)
 {
   /* called when the "Edit" top level menu is clicked -- make sure all items reflect current Snd state */
-  snd_info *selected_sp = NULL, *any_sp = NULL;
+  snd_info *selected_sp, *any_sp = NULL;
   chan_info *cp = NULL;
   bool has_selection = false, has_region = false, file_open = false, has_undoable_edit = false, has_redoable_edit = false;
   selected_sp = selected_sound();
@@ -141,7 +141,7 @@ void view_menu_update(void)
 
 void file_menu_update(void)
 {
-  snd_info *any_sp = NULL;
+  snd_info *any_sp;
   bool file_open = false, has_edits = false;
 
   any_sp = any_selected_sound();

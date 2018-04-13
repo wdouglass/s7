@@ -68,7 +68,7 @@ void snd_fclose(FILE *fd, const char *name)
 
 FILE *snd_fopen(const char *filename, const char *modes)
 {
-  FILE *result = NULL;
+  FILE *result;
   ss->local_errno = 0;
   ss->local_open_errno = 0;
   errno = 0;
@@ -84,7 +84,7 @@ FILE *snd_fopen(const char *filename, const char *modes)
 
 int snd_open(const char *filename, int flags, mode_t mode)
 {
-  int result = 0;
+  int result;
   ss->local_errno = 0;
   ss->local_open_errno = 0;
   errno = 0;
@@ -104,7 +104,7 @@ int snd_open(const char *filename, int flags, mode_t mode)
 
 int snd_creat(const char *filename, mode_t mode)
 {
-  int result = 0;
+  int result;
   ss->local_errno = 0;
   ss->local_open_errno = 0;
   errno = 0;

@@ -6021,6 +6021,7 @@ The defaults are '(3 45 80 45 #t).
 (<em class=def id="cobject">c-object?</em> obj)
 (<em class=def id="cpointer">c-pointer?</em> obj)
 (<em class=def id="cpoint">c-pointer</em> int type info)
+(<em class=def id="cpointertolist">c-pointer-&gt;list</em> obj)
 </pre>
 
 <p>
@@ -6048,6 +6049,8 @@ the generic functions mechanism, much like a c-object:
     (object-&gt;string ptr))
 <em class="gray">"I am pointer 1 of type 'abc!"</em>
 </pre>
+<p>c-pointer-&gt;list returns (list pointer-as-int type info).
+</p>
 
 
 <div class="separator"></div>

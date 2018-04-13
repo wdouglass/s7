@@ -320,7 +320,6 @@ int main(int argc, char **argv)
   add_file("snd-gxbitmaps.c");
   add_file("snd-gxcolormaps.c");
   add_file("snd-gutils.c");
-  add_file("snd-ghelp.c");
   add_file("snd-gfind.c");
   add_file("snd-gmenu.c");
   add_file("snd-gdraw.c");

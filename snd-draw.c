@@ -177,7 +177,9 @@ void draw_cursor(chan_info *cp)
 
     case CURSOR_PROC:
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       free_cairo(ss->cr);
+#endif
       ss->cr = NULL;
 #endif
       Xen_call_with_3_args((Xen_is_procedure(cp->cursor_proc)) ? (cp->cursor_proc) : (ss->cursor_proc),
@@ -187,7 +189,11 @@ void draw_cursor(chan_info *cp)
 		 C_bool_to_Xen_boolean(ss->tracking),
 		 S_cursor_style " procedure");
 #if USE_GTK
+#if GTK_CHECK_VERSION(3, 89, 0)
+      ss->cr = cp->graph_cr;
+#else
       ss->cr = make_cairo(ap->ax->wn);
+#endif
       copy_context(cp);
 #endif
       break;
@@ -242,14 +248,16 @@ static graphics_context *get_ax(chan_info *cp, int ax_id, const char *caller, Xe
     {
       graphics_context *ax;
       ax = set_context(cp, (chan_gc_t)ax_id);
-      /* (gdk_cairo_create (GDK_DRAWABLE (gtk_widget_get_window (car (channel-widgets 0 0)))))) -> '(cairo_t_ #<c_pointer 0x12bbca0>)
-       *    (eq? (car hi) 'cairo_t_) -> #t
-       */
+#if HAVE_SCHEME
+      if (s7_is_c_pointer(xcr))
+	ss->cr = (cairo_t *)s7_c_pointer(xcr);
+#else
       if ((Xen_is_list(xcr)) &&
 	  (Xen_list_length(xcr) == 2) &&
 	  (Xen_is_symbol(Xen_car(xcr))) &&
 	  (strcmp("cairo_t_", Xen_symbol_to_C_string(Xen_car(xcr))) == 0))
 	ss->cr = (cairo_t *)Xen_unwrap_C_pointer(Xen_cadr(xcr));
+#endif
       else 
 	Xen_error(Xen_make_error_type("not-a-graphics-context"),
 		  Xen_list_2(C_string_to_Xen_string("~A: cairo_t argument is not a cairo_t pointer"),
@@ -589,7 +597,6 @@ static Xen g_set_current_font(Xen id, Xen snd, Xen chn, Xen ax_id)
 		  (Xen_list_length(id) >= 2) &&
 		  (Xen_is_symbol(Xen_car(id))) &&
 		  (strcmp("Font", Xen_symbol_to_C_string(Xen_car(id))) == 0), id, 1, S_set S_current_font, "a Font");
-
   ax = TO_C_AXIS_CONTEXT_NO_CR(snd, chn, ax_id, S_current_font);
   ax->current_font = (Font)Xen_ulong_to_C_ulong(Xen_cadr(id));
   XSetFont(ax->dp, ax->gc, ax->current_font);
@@ -1171,48 +1178,6 @@ static Xen g_snd_font(Xen choice)
     }
   return(Xen_false);
 }
-
-#if 1
-static Xen g_make_cairo(Xen drawer)
-{
-  #define H_make_cairo "(" S_make_cairo " widget) in gtk, this returns a new cairo_t to draw on the widget."
-
-#if USE_GTK
-  #define C_to_Xen_cairo_t(Value) Xen_list_2(C_string_to_Xen_symbol("cairo_t_"), Xen_wrap_C_pointer(Value))
-  cairo_t *cr;
-
-  Xen_check_type(Xen_is_widget(drawer), drawer, 1, S_make_cairo, "a widget");
-
-#if (!GTK_CHECK_VERSION(3, 0, 0))
-  cr = make_cairo(GDK_DRAWABLE(gtk_widget_get_window(Xen_unwrap_widget(drawer))));
-#else
-  cr = make_cairo(GDK_WINDOW(gtk_widget_get_window(Xen_unwrap_widget(drawer))));
-#endif
-
-  return(C_to_Xen_cairo_t(cr));
-#endif
-
-  return(Xen_false);
-}
-
-
-static Xen g_free_cairo(Xen xcr)
-{
-  #define H_free_cairo "(" S_free_cairo " cr) in gtk, this frees (destroys) the cairo_t 'cr'."
-
-#if USE_GTK
-  if ((Xen_is_list(xcr)) &&
-      (Xen_list_length(xcr) == 2) &&
-      (Xen_is_symbol(Xen_car(xcr))) &&
-      (strcmp("cairo_t_", Xen_symbol_to_C_string(Xen_car(xcr))) == 0))
-    free_cairo((cairo_t *)Xen_unwrap_C_pointer(Xen_cadr(xcr)));
-  else 
-    Xen_error(Xen_make_error_type("not-a-graphics-context"),
-	      Xen_list_2(C_string_to_Xen_string(S_free_cairo ": cairo_t argument is not a cairo_t pointer: ~A"), xcr));
-#endif
-  return(Xen_false);
-}
-#endif
 
 
 #if HAVE_GL
@@ -1960,10 +1925,6 @@ Xen_wrap_any_args(g_make_bezier_w, g_make_bezier)
 Xen_wrap_no_args(g_snd_gcs_w, g_snd_gcs)
 Xen_wrap_1_arg(g_snd_color_w, g_snd_color)
 Xen_wrap_1_arg(g_snd_font_w, g_snd_font)
-#if 1
-Xen_wrap_1_arg(g_make_cairo_w, g_make_cairo)
-Xen_wrap_1_arg(g_free_cairo_w, g_free_cairo)
-#endif
 
 Xen_wrap_no_args(g_selection_color_w, g_selection_color)
 Xen_wrap_1_arg(g_set_selection_color_w, g_set_selection_color)
@@ -2147,11 +2108,6 @@ void g_init_draw(void)
   Xen_define_typed_procedure(S_snd_gcs,       g_snd_gcs_w,        0, 0, 0,  H_snd_gcs,      s7_make_signature(s7, 1, p));
   Xen_define_typed_procedure(S_snd_color,     g_snd_color_w,      1, 0, 0,  H_snd_color,    s7_make_signature(s7, 2, p, i));
   Xen_define_typed_procedure(S_snd_font,      g_snd_font_w,       1, 0, 0,  H_snd_font,     s7_make_signature(s7, 2, p, i));
-
-#if 1
-  Xen_define_typed_procedure(S_make_cairo,    g_make_cairo_w,     1, 0, 0,  H_make_cairo,   s7_make_signature(s7, 2, p, t));
-  Xen_define_typed_procedure(S_free_cairo,    g_free_cairo_w,     1, 0, 0,  H_free_cairo,   s7_make_signature(s7, 2, b, p));
-#endif
 
   #define H_new_widget_hook S_new_widget_hook " (widget): called each time a dialog or \
 a new set of channel or sound widgets is created."

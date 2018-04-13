@@ -2415,7 +2415,7 @@ char *mus_format(const char *format, ...)
 #else
 
   #define MUS_FORMAT_BUFFER_SIZE 256
-  char *buf = NULL;
+  char *buf;
   int needed_bytes = 0;
   va_list ap;
   buf = (char *)calloc(MUS_FORMAT_BUFFER_SIZE, sizeof(char));

@@ -158,7 +158,7 @@ void draw_string(graphics_context *ax, int x0, int y0, const char *str, int len)
     return;
 
   {
-    PangoLayout *layout = NULL;
+    PangoLayout *layout;
     cairo_save(ss->cr);
     layout = pango_cairo_create_layout(ss->cr);
     pango_layout_set_font_description(layout, ax->current_font);
@@ -175,7 +175,7 @@ void draw_string(graphics_context *ax, int x0, int y0, const char *str, int len)
 static void rotate_text(graphics_context *ax, PangoFontDescription *font, const char *text, int angle, gint x0, gint y0)
 {
   int width, height;
-  PangoLayout *layout = NULL;
+  PangoLayout *layout;
   cairo_save(ss->cr);
   layout = pango_cairo_create_layout(ss->cr);
   pango_layout_set_font_description(layout, font);
@@ -202,6 +202,7 @@ void draw_rotated_axis_label(chan_info *cp, graphics_context *ax, const char *te
   #define IS_DRAWABLE(Widget) GDK_IS_DRAWABLE(Widget)
 #endif
 
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 void draw_picture(graphics_context *ax, picture_t *src, gint xsrc, gint ysrc, gint xdest, gint ydest, gint width, gint height)
 {
   if ((ax) && (IS_DRAWABLE(ax->wn)))
@@ -213,7 +214,7 @@ void draw_picture(graphics_context *ax, picture_t *src, gint xsrc, gint ysrc, gi
       free_cairo(cr);
     }
 }
-
+#endif
 
 static void draw_polygon_va(graphics_context *ax, bool filled, int points, va_list ap)
 {

@@ -137,7 +137,7 @@
      localtime locsig-ref locsig-reverb-ref locsig-type locsig? log-freq-start main-menu main-widgets 
 
      make-env make-pulsed-env make-one-pole make-fir-coeffs make-formant make-all-pass-bank make-iir-filter make-filter 
-     make-comb make-polywave make-bezier make-delay make-nrxycos make-moving-norm make-nrxysin make-firmant make-cairo 
+     make-comb make-polywave make-bezier make-delay make-nrxycos make-moving-norm make-nrxysin make-firmant 
      make-sawtooth-wave make-color make-graph-data make-oscil make-oscil-bank make-two-zero make-fft-window make-moving-max 
      make-filtered-comb-bank make-filtered-comb make-nsin make-rand-interp make-one-pole-all-pass make-rand make-formant-bank 
      make-all-pass make-table-lookup make-one-zero make-notch make-square-wave make-moving-average make-polyshape
@@ -198,7 +198,7 @@
      (hash-table-set! h s #t))
    '(make-env make-pulsed-env make-one-pole make-fir-coeffs make-convolve make-wave-train make-formant make-all-pass-bank 
      make-iir-filter make-filter make-comb make-sample->file make-polywave make-bezier make-delay make-nrxycos make-moving-norm 
-     make-nrxysin make-firmant make-cairo make-sawtooth-wave make-color make-player make-graph-data make-oscil make-oscil-bank 
+     make-nrxysin make-firmant make-sawtooth-wave make-color make-player make-graph-data make-oscil make-oscil-bank 
      make-two-zero make-fft-window make-moving-max make-filtered-comb-bank make-filtered-comb make-nsin make-rand-interp 
      make-one-pole-all-pass make-rand make-formant-bank make-readin make-all-pass make-phase-vocoder make-table-lookup 
      make-one-zero make-notch make-square-wave make-file->frample make-moving-average make-granulate make-polyshape 

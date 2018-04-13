@@ -234,7 +234,7 @@
 					    (let ((coords (cdr (gdk_event_get_coords (GDK_EVENT e)))))
 					      (set! dragging #t)
 					      (xe-mouse-press editor (car coords) (cadr coords))
-					      (gtk_widget_queue_draw_area w (min 0 (- (car coords) 10)) (min 0 (- (cadr coords) 10)) 20 20))
+					      (gtk_widget_queue_draw_area w (max 0 (- (floor (car coords)) 10)) (max 0 (- (floor (cadr coords)) 10)) 20 20))
 					    #f)
 					  #f #f)))
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
@@ -255,7 +255,7 @@
 					    (if dragging
 						(let ((coords (cdr (gdk_event_get_coords (GDK_EVENT e)))))
 						  (xe-mouse-drag editor (car coords) (cadr coords))
-						  (gtk_widget_queue_draw_area w (min 0 (- (car coords) 10)) (min 0 (- (cadr coords) 10)) 20 20)))
+						  (gtk_widget_queue_draw_area w (max 0 (- (floor (car coords)) 10)) (max 0 (- (floor (cadr coords)) 10)) 20 20)))
 					    #f)
 					  #f #f)))
 		  (g_signal_connect_closure_by_id (GPOINTER drawer)
@@ -272,12 +272,13 @@
 	 (ax-inf (editor 3))
 	 (gc (car (editor 4)))
 	 (name (editor 5))
-	 (cr (editor 6))
-	 (len (and (list? cur-env) (length cur-env)))
-	 (get_realized (if (provided? 'snd-gtk) (*gtk* 'gtk_widget_get_realized))))
+	 (cr (and (>= (length editor) 7) (editor 6))))
     (when (and (list? ax-pix)
 	       (list? cur-env)
-	       ((if (provided? 'snd-motif) (*motif* 'XtIsManaged) get_realized) widget))
+	       ((if (provided? 'snd-motif) 
+		    (*motif* 'XtIsManaged)
+		    (*gtk* 'gtk_widget_get_realized))
+		widget))
       (let ((py0 (ax-pix 1))
 	    (py1 (ax-pix 3))
 	    (ix0 (ax-inf 0))
@@ -317,6 +318,7 @@
 		(draw-axes widget gc name ix0 ix1 iy0 iy1)
 		(do ((lx #f)
 		     (ly #f)
+		     (len (length cur-env))
 		     (i 0 (+ i 2)))
 		    ((= i len))
 		  (let ((cx (xe-grfx (cur-env i)))
@@ -328,34 +330,40 @@
 		    (set! ly cy))))
 
 	      ;; *gtk* 
-	      (begin
-		
-		(let ((size (widget-size ((*gtk* 'GTK_WIDGET) widget))))
-		  ((*gtk* 'cairo_push_group) cr)
-		  ((*gtk* 'cairo_set_source_rgb) cr 1.0 1.0 1.0)
-		  ((*gtk* 'cairo_rectangle) cr 0 0 (car size) (cadr size))
-		  ((*gtk* 'cairo_fill) cr))
-		
-		(draw-axes widget gc name ix0 ix1 iy0 iy1 x-axis-in-seconds show-all-axes cr)
-		
-		((*gtk* 'cairo_set_line_width) cr 1.0)
-		((*gtk* 'cairo_set_source_rgb) cr 0.0 0.0 0.0)
+	      (with-let (sublet *gtk* 
+			  :widget widget 
+			  :cr cr 
+			  :axer (lambda () 
+				  (draw-axes widget gc name ix0 ix1 iy0 iy1 x-axis-in-seconds show-all-axes cr))
+			  :xe-grfx xe-grfx
+			  :xe-grfy xe-grfy
+			  ;:mouse-r mouse-r  ; 5
+			  :cur-env cur-env)
+		(let ((size (widget-size (GTK_WIDGET widget))))
+		  (cairo_push_group cr)
+		  (cairo_set_source_rgb cr 1.0 1.0 1.0)
+		  (cairo_rectangle cr 0 0 (car size) (cadr size))
+		  (cairo_fill cr))
+		(axer)
+		(cairo_set_line_width cr 1.0)
+		(cairo_set_source_rgb cr 0.0 0.0 0.0)
 		(do ((lx #f)
 		     (ly #f)
+		     (len (length cur-env))
 		     (i 0 (+ i 2)))
 		    ((= i len))
 		  (let ((cx (xe-grfx (cur-env i)))
 			(cy (xe-grfy (cur-env (+ i 1)))))
-		    ((*gtk* 'cairo_arc) cr cx cy mouse-r 0.0 (* 2 pi))
-		    ((*gtk* 'cairo_fill) cr)
+		    (cairo_arc cr cx cy 5 0.0 (* 2 pi)) ; 5=mouse-r
+		    (cairo_fill cr)
 		    (if lx
 			(begin
-			  ((*gtk* 'cairo_move_to) cr lx ly)
-			  ((*gtk* 'cairo_line_to) cr cx cy)
-			  ((*gtk* 'cairo_stroke) cr)))
+			  (cairo_move_to cr lx ly)
+			  (cairo_line_to cr cx cy)
+			  (cairo_stroke cr)))
 		    (set! lx cx)
 		    (set! ly cy)))
-		((*gtk* 'cairo_pop_group_to_source) cr)
-		((*gtk* 'cairo_paint) cr)
+		(cairo_pop_group_to_source cr)
+		(cairo_paint cr)
 		)))))))
 

@@ -1,5 +1,6 @@
 #include "snd.h"
 
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 
 #if GTK_CHECK_VERSION(3, 22, 0)
   static GdkWindow *last_window = NULL;
@@ -15,11 +16,7 @@ cairo_t *make_cairo(GdkDrawable *win)
   ss->line_width = -1.0;
 #if GTK_CHECK_VERSION(3, 22, 0)
   last_window = win;
-#if GTK_CHECK_VERSION(3, 92, 0)
-  last_context = gdk_window_begin_draw_frame(win, NULL, gdk_window_get_visible_region(win));
-#else
   last_context = gdk_window_begin_draw_frame(win, gdk_window_get_visible_region(win));
-#endif
   return(gdk_drawing_context_get_cairo_context(last_context));
 #else
   return(gdk_cairo_create(win));
@@ -35,7 +32,7 @@ void free_cairo(cairo_t *cr)
   cairo_destroy(cr);
 #endif
 }
-
+#endif
 
 bool set_tiny_font(const char *font)
 {
@@ -1139,7 +1136,7 @@ static GtkWidget *slist_new_item(slist *lst, const char *label, int row)
 
   item = gtk_button_new_with_label(label);
   slist_set_row(item, row);
-  gtk_button_set_relief(GTK_BUTTON(item), SG_RELIEF_HALF);
+  gtk_button_set_relief(GTK_BUTTON(item), GTK_RELIEF_NONE);
 #if GTK_CHECK_VERSION(3, 14, 0)
   gtk_widget_set_halign(GTK_WIDGET(item), GTK_ALIGN_START);
 #else
@@ -1339,7 +1336,6 @@ void slist_select(slist *lst, int row)
 
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
-
 void init_gtk(void)
 {
   gtk_rc_parse_string("\n\
@@ -1458,7 +1454,9 @@ widget \"*.white_button\" style \"white_button\"\n");
 #else
 /* -------------------------------------------------------------------------------- */
 #if (GTK_CHECK_VERSION(3, 89, 0))
-/* border-width and -gtk-gradient have been removed(??); as far as I can tell, this stuff does not work */
+/* border-width and -gtk-gradient have been removed(??); as far as I can tell, this stuff does not work 
+ *   see gtkcssstylepropertyimpl.c gtk_css_style_property_register for properties ("background-color" etc)
+ */
 void init_gtk(void)
 {
 #if (GTK_CHECK_VERSION(3, 93, 0))
@@ -1578,6 +1576,17 @@ void init_gtk(void)
 /* -------------------------------------------------------------------------------- */
 void init_gtk(void)
 {
+#if 0
+  /* this makes no difference */
+  GtkCssProvider *provider;
+  GdkDisplay *display;
+  GdkScreen *screen;
+  provider = gtk_css_provider_new();
+  display = gdk_display_get_default();
+  screen = gdk_display_get_default_screen(display);
+  gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+#endif
+
   wb_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(wb_provider),
     "GtkButton#white_button { \n"

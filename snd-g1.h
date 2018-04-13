@@ -3,17 +3,6 @@
 
 void recolor_everything(widget_t w, gpointer color);
 
-
-/* -------- snd-ghelp.c -------- */
-
-GtkWidget *snd_help(const char *subject, const char *help, with_word_wrap_t with_wrap);
-GtkWidget *snd_help_with_xrefs(const char *subject, const char *helpstr, with_word_wrap_t with_wrap, const char **xrefs, const char **urls);
-int help_text_width(const char *txt, int start, int end);
-void snd_help_append(const char *text);
-void snd_help_back_to_top(void);
-
-
-
 /* -------- snd-gdraw.c -------- */
 
 void draw_line(graphics_context *ax, int x0, int y0, int x1, int y1);
@@ -25,7 +14,9 @@ void fill_polygon(graphics_context *ax, int points, ...);
 void fill_polygons(graphics_context *ax, point_t *points, int num, int y0);
 void fill_two_sided_polygons(graphics_context *ax, point_t *points, point_t *points1, int num);
 void fill_polygon_from_array(graphics_context *ax, point_t *points, int npoints);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 void draw_picture(graphics_context *ax, picture_t *src, gint xsrc, gint ysrc, gint xdest, gint ydest, gint width, gint height);
+#endif
 void draw_string(graphics_context *ax, int x0, int y0, const char *str, int len);
 void draw_rotated_axis_label(chan_info *cp, graphics_context *ax, const char *text, gint x0, gint y0);
 void draw_dot(graphics_context *ax, int x, int y, int size);
@@ -225,6 +216,12 @@ void g_init_gxchn(void);
 
 /* -------- snd-gfind.c -------- */
 
+GtkWidget *snd_help(const char *subject, const char *help, with_word_wrap_t with_wrap);
+GtkWidget *snd_help_with_xrefs(const char *subject, const char *helpstr, with_word_wrap_t with_wrap, const char **xrefs, const char **urls);
+int help_text_width(const char *txt, int start, int end);
+void snd_help_append(const char *text);
+void snd_help_back_to_top(void);
+
 void edit_find_callback(GtkWidget *w, gpointer info);
 void find_dialog(chan_info *cp);
 void find_dialog_set_label(const char *str);
@@ -366,12 +363,14 @@ void slist_append(slist *lst, const char *name);
 void slist_moveto(slist *lst, int row);
 void slist_select(slist *lst, int row);
 
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 #if GTK_CHECK_VERSION(3, 0, 0)
 cairo_t *make_cairo(GdkWindow *win);
 #else
 cairo_t *make_cairo(GdkDrawable *win);
 #endif
 void free_cairo(cairo_t *cr);
+#endif
 void init_gtk(void);
 
 

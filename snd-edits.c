@@ -6351,7 +6351,7 @@ static void ripple_mixes_with_scale(chan_info *cp, mus_long_t beg, mus_long_t le
 snd_fd *make_virtual_mix_reader(chan_info *cp, mus_long_t beg, mus_long_t len, int index, mus_float_t scl, read_direction_t direction)
 {
   snd_fd *sf;
-  snd_data *first_snd = NULL;
+  snd_data *first_snd;
   mus_long_t ind0, ind1, indx;
 
   sf = (snd_fd *)calloc(1, sizeof(snd_fd));
@@ -6875,7 +6875,7 @@ static void sf_free(snd_fd *fd)
 {
   if (fd) 
     {
-      snd_info *sp = NULL;
+      snd_info *sp;
       /* changed to reflect g_free_sampler 29-Oct-00 */
       unlist_reader(fd);
       sp = fd->local_sp; 
@@ -6924,7 +6924,7 @@ static Xen g_sampler_position(Xen obj)
 
   if (is_sampler(obj))
     {
-      snd_fd *fd = NULL;
+      snd_fd *fd;
       fd = Xen_to_C_sampler(obj);
       if (fd->at_eof) return(Xen_integer_zero); /* -1? framples? */
       if ((fd->cp) && 
@@ -6951,7 +6951,7 @@ if 'obj' is a mix-sampler, the id of underlying mix"
 
   if (is_sampler(obj))
     {
-      snd_fd *fd = NULL;
+      snd_fd *fd;
       fd = Xen_to_C_sampler(obj);
       if ((fd->cp) && 
 	  (fd->cp->active >= CHANNEL_HAS_EDIT_LIST) && 
@@ -6976,7 +6976,7 @@ Xen g_sampler_file_name(Xen obj)
 {
   if (is_sampler(obj))
     {
-      snd_fd *fd = NULL;
+      snd_fd *fd;
       fd = Xen_to_C_sampler(obj);
       if ((fd->cp) && 
 	  (fd->cp->active >= CHANNEL_HAS_EDIT_LIST) && 
@@ -7158,7 +7158,7 @@ static Xen g_copy_sampler(Xen obj)
 
   if (is_sampler(obj))
     {
-      snd_fd *fd = NULL;
+      snd_fd *fd;
       fd = Xen_to_C_sampler(obj);
       if ((fd->cp) && 
 	  (fd->cp->active >= CHANNEL_HAS_EDIT_LIST) && 
@@ -7265,7 +7265,7 @@ static Xen g_free_sampler(Xen obj)
 
   if (is_sampler(obj))
     {
-      snd_info *sp = NULL;
+      snd_info *sp;
       snd_fd *fd;
       fd = Xen_to_C_sampler(obj);
       unlist_reader(fd);

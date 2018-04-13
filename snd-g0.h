@@ -84,17 +84,10 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 #endif
 #endif
 
-#if (GTK_CHECK_VERSION(3, 0, 0)) && defined(__GNUC__) && (!(defined(__cplusplus)))
-  #define EVENT_STATE(Ev) ({ GdkModifierType Type;  gdk_event_get_state((GdkEvent *)Ev, &Type); Type; })
-  #define EVENT_TIME(Ev) gdk_event_get_time((GdkEvent *)Ev)
-  #define EVENT_X(Ev) ({ gdouble x, y; gdk_event_get_coords((GdkEvent *)Ev, &x, &y); x; })
-  #define EVENT_Y(Ev) ({ gdouble x, y; gdk_event_get_coords((GdkEvent *)Ev, &x, &y); y; })
-  /* there's also gtk_get_event_widget */
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  #define event_time(Ev) gdk_event_get_time((GdkEvent *)Ev)
 #else
-  #define EVENT_STATE(Ev) (Ev)->state
-  #define EVENT_TIME(Ev) (Ev)->time
-  #define EVENT_X(Ev) (Ev)->x
-  #define EVENT_Y(Ev) (Ev)->y
+  #define event_time(Ev) (Ev)->time
 #endif
 
 
@@ -165,12 +158,12 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
  *   XM_PIXEL in xm.c and in that context, it assumes the layout given above.
  */
 #else
-#define Xen_wrap_widget(Value)   s7_make_c_pointer(s7, (void *)Value)
-#define Xen_wrap_window(Value)   s7_make_c_pointer(s7, (void *)Value)
+#define Xen_wrap_widget(Value)   s7_make_c_pointer_with_type(s7, (void *)Value, s7_make_symbol(s7, "GtkWidget_"), s7_f(s7))
+#define Xen_wrap_window(Value)   s7_make_c_pointer_with_type(s7, (void *)Value, s7_make_symbol(s7, "GdkWindow_"), s7_f(s7))
 #define Xen_unwrap_widget(Value) s7_c_pointer(Value)
 #define Xen_is_widget(Value)     GTK_IS_WIDGET(s7_c_pointer(Value))
 
-#define Xen_wrap_pixel(Value)    s7_make_c_pointer(s7, (void *)Value)
+#define Xen_wrap_pixel(Value)    s7_make_c_pointer_with_type(s7, (void *)Value, s7_make_symbol(s7, "color_t"), s7_f(s7))
 #define Xen_unwrap_pixel(Value)  (color_t)s7_c_pointer(Value)
 #define Xen_is_pixel(Value)      s7_is_c_pointer(Value)
 #endif

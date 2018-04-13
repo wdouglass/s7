@@ -186,62 +186,63 @@
   
   (define snd-clock-icon
     (lambda (snd hour)
-      (let ((cr (make_cairo (GDK_WINDOW (gtk_widget_get_window ((sound-widgets snd) 8))))))
-	(let ((bg (color->list *basic-color*)))
-	  (cairo_set_source_rgb cr (car bg) (cadr bg) (caddr bg)))
-	(cairo_rectangle cr 0 0 16 16) ; icon bg
-	(cairo_fill cr)
-	(cairo_set_source_rgb cr 1.0 1.0 1.0)
-	(cairo_arc cr 8 8 7 0 (* 2 pi))  ; clock face
-	(cairo_fill cr)
-	(cairo_set_line_width cr 2.0)
-	(cairo_set_source_rgb cr 0.0 0.0 0.0)
-	(cairo_move_to cr 8 8)         ; clock hour hand
-	(cairo_line_to cr (+ 8 (* 7 (sin (* hour (/ 3.1416 6.0)))))
-		       (- 8 (* 7 (cos (* hour (/ 3.1416 6.0))))))
-	(cairo_stroke cr)
-	(free_cairo cr))))
-  
-  
-#|  
+      (let ((cr ((sound-widgets snd) 7)))
+	(unless (zero? (car (c-pointer->list cr)))
+	  (cairo_push_group cr)
+	  (let ((bg (color->list *basic-color*)))
+	    (cairo_set_source_rgb cr (car bg) (cadr bg) (caddr bg)))
+	  (cairo_rectangle cr 0 0 16 16) ; icon bg
+	  (cairo_fill cr)
+	  (cairo_set_source_rgb cr 1.0 1.0 1.0)
+	  (cairo_arc cr 8 8 7 0 (* 2 pi))  ; clock face
+	  (cairo_fill cr)
+	  (cairo_set_line_width cr 2.0)
+	  (cairo_set_source_rgb cr 0.0 0.0 0.0)
+	  (cairo_move_to cr 8 8)         ; clock hour hand
+	  (cairo_line_to cr (+ 8 (* 7 (sin (* hour (/ 3.1416 6.0)))))
+			 (- 8 (* 7 (cos (* hour (/ 3.1416 6.0))))))
+	  (cairo_stroke cr)
+	  (cairo_pop_group_to_source cr)
+	  (cairo_paint cr)))))
+
 ;;; this is the happy face progress bar
   
   (define (snd-happy-face snd progress)
-    (let* ((window (GDK_WINDOW (gtk_widget_get_window ((sound-widgets snd) 8))))
-	   (cr (make_cairo window))
-	   (fc (list 1.0 progress 0.0)))
-      (let ((bg (color->list *basic-color*)))
-        ;; overall background
-        (cairo_set_source_rgb cr (car bg) (cadr bg) (caddr bg)))
-      (cairo_rectangle cr 0 0 16 16)
-      (cairo_fill cr)
-      
-      ;; round face
-      (cairo_set_source_rgb cr (car fc) (cadr fc) (caddr fc))
-      (cairo_arc cr 8 8 8 0.0 (* 2 pi))
-      (cairo_fill cr)
-      
-      ;; eyes
-      (cairo_set_source_rgb cr 0.0 0.0 0.0)
-      (cairo_arc cr 5 6 1.5 0 (* 2 pi))
-      (cairo_fill cr)
-      
-      (cairo_arc cr 11 6 1.5 0 (* 2 pi))
-      (cairo_fill cr)
-      
-      ;; mouth
-      (cairo_set_line_width cr 1.0)
-      (if (< progress 0.4)
-	  (cairo_arc cr 8 14 4 (* 17/16 pi) (* -1/16 pi))
-	  (if (< progress 0.7)
-	      (begin
-		(cairo_move_to cr 4 12)
-		(cairo_rel_line_to cr 8 0))
-	      (cairo_arc cr 8 8 5 (* 1/16 pi) (* 15/16 pi))))
-      (cairo_stroke cr)
-      
-      (free_cairo cr)))
-|#
+    (let ((cr ((sound-widgets snd) 7))
+	  (fc (list 1.0 progress 0.0)))
+      (unless (zero? (car (c-pointer->list cr)))
+	(cairo_push_group cr)
+	(let ((bg (color->list *basic-color*)))
+	  ;; overall background
+	  (cairo_set_source_rgb cr (car bg) (cadr bg) (caddr bg)))
+	(cairo_rectangle cr 0 0 16 16)
+	(cairo_fill cr)
+	
+	;; round face
+	(cairo_set_source_rgb cr (car fc) (cadr fc) (caddr fc))
+	(cairo_arc cr 8 8 8 0.0 (* 2 pi))
+	(cairo_fill cr)
+	
+	;; eyes
+	(cairo_set_source_rgb cr 0.0 0.0 0.0)
+	(cairo_arc cr 5 6 1.5 0 (* 2 pi))
+	(cairo_fill cr)
+	
+	(cairo_arc cr 11 6 1.5 0 (* 2 pi))
+	(cairo_fill cr)
+	
+	;; mouth
+	(cairo_set_line_width cr 1.0)
+	(if (< progress 0.4)
+	    (cairo_arc cr 8 14 4 (* 17/16 pi) (* -1/16 pi))
+	    (if (< progress 0.7)
+		(begin
+		  (cairo_move_to cr 4 12)
+		  (cairo_rel_line_to cr 8 0))
+		(cairo_arc cr 8 8 5 (* 1/16 pi) (* 15/16 pi))))
+	(cairo_stroke cr)
+	(cairo_pop_group_to_source cr)
+	(cairo_paint cr))))
   
   
 ;;; -------- bring possibly-obscured dialog to top
@@ -299,6 +300,7 @@
   
   
 #|
+;;; change make_cairo here to grab the cairo_t pointer in the draw func
 ;;; -------- with-level-meters, make-level-meter, display-level
   
   (define (make-level-meter parent width height)
@@ -307,7 +309,6 @@
       (gtk_box_pack_start (GTK_BOX parent) frame)
       (gtk_widget_show frame)
       (let ((meter (gtk_drawing_area_new)))
-        ;(gtk_widget_set_events meter (logior GDK_EXPOSURE_MASK GDK_STRUCTURE_MASK))
 	(gtk_container_add (GTK_CONTAINER frame) meter)
 	(gtk_widget_show meter)
 	(let ((context (list meter 0.0 1.0 0.0 0.0 width height)))

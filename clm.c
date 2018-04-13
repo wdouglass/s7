@@ -2759,7 +2759,7 @@ static mus_any_class RXYKCOS_CLASS = {
 
 mus_any *mus_make_rxykcos(mus_float_t freq, mus_float_t phase, mus_float_t r, mus_float_t ratio) /* r default 0.5, ratio 1.0 */
 {
- rxyk *gen = NULL;
+ rxyk *gen;
  gen = (rxyk *)malloc(sizeof(rxyk));
  gen->core = &RXYKCOS_CLASS;
  gen->freq = mus_hz_to_radians(freq);
@@ -2822,7 +2822,7 @@ static mus_any_class RXYKSIN_CLASS = {
 
 mus_any *mus_make_rxyksin(mus_float_t freq, mus_float_t phase, mus_float_t r, mus_float_t ratio) /* r default 0.5, ratio 1.0 */
 {
- rxyk *gen = NULL;
+ rxyk *gen;
  gen = (rxyk *)malloc(sizeof(rxyk));
  gen->core = &RXYKSIN_CLASS;
  gen->freq = mus_hz_to_radians(freq);
@@ -9008,7 +9008,7 @@ static bool filter_equalp(mus_any *p1, mus_any *p2)
 static char *describe_filter(mus_any *ptr)
 {
   flt *gen = (flt *)ptr;
-  char *xstr = NULL, *ystr = NULL;
+  char *xstr, *ystr;
   char *describe_buffer;
   describe_buffer = (char *)malloc(DESCRIBE_BUFFER_SIZE);
   xstr = float_array_to_string(gen->x, gen->order, 0);
@@ -9026,7 +9026,7 @@ static char *describe_filter(mus_any *ptr)
 static char *describe_fir_filter(mus_any *ptr)
 {
   flt *gen = (flt *)ptr;
-  char *xstr = NULL;
+  char *xstr;
   char *describe_buffer;
   describe_buffer = (char *)malloc(DESCRIBE_BUFFER_SIZE);
   xstr = float_array_to_string(gen->x, gen->order, 0);
@@ -9042,7 +9042,7 @@ static char *describe_fir_filter(mus_any *ptr)
 static char *describe_iir_filter(mus_any *ptr)
 {
   flt *gen = (flt *)ptr;
-  char *ystr = NULL;
+  char *ystr;
   char *describe_buffer;
   describe_buffer = (char *)malloc(DESCRIBE_BUFFER_SIZE);
   ystr = float_array_to_string(gen->y, gen->order, 0);
@@ -11752,7 +11752,7 @@ static mus_any_class FRAMPLE_TO_FILE_CLASS = {
 
 mus_any *mus_make_frample_to_file_with_comment(const char *filename, int chans, mus_sample_t samp_type, mus_header_t head_type, const char *comment)
 {
-  rdout *gen = NULL;
+  rdout *gen;
   gen = (rdout *)mus_make_sample_to_file_with_comment(filename, chans, samp_type, head_type, comment);
   if (gen) gen->core = &FRAMPLE_TO_FILE_CLASS;
   return((mus_any *)gen);
@@ -11788,7 +11788,7 @@ mus_float_t *mus_frample_to_file(mus_any *ptr, mus_long_t samp, mus_float_t *dat
 
 mus_any *mus_continue_frample_to_file(const char *filename)
 {
-  rdout *gen = NULL;
+  rdout *gen;
   gen = (rdout *)mus_continue_sample_to_file(filename);
   if (gen) gen->core = &FRAMPLE_TO_FILE_CLASS;
   return((mus_any *)gen);
@@ -12646,12 +12646,12 @@ void mus_move_sound_set_detour(mus_any *ptr, void (*detour)(mus_any *ptr, mus_lo
 static char *describe_move_sound(mus_any *ptr)
 {
   dloc *gen = (dloc *)ptr;
-  char *dopdly = NULL, *dopenv = NULL, *revenv = NULL;
-  char *outdlys = NULL, *outenvs = NULL, *revenvs = NULL;
-  char *outmap = NULL;
-  char *starts = NULL;
+  char *dopdly, *dopenv, *revenv;
+  char *outdlys, *outenvs, *revenvs;
+  char *outmap;
+  char *starts;
   char *str1 = NULL, *str2 = NULL, *str3 = NULL;
-  char *allstr = NULL;
+  char *allstr;
   int len;
 
   starts = mus_format("%s start: %" PRId64 ", end: %" PRId64 ", out chans %d, rev chans: %d",
@@ -15474,7 +15474,7 @@ bool mus_is_convolve(mus_any *ptr)
 
 mus_any *mus_make_convolve(mus_float_t (*input)(void *arg, int direction), mus_float_t *filter, mus_long_t fftsize, mus_long_t filtersize, void *closure)
 {
-  conv *gen = NULL;
+  conv *gen;
   gen = (conv *)malloc(sizeof(conv));
   gen->core = &CONVOLVE_CLASS;
   gen->feeder = input;
@@ -15562,7 +15562,7 @@ void mus_convolve_files(const char *file1, const char *file2, mus_float_t maxamp
   else
     {
       mus_float_t *samps;
-      mus_float_t *outdat = NULL;
+      mus_float_t *outdat;
       int c1 = 0, c2 = 0, chan;
 
       samps = (mus_float_t *)calloc(totallen, sizeof(mus_float_t));

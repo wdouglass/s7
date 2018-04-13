@@ -369,7 +369,7 @@ sync_info *selection_sync(void)
 
 static int mix_selection(chan_info *cp, sync_info *si_out, mus_long_t beg, io_error_t *err, int start_chan)
 {
-  char *tempfile = NULL;
+  char *tempfile;
   int id = INVALID_MIX_ID;
   io_error_t io_err;
 
@@ -1077,7 +1077,7 @@ io_error_t save_selection(const char *ofile, int srate, mus_sample_t samp_type, 
   int ofd;
   io_error_t io_err = IO_NO_ERROR;
   mus_long_t oloc, alloc_len;
-  sync_info *si = NULL;
+  sync_info *si;
   mus_long_t *ends;
   int i, j, k, chans;
   mus_long_t dur;
@@ -1400,7 +1400,7 @@ static Xen g_selection_to_mix(void)
       int i, id = INVALID_MIX_ID, chans = 0, sync = GET_NEW_SYNC;
       sync_info *si_out;
       Xen result = Xen_empty_list;
-      char *tempfile = NULL, *origin = NULL;
+      char *tempfile, *origin = NULL;
 
       si_out = selection_sync();
       cp = si_out->cps[0];

@@ -796,13 +796,6 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 #endif
 
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
-
-
 /* -------------------------------------------------------------------------------- */
 #if DISABLE_DEPRECATED
 #define s7_is_ulong(arg)          s7_is_integer(arg)
@@ -1140,3 +1133,10 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  *              and s7_scheme arg to new_type print func.
  * 1-Oct-08   version 1.0
  */
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

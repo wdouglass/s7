@@ -1509,7 +1509,7 @@ int snd_translate(const char *oldname, const char *newname, mus_header_t type)
   /* read oldname, translate to newname as 16-bit linear NeXT file */
   /* called from snd-file.c */
   int err;
-  char *hdr = NULL;
+  char *hdr;
 
   err = MUS_CANT_TRANSLATE;
   hdr = (char *)calloc(TRANS_BUF_SIZE, sizeof(char));

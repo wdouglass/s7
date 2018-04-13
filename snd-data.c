@@ -239,14 +239,14 @@ static chan_info *free_chan_info(chan_info *cp)
 
 snd_info *make_basic_snd_info(int chans)
 {
-  snd_info *sp = NULL;
+  snd_info *sp;
   sp = (snd_info *)calloc(1, sizeof(snd_info));
   sp->chans = (chan_info **)calloc(chans, sizeof(chan_info *));
   sp->allocated_chans = chans;
   sp->properties = Xen_false; /* will be a vector of 1 element if it's ever used */
   sp->properties_loc = NOT_A_GC_LOC;
 #if USE_NO_GUI
-  sp->snd_widgets = false; /* it's a bool if no gui */
+  sp->widgets = false; /* it's a bool if no gui */
 #endif
   return(sp);
 }

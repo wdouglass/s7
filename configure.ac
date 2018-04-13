@@ -431,7 +431,11 @@ if test "$with_s7" != no && test "$ac_snd_extension_language" = none ; then
   AC_DEFINE(HAVE_SCHEME)	
   ac_snd_extension_language=s7
   LOCAL_LANGUAGE="s7"
-  S7_LIB="s7.o"
+  if test "$ac_snd_gui_choice" = gtk ; then
+    S7_LIB="s7.o libgtk_s7.o"
+  else
+    S7_LIB="s7.o"
+  fi
   AC_SUBST(S7_LIB)
 fi
 

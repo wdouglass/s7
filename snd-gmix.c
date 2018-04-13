@@ -5,6 +5,9 @@
 static GtkWidget *mix_dialog = NULL;
 static int mix_dialog_id = INVALID_MIX_ID, old_mix_dialog_id = INVALID_MIX_ID;
 static env *dialog_env = NULL;
+#if GTK_CHECK_VERSION(3, 89, 0)
+static cairo_t *mix_cr;
+#endif
 
 static bool dragging = false;
 static int edpos_before_drag;
@@ -318,13 +321,19 @@ static void mix_amp_env_resize(GtkWidget *w)
       ax->w = w_env;
       ax->gc = cur_gc;
     }
+#if GTK_CHECK_VERSION(3, 89, 0)
+  if (!mix_cr) return;
+  ss->cr = mix_cr;
+#else
   ss->cr = make_cairo(ax->wn);
+#endif
   cairo_push_group(ss->cr);
 
   /* erase previous */
   cairo_set_source_rgba(ss->cr, cur_gc->bg_color->red, cur_gc->bg_color->green, cur_gc->bg_color->blue, cur_gc->bg_color->alpha);
   cairo_rectangle(ss->cr, 0, 0, widget_width(w), widget_height(w));
   cairo_fill(ss->cr);
+  cairo_set_line_width(ss->cr, 1.0);
 
   spf->with_dots = true;
   env_editor_display_env(spf, dialog_env, ax, "mix env", 0, 0, widget_width(w), widget_height(w), NOT_PRINTING);
@@ -333,16 +342,28 @@ static void mix_amp_env_resize(GtkWidget *w)
 
   cairo_pop_group_to_source(ss->cr);
   cairo_paint(ss->cr);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
 }
 
 
 static gboolean mix_drawer_button_press(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
+  gdouble x, y;
   if (!(mix_is_active(mix_dialog_id))) return(false);
+#if GTK_CHECK_VERSION(3, 89, 0)
+  ss->cr = mix_cr;
+#endif
+#if GTK_CHECK_VERSION(3, 0, 0)
+  gdk_event_get_coords((GdkEvent *)ev, &x, &y);
+#else
+  x = ev->x;
+  y = ev->y;
+#endif
   spf->with_dots = false;
-  if (env_editor_button_press(spf, (int)(EVENT_X(ev)), (int)(EVENT_Y(ev)), EVENT_TIME(ev), dialog_env))
+  if (env_editor_button_press(spf, (int)x, (int)y, event_time(ev), dialog_env))
     mix_amp_env_resize(w);
   return(false);
 }
@@ -351,6 +372,9 @@ static gboolean mix_drawer_button_press(GtkWidget *w, GdkEventButton *ev, gpoint
 static gboolean mix_drawer_button_release(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
   if (!(mix_is_active(mix_dialog_id))) return(false);
+#if GTK_CHECK_VERSION(3, 89, 0)
+  ss->cr = mix_cr;
+#endif
   env_editor_button_release(spf, dialog_env);
   mix_amp_env_resize(w);
   return(false);
@@ -359,32 +383,52 @@ static gboolean mix_drawer_button_release(GtkWidget *w, GdkEventButton *ev, gpoi
 
 static gboolean mix_drawer_button_motion(GtkWidget *w, GdkEventMotion *ev, gpointer data)
 { 
+  GdkModifierType state;
   if (!(mix_is_active(mix_dialog_id))) return(false);
-  if (BUTTON1_PRESSED(EVENT_STATE(ev)))
+#if GTK_CHECK_VERSION(3, 89, 0)
+  ss->cr = mix_cr;
+#endif
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &state);
+#else
+  state = ev->state;
+#endif
+  if (BUTTON1_PRESSED(state))
     {
       int x, y;
-      GdkModifierType state;
       if (EVENT_IS_HINT(ev))
 	window_get_pointer(ev, &x, &y, &state);
       else
 	{
-	  x = (int)(EVENT_X(ev));
-	  y = (int)(EVENT_Y(ev));
+#if (GTK_CHECK_VERSION(3, 0, 0))
+          gdouble fx, fy;
+	  gdk_event_get_coords((GdkEvent *)ev, &fx, &fy);
+	  x = (int)fx;
+	  y = (int)fy;
+#else
+	  x = (int)(ev->x);
+	  y = (int)(ev->y);
+#endif
 	}
       spf->with_dots = false;
-      env_editor_button_motion(spf, x, y, EVENT_TIME(ev), dialog_env);
+      env_editor_button_motion(spf, x, y, event_time(ev), dialog_env);
       mix_amp_env_resize(w);
     }
   return(false);
 }
 
-
+#if GTK_CHECK_VERSION(3, 89, 0)
+static void mix_amp_env_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  mix_cr = cr;
+  mix_amp_env_resize(GTK_WIDGET(w));
+}
+#else
 static gboolean mix_amp_env_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   mix_amp_env_resize(w);
   return(false);
 }
-
 
 static gboolean mix_amp_env_resize_callback(GtkWidget *w, GdkEventConfigure *ev, gpointer data)
 {
@@ -392,6 +436,7 @@ static gboolean mix_amp_env_resize_callback(GtkWidget *w, GdkEventConfigure *ev,
   mix_amp_env_resize(w);
   return(false);
 }
+#endif
 
 
 static GtkWidget *w_id = NULL, *w_beg = NULL, *w_id_label = NULL;
@@ -534,14 +579,23 @@ static void mix_play_callback(GtkWidget *w, gpointer context)
     }
 }
 
-
+#if (GTK_CHECK_VERSION(3, 89, 0))
+static void mix_play_pix_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  if ((mix_play_ax) && (GDK_IS_WINDOW(mix_play_ax->wn)))
+    {
+      cairo_set_source_surface(cr, snd_icon(SND_PNG_SPEAKER), 0, 0);
+      cairo_paint(cr);
+    }
+}
+#else
 static gboolean mix_play_pix_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   draw_picture(mix_play_ax, snd_icon(SND_PNG_SPEAKER), 0, 0, 0, 0, 16, 16); /* in gtk2 this looks better if y-dest is 2 */
   return(false);
 }
 #endif
-
+#endif
 
 static void mix_dB_callback(GtkWidget *w, gpointer context) 
 {
@@ -766,11 +820,19 @@ GtkWidget *make_mix_dialog(void)
       widget_modify_bg(mix_play, GTK_STATE_SELECTED, ss->basic_color);
       
       mix_play_pix = gtk_drawing_area_new();
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       sg_widget_set_events(mix_play_pix, GDK_EXPOSURE_MASK);
+#endif
       gtk_widget_set_size_request(mix_play_pix, 16, 16);
       gtk_container_add(GTK_CONTAINER(mix_play), mix_play_pix);
       gtk_widget_show(mix_play_pix);
+#if (GTK_CHECK_VERSION(3, 89, 0))
+      gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(mix_play_pix), gtk_widget_get_allocated_width(mix_play_pix));
+      gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(mix_play_pix), gtk_widget_get_allocated_height(mix_play_pix));
+      gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(mix_play_pix), mix_play_pix_expose, NULL, NULL);
+#else
       SG_SIGNAL_CONNECT(mix_play_pix, DRAW_SIGNAL, mix_play_pix_expose, NULL);
+#endif
 #endif
 
       mix_next_button = button_new_with_icon(ICON_GO_FORWARD);
@@ -933,12 +995,20 @@ GtkWidget *make_mix_dialog(void)
 
       /* GRAPH (drawing area) */
       w_env = gtk_drawing_area_new();
+#if (!GTK_CHECK_VERSION(3, 89, 0))
       sg_widget_set_events(w_env, GDK_ALL_EVENTS_MASK);
+#endif
       gtk_container_add(GTK_CONTAINER(w_env_frame), w_env);
       widget_modify_bg(w_env, GTK_STATE_NORMAL, ss->highlight_color);
       gtk_widget_show(w_env);
+#if (GTK_CHECK_VERSION(3, 89, 0))
+      gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(w_env), gtk_widget_get_allocated_width(w_env));
+      gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(w_env), gtk_widget_get_allocated_height(w_env));
+      gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(w_env), mix_amp_env_expose, NULL, NULL);
+#else
       SG_SIGNAL_CONNECT(w_env, DRAW_SIGNAL, mix_amp_env_expose_callback, NULL);
       SG_SIGNAL_CONNECT(w_env, "configure_event", mix_amp_env_resize_callback, NULL);
+#endif
       SG_SIGNAL_CONNECT(w_env, "button_press_event", mix_drawer_button_press, NULL);
       SG_SIGNAL_CONNECT(w_env, "button_release_event", mix_drawer_button_release, NULL);
       SG_SIGNAL_CONNECT(w_env, "motion_notify_event", mix_drawer_button_motion, NULL);

@@ -376,8 +376,6 @@ void snd_doit(int argc, char **argv)
   Xen_eval_C_string("(define " S_widget_size " (dilambda (lambda (w) #f) (lambda (w val) val)))");
   Xen_eval_C_string("(define " S_widget_position " (dilambda (lambda (w) #f) (lambda (w val) val)))");
 
-  Xen_eval_C_string("(define (" S_make_cairo " . args) #f)");
-  Xen_eval_C_string("(define (" S_free_cairo " . args) #f)");
   Xen_eval_C_string("(define (" S_axis_info " . args) #f)");
   Xen_eval_C_string("(define (" S_channel_widgets " . args) #f)");
   Xen_eval_C_string("(define (" S_is_color " obj) #f)");
@@ -425,8 +423,6 @@ void snd_doit(int argc, char **argv)
 #endif
 
 #if HAVE_RUBY
-  Xen_eval_C_string("def make_cairo (a) false end");
-  Xen_eval_C_string("def free_cairo (a) false end");
   Xen_eval_C_string("def axis_info (s, c, a) false end");
   Xen_eval_C_string("def channel_widgets (s, c) false end");
   Xen_eval_C_string("def color? (a) false end");
@@ -622,8 +618,6 @@ void snd_doit(int argc, char **argv)
 : set-" S_y_axis_label " { a } #f ;\n\
 : " S_zoom_color " #f ;\n\
 : set-" S_zoom_color " { a } #f ;\n\
-: " S_make_cairo " { a } #f ;\n\
-: " S_free_cairo " { a } #f ;\n\
 : " S_axis_info " { s c a } #f ;\n\
 : " S_x_bounds " { s c a } #f ;\n\
 : set-" S_x_bounds " { a } #f ;\n\

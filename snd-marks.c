@@ -711,8 +711,8 @@ typedef struct {
 void *sound_store_marks(snd_info *sp)
 {
   uint32_t i;
-  mark_info **res = NULL;
-  marks_info *rtn = NULL;
+  mark_info **res;
+  marks_info *rtn;
   res = (mark_info **)calloc(sp->nchans, sizeof(mark_info *));
   rtn = (marks_info *)calloc(1, sizeof(marks_info));
   rtn->ms = res;
@@ -1433,7 +1433,11 @@ static void erase_and_draw_grf_points(mark_context *ms, chan_info *cp, int nj)
   ax = draw_cp->ax;
 
 #if USE_GTK
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = cp->graph_cr;
+#else
   ss->cr = make_cairo(ax->wn);
+#endif
 #endif
 
   undraw_gc = erase_GC(draw_cp);
@@ -1456,7 +1460,9 @@ static void erase_and_draw_grf_points(mark_context *ms, chan_info *cp, int nj)
   ax->gc = draw_gc;
 
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
 #endif
 }
@@ -1480,7 +1486,11 @@ static void erase_and_draw_both_grf_points(mark_context *ms, chan_info *cp, int 
   ax = draw_cp->ax;
 
 #if USE_GTK
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = cp->graph_cr;
+#else
   ss->cr = make_cairo(ax->wn);
+#endif
 #endif
 
   undraw_gc = erase_GC(draw_cp);
@@ -1507,7 +1517,9 @@ static void erase_and_draw_both_grf_points(mark_context *ms, chan_info *cp, int 
   ax->gc = draw_gc;
 
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
 #endif
 }
@@ -1915,7 +1927,11 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
 
   ax = mark_tag_context(cp);
 #if USE_GTK
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = cp->graph_cr;
+#else
   ss->cr = make_cairo(ax->wn);
+#endif
 #endif
 
   if (mp->name)
@@ -1944,7 +1960,9 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
 		 cx, y0);
   mp->visible = show;
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
   copy_context(cp);
 #endif

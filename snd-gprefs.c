@@ -455,7 +455,7 @@ static prefs_info *prefs_row_with_toggle(const char *label, const char *varname,
 					 GtkWidget *box,
 					 void (*toggle_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -496,7 +496,7 @@ static prefs_info *prefs_row_with_two_toggles(const char *label, const char *var
 					      void (*toggle_func)(prefs_info *prf),
 					      void (*toggle2_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *row, *hb;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -625,7 +625,7 @@ static prefs_info *prefs_row_with_toggle_with_text(const char *label, const char
 						   void (*toggle_func)(prefs_info *prf),
 						   void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -661,7 +661,7 @@ static prefs_info *prefs_row_with_toggle_with_two_texts(const char *label, const
 							void (*toggle_func)(prefs_info *prf),
 							void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
   prf->var_name = varname;
@@ -701,7 +701,7 @@ static prefs_info *prefs_row_with_text_with_toggle(const char *label, const char
 						   void (*toggle_func)(prefs_info *prf),
 						   void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -740,7 +740,7 @@ static prefs_info *prefs_row_with_text_and_three_toggles(const char *label, cons
 							 GtkWidget *box,
 							 void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -825,7 +825,7 @@ static prefs_info *prefs_row_with_radio_box(const char *label, const char *varna
 					    GtkWidget *box,
 					    void (*toggle_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
   prf->var_name = varname;
@@ -855,7 +855,7 @@ static prefs_info *prefs_row_with_radio_box_and_number(const char *label, const 
 						       void (*arrow_up_func)(prefs_info *prf), void (*arrow_down_func)(prefs_info *prf), 
 						       void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *row, *hb;
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
   prf->var_name = varname;
@@ -916,7 +916,7 @@ static prefs_info *prefs_row_with_scale(const char *label, const char *varname,
 					void (*scale_func)(prefs_info *prf),
 					void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
   char *str;
 
@@ -963,7 +963,7 @@ static prefs_info *prefs_row_with_text(const char *label, const char *varname, c
 				       GtkWidget *box,
 				       void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -994,7 +994,7 @@ static prefs_info *prefs_row_with_two_texts(const char *label, const char *varna
 					    GtkWidget *box,
 					    void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
   prf->var_name = varname;
@@ -1029,7 +1029,7 @@ static prefs_info *prefs_row_with_number(const char *label, const char *varname,
  					 void (*arrow_up_func)(prefs_info *prf), void (*arrow_down_func)(prefs_info *prf), 
 					 void (*text_func)(prefs_info *prf))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -1068,7 +1068,7 @@ static prefs_info *prefs_row_with_list(const char *label, const char *varname, c
 				       char *(*completion_func)(widget_t w, const char *text, void *context), void *completion_context)
 {
   int i;
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row;
 
   prf = (prefs_info *)calloc(1, sizeof(prefs_info));
@@ -1310,7 +1310,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
 					    GtkWidget *box,
 					    void (*color_func)(prefs_info *prf, double r, double g, double b))
 {
-  prefs_info *prf = NULL;
+  prefs_info *prf;
   GtkWidget *hb, *row, *row2, *sep3;
   double r = 0.0, g = 0.0, b = 0.0;
 

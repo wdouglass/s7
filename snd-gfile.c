@@ -13,7 +13,6 @@
 */
 
 #define HAVE_G_FILE_MONITOR_DIRECTORY 1 /* (GLIB_CHECK_VERSION(2, 18, 1) but it might be much older */
-#define WITH_SKETCH 1                   /* (!GTK_CHECK_VERSION(3, 0, 0)) see below */
 
 /* if thumbnail graph display is too slow: save the points? split the idler? g_source_remove if overlap?
  *
@@ -224,19 +223,22 @@ typedef struct file_dialog_info {
   gulong filename_watcher_id;
   mus_header_t header_type;
   mus_sample_t sample_type;
-#if WITH_SKETCH
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  cairo_t *cr;
+#endif
   point_t *p0, *p1;
   int pts;
   gc_t *gc;
   axis_info *axis;
   GtkWidget *drawer;
   snd_info *sp;
-  bool in_progress, two_sided;
+#if (!GTK_CHECK_VERSION(3, 89, 0))
+  bool in_progress;
+#endif
+  bool two_sided;
   mus_long_t samps;
   int srate;
   bool unreadable;
-#endif
-
 } file_dialog_info;
 
 static file_dialog_info *odat = NULL; /* open file */
@@ -253,9 +255,7 @@ static bool post_sound_info(file_dialog_info *fd, const char *filename, bool wit
       (!is_sound_file(filename)))
     {
       gtk_label_set_text(GTK_LABEL(fd->info), "");
-#if WITH_SKETCH
       gtk_widget_hide(fd->drawer);
-#endif
       return(false);
     }
   else
@@ -310,9 +310,7 @@ static bool post_sound_info(file_dialog_info *fd, const char *filename, bool wit
       free(buf);
       free(mx);
       free(lenstr);
-#if WITH_SKETCH
       gtk_widget_show(fd->drawer);
-#endif
     }
   return(true);
 }
@@ -364,10 +362,9 @@ static void file_dialog_play(GtkWidget *w, gpointer data)
 #endif
 
 
-#if WITH_SKETCH
 static void tiny_string(cairo_t *cr, const char *str, int x0, int y0)
 {
-  PangoLayout *layout = NULL;
+  PangoLayout *layout;
   cairo_save(cr);
   layout = pango_cairo_create_layout(cr);
   pango_layout_set_font_description(layout, TINY_FONT(ss));
@@ -377,7 +374,6 @@ static void tiny_string(cairo_t *cr, const char *str, int x0, int y0)
   g_object_unref(G_OBJECT(layout));
   cairo_restore(cr);
 }
-
 
 static void sketch_1(file_dialog_info *fd, bool new_data)
 {
@@ -391,8 +387,11 @@ static void sketch_1(file_dialog_info *fd, bool new_data)
   double xscl, yscl;
   point_t *g_p0, *g_p1;
 
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  if (!(fd->cr)) return;
+#endif
+
   filename = fd->filename; /* gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(fd->chooser)); */
-  /* gtk_widget_show(fd->drawer); */
 
   if (!filename)
     return;
@@ -407,6 +406,7 @@ static void sketch_1(file_dialog_info *fd, bool new_data)
   
   wid = widget_width(fd->drawer);
   hgt = widget_height(fd->drawer);
+  /* fprintf(stderr, "%d %d\n", wid, hgt); */
   ap = fd->axis;
   
   if (new_data)
@@ -497,9 +497,13 @@ static void sketch_1(file_dialog_info *fd, bool new_data)
   /* here we could check that nothing has changed while getting the data ready, but it doesn't seem to be a problem? */
 
   old_cr = ss->cr;
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = fd->cr;
+#else
   ss->cr = make_cairo(WIDGET_TO_WINDOW(fd->drawer));
-  cairo_push_group(ss->cr);
+#endif
   
+  cairo_push_group(ss->cr);
   cairo_set_source_rgba(ss->cr, fd->gc->bg_color->red, fd->gc->bg_color->green, fd->gc->bg_color->blue, fd->gc->bg_color->alpha);
   cairo_rectangle(ss->cr, 0, 0, wid, hgt);
   cairo_fill(ss->cr);
@@ -526,14 +530,20 @@ static void sketch_1(file_dialog_info *fd, bool new_data)
       
   if (fd->pts > 0) 
     {
+#if (GTK_CHECK_VERSION(3, 89, 0))
+      cairo_set_line_width(ss->cr, 1.0);
+#endif
       if (fd->two_sided)
 	draw_both_grf_points(1, ap->ax, fd->pts, GRAPH_LINES);
       else draw_grf_points(1, ap->ax, fd->pts, ap, 0.0, GRAPH_LINES);
     }
-  
+
   cairo_pop_group_to_source(ss->cr);
   cairo_paint(ss->cr);
+  
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = old_cr;
 }
 
@@ -544,32 +554,27 @@ static idle_func_t get_sketch(gpointer data)
   return(false);
 }
 
-static idle_func_t get_resketch(gpointer data)
-{
-  sketch_1((file_dialog_info *)data, false);
-  return(false);
-}
-
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 static void stop_sketch(gpointer data)
 {
   file_dialog_info *fd = (file_dialog_info *)data;
   fd->in_progress = false;
 }
+#endif
 
+#if GTK_CHECK_VERSION(3, 89, 0)
+#define sketch(Fd) get_sketch(Fd)
+#else
 #define sketch(Fd)   {fd->in_progress = true; g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, get_sketch, (gpointer)Fd, (GDestroyNotify)stop_sketch);}
-#define resketch(Fd) if (!fd->in_progress) {fd->in_progress = true; g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, get_resketch, (gpointer)Fd, (GDestroyNotify)stop_sketch);}
+#define resketch(Fd) if (!fd->in_progress) {fd->in_progress = true; g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, get_sketch, (gpointer)Fd, (GDestroyNotify)stop_sketch);}
 #endif
 
 static void selection_changed_callback(GtkFileChooser *w, gpointer data)
 {
   file_dialog_info *fd = (file_dialog_info *)data;
   fd->filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(fd->chooser));
-#if WITH_SKETCH
   if (post_sound_info(fd, fd->filename, false))
     sketch(fd);
-#else
-  post_sound_info(fd, fd->filename, false);
-#endif
 }
 
 
@@ -582,7 +587,14 @@ static gboolean file_filter_callback(const GtkFileFilterInfo *filter_info, gpoin
 }
 
 
-#if WITH_SKETCH
+#if (GTK_CHECK_VERSION(3, 89, 0))
+static void file_sketch_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  file_dialog_info *fd = (file_dialog_info *)data;
+  fd->cr = cr;
+  sketch(fd);
+}
+#else
 static gboolean drawer_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   file_dialog_info *fd = (file_dialog_info *)data;
@@ -740,7 +752,6 @@ static file_dialog_info *make_file_dialog(read_only_t read_only, const char *tit
   sg_box_pack_start(GTK_BOX(hbox), fd->info, false, true, 8);
   gtk_widget_show(fd->info);
 
-#if WITH_SKETCH	
   fd->sp = NULL;
   fd->gc = gc_new();
   gc_set_background(fd->gc, ss->white);
@@ -748,7 +759,9 @@ static file_dialog_info *make_file_dialog(read_only_t read_only, const char *tit
   
   fd->drawer = gtk_drawing_area_new();
   sg_box_pack_end(GTK_BOX(hbox), fd->drawer, true, true, 10);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   sg_widget_set_events(fd->drawer, GDK_EXPOSURE_MASK);
+#endif
   gtk_widget_set_size_request(fd->drawer, -1, FILE_DIALOG_DEFAULT_SKETCH_HEIGHT);
   gtk_widget_show(fd->drawer);
   
@@ -762,10 +775,15 @@ static file_dialog_info *make_file_dialog(read_only_t read_only, const char *tit
   fd->p1 = (point_t *)calloc(POINT_BUFFER_SIZE, sizeof(point_t));
   fd->unreadable = true;
 
+#if GTK_CHECK_VERSION(3, 89, 0)
+  gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(fd->drawer), gtk_widget_get_allocated_width(fd->drawer));
+  gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(fd->drawer), gtk_widget_get_allocated_height(fd->drawer));
+  gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(fd->drawer), file_sketch_expose, (void *)fd, NULL);
+#else
   SG_SIGNAL_CONNECT(fd->drawer, DRAW_SIGNAL, drawer_expose, (gpointer)fd);
+#endif
 
   gtk_widget_show(fd->dialog);
-#endif
 
   SG_SIGNAL_CONNECT(fd->help_button, "clicked", file_help_proc, (gpointer)fd);
   SG_SIGNAL_CONNECT(fd->ok_button, "clicked", file_ok_proc, (gpointer)fd);
@@ -869,7 +887,7 @@ static void start_unsound_watcher(file_dialog_info *fd, const char *filename) {}
 static void file_open_dialog_ok(GtkWidget *w, gpointer data)
 {
   file_dialog_info *fd = (file_dialog_info *)data;
-  char *filename = NULL;
+  char *filename;
 
   filename = fd->filename; /* gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(fd->chooser)); */
 
@@ -1037,7 +1055,7 @@ static gint file_mix_delete_callback(GtkWidget *w, GdkEvent *event, gpointer con
 
 static void file_mix_ok_callback(GtkWidget *w, gpointer context)
 {
-  char *filename = NULL;
+  char *filename;
   filename = mdat->filename; /* gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(mdat->chooser)); */
   if ((!filename) || (!(*filename)))
     {
@@ -2361,7 +2379,7 @@ static file_dialog_info *make_save_as_dialog(const char *file_string, mus_header
 
 static file_dialog_info *make_sound_save_as_dialog_1(bool managed, int chan)
 {
-  snd_info *sp = NULL;
+  snd_info *sp;
   char *com = NULL;
   file_info *hdr = NULL;
   file_dialog_info *fd;
@@ -2882,7 +2900,7 @@ static void watch_new_file(GFileMonitor *mon, GFile *file, GFile *other, GFileMo
 static void new_file_ok_callback(GtkWidget *w, gpointer context) 
 {
   mus_long_t loc;
-  char *newer_name = NULL, *msg;
+  char *newer_name, *msg;
   mus_header_t header_type;
   mus_sample_t sample_type;
   int srate, chans;
@@ -2972,7 +2990,7 @@ static void new_file_ok_callback(GtkWidget *w, gpointer context)
 static char *new_file_dialog_filename(int header_type)
 {
   static int new_file_dialog_file_ctr = 1;
-  char *filename = NULL;
+  char *filename;
   const char *extensions[6] = {"aiff", "aiff", "wav", "wav", "caf", "snd"};
   int extension = 0;
 
@@ -2994,7 +3012,7 @@ static char *new_file_dialog_filename(int header_type)
 
 static void load_new_file_defaults(char *newname)
 {
-  char *new_comment = NULL;
+  char *new_comment;
   mus_header_t header_type;
   mus_sample_t sample_type;
   int chans, srate;
@@ -3278,7 +3296,7 @@ static void watch_file_read_only(GFileMonitor *mon, GFile *file, GFile *other, G
 {
   /* if file is deleted or permissions change, respond in some debonair manner */
   edhead_info *ep = (edhead_info *)data;
-  snd_info *sp = NULL;
+  snd_info *sp;
   sp = ep->sp;
   if (sp->writing) return;
 

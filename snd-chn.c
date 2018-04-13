@@ -4066,7 +4066,11 @@ static void display_channel_data_with_size(chan_info *cp,
 	      our_ax->wn = WIDGET_TO_WINDOW(our_ax->w);
 	    }
 	  if (!use_incoming_cr)
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	    ss->cr = cp->graph_cr;
+#else
 	    ss->cr = make_cairo(our_ax->wn);
+#endif
 	  cairo_push_group(ss->cr);
 #else	  
 	  our_ax = ap->ax;
@@ -4148,7 +4152,9 @@ static void display_channel_data_with_size(chan_info *cp,
 	  cairo_paint(ss->cr);	  
 	  if (!use_incoming_cr)
 	    {
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 	      free_cairo(ss->cr);
+#endif
 	      ss->cr = NULL;
 	    }
 #endif
@@ -4172,7 +4178,11 @@ static void display_channel_data_with_size(chan_info *cp,
     {
 #if USE_GTK
       if (!use_incoming_cr)
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	ss->cr = cp->graph_cr;
+#else
 	ss->cr = make_cairo(cp->ax->wn);
+#endif
       cairo_push_group(ss->cr);
 #endif
 
@@ -4228,7 +4238,9 @@ static void display_channel_data_with_size(chan_info *cp,
       cairo_paint(ss->cr);	  
       if (!use_incoming_cr)
 	{
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 	  free_cairo(ss->cr);
+#endif
 	  ss->cr = NULL;
 	}
 #endif
@@ -4280,7 +4292,11 @@ static void display_channel_data_with_size(chan_info *cp,
       if (!(uap->ax))
 	uap->ax = cp->ax;
       if (!use_incoming_cr)
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	ss->cr = cp->graph_cr;
+#else
 	ss->cr = make_cairo(uap->ax->wn);
+#endif
       cairo_push_group(ss->cr);
 #endif
       make_axes(cp, uap, /* defined in this file l 2293 */
@@ -4298,7 +4314,9 @@ static void display_channel_data_with_size(chan_info *cp,
       cairo_paint(ss->cr);	  
       if (!use_incoming_cr)
 	{
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 	  free_cairo(ss->cr);
+#endif
 	  ss->cr = NULL;
 	}
 #endif
@@ -4473,7 +4491,11 @@ static void draw_graph_cursor(chan_info *cp)
 
 #if USE_GTK
   if (!(ap->ax->wn)) return;
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = cp->graph_cr;
+#else
   ss->cr = make_cairo(ap->ax->wn);
+#endif
 #endif
 
   if (cp->cursor_visible) 
@@ -4491,7 +4513,9 @@ static void draw_graph_cursor(chan_info *cp)
   cp->cursor_visible = true;
 
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
 #endif
 }
@@ -4512,14 +4536,20 @@ static void draw_sonogram_cursor_1(chan_info *cp)
   {
     color_t old_color;
     fax = cp->ax; /* fap->ax does not work here?!? */
+#if (GTK_CHECK_VERSION(3, 89, 0))
+    ss->cr = cp->graph_cr;
+#else
     ss->cr = make_cairo(fax->wn);
+#endif
     /* y_axis_y0 > y_axis_y1 (upside down coordinates) */
     old_color = get_foreground_color(fax);
     set_foreground_color(fax, ss->cursor_color);
     draw_line(fax, cp->fft_cx, fap->y_axis_y0 - 1, cp->fft_cx, fap->y_axis_y1);
     set_foreground_color(fax, old_color);
     cp->fft_cursor_visible = (!(cp->fft_cursor_visible));
+#if (!GTK_CHECK_VERSION(3, 89, 0))
     free_cairo(ss->cr);
+#endif
     ss->cr = NULL;
   }
 #endif
@@ -4715,11 +4745,17 @@ void cursor_moveto_with_window(chan_info *cp, mus_long_t samp, mus_long_t left_s
       if (cp->graph_time_on) 
 	{
 #if USE_GTK
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	  ss->cr = cp->graph_cr;
+#else
 	  ss->cr = make_cairo(ap->ax->wn);
+#endif
 #endif
 	  erase_cursor(cp);
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 	  free_cairo(ss->cr);
+#endif
 	  ss->cr = NULL;
 #endif
 	}

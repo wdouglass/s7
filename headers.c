@@ -690,7 +690,7 @@ static int header_write(int fd, uint8_t *buf, int chars)
       bytes = (int64_t)write(fd, buf, chars);
       if (bytes != chars)
 	{
-	  char *errstr = NULL;
+	  char *errstr;
 	  errstr = STRERROR(errno);
 	  return(mus_error(MUS_WRITE_ERROR, "header_write: wrote %" PRId64 " of %d bytes, %s", 
 			   bytes, chars, (errstr) ? errstr : "unknown error?"));
@@ -708,7 +708,7 @@ static int header_read(int fd, uint8_t *buf, int chars)
       bytes = (int64_t)read(fd, buf, chars);
       if (bytes != chars) 
 	{
-	  char *errstr = NULL;
+	  char *errstr;
 	  errstr = STRERROR(errno);
 	  return(mus_error(MUS_READ_ERROR, "header_read: read %" PRId64 " of %d bytes, %s", 
 			   bytes, chars, (errstr) ? errstr : "unknown error?"));
@@ -5208,7 +5208,7 @@ static int read_paf_header(const char *filename, int fd)
 static int read_comdisco_header(const char *filename, int fd)
 {
   /* need to grab a line at a time, call strcmp over and over.  This is very tedious. */
-  char *line = NULL;
+  char *line;
   int i, j, k, m, n, curend, offset, len, type, d_size = 0;
   bool happy = true, little, commenting;
 
@@ -6757,7 +6757,7 @@ int mus_header_change_comment(const char *filename, mus_header_t type, const cha
 	  int ofd, ifd, len;
 	  mus_long_t loc;
 	  int64_t nbytes;
-	  uint8_t *buf = NULL;
+	  uint8_t *buf;
 	  len = strlen(filename) + 5;
 	  new_file = (char *)malloc(len * sizeof(char));
 	  snprintf(new_file, len, "%s.tmp", filename);

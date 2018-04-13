@@ -344,7 +344,7 @@ static oclock_t mouse_down_time = 0, ev_mouse_down_time = 0;
 
 static gboolean select_event_callback(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
-  ev_mouse_down_time = EVENT_TIME(ev);
+  ev_mouse_down_time = event_time(ev);
   return(false);
 }
 
@@ -441,7 +441,7 @@ static void mouse_enter_or_leave_label(void *r, int type, Xen hook, const char *
   if ((r) &&
       (Xen_hook_has_list(hook)))
     {
-      char *label = NULL;
+      char *label;
       label = regrow_get_label(r);
       if (label)
 	run_hook(hook,

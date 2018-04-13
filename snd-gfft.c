@@ -17,6 +17,9 @@ static GtkWidget *spectrum_start_scale, *spectrum_end_scale;
 static GtkWidget *db_txt, *peaks_txt, *lf_txt;
 static gc_t *fft_gc = NULL, *fgc = NULL;
 static bool ignore_callbacks;
+#if (GTK_CHECK_VERSION(3, 89, 0))
+static cairo_t *gcr;
+#endif
 
 #define NUM_TRANSFORM_SIZES 15
 static const char *transform_size_names[NUM_TRANSFORM_SIZES] = 
@@ -71,7 +74,11 @@ static void graph_redisplay(void)
   axis_ap->x0 = 0.0;
   axis_ap->x1 = 1.0;
 
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  ss->cr = gcr;
+#else
   ss->cr = make_cairo(ax->wn);
+#endif
   cairo_push_group(ss->cr);
 
   /* erase previous */
@@ -113,6 +120,10 @@ static void graph_redisplay(void)
   iy1 = grf_y(graph_data[0], axis_ap);
   xincr = 1.0 / (mus_float_t)GRAPH_SIZE;
 
+#if (GTK_CHECK_VERSION(3, 89, 0))
+  cairo_set_line_width(ss->cr, 1.0);
+#endif
+
   for (i = 1, x = xincr; i < GRAPH_SIZE; i++, x += xincr)
     {
       ix0 = ix1;
@@ -139,7 +150,9 @@ static void graph_redisplay(void)
 
   cairo_pop_group_to_source(ss->cr);
   cairo_paint(ss->cr);
+#if (!GTK_CHECK_VERSION(3, 89, 0))
   free_cairo(ss->cr);
+#endif
   ss->cr = NULL;
 }
 
@@ -806,19 +819,25 @@ static void spectrum_end_callback(GtkAdjustment *adj, gpointer context)
 
 /* ---------------- dialog buttons ---------------- */
 
+#if (GTK_CHECK_VERSION(3, 89, 0))
+static void graph_drawer_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
+{
+  gcr = cr;
+  graph_redisplay();
+}
+#else
 static gboolean graph_configure_callback(GtkWidget *w, GdkEventConfigure *ev, gpointer data)
 {
   graph_redisplay();
   return(false);
 }
 
-
 static gboolean graph_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   graph_redisplay();
   return(false);
 }
-
+#endif
 
 static void dismiss_transform_callback(GtkWidget *w, gpointer context)
 {
@@ -1308,8 +1327,14 @@ GtkWidget *make_transform_dialog(bool managed)
   if (need_callback)
     {
       get_fft_window_data();
+#if GTK_CHECK_VERSION(3, 89, 0)
+      gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(graph_drawer), gtk_widget_get_allocated_width(graph_drawer));
+      gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(graph_drawer), gtk_widget_get_allocated_height(graph_drawer));
+      gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(graph_drawer), graph_drawer_expose, NULL, NULL);
+#else
       SG_SIGNAL_CONNECT(graph_drawer, DRAW_SIGNAL, graph_expose_callback, NULL);
       SG_SIGNAL_CONNECT(graph_drawer, "configure_event", graph_configure_callback, NULL);
+#endif
     }
 
   return(transform_dialog);

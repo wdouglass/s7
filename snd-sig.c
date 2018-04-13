@@ -2158,7 +2158,7 @@ static char *direct_filter(chan_info *cp, int order, env *e, snd_fd *sf, mus_lon
       if (precalculated_coeffs)
 	{
 	  vct *v;
-	  char *vstr = NULL;
+	  char *vstr;
 
 	  v = mus_vct_wrap(order, precalculated_coeffs);
 	  vstr = mus_vct_to_readable_string(v);
@@ -2595,7 +2595,6 @@ void apply_env(chan_info *cp, env *e, mus_long_t beg, mus_long_t dur, bool over_
       /* ---------------- not optimizable, so call mus_env on each sample ---------------- */
       mus_long_t ioff, alloc_len;
       mus_float_t **data;
-      mus_float_t *idata;
       bool reporting = false, temp_file = false;
       int ofd = 0, datumb = 0;
       file_info *hdr = NULL;
@@ -2695,7 +2694,8 @@ void apply_env(chan_info *cp, env *e, mus_long_t beg, mus_long_t dur, bool over_
 	}
       else
 	{
-	  snd_fd *sf = NULL;
+	  mus_float_t *idata;
+	  snd_fd *sf;
 	  sf = sfs[0];
 	  idata = data[0];
 	  if (temp_file)
@@ -3037,9 +3037,7 @@ void cursor_zeros(chan_info *cp, mus_long_t count, bool over_selection)
 	  old_sync = nsp->sync;
 	  nsp->sync = 0;
 	  scaler[0] = 0.0;
-
 	  scale_by(ncp, scaler, 1, OVER_SOUND);
-
 	  nsp->sync = old_sync;
 	}
       else
@@ -3351,7 +3349,7 @@ static Xen map_channel_to_temp_file(chan_info *cp, snd_fd *sf, Xen proc, mus_lon
   else
     {
       int err = MUS_NO_ERROR, i, j = 0, rpt = 0;
-      mus_float_t **data = NULL;
+      mus_float_t **data;
       mus_long_t kp, samps = 0;
       
       data = (mus_float_t **)malloc(1 * sizeof(mus_float_t *));
@@ -3851,7 +3849,7 @@ static Xen g_map_chan_1(Xen proc_and_list, Xen s_beg, Xen s_end, Xen org, Xen sn
   if (num > 0)
     {
       snd_fd *sf = NULL;
-      char *errmsg = NULL;
+      char *errmsg;
       bool temp_file, backup = false;
 
       errmsg = procedure_ok(proc, 1, caller, "", 1);
@@ -5363,10 +5361,8 @@ static Xen g_convolve_with_1(Xen file, Xen new_amp, chan_info *cp, Xen edpos, co
 
   if (mus_file_probe(fname))
     {
-      char *error = NULL;
-
+      char *error;
       error = convolve_with_or_error(fname, amp, cp, edpos, 5);
-
       if (error)
 	{
 	  Xen errstr;
@@ -5573,7 +5569,7 @@ static Xen g_src_1(Xen ratio_or_env, Xen ebase, Xen snd, Xen chn_n, Xen edpos, c
       int error = SRC_ENV_NO_ERROR;
       if (Xen_is_list(ratio_or_env))
 	{
-	  env *e = NULL;
+	  env *e;
 	  mus_float_t e_ratio = 1.0;
 
 	  /* env 'e' is a temp here, so we can clobber its base, etc */
@@ -5690,7 +5686,7 @@ applies an FIR filter to snd's channel chn. 'env' is the frequency response enve
     }
   else 
     {
-      vct *v = NULL;
+      vct *v;
       int len;
       v = Xen_to_vct(e);
       len = mus_vct_length(v);

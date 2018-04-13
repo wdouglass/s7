@@ -16,7 +16,7 @@ static void wavelet_transform(mus_float_t *data, mus_long_t num, mus_float_t *cc
 {
   mus_float_t *data1 = NULL;
   mus_float_t sig = -1.0;
-  mus_float_t *cr = NULL;
+  mus_float_t *cr;
   mus_long_t i, j, n, ii, ni, k, jf;
 
   cr = (mus_float_t *)malloc(cc_size * sizeof(mus_float_t));
@@ -1796,7 +1796,7 @@ void c_convolve(const char *fname, mus_float_t amp, int filec, mus_long_t filehd
     snd_error("can't open convolution temp file %s: %s", fname, snd_io_strerror());
   else
     {
-      mus_float_t *rl0 = NULL, *rl1 = NULL, *rl2 = NULL;
+      mus_float_t *rl0, *rl1 = NULL;
       mus_float_t **pbuffer = NULL, **fbuffer = NULL;
       mus_long_t oloc;
       oloc = mus_header_data_location();
@@ -1821,7 +1821,7 @@ void c_convolve(const char *fname, mus_float_t amp, int filec, mus_long_t filehd
 	}
       else
 	{
-	  mus_float_t *pbuf = NULL;
+	  mus_float_t *pbuf;
 	  mus_long_t i;
 	  int tempfile;
 	  chan_info *gcp;
@@ -1882,7 +1882,6 @@ void c_convolve(const char *fname, mus_float_t amp, int filec, mus_long_t filehd
 	}
       if (rl0) free(rl0);
       if (rl1) free(rl1);
-      if (rl2) free(rl2);
       if (pbuffer) 
 	{
 	  if (pbuffer[0]) free(pbuffer[0]);

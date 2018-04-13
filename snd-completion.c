@@ -286,7 +286,7 @@ void preload_best_completions(void)
 void save_completion_choice(const char *selection)
 {
   int i;
-  char *cur = NULL, *old = NULL;
+  char *cur, *old = NULL;
 
   cur = mus_strdup(selection);
   for (i = 0; i < BEST_COMPLETIONS; i++)

@@ -797,6 +797,7 @@
     (moog? "moog.scm")
     (make-moog "moog.scm")
 
+    (primes.scm "primes.scm")
     (snd-clm23.scm "clm23.scm")
     (snd-edit123.scm "edit123.scm")
     (snd-new-effects.scm "new-effects.scm")
