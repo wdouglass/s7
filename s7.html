@@ -9610,20 +9610,17 @@ you can also type shell commands just as in a shell:
 </p>
 
 <pre class="indented">
-&gt; pwd
+&lt;1&gt; pwd
 <em class="gray">/home/bil/cl</em>
-&gt; cd ..
+&lt;2&gt; cd ..
 <em class="gray">/home/bil</em>
-&gt; date
+&lt;3&gt; date
 <em class="gray">Wed 15-Apr-2015 17:32:24 PDT</em>
-&gt; **
-<em class="gray">"Wed 15-Apr-2015 17:32:24 PDT
 "</em>
 </pre>
 
 <p>In most cases, these are handled through *unbound-variable-hook*, checked using "command -v", then passed
-to the underlying shell via the system function.  If s7's (as opposed to libc's) system command
-is accessible, the '** variable holds whatever the command printed.
+to the underlying shell via the system function. 
 </p>
 
 <p>The prompt is set by the function (*repl* 'prompt).  It gets one argument,
@@ -9648,7 +9645,17 @@ the current line number, and should set the prompt string and its length.
 <p>The line number provides a quick way to move around in the history buffer.
 To get a previous line without laboriously typing M-p over and over,
 simply type the line number (without control or meta bits), then M-.
+In some CL repls, the special variable '* holds the last value computed.
+In repl.scm, each value is retained in variables of the form '<n> where n
+is the number shown in the prompt.
 </p>
+
+<pre class="indented">
+&lt;1&gt; (+ 1 2)
+<em class="gray">3</em>
+&lt;2&gt; (* <1> 2)
+<em class="gray">6</em>
+</pre>
 
 <p>Here is an example of adding to the keymap:
 </p>
@@ -9697,13 +9704,13 @@ then return to the caller:
 
 <pre class="indented">
 x: 32
-&gt; x
+&lt;1&gt; x
 <em class="gray">32</em>
-&gt; (set! x 91)
+&lt;2&gt; (set! x 91)
 <em class="gray">91</em>
-&gt; x
+&lt;3&gt; x
 <em class="gray">91</em>
-&gt; now x: 91  ; here I typed C-q at the prompt
+&lt;4&gt; now x: 91  ; here I typed C-q at the prompt
 </pre>
 
 <p>Another possibility:

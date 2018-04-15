@@ -153,6 +153,8 @@
 	"GtkShortcutLabel*" "GtkPadActionEntry*" "GdkDevicePad*" "GActionGroup*"
 	"GtkTextWindowType" "GtkPackType" "GtkApplicationInhibitFlags"
 	"GtkStyleContextPrintFlags"
+
+	"GObject*" "GdkKeymap*" "GdkDragContext*" "GdkEventMotion*"
 	))
 
 (define no-xen-p 
@@ -177,6 +179,7 @@
 
 	"glong" "double" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
+	"GdkEventMotion*"
 	))
 
 (define no-xen-to-c 
@@ -203,6 +206,7 @@
 
 	"glong" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
+	"GdkEventMotion*"
 	))
 
 (define (cadr-str data)
@@ -689,7 +693,7 @@
 		    (if (not (member type no-xen-to-c))
 			(hey "#define Xen_to_C_~A(Arg) ((gpointer)Arg)~%" (no-stars type)))))))
 	 
-	 (if (not (or (member type '("lambda" "lambda_data" "GError*") string=?)
+	 (if (not (or (member type '("lambda" "lambda_data" "GError*" "GdkEventMotion*") string=?)
 		      (find-callback 
 		       (lambda (func)
 			 (string=? type (symbol->string (car func)))))
@@ -1698,9 +1702,9 @@
    (if (not (string? typ))
        (format *stderr* "in other-types: ~S~%" typ))
    (if (not (member typ all-types string=?))
-       (hey ", xg_~A_symbol" typ)))
+       (hey ", xg_~A_symbol" (no-stars typ))))
  other-types)
- 
+(hey ", xg_idler_symbol")
 (hey ";~%~%")
 
 ;;; ----------------

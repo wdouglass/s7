@@ -15,7 +15,7 @@
 	  (restore-history #f)      ; function to restore history buffer entries from a file
 	  (helpers ())              ; list of functions displaying help strings 
 	  (run #f)                  ; function that fires up a REPL
-	  (top-level-let (sublet (rootlet) :** #f)) ; environment in which evaluation takes place
+	  (top-level-let (sublet (rootlet))) ; environment in which evaluation takes place
 	  (repl-let                 ; environment for keymap functions to access all the REPL innards (cursor-position etc)
 	   
       (with-let (sublet *libc*)
@@ -211,11 +211,8 @@
 				(zero? (system (string-append "command -v " var-name " >/dev/null"))))
 		       (set! unbound-case #t)
 		       (if (procedure? ((rootlet) 'system))
-			   (begin
-			     (set! ((*repl* 'top-level-let) '**) (((rootlet) 'system) cur-line #t))
-			     (display ((*repl* 'top-level-let) '**) *stderr*))
-			   (set! ((*repl* 'top-level-let) '**) (system cur-line)))
-		       (set! (h 'result) (symbol " ")))))))
+			   (set! (h 'result) (((rootlet) 'system) cur-line #f))
+			   (set! (h 'result) #f)))))))
 	    
 	    (define (with-repl-let body)
 	      ;; for multiline edits, we will use *missing-close-paren-hook* rather than try to parse the input ourselves.
@@ -908,16 +905,10 @@
 							(cons 'values args)
 							(car args)))
 						  (eval form (*repl* 'top-level-let)))))
+					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ,val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
-					    (begin
-					      (format *stderr* "~S~%" val)
-					      ;; this set! of '** has one odd consequence: if val is a lambda expression
-					      ;;   find_closure in s7 will fallback on the current environment trying to
-					      ;;   find an associated name, and the only thing it finds is '**!  So,
-					      ;;   when we type **, we get back **, which seems perverse.  I suppose
-					      ;;   we could trap the string above, see "**" and change to ~W or something.
-					      (set! ((*repl* 'top-level-let) '**) val))))))))
+					    (format *stderr* "~S~%" val)))))))
 			       
 			       (lambda (type info)
 				 (pop-history)               ; remove last history entry
@@ -932,6 +923,9 @@
 				 (format *stderr* " ~A" (apply format #f info))
 				 (if (not (null? info))
 				     (format *stderr* " ~A" info)))
+			     (with-repl-let
+			      (lambda ()
+				(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))))
 			     (newline *stderr*)))
 			 
 			 (push-line (copy cur-line))
@@ -1084,7 +1078,6 @@
 					    (set! str ""))))
 				       (lambda (type info)
 					 (fgets buf 512 stdin)
-					 ;(format *stderr* "add str: ~S~%" (substring buf 0 (- (strlen buf) 1)))
 					 (set! str (string-append str " " (substring buf 0 (- (strlen buf) 1))))))))
 				 (lambda (type info)
 				   (set! str "")
@@ -1515,7 +1508,7 @@
 ;;; --------------------------------------------------------------------------------
 #|
 to work in a particular environment:
-    (set! (*repl* 'top-level-let) (sublet (rootlet) :** #f)) ; or any other like *libc*
+    (set! (*repl* 'top-level-let) (sublet (rootlet))) ; or any other like *libc*
 now (define g 43) puts g in the new top-level-let, so ((rootlet) 'g) -> #<undefined>, and ((*repl* 'top-level-let) 'g) -> 43 (= g in repl of course)
 to start with a fresh top-level, just set top-level-let to (sublet (rootlet)) again.
 

@@ -84785,7 +84785,6 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, draw|dsp|extensions|musglyphs|snd-test|xm-enved.rb
  *   check/enhance type checks in libgtk_s7
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
- *   xg.o added for Forth/Ruby+gtk in makefile.in, and libgtk if s7+gtk (see configure.ac -- I think this is working)
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?

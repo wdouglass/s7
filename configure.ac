@@ -396,6 +396,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby_version --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby_version --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+          AC_SUBST(S7_LIB)
         fi
       fi
       ])
@@ -417,6 +423,12 @@ if test "$with_forth" = yes ; then
     AC_DEFINE(HAVE_FORTH)
     LOCAL_LANGUAGE="Forth"
     ac_snd_extension_language=Forth
+    if test "$ac_snd_gui_choice" = gtk ; then
+      S7_LIB="xg.o"
+    else
+      S7_LIB=""
+    fi
+    AC_SUBST(S7_LIB)
   else
     AC_MSG_RESULT([no])
   fi

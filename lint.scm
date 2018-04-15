@@ -2912,7 +2912,7 @@
 			  (else arg1)))
 		       
 		       ((symbol?) 
-			(and (not (memq type2 '(keyword? gensym?))) 
+			(and (not (memq type2 '(keyword? gensym? defined? provided?))) 
 			     arg1))
 		       
 		       ((char=?)  
@@ -3691,7 +3691,6 @@
 	  (case (car form)
 	    ;; --------------------------------
 	    ((not)
-	     
 	     (if (not (= len 2))
 		 form
 		 (let* ((arg (cadr form))
@@ -4026,7 +4025,7 @@
 			    (if (and (not (side-effect? arg1 env))
 				     (equal? arg1 arg2))                  ; (and x x) -> x
 				(return arg1))
-			    
+
 			    (when (and (len>1? arg1)
 				       (len>1? arg2))
 			      (let ((t1 (and (or (equal? (cadr arg1) (cadr arg2))
@@ -4047,7 +4046,7 @@
 					     
 					     ((eq? t1 (car arg1)) arg1)
 					     (else arg2)))))
-			      
+
 			      (when (and (hash-table-ref reversibles (car arg1))
 					 (len=1? (cddr arg1))
 					 (len=1? (cddr arg2))
@@ -4070,7 +4069,7 @@
 						(list (if (memq (car arg1) '(< <=)) 'min 'max) 
 						      (caddr arg1) 
 						      (caddr arg2)))))
-				
+
 				(when (and (or (equal? (caddr arg1) (cadr arg2))     ; (and (op x y) (op y z))
 					       (equal? (cadr arg1) (caddr arg2))     ; (and (op x y) (op z x))
 					       (and (memq (car arg1) '(= char=? string=? char-ci=? string-ci=?))
@@ -4127,7 +4126,7 @@
 						 arg1))
 					   
 					   (else (list op1 arg1-1 arg1-2 arg2-1)))))))
-			      
+
 			      ;; check some special cases 
 			      (when (and (or (equal? (cadr arg1) (cadr arg2))
 					     (and (len=1? (cddr arg2))
@@ -4154,7 +4153,7 @@
 					     (eq? (car arg2) '<)
 					     (eq? (cadr arg1) (cadr arg2)))
 				    (return (list '< 0 (cadr arg1) (caddr arg2))))))
-			      
+
 			      (when (and (member (cadr arg1) arg2)
 					 (memq (car arg2) '(string=? char=? eq? eqv? equal?))
 					 (len=2? (cdr arg2))
@@ -4176,26 +4175,26 @@
 				(if (or (boolean? rel)
 					(pair? rel))
 				    (return rel)))
-			      
+
 			      ;; (and ... (not...))
 			      (unless (eq? (car arg1) (car arg2))
 				(if (eq? (car arg1) 'not)
 				    (let ((temp arg1))
 				      (set! arg1 arg2)
 				      (set! arg2 temp)))
-				
 				(when (booleans-with-not? arg1 arg2 env)
 				  (let ((t2 (and-not-redundant arg1 arg2)))
 				    (cond ;((not t2) #f)
 				     ((eq? t2 'contradictory) (return #f))
-				     ((symbol? t2) (return (cons t2 (cdr arg1))))
-				     ((pair? t2)	(return t2))))))
-			      
+				     ((symbol? t2)            (return (cons t2 (cdr arg1))))
+				     ((pair? t2)	      (return t2))))))
+
 			      (if (hash-table-ref bools (car arg1))
 				  (let ((p (member (cadr arg1) (cdr arg2))))
 				    (when p
 				      (let ((sig (arg-signature (car arg2) env))
 					    (pos (- (length arg2) (length p))))
+
 					(when (pair? sig)
 					  (let ((arg-type (and (> (length sig) pos)
 							       (list-ref sig pos))))
@@ -4209,7 +4208,7 @@
 							(prettify-checker-unq (car arg1))
 							(car arg2)
 							(prettify-checker arg-type))))))))))
-			      
+
 			      (cond ((not (and (eq? (car arg1) 'equal?) ; (and (equal? (car a1) (car a2)) (equal? (cdr a1) (cdr a2))) -> (equal? a1 a2)
 					       (eq? (car arg2) 'equal?)
 					       (pair? (cadr arg1))

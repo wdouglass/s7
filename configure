@@ -647,8 +647,8 @@ PATH_OGGENC
 PATH_OGGDEC
 XEN_CFLAGS
 XEN_LIBS
-S7_LIB
 FTH
+S7_LIB
 GL_FLAGS
 GL_FILES
 GL_LIBS
@@ -5255,6 +5255,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.5 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.5 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5267,6 +5273,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.4 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.4 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5279,6 +5291,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.3 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5291,6 +5309,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.2 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.2 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5303,6 +5327,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.1 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.1 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5315,6 +5345,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.0 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.0 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5327,6 +5363,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5339,6 +5381,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.9.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9.3 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5351,6 +5399,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.9 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5363,6 +5417,12 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.8 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.8 --modversion`
           ac_snd_extension_language=Ruby
+          if test "$ac_snd_gui_choice" = gtk ; then
+            S7_LIB="xg.o"
+          else
+            S7_LIB=""
+          fi
+
         fi
       fi
 
@@ -5427,6 +5487,12 @@ $as_echo "yes" >&6; }
 
     LOCAL_LANGUAGE="Forth"
     ac_snd_extension_language=Forth
+    if test "$ac_snd_gui_choice" = gtk ; then
+      S7_LIB="xg.o"
+    else
+      S7_LIB=""
+    fi
+
   else
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
