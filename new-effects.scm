@@ -1,4 +1,4 @@
-(if (not (provided? 'snd-motif)) 
+(unless (provided? 'snd-motif)
     (snd-error "new-effects.scm is Motif-specific"))
 
 (provide 'snd-new-effects.scm)
@@ -1314,7 +1314,7 @@ Move the sliders to set the filter cutoff frequency and resonance."))
     
     (let ((time-scale 1.0)
 	  (pitch-scale 1.0))
-      (let *((post-expsrc-dialog
+      (let ((post-expsrc-dialog
 	      (let ((expsrc-label "Time/pitch scaling")
 		    (expsrc-dialog #f)
 		    (expsrc-target 'sound)

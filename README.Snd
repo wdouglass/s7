@@ -141,6 +141,17 @@ cmdist@ccrma.stanford.edu.  To subscribe, visit
   http://ccrma-mail.stanford.edu/mailman/listinfo/cmdist
 
 
+To follow the Snd SVN repository, the first time you need to
+
+  svn checkout svn://svn.code.sf.net/p/snd/svn1 snd
+
+This creates a local snd directory with the files (in the trunk directory).
+
+  svn update
+
+updates any changed files.
+
+
 ----------------------------------------------------------------
 This software is available to anyone who is interested, free gratis
 for nothing, without warranties of any kind (see the file COPYING for

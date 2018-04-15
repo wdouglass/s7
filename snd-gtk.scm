@@ -13,7 +13,7 @@
 ;;; make-font-selector-dialog
 ;;; add-main-menu-mnemonics
 
-(when (not (provided? 'gtk4))
+(unless (provided? 'gtk4)
   (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
 
 (provide 'snd-snd-gtk.scm)

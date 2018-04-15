@@ -1,6 +1,6 @@
 ;;; translation of new-effects.scm to gtk/xg
 
-(when (not (provided? 'gtk4))
+(unless (provided? 'gtk4)
   (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
 
 (provide 'snd-gtk-effects.scm)
@@ -1846,6 +1846,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 	    (map-channel e1f 0 len snd chn #f (format #f "effects-position-sound ~A '~A" mono-snd pos))))))
 
   
+#|
   (define* (effects-flange amount speed time beg dur snd chn)
     (let ((ri (make-rand-interp :frequency speed :amplitude amount))
 	  (del (let ((len (round (* time (srate snd)))))
@@ -1857,6 +1858,7 @@ http://www.bright.net/~dlphilp/linux_csound.html under Impulse Response Data."))
 				      (rand-interp ri)))))
 		   beg dur snd chn #f (format #f "effects-flange ~A ~A ~A ~A ~A"
 					      amount speed time beg (and (number? dur) (not (= dur (framples snd chn))) dur)))))
+|#
   
   (define (effects-cross-synthesis cross-snd amp fftsize r)
     ;; cross-snd is the index of the other sound (as opposed to the map-channel sound)

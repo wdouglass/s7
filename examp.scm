@@ -401,12 +401,12 @@
 
 (define read-ascii 
   (let ((+documentation+ "(read-ascii in-filename (out-filename \"test.snd\") (out-type mus-next) (out-format mus-bshort) (out-srate 44100)) tries to \
-read an ASCII sound file"))
+read an ASCII sound file")
+	(bufsize 8192)
+	(bufsize1 8191))
     (lambda* (in-filename (out-filename "test.snd") (out-type mus-next) (out-format mus-bshort) (out-srate 44100))
       (let ((in-fd (open-input-file in-filename))
-	    (out-fd (new-sound out-filename 1 out-srate out-format out-type (format #f "created by read-ascii: ~A" in-filename)))
-	    (bufsize 8192)
-	    (bufsize1 8191))
+	    (out-fd (new-sound out-filename 1 out-srate out-format out-type (format #f "created by read-ascii: ~A" in-filename))))
 	(as-one-edit
 	 (lambda ()
 	   (do ((data (make-float-vector bufsize))

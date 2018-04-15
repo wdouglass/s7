@@ -186,7 +186,6 @@
     (define loop-between-marks-buffer-size 512)
     (define loop-between-marks-label "Loop play between marks")
     (define loop-between-marks-dialog #f)
-    (define loop-between-marks-default-buffer-widget #f)
     (define loop-between-marks-menu-label #f)
     
     (define use-combo-box-for-buffer-size #f) ; radio-buttons or combo-box choice
@@ -272,7 +271,6 @@
 							 XmNitemCount           (length buffer-labels)
 							 XmNcomboBoxType        XmDROP_DOWN_COMBO_BOX
 							 XmNbackground          *basic-color*))))
-		(set! loop-between-marks-default-buffer-widget combo)
 		(for-each XmStringFree buffer-labels)
 		(XmStringFree s1)
 		(XtSetValues combo (list XmNselectedPosition 1))
@@ -316,12 +314,10 @@
 		(for-each
 		 
 		 (lambda (size)
-		   (let ((button (XtCreateManagedWidget (format #f "~D" size) xmToggleButtonWidgetClass rc
-							(list XmNbackground           *basic-color*
-							      XmNvalueChangedCallback (list (lambda (w c i) (if (.set i) (set! loop-between-marks-buffer-size c))) size)
-							      XmNset                  (= size loop-between-marks-buffer-size)))))
-		     (if (= size loop-between-marks-buffer-size)
-			 (set! loop-between-marks-default-buffer-widget button))))
+		   (XtCreateManagedWidget (format #f "~D" size) xmToggleButtonWidgetClass rc
+					  (list XmNbackground           *basic-color*
+						XmNvalueChangedCallback (list (lambda (w c i) (if (.set i) (set! loop-between-marks-buffer-size c))) size)
+						XmNset                  (= size loop-between-marks-buffer-size))))
 		 '(64 128 256 512 1024 2048 4096))
 		(XmStringFree s1)))))
       (activate-dialog loop-between-marks-dialog))

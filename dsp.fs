@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/30 04:52:13
-\ Changed: 17/12/02 03:19:40
+\ Changed: 18/04/14 17:17:37
 \
-\ @(#)dsp.fs	1.52 12/2/17
+\ @(#)dsp.fs	1.53 4/14/18
 
 \ src-duration			( en -- dur )
 \ src-fit-envelope		( e1 target-dur -- e2 )
@@ -2729,7 +2729,7 @@ previous
 		axis-y1 major-tick-len + { major-y0 }
 		3 snd-font { bark-label-font }
 		axis-x1 axis-x0 f- 0.45 f* axis-x0 f+ fround->s { label-pos }
-		snd chn channel-widgets car make-cairo { cro }
+		snd chn channel-widgets 17 list-ref { cro }
 		\ bark label/ticks
 		bark-tick-function 0= if
 			axis-x0 axis-x1 axis-y0 major-y0 minor-y0
@@ -2763,7 +2763,6 @@ previous
 		"erb" label-pos char-width 11 * + axis-y1 label-height +
 		    snd chn copy-context cro draw-string drop
 		old-foreground-color snd chn copy-context set-foreground-color
-		cro free-cairo drop
 	;
 
 	: choose-bark-ticks <{ snd chn button state x y axis -- f }>

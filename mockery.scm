@@ -51,7 +51,7 @@
 					   (begin
 					     ((obj 'local-set!) obj i val) 
 					     val)
-					   (error "unknown field: ~S" i)))
+					   (error 'out-of-range "unknown field: ~S" i)))
 		 
 		 'vector-ref         (lambda (obj i) 
 				       (if (mock-vector? obj)
@@ -62,7 +62,7 @@
 				       (if (and (integer? i)
 						(defined? 'value obj))
 					   (#_vector-ref (obj 'value) i)   ; the implicit case
-					   (error "unknown field: ~S" i)))
+					   (error 'out-of-range "unknown field: ~S" i)))
 		 'vector-length      (lambda (obj) (#_length (obj 'value)))
 		 'vector-append      (make-local-method #_vector-append)
 		 'reverse            (lambda (obj) (#_reverse (obj 'value)))
@@ -70,12 +70,11 @@
 				       (if (and (let? obj)
 						(defined? 'value obj))
 					   (#_sort! (obj 'value) f)
-					   (error "sort! mock-vector as sort-function: ~S?" f)))
+					   (error 'out-of-range "sort! mock-vector as sort-function: ~S?" f)))
 		 'make-iterator      (lambda (obj) (#_make-iterator (obj 'value)))
 		 'arity              (lambda (obj) (#_arity (obj 'value)))
 		 'object->string     (lambda args 
-				       (let ((obj (car args))
-					     (w (or (null? (cdr args)) (cadr args))))
+				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-vector*" "#<mock-vector-class>"))))
 		 'vector-dimensions  (lambda (obj) (#_vector-dimensions (obj 'value)))
 		 'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
@@ -202,8 +201,7 @@
 		 'fill!              (lambda (obj val)      (#_fill! (obj 'value) val))
 		 'reverse            (lambda (obj)          (#_reverse (obj 'value)))
 		 'object->string     (lambda args 
-				       (let ((obj (car args))
-					     (w (or (null? (cdr args)) (cadr args))))
+				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>"))))
 		 'arity              (lambda (obj)          (#_arity (obj 'value)))
 		 'copy               (lambda* (source dest . args)
@@ -283,8 +281,7 @@
 	  (inlet 'morally-equal?         (lambda (x y) (#_morally-equal? (x 'value) y))
 		 'reverse                (lambda (obj) (#_reverse (obj 'value)))
 		 'object->string         (lambda args 
-					   (let ((obj (car args))
-						 (w (or (null? (cdr args)) (cadr args))))
+					   (let ((w (or (null? (cdr args)) (cadr args))))
 					     (copy (if (eq? w :readable) "*mock-string*" "#<mock-string-class>"))))
 		 'arity                  (lambda (obj) (#_arity (obj 'value)))
 		 'make-iterator          (lambda (obj) (#_make-iterator (obj 'value)))
@@ -292,12 +289,12 @@
 					   (if (and (integer? i)
 						    (defined? 'value obj))
 					       (#_string-ref (obj 'value) i)           ; these are the implicit cases
-					       (error "unknown field: ~S" i)))
+					       (error 'out-of-range "unknown field: ~S" i)))
 		 'let-set-fallback       (lambda (obj i val) 
 					   (if (and (integer? i)
 						    (defined? 'value obj))
 					       (#_string-set! (obj 'value) i val)
-					       (error "unknown field: ~S" i)))
+					       (error 'out-of-range "unknown field: ~S" i)))
 		 'string-length          (lambda (obj) (#_length (obj 'value)))
 		 'string-append          (make-local-method #_string-append)
 		 'string-copy            (lambda (obj) (#_copy (obj 'value)))
@@ -466,8 +463,7 @@
 		 'char-ci>=?         (make-local-method #_char-ci>=?)
 		 'string             (make-local-method #_string)
 		 'object->string     (lambda args 
-				       (let ((obj (car args))
-					     (w (or (null? (cdr args)) (cadr args))))
+				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-char*" "#<mock-char-class>"))))
 		 'arity              (lambda (obj) (#_arity (obj 'value)))
 		 'append             (lambda args (error 'wrong-type-arg "append argument is a character"))
@@ -532,8 +528,7 @@
 	  (inlet 
 	   'morally-equal?   (lambda (x y) (#_morally-equal? (x 'value) y))
 	   'object->string   (lambda args 
-			       (let ((obj (car args))
-				     (w (or (null? (cdr args)) (cadr args))))
+			       (let ((w (or (null? (cdr args)) (cadr args))))
 				 (copy (if (eq? w :readable) "*mock-number*" "#<mock-number-class>"))))
 	   'arity            (lambda (obj) (#_arity (obj 'value)))
 	   'real-part        (lambda (obj) (#_real-part (obj 'value)))
@@ -829,8 +824,7 @@
 		 'pair-line-number (lambda (obj) (#_pair-line-number (obj 'value)))
 		 'list->string     (lambda (obj) (#_list->string (obj 'value)))
 		 'object->string   (lambda args 
-				     (let ((obj (car args))
-					   (w (or (null? (cdr args)) (cadr args))))
+				     (let ((w (or (null? (cdr args)) (cadr args))))
 				       (copy (if (eq? w :readable) "*mock-pair*" "#<mock-pair-class>"))))
 		 'list?            (lambda (obj) (#_list? (obj 'value)))
 		 'car              (lambda (obj) (#_car (obj 'value)))
@@ -935,10 +929,10 @@
        (sublet (*mock-pair* 'mock-pair-class)
 	 'value (copy args)
 	 'object->string (lambda (obj . args)
-			   (format #f (if (null? args) "~S"
-					  (if (car args)
-					      (if (eq? (car args) :readable) "'~S" "~S")
-					      "~A"))
+			   (format #f (cond ((null? args) "~S")
+					    ((not (car args)) "~A")
+					    ((eq? (car args) :readable) "'~S")
+					    (else "~S"))
 				   (obj 'value))))))
     
     (set! mock-pair? (lambda (obj)
@@ -985,8 +979,7 @@
 (define *mock-symbol*
   (let ((mock-symbol-class
 	 (inlet 'object->string        (lambda args 
-					 (let ((obj (car args))
-					       (w (or (null? (cdr args)) (cadr args))))
+					 (let ((w (or (null? (cdr args)) (cadr args))))
 					   (copy (if (eq? w :readable) "*mock-symbol*" "#<mock-symbol-class>"))))
 		'morally-equal?        (lambda (x y) (#_morally-equal? (x 'value) y))
 		'gensym?               (lambda (obj) (#_gensym? (obj 'value)))
@@ -1049,8 +1042,7 @@
 		 'port-line-number    (lambda (obj) (#_port-line-number (obj 'value)))
 		 'port-filename       (lambda (obj) (#_port-filename (obj 'value)))
 		 'object->string      (lambda args 
-					(let ((obj (car args))
-					      (w (or (null? (cdr args)) (cadr args))))
+					(let ((w (or (null? (cdr args)) (cadr args))))
 					  (copy (if (eq? w :readable) "*mock-port*" "#<mock-port-class>"))))
 		 'format              (make-local-method #_format)
 		 
