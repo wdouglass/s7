@@ -1,8 +1,8 @@
 # extensions.rb -- various generally useful Snd extensions (see extensions.scm)
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-# Created: 04/01/03 17:30:23
-# Changed: 14/12/03 17:13:44
+# Created: 2004/01/03 17:30:23
+# Changed: 2018/04/15 22:50:30
 
 # module Compatibility
 #  scan_sound_chans(beg, end, snd, edpos) do |y| ... end
@@ -362,7 +362,9 @@ Writes sound data as (multichannel) file (for external program).")
     cursync = sync(cursnd)
     if cursync.zero? or syncd_sounds(cursync) == 1
       data = [snd_tempnam]
-      save_sound_as(data.first, selected_sound, :header_type, type, :sample_type, format,
+      save_sound_as(data.first, selected_sound,
+                    :header_type, type,
+                    :sample_type, format,
                     :edit_position, edpos)
       data
     else
@@ -393,8 +395,11 @@ Writes sound data as mono files (for external program).")
     if cursync.zero? or syncd_sounds(cursync) == 1
       make_array(channels(cursnd)) do |chn|
         outname = snd_tempnam
-        save_sound_as(outname, selected_sound, :header_type, type, :sample_type, format,
-                      :channel, chn, :edit_position, edpos)
+        save_sound_as(outname, selected_sound,
+                      :header_type, type,
+                      :sample_type, format,
+                      :channel, chn,
+                      :edit_position, edpos)
         outname
       end
     else
@@ -1127,10 +1132,9 @@ Deletes key-value pair.")
       if samp.between?(left_sample(snd, chn), right_sample(snd, chn))
         xpos = x2position(samp / srate(snd).to_f, snd, chn)
         ypos = y2position(sample(samp), snd, chn)
-        cr = make_cairo(channel_widgets(snd, chn)[0])
+        cr = channel_widgets(snd, chn)[17]
         draw_line(xpos, 35, xpos, ypos - 4, snd, chn, Copy_context, cr)
         draw_string(text, xpos - width / 2, 18, snd, chn, Copy_context, cr)
-        free_cairo(cr)
       end
     end
   end

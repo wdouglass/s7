@@ -2735,7 +2735,11 @@ pane-box (10)name-form"
 #endif
 	      Xen_cons(Xen_wrap_widget(FILTER_ENV(sp)), /* this is the (filter) drawing_area widget */
 	       Xen_cons(Xen_wrap_widget(UNITE_BUTTON(sp)),
+#if (GTK_CHECK_VERSION(3, 89, 0))
+	        Xen_cons(Xen_wrap_widget(sp->name_pix_cr),
+#else
 		Xen_cons(Xen_false,
+#endif
 	         Xen_cons(Xen_wrap_widget(NAME_PIX(sp)),
 		  Xen_cons(Xen_wrap_widget(PANE_BOX(sp)),
 		   Xen_cons(Xen_wrap_widget(NAME_HBOX(sp)),

@@ -1,8 +1,8 @@
 # draw.rb -- draw.scm --> draw.rb
 
 # Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
-# Created: 05/04/05 00:17:04
-# Changed: 14/11/13 03:06:52
+# Created: 2005/04/05 00:17:04
+# Changed: 2018/04/15 22:49:29
 
 # examples of extensions to Snd's graphics
 # 
@@ -32,7 +32,7 @@ whenever they're in the current view.")
     len = beg + dur
     old_color = foreground_color(snd, chn)
     if left < len and right > beg
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       if vct?(data = make_graph_data(snd, chn))
         samps = [right, len].min - [left, beg].max
         offset = [0, beg - left].max
@@ -59,7 +59,6 @@ whenever they're in the current view.")
                    snd, chn, Copy_context, left_bin, right_bin, Graph_lines, cr)
         set_foreground_color(old_color, snd, chn)
       end
-      free_cairo(cr)
     end
   end
 
@@ -105,7 +104,7 @@ with older versions gradually fading away.")
       rinc = (1.0 - r) / (edits + 1)
       ginc = (1.0 - g) / (edits + 1)
       binc = (1.0 - b) / (edits + 1)
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       re = 1.0 - rinc
       ge = 1.0 - ginc
       be = 1.0 - binc
@@ -120,7 +119,6 @@ with older versions gradually fading away.")
         be -= binc
       end
       set_foreground_color(old_color, snd, chn)
-      free_cairo(cr)
     end
   end
 
@@ -135,12 +133,11 @@ subsequent arguments: overlay_sounds(1, 0, 3)")
     end
     $after_graph_hook.add_hook!(get_func_name) do |snd, chn|
       if snd == base
-        cr = make_cairo(channel_widgets(snd, chn)[0])
+        cr = channel_widgets(snd, chn)[17]
         rest.each do |s|
           graph_data(make_graph_data(s, chn),
                      base, chn, Copy_context, false, false, Graph_dots, cr)
         end
-        free_cairo(cr)
       end
     end
   end
@@ -153,7 +150,7 @@ colormap (just an example of colormap_ref).")
     left = left_sample(snd, chn)
     old_color = foreground_color(snd, chn)
     if data = make_graph_data(snd, chn)
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       if vct?(data)
         data = [data]
       end
@@ -176,7 +173,6 @@ colormap (just an example of colormap_ref).")
           j += 1
         end
       end
-      free_cairo(cr)
       set_foreground_color(old_color, snd, chn)
     end
   end

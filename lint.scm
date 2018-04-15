@@ -1865,7 +1865,8 @@
 	    ((iterator?)         (memq type2 '(dilambda? procedure? sequence?)))
 	    ((string?)           (memq type2 '(byte-vector? sequence? directory? file-exists?)))
 	    ((output-port?)      (eq? type2 'boolean?))
-	    ((hash-table? let? c-object?) 
+	    ((let?)              (memq type2 '(defined? sequence?)))
+	    ((hash-table? c-object?) 
 	     (eq? type2 'sequence?))
 	    ((byte-vector? directory? file-exists?) 
 	     (memq type2 '(string? sequence?)))
@@ -1951,8 +1952,6 @@
     (define (side-effect-with-vars? form env vars)
       ;; could evaluation of form have any side effects (like IO etc)
       ;;   vars is not null only in get-side-effect which is checking a function (in var-side-effect)
-      ;(format *stderr* "form: ~A~%" form)
-
       (if (or (not (proper-list? form))                   ; we don't want dotted lists or () here
 	      (null? form))
 
@@ -2789,7 +2788,6 @@
 			  (len>1? (car b)))
 		     (let ((func (caar b))
 			   (args (cdar b)))
-		       
 		       (if (and (memq func '(eq? eqv? equal?))
 				(len>1? args))
 			   (if (and (symbol? (car args))
@@ -3687,7 +3685,7 @@
 	  ;; (or (and A B) (and C B)) -> (and (or A C) B)
 	  ;; (and (or A B) (or A C)) -> (or A (and B C))
 	  ;; (and (or A B) (or C B)) -> (or (and A C) B)
-	  
+
 	  (case (car form)
 	    ;; --------------------------------
 	    ((not)
@@ -4665,7 +4663,7 @@
 				(cons '+ val)))))))))
 	      (hash-table-set! h '+ num+)
 
-	      (define (dumb+ args form env) (if (var-member (car form) env) form (num+ (undumb args) form env))) ; not (undone form) because num+ ignores that arg
+	      (define (dumb+ args form env) (if (var-member (car form) env) form (num+ (undumb args) #f env))) ; not (undone form) because num+ ignores arg2
 	      (for-each (lambda (f) (hash-table-set! h f dumb+)) '(fix:+ fx+ flo:+ fl+ bignum+)))
 	    
 	    (let ()
@@ -13230,7 +13228,11 @@
 			(or (constant-expression? vvalue env)
 			    (and (pair? vvalue)
 				 (memq (car vvalue) '(list vector float-vector int-vector byte-vector))
-				 (not (lint-any? (lambda (x) (and (pair? x) (not (eq? (car x) 'quote)))) (cdr vvalue)))))
+				 (not (lint-any? (lambda (x) 
+						   (or (and (pair? x)
+							    (not (eq? (car x) 'quote)))
+						       (symbol? x))) ; (list 1 x 2)
+						 (cdr vvalue)))))
 			(not (lint-any? (lambda (p)
 					  (and (pair? p)
 					       (or (memq (car p) '(vector-set! float-vector-set! int-vector-set! 

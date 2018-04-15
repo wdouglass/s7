@@ -1342,10 +1342,14 @@ static Xen g_channel_widgets(Xen snd, Xen chn)
 		       Xen_cons(Xen_wrap_adj(zy_adj(cp)),
 		        Xen_cons(Xen_wrap_adj(gsy_adj(cp)),
 			 Xen_cons(Xen_wrap_adj(gzy_adj(cp)),
-#if ((GTK_CHECK_VERSION(3, 89, 0)) && HAVE_SCHEME)
+#if (GTK_CHECK_VERSION(3, 89, 0))
+#if HAVE_SCHEME
 			  Xen_cons(s7_make_c_pointer_with_type(s7, (void *)(cp->graph_cr), s7_make_symbol(s7, "cairo_t_"), Xen_false),
 #else
-		          Xen_cons(Xen_false,
+		          Xen_cons(Xen_wrap_widget(cp->graph_cr),
+#endif
+#else
+			  Xen_cons(Xen_false,
 #endif
                            Xen_empty_list)))))))))))))))))));
 }

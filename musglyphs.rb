@@ -1,8 +1,8 @@
 # musglyphs.rb -- musglyphs.scm and cmn-glyphs.lisp --> musglyphs.rb
 
 # Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
-# Created: Wed Apr 06 00:47:44 CEST 2005
-# Changed: Sat Mar 12 01:47:25 CET 2011
+# Created: 2005/04/06 00:47:44
+# Changed: 2018/04/15 22:56:24
 
 # Commentary:
 #
@@ -178,9 +178,8 @@ module Musglyphs
 
     def draw
       unless @pathlist.empty?
-        cr = make_cairo(channel_widgets(@snd, @chn)[0])
+        cr = channel_widgets(@snd, @chn)[17]
         draw_lines(@pathlist.flatten.compact, @snd, @chn, @ax, cr)
-        free_cairo(cr)
       end
       @pathlist.clear
       self
@@ -188,9 +187,8 @@ module Musglyphs
 
     def fill_in
       unless @pathlist.empty?
-        cr = make_cairo(channel_widgets(@snd, @chn)[0])
+        cr = channel_widgets(@snd, @chn)[17]
         fill_polygon(@pathlist.flatten.compact, @snd, @chn, @ax, cr)
-        free_cairo(cr)
       end
       @pathlist.clear
       self
@@ -205,9 +203,8 @@ module Musglyphs
     end
     
     def circle(x0, y0, rad)
-      cr = make_cairo(channel_widgets(@snd, @chn)[0])
-      draw_dot(to_x(x0), to_y(y0), (@size * rad * 2.0).floor, @snd, @chn, @ax, cr)
-      free_cairo(cr)
+      cr = channel_widgets(@snd, @chn)[17]
+      draw_dot(to_x(x0), to_y(y0), (@size * rad * 2).floor, @snd, @chn, @ax, cr)
       self
     end
 

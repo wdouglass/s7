@@ -1156,10 +1156,10 @@
 						    (unless (char=? (str pos) #\tab)
 						      (set! max-cols (max max-cols (- pos start)))
 						      (set! start pos)))
-						  (if (< (+ old-pos 1) (length str))
-						      (if (zero? old-pos)
-							  (set! cur-line (copy str))
-							  (set! cur-line (string-append cur-line (substring str (+ old-pos 1))))))
+						  (when (< (+ old-pos 1) (length str))
+						    (set! cur-line (if (zero? old-pos)
+								       (copy str)
+								       (string-append cur-line (substring str (+ old-pos 1))))))
 						  
 						  ;; if the line is too long, the cursor gets confused, so try to reformat long strings
 						  ;;    this still messes up sometimes

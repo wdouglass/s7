@@ -2177,18 +2177,17 @@ is assumed to be outside -1.0 to 1.0."))
 	     (j (- n 1) (- j 1)))
 	    ((= i m))
 	  (set! (reg i) (data j)))
-	(do ((j 0 (+ j 1)))
+	(do ((j 0 (+ j 1))
+	     (sum (dot-product coeffs reg m) (dot-product coeffs reg m)))
 	    ((= j nf) future)
-	  (let ((sum (dot-product coeffs reg m)))
-	    (do ((k (- m 1) (- k 1)))
-		((= k 0))
-	      (set! (reg k) (reg (- k 1))))
-	    
-	    ;; added this block
-	    (if clipped
-		(set! sum (if (> sum 0.0) (max sum 1.0) (min sum -1.0))))
-	    (set! (reg 0) sum)
-	    (set! (future j) sum)))))))
+	  (do ((k (- m 1) (- k 1)))
+	      ((= k 0))
+	    (set! (reg k) (reg (- k 1))))
+	  ;; added this block
+	  (if clipped
+	      (set! sum (if (> sum 0.0) (max sum 1.0) (min sum -1.0))))
+	  (set! (reg 0) sum)
+	  (set! (future j) sum))))))
 
 
 ;;; -------- unclip-channel

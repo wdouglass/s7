@@ -1417,7 +1417,6 @@ Move the sliders to set the filter cutoff frequency and resonance."))
     
     (let* ((post-src-timevar-dialog
 	    (let ((src-timevar-scale 1.0)
-		  (src-timevar-label "Src-Timevar")
 		  (src-timevar-dialog #f)
 		  (src-timevar-target 'sound)
 		  (src-timevar-envelope #f))
@@ -1431,7 +1430,8 @@ Move the sliders to set the filter cutoff frequency and resonance."))
 		    (activate-dialog src-timevar-dialog)
 		    ;; if src-timevar-dialog doesn't exist, create it
 		    (let ((sliders ()))
-		      (let ((initial-src-timevar-scale 1.0))
+		      (let ((initial-src-timevar-scale 1.0)
+			    (src-timevar-label "Src-Timevar"))
 			(set! src-timevar-dialog
 			      (make-effect-dialog 
 			       src-timevar-label
@@ -1521,8 +1521,7 @@ Move the sliders to set the filter cutoff frequency and resonance."))
     
     (let* ((am-effect-amount 100.0)
 	   (post-am-effect-dialog
-	    (let ((am-effect-label "Amplitude modulation")
-		  (am-effect-envelope #f)
+	    (let ((am-effect-envelope #f)
 		  (am-effect-target 'sound)
 		  (am-effect-dialog #f))
 	      (define am-effect
@@ -1540,7 +1539,8 @@ Move the sliders to set the filter cutoff frequency and resonance."))
 		    (activate-dialog am-effect-dialog)
 		    ;; if am-effect-dialog doesn't exist, create it
 		    (let ((sliders ()))
-		      (let ((initial-am-effect-amount 100.0))
+		      (let ((am-effect-label "Amplitude modulation")
+			    (initial-am-effect-amount 100.0))
 			(set! am-effect-dialog
 			      (make-effect-dialog 
 			       am-effect-label
@@ -1613,8 +1613,7 @@ Move the sliders to set the filter cutoff frequency and resonance."))
     (let ((rm-frequency 100)
 	  (rm-radians 100))
       (let* ((post-rm-dialog
-	      (let ((rm-label "Ring modulation")
-		    (rm-target 'sound)
+	      (let ((rm-target 'sound)
 		    (rm-envelope #f)
 		    (rm-dialog #f))
 		(define rm-effect ; avoid collision with examp.scm
@@ -1633,7 +1632,8 @@ Move the sliders to set the filter cutoff frequency and resonance."))
 		      ;; if rm-dialog doesn't exist, create it
 		      (let ((initial-rm-frequency 100)
 			    (sliders ()))
-			(let ((initial-rm-radians 100))
+			(let ((initial-rm-radians 100)
+			      (rm-label "Ring modulation"))
 			  (set! rm-dialog
 				(make-effect-dialog 
 				 rm-label

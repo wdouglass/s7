@@ -2662,8 +2662,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if USE_MOTIF
   void Init_libxm(void);
 #else
-  /* void Init_libxg(void); */
-  /* replacement for now: make xg, then (load "xg.so" (sublet (curlet) (cons 'init_func 'Init_libxg))) */
+  void Init_libxg(void);
 #endif
 #if HAVE_GL
  void Init_libgl(void);
@@ -3077,8 +3076,10 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
     libgtk_s7_init(s7);
     s7_set_curlet(s7, old_curlet);
   }
+  #else
+    Init_libxg();
   #endif
-  #if HAVE_FORTH && (0)
+  #if HAVE_FORTH
     fth_add_loaded_files("libxg.so");
   #endif
 #endif

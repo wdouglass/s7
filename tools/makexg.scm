@@ -2007,15 +2007,9 @@
 		   (hey "Xen_call_with_~A_arg~A(~A((Xen)func_info),~%"
 			(if (null? args) "no" (length args))
 			(if (and (pair? args) (null? (cdr args))) "" "s")
-			(case fname 
-			  ;((GtkClipboardClearFunc) "Xen_caddr")
-			  ((GtkDestroyNotify)      "Xen_cadddr")
-			  (else                    "Xen_car")))
+			(if (eq? fname 'GtkDestroyNotify) "Xen_cadddr" "Xen_car"))
 		   (hay "s7_call(cbsc, ~%    ~A((s7_pointer)func_info), ~A~%" ; bugfix thanks to Martin Hayman
-			(case fname 
-			  ;((GtkClipboardClearFunc) "s7_caddr")
-			  ((GtkDestroyNotify)      "s7_cadddr")
-			  (else                    "s7_car"))
+			(if (eq? fname 'GtkDestroyNotify) "s7_cadddr" "s7_car")
 			(if (null? args) "s7_nil(cbsc" (format #f "~%           s7_list(cbsc, ~D," (length args))))
 		   (let ((ctr 1)
 			 (argnum (length args)))
@@ -2566,21 +2560,19 @@
 			       (hay "&~A" (deref-name arg)))
 			     (begin
 			       (hey-on "Xen_to_C_~A(~A)" (no-stars argtype) argname)
-			       (cond ((equal? argtype "char*")
+			       (cond ((string=? argtype "char*")
 				      (hay "(char*)~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname))
-				     ((equal? argtype "lambda_data")
+				     ((string=? argtype "lambda_data")
 				      (hay "(gpointer)lg_ptr"))
-				     ((equal? argtype "GDestroyNotify")
+				     ((member argtype '("GDestroyNotify" "GClosureNotify") string=?)
 				      (hay "NULL"))
-				     ((equal? argtype "GClosureNotify")
-				      (hay "NULL"))
-				     ((equal? argtype "GCallback")
+				     ((string=? argtype "GCallback")
 				      (hay "((s7_is_aritable(sc, ~A, 4)) ? (GCallback)lg_func4 : ((s7_is_aritable(sc, ~A, 3)) ? (GCallback)lg_func3 : (GCallback)lg_func2))" 
 					   argname argname))
 				     ((assq (string->symbol argtype) callbacks) ; call the function wrapper
 				      => (lambda (callback)
 					   (hay (string-append "lg_" (caddr callback)))))
-				     ((equal? argtype "GClosure*")
+				     ((string=? argtype "GClosure*")
 				      (hay "(~A == lg_false) ? NULL : (GClosure*)s7_c_pointer(~A)" argname argname))
 				     (else 
 				      (unless (and (eq? spec 'const)

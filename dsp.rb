@@ -1,8 +1,8 @@
 # dsp.rb -- dsp.scm --> dsp.rb
 
 # Translator: Michael Scholz <mi-scholz@users.sourceforge.net>
-# Created: 05/03/07 13:50:44
-# Changed: 15/03/04 17:18:38
+# Created: 2005/03/07 13:50:44
+# Changed: 2018/04/15 22:52:00
 
 # comments are taken mostly from dsp.scm
 #
@@ -2555,7 +2555,7 @@ Performs sampling rate conversion using linear interpolation.")
       bark_label_font = snd_font(3)
       bark_numbers_font = snd_font(2)
       label_pos = (axis_x0 + 0.45 * (axis_x1 - axis_x0)).to_i
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       scale_position = lambda do |scale, f|
         b20 = scale.call(20.0)
         (axis_x0 +
@@ -2633,7 +2633,6 @@ Performs sampling rate conversion using linear interpolation.")
                   axis_y1 + label_height,
                   snd, chn, Copy_context, cr)
       set_foreground_color(old_foreground_color, snd, chn, Copy_context)
-      free_cairo(cr)
     end
     
     # mouse click = move to next scale's ticks

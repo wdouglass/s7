@@ -34472,9 +34472,6 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 	   *   but this is inconsistent with (append (list 1) "hi" "hi") -> '(1 #\h #\i . "hi") ?
 	   *   Perhaps if all args but last are lists, returned dotted list?
 	   */
-#if S7_DEBUGGING
-	  if (!np) fprintf(stderr, "%s[%d]: np is null\n", __func__, __LINE__);
-#endif
 	  if ((all_args_are_lists) || (is_null(p)))
 	    set_cdr(np, p);
 	  else 
@@ -43516,9 +43513,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       }
 
     default:
-#if S7_DEBUGGING
-      fprintf(stderr, "object->let: %s, type: %d\n", DISPLAY(obj), type(obj));
-#endif
       return(sc->F);
     }
 
@@ -57018,11 +57012,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
     bool dotted = false;
 
     len = s7_list_length(sc, form);
-#if S7_DEBUGGING
-    if (len == 0)
-      fprintf(stderr, "quasiquote_1: cyclic?? %s\n", DISPLAY(form));
-#endif
-
     if (len < 0)
       {
 	len = -len;
@@ -84782,13 +84771,12 @@ int main(int argc, char **argv)
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   test other func cases in libgtk_s7, several more special funcs [GDestroyNotify commented out etc]
- *   make|free-cairo: xm-enved.fs, draw|dsp|extensions|musglyphs|snd-test|xm-enved.rb
+ *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   check/enhance type checks in libgtk_s7
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
- *
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
