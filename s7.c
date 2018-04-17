@@ -84765,7 +84765,8 @@ int main(int argc, char **argv)
  * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
  * -Wconversion...
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
- * for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
+ *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
+ *   repl now evals! -- just save the result
  * makefile.in for sndlib.so, s7test?
  *
  * for gtk 4:
@@ -84774,6 +84775,8 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   check/enhance type checks in libgtk_s7
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
+ *   test gtk4+ruby|forth
+ *     xg.c: idler_symbol never set, need C_to_Xen_GtkDrawingArea_|GtkStyleContext_
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?

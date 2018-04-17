@@ -905,7 +905,7 @@
 							(cons 'values args)
 							(car args)))
 						  (eval form (*repl* 'top-level-let)))))
-					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ,val) (rootlet))
+					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
 					    (format *stderr* "~S~%" val)))))))

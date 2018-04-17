@@ -1354,9 +1354,6 @@ static Xen g_channel_widgets(Xen snd, Xen chn)
                            Xen_empty_list)))))))))))))))))));
 }
 
-
-/* previous snd-gxen.c contents */
-
 static gint timed_eval(gpointer in_code)
 {
 #if HAVE_EXTENSION_LANGUAGE
