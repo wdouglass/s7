@@ -2648,7 +2648,7 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
   #endif
 #endif
 
-
+#if HAVE_EXTENSION_LANGUAGE
 #if HAVE_SCHEME
 #if USE_MOTIF
   void Init_libxm(s7_scheme *sc);
@@ -2658,14 +2658,17 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if HAVE_GL
  void Init_libgl(s7_scheme *sc);
 #endif
-#else
+#else /* not s7 */
 #if USE_MOTIF
   void Init_libxm(void);
 #else
+#if USE_GTK
   void Init_libxg(void);
+#endif
 #endif
 #if HAVE_GL
  void Init_libgl(void);
+#endif
 #endif
 #endif
 
@@ -3049,6 +3052,7 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   Xen_define_typed_procedure("snd-gl-context", g_snd_gl_context_w, 0, 0, 0, "GL Context", s7_make_signature(s7, 1, p));
 #endif
 
+#if HAVE_EXTENSION_LANGUAGE
 #if USE_MOTIF
 #if HAVE_SCHEME
   {
@@ -3062,9 +3066,9 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 #else
   Init_libxm();
 #endif
-  #if HAVE_FORTH
-    fth_add_loaded_files("libxm.so");
-  #endif
+#if HAVE_FORTH
+  fth_add_loaded_files("libxm.so");
+#endif
 #endif
 
 #if USE_GTK
@@ -3079,9 +3083,9 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   #else
     Init_libxg();
   #endif
-  #if HAVE_FORTH
-    fth_add_loaded_files("libxg.so");
-  #endif
+#if HAVE_FORTH
+  fth_add_loaded_files("libxg.so");
+#endif
 #endif
 
 #if HAVE_GL
@@ -3096,8 +3100,9 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   }
 #else
   Init_libgl();
-#endif
-#endif
+#endif /* s7 */
+#endif /* gl */
+#endif /* extension language */
 
 #if HAVE_ALSA
   Xen_provide_feature("alsa");

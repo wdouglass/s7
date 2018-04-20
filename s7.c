@@ -39494,7 +39494,7 @@ bool s7_is_c_object(s7_pointer p)
 static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_c_object "(c-object? obj) returns the c_object's type tag."
-  #define Q_is_c_object pl_bt
+  #define Q_is_c_object s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_boolean_symbol), sc->T)
 
   s7_pointer p;
   p = car(args);
@@ -83420,7 +83420,6 @@ s7_scheme *s7_init(void)
   sc->is_iterator_symbol =           defun("iterator?",	        is_iterator,		1, 0, false); symbol_type(sc->is_iterator_symbol) = T_ITERATOR;
   sc->is_macro_symbol =              defun("macro?",		is_macro,		1, 0, false);
   sc->is_c_pointer_symbol =          defun("c-pointer?",	is_c_pointer,		1, 1, false); symbol_type(sc->is_c_pointer_symbol) = T_C_POINTER;
-  sc->is_c_object_symbol =           defun("c-object?",	        is_c_object,		1, 0, false); symbol_type(sc->is_c_object_symbol) = T_C_OBJECT;
   sc->is_input_port_symbol =         defun("input-port?",	is_input_port,		1, 0, false); symbol_type(sc->is_input_port_symbol) = T_INPUT_PORT;
   sc->is_output_port_symbol =        defun("output-port?",	is_output_port,		1, 0, false); symbol_type(sc->is_output_port_symbol) = T_OUTPUT_PORT;
   sc->is_eof_object_symbol =         defun("eof-object?",	is_eof_object,		1, 0, false); symbol_type(sc->is_eof_object_symbol) = T_EOF_OBJECT;
@@ -83449,6 +83448,7 @@ s7_scheme *s7_init(void)
   sc->is_null_symbol =               defun("null?",		is_null,		1, 0, false); symbol_type(sc->is_null_symbol) = T_NIL;
   sc->is_undefined_symbol =          defun("undefined?",        is_undefined,           1, 0, false); symbol_type(sc->is_undefined_symbol) = T_UNDEFINED;
   sc->is_unspecified_symbol =        defun("unspecified?",      is_unspecified,         1, 0, false); symbol_type(sc->is_unspecified_symbol) = T_UNSPECIFIED;
+  sc->is_c_object_symbol =           defun("c-object?",	        is_c_object,		1, 0, false); 
 
   /* these are for signatures */
   sc->is_integer_or_real_at_end_symbol = s7_make_symbol(sc, "integer:real?");
@@ -84766,8 +84766,9 @@ int main(int argc, char **argv)
  * -Wconversion...
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
- *   repl now evals! -- just save the result
  * makefile.in for sndlib.so, s7test?
+ * add t771 to s7test as comment, make similar test for "" when reduction is possible
+ *   (check all args for eq? type1|type2 or something similar: always #t|#f etc)
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -84775,7 +84776,8 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   check/enhance type checks in libgtk_s7
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
- *   test gtk4+ruby|forth
+ *   test gtk4+ruby|forth, 
+ *     snd-test gtk3 gets text_entry->text_view complaints by test 18 if in context
  *     xg.c: idler_symbol never set, need C_to_Xen_GtkDrawingArea_|GtkStyleContext_
  *
  * lv2 (/usr/include/lv2.h)
@@ -84785,9 +84787,6 @@ int main(int argc, char **argv)
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  * libc needs many type checks
- *
- * 17.6:   16.004 23.416 33.340 49.597 | 16.932 23.716 34.392 49.287 : 246.684
- * 1-Apr:  15.997 23.214 33.056 48.992 | 16.249 23.517 33.733 48.283 : 243.041
  *
  * ------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3
