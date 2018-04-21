@@ -234,7 +234,7 @@
 		  '(symbol? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		    char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		    output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
-		    unspecified? immutable? constant? syntax? unspecified? undefined? tree-cyclic?))
+		    unspecified? immutable? constant? syntax? undefined? tree-cyclic?))
 		 h))
 
 	(booleans (let ((h (make-hash-table)))
@@ -245,7 +245,7 @@
 		     char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		     output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
 		     unspecified? exact? inexact? defined? provided? even? odd? char-whitespace? char-numeric? char-alphabetic?
-		     negative? positive? zero? syntax? unspecified? undefined? ; immutable? constant?
+		     negative? positive? zero? syntax? undefined? tree-cyclic? not openlet? ; immutable? constant?
 		     infinite? nan? char-upper-case? char-lower-case? directory? file-exists?))
 		  h))
 
@@ -815,9 +815,6 @@
     
     
     ;; -------- types --------
-
-    (denote (unspecified? x)
-      (eq? x #<unspecified>))
 
     (denote (quoted-pair? x)
       (and (pair? x)
@@ -1850,31 +1847,34 @@
 	    ((infinite? nan?)    (memq type2 '(real? number? complex? positive? negative? inexact? float?)))
 	    ((vector?)           (memq type2 '(float-vector? int-vector? sequence?)))
 	    ((float-vector? int-vector?) (memq type2 '(vector? sequence?)))
-	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? 
+	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? tree-cyclic? openlet?
 					       string? let? hash-table? iterator? procedure? directory? file-exists?))) ; procedure? for extended iterator
 	    ((symbol?)           (memq type2 '(gensym? keyword? defined? provided?)))
-	    ((constant?)         #t)
+	    ((string?)           (memq type2 '(byte-vector? sequence? directory? file-exists?)))
+	    ((not)               (eq? type2 'boolean?))
+	    ((boolean?)          (eq? type2 'not))
 	    ((keyword? gensym?)  (memq type2 '(symbol? defined? provided?)))
-	    ((provided?)         (memq type2 '(symbol? defined?)))
 	    ((defined?)          (memq type2 '(symbol? provided? keyword?)))
-	    ((list?)             (memq type2 '(null? pair? proper-list? sequence?)))
-	    ((proper-list?)      (memq type2 '(null? pair? list? sequence?)))
-	    ((pair? null?)       (memq type2 '(list? proper-list? sequence?)))
+	    ((list?)             (memq type2 '(null? pair? proper-list? sequence? tree-cyclic?)))
+	    ((proper-list?)      (memq type2 '(null? pair? list? sequence? tree-cyclic?)))
+	    ((pair?)             (memq type2 '(list? proper-list? sequence? tree-cyclic?)))
+	    ((null?)             (memq type2 '(list? proper-list? sequence?)))
 	    ((dilambda?)         (memq type2 '(procedure? macro? iterator?)))
 	    ((procedure?)        (memq type2 '(dilambda? iterator? macro? sequence? continuation?)))
 	    ((macro?)            (memq type2 '(dilambda? iterator? procedure?)))
 	    ((continuation?)     (eq? type2 'procedure?))
 	    ((iterator?)         (memq type2 '(dilambda? procedure? sequence?)))
-	    ((string?)           (memq type2 '(byte-vector? sequence? directory? file-exists?)))
 	    ((output-port?)      (eq? type2 'boolean?))
-	    ((let?)              (memq type2 '(defined? sequence?)))
+	    ((let?)              (memq type2 '(defined? sequence? openlet?)))
+	    ((openlet?)          (memq type2 '(let? c-pointer? macro? procedure? sequence?)))
 	    ((hash-table?)       (eq? type2 'sequence?))
 	    ((byte-vector?)      (memq type2 '(string? sequence?)))
-	    ((directory?)        (memq type2 '(string? sequence? file-exists?)))
-	    ((file-exists?)      (memq type2 '(string? sequence? directory?)))
 	    ((char? char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)
 	     (memq type2 '(char? char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)))
+	    ((tree-cyclic?)      (memq type2 '(list? pair? sequence?)))
 	    ((provided?)         (memq type2 '(defined? symbol?)))
+	    ((directory?)        (memq type2 '(string? sequence? file-exists?)))
+	    ((file-exists?)      (memq type2 '(string? sequence? directory?)))
 	    (else #f))))
     
     (define (any-compatible? type1 type2)
@@ -2887,110 +2887,130 @@
 		 (symbol? type2)
 		 (or (hash-table-ref booleans type1)
 		     (memq type1 '(= char=? string=?)))
-		 (hash-table-ref booleans type2)
 		 (if (eq? type1 type2)     ; (and (?) (not (?))) -> #f
 		     'contradictory
-		     (case type1
-		       ((pair?) 
-			(case type2
-			  ((list? sequence?) 'contradictory)
-			  ((proper-list?) #f)
-			  (else arg1)))
-		       
-		       ((null?) 
-			(if (memq type2 '(list? sequence? proper-list?))
-			    'contradictory
-			    arg1))
-		       
-		       ((list?) 
-			(case type2
-			  ((pair?) 'null?)
-			  ((null?) 'pair?)
-			  ((proper-list?) #f)
-			  ((sequence?) 'contradictory)
-			  (else arg1)))
-		       
-		       ((proper-list?) 
-			(case type2
-			  ((list? sequence?) 'contradictory)
-			  ((null?) #f)
-			  ((pair?) 'null?)
-			  (else arg1)))
-		       
-		       ((symbol?) 
-			(and (not (memq type2 '(keyword? gensym? defined? provided?))) 
-			     arg1))
-		       
-		       ((char=?)  
-			(if (eq? type2 'char?)
-			    'contradictory
-			    (and (or (char? (cadr arg1))
-				     (char? (caddr arg1)))
-				 (cons 'eqv? (cdr arg1))))) ; arg2 might be (not (eof-object?...))
-		       
-		       ((real?) 
-			(case type2
-			  ((rational? exact?)  (cons float? (cdr arg1)))
-			  ((inexact?)          (cons 'rational? (cdr arg1)))
-			  ((complex? number?)  'contradictory)
-			  ((negative? positive? even? odd? zero? integer? float? infinite? nan?) #f)
-			  (else arg1)))
-		       
-		       ((integer?) 
-			(case type2
-			  ((real? complex? number? rational? exact?) 'contradictory)
-			  ((float? inexact? infinite? nan?) arg1)
-			  (else #f)))
-		       
-		       ((rational?) 
-			(case type2
-			  ((real? complex? number? exact?) 'contradictory)
-			  ((float? inexact? infinite? nan?) arg1)
-			  (else #f)))
-		       
-		       ((complex? number?) 
-			(and (memq type2 '(complex? number?))
-			     'contradictory))
-		       
-		       ((float?) 
-			(case type2
-			  ((real? complex? number? inexact?) 'contradictory)
-			  ((rational? integer? exact?) arg1)
-			  (else #f)))
-		       
-		       ((exact?) 
-			(case type2
-			  ((rational?) 'contradictory)
-			  ((inexact? infinite? nan?) arg1)
-			  (else #f)))
-		       
-		       ((even? odd?) 
-			(case type2
-			  ((integer? exact? rational? real? number? complex?) 'contradictory)
-			  ((infinite? nan?) arg1)
-			  (else #f)))
-		       
-		       ((zero? negative? positive?) 
-			(and (memq type2 '(complex? number? real?))
-			     'contradictory))
-		       
-		       ((infinite? nan?) 
-			(case type2
-			  ((number? complex? inexact? real?) 'contradictory)
-			  ((integer? rational? exact? even? odd?) arg1)
-			  (else #f)))
-		       
-		       ((char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)
-			(and (eq? type2 'char?)
-			     'contradictory))
-		       
-		       ((directory? file-exists?)
-			(and (memq type2 '(string? sequence?))
-			     'contradictory))
-		       
-		       (else 
-			;; none of the rest happen
-			#f))))))
+		     (and (hash-table-ref booleans type2)
+			  (case type1
+			    ((pair?) 
+			     (case type2
+			       ((list? sequence?) 'contradictory)
+			       ((proper-list? tree-cyclic?) #f)
+			       (else arg1)))
+			    
+			    ((null?) 
+			     (if (memq type2 '(list? sequence? proper-list?))
+				 'contradictory
+				 arg1))
+			    
+			    ((list?) 
+			     (case type2
+			       ((pair?) 'null?)
+			       ((null?) 'pair?)
+			       ((proper-list? tree-cyclic?) #f)
+			       ((sequence?) 'contradictory)
+			       (else arg1)))
+			    
+			    ((proper-list?) 
+			     (case type2
+			       ((list? sequence?) 'contradictory)
+			       ((null?) #f)
+			       ((pair?) 'null?)
+			       (else arg1)))
+			    
+			    ((symbol?) 
+			     (and (not (memq type2 '(keyword? gensym? defined? provided?))) 
+				  arg1))
+			    
+			    ((keyword? gensym?)
+			     (and (eq? type2 'symbol?)
+				  'contradictory))
+			    
+			    ((char=?)  
+			     (if (eq? type2 'char?)
+				 'contradictory
+				 (and (or (char? (cadr arg1))
+					  (char? (caddr arg1)))
+				      (cons 'eqv? (cdr arg1))))) ; arg2 might be (not (eof-object?...))
+			    
+			    ((real?) 
+			     (case type2
+			       ((rational? exact?)  (cons float? (cdr arg1)))
+			       ((inexact?)          (cons 'rational? (cdr arg1)))
+			       ((complex? number?)  'contradictory)
+			       ((negative? positive? even? odd? zero? integer? float? infinite? nan?) #f)
+			       (else arg1)))
+			    
+			    ((integer?) 
+			     (case type2
+			       ((real? complex? number? rational? exact?) 'contradictory)
+			       ((float? inexact? infinite? nan?) arg1)
+			       (else #f)))
+			    
+			    ((rational?) 
+			     (case type2
+			       ((real? complex? number? exact?) 'contradictory)
+			       ((float? inexact? infinite? nan?) arg1)
+			       (else #f)))
+			    
+			    ((complex? number?) 
+			     (and (memq type2 '(complex? number?))
+				  'contradictory))
+			    
+			    ((float?) 
+			     (case type2
+			       ((real? complex? number? inexact?) 'contradictory)
+			       ((rational? integer? exact?) arg1)
+			       (else #f)))
+			    
+			    ((exact?) 
+			     (case type2
+			       ((rational?) 'contradictory)
+			       ((inexact? infinite? nan?) arg1)
+			       (else #f)))
+			    
+			    ((even? odd?) 
+			     (case type2
+			       ((integer? exact? rational? real? number? complex?) 'contradictory)
+			       ((infinite? nan?) arg1)
+			       (else #f)))
+			    
+			    ((zero? negative? positive?) 
+			     (and (memq type2 '(complex? number? real?))
+				  'contradictory))
+			    
+			    ((infinite? nan?) 
+			     (case type2
+			       ((number? complex? inexact? real?) 'contradictory)
+			       ((integer? rational? exact? even? odd?) arg1)
+			       (else #f)))
+			    
+			    ((float-vector? int-vector?)
+			     (and (memq type2 '(vector? sequence?))
+				  'contradictory))
+			    
+			    ((byte-vector?) 
+			     (and (memq type2 '(string? sequence?))
+				  'contradictory))
+			    
+			    ((string? let? hash-table? openlet? pair? vector?)
+			     (and (eq? type2 'sequence?)
+				  'contradictory))
+			    
+			    ((tree-cyclic?)
+			     (and (memq type2 '(sequence? list? pair?))
+				  'contradictory))
+			    
+			    ((char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)
+			     (and (eq? type2 'char?)
+				  'contradictory))
+			    
+			    ((directory? file-exists?)
+			     (and (memq type2 '(string? sequence?))
+				  'contradictory))
+			    
+			    (else 
+			     ;; none of the rest happen
+			     #f)))))))
 	
 	(define (or-not-redundant arg1 arg2)
 	  (let ((type1 (car arg1))    ; (? ...)
@@ -2999,23 +3019,23 @@
 		 (symbol? type2)
 		 (or (hash-table-ref bools type1)
 		     (memq type1 '(= char=? string=?)))
-		 (hash-table-ref bools type2)
 		 (if (eq? type1 type2)     ; (or (?) (not (?))) -> #t
 		     'fatuous
-		     (case type1
-		       ((null?) 
-			(case type2
-			  ((list?) ; not proper-list? here
-			   (list 'not (list 'pair? (cadr arg1))))
-			  ((proper-list? sequence? constant? immutable?) #f)
-			  (else arg2)))
-		       ((eof-object?)
-			(and (not (memq type2 '(constant? immutable?)))
-			     arg2))
-		       ((string?) 
-			(and (not (memq type2 '(byte-vector? constant? immutable? sequence?)))
-			     arg2))
-		       (else #f))))))
+		     (and (hash-table-ref bools type2)
+			  (case type1
+			    ((null?) 
+			     (case type2
+			       ((list?) ; not proper-list? here
+				(list 'not (list 'pair? (cadr arg1))))
+			       ((proper-list? sequence? constant? immutable?) #f)
+			       (else arg2)))
+			    ((eof-object?)
+			     (and (not (memq type2 '(constant? immutable?)))
+				  arg2))
+			    ((string?) 
+			     (and (not (memq type2 '(byte-vector? constant? immutable? sequence?)))
+				  arg2))
+			    (else #f)))))))
 	
 	(define (gather-or-eqf-elements eqfnc sym vals env)
 	  (let* ((func (case eqfnc 
@@ -3066,7 +3086,6 @@
 	(define (booleans-with-not? arg1 arg2 env)
 	  (and (eq? (car arg2) 'not)
 	       (len>1? (cadr arg2))
-	       (not (eq? (caadr arg2) 'let?))
 	       (or (equal? (cadr arg1) (cadadr arg2))
 		   (and (pair? (cddr arg1))
 			(equal? (caddr arg1) (cadadr arg2))))
@@ -3950,7 +3969,7 @@
 				 (if (or (equal? form `(or (and ,A (not ,B)) (and (not ,A) ,B)))
 					 (equal? form `(or (and (not ,A) ,B) (and ,A (not ,B)))))
 				     (return `(not (eq? (not ,A) (not ,B))))))))
-			   
+
 			   (when (and (pair? (cdr arg1))
 				      (pair? (cdr arg2))
 				      (not (eq? (car arg1) (car arg2))))
@@ -3961,6 +3980,7 @@
 				 (let ((temp arg1))
 				   (set! arg1 arg2)
 				   (set! arg2 temp)))
+
 			     (when (booleans-with-not? arg1 arg2 env)
 			       (let ((t2 (or-not-redundant arg1 arg2)))
 				 (when t2 

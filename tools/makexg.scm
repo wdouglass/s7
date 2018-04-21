@@ -65,7 +65,7 @@
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
 	"GtkCheckMenuItem*" ;"GtkClipboardTargetsReceivedFunc" 
-	"GtkCombo*" "GtkComboBox*" "GtkComboBoxEntry*" "GtkContainer*" "GtkCurve*" "GtkDialog*" "GtkDrawingArea*" "GtkEditable*"
+	"GtkCombo*" "GtkComboBox*" "GtkComboBoxEntry*" "GtkContainer*" "GtkCurve*" "GtkDialog*" "GtkEditable*" ;"GtkDrawingArea*" 
 	"GtkEventBox*" "GtkExpander*" "GtkFileChooser*" "GtkFileFilterFunc"
 	"GtkFileSelection*" "GtkFixed*" "GtkFontButton*" "GtkFontSelection*" "GtkFontSelectionDialog*" "GtkFrame*" "GtkGammaCurve*"
 	"GtkHandleBox*" "GtkIMContextSimple*" "GtkIMMulticontext*" "GtkIconLookupFlags" "GtkImage*" "GtkImageMenuItem*" "GtkInputDialog*"
@@ -132,7 +132,7 @@
 	"GtkContainerClass*" "GtkComboBoxText*" "GtkGrid*" "GtkScrollable*" "GtkSwitch*" 
 	"cairo_text_cluster_flags_t" "cairo_text_cluster_flags_t*" "cairo_rectangle_int_t*"
 
-	"GtkOverlay*" "cairo_pattern_t**" "GtkStyleProperties*" "GtkSymbolicColor*" "GtkWidgetPath*"
+	"GtkOverlay*" "cairo_pattern_t**" "GtkStyleProperties*" "GtkSymbolicColor*" ;"GtkWidgetPath*"
 	"GtkFontChooser*" "GtkFontChooserDialog*"
 	"GdkModifierIntent" "guint**" "GtkApplication*" "GVariant*" "GtkApplicationWindow*"
 	"GdkEventKey*" "GtkColorChooser*"
@@ -146,7 +146,8 @@
 	"GtkGestureDrag*" "GtkGesturePan*" "GtkGestureMultiPress*" "GtkGestureRotate*" "GtkGestureSingle*"
 	"GtkGestureSwipe*" "GtkGestureZoom*" "GtkGestureController*" "GtkEventController*"
 
-	"GtkGLArea*" "GtkStyleContext*" "GtkPopoverMenu*" "GtkSearchEntry*" "GtkStackSidebar*" 
+	"GtkGLArea*" ;"GtkStyleContext*" 
+	"GtkPopoverMenu*" "GtkSearchEntry*" "GtkStackSidebar*" 
 	"GtkShortcutsWindow*"
 	"GdkDevicePadFeature" "GtkPadActionType"
 
@@ -155,6 +156,7 @@
 	"GtkStyleContextPrintFlags"
 
 	"GObject*" "GdkKeymap*" "GdkDragContext*" "GdkEventMotion*"
+	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" "char**"
 	))
 
 (define no-xen-p 
@@ -180,6 +182,7 @@
 	"glong" "double" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
+	"GtkCssSection*"
 	))
 
 (define no-xen-to-c 
@@ -207,6 +210,7 @@
 	"glong" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
+	"GtkCssSection*" 
 	))
 
 (define (cadr-str data)
@@ -2824,7 +2828,8 @@
 (hay "static s7_pointer lg_gtk_init(s7_scheme *sc, s7_pointer args)~%")
 (hoy "{ ~%")
 (hoy "  gtk_init();~%")
-(hoy "  return(lg_false);~%")
+(hay "  return(lg_false);~%")
+(hey "  return(Xen_false);~%")
 (hoy "}~%")
 (hoy "#endif~%~%")
 

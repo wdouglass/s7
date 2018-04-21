@@ -84767,8 +84767,10 @@ int main(int argc, char **argv)
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
- * add t771 to s7test as comment, make similar test for "" when reduction is possible
+ * make t771-style test for "" when reduction is possible
  *   (check all args for eq? type1|type2 or something similar: always #t|#f etc)
+ * compatible: (when (bools type2) (memq type2 (or (bools type1) ()))) etc
+ * check_case doesn't notice repeated keys
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
