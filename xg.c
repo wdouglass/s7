@@ -441,7 +441,7 @@ Xm_type_Ptr(GdkPixbuf_, GdkPixbuf*)
 #define Xen_to_C_char_(Arg) (char*)(Xen_string_to_C_string(Arg))
 #define Xen_is_char_(Arg) Xen_is_string(Arg)
 Xm_type_1(GdkPixbufDestroyNotify, GdkPixbufDestroyNotify)
-Xm_type_Ptr_1(char__, char**)
+Xm_type_Ptr(char__, char**)
 #define C_to_Xen_guchar(Arg) C_int_to_Xen_integer(Arg)
 #define Xen_to_C_guchar(Arg) (guchar)(Xen_integer_to_C_int(Arg))
 #define Xen_is_guchar(Arg) Xen_is_integer(Arg)
@@ -47542,7 +47542,7 @@ void Init_libxg(void)
           Xen_provide_feature("gtk2");
         #endif
       #endif
-      Xen_define("xg-version", C_string_to_Xen_string("20-Apr-18"));
+      Xen_define("xg-version", C_string_to_Xen_string("22-Apr-18"));
       xg_already_inited = true;
 #if HAVE_SCHEME
 #if USE_SND
