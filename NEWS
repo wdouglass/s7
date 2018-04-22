@@ -1,12 +1,10 @@
-Snd 18.2:
+Snd 18.3
 
-s7: added +nan.0 and +inf.0 to be compatible with other schemes
-    +iterator+ now instead of iterator? for closure-as-iterator
-    deprecated the s7_ulong and s7_ulong_long functions.
+removed: new-backgrounds.scm, snd14.scm, old-number-tests.scm
+removed: make-cairo and free-cairo
+s7 added: c-pointer->list
+snd now compiles and runs (well, sort of) in gtk4.
 
-Marty Hayman got libgtk_s7.c to work in gtkex.c.
+checked: sbcl 1.4.6
 
-checked: sbcl 1.4.5 (in linux)
-
-Thanks!: Marty Hayman
-
+Thanks!: Jennifer Doering, Mike Scholz

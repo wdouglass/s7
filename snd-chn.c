@@ -4067,6 +4067,7 @@ static void display_channel_data_with_size(chan_info *cp,
 	    }
 	  if (!use_incoming_cr)
 #if (GTK_CHECK_VERSION(3, 89, 0))
+	    if (!cp->graph_cr) return;
 	    ss->cr = cp->graph_cr;
 #else
 	    ss->cr = make_cairo(our_ax->wn);
@@ -4179,6 +4180,7 @@ static void display_channel_data_with_size(chan_info *cp,
 #if USE_GTK
       if (!use_incoming_cr)
 #if (GTK_CHECK_VERSION(3, 89, 0))
+	if (!cp->graph_cr) return;
 	ss->cr = cp->graph_cr;
 #else
 	ss->cr = make_cairo(cp->ax->wn);
@@ -4293,6 +4295,7 @@ static void display_channel_data_with_size(chan_info *cp,
 	uap->ax = cp->ax;
       if (!use_incoming_cr)
 #if (GTK_CHECK_VERSION(3, 89, 0))
+	if (!cp->graph_cr) return;
 	ss->cr = cp->graph_cr;
 #else
 	ss->cr = make_cairo(uap->ax->wn);
@@ -4492,6 +4495,7 @@ static void draw_graph_cursor(chan_info *cp)
 #if USE_GTK
   if (!(ap->ax->wn)) return;
 #if (GTK_CHECK_VERSION(3, 89, 0))
+  if (!cp->graph_cr) return;
   ss->cr = cp->graph_cr;
 #else
   ss->cr = make_cairo(ap->ax->wn);
@@ -4537,6 +4541,7 @@ static void draw_sonogram_cursor_1(chan_info *cp)
     color_t old_color;
     fax = cp->ax; /* fap->ax does not work here?!? */
 #if (GTK_CHECK_VERSION(3, 89, 0))
+    if (!cp->graph_cr) return;
     ss->cr = cp->graph_cr;
 #else
     ss->cr = make_cairo(fax->wn);
@@ -4746,6 +4751,7 @@ void cursor_moveto_with_window(chan_info *cp, mus_long_t samp, mus_long_t left_s
 	{
 #if USE_GTK
 #if (GTK_CHECK_VERSION(3, 89, 0))
+	  if (!cp->graph_cr) return;
 	  ss->cr = cp->graph_cr;
 #else
 	  ss->cr = make_cairo(ap->ax->wn);

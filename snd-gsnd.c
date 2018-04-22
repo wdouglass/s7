@@ -871,10 +871,13 @@ static gboolean speed_release_callback(GtkWidget *w, GdkEventButton *ev, gpointe
 static void draw_speed_arrow(snd_info *sp)
 {
 #if GTK_CHECK_VERSION(3, 89, 0)
-  if (sp->speed_control_direction == 1)
-    cairo_set_source_surface(sp->speed_arrow_cr, speed_r, 0, 0);
-  else cairo_set_source_surface(sp->speed_arrow_cr, speed_l, 0, 0);
-  cairo_paint(sp->speed_arrow_cr);  
+  if (sp->speed_arrow_cr)
+    {
+      if (sp->speed_control_direction == 1)
+	cairo_set_source_surface(sp->speed_arrow_cr, speed_r, 0, 0);
+      else cairo_set_source_surface(sp->speed_arrow_cr, speed_l, 0, 0);
+      cairo_paint(sp->speed_arrow_cr);  
+    }
 #else
   if (sp->speed_control_direction == 1)
     draw_picture(sp->speed_arrow_ax, speed_r, 0, 0, 0, 0, 16, 16);

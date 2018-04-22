@@ -75,6 +75,7 @@ static void graph_redisplay(void)
   axis_ap->x1 = 1.0;
 
 #if (GTK_CHECK_VERSION(3, 89, 0))
+  if (!gcr) return;
   ss->cr = gcr;
 #else
   ss->cr = make_cairo(ax->wn);
