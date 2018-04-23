@@ -161,6 +161,7 @@ static void show_stop_sign(snd_info *sp)
 #if GTK_CHECK_VERSION(3, 89, 0)
   if (stop_sign)
     {
+      if (!(sp->stop_pix_cr)) return;
       cairo_set_source_surface(sp->stop_pix_cr, stop_sign, 0, 0);
       cairo_paint(sp->stop_pix_cr);
     }
@@ -182,6 +183,7 @@ static void show_bomb(snd_info *sp)
 {
   if (!has_widgets(sp)) return;
 #if GTK_CHECK_VERSION(3, 89, 0)
+  if (!(sp->name_pix_cr)) return;
   cairo_set_source_surface(sp->name_pix_cr, bomb, 0, 0);
   cairo_paint(sp->name_pix_cr);
 #else
@@ -260,6 +262,7 @@ static void show_happy_face(chan_info *cp)
 
 #if GTK_CHECK_VERSION(3, 89, 0)
   cr = cp->clock_pix_cr;
+  if (!cr) return;
 #else
   cr = make_cairo(sound_pix_wn(cp));
 #endif
@@ -325,6 +328,7 @@ static void hide_happy_face(chan_info *cp)
   cairo_t *cr;
 #if (GTK_CHECK_VERSION(3, 89, 0))
   cr = cp->clock_pix_cr;
+  if (!cr) return;
 #else
   cr = make_cairo(sound_pix_wn(cp));
 #endif
@@ -1295,6 +1299,7 @@ void display_filter_env(snd_info *sp)
   ax->gc = ss->fltenv_basic_gc;
 #if (GTK_CHECK_VERSION(3, 89, 0))
   ss->cr = sp->filter_drawer_cr;
+  if (!ss->cr) return;
 #else
   ss->cr = make_cairo(ax->wn);
 #endif

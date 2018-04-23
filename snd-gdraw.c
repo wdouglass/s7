@@ -74,6 +74,9 @@ void draw_points(graphics_context *ax, point_t *points, int num, int size)
 
 void fill_rectangle(graphics_context *ax, int x0, int y0, int width, int height)
 {
+#if GTK_CHECK_VERSION(3, 89, 0)
+  if (!ss->cr) return;
+#endif
   if (ss->bg_gradient < .01)
     {
       cairo_set_source_rgba(ss->cr, ax->gc->fg_color->red, ax->gc->fg_color->green, ax->gc->fg_color->blue, ax->gc->fg_color->alpha);

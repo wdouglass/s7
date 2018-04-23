@@ -4066,12 +4066,14 @@ static void display_channel_data_with_size(chan_info *cp,
 	      our_ax->wn = WIDGET_TO_WINDOW(our_ax->w);
 	    }
 	  if (!use_incoming_cr)
+	    {
 #if (GTK_CHECK_VERSION(3, 89, 0))
-	    if (!cp->graph_cr) return;
-	    ss->cr = cp->graph_cr;
+	      if (!cp->graph_cr) return;
+	      ss->cr = cp->graph_cr;
 #else
-	    ss->cr = make_cairo(our_ax->wn);
+	      ss->cr = make_cairo(our_ax->wn);
 #endif
+	    }
 	  cairo_push_group(ss->cr);
 #else	  
 	  our_ax = ap->ax;
@@ -4179,12 +4181,14 @@ static void display_channel_data_with_size(chan_info *cp,
     {
 #if USE_GTK
       if (!use_incoming_cr)
+	{
 #if (GTK_CHECK_VERSION(3, 89, 0))
-	if (!cp->graph_cr) return;
-	ss->cr = cp->graph_cr;
+	  if (!cp->graph_cr) return;
+	  ss->cr = cp->graph_cr;
 #else
-	ss->cr = make_cairo(cp->ax->wn);
+	  ss->cr = make_cairo(cp->ax->wn);
 #endif
+	}
       cairo_push_group(ss->cr);
 #endif
 
@@ -4294,12 +4298,14 @@ static void display_channel_data_with_size(chan_info *cp,
       if (!(uap->ax))
 	uap->ax = cp->ax;
       if (!use_incoming_cr)
+	{
 #if (GTK_CHECK_VERSION(3, 89, 0))
-	if (!cp->graph_cr) return;
-	ss->cr = cp->graph_cr;
+	  if (!cp->graph_cr) return;
+	  ss->cr = cp->graph_cr;
 #else
-	ss->cr = make_cairo(uap->ax->wn);
+	  ss->cr = make_cairo(uap->ax->wn);
 #endif
+	}
       cairo_push_group(ss->cr);
 #endif
       make_axes(cp, uap, /* defined in this file l 2293 */

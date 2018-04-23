@@ -9616,7 +9616,6 @@ you can also type shell commands just as in a shell:
 <em class="gray">/home/bil</em>
 &lt;3&gt; date
 <em class="gray">Wed 15-Apr-2015 17:32:24 PDT</em>
-"</em>
 </pre>
 
 <p>In most cases, these are handled through *unbound-variable-hook*, checked using "command -v", then passed
@@ -9646,14 +9645,14 @@ the current line number, and should set the prompt string and its length.
 To get a previous line without laboriously typing M-p over and over,
 simply type the line number (without control or meta bits), then M-.
 In some CL repls, the special variable '* holds the last value computed.
-In repl.scm, each value is retained in variables of the form '<n> where n
+In repl.scm, each value is retained in variables of the form '&lt;n&gt; where n
 is the number shown in the prompt.
 </p>
 
 <pre class="indented">
 &lt;1&gt; (+ 1 2)
 <em class="gray">3</em>
-&lt;2&gt; (* <1> 2)
+&lt;2&gt; (* &lt;1&gt; 2)
 <em class="gray">6</em>
 </pre>
 

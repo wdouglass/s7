@@ -156,7 +156,7 @@
 	"GtkStyleContextPrintFlags"
 
 	"GObject*" "GdkKeymap*" "GdkDragContext*" "GdkEventMotion*"
-	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" "char**"
+	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" ;"char**"
 	))
 
 (define no-xen-p 

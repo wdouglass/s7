@@ -9015,7 +9015,7 @@ static s7_pointer g_c_pointer_to_list(s7_scheme *sc, s7_pointer args)
   p = car(args);
   if (!is_c_pointer(p))
     method_or_bust(sc, p, sc->c_pointer_to_list_symbol, args, T_C_POINTER, 1);
-  return(s7_list(sc, 3, s7_make_integer(sc, (s7_int)raw_pointer(p)), raw_pointer_type(p), raw_pointer_info(p)));
+  return(s7_list(sc, 3, s7_make_integer(sc, (s7_int)((intptr_t)raw_pointer(p))), raw_pointer_type(p), raw_pointer_info(p)));
 }
 
 
@@ -84763,14 +84763,17 @@ int main(int argc, char **argv)
  *   see t752.scm for more examples
  *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
  * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
- * -Wconversion...
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
- * make t771-style test for "" when reduction is possible
- *   (check all args for eq? type1|type2 or something similar: always #t|#f etc)
  * compatible: (when (bools type2) (memq type2 (or (bools type1) ()))) etc
  * check_case doesn't notice repeated keys
+ * lint cases in s7test
+ *   ideally we'd annotate the tree to carry along assertions (string? x), (and (integer? x) (< x 0))... handled as local extensions of the local-x record
+ *   push noted-x on env with pointer to actual-x and note, so if we see (< x 0), and local note says x is a string, complain 
+ * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
+ *   or the same using the status area (or access to it from s7)
+ *   grepl.c example still uses xg with s7
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -84780,7 +84783,6 @@ int main(int argc, char **argv)
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   test gtk4+ruby|forth, 
  *     snd-test gtk3 gets text_entry->text_view complaints by test 18 if in context
- *     xg.c: idler_symbol never set, need C_to_Xen_GtkDrawingArea_|GtkStyleContext_
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
@@ -84790,8 +84792,8 @@ int main(int argc, char **argv)
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  * libc needs many type checks
  *
- * ------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3
+ * --------------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158
@@ -84812,5 +84814,5 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1
- * ------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------------------
  */

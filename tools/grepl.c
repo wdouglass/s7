@@ -270,10 +270,13 @@ int main(int argc, char **argv)
  *    gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl
  */
 
-/* (load "/home/bil/test/libxm/xg.so" (inlet 'init_func 'Init_libxg))
+/* old:
+ * (load "/home/bil/test/libxm/xg.so" (inlet 'init_func 'Init_libxg))
  *   previous: (gtk_window_resize (GTK_WINDOW (list 'GtkContainer_ grepl:shell)) 600 600)
  *   the list is for xg (ancient type checking kludge)
  * (gtk_window_resize (GTK_WINDOW grepl:shell) 600 600)
+ *
+ * new:
  * (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
  * (load "/home/bil/cl/libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
  * (glistener-set-font *g* "Monospace 14")
