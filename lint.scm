@@ -17396,15 +17396,17 @@
 					  caller (truncated-list->string clause))
 			     (for-each
 			      (lambda (key)
-				(if (or (vector? key)
-					(string? key)
-					(pair? key))
-				    ;; (case x ((#(0)) 2))
-				    (lint-format "case key ~S in ~S is unlikely to work (case uses eqv? but it is a ~A)" caller
-						 key clause
-						 (cond ((vector? key) 'vector)
-						       ((pair? key) 'pair)
-						       (else 'string))))
+				;; TODO: (or type1...) -> memq (type-of..)..
+				(if (and (number? key)
+					 (nan? key))
+				    (lint-format "case key ~S in ~S is unlikely to work" caller key clause)
+				    (if (or (and (sequence? key) 
+						 (not (null? key)))
+					    (memq (type-of key) '(procedure? macro? iterator? c-object? c-pointer? syntax? input-port? output-port? random-state?)))
+					;; (case x ((#(0)) 2)) or (apply case ...)
+					(lint-format "case key ~S in ~S is unlikely to work (case uses eqv? but ~S is a ~A)" caller
+						     key clause key
+						     (type-of key))))
 				(if (member key all-keys)
 				    ;; (case x ((0) 1) ((1) 2) ((3 0) 4))
 				    (lint-format "repeated case key ~S in ~S" caller key clause)

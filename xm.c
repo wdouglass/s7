@@ -1329,7 +1329,7 @@ static bool find_dropproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static void gxm_Drop_Callback(Widget w, XtPointer context, XtPointer info)
@@ -1361,7 +1361,7 @@ static bool find_dragproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static void gxm_Drag_Callback(Widget w, XtPointer context, XtPointer info)
@@ -1392,7 +1392,7 @@ static bool find_popupchild(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static void gxm_XtPopupChild(Widget w)
@@ -1421,7 +1421,7 @@ static bool find_searchproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static void gxm_XmSearchProc(Widget w, XmFileSelectionBoxCallbackStruct *info)
@@ -1451,7 +1451,7 @@ static bool find_qualifyproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static void gxm_XmQualifyProc(Widget w, XtPointer indata, XtPointer outdata)
@@ -1482,7 +1482,7 @@ static bool find_orderproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_Widget(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static Cardinal gxm_XtOrderProc(Widget w)
@@ -1513,7 +1513,7 @@ static bool find_parseproc(Xen val, int loc, unsigned long w)
 	 (((Xen_is_false((Xen)w)) && 
 	   (Xen_is_false(Xen_list_ref(val, CALLBACK_DATA)))) ||
 	  ((Xen_is_XmParseMapping(Xen_list_ref(val, CALLBACK_DATA))) &&
-	   (Xen_ulong_to_C_ulong(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
+	   ((unsigned long)Xen_unwrap_C_pointer(Xen_cadr(Xen_list_ref(val, CALLBACK_DATA))) == w))));
 }
 
 static XmIncludeStatus gxm_Parse_Callback(XtPointer *in_out, XtPointer text_end, XmTextType type, XmStringTag locale_tag,

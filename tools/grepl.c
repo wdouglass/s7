@@ -34,6 +34,11 @@ static s7_pointer g_glistener_text_buffer(s7_scheme *sc, s7_pointer args)
   return(s7_make_c_pointer_with_type(sc, glistener_text_buffer(unwrap_glistener(s7_car(args))), s7_make_symbol(sc, "GtkTextBuffer*"), s7_f(sc)));
 }
 
+static s7_pointer g_glistener_status_widget(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_c_pointer_with_type(sc, glistener_status_widget(unwrap_glistener(s7_car(args))), s7_make_symbol(sc, "GtkWidget*"), s7_f(sc)));
+}
+
 
 static s7_pointer g_evaluate(s7_scheme *sc, s7_pointer args)
 {
@@ -127,6 +132,7 @@ static void glistener_init(glistener *g1)
 {
   s7_define_function(s7, "glistener-text-widget", g_glistener_text_widget, 1, 0, false, "(glistener-text-widget g)");
   s7_define_function(s7, "glistener-text-buffer", g_glistener_text_buffer, 1, 0, false, "(glistener-text-buffer g)");
+  s7_define_function(s7, "glistener-status-widget", g_glistener_status_widget, 1, 0, false, "(glistener-status-widget g)");
   s7_define_function(s7, "glistener-set-font", g_glistener_set_font, 2, 0, false, "(glistener-set-font g font)");
   s7_define_function(s7, "append-text", g_append_text, 2, 0, false, "(append-text g txt)");
   s7_define_function(s7, "insert-text", g_insert_text, 2, 0, false, "(insert-text g txt)");
@@ -271,12 +277,6 @@ int main(int argc, char **argv)
  */
 
 /* old:
- * (load "/home/bil/test/libxm/xg.so" (inlet 'init_func 'Init_libxg))
- *   previous: (gtk_window_resize (GTK_WINDOW (list 'GtkContainer_ grepl:shell)) 600 600)
- *   the list is for xg (ancient type checking kludge)
- * (gtk_window_resize (GTK_WINDOW grepl:shell) 600 600)
- *
- * new:
  * (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
  * (load "/home/bil/cl/libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
  * (glistener-set-font *g* "Monospace 14")
@@ -284,4 +284,5 @@ int main(int argc, char **argv)
  * gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
  * gcc libgtk_s7.o -shared -o libgtk_s7.so
  * (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init)))
+ * (gtk_window_resize (GTK_WINDOW grepl:shell) 600 600)
  */

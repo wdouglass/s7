@@ -597,7 +597,7 @@ static bool is_prompt_end(glistener *g, int end_pos)
 
 GtkWidget *glistener_text_widget(glistener *g) {return(g->text);}
 GtkTextBuffer *glistener_text_buffer(glistener *g) {return(g->buffer);}
-
+GtkWidget *glistener_status_widget(glistener *g) {return(g->status);}
 
 static void remember_listener_string(glistener *g, const char *str)
 {

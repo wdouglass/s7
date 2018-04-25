@@ -40569,10 +40569,7 @@ bool s7_is_eqv(s7_pointer a, s7_pointer b)
     return(false);
 
   if ((a == b) && (!is_number(a)))                   /* if a is NaN, a == b doesn't mean (eqv? a b) */
-    return(true);
-
-  if (is_string(a))
-    return(string_value(a) == string_value(b));
+    return(true);                                    /* a == b means (let ((x "a")) (let ((y x)) (eqv? x y))) is #t */
 
   if (s7_is_number(a))
     return(numbers_are_eqv(a, b));
@@ -63263,6 +63260,7 @@ static void check_lambda_star(s7_scheme *sc)
 
 static s7_pointer check_case(s7_scheme *sc)
 {
+  /* we're not checking repeated or ridiculous (non-eqv?) keys here because they aren't errors */
   bool keys_simple = true, has_feed_to = false, keys_single = true, bodies_simple = true;
   int32_t key_type = T_FREE;
   s7_pointer x;
@@ -84767,13 +84765,10 @@ int main(int argc, char **argv)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
  * compatible: (when (bools type2) (memq type2 (or (bools type1) ()))) etc
- * check_case doesn't notice repeated keys
  * lint cases in s7test
- *   ideally we'd annotate the tree to carry along assertions (string? x), (and (integer? x) (< x 0))... handled as local extensions of the local-x record
- *   push noted-x on env with pointer to actual-x and note, so if we see (< x 0), and local note says x is a string, complain 
+ *   ideally we'd annotate the tree to carry along assertions (string? x), (and (integer? x) (< x 0)) etc
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
- *   or the same using the status area (or access to it from s7)
- *   grepl.c example still uses xg with s7
+ *   or the same using the status area
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area

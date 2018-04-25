@@ -13,6 +13,7 @@
 (if (not (hook-member show-disk-space after-open-hook))
     (hook-push after-open-hook show-disk-space))
 
+#|
 (let ((paint-all 
        (let ((wd (make-pixmap (cadr (main-widgets)) rough)))
 	 (lambda (widget)
@@ -37,6 +38,7 @@
   
   (if (not (hook-member hook-paint-all new-widget-hook))
       (hook-push new-widget-hook hook-paint-all)))
+|#
 
 (set! *mix-waveform-height* 32)
 

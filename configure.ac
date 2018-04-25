@@ -5,7 +5,7 @@
 #   gmp, mpfr, and mpc deliberately have none!
 
 
-AC_INIT(snd, 18.3, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-18.tar.gz)
+AC_INIT(snd, 18.4, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-18.tar.gz)
 
 AC_CONFIG_SRCDIR(snd.c)
 AC_CANONICAL_HOST # needed by case $host below
@@ -24,7 +24,7 @@ LOCAL_LANGUAGE="None"
 GRAPHICS_TOOLKIT="None"
 
 PACKAGE=Snd
-VERSION=18.3
+VERSION=18.4
 
 #--------------------------------------------------------------------------------
 # configuration options

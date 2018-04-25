@@ -369,7 +369,6 @@
 (define default-file-buffer-size *clm-file-buffer-size*)
 					;(set! *clm-file-buffer-size* default-file-buffer-size)
 
-
 ;;; ---------------- test 0: constants ----------------
 
 (define (snd_test_0)

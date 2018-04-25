@@ -6,12 +6,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <signal.h>
-#include <limits.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <sys/types.h>
 #include <stdbool.h>
 
@@ -88,6 +84,7 @@ char *glistener_complete           (glistener *g);
 
 GtkWidget *glistener_text_widget(glistener *g);
 GtkTextBuffer *glistener_text_buffer(glistener *g);
+GtkWidget *glistener_status_widget(glistener *g);
 
 
 /* -------------------------------------------------------------------------------- */
