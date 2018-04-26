@@ -547,8 +547,9 @@ void save_find_dialog_state(FILE *fd)
 {
   if (find_dialog_is_active())
     {
-      char *text;
-      text = sg_get_text(edit_find_text, 0, -1);
+      const char *text;
+      /* text = sg_get_text(edit_find_text, 0, -1); -- this is for text_view widgets, but edit_find_text is a gtk_entry */
+      text = gtk_entry_get_text(GTK_ENTRY(edit_find_text));
 #if HAVE_SCHEME
       if (text)
 	fprintf(fd, "(%s #t \"%s\")\n", S_find_dialog, text);
@@ -579,7 +580,7 @@ void save_find_dialog_state(FILE *fd)
 	  else fprintf(fd, "#t %s drop\n", S_find_dialog);
 	}
 #endif
-      if (text) g_free(text);
+      /* if (text) g_free(text); */
     }
 }
 

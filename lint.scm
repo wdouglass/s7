@@ -2891,11 +2891,9 @@
 		(type2 (caadr arg2))) ; (not (? ...))
 	    (and (symbol? type1)
 		 (symbol? type2)
-		 (or (hash-table-ref booleans type1)
-		     (memq type1 '(= char=? string=?)))
+		 (hash-table-ref booleans type1)
 		 (if (eq? type1 type2)     ; (and (?) (not (?))) -> #f
-		     (and (equal? (cdr arg1) (cdadr arg2))
-			  'contradictory)
+		     'contradictory
 		     (and (hash-table-ref booleans type2)
 			  (case type1
 			    ((pair?) 
@@ -3024,9 +3022,7 @@
 		(type2 (caadr arg2))) ; (not (? ...))
 	    (and (symbol? type1)
 		 (symbol? type2)
-		 (or (hash-table-ref bools type1)
-		     (and (memq type1 '(= char=? string=?))
-			  (equal? (cdr arg1) (cdadr arg2))))
+		 (hash-table-ref bools type1)
 		 (if (eq? type1 type2)     ; (or (?) (not (?))) -> #t
 		     'true
 		     (and (hash-table-ref bools type2)
@@ -3132,11 +3128,7 @@
 	(define (booleans-with-not? arg1 arg2 env)
 	  (and (eq? (car arg2) 'not)
 	       (len>1? (cadr arg2))
-	       (or (equal? (cadr arg1) (cadadr arg2))
-		   (and (pair? (cddr arg1))
-			(equal? (caddr arg1) (cadadr arg2))))
-	       (eq? (return-type (car arg1) env) 'boolean?)
-	       (eq? (return-type (caadr arg2) env) 'boolean?)))
+	       (equal? (cdr arg1) (cdadr arg2))))
 	
 	(define (collect-nots start end)
 	  (if (eq? (cdr start) end) ; just one not
@@ -3591,7 +3583,7 @@
 	    (let* ((e (car exprs))
 		   (val (classify e env))
 		   (old-form new-form))
-	      
+
 	      (if (and (pair? val)
 		       (memq (car val) '(and or not)))
 		  (set! val (classify (set! e (simplify-boolean val () false env)) env))
@@ -3655,7 +3647,7 @@
 	      ;;   protecting them:
 	      ;;       (and false-or-0 (display (list-ref lst false-or-0)) false-or-0)
 	      ;;   so I'll not try to optimize that case.  But (and x x) is optimizable.
-	      
+
 	      (cond ((eq? val #t)
 		     (if (null? (cdr exprs))     ; (and x y #t) should not remove the #t
 			 (if (or (and (pair? e)
@@ -3699,6 +3691,8 @@
 		     (set! new-form (cons (list 'pair? (cadr e)) new-form))
 		     (set! exprs (cdr exprs)))
 		    
+		    ;; redundant type check after something like list-ref never happens
+
 		    ((not (and (len>2? e)                   ; (and ... (or ... 123) ...) -> splice out or
 			       (pair? (cdr exprs))
 			       (eq? (car e) 'or)
@@ -4022,18 +4016,16 @@
 			     (when (subsumes? (car arg1) (car arg2))
 			       (return arg1))
 			     
-			     (if (eq? (car arg1) 'not)
-				 (let ((temp arg1))
-				   (set! arg1 arg2)
-				   (set! arg2 temp)))
-
-			     (when (booleans-with-not? arg1 arg2 env)
-			       (let ((t2 (or-not-redundant arg1 arg2)))
-				 (when t2 
-				   (if (eq? t2 'true)
-				       (return #t)
-				       (if (pair? t2)
-					   (return t2)))))))
+			     (let ((t2 (if (eq? (car arg1) 'not)
+					   (and (booleans-with-not? arg2 arg1 env)
+						(or-not-redundant arg2 arg1))
+					   (and (booleans-with-not? arg1 arg2 env)
+						(or-not-redundant arg1 arg2)))))
+			       (when t2 
+				 (if (eq? t2 'true)
+				     (return #t)
+				     (if (pair? t2)
+					 (return t2))))))
 			   
 			   ;; (or (if a c d) (if b c d)) -> (if (or a b) c d) never happens, sad to say
 			   ;;   or + if + if does happen but not in this easily optimized form
@@ -4252,16 +4244,21 @@
 
 			      ;; (and ... (not...))
 			      (unless (eq? (car arg1) (car arg2))
-				(if (eq? (car arg1) 'not)
-				    (let ((temp arg1))
-				      (set! arg1 arg2)
-				      (set! arg2 temp)))
-				(when (booleans-with-not? arg1 arg2 env)
-				  (let ((t2 (and-not-redundant arg1 arg2)))
-				    (cond ;((not t2) #f)
-				     ((eq? t2 'contradictory) (return #f))
-				     ((symbol? t2)            (return (cons t2 (cdr arg1))))
-				     ((pair? t2)	      (return t2))))))
+				(let ((t2 (if (eq? (car arg1) 'not)
+					      (and (booleans-with-not? arg2 arg1 env)
+						   (and-not-redundant arg2 arg1))
+					      (and (booleans-with-not? arg1 arg2 env)
+						   (and-not-redundant arg1 arg2)))))
+				  (cond
+				   ((eq? t2 'contradictory) (return #f))
+				   ((symbol? t2)            (return (cons t2 (cdr (if (eq? (car arg1) 'not) arg2 arg1)))))
+				   ((pair? t2)	            (return t2))))
+				(when (and (eq? (car arg1) 'not)        ; (and (not (eof-object x)) (char=? x #\a)) -> (eqv? x #\a)
+					   (eq? (car arg2) 'char=?)
+					   (pair? (cadr arg1))
+					   (eq? (caadr arg1) 'eof-object?)
+					   (eq? (cadadr arg1) (cadr arg2)))
+				  (return (cons 'eqv? (cdr arg2)))))
 
 			      (if (hash-table-ref bools (car arg1))
 				  (let ((p (member (cadr arg1) (cdr arg2))))
@@ -6731,9 +6728,13 @@
 	    (if (and (pair? (cdr form))
 		     (pair? (cadr form)))
 		(if (eq? (caadr form) 'not)
-		    (if (len>1? (cadr form))
-			(let ((str (truncated-list->string (cadadr form)))) ; (not (not x)) -> (and x #t)
-			  (lint-format "if you want a boolean, (not (not ~A)) -> (and ~A #t)" 'paranoia str str)))
+		    (when (len>1? (cadr form))
+		      (let* ((arg (cadadr form))
+			     (str (truncated-list->string arg))) ; (not (not x)) -> (and x #t)
+			(if (and (pair? arg)                     ; (not (not (pair? x))) -> (pair? x)
+				 (eq? (return-type (car arg) env) 'boolean?))
+			    (lint-format "~A returns a boolean, so (not (not ~A)) -> ~A" 'paranoia (car arg) arg arg)
+			    (lint-format "if you want a boolean, (not (not ~A)) -> (and ~A #t)" 'paranoia str str))))
 		    (unless (eq? (caadr form) 'for-each)
 		      (let ((sig (arg-signature (caadr form) env)))
 			(if (and (pair? sig)
@@ -11400,20 +11401,20 @@
 				     vname (truncated-list->string (var-initial-value local-var)) (var-definer local-var))))
 		  
 		  ;; not ref'd or set
-		  (if (not (memq vname '(+documentation+ +signature+ +setter+ +iterator+ define-animal)))
-		      (let ((val (truncated-list->string
-				  (if (pair? (var-history local-var)) 
-				      (car (var-history local-var))
-				      (var-initial-value local-var))))
-			    (def (var-definer local-var)))
-			(let-temporarily ((line-number (if (eq? caller top-level:) -1 line-number)))
-			  ;; eval confuses this message (eval '(+ x 1)), no other use of x [perhaps check :let initial-value = outer-form]
-			  ;;    so does let-ref syntax: (apply (*e* 'g1)...) will miss this reference to g1
-			  (if (symbol? def)
-			      (if (eq? otype 'parameter)
-				  (lint-format "~A not used" caller vname)
-				  (lint-format "~A not used, initially: ~A from ~A" caller vname val def))
-			      (lint-format "~A not used, value: ~A" caller vname val)))))))))
+		  (unless (memq vname '(+documentation+ +signature+ +setter+ +iterator+ define-animal))
+		    (let ((val (truncated-list->string
+				(if (pair? (var-history local-var)) 
+				    (car (var-history local-var))
+				    (var-initial-value local-var))))
+			  (def (var-definer local-var)))
+		      (let-temporarily ((line-number (if (eq? caller top-level:) -1 line-number)))
+			;; eval confuses this message (eval '(+ x 1)), no other use of x [perhaps check :let initial-value = outer-form]
+			;;    so does let-ref syntax: (apply (*e* 'g1)...) will miss this reference to g1
+			(if (symbol? def)
+			    (if (eq? otype 'parameter)
+				(lint-format "~A not used" caller vname)
+				(lint-format "~A not used, initially: ~A from ~A" caller vname val def))
+			    (lint-format "~A not used, value: ~A" caller vname val)))))))))
 
 	;; -------- move local var inward
 	(define (move-var-inward caller local-var)
@@ -21970,12 +21971,6 @@
 	;; -------- lint-walk-pair --------
 	(lambda (caller form env)
 	  (let ((head (car form)))
-#|	    
-	    (if (and (pair? form)
-		     (memq (car form) '(vector-set! float-vector-set! int-vector-set!))
-		     (tree-set-memq '(vector-ref float-vector-ref int-vector-ref) form))
-		(format *stderr* "~S~%" form))
-|#	      
 	    (set! line-number (or (pair-line-number form) line-number))
 	    
 	    (if *report-repeated-code-fragments*

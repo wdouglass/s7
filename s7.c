@@ -84765,8 +84765,6 @@ int main(int argc, char **argv)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * makefile.in for sndlib.so, s7test?
  * compatible: (when (bools type2) (memq type2 (or (bools type1) ()))) etc
- * lint cases in s7test
- *   ideally we'd annotate the tree to carry along assertions (string? x), (and (integer? x) (< x 0)) etc
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
@@ -84774,10 +84772,7 @@ int main(int argc, char **argv)
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   test other func cases in libgtk_s7, several more special funcs [GDestroyNotify commented out etc]
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
- *   check/enhance type checks in libgtk_s7
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
- *   test gtk4+ruby|forth, 
- *     snd-test gtk3 gets text_entry->text_view complaints by test 18 if in context
  *
  * lv2 (/usr/include/lv2.h)
  * object->let for gtk widgets?
@@ -84789,25 +84784,25 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
- * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1
- *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1159
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1474
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1882
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2131
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2601
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 131
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2776
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  3069
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3451
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4192
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5236
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7824
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.9
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.9
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  42.1
+ *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  87.2
  * --------------------------------------------------------------------------------------
  */

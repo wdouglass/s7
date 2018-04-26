@@ -411,6 +411,14 @@ static void notebook_switch_page(GtkNotebook *w, GtkWidget *page_widget, gint pa
     }
 }
 
+#define BREAK_ON_CRITICAL 0
+#if BREAK_ON_CRITICAL
+void abort_on_g_log(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data)
+{
+  if (log_level & G_LOG_LEVEL_CRITICAL) abort();
+  g_log_default_handler(log_domain, log_level, message, user_data);
+}
+#endif
 
 void snd_doit(int argc, char **argv)
 {
@@ -422,6 +430,10 @@ void snd_doit(int argc, char **argv)
 #else
   gtk_init(&argc, &argv);
 #endif  
+
+#if BREAK_ON_CRITICAL
+  g_log_set_handler("Gtk", G_LOG_LEVEL_CRITICAL, abort_on_g_log, NULL);
+#endif
 
 #if (!GTK_CHECK_VERSION(3, 0, 0)) && (!__APPLE__)
   gdk_set_locale();
