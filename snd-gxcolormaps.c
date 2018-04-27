@@ -984,15 +984,18 @@ static bool s7_xen_colormap_equalp(void *obj1, void *obj2)
 }
 
 
-static Xen s7_xen_colormap_length(s7_scheme *sc, Xen obj)
+static Xen s7_xen_colormap_length(s7_scheme *sc, Xen args)
 {
   return(C_int_to_Xen_integer(color_map_size(ss)));
 }
 
 
 static Xen g_colormap_ref(Xen map, Xen pos);
-static Xen s7_colormap_apply(s7_scheme *sc, Xen obj, Xen args)
+static Xen s7_colormap_apply(s7_scheme *sc, Xen args1)
 {
+  s7_pointer obj, args;
+  obj = s7_car(args1);
+  args = s7_cdr(args1);
   if (!s7_is_pair(args))
     s7_wrong_number_of_args_error(sc, "colormap ref", args);
   return(g_colormap_ref(obj, Xen_car(args)));
@@ -1008,7 +1011,7 @@ static void init_xen_colormap(void)
   s7_c_type_set_free(s7, xen_colormap_tag, free_xen_colormap);
   s7_c_type_set_equal(s7, xen_colormap_tag, s7_xen_colormap_equalp);
   s7_c_type_set_length(s7, xen_colormap_tag, s7_xen_colormap_length);
-  s7_c_type_set_apply(s7, xen_colormap_tag, s7_colormap_apply);
+  s7_c_type_set_ref(s7, xen_colormap_tag, s7_colormap_apply);
 #else
 #if HAVE_RUBY
   xen_colormap_tag = Xen_make_object_type("XenColormap", sizeof(xen_colormap));

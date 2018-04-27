@@ -2212,9 +2212,9 @@ static bool s7_xen_sound_equalp(void *obj1, void *obj2)
 }
 
 
-static Xen s7_xen_sound_length(s7_scheme *sc, Xen obj)
+static Xen s7_xen_sound_length(s7_scheme *sc, Xen args)
 {
-  return(g_framples(obj, Xen_integer_zero, C_int_to_Xen_integer(AT_CURRENT_EDIT_POSITION)));
+  return(g_framples(s7_car(args), Xen_integer_zero, C_int_to_Xen_integer(AT_CURRENT_EDIT_POSITION)));
 }
 
 

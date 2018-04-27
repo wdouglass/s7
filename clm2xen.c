@@ -1491,8 +1491,11 @@ static Xen mus_xen_apply(Xen gen, Xen arg1, Xen arg2)
 
 /* these are for mus_xen_tag, so need not handle float-vectors */
 
-static Xen mus_xen_apply(s7_scheme *sc, Xen gen, Xen args)
+static Xen mus_xen_apply(s7_scheme *sc, Xen args1)
 {
+  s7_pointer gen, args;
+  gen = s7_car(args1);
+  args = s7_cdr(args1);
   if (s7_is_pair(args))
     {
       mus_float_t arg1, arg2;
@@ -1506,8 +1509,10 @@ static Xen mus_xen_apply(s7_scheme *sc, Xen gen, Xen args)
   return(s7_make_real(s7, mus_run(Xen_to_mus_any(gen), 0.0, 0.0)));
 }
 
-static Xen s7_mus_length(s7_scheme *sc, Xen obj)
+static Xen s7_mus_length(s7_scheme *sc, Xen args)
 {
+  s7_pointer obj;
+  obj = s7_car(args);
   if (mus_length_exists(Xen_to_mus_any(obj)))
     return(g_mus_length(obj));
   return(s7_make_integer(sc, 1));
@@ -12842,7 +12847,7 @@ static void mus_xen_init(void)
   s7_c_type_set_free(s7, mus_xen_tag, free_mus_xen);
   s7_c_type_set_equal(s7, mus_xen_tag, s7_equalp_mus_xen);
   s7_c_type_set_mark(s7, mus_xen_tag, mark_mus_xen);
-  s7_c_type_set_apply(s7, mus_xen_tag, mus_xen_apply);
+  s7_c_type_set_ref(s7, mus_xen_tag, mus_xen_apply);
   s7_c_type_set_length(s7, mus_xen_tag, s7_mus_length);
   s7_c_type_set_copy(s7, mus_xen_tag, s7_mus_copy);
   s7_c_type_set_print_readably(s7, mus_xen_tag, mus_generator_to_readable_string);

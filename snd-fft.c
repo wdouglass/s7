@@ -2204,7 +2204,7 @@ static bool s7_xen_transform_equalp(void *obj1, void *obj2)
 }
 
 
-static Xen s7_xen_transform_length(s7_scheme *sc, Xen obj)
+static Xen s7_xen_transform_length(s7_scheme *sc, Xen args)
 {
   return(C_int_to_Xen_integer(transform_size(ss)));
 }

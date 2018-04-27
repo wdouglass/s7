@@ -2754,11 +2754,11 @@ static bool s7_xen_player_equalp(void *obj1, void *obj2)
 	 (((xen_player *)obj1)->n == ((xen_player *)obj2)->n));
 }
 
-static Xen s7_xen_player_length(s7_scheme *sc, Xen player)
+static s7_pointer s7_xen_player_length(s7_scheme *sc, s7_pointer args)
 {
   chan_info *cp;
   int index;
-  index = Xen_player_to_C_int(player);
+  index = Xen_player_to_C_int(s7_car(args));
   cp = players[index]->chans[player_chans[index]];
   return(C_llong_to_Xen_llong(current_samples(cp)));
 }

@@ -530,19 +530,18 @@ typedef struct vdims_t {
 typedef struct {
   s7_int type, outer_type;
   s7_pointer scheme_name;
-  char *(*print)(s7_scheme *sc, void *value);
   void (*free)(void *value);
-  bool (*equal)(void *val1, void *val2);
   void (*gc_mark)(void *val);
-  s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args);
-  s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args);
-  s7_pointer (*length)(s7_scheme *sc, s7_pointer obj);
-  s7_pointer (*copy)(s7_scheme *sc, s7_pointer args);
-  s7_pointer (*reverse)(s7_scheme *sc, s7_pointer obj);
-  s7_pointer (*fill)(s7_scheme *sc, s7_pointer args);
+  char *(*print)(s7_scheme *sc, void *value);
   char *(*print_readably)(s7_scheme *sc, void *value);
-  s7_pointer (*direct_ref)(s7_scheme *sc, s7_pointer obj, s7_int index);
-  s7_pointer (*direct_set)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val);
+  bool (*equal)(void *val1, void *val2);
+  s7_pointer (*ref)    (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*set)    (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*length) (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args);
+  s7_pointer (*copy)   (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*fill)   (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args);
 } c_object_t;
 
 
@@ -2700,8 +2699,6 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define c_object_fill(Sc, p)          c_object_info(Sc, p)->fill
 #define c_object_copy(Sc, p)          c_object_info(Sc, p)->copy
 #define c_object_reverse(Sc, p)       c_object_info(Sc, p)->reverse
-#define c_object_direct_ref(Sc, p)    c_object_info(Sc, p)->direct_ref
-#define c_object_direct_set(Sc, p)    c_object_info(Sc, p)->direct_set
 #define c_object_scheme_name(Sc, p)   T_Str(c_object_info(Sc, p)->scheme_name)
 
 #define raw_pointer(p)                (T_Ptr(p))->object.cptr.c_pointer
@@ -25750,26 +25747,6 @@ static s7_pointer closure_iterate(s7_scheme *sc, s7_pointer obj)
   return(result);
 }
 
-static s7_pointer c_object_direct_iterate(s7_scheme *sc, s7_pointer obj)
-{
-  if (iterator_position(obj) < iterator_length(obj))
-    {
-      s7_pointer result, p;
-      p = iterator_sequence(obj);
-      result = c_object_direct_ref(sc, p)(sc, p, iterator_position(obj));
-      iterator_position(obj)++;
-      if (result == sc->ITERATOR_END)
-	{
-	  iterator_next(obj) = iterator_finished;
-	  clear_iter_ok(obj);
-	}
-      return(result);
-    }
-  iterator_next(obj) = iterator_finished;
-  clear_iter_ok(obj);
-  return(sc->ITERATOR_END);
-}
-
 static s7_pointer c_object_iterate(s7_scheme *sc, s7_pointer obj)
 {
   if (iterator_position(obj) < iterator_length(obj))
@@ -25779,8 +25756,9 @@ static s7_pointer c_object_iterate(s7_scheme *sc, s7_pointer obj)
       cur = iterator_current(obj);
       set_car(sc->z2_1, sc->x);
       set_car(sc->z2_2, sc->z); /* is this necessary? */
-      set_car(cur, make_integer(sc, iterator_position(obj)));
-      result = (*(c_object_ref(sc, p)))(sc, p, cur);
+      set_car(cur, p);
+      set_car(cdr(cur), make_integer(sc, iterator_position(obj)));
+      result = (*(c_object_ref(sc, p)))(sc, cur);
       sc->x = car(sc->z2_1);
       sc->z = car(sc->z2_2);
       iterator_position(obj)++;
@@ -25945,20 +25923,17 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
       break;
 
     case T_C_OBJECT:
-      iterator_length(iter) = c_object_length_to_int(sc, e);
-      if (c_object_direct_ref(sc, e))
-	iterator_next(iter) = c_object_direct_iterate;
-      else
-	{
-	  s7_pointer f;
-	  sc->temp6 = iter;
-	  f = iterator_method(sc, e);
-	  sc->temp6 = sc->nil;
-	  if (f) {free_cell(sc, iter); return(f);}
-	  iterator_current(iter) = cons(sc, small_int(0), sc->nil);
-	  set_mark_seq(iter);
-	  iterator_next(iter) = c_object_iterate;
-	}
+      {
+	s7_pointer f;
+	iterator_length(iter) = c_object_length_to_int(sc, e);
+	sc->temp6 = iter;
+	f = iterator_method(sc, e);
+	sc->temp6 = sc->nil;
+	if (f) {free_cell(sc, iter); return(f);}
+	iterator_current(iter) = list_2(sc, e, small_int(0));
+	set_mark_seq(iter);
+	iterator_next(iter) = c_object_iterate;
+      }
       break;
 
     default:
@@ -39471,14 +39446,14 @@ static bool fallback_equal(void *val1, void *val2)
   return(val1 == val2);
 }
 
-static s7_pointer fallback_ref(s7_scheme *sc, s7_pointer obj, s7_pointer args)
+static s7_pointer fallback_ref(s7_scheme *sc, s7_pointer args)
 {
-  return(apply_error(sc, obj, args));
+  return(apply_error(sc, car(args), cdr(args)));
 }
 
-static s7_pointer fallback_set(s7_scheme *sc, s7_pointer obj, s7_pointer args)
+static s7_pointer fallback_set(s7_scheme *sc, s7_pointer args)
 {
-  eval_error(sc, "attempt to set ~S?", obj);
+  eval_error(sc, "attempt to set ~S?", car(args));
 }
 
 static s7_pointer fallback_length(s7_scheme *sc, s7_pointer obj)
@@ -39509,7 +39484,7 @@ static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args)
   s7_pointer p;
   p = car(args);
   if (is_c_object(p)) 
-    return((*(c_object_set(sc, p)))(sc, p, cdr(args)));
+    return((*(c_object_set(sc, p)))(sc, args));
   return(sc->F);
 }
 
@@ -39536,6 +39511,7 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
 
   sc->c_object_types[tag]->free = fallback_free;
   sc->c_object_types[tag]->print = fallback_print;
+  sc->c_object_types[tag]->print_readably = fallback_print_readably;
   sc->c_object_types[tag]->equal = fallback_equal;
   sc->c_object_types[tag]->gc_mark = fallback_mark;
   sc->c_object_types[tag]->ref = fallback_ref;
@@ -39545,7 +39521,7 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
   sc->c_object_types[tag]->copy = NULL;
   sc->c_object_types[tag]->reverse = NULL;
   sc->c_object_types[tag]->fill = NULL;
-  sc->c_object_types[tag]->print_readably = fallback_print_readably;
+  sc->c_object_types[tag]->to_list = NULL;
   
   return(tag);
 }
@@ -39555,7 +39531,7 @@ void s7_c_type_set_print(s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc
   sc->c_object_types[tag]->print = print;
 }
 
-void s7_c_type_set_print_readably(s7_scheme *sc, s7_int type, char *(*printer)(s7_scheme *sc, void *val))
+void s7_c_type_set_print_readably(s7_scheme *sc, s7_int type, char *(*printer)(s7_scheme *sc, void *value))
 {
   sc->c_object_types[type]->print_readably = printer;
 }
@@ -39565,39 +39541,29 @@ void s7_c_type_set_free(s7_scheme *sc, s7_int tag, void (*gc_free)(void *value))
   sc->c_object_types[tag]->free = gc_free;
 }
 
-void s7_c_type_set_equal(s7_scheme *sc, s7_int tag, bool (*equal)(void *val1, void *val2))
+void s7_c_type_set_equal(s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2))
 {
   sc->c_object_types[tag]->equal = equal;
 }
 
-void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*gc_mark)(void *val))
+void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*gc_mark)(void *value))
 {
   sc->c_object_types[tag]->gc_mark = gc_mark;
 }
 
-void s7_c_type_set_apply(s7_scheme *sc, s7_int tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+void s7_c_type_set_ref(s7_scheme *sc, s7_int tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->ref = ref;
   if (sc->c_object_types[tag]->ref != fallback_ref)
     sc->c_object_types[tag]->outer_type = (T_C_OBJECT | T_SAFE_PROCEDURE);
 }
 
-void s7_c_type_set_apply_direct(s7_scheme *sc, s7_int tag, s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index))
-{
-  sc->c_object_types[tag]->direct_ref = dref;  
-}
-
-void s7_c_type_set_set(s7_scheme *sc, s7_int tag, s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+void s7_c_type_set_set(s7_scheme *sc, s7_int tag, s7_pointer (*set)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->set = set;
 }
 
-void s7_c_type_set_set_direct(s7_scheme *sc, s7_int tag, s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
-{
-  sc->c_object_types[tag]->direct_set = dset;
-}
-
-void s7_c_type_set_length(s7_scheme *sc, s7_int tag, s7_pointer (*length)(s7_scheme *sc, s7_pointer obj))
+void s7_c_type_set_length(s7_scheme *sc, s7_int tag, s7_pointer (*length)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->length = length;
 }
@@ -39617,36 +39583,26 @@ void s7_c_type_set_reverse(s7_scheme *sc, s7_int tag, s7_pointer (*reverse)(s7_s
   sc->c_object_types[tag]->reverse = reverse;
 }
 
-#if (!DISABLE_DEPRECATED)
-void s7_object_type_set_direct(s7_int tag, 
-			       s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index), 
-			       s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val))
+void s7_c_type_set_to_list(s7_scheme *sc, s7_int tag, s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args))
 {
-  cur_sc->c_object_types[tag]->direct_ref = dref;
-  cur_sc->c_object_types[tag]->direct_set = dset;
+  sc->c_object_types[tag]->to_list = to_list;
 }
 
+#if (!DISABLE_DEPRECATED)
 s7_int s7_new_type(const char *name,
 		   char *(*print)(s7_scheme *sc, void *value),
 		   void (*gc_free)(void *value),
 		   bool (*equal)(void *val1, void *val2),
 		   void (*gc_mark)(void *val),
-		   s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
-		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args))
+		   s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* ignored */
+		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args)) /* ignored */
 {
   s7_int tag;
   tag = s7_make_c_type(cur_sc, name);
-
   if (gc_free) cur_sc->c_object_types[tag]->free = gc_free;
   if (print) cur_sc->c_object_types[tag]->print = print;
   if (equal) cur_sc->c_object_types[tag]->equal = equal;
   if (gc_mark) cur_sc->c_object_types[tag]->gc_mark = gc_mark;
-  if (set) cur_sc->c_object_types[tag]->set = set;
-
-  if (ref) cur_sc->c_object_types[tag]->ref = ref;
-  if (cur_sc->c_object_types[tag]->ref != fallback_ref)
-    cur_sc->c_object_types[tag]->outer_type = (T_C_OBJECT | T_SAFE_PROCEDURE);
-
   return(tag);
 }
 #endif
@@ -39712,12 +39668,10 @@ s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e)
   return(e);
 }
 
-static s7_pointer c_object_pi_direct_ref(s7_pointer obj, s7_int i) {return((c_object_direct_ref(cur_sc, obj))(cur_sc, obj, i));}
-
 static s7_pointer c_object_length(s7_scheme *sc, s7_pointer obj)
 {
   if (c_object_len(sc, obj))
-    return((*(c_object_len(sc, obj)))(sc, obj));
+    return((*(c_object_len(sc, obj)))(sc, set_plist_1(sc, obj)));
   eval_error(sc, "attempt to get length of ~S?", obj);
 }
 
@@ -39726,7 +39680,7 @@ static s7_int c_object_length_to_int(s7_scheme *sc, s7_pointer obj)
   if (c_object_len(sc, obj))
     {
       s7_pointer res;
-      res = (*(c_object_len(sc, obj)))(sc, obj);
+      res = (*(c_object_len(sc, obj)))(sc, set_plist_1(sc, obj));
       if (s7_is_integer(res))
 	return(s7_integer(res));
     }
@@ -41807,15 +41761,15 @@ static s7_pointer byte_vector_getter(s7_scheme *sc, s7_pointer str, s7_int loc)
 
 static s7_pointer c_object_setter(s7_scheme *sc, s7_pointer obj, s7_int loc, s7_pointer val)
 {
-  set_car(sc->t2_1, make_integer(sc, loc));
-  set_car(sc->t2_2, val);
-  return((*(c_object_set(sc, obj)))(sc, obj, sc->t2_1));
+  set_car(sc->t3_1, obj);
+  set_car(sc->t3_2, make_integer(sc, loc));
+  set_car(sc->t3_3, val);
+  return((*(c_object_set(sc, obj)))(sc, sc->t3_1));
 }
 
 static s7_pointer c_object_getter(s7_scheme *sc, s7_pointer obj, s7_int loc)
 {
-  set_car(sc->t1_1, make_integer(sc, loc));
-  return((*(c_object_ref(sc, obj)))(sc, obj, sc->t1_1));
+  return((*(c_object_ref(sc, obj)))(sc, set_plist_2(sc, obj, make_integer(sc, loc))));
 }
 
 static s7_pointer let_setter(s7_scheme *sc, s7_pointer e, s7_int loc, s7_pointer val)
@@ -42009,8 +41963,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  if (x == dest)
 	    return(dest);
 	}
-      get = c_object_direct_ref(sc, source);
-      if (!get) get = c_object_getter;
+      get = c_object_getter;
       end = c_object_length_to_int(sc, source);
       break;
 
@@ -42078,8 +42031,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_C_OBJECT:
-      set = c_object_direct_set(sc, dest);
-      if (!set) set = c_object_setter;
+      set = c_object_setter;
       dest_len = c_object_length_to_int(sc, dest);
       break;
 
@@ -42144,8 +42096,8 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  {
 	    s7_pointer mi, mj;
 	    s7_int gc_loc1, gc_loc2;
-	    s7_pointer (*cref)(s7_scheme *sc, s7_pointer obj, s7_pointer args);
-	    s7_pointer (*cset)(s7_scheme *sc, s7_pointer obj, s7_pointer args);
+	    s7_pointer (*cref)(s7_scheme *sc, s7_pointer args);
+	    s7_pointer (*cset)(s7_scheme *sc, s7_pointer args);
 
 	    mi = make_mutable_integer(sc, start);
 	    mj = make_mutable_integer(sc, end);
@@ -42158,10 +42110,12 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      {
 		integer(mi) = i;
 		integer(mj) = j;
-		set_car(sc->t1_1, mi);
-		set_car(sc->t2_2, cref(sc, source, sc->t1_1));
-		set_car(sc->t2_1, mj);
-		cset(sc, dest, sc->t2_1);
+		set_car(sc->t2_1, source);
+		set_car(sc->t2_2, mi);
+		set_car(sc->t3_3, cref(sc, sc->t2_1));
+		set_car(sc->t3_1, dest);
+		set_car(sc->t3_2, mj);
+		cset(sc, sc->t3_1);
 	      }
 	    s7_gc_unprotect_at(sc, gc_loc1);
 	    s7_gc_unprotect_at(sc, gc_loc2);
@@ -43095,7 +43049,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
     case T_C_OBJECT:
       {
 	int64_t i, len;
-	s7_pointer x, z, result;
+	s7_pointer x, z, zc, result;
 	s7_int gc_z;
 
 	x = c_object_length(sc, obj);
@@ -43110,15 +43064,16 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 
 	result = make_list(sc, len, sc->nil);
 	sc->temp8 = result;
-	z = list_1(sc, sc->F);
+	z = list_2(sc, obj, sc->F);
+	zc = cdr(z);
 	gc_z = s7_gc_protect_1(sc, z);
 
 	set_car(sc->z2_1, sc->x);
 	set_car(sc->z2_2, sc->z);
 	for (i = 0, x = result; i < len; i++, x = cdr(x))
 	  {
-	    set_car(z, make_integer(sc, i));
-	    set_car(x, (*(c_object_ref(sc, obj)))(sc, obj, z));
+	    set_car(zc, make_integer(sc, i));
+	    set_car(x, (*(c_object_ref(sc, obj)))(sc, z));
 	  }
 	sc->x = car(sc->z2_1);
 	sc->z = car(sc->z2_2);
@@ -45825,7 +45780,7 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
       return(obj);
 
     case T_C_OBJECT:
-      return((*(c_object_ref(sc, obj)))(sc, obj, indices));
+      return((*(c_object_ref(sc, obj)))(sc, cons(sc, obj, indices)));
 
     case T_LET:
       obj = s7_let_ref(sc, obj, car(indices));
@@ -52939,9 +52894,7 @@ static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
 		  break;
 		  
 		case T_C_OBJECT:
-		  if (c_object_direct_ref(sc, obj))
-		    opc->v3.p_pi_f = c_object_pi_direct_ref; /* we insist on int index below */
-		  else return(return_false(sc, car_x, __func__, __LINE__)); /* no pi_ref because ref assumes pp */
+		  return(return_false(sc, car_x, __func__, __LINE__)); /* no pi_ref because ref assumes pp */
 		  break;
 		  
 		default: 
@@ -65191,9 +65144,10 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
   switch (type(obj))
     {
     case T_C_OBJECT:
-      set_car(sc->t2_1, arg);
-      set_car(sc->t2_2, value);
-      sc->value = (*(c_object_set(sc, obj)))(sc, obj, sc->t2_1);
+      set_car(sc->t3_1, obj);
+      set_car(sc->t3_2, arg);
+      set_car(sc->t3_3, value);
+      sc->value = (*(c_object_set(sc, obj)))(sc, sc->t3_1);
       break;
       
       /* some of these are wasteful -- we know the object type! (list hash-table) */
@@ -65470,9 +65424,10 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	      {
 		if (is_symbol(val))
 		  val = symbol_to_value_checked(sc, val);
-		set_car(sc->t2_1, index);
-		set_car(sc->t2_2, val);
-		sc->value = (*(c_object_set(sc, cx)))(sc, cx, sc->t2_1);
+		set_car(sc->t3_1, cx);
+		set_car(sc->t3_2, index);
+		set_car(sc->t3_3, val);
+		sc->value = (*(c_object_set(sc, cx)))(sc, sc->t3_1);
 		return(goto_START);
 	      }
 	    push_op_stack(sc, sc->c_object_set_function);
@@ -69240,7 +69195,7 @@ static inline void apply_continuation(s7_scheme *sc)               /* -------- c
 
 static void apply_c_object(s7_scheme *sc)                          /* -------- applicable (new-type) object -------- */
 {
-  sc->value = (*(c_object_ref(sc, sc->code)))(sc, sc->code, sc->args);
+  sc->value = (*(c_object_ref(sc, sc->code)))(sc, cons(sc, sc->code, sc->args));
 }
 
 
@@ -73802,8 +73757,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			if (unknown_a_ex(sc, c) == goto_OPT_EVAL) goto INNER_OPT_EVAL;
 			break;
 		      }
-		    set_car(sc->t1_1, c_call(cdr(code))(sc, cadr(code)));
-		    sc->value = (*(c_object_ref(sc, c)))(sc, c, sc->t1_1);
+		    set_car(sc->t2_1, c);
+		    set_car(sc->t2_2, c_call(cdr(code))(sc, cadr(code)));
+		    sc->value = (*(c_object_ref(sc, c)))(sc, sc->t2_1);
 		    goto START;
 		  }
 		  
@@ -84759,12 +84715,18 @@ int main(int argc, char **argv)
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
- *   another cycle: (*s7* 'stack), and c-object+seq-local holding obj
+ *   another cycle: (*s7* 'stack), and 
+ *     c-object+seq-local holding obj:
+ *   so: add s7_c_object_to_list(s7.h and setter) + slot in c-type struct
+ *       in equal? if c-obj-equal exists, use it, else s7 equal using obj->list (and cycle checks)
+ *       in obj->str+readable, if c-obj print_readably or obj->str method exists, use them, else use (apply type (c-obj->list obj)) with cycle checks
+ *       s7.html show pre-built list and fast set? add to s7test
+ *       all of this parallels c-pointer and c-pointer->list, or random-state and random-state->list
+ *       s7_function maybe the rest, add s7_functions to obj->let
+ *   stack problem is printout (not equal) -- treat as list?
  * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
- * makefile.in for sndlib.so, s7test?
- * compatible: (when (bools type2) (memq type2 (or (bools type1) ()))) etc
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
@@ -84773,9 +84735,9 @@ int main(int argc, char **argv)
  *   test other func cases in libgtk_s7, several more special funcs [GDestroyNotify commented out etc]
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
+ *   object->let for gtk widgets?
  *
  * lv2 (/usr/include/lv2.h)
- * object->let for gtk widgets?
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place

@@ -1479,9 +1479,9 @@ static bool s7_xen_region_equalp(void *obj1, void *obj2)
 	 (((xen_region *)obj1)->n == ((xen_region *)obj2)->n));
 }
 
-static Xen s7_xen_region_length(s7_scheme *sc, Xen obj)
+static Xen s7_xen_region_length(s7_scheme *sc, Xen args)
 {
-  return(g_region_framples(obj, Xen_integer_zero));
+  return(g_region_framples(s7_car(args), Xen_integer_zero));
 }
 #endif
 

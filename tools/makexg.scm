@@ -1645,7 +1645,7 @@
 (hoy "{~%")
 (hey "#if HAVE_SCHEME~%")
 (hey "  xm_obj_tag = s7_make_c_type(s7, \"<XmObj>\");~%")
-(hay "  xm_obj_tag = s7_make_c_type(sc, \"XgObj\");~%")
+(hay "  xm_obj_tag = s7_make_c_type(sc, \"<gtk_s7>\");~%")
 (hey "  s7_c_type_set_free(s7, xm_obj_tag, xm_obj_free);~%")
 (hay "  s7_c_type_set_free(sc, xm_obj_tag, xm_obj_free);~%")
 (hey "  s7_c_type_set_equal(s7, xm_obj_tag, s7_equalp_xm);~%")

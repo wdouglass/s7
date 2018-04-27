@@ -2814,9 +2814,9 @@ Xen new_xen_mix(int n)
 
 
 #if HAVE_SCHEME
-static Xen s7_xen_mix_length(s7_scheme *sc, s7_pointer obj)
+static Xen s7_xen_mix_length(s7_scheme *sc, s7_pointer args)
 {
-  return(g_mix_length(obj));
+  return(g_mix_length(s7_car(args)));
 }
 
 
@@ -3816,9 +3816,9 @@ snd_fd *mf_to_snd_fd(void *p) {return(((mix_fd *)p)->sf);}
 
 
 #if HAVE_SCHEME
-static Xen s7_read_mix_sample(s7_scheme *sc, Xen obj, Xen args)
+static Xen s7_read_mix_sample(s7_scheme *sc, Xen args)
 {
-  return(g_read_mix_sample(obj));
+  return(g_read_mix_sample(s7_car(args)));
 }
 #endif
 
@@ -4251,7 +4251,7 @@ void g_init_mix(void)
   s7_c_type_set_print(s7, mf_tag, print_mf);
   s7_c_type_set_free(s7, mf_tag, free_mf);
   s7_c_type_set_equal(s7, mf_tag, s7_equalp_mf);
-  s7_c_type_set_apply(s7, mf_tag, s7_read_mix_sample);
+  s7_c_type_set_ref(s7, mf_tag, s7_read_mix_sample);
 #else
   mf_tag = Xen_make_object_type("MixSampler", sizeof(mix_fd));
 #endif

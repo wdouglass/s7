@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "6.0"
-#define S7_DATE "23-Mar-18"
+#define S7_VERSION "6.1"
+#define S7_DATE "26-Apr-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -595,18 +595,17 @@ s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e);
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name);
 void s7_c_type_set_print         (s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value));
-void s7_c_type_set_print_readably(s7_scheme *sc, s7_int tag, char *(*printer)(s7_scheme *sc, void *val));
+void s7_c_type_set_print_readably(s7_scheme *sc, s7_int tag, char *(*printer)(s7_scheme *sc, void *value));
 void s7_c_type_set_free          (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
-void s7_c_type_set_equal         (s7_scheme *sc, s7_int tag, bool (*equal)(void *val1, void *val2));
-void s7_c_type_set_mark          (s7_scheme *sc, s7_int tag, void (*gc_mark)(void *val));
-void s7_c_type_set_apply         (s7_scheme *sc, s7_int tag, s7_pointer (*ref)    (s7_scheme *sc, s7_pointer obj, s7_pointer args));
-void s7_c_type_set_apply_direct  (s7_scheme *sc, s7_int tag, s7_pointer (*dref)   (s7_scheme *sc, s7_pointer obj, s7_int index));
-void s7_c_type_set_set           (s7_scheme *sc, s7_int tag, s7_pointer (*set)    (s7_scheme *sc, s7_pointer obj, s7_pointer args));
-void s7_c_type_set_set_direct    (s7_scheme *sc, s7_int tag, s7_pointer (*dset)   (s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val));
-void s7_c_type_set_length        (s7_scheme *sc, s7_int tag, s7_pointer (*length) (s7_scheme *sc, s7_pointer obj));
+void s7_c_type_set_equal         (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2));
+void s7_c_type_set_mark          (s7_scheme *sc, s7_int tag, void (*gc_mark)(void *value));
+void s7_c_type_set_ref           (s7_scheme *sc, s7_int tag, s7_pointer (*ref)    (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_set           (s7_scheme *sc, s7_int tag, s7_pointer (*set)    (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_length        (s7_scheme *sc, s7_int tag, s7_pointer (*length) (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_copy          (s7_scheme *sc, s7_int tag, s7_pointer (*copy)   (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_fill          (s7_scheme *sc, s7_int tag, s7_pointer (*fill)   (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_reverse       (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_list       (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args));
 
   /* These functions create a new Scheme object type.  There is a simple example in s7.html.
    *
@@ -838,12 +837,8 @@ s7_int s7_new_type(const char *name,
 		   void (*free)(void *value), 
 		   bool (*equal)(void *val1, void *val2),
 		   void (*gc_mark)(void *val),
-		   s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args),
+		   s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* these two args are ignored */
 		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
-
-void s7_object_type_set_direct(s7_int tag, 
-			       s7_pointer (*dref)(s7_scheme *sc, s7_pointer obj, s7_int index), 
-			       s7_pointer (*dset)(s7_scheme *sc, s7_pointer obj, s7_int index, s7_pointer val));
 
 #define s7_is_object                 s7_is_c_object
 #define s7_object_type               s7_c_object_type
@@ -873,6 +868,8 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 26-Apr:    s7_c_type_set_to_list, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
+ *            c_type length is now an s7_function (args, not obj).
  * 23-Mar:    s7_peek_char and s7_read_char now return s7_pointer, s7_write_char takes s7_pointer, not int32_t c
  *            s7_gc_protect and friends now return/take s7_int location, not uint32_t.
  *            removed s7_new_type_x.

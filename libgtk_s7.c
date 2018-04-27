@@ -48,7 +48,7 @@ static s7_pointer make_xm_obj(s7_scheme *sc, void *ptr)
 }
 static void define_xm_obj(s7_scheme *sc)
 {
-  xm_obj_tag = s7_make_c_type(sc, "XgObj");
+  xm_obj_tag = s7_make_c_type(sc, "<gtk_s7>");
   s7_c_type_set_free(sc, xm_obj_tag, xm_obj_free);
   s7_c_type_set_equal(sc, xm_obj_tag, s7_equalp_xm);
 }  
@@ -55818,7 +55818,7 @@ void libgtk_s7_init(s7_scheme *sc)
   define_functions(sc);
   s7_define_function(sc, "g_signal_connect", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);
   s7_set_shadow_rootlet(sc, old_shadow);
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "20-Apr-18"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "22-Apr-18"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */

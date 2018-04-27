@@ -967,7 +967,7 @@ static Xen g_selection(void)
 
 
 #if HAVE_SCHEME
-static Xen s7_xen_selection_length(s7_scheme *sc, Xen obj)
+static Xen s7_xen_selection_length(s7_scheme *sc, Xen args)
 {
   return(g_selection_framples(Xen_undefined, Xen_undefined));
 }

@@ -6728,10 +6728,10 @@ static bool s7_equalp_sf(void *s1, void *s2)
   return(s1 == s2);
 }
 
-static s7_pointer length_sf(s7_scheme *sc, s7_pointer obj)
+static s7_pointer length_sf(s7_scheme *sc, s7_pointer args)
 {
   snd_fd *fd;
-  fd = (snd_fd *)s7_c_object_value(obj);
+  fd = (snd_fd *)s7_c_object_value(s7_car(args));
   return(s7_make_integer(sc, current_samples(fd->cp)));
 }
 #endif
@@ -7237,10 +7237,10 @@ static Xen g_read_sample_with_direction(Xen obj, Xen dir)
 
 
 #if HAVE_SCHEME
-static Xen s7_read_sample(s7_scheme *sc, Xen obj, Xen args)
+static Xen s7_read_sample(s7_scheme *sc, Xen args)
 {
   /* we can only get here if obj is already known to be a sampler */
-  return(C_double_to_Xen_real(read_sample((snd_fd *)Xen_object_ref(obj))));
+  return(C_double_to_Xen_real(read_sample((snd_fd *)Xen_object_ref(s7_car(args)))));
 }
 #endif
 
@@ -9148,7 +9148,7 @@ void g_init_edits(void)
   s7_c_type_set_print(s7, sf_tag, print_sf);
   s7_c_type_set_free(s7, sf_tag, free_sf);
   s7_c_type_set_equal(s7, sf_tag, s7_equalp_sf);
-  s7_c_type_set_apply(s7, sf_tag, s7_read_sample);
+  s7_c_type_set_ref(s7, sf_tag, s7_read_sample);
   s7_c_type_set_length(s7, sf_tag, length_sf);
 #else
   sf_tag = Xen_make_object_type("Sampler", sizeof(snd_fd));

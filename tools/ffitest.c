@@ -293,7 +293,7 @@ static s7_pointer g_to_block(s7_scheme *sc, s7_pointer args)
 
 static char *g_block_display(s7_scheme *sc, void *value)
 {
-  return(strdup("#<block>"));
+  return(strdup("<block>"));
 }
 
 static void g_block_free(void *value)
@@ -313,32 +313,34 @@ static void g_block_mark(void *val)
   /* nothing to mark */
 }
 
-static s7_pointer g_block_ref(s7_scheme *sc, s7_pointer obj, s7_pointer args)
+static s7_pointer g_block_ref(s7_scheme *sc, s7_pointer args)
 {
-  g_block *g = (g_block *)s7_c_object_value(obj);
+  g_block *g;
   size_t index;
-  index = (size_t)s7_integer(s7_car(args));
+  g = (g_block *)s7_c_object_value(s7_car(args));
+  index = (size_t)s7_integer(s7_cadr(args));
   if (index < g->size)
     return(s7_make_real(sc, g->data[index]));
-  return(s7_out_of_range_error(sc, "block-ref", 2, s7_car(args), "should be less than block length"));
+  return(s7_out_of_range_error(sc, "block-ref", 2, s7_cadr(args), "should be less than block length"));
 }
 
-static s7_pointer g_block_set(s7_scheme *sc, s7_pointer obj, s7_pointer args)
+static s7_pointer g_block_set(s7_scheme *sc, s7_pointer args)
 {
-  g_block *g = (g_block *)s7_c_object_value(obj);
+  g_block *g;
   s7_int index;
-  index = s7_integer(s7_car(args));
+  g = (g_block *)s7_c_object_value(s7_car(args));
+  index = s7_integer(s7_cadr(args));
   if ((index >= 0) && (index < g->size))
     {
-      g->data[index] = s7_number_to_real(sc, s7_cadr(args));
-      return(s7_cadr(args));
+      g->data[index] = s7_number_to_real(sc, s7_caddr(args));
+      return(s7_caddr(args));
     }
-  return(s7_out_of_range_error(sc, "block-set", 2, s7_car(args), "should be less than block length"));
+  return(s7_out_of_range_error(sc, "block-set", 2, s7_cadr(args), "should be less than block length"));
 }
 
-static s7_pointer g_block_length(s7_scheme *sc, s7_pointer obj)
+static s7_pointer g_block_length(s7_scheme *sc, s7_pointer args)
 {
-  g_block *g = (g_block *)s7_c_object_value(obj);
+  g_block *g = (g_block *)s7_c_object_value(s7_car(args));
   return(s7_make_integer(sc, g->size));
 }
 
@@ -354,12 +356,13 @@ static s7_pointer g_block_copy(s7_scheme *sc, s7_pointer args)
   return(new_g);
 }
 
-static s7_pointer g_block_reverse(s7_scheme *sc, s7_pointer obj)
+static s7_pointer g_block_reverse(s7_scheme *sc, s7_pointer args)
 {
   size_t i, j;
-  g_block *g = (g_block *)s7_c_object_value(obj);
-  g_block *g1;
-  s7_pointer new_g;
+  s7_pointer obj, new_g;
+  g_block *g, *g1;
+  obj = s7_car(args);
+  g = (g_block *)s7_c_object_value(obj);
   new_g = g_make_block(sc, s7_cons(sc, s7_make_integer(sc, g->size), s7_nil(sc)));
   g1 = (g_block *)s7_c_object_value(new_g);
   for (i = 0, j = g->size - 1; i < g->size; i++, j--)
@@ -1682,12 +1685,12 @@ int main(int argc, char **argv)
       fprintf(stderr, "%d: %s should be #<eof> and iter should be done\n", __LINE__, TO_STR(x));
   }
 
-  g_block_type = s7_make_c_type(sc, "#<block>");
+  g_block_type = s7_make_c_type(sc, "<block>");
   s7_c_type_set_print(sc, g_block_type, g_block_display);
   s7_c_type_set_free(sc, g_block_type, g_block_free);
   s7_c_type_set_equal(sc, g_block_type, g_block_is_equal);
   s7_c_type_set_mark(sc, g_block_type, g_block_mark);
-  s7_c_type_set_apply(sc, g_block_type, g_block_ref);
+  s7_c_type_set_ref(sc, g_block_type, g_block_ref);
   s7_c_type_set_set(sc, g_block_type, g_block_set);
   s7_c_type_set_length(sc, g_block_type, g_block_length);
   s7_c_type_set_copy(sc, g_block_type, g_block_copy);

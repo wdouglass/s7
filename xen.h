@@ -15,6 +15,8 @@
 
 /* HISTORY:
  *
+ *  26-Apr-18: changed XEN_MAKE_OBJECT_TYPE in s7 again...
+ *  --------
  *  2-Aug-17:  changed XEN_MAKE_OBJECT_TYPE in s7.
  *  --------
  *  29-Jul-16: Xen_define_unsafe_typed_procedure.
@@ -1204,25 +1206,10 @@ typedef XEN (*XEN_CATCH_BODY_TYPE)                                    (void *dat
 #define XEN_NAME_AS_C_STRING_TO_VARIABLE(a)                           s7_make_symbol(s7, a)
 
 #define XEN_MARK_OBJECT_TYPE                                          void
-#define XEN_MAKE_OBJECT_TYPE(Name, Print, Free, Equal, Gc_Mark, Apply, Set, Length, Copy, Reverse, Fill) \
-  ({ int32_t tag;							\
-     tag = s7_make_c_type(s7, Name);					\
-     if (Print) s7_c_type_set_print(s7, tag, Print);			\
-     if (Free) s7_c_type_set_free(s7, tag, Free);			\
-     if (Equal) s7_c_type_set_equal(s7, tag, Equal);			\
-     if (Gc_Mark) s7_c_type_set_mark(s7, tag, Gc_Mark);			\
-     if (Apply) s7_c_type_set_apply(s7, tag, Apply);			\
-     if (Set) s7_c_type_set_set(s7, tag, Set);				\
-     if (Length) s7_c_type_set_length(s7, tag, Length);			\
-     if (Copy) s7_c_type_set_copy(s7, tag, Copy);			\
-     if (Reverse) s7_c_type_set_reverse(s7, tag, Reverse);		\
-     if (Fill) s7_c_type_set_fill(s7, tag, Fill);			\
-  tag; })
+#define XEN_MAKE_OBJECT_TYPE(Name, Size) s7_make_c_type(s7, Name)
 
-#define XEN_MAKE_OBJECT_FREE_PROCEDURE(Type, Wrapped_Free, Original_Free) \
-                                                                      static void Wrapped_Free(void *obj) {Original_Free((Type *)obj);}
-#define XEN_MAKE_OBJECT_PRINT_PROCEDURE(Type, Wrapped_Print, Original_Print) \
-                                                                      static char *Wrapped_Print(s7_scheme *sc, void *obj) {return(Original_Print((Type *)obj));}
+#define XEN_MAKE_OBJECT_FREE_PROCEDURE(Type, Wrapped_Free, Original_Free) static void Wrapped_Free(void *obj) {Original_Free((Type *)obj);}
+#define XEN_MAKE_OBJECT_PRINT_PROCEDURE(Type, Wrapped_Print, Original_Print) static char *Wrapped_Print(s7_scheme *sc, void *obj) {return(Original_Print((Type *)obj));}
 #define XEN_MAKE_AND_RETURN_OBJECT(Tag, Val, ig1, ig2)                return(s7_make_c_object(s7, Tag, Val))
 #define XEN_MAKE_OBJECT(Tag, Val, ig1, ig2)                           s7_make_c_object(s7, Tag, Val)
 #define XEN_OBJECT_REF(Arg)                                           s7_c_object_value(Arg)
