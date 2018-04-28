@@ -72,17 +72,19 @@ typedef struct {
   s7_pointer data;
 } dax;
 
-static char *print_dax(s7_scheme *sc, void *val)
+static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
+  s7_pointer result;
   int data_str_len;
-  dax *o = (dax *)val;
+  dax *o = (dax *)s7_c_object_value(s7_car(args));
   data_str = s7_object_to_c_string(sc, o->data);
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
   snprintf(str, data_str_len + 32, "#<dax %.3f %s>", o->x, data_str);
-  free(data_str);
-  return(str);
+  result = s7_make_string(sc, str);
+  free(str);
+  return(result);
 }
 
 static void free_dax(void *val)
@@ -291,9 +293,9 @@ static s7_pointer g_to_block(s7_scheme *sc, s7_pointer args)
   return(b);
 }
 
-static char *g_block_display(s7_scheme *sc, void *value)
+static s7_pointer g_block_to_string(s7_scheme *sc, s7_pointer args)
 {
-  return(strdup("<block>"));
+  return(s7_make_string(sc, "<block>"));
 }
 
 static void g_block_free(void *value)
@@ -1146,10 +1148,10 @@ int main(int argc, char **argv)
 
 
   dax_type_tag = s7_make_c_type(sc, "dax");
-  s7_c_type_set_print(sc, dax_type_tag, print_dax);
   s7_c_type_set_free(sc, dax_type_tag, free_dax);
   s7_c_type_set_equal(sc, dax_type_tag, equal_dax);
   s7_c_type_set_mark(sc, dax_type_tag, mark_dax);
+  s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
 
   s7_define_function(sc, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");
   s7_define_function(sc, "dax?", is_dax, 1, 0, false, "(dax? anything) returns #t if its argument is a dax object");
@@ -1686,7 +1688,6 @@ int main(int argc, char **argv)
   }
 
   g_block_type = s7_make_c_type(sc, "<block>");
-  s7_c_type_set_print(sc, g_block_type, g_block_display);
   s7_c_type_set_free(sc, g_block_type, g_block_free);
   s7_c_type_set_equal(sc, g_block_type, g_block_is_equal);
   s7_c_type_set_mark(sc, g_block_type, g_block_mark);
@@ -1696,6 +1697,7 @@ int main(int argc, char **argv)
   s7_c_type_set_copy(sc, g_block_type, g_block_copy);
   s7_c_type_set_reverse(sc, g_block_type, g_block_reverse);
   s7_c_type_set_fill(sc, g_block_type, g_block_fill);
+  s7_c_type_set_to_string(sc, g_block_type, g_block_to_string);
 
   s7_define_function(sc, "make-block", g_make_block, 1, 0, false, g_make_block_help);
   s7_define_function(sc, "block", g_to_block, 0, 0, true, g_block_help);

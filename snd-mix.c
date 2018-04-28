@@ -2744,23 +2744,33 @@ static char *xen_mix_to_string(xen_mix *v)
   return(buf);
 }
 
-Xen_wrap_print(xen_mix, print_xen_mix, xen_mix_to_string)
-
 
 #if HAVE_FORTH || HAVE_RUBY
+Xen_wrap_print(xen_mix, print_xen_mix, xen_mix_to_string)
+
 static Xen g_xen_mix_to_string(Xen obj)
 {
   char *vstr;
   Xen result;
   #define S_xen_mix_to_string "mix->string"
-
   Xen_check_type(xen_is_mix(obj), obj, 1, S_xen_mix_to_string, "a mix");
-
   vstr = xen_mix_to_string(Xen_to_xen_mix(obj));
   result = C_string_to_Xen_string(vstr);
   free(vstr);
   return(result);
 }
+#else
+#if HAVE_SCHEME
+static s7_pointer g_xen_mix_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *vstr;
+  Xen result;
+  vstr = xen_mix_to_string(Xen_to_xen_mix(s7_car(args)));
+  result = C_string_to_Xen_string(vstr);
+  free(vstr);
+  return(result);
+}
+#endif
 #endif
 
 #if HAVE_SCHEME
@@ -2842,11 +2852,11 @@ static void init_xen_mix(void)
   g_mix_methods = s7_openlet(s7, s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "object->let"), mix_to_let_func)));
   s7_gc_protect(s7, g_mix_methods);
   xen_mix_tag = s7_make_c_type(s7, "<mix>");
-  s7_c_type_set_print(s7, xen_mix_tag, print_xen_mix);
   s7_c_type_set_free(s7, xen_mix_tag, free_xen_mix);
   s7_c_type_set_equal(s7, xen_mix_tag, s7_xen_mix_equalp);
   s7_c_type_set_length(s7, xen_mix_tag, s7_xen_mix_length);
   s7_c_type_set_copy(s7, xen_mix_tag, s7_xen_mix_copy);
+  s7_c_type_set_to_string(s7, xen_mix_tag, g_xen_mix_to_string);
 #else
 #if HAVE_RUBY
   xen_mix_tag = Xen_make_object_type("XenMix", sizeof(xen_mix));
@@ -3727,8 +3737,9 @@ static char *mix_sampler_to_string(mix_fd *fd)
   return(desc);
 }
 
+#if HAVE_FORTH || HAVE_RUBY
 Xen_wrap_print(mix_fd, print_mf, mix_sampler_to_string)
-
+#endif
 
 static void mf_free(mix_fd *fd)
 {
@@ -3749,6 +3760,16 @@ Xen_wrap_free(mix_fd, free_mf, mf_free)
 static bool s7_equalp_mf(void *m1, void *m2)
 {
   return(m1 == m2);
+}
+
+static s7_pointer g_mix_sampler_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *str;
+  s7_pointer result;
+  str = mix_sampler_to_string(Xen_to_mix_sampler(s7_car(args)));
+  result = s7_make_string(sc, str);
+  free(str);
+  return(result);
 }
 #endif
 
@@ -4248,10 +4269,10 @@ void g_init_mix(void)
   g_mix_sampler_methods = s7_openlet(s7, s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "object->let"), mix_sampler_to_let_func)));
   s7_gc_protect(s7, g_mix_sampler_methods);
   mf_tag = s7_make_c_type(s7, "<mix-sampler>");
-  s7_c_type_set_print(s7, mf_tag, print_mf);
   s7_c_type_set_free(s7, mf_tag, free_mf);
   s7_c_type_set_equal(s7, mf_tag, s7_equalp_mf);
   s7_c_type_set_ref(s7, mf_tag, s7_read_mix_sample);
+  s7_c_type_set_to_string(s7, mf_tag, g_mix_sampler_to_string);
 #else
   mf_tag = Xen_make_object_type("MixSampler", sizeof(mix_fd));
 #endif

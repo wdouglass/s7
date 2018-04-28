@@ -1417,23 +1417,33 @@ static char *xen_region_to_string(xen_region *v)
   return(buf);
 }
 
-Xen_wrap_print(xen_region, print_xen_region, xen_region_to_string)
-
 
 #if HAVE_FORTH || HAVE_RUBY
+Xen_wrap_print(xen_region, print_xen_region, xen_region_to_string)
+
 static Xen g_xen_region_to_string(Xen obj)
 {
   char *vstr;
   Xen result;
   #define S_xen_region_to_string "region->string"
-
   Xen_check_type(xen_is_region(obj), obj, 1, S_xen_region_to_string, "a region");
-
   vstr = xen_region_to_string(Xen_to_xen_region(obj));
   result = C_string_to_Xen_string(vstr);
   free(vstr);
   return(result);
 }
+#else
+static s7_pointer g_xen_region_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *vstr;
+  Xen result;
+  vstr = xen_region_to_string(Xen_to_xen_region(s7_car(args)));
+  result = C_string_to_Xen_string(vstr);
+  free(vstr);
+  return(result);
+}
+#if HAVE_SCHEME
+#endif
 #endif
 
 
@@ -1490,10 +1500,10 @@ static void init_xen_region(void)
 {
 #if HAVE_SCHEME
   xen_region_tag = s7_make_c_type(s7, "<region>");
-  s7_c_type_set_print(s7, xen_region_tag, print_xen_region);
   s7_c_type_set_free(s7, xen_region_tag, free_xen_region);
   s7_c_type_set_equal(s7, xen_region_tag, s7_xen_region_equalp);
   s7_c_type_set_length(s7, xen_region_tag, s7_xen_region_length);
+  s7_c_type_set_to_string(s7, xen_region_tag, g_xen_region_to_string);
 #else
 #if HAVE_RUBY
   xen_region_tag = Xen_make_object_type("XenRegion", sizeof(xen_region));

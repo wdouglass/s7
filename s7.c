@@ -531,17 +531,19 @@ typedef struct {
   s7_int type, outer_type;
   s7_pointer scheme_name;
   void (*free)(void *value);
-  void (*gc_mark)(void *val);
+  void (*mark)(void *val);
+  bool (*equal)(void *val1, void *val2);       /* can this be wrapped? */
+#if (!DISABLE_DPERCATED)
   char *(*print)(s7_scheme *sc, void *value);
-  char *(*print_readably)(s7_scheme *sc, void *value);
-  bool (*equal)(void *val1, void *val2);
-  s7_pointer (*ref)    (s7_scheme *sc, s7_pointer args);
-  s7_pointer (*set)    (s7_scheme *sc, s7_pointer args);
-  s7_pointer (*length) (s7_scheme *sc, s7_pointer args);
-  s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args);
-  s7_pointer (*copy)   (s7_scheme *sc, s7_pointer args);
-  s7_pointer (*fill)   (s7_scheme *sc, s7_pointer args);
-  s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args);
+#endif
+  s7_pointer (*ref)      (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*set)      (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*length)   (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*reverse)  (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*copy)     (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*fill)     (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*to_list)  (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args);
 } c_object_t;
 
 
@@ -1323,6 +1325,7 @@ static void init_types(void)
   t_structure_p[T_LET] = true;
   t_structure_p[T_ITERATOR] = true;
   t_structure_p[T_C_POINTER] = true;
+  t_structure_p[T_C_OBJECT] = true;
 
   t_sequence_p[T_NIL] = true;
   t_sequence_p[T_PAIR] = true;
@@ -2692,13 +2695,16 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define c_object_free(Sc, p)          c_object_info(Sc, p)->free
 #define c_object_ref(Sc, p)           c_object_info(Sc, p)->ref
 #define c_object_set(Sc, p)           c_object_info(Sc, p)->set
-#define c_object_print(Sc, p)         c_object_info(Sc, p)->print
-#define c_object_print_readably(Sc, p) c_object_info(Sc, p)->print_readably
+#if (!DISABLE_DEPRECATED)
+  #define c_object_print(Sc, p)       c_object_info(Sc, p)->print
+#endif
 #define c_object_len(Sc, p)           c_object_info(Sc, p)->length
 #define c_object_eql(Sc, p)           c_object_info(Sc, p)->equal
 #define c_object_fill(Sc, p)          c_object_info(Sc, p)->fill
 #define c_object_copy(Sc, p)          c_object_info(Sc, p)->copy
 #define c_object_reverse(Sc, p)       c_object_info(Sc, p)->reverse
+#define c_object_to_list(Sc, p)       c_object_info(Sc, p)->to_list
+#define c_object_to_string(Sc, p)     c_object_info(Sc, p)->to_string
 #define c_object_scheme_name(Sc, p)   T_Str(c_object_info(Sc, p)->scheme_name)
 
 #define raw_pointer(p)                (T_Ptr(p))->object.cptr.c_pointer
@@ -26346,6 +26352,14 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	  top_cyclic = true;
 	}
       break;
+
+    case T_C_OBJECT:
+      if (c_object_to_list(sc, top))
+	{
+	  if (collect_shared_info(sc, ci, (*(c_object_to_list(sc, top)))(sc, set_plist_1(sc, top)), stop_at_print_length))
+	    top_cyclic = true;
+	}
+      break;
     }
   if (!top_cyclic)
     set_shared(top);
@@ -29866,12 +29880,74 @@ static void dynamic_wind_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
 
 static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  char *str;
-  if (use_write == P_READABLE)
-    str = ((*(c_object_print_readably(sc, obj)))(sc, c_object_value(obj)));
-  else str = ((*(c_object_print(sc, obj)))(sc, c_object_value(obj)));
-  port_display(port)(sc, str, port);
-  free(str);
+#if (!DISABLE_DEPRECATED)
+  if (c_object_print(sc, obj))
+    {
+      char *str;
+      str = ((*(c_object_print(sc, obj)))(sc, c_object_value(obj)));
+      port_display(port)(sc, str, port);
+      free(str);
+      return;
+    }
+#endif
+  if (c_object_to_string(sc, obj))
+    port_display(port)(sc, s7_string((*(c_object_to_string(sc, obj)))(sc, set_plist_2(sc, obj, (use_write == P_READABLE) ? sc->key_readable_symbol : sc->T))), port);
+  else 
+    {
+      int32_t nlen;
+      char *buf;
+      const char *name;
+
+      if ((c_object_to_list(sc, obj)) &&
+	  (use_write == P_READABLE))
+	{
+	  s7_pointer obj_list, old_w;
+	  if ((ci) && (peek_shared_ref(ci, obj) != 0))
+	    {
+	      int32_t href;
+	      href = peek_shared_ref(ci, obj);
+	      if (href < 0) href = -href;
+	      if ((ci->defined[href]) || (port == ci->cycle_port))
+		{
+		  char buf[128];
+		  int32_t plen;
+		  plen = snprintf(buf, 128, "<%d>", href);
+		  port_write_string(port)(sc, buf, plen, port);
+		  return;
+		}
+	    }
+	  obj_list = ((*(c_object_to_list(sc, obj)))(sc, set_plist_1(sc, obj)));
+	  old_w = sc->w;
+	  sc->w = obj_list;
+
+	  name = s7_string(c_object_scheme_name(sc, obj));
+	  nlen = safe_strlen(name) + 16;
+
+	  buf = (char *)malloc(nlen);
+	  nlen = snprintf(buf, nlen, "(apply %s ", name);
+	  port_write_string(port)(sc, buf, nlen, port);
+	  free(buf);
+
+	  /* see c_pointer_to_port -- this is not handling self-refs yet
+	   *   cycle g: "(let ((<1> (apply <cycle> (list <1>)))) <1>)"
+	   *   maybe:    (let ((<1> (apply <cycle> (list #f)))) (set! (<1> 0) <1>)) ??
+	   * but then we need c_type_set_set support as well
+	   */
+	  pair_to_port(sc, obj_list, port, use_write, ci);
+
+	  port_write_character(port)(sc, ')', port);
+	  sc->w = old_w;
+	}
+      else 
+	{
+	  name = s7_string(c_object_scheme_name(sc, obj));
+	  nlen = safe_strlen(name) + 64;
+	  buf = (char *)malloc(nlen);
+	  nlen = snprintf(buf, nlen, "#<%s %p>", name, obj);
+	  port_write_string(port)(sc, buf, nlen, port);
+	  free(buf);
+	}
+    }
 }
 
 static void slot_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -39431,21 +39507,6 @@ s7_pointer s7_signature(s7_scheme *sc, s7_pointer func)
 static void fallback_free(void *value) {}
 static void fallback_mark(void *value) {}
 
-static char *fallback_print(s7_scheme *sc, void *val)
-{
-  return(copy_string("#<unprintable c-object>"));
-}
-
-static char *fallback_print_readably(s7_scheme *sc, void *val)
-{
-  return(copy_string("#<unprint-readable c-object>"));
-}
-
-static bool fallback_equal(void *val1, void *val2)
-{
-  return(val1 == val2);
-}
-
 static s7_pointer fallback_ref(s7_scheme *sc, s7_pointer args)
 {
   return(apply_error(sc, car(args), cdr(args)));
@@ -39479,13 +39540,9 @@ static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args) /* called in c_object_set_function */
 {
-  s7_pointer p;
-  p = car(args);
-  if (is_c_object(p)) 
-    return((*(c_object_set(sc, p)))(sc, args));
-  return(sc->F);
+  return((*(c_object_set(sc, car(args))))(sc, args));
 }
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name)
@@ -39510,10 +39567,11 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
   sc->c_object_types[tag]->scheme_name = s7_make_permanent_string(name);
 
   sc->c_object_types[tag]->free = fallback_free;
-  sc->c_object_types[tag]->print = fallback_print;
-  sc->c_object_types[tag]->print_readably = fallback_print_readably;
-  sc->c_object_types[tag]->equal = fallback_equal;
-  sc->c_object_types[tag]->gc_mark = fallback_mark;
+#if (!DISABLE_DEPRECATED)
+  sc->c_object_types[tag]->print = NULL;
+#endif
+  sc->c_object_types[tag]->equal = NULL;
+  sc->c_object_types[tag]->mark = fallback_mark;
   sc->c_object_types[tag]->ref = fallback_ref;
   sc->c_object_types[tag]->set = fallback_set;
   sc->c_object_types[tag]->outer_type = T_C_OBJECT;
@@ -39522,19 +39580,17 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
   sc->c_object_types[tag]->reverse = NULL;
   sc->c_object_types[tag]->fill = NULL;
   sc->c_object_types[tag]->to_list = NULL;
+  sc->c_object_types[tag]->to_string = NULL;
   
   return(tag);
 }
 
+#if (!DISABLE_DEPRECATED)
 void s7_c_type_set_print(s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value)) 
 { 
   sc->c_object_types[tag]->print = print;
 }
-
-void s7_c_type_set_print_readably(s7_scheme *sc, s7_int type, char *(*printer)(s7_scheme *sc, void *value))
-{
-  sc->c_object_types[type]->print_readably = printer;
-}
+#endif
 
 void s7_c_type_set_free(s7_scheme *sc, s7_int tag, void (*gc_free)(void *value))
 {
@@ -39546,9 +39602,9 @@ void s7_c_type_set_equal(s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, 
   sc->c_object_types[tag]->equal = equal;
 }
 
-void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*gc_mark)(void *value))
+void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*mark)(void *value))
 {
-  sc->c_object_types[tag]->gc_mark = gc_mark;
+  sc->c_object_types[tag]->mark = mark;
 }
 
 void s7_c_type_set_ref(s7_scheme *sc, s7_int tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer args))
@@ -39588,12 +39644,17 @@ void s7_c_type_set_to_list(s7_scheme *sc, s7_int tag, s7_pointer (*to_list)(s7_s
   sc->c_object_types[tag]->to_list = to_list;
 }
 
+void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args))
+{
+  sc->c_object_types[tag]->to_string = to_string;
+}
+
 #if (!DISABLE_DEPRECATED)
 s7_int s7_new_type(const char *name,
 		   char *(*print)(s7_scheme *sc, void *value),
 		   void (*gc_free)(void *value),
 		   bool (*equal)(void *val1, void *val2),
-		   void (*gc_mark)(void *val),
+		   void (*mark)(void *val),
 		   s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* ignored */
 		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args)) /* ignored */
 {
@@ -39602,16 +39663,10 @@ s7_int s7_new_type(const char *name,
   if (gc_free) cur_sc->c_object_types[tag]->free = gc_free;
   if (print) cur_sc->c_object_types[tag]->print = print;
   if (equal) cur_sc->c_object_types[tag]->equal = equal;
-  if (gc_mark) cur_sc->c_object_types[tag]->gc_mark = gc_mark;
+  if (mark) cur_sc->c_object_types[tag]->mark = mark;
   return(tag);
 }
 #endif
-
-static bool c_objects_are_equal(s7_scheme *sc, s7_pointer a, s7_pointer b)
-{
-  return((c_object_type(a) == c_object_type(b)) &&
-	 ((*(c_object_eql(sc, a)))(c_object_value(a), c_object_value(b))));
-}
 
 void *s7_c_object_value(s7_pointer obj)
 {
@@ -39645,7 +39700,7 @@ s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7
   c_object_type(x) = type;
   c_object_value(x) = value;
   c_object_set_let(x, let);
-  c_object_mark(x) = sc->c_object_types[type]->gc_mark;
+  c_object_mark(x) = sc->c_object_types[type]->mark;
   add_c_object(sc, x);
   return(x);
 }
@@ -39702,9 +39757,7 @@ static s7_pointer c_object_type_to_let(s7_scheme *sc, s7_pointer cobj)
   return(s7_inlet(sc, s7_list(sc, 4,
 			      s7_make_symbol(sc, "name"), c_object_scheme_name(sc, cobj),
 			      sc->setter_symbol, (c_object_set(sc, cobj) != fallback_set) ? sc->c_object_set_function : sc->F)));
-
   /* should we make new wrappers every time this is called? or save the let somewhere and reuse it? */
-  /* (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init))) */
 }
 
 
@@ -40641,23 +40694,6 @@ static bool syntax_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
   return((is_syntax(y)) && (syntax_symbol(x) == syntax_symbol(y)));
 }
 
-static bool c_object_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
-{
-  return((is_c_object(y)) && (c_objects_are_equal(sc, x, y)));
-}
-
-static bool c_object_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
-{
-  if (has_methods(x))
-    {
-      s7_pointer equal_func;
-      equal_func = find_method(sc, find_let(sc, x), sc->is_morally_equal_symbol);
-      if (equal_func != sc->undefined)
-	return(s7_boolean(sc, s7_apply_function(sc, equal_func, list_2(sc, x, y))));
-    }
-  return((is_c_object(y)) && (c_objects_are_equal(sc, x, y)));
-}
-
 static bool port_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   return(x == y);
@@ -40719,6 +40755,47 @@ static bool port_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
       }									\
   } while (0)
 
+
+static bool c_objects_are_equal(s7_scheme *sc, s7_pointer a, s7_pointer b, shared_info *ci)
+{
+  s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args);
+  shared_info *nci = ci;
+  s7_pointer pa, pb;
+
+  if (a == b) 
+    return(true);
+  if (!is_c_object(b))
+    return(false);
+  if (c_object_type(a) != c_object_type(b)) 
+    return(false);
+  if (c_object_eql(sc, a))
+    return((*(c_object_eql(sc, a)))(c_object_value(a), c_object_value(b)));
+
+  to_list = c_object_to_list(sc, a);
+  if (!to_list)
+    return(false);
+  if (ci)
+    equal_ref(sc, a, b, ci); /* and nci == ci above */
+  else nci = new_shared_info(sc);
+
+  for (pa = to_list(sc, set_plist_1(sc, a)), pb = to_list(sc, set_plist_1(sc, b)); is_pair(pa) && (is_pair(pb)); pa = cdr(pa), pb = cdr(pb))
+    if (!(s7_is_equal_1(sc, car(pa), car(pb), nci)))
+      return(false);
+  
+  return(pa == pb); /* presumably both are nil if successful */
+}
+
+static bool c_object_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  if (has_methods(x))
+    {
+      s7_pointer equal_func;
+      equal_func = find_method(sc, find_let(sc, x), sc->is_morally_equal_symbol);
+      if (equal_func != sc->undefined)
+	return(s7_boolean(sc, s7_apply_function(sc, equal_func, list_2(sc, x, y))));
+    }
+  return(c_objects_are_equal(sc, x, y, ci));
+}
 
 static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
@@ -41231,7 +41308,7 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	{
 	  if (morally)
 	    return(c_object_morally_equal(sc, x_seq, y_seq, ci));
-	  return(c_object_equal(sc, x_seq, y_seq, ci));
+	  return(c_objects_are_equal(sc, x_seq, y_seq, ci));
 	}
       return(false);
 
@@ -41496,7 +41573,7 @@ static void init_equals(void)
   equals[T_UNDEFINED] =    undefined_equal;
   equals[T_STRING] =       string_equal;
   equals[T_SYNTAX] =       syntax_equal;
-  equals[T_C_OBJECT] =     c_object_equal;
+  equals[T_C_OBJECT] =     c_objects_are_equal;
   equals[T_RANDOM_STATE] = rng_equal;
   equals[T_ITERATOR] =     iterator_equal;
   equals[T_INPUT_PORT] =   port_equal;
@@ -43052,6 +43129,9 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 	s7_pointer x, z, zc, result;
 	s7_int gc_z;
 
+	if (c_object_to_list(sc, obj))
+	  return((*(c_object_to_list(sc, obj)))(sc, set_plist_1(sc, obj)));
+
 	x = c_object_length(sc, obj);
 	if (s7_is_integer(x))
 	  len = s7_integer(x);
@@ -43340,6 +43420,41 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   s7_make_symbol(sc, "c-object-type"), s7_make_integer(sc, c_object_type(obj)),
 				   s7_make_symbol(sc, "c-object-let"), clet,
 				   s7_make_symbol(sc, "class"), c_object_type_to_let(sc, obj)));
+
+	/* not sure these are useful */
+	if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-length"),
+		    s7_make_function(sc, "c-object-length", c_object_len(sc, obj), 1, 0, false, "c-object length function"));
+	if (c_object_ref(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-ref"),
+		    s7_make_function(sc, "c-object-ref", c_object_ref(sc, obj), 1, 0, true, "c-object ref function"));
+	if (c_object_set(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-set!"),
+		    s7_make_function(sc, "c-object-set!", c_object_set(sc, obj), 2, 0, true, "c-object set! function"));
+	if (c_object_copy(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-copy"),
+		    s7_make_function(sc, "c-object-copy", c_object_copy(sc, obj), 1, 0, true, "c-object copy function"));
+	if (c_object_fill(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-fill!"),
+		    s7_make_function(sc, "c-object-fill!", c_object_fill(sc, obj), 1, 0, true, "c-object fill! function"));
+	if (c_object_reverse(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object-reverse"),
+		    s7_make_function(sc, "c-object-reverse", c_object_reverse(sc, obj), 1, 0, true, "c-object reverse function"));
+	if (c_object_to_list(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object->list"),
+		    s7_make_function(sc, "c-object->list", c_object_to_list(sc, obj), 1, 0, true, "c-object->list function"));
+	if (c_object_to_string(sc, obj))
+	  s7_varlet(sc, let, 
+		    s7_make_symbol(sc, "c-object->string"),
+		    s7_make_function(sc, "c-object->string", c_object_to_string(sc, obj), 1, 1, false, "c-object->string function"));
+
 	if ((is_let(clet)) &&
 	    ((has_methods(clet)) || (has_methods(obj))))
 	  {
@@ -84718,11 +84833,8 @@ int main(int argc, char **argv)
  *   another cycle: (*s7* 'stack), and 
  *     c-object+seq-local holding obj:
  *   so: add s7_c_object_to_list(s7.h and setter) + slot in c-type struct
- *       in equal? if c-obj-equal exists, use it, else s7 equal using obj->list (and cycle checks)
  *       in obj->str+readable, if c-obj print_readably or obj->str method exists, use them, else use (apply type (c-obj->list obj)) with cycle checks
- *       s7.html show pre-built list and fast set? add to s7test
- *       all of this parallels c-pointer and c-pointer->list, or random-state and random-state->list
- *       s7_function maybe the rest, add s7_functions to obj->let
+ *       doc to_list uses (and s7test readable)
  *   stack problem is printout (not equal) -- treat as list?
  * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
@@ -84736,6 +84848,7 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
+ *   check that cr's are initialized to null
  *
  * lv2 (/usr/include/lv2.h)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.

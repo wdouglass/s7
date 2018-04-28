@@ -1323,9 +1323,18 @@ Xen_wrap_free(mus_xen, free_mus_xen, mus_xen_free)
 
 
 #if HAVE_SCHEME
-static char *print_mus_xen(s7_scheme *sc, void *obj)
+static s7_pointer mus_generator_to_string(s7_scheme *sc, s7_pointer args)
 {
-  return(mus_describe(((mus_xen *)obj)->gen));
+  s7_pointer g;
+  g = s7_car(args);
+  if (s7_is_pair(s7_cdr(args)))
+    {
+      s7_pointer choice;
+      choice = s7_cadr(args);
+      if (choice == s7_make_keyword(sc, "readable"))
+	s7_error(sc, s7_make_symbol(sc, "out-of-range"), s7_list(sc, 1, s7_make_string(sc, "can't write a clm generator readably")));
+    }
+  return(s7_make_string(sc, mus_describe(((mus_xen *)s7_c_object_value(g))->gen)));
 }
 
 static bool s7_equalp_mus_xen(void *val1, void *val2)
@@ -12484,17 +12493,6 @@ static s7_pointer acc_mus_file_buffer_size(s7_scheme *sc, s7_pointer args) {retu
 static s7_pointer acc_mus_float_equal_fudge_factor(s7_scheme *sc, s7_pointer args) {return(g_mus_set_float_equal_fudge_factor(s7_cadr(args)));}  
 static s7_pointer acc_mus_array_print_length(s7_scheme *sc, s7_pointer args) {return(g_mus_set_array_print_length(s7_cadr(args)));}  
 
-static char *mus_generator_to_readable_string(s7_scheme *sc, void *obj)
-{
-  char *str;
-  str = (char *)malloc(64 * sizeof(char));
-  snprintf(str, 64, "#<%s>", mus_name(((mus_xen *)obj)->gen));
-  return(str);
-  /* we need a new function to fill this role */
-  /* s7_error(sc, s7_make_symbol(sc, "io-error"), s7_list(sc, 1, s7_make_string(sc, "can't write a clm generator readably"))); */
-  /* return(NULL); */
-}
-
 static s7_pointer generator_to_let(s7_scheme *sc, s7_pointer args)
 {
   /* this is called upon (object->let <gen>)
@@ -12843,14 +12841,13 @@ static void mus_xen_init(void)
 
 #if HAVE_SCHEME
   mus_xen_tag = s7_make_c_type(s7, "<generator>");
-  s7_c_type_set_print(s7, mus_xen_tag, print_mus_xen);
   s7_c_type_set_free(s7, mus_xen_tag, free_mus_xen);
   s7_c_type_set_equal(s7, mus_xen_tag, s7_equalp_mus_xen);
   s7_c_type_set_mark(s7, mus_xen_tag, mark_mus_xen);
   s7_c_type_set_ref(s7, mus_xen_tag, mus_xen_apply);
   s7_c_type_set_length(s7, mus_xen_tag, s7_mus_length);
   s7_c_type_set_copy(s7, mus_xen_tag, s7_mus_copy);
-  s7_c_type_set_print_readably(s7, mus_xen_tag, mus_generator_to_readable_string);
+  s7_c_type_set_to_string(s7, mus_xen_tag, mus_generator_to_string);
 
   mus_error_symbol = s7_make_symbol(s7, "mus-error");
   clm_error_info = s7_list(s7, 4, s7_make_string(s7, "~A: ~A ~A"), s7_nil(s7), s7_nil(s7), s7_nil(s7));

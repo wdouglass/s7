@@ -363,7 +363,7 @@ s7_pointer s7_make_symbol(s7_scheme *sc, const char *name);                 /* (
 s7_pointer s7_gensym(s7_scheme *sc, const char *prefix);                    /* (gensym prefix) */
 
 bool s7_is_keyword(s7_pointer obj);                                         /* (keyword? obj) */
-s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (make-keyword key) */
+s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (string->keyword key) */
 
 s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym);
 s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer func);
@@ -594,42 +594,45 @@ s7_pointer s7_c_object_let(s7_pointer obj);
 s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e);
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name);
-void s7_c_type_set_print         (s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value));
-void s7_c_type_set_print_readably(s7_scheme *sc, s7_int tag, char *(*printer)(s7_scheme *sc, void *value));
-void s7_c_type_set_free          (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
-void s7_c_type_set_equal         (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2));
-void s7_c_type_set_mark          (s7_scheme *sc, s7_int tag, void (*gc_mark)(void *value));
-void s7_c_type_set_ref           (s7_scheme *sc, s7_int tag, s7_pointer (*ref)    (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_set           (s7_scheme *sc, s7_int tag, s7_pointer (*set)    (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_length        (s7_scheme *sc, s7_int tag, s7_pointer (*length) (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_copy          (s7_scheme *sc, s7_int tag, s7_pointer (*copy)   (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_fill          (s7_scheme *sc, s7_int tag, s7_pointer (*fill)   (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_reverse       (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)(s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_to_list       (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)(s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_free     (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
+void s7_c_type_set_equal    (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2));
+void s7_c_type_set_mark     (s7_scheme *sc, s7_int tag, void (*mark)(void *value));
+void s7_c_type_set_ref      (s7_scheme *sc, s7_int tag, s7_pointer (*ref)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_set      (s7_scheme *sc, s7_int tag, s7_pointer (*set)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_length   (s7_scheme *sc, s7_int tag, s7_pointer (*length)   (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_copy     (s7_scheme *sc, s7_int tag, s7_pointer (*copy)     (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_fill     (s7_scheme *sc, s7_int tag, s7_pointer (*fill)     (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_reverse  (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)  (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_list  (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)  (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args));
+
+#if (!DISABLE_DEPRECATED)
+  void s7_c_type_set_print       (s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value));
+#endif
 
   /* These functions create a new Scheme object type.  There is a simple example in s7.html.
    *
    * s7_make_c_type creates a new C-based type for Scheme:
-   *   print:   the function called whenever s7 is asked to display a value with this type
    *   free:    the function called when an object of this type is about to be garbage collected
+   *   mark:    called during the GC mark pass -- you should call s7_mark_object
+   *            on any embedded s7_pointer associated with the object to protect if from the GC.
    *   equal:   compare two objects of this type; (equal? obj1 obj2)
-   *   gc_mark: called during the GC mark pass -- you should call s7_mark_object
-   *            on any embedded s7_pointer associated with the object.
-   *   apply:   a function that is called whenever an object of this type
+   *   ref:     a function that is called whenever an object of this type
    *            occurs in the function position (at the car of a list; the rest of the list
-   *            is passed to the apply function as the arguments).
+   *            is passed to the ref function as the arguments: (obj ...))
    *   set:     a function that is called whenever an object of this type occurs as
-   *            the target of a generalized set!
+   *            the target of a generalized set! (set! (obj ...) val)
    *   length:  the function called when the object is asked what its length is.
    *   copy:    the function called when a copy of the object is needed.
    *   fill:    the function called to fill the object with some value.
    *   reverse: similarly...
+   *   to_string: object->string for an object of this type
    *
    * s7_is_c_object returns true if 'p' holds a value of a type created by s7_new_type.
    * s7_c_object_type returns the c_object's type
    * s7_c_object_value returns the value bound to that c_object (the void *value of s7_make_c_object)
    * s7_make_c_object creates a new Scheme entity of the given type with the given (uninterpreted) value
-   * s7_mark_c_object marks any Scheme c_object as in-use (use this in the gc_mark function to mark
+   * s7_mark_c_object marks any Scheme c_object as in-use (use this in the mark function to mark
    *    any embedded s7_pointer variables).
    */
 
@@ -836,7 +839,7 @@ s7_int s7_new_type(const char *name,
 		   char *(*print)(s7_scheme *sc, void *value), 
 		   void (*free)(void *value), 
 		   bool (*equal)(void *val1, void *val2),
-		   void (*gc_mark)(void *val),
+		   void (*mark)(void *val),
 		   s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* these two args are ignored */
 		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
 
@@ -868,8 +871,8 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
- * 26-Apr:    s7_c_type_set_to_list, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
- *            c_type length is now an s7_function (args, not obj).
+ * 26-Apr:    s7_c_type_set_to_list|string, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
+ *            c_type length|set|ref are now s7_functions (args, not obj, etc).
  * 23-Mar:    s7_peek_char and s7_read_char now return s7_pointer, s7_write_char takes s7_pointer, not int32_t c
  *            s7_gc_protect and friends now return/take s7_int location, not uint32_t.
  *            removed s7_new_type_x.

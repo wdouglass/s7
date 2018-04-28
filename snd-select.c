@@ -908,23 +908,33 @@ static char *xen_selection_to_string(xen_selection *v)
   return(buf);
 }
 
-Xen_wrap_print(xen_selection, print_xen_selection, xen_selection_to_string)
-
 
 #if HAVE_FORTH || HAVE_RUBY
+Xen_wrap_print(xen_selection, print_xen_selection, xen_selection_to_string)
+
 static Xen g_xen_selection_to_string(Xen obj)
 {
   char *vstr;
   Xen result;
   #define S_xen_selection_to_string "selection->string"
-
   Xen_check_type(xen_is_selection(obj), obj, 1, S_xen_selection_to_string, "a selection");
-
   vstr = xen_selection_to_string(Xen_to_xen_selection(obj));
   result = C_string_to_Xen_string(vstr);
   free(vstr);
   return(result);
 }
+#else
+#if HAVE_SCHEME
+static s7_pointer g_xen_selection_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *vstr;
+  Xen result;
+  vstr = xen_selection_to_string(Xen_to_xen_selection(s7_car(args)));
+  result = C_string_to_Xen_string(vstr);
+  free(vstr);
+  return(result);
+}
+#endif
 #endif
 
 
@@ -1039,12 +1049,12 @@ static void init_xen_selection(void)
 {
 #if HAVE_SCHEME
   xen_selection_tag = s7_make_c_type(s7, "<selection>");
-  s7_c_type_set_print(s7, xen_selection_tag, print_xen_selection);
   s7_c_type_set_free(s7, xen_selection_tag, free_xen_selection);
   s7_c_type_set_equal(s7, xen_selection_tag, s7_xen_selection_equalp);
   s7_c_type_set_length(s7, xen_selection_tag, s7_xen_selection_length);
   s7_c_type_set_copy(s7, xen_selection_tag, s7_xen_selection_copy);
   s7_c_type_set_fill(s7, xen_selection_tag, s7_xen_selection_fill);
+  s7_c_type_set_to_string(s7, xen_selection_tag, g_xen_selection_to_string);
 #else
 #if HAVE_RUBY
   xen_selection_tag = Xen_make_object_type("XenSelection", sizeof(xen_selection));

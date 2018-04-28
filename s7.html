@@ -7646,17 +7646,19 @@ typedef struct {
   s7_pointer data;
 } dax;
 
-static char *print_dax(s7_scheme *sc, void *val)
+static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
+  s7_pointer result;
   int data_str_len;
-  dax *o = (dax *)val;
+  dax *o = (dax *)s7_c_object_value(s7_car(args));
   data_str = s7_object_to_c_string(sc, o-&gt;data);
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
-  snprintf(str, data_str_len + 32, "#&lt;dax %.3f %s&gt;", o-&gt;x, data_str);
-  free(data_str);
-  return(str);
+  snprintf(str, data_str_len + 32, \"&lt;dax %.3f %s&gt;\", o-&gt;x, data_str);
+  result = s7_make_string(sc, str);
+  free(str);
+  return(result);
 }
 
 static void free_dax(void *val)
@@ -7736,10 +7738,11 @@ int main(int argc, char **argv)
   s7_define_variable(s7, "*listener-prompt*", s7_make_string(s7, "&gt;"));
 
   dax_type_tag = <em class=red>s7_make_c_type</em>(s7, "dax");
-  s7_c_type_set_print(s7, dax_type_tag, print_dax);
   s7_c_type_set_free(s7, dax_type_tag, free_dax);
   s7_c_type_set_equal(s7, dax_type_tag, equal_dax);
   s7_c_type_set_mark(s7, dax_type_tag, mark_dax);
+  s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
+  
   s7_define_function(s7, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");
   s7_define_function(s7, "dax?", is_dax, 1, 0, false, "(dax? anything) returns #t if its argument is a dax object");
 

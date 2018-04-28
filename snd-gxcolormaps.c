@@ -919,25 +919,34 @@ static char *xen_colormap_to_string(xen_colormap *v)
   return(buf);
 }
 
-Xen_wrap_print(xen_colormap, print_xen_colormap, xen_colormap_to_string)
-
 
 #if HAVE_FORTH || HAVE_RUBY
+Xen_wrap_print(xen_colormap, print_xen_colormap, xen_colormap_to_string)
+#define S_xen_colormap_to_string "colormap->string"
+
 static Xen g_xen_colormap_to_string(Xen obj)
 {
   char *vstr;
   Xen result;
-  #define S_xen_colormap_to_string "colormap->string"
-
   Xen_check_type(xen_is_colormap(obj), obj, 1, S_xen_colormap_to_string, "a colormap");
-
   vstr = xen_colormap_to_string(Xen_to_xen_colormap(obj));
   result = C_string_to_Xen_string(vstr);
   free(vstr);
   return(result);
 }
+#else
+#if HAVE_SCHEME
+static s7_pointer g_xen_colormap_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *vstr;
+  s7_pointer result;
+  vstr = xen_colormap_to_string(Xen_to_xen_colormap(s7_car(args)));
+  result = C_string_to_Xen_string(vstr);
+  free(vstr);
+  return(result);
+}
 #endif
-
+#endif
 
 #if (!HAVE_SCHEME)
 static bool xen_colormap_equalp(xen_colormap *v1, xen_colormap *v2) 
@@ -1007,11 +1016,11 @@ static void init_xen_colormap(void)
 {
 #if HAVE_SCHEME
   xen_colormap_tag = s7_make_c_type(s7, "<colormap>");
-  s7_c_type_set_print(s7, xen_colormap_tag, print_xen_colormap);
   s7_c_type_set_free(s7, xen_colormap_tag, free_xen_colormap);
   s7_c_type_set_equal(s7, xen_colormap_tag, s7_xen_colormap_equalp);
   s7_c_type_set_length(s7, xen_colormap_tag, s7_xen_colormap_length);
   s7_c_type_set_ref(s7, xen_colormap_tag, s7_colormap_apply);
+  s7_c_type_set_to_string(s7, xen_colormap_tag, g_xen_colormap_to_string);
 #else
 #if HAVE_RUBY
   xen_colormap_tag = Xen_make_object_type("XenColormap", sizeof(xen_colormap));

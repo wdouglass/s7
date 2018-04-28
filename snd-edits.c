@@ -6792,8 +6792,21 @@ char *sampler_to_string(snd_fd *fd)
   return(desc);
 }
 
-
+#if HAVE_FORTH || HAVE_RUBY
 Xen_wrap_print(snd_fd, print_sf, sampler_to_string)
+#endif
+
+#if HAVE_SCHEME
+static s7_pointer g_sampler_to_string(s7_scheme *sc, s7_pointer args)
+{
+  char *str;
+  s7_pointer result;
+  str = sampler_to_string(Xen_to_C_sampler(s7_car(args)));
+  result = s7_make_string(sc, str);
+  if (str) free(str);
+  return(result);
+}
+#endif
 
 /* make-sampler can refer to any edit of any sound, user can subsequently
  *   either clobber that edit (undo, new edit), or close the sound, but forget
@@ -9145,11 +9158,11 @@ void g_init_edits(void)
   pl_fx = s7_make_signature(s7, 2, f, smp);
 
   sf_tag = s7_make_c_type(s7, "<sampler>");
-  s7_c_type_set_print(s7, sf_tag, print_sf);
   s7_c_type_set_free(s7, sf_tag, free_sf);
   s7_c_type_set_equal(s7, sf_tag, s7_equalp_sf);
   s7_c_type_set_ref(s7, sf_tag, s7_read_sample);
   s7_c_type_set_length(s7, sf_tag, length_sf);
+  s7_c_type_set_to_string(s7, sf_tag, g_sampler_to_string);
 #else
   sf_tag = Xen_make_object_type("Sampler", sizeof(snd_fd));
 #endif
