@@ -6,7 +6,7 @@ static GtkWidget *mix_dialog = NULL;
 static int mix_dialog_id = INVALID_MIX_ID, old_mix_dialog_id = INVALID_MIX_ID;
 static env *dialog_env = NULL;
 #if GTK_CHECK_VERSION(3, 89, 0)
-static cairo_t *mix_cr;
+static cairo_t *mix_cr = NULL;
 #endif
 
 static bool dragging = false;

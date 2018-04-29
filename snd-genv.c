@@ -13,7 +13,7 @@ static GtkAdjustment *baseAdj, *orderAdj;
 static gc_t *gc, *rgc, *ggc;
 static slist *env_list = NULL;
 #if (GTK_CHECK_VERSION(3, 89, 0))
-  static cairo_t *enved_cr;
+  static cairo_t *enved_cr = NULL;
 #endif
 
 static const char *env_names[3] = {"amp env:", "flt env:", "src env:"};

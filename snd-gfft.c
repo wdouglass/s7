@@ -18,7 +18,7 @@ static GtkWidget *db_txt, *peaks_txt, *lf_txt;
 static gc_t *fft_gc = NULL, *fgc = NULL;
 static bool ignore_callbacks;
 #if (GTK_CHECK_VERSION(3, 89, 0))
-static cairo_t *gcr;
+static cairo_t *gcr = NULL;
 #endif
 
 #define NUM_TRANSFORM_SIZES 15

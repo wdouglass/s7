@@ -606,6 +606,11 @@ void s7_c_type_set_reverse  (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)  (
 void s7_c_type_set_to_list  (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)  (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args));
 
+/* if a c-object might participate in a cyclic structure, and you want to check its equality to another such object
+ *   or get a readable string representing that object, you need to implement the "to_list" and "set" cases above,
+ *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
+ */
+
 #if (!DISABLE_DEPRECATED)
   void s7_c_type_set_print       (s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value));
 #endif

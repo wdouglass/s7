@@ -26181,7 +26181,8 @@ static bool collect_vector_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	  set_cyclic(vel);
 	  cyclic = true;
 	  if ((is_c_pointer(vel)) ||
-	      (is_iterator(vel)))
+	      (is_iterator(vel)) ||
+	      (is_c_object(vel)))
 	    check_collected(top, ci);
 	}
     }
@@ -26295,7 +26296,8 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 		      (collect_shared_info(sc, ci, p->value, stop_at_print_length)))
 		    {
 		      if ((is_c_pointer(p->value)) ||
-			  (is_iterator(p->value)))
+			  (is_iterator(p->value)) ||
+			  (is_c_object(p->value)))
 			check_collected(top, ci);
 		      top_cyclic = true;
 		    }
@@ -26327,7 +26329,8 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 		  {
 		    top_cyclic = true;
 		    if ((is_c_pointer(slot_value(p))) ||
-			(is_iterator(slot_value(p))))
+			(is_iterator(slot_value(p))) ||
+			(is_c_object(slot_value(p))))
 		      check_collected(top, ci);
 		  }
 	    }
@@ -26354,13 +26357,17 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
       break;
 
     case T_C_OBJECT:
-      if (c_object_to_list(sc, top))
+      if ((c_object_to_list(sc, top)) &&
+	  (c_object_set(sc, top)) &&
+	  (collect_shared_info(sc, ci, (*(c_object_to_list(sc, top)))(sc, set_plist_1(sc, top)), stop_at_print_length)))
 	{
-	  if (collect_shared_info(sc, ci, (*(c_object_to_list(sc, top)))(sc, set_plist_1(sc, top)), stop_at_print_length))
-	    top_cyclic = true;
+	  if (peek_shared_ref(ci, top) == 0)
+	    check_collected(top, ci);
+	  top_cyclic = true;
 	}
       break;
     }
+
   if (!top_cyclic)
     set_shared(top);
   else set_cyclic(top);
@@ -29589,6 +29596,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 {
   int32_t nlen;
   char buf[128];
+  /* c-pointer is special because we can't set the type or info fields from scheme except via the c-pointer function */
 
   if (use_write == P_READABLE)
     {
@@ -29878,6 +29886,21 @@ static void dynamic_wind_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
   port_write_string(port)(sc, "#<dynamic-wind>", 15, port);
 }
 
+static void c_object_name_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port)
+{
+  int32_t nlen;
+  char *buf;
+  const char *name;
+
+  name = s7_string(c_object_scheme_name(sc, obj));
+  nlen = safe_strlen(name) + 16;
+
+  buf = (char *)malloc(nlen);
+  nlen = snprintf(buf, nlen, "(%s", name);
+  port_write_string(port)(sc, buf, nlen, port);
+  free(buf);
+}
+
 static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
 #if (!DISABLE_DEPRECATED)
@@ -29894,54 +29917,87 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
     port_display(port)(sc, s7_string((*(c_object_to_string(sc, obj)))(sc, set_plist_2(sc, obj, (use_write == P_READABLE) ? sc->key_readable_symbol : sc->T))), port);
   else 
     {
-      int32_t nlen;
-      char *buf;
-      const char *name;
-
-      if ((c_object_to_list(sc, obj)) &&
-	  (use_write == P_READABLE))
+      if ((use_write == P_READABLE) &&
+	  (c_object_to_list(sc, obj)) &&  /* to_list and (implicit) set are needed to reconstruct a cyclic c-object, as well as the maker (via type name) */
+	  (c_object_set(sc, obj)))
 	{
-	  s7_pointer obj_list, old_w;
-	  if ((ci) && (peek_shared_ref(ci, obj) != 0))
+	  s7_pointer obj_list, old_w, p;
+
+	  obj_list = ((*(c_object_to_list(sc, obj)))(sc, set_plist_1(sc, obj)));
+	  old_w = sc->w;
+	  sc->w = obj_list;
+
+	  if ((ci) &&
+	      (is_cyclic(obj)) &&
+	      (peek_shared_ref(ci, obj) != 0))
 	    {
-	      int32_t href;
+	      int32_t i, href, nlen;
 	      href = peek_shared_ref(ci, obj);
 	      if (href < 0) href = -href;
 	      if ((ci->defined[href]) || (port == ci->cycle_port))
 		{
 		  char buf[128];
-		  int32_t plen;
-		  plen = snprintf(buf, 128, "<%d>", href);
-		  port_write_string(port)(sc, buf, plen, port);
+		  nlen = snprintf(buf, 128, "<%d>", href);
+		  port_write_string(port)(sc, buf, nlen, port);
 		  return;
 		}
+
+	      c_object_name_to_port(sc, obj, port);
+	      for (i = 0, p = obj_list; is_pair(p); i++, p = cdr(p))
+		{
+		  s7_pointer val;
+		  val = car(p);
+		  if (has_structure(val))
+		    {
+		      char buf[128];
+		      int32_t symref, len;
+		      port_write_string(port)(sc, " #f", 3, port);
+		      
+		      len = snprintf(buf, 128, "  (set! (<%d> %d) ", href, i);
+		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+		      
+		      symref = peek_shared_ref(ci, val);
+		      if (symref != 0)
+			{
+			  if (symref < 0) symref = -symref;
+			  len = snprintf(buf, 128, "<%d>)\n", symref);
+			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			}
+		      else
+			{
+			  object_to_port_with_circle_check(sc, val, ci->cycle_port, P_READABLE, ci);
+			  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+			}
+		    }
+		  else
+		    {
+		      port_write_character(port)(sc, ' ', port);
+		      object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
+		    }
+		}
 	    }
-	  obj_list = ((*(c_object_to_list(sc, obj)))(sc, set_plist_1(sc, obj)));
-	  old_w = sc->w;
-	  sc->w = obj_list;
-
-	  name = s7_string(c_object_scheme_name(sc, obj));
-	  nlen = safe_strlen(name) + 16;
-
-	  buf = (char *)malloc(nlen);
-	  nlen = snprintf(buf, nlen, "(apply %s ", name);
-	  port_write_string(port)(sc, buf, nlen, port);
-	  free(buf);
-
-	  /* see c_pointer_to_port -- this is not handling self-refs yet
-	   *   cycle g: "(let ((<1> (apply <cycle> (list <1>)))) <1>)"
-	   *   maybe:    (let ((<1> (apply <cycle> (list #f)))) (set! (<1> 0) <1>)) ??
-	   * but then we need c_type_set_set support as well
-	   */
-	  pair_to_port(sc, obj_list, port, use_write, ci);
-
+	  else
+	    {
+	      c_object_name_to_port(sc, obj, port);
+	      for (p = obj_list; is_pair(p); p = cdr(p))
+		{
+		  s7_pointer val;
+		  val = car(p);
+		  port_write_character(port)(sc, ' ', port);
+		  object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
+		}
+	    }
 	  port_write_character(port)(sc, ')', port);
 	  sc->w = old_w;
 	}
       else 
 	{
+	  int32_t nlen;
+	  const char *name;
+	  char *buf;
+
 	  name = s7_string(c_object_scheme_name(sc, obj));
-	  nlen = safe_strlen(name) + 64;
+	  nlen = safe_strlen(name) + 16;
 	  buf = (char *)malloc(nlen);
 	  nlen = snprintf(buf, nlen, "#<%s %p>", name, obj);
 	  port_write_string(port)(sc, buf, nlen, port);
@@ -43421,7 +43477,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   s7_make_symbol(sc, "c-object-let"), clet,
 				   s7_make_symbol(sc, "class"), c_object_type_to_let(sc, obj)));
 
-	/* not sure these are useful */
+	/* not sure these are useful, or whether they need gc-protection */
 	if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
 	  s7_varlet(sc, let, 
 		    s7_make_symbol(sc, "c-object-length"),
@@ -84830,12 +84886,6 @@ int main(int argc, char **argv)
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
- *   another cycle: (*s7* 'stack), and 
- *     c-object+seq-local holding obj:
- *   so: add s7_c_object_to_list(s7.h and setter) + slot in c-type struct
- *       in obj->str+readable, if c-obj print_readably or obj->str method exists, use them, else use (apply type (c-obj->list obj)) with cycle checks
- *       doc to_list uses (and s7test readable)
- *   stack problem is printout (not equal) -- treat as list?
  * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
  * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
  *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
@@ -84848,7 +84898,6 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
- *   check that cr's are initialized to null
  *
  * lv2 (/usr/include/lv2.h)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
@@ -84856,6 +84905,10 @@ int main(int argc, char **argv)
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
  * libc needs many type checks
+ *
+ * t725: auto-test
+ * t772: lint or|and tests
+ * t776: cycle tests (s7test too)
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
