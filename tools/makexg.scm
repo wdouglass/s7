@@ -84,27 +84,18 @@
 	"GLogFunc" "GError*" "guint32*"
 	
 	"GConnectFlags" "GSignalFlags" "GSignalMatchType" 
-					;"GdkAxisUse" 
-	;"GdkFillRule" 
-	;"GdkGCValuesMask"
 	"GdkPropMode" ;"GdkRgbDither" 
 	"GdkWMFunction" "GdkWindowEdge" "GdkWindowHints" "GtkAccelFlags" ; "GtkArrowType"
-	;"GtkAttachOptions"
 	"GtkCellRendererState" ;"GtkCurveType"
 	"GtkDestDefaults" "GtkDestroyNotify" "GtkDialogFlags"
 	"GtkDirectionType" ;"GtkExpanderStyle" 
-	"GtkIconLookupFlags" ;"GtkMenuPositionFunc" 
 	"GtkPathType" "GtkSpinType"
 	"GtkTextSearchFlags" "GtkTreeIterCompareFunc" "GtkTreeSelectionFunc" ;"GtkUIManagerItemType"
 	"GtkWindowPosition"
-	"PangoGlyph" "PangoUnderline" "gssize" 
-	
-	"GtkMenuBar*" "GtkTranslateFunc" ;"GtkMenuPositionFunc" 
-	"GtkTreeIterCompareFunc" "GtkTreeSelectionFunc"
-	"GtkDestroyNotify"
+	"PangoGlyph" "PangoUnderline"
+	"GtkMenuBar*" "GtkTranslateFunc"
 	
 	"GtkAssistant*" "GtkRecentChooser*" "GtkRecentChooserMenu*"
-	;"GtkTextBufferSerializeFunc" "GtkTextBufferDeserializeFunc" 
 	"GtkRecentData*" "GtkNotebookWindowCreationFunc"
 	
 	"GtkUnit" "GtkPageSetupDoneFunc"
@@ -155,7 +146,7 @@
 	"GtkTextWindowType" "GtkPackType" "GtkApplicationInhibitFlags"
 	"GtkStyleContextPrintFlags"
 
-	"GObject*" "GdkKeymap*" "GdkDragContext*" "GdkEventMotion*"
+	"GObject*" "GdkKeymap*" "GdkDragContext*" ;"GdkEventMotion*"
 	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" ;"char**"
 	))
 
@@ -212,6 +203,14 @@
 	"GdkEventMotion*"
 	"GtkCssSection*" 
 	))
+
+(for-each (lambda (lst)
+	    (do ((p lst (cdr p)))
+		((null? p))
+	      (if (member (car p) (cdr p) string=?)
+		  (format *stderr* "~A is repeated~%" (car p)))))
+	  (list no-c-to-xen no-xen-to-c no-xen-p))
+
 
 (define (cadr-str data)
   (let* ((sp1 (char-position #\space data))
@@ -1070,7 +1069,7 @@
    (list 'GDestroyNotify
 	 "void"
 	 "destroy_func"
-	 (parse-args "gpointer data" 'callback)
+	 (parse-args "lambda_data func_info" 'callback)
 	 'permanent)
 
    (list 'GdkSeatGrabPrepareFunc
@@ -2011,9 +2010,9 @@
 		   (hey "Xen_call_with_~A_arg~A(~A((Xen)func_info),~%"
 			(if (null? args) "no" (length args))
 			(if (and (pair? args) (null? (cdr args))) "" "s")
-			(if (eq? fname 'GtkDestroyNotify) "Xen_cadddr" "Xen_car"))
+			(if (memq fname '(GtkDestroyNotify GDestroyNotify)) "Xen_cadddr" "Xen_car"))
 		   (hay "s7_call(cbsc, ~%    ~A((s7_pointer)func_info), ~A~%" ; bugfix thanks to Martin Hayman
-			(if (eq? fname 'GtkDestroyNotify) "s7_cadddr" "s7_car")
+			(if (memq fname '(GtkDestroyNotify GDestroyNotify)) "s7_cadddr" "s7_car")
 			(if (null? args) "s7_nil(cbsc" (format #f "~%           s7_list(cbsc, ~D," (length args))))
 		   (let ((ctr 1)
 			 (argnum (length args)))
@@ -2422,7 +2421,8 @@
 		 (lambda (arg)
 		   (let ((argname (cadr arg))
 			 (argtype (car arg)))
-		     (when (string=? argtype "GtkDestroyNotify")
+		     (when (or (string=? argtype "GtkDestroyNotify")
+			       (string=? argtype "GDestroyNotify"))
 		       (hey "    Xen_list_set(gxg_ptr, 3, ~A);~%" argname)
 		       (hay "    s7_list_set(sc, lg_ptr, 3, ~A);~%" argname))))
 		 args)
@@ -2568,7 +2568,7 @@
 				      (hay "(char*)~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname))
 				     ((string=? argtype "lambda_data")
 				      (hay "(gpointer)lg_ptr"))
-				     ((member argtype '("GDestroyNotify" "GClosureNotify") string=?)
+				     ((string=? argtype "GClosureNotify")
 				      (hay "NULL"))
 				     ((string=? argtype "GCallback")
 				      (hay "((s7_is_aritable(sc, ~A, 4)) ? (GCallback)lg_func4 : ((s7_is_aritable(sc, ~A, 3)) ? (GCallback)lg_func3 : (GCallback)lg_func2))" 

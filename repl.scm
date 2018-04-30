@@ -916,17 +916,17 @@
 				 (return))))
 			   
 			   (lambda (type info)
-			     ;; possibly (with-let (unlet) ...) here for stuff like (set! car 3)
-			     (format *stderr* "~A:" (red "error"))
-			     (if (and (pair? info)
-				      (string? (car info)))
-				 (format *stderr* " ~A" (apply format #f info))
-				 (if (not (null? info))
-				     (format *stderr* " ~A" info)))
-			     (with-repl-let
-			      (lambda ()
-				(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))))
-			     (newline *stderr*)))
+			     (with-let (unlet)
+			       (format *stderr* "~A:" (red "error"))
+			       (if (and (pair? info)
+					(string? (car info)))
+				   (format *stderr* " ~A" (apply format #f info))
+				   (if (not (null? info))
+				       (format *stderr* " ~A" info)))
+			       (with-repl-let
+				(lambda ()
+				  (eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))))
+			       (newline *stderr*))))
 			 
 			 (push-line (copy cur-line))
 			 (new-prompt))))))

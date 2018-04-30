@@ -129,9 +129,6 @@
 
 ;; grabbed from s7.scm:
 
-(define (string->keyword s)
-  (make-keyword s))
-
 (define (logtest a b)
   (not (zero? (logand a b))))
 

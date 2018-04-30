@@ -251,6 +251,8 @@
   #define MAX_HISTORY_SIZE 1048576
 #endif
 
+#define DEFAULT_PRINT_LENGTH 32 /* (*s7* 'print-length) */
+
 #ifndef WITH_PROFILE
   #define WITH_PROFILE 0
   /* this includes profiling data collection accessible from scheme via the hash-table (*s7* 'profile-info) */
@@ -914,14 +916,12 @@ typedef struct {
   bool *defined;
 } shared_info;
 
-
 typedef struct {
   s7_int loc, curly_len, ctr;
   char *curly_str;
   s7_pointer args, orig_str, curly_arg;
   s7_pointer port, strport;
 } format_data;
-
 
 typedef struct gc_obj {
   s7_pointer p;
@@ -5458,16 +5458,8 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
       petrify(sc, x, loc);
 #if 0
       /* this code fixes the problem above, but at some cost (gc + mark_pair up by about 2% in the worst case (snd-test.scm)) */
-      if ((car(x) == sc->quote_symbol) &&
-	  (is_pair(cadr(x))))
-	{
-	  add_permanent_object(sc, cdr(x));
-	}
-      else
-	{
-	  s7_remove_from_heap(sc, car(x));
-	  s7_remove_from_heap(sc, cdr(x));
-	}
+      if ((car(x) == sc->quote_symbol) && (is_pair(cadr(x)))) add_permanent_object(sc, cdr(x));
+      else {s7_remove_from_heap(sc, car(x)); s7_remove_from_heap(sc, cdr(x));}
 #else
       s7_remove_from_heap(sc, car(x));
       s7_remove_from_heap(sc, cdr(x));
@@ -5783,14 +5775,6 @@ static void resize_stack(s7_scheme *sc)
   if (show_stack_stats(sc))
     {
       fprintf(stderr, "stack grows to %u, %s\n", new_size, DISPLAY_80(sc->code));
-#if 0
-      for (i = 0; i < loc; i += 4)
-	{
-	  opcode_t op;
-	  op = (opcode_t)sc->stack_start[i + 3];
-	  fprintf(stderr, "  %s\n", op_names[op]);
-	}
-#endif
       s7_show_let(sc);
     }
 }
@@ -27761,9 +27745,17 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
     }
   else /* not :readable */
     {
+      s7_int plen;
+      plen = (len > sc->print_length) ? sc->print_length : len;
+      if (plen <= 0)
+	{
+	  port_write_string(port)(sc, "(list ...)", 10, port);
+	  return;
+	}
+
       if (ci)
 	{
-	  for (x = lst, i = 0; (is_pair(x)) && (i < len) && ((i == 0) || (peek_shared_ref(ci, x) == 0)); i++, x = cdr(x))
+	  for (x = lst, i = 0; (is_pair(x)) && (i < plen) && ((i == 0) || (peek_shared_ref(ci, x) == 0)); i++, x = cdr(x))
 	    {
 	      object_to_port_with_circle_check(sc, car(x), port, NOT_P_DISPLAY(use_write), ci);
 	      if (i < (len - 1))
@@ -27771,18 +27763,23 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    }
 	  if (is_not_null(x))
 	    {
-	      if ((true_len == 0) &&
-		  (i == len))
-		port_write_string(port)(sc, " . ", 3, port);
-	      else port_write_string(port)(sc, ". ", 2, port);
-	      object_to_port_with_circle_check(sc, x, port, NOT_P_DISPLAY(use_write), ci);
+	      if (plen < len)
+		port_write_string(port)(sc, " ...", 4, port);
+	      else
+		{
+		  if ((true_len == 0) &&
+		      (i == len))
+		    port_write_string(port)(sc, " . ", 3, port);
+		  else port_write_string(port)(sc, ". ", 2, port);
+		  object_to_port_with_circle_check(sc, x, port, NOT_P_DISPLAY(use_write), ci);
+		}
 	    }
 	  port_write_character(port)(sc, ')', port);
 	}
       else
 	{
 	  s7_int len1;
-	  len1 = len - 1;
+	  len1 = plen - 1;
 	  if (is_string_port(port))
 	    {
 	      for (x = lst, i = 0; (is_pair(x)) && (i < len1); i++, x = cdr(x))
@@ -27810,8 +27807,13 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    }
 	  if (is_not_null(x))
 	    {
-	      port_write_string(port)(sc, ". ", 2, port);
-	      object_to_port(sc, x, port, NOT_P_DISPLAY(use_write), ci);
+	      if (plen < len)
+		port_write_string(port)(sc, " ...", 4, port);
+	      else
+		{
+		  port_write_string(port)(sc, ". ", 2, port);
+		  object_to_port(sc, x, port, NOT_P_DISPLAY(use_write), ci);
+		}
 	    }
 	  port_write_character(port)(sc, ')', port);
 	}
@@ -29931,11 +29933,12 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	      (is_cyclic(obj)) &&
 	      (peek_shared_ref(ci, obj) != 0))
 	    {
-	      int32_t i, href, nlen;
+	      int32_t i, href;
 	      href = peek_shared_ref(ci, obj);
 	      if (href < 0) href = -href;
 	      if ((ci->defined[href]) || (port == ci->cycle_port))
 		{
+		  int32_t nlen;
 		  char buf[128];
 		  nlen = snprintf(buf, 128, "<%d>", href);
 		  port_write_string(port)(sc, buf, nlen, port);
@@ -41055,7 +41058,6 @@ static bool let_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_
   return(let_equal_1(sc, x, y, ci, true));
 }
 
-
 static bool closure_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y)
@@ -49298,7 +49300,6 @@ static bool d_pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 static s7_double opt_d_ip_ss(void *p)
 {
   opt_info *o = (opt_info *)p;
-  /* PERHAPS: type check */
   return(o->v3.d_ip_f(integer(slot_value(o->v1.p)), slot_value(o->v2.p)));
 }
 
@@ -50436,7 +50437,6 @@ static s7_double opt_d_vid_ssf(void *p)
 {
   opt_info *o = (opt_info *)p;
   opt_info *o1;
-  /* PERHAPS: check index type as above */
   o1 = cur_sc->opts[++cur_sc->pc];
   return(o->v4.d_vid_f(o->v5.obj, integer(slot_value(o->v2.p)), o1->v7.fd(o1)));
 }
@@ -57151,15 +57151,10 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
       {
 	for (orig = form, bq = cdr(sc->w), i = 0; i < len; i++, orig = cdr(orig), bq = cdr(bq))
 	  {
-	    if ((is_pair(cdr(orig))) &&            /* this was is_pair(orig) which seems to be always the case */
-		(cadr(orig) == sc->unquote_symbol))
+	    if ((is_pair(cdr(orig))) &&             /* this was is_pair(orig) which seems to be always the case */
+		(cadr(orig) == sc->unquote_symbol)) /* `(1 . ,(+ 1 1)) -> '(1 unquote (+ 1 1)) -> '(1 . 2) etc */
+
 	      {
-		/* `(1 . ,(+ 1 1)) -> '(1 unquote (+ 1 1)) -> '(1 . 2)
-		 * `(1 . ,@'((2 3))) -> (1 unquote (apply-values '((2 3)))) -> (append (list-values 1) (apply-values '((2 3)))) -> '(1 2 3)
-		 * this used to be `(1 . ,@('(2 3))).
-		 *     This now becomes (1 unquote (apply-values ('(2 3)))) -> (append (list-values 1) (apply-values ('(2 3)))) -> error
-		 * `(1 . (,@'(2 3))) works in both cases, and `(1 . (,(+ 1 1)))
-		 */
 		if (!is_pair(cddr(orig)))
 		  {
 		    sc->w = old_scw;
@@ -66670,11 +66665,6 @@ static s7_pointer check_do(s7_scheme *sc)
 	       (!is_all_x_safe(sc, caddr(var)))))
 	    {
 	      s7_pointer q;
-#if 0
-	      fprintf(stderr, "%s bad %s %s\n", DISPLAY(var), 
-		      (is_optimized(cadr(var))) ? opt_names[optimize_op(cadr(var))] : "?", 
-		      ((is_pair(cddr(var))) && (is_optimized(caddr(var)))) ? opt_names[optimize_op(caddr(var))] : "?");
-#endif
 	      for (q = vars; q != p; q = cdr(q))
 		clear_match_symbol(caar(q));
 	      return(sc->code);
@@ -82793,15 +82783,7 @@ char *s7_decode_bt(void)
 							BOLD_TEXT, string_value(remembered_file_name((int32_t)line)), remembered_line_number(line), UNBOLD_TEXT);
 					    }
 					  /* #<stack> etc */
-					}
-				    }
-				}
-			    }
-			}
-		    }
-		}
-	    }
-	}
+					}}}}}}}}}
       free(bt);
     }
   return((char *)"");
@@ -83114,7 +83096,7 @@ s7_scheme *s7_init(void)
   sc->s7_call_file = NULL;
   sc->s7_call_name = NULL;
   sc->safety = NO_SAFETY;
-  sc->print_length = 8;
+  sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
   sc->true_history_size = DEFAULT_HISTORY_SIZE;
   sc->profile_info = sc->nil;
@@ -84878,7 +84860,6 @@ int main(int argc, char **argv)
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
  *   add shared_info collection of closure args/body for print/morally-equal
  *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
- *   lambda morally-equal with symbol match
  *   very tricky -- see ~/old/cyclic-lambda-s7.c and ~/old/cyclic-s7.c
  *   (define (f2) #(0)) (set! ((f2) 0) (f2))
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
@@ -84886,25 +84867,21 @@ int main(int argc, char **argv)
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
- * pair print ignores (*s7* 'print-length): (make-list 20) see t763.scm
- * repl messes up: (display (let () (set! car 3) (unlet))) (newline) ; (inlet 'car car)
- *   for repl/ffitest/s7test we need cflags and cc from make (-fPIC for clang?)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
+ * lambda morally-equal with symbol match
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
- *   test other func cases in libgtk_s7, several more special funcs [GDestroyNotify commented out etc]
+ *   test other func cases in libgtk_s7, several more special funcs
  *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
  *
- * lv2 (/usr/include/lv2.h)
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
- * libc needs many type checks
  *
  * t725: auto-test
  * t772: lint or|and tests
@@ -84916,13 +84893,13 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1159
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1474
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1882
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2131
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1893
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2121
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2601
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 131
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2776
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  3069
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2785
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  3168
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4192
