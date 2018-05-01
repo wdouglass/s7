@@ -92,6 +92,9 @@
 (format *stderr* "~%~NC tform ~NC~%" 20 #\- 20 #\-)
 (system "./repl tform.scm")
 
+(format *stderr* "~%~NC tread ~NC~%" 20 #\- 20 #\-)
+(system "./repl tread.scm")
+
 (format *stderr* "~%~NC thash ~NC~%" 20 #\- 20 #\-)
 (system "./repl thash.scm")
 
