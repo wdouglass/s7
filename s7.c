@@ -23221,11 +23221,18 @@ static void resize_port_data(s7_pointer pt, s7_int new_size)
   memclr((void *)(port_data(pt) + loc), new_size - loc);
 }
 
+static void string_write_char_resized(s7_scheme *sc, uint8_t c, s7_pointer pt)
+{
+  /* this division looks repetitive, but it is much faster */
+  resize_port_data(pt, port_data_size(pt) * 2);
+  port_data(pt)[port_position(pt)++] = c;
+}
+
 static void string_write_char(s7_scheme *sc, uint8_t c, s7_pointer pt)
 {
-  if (port_position(pt) >= port_data_size(pt))
-    resize_port_data(pt, port_data_size(pt) * 2);
-  port_data(pt)[port_position(pt)++] = c;
+  if (port_position(pt) < port_data_size(pt))
+    port_data(pt)[port_position(pt)++] = c;
+  else string_write_char_resized(sc, c, pt);
 }
 
 static void stdout_write_char(s7_scheme *sc, uint8_t c, s7_pointer port)
@@ -23317,15 +23324,24 @@ static void stderr_write_string(s7_scheme *sc, const char *str, s7_int len, s7_p
     }
 }
 
-static void string_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
+static void string_write_string_resized(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
 {
   s7_int new_len;  /* len is known to be non-zero, str may not be 0-terminated */
-  new_len = port_position(pt) + (s7_int)len;
-  if (new_len >= port_data_size(pt))
-    resize_port_data(pt, new_len * 2);
+  new_len = port_position(pt) + len;
+  resize_port_data(pt, new_len * 2);
   memcpy((void *)(port_data(pt) + port_position(pt)), (void *)str, len);
-  /* memcpy is much faster than the equivalent while loop, and faster than using the 4-bytes-at-a-time shuffle */
   port_position(pt) = new_len;
+}
+
+static void string_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
+{
+  if (port_position(pt) + len < port_data_size(pt))
+    {
+      memcpy((void *)(port_data(pt) + port_position(pt)), (void *)str, len);
+      /* memcpy is much faster than the equivalent while loop, and faster than using the 4-bytes-at-a-time shuffle */
+      port_position(pt) += len;
+    }
+  else string_write_string_resized(sc, str, len, pt);
 }
 
 
@@ -27536,7 +27552,7 @@ static void simple_list_readable_display(s7_scheme *sc, s7_pointer lst, s7_int t
 
 static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  /* we need list_to_starboard... */
+  /* we need list_to_starboard... (making port_write_string|character local was noticeable slower) */
   s7_pointer x;
   s7_int i, len, true_len;
 
@@ -42152,6 +42168,14 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_C_OBJECT:
+      /* if source or dest is c_object, call its copy function before falling back on the get/set functions */
+      if (c_object_copy(sc, dest))
+	{
+	  s7_pointer x;
+	  x = (*(c_object_copy(sc, dest)))(sc, args);
+	  if (x == dest)
+	    return(dest);
+	}
       set = c_object_setter;
       dest_len = c_object_length_to_int(sc, dest);
       break;
@@ -47252,6 +47276,23 @@ static s7_pointer all_x_c_opssq_opssq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer all_x_c_opscq_opscq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  int32_t tx;
+  tx = next_tx(sc);
+  largs = cdr(arg);
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(car(largs))));
+  set_car(sc->t2_2, caddr(car(largs)));
+  sc->t_temps[tx] = c_call(car(largs))(sc, sc->t2_1);
+  largs = cadr(largs);
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(largs)));
+  set_car(sc->t2_2, caddr(largs));
+  set_car(sc->t2_2, c_call(largs)(sc, sc->t2_1));
+  set_car(sc->t2_1, sc->t_temps[tx]);
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer all_x_c_op_opssq_q_c(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
@@ -47526,6 +47567,7 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_C_opSSq_opSq] = all_x_c_opssq_opsq;
   all_x_function[HOP_SAFE_C_opSSq_opCq] = all_x_c_opssq_opcq;
   all_x_function[HOP_SAFE_C_opSSq_opSSq] = all_x_c_opssq_opssq;
+  all_x_function[HOP_SAFE_C_opSCq_opSCq] = all_x_c_opscq_opscq;
   all_x_function[HOP_SAFE_C_op_opSSq_q_C] = all_x_c_op_opssq_q_c;
   all_x_function[HOP_SAFE_C_op_opSq_q] = all_x_c_op_opsq_q;
   all_x_function[HOP_SAFE_C_op_opSq_q_S] = all_x_c_op_opsq_q_s;
@@ -83153,18 +83195,18 @@ s7_scheme *s7_init(void)
 	    is_char_lowercase(cp) = (bool)islower(i);
 	    chars[i] = cp;
 
-            #define make_character_name(C, S) strncat((char *)(&(character_name(C))), S, character_name_length(C) = strlen(S))
+            #define make_character_name(S) memcpy((void *)(&(character_name(cp))), (const void *)(S), character_name_length(cp) = strlen(S))
 	    switch (c)
 	      {
-	      case ' ':	       make_character_name(cp, "#\\space");     break;
-	      case '\n':       make_character_name(cp, "#\\newline");   break;
-	      case '\r':       make_character_name(cp, "#\\return");    break;
-	      case '\t':       make_character_name(cp, "#\\tab");       break;
-	      case '\0':       make_character_name(cp, "#\\null");      break;
-	      case (char)0x1b: make_character_name(cp, "#\\escape");    break;
-	      case (char)0x7f: make_character_name(cp, "#\\delete");    break;
-	      case (char)7:    make_character_name(cp, "#\\alarm");     break;
-	      case (char)8:    make_character_name(cp, "#\\backspace"); break;
+	      case ' ':	       make_character_name("#\\space");     break;
+	      case '\n':       make_character_name("#\\newline");   break;
+	      case '\r':       make_character_name("#\\return");    break;
+	      case '\t':       make_character_name("#\\tab");       break;
+	      case '\0':       make_character_name("#\\null");      break;
+	      case (char)0x1b: make_character_name("#\\escape");    break;
+	      case (char)0x7f: make_character_name("#\\delete");    break;
+	      case (char)7:    make_character_name("#\\alarm");     break;
+	      case (char)8:    make_character_name("#\\backspace"); break;
 	      default:
 		{
                   #define P_SIZE 12
@@ -84856,14 +84898,14 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1159
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1474
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1893
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2121
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1851
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2115
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2601
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2600
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 131
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2785
- * tread         |      |      |      ||      ||      |                   3009  2954
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  3168
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2770
+ * tread         |      |      |      ||      ||      |                   3009  2919
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2948
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4192

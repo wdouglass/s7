@@ -63,6 +63,7 @@
 		  ((iterator?)
 		   (set! (it-lst loc) b2)
 		   (set! sets (cons (list r1 loc r2) sets)))))))
+
 	  (let ((bi 0))
 	    (for-each 
 	     (lambda (x)

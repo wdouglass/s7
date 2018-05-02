@@ -287,7 +287,7 @@ error occurs, they return -1 (MUS_ERROR). </p>
 The input device is dev (see sndlib.h for details; when in doubt, use MUS_AUDIO_DEFAULT).
 The input sampling rate is srate or as close as we
 can get to it.  The number of input channels (if available) is chans.
-The input sample type is format (when in doubt, use the macro MUS_AUDIO_COMPATIBLE_FORMAT).
+The input sample type is format (when in doubt, use the macro MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE).
 And the input buffer size (if settable at all) is size (bytes).  This
 function returns an integer to distinguish its port from others that might be
 in use.
@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
       for (i=0;i&lt;chans;i++) 
         bufs[i] = (mus_float_t *)calloc(BUFFER_SIZE, sizeof(mus_float_t));
       obuf = (short *)calloc(BUFFER_SIZE * chans, sizeof(short));
-      afd = mus_audio_open_output(MUS_AUDIO_DEFAULT, srate, chans, MUS_AUDIO_COMPATIBLE_FORMAT, outbytes);
+      afd = mus_audio_open_output(MUS_AUDIO_DEFAULT, srate, chans, MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE, outbytes);
       if (afd != -1)
 	{
 	  for (i = 0; i &lt; framples; i += BUFFER_SIZE)

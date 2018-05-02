@@ -609,6 +609,7 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
 /* if a c-object might participate in a cyclic structure, and you want to check its equality to another such object
  *   or get a readable string representing that object, you need to implement the "to_list" and "set" cases above,
  *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
+ *   For the copy function, either the first or second argument can be a c-object of the given type.
  */
 
 #if (!DISABLE_DEPRECATED)
