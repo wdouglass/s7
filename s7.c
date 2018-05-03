@@ -2366,7 +2366,17 @@ static int64_t not_heap = -1;
 #define symbol_name_length(p)         string_length(symbol_name_cell(p))
 #define symbol_hmap(p)                s7_int_abs(heap_location(p))
 #define symbol_id(p)                  (T_Sym(p))->object.sym.id
+#define symbol_set_id_unchecked(p, X) (T_Sym(p))->object.sym.id = X
+#if S7_DEBUGGING
+static void symbol_set_id(s7_pointer p, s7_int id)
+{
+  if (id < symbol_id(p))
+    fprintf(stderr, "sym: %s %" PRId64 ", let: %" PRId64 "\n", symbol_name(p), symbol_id(p), id);
+  (T_Sym(p))->object.sym.id = id;
+}
+#else
 #define symbol_set_id(p, X)           (T_Sym(p))->object.sym.id = X
+#endif
 /* we need 64-bits here, since we don't want this thing to wrap around, and frames are created at a great rate
  *    callgrind says this is faster than an uint32_t!
  */
@@ -2392,6 +2402,7 @@ static int64_t not_heap = -1;
 #define symbol_has_help(p)            (is_documented(symbol_name_cell(p)))
 #define symbol_set_has_help(p)        set_documented(symbol_name_cell(p))
 
+#define symbol_set_local_unchecked(Symbol, Id, Slot) do {set_local_slot(Symbol, Slot); symbol_set_id_unchecked(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 #define symbol_set_local(Symbol, Id, Slot) do {set_local_slot(Symbol, Slot); symbol_set_id(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 /* set slot before id in case Slot is an expression that tries to find the current Symbol slot (using its old Id obviously) */
 
@@ -5854,7 +5865,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   set_global_slot(x, sc->undefined);                       /* was sc->nil */
   symbol_info(x) = (symbol_info_t *)(base + 3 * sizeof(s7_cell));
   set_initial_slot(x, sc->undefined);
-  symbol_set_local(x, 0LL, sc->nil);
+  symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_tag(x, 0);
   symbol_set_ctr(x, 0);
   symbol_type(x) = 0;
@@ -6179,7 +6190,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   symbol_info(x) = NULL; /* (symbol_info_t *)calloc(1, sizeof(symbol_info_t)); */
   set_global_slot(x, sc->undefined);
   /* set_initial_slot(x, sc->undefined); */
-  symbol_set_local(x, 0LL, sc->nil);
+  symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0);
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
@@ -58119,7 +58130,7 @@ static s7_pointer assign_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   set_initial_slot(x, permanent_slot(x, syn));
   /* set_local_slot(x, global_slot(x)); */
   typeflag(x) = T_SYMBOL | T_SYNTACTIC | T_GLOBAL; 
-  symbol_set_local(x, 0LL, sc->nil);
+  symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0;)
   return(x);
 }
@@ -58146,7 +58157,7 @@ static s7_pointer assign_internal_syntax(s7_scheme *sc, const char *name, opcode
   set_type(x, T_SYMBOL); /* see below */
   symbol_set_name_cell(x, str);
   symbol_info(x) = (symbol_info_t *)calloc(1, sizeof(symbol_info_t));
-  symbol_set_local(x, 0LL, sc->nil);
+  symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0);
 
   syn = alloc_pointer();
@@ -69513,13 +69524,36 @@ static void define2_ex(s7_scheme *sc)
 	  let_set_line(new_env, 0);
 	  clear_has_let_file(new_env);
 	}
-      
+
       /* add the newly defined thing to the current environment */
       if (is_let(sc->envir))
 	{
-	  add_slot(sc->envir, sc->code, new_func);
+	  if (let_id(sc->envir) < symbol_id(sc->code)) /* we're adding a later-bound symbol to an old let (?) */
+	    {
+	      s7_pointer slot;
+	      sc->let_number++; /* dummy let, force symbol lookup */
+
+	      for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
+		if (slot_symbol(slot) == sc->code)
+		  {
+		    /* fprintf(stderr, "set slot: %s (%" PRId64 ") in %s (%" PRId64 ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
+		    slot_set_value(slot, new_func);
+		    symbol_set_local(sc->code, sc->let_number, slot);	
+		    set_local(sc->code);
+		    sc->value = new_func; /* probably not needed? */
+		    return;
+		  }
+
+	      /* fprintf(stderr, "add slot: %s (%" PRId64 ") in %s (%" PRId64 ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
+	      new_cell_no_check(sc, slot, T_SLOT);	
+	      slot_set_symbol(slot, sc->code);
+	      slot_set_value(slot, new_func);
+	      symbol_set_local(sc->code, sc->let_number, slot);	
+	      set_next_slot(slot, let_slots(sc->envir));
+	      let_set_slots(sc->envir, slot);
+	    }
+	  else add_slot(sc->envir, sc->code, new_func);
 	  set_local(sc->code);
-	  /* so funchecked is always local already -- perhaps reset below? */
 	}
       else s7_make_slot(sc, sc->envir, sc->code, new_func); 
       sc->value = new_func; /* 25-Jul-14 so define returns the value not the name */
