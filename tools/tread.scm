@@ -23,52 +23,53 @@
 			     (inlet 'a 1 'b 2 'c 3)
 			     (make-iterator it-lst)
 			     (c-pointer 1 cp-lst)))
-	      (sets ()))
+	      (sets ())
+	      (b1 0)
+	      (b2 0))
 	  
-	  (do ((blen (length bases))
-	       (i 0 (+ i 1)))
+	  (do ((i 0 (+ i 1))
+	       (r1 (random 7) (random 7))
+	       (r2 (random 7) (random 7))
+	       (loc (random 3) (random 3)))
 	      ((= i size))
-	    (let ((r1 (random blen))
-		  (r2 (random blen))
-		  (loc (random 3)))
-	      (let ((b1 (bases r1))
-		    (b2 (bases r2)))
-		(case (type-of b1)
-		  ((pair?)
-		   (if (> (random 10) 3)
-		       (begin
-			 (set! (b1 loc) b2)
-			 (set! sets (cons (list r1 loc r2) sets)))
-		       (begin
-			 (set-cdr! (list-tail b1 2) (case loc ((0) b1) ((1) (cdr b1)) (else (cddr b1))))
-			 (set! sets (cons (list r1 (+ loc 3) r2) sets)))))
-
-		  ((vector?)
-		   (set! (b1 loc) b2)
-		   (set! sets (cons (list r1 loc r2) sets)))
-
-		  ((c-object?)
-		   (set! (b1 0) b2)
-		   (set! sets (cons (list r1 0 r2) sets)))
-
-		  ((hash-table? let?)
-		   (let ((key (#(a b c) loc)))
-		     (set! (b1 key) b2)
-		     (set! sets (cons (list r1 key r2) sets))))
-
-		  ((c-pointer?)
-		   (set! (cp-lst loc) b2)
-		   (set! sets (cons (list r1 loc r2) sets)))
-
-		  ((iterator?)
-		   (set! (it-lst loc) b2)
-		   (set! sets (cons (list r1 loc r2) sets)))))))
+	    (set! b1 (bases r1))
+	    (set! b2 (bases r2))
+	    (case (type-of b1)
+	      ((pair?)
+	       (if (> (random 10) 3)
+		   (begin
+		     (set! (b1 loc) b2)
+		     (set! sets (cons (list r1 loc r2) sets)))
+		   (begin
+		     (set-cdr! (list-tail b1 2) (case loc ((0) b1) ((1) (cdr b1)) (else (cddr b1))))
+		     (set! sets (cons (list r1 (+ loc 3) r2) sets)))))
+	      
+	      ((vector?)
+	       (set! (b1 loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))
+	      
+	      ((c-object?)
+	       (set! (b1 0) b2)
+	       (set! sets (cons (list r1 0 r2) sets)))
+	      
+	      ((hash-table? let?)
+	       (let ((key (#(a b c) loc)))
+		 (set! (b1 key) b2)
+		 (set! sets (cons (list r1 key r2) sets))))
+	      
+	      ((c-pointer?)
+	       (set! (cp-lst loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))
+	      
+	      ((iterator?)
+	       (set! (it-lst loc) b2)
+	       (set! sets (cons (list r1 loc r2) sets)))))
 
 	  (let ((bi 0))
 	    (for-each 
 	     (lambda (x)
 	       (let ((str (object->string x :readable)))
-		 (unless (morally-equal? x (catch #t (lambda () (eval-string str)) (lambda (type info) 'error)))
+		 (unless (morally-equal? x (eval-string str))
 		   (set! baddies (+ baddies 1))
 		   (format *stderr* "x: ~S~%" x)
 		   (format *stderr* "ex: ~S~%" (catch #t (lambda () (eval-string str)) (lambda (type info) (apply format #f info))))

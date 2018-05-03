@@ -2552,6 +2552,7 @@ static int64_t not_heap = -1;
 #define port_is_closed(p)             port_port(p)->is_closed
 #define port_set_closed(p, Val)       port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
 #define port_needs_free(p)            port_port(p)->needs_free
+#define port_next(p)                  port_port(p)->next
 #define port_output_function(p)       port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)        port_port(p)->input_function
 #define port_original_input_string(p) port_port(p)->orig_str
@@ -24257,6 +24258,9 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
 
 static void push_input_port(s7_scheme *sc, s7_pointer new_port)
 {
+#if S7_DEBUGGING
+  if (!is_input_port(new_port)) fprintf(stderr, "push %s\n", DISPLAY(new_port));
+#endif
   sc->input_port_stack = cons(sc, sc->input_port, sc->input_port_stack);
   sc->input_port = new_port;
 }
@@ -26590,7 +26594,15 @@ static int32_t circular_list_entries(s7_pointer lst)
     }
 }
 
-static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci);
+static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci);
+#define object_to_port_with_circle_check(Sc, Vr, Port, Use_Write, Ci) \
+  do { \
+      s7_pointer _V_ = Vr; \
+      if ((Ci) && (has_structure(_V_))) \
+        object_to_port_with_circle_check_1(Sc, _V_, Port, Use_Write, Ci); \
+      else object_to_port(Sc, _V_, Port, Use_Write, Ci);\
+     } while (0)
+
 static void (*display_functions[256])(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci); 
 #define object_to_port(Sc, Obj, Port, Use_Write, Ci) (*display_functions[unchecked_type(Obj)])(Sc, Obj, Port, Use_Write, Ci)
 
@@ -26824,10 +26836,7 @@ static bool symbol_needs_slashification(s7_scheme *sc, s7_pointer obj)
 
 static void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  /* I think this is the only place we print a symbol's name
-   *   but in the readable case, what about (symbol "1;3")? it actually seems ok!
-   *   or worse (symbol "12")
-   */
+  /* I think this is the only place we print a symbol's name */
   if ((!is_clean_symbol(obj)) &&
       (symbol_needs_slashification(sc, obj)))
     {
@@ -30084,60 +30093,55 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-static void object_to_port_with_circle_check(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
+static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if ((ci) &&
-      (has_structure(vr)))
+  int32_t ref;
+  ref = shared_ref(ci, vr);
+  if (ref != 0)
     {
-      int32_t ref;
-      ref = shared_ref(ci, vr);
-      if (ref != 0)
+      char buf[32];
+      int32_t nlen;
+      char *p;
+      s7_int len;
+      if (ref > 0)
 	{
-	  char buf[32];
-	  int32_t nlen;
-	  char *p;
-	  s7_int len;
-	  if (ref > 0)
+	  if (use_write == P_READABLE)
 	    {
-	      if (use_write == P_READABLE)
+	      if (ci->defined[ref]) 
 		{
-		  if (ci->defined[ref]) 
-		    {
-		      flip_ref(ci, vr);
-		      nlen = snprintf(buf, 32, "<%d>", ref);
-		      port_write_string(port)(sc, buf, nlen, port);
-		      return;
-		    }
-		  object_to_port(sc, vr, port, P_READABLE, ci);
+		  flip_ref(ci, vr);
+		  nlen = snprintf(buf, 32, "<%d>", ref);
+		  port_write_string(port)(sc, buf, nlen, port);
+		  return;
 		}
-	      else
-		{
-		  /* "normal" printout involving #n= and #n# */
-		  p = pos_int_to_str((s7_int)ref, &len, '=');
-		  *--p = '#';
-		  port_write_string(port)(sc, p, len, port);
-		  object_to_port(sc, vr, port, NOT_P_DISPLAY(use_write), ci);
-		}
+	      object_to_port(sc, vr, port, P_READABLE, ci);
 	    }
 	  else
 	    {
-	      if (use_write == P_READABLE)
-		{
-		  /* if ((!ci->defined[-ref]) && (port != ci->cycle_port)) fprintf(stderr, "%s[%d]: not yet defined\n", __func__, __LINE__); */
-		  nlen = snprintf(buf, 32, "<%d>", -ref);
-		  port_write_string(port)(sc, buf, nlen, port);
-		}
-	      else 
-		{
-		  p = pos_int_to_str((s7_int)(-ref), &len, '#');
-		  *--p = '#';
-		  port_write_string(port)(sc, p, len, port);
-		}
+	      /* "normal" printout involving #n= and #n# */
+	      p = pos_int_to_str((s7_int)ref, &len, '=');
+	      *--p = '#';
+	      port_write_string(port)(sc, p, len, port);
+	      object_to_port(sc, vr, port, NOT_P_DISPLAY(use_write), ci);
 	    }
-	  return;
+	}
+      else
+	{
+	  if (use_write == P_READABLE)
+	    {
+	      /* if ((!ci->defined[-ref]) && (port != ci->cycle_port)) fprintf(stderr, "%s[%d]: not yet defined\n", __func__, __LINE__); */
+	      nlen = snprintf(buf, 32, "<%d>", -ref);
+	      port_write_string(port)(sc, buf, nlen, port);
+	    }
+	  else 
+	    {
+	      p = pos_int_to_str((s7_int)(-ref), &len, '#');
+	      *--p = '#';
+	      port_write_string(port)(sc, p, len, port);
+	    }
 	}
     }
-  object_to_port(sc, vr, port, use_write, ci);
+  else object_to_port(sc, vr, port, use_write, ci);
 }
 
 static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, shared_info *ci)
@@ -32221,7 +32225,19 @@ static s7_int tree_len_1(s7_scheme *sc, s7_pointer p)
 	    if ((!is_pair(ccp)) ||
 		(car(ccp) == sc->quote_symbol))
 	      sum++;
-	    else sum += tree_len_1(sc, ccp);
+	    else 
+	      {
+		do {
+		  s7_pointer cccp;
+		  cccp = car(ccp);
+		  if ((!is_pair(cccp)) ||
+		      (car(cccp) == sc->quote_symbol))
+		    sum++;
+		  else sum += tree_len_1(sc, cccp);
+		  ccp = cdr(ccp);
+		} while (is_pair(ccp));
+		if (!is_null(ccp)) sum++;
+	      }
 	    cp = cdr(cp);
 	    } while (is_pair(cp));
 	  if (!is_null(cp)) sum++;
@@ -32263,7 +32279,8 @@ static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 }
 
 /* ---------------- tree-memq ---------------- */
-static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)
+
+static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)    /* sym need not be a symbol */
 {
   if (car(tree) == sc->quote_symbol)
     {
@@ -32272,11 +32289,33 @@ static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)
       return(sym == cadr(tree));
     }
   do {
-    if (sym == car(tree))    /* "sym" need not be a symbol */
+    if (sym == car(tree)) 
       return(true);
-    if ((is_pair(car(tree))) &&
-	(tree_memq_1(sc, sym, car(tree))))
-      return(true);
+
+    if (is_pair(car(tree)))
+      {
+	s7_pointer cp;
+	cp = car(tree);
+	if (car(cp) == sc->quote_symbol)
+	  {
+	    if ((!is_symbol(sym)) && (!is_pair(sym)) && (is_pair(cdr(cp))) && (sym == cadr(cp)))
+	      return(true);
+	  }
+	else
+	  {
+	    do {
+	      if (sym == car(cp)) 
+		return(true);
+	      if ((is_pair(car(cp))) &&
+		  (tree_memq_1(sc, sym, car(cp))))
+		return(true);
+	      cp = cdr(cp);
+	      if (sym == cp)
+		return(true);
+	    } while (is_pair(cp));
+	  }
+      }
+
     tree = cdr(tree);
     if (sym == tree)
       return(true);
@@ -32403,11 +32442,25 @@ static s7_int tree_count(s7_scheme *sc, s7_pointer x, s7_pointer p, s7_int count
 
 static inline s7_int tree_count_at_least(s7_scheme *sc, s7_pointer x, s7_pointer p, s7_int count, s7_int top)
 {
+#if 0
   if (p == x)
     return(count + 1);
   if ((!is_pair(p)) || (car(p) == sc->quote_symbol) || (count >= top))
     return(count);
   return(tree_count_at_least(sc, x, cdr(p), tree_count_at_least(sc, x, car(p), count, top), top));
+#else
+  if (p == x) return(count + 1);
+  if (!is_pair(p)) return(count);
+  if (car(p) == sc->quote_symbol) return(count);
+  do
+    {
+      count = tree_count_at_least(sc, x, car(p), count, top);
+      if (count >= top) return(count);
+      p = cdr(p);
+      if (p == x) return(count + 1);
+    } while (is_pair(p));
+  return(count);
+#endif
 }
 
 static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
@@ -84892,19 +84945,29 @@ int main(int argc, char **argv)
  * t772: lint or|and tests
  * t776: cycle tests (s7test too)
  *
+ * input_port_stack using port_next
+ * inchar via port?
+ * titer is missing opt_* do-no-vars and loop-no-args
+ * checkout int128_t (float also??) defined(__SIZEOF_INT128__) -- gcc: __SIZEOF_INT128__, __FLT128_DIG__
+ *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf and strtoflt128 in libquadmath -lquadmath #include <quadmath.h> __complex128
+ *   typedef _Complex float __attribute__((mode(TC))) _Complex128;
+ *   perhaps remove all the gmp code and give example of *128 s7_int/double?
+ * tmap: c_less_2 does type check? -- sorting int|float-vector we know the types, but g_sort notices these
+ * tree_has_definers seems to have unneeded symbol(cdr(tree)) check -- for loop? (tgen)
+ *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1159
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1161
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1474
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1851
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1801
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2115
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2600
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 131
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2770
- * tread         |      |      |      ||      ||      |                   3009  2919
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2584
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 130.6
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2766
+ * tread         |      |      |      ||      ||      |                   3009  2814
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2948
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
