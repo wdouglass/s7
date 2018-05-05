@@ -1432,11 +1432,11 @@ static void init_types(void)
 #if WITH_HISTORY
 #define current_code(Sc)           car(Sc->cur_code)
 #define set_current_code(Sc, Code) do {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, Code);} while (0)
-#define mark_current_code(Sc)      do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < sc->history_size; i++, p = cdr(p)) S7_MARK(car(p));} while (0)
+#define mark_current_code(Sc)      do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < sc->history_size; i++, p = cdr(p)) s7_mark(car(p));} while (0)
 #else
 #define current_code(Sc)           Sc->cur_code
 #define set_current_code(Sc, Code) Sc->cur_code = Code
-#define mark_current_code(Sc)      S7_MARK(Sc->cur_code)
+#define mark_current_code(Sc)      s7_mark(Sc->cur_code)
 #endif
 
 #define typeflag(p)  ((p)->tf.flag)
@@ -4035,14 +4035,18 @@ s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc)
 
 static void (*mark_function[NUM_TYPES])(s7_pointer p);
 
-#define S7_MARK(Obj) do {s7_pointer _p_; _p_ = Obj; if (!is_marked(_p_)) (*mark_function[unchecked_type(_p_)])(_p_);} while (0)
+static inline void s7_mark(s7_pointer p)
+{
+  if (!is_marked(p))
+    (*mark_function[unchecked_type(p)])(p);
+}
 
-static void mark_slot(s7_pointer p)
+static inline void mark_slot(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(slot_value(p));
+  s7_mark(slot_value(p));
   if (slot_has_setter(p))
-    S7_MARK(slot_setter(p));
+    s7_mark(slot_setter(p));
 
   /* if (is_gensym(slot_symbol(p))) */ /* (let () (apply define (gensym) (list 32)) (gc) (gc) (curlet)) */
   set_mark(slot_symbol(p));
@@ -4549,14 +4553,14 @@ static void mark_vector_1(s7_pointer p, s7_int top)
   tend4 = (s7_pointer *)(tend - 4);
   while (tp <= tend4)
     {
-      S7_MARK(*tp++);
-      S7_MARK(*tp++);
-      S7_MARK(*tp++);
-      S7_MARK(*tp++);
+      s7_mark(*tp++);
+      s7_mark(*tp++);
+      s7_mark(*tp++);
+      s7_mark(*tp++);
     }
 
   while (tp < tend)
-    S7_MARK(*tp++);
+    s7_mark(*tp++);
 }
 
 static void mark_let(s7_pointer env)
@@ -4600,8 +4604,8 @@ static void just_mark(s7_pointer p)
 static void mark_c_pointer(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(raw_pointer_type(p));
-  S7_MARK(raw_pointer_info(p));
+  s7_mark(raw_pointer_type(p));
+  s7_mark(raw_pointer_info(p));
 }
 
 static void mark_c_proc_star(s7_pointer p)
@@ -4611,49 +4615,43 @@ static void mark_c_proc_star(s7_pointer p)
     {
       s7_pointer arg;
       for (arg = c_function_call_args(p); is_pair(arg); arg = cdr(arg))
-	S7_MARK(car(arg));
+	s7_mark(car(arg));
     }
 }
 
 static void mark_pair(s7_pointer p)
 {
-  s7_pointer x;
-  set_mark(p);
-  S7_MARK(car(p));
-  /* if the list is huge, recursion to cdr(p) is problematic when there are strict limits on the stack size
-   *  so I'll try something else... (This form is faster according to callgrind).
-   *
-   * in snd-14 or so through 15.3, sc->temp_cell_2|3 were used for trailing args in eval, but that meant
-   *   the !is_marked check below (which is intended to catch cyclic lists) caused cells to be missed;
-   *   since sc->args could contain permanently marked cells, if these were passed to g_vector, for example, and
-   *   make_vector_1 triggered a GC call, we needed to mark both the permanent (always marked) cell and its contents,
-   *   and continue through the rest of the list.  But adding temp_cell_2|3 to sc->permanent_objects was not enough.
-   *   Now I've already forgotten the rest of the story, and it was just an hour ago! -- the upshot is that temp_cell_2|3
-   *   are not now used as arg list members.
-   */
-  for (x = cdr(p); (is_pair(x)) && (!is_marked(x)); x = cdr(x))
-    {
-      set_mark(x);
-      S7_MARK(car(x));      /* this can be expanded into an embedded mark_pair call, but the savings is miniscule (.1%) */
-    }
-  S7_MARK(x);
+  do {
+    set_mark(p);
+    s7_mark(car(p));
+    p = cdr(p);
+  } while ((is_pair(p)) && (!is_marked(p)));
+  s7_mark(p);
 }
+/* in snd-14 or so through 15.3, sc->temp_cell_2|3 were used for trailing args in eval, but that meant
+ *   the !is_marked check below (which is intended to catch cyclic lists) caused cells to be missed;
+ *   since sc->args could contain permanently marked cells, if these were passed to g_vector, for example, and
+ *   make_vector_1 triggered a GC call, we needed to mark both the permanent (always marked) cell and its contents,
+ *   and continue through the rest of the list.  But adding temp_cell_2|3 to sc->permanent_objects was not enough.
+ *   Now I've already forgotten the rest of the story, and it was just an hour ago! -- the upshot is that temp_cell_2|3
+ *   are not now used as arg list members.
+ */
 
 static void mark_counter(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(counter_result(p));
-  S7_MARK(counter_list(p));
-  S7_MARK(counter_let(p));
+  s7_mark(counter_result(p));
+  s7_mark(counter_list(p));
+  s7_mark(counter_let(p));
 }
 
 static void mark_closure(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(closure_args(p));
-  S7_MARK(closure_body(p));
+  s7_mark(closure_args(p));
+  s7_mark(closure_body(p));
   mark_let(closure_let(p));
-  S7_MARK(closure_setter(p));
+  s7_mark(closure_setter(p));
   if (has_optlist(p)) 
     set_mark(closure_optlist(p));
 }
@@ -4669,9 +4667,9 @@ static void mark_stack_1(s7_pointer p, s7_int top)
 
   while (tp < tend)
     {
-      S7_MARK(*tp++);
-      S7_MARK(*tp++);
-      S7_MARK(*tp++);
+      s7_mark(*tp++);
+      s7_mark(*tp++);
+      s7_mark(*tp++);
       tp++;
     }
 }
@@ -4690,7 +4688,7 @@ static void mark_continuation(s7_pointer p)
   set_mark(p);
   mark_stack_1(continuation_stack(p), continuation_stack_top(p));
   for (i = 0; i < continuation_op_loc(p); i++)
-    S7_MARK(continuation_op_stack(p)[i]);
+    s7_mark(continuation_op_stack(p)[i]);
 }
 
 static void mark_vector(s7_pointer p)
@@ -4742,22 +4740,22 @@ static void mark_c_object(s7_pointer p)
 static void mark_catch(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(catch_tag(p));
-  S7_MARK(catch_handler(p));
+  s7_mark(catch_tag(p));
+  s7_mark(catch_handler(p));
 }
 
 static void mark_dynamic_wind(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(dynamic_wind_in(p));
-  S7_MARK(dynamic_wind_out(p));
-  S7_MARK(dynamic_wind_body(p));
+  s7_mark(dynamic_wind_in(p));
+  s7_mark(dynamic_wind_out(p));
+  s7_mark(dynamic_wind_body(p));
 }
 
 static void mark_hash_table(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(hash_table_procedures(p));
+  s7_mark(hash_table_procedures(p));
   if (hash_table_entries(p) > 0)
     {
       uint32_t len;
@@ -4772,13 +4770,13 @@ static void mark_hash_table(s7_pointer p)
 	  hash_entry_t *xp;
 	  for (xp = *entries++; xp; xp = xp->next)
 	    {
-	      S7_MARK(xp->key);
-	      S7_MARK(xp->value);
+	      s7_mark(xp->key);
+	      s7_mark(xp->value);
 	    }
 	  for (xp = *entries++; xp; xp = xp->next)
 	    {
-	      S7_MARK(xp->key);
-	      S7_MARK(xp->value);
+	      s7_mark(xp->key);
+	      s7_mark(xp->value);
 	    }
 	}
     }
@@ -4787,9 +4785,9 @@ static void mark_hash_table(s7_pointer p)
 static void mark_iterator(s7_pointer p)
 {
   set_mark(p);
-  S7_MARK(iterator_sequence(p));
+  s7_mark(iterator_sequence(p));
   if (is_mark_seq(p))
-    S7_MARK(iterator_current(p));
+    s7_mark(iterator_current(p));
 }
 
 static void mark_input_port(s7_pointer p)
@@ -4861,7 +4859,7 @@ static void mark_op_stack(s7_scheme *sc)
   tp = sc->op_stack_now;
   p = sc->op_stack;
   while (p < tp)
-    S7_MARK(*p++);
+    s7_mark(*p++);
 }
 
 static void mark_rootlet(s7_scheme *sc)
@@ -4875,20 +4873,20 @@ static void mark_rootlet(s7_scheme *sc)
 
   set_mark(ge);
   while (tmp < top)
-    S7_MARK(slot_value(*tmp++));
+    s7_mark(slot_value(*tmp++));
   /* slot_setter is handled below with an explicit list -- more code than its worth probably */
 }
 
 void s7_mark_c_object(s7_pointer p)
 {
-  S7_MARK(p);
+  s7_mark(p);
 }
 
 static void mark_permanent_objects(s7_scheme *sc)
 {
   gc_obj *g;
   for (g = sc->permanent_objects; g; g = (gc_obj *)(g->nxt))
-    S7_MARK(g->p);
+    s7_mark(g->p);
 }
 
 static void unmark_permanent_objects(s7_scheme *sc)
@@ -4960,7 +4958,7 @@ static int64_t gc(s7_scheme *sc)
     }
 
   mark_rootlet(sc);
-  S7_MARK(sc->args);
+  s7_mark(sc->args);
   mark_let(sc->envir);
   /* slot_set_value(sc->error_data, sc->F); */
   /* the other choice here is to explicitly mark slot_value(sc->error_data) as we do eval_history1/2 below.
@@ -4974,8 +4972,8 @@ static int64_t gc(s7_scheme *sc)
     s7_pointer p1, p2;
     for (p1 = sc->eval_history1, p2 = sc->eval_history2; ; p2 = cdr(p2))
       {
-	S7_MARK(car(p1));
-	S7_MARK(car(p2));
+	s7_mark(car(p1));
+	s7_mark(car(p2));
 	p1 = cdr(p1);
 	if (p1 == sc->eval_history1) break; /* these are circular lists */
       }
@@ -4983,72 +4981,72 @@ static int64_t gc(s7_scheme *sc)
 #endif
   mark_owlet(sc);
 
-  S7_MARK(sc->code);
+  s7_mark(sc->code);
   mark_current_code(sc); /* isn't this redundant if with_history? */
   mark_stack_1(sc->stack, s7_stack_top(sc));
-  S7_MARK(sc->v);
-  S7_MARK(sc->w);
-  S7_MARK(sc->x);
-  S7_MARK(sc->y);
-  S7_MARK(sc->z);
-  S7_MARK(sc->value);
+  s7_mark(sc->v);
+  s7_mark(sc->w);
+  s7_mark(sc->x);
+  s7_mark(sc->y);
+  s7_mark(sc->z);
+  s7_mark(sc->value);
 
-  S7_MARK(sc->temp1);
-  S7_MARK(sc->temp2);
-  S7_MARK(sc->temp3);
-  S7_MARK(sc->temp4);
-  S7_MARK(sc->temp6);
-  S7_MARK(sc->temp7);
-  S7_MARK(sc->temp8);
-  S7_MARK(sc->temp9);
-  S7_MARK(sc->temp10);
-  S7_MARK(sc->temp11);
+  s7_mark(sc->temp1);
+  s7_mark(sc->temp2);
+  s7_mark(sc->temp3);
+  s7_mark(sc->temp4);
+  s7_mark(sc->temp6);
+  s7_mark(sc->temp7);
+  s7_mark(sc->temp8);
+  s7_mark(sc->temp9);
+  s7_mark(sc->temp10);
+  s7_mark(sc->temp11);
   {
     int32_t i;
-    for (i = 0; i < T_TEMPS_SIZE; i++) {S7_MARK(sc->t_temps[i]);}
+    for (i = 0; i < T_TEMPS_SIZE; i++) {s7_mark(sc->t_temps[i]);}
   }
   set_mark(sc->input_port);
-  S7_MARK(sc->input_port_stack);
+  s7_mark(sc->input_port_stack);
   set_mark(sc->output_port);
   set_mark(sc->error_port);
-  S7_MARK(sc->stacktrace_defaults);
-  S7_MARK(sc->autoload_table);
-  S7_MARK(sc->default_rng);
+  s7_mark(sc->stacktrace_defaults);
+  s7_mark(sc->autoload_table);
+  s7_mark(sc->default_rng);
 
   /* permanent lists that might escape and therefore need GC protection */
   mark_pair(sc->temp_cell_1);
   mark_pair(sc->temp_cell_2);
-  S7_MARK(car(sc->t1_1));
-  S7_MARK(car(sc->t2_1));
-  S7_MARK(car(sc->t2_2));
-  S7_MARK(car(sc->t3_1));
-  S7_MARK(car(sc->t3_2));
-  S7_MARK(car(sc->t3_3));
+  s7_mark(car(sc->t1_1));
+  s7_mark(car(sc->t2_1));
+  s7_mark(car(sc->t2_2));
+  s7_mark(car(sc->t3_1));
+  s7_mark(car(sc->t3_2));
+  s7_mark(car(sc->t3_3));
 
-  S7_MARK(car(sc->a4_1));
-  S7_MARK(car(sc->a4_2));
-  S7_MARK(car(sc->a4_3));
-  S7_MARK(car(sc->a4_4));
+  s7_mark(car(sc->a4_1));
+  s7_mark(car(sc->a4_2));
+  s7_mark(car(sc->a4_3));
+  s7_mark(car(sc->a4_4));
 
-  S7_MARK(car(sc->plist_1));
-  S7_MARK(car(sc->plist_2));
-  S7_MARK(cadr(sc->plist_2));
-  S7_MARK(car(sc->qlist_2));
-  S7_MARK(cadr(sc->qlist_2));
+  s7_mark(car(sc->plist_1));
+  s7_mark(car(sc->plist_2));
+  s7_mark(cadr(sc->plist_2));
+  s7_mark(car(sc->qlist_2));
+  s7_mark(cadr(sc->qlist_2));
 
   {
     s7_pointer p;
-    for (p = sc->wrong_type_arg_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->simple_wrong_type_arg_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->out_of_range_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->simple_out_of_range_info; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    S7_MARK(car(sc->elist_1));
-    S7_MARK(car(sc->elist_2));
-    S7_MARK(cadr(sc->elist_2));
-    for (p = sc->plist_3; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->elist_3; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->elist_4; is_pair(p); p = cdr(p)) S7_MARK(car(p));
-    for (p = sc->elist_5; is_pair(p); p = cdr(p)) S7_MARK(car(p));
+    for (p = sc->wrong_type_arg_info; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->simple_wrong_type_arg_info; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->out_of_range_info; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->simple_out_of_range_info; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    s7_mark(car(sc->elist_1));
+    s7_mark(car(sc->elist_2));
+    s7_mark(cadr(sc->elist_2));
+    for (p = sc->plist_3; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->elist_3; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->elist_4; is_pair(p); p = cdr(p)) s7_mark(car(p));
+    for (p = sc->elist_5; is_pair(p); p = cdr(p)) s7_mark(car(p));
   }
 
   {
@@ -5059,14 +5057,14 @@ static int64_t gc(s7_scheme *sc)
       if ((is_pair(sc->safe_lists[i])) &&
 	  (list_is_in_use(sc->safe_lists[i])))
 	for (p = sc->safe_lists[i]; is_pair(p); p = cdr(p))
-	  S7_MARK(car(p));
+	  s7_mark(car(p));
 
     for (i = 0; i < sc->setters_loc; i++)
-      S7_MARK(cdr(sc->setters[i]));
+      s7_mark(cdr(sc->setters[i]));
 
     for (i = 0; i < sc->num_fdats; i++)
       if (sc->fdats[i])
-	S7_MARK(sc->fdats[i]->curly_arg);
+	s7_mark(sc->fdats[i]->curly_arg);
   }
   mark_vector(sc->protected_objects);
   mark_vector(sc->protected_setters);
@@ -5092,7 +5090,7 @@ static int64_t gc(s7_scheme *sc)
       tmps_top = sc->previous_free_heap_top;
 
     while (tmps < tmps_top)
-      S7_MARK(*tmps++);
+      s7_mark(*tmps++);
   }
   mark_op_stack(sc);
   mark_permanent_objects(sc);
@@ -26845,7 +26843,7 @@ static bool symbol_needs_slashification(s7_scheme *sc, s7_pointer obj)
   return(false);
 }
 
-static void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
+static inline void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   /* I think this is the only place we print a symbol's name */
   if ((!is_clean_symbol(obj)) &&
@@ -30024,7 +30022,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  char *buf;
 
 	  name = s7_string(c_object_scheme_name(sc, obj));
-	  nlen = safe_strlen(name) + 16;
+	  nlen = safe_strlen(name) + 32; /* 6 + pointer rep=15/16, 16 is too small */
 	  buf = (char *)malloc(nlen);
 	  nlen = snprintf(buf, nlen, "#<%s %p>", name, obj);
 	  port_write_string(port)(sc, buf, nlen, port);
@@ -32218,7 +32216,7 @@ static bool symbol_is_in_arg_list(s7_pointer sym, s7_pointer lst)
 }
 
 /* ---------------- tree-leaves ---------------- */
-static s7_int tree_len_1(s7_scheme *sc, s7_pointer p)
+static inline s7_int tree_len_1(s7_scheme *sc, s7_pointer p)
 {
   s7_int sum;
   for (sum = 0; is_pair(p); p = cdr(p))
@@ -32291,7 +32289,7 @@ static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 
 /* ---------------- tree-memq ---------------- */
 
-static bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)    /* sym need not be a symbol */
+static inline bool tree_memq_1(s7_scheme *sc, s7_pointer sym, s7_pointer tree)    /* sym need not be a symbol */
 {
   if (car(tree) == sc->quote_symbol)
     {
@@ -32357,7 +32355,7 @@ static s7_pointer g_tree_memq(s7_scheme *sc, s7_pointer args)
 static bool tree_memq_b_pp(s7_pointer sym, s7_pointer tree) {return(g_tree_memq(cur_sc, set_plist_2(cur_sc, sym, tree)) != cur_sc->F);}
 
 /* ---------------- tree-set-memq ---------------- */
-static bool pair_set_memq(s7_scheme *sc, s7_pointer tree)
+static inline bool pair_set_memq(s7_scheme *sc, s7_pointer tree)
 {
   while (true)
     {
@@ -34580,14 +34578,13 @@ static s7_pointer g_list(s7_scheme *sc, s7_pointer args)
 {
   #define H_list "(list ...) returns its arguments in a list"
   #define Q_list s7_make_circular_signature(sc, 1, 2, sc->is_proper_list_symbol, sc->T)
-  
+
   if (is_pair(args))
     {
       if (is_null(cdr(args)))
 	return(cons(sc, car(args), sc->nil));
       if (is_null(cddr(args)))
 	return(list_2(sc, car(args), cadr(args)));
-
       return(copy_list(sc, args));
     }
   return(sc->nil);
@@ -35114,7 +35111,7 @@ static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument(sc, sc->vector_fill_symbol, 1, x, T_VECTOR));
     }
   if (is_immutable_vector(x))
-    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->fill_symbol, x)));
+    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_fill_symbol, x)));
 
   fill = cadr(args);
   if (is_float_vector(x))
@@ -39667,7 +39664,11 @@ static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args) /* called in c_object_set_function */
 {
-  return((*(c_object_set(sc, car(args))))(sc, args));
+  s7_pointer obj;
+  obj = car(args);
+  if (!is_c_object(obj))
+    return(simple_wrong_type_argument(sc, s7_make_symbol(sc, "c-object-set!"), obj, T_C_OBJECT));
+  return((*(c_object_set(sc, obj)))(sc, args));
 }
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name)
@@ -42182,8 +42183,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	break;
 
     default:
-      return(wrong_type_argument_with_type(sc, caller, 1, source, a_sequence_string));
-      /* copy doesn't have to duplicate fill!, so (copy 1 #(...)) need not be supported */
+      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, s7_make_string_wrapper(sc, "can't ~S ~S to ~S~%"), caller, source, dest)));
     }
 
   start = 0;
@@ -42255,7 +42255,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       return(sc->nil);
 
     default:
-      return(wrong_type_argument_with_type(sc, caller, 2, dest, a_sequence_string));
+      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, s7_make_string_wrapper(sc, "can't ~S ~S to ~S~%"), caller, source, dest)));
     }
 
   if (dest_len == 0)
@@ -46347,7 +46347,7 @@ s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args
 
 static s7_pointer type_to_typers[NUM_TYPES];
 
-static bool gen_type_match(s7_scheme *sc, s7_pointer val, uint8_t typ)  /* opt_con3 = uint8_t */
+static inline bool gen_type_match(s7_scheme *sc, s7_pointer val, uint8_t typ)  /* opt_con3 = uint8_t */
 {
   return((type(val) == typ) ||
 	 ((has_methods(val)) &&
@@ -46430,7 +46430,6 @@ static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
 {
   #define H_s7_version "(s7-version) returns some string describing the current s7"
   #define Q_s7_version pcl_s
-
   return(s7_make_string(sc, "s7 " S7_VERSION ", " S7_DATE));
 }
 
@@ -46877,51 +46876,6 @@ static s7_pointer all_x_c_opcq_c(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
-static s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
-{
-  if ((num_args != 0) &&
-      (num_args < NUM_SAFE_LISTS))
-    {
-      sc->current_safe_list = num_args;
-      if (!is_pair(sc->safe_lists[num_args]))
-	sc->safe_lists[num_args] = permanent_list(sc, num_args);
-      if (!list_is_in_use(sc->safe_lists[num_args]))
-	{
-	  set_list_in_use(sc->safe_lists[num_args]);
-	  return(sc->safe_lists[num_args]);
-	}
-    }
-  return(make_list(sc, num_args, sc->nil));
-}
-
-static s7_pointer all_x_c_all_s(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer args, p;
-  int32_t tx;
-  tx = next_tx(sc);
-  sc->t_temps[tx] = safe_list_if_possible(sc, integer(arglist_length(arg)));
-  for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
-    set_car(p, symbol_to_value_unchecked(sc, car(args)));
-  clear_list_in_use(sc->t_temps[tx]);
-  sc->current_safe_list = 0;
-  return(c_call(arg)(sc, sc->t_temps[tx]));
-}
-
-static s7_pointer all_x_c_all_x(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer args, p;
-  int32_t tx;
-  tx = next_tx(sc);
-  sc->t_temps[tx] = safe_list_if_possible(sc, integer(arglist_length(arg)));
-  for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
-    set_car(p, c_call(args)(sc, car(args)));
-  clear_list_in_use(sc->t_temps[tx]);
-  sc->current_safe_list = 0;
-  return(c_call(arg)(sc, sc->t_temps[tx]));
-}
-
-/* h_safe_c_all_x (etc), h_safe_c_s_opaq, h_safe_c_c_opscq, h_safe_c_scc */
- 
 static s7_pointer all_x_c_opcq_opcq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -47489,6 +47443,66 @@ static s7_pointer all_x_c_opaq_s(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
+{
+  if ((num_args != 0) &&
+      (num_args < NUM_SAFE_LISTS))
+    {
+      sc->current_safe_list = num_args;
+      if (!is_pair(sc->safe_lists[num_args]))
+	sc->safe_lists[num_args] = permanent_list(sc, num_args);
+      if (!list_is_in_use(sc->safe_lists[num_args]))
+	{
+	  set_list_in_use(sc->safe_lists[num_args]);
+	  return(sc->safe_lists[num_args]);
+	}
+    }
+  return(make_list(sc, num_args, sc->nil));
+}
+
+static s7_pointer all_x_c_all_s(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer args, p;
+  int32_t tx;
+  tx = next_tx(sc);
+  sc->t_temps[tx] = safe_list_if_possible(sc, integer(arglist_length(arg)));
+  for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
+    set_car(p, symbol_to_value_unchecked(sc, car(args)));
+  clear_list_in_use(sc->t_temps[tx]);
+  sc->current_safe_list = 0;
+  return(c_call(arg)(sc, sc->t_temps[tx]));
+}
+
+#if 0
+static s7_pointer all_x_c_all_x(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer args, p;
+  int32_t tx;
+  tx = next_tx(sc);
+  sc->t_temps[tx] = safe_list_if_possible(sc, integer(arglist_length(arg)));
+  for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
+    set_car(p, c_call(args)(sc, car(args)));
+  clear_list_in_use(sc->t_temps[tx]);
+  sc->current_safe_list = 0;
+  return(c_call(arg)(sc, sc->t_temps[tx]));
+}
+
+static s7_pointer all_x_c_aa(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer args, p;
+  int32_t tx;
+  tx = next_tx(sc);
+  sc->t_temps[tx] = safe_list_if_possible(sc, 2);
+  args = cdr(arg);
+  p = sc->t_temps[tx];
+  set_car(p, c_call(args)(sc, car(args)));
+  set_car(cdr(p), c_call(cdr(args))(sc, cadr(args)));
+  clear_list_in_use(p);
+  sc->current_safe_list = 0;
+  return(c_call(arg)(sc, p));
+}
+#endif
+
 static s7_pointer all_x_if_x2(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
@@ -47653,7 +47667,14 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_CLOSURE_S_C] = all_x_closure_s;
   all_x_function[HOP_SAFE_CLOSURE_A_C] = all_x_closure_a;
   all_x_function[HOP_SAFE_C_ALL_S] = all_x_c_all_s;
+
+#if 0
   all_x_function[HOP_SAFE_C_ALL_X] = all_x_c_all_x;
+  all_x_function[HOP_SAFE_C_AA] = all_x_c_aa;
+  all_x_function[HOP_SAFE_C_AAA] = all_x_c_all_x;
+  all_x_function[HOP_SAFE_C_AAAA] = all_x_c_all_x;
+#endif
+
   all_x_function[HOP_SAFE_C_opAq_S] = all_x_c_opaq_s;
   all_x_function[HOP_SAFE_QUOTE] = all_x_q;
 }
@@ -47819,7 +47840,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 		    return(all_x_c_as);
 		  return(all_x_c_ac);
 		}
-	      return(NULL);
+	      return(NULL); /* all_x_c_aa... */
 	      
 	    case HOP_SAFE_CLOSURE_S_C:
 	      if (c_call(car(closure_body(opt_lambda(arg)))) == g_and_2)
@@ -54990,6 +55011,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 		      step = caddr(var);
 		      if ((is_opt_int(slot_value(slot))) &&
 			  (is_pair(step)) &&
+			  (is_pair(cdr(step))) &&
 			  (car(var) == cadr(stop)) &&
 			  (car(var) == cadr(step)) &&
 			  ((car(stop) != sc->eq_symbol) || /* else > protects at least the top */
@@ -60533,7 +60555,7 @@ static bool let_memq(s7_pointer symbol, s7_pointer symbols)
 }
 
 
-static s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
+static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
 {
   s7_pointer x;
   int64_t id;
@@ -65028,6 +65050,7 @@ static s7_pointer check_cond(s7_scheme *sc)
 
 	      for (p = sc->code; eopt && (is_pair(p)); p = cdr(p))
 		eopt = ((!is_pair(cdar(p))) || ((!is_pair(cddar(p))) && ((!is_pair(cadar(p))) || (is_optimized(cadar(p))))));
+	      /* TODO: this ^ forgets else/#t and lets constants through */
 	      if (eopt)
 		pair_set_syntax_symbol(sc->code, sc->cond_all_x_z_symbol);
 	    }
@@ -66483,21 +66506,14 @@ static bool is_simple_expression(s7_scheme *sc, s7_pointer x)
 	  (is_all_x_safe(sc, x))));
 }
 	
-static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
+static inline bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
 {
-  if (is_symbol(tree))
-    return(is_definer(tree));
-  if (!is_pair(tree))
-    return(false);
-  do {
-    if (is_symbol(cdr(tree)))
-      return(is_definer(cdr(tree)));
-    if (tree_has_definers(sc, car(tree)))
+  s7_pointer p;
+  for (p = tree; is_pair(p); p = cdr(p))
+    if (tree_has_definers(sc, car(p)))
       return(true);
-    tree = cdr(tree);
-  } while (is_pair(tree));
   return((is_symbol(tree)) &&
-	 (is_definer(tree)));
+	 (is_definer(tree)));  
 }
 
 static s7_pointer check_do(s7_scheme *sc)
@@ -76629,7 +76645,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    if (is_null(sc->code))
 		      goto START;
 		    sc->code = car(sc->code);
-		    goto OPT_EVAL_CHECKED;
+		    if (is_pair(sc->code))
+		      goto OPT_EVAL_CHECKED;
+		    if (is_symbol(sc->code))
+		      sc->value = symbol_to_value_checked(sc, sc->code);
+		    else sc->value = sc->code; /* "Z" here includes constants! */
+		    goto START;
 		  }
 	      }
 	    sc->value = sc->unspecified; 
@@ -84977,38 +84998,38 @@ int main(int argc, char **argv)
  *
  * t725: auto-test
  * t772: lint or|and tests
- * t776: cycle tests (s7test too)
+ * t776: cycle tests 
  *
- * input_port_stack using port_next
- * inchar via port?
- * titer is missing opt_* do-no-vars and loop-no-args
  * checkout int128_t (float also??) defined(__SIZEOF_INT128__) -- gcc: __SIZEOF_INT128__, __FLT128_DIG__
  *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf and strtoflt128 in libquadmath -lquadmath #include <quadmath.h> __complex128
  *   typedef _Complex float __attribute__((mode(TC))) _Complex128;
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
- * tmap: c_less_2 does type check? -- sorting int|float-vector we know the types, but g_sort notices these
- * tree_has_definers seems to have unneeded symbol(cdr(tree)) check -- for loop? (tgen)
+ *
+ * all_x cases are ok if none of the args involve "a", or possibly if less than 32 a's [lt? tread]
+ *   if no "a" args, can't aa/aaa/aaaa use sc->a2 etc?  maybe limit all_x_a* to sc->a length=4? (stats?)
+ * see calls for h_safe* -> z currently, check cond_all_x_z fallthroughs
+ * track down other calls like cond_all_x_z -> unopt (it opt_eval_checked -- get source)
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1161
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1159
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1474
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1801
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2115
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2584
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 130.6
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2766
- * tread         |      |      |      ||      ||      |                   3009  2814
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2948
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1796
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2112
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2559
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 129.7
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2762
+ * tread         |      |      |      ||      ||      |                   3009  2845
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2952
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4192
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5236
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4931
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7824
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.9
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.8
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  42.1
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  87.2

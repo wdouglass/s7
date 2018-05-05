@@ -29,16 +29,12 @@
 	     (loop)))))
 
 (define-constant (find-if-d iter)
-  (do ()
-      ((or (string? (iterate iter)) (iterator-at-end? iter))
-       (not (iterator-at-end? iter)))))
-#|
-;;; exactly the same speed:
-(define-constant (find-if-d iter)
-  (do ((x (iterate iter) (iterate iter)))
-      ((or (string? x) (iterator-at-end? iter))
-       (string? x))))
-|#
+  (do ((i 0 (+ i 1)))
+      ((= i 1)
+       (not (iterator-at-end? iter)))
+    (do ()
+	((or (string? (iterate iter)) (iterator-at-end? iter))))))
+       
 
 (define (test)
   (for-each
