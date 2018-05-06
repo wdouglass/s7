@@ -100,7 +100,7 @@ static bool equal_dax(void *val1, void *val2)
 static void mark_dax(void *val)
 {
   dax *o = (dax *)val;
-  if (o) s7_mark_c_object(o->data);
+  if (o) s7_mark(o->data);
 }
 
 static s7_int dax_type_tag = 0;

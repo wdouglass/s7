@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "6.1"
-#define S7_DATE "26-Apr-18"
+#define S7_VERSION "6.2"
+#define S7_DATE "6-May-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -583,13 +583,14 @@ s7_pointer s7_type_of(s7_pointer arg);                         /* (type-of arg) 
 /* -------------------------------------------------------------------------------- */
 /* c types/objects */
 
+void s7_mark(s7_pointer p);
+
 bool s7_is_c_object(s7_pointer p);
 s7_int s7_c_object_type(s7_pointer obj);
 void *s7_c_object_value(s7_pointer obj);
 void *s7_c_object_value_checked(s7_pointer obj, s7_int type);
 s7_pointer s7_make_c_object(s7_scheme *sc, s7_int type, void *value);
 s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7_pointer let);
-void s7_mark_c_object(s7_pointer p);
 s7_pointer s7_c_object_let(s7_pointer obj);
 s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e);
 
@@ -620,7 +621,7 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
    *
    * s7_make_c_type creates a new C-based type for Scheme:
    *   free:    the function called when an object of this type is about to be garbage collected
-   *   mark:    called during the GC mark pass -- you should call s7_mark_object
+   *   mark:    called during the GC mark pass -- you should call s7_mark
    *            on any embedded s7_pointer associated with the object to protect if from the GC.
    *   equal:   compare two objects of this type; (equal? obj1 obj2)
    *   ref:     a function that is called whenever an object of this type
@@ -638,7 +639,7 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
    * s7_c_object_type returns the c_object's type
    * s7_c_object_value returns the value bound to that c_object (the void *value of s7_make_c_object)
    * s7_make_c_object creates a new Scheme entity of the given type with the given (uninterpreted) value
-   * s7_mark_c_object marks any Scheme c_object as in-use (use this in the mark function to mark
+   * s7_mark marks any Scheme c_object as in-use (use this in the mark function to mark
    *    any embedded s7_pointer variables).
    */
 
@@ -855,7 +856,8 @@ s7_int s7_new_type(const char *name,
 #define s7_object_value_checked      s7_c_object_value_checked
 #define s7_make_object               s7_make_c_object
 #define s7_make_object_with_let      s7_make_c_object_with_let
-#define s7_mark_object               s7_mark_c_object
+#define s7_mark_object               s7_mark
+#define s7_mark_c_object             s7_mark
 #define s7_object_let                s7_c_object_let
 #define s7_object_set_let            s7_c_object_set_let
 #define s7_set_object_print_readably s7_c_type_set_print_readably
@@ -877,6 +879,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 6-May:     s7_mark_c_object -> s7_mark.
  * 26-Apr:    s7_c_type_set_to_list|string, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
  *            c_type length|set|ref are now s7_functions (args, not obj, etc).
  * 23-Mar:    s7_peek_char and s7_read_char now return s7_pointer, s7_write_char takes s7_pointer, not int32_t c

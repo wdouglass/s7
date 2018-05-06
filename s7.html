@@ -7674,7 +7674,7 @@ static bool equal_dax(void *val1, void *val2)
 static void mark_dax(void *val)
 {
   dax *o = (dax *)val;
-  if (o) s7_mark_c_object(o-&gt;data);
+  if (o) s7_mark(o-&gt;data);
 }
 
 static int dax_type_tag = 0;
