@@ -2501,12 +2501,14 @@ void start_progress_report(chan_info *cp)
 
 void reflect_sound_selection(snd_info *sp)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 0))
   snd_info *osp = NULL;
   if (ss->selected_sound != NO_SELECTION) osp = ss->sounds[ss->selected_sound];
-  if ((osp) && (sp != osp) && (osp->inuse == SOUND_NORMAL)) 
+  if ((osp) && (sp != osp) && (osp->inuse == SOUND_NORMAL))
     widget_modify_fg(NAME_BUTTON(osp), GTK_STATE_NORMAL, ss->black);
   if ((NAME_BUTTON(sp)) && (sp->selected_channel != NO_SELECTION))
     widget_modify_fg(NAME_BUTTON(sp), GTK_STATE_NORMAL, ss->red);
+#endif
   if (sound_style(ss) == SOUNDS_IN_NOTEBOOK) 
     {
       int page, current_page;

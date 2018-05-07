@@ -654,7 +654,9 @@ guint sg_event_get_button(const GdkEvent *e)
 
 void recolor_graph(chan_info *cp, bool selected)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   widget_modify_bg(channel_graph(cp), GTK_STATE_NORMAL, (selected) ? ss->selected_graph_color : ss->graph_color);
+#endif
 }
 
 
@@ -853,7 +855,9 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(new_text), editable);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(new_text), 4);
   gtk_container_add(GTK_CONTAINER(sw), new_text);
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   if (editable) sg_widget_set_events(new_text, GDK_ALL_EVENTS_MASK);
+#endif
   gtk_widget_show(new_text);
 
   switch (add_choice)
@@ -1060,7 +1064,10 @@ void add_toolbar_style(GtkWidget *w)
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
   gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(tb_provider), G_MAXUINT);
+#if 0
+  /* add_toolbar_style is incompatible with GtkCallback */
   if (GTK_IS_CONTAINER(w)) gtk_container_forall(GTK_CONTAINER(w), (GtkCallback)add_toolbar_style, tb_provider);
+#endif
 }
 
 void add_menu_style(GtkWidget *w)
@@ -1144,8 +1151,10 @@ static GtkWidget *slist_new_item(slist *lst, const char *label, int row)
 #endif
   sg_box_pack_start(GTK_BOX(lst->topics), item, false, false, 0);
 
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   widget_modify_bg(item, GTK_STATE_NORMAL, ss->white);
   widget_modify_bg(item, GTK_STATE_PRELIGHT, ss->light_blue);
+#endif
   add_white_button_style(item);
 
   SG_SIGNAL_CONNECT(item, "clicked", slist_item_clicked, (gpointer)lst);
@@ -1263,8 +1272,10 @@ void slist_clear(slist *lst)
 	gtk_button_set_label(GTK_BUTTON(lst->items[i]), " ");
       }
   lst->num_items = 0;
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   if (lst->selected_item != SLIST_NO_ITEM_SELECTED)
     widget_modify_bg(lst->items[lst->selected_item], GTK_STATE_NORMAL, ss->white);
+#endif
   lst->selected_item = SLIST_NO_ITEM_SELECTED;
 }
 
@@ -1327,10 +1338,12 @@ void slist_moveto(slist *lst, int row)
 
 void slist_select(slist *lst, int row)
 {
+#if (!GTK_CHECK_VERSION(3, 92, 1))
   if (lst->selected_item != SLIST_NO_ITEM_SELECTED)
     widget_modify_bg(lst->items[lst->selected_item], GTK_STATE_NORMAL, ss->white);
   if (row != SLIST_NO_ITEM_SELECTED)
     widget_modify_bg(lst->items[row], GTK_STATE_NORMAL, ss->light_blue);
+#endif
   lst->selected_item = row;
 }
 

@@ -1741,6 +1741,7 @@
 			  (test-vars (cdr lst)))))))))
 	(test-vars 
 	 (list
+
 	  (list 'amp-control 1.0 0.5)
 	  (list 'amp-control-bounds (list 0.0 8.0) (list 1.0 5.0))
 	  (list 'ask-about-unsaved-edits #f #t)
@@ -19954,22 +19955,26 @@ EDITS: 2
 			rand rand-interp)))
 	     '(100 1)))
 	  
-	  (let ((random-args (vector
-			      (expt 2.0 21.5) (expt 2.0 -18.0)
-			      1.5 "/hiho" (list 0 1) 1234 (make-float-vector 3) (make-color-with-catch .1 .2 .3)  #i(0 1) 3/4 0+i (make-delay 32)
-			      (lambda () 0.0) (lambda (dir) 1.0) (lambda (a b c) 1.0) 0 1 -1 #f #t #\c 0.0 1.0 -1.0 () 32 '(1 . 2))))
-	    (define random-gen
-	      (let ((gen-make-procs (list make-all-pass make-asymmetric-fm make-moving-average make-moving-max make-moving-norm
-					  make-table-lookup make-triangle-wave
-					  make-comb ;make-convolve
-					  make-delay make-env make-fft-window
-					  make-filter make-filtered-comb make-fir-filter make-formant
-					  make-iir-filter make-locsig make-notch make-one-pole make-one-pole-all-pass make-one-zero make-oscil
-					  make-pulse-train make-rand make-rand-interp make-sawtooth-wave make-polyshape make-polywave
-					  make-square-wave ;make-src
-					  make-two-pole make-two-zero make-wave-train
-					  make-ssb-am)))
-		(lambda (args)
+	  (define (tgens)
+	    (let ((random-args (vector
+				(expt 2.0 21.5) (expt 2.0 -18.0)
+				1.5 "/hiho" (list 0 1) 1234 (make-float-vector 3) (make-color-with-catch .1 .2 .3)  #i(0 1) 3/4 0+i (make-delay 32)
+				(lambda () 0.0) (lambda (dir) 1.0) (lambda (a b c) 1.0) 0 1 -1 #f #t #\c 0.0 1.0 -1.0 () 32 '(1 . 2)))
+		  (gens2 (list make-wave-train make-two-zero make-two-pole make-polywave make-polyshape make-rand-interp make-rand make-notch 
+			       make-locsig make-filtered-comb make-fft-window make-env make-delay make-comb make-table-lookup make-moving-norm 
+			       make-asymmetric-fm make-all-pass make-square-wave make-sawtooth-wave make-pulse-train make-filter make-triangle-wave 
+			       make-moving-max make-moving-average make-ssb-am make-oscil make-one-zero make-one-pole-all-pass make-one-pole 
+			       make-iir-filter make-formant make-fir-filter))
+		  (gens3 (list make-wave-train make-two-zero make-two-pole make-polywave make-polyshape make-rand-interp make-rand make-notch 
+			       make-locsig make-filtered-comb make-fft-window make-env make-delay make-comb make-table-lookup make-moving-norm 
+			       make-asymmetric-fm make-all-pass make-square-wave make-sawtooth-wave make-pulse-train make-filter make-triangle-wave 
+			       make-moving-max make-moving-average))
+		  (gens4 (list make-wave-train make-two-zero make-two-pole make-polywave make-polyshape make-rand-interp make-rand make-notch 
+			       make-locsig make-filtered-comb make-fft-window make-env make-delay make-comb make-table-lookup make-moving-norm 
+			       make-asymmetric-fm make-all-pass)))
+
+	      (define random-gen
+		(lambda (args gs)
 		  (for-each
 		   (lambda (n)
 		     (catch #t
@@ -19978,49 +19983,51 @@ EDITS: 2
 			   (for-each
 			    (lambda (arg)
 			      (catch #t
-				(lambda () (gen arg))
-				(lambda args (car args))))
+				(lambda ()
+				  (gen arg))
+				(lambda args #f)))
 			    random-args)))
-		       (lambda args (car args))))
-		   gen-make-procs))))
-	    
-	    (random-gen ())
-	    (let ((a1 (make-list 1 #f))
-		  (a2 (make-list 2 #f))
-		  (a3 (make-list 3 #f))
-		  (a4 (make-list 4 #f)))
-	      (let ((a22 (cdr a2))
-		    (a32 (cdr a3))
-		    (a42 (cdr a4))
-		    (a33 (cddr a3))
-		    (a43 (cddr a4))
-		    (a44 (cdddr a4)))
-		(for-each
-		 (lambda (arg1)
-		   (set-car! a1 arg1)
-		   (set-car! a2 arg1)
-		   (set-car! a3 arg1)
-		   (set-car! a4 arg1)
-		   (random-gen a1)
-		   (for-each 
-		    (lambda (arg2)
-		      (set-car! a22 arg2)
-		      (set-car! a32 arg2)
-		      (set-car! a42 arg2)
-		      (random-gen a2)
-		      (for-each 
-		       (lambda (arg3)
-			 (set-car! a33 arg3)
-			 (set-car! a43 arg3)
-			 (random-gen a3)
-			 (for-each 
-			  (lambda (arg4)
-			    (set-car! a44 arg4)
-			    (random-gen a4))
-			  random-args))
-		       random-args))
-		    random-args))
-		 random-args)))))))
+		       (lambda args #f)))
+		   gs)))
+	      
+	      (random-gen () gens2)
+	      (let ((a1 (make-list 1 #f))
+		    (a2 (make-list 2 #f))
+		    (a3 (make-list 3 #f))
+		    (a4 (make-list 4 #f)))
+		(let ((a22 (cdr a2))
+		      (a32 (cdr a3))
+		      (a42 (cdr a4))
+		      (a33 (cddr a3))
+		      (a43 (cddr a4))
+		      (a44 (cdddr a4)))
+		  (for-each
+		   (lambda (arg1)
+		     (set-car! a1 arg1)
+		     (set-car! a2 arg1)
+		     (set-car! a3 arg1)
+		     (set-car! a4 arg1)
+		     (random-gen a1 gens2)
+		     (for-each 
+		      (lambda (arg2)
+			(set-car! a22 arg2)
+			(set-car! a32 arg2)
+			(set-car! a42 arg2)
+			(random-gen a2 gens2)
+			(for-each 
+			 (lambda (arg3)
+			   (set-car! a33 arg3)
+			   (set-car! a43 arg3)
+			   (random-gen a3 gens3)
+			   (for-each 
+			    (lambda (arg4)
+			      (set-car! a44 arg4)
+			      (random-gen a4 gens4))
+			    random-args))
+			 random-args))
+		      random-args))
+		   random-args)))))
+	  (tgens))))
       
     (do ((ov (make-float-vector 10))
 	 (tv #r(.1 .1 .2 .2 1.5 1.5 1.5 1.5 0.1 0.01))

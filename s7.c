@@ -3218,7 +3218,8 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
       OP_SAFE_C_opSSq_opCq, HOP_SAFE_C_opSSq_opCq, OP_SAFE_C_opSSq_opSq, HOP_SAFE_C_opSSq_opSq, OP_SAFE_C_opSq_opSSq, HOP_SAFE_C_opSq_opSSq,
       OP_SAFE_C_opSSq_S, HOP_SAFE_C_opSSq_S, OP_SAFE_C_opSCq_S, HOP_SAFE_C_opSCq_S, OP_SAFE_C_opCSq_S, HOP_SAFE_C_opCSq_S,
       OP_SAFE_C_opSCq_C, HOP_SAFE_C_opSCq_C, OP_SAFE_C_opCq_opSSq, HOP_SAFE_C_opCq_opSSq,
-      OP_SAFE_C_S_op_opSSq_Sq, HOP_SAFE_C_S_op_opSSq_Sq, OP_SAFE_C_S_op_S_opSSqq, HOP_SAFE_C_S_op_S_opSSqq, OP_SAFE_C_S_op_S_opSqq, HOP_SAFE_C_S_op_S_opSqq,
+      OP_SAFE_C_S_op_opSSq_Sq, HOP_SAFE_C_S_op_opSSq_Sq, OP_SAFE_C_S_op_opSq_Cq, HOP_SAFE_C_S_op_opSq_Cq, 
+      OP_SAFE_C_S_op_S_opSSqq, HOP_SAFE_C_S_op_S_opSSqq, OP_SAFE_C_S_op_S_opSqq, HOP_SAFE_C_S_op_S_opSqq,
       OP_SAFE_C_op_opSSq_q_C, HOP_SAFE_C_op_opSSq_q_C, OP_SAFE_C_op_opSq_q_C, HOP_SAFE_C_op_opSq_q_C, 
       OP_SAFE_C_op_opSSq_q_S, HOP_SAFE_C_op_opSSq_q_S, OP_SAFE_C_op_opSq_q_S, HOP_SAFE_C_op_opSq_q_S, 
       OP_SAFE_C_S_op_opSSq_opSSqq, HOP_SAFE_C_S_op_opSSq_opSSqq,
@@ -3443,7 +3444,8 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "safe_c_opssq_opcq", "h_safe_c_opssq_opcq", "safe_c_opssq_opsq", "h_safe_c_opssq_opsq", "safe_c_opsq_opssq", "h_safe_c_opsq_opssq",
       "safe_c_opssq_s", "h_safe_c_opssq_s", "safe_c_opscq_s", "h_safe_c_opscq_s", "safe_c_opcsq_s", "h_safe_c_opcsq_s",
       "safe_c_opscq_c", "h_safe_c_opscq_c", "safe_c_opcq_opssq", "h_safe_c_opcq_opssq",
-      "safe_c_s_op_opssq_sq", "h_safe_c_s_op_opssq_sq", "safe_c_s_op_s_opssqq", "h_safe_c_s_op_s_opssqq", "safe_c_s_op_s_opsqq", "h_safe_c_s_op_s_opsqq",
+      "safe_c_s_op_opssq_sq", "h_safe_c_s_op_opssq_sq", "safe_c_s_op_opsq_cq", "h_safe_c_s_op_opsq_cq", 
+      "safe_c_s_op_s_opssqq", "h_safe_c_s_op_s_opssqq", "safe_c_s_op_s_opsqq", "h_safe_c_s_op_s_opsqq",
       "safe_c_op_opssq_q_c", "h_safe_c_op_opssq_q_c", "safe_c_op_opsq_q_c", "h_safe_c_op_opsq_q_c", 
       "safe_c_op_opssq_q_s", "h_safe_c_op_opssq_q_s", "safe_c_op_opsq_q_s", "h_safe_c_op_opsq_q_s", 
       "safe_c_s_op_opssq_opssqq", "h_safe_c_s_op_opssq_opssqq",
@@ -32796,7 +32798,6 @@ bool s7_is_list(s7_scheme *sc, s7_pointer p) /* sc for is_null */
 
 static bool is_list_b(s7_pointer p) {return((is_pair(p)) || (type(p) == T_NIL));}
 
-
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer lst)
 {
   /* #t if () or undotted/non-circular pair */
@@ -42477,8 +42478,10 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     case T_VECTOR:
       if (is_float_vector(dest))
 	{
+	  s7_double *dst;
+	  dst = float_vector_elements(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    float_vector_element(dest, j) = real_to_double(sc, vector_element(source, i), "copy");
+	    dst[j] = real_to_double(sc, vector_element(source, i), "copy");
 	  return(dest);
 	}
       if (is_int_vector(dest))
@@ -42496,66 +42499,86 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_FLOAT_VECTOR:
-      if (is_int_vector(dest))
-	{
-	  for (i = start, j = 0; i < end; i++, j++)
-	    int_vector_element(dest, j) = (s7_int)(float_vector_element(source, i));
-	  return(dest);
-	}
-      if (is_normal_vector(dest))
-	{
-	  for (i = start, j = 0; i < end; i++, j++)
-	    vector_element(dest, j) = make_real(sc, float_vector_element(source, i));
-	  return(dest);
-	}
+      {
+	s7_double *src;
+	src = float_vector_elements(source);
+	if (is_int_vector(dest))
+	  {
+	    s7_int *dst;
+	    dst = int_vector_elements(dest);
+	    for (i = start, j = 0; i < end; i++, j++)
+	      dst[j] = (s7_int)(src[i]);
+	    return(dest);
+	  }
+	if (is_normal_vector(dest))
+	  {
+	    s7_pointer *dst;
+	    dst = vector_elements(dest);
+	    for (i = start, j = 0; i < end; i++, j++)
+	      dst[j] = make_real(sc, src[i]);
+	    return(dest);
+	  }
+      }
       break;
 
     case T_INT_VECTOR:
-      if (is_float_vector(dest))
-	{
-	  for (i = start, j = 0; i < end; i++, j++)
-	    float_vector_element(dest, j) = (s7_double)(int_vector_element(source, i));
-	  return(dest);
-	}
-      if (is_string(dest)) /* includes byte-vector, as below */
-	{
-	  for (i = start, j = 0; i < end; i++, j++)
-	    string_value(dest)[j] = (uint8_t)int_vector_element(source, i);
-	  return(dest);
-	}
-      if (is_normal_vector(dest))
-	{
-	  for (i = start, j = 0; i < end; i++, j++)
-	    vector_element(dest, j) = s7_make_integer(sc, int_vector_element(source, i));
-	  return(dest);
-	}
+      {
+	s7_int *src;
+	src = int_vector_elements(source);
+	if (is_float_vector(dest))
+	  {
+	    for (i = start, j = 0; i < end; i++, j++)
+	      float_vector_element(dest, j) = (s7_double)(src[i]);
+	    return(dest);
+	  }
+	if (is_string(dest)) /* includes byte-vector, as below */
+	  {
+	    for (i = start, j = 0; i < end; i++, j++)
+	      string_value(dest)[j] = (uint8_t)(src[i]);
+	    return(dest);
+	  }
+	if (is_normal_vector(dest))
+	  {
+	    s7_pointer *dst;
+	    dst = vector_elements(dest);
+	    for (i = start, j = 0; i < end; i++, j++)
+	      dst[j] = s7_make_integer(sc, src[i]);
+	    return(dest);
+	  }
+      }
       break;
 
     case T_STRING:
       if (is_normal_vector(dest))
 	{
+	  s7_pointer *dst;
+	  dst = vector_elements(dest);
 	  if (is_byte_vector_not_string(source))
 	    {
 	      for (i = start, j = 0; i < end; i++, j++)
-		vector_element(dest, j) = make_integer(sc, (s7_int)((uint8_t)string_value(source)[i]));
+		dst[j] = make_integer(sc, (s7_int)((uint8_t)string_value(source)[i]));
 	    }
 	  else
 	    {
 	      for (i = start, j = 0; i < end; i++, j++)
-		vector_element(dest, j) = s7_make_character(sc, (uint8_t)string_value(source)[i]);
+		dst[j] = s7_make_character(sc, (uint8_t)string_value(source)[i]);
 	    }
 	  return(dest);
 	}
       if (is_int_vector(dest))
 	{
+	  s7_int *els;
+	  els = int_vector_elements(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    int_vector_element(dest, j) = (s7_int)((uint8_t)(string_value(source)[i]));
+	    els[j] = (s7_int)((uint8_t)(string_value(source)[i]));
 	  return(dest);
 	}
       if (is_float_vector(dest))
 	{
+	  s7_double *els;
+	  els = float_vector_elements(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    float_vector_element(dest, j) = (s7_double)((uint8_t)(string_value(source)[i]));
+	    els[j] = (s7_double)((uint8_t)(string_value(source)[i]));
 	  return(dest);
 	}
     }
@@ -42563,8 +42586,28 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
   if (is_pair(dest))
     {
       s7_pointer p;
-      for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
-	set_car(p, get(sc, source, i));
+      if (is_float_vector(source))
+	{
+	  s7_double *els;
+	  els = float_vector_elements(source);
+	  for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
+	    set_car(p, make_real(sc, els[i]));
+	}
+      else
+	{
+	  if (is_int_vector(source))
+	    {
+	      s7_int *els;
+	      els = int_vector_elements(source);
+	      for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
+		set_car(p, make_integer(sc, els[i]));
+	    }
+	  else
+	    {
+	      for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
+		set_car(p, get(sc, source, i));
+	    }
+	}
     }
   else
     {
@@ -46496,7 +46539,7 @@ static bool is_all_x_safe(s7_scheme *sc, s7_pointer p)
     {
       if (is_all_x_op(optimize_op(p)))
 	return(true);
-      if (optimize_op(p) == HOP_SAFE_C_AA)
+      if (optimize_op(p) == HOP_SAFE_C_AA) /* hop_safe_c_c can embed "a" ops so it's hard to make this any smarter */
 	return((!is_pair(cadr(p))) || (!is_pair(caddr(p))));
     }
   return(is_proper_quote(sc, p));
@@ -58801,9 +58844,6 @@ static s7_pointer add_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
 	  arg1 = cadr(expr);
 	  arg2 = caddr(expr);
 	  
-	  if (arg1 == small_int(1))
-	    return(add_1s);
-	  
 	  if (arg2 == small_int(1))                          /* (+ ... 1) */
 	    {
 	      if ((optimize_op(expr) == HOP_SAFE_C_SC) ||    /* (+ x 1) */
@@ -58814,6 +58854,9 @@ static s7_pointer add_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
 		}
 	      return(add_s1);
 	    }
+	  if (arg1 == small_int(1))
+	    return(add_1s);
+	  
 	  if (s7_is_integer(arg2))
 	    {
 	      if ((optimize_op(expr) == HOP_SAFE_C_SC) ||    /* (+ x 123) */
@@ -59914,6 +59957,7 @@ static int32_t combine_ops(s7_pointer func, s7_pointer expr, combine_op_t cop, s
 	  set_opt_sym2(cdr(expr), caddr(arg));
 	  return(OP_SAFE_C_S_opSSq);
 
+	case OP_SAFE_C_opSq_C:      return(OP_SAFE_C_S_op_opSq_Cq);
 	case OP_SAFE_C_opSSq_S:	    return(OP_SAFE_C_S_op_opSSq_Sq);
 	case OP_SAFE_C_S_opSSq:	    return(OP_SAFE_C_S_op_S_opSSqq);
 	case OP_SAFE_C_S_opSq:	    return(OP_SAFE_C_S_op_S_opSqq);
@@ -61894,9 +61938,10 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	      (!is_symbol(car(var))) ||
 	      (!is_pair(cdr(var))))
 	    return(OPT_OOPS);
-	  if ((is_pair(cadr(var))) &&
-	      (!is_checked(cadr(var))) &&
-	      (optimize_expression(sc, cadr(var), hop, e, false) == OPT_OOPS))
+	  var = cadr(var);
+	  if ((is_pair(var)) &&
+	      (!is_checked(var)) &&
+	      (optimize_expression(sc, var, hop, e, false) == OPT_OOPS))
 	    return(OPT_OOPS);
 	}
       e = collect_variables(sc, vars, e);
@@ -72187,6 +72232,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    goto START;
 		  }
 		  
+		case OP_SAFE_C_S_op_opSq_Cq:
+		  if ((!c_function_is_ok(sc, code)) || (!c_function_is_ok(sc, caddr(code))) || (!c_function_is_ok(sc, cadr(caddr(code))))) break;
+		case HOP_SAFE_C_S_op_opSq_Cq:
+		  {
+		    /* (< a (- (length b) 1) */
+		    s7_pointer args, val, val1;
+		    args = caddr(code);
+		    val1 = cadr(args);
+		    val = symbol_to_value_unchecked(sc, cadr(val1));
+		    set_car(sc->t1_1, val);
+		    set_car(sc->t2_1, c_call(val1)(sc, sc->t1_1));
+		    set_car(sc->t2_2, caddr(args));
+		    set_car(sc->t2_2, c_call(args)(sc, sc->t2_1));
+		    set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(code)));
+		    sc->value = c_call(code)(sc, sc->t2_1);
+		    goto START;
+		  }
+		  
 		case OP_SAFE_C_S_op_S_opSqq:
 		  if ((!c_function_is_ok(sc, code)) || (!c_function_is_ok(sc, caddr(code))) || (!c_function_is_ok(sc, caddr(caddr(code))))) break;
 		case HOP_SAFE_C_S_op_S_opSqq:
@@ -73997,8 +74060,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			if (unknown_a_ex(sc, c) == goto_OPT_EVAL) goto INNER_OPT_EVAL;
 			break;
 		      }
-		    set_car(sc->t2_1, c);
 		    set_car(sc->t2_2, c_call(cdr(code))(sc, cadr(code)));
+		    set_car(sc->t2_1, c); /* arg above might use sc->t2* */
 		    sc->value = (*(c_object_ref(sc, c)))(sc, sc->t2_1);
 		    goto START;
 		  }
@@ -84943,21 +85006,14 @@ int main(int argc, char **argv)
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
  *
  * fill! reported as vector-fill! and probably string-fill! too
- * perhaps all_x_c_all_x via (e.g.) all_x_c_a_opsq, s_op_opsq_c_q, cdr_s|s+c_s|s|q+c
- *   in aa/aaa/aaaa get combination counts (via is_all_x_safe??)
- * c_opaq et al could embed anything all-x-able, not just c_a??
- * set_c_function_star_args -- check for wrong arg num earlier (sndbig62) (huge overhead here) -- arg check outside?
- *   split the keyword case out separately, initial check gets arg num and keys? 
- *   no keys: if c_function_all_args(func) < safe_list_length(sc, sc->args) etc
- *   where is this happening in snd-test? -- looks like a bug in scheme code [make-procs?][gen-make-procs and random args?]
- *   map (cdr (arity (func))) over gen-make-procs and use that to choose
+ * optimize rather than do
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1157
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1463
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1156
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1465
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1796
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2107
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
@@ -84965,15 +85021,15 @@ int main(int argc, char **argv)
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 129.3
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2738
  * tread         |      |      |      ||      ||      |                   3009  2842
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2949
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2843
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4193
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4931
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4191
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4939
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7820
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.8
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.9
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.7
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.7
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  42.1
- *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  86.9
+ *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  82.8
  * --------------------------------------------------------------------------------------
  */
