@@ -6242,7 +6242,7 @@ for a peak-amp minimum using a simulated annealing form of the genetic algorithm
 			if (file)
 			  ofile = fopen(file, "a");
 			else ofile = stderr;
-			fprintf(ofile, "%s, %d %f #(", choice_name[choice], n, pk);
+			fprintf(ofile, "%s, %d %f #r(", choice_name[choice], n, pk);
 			for (k = 0; k < n - 1; k++) fprintf(ofile, "%f ", min_phases[k]);
 			fprintf(ofile, "%f)\n", min_phases[n - 1]);
 			if (file) fclose(ofile);
@@ -6351,7 +6351,7 @@ for a peak-amp minimum using a simulated annealing form of the genetic algorithm
 			if (file)
 			  ofile = fopen(file, "a");
 			else ofile = stderr;
-			fprintf(ofile, "%s, %d %f #(", choice_name[choice], n, pk);
+			fprintf(ofile, "%s, %d %f #r(", choice_name[choice], n, pk);
 			for (kk = 0; kk < llen - 1; kk++) fprintf(ofile, "%f ", min_phases[kk]);
 			fprintf(ofile, "%f)\n", min_phases[llen - 1]);
 			if (file) fclose(ofile);

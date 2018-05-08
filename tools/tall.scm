@@ -22,9 +22,9 @@
 
 (define (test-do)
   (do ((j 0 (+ j 1))) ((= j 1))
-  (do ((i 0 (+ i 1)))
-      ((= i size))
-    i)))
+    (do ((i 0 (+ i 1)))
+	((= i size))
+      i)))
 
 (let ((do1 (time-it (test-do))))
   (format *stderr* "~15T~A" (hundred do1)))
@@ -32,9 +32,9 @@
 (define (test-*1)
   (let ((x 1.0))
     (do ((j 0 (+ j 1))) ((= j 1))
-    (do ((i 0 (+ i 1)))
-	((= i size))
-      (set! x (+ x (* i 2.0)))))))
+      (do ((i 0 (+ i 1)))
+	  ((= i size))
+	(set! x (+ x (* i 2.0)))))))
 
 (let ((do1 (time-it (test-*1))))
   (format *stderr* "~5T~A" (hundred do1)))
@@ -45,11 +45,11 @@
 	(osc (make-oscil :frequency 440))
 	(e1 (make-env '(0 0 1 1 2 0) :length size)))
     (set! *output* vals)
-    (do ((j 0 (+ j 1))) ((= j 1))
-    (do ((i 0 (+ i 1)))
-	((= i size))
-      (outa i (* (env e1) (oscil osc))))
-    (set! *output* #f))))
+    (s7-optimize
+     (do ((i 0 (+ i 1)))
+	 ((= i size))
+       (outa i (* (env e1) (oscil osc)))))
+    (set! *output* #f)))
 
 (let ((do1 (time-it (test-osc))))
   (format *stderr* "~5T~A" (hundred do1)))
