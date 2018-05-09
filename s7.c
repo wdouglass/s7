@@ -2147,7 +2147,7 @@ static int64_t not_heap = -1;
 #define F_CON                         (1 << 22)  /* constant as above */
 #define F_CALL                        (1 << 23)  /* c-func */
 #define F_LAMBDA                      (1 << 24)  /* lambda form */
-#define F_ID                          (1 << 31)  /* symbol id */
+#define F_ID                          0x80000000 /* (1 << 31) */ /* symbol id */
 #define F_MASK                        (F_KEY | F_SLOW | F_SYM | F_PAIR | F_CON | F_CALL | F_LAMBDA | F_ID | S_NAME)
 
 #define opt2_is_set(p)                (((p)->debugger_bits & F_SET) != 0)
@@ -2356,7 +2356,7 @@ static int64_t not_heap = -1;
 #define clear_hop(P)                  set_optimize_op(P, op_no_hop(P))
 #define clear_optimize_op(P)          set_optimize_op(P, 0)
 #define set_safe_optimize_op(P, Q)    do {set_optimized(P); set_optimize_op(P, Q);} while (0)
-#define set_unsafe_optimize_op(P, Q)  do {set_unsafely_optimized(P); set_optimize_op(P, Q); /* if (is_unknown_op(Q)) fprintf(stderr, "%d %s %s\n", __LINE__, opt_names[Q], DISPLAY_80(P)); */ } while (0)
+#define set_unsafe_optimize_op(P, Q)  do {set_unsafely_optimized(P); set_optimize_op(P, Q);} while (0)
 
 #define is_symbol(p)                  (type(p) == T_SYMBOL)
 #define is_safe_symbol(p)             ((is_symbol(p)) && (is_slot(symbol_to_slot(sc, p))))
@@ -2371,7 +2371,10 @@ static int64_t not_heap = -1;
 static void symbol_set_id(s7_pointer p, s7_int id)
 {
   if (id < symbol_id(p))
-    fprintf(stderr, "sym: %s %" PRId64 ", let: %" PRId64 "\n", symbol_name(p), symbol_id(p), id);
+    {
+      fprintf(stderr, "id mismatch: sym: %s %" PRId64 ", let: %" PRId64 "\n", symbol_name(p), symbol_id(p), id);
+      /* abort(); */
+    }
   (T_Sym(p))->object.sym.id = id;
 }
 #else
@@ -29082,7 +29085,7 @@ static void print_gc_info(s7_pointer obj, int32_t line)
   abort();
 }
 
-static const char *opt1_role_name(int32_t role)
+static const char *opt1_role_name(uint32_t role)
 {
   if (role == E_FAST) return("opt_fast");
   if (role == E_BACK) return("opt_back");
@@ -29098,7 +29101,7 @@ static const char *opt1_role_name(int32_t role)
   return("unknown");
 }
 
-static const char *opt2_role_name(int32_t role)
+static const char *opt2_role_name(uint32_t role)
 {
   if (role == F_CALL) return("c_call(ee)");
   if (role == F_KEY) return("opt_any2");
@@ -29111,7 +29114,7 @@ static const char *opt2_role_name(int32_t role)
   return("unknown");
 }
 
-static const char *opt3_role_name(int32_t role)
+static const char *opt3_role_name(uint32_t role)
 {
   if (role == G_ARGLEN) return("arglist_length");
   if (role == G_SYM) return("opt_sym3");
@@ -64792,6 +64795,7 @@ static void define_funchecked(s7_scheme *sc)
   s7_pointer new_func, code;
   code = sc->code;
   sc->value = caar(code);
+  /* if (!is_safe_closure(cdr(code))) fprintf(stderr, "fun: %s\n", DISPLAY_80(code)); */
 
   new_cell(sc, new_func, T_CLOSURE | T_COPY_ARGS);
   closure_set_args(new_func, cdar(code));
@@ -69551,6 +69555,69 @@ static void safe_closure_star_all_x(s7_scheme *sc, s7_pointer code)
   sc->envir = new_frame_in_env(sc, closure_let(sc->code));
 }
 
+static void closure_star_a(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer val, p;
+  val = c_call(cdr(code))(sc, cadr(code));
+  if (is_keyword(val))
+    s7_error(sc, sc->wrong_type_arg_symbol,
+	     set_elist_4(sc, s7_make_string_wrapper(sc, "~A: keyword argument's value is missing: ~S in ~S"),
+			 closure_name(sc, opt_lambda(code)), val, code));
+  sc->args = list_1(sc, val);
+  
+  p = cdr(closure_args(opt_lambda(code)));
+  for (; is_pair(p); p = cdr(p))
+    {
+      if (is_pair(car(p)))
+	{
+	  s7_pointer defval;
+	  defval = cadar(p);
+	  if (is_pair(defval))
+	    sc->args = cons(sc, cadr(defval), sc->args);
+	  else sc->args = cons(sc, defval, sc->args);
+	}
+      else sc->args = cons(sc, sc->F, sc->args);
+    }
+  sc->args = safe_reverse_in_place(sc, sc->args);
+  sc->code = opt_lambda(sc->code);
+  
+  {
+    s7_pointer x, z, e;
+    uint64_t id;
+    
+    new_frame(sc, closure_let(sc->code), sc->envir);
+    e = sc->envir;
+    id = let_id(e);
+    
+    for (x = closure_args(sc->code), z = sc->args; is_pair(x); x = cdr(x))
+      {
+	s7_pointer sym, args;
+	if (is_pair(car(x)))
+	  sym = caar(x);
+	else sym = car(x);
+	args = cdr(z);
+	reuse_as_slot(z, sym, unchecked_car(z));
+	symbol_set_local(sym, id, z);
+	set_next_slot(z, let_slots(e));
+	let_set_slots(e, z);
+	z = args;
+      }
+    sc->code = T_Pair(closure_body(sc->code));
+  }
+}
+
+static void closure_star_all_x(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer p, old_args;
+  sc->w = cdr(code);               /* args aren't evaluated yet */
+  sc->args = make_list(sc, integer(arglist_length(code)), sc->F);
+  for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
+    set_car(p, c_call(old_args)(sc, car(old_args)));
+  sc->w = sc->nil;
+  sc->code = opt_lambda(code);
+  sc->envir = new_frame_in_env(sc, closure_let(sc->code));
+}
+
 
 static inline void apply_continuation(s7_scheme *sc)               /* -------- continuation ("call/cc") -------- */
 {
@@ -73852,7 +73919,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  }
 		  
 		case OP_CLOSURE_ALL_X:
-		  /* lt: 3=11: 36409 5=101: 20546 b=1011: 64123 b: 4 is main=100 */
 		  check_stack_size(sc);
 		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, integer(arglist_length(code)))) 
 		    {
@@ -73882,56 +73948,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_CLOSURE_STAR_A:
 		  if (!closure_star_is_ok(sc, code, MATCH_UNSAFE_CLOSURE_STAR, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
 		case HOP_CLOSURE_STAR_A:
-		  {
-		    s7_pointer val, p;
-		    val = c_call(cdr(code))(sc, cadr(code));
-		    if (is_keyword(val))
-		      s7_error(sc, sc->wrong_type_arg_symbol,
-			       set_elist_4(sc, s7_make_string_wrapper(sc, "~A: keyword argument's value is missing: ~S in ~S"),
-					   closure_name(sc, opt_lambda(code)), val, code));
-		    sc->args = list_1(sc, val);
-
-		    p = cdr(closure_args(opt_lambda(code)));
-		    for (; is_pair(p); p = cdr(p))
-		      {
-			if (is_pair(car(p)))
-			  {
-			    s7_pointer defval;
-			    defval = cadar(p);
-			    if (is_pair(defval))
-			      sc->args = cons(sc, cadr(defval), sc->args);
-			    else sc->args = cons(sc, defval, sc->args);
-			  }
-			else sc->args = cons(sc, sc->F, sc->args);
-		      }
-		    sc->args = safe_reverse_in_place(sc, sc->args);
-		    sc->code = opt_lambda(sc->code);
-
-		    {
-		      s7_pointer x, z, e;
-		      uint64_t id;
-		      
-		      new_frame(sc, closure_let(sc->code), sc->envir);
-		      e = sc->envir;
-		      id = let_id(e);
-		      
-		      for (x = closure_args(sc->code), z = sc->args; is_pair(x); x = cdr(x))
-			{
-			  s7_pointer sym, args;
-			  if (is_pair(car(x)))
-			    sym = caar(x);
-			  else sym = car(x);
-			  args = cdr(z);
-			  reuse_as_slot(z, sym, unchecked_car(z));
-			  symbol_set_local(sym, id, z);
-			  set_next_slot(z, let_slots(e));
-			  let_set_slots(e, z);
-			  z = args;
-			}
-		      sc->code = T_Pair(closure_body(sc->code));
-		    }
-		    goto BEGIN1;
-		  }
+		  closure_star_a(sc, code);
+		  goto BEGIN1;
 
 		case OP_CLOSURE_STAR_ALL_X:
 		  if (!closure_star_is_ok(sc, code, MATCH_UNSAFE_CLOSURE_STAR, integer(arglist_length(code))))
@@ -73941,19 +73959,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      break;
 		    }
 		case HOP_CLOSURE_STAR_ALL_X:
-		  {
-		    s7_pointer p, old_args;
-		    sc->w = cdr(code);               /* args aren't evaluated yet */
-		    sc->args = make_list(sc, integer(arglist_length(code)), sc->F);
-		    for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
-		      set_car(p, c_call(old_args)(sc, car(old_args)));
-		    sc->w = sc->nil;
-		    sc->code = opt_lambda(code);
-		    check_stack_size(sc);
-		    sc->envir = new_frame_in_env(sc, closure_let(sc->code));
-		    if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
-		    goto BEGIN1;
-		  }
+		  check_stack_size(sc);
+		  closure_star_all_x(sc, code);
+		  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
+		  goto BEGIN1;
 		  
 		  
 		  /* -------------------------------------------------------------------------------- */
@@ -85059,7 +85068,8 @@ int main(int argc, char **argv)
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
  *
  * ss_op_s_opcq_q?
- * safe_c_aqc makes it slower?? 
+ * denote lint locals
+ * sym_id check in debugging
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
@@ -85069,9 +85079,9 @@ int main(int argc, char **argv)
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1796
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2104
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2530
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 127.7
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2551
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 129.1
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2738
  * tread         |      |      |      ||      ||      |                   3009  2832
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2843

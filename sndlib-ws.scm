@@ -490,18 +490,18 @@ symbol: 'e4 for example.  If 'pythagorean', the frequency calculation uses small
 				(equal? (struct-name 3) :methods)
 				(struct-name 4))))))
     `(begin 
-       (define ,(string->symbol (string-append sname "?")) #f)
-       (define ,(string->symbol (string-append "make-" sname)) #f)
+       (define ,(symbol sname "?") #f)
+       (define ,(symbol "make-" sname) #f)
 
-       (let ((gen-type ',(string->symbol (string-append "+" sname "+")))
+       (let ((gen-type ',(symbol "+" sname "+"))
 	     (gen-methods (and ,methods (apply inlet ,methods))))
 	 
-	 (set! ,(string->symbol (string-append sname "?"))
+	 (set! ,(symbol sname "?")
 	       (lambda (obj)
 		 (and (let? obj)
 		      (eq? (obj 'mus-generator-type) gen-type))))
 
-	 (set! ,(string->symbol (string-append "make-" sname))
+	 (set! ,(symbol "make-" sname)
 	       (lambda* ,(map (lambda (n) 
 				(if (pair? n) n (list n 0.0)))
 			      fields)

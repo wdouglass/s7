@@ -1006,7 +1006,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	 ',class-name new-class                                  ; define the class as class-name in the calling environment
 	 
 	 ;; define class-name? type check
-	 (string->symbol (string-append (symbol->string ',class-name) "?"))
+	 (symbol (symbol->string ',class-name) "?")
 	 (lambda (obj)
 	   (and (let? obj)
 		(eq? (obj 'class-name) ',class-name))))
@@ -1014,7 +1014,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
        (varlet outer-env
 	 ;; define the make-instance function for this class.  
 	 ;;   Each slot is a keyword argument to the make function.
-	 (string->symbol (string-append "make-" (symbol->string ',class-name)))
+	 (symbol "make-" (symbol->string ',class-name))
 	 (apply lambda* (map (lambda (slot)
 			       (if (pair? slot)
 				   (list (car slot) (cdr slot))
