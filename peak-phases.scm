@@ -4931,17 +4931,16 @@
 
 <1> (load "test-phases.scm")
 test-all-phases
-<2> (test-all-phases #f)
-;all peaks... Mon 08-Jan-2018 04:47
-;all 2048: peak-phases value: 49.189455, current: 49.18738892355548, diff: -0.002066076444521059
-(0.002066076444521059 2048)
-;odd peaks... Mon 08-Jan-2018 04:49
+<1> (test-all-phases #f)
+;all peaks... Wed 09-May-2018 15:15
+(0.00149573739942177 101)
+;odd peaks... Wed 09-May-2018 15:17
 (0.001687315629254726 125)
-;even peaks... Mon 08-Jan-2018 04:50
+;even peaks... Wed 09-May-2018 15:18
 (0.001467169674692848 4)
-;prime peaks... Mon 08-Jan-2018 04:51
+;prime peaks... Wed 09-May-2018 15:19
 (0.001975582609148319 2048)
-;all done! Mon 08-Jan-2018 04:55
+;all done! Wed 09-May-2018 15:21
 |#
 
 ;;; gad161: clean-up-evens

@@ -1202,7 +1202,7 @@ struct s7_scheme {
              increment_sss_symbol, increment_sz_symbol, lambda_star_unchecked_symbol, lambda_unchecked_symbol, let_all_c_symbol,
              let_all_opsq_symbol, let_all_s_symbol, let_all_x_symbol, let_c_symbol, let_no_vars_symbol, let_one_symbol,
              let_opcq_symbol, let_opsq_p_symbol, let_opsq_symbol, let_car_symbol, let_opssq_symbol, let_opssq_e_symbol, let_opassq_e_symbol, 
-             let_s_symbol, let_s_z_symbol, let_star2_symbol, let_a_symbol, let_a_z_symbol,
+             let_s_symbol, let_s_z_symbol, let_star2_symbol, let_a_symbol, let_a_z_symbol, let_a_p_symbol,
              let_star_all_x_symbol, let_star_a2_symbol, let_star_unchecked_symbol, let_unchecked_symbol, let_z_symbol, letrec_star_unchecked_symbol,
              letrec_unchecked_symbol, named_let_no_vars_symbol, named_let_star_symbol, named_let_symbol, let_temporarily_unchecked_symbol,
 
@@ -2373,7 +2373,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
   if (id < symbol_id(p))
     {
       fprintf(stderr, "id mismatch: sym: %s %" PRId64 ", let: %" PRId64 "\n", symbol_name(p), symbol_id(p), id);
-      /* abort(); */
+      abort();
     }
   (T_Sym(p))->object.sym.id = id;
 }
@@ -3134,7 +3134,7 @@ enum {OP_NO_OP, OP_GC_PROTECT,
       OP_LET_NO_VARS, OP_NAMED_LET, OP_NAMED_LET_NO_VARS, OP_NAMED_LET_STAR,
       OP_LET_C, OP_LET_S, OP_LET_S_Z, OP_LET_ALL_C, OP_LET_ALL_S, OP_LET_ALL_X,
       OP_LET_STAR_ALL_X, OP_LET_STAR_A2, OP_LET_STAR_A, OP_LET_opCq, OP_LET_opSSq, OP_LET_opSSq_E, OP_LET_opaSSq_E,
-      OP_LET_opSq, OP_LET_ALL_opSq, OP_LET_opSq_P, OP_LET_CAR, OP_LET_ONE, OP_LET_ONE_1, OP_LET_Z, OP_LET_Z_1, OP_LET_A, OP_LET_A_Z,
+      OP_LET_opSq, OP_LET_ALL_opSq, OP_LET_opSq_P, OP_LET_CAR, OP_LET_ONE, OP_LET_ONE_1, OP_LET_Z, OP_LET_Z_1, OP_LET_A, OP_LET_A_Z, OP_LET_A_P,
 
       OP_CASE_A_E_S, OP_CASE_A_I_S, OP_CASE_A_G_S, OP_CASE_A_E_G, OP_CASE_A_G_G, 
       OP_CASE_S_E_S, OP_CASE_S_I_S, OP_CASE_S_G_S, OP_CASE_S_E_G, OP_CASE_S_G_G, 
@@ -3364,7 +3364,7 @@ static const char *op_names[OP_MAX_DEFINED_1] = {
       "let_no_vars", "named_let", "named_let_no_vars", "named_let*",
       "let_c", "let_s", "let_s_z", "let_all_c", "let_all_s", "let_all_x",
       "let*_all_x", "let*_a2", "let*_a", "let_opcq", "let_opssq", "let_opssq_e", "let_opassq_e",
-      "let_opsq", "let_all_opsq", "let_opsq_p", "let_car", "let_one", "let_one_1", "let_z", "let_z_1", "let_a", "let_a_z",
+      "let_opsq", "let_all_opsq", "let_opsq_p", "let_car", "let_one", "let_one_1", "let_z", "let_z_1", "let_a", "let_a_z", "let_a_p",
 
       "case_a_e_s", "case_a_i_s", "case_a_g_s", "case_a_e_g", "case_a_g_g", 
       "case_s_e_s", "case_s_i_s", "case_s_g_s", "case_s_e_g", "case_s_g_g", 
@@ -3944,13 +3944,11 @@ static s7_int s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
   s7_int loc;
   loc = s7_gc_protect(sc, x);
   sc->protected_lines[loc] = line;
-#if S7_DEBUGGING
   if (loc > 8192)
     {
       fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, current_code(sc)));
       abort();
     }
-#endif
   return(loc);
 }
 #define s7_gc_protect_1(Sc, X) s7_gc_protect_2(Sc, X, __LINE__)
@@ -54872,7 +54870,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
    *   or trap somehow?
    */
   opt_info *opc;
-  s7_pointer p, end, frame = NULL, old_e;
+  s7_pointer p, end, frame = NULL, old_e, slot;
   int32_t var_len, body_len, step_len;
   
   if (len < 3)
@@ -54891,77 +54889,84 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
   opc = alloc_opo(sc, car_x);
   
   new_frame(sc, sc->envir, frame);
+
+  /* the vars have to be added to the frame before evaluating the inits 
+   *    else symbol_id can be > let_id (see "(test (do ((i (do ((i (do ((i 0 (+ i 1)))...") 
+   */
   clear_symbol_list(sc);
   for (p = cadr(car_x); is_pair(p); p = cdr(p))
     {
-      s7_pointer var;
+      s7_pointer var, sym;
       var = car(p);
       if ((is_pair(var)) &&
 	  (is_symbol(car(var))) &&
 	  (is_pair(cdr(var))))
 	{
-	  s7_pointer sym;
 	  sym = car(var);
+
 	  if ((is_constant_symbol(sc, sym)) ||
 	      (symbol_has_setter(sym)))
 	    return(return_false(sc, car_x, __func__, __LINE__));
-	  
 	  if (symbol_is_in_list(sc, sym))
 	    eval_error(sc, "duplicate identifier in do: ~A", var);
 	  add_symbol_to_list(sc, sym);
+	  add_slot(frame, sym, sc->undefined);
+	}
+      else return(return_false(sc, car_x, __func__, __LINE__));
+    }
 
-	  if (cell_optimize(sc, cdr(var))) /* opt init in outer env */
+  if (is_slot(let_slots(frame)))
+    let_set_slots(frame, reverse_slots(sc, let_slots(frame)));
+
+  for (p = cadr(car_x), slot = let_slots(frame); is_pair(p); p = cdr(p), slot = next_slot(slot))
+    {
+      s7_pointer var;
+      var = car(p);
+      if (cell_optimize(sc, cdr(var))) /* opt init in outer env */
+	{
+	  if (is_pair(cddr(var)))
 	    {
-	      s7_pointer slot;
-	      add_slot(frame, sym, sc->F);
-	      slot = let_slots(frame);
-	      if (is_pair(cddr(var)))
-		{
-		  set_has_stepper(slot);
-		  if (!is_null(cdddr(var)))
-		    return(return_false(sc, car_x, __func__, __LINE__));
-		}
+	      set_has_stepper(slot);
+	      if (!is_null(cdddr(var)))
+		return(return_false(sc, car_x, __func__, __LINE__));
+	    }
+	  else
+	    {
+	      step_len--;
+	      if (!is_null(cddr(var)))
+		return(return_false(sc, car_x, __func__, __LINE__));
+	    }
+	  if (is_symbol(cadr(var)))
+	    slot_set_value(slot, slot_value(symbol_to_slot(sc, cadr(var))));
+	  else
+	    {
+	      if (!is_pair(cadr(var)))
+		slot_set_value(slot, cadr(var));
 	      else
 		{
-		  step_len--;
-		  if (!is_null(cddr(var)))
-		    return(return_false(sc, car_x, __func__, __LINE__));
-		}
-	      if (is_symbol(cadr(var)))
-		slot_set_value(slot, slot_value(symbol_to_slot(sc, cadr(var))));
-	      else
-		{
-		  if (!is_pair(cadr(var)))
-		    slot_set_value(slot, cadr(var));
+		  if (is_proper_quote(sc, cadr(var)))
+		    slot_set_value(slot, cadadr(var));
 		  else
 		    {
-		      if (is_proper_quote(sc, cadr(var)))
-			slot_set_value(slot, cadadr(var));
-		      else
+		      s7_pointer sf;
+		      sf = symbol_to_value_checked(sc, caadr(var));
+		      if (is_c_function(sf))
 			{
-			  s7_pointer sf;
-			  sf = symbol_to_value_checked(sc, caadr(var));
-			  if (is_c_function(sf))
-			    {
-			      s7_pointer sig;
-			      sig = c_function_signature(sf);
-			      if ((is_pair(sig)) &&
-				  ((car(sig) == sc->is_integer_symbol) ||
-				   ((is_pair(car(sig))) &&
-				    (direct_memq(sc->is_integer_symbol, car(sig))))))
-				slot_set_value(slot, small_int(0));
-			    }
+			  s7_pointer sig;
+			  sig = c_function_signature(sf);
+			  if ((is_pair(sig)) &&
+			      ((car(sig) == sc->is_integer_symbol) ||
+			       ((is_pair(car(sig))) &&
+				(direct_memq(sc->is_integer_symbol, car(sig))))))
+			    slot_set_value(slot, small_int(0));
 			}
 		    }
 		}
 	    }
-	  else return(return_false(sc, car_x, __func__, __LINE__));
 	}
       else return(return_false(sc, car_x, __func__, __LINE__));
     }
   
-  if (is_slot(let_slots(frame)))
-    let_set_slots(frame, reverse_slots(sc, let_slots(frame)));
   sc->envir = frame;
   push_stack_no_let_no_code(sc, OP_GC_PROTECT, frame);
   
@@ -63763,6 +63768,19 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer start)
 		  annotate_arg(sc, cdr(binding), sc->envir);
 		  if (is_optimized(cadr(sc->code)))
 		    pair_set_syntax_symbol(sc->code, sc->let_a_z_symbol);
+		  else
+		    {
+		      if ((is_pair(cadr(sc->code))) &&
+			  (is_syntactic_symbol(caadr(sc->code))))
+			{
+			  pair_set_syntax_symbol(sc->code, sc->let_a_p_symbol);
+			  if (!is_syntactic_pair(cadr(sc->code)))
+			    {
+			      pair_set_syntax_op(cadr(sc->code), symbol_syntax_op(caadr(sc->code)));
+			      set_syntactic_pair(cadr(sc->code));
+			    }
+			}
+		    }
 		  return(sc->code);
 		}
 	    }
@@ -64792,7 +64810,7 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 
 static void define_funchecked(s7_scheme *sc)
 {
-  s7_pointer new_func, code;
+  s7_pointer new_func, code, slot;
   code = sc->code;
   sc->value = caar(code);
   /* if (!is_safe_closure(cdr(code))) fprintf(stderr, "fun: %s\n", DISPLAY_80(code)); */
@@ -64814,7 +64832,17 @@ static void define_funchecked(s7_scheme *sc)
   else closure_set_let(new_func, sc->envir);
   /* unsafe closures created by other functions do not support __func__ */
 
-  add_slot(sc->envir, sc->value, new_func);
+  if (let_id(sc->envir) < symbol_id(sc->value))
+    sc->let_number++; /* dummy let, force symbol lookup */
+
+  /* add_slot(sc->envir, sc->value, new_func); but with local id */
+  new_cell_no_check(sc, slot, T_SLOT);	
+  slot_set_symbol(slot, sc->value);
+  slot_set_value(slot, new_func);
+  symbol_set_local(sc->value, sc->let_number, slot);	
+  set_next_slot(slot, let_slots(sc->envir));
+  let_set_slots(sc->envir, slot);
+
   set_local(sc->value);
   sc->value = new_func;
 }
@@ -69430,16 +69458,11 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
 	      y = let_slots(sc->envir);
 	      slot_set_expression(y, cadr(car_z));
 	      slot_set_pending_value(y, sc->nil);
+	      /* in lambda_star_default we'll walk through slot_pending_values to see the parameters with defaults (?) */
 	      if (!top)
-		{
-		  top = y;
-		  nxt = top;
-		}
-	      else
-		{
-		  slot_set_pending_value(nxt, y);
-		  nxt = y;
-		}
+		top = y;                            /* save the top of the pending_value list */
+	      else slot_set_pending_value(nxt, y);  /*   connect the previous end-of-list to this */
+	      nxt = y;
 	    }
 	}
       else
@@ -69464,7 +69487,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
     {
       /* get default values, which may involve evaluation */
       push_stack(sc, OP_LAMBDA_STAR_DEFAULT, sc->args, sc->code); /* op is just a placeholder (don't use OP_BARRIER here) */
-      sc->args = top;
+      sc->args = top;                   /* list of defaults that need attention, checked !null above */
       if (lambda_star_default(sc) == goto_EVAL) return(goto_EVAL);
       pop_stack_no_op(sc);              /* get original args and code back */
     }
@@ -75943,6 +75966,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
 	    sc->code = T_Pair(cadr(sc->code));
 	    goto OPT_EVAL_CHECKED;
+	  }
+	  
+	case OP_LET_A_P:
+	  {
+	    s7_pointer binding;
+	    binding = caar(sc->code);
+	    new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
+	    sc->code = T_Pair(cadr(sc->code));
+	    sc->cur_op = (opcode_t)pair_syntax_op(sc->code);
+	    sc->code = cdr(sc->code);
+	    goto START_WITHOUT_POP_STACK;	      
 	  }
 	  
 	case OP_LET_ONE:	  /* one var */
@@ -83495,6 +83529,7 @@ s7_scheme *s7_init(void)
   sc->let_z_symbol =                 assign_internal_syntax(sc, "let",         OP_LET_Z);
   sc->let_a_symbol =                 assign_internal_syntax(sc, "let",         OP_LET_A);
   sc->let_a_z_symbol =               assign_internal_syntax(sc, "let",         OP_LET_A_Z);
+  sc->let_a_p_symbol =               assign_internal_syntax(sc, "let",         OP_LET_A_P);
   sc->let_all_opsq_symbol =          assign_internal_syntax(sc, "let",         OP_LET_ALL_opSq);
   sc->named_let_no_vars_symbol =     assign_internal_syntax(sc, "let",         OP_NAMED_LET_NO_VARS);
   sc->named_let_symbol =             assign_internal_syntax(sc, "let",         OP_NAMED_LET);
@@ -85068,31 +85103,32 @@ int main(int argc, char **argv)
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
  *
  * ss_op_s_opcq_q?
- * denote lint locals
- * sym_id check in debugging
+ * apply_lambda* and owlet bugs
+ * auto-tester for sym_id bugs (check all defines) t785 for fchk
+ * lint read error recovery
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1156
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1153
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1796
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2104
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2092
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2530
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 127.7
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2738
- * tread         |      |      |      ||      ||      |                   3009  2832
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2843
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3450
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 128.8
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2719
+ * tread         |      |      |      ||      ||      |                   3009  2806
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2806
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3987
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4191
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4931
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7819
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.7
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.7
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  42.0
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4938
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7728
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  82.8
  * --------------------------------------------------------------------------------------
  */
