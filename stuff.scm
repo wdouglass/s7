@@ -185,11 +185,10 @@
 
 
 (define copy-tree 
-  (let ((+documentation+ "(copy-tree lst) returns a full copy of lst")) ; but it does not handle cycles correctly
+  (let ((+documentation+ "(copy-tree lst) returns a full copy of lst"))
     (lambda (lis)
       (if (pair? lis)
-	  (cons (copy-tree (car lis))
-		(copy-tree (cdr lis)))
+	  (copy lis :readable)
 	  lis))))
 
 (define tree-member 
