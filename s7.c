@@ -26800,59 +26800,6 @@ static inline void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port
     }
 }
 
-static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write)
-{
-  if ((use_write == P_READABLE) &&
-      (is_immutable(obj)))
-    port_write_string(port)(sc, "(immutable! ", 12, port);
-
-  if (string_length(obj) > 0)
-    {
-      /* since string_length is a scheme length, not C, this write can embed nulls from C's point of view */
-      if (string_length(obj) > 1000) /* was 10000 28-Feb-18 */
-	{
-	  size_t size;
-	  char buf[128];
-	  buf[0] = string_value(obj)[0];
-	  buf[1] = '\0';
-	  size = strspn((const char *)(string_value(obj) + 1), buf); /* if all #\null, this won't work */
-	  if (size == (size_t)(string_length(obj) - 1))
-	    {
-	      int32_t nlen;
-	      s7_pointer c;
-	      c = chars[(int32_t)((uint8_t)(buf[0]))];
-	      nlen = snprintf(buf, 128, "(make-string %" PRId64 " ", string_length(obj));
-	      port_write_string(port)(sc, buf, nlen, port);
-	      port_write_string(port)(sc, character_name(c), character_name_length(c), port);
-	      /* (string-ref (eval-string (object->string (make-string 14766 (integer->char 255)) :readable)) 0) */
-	      port_write_character(port)(sc, ')', port);
-	      return;
-	    }
-	}
-      if (use_write == P_DISPLAY)
-	port_write_string(port)(sc, string_value(obj), string_length(obj), port);
-      else
-	{
-	  if (!string_needs_slashification(string_value(obj), string_length(obj)))
-	    {
-	      port_write_character(port)(sc, '"', port);
-	      port_write_string(port)(sc, string_value(obj), string_length(obj), port);
-	      port_write_character(port)(sc, '"', port);
-	    }
-	  else slashify_string_to_port(sc, port, string_value(obj), string_length(obj), IN_QUOTES);
-	}
-    }
-  else
-    {
-      if (use_write != P_DISPLAY)
-	port_write_string(port)(sc, "\"\"", 2, port);
-    }
-
-  if ((use_write == P_READABLE) &&
-      (is_immutable(obj)))
-    port_write_character(port)(sc, ')', port);
-}
-
 static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_pointer vect, char *str, int32_t cur_dim)
 {
   s7_int size, ind;
@@ -27453,6 +27400,64 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
   if ((use_write == P_READABLE) &&
       (is_immutable(vect)))
     port_write_character(port)(sc, ')', port);
+}
+
+static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ignored)
+{
+  if (is_byte_vector_not_string(obj))
+    byte_vector_to_port(sc, obj, port, use_write);
+  else 
+    {
+      if ((use_write == P_READABLE) &&
+	  (is_immutable(obj)))
+	port_write_string(port)(sc, "(immutable! ", 12, port);
+      
+      if (string_length(obj) > 0)
+	{
+	  /* since string_length is a scheme length, not C, this write can embed nulls from C's point of view */
+	  if (string_length(obj) > 1000) /* was 10000 28-Feb-18 */
+	    {
+	      size_t size;
+	      char buf[128];
+	      buf[0] = string_value(obj)[0];
+	      buf[1] = '\0';
+	      size = strspn((const char *)(string_value(obj) + 1), buf); /* if all #\null, this won't work */
+	      if (size == (size_t)(string_length(obj) - 1))
+		{
+		  int32_t nlen;
+		  s7_pointer c;
+		  c = chars[(int32_t)((uint8_t)(buf[0]))];
+		  nlen = snprintf(buf, 128, "(make-string %" PRId64 " ", string_length(obj));
+		  port_write_string(port)(sc, buf, nlen, port);
+		  port_write_string(port)(sc, character_name(c), character_name_length(c), port);
+		  /* (string-ref (eval-string (object->string (make-string 14766 (integer->char 255)) :readable)) 0) */
+		  port_write_character(port)(sc, ')', port);
+		  return;
+		}
+	    }
+	  if (use_write == P_DISPLAY)
+	    port_write_string(port)(sc, string_value(obj), string_length(obj), port);
+	  else
+	    {
+	      if (!string_needs_slashification(string_value(obj), string_length(obj)))
+		{
+		  port_write_character(port)(sc, '"', port);
+		  port_write_string(port)(sc, string_value(obj), string_length(obj), port);
+		  port_write_character(port)(sc, '"', port);
+		}
+	      else slashify_string_to_port(sc, port, string_value(obj), string_length(obj), IN_QUOTES);
+	    }
+	}
+      else
+	{
+	  if (use_write != P_DISPLAY)
+	    port_write_string(port)(sc, "\"\"", 2, port);
+	}
+      
+      if ((use_write == P_READABLE) &&
+	  (is_immutable(obj)))
+	port_write_character(port)(sc, ')', port);
+    }
 }
 
 static void simple_list_readable_display(s7_scheme *sc, s7_pointer lst, s7_int true_len, s7_int len, s7_pointer port, shared_info *ci)
@@ -29738,13 +29743,6 @@ static void syntax_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
   port_display(port)(sc, symbol_name(syntax_symbol(obj)), port);
 }
 
-static void string_to_port_1(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
-{
-  if (is_byte_vector_not_string(obj))
-    byte_vector_to_port(sc, obj, port, use_write);
-  else string_to_port(sc, obj, port, use_write);
-}
-
 static void character_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   if (use_write == P_DISPLAY)
@@ -29830,22 +29828,9 @@ static void dynamic_wind_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
 
 static void c_object_name_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 {
-  int32_t nlen;
-  nlen = 4 + string_length(c_object_scheme_name(sc, obj));
-  if (nlen < 128)
-    {
-      char buf[128];
-      nlen = snprintf(buf, nlen, "(%s", string_value(c_object_scheme_name(sc, obj)));
-      port_write_string(port)(sc, buf, nlen, port);
-    }
-  else
-    {
-      char *b;
-      b = (char *)malloc(nlen);
-      nlen = snprintf(b, nlen, "(%s", string_value(c_object_scheme_name(sc, obj)));
-      port_write_string(port)(sc, b, nlen, port);
-      free(b);
-    }
+  port_write_string(port)(sc, string_value(c_object_scheme_name(sc, obj)), 
+			  string_length(c_object_scheme_name(sc, obj)), 
+			  port);
 }
 
 static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -29890,6 +29875,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		  return;
 		}
 
+	      port_write_character(port)(sc, '(', port);
 	      c_object_name_to_port(sc, obj, port);
 	      for (i = 0, p = obj_list; is_pair(p); i++, p = cdr(p))
 		{
@@ -29926,6 +29912,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	    }
 	  else
 	    {
+	      port_write_character(port)(sc, '(', port);
 	      c_object_name_to_port(sc, obj, port);
 	      for (p = obj_list; is_pair(p); p = cdr(p))
 		{
@@ -29940,16 +29927,12 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	}
       else 
 	{
+	  char buf[128];
 	  int32_t nlen;
-	  const char *name;
-	  char *buf;
-
-	  name = s7_string(c_object_scheme_name(sc, obj));
-	  nlen = safe_strlen(name) + 32; /* 6 + pointer rep=15/16, 16 is too small */
-	  buf = (char *)malloc(nlen);
-	  nlen = snprintf(buf, nlen, "#<%s %p>", name, obj);
+	  port_write_string(port)(sc, "#<", 2, port);
+	  c_object_name_to_port(sc, obj, port);
+	  nlen = snprintf(buf, 128, " %p>", obj);
 	  port_write_string(port)(sc, buf, nlen, port);
-	  free(buf);
 	}
     }
 }
@@ -30001,7 +29984,7 @@ static void init_display_functions(void)
 #endif
   display_functions[T_SYMBOL] =       symbol_to_port;
   display_functions[T_SYNTAX] =       syntax_to_port;
-  display_functions[T_STRING] =       string_to_port_1;
+  display_functions[T_STRING] =       string_to_port;
   display_functions[T_CHARACTER] =    character_to_port;
   display_functions[T_CLOSURE] =      closure_to_port;
   display_functions[T_CLOSURE_STAR] = closure_to_port;
@@ -38217,11 +38200,20 @@ static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key
   return(NULL);
 }
 
-
 static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (s7_is_character(key))
-    return(hash_eq(sc, table, key));
+    {
+      /* return(hash_eq(sc, table, key)); 
+       *   but I think if we get here at all, we have to be using default_hash_checks|maps -- see hash_symbol above.
+       */
+      hash_entry_t *x;
+      uint32_t loc;
+      loc = ((uint32_t)character(key)) & hash_table_mask(table);
+      for (x = hash_table_element(table, loc); x; x = x->next)
+	if (key == x->key)
+	  return(x);
+    }
   return(NULL);
 }
 
@@ -42488,8 +42480,38 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    for (i = start, j = 0; i < end; i++, j++)
 	      {
 		if (!s7_is_integer(vals[i])) 
-		  s7_wrong_type_arg_error(sc, "copy", 3, vals[i], "an integer");
+		  return(simple_wrong_type_argument(sc, sc->copy_symbol, vals[i], T_INTEGER));
 		dst[j] = s7_integer(vals[i]);
+	      }
+	    return(dest);
+	  }
+	if (is_string(dest))
+	  {
+	    if (is_byte_vector(dest))
+	      {
+		uint8_t *dst;
+		dst = (uint8_t *)string_value(dest);
+		for (i = start, j = 0; i < end; i++, j++)
+		  {
+		    s7_int byte;
+		    if (!s7_is_integer(vals[i]))
+		      return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, vals[i], an_unsigned_byte_string));
+		    byte = s7_integer(vals[i]);
+		    if ((byte >= 0) && (byte < 256))
+		      dst[j] = (uint8_t)byte;
+		    else return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, vals[i], an_unsigned_byte_string));
+		  }
+	      }
+	    else
+	      {
+		char *dst;
+		dst = (char *)string_value(dest);
+		for (i = start, j = 0; i < end; i++, j++)
+		  {
+		    if (!s7_is_character(vals[i]))
+		      return(simple_wrong_type_argument(sc, sc->copy_symbol, vals[i], T_CHARACTER));
+		    dst[j] = character(vals[i]);
+		  }
 	      }
 	    return(dest);
 	  }
@@ -42659,10 +42681,8 @@ also accepts a string or vector argument."
 	len = string_length(p);
 	source = string_value(p);
 	end = (char *)(source + len);
-	dest = (char *)malloc((len + 1) * sizeof(char));
-	dest[len] = 0;
-	np = make_string_uncopied_with_length(sc, dest, len);
-	dest += len;
+	np = make_empty_string(sc, len, '\0');
+	dest = (char *)(string_value(np) + len);
 	while (source < end) *(--dest) = *source++;
 	if (is_byte_vector_not_string(p))
 	  set_byte_vector(np);
@@ -85102,29 +85122,31 @@ int main(int argc, char **argv)
  *   typedef _Complex float __attribute__((mode(TC))) _Complex128;
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
  *
- * htable update via mutable vals etc [via if/cond (h-set k (f (h-ref k)))]
- * can format|display|write go direct to the port buffer? -- set up a dummy output port sharing the real one's data at position
- * map/for-each/etc can we see the jump-back to the closure point in the stack and set the hop bit? or push with that bit set
- *  or check in for-each that closure_is_ok, then set hop
- *  proc: (fe f lst) when f is recursive to same branch -- need branch specific to for-each?
- * maybe a free list of hash_entry_t** (make_hash_table), number_to_string direct, various obj->port could forgo the malloc
- * g_reverse string should use alloc_str, reaad_error_1
- * remove string_to_port_1 and move byte-vect check into string_to_port
+ * htable update [via if/cond (h-set k (f (h-ref k)))]
+ * can format go direct to the port buffer? -- set up a dummy output port sharing the real one's data at position
+ * number_to_string direct
+ * free lists for small/standard size vectors and port data buffers, hash_entry_t** (make_hash_table)
+ * hash-tables are still size int32_t
+ * exp: loop: or_a_and_a_ra where (or allx (and allx (safe-closure-a allx)=loop where closure-body=top or (could also check names?)
+ *      loop: if_a_and_a_ra_else_a=loop
+ *      loop: and_a_or_a_ra=loop (any)
+ *  outer call: closure_s|a_p add timing test or put in tlet
+ *  check for these in stuff etc [lint find-if tree*-car-member etc]
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1153
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2087
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2532
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 127.8
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2083
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2499
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.6
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2681
- * tread         |      |      |      ||      ||      |                   3009  2742
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2806
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2668
+ * tread         |      |      |      ||      ||      |                   3009  2698
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2724
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3986
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239

@@ -2,13 +2,13 @@
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 2005/02/18 10:18:34
-# Changed: 2017/09/25 22:17:08
+# Changed: 2018/05/12 23:35:37
 
 # Tags: FIXME - something is wrong
 #       XXX   - info marker
 #
 # Tested with:
-#   Snd 17.x
+#   Snd 18.x
 #   Ruby 2.x.x
 #
 # Reads init file ./.sndtest.rb or ~/.sndtest.rb for global variables,
@@ -6905,9 +6905,8 @@ def test_05_10
     set_y_axis_label(false, ind)
   end
   #
-  cr = make_cairo(channel_widgets(ind, 0)[0])
+  cr = channel_widgets(ind, 0)[17]
   graph_data(make_vct(4), ind, 0, Copy_context, false, false, Graph_lines, cr)
-  free_cairo(cr)
   update_lisp_graph
   graph(vct(0, 0, 1, 1, 2, 0))
   32.times do
@@ -7335,12 +7334,11 @@ def test_05_10
     set_cursor_style(lambda do |snd, chn, ax|
       x, y = cursor_position
       size = (cursor_size / 2.0).round
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       draw_line(x - size, y - size, x + size, y + size,
                 snd, chn, Cursor_context, cr)
       draw_line(x - size, y + size, x + size, y - size,
                 snd, chn, Cursor_context, cr)
-      free_cairo(cr)
     end, ind, 0)
     unless proc?(res = cursor_style(ind, 0))
       snd_display("set_cursor_style to Proc: %s", res)
@@ -28188,12 +28186,11 @@ def test_17
     $after_graph_hook.add_hook!(get_func_name, &method(:display_previous_edits).to_proc)
     $lisp_graph_hook.add_hook!(get_func_name) do |snd, chn|
       lambda do | |
-        cr = make_cairo(channel_widgets(snd, chn)[0])
+        cr = channel_widgets(snd, chn)[17]
         draw_string("hi",
                     x2position(0.5, snd, chn, Lisp_graph),
                     y2position(0.5, snd, chn, Lisp_graph),
                     snd, chn, Lisp_graph, cr)
-        free_cairo(cr)
       end
     end
     ind = open_sound("oboe.snd")
@@ -28208,14 +28205,13 @@ def test_17
     draw_bass_clef(100, 100, 100, 0, ind, 0)
     update_time_graph(ind, 0)
     draw_fermata(200, 100, 60, 0, ind, 0)
-    cr = make_cairo(channel_widgets(ind, 0)[0])
+    cr = channel_widgets(ind, 0)[17]
     draw_line(100, 100, 200, 200, ind, 0, Time_graph, cr)
     draw_dot(300, 300, 10, ind, 0, Time_graph, cr)
     draw_string("hiho", 20, 20, ind, 0, Time_graph, cr)
     draw_dots([25, 25, 50, 50, 100, 100], 10, ind, 0, Time_graph, cr)
     arrow2right(100, 50, 10, ind, 0, cr)
     fill_rectangle(20, 20, 100, 100, ind, 0, Time_graph, false, cr)
-    free_cairo(cr)
     make_bezier(0, 0, 20, 20, 40, 30, 60, 10, 10)
     update_time_graph(ind, 0)
     $after_graph_hook.reset_hook!
@@ -31706,10 +31702,9 @@ def display_samps_in_red(snd, chn)
       offset = [0, 1000 - left].max
       new_data = data.subseq(offset, offset + samps)
       set_foreground_color(red, snd, chn)
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       graph_data(new_data, snd, chn, Copy_context,
                  [1000, left].max, [2000, right].min, Graph_lines, cr)
-      free_cairo(cr)
       set_foreground_color(old_color, snd, chn)
     when Array
       low_data = data[0]
@@ -31723,10 +31718,9 @@ def display_samps_in_red(snd, chn)
       new_low_data = low_data.subseq(left_bin, right_bin)
       new_high_data = high_data.subseq(left_bin, right_bin)
       set_foreground_color(red, snd, chn)
-      cr = make_cairo(channel_widgets(snd, chn)[0])
+      cr = channel_widgets(snd, chn)[17]
       graph_data([new_low_data, new_high_data], snd, chn, Copy_context,
                  left_bin, right_bin, Graph_lines, cr)
-      free_cairo(cr)
       set_foreground_color(old_color, snd, chn)
     end
   end
@@ -31740,13 +31734,12 @@ def show_greeting(snd, chn)
   if ls < 1000 and rs > 1000
     pos = x2position(1000.0 / srate(snd), snd, chn)
     old_color = foreground_color(snd, chn)
-    cr = make_cairo(channel_widgets(snd, chn)[0])
+    cr = channel_widgets(snd, chn)[17]
     set_foreground_color(make_color_with_catch(0.75, 0.75, 0.75), snd, chn)
     fill_rectangle(pos, 10, 50, 20, snd, chn, Time_graph, false, cr)
     set_foreground_color(make_color_with_catch(1, 0, 0), snd, chn)
     draw_string("hi!", pos + 5, 24, snd, chn, Time_graph, cr)
     set_foreground_color(old_color, snd, chn)
-    free_cairo(cr)
   end
 rescue
   snd_display("draw error in %s", get_func_name)
