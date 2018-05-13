@@ -30228,7 +30228,7 @@ s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /*
     fprintf(stderr, "bad arg to %s: %p\n", __func__, obj);
 
   strport = open_format_port();
-  object_out(sc, obj, strport, use_write);
+  object_out(sc, obj, strport, (use_write) ? P_WRITE : P_DISPLAY);
   len = port_position(strport);
   str = (char *)port_data(strport);
   res = s7_make_string_with_length(sc, str, len);
