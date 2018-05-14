@@ -573,6 +573,11 @@
     
     (define applicable? arity)
     
+    (denote (code-constant? x)
+      (and (constant? x)
+	   (or (not (pair? x))
+	       (eq? (car x) 'quote))))
+
     (denote lint-every? 
       (let ((+documentation+ "(lint-every? func sequence) returns #t if func approves of every member of the list sequence")
 	    (+signature+ '(boolean? procedure? list?)))
@@ -587,11 +592,6 @@
 	  (and (pair? (car sequence))
 	       (just-pairs? (cdr sequence)))))
 
-    (denote (just-len>1? sequence)
-      (or (null? sequence)
-	  (and (len>1? (car sequence))
-	       (just-len>1? (cdr sequence)))))
-
     (denote (just-symbols? sequence)
       (or (null? sequence)
 	  (and (symbol? (car sequence))
@@ -603,23 +603,25 @@
 	       (just-keywords? (cdr sequence)))))
 	    
     (denote (just-integers? sequence)
-      (or (integer? sequence)
-	  (null? sequence)
+      (or (null? sequence)
 	  (and (integer? (car sequence))
 	       (just-integers? (cdr sequence)))))
 
     (denote (just-rationals? sequence)
-      (or (rational? sequence)
-	  (null? sequence)
+      (or (null? sequence)
 	  (and (rational? (car sequence))
 	       (just-rationals? (cdr sequence)))))
 
     (denote (just-reals? sequence)
-      (or (real? sequence)
-	  (null? sequence)
+      (or (null? sequence)
 	  (and (real? (car sequence))
 	       (just-reals? (cdr sequence)))))
 	
+    (denote (just-len>1? sequence)
+      (or (null? sequence)
+	  (and (len>1? (car sequence))
+	       (just-len>1? (cdr sequence)))))
+
     (denote (just-code-constants? sequence)
       (or (null? sequence)
 	  (and (code-constant? (car sequence))
@@ -653,11 +655,10 @@
               If func approves of one, find-if returns that member of the sequence")
 	    (+signature+ '(#t procedure? list?)))
 	(lambda (f lst)
-	  (do ((p lst (cdr p)))
-	      ((or (not (pair? p))
-		   (f (car p)))
-	       (and (pair? p)
-		    (car p)))))))
+	  (and (pair? lst)
+	       (if (f (car lst))
+		   (car lst)
+		   (lint-find-if f (cdr lst)))))))
 
     (define (collect-if f lst)
       (map (lambda (arg) (if (f arg) arg (values))) lst))
@@ -910,11 +911,6 @@
 	   (pair? (cdr x))
 	   (symbol? (cadr x))))
     
-    (denote (code-constant? x)
-      (and (constant? x)
-	   (or (not (pair? x))
-	       (eq? (car x) 'quote))))
-
     (define constant-expression?
       (let ((constant-functions (let ((ht (make-hash-table)))
 				  (for-each

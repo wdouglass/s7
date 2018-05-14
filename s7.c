@@ -3263,15 +3263,13 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
 
       OP_SAFE_THUNK, HOP_SAFE_THUNK, OP_SAFE_THUNK_E, HOP_SAFE_THUNK_E, OP_SAFE_THUNK_P, HOP_SAFE_THUNK_P,
 
-      OP_SAFE_CLOSURE_S, HOP_SAFE_CLOSURE_S, 
+      OP_SAFE_CLOSURE_S, HOP_SAFE_CLOSURE_S, OP_SAFE_CLOSURE_S_P, HOP_SAFE_CLOSURE_S_P, OP_SAFE_CLOSURE_S_C, HOP_SAFE_CLOSURE_S_C,
       OP_SAFE_CLOSURE_C, HOP_SAFE_CLOSURE_C, OP_SAFE_CLOSURE_P, HOP_SAFE_CLOSURE_P, 
+      OP_SAFE_CLOSURE_A, HOP_SAFE_CLOSURE_A, OP_SAFE_LCLOSURE_A, HOP_SAFE_LCLOSURE_A, OP_SAFE_CLOSURE_A_C, HOP_SAFE_CLOSURE_A_C, 
       OP_SAFE_CLOSURE_SS, HOP_SAFE_CLOSURE_SS, OP_SAFE_CLOSURE_SS_B, HOP_SAFE_CLOSURE_SS_B, 
       OP_SAFE_CLOSURE_SC, HOP_SAFE_CLOSURE_SC, OP_SAFE_CLOSURE_CS, HOP_SAFE_CLOSURE_CS,
-      OP_SAFE_CLOSURE_A, HOP_SAFE_CLOSURE_A, OP_SAFE_LCLOSURE_A, HOP_SAFE_LCLOSURE_A,
       OP_SAFE_CLOSURE_SA, HOP_SAFE_CLOSURE_SA, 
-      OP_SAFE_CLOSURE_S_P, HOP_SAFE_CLOSURE_S_P, OP_SAFE_CLOSURE_S_C, HOP_SAFE_CLOSURE_S_C,
       OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, 
-      OP_SAFE_CLOSURE_A_C, HOP_SAFE_CLOSURE_A_C, 
       OP_SAFE_CLOSURE_ALL_X, HOP_SAFE_CLOSURE_ALL_X, OP_SAFE_CLOSURE_AA, HOP_SAFE_CLOSURE_AA, OP_SAFE_CLOSURE_AA_P, HOP_SAFE_CLOSURE_AA_P,
       OP_SAFE_CLOSURE_AP, HOP_SAFE_CLOSURE_AP, OP_SAFE_CLOSURE_PA, HOP_SAFE_CLOSURE_PA, 
 
@@ -3489,15 +3487,13 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "closure*_a", "h_closure*_a", "closure*_all_x", "h_closure*_all_x",
 
       "safe_thunk", "h_safe_thunk", "safe_thunk_e", "h_safe_thunk_e", "safe_thunk_p", "h_safe_thunk_p", 
-      "safe_closure_s", "h_safe_closure_s", 
+      "safe_closure_s", "h_safe_closure_s", "safe_closure_s_p", "h_safe_closure_s_p", "safe_closure_s_c", "h_safe_closure_s_c",
       "safe_closure_c", "h_safe_closure_c", "safe_closure_p", "h_safe_closure_p", 
+      "safe_closure_a", "h_safe_closure_a", "safe_lclosure_a", "h_safe_lclosure_a", "safe_closure_a_c", "h_safe_closure_a_c", 
       "safe_closure_ss", "h_safe_closure_ss", "safe_closure_ss_b", "h_safe_closure_ss_b", 
       "safe_closure_sc", "h_safe_closure_sc", "safe_closure_cs", "h_safe_closure_cs",
-      "safe_closure_a", "h_safe_closure_a", "safe_lclosure_a", "h_safe_lclosure_a",
       "safe_closure_sa", "h_safe_closure_sa", 
-      "safe_closure_s_p", "h_safe_closure_s_p", "safe_closure_s_c", "h_safe_closure_s_c",
       "safe_closure_saa", "h_safe_closure_saa", 
-      "safe_closure_a_c", "h_safe_closure_a_c", 
       "safe_closure_all_x", "h_safe_closure_all_x", "safe_closure_aa", "h_safe_closure_aa", "safe_closure_aa_p", "h_safe_closure_aa_p",
       "safe_closure_ap", "h_safe_closure_ap", "safe_closure_pa", "h_safe_closure_pa", 
 
@@ -30700,16 +30696,29 @@ static void format_number(s7_scheme *sc, format_data *fdat, s7_int radix, s7_int
     }
   /* should (format #f "~F" 1/3) return "1/3"?? in CL it's "0.33333334" */
 
-  tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
   if (pad != ' ')
     {
       char *padtmp;
+      tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
       padtmp = tmp;
       while (*padtmp == ' ') (*(padtmp++)) = pad;
+      format_append_string(sc, fdat, tmp, nlen, port);
+      free(tmp);
     }
-  format_append_string(sc, fdat, tmp, nlen, port);
-
-  free(tmp);
+  else
+    {
+      if (radix == 10)
+	{
+	  tmp = number_to_string_base_10(car(fdat->args), width, precision, float_choice, &nlen, P_WRITE);
+	  format_append_string(sc, fdat, tmp, nlen, port);
+	}
+      else
+	{
+	  tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
+	  format_append_string(sc, fdat, tmp, nlen, port);
+	  free(tmp);
+	}
+    }
   fdat->args = cdr(fdat->args);
   fdat->ctr++;
 }
@@ -36509,7 +36518,6 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), real_zero, sc->T), sc->make_float_vector_symbol);
       else new_vect = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
-      /* if (len > 0) memcpy((void *)(float_vector_elements(new_vect)), (void *)(float_vector_elements(old_vect)), len * sizeof(s7_double)); */
       src = (s7_double *)float_vector_elements(old_vect);
       dst = (s7_double *)float_vector_elements(new_vect);
       for (i = len; i > 0; i--) *dst++ = *src++;
@@ -36522,7 +36530,6 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
 	  if (vector_rank(old_vect) > 1)
 	    new_vect = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), small_int(0), sc->T), sc->make_int_vector_symbol);
 	  else new_vect = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
-	  /* if (len > 0) memcpy((void *)(int_vector_elements(new_vect)), (void *)(int_vector_elements(old_vect)), len * sizeof(s7_int)); */
 	  src = (s7_int *)int_vector_elements(old_vect);
 	  dst = (s7_int *)int_vector_elements(new_vect);
 	  for (i = len; i > 0; i--) *dst++ = *src++;
@@ -36533,9 +36540,7 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
 	  if (vector_rank(old_vect) > 1)
 	    new_vect = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, list_1(sc, old_vect))));
 	  else new_vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-
 	  /* here and in vector-fill! we have a problem with bignums -- should new bignums be allocated? (copy_list also) */
-	  /* if (len > 0) memcpy((void *)(vector_elements(new_vect)), (void *)(vector_elements(old_vect)), len * sizeof(s7_pointer)); */
 	  src = (s7_pointer *)vector_elements(old_vect);
 	  dst = (s7_pointer *)vector_elements(new_vect);
 	  for (i = len; i > 0; i--) *dst++ = *src++;
@@ -45348,7 +45353,6 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  {
 	    if (sc->longjmp_ok) longjmp(sc->goto_start, CATCH_JUMP);
 	    /* all the rest of the code expects s7_error to jump, not return, so presumably if we get here, we're in trouble */
-	    /* return(type); */
 #if S7_DEBUGGING
 	    fprintf(stderr, "fall through in s7_error!\n");
 #endif
@@ -50426,6 +50430,15 @@ static s7_double opt_d_pid_ssf(void *p)
   return(o->v4.d_pid_f(slot_value(o->v1.p), integer(slot_value(o->v2.p)), o1->v7.fd(o1)));
 }
 
+static s7_pointer opt_d_pid_ssf_nr(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o1;
+  o1 = cur_sc->opts[++cur_sc->pc];
+  o->v4.d_pid_f(slot_value(o->v1.p), integer(slot_value(o->v2.p)), o1->v7.fd(o1));
+  return(NULL);
+}
+
 static s7_double opt_d_pid_sss(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -55100,7 +55113,11 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	  if (!cell_optimize(sc, p))
 	    break;
 	  if (start->v7.fp == d_to_p)
-	    start->v7.fp = d_to_p_nr;
+	    {
+	      start->v7.fp = d_to_p_nr;
+	      if (start->v8.fd == opt_d_pid_ssf)
+		start->v7.fp = opt_d_pid_ssf_nr;
+	    }
 	  else
 	    {
 	      if (start->v7.fp == i_to_p)
@@ -73179,30 +73196,22 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_C_CATCH_ALL:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_CATCH_ALL:                    /* (catch #t (lambda () ...) (lambda args #f) */
-		  {
-		    s7_pointer p;
-		    new_frame(sc, sc->envir, sc->envir);
-		    p = sc->envir;
-		    catch_all_set_goto_loc(p, s7_stack_top(sc));
-		    catch_all_set_op_loc(p, sc->op_stack_now - sc->op_stack);
-		    push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
-		    sc->code = T_Pair(opt_pair1(cdr(code)));       /* the body of the first lambda */
-		    goto BEGIN1;
-		  }
+		  new_frame(sc, sc->envir, sc->envir);
+		  catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
+		  catch_all_set_op_loc(sc->envir, sc->op_stack_now - sc->op_stack);
+		  push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
+		  sc->code = T_Pair(opt_pair1(cdr(code)));       /* the body of the first lambda */
+		  goto BEGIN1;
 		  
 		case OP_C_CATCH_ALL_Z:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_CATCH_ALL_Z:
-		  {
-		    s7_pointer p;
-		    new_frame(sc, sc->envir, sc->envir);
-		    p = sc->envir;
-		    catch_all_set_goto_loc(p, s7_stack_top(sc));
-		    catch_all_set_op_loc(p, sc->op_stack_now - sc->op_stack);
-		    push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
-		    sc->code = T_Pair(car(opt_pair1(cdr(code))));
-		    goto OPT_EVAL_CHECKED;
-		  }
+		  new_frame(sc, sc->envir, sc->envir);
+		  catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
+		  catch_all_set_op_loc(sc->envir, sc->op_stack_now - sc->op_stack);
+		  push_stack(sc, OP_CATCH_ALL, opt_con2(code), code);
+		  sc->code = T_Pair(car(opt_pair1(cdr(code))));
+		  goto OPT_EVAL_CHECKED;
 
 
 		  /* -------------------------------------------------------------------------------- */
@@ -77405,7 +77414,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   *   is simply treated as the (non-error) return value, and the higher level evaluations
 	   *   get confused.
 	   */
-	  stack_reset(sc);                                 /* is this necessary? */
+	  stack_reset(sc);                                 /* is this necessary? is it a good idea?? */
 	  push_stack_op(sc, OP_ERROR_QUIT);                /* added 3-Dec-16: try to make sure we actually exit! */
 	  sc->cur_op = OP_ERROR_QUIT;
 	  if (sc->longjmp_ok) longjmp(sc->goto_start, ERROR_QUIT_JUMP);
@@ -85123,15 +85132,8 @@ int main(int argc, char **argv)
  *   perhaps remove all the gmp code and give example of *128 s7_int/double?
  *
  * htable update [via if/cond (h-set k (f (h-ref k)))]
- * can format go direct to the port buffer? -- set up a dummy output port sharing the real one's data at position
- * number_to_string direct
  * free lists for small/standard size vectors and port data buffers, hash_entry_t** (make_hash_table)
  * hash-tables are still size int32_t
- * exp: loop: or_a_and_a_ra where (or allx (and allx (safe-closure-a allx)=loop where closure-body=top or (could also check names?)
- *      loop: if_a_and_a_ra_else_a=loop
- *      loop: and_a_or_a_ra=loop (any)
- *  outer call: closure_s|a_p add timing test or put in tlet
- *  check for these in stuff etc [lint find-if tree*-car-member etc]
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
@@ -85140,17 +85142,17 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2083
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2073
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2499
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.6
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2668
- * tread         |      |      |      ||      ||      |                   3009  2698
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
+ * tread         |      |      |      ||      ||      |                   3009  2700
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2724
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3986
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5008
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5001
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7728
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
