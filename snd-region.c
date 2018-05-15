@@ -1433,6 +1433,7 @@ static Xen g_xen_region_to_string(Xen obj)
   return(result);
 }
 #else
+#if HAVE_SCHEME
 static s7_pointer g_xen_region_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *vstr;
@@ -1442,7 +1443,6 @@ static s7_pointer g_xen_region_to_string(s7_scheme *sc, s7_pointer args)
   free(vstr);
   return(result);
 }
-#if HAVE_SCHEME
 #endif
 #endif
 

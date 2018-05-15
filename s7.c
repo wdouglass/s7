@@ -5861,36 +5861,16 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   symbol_set_ctr(x, 0);
   symbol_type(x) = 0;
 
-  if (symbol_name_length(x) > 1)                           /* not 0, otherwise : is a keyword */
+  if (len > 1)                                             /* not 0, otherwise : is a keyword */
     {
-      if (name[0] == ':')
+      if ((name[0] == ':') || (name[len - 1] == ':'))
 	{
 	  typeflag(x) |= (T_IMMUTABLE | T_KEYWORD);
-	  keyword_set_symbol(x, make_symbol_with_length(sc, (char *)(name + 1), len - 1));
+	  keyword_set_symbol(x, make_symbol_with_length(sc, (name[0] == ':') ? (char *)(name + 1) : name, len - 1));
 	  set_has_keyword(keyword_symbol(x));
 	  set_global_slot(x, s7_make_slot(sc, sc->nil, x, x));
 	}
-      else
-	{
-	  char c;
-	  c = name[symbol_name_length(x) - 1];
-	  if (c == ':')
-	    {
-	      char *kstr;
-	      s7_int klen;
-	      klen = symbol_name_length(x) - 1;            /* can't use tmpbuf_* here (or not safely I think) because name is already using tmpbuf */
-	      kstr = (char *)malloc((klen + 1) * sizeof(char));
-	      memcpy((void *)kstr, (void *)name, klen);
-	      kstr[klen] = 0;
-	      typeflag(x) |= (T_IMMUTABLE | T_KEYWORD);
-	      keyword_set_symbol(x, make_symbol_with_length(sc, kstr, klen));
-	      set_has_keyword(keyword_symbol(x));
-	      set_global_slot(x, s7_make_slot(sc, sc->nil, x, x));
-	      free(kstr);
-	    }
-	}
     }
-
   unheap(p);
   typeflag(p) = T_PAIR | T_IMMUTABLE;
   set_car(p, x);
@@ -22276,13 +22256,14 @@ static s7_pointer g_string_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
   return(chr);
 }
 
+#if (!WITH_PURE_S7)
 static s7_pointer g_string_fill(s7_scheme *sc, s7_pointer args)
 {
   #define H_string_fill "(string-fill! str chr start end) fills the string str with the character chr"
   #define Q_string_fill s7_make_circular_signature(sc, 3, 4, s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_integer_symbol), sc->is_string_symbol, sc->is_char_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_boolean_symbol))
   return(g_string_fill_1(sc, sc->string_fill_symbol, args));
 }
-
+#endif
 
 static s7_pointer g_string_1(s7_scheme *sc, s7_pointer args, s7_pointer sym)
 {
@@ -35189,12 +35170,14 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
   return(fill);
 }
 
+#if (!WITH_PURE_S7)
 static s7_pointer g_vector_fill(s7_scheme *sc, s7_pointer args)
 {
   #define H_vector_fill "(vector-fill! v val start end) sets all elements of the vector v between start and end to val"
   #define Q_vector_fill s7_make_circular_signature(sc, 3, 4, sc->T, sc->is_vector_symbol, sc->T, sc->is_integer_symbol)
   return(g_vector_fill_1(sc, sc->vector_fill_symbol, args));
 }
+#endif
 
 
 /* -------------------------------- vector-ref|set! -------------------------------- */
@@ -47076,6 +47059,17 @@ static s7_pointer all_x_c_opcsq_c(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer all_x_c_opcsq_s(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = cadr(arg);
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(largs)));
+  set_car(sc->t2_1, cadr(largs));
+  set_car(sc->t2_1, c_call(largs)(sc, sc->t2_1));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(arg)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer all_x_c_opssq_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -47525,11 +47519,70 @@ static s7_pointer all_x_c_as(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer all_x_c_opaq_s(s7_scheme *sc, s7_pointer arg)
 {
-  set_car(sc->t1_1, c_call(cdadr(arg))(sc, cadadr(arg)));
+  s7_pointer arg2;
+  arg2 = cdadr(arg);
+  set_car(sc->t1_1, c_call(arg2)(sc, car(arg2)));
   set_car(sc->t2_1, c_call(cadr(arg))(sc, sc->t1_1));
   set_car(sc->t2_2, symbol_to_value_checked(sc, caddr(arg)));
   return(c_call(arg)(sc, sc->t2_1));
 }
+
+static s7_pointer all_x_c_s_opaq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer arg2;
+  arg2 = cdaddr(arg);
+  set_car(sc->t1_1, c_call(arg2)(sc, car(arg2)));
+  set_car(sc->t2_2, c_call(caddr(arg))(sc, sc->t1_1));
+  set_car(sc->t2_1, symbol_to_value_checked(sc, cadr(arg)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer all_x_c_opaq(s7_scheme *sc, s7_pointer arg)
+{
+  set_car(sc->t1_1, c_call(cdadr(arg))(sc, cadadr(arg)));
+  set_car(sc->t1_1, c_call(cadr(arg))(sc, sc->t1_1));
+  return(c_call(arg)(sc, sc->t1_1));
+}
+
+static s7_pointer all_x_c_c_opscq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = caddr(arg);
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(largs)));
+  set_car(sc->t2_2, caddr(largs));
+  set_car(sc->t2_2, c_call(largs)(sc, sc->t2_1));
+  set_car(sc->t2_1, cadr(arg));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer all_x_c_c_opcsq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = caddr(arg);
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(largs)));
+  set_car(sc->t2_1, cadr(largs));
+  set_car(sc->t2_2, c_call(largs)(sc, sc->t2_1));
+  set_car(sc->t2_1, cadr(arg));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer all_x_c_s_opcsq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = caddr(arg);
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(largs)));
+  set_car(sc->t2_1, cadr(largs));
+  set_car(sc->t2_2, c_call(largs)(sc, sc->t2_1));
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(arg)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+
+/* unimplemented:
+   h_safe_c_qq h_safe_c_qc h_safe_c_sqs 
+   h_safe_c_opcq_opssq 
+   h_safe_c_s_op_opssq_sq h_safe_c_s_op_opsq_cq h_safe_c_s_op_s_opssqq h_safe_c_op_opssq_q_s h_safe_c_s_op_opssq_opssqq h_safe_c_c_op_s_opcqq 
+*/
 
 static s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
 {
@@ -47688,6 +47741,9 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_C_C_opSq] = all_x_c_c_opsq;
   all_x_function[HOP_SAFE_C_C_opCq] = all_x_c_c_opcq;
   all_x_function[HOP_SAFE_C_opCSq_C] = all_x_c_opcsq_c;
+  all_x_function[HOP_SAFE_C_opCSq_S] = all_x_c_opcsq_s;
+  all_x_function[HOP_SAFE_C_C_opCSq] = all_x_c_c_opcsq;
+  all_x_function[HOP_SAFE_C_S_opCSq] = all_x_c_s_opcsq;
   all_x_function[HOP_SAFE_C_opSSq_C] = all_x_c_opssq_c;
   all_x_function[HOP_SAFE_C_opSCq_S] = all_x_c_opscq_s;
   all_x_function[HOP_SAFE_C_opSCq_C] = all_x_c_opscq_c;
@@ -47695,6 +47751,7 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_C_S_opSSq] = all_x_c_s_opssq;
   all_x_function[HOP_SAFE_C_C_opSSq] = all_x_c_c_opssq;
   all_x_function[HOP_SAFE_C_S_opSCq] = all_x_c_s_opscq;
+  all_x_function[HOP_SAFE_C_C_opSCq] = all_x_c_c_opscq;
   all_x_function[HOP_SAFE_C_opSq_opSq] = all_x_c_opsq_opsq;
   all_x_function[HOP_SAFE_C_opSq_opCq] = all_x_c_opsq_opcq;
   all_x_function[HOP_SAFE_C_opCq_opSq] = all_x_c_opcq_opsq;
@@ -47726,7 +47783,9 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_CLOSURE_S_C] = all_x_closure_s;
   all_x_function[HOP_SAFE_CLOSURE_A_C] = all_x_closure_a;
   all_x_function[HOP_SAFE_C_ALL_S] = all_x_c_all_s;
+  all_x_function[HOP_SAFE_C_opAq] = all_x_c_opaq;
   all_x_function[HOP_SAFE_C_opAq_S] = all_x_c_opaq_s;
+  all_x_function[HOP_SAFE_C_S_opAq] = all_x_c_s_opaq;
   all_x_function[HOP_SAFE_QUOTE] = all_x_q;
 }
 
@@ -85109,13 +85168,15 @@ int main(int argc, char **argv)
  *   see t752.scm for more examples
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
+ * hash-tables are still size int32_t [via hash_table_entries]
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   test other func cases in libgtk_s7, several more special funcs
- *   make|free-cairo: xm-enved.fs, snd-test|xm-enved.rb
+ *   make|free-cairo: xm-enved.fs, xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
+ * maybe remove editres support?
  *
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
@@ -85126,30 +85187,43 @@ int main(int argc, char **argv)
  * t772: lint or|and tests
  * t776: cycle tests 
  *
- * checkout int128_t (float also??) defined(__SIZEOF_INT128__) -- gcc: __SIZEOF_INT128__, __FLT128_DIG__
- *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf and strtoflt128 in libquadmath -lquadmath #include <quadmath.h> __complex128
- *   typedef _Complex float __attribute__((mode(TC))) _Complex128;
- *   perhaps remove all the gmp code and give example of *128 s7_int/double?
- *
- * htable update [via if/cond (h-set k (f (h-ref k)))]
- * free lists for small/standard size vectors and port data buffers, hash_entry_t** (make_hash_table)
- * hash-tables are still size int32_t
+ * checkout int128_t defined(__SIZEOF_INT128__) -- gcc: __SIZEOF_INT128__, __FLT128_DIG__
+ *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf=float out and strtoflt128, also __complex128
+ *   typedef _Complex float __attribute__((mode(TC))) _Complex128; -- in quadmath.h
+ *   M_PIq, use 1.0Q = quad float, use %Qf|g etc for float print, s7_double to __float128
+ * s7.h:
+ * typedef __int128 s7_int;
+ * typedef __float128 s7_double;
+ * #define WITH_QMATH 1
+ * s7.c:
+ * #if WITH_QMATH
+ *   #include <quadmath.h>
+ *   #define Qid(x) ...
+ *   #undef PRId64
+ *   #define PRId64 "s"
+ * #else
+ *   #define Qid(x) x
+ * #endif
+ * need to find %f|g|e and define these above with %Qf etc or s7i and s7f: "Q" in Q "" elsewhere [s7_d|x|f|g|e_print? in s7.h]
+ *      add quadmath to *features*
+ *      float/int-vectors -> C side?? [mus_long|float_t in sndlib.h -- can we override this if s7: typedef s7_double mus_float_t; etc]
+ * check int32_t/float work on a 32-bit machine
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1038
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1039
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2073
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2499
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.6
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2503
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.5
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
- * tread         |      |      |      ||      ||      |                   3009  2700
+ * tread         |      |      |      ||      ||      |                   3009  2694
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2724
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3480
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5001

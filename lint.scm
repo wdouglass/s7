@@ -5991,6 +5991,18 @@
 		       (values "~A" (cons 'substring (cons (cadr d) indices)))))
 	       (values "~A" (if indices (cons 'substring (cons (cadr d) indices)) (cadr d))))))))
 
+    (denote (set!? form env)
+      (and *report-any-!-as-setter* ; (inc! x) when inc! is unknown, assume it sets x
+	   (symbol? (car form))
+	   (pair? (cdr form))
+	   (or (symbol? (cadr form))
+	       (and (pair? (cddr form))
+		    (symbol? (caddr form))))
+	   (not (hash-table-ref built-in-functions (car form)))
+	   (let ((str (symbol->string (car form))))
+	     (char=? (string-ref str (- (length str) 1)) #\!))
+	   (not (var-member (car form) env))))
+
     (define (easy-lambda? x)
       (and (len>2? x)
 	   (eq? (car x) 'lambda)
@@ -13882,18 +13894,6 @@
 							       ,@extras)
 						      ,@(tree-subst outer-name inner-name inner-body))))))))))))))
     
-    (define (set!? form env)
-      (and *report-any-!-as-setter* ; (inc! x) when inc! is unknown, assume it sets x
-	   (symbol? (car form))
-	   (pair? (cdr form))
-	   (or (symbol? (cadr form))
-	       (and (pair? (cddr form))
-		    (symbol? (caddr form))))
-	   (not (hash-table-ref built-in-functions (car form)))
-	   (let ((str (symbol->string (car form))))
-	     (char=? (string-ref str (- (length str) 1)) #\!))
-	   (not (var-member (car form) env))))
-
     (denote (set-target name form env)
       (and (pair? form)
 	   (or (and (pair? (cdr form))
