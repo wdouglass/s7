@@ -2744,20 +2744,20 @@ static mark *save_mark(chan_info *cp, mark *m, void *info)
 
 #if HAVE_SCHEME
   if (m->name)
-    fprintf(sv->fd, "(add-mark! %" PRId64 " sfile %d \"%s\" %s)\n", m->samp, cp->chan, m->name, mapped_sync);
-  else fprintf(sv->fd, "(add-mark! %" PRId64 " sfile %d #f %s)\n", m->samp, cp->chan, mapped_sync);
+    fprintf(sv->fd, "(add-mark! %" print_mus_long " sfile %d \"%s\" %s)\n", m->samp, cp->chan, m->name, mapped_sync);
+  else fprintf(sv->fd, "(add-mark! %" print_mus_long " sfile %d #f %s)\n", m->samp, cp->chan, mapped_sync);
 #endif
 
 #if HAVE_RUBY
   if (m->name)
-    fprintf(sv->fd, "add_mark!(%" PRId64 ", sfile, %d, \"%s\", %s)\n", m->samp, cp->chan, m->name, mapped_sync);
-  else fprintf(sv->fd, "add_mark!(%" PRId64 ", sfile, %d, false, %s)\n", m->samp, cp->chan, mapped_sync);
+    fprintf(sv->fd, "add_mark!(%" print_mus_long ", sfile, %d, \"%s\", %s)\n", m->samp, cp->chan, m->name, mapped_sync);
+  else fprintf(sv->fd, "add_mark!(%" print_mus_long ", sfile, %d, false, %s)\n", m->samp, cp->chan, mapped_sync);
 #endif
 
 #if HAVE_FORTH
   if (m->name)
-    fprintf(sv->fd, "%" PRId64 " sfile %d \"%s\" %s add-mark! drop\n", m->samp, cp->chan, m->name, mapped_sync);
-  else fprintf(sv->fd, "%" PRId64 " sfile %d #f %s add-mark! drop\n", m->samp, cp->chan, mapped_sync);
+    fprintf(sv->fd, "%" print_mus_long " sfile %d \"%s\" %s add-mark! drop\n", m->samp, cp->chan, m->name, mapped_sync);
+  else fprintf(sv->fd, "%" print_mus_long " sfile %d #f %s add-mark! drop\n", m->samp, cp->chan, mapped_sync);
 #endif
 
   free(mapped_sync);

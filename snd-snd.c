@@ -1747,19 +1747,19 @@ static bool apply_controls(apply_state *ap)
 	      else filterstr = mus_strdup(PROC_FALSE);
 #if HAVE_FORTH
 	      if (orig_apply_dur == 0)
-	      ap->origin = mus_format(" '( %s %s %s %s %s %s ) %" PRId64 PROC_SEP PROC_FALSE " %s", 
+	      ap->origin = mus_format(" '( %s %s %s %s %s %s ) %" print_mus_long PROC_SEP PROC_FALSE " %s", 
 				      ampstr, speedstr, contraststr, expandstr, reverbstr, filterstr, 
 				      apply_beg, S_controls_to_channel);
-	      else ap->origin = mus_format(" '( %s %s %s %s %s %s ) %" PRId64 PROC_SEP "%" PRId64 " %s",
+	      else ap->origin = mus_format(" '( %s %s %s %s %s %s ) %" print_mus_long PROC_SEP "%" print_mus_long " %s",
 					   ampstr, speedstr, contraststr, expandstr, reverbstr, filterstr,
 					   apply_beg, apply_dur, S_controls_to_channel);
 #else
 	      if (orig_apply_dur == 0)
-	      ap->origin = mus_format("%s" PROC_OPEN LIST_OPEN "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" LIST_CLOSE PROC_SEP "%" PRId64 PROC_SEP PROC_FALSE, 
+	      ap->origin = mus_format("%s" PROC_OPEN LIST_OPEN "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" LIST_CLOSE PROC_SEP "%" print_mus_long PROC_SEP PROC_FALSE, 
 				      to_proc_name(S_controls_to_channel),
 				      ampstr, speedstr, contraststr, expandstr, reverbstr, filterstr, 
 				      apply_beg);
-	      else ap->origin = mus_format("%s" PROC_OPEN LIST_OPEN "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" LIST_CLOSE PROC_SEP "%" PRId64 PROC_SEP "%" PRId64,
+	      else ap->origin = mus_format("%s" PROC_OPEN LIST_OPEN "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" PROC_SEP "%s" LIST_CLOSE PROC_SEP "%" print_mus_long PROC_SEP "%" print_mus_long,
 					   to_proc_name(S_controls_to_channel),
 					   ampstr, speedstr, contraststr, expandstr, reverbstr, filterstr,
 					   apply_beg, apply_dur);
@@ -5260,22 +5260,22 @@ where each inner list entry can also be " PROC_FALSE "."
 #if HAVE_EXTENSION_LANGUAGE
 #if HAVE_FORTH
       if (!(Xen_is_number(dur)))
-	ap->origin = mus_format("%s %" PRId64 PROC_SEP PROC_FALSE " %s", 
+	ap->origin = mus_format("%s %" print_mus_long PROC_SEP PROC_FALSE " %s", 
 				Xen_object_to_C_string(settings), 
 				apply_beg, S_controls_to_channel);
-      else ap->origin = mus_format("%s " PROC_SEP "%" PRId64 PROC_SEP "%" PRId64 " %s", 
+      else ap->origin = mus_format("%s " PROC_SEP "%" print_mus_long PROC_SEP "%" print_mus_long " %s", 
 				   Xen_object_to_C_string(settings), 
 				   apply_beg, apply_dur, S_controls_to_channel);
 #else
       {
 	char *temp = NULL;
 	if (!(Xen_is_number(dur)))
-	  ap->origin = mus_format("%s" PROC_OPEN "%s%s" PROC_SEP "%" PRId64 PROC_SEP PROC_FALSE, 
+	  ap->origin = mus_format("%s" PROC_OPEN "%s%s" PROC_SEP "%" print_mus_long PROC_SEP PROC_FALSE, 
 				  to_proc_name(S_controls_to_channel), 
 				  PROC_QUOTE,
 				  temp = Xen_object_to_C_string(settings), 
 				  apply_beg);
-	else ap->origin = mus_format("%s" PROC_OPEN "%s%s" PROC_SEP "%" PRId64 PROC_SEP "%" PRId64, 
+	else ap->origin = mus_format("%s" PROC_OPEN "%s%s" PROC_SEP "%" print_mus_long PROC_SEP "%" print_mus_long, 
 				     to_proc_name(S_controls_to_channel), 
 				     PROC_QUOTE,
 				     temp = Xen_object_to_C_string(settings), 

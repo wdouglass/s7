@@ -894,7 +894,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 		else 
 		  {
 		    if (!(delete_mark_samp(cursor_sample(cp), cp)))
-		      status_report(cp->sound, "no mark at sample %" PRId64, cursor_sample(cp));
+		      status_report(cp->sound, "no mark at sample %" print_mus_long, cursor_sample(cp));
 		  }
 		if ((keysym == snd_K_M) && 
 		    (cp->sound->sync != 0))
@@ -919,7 +919,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 			  else 
 			    {
 			      if (!(delete_mark_samp(cursor_sample(cp), si->cps[i])))
-				status_report(cp->sound, "no mark at sample %" PRId64, cursor_sample(cp));
+				status_report(cp->sound, "no mark at sample %" print_mus_long, cursor_sample(cp));
 			    }
 			}
 		    si = free_sync_info(si);
@@ -1042,7 +1042,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 	      if (count > 0)
 		{
 		  start_selection_creation(cp, cursor_sample(cp));
-		  status_report(sp, "selection starts at %" PRId64, cursor_sample(cp));
+		  status_report(sp, "selection starts at %" print_mus_long, cursor_sample(cp));
 		}
 	      break;
 

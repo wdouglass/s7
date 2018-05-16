@@ -244,7 +244,7 @@ static char *mus_vct_to_string(vct *v)
   d = mus_vct_data(v);
   size = (len + 1) * VCT_PRINT_BUFFER_SIZE;
   buf = (char *)calloc(size, sizeof(char));
-  snprintf(buf, size, "#<vct[len=%" PRId64 "]", mus_vct_length(v));
+  snprintf(buf, size, "#<vct[len=%" print_mus_long "]", mus_vct_length(v));
 
   if ((len > 0) && (d))
     {

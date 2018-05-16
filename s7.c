@@ -382,10 +382,6 @@
 #define BOLD_TEXT "\033[1m"
 #define UNBOLD_TEXT "\033[22m"
 
-#define WRITE_REAL_PRECISION 16
-#define MAX_FLOAT_FORMAT_PRECISION 128
-static int32_t float_format_precision = WRITE_REAL_PRECISION;
-
 #if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))
   #define __func__ __FUNCTION__
 #endif
@@ -403,6 +399,22 @@ typedef intptr_t opcode_t;
   #define PRINT_NAME_SIZE (40 - PRINT_NAME_PADDING - 2)
   #define POINTER_32 false
 #endif
+
+#if WITH_QMATH
+  #include <quadmath.h>
+  #define WRITE_REAL_PRECISION 32
+  typedef __float128 long_double;
+#else
+  #define WRITE_REAL_PRECISION 16
+  typedef long double long_double;
+#endif
+
+#define print_s7_int PRId64
+#define print_int32  PRId32
+#define print_pointer PRIdPTR
+
+#define MAX_FLOAT_FORMAT_PRECISION 128
+static int32_t float_format_precision = WRITE_REAL_PRECISION;
 
 
 /* types */
@@ -1012,7 +1024,7 @@ struct s7_scheme {
   uint64_t capture_let_counter;
   bool short_print, is_autoloading, in_with_let, object_out_locked;
   int64_t let_number;
-  double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
+  s7_double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
   s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions;
   s7_pointer stacktrace_defaults;
@@ -1503,7 +1515,7 @@ static s7_scheme *cur_sc = NULL;
       else								\
 	{								\
 	  if (((typeflag(p) & T_IMMUTABLE) != 0) && ((typeflag(p) != (uint64_t)(f))))						\
-	    {fprintf(stderr, "%s[%d]: set immutable %p type %d to %" PRId64 "\n", __func__, __LINE__, p, unchecked_type(p), (int64_t)(f)); abort();} \
+	    {fprintf(stderr, "%s[%d]: set immutable %p type %d to %" print_s7_int "\n", __func__, __LINE__, p, unchecked_type(p), (int64_t)(f)); abort();} \
 	}								\
       typeflag(p) = f;							\
     } while (0)
@@ -2369,7 +2381,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 {
   if (id < symbol_id(p))
     {
-      fprintf(stderr, "id mismatch: sym: %s %" PRId64 ", let: %" PRId64 "\n", symbol_name(p), symbol_id(p), id);
+      fprintf(stderr, "id mismatch: sym: %s %" print_s7_int ", let: %" print_s7_int "\n", symbol_name(p), symbol_id(p), id);
       abort();
     }
   (T_Sym(p))->object.sym.id = id;
@@ -2751,8 +2763,8 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define set_real(p, x)                real(p) = x
 #define numerator(p)                  (T_Frc(p))->object.number.fraction_value.numerator
 #define denominator(p)                (T_Frc(p))->object.number.fraction_value.denominator
-#define fraction(p)                   (((long double)numerator(p)) / ((long double)denominator(p)))
-#define inverted_fraction(p)          (((long double)denominator(p)) / ((long double)numerator(p)))
+#define fraction(p)                   (((long_double)numerator(p)) / ((long_double)denominator(p)))
+#define inverted_fraction(p)          (((long_double)denominator(p)) / ((long_double)numerator(p)))
 #define real_part(p)                  (T_Cmp(p))->object.number.complex_value.rl
 #define set_real_part(p, x)           real_part(p) = x
 #define imag_part(p)                  (T_Cmp(p))->object.number.complex_value.im
@@ -2868,7 +2880,7 @@ static char *copy_string_with_length(const char *str, s7_int len)
   char *newstr;
 #if S7_DEBUGGING
   if ((len <= 0) || (!str))
-    fprintf(stderr, "%s[%d]: len: %" PRId64 ", str: %s\n", __func__, __LINE__, len, str);
+    fprintf(stderr, "%s[%d]: len: %" print_s7_int ", str: %s\n", __func__, __LINE__, len, str);
 #endif
   newstr = (char *)malloc((len + 1) * sizeof(char));
   if (len != 0)
@@ -3263,7 +3275,8 @@ enum {OP_SAFE_C_C, HOP_SAFE_C_C,
 
       OP_SAFE_THUNK, HOP_SAFE_THUNK, OP_SAFE_THUNK_E, HOP_SAFE_THUNK_E, OP_SAFE_THUNK_P, HOP_SAFE_THUNK_P,
 
-      OP_SAFE_CLOSURE_S, HOP_SAFE_CLOSURE_S, OP_SAFE_CLOSURE_S_P, HOP_SAFE_CLOSURE_S_P, OP_SAFE_CLOSURE_S_C, HOP_SAFE_CLOSURE_S_C,
+      OP_SAFE_CLOSURE_S, HOP_SAFE_CLOSURE_S, OP_SAFE_CLOSURE_S_P, HOP_SAFE_CLOSURE_S_P, 
+      OP_SAFE_CLOSURE_S_C, HOP_SAFE_CLOSURE_S_C, OP_SAFE_CLOSURE_S_L, HOP_SAFE_CLOSURE_S_L,
       OP_SAFE_CLOSURE_C, HOP_SAFE_CLOSURE_C, OP_SAFE_CLOSURE_P, HOP_SAFE_CLOSURE_P, 
       OP_SAFE_CLOSURE_A, HOP_SAFE_CLOSURE_A, OP_SAFE_LCLOSURE_A, HOP_SAFE_LCLOSURE_A, OP_SAFE_CLOSURE_A_C, HOP_SAFE_CLOSURE_A_C, 
       OP_SAFE_CLOSURE_SS, HOP_SAFE_CLOSURE_SS, OP_SAFE_CLOSURE_SS_B, HOP_SAFE_CLOSURE_SS_B, 
@@ -3487,7 +3500,8 @@ static const char* opt_names[OPT_MAX_DEFINED] =
       "closure*_a", "h_closure*_a", "closure*_all_x", "h_closure*_all_x",
 
       "safe_thunk", "h_safe_thunk", "safe_thunk_e", "h_safe_thunk_e", "safe_thunk_p", "h_safe_thunk_p", 
-      "safe_closure_s", "h_safe_closure_s", "safe_closure_s_p", "h_safe_closure_s_p", "safe_closure_s_c", "h_safe_closure_s_c",
+      "safe_closure_s", "h_safe_closure_s", "safe_closure_s_p", "h_safe_closure_s_p", 
+      "safe_closure_s_c", "h_safe_closure_s_c", "safe_closure_s_l", "h_safe_closure_s_l",
       "safe_closure_c", "h_safe_closure_c", "safe_closure_p", "h_safe_closure_p", 
       "safe_closure_a", "h_safe_closure_a", "safe_lclosure_a", "h_safe_lclosure_a", "safe_closure_a_c", "h_safe_closure_a_c", 
       "safe_closure_ss", "h_safe_closure_ss", "safe_closure_ss_b", "h_safe_closure_ss_b", 
@@ -3974,7 +3988,7 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
 	    protected_count[sc->protected_lines[i]]++;
 	for (i = 0; i < 85000; i++)
 	  if (protected_count[i] > 0)
-	    fprintf(stderr, "%s[%" PRId64 "]: %d\n", __func__, i, protected_count[i]);
+	    fprintf(stderr, "%s[%" print_s7_int "]: %d\n", __func__, i, protected_count[i]);
 	free(protected_count);
       }
 #endif
@@ -3988,9 +4002,9 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
   loc = sc->gpofl[sc->gpofl_loc--];
 #if S7_DEBUGGING
   if (loc >= sc->protected_objects_size)
-    fprintf(stderr, "sc->gpofl loc: %" PRId64 " (%" PRId64 ")\n", loc, sc->protected_objects_size);
+    fprintf(stderr, "sc->gpofl loc: %" print_s7_int " (%" print_s7_int ")\n", loc, sc->protected_objects_size);
   if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
-    fprintf(stderr, "protected object at %" PRId64 " about to be clobbered? %s\n", loc, DISPLAY(vector_element(sc->protected_objects, loc)));
+    fprintf(stderr, "protected object at %" print_s7_int " about to be clobbered? %s\n", loc, DISPLAY(vector_element(sc->protected_objects, loc)));
   sc->protected_lines[loc] = 1;
 #endif
   vector_element(sc->protected_objects, loc) = x;
@@ -5179,9 +5193,9 @@ static int64_t gc(s7_scheme *sc)
       double secs;
       gettimeofday(&t0, &z0);
       secs = (t0.tv_sec - start_time.tv_sec) +  0.000001 * (t0.tv_usec - start_time.tv_usec);
-      fprintf(stdout, "freed %" PRId64 "/%" PRId64 " (free: %" PRIdPTR "), time: %f\n", sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), secs);
+      fprintf(stdout, "freed %" print_s7_int "/%" print_s7_int " (free: %" print_pointer "), time: %f\n", sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), secs);
 #else
-      fprintf(stdout, "freed %" PRId64 "/%" PRId64 "\n", sc->gc_freed, sc->heap_size);
+      fprintf(stdout, "freed %" print_s7_int "/%" print_s7_int "\n", sc->gc_freed, sc->heap_size);
 #endif
     }
   
@@ -5258,11 +5272,11 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   sc->heap = (s7_cell **)realloc(sc->heap, sc->heap_size * sizeof(s7_cell *));
   if (!(sc->heap))
-    s7_warn(sc, 256, "heap reallocation failed! tried to get %" PRId64 " bytes\n", (int64_t)(sc->heap_size * sizeof(s7_cell *)));
+    s7_warn(sc, 256, "heap reallocation failed! tried to get %" print_s7_int " bytes\n", (int64_t)(sc->heap_size * sizeof(s7_cell *)));
 
   sc->free_heap = (s7_cell **)realloc(sc->free_heap, sc->heap_size * sizeof(s7_cell *));
   if (!(sc->free_heap))
-    s7_warn(sc, 256, "free heap reallocation failed! tried to get %" PRId64 " bytes\n", (int64_t)(sc->heap_size * sizeof(s7_cell *)));
+    s7_warn(sc, 256, "free heap reallocation failed! tried to get %" print_s7_int " bytes\n", (int64_t)(sc->heap_size * sizeof(s7_cell *)));
 
   sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
   sc->free_heap_top = sc->free_heap + old_free; /* incremented below, added old_free 21-Aug-12?!? */
@@ -5286,12 +5300,12 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->previous_free_heap_top = sc->free_heap_top;
 
   if (show_heap_stats(sc))
-    fprintf(stderr, "heap grows to %" PRId64 " (old free/size: %" PRId64 "/%" PRId64 ")\n", sc->heap_size, old_free, old_size);
+    fprintf(stderr, "heap grows to %" print_s7_int " (old free/size: %" print_s7_int "/%" print_s7_int ")\n", sc->heap_size, old_free, old_size);
 
   if (sc->heap_size >= sc->max_heap_size)
     {
 #if S7_DEBUGGING
-      fprintf(stderr, "heap %" PRId64 ", %s\n", sc->heap_size, DISPLAY(current_code(sc)));
+      fprintf(stderr, "heap %" print_s7_int ", %s\n", sc->heap_size, DISPLAY(current_code(sc)));
       s7_show_let(sc);
       abort();
 #endif
@@ -5602,7 +5616,7 @@ static void pop_stack(s7_scheme *sc)
   sc->cur_op = (opcode_t)(sc->stack_end[3]);
   if (sc->cur_op > OP_MAX_DEFINED) 
     {
-      fprintf(stderr, "%spop_stack[%d] invalid opcode: %" PRIdPTR " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
+      fprintf(stderr, "%spop_stack[%d] invalid opcode: %" print_pointer " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
 }
@@ -5629,7 +5643,7 @@ static void push_stack(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer c
     }
   if (op > OP_MAX_DEFINED) 
     {
-      fprintf(stderr, "%spush_stack[%d] invalid opcode: %" PRIdPTR " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
+      fprintf(stderr, "%spush_stack[%d] invalid opcode: %" print_pointer " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
       if (stop_at_error) abort();
     }
   if (code) sc->stack_end[0] = T_Pos(code);
@@ -10242,8 +10256,8 @@ s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char 
     case T_REAL:        return(real(x));
 #if WITH_GMP
     case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
-					   (long double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
+					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
     }
@@ -10326,8 +10340,8 @@ s7_double s7_real(s7_pointer x)
     case T_REAL:        return(real(x));
 #if WITH_GMP
     case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
-					   (long double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
+					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
     }
@@ -10417,7 +10431,7 @@ static s7_pointer subtract_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	(multiply_overflow(n1, d2, &n1d2)) ||
 	(multiply_overflow(n2, d1, &n2d1)) ||
 	(subtract_overflow(n1d2, n2d1, &dn)))
-      return(make_real(sc, ((long double)n1 / (long double)d1) - ((long double)n2 / (long double)d2)));
+      return(make_real(sc, ((long_double)n1 / (long_double)d1) - ((long_double)n2 / (long_double)d2)));
     return(s7_make_ratio(sc, dn, d1d2));
   }
 #else
@@ -10595,7 +10609,7 @@ static char *integer_to_string_base_10_no_width(s7_pointer obj, s7_int *nlen) /*
       (*nlen) = print_name_length(obj);
       return((char *)print_name(obj));
     }
-  /* (*nlen) = snprintf(int_to_str, INT_TO_STR_SIZE, "%" PRId64 "", (int64_t)integer(obj));
+  /* (*nlen) = snprintf(int_to_str, INT_TO_STR_SIZE, "%" print_s7_int "", (int64_t)integer(obj));
    *  but that is very slow -- the following code is 6 times faster
    */
   num = (int64_t)integer(obj);
@@ -10669,11 +10683,11 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
     case T_INTEGER:
       if (width == 0)
 	return(integer_to_string_base_10_no_width(obj, nlen));
-      (*nlen) = snprintf(num_to_str, num_to_str_size, "%*" PRId64, (int32_t)width, (int64_t)integer(obj)); /* gcc: "field width specifier expects argument of type int" */
+      (*nlen) = snprintf(num_to_str, num_to_str_size, "%*" print_s7_int, (int32_t)width, (int64_t)integer(obj)); /* gcc: "field width specifier expects argument of type int" */
       break;
 
     case T_RATIO:
-      len = snprintf(num_to_str, num_to_str_size, "%" PRId64 "/%" PRId64, (int64_t)numerator(obj), (int64_t)denominator(obj));
+      len = snprintf(num_to_str, num_to_str_size, "%" print_s7_int "/%" print_s7_int, (int64_t)numerator(obj), (int64_t)denominator(obj));
       if (width > len)
 	{
 	  s7_int spaces;
@@ -10693,8 +10707,8 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 
     case T_REAL:
       len = snprintf(num_to_str, num_to_str_size - 4, 
-		       (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
-		       (int32_t)width, (int32_t)precision, (double)real(obj)); /* -4 for floatify */
+		     (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
+		     (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
       (*nlen) = len;
       floatify(num_to_str, nlen);
       break;
@@ -14063,7 +14077,7 @@ static s7_pointer g_quotient(s7_scheme *sc, s7_pointer args)
 	    s7_int n1d2, n2d1;
 	    if ((multiply_overflow(n1, d2, &n1d2)) ||
 		(multiply_overflow(n2, d1, &n2d1)))
-	      return(s7_truncate(sc, sc->quotient_symbol, ((long double)n1 / (long double)n2) * ((long double)d2 / (long double)d1)));
+	      return(s7_truncate(sc, sc->quotient_symbol, ((long_double)n1 / (long_double)n2) * ((long_double)d2 / (long_double)d1)));
 	    return(make_integer(sc, n1d2 / n2d1));
 	  }
 #else
@@ -14225,7 +14239,7 @@ static s7_pointer g_remainder(s7_scheme *sc, s7_pointer args)
 		  if ((multiply_overflow(n1, d2, &n1d2)) ||
 		      (multiply_overflow(n2, d1, &n2d1)))
 		    {
-		      pre_quo = ((long double)n1 / (long double)n2) * ((long double)d2 / (long double)d1);
+		      pre_quo = ((long_double)n1 / (long_double)n2) * ((long_double)d2 / (long_double)d1);
 		      if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
 			return(simple_out_of_range(sc, sc->remainder_symbol, args, its_too_large_string));
 		      if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
@@ -14577,7 +14591,7 @@ static s7_pointer g_round(s7_scheme *sc, s7_pointer args)
 
 	truncated = numerator(x) / denominator(x);
 	remains = numerator(x) % denominator(x);
-	frac = s7_fabsl((long double)remains / (long double)denominator(x));
+	frac = s7_fabsl((long_double)remains / (long_double)denominator(x));
 
 	if ((frac > 0.5) ||
 	    ((frac == 0.5) &&
@@ -15089,8 +15103,8 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 	       * (+ 1/8589934592 1073741824) -> -9223372036854775807/8589934592
 	       */
 	      if (is_null(p))
-		return(make_real(sc, (s7_double)integer(x) + ((long double)num_a / (long double)den_a)));
-	      rl_a = (s7_double)integer(x) + ((long double)num_a / (long double)den_a);
+		return(make_real(sc, (s7_double)integer(x) + ((long_double)num_a / (long_double)den_a)));
+	      rl_a = (s7_double)integer(x) + ((long_double)num_a / (long_double)den_a);
 	      goto ADD_REALS;
 	    }
 #else
@@ -15126,8 +15140,8 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 		    (add_overflow(n1d2, n2d1, &num_a)))
 		  {
 		    if (is_null(p))
-		      return(make_real(sc, ((long double)n1 / (long double)d1) + ((long double)n2 / (long double)d2)));
-		    rl_a = ((long double)n1 / (long double)d1) + ((long double)n2 / (long double)d2);
+		      return(make_real(sc, ((long_double)n1 / (long_double)d1) + ((long_double)n2 / (long_double)d2)));
+		    rl_a = ((long_double)n1 / (long_double)d1) + ((long_double)n2 / (long_double)d2);
 		    goto ADD_REALS;
 		  }
 #else
@@ -15149,13 +15163,13 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 	  }
 
 	case T_REAL:
-	  if (is_null(p)) return(make_real(sc, ((long double)num_a / (long double)den_a) + real(x)));
-	  rl_a = ((long double)num_a / (long double)den_a) + real(x);
+	  if (is_null(p)) return(make_real(sc, ((long_double)num_a / (long_double)den_a) + real(x)));
+	  rl_a = ((long_double)num_a / (long_double)den_a) + real(x);
 	  goto ADD_REALS;
 
 	case T_COMPLEX:
-	  if (is_null(p)) return(s7_make_complex(sc, ((long double)num_a / (long double)den_a) + real_part(x), imag_part(x)));
-	  rl_a = ((long double)num_a / (long double)den_a) + real_part(x);
+	  if (is_null(p)) return(s7_make_complex(sc, ((long_double)num_a / (long_double)den_a) + real_part(x), imag_part(x)));
+	  rl_a = ((long_double)num_a / (long_double)den_a) + real_part(x);
 	  im_a = imag_part(x);
 	  goto ADD_COMPLEX;
 
@@ -15264,7 +15278,7 @@ static s7_pointer add_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	(multiply_overflow(n1, d2, &n1d2)) ||
 	(multiply_overflow(n2, d1, &n2d1)) ||
 	(add_overflow(n1d2, n2d1, &dn)))
-      return(make_real(sc, ((long double)n1 / (long double)d1) + ((long double)n2 / (long double)d2)));
+      return(make_real(sc, ((long_double)n1 / (long_double)d1) + ((long_double)n2 / (long_double)d2)));
     return(s7_make_ratio(sc, dn, d1d2));
   }
 #else
@@ -15675,8 +15689,8 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 	    if ((multiply_overflow(den_a, integer(x), &di)) ||
 		(subtract_overflow(num_a, di, &di)))
 	      {
-		if (is_null(p)) return(make_real(sc, ((long double)num_a / (long double)den_a) - integer(x)));
-		rl_a = ((long double)num_a / (long double)den_a) - integer(x);
+		if (is_null(p)) return(make_real(sc, ((long_double)num_a / (long_double)den_a) - integer(x)));
+		rl_a = ((long_double)num_a / (long_double)den_a) - integer(x);
 		goto SUBTRACT_REALS;
 	      }
 	    if (is_null(p)) return(s7_make_ratio(sc, di, den_a));
@@ -15713,8 +15727,8 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 		    (subtract_overflow(n1d2, n2d1, &num_a)))
 		  {
 		    if (is_null(p))
-		      return(make_real(sc, ((long double)n1 / (long double)d1) - ((long double)n2 / (long double)d2)));
-		    rl_a = ((long double)n1 / (long double)d1) - ((long double)n2 / (long double)d2);
+		      return(make_real(sc, ((long_double)n1 / (long_double)d1) - ((long_double)n2 / (long_double)d2)));
+		    rl_a = ((long_double)n1 / (long_double)d1) - ((long_double)n2 / (long_double)d2);
 		    goto SUBTRACT_REALS;
 		  }
 #else
@@ -15730,13 +15744,13 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 	  }
 
 	case T_REAL:
-	  if (is_null(p)) return(make_real(sc, ((long double)num_a / (long double)den_a) - real(x)));
-	  rl_a = ((long double)num_a / (long double)den_a) - real(x);
+	  if (is_null(p)) return(make_real(sc, ((long_double)num_a / (long_double)den_a) - real(x)));
+	  rl_a = ((long_double)num_a / (long_double)den_a) - real(x);
 	  goto SUBTRACT_REALS;
 
 	case T_COMPLEX:
-	  if (is_null(p)) return(s7_make_complex(sc, ((long double)num_a / (long double)den_a) - real_part(x), -imag_part(x)));
-	  rl_a = ((long double)num_a / (long double)den_a) - real_part(x);
+	  if (is_null(p)) return(s7_make_complex(sc, ((long_double)num_a / (long_double)den_a) - real_part(x), -imag_part(x)));
+	  rl_a = ((long_double)num_a / (long_double)den_a) - real_part(x);
 	  im_a = -imag_part(x);
 	  goto SUBTRACT_COMPLEX;
 
@@ -16275,8 +16289,8 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 		(multiply_overflow(d1, d2, &den_a)))
 	      {
 		if (is_null(p))
-		  return(make_real(sc, ((long double)n1 / (long double)d1) * ((long double)n2 / (long double)d2)));
-		rl_a = ((long double)n1 / (long double)d1) * ((long double)n2 / (long double)d2);
+		  return(make_real(sc, ((long_double)n1 / (long_double)d1) * ((long_double)n2 / (long_double)d2)));
+		rl_a = ((long_double)n1 / (long_double)d1) * ((long_double)n2 / (long_double)d2);
 		goto MULTIPLY_REALS;
 	      }
 #else
@@ -16294,14 +16308,14 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  }
 
 	case T_REAL:
-	  if (is_null(p)) return(make_real(sc, ((long double)num_a / (long double)den_a) * real(x)));
-	  rl_a = ((long double)num_a / (long double)den_a) * real(x);
+	  if (is_null(p)) return(make_real(sc, ((long_double)num_a / (long_double)den_a) * real(x)));
+	  rl_a = ((long_double)num_a / (long_double)den_a) * real(x);
 	  goto MULTIPLY_REALS;
 
 	case T_COMPLEX:
 	  {
 	    s7_double frac;
-	    frac = ((long double)num_a / (long double)den_a);
+	    frac = ((long_double)num_a / (long_double)den_a);
 	    if (is_null(p)) return(s7_make_complex(sc, frac * real_part(x), frac * imag_part(x)));
 	    rl_a = frac * real_part(x);
 	    im_a = frac * imag_part(x);
@@ -16820,7 +16834,7 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
 	  {
 	    s7_int dn;
 	    if (multiply_overflow(denominator(x), integer(y), &dn))
-	      return(make_real(sc, (long double)numerator(x) / ((long double)denominator(x) * (s7_double)integer(y))));
+	      return(make_real(sc, (long_double)numerator(x) / ((long_double)denominator(x) * (s7_double)integer(y))));
 	    return(s7_make_ratio(sc, numerator(x), dn));
 	  }
 #else
@@ -17196,7 +17210,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 			      if ((valb > vala) ||
 				  ((vala == valb) && (is_t_integer(x))) ||
 				  /* sigh -- both are ratios and the int32_t parts are equal */
-				  (((long double)(num_a % den_a) / (long double)den_a) <= ((long double)(num_b % den_b) / (long double)den_b)))
+				  (((long_double)(num_a % den_a) / (long_double)den_a) <= ((long_double)(num_b % den_b) / (long_double)den_b)))
 				x = y;
 			    }
 			}
@@ -17390,7 +17404,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 			    {
 			      if ((valb < vala) ||
 				  ((vala == valb) && (is_t_integer(y))) ||
-				  (((long double)(num_a % den_a) / (long double)den_a) >= ((long double)(num_b % den_b) / (long double)den_b)))
+				  (((long_double)(num_a % den_a) / (long_double)den_a) >= ((long_double)(num_b % den_b) / (long_double)den_b)))
 				x = y;
 			    }
 			}
@@ -17540,7 +17554,7 @@ static s7_pointer g_equal(s7_scheme *sc, s7_pointer args)
 
 	    case T_REAL:
 	      if (rl_a == 0.0)
-		rl_a = ((long double)num_a) / ((long double)den_a);
+		rl_a = ((long_double)num_a) / ((long_double)den_a);
 	      if (rl_a != real(x)) goto NOT_EQUAL;
 	      break;
 
@@ -19130,7 +19144,7 @@ s7_double s7_real_part(s7_pointer x)
     case T_COMPLEX:     return(real_part(x));
 #if WITH_GMP
     case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / (long double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
     case T_BIG_COMPLEX: return((s7_double)mpfr_get_d(mpc_realref(big_complex(x)), GMP_RNDN));
 #endif
@@ -23675,7 +23689,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 	    {
 	      char tmp[256];
 	      int32_t len;
-	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" PRId64 "?", caller, name, (long)bytes, size);
+	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" print_s7_int "?", caller, name, (long)bytes, size);
 	      port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
 	    }
 	  size = bytes;
@@ -26248,7 +26262,15 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	}
       break;
 
-      /* should we traverse function/macro bodies?  They can be cyclic. */
+    case T_CLOSURE:
+    case T_CLOSURE_STAR:
+      if (collect_shared_info(sc, ci, closure_body(top), stop_at_print_length))
+	{
+	  if (peek_shared_ref(ci, top) == 0)
+	    check_collected(top, ci);
+	  top_cyclic = true;
+	}
+      break;
 
     case T_C_POINTER:
       if ((has_structure(raw_pointer_type(top))) &&
@@ -26687,7 +26709,7 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 				{
 				  len = snprintf(do_str, DO_STR_LEN, "(let ((port (open-input-file \"%s\")))", filename);
 				  port_write_string(port)(sc, do_str, len, port);
-				  len = snprintf(do_str, DO_STR_LEN, " (do ((i 0 (+ i 1)) (c (read-char port) (read-char port))) ((= i %" PRId64 ") port)))", 
+				  len = snprintf(do_str, DO_STR_LEN, " (do ((i 0 (+ i 1)) (c (read-char port) (read-char port))) ((= i %" print_s7_int ") port)))", 
 						 port_position(obj) - 1);
 				}
 			      else len = snprintf(do_str, DO_STR_LEN, "(open-input-file \"%s\")", filename);
@@ -26787,7 +26809,7 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
   if (cur_dim > 0)
     multivector_indices_to_string(sc, (index - ind) / size, vect, str, cur_dim - 1);
 
-  snprintf(buf, 64, " %" PRId64, ind);
+  snprintf(buf, 64, " %" print_s7_int, ind);
 #ifdef __OpenBSD__
   strlcat(str, buf, 128); /* 128=length of str */
 #else
@@ -26869,7 +26891,7 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
   vlen = vector_length(vect);
   if (vector_rank(vect) == 1)
     {
-      plen = snprintf(buf, 128, "(make-%svector %" PRId64 " ", vtyp, vlen);
+      plen = snprintf(buf, 128, "(make-%svector %" print_s7_int " ", vtyp, vlen);
       port_write_string(port)(sc, buf, plen, port);
     }
   else
@@ -26879,10 +26901,10 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
       port_write_string(port)(sc, buf, plen, port);
       for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 	{
-	  plen = snprintf(buf, 128, "%" PRId64 " ", vector_dimension(vect, dim));
+	  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
 	  port_write_string(port)(sc, buf, plen, port);
 	}
-      plen = snprintf(buf, 128, "%" PRId64 ") ", vector_dimension(vect, dim));
+      plen = snprintf(buf, 128, "%" print_s7_int ") ", vector_dimension(vect, dim));
       port_write_string(port)(sc, buf, plen, port);
     }
 }
@@ -26899,7 +26921,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%" PRId64 "D()", vector_ndims(vect));
+	  plen = snprintf(buf, 32, "#%" print_s7_int "D()", vector_ndims(vect));
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else port_write_string(port)(sc, "#()", 3, port);
@@ -26912,7 +26934,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (vector_rank(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%" PRId64 "D(...)", vector_ndims(vect));
+	      plen = snprintf(buf, 32, "#%" print_s7_int "D(...)", vector_ndims(vect));
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_string(port)(sc, "#(...)", 6, port);
@@ -26993,7 +27015,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			}
 		      else
 			{
-			  len = sprintf(buf, "  (set! (<%d> %" PRId64 ") <%d>)\n", vref, i, eref);
+			  len = sprintf(buf, "  (set! (<%d> %" print_s7_int ") <%d>)\n", vref, i, eref);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -27011,7 +27033,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			}
 		      else
 			{
-			  len = sprintf(buf, "  (set! (<%d> %" PRId64 ") ", vref, i);
+			  len = sprintf(buf, "  (set! (<%d> %" print_s7_int ") ", vref, i);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -27033,10 +27055,10 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
-		  plen = snprintf(buf, 128, "%" PRId64 " ", vector_dimension(vect, dim));
+		  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
 		  port_write_string(port)(sc, buf, plen, port);
 		}
-	      plen = snprintf(buf, 128, "%" PRId64, vector_dimension(vect, dim));
+	      plen = snprintf(buf, 128, "%" print_s7_int, vector_dimension(vect, dim));
 	      port_write_string(port)(sc, buf, plen, port);
 	      port_write_string(port)(sc, "))", 2, port);
 	    }
@@ -27065,10 +27087,10 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
-		  plen = snprintf(buf, 128, "%" PRId64 " ", vector_dimension(vect, dim));
+		  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
 		  port_write_string(port)(sc, buf, plen, port);
 		}
-	      plen = snprintf(buf, 128, "%" PRId64, vector_dimension(vect, dim));
+	      plen = snprintf(buf, 128, "%" print_s7_int, vector_dimension(vect, dim));
 	      port_write_string(port)(sc, buf, plen, port);
 	      port_write_string(port)(sc, "))", 2, port);
 	    }
@@ -27081,7 +27103,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  bool last = false;
 	  if (vector_ndims(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%" PRId64 "D", vector_ndims(vect));
+	      plen = snprintf(buf, 32, "#%" print_s7_int "D", vector_ndims(vect));
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_character(port)(sc, '#', port);
@@ -27113,7 +27135,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
   if (len == 0)
     {
       if (vector_rank(vect) > 1)
-	plen = snprintf(buf, 32, "#%c%" PRId64 "D()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+	plen = snprintf(buf, 32, "#%c%" print_s7_int "D()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
       else plen = snprintf(buf, 32, "#%c()", (is_int_vector(vect)) ? 'i' : 'r');
       port_write_string(port)(sc, buf, plen, port);
       return(-1);
@@ -27126,7 +27148,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%c%" PRId64 "D(...)", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+	  plen = snprintf(buf, 32, "#%c%" print_s7_int "D(...)", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else 
@@ -27172,7 +27194,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-	  plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
+	  plen = snprintf(buf, 128, "%" print_s7_int, int_vector_element(vect, 0));
 	  port_write_string(port)(sc, buf, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  return;
@@ -27184,11 +27206,11 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       port_write_string(port)(sc, "#i(", 3, port);
       if (!is_string_port(port))
 	{
-	  plen = snprintf(buf, 128, "%" PRId64, int_vector_element(vect, 0));
+	  plen = snprintf(buf, 128, "%" print_s7_int, int_vector_element(vect, 0));
 	  port_write_string(port)(sc, buf, plen, port);
 	  for (i = 1; i < len; i++)
 	    {
-	      plen = snprintf(buf, 128, " %" PRId64, int_vector_element(vect, i));
+	      plen = snprintf(buf, 128, " %" print_s7_int, int_vector_element(vect, i));
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	}
@@ -27207,7 +27229,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 	      next_len = port_data_size(port) - 128;
 	      dbuf = port_data(port);
 	    }
-	  plen = snprintf((char *)(dbuf + new_len), 128, "%" PRId64, int_vector_element(vect, 0));
+	  plen = snprintf((char *)(dbuf + new_len), 128, "%" print_s7_int, int_vector_element(vect, 0));
 	  new_len += plen;
 	  for (i = 1; i < len; i++)
 	    {
@@ -27217,7 +27239,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-	      plen = snprintf((char *)(dbuf + new_len), 128, " %" PRId64, int_vector_element(vect, i));
+	      plen = snprintf((char *)(dbuf + new_len), 128, " %" print_s7_int, int_vector_element(vect, i));
 	      new_len += plen;
 	    }
 	  port_position(port) = new_len;
@@ -27232,7 +27254,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#i%" PRId64 "D", vector_ndims(vect));
+    plen = snprintf(buf, 32, "#i%" print_s7_int "D", vector_ndims(vect));
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -27241,7 +27263,6 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       (is_immutable(vect)))
     port_write_character(port)(sc, ')', port);
 }
-
 
 static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ignored)
 {
@@ -27271,7 +27292,11 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
+#if WITH_QMATH
+	  plen = quadmath_snprintf(buf, 128, "%.*Qg)", float_format_precision, first);
+#else
 	  plen = snprintf(buf, 128, "%.*g)", float_format_precision, first);
+#endif
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
 	}
@@ -27298,7 +27323,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#r%" PRId64 "D", vector_ndims(vect));
+    plen = snprintf(buf, 32, "#r%" print_s7_int "D", vector_ndims(vect));
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -27353,7 +27378,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
 	      if (i == vlen)
 		{
 		  char buf[128];
-		  plen = snprintf(buf, 128, "(make-byte-vector %" PRId64 " ", vlen);
+		  plen = snprintf(buf, 128, "(make-byte-vector %" print_s7_int " ", vlen);
 		  port_write_string(port)(sc, buf, plen, port);
 		  plen = snprintf(buf, 128, "%u)", (uint32_t)c);
 		  port_write_string(port)(sc, buf, plen, port);
@@ -27404,7 +27429,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 		  int32_t nlen;
 		  s7_pointer c;
 		  c = chars[(int32_t)((uint8_t)(buf[0]))];
-		  nlen = snprintf(buf, 128, "(make-string %" PRId64 " ", string_length(obj));
+		  nlen = snprintf(buf, 128, "(make-string %" print_s7_int " ", string_length(obj));
 		  port_write_string(port)(sc, buf, nlen, port);
 		  port_write_string(port)(sc, character_name(c), character_name_length(c), port);
 		  /* (string-ref (eval-string (object->string (make-string 14766 (integer->char 255)) :readable)) 0) */
@@ -27615,7 +27640,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  int32_t lref;
 		  if (i == 0)
 		    plen = snprintf(buf, 128, "  (set-car! %s ", lst_name);
-		  else plen = snprintf(buf, 128, "  (set! (%s %" PRId64 ") ", lst_name, i);
+		  else plen = snprintf(buf, 128, "  (set! (%s %" print_s7_int ") ", lst_name, i);
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  lref = peek_shared_ref(ci, car(x));
 		  if (lref == 0)
@@ -27640,7 +27665,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		    {
 		      if (i == 1)
 			plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) <%d>)\n", (lst_local) ? "    " : "  ", lst_name, ref);
-		      else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" PRId64 ") <%d>)\n", (lst_local) ? "    " : "  ", lst_name, i, ref);
+		      else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" print_s7_int ") <%d>)\n", (lst_local) ? "    " : "  ", lst_name, i, ref);
 		    }
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  break;
@@ -27654,7 +27679,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		{
 		  if (true_len == -2)
 		    plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) ", (lst_local) ? "    " : "  ", lst_name);
-		  else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" PRId64 ") ", (lst_local) ? "    " : "  ", lst_name, len - 2);
+		  else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" print_s7_int ") ", (lst_local) ? "    " : "  ", lst_name, len - 2);
 		}
 	      port_write_string(local_port)(sc, buf, plen, local_port);
 	      object_to_port_with_circle_check(sc, x, local_port, use_write, ci);
@@ -29337,7 +29362,7 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
   tmpbuf_malloc(str, len);
 
   nlen = snprintf(str, len,
-		  "\n<%s %s,\n  current: %s[%d] %s,\n  previous: %s[%d] %s\n  hloc: %" PRId64 " (%d uses), free: %s[%d], alloc: %s[%d]>",
+		  "\n<%s %s,\n  current: %s[%d] %s,\n  previous: %s[%d] %s\n  hloc: %" print_s7_int " (%d uses), free: %s[%d], alloc: %s[%d]>",
 		  excl_name, current_bits,
 		  obj->current_alloc_func, obj->current_alloc_line, allocated_bits,
 		  obj->previous_alloc_func, obj->previous_alloc_line, previous_bits,
@@ -29359,7 +29384,7 @@ static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, in
     {
       s7_pointer slot;
       fprintf(stderr, "%s%s[%d]: %s unbound%s\n", BOLD_TEXT, func, line, symbol_name(sym), UNBOLD_TEXT);
-      fprintf(stderr, "  symbol_id: %" PRId64 ", let_id: %" PRId64 ", bits: %s", symbol_id(sym), let_id(sc->envir), describe_type_bits(sc, sym));
+      fprintf(stderr, "  symbol_id: %" print_s7_int ", let_id: %" print_s7_int ", bits: %s", symbol_id(sym), let_id(sc->envir), describe_type_bits(sc, sym));
       slot = symbol_to_local_slot(sc, sym, sc->envir);
       if (is_slot(slot)) fprintf(stderr, ", slot: %s", DISPLAY(slot));
       fprintf(stderr, "\n");
@@ -29488,7 +29513,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 			    {
 			      int32_t nlen;
 			      char str[128];
-			      nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" PRId64 ") iter) (iter)))", iterator_position(obj));
+			      nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" print_s7_int ") iter) (iter)))", iterator_position(obj));
 			      port_write_string(port)(sc, str, nlen, port);
 			    }
 			}
@@ -29537,7 +29562,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 		  ci->init_port = s7_open_output_string(sc);
 		  ci->init_loc = s7_gc_protect(sc, ci->init_port);
 		}
-	      nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" PRIdPTR, -peek_shared_ref(ci, obj), (intptr_t)raw_pointer(obj));
+	      nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" print_pointer, -peek_shared_ref(ci, obj), (intptr_t)raw_pointer(obj));
 	      port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 	      
 	      if ((raw_pointer_type(obj) != sc->F) ||
@@ -29562,7 +29587,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 	}
       else
 	{
-	  nlen = snprintf(buf, 128, "(c-pointer %" PRIdPTR, (intptr_t)raw_pointer(obj));
+	  nlen = snprintf(buf, 128, "(c-pointer %" print_pointer, (intptr_t)raw_pointer(obj));
 	  port_write_string(port)(sc, buf, nlen, port);
 	  if ((raw_pointer_type(obj) != sc->F) ||
 	      (raw_pointer_info(obj) != sc->F))
@@ -45583,7 +45608,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	    {
 	      len = safe_strlen(recent_input) + safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 64;
 	      msg = (char *)malloc(len * sizeof(char));
-	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" PRId64 "]",
+	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" print_s7_int "]",
 			     errmsg, (recent_input) ? recent_input : "", port_filename(pt), port_line_number(pt),
 			     sc->current_file, sc->current_line);
 	    }
@@ -45594,7 +45619,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 
 	      if ((sc->current_file) &&
 		  (sc->current_line >= 0))
-		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%" PRId64 "]",
+		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%" print_s7_int "]",
 			       errmsg, (recent_input) ? recent_input : "",
 			       sc->current_file, sc->current_line);
 	      else len = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
@@ -45612,10 +45637,10 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       msg = (char *)malloc(len * sizeof(char));
 
       if (string_error)
-	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" PRId64 "]",
+	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" print_s7_int "]",
 		       errmsg, port_filename(pt), port_line_number(pt),
 		       sc->strbuf, sc->current_file, sc->current_line);
-      else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" PRId64 "]",
+      else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_uncopied_with_length(sc, msg, len))));
@@ -45832,12 +45857,12 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       msg = (char *)malloc(len * sizeof(char));
       if (syntax_msg)
 	{
-	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" PRId64 "]\n%s",
+	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]\n%s",
 			 port_filename(pt), port_line_number(pt),
 			 sc->current_file, sc->current_line, syntax_msg);
 	  free(syntax_msg);
 	}
-      else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" PRId64 "]",
+      else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_uncopied_with_length(sc, msg, len))));
@@ -46585,7 +46610,7 @@ static s7_pointer all_x_c(s7_scheme *sc, s7_pointer arg)       {return(arg);}
 static s7_pointer all_x_q(s7_scheme *sc, s7_pointer arg)       {return(cadr(arg));}
 static s7_pointer all_x_unsafe_s(s7_scheme *sc, s7_pointer arg){return(symbol_to_value_checked(sc, arg));}
 static s7_pointer all_x_s(s7_scheme *sc, s7_pointer arg)       {return(symbol_to_value_unchecked(sc, arg));}
-static s7_pointer all_x_k(s7_scheme *sc, s7_pointer arg)       {return(arg);}
+static s7_pointer all_x_k(s7_scheme *sc, s7_pointer arg)       {return(arg);} /* all_x_eval considers "else" a keyword */
 static s7_pointer all_x_c_c(s7_scheme *sc, s7_pointer arg)     {return(c_call(arg)(sc, cdr(arg)));}
 static s7_pointer all_x_not_c_c(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, is_false(sc, c_call(cadr(arg))(sc, cdadr(arg)))));}
 
@@ -47581,7 +47606,8 @@ static s7_pointer all_x_c_s_opcsq(s7_scheme *sc, s7_pointer arg)
 /* unimplemented:
    h_safe_c_qq h_safe_c_qc h_safe_c_sqs 
    h_safe_c_opcq_opssq 
-   h_safe_c_s_op_opssq_sq h_safe_c_s_op_opsq_cq h_safe_c_s_op_s_opssqq h_safe_c_op_opssq_q_s h_safe_c_s_op_opssq_opssqq h_safe_c_c_op_s_opcqq 
+   h_safe_c_s_op_opssq_sq h_safe_c_s_op_opsq_cq h_safe_c_s_op_s_opssqq h_safe_c_op_opssq_q_s h_safe_c_s_op_opssq_opssqq h_safe_c_c_op_s_opcqq
+     none of these are ever hit in lg! [call has some]
 */
 
 static s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
@@ -47781,6 +47807,7 @@ static void all_x_function_init(void)
   all_x_function[HOP_SAFE_C_CSC] = all_x_c_csc;
   all_x_function[HOP_SAFE_C_CCS] = all_x_c_ccs;
   all_x_function[HOP_SAFE_CLOSURE_S_C] = all_x_closure_s;
+  all_x_function[HOP_SAFE_CLOSURE_S_L] = all_x_closure_s;
   all_x_function[HOP_SAFE_CLOSURE_A_C] = all_x_closure_a;
   all_x_function[HOP_SAFE_C_ALL_S] = all_x_c_all_s;
   all_x_function[HOP_SAFE_C_opAq] = all_x_c_opaq;
@@ -47955,6 +47982,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	    case HOP_SAFE_CLOSURE_S_C:
 	      if (c_call(car(closure_body(opt_lambda(arg)))) == g_and_2)
 		return(all_x_and_2_closure_s);
+	    case HOP_SAFE_CLOSURE_S_L:
 	      return(all_x_closure_s);
 
 	    default:
@@ -56467,7 +56495,6 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer args)
   s7_pointer body, f, seq;
 
   seq = cadr(args);
-  if (is_null(seq)) return(sc->unspecified);
   f = car(args);
   body = closure_body(f);
   
@@ -56598,7 +56625,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer args)
       set_pair_no_opt(body);
       sc->envir = old_e;
     }
-  
+
   if ((is_null(cdr(body))) &&
       (is_pair(seq)))
     {
@@ -56746,7 +56773,6 @@ static s7_pointer g_map_closure(s7_scheme *sc, s7_pointer args)
   s7_pointer body, f, seq;
 
   seq = cadr(args);
-  if (is_null(seq)) return(sc->nil);
   f = car(args);
   body = closure_body(f);
 
@@ -60520,7 +60546,11 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      s7_pointer bexpr;
 		      bexpr = car(body);
 		      if (is_h_safe_c_c(bexpr))
-			set_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_C);
+			{
+			  if (c_callee(bexpr) == g_lint_let_ref)
+			    set_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_L);
+			  else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_C);
+			}
 		      else
 			{
 			  if ((!is_optimized(bexpr)) &&
@@ -69831,7 +69861,7 @@ static void define2_ex(s7_scheme *sc)
 	      for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
 		if (slot_symbol(slot) == sc->code)
 		  {
-		    /* fprintf(stderr, "set slot: %s (%" PRId64 ") in %s (%" PRId64 ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
+		    /* fprintf(stderr, "set slot: %s (%" print_s7_int ") in %s (%" print_s7_int ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
 		    slot_set_value(slot, new_func);
 		    symbol_set_local(sc->code, sc->let_number, slot);	
 		    set_local(sc->code);
@@ -69839,7 +69869,7 @@ static void define2_ex(s7_scheme *sc)
 		    return;
 		  }
 
-	      /* fprintf(stderr, "add slot: %s (%" PRId64 ") in %s (%" PRId64 ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
+	      /* fprintf(stderr, "add slot: %s (%" print_s7_int ") in %s (%" print_s7_int ")\n", DISPLAY_80(sc->code), symbol_id(sc->code), DISPLAY_80(sc->envir), let_id(sc->envir)); */
 	      new_cell_no_check(sc, slot, T_SLOT);	
 	      slot_set_symbol(slot, sc->code);
 	      slot_set_value(slot, new_func);
@@ -71546,7 +71576,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case OP_SAFE_C_SZ:
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_SAFE_C_SZ:
-		  /* about 10% appear to be local symbols */
 		  check_stack_size(sc);
 		  push_stack(sc, OP_EVAL_ARGS_P_2, symbol_to_value_unchecked(sc, cadr(code)), code);
 		  sc->code = T_Pair(caddr(code));	            /* splitting out the all_x cases here and elsewhere saves nothing */
@@ -71941,13 +71970,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_C_ALL_X:
 		  {
 		    s7_pointer args, p;
-		    
 		    sc->args = safe_list_if_possible(sc, integer(arglist_length(code)));
 		    for (args = cdr(code), p = sc->args; is_pair(args); args = cdr(args), p = cdr(p))
 		      set_car(p, c_call(args)(sc, car(args)));
 		    clear_list_in_use(sc->args);
 		    sc->current_safe_list = 0;
-		    
 		    sc->value = c_call(code)(sc, sc->args);
 		    /* we can't release a temp here:
 		     *   (define (hi) (vector 14800 14020 (oscil os) (* 1/3 14800) 14800 (* 1/2 14800))) (hi) where os returns non-zero:
@@ -71976,9 +72003,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_SQS:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_SQS:
+		case HOP_SAFE_C_SQS:            /* (let-set! gen 'fm fm) */
 		  {
-		    /* (let-set! gen 'fm fm) */
 		    s7_pointer val1, args;
 		    args = cdr(code);
 		    val1 = symbol_to_value_unchecked(sc, car(args));
@@ -71991,12 +72017,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_SCS:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_SCS:
+		case HOP_SAFE_C_SCS:          /* (define (hi) (let ((x 32) (lst '(0 1))) (list-set! lst 0 x) x)) */
 		  {
-		    /* (define (hi) (let ((x 32) (lst '(0 1))) (list-set! lst 0 x) x)) */
 		    s7_pointer val1, args;
 		    args = cdr(code);
-		    
 		    val1 = symbol_to_value_unchecked(sc, car(args));
 		    set_car(sc->t3_3, symbol_to_value_unchecked(sc, opt_sym2(args)));
 		    set_car(sc->t3_2, opt_con1(args));
@@ -72007,12 +72031,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_SSC:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_SSC:
+		case HOP_SAFE_C_SSC:          /* (define (hi) (let ((v #(0 1 2)) (i 0)) (vector-set! v i 1) v)) */
 		  {
-		    /* (define (hi) (let ((v #(0 1 2)) (i 0)) (vector-set! v i 1) v)) */
 		    s7_pointer val1, args;
 		    args = cdr(code);
-		    
 		    val1 = symbol_to_value_unchecked(sc, car(args));
 		    set_car(sc->t3_2, symbol_to_value_unchecked(sc, opt_sym1(args)));
 		    set_car(sc->t3_3, opt_con2(args));
@@ -72023,12 +72045,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_SCC:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_SCC:
+		case HOP_SAFE_C_SCC:                      /* (make-env E :length 100) */
 		  {
-		    /* (make-env E :length 100) */
 		    s7_pointer args;
 		    args = cdr(code);
-		    
 		    set_car(sc->t3_1, symbol_to_value_unchecked(sc, car(args)));
 		    set_car(sc->t3_2, opt_con1(args));
 		    set_car(sc->t3_3, opt_con2(args));
@@ -72042,7 +72062,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  {
 		    s7_pointer args;
 		    args = cdr(code);
-		    
 		    set_car(sc->t3_2, symbol_to_value_unchecked(sc, opt_sym1(args)));
 		    set_car(sc->t3_1, car(args));
 		    set_car(sc->t3_3, opt_con2(args));
@@ -72056,7 +72075,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  {
 		    s7_pointer args;
 		    args = cdr(code);
-		    
 		    set_car(sc->t3_3, symbol_to_value_unchecked(sc, opt_sym1(args)));
 		    set_car(sc->t3_1, car(args));
 		    set_car(sc->t3_2, opt_con2(args));
@@ -72070,7 +72088,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  {
 		    s7_pointer val1, args;
 		    args = cdr(code);
-		    
 		    val1 = symbol_to_value_unchecked(sc, opt_sym2(args));
 		    set_car(sc->t3_2, symbol_to_value_unchecked(sc, opt_sym1(args)));
 		    set_car(sc->t3_3, val1);
@@ -72085,7 +72102,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  {
 		    s7_pointer val1, val2, args;
 		    args = cdr(code);
-		    
 		    val1 = symbol_to_value_unchecked(sc, car(args));
 		    val2 = symbol_to_value_unchecked(sc, opt_sym1(args));
 		    set_car(sc->t3_3, symbol_to_value_unchecked(sc, opt_sym2(args)));
@@ -72131,9 +72147,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_op_S_opSq_q:
 		  if ((!c_function_is_ok(sc, code)) || (!c_function_is_ok(sc, cadr(code))) || (!c_function_is_ok(sc, caddr(cadr(code))))) break;
-		case HOP_SAFE_C_op_S_opSq_q:
+		case HOP_SAFE_C_op_S_opSq_q:    /* (exp (* r (cos x))) */
 		  {
-		    /* (exp (* r (cos x))) */
 		    s7_pointer outer, args;
 		    outer = cadr(code);
 		    args = caddr(outer);
@@ -72147,9 +72162,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 		case OP_SAFE_C_op_opSq_S_q:
 		  if ((!c_function_is_ok(sc, code)) || (!c_function_is_ok(sc, cadr(code))) || (!c_function_is_ok(sc, cadadr(code)))) break;
-		case HOP_SAFE_C_op_opSq_S_q:
+		case HOP_SAFE_C_op_opSq_S_q:     /* (exp (* (cos x) r)) */
 		  {
-		    /* (exp (* (cos x) r)) */
 		    s7_pointer outer, args;
 		    outer = cadr(code);
 		    args = cadr(outer);
@@ -72533,9 +72547,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_S_op_opSq_Cq:
 		  if ((!c_function_is_ok(sc, code)) || (!c_function_is_ok(sc, caddr(code))) || (!c_function_is_ok(sc, cadr(caddr(code))))) break;
-		case HOP_SAFE_C_S_op_opSq_Cq:
+		case HOP_SAFE_C_S_op_opSq_Cq:                      /* (< a (- (length b) 1) */
 		  {
-		    /* (< a (- (length b) 1) */
 		    s7_pointer args, val, val1;
 		    args = caddr(code);
 		    val1 = cadr(args);
@@ -72589,25 +72602,20 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_S_op_opSSq_opSSqq:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_S_op_opSSq_opSSqq:
+		case HOP_SAFE_C_S_op_opSSq_opSSqq:                 /* (* s (f3 (f1 a b) (f2 c d))) */
 		  {
-		    /* (* s (f3 (f1 a b) (f2 c d))) */
 		    s7_pointer args, op1, op2;
 		    int32_t tx;
 		    tx = next_tx(sc);
-		    
 		    args = caddr(code);
 		    op1 = cadr(args);
 		    op2 = caddr(args);
-		    
 		    set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(op1)));
 		    set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(op1)));
 		    sc->t_temps[tx] = c_call(op1)(sc, sc->t2_1);
-		    
 		    set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(op2)));
 		    set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(op2)));
 		    set_car(sc->t2_2, c_call(op2)(sc, sc->t2_1));
-		    
 		    set_car(sc->t2_1, sc->t_temps[tx]);
 		    set_car(sc->t2_2, c_call(args)(sc, sc->t2_1));
 		    set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(code)));
@@ -72691,9 +72699,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_S_opSSq:
 		  if (!c_function_is_ok_caddr(sc, code)) break;
-		case HOP_SAFE_C_S_opSSq:
+		case HOP_SAFE_C_S_opSSq:              /* (* a (- b c)) */
 		  {
-		    /* (* a (- b c)) */
 		    s7_pointer val1, val2, args;
 		    args = cdr(code);
 		    val1 = symbol_to_value_unchecked(sc, car(args));
@@ -72708,15 +72715,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_S_opCSq:
 		  if (!c_function_is_ok_caddr(sc, code)) break;
-		case HOP_SAFE_C_S_opCSq:
+		case HOP_SAFE_C_S_opCSq:              /* (* a (- 1 b)) or (logand a (ash 1 b)) */
 		  {
-		    /* (* a (- 1 b)) or (logand a (ash 1 b)) */
 		    s7_pointer val1, args;
 		    args = cdr(code);
 		    val1 = symbol_to_value_unchecked(sc, car(args));                     /* a */
 		    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym2(args)));    /* b */
-		    set_car(sc->t2_1, opt_con1(args));                               /* 1 */
-		    set_car(sc->t2_2, c_call(cadr(args))(sc, sc->t2_1));             /* (- 1 b) */
+		    set_car(sc->t2_1, opt_con1(args));                                   /* 1 */
+		    set_car(sc->t2_2, c_call(cadr(args))(sc, sc->t2_1));                 /* (- 1 b) */
 		    set_car(sc->t2_1, val1);
 		    sc->value = c_call(code)(sc, sc->t2_1);
 		    goto START;
@@ -72776,7 +72782,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    arg3 = symbol_to_value_unchecked(sc, opt_sym2(cdr(code)));  /* cadddr(code) */
 		    set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(arg1)));
 		    set_car(sc->t3_1, c_call(arg1)(sc, sc->t1_1));
-		    set_car(sc->t3_2, opt_con1(cdr(code)));                 /* cadr(caddr(code)) */
+		    set_car(sc->t3_2, opt_con1(cdr(code)));                     /* cadr(caddr(code)) */
 		    set_car(sc->t3_3, arg3);
 		    sc->value = c_call(code)(sc, sc->t3_1);
 		    goto START;
@@ -72822,9 +72828,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  
 		case OP_SAFE_C_C_op_S_opCqq:
 		  if (!c_function_is_ok(sc, code)) break;
-		case HOP_SAFE_C_C_op_S_opCqq:
+		case HOP_SAFE_C_C_op_S_opCqq:             /* (define (hi a) (< 1.0 (+ a (* a 2)))) */
 		  {
-		    /* (define (hi a) (< 1.0 (+ a (* a 2)))) */
 		    s7_pointer args, arg1, arg2;
 		    args = cdr(code);     /* C_op_S_opCqq */
 		    arg1 = cadr(args);    /* op_S_opCqq */
@@ -72958,7 +72963,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    args = cdr(code);
 		    val3 = symbol_to_value_unchecked(sc, caddr(car(args)));
 		    val4 = symbol_to_value_unchecked(sc, caddr(cadr(args)));
-		    
 		    set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(car(args))));
 		    set_car(sc->t2_2, val3);
 		    sc->t_temps[tx] = c_call(car(args))(sc, sc->t2_1);
@@ -73087,9 +73091,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_C_AP:
 		  {
 		    s7_pointer val;
-		    /*   op_c_ap_1 sends us to apply which calls check_stack_size I think */
 		    val = c_call(cdr(code))(sc, cadr(code));
-		    push_stack(sc, OP_C_AP_1, val, code);
+		    push_stack(sc, OP_C_AP_1, val, code); /*   op_c_ap_1 sends us to apply which calls check_stack_size I think */
 		    sc->code = caddr(code);
 		    goto EVAL;
 		  }
@@ -73099,31 +73102,30 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_C_FA:
 		  {
 		    s7_pointer f;
-		    int32_t tx;
-		    tx = next_tx(sc);
 		    sc->code = cdadr(code);
 		    make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
-		    sc->t_temps[tx] = f;
-		    /* f=new closure cell, car=args, cdr=body, can't use sc->value here because c_call below may clobber it */
+		    sc->w = f;  /* f=new closure cell, car=args, cdr=body, can't use sc->value here because c_call below may clobber it */
 		    sc->args = list_2(sc, f, c_call(cddr(code))(sc, caddr(code)));
 		    sc->value = c_call(code)(sc, sc->args);
-		    sc->t_temps[tx] = sc->F;
 		    goto START;
 		  }
 
-		case OP_C_FA_1: 
+		case OP_C_FA_1:  /* here only if for-each or map */
 		  if (!c_function_is_ok(sc, code)) break;
 		case HOP_C_FA_1:
 		  {
 		    s7_pointer f;
-		    int32_t tx;
-		    tx = next_tx(sc);
+		    sc->value = c_call(cddr(code))(sc, caddr(code));
+		    if (is_null(sc->value))
+		      {
+			if (c_call(code) == g_for_each_closure)
+			  sc->value = sc->unspecified;
+			goto START;
+		      }
 		    sc->code = cdadr(code);
 		    make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);
-		    sc->t_temps[tx] = f;
-		    sc->value = c_call(code)(sc, set_plist_2(sc, f, c_call(cddr(code))(sc, caddr(code))));
+		    sc->value = c_call(code)(sc, set_plist_2(sc, f, sc->value));
 		    set_plist_2(sc, sc->nil, sc->nil); /* hooboy -- GC protects plists */
-		    sc->t_temps[tx] = sc->F;
 		    goto START;
 		  }
 
@@ -73440,6 +73442,33 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->code = car(closure_body(f));
 		    sc->value = c_call(sc->code)(sc, cdr(sc->code));
 		    goto START;
+		  }
+
+		case OP_SAFE_CLOSURE_S_L:
+		  if (!closure_is_equal(sc, code)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}
+		case HOP_SAFE_CLOSURE_S_L:
+		  {
+		    s7_pointer lt;
+		    lt = symbol_to_value_unchecked(sc, opt_sym2(code));
+		    if (is_pair(lt))
+		      {
+			lt = cdr(lt);
+			if (is_let(lt))
+			  {
+			    s7_pointer y, sym;
+			    sym = opt_sym3(cdar(closure_body(opt_lambda(code))));
+			    for (y = let_slots(lt); is_slot(y); y = next_slot(y))
+			      if (slot_symbol(y) == sym)
+				{
+				  sc->value = slot_value(y);
+				  goto START;
+				}
+			    sc->value = lint_let_ref_1(sc, outlet(lt), sym);
+			    goto START;
+			  }
+			wrong_type_argument_with_type(sc, sc->let_ref_symbol, 1, lt, a_let_string);
+		      }
+		    simple_wrong_type_argument(sc, sc->cdr_symbol, lt, T_PAIR);
 		  }
 
 		case OP_SAFE_CLOSURE_S_P:
@@ -77973,7 +78002,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 	default:
-	  fprintf(stderr, "unknown operator: %" PRIdPTR " in %s\n", sc->cur_op, DISPLAY(current_code(sc)));
+	  fprintf(stderr, "unknown operator: %" print_pointer " in %s\n", sc->cur_op, DISPLAY(current_code(sc)));
 #if S7_DEBUGGING
 	  fprintf(stderr, "stack size: %u\n", sc->stack_size);
 	  if (sc->stack_end < sc->stack_start) 
@@ -78268,7 +78297,7 @@ static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
     case T_INTEGER:
       if (sizeof(s7_int) == sizeof(long int))
 	mpfr_init_set_si(big_real(x), integer(p), GMP_RNDN);
-      else mpfr_init_set_ld(big_real(x), (long double)integer(p), GMP_RNDN);
+      else mpfr_init_set_ld(big_real(x), (long_double)integer(p), GMP_RNDN);
       break;
       
     case T_RATIO:
@@ -82325,14 +82354,14 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 #ifdef __linux__
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
-  n = snprintf(buf, 1024, "process size: %" PRId64 ", time: %ld.%d\n", (s7_int)(info.ru_maxrss * 1024), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
+  n = snprintf(buf, 1024, "process size: %" print_s7_int ", time: %ld.%d\n", (s7_int)(info.ru_maxrss * 1024), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 #endif
 
-  n = snprintf(buf, 1024, "rootlet size: %" PRId64 "\n", sc->rootlet_entries);
+  n = snprintf(buf, 1024, "rootlet size: %" print_s7_int "\n", sc->rootlet_entries);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
-  n = snprintf(buf, 1024, "heap: %" PRId64 " (%" PRId64 " bytes)", sc->heap_size, (s7_int)(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell))));
+  n = snprintf(buf, 1024, "heap: %" print_s7_int " (%" print_s7_int " bytes)", sc->heap_size, (s7_int)(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell))));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   {
@@ -82357,13 +82386,13 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     n = snprintf(buf, 1024, "\n");
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
-  n = snprintf(buf, 1024, "permanent cells: %d (%" PRId64 " bytes)\n", permanent_cells, (s7_int)(permanent_cells * sizeof(s7_cell)));
+  n = snprintf(buf, 1024, "permanent cells: %d (%" print_s7_int " bytes)\n", permanent_cells, (s7_int)(permanent_cells * sizeof(s7_cell)));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
-  n = snprintf(buf, 1024, "gc protected objects size: %" PRId64 ", unused: %" PRId64 "\n", sc->protected_objects_size, sc->gpofl_loc);
+  n = snprintf(buf, 1024, "gc protected objects size: %" print_s7_int ", unused: %" print_s7_int "\n", sc->protected_objects_size, sc->gpofl_loc);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       
-  n = snprintf(buf, 1024, "gc protected setters: %" PRId64 "\n", sc->protected_setters_loc);
+  n = snprintf(buf, 1024, "gc protected setters: %" print_s7_int "\n", sc->protected_setters_loc);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       
   {
@@ -82375,13 +82404,13 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	  if (is_gensym(car(x))) gens++;
 	  if (is_keyword(car(x))) keys++;
 	}
-    n = snprintf(buf, 1024, "symbol table: %d (%" PRId64 " symbols, %" PRId64 " bytes, gensyms: %d, keywords: %d)\n", 
+    n = snprintf(buf, 1024, "symbol table: %d (%" print_s7_int " symbols, %" print_s7_int " bytes, gensyms: %d, keywords: %d)\n", 
 		 SYMBOL_TABLE_SIZE, syms, 
 		 (s7_int)(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell)),
 		 gens, keys);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
-  n = snprintf(buf, 1024, "stack: %u (%" PRId64 " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
+  n = snprintf(buf, 1024, "stack: %u (%" print_s7_int " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   n = snprintf(buf, 1024, "c_functions: %d (%d bytes)\n", c_functions, (int)(c_functions * sizeof(c_proc_t)));
@@ -82395,7 +82424,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   gp = sc->strings1;
   for (i = 0; i < (int32_t)(gp->loc); i++)
     len += string_length(gp->list[i]);
-  n = snprintf(buf, 1024, "strings: %" PRId64 ", %" PRId64 " bytes\n", syms + gp->loc, len); /* also doc strings, permanent strings, etc */
+  n = snprintf(buf, 1024, "strings: %" print_s7_int ", %" print_s7_int " bytes\n", syms + gp->loc, len); /* also doc strings, permanent strings, etc */
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   {
@@ -82408,7 +82437,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     for (i = 0; i < (int32_t)(gp->loc); i++)
       len += (hash_table_mask(gp->list[i]) + 1);
     
-    n = snprintf(buf, 1024, "hash tables: %" PRId32 " (entries in use: %" PRId64 ", free: %d)\n", (int32_t)(gp->loc), len, hs);
+    n = snprintf(buf, 1024, "hash tables: %" PRId32 " (entries in use: %" print_s7_int ", free: %d)\n", (int32_t)(gp->loc), len, hs);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -82427,7 +82456,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	    else vlen += vector_length(v);
 	  }
       }
-    n = snprintf(buf, 1024, "vectors: %" PRId64 " (size: %" PRId64 ", float: %" PRId64 ", int: %" PRId64 ")\n", sc->vectors->loc, vlen, flen, ilen);
+    n = snprintf(buf, 1024, "vectors: %" print_s7_int " (size: %" print_s7_int ", float: %" print_s7_int ", int: %" print_s7_int ")\n", sc->vectors->loc, vlen, flen, ilen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -82444,7 +82473,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	      ulen += port_data_size(v);
 	  }
       }
-    n = snprintf(buf, 1024, "input ports: %" PRId64 " (bytes (free): %" PRId64 ", (in use): %" PRId64 ")\n", sc->input_ports->loc, ulen, flen - ulen);
+    n = snprintf(buf, 1024, "input ports: %" print_s7_int " (bytes (free): %" print_s7_int ", (in use): %" print_s7_int ")\n", sc->input_ports->loc, ulen, flen - ulen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -82456,7 +82485,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
-    n = snprintf(buf, 1024, "output ports: %" PRId64 ", free port: %u (%lu bytes)\ncontinuations: %" PRId64 " (total stack: %u), c_objects: %" PRId64 ", gensyms: %" PRId64 ", setters: %" PRId64 ", optlists: %" PRId64 ", unknowns: %" PRId64 "\n",
+    n = snprintf(buf, 1024, "output ports: %" print_s7_int ", free port: %u (%lu bytes)\ncontinuations: %" print_s7_int " (total stack: %u), c_objects: %" print_s7_int ", gensyms: %" print_s7_int ", setters: %" print_s7_int ", optlists: %" print_s7_int ", unknowns: %" print_s7_int "\n",
 		 sc->output_ports->loc, fs, (unsigned long)(fs * sizeof(port_t)),
 		 gp->loc, cc_stacks,
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
@@ -83125,7 +83154,6 @@ s7_scheme *s7_init(void)
       init_uppers();
       all_x_function_init();
       init_catchers();
-      /* sizeof(__float128) == sizeof(long double) so how to distinguish them for printf (L vs Q)? */
     }
 
   sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
@@ -83450,8 +83478,12 @@ s7_scheme *s7_init(void)
       set_print_name(real_infinity, "+inf.0", 6);
       real_minus_infinity = make_permanent_real(-INFINITY);
       set_print_name(real_minus_infinity, "-inf.0", 6);
+#if WITH_QMATH
+      real_pi = make_permanent_real(M_PIq);
+#else
       real_pi = make_permanent_real(3.1415926535897932384626433832795029L); /* M_PI is not good enough for s7_double = long double */
-      set_print_name(real_pi, "pi", 2);
+#endif
+      /* set_print_name(real_pi, "pi", 2); */
       arity_not_set = make_permanent_integer_unchecked(CLOSURE_ARITY_NOT_SET);
       max_arity = make_permanent_integer_unchecked(MAX_ARITY);
       minus_one = make_permanent_integer_unchecked(-1);
@@ -84427,6 +84459,9 @@ s7_scheme *s7_init(void)
 #if (!DISABLE_AUTOLOAD)
   s7_provide(sc, "autoload");
 #endif
+#if WITH_QMATH
+  s7_provide(sc, "quadmath");
+#endif
 
 #ifdef __APPLE__
   s7_provide(sc, "osx");
@@ -85157,18 +85192,24 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
  * print readably closure that refers to vector that contains closure -- need to scan structs for closures
- *   add shared_info collection of closure args/body for print/morally-equal
+ *   [add shared_info collection of closure args/body for print/morally-equal]
  *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
  *   very tricky -- see ~/old/cyclic-lambda-s7.c and ~/old/cyclic-s7.c
+ *   (apply lambda '(x) (let ((<1> (list 1 2))) (set-cdr! (cdr <1>) <1>)) ())
+ *      this hangs in optimize_expression 62830 from optimize in check_lambda
  *   (define (f2) #(0)) (set! ((f2) 0) (f2))
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
+ *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
+ *
  * hash-tables are still size int32_t [via hash_table_entries]
+ *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
+ *   then entries field can be int64_t
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85176,6 +85217,7 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
+ *
  * maybe remove editres support?
  *
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
@@ -85191,34 +85233,21 @@ int main(int argc, char **argv)
  *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf=float out and strtoflt128, also __complex128
  *   typedef _Complex float __attribute__((mode(TC))) _Complex128; -- in quadmath.h
  *   M_PIq, use 1.0Q = quad float, use %Qf|g etc for float print, s7_double to __float128
- * s7.h:
- * typedef __int128 s7_int;
- * typedef __float128 s7_double;
- * #define WITH_QMATH 1
- * s7.c:
- * #if WITH_QMATH
- *   #include <quadmath.h>
- *   #define Qid(x) ...
- *   #undef PRId64
- *   #define PRId64 "s"
- * #else
- *   #define Qid(x) x
- * #endif
- * need to find %f|g|e and define these above with %Qf etc or s7i and s7f: "Q" in Q "" elsewhere [s7_d|x|f|g|e_print? in s7.h]
- *      add quadmath to *features*
+ *   need to find %f|g|e and define these above with %Qf etc or s7i and s7f: "Q" in Q "" elsewhere [s7_d|x|f|g|e_print? in s7.h]
  *      float/int-vectors -> C side?? [mus_long|float_t in sndlib.h -- can we override this if s7: typedef s7_double mus_float_t; etc]
- * check int32_t/float work on a 32-bit machine
+ *   check int32_t/float work on a 32-bit machine
+ *   so all float print -> Q case
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1039
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1464
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1153
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1462
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2073
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2503
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.5
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2493
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.1
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
  * tread         |      |      |      ||      ||      |                   3009  2694

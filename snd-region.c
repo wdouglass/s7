@@ -645,13 +645,13 @@ static int paste_region_1(int n, chan_info *cp, bool add, mus_long_t beg, io_err
       else 
 	{
 #if HAVE_FORTH
-	  origin = mus_format("%d %s %" PRId64 " %s drop", n, S_integer_to_region, beg, S_mix_region);
+	  origin = mus_format("%d %s %" print_mus_long " %s drop", n, S_integer_to_region, beg, S_mix_region);
 #endif
 #if HAVE_RUBY
-	  origin = mus_format("%s(%s(%d), %" PRId64, to_proc_name(S_mix_region), to_proc_name(S_integer_to_region), n, beg);
+	  origin = mus_format("%s(%s(%d), %" print_mus_long, to_proc_name(S_mix_region), to_proc_name(S_integer_to_region), n, beg);
 #endif
 #if HAVE_SCHEME || (!HAVE_EXTENSION_LANGUAGE)
-	  origin = mus_format("%s (%s %d) %" PRId64, S_mix_region, S_integer_to_region, n, beg);
+	  origin = mus_format("%s (%s %d) %" print_mus_long, S_mix_region, S_integer_to_region, n, beg);
 #endif
 	  if (si->chans > 1)
 	    remember_temp(newname, si->chans);
@@ -683,13 +683,13 @@ static int paste_region_1(int n, chan_info *cp, bool add, mus_long_t beg, io_err
 	}
 
 #if HAVE_FORTH
-	  origin = mus_format("%d %s %" PRId64 " %s drop", n, S_integer_to_region, beg, S_insert_region);
+	  origin = mus_format("%d %s %" print_mus_long " %s drop", n, S_integer_to_region, beg, S_insert_region);
 #endif
 #if HAVE_RUBY
-	  origin = mus_format("%s(%s(%d), %" PRId64, to_proc_name(S_insert_region), to_proc_name(S_integer_to_region), n, beg);
+	  origin = mus_format("%s(%s(%d), %" print_mus_long, to_proc_name(S_insert_region), to_proc_name(S_integer_to_region), n, beg);
 #endif
 #if HAVE_SCHEME || (!HAVE_EXTENSION_LANGUAGE)
-	  origin = mus_format("%s (%s %d) %" PRId64, S_insert_region, S_integer_to_region, n, beg);
+	  origin = mus_format("%s (%s %d) %" print_mus_long, S_insert_region, S_integer_to_region, n, beg);
 #endif
 
       for (i = 0; ((i < r->chans) && (i < si->chans)); i++)
@@ -1123,25 +1123,25 @@ void save_regions(FILE *fd)
 	  else
 	    {
 #if HAVE_RUBY
-	      fprintf(fd, "%s(%d, %d, %" PRId64 ", %d, %.4f, \"%s\", \"%s\", \"%s\", ",
+	      fprintf(fd, "%s(%d, %d, %" print_mus_long ", %d, %.4f, \"%s\", \"%s\", \"%s\", ",
 		      "restore_region", i, r->chans, r->framples, r->srate, r->maxamp, r->name, r->start, r->end);
-	      fprintf(fd, " \"%s\", [%d, %" PRId64 "])\n",
+	      fprintf(fd, " \"%s\", [%d, %" print_mus_long "])\n",
 		      newname,
 		      (int)mus_sound_write_date(newname),
 		      mus_sound_length(newname));
 #endif
 #if HAVE_SCHEME
-	      fprintf(fd, "(%s %d %d %" PRId64 " %d %.4f \"%s\" \"%s\" \"%s\"",
+	      fprintf(fd, "(%s %d %d %" print_mus_long " %d %.4f \"%s\" \"%s\" \"%s\"",
 		      S_restore_region, i, r->chans, r->framples, r->srate, r->maxamp, r->name, r->start, r->end);
-	      fprintf(fd, " \"%s\" (list %d %" PRId64 "))\n",
+	      fprintf(fd, " \"%s\" (list %d %" print_mus_long "))\n",
 		      newname,
 		      (int)mus_sound_write_date(newname),
 		      mus_sound_length(newname));
 #endif
 #if HAVE_FORTH
-	  fprintf(fd, "%d %d %" PRId64 " %d %.4f \"%s\" \"%s\" \"%s\"",
+	  fprintf(fd, "%d %d %" print_mus_long " %d %.4f \"%s\" \"%s\" \"%s\"",
 	          i, r->chans, r->framples, r->srate, r->maxamp, r->name, r->start, r->end);
- 	  fprintf(fd, " \"%s\" '( %d %" PRId64 " ) %s drop\n",
+ 	  fprintf(fd, " \"%s\" '( %d %" print_mus_long " ) %s drop\n",
  		  newname,
  		  (int)mus_sound_write_date(newname),
  		  mus_sound_length(newname),
@@ -1327,7 +1327,7 @@ io_error_t save_region(int rg, const char *name, mus_sample_t samp_type, mus_hea
 	      for (i = 0; i < chans; i++) bufs[i] = (mus_float_t *)calloc(FILE_BUFFER_SIZE, sizeof(mus_float_t));
 
 	      if (((framples * chans * mus_sound_datum_size(r->filename)) >> 10) > disk_kspace(name))
-		snd_warning("not enough space to save region? -- need %" PRId64 " bytes",
+		snd_warning("not enough space to save region? -- need %" print_mus_long " bytes",
 			    framples * chans * mus_sound_datum_size(r->filename));
 
 	      for (ioff = 0; ioff < framples; ioff += FILE_BUFFER_SIZE)

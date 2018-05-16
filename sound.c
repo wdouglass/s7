@@ -491,7 +491,7 @@ static void display_sound_file_entry(FILE *fp, const char *name, sound_file *sf)
     strftime(timestr, TIME_BUFFER_SIZE, "%a %d-%b-%Y %H:%M:%S", localtime(&date));
   else snprintf(timestr, TIME_BUFFER_SIZE, "(date cleared)");
 
-  fprintf(fp, "  %s: %s, chans: %d, srate: %d, header: %s, data: %s, samps: %" PRId64,
+  fprintf(fp, "  %s: %s, chans: %d, srate: %d, header: %s, data: %s, samps: %" print_mus_long,
 	  name,
 	  timestr,
 	  sf->chans,
@@ -1305,7 +1305,7 @@ int mus_sound_set_maxamps(const char *ifile, int chans, mus_float_t *vals, mus_l
   sound_file *sf; 
   int result = MUS_NO_ERROR;
 
-  /* fprintf(stderr, "set %s maxamps: %d %.3f %" PRId64 "\n", ifile, chans, vals[0], times[0]); */
+  /* fprintf(stderr, "set %s maxamps: %d %.3f %" print_mus_long "\n", ifile, chans, vals[0], times[0]); */
   sf = get_sf(ifile); 
   if (sf)
     {
@@ -1382,7 +1382,7 @@ mus_float_t mus_sound_channel_maxamp(const char *file, int chan, mus_long_t *pos
 void mus_sound_channel_set_maxamp(const char *file, int chan, mus_float_t mx, mus_long_t pos)
 {
   sound_file *sf; 
-  /* fprintf(stderr, "set %s maxamp: %.3f %" PRId64 "\n", file, mx, pos); */
+  /* fprintf(stderr, "set %s maxamp: %.3f %" print_mus_long "\n", file, mx, pos); */
   sf = get_sf(file); 
   if ((sf) &&
       (sf->chans > chan))

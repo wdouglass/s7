@@ -41,7 +41,7 @@ static int64_t snd_checked_write(int fd, uint8_t *buf, int64_t bytes, const char
   if (kfree < (bytes >> 10))
     { 
       snprintf(write_error_buffer, PRINT_BUFFER_SIZE,
-		   "only %" PRId64 " bytes left on device (we need %" PRId64 " bytes)",
+		   "only %" print_mus_long " bytes left on device (we need %" print_mus_long " bytes)",
 		   kfree << 10, bytes);
       return(MUS_ERROR);
     }
@@ -49,7 +49,7 @@ static int64_t snd_checked_write(int fd, uint8_t *buf, int64_t bytes, const char
   if (bytes_written != bytes)
     {
       snprintf(write_error_buffer, PRINT_BUFFER_SIZE,
-		   "write error (wrote %" PRId64 " of requested %" PRId64 " bytes): %s",
+		   "write error (wrote %" print_mus_long " of requested %" print_mus_long " bytes): %s",
 		   bytes_written, bytes, snd_io_strerror());
       return(MUS_ERROR);
     }

@@ -3610,13 +3610,13 @@ and its value is returned."
 			    subject = (char *)s7_symbol_name(s7_car(x));
 			    url = snd_url(subject);
 			    if (url)
-			      snprintf(str, 256, "%s is defined at line %" PRId64 " of %s, and documented at %s",
+			      snprintf(str, 256, "%s is defined at line %" print_mus_long " of %s, and documented at %s",
 				       subject, 
 				       (int64_t)s7_integer(s7_car(s7_cdr(s7_cdr(x)))),
 				       s7_string(s7_car(s7_cdr(x))),
 				       url);
 			    else 
-			      snprintf(str, 256, "%s is defined at line %" PRId64 " of %s",
+			      snprintf(str, 256, "%s is defined at line %" print_mus_long " of %s",
 				       subject, 
 				       (int64_t)s7_integer(s7_car(s7_cdr(s7_cdr(x)))),
 				       s7_string(s7_car(s7_cdr(x))));

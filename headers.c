@@ -579,7 +579,7 @@ static int read_next_header(const char *filename, int fd)
 
   type_specifier = mus_char_to_uninterpreted_int((uint8_t *)hdrbuf);
   data_location = mus_char_to_ubint((uint8_t *)(hdrbuf + 4));
-  if (data_location < 24) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data location: %" PRId64 "?", filename, data_location));
+  if (data_location < 24) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data location: %" print_mus_long "?", filename, data_location));
 
   data_size = mus_char_to_ubint((uint8_t *)(hdrbuf + 8)); /* changed to unsigned 11-Nov-06 */
   /* can be bogus -- fixup if possible */
@@ -692,7 +692,7 @@ static int header_write(int fd, uint8_t *buf, int chars)
 	{
 	  char *errstr;
 	  errstr = STRERROR(errno);
-	  return(mus_error(MUS_WRITE_ERROR, "header_write: wrote %" PRId64 " of %d bytes, %s", 
+	  return(mus_error(MUS_WRITE_ERROR, "header_write: wrote %" print_mus_long " of %d bytes, %s", 
 			   bytes, chars, (errstr) ? errstr : "unknown error?"));
 	}
     }
@@ -710,7 +710,7 @@ static int header_read(int fd, uint8_t *buf, int chars)
 	{
 	  char *errstr;
 	  errstr = STRERROR(errno);
-	  return(mus_error(MUS_READ_ERROR, "header_read: read %" PRId64 " of %d bytes, %s", 
+	  return(mus_error(MUS_READ_ERROR, "header_read: read %" print_mus_long " of %d bytes, %s", 
 			   bytes, chars, (errstr) ? errstr : "unknown error?"));
 	}
     }
@@ -1033,10 +1033,10 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
 	{
 	  if ((got_comm) && (data_location > 0))
 	    {
-	      mus_print("%s, aiff header: chunks confused at %" PRId64 "; will try to continue", filename, offset);
+	      mus_print("%s, aiff header: chunks confused at %" print_mus_long "; will try to continue", filename, offset);
 	      break;
 	    }
-	  return(mus_error(MUS_HEADER_READ_FAILED, "%s, aiff header: chunks confused at %" PRId64 , filename, offset));
+	  return(mus_error(MUS_HEADER_READ_FAILED, "%s, aiff header: chunks confused at %" print_mus_long , filename, offset));
 	}
 
       chunksize = mus_char_to_ubint((uint8_t *)(hdrbuf + 4));
@@ -1226,7 +1226,7 @@ static int read_aiff_header(const char *filename, int fd, int overall_offset)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
 
   if ((data_size > ssnd_bytes) && (sample_type != MUS_UNKNOWN_SAMPLE))
@@ -2050,7 +2050,7 @@ static int read_riff_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -2260,7 +2260,7 @@ static int read_soundforge_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
 
@@ -2387,7 +2387,7 @@ static int read_rf64_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
 
@@ -2508,7 +2508,7 @@ static int read_avi_header(const char *filename, int fd)
       int chunksize;
       offset += chunkloc;
       if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s avi header: chunks confused at %" PRId64, filename, offset));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s avi header: chunks confused at %" print_mus_long, filename, offset));
       chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
@@ -2586,7 +2586,7 @@ static int read_avi_header(const char *filename, int fd)
   if (data_location == 0)
     return(mus_error(MUS_HEADER_READ_FAILED, "%s: no movi chunk?", filename));
   if (data_location > true_file_length) 
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   return(MUS_NO_ERROR);
 }
@@ -2686,7 +2686,7 @@ static int read_soundfont_header(const char *filename, int fd)
       int chunksize;
       offset += chunkloc;
       if (seek_and_read(fd, (uint8_t *)hdrbuf, offset, 32) <= 0)
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s soundfont header: chunks confused at %" PRId64, filename, offset));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s soundfont header: chunks confused at %" print_mus_long, filename, offset));
       chunksize = mus_char_to_lint((uint8_t *)(hdrbuf + 4));
       if ((chunksize == 0) && /* can be empty data chunk? */
 	  (hdrbuf[0] == 0) && (hdrbuf[1] == 0) && (hdrbuf[2] == 0) && (hdrbuf[3] == 0))
@@ -2968,7 +2968,7 @@ static int read_nist_header(const char *filename, int fd)
   if ((data_size > true_file_length) && (original_sample_type != MUS_NIST_SHORTPACK))
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
 
@@ -2982,7 +2982,7 @@ static int write_nist_header(int fd, int wsrate, int wchans, mus_long_t size, mu
   int datum;
   datum = mus_bytes_per_sample(samp_type);
   header = (char *)calloc(1024, sizeof(char));
-  snprintf(header, 1024, "NIST_1A\n   1024\nchannel_count -i %d\nsample_rate -i %d\nsample_n_bytes -i %d\nsample_byte_format -s2 %s\nsample_sig_bits -i %d\nsample_count -i %" PRId64 "\nend_head\n",
+  snprintf(header, 1024, "NIST_1A\n   1024\nchannel_count -i %d\nsample_rate -i %d\nsample_n_bytes -i %d\nsample_byte_format -s2 %s\nsample_sig_bits -i %d\nsample_count -i %" print_mus_long "\nend_head\n",
 	  wchans, wsrate, datum,
 	  ((samp_type == MUS_BSHORT) || (samp_type == MUS_B24INT) || (samp_type == MUS_BINT)) ? "10" : "01",
 	  datum * 8, 
@@ -3326,7 +3326,7 @@ static int read_8svx_header(const char *filename, int fd, bool bytewise)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
 
@@ -3362,7 +3362,7 @@ static int read_voc_header(const char *filename, int fd)
   true_file_length = SEEK_FILE_LENGTH(fd);
   curbase = mus_char_to_lshort((uint8_t *)(hdrbuf + 20));
   if (true_file_length < curbase)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: block location %" PRId64 " > file length: %" PRId64, filename, curbase, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: block location %" print_mus_long " > file length: %" print_mus_long, filename, curbase, true_file_length));
 
   lseek(fd, curbase, SEEK_SET);
   header_read(fd, hdrbuf, HDRBUFSIZ);
@@ -3447,7 +3447,7 @@ static int read_voc_header(const char *filename, int fd)
   if ((data_size > true_file_length) || (data_size < (mus_long_t)(true_file_length / 10))) /* some VOC files seem to have completely bogus lengths */
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
 
@@ -3487,7 +3487,7 @@ static int read_twinvq_header(const char *filename, int fd)
 	srate = 48000;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   return(MUS_NO_ERROR);
 }
 
@@ -3584,7 +3584,7 @@ static int read_nvf_header(const char *filename, int fd)
   data_location = 44;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location) * 2; /* 4 bit samps? */
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   return(MUS_NO_ERROR);
 }
 #endif
@@ -3622,7 +3622,7 @@ static int read_adc_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -3691,7 +3691,7 @@ static int read_avr_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -3739,7 +3739,7 @@ static int read_sndt_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   return(MUS_NO_ERROR);
 }
@@ -3760,7 +3760,7 @@ static int read_covox_header(const char *filename, int fd)
   srate = 8000;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = true_file_length - data_location;
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   return(MUS_NO_ERROR);
 }
 
@@ -3795,7 +3795,7 @@ static int read_smp_header(const char *filename, int fd)
   if ((data_size * 2) > true_file_length)
     {
       data_size = (true_file_length - data_location) / 2;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   return(MUS_NO_ERROR);
 }
@@ -3855,7 +3855,7 @@ static int read_sppack_header(const char *filename, int fd)
     }
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location) 
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   if (data_size > mus_bytes_to_samples(sample_type, true_file_length))
     data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   return(MUS_NO_ERROR);
@@ -3898,7 +3898,7 @@ static int read_esps_header(const char *filename, int fd)
   else data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 8));
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = true_file_length - data_location;
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 8000;
   chans = 1;
   lseek(fd, 132, SEEK_SET);
@@ -4017,7 +4017,7 @@ static int read_inrs_header(const char *filename, int fd, int loc)
   data_location = 512;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location) 
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   return(MUS_NO_ERROR);
 }
@@ -4118,7 +4118,7 @@ static int read_maud_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4210,7 +4210,7 @@ static int read_csl_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4257,7 +4257,7 @@ static int read_file_samp_header(const char *filename, int fd)
   free(locbuf);
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   return(MUS_NO_ERROR);
 }
@@ -4294,7 +4294,7 @@ static int read_sd1_header(const char *filename, int fd)
   else sample_type = MUS_BYTE;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   n = ((uint8_t)hdrbuf[44]);
   if (n != 0) 
@@ -4332,7 +4332,7 @@ static int read_psion_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4423,7 +4423,7 @@ static int read_gravis_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4444,7 +4444,7 @@ static int read_goldwave_header(const char *filename, int fd)
   data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 22));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   if ((data_size <= 24) || (data_size > true_file_length))
     data_size = (true_file_length - data_location) / 2;
   else data_size /= 2;
@@ -4465,7 +4465,7 @@ static int read_srfs_header(const char *filename, int fd)
   data_location = 32;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = (true_file_length - data_location) / 2;
   srate = mus_char_to_lint((uint8_t *)(hdrbuf + 6));
   sample_type = MUS_LSHORT;
@@ -4486,7 +4486,7 @@ static int read_qt_header(const char *filename, int fd)
   data_location = 12;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 11025; /* ?? */
   sample_type = MUS_UBYTE;
   return(MUS_NO_ERROR);
@@ -4577,7 +4577,7 @@ static int read_sbstudio_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -4603,7 +4603,7 @@ static int read_delusion_header(const char *filename, int fd)
   data_location = 55;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 8000;
   sample_type = MUS_LSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4633,7 +4633,7 @@ static int read_farandole_header(const char *filename, int fd)
   data_location = 51;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 8000;
   if (hdrbuf[49] == 0)
     sample_type = MUS_BYTE;
@@ -4668,7 +4668,7 @@ static int read_tx16w_header(const char *filename, int fd)
   data_location = 32;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 16000;
   if (hdrbuf[23] == 1) srate = 33000;
   else if (hdrbuf[23] == 2) srate = 50000;
@@ -4710,7 +4710,7 @@ static int read_sy85_header(const char *filename, int fd)
   data_location = 1024;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 8000; /* unknown */
   sample_type = MUS_BSHORT; /* not right */
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4730,7 +4730,7 @@ static int read_kurzweil_2000_header(const char *filename, int fd)
   data_location = mus_char_to_bint((uint8_t *)(hdrbuf + 4));
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 44100; /* unknown */
   sample_type = MUS_BSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4749,7 +4749,7 @@ static int read_korg_header(const char *filename, int fd)
   data_location = 70;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = mus_char_to_bint((uint8_t *)(hdrbuf + 48));
   sample_type = MUS_BSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4770,7 +4770,7 @@ static int read_maui_header(const char *filename, int fd)
   data_location = 776;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = mus_char_to_lint((uint8_t *)(hdrbuf + 8));
   if ((data_size * 2) > true_file_length)
     data_size = (true_file_length - data_location) / 2;
@@ -4811,7 +4811,7 @@ static int read_impulsetracker_header(const char *filename, int fd)
   data_location = mus_char_to_lint((uint8_t *)(hdrbuf + 72));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = (true_file_length - data_location);
   srate = mus_char_to_lint((uint8_t *)(hdrbuf + 60));
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4827,7 +4827,7 @@ static int read_akai3_header(const char *filename, int fd)
   data_location = 192;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   if (hdrbuf[1] == 0) srate = 22050; else srate = 44100;
   sample_type = MUS_LSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4847,7 +4847,7 @@ static int read_akai4_header(const char *filename, int fd)
   data_location = 42;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = mus_char_to_ulshort((uint8_t *)(hdrbuf + 40));
   sample_type = MUS_LSHORT;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -4924,7 +4924,7 @@ static int read_ultratracker_header(const char *filename, int fd)
   data_location = 64;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   data_size = (true_file_length - data_location);
   srate = 8000;
   sample_type = MUS_LSHORT;
@@ -4978,7 +4978,7 @@ static int read_sample_dump_header(const char *filename, int fd)
   data_location = i + 3 + len + 23;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   if (hdrbuf[0] == 0)
     sample_type = MUS_ULSHORT;
   else sample_type = MUS_UNKNOWN_SAMPLE;
@@ -5019,7 +5019,7 @@ static int read_digiplayer_header(const char *filename, int fd)
   data_location = 80;
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   srate = 8000;
   sample_type = MUS_ULSHORT;
   if (hdrbuf[30] & 2) chans = 2;
@@ -5074,7 +5074,7 @@ static int read_adf_header(const char *filename, int fd)
   data_location = 512;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   if (data_size > mus_bytes_to_samples(sample_type, true_file_length - data_location))
     data_size = mus_bytes_to_samples(sample_type, true_file_length - data_location);
   return(MUS_NO_ERROR);
@@ -5126,7 +5126,7 @@ static int read_diamondware_header(const char *filename, int fd)
   data_location = mus_char_to_lint((uint8_t *)(hdrbuf + 46));
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   if (data_size > true_file_length - data_location)
     data_size = true_file_length - data_location;
   data_size = mus_bytes_to_samples(sample_type, data_size);
@@ -5172,7 +5172,7 @@ static int read_paf_header(const char *filename, int fd)
   data_location = 2048;
   true_file_length = SEEK_FILE_LENGTH(fd);
   if (true_file_length < data_location)
-    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" PRId64 " > file length: %" PRId64, filename, data_location, true_file_length));
+    return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_location %" print_mus_long " > file length: %" print_mus_long, filename, data_location, true_file_length));
   if (sample_type != MUS_UNKNOWN_SAMPLE) 
     data_size = mus_bytes_to_samples(sample_type, true_file_length - 2048);
   return(MUS_NO_ERROR);
@@ -5374,7 +5374,7 @@ static int read_asf_header(const char *filename, int fd)
   if (data_size > true_file_length)
     {
       data_size = true_file_length - data_location;
-      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+      if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
     }
   data_size = mus_bytes_to_samples(sample_type, data_size);
   return(MUS_NO_ERROR);
@@ -5423,7 +5423,7 @@ static int read_sox_header(const char *filename, int fd)
     }
   true_file_length = SEEK_FILE_LENGTH(fd);
   data_size = (true_file_length - data_location);
-  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" PRId64 "?", filename, data_size));
+  if (data_size < 0) return(mus_error(MUS_HEADER_READ_FAILED, "%s: data_size = %" print_mus_long "?", filename, data_size));
   data_size = mus_bytes_to_samples(sample_type, data_size);
   if (samps < data_size) data_size = samps;
   return(MUS_NO_ERROR);
@@ -5619,7 +5619,7 @@ static int mus_header_read_1(const char *filename, int fd)
       (match_four_chars((uint8_t *)hdrbuf, I_DECN)))
     {
       if (bytes < 24) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s NeXT header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s NeXT header truncated? found only %" print_mus_long " bytes", filename, bytes));
       header_type = MUS_NEXT;
       return(read_next_header(filename, fd));
     }
@@ -5628,7 +5628,7 @@ static int mus_header_read_1(const char *filename, int fd)
     {
       /* next 4 bytes are apparently the file size or something equally useless */
       if (bytes < 12) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s AIFF header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s AIFF header truncated? found only %" print_mus_long " bytes", filename, bytes));
 
       if (match_four_chars((uint8_t *)(hdrbuf + 8), I_AIFF))
 	{ 
@@ -5674,7 +5674,7 @@ static int mus_header_read_1(const char *filename, int fd)
       (match_four_chars((uint8_t *)hdrbuf, I_RIFX)))
     {
       if (bytes < 12) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s RIFF header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s RIFF header truncated? found only %" print_mus_long " bytes", filename, bytes));
 
       if (match_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE))
 	{
@@ -5701,7 +5701,7 @@ static int mus_header_read_1(const char *filename, int fd)
     { 
       header_type = MUS_RF64;
       if (bytes < 28) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s RF64 header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s RF64 header truncated? found only %" print_mus_long " bytes", filename, bytes));
       if ((mus_char_to_lint((uint8_t *)(hdrbuf + 4)) != -1) ||
 	  (!(match_four_chars((uint8_t *)(hdrbuf + 8), I_WAVE))))
 	return(mus_error(MUS_HEADER_READ_FAILED, "%s: messed up RF64 header", filename));
@@ -5714,7 +5714,7 @@ static int mus_header_read_1(const char *filename, int fd)
       (equal_big_or_little_endian((uint8_t *)hdrbuf, I_IRCAM_NEXT)))
     {
       if (bytes < 24) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s IRCAM header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s IRCAM header truncated? found only %" print_mus_long " bytes", filename, bytes));
       header_type = MUS_IRCAM;
       return(read_ircam_header(filename, fd));
     }
@@ -5728,7 +5728,7 @@ static int mus_header_read_1(const char *filename, int fd)
   if (match_four_chars((uint8_t *)hdrbuf, I_caff))
     {
       if (bytes < 32) /* INITIAL_READ_SIZE */
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s CAFF header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s CAFF header truncated? found only %" print_mus_long " bytes", filename, bytes));
       header_type = MUS_CAFF;
       return(read_caff_header(fd));
     }
@@ -5737,7 +5737,7 @@ static int mus_header_read_1(const char *filename, int fd)
       (match_four_chars((uint8_t *)(hdrbuf + 4), I_AB_5)))
     {
       if (bytes < 128) /* INITIAL_READ_SIZE=256 */
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s Matlab header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s Matlab header truncated? found only %" print_mus_long " bytes", filename, bytes));
       header_type = MUS_MATLAB;
       return(read_matlab_5_header(filename, fd));
     }
@@ -5770,7 +5770,7 @@ static int mus_header_read_1(const char *filename, int fd)
       (match_four_chars((uint8_t *)(hdrbuf + 4), I_VOC1)))
     {
       if (bytes < 24) 
-	return(mus_error(MUS_HEADER_READ_FAILED, "%s VOC header truncated? found only %" PRId64 " bytes", filename, bytes));
+	return(mus_error(MUS_HEADER_READ_FAILED, "%s VOC header truncated? found only %" print_mus_long " bytes", filename, bytes));
       header_type = MUS_VOC;
       return(read_voc_header(filename, fd));
     }
@@ -6284,7 +6284,7 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
   if (size < 0) 
     {
       CLOSE(fd, filename);
-      return(mus_error(MUS_BAD_SIZE, "%s: change size to %" PRId64 "?", filename, size));
+      return(mus_error(MUS_BAD_SIZE, "%s: change size to %" print_mus_long "?", filename, size));
     }
 
   switch (type)
@@ -6313,7 +6313,7 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
       if (size > BIGGEST_4_BYTE_SIGNED_INT)
 	{
 	  err = MUS_BAD_SIZE;
-	  mus_print("%s size: %" PRId64 " is too large for %s headers", filename, size, mus_header_type_name(type));
+	  mus_print("%s size: %" print_mus_long " is too large for %s headers", filename, size, mus_header_type_name(type));
 	  size = BIGGEST_4_BYTE_SIGNED_INT;
 	}
       lseek(fd, 4L, SEEK_SET);
@@ -6363,7 +6363,7 @@ int mus_header_change_data_size(const char *filename, mus_header_t type, mus_lon
       if (size > BIGGEST_4_BYTE_SIGNED_INT)
 	{
 	  err = MUS_BAD_SIZE;
-	  mus_print("%s size: %" PRId64 " is too large for %s headers", filename, size, mus_header_type_name(type));
+	  mus_print("%s size: %" print_mus_long " is too large for %s headers", filename, size, mus_header_type_name(type));
 	  size = BIGGEST_4_BYTE_SIGNED_INT;
 	}
       lseek(fd, 0L, SEEK_SET);

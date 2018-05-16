@@ -11,6 +11,8 @@
 
 #include "s7.h"
 
+#define print_s7_int PRId64
+
 #define TO_STR(x) s7_object_to_c_string(sc, x)
 #define TO_S7_INT(x) s7_make_integer(sc, x)
 
@@ -543,7 +545,7 @@ int main(int argc, char **argv)
 
   i = (*((int *)s7_c_pointer(p)));
   if (i != 32)
-    fprintf(stderr, "%d: 32 -> %" PRId64 " via raw c pointer?\n", __LINE__, i);
+    fprintf(stderr, "%d: 32 -> %" print_s7_int " via raw c pointer?\n", __LINE__, i);
 
   s7_provide(sc, "ffitest");
   if (!s7_is_provided(sc, "ffitest"))
@@ -552,7 +554,7 @@ int main(int argc, char **argv)
   p = s7_cons(sc, s7_f(sc), s7_t(sc));
   gc_loc = s7_gc_protect(sc, p);
   if (p != s7_gc_protected_at(sc, gc_loc))
-    {fprintf(stderr, "%d: %s is not gc protected at %" PRId64 ": %s?\n", __LINE__, s1 = TO_STR(p), gc_loc, s2 = TO_STR(s7_gc_protected_at(sc, gc_loc))); free(s1); free(s2);}
+    {fprintf(stderr, "%d: %s is not gc protected at %" print_s7_int ": %s?\n", __LINE__, s1 = TO_STR(p), gc_loc, s2 = TO_STR(s7_gc_protected_at(sc, gc_loc))); free(s1); free(s2);}
   
   if (s7_car(p) != s7_f(sc))
     {fprintf(stderr, "%d: (car %s) is not #f?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
@@ -750,9 +752,9 @@ int main(int argc, char **argv)
   {
     int64_t size;
     size = s7_heap_size(sc);
-    if (size <= 0) fprintf(stderr, "heap_size: %" PRId64 "?\n", size);
+    if (size <= 0) fprintf(stderr, "heap_size: %" print_s7_int "?\n", size);
     size = s7_gc_freed(sc);
-    if (size < 0) fprintf(stderr, "gc_freed: %" PRId64 "?\n", size);
+    if (size < 0) fprintf(stderr, "gc_freed: %" print_s7_int "?\n", size);
     s7_gc_stats(sc, false);
   }
 #endif
@@ -1215,7 +1217,7 @@ int main(int argc, char **argv)
 						    s7_make_integer(sc, 5),
 						    s7_make_integer(sc, 6))));
     if (val != 21)
-      fprintf(stderr, "plus1: %" PRId64 "\n", val);
+      fprintf(stderr, "plus1: %" print_s7_int "\n", val);
   }
   
   p = s7_apply_function(sc, s7_name_to_value(sc, "plus"), s7_cons(sc, s7_make_keyword(sc, "blue"), s7_cons(sc, TO_S7_INT(2), s7_nil(sc))));
@@ -1301,11 +1303,11 @@ int main(int argc, char **argv)
     dims = s7_vector_dimensions(p1);
     offs = s7_vector_offsets(p1);
     els = s7_vector_elements(p1);
-    if (dims[0] != 2) fprintf(stderr, "%d: dims[0]: %" PRId64 "?\n", __LINE__, dims[0]);
-    if (dims[1] != 3) fprintf(stderr, "%d: dims[1]: %" PRId64 "?\n", __LINE__, dims[1]);
-    if (dims[2] != 4) fprintf(stderr, "%d: dims[2]: %" PRId64 "?\n", __LINE__, dims[2]);
-    if (offs[0] != 12) fprintf(stderr, "%d: offs[0]: %" PRId64 "?\n", __LINE__, offs[0]);
-    if (offs[1] != 4) fprintf(stderr, "%d: offs[1]: %" PRId64 "?\n", __LINE__, offs[1]);
+    if (dims[0] != 2) fprintf(stderr, "%d: dims[0]: %" print_s7_int "?\n", __LINE__, dims[0]);
+    if (dims[1] != 3) fprintf(stderr, "%d: dims[1]: %" print_s7_int "?\n", __LINE__, dims[1]);
+    if (dims[2] != 4) fprintf(stderr, "%d: dims[2]: %" print_s7_int "?\n", __LINE__, dims[2]);
+    if (offs[0] != 12) fprintf(stderr, "%d: offs[0]: %" print_s7_int "?\n", __LINE__, offs[0]);
+    if (offs[1] != 4) fprintf(stderr, "%d: offs[1]: %" print_s7_int "?\n", __LINE__, offs[1]);
     if (s7_integer(p = els[12 + 4 + 1]) != 32)
       {fprintf(stderr, "%d: %s is not 32?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   }
@@ -1715,9 +1717,9 @@ int main(int argc, char **argv)
       {fprintf(stderr, "%d: g_block %s is not a c_object?\n", __LINE__, s1 = TO_STR(gp)); free(s1);}
     g = (g_block *)s7_c_object_value(gp);
     if (s7_c_object_type(gp) != g_block_type)
-      {fprintf(stderr, "%d: g_block types: %" PRId64 " %" PRId64 "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
+      {fprintf(stderr, "%d: g_block types: %" print_s7_int " %" print_s7_int "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
     if (s7_c_object_value_checked(gp, g_block_type) != g)
-      {fprintf(stderr, "%d: checked g_block types: %" PRId64 " %" PRId64 "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
+      {fprintf(stderr, "%d: checked g_block types: %" print_s7_int " %" print_s7_int "\n", __LINE__, g_block_type, s7_c_object_type(gp));}
 
     s7_gc_unprotect_at(sc, gc_loc);
   }

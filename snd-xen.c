@@ -1485,7 +1485,7 @@ mus_long_t string_to_mus_long_t(const char *str, mus_long_t lo, const char *fiel
       mus_long_t val;
       val = Xen_llong_to_C_llong(res);
       if (val < lo)
-	snd_error("%s: %" PRId64 " is invalid", field_name, val);
+	snd_error("%s: %" print_mus_long " is invalid", field_name, val);
       else return(val);
     }
   else snd_error("%s: %s is not a number", field_name, str);
@@ -1494,12 +1494,12 @@ mus_long_t string_to_mus_long_t(const char *str, mus_long_t lo, const char *fiel
   mus_long_t res = 0;
   if (str) 
     {
-      if (!(sscanf(str, "%" PRId64, &res)))
+      if (!(sscanf(str, "%" print_mus_long, &res)))
 	snd_error("%s: %s is not a number", field_name, str);
       else
 	{
 	  if (res < lo)
-	    snd_error("%s: %" PRId64 " is invalid", field_name, res);
+	    snd_error("%s: %" print_mus_long " is invalid", field_name, res);
 	}
     }
   return(res);

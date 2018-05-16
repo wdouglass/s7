@@ -14,7 +14,7 @@ static void mus_long_t_to_textfield(widget_t w, mus_long_t val)
 {
   char *str;
   str = (char *)calloc(32, sizeof(char));
-  snprintf(str, 32, "%" PRId64, val);
+  snprintf(str, 32, "%" print_mus_long, val);
   SET_TEXT(w, str);
   free(str);
 }

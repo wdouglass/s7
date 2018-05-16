@@ -110,7 +110,7 @@ static char *channel_search(chan_info *cp, read_direction_t direction)
 
   s1 = prettyf(chn_sample(samp, cp, cp->edit_ctr), 2);
   s2 = x_axis_location_to_string(cp, (double)samp / (double)snd_srate(cp->sound));
-  msg = mus_format("%s at %s (%" PRId64 ")", s1, s2, samp);
+  msg = mus_format("%s at %s (%" print_mus_long ")", s1, s2, samp);
   cursor_moveto_without_verbosity(cp, samp);
   free(s1);
   free(s2);

@@ -27,6 +27,8 @@
 typedef double mus_float_t;
 typedef int64_t mus_long_t;
 
+#define print_mus_long PRId64
+
 #if defined(__sun) && defined(__SVR4)
   #define HAVE_SUN 1
 #endif

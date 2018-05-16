@@ -291,13 +291,13 @@ static const char *b2s(bool val)
 static char *tagged_mix_to_string(const char *mixinfile, mus_long_t beg, int file_channel, bool delete_file)
 {
 #if HAVE_FORTH
-  return(mus_format("\"%s\" %" PRId64 " %d snd chn %s %s %s to -mix-%d", mixinfile, beg, file_channel, b2s(true), b2s(delete_file), S_mix, mix_infos_ctr));
+  return(mus_format("\"%s\" %" print_mus_long " %d snd chn %s %s %s to -mix-%d", mixinfile, beg, file_channel, b2s(true), b2s(delete_file), S_mix, mix_infos_ctr));
 #endif
 #if HAVE_SCHEME
-  return(mus_format("(varlet -env- '-mix-%d (%s \"%s\" %" PRId64 " %d snd chn %s %s))", mix_infos_ctr, S_mix, mixinfile, beg, file_channel, b2s(true), b2s(delete_file)));
+  return(mus_format("(varlet -env- '-mix-%d (%s \"%s\" %" print_mus_long " %d snd chn %s %s))", mix_infos_ctr, S_mix, mixinfile, beg, file_channel, b2s(true), b2s(delete_file)));
 #endif
 #if HAVE_RUBY
-  return(mus_format("_mix_%d = %s(\"%s\", %" PRId64 ", %d, snd, chn, %s, %s)", mix_infos_ctr, to_proc_name(S_mix), mixinfile, beg, file_channel, b2s(true), b2s(delete_file)));
+  return(mus_format("_mix_%d = %s(\"%s\", %" print_mus_long ", %d, snd, chn, %s, %s)", mix_infos_ctr, to_proc_name(S_mix), mixinfile, beg, file_channel, b2s(true), b2s(delete_file)));
 #endif
 #if (!HAVE_EXTENSION_LANGUAGE)
   return(NULL);
@@ -308,13 +308,13 @@ static char *tagged_mix_to_string(const char *mixinfile, mus_long_t beg, int fil
 static char *untagged_mix_to_string(const char *mixinfile, mus_long_t beg, int file_channel, bool delete_file)
 {
 #if HAVE_FORTH
-  return(mus_format("\"%s\" %" PRId64 " %d snd chn %s %s %s", mixinfile, beg, file_channel, b2s(false), b2s(delete_file), S_mix));
+  return(mus_format("\"%s\" %" print_mus_long " %d snd chn %s %s %s", mixinfile, beg, file_channel, b2s(false), b2s(delete_file), S_mix));
 #endif
 #if HAVE_SCHEME
-  return(mus_format("(%s \"%s\" %" PRId64 " %d snd chn %s %s)", S_mix, mixinfile, beg, file_channel, b2s(false), b2s(delete_file)));
+  return(mus_format("(%s \"%s\" %" print_mus_long " %d snd chn %s %s)", S_mix, mixinfile, beg, file_channel, b2s(false), b2s(delete_file)));
 #endif
 #if HAVE_RUBY
-  return(mus_format("%s(\"%s\", %" PRId64 ", %d, snd, chn, %s, %s)", to_proc_name(S_mix), mixinfile, beg, file_channel, b2s(false), b2s(delete_file)));
+  return(mus_format("%s(\"%s\", %" print_mus_long ", %d, snd, chn, %s, %s)", to_proc_name(S_mix), mixinfile, beg, file_channel, b2s(false), b2s(delete_file)));
 #endif
 #if (!HAVE_EXTENSION_LANGUAGE)
   return(NULL);
@@ -1515,13 +1515,13 @@ bool mix_set_position_edit(int id, mus_long_t pos)
 	{
 	  char *origin = NULL;
 #if HAVE_FORTH
-	  origin = mus_format("-mix-%d %" PRId64 " set-mix-position", id, pos);
+	  origin = mus_format("-mix-%d %" print_mus_long " set-mix-position", id, pos);
 #endif
 #if HAVE_SCHEME
-	  origin = mus_format("(set! (mix-position (car -mix-%d)) %" PRId64 ")", id, pos);
+	  origin = mus_format("(set! (mix-position (car -mix-%d)) %" print_mus_long ")", id, pos);
 #endif
 #if HAVE_RUBY
-	  origin = mus_format("set_mix_position(_mix_%d, %" PRId64 ")", id, pos);
+	  origin = mus_format("set_mix_position(_mix_%d, %" print_mus_long ")", id, pos);
 #endif
 	  edited = begin_mix_op(md->cp, old_ms->beg, old_ms->len, pos, old_ms->len, md->cp->edit_ctr, origin); /* this does not change beg or len */
 
@@ -3476,19 +3476,19 @@ mix data (a " S_vct ") into snd's channel chn starting at beg; return the new mi
 	    name++; 
 	  else 
 	    name = S_mix_vct; 
-	  new_origin = mus_format("%.*s %" PRId64 " snd chn %s to -mix-%d", 
+	  new_origin = mus_format("%.*s %" print_mus_long " snd chn %s to -mix-%d", 
 				  (int)(strlen(edname) - strlen(name) - 1), edname, 
 				  bg, name, mix_infos_ctr); 
 	} 
-      else new_origin = mus_format("vct( 0 ) %" PRId64 " snd chn %s to -mix-%d", bg, S_mix_vct, mix_infos_ctr); 
+      else new_origin = mus_format("vct( 0 ) %" print_mus_long " snd chn %s to -mix-%d", bg, S_mix_vct, mix_infos_ctr); 
     } 
 #endif
 #if HAVE_SCHEME
-    new_origin = mus_format("(varlet -env- '-mix-%d (%s %" PRId64 " snd chn))", mix_infos_ctr, edname, bg);
+    new_origin = mus_format("(varlet -env- '-mix-%d (%s %" print_mus_long " snd chn))", mix_infos_ctr, edname, bg);
 #endif
 #if HAVE_RUBY
     /* mix_vct(vct(0.1, 0.2, 0.3), 100, snd, chn, true, "mix_vct(vct(0.1, 0.2, 0.3)") */ 
-    new_origin = mus_format("_mix_%d = %s, %" PRId64 ", snd, chn)", mix_infos_ctr, edname, bg); 
+    new_origin = mus_format("_mix_%d = %s, %" print_mus_long ", snd, chn)", mix_infos_ctr, edname, bg); 
 #endif
 
     mix_id = mix_buffer_with_tag(cp, data, bg, len, new_origin); 
@@ -3725,7 +3725,7 @@ static char *mix_sampler_to_string(mix_fd *fd)
 	{
 	  mix_info *md;
 	  md = fd->md;
-	  snprintf(desc, PRINT_BUFFER_SIZE, "#<mix-sampler mix %d, (from %" PRId64 ", at %" PRId64 "%s): %s>",
+	  snprintf(desc, PRINT_BUFFER_SIZE, "#<mix-sampler mix %d, (from %" print_mus_long ", at %" print_mus_long "%s): %s>",
 		       md->id,
 		       fd->sf->initial_samp,
 		       fd->sf->loc,

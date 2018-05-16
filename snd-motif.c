@@ -598,7 +598,7 @@ static void widget_mus_long_t_to_text(Widget w, mus_long_t val)
 {
   char *str;
   str = (char *)calloc(32, sizeof(char));
-  snprintf(str, 32, "%" PRId64, val);
+  snprintf(str, 32, "%" print_mus_long, val);
   XmTextFieldSetString(w, str);
   free(str);
 }
@@ -14765,8 +14765,8 @@ static void view_files_mix_selected_files(widget_t w, view_files_info *vdat)
 	{
 	  char *msg;
 	  if (vdat->currently_selected_files == 1)
-	    msg = mus_format("%s mixed in at %" PRId64, vdat->names[vdat->selected_files[0]], vdat->beg);
-	  else msg = mus_format("selected files mixed in at %" PRId64, vdat->beg);
+	    msg = mus_format("%s mixed in at %" print_mus_long, vdat->names[vdat->selected_files[0]], vdat->beg);
+	  else msg = mus_format("selected files mixed in at %" print_mus_long, vdat->beg);
 	  vf_post_error(msg, vdat);
 	  vdat->has_error = false;
 	  free(msg);
@@ -14849,8 +14849,8 @@ static void view_files_insert_selected_files(widget_t w, view_files_info *vdat)
 	{
 	  char *msg;
 	  if (vdat->currently_selected_files == 1)
-	    msg = mus_format("%s inserted at %" PRId64, vdat->names[vdat->selected_files[0]], vdat->beg);
-	  else msg = mus_format("selected files inserted at %" PRId64, vdat->beg);
+	    msg = mus_format("%s inserted at %" print_mus_long, vdat->names[vdat->selected_files[0]], vdat->beg);
+	  else msg = mus_format("selected files inserted at %" print_mus_long, vdat->beg);
 	  vf_post_error(msg, vdat);
 	  vdat->has_error = false;
 	  free(msg);
@@ -19970,7 +19970,7 @@ widget_t make_preferences_dialog(void)
     fft_label = make_top_level_label("transform options", fft_box);
 
     rts_fft_size = transform_size(ss);
-    str = mus_format("%" PRId64, rts_fft_size);
+    str = mus_format("%" print_mus_long, rts_fft_size);
     prf = prefs_row_with_number("size", S_transform_size,
 				str, 12, 
 				fft_box, fft_label, 

@@ -1465,7 +1465,7 @@ static bool memory_is_available(mus_long_t slices, mus_long_t bins)
 	  if (!check_alloc[i])
 	    {
 	      int j;
-	      snd_warning("can't allocate enough memory to run this set of FFTS: %" PRId64 " bytes needed", bytes_needed);
+	      snd_warning("can't allocate enough memory to run this set of FFTS: %" print_mus_long " bytes needed", bytes_needed);
 	      for (j = 0; j < i; j++)
 		free(check_alloc[j]);
 	      return(false);
@@ -1816,7 +1816,7 @@ void c_convolve(const char *fname, mus_float_t amp, int filec, mus_long_t filehd
 	  (!pbuffer) || (!pbuffer[0]) ||
 	  (!fbuffer) || (!fbuffer[filter_chan]))
 	{
-	  snd_error("not enough memory for convolve of %s (filter size: %" PRId64 ", fft size: %" PRId64 ")", 
+	  snd_error("not enough memory for convolve of %s (filter size: %" print_mus_long ", fft size: %" print_mus_long ")", 
 		    fname, filtersize, fftsize);
 	}
       else

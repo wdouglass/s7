@@ -379,13 +379,13 @@ static int mix_selection(chan_info *cp, sync_info *si_out, mus_long_t beg, io_er
     {
       char *origin = NULL;
 #if HAVE_FORTH
-      origin = mus_format("%" PRId64 " snd chn %s", beg, S_mix_selection);
+      origin = mus_format("%" print_mus_long " snd chn %s", beg, S_mix_selection);
 #else
   #if HAVE_SCHEME
-      origin = mus_format("-mix-selection- %" PRId64 " %" PRId64 " %" PRId64 " snd chn",
+      origin = mus_format("-mix-selection- %" print_mus_long " %" print_mus_long " %" print_mus_long " snd chn",
                           beg, selection_beg(cp), selection_len());
   #else
-      origin = mus_format("%s" PROC_OPEN "%" PRId64, to_proc_name(S_mix_selection), beg);
+      origin = mus_format("%s" PROC_OPEN "%" print_mus_long, to_proc_name(S_mix_selection), beg);
   #endif
 #endif
       if (si_out->chans > 1)
@@ -461,9 +461,9 @@ static io_error_t insert_selection(chan_info *cp, sync_info *si_out, mus_long_t 
 	      cp_in = si_in->cps[i];   /* selection chan to paste in (no wrap-around here) */
 	      len = cp_selection_len(cp_in, NULL);
 #if HAVE_FORTH
-	      origin = mus_format("%" PRId64 " %s", beg, S_insert_selection);
+	      origin = mus_format("%" print_mus_long " %s", beg, S_insert_selection);
 #else
-	      origin = mus_format("%s" PROC_OPEN "%" PRId64, to_proc_name(S_insert_selection), beg);
+	      origin = mus_format("%s" PROC_OPEN "%" print_mus_long, to_proc_name(S_insert_selection), beg);
 #endif
 	      if (file_insert_samples(beg, len,
 				      tempfile, cp_out, i,

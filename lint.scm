@@ -5991,7 +5991,7 @@
 		       (values "~A" (cons 'substring (cons (cadr d) indices)))))
 	       (values "~A" (if indices (cons 'substring (cons (cadr d) indices)) (cadr d))))))))
 
-    (denote (set!? form env)
+    (denote (lint-set!? form env)
       (and *report-any-!-as-setter* ; (inc! x) when inc! is unknown, assume it sets x
 	   (symbol? (car form))
 	   (pair? (cdr form))
@@ -8929,7 +8929,7 @@
 				(if (and v
 					 (equal? (list 'string-length str) (var-initial-value v))
 					 (not (lint-any? (lambda (p)
-							   (set!? p env))
+							   (lint-set!? p env))
 							 (var-history v))))   ;  if len is still (string-length x), (substring x 1 len) -> (substring x 1)
 				    (lint-format "perhaps, if ~A is still ~A, ~A" caller end (var-initial-value v)
 						 (lists->string form (copy form (make-list 3))))))))))))))
@@ -13354,7 +13354,7 @@
 								   string-set! list-set! hash-table-set! let-set!
 								   set-car! set-cdr!))
 						   ;; maybe check for anything ending in ! here
-						   (set!? p env))
+						   (lint-set!? p env))
 					       (eq? vname (cadr p))))
 					(var-history local-var))))
 	       (lint-format "~A can ~Abe moved to ~A's closure" lint-function-name
@@ -13901,7 +13901,7 @@
 			(and (pair? (cddr form))  ; (push! y x)
 			     (eq? (caddr form) name)))
 		    (or (eq? (car form) 'set!)    ; (set! x y)
-			(set!? form env)))
+			(lint-set!? form env)))
 	       (set-target name (car form) env)
 	       (set-target name (cdr form) env))))
 
@@ -17840,7 +17840,7 @@
 				     step-vars)))
 		  (if (or (null? (cdr baddies))
 			  (let ((trails new-sets))
-			    (not (lint-any? (lambda (v)     ; for each baddy, is it used in any following set!?
+			    (not (lint-any? (lambda (v)     ; for each baddy, is it used in any following lint-set!?
 					      (and (pair? (cdr trails))
 						   (set! trails (cdr trails))
 						   (tree-memq v trails)))
@@ -19211,7 +19211,7 @@
 				     (and (pair? p)
 					  (memq (cadr p) vs)
 					  (or (eq? (car p) 'set!)
-					      (set!? p env))))
+					      (lint-set!? p env))))
 				   (cddr form))
 		  (lint-format "perhaps omit this useless let: ~A" caller
 			       (truncated-lists->string form
@@ -21614,7 +21614,7 @@
 				    (set! (var-refenv v) env)))))
 			    form)
 		  
-		  (if (set!? form env)
+		  (if (lint-set!? form env)
 		      (set-set (cadr form) caller form env)))
 		
 		(if (var? v)

@@ -1747,7 +1747,7 @@ mus_long_t mus_file_read(int tfd, mus_long_t beg, mus_long_t num, int chans, mus
 	  mus_float_t *buffer;
 	  buffer = bufs[k];
 	  /* this happens routinely in mus_outa + initial write (reads ahead in effect) */
-	  /* fprintf(stderr, "clear from %" PRId64 " for %" PRId64 "\n", rtn, num-rtn); */
+	  /* fprintf(stderr, "clear from %" print_mus_long " for %" print_mus_long "\n", rtn, num-rtn); */
 	  mus_clear_floats(buffer + rtn, num - rtn);
 	}
     }
@@ -1797,7 +1797,7 @@ static int checked_write(int tfd, char *buf, mus_long_t chars)
 			 fd->name));
       else
 	return(mus_error(MUS_WRITE_ERROR,
-			 "mus_write: write error for %s%s%s: only %" PRId64 " of %" PRId64 " bytes written",
+			 "mus_write: write error for %s%s%s: only %" print_mus_long " of %" print_mus_long " bytes written",
 			 fd->name, (errno) ? ": " : "", (errno) ? STRERROR(errno) : "",
 			 bytes, chars));
     }
