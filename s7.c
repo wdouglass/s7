@@ -400,14 +400,8 @@ typedef intptr_t opcode_t;
   #define POINTER_32 false
 #endif
 
-#if WITH_QMATH
-  #include <quadmath.h>
-  #define WRITE_REAL_PRECISION 32
-  typedef __float128 long_double;
-#else
-  #define WRITE_REAL_PRECISION 16
-  typedef long double long_double;
-#endif
+#define WRITE_REAL_PRECISION 16
+typedef long double long_double;
 
 #define print_s7_int PRId64
 #define print_int32  PRId32
@@ -484,12 +478,120 @@ typedef enum {TOKEN_EOF, TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN, TOKEN_DOT, TOKEN_A
 
 typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
+
+/* -------------------------------- */
+/* local allocator; currently used for hash-table-elements and port-data */
+
+static const int32_t bits[256] =
+  {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+   6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
+
+typedef struct {
+  void *data;
+  int32_t index;
+  int32_t size;
+  struct block_t *next;
+  struct {
+    s7_pointer ex_ptr; /* hash-table-procedures */
+    char *ex_str; 
+  } ex;
+} block_t;
+
+#define NUM_BLOCK_LISTS 18
+#define TOP_BLOCK_LIST 17
+static block_t *block_lists[NUM_BLOCK_LISTS];
+
+static void init_block_lists(void)
+{
+  int32_t i;
+  for (i = 0; i < NUM_BLOCK_LISTS; i++)
+    block_lists[i] = NULL;
+}
+
+static inline void liberate(block_t *p)
+{
+  if (p->index < TOP_BLOCK_LIST)
+    {
+      p->next = (struct block_t *)block_lists[p->index];
+      block_lists[p->index] = p;
+    }
+  else 
+    {
+      if (p->data) free(p->data);
+      free(p);
+    }
+}
+
+static block_t *mallocate(int32_t bytes)
+{
+  int32_t index;
+  block_t *p;
+  if (bytes > 0)
+    {
+      if (bytes <= 256) 
+	index = bits[bytes - 1];
+      else 
+	{
+	  if (bytes <= 65536)
+	    index = 8 + bits[(bytes - 1) >> 8];
+	  else index = TOP_BLOCK_LIST;
+	}
+      p = block_lists[index];
+      if (p)
+	{
+	  p->size = bytes;
+	  block_lists[index] = (block_t *)p->next;
+	  return(p);
+	}
+      p = (block_t *)malloc(sizeof(block_t));
+      p->data = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
+      p->index = index;
+    }
+  else 
+    {
+      p = (block_t *)malloc(sizeof(block_t));
+      p->data = NULL;
+      p->index = TOP_BLOCK_LIST;
+    }
+  p->size = bytes;
+  p->next = NULL;
+  return(p);
+}
+
+static block_t *callocate(int32_t bytes)
+{
+  block_t *p;
+  p = mallocate(bytes);
+  if (p->data)
+    memset((void *)(p->data), 0, bytes);
+  return(p);
+}
+
+static block_t *reallocate(block_t *op, int32_t bytes)
+{
+  block_t *np;
+  np = mallocate(bytes);
+  if (op->data)  /* presumably np->data is not null */
+    memcpy((uint8_t *)(np->data), (uint8_t *)(op->data), op->size);
+  liberate(op);
+  return(np);
+}
+/* -------------------------------- */
+
+
 typedef struct {
   bool needs_free, needs_unprotect, is_closed;
   port_type_t ptype;
   FILE *file;
   char *filename;
   s7_int gc_loc, filename_length;
+  block_t *block;
   void *next;
   s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
   void (*output_function)(s7_scheme *sc, uint8_t c, s7_pointer port);
@@ -751,7 +853,8 @@ typedef struct s7_cell {
       hash_entry_t **elements;
       hash_check_t hash_func;
       hash_map_t *loc;
-      s7_pointer dproc;             /* user-supplied list of hashing functions */
+      /* s7_pointer dproc; */             /* user-supplied list of hashing functions */
+      block_t *block;
     } hasher;
 
     struct {                        /* iterators */
@@ -2499,29 +2602,31 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define is_int_vector(p)              (type(p) == T_INT_VECTOR)
 #define is_float_vector(p)            (type(p) == T_FLOAT_VECTOR)
 
-#define vector_ndims(p)               ((T_Vec(p))->object.vector.dim_info->ndims)
-#define vector_dimension(p, i)        ((T_Vec(p))->object.vector.dim_info->dims[i])
-#define vector_dimensions(p)          ((T_Vec(p))->object.vector.dim_info->dims)
-#define vector_offset(p, i)           ((T_Vec(p))->object.vector.dim_info->offsets[i])
-#define vector_offsets(p)             ((T_Vec(p))->object.vector.dim_info->offsets)
-#define vector_dimension_info(p)      ((T_Vec(p))->object.vector.dim_info)
-#define shared_vector(p)              ((T_Vec(p))->object.vector.dim_info->original)
+#define vector_dimension_info(p)      (T_Vec(p))->object.vector.dim_info
+#define vector_ndims(p)               vector_dimension_info(p)->ndims
+#define vector_dimension(p, i)        vector_dimension_info(p)->dims[i]
+#define vector_dimensions(p)          vector_dimension_info(p)->dims
+#define vector_offset(p, i)           vector_dimension_info(p)->offsets[i]
+#define vector_offsets(p)             vector_dimension_info(p)->offsets
+#define shared_vector(p)              vector_dimension_info(p)->original
 #define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
-#define vector_elements_allocated(p)  ((T_Vec(p))->object.vector.dim_info->elements_allocated)
-#define vector_dimensions_allocated(p) ((T_Vec(p))->object.vector.dim_info->dimensions_allocated)
+#define vector_elements_allocated(p)  vector_dimension_info(p)->elements_allocated
+#define vector_dimensions_allocated(p) vector_dimension_info(p)->dimensions_allocated
 
 #define is_hash_table(p)              (type(p) == T_HASH_TABLE)
 #define is_mutable_hash_table(p)      ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
 #define hash_table_mask(p)            (T_Hsh(p))->object.hasher.mask
-#define hash_table_element(p, i)      ((T_Hsh(p))->object.hasher.elements[i])
+#define hash_table_block(p)           (T_Hsh(p))->object.hasher.block
+#define hash_table_set_block(p, b)    (T_Hsh(p))->object.hasher.block = b
+#define hash_table_element(p, i)      (T_Hsh(p))->object.hasher.elements[i]
 #define hash_table_elements(p)        (T_Hsh(p))->object.hasher.elements
 #define hash_table_entries(p)         (T_Hsh(p))->object.hasher.entries
 #define hash_table_checker(p)         (T_Hsh(p))->object.hasher.hash_func
 #define hash_table_mapper(p)          (T_Hsh(p))->object.hasher.loc
 #define hash_table_checker_locked(p)  (hash_table_mapper(p) != default_hash_map)
-#define hash_table_procedures(p)      T_Lst((T_Hsh(p))->object.hasher.dproc)
-#define hash_table_set_procedures(p, Lst) (T_Hsh(p))->object.hasher.dproc = T_Lst(Lst)
+#define hash_table_procedures(p)      T_Lst((T_Hsh(p))->object.hasher.block->ex.ex_ptr)
+#define hash_table_set_procedures(p, Lst) (T_Hsh(p))->object.hasher.block->ex.ex_ptr = T_Lst(Lst)
 #define hash_table_procedures_checker(p) car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
 
@@ -2568,6 +2673,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define port_set_filename(p, Name, Len) port_port(p)->filename = copy_string_with_length(Name, Len)
 #define port_filename_length(p)       port_port(p)->filename_length
 #define port_file(p)                  port_port(p)->file
+#define port_block(p)                 port_port(p)->block
 #define port_data(p)                  (T_Prt(p))->object.prt.data
 #define port_data_size(p)             (T_Prt(p))->object.prt.size
 #define port_position(p)              (T_Prt(p))->object.prt.point
@@ -4196,7 +4302,7 @@ static void sweep(s7_scheme *sc)
       gp->loc = j;
     }
 
-  gp = sc->strings1;
+  gp = sc->strings1; /* these don't return to the string free list (they're from make_string_uncopied_with_length) */
   if (gp->loc > 0)
     {
       for (i = 0, j = 0; i < gp->loc; i++)
@@ -4350,7 +4456,8 @@ static void sweep(s7_scheme *sc)
 		{
 		  if (port_data(s1))
 		    {
-		      free(port_data(s1));
+		      liberate(port_block(s1));
+		      port_block(s1) = NULL;
 		      port_data(s1) = NULL;
 		      port_data_size(s1) = 0;
 		    }
@@ -19739,16 +19846,6 @@ static bool is_inexact_b(s7_pointer p)
 
 static int32_t integer_length(s7_int a)
 {
-  static const int32_t bits[256] =
-    {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-     6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
-
   #define I_8 256LL
   #define I_16 65536LL
   #define I_24 16777216LL
@@ -19817,7 +19914,7 @@ sign of 'x' (1 = positive, -1 = negative).  (integer-decode-float 0.0): (0 0 1)"
     } value;
   } decode_float_t;
 
- decode_float_t num;
+  decode_float_t num;
   s7_pointer x;
   x = car(args);
 
@@ -22843,7 +22940,8 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
     {
       if (port_data(p))
 	{
-	  free(port_data(p));
+	  liberate(port_block(p));
+	  port_block(p) = NULL;
 	  port_data(p) = NULL;
 	  port_data_size(p) = 0;
 	}
@@ -22933,7 +23031,11 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 	      if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != (size_t)port_position(p))
 		s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
 	    }
-	  free(port_data(p));
+	  if (port_block(p)) 
+	    {
+	      liberate(port_block(p));
+	      port_block(p) = NULL;
+	    }
 	  fflush(port_file(p));
 	  fclose(port_file(p));
 	  port_file(p) = NULL;
@@ -22944,7 +23046,11 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
       if ((is_string_port(p)) &&
 	  (port_data(p)))
 	{
-	  free(port_data(p));
+	  if (port_block(p)) 
+	    {
+	      liberate(port_block(p));
+	      port_block(p) = NULL;
+	    }
 	  port_data(p) = NULL;
 	  port_data_size(p) = 0;
 	  port_needs_free(p) = false;
@@ -23137,11 +23243,15 @@ static s7_pointer string_read_line(s7_scheme *sc, s7_pointer port, bool with_eol
 static void resize_port_data(s7_pointer pt, s7_int new_size)
 {
   s7_int loc;
+  block_t *nb;
+
   loc = port_data_size(pt);
   if (new_size < loc) return;
+
+  nb = reallocate(port_block(pt), new_size);
+  port_block(pt) = nb;
+  port_data(pt) = (uint8_t *)(nb->data);
   port_data_size(pt) = new_size;
-  port_data(pt) = (uint8_t *)realloc(port_data(pt), new_size * sizeof(uint8_t));
-  memclr((void *)(port_data(pt) + loc), new_size - loc);
 }
 
 static void string_write_char_resized(s7_scheme *sc, uint8_t c, s7_pointer pt)
@@ -23679,9 +23789,11 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       ((max_size < 0) || (size < max_size))) /* load uses max_size = -1 */
     {
       size_t bytes;
+      block_t *block;
       uint8_t *content;
 
-      content = (uint8_t *)malloc((size + 2) * sizeof(uint8_t));
+      block = mallocate(size + 2);
+      content = (uint8_t *)(block->data);
       bytes = fread(content, sizeof(uint8_t), size, fp);
       if (bytes != (size_t)size)
 	{
@@ -23700,6 +23812,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 
       port_type(port) = STRING_PORT;
       port_data(port) = content;
+      port_block(port) = block;
       port_data_size(port) = size;
       port_position(port) = 0;
       port_needs_free(port) = true;
@@ -23717,6 +23830,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       port_file(port) = fp;
       port_type(port) = FILE_PORT;
       port_data(port) = NULL;
+      port_block(port) = NULL;
       port_data_size(port) = 0;
       port_position(port) = 0;
       port_needs_free(port) = false;
@@ -23737,6 +23851,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
   port_type(port) = FILE_PORT;
   port_needs_free(port) = false;
   port_data(port) = NULL;
+  port_block(port) = NULL;
   port_data_size(port) = 0;
   port_position(port) = 0;
   port_read_character(port) = file_read_char;
@@ -23859,6 +23974,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
+  port_block(x) = NULL;
   port_set_closed(x, false);
   port_filename_length(x) = 8;
   port_set_filename(x, "*stdout*", 8);
@@ -23880,6 +23996,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
+  port_block(x) = NULL;
   port_set_closed(x, false);
   port_filename_length(x) = 8;
   port_set_filename(x, "*stderr*", 8);
@@ -23907,6 +24024,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_file_number(x) = remember_file_name(sc, port_filename(x));
   port_line_number(x) = 0;
   port_file(x) = stdin;
+  port_block(x) = NULL;
   port_needs_free(x) = false;
   port_read_character(x) = file_read_char;
   port_read_line(x) = stdin_read_line;
@@ -23935,6 +24053,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
 {
   FILE *fp;
   s7_pointer x;
+  block_t *block;
   /* see if we can open this file before allocating a port */
 
   errno = 0;
@@ -23956,7 +24075,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_set_filename(x, name, port_filename_length(x));
   port_line_number(x) = 1;
   port_file(x) = fp;
-  port_needs_free(x) = false;
+  port_needs_free(x) = false;  /* hmm -- I think these are freed via s7_close_output_port -> close_output_port */
   port_read_character(x) = output_read_char;
   port_read_line(x) = output_read_line;
   port_display(x) = file_display;
@@ -23964,7 +24083,9 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_write_string(x) = file_write_string;
   port_position(x) = 0;
   port_data_size(x) = PORT_DATA_SIZE;
-  port_data(x) = (uint8_t *)malloc(PORT_DATA_SIZE); /* was +8? */
+  block = mallocate(PORT_DATA_SIZE);
+  port_block(x) = block;
+  port_data(x) = (uint8_t *)(block->data);
   add_output_port(sc, x);
   return(x);
 }
@@ -23997,6 +24118,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
   port_data(x) = (uint8_t *)input_string;
+  port_block(x) = NULL;
   port_data_size(x) = len;
   port_position(x) = 0;
   port_filename_length(x) = 0;
@@ -24061,12 +24183,15 @@ static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
 static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
 {
   s7_pointer x;
+  block_t *block;
   new_cell(sc, x, T_OUTPUT_PORT);
   port_port(x) = alloc_port(sc);
   port_type(x) = STRING_PORT;
   port_set_closed(x, false);
   port_data_size(x) = len;
-  port_data(x) = (uint8_t *)malloc(len * sizeof(uint8_t)); /* was +8? */
+  block = mallocate(len);
+  port_block(x) = block;
+  port_data(x) = (uint8_t *)(block->data);
   port_data(x)[0] = '\0';   /* in case s7_get_output_string before any output */
   port_position(x) = 0;
   port_needs_free(x) = true;
@@ -24146,6 +24271,7 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   port_type(x) = FUNCTION_PORT;
   port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
+  port_block(x) = NULL;
   port_needs_free(x) = false;
   port_input_function(x) = function;
   port_read_character(x) = function_read_char;
@@ -24165,6 +24291,7 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
   port_port(x) = alloc_port(sc);
   port_type(x) = FUNCTION_PORT;
   port_data(x) = NULL;
+  port_block(x) = NULL;
   port_set_closed(x, false);
   port_needs_free(x) = false;
   port_output_function(x) = function;
@@ -27292,11 +27419,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-#if WITH_QMATH
-	  plen = quadmath_snprintf(buf, 128, "%.*Qg)", float_format_precision, first);
-#else
 	  plen = snprintf(buf, 128, "%.*g)", float_format_precision, first);
-#endif
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
 	}
@@ -30160,6 +30283,7 @@ static s7_pointer open_format_port(void)
 {
   s7_pointer x;
   s7_int len;
+  block_t *block;
 
   if (format_ports)
     {
@@ -30177,7 +30301,9 @@ static s7_pointer open_format_port(void)
   port_type(x) = STRING_PORT;
   port_set_closed(x, false);
   port_data_size(x) = len;
-  port_data(x) = (uint8_t *)malloc(len * sizeof(uint8_t)); /* was +8 */
+  block = mallocate(len);
+  port_data(x) = (uint8_t *)(block->data);
+  port_block(x) = block;
   port_data(x)[0] = '\0';
   port_position(x) = 0;
   port_needs_free(x) = false;
@@ -37563,7 +37689,7 @@ static void free_hash_table(s7_pointer table)
 	    }
 	}
     }
-  free(entries);
+  liberate(hash_table_block(table));
 }
 
 static hash_entry_t *make_hash_entry(s7_pointer key, s7_pointer value, uint32_t raw_hash)
@@ -38316,7 +38442,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 {
   s7_pointer table;
-  hash_entry_t **els;
+  block_t *els;
   /* size is rounded up to the next power of 2 */
 
   if (size < 2)
@@ -38340,12 +38466,13 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 	}
     }
 
-  els = (hash_entry_t **)calloc(size, sizeof(hash_entry_t *));
+  els = callocate(size * sizeof(hash_entry_t *));
   if (!els) return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-hash-table allocation failed!"))));
 
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
-  hash_table_elements(table) = els;
+  hash_table_set_block(table, els);
+  hash_table_elements(table) = (hash_entry_t **)(els->data);
   hash_table_checker(table) = hash_empty;
   hash_table_mapper(table) = default_hash_map;
   hash_table_entries(table) = 0;
@@ -38618,13 +38745,17 @@ static uint32_t resize_hash_table(s7_pointer table)
   /* resize the table */
   uint32_t hash_len, loc, i, old_size, new_size;
   hash_entry_t **new_els, **old_els;
-  
+  block_t *np;
+  s7_pointer dproc;
+
+  dproc = hash_table_procedures(table); /* new block_t so we need to pass this across */
   old_size = hash_table_mask(table) + 1;
   new_size = old_size * 4;
   hash_len = new_size - 1;
-  new_els = (hash_entry_t **)calloc(new_size, sizeof(hash_entry_t *));
+  np = (block_t *)callocate(new_size * sizeof(hash_entry_t *));
+  new_els = (hash_entry_t **)(np->data);
   old_els = hash_table_elements(table);
-  
+
   for (i = 0; i < old_size; i++)
     {
       hash_entry_t *x, *n;
@@ -38636,9 +38767,11 @@ static uint32_t resize_hash_table(s7_pointer table)
 	  new_els[loc] = x;
 	}
     }
+  liberate(hash_table_block(table));
+  hash_table_set_block(table, np);
   hash_table_elements(table) = new_els;
-  free(old_els);
   hash_table_mask(table) = new_size - 1;
+  hash_table_set_procedures(table, dproc);
   return(hash_len);
 }
 
@@ -46518,6 +46651,7 @@ static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
   sc->print_length = 1000;
   fprintf(stderr, "%s\n", DISPLAY(counters));
 #endif
+
   return(s7_make_string(sc, "s7 " S7_VERSION ", " S7_DATE));
 }
 
@@ -62577,12 +62711,12 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 
 	      orig_hop = hop;
 	      if ((hop != 0) &&
-		  (!is_immutable(car_expr)) && /* list|apply-values -- can't depend on opt1 here because it might not be global, or might be redefined locally */
-		  (!is_immutable(slot)) &&     /* (define-constant...) */
 		  ((is_any_closure(func)) ||
 		   ((!is_global(car_expr)) &&
 		    ((!is_slot(global_slot(car_expr))) ||
-		     (slot_value(global_slot(car_expr)) != func)))))
+		     (slot_value(global_slot(car_expr)) != func)))) &&
+		  (!is_immutable(car_expr)) && /* list|apply-values -- can't depend on opt1 here because it might not be global, or might be redefined locally */
+		  (!is_immutable(slot)))       /* (define-constant...) */
 		{
 		  /* (let () (define (f2 a) (+ a 1)) (define (f1 a) (f2 a)) (define (f2 a) (- a)) (f1 12))
 		   * (let () (define (f2 a) (+ a 1)) (define (f1 a) (f2 a)) (define (f2 a) (- a 1)) (f1 12))
@@ -83154,6 +83288,7 @@ s7_scheme *s7_init(void)
       init_uppers();
       all_x_function_init();
       init_catchers();
+      init_block_lists();
     }
 
   sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
@@ -83478,11 +83613,7 @@ s7_scheme *s7_init(void)
       set_print_name(real_infinity, "+inf.0", 6);
       real_minus_infinity = make_permanent_real(-INFINITY);
       set_print_name(real_minus_infinity, "-inf.0", 6);
-#if WITH_QMATH
-      real_pi = make_permanent_real(M_PIq);
-#else
       real_pi = make_permanent_real(3.1415926535897932384626433832795029L); /* M_PI is not good enough for s7_double = long double */
-#endif
       /* set_print_name(real_pi, "pi", 2); */
       arity_not_set = make_permanent_integer_unchecked(CLOSURE_ARITY_NOT_SET);
       max_arity = make_permanent_integer_unchecked(MAX_ARITY);
@@ -84459,9 +84590,6 @@ s7_scheme *s7_init(void)
 #if (!DISABLE_AUTOLOAD)
   s7_provide(sc, "autoload");
 #endif
-#if WITH_QMATH
-  s7_provide(sc, "quadmath");
-#endif
 
 #ifdef __APPLE__
   s7_provide(sc, "osx");
@@ -85196,7 +85324,7 @@ int main(int argc, char **argv)
  *   cyclic closure eschew opt if safety>0, otherwise leave a bit trail during opt
  *   very tricky -- see ~/old/cyclic-lambda-s7.c and ~/old/cyclic-s7.c
  *   (apply lambda '(x) (let ((<1> (list 1 2))) (set-cdr! (cdr <1>) <1>)) ())
- *      this hangs in optimize_expression 62830 from optimize in check_lambda
+ *      this hangs in clear_all_optimizations?
  *   (define (f2) #(0)) (set! ((f2) 0) (f2))
  *   (let ((lst (list 1 2)) (body (list '+ 3 4))) (let ((f1 (apply lambda () body))) (set-cdr! (cdr lst) body) (set-cdr! (cddr body) lst) f1))
  *   (define f1 (apply lambda* (list '(x) (let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>))))
@@ -85210,6 +85338,12 @@ int main(int argc, char **argv)
  * hash-tables are still size int32_t [via hash_table_entries]
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
+ * mallocate: vectors (dims too)/strings/hash_entry_t
+ * h: vectors: move vdims?
+ *    string move doc/ksym
+ *    hash_entry if next from block e->key to (s7_pointer)(b->data), e->value as (s7_pointer)(b->ex_ptr)? or reversed, but raw hash trailing data?
+ *
+ * tgen with local funcs + s7-optimize (or just pre-built funcs)
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85217,8 +85351,6 @@ int main(int argc, char **argv)
  *   make|free-cairo: xm-enved.fs, xm-enved.rb
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
- *
- * maybe remove editres support?
  *
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
@@ -85229,34 +85361,25 @@ int main(int argc, char **argv)
  * t772: lint or|and tests
  * t776: cycle tests 
  *
- * checkout int128_t defined(__SIZEOF_INT128__) -- gcc: __SIZEOF_INT128__, __FLT128_DIG__
- *   no PRId128 in inttypes.h, __int128, __float128, quadmath_snprintf=float out and strtoflt128, also __complex128
- *   typedef _Complex float __attribute__((mode(TC))) _Complex128; -- in quadmath.h
- *   M_PIq, use 1.0Q = quad float, use %Qf|g etc for float print, s7_double to __float128
- *   need to find %f|g|e and define these above with %Qf etc or s7i and s7f: "Q" in Q "" elsewhere [s7_d|x|f|g|e_print? in s7.h]
- *      float/int-vectors -> C side?? [mus_long|float_t in sndlib.h -- can we override this if s7: typedef s7_double mus_float_t; etc]
- *   check int32_t/float work on a 32-bit machine
- *   so all float print -> Q case
- *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1039
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1153
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1462
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1786
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2073
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1789
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2065
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2493
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.1
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2546
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
- * tread         |      |      |      ||      ||      |                   3009  2694
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2724
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3480
+ * tread         |      |      |      ||      ||      |                   3009  2657
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2588
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5001
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7728
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5020
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7765
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3

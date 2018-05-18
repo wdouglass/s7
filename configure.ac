@@ -89,7 +89,7 @@ AC_ARG_WITH(audio,       [  --without-audio         don't include any audio func
 AC_ARG_WITH(temp-dir,    [  --with-temp-dir	  directory to use for temp files], AC_DEFINE_UNQUOTED(MUS_DEFAULT_TEMP_DIR, "${withval}"))
 AC_ARG_WITH(save-dir,    [  --with-save-dir	  directory to use for saved-state files], AC_DEFINE_UNQUOTED(MUS_DEFAULT_SAVE_DIR, "${withval}"))
 AC_ARG_WITH(doc-dir,     [  --with-doc-dir	  directory to search for documentation], AC_DEFINE_UNQUOTED(MUS_DEFAULT_DOC_DIR, "${withval}"))
-AC_ARG_WITH(weebserver,  [  --with-webserver 	  use webserver, default=no])
+AC_ARG_WITH(webserver,   [  --with-webserver 	  use webserver, default=no])
 
 AC_ARG_ENABLE(deprecated,[  --disable-deprecated	  do not include any deprecated stuff from gtk, s7, motif, clm, snd, or sndlib])
 
