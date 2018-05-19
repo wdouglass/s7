@@ -480,7 +480,7 @@ typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 
 /* -------------------------------- */
-/* local allocator; currently used for hash-table-elements and port-data */
+/* local allocator; currently used for hash-table-elements, port-data, vector-elements, port_t and continuation_t structs */
 
 static const int32_t bits[256] =
   {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -493,18 +493,29 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
 typedef struct {
-  void *data;
+  struct {
+    void *data;
+    s7_pointer d_ptr;
+  } dx;
   int32_t index;
   int32_t size;
   struct block_t *next;
   struct {
     s7_pointer ex_ptr; /* hash-table-procedures */
-    char *ex_str; 
+    char *ex_str;
+    void *ex_info;
   } ex;
 } block_t;
 
-#define NUM_BLOCK_LISTS 18
+#define block_data(p) p->dx.data
+#define block_index(p) p->index
+#define block_size(p) p->size
+#define block_next(p) p->next
+#define block_info(p) p->ex.ex_info
+
+#define NUM_BLOCK_LISTS 19
 #define TOP_BLOCK_LIST 17
+#define BLOCK_LIST 18
 static block_t *block_lists[NUM_BLOCK_LISTS];
 
 static void init_block_lists(void)
@@ -516,16 +527,40 @@ static void init_block_lists(void)
 
 static inline void liberate(block_t *p)
 {
-  if (p->index < TOP_BLOCK_LIST)
+  if (p->index != TOP_BLOCK_LIST)
     {
       p->next = (struct block_t *)block_lists[p->index];
       block_lists[p->index] = p;
     }
   else 
     {
-      if (p->data) free(p->data);
+      if (p->dx.data) free(p->dx.data);
       free(p);
     }
+}
+
+static inline void liberate_block(block_t *p)
+{
+  p->next = (struct block_t *)block_lists[BLOCK_LIST];
+  block_lists[BLOCK_LIST] = p;
+}
+
+static block_t *mallocate_block(void)
+{
+  block_t *p;
+  if (block_lists[BLOCK_LIST])
+    {
+      p = block_lists[BLOCK_LIST];
+      block_lists[BLOCK_LIST] = (block_t *)(p->next);
+      p->next = NULL;
+      block_info(p) = NULL;
+      return(p);
+    }
+  p = (block_t *)malloc(sizeof(block_t));
+  p->index = BLOCK_LIST;
+  p->next = NULL;
+  block_info(p) = NULL;
+  return(p);
 }
 
 static block_t *mallocate(int32_t bytes)
@@ -545,22 +580,43 @@ static block_t *mallocate(int32_t bytes)
       p = block_lists[index];
       if (p)
 	{
-	  p->size = bytes;
 	  block_lists[index] = (block_t *)p->next;
-	  return(p);
+	  block_info(p) = NULL;
+	  p->next = NULL;
 	}
-      p = (block_t *)malloc(sizeof(block_t));
-      p->data = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
-      p->index = index;
+      else
+	{
+	  p = mallocate_block();
+	  p->dx.data = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
+	  p->index = index;
+	}
     }
   else 
     {
-      p = (block_t *)malloc(sizeof(block_t));
-      p->data = NULL;
-      p->index = TOP_BLOCK_LIST;
+      p = mallocate_block();
+      p->dx.data = NULL;
     }
   p->size = bytes;
-  p->next = NULL;
+  return(p);
+}
+
+static inline block_t *mallocate_by_index(int32_t bytes, int32_t index)
+{
+  block_t *p;
+  p = block_lists[index];
+  if (p)
+    {
+      block_lists[index] = (block_t *)p->next;
+      block_info(p) = NULL;
+      p->next = NULL;
+    }
+  else 
+    {
+      p = mallocate_block();
+      p->dx.data = (void *)malloc(bytes);
+      p->index = index;
+    }
+  p->size = bytes;
   return(p);
 }
 
@@ -568,8 +624,8 @@ static block_t *callocate(int32_t bytes)
 {
   block_t *p;
   p = mallocate(bytes);
-  if (p->data)
-    memset((void *)(p->data), 0, bytes);
+  if (p->dx.data)
+    memset((void *)(p->dx.data), 0, bytes);
   return(p);
 }
 
@@ -577,11 +633,14 @@ static block_t *reallocate(block_t *op, int32_t bytes)
 {
   block_t *np;
   np = mallocate(bytes);
-  if (op->data)  /* presumably np->data is not null */
-    memcpy((uint8_t *)(np->data), (uint8_t *)(op->data), op->size);
+  if (op->dx.data)  /* presumably np->dx.data is not null */
+    memcpy((uint8_t *)(np->dx.data), (uint8_t *)(op->dx.data), op->size);
   liberate(op);
   return(np);
 }
+
+
+
 /* -------------------------------- */
 
 
@@ -590,9 +649,10 @@ typedef struct {
   port_type_t ptype;
   FILE *file;
   char *filename;
+  uint32_t line_number, file_number;
   s7_int gc_loc, filename_length;
   block_t *block;
-  void *next;
+  /* void *next; */
   s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
   void (*output_function)(s7_scheme *sc, uint8_t c, s7_pointer port);
   /* a version of string ports using a pointer to the current location and a pointer to the end
@@ -808,7 +868,7 @@ typedef struct s7_cell {
       port_t *port;
       uint8_t *data;
       s7_int size, point;
-      uint32_t line_number, file_number;
+      block_t *block;
     } prt;
 
     struct{                        /* characters */
@@ -836,7 +896,7 @@ typedef struct s7_cell {
 	s7_int *ints;
 	s7_double *floats;
       } elements;
-      vdims_t *dim_info;
+      block_t *block;
       s7_pointer (*vget)(s7_scheme *sc, s7_pointer vec, s7_int loc);
       s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
     } vector;
@@ -853,7 +913,6 @@ typedef struct s7_cell {
       hash_entry_t **elements;
       hash_check_t hash_func;
       hash_map_t *loc;
-      /* s7_pointer dproc; */             /* user-supplied list of hashing functions */
       block_t *block;
     } hasher;
 
@@ -987,7 +1046,7 @@ typedef struct s7_cell {
     } c_obj;
 
     struct {                        /* continuations */
-      continuation_t *continuation;
+      block_t *block;
       s7_pointer stack;
       s7_pointer *stack_start, *stack_end, *op_stack;
     } cwcc;
@@ -1363,7 +1422,6 @@ struct s7_scheme {
   s7_int *autoload_names_sizes;
   bool **autoloaded_already;
   s7_int autoload_names_loc, autoload_names_top;
-  port_t *port_heap;
   int32_t format_depth;
 
   bool undefined_identifier_warnings;
@@ -2583,13 +2641,9 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define unique_car(p)                 (p)->object.unq.unused_slots
 #define unique_cdr(p)                 (p)->object.unq.unused_nxt
 
-#define vector_length(p)              ((p)->object.vector.length)
+#define vector_length(p)              (p)->object.vector.length
 #define unchecked_vector_elements(p)  (p)->object.vector.elements.objects
 #define unchecked_vector_element(p, i) ((p)->object.vector.elements.objects[i])
-#define rootlet_element(p, i)         unchecked_vector_element(p, i)
-#define rootlet_elements(p)           unchecked_vector_elements(p)
-#define stack_element(p, i)           unchecked_vector_element(T_Stk(p), i)
-#define stack_elements(p)             unchecked_vector_elements(T_Stk(p))
 #define vector_element(p, i)          ((T_Vec(p))->object.vector.elements.objects[i])
 #define vector_elements(p)            (T_Vec(p))->object.vector.elements.objects
 #define vector_getter(p)              (T_Vec(p))->object.vector.vget
@@ -2601,8 +2655,11 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define is_normal_vector(p)           (type(p) == T_VECTOR)
 #define is_int_vector(p)              (type(p) == T_INT_VECTOR)
 #define is_float_vector(p)            (type(p) == T_FLOAT_VECTOR)
+#define vector_block(p)               (T_Vec(p))->object.vector.block
+#define unchecked_vector_block(p)     p->object.vector.block
 
-#define vector_dimension_info(p)      (T_Vec(p))->object.vector.dim_info
+#define vector_dimension_info(p)      ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
+#define vector_set_dimension_info(p, d) (T_Vec(p))->object.vector.block->ex.ex_info = (void  *)d
 #define vector_ndims(p)               vector_dimension_info(p)->ndims
 #define vector_dimension(p, i)        vector_dimension_info(p)->dims[i]
 #define vector_dimensions(p)          vector_dimension_info(p)->dims
@@ -2613,6 +2670,13 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
 #define vector_elements_allocated(p)  vector_dimension_info(p)->elements_allocated
 #define vector_dimensions_allocated(p) vector_dimension_info(p)->dimensions_allocated
+
+#define rootlet_element(p, i)         unchecked_vector_element(p, i)
+#define rootlet_elements(p)           unchecked_vector_elements(p)
+#define rootlet_block(p)              unchecked_vector_block(p)
+#define stack_element(p, i)           unchecked_vector_element(T_Stk(p), i)
+#define stack_elements(p)             unchecked_vector_elements(T_Stk(p))
+#define stack_block(p)                unchecked_vector_block(T_Stk(p))
 
 #define is_hash_table(p)              (type(p) == T_HASH_TABLE)
 #define is_mutable_hash_table(p)      ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
@@ -2667,21 +2731,22 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define is_string_port(p)             (port_type(p) == STRING_PORT)
 #define is_file_port(p)               (port_type(p) == FILE_PORT)
 #define is_function_port(p)           (port_type(p) == FUNCTION_PORT)
-#define port_line_number(p)           (T_Prt(p))->object.prt.line_number
-#define port_file_number(p)           (T_Prt(p))->object.prt.file_number
 #define port_filename(p)              port_port(p)->filename
 #define port_set_filename(p, Name, Len) port_port(p)->filename = copy_string_with_length(Name, Len)
 #define port_filename_length(p)       port_port(p)->filename_length
 #define port_file(p)                  port_port(p)->file
-#define port_block(p)                 port_port(p)->block
+#define port_data_block(p)            port_port(p)->block
+#define port_line_number(p)           port_port(p)->line_number
+#define port_file_number(p)           port_port(p)->file_number
 #define port_data(p)                  (T_Prt(p))->object.prt.data
 #define port_data_size(p)             (T_Prt(p))->object.prt.size
 #define port_position(p)              (T_Prt(p))->object.prt.point
+#define port_block(p)                 (T_Prt(p))->object.prt.block
 #define port_type(p)                  port_port(p)->ptype
 #define port_is_closed(p)             port_port(p)->is_closed
 #define port_set_closed(p, Val)       port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
 #define port_needs_free(p)            port_port(p)->needs_free
-#define port_next(p)                  port_port(p)->next
+#define port_next(p)                  port_block(p)->next
 #define port_output_function(p)       port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)        port_port(p)->input_function
 #define port_original_input_string(p) port_port(p)->orig_str
@@ -2739,17 +2804,18 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define random_carry(p)               (T_Ran(p))->object.rng.carry
 #endif
 
-#define continuation_data(p)          (T_Con(p))->object.cwcc.continuation
+#define continuation_block(p)         (T_Con(p))->object.cwcc.block
+#define continuation_data(p)          ((continuation_t *)(block_data(continuation_block(p))))
 #define continuation_stack(p)         (T_Con(p))->object.cwcc.stack
 #define continuation_set_stack(p, Val) (T_Con(p))->object.cwcc.stack = T_Stk(Val)
 #define continuation_stack_end(p)     (T_Con(p))->object.cwcc.stack_end
 #define continuation_stack_start(p)   (T_Con(p))->object.cwcc.stack_start
-#define continuation_stack_size(p)    (T_Con(p))->object.cwcc.continuation->stack_size
+#define continuation_stack_size(p)    continuation_data(p)->stack_size
 #define continuation_stack_top(p)     (continuation_stack_end(p) - continuation_stack_start(p))
 #define continuation_op_stack(p)      (T_Con(p))->object.cwcc.op_stack
-#define continuation_op_loc(p)        (T_Con(p))->object.cwcc.continuation->op_stack_loc
-#define continuation_op_size(p)       (T_Con(p))->object.cwcc.continuation->op_stack_size
-#define continuation_key(p)           (T_Con(p))->object.cwcc.continuation->local_key
+#define continuation_op_loc(p)        continuation_data(p)->op_stack_loc
+#define continuation_op_size(p)       continuation_data(p)->op_stack_size
+#define continuation_key(p)           continuation_data(p)->local_key
 
 #define call_exit_goto_loc(p)         (T_Got(p))->object.rexit.goto_loc
 #define call_exit_op_loc(p)           (T_Got(p))->object.rexit.op_stack_loc
@@ -4076,9 +4142,13 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
   if (sc->gpofl_loc < 0)
     {
       s7_int i, size, new_size;
+      block_t *ob, *nb;
       size = sc->protected_objects_size;
       new_size = 2 * size;
-      vector_elements(sc->protected_objects) = (s7_pointer *)realloc(vector_elements(sc->protected_objects), new_size * sizeof(s7_pointer));
+      ob = vector_block(sc->protected_objects);
+      nb = reallocate(ob, new_size * sizeof(s7_pointer));
+      vector_block(sc->protected_objects) = nb;
+      vector_elements(sc->protected_objects) = (s7_pointer *)block_data(nb);
       vector_length(sc->protected_objects) = new_size;
       sc->protected_objects_size = new_size;
       sc->gpofl = (s7_int *)realloc(sc->gpofl, new_size * sizeof(s7_int));
@@ -4187,27 +4257,6 @@ static void mark_symbol(s7_pointer p)
 }
 
 static void mark_noop(s7_pointer p) {}
-
-
-/* ports can be alloc'd and freed at a blistering pace, so I think I'll make a special free-list for them. */
-
-static port_t *alloc_port(s7_scheme *sc)
-{
-  if (sc->port_heap)
-    {
-      port_t *p;
-      p = sc->port_heap;
-      sc->port_heap = (port_t *)(p->next);
-      return(p);
-    }
-  return((port_t *)calloc(1, sizeof(port_t)));
-}
-
-static void free_port(s7_scheme *sc, port_t *p)
-{
-  p->next = (void *)(sc->port_heap);
-  sc->port_heap = p;
-}
 
 
 #define STRING_LISTS 256
@@ -4392,16 +4441,10 @@ static void sweep(s7_scheme *sc)
 		      free(vector_dimensions(s1));
 		      free(vector_offsets(s1));
 		    }
-		  if (vector_elements_allocated(s1))
-		    free(vector_elements(s1));      /* I think this will work for any vector (int/float too) */
 		  if (vector_dimension_info(s1) != sc->wrap_only)
 		    free(vector_dimension_info(s1));
 		}
-	      else
-		{
-		  if (vector_length(s1) != 0)
-		    free(vector_elements(s1));
-		}
+	      liberate(vector_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4456,8 +4499,8 @@ static void sweep(s7_scheme *sc)
 		{
 		  if (port_data(s1))
 		    {
-		      liberate(port_block(s1));
-		      port_block(s1) = NULL;
+		      liberate(port_data_block(s1));
+		      port_data_block(s1) = NULL;
 		      port_data(s1) = NULL;
 		      port_data_size(s1) = 0;
 		    }
@@ -4469,7 +4512,7 @@ static void sweep(s7_scheme *sc)
 		  free(port_filename(s1));
 		  port_filename(s1) = NULL;
 		}
-	      free_port(sc, port_port(s1));
+	      liberate(port_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4485,7 +4528,7 @@ static void sweep(s7_scheme *sc)
 	  if (is_free_and_clear(s1))
 	    {
 	      close_output_port(sc, s1); /* needed for free filename, etc */
-	      free_port(sc, port_port(s1));
+	      liberate(port_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4505,7 +4548,7 @@ static void sweep(s7_scheme *sc)
 		  free(continuation_op_stack(s1));
 		  continuation_op_stack(s1) = NULL;
 		}
-	      free(continuation_data(s1));
+	      liberate(continuation_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4604,11 +4647,29 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_hash_table(sc, p)   add_to_gc_list(sc->hash_tables, p)
 #define add_string(sc, p)       add_to_gc_list(sc->strings, p)
 #define add_string1(sc, p)      add_to_gc_list(sc->strings1, p)
-#define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
 #define add_input_port(sc, p)   add_to_gc_list(sc->input_ports, p)
 #define add_output_port(sc, p)  add_to_gc_list(sc->output_ports, p)
 #define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
 #define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
+#if S7_DEBUGGING
+static void add_vector(s7_scheme *sc, s7_pointer p)
+{
+  if (!vector_block(p)) abort();
+  if (vector_length(p) < 0) abort();
+  if (vector_rank(p) < 0) abort();
+  if (vector_dimension_info(p))
+    {
+      if (vector_dimensions_allocated(p))
+	{
+	  if (!vector_offsets(p)) abort();
+	  if (!vector_dimensions(p)) abort();
+	}
+    }
+  add_to_gc_list(sc->vectors, p);
+}
+#else
+#define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
+#endif
 
 #if WITH_GMP
 #define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
@@ -5870,6 +5931,7 @@ static void resize_stack(s7_scheme *sc)
 {
   uint64_t i, loc;
   uint32_t new_size;
+  block_t *ob, *nb;
 
   loc = s7_stack_top(sc);
   new_size = sc->stack_size * 2;
@@ -5878,7 +5940,10 @@ static void resize_stack(s7_scheme *sc)
   if (new_size > sc->max_stack_size)
     s7_error(sc, s7_make_symbol(sc, "stack-too-big"), set_elist_1(sc, s7_make_string_wrapper(sc, "stack has grown past (*s7* 'max-stack-size)")));
 
-  stack_elements(sc->stack) = (s7_pointer *)realloc(stack_elements(sc->stack), new_size * sizeof(s7_pointer));
+  ob = stack_block(sc->stack);
+  nb = reallocate(ob, new_size * sizeof(s7_pointer));
+  stack_block(sc->stack) = nb;
+  stack_elements(sc->stack) = (s7_pointer *)block_data(nb);
   if (!stack_elements(sc->stack))
     {
       fprintf(stderr, "can't allocate additional stack\n");
@@ -6865,9 +6930,13 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
       if (sc->rootlet_entries >= vector_length(ge))
 	{
 	  s7_int i, len;
+	  block_t *ob, *nb;
 	  vector_length(ge) *= 2;
 	  len = vector_length(ge);
-	  rootlet_elements(ge) = (s7_pointer *)realloc(rootlet_elements(ge), len * sizeof(s7_pointer));
+	  ob = rootlet_block(ge);
+	  nb = reallocate(ob, len * sizeof(s7_pointer));
+	  rootlet_block(ge) = nb;
+	  rootlet_elements(ge) = (s7_pointer *)block_data(nb);
 	  for (i = sc->rootlet_entries; i < len; i++)
 	    rootlet_element(ge, i) = sc->nil;
 	}
@@ -6930,11 +6999,15 @@ static void save_unlet(s7_scheme *sc)
   int32_t i, k = 0;
   s7_pointer x;
   s7_pointer *inits;
+  block_t *block;
 
   sc->unlet = (s7_pointer)calloc(1, sizeof(s7_cell));
   set_type(sc->unlet, T_VECTOR);
   vector_length(sc->unlet) = UNLET_ENTRIES;
-  vector_elements(sc->unlet) = (s7_pointer *)malloc(UNLET_ENTRIES * sizeof(s7_pointer));
+  block = mallocate(UNLET_ENTRIES * sizeof(s7_pointer));
+  vector_block(sc->unlet) = block;
+  vector_elements(sc->unlet) = (s7_pointer *)block_data(block);
+  vector_set_dimension_info(sc->unlet, NULL);
   vector_getter(sc->unlet) = default_vector_getter;
   vector_setter(sc->unlet) = default_vector_setter;
   inits = vector_elements(sc->unlet);
@@ -9331,13 +9404,15 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
 {
   s7_pointer x, stack;
   int64_t loc;
+  block_t *block;
 
   loc = s7_stack_top(sc);
   stack = copy_stack(sc, sc->stack, loc);
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
-  continuation_data(x) = (continuation_t *)malloc(sizeof(continuation_t));
+  block = mallocate(sizeof(continuation_t));
+  continuation_block(x) = block;
   continuation_set_stack(x, stack);
   continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
   continuation_stack_start(x) = stack_elements(continuation_stack(x));
@@ -22940,8 +23015,8 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
     {
       if (port_data(p))
 	{
-	  liberate(port_block(p));
-	  port_block(p) = NULL;
+	  liberate(port_data_block(p));
+	  port_data_block(p) = NULL;
 	  port_data(p) = NULL;
 	  port_data_size(p) = 0;
 	}
@@ -23031,10 +23106,10 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 	      if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != (size_t)port_position(p))
 		s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
 	    }
-	  if (port_block(p)) 
+	  if (port_data_block(p)) 
 	    {
-	      liberate(port_block(p));
-	      port_block(p) = NULL;
+	      liberate(port_data_block(p));
+	      port_data_block(p) = NULL;
 	    }
 	  fflush(port_file(p));
 	  fclose(port_file(p));
@@ -23046,10 +23121,10 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
       if ((is_string_port(p)) &&
 	  (port_data(p)))
 	{
-	  if (port_block(p)) 
+	  if (port_data_block(p)) 
 	    {
-	      liberate(port_block(p));
-	      port_block(p) = NULL;
+	      liberate(port_data_block(p));
+	      port_data_block(p) = NULL;
 	    }
 	  port_data(p) = NULL;
 	  port_data_size(p) = 0;
@@ -23248,9 +23323,9 @@ static void resize_port_data(s7_pointer pt, s7_int new_size)
   loc = port_data_size(pt);
   if (new_size < loc) return;
 
-  nb = reallocate(port_block(pt), new_size);
-  port_block(pt) = nb;
-  port_data(pt) = (uint8_t *)(nb->data);
+  nb = reallocate(port_data_block(pt), new_size);
+  port_data_block(pt) = nb;
+  port_data(pt) = (uint8_t *)(nb->dx.data);
   port_data_size(pt) = new_size;
 }
 
@@ -23760,10 +23835,13 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
   s7_int size;
 #endif
   s7_int port_loc;
+  block_t *b;
 
   new_cell(sc, port, T_INPUT_PORT);
   port_loc = s7_gc_protect_1(sc, port);
-  port_port(port) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));             /* 152 bytes or thereabouts, so index=8 */
+  port_block(port) = b;
+  port_port(port) = (port_t *)block_data(b);
   port_set_closed(port, false);
   port_original_input_string(port) = sc->nil;
   port_write_character(port) = input_write_char;
@@ -23793,7 +23871,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       uint8_t *content;
 
       block = mallocate(size + 2);
-      content = (uint8_t *)(block->data);
+      content = (uint8_t *)(block->dx.data);
       bytes = fread(content, sizeof(uint8_t), size, fp);
       if (bytes != (size_t)size)
 	{
@@ -23812,7 +23890,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 
       port_type(port) = STRING_PORT;
       port_data(port) = content;
-      port_block(port) = block;
+      port_data_block(port) = block;
       port_data_size(port) = size;
       port_position(port) = 0;
       port_needs_free(port) = true;
@@ -23830,7 +23908,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       port_file(port) = fp;
       port_type(port) = FILE_PORT;
       port_data(port) = NULL;
-      port_block(port) = NULL;
+      port_data_block(port) = NULL;
       port_data_size(port) = 0;
       port_position(port) = 0;
       port_needs_free(port) = false;
@@ -23851,7 +23929,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
   port_type(port) = FILE_PORT;
   port_needs_free(port) = false;
   port_data(port) = NULL;
-  port_block(port) = NULL;
+  port_data_block(port) = NULL;
   port_data_size(port) = 0;
   port_position(port) = 0;
   port_read_character(port) = file_read_char;
@@ -23974,7 +24052,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_set_closed(x, false);
   port_filename_length(x) = 8;
   port_set_filename(x, "*stdout*", 8);
@@ -23996,7 +24074,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_set_closed(x, false);
   port_filename_length(x) = 8;
   port_set_filename(x, "*stderr*", 8);
@@ -24024,7 +24102,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_file_number(x) = remember_file_name(sc, port_filename(x));
   port_line_number(x) = 0;
   port_file(x) = stdin;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_needs_free(x) = false;
   port_read_character(x) = file_read_char;
   port_read_line(x) = stdin_read_line;
@@ -24053,7 +24131,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
 {
   FILE *fp;
   s7_pointer x;
-  block_t *block;
+  block_t *block, *b;
   /* see if we can open this file before allocating a port */
 
   errno = 0;
@@ -24068,7 +24146,9 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
     }
 
   new_cell(sc, x, T_OUTPUT_PORT);
-  port_port(x) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = FILE_PORT;
   port_set_closed(x, false);
   port_filename_length(x) = safe_strlen(name);
@@ -24084,8 +24164,8 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_position(x) = 0;
   port_data_size(x) = PORT_DATA_SIZE;
   block = mallocate(PORT_DATA_SIZE);
-  port_block(x) = block;
-  port_data(x) = (uint8_t *)(block->data);
+  port_data_block(x) = block;
+  port_data(x) = (uint8_t *)(block->dx.data);
   add_output_port(sc, x);
   return(x);
 }
@@ -24112,13 +24192,16 @@ static s7_pointer g_open_output_file(s7_scheme *sc, s7_pointer args)
 static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_int len)
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_INPUT_PORT);
-  port_port(x) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
   port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
   port_data(x) = (uint8_t *)input_string;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_data_size(x) = len;
   port_position(x) = 0;
   port_filename_length(x) = 0;
@@ -24183,15 +24266,17 @@ static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
 static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
 {
   s7_pointer x;
-  block_t *block;
+  block_t *block, *b;
   new_cell(sc, x, T_OUTPUT_PORT);
-  port_port(x) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
   port_set_closed(x, false);
   port_data_size(x) = len;
   block = mallocate(len);
-  port_block(x) = block;
-  port_data(x) = (uint8_t *)(block->data);
+  port_data_block(x) = block;
+  port_data(x) = (uint8_t *)(block->dx.data);
   port_data(x)[0] = '\0';   /* in case s7_get_output_string before any output */
   port_position(x) = 0;
   port_needs_free(x) = true;
@@ -24266,13 +24351,18 @@ If the optional 'clear-port' is #t, the current string is flushed."
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port))
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_INPUT_PORT);
-  port_port(x) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = FUNCTION_PORT;
   port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_needs_free(x) = false;
+  port_filename(x) = NULL;
+  port_filename_length(x) = 0;
   port_input_function(x) = function;
   port_read_character(x) = function_read_char;
   port_read_line(x) = function_read_line;
@@ -24287,11 +24377,14 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
 s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, uint8_t c, s7_pointer port))
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_OUTPUT_PORT);
-  port_port(x) = alloc_port(sc);
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = FUNCTION_PORT;
   port_data(x) = NULL;
-  port_block(x) = NULL;
+  port_data_block(x) = NULL;
   port_set_closed(x, false);
   port_needs_free(x) = false;
   port_output_function(x) = function;
@@ -30283,12 +30376,12 @@ static s7_pointer open_format_port(void)
 {
   s7_pointer x;
   s7_int len;
-  block_t *block;
+  block_t *block, *b;
 
   if (format_ports)
     {
       x = format_ports;
-      format_ports = (s7_pointer)(port_port(x)->next);
+      format_ports = (s7_pointer)(port_next(x));
       port_position(x) = 0;
       port_data(x)[0] = '\0';
       return(x);
@@ -30297,13 +30390,16 @@ static s7_pointer open_format_port(void)
   len = FORMAT_PORT_LENGTH;
   x = alloc_pointer();
   set_type(x, T_OUTPUT_PORT);
-  port_port(x) = (port_t *)calloc(1, sizeof(port_t));
+  b = mallocate(sizeof(port_t));
+  port_block(x) = b;
+  port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
   port_set_closed(x, false);
   port_data_size(x) = len;
+  port_next(x) = NULL;
   block = mallocate(len);
-  port_data(x) = (uint8_t *)(block->data);
-  port_block(x) = block;
+  port_data(x) = (uint8_t *)(block->dx.data);
+  port_data_block(x) = block;
   port_data(x)[0] = '\0';
   port_position(x) = 0;
   port_needs_free(x) = false;
@@ -30317,7 +30413,7 @@ static s7_pointer open_format_port(void)
 
 static void close_format_port(s7_pointer port)
 {
-  port_port(port)->next = (void *)format_ports;
+  port_next(port) = (void *)format_ports;
   format_ports = port;
 }
 
@@ -34903,16 +34999,27 @@ static s7_pointer float_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
   return(make_real(sc, float_vector_element(vec, loc)));
 }
 
+static inline block_t *mallocate_vector(s7_int len)
+{
+  block_t *b;
+  if (len > 0)
+    return(mallocate(len));
+  b = mallocate_block();
+  block_data(b) = NULL;
+  block_info(b) = NULL;
+  return(b);
+}
 
 static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
-  if (len > 0)
-    vector_elements(x) = (s7_pointer *)malloc(len * sizeof(s7_pointer));
-  else vector_elements(x) = NULL;
-  vector_dimension_info(x) = NULL;
+  b = mallocate_vector(len * sizeof(s7_pointer));
+  vector_block(x) = b;
+  vector_elements(x) = (s7_pointer *)block_data(b);
+  vector_set_dimension_info(x, NULL);
   vector_getter(x) = default_vector_getter;
   vector_setter(x) = default_vector_setter;
   add_vector(sc, x);
@@ -34922,12 +35029,13 @@ static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len) /* len >= 0 and 
 static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_FLOAT_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
-  if (len > 0)
-    float_vector_elements(x) = (s7_double *)malloc(len * sizeof(s7_double));
-  else float_vector_elements(x) = NULL;
-  vector_dimension_info(x) = NULL;
+  b = mallocate_vector(len * sizeof(s7_double));
+  vector_block(x) = b;
+  float_vector_elements(x) = (s7_double *)block_data(b);
+  vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
   add_vector(sc, x);
@@ -34937,6 +35045,7 @@ static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 
 static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t typ)
 {
   s7_pointer x;
+
   if (len < 0)
     return(wrong_type_argument_with_type(sc, sc->make_vector_symbol, 1, make_integer(sc, len), a_non_negative_integer_string));
   if (len > sc->max_vector_length)
@@ -34944,47 +35053,61 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 
   /* this has to follow the error checks! (else garbage in free_heap temps portion confuses GC when "vector" is finalized) */
   new_cell(sc, x, typ | T_SAFE_PROCEDURE); /* (v 0) as vector-ref is safe */
-  vector_length(x) = 0;
-  vector_elements(x) = NULL;
-  vector_dimension_info(x) = NULL;
 
-  if (len > 0)
+  if (len == 0)
     {
+      vector_length(x) = 0;
+      vector_block(x) = mallocate_vector(0);
+      vector_elements(x) = NULL;
+    }
+  else
+    {
+      block_t *b;
       vector_length(x) = len;
       if (typ == T_VECTOR)
 	{
-	  vector_elements(x) = (s7_pointer *)malloc(len * sizeof(s7_pointer));
+	  b = mallocate_vector(len * sizeof(s7_pointer));
+	  vector_block(x) = b;
+	  vector_elements(x) = (s7_pointer *)block_data(b);
 	  if (!vector_elements(x))
 	    return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-vector allocation failed!"))));
 	  vector_getter(x) = default_vector_getter;
 	  vector_setter(x) = default_vector_setter;
-	  if (filled) s7_vector_fill(sc, x, sc->nil);  /* make_hash_table assumes nil as the default value */
+	  if (filled) 
+	    s7_vector_fill(sc, x, sc->nil);  /* make_hash_table assumes nil as the default value */
 	}
       else
 	{
 	  if (typ == T_FLOAT_VECTOR)
 	    {
-	      if (filled)
-		float_vector_elements(x) = (s7_double *)calloc(len, sizeof(s7_double));
-	      else float_vector_elements(x) = (s7_double *)malloc(len * sizeof(s7_double));
+	      b = mallocate_vector(len * sizeof(s7_double));
+	      vector_block(x) = b;
+	      float_vector_elements(x) = (s7_double *)block_data(b);
 	      if (!float_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-float-vector allocation failed!"))));
+	      if (filled)
+		memset((void *)vector_elements(x), 0, len * sizeof(s7_double));
 	      vector_getter(x) = float_vector_getter;
 	      vector_setter(x) = float_vector_setter;
 	    }
 	  else
 	    {
-	      if (filled)
-		int_vector_elements(x) = (s7_int *)calloc(len, sizeof(s7_int));
-	      else int_vector_elements(x) = (s7_int *)malloc(len * sizeof(s7_int));
+	      b = mallocate_vector(len * sizeof(s7_int));
+#if S7_DEBUGGING	      
+	      if (!block_data(b)) abort();
+#endif
+	      vector_block(x) = b;
+	      int_vector_elements(x) = (s7_int *)block_data(b);
 	      if (!int_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-int-vector allocation failed!"))));
+	      if (filled)
+		memset((void *)vector_elements(x), 0, len * sizeof(s7_int));
 	      vector_getter(x) = int_vector_getter;
 	      vector_setter(x) = int_vector_setter;
 	    }
 	}
     }
-
+  vector_set_dimension_info(x, NULL);
   add_vector(sc, x);
   return(x);
 }
@@ -34995,7 +35118,7 @@ s7_pointer s7_make_vector(s7_scheme *sc, s7_int len)
   return(make_vector_1(sc, len, FILLED, T_VECTOR));
 }
 
-static vdims_t *make_wrap_only(s7_scheme *sc)
+static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
 {
   vdims_t *v;
   v = (vdims_t *)malloc(sizeof(vdims_t));
@@ -35049,7 +35172,7 @@ s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *di
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_INT_VECTOR);
   if (dim_info)
-    vector_dimension_info(p) = make_vdims(sc, true, dims, dim_info);
+    vector_set_dimension_info(p, make_vdims(sc, true, dims, dim_info));
   return(p);
 }
 
@@ -35058,7 +35181,7 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_FLOAT_VECTOR);
   if (dim_info)
-    vector_dimension_info(p) = make_vdims(sc, true, dims, dim_info);
+    vector_set_dimension_info(p, make_vdims(sc, true, dims, dim_info));
   return(p);
 }
 
@@ -35066,8 +35189,12 @@ s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *da
 {
   /* this wraps up a C-allocated/freed double array as an s7 vector. */
   s7_pointer x;
+  block_t *b;
 
   new_cell(sc, x, T_FLOAT_VECTOR | T_SAFE_PROCEDURE);
+  b = mallocate_vector(0);
+  vector_block(x) = b;
+  /* block_data(b) = data; */
   float_vector_elements(x) = data;
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
@@ -35078,11 +35205,11 @@ s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *da
 	{
 	  s7_int di[1];
 	  di[0] = len;
-	  vector_dimension_info(x) = make_vdims(sc, free_data, 1, di);
+	  vector_set_dimension_info(x, make_vdims(sc, free_data, 1, di));
 	}
-      else vector_dimension_info(x) = NULL;
+      else vector_set_dimension_info(x, NULL);
     }
-  else vector_dimension_info(x) = make_vdims(sc, free_data, dims, dim_info);
+  else vector_set_dimension_info(x, make_vdims(sc, free_data, dims, dim_info));
   add_vector(sc, x);
   return(x);
 }
@@ -35757,6 +35884,7 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
 
   new_cell(sc, x, typeflag(vect) | T_SAFE_PROCEDURE); /* typeflag(vect) picks up T_IMMUTABLE */
   vector_length(x) = 0;
+  vector_block(x) = mallocate_vector(0);
   vector_elements(x) = NULL;
   vector_getter(x) = vector_getter(vect);
   vector_setter(x) = vector_setter(vect);
@@ -35771,7 +35899,7 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
   else mark_function[type(vect)] = mark_int_or_float_vector_possibly_shared; 
   v->elements_allocated = false;
   v->dimensions_allocated = false;
-  vector_dimension_info(x) = v;
+  vector_set_dimension_info(x, v);
 
   if (skip_dims > 0)
     vector_length(x) = vector_offset(vect, skip_dims - 1);
@@ -35875,7 +36003,8 @@ a vector that points to the same elements as the original-vector but with differ
     }
 
   new_cell(sc, x, typeflag(orig) | T_SAFE_PROCEDURE);
-  vector_dimension_info(x) = v;
+  vector_block(x) = mallocate_vector(0);
+  vector_set_dimension_info(x, v);
   vector_length(x) = new_len;                 /* might be less than original length */
   vector_getter(x) = vector_getter(orig);
   vector_setter(x) = vector_setter(orig);
@@ -35899,6 +36028,7 @@ static s7_pointer make_subvector(s7_scheme *sc, s7_pointer v)
   s7_pointer x;
   new_cell(sc, x, type(v));
   vector_length(x) = vector_length(v);
+  vector_block(x) = vector_block(v);
   if (is_normal_vector(v))
     vector_elements(x) = vector_elements(v);
   else
@@ -35909,7 +36039,7 @@ static s7_pointer make_subvector(s7_scheme *sc, s7_pointer v)
     }
   vector_getter(x) = vector_getter(v);
   vector_setter(x) = vector_setter(v);
-  vector_dimension_info(x) = NULL;
+  vector_set_dimension_info(x, NULL);
   return(x);
 }
 
@@ -36347,6 +36477,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
       v->dims = (s7_int *)malloc(v->ndims * sizeof(s7_int));
       v->offsets = (s7_int *)malloc(v->ndims * sizeof(s7_int));
       v->original = sc->F;
+      vector_set_dimension_info(vec, v);
       v->dimensions_allocated = true;
       v->elements_allocated = (len > 0);
 
@@ -36358,7 +36489,6 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 	  v->offsets[i] = offset;
 	  offset *= v->dims[i];
 	}
-      vector_dimension_info(vec) = v;
     }
   return(vec);
 }
@@ -36379,7 +36509,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   #define Q_make_float_vector s7_make_signature(sc, 3, sc->is_float_vector_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_pair_symbol), sc->is_real_symbol)
   s7_int len;
   s7_pointer x, p;
-  s7_double *arr;
+  block_t *arr;
 
   p = car(args);
   if ((is_pair(cdr(args))) ||
@@ -36408,14 +36538,13 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   if (len > sc->max_vector_length)
     return(out_of_range(sc, sc->make_float_vector_symbol, small_int(1), p, its_too_large_string));
 
-  if (len > 0)
-    arr = (s7_double *)calloc(len, sizeof(s7_double));
-  else arr = NULL;
-
+  arr = mallocate_vector(len * sizeof(s7_double));
   new_cell(sc, x, T_FLOAT_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
-  float_vector_elements(x) = arr;
-  vector_dimension_info(x) = NULL;
+  vector_block(x) = arr;
+  float_vector_elements(x) = (s7_double *)block_data(arr);
+  memset((void *)float_vector_elements(x), 0, len * sizeof(s7_double));
+  vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
 
@@ -36431,7 +36560,7 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
 
   s7_int len;
   s7_pointer x, p;
-  s7_int *arr;
+  block_t *arr;
 
   p = car(args);
   if ((is_pair(cdr(args))) ||
@@ -36454,14 +36583,13 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   if (len > sc->max_vector_length)
     return(out_of_range(sc, sc->make_int_vector_symbol, small_int(1), p, its_too_large_string));
 
-  if (len > 0)
-    arr = (s7_int *)calloc(len, sizeof(s7_int));
-  else arr = NULL;
-
+  arr = mallocate_vector(len * sizeof(s7_int));
   new_cell(sc, x, T_INT_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
-  int_vector_elements(x) = arr;
-  vector_dimension_info(x) = NULL;
+  vector_block(x) = arr;
+  int_vector_elements(x) = (s7_int *)block_data(arr);
+  memset((void *)int_vector_elements(x), 0, len * sizeof(s7_int));
+  vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
   vector_setter(x) = int_vector_setter;
 
@@ -38472,7 +38600,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
   hash_table_set_block(table, els);
-  hash_table_elements(table) = (hash_entry_t **)(els->data);
+  hash_table_elements(table) = (hash_entry_t **)(els->dx.data);
   hash_table_checker(table) = hash_empty;
   hash_table_mapper(table) = default_hash_map;
   hash_table_entries(table) = 0;
@@ -38753,7 +38881,7 @@ static uint32_t resize_hash_table(s7_pointer table)
   new_size = old_size * 4;
   hash_len = new_size - 1;
   np = (block_t *)callocate(new_size * sizeof(hash_entry_t *));
-  new_els = (hash_entry_t **)(np->data);
+  new_els = (hash_entry_t **)(np->dx.data);
   old_els = hash_table_elements(table);
 
   for (i = 0; i < old_size; i++)
@@ -40591,12 +40719,23 @@ static void protect_setter(s7_scheme *sc, s7_pointer sym, s7_pointer acc)
   if (sc->protected_setters_size == sc->protected_setters_loc)
     {
       s7_int i, new_size, size;
+      block_t *ob, *nb;
+
       size = sc->protected_setters_size;
       new_size = 2 * size;
-      vector_elements(sc->protected_setters) = (s7_pointer *)realloc(vector_elements(sc->protected_setters), new_size * sizeof(s7_pointer));
-      vector_elements(sc->protected_setter_symbols) = (s7_pointer *)realloc(vector_elements(sc->protected_setter_symbols), new_size * sizeof(s7_pointer));
+
+      ob = vector_block(sc->protected_setters);
+      nb = reallocate(ob, new_size * sizeof(s7_pointer));
+      vector_block(sc->protected_setters) = nb;
+      vector_elements(sc->protected_setters) = (s7_pointer *)block_data(nb);
       vector_length(sc->protected_setters) = new_size;
+
+      ob = vector_block(sc->protected_setter_symbols);
+      nb = reallocate(ob, new_size * sizeof(s7_pointer));
+      vector_block(sc->protected_setter_symbols) = nb;
+      vector_elements(sc->protected_setter_symbols) = (s7_pointer *)block_data(nb);
       vector_length(sc->protected_setter_symbols) = new_size;
+
       for (i = size; i < new_size; i++)
 	{
 	  vector_element(sc->protected_setters, i) = sc->gc_nil;
@@ -82611,16 +82750,14 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
-    uint32_t fs, cc_stacks;
-    port_t *p;
-    for (fs = 0, p = sc->port_heap; p; p = (port_t *)(p->next), fs++);
+    uint32_t cc_stacks;
     gp = sc->continuations;
     for (i = 0, cc_stacks = 0; i < (int32_t)gp->loc; i++)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
 
-    n = snprintf(buf, 1024, "output ports: %" print_s7_int ", free port: %u (%lu bytes)\ncontinuations: %" print_s7_int " (total stack: %u), c_objects: %" print_s7_int ", gensyms: %" print_s7_int ", setters: %" print_s7_int ", optlists: %" print_s7_int ", unknowns: %" print_s7_int "\n",
-		 sc->output_ports->loc, fs, (unsigned long)(fs * sizeof(port_t)),
+    n = snprintf(buf, 1024, "output ports: %" print_s7_int ",\ncontinuations: %" print_s7_int " (total stack: %u), c_objects: %" print_s7_int ", gensyms: %" print_s7_int ", setters: %" print_s7_int ", optlists: %" print_s7_int ", unknowns: %" print_s7_int "\n",
+		 sc->output_ports->loc,
 		 gp->loc, cc_stacks,
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
@@ -83424,7 +83561,6 @@ s7_scheme *s7_init(void)
   sc->autoload_names_loc = 0;
   sc->is_autoloading = true;
 
-  sc->port_heap = NULL;
   sc->permanent_objects = NULL;
 
   sc->heap_size = INITIAL_HEAP_SIZE;
@@ -85247,7 +85383,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0)
     fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
 #endif
-
+  
   /* fprintf(stderr, "size: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
   /* 64 bit machine: size: 56 [size 80 if gmp, 136 if debugging], op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
@@ -85338,12 +85474,19 @@ int main(int argc, char **argv)
  * hash-tables are still size int32_t [via hash_table_entries]
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
- * mallocate: vectors (dims too)/strings/hash_entry_t
- * h: vectors: move vdims?
+ *
+ * mallocate: vectors (vdims)/strings/hash_entry_t
+ * h: vectors: why is block_info=null needed?
  *    string move doc/ksym
- *    hash_entry if next from block e->key to (s7_pointer)(b->data), e->value as (s7_pointer)(b->ex_ptr)? or reversed, but raw hash trailing data?
+ *    hash_entry if next from block e->key to (s7_pointer)(b->dx.d_ptr), e->value as (s7_pointer)(b->ex_ptr)? or reversed, but raw hash trailing data?
+ *    block as vdims?
+ *    symbol_info_t -> block? int32/ptr + data=ksym?
+ *    (gc) = clear free lists (if :free-list or something?)
+ *    (*s7* 'memory-usage) for free-lists
+ *    mallocate_by_index (port_t=8)
  *
  * tgen with local funcs + s7-optimize (or just pre-built funcs)
+ * leak-check for testsnd?
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85364,22 +85507,22 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1039
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1153
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1462
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1043
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1463
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1789
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2065
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2493
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 126.1
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2495
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.9
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
- * tread         |      |      |      ||      ||      |                   3009  2657
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2588
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3479
+ * tread         |      |      |      ||      ||      |                   3009  2642
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2549
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3475
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4239
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4241
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5020
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7765
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7815
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
