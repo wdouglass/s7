@@ -492,7 +492,7 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
-typedef struct {
+typedef struct block_t {
   struct {
     void *data;
     s7_pointer d_ptr;
@@ -30413,7 +30413,7 @@ static s7_pointer open_format_port(void)
 
 static void close_format_port(s7_pointer port)
 {
-  port_next(port) = (void *)format_ports;
+  port_next(port) = (struct block_t *)format_ports;
   format_ports = port;
 }
 
