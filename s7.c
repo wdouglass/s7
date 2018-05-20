@@ -480,7 +480,7 @@ typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 
 /* -------------------------------- */
-/* local allocator; currently used for hash-table-elements, port-data, vector-elements, port_t and continuation_t structs */
+/* local allocator; currently used for hash-table elements, port-data, vector-elements, port_t and continuation_t structs */
 
 static const int32_t bits[256] =
   {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -493,19 +493,25 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
 typedef struct block_t {
-  struct {
+  union {
     void *data;
     s7_pointer d_ptr;
   } dx;
   int32_t index;
   int32_t size;
   struct block_t *next;
-  struct {
-    s7_pointer ex_ptr; /* hash-table-procedures */
+  union {
+    s7_pointer ex_ptr; /* hash-table-procedures/entry values */
     char *ex_str;
     void *ex_info;
   } ex;
 } block_t;
+
+typedef block_t hash_entry_t;
+#define hash_entry_key(p) p->dx.d_ptr
+#define hash_entry_value(p) p->ex.ex_ptr
+#define hash_entry_next(p) p->next
+#define hash_entry_raw_hash(p) p->size
 
 #define block_data(p) p->dx.data
 #define block_index(p) p->index
@@ -525,41 +531,55 @@ static void init_block_lists(void)
     block_lists[i] = NULL;
 }
 
+/* clear_block_lists (in (gc)?) can free the data blocks and put all blocks on block_list[BLOCK_LIST],
+ *  but the blocks themselves can't be freed (they're allocated by malloc in arbitrary batches, and
+ *  the malloc pointer block is not currently recognizable).
+ */
+
 static inline void liberate(block_t *p)
 {
-  if (p->index != TOP_BLOCK_LIST)
+  if (block_index(p) != TOP_BLOCK_LIST)
     {
-      p->next = (struct block_t *)block_lists[p->index];
-      block_lists[p->index] = p;
+      block_next(p) = (struct block_t *)block_lists[block_index(p)];
+      block_lists[block_index(p)] = p;
     }
   else 
     {
-      if (p->dx.data) free(p->dx.data);
-      free(p);
+      if (block_data(p)) {free(block_data(p)); block_data(p) = NULL;}
+      block_index(p) = BLOCK_LIST;
+      block_next(p) = (struct block_t *)block_lists[block_index(p)];
+      block_lists[block_index(p)] = p;
     }
 }
 
 static inline void liberate_block(block_t *p)
 {
-  p->next = (struct block_t *)block_lists[BLOCK_LIST];
+  block_next(p) = (struct block_t *)block_lists[BLOCK_LIST];
   block_lists[BLOCK_LIST] = p;
 }
 
 static block_t *mallocate_block(void)
 {
   block_t *p;
-  if (block_lists[BLOCK_LIST])
+  if (!block_lists[BLOCK_LIST])
     {
-      p = block_lists[BLOCK_LIST];
-      block_lists[BLOCK_LIST] = (block_t *)(p->next);
-      p->next = NULL;
-      block_info(p) = NULL;
-      return(p);
+      int32_t i;
+      block_t *b;
+      #define BLOCK_MALLOC_SIZE 64
+      b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list! */
+      block_lists[BLOCK_LIST] = b;
+      for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
+	{
+	  block_next(b) = (block_t *)(b + 1);
+	  block_index(b) = BLOCK_LIST;
+	  b++;
+	}
+      b->next = NULL;
+      b->index = BLOCK_LIST;
     }
-  p = (block_t *)malloc(sizeof(block_t));
-  p->index = BLOCK_LIST;
+  p = block_lists[BLOCK_LIST];
+  block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
   p->next = NULL;
-  block_info(p) = NULL;
   return(p);
 }
 
@@ -580,43 +600,18 @@ static block_t *mallocate(int32_t bytes)
       p = block_lists[index];
       if (p)
 	{
-	  block_lists[index] = (block_t *)p->next;
-	  block_info(p) = NULL;
-	  p->next = NULL;
+	  block_lists[index] = (block_t *)block_next(p);
+	  block_next(p) = NULL;
 	}
       else
 	{
 	  p = mallocate_block();
-	  p->dx.data = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
-	  p->index = index;
+	  block_data(p) = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
+	  block_index(p) = index;
 	}
     }
-  else 
-    {
-      p = mallocate_block();
-      p->dx.data = NULL;
-    }
-  p->size = bytes;
-  return(p);
-}
-
-static inline block_t *mallocate_by_index(int32_t bytes, int32_t index)
-{
-  block_t *p;
-  p = block_lists[index];
-  if (p)
-    {
-      block_lists[index] = (block_t *)p->next;
-      block_info(p) = NULL;
-      p->next = NULL;
-    }
-  else 
-    {
-      p = mallocate_block();
-      p->dx.data = (void *)malloc(bytes);
-      p->index = index;
-    }
-  p->size = bytes;
+  else p = mallocate_block();
+  block_size(p) = bytes;
   return(p);
 }
 
@@ -624,8 +619,8 @@ static block_t *callocate(int32_t bytes)
 {
   block_t *p;
   p = mallocate(bytes);
-  if (p->dx.data)
-    memset((void *)(p->dx.data), 0, bytes);
+  if ((block_data(p)) && (p->index != BLOCK_LIST))
+    memset((void *)(block_data(p)), 0, bytes);
   return(p);
 }
 
@@ -633,16 +628,14 @@ static block_t *reallocate(block_t *op, int32_t bytes)
 {
   block_t *np;
   np = mallocate(bytes);
-  if (op->dx.data)  /* presumably np->dx.data is not null */
-    memcpy((uint8_t *)(np->dx.data), (uint8_t *)(op->dx.data), op->size);
+  if (block_data(op))  /* presumably block_data(np) is not null */
+    memcpy((uint8_t *)(block_data(np)), (uint8_t *)(block_data(op)), block_size(op));
   liberate(op);
   return(np);
 }
 
 
-
 /* -------------------------------- */
-
 
 typedef struct {
   bool needs_free, needs_unprotect, is_closed;
@@ -722,12 +715,6 @@ typedef struct {
   s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args);
 } c_object_t;
 
-
-typedef struct hash_entry_t {
-  s7_pointer key, value;
-  struct hash_entry_t *next;
-  uint32_t raw_hash;
-} hash_entry_t;
 
 typedef uint32_t (*hash_map_t)(s7_scheme *sc, s7_pointer table, s7_pointer key);        /* hash-table object->location mapper */
 typedef hash_entry_t *(*hash_check_t)(s7_scheme *sc, s7_pointer table, s7_pointer key); /* hash-table object equality function */
@@ -4147,6 +4134,7 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
       new_size = 2 * size;
       ob = vector_block(sc->protected_objects);
       nb = reallocate(ob, new_size * sizeof(s7_pointer));
+      block_info(nb) = NULL;
       vector_block(sc->protected_objects) = nb;
       vector_elements(sc->protected_objects) = (s7_pointer *)block_data(nb);
       vector_length(sc->protected_objects) = new_size;
@@ -4434,15 +4422,16 @@ static void sweep(s7_scheme *sc)
 	  if (is_free_and_clear(s1))
 	    {
 	      /* a multidimensional empty vector can have dimension info, wrapped vectors always have dimension info */
-	      if (vector_dimension_info(s1))
+	      if ((vector_dimension_info(s1)) &&
+		  (vector_dimension_info(s1) != sc->wrap_only))
 		{
 		  if (vector_dimensions_allocated(s1))
 		    {
 		      free(vector_dimensions(s1));
 		      free(vector_offsets(s1));
 		    }
-		  if (vector_dimension_info(s1) != sc->wrap_only)
-		    free(vector_dimension_info(s1));
+		  free(vector_dimension_info(s1));
+		  vector_set_dimension_info(s1, NULL);
 		}
 	      liberate(vector_block(s1));
 	    }
@@ -4654,6 +4643,8 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #if S7_DEBUGGING
 static void add_vector(s7_scheme *sc, s7_pointer p)
 {
+  if ((!is_normal_vector(p)) && (!is_float_vector(p)) && (!is_int_vector(p)))
+    fprintf(stderr, "type: %d\n", type(p));
   if (!vector_block(p)) abort();
   if (vector_length(p) < 0) abort();
   if (vector_rank(p) < 0) abort();
@@ -4958,15 +4949,15 @@ static void mark_hash_table(s7_pointer p)
       while (entries < last)
 	{
 	  hash_entry_t *xp;
-	  for (xp = *entries++; xp; xp = xp->next)
+	  for (xp = *entries++; xp; xp = hash_entry_next(xp))
 	    {
-	      gc_mark(xp->key);
-	      gc_mark(xp->value);
+	      gc_mark(hash_entry_key(xp));
+	      gc_mark(hash_entry_value(xp));
 	    }
-	  for (xp = *entries++; xp; xp = xp->next)
+	  for (xp = *entries++; xp; xp = hash_entry_next(xp))
 	    {
-	      gc_mark(xp->key);
-	      gc_mark(xp->value);
+	      gc_mark(hash_entry_key(xp));
+	      gc_mark(hash_entry_value(xp));
 	    }
 	}
     }
@@ -5506,7 +5497,6 @@ static void try_to_call_gc(s7_scheme *sc)
 #endif
     }
 }
-
   /* originally I tried to mark each temporary value until I was done with it, but
    *   that way madness lies... By delaying GC of _every_ %$^#%@ pointer, I can dispense
    *   with hundreds of individual protections.  So the free_heap's last GC_TEMPS_SIZE
@@ -5545,7 +5535,7 @@ s7_pointer s7_gc_on(s7_scheme *sc, bool on)
 
 
 static int32_t permanent_cells = 0;
-#if (!WITH_THREADS)
+
 static s7_cell *alloc_pointer(void)
 {
   #define ALLOC_SIZE 256
@@ -5560,10 +5550,6 @@ static s7_cell *alloc_pointer(void)
     }
   return(&alloc_cells[alloc_k++]);
 }
-#else
-#define alloc_pointer() (s7_cell *)calloc(1, sizeof(s7_cell))
-#endif
-
 
 static void add_permanent_object(s7_scheme *sc, s7_pointer obj)
 {
@@ -5942,6 +5928,7 @@ static void resize_stack(s7_scheme *sc)
 
   ob = stack_block(sc->stack);
   nb = reallocate(ob, new_size * sizeof(s7_pointer));
+  block_info(nb) = NULL;
   stack_block(sc->stack) = nb;
   stack_elements(sc->stack) = (s7_pointer *)block_data(nb);
   if (!stack_elements(sc->stack))
@@ -6006,26 +5993,37 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
   return(x);
 }
 
+static uint8_t *alloc_symbol(void)
+{
+  #define SYMBOL_SIZE (3 * sizeof(s7_cell) + sizeof(symbol_info_t))
+  #define ALLOC_SYMBOL_SIZE (64 * SYMBOL_SIZE)
+  static uint32_t alloc_symbol_k = ALLOC_SYMBOL_SIZE;
+  static uint8_t *alloc_symbol_cells = NULL;
+  uint8_t *result;
+
+  if (alloc_symbol_k == ALLOC_SYMBOL_SIZE)
+    {
+      alloc_symbol_cells = (uint8_t *)malloc(ALLOC_SYMBOL_SIZE);
+      alloc_symbol_k = 0;
+    }
+  result = &alloc_symbol_cells[alloc_symbol_k];
+  alloc_symbol_k += SYMBOL_SIZE;
+  return(result);
+}
 
 static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
 
 static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64_t hash, uint32_t location)
 {
-  /* name might not be null-terminated */
+  /* name might not be null-terminated, these are permanent symbols even in s7_gensym; g_gensym handles everything separately */
   s7_pointer x, str, p;
   uint8_t *base, *val;
-  size_t size;
-  size = sizeof(s7_cell) * 3 + sizeof(symbol_info_t) + len + 1;
 
-  base = (uint8_t *)malloc(size);
-#if S7_DEBUGGING
-  /* clear at least debugger_bits here and below */
-  memset((void *)base, 0, size);
-#endif
+  base = alloc_symbol();
   x = (s7_pointer)base;
   str = (s7_pointer)(base + sizeof(s7_cell));
   p = (s7_pointer)(base + 2 * sizeof(s7_cell));
-  val = (uint8_t *)(base + 3 * sizeof(s7_cell) + sizeof(symbol_info_t));
+  val = (uint8_t *)malloc(len + 1);
   memcpy((void *)val, (void *)name, len);
   val[len] = '\0';
 
@@ -6065,6 +6063,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   pair_set_raw_hash(p, hash);
   pair_set_raw_len(p, (uint32_t)len); /* symbol name length, so it ought to fit! */
   pair_set_raw_name(p, string_value(str));
+
   return(x);
 }
 
@@ -6935,6 +6934,7 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
 	  len = vector_length(ge);
 	  ob = rootlet_block(ge);
 	  nb = reallocate(ob, len * sizeof(s7_pointer));
+	  block_info(nb) = NULL;
 	  rootlet_block(ge) = nb;
 	  rootlet_elements(ge) = (s7_pointer *)block_data(nb);
 	  for (i = sc->rootlet_entries; i < len; i++)
@@ -9295,7 +9295,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
   nv = stack_elements(new_v);
   ov = stack_elements(old_v);
   if (len > 0)
-    memcpy((void *)nv, (void *)ov, len * sizeof(s7_pointer));
+    memcpy((void *)nv, (void *)ov, ((len > vector_length(old_v)) ? vector_length(old_v) : len) * sizeof(s7_pointer));
 
   s7_gc_on(sc, false);
   for (i = 2; i < top; i += 4)
@@ -23325,7 +23325,7 @@ static void resize_port_data(s7_pointer pt, s7_int new_size)
 
   nb = reallocate(port_data_block(pt), new_size);
   port_data_block(pt) = nb;
-  port_data(pt) = (uint8_t *)(nb->dx.data);
+  port_data(pt) = (uint8_t *)(block_data(nb));
   port_data_size(pt) = new_size;
 }
 
@@ -23871,7 +23871,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       uint8_t *content;
 
       block = mallocate(size + 2);
-      content = (uint8_t *)(block->dx.data);
+      content = (uint8_t *)(block_data(block));
       bytes = fread(content, sizeof(uint8_t), size, fp);
       if (bytes != (size_t)size)
 	{
@@ -23888,6 +23888,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       content[size + 1] = '\0';
       fclose(fp);
 
+      port_file(port) = NULL; /* make valgrind happy */
       port_type(port) = STRING_PORT;
       port_data(port) = content;
       port_data_block(port) = block;
@@ -24165,7 +24166,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_data_size(x) = PORT_DATA_SIZE;
   block = mallocate(PORT_DATA_SIZE);
   port_data_block(x) = block;
-  port_data(x) = (uint8_t *)(block->dx.data);
+  port_data(x) = (uint8_t *)(block_data(block));
   add_output_port(sc, x);
   return(x);
 }
@@ -24276,7 +24277,7 @@ static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
   port_data_size(x) = len;
   block = mallocate(len);
   port_data_block(x) = block;
-  port_data(x) = (uint8_t *)(block->dx.data);
+  port_data(x) = (uint8_t *)(block_data(block));
   port_data(x)[0] = '\0';   /* in case s7_get_output_string before any output */
   port_position(x) = 0;
   port_needs_free(x) = true;
@@ -25801,16 +25802,16 @@ static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
   lst = iterator_hash_current(iterator);
   if (lst)
     {
-      iterator_hash_current(iterator) = lst->next;
+      iterator_hash_current(iterator) = hash_entry_next(lst);
       if (iterator_current(iterator))
 	{
 	  s7_pointer p;
 	  p = iterator_current(iterator);
-	  set_car(p, lst->key);
-	  set_cdr(p, lst->value);
+	  set_car(p, hash_entry_key(lst));
+	  set_cdr(p, hash_entry_value(lst));
 	  return(p);
 	}
-      return(cons(sc, lst->key, lst->value));
+      return(cons(sc, hash_entry_key(lst), hash_entry_value(lst)));
     }
 
   table = iterator_sequence(iterator); /* using iterator_length and hash_table_entries here was slightly slower */
@@ -25824,16 +25825,16 @@ static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
       if (x)
 	{
 	  iterator_position(iterator) = loc;
-	  iterator_hash_current(iterator) = x->next;
+	  iterator_hash_current(iterator) = hash_entry_next(x);
 	  if (iterator_current(iterator))
 	    {
 	      s7_pointer p;
 	      p = iterator_current(iterator);
-	      set_car(p, x->key);
-	      set_cdr(p, x->value);
+	      set_car(p, hash_entry_key(x));
+	      set_cdr(p, hash_entry_value(x));
 	      return(p);
 	    }
-	  return(cons(sc, x->key, x->value));
+	  return(cons(sc, hash_entry_key(x), hash_entry_value(x)));
 	}
     }
   iterator_next(iterator) = iterator_finished;
@@ -26431,18 +26432,18 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	  for (i = 0; i < len; i++)
 	    {
 	      hash_entry_t *p;
-	      for (p = entries[i]; p; p = p->next)
+	      for (p = entries[i]; p; p = hash_entry_next(p))
 		{
 		  if ((!keys_safe) &&
-		      (has_structure(p->key)) &&
-		      (collect_shared_info(sc, ci, p->key, stop_at_print_length)))
+		      (has_structure(hash_entry_key(p))) &&
+		      (collect_shared_info(sc, ci, hash_entry_key(p), stop_at_print_length)))
 		    top_cyclic = true;
-		  if ((has_structure(p->value)) &&
-		      (collect_shared_info(sc, ci, p->value, stop_at_print_length)))
+		  if ((has_structure(hash_entry_value(p))) &&
+		      (collect_shared_info(sc, ci, hash_entry_value(p), stop_at_print_length)))
 		    {
-		      if ((is_c_pointer(p->value)) ||
-			  (is_iterator(p->value)) ||
-			  (is_c_object(p->value)))
+		      if ((is_c_pointer(hash_entry_value(p))) ||
+			  (is_iterator(hash_entry_value(p))) ||
+			  (is_c_object(hash_entry_value(p))))
 			check_collected(top, ci);
 		      top_cyclic = true;
 		    }
@@ -30398,7 +30399,7 @@ static s7_pointer open_format_port(void)
   port_data_size(x) = len;
   port_next(x) = NULL;
   block = mallocate(len);
-  port_data(x) = (uint8_t *)(block->dx.data);
+  port_data(x) = (uint8_t *)(block_data(block));
   port_data_block(x) = block;
   port_data(x)[0] = '\0';
   port_position(x) = 0;
@@ -37789,8 +37790,6 @@ static s7_pointer vector_into_string(s7_pointer vect, s7_pointer dest)
 
 /* -------- hash tables -------- */
 
-static hash_entry_t *hash_free_list = NULL;
-
 static void free_hash_table(s7_pointer table)
 {
   hash_entry_t **entries;
@@ -37805,15 +37804,13 @@ static void free_hash_table(s7_pointer table)
 	  hash_entry_t *p, *n;
 	  for (p = entries[i++]; p; p = n)
 	    {
-	      n = p->next;
-	      p->next = hash_free_list;
-	      hash_free_list = p;
+	      n = hash_entry_next(p);
+	      liberate_block(p);
 	    }
 	  for (p = entries[i]; p; p = n)
 	    {
-	      n = p->next;
-	      p->next = hash_free_list;
-	      hash_free_list = p;
+	      n = hash_entry_next(p);
+	      liberate_block(p);
 	    }
 	}
     }
@@ -37823,15 +37820,10 @@ static void free_hash_table(s7_pointer table)
 static hash_entry_t *make_hash_entry(s7_pointer key, s7_pointer value, uint32_t raw_hash)
 {
   hash_entry_t *p;
-  if (hash_free_list)
-    {
-      p = hash_free_list;
-      hash_free_list = p->next;
-    }
-  else p = (hash_entry_t *)malloc(sizeof(hash_entry_t));
-  p->key = key;
-  p->value = value;
-  p->raw_hash = raw_hash;
+  p = (hash_entry_t *)mallocate_block();
+  hash_entry_key(p) = key;
+  hash_entry_value(p) = value;
+  hash_entry_raw_hash(p) = raw_hash;
   return(p);
 }
 
@@ -38156,8 +38148,8 @@ static hash_entry_t *hash_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
       else loc = (uint32_t)(keyval & hash_len); 
       /* I think this assumes hash_map_int is using s7_int_abs (and high order bits are ignored) */
 
-      for (x = hash_table_element(table, loc); x; x = x->next)
-	if (integer(x->key) == keyval)
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (integer(hash_entry_key(x)) == keyval)
 	  return(x);
     }
   return(NULL);
@@ -38184,17 +38176,17 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
 
       if (key_len <= 8)
 	{
-	  for (x = hash_table_element(table, hash & hash_len); x; x = x->next)
-	    if ((hash == string_hash(x->key)) &&
-		(key_len == string_length(x->key)))
+	  for (x = hash_table_element(table, hash & hash_len); x; x = hash_entry_next(x))
+	    if ((hash == string_hash(hash_entry_key(x))) &&
+		(key_len == string_length(hash_entry_key(x))))
 	      return(x);
 	}
       else
 	{
-	  for (x = hash_table_element(table, hash & hash_len); x; x = x->next)
-	    if ((hash == string_hash(x->key)) &&
-		(key_len == string_length(x->key)) &&        /* these are scheme strings, so we can't assume 0=end of string */
-		(strings_are_equal_with_length(key_str, string_value(x->key), key_len)))
+	  for (x = hash_table_element(table, hash & hash_len); x; x = hash_entry_next(x))
+	    if ((hash == string_hash(hash_entry_key(x))) &&
+		(key_len == string_length(hash_entry_key(x))) &&        /* these are scheme strings, so we can't assume 0=end of string */
+		(strings_are_equal_with_length(key_str, string_value(hash_entry_key(x)), key_len)))
 	      return(x);
 	}
     }
@@ -38212,8 +38204,8 @@ static hash_entry_t *hash_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer 
       hash_len = hash_table_mask(table);
       hash = hash_map_ci_string(sc, table, key);
 
-      for (x = hash_table_element(table, hash & hash_len); x; x = x->next)
-	if (scheme_strequal_ci(key, x->key))
+      for (x = hash_table_element(table, hash & hash_len); x; x = hash_entry_next(x))
+	if (scheme_strequal_ci(key, hash_entry_key(x)))
 	  return(x);
     }
   return(NULL);
@@ -38229,8 +38221,8 @@ static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer ke
       hash_len = hash_table_mask(table);
       loc = hash_loc(sc, table, key) & hash_len;
 
-      for (x = hash_table_element(table, loc); x; x = x->next)
-	if (upper_character(key) == upper_character(x->key))
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (upper_character(key) == upper_character(hash_entry_key(x)))
 	  return(x);
     }
   return(NULL);
@@ -38243,12 +38235,12 @@ static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, uint32_t loc,
   bool look_for_nan;
   look_for_nan = is_NaN(keyval);
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     {
-      if (is_t_real(x->key)) /* we're possibly called from hash_equal, so keys might not be T_REAL */
+      if (is_t_real(hash_entry_key(x))) /* we're possibly called from hash_equal, so keys might not be T_REAL */
 	{
 	  s7_double val;
-	  val = real(x->key);
+	  val = real(hash_entry_key(x));
 	  if (look_for_nan)
 	    {
 	      if (is_NaN(val))
@@ -38287,9 +38279,9 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, uint32_t loc, s7_pointer key)
 {
   hash_entry_t *x;
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if ((is_t_complex(x->key)) &&
-	(s7_is_morally_equal(sc, x->key, key)))
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if ((is_t_complex(hash_entry_key(x))) &&
+	(s7_is_morally_equal(sc, hash_entry_key(x), key)))
       return(x);
   return(NULL);
 }
@@ -38312,9 +38304,9 @@ static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_point
   hash_entry_t *x;
   uint32_t loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if ((is_syntax(x->key)) &&
-	(syntax_symbol(x->key) == syntax_symbol(key))) /* the opcodes might differ, but the symbols should not */
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if ((is_syntax(hash_entry_key(x))) &&
+	(syntax_symbol(hash_entry_key(x)) == syntax_symbol(key))) /* the opcodes might differ, but the symbols should not */
       return(x);
   return(NULL);
 }
@@ -38325,8 +38317,8 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
   hash_entry_t *x;
   uint32_t loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (x->key == key)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (hash_entry_key(x) == key)
       return(x);
   return(NULL);
 }
@@ -38343,10 +38335,10 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
    */
 #if 0
   /* hope for an easy case... (apparently this never happens) */
-  for (x = hash_table_element(table, loc); x; x = x->next) if (x->key == key) return(x);
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x)) if (hash_entry_key(x) == key) return(x);
 #endif
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (s7_is_equal(sc, x->key, key))
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (s7_is_equal(sc, hash_entry_key(x), key))
       return(x);
   return(NULL);
 }
@@ -38367,12 +38359,12 @@ static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_poin
   uint32_t loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (x->key == key)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (hash_entry_key(x) == key)
       return(x);
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (s7_is_morally_equal(sc, x->key, key))
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (s7_is_morally_equal(sc, hash_entry_key(x), key))
       return(x);
   return(NULL);
 }
@@ -38388,9 +38380,9 @@ static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer
   loc = hash_loc(sc, table, key) & hash_len;
   
   set_car(sc->t2_1, key);
-  for (x = hash_table_element(table, loc); x; x = x->next)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     {
-      set_car(sc->t2_2, x->key);
+      set_car(sc->t2_2, hash_entry_key(x));
       if (is_true(sc, f(sc, sc->t2_1)))
 	return(x);
     }
@@ -38407,8 +38399,8 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
   hash_len = hash_table_mask(table);
   loc = hash_loc(sc, table, key) & hash_len;
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (key == x->key)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (key == hash_entry_key(x))
       return(x);
 
   return(NULL);
@@ -38422,8 +38414,8 @@ static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
   hash_len = hash_table_mask(table);
   loc = hash_loc(sc, table, key) & hash_len;
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
-    if (s7_is_eqv(key, x->key))
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (s7_is_eqv(key, hash_entry_key(x)))
       return(x);
 
   return(NULL);
@@ -38441,14 +38433,14 @@ static hash_entry_t *hash_number(s7_scheme *sc, s7_pointer table, s7_pointer key
       loc = hash_loc(sc, table, key) & hash_len;
 
 #if (!WITH_GMP)
-      for (x = hash_table_element(table, loc); x; x = x->next)
-	if ((is_number(x->key)) &&
-	    (is_true(sc, c_equal_2(sc, key, x->key))))
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if ((is_number(hash_entry_key(x))) &&
+	    (is_true(sc, c_equal_2(sc, key, hash_entry_key(x)))))
 	  return(x);
 #else
-      for (x = hash_table_element(table, loc); x; x = x->next)
-	if ((is_number(x->key)) &&
-	    (is_true(sc, big_equal(sc, set_plist_2(sc, key, x->key)))))
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if ((is_number(hash_entry_key(x))) &&
+	    (is_true(sc, big_equal(sc, set_plist_2(sc, key, hash_entry_key(x))))))
 	  return(x);
 #endif
     }
@@ -38460,8 +38452,8 @@ static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key
   if (is_symbol(key))
     {
       hash_entry_t *x;
-      for (x = hash_table_element(table, symbol_hmap(key) & hash_table_mask(table)); x; x = x->next)
-	if (key == x->key)
+      for (x = hash_table_element(table, symbol_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
+	if (key == hash_entry_key(x))
 	  return(x);
     }
   return(NULL);
@@ -38477,8 +38469,8 @@ static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
       hash_entry_t *x;
       uint32_t loc;
       loc = ((uint32_t)character(key)) & hash_table_mask(table);
-      for (x = hash_table_element(table, loc); x; x = x->next)
-	if (key == x->key)
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (key == hash_entry_key(x))
 	  return(x);
     }
   return(NULL);
@@ -38501,9 +38493,9 @@ static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer ke
 			   (is_symbol(car(args))) ? car(args) : caar(args), key,
 			   (is_symbol(cadr(args))) ? cadr(args) : caadr(args), sc->F);
 
-  for (x = hash_table_element(table, loc); x; x = x->next)
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     {
-      slot_set_value(next_slot(let_slots(sc->envir)), x->key);
+      slot_set_value(next_slot(let_slots(sc->envir)), hash_entry_key(x));
       push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
       if (is_pair(cdr(body)))
 	push_stack_no_args(sc, OP_BEGIN1, cdr(body));
@@ -38527,18 +38519,18 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 
   if (!p) return(sc->F);
   hash_len = hash_table_mask(table);
-  loc = p->raw_hash & hash_len;
+  loc = hash_entry_raw_hash(p) & hash_len;
 
   x = hash_table_element(table, loc);
   if (x == p)
-    hash_table_element(table, loc) = x->next;
+    hash_table_element(table, loc) = hash_entry_next(x);
   else
     {
       hash_entry_t *y;
-      for (y = x, x = x->next; x; y = x, x = x->next)
+      for (y = x, x = hash_entry_next(x); x; y = x, x = hash_entry_next(x))
 	if (x == p)
 	  {
-	    y->next = x->next;
+	    hash_entry_next(y) = hash_entry_next(x);
 	    break;
 	  }
     }
@@ -38546,7 +38538,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 #if S7_DEBUGGING
   if (!x)
     {
-      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), p->raw_hash, hash_loc(sc, table, key));
+      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), hash_entry_raw_hash(p), hash_loc(sc, table, key));
       fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
       fprintf(stderr, "%s\n", DISPLAY(key));
       abort();
@@ -38560,8 +38552,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
       hash_table_checker(table) = hash_empty;
       hash_clear_chosen(table);
     }
-  x->next = hash_free_list;
-  hash_free_list = x;
+  liberate_block(x);
   return(sc->F);
 }
 
@@ -38600,7 +38591,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
   hash_table_set_block(table, els);
-  hash_table_elements(table) = (hash_entry_t **)(els->dx.data);
+  hash_table_elements(table) = (hash_entry_t **)(block_data(els));
   hash_table_checker(table) = hash_empty;
   hash_table_mapper(table) = default_hash_map;
   hash_table_entries(table) = 0;
@@ -38881,7 +38872,7 @@ static uint32_t resize_hash_table(s7_pointer table)
   new_size = old_size * 4;
   hash_len = new_size - 1;
   np = (block_t *)callocate(new_size * sizeof(hash_entry_t *));
-  new_els = (hash_entry_t **)(np->dx.data);
+  new_els = (hash_entry_t **)(block_data(np));
   old_els = hash_table_elements(table);
 
   for (i = 0; i < old_size; i++)
@@ -38889,9 +38880,9 @@ static uint32_t resize_hash_table(s7_pointer table)
       hash_entry_t *x, *n;
       for (x = old_els[i]; x; x = n)
 	{
-	  n = x->next;
-	  loc = x->raw_hash & hash_len;
-	  x->next = new_els[loc];
+	  n = hash_entry_next(x);
+	  loc = hash_entry_raw_hash(x) & hash_len;
+	  hash_entry_next(x) = new_els[loc];
 	  new_els[loc] = x;
 	}
     }
@@ -38910,7 +38901,7 @@ s7_pointer s7_hash_table_ref(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -38947,7 +38938,7 @@ static s7_pointer g_hash_table_ref_2(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, args, T_HASH_TABLE, 1);
 
   x = (*hash_table_checker(table))(sc, table, cadr(args));
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -38963,7 +38954,7 @@ static s7_pointer g_hash_table_ref_ss(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, list_2(sc, table, key), T_HASH_TABLE, 1);
   
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -38982,7 +38973,7 @@ static s7_pointer g_hash_table_ref_car(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, list_2(sc, table, car(y)), T_HASH_TABLE, 1);
 
   x = (*hash_table_checker(table))(sc, table, car(y));
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -39016,16 +39007,6 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
     }
 }
 
-static hash_entry_t *extend_hash_free_list(void)
-{
-  int32_t i;
-  hash_entry_t *p;
-  hash_free_list = (hash_entry_t *)malloc(32 * sizeof(hash_entry_t));
-  for (p = hash_free_list, i = 0; i < 31; i++) {p->next = p + 1; p++;}
-  p->next = NULL;
-  return(hash_free_list);
-}
-
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
   uint32_t hash_len, loc;
@@ -39037,7 +39018,7 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   x = (*hash_table_checker(table))(sc, table, key);      
   if (x)
     {
-      x->value = T_Pos(value);
+      hash_entry_value(x) = T_Pos(value);
       return(value);
     }
 
@@ -39048,15 +39029,13 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   if (hash_table_entries(table) > hash_len)
     hash_len = resize_hash_table(table);
 
-  p = hash_free_list;
-  if (!p) p = extend_hash_free_list();
-  hash_free_list = p->next;
-  p->key = key;
-  p->value = T_Pos(value);
-  p->raw_hash = hash_loc(sc, table, key);
+  p = mallocate_block();
+  hash_entry_key(p) = key;
+  hash_entry_value(p) = T_Pos(value);
+  hash_entry_raw_hash(p) = hash_loc(sc, table, key);
 
-  loc = p->raw_hash & hash_len;
-  p->next = hash_table_element(table, loc);
+  loc = hash_entry_raw_hash(p) & hash_len;
+  hash_entry_next(p) = hash_table_element(table, loc);
   hash_table_element(table, loc) = p;
   hash_table_entries(table)++;
   return(value);
@@ -39166,19 +39145,19 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	  (end >= hash_table_entries(old_hash)))
 	{
 	  for (i = 0; i < old_len; i++)
-	    for (x = old_lists[i]; x; x = x->next)
+	    for (x = old_lists[i]; x; x = hash_entry_next(x))
 	      {
 		uint32_t loc;
-		loc = x->raw_hash & new_len;
-		p = make_hash_entry(x->key, x->value, x->raw_hash);
-		p->next = new_lists[loc];
+		loc = hash_entry_raw_hash(x) & new_len;
+		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
+		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
 	      }
 	  hash_table_entries(new_hash) = hash_table_entries(old_hash);
 	  return(new_hash);
 	}
       for (i = 0; i < old_len; i++)
-	for (x = old_lists[i]; x; x = x->next)
+	for (x = old_lists[i]; x; x = hash_entry_next(x))
 	  {
 	    if (count >= end)
 	      {
@@ -39188,9 +39167,9 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	    if (count >= start)
 	      {
 		uint32_t loc;
-		loc = x->raw_hash & new_len;
-		p = make_hash_entry(x->key, x->value, x->raw_hash);
-		p->next = new_lists[loc];
+		loc = hash_entry_raw_hash(x) & new_len;
+		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
+		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
 	      }
 	    count++;
@@ -39201,26 +39180,26 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
       
   /* this can't be optimized much because we have to look for key matches (we're copying old_hash into the exisiting, non-empty new_hash) */
   for (i = 0; i < old_len; i++)
-    for (x = old_lists[i]; x; x = x->next)
+    for (x = old_lists[i]; x; x = hash_entry_next(x))
       {
 	if (count >= end)
 	  return(new_hash);
 	if (count >= start)
 	  {
 	    hash_entry_t *y;
-	    y = (*hash_table_checker(new_hash))(sc, new_hash, x->key);
+	    y = (*hash_table_checker(new_hash))(sc, new_hash, hash_entry_key(x));
 	    if (y)
-	      y->value = x->value;
+	      hash_entry_value(y) = hash_entry_value(x);
 	    else
 	      {
 		uint32_t loc;
-		loc = x->raw_hash & new_len;
-		p = make_hash_entry(x->key, x->value, x->raw_hash);
-		p->next = new_lists[loc];
+		loc = hash_entry_raw_hash(x) & new_len;
+		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
+		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
 		hash_table_entries(new_hash)++;
 		if (!hash_chosen(new_hash))
-		  hash_table_set_checker(new_hash, type(x->key));
+		  hash_table_set_checker(new_hash, type(hash_entry_key(x)));
 	      }
 	  }
 	count++;
@@ -39252,17 +39231,17 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 	      if (*hp)
 		{
 		  p = *hp;
-		  while (p->next) p = p->next;
-		  p->next = hash_free_list;
-		  hash_free_list = *hp;
+		  while (hash_entry_next(p)) p = hash_entry_next(p);
+		  hash_entry_next(p) = block_lists[BLOCK_LIST];
+		  block_lists[BLOCK_LIST] = *hp;
 		}
 	      hp++;
 	      if (*hp)
 		{
 		  p = *hp;
-		  while (p->next) p = p->next;
-		  p->next = hash_free_list;
-		  hash_free_list = *hp;
+		  while (hash_entry_next(p)) p = hash_entry_next(p);
+		  hash_entry_next(p) = block_lists[BLOCK_LIST];
+		  block_lists[BLOCK_LIST] = *hp;
 		}
 	    }
 	  memset(entries, 0, len * sizeof(hash_entry_t *));
@@ -39278,8 +39257,8 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 	  int32_t i;
 	  hash_entry_t *x;
 	  for (i = 0; i < len; i++)
-	    for (x = entries[i]; x; x = x->next)
-	      x->value = val;
+	    for (x = entries[i]; x; x = hash_entry_next(x))
+	      hash_entry_value(x) = val;
 	  /* keys haven't changed, so no need to mess with hash_table_checker */
 	}
     }
@@ -39303,8 +39282,8 @@ static s7_pointer hash_table_reverse(s7_scheme *sc, s7_pointer old_hash)
   for (i = 0; i < len; i++)
     {
       hash_entry_t *x;
-      for (x = old_lists[i]; x; x = x->next)
-	s7_hash_table_set(sc, new_hash, x->value, x->key);
+      for (x = old_lists[i]; x; x = hash_entry_next(x))
+	s7_hash_table_set(sc, new_hash, hash_entry_value(x), hash_entry_key(x));
     }
   s7_gc_unprotect_at(sc, gc_loc);
   return(new_hash);
@@ -40726,6 +40705,7 @@ static void protect_setter(s7_scheme *sc, s7_pointer sym, s7_pointer acc)
 
       ob = vector_block(sc->protected_setters);
       nb = reallocate(ob, new_size * sizeof(s7_pointer));
+      block_info(nb) = NULL;
       vector_block(sc->protected_setters) = nb;
       vector_elements(sc->protected_setters) = (s7_pointer *)block_data(nb);
       vector_length(sc->protected_setters) = new_size;
@@ -41227,13 +41207,13 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
   for (i = 0; i < len; i++)
     {
       hash_entry_t *p;
-      for (p = lists[i]; p; p = p->next)
+      for (p = lists[i]; p; p = hash_entry_next(p))
 	{
 	  hash_entry_t *y_val;
-	  y_val = hash_morally_equal(sc, y, p->key);  /* hash_table_checker(y) might be hash_equal */
+	  y_val = hash_morally_equal(sc, y, hash_entry_key(p));  /* hash_table_checker(y) might be hash_equal */
 	  if (!y_val)
 	    return(false);
-	  if (!s7_is_morally_equal_1(sc, p->value, y_val->value, nci))
+	  if (!s7_is_morally_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
 	    return(false);
 	}
     }
@@ -41273,13 +41253,13 @@ static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
   for (i = 0; i < len; i++)
     {
       hash_entry_t *p;
-      for (p = lists[i]; p; p = p->next)
+      for (p = lists[i]; p; p = hash_entry_next(p))
 	{
 	  hash_entry_t *y_val;
-	  y_val = hf(sc, y, p->key); /* or hash_equal? */
+	  y_val = hf(sc, y, hash_entry_key(p)); /* or hash_equal? */
 	  if (!y_val)
 	    return(false);
-	  if (!s7_is_equal_1(sc, p->value, y_val->value, nci))
+	  if (!s7_is_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
 	    return(false);
 	}
     }
@@ -42707,7 +42687,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  {
 	    while (!x) x = elements[++loc];
 	    skip--;
-	    x = x->next;
+	    x = hash_entry_next(x);
 	  }
 
       if (is_pair(dest))
@@ -42716,8 +42696,8 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
 	    {
 	      while (!x) x = elements[++loc];
-	      set_car(p, cons(sc, x->key, x->value));
-	      x = x->next;
+	      set_car(p, cons(sc, hash_entry_key(x), hash_entry_value(x)));
+	      x = hash_entry_next(x);
 	    }
 	}
       else
@@ -42727,10 +42707,10 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      for (i = start; i < end; i++)
 		{
 		  while (!x) x = elements[++loc];
-		  if (!is_symbol(x->key))
-		    return(simple_wrong_type_argument(sc, caller, x->key, T_SYMBOL));
-		  make_slot_1(sc, dest, x->key, x->value);
-		  x = x->next;
+		  if (!is_symbol(hash_entry_key(x)))
+		    return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
+		  make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
+		  x = hash_entry_next(x);
 		}
 	    }
 	  else
@@ -42738,8 +42718,8 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      for (i = start, j = 0; i < end; i++, j++)
 		{
 		  while (!x) x = elements[++loc];
-		  set(sc, dest, j, cons(sc, x->key, x->value));
-		  x = x->next;
+		  set(sc, dest, j, cons(sc, hash_entry_key(x), hash_entry_value(x)));
+		  x = hash_entry_next(x);
 		}
 	    }
 	}
@@ -47089,7 +47069,7 @@ static s7_pointer x_c_hash_table_ref_ss(s7_scheme *sc, s7_pointer table, s7_poin
   if (!is_hash_table(table))
     return(g_hash_table_ref(sc, set_plist_2(sc, table, key)));
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -47112,7 +47092,7 @@ static s7_pointer all_x_c_hash_table_ref_car(s7_scheme *sc, s7_pointer arg)
     return(g_hash_table_ref(sc, set_plist_2(sc, table, car(lst))));
 
   x = (*hash_table_checker(table))(sc, table, car(lst));
-  if (x) return(x->value);
+  if (x) return(hash_entry_value(x));
   return(sc->F);
 }
 
@@ -56692,9 +56672,8 @@ static void clear_optimizer_fixups(s7_scheme *sc)
   hash_entry_t *p, *n;
   for (p = sc->optimizer_fixups; p; p = n)
     {
-      n = p->next;
-      p->next = hash_free_list;
-      hash_free_list = p;
+      n = hash_entry_next(p);
+      liberate_block(p); 
     }
   sc->optimizer_fixups = NULL;
 }
@@ -56706,15 +56685,15 @@ static void add_optimizer_fixup(s7_scheme *sc, s7_pointer expr, uint32_t op)
   if (((op & 1) != 0) && (!all_x_function[op])) fprintf(stderr, "no all_x fixup for %s\n", opt_names[op]);
 #endif
   p = make_hash_entry(expr, sc->nil, op);
-  p->next = sc->optimizer_fixups;
+  hash_entry_next(p) = sc->optimizer_fixups;
   sc->optimizer_fixups = p;
 }
 
 static void handle_optimizer_fixups(s7_scheme *sc)
 {
   hash_entry_t *p;
-  for (p = sc->optimizer_fixups; p; p = p->next)
-    set_optimize_op(p->key, p->raw_hash);
+  for (p = sc->optimizer_fixups; p; p = hash_entry_next(p))
+    set_optimize_op(hash_entry_key(p), hash_entry_raw_hash(p));
   clear_optimizer_fixups(sc);
 }
 
@@ -82701,19 +82680,6 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   {
-    int32_t hs;
-    hash_entry_t *p;
-    for (hs = 0, p = hash_free_list; p; p = (hash_entry_t *)(p->next), hs++);
-
-    len = 0;
-    gp = sc->hash_tables;
-    for (i = 0; i < (int32_t)(gp->loc); i++)
-      len += (hash_table_mask(gp->list[i]) + 1);
-    
-    n = snprintf(buf, 1024, "hash tables: %" PRId32 " (entries in use: %" print_s7_int ", free: %d)\n", (int32_t)(gp->loc), len, hs);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-  }
-  {
     int64_t vlen = 0, flen = 0, ilen = 0;
     gp = sc->vectors;
     for (i = 0; i < (int32_t)(gp->loc); i++)
@@ -82762,6 +82728,23 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->optlists->loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
+  {
+    int32_t i, blocks = 0, total = 0;
+    block_t *p;
+    for (i = 0; i < TOP_BLOCK_LIST; i++)
+      {
+	int32_t k;
+	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
+	blocks += k;
+	total += (k * (1 << i));
+      }
+    for (i = 0, p = block_lists[BLOCK_LIST]; p; p = block_next(p), i++);
+    blocks += i;
+    total += (blocks * sizeof(block_t));
+    n = snprintf(buf, 1024, "free_lists: %d blocks, %d bytes\n", blocks, total);
+    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+  }
+    
   return(sc->F);
 }
 
@@ -85383,7 +85366,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0)
     fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
 #endif
-  
+
   /* fprintf(stderr, "size: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
   /* 64 bit machine: size: 56 [size 80 if gmp, 136 if debugging], op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
@@ -85475,15 +85458,17 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  *
- * mallocate: vectors (vdims)/strings/hash_entry_t
- * h: vectors: why is block_info=null needed?
- *    string move doc/ksym
- *    hash_entry if next from block e->key to (s7_pointer)(b->dx.d_ptr), e->value as (s7_pointer)(b->ex_ptr)? or reversed, but raw hash trailing data?
- *    block as vdims?
- *    symbol_info_t -> block? int32/ptr + data=ksym?
- *    (gc) = clear free lists (if :free-list or something?)
- *    (*s7* 'memory-usage) for free-lists
- *    mallocate_by_index (port_t=8)
+ * mallocate:
+ *    string move doc/ksym for block_t*
+ *    symbol_info_t -> block? int32/ptr + data=ksym? [permanent memory here]
+ *            make_permanent_c_string etc use malloc for the value -- put all in permanent memory
+ *            sym=3 s7_cells + block_t + str-len >> 3 + 1(if 3 bits are not 0): 3*56+32+strlen-as-pointer
+ *            batch the base 4 pointers (3*56+32 by 64 or 100), and have another block for permanent string values rounded up
+ *       ksym+doc initial_slot type + string value: data=value, ex_ptr=initial, size=type, ksym+doc=next?? (no need for next in this context)
+ *       for gensyms no symbol_info_t needed, so the string can use all of it if necessary [index+data at least]
+ *       so: permanent string batch alloc, permanent symbol batch alloc, block_t in str->sym and gensym, then finally strings
+ *       check that gensym is fully freed
+ *    maybe num->str, vdims_t struct??
  *
  * tgen with local funcs + s7-optimize (or just pre-built funcs)
  * leak-check for testsnd?
@@ -85509,20 +85494,20 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1043
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1463
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1460
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1789
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2065
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2495
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2494
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.9
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
- * tread         |      |      |      ||      ||      |                   3009  2642
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2549
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3475
+ * tread         |      |      |      ||      ||      |                   3009  2648
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2562
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3467
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4241
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5020
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7815
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5027
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7687
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
