@@ -2405,8 +2405,8 @@ static file_dialog_info *make_sound_save_as_dialog_1(bool managed, int chan)
   if (chan >= 0)
     {
       char *chan_str;  
-      chan_str = (char *)calloc(8, sizeof(char));
-      snprintf(chan_str, 8, "%d", chan);
+      chan_str = (char *)calloc(16, sizeof(char));
+      snprintf(chan_str, 16, "%d", chan);
       gtk_entry_set_text(GTK_ENTRY(fd->panel_data->chans_text), chan_str);
       free(chan_str);
     }

@@ -3198,8 +3198,8 @@ char *scale_and_src(char **files, int len, int max_chans, mus_float_t amp, mus_f
 			snd_open_strerror()));
     }
 
-  fds = (snd_fd ***)calloc(len, sizeof(snd_fd **));
-  sps = (snd_info **)calloc(len, sizeof(snd_info *));
+  fds = (snd_fd ***)calloc((size_t)len, sizeof(snd_fd **));
+  sps = (snd_info **)calloc((size_t)len, sizeof(snd_info *));
   for (i = 0; i < len; i++)
     {
       fds[i] = (snd_fd **)calloc(max_chans, sizeof(snd_fd *));

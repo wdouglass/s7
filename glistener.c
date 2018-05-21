@@ -2226,8 +2226,10 @@ static char *filename_completion(glistener *g, const char *partial_name)
       home = g_getenv("HOME");
       if (home)
 	{
-	  new_name = (char *)calloc(strlen(partial_name) + strlen(home) + 1, sizeof(char));
-	  strncpy(new_name, home, strlen(home));
+	  int len;
+	  len = strlen(home);
+	  new_name = (char *)calloc(strlen(partial_name) + len + 1, sizeof(char));
+	  strncpy(new_name, home, len);
 	  strcat(new_name, (char *)(partial_name + 1));
 	}
     }

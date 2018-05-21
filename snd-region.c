@@ -524,7 +524,7 @@ region_state *region_report(void)
       }
   rs->len = len;
   if (len == 0) return(rs);
-  rs->name = (char **)calloc(len, sizeof(char *));
+  rs->name = (char **)calloc((size_t)len, sizeof(char *));
   for (i = 0; i < len; i++)
     {
       region *r;

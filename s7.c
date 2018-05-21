@@ -499,9 +499,13 @@ typedef struct block_t {
   } dx;
   int32_t index;
   int32_t size;
-  struct block_t *next;
   union {
-    s7_pointer ex_ptr; /* hash-table-procedures/entry values */
+    struct block_t *next;
+    char *documentation;
+    s7_pointer ksym;
+  } nx;
+  union {
+    s7_pointer ex_ptr; /* hash-table-procedures/entry values, initial_slot */
     char *ex_str;
     void *ex_info;
   } ex;
@@ -510,13 +514,13 @@ typedef struct block_t {
 typedef block_t hash_entry_t;
 #define hash_entry_key(p) p->dx.d_ptr
 #define hash_entry_value(p) p->ex.ex_ptr
-#define hash_entry_next(p) p->next
+#define hash_entry_next(p) p->nx.next
 #define hash_entry_raw_hash(p) p->size
 
 #define block_data(p) p->dx.data
 #define block_index(p) p->index
 #define block_size(p) p->size
-#define block_next(p) p->next
+#define block_next(p) p->nx.next
 #define block_info(p) p->ex.ex_info
 
 #define NUM_BLOCK_LISTS 19
@@ -566,7 +570,7 @@ static block_t *mallocate_block(void)
       int32_t i;
       block_t *b;
       #define BLOCK_MALLOC_SIZE 64
-      b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list! */
+      b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list */
       block_lists[BLOCK_LIST] = b;
       for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
 	{
@@ -574,13 +578,24 @@ static block_t *mallocate_block(void)
 	  block_index(b) = BLOCK_LIST;
 	  b++;
 	}
-      b->next = NULL;
-      b->index = BLOCK_LIST;
+      block_next(b) = NULL;
+      block_index(b) = BLOCK_LIST;
     }
   p = block_lists[BLOCK_LIST];
   block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
-  p->next = NULL;
+  block_next(p) = NULL;
   return(p);
+}
+
+static int32_t mallocate_index(int32_t bytes)
+{
+  if (bytes == 0) 
+    return(BLOCK_LIST);
+  if (bytes <= 256) 
+    return(bits[bytes - 1]);
+  if (bytes <= 65536)
+    return(8 + bits[(bytes - 1) >> 8]);
+  return(TOP_BLOCK_LIST);
 }
 
 static block_t *mallocate(int32_t bytes)
@@ -606,7 +621,15 @@ static block_t *mallocate(int32_t bytes)
       else
 	{
 	  p = mallocate_block();
-	  block_data(p) = (void *)malloc((index < TOP_BLOCK_LIST) ? (1 << index) : bytes);
+	  if (index < TOP_BLOCK_LIST)
+	    block_data(p) = (void *)malloc(1 << index);
+	  else
+	    {
+	      block_data(p) = (void *)malloc(bytes);
+#if S7_DEBUGGING
+	      if (!block_data(p)) fprintf(stderr, "mallocate(%d) failed\n", bytes);
+#endif
+	    }
 	  block_index(p) = index;
 	}
     }
@@ -619,7 +642,7 @@ static block_t *callocate(int32_t bytes)
 {
   block_t *p;
   p = mallocate(bytes);
-  if ((block_data(p)) && (p->index != BLOCK_LIST))
+  if ((block_data(p)) && (block_index(p) != BLOCK_LIST))
     memset((void *)(block_data(p)), 0, bytes);
   return(p);
 }
@@ -797,11 +820,6 @@ typedef struct {
 #endif
 } opt_info;
 
-typedef struct {                  /* this extension of symbol cells exists only for built-in symbols */
-  s7_pointer initial_slot;        /* for unlet */
-  uint32_t type;                  /* for is_type opts */
-} symbol_info_t;
-
 #define symbol_tag_t uint32_t     /* syms_tag may need 64-bits -- seems ok at 32 bits so far (16 bits was too few) */
 
 
@@ -953,17 +971,11 @@ typedef struct s7_cell {
       s7_int length;
       char *svalue;
       uint64_t hash;                /* string hash-index */
-      union {
-	char *documentation;        /* symbol help */
-	s7_pointer ksym;            /* keyword->symbol */
-      } doc;
-      union {
-	struct {
-	  bool needs_free;          /* string GC */
-	  int32_t temp_len;         /* temp string length (sc->tmp_strs) */
-	} str_ext;
-	symbol_info_t *info;
-      } ext;
+      block_t *block;
+      struct {
+	bool needs_free;            /* string GC */
+	int32_t temp_len;           /* temp string length (sc->tmp_strs) */
+      } str_ext;
     } string;
 
     struct {                       /* symbols */
@@ -2483,8 +2495,9 @@ static int64_t not_heap = -1;
 #define string_length(p)              (T_Str(p))->object.string.length
 #define byte_vector_length(p)         (T_Str(p))->object.string.length
 #define string_hash(p)                (T_Str(p))->object.string.hash
-#define string_needs_free(p)          (T_Str(p))->object.string.ext.str_ext.needs_free
-#define string_temp_true_length(p)    (T_Str(p))->object.string.ext.str_ext.temp_len
+#define string_block(p)               (T_Str(p))->object.string.block
+#define string_needs_free(p)          (T_Str(p))->object.string.str_ext.needs_free
+#define string_temp_true_length(p)    (T_Str(p))->object.string.str_ext.temp_len
 
 #define tmpbuf_malloc(P, Len)         do {if ((Len) < TMPBUF_SIZE) P = sc->tmpbuf; else P = (char *)malloc((Len) * sizeof(char));} while (0)
 #define tmpbuf_calloc(P, Len)         do {if ((Len) < TMPBUF_SIZE) {P = sc->tmpbuf; memset((void *)P, 0, Len);} else P = (char *)calloc(Len, sizeof(char));} while (0)
@@ -2541,19 +2554,19 @@ static void symbol_set_id(s7_pointer p, s7_int id)
  *    callgrind says this is faster than an uint32_t!
  */
 #define symbol_syntax_op(p)           syntax_opcode(slot_value(global_slot(p)))
-#define symbol_info(p)                (symbol_name_cell(p))->object.string.ext.info
-#define symbol_type(p)                symbol_info(p)->type
-#define initial_slot(p)               symbol_info(p)->initial_slot
-#define set_initial_slot(p, Val)      symbol_info(p)->initial_slot = T_Sld(Val)
+#define symbol_info(p)                (symbol_name_cell(p))->object.string.block
+#define symbol_type(p)                symbol_info(p)->size
+#define initial_slot(p)               symbol_info(p)->ex.ex_ptr
+#define set_initial_slot(p, Val)      symbol_info(p)->ex.ex_ptr = T_Sld(Val)
 
 #define global_slot(p)                (T_Sym(p))->object.sym.global_slot
 #define set_global_slot(p, Val)       (T_Sym(p))->object.sym.global_slot = T_Sld(Val)
 #define local_slot(p)                 (T_Sym(p))->object.sym.local_slot
 #define set_local_slot(p, Val)        (T_Sym(p))->object.sym.local_slot = T_Sln(Val)
-#define keyword_symbol(p)             (symbol_name_cell(p))->object.string.doc.ksym
-#define keyword_set_symbol(p, Val)    (symbol_name_cell(p))->object.string.doc.ksym = T_Sym(Val)
-#define symbol_help(p)                (symbol_name_cell(p))->object.string.doc.documentation
-#define symbol_set_help(p, Doc)       (symbol_name_cell(p))->object.string.doc.documentation = Doc
+#define keyword_symbol(p)             symbol_info(p)->nx.ksym
+#define keyword_set_symbol(p, Val)    symbol_info(p)->nx.ksym = T_Sym(Val)
+#define symbol_help(p)                symbol_info(p)->nx.documentation
+#define symbol_set_help(p, Doc)       symbol_info(p)->nx.documentation = Doc
 #define symbol_tag(p)                 (T_Sym(p))->object.sym.tag
 #define symbol_set_tag(p, Val)        (T_Sym(p))->object.sym.tag = Val
 #define symbol_ctr(p)                 (T_Sym(p))->object.sym.ctr
@@ -2733,7 +2746,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define port_is_closed(p)             port_port(p)->is_closed
 #define port_set_closed(p, Val)       port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
 #define port_needs_free(p)            port_port(p)->needs_free
-#define port_next(p)                  port_block(p)->next
+#define port_next(p)                  port_block(p)->nx.next
 #define port_output_function(p)       port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)        port_port(p)->input_function
 #define port_original_input_string(p) port_port(p)->orig_str
@@ -4246,65 +4259,6 @@ static void mark_symbol(s7_pointer p)
 
 static void mark_noop(s7_pointer p) {}
 
-
-#define STRING_LISTS 256
-#define STRING_LIST_INIT_SIZE 2
-
-static void init_string_free_lists(s7_scheme *sc)
-{
-  int32_t i;
-  sc->string_lists = (char ***)calloc(STRING_LISTS, sizeof(char **));
-  sc->string_locs = (int32_t *)calloc(STRING_LISTS, sizeof(int32_t));
-  sc->string_sizes = (int32_t *)malloc(STRING_LISTS * sizeof(int32_t));
-  sc->string_max_sizes = (int32_t *)malloc(STRING_LISTS * sizeof(int32_t));
-  for (i = 0; i < STRING_LISTS; i++)
-    {
-      sc->string_lists[i] = (char **)calloc(STRING_LIST_INIT_SIZE, sizeof(char *));
-      sc->string_sizes[i] = STRING_LIST_INIT_SIZE;
-      if (i < 16)
-	sc->string_max_sizes[i] = 4096;
-      else
-	{
-	  if (i < 32)
-	    sc->string_max_sizes[i] = 1024;
-	  else 
-	    {
-	      if (i < 64)
-		sc->string_max_sizes[i] = 256;
-	      else sc->string_max_sizes[i] = 32;
-	    }
-	}
-    }
-}
-
-static char *alloc_string(s7_scheme *sc, s7_int len)
-{
-  if ((len < STRING_LISTS) &&
-      (sc->string_locs[len] > 0))
-    return(sc->string_lists[len][--sc->string_locs[len]]);
-  return((char *)malloc((len + 2) * sizeof(char)));
-}
-
-static void string_to_free_list(s7_scheme *sc, char *value, s7_int len)
-{
-  if (len >= STRING_LISTS)
-    free(value);
-  else
-    {
-      if (sc->string_locs[len] >= sc->string_sizes[len])
-	{
-	  if (sc->string_sizes[len] >= sc->string_max_sizes[len])
-	    {
-	      free(value);
-	      return;
-	    }
-	  sc->string_sizes[len] *= 2;
-	  sc->string_lists[len] = (char **)realloc((void *)(sc->string_lists[len]), sc->string_sizes[len] * sizeof(char *));
-	}
-      sc->string_lists[len][sc->string_locs[len]++] = value;
-    }
-}
-
 static void close_output_port(s7_scheme *sc, s7_pointer p);
 static void free_optlist(s7_pointer p);
 
@@ -4324,7 +4278,7 @@ static void sweep(s7_scheme *sc)
 	  if (is_free_and_clear(s1))
 	    {
 	      if (string_needs_free(s1))
-		string_to_free_list(sc, string_value(s1), string_length(s1));
+		liberate(string_block(s1));
 	    }
 	  else 
 	    {
@@ -4363,7 +4317,7 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
-	      /* free(symbol_info(s1)); */
+	      /* TODO: what about the block_t field? */
 	      remove_gensym_from_symbol_table(sc, s1); /* this uses symbol_name_cell data */
 	      free(symbol_name(s1));
 	      free(symbol_name_cell(s1));
@@ -4640,27 +4594,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_output_port(sc, p)  add_to_gc_list(sc->output_ports, p)
 #define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
 #define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
-#if S7_DEBUGGING
-static void add_vector(s7_scheme *sc, s7_pointer p)
-{
-  if ((!is_normal_vector(p)) && (!is_float_vector(p)) && (!is_int_vector(p)))
-    fprintf(stderr, "type: %d\n", type(p));
-  if (!vector_block(p)) abort();
-  if (vector_length(p) < 0) abort();
-  if (vector_rank(p) < 0) abort();
-  if (vector_dimension_info(p))
-    {
-      if (vector_dimensions_allocated(p))
-	{
-	  if (!vector_offsets(p)) abort();
-	  if (!vector_dimensions(p)) abort();
-	}
-    }
-  add_to_gc_list(sc->vectors, p);
-}
-#else
 #define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
-#endif
 
 #if WITH_GMP
 #define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
@@ -5993,9 +5927,32 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
   return(x);
 }
 
+static char *alloc_permanent_string(int32_t len)
+{
+  #define ALLOC_STRING_SIZE 4096
+  #define ALLOC_MAX_STRING 128
+  static int32_t alloc_string_k = ALLOC_STRING_SIZE;
+  static char *alloc_string_cells = NULL;
+  char *result;
+  int32_t next_k;
+
+  next_k = alloc_string_k + len;
+  if (next_k >= ALLOC_STRING_SIZE)
+    {
+      if (len >= ALLOC_MAX_STRING)
+	return((char *)malloc(len));
+      alloc_string_cells = (char *)malloc(ALLOC_STRING_SIZE);
+      alloc_string_k = 0;
+      next_k = len;
+    }
+  result = &alloc_string_cells[alloc_string_k];
+  alloc_string_k = next_k;
+  return(result);
+}
+
 static uint8_t *alloc_symbol(void)
 {
-  #define SYMBOL_SIZE (3 * sizeof(s7_cell) + sizeof(symbol_info_t))
+  #define SYMBOL_SIZE (3 * sizeof(s7_cell) + sizeof(block_t))
   #define ALLOC_SYMBOL_SIZE (64 * SYMBOL_SIZE)
   static uint32_t alloc_symbol_k = ALLOC_SYMBOL_SIZE;
   static uint8_t *alloc_symbol_cells = NULL;
@@ -6023,7 +5980,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   x = (s7_pointer)base;
   str = (s7_pointer)(base + sizeof(s7_cell));
   p = (s7_pointer)(base + 2 * sizeof(s7_cell));
-  val = (uint8_t *)malloc(len + 1);
+  val = (uint8_t *)alloc_permanent_string(len + 1);
   memcpy((void *)val, (void *)name, len);
   val[len] = '\0';
 
@@ -6038,7 +5995,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   typeflag(x) = T_SYMBOL;
   symbol_set_name_cell(x, str);
   set_global_slot(x, sc->undefined);                       /* was sc->nil */
-  symbol_info(x) = (symbol_info_t *)(base + 3 * sizeof(s7_cell));
+  symbol_info(x) = (block_t *)(base + 3 * sizeof(s7_cell));
   set_initial_slot(x, sc->undefined);
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_tag(x, 0);
@@ -6298,6 +6255,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   uint32_t location;
   uint64_t hash;
   s7_pointer x, str, stc;
+  block_t *block;
 
   /* get symbol name */
   if (is_not_null(args))
@@ -6311,7 +6269,8 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   else prefix = "gensym";
   plen = safe_strlen(prefix);
   len = plen + 32;
-  name = (char *)malloc(len * sizeof(char));
+  block = mallocate(len);
+  name = (char *)block_data(block);
   name[0] = '{';
   if (plen > 0) memcpy((void *)(name + 1), prefix, plen);
   name[plen + 1] = '}';
@@ -6335,6 +6294,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   typeflag(str) = 0;
 #endif
   set_type(str, T_STRING | T_IMMUTABLE);
+  string_block(str) = block;
   string_length(str) = nlen;
   string_value(str) = name;
   string_needs_free(str) = false;
@@ -6343,7 +6303,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   /* allocate the symbol in the heap so GC'd when inaccessible */
   new_cell(sc, x, T_SYMBOL | T_GENSYM);
   symbol_set_name_cell(x, str);
-  symbol_info(x) = NULL; /* (symbol_info_t *)calloc(1, sizeof(symbol_info_t)); */
+  symbol_info(x) = NULL;
   set_global_slot(x, sc->undefined);
   /* set_initial_slot(x, sc->undefined); */
   symbol_set_local_unchecked(x, 0LL, sc->nil);
@@ -11125,7 +11085,11 @@ static s7_pointer prepare_temporary_string(s7_scheme *sc, s7_int len, s7_int whi
   set_type(p, T_STRING | T_SAFE_PROCEDURE); /* clear left overs like T_BYTE_VECTOR or T_IMMUTABLE */
   if (len > string_temp_true_length(p))
     {
-      string_value(p) = (char *)realloc(string_value(p), len * sizeof(char));
+      block_t *ob, *nb;
+      ob = string_block(p);
+      nb = reallocate(ob, len * sizeof(char));
+      string_block(p) = nb;
+      string_value(p) = (char *)block_data(nb);
       string_temp_true_length(p) = len;
     }
   return(p);
@@ -11428,7 +11392,7 @@ static s7_pointer make_unknown(s7_scheme *sc, const char* name)
   s7_int len;
   new_cell(sc, p, T_UNDEFINED | T_IMMUTABLE);
   len = safe_strlen(name);
-  newstr = (char *)malloc((len + 2) * sizeof(char));
+  newstr = (char *)malloc((len + 2) * sizeof(char)); /* this is a non-permanent unknown */
   newstr[0] = '#';
   if (len > 0)
     memcpy((void *)(newstr + 1), (void *)name, len);
@@ -21257,9 +21221,10 @@ s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len
 {
   s7_pointer x;
   new_cell(sc, x, T_STRING | T_SAFE_PROCEDURE);
-  string_value(x) = alloc_string(sc, len); 
-  if (len != 0)                                  /* memcpy can segfault if string_value(x) is NULL */
-    memcpy((void *)string_value(x), (void *)str, len);
+  string_block(x) = mallocate(len + 2);
+  string_value(x) = (char *)block_data(string_block(x));
+  if (len > 0)
+    memcpy((void *)string_value(x), (void *)str, len);  /* memcpy can segfault if string_value(x) is NULL */
   string_value(x)[len] = 0;
   string_value(x)[len + 1] = 0;
   string_length(x) = len;
@@ -21269,11 +21234,16 @@ s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len
   return(x);
 }
 
-
 static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, s7_int len)
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_STRING | T_SAFE_PROCEDURE);
+  b = mallocate_block();
+  string_block(x) = b;
+  block_data(b) = str;
+  block_size(b) = len;
+  block_index(b) = mallocate_index(len);
   string_value(x) = str;
   string_length(x) = len;
   string_hash(x) = 0;
@@ -21282,11 +21252,16 @@ static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, s7_
   return(x);
 }
 
+s7_pointer s7_make_string_uncopied(s7_scheme *sc, char *str)
+{
+  return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
+}
 
 static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str, s7_int len)
 {
   s7_pointer x;
   new_cell(sc, x, (len > 0) ? (T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE) : T_STRING);
+  string_block(x) = mallocate_block();
   string_value(x) = (char *)str;
   string_length(x) = len;
   string_hash(x) = 0;
@@ -21294,18 +21269,19 @@ static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str
   return(x);
 }
 
-
 s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str)
 {
   return(make_string_wrapper_with_length(sc, str, safe_strlen(str)));
 }
 
-
 static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
 {
   s7_pointer x;
+  block_t *b;
   new_cell(sc, x, T_STRING);
-  string_value(x) = alloc_string(sc, len); /* returns char* of len+2 -- terminated_string_read_white_space needs the second #\null */
+  b = mallocate(len + 2);                   /* terminated_string_read_white_space needs the second #\null */
+  string_block(x) = b;
+  string_value(x) = (char *)block_data(b);
   if ((fill != 0) && (len > 0))
     memset((void *)(string_value(x)), fill, len);
   string_value(x)[len] = 0;
@@ -21317,7 +21293,6 @@ static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
   return(x);
 }
 
-
 s7_pointer s7_make_string(s7_scheme *sc, const char *str)
 {
   if (str)
@@ -21325,18 +21300,16 @@ s7_pointer s7_make_string(s7_scheme *sc, const char *str)
   return(make_empty_string(sc, 0, 0));
 }
 
-
 static char *make_permanent_c_string(const char *str)
 {
   char *x;
   s7_int len;
   len = safe_strlen(str);
-  x = (char *)malloc((len + 1) * sizeof(char));
+  x = (char *)alloc_permanent_string((len + 1) * sizeof(char));
   memcpy((void *)x, (void *)str, len);
   x[len] = 0;
   return(x);
 }
-
 
 s7_pointer s7_make_permanent_string(const char *str)
 {
@@ -21350,7 +21323,8 @@ s7_pointer s7_make_permanent_string(const char *str)
       s7_int len;
       len = safe_strlen(str);
       string_length(x) = len;
-      string_value(x) = (char *)malloc((len + 1) * sizeof(char));
+      string_block(x) = mallocate_block();
+      string_value(x) = (char *)alloc_permanent_string((len + 1) * sizeof(char));
       memcpy((void *)string_value(x), (void *)str, len);
       string_value(x)[len] = 0;
     }
@@ -21370,13 +21344,13 @@ static s7_pointer make_permanent_string_wrapper(void)
   x = alloc_pointer();
   unheap(x);
   set_type(x, T_STRING);
+  string_block(x) = mallocate_block();
   string_value(x) = NULL;
   string_length(x) = 0;
   string_hash(x) = 0;
   string_needs_free(x) = false;
   return(x);
 }
-
 
 static s7_pointer make_temporary_string(s7_scheme *sc, const char *str, s7_int len)
 {
@@ -24278,9 +24252,11 @@ static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
   block = mallocate(len);
   port_data_block(x) = block;
   port_data(x) = (uint8_t *)(block_data(block));
-  port_data(x)[0] = '\0';   /* in case s7_get_output_string before any output */
+  port_data(x)[0] = '\0';        /* in case s7_get_output_string before any output */
   port_position(x) = 0;
   port_needs_free(x) = true;
+  port_filename_length(x) = 0;   /* protect against (port-filename (open-output-string)) */
+  port_filename(x) = NULL;
   port_read_character(x) = output_read_char;
   port_read_line(x) = output_read_line;
   port_display(x) = string_display;
@@ -36544,7 +36520,8 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   vector_length(x) = len;
   vector_block(x) = arr;
   float_vector_elements(x) = (s7_double *)block_data(arr);
-  memset((void *)float_vector_elements(x), 0, len * sizeof(s7_double));
+  if (len > 0)
+    memset((void *)float_vector_elements(x), 0, len * sizeof(s7_double));
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
@@ -36589,7 +36566,8 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   vector_length(x) = len;
   vector_block(x) = arr;
   int_vector_elements(x) = (s7_int *)block_data(arr);
-  memset((void *)int_vector_elements(x), 0, len * sizeof(s7_int));
+  if (len > 0)
+    memset((void *)int_vector_elements(x), 0, len * sizeof(s7_int));
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
   vector_setter(x) = int_vector_setter;
@@ -58586,7 +58564,7 @@ static s7_pointer assign_internal_syntax(s7_scheme *sc, const char *name, opcode
   unheap(x);
   set_type(x, T_SYMBOL); /* see below */
   symbol_set_name_cell(x, str);
-  symbol_info(x) = (symbol_info_t *)calloc(1, sizeof(symbol_info_t));
+  symbol_info(x) = (block_t *)calloc(1, sizeof(block_t));
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0);
 
@@ -83416,7 +83394,6 @@ s7_scheme *s7_init(void)
   sc->gc_off = true;                              /* sc->args and so on are not set yet, so a gc during init -> segfault */
   sc->gc_stats = 0;
   init_gc_caches(sc);
-  init_string_free_lists(sc);
 
   sc->longjmp_ok = false;
   sc->setjmp_loc = NO_SET_JUMP;
@@ -83625,7 +83602,8 @@ s7_scheme *s7_init(void)
       string_hash(p) = 0;
       string_needs_free(p) = false;
       string_length(p) = 0;
-      string_value(p) = (char *)malloc(INITIAL_TMP_STR_SIZE * sizeof(char));
+      string_block(p) = mallocate(INITIAL_TMP_STR_SIZE * sizeof(char));
+      string_value(p) = (char *)block_data(string_block(p));
       string_temp_true_length(p) = INITIAL_TMP_STR_SIZE;
     }
 
@@ -85458,20 +85436,11 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  *
- * mallocate:
- *    string move doc/ksym for block_t*
- *    symbol_info_t -> block? int32/ptr + data=ksym? [permanent memory here]
- *            make_permanent_c_string etc use malloc for the value -- put all in permanent memory
- *            sym=3 s7_cells + block_t + str-len >> 3 + 1(if 3 bits are not 0): 3*56+32+strlen-as-pointer
- *            batch the base 4 pointers (3*56+32 by 64 or 100), and have another block for permanent string values rounded up
- *       ksym+doc initial_slot type + string value: data=value, ex_ptr=initial, size=type, ksym+doc=next?? (no need for next in this context)
- *       for gensyms no symbol_info_t needed, so the string can use all of it if necessary [index+data at least]
- *       so: permanent string batch alloc, permanent symbol batch alloc, block_t in str->sym and gensym, then finally strings
- *       check that gensym is fully freed
- *    maybe num->str, vdims_t struct??
+ * mallocate: check that gensym is fully freed, and that permanent string wrapper block is handled correctly 
+ *   memory is growing in t725
+ *   check fc28 (unrecognized configure options in particular)
  *
- * tgen with local funcs + s7-optimize (or just pre-built funcs)
- * leak-check for testsnd?
+ * leak-check for testsnd? -fsanitize=address -fsanitize=undefined
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85491,24 +85460,24 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
- * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   280
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1043
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1154
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1046
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1150
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1460
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1789
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2065
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2494
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.9
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1729
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2064
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2493
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.8
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2510
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
- * tread         |      |      |      ||      ||      |                   3009  2648
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2562
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3467
+ * tread         |      |      |      ||      ||      |                   3009  2642
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2668
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3464
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4241
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5027
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7687
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.5
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4220
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5024
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7316
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  82.8
