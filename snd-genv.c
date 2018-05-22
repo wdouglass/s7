@@ -232,14 +232,14 @@ static void apply_enved(void)
 static void env_redisplay_1(printing_t printing)
 {
   cairo_t *cr;
-  bool clear_cr = false;
-
-  if (!enved_dialog_is_active()) return;
 #if (GTK_CHECK_VERSION(3, 89, 0))
+  if (!enved_dialog_is_active()) return;
   cr = enved_cr;
   if (!cr) return;
   ss->cr = cr; /* used in make_axes etc */
 #else
+  bool clear_cr = false;
+  if (!enved_dialog_is_active()) return;
   if ((printing == NOT_PRINTING) && 
       (!(ss->cr)))
     {

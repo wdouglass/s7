@@ -2229,7 +2229,7 @@ static char *filename_completion(glistener *g, const char *partial_name)
 	  int len;
 	  len = strlen(home);
 	  new_name = (char *)calloc(strlen(partial_name) + len + 1, sizeof(char));
-	  strncpy(new_name, home, len);
+	  strncpy(new_name, home, len + 1);
 	  strcat(new_name, (char *)(partial_name + 1));
 	}
     }

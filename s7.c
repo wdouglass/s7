@@ -480,7 +480,7 @@ typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 
 /* -------------------------------- */
-/* local allocator; currently used for hash-table elements, port-data, vector-elements, port_t and continuation_t structs */
+/* local allocator; currently used for strings, hash-table elements, port-data, vector-elements, port_t and continuation_t structs */
 
 static const int32_t bits[256] =
   {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -587,17 +587,6 @@ static block_t *mallocate_block(void)
   return(p);
 }
 
-static int32_t mallocate_index(int32_t bytes)
-{
-  if (bytes == 0) 
-    return(BLOCK_LIST);
-  if (bytes <= 256) 
-    return(bits[bytes - 1]);
-  if (bytes <= 65536)
-    return(8 + bits[(bytes - 1) >> 8]);
-  return(TOP_BLOCK_LIST);
-}
-
 static block_t *mallocate(int32_t bytes)
 {
   int32_t index;
@@ -668,7 +657,6 @@ typedef struct {
   uint32_t line_number, file_number;
   s7_int gc_loc, filename_length;
   block_t *block;
-  /* void *next; */
   s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
   void (*output_function)(s7_scheme *sc, uint8_t c, s7_pointer port);
   /* a version of string ports using a pointer to the current location and a pointer to the end
@@ -725,7 +713,7 @@ typedef struct {
   void (*free)(void *value);
   void (*mark)(void *val);
   bool (*equal)(void *val1, void *val2);       /* can this be wrapped? */
-#if (!DISABLE_DPERCATED)
+#if (!DISABLE_DEPRECATED)
   char *(*print)(s7_scheme *sc, void *value);
 #endif
   s7_pointer (*ref)      (s7_scheme *sc, s7_pointer args);
@@ -4293,7 +4281,7 @@ static void sweep(s7_scheme *sc)
       gp->loc = j;
     }
 
-  gp = sc->strings1; /* these don't return to the string free list (they're from make_string_uncopied_with_length) */
+  gp = sc->strings1; /* these are from make_string_uncopied_with_length and make_string_wrapper -- free data (in uncopied case) and liberate block */
   if (gp->loc > 0)
     {
       for (i = 0, j = 0; i < gp->loc; i++)
@@ -4303,6 +4291,7 @@ static void sweep(s7_scheme *sc)
 	    {
 	      if (string_needs_free(s1))
 		free(string_value(s1));
+	      liberate_block(string_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4317,7 +4306,6 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
-	      /* TODO: what about the block_t field? */
 	      remove_gensym_from_symbol_table(sc, s1); /* this uses symbol_name_cell data */
 	      free(symbol_name(s1));
 	      free(symbol_name_cell(s1));
@@ -4449,7 +4437,6 @@ static void sweep(s7_scheme *sc)
 		    }
 		  port_needs_free(s1) = false;
 		}
-
 	      if (port_filename(s1))
 		{
 		  free(port_filename(s1));
@@ -4472,6 +4459,15 @@ static void sweep(s7_scheme *sc)
 	    {
 	      close_output_port(sc, s1); /* needed for free filename, etc */
 	      liberate(port_block(s1));
+	      if (port_needs_free(s1))
+		{
+		  if (port_data_block(s1)) 
+		    {
+		      liberate(port_data_block(s1));
+		      port_data_block(s1) = NULL;
+		    }
+		  port_needs_free(s1) = false;
+		}
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -6255,7 +6251,6 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   uint32_t location;
   uint64_t hash;
   s7_pointer x, str, stc;
-  block_t *block;
 
   /* get symbol name */
   if (is_not_null(args))
@@ -6269,8 +6264,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   else prefix = "gensym";
   plen = safe_strlen(prefix);
   len = plen + 32;
-  block = mallocate(len);
-  name = (char *)block_data(block);
+  name = (char *)malloc(len);
   name[0] = '{';
   if (plen > 0) memcpy((void *)(name + 1), prefix, plen);
   name[plen + 1] = '}';
@@ -6294,7 +6288,6 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   typeflag(str) = 0;
 #endif
   set_type(str, T_STRING | T_IMMUTABLE);
-  string_block(str) = block;
   string_length(str) = nlen;
   string_value(str) = name;
   string_needs_free(str) = false;
@@ -6303,7 +6296,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   /* allocate the symbol in the heap so GC'd when inaccessible */
   new_cell(sc, x, T_SYMBOL | T_GENSYM);
   symbol_set_name_cell(x, str);
-  symbol_info(x) = NULL;
+  symbol_info(x) = NULL;         /* clobbers string_block */
   set_global_slot(x, sc->undefined);
   /* set_initial_slot(x, sc->undefined); */
   symbol_set_local_unchecked(x, 0LL, sc->nil);
@@ -21243,7 +21236,6 @@ static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, s7_
   string_block(x) = b;
   block_data(b) = str;
   block_size(b) = len;
-  block_index(b) = mallocate_index(len);
   string_value(x) = str;
   string_length(x) = len;
   string_hash(x) = 0;
@@ -21266,6 +21258,7 @@ static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str
   string_length(x) = len;
   string_hash(x) = 0;
   string_needs_free(x) = false;
+  add_string1(sc, x);
   return(x);
 }
 
@@ -21323,7 +21316,8 @@ s7_pointer s7_make_permanent_string(const char *str)
       s7_int len;
       len = safe_strlen(str);
       string_length(x) = len;
-      string_block(x) = mallocate_block();
+      /* string_block(x) = mallocate_block(); */
+      string_block(x) = NULL;
       string_value(x) = (char *)alloc_permanent_string((len + 1) * sizeof(char));
       memcpy((void *)string_value(x), (void *)str, len);
       string_value(x)[len] = 0;
@@ -21344,7 +21338,8 @@ static s7_pointer make_permanent_string_wrapper(void)
   x = alloc_pointer();
   unheap(x);
   set_type(x, T_STRING);
-  string_block(x) = mallocate_block();
+  /* string_block(x) = mallocate_block(); */
+  string_block(x) = NULL;
   string_value(x) = NULL;
   string_length(x) = 0;
   string_hash(x) = 0;
@@ -23072,18 +23067,12 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 	  port_filename(p) = NULL;
 	  port_filename_length(p) = 0;
 	}
-
       if (port_file(p))
 	{
 	  if (port_position(p) > 0)
 	    {
 	      if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != (size_t)port_position(p))
 		s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
-	    }
-	  if (port_data_block(p)) 
-	    {
-	      liberate(port_data_block(p));
-	      port_data_block(p) = NULL;
 	    }
 	  fflush(port_file(p));
 	  fclose(port_file(p));
@@ -23092,17 +23081,13 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
     }
   else
     {
-      if ((is_string_port(p)) &&
-	  (port_data(p)))
+      if (is_string_port(p))
 	{
-	  if (port_data_block(p)) 
+	  if (port_data(p))
 	    {
-	      liberate(port_data_block(p));
-	      port_data_block(p) = NULL;
+	      port_data(p) = NULL;
+	      port_data_size(p) = 0;
 	    }
-	  port_data(p) = NULL;
-	  port_data_size(p) = 0;
-	  port_needs_free(p) = false;
 	}
     }
   port_read_character(p) = closed_port_read_char;
@@ -24130,7 +24115,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_set_filename(x, name, port_filename_length(x));
   port_line_number(x) = 1;
   port_file(x) = fp;
-  port_needs_free(x) = false;  /* hmm -- I think these are freed via s7_close_output_port -> close_output_port */
+  port_needs_free(x) = true;  /* hmm -- I think these are freed via s7_close_output_port -> close_output_port */
   port_read_character(x) = output_read_char;
   port_read_line(x) = output_read_line;
   port_display(x) = file_display;
@@ -39287,61 +39272,72 @@ static void s7_function_set_class(s7_pointer f, s7_pointer base_f)
   c_function_set_base(f, base_f);
 }
 
-static int32_t c_functions = 0;
-
-s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
+static s7_pointer make_function(s7_scheme *sc, const char *name, s7_function f, s7_int req, s7_int opt, bool rst, const char *doc, s7_pointer x, c_proc_t *ptr)
 {
-  c_proc_t *ptr;
   uint32_t ftype = T_C_FUNCTION;
-  s7_pointer x;
-
-  x = alloc_pointer();
-  unheap(x);
-
-  ptr = (c_proc_t *)malloc(sizeof(c_proc_t));
-  c_functions++;
-  if (required_args == 0)
+  if (req == 0)
     {
-      if (rest_arg)
+      if (rst)
 	ftype = T_C_ANY_ARGS_FUNCTION;
       else
 	{
-	  if (optional_args != 0)
+	  if (opt != 0)
 	    ftype = T_C_OPT_ARGS_FUNCTION;
-	  /* a thunk needs to check for no args passed */
 	}
     }
   else
     {
-      if (rest_arg)
+      if (rst)
 	ftype = T_C_RST_ARGS_FUNCTION;
     }
 
   set_type(x, ftype);
 
   c_function_data(x) = ptr;
-  c_function_call(x) = f;
-  /* f is T_App but needs cast */
+  c_function_call(x) = f;               /* f is T_App but needs cast */
   c_function_set_base(x, x);
   c_function_set_setter(x, sc->F);
-  c_function_name(x) = name;   /* (procedure-name proc) => (format #f "~A" proc) */
+  c_function_name(x) = name;            /* (procedure-name proc) => (format #f "~A" proc) */
   c_function_name_length(x) = safe_strlen(name);
   if (doc)
     c_function_documentation(x) = make_permanent_c_string(doc);
   else c_function_documentation(x) = NULL;
   c_function_signature(x) = sc->F;
 
-  c_function_required_args(x) = required_args;
-  c_function_optional_args(x) = optional_args; /* T_C_FUNCTION_STAR type may be set later, so T_Fst not usable here */
-  if (rest_arg)
+  c_function_required_args(x) = req;
+  c_function_optional_args(x) = opt;    /* T_C_FUNCTION_STAR type may be set later, so T_Fst not usable here */
+  if (rst)
     c_function_all_args(x) = MAX_ARITY;
-  else c_function_all_args(x) = required_args + optional_args;
+  else c_function_all_args(x) = req + opt;
 
   c_function_class(x) = ++sc->f_class;
   c_function_chooser(x) = fallback_chooser;
   c_function_opt_data(x) = NULL;
 
   return(x);
+}
+
+#if 0
+static s7_pointer s7_make_closure(s7_scheme *sc, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg)
+{
+  s7_pointer fnc;
+  block_t *block;
+  new_cell(fnc, T_PAIR);  /* just a place-holder */
+  block = mallocate(sizeof(c_proc_t));
+  fnc = s7_make_closure(sc, NULL, f, required_args, optional_args, rest_arg, NULL, fnc, (c_proc_t *)block_data(block));
+  
+  /* TODO: tie block into fnc somehow, add gc sweep support */
+}
+#endif
+
+s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
+{
+  c_proc_t *ptr;
+  s7_pointer x;
+  x = alloc_pointer();
+  unheap(x);
+  ptr = (c_proc_t *)malloc(sizeof(c_proc_t));
+  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, ptr));
 }
 
 s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f, 
@@ -43857,7 +43853,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   s7_make_symbol(sc, "c-object-type"), s7_make_integer(sc, c_object_type(obj)),
 				   s7_make_symbol(sc, "c-object-let"), clet,
 				   s7_make_symbol(sc, "class"), c_object_type_to_let(sc, obj)));
-
+#if 0
 	/* not sure these are useful, or whether they need gc-protection */
 	if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
 	  s7_varlet(sc, let, 
@@ -43891,7 +43887,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  s7_varlet(sc, let, 
 		    s7_make_symbol(sc, "c-object->string"),
 		    s7_make_function(sc, "c-object->string", c_object_to_string(sc, obj), 1, 1, false, "c-object->string function"));
-
+#endif
 	if ((is_let(clet)) &&
 	    ((has_methods(clet)) || (has_methods(obj))))
 	  {
@@ -77783,6 +77779,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  string_value(sc->value)[port_position(sc->code)] = 0;
 	  port_data(sc->code) = NULL;
 	  port_data_size(sc->code) = 0;
+	  block_index(port_data_block(sc->code)) = BLOCK_LIST;
+	  block_data(port_data_block(sc->code)) = NULL;
+	  liberate_block(port_data_block(sc->code));
+	  port_data_block(sc->code) = NULL;
 	  port_needs_free(sc->code) = false;
 	  /* fall through */
 	  
@@ -82643,9 +82643,6 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   n = snprintf(buf, 1024, "stack: %u (%" print_s7_int " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
-  n = snprintf(buf, 1024, "c_functions: %d (%d bytes)\n", c_functions, (int)(c_functions * sizeof(c_proc_t)));
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
   len = 0;
   gp = sc->strings;
   for (i = 0; i < (int32_t)(gp->loc); i++)
@@ -85436,11 +85433,16 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  *
- * mallocate: check that gensym is fully freed, and that permanent string wrapper block is handled correctly 
- *   memory is growing in t725
- *   check fc28 (unrecognized configure options in particular)
+ * get rid of strncpy
  *
- * leak-check for testsnd? -fsanitize=address -fsanitize=undefined
+ * if s7_make_function c_proc_t gc'd is the space recovered? no, and it uses permanent strings
+ *    need s7_make_closure same as s7_make_function except use new_cell etc -- and in gc need to release the c_proc_t (block?)
+ * num->str returns block_t* not char*? similarly elsewhere?
+ *
+ * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) -- perhaps move block field back?
+ * in v-hash, main malloc is for large data -- maybe preallocate each data size -- need usage stats 8/16/32/64 are heavily used I think)
+ *   so more batch allocs like alloc_symbol
+ * dox_ex precalc to opt_eval?
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
