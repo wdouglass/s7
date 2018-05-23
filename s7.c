@@ -480,7 +480,7 @@ typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 
 /* -------------------------------- */
-/* local allocator; currently used for strings, hash-table elements, port-data, vector-elements, port_t and continuation_t structs */
+/* local allocator; currently used for strings, hash-tables, ports, vectors, continuations, local c_functions */
 
 static const int32_t bits[256] =
   {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -512,16 +512,16 @@ typedef struct block_t {
 } block_t;
 
 typedef block_t hash_entry_t;
-#define hash_entry_key(p) p->dx.d_ptr
-#define hash_entry_value(p) p->ex.ex_ptr
-#define hash_entry_next(p) p->nx.next
+#define hash_entry_key(p)      p->dx.d_ptr
+#define hash_entry_value(p)    p->ex.ex_ptr
+#define hash_entry_next(p)     p->nx.next
 #define hash_entry_raw_hash(p) p->size
 
-#define block_data(p) p->dx.data
+#define block_data(p)  p->dx.data
 #define block_index(p) p->index
-#define block_size(p) p->size
-#define block_next(p) p->nx.next
-#define block_info(p) p->ex.ex_info
+#define block_size(p)  p->size
+#define block_next(p)  p->nx.next
+#define block_info(p)  p->ex.ex_info
 
 #define NUM_BLOCK_LISTS 19
 #define TOP_BLOCK_LIST 17
@@ -562,32 +562,37 @@ static inline void liberate_block(block_t *p)
   block_lists[BLOCK_LIST] = p;
 }
 
-static block_t *mallocate_block(void)
+static void fill_block_list(void)
+{
+  int32_t i;
+  block_t *b;
+  #define BLOCK_MALLOC_SIZE 64
+  b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list */
+  block_lists[BLOCK_LIST] = b;
+  for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
+    {
+      block_next(b) = (block_t *)(b + 1);
+      block_index(b) = BLOCK_LIST;
+      b++;
+    }
+  block_next(b) = NULL;
+  block_index(b) = BLOCK_LIST;
+}
+
+static inline block_t *mallocate_block(void)
 {
   block_t *p;
   if (!block_lists[BLOCK_LIST])
-    {
-      int32_t i;
-      block_t *b;
-      #define BLOCK_MALLOC_SIZE 64
-      b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list */
-      block_lists[BLOCK_LIST] = b;
-      for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
-	{
-	  block_next(b) = (block_t *)(b + 1);
-	  block_index(b) = BLOCK_LIST;
-	  b++;
-	}
-      block_next(b) = NULL;
-      block_index(b) = BLOCK_LIST;
-    }
+    fill_block_list();
   p = block_lists[BLOCK_LIST];
   block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
   block_next(p) = NULL;
   return(p);
 }
 
-static block_t *mallocate(int32_t bytes)
+static char *alloc_permanent_string(size_t len);
+
+static block_t *mallocate(size_t bytes)
 {
   int32_t index;
   block_t *p;
@@ -599,7 +604,7 @@ static block_t *mallocate(int32_t bytes)
 	{
 	  if (bytes <= 65536)
 	    index = 8 + bits[(bytes - 1) >> 8];
-	  else index = TOP_BLOCK_LIST;
+	  else index = TOP_BLOCK_LIST; /* expansion to (1 << 17) made no difference */
 	}
       p = block_lists[index];
       if (p)
@@ -610,15 +615,12 @@ static block_t *mallocate(int32_t bytes)
       else
 	{
 	  p = mallocate_block();
-	  if (index < TOP_BLOCK_LIST)
-	    block_data(p) = (void *)malloc(1 << index);
-	  else
-	    {
-	      block_data(p) = (void *)malloc(bytes);
-#if S7_DEBUGGING
-	      if (!block_data(p)) fprintf(stderr, "mallocate(%d) failed\n", bytes);
-#endif
-	    }
+	  /* this malloc is the slow link in mallocate/liberate.  It could be a batch malloc like alloc_pointer et al,
+	   *   but that means the buffers can't be freed later, which means that pass-offs like port-data->string have to maintain the
+	   *   block_data pointers and indices.  Hmm... live dangerously...
+	   */
+	  /* block_data(p) = (void *)malloc((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes); */
+	  block_data(p) = (void *)alloc_permanent_string((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes);
 	  block_index(p) = index;
 	}
     }
@@ -627,7 +629,7 @@ static block_t *mallocate(int32_t bytes)
   return(p);
 }
 
-static block_t *callocate(int32_t bytes)
+static block_t *callocate(size_t bytes)
 {
   block_t *p;
   p = mallocate(bytes);
@@ -636,7 +638,7 @@ static block_t *callocate(int32_t bytes)
   return(p);
 }
 
-static block_t *reallocate(block_t *op, int32_t bytes)
+static block_t *reallocate(block_t *op, size_t bytes)
 {
   block_t *np;
   np = mallocate(bytes);
@@ -686,6 +688,7 @@ typedef struct {
   int32_t name_length;
   uint32_t id;
   char *doc;
+  block_t *block;
   s7_pointer generic_ff, setter, signature, call_args;
   s7_pointer (*chooser)(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops);
   s7_pointer *arg_defaults, *arg_names;  /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
@@ -1133,9 +1136,6 @@ struct s7_scheme {
   s7_int *gpofl;
   s7_int protected_objects_size, protected_setters_size, protected_setters_loc;
   s7_int gpofl_loc;
-#if S7_DEBUGGING
-  int *protected_lines;
-#endif
 
   s7_pointer nil;                     /* empty list */
   s7_pointer T;                       /* #t */
@@ -1222,7 +1222,7 @@ struct s7_scheme {
   format_data **fdats;
   int32_t num_fdats;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_3, qlist_2;
-  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *optlists, *unknowns;
+  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *optlists, *unknowns, *lambdas;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
   char ***string_lists;
@@ -2764,6 +2764,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define c_function_signature(f)       c_function_data(f)->signature
 #define c_function_setter(f)          T_App(c_function_data(f)->setter)
 #define c_function_set_setter(f, Val) c_function_data(f)->setter = T_App(Val)
+#define c_function_block(f)           (f)->object.fnc.c_proc->block /* no type checking here */
 #define c_function_class(f)           c_function_data(f)->id
 #define c_function_chooser(f)         c_function_data(f)->chooser
 #define c_function_base(f)            T_App(c_function_data(f)->generic_ff)
@@ -4110,7 +4111,6 @@ static s7_int s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int line)
 {
   s7_int loc;
   loc = s7_gc_protect(sc, x);
-  sc->protected_lines[loc] = line;
   if (loc > 8192)
     {
       fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, current_code(sc)));
@@ -4141,37 +4141,13 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
       vector_length(sc->protected_objects) = new_size;
       sc->protected_objects_size = new_size;
       sc->gpofl = (s7_int *)realloc(sc->gpofl, new_size * sizeof(s7_int));
-#if S7_DEBUGGING
-      sc->protected_lines = (int *)realloc(sc->protected_lines, new_size * sizeof(int));
-      for (i = size; i < new_size; i++) sc->protected_lines[i] = -1;
-      {
-	int *protected_count;
-	protected_count = (int *)calloc(85000, sizeof(int));
-	for (i = 0; i < size; i++)
-	  if ((sc->protected_lines[i] >= 0) &&
-	      (vector_element(sc->protected_objects, i) != sc->gc_nil))
-	    protected_count[sc->protected_lines[i]]++;
-	for (i = 0; i < 85000; i++)
-	  if (protected_count[i] > 0)
-	    fprintf(stderr, "%s[%" print_s7_int "]: %d\n", __func__, i, protected_count[i]);
-	free(protected_count);
-      }
-#endif
       for (i = size; i < new_size; i++)
 	{
 	  vector_element(sc->protected_objects, i) = sc->gc_nil;
 	  sc->gpofl[++sc->gpofl_loc] = i;
 	}
     }
-
   loc = sc->gpofl[sc->gpofl_loc--];
-#if S7_DEBUGGING
-  if (loc >= sc->protected_objects_size)
-    fprintf(stderr, "sc->gpofl loc: %" print_s7_int " (%" print_s7_int ")\n", loc, sc->protected_objects_size);
-  if (vector_element(sc->protected_objects, loc) != sc->gc_nil)
-    fprintf(stderr, "protected object at %" print_s7_int " about to be clobbered? %s\n", loc, DISPLAY(vector_element(sc->protected_objects, loc)));
-  sc->protected_lines[loc] = 1;
-#endif
   vector_element(sc->protected_objects, loc) = x;
   return(loc);
 }
@@ -4350,6 +4326,19 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    free_optlist(s1);
+	  else gp->list[j++] = s1;
+	}
+      gp->loc = j;
+    }
+
+  gp = sc->lambdas;
+  if (gp->loc > 0)
+    {
+      for (i = 0, j = 0; i < gp->loc; i++)
+	{
+	  s1 = gp->list[i];
+	  if (is_free_and_clear(s1))
+	    liberate(c_function_block(s1));
 	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
@@ -4591,6 +4580,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
 #define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
 #define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
+#define add_lambda(sc, p)       add_to_gc_list(sc->lambdas, p)
 
 #if WITH_GMP
 #define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
@@ -4612,6 +4602,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->continuations = make_gc_list();
   sc->c_objects = make_gc_list();
   sc->optlists = make_gc_list();
+  sc->lambdas = make_gc_list();
 #if WITH_GMP
   sc->bigints = make_gc_list();
   sc->bigratios = make_gc_list();
@@ -5370,7 +5361,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
   sc->free_heap_top = sc->free_heap + old_free; /* incremented below, added old_free 21-Aug-12?!? */
 
-  cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell)); /* optimization suggested by K Matheussen */
+  cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell)); /* optimization suggested by K Matheussen, malloc makes no difference */
   for (p = cells, k = old_size; k < sc->heap_size;)
     {
       sc->heap[k] = p;
@@ -5905,7 +5896,6 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
 {
   uint64_t x;
   uint8_t *cx = (uint8_t *)&x;
-
   x = 0;
   if (len <= 8)
     memcpy((void *)cx, (void *)key, len);
@@ -5913,7 +5903,6 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
     {
       uint64_t y;
       uint8_t *cy = (uint8_t *)&y;
-
       memcpy((void *)cx, (void *)key, 8);
       y = 0;
       len -= 8;
@@ -5923,14 +5912,14 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
   return(x);
 }
 
-static char *alloc_permanent_string(int32_t len)
+static char *alloc_permanent_string(size_t len)
 {
-  #define ALLOC_STRING_SIZE 4096
+  #define ALLOC_STRING_SIZE 8192 /* 4096 is just as fast */
   #define ALLOC_MAX_STRING 128
-  static int32_t alloc_string_k = ALLOC_STRING_SIZE;
+  static size_t alloc_string_k = ALLOC_STRING_SIZE;
   static char *alloc_string_cells = NULL;
   char *result;
-  int32_t next_k;
+  size_t next_k;
 
   next_k = alloc_string_k + len;
   if (next_k >= ALLOC_STRING_SIZE)
@@ -10574,7 +10563,6 @@ static s7_pointer subtract_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #endif
 }
 
-
 static bool s7_is_negative(s7_pointer obj)
 {
   switch (type(obj))
@@ -10589,7 +10577,6 @@ static bool s7_is_negative(s7_pointer obj)
     default:            return(real(obj) < 0);
     }
 }
-
 
 static bool s7_is_positive(s7_pointer x)
 {
@@ -10606,7 +10593,6 @@ static bool s7_is_positive(s7_pointer x)
     }
 }
 
-
 static bool s7_is_zero(s7_pointer x)
 {
   switch (type(x))
@@ -10622,7 +10608,6 @@ static bool s7_is_zero(s7_pointer x)
     }
 }
 
-
 static bool s7_is_one(s7_pointer x)
 {
     return(((is_integer(x)) && (integer(x) == 1)) ||
@@ -10630,7 +10615,7 @@ static bool s7_is_one(s7_pointer x)
 }
 
 
-/* optimize exponents */
+/* -------- optimize exponents -------- */
 #define MAX_POW 32
 static double pepow[17][MAX_POW], mepow[17][MAX_POW];
 
@@ -10657,6 +10642,7 @@ static double ipow(int32_t x, int32_t y)
 }
 
 
+/* -------------------------------- number->string -------------------------------- */
 static s7_int s7_int_to_string(char *p, s7_int n, s7_int radix, s7_int width)
 {
   static const char dignum[] = "0123456789abcdef";
@@ -10731,7 +10717,6 @@ static s7_int s7_int_to_string(char *p, s7_int n, s7_int radix, s7_int width)
   return(len + start + 1);
 }
 
-
 static char *integer_to_string_base_10_no_width(s7_pointer obj, s7_int *nlen) /* do not free the returned string */
 {
   int64_t num;
@@ -10770,7 +10755,6 @@ static char *integer_to_string_base_10_no_width(s7_pointer obj, s7_int *nlen) /*
   (*nlen) = op - p - 1;
   return(++p);
 }
-
 
 #define BASE_10 10
 static s7_int num_to_str_size = -1;
@@ -11182,6 +11166,7 @@ static s7_pointer g_number_to_string_temp(s7_scheme *sc, s7_pointer args)
 }
 
 
+/* -------------------------------------------------------------------------------- */
 #define CTABLE_SIZE 256
 static bool *exponent_table, *slashify_table, *char_ok_in_a_name, *white_space, *number_table, *symbol_slashify_table;
 static int32_t *digits;
@@ -21267,6 +21252,20 @@ s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str)
   return(make_string_wrapper_with_length(sc, str, safe_strlen(str)));
 }
 
+static s7_pointer block_to_string(s7_scheme *sc, block_t *block, s7_int len)
+{
+  s7_pointer x;
+  new_cell(sc, x, T_STRING | T_SAFE_PROCEDURE);
+  string_block(x) = block;
+  string_value(x) = (char *)block_data(block);
+  string_length(x) = len;
+  string_value(x)[len] = '\0';
+  string_hash(x) = 0;
+  string_needs_free(x) = true;
+  add_string(sc, x);
+  return(x);
+}
+
 static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
 {
   s7_pointer x;
@@ -23513,14 +23512,11 @@ static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
     {
       if (port == sc->F)
 	{
-	  s7_pointer x;
 	  s7_int len;
 	  if ((start == 0) && (end == string_length(str)))
 	    return(str);
 	  len = (s7_int)(end - start);
-	  x = s7_make_string_with_length(sc, (char *)(string_value(str) + start), len);
-	  string_value(x)[len] = 0;
-	  return(x);
+	  return(s7_make_string_with_length(sc, (char *)(string_value(str) + start), len));
 	}
       method_or_bust_with_type(sc, port, sc->write_string_symbol, args, an_output_port_string, 2);
     }
@@ -30405,9 +30401,8 @@ char *s7_object_to_c_string(s7_scheme *sc, s7_pointer obj)
 
 s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /* unavoidable backwards compatibility rigidity here */
 {
-  char *str;
-  s7_int len;
   s7_pointer strport, res;
+  block_t *block;
 
   if ((sc->safety > NO_SAFETY) &&
       (!s7_is_valid(sc, obj)))
@@ -30415,9 +30410,19 @@ s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /*
 
   strport = open_format_port();
   object_out(sc, obj, strport, (use_write) ? P_WRITE : P_DISPLAY);
-  len = port_position(strport);
-  str = (char *)port_data(strport);
-  res = s7_make_string_with_length(sc, str, len);
+  
+  if (port_position(strport) >= port_data_size(strport))
+    res = block_to_string(sc, reallocate(port_data_block(strport), port_position(strport) + 1), port_position(strport));
+  else res = block_to_string(sc, port_data_block(strport), port_position(strport));
+
+  block = mallocate(FORMAT_PORT_LENGTH);
+  port_data(strport) = (uint8_t *)(block_data(block));
+  port_data_block(strport) = block;
+  port_data(strport)[0] = '\0';
+  port_position(strport) = 0;
+  port_data_size(strport) = FORMAT_PORT_LENGTH;
+  port_needs_free(strport) = false;
+
   close_format_port(strport);
   return(res);
 }
@@ -30430,9 +30435,9 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
   #define Q_object_to_string s7_make_signature(sc, 4, sc->is_string_symbol, sc->T, s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->is_keyword_symbol), sc->is_integer_symbol)
 
   use_write_t choice;
-  char *str;
   s7_pointer obj, strport, res;
-  s7_int out_len = 0;
+  s7_int out_len;
+  block_t *block;
   sc->objstr_max_len = s7_int_max;
 
   if (is_not_null(cdr(args)))
@@ -30465,7 +30470,6 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
   strport = open_format_port();
   object_out(sc, obj, strport, choice);
   out_len = port_position(strport);
-  str = (char *)port_data(strport);
 
   if ((sc->objstr_max_len >= 0) && 
       (out_len > sc->objstr_max_len))
@@ -30478,11 +30482,22 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	  return(s7_make_string_with_length(sc, "...", 3));
 	}
       for (i = out_len - 3; i < out_len; i++)
-	str[i] = (uint8_t)'.';
+	port_data(strport)[i] = (uint8_t)'.';
     }
   sc->objstr_max_len = s7_int_max;
 
-  res = s7_make_string_with_length(sc, str, out_len);
+  if (out_len >= port_data_size(strport))
+    res = block_to_string(sc, reallocate(port_data_block(strport), out_len + 1), out_len);
+  else res = block_to_string(sc, port_data_block(strport), out_len);
+
+  block = mallocate(FORMAT_PORT_LENGTH);
+  port_data(strport) = (uint8_t *)(block_data(block));
+  port_data_block(strport) = block;
+  port_data(strport)[0] = '\0';
+  port_position(strport) = 0;
+  port_data_size(strport) = FORMAT_PORT_LENGTH;
+  port_needs_free(strport) = false;
+
   close_format_port(strport);
   return(res);
 }
@@ -39317,27 +39332,25 @@ static s7_pointer make_function(s7_scheme *sc, const char *name, s7_function f, 
   return(x);
 }
 
-#if 0
-static s7_pointer s7_make_closure(s7_scheme *sc, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg)
+static s7_pointer s7_lambda(s7_scheme *sc, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg)
 {
+  /* same as s7_make_function but the new function is not global and permanent; it can be GC'd */
   s7_pointer fnc;
   block_t *block;
-  new_cell(fnc, T_PAIR);  /* just a place-holder */
+  new_cell(sc, fnc, T_PAIR);  /* just a place-holder */
   block = mallocate(sizeof(c_proc_t));
-  fnc = s7_make_closure(sc, NULL, f, required_args, optional_args, rest_arg, NULL, fnc, (c_proc_t *)block_data(block));
-  
-  /* TODO: tie block into fnc somehow, add gc sweep support */
+  fnc = make_function(sc, NULL, f, required_args, optional_args, rest_arg, NULL, fnc, (c_proc_t *)block_data(block));
+  c_function_block(fnc) = block;
+  add_lambda(sc, fnc);
+  return(fnc);
 }
-#endif
 
 s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
-  c_proc_t *ptr;
   s7_pointer x;
   x = alloc_pointer();
   unheap(x);
-  ptr = (c_proc_t *)malloc(sizeof(c_proc_t));
-  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, ptr));
+  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, (c_proc_t *)malloc(sizeof(c_proc_t))));
 }
 
 s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f, 
@@ -43853,41 +43866,25 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				   s7_make_symbol(sc, "c-object-type"), s7_make_integer(sc, c_object_type(obj)),
 				   s7_make_symbol(sc, "c-object-let"), clet,
 				   s7_make_symbol(sc, "class"), c_object_type_to_let(sc, obj)));
-#if 0
-	/* not sure these are useful, or whether they need gc-protection */
+
+	/* not sure these are useful */
 	if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-length"),
-		    s7_make_function(sc, "c-object-length", c_object_len(sc, obj), 1, 0, false, "c-object length function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-length"), s7_lambda(sc, c_object_len(sc, obj), 1, 0, false));
 	if (c_object_ref(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-ref"),
-		    s7_make_function(sc, "c-object-ref", c_object_ref(sc, obj), 1, 0, true, "c-object ref function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-ref"), s7_lambda(sc, c_object_ref(sc, obj), 1, 0, true));
 	if (c_object_set(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-set!"),
-		    s7_make_function(sc, "c-object-set!", c_object_set(sc, obj), 2, 0, true, "c-object set! function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-set!"), s7_lambda(sc, c_object_set(sc, obj), 2, 0, true));
 	if (c_object_copy(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-copy"),
-		    s7_make_function(sc, "c-object-copy", c_object_copy(sc, obj), 1, 0, true, "c-object copy function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-copy"), s7_lambda(sc, c_object_copy(sc, obj), 1, 0, true));
 	if (c_object_fill(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-fill!"),
-		    s7_make_function(sc, "c-object-fill!", c_object_fill(sc, obj), 1, 0, true, "c-object fill! function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-fill!"), s7_lambda(sc, c_object_fill(sc, obj), 1, 0, true));
 	if (c_object_reverse(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object-reverse"),
-		    s7_make_function(sc, "c-object-reverse", c_object_reverse(sc, obj), 1, 0, true, "c-object reverse function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object-reverse"), s7_lambda(sc, c_object_reverse(sc, obj), 1, 0, true));
 	if (c_object_to_list(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object->list"),
-		    s7_make_function(sc, "c-object->list", c_object_to_list(sc, obj), 1, 0, true, "c-object->list function"));
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object->list"), s7_lambda(sc, c_object_to_list(sc, obj), 1, 0, true));
 	if (c_object_to_string(sc, obj))
-	  s7_varlet(sc, let, 
-		    s7_make_symbol(sc, "c-object->string"),
-		    s7_make_function(sc, "c-object->string", c_object_to_string(sc, obj), 1, 1, false, "c-object->string function"));
-#endif
+	  s7_varlet(sc, let, s7_make_symbol(sc, "c-object->string"), s7_lambda(sc, c_object_to_string(sc, obj), 1, 1, false));
+
 	if ((is_let(clet)) &&
 	    ((has_methods(clet)) || (has_methods(obj))))
 	  {
@@ -58292,7 +58289,7 @@ static s7_pointer read_expression(s7_scheme *sc)
 		    int32_t len;
 		    msg = (char *)malloc(128 * sizeof(char));
 		    len = snprintf(msg, 128, "at \"...%s...\", stray comma before ')'?", str);
-		    free (str);
+		    free(str);
 		    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_uncopied_with_length(sc, msg, len))));
 		  }
 		return(read_error(sc, "stray comma before ')'?"));         /* '("a" "b",) */
@@ -77753,38 +77750,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  break;
 	  
 	case OP_GET_OUTPUT_STRING:                 /* from call-with-output-string and with-output-to-string -- return the port string directly */
-	  if ((!is_output_port(sc->code)) ||
-	      (port_is_closed(sc->code)))
-	    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, sc->code, s7_make_string_wrapper(sc, "an open string output port"));
-	  
-	  if (port_position(sc->code) > sc->max_string_length)
-	    {
-	      /* back out to the old output port -- equivalent to catch_out_function or unwind_output_ex */
-	      s7_close_output_port(sc, sc->code); /* may call fflush */
-	      if (((is_output_port(sc->args)) &&
-		   (!port_is_closed(sc->args))) ||
-		  (sc->args == sc->F))
-		sc->output_port = sc->args;
-
-	      s7_out_of_range_error(sc, "with-output-to-string", 0, s7_make_integer(sc, port_position(sc->code)), 
-				    "output string length is greater than (*s7* 'max-string-length)");
-	      /* perhaps this should make the string and place it in owlet somewhere?  Seems
-	       *   kinda dumb to throw it away simply because it is too long -- what if this is
-	       *   just a temp before writing to an output file?
-	       */
-	    }
-	  if (port_position(sc->code) >= port_data_size(sc->code))
-	    resize_port_data(sc->code, port_position(sc->code) + 1); /* need room for the trailing #\null */
-	  sc->value = make_string_uncopied_with_length(sc, (char *)port_data(sc->code), port_position(sc->code));
-	  string_value(sc->value)[port_position(sc->code)] = 0;
-	  port_data(sc->code) = NULL;
-	  port_data_size(sc->code) = 0;
-	  block_index(port_data_block(sc->code)) = BLOCK_LIST;
-	  block_data(port_data_block(sc->code)) = NULL;
-	  liberate_block(port_data_block(sc->code));
-	  port_data_block(sc->code) = NULL;
-	  port_needs_free(sc->code) = false;
-	  /* fall through */
+	  {
+	    s7_pointer port;
+	    port = sc->code;
+	    if ((!is_output_port(port)) ||
+		(port_is_closed(port)))
+	      simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, s7_make_string_wrapper(sc, "an open string output port"));
+	    if (port_position(port) >= port_data_size(port))
+	      sc->value = block_to_string(sc, reallocate(port_data_block(port), port_position(port) + 1), port_position(port));
+	    else sc->value = block_to_string(sc, port_data_block(port), port_position(port));
+	    port_data(port) = NULL;
+	    port_data_size(port) = 0;
+	    port_data_block(port) = NULL;
+	    port_needs_free(port) = false;
+	    /* fall through */
+	  }
 	  
 	case OP_UNWIND_OUTPUT:
 	  unwind_output_ex(sc);
@@ -83564,9 +83544,6 @@ s7_scheme *s7_init(void)
       vector_element(sc->protected_setter_symbols, i) = sc->gc_nil;
       sc->gpofl[i] = i;
     }
-#if S7_DEBUGGING
-  sc->protected_lines = (int *)calloc(INITIAL_PROTECTED_OBJECTS_SIZE, sizeof(int));
-#endif
 
   sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
   sc->stack_start = vector_elements(sc->stack); /* stack type set below */
@@ -85429,20 +85406,28 @@ int main(int argc, char **argv)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
+ * set_case sc s_opssq?
+ * s7_lambda memleak?
+ *
  * hash-tables are still size int32_t [via hash_table_entries]
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  *
- * get rid of strncpy
- *
- * if s7_make_function c_proc_t gc'd is the space recovered? no, and it uses permanent strings
- *    need s7_make_closure same as s7_make_function except use new_cell etc -- and in gc need to release the c_proc_t (block?)
  * num->str returns block_t* not char*? similarly elsewhere?
+ *   format port -> string direct then mallocate a new block for the port: get-output-string (if clear_port)? format_to_port_1 [see g_object_to_string]
+ *   and snprintf to block_data (string_value|port_data)
+ *   unknowns (currently the name is freed in sweep)
+ *   maybe gensym symbol name and port filename
+ *   continuation op_stack?
+ * string_write* could be direct if the string were a wrapper into the port data
+ *   pos_int_to_str gets data as arg and floatify etc
+ * the symbol string is immutable, so does it actually need to be copied?
  *
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) -- perhaps move block field back?
- * in v-hash, main malloc is for large data -- maybe preallocate each data size -- need usage stats 8/16/32/64 are heavily used I think)
- *   so more batch allocs like alloc_symbol
- * dox_ex precalc to opt_eval?
+ *   and 64+24 bits in block_t?
+ *
+ * dox_ex precalc to opt_eval? [eventually remove clm opt code or embed optlists in optimizer info]
+ *   block+opts in pair can be deallocated --  another gc_list of pairs
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85463,25 +85448,25 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1046
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1150
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1460
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1729
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2064
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2493
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1042
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1135
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1458
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1707
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2052
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2490
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.8
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2510
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2486
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2536
- * tread         |      |      |      ||      ||      |                   3009  2642
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2668
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3464
+ * tread         |      |      |      ||      ||      |                   3009  2630
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2665
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3457
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4220
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5024
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  7316
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4156
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5003
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6998
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
- *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  82.8
+ *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4
  * --------------------------------------------------------------------------------------
  */

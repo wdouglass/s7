@@ -9093,7 +9093,7 @@ static void file_dir_popup_callback(Widget w, XtPointer context, XtPointer info)
 		if (current_filename[i] == '/')
 		  {
 		    dirs[j] = (char *)calloc(i + 1, sizeof(char));
-		    strncpy(dirs[j], (const char *)current_filename, i);
+		    memcpy(dirs[j], (const char *)current_filename, i);
 		    j++;
 		  }
 

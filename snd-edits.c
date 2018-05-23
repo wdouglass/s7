@@ -1895,7 +1895,7 @@ static char *split_origin(char *origin, char **ret_name)
       if ((*ret_name = strrchr(origin, ' ')))
 	{
 	  (*ret_name)++;
-	  strncpy(func, origin, strlen(origin) - strlen(*ret_name) - 1);
+	  memcpy(func, origin, strlen(origin) - strlen(*ret_name) - 1);
 	}
       else *ret_name = origin;
       return(func);

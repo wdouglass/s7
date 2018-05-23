@@ -187,7 +187,7 @@ char *just_directory(const char *name)
     if (name[i] == '/') 
       last_slash = i + 1;
   if (last_slash > 0)
-    strncpy(dirname, name, last_slash);
+    memcpy(dirname, name, last_slash);
   return(dirname);
 }
 

@@ -297,7 +297,7 @@ static void loadLADSPA(void)
       
       pcBuffer = (char *)malloc(1 + pcEnd - pcStart);
       if (pcEnd > pcStart)
-	strncpy(pcBuffer, pcStart, pcEnd - pcStart);
+	memcpy(pcBuffer, pcStart, pcEnd - pcStart);
       pcBuffer[pcEnd - pcStart] = '\0';
       
       loadLADSPADirectory(pcBuffer);

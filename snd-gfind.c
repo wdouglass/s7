@@ -34,15 +34,6 @@ static void add_help_text(GtkWidget *text, const char *message)
 
 int help_text_width(const char *txt, int start, int end)
 {
-#if 0
-  char *buf;
-  int len;
-  buf = (char *)calloc(end - start + 2, sizeof(char));
-  strncpy(buf, txt, end - start);
-  len = sg_text_width(buf, LISTENER_FONT(ss));
-  free(buf);
-  if (len > 0) return(len);
-#endif
   return((end - start) * 8);
 }
 

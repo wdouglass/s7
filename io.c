@@ -2275,7 +2275,7 @@ char *mus_expand_filename(const char *filename)
       file_name_buf = (char *)malloc((len + orig_len + 4) * sizeof(char));
       strcpy(file_name_buf, orig);
       file_name_buf[orig_len] = '/';
-      strncpy((char *)(file_name_buf + orig_len + 1), filename, len + 1);
+      memcpy((char *)(file_name_buf + orig_len + 1), filename, len + 1);
       /* fprintf(stderr, "%d: %s -> %s\n", __LINE__, filename, file_name_buf); */
 
 #if HAVE_EXTENSION_LANGUAGE
@@ -2294,9 +2294,9 @@ char *mus_expand_filename(const char *filename)
 	      if (nfile[path_len - 1] != '/')
 		{
 		  nfile[path_len] = '/';
-		  strncpy((char *)(nfile + path_len + 1), filename, len + 1);
+		  strcat((char *)(nfile + path_len + 1), filename);
 		}
-	      else strncpy((char *)(nfile + path_len), filename, len + 1);
+	      else strcat((char *)(nfile + path_len), filename);
 	      /* fprintf(stderr, "%d: %s -> %s\n", __LINE__, filename, nfile); */
 	      if (mus_file_probe(nfile))
 		{

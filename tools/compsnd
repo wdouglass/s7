@@ -13,7 +13,7 @@ fgrep maake *.html
 fgrep accomoda *.c
 fgrep decrip *.scm
 fgrep accomoda *.scm
-fgrep reponse *.[ch]
+# fgrep -e " #(" *.scm
 fgrep -e "the the " *.c
 fgrep -e "the the " *.html
 fgrep udpate *.c
@@ -25,72 +25,74 @@ fgrep -e "double* " *.h
 fgrep -e "int* " *.h
 fgrep -e "off_t* " *.[ch]
 fgrep -e " long* " *.[ch]
-fgrep -e "propogat" *.[ch]
-fgrep -e "propogat" *.html
-fgrep -e "propogat" *.scm
 grep ' \-\-$' *.html
 /home/bil/cl/snd tools/va.scm
+# tools/check-gtk.scm
 
-echo ' '
-echo ' '
 rm -f snd
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 basic configure test                                  ----- '
 echo ' -------------------------------------------------------------------------------- '
-
-./configure --quiet --with-motif CFLAGS="-O3 -Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+make allclean
 make
 echo ' '
 echo ' '
 
 ./snd --version
 ./snd -noinit --features "'clm 'snd-s7 'snd-motif 'sndlib"
-./snd -e '(begin (load "cload.scm") (set! *cload-cflags* "-Wall"))' libm.scm libc.scm libgdbm.scm libdl.scm libgsl.scm -e '(exit)'
+# ./snd tools/check-help.scm
+# ./snd generators.scm peak-phases.scm -e "(begin (test-peak-phases) (exit))"
 
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 ffitest                                               ----- '
-echo ' -------------------------------------------------------------------------------- '
+echo ' -------------------------------- no strftime -------------------------------- '
 
-cp tools/ffitest.c .
-gcc -o ffitest ffitest.c -g3 -Wall s7.o -lm -I. -ldl
-ffitest
+sed mus-config.h -e 's/#define HAVE_STRFTIME 1/#define HAVE_STRFTIME 0/' > tmp
+mv tmp mus-config.h
+make
 
-gcc s7.c -o repl -Wall -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g3 -Wl,-export-dynamic -ldl -lm
+echo ' -------------------------------- no readlink -------------------------------- '
 
-echo '#define WITH_SYSTEM_EXTRAS 0' >mus-config.h
-gcc -c s7.c -o s7.o -Wall
-rm s7.o
-echo '#define WITH_C_LOADER 0' >mus-config.h
-gcc -c s7.c -o s7.o -Wall
-rm s7.o
-echo '#define WITH_EXTRA_EXPONENT_MARKERS 1' >mus-config.h
-gcc -c s7.c -o s7.o -Wall
-rm s7.o
+sed mus-config.h -e 's/#define HAVE_READLINK 1/#define HAVE_READLINK 0/' > tmp
+mv tmp mus-config.h
+make
+
+echo ' -------------------------------- no lstat -------------------------------- '
+
+sed mus-config.h -e 's/#define HAVE_LSTAT 1/#define HAVE_LSTAT 0/' > tmp
+mv tmp mus-config.h
+make
+
+echo ' -------------------------------- no access -------------------------------- '
+
+sed mus-config.h -e 's/#define HAVE_ACCESS 1/#define HAVE_ACCESS 0/' > tmp
+mv tmp mus-config.h
+make
+
+echo ' -------------------------------- no strcasecmp -------------------------------- '
+
+sed mus-config.h -e 's/#define HAVE_STRCASECMP 1/#define HAVE_STRCASECMP 0/' > tmp
+mv tmp mus-config.h
+make
+
+echo ' -------------------------------- no snprintf -------------------------------- '
+
+sed mus-config.h -e 's/#define HAVE_SNPRINTF 1/#define HAVE_SNPRINTF 0/' > tmp
+mv tmp mus-config.h
+make
 
 make clmclean
 make sndinfo
 make sndplay
 make allclean
 
-./configure --quiet --with-motif CFLAGS="-Wall -I/usr/X11R6/include -Wdeclaration-after-statement" LDFLAGS="-L/usr/X11R6/lib"
-make allclean
-make
-echo ' '
-echo ' '
-
-make clmclean
-make sndinfo
-make sndplay
-make allclean
-
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 g++                                ----  '
+echo ' ----                 --enable-snd-debug g++                                ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ CFLAGS="-Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet --enable-snd-debug CC=g++ CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
 make
 ./snd --version
 ./snd -noinit --features "'clm"
@@ -102,51 +104,26 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 clang                                ----  '
+echo ' -----                --with-no-gui                                         ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=/home/bil/test/llvm-3.1.src/build/Release+Asserts/bin/clang CFLAGS="-Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
-make
-./snd --version
-./snd -noinit --features "'clm"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-./configure --quiet CC=clang CFLAGS="-Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
-make
-make allclean
-rm -f snd
-rm -f config.cache
-
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui                                         ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --without-gui
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-no-gui
 make
 echo ' '
 echo ' '
 ./snd --version
 ./snd -noinit --features "'clm 'snd-nogui"
 
-make allclean
-rm -f snd
-rm -f config.cache
 
 echo ' '
 echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui                                          ---  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DWITH_MAIN" --without-gui
+echo ' -------------------------------- no complex -------------------------------- '
+make clean
+sed mus-config.h -e 's/#define WITH_COMPLEX 1/#define WITH_COMPLEX 0/g' > tmp
+mv tmp mus-config.h
+sed mus-config.h -e 's/#define HAVE_COMPLEX_TRIG 1/#define HAVE_COMPLEX_TRIG 0/g' > tmp
+mv tmp mus-config.h
 make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm 'snd-nogui"
+
 
 make allclean
 rm -f snd
@@ -155,41 +132,9 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-audio                                         ----  '
+echo ' -----                --with-no-gui --with-oss                              ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --without-audio
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-audio C++                                       ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --without-audio CC=g++
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui --with-oss                              ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --without-gui --with-oss
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-no-gui --with-oss
 make
 echo ' '
 echo ' '
@@ -201,9 +146,9 @@ rm -f snd
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui --with-gmp                              ----  '
+echo ' -----                --with-no-gui --with-gmp                              ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --without-gui --with-gmp --with-ladspa CFLAGS="-Wall -I/usr/local/include"
+./configure --quiet --with-no-gui --with-gmp
 make
 echo ' '
 echo ' '
@@ -217,9 +162,9 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 -without-gui --with-ladspa ----  '
+echo ' ----                 -with-no-gui --without-ladspa                         ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -I/usr/local/include" --without-gui --with-ladspa
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-no-gui --without-ladspa
 make
 echo ' '
 echo ' '
@@ -235,24 +180,19 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gtk                                             ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-O3 -Wall -I/usr/X11R6/include" --with-gtk
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-gtk
 make
 echo ' '
 echo ' '
 ./snd --version
-/home/bil/cl/snd tools/va.scm
 ./snd -noinit --features "'clm 'snd-gtk 'snd-s7"
-
-make allclean
-rm -f snd
-rm -f config.cache
 
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 g++ --with-gtk --disable-deprecated                   ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ CFLAGS="-Wall -I/usr/X11R6/include" --with-gtk --disable-deprecated
+./configure --quiet CC=g++ CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-gtk --disable-deprecated
 make allclean
 make
 ./snd --version
@@ -262,9 +202,9 @@ make allclean
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                g++ --with-gtk --std=c++11                             ---  '
+echo ' -----                g++ --with-gtk                                         ---  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk CFLAGS="-std=c++11 -Wall -I/usr/X11R6/include"
+./configure --quiet CC=g++ --with-gtk CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk"
@@ -275,7 +215,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++ --with-gtk --with-gsl                              ---  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk --with-gsl CFLAGS="-Wall -I/usr/X11R6/include"
+./configure --quiet CC=g++ --with-gtk --with-gsl CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk 'gsl"
@@ -286,22 +226,18 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth                                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --quiet --with-motif --with-forth
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet --with-forth
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'snd-motif"
-
-make clmclean
-make sndinfo
-make sndplay
 make allclean
 
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --with-forth  --with-motif --with-gl ---- '
+echo ' -----                --with-forth --enable-snd-debug  --with-editres --with-gl ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth  --with-motif --with-gl LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"
+./configure --quiet --with-forth --enable-snd-debug  --with-editres --with-gl LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'xm 'gl"
@@ -312,7 +248,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth --with-gtk       --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth --with-gtk  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"
+./configure --quiet --with-forth --with-gtk  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk 'xg 'gl"
@@ -321,9 +257,9 @@ make allclean
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --with-forth --without-gui                              --- '
+echo ' -----                --with-forth --with-no-gui                              --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth --without-gui LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"
+./configure --quiet --with-forth --with-no-gui LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'snd-nogui"
@@ -344,7 +280,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-extension-language --with-gtk               ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --without-extension-language --with-gtk
+./configure --quiet --without-extension-language --with-gtk 
 make
 echo ' '
 echo ' '
@@ -355,14 +291,13 @@ make sndinfo
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --without-extension-language --with-gl         ------  '
+echo ' ----                 --without-extension-language --with-just-gl         ------  '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet --without-extension-language --with-motif --with-gl
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet --without-extension-language --with-just-gl
 make
 echo ' '
 echo ' '
 ./snd --version
-make allclean
 
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-extension-language g++                      ----  '
@@ -374,13 +309,82 @@ echo ' '
 ./snd --version
 make allclean
 
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                  -- int samples                                       ----  '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --without-float-samples
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'snd-s7"
+
+echo ' '
+echo ' '
+make allclean
+rm -f snd
+rm -f config.cache
+rm -f makefile
+rm -f mus-config.h
+rm -f sndinfo
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                  --without-float-samples --without-ladspa --with-gl --with-gl2ps --without-gsl '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --without-float-samples --without-ladspa --with-gl --with-gl2ps --without-gsl
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'gl 'gl2ps"
+make clmclean
+
+echo ' '
+echo ' '
+make allclean
+rm -f snd
+rm -f config.cache
+rm -f makefile
+rm -f mus-config.h
+rm -f sndinfo
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' -----                 --without-float-samples --with-sample-width=32 --with-just-gl --without-fftw '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --without-float-samples --with-sample-width=32 --with-just-gl --without-fftw
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'snd-motif"
+
+echo ' '
+echo ' '
+make allclean
+rm -f snd
+rm -f config.cache
+rm -f makefile
+rm -f mus-config.h
+rm -f sndinfo
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' -----                 --without-float-samples --with-sample-width=24 g++    ---- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --without-float-samples --with-sample-width=24
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm"
+
+make allclean
 rm -f snd
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                  --with-gtk                                            ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"  --with-gtk
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --with-gtk
 make
 echo ' '
 echo ' '
@@ -393,7 +397,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-gtk  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated CFLAGS="-Wall -I/usr/X11R6/include -D_FORTIFY_SOURCE=2" --with-gtk 
+./configure --quiet --disable-deprecated CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -D_FORTIFY_SOURCE" --with-gtk 
 make
 echo ' '
 echo ' '
@@ -406,9 +410,9 @@ rm -f sndinfo
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                --with-gsl                           ---- '
+echo ' ----                --enable-snd-debug --with-gsl                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-motif --with-gsl
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DXEN_DEBUGGING" --enable-snd-debug --with-gsl
 make
 echo ' '
 echo ' '
@@ -419,7 +423,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gmp                                              ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --with-gmp
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-gmp
 make
 echo ' '
 echo ' '
@@ -428,9 +432,20 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                WITH_PURE_S7  --- '
+echo ' ----                --with-optimization=0                                   ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DWITH_PURE_S7=1"
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DWITH_OPTIMIZATION=0"
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'snd-motif"
+make allclean
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                WITH_EXTRA_EXPONENT_MARKERS=0 WITH_AT_SIGN_AS_EXPONENT=0 --- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DWITH_EXTRA_EXPONENT_MARKERS=0 -DWITH_AT_SIGN_AS_EXPONENT=0"
 make
 echo ' '
 echo ' '
@@ -441,7 +456,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                  editres                              ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"  --with-motif --with-editres --disable-deprecated
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"  --with-editres --disable-deprecated
 make
 make allclean
 
@@ -450,8 +465,22 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++                                    ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --with-motif LDFLAGS="-L/usr/X11R6/lib" --quiet CC=g++  CFLAGS="-Wall -I/usr/X11R6/include"
+./configure LDFLAGS="-L/usr/X11R6/lib" --quiet CC=g++  CFLAGS="-I/usr/X11R6/include"
 make
+
+make allclean
+rm -f snd
+rm -f config.cache
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                 --with-snd-as-widget                                   ---- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-snd-as-widget
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm"
 
 make allclean
 rm -f snd
@@ -460,7 +489,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-gtk --with-gmp                                  ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-gtk --with-gmp CFLAGS="-Wall"
+./configure --quiet --with-gtk --with-gmp
 make
 echo ' '
 echo ' '
@@ -476,31 +505,27 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby                                            ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --with-ruby --with-motif 
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-ruby
 make
 echo ' '
 echo ' '
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby, :snd_motif"
-
-make clmclean
-make sndinfo
-make sndplay
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 g++ --with-ruby                                        ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --with-ruby
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-ruby
 make
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby"
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --with-ruby  --with-gl --with-alsa '
+echo ' -----                --with-ruby  --with-gl --enable-snd-debug --with-alsa '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-motif --with-gl --with-alsa
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DXEN_DEBUGGING" --with-ruby  --with-gl --enable-snd-debug --with-alsa
 make
 echo ' '
 echo ' '
@@ -514,12 +539,21 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-ruby --with-gtk                                 ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --with-ruby --with-gtk
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-ruby --with-gtk
 make
 echo ' '
 echo ' '
 ./snd --version
 ./snd -noinit --features ":clm, :snd_gtk, :snd_ruby"
+make allclean
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                 g++ --with-ruby sample-width=24                        ---- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-ruby --without-float-samples --with-sample-width=24
+make
+./snd --version
+./snd -noinit --features ":clm, :snd_ruby"
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
@@ -534,9 +568,9 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --with-ruby  --with-gtk --without-gsl '
+echo ' ----                 --with-ruby  --with-gtk --enable-snd-debug --without-gsl '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-gtk --without-gsl
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DXEN_DEBUGGING" --with-ruby  --with-gtk --enable-snd-debug --without-gsl
 make
 echo ' '
 echo ' '
@@ -547,21 +581,21 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-ruby  --with-gtk '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -D_FORTIFY_SOURCE=2" --with-ruby  --with-gtk
+./configure --quiet --disable-deprecated LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -D_FORTIFY_SOURCE" --with-ruby  --with-gtk
 make
 echo ' '
 echo ' '
 ./snd --version
-./snd -noinit --features ":clm, :snd-gtk, :xg"
+./snd -noinit --features "'clm 'snd-gtk 'xg 'gl"
 
 make allclean
 rm -f snd
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --with-ruby --without-gui --without-fftw                --- '
+echo ' ----                 --with-ruby --with-no-gui --without-fftw                --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --with-ruby --without-gui --without-fftw
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-ruby --with-no-gui --without-fftw
 make
 echo ' '
 echo ' '
@@ -570,9 +604,9 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --with-ruby --without-gui                             ----- '
+echo ' -----                --with-ruby --with-no-gui --enable-snd-debug           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DXEN_DEBUGGING" --with-ruby --with-no-gui --enable-snd-debug
 make
 echo ' '
 echo ' '
@@ -581,9 +615,9 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                g++ --with-ruby --without-gui        ---- '
+echo ' ----                g++ --with-ruby --with-no-gui --enable-snd-debug        ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui 
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include -DXEN_DEBUGGING" --with-ruby --with-no-gui --enable-snd-debug
 make
 echo ' '
 echo ' '
@@ -597,7 +631,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++                                                      --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-motif --with-ladspa CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include -I/usr/local/include"
+./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -Wextra -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-s7 'snd-motif 'snd-ladspa 'sndlib"
@@ -611,7 +645,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++ --with-gtk                                          ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk CFLAGS="-Wall"
+./configure --quiet CC=g++ --with-gtk
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk"
@@ -620,9 +654,9 @@ make allclean
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                g++ --without-gui                                       ---- '
+echo ' ----                g++ --with-no-gui                                       ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --quiet CC=g++ --without-gui
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet CC=g++ --with-no-gui
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-nogui 'snd-s7"
@@ -641,7 +675,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++  --without-gsl --with-alsa '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --quiet CC=g++  --without-gsl --with-alsa
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet CC=g++  --without-gsl --with-alsa
 make
 ./snd --version
 ./snd -noinit --features "'clm 'alsa 'xm"
@@ -657,18 +691,20 @@ rm -f sndinfo
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                sndlib                                                 ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include"
 make sndinfo
 sndinfo oboe.snd
 sndinfo test.snd
-make allclean
-echo ' '
-echo ' '
 
+echo ' '
+echo ' '
+echo ' -------------------------------- no-gui test -------------------------------- '
+make allclean
+rm -f snd
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --without-gui                                          ---- '
+echo ' ----                 --with-no-gui                                          ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include" --without-gui
+./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-parentheses -I/usr/X11R6/include" --with-no-gui
 make
 echo ' '
 echo ' '
@@ -686,7 +722,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                 -DXM_DISABLE_DEPRECATED              ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -DXM_DISABLE_DEPRECATED -Wall -I/usr/X11R6/include"
+./configure --quiet  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-DXM_DISABLE_DEPRECATED -Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'xm"
@@ -697,7 +733,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                 --with-ruby -DXM_DISABLE_DEPRECATED   ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  --with-ruby LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -DXM_DISABLE_DEPRECATED -Wall -I/usr/X11R6/include"
+./configure --quiet  --with-ruby LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-DXM_DISABLE_DEPRECATED -Wall -Wno-parentheses -I/usr/X11R6/include"
 make
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby"
@@ -706,9 +742,9 @@ make allclean
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui --without-extension-language          ----- '
+echo ' -----                --with-no-gui --without-extension-language          ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-gui --without-extension-language --quiet
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --with-no-gui --without-extension-language --quiet
 make
 ./snd --version
 make allclean
@@ -716,9 +752,9 @@ echo ' '
 echo ' '
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --without-extension-language  --with-gl '
+echo ' ----                 --without-extension-language  --with-gl - '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-extension-language  --with-motif --with-gl --quiet
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-extension-language  --with-gl --quiet
 make
 ./snd --version
 make allclean
@@ -726,9 +762,9 @@ echo ' '
 echo ' '
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                 --with-gl --with-gl2ps         ------ '
+echo ' -----                 --with-just-gl --with-gl2ps         ------ '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -I/usr/X11R6/include"  --with-motif --with-gl --quiet --with-gl2ps --without-gsl
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include"  --with-just-gl --quiet --with-gl2ps
 make
 ./snd --version
 ./snd -noinit --features "'clm 'xm 'gl2ps"
@@ -745,6 +781,27 @@ make
 make allclean
 echo ' '
 echo ' '
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' -----                --without-fam                                          ---- '
+echo ' -------------------------------------------------------------------------------- '
+./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-fam --quiet
+make
+./snd --version
+./snd -noinit --features "'clm 'snd-s7 'snd-motif 'sndlib"
+make allclean
+make allclean
+echo ' '
+echo ' '
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' ----                 --without-fam --with-gtk                               ---- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --without-fam --with-gtk --quiet
+make
+./snd --version
+./snd -noinit --features "'clm 'snd-gtk"
+make allclean
 
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-portaudio                                       ---- '
@@ -778,46 +835,45 @@ make
 make allclean
 
 
-
 cp ~/sndlib/* .
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                sndlib tests                                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CFLAGS="-Wall"
+./configure --quiet CFLAGS="-Wall -Wno-parentheses"
 make
 
 cp tools/exs7.c .
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 1 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX1 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX1
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 2 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX2 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX2
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 3 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX3 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX3
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 4 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX4 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX4
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 5 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX5 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX5
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 6 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-gcc -o exs7 exs7.c s7.o -lm -DEX6 -ldl
+gcc -o exs7 exs7.c s7.o -lm -DEX6
 
-# make clean
-# echo ' -------------------------------------------------------------------------------- '
-# echo ' -------------------------------- sndlib ruby -------------------------------- '
-# echo ' -------------------------------------------------------------------------------- '
-# ./configure --quiet --with-ruby
-# make
+make clean
+echo ' -------------------------------------------------------------------------------- '
+echo ' -------------------------------- sndlib ruby -------------------------------- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet --with-ruby
+make
 make clean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- sndlib forth -------------------------------- '
@@ -833,27 +889,37 @@ make
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 1 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX1 -ldl
+g++ -o exs7 exs7.c s7.o -lm -DEX1
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 2 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX2 -ldl
+g++ -o exs7 exs7.c s7.o -lm -DEX2
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 3 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX3 -ldl
+g++ -o exs7 exs7.c s7.o -lm -DEX3
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 4 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX4  -ldl /home/bil/test/sndlib/libsndlib.a -lgsl -lgslcblas -lasound
+g++ -o exs7 exs7.c s7.o -lm -DEX4 /home/bil/test/sndlib/libsndlib.a -lgsl -lgslcblas -lasound
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 5 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX5 -ldl
+g++ -o exs7 exs7.c s7.o -lm -DEX5
 echo ' -------------------------------------------------------------------------------- '
 echo ' -------------------------------- ex 6 -------------------------------- '
 echo ' -------------------------------------------------------------------------------- '
-g++ -o exs7 exs7.c s7.o -lm -DEX6 -ldl
+g++ -o exs7 exs7.c s7.o -lm -DEX6
 rm exs7
 rm exs7.o
+make clean
+
+echo ' -------------------------------------------------------------------------------- '
+echo ' -------------------------------- with int s7_Int -------------------------------- '
+echo ' -------------------------------------------------------------------------------- '
+sed s7.h -e 's/#define s7_Int long long int/#define s7_Int int/' > tmp
+mv tmp s7.c
+sed s7.h -e 's/#define s7_Int_d "%lld"/#define s7_Int_d "%d"/' > tmp
+mv tmp s7.c
+make
 make clean

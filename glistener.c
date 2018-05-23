@@ -2229,7 +2229,7 @@ static char *filename_completion(glistener *g, const char *partial_name)
 	  int len;
 	  len = strlen(home);
 	  new_name = (char *)calloc(strlen(partial_name) + len + 1, sizeof(char));
-	  strncpy(new_name, home, len + 1);
+	  strcat(new_name, home);
 	  strcat(new_name, (char *)(partial_name + 1));
 	}
     }
@@ -2318,7 +2318,7 @@ static char *filename_completion(glistener *g, const char *partial_name)
 	  /* attach matched portion to user's indication of dir */
 	  result = (char *)calloc(strlen(partial_name) + strlen(current_match) + 3, sizeof(char));
 	  temp = g_utf8_strrchr(partial_name, -1, (gunichar)'/');
-	  strncpy(result, partial_name, temp - partial_name + 1);
+	  memcpy(result, partial_name, temp - partial_name + 1);
 	  strcat(result, current_match);
 	  free(current_match);
 	}

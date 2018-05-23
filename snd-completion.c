@@ -242,7 +242,7 @@ char *expression_completer(widget_t w, const char *original_text, void *data)
 	  char *text;
 	  len = mus_strlen(current_match) + beg + 2;
 	  text = (char *)calloc(len, sizeof(char));
-	  strncpy(text, original_text, beg);
+	  memcpy(text, original_text, beg);
 	  strcat(text, current_match);
 	  free(current_match);
 	  return(text);
@@ -525,7 +525,7 @@ static char *filename_completer_1(widget_t w, const char *text, int file_type)
       break;
 
   dir_name = (char *)calloc(i + 1, sizeof(char));
-  strncpy(dir_name, full_name, i);
+  memcpy(dir_name, full_name, i);
 
   file_name = (char *)calloc(len - i + 2, sizeof(char));
   for (j = 0, k = i + 1; k < len; j++, k++) 
@@ -585,7 +585,7 @@ static char *filename_completer_1(widget_t w, const char *text, int file_type)
       if (i < 0) return(current_match);
       curlen = strlen(current_match) + len + 3;
       file_name = (char *)calloc(curlen, sizeof(char));
-      strncpy(file_name, text, i + 1);
+      memcpy(file_name, text, i + 1);
       strcat(file_name, current_match);
       if (is_directory(file_name)) 
 	strcat(file_name, "/");
@@ -704,7 +704,7 @@ char *complete_listener_text(char *old_text, int end, bool *try_completion, char
 	    {
 	      len += i + 2;
 	      new_text = (char *)calloc(len, sizeof(char));
-	      strncpy(new_text, old_text, i + 1);
+	      memcpy(new_text, old_text, i + 1);
 	      strcat(new_text, new_file);
 	      free(new_file);
 	    }
