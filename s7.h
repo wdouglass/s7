@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "6.3"
-#define S7_DATE "20-May-18"
+#define S7_VERSION "6.4"
+#define S7_DATE "23-May-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -365,6 +365,7 @@ s7_pointer s7_gensym(s7_scheme *sc, const char *prefix);                    /* (
 
 bool s7_is_keyword(s7_pointer obj);                                         /* (keyword? obj) */
 s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (string->keyword key) */
+s7_pointer s7_keyword_to_symbol(s7_scheme *sc, s7_pointer key);             /* (keyword->symbol key) */
 
 s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym);
 s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer func);
@@ -880,7 +881,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
- * 20-May:    s7_make_string_uncopied.
+ * 20-May:    s7_make_string_uncopied, s7_keyword_to_symbol.
  * 6-May:     s7_mark_c_object -> s7_mark.
  * 26-Apr:    s7_c_type_set_to_list|string, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
  *            c_type length|set|ref are now s7_functions (args, not obj, etc).
