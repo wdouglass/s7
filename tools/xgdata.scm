@@ -6983,8 +6983,8 @@
 (CINT-2.14 "GDK_CROSSING_STATE_CHANGED" "GdkCrossingMode")
 
 
-(CFNC-2.14 "guint gdk_threads_add_timeout_seconds_full gint priority guint interval GSourceFunc function lambda_data @func_info GDestroyNotify notify")
-(CFNC-2.14 "guint gdk_threads_add_timeout_seconds guint interval GSourceFunc function lambda_data @func_info")
+;(CFNC-2.14 "guint gdk_threads_add_timeout_seconds_full gint priority guint interval GSourceFunc function lambda_data @func_info GDestroyNotify notify")
+;(CFNC-2.14 "guint gdk_threads_add_timeout_seconds guint interval GSourceFunc function lambda_data @func_info")
 (CFNC-2.14 "gdouble gtk_adjustment_get_lower GtkAdjustment* adjustment")
 (CFNC-2.14 "void gtk_adjustment_set_lower GtkAdjustment* adjustment gdouble lower")
 (CFNC-2.14 "gdouble gtk_adjustment_get_upper GtkAdjustment* adjustment")

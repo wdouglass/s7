@@ -522,9 +522,9 @@ typedef block_t hash_entry_t;
 #define block_next(p)  p->nx.next
 #define block_info(p)  p->ex.ex_info
 
-#define NUM_BLOCK_LISTS 19
+#define NUM_BLOCK_LISTS 18
 #define TOP_BLOCK_LIST 17
-#define BLOCK_LIST 18
+#define BLOCK_LIST 0
 static block_t *block_lists[NUM_BLOCK_LISTS];
 
 static void init_block_lists(void)
@@ -598,6 +598,7 @@ static char *alloc_permanent_string(size_t len)
   char *result;
   size_t next_k;
 
+  len = (len + 7) & (~7); /* 8-byte aligned -- more than half the time, len is already 8-byte aligned */
   next_k = alloc_string_k + len;
   if (next_k >= ALLOC_STRING_SIZE)
     {
@@ -618,13 +619,18 @@ static block_t *mallocate(size_t bytes)
   block_t *p;
   if (bytes > 0)
     {
-      if (bytes <= 256) 
-	index = bits[bytes - 1];
-      else 
+      if (bytes <= 8)
+	index = 3;
+      else
 	{
-	  if (bytes <= 65536)
-	    index = 8 + bits[(bytes - 1) >> 8];
-	  else index = TOP_BLOCK_LIST; /* expansion to (1 << 17) made no difference */
+	  if (bytes <= 256) 
+	    index = bits[bytes - 1];
+	  else 
+	    {
+	      if (bytes <= 65536)
+		index = 8 + bits[(bytes - 1) >> 8];
+	      else index = TOP_BLOCK_LIST; /* expansion to (1 << 17) made no difference */
+	    }
 	}
       p = block_lists[index];
       if (p)
@@ -23383,6 +23389,9 @@ static void string_write_string_resized(s7_scheme *sc, const char *str, s7_int l
 
 static void string_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
 {
+#if S7_DEBUGGING
+  if (len == 0) {fprintf(stderr, "string_write_string len == 0\n"); abort();}
+#endif
   if (port_position(pt) + len < port_data_size(pt))
     {
       memcpy((void *)(port_data(pt) + port_position(pt)), (void *)str, len);
@@ -23502,7 +23511,8 @@ static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
 	}
       method_or_bust_with_type(sc, port, sc->write_string_symbol, args, an_output_port_string, 2);
     }
-
+  if (start == end) 
+    return(str);
   if (start == 0)
     port_write_string(port)(sc, string_value(str), end, port);
   else port_write_string(port)(sc, (char *)(string_value(str) + start), (end - start), port);
@@ -26746,6 +26756,13 @@ static bool string_needs_slashification(const char *str, s7_int len)
 static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *p, s7_int len, bool quoted)
 {
   uint8_t *pcur, *pend, *pstart = NULL;
+
+  if (len == 0)
+    {
+      if (quoted)
+	port_write_string(port)(sc, "\"\"", 2, port);
+      return;
+    }
   pend = (uint8_t *)(p + len);
 
   /* what about the trailing nulls? Guile writes them out (as does s7 currently)
@@ -29668,11 +29685,16 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	      s7_int len;
 	      iter_str = (char *)(string_value(seq) + iterator_position(obj));
 	      len = string_length(seq) - iterator_position(obj);
-	      port_write_string(port)(sc, "(make-iterator \"", 16, port);
-	      if (!string_needs_slashification(iter_str, len))
-		port_write_string(port)(sc, iter_str, len, port);
-	      else slashify_string_to_port(sc, port, iter_str, len, NOT_IN_QUOTES);
-	      port_write_string(port)(sc, "\")", 2, port);
+	      if (len == 0)
+		port_write_string(port)(sc, "(make-iterator \"\")", 18, port);
+	      else
+		{
+		  port_write_string(port)(sc, "(make-iterator \"", 16, port);
+		  if (!string_needs_slashification(iter_str, len))
+		    port_write_string(port)(sc, iter_str, len, port);
+		  else slashify_string_to_port(sc, port, iter_str, len, NOT_IN_QUOTES);
+		  port_write_string(port)(sc, "\")", 2, port);
+		}
 	    }
 	  else
 	    {
@@ -29992,12 +30014,16 @@ static void c_function_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 	  return;
 	}
     }
-  port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
+  if (c_function_name_length(obj) > 0)
+    port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
+  else port_write_string(port)(sc, "<unnamed c_function>", 20, port);
 }
 
 static void c_macro_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  port_write_string(port)(sc, c_macro_name(obj), c_macro_name_length(obj), port);
+  if (c_macro_name_length(obj) > 0)
+    port_write_string(port)(sc, c_macro_name(obj), c_macro_name_length(obj), port);
+  else port_write_string(port)(sc, "<unnamed c_macro>", 17, port);
 }
 
 static void continuation_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -85501,6 +85527,7 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
+ *   symbol-property? if int can use for sets
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85512,19 +85539,15 @@ int main(int argc, char **argv)
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   test other func cases in libgtk_s7, several more special funcs
- *   make|free-cairo: xm-enved.fs, xm-enved.rb
+ *   make|free-cairo: xm-enved.fs
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
  *   object->let for gtk widgets?
- *   gtk_entry troubles (snd-test)
- *   maybe ignore(pred) and others in libgtk 9476 pred 9500 pred 23240 page_func 27084 function 27110 function 38257 prepare_func 
- *   C_to_Xen_GtkWidgetPath_(GtkWidgetPath*) defined but not used
- *   C_to_Xen_GtkStyleContext_ defined but not used
  *
- * mus_expand_filename problem in asan?
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
+ * does snd fft round up to power of 2 using an array?
  *
  * t725: auto-test
  * t772: lint or|and tests
@@ -85534,21 +85557,21 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1042
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1132
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1701
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2439
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2489
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2443
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
- * tread         |      |      |      ||      ||      |                   3009  2634
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2668
+ * tread         |      |      |      ||      ||      |                   3009  2639
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3457
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4153
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5003
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6928
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6931
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3

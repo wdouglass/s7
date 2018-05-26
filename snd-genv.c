@@ -1339,7 +1339,8 @@ void set_enved_filter_order(int order)
       else {in_set_enved_filter_order(order);}
       if (enved_dialog)
 	{
-	  widget_int_to_text(enved_order_label, enved_filter_order(ss));
+	  /* widget_int_to_text(enved_order_label, enved_filter_order(ss)); */ /* this is a "spinbutton" now */
+	  gtk_spin_button_set_value(GTK_SPIN_BUTTON(enved_order_label), enved_filter_order(ss));
 	  if ((enved_target(ss) == ENVED_SPECTRUM) && 
 	      (enved_with_wave(ss)) && 
 	      (!showing_all_envs)) 

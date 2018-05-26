@@ -2294,6 +2294,7 @@ char *mus_expand_filename(const char *filename)
 	      if (nfile[path_len - 1] != '/')
 		{
 		  nfile[path_len] = '/';
+		  nfile[path_len + 1] = '\0';
 		  strcat((char *)(nfile + path_len + 1), filename);
 		}
 	      else strcat((char *)(nfile + path_len), filename);

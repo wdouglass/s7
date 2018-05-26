@@ -2191,8 +2191,10 @@
 		 (unless any-args
 		   (hay "  s7_pointer ")
 		   (set! any-args #t))
+		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?) (hay " /* "))
 		 (if previous-arg (hay ", "))
-		 (hay "~A" (cadr arg))
+		 (hay "~A" (cadr arg)) ; argname, argtype is car 
+		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?) (hay " */ "))
 		 (set! previous-arg #t)))
 	     args)
 	    (if any-args (hay ";~%"))))
@@ -2271,7 +2273,9 @@
 			       (hay "  }~%"))))
 		     (let ((checker (or (hash-table-ref c->s7-checker (no-stars argtype)) 's7_is_c_pointer_of_type)))
 		       (hay (if (> cargs 1)
-				"  ~A = s7_car(_p); _p = s7_cdr(_p);~%"
+				(if (member argtype '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?)
+				    "  /* ~A = s7_car(_p); */ _p = s7_cdr(_p);~%"
+				    "  ~A = s7_car(_p); _p = s7_cdr(_p);~%")
 				"  ~A = s7_car(args);~%")
 			    argname)
 		       (if (null-arg? arg)
@@ -3263,19 +3267,24 @@
 	(reverse (compress sig))))))
 
 (define signatures (make-hash-table))
-(define (make-signatures lst)
+(define (make-signatures lst withs)
   (for-each
    (lambda (f)
      (let ((sig (make-signature f)))
-       (if (pair? sig)
-	   (let ((count (signatures sig)))
-	     (set! (signatures sig) (if (not (real? count)) 0 (+ count 1)))))))
+       (when (and (pair? sig)
+		  (not (signatures sig)))
+	 (set! (signatures sig) withs))))
    lst))
 
-(make-signatures funcs)
-(for-each make-signatures all-funcs)
+;; funcs are unrestricted, all-funcs only if all-func-withs?
+(make-signatures funcs #t)
+(make-signatures cairo-funcs #t)
+(make-signatures cairo-png-funcs #t)
+(make-signatures cairo-funcs-810 #t)
+(make-signatures cairo-funcs-912 #t)
+(for-each make-signatures all-funcs all-func-withs)
+;; signature entries are key: sig-list :value either #t or a with func, (#t string?) 2.14
 
-;(format *stderr* "~D entries, ~D funcs~%" (hash-table-entries signatures) (length funcs))
 
 ;;; --------------------------------------------------------------------------------
 (hey "static void define_functions(void)~%")
@@ -3284,7 +3293,6 @@
 (hey "#if HAVE_SCHEME~%")
 
 (hoy "  s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;~%")
-(hoy "  s7_pointer ")
 
 (define (sig-name sig)
   (call-with-output-string
@@ -3312,14 +3320,49 @@
 		 p))
       (cdr sig)))))
      
-(for-each
- (lambda (sigc)
-   (let ((sig (car sigc)))
-     (hoy (sig-name sig))
-     (hoy ", ")))
- signatures)
-(hoy "pl_bpt;~%")
+;; send out the signature declarations
+;; base cases
+(hoy "  s7_pointer ")
+(let ((first-sig #t))
+  (for-each
+   (lambda (entry)
+     (when (eq? (cdr entry) #t)
+       (if first-sig
+	   (set! first-sig #f)
+	   (hoy ", "))
+       (hoy (sig-name (car entry)))))
+   signatures))
+(hoy ", pl_bpt;~%")
+
+;; later cases       
+(for-each 
+ (lambda (with)
+   (when (call-with-exit
+	  (lambda (ok)
+	    (for-each
+	     (lambda (entry)
+	       (if (eq? (cdr entry) with)
+		   (ok #t)))
+	     signatures)
+	    #f))
+     (with hoy
+	   (lambda ()
+	     (let ((first-sig #t))
+	       (for-each 
+		(lambda (entry)
+		  (when (eq? with (cdr entry))
+		    (if first-sig
+			(begin
+			  (hoy "  s7_pointer ")
+			  (set! first-sig #f))
+			(hoy ", "))
+		    (hoy (sig-name (car entry)))))
+		signatures)
+	       (if (not first-sig)
+		   (hoy ";~%")))))))
+ all-func-withs)
 (hey "#endif~%~%")
+
 (hay "~%")
 ;(hay "  s7_pointer cur_env;~%")
 ;(hay "  cur_env = s7_curlet(sc);~%~%")
@@ -3351,44 +3394,66 @@
 (hay "  s_gtk_enum_t = s7_make_symbol(sc, \"gtk_enum_t?\");~%")
 (hay "  s_any = s7_t(sc);~%~%")
 
+(define (sig-display sig)
+  (hoy "  ")
+  (hoy (sig-name sig))
+  (hey " = s7_make_circular_signature(s7, ")
+  (hay " = s7_make_circular_signature(sc, ")
+  (let ((len (length sig)))
+    (hoy (number->string (- len 1)))
+    (hoy ", ")
+    (hoy (number->string len))
+    (hoy ", ")
+    (hoy (case (car sig)
+	   ((integer?)    "s_integer")
+	   ((boolean?)    "s_boolean")
+	   ((real?)       "s_float")
+	   ((string?)     "s_string")
+	   ((pair?)       "s_pair")
+	   ((gtk_enum_t?) "s_gtk_enum_t")
+	   (else          "s_any")))
+    (if (> len 1) (hoy ", "))
+    (do ((i 1 (+ i 1))
+	 (s (cdr sig) (cdr s)))
+	((= i len))
+      (let ((typ (car s)))
+	(hoy (case typ
+	       ((integer?)    "s_integer")
+	       ((boolean?)    "s_boolean")
+	       ((real?)       "s_real")
+	       ((string?)     "s_string")
+	       ((pair?)       "s_pair_false")
+	       ((gtk_enum_t?) "s_gtk_enum_t")
+	       (else       "s_any"))))
+      (if (< i (- len 1)) (hoy ", "))))
+  (hoy ");~%"))
+
 (for-each
  (lambda (sigc)
-   (let ((sig (car sigc)))
-     (hoy "  ")
-     (hoy (sig-name sig))
-     (hey " = s7_make_circular_signature(s7, ")
-     (hay " = s7_make_circular_signature(sc, ")
-     (let ((len (length sig)))
-       (hoy (number->string (- len 1)))
-       (hoy ", ")
-       (hoy (number->string len))
-       (hoy ", ")
-       (hoy (case (car sig)
-	      ((integer?)    "s_integer")
-	      ((boolean?)    "s_boolean")
-	      ((real?)       "s_float")
-	      ((string?)     "s_string")
-	      ((pair?)       "s_pair")
-	      ((gtk_enum_t?) "s_gtk_enum_t")
-	      (else          "s_any")))
-       (if (> len 1) (hoy ", "))
-       (do ((i 1 (+ i 1))
-	    (s (cdr sig) (cdr s)))
-	   ((= i len))
-	 (let ((typ (car s)))
-	   (hoy (case typ
-		  ((integer?)    "s_integer")
-		  ((boolean?)    "s_boolean")
-		  ((real?)       "s_real")
-		  ((string?)     "s_string")
-		  ((pair?)       "s_pair_false")
-		  ((gtk_enum_t?) "s_gtk_enum_t")
-		  (else       "s_any"))))
-	 (if (< i (- len 1)) (hoy ", "))))
-     (hoy ");~%")))
+   (if (eq? (cdr sigc) #t)
+       (sig-display (car sigc))))
  signatures)
 (hey "  pl_bpt = s7_make_signature(s7, 2, s_pair_false, s_any);~%")
 (hay "  pl_bpt = s7_make_signature(sc, 2, s_pair_false, s_any);~%")
+
+(for-each
+ (lambda (with)
+   (when (call-with-exit
+	  (lambda (ok)
+	    (for-each
+	     (lambda (entry)
+	       (if (eq? (cdr entry) with)
+		   (ok #t)))
+	     signatures)
+	    #f))
+     (with hoy
+	   (lambda ()
+	     (for-each
+	      (lambda (entry)
+		(if (eq? (cdr entry) with)
+		    (sig-display (car entry))))
+	      signatures)))))
+ all-func-withs)
 (hey "#endif~%~%")
 (hay "~%")
 
