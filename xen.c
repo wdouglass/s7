@@ -290,8 +290,8 @@ bool xen_rb_defined_p(const char *name)
   char buf[128];
 
   if (var_name[0] == '$')
-    sprintf(buf, "defined? %s", var_name);
-  else sprintf(buf, "defined? $%s", var_name);
+    snprintf(buf, 128, "defined? %s", var_name);
+  else snprintf(buf, 128, "defined? $%s", var_name);
 
   if (Xen_eval_C_string(buf) != Qnil)
     {
@@ -441,13 +441,14 @@ static char *rb_prompt = NULL;
 static Xen xen_rb_rep(Xen ig)
 {
   Xen val;
-  char *str;
+  char *str, *res;
   size_t size = 512;
   char **buffer;
   buffer = (char **)calloc(1, sizeof(char *));
   buffer[0] = (char *)calloc(size, sizeof(char));
   fprintf(stdout, "%s", rb_prompt);
-  fgets(buffer[0], size, stdin);
+  res = fgets(buffer[0], size, stdin); /* check result to make compiler happy */
+  if (!res) fprintf(stderr, "fgets returns null\n");
   val = xen_rb_eval_string_with_error(buffer[0]);
   str = Xen_object_to_C_string(val);
   fprintf(stdout, "%s\n", (str) ? str : "nil");
@@ -1303,11 +1304,7 @@ char *xen_version(void)
 {
   char *buf;
   buf = (char *)calloc(64, sizeof(char));
-#if HAVE_SNPRINTF
   snprintf(buf, 64, "s7: %s (%s), Xen: %s", S7_VERSION, S7_DATE, XEN_VERSION);
-#else
-  sprintf(buf, "s7: %s (%s), Xen: %s", S7_VERSION, S7_DATE, XEN_VERSION);
-#endif
   return(buf);
 }
 
@@ -1725,11 +1722,7 @@ char *xen_version(void)
 {
   char *buf;
   buf = (char *)calloc(64, sizeof(char));
-#if HAVE_SNPRINTF
   snprintf(buf, 64, "no extension language");
-#else
-  sprintf(buf, "no extension language");
-#endif
   return(buf);
 }
 

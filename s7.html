@@ -6965,7 +6965,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                         /* evaluate the input and print the result */
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  <em class=red>s7_eval_c_string</em>(s7, response); 
 	}
     }
@@ -7082,7 +7082,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	  fprintf(stdout, "\n");
 	}
@@ -7311,7 +7311,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 
 	      if (use_begin_hook)
 		<em class=red>s7_set_begin_hook</em>(s7, watch_for_c_g);
@@ -7374,7 +7374,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7521,7 +7521,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7759,7 +7759,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7831,7 +7831,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7905,7 +7905,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7961,7 +7961,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8011,7 +8011,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8071,7 +8071,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8124,7 +8124,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8200,7 +8200,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8362,7 +8362,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 	      s7_eval_c_string(s7, response);
 	    }
 	}
@@ -8439,7 +8439,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 	      s7_eval_c_string(s7, response);
 	    }
 	}
@@ -8628,7 +8628,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8762,7 +8762,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8943,7 +8943,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }

@@ -296,15 +296,7 @@
 (define cairo-png-funcs ())
 (define cairo-ints ())
 (define cairo-types ())
-
-(define cairo-funcs-810 ())
-(define cairo-ints-810 ())
-(define cairo-types-810 ())
-
-(define cairo-funcs-912 ())
-(define cairo-ints-912 ())
-(define cairo-types-912 ())
-(define cairo-strings-912 ())
+(define cairo-strings ())
 
 (define (parse-args args extra)
   (if (string=? args "void")
@@ -336,10 +328,6 @@
 		  (unless (member type all-types)
 		    (set! all-types (cons type all-types))
 		    (case extra
-		      ((g-2.14)     (set! types-2.14 (cons type types-2.14)))
-		      ((g-2.16)     (set! types-2.16 (cons type types-2.16)))
-		      ((g-2.18)     (set! types-2.18 (cons type types-2.18)))
-		      ((g-2.20)     (set! types-2.20 (cons type types-2.20)))
 		      ((g-3.0)      (set! types-3.0 (cons type types-3.0)))
 		      ((g-3.2)      (set! types-3.2 (cons type types-3.2)))
 		      ((g-3.4)      (set! types-3.4 (cons type types-3.4)))
@@ -355,8 +343,6 @@
 		      ((g-3.92)     (set! types-3.92 (cons type types-3.92)))
 		      ((g-3.99)     (set! types-3.99 (cons type types-3.99)))
 		      ((cairo)      (set! cairo-types (cons type cairo-types)))
-		      ((cairo-810)  (set! cairo-types-810 (cons type cairo-types-810)))
-		      ((cairo-912)  (set! cairo-types-912 (cons type cairo-types-912)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
 		  (set! type #f)))
@@ -769,7 +755,7 @@
        (define ,casts ())
        (define ,checks ())
 
-       (define* (,cfnc data spec)         ; CFNC-2.12
+       (define* (,cfnc data spec)         ; CFNC-3.12
 	 (let ((name (cadr-str data))
 	       (args (caddr-str data)))
 	   (if (hash-table-ref names name)
@@ -785,14 +771,14 @@
 		       (set! ,funcs (cons (list name type strs args) ,funcs)))
 		   (hash-table-set! names name (func-type strs)))))))
 
-       (define (,strfnc name)            ; CSTR-2.12
+       (define (,strfnc name)            ; CSTR-3.12
 	 (if (assoc name ,names)
 	     (format () "~A ~A~%" name ',strfnc)
 	     (begin
 	       (set! ,strings (cons name ,strings))
 	       (set! ,names (cons (cons name 'string) ,names)))))
 
-       (define* (,intfnc name type)      ; CINT-2.12
+       (define* (,intfnc name type)      ; CINT-3.12
 	 (save-declared-type name type ,vname)
 	 (if (and type (not (assoc type direct-types)))
 	     (format *stderr* "could be direct int: ~S (~S)~%" type name))
@@ -802,21 +788,21 @@
 	       (set! ,ints (cons name ,ints))
 	       (hash-table-set! names name 'int))))
 
-       (define (,castfnc name type)      ; CCAST-2.12
+       (define (,castfnc name type)      ; CCAST-3.12
 	 (if (hash-table-ref names name)
 	     (format () "~A ~A~%" name ',castfnc)
 	     (begin
 	       (set! ,casts (cons (list name type) ,casts))
 	       (hash-table-set! names name 'def))))
 
-       (define (,chkfnc name type)       ; CCHK-2.12
+       (define (,chkfnc name type)       ; CCHK-3.12
 	 (if (hash-table-ref names name)
 	     (format () "~A ~A~%" name ',chkfnc)
 	     (begin
 	       (set! ,checks (cons (list name type) ,checks))
 	       (hash-table-set! names name 'def))))
 
-       (define (,withfnc dpy thunk)      ; with-2.12
+       (define (,withfnc dpy thunk)      ; with-3.12
 	 (dpy (string-append "#if GTK_CHECK_VERSION(" (substring ,vname 0 1) ", " (substring ,vname 2) ", 0)~%"))
 	 (thunk)
 	 (dpy "#endif~%~%"))
@@ -824,10 +810,6 @@
        )))
 
 
-(make-fnc "2.14")
-(make-fnc "2.16")
-(make-fnc "2.18")
-(make-fnc "2.20")
 (make-fnc "3.0") 
 (make-fnc "3.2")
 (make-fnc "3.4")
@@ -1151,43 +1133,6 @@
 			cairo-png-funcs))
 	    (hash-table-set! names name (func-type strs)))))))
 
-(define* (CAIRO-FUNC-810 data spec)
-  (let ((name (cadr-str data))
-	(args (caddr-str data)))
-    (if (hash-table-ref names name)
-	(no-way "CAIRO-FUNC-810: ~A~%" (list name data))
-	(let ((type (car-str data)))
-	  (if (not (member type all-types))
-	      (begin
-		(set! all-types (cons type all-types))
-		(set! cairo-types-810 (cons type cairo-types-810))))
-	  (let ((strs (parse-args args 'cairo-810)))
-	    (set! cairo-funcs-810 
-		  (cons (if spec 
-			    (list name type strs args spec)
-			    (list name type strs args))
-			cairo-funcs-810))
-	    (hash-table-set! names name (func-type strs)))))))
-
-(define* (CAIRO-FUNC-912 data spec)
-  (let ((name (cadr-str data))
-	(args (caddr-str data)))
-    (if (hash-table-ref names name)
-	(no-way "CAIRO-FUNC-912: ~A~%" (list name data))
-	(let ((type (car-str data)))
-	  (if (not (member type all-types))
-	      (begin
-		(set! all-types (cons type all-types))
-		(set! cairo-types-912 (cons type cairo-types-912))))
-	  (let ((strs (parse-args args 'cairo-912)))
-	    (set! cairo-funcs-912 
-		  (cons (if spec
-			    (list name type strs args spec)
-			    (list name type strs args))
-			cairo-funcs-912))
-	    (hash-table-set! names name (func-type strs)))))))
-
-
 (define (helpify name type args)
   (let ((initial (format #f "  #define H_~A \"~A ~A(" name type name)))
     (let ((line-len (length initial))
@@ -1271,27 +1216,11 @@
 	(set! cairo-ints (cons name cairo-ints))
 	(hash-table-set! names name 'int))))
 
-(define* (CAIRO-INT-810 name type)
-  ;(save-declared-type name type)
+(define (CAIRO-STRING name)
   (if (hash-table-ref names name)
-      (no-way "~A CAIRO-INT-810~%" name)
+      (no-way "~A CAIRO-STRING~%" name)
       (begin
-	(set! cairo-ints-810 (cons name cairo-ints-810))
-	(hash-table-set! names name 'int))))
-
-(define* (CAIRO-INT-912 name type)
-  ;(save-declared-type name type)
-  (if (hash-table-ref names name)
-      (no-way "~A CAIRO-INT-912~%" name)
-      (begin
-	(set! cairo-ints-912 (cons name cairo-ints-912))
-	(hash-table-set! names name 'int))))
-
-(define (CAIRO-STRING-912 name)
-  (if (hash-table-ref names name)
-      (no-way "~A CAIRO-STRING-912~%" name)
-      (begin
-	(set! cairo-strings-912 (cons name cairo-strings-912))
+	(set! cairo-strings (cons name cairo-strings))
 	(hash-table-set! names name 'string))))
 
 
@@ -1347,71 +1276,48 @@
   (thunk)
   )
 
-(define (with-cairo-810 dpy thunk)
-  (dpy "#if HAVE_CAIRO_1_8~%")
-  (thunk)
-  (dpy "#endif~%~%"))
 
-(define (with-cairo-912 dpy thunk)
-  (dpy "#if HAVE_CAIRO_1_9_12 && GTK_CHECK_VERSION(3, 0, 0)~%")
-  (thunk)
-  (dpy "#endif~%~%"))
+(define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
+			 types-3.20 types-3.22 types-3.92 types-3.99
+			 cairo-types))
+(define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
+			      with-3.20 with-3.22 with-3.92 with-3.99
+			      with-cairo))
 
-
-
-(define all-ntypes (list types-2.14 types-2.16 types-2.18 types-2.20 
-			types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
-			types-3.20 types-3.22 types-3.92 types-3.99
-			cairo-types cairo-types-810 cairo-types-912))
-(define all-ntype-withs (list with-2.14 with-2.16 with-2.18 with-2.20 
-			     with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.99
-			     with-cairo with-cairo-810 with-cairo-912))
-
-(define all-funcs (list funcs-2.14 funcs-2.16 funcs-2.18 funcs-2.20 
-			funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
+(define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
 			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.99
-			cairo-funcs cairo-png-funcs cairo-funcs-810 cairo-funcs-912))
-(define all-func-withs (list with-2.14 with-2.16 with-2.18 with-2.20 
-			     with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
+			cairo-funcs cairo-png-funcs))
+(define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			     with-3.20 with-3.22 with-3.92 with-3.99
-			     with-cairo with-cairo-png with-cairo-810 with-cairo-912))
+			     with-cairo with-cairo-png))
 
-(define all-ints (list ints-2.14 ints-2.16 ints-2.18  
-		       ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
+(define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
 		       ints-3.20 ints-3.22 ints-3.92 ints-3.99
-		       cairo-ints cairo-ints-810 cairo-ints-912))
-(define all-int-withs (list with-2.14 with-2.16 with-2.18 
-			    with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
+		       cairo-ints))
+(define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			    with-3.20 with-3.22 with-3.92 with-3.99
-			    with-cairo with-cairo-810 with-cairo-912))
+			    with-cairo))
 
-(define all-casts (list casts-2.14 casts-2.16 casts-2.18 casts-2.20 
-			casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
+(define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
 			casts-3.20 casts-3.22 casts-3.92 casts-3.99
 			))
-(define all-cast-withs (list with-2.14 with-2.16 with-2.18 with-2.20 
-			     with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
+(define all-cast-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			     with-3.20 with-3.22 with-3.92 with-3.99
 			     ))
 
-(define all-checks (list checks-2.14 checks-2.16 checks-2.18 checks-2.20 
-			 checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
+(define all-checks (list checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
 			 checks-3.20 checks-3.22 checks-3.92 checks-3.99
 			 ))
-(define all-check-withs (list with-2.14 with-2.16 with-2.18 with-2.20 
-			      with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
+(define all-check-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			      with-3.20 with-3.22 with-3.92 with-3.99
 			      ))
 
-(define all-strings (list strings-2.14 strings-2.16 
-			  strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
+(define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
 			  strings-3.20 strings-3.22 strings-3.92 strings-3.99
-			  cairo-strings-912))
-(define all-string-withs (list with-2.14 with-2.16 
-			       with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
+			  cairo-strings))
+(define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
 			       with-3.20 with-3.22 with-3.92 with-3.99
-			       with-cairo-912))
+			       with-cairo))
 
 
 
@@ -1442,6 +1348,8 @@
 (hey " *~%")
 (hey " * HISTORY:~%")
 (hey " *~%")
+(hey " *     26-May-18: remove version checks 2.14, 2.16, 2.18, 2.10, and cairo 1.8 and 1.9.~%")
+(hey " *     --------~%")
 (hey " *     28-Jul-17: scheme Init_libxg arg added.~%")
 (hey " *     --------~%")
 (hey " *     17-Mar-16: gtk_enum_t for better signature checks.~%")
@@ -1517,9 +1425,6 @@
 
 (hey "#include \"mus-config.h\"~%~%")
 
-(hey "#define HAVE_CAIRO_1_8    ((CAIRO_VERSION_MAJOR >= 1) && (CAIRO_VERSION_MINOR >= 8))~%")
-(hey "#define HAVE_CAIRO_1_9_12 ((CAIRO_VERSION_MAJOR >= 1) && (CAIRO_VERSION_MINOR >= 9) && (CAIRO_VERSION_MICRO >= 12))~%~%")
-
 (hey "#if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))~%")
 (hey "  #define __func__ __FUNCTION__~%")
 (hey "#endif~%~%")
@@ -1569,8 +1474,6 @@
 (hay "#include <math.h>~%")
 (hay "#include <stdbool.h>~%")
 (hay "#include \"s7.h\"~%~%")
-(hay "#define HAVE_CAIRO_1_8    ((CAIRO_VERSION_MAJOR >= 1) && (CAIRO_VERSION_MINOR >= 8))~%")
-(hay "#define HAVE_CAIRO_1_9_12 ((CAIRO_VERSION_MAJOR >= 1) && (CAIRO_VERSION_MINOR >= 9) && (CAIRO_VERSION_MICRO >= 12))~%~%")
 
 (hay "#if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))~%")
 (hay "  #define __func__ __FUNCTION__~%")
@@ -1588,6 +1491,7 @@
 (hay "#include <glib-object.h>~%")
 (hay "#include <pango/pango.h>~%")
 (with-cairo #f (lambda () (hay "#include <cairo/cairo.h>~%")))
+
 (hay "static s7_pointer lg_true, lg_false;~%")
 (hay "static bool lg_boolean(s7_pointer val) {return(val != lg_false);}~%")
 (hay "#define lg_make_c_pointer_with_type(Sc, Type, Ptr) s7_make_c_pointer_with_type(Sc, (void *)Ptr, Type, lg_false)~%")
@@ -3280,10 +3184,8 @@
 (make-signatures funcs #t)
 (make-signatures cairo-funcs #t)
 (make-signatures cairo-png-funcs #t)
-(make-signatures cairo-funcs-810 #t)
-(make-signatures cairo-funcs-912 #t)
 (for-each make-signatures all-funcs all-func-withs)
-;; signature entries are key: sig-list :value either #t or a with func, (#t string?) 2.14
+;; signature entries are key: sig-list :value either #t or a with func, (#t string?) 2.16
 
 
 ;;; --------------------------------------------------------------------------------

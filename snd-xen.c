@@ -2727,8 +2727,11 @@ void g_xen_initialize(void)
 #if HAVE_GSL_EIGEN_NONSYMMV_WORKSPACE
   s7_pointer pl_pf;
 #endif
+#if HAVE_GSL
+  s7_pointer pl_prr;
+#endif
 #if HAVE_GSL || HAVE_GL
-  s7_pointer pl_prr, p;
+  s7_pointer p;
   p = s7_make_symbol(s7, "pair?");
 #endif
   s = s7_make_symbol(s7, "string?");

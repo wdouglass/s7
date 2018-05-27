@@ -51,7 +51,9 @@ int main(int argc, char *argv[])
   char *name = NULL;
   mus_long_t start = 0, end = 0;
   double begin_time = 0.0, end_time = 0.0;
+#if __APPLE__
   int mutate = 1, include_mutate = 0;
+#endif
 
   if (argc == 1) 
     {
@@ -101,8 +103,10 @@ int main(int argc, char *argv[])
 		    {
 		      if (strcmp(argv[i], "-mutable") == 0) 
 			{
+#if __APPLE__
 			  mutate = atoi(argv[i + 1]);
 			  include_mutate = 1;
+#endif
 			  i++;
 			}
 		      else name = argv[i];

@@ -27227,7 +27227,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			}
 		      else
 			{
-			  len = sprintf(buf, "  (set! (<%d> %" print_s7_int ") <%d>)\n", vref, i, eref);
+			  len = snprintf(buf, 128, "  (set! (<%d> %" print_s7_int ") <%d>)\n", vref, i, eref);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -27247,7 +27247,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			}
 		      else
 			{
-			  len = sprintf(buf, "  (set! (<%d> %" print_s7_int ") ", vref, i);
+			  len = snprintf(buf, 128, "  (set! (<%d> %" print_s7_int ") ", vref, i);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -28297,7 +28297,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			{
 			  char buf[128];
 			  int32_t len;
-			  len = sprintf(buf, "<%d>", -peek_shared_ref(ci, outlet(obj)));
+			  len = snprintf(buf, 128, "<%d>", -peek_shared_ref(ci, outlet(obj)));
 			  port_write_string(port)(sc, buf, len, port);
 			}
 		      else let_to_port(sc, outlet(obj), port, use_write, ci);
@@ -38619,7 +38619,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 	}
     }
 
-  els = callocate(size * sizeof(hash_entry_t *));
+  els = (block_t *)callocate(size * sizeof(hash_entry_t *));
   if (!els) return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-hash-table allocation failed!"))));
 
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
@@ -58897,18 +58897,21 @@ static s7_pointer is_symbol_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s
   return(f);
 }
 
-static s7_pointer format_allg, format_allg_no_column, format_just_newline, format_as_objstr;
+static s7_pointer format_allg, format_allg_no_column, format_just_control_string, format_as_objstr;
 static s7_pointer g_format_allg(s7_scheme *sc, s7_pointer args)
 {
   return(g_format_1(sc, args));
 }
 
-static s7_pointer g_format_just_newline(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_format_just_control_string(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer pt, str;
 
   pt = car(args);
   str = cadr(args);
+
+  if (pt == sc->F)
+    return(str);
 
   if (is_null(pt)) 
     {
@@ -58916,19 +58919,19 @@ static s7_pointer g_format_just_newline(s7_scheme *sc, s7_pointer args)
       if (pt == sc->F)
 	return(sc->F);
     }
-  if (pt == sc->F)
-    return(s7_make_string_with_length(sc, string_value(str), string_length(str)));
-
   if (pt == sc->T)
     {
-      if (sc->output_port != sc->F)
+      if ((sc->output_port != sc->F) && (string_length(str) != 0))
 	port_write_string(sc->output_port)(sc, string_value(str), string_length(str), sc->output_port);
-      return(s7_make_string_with_length(sc, string_value(str), string_length(str)));
+      return(str);
     }
 
   if ((!is_output_port(pt)) ||
       (port_is_closed(pt)))
     method_or_bust_with_type(sc, pt, sc->format_symbol, args, a_format_port_string, 1);
+
+  if (string_length(str) == 0)
+    return(str);
 
   port_write_string(pt)(sc, string_value(str), string_length(str), pt);
   return(sc->F);
@@ -58990,7 +58993,7 @@ static s7_pointer format_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
 		    {
 		      if (s7_is_boolean(port))
 			set_optimize_op(expr, HOP_SAFE_C_C);
-		      return(format_just_newline); /* "just_newline" actually just outputs the control string -- see fixup below */
+		      return(format_just_control_string); 
 		    }
 		  return(f);
 		}
@@ -59006,7 +59009,7 @@ static s7_pointer format_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
 		  string_length(str_arg) = len - 1;
 		  if (s7_is_boolean(port))
 		    set_optimize_op(expr, HOP_SAFE_C_C);
-		  return(format_just_newline);
+		  return(format_just_control_string);
 		}
 
 	      if ((args == 3) &&
@@ -60217,7 +60220,7 @@ static void init_choosers(s7_scheme *sc)
   f = set_function_chooser(sc, sc->format_symbol, format_chooser);
   format_allg = make_function_with_class(sc, f, "format", g_format_allg, 1, 0, true, "format opt");
   format_allg_no_column = make_function_with_class(sc, f, "format", g_format_allg_no_column, 1, 0, true, "format opt");
-  format_just_newline = make_function_with_class(sc, f, "format", g_format_just_newline, 2, 0, false, "format opt");
+  format_just_control_string = make_function_with_class(sc, f, "format", g_format_just_control_string, 2, 0, false, "format opt");
   format_as_objstr = make_function_with_class(sc, f, "format", g_format_as_objstr, 3, 0, true, "format opt");
 
   /* not */
@@ -85486,7 +85489,7 @@ int main(int argc, char **argv)
 	  fgets(buffer, 512, stdin);
 	  if ((buffer[0] != '\n') || (strlen(buffer) > 1))
 	    { 
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 	      s7_eval_c_string(sc, response); 
 	    }
 	}
@@ -85527,7 +85530,7 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
- *   symbol-property? if int can use for sets
+ * see t718 bugs
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85547,7 +85550,6 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
- * does snd fft round up to power of 2 using an array?
  *
  * t725: auto-test
  * t772: lint or|and tests

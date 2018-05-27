@@ -514,6 +514,7 @@ region_state *region_report(void)
 {
   region_state *rs;
   int i, len;
+  size_t size;
   rs = (region_state *)calloc(1, sizeof(region_state));
   len = regions_size;
   for (i = 0; i < regions_size; i++) 
@@ -524,7 +525,8 @@ region_state *region_report(void)
       }
   rs->len = len;
   if (len == 0) return(rs);
-  rs->name = (char **)calloc((size_t)len, sizeof(char *));
+  size = len * sizeof(char *);
+  rs->name = (char **)calloc(size, 1);
   for (i = 0; i < len; i++)
     {
       region *r;

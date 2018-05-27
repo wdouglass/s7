@@ -7765,6 +7765,7 @@ static Xen gxm_XPolygonRegion(Xen larg1, Xen arg2, Xen arg3)
    */
   XPoint *pt, *pt1;
   int i, len;
+  size_t size;
   Region res;
   Xen arg1;
   Xen_check_type(Xen_is_list(larg1), larg1, 1, "XPolygonRegion", "list of XPoints");
@@ -7773,7 +7774,8 @@ static Xen gxm_XPolygonRegion(Xen larg1, Xen arg2, Xen arg3)
   arg1 = Xen_copy_arg(larg1);
   len = Xen_integer_to_C_int(arg2);
   if (len <= 0) Xen_check_type(false, arg2, 2, "XPolygonRegion", "positive integer");
-  pt = (XPoint *)calloc(len, sizeof(XPoint));
+  size = len * sizeof(XPoint);
+  pt = (XPoint *)calloc(size, 1);
   for (i = 0; (i < len) && (!Xen_is_null(arg1)); i++, arg1 = Xen_cdr(arg1))
     {
       Xen xp;
@@ -10179,6 +10181,7 @@ static Xen gxm_XFillRectangles(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5
    */
   XRectangle *pt;
   int i, len;
+  size_t size;
   Xen arg4;
   Xen_check_type(Xen_is_Display(arg1), arg1, 1, "XFillRectangles", "Display*");
   Xen_check_type(Xen_is_Window(arg2), arg2, 2, "XFillRectangles", "Drawable");
@@ -10188,7 +10191,8 @@ static Xen gxm_XFillRectangles(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5
   arg4 = Xen_copy_arg(larg4);
   len = Xen_integer_to_C_int(arg5);
   if (len <= 0) Xen_check_type(false, arg5, 5, "XFillRectangles", "positive integer");
-  pt = (XRectangle *)calloc(len, sizeof(XRectangle));
+  size = len * sizeof(XRectangle);
+  pt = (XRectangle *)calloc(size, 1);
   for (i = 0; (i < len) && (!Xen_is_null(arg4)); i++, arg4 = Xen_cdr(arg4))
     {
       XRectangle *pt1;
@@ -10398,6 +10402,7 @@ static Xen gxm_XDrawSegments(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5)
    */
   XSegment *pt;
   int i, len;
+  size_t size;
   Xen arg4;
   Xen_check_type(Xen_is_Display(arg1), arg1, 1, "XDrawSegments", "Display*");
   Xen_check_type(Xen_is_Window(arg2), arg2, 2, "XDrawSegments", "Drawable");
@@ -10407,7 +10412,8 @@ static Xen gxm_XDrawSegments(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5)
   arg4 = Xen_copy_arg(larg4);
   len = Xen_integer_to_C_int(arg5);
   if (len <= 0) Xen_check_type(false, arg5, 5, "XDrawSegments", "positive integer");
-  pt = (XSegment *)calloc(len, sizeof(XSegment));
+  size = len * sizeof(XSegment);
+  pt = (XSegment *)calloc(size, 1);
   for (i = 0; (i < len) && (!Xen_is_null(arg4)); i++, arg4 = Xen_cdr(arg4))
     {
       XSegment *pt1;
@@ -10432,6 +10438,7 @@ static Xen gxm_XDrawRectangles(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5
    */
   XRectangle *pt;
   int i, len;
+  size_t size;
   Xen arg4;
   Xen_check_type(Xen_is_Display(arg1), arg1, 1, "XDrawRectangles", "Display*");
   Xen_check_type(Xen_is_Window(arg2), arg2, 2, "XDrawRectangles", "Drawable");
@@ -10441,7 +10448,8 @@ static Xen gxm_XDrawRectangles(Xen arg1, Xen arg2, Xen arg3, Xen larg4, Xen arg5
   arg4 = Xen_copy_arg(larg4);
   len = Xen_integer_to_C_int(arg5);
   if (len <= 0) Xen_check_type(false, arg5, 5, "XDrawRectangles", "positive integer");
-  pt = (XRectangle *)calloc(len, sizeof(XRectangle));
+  size = len * sizeof(XRectangle);
+  pt = (XRectangle *)calloc(size, 1);
   for (i = 0; (i < len) && (!Xen_is_null(arg4)); i++, arg4 = Xen_cdr(arg4))
     {
       XRectangle *pt1;
@@ -16106,11 +16114,13 @@ static int xm_action_ctr = 0;
 static XtActionsRec *make_action_rec(int len, Xen larg2)
 {
   int i, gcloc;
+  size_t size;
   XtActionsRec *act;
   Xen arg2;
   arg2 = Xen_copy_arg(larg2);
   gcloc = xm_protect(arg2);
-  act = (XtActionsRec *)calloc((size_t)len, sizeof(XtActionsRec));
+  size = len * sizeof(XtActionsRec);
+  act = (XtActionsRec *)calloc(size, 1);
   for (i = 0; i < len; i++, arg2 = Xen_cdr(arg2))
     {
       Xen pair;
