@@ -760,7 +760,7 @@ with_audio
 with_temp_dir
 with_save_dir
 with_doc_dir
-with_weebserver
+with_webserver
 enable_deprecated
 with_x
 '
@@ -3527,9 +3527,9 @@ _ACEOF
 fi
 
 
-# Check whether --with-weebserver was given.
-if test "${with_weebserver+set}" = set; then :
-  withval=$with_weebserver;
+# Check whether --with-webserver was given.
+if test "${with_webserver+set}" = set; then :
+  withval=$with_webserver;
 fi
 
 
@@ -6133,6 +6133,7 @@ if test "$with_audio" != no ; then
 	;;
       *-*-openbsd*)
 	AUDIO_SYSTEM=OpenBSD
+	AUDIO_LIB="-lsndio"
         ;;
       *-*-netbsd*)
 	AUDIO_SYSTEM=NetBSD

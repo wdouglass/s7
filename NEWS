@@ -1,10 +1,11 @@
-Snd 18.3
+Snd 18.4:
 
-removed: new-backgrounds.scm, snd14.scm, old-number-tests.scm
-removed: make-cairo and free-cairo
-s7 added: c-pointer->list
-snd now compiles and runs (well, sort of) in gtk4.
+s7: s7_c_object_type_set* various changes
 
-checked: sbcl 1.4.6
+clm: added (clm-initialize-links) at end of all.lisp
+     Koen De Truck updated openBSD audio support
 
-Thanks!: Jennifer Doering, Mike Scholz
+checked: sbcl 1.4.7, FC 28 (gcc 8.0), Ubuntu 18.04
+
+Thanks!: Kjetil Matheussen, Michael Edwards. Koen De Turck
+

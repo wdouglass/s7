@@ -24,6 +24,8 @@
  *
  * HISTORY:
  *
+ *     26-May-18: remove version checks 2.14, 2.16, 2.18, 2.10, and cairo 1.8 and 1.9.
+ *     --------
  *     28-Jul-17: scheme Init_libxg arg added.
  *     --------
  *     17-Mar-16: gtk_enum_t for better signature checks.
@@ -47478,7 +47480,7 @@ void Init_libxg(void)
           Xen_provide_feature("gtk2");
         #endif
       #endif
-      Xen_define("xg-version", C_string_to_Xen_string("26-May-18"));
+      Xen_define("xg-version", C_string_to_Xen_string("27-May-18"));
       xg_already_inited = true;
 #if HAVE_SCHEME
 #if USE_SND

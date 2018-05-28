@@ -19,7 +19,8 @@
  *    OSX
  *    JACK
  *    HPUX
- *    NetBSD/OpenBSD
+ *    OpenBSD
+ *    NetBSD
  *    PulseAudio (in progress?)
  *    PortAudio
  */
@@ -4799,11 +4800,124 @@ int mus_audio_read(int line, char *buf, int bytes)
 
 #endif
 
+/* ------------------------------- OpenBSD ----------------------------------------- */
+#if (__OpenBSD__) && (!(defined(AUDIO_OK)))
+#define AUDIO_OK 1
+#include <sndio.h>
+/* this code thanks to Koen De Turck May-18 */
+
+static struct sio_hdl *in_hdl = NULL;
+static struct sio_hdl *out_hdl = NULL;
+
+#define SNDIO_OUT 0
+#define SNDIO_IN 1
+
+int mus_audio_initialize(void) 
+{
+  return(MUS_NO_ERROR);
+}
+
+char *mus_audio_moniker(void) 
+{
+  return((char *)"OpenBSD audio (sndio)");
+}
+
+static int mus_sndio_open(int mode, int srate, int chans, mus_sample_t samp_type, int size) 
+{
+  struct sio_hdl *hdl;
+  struct sio_par par, par2;
+  hdl = sio_open(SIO_DEVANY, mode, 0 /*non-blocking io=0 -> we choose blocking*/);
+  sio_initpar(&par);
+  switch (samp_type)
+    {
+    case MUS_BYTE:    par.bits=8;par.bps=1;par.sig=1;break;
+    case MUS_UBYTE:   par.bits=8;par.bps=1;par.sig=0;break; 
+    case MUS_LSHORT:  par.bits=16;par.bps=2;par.sig=1;par.le=1;break; 
+    case MUS_BSHORT:  par.bits=16;par.bps=2;par.sig=1;par.le=0;break; 
+    case MUS_ULSHORT: par.bits=16;par.bps=2;par.sig=0;par.le=1;break; 
+    case MUS_UBSHORT: par.bits=16;par.bps=2;par.sig=0;par.le=0;break; 
+    /* actually, all linear integer formats are accepted by sndio */
+    default: 
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+    }
+  if(mode==SIO_PLAY)
+    par.pchan=chans;
+  else
+    par.rchan=chans;
+  par.rate=srate;
+  par.appbufsz=size;
+  /* set params */
+  if (!sio_setpar(hdl, &par))  
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+  /* then see what sndio thinks of it */
+  if (!sio_getpar(hdl, &par2)) 
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+
+  if (par2.bits!=par.bits || par2.bps!=par.bps || 
+      par2.sig!=par.sig   || par2.le!=par.le ||
+      par2.rate!=par.rate ||par2.bufsz<size)
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+  if (mode==SIO_PLAY && par2.pchan != par.pchan)
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+  if (mode==SIO_REC && par2.rchan != par.rchan)
+	return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+
+  sio_start(hdl);
+
+  if (mode==SIO_PLAY) out_hdl=hdl;
+  if (mode==SIO_REC) in_hdl=hdl;
+  return(MUS_NO_ERROR);
+}
+
+int mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_type, int size) 
+{
+  if (out_hdl!=NULL) return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+  mus_sndio_open(SIO_PLAY, srate, chans, samp_type, size);
+  return(SNDIO_OUT);
+}
+
+int mus_audio_open_input(int ur_dev, int srate, int chans, mus_sample_t samp_type, int size) 
+{
+  if (in_hdl!=NULL) return(mus_error(MUS_AUDIO_CANT_OPEN, NULL));
+  mus_sndio_open(SIO_REC, srate, chans, samp_type, size);
+  return(SNDIO_IN);
+}
+
+int mus_audio_read(int line, char *buf, int bytes) 
+{
+  if(bytes==sio_read(in_hdl, buf, bytes))
+	  return(MUS_NO_ERROR);
+  else return MUS_ERROR;
+}
 
 
-/* ------------------------------- NETBSD/OpenBSD ----------------------------------------- */
+int mus_audio_write(int line, char *buf, int bytes) 
+{
+  if(bytes==sio_write(out_hdl, buf, bytes))
+	  return(MUS_NO_ERROR);
+  else return MUS_ERROR;
+}
 
-#if (__NetBSD__ || __OpenBSD__) && (!(defined(AUDIO_OK)))
+int mus_audio_close(int line) 
+{
+  if (line==SNDIO_IN && in_hdl!=NULL) {
+    sio_stop(in_hdl);
+    sio_close(in_hdl);
+    in_hdl=NULL;  
+  }
+  if (line==SNDIO_OUT && out_hdl!=NULL) {
+    sio_stop(out_hdl);
+    sio_close(out_hdl);
+    out_hdl=NULL;  
+  }
+  return(MUS_NO_ERROR);
+}
+
+#endif
+
+/* ------------------------------- NETBSD ----------------------------------------- */
+
+#if (__NetBSD__) && (!(defined(AUDIO_OK)))
 #define AUDIO_OK 1
 
 /* started from Xanim a long time ago..., bugfixes from Thomas Klausner 30-Jul-05, worked into better shape Aug-05 */
@@ -5553,8 +5667,17 @@ mus_sample_t mus_audio_device_sample_type(int dev) /* snd-dac */
 #endif
 #endif
 
-#if __NetBSD__ || __OpenBSD__
+#if __NetBSD__
   netbsd_sample_types(dev, mixer_vals);
+#endif
+
+#if __OpenBSD__
+  mixer_vals[0] = (mus_sample_t)1;
+#if MUS_LITTLE_ENDIAN
+  mixer_vals[1] = MUS_LSHORT;
+#else
+  mixer_vals[1] = MUS_BSHORT;
+#endif
 #endif
 
   samp_type = look_for_sample_type(mixer_vals, MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE);

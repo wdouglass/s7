@@ -621,6 +621,7 @@ if test "$with_audio" != no ; then
 	;;
       *-*-openbsd*) 
 	AUDIO_SYSTEM=OpenBSD
+	AUDIO_LIB="-lsndio"
         ;;
       *-*-netbsd*) 
 	AUDIO_SYSTEM=NetBSD

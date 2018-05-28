@@ -2093,6 +2093,7 @@ static s7_scheme *cur_sc = NULL;
 #define is_byte_vector(p)             ((typeflag(T_Pos(p)) & (0xff | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define is_mutable_byte_vector(p)     ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE | T_BYTE_VECTOR)) == (T_STRING | T_BYTE_VECTOR))
 #define set_byte_vector(p)            typeflag(T_Str(p)) |= T_BYTE_VECTOR
+#define clear_byte_vector(p)          typeflag(T_Str(p)) &= (~T_BYTE_VECTOR)
 /* marks a string that the caller considers a byte_vector */
 
 #define T_STEP_END                    T_MUTABLE
@@ -21730,6 +21731,8 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, bool use_tem
       len += string_length(p);
     }
 
+  if (len == 0) return(car(args));
+
   if (len > sc->max_string_length)
     return(s7_error(sc, sc->out_of_range_symbol, 
 		    set_elist_3(sc, s7_make_string_wrapper(sc, "string-append new string length, ~D, is larger than (*s7* 'max-string-length): ~D"),
@@ -21759,10 +21762,12 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, bool use_tem
   else newstr = make_empty_string(sc, len, 0);
 
   for (pos = string_value(newstr), x = args; is_not_null(x); pos += string_length(car(x)), x = cdr(x))
-    memcpy(pos, string_value(car(x)), string_length(car(x)));
+    if (string_length(car(x)) > 0)
+      memcpy(pos, string_value(car(x)), string_length(car(x)));
 
   if (is_byte_vector_not_string(car(args)))
     set_byte_vector(newstr);
+  else clear_byte_vector(newstr);
 
   return(newstr);
 }
@@ -22386,7 +22391,8 @@ static s7_pointer g_string_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
     {
       s7_pointer p;
       p = start_and_end(sc, caller, cddr(args), 3, &start, &end);
-      if (p != sc->gc_nil) return(p);
+      if (p != sc->gc_nil) 
+	return(p);
       if (start == end) return(chr);
     }
   if (end == 0) return(chr);
@@ -43264,6 +43270,8 @@ s7_pointer s7_fill(s7_scheme *sc, s7_pointer args)
       return(pair_fill(sc, args));
 
     case T_NIL:
+      if (!is_null(cddr(args)))  /* (fill! () 1 21 #\a)? */
+	eval_error(sc, "fill! () ... includes indicies: ~S?", cddr(args));
       return(cadr(args));        /* this parallels the empty vector case */
 
     case T_HASH_TABLE:
@@ -67851,8 +67859,24 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	    }
 	  else
 	    {
-	      for (; integer(stepper) < end; integer(stepper)++)
-		func(sc, car(code)); 
+	      if (func == opt_int_any_nr)
+		{
+		  s7_int (*fi)(void *o);
+		  opt_info *o;
+		  cur_sc = sc;
+		  o = sc->opts[0];
+		  fi = o->v7.fi;
+		  for (; integer(stepper) < end; integer(stepper)++)
+		    {
+		      sc->pc = 0;
+		      fi(o);
+		    }
+		}
+	      else
+		{
+		  for (; integer(stepper) < end; integer(stepper)++)
+		    func(sc, car(code)); 
+		}
 	    }
 	}
       else
@@ -85530,7 +85554,6 @@ int main(int argc, char **argv)
  *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
  *   then entries field can be int64_t
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
- * see t718 bugs
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85550,13 +85573,14 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
+ * openbsd -lsndio in sndlib configure.ac
  *
  * t725: auto-test
  * t772: lint or|and tests
  * t776: cycle tests 
  *
- * --------------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4
+ * ----------------------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1042
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131
@@ -85569,7 +85593,7 @@ int main(int argc, char **argv)
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
  * tread         |      |      |      ||      ||      |                   3009  2639
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3457
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3454
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5003
@@ -85578,5 +85602,5 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4
- * --------------------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------------------------
  */

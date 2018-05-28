@@ -180,6 +180,7 @@ Paul Davis:                             the original ALSA support.
 Steven Schultz and Mike Scholz:         the *BSD ports.
 Ludger Brummer and Charles Nichols:     the Mac-OSX port.
 Thomas Klausner and Mike Scholz:        the NetBSD port.
+Koen De Turck:                          the OpenBSD port.
 Steve Beet:                             minGW
 
 Plus many other contributions from

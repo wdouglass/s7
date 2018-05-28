@@ -747,6 +747,29 @@ typedef s7_double (*s7_d_pi_t)(s7_pointer v, s7_int i);
 void s7_set_d_pi_function(s7_pointer f, s7_d_pi_t df);
 s7_d_pi_t s7_d_pi_function(s7_pointer f);
 
+/* Here is an example of using these functions; more extensive examples are in clm2xen.c in sndlib, and in s7.c.
+ * (This example comes from a HackerNews discussion):
+ * plus.c:
+ * --------
+ * #include "s7.h"
+ * 
+ * s7_pointer g_plusone(s7_scheme *sc, s7_pointer args) {return(s7_make_integer(sc, s7_integer(s7_car(args)) + 1));}
+ * s7_int plusone(s7_int x) {return(x + 1);}
+ * 
+ * void plusone_init(s7_scheme *sc)
+ * {
+ *   s7_define_safe_function(sc, "plusone", g_plusone, 1, 0, false, "");
+ *   s7_set_i_i_function(s7_name_to_value(sc, "plusone"), plusone);
+ * }
+ * --------
+ * gcc -c plus.c -fPIC -O2 -lm
+ * gcc plus.o -shared -o plus.so -ldl -lm -Wl,-export-dynamic
+ * repl
+ * <1> (load "plus.so" (inlet 'init_func 'plusone_init))
+ * --------
+ */
+
+
 /* -------------------------------------------------------------------------------- */
 
 
