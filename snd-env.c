@@ -1053,7 +1053,8 @@ void enved_show_background_waveform(axis_info *ap, axis_info *gray_ap, bool appl
   active_channel = current_channel();
   if ((!active_channel) || 
       (active_channel->active < CHANNEL_HAS_AXES) ||
-      (!active_channel->edits)) 
+      (!active_channel->edits) ||
+      (!active_channel->fft))
     return;
 
   old_printing = active_channel->printing;

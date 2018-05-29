@@ -6004,9 +6004,9 @@ static mus_float_t *list_to_partials(Xen harms, int *npartials, int *error_code)
 	maxpartial = curpartial;
     }
 
-  if (maxpartial > 10000000)
+  if (maxpartial > 1000000)
     {
-      (*error_code) = NEGATIVE_NUMBER_IN_LIST;
+      (*error_code) = HUGE_NUMBER_IN_LIST;
       return(NULL);
     }
 
@@ -6059,6 +6059,11 @@ static mus_float_t *mus_vct_to_partials(vct *v, int *npartials, int *error_code)
 	  if (curpartial < 0)
 	    (*error_code) = NEGATIVE_NUMBER_IN_LIST;
 	}
+    }
+  if (maxpartial > 1000000)
+    {
+      (*error_code) = HUGE_NUMBER_IN_LIST;
+      return(NULL);
     }
   if ((*error_code) != NO_PROBLEM_IN_LIST)
     return(NULL);

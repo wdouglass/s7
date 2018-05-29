@@ -491,6 +491,33 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
+static void memclr(void *s, size_t n)
+{
+  uint8_t *s2;
+#if S7_ALIGNED
+  s2 = (uint8_t *)s;
+#else
+#if (defined(__x86_64__) || defined(__i386__))
+  if (n >= 4)
+    {
+      int32_t *s1 = (int32_t *)s;
+      size_t n4 = n >> 2;
+      do {*s1++ = 0;} while (--n4 > 0);
+      n &= 3;
+      s2 = (uint8_t *)s1;
+    }
+  else s2 = (uint8_t *)s;
+#else
+  s2 = (uint8_t *)s;
+#endif
+#endif
+  while (n > 0)
+    {
+      *s2++ = 0;
+      n--;
+    }
+}
+
 typedef struct block_t {
   union {
     void *data;
@@ -615,10 +642,10 @@ static char *alloc_permanent_string(size_t len)
 
 static block_t *mallocate(size_t bytes)
 {
-  int32_t index;
   block_t *p;
   if (bytes > 0)
     {
+      int32_t index;
       if (bytes <= 8)
 	index = 3;
       else
@@ -660,7 +687,7 @@ static block_t *callocate(size_t bytes)
   block_t *p;
   p = mallocate(bytes);
   if ((block_data(p)) && (block_index(p) != BLOCK_LIST))
-    memset((void *)(block_data(p)), 0, bytes);
+    memclr((void *)(block_data(p)), bytes);
   return(p);
 }
 
@@ -3127,37 +3154,8 @@ static bool local_strncmp(const char *s1, const char *s2, uint32_t n)
 #define strings_are_equal_with_length(Str1, Str2, Len) (local_strncmp(Str1, Str2, Len))
 
 
-static void memclr(void *s, size_t n)
-{
-  uint8_t *s2;
-#if S7_ALIGNED
-  s2 = (uint8_t *)s;
-#else
-#if (defined(__x86_64__) || defined(__i386__))
-  if (n >= 4)
-    {
-      int32_t *s1 = (int32_t *)s;
-      size_t n4 = n >> 2;
-      do {*s1++ = 0;} while (--n4 > 0);
-      n &= 3;
-      s2 = (uint8_t *)s1;
-    }
-  else s2 = (uint8_t *)s;
-#else
-  s2 = (uint8_t *)s;
-#endif
-#endif
-  while (n > 0)
-    {
-      *s2++ = 0;
-      n--;
-    }
-}
-
-
 /* ---------------- forward decls ---------------- */
 
-static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int precision, char float_choice, s7_int *nlen, use_write_t choice);
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op);
 static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg);
 static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *descr, const char *name);
@@ -8702,34 +8700,34 @@ static inline void annotate_expansion(s7_pointer p)
 static s7_pointer *tree_pointers = NULL;
 static int32_t tree_pointers_size = 0, tree_pointers_top = 0;
 
-static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
+static inline bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
 {
-  if (is_tree_collected_or_shared(tree))
-    return(!is_shared(tree));
-  set_tree_collected(tree);
-
-  if (tree_pointers_top == tree_pointers_size)
+  s7_pointer p;
+  for (p = tree; is_pair(p); p = cdr(p))
     {
-      if (tree_pointers_size == 0)
+      if (is_tree_collected_or_shared(p))
+	return(!is_shared(p));
+      set_tree_collected(p);
+
+      if (tree_pointers_top == tree_pointers_size)
 	{
-	  tree_pointers_size = 8;
-	  tree_pointers = (s7_pointer *)malloc(tree_pointers_size * sizeof(s7_pointer));
+	  if (tree_pointers_size == 0)
+	    {
+	      tree_pointers_size = 8;
+	      tree_pointers = (s7_pointer *)malloc(tree_pointers_size * sizeof(s7_pointer));
+	    }
+	  else
+	    {
+	      tree_pointers_size *= 2;
+	      tree_pointers = (s7_pointer *)realloc(tree_pointers, tree_pointers_size * sizeof(s7_pointer));
+	    }
 	}
-      else
-	{
-	  tree_pointers_size *= 2;
-	  tree_pointers = (s7_pointer *)realloc(tree_pointers, tree_pointers_size * sizeof(s7_pointer));
-	}
+      tree_pointers[tree_pointers_top++] = p;
+
+      if ((is_pair(car(p))) &&
+	  (tree_is_cyclic_1(sc, car(p))))
+	return(true);
     }
-  tree_pointers[tree_pointers_top++] = tree;
-
-  if ((is_pair(car(tree))) &&
-      (tree_is_cyclic_1(sc, car(tree))))
-    return(true);
-  if ((is_pair(cdr(tree))) &&
-      (tree_is_cyclic_1(sc, cdr(tree))))
-    return(true);
-
   set_shared(tree);
   return(false);
 }
@@ -21379,7 +21377,7 @@ static s7_pointer g_make_string_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
     }
   n = make_empty_string(sc, (int32_t)len, fill);
   if (fill == '\0')
-    memset((void *)string_value(n), 0, (int)len);
+    memclr((void *)string_value(n), (size_t)len);
   return(n);
 }
 
@@ -24844,7 +24842,7 @@ static void leave_lock_scope(lock_scope_t *st)
 
 static block_t *search_load_path(s7_scheme *sc, const char *name)
 {
-  s7_int i, len;
+  s7_int len;
   s7_pointer lst;
 
   lst = s7_load_path(sc);
@@ -24853,6 +24851,7 @@ static block_t *search_load_path(s7_scheme *sc, const char *name)
   if (len > 0)
     {
       block_t *b;
+      s7_int i;
       char *filename;
       b = mallocate(1024);
       filename = (char *)block_data(b);
@@ -30950,9 +30949,12 @@ static void format_number(s7_scheme *sc, format_data *fdat, s7_int radix, s7_int
   if (pad != ' ')
     {
       char *padtmp;
+#if (!WITH_GMP)
       if (radix == 10)
 	tmp = number_to_string_base_10(car(fdat->args), width, precision, float_choice, &nlen, P_WRITE);
-      else tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
+      else 
+#endif
+	tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
       padtmp = tmp;
       while (*padtmp == ' ') (*(padtmp++)) = pad;
       format_append_string(sc, fdat, tmp, nlen, port);
@@ -30960,9 +30962,12 @@ static void format_number(s7_scheme *sc, format_data *fdat, s7_int radix, s7_int
     }
   else
     {
+#if (!WITH_GMP)
       if (radix == 10)
 	tmp = number_to_string_base_10(car(fdat->args), width, precision, float_choice, &nlen, P_WRITE);
-      else tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
+      else 
+#endif
+	tmp = number_to_string_with_radix(sc, car(fdat->args), radix, width, precision, float_choice, &nlen);
       format_append_string(sc, fdat, tmp, nlen, port);
       if (radix != 10) free(tmp);
     }
@@ -35129,7 +35134,7 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	      if (!float_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-float-vector allocation failed!"))));
 	      if (filled)
-		memset((void *)vector_elements(x), 0, len * sizeof(s7_double));
+		memclr((void *)vector_elements(x), len * sizeof(s7_double));
 	      vector_getter(x) = float_vector_getter;
 	      vector_setter(x) = float_vector_setter;
 	    }
@@ -35144,7 +35149,7 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	      if (!int_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-int-vector allocation failed!"))));
 	      if (filled)
-		memset((void *)vector_elements(x), 0, len * sizeof(s7_int));
+		memclr((void *)vector_elements(x), len * sizeof(s7_int));
 	      vector_getter(x) = int_vector_getter;
 	      vector_setter(x) = int_vector_setter;
 	    }
@@ -36587,7 +36592,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   vector_block(x) = arr;
   float_vector_elements(x) = (s7_double *)block_data(arr);
   if (len > 0)
-    memset((void *)float_vector_elements(x), 0, len * sizeof(s7_double));
+    memclr((void *)float_vector_elements(x), len * sizeof(s7_double));
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
@@ -36633,7 +36638,7 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   vector_block(x) = arr;
   int_vector_elements(x) = (s7_int *)block_data(arr);
   if (len > 0)
-    memset((void *)int_vector_elements(x), 0, len * sizeof(s7_int));
+    memclr((void *)int_vector_elements(x), len * sizeof(s7_int));
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
   vector_setter(x) = int_vector_setter;
@@ -39284,7 +39289,7 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 		  block_lists[BLOCK_LIST] = *hp;
 		}
 	    }
-	  memset(entries, 0, len * sizeof(hash_entry_t *));
+	  memclr(entries, len * sizeof(hash_entry_t *));
 	  if (!hash_table_checker_locked(table))
 	    {
 	      hash_table_checker(table) = hash_empty;
@@ -67754,6 +67759,7 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 	}
       else
 	{
+	  /* splitting out opt_float_any_nr here saves almost nothing */
 	  for (i = start; i < stop; i++)
 	    {
 	      slot_set_value(ctr, make_integer(sc, i));
@@ -67870,6 +67876,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		    {
 		      sc->pc = 0;
 		      fi(o);
+		      /* if fi = opt_i_i_s for example, -> o->v2.i_i_f(integer(slot_value(o->v1.p)))
+		       *   and o->v2.i_i_f can be pulled out leaving a loop of sc->pc = 0; ov2(integer(slot_value(o->v1.p)));
+		       */
 		    }
 		}
 	      else
@@ -85573,6 +85582,7 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
+ * edit-list->function should be :readable or protect against print-length too small
  * openbsd -lsndio in sndlib configure.ac
  *
  * t725: auto-test
@@ -85582,22 +85592,22 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1042
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2443
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
  * tread         |      |      |      ||      ||      |                   3009  2639
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3454
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  5003
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6931
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3

@@ -32,6 +32,7 @@
 
 ;(set! (*s7* 'gc-stats) #t)
 (set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'print-length) 12345)
 
 (when (provided? 'pure-s7)
   (define (make-polar mag ang)
@@ -32892,6 +32893,7 @@ EDITS: 1
       (close-sound ind))
     
     ;; ---- apply controls edit lists
+    (set! (*s7* 'print-length) 12345)
     (let ((ind (open-sound "oboe.snd")))
       (let ((original-maxamp (maxamp)))
 	(reset-controls)
@@ -36447,7 +36449,6 @@ EDITS: 1
 	 (fv2 2 3)) ; 'error again #(2.0 2-1i 2-2i 2-3i)
        (lambda args (car args))) 'wrong-type-arg)
     
-    (set! (*s7* 'print-length) 123)
     (define (fv3)
       (let ((gens (vector (make-oscil 100) (make-oscil 200 1.7) (make-oscil 300 5.0))))
 	(let ((fv (make-float-vector 3))
@@ -41734,7 +41735,7 @@ EDITS: 1
 		 (set! cadr-main (vector 1 2 3))
 		 (set! a-hook #r(0.2 0.1)))
 		((4) 
-		 (set! delay-32 (make-filter 3 #r(3 1 2 3) #r(3 1 2 3)))
+		 (set! delay-32 (make-filter 3 #r(3 1 2) #r(3 1 2)))
 		 (set! color-95 (make-float-vector '(2 1)))
 		 (set! vector-0 (make-iir-filter 3 #r(1 2 3)))
 		 (set! float-vector-3 (make-ncos))
