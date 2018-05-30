@@ -523,12 +523,16 @@ typedef struct block_t {
     void *data;
     s7_pointer d_ptr;
   } dx;
-  int32_t index;
-  int32_t size;
+  int32_t index; 
+  s7_int size;
+  /* these two could be combined into one s7_int at some cost in run time, but the extra 7 or 8 bytes seems unimportant;
+   *    not that many blocks are in use normally (fewer than 100k in my tests), and this opens up space for more block_t uses.
+   */
   union {
     struct block_t *next;
     char *documentation;
     s7_pointer ksym;
+    s7_int nx_int;
   } nx;
   union {
     s7_pointer ex_ptr; /* hash-table-procedures/entry values, initial_slot */
@@ -541,11 +545,14 @@ typedef block_t hash_entry_t;
 #define hash_entry_key(p)      p->dx.d_ptr
 #define hash_entry_value(p)    p->ex.ex_ptr
 #define hash_entry_next(p)     p->nx.next
-#define hash_entry_raw_hash(p) p->size
+#define hash_entry_raw_hash(p) block_size(p)
+#define hash_entry_set_raw_hash(p, Hash) block_set_size(p, Hash)
 
 #define block_data(p)  p->dx.data
 #define block_index(p) p->index
+#define block_set_index(p, Index) p->index = Index
 #define block_size(p)  p->size
+#define block_set_size(p, Size) p->size = Size
 #define block_next(p)  p->nx.next
 #define block_info(p)  p->ex.ex_info
 
@@ -576,7 +583,7 @@ static inline void liberate(block_t *p)
   else 
     {
       if (block_data(p)) {free(block_data(p)); block_data(p) = NULL;}
-      block_index(p) = BLOCK_LIST;
+      block_set_index(p, BLOCK_LIST);
       block_next(p) = (struct block_t *)block_lists[block_index(p)];
       block_lists[block_index(p)] = p;
     }
@@ -598,18 +605,18 @@ static void fill_block_list(void)
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
     {
       block_next(b) = (block_t *)(b + 1);
-      block_index(b) = BLOCK_LIST;
+      block_set_index(b, BLOCK_LIST);
       b++;
     }
   block_next(b) = NULL;
-  block_index(b) = BLOCK_LIST;
+  block_set_index(b, BLOCK_LIST);
 }
 
 static inline block_t *mallocate_block(void)
 {
   block_t *p;
   if (!block_lists[BLOCK_LIST])
-    fill_block_list();
+    fill_block_list();                /* this is much faster than allocating blocks as needed */
   p = block_lists[BLOCK_LIST];
   block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
   block_next(p) = NULL;
@@ -625,7 +632,7 @@ static char *alloc_permanent_string(size_t len)
   char *result;
   size_t next_k;
 
-  len = (len + 7) & (~7); /* 8-byte aligned -- more than half the time, len is already 8-byte aligned */
+  len = (len + 7) & (~7);            /* 8-byte aligned -- more than half the time, len is already 8-byte aligned */
   next_k = alloc_string_k + len;
   if (next_k >= ALLOC_STRING_SIZE)
     {
@@ -674,11 +681,11 @@ static block_t *mallocate(size_t bytes)
 	   */
 	  /* block_data(p) = (void *)malloc((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes); */
 	  block_data(p) = (void *)alloc_permanent_string((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes);
-	  block_index(p) = index;
+	  block_set_index(p, index);
 	}
     }
   else p = mallocate_block();
-  block_size(p) = bytes;
+  block_set_size(p, bytes);
   return(p);
 }
 
@@ -783,7 +790,7 @@ typedef struct {
 } c_object_t;
 
 
-typedef uint32_t (*hash_map_t)(s7_scheme *sc, s7_pointer table, s7_pointer key);        /* hash-table object->location mapper */
+typedef s7_int (*hash_map_t)(s7_scheme *sc, s7_pointer table, s7_pointer key);          /* hash-table object->location mapper */
 typedef hash_entry_t *(*hash_check_t)(s7_scheme *sc, s7_pointer table, s7_pointer key); /* hash-table object equality function */
 static hash_map_t *default_hash_map;
 
@@ -958,7 +965,7 @@ typedef struct s7_cell {
     } stk;
 
     struct {                        /* hash-tables */
-      uint32_t mask, entries;
+      s7_int mask;
       hash_entry_t **elements;
       hash_check_t hash_func;
       hash_map_t *loc;
@@ -2592,7 +2599,8 @@ static void symbol_set_id(s7_pointer p, s7_int id)
  */
 #define symbol_syntax_op(p)           syntax_opcode(slot_value(global_slot(p)))
 #define symbol_info(p)                (symbol_name_cell(p))->object.string.block
-#define symbol_type(p)                symbol_info(p)->size
+#define symbol_type(p)                block_size(symbol_info(p))
+#define symbol_set_type(p, Type)      block_set_size(symbol_info(p), Type)
 #define initial_slot(p)               symbol_info(p)->ex.ex_ptr
 #define set_initial_slot(p, Val)      symbol_info(p)->ex.ex_ptr = T_Sld(Val)
 
@@ -2722,12 +2730,13 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define hash_table_set_block(p, b)    (T_Hsh(p))->object.hasher.block = b
 #define hash_table_element(p, i)      (T_Hsh(p))->object.hasher.elements[i]
 #define hash_table_elements(p)        (T_Hsh(p))->object.hasher.elements
-#define hash_table_entries(p)         (T_Hsh(p))->object.hasher.entries
+/* #define hash_table_entries(p)         (T_Hsh(p))->object.hasher.entries */
+#define hash_table_entries(p)         hash_table_block(p)->nx.nx_int
 #define hash_table_checker(p)         (T_Hsh(p))->object.hasher.hash_func
 #define hash_table_mapper(p)          (T_Hsh(p))->object.hasher.loc
 #define hash_table_checker_locked(p)  (hash_table_mapper(p) != default_hash_map)
-#define hash_table_procedures(p)      T_Lst((T_Hsh(p))->object.hasher.block->ex.ex_ptr)
-#define hash_table_set_procedures(p, Lst) (T_Hsh(p))->object.hasher.block->ex.ex_ptr = T_Lst(Lst)
+#define hash_table_procedures(p)      T_Lst(hash_table_block(p)->ex.ex_ptr)
+#define hash_table_set_procedures(p, Lst) hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
 #define hash_table_procedures_checker(p) car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
 
@@ -3074,6 +3083,35 @@ static s7_int s7_int_max = 0, s7_int_min = 0;
  * local versions of some standard C library functions
  * timing tests involving these are very hard to interpret
  */
+
+static void local_memset(void *s, uint8_t val, size_t n)
+{
+  uint8_t *s2;
+#if S7_ALIGNED
+  s2 = (uint8_t *)s;
+#else
+#if (defined(__x86_64__) || defined(__i386__))
+  if (n >= 4)
+    {
+      int32_t ival;
+      int32_t *s1 = (int32_t *)s;
+      size_t n4 = n >> 2;
+      ival = val | (val << 8) | (val << 16) | (val << 24);
+      do {*s1++ = ival;} while (--n4 > 0);
+      n &= 3;
+      s2 = (uint8_t *)s1;
+    }
+  else s2 = (uint8_t *)s;
+#else
+  s2 = (uint8_t *)s;
+#endif
+#endif
+  while (n > 0)
+    {
+      *s2++ = val;
+      n--;
+    }
+}
 
 static inline s7_int safe_strlen(const char *str)
 {
@@ -4880,7 +4918,7 @@ static void mark_hash_table(s7_pointer p)
   gc_mark(hash_table_procedures(p));
   if (hash_table_entries(p) > 0)
     {
-      uint32_t len;
+      s7_int len;
       hash_entry_t **entries, **last;
 
       entries = hash_table_elements(p);
@@ -5982,7 +6020,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_tag(x, 0);
   symbol_set_ctr(x, 0);
-  symbol_type(x) = 0;
+  symbol_set_type(x, 0);
 
   if (len > 1)                                             /* not 0, otherwise : is a keyword */
     {
@@ -6790,7 +6828,7 @@ static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
 	    {
 	      s7_pointer iterator, ip;
 	      s7_int gc_iter;
-	      int32_t i, len;
+	      s7_int i, len;
 	      
 	      len = hash_table_entries(val);
 	      iterator = s7_make_iterator(sc, val);
@@ -9790,8 +9828,11 @@ static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
 #endif
 #endif
 
-
+#if WITH_GCC
+#define s7_int_abs(x) ({s7_int _X_; _X_ = x; _X_ >= 0 ? _X_ : -_X_;})
+#else
 #define s7_int_abs(x) ((x) >= 0 ? (x) : -(x))
+#endif
 /* can't use abs even in gcc -- it doesn't work with int64_ts! */
 
 #if (!__NetBSD__)
@@ -21201,7 +21242,7 @@ static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, s7_
   b = mallocate_block();
   string_block(x) = b;
   block_data(b) = str;
-  block_size(b) = len;
+  block_set_size(b, len);
   string_value(x) = str;
   string_length(x) = len;
   string_hash(x) = 0;
@@ -21256,7 +21297,7 @@ static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
   string_block(x) = b;
   string_value(x) = (char *)block_data(b);
   if ((fill != 0) && (len > 0))
-    memset((void *)(string_value(x)), fill, len);
+    local_memset((void *)(string_value(x)), fill, len);
   string_value(x)[len] = 0;
   string_value(x)[len + 1] = 0;
   string_hash(x) = 0;
@@ -21375,7 +21416,7 @@ static s7_pointer g_make_string_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
 	method_or_bust(sc, cadr(args), sc->make_string_symbol, args, T_CHARACTER, 2);
       fill = s7_character(cadr(args));
     }
-  n = make_empty_string(sc, (int32_t)len, fill);
+  n = make_empty_string(sc, len, fill);
   if (fill == '\0')
     memclr((void *)string_value(n), (size_t)len);
   return(n);
@@ -22395,10 +22436,18 @@ static s7_pointer g_string_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
     }
   if (end == 0) return(chr);
 
-  if (!is_byte_vector_not_string(x))
-    memset((void *)(string_value(x) + start), (int)character(chr), end - start);
-  else memset((void *)(string_value(x) + start), (int)byte, end - start);
-
+  if (is_byte_vector_not_string(x))
+    {
+      if (byte == 0)
+	memclr((void *)(string_value(x) + start), end - start);
+      else local_memset((void *)(string_value(x) + start), (int32_t)byte, end - start);
+    }
+  else 
+    {
+      if ((int)(character(chr)) == 0)
+	memclr((void *)(string_value(x) + start), end - start);
+      else local_memset((void *)(string_value(x) + start), (int32_t)character(chr), end - start);
+    }
   return(chr);
 }
 
@@ -26409,7 +26458,7 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
     case T_HASH_TABLE:
       if (hash_table_entries(top) > 0)
 	{
-	  uint32_t i, len;
+	  s7_int i, len;
 	  hash_entry_t **entries;
 	  bool keys_safe;
 	  
@@ -35191,8 +35240,7 @@ static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims
   v->ndims = dims;
   if (dims > 1)
     {
-      s7_int i;
-      s7_int offset = 1;
+      s7_int i, offset = 1;
       v->dimensions_allocated = true;
       v->dims = (s7_int *)malloc(v->ndims * sizeof(s7_int));
       v->offsets = (s7_int *)malloc(v->ndims * sizeof(s7_int));
@@ -35848,14 +35896,14 @@ static s7_pointer g_float_vector(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_is_int_vector(s7_scheme *sc, s7_pointer args)
 {
-  #define H_is_int_vector "(int-vector? obj) returns #t if obj is an homogeneous int32_t vector"
+  #define H_is_int_vector "(int-vector? obj) returns #t if obj is an homogeneous s7_int vector"
   #define Q_is_int_vector pl_bt
   check_boolean_method(sc, is_int_vector, sc->is_int_vector_symbol, args);
 }
 
 static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
 {
-  #define H_int_vector "(int-vector ...) returns an homogeneous int32_t vector whose elements are the arguments"
+  #define H_int_vector "(int-vector ...) returns an homogeneous s7_int vector whose elements are the arguments"
   #define Q_int_vector s7_make_circular_signature(sc, 1, 2, sc->is_int_vector_symbol, sc->is_integer_symbol)
 
   s7_int len;
@@ -37747,7 +37795,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
     }
 
   n = len - 1;
-  k = ((int32_t)(n / 2)) + 1;
+  k = (n / 2) + 1;
 
   lx = s7_make_vector(sc, (sc->safety == NO_SAFETY) ? 4 : 6);
   {
@@ -37846,7 +37894,7 @@ static void free_hash_table(s7_pointer table)
 
   if (hash_table_entries(table) > 0)
     {
-      uint32_t i, len;
+      s7_int i, len;
       len = hash_table_mask(table) + 1;
       for (i = 0; i < len; i++)
 	{
@@ -37866,13 +37914,13 @@ static void free_hash_table(s7_pointer table)
   liberate(hash_table_block(table));
 }
 
-static hash_entry_t *make_hash_entry(s7_pointer key, s7_pointer value, uint32_t raw_hash)
+static hash_entry_t *make_hash_entry(s7_pointer key, s7_pointer value, s7_int raw_hash)
 {
   hash_entry_t *p;
   p = (hash_entry_t *)mallocate_block();
   hash_entry_key(p) = key;
   hash_entry_value(p) = value;
-  hash_entry_raw_hash(p) = raw_hash;
+  hash_entry_set_raw_hash(p, raw_hash);
   return(p);
 }
 
@@ -37911,9 +37959,9 @@ static s7_int hash_table_entries_i(s7_pointer p)
 
 
 /* ---------------- mappers ---------------- */
-static uint32_t hash_float_location(s7_double x)
+static s7_int hash_float_location(s7_double x)
 {
-  int32_t loc;
+  s7_int loc;
 #if defined(__clang__)
   if ((is_inf(x)) || (is_NaN(x))) return(0);
 #endif
@@ -37941,37 +37989,37 @@ static hash_map_t *morally_equal_hash_map, *c_function_hash_map;
 static hash_map_t *string_ci_eq_hash_map, *char_ci_eq_hash_map;
 #endif
 
-static uint32_t hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
-static uint32_t hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return((uint32_t)(s7_int_abs(integer(key))));}
-static uint32_t hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
-static uint32_t hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return((uint32_t)denominator(key));} /* overflow possible as elsewhere */
-static uint32_t hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
-static uint32_t hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(key));}
-static uint32_t hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(syntax_symbol(key)));}
+static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
+static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(s7_int_abs(integer(key)));}
+static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
+static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return(denominator(key));}
+static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
+static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(key));}
+static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(syntax_symbol(key)));}
 
 #if WITH_GMP
-static uint32_t hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     
+static s7_int hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     
 {
-  return((uint32_t)(big_integer_to_s7_int(big_integer(key))));
+  return((s7_int)(big_integer_to_s7_int(big_integer(key))));
 }
 
-static uint32_t hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   
+static s7_int hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   
 {
-  return((uint32_t)(big_integer_to_s7_int(mpq_denref(big_ratio(key)))));
+  return((s7_int)(big_integer_to_s7_int(mpq_denref(big_ratio(key)))));
 }
 
-static uint32_t hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)    
+static s7_int hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)    
 {
-  return((uint32_t)mpfr_get_d(big_real(key), GMP_RNDN));
+  return((s7_int)mpfr_get_d(big_real(key), GMP_RNDN));
 }
 
-static uint32_t hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) 
+static s7_int hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) 
 {
-  return((uint32_t)mpfr_get_d(mpc_realref(big_complex(key)), GMP_RNDN));
+  return((s7_int)mpfr_get_d(mpc_realref(big_complex(key)), GMP_RNDN));
 }
 #endif
 
-static uint32_t hash_map_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (string_hash(key) == 0)
     string_hash(key) = raw_string_hash((const uint8_t *)string_value(key), string_length(key));
@@ -37979,9 +38027,9 @@ static uint32_t hash_map_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 }
 
 #if (!WITH_PURE_S7)
-static uint32_t hash_map_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(upper_character(key));}
+static s7_int hash_map_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(upper_character(key));}
 
-static uint32_t hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   s7_int len;
   len = string_length(key);
@@ -37990,7 +38038,7 @@ static uint32_t hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer k
 }
 #endif
 
-static uint32_t hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   return(hash_float_location(real(key)));
   /* currently 1e300 goes to most-negative-fixnum! -> 0 after logand size, I hope
@@ -38002,23 +38050,23 @@ static uint32_t hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
    */
 }
 
-static uint32_t hash_map_real_eq(s7_scheme *sc, s7_pointer table, s7_pointer x)
+static s7_int hash_map_real_eq(s7_scheme *sc, s7_pointer table, s7_pointer x)
 {
   if (real(x) < 0.0)
-    return((uint32_t)(s7_round(-real(x))));
-  return((uint32_t)s7_round(real(x)));
+    return(s7_round(-real(x)));
+  return(s7_round(real(x)));
 }
 
-static uint32_t hash_map_ratio_eq(s7_scheme *sc, s7_pointer table, s7_pointer y)
+static s7_int hash_map_ratio_eq(s7_scheme *sc, s7_pointer table, s7_pointer y)
 {
   s7_double x;
   x = fraction(y);
   if (x < 0.0)
-    return((uint32_t)s7_round(-x));
-  return((uint32_t)s7_round(x));
+    return(s7_round(-x));
+  return(s7_round(x));
 }
 
-static uint32_t hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* hash-tables are equal if key/values match independent of table size and entry order.
    * if not using morally-equal?, hash_table_checker|mapper must also be the same.
@@ -38027,25 +38075,25 @@ static uint32_t hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer 
   return(hash_table_entries(key));
 }
 
-static uint32_t hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (vector_length(key) == 0)
     return(0);
   if (vector_length(key) == 1)
-    return((uint32_t)(s7_int_abs(int_vector_element(key, 0))));
-  return((uint32_t)(vector_length(key) + s7_int_abs(int_vector_element(key, 0)) + s7_int_abs(int_vector_element(key, 1))));
+    return(s7_int_abs(int_vector_element(key, 0)));
+  return(vector_length(key) + s7_int_abs(int_vector_element(key, 0)) + s7_int_abs(int_vector_element(key, 1)));
 }
 
-static uint32_t hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (vector_length(key) == 0)
     return(0);
   if (vector_length(key) == 1)
     return(hash_float_location(float_vector_element(key, 0)));
-  return((uint32_t)(vector_length(key) + hash_float_location(float_vector_element(key, 0)) + hash_float_location(float_vector_element(key, 1))));
+  return(vector_length(key) + hash_float_location(float_vector_element(key, 0)) + hash_float_location(float_vector_element(key, 1)));
 }
 
-static uint32_t hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if ((vector_length(key) == 0) ||
       (is_sequence(vector_element(key, 0))))
@@ -38056,15 +38104,15 @@ static uint32_t hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(vector_length(key) + hash_loc(sc, table, vector_element(key, 0)) + hash_loc(sc, table, vector_element(key, 1)));
 }
 
-static uint32_t hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  int32_t x; /* much faster than s7_int */
-  x = (int32_t)heap_location(key);
-  if (x < 0) return((uint32_t)(-x));
-  return((uint32_t)x);
+  s7_int x; 
+  x = heap_location(key);
+  if (x < 0) return(-x);
+  return(x);
 }
 
-static uint32_t hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   s7_pointer f, old_e, args, body;
 
@@ -38082,7 +38130,7 @@ static uint32_t hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key
   return(integer(sc->value));
 }
 
-static uint32_t hash_map_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   s7_function f;
   f = c_function_call(hash_table_procedures_mapper(table));
@@ -38090,7 +38138,7 @@ static uint32_t hash_map_c_function(s7_scheme *sc, s7_pointer table, s7_pointer 
   return(integer(f(sc, sc->t1_1)));
 }
 
-static uint32_t hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* lets are equal if same symbol/value pairs, independent of order, taking into account shadowing
    *   (length (inlet 'a 1 'a 2)) = 2
@@ -38100,7 +38148,7 @@ static uint32_t hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
    *   is not the same as equal?  Surely anyone using lets as keys wants eq?
    */
   s7_pointer slot;
-  int32_t slots;
+  s7_int slots;
 
   if ((key == sc->rootlet) ||
       (!is_slot(let_slots(key))))
@@ -38133,22 +38181,22 @@ static uint32_t hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(slots);
 }
 
-static uint32_t len_upto_8(s7_pointer p)
+static int32_t len_upto_8(s7_pointer p)
 {
   s7_pointer x;
-  uint32_t i;   /* unrolling this loop saves 10-15% */
+  int32_t i;   /* unrolling this loop saves 10-15% */
   for (i = 0, x = p; (is_pair(x)) && (i < 8); i++, x = cdr(x));
   return(i);
 }
 
-static uint32_t hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* len+loc(car) is not horrible, but it means (for example) every list '(set! ...) is hashed to the same location,
    *   so at least we need to take cadr into account if possible.  Better would combine the list_length
    *   with stats like symbols/pairs/constants at top level, then use those to spread it out over all the locs.
    */
   s7_pointer p1;
-  uint32_t loc = 0;
+  s7_int loc = 0;
 
   if (!is_sequence(car(key)))
     loc = hash_loc(sc, table, car(key)) + 1;
@@ -38186,15 +38234,14 @@ static hash_entry_t *hash_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (is_integer(key))
     {
-      s7_int keyval;
+      s7_int keyval, loc, hash_len;
       hash_entry_t *x;
-      uint32_t loc, hash_len;
 
       hash_len = hash_table_mask(table);
       keyval = integer(key);
       if (keyval < 0)
-	loc = (uint32_t)((-keyval) & hash_len);
-      else loc = (uint32_t)(keyval & hash_len); 
+	loc = (-keyval) & hash_len;
+      else loc = keyval & hash_len; 
       /* I think this assumes hash_map_int is using s7_int_abs (and high order bits are ignored) */
 
       for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -38210,8 +38257,7 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
   if (is_string(key))
     {
       hash_entry_t *x;
-      uint32_t hash_len;
-      s7_int key_len;
+      s7_int key_len, hash_len;
       uint64_t hash;
       const char *key_str;
 
@@ -38248,7 +38294,7 @@ static hash_entry_t *hash_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer 
   if (is_string(key))
     {
       hash_entry_t *x;
-      uint32_t hash, hash_len;
+      s7_int hash, hash_len;
 
       hash_len = hash_table_mask(table);
       hash = hash_map_ci_string(sc, table, key);
@@ -38265,7 +38311,7 @@ static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer ke
   if (s7_is_character(key))
     {
       hash_entry_t *x;
-      uint32_t hash_len, loc;
+      s7_int hash_len, loc;
 
       hash_len = hash_table_mask(table);
       loc = hash_loc(sc, table, key) & hash_len;
@@ -38278,7 +38324,7 @@ static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer ke
 }
 #endif
 
-static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, uint32_t loc, s7_double keyval)
+static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, s7_int loc, s7_double keyval)
 {
   hash_entry_t *x;
   bool look_for_nan;
@@ -38313,7 +38359,7 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
   if (type(key) == T_REAL)
     {
       s7_double keyval;
-      uint32_t hash_len, loc;
+      s7_int hash_len, loc;
       
       hash_len = hash_table_mask(table);
       keyval = real(key);
@@ -38325,7 +38371,7 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
 }
 
 
-static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, uint32_t loc, s7_pointer key)
+static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, s7_int loc, s7_pointer key)
 {
   hash_entry_t *x;
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -38351,7 +38397,7 @@ static hash_entry_t *hash_equal_complex(s7_scheme *sc, s7_pointer table, s7_poin
 static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t loc;
+  s7_int loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if ((is_syntax(hash_entry_key(x))) &&
@@ -38364,7 +38410,7 @@ static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_point
 static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t loc;
+  s7_int loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (hash_entry_key(x) == key)
@@ -38376,7 +38422,7 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
 static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t loc;
+  s7_int loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
 
   /* we can get into an infinite loop here, but it requires 2 hash tables that are members of each other
@@ -38401,7 +38447,7 @@ static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t loc;
+  s7_int loc;
   loc = hash_loc(sc, table, key) & hash_table_mask(table);
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -38417,7 +38463,7 @@ static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_poin
 static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
   s7_function f;
 
   f = c_function_call(hash_table_procedures_checker(table));
@@ -38439,10 +38485,10 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* explicit eq? as hash equality func or (for example) symbols as keys */
   hash_entry_t *x;
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
 
   hash_len = hash_table_mask(table);
-  loc = hash_loc(sc, table, key) & hash_len;
+  loc = symbol_hmap(key) & hash_len; /* hash_map_eq */
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (key == hash_entry_key(x))
@@ -38454,7 +38500,7 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
 
   hash_len = hash_table_mask(table);
   loc = hash_loc(sc, table, key) & hash_len;
@@ -38472,7 +38518,7 @@ static hash_entry_t *hash_number(s7_scheme *sc, s7_pointer table, s7_pointer key
   if (is_number(key))
     {
       hash_entry_t *x;
-      uint32_t hash_len, loc;
+      s7_int hash_len, loc;
 
       hash_len = hash_table_mask(table);
       loc = hash_loc(sc, table, key) & hash_len;
@@ -38512,8 +38558,8 @@ static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
        *   but I think if we get here at all, we have to be using default_hash_checks|maps -- see hash_symbol above.
        */
       hash_entry_t *x;
-      uint32_t loc;
-      loc = ((uint32_t)character(key)) & hash_table_mask(table);
+      s7_int loc;
+      loc = character(key) & hash_table_mask(table);
       for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
 	if (key == hash_entry_key(x))
 	  return(x);
@@ -38524,7 +38570,7 @@ static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
   s7_pointer f, args, body, old_e;
 
   f = hash_table_procedures_checker(table);
@@ -38560,7 +38606,7 @@ static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer ke
 static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key, hash_entry_t *p)
 {
   hash_entry_t *x;
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
 
   if (!p) return(sc->F);
   hash_len = hash_table_mask(table);
@@ -38579,16 +38625,6 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
 	    break;
 	  }
     }
-
-#if S7_DEBUGGING
-  if (!x)
-    {
-      fprintf(stderr, "%s[%d]: %s raw: %u, loc: %u\n", __func__, __LINE__, DISPLAY(key), hash_entry_raw_hash(p), hash_loc(sc, table, key));
-      fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
-      fprintf(stderr, "%s\n", DISPLAY(key));
-      abort();
-    }
-#endif
 
   hash_table_entries(table)--;
   if ((hash_table_entries(table) == 0) &&
@@ -38631,7 +38667,12 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
     }
 
   els = (block_t *)callocate(size * sizeof(hash_entry_t *));
-  if (!els) return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-hash-table allocation failed!"))));
+  if (!els) 
+    return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-hash-table allocation failed!"))));
+  /* actually this isn't hit, at least in Linux, even when the size is too large and the block_data will be null. 
+   *   perhaps trap for segfault and touch the new block, or check sysinfo/sysconf vs size?
+   * actually can we even depend on getting a segfault?
+   */
 
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
@@ -38904,15 +38945,17 @@ void init_hash_maps(void)
 }
 
 
-static uint32_t resize_hash_table(s7_pointer table)
+static s7_int resize_hash_table(s7_pointer table)
 {
   /* resize the table */
-  uint32_t hash_len, loc, i, old_size, new_size;
+  s7_int hash_len, loc, i, old_size, new_size;
   hash_entry_t **new_els, **old_els;
   block_t *np;
   s7_pointer dproc;
+  s7_int entries;
 
   dproc = hash_table_procedures(table); /* new block_t so we need to pass this across */
+  entries = hash_table_entries(table);
   old_size = hash_table_mask(table) + 1;
   new_size = old_size * 4;
   hash_len = new_size - 1;
@@ -38936,6 +38979,7 @@ static uint32_t resize_hash_table(s7_pointer table)
   hash_table_elements(table) = new_els;
   hash_table_mask(table) = new_size - 1;
   hash_table_set_procedures(table, dproc);
+  hash_table_entries(table) = entries;
   return(hash_len);
 }
 
@@ -39054,7 +39098,7 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
-  uint32_t hash_len, loc;
+  s7_int hash_len, loc;
   hash_entry_t *p, *x;
 
   if (value == sc->F)
@@ -39069,15 +39113,15 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
 
   if (!hash_chosen(table))
     hash_table_set_checker(table, type(key));
-
   hash_len = hash_table_mask(table);
+
   if (hash_table_entries(table) > hash_len)
     hash_len = resize_hash_table(table);
 
   p = mallocate_block();
   hash_entry_key(p) = key;
   hash_entry_value(p) = T_Pos(value);
-  hash_entry_raw_hash(p) = hash_loc(sc, table, key);
+  hash_entry_set_raw_hash(p, hash_loc(sc, table, key));
 
   loc = hash_entry_raw_hash(p) & hash_len;
   hash_entry_next(p) = hash_table_element(table, loc);
@@ -39119,7 +39163,7 @@ static s7_pointer g_hash_table(s7_scheme *sc, s7_pointer args)
 That is, (hash-table '(\"hi\" . 3) (\"ho\" . 32)) returns a new hash-table with the two key/value pairs preinstalled."
   #define Q_hash_table s7_make_circular_signature(sc, 1, 2, sc->is_hash_table_symbol, sc->is_list_symbol)
 
-  int32_t len;
+  s7_int len;
   s7_pointer x, ht;
 
   /* this accepts repeated keys: (hash-table '(a . 1) '(a . 1)) */
@@ -39171,9 +39215,9 @@ That is, (hash-table* 'a 1 'b 2) returns a new hash-table with the two key/value
   return(ht);
 }
 
-static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer new_hash, uint32_t start, uint32_t end)
+static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer new_hash, s7_int start, s7_int end)
 {
-  uint32_t i, old_len, new_len, count = 0;
+  s7_int i, old_len, new_len, count = 0;
   hash_entry_t **old_lists, **new_lists;
   hash_entry_t *x, *p;
 
@@ -39192,7 +39236,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	  for (i = 0; i < old_len; i++)
 	    for (x = old_lists[i]; x; x = hash_entry_next(x))
 	      {
-		uint32_t loc;
+		s7_int loc;
 		loc = hash_entry_raw_hash(x) & new_len;
 		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
@@ -39211,7 +39255,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	      }
 	    if (count >= start)
 	      {
-		uint32_t loc;
+		s7_int loc;
 		loc = hash_entry_raw_hash(x) & new_len;
 		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
@@ -39237,7 +39281,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	      hash_entry_value(y) = hash_entry_value(x);
 	    else
 	      {
-		uint32_t loc;
+		s7_int loc;
 		loc = hash_entry_raw_hash(x) & new_len;
 		p = make_hash_entry(hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
@@ -39261,7 +39305,7 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
   val = cadr(args);
   if (hash_table_entries(table) > 0)
     {
-      int32_t len;
+      s7_int len;
       hash_entry_t **entries;
       entries = hash_table_elements(table);
       len = hash_table_mask(table) + 1;      /* minimum len is 2 (see s7_make_hash_table) */
@@ -39299,7 +39343,7 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 	}
       else
 	{
-	  int32_t i;
+	  s7_int i;
 	  hash_entry_t *x;
 	  for (i = 0; i < len; i++)
 	    for (x = entries[i]; x; x = hash_entry_next(x))
@@ -39313,7 +39357,7 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer hash_table_reverse(s7_scheme *sc, s7_pointer old_hash)
 {
-  int32_t i, len;
+  s7_int i, len;
   s7_pointer new_hash;
   hash_entry_t **old_lists;
   s7_int gc_loc;
@@ -41236,7 +41280,7 @@ static bool c_object_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
 static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   hash_entry_t **lists;
-  int32_t i, len;
+  s7_int i, len;
   shared_info *nci = ci;
 
   if (x == y)
@@ -41282,7 +41326,7 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
 static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   hash_entry_t **lists;
-  int32_t i, len;
+  s7_int i, len;
   shared_info *nci = ci;
   hash_check_t hf;
 
@@ -42119,7 +42163,7 @@ static s7_pointer any_length(s7_scheme *sc, s7_pointer obj) {return(sc->F);}
 
 static s7_pointer pair_length(s7_scheme *sc, s7_pointer a)
 {
-  int32_t i;
+  s7_int i;
   s7_pointer slow, fast;
   slow = a;
   fast = cdr(a); /* we know a is a pair */
@@ -43338,8 +43382,7 @@ static s7_int sequence_length(s7_scheme *sc, s7_pointer lst)
 static s7_int total_sequence_length(s7_scheme *sc, s7_pointer args, s7_pointer caller, uint8_t typ)
 {
   s7_pointer p;
-  int32_t i;
-  s7_int len = 0;
+  s7_int i, len = 0;
 
   for (i = 1, p = args; is_pair(p); p = cdr(p), i++)
     {
@@ -46172,8 +46215,8 @@ static char *current_input_string(s7_pointer pt)
     {
       const uint8_t *str;
       char *msg;
-      int32_t i, j, start, pos;
-      pos = (int32_t)port_position(pt);
+      s7_int i, j, start, pos;
+      pos = port_position(pt);
       start = pos - 40;
       if (start < 0) start = 0;
       msg = (char *)malloc(64 * sizeof(char));
@@ -48688,7 +48731,7 @@ static s7_pointer i_to_p(void *p)    {opt_info *o = (opt_info *)p; return(make_i
 static s7_pointer i_to_p_nr(void *p) {opt_info *o = (opt_info *)p; o->v8.fi(o); return(NULL);}
 
 
-/* -------------------------------- int32_t opts -------------------------------- */
+/* -------------------------------- int opts -------------------------------- */
 
 static s7_int opt_unwrap_int(void *p)
 {
@@ -84199,43 +84242,43 @@ s7_scheme *s7_init(void)
   sc->is_boolean_symbol = make_symbol(sc, "boolean?");
   pl_bt = s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->T);
 
-  sc->is_symbol_symbol =             defun("symbol?",		is_symbol,		1, 0, false); symbol_type(sc->is_symbol_symbol) = T_SYMBOL;
-  sc->is_syntax_symbol =             defun("syntax?",		is_syntax,		1, 0, false); symbol_type(sc->is_syntax_symbol) = T_SYNTAX;
+  sc->is_symbol_symbol =             defun("symbol?",		is_symbol,		1, 0, false); symbol_set_type(sc->is_symbol_symbol, T_SYMBOL);
+  sc->is_syntax_symbol =             defun("syntax?",		is_syntax,		1, 0, false); symbol_set_type(sc->is_syntax_symbol, T_SYNTAX);
   sc->is_gensym_symbol =             defun("gensym?",		is_gensym,		1, 0, false); 
   sc->is_keyword_symbol =            defun("keyword?",		is_keyword,		1, 0, false);
-  sc->is_let_symbol =                defun("let?",		is_let,			1, 0, false); symbol_type(sc->is_let_symbol) = T_LET;
+  sc->is_let_symbol =                defun("let?",		is_let,			1, 0, false); symbol_set_type(sc->is_let_symbol, T_LET);
   sc->is_openlet_symbol =            defun("openlet?",		is_openlet,		1, 0, false); 
-  sc->is_iterator_symbol =           defun("iterator?",	        is_iterator,		1, 0, false); symbol_type(sc->is_iterator_symbol) = T_ITERATOR;
+  sc->is_iterator_symbol =           defun("iterator?",	        is_iterator,		1, 0, false); symbol_set_type(sc->is_iterator_symbol, T_ITERATOR);
   sc->is_macro_symbol =              defun("macro?",		is_macro,		1, 0, false);
-  sc->is_c_pointer_symbol =          defun("c-pointer?",	is_c_pointer,		1, 1, false); symbol_type(sc->is_c_pointer_symbol) = T_C_POINTER;
-  sc->is_input_port_symbol =         defun("input-port?",	is_input_port,		1, 0, false); symbol_type(sc->is_input_port_symbol) = T_INPUT_PORT;
-  sc->is_output_port_symbol =        defun("output-port?",	is_output_port,		1, 0, false); symbol_type(sc->is_output_port_symbol) = T_OUTPUT_PORT;
-  sc->is_eof_object_symbol =         defun("eof-object?",	is_eof_object,		1, 0, false); symbol_type(sc->is_eof_object_symbol) = T_EOF_OBJECT;
+  sc->is_c_pointer_symbol =          defun("c-pointer?",	is_c_pointer,		1, 1, false); symbol_set_type(sc->is_c_pointer_symbol, T_C_POINTER);
+  sc->is_input_port_symbol =         defun("input-port?",	is_input_port,		1, 0, false); symbol_set_type(sc->is_input_port_symbol, T_INPUT_PORT);
+  sc->is_output_port_symbol =        defun("output-port?",	is_output_port,		1, 0, false); symbol_set_type(sc->is_output_port_symbol, T_OUTPUT_PORT);
+  sc->is_eof_object_symbol =         defun("eof-object?",	is_eof_object,		1, 0, false); symbol_set_type(sc->is_eof_object_symbol, T_EOF_OBJECT);
   sc->is_integer_symbol =            defun("integer?",		is_integer,		1, 0, false); 
   sc->is_number_symbol =             defun("number?",		is_number,		1, 0, false);
   sc->is_real_symbol =               defun("real?",		is_real,		1, 0, false);
   sc->is_complex_symbol =            defun("complex?",		is_complex,		1, 0, false);
   sc->is_rational_symbol =           defun("rational?",	        is_rational,		1, 0, false);
-  sc->is_random_state_symbol =       defun("random-state?",	is_random_state,	1, 0, false); symbol_type(sc->is_random_state_symbol) = T_RANDOM_STATE;
-  sc->is_char_symbol =               defun("char?",		is_char,		1, 0, false); symbol_type(sc->is_char_symbol) = T_CHARACTER;
-  sc->is_string_symbol =             defun("string?",		is_string,		1, 0, false); symbol_type(sc->is_string_symbol) = T_STRING;
+  sc->is_random_state_symbol =       defun("random-state?",	is_random_state,	1, 0, false); symbol_set_type(sc->is_random_state_symbol, T_RANDOM_STATE);
+  sc->is_char_symbol =               defun("char?",		is_char,		1, 0, false); symbol_set_type(sc->is_char_symbol, T_CHARACTER);
+  sc->is_string_symbol =             defun("string?",		is_string,		1, 0, false); symbol_set_type(sc->is_string_symbol, T_STRING);
   sc->is_list_symbol =               defun("list?",		is_list,		1, 0, false);
-  sc->is_pair_symbol =               defun("pair?",		is_pair,		1, 0, false); symbol_type(sc->is_pair_symbol) = T_PAIR;
+  sc->is_pair_symbol =               defun("pair?",		is_pair,		1, 0, false); symbol_set_type(sc->is_pair_symbol, T_PAIR);
   sc->is_vector_symbol =             defun("vector?",		is_vector,		1, 0, false); 
-  sc->is_float_vector_symbol =       defun("float-vector?",	is_float_vector,	1, 0, false); symbol_type(sc->is_float_vector_symbol) = T_FLOAT_VECTOR;
-  sc->is_int_vector_symbol =         defun("int-vector?",	is_int_vector,		1, 0, false); symbol_type(sc->is_int_vector_symbol) = T_INT_VECTOR;
+  sc->is_float_vector_symbol =       defun("float-vector?",	is_float_vector,	1, 0, false); symbol_set_type(sc->is_float_vector_symbol, T_FLOAT_VECTOR);
+  sc->is_int_vector_symbol =         defun("int-vector?",	is_int_vector,		1, 0, false); symbol_set_type(sc->is_int_vector_symbol, T_INT_VECTOR);
   sc->is_byte_vector_symbol =        defun("byte-vector?",	is_byte_vector,		1, 0, false);
-  sc->is_hash_table_symbol =         defun("hash-table?",	is_hash_table,		1, 0, false); symbol_type(sc->is_hash_table_symbol) = T_HASH_TABLE;
-  sc->is_continuation_symbol =       defun("continuation?",	is_continuation,	1, 0, false); symbol_type(sc->is_continuation_symbol) = T_CONTINUATION;
+  sc->is_hash_table_symbol =         defun("hash-table?",	is_hash_table,		1, 0, false); symbol_set_type(sc->is_hash_table_symbol, T_HASH_TABLE);
+  sc->is_continuation_symbol =       defun("continuation?",	is_continuation,	1, 0, false); symbol_set_type(sc->is_continuation_symbol, T_CONTINUATION);
   sc->is_procedure_symbol =          defun("procedure?",	is_procedure,		1, 0, false);
   sc->is_dilambda_symbol =           defun("dilambda?",	        is_dilambda,		1, 0, false);
-  /* set above */                    defun("boolean?",		is_boolean,		1, 0, false); symbol_type(sc->is_boolean_symbol) = T_BOOLEAN;
+  /* set above */                    defun("boolean?",		is_boolean,		1, 0, false); symbol_set_type(sc->is_boolean_symbol, T_BOOLEAN);
   sc->is_float_symbol =              defun("float?",            is_float,               1, 0, false);
   sc->is_proper_list_symbol =        defun("proper-list?",      is_proper_list,         1, 0, false);
   sc->is_sequence_symbol =           defun("sequence?",	        is_sequence,		1, 0, false);
-  sc->is_null_symbol =               defun("null?",		is_null,		1, 0, false); symbol_type(sc->is_null_symbol) = T_NIL;
-  sc->is_undefined_symbol =          defun("undefined?",        is_undefined,           1, 0, false); symbol_type(sc->is_undefined_symbol) = T_UNDEFINED;
-  sc->is_unspecified_symbol =        defun("unspecified?",      is_unspecified,         1, 0, false); symbol_type(sc->is_unspecified_symbol) = T_UNSPECIFIED;
+  sc->is_null_symbol =               defun("null?",		is_null,		1, 0, false); symbol_set_type(sc->is_null_symbol, T_NIL);
+  sc->is_undefined_symbol =          defun("undefined?",        is_undefined,           1, 0, false); symbol_set_type(sc->is_undefined_symbol, T_UNDEFINED);
+  sc->is_unspecified_symbol =        defun("unspecified?",      is_unspecified,         1, 0, false); symbol_set_type(sc->is_unspecified_symbol, T_UNSPECIFIED);
   sc->is_c_object_symbol =           defun("c-object?",	        is_c_object,		1, 0, false); 
 
   /* these are for signatures */
@@ -85556,13 +85599,26 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *
+ * check other maps for overhead
+ *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
- * hash-tables are still size int32_t [via hash_table_entries]
- *   the hash_entry_t** elements field could be ptr->hash_entry_t**+size(mask)+next struct (next for free list)
- *   then entries field can be int64_t
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
+ *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
+ *   continuation_t can be folded into the block (which becomes a bare block_list entry)
+ *   c_proc_t name_length and id?
+ *
+ * if hash_checker fails it could return a pre-built hash_entry = failure and include the loc, so the hash_map need not be repeated in hash_table_set
+ *    or set hash_entry_value to sc->F -- then we never check if (x) just return the value!
+ *   but user-defined checkers? these return NULL!
+ *   and the loc can be handled at build/resize time so never needs to be set either
+ *   hash_entry_location, no_hash_entry(location) -> unentry:sc->F+loc only if failure
+ *     every actual entry has location preset
+ *     location could be s7_int at index because index=0 in this case (reset to 0 before liberate)
+ *   first: unentry not null, then set and check raw_hash and fixup inconsistencies [hash-diffs]
+ * hash mark could stop at entries?  free_hash_table is the only big thing left
+ * use block not hash_entry in optimize_fixups
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85591,26 +85647,26 @@ int main(int argc, char **argv)
  *
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
- * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488
+ * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1040
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1131
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1456
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1706
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2079
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2461
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2488
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556
- * tread         |      |      |      ||      ||      |                   3009  2639
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
+ * tread         |      |      |      ||      ||      |                   3009  2639  2632
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2664
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3452
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4151
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5000
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6795
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
+ * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.2
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4
  * ----------------------------------------------------------------------------------------------
  */
