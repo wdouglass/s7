@@ -522,39 +522,60 @@ typedef struct block_t {
   union {
     void *data;
     s7_pointer d_ptr;
+    s7_int *i_ptr;
   } dx;
   int32_t index; 
+  int32_t filler;
   s7_int size;
-  /* these two could be combined into one s7_int at some cost in run time, but the extra 7 or 8 bytes seems unimportant;
-   *    not that many blocks are in use normally (fewer than 100k in my tests), and this opens up space for more block_t uses.
-   */
   union {
     struct block_t *next;
     char *documentation;
     s7_pointer ksym;
     s7_int nx_int;
+    s7_int *ix_ptr;
+    struct {
+      uint32_t i1, i2;
+    } ix;
   } nx;
   union {
     s7_pointer ex_ptr; /* hash-table-procedures/entry values, initial_slot */
     char *ex_str;
     void *ex_info;
+    struct {
+      uint32_t i3; 
+      int32_t i4;
+    } jx;
   } ex;
 } block_t;
 
+#define block_data(p)                    p->dx.data
+#define block_index(p)                   p->index
+#define block_set_index(p, Index)        p->index = Index
+#define block_size(p)                    p->size
+#define block_set_size(p, Size)          p->size = Size
+#define block_next(p)                    p->nx.next
+#define block_info(p)                    p->ex.ex_info
+
 typedef block_t hash_entry_t;
-#define hash_entry_key(p)      p->dx.d_ptr
-#define hash_entry_value(p)    p->ex.ex_ptr
-#define hash_entry_next(p)     p->nx.next
-#define hash_entry_raw_hash(p) block_size(p)
+#define hash_entry_key(p)                p->dx.d_ptr
+#define hash_entry_value(p)              p->ex.ex_ptr
+#define hash_entry_set_value(p, Val)     p->ex.ex_ptr = Val
+#define hash_entry_next(p)               block_next(p)
+#define hash_entry_raw_hash(p)           block_size(p)
 #define hash_entry_set_raw_hash(p, Hash) block_set_size(p, Hash)
 
-#define block_data(p)  p->dx.data
-#define block_index(p) p->index
-#define block_set_index(p, Index) p->index = Index
-#define block_size(p)  p->size
-#define block_set_size(p, Size) p->size = Size
-#define block_next(p)  p->nx.next
-#define block_info(p)  p->ex.ex_info
+typedef block_t optfix_t;
+#define optfix_expr(p)                   p->dx.d_ptr
+#define optfix_op(p)                     block_size(p)
+#define optfix_next(p)                   block_next(p)
+
+typedef block_t vdims_t;
+#define vdims_ndims(p)                   p->size
+#define vdims_elements_allocated(p)      p->index
+#define vdims_dimensions_allocated(p)    p->filler
+#define vdims_dims(p)                    p->dx.i_ptr
+#define vdims_offsets(p)                 p->nx.ix_ptr
+#define vdims_original(p)                p->ex.ex_ptr
 
 #define NUM_BLOCK_LISTS 18
 #define TOP_BLOCK_LIST 17
@@ -620,6 +641,7 @@ static inline block_t *mallocate_block(void)
   p = block_lists[BLOCK_LIST];
   block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
   block_next(p) = NULL;
+  block_index(p) = BLOCK_LIST;
   return(p);
 }
 
@@ -675,11 +697,6 @@ static block_t *mallocate(size_t bytes)
       else
 	{
 	  p = mallocate_block();
-	  /* this malloc is the slow link in mallocate/liberate.  It could be a batch malloc like alloc_pointer et al,
-	   *   but that means the buffers can't be freed later, which means that pass-offs like port-data->string have to maintain the
-	   *   block_data pointers and indices.  Hmm... live dangerously...
-	   */
-	  /* block_data(p) = (void *)malloc((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes); */
 	  block_data(p) = (void *)alloc_permanent_string((index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes);
 	  block_set_index(p, index);
 	}
@@ -754,20 +771,6 @@ typedef struct {
   s7_pointer *arg_defaults, *arg_names;  /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
   opt_funcs *opt_data;
 } c_proc_t;
-
-
-typedef struct {               /* call/cc */
-  uint32_t stack_size, op_stack_loc, op_stack_size;
-  int32_t local_key;               /* for with-baffle */
-} continuation_t;
-
-
-typedef struct vdims_t {
-  s7_int ndims;
-  bool elements_allocated, dimensions_allocated;
-  s7_int *dims, *offsets;
-  s7_pointer original;
-} vdims_t;
 
 
 typedef struct {
@@ -1245,6 +1248,7 @@ struct s7_scheme {
   char *help_arglist;
   int32_t print_width;
   s7_pointer *singletons;
+  block_t *unentry;                   /* hash-table lookup failure indicator */
 
   #define INITIAL_FILE_NAMES_SIZE 8
   s7_pointer *file_names;
@@ -1471,7 +1475,7 @@ struct s7_scheme {
   int32_t format_depth;
 
   bool undefined_identifier_warnings;
-  hash_entry_t *optimizer_fixups;
+  optfix_t *optimizer_fixups;
 
   opt_info *free_opts;
   jmp_buf opt_exit;
@@ -2578,7 +2582,7 @@ static int64_t not_heap = -1;
 #define symbol_set_name_cell(p, S)    (T_Sym(p))->object.sym.name = T_Str(S)
 #define symbol_name(p)                string_value(symbol_name_cell(p))
 #define symbol_name_length(p)         string_length(symbol_name_cell(p))
-#define symbol_hmap(p)                s7_int_abs(heap_location(p))
+#define symbol_hmap(p)                heap_location(p)
 #define symbol_id(p)                  (T_Sym(p))->object.sym.id
 #define symbol_set_id_unchecked(p, X) (T_Sym(p))->object.sym.id = X
 #if S7_DEBUGGING
@@ -2705,16 +2709,16 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 
 #define vector_dimension_info(p)      ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
 #define vector_set_dimension_info(p, d) (T_Vec(p))->object.vector.block->ex.ex_info = (void  *)d
-#define vector_ndims(p)               vector_dimension_info(p)->ndims
-#define vector_dimension(p, i)        vector_dimension_info(p)->dims[i]
-#define vector_dimensions(p)          vector_dimension_info(p)->dims
-#define vector_offset(p, i)           vector_dimension_info(p)->offsets[i]
-#define vector_offsets(p)             vector_dimension_info(p)->offsets
-#define shared_vector(p)              vector_dimension_info(p)->original
+#define vector_ndims(p)               vdims_ndims(vector_dimension_info(p))
+#define vector_dimension(p, i)        vdims_dims(vector_dimension_info(p))[i]
+#define vector_dimensions(p)          vdims_dims(vector_dimension_info(p))
+#define vector_offset(p, i)           vdims_offsets(vector_dimension_info(p))[i]
+#define vector_offsets(p)             vdims_offsets(vector_dimension_info(p))
+#define shared_vector(p)              vdims_original(vector_dimension_info(p))
 #define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
-#define vector_elements_allocated(p)  vector_dimension_info(p)->elements_allocated
-#define vector_dimensions_allocated(p) vector_dimension_info(p)->dimensions_allocated
+#define vector_elements_allocated(p)  vdims_elements_allocated(vector_dimension_info(p))
+#define vector_dimensions_allocated(p) vdims_dimensions_allocated(vector_dimension_info(p))
 
 #define rootlet_element(p, i)         unchecked_vector_element(p, i)
 #define rootlet_elements(p)           unchecked_vector_elements(p)
@@ -2852,17 +2856,16 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #endif
 
 #define continuation_block(p)         (T_Con(p))->object.cwcc.block
-#define continuation_data(p)          ((continuation_t *)(block_data(continuation_block(p))))
 #define continuation_stack(p)         (T_Con(p))->object.cwcc.stack
 #define continuation_set_stack(p, Val) (T_Con(p))->object.cwcc.stack = T_Stk(Val)
 #define continuation_stack_end(p)     (T_Con(p))->object.cwcc.stack_end
 #define continuation_stack_start(p)   (T_Con(p))->object.cwcc.stack_start
-#define continuation_stack_size(p)    continuation_data(p)->stack_size
 #define continuation_stack_top(p)     (continuation_stack_end(p) - continuation_stack_start(p))
 #define continuation_op_stack(p)      (T_Con(p))->object.cwcc.op_stack
-#define continuation_op_loc(p)        continuation_data(p)->op_stack_loc
-#define continuation_op_size(p)       continuation_data(p)->op_stack_size
-#define continuation_key(p)           continuation_data(p)->local_key
+#define continuation_stack_size(p)    continuation_block(p)->nx.ix.i1
+#define continuation_op_loc(p)        continuation_block(p)->nx.ix.i2
+#define continuation_op_size(p)       continuation_block(p)->ex.jx.i3
+#define continuation_key(p)           continuation_block(p)->ex.jx.i4
 
 #define call_exit_goto_loc(p)         (T_Got(p))->object.rexit.goto_loc
 #define call_exit_op_loc(p)           (T_Got(p))->object.rexit.op_stack_loc
@@ -4419,7 +4422,7 @@ static void sweep(s7_scheme *sc)
 		      free(vector_dimensions(s1));
 		      free(vector_offsets(s1));
 		    }
-		  free(vector_dimension_info(s1));
+		  liberate_block(vector_dimension_info(s1));
 		  vector_set_dimension_info(s1, NULL);
 		}
 	      liberate(vector_block(s1));
@@ -4534,7 +4537,7 @@ static void sweep(s7_scheme *sc)
 		  free(continuation_op_stack(s1));
 		  continuation_op_stack(s1) = NULL;
 		}
-	      liberate(continuation_block(s1));
+	      liberate_block(continuation_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4925,7 +4928,7 @@ static void mark_hash_table(s7_pointer p)
       len = hash_table_mask(p) + 1;
       last = (hash_entry_t **)(entries + len);
 
-      while (entries < last)
+      while (entries < last) /* counting entries here was slightly faster */
 	{
 	  hash_entry_t *xp;
 	  for (xp = *entries++; xp; xp = hash_entry_next(xp))
@@ -5639,7 +5642,7 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 
 	  heap_location(x) = -heap_location(x);
 	  /* if gensym is a hash-table key, then is removed from the heap, we need to be sure the hash-table map to it
-	   *   continues to be valid.  symbol_hmap is abs(heap_location), and the possible overlap with other not-in-heap
+	   *   continues to be valid.  symbol_hmap is heap_location, and the possible overlap with other not-in-heap
 	   *   ints is not problematic (they'll just hash to the same location).
 	   */
 	  gp = sc->gensyms;
@@ -6029,7 +6032,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
 	  typeflag(x) |= (T_IMMUTABLE | T_KEYWORD);
 	  keyword_set_symbol(x, make_symbol_with_length(sc, (name[0] == ':') ? (char *)(name + 1) : name, len - 1));
 	  set_has_keyword(keyword_symbol(x));
-	  set_global_slot(x, s7_make_slot(sc, sc->nil, x, x));
+	  /* set_global_slot(x, s7_make_slot(sc, sc->nil, x, x)); */
 	}
     }
   unheap(p);
@@ -8254,6 +8257,8 @@ static inline s7_pointer symbol_to_value_unchecked(s7_scheme *sc, s7_pointer sym
   if (is_slot(x))
     return(slot_value(x));
 
+  if (is_keyword(symbol))
+    return(symbol);
 #if WITH_GCC
   return(NULL); /* much faster than various alternatives */
 #else
@@ -8310,6 +8315,9 @@ s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym)
   x = symbol_to_slot(sc, sym);
   if (is_slot(x))
     return(slot_value(x));
+
+  if (is_keyword(sym))
+    return(sym);
 
   return(sc->undefined);
 }
@@ -9421,7 +9429,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
-  block = mallocate(sizeof(continuation_t));
+  block = mallocate_block();
   continuation_block(x) = block;
   continuation_set_stack(x, stack);
   continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
@@ -35218,13 +35226,13 @@ s7_pointer s7_make_vector(s7_scheme *sc, s7_int len)
 static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
 {
   vdims_t *v;
-  v = (vdims_t *)malloc(sizeof(vdims_t));
-  v->original = sc->F;
-  v->elements_allocated = false;
-  v->ndims = 1;
-  v->dimensions_allocated = false;
-  v->dims = NULL;
-  v->offsets = NULL;
+  v = (vdims_t *)mallocate_block();
+  vdims_original(v) = sc->F;
+  vdims_elements_allocated(v) = false;
+  vdims_ndims(v) = 1;
+  vdims_dimensions_allocated(v) = false;
+  vdims_dims(v) = NULL;
+  vdims_offsets(v) = NULL;
   return(v);
 }
 
@@ -35233,31 +35241,30 @@ static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
 static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims, s7_int *dim_info)
 {
   vdims_t *v;
-
-  v = (vdims_t *)malloc(sizeof(vdims_t));
-  v->original = sc->F;
-  v->elements_allocated = elements_allocated;
-  v->ndims = dims;
+  v = (vdims_t *)mallocate_block();
+  vdims_original(v) = sc->F;
+  vdims_elements_allocated(v) = elements_allocated;
+  vdims_ndims(v) = dims;
   if (dims > 1)
     {
       s7_int i, offset = 1;
-      v->dimensions_allocated = true;
-      v->dims = (s7_int *)malloc(v->ndims * sizeof(s7_int));
-      v->offsets = (s7_int *)malloc(v->ndims * sizeof(s7_int));
+      vdims_dimensions_allocated(v) = true;
+      vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+      vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
 
       for (i = 0; i < dims; i++)
-	v->dims[i] = dim_info[i];
-      for (i = v->ndims - 1; i >= 0; i--)
+	vdims_dims(v)[i] = dim_info[i];
+      for (i = vdims_ndims(v) - 1; i >= 0; i--)
 	{
-	  v->offsets[i] = offset;
-	  offset *= v->dims[i];
+	  vdims_offsets(v)[i] = offset;
+	  offset *= vdims_dims(v)[i];
 	}
     }
   else
     {
-      v->dimensions_allocated = false;
-      v->dims = NULL;
-      v->offsets = NULL;
+      vdims_dimensions_allocated(v) = false;
+      vdims_dims(v) = NULL;
+      vdims_offsets(v) = NULL;
     }
   return(v);
 }
@@ -35985,16 +35992,16 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
   vector_getter(x) = vector_getter(vect);
   vector_setter(x) = vector_setter(vect);
 
-  v = (vdims_t *)malloc(sizeof(vdims_t));
-  v->ndims = vector_ndims(vect) - skip_dims;
-  v->dims = (s7_int *)(vector_dimensions(vect) + skip_dims);
-  v->offsets = (s7_int *)(vector_offsets(vect) + skip_dims);
-  v->original = vect; /* shared_vector */
+  v = (vdims_t *)mallocate_block();
+  vdims_ndims(v) = vector_ndims(vect) - skip_dims;
+  vdims_dims(v) = (s7_int *)(vector_dimensions(vect) + skip_dims);
+  vdims_offsets(v) = (s7_int *)(vector_offsets(vect) + skip_dims);
+  vdims_original(v) = vect; /* shared_vector */
   if (is_normal_vector(vect))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(vect)] = mark_int_or_float_vector_possibly_shared; 
-  v->elements_allocated = false;
-  v->dimensions_allocated = false;
+  vdims_elements_allocated(v) = false;
+  vdims_dimensions_allocated(v) = false;
   vector_set_dimension_info(x, v);
 
   if (skip_dims > 0)
@@ -36070,31 +36077,31 @@ a vector that points to the same elements as the original-vector but with differ
 			  set_elist_1(sc, s7_make_string_wrapper(sc, "make-shared-vector: new dimensions should be a list of integers that fits the original vector"))));
     }
 
-  v = (vdims_t *)malloc(sizeof(vdims_t));
-  v->ndims = safe_list_length(dims);
-  v->dims = (s7_int *)malloc(v->ndims * sizeof(s7_int));
-  v->offsets = (s7_int *)malloc(v->ndims * sizeof(s7_int));
-  v->dimensions_allocated = true;
-  v->elements_allocated = false;
-  v->original = orig; /* shared_vector */
+  v = (vdims_t *)mallocate_block();
+  vdims_ndims(v) = safe_list_length(dims);
+  vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+  vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+  vdims_dimensions_allocated(v) = true;
+  vdims_elements_allocated(v) = false;
+  vdims_original(v) = orig; /* shared_vector */
   if (is_normal_vector(orig))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; 
 
   for (i = 0, y = dims; is_pair(y); i++, y = cdr(y))
-    v->dims[i] = s7_integer(car(y));
+    vdims_dims(v)[i] = s7_integer(car(y));
 
-  for (i = v->ndims - 1; i >= 0; i--)
+  for (i = vdims_ndims(v) - 1; i >= 0; i--)
     {
-      v->offsets[i] = new_len;
-      new_len *= v->dims[i];
+      vdims_offsets(v)[i] = new_len;
+      new_len *= vdims_dims(v)[i];
     }
 
   if ((new_len < 0) || ((new_len + offset) > vector_length(orig)))
     {
-      free(v->dims);
-      free(v->offsets);
-      free(v);
+      free(vdims_dims(v));
+      free(vdims_offsets(v));
+      liberate_block(v);
       return(out_of_range(sc, sc->make_shared_vector_symbol, small_int(2), dims, s7_make_string_wrapper(sc, "a shared vector has to fit in the original vector")));
     }
 
@@ -36568,22 +36575,22 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
       s7_pointer y;
       vdims_t *v;
 
-      v = (vdims_t *)malloc(sizeof(vdims_t));
-      v->ndims = safe_list_length(x);
-      v->dims = (s7_int *)malloc(v->ndims * sizeof(s7_int));
-      v->offsets = (s7_int *)malloc(v->ndims * sizeof(s7_int));
-      v->original = sc->F;
+      v = (vdims_t *)mallocate_block();
+      vdims_ndims(v) = safe_list_length(x);
+      vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+      vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+      vdims_original(v) = sc->F;
       vector_set_dimension_info(vec, v);
-      v->dimensions_allocated = true;
-      v->elements_allocated = (len > 0);
+      vdims_dimensions_allocated(v) = true;
+      vdims_elements_allocated(v) = (len > 0);
 
       for (i = 0, y = x; is_not_null(y); i++, y = cdr(y))
-	v->dims[i] = s7_integer(car(y));
+	vdims_dims(v)[i] = s7_integer(car(y));
 
-      for (i = v->ndims - 1; i >= 0; i--)
+      for (i = vdims_ndims(v) - 1; i >= 0; i--)
 	{
-	  v->offsets[i] = offset;
-	  offset *= v->dims[i];
+	  vdims_offsets(v)[i] = offset;
+	  offset *= vdims_dims(v)[i];
 	}
     }
   return(vec);
@@ -37919,7 +37926,7 @@ static hash_entry_t *make_hash_entry(s7_pointer key, s7_pointer value, s7_int ra
   hash_entry_t *p;
   p = (hash_entry_t *)mallocate_block();
   hash_entry_key(p) = key;
-  hash_entry_value(p) = value;
+  hash_entry_set_value(p, value);
   hash_entry_set_raw_hash(p, raw_hash);
   return(p);
 }
@@ -37961,22 +37968,13 @@ static s7_int hash_table_entries_i(s7_pointer p)
 /* ---------------- mappers ---------------- */
 static s7_int hash_float_location(s7_double x)
 {
-  s7_int loc;
 #if defined(__clang__)
   if ((is_inf(x)) || (is_NaN(x))) return(0);
 #endif
   x = fabs(x);
   if (x < 100.0)
-    loc = 1000.0 * x;     /* this means hash_table_float_epsilon only works if it is less than about .001 */
-  else 
-    {
-      if (x < 1e9)
-	loc = x;
-      else return(0);
-    }
-  if (loc < 0)
-    return(0);
-  return(loc);
+    return(1000.0 * x);     /* this means hash_table_float_epsilon only works if it is less than about .001 */
+  return((s7_int)x);
 }
 
 /* built in hash loc tables for eq? eqv? equal? morally-equal? = string=? string-ci=? char=? char-ci=? (default=equal?) */
@@ -37990,7 +37988,7 @@ static hash_map_t *string_ci_eq_hash_map, *char_ci_eq_hash_map;
 #endif
 
 static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
-static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(s7_int_abs(integer(key)));}
+static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(integer(key));}
 static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
 static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return(denominator(key));}
 static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
@@ -38106,10 +38104,7 @@ static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
 
 static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  s7_int x; 
-  x = heap_location(key);
-  if (x < 0) return(-x);
-  return(x);
+  return(heap_location(key));
 }
 
 static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38226,7 +38221,7 @@ static s7_int hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
 /* ---------------- checkers ---------------- */
 static hash_entry_t *hash_empty(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38234,21 +38229,17 @@ static hash_entry_t *hash_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (is_integer(key))
     {
-      s7_int keyval, loc, hash_len;
+      s7_int loc, hash_len, kv;
       hash_entry_t *x;
 
       hash_len = hash_table_mask(table);
-      keyval = integer(key);
-      if (keyval < 0)
-	loc = (-keyval) & hash_len;
-      else loc = keyval & hash_len; 
-      /* I think this assumes hash_map_int is using s7_int_abs (and high order bits are ignored) */
-
+      kv = integer(key);
+      loc = kv & hash_len;
       for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-	if (integer(hash_entry_key(x)) == keyval)
+	if (integer(hash_entry_key(x)) == kv)
 	  return(x);
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38264,11 +38255,11 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
       key_len = string_length(key);
       key_str = string_value(key);
 
-      hash_len = hash_table_mask(table);
       if (string_hash(key) == 0)
 	string_hash(key) = raw_string_hash((const uint8_t *)string_value(key), string_length(key));
       hash = string_hash(key);
 
+      hash_len = hash_table_mask(table);
       if (key_len <= 8)
 	{
 	  for (x = hash_table_element(table, hash & hash_len); x; x = hash_entry_next(x))
@@ -38285,7 +38276,7 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
 	      return(x);
 	}
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 #if (!WITH_PURE_S7)
@@ -38303,7 +38294,7 @@ static hash_entry_t *hash_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer 
 	if (scheme_strequal_ci(key, hash_entry_key(x)))
 	  return(x);
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38320,7 +38311,7 @@ static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer ke
 	if (upper_character(key) == upper_character(hash_entry_key(x)))
 	  return(x);
     }
-  return(NULL);
+  return(sc->unentry);
 }
 #endif
 
@@ -38349,7 +38340,7 @@ static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, s7_int loc, s
 	    }
 	}
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38367,7 +38358,7 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
       
       return(hash_float_1(sc, table, loc, keyval));
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38378,7 +38369,7 @@ static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, s7_int loc,
     if ((is_t_complex(hash_entry_key(x))) &&
 	(s7_is_morally_equal(sc, hash_entry_key(x), key)))
       return(x);
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38403,7 +38394,7 @@ static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_point
     if ((is_syntax(hash_entry_key(x))) &&
 	(syntax_symbol(hash_entry_key(x)) == syntax_symbol(key))) /* the opcodes might differ, but the symbols should not */
       return(x);
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38415,7 +38406,7 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (hash_entry_key(x) == key)
       return(x);
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38431,7 +38422,7 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (s7_is_equal(sc, hash_entry_key(x), key))
       return(x);
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38457,7 +38448,7 @@ static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_poin
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (s7_is_morally_equal(sc, hash_entry_key(x), key))
       return(x);
-  return(NULL);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38477,7 +38468,7 @@ static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer
       if (is_true(sc, f(sc, sc->t2_1)))
 	return(x);
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38494,7 +38485,7 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
     if (key == hash_entry_key(x))
       return(x);
 
-  return(NULL);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38509,7 +38500,7 @@ static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
     if (s7_is_eqv(key, hash_entry_key(x)))
       return(x);
 
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38535,19 +38526,16 @@ static hash_entry_t *hash_number(s7_scheme *sc, s7_pointer table, s7_pointer key
 	  return(x);
 #endif
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  if (is_symbol(key))
-    {
-      hash_entry_t *x;
-      for (x = hash_table_element(table, symbol_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
-	if (key == hash_entry_key(x))
-	  return(x);
-    }
-  return(NULL);
+  hash_entry_t *x;
+  for (x = hash_table_element(table, symbol_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
+    if (key == hash_entry_key(x))
+      return(x);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38564,7 +38552,7 @@ static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
 	if (key == hash_entry_key(x))
 	  return(x);
     }
-  return(NULL);
+  return(sc->unentry);
 }
 
 static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38599,7 +38587,7 @@ static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer ke
 	}
     }
   sc->envir = old_e;
-  return(NULL);
+  return(sc->unentry);
 }
 
 
@@ -38608,7 +38596,8 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   hash_entry_t *x;
   s7_int hash_len, loc;
 
-  if (!p) return(sc->F);
+  if (p == sc->unentry) return(sc->F);
+
   hash_len = hash_table_mask(table);
   loc = hash_entry_raw_hash(p) & hash_len;
 
@@ -38990,8 +38979,7 @@ s7_pointer s7_hash_table_ref(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 
@@ -39027,8 +39015,7 @@ static s7_pointer g_hash_table_ref_2(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, args, T_HASH_TABLE, 1);
 
   x = (*hash_table_checker(table))(sc, table, cadr(args));
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 static s7_pointer hash_table_ref_ss;
@@ -39043,8 +39030,7 @@ static s7_pointer g_hash_table_ref_ss(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, list_2(sc, table, key), T_HASH_TABLE, 1);
   
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 static s7_pointer hash_table_ref_car;
@@ -39062,8 +39048,7 @@ static s7_pointer g_hash_table_ref_car(s7_scheme *sc, s7_pointer args)
     method_or_bust(sc, table, sc->hash_table_ref_symbol, list_2(sc, table, car(y)), T_HASH_TABLE, 1);
 
   x = (*hash_table_checker(table))(sc, table, car(y));
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 static s7_pointer hash_table_ref_p_pp(s7_pointer p1, s7_pointer p2)
@@ -39098,21 +39083,24 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
-  s7_int hash_len, loc;
+  s7_int hash_len, loc; 
   hash_entry_t *p, *x;
 
   if (value == sc->F)
     return(remove_from_hash_table(sc, table, key, (*hash_table_checker(table))(sc, table, key)));
 
   x = (*hash_table_checker(table))(sc, table, key);      
-  if (x)
+  if (x != sc->unentry)
     {
-      hash_entry_value(x) = T_Pos(value);
+      hash_entry_set_value(x, T_Pos(value));
       return(value);
     }
+  /* hash_entry_raw_hash(x) can save the hash_loc from the lookup operations, but at some added complexity in
+   *   all the preceding code.  This saves about 5% compute time best case in this function.  Keep it simple...
+   */
 
   if (!hash_chosen(table))
-    hash_table_set_checker(table, type(key));
+    hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
   hash_len = hash_table_mask(table);
 
   if (hash_table_entries(table) > hash_len)
@@ -39120,9 +39108,8 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
 
   p = mallocate_block();
   hash_entry_key(p) = key;
-  hash_entry_value(p) = T_Pos(value);
+  hash_entry_set_value(p, T_Pos(value));
   hash_entry_set_raw_hash(p, hash_loc(sc, table, key));
-
   loc = hash_entry_raw_hash(p) & hash_len;
   hash_entry_next(p) = hash_table_element(table, loc);
   hash_table_element(table, loc) = p;
@@ -39277,8 +39264,8 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	  {
 	    hash_entry_t *y;
 	    y = (*hash_table_checker(new_hash))(sc, new_hash, hash_entry_key(x));
-	    if (y)
-	      hash_entry_value(y) = hash_entry_value(x);
+	    if (y != sc->unentry)
+	      hash_entry_set_value(y, hash_entry_value(x));
 	    else
 	      {
 		s7_int loc;
@@ -39347,7 +39334,7 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 	  hash_entry_t *x;
 	  for (i = 0; i < len; i++)
 	    for (x = entries[i]; x; x = hash_entry_next(x))
-	      hash_entry_value(x) = val;
+	      hash_entry_set_value(x, val);
 	  /* keys haven't changed, so no need to mess with hash_table_checker */
 	}
     }
@@ -47242,8 +47229,7 @@ static s7_pointer x_c_hash_table_ref_ss(s7_scheme *sc, s7_pointer table, s7_poin
   if (!is_hash_table(table))
     return(g_hash_table_ref(sc, set_plist_2(sc, table, key)));
   x = (*hash_table_checker(table))(sc, table, key);
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 static s7_pointer all_x_c_hash_table_ref_ss(s7_scheme *sc, s7_pointer arg)
@@ -47265,8 +47251,7 @@ static s7_pointer all_x_c_hash_table_ref_car(s7_scheme *sc, s7_pointer arg)
     return(g_hash_table_ref(sc, set_plist_2(sc, table, car(lst))));
 
   x = (*hash_table_checker(table))(sc, table, car(lst));
-  if (x) return(hash_entry_value(x));
-  return(sc->F);
+  return(hash_entry_value(x));
 }
 
 static s7_pointer all_x_c_qs(s7_scheme *sc, s7_pointer arg)
@@ -56825,10 +56810,10 @@ static s7_function s7_cell_optimize(s7_scheme *sc, s7_pointer expr, bool nr)
 /* -------------------------------------------------------------------------------- */
 static void clear_optimizer_fixups(s7_scheme *sc)
 {
-  hash_entry_t *p, *n;
+  optfix_t *p, *n;
   for (p = sc->optimizer_fixups; p; p = n)
     {
-      n = hash_entry_next(p);
+      n = optfix_next(p);
       liberate_block(p); 
     }
   sc->optimizer_fixups = NULL;
@@ -56836,20 +56821,22 @@ static void clear_optimizer_fixups(s7_scheme *sc)
 
 static void add_optimizer_fixup(s7_scheme *sc, s7_pointer expr, uint32_t op)
 {
-  hash_entry_t *p;
+  optfix_t *p;
 #if S7_DEBUGGING
   if (((op & 1) != 0) && (!all_x_function[op])) fprintf(stderr, "no all_x fixup for %s\n", opt_names[op]);
 #endif
-  p = make_hash_entry(expr, sc->nil, op);
-  hash_entry_next(p) = sc->optimizer_fixups;
+  p = (optfix_t *)mallocate_block();
+  optfix_expr(p) = expr;
+  optfix_op(p) = op;
+  optfix_next(p) = sc->optimizer_fixups;
   sc->optimizer_fixups = p;
 }
 
 static void handle_optimizer_fixups(s7_scheme *sc)
 {
-  hash_entry_t *p;
-  for (p = sc->optimizer_fixups; p; p = hash_entry_next(p))
-    set_optimize_op(hash_entry_key(p), hash_entry_raw_hash(p));
+  optfix_t *p;
+  for (p = sc->optimizer_fixups; p; p = optfix_next(p))
+    set_optimize_op(optfix_expr(p), optfix_op(p));
   clear_optimizer_fixups(sc);
 }
 
@@ -60779,17 +60766,17 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  (is_global(car(expr))))
 		{
 		  if (c_call(expr) == g_car)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_CAR_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_CAR_S);
 		  if (c_call(expr) == g_cdr)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_CDR_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_CDR_S);
 		  if (c_call(expr) == g_cadr)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_CADR_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_CADR_S);
 		  if (c_call(expr) == g_is_pair)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_IS_PAIR_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_IS_PAIR_S);
 		  if (c_call(expr) == g_is_null)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_IS_NULL_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_IS_NULL_S);
 		  if (c_call(expr) == g_is_symbol)
-		    add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_IS_SYMBOL_S));
+		    add_optimizer_fixup(sc, expr, hop + OP_SAFE_IS_SYMBOL_S);
 		}
 	      return(OPT_T);
 	    }
@@ -62860,7 +62847,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		  if (s7_list_length(sc, cdr(expr)) == 2)
 		    {
 		      set_c_function(expr, or_2);
-		      add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_C_OR2));
+		      add_optimizer_fixup(sc, expr, hop + OP_SAFE_C_OR2);
 		    }
 		  else 
 		    {
@@ -62881,7 +62868,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 			  else 
 			    {
 			      set_c_function(expr, and_2);
-			      add_optimizer_fixup(sc, expr, (uint32_t)(hop + OP_SAFE_C_AND2));
+			      add_optimizer_fixup(sc, expr, hop + OP_SAFE_C_AND2);
 			    }
 			}
 		      else
@@ -83841,6 +83828,8 @@ s7_scheme *s7_init(void)
   sc->undefined_identifier_warnings = false;
   sc->wrap_only = make_wrap_only(sc);
   sc->dox_slot_symbol = s7_make_symbol(sc, "(dox_slot)");
+  sc->unentry = (hash_entry_t *)malloc(sizeof(hash_entry_t));
+  hash_entry_set_value(sc->unentry, sc->F);
 
   sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
   set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
@@ -85515,8 +85504,8 @@ s7_scheme *s7_init(void)
     fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
 #endif
 
-  /* fprintf(stderr, "size: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
-  /* 64 bit machine: size: 56 [size 80 if gmp, 136 if debugging], op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
+  /* 64 bit machine: cell size: 56 [size 80 if gmp, 136 if debugging], block size: 40, op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
   if (sizeof(void *) > sizeof(s7_int))
     fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
@@ -85599,26 +85588,15 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *
- * check other maps for overhead
- *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
  * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
  *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
- *   continuation_t can be folded into the block (which becomes a bare block_list entry)
  *   c_proc_t name_length and id?
  *
- * if hash_checker fails it could return a pre-built hash_entry = failure and include the loc, so the hash_map need not be repeated in hash_table_set
- *    or set hash_entry_value to sc->F -- then we never check if (x) just return the value!
- *   but user-defined checkers? these return NULL!
- *   and the loc can be handled at build/resize time so never needs to be set either
- *   hash_entry_location, no_hash_entry(location) -> unentry:sc->F+loc only if failure
- *     every actual entry has location preset
- *     location could be s7_int at index because index=0 in this case (reset to 0 before liberate)
- *   first: unentry not null, then set and check raw_hash and fixup inconsistencies [hash-diffs]
- * hash mark could stop at entries?  free_hash_table is the only big thing left
- * use block not hash_entry in optimize_fixups
+ * local_memset8 for 8-at-a-time?
+ * gensym keywords are never GC'd. all_x_c_ka? free-floating global slot for key?
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85648,22 +85626,22 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1040
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1131
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1456
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1706
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2079
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2461
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2488
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
- * tread         |      |      |      ||      ||      |                   3009  2639  2632
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2664
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3452
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1702
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2048
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2449
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2489
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 125.4
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2546
+ * tread         |      |      |      ||      ||      |                   3009  2639  2645
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2660
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4151
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5000
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6795
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5006
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6625
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.2

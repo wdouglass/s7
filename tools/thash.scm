@@ -2,7 +2,6 @@
 ;(set! (*s7* 'gc-stats) 6)
 ;heap ca 30*size!
 
-
 (define (reader)
   (let ((port (open-input-file "/home/bil/test/scheme/bench/src/bib"))
 	(new-pos 0)
@@ -49,7 +48,7 @@
   (let ((int-hash (make-hash-table size))
 	(p (cons #f #f)))
     (do ((i 0 (+ i 1))) 
-	((= i size)) 
+	((= i size))
       (hash-table-set! int-hash i i))
     (do ((i 0 (+ i 1)))	
 	((= i size))
@@ -138,12 +137,12 @@
 (define (test9 size)
   (let ((any-hash1 (make-hash-table size eq?)))
     (if (= size 1)
-	(hash-table-set! any-hash1 (vector-set! strings 0 (inlet :a 0)) 0)
+	(hash-table-set! any-hash1 (vector-set! strings 0 (inlet 'a 0)) 0)
 	(do ((i 0 (+ i 2))
 	     (j 1 (+ j 2))
 	     (x 0.0 (+ x 2.0)))
 	    ((= i size))
-	  (hash-table-set! any-hash1 (vector-set! strings i (inlet :a i)) i)
+	  (hash-table-set! any-hash1 (vector-set! strings i (inlet 'a i)) i)
 	  (hash-table-set! any-hash1 (vector-set! strings j (float-vector x)) j)))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
