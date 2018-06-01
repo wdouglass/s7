@@ -538,7 +538,7 @@ typedef struct block_t {
     } ix;
   } nx;
   union {
-    s7_pointer ex_ptr; /* hash-table-procedures/entry values, initial_slot */
+    s7_pointer ex_ptr;
     char *ex_str;
     void *ex_info;
     struct {
@@ -1242,6 +1242,7 @@ struct s7_scheme {
   s7_pointer stacktrace_defaults;
   int32_t float_format_precision;
   vdims_t *wrap_only;
+  port_t *open_input_string_template;
 
   char *typnam;
   int32_t typnam_len;
@@ -4749,7 +4750,7 @@ static void mark_owlet(s7_scheme *sc)
    *   mark_owlet is not called very often
    */
   mark_slot(sc->error_code);
-  /* can sc->code be garbage at EVAL: when sc->cur_code is set? or freed later by hand? */
+  /* can sc->code be garbage at EVAL when sc->cur_code is set? or freed later by hand? */
   mark_slot(sc->error_line);
   mark_slot(sc->error_file);
 #if WITH_HISTORY
@@ -4786,7 +4787,7 @@ static void mark_pair(s7_pointer p)
 {
   do {
     set_mark(p);
-    gc_mark(car(p));
+    gc_mark(car(p)); /* expanding this to avoid recursion is slower */
     p = cdr(p);
   } while ((is_pair(p)) && (!is_marked(p)));
   gc_mark(p);
@@ -5038,6 +5039,10 @@ static void mark_rootlet(s7_scheme *sc)
   while (tmp < top)
     gc_mark(slot_value(*tmp++));
   /* slot_setter is handled below with an explicit list -- more code than its worth probably */
+  /* we're not marking slot_symbol above which makes me worry that a top-level gensym won't protected
+   *   (apply define (gensym) '(32)), then try to get the GC to clobber {gensym}-0,
+   *   but I can't seem to get it to break, so they must be protected somehow.
+   */
 }
 
 static void mark_permanent_objects(s7_scheme *sc)
@@ -5992,6 +5997,7 @@ static uint8_t *alloc_symbol(void)
 }
 
 static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
+static s7_pointer permanent_slot(s7_pointer symbol, s7_pointer value);
 
 static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64_t hash, uint32_t location)
 {
@@ -6029,10 +6035,13 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
     {
       if ((name[0] == ':') || (name[len - 1] == ':'))
 	{
-	  typeflag(x) |= (T_IMMUTABLE | T_KEYWORD);
+	  s7_pointer slot;
+	  typeflag(x) |= (T_IMMUTABLE | T_KEYWORD | T_GLOBAL);
 	  keyword_set_symbol(x, make_symbol_with_length(sc, (name[0] == ':') ? (char *)(name + 1) : name, len - 1));
 	  set_has_keyword(keyword_symbol(x));
-	  /* set_global_slot(x, s7_make_slot(sc, sc->nil, x, x)); */
+	  slot = permanent_slot(x, x);
+	  set_global_slot(x, slot);
+	  set_local_slot(x, slot);
 	}
     }
   unheap(p);
@@ -8257,8 +8266,6 @@ static inline s7_pointer symbol_to_value_unchecked(s7_scheme *sc, s7_pointer sym
   if (is_slot(x))
     return(slot_value(x));
 
-  if (is_keyword(symbol))
-    return(symbol);
 #if WITH_GCC
   return(NULL); /* much faster than various alternatives */
 #else
@@ -8311,14 +8318,9 @@ static s7_pointer symbol_to_local_slot(s7_scheme *sc, s7_pointer symbol, s7_poin
 s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym)
 {
   s7_pointer x;
-
   x = symbol_to_slot(sc, sym);
   if (is_slot(x))
     return(slot_value(x));
-
-  if (is_keyword(sym))
-    return(sym);
-
   return(sc->undefined);
 }
 
@@ -8959,6 +8961,19 @@ s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name
   return(sym);
 }
 
+static s7_pointer define_global_constant(s7_scheme *sc, const char *name, s7_pointer value)
+{
+  s7_pointer sym, slot;
+  sym = make_symbol(sc, name);
+  slot = permanent_slot(sym, value);
+  set_global_slot(sym, slot);
+  set_local_slot(sym, slot);
+  set_immutable(sym);
+  set_possibly_constant(sym);
+  set_immutable(global_slot(sym));
+  set_immutable(local_slot(sym));
+  return(sym);
+}
 
 s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value)
 {
@@ -23007,25 +23022,28 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
     }
   if (port_filename(p))
     {
+      /* for string ports, this is the original input file name */
       free(port_filename(p));
       port_filename(p) = NULL;
     }
 
-  if (is_file_port(p))
+  if (is_string_port(p))
     {
-      if (port_file(p))
+      if (port_needs_unprotect(p))
 	{
-	  fclose(port_file(p));
-	  port_file(p) = NULL;
+	  s7_gc_unprotect_at(sc, port_gc_loc(p));
+	  port_needs_unprotect(p) = false;
 	}
     }
   else
     {
-      if ((is_string_port(p)) &&
-	  (port_needs_unprotect(p)))
+      if (is_file_port(p))
 	{
-	  s7_gc_unprotect_at(sc, port_gc_loc(p));
-	  port_needs_unprotect(p) = false;
+	  if (port_file(p))
+	    {
+	      fclose(port_file(p));
+	      port_file(p) = NULL;
+	    }
 	}
     }
   if (port_needs_free(p))
@@ -24200,6 +24218,27 @@ static s7_pointer g_open_output_file(s7_scheme *sc, s7_pointer args)
   return(s7_open_output_file(sc, string_value(name), "w"));
 }
 
+static void init_port_templates(s7_scheme *sc)
+{
+  port_t *p;
+
+  /* default open-input-string port_t struct settings (all 0, false, NULL via calloc) */
+  p = (port_t *)calloc(1, sizeof(port_t));
+  p->read_character = string_read_char;
+  p->read_line = string_read_line;
+  p->display = input_display;
+  p->read_semicolon = string_read_semicolon;
+  p->read_white_space = terminated_string_read_white_space;
+  p->read_name = string_read_name_no_free;
+  p->read_sharp = string_read_sharp;
+  p->write_character = input_write_char;
+  p->write_string = input_write_string;
+
+  sc->open_input_string_template = p;
+
+  /* TODO: add open_output_string_template and check callgrind again -- confusing! */
+}
+
 static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_int len)
 {
   s7_pointer x;
@@ -24208,32 +24247,12 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   b = mallocate(sizeof(port_t));
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
+  memcpy((void *)port_port(x), (void *)(sc->open_input_string_template), sizeof(port_t));
   port_type(x) = STRING_PORT;
-  port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
   port_data(x) = (uint8_t *)input_string;
-  port_data_block(x) = NULL;
   port_data_size(x) = len;
   port_position(x) = 0;
-  port_filename_length(x) = 0;
-  port_filename(x) = NULL;
-  port_file_number(x) = 0;
-  port_line_number(x) = 0;
-  port_needs_free(x) = false;
-  port_needs_unprotect(x) = false;
-  port_read_character(x) = string_read_char;
-  port_read_line(x) = string_read_line;
-  port_display(x) = input_display;
-  port_read_semicolon(x) = string_read_semicolon;
-#if S7_DEBUGGING
-  if (input_string[len] != '\0')
-    fprintf(stderr, "read_white_space string is not terminated: %s", input_string);
-#endif
-  port_read_white_space(x) = terminated_string_read_white_space;
-  port_read_name(x) = string_read_name_no_free;
-  port_read_sharp(x) = string_read_sharp;
-  port_write_character(x) = input_write_char;
-  port_write_string(x) = input_write_string;
   add_input_port(sc, x);
   return(x);
 }
@@ -24490,6 +24509,12 @@ s7_pointer s7_read_char(s7_scheme *sc, s7_pointer port)
 s7_pointer s7_peek_char(s7_scheme *sc, s7_pointer port)
 {
   int32_t c;              /* needs to be an int32_t so EOF=-1, but not 255 */
+  if (is_string_port(port))
+    {
+      if (port_data_size(port) <= port_position(port))
+	return(chars[EOF]);
+      return(chars[(uint8_t)port_data(port)[port_position(port)]]);
+    }
   c = port_read_character(port)(sc, port);
   if (c == EOF) return(sc->eof_object);
   backchar(c, port);
@@ -26702,21 +26727,17 @@ static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at
   /* collect all pointers associated with top */
   cyclic = collect_shared_info(sc, ci, top, stop_at_print_length);
 
+  ci_objs = ci->objs;
   for (i = 0; i < ci->top; i++)
-    {
-      s7_pointer p;
-      p = ci->objs[i];
-      clear_collected_and_shared(p);
-    }
+    clear_collected_and_shared(ci_objs[i]);
+
   if (!cyclic)
     return(NULL);
 
   if (!(ci->has_hits))
     return(NULL);
 
-  ci_objs = ci->objs;
   ci_refs = ci->refs;
-
   /* find if any were referenced twice (once for just being there, so twice=shared)
    *   we know there's at least one such reference because has_hits is true.
    */
@@ -39068,8 +39089,7 @@ static s7_pointer hash_table_ref_p_pp_direct(s7_pointer p1, s7_pointer p2)
 
 static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 {
-  if (/* (hash_table_checker(table) != hash_equal) && */
-      (hash_table_checker(table) != default_hash_checks[typ]))
+  if (hash_table_checker(table) != default_hash_checks[typ])
     {
       if (hash_table_checker(table) == hash_empty)
 	hash_table_checker(table) = default_hash_checks[typ];
@@ -39080,6 +39100,31 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 	}
     }
 }
+
+#if 0
+static inline s7_pointer hash_table_add(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
+{
+  s7_int hash_len, loc; 
+  hash_entry_t *p;
+
+  if (!hash_chosen(table))
+    hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
+  hash_len = hash_table_mask(table);
+
+  if (hash_table_entries(table) > hash_len)
+    hash_len = resize_hash_table(table);
+
+  p = mallocate_block();
+  hash_entry_key(p) = key;
+  hash_entry_set_value(p, T_Pos(value));
+  hash_entry_set_raw_hash(p, hash_loc(sc, table, key));
+  loc = hash_entry_raw_hash(p) & hash_len;
+  hash_entry_next(p) = hash_table_element(table, loc);
+  hash_table_element(table, loc) = p;
+  hash_table_entries(table)++;
+  return(value);
+}
+#endif
 
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
@@ -39116,7 +39161,6 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   hash_table_entries(table)++;
   return(value);
 }
-
 
 static s7_pointer g_hash_table_set(s7_scheme *sc, s7_pointer args)
 {
@@ -46928,7 +46972,23 @@ static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
   #define Q_s7_version pcl_s
 #if WITH_COUNTERS
   sc->print_length = 1000;
-  fprintf(stderr, "%s\n", DISPLAY(counters));
+  /* fprintf(stderr, "%s\n", DISPLAY(counters)); */
+  {
+    s7_pointer iterator;
+    s7_int gc_iter;
+    s7_int i, len;
+    len = hash_table_entries(counters);
+    iterator = s7_make_iterator(sc, counters);
+    gc_iter = s7_gc_protect_1(sc, iterator);
+    iterator_current(iterator) = cons(sc, sc->F, sc->F);
+    for (i = 0; i < len; i++)
+      {
+	s7_pointer key_val;
+	key_val = hash_table_iterate(sc, iterator);
+	fprintf(stderr, "%s: %s\n", DISPLAY(cdr(key_val)), DISPLAY(car(key_val)));
+      }
+    s7_gc_unprotect_at(sc, gc_iter);
+  }
 #endif
 
   return(s7_make_string(sc, "s7 " S7_VERSION ", " S7_DATE));
@@ -47021,7 +47081,7 @@ static s7_pointer apply_boolean_method(s7_scheme *sc, s7_pointer obj, s7_pointer
 /* arg here is the full expression */
 static s7_pointer all_x_c(s7_scheme *sc, s7_pointer arg)       {return(arg);}
 static s7_pointer all_x_q(s7_scheme *sc, s7_pointer arg)       {return(cadr(arg));}
-static s7_pointer all_x_unsafe_s(s7_scheme *sc, s7_pointer arg){return(symbol_to_value_checked(sc, arg));}
+static s7_pointer all_x_unsafe_s(s7_scheme *sc, s7_pointer arg){return(symbol_to_value_checked(sc, arg));} 
 static s7_pointer all_x_s(s7_scheme *sc, s7_pointer arg)       {return(symbol_to_value_unchecked(sc, arg));}
 static s7_pointer all_x_k(s7_scheme *sc, s7_pointer arg)       {return(arg);} /* all_x_eval considers "else" a keyword */
 static s7_pointer all_x_c_c(s7_scheme *sc, s7_pointer arg)     {return(c_call(arg)(sc, cdr(arg)));}
@@ -59010,7 +59070,6 @@ static s7_pointer g_format_allg_no_column(s7_scheme *sc, s7_pointer args)
 			  string_length(str),
 			  str));
 }
-
 
 static s7_pointer format_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -73944,6 +74003,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_LCLOSURE_A:
 		  {
 		    s7_pointer f;
+#if WITH_COUNTERS
+		  {
+		    s7_pointer cur;
+		    cur = s7_hash_table_ref(sc, counters, code);
+		    if (cur == sc->F)
+		      s7_hash_table_set(sc, counters, code, make_mutable_integer(sc, 1));
+		    else integer(cur)++;
+		  }
+#endif
 		    f = slot_value(local_slot(car(code)));
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), c_call(cdr(code))(sc, cadr(code)));
 		    sc->code = T_Pair(closure_body(f));
@@ -74234,15 +74302,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto BEGIN1;
 
 		case OP_CLOSURE_P:
-#if WITH_COUNTERS
-		  {
-		    s7_pointer cur;
-		    cur = s7_hash_table_ref(sc, counters, car(code));
-		    if (cur == sc->F)
-		      s7_hash_table_set(sc, counters, car(code), make_mutable_integer(sc, 1));
-		    else integer(cur)++;
-		  }
-#endif
 		  if (!closure_is_ok(sc, code, MATCH_UNSAFE_CLOSURE, 1)) {if (unknown_g_ex(sc, sc->last_function) == goto_OPT_EVAL) goto INNER_OPT_EVAL; break;}		  
 		case HOP_CLOSURE_P:
 		  push_stack(sc, OP_CLOSURE_P_1, sc->args, sc->code);
@@ -83682,7 +83741,6 @@ s7_scheme *s7_init(void)
   sc->temp9 = sc->nil;
   sc->temp10 = sc->nil;
   sc->temp11 = sc->nil;
-  /* sc->t_temps = (s7_pointer *)malloc(T_TEMPS_SIZE * sizeof(s7_pointer)); */
   for (i = 0; i < T_TEMPS_SIZE; i++) sc->t_temps[i] = sc->nil;
   sc->t_temp_ctr = 0;
 
@@ -83928,6 +83986,7 @@ s7_scheme *s7_init(void)
     }
 
   make_standard_ports(sc);
+  init_port_templates(sc);
 
   sc->syn_docs = (s7_pointer *)calloc(OP_MAX_DEFINED, sizeof(s7_pointer));
   #define quote_help             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
@@ -83998,8 +84057,8 @@ s7_scheme *s7_init(void)
   sc->define_bacro_star_symbol = define_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    define_bacro_star_help);
   sc->with_baffle_symbol =       assign_syntax(sc, "with-baffle",     OP_WITH_BAFFLE,       small_int(0), max_arity,    with_baffle_help); /* (with-baffle) is () */
   sc->macroexpand_symbol =       assign_syntax(sc, "macroexpand",     OP_MACROEXPAND,       small_int(1), small_int(1), macroexpand_help);
-  sc->with_let_symbol =          assign_syntax(sc, "with-let",        OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
   sc->let_temporarily_symbol =   assign_syntax(sc, "let-temporarily", OP_LET_TEMPORARILY,   small_int(2), max_arity,    let_temporarily_help);
+  sc->with_let_symbol =          assign_syntax(sc, "with-let",        OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
   set_local_slot(sc->with_let_symbol, global_slot(sc->with_let_symbol)); /* for set_locals */
   set_immutable(sc->with_let_symbol);
 
@@ -84812,8 +84871,8 @@ s7_scheme *s7_init(void)
   sc->local_iterator_symbol =      s7_make_symbol(sc, "+iterator+");
 
   /* for backwards compatibility */
-  s7_define_constant(sc, "nan.0", real_NaN);
-  s7_define_constant(sc, "inf.0", real_infinity);
+  define_global_constant(sc, "nan.0", real_NaN);
+  define_global_constant(sc, "inf.0", real_infinity);
 
 #if WITH_PURE_S7
   s7_provide(sc, "pure-s7");
@@ -84970,12 +85029,15 @@ s7_scheme *s7_init(void)
     for (i = 2; i < 17; i++)
       s7_int_digits_by_radix[i] = (int32_t)(floor(((top == 8) ? S7_LOG_LLONG_MAX : S7_LOG_LONG_MAX) / log((double)i)));
 
-    s7_define_constant(sc, "most-positive-fixnum", make_permanent_integer_unchecked(s7_int_max));
-    s7_define_constant(sc, "most-negative-fixnum", make_permanent_integer_unchecked(s7_int_min));
+    define_global_constant(sc, "most-positive-fixnum", make_permanent_integer_unchecked(s7_int_max));
+    define_global_constant(sc, "most-negative-fixnum", make_permanent_integer_unchecked(s7_int_min));
 
     if (top == 4) sc->default_rationalize_error = 1.0e-6;
-    s7_define_constant(sc, "pi", real_pi);
-    sc->pi_symbol = s7_make_symbol(sc, "pi");
+#if WITH_GMP
+    sc->pi_symbol = s7_define_constant(sc, "pi", real_pi);
+#else
+    sc->pi_symbol = define_global_constant(sc, "pi", real_pi);
+#endif
 
     sc->objstr_max_len = s7_int_max;
     {
@@ -85595,8 +85657,12 @@ int main(int argc, char **argv)
  *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
  *   c_proc_t name_length and id?
  *
- * local_memset8 for 8-at-a-time?
- * gensym keywords are never GC'd. all_x_c_ka? free-floating global slot for key?
+ * chooser for hash-table(*) -- if keys unique (all symbols different etc) use add not set
+ *
+ * at open-*-port, port_port struct could be copied from a default input/output case (string/file)
+ *   similarly for close port
+ *
+ * fix the edit-list->function ... problem!  or get rid of that part of Snd.
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85629,22 +85695,22 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1456
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1702
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2048
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1709
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2041
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2449
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2489
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 125.4
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2546
- * tread         |      |      |      ||      ||      |                   3009  2639  2645
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2456
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.4
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
+ * tread         |      |      |      ||      ||      |                   3009  2639  2629
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2660
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3450
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4151
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5006
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6625
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.2
- *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4
+ *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
  * ----------------------------------------------------------------------------------------------
  */

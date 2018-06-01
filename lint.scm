@@ -22049,7 +22049,18 @@
     ;; -------- lint-walk --------
     (denote (lint-walk caller form env)
       (cond ((symbol? form)
-	     (set-ref form caller #f env)) ; returns env
+	     ;(set-ref form caller #f env) ; returns env
+	     ;         name caller form env) -- expand since this is hit a bazillion times
+	     (let ((data (var-member form env)))
+	       (if data
+		   (begin
+		     (set! (var-ref data) (+ (var-ref data) 1))
+		     (update-scope data caller env))
+		   (if (not (defined? form (rootlet)))
+		       (let ((old (hash-table-ref other-identifiers form)))
+			 (check-for-bad-variable-name caller form)
+			 (hash-table-set! other-identifiers form (cons #f (or old ()))))))
+	       env))
 
 	    ((pair? form)
 	     (lint-walk-pair caller form env))
