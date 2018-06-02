@@ -22050,7 +22050,7 @@
     (denote (lint-walk caller form env)
       (cond ((symbol? form)
 	     ;(set-ref form caller #f env) ; returns env
-	     ;         name caller form env) -- expand since this is hit a bazillion times
+	     ;         name caller form env)
 	     (let ((data (var-member form env)))
 	       (if data
 		   (begin

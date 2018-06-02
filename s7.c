@@ -620,7 +620,7 @@ static void fill_block_list(void)
 {
   int32_t i;
   block_t *b;
-  #define BLOCK_MALLOC_SIZE 64
+  #define BLOCK_MALLOC_SIZE 256
   b = (block_t *)malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list */
   block_lists[BLOCK_LIST] = b;
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
@@ -1242,7 +1242,6 @@ struct s7_scheme {
   s7_pointer stacktrace_defaults;
   int32_t float_format_precision;
   vdims_t *wrap_only;
-  port_t *open_input_string_template;
 
   char *typnam;
   int32_t typnam_len;
@@ -3095,14 +3094,15 @@ static void local_memset(void *s, uint8_t val, size_t n)
   s2 = (uint8_t *)s;
 #else
 #if (defined(__x86_64__) || defined(__i386__))
-  if (n >= 4)
+  if (n >= 8)
     {
-      int32_t ival;
-      int32_t *s1 = (int32_t *)s;
-      size_t n4 = n >> 2;
-      ival = val | (val << 8) | (val << 16) | (val << 24);
-      do {*s1++ = ival;} while (--n4 > 0);
-      n &= 3;
+      int64_t ival;
+      int64_t *s1 = (int64_t *)s;
+      size_t n8 = n >> 3;
+      ival = val | (val << 8) | (val << 16) | (val << 24); /* make gcc happy */
+      ival = (ival << 32) | ival;
+      do {*s1++ = ival;} while (--n8 > 0);
+      n &= 7;
       s2 = (uint8_t *)s1;
     }
   else s2 = (uint8_t *)s;
@@ -24218,27 +24218,6 @@ static s7_pointer g_open_output_file(s7_scheme *sc, s7_pointer args)
   return(s7_open_output_file(sc, string_value(name), "w"));
 }
 
-static void init_port_templates(s7_scheme *sc)
-{
-  port_t *p;
-
-  /* default open-input-string port_t struct settings (all 0, false, NULL via calloc) */
-  p = (port_t *)calloc(1, sizeof(port_t));
-  p->read_character = string_read_char;
-  p->read_line = string_read_line;
-  p->display = input_display;
-  p->read_semicolon = string_read_semicolon;
-  p->read_white_space = terminated_string_read_white_space;
-  p->read_name = string_read_name_no_free;
-  p->read_sharp = string_read_sharp;
-  p->write_character = input_write_char;
-  p->write_string = input_write_string;
-
-  sc->open_input_string_template = p;
-
-  /* TODO: add open_output_string_template and check callgrind again -- confusing! */
-}
-
 static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_int len)
 {
   s7_pointer x;
@@ -24247,16 +24226,35 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   b = mallocate(sizeof(port_t));
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
-  memcpy((void *)port_port(x), (void *)(sc->open_input_string_template), sizeof(port_t));
   port_type(x) = STRING_PORT;
+  port_set_closed(x, false);
   port_original_input_string(x) = sc->nil;
   port_data(x) = (uint8_t *)input_string;
+  port_data_block(x) = NULL;
   port_data_size(x) = len;
   port_position(x) = 0;
+  port_filename_length(x) = 0;
+  port_filename(x) = NULL;
+  port_file_number(x) = 0;
+  port_line_number(x) = 0;
+  port_needs_free(x) = false;
+  port_needs_unprotect(x) = false;
+  port_read_character(x) = string_read_char;
+  port_read_line(x) = string_read_line;
+  port_display(x) = input_display;
+  port_read_semicolon(x) = string_read_semicolon;
+#if S7_DEBUGGING
+  if (input_string[len] != '\0')
+    fprintf(stderr, "read_white_space string is not terminated: %s", input_string);
+#endif
+  port_read_white_space(x) = terminated_string_read_white_space;
+  port_read_name(x) = string_read_name_no_free;
+  port_read_sharp(x) = string_read_sharp;
+  port_write_character(x) = input_write_char;
+  port_write_string(x) = input_write_string;
   add_input_port(sc, x);
   return(x);
 }
-
 
 static s7_pointer open_and_protect_input_string(s7_scheme *sc, s7_pointer str)
 {
@@ -24267,12 +24265,10 @@ static s7_pointer open_and_protect_input_string(s7_scheme *sc, s7_pointer str)
   return(p);
 }
 
-
 s7_pointer s7_open_input_string(s7_scheme *sc, const char *input_string)
 {
   return(open_input_string(sc, input_string, safe_strlen(input_string)));
 }
-
 
 static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
 {
@@ -35270,12 +35266,12 @@ static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims
     {
       s7_int i, offset = 1;
       vdims_dimensions_allocated(v) = true;
-      vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
-      vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+      vdims_dims(v) = (s7_int *)malloc(dims * sizeof(s7_int));
+      vdims_offsets(v) = (s7_int *)malloc(dims * sizeof(s7_int));
 
       for (i = 0; i < dims; i++)
 	vdims_dims(v)[i] = dim_info[i];
-      for (i = vdims_ndims(v) - 1; i >= 0; i--)
+      for (i = dims - 1; i >= 0; i--)
 	{
 	  vdims_offsets(v)[i] = offset;
 	  offset *= vdims_dims(v)[i];
@@ -38245,7 +38241,6 @@ static hash_entry_t *hash_empty(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (is_integer(key))
@@ -38262,7 +38257,6 @@ static hash_entry_t *hash_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
     }
   return(sc->unentry);
 }
-
 
 static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -38434,14 +38428,17 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
 static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  s7_int loc;
-  loc = hash_loc(sc, table, key) & hash_table_mask(table);
+  s7_int hash, loc;
+
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_table_mask(table);
 
   /* we can get into an infinite loop here, but it requires 2 hash tables that are members of each other
    *    and key is one of them, so I changed the equality check above to use eq? -- not sure this is right.
    */
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if (s7_is_equal(sc, hash_entry_key(x), key))
+    if ((hash_entry_raw_hash(x) == hash) &&
+	(s7_is_equal(sc, hash_entry_key(x), key)))
       return(x);
   return(sc->unentry);
 }
@@ -38459,15 +38456,17 @@ static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  s7_int loc;
-  loc = hash_loc(sc, table, key) & hash_table_mask(table);
+  s7_int hash, loc;
 
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_table_mask(table);
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (hash_entry_key(x) == key)
       return(x);
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if (s7_is_morally_equal(sc, hash_entry_key(x), key))
+    if ((hash_entry_raw_hash(x) == hash) &&
+	(s7_is_morally_equal(sc, hash_entry_key(x), key)))
       return(x);
   return(sc->unentry);
 }
@@ -38475,20 +38474,22 @@ static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_poin
 static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  s7_int hash_len, loc;
+  s7_int hash_len, hash, loc;
   s7_function f;
 
   f = c_function_call(hash_table_procedures_checker(table));
   hash_len = hash_table_mask(table);
-  loc = hash_loc(sc, table, key) & hash_len;
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_len;
   
   set_car(sc->t2_1, key);
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    {
-      set_car(sc->t2_2, hash_entry_key(x));
-      if (is_true(sc, f(sc, sc->t2_1)))
-	return(x);
-    }
+    if (hash_entry_raw_hash(x) == hash)
+      {
+	set_car(sc->t2_2, hash_entry_key(x));
+	if (is_true(sc, f(sc, sc->t2_1)))
+	  return(x);
+      }
   return(sc->unentry);
 }
 
@@ -38579,12 +38580,13 @@ static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  s7_int hash_len, loc;
+  s7_int hash_len, hash, loc;
   s7_pointer f, args, body, old_e;
 
   f = hash_table_procedures_checker(table);
   hash_len = hash_table_mask(table);
-  loc = hash_loc(sc, table, key) & hash_len;
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_len;
 
   old_e = sc->envir;
   args = closure_args(f);    /* in lambda* case, car/cadr(args) can be lists */
@@ -38594,58 +38596,24 @@ static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer ke
 			   (is_symbol(cadr(args))) ? cadr(args) : caadr(args), sc->F);
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    {
-      slot_set_value(next_slot(let_slots(sc->envir)), hash_entry_key(x));
-      push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
-      if (is_pair(cdr(body)))
-	push_stack_no_args(sc, OP_BEGIN1, cdr(body));
-      sc->code = car(body);
-      eval(sc, OP_EVAL);
-      if (is_true(sc, sc->value))
-	{
-	  sc->envir = old_e;
-	  return(x);
-	}
-    }
+    if (hash_entry_raw_hash(x) == hash)
+      {
+	slot_set_value(next_slot(let_slots(sc->envir)), hash_entry_key(x));
+	push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
+	if (is_pair(cdr(body)))
+	  push_stack_no_args(sc, OP_BEGIN1, cdr(body));
+	sc->code = car(body);
+	eval(sc, OP_EVAL);
+	if (is_true(sc, sc->value))
+	  {
+	    sc->envir = old_e;
+	    return(x);
+	  }
+      }
   sc->envir = old_e;
   return(sc->unentry);
 }
 
-
-static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key, hash_entry_t *p)
-{
-  hash_entry_t *x;
-  s7_int hash_len, loc;
-
-  if (p == sc->unentry) return(sc->F);
-
-  hash_len = hash_table_mask(table);
-  loc = hash_entry_raw_hash(p) & hash_len;
-
-  x = hash_table_element(table, loc);
-  if (x == p)
-    hash_table_element(table, loc) = hash_entry_next(x);
-  else
-    {
-      hash_entry_t *y;
-      for (y = x, x = hash_entry_next(x); x; y = x, x = hash_entry_next(x))
-	if (x == p)
-	  {
-	    hash_entry_next(y) = hash_entry_next(x);
-	    break;
-	  }
-    }
-
-  hash_table_entries(table)--;
-  if ((hash_table_entries(table) == 0) &&
-      (!hash_table_checker_locked(table)))
-    {
-      hash_table_checker(table) = hash_empty;
-      hash_clear_chosen(table);
-    }
-  liberate_block(x);
-  return(sc->F);
-}
 
 /* -------------------------------- make-hash-table -------------------------------- */
 
@@ -38955,7 +38923,7 @@ void init_hash_maps(void)
 }
 
 
-static s7_int resize_hash_table(s7_pointer table)
+static void resize_hash_table(s7_pointer table)
 {
   /* resize the table */
   s7_int hash_len, loc, i, old_size, new_size;
@@ -38990,7 +38958,6 @@ static s7_int resize_hash_table(s7_pointer table)
   hash_table_mask(table) = new_size - 1;
   hash_table_set_procedures(table, dproc);
   hash_table_entries(table) = entries;
-  return(hash_len);
 }
 
 
@@ -39087,6 +39054,41 @@ static s7_pointer hash_table_ref_p_pp_direct(s7_pointer p1, s7_pointer p2)
 
 /* -------------------------------- hash-table-set! -------------------------------- */
 
+static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key, hash_entry_t *p)
+{
+  hash_entry_t *x;
+  s7_int hash_len, loc;
+
+  if (p == sc->unentry) return(sc->F);
+
+  hash_len = hash_table_mask(table);
+  loc = hash_entry_raw_hash(p) & hash_len;
+
+  x = hash_table_element(table, loc);
+  if (x == p)
+    hash_table_element(table, loc) = hash_entry_next(x);
+  else
+    {
+      hash_entry_t *y;
+      for (y = x, x = hash_entry_next(x); x; y = x, x = hash_entry_next(x))
+	if (x == p)
+	  {
+	    hash_entry_next(y) = hash_entry_next(x);
+	    break;
+	  }
+    }
+
+  hash_table_entries(table)--;
+  if ((hash_table_entries(table) == 0) &&
+      (!hash_table_checker_locked(table)))
+    {
+      hash_table_checker(table) = hash_empty;
+      hash_clear_chosen(table);
+    }
+  liberate_block(x);
+  return(sc->F);
+}
+
 static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 {
   if (hash_table_checker(table) != default_hash_checks[typ])
@@ -39100,31 +39102,6 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 	}
     }
 }
-
-#if 0
-static inline s7_pointer hash_table_add(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
-{
-  s7_int hash_len, loc; 
-  hash_entry_t *p;
-
-  if (!hash_chosen(table))
-    hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
-  hash_len = hash_table_mask(table);
-
-  if (hash_table_entries(table) > hash_len)
-    hash_len = resize_hash_table(table);
-
-  p = mallocate_block();
-  hash_entry_key(p) = key;
-  hash_entry_set_value(p, T_Pos(value));
-  hash_entry_set_raw_hash(p, hash_loc(sc, table, key));
-  loc = hash_entry_raw_hash(p) & hash_len;
-  hash_entry_next(p) = hash_table_element(table, loc);
-  hash_table_element(table, loc) = p;
-  hash_table_entries(table)++;
-  return(value);
-}
-#endif
 
 s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
@@ -39146,19 +39123,20 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
 
   if (!hash_chosen(table))
     hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
-  hash_len = hash_table_mask(table);
-
-  if (hash_table_entries(table) > hash_len)
-    hash_len = resize_hash_table(table);
 
   p = mallocate_block();
   hash_entry_key(p) = key;
   hash_entry_set_value(p, T_Pos(value));
   hash_entry_set_raw_hash(p, hash_loc(sc, table, key));
+  hash_len = hash_table_mask(table);
   loc = hash_entry_raw_hash(p) & hash_len;
   hash_entry_next(p) = hash_table_element(table, loc);
   hash_table_element(table, loc) = p;
+
   hash_table_entries(table)++;
+  if (hash_table_entries(table) > hash_len)
+    resize_hash_table(table);
+
   return(value);
 }
 
@@ -39188,6 +39166,38 @@ static s7_pointer hash_table_set_p_ppp_direct(s7_pointer p1, s7_pointer p2, s7_p
 
 
 /* -------------------------------- hash-table -------------------------------- */
+
+static inline s7_pointer hash_table_add(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
+{
+  s7_int hash, hash_len, loc; 
+  hash_entry_t *x, *p;
+
+  if (!hash_chosen(table))
+    hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
+
+  hash_len = hash_table_mask(table);
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_len;
+
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if ((hash_entry_raw_hash(x) == hash) &&
+	(s7_is_equal(sc, hash_entry_key(x), key)))
+      return(value);
+
+  p = mallocate_block();
+  hash_entry_key(p) = key;
+  hash_entry_set_value(p, T_Pos(value));
+  hash_entry_set_raw_hash(p, hash);
+  hash_entry_next(p) = hash_table_element(table, loc);
+  hash_table_element(table, loc) = p;
+
+  hash_table_entries(table)++;
+  if (hash_table_entries(table) > hash_len)
+    resize_hash_table(table);
+
+  return(value);
+}
+
 static s7_pointer g_hash_table(s7_scheme *sc, s7_pointer args)
 {
   #define H_hash_table "(hash-table ...) returns a hash-table containing the cons's passed as its arguments. \
@@ -39209,7 +39219,7 @@ That is, (hash-table '(\"hi\" . 3) (\"ho\" . 32)) returns a new hash-table with 
       ht_loc = s7_gc_protect_1(sc, ht); /* hash_table_set can cons, so we need to protect this */
       for (x = args; is_pair(x); x = cdr(x))
 	if (is_pair(car(x)))
-	  s7_hash_table_set(sc, ht, caar(x), cdar(x));
+	  hash_table_add(sc, ht, caar(x), cdar(x));
       s7_gc_unprotect_at(sc, ht_loc);
     }
   return(ht);
@@ -39239,7 +39249,7 @@ That is, (hash-table* 'a 1 'b 2) returns a new hash-table with the two key/value
       ht_loc = s7_gc_protect_1(sc, ht); /* hash_table_set can cons, so we need to protect this */
 
       for (x = args, y = cdr(args); is_pair(x); x = cddr(x), y = unchecked_cdr(cdr(y)))
-	s7_hash_table_set(sc, ht, car(x), car(y));
+	hash_table_add(sc, ht, car(x), car(y));
 
       s7_gc_unprotect_at(sc, ht_loc);
     }
@@ -41345,7 +41355,7 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
 	{
 	  hash_entry_t *y_val;
 	  y_val = hash_morally_equal(sc, y, hash_entry_key(p));  /* hash_table_checker(y) might be hash_equal */
-	  if (!y_val)
+	  if (y_val == sc->unentry)
 	    return(false);
 	  if (!s7_is_morally_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
 	    return(false);
@@ -41391,7 +41401,7 @@ static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	{
 	  hash_entry_t *y_val;
 	  y_val = hf(sc, y, hash_entry_key(p)); /* or hash_equal? */
-	  if (!y_val)
+	  if (y_val == sc->unentry)
 	    return(false);
 	  if (!s7_is_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
 	    return(false);
@@ -41548,6 +41558,22 @@ static bool closure_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 	 (s7_is_morally_equal_1(sc, closure_body(x), closure_body(y), ci)));
 }
 
+
+#define WITH_COUNTERS 0
+#if WITH_COUNTERS
+static s7_pointer counters;
+#endif
+
+#if WITH_COUNTERS
+		  {
+		    s7_pointer cur;
+		    cur = s7_hash_table_ref(sc, counters, sc->cur_code);
+		    if (cur == sc->F)
+		      s7_hash_table_set(sc, counters, sc->cur_code, make_mutable_integer(sc, 1));
+		    else integer(cur)++;
+		  }
+#endif
+
 static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   shared_info *nci;
@@ -41557,7 +41583,6 @@ static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
     return(true);
   if (!is_pair(y))
     return(false);
-
   if (ci)
     {
       nci = ci;
@@ -43451,7 +43476,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
   if (len > 0)
     {
       s7_pointer p, sv;
-      int32_t i;
+      s7_int i;
 
       sc->temp9 = new_vec; /* s7_copy below can call s7_error so s7_gc_protect here is tricky -- use a preset position perhaps? */
       sv = make_subvector(sc, new_vec);
@@ -43501,7 +43526,7 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
   if (len > 0)
     {
       s7_pointer p, sv;
-      int32_t i;
+      s7_int i;
 
       sc->temp9 = new_str;
       sv = make_string_wrapper_with_length(sc, (const char *)string_value(new_str), len);
@@ -46960,11 +46985,6 @@ static s7_pointer g_type_of(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- s7-version -------------------------------- */
-
-#define WITH_COUNTERS 0
-#if WITH_COUNTERS
-static s7_pointer counters;
-#endif
 
 static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
 {
@@ -74003,15 +74023,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		case HOP_SAFE_LCLOSURE_A:
 		  {
 		    s7_pointer f;
-#if WITH_COUNTERS
-		  {
-		    s7_pointer cur;
-		    cur = s7_hash_table_ref(sc, counters, code);
-		    if (cur == sc->F)
-		      s7_hash_table_set(sc, counters, code, make_mutable_integer(sc, 1));
-		    else integer(cur)++;
-		  }
-#endif
 		    f = slot_value(local_slot(car(code)));
 		    sc->envir = old_frame_with_slot(sc, closure_let(f), c_call(cdr(code))(sc, cadr(code)));
 		    sc->code = T_Pair(closure_body(f));
@@ -83986,7 +83997,6 @@ s7_scheme *s7_init(void)
     }
 
   make_standard_ports(sc);
-  init_port_templates(sc);
 
   sc->syn_docs = (s7_pointer *)calloc(OP_MAX_DEFINED, sizeof(s7_pointer));
   #define quote_help             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
@@ -85657,12 +85667,12 @@ int main(int argc, char **argv)
  *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
  *   c_proc_t name_length and id?
  *
- * chooser for hash-table(*) -- if keys unique (all symbols different etc) use add not set
- *
- * at open-*-port, port_port struct could be copied from a default input/output case (string/file)
- *   similarly for close port
- *
+ * vdims include both arrays in block_data
+ * finish t792.scm
  * fix the edit-list->function ... problem!  or get rid of that part of Snd.
+ *   edit-list->function should be :readable or protect against print-length too small
+ * openbsd -lsndio in sndlib configure.ac
+ * maybe memclr8?
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85682,8 +85692,6 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
- * edit-list->function should be :readable or protect against print-length too small
- * openbsd -lsndio in sndlib configure.ac
  *
  * t725: auto-test
  * t772: lint or|and tests
@@ -85692,25 +85700,25 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1034
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1456
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1709
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2041
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2449
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2440
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2456
- * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.4
+ * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.3
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
- * tread         |      |      |      ||      ||      |                   3009  2639  2629
+ * tread         |      |      |      ||      ||      |                   3009  2639  2624
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2660
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3450
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3451
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4151
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5006
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6625
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  5000
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6575
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.5
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.2
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
  * ----------------------------------------------------------------------------------------------
  */
