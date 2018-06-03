@@ -77,6 +77,9 @@
 (format *stderr* "~%~NC local s7test ~NC~%" 20 #\- 20 #\-)
 (system "./snd -e '(let () (catch #t (lambda () (load \"s7test.scm\" (curlet))) (lambda args #f)) (exit))'")
 
+(format *stderr* "~NC tpeak ~NC~%" 20 #\- 20 #\-)
+(system "./snd tpeak.scm")
+
 (format *stderr* "~NC tcopy ~NC~%" 20 #\- 20 #\-)
 (system "./repl tcopy.scm")
 

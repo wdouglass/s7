@@ -1188,14 +1188,16 @@
 
 (define declared-types ()) ; list of string type names
 (define declared-names ()) ; list of (enum-name type-name version-string)
+(define declared-names-table (make-hash-table))
 
 (define (save-declared-type name type version)
   (when (string? type)
     (if (not (member type declared-types))
 	(set! declared-types (cons type declared-types)))
-    (if (or (memv (type 0) '(#\G #\P))
-	    (char=? (name 0) #\C))
-	(set! declared-names (cons (list name type version) declared-names)))))
+    (when (or (memv (type 0) '(#\G #\P))
+	      (char=? (name 0) #\C))
+      (set! declared-names (cons (list name type version) declared-names))
+      (hash-table-set! declared-names-table type version))))
 
 (define* (CINT name type)
   (save-declared-type name type "2.0")
@@ -3137,8 +3139,7 @@
 ;;; --------------------------------------------------------------------------------
 
 (define (gtk-type->s7-type gtk)
-  (cond ((member gtk declared-names (lambda (a b)
-				      (string=? a (cadr b))))
+  (cond ((hash-table-ref declared-names-table gtk)
 	 'gtk_enum_t?)
 	((assoc gtk direct-types) => (lambda (dt)
 				       (or (not (string? (cdr dt)))

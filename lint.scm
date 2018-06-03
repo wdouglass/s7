@@ -14549,7 +14549,11 @@
 	    (if (or (< (length form) 4)
 		    (not (symbol? (cadr form))))
 		(begin
-		  (lint-format "~A declaration is messed up: ~A" caller (car form) (truncated-list->string form))
+		  (if (and (> (length form) 2)
+			   (pair? (cadr form))
+			   (symbol? (caadr form)))
+		      (lint-format "~A used where s7 uses define-~A: ~A?" caller (car form) (car form) (truncated-list->string form))
+		      (lint-format "~A declaration is messed up: ~A" caller (car form) (truncated-list->string form)))
 		  env)
 		(let ((sym (cadr form))
 		      (args (caddr form))
