@@ -647,8 +647,8 @@ static inline block_t *mallocate_block(void)
 
 static char *alloc_permanent_string(size_t len)
 {
-  #define ALLOC_STRING_SIZE 8192 /* 4096 is just as fast */
-  #define ALLOC_MAX_STRING 128
+  #define ALLOC_STRING_SIZE 32768
+  #define ALLOC_MAX_STRING 256
   static size_t alloc_string_k = ALLOC_STRING_SIZE;
   static char *alloc_string_cells = NULL;
   char *result;
@@ -733,6 +733,7 @@ typedef struct {
   port_type_t ptype;
   FILE *file;
   char *filename;
+  block_t *filename_block;
   uint32_t line_number, file_number;
   s7_int gc_loc, filename_length;
   block_t *block;
@@ -2782,8 +2783,8 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define is_string_port(p)             (port_type(p) == STRING_PORT)
 #define is_file_port(p)               (port_type(p) == FILE_PORT)
 #define is_function_port(p)           (port_type(p) == FUNCTION_PORT)
+#define port_filename_block(p)        port_port(p)->filename_block
 #define port_filename(p)              port_port(p)->filename
-#define port_set_filename(p, Name, Len) port_port(p)->filename = copy_string_with_length(Name, Len)
 #define port_filename_length(p)       port_port(p)->filename_length
 #define port_file(p)                  port_port(p)->file
 #define port_data_block(p)            port_port(p)->block
@@ -4493,7 +4494,7 @@ static void sweep(s7_scheme *sc)
 		}
 	      if (port_filename(s1))
 		{
-		  free(port_filename(s1));
+		  liberate(port_filename_block(s1));
 		  port_filename(s1) = NULL;
 		}
 	      liberate(port_block(s1));
@@ -21977,16 +21978,14 @@ static s7_pointer g_substring_to_temp(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- string comparisons -------------------------------- */
 static int32_t scheme_strcmp(s7_pointer s1, s7_pointer s2)
 {
-  /* tricky here because str[i] must be treated as unsigned
-   *   (string<? (string (integer->char #xf0)) (string (integer->char #x70)))
-   * also null or lack thereof does not say anything about the string end
-   *   so we have to go by its length.
+  /* tricky here because str[i] must be treated as unsigned: (string<? (string (integer->char #xf0)) (string (integer->char #x70)))
+   *   and null or lack thereof does not say anything about the string end
    */
-  s7_int i, len, len1, len2;
+  size_t i, len, len1, len2;
   char *str1, *str2;
 
-  len1 = string_length(s1);
-  len2 = string_length(s2);
+  len1 = (size_t)string_length(s1);
+  len2 = (size_t)string_length(s2);
   if (len1 > len2)
     len = len2;
   else len = len1;
@@ -21994,14 +21993,36 @@ static int32_t scheme_strcmp(s7_pointer s1, s7_pointer s2)
   str1 = string_value(s1);
   str2 = string_value(s2);
 
-  for (i = 0; i < len; i++)
-    if ((uint8_t)(str1[i]) < (uint8_t )(str2[i]))
-      return(-1);
-    else
-      {
-	if ((uint8_t)(str1[i]) > (uint8_t)(str2[i]))
-	  return(1);
-      }
+  if (len < sizeof(size_t))
+    {
+      for (i = 0; i < len; i++)
+	if ((uint8_t)(str1[i]) < (uint8_t )(str2[i]))
+	  return(-1);
+	else
+	  {
+	    if ((uint8_t)(str1[i]) > (uint8_t)(str2[i]))
+	      return(1);
+	  }
+    }
+  else
+    {
+      /* this algorithm from stackoverflow(?), with various changes (original did not work for large strings, etc) */
+      size_t last, pos;
+      size_t *ptr1, *ptr2;
+
+      last = len / sizeof(size_t);
+      for (ptr1 = (size_t *)str1, ptr2 = (size_t *)str2, i = 0; i < last; i++)
+	if (ptr1[i] ^ ptr2[i])
+	  break;
+
+      for (pos = i * sizeof(size_t); pos < len; pos++)
+	{
+	  if ((uint8_t)str1[pos] < (uint8_t)str2[pos])
+	    return(-1);
+	  if ((uint8_t)str1[pos] > (uint8_t)str2[pos])
+	    return(1);
+	}
+    }
 
   if (len1 < len2)
     return(-1);
@@ -22009,7 +22030,6 @@ static int32_t scheme_strcmp(s7_pointer s1, s7_pointer s2)
     return(1);
   return(0);
 }
-
 
 static bool is_string_via_method(s7_scheme *sc, s7_pointer p)
 {
@@ -23036,7 +23056,7 @@ void s7_close_input_port(s7_scheme *sc, s7_pointer p)
   if (port_filename(p))
     {
       /* for string ports, this is the original input file name */
-      free(port_filename(p));
+      liberate(port_filename_block(p));
       port_filename(p) = NULL;
     }
 
@@ -23140,9 +23160,9 @@ static void close_output_port(s7_scheme *sc, s7_pointer p)
 {
   if (is_file_port(p))
     {
-      if (port_filename(p)) /* only a file port has a filename(?) */
+      if (port_filename(p)) /* only a file output port has a filename(?) */
 	{
-	  free(port_filename(p));
+	  liberate(port_filename_block(p));
 	  port_filename(p) = NULL;
 	  port_filename_length(p) = 0;
 	}
@@ -23866,6 +23886,15 @@ static s7_pointer string_read_name(s7_scheme *sc, s7_pointer pt)
   return(result);
 }
 
+static inline void port_set_filename(s7_pointer p, const char *name, size_t len)
+{
+  block_t *b;
+  b = mallocate(len + 1);
+  port_filename_block(p) = b;
+  port_filename(p) = (char *)block_data(b);
+  memcpy((void *)block_data(b), (void *)name, len);
+  port_filename(p)[len] = '\0';
+}
 
 static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int max_size, const char *caller)
 {
@@ -24246,6 +24275,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_data_block(x) = NULL;
   port_data_size(x) = len;
   port_position(x) = 0;
+  port_filename_block(x) = NULL;
   port_filename_length(x) = 0;
   port_filename(x) = NULL;
   port_file_number(x) = 0;
@@ -24319,6 +24349,7 @@ static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
   port_data(x)[0] = '\0';        /* in case s7_get_output_string before any output */
   port_position(x) = 0;
   port_needs_free(x) = true;
+  port_filename_block(x) = NULL;
   port_filename_length(x) = 0;   /* protect against (port-filename (open-output-string)) */
   port_filename(x) = NULL;
   port_read_character(x) = output_read_char;
@@ -24410,6 +24441,7 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   port_original_input_string(x) = sc->nil;
   port_data_block(x) = NULL;
   port_needs_free(x) = false;
+  port_filename_block(x) = NULL;
   port_filename(x) = NULL;
   port_filename_length(x) = 0;
   port_input_function(x) = function;
@@ -35528,7 +35560,7 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
   if (end == 0) return(fill);
 
   if ((start == 0) && (end == vector_length(x)))
-    s7_vector_fill(sc, x, fill);
+    s7_vector_fill(sc, x, fill);                  /* TODO: this should accept indices rather than repeating code below */
   else
     {
       s7_int i;
@@ -39516,12 +39548,27 @@ static s7_pointer s7_lambda(s7_scheme *sc, s7_function f, s7_int required_args, 
   return(fnc);
 }
 
+static c_proc_t *alloc_permanent_function(void)
+{
+  #define ALLOC_FUNCS 128
+  #define ALLOC_FUNCS_SIZE (ALLOC_FUNCS * sizeof(c_proc_t))
+  static c_proc_t *alloc_func_cells = NULL;
+  static int alloc_k = ALLOC_FUNCS;
+
+  if (alloc_k == ALLOC_FUNCS)
+    {
+      alloc_func_cells = (c_proc_t *)malloc(ALLOC_FUNCS_SIZE);
+      alloc_k = 0;
+    }
+  return(&alloc_func_cells[alloc_k++]);
+}
+
 s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
   s7_pointer x;
   x = alloc_pointer();
   unheap(x);
-  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, (c_proc_t *)malloc(sizeof(c_proc_t))));
+  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, alloc_permanent_function()));
 }
 
 s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f, 
@@ -43254,14 +43301,34 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
     case T_STRING:
       {
 	s7_int len;
-	char *s1, *s2;
 	if (is_immutable(p))
 	  return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
 	len = string_length(p);
 	if (len < 2) return(p);
-	s1 = string_value(p);
-	s2 = (char *)(s1 + len - 1);
-	while (s1 < s2) {char c; c = *s1; *s1++ = *s2; *s2-- = c;}
+#if __linux__ /* need byteswp.h */
+	/* this code (from StackOverflow) is much faster: */
+	if ((len & 7) == 0)
+	  {
+	    #include <byteswap.h>
+	    uint32_t *dst = (uint32_t *)(string_value(p) + len - 4);
+	    uint32_t *src = (uint32_t *)string_value(p);
+	    while (src < dst)
+	      {
+		uint32_t a, b;
+		a = *src; 
+		b = *dst;
+		*src++ = bswap_32(b);
+		*dst-- = bswap_32(a);
+	      }
+	  }
+	else
+#endif
+	  {
+	    char *s1, *s2;
+	    s1 = string_value(p);
+	    s2 = (char *)(s1 + len - 1);
+	    while (s1 < s2) {char c; c = *s1; *s1++ = *s2; *s2-- = c;}
+	  }
       }
       break;
 
@@ -83808,7 +83875,7 @@ s7_scheme *s7_init(void)
 
   {
     s7_cell *cells;
-    cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell));
+    cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell));  /* malloc here is not faster according to callgrind */
     for (i = 0; i < INITIAL_HEAP_SIZE; i++)
       {
 	sc->heap[i] = &cells[i];
@@ -85608,8 +85675,8 @@ s7_scheme *s7_init(void)
     fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
 #endif
 
-  /* fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
-  /* 64 bit machine: cell size: 56 [size 80 if gmp, 136 if debugging], block size: 40, op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* fprintf(stderr, "size: cell: %d, block: %d, proc: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), (int)sizeof(c_proc_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
+  /* 64 bit machine: cell size: 56 [size 80 if gmp, 136 if debugging], block size: 40, proc_t: 96, op: 407, opt: 436, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
   if (sizeof(void *) > sizeof(s7_int))
     fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
@@ -85699,9 +85766,8 @@ int main(int argc, char **argv)
  *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
  *   c_proc_t name_length and id?
  *
- * finish t792.scm
+ * finish t792.scm (1/3 done...)
  * print-length ignored in s7_error?
- * malloc port_filename? permanent_string for s7_make_function?
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85709,6 +85775,10 @@ int main(int argc, char **argv)
  *   change op call to op_do_opt.  Need pretest for outer var types, maybe a tree of optlists
  *   current optlists are tied to stored_oplist and make_optlist
  *   so first thing is to get rid of that.
+ *   in fact, remove all optlist support.  In new system, at func call, get arg types?
+ *   cell_opt body, save in table indexed by arg types, for each subsequent call
+ *   use indexed optlist, pass out to main optimizer as well as embedded call (opt_call_1 etc)
+ *   safe_closure: no env as now.
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -85729,24 +85799,24 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
- * tpeak         |      |      |      ||      ||      |                                389
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1030
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1133
+ * tpeak         |      |      |      ||  391 ||  377 |                                388
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1033
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1455
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1704
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2041
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1703
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2428
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2451
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.2
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
  * tread         |      |      |      ||      ||      |                   3009  2639  2620
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2656
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3450
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2664
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4150
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4161
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4998
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6560
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.5
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
  *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
