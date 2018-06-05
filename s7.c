@@ -714,6 +714,8 @@ static void memclr(void *s, size_t n)
     }
 }
 
+#define LOOP_8(Code) do {Code; Code; Code; Code; Code; Code; Code; Code;} while (0)
+
 #if POINTER_32
 #define memclr64 memclr
 #else
@@ -728,16 +730,7 @@ static void memclr64(void *p, size_t bytes)
   vals = (int64_t *)p;
   n = bytes >> 3;
   for (i = 0; i < n; )
-    {
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-      vals[i++] = 0;
-    }
+    LOOP_8(vals[i++] = 0);
 }
 #endif
 
@@ -35480,16 +35473,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	      s7_double *orig;
 	      orig = float_vector_elements(vec);
 	      while (i <= left)
-		{
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		  orig[i++] = x;
-		}
+		LOOP_8(orig[i++] = x);
 	      for (; i < len; i++)
 		orig[i] = x;
 	    }
@@ -35514,16 +35498,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	      s7_int* orig;
 	      orig = int_vector_elements(vec);
 	      while (i <= left)
-		{
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		  orig[i++] = k;
-		}
+		LOOP_8(orig[i++] = k);
 	      for (; i < len; i++)
 		orig[i] = k;
 	    }
@@ -35535,16 +35510,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	s7_pointer *orig;
 	orig = vector_elements(vec);
 	while (i <= left)
-	  {
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	    orig[i++] = obj;
-	  }
+	  LOOP_8(orig[i++] = obj);
 	for (; i < len; i++)
 	  orig[i] = obj;
       }
@@ -35649,16 +35615,7 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
 		      left = end - 8;
 		      i = start;
 		      while (i <= left)
-			{
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			  orig[i++] = y;
-			}
+			LOOP_8(orig[i++] = y);
 		      for (; i < end; i++)
 			orig[i] = y;
 		    }
@@ -43402,19 +43359,12 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = int_vector_elements(p);
 	s2 = (s7_int *)(s1 + len - 1);
-	if ((len & 0x7) == 0)
+	if (((len & 0x7) == 0) && (len != 8))
 	  {
 	    while (s1 < s2)
 	      {
 		s7_int c; 
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
+		LOOP_8(c = *s1; *s1++ = *s2; *s2-- = c);
 	      }
 	  }
 	else while (s1 < s2) {s7_int c; c = *s1; *s1++ = *s2; *s2-- = c;}
@@ -43431,19 +43381,12 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = float_vector_elements(p);
 	s2 = (s7_double *)(s1 + len - 1);
-	if ((len & 0x7) == 0)
+	if (((len & 0x7) == 0) && (len != 8))
 	  {
 	    while (s1 < s2)
 	      {
 		s7_double c; 
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
+		LOOP_8(c = *s1; *s1++ = *s2; *s2-- = c);
 	      }
 	  }
 	else while (s1 < s2) {s7_double c; c = *s1; *s1++ = *s2; *s2-- = c;}
@@ -43460,19 +43403,12 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = vector_elements(p);
 	s2 = (s7_pointer *)(s1 + len - 1);
-	if ((len & 0x7) == 0)
+	if (((len & 0x7) == 0) && (len != 8))
 	  {
 	    while (s1 < s2)
 	      {
 		s7_pointer c; 
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
-		c = *s1; *s1++ = *s2; *s2-- = c;
+		LOOP_8(c = *s1; *s1++ = *s2; *s2-- = c);
 	      }
 	  }
 	else while (s1 < s2) {s7_pointer c; c = *s1; *s1++ = *s2; *s2-- = c;}
@@ -85873,10 +85809,13 @@ int main(int argc, char **argv)
  *   or the same using the status area
  *
  * print-length ignored in s7_error?
+ * LOOP_8 throughout: add to similar cases?
+ *
  * keep dims after append: (append #2d((1 2) (3 4)) #2d((5 6) (7 8))) -> #(1 2 3 4 5 6 7 8): #2d((1 2 5 6) (3 4 7 8))??
  *   #2i(...) or #2r(...): add to s7test
  *   #2i((1 2) (3 4))  #1i(1 2 3)  #2r((1 2) (3 4))
  *   maybe change print to this form? at least use lowercase
+ *   cyclic multi vect?
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
