@@ -319,6 +319,14 @@
   #pragma warning(disable: 4244) /* conversion might cause loss of data warning */
 #endif
 
+#ifndef WITH_VECTORIZE
+#if (defined(__GNUC__) && __GNUC__ >= 5)
+  #define WITH_VECTORIZE 1
+#else
+  #define WITH_VECTORIZE 0
+#endif
+#endif
+
 #include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
@@ -490,33 +498,6 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
-
-static void memclr(void *s, size_t n)
-{
-  uint8_t *s2;
-#if S7_ALIGNED
-  s2 = (uint8_t *)s;
-#else
-#if (defined(__x86_64__) || defined(__i386__))
-  if (n >= 8)
-    {
-      int64_t *s1 = (int64_t *)s;
-      size_t n8 = n >> 3;
-      do {*s1++ = 0;} while (--n8 > 0);
-      n &= 7;
-      s2 = (uint8_t *)s1;
-    }
-  else s2 = (uint8_t *)s;
-#else
-  s2 = (uint8_t *)s;
-#endif
-#endif
-  while (n > 0)
-    {
-      *s2++ = 0;
-      n--;
-    }
-}
 
 typedef struct block_t {
   union {
@@ -706,12 +687,70 @@ static block_t *mallocate(size_t bytes)
   return(p);
 }
 
+static void memclr(void *s, size_t n)
+{
+  uint8_t *s2;
+#if S7_ALIGNED
+  s2 = (uint8_t *)s;
+#else
+#if (defined(__x86_64__) || defined(__i386__))
+  if (n >= 8)
+    {
+      int64_t *s1 = (int64_t *)s;
+      size_t n8 = n >> 3;
+      do {*s1++ = 0;} while (--n8 > 0);
+      n &= 7;
+      s2 = (uint8_t *)s1;
+    }
+  else s2 = (uint8_t *)s;
+#else
+  s2 = (uint8_t *)s;
+#endif
+#endif
+  while (n > 0)
+    {
+      *s2++ = 0;
+      n--;
+    }
+}
+
+#if POINTER_32
+#define memclr64 memclr
+#else
+#if WITH_VECTORIZE
+static void memclr64(void *p, size_t bytes) __attribute__((optimize("tree-vectorize")));
+#endif
+
+static void memclr64(void *p, size_t bytes)
+{
+  size_t i, n;
+  int64_t *vals;
+  vals = (int64_t *)p;
+  n = bytes >> 3;
+  for (i = 0; i < n; )
+    {
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+      vals[i++] = 0;
+    }
+}
+#endif
+
 static block_t *callocate(size_t bytes)
 {
   block_t *p;
   p = mallocate(bytes);
   if ((block_data(p)) && (block_index(p) != BLOCK_LIST))
-    memclr((void *)(block_data(p)), bytes);
+    {
+      if (block_index(p) >= 6)
+	memclr64((void *)block_data(p), bytes);
+      else memclr((void *)(block_data(p)), bytes);
+    }
   return(p);
 }
 
@@ -1027,10 +1066,13 @@ typedef struct s7_cell {
       char *svalue;
       uint64_t hash;                /* string hash-index */
       block_t *block;
-      struct {
-	bool needs_free;            /* string GC */
-	int32_t temp_len;           /* temp string length */
-      } str_ext;
+      union {
+	struct {
+	  bool needs_free;          /* string GC */
+	  int32_t temp_len;         /* temp string length (sc->tmp_strs) */
+	} str_ext;
+	block_t *gensym_block;
+      } ext;
     } string;
 
     struct {                       /* symbols */
@@ -2550,8 +2592,8 @@ static int64_t not_heap = -1;
 #define byte_vector_length(p)         (T_Str(p))->object.string.length
 #define string_hash(p)                (T_Str(p))->object.string.hash
 #define string_block(p)               (T_Str(p))->object.string.block
-#define string_needs_free(p)          (T_Str(p))->object.string.str_ext.needs_free
-#define string_temp_true_length(p)    (T_Str(p))->object.string.str_ext.temp_len
+#define string_needs_free(p)          (T_Str(p))->object.string.ext.str_ext.needs_free
+#define string_temp_true_length(p)    (T_Str(p))->object.string.ext.str_ext.temp_len
 
 #define character(p)                  (T_Chr(p))->object.chr.c
 #define upper_character(p)            (T_Chr(p))->object.chr.up_c
@@ -2584,6 +2626,7 @@ static int64_t not_heap = -1;
 #define symbol_set_name_cell(p, S)    (T_Sym(p))->object.sym.name = T_Str(S)
 #define symbol_name(p)                string_value(symbol_name_cell(p))
 #define symbol_name_length(p)         string_length(symbol_name_cell(p))
+#define gensym_block(p)               symbol_name_cell(p)->object.string.ext.gensym_block
 #define symbol_hmap(p)                heap_location(p)
 #define symbol_id(p)                  (T_Sym(p))->object.sym.id
 #define symbol_set_id_unchecked(p, X) (T_Sym(p))->object.sym.id = X
@@ -4349,8 +4392,7 @@ static void sweep(s7_scheme *sc)
 	  if (is_free_and_clear(s1))
 	    {
 	      remove_gensym_from_symbol_table(sc, s1); /* this uses symbol_name_cell data */
-	      free(symbol_name(s1));
-	      free(symbol_name_cell(s1));
+	      liberate(gensym_block(s1));
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -6222,22 +6264,16 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
   x = vector_element(sc->symbol_table, location);
 
   if (car(x) == sym)
-    {
-      vector_element(sc->symbol_table, location) = cdr(x);
-      free(x);
-    }
+    vector_element(sc->symbol_table, location) = cdr(x);
   else
     {
       s7_pointer y;
       for (y = x, x = cdr(x); is_pair(x); y = x, x = cdr(x))
-	{
-	  if (car(x) == sym)
-	    {
-	      set_cdr(y, cdr(x));
-	      free(x);
-	      return;
-	    }
-	}
+	if (car(x) == sym)
+	  {
+	    set_cdr(y, cdr(x));
+	    return;
+	  }
 #if S7_DEBUGGING
       fprintf(stderr, "could not remove %s?\n", string_value(name));
 #endif
@@ -6299,11 +6335,12 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   #define Q_gensym s7_make_signature(sc, 2, sc->is_gensym_symbol, sc->is_string_symbol)
 
   const char *prefix;
-  char *name, *p;
+  char *name, *p, *base;
   s7_int len, plen, nlen;
   uint32_t location;
   uint64_t hash;
   s7_pointer x, str, stc;
+  block_t *b;
 
   /* get symbol name */
   if (is_not_null(args))
@@ -6317,7 +6354,13 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   else prefix = "gensym";
   plen = safe_strlen(prefix);
   len = plen + 32;
-  name = (char *)malloc(len);
+
+  b = mallocate(len + 2 * sizeof(s7_cell));
+  base = (char *)block_data(b);
+  str = (s7_cell *)base;
+  stc = (s7_cell *)(base + sizeof(s7_cell));
+  name = (char *)(base + 2 * sizeof(s7_cell));
+
   name[0] = '{';
   if (plen > 0) memcpy((void *)(name + 1), prefix, plen);
   name[plen + 1] = '}';
@@ -6331,7 +6374,6 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   location = hash % SYMBOL_TABLE_SIZE;
 
   /* make-string for symbol name */
-  str = (s7_cell *)malloc(sizeof(s7_cell));
   unheap(str);
 #if S7_DEBUGGING
   typeflag(str) = 0;
@@ -6350,9 +6392,9 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   /* set_initial_slot(x, sc->undefined); */
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0);
+  gensym_block(x) = b;
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
-  stc = (s7_cell *)malloc(sizeof(s7_cell));
 #if S7_DEBUGGING
   typeflag(stc) = 0;
 #endif
@@ -35247,7 +35289,7 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	  vector_getter(x) = default_vector_getter;
 	  vector_setter(x) = default_vector_setter;
 	  if (filled) 
-	    s7_vector_fill(sc, x, sc->nil);  /* make_hash_table assumes nil as the default value */
+	    s7_vector_fill(sc, x, sc->nil);
 	}
       else
 	{
@@ -35259,7 +35301,11 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	      if (!float_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-float-vector allocation failed!"))));
 	      if (filled)
-		memclr((void *)vector_elements(x), len * sizeof(s7_double));
+		{
+		  if ((len & 0x7) == 0)
+		    memclr64((void *)vector_elements(x), len * sizeof(s7_double));
+		  else memclr((void *)vector_elements(x), len * sizeof(s7_double));
+		}
 	      vector_getter(x) = float_vector_getter;
 	      vector_setter(x) = float_vector_setter;
 	    }
@@ -35274,7 +35320,11 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	      if (!int_vector_elements(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), set_elist_1(sc, s7_make_string_wrapper(sc, "make-int-vector allocation failed!"))));
 	      if (filled)
-		memclr((void *)vector_elements(x), len * sizeof(s7_int));
+		{
+		  if ((len & 0x7) == 0)
+		    memclr64((void *)vector_elements(x), len * sizeof(s7_int));
+		  else memclr((void *)vector_elements(x), len * sizeof(s7_int));
+		}
 	      vector_getter(x) = int_vector_getter;
 	      vector_setter(x) = int_vector_setter;
 	    }
@@ -35395,14 +35445,6 @@ s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
  return(old_len);
 }
 
-#ifndef WITH_VECTORIZE
-#if (defined(__GNUC__) && __GNUC__ >= 5)
-  #define WITH_VECTORIZE 1
-#else
-  #define WITH_VECTORIZE 0
-#endif
-#endif
-
 
 /* -------------------------------- vector-fill! -------------------------------- */
 #if WITH_VECTORIZE
@@ -35428,7 +35470,11 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	  s7_double x;
 	  x = s7_real(obj);
 	  if (x == 0.0)
-	    memclr((void *)float_vector_elements(vec), len * sizeof(s7_double));
+	    {
+	      if ((len & 0x7) == 0)
+		memclr64((void *)float_vector_elements(vec), len * sizeof(s7_double));
+	      else memclr((void *)float_vector_elements(vec), len * sizeof(s7_double));
+	    }
 	  else
 	    {
 	      s7_double *orig;
@@ -35458,7 +35504,11 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	  s7_int k;
 	  k = s7_integer(obj);
 	  if (k == 0)
-	    memclr((void *)int_vector_elements(vec), len * sizeof(s7_int));
+	    {
+	      if ((len & 0x7) == 0)
+		memclr64((void *)int_vector_elements(vec), len * sizeof(s7_int));
+	      else memclr((void *)int_vector_elements(vec), len * sizeof(s7_int));
+	    }
 	  else
 	    {
 	      s7_int* orig;
@@ -36715,7 +36765,11 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   vector_block(x) = arr;
   float_vector_elements(x) = (s7_double *)block_data(arr);
   if (len > 0)
-    memclr((void *)float_vector_elements(x), len * sizeof(s7_double));
+    {
+      if ((len & 0x7) == 0)
+	memclr64((void *)float_vector_elements(x), len * sizeof(s7_double));
+      else memclr((void *)float_vector_elements(x), len * sizeof(s7_double));
+    }
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
@@ -36761,7 +36815,11 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   vector_block(x) = arr;
   int_vector_elements(x) = (s7_int *)block_data(arr);
   if (len > 0)
-    memclr((void *)int_vector_elements(x), len * sizeof(s7_int));
+    {
+      if ((len & 0x7) == 0)
+	memclr64((void *)int_vector_elements(x), len * sizeof(s7_int));
+      else memclr((void *)int_vector_elements(x), len * sizeof(s7_int));
+    }
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
   vector_setter(x) = int_vector_setter;
@@ -39425,7 +39483,9 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
 		  block_lists[BLOCK_LIST] = *hp;
 		}
 	    }
-	  memclr(entries, len * sizeof(hash_entry_t *));
+	  if (len >= 8)
+	    memclr64(entries, len * sizeof(hash_entry_t *));
+	  else memclr(entries, len * sizeof(hash_entry_t *));
 	  if (!hash_table_checker_locked(table))
 	    {
 	      hash_table_checker(table) = hash_empty;
@@ -43342,7 +43402,22 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = int_vector_elements(p);
 	s2 = (s7_int *)(s1 + len - 1);
-	while (s1 < s2) {s7_int c; c = *s1; *s1++ = *s2; *s2-- = c;}
+	if ((len & 0x7) == 0)
+	  {
+	    while (s1 < s2)
+	      {
+		s7_int c; 
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+	      }
+	  }
+	else while (s1 < s2) {s7_int c; c = *s1; *s1++ = *s2; *s2-- = c;}
       }
       break;
 
@@ -43356,7 +43431,22 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = float_vector_elements(p);
 	s2 = (s7_double *)(s1 + len - 1);
-	while (s1 < s2) {s7_double c; c = *s1; *s1++ = *s2; *s2-- = c;}
+	if ((len & 0x7) == 0)
+	  {
+	    while (s1 < s2)
+	      {
+		s7_double c; 
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+	      }
+	  }
+	else while (s1 < s2) {s7_double c; c = *s1; *s1++ = *s2; *s2-- = c;}
       }
       break;
 
@@ -43370,7 +43460,22 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = vector_elements(p);
 	s2 = (s7_pointer *)(s1 + len - 1);
-	while (s1 < s2) {s7_pointer c; c = *s1; *s1++ = *s2; *s2-- = c;}
+	if ((len & 0x7) == 0)
+	  {
+	    while (s1 < s2)
+	      {
+		s7_pointer c; 
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+		c = *s1; *s1++ = *s2; *s2-- = c;
+	      }
+	  }
+	else while (s1 < s2) {s7_pointer c; c = *s1; *s1++ = *s2; *s2-- = c;}
       }
       break;
 
@@ -58112,16 +58217,21 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	    sc->strbuf[loc++] = d;
 	  }
 	sc->strbuf[loc++] = d;
-	if ((d == 'D') || (d == 'd'))
+	if ((d == 'D') || (d == 'd') ||
+	    (d == 'I') || (d == 'i') ||
+	    (d == 'R') || (d == 'r'))
 	  {
-	    d = inchar(pt);
-	    if (d == EOF)
-	      s7_error(sc, sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, "unexpected end of input while reading #nD...")));
-	    sc->strbuf[loc++] = d;
-	    if (d == '(')
+	    int32_t e;
+	    e = inchar(pt);
+	    if (e == EOF)
+	      s7_error(sc, sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, "unexpected end of input while reading #n()")));
+	    sc->strbuf[loc++] = e;
+	    if (e == '(')
 	      {
 		sc->w = make_integer(sc, dims);
-		return(TOKEN_VECTOR);
+		if ((d == 'D') || (d == 'd')) return(TOKEN_VECTOR);
+		if ((d == 'R') || (d == 'r')) return(TOKEN_FLOAT_VECTOR);
+		return(TOKEN_INT_VECTOR);
 	      }
 	  }
 
@@ -84846,11 +84956,11 @@ s7_scheme *s7_init(void)
   /* it's faster to leave error/throw unsafe than to set needs_copied_args and use s7_define_safe_function because copy_list overwhelms any other savings */
   sc->stacktrace_symbol =            defun("stacktrace",	stacktrace,		0, 5, false);
 
-  sc->apply_values_symbol =          unsafe_defun("apply-values", apply_values, 0, 1, false);
+  sc->apply_values_symbol =          unsafe_defun("apply-values", apply_values,         0, 1, false);
   set_immutable(sc->apply_values_symbol);
   sc->apply_values_function = slot_value(global_slot(sc->apply_values_symbol));
 
-  sc->list_values_symbol =           unsafe_defun("list-values", list_values, 0, 0, true); /* see comment above */
+  sc->list_values_symbol =           unsafe_defun("list-values", list_values,           0, 0, true); /* see comment above */
   set_immutable(sc->list_values_symbol);
   
   sc->documentation_symbol =         defun("documentation",     documentation,          1, 0, false);
@@ -84871,7 +84981,7 @@ s7_scheme *s7_init(void)
   sc->is_morally_equal_symbol =      defun("morally-equal?",	is_morally_equal,	2, 0, false);
   sc->type_of_symbol =               defun("type-of",		type_of,		1, 0, false);
 
-  sc->gc_symbol =                    defun("gc",		gc,			0, 1, false);
+  sc->gc_symbol =                    unsafe_defun("gc",		gc,			0, 1, false);
   sc->s7_version_symbol =            defun("s7-version",	s7_version,		0, 0, false);
                                      defun("emergency-exit",	emergency_exit,		0, 1, false);
   sc->exit_symbol =                  defun("exit",		exit,			0, 1, false);
@@ -85762,12 +85872,11 @@ int main(int argc, char **argv)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
- * there are 64-bits free in the symbol_name_cell (where symbol_info_t* was) and 64+24 bits in block_t?
- *   now there are more -- an extra 8 bytes for all uses: reduce port_t maybe
- *   c_proc_t name_length and id?
- *
- * finish t792.scm (1/3 done...)
  * print-length ignored in s7_error?
+ * keep dims after append: (append #2d((1 2) (3 4)) #2d((5 6) (7 8))) -> #(1 2 3 4 5 6 7 8): #2d((1 2 5 6) (3 4 7 8))??
+ *   #2i(...) or #2r(...): add to s7test
+ *   #2i((1 2) (3 4))  #1i(1 2 3)  #2r((1 2) (3 4))
+ *   maybe change print to this form? at least use lowercase
  *
  * dox_ex precalc to opt_eval? [eventually embed optlists in optimizer info]
  *   block+opts in pair can be deallocated --  another gc_list of pairs
@@ -85800,25 +85909,26 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
  * tpeak         |      |      |      ||  391 ||  377 |                                388
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1033
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1032
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1455
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1703
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2428
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2426
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2451
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.2
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556
  * tread         |      |      |      ||      ||      |                   3009  2639  2620
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2664
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2658
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3445
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4161
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4998
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6560
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4160
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4997
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6549
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
- *                                    || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
+ *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
+ * tbig          |      |      |      ||      ||      |                              181.7
  * ----------------------------------------------------------------------------------------------
  */
