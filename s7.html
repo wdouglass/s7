@@ -1975,9 +1975,9 @@ vector-dimensions returns a list of the dimensions.
 
 <pre class="indented">
 &gt; (define v (make-vector '(2 3) 1.0))
-<em class="gray">#2D((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
+<em class="gray">#2d((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
 &gt; (set! (v 0 1) 2.0)
-<em class="gray">#2D((1.0 2.0 1.0) (1.0 1.0 1.0))</em>
+<em class="gray">#2d((1.0 2.0 1.0) (1.0 1.0 1.0))</em>
 &gt; (v 0 1)
 <em class="gray">2.0</em>
 &gt; (vector-length v)
@@ -1992,7 +1992,7 @@ vector-dimensions returns a list of the dimensions.
   (make-shared-vector (apply vector (flatten inits)) dims))
 
 &gt; (make-array '(3 3) '(1 1 1) '(2 2 2) '(3 3 3))
-<em class="gray">#2D((1 1 1) (2 2 2) (3 3 3))</em>
+<em class="gray">#2d((1 1 1) (2 2 2) (3 3 3))</em>
 </pre>
 
 <p>make-int-vector and make-float-vector produce homogeneous vectors holding
@@ -2038,7 +2038,7 @@ s7_ints or s7_doubles:
 &gt; (let ((v1 #(1 2 3 4 5 6))) 
     (let ((v2 (make-shared-vector v1 '(3 2)))) 
       v2))
-<em class="gray">#2D((1 2) (3 4) (5 6))</em>
+<em class="gray">#2d((1 2) (3 4) (5 6))</em>
 </pre>
 <blockquote>
 
@@ -2124,22 +2124,22 @@ s7_ints or s7_doubles:
 
 <div class="indented">
 
-<p>Multidimensional vector constant syntax is modelled after CL: #nd(...) or #nD(...) 
-signals that the lists specify the elements of an 'n' dimensional vector: <code>#2D((1 2 3) (4 5 6))</code>
+<p>Multidimensional vector constant syntax is modelled after CL: #nd(...) or #nd(...) 
+signals that the lists specify the elements of an 'n' dimensional vector: <code>#2d((1 2 3) (4 5 6))</code>
 int-vector constants use #i, float-vectors use #r.  I wanted to use #f, but that is already taken.
 Append the "nD" business after the type indication: <code>#i2d((1 2) (3 4))</code>,
 or use <code>#2i((1 2) (3 4))</code> (I can't remember the first form).
 </p>
 
 <pre class="indented">
-&gt; (vector-ref #2D((1 2 3) (4 5 6)) 1 2)
+&gt; (vector-ref #2d((1 2 3) (4 5 6)) 1 2)
 <em class="gray">6</em>
 &gt; (matrix-multiply #2d((-1 0) (0 -1)) #2d((2 0) (-2 2)))
-<em class="gray">#2D((-2 0) (2 -2))</em>
+<em class="gray">#2d((-2 0) (2 -2))</em>
 &gt; (int-vector 1 2 3)
 <em class="gray">#i(1 2 3)</em>
 &gt; (make-float-vector '(2 3) 1.0)
-<em class="gray">#r2D((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
+<em class="gray">#r2d((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
 &gt; (vector (vector 1 2) (int-vector 1 2) (float-vector 1 2))
 <em class="gray">#(#(1 2) #i(1 2) #r(1.0 2.0))</em>
 </pre>
@@ -2150,8 +2150,8 @@ equal to a 1-dimensional empty vector.
 
 <pre class="indented">
 &gt; (make-vector '(10 0 3))
-<em class="gray">#3D()</em>
-&gt; (equal? #() #3D())
+<em class="gray">#3d()</em>
+&gt; (equal? #() #3d())
 <em class="gray">#f</em>
 </pre>
 </div>
@@ -2193,7 +2193,7 @@ in the latter case, you can't clobber one of the inner vectors.
 &gt; (let ((V #(#(1 2 3) #(4 5 6)))) (set! (V 1) 32) V)
 <em class="gray">#(#(1 2 3) 32)</em>
 &gt; (let ((V #2d((1 2 3) (4 5 6)))) (set! (V 1) 32) V)
-<em class="gray">;not enough args for vector-set!: (#2D((1 2 3) (4 5 6)) 1 32)</em>
+<em class="gray">;not enough args for vector-set!: (#2d((1 2 3) (4 5 6)) 1 32)</em>
 </pre>
 </div>
 
@@ -2205,7 +2205,7 @@ in the latter case, you can't clobber one of the inner vectors.
 </p>
 
 <pre class="indented">
-#2D(((0) (0) ((0))) ((0) 0 ((0))))
+#2d(((0) (0) ((0))) ((0) 0 ((0))))
 </pre>
 
 <p>The "#()" notation is no better (the elements can be vectors), and I'm not a fan of "[]" parentheses.
@@ -2243,7 +2243,7 @@ This also affects format and sort!:
 &gt; (format #f "~{~A~^ ~}" #2d((1 2) (3 4)))
 <em class="gray">"1 2 3 4"</em>
 &gt; (sort! #2d((1 4) (3 2)) &gt;) 
-<em class="gray">#2D((4 3) (2 1))</em>
+<em class="gray">#2d((4 3) (2 1))</em>
 </pre>
 
 <p>Perhaps make-shared-vector can help:
@@ -2251,7 +2251,7 @@ This also affects format and sort!:
 
 <pre class="indented">
 &gt;(make-shared-vector (list-&gt;vector '(1 2 3 4)) '(2 2))
-<em class="gray">#2D((1 2) (3 4))</em>
+<em class="gray">#2d((1 2) (3 4))</em>
 </pre>
 
 </div>

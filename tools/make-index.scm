@@ -115,17 +115,15 @@
     count))
 |#
 
-
-(define (string</* a b)
-  (and (not (= (length b) 0))
-       (or (= (length a) 0)
-	   (string=? a b)
-	   (if (char=? (string-ref a 0) #\*)
-	       (string<? (if (char=? (string-ref b 0) #\*) ; both start with *
-			     a (substring a 1))
-			 b)
-	       (string<? a (if (char=? (string-ref b 0) #\*) (substring b 1) b))))))
-
+(define (string</* a1 b1)
+  (let ((a (ind-sortby a1))
+	(b (ind-sortby b1)))
+    (or (string=? a b)
+	(if (char=? (string-ref a 0) #\*)
+	    (string<? (if (char=? (string-ref b 0) #\*) ; both start with *
+			  a (substring a 1))
+		      b)
+	    (string<? a (if (char=? (string-ref b 0) #\*) (substring b 1) b))))))
 
 (define (clean-and-downcase-first-char str caps file)
   (if (char=? (str 0) #\|)
@@ -1043,9 +1041,7 @@
 		(create-general (generals i) (gfiles i))))
 	(set! n (+ n g)))
 
-      (set! tnames (sort! tnames (lambda (a b)
-				   (string</* (ind-sortby a) 
-					      (ind-sortby b)))))
+      (set! tnames (sort! tnames string</*))
 
       (let ((len (length tnames)))
 	(let ((new-names (make-vector (+ len 100)))
