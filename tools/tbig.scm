@@ -22,7 +22,7 @@
 ;; there's no point in overallocating and looking for malloc->null -- malloc doesn't work that way in Linux
 
 (define big-size 2500000000)
-(define fft-size (ash 1 16))
+(define fft-size (ash 1 17))
 (define little-size 1000000)
 
 
@@ -924,6 +924,7 @@
   )
 
 (when (> total-memory (* 9 4294967296)) ; add some slack
+  (set! big-size 2500000000)
   (let ((bigv (make-hash-table big-size)))
     (test (length bigv) 4294967296)
     (hash-table-set! bigv 'asdf 12)
@@ -1149,7 +1150,6 @@
 	(set! prev mmax))))
   rl)
 
-(set! fft-size 2048) ; above 65536
 (let ((fvr (inlet))
       (fvi (inlet))
       (rl-syms (make-vector fft-size))

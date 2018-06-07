@@ -556,6 +556,9 @@ typedef block_t vdims_t;
 #define vdims_dims(p)                    p->dx.i_ptr
 #define vdims_offsets(p)                 p->nx.ix_ptr
 #define vdims_original(p)                p->ex.ex_ptr
+/* block_index = elements_allocated(bool), so if data=dims+offsets, the legit index is clobbered
+ *   so we either need another block or explicitly malloc'd data to handle dims/offsets
+ */
 
 #define NUM_BLOCK_LISTS 18
 #define TOP_BLOCK_LIST 17
@@ -827,7 +830,7 @@ typedef struct {
 
 typedef s7_int (*hash_map_t)(s7_scheme *sc, s7_pointer table, s7_pointer key);          /* hash-table object->location mapper */
 typedef hash_entry_t *(*hash_check_t)(s7_scheme *sc, s7_pointer table, s7_pointer key); /* hash-table object equality function */
-static hash_map_t *default_hash_map;
+static hash_map_t default_hash_map[NUM_TYPES];
 
 typedef s7_int (*s7_i_pi_t)(s7_pointer p, s7_int i1);
 typedef s7_int (*s7_i_pii_t)(s7_pointer p, s7_int i1, s7_int i2);
@@ -992,10 +995,10 @@ typedef struct s7_cell {
       s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
     } vector;
 
-    struct {                        /* stacks (internal) */
+    struct {                        /* stacks (internal) struct must match vector above for length/objects */
       s7_int length;
       s7_pointer *objects;
-      vdims_t *dim_info;
+      block_t *block;
       int64_t top;
     } stk;
 
@@ -1077,6 +1080,7 @@ typedef struct s7_cell {
       s7_pointer symbol;
       opcode_t op;
       int32_t min_args, max_args;
+      const char *documentation;
     } syn;
 
     struct {                       /* slots (bindings) */
@@ -1101,9 +1105,8 @@ typedef struct s7_cell {
     } envr;
 
     struct {                        /* special stuff like #<unspecified> */
-      /* these 3 are just place-holders */
-      s7_pointer unused_slots, unused_nxt;
-      int64_t unused_id;
+      s7_pointer car, cdr;          /* unique_car|cdr, for sc->nil these are sc->unspecified for faster assoc etc */
+      int64_t let_id;               /* let_id(sc->nil) is -1, so this needs to align with envr.id above */
       /* these two fields are for some special case objects like #<unspecified> */
       union {
 	const char *name;
@@ -1195,7 +1198,7 @@ typedef struct {
 } gc_list;
 
 
-static s7_pointer *small_ints, *chars;
+static s7_pointer *chars;
 static s7_pointer real_zero, real_NaN, real_pi, real_one, arity_not_set, max_arity, real_infinity, real_minus_infinity, minus_one, minus_two;
 
 
@@ -1497,7 +1500,6 @@ struct s7_scheme {
   s7_pointer wrong_type_arg_info, out_of_range_info, simple_wrong_type_arg_info, simple_out_of_range_info;
   s7_pointer err_wrap1, err_wrap2;
   s7_pointer too_many_arguments_string, not_enough_arguments_string, division_by_zero_error_string, missing_method_string;
-  s7_pointer *syn_docs; /* prebuilt evaluator arg lists, syntax doc strings */
   #define NUM_SAFE_LISTS 64
   s7_pointer safe_lists[NUM_SAFE_LISTS];
   int32_t current_safe_list;
@@ -2674,7 +2676,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define syntax_opcode(p)              (T_Syn(p))->object.syn.op
 #define syntax_min_args(p)            (T_Syn(p))->object.syn.min_args
 #define syntax_max_args(p)            (T_Syn(p))->object.syn.max_args
-#define syntax_documentation(p)       sc->syn_docs[syntax_opcode(p)]
+#define syntax_documentation(p)       (T_Syn(p))->object.syn.documentation
 
 #if (!S7_DEBUGGING)
   #define pair_syntax_op(p)           (p)->object.sym_cons.op
@@ -2710,8 +2712,8 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define unique_name_length(p)         (p)->object.unq.len
 #define unknown_name(p)               (p)->object.unq.nm.unknown_name
 #define is_unspecified(p)             (type(p) == T_UNSPECIFIED)
-#define unique_car(p)                 (p)->object.unq.unused_slots
-#define unique_cdr(p)                 (p)->object.unq.unused_nxt
+#define unique_car(p)                 (p)->object.unq.car
+#define unique_cdr(p)                 (p)->object.unq.cdr
 
 #define vector_length(p)              (p)->object.vector.length
 #define unchecked_vector_elements(p)  (p)->object.vector.elements.objects
@@ -2740,8 +2742,6 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define shared_vector(p)              vdims_original(vector_dimension_info(p))
 #define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
-/* #define vector_elements_allocated(p)  vdims_elements_allocated(vector_dimension_info(p)) */
-#define vector_dimensions_allocated(p) vdims_dimensions_allocated(vector_dimension_info(p))
 
 #define rootlet_element(p, i)         unchecked_vector_element(p, i)
 #define rootlet_elements(p)           unchecked_vector_elements(p)
@@ -3012,6 +3012,7 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #endif
 
 #define NUM_SMALL_INTS 2048
+static s7_pointer small_ints[NUM_SMALL_INTS + 1];
 #define small_int(Val)                small_ints[Val]
 #define is_small(n)                   ((n & ~(NUM_SMALL_INTS - 1)) == 0)
 
@@ -4410,16 +4411,18 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
-	      /* a multidimensional empty vector can have dimension info, wrapped vectors always have dimension info */
-	      if ((vector_dimension_info(s1)) &&
-		  (vector_dimension_info(s1) != sc->wrap_only))
+	      vdims_t *info;
+	      info = vector_dimension_info(s1);  /* a multidimensional empty vector can have dimension info, wrapped vectors always have dimension info */
+	      if ((info) &&
+		  (info != sc->wrap_only))
 		{
-		  if (vector_dimensions_allocated(s1))
+		  if (vdims_dimensions_allocated(info))
 		    {
-		      free(vector_dimensions(s1));
-		      free(vector_offsets(s1));
+		      free(vdims_dims(info));
+		      free(vdims_offsets(info));
+		      vdims_dimensions_allocated(info) = false;
 		    }
-		  liberate_block(vector_dimension_info(s1));
+		  liberate_block(info);
 		  vector_set_dimension_info(s1, NULL);
 		}
 	      liberate(vector_block(s1));
@@ -4708,15 +4711,9 @@ static void mark_vector_1(s7_pointer p, s7_int top)
   if (!tp) return;
   tend = (s7_pointer *)(tp + top);
 
-  tend4 = (s7_pointer *)(tend - 4);
+  tend4 = (s7_pointer *)(tend - 8);
   while (tp <= tend4)
-    {
-      gc_mark(*tp++);
-      gc_mark(*tp++);
-      gc_mark(*tp++);
-      gc_mark(*tp++);
-    }
-
+    LOOP_8(gc_mark(*tp++));
   while (tp < tend)
     gc_mark(*tp++);
 }
@@ -5289,35 +5286,9 @@ static int64_t gc(s7_scheme *sc)
 	gc_call(p, tp);
 	gc_call(p, tp);
 
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
-	gc_call(p, tp);
+	LOOP_8(gc_call(p, tp));
+	LOOP_8(gc_call(p, tp));
+	LOOP_8(gc_call(p, tp));
       }
 
     sc->free_heap_top = fp;
@@ -7886,6 +7857,18 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
       if (!err) err = s7_make_permanent_string("let-set!: ~A is not defined in ~A");
       return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, err, symbol, env)));
     }
+
+  if (let_id(env) == symbol_id(symbol))
+   {
+     y = local_slot(symbol);
+     if (is_slot(y))
+       {
+	 if (slot_has_setter(y))
+	   slot_set_value(y, call_setter(sc, y, value));
+	 else slot_set_value(y, value);
+	 return(slot_value(y));
+       }
+   }
 
   for (x = env; is_let(x); x = outlet(x))
     for (y = let_slots(x); is_slot(y); y = next_slot(y))
@@ -26898,7 +26881,7 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
    *
    * also it is problematic to use sc->print_length here (as in byte_vector_to_port) because
    *    it is normally (say) 8 which truncates just about every string.  In CL, *print-length*
-   *    does not affect strings, symbols, or bit-vectors.
+   *    does not affect strings, symbols, or bit-vectors.  But if the string is enormous...
    */
   if (quoted) port_write_character(port)(sc, '"', port);
   for (pcur = (uint8_t *)p; pcur < pend; pcur++)
@@ -35604,11 +35587,9 @@ s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer
   return(a);
 }
 
-
 s7_pointer *s7_vector_elements(s7_pointer vec)      {return(vector_elements(vec));}
 s7_int *s7_int_vector_elements(s7_pointer vec)      {return(int_vector_elements(vec));}
 s7_double *s7_float_vector_elements(s7_pointer vec) {return(float_vector_elements(vec));}
-
 
 s7_int *s7_vector_dimensions(s7_pointer vec)
 {
@@ -35619,7 +35600,6 @@ s7_int *s7_vector_dimensions(s7_pointer vec)
   dims[0] = vector_length(vec);
   return(dims);
 }
-
 
 s7_int *s7_vector_offsets(s7_pointer vec)
 {
@@ -38013,10 +37993,17 @@ static s7_int hash_float_location(s7_double x)
 
 #define hash_loc(Sc, Table, Key) (*(hash_table_mapper(Table)[type(Key)]))(Sc, Table, Key)
 
-static hash_map_t *eq_hash_map, *eqv_hash_map, *string_eq_hash_map, *number_eq_hash_map, *char_eq_hash_map, *closure_hash_map;
-static hash_map_t *morally_equal_hash_map, *c_function_hash_map;
+static hash_map_t eq_hash_map[NUM_TYPES];
+static hash_map_t eqv_hash_map[NUM_TYPES];
+static hash_map_t string_eq_hash_map[NUM_TYPES];
+static hash_map_t number_eq_hash_map[NUM_TYPES];
+static hash_map_t char_eq_hash_map[NUM_TYPES];
+static hash_map_t closure_hash_map[NUM_TYPES];
+static hash_map_t morally_equal_hash_map[NUM_TYPES];
+static hash_map_t c_function_hash_map[NUM_TYPES];
 #if (!WITH_PURE_S7)
-static hash_map_t *string_ci_eq_hash_map, *char_ci_eq_hash_map;
+static hash_map_t string_ci_eq_hash_map[NUM_TYPES];
+static hash_map_t char_ci_eq_hash_map[NUM_TYPES];
 #endif
 
 static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
@@ -38840,20 +38827,6 @@ void init_hash_maps(void)
 {
   int32_t i;
   
-  default_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  eqv_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  string_eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  number_eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  char_eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-#if (!WITH_PURE_S7)
-  string_ci_eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  char_ci_eq_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-#endif
-  closure_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  c_function_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-  morally_equal_hash_map = (hash_map_t *)malloc(NUM_TYPES * sizeof(hash_map_t));
-
   for (i = 0; i < NUM_TYPES; i++) 
     {
       default_hash_map[i] = hash_map_nil;
@@ -39878,6 +39851,9 @@ const char *s7_documentation(s7_scheme *sc, s7_pointer x)
       (is_c_macro(x)))
     return((char *)c_function_documentation(x));
 
+  if (is_syntax(x))
+    return(syntax_documentation(x));
+
   val = funclet_entry(sc, x, sc->local_documentation_symbol);
   if ((val) && (is_string(val)))
     return(string_value(val));
@@ -39915,7 +39891,8 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
   /* it would be neat if this would worK (define x (let ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
   check_method(sc, p, sc->documentation_symbol, args);
   if ((!is_procedure(p)) &&
-      (!is_any_macro(p)))
+      (!is_any_macro(p)) &&
+      (!is_syntax(p)))
     return(simple_wrong_type_argument_with_type(sc, sc->documentation_symbol, p, a_procedure_string));
 
   return(s7_make_string(sc, s7_documentation(sc, p)));
@@ -39926,7 +39903,7 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
 const char *s7_help(s7_scheme *sc, s7_pointer obj)
 {
   if (is_syntax(obj))
-    return(string_value(syntax_documentation(obj)));
+    return(syntax_documentation(obj));
 
   if (is_symbol(obj))
     {
@@ -39961,16 +39938,16 @@ static s7_pointer g_help(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- signature -------------------------------- */
 static void init_signatures(s7_scheme *sc)
 {
-  sc->string_signature = s7_make_signature(sc, 3, sc->is_char_symbol, sc->is_string_symbol, sc->is_integer_symbol);
-  sc->byte_vector_signature = s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_byte_vector_symbol, sc->is_integer_symbol);
-  sc->vector_signature = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_vector_symbol, sc->is_integer_symbol);
+  sc->string_signature =       s7_make_signature(sc, 3, sc->is_char_symbol, sc->is_string_symbol, sc->is_integer_symbol);
+  sc->byte_vector_signature =  s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_byte_vector_symbol, sc->is_integer_symbol);
+  sc->vector_signature =       s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_vector_symbol, sc->is_integer_symbol);
   sc->float_vector_signature = s7_make_circular_signature(sc, 2, 3, sc->is_float_symbol, sc->is_float_vector_symbol, sc->is_integer_symbol);
-  sc->int_vector_signature = s7_make_circular_signature(sc, 2, 3, sc->is_integer_symbol, sc->is_int_vector_symbol, sc->is_integer_symbol);
-  sc->c_object_signature = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T);
-  sc->let_signature = s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->T);
-  sc->hash_table_signature = s7_make_signature(sc, 3, sc->T, sc->is_hash_table_symbol, sc->T); /* should this be circular? */
-  sc->pair_signature = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol);
-  sc->iterator_signature = s7_make_signature(sc, 1, sc->T);
+  sc->int_vector_signature =   s7_make_circular_signature(sc, 2, 3, sc->is_integer_symbol, sc->is_int_vector_symbol, sc->is_integer_symbol);
+  sc->c_object_signature =     s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T);
+  sc->let_signature =          s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->T);
+  sc->hash_table_signature =   s7_make_signature(sc, 3, sc->T, sc->is_hash_table_symbol, sc->T); /* should this be circular? */
+  sc->pair_signature =         s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol);
+  sc->iterator_signature =     s7_make_signature(sc, 1, sc->T);
 }
 
 static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
@@ -43273,7 +43250,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 #if __linux__ /* need byteswp.h */
 	/* this code (from StackOverflow) is much faster: */
-	if ((len & 7) == 0)
+	if ((len & 0xf) == 0)
 	  {
 	    #include <byteswap.h>
 	    uint32_t *dst = (uint32_t *)(string_value(p) + len - 4);
@@ -43281,10 +43258,8 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	    while (src < dst)
 	      {
 		uint32_t a, b;
-		a = *src; 
-		b = *dst;
-		*src++ = bswap_32(b);
-		*dst-- = bswap_32(a);
+		a = *src; b = *dst; *src++ = bswap_32(b); *dst-- = bswap_32(a);
+		a = *src; b = *dst; *src++ = bswap_32(b); *dst-- = bswap_32(a);
 	      }
 	  }
 	else
@@ -43308,7 +43283,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = int_vector_elements(p);
 	s2 = (s7_int *)(s1 + len - 1);
-	if (((len & 0x7) == 0) && (len != 8))
+	if ((len & 0xf) == 0) /* not 0x7 -- odd multiple of 8 will leave center ints unreversed */
 	  {
 	    while (s1 < s2)
 	      {
@@ -43330,7 +43305,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = float_vector_elements(p);
 	s2 = (s7_double *)(s1 + len - 1);
-	if (((len & 0x7) == 0) && (len != 8))
+	if ((len & 0xf) == 0)
 	  {
 	    while (s1 < s2)
 	      {
@@ -43352,7 +43327,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	if (len < 2) return(p);
 	s1 = vector_elements(p);
 	s2 = (s7_pointer *)(s1 + len - 1);
-	if (((len & 0x7) == 0) && (len != 8))
+	if ((len & 0xf) == 0)
 	  {
 	    while (s1 < s2)
 	      {
@@ -58434,7 +58409,7 @@ static s7_pointer assign_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   syntax_set_symbol(syn, x);
   syntax_min_args(syn) = integer(min_args);
   syntax_max_args(syn) = ((max_args == max_arity) ? -1 : integer(max_args));
-  syntax_documentation(syn) = s7_make_permanent_string(doc);
+  syntax_documentation(syn) = doc;
 
   set_global_slot(x, permanent_slot(x, syn));
   set_initial_slot(x, permanent_slot(x, syn));
@@ -83588,7 +83563,6 @@ s7_scheme *s7_init(void)
   if (!already_inited)
     {
       /* keep the small_ints out of the heap */
-      small_ints = (s7_pointer *)malloc((NUM_SMALL_INTS + 1) * sizeof(s7_pointer));
       {
 	s7_cell *cells;
 	cells = (s7_cell *)calloc((NUM_SMALL_INTS + 1), sizeof(s7_cell));
@@ -83675,7 +83649,6 @@ s7_scheme *s7_init(void)
 
   make_standard_ports(sc);
 
-  sc->syn_docs = (s7_pointer *)calloc(OP_MAX_DEFINED, sizeof(s7_pointer));
   #define quote_help             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
   #define if_help                "(if expr true-stuff optional-false-stuff) evaluates expr, then if it is true, evaluates true-stuff; otherwise, \
                                       if optional-false-stuff exists, it is evaluated."
@@ -85341,18 +85314,12 @@ int main(int argc, char **argv)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
- * print-length ignored in s7_error?
  * float|int-vector-ref|set: avoid univect*: type ok, rank 1, null(cddr(args)) do it in place or a simpler local func
  *   or just split univect
- * vdims dims+offset in mallocate, also the hash maps (total size known in advance)
- * syn_docs looks wasteful
- * string_reverse could use LOOP_8?
- *
- * keep dims after append: (append #2d((1 2) (3 4)) #2d((5 6) (7 8))) -> #(1 2 3 4 5 6 7 8): #2d((1 2 5 6) (3 4 7 8))??
- *   #2i(...) or #2r(...): add to s7test
- *   #2i((1 2) (3 4))  #1i(1 2 3)  #2r((1 2) (3 4))
- *   maybe change print to this form?
- *   cyclic multi vect? t776->tread with this addition, and add a case to s7test for the mark_vector loop
+ * there's room in syntax for a function (or everywhere if func replaces opcode) -- sidestep start?
+ *   how to avoid indefinite recursion?
+ *   closure_s_p for example: call the function rather than goto start, then goto start
+ *   count cases here (and similar ops)
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85388,25 +85355,25 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
  * tpeak         |      |      |      ||  391 ||  377 |                                389
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1032
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1130
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1129
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1455
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1703
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1702
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2423
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2453
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2414
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2450
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.2
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2556 3254
- * tread         |      |      |      ||      ||      |                   3009  2639  2617
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2652
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3444
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3904
+ * tread         |      |      |      ||      ||      |                   3009  2639  2618
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2656
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3903
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4160
- * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4997
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6549
+ * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4994
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6532
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.2
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                        (221)  110.5
+ * tbig          |      |      |      ||      ||      |                               130.0
  * ----------------------------------------------------------------------------------------------
  */
