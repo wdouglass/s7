@@ -504,8 +504,8 @@ typedef struct block_t {
     s7_pointer d_ptr;
     s7_int *i_ptr;
   } dx;
-  int32_t index; 
-  int32_t filler;
+  int32_t index;
+  struct {uint8_t b1, b2, b3, b4;} filler;
   s7_int size;
   union {
     struct block_t *next;
@@ -551,13 +551,14 @@ typedef block_t optfix_t;
 
 typedef block_t vdims_t;
 #define vdims_ndims(p)                   p->size
-#define vdims_elements_allocated(p)      p->index
-#define vdims_dimensions_allocated(p)    p->filler
+#define vector_elements_should_be_freed(p) p->filler.b1
+#define vdims_dimensions_allocated(p)    p->filler.b2
 #define vdims_dims(p)                    p->dx.i_ptr
 #define vdims_offsets(p)                 p->nx.ix_ptr
 #define vdims_original(p)                p->ex.ex_ptr
-/* block_index = elements_allocated(bool), so if data=dims+offsets, the legit index is clobbered
+/* block_index = elements_should_be_freed(bool), so if data=dims+offsets, the legit index is clobbered
  *   so we either need another block or explicitly malloc'd data to handle dims/offsets
+ *   both allocated fields can be bits (or bytes I suppose) in filler, dims=cast block_data to s7int*, offsets to halfway through
  */
 
 #define NUM_BLOCK_LISTS 18
@@ -4416,11 +4417,16 @@ static void sweep(s7_scheme *sc)
 	      if ((info) &&
 		  (info != sc->wrap_only))
 		{
-		  if (vdims_dimensions_allocated(info))
+		  if (vdims_dimensions_allocated(info) == 1)
 		    {
 		      free(vdims_dims(info));
 		      free(vdims_offsets(info));
-		      vdims_dimensions_allocated(info) = false;
+		      vdims_dimensions_allocated(info) = 0;
+		    }
+		  if (vector_elements_should_be_freed(info) == 1) /* a kludge for foreign code convenience */
+		    {
+		      free(vector_elements(s1));
+		      vector_elements_should_be_freed(info) = 0;
 		    }
 		  liberate_block(info);
 		  vector_set_dimension_info(s1, NULL);
@@ -24780,6 +24786,20 @@ static s7_pointer g_read_string(s7_scheme *sc, s7_pointer args)
 
   s = make_empty_string(sc, chars, 0);
   str = (uint8_t *)string_value(s);
+  if (is_string_port(port))
+    {
+      s7_int pos, end, len;
+      pos = port_position(port);
+      end = port_data_size(port);
+      len = end - pos;
+      if (len > chars) len = chars;
+      if (len <= 0) return(sc->eof_object);
+      memcpy((void *)str, (void *)(port_data(port) + pos), len);
+      string_length(s) = len;
+      str[len] = '\0';
+      port_position(port) += len;
+      return(s);
+    }
   for (i = 0; i < chars; i++)
     {
       int32_t c;
@@ -35271,27 +35291,29 @@ static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
   vdims_t *v;
   v = (vdims_t *)mallocate_block();
   vdims_original(v) = sc->F;
-  vdims_elements_allocated(v) = false;
+  vector_elements_should_be_freed(v) = 0;
   vdims_ndims(v) = 1;
-  vdims_dimensions_allocated(v) = false;
+  vdims_dimensions_allocated(v) = 0;
   vdims_dims(v) = NULL;
   vdims_offsets(v) = NULL;
   return(v);
 }
 
-#define make_vdims(Sc, Alloc, Dims, Info) ((((Dims) == 1) && (!(Alloc))) ? sc->wrap_only : make_vdims_1(Sc, Alloc, Dims, Info))
-
-static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims, s7_int *dim_info)
+static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int dims, s7_int *dim_info)
 {
   vdims_t *v;
+
+  if ((dims == 1) && (!elements_should_be_freed)) 
+    return(sc->wrap_only);
+
   v = (vdims_t *)mallocate_block();
   vdims_original(v) = sc->F;
-  vdims_elements_allocated(v) = elements_allocated;
+  vector_elements_should_be_freed(v) = (elements_should_be_freed) ? 1 : 0;
   vdims_ndims(v) = dims;
   if (dims > 1)
     {
       s7_int i, offset = 1;
-      vdims_dimensions_allocated(v) = true;
+      vdims_dimensions_allocated(v) = 1;
       vdims_dims(v) = (s7_int *)malloc(dims * sizeof(s7_int));
       vdims_offsets(v) = (s7_int *)malloc(dims * sizeof(s7_int));
 
@@ -35305,7 +35327,7 @@ static vdims_t *make_vdims_1(s7_scheme *sc, bool elements_allocated, s7_int dims
     }
   else
     {
-      vdims_dimensions_allocated(v) = false;
+      vdims_dimensions_allocated(v) = 0;
       vdims_dims(v) = NULL;
       vdims_offsets(v) = NULL;
     }
@@ -35318,7 +35340,7 @@ s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *di
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_INT_VECTOR);
   if (dim_info)
-    vector_set_dimension_info(p, make_vdims(sc, true, dims, dim_info));
+    vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
   return(p);
 }
 
@@ -35327,7 +35349,7 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_FLOAT_VECTOR);
   if (dim_info)
-    vector_set_dimension_info(p, make_vdims(sc, true, dims, dim_info));
+    vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
   return(p);
 }
 
@@ -35347,13 +35369,9 @@ s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *da
   vector_length(x) = len;
   if (!dim_info)
     {
-      if (!free_data)    /* here we need the dim info to tell the GC to leave the data alone */
-	{
-	  s7_int di[1];
-	  di[0] = len;
-	  vector_set_dimension_info(x, make_vdims(sc, free_data, 1, di));
-	}
-      else vector_set_dimension_info(x, NULL);
+      s7_int di[1];
+      di[0] = len;
+      vector_set_dimension_info(x, make_vdims(sc, free_data, 1, di));
     }
   else vector_set_dimension_info(x, make_vdims(sc, free_data, dims, dim_info));
   add_vector(sc, x);
@@ -36004,8 +36022,8 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
   if (is_normal_vector(vect))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(vect)] = mark_int_or_float_vector_possibly_shared; 
-  vdims_elements_allocated(v) = false;
-  vdims_dimensions_allocated(v) = false;
+  vector_elements_should_be_freed(v) = 0;
+  vdims_dimensions_allocated(v) = 0;
   vector_set_dimension_info(x, v);
 
   if (skip_dims > 0)
@@ -36085,8 +36103,8 @@ a vector that points to the same elements as the original-vector but with differ
   vdims_ndims(v) = safe_list_length(dims);
   vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
   vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
-  vdims_dimensions_allocated(v) = true;
-  vdims_elements_allocated(v) = false;
+  vdims_dimensions_allocated(v) = 1;
+  vector_elements_should_be_freed(v) = 0;
   vdims_original(v) = orig; /* shared_vector */
   if (is_normal_vector(orig))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
@@ -36585,8 +36603,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
       vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
       vdims_original(v) = sc->F;
       vector_set_dimension_info(vec, v);
-      vdims_dimensions_allocated(v) = true;
-      vdims_elements_allocated(v) = (len > 0);
+      vdims_dimensions_allocated(v) = 1;
+      vector_elements_should_be_freed(v) = 0;
 
       for (i = 0, y = x; is_not_null(y); i++, y = cdr(y))
 	vdims_dims(v)[i] = s7_integer(car(y));
@@ -51188,11 +51206,28 @@ static s7_double opt_d_pid_ssfo(void *p)
   opt_info *o = (opt_info *)p;
   s7_pointer fv;
   fv = slot_value(o->v1.p);
-  return(o->v4.d_pid_f(fv,
-		       integer(slot_value(o->v2.p)), 
-		       o->v6.d_dd_f(o->v5.d_pi_f(fv,
-						 integer(slot_value(o->v3.p))), 
-				    real(slot_value(o->v9.p)))));
+  return(o->v4.d_pid_f(fv, integer(slot_value(o->v2.p)), 
+	    o->v6.d_dd_f(o->v5.d_pi_f(fv, integer(slot_value(o->v3.p))), real(slot_value(o->v9.p)))));
+}
+
+static s7_double opt_d_pid_ssfo_fv(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  s7_double val;
+  s7_double *els;
+  els = float_vector_elements(slot_value(o->v1.p));
+  val = o->v6.d_dd_f(els[integer(slot_value(o->v3.p))], real(slot_value(o->v9.p)));
+  els[integer(slot_value(o->v2.p))] = val;
+  return(val);
+}
+
+static s7_pointer opt_d_pid_ssfo_fv_nr(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  s7_double *els;
+  els = float_vector_elements(slot_value(o->v1.p));
+  els[integer(slot_value(o->v2.p))] = o->v6.d_dd_f(els[integer(slot_value(o->v3.p))], real(slot_value(o->v9.p)));
+  return(NULL);
 }
 
 static bool d_pid_ssf_combinable(s7_scheme *sc, opt_info *opc)
@@ -51231,6 +51266,12 @@ static bool d_pid_ssf_combinable(s7_scheme *sc, opt_info *opc)
 	  opc->v3.p = o1->v3.p;
 	  opc->v9.p = o1->v1.p; /* can't use v8 since d_to_p commandeers it */
 	  opc->v7.fd = opt_d_pid_ssfo;
+	  if (((opc->v5.d_pi_f == float_vector_ref_unchecked) ||
+	       (opc->v5.d_pi_f == float_vector_ref_d)) &&
+	      ((opc->v4.d_pid_f == float_vector_set_unchecked) ||
+	       (opc->v4.d_pid_f == float_vector_set_d)))
+	    opc->v7.fd = opt_d_pid_ssfo_fv;
+	  /* actually if either is *_d, we need to check the indices */
 	  backup_pc(sc);
 	  return(true);
 	}
@@ -55862,6 +55903,11 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	      start->v7.fp = d_to_p_nr;
 	      if (start->v8.fd == opt_d_pid_ssf)
 		start->v7.fp = opt_d_pid_ssf_nr;
+	      else
+		{
+		  if (start->v8.fd == opt_d_pid_ssfo_fv)
+		    start->v7.fp = opt_d_pid_ssfo_fv_nr;
+		}
 	    }
 	  else
 	    {
@@ -85476,12 +85522,17 @@ int main(int argc, char **argv)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
- * tbig with-in|out-string bigstr (push port data), complex fft, closure fft? port fft?? mvect with a 1000 dimensions? (obj->str here?)
- *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB maybe
+ * tbig:
+ *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB maybe: build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
  *   a zillion symbols will be trouble
- *   format ctrl+args ->output huge?
+ *   format ctrl+args ->output huge? ~NC for example
+ *   str->num fft with radices: t803
+ *   ideally: add complex to opt so we get float performance, and fix num->str->num
+ *
  * mallocate/reallocate op_stacks?
+ * could vdims use block_size/2 for ptr->offset?
  * callgrind t776/t725
+ * does let+gensym gc-protect the gensyms? tbig has them in a vector I think (inaccessible anyway if not stored elsewhere? obj->str|let?)
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85519,16 +85570,16 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1129
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1455
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1702
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1699
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2414
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2449
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.2
- * tread         |      |      |      ||      ||      |                   3009  2639  2617
+ * tread         |      |      |      ||      ||      |                   3009  2639  2622
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2649
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3207
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3254
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3801
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4160
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4994
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6532
@@ -85536,6 +85587,6 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                               130.5
+ * tbig          |      |      |      ||      ||      |                               147.7
  * ----------------------------------------------------------------------------------------------
  */

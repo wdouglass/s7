@@ -122,7 +122,7 @@
 	  (get-overheads-1 file line))
 			     
 	(set! overheads (sort! overheads (lambda (a b) (< (car a) (car b)))))
-	(format *stderr* "~{~^~A~%~}" (list-tail overheads (max 10 (- (length overheads) 60))))
+	(format *stderr* "~{~^~A~%~}" (list-tail overheads (max 10 (- (length overheads) 40))))
 	(format *stderr* "total: ~A~%" total)))))
 
 

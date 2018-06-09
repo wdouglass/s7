@@ -36407,8 +36407,8 @@ EDITS: 1
     (test (catch #t
 	    fv01
 	    (lambda args 
-	      (apply format #f (cadr args))))    ; float-vector-set! argument 2, 3, is out of range (it is too large)
-	  "float-vector-set! argument 2, 3, is out of range (it is too large)")
+	      (apply format #f (cadr args))))    ; float-vector-set! argument, 3, is out of range (it is too large)
+	  "float-vector-set! argument, 3, is out of range (it is too large)")
     
     (define (fv02)
       (do ((fv (make-float-vector 3))
