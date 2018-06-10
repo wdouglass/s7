@@ -505,7 +505,7 @@ typedef struct block_t {
     s7_int *i_ptr;
   } dx;
   int32_t index;
-  struct {uint8_t b1, b2, b3, b4;} filler;
+  bool filler;
   s7_int size;
   union {
     struct block_t *next;
@@ -551,15 +551,10 @@ typedef block_t optfix_t;
 
 typedef block_t vdims_t;
 #define vdims_ndims(p)                   p->size
-#define vector_elements_should_be_freed(p) p->filler.b1
-#define vdims_dimensions_allocated(p)    p->filler.b2
+#define vector_elements_should_be_freed(p) p->filler
 #define vdims_dims(p)                    p->dx.i_ptr
 #define vdims_offsets(p)                 p->nx.ix_ptr
 #define vdims_original(p)                p->ex.ex_ptr
-/* block_index = elements_should_be_freed(bool), so if data=dims+offsets, the legit index is clobbered
- *   so we either need another block or explicitly malloc'd data to handle dims/offsets
- *   both allocated fields can be bits (or bytes I suppose) in filler, dims=cast block_data to s7int*, offsets to halfway through
- */
 
 #define NUM_BLOCK_LISTS 18
 #define TOP_BLOCK_LIST 17
@@ -1217,6 +1212,7 @@ struct s7_scheme {
 
   s7_pointer *op_stack, *op_stack_now, *op_stack_end;
   uint32_t op_stack_size, max_stack_size;
+  block_t *op_stack_block;
 
   s7_cell **heap, **free_heap, **free_heap_top, **free_heap_trigger, **previous_free_heap_top;
   int64_t heap_size, gc_freed, max_heap_size;
@@ -1321,7 +1317,7 @@ struct s7_scheme {
   format_data **fdats;
   int32_t num_fdats;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_3, qlist_2;
-  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *unknowns, *lambdas;
+  gc_list *strings, *strings1, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *unknowns, *lambdas, *multivectors;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
   char ***string_lists;
@@ -4410,6 +4406,20 @@ static void sweep(s7_scheme *sc)
       for (i = 0, j = 0; i < gp->loc; i++)
 	{
 	  s1 = gp->list[i];
+
+	  if (is_free_and_clear(s1))
+	    liberate(vector_block(s1));
+	  else gp->list[j++] = s1;
+	}
+      gp->loc = j;
+    }
+
+  gp = sc->multivectors;
+  if (gp->loc > 0)
+    {
+      for (i = 0, j = 0; i < gp->loc; i++)
+	{
+	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
 	      vdims_t *info;
@@ -4417,18 +4427,12 @@ static void sweep(s7_scheme *sc)
 	      if ((info) &&
 		  (info != sc->wrap_only))
 		{
-		  if (vdims_dimensions_allocated(info) == 1)
-		    {
-		      free(vdims_dims(info));
-		      free(vdims_offsets(info));
-		      vdims_dimensions_allocated(info) = 0;
-		    }
-		  if (vector_elements_should_be_freed(info) == 1) /* a kludge for foreign code convenience */
+		  if (vector_elements_should_be_freed(info)) /* a kludge for foreign code convenience */
 		    {
 		      free(vector_elements(s1));
-		      vector_elements_should_be_freed(info) = 0;
+		      vector_elements_should_be_freed(info) = false;
 		    }
-		  liberate_block(info);
+		  liberate(info);
 		  vector_set_dimension_info(s1, NULL);
 		}
 	      liberate(vector_block(s1));
@@ -4537,14 +4541,7 @@ static void sweep(s7_scheme *sc)
 	{
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
-	    {
-	      if (continuation_op_stack(s1))
-		{
-		  free(continuation_op_stack(s1));
-		  continuation_op_stack(s1) = NULL;
-		}
-	      liberate_block(continuation_block(s1));
-	    }
+	    liberate(continuation_block(s1));
 	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
@@ -4646,6 +4643,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
 #define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
 #define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
+#define add_multivector(sc, p)  add_to_gc_list(sc->multivectors, p)
 #define add_lambda(sc, p)       add_to_gc_list(sc->lambdas, p)
 
 #if WITH_GMP
@@ -4662,6 +4660,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->gensyms = make_gc_list();
   sc->unknowns = make_gc_list();
   sc->vectors = make_gc_list();
+  sc->multivectors = make_gc_list();
   sc->hash_tables = make_gc_list();
   sc->input_ports = make_gc_list();
   sc->output_ports = make_gc_list();
@@ -5531,6 +5530,8 @@ static void add_permanent_object(s7_scheme *sc, s7_pointer obj)
 }
 
 #if S7_DEBUGGING
+static const char *type_name_from_type(int32_t typ, int32_t article);
+
 #define free_cell(Sc, P) free_cell_1(Sc, P, __LINE__)
 static void free_cell_1(s7_scheme *sc, s7_pointer p, int32_t line)
 #else
@@ -5538,6 +5539,18 @@ static void free_cell(s7_scheme *sc, s7_pointer p)
 #endif
 {
 #if S7_DEBUGGING
+  /* anything that needs gc_list attention should not be freed here */
+  uint8_t typ;
+  typ = unchecked_type(p);
+  if ((typ == T_STRING) || ((typ == T_SYMBOL) && (is_gensym(p))) || 
+      (typ == T_VECTOR) || (typ == T_FLOAT_VECTOR) || (typ == T_INT_VECTOR) ||
+      (typ == T_UNDEFINED) || (typ == T_C_OBJECT) || (typ == T_LET) || 
+      (typ == T_HASH_TABLE) || (typ == T_C_FUNCTION) || (typ == T_CONTINUATION) ||
+      (typ == T_INPUT_PORT) || (typ == T_OUTPUT_PORT))
+    {
+      fprintf(stderr, "free_cell of %s?\n", type_name_from_type(typ, 0));
+      /* abort(); */
+    }
   p->debugger_bits = 0;
   p->explicit_free_line = line;
 #endif
@@ -5693,7 +5706,8 @@ static s7_pointer pop_op_stack(s7_scheme *sc)
 static void initialize_op_stack(s7_scheme *sc)
 {
   int32_t i;
-  sc->op_stack = (s7_pointer *)malloc(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
+  sc->op_stack_block = mallocate(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
+  sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
   sc->op_stack_size = OP_STACK_INITIAL_SIZE;
   sc->op_stack_now = sc->op_stack;
   sc->op_stack_end = (s7_pointer *)(sc->op_stack + sc->op_stack_size);
@@ -5707,7 +5721,8 @@ static void resize_op_stack(s7_scheme *sc)
   int32_t i, loc, new_size;
   loc = (int32_t)(sc->op_stack_now - sc->op_stack);
   new_size = sc->op_stack_size * 2;
-  sc->op_stack = (s7_pointer *)realloc((void *)(sc->op_stack), new_size * sizeof(s7_pointer));
+  sc->op_stack_block = reallocate(sc->op_stack_block, new_size * sizeof(s7_pointer));
+  sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
   for (i = sc->op_stack_size; i < new_size; i++)
     sc->op_stack[i] = sc->nil;
   sc->op_stack_size = (uint32_t)new_size;
@@ -6132,6 +6147,7 @@ static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer args)
     for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
       syms++;
   sc->w = make_vector_1(sc, syms, NOT_FILLED, T_VECTOR);
+  add_vector(sc, sc->w);
   els = vector_elements(sc->w);
 
   for (i = 0, j = 0; i < SYMBOL_TABLE_SIZE; i++)
@@ -9318,6 +9334,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
    */
 
   new_v = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+  add_vector(sc, new_v);
   set_type(new_v, T_STACK);
   temp_stack_top(new_v) = top;
   nv = stack_elements(new_v);
@@ -9360,15 +9377,15 @@ static inline s7_pointer make_goto(s7_scheme *sc)
 }
 
 
-static s7_pointer *copy_op_stack(s7_scheme *sc)
+static block_t *copy_op_stack(s7_scheme *sc, block_t *b)
 {
   int32_t len;
   s7_pointer *ops;
-  ops = (s7_pointer *)malloc(sc->op_stack_size * sizeof(s7_pointer));
+  ops = (s7_pointer *)block_data(b);
   len = (int32_t)(sc->op_stack_now - sc->op_stack);
   if (len > 0)
     memcpy((void *)ops, (void *)(sc->op_stack), len * sizeof(s7_pointer));
-  return(ops);
+  return(b);
 }
 
 
@@ -9439,13 +9456,14 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
-  block = mallocate_block();
+  block = mallocate(sc->op_stack_size * sizeof(s7_pointer));
   continuation_block(x) = block;
   continuation_set_stack(x, stack);
   continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
   continuation_stack_start(x) = stack_elements(continuation_stack(x));
   continuation_stack_end(x) = (s7_pointer *)(continuation_stack_start(x) + loc);
-  continuation_op_stack(x) = copy_op_stack(sc);                        /* no heap allocation here */
+  copy_op_stack(sc, block);                        /* no heap allocation here */
+  continuation_op_stack(x) = (s7_pointer *)block_data(block);
   continuation_op_loc(x) = (int32_t)(sc->op_stack_now - sc->op_stack);
   continuation_op_size(x) = sc->op_stack_size;
   continuation_key(x) = find_any_baffle(sc);
@@ -24936,7 +24954,13 @@ typedef struct {
 
 static lock_scope_t enter_lock_scope(s7_scheme *sc) 
 {
-  if (pthread_mutex_trylock(&sc->lock) != 0) abort();
+  int result = pthread_mutex_trylock(&sc->lock);
+  if (result != 0)
+    {
+      fprintf(stderr, "pthread_mutex_trylock failed: %d (EBUSY: %d)", result, EBUSY);
+      abort();
+    }
+  
   sc->lock_count++;
   {
     lock_scope_t st = {.sc = sc, .lock_count = sc->lock_count};
@@ -35276,14 +35300,17 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	}
     }
   vector_set_dimension_info(x, NULL);
-  add_vector(sc, x);
+  /* add_vector(sc, x); */
   return(x);
 }
 
 
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len)
 {
-  return(make_vector_1(sc, len, FILLED, T_VECTOR));
+  s7_pointer v;
+  v = make_vector_1(sc, len, FILLED, T_VECTOR);
+  add_vector(sc, v);
+  return(v);
 }
 
 static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
@@ -35291,9 +35318,8 @@ static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
   vdims_t *v;
   v = (vdims_t *)mallocate_block();
   vdims_original(v) = sc->F;
-  vector_elements_should_be_freed(v) = 0;
+  vector_elements_should_be_freed(v) = false;
   vdims_ndims(v) = 1;
-  vdims_dimensions_allocated(v) = 0;
   vdims_dims(v) = NULL;
   vdims_offsets(v) = NULL;
   return(v);
@@ -35306,16 +35332,14 @@ static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int 
   if ((dims == 1) && (!elements_should_be_freed)) 
     return(sc->wrap_only);
 
-  v = (vdims_t *)mallocate_block();
-  vdims_original(v) = sc->F;
-  vector_elements_should_be_freed(v) = (elements_should_be_freed) ? 1 : 0;
-  vdims_ndims(v) = dims;
   if (dims > 1)
     {
       s7_int i, offset = 1;
-      vdims_dimensions_allocated(v) = 1;
-      vdims_dims(v) = (s7_int *)malloc(dims * sizeof(s7_int));
-      vdims_offsets(v) = (s7_int *)malloc(dims * sizeof(s7_int));
+      v = (vdims_t *)mallocate(dims * 2 * sizeof(s7_int));
+      vdims_original(v) = sc->F;
+      vector_elements_should_be_freed(v) = elements_should_be_freed;
+      vdims_ndims(v) = dims;
+      vdims_offsets(v) = (s7_int *)(vdims_dims(v) + dims);
 
       for (i = 0; i < dims; i++)
 	vdims_dims(v)[i] = dim_info[i];
@@ -35327,7 +35351,10 @@ static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int 
     }
   else
     {
-      vdims_dimensions_allocated(v) = 0;
+      v = (vdims_t *)mallocate_block();
+      vdims_original(v) = sc->F;
+      vector_elements_should_be_freed(v) = elements_should_be_freed;
+      vdims_ndims(v) = 1;
       vdims_dims(v) = NULL;
       vdims_offsets(v) = NULL;
     }
@@ -35340,7 +35367,11 @@ s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *di
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_INT_VECTOR);
   if (dim_info)
-    vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
+    {
+      vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
+      add_multivector(sc, p);
+    }
+  else add_vector(sc, p);
   return(p);
 }
 
@@ -35349,7 +35380,11 @@ s7_pointer s7_make_float_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *
   s7_pointer p;
   p = make_vector_1(sc, len, FILLED, T_FLOAT_VECTOR);
   if (dim_info)
-    vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
+    {
+      vector_set_dimension_info(p, make_vdims(sc, false, dims, dim_info));
+      add_multivector(sc, p);
+    }
+  else add_vector(sc, p);
   return(p);
 }
 
@@ -35374,7 +35409,7 @@ s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *da
       vector_set_dimension_info(x, make_vdims(sc, free_data, 1, di));
     }
   else vector_set_dimension_info(x, make_vdims(sc, free_data, dims, dim_info));
-  add_vector(sc, x);
+  add_multivector(sc, x);
   return(x);
 }
 
@@ -35646,7 +35681,11 @@ static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
   int32_t i;
 
   if (is_null(args))
-    return(make_vector_1(sc, 0, NOT_FILLED, T_VECTOR));
+    {
+      p = make_vector_1(sc, 0, NOT_FILLED, T_VECTOR);
+      add_vector(sc, p);
+      return(p);
+    }
 
   for (i = 0, p = args; is_pair(p); p = cdr(p), i++)
     {
@@ -35865,6 +35904,7 @@ s7_pointer s7_make_and_fill_vector(s7_scheme *sc, s7_int len, s7_pointer fill)
 {
   s7_pointer vect;
   vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+  add_vector(sc, vect);
   s7_vector_fill(sc, vect, fill);
   return(vect);
 }
@@ -35940,6 +35980,7 @@ static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
 
   len = safe_list_length(args);
   vec = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+  add_vector(sc, vec);
   if (len > 0)
     {
       s7_int i;
@@ -36022,8 +36063,7 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
   if (is_normal_vector(vect))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(vect)] = mark_int_or_float_vector_possibly_shared; 
-  vector_elements_should_be_freed(v) = 0;
-  vdims_dimensions_allocated(v) = 0;
+  vector_elements_should_be_freed(v) = false;
   vector_set_dimension_info(x, v);
 
   if (skip_dims > 0)
@@ -36038,10 +36078,33 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
 	float_vector_elements(x) = (s7_double *)(float_vector_elements(vect) + index);
       else vector_elements(x) = (s7_pointer *)(vector_elements(vect) + index);
     }
-  add_vector(sc, x);
+  add_multivector(sc, x);
   return(x);
 }
 
+
+static vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
+{
+  s7_int i, offset = 1, len;
+  s7_pointer y;
+  vdims_t *v;
+
+  len = safe_list_length(x);
+  v = (vdims_t *)mallocate(len * 2 * sizeof(s7_int));
+  vdims_ndims(v) = len;
+  vdims_offsets(v) = (s7_int *)(vdims_dims(v) + len);
+  vector_elements_should_be_freed(v) = false;
+
+  for (i = 0, y = x; is_not_null(y); i++, y = cdr(y))
+    vdims_dims(v)[i] = s7_integer(car(y));
+  
+  for (i = vdims_ndims(v) - 1; i >= 0; i--)
+    {
+      vdims_offsets(v)[i] = offset;
+      offset *= vdims_dims(v)[i];
+    }
+  return(v);
+}
 
 static s7_pointer g_make_shared_vector(s7_scheme *sc, s7_pointer args)
 {
@@ -36055,7 +36118,7 @@ a vector that points to the same elements as the original-vector but with differ
    */
   s7_pointer orig, dims, y, x;
   vdims_t *v;
-  s7_int i, new_len = 1, orig_len, offset = 0;
+  s7_int i, new_len, orig_len, offset = 0;
 
   orig = car(args);
   if (!s7_is_vector(orig))
@@ -36099,33 +36162,22 @@ a vector that points to the same elements as the original-vector but with differ
 			  set_elist_1(sc, s7_make_string_wrapper(sc, "make-shared-vector: new dimensions should be a list of integers that fits the original vector"))));
     }
 
-  v = (vdims_t *)mallocate_block();
-  vdims_ndims(v) = safe_list_length(dims);
-  vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
-  vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
-  vdims_dimensions_allocated(v) = 1;
-  vector_elements_should_be_freed(v) = 0;
+  v = list_to_dims(sc, dims);
+
+  new_len = vdims_dims(v)[0];
+  for (i = 1; i < vdims_ndims(v); i++)
+    new_len *= vdims_dims(v)[i];
+  if ((new_len < 0) || 
+      ((new_len + offset) > vector_length(orig)))
+    {
+      liberate(v);
+      return(out_of_range(sc, sc->make_shared_vector_symbol, small_int(2), dims, s7_make_string_wrapper(sc, "a shared vector has to fit in the original vector")));
+    }
+
   vdims_original(v) = orig; /* shared_vector */
   if (is_normal_vector(orig))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; 
-
-  for (i = 0, y = dims; is_pair(y); i++, y = cdr(y))
-    vdims_dims(v)[i] = s7_integer(car(y));
-
-  for (i = vdims_ndims(v) - 1; i >= 0; i--)
-    {
-      vdims_offsets(v)[i] = new_len;
-      new_len *= vdims_dims(v)[i];
-    }
-
-  if ((new_len < 0) || ((new_len + offset) > vector_length(orig)))
-    {
-      free(vdims_dims(v));
-      free(vdims_offsets(v));
-      liberate_block(v);
-      return(out_of_range(sc, sc->make_shared_vector_symbol, small_int(2), dims, s7_make_string_wrapper(sc, "a shared vector has to fit in the original vector")));
-    }
 
   new_cell(sc, x, typeflag(orig) | T_SAFE_PROCEDURE);
   vector_block(x) = mallocate_vector(0);
@@ -36143,7 +36195,7 @@ a vector that points to the same elements as the original-vector but with differ
       else vector_elements(x) = (s7_pointer *)(vector_elements(orig) + offset);
     }
 
-  add_vector(sc, x);
+  add_multivector(sc, x);
   return(x);
 }
 
@@ -36593,28 +36645,14 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
   if ((is_pair(x)) &&
       (is_pair(cdr(x))))
     {
-      s7_int i, offset = 1;
-      s7_pointer y;
       vdims_t *v;
-
-      v = (vdims_t *)mallocate_block();
-      vdims_ndims(v) = safe_list_length(x);
-      vdims_dims(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
-      vdims_offsets(v) = (s7_int *)malloc(vdims_ndims(v) * sizeof(s7_int));
+      v = list_to_dims(sc, x);
       vdims_original(v) = sc->F;
       vector_set_dimension_info(vec, v);
-      vdims_dimensions_allocated(v) = 1;
-      vector_elements_should_be_freed(v) = 0;
 
-      for (i = 0, y = x; is_not_null(y); i++, y = cdr(y))
-	vdims_dims(v)[i] = s7_integer(car(y));
-
-      for (i = vdims_ndims(v) - 1; i >= 0; i--)
-	{
-	  vdims_offsets(v)[i] = offset;
-	  offset *= vdims_dims(v)[i];
-	}
+      add_multivector(sc, vec);
     }
+  else add_vector(sc, vec);
   return(vec);
 }
 
@@ -36914,7 +36952,11 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       s7_double *src, *dst;
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), real_zero, sc->T), sc->make_float_vector_symbol);
-      else new_vect = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
+      else 
+	{
+	  new_vect = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
+	  add_vector(sc, new_vect);
+	}
       src = (s7_double *)float_vector_elements(old_vect);
       dst = (s7_double *)float_vector_elements(new_vect);
       for (i = len; i > 0; i--) *dst++ = *src++;  /* same speed as memcpy(dst, src, len * sizeof(s7_double)); */
@@ -36926,7 +36968,11 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
 	  s7_int *src, *dst;
 	  if (vector_rank(old_vect) > 1)
 	    new_vect = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), small_int(0), sc->T), sc->make_int_vector_symbol);
-	  else new_vect = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+	  else 
+	    {
+	      new_vect = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+	      add_vector(sc, new_vect);
+	    }
 	  src = (s7_int *)int_vector_elements(old_vect);
 	  dst = (s7_int *)int_vector_elements(new_vect);
 	  for (i = len; i > 0; i--) *dst++ = *src++;
@@ -36936,7 +36982,11 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
 	  s7_pointer *src, *dst;
 	  if (vector_rank(old_vect) > 1)
 	    new_vect = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, list_1(sc, old_vect))));
-	  else new_vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+	  else 
+	    {
+	      new_vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+	      add_vector(sc, new_vect);
+	    }
 	  /* here and in vector-fill! we have a problem with bignums -- should new bignums be allocated? (copy_list also) */
 	  src = (s7_pointer *)vector_elements(old_vect);
 	  dst = (s7_pointer *)vector_elements(new_vect);
@@ -37721,6 +37771,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 #endif
 
 	vec = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+	add_vector(sc, vec);
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);	   
 	elements = s7_vector_elements(vec);
 	chrs = (uint8_t *)string_value(data);
@@ -37796,6 +37847,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 *   get/set macro in eval is SORT_DATA(k) then s7_vector_to_list if pair at start (sort_*_end)
 	 */
 	vec = make_vector_1(sc, len, FILLED, T_VECTOR);
+	add_vector(sc, vec);
 	/* we need this vector prefilled because vector_getter below makes reals/int, causing possible GC
 	 *   at any time during that loop, and the GC mark process expects the vector to have an s7_pointer
 	 *   at every element.
@@ -38727,7 +38779,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
    *   perhaps trap for segfault and touch the new block, or check sysinfo/sysconf vs size?
    * actually can we even depend on getting a segfault?
    */
-
+  
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
   hash_table_set_block(table, els);
@@ -43203,7 +43255,11 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, p)), small_int(0), sc->T), sc->make_int_vector_symbol);
-	else np = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+	else 
+	  {
+	    np = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+	    add_vector(sc, np);
+	  }
 	source = int_vector_elements(p);
 	end = (s7_int *)(source + len);
 	dest = (s7_int *)(int_vector_elements(np) + len);
@@ -43218,7 +43274,11 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector_1(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, p)), real_zero, sc->T), sc->make_float_vector_symbol);
-	else np = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
+	else 
+	  {
+	    np = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
+	    add_vector(sc, np);
+	  }
 	source = float_vector_elements(p);
 	end = (s7_double *)(source + len);
 	dest = (s7_double *)(float_vector_elements(np) + len);
@@ -43233,7 +43293,11 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, set_plist_1(sc, p))));
-	else np = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+	else 
+	  {
+	    np = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
+	    add_vector(sc, np);
+	  }
 	source = vector_elements(p);
 	end = (s7_pointer *)(source + len);
 	dest = (s7_pointer *)(vector_elements(np) + len);
@@ -43597,6 +43661,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
 
   len = total_sequence_length(sc, args, sc->vector_append_symbol, (typ == T_VECTOR) ? T_FREE : ((typ == T_FLOAT_VECTOR) ? T_REAL : T_INTEGER));
   new_vec = make_vector_1(sc, len, (typ == T_VECTOR) ? FILLED : NOT_FILLED, typ);  /* might hit GC in loop below so we can't use NOT_FILLED here */
+  add_vector(sc, new_vec);
 
   if (len > 0)
     {
@@ -43632,6 +43697,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
       set_plist_2(sc, sc->nil, sc->nil);
       sc->temp9 = sc->nil;
       sc->temp10 = sc->nil;
+      set_type(sv, T_PAIR); /* sv is just a wrapper, use T_PAIR to avoid alarming the debugger */
       free_cell(sc, sv);
       vector_length(sv) = 0;
     }
@@ -44635,17 +44701,16 @@ static char *stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7
       if ((is_pair(err_code)) &&
 	  (!tree_is_cyclic(sc, err_code)))
 	{
-	  char *errstr, *notes = NULL;
-	  s7_pointer cur_env, f;
+	  char *notes = NULL;
+	  s7_pointer cur_env, f, errstr;
 
-	  errstr = s7_object_to_c_string(sc, err_code);
+	  errstr = s7_object_to_string(sc, err_code, false);
 	  cur_env = outlet(sc->owlet);
 	  f = stacktrace_find_caller(sc, cur_env); /* this is a symbol */
 	  if ((is_let(cur_env)) &&
 	      (cur_env != sc->rootlet))
 	    notes = stacktrace_walker(sc, err_code, cur_env, NULL, gc_syms, code_cols, total_cols, notes_start_col, as_comment);
-	  str = stacktrace_add_func(f, err_code, errstr, notes, code_cols, as_comment);
-	  free(errstr);
+	  str = stacktrace_add_func(f, err_code, string_value(errstr), notes, code_cols, as_comment);
 	}
 
       /* now if OP_ERROR_HOOK_QUIT is in the stack, jump past it! */
@@ -82772,7 +82837,9 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	    else vlen += vector_length(v);
 	  }
       }
-    n = snprintf(buf, 1024, "vectors: %" print_s7_int " (size: %" print_s7_int ", float: %" print_s7_int ", int: %" print_s7_int ")\n", sc->vectors->loc, vlen, flen, ilen);
+    /* TODO: same for multivectors */
+    n = snprintf(buf, 1024, "vectors: %" print_s7_int " (size: %" print_s7_int ", float: %" print_s7_int ", int: %" print_s7_int ")\n", 
+		 sc->vectors->loc + sc->multivectors->loc, vlen, flen, ilen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   {
@@ -82808,18 +82875,31 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   {
     int32_t i, blocks = 0, total = 0;
     block_t *p;
-    for (i = 0; i < TOP_BLOCK_LIST; i++)
+    for (i = 3; i < TOP_BLOCK_LIST; i++)
       {
 	int32_t k;
 	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
 	blocks += k;
 	total += (k * (1 << i));
       }
+    for (i = 0, p = block_lists[TOP_BLOCK_LIST]; p; p = block_next(p), i++)
+      total += block_size(p);
+    blocks += i;
     for (i = 0, p = block_lists[BLOCK_LIST]; p; p = block_next(p), i++);
     blocks += i;
     total += (blocks * sizeof(block_t));
     n = snprintf(buf, 1024, "free_lists: %d blocks, %d bytes\n", blocks, total);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+    for (i = 0; i < NUM_BLOCK_LISTS; i++)
+      {
+	int32_t k;
+	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
+	if (k > 0)
+	  {
+	    n = snprintf(buf, 1024, "  [%d]: %d\n", i, k);
+	    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+	  }
+      }
   }
     
   return(sc->F);
@@ -85526,13 +85606,10 @@ int main(int argc, char **argv)
  *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB maybe: build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
  *   a zillion symbols will be trouble
  *   format ctrl+args ->output huge? ~NC for example
- *   str->num fft with radices: t803
- *   ideally: add complex to opt so we get float performance, and fix num->str->num
+ *   str->num fft with radices: t803, fix num->str->num
  *
- * mallocate/reallocate op_stacks?
- * could vdims use block_size/2 for ptr->offset?
- * callgrind t776/t725
  * does let+gensym gc-protect the gensyms? tbig has them in a vector I think (inaccessible anyway if not stored elsewhere? obj->str|let?)
+ * use s7_object_to_string in stacktrace and pass around blocks not char* [but gc protection is a pain]
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85576,7 +85653,7 @@ int main(int argc, char **argv)
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2449
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.2
  * tread         |      |      |      ||      ||      |                   3009  2639  2622
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2649
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2647
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3207
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3254
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
@@ -85585,8 +85662,8 @@ int main(int argc, char **argv)
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6532
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.1
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.0
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                               147.7
+ * tbig          |      |      |      ||      ||      |                               147.6
  * ----------------------------------------------------------------------------------------------
  */
