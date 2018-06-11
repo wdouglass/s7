@@ -498,6 +498,8 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
+#define TRACK_BLOCKS S7_DEBUGGING
+
 typedef struct block_t {
   union {
     void *data;
@@ -561,6 +563,28 @@ typedef block_t vdims_t;
 #define BLOCK_LIST 0
 static block_t *block_lists[NUM_BLOCK_LISTS];
 
+#if TRACK_BLOCKS
+static block_t **all_blocks = NULL;
+static s7_int all_blocks_size = 0, all_blocks_top = 0;
+static void record_block(block_t *b)
+{
+  if (all_blocks_size == all_blocks_top)
+    {
+      if (!all_blocks)
+	{
+	  all_blocks_size = 2048;
+	  all_blocks = (block_t **)malloc(all_blocks_size * sizeof(block_t *));
+	}
+      else
+	{
+	  all_blocks_size *= 2;
+	  all_blocks = (block_t **)realloc(all_blocks, all_blocks_size * sizeof(block_t *));
+	}
+    }
+  all_blocks[all_blocks_top++] = b;
+}
+#endif
+
 static void init_block_lists(void)
 {
   int32_t i;
@@ -604,10 +628,16 @@ static void fill_block_list(void)
   block_lists[BLOCK_LIST] = b;
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
     {
+#if TRACK_BLOCKS
+      record_block(b);
+#endif
       block_next(b) = (block_t *)(b + 1);
       block_set_index(b, BLOCK_LIST);
       b++;
     }
+#if TRACK_BLOCKS
+  record_block(b);
+#endif
   block_next(b) = NULL;
   block_set_index(b, BLOCK_LIST);
 }
@@ -1533,6 +1563,9 @@ static bool t_simple_p[NUM_TYPES], t_structure_p[NUM_TYPES];
 static bool t_any_macro_p[NUM_TYPES], t_any_closure_p[NUM_TYPES], t_has_closure_let[NUM_TYPES];
 static bool t_mappable_p[NUM_TYPES], t_sequence_p[NUM_TYPES], t_vector_p[NUM_TYPES];
 static bool t_procedure_p[NUM_TYPES], t_applicable_p[NUM_TYPES];
+#if S7_DEBUGGING
+static bool t_freeze_p[NUM_TYPES];
+#endif
 
 static void init_types(void)
 {
@@ -1552,6 +1585,9 @@ static void init_types(void)
       t_vector_p[i] = false;
       t_applicable_p[i] = false;
       t_procedure_p[i] = false;
+#if S7_DEBUGGING
+      t_freeze_p[i] = false;
+#endif
     }
   t_number_p[T_INTEGER] = true;
   t_number_p[T_RATIO] = true;
@@ -1679,6 +1715,21 @@ static void init_types(void)
   t_simple_p[T_LET] = true;
   t_simple_p[T_INPUT_PORT] = true;
   t_simple_p[T_OUTPUT_PORT] = true;
+
+#if S7_DEBUGGING
+  t_freeze_p[T_STRING] = true;
+  t_freeze_p[T_VECTOR] = true;
+  t_freeze_p[T_FLOAT_VECTOR] = true;
+  t_freeze_p[T_INT_VECTOR] = true;
+  t_freeze_p[T_UNDEFINED] = true;
+  t_freeze_p[T_C_OBJECT] = true;
+  t_freeze_p[T_LET] = true;
+  t_freeze_p[T_HASH_TABLE] = true;
+  t_freeze_p[T_C_FUNCTION] = true;
+  t_freeze_p[T_CONTINUATION] = true;
+  t_freeze_p[T_INPUT_PORT] = true;
+  t_freeze_p[T_OUTPUT_PORT] = true;
+#endif
 }
 
 #if WITH_HISTORY
@@ -2754,7 +2805,6 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define hash_table_set_block(p, b)    (T_Hsh(p))->object.hasher.block = b
 #define hash_table_element(p, i)      (T_Hsh(p))->object.hasher.elements[i]
 #define hash_table_elements(p)        (T_Hsh(p))->object.hasher.elements
-/* #define hash_table_entries(p)         (T_Hsh(p))->object.hasher.entries */
 #define hash_table_entries(p)         hash_table_block(p)->nx.nx_int
 #define hash_table_checker(p)         (T_Hsh(p))->object.hasher.hash_func
 #define hash_table_mapper(p)          (T_Hsh(p))->object.hasher.loc
@@ -4450,8 +4500,11 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    {
-	      if (hash_table_mask(s1) > 0)
-		free_hash_table(s1);
+#if S7_DEBUGGING
+	      if (hash_table_mask(s1) <= 0)
+		fprintf(stderr, "empty hash-table? %" print_s7_int "\n", hash_table_mask(s1));
+#endif
+	      free_hash_table(s1);
 	    }
 	  else gp->list[j++] = s1;
 	}
@@ -4704,7 +4757,6 @@ static void add_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
     }
   sc->setters[sc->setters_loc++] = permanent_cons(p, setter, T_PAIR | T_IMMUTABLE);
 }
-
 
 static void mark_vector_1(s7_pointer p, s7_int top)
 {
@@ -5461,7 +5513,6 @@ static void try_to_call_gc(s7_scheme *sc)
    *   allocated pointers are protected during the mark sweep.
    */
 
-
 static s7_pointer g_gc(s7_scheme *sc, s7_pointer args)
 {
   #define H_gc "(gc (on #t)) runs the garbage collector.  If 'on' is supplied, it turns the GC on or off. \
@@ -5478,7 +5529,8 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
   set_plist_3(sc, sc->nil, sc->nil, sc->nil);
   set_elist_4(sc, sc->nil, sc->nil, sc->nil, sc->nil);
   set_elist_5(sc, sc->nil, sc->nil, sc->nil, sc->nil, sc->nil);
-
+  {int32_t i; for (i = 0; i < T_TEMPS_SIZE; i++) sc->t_temps[i] = sc->F;}
+  
   if (is_not_null(args))
     {
       if (!s7_is_boolean(car(args)))
@@ -5542,11 +5594,7 @@ static void free_cell(s7_scheme *sc, s7_pointer p)
   /* anything that needs gc_list attention should not be freed here */
   uint8_t typ;
   typ = unchecked_type(p);
-  if ((typ == T_STRING) || ((typ == T_SYMBOL) && (is_gensym(p))) || 
-      (typ == T_VECTOR) || (typ == T_FLOAT_VECTOR) || (typ == T_INT_VECTOR) ||
-      (typ == T_UNDEFINED) || (typ == T_C_OBJECT) || (typ == T_LET) || 
-      (typ == T_HASH_TABLE) || (typ == T_C_FUNCTION) || (typ == T_CONTINUATION) ||
-      (typ == T_INPUT_PORT) || (typ == T_OUTPUT_PORT))
+  if ((t_freeze_p[typ]) || ((typ == T_SYMBOL) && (is_gensym(p))))
     {
       fprintf(stderr, "free_cell of %s?\n", type_name_from_type(typ, 0));
       /* abort(); */
@@ -36012,7 +36060,9 @@ static s7_pointer g_list_to_vector(s7_scheme *sc, s7_pointer args)
   if (!s7_is_proper_list(sc, p))
     method_or_bust_with_type_one_arg(sc, p, sc->list_to_vector_symbol, list_1(sc, p), a_proper_list_string);
 
-  return(g_vector(sc, p));  
+  p = g_vector(sc, p);
+  sc->temp3 = sc->nil;
+  return(p);
 }
 
 static s7_pointer g_vector_length(s7_scheme *sc, s7_pointer args)
@@ -36085,23 +36135,26 @@ static s7_pointer make_shared_vector(s7_scheme *sc, s7_pointer vect, s7_int skip
 
 static vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
 {
-  s7_int i, offset = 1, len;
+  s7_int i, offset, len;
   s7_pointer y;
   vdims_t *v;
+  s7_int *ds, *os;
 
   len = safe_list_length(x);
   v = (vdims_t *)mallocate(len * 2 * sizeof(s7_int));
   vdims_ndims(v) = len;
   vdims_offsets(v) = (s7_int *)(vdims_dims(v) + len);
   vector_elements_should_be_freed(v) = false;
+  ds = vdims_dims(v);
+  os = vdims_offsets(v);
 
   for (i = 0, y = x; is_not_null(y); i++, y = cdr(y))
-    vdims_dims(v)[i] = s7_integer(car(y));
+    ds[i] = s7_integer(car(y));
   
-  for (i = vdims_ndims(v) - 1; i >= 0; i--)
+  for (i = len - 1, offset = 1; i >= 0; i--)
     {
-      vdims_offsets(v)[i] = offset;
-      offset *= vdims_dims(v)[i];
+      os[i] = offset;
+      offset *= ds[i];
     }
   return(v);
 }
@@ -44631,19 +44684,22 @@ static char *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, ch
 {
   s7_int newlen, errlen;
   char *newstr, *str;
+  block_t *newp;
 
   errlen = strlen(errstr);
   if ((is_symbol(f)) &&
       (f != car(code)))
     {
       newlen = symbol_name_length(f) + errlen + 10;
-      newstr = (char *)malloc(newlen * sizeof(char));
+      newp = mallocate(newlen);
+      newstr = (char *)block_data(newp);
       errlen = snprintf(newstr, newlen, "%s: %s", symbol_name(f), errstr);
     }
   else
     {
       newlen = errlen + 8;
-      newstr = (char *)malloc(newlen * sizeof(char));
+      newp = mallocate(newlen);
+      newstr = (char *)block_data(newp);
       if ((errlen > 2) && (errstr[2] == '('))
 	errlen = snprintf(newstr, newlen, "  %s", errstr);
       else errlen = snprintf(newstr, newlen, "%s", errstr);
@@ -44680,7 +44736,7 @@ static char *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, ch
 #endif
 	}
     }
-  free(newstr);
+  liberate(newp);
   return(str);
 }
 
@@ -82872,34 +82928,72 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->unknowns->loc);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
+
+  /* -------------------------------- mallocate blocks -------------------------------- */
   {
-    int32_t i, blocks = 0, total = 0;
+    int32_t i, free_blocks = 0, free_total = 0;
+    int32_t frees[NUM_BLOCK_LISTS];
     block_t *p;
+    for (i = 0; i < NUM_BLOCK_LISTS; i++) frees[i] = 0;
     for (i = 3; i < TOP_BLOCK_LIST; i++)
       {
 	int32_t k;
 	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
-	blocks += k;
-	total += (k * (1 << i));
+	frees[i] = k;
+	free_blocks += k;
+	free_total += (k * (1 << i));
       }
     for (i = 0, p = block_lists[TOP_BLOCK_LIST]; p; p = block_next(p), i++)
-      total += block_size(p);
-    blocks += i;
+      free_total += block_size(p);
+    frees[TOP_BLOCK_LIST] = i;
+    free_blocks += i;
     for (i = 0, p = block_lists[BLOCK_LIST]; p; p = block_next(p), i++);
-    blocks += i;
-    total += (blocks * sizeof(block_t));
-    n = snprintf(buf, 1024, "free_lists: %d blocks, %d bytes\n", blocks, total);
+    frees[BLOCK_LIST] = i;
+    free_blocks += i;
+    free_total += (free_blocks * sizeof(block_t));
+    n = snprintf(buf, 1024, "free blocks: %d, %d bytes\n", free_blocks, free_total);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-    for (i = 0; i < NUM_BLOCK_LISTS; i++)
-      {
-	int32_t k;
-	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
-	if (k > 0)
+#if TRACK_BLOCKS
+    {
+      int32_t allocs[NUM_BLOCK_LISTS];
+      s7_int total = 0, t17 = 0;
+      for (i = 0; i < NUM_BLOCK_LISTS; i++) allocs[i] = 0;
+      for (i = 0; i < all_blocks_top; i++)
+	{
+	  int32_t index;
+	  index = block_index(all_blocks[i]);
+	  allocs[index]++;
+	  if (index == TOP_BLOCK_LIST)
+	    t17 += block_size(all_blocks[i]);
+	  else 
+	    {
+	      if (index != BLOCK_LIST)
+		total += (1 << index);
+	    }
+	}
+      n = snprintf(buf, 1024, "allocated blocks: %" print_s7_int ", %" print_s7_int " bytes\n", all_blocks_top, total + t17 + all_blocks_top * sizeof(block_t));
+      port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+      for (i = 0; i < TOP_BLOCK_LIST; i++)
+	if ((allocs[i] > 0) || (frees[i] > 0))
 	  {
-	    n = snprintf(buf, 1024, "  [%d]: %d\n", i, k);
+	    n = snprintf(buf, 1024, "   [%d]: %d / %d\n", i, allocs[i] - frees[i], allocs[i]);
 	    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 	  }
-      }
+      if (allocs[TOP_BLOCK_LIST] > 0)
+	{
+	  n = snprintf(buf, 1024, "   [%d]: %d / %d (%" print_s7_int " bytes)\n", 
+		       TOP_BLOCK_LIST, allocs[TOP_BLOCK_LIST] - frees[TOP_BLOCK_LIST], allocs[TOP_BLOCK_LIST], t17);
+	  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+	}
+    }
+#else
+    for (i = 0; i < NUM_BLOCK_LISTS; i++)
+      if (frees[i] > 0)
+	{
+	  n = snprintf(buf, 1024, "  [%d]: %d\n", i, frees[i]);
+	  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+	}
+#endif
   }
     
   return(sc->F);
@@ -85603,13 +85697,21 @@ int main(int argc, char **argv)
  *   or the same using the status area
  *
  * tbig:
- *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB maybe: build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
+ *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB, build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
  *   a zillion symbols will be trouble
  *   format ctrl+args ->output huge? ~NC for example
- *   str->num fft with radices: t803, fix num->str->num
+ *   str->num fft with radices: t803, fix num->str->num [radix 2 is noisy? -- float precision radix dependent?]
+ *   no hash-table fill! perhaps others (and more sort?)
+ *   need hash-table-as-node fft and maybe let/iterator/cons?
  *
  * does let+gensym gc-protect the gensyms? tbig has them in a vector I think (inaccessible anyway if not stored elsewhere? obj->str|let?)
  * use s7_object_to_string in stacktrace and pass around blocks not char* [but gc protection is a pain]
+ * check temps (uncleared) temp3 in sort in particular
+ * kmg for describe_memory_usage
+ * in free_hash_table, why not use hash_table_fill list-at-a-time? 38094 39542
+ * lint has some interesting stuff for tbig (lg?) [undefined reverse! should only apply if pair]
+ * gc: :clear arg to clear structs in lets?
+ * add tests (/tools) to s7 tarball?
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85664,6 +85766,6 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.0
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                               147.6
+ * tbig          |      |      |      ||      ||      |                               145.5
  * ----------------------------------------------------------------------------------------------
  */
