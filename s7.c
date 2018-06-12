@@ -498,7 +498,9 @@ static const int32_t bits[256] =
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
+#ifndef TRACK_BLOCKS
 #define TRACK_BLOCKS S7_DEBUGGING
+#endif
 
 typedef struct block_t {
   union {
@@ -1302,7 +1304,7 @@ struct s7_scheme {
   int64_t let_number;
   s7_double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
-  s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions;
+  s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length;
   s7_pointer stacktrace_defaults;
   int32_t float_format_precision;
   vdims_t *wrap_only;
@@ -1441,7 +1443,7 @@ struct s7_scheme {
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
              catches_symbol, exits_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
-             hash_table_float_epsilon_symbol, morally_equal_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol,
+             hash_table_float_epsilon_symbol, morally_equal_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
              undefined_identifier_warnings_symbol, print_length_symbol, bignum_precision_symbol, stacktrace_defaults_symbol, history_symbol, history_size_symbol;
 
   /* syntax symbols et al */
@@ -4594,7 +4596,18 @@ static void sweep(s7_scheme *sc)
 	{
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
+#if 0
 	    liberate(continuation_block(s1));
+#else
+	  {
+	      if (continuation_op_stack(s1))
+		{
+		  free(continuation_op_stack(s1));
+		  continuation_op_stack(s1) = NULL;
+		}
+	      liberate_block(continuation_block(s1));
+	  }
+#endif
 	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
@@ -5529,7 +5542,6 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
   set_plist_3(sc, sc->nil, sc->nil, sc->nil);
   set_elist_4(sc, sc->nil, sc->nil, sc->nil, sc->nil);
   set_elist_5(sc, sc->nil, sc->nil, sc->nil, sc->nil, sc->nil);
-  {int32_t i; for (i = 0; i < T_TEMPS_SIZE; i++) sc->t_temps[i] = sc->F;}
   
   if (is_not_null(args))
     {
@@ -5754,8 +5766,12 @@ static s7_pointer pop_op_stack(s7_scheme *sc)
 static void initialize_op_stack(s7_scheme *sc)
 {
   int32_t i;
+#if 0
   sc->op_stack_block = mallocate(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
   sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
+#else
+  sc->op_stack = (s7_pointer *)malloc(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
+#endif
   sc->op_stack_size = OP_STACK_INITIAL_SIZE;
   sc->op_stack_now = sc->op_stack;
   sc->op_stack_end = (s7_pointer *)(sc->op_stack + sc->op_stack_size);
@@ -5769,8 +5785,12 @@ static void resize_op_stack(s7_scheme *sc)
   int32_t i, loc, new_size;
   loc = (int32_t)(sc->op_stack_now - sc->op_stack);
   new_size = sc->op_stack_size * 2;
+#if 0
   sc->op_stack_block = reallocate(sc->op_stack_block, new_size * sizeof(s7_pointer));
   sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
+#else
+  sc->op_stack = (s7_pointer *)realloc((void *)(sc->op_stack), new_size * sizeof(s7_pointer));
+#endif
   for (i = sc->op_stack_size; i < new_size; i++)
     sc->op_stack[i] = sc->nil;
   sc->op_stack_size = (uint32_t)new_size;
@@ -9425,6 +9445,7 @@ static inline s7_pointer make_goto(s7_scheme *sc)
 }
 
 
+#if 0
 static block_t *copy_op_stack(s7_scheme *sc, block_t *b)
 {
   int32_t len;
@@ -9435,6 +9456,18 @@ static block_t *copy_op_stack(s7_scheme *sc, block_t *b)
     memcpy((void *)ops, (void *)(sc->op_stack), len * sizeof(s7_pointer));
   return(b);
 }
+#else
+static s7_pointer *copy_op_stack(s7_scheme *sc)
+{
+  int32_t len;
+  s7_pointer *ops;
+  ops = (s7_pointer *)malloc(sc->op_stack_size * sizeof(s7_pointer));
+  len = (int32_t)(sc->op_stack_now - sc->op_stack);
+  if (len > 0)
+    memcpy((void *)ops, (void *)(sc->op_stack), len * sizeof(s7_pointer));
+  return(ops);
+}
+#endif
 
 
 /* (with-baffle . body) calls body guaranteeing that there can be no jumps into the
@@ -9504,14 +9537,22 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
+#if 0
   block = mallocate(sc->op_stack_size * sizeof(s7_pointer));
+#else
+  block = mallocate_block();
+#endif
   continuation_block(x) = block;
   continuation_set_stack(x, stack);
   continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
   continuation_stack_start(x) = stack_elements(continuation_stack(x));
   continuation_stack_end(x) = (s7_pointer *)(continuation_stack_start(x) + loc);
+#if 0
   copy_op_stack(sc, block);                        /* no heap allocation here */
   continuation_op_stack(x) = (s7_pointer *)block_data(block);
+#else
+  continuation_op_stack(x) = copy_op_stack(sc);                        /* no heap allocation here */
+#endif
   continuation_op_loc(x) = (int32_t)(sc->op_stack_now - sc->op_stack);
   continuation_op_size(x) = sc->op_stack_size;
   continuation_key(x) = find_any_baffle(sc);
@@ -10189,15 +10230,14 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
   s7_int i, i0, i1, p0, q0, p1, q1;
   double e0, e1, e0p, e1p;
   int32_t tries = 0;
-  /* don't use s7_double here;  if it is "long double", the loop below will hang */
+  /* don't use long double: the loop below will hang */
 
   /* #e1e19 is a killer -- it's bigger than most-positive-fixnum, but if we ceil(ux) below
    *   it turns into most-negative-fixnum.  1e19 is trouble in many places.
    */
   if ((ux > s7_int_max) || (ux < s7_int_min))
     {
-      /* can't return false here because that confuses some of the callers!
-       */
+      /* can't return false here because that confuses some of the callers! */
       if (ux > s7_int_min) (*numer) = s7_int_max; else (*numer) = s7_int_min;
       (*denom) = 1;
       return(true);
@@ -10253,8 +10293,16 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
 	  (e1p == 0)                   ||
 	  (tries > 100))
 	{
-	  (*numer) = p0;
-	  (*denom) = q0;
+	  if ((p0 == 1) && (q0 == s7_int_min)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
+	    {
+	      (*numer) = 0;
+	      (*denom) = 1;
+	    }
+	  else
+	    {
+	      (*numer) = p0;
+	      (*denom) = q0;
+	    }
 	  return(true);
 	}
       tries++;
@@ -10283,7 +10331,6 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
   return(false);
 }
 
-
 s7_pointer s7_rationalize(s7_scheme *sc, s7_double x, s7_double error)
 {
   s7_int numer = 0, denom = 1;
@@ -10299,7 +10346,6 @@ static s7_int number_to_numerator(s7_pointer n)
     return(numerator(n));
   return(integer(n));
 }
-
 
 static s7_int number_to_denominator(s7_pointer n)
 {
@@ -10320,7 +10366,6 @@ s7_pointer s7_make_integer(s7_scheme *sc, s7_int n)
   return(x);
 }
 
-
 static s7_pointer make_mutable_integer(s7_scheme *sc, s7_int n)
 {
   s7_pointer x;
@@ -10328,7 +10373,6 @@ static s7_pointer make_mutable_integer(s7_scheme *sc, s7_int n)
   integer(x) = n;
   return(x);
 }
-
 
 static s7_pointer make_permanent_integer_unchecked(s7_int i)
 {
@@ -10362,7 +10406,6 @@ s7_pointer s7_make_real(s7_scheme *sc, s7_double n)
   return(x);
 }
 
-
 s7_pointer s7_make_mutable_real(s7_scheme *sc, s7_double n)
 {
   s7_pointer x;
@@ -10370,7 +10413,6 @@ s7_pointer s7_make_mutable_real(s7_scheme *sc, s7_double n)
   set_real(x, n);
   return(x);
 }
-
 
 static s7_pointer make_permanent_real(s7_double n)
 {
@@ -31065,14 +31107,35 @@ static void format_append_string(s7_scheme *sc, format_data *fdat, const char *s
 
 static void format_append_chars(s7_scheme *sc, format_data *fdat, char pad, s7_int chars, s7_pointer port)
 {
-  block_t *b;
-  char *str;
-  b = mallocate(chars + 1);
-  str = (char *)block_data(b);
-  memset((void *)str, pad, chars);
-  str[chars] = '\0';
-  format_append_string(sc, fdat, str, chars, port);
-  liberate(b);
+  if (is_string_port(port))
+    {
+      if ((port_position(port) + chars) < port_data_size(port))
+	{
+	  local_memset((char *)port_data(port) + port_position(port), pad, chars);
+	  port_position(port) += chars;
+	}
+      else 
+	{
+	  s7_int new_len;
+	  new_len = port_position(port) + chars;
+	  resize_port_data(port, new_len * 2);
+	  local_memset((char *)port_data(port) + port_position(port), pad, chars);
+	  port_position(port) = new_len;
+	}
+      fdat->loc += chars;
+      sc->format_column += chars;
+    }
+  else
+    {
+      block_t *b;
+      char *str;
+      b = mallocate(chars + 1);
+      str = (char *)block_data(b);
+      local_memset((void *)str, pad, chars);
+      str[chars] = '\0';
+      format_append_string(sc, fdat, str, chars, port);
+      liberate(b);
+    }
 }
 
 static s7_int format_read_integer(s7_int *cur_i, s7_int str_len, const char *str)
@@ -31197,7 +31260,8 @@ static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_
       obj = s7_apply_function(sc, func, cons(sc, ctrl_str, fdat->args));
       if (is_string(obj))
 	{
-	  format_append_string(sc, fdat, string_value(obj), string_length(obj), port);
+	  if (string_length(obj) > 0)
+	    format_append_string(sc, fdat, string_value(obj), string_length(obj), port);
 	  fdat->args = cdr(fdat->args);
 	  fdat->ctr++;
 	  return(true);
@@ -31207,7 +31271,6 @@ static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_
 }
 
 
-#define MAX_FORMAT_NUMERIC_ARG 10000
 static s7_int format_n_arg(s7_scheme *sc, const char *str, format_data *fdat, s7_pointer args)
 {
   s7_int n;
@@ -31222,7 +31285,7 @@ static s7_int format_n_arg(s7_scheme *sc, const char *str, format_data *fdat, s7
     just_format_error(sc, "~~N value is negative?", str, args, fdat);
   else
     {
-      if (n > MAX_FORMAT_NUMERIC_ARG)
+      if (n > sc->max_format_length)
 	just_format_error(sc, "~~N value is too big", str, args, fdat);
     }
   fdat->args = cdr(fdat->args);    /* I don't think fdat->ctr should be incremented here -- it's for *vector-print-length* etc */
@@ -31243,7 +31306,7 @@ static s7_int format_numeric_arg(s7_scheme *sc, const char *str, s7_int str_len,
     }
   else
     {
-      if (width > MAX_FORMAT_NUMERIC_ARG)
+      if (width > sc->max_format_length)
 	{
 	  if (str[old_i - 1] != ',')
 	    just_format_error(sc, "width is too big", str, fdat->args, fdat);
@@ -44567,26 +44630,21 @@ static bool stacktrace_error_hook_function(s7_scheme *sc, s7_pointer sym)
   return(false);
 }
 
-static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
-			       char *notes, s7_int gc_syms,
+static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, char *notes, 
 			       s7_int code_cols, s7_int total_cols, s7_int notes_start_col,
 			       bool as_comment)
 {
-  s7_pointer syms;
-  syms = gc_protected_at(sc, gc_syms);
-
   if (is_symbol(code))
     {
-      if ((!direct_memq(code, syms)) &&
+      if ((!symbol_is_in_list(sc, code)) &&
 	  (!is_slot(global_slot(code))))
 	{
 	  s7_pointer val;
-
-	  syms = cons(sc, code, syms);
-	  gc_protected_at(sc, gc_syms) = syms;
-
+	  
+	  add_symbol_to_list(sc, code);
 	  val = s7_symbol_local_value(sc, code, e);
-	  if ((val) && (val != sc->undefined) &&
+	  if ((val) && 
+	      (val != sc->undefined) &&
 	      (!is_any_macro(val)))
 	    {
 	      int32_t typ;
@@ -44595,6 +44653,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
 	      if (typ < T_CONTINUATION)
 		{
 		  char *objstr, *str;
+		  s7_pointer objp;
 		  const char *spaces;
 		  s7_int new_note_len, notes_max, cur_line_len = 0, spaces_len;
 		  bool new_notes_line = false, old_short_print;
@@ -44611,8 +44670,9 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
 		  sc->short_print = true;
 		  old_len = sc->print_length;
 		  if (sc->print_length > 4) sc->print_length = 4;
-		  objstr = s7_object_to_c_string(sc, val);
-		  objlen = safe_strlen(objstr);
+		  objp = s7_object_to_string(sc, val, false);
+		  objstr = string_value(objp);
+		  objlen = string_length(objp);
 		  if ((objlen > notes_max) && 
 		      (notes_max > 5))
 		    {
@@ -44664,7 +44724,6 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
 			       symbol_name(code),
 			       objstr);
 		    }
-		  free(objstr);
 		  if (notes) free(notes);
 		  return(str);
 		}
@@ -44674,17 +44733,17 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e,
     }
   if (is_pair(code))
     {
-      notes = stacktrace_walker(sc, car(code), e, notes, gc_syms, code_cols, total_cols, notes_start_col, as_comment);
-      return(stacktrace_walker(sc, cdr(code), e, notes, gc_syms, code_cols, total_cols, notes_start_col, as_comment));
+      notes = stacktrace_walker(sc, car(code), e, notes, code_cols, total_cols, notes_start_col, as_comment);
+      return(stacktrace_walker(sc, cdr(code), e, notes, code_cols, total_cols, notes_start_col, as_comment));
     }
   return(notes);
 }
 
-static char *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, char *notes, s7_int code_max, bool as_comment)
+static block_t *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, char *notes, s7_int code_max, bool as_comment)
 {
   s7_int newlen, errlen;
   char *newstr, *str;
-  block_t *newp;
+  block_t *newp, *b;
 
   errlen = strlen(errstr);
   if ((is_symbol(f)) &&
@@ -44706,7 +44765,8 @@ static char *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, ch
     }
 
   newlen = code_max + 8 + ((notes) ? strlen(notes) : 0);
-  str = (char *)malloc(newlen * sizeof(char));
+  b = mallocate(newlen * sizeof(char));
+  str = (char *)block_data(b);
 
   if (errlen >= code_max)
     {
@@ -44737,17 +44797,16 @@ static char *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr, ch
 	}
     }
   liberate(newp);
-  return(str);
+  return(b);
 }
 
-static char *stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7_int total_cols, s7_int notes_start_col, bool as_comment)
+static s7_pointer stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7_int total_cols, s7_int notes_start_col, bool as_comment)
 {
-  char *str;
+  char *str = NULL;
+  block_t *strp = NULL;
   int64_t loc, top, frames = 0;
-  s7_int gc_syms;
 
-  gc_syms = s7_gc_protect_1(sc, sc->nil);
-  str = NULL;
+  clear_symbol_list(sc);
   top = (sc->stack_end - sc->stack_start) / 4; /* (*s7* 'stack_top), not s7_stack_top! */
 
   if (stacktrace_in_error_handler(sc, top))
@@ -44765,8 +44824,9 @@ static char *stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7
 	  f = stacktrace_find_caller(sc, cur_env); /* this is a symbol */
 	  if ((is_let(cur_env)) &&
 	      (cur_env != sc->rootlet))
-	    notes = stacktrace_walker(sc, err_code, cur_env, NULL, gc_syms, code_cols, total_cols, notes_start_col, as_comment);
-	  str = stacktrace_add_func(f, err_code, string_value(errstr), notes, code_cols, as_comment);
+	    notes = stacktrace_walker(sc, err_code, cur_env, NULL, code_cols, total_cols, notes_start_col, as_comment);
+	  strp = stacktrace_add_func(f, err_code, string_value(errstr), notes, code_cols, as_comment);
+	  str = (char *)block_data(strp);
 	}
 
       /* now if OP_ERROR_HOOK_QUIT is in the stack, jump past it! */
@@ -44785,10 +44845,12 @@ static char *stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7
       if ((is_pair(code)) &&
 	  (!tree_is_cyclic(sc, code)))
 	{
-	  char *codestr;
-	  codestr = s7_object_to_c_string(sc, code);
-	  if (codestr)
+	  s7_pointer codep;
+	  codep = s7_object_to_string(sc, code, false);
+	  if (string_length(codep) > 0)
 	    {
+	      char *codestr;
+	      codestr = string_value(codep);
 	      if ((!local_strcmp(codestr, "(result)")) &&
 		  (!local_strcmp(codestr, "(#f)")) &&
 		  (!strstr(codestr, "(stacktrace)")) &&
@@ -44800,51 +44862,43 @@ static char *stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_cols, s7
 		  f = stacktrace_find_caller(sc, e);
 		  if (!stacktrace_error_hook_function(sc, f))
 		    {
-		      char *notes = NULL, *newstr;
+		      char *notes = NULL, *newstr, *catstr;
+		      block_t *newp, *catp;
 		      s7_int newlen;
 
 		      frames++;
 		      if (frames > frames_max)
-			{
-			  free(codestr);
-			  s7_gc_unprotect_at(sc, gc_syms);
-			  return(str);
-			}
+			return(block_to_string(sc, strp, safe_strlen((char *)block_data(strp))));
 
 		      if ((is_let(e)) && (e != sc->rootlet))
-			notes = stacktrace_walker(sc, code, e, NULL, gc_syms, code_cols, total_cols, notes_start_col, as_comment);
-		      newstr = stacktrace_add_func(f, code, codestr, notes, code_cols, as_comment);
-		      free(codestr);
-		      if ((notes) && (notes != newstr) && (is_let(e)) && (e != sc->rootlet)) free(notes);
+			notes = stacktrace_walker(sc, code, e, NULL, code_cols, total_cols, notes_start_col, as_comment);
+		      newp = stacktrace_add_func(f, code, codestr, notes, code_cols, as_comment);
+		      newstr = (char *)block_data(newp);
+
+		      if ((notes) && (notes != newstr) && (is_let(e)) && (e != sc->rootlet))
+			free(notes);
 
 		      newlen = strlen(newstr) + 1 + ((str) ? strlen(str) : 0);
-		      if (newlen > 0)
-			{
-			  codestr = (char *)malloc(newlen * sizeof(char));
-			  snprintf(codestr, newlen, "%s%s", (str) ? str : "", newstr);
-			}
-		      else codestr = NULL;
-		      if (str) free(str);
-		      free(newstr);
-		      str = codestr;
-		      codestr = NULL;
+		      catp = mallocate(newlen * sizeof(char));
+		      catstr = (char *)block_data(catp);
+		      snprintf(catstr, newlen, "%s%s", (str) ? str : "", newstr);
+		      liberate(newp);
+		      if (strp) liberate(strp);
+		      strp = catp;
+		      str = (char *)block_data(strp);
 		    }
-		  else free(codestr);
 		}
-	      else free(codestr);
 	    }
 	}
     }
-
-  s7_gc_unprotect_at(sc, gc_syms);
-  return(str);
+  if (strp)
+    return(block_to_string(sc, strp, safe_strlen((char *)block_data(strp))));
+  return(make_empty_string(sc, 0, 0));
 }
 
 s7_pointer s7_stacktrace(s7_scheme *sc)
 {
-  char *str;
-  str = stacktrace_1(sc, 30, 45, 80, 45, false);
-  return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
+  return(stacktrace_1(sc, 30, 45, 80, 45, false));
 }
 
 static s7_pointer g_stacktrace(s7_scheme *sc, s7_pointer args)
@@ -44858,7 +44912,6 @@ line to be preceded by a semicolon."
 
   s7_int max_frames = 30, code_cols = 50, total_cols = 80, notes_start_col = 50;
   bool as_comment = false;
-  char *str;
 
   if (!is_null(args))
     {
@@ -44910,8 +44963,7 @@ line to be preceded by a semicolon."
 	}
       else method_or_bust(sc, car(args), sc->stacktrace_symbol, args, T_INTEGER, 1);
     }
-  str = stacktrace_1(sc, max_frames, code_cols, total_cols, notes_start_col, as_comment);
-  return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
+  return(stacktrace_1(sc, max_frames, code_cols, total_cols, notes_start_col, as_comment));
 }
 
 
@@ -46226,18 +46278,17 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
       /* look for __func__ in the error environment etc */
       if (sc->error_port != sc->F)
 	{
-	  char *errstr;
-	  errstr = stacktrace_1(sc,
-				s7_integer(car(sc->stacktrace_defaults)),
-				s7_integer(cadr(sc->stacktrace_defaults)),
-				s7_integer(caddr(sc->stacktrace_defaults)),
-				s7_integer(cadddr(sc->stacktrace_defaults)),
-				s7_boolean(sc, s7_list_ref(sc, sc->stacktrace_defaults, 4)));
-	  if (errstr)
+	  s7_pointer errp;
+	  errp = stacktrace_1(sc,
+			      s7_integer(car(sc->stacktrace_defaults)),
+			      s7_integer(cadr(sc->stacktrace_defaults)),
+			      s7_integer(caddr(sc->stacktrace_defaults)),
+			      s7_integer(cadddr(sc->stacktrace_defaults)),
+			      s7_boolean(sc, s7_list_ref(sc, sc->stacktrace_defaults, 4)));
+	  if (string_length(errp) > 0)
 	    {
 	      port_write_string(sc->error_port)(sc, ";\n", 2, sc->error_port);
-	      port_write_string(sc->error_port)(sc, errstr, strlen(errstr), sc->error_port);
-	      free(errstr);
+	      port_write_string(sc->error_port)(sc, string_value(errp), string_length(errp), sc->error_port);
 	      port_write_character(sc->error_port)(sc, '\n', sc->error_port);
 	    }
 	}
@@ -82763,6 +82814,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->exits_symbol =                         s7_let_field(sc, "exits");
   sc->stack_symbol =                         s7_let_field(sc, "stack");
   sc->max_string_length_symbol =             s7_let_field(sc, "max-string-length");
+  sc->max_format_length_symbol =             s7_let_field(sc, "max-format-length");
   sc->max_list_length_symbol =               s7_let_field(sc, "max-list-length");
   sc->max_vector_length_symbol =             s7_let_field(sc, "max-vector-length");
   sc->max_vector_dimensions_symbol =         s7_let_field(sc, "max-vector-dimensions");
@@ -82786,6 +82838,26 @@ static void init_s7_let(s7_scheme *sc)
   #include <sys/resource.h>
 #endif
 
+static block_t *kmg(s7_int bytes)
+{
+  block_t *b;
+  b = mallocate(128);
+  if (bytes < 1000)
+    snprintf((char *)block_data(b), 128, "%" print_s7_int, bytes);
+  else
+    {
+      if (bytes < 1000000)
+	snprintf((char *)block_data(b), 128, "%.1fk", bytes / 1000.0);
+      else
+	{
+	  if (bytes < 1000000000)
+	    snprintf((char *)block_data(b), 128, "%.1fM", bytes / 1000000.0);
+	  else snprintf((char *)block_data(b), 128, "%.1fG", bytes / 1000000000.0);
+	}
+    }
+  return(b);
+}
+
 static s7_pointer describe_memory_usage(s7_scheme *sc)
 {
   /* heap, permanent, stack?, doc strings, sigs, c_func structs (and ports etc), mx_alloc, output bufs,
@@ -82795,6 +82867,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   s7_int i, syms = 0, len, n;
   s7_pointer x;
   gc_list *gp;
+  block_t *b;
   char buf[1024];
 
 #ifdef __linux__
@@ -82807,14 +82880,18 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 #ifdef __linux__
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
-  n = snprintf(buf, 1024, "process size: %" print_s7_int ", time: %ld.%d\n", (s7_int)(info.ru_maxrss * 1024), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
+  b = kmg(info.ru_maxrss * 1024);
+  n = snprintf(buf, 1024, "process size: %s, time: %ld.%d\n", (char *)block_data(b), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
+  liberate(b);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 #endif
 
   n = snprintf(buf, 1024, "rootlet size: %" print_s7_int "\n", sc->rootlet_entries);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
-  n = snprintf(buf, 1024, "heap: %" print_s7_int " (%" print_s7_int " bytes)", sc->heap_size, (s7_int)(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell))));
+  b = kmg(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell)));
+  n = snprintf(buf, 1024, "heap: %" print_s7_int " (%s bytes)", sc->heap_size, (char *)block_data(b));
+  liberate(b);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   {
@@ -82839,7 +82916,10 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     n = snprintf(buf, 1024, "\n");
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
-  n = snprintf(buf, 1024, "permanent cells: %d (%" print_s7_int " bytes)\n", permanent_cells, (s7_int)(permanent_cells * sizeof(s7_cell)));
+
+  b = kmg(permanent_cells * sizeof(s7_cell));
+  n = snprintf(buf, 1024, "permanent cells: %d (%s bytes)\n", permanent_cells, (char *)block_data(b));
+  liberate(b);
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
   n = snprintf(buf, 1024, "gc protected objects size: %" print_s7_int ", unused: %" print_s7_int "\n", sc->protected_objects_size, sc->gpofl_loc);
@@ -82857,15 +82937,16 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	  if (is_gensym(car(x))) gens++;
 	  if (is_keyword(car(x))) keys++;
 	}
-    n = snprintf(buf, 1024, "symbol table: %d (%" print_s7_int " symbols, %" print_s7_int " bytes, gensyms: %d, keywords: %d)\n", 
-		 SYMBOL_TABLE_SIZE, syms, 
-		 (s7_int)(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell)),
-		 gens, keys);
+    b = kmg(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell));
+    n = snprintf(buf, 1024, "symbol table: %d (%" print_s7_int " symbols, %s bytes, gensyms: %d, keywords: %d)\n", 
+		 SYMBOL_TABLE_SIZE, syms, (char *)block_data(b), gens, keys);
+    liberate(b);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
   n = snprintf(buf, 1024, "stack: %u (%" print_s7_int " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
+  
+  /* -------------------------------- strings -------------------------------- */
   len = 0;
   gp = sc->strings;
   for (i = 0; i < (int32_t)(gp->loc); i++)
@@ -82877,6 +82958,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   n = snprintf(buf, 1024, "strings: %" print_s7_int ", %" print_s7_int " bytes\n", syms + gp->loc, len); /* also doc strings, permanent strings, etc */
   port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 
+  /* -------------------------------- vectors -------------------------------- */
   {
     int64_t vlen = 0, flen = 0, ilen = 0;
     gp = sc->vectors;
@@ -82898,6 +82980,8 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 		 sc->vectors->loc + sc->multivectors->loc, vlen, flen, ilen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
+
+  /* -------------------------------- ports -------------------------------- */
   {
     s7_int ulen = 0, flen = 0;
     gp = sc->input_ports;
@@ -82915,6 +82999,8 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     n = snprintf(buf, 1024, "input ports: %" print_s7_int " (bytes (free): %" print_s7_int ", (in use): %" print_s7_int ")\n", sc->input_ports->loc, ulen, flen - ulen);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   }
+
+  /* -------------------------------- continuations -------------------------------- */
   {
     uint32_t cc_stacks;
     gp = sc->continuations;
@@ -82933,7 +83019,7 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
   {
     int32_t i, free_blocks = 0, free_total = 0;
     int32_t frees[NUM_BLOCK_LISTS];
-    block_t *p;
+    block_t *p, *freeb;
     for (i = 0; i < NUM_BLOCK_LISTS; i++) frees[i] = 0;
     for (i = 3; i < TOP_BLOCK_LIST; i++)
       {
@@ -82951,11 +83037,14 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     frees[BLOCK_LIST] = i;
     free_blocks += i;
     free_total += (free_blocks * sizeof(block_t));
-    n = snprintf(buf, 1024, "free blocks: %d, %d bytes\n", free_blocks, free_total);
+    freeb = kmg(free_total);
+    n = snprintf(buf, 1024, "free blocks: %d, %s bytes\n", free_blocks, (char *)block_data(freeb));
+    liberate(freeb);
     port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 #if TRACK_BLOCKS
     {
       int32_t allocs[NUM_BLOCK_LISTS];
+      block_t *allb;
       s7_int total = 0, t17 = 0;
       for (i = 0; i < NUM_BLOCK_LISTS; i++) allocs[i] = 0;
       for (i = 0; i < all_blocks_top; i++)
@@ -82971,7 +83060,9 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 		total += (1 << index);
 	    }
 	}
-      n = snprintf(buf, 1024, "allocated blocks: %" print_s7_int ", %" print_s7_int " bytes\n", all_blocks_top, total + t17 + all_blocks_top * sizeof(block_t));
+      allb = kmg(total + t17 + all_blocks_top * sizeof(block_t));
+      n = snprintf(buf, 1024, "allocated blocks: %" print_s7_int ", %s bytes\n", all_blocks_top, (char *)block_data(allb));
+      liberate(allb);
       port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
       for (i = 0; i < TOP_BLOCK_LIST; i++)
 	if ((allocs[i] > 0) || (frees[i] > 0))
@@ -82981,8 +83072,10 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	  }
       if (allocs[TOP_BLOCK_LIST] > 0)
 	{
-	  n = snprintf(buf, 1024, "   [%d]: %d / %d (%" print_s7_int " bytes)\n", 
-		       TOP_BLOCK_LIST, allocs[TOP_BLOCK_LIST] - frees[TOP_BLOCK_LIST], allocs[TOP_BLOCK_LIST], t17);
+	  allb = kmg(t17);
+	  n = snprintf(buf, 1024, "   [%d]: %d / %d (%s bytes)\n", 
+		       TOP_BLOCK_LIST, allocs[TOP_BLOCK_LIST] - frees[TOP_BLOCK_LIST], allocs[TOP_BLOCK_LIST], (char *)block_data(allb));
+	  liberate(allb);
 	  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
 	}
     }
@@ -83074,6 +83167,8 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
     return(s7_make_integer(sc, sc->max_vector_dimensions));
   if (sym == sc->max_string_length_symbol)                               /* max-string-length (as arg to make-string and read-string) */
     return(s7_make_integer(sc, sc->max_string_length));
+  if (sym == sc->max_format_length_symbol)                               /* max-format-length (~N and width/precision args for floats) */
+    return(s7_make_integer(sc, sc->max_format_length));
   if (sym == sc->default_hash_table_length_symbol)                       /* default size for make-hash-table */
     return(s7_make_integer(sc, sc->default_hash_table_length));
   if (sym == sc->morally_equal_float_epsilon_symbol)                     /* morally-equal-float-epsilon */
@@ -83134,6 +83229,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       (sym == sc->max_list_length_symbol) ||
       (sym == sc->history_size_symbol) ||
       (sym == sc->max_string_length_symbol) ||
+      (sym == sc->max_format_length_symbol) ||
       (sym == sc->default_hash_table_length_symbol) ||
       (sym == sc->float_format_precision_symbol) ||
       (sym == sc->bignum_precision_symbol) ||
@@ -83165,6 +83261,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (sym == sc->max_vector_dimensions_symbol)      {sc->max_vector_dimensions = iv;      return(val);}
       if (sym == sc->max_list_length_symbol)            {sc->max_list_length = iv;            return(val);}
       if (sym == sc->max_string_length_symbol)          {sc->max_string_length = iv;          return(val);}
+      if (sym == sc->max_format_length_symbol)          {sc->max_format_length = iv;          return(val);}
       if (sym == sc->initial_string_port_length_symbol) {sc->initial_string_port_length = iv; return(val);}
       if (sym == sc->history_size_symbol)
 	{
@@ -83359,7 +83456,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       (sym == sc->rootlet_size_symbol) || (sym == sc->stack_top_symbol) || (sym == sc->stack_size_symbol))
     return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set (*s7* '~S)"), sym)));
       
-  return(sc->undefined);
+  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, "can't set (*s7* '~S); no such field in *s7*"), sym)));
 }
 
 
@@ -83683,6 +83780,7 @@ s7_scheme *s7_init(void)
     sc->max_vector_length = (1 << 24);
   else sc->max_vector_length = (1LL << 32);
   sc->max_string_length = 1073741824; /* 1 << 30 */
+  sc->max_format_length = 10000;
   sc->max_list_length = 1073741824;
   sc->max_vector_dimensions = 512;
 
@@ -85699,19 +85797,8 @@ int main(int argc, char **argv)
  * tbig:
  *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB, build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
  *   a zillion symbols will be trouble
- *   format ctrl+args ->output huge? ~NC for example
- *   str->num fft with radices: t803, fix num->str->num [radix 2 is noisy? -- float precision radix dependent?]
- *   no hash-table fill! perhaps others (and more sort?)
- *   need hash-table-as-node fft and maybe let/iterator/cons?
- *
- * does let+gensym gc-protect the gensyms? tbig has them in a vector I think (inaccessible anyway if not stored elsewhere? obj->str|let?)
- * use s7_object_to_string in stacktrace and pass around blocks not char* [but gc protection is a pain]
- * check temps (uncleared) temp3 in sort in particular
- * kmg for describe_memory_usage
- * in free_hash_table, why not use hash_table_fill list-at-a-time? 38094 39542
- * lint has some interesting stuff for tbig (lg?) [undefined reverse! should only apply if pair]
- * gc: :clear arg to clear structs in lets?
- * add tests (/tools) to s7 tarball?
+ * use s7_object_to_string in stacktrace (just 2 mallocs remain...)
+ *   similarly in num<->str
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85766,6 +85853,6 @@ int main(int argc, char **argv)
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.0
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                               145.5
+ * tbig          |      |      |      ||      ||      |                               185.8
  * ----------------------------------------------------------------------------------------------
  */
