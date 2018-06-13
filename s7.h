@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "6.4"
-#define S7_DATE "23-May-18"
+#define S7_VERSION "6.5"
+#define S7_DATE "12-Jun-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -226,7 +226,6 @@ const char *s7_string(s7_pointer p);                                         /* 
 s7_pointer s7_make_string(s7_scheme *sc, const char *str);                   /* C string -> Scheme string (str is copied) */
 s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);  /* same as s7_make_string, but provides strlen */
 s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
-s7_pointer s7_make_string_uncopied(s7_scheme *sc, char *str);                /*   here str will be freed when the string is GC'd */
 s7_pointer s7_make_permanent_string(const char *str);                        /* make a string that will never be GC'd */
 s7_int s7_string_length(s7_pointer str);                                     /* (string-length str) */
 
@@ -904,7 +903,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
- * 20-May:    s7_make_string_uncopied, s7_keyword_to_symbol.
+ * 20-May:    s7_keyword_to_symbol.
  * 6-May:     s7_mark_c_object -> s7_mark.
  * 26-Apr:    s7_c_type_set_to_list|string, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct
  *            c_type length|set|ref are now s7_functions (args, not obj, etc).

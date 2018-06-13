@@ -394,8 +394,8 @@
   #define __func__ __FUNCTION__
 #endif
 
-#define DISPLAY(Obj) s7_object_to_c_string(sc, Obj)
-#define DISPLAY_80(Obj) object_to_truncated_string(sc, Obj, 80)
+#define DISPLAY(Obj) string_value(s7_object_to_string(sc, Obj, false))
+#define DISPLAY_80(Obj) string_value(object_to_truncated_string(sc, Obj, 80))
 
 typedef intptr_t opcode_t;
 
@@ -2045,7 +2045,7 @@ static s7_scheme *cur_sc = NULL;
 
 #if 0
   /* to find who is stomping on our symbols: */
-  static char *object_to_truncated_string(s7_scheme *sc, s7_pointer p, int32_t len);
+  static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, int32_t len);
 
   static void set_local_1(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
   {
@@ -3278,7 +3278,7 @@ static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str
 static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr);
 static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args);
 static void pop_input_port(s7_scheme *sc);
-static char *object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len);
+static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len);
 static token_t token(s7_scheme *sc);
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
@@ -4236,7 +4236,7 @@ static s7_int s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int32_t line)
   loc = s7_gc_protect(sc, x);
   if (loc > 8192)
     {
-      fprintf(stderr, "infinite loop at line %d %s?\n", line, s7_object_to_c_string(sc, current_code(sc)));
+      fprintf(stderr, "infinite loop at line %d %s?\n", line, string_value(s7_object_to_string(sc, current_code(sc), false)));
       abort();
     }
   return(loc);
@@ -4596,18 +4596,14 @@ static void sweep(s7_scheme *sc)
 	{
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
-#if 0
-	    liberate(continuation_block(s1));
-#else
-	  {
+	    {
 	      if (continuation_op_stack(s1))
 		{
 		  free(continuation_op_stack(s1));
 		  continuation_op_stack(s1) = NULL;
 		}
 	      liberate_block(continuation_block(s1));
-	  }
-#endif
+	    }
 	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
@@ -5542,7 +5538,7 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
   set_plist_3(sc, sc->nil, sc->nil, sc->nil);
   set_elist_4(sc, sc->nil, sc->nil, sc->nil, sc->nil);
   set_elist_5(sc, sc->nil, sc->nil, sc->nil, sc->nil, sc->nil);
-  
+
   if (is_not_null(args))
     {
       if (!s7_is_boolean(car(args)))
@@ -5734,8 +5730,8 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 
 #define OP_STACK_INITIAL_SIZE 8
 
-#if S7_DEBUGGING
 #define stop_at_error true
+#if S7_DEBUGGING
 
 static void push_op_stack(s7_scheme *sc, s7_pointer op)
 {
@@ -5766,12 +5762,7 @@ static s7_pointer pop_op_stack(s7_scheme *sc)
 static void initialize_op_stack(s7_scheme *sc)
 {
   int32_t i;
-#if 0
-  sc->op_stack_block = mallocate(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
-  sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
-#else
   sc->op_stack = (s7_pointer *)malloc(OP_STACK_INITIAL_SIZE * sizeof(s7_pointer));
-#endif
   sc->op_stack_size = OP_STACK_INITIAL_SIZE;
   sc->op_stack_now = sc->op_stack;
   sc->op_stack_end = (s7_pointer *)(sc->op_stack + sc->op_stack_size);
@@ -5785,12 +5776,7 @@ static void resize_op_stack(s7_scheme *sc)
   int32_t i, loc, new_size;
   loc = (int32_t)(sc->op_stack_now - sc->op_stack);
   new_size = sc->op_stack_size * 2;
-#if 0
-  sc->op_stack_block = reallocate(sc->op_stack_block, new_size * sizeof(s7_pointer));
-  sc->op_stack = (s7_pointer *)block_data(sc->op_stack_block);
-#else
   sc->op_stack = (s7_pointer *)realloc((void *)(sc->op_stack), new_size * sizeof(s7_pointer));
-#endif
   for (i = sc->op_stack_size; i < new_size; i++)
     sc->op_stack[i] = sc->nil;
   sc->op_stack_size = (uint32_t)new_size;
@@ -9445,18 +9431,6 @@ static inline s7_pointer make_goto(s7_scheme *sc)
 }
 
 
-#if 0
-static block_t *copy_op_stack(s7_scheme *sc, block_t *b)
-{
-  int32_t len;
-  s7_pointer *ops;
-  ops = (s7_pointer *)block_data(b);
-  len = (int32_t)(sc->op_stack_now - sc->op_stack);
-  if (len > 0)
-    memcpy((void *)ops, (void *)(sc->op_stack), len * sizeof(s7_pointer));
-  return(b);
-}
-#else
 static s7_pointer *copy_op_stack(s7_scheme *sc)
 {
   int32_t len;
@@ -9467,7 +9441,6 @@ static s7_pointer *copy_op_stack(s7_scheme *sc)
     memcpy((void *)ops, (void *)(sc->op_stack), len * sizeof(s7_pointer));
   return(ops);
 }
-#endif
 
 
 /* (with-baffle . body) calls body guaranteeing that there can be no jumps into the
@@ -9537,22 +9510,13 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
-#if 0
-  block = mallocate(sc->op_stack_size * sizeof(s7_pointer));
-#else
   block = mallocate_block();
-#endif
   continuation_block(x) = block;
   continuation_set_stack(x, stack);
   continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
   continuation_stack_start(x) = stack_elements(continuation_stack(x));
   continuation_stack_end(x) = (s7_pointer *)(continuation_stack_start(x) + loc);
-#if 0
-  copy_op_stack(sc, block);                        /* no heap allocation here */
-  continuation_op_stack(x) = (s7_pointer *)block_data(block);
-#else
   continuation_op_stack(x) = copy_op_stack(sc);                        /* no heap allocation here */
-#endif
   continuation_op_loc(x) = (int32_t)(sc->op_stack_now - sc->op_stack);
   continuation_op_size(x) = sc->op_stack_size;
   continuation_key(x) = find_any_baffle(sc);
@@ -21376,11 +21340,6 @@ static s7_pointer make_string_uncopied_with_length(s7_scheme *sc, char *str, s7_
   return(x);
 }
 
-s7_pointer s7_make_string_uncopied(s7_scheme *sc, char *str)
-{
-  return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
-}
-
 static s7_pointer make_string_wrapper_with_length(s7_scheme *sc, const char *str, s7_int len)
 {
   s7_pointer x;
@@ -29169,7 +29128,7 @@ static char *safe_object_to_string(s7_pointer p)
   char *buf;
   typ = unchecked_type(p);
   if ((typ > T_FREE) && (typ < NUM_TYPES))
-    return(s7_object_to_c_string(cur_sc, p));
+    return(string_value(s7_object_to_string(cur_sc, p, false)));
   buf = (char *)malloc(128 * sizeof(char));
   snprintf(buf, 128, "type=%d", typ);
   return(buf);
@@ -29635,7 +29594,7 @@ static s7_pointer opt2_1(s7_pointer p, uint32_t role, const char *func, int32_t 
       (!opt2_role_matches(p, role)))
     {
       show_opt2_bits(p, func, line, role);
-      fprintf(stderr, "p: %s\n", s7_object_to_c_string(cur_sc, p));
+      fprintf(stderr, "p: %s\n", string_value(s7_object_to_string(cur_sc, p, false)));
       if (stop_at_error) abort();
     }
   return(p->object.cons.opt2);
@@ -29648,7 +29607,7 @@ static void set_opt2_1(s7_pointer p, s7_pointer x, uint32_t role, const char *fu
     {
       if ((safe_strcmp(func, "check_and") != 0) &&
 	  (safe_strcmp(func, "check_or") != 0))
-	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, object_to_truncated_string(cur_sc, p, 80));
+	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, string_value(object_to_truncated_string(cur_sc, p, 80)));
     }
   p->object.cons.opt2 = x;
   set_opt2_role(p, role);
@@ -31889,7 +31848,8 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
       if ((is_output_port(deferred_port)) &&
 	  (port_position(port) > 0))
 	{
-	  port_data(port)[port_position(port)] = '\0';
+	  if (port_position(port) < port_data_size(port))
+	    port_data(port)[port_position(port)] = '\0';
 	  port_write_string(deferred_port)(sc, (const char *)port_data(port), port_position(port), deferred_port);
 	}
       if (port_position(port) < port_data_size(port))
@@ -32990,11 +32950,7 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
 static s7_pointer print_truncate(s7_scheme *sc, s7_pointer code)
 {
   if (tree_len(sc, code) > sc->print_length)
-    {
-      char *str;
-      str = object_to_truncated_string(sc, code, sc->print_length * 10);
-      return(make_string_uncopied_with_length(sc, str, safe_strlen(str)));
-    }
+    return(object_to_truncated_string(sc, code, sc->print_length * 10));
   return(code);
 }  
  
@@ -35392,7 +35348,7 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	  else
 	    {
 	      b = mallocate_vector(len * sizeof(s7_int));
-#if S7_DEBUGGING	      
+#if S7_DEBUGGING
 	      if (!block_data(b)) abort();
 #endif
 	      vector_block(x) = b;
@@ -44660,7 +44616,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 		  s7_int old_len, objlen;
 
 		  spaces = "                                                                                ";
-		  spaces_len = strlen(spaces);
+		  spaces_len = 80;
 
 		  if (notes_start_col < 0) notes_start_col = 50;
 		  if (notes_start_col > total_cols) notes_start_col = 0;
@@ -46522,17 +46478,19 @@ static char *truncate_string(char *form, s7_int len, use_write_t use_write)
   return(form);
 }
 
-static char *object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len)
+static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len)
 {
   char *s;
   s7_int s_len;
+  s7_pointer strp;
   sc->objstr_max_len = len + 2;
-  s = s7_object_to_c_string(sc, p);
+  strp = s7_object_to_string(sc, p, false);
+  s = string_value(strp);
   sc->objstr_max_len = s7_int_max;
-  s_len = safe_strlen(s);
+  s_len = string_length(strp);
   if (s_len > len)
-    return(truncate_string(s, len, P_DISPLAY));
-  return(s);
+    truncate_string(s, len, P_DISPLAY);
+  return(strp);
 }
 
 
@@ -46620,13 +46578,14 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
 	  (has_line_number(p)))
 	{
 	  s7_int msg_len, form_len;
+	  s7_pointer strp;
 	  char *form;
-	  form = object_to_truncated_string(sc, p, 40);
-	  form_len = safe_strlen(form);
+	  strp = object_to_truncated_string(sc, p, 40);
+	  form = string_value(strp);
+	  form_len = string_length(strp);
 	  msg_len = form_len + 128;
 	  syntax_msg = (char *)malloc(msg_len * sizeof(char));
 	  snprintf(syntax_msg, msg_len, ";  current form awaiting a close paren starts around line %u: %s", remembered_line_number(pair_line(p)), form);
-	  free(form);
 	}
     }
 
@@ -83112,8 +83071,6 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->stacktrace_defaults_symbol)                             /* stacktrace-defaults (used to be *stacktrace*) */
     return(sc->stacktrace_defaults);
 
-  if (sym == sc->symbol_table_symbol)                                    /* symbol-table (the raw vector) */
-    return(sc->symbol_table);
   if (sym == sc->rootlet_size_symbol)                                    /* rootlet-size */
     return(s7_make_integer(sc, sc->rootlet_entries));
   if (sym == sc->safety_symbol)                                          /* safety */
@@ -83703,11 +83660,10 @@ char *s7_decode_bt(void)
 				      i = k - 1;
 				      if (s7_is_valid(sc, p))
 					{
-					  char *str;
+					  s7_pointer strp;
 					  if (dname) fprintf(stdout, " ");
-					  str = object_to_truncated_string(sc, p, 80); /* s7_object_to_c_string(sc, p) */
-					  fprintf(stdout, "%s%s%s", BOLD_TEXT, str, UNBOLD_TEXT);
-					  free(str);
+					  strp = object_to_truncated_string(sc, p, 80);
+					  fprintf(stdout, "%s%s%s", BOLD_TEXT, string_value(strp), UNBOLD_TEXT);
 					  if ((is_pair(p)) &&
 					      (has_line_number(p)))
 					    {
@@ -85799,6 +85755,10 @@ int main(int argc, char **argv)
  *   a zillion symbols will be trouble
  * use s7_object_to_string in stacktrace (just 2 mallocs remain...)
  *   similarly in num<->str
+ * make_string_uncopied in error handlers -> block->string
+ *   there are 179 make_string_wrappers -- are any actually non-permanent? (use permanent allocs, remove string1 list if possible) [wrapper string1 6743 free in s7test)
+ * port_data overflows should be caught by the debugger! and check for these.
+ * do we make_shared_vector for every implicit multidim vect access? tbig??
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
