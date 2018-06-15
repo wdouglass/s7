@@ -2196,4 +2196,6 @@
 (iterator-vector-test)
 (clear-and-gc)
 
+(s7-version)
+
 (*s7* 'memory-usage)

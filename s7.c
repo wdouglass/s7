@@ -1325,7 +1325,7 @@ struct s7_scheme {
   s7_int read_line_buf_size;
 
   s7_pointer v, w, x, y, z;         /* evaluator local vars */
-  s7_pointer temp1, temp2, temp3, temp4, temp6, temp7, temp8, temp9, temp10, temp11;
+  s7_pointer temp1, temp2, temp3, temp4, temp6, temp7, temp8, temp9, temp10;
   s7_pointer temp_cell, temp_cell_1, temp_cell_2;
   s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2;
   s7_pointer a1_1, a2_1, a2_2, a3_1, a3_2, a3_3, a4_1, a4_2, a4_3, a4_4;
@@ -4061,6 +4061,13 @@ static s7_pointer set_plist_1(s7_scheme *sc, s7_pointer x1)
 
 static s7_pointer set_plist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
 {
+#if S7_DEBUGGING
+  if (!s7_is_valid(sc, x2))
+    {
+      fprintf(stderr, "x2 is bad: %p\n", x2);
+      /* abort(); */
+    }
+#endif
   set_car(sc->plist_2, x1);
   set_cadr(sc->plist_2, x2);
   return(sc->plist_2);
@@ -5187,7 +5194,6 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(sc->temp8);
   gc_mark(sc->temp9);
   gc_mark(sc->temp10);
-  gc_mark(sc->temp11);
   {
     int32_t i;
     for (i = 0; i < T_TEMPS_SIZE; i++) {gc_mark(sc->t_temps[i]);}
@@ -6526,7 +6532,6 @@ static inline void clear_symbol_list(s7_scheme *sc)
 
 static inline s7_pointer new_frame_in_env(s7_scheme *sc, s7_pointer old_env)
 {
-  /* return(cons(sc, sc->nil, old_env)); */
   s7_pointer x;
   new_cell(sc, x, T_LET | T_SAFE_PROCEDURE);
   let_id(x) = ++sc->let_number;
@@ -10729,7 +10734,11 @@ static bool s7_is_one(s7_pointer x)
 
 
 /* -------- optimize exponents -------- */
-#define MAX_POW 32
+
+/* we really want 2:64, 10: 20, 16: 16 here since this is used only in read/write float 
+ *   it matters because, mirabile dictu or whatever, init_pows is about 20% of the total startup time
+ */
+#define MAX_POW 64
 static double pepow[17][MAX_POW], mepow[17][MAX_POW];
 
 static void init_pows(void)
@@ -10745,21 +10754,23 @@ static void init_pows(void)
 
 static double ipow(int32_t x, int32_t y)
 {
-  if ((y < MAX_POW) && (y > (-MAX_POW)))
+  if (y >= 0) 
     {
-      if (y >= 0)
+      if (y < MAX_POW)
 	return(pepow[x][y]);
-      return(mepow[x][-y]);
+      return(pow((double)x, (double)y));
     }
+  if (y > (-MAX_POW))
+    return(mepow[x][-y]);
   return(pow((double)x, (double)y));
 }
 
 
 /* -------------------------------- number->string -------------------------------- */
-static s7_int s7_int_to_string(char *p, s7_int n, s7_int radix, s7_int width)
-{
+static size_t integer_to_string_any_base(char *p, s7_int n, s7_int radix)  /* called by number_to_string_with_radix */
+{ 
   static const char dignum[] = "0123456789abcdef";
-  s7_int i, len, start, end;
+  s7_int i, len, end;
   bool sign;
   s7_int pown;
 
@@ -10775,16 +10786,9 @@ static s7_int s7_int_to_string(char *p, s7_int n, s7_int radix, s7_int width)
 	"-1728002635214590698",	"-41a792678515120368", "-10b269549075433c38", "-4340724c6c71dc7a8", "-160e2ad3246366808", "-8000000000000000"};
 
       len = safe_strlen(mnfs[radix]);
-      if (width > len)
-	{
-	  start = width - len - 1;
-	  memset((void *)p, (int)' ', start);
-	}
-      else start = 0;
-      for (i = 0; i < len; i++)
-	p[start + i] = mnfs[radix][i];
-      p[len + start] = '\0';
-      return(len + start);
+      memcpy((void *)p, (void *)mnfs[radix], len);
+      p[len] = '\0';
+      return(len);
     }
 
   sign = (n < 0);
@@ -10803,32 +10807,21 @@ static s7_int s7_int_to_string(char *p, s7_int n, s7_int radix, s7_int width)
   len = i - 1;
   if (sign) len++;
   end = 0;
-  if (width > len)                  /* (format #f "~10B" 123) */
-    {
-      start = width - len - 1;
-      end += start;
-      memset((void *)p, (int)' ', start);
-    }
-  else
-    {
-      start = 0;
-      end = 0;
-    }
   if (sign)
     {
-      p[start] = '-';
+      p[0] = '-';
       end++;
     }
-  for (i = start + len; i >= end; i--)
+  for (i = len; i >= end; i--)
     {
       p[i] = dignum[n % radix];
       n /= radix;
     }
-  p[len + start + 1] = '\0';
-  return(len + start + 1);
+  p[len + 1] = '\0';
+  return(len + 1);
 }
 
-static char *integer_to_string_base_10_no_width(s7_pointer obj, s7_int *nlen) /* do not free the returned string */
+static char *integer_to_string_base_10(s7_pointer obj, s7_int *nlen) /* do not free the returned string */
 {
   int64_t num;
   char *p, *op;
@@ -10878,7 +10871,7 @@ static char *floatify(char *str, s7_int *nlen)
 }
 
 static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int precision, char float_choice, s7_int *nlen, use_write_t choice) /* don't free result */
-{
+{ /* called by number_to_string_with_radix g_number_to_string, number_to_string_p_p number_to_port format_number */
   static s7_int num_to_str_size = -1;
   static char *num_to_str = NULL;
   /* the rest of s7 assumes nlen is set to the correct length 
@@ -10910,7 +10903,7 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 	      (*nlen) = print_name_length(obj);
 	      return((char *)print_name(obj));
 	    }
-	  return(integer_to_string_base_10_no_width(obj, nlen));
+	  return(integer_to_string_base_10(obj, nlen));
 	}
       (*nlen) = snprintf(num_to_str, num_to_str_size, "%*" print_s7_int, (int32_t)width, (int64_t)integer(obj)); /* gcc: "field width specifier expects argument of type int" */
       return(num_to_str);
@@ -11041,18 +11034,32 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
   switch (type(obj))
     {
     case T_INTEGER:
-      p = (char *)malloc((128 + width) * sizeof(char));
-      *nlen = s7_int_to_string(p, s7_integer(obj), radix, width);
-      return(p);
-
+      {
+	size_t len;
+	p = (char *)malloc((128 + width) * sizeof(char));
+	len = integer_to_string_any_base(p, s7_integer(obj), radix);
+	if ((size_t)width > len)
+	  {
+	    size_t start;
+	    start = width - len;
+	    memmove((void *)(p + start), (void *)p, len);
+	    memset((void *)p, (int)' ', start);
+	    p[width] = '\0';
+	    *nlen = width;
+	  }
+	else *nlen = len;
+	return(p);
+      }
     case T_RATIO:
       {
-	char n[128], d[128];
-	s7_int_to_string(n, numerator(obj), radix, 0);
-	s7_int_to_string(d, denominator(obj), radix, 0);
-	p = (char *)malloc(256 * sizeof(char));
-	len = snprintf(p, 256, "%s/%s", n, d);
-	str_len = 256;
+	size_t len1, len2;
+	str_len = 256 + width;
+	p = (char *)malloc(str_len * sizeof(char));
+	len1 = integer_to_string_any_base(p, numerator(obj), radix);
+	p[len1] = '/';
+	len2 = integer_to_string_any_base((char *)(p + len1 + 1), denominator(obj), radix);
+        len = len1 + 1 + len2;
+        p[len] = '\0';
       }
       break;
 
@@ -11099,7 +11106,7 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
 
 	int_part = (s7_int)floor(x);
 	frac_part = x - int_part;
-	s7_int_to_string(n, int_part, radix, 0);
+	integer_to_string_any_base(n, int_part, radix);
 	min_frac = (s7_double)ipow(radix, -precision);
 
 	/* doesn't this assume precision < 128/256 and that we can fit in 256 digits (1e308)? */
@@ -21308,7 +21315,7 @@ static void check_string_wrappers(void)
     if ((typeflag(p) & (~T_GC_MARK)) != (T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE))
       {
 	fprintf(stderr, "%s\n", describe_type_bits(cur_sc, p));
-	abort();
+	/* abort(); */
       }
 }
 #endif
@@ -23916,6 +23923,26 @@ static inline void port_set_filename(s7_pointer p, const char *name, size_t len)
   port_filename(p)[len] = '\0';
 }
 
+static block_t *mallocate_port(void)
+{
+  #define PORT_LIST 8 /* sizeof(port_t): 160 */
+  block_t *p;
+  p = block_lists[PORT_LIST];
+  if (p)
+    {
+      block_lists[PORT_LIST] = (block_t *)block_next(p);
+      block_next(p) = NULL;
+    }
+  else
+    {
+      p = mallocate_block();
+      block_data(p) = (void *)alloc_permanent_string((size_t)(1 << PORT_LIST));
+      block_set_index(p, PORT_LIST);
+    }
+  block_set_size(p, sizeof(port_t));
+  return(p);
+}
+
 static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int max_size, const char *caller)
 {
   s7_pointer port;
@@ -23927,7 +23954,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 
   new_cell(sc, port, T_INPUT_PORT);
   port_loc = s7_gc_protect_1(sc, port);
-  b = mallocate(sizeof(port_t));             /* 152 bytes or thereabouts, so index=8 */
+  b = mallocate_port();
   port_block(port) = b;
   port_port(port) = (port_t *)block_data(b);
   port_set_closed(port, false);
@@ -24238,7 +24265,7 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
     }
 
   new_cell(sc, x, T_OUTPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = FILE_PORT;
@@ -24287,7 +24314,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_INPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
@@ -24359,7 +24386,7 @@ static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
   s7_pointer x;
   block_t *block, *b;
   new_cell(sc, x, T_OUTPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
@@ -24455,7 +24482,7 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_INPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = FUNCTION_PORT;
@@ -24482,7 +24509,7 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_OUTPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = FUNCTION_PORT;
@@ -30075,15 +30102,23 @@ static void counter_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
 static void integer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   if (has_print_name(obj))
-    port_write_string(port)(sc, print_name(obj), print_name_length(obj), port);
+    {
+      if (is_string_port(port))
+	{
+	  if (port_position(port) + print_name_length(obj) < port_data_size(port))
+	    {
+	      memcpy((void *)(port_data(port) + port_position(port)), (void *)print_name(obj), print_name_length(obj));
+	      port_position(port) += print_name_length(obj);
+	    }
+	  else string_write_string_resized(sc, print_name(obj), print_name_length(obj), port);
+	}
+      else port_write_string(port)(sc, print_name(obj), print_name_length(obj), port);
+    }
   else
     {
       s7_int nlen;
       char *str;
-      str = integer_to_string_base_10_no_width(obj, &nlen);
-#if S7_DEBUGGING
-      if (nlen <= 0) fprintf(stderr, "%s: %s len: %" print_s7_int "\n", __func__, str, nlen);
-#endif
+      str = integer_to_string_base_10(obj, &nlen);
       set_print_name(obj, str, nlen);
       port_write_string(port)(sc, str, nlen, port);
     }
@@ -30557,7 +30592,7 @@ static s7_pointer open_format_port(void)
   len = FORMAT_PORT_LENGTH;
   x = alloc_pointer();
   set_type(x, T_OUTPUT_PORT);
-  b = mallocate(sizeof(port_t));
+  b = mallocate_port();
   port_block(x) = b;
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = STRING_PORT;
@@ -36243,27 +36278,6 @@ a vector that points to the same elements as the original-vector but with differ
 }
 
 
-static s7_pointer make_subvector(s7_scheme *sc, s7_pointer v)
-{
-  s7_pointer x;
-  new_cell(sc, x, type(v));
-  vector_length(x) = vector_length(v);
-  vector_block(x) = vector_block(v);
-  if (is_normal_vector(v))
-    vector_elements(x) = vector_elements(v);
-  else
-    {
-      if (is_float_vector(v))
-	float_vector_elements(x) = float_vector_elements(v);
-      else int_vector_elements(x) = int_vector_elements(v);
-    }
-  vector_getter(x) = vector_getter(v);
-  vector_setter(x) = vector_setter(v);
-  vector_set_dimension_info(x, NULL);
-  return(x);
-}
-
-
 static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indices)
 {
   s7_int index = 0;
@@ -37324,6 +37338,64 @@ static s7_int int_vector_set_i(s7_pointer v, s7_int i, s7_int x)
   return(x);
 } 
 static s7_pointer int_vector_set_unchecked_p(s7_pointer v, s7_int i, s7_pointer p) {return(int_vector_setter(cur_sc, v, i, p));}
+
+static s7_pointer iv_ref;
+static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer v, index;
+  s7_int ind;
+  v = car(args);
+  if (!is_int_vector(v))
+    method_or_bust(sc, v, sc->int_vector_ref_symbol, args, T_INT_VECTOR, 1); 
+  if (vector_rank(v) != 1)
+    return(univect_ref(sc, args, false)); /* bool=caller, true=float-vector */
+  index = cadr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->int_vector_ref_symbol, 2, index, T_INTEGER));
+  ind = s7_integer(index);
+  if ((ind < 0) || (ind >= vector_length(v)))
+    return(simple_out_of_range(sc, sc->int_vector_ref_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+  return(make_integer(sc, int_vector_element(v, ind)));
+}
+
+static s7_pointer iv_set;
+static s7_pointer g_iv_set(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer v, index, value;
+  s7_int ind;
+  v = car(args);
+  if (!is_int_vector(v))
+    method_or_bust(sc, v, sc->int_vector_set_symbol, args, T_INT_VECTOR, 1); 
+  if (vector_rank(v) != 1)
+    return(univect_set(sc, args, false));
+  index = cadr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->int_vector_set_symbol, 2, index, T_INTEGER));
+  ind = s7_integer(index);
+  if ((ind < 0) || (ind >= vector_length(v)))
+    return(simple_out_of_range(sc, sc->int_vector_set_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+  value = caddr(args);
+  if (!s7_is_integer(value))
+    return(wrong_type_argument(sc, sc->int_vector_set_symbol, 3, value, T_INTEGER));
+  if (is_immutable(v))
+    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->int_vector_set_symbol, v)));
+  int_vector_element(v, ind) = s7_integer(value);
+  return(value);
+}
+
+static s7_pointer int_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    return(iv_ref);
+  return(f);
+}
+
+static s7_pointer int_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 3)
+    return(iv_set);
+  return(f);
+}
 
 
 /* -------------------------------------------------------------------------------- */
@@ -43709,21 +43781,29 @@ static s7_int total_sequence_length(s7_scheme *sc, s7_pointer args, s7_pointer c
 static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
 {
   s7_pointer new_vec;
+  s7_pointer *v_elements = NULL;
+  s7_double *fv_elements = NULL;
+  s7_int *iv_elements = NULL;
   s7_int len;
 
   len = total_sequence_length(sc, args, sc->vector_append_symbol, (typ == T_VECTOR) ? T_FREE : ((typ == T_FLOAT_VECTOR) ? T_REAL : T_INTEGER));
   new_vec = make_vector_1(sc, len, (typ == T_VECTOR) ? FILLED : NOT_FILLED, typ);  /* might hit GC in loop below so we can't use NOT_FILLED here */
   add_vector(sc, new_vec);
+  if (typ == T_VECTOR)
+    v_elements = vector_elements(new_vec);
+  else
+    {
+      if (typ == T_FLOAT_VECTOR)
+	fv_elements = float_vector_elements(new_vec);
+      else iv_elements = int_vector_elements(new_vec);
+    }
 
   if (len > 0)
     {
-      s7_pointer p, sv;
+      s7_pointer p;
       s7_int i;
 
-      sc->temp9 = new_vec; /* s7_copy below can call s7_error so s7_gc_protect here is tricky -- use a preset position perhaps? */
-      sv = make_subvector(sc, new_vec);
-      sc->temp10 = sv;
-
+      push_stack(sc, OP_GC_PROTECT, new_vec, sc->nil);
       for (i = 0, p = args; is_pair(p); p = cdr(p))
 	{
 	  s7_int n;
@@ -43732,55 +43812,54 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
 	  n = sequence_length(sc, x);
 	  if (n > 0)
 	    {
-	      vector_length(sv) = n;
-	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, sv));
-	      vector_length(sv) = 0; /* so GC doesn't march off the end */
+	      vector_length(new_vec) = n;
+	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, new_vec));
+	      vector_length(new_vec) = 0; /* so GC doesn't march off the end */
 	      i += n;
 	      if (typ == T_VECTOR)
-		vector_elements(sv) = (s7_pointer *)(vector_elements(new_vec) + i);
+		vector_elements(new_vec) = (s7_pointer *)(v_elements + i);
 	      else
 		{
 		  if (typ == T_FLOAT_VECTOR)
-		    float_vector_elements(sv) = (s7_double *)(float_vector_elements(new_vec) + i);
-		  else int_vector_elements(sv) = (s7_int *)(int_vector_elements(new_vec) + i);
+		    float_vector_elements(new_vec) = (s7_double *)(fv_elements + i);
+		  else int_vector_elements(new_vec) = (s7_int *)(iv_elements + i);
 		}
 	    }
 	}
       set_plist_2(sc, sc->nil, sc->nil);
-      sc->temp9 = sc->nil;
-      sc->temp10 = sc->nil;
-      set_type(sv, T_PAIR); /* sv is just a wrapper, use T_PAIR to avoid alarming the debugger */
-      free_cell(sc, sv);
-      vector_length(sv) = 0;
+      sc->stack_end -= 4;
+      if (typ == T_VECTOR)
+	vector_elements(new_vec) = v_elements;
+      else
+	{
+	  if (typ == T_FLOAT_VECTOR)
+	    float_vector_elements(new_vec) = fv_elements;
+	  else int_vector_elements(new_vec) = iv_elements;
+	}
+      vector_length(new_vec) = len;
     }
   return(new_vec);
 }
+
 
 static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer new_str;
   s7_int len;
+  char *elements = NULL;
 
   len = total_sequence_length(sc, args, sc->string_append_symbol, (is_byte_vector_not_string(car(args))) ? T_INTEGER : T_CHARACTER);
   new_str = make_empty_string(sc, len, 0);
   if (is_byte_vector_not_string(car(args)))
     set_byte_vector(new_str);
+  elements = string_value(new_str);
 
   if (len > 0)
     {
-      s7_pointer p, sv;
+      s7_pointer p;
       s7_int i;
-      s7_cell usv;
-      
-      sv = &usv;
-      typeflag(sv) = type(new_str);
-      string_value(sv) = (char *)string_value(new_str);
-      string_length(sv) = len;
 
-      if (is_byte_vector_not_string(new_str))
-	set_byte_vector(sv);
-      sc->temp9 = new_str;
-
+      push_stack(sc, OP_GC_PROTECT, new_str, sc->nil);
       for (i = 0, p = args; is_pair(p); p = cdr(p))
 	{
 	  s7_pointer x;
@@ -43789,18 +43868,20 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
 	  n = sequence_length(sc, x);
 	  if (n > 0)
 	    {
-	      string_length(sv) = n;
-	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, sv));
+	      string_length(new_str) = n;
+	      s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, x, new_str));
 	      i += n;
-	      string_value(sv) = (char *)(string_value(new_str) + i);
+	      string_value(new_str) = (char *)(elements + i);
 	    }
 	}
+      sc->stack_end -= 4;
       set_plist_2(sc, sc->nil, sc->nil);
-      sc->temp9 = sc->nil;
+      string_value(new_str) = elements;
+      string_length(new_str) = len;
     }
-
   return(new_str);
 }
+
 
 static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
 {
@@ -44511,7 +44592,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     default:
       return(sc->F);
     }
-
   return(sc->F);
 }
 
@@ -46288,6 +46368,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
           #define QUOTE_SIZE 40
 	  s7_int i, j, start = 0, end, slen, size;
 	  char *recent_input = NULL;
+	  s7_pointer p;
 
 	  /* we can run off the end in cases like (eval-string "(. . ,.)") or (eval-string " (@ . ,.)") */
 	  if (port_position(pt) >= port_data_size(pt))
@@ -46326,8 +46407,8 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	      (port_filename(pt)))
 	    {
 	      len = safe_strlen(recent_input) + safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 64;
-	      
-	      msg = (char *)malloc(len * sizeof(char));
+	      p = make_empty_string(sc, len, '\0');
+	      msg = string_value(p);
 	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" print_s7_int "]",
 			     errmsg, (recent_input) ? recent_input : "", port_filename(pt), port_line_number(pt),
 			     sc->current_file, sc->current_line);
@@ -46335,8 +46416,8 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	  else
 	    {
 	      len = safe_strlen(recent_input) + safe_strlen(errmsg) + safe_strlen(sc->current_file) + 64;
-	      msg = (char *)malloc(len * sizeof(char));
-
+	      p = make_empty_string(sc, len, '\0');
+	      msg = string_value(p);
 	      if ((sc->current_file) &&
 		  (sc->current_line >= 0))
 		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%" print_s7_int "]",
@@ -46346,16 +46427,17 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	    }
 
 	  if (recent_input) free(recent_input);
-	  return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
+	  return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
 	}
     }
 
   if ((port_line_number(pt) > 0) &&
       (port_filename(pt)))
     {
+      s7_pointer p;
       len = safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 128;
-      msg = (char *)malloc(len * sizeof(char));
-
+      p = make_empty_string(sc, len, '\0');
+      msg = string_value(p);
       if (string_error)
 	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" print_s7_int "]",
 		       errmsg, port_filename(pt), port_line_number(pt),
@@ -46363,7 +46445,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
+      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
   return(s7_error(sc, (string_error) ? sc->string_read_error_symbol : sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, (char *)errmsg))));
@@ -46502,31 +46584,6 @@ static s7_pointer tree_descend(s7_scheme *sc, s7_pointer p, uint32_t line)
   return(tree_descend(sc, cdr(p), line));
 }
 
-static char *current_input_string(s7_pointer pt)
-{
-  /* try to show the current input */
-  if ((is_input_port(pt)) &&
-      (!port_is_closed(pt)) &&
-      (port_data(pt)) &&
-      (port_position(pt) > 0))
-    {
-      const uint8_t *str;
-      char *msg;
-      s7_int i, j, start, pos;
-      pos = port_position(pt);
-      start = pos - 40;
-      if (start < 0) start = 0;
-      msg = (char *)malloc(64 * sizeof(char));
-      str = (const uint8_t *)port_data(pt);
-      for (i = start, j = 0; i < pos; i++, j++)
-	msg[j] = str[i];
-      msg[j] = '\0';
-      return(msg);
-    }
-  return(NULL);
-}
-
-
 static s7_pointer missing_close_paren_error(s7_scheme *sc)
 {
   s7_int len;
@@ -46576,8 +46633,10 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
   if ((port_line_number(pt) > 0) &&
       (port_filename(pt)))
     {
+      s7_pointer p;
       len = port_filename_length(pt) + safe_strlen(sc->current_file) + safe_strlen(syntax_msg) + 128;
-      msg = (char *)malloc(len * sizeof(char));
+      p = make_empty_string(sc, len, '\0');
+      msg = string_value(p);
       if (syntax_msg)
 	{
 	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]\n%s",
@@ -46588,26 +46647,39 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
+      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
   if (syntax_msg)
     {
+      s7_pointer p;
       len = safe_strlen(syntax_msg) + 128;
-      msg = (char *)malloc(len * sizeof(char));
+      p = make_empty_string(sc, len, '\0');
+      msg = string_value(p);
       len = snprintf(msg, len, "missing close paren\n%s\n", syntax_msg);
       free(syntax_msg);
-      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
+      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
-  {
-    char *str;
-    msg = (char *)malloc(128 * sizeof(char));
-    str = current_input_string(pt);
-    len = snprintf(msg, 128, "missing close paren: %s", str);
-    free(str);
-    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
-  }
+  if ((is_input_port(pt)) &&
+      (!port_is_closed(pt)) &&
+      (port_data(pt)) &&
+      (port_position(pt) > 0))
+    {
+      s7_pointer p;
+      s7_int start, pos;
+
+      p = make_empty_string(sc, 128, '\0');
+      msg = string_value(p);
+      memcpy((void *)msg, (void *)"missing close paren: ", 21);
+
+      pos = port_position(pt);
+      start = pos - 40;
+      if (start < 0) start = 0;
+      memcpy((void *)(msg + 21), (void *)(port_data(pt) + start), pos - start);
+
+      return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
+    }
   return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, "missing close paren", 19))));
 }
 
@@ -47252,7 +47324,6 @@ static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
     s7_gc_unprotect_at(sc, gc_iter);
   }
 #endif
-
   return(s7_make_string(sc, "s7 " S7_VERSION ", " S7_DATE));
 }
 
@@ -58468,18 +58539,29 @@ static s7_pointer read_expression(s7_scheme *sc)
 	      return(read_error(sc, "stray comma at the end of the input?")); 
 
 	    case TOKEN_RIGHT_PAREN:
-	      pop_stack(sc);
 	      {
-		char *str;
-		str = current_input_string(sc->input_port);
-		if (str)
+		s7_pointer pt;
+		pop_stack(sc);
+		pt = sc->input_port;
+		if ((is_input_port(pt)) &&
+		    (!port_is_closed(pt)) &&
+		    (port_data(pt)) &&
+		    (port_position(pt) > 0))
 		  {
+		    s7_int start, pos;
+		    s7_pointer p;
 		    char *msg;
-		    int32_t len;
-		    msg = (char *)malloc(128 * sizeof(char));
-		    len = snprintf(msg, 128, "at \"...%s...\", stray comma before ')'?", str);
-		    free(str);
-		    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, msg, len))));
+
+		    pos = port_position(pt);
+		    start = pos - 40;
+		    if (start < 0) start = 0;
+
+		    p = make_empty_string(sc, 128, '\0');
+		    msg = string_value(p);
+		    memcpy((void *)msg, (void *)"at \"...", 7);
+		    memcpy((void *)(msg + 7), (void *)(port_data(pt) + start), pos - start);
+		    memcpy((void *)(msg + 7 + pos - start), (void *)"...", 3);
+		    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
 		  }
 		return(read_error(sc, "stray comma before ')'?"));         /* '("a" "b",) */
 	      }
@@ -60271,7 +60353,15 @@ static void init_choosers(s7_scheme *sc)
 
   /* float-vector-set */
   f = set_function_chooser(sc, sc->float_vector_set_symbol, float_vector_set_chooser);
-  fv_set = make_function_with_class(sc, f, "float-vector-set!", g_fv_set, 2, 0, false, "float-vector-set! opt");
+  fv_set = make_function_with_class(sc, f, "float-vector-set!", g_fv_set, 3, 0, false, "float-vector-set! opt");
+
+  /* int-vector-ref */
+  f = set_function_chooser(sc, sc->int_vector_ref_symbol, int_vector_ref_chooser);
+  iv_ref = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref, 2, 0, false, "int-vector-ref opt");
+
+  /* int-vector-set */
+  f = set_function_chooser(sc, sc->int_vector_set_symbol, int_vector_set_chooser);
+  iv_set = make_function_with_class(sc, f, "int-vector-set!", g_iv_set, 3, 0, false, "int-vector-set! opt");
 
   /* list-set! */
   f = set_function_chooser(sc, sc->list_set_symbol, list_set_chooser);
@@ -66741,7 +66831,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	setter = closure_setter(cx);
 	if ((setter == sc->F) &&
 	    (!closure_no_setter(cx)))
-	  setter = g_setter(sc, cons(sc, cx, sc->nil));
+	  setter = g_setter(sc, set_plist_1(sc, cx));
 	if (is_t_procedure(setter))          /* appears to be caar_code */
 	  {
 	    /* (set! (o g) ...), here cx = o, sc->code = ((o g) ...) */
@@ -67528,7 +67618,7 @@ static int32_t dox_ex(s7_scheme *sc)
 #endif
 
   new_frame(sc, sc->envir, frame);   /* new frame is not tied into the symbol lookup process yet */
-  sc->temp11 = frame;
+  sc->temp10 = frame;
   for (vars = car(sc->code); is_pair(vars); vars = cdr(vars))
     {
       s7_pointer expr, val;
@@ -67554,7 +67644,7 @@ static int32_t dox_ex(s7_scheme *sc)
     }
   
   sc->envir = frame;
-  sc->temp11 = sc->nil;
+  sc->temp10 = sc->nil;
   id = let_id(frame);
   for (slot = let_slots(frame); is_slot(slot); slot = next_slot(slot))
     symbol_set_local(slot_symbol(slot), id, slot);
@@ -69391,7 +69481,7 @@ static int32_t string_a_ex(s7_scheme *sc)
     }
   if (!s7_is_integer(x))
     {
-      sc->value = string_ref_1(sc, s, cons(sc, x, sc->nil));
+      sc->value = string_ref_1(sc, s, set_plist_1(sc, x));
       return(goto_START);
     }
   index = s7_integer(x);
@@ -69435,7 +69525,7 @@ static int32_t vector_a_ex(s7_scheme *sc)
 	    }
 	}
     }
-  sc->value = vector_ref_1(sc, v, cons(sc, x, sc->nil));
+  sc->value = vector_ref_1(sc, v, set_plist_1(sc, x));
   return(goto_START);
 }
 
@@ -72323,14 +72413,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->temp4 = val1;
 		    arg = cdr(arg);
 		    val2 = c_call(arg)(sc, car(arg));
-		    sc->temp11 = val2;
+		    sc->temp10 = val2;
 		    arg = cdr(arg);
 		    set_car(sc->t3_3, c_call(arg)(sc, car(arg)));
 		    set_car(sc->t3_1, val1);
 		    set_car(sc->t3_2, val2);
 		    sc->value = c_call(code)(sc, sc->t3_1);
 		    sc->temp4 = sc->nil;
-		    sc->temp11 = sc->nil;
+		    sc->temp10 = sc->nil;
 		    goto START;
 		  }
 		  
@@ -72421,7 +72511,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->temp4 = val1;
 		    arg = cdr(arg);
 		    val2 = c_call(arg)(sc, car(arg));
-		    sc->temp11 = val2;
+		    sc->temp10 = val2;
 		    arg = cdr(arg);
 		    val3 = c_call(arg)(sc, car(arg));
 		    sc->t_temps[tx] = val3;
@@ -72433,7 +72523,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->value = c_call(code)(sc, sc->a4_1);
 		    sc->temp4 = sc->nil;
 		    sc->t_temps[tx] = sc->nil;
-		    sc->temp11 = sc->nil;
+		    sc->temp10 = sc->nil;
 		    goto START;
 		  }
 		  
@@ -83498,7 +83588,6 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->temp8) return("temp8");
   if (p == sc->temp9) return("temp9");
   if (p == sc->temp10) return("temp10");
-  if (p == sc->temp11) return("temp11");
   if (p == sc->temp_cell) return("temp_cell");
   if (p == sc->temp_cell_1) return("temp_cell_1");
   if (p == sc->temp_cell_2) return("temp_cell_2");
@@ -83842,7 +83931,6 @@ s7_scheme *s7_init(void)
   sc->temp8 = sc->nil;
   sc->temp9 = sc->nil;
   sc->temp10 = sc->nil;
-  sc->temp11 = sc->nil;
   for (i = 0; i < T_TEMPS_SIZE; i++) sc->t_temps[i] = sc->nil;
   sc->t_temp_ctr = 0;
 
@@ -84029,7 +84117,9 @@ s7_scheme *s7_init(void)
       arity_not_set = make_permanent_integer_unchecked(CLOSURE_ARITY_NOT_SET);
       max_arity = make_permanent_integer_unchecked(MAX_ARITY);
       minus_one = make_permanent_integer_unchecked(-1);
+      set_print_name(minus_one, "-1", 2);
       minus_two = make_permanent_integer_unchecked(-2);
+      set_print_name(minus_two, "-2", 2);
       /* prebuilt null string is tricky mainly because it overlaps #u8() */
 
       /* keep the characters out of the heap */
@@ -85126,9 +85216,24 @@ s7_scheme *s7_init(void)
     for (i = 2; i < 17; i++)
       s7_int_digits_by_radix[i] = (int32_t)(floor(((top == 8) ? S7_LOG_LLONG_MAX : S7_LOG_LONG_MAX) / log((double)i)));
 
-    define_global_constant(sc, "most-positive-fixnum", make_permanent_integer_unchecked(s7_int_max));
-    define_global_constant(sc, "most-negative-fixnum", make_permanent_integer_unchecked(s7_int_min));
-
+    {
+      s7_pointer pos, neg;
+      pos = make_permanent_integer_unchecked(s7_int_max);
+      neg = make_permanent_integer_unchecked(s7_int_min);
+      if (top == 8)
+	{
+	  set_print_name(pos, "9223372036854775807", 19);
+	  set_print_name(neg, "-9223372036854775808", 20);
+	}
+      else
+	{
+	  set_print_name(pos, "2147483647", 10);
+	  set_print_name(neg, "-2147483648", 11);
+	}
+      define_global_constant(sc, "most-positive-fixnum", pos);
+      define_global_constant(sc, "most-negative-fixnum", neg);
+    }
+			   
     if (top == 4) sc->default_rationalize_error = 1.0e-6;
 #if WITH_GMP
     sc->pi_symbol = s7_define_constant(sc, "pi", real_pi);
@@ -85754,8 +85859,11 @@ int main(int argc, char **argv)
  * tbig:
  *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB, build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
  *   a zillion symbols will be trouble
- * use s7_object_to_string in stacktrace (just 2 mallocs remain...)
- *   similarly in num<->str, for char* locals, use mallocate_block, set data->str, include size? (index=BLOCK_LIST)
+ * mallocate in num<->str, for char* locals, use mallocate_block, set data->str, include size? (index=BLOCK_LIST)
+ * replace c_obj_ref cons (et al) with u2_cdr? for mv cases too?
+ * get rid of sc->tempn
+ * can string|vector_append use block_data for original data? scan args for non-seq first?
+ * main string_write_string case in tbig or elsewhere?
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
@@ -85793,23 +85901,23 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1129
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1451
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1699
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1690
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2408
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2449
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2450
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.5
- * tread         |      |      |      ||      ||      |                   3009  2639  2622 
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2664
+ * tread         |      |      |      ||      ||      |                   3009  2639  2610
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2657
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3207
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3234
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4160
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4979
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6526
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6527
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.0
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                               185.8
+ * tbig          |      |      |      ||      ||      |                       (185.8) 184.1
  * ----------------------------------------------------------------------------------------------
  */
