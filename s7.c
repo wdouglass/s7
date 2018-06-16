@@ -1326,7 +1326,7 @@ struct s7_scheme {
 
   s7_pointer v, w, x, y, z;         /* evaluator local vars */
   s7_pointer temp1, temp2, temp3, temp4, temp6, temp7, temp8, temp9, temp10;
-  s7_pointer temp_cell, temp_cell_1, temp_cell_2;
+  s7_pointer temp_cell, temp_cell_1, temp_cell_2, u1_1;
   s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2;
   s7_pointer a1_1, a2_1, a2_2, a3_1, a3_2, a3_3, a4_1, a4_2, a4_3, a4_4;
   #define T_TEMPS_SIZE 32
@@ -2367,7 +2367,7 @@ static int64_t not_heap = -1;
   #define make_boolean(sc, Val)       ((Val) ? sc->T : sc->F)
 #endif
 
-#define is_pair(p)                    (type(p) == T_PAIR)
+#define is_pair(p)                    (type(T_Pos(p)) == T_PAIR)
 #define is_mutable_pair(p)            ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
 #define is_null(p)                    ((T_Pos(p)) == sc->nil)
 #define is_not_null(p)                ((T_Pos(p)) != sc->nil)
@@ -4061,13 +4061,6 @@ static s7_pointer set_plist_1(s7_scheme *sc, s7_pointer x1)
 
 static s7_pointer set_plist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
 {
-#if S7_DEBUGGING
-  if (!s7_is_valid(sc, x2))
-    {
-      fprintf(stderr, "x2 is bad: %p\n", x2);
-      /* abort(); */
-    }
-#endif
   set_car(sc->plist_2, x1);
   set_cadr(sc->plist_2, x2);
   return(sc->plist_2);
@@ -4358,21 +4351,13 @@ static void sweep(s7_scheme *sc)
   gp = sc->strings;
   if (gp->loc > 0)
     {
-      /* unrolling this loop is not an improvement */
+      /* unrolling this loop (even via LOOP_8) is not an improvement */
       for (i = 0, j = 0; i < gp->loc; i++)
 	{
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    liberate(string_block(s1));
-	  else 
-	    {
-	      /* remove_from_heap can remove a string from the heap; we need to notice that removal
-	       *   via in_heap, and remove it also from this cache; otherwise it just stays here
-	       *   forever, slowing down the loop. 
-	       */
-	      if (in_heap(s1)) /* this costs more than it saves */
-		gp->list[j++] = s1;
-	    }
+	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
     }
@@ -5216,6 +5201,7 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(car(sc->plist_1));
   gc_mark(car(sc->plist_2)); gc_mark(cadr(sc->plist_2));
   gc_mark(car(sc->qlist_2)); gc_mark(cadr(sc->qlist_2));
+  gc_mark(sc->u1_1);
 
   {
     s7_pointer p;
@@ -5610,6 +5596,7 @@ static inline s7_pointer petrify(s7_scheme *sc, s7_pointer x, int64_t loc)
 static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 {
   int64_t loc;
+  static int32_t strings_removed = 0;
   /* global functions are very rarely redefined, so we can remove the function body from
    *   the heap when it is defined.  If redefined, we currently lose the memory held by the
    *   old definition.  (It is not trivial to recover this memory because it is allocated
@@ -5688,6 +5675,21 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	      }
 	}
       return;
+
+    case T_STRING:
+      strings_removed++;
+      if (strings_removed > 10)
+	{
+	  s7_int i, j;
+	  gc_list *gp;
+	  gp = sc->strings;
+	  for (i = 0, j = 0; i < gp->loc; i++)
+	    if (in_heap(gp->list[i]))
+	      gp->list[j++] = gp->list[i];
+	  gp->loc = j;
+	  strings_removed = 0;
+	}
+      break;
       
     default:
       /* I don't think any_closure can happen here (code in tmp) */
@@ -8779,6 +8781,7 @@ static int32_t tree_pointers_size = 0, tree_pointers_top = 0;
 static inline bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
 {
   s7_pointer p;
+  if (car(tree) == sc->quote_symbol) return(false); /* not quite correct (given apply) */
   for (p = tree; is_pair(p); p = cdr(p))
     {
       if (is_tree_collected_or_shared(p))
@@ -10215,7 +10218,7 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
 	  (e1p == 0)                   ||
 	  (tries > 100))
 	{
-	  if ((p0 == 1) && (q0 == s7_int_min)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
+	  if ((q0 == s7_int_min) && (p0 == 1)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
 	    {
 	      (*numer) = 0;
 	      (*denom) = 1;
@@ -11008,8 +11011,10 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
   return(num_to_str);
 }
 
+static s7_cell real_wrapper1, real_wrapper2;
+
 static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int radix, s7_int width, s7_int precision, char float_choice, s7_int *nlen)
-{
+{ /* called by s7_number_to_string (char*), g_number_to_string (strp), number_to_string_p_pp (strp), format_number (strp basically) */
   /* the rest of s7 assumes nlen is set to the correct length */
   char *p;
   s7_int len, str_len;
@@ -11092,12 +11097,10 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
 	  {
 	    int32_t ep;
 	    char *p1;
-	    s7_pointer r;
-
 	    len = 0;
 	    ep = (int32_t)floor(log(x) / log((double)radix));
-	    r = make_real(sc, x / pow((double)radix, (double)ep)); /* divide it down to one digit, then the fractional part */
-	    p1 = number_to_string_with_radix(sc, r, radix, width, precision, float_choice, &len);
+ 	    real_wrapper1.object.number.real_value = x / pow((double)radix, (double)ep); /* divide it down to one digit, then the fractional part */
+	    p1 = number_to_string_with_radix(sc, &real_wrapper1, radix, width, precision, float_choice, &len);
 	    p = (char *)malloc((len + 8) * sizeof(char));
 	    (*nlen) = snprintf(p, len + 8, "%s%se%d", (sign) ? "-" : "", p1, ep);
 	    free(p1);
@@ -11135,8 +11138,10 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
       {
 	char *n, *d;
 	p = (char *)malloc(512 * sizeof(char));
-	n = number_to_string_with_radix(sc, make_real(sc, real_part(obj)), radix, 0, precision, float_choice, &len);
-	d = number_to_string_with_radix(sc, make_real(sc, imag_part(obj)), radix, 0, precision, float_choice, &len);
+ 	real_wrapper1.object.number.real_value = real_part(obj);
+ 	real_wrapper2.object.number.real_value = imag_part(obj);
+	n = number_to_string_with_radix(sc, &real_wrapper1, radix, 0, precision, float_choice, &len);
+	d = number_to_string_with_radix(sc, &real_wrapper2, radix, 0, precision, float_choice, &len);
 	len = snprintf(p, 512, "%s%s%si", n, (imag_part(obj) < 0.0) ? "" : "+", d);
 	str_len = 512;
 	free(n);
@@ -15468,7 +15473,7 @@ static s7_pointer add_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
   d2 = number_to_denominator(y);
   n2 = number_to_numerator(y);
 
-  if (d1 == d2)                                     /* the easy case -- if overflow here, it matches the int32_t case */
+  if (d1 == d2)                                     /* the easy case -- if overflow here, it matches the int case */
     return(s7_make_ratio(sc, n1 + n2, d1));
 
 #if HAVE_OVERFLOW_CHECKS
@@ -23652,9 +23657,7 @@ static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
     }
   if (start == end) 
     return(str);
-  if (start == 0)
-    port_write_string(port)(sc, string_value(str), end, port);
-  else port_write_string(port)(sc, (char *)(string_value(str) + start), (end - start), port);
+  port_write_string(port)(sc, (char *)(string_value(str) + start), (end - start), port);
   return(str);
 }
 
@@ -23670,7 +23673,6 @@ static token_t file_read_semicolon(s7_scheme *sc, s7_pointer pt)
     return(TOKEN_EOF);
   return(token(sc));
 }
-
 
 static token_t string_read_semicolon(s7_scheme *sc, s7_pointer pt)
 {
@@ -23698,7 +23700,6 @@ static int32_t file_read_white_space(s7_scheme *sc, s7_pointer port)
       port_line_number(port)++;
   return(c);
 }
-
 
 static int32_t terminated_string_read_white_space(s7_scheme *sc, s7_pointer pt)
 {
@@ -46426,6 +46427,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	      else len = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
 	    }
 
+	  string_length(p) = len;
 	  if (recent_input) free(recent_input);
 	  return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
 	}
@@ -46445,9 +46447,9 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
+      string_length(p) = len;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
-
   return(s7_error(sc, (string_error) ? sc->string_read_error_symbol : sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, (char *)errmsg))));
 }
 
@@ -46647,6 +46649,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
+      string_length(p) = len;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
@@ -46658,6 +46661,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       msg = string_value(p);
       len = snprintf(msg, len, "missing close paren\n%s\n", syntax_msg);
       free(syntax_msg);
+      string_length(p) = len;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
@@ -46677,7 +46681,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       start = pos - 40;
       if (start < 0) start = 0;
       memcpy((void *)(msg + 21), (void *)(port_data(pt) + start), pos - start);
-
+      string_length(p) = 21 + pos - start;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
   return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, make_string_wrapper_with_length(sc, "missing close paren", 19))));
@@ -46901,7 +46905,10 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
       return(obj);
 
     case T_C_OBJECT:
-      return((*(c_object_ref(sc, obj)))(sc, cons(sc, obj, indices)));
+      /* return((*(c_object_ref(sc, obj)))(sc, cons(sc, obj, indices))); */
+      car(sc->u1_1) = obj;
+      cdr(sc->u1_1) = indices;
+      return((*(c_object_ref(sc, obj)))(sc, sc->u1_1));
 
     case T_LET:
       obj = s7_let_ref(sc, obj, car(indices));
@@ -58561,6 +58568,7 @@ static s7_pointer read_expression(s7_scheme *sc)
 		    memcpy((void *)msg, (void *)"at \"...", 7);
 		    memcpy((void *)(msg + 7), (void *)(port_data(pt) + start), pos - start);
 		    memcpy((void *)(msg + 7 + pos - start), (void *)"...", 3);
+		    string_length(p) = 7 + pos - start + 3;
 		    return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
 		  }
 		return(read_error(sc, "stray comma before ')'?"));         /* '("a" "b",) */
@@ -69696,7 +69704,7 @@ static void apply_c_macro(s7_scheme *sc)  	                    /* -------- C-bas
 static void apply_syntax(s7_scheme *sc)                            /* -------- syntactic keyword as applicable object -------- */
 {                                                                  /* current reader-cond macro uses this via (map quote ...) */
   s7_int len;                                                     /*    ((apply lambda '((x) (+ x 1))) 4) */
-  if (is_pair(sc->args))                                           /* this is ((pars) . body) */
+  if (is_pair(sc->args))                                          /* this is ((pars) . body) */
     {
       len = s7_list_length(sc, sc->args);
       if (len == 0) 
@@ -70324,7 +70332,10 @@ static inline void apply_continuation(s7_scheme *sc)               /* -------- c
 
 static void apply_c_object(s7_scheme *sc)                          /* -------- applicable (new-type) object -------- */
 {
-  sc->value = (*(c_object_ref(sc, sc->code)))(sc, cons(sc, sc->code, sc->args));
+  /* sc->value = (*(c_object_ref(sc, sc->code)))(sc, cons(sc, sc->code, sc->args)); */
+  car(sc->u1_1) = sc->code;
+  cdr(sc->u1_1) = sc->args;
+  sc->value = (*(c_object_ref(sc, sc->code)))(sc, sc->u1_1);
 }
 
 
@@ -83719,7 +83730,7 @@ char *s7_decode_bt(void)
 		      void *vp;
 		      int32_t vals;
 		      vals = sscanf((const char *)(bt + i + 1), "%p", &vp);
-		      if (vals == 1)
+		      if ((vp) && (vals == 1))
 			{
 			  int32_t k;
 			  for (k = i + ((bt[i + 2] == 'x') ? 3 : 4); (k < size) && (IS_DIGIT(bt[k], 16)); k++);
@@ -83811,6 +83822,8 @@ s7_scheme *s7_init(void)
       init_catchers();
       init_block_lists();
       init_string_wrappers();
+      real_wrapper1.tf.flag = T_REAL;
+      real_wrapper2.tf.flag = T_REAL;
     }
 
   sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
@@ -83892,6 +83905,8 @@ s7_scheme *s7_init(void)
   sc->a1_1 = sc->a4_4;
   sc->a2_1 = sc->a4_3; sc->a2_2 = sc->a4_4;
   sc->a3_1 = sc->a4_2; sc->a3_2 = sc->a4_3; sc->a3_3 = sc->a4_4;
+
+  sc->u1_1 = permanent_cons(sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
   for (i = 1; i < NUM_SAFE_LISTS; i++)
     sc->safe_lists[i] = sc->nil;
@@ -85856,15 +85871,6 @@ int main(int argc, char **argv)
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
- * tbig:
- *   with huge heap? (fill vector with ints: size*(8 + 56) but empties don't count: fill 20GB, build with -INITIAL_HEAP_SIZE= won't work (allocates s7_cells)
- *   a zillion symbols will be trouble
- * mallocate in num<->str, for char* locals, use mallocate_block, set data->str, include size? (index=BLOCK_LIST)
- * replace c_obj_ref cons (et al) with u2_cdr? for mv cases too?
- * get rid of sc->tempn
- * can string|vector_append use block_data for original data? scan args for non-seq first?
- * main string_write_string case in tbig or elsewhere?
- *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
  * simple_do_ex opt: is something like opt_p_pip_ssc, this can't call anything, so it is completely unwrappable:
@@ -85901,19 +85907,19 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1129
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1451
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1690
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1689
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2036
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2408
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2450
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.5
- * tread         |      |      |      ||      ||      |                   3009  2639  2610
+ * tread         |      |      |      ||      ||      |                   3009  2639  2608
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2657
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3207
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3234
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3447
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4160
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4979
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6527
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6524
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  41.0
