@@ -465,7 +465,7 @@
 			  'c-pointer? 'int-vector-ref
 			  'float? 
 			  'list-values 'byte-vector? 'openlet? 'iterator? 
-			  'string->byte-vector
+			  'string->byte-vector 'byte-vector->string
 
 #|
 			  's7-catches 's7-exits 
