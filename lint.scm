@@ -1843,8 +1843,6 @@
 	     (or (not (keyword? c))
 		 (cond ((assq c markers) => cdr)
 		       (else 'keyword?))))
-	    ((string?)
-	     (if (byte-vector? c) 'byte-vector? 'string?))
 	    ((procedure?)
 	     (if (dilambda? c) 'dilambda? 'procedure?))
 	    (else)))))

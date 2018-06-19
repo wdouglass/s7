@@ -1,10 +1,11 @@
 ;; large structure tests
 
 (require libc.scm)
-(load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
 (set! (*s7* 'max-vector-length) (ash 1 33))
 (set! (*s7* 'max-string-length) (ash 1 33))
+
+(load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
 (define bold-text (format #f "~C[1m" #\escape))
 (define unbold-text (format #f "~C[22m" #\escape))  
@@ -250,7 +251,8 @@
     (let ((bv (string->byte-vector bigstr)))
       (test (byte-vector? bv) #t)
       (test (length bv) (length bigstr))
-      (test (byte-vector-ref bv (- (ash 1 31) 100)) (char->integer (string-ref bigstr (- (ash 1 31) 100))))))
+      (let ((bvi (byte-vector-ref bv (- (ash 1 31) 100))))
+      (test bvi (char->integer (string-ref (byte-vector->string bigstr) (- (ash 1 31) 100)))))))
   
   (clear-and-gc)
   (let ((size little-size))

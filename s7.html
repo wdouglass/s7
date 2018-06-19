@@ -2011,11 +2011,7 @@ s7_ints or s7_doubles:
 (<em class=def id="makeintvector">make-int-vector</em> len (init 0))
 (<em class=def id="intvectorref">int-vector-ref</em> obj . indices)
 (<em class=def id="intvectorset">int-vector-set!</em> obj indices[...] value)
-</pre>
 
-<div class="indented">
-<p>And also, for completeness:</p>
-<pre class="indented">
 (<em class=def id="bytevectorp">byte-vector?</em> obj)
 (<em class=def id="bytevector">byte-vector</em> . args)
 (<em class=def id="makebytevector">make-byte-vector</em> len (init 0))
@@ -2024,7 +2020,6 @@ s7_ints or s7_doubles:
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
 </pre>
-<p>but byte-vectors are just strings in disguise.</p>
 </div>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
@@ -6849,8 +6844,7 @@ The define propagates backwards, but:
 
 <p id="r7rs">The r7rs compatibility code is in r7rs.scm. I used to include it here, but
 as r7rs grew, this section got too large.  In general, all the conversion routines in
-r7rs are handled in s7 via generic functions, records are classes, byte-vectors are
-strings, and so on. 
+r7rs are handled in s7 via generic functions, records are classes, and so on. 
 </p>
 </div>
 
