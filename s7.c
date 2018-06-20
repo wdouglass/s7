@@ -489,16 +489,6 @@ typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 /* -------------------------------- */
 /* local allocator; currently used for strings, hash-tables, ports, vectors, continuations, local c_functions */
 
-static const int32_t bits[256] =
-  {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-   6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
-
 #ifndef TRACK_BLOCKS
 #define TRACK_BLOCKS S7_DEBUGGING
 #endif
@@ -565,6 +555,16 @@ typedef block_t vdims_t;
 #define TOP_BLOCK_LIST 17
 #define BLOCK_LIST 0
 static block_t *block_lists[NUM_BLOCK_LISTS];
+
+static const int32_t bits[256] =
+  {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+   6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
 
 #if TRACK_BLOCKS
 static block_t **all_blocks = NULL;
@@ -1849,6 +1849,7 @@ static s7_scheme *cur_sc = NULL;
   #define T_Lst(P) check_ref2(P, T_PAIR, T_NIL,      __func__, __LINE__, "gc", NULL)
   #define T_Str(P) check_ref(P, T_STRING,            __func__, __LINE__, "sweep", NULL)
   #define T_BVc(P) check_ref(P, T_BYTE_VECTOR,       __func__, __LINE__, "sweep", NULL)
+  #define T_BSt(P) check_ref2(P, T_BYTE_VECTOR, T_STRING, __func__, __LINE__, "sweep", NULL)
   #define T_Obj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", NULL)
   #define T_Hsh(P) check_ref(P, T_HASH_TABLE,        __func__, __LINE__, "sweep", "free_hash_table")
   #define T_Itr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", NULL)
@@ -1884,6 +1885,7 @@ static s7_scheme *cur_sc = NULL;
   #define T_Bgz(P)                    P
   #define T_Str(P)                    P
   #define T_BVc(P)                    P
+  #define T_BSt(P)                    P
   #define T_Syn(P)                    P
   #define T_Chr(P)                    P
   #define T_Obj(P)                    P
@@ -2620,18 +2622,18 @@ static int64_t not_heap = -1;
 #define string_hash(p)                (T_Str(p))->object.string.hash
 #define string_block(p)               (T_Str(p))->object.string.block
 
-#define string_or_byte_vector_value(p)  (p)->object.string.svalue
-#define string_or_byte_vector_length(p) (p)->object.string.length
-#define string_or_byte_vector_hash(p)   (p)->object.string.hash
-#define is_string_or_byte_vector(p)   ((type(p) == T_STRING) || (type(p) == T_BYTE_VECTOR))
-
 #define is_byte_vector(p)             (type(p) == T_BYTE_VECTOR)
 #define is_mutable_byte_vector(p)     ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_BYTE_VECTOR)
 #define byte_vector_length(p)         (T_BVc(p))->object.bvect.length
 #define byte_vector_hash(p)           (T_BVc(p))->object.bvect.hash
 #define byte_vector_bytes(p)          (T_BVc(p))->object.bvect.bytes
 #define byte_vector_block(p)          (T_BVc(p))->object.bvect.block
-#define string_or_byte_vector_block(p) (p)->object.bvect.block /* accessed in sweep where type is T_FREE */
+
+#define string_or_byte_vector_value(p)  (T_BSt(p))->object.string.svalue
+#define string_or_byte_vector_length(p) (T_BSt(p))->object.string.length
+#define string_or_byte_vector_hash(p)   (T_BSt(p))->object.string.hash
+#define is_string_or_byte_vector(p)     ((type(p) == T_STRING) || (type(p) == T_BYTE_VECTOR))
+#define string_or_byte_vector_block(p)  (p)->object.bvect.block        /* accessed in sweep where type is T_FREE */
 
 #define character(p)                  (T_Chr(p))->object.chr.c
 #define upper_character(p)            (T_Chr(p))->object.chr.up_c
@@ -2971,7 +2973,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define closure_set_let(p, L)         (T_Clo(p))->object.func.env = T_Lid(L)
 #define closure_arity(p)              (T_Clo(p))->object.func.arity
 #define closure_setter(p)             (T_Clo(p))->object.func.sb.setter
-#define closure_set_setter(p, Val)    (T_Clo(p))->object.func.sb.setter = Val
+#define closure_set_setter(p, Val)    (T_Clo(p))->object.func.sb.setter = T_Pos(Val)
 
 #define CLOSURE_ARITY_NOT_SET         0x40000000
 #define MAX_ARITY                     0x20000000
@@ -3310,6 +3312,22 @@ static bool local_strncmp(const char *s1, const char *s2, size_t n)
 }
 
 #define strings_are_equal_with_length(Str1, Str2, Len) (local_strncmp(Str1, Str2, Len))
+
+static size_t catstrs(char *dst, size_t len, ...) /* NULL-terminated arg list */
+{
+  const char *s, *dend;
+  char *d;
+  va_list ap;
+  d = dst;
+  dend = (const char *)(dst + len);
+  while ((*d) && (d < dend)) d++;
+  va_start(ap, len);
+  for (s = va_arg(ap, const char *); s != NULL; s = va_arg(ap, const char *))
+    while ((*s) && (d < dend)) {*d++ = *s++;}
+  *d = '\0';
+  va_end (ap);
+  return(d - dst);
+}
 
 
 /* ---------------- forward decls ---------------- */
@@ -4301,30 +4319,32 @@ static s7_int s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int32_t line)
 #define s7_gc_protect_1(Sc, X) s7_gc_protect(Sc, X)
 #endif
 
+static void resize_gc_protect(s7_scheme *sc)
+{
+  s7_int i, size, new_size;
+  block_t *ob, *nb;
+  size = sc->protected_objects_size;
+  new_size = 2 * size;
+  ob = vector_block(sc->protected_objects);
+  nb = reallocate(ob, new_size * sizeof(s7_pointer));
+  block_info(nb) = NULL;
+  vector_block(sc->protected_objects) = nb;
+  vector_elements(sc->protected_objects) = (s7_pointer *)block_data(nb);
+  vector_length(sc->protected_objects) = new_size;
+  sc->protected_objects_size = new_size;
+  sc->gpofl = (s7_int *)realloc(sc->gpofl, new_size * sizeof(s7_int));
+  for (i = size; i < new_size; i++)
+    {
+      vector_element(sc->protected_objects, i) = sc->gc_nil;
+      sc->gpofl[++sc->gpofl_loc] = i;
+    }
+}
+
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
 {
   s7_int loc;
-
   if (sc->gpofl_loc < 0)
-    {
-      s7_int i, size, new_size;
-      block_t *ob, *nb;
-      size = sc->protected_objects_size;
-      new_size = 2 * size;
-      ob = vector_block(sc->protected_objects);
-      nb = reallocate(ob, new_size * sizeof(s7_pointer));
-      block_info(nb) = NULL;
-      vector_block(sc->protected_objects) = nb;
-      vector_elements(sc->protected_objects) = (s7_pointer *)block_data(nb);
-      vector_length(sc->protected_objects) = new_size;
-      sc->protected_objects_size = new_size;
-      sc->gpofl = (s7_int *)realloc(sc->gpofl, new_size * sizeof(s7_int));
-      for (i = size; i < new_size; i++)
-	{
-	  vector_element(sc->protected_objects, i) = sc->gc_nil;
-	  sc->gpofl[++sc->gpofl_loc] = i;
-	}
-    }
+    resize_gc_protect(sc);
   loc = sc->gpofl[sc->gpofl_loc--];
   vector_element(sc->protected_objects, loc) = x;
   return(loc);
@@ -10907,9 +10927,13 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
       return(num_to_str);
 
     case T_REAL:
-      len = snprintf(num_to_str, num_to_str_size - 4, 
-		     (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
-		     (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
+      if (width == 0)
+	len = snprintf(num_to_str, num_to_str_size - 4, 
+		       (float_choice == 'g') ? "%.*g" : ((float_choice == 'f') ? "%.*f" : "%.*e"),
+		       (int32_t)precision, real(obj)); /* -4 for floatify */
+      else len = snprintf(num_to_str, num_to_str_size - 4, 
+			  (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
+			  (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
       (*nlen) = len;
       floatify(num_to_str, nlen);
       return(num_to_str);
@@ -11103,7 +11127,8 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
 	  d[i++] = '0';
 	d[i] = '\0';
 	p = (char *)malloc(256 * sizeof(char));
-	len = snprintf(p, 256, "%s%s.%s", (sign) ? "-" : "", n, d);
+	p[0] = '\0';
+	len = catstrs(p, 256, (sign) ? "-" : "", n, ".", d, NULL);
 	str_len = 256;
       }
       break;
@@ -11116,7 +11141,8 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
 	n = number_to_string_with_radix(sc, &real_wrapper3, radix, 0, precision, float_choice, &len);
  	real_wrapper4.object.number.real_value = imag_part(obj);
 	d = number_to_string_with_radix(sc, &real_wrapper4, radix, 0, precision, float_choice, &len);
-	len = snprintf(p, 512, "%s%s%si", n, (imag_part(obj) < 0.0) ? "" : "+", d);
+	p[0] = '\0';
+	len = catstrs(p, 512, n, (imag_part(obj) < 0.0) ? "" : "+", d, "i", NULL);
 	str_len = 512;
 	free(n);
 	free(d);
@@ -22566,9 +22592,10 @@ static s7_pointer make_empty_byte_vector(s7_scheme *sc, s7_int len)
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_BYTE_VECTOR | T_SAFE_PROCEDURE);
-  b = mallocate(len); 
+  b = mallocate(len + 1);     /* 1 for null termination in case byte-vector->string called */
   byte_vector_block(x) = b;
   byte_vector_bytes(x) = (uint8_t *)block_data(b);
+  byte_vector_bytes(x)[len] = 0;
   byte_vector_hash(x) = 0;
   byte_vector_length(x) = len;
   add_string(sc, x);
@@ -24427,7 +24454,10 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_read_semicolon(x) = string_read_semicolon;
 #if S7_DEBUGGING
   if (input_string[len] != '\0')
-    fprintf(stderr, "read_white_space string is not terminated: %s", input_string);
+    {
+      fprintf(stderr, "read_white_space string is not terminated: %s", input_string);
+      abort();
+    }
 #endif
   port_read_white_space(x) = terminated_string_read_white_space;
   port_read_name(x) = string_read_name_no_free;
@@ -27313,11 +27343,7 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
     multivector_indices_to_string(sc, (index - ind) / size, vect, str, cur_dim - 1);
 
   snprintf(buf, 64, " %" print_s7_int, ind);
-#ifdef __OpenBSD__
-  strlcat(str, buf, 128); /* 128=length of str */
-#else
-  strcat(str, buf);
-#endif
+  catstrs(str, 128, buf, NULL); /* 128=length of str */
   return(str);
 }
 
@@ -44924,13 +44950,7 @@ static block_t *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr,
 	  for (i = len; i < code_max - 1; i++)
 	    str[i] = ' ';
 	  str[i] = '\0';
-#ifdef __OpenBSD__
-	  strlcat(str, notes, newlen);
-	  strlcat(str, "\n", newlen);
-#else
-	  strcat(str, notes);
-	  strcat(str, "\n");
-#endif
+	  catstrs(str, newlen, notes, "\n", NULL);
 	}
     }
   liberate(newp);
@@ -83065,7 +83085,6 @@ static void init_s7_let(s7_scheme *sc)
   sc->gc_freed_symbol =                      s7_let_field(sc, "gc-freed");
   sc->gc_protected_objects_symbol =          s7_let_field(sc, "gc-protected-objects");
   set_immutable(sc->gc_protected_objects_symbol);
-
   sc->file_names_symbol =                    s7_let_field(sc, "file-names");
   sc->rootlet_size_symbol =                  s7_let_field(sc, "rootlet-size");
   sc->c_types_symbol =                       s7_let_field(sc, "c-types");
@@ -83103,127 +83122,79 @@ static void init_s7_let(s7_scheme *sc)
   #include <sys/resource.h>
 #endif
 
-static block_t *kmg(s7_int bytes)
+static s7_pointer memory_usage(s7_scheme *sc)
 {
-  block_t *b;
-  b = mallocate(128);
-  if (bytes < 1000)
-    snprintf((char *)block_data(b), 128, "%" print_s7_int, bytes);
-  else
-    {
-      if (bytes < 1000000)
-	snprintf((char *)block_data(b), 128, "%.1fk", bytes / 1000.0);
-      else
-	{
-	  if (bytes < 1000000000)
-	    snprintf((char *)block_data(b), 128, "%.1fM", bytes / 1000000.0);
-	  else snprintf((char *)block_data(b), 128, "%.1fG", bytes / 1000000000.0);
-	}
-    }
-  return(b);
-}
-
-static s7_pointer describe_memory_usage(s7_scheme *sc)
-{
-  /* heap, permanent, stack?, doc strings, sigs, c_func structs (and ports etc), mx_alloc, output bufs,
-   *   sinc_tables, c-objects, rc_data, strbuf[reallocs], autoload tables, hash_entrys, symbol_table,
-   *   small_ints?=permanent
-   */
-  s7_int i, syms = 0, len, n;
-  s7_pointer x;
+  s7_int i, k, len, gc_loc;
+  s7_pointer x, mu_let;
   gc_list *gp;
-  block_t *b;
-  char buf[1024];
-
+  s7_int ts[NUM_TYPES];
+  
 #ifdef __linux__
   struct rusage info;
   struct timeval ut;
 #endif
-
-  if (!is_output_port(sc->output_port)) return(sc->F); /* might be #f -- if #f should we set up a string port and return the string at the end? */
-
+  
+  mu_let = s7_inlet(sc, sc->nil);
+  gc_loc = s7_gc_protect(sc, mu_let);
+  
 #ifdef __linux__
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
-  b = kmg(info.ru_maxrss * 1024);
-  n = snprintf(buf, 1024, "process size: %s, time: %ld.%d\n", (char *)block_data(b), ut.tv_sec, (int)floor(ut.tv_usec / 1000.0));
-  liberate(b);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "process-time"), make_real(sc, ut.tv_sec + (floor(ut.tv_usec / 1000.0) / 1000.0)));
+  len = info.ru_maxrss * 1024;
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "process-size"), make_integer(sc, len));
 #endif
-
-  n = snprintf(buf, 1024, "rootlet size: %" print_s7_int "\n", sc->rootlet_entries);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
-  b = kmg(sc->heap_size * (sizeof(s7_pointer) + sizeof(s7_cell)));
-  n = snprintf(buf, 1024, "heap: %" print_s7_int " (%s bytes)", sc->heap_size, (char *)block_data(b));
-  liberate(b);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
-  {
-    int64_t k;
-    int32_t ts[NUM_TYPES];
-    for (i = 0; i < NUM_TYPES; i++) ts[i] = 0;
-    for (k = 0; k < sc->heap_size; k++)
-      ts[unchecked_type(sc->heap[k])]++;
-    for (i = 0; i < NUM_TYPES; i++)
-      {
-	if ((i % 10) == 0) 
-	  {
-	    n = snprintf(buf, 1024, "\n ");
-	    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-	  }
-	
-	if (ts[i] > 50)
-	  n = snprintf(buf, 1024, " (%s): %d", type_name_from_type(i, NO_ARTICLE), ts[i]);
-	else n = snprintf(buf, 1024, " %d", ts[i]);
-	port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-      }
-    n = snprintf(buf, 1024, "\n");
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-  }
-
-  b = kmg(permanent_cells * sizeof(s7_cell));
-  n = snprintf(buf, 1024, "permanent cells: %d (%s bytes)\n", permanent_cells, (char *)block_data(b));
-  liberate(b);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
-  n = snprintf(buf, 1024, "gc protected objects size: %" print_s7_int ", unused: %" print_s7_int "\n", sc->protected_objects_size, sc->gpofl_loc);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-      
-  n = snprintf(buf, 1024, "gc protected setters: %" print_s7_int "\n", sc->protected_setters_loc);
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-      
-  {
-    int32_t gens = 0, keys = 0;
-    for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
-      for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
-	{
-	  syms++;
-	  if (is_gensym(car(x))) gens++;
-	  if (is_keyword(car(x))) keys++;
-	}
-    b = kmg(SYMBOL_TABLE_SIZE * sizeof(s7_pointer) + syms * 3 * sizeof(s7_cell));
-    n = snprintf(buf, 1024, "symbol table: %d (%" print_s7_int " symbols, %s bytes, gensyms: %d, keywords: %d)\n", 
-		 SYMBOL_TABLE_SIZE, syms, (char *)block_data(b), gens, keys);
-    liberate(b);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-  }
-  n = snprintf(buf, 1024, "stack: %u (%" print_s7_int " bytes, current top: %ld)\n", sc->stack_size, (s7_int)(sc->stack_size * sizeof(s7_pointer)), (long int)s7_stack_top(sc));
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
   
-  /* -------------------------------- strings -------------------------------- */
-  len = 0;
-  gp = sc->strings;
-  for (i = 0; i < (int32_t)(gp->loc); i++)
-    len += string_or_byte_vector_length(gp->list[i]);
-  n = snprintf(buf, 1024, "strings/byte-vectors: %" print_s7_int ", %" print_s7_int " bytes\n", gp->loc, len); /* also doc strings, permanent strings, etc */
-  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-
-  /* -------------------------------- vectors -------------------------------- */
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "rootlet-size"), make_integer(sc, sc->rootlet_entries));
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "heap-size"), make_integer(sc, sc->heap_size));
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "cell-size"), make_integer(sc, sizeof(s7_cell)));
+  
+  for (i = 0; i < NUM_TYPES; i++) ts[i] = 0;
+  for (k = 0; k < sc->heap_size; k++)
+    ts[unchecked_type(sc->heap[k])]++;
+  sc->w = sc->nil;
+  for (i = 0; i < NUM_TYPES; i++)
+    {
+      if (ts[i] > 50)
+	sc->w = cons(sc, cons(sc, s7_make_symbol(sc, (i == 0) ? "free" : type_name_from_type(i, NO_ARTICLE)), make_integer(sc, ts[i])), sc->w);
+    }
+  if (is_pair(sc->w))
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "types"), sc->w);
+  sc->w = sc->nil;
+  
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "permanent-cells"), make_integer(sc, permanent_cells));
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "gc-protected-objects"), 
+	      cons(sc, make_integer(sc, sc->protected_objects_size - sc->gpofl_loc), make_integer(sc, sc->protected_objects_size)));
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "setters"), make_integer(sc, sc->protected_setters_loc));
+  
   {
-    int64_t vlen = 0, flen = 0, ilen = 0;
+    s7_int syms = 0, gens = 0, keys = 0, mx_list = 0;
+    for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
+      {
+	for (k = 0, x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x), k++)
+	  {
+	    syms++;
+	    if (is_gensym(car(x))) gens++;
+	    if (is_keyword(car(x))) keys++;
+	  }
+	if (k > mx_list) mx_list = k;
+      }
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "symbol-table"), 
+		s7_list(sc, 5, 
+			make_integer(sc, SYMBOL_TABLE_SIZE), make_integer(sc, mx_list), 
+			make_integer(sc, syms), make_integer(sc, gens), make_integer(sc, keys)));
+  }
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "stack"), cons(sc, make_integer(sc, s7_stack_top(sc)), make_integer(sc, sc->stack_size)));
+  
+  gp = sc->strings;  
+  for (len = 0, i = 0; i < (int32_t)(gp->loc); i++)
+    len += string_or_byte_vector_length(gp->list[i]);
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "strings"), cons(sc, make_integer(sc, gp->loc), make_integer(sc, len)));
+  
+  {
+    s7_int vlen = 0, flen = 0, ilen = 0;
     gp = sc->vectors;
-    for (i = 0; i < (int32_t)(gp->loc); i++)
+    for (i = 0; i < gp->loc; i++)
       {
 	s7_pointer v;
 	v = gp->list[i];
@@ -83236,55 +83207,68 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
 	    else vlen += vector_length(v);
 	  }
       }
-    /* TODO: same for multivectors */
-    n = snprintf(buf, 1024, "vectors: %" print_s7_int " (size: %" print_s7_int ", float: %" print_s7_int ", int: %" print_s7_int ")\n", 
-		 sc->vectors->loc + sc->multivectors->loc, vlen, flen, ilen);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-  }
-
-  /* -------------------------------- ports -------------------------------- */
-  {
-    s7_int ulen = 0, flen = 0;
-    gp = sc->input_ports;
-    for (i = 0; i < (int32_t)(gp->loc); i++)
+    gp = sc->multivectors;
+    for (i = 0; i < gp->loc; i++)
       {
 	s7_pointer v;
 	v = gp->list[i];
-	if (port_data(v))
+	if (is_float_vector(v))
+	  flen += vector_length(v);
+	else
 	  {
-	    flen += port_data_size(v);
-	    if (port_needs_free(v))
-	      ulen += port_data_size(v);
+	    if (is_int_vector(v))
+	      ilen += vector_length(v);
+	    else vlen += vector_length(v);
 	  }
       }
-    n = snprintf(buf, 1024, "input ports: %" print_s7_int " (bytes (free): %" print_s7_int ", (in use): %" print_s7_int ")\n", sc->input_ports->loc, ulen, flen - ulen);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "vectors"), 
+		s7_list(sc, 4, 
+			make_integer(sc, sc->vectors->loc + sc->multivectors->loc), 
+			make_integer(sc, vlen),
+			make_integer(sc, flen),
+			make_integer(sc, ilen)));
   }
-
-  /* -------------------------------- continuations -------------------------------- */
   {
-    uint32_t cc_stacks;
+    s7_int flen = 0;
+    gp = sc->input_ports;
+    for (i = 0; i < gp->loc; i++)
+      {
+	s7_pointer v;
+	v = gp->list[i];
+	if (port_data(v)) flen += port_data_size(v);
+      }
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "input-ports"), cons(sc, make_integer(sc, sc->input_ports->loc), make_integer(sc, flen)));
+    gp = sc->output_ports;
+    for (i = 0; i < gp->loc; i++)
+      {
+	s7_pointer v;
+	v = gp->list[i];
+	if (port_data(v)) flen += port_data_size(v);
+      }
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "output-ports"), cons(sc, make_integer(sc, sc->output_ports->loc), make_integer(sc, flen)));
+  }
+  {
+    s7_int cc_stacks = 0;
     gp = sc->continuations;
-    for (i = 0, cc_stacks = 0; i < (int32_t)gp->loc; i++)
+    for (i = 0; i < gp->loc; i++)
       if (is_continuation(gp->list[i]))
 	cc_stacks += continuation_stack_size(gp->list[i]);
-
-    n = snprintf(buf, 1024, "output ports: %" print_s7_int ",\ncontinuations: %" print_s7_int " (total stack: %u), c_objects: %" print_s7_int ", gensyms: %" print_s7_int ", setters: %" print_s7_int ", unknowns: %" print_s7_int "\n",
-		 sc->output_ports->loc,
-		 gp->loc, cc_stacks,
-		 sc->c_objects->loc, sc->gensyms->loc, sc->setters_loc, sc->unknowns->loc);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "continuations"), cons(sc, make_integer(sc, sc->continuations->loc), make_integer(sc, cc_stacks)));
   }
-
-  /* -------------------------------- mallocate blocks -------------------------------- */
+  make_slot_1(sc, mu_let, s7_make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
+  
   {
-    int32_t i, free_blocks = 0, free_total = 0;
-    int32_t frees[NUM_BLOCK_LISTS];
-    block_t *p, *freeb;
+    s7_int free_blocks = 0, free_total = 0;
+    s7_int *frees;
+    s7_pointer free_counts;
+    block_t *p;
+    
+    free_counts = s7_make_int_vector(sc, NUM_BLOCK_LISTS, 1, NULL);
+    frees = int_vector_elements(free_counts);
+    
     for (i = 0; i < NUM_BLOCK_LISTS; i++) frees[i] = 0;
     for (i = 3; i < TOP_BLOCK_LIST; i++)
       {
-	int32_t k;
 	for (k = 0, p = block_lists[i]; p; p = block_next(p), k++);
 	frees[i] = k;
 	free_blocks += k;
@@ -83298,59 +83282,40 @@ static s7_pointer describe_memory_usage(s7_scheme *sc)
     frees[BLOCK_LIST] = i;
     free_blocks += i;
     free_total += (free_blocks * sizeof(block_t));
-    freeb = kmg(free_total);
-    n = snprintf(buf, 1024, "free blocks: %d, %s bytes\n", free_blocks, (char *)block_data(freeb));
-    liberate(freeb);
-    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-#if TRACK_BLOCKS
-    {
-      int32_t allocs[NUM_BLOCK_LISTS];
-      block_t *allb;
-      s7_int total = 0, t17 = 0;
-      for (i = 0; i < NUM_BLOCK_LISTS; i++) allocs[i] = 0;
-      for (i = 0; i < all_blocks_top; i++)
-	{
-	  int32_t index;
-	  index = block_index(all_blocks[i]);
-	  allocs[index]++;
-	  if (index == TOP_BLOCK_LIST)
-	    t17 += block_size(all_blocks[i]);
-	  else 
-	    {
-	      if (index != BLOCK_LIST)
-		total += (1 << index);
-	    }
-	}
-      allb = kmg(total + t17 + all_blocks_top * sizeof(block_t));
-      n = snprintf(buf, 1024, "allocated blocks: %" print_s7_int ", %s bytes\n", all_blocks_top, (char *)block_data(allb));
-      liberate(allb);
-      port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-      for (i = 0; i < TOP_BLOCK_LIST; i++)
-	if ((allocs[i] > 0) || (frees[i] > 0))
-	  {
-	    n = snprintf(buf, 1024, "   [%d]: %d / %d\n", i, allocs[i] - frees[i], allocs[i]);
-	    port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-	  }
-      if (allocs[TOP_BLOCK_LIST] > 0)
-	{
-	  allb = kmg(t17);
-	  n = snprintf(buf, 1024, "   [%d]: %d / %d (%s bytes)\n", 
-		       TOP_BLOCK_LIST, allocs[TOP_BLOCK_LIST] - frees[TOP_BLOCK_LIST], allocs[TOP_BLOCK_LIST], (char *)block_data(allb));
-	  liberate(allb);
-	  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-	}
-    }
-#else
-    for (i = 0; i < NUM_BLOCK_LISTS; i++)
-      if (frees[i] > 0)
-	{
-	  n = snprintf(buf, 1024, "  [%d]: %d\n", i, frees[i]);
-	  port_write_string(sc->output_port)(sc, buf, n, sc->output_port);
-	}
-#endif
-  }
     
-  return(sc->F);
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "free-blocks"), make_integer(sc, free_blocks));
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "free-counts"), free_counts);
+  }
+#if (TRACK_BLOCKS)
+  {
+    s7_pointer alloc_counts;
+    s7_int *allocs;
+    s7_int total = 0, t17 = 0;
+    
+    alloc_counts = s7_make_int_vector(sc, NUM_BLOCK_LISTS, 1, NULL);
+    allocs = int_vector_elements(alloc_counts);
+    for (i = 0; i < NUM_BLOCK_LISTS; i++) allocs[i] = 0;
+    for (i = 0; i < all_blocks_top; i++)
+      {
+	int32_t index;
+	index = block_index(all_blocks[i]);
+	allocs[index]++;
+	if (index == TOP_BLOCK_LIST)
+	  t17 += block_size(all_blocks[i]);
+	else 
+	  {
+	    if (index != BLOCK_LIST)
+	      total += (1 << index);
+	  }
+      }
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "alloc-blocks"), cons(sc, make_integer(sc, all_blocks_top), make_integer(sc, total + t17)));
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "alloc-counts"), alloc_counts);
+  }
+#endif
+  /* c-funcs? autoload info? */
+  
+  s7_gc_unprotect_at(sc, gc_loc);
+  return(mu_let);
 }
 
 static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
@@ -83360,6 +83325,9 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   sym = cadr(args);
   if (!is_symbol(sym))
     return(simple_wrong_type_argument(sc, sc->let_ref_symbol, sym, T_SYMBOL));
+  if (!is_s7_let_field(sym))
+    return(s7_error(sc, sc->error_symbol, 
+		    set_elist_2(sc, wrap_string(sc, "can't get (*s7* '~S); no such field in *s7*", 43), sym)));
 
   if (sym == sc->print_length_symbol)                                    /* print-length */
     return(s7_make_integer(sc, sc->print_length));
@@ -83466,7 +83434,7 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->float_format_precision_symbol)                          /* float-format-precision */
     return(s7_make_integer(sc, sc->float_format_precision));
   if (sym == sc->memory_usage_symbol)                                    /* memory-usage */
-    return(describe_memory_usage(sc));
+    return(memory_usage(sc));
 
   /* sc->unlet is a scheme vector of slots -- not very useful at the scheme level */
   return(sc->undefined);
@@ -83479,6 +83447,9 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
   sym = cadr(args);
   if (!is_symbol(sym))
     return(simple_wrong_type_argument(sc, sc->let_set_symbol, sym, T_SYMBOL));
+  if (!is_s7_let_field(sym))
+    return(s7_error(sc, sc->error_symbol, 
+		    set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S); no such field in *s7*", 43), sym)));
 
   val = caddr(args);
 
@@ -83715,9 +83686,8 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       (sym == sc->rootlet_size_symbol) || (sym == sc->stack_top_symbol) || (sym == sc->stack_size_symbol))
     return(s7_error(sc, sc->error_symbol, 
 		    set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S)", 20), sym)));
-      
-  return(s7_error(sc, sc->error_symbol, 
-		  set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S); no such field in *s7*", 43), sym)));
+
+  return(sc->undefined);      
 }
 
 
@@ -85411,11 +85381,14 @@ s7_scheme *s7_init(void)
   s7_function_set_setter(sc, "vector-ref",       "vector-set!");
   s7_function_set_setter(sc, "float-vector-ref", "float-vector-set!");
   s7_function_set_setter(sc, "int-vector-ref",   "int-vector-set!");
+  s7_function_set_setter(sc, "byte-vector-ref",  "byte-vector-set!");
   s7_function_set_setter(sc, "list-ref",         "list-set!");
   s7_function_set_setter(sc, "let-ref",          "let-set!");
   s7_function_set_setter(sc, "string-ref",       "string-set!");
-  c_function_set_setter(slot_value(global_slot(sc->outlet_symbol)), s7_make_function(sc, "(set! outlet)", g_set_outlet, 2, 0, false, "outlet setter"));
-  c_function_set_setter(slot_value(global_slot(sc->port_line_number_symbol)), s7_make_function(sc, "(set! port-line-number)", g_set_port_line_number, 1, 1, false, "port line setter"));
+  c_function_set_setter(slot_value(global_slot(sc->outlet_symbol)), 
+			s7_make_function(sc, "(set! outlet)", g_set_outlet, 2, 0, false, "outlet setter"));
+  c_function_set_setter(slot_value(global_slot(sc->port_line_number_symbol)), 
+			s7_make_function(sc, "(set! port-line-number)", g_set_port_line_number, 1, 1, false, "port line setter"));
 
   {
     int32_t top;
@@ -85977,7 +85950,7 @@ s7_scheme *s7_init(void)
                           (define make-procedure-with-setter dilambda)        \n\
                           (define procedure-with-setter?     dilambda?)       \n\
                           (define make-random-state          random-state)    \n\
-                          (define make-keyword               string->keyword) \n \
+                          (define make-keyword               string->keyword) \n\
                           (define procedure-setter           setter)          \n\
                           (define procedure-signature        signature)       \n\
                           (define procedure-documentation    documentation))");
@@ -86085,8 +86058,10 @@ int main(int argc, char **argv)
  * safe_closure_x as tc can forgo old_frame and jump back to self if only tc call 
  * if expr involves d_dd_f et al, they can be combined -- how to signal this and provide the translation?
  *   try g_add_2 -> add_d_dd for example: op_safe_c_oo etc
- * for top-like displays from s7, *s7* 'memory-usage needs to fill a let?
- *   or maybe finer-grain accessors or (object->let *s7*) could be much fancier
+ * top-like displays from *s7* 'memory-usage
+ *   object->let *s7*: create a permanent (immutable) let holding slots and values (all outside gc, preset etc)
+ *   each call fills the fields directly, memory-usage as a enclosed let
+ * use catstrs [port_write_strings?, stacktrace snprintf to end]
  *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
@@ -86115,6 +86090,7 @@ int main(int argc, char **argv)
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
+ * why does set-samples inf crash?
  *
  * t725: auto-test
  * t772: lint or|and tests
@@ -86122,28 +86098,29 @@ int main(int argc, char **argv)
  *
  * ----------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5
+ * ----------------------------------------------------------------------------------------------
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
  * tpeak         |      |      |      ||  391 ||  377 |                                379
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1124
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1401
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1691
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2031
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2401
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2019
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2385
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2449
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.4
  * tread         |      |      |      ||      ||      |                   3009  2639  2605
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2640
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2605
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3184
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3208
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3445
  * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4134
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4979
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6464
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6448
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.4
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  18.0
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  40.9
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  81.3
- * tbig          |      |      |      ||      ||      |                       (185.8) 181.5
+ * tbig          |      |      |      ||      ||      |                       (185.8) 180.7
  * ----------------------------------------------------------------------------------------------
  */

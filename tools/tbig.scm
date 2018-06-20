@@ -2200,4 +2200,4 @@
 
 (s7-version)
 
-(*s7* 'memory-usage)
+;(*s7* 'memory-usage)
