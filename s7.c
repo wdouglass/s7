@@ -3329,6 +3329,55 @@ static size_t catstrs(char *dst, size_t len, ...) /* NULL-terminated arg list */
   return(d - dst);
 }
 
+static size_t catstrs_direct(char *dst, const char *s1, ...) /* NULL-terminated arg list, dst is destination only (assumed empty), all args known to fit in dst */
+{
+  const char *s;
+  char *d;
+  va_list ap;
+  d = dst;
+  va_start(ap, s1);
+  for (s = s1; s != NULL; s = va_arg(ap, const char *))
+    while (*s) {*d++ = *s++;}
+  *d = '\0';
+  va_end (ap);
+  return(d - dst);
+}
+
+static char *pos_int_to_str(s7_int num, s7_int *len, char endc)
+{
+  #define INT_TO_STR_SIZE 32
+  static char itos[INT_TO_STR_SIZE];
+  char *p, *op;
+
+  p = (char *)(itos + INT_TO_STR_SIZE - 1);
+  op = p;
+  *p-- = '\0';
+  if (endc != '\0') *p-- = endc;
+  do {*p-- = "0123456789"[num % 10]; num /= 10;} while (num);
+  (*len) = op - p;           /* this includes the trailing #\null */
+  return((char *)(p + 1));
+}
+
+static char *pos_int_to_str_direct(s7_int num)
+{
+  static char itosd[INT_TO_STR_SIZE];
+  char *p;
+  p = (char *)(itosd + INT_TO_STR_SIZE - 1);
+  *p-- = '\0';
+  do {*p-- = "0123456789"[num % 10]; num /= 10;} while (num);
+  return((char *)(p + 1));
+}
+
+static char *pos_int_to_str_direct_1(s7_int num)
+{
+  static char itosd1[INT_TO_STR_SIZE];
+  char *p;
+  p = (char *)(itosd1 + INT_TO_STR_SIZE - 1);
+  *p-- = '\0';
+  do {*p-- = "0123456789"[num % 10]; num /= 10;} while (num);
+  return((char *)(p + 1));
+}
+
 
 /* ---------------- forward decls ---------------- */
 
@@ -5140,7 +5189,10 @@ static void mark_rootlet(s7_scheme *sc)
   /* slot_setter is handled below with an explicit list -- more code than its worth probably */
   /* we're not marking slot_symbol above which makes me worry that a top-level gensym won't protected
    *   (apply define (gensym) '(32)), then try to get the GC to clobber {gensym}-0,
-   *   but I can't seem to get it to break, so they must be protected somehow.
+   *   but I can't get it to break, so they must be protected somehow; apparently they are
+   *   removed from the heap!  At least:
+   *   (define-macro (defit) (let ((n (gensym))) `(define (,n) (format #t "fun")))) (defit)
+   *   removes the function from the heap (protecting the gensym).
    */
 }
 
@@ -5690,6 +5742,7 @@ static void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	{
 	  s7_int i;
 	  gc_list *gp;
+	  /* fprintf(stderr, "remove %s from heap\n", string_value(symbol_name_cell(x))); */
 	  sc->heap[loc] = alloc_pointer();
 	  free_cell(sc, sc->heap[loc]);
 	  heap_location(sc->heap[loc]) = loc;
@@ -6251,6 +6304,7 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
   uint32_t location;
 
   name = symbol_name_cell(sym);
+  /* fprintf(stderr, "removing %s\n", string_value(name)); */
   location = string_hash(name) % SYMBOL_TABLE_SIZE;
   x = vector_element(sc->symbol_table, location);
 
@@ -6285,7 +6339,8 @@ s7_pointer s7_gensym(s7_scheme *sc, const char *prefix)
   b = mallocate(len);
   name = (char *)block_data(b);
   /* there's no point in heroic efforts here to avoid name collisions -- the user can screw up no matter what we do */
-  len = snprintf(name, len, "{%s}-%u", prefix, sc->gensym_counter++);
+  name[0] = '\0';
+  len = catstrs(name, len, "{", (prefix) ? prefix : "", "}-", pos_int_to_str_direct(sc->gensym_counter++), NULL);
   hash = raw_string_hash((const uint8_t *)name, len);
   location = hash % SYMBOL_TABLE_SIZE;
   x = new_symbol(sc, name, len, hash, location);  /* not T_GENSYM -- might be called from outside */
@@ -6304,21 +6359,6 @@ static s7_pointer g_is_gensym(s7_scheme *sc, s7_pointer args)
   check_boolean_method(sc, s7_is_gensym, sc->is_gensym_symbol, args);
 }
 
-
-static char *pos_int_to_str(s7_int num, s7_int *len, char endc)
-{
-  #define INT_TO_STR_SIZE 32
-  static char itos[INT_TO_STR_SIZE];
-  char *p, *op;
-
-  p = (char *)(itos + INT_TO_STR_SIZE - 1);
-  op = p;
-  *p-- = '\0';
-  if (endc != '\0') *p-- = endc;
-  do {*p-- = "0123456789"[num % 10]; num /= 10;} while (num);
-  (*len) = op - p;           /* this includes the trailing #\null */
-  return((char *)(p + 1));
-}
 
 static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
 {
@@ -10423,6 +10463,27 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
   return(x);
 }
 
+static inline s7_pointer make_simple_ratio(s7_scheme *sc, s7_int num, s7_int den)
+{
+  s7_pointer x;
+  if (den == 1)
+    return(make_integer(sc, num));
+  if (den == -1)
+    return(make_integer(sc, -num));
+  new_cell(sc, x, T_RATIO);
+  if (den < 0)
+    {
+      numerator(x) = -num;
+      denominator(x) = -den;
+    }
+  else
+    {
+      numerator(x) = num;
+      denominator(x) = den;
+    }
+  return(x);
+}
+
 
 #define WITH_OVERFLOW_ERROR true
 #define WITHOUT_OVERFLOW_ERROR false
@@ -10618,7 +10679,7 @@ static s7_pointer s7_negate(s7_scheme *sc, s7_pointer p)     /* can't use "negat
   switch (type(p))
     {
     case T_INTEGER: return(make_integer(sc, -integer(p)));
-    case T_RATIO:   return(s7_make_ratio(sc, -numerator(p), denominator(p)));
+    case T_RATIO:   return(make_simple_ratio(sc, -numerator(p), denominator(p)));
     case T_REAL:    return(make_real(sc, -real(p)));
     default:        return(s7_make_complex(sc, -real_part(p), -imag_part(p)));
     }
@@ -10631,10 +10692,10 @@ static s7_pointer s7_invert(s7_scheme *sc, s7_pointer p)      /* s7_ to be consi
   switch (type(p))
     {
     case T_INTEGER:
-      return(s7_make_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
+      return(make_simple_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
 
     case T_RATIO:
-      return(s7_make_ratio(sc, denominator(p), numerator(p)));
+      return(make_simple_ratio(sc, denominator(p), numerator(p)));
 
     case T_REAL:
       return(make_real(sc, 1.0 / real(p)));
@@ -10820,14 +10881,12 @@ static size_t integer_to_string_any_base(char *p, s7_int n, s7_int radix)  /* ca
   return(len + 1);
 }
 
-static char *integer_to_string_base_10(s7_pointer obj, s7_int *nlen) /* do not free the returned string */
+static char *integer_to_string(s7_int num, s7_int *nlen) /* do not free the returned string */
 {
-  int64_t num;
   char *p, *op;
   bool sign;
   static char int_to_str[INT_TO_STR_SIZE];
 
-  num = (int64_t)integer(obj);
   if (num == s7_int_min)
     {
       (*nlen) = 20;
@@ -10851,6 +10910,27 @@ static char *integer_to_string_base_10(s7_pointer obj, s7_int *nlen) /* do not f
   return(++p);
 }
 
+static char *integer_to_string_no_length(s7_int num) /* do not free the returned string */
+{
+  char *p;
+  bool sign;
+  static char its[INT_TO_STR_SIZE];
+
+  if (num == s7_int_min)
+    return((char *)"-9223372036854775808");
+  p = (char *)(its + INT_TO_STR_SIZE - 1);
+  *p-- = '\0';
+  sign = (num < 0);
+  if (sign) num = -num;
+  do {*p-- = "0123456789"[num % 10]; num /= 10;} while (num);
+  if (sign)
+    {
+      *p = '-';
+      return(p);
+    }
+  return(++p);
+}
+
 #define BASE_10 10
 
 static char *floatify(char *str, s7_int *nlen)
@@ -10869,10 +10949,26 @@ static char *floatify(char *str, s7_int *nlen)
   return(str);
 }
 
+static s7_int num_to_str_size = -1;
+static char *num_to_str = NULL;
+
+static void insert_spaces(char *src, s7_int width, s7_int len)
+{
+  s7_int spaces;
+  if (width >= num_to_str_size)
+    {
+      num_to_str_size = width + 1;
+      num_to_str = (char *)realloc(num_to_str, num_to_str_size * sizeof(char));
+    }
+  spaces = width - len;
+  num_to_str[width] = '\0';
+  memmove((void *)(num_to_str + spaces), (void *)src, len);
+  memset((void *)num_to_str, (int)' ', spaces);
+}
+
 static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int precision, char float_choice, s7_int *nlen, use_write_t choice) /* don't free result */
-{ /* called by number_to_string_with_radix g_number_to_string, number_to_string_p_p number_to_port format_number */
-  static s7_int num_to_str_size = -1;
-  static char *num_to_str = NULL;
+{ 
+  /* called by number_to_string_with_radix g_number_to_string, number_to_string_p_p number_to_port format_number */
   /* the rest of s7 assumes nlen is set to the correct length 
    *   a tricky case: (format #f "~f" 1e308) -- tries to print 308 digits! so 256 as default len is too small.
    *   but then even worse: (format #f "~F" 1e308+1e308i)!
@@ -10902,25 +10998,26 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 	      (*nlen) = print_name_length(obj);
 	      return((char *)print_name(obj));
 	    }
-	  return(integer_to_string_base_10(obj, nlen));
+	  return(integer_to_string(integer(obj), nlen));
 	}
-      (*nlen) = snprintf(num_to_str, num_to_str_size, "%*" print_s7_int, (int32_t)width, (int64_t)integer(obj)); /* gcc: "field width specifier expects argument of type int" */
-      return(num_to_str);
+      {
+	char *p;
+	p = integer_to_string(integer(obj), &len);
+	if (width > len)
+	  {
+	    insert_spaces(p, width, len);
+	    (*nlen) = width;
+	    return(num_to_str);
+	  }
+	(*nlen) = len;
+	return(p);
+      }
 
     case T_RATIO:
-      len = snprintf(num_to_str, num_to_str_size, "%" print_s7_int "/%" print_s7_int, (int64_t)numerator(obj), (int64_t)denominator(obj));
+      len = catstrs_direct(num_to_str, integer_to_string_no_length(numerator(obj)), "/", pos_int_to_str_direct(denominator(obj)), NULL);
       if (width > len)
 	{
-	  s7_int spaces;
-	  if (width >= num_to_str_size)
-	    {
-	      num_to_str_size = width + 1;
-	      num_to_str = (char *)realloc(num_to_str, num_to_str_size * sizeof(char));
-	    }
-	  spaces = width - len;
-	  num_to_str[width] = '\0';
-	  memmove((void *)(num_to_str + spaces), (void *)num_to_str, len);
-	  memset((void *)num_to_str, (int)' ', spaces);
+	  insert_spaces(num_to_str, width, len);
 	  (*nlen) = width;
 	}
       else (*nlen) = len;
@@ -10977,7 +11074,8 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 		    ip = ibuf;
 		  }
 	      }
-	    len = snprintf(num_to_str, num_to_str_size, "(complex %s %s)", rp, ip);
+	    num_to_str[0] = '\0';
+	    len = catstrs(num_to_str, num_to_str_size, "(complex ", rp, " ", ip, ")", NULL);
 	  }
 	else
 	  {
@@ -10992,16 +11090,7 @@ static char *number_to_string_base_10(s7_pointer obj, s7_int width, s7_int preci
 
 	if (width > len)  /* (format #f "~20g" 1+i) */
 	  {
-	    s7_int spaces;
-	    if (width >= num_to_str_size)
-	      {
-		num_to_str_size = width + 1;
-		num_to_str = (char *)realloc(num_to_str, num_to_str_size * sizeof(char));
-	      }
-	    spaces = width - len;
-	    num_to_str[width] = '\0';
-	    memmove((void *)(num_to_str + spaces), (void *)num_to_str, len);
-	    memset((void *)num_to_str, (int)' ', spaces);
+	    insert_spaces(num_to_str, width, len);
 	    (*nlen) = width;
 	  }
 	else (*nlen) = len;
@@ -11100,7 +11189,8 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
  	    real_wrapper3.object.number.real_value = x / pow((double)radix, (double)ep); /* divide it down to one digit, then the fractional part */
 	    p1 = number_to_string_with_radix(sc, &real_wrapper3, radix, width, precision, float_choice, &len);
 	    p = (char *)malloc((len + 8) * sizeof(char));
-	    (*nlen) = snprintf(p, len + 8, "%s%se%d", (sign) ? "-" : "", p1, ep);
+	    p[0] = '\0';
+	    (*nlen) = catstrs(p, len + 8, (sign) ? "-" : "", p1, "e", integer_to_string_no_length(ep), NULL);
 	    free(p1);
 	    return(p);
 	  }
@@ -11174,6 +11264,8 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix)
   return(number_to_string_with_radix(sc, obj, radix, 0, 20, 'g', &nlen));  /* (log top 10) so we get all the digits in base 10 (??) */
 }
 
+static s7_pointer block_to_string(s7_scheme *sc, block_t *block, s7_int len);
+
 static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_number_to_string "(number->string num (radix 10)) converts the number num into a string."
@@ -11181,7 +11273,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 
   s7_int nlen = 0, radix = 10;
   char *res;
-  s7_pointer x, p;
+  s7_pointer x;
 
   x = car(args);
   if (!s7_is_number(x))
@@ -11201,6 +11293,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 #if WITH_GMP
   if (s7_is_bignum(x))
     {
+      s7_pointer p;
       res = big_number_to_string_with_radix(x, radix, 0, &nlen, P_WRITE);
       p = s7_make_string_with_length(sc, res, nlen);
       free(res);
@@ -11210,10 +11303,21 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 
   if (radix != 10)
     {
+#if 0
+      /* weird -- this is much slower due to malloc? */
+      block_t *b;
+      res = number_to_string_with_radix(sc, x, radix, 0, sc->float_format_precision, 'g', &nlen);
+      b = mallocate_block();
+      block_data(b) = (void *)res;
+      block_set_index(b, TOP_BLOCK_LIST);
+      return(block_to_string(sc, b, nlen));
+#else
+      s7_pointer p;
       res = number_to_string_with_radix(sc, x, radix, 0, sc->float_format_precision, 'g', &nlen);
       p = s7_make_string_with_length(sc, res, nlen);
       free(res);
       return(p);
+#endif
     }
   res = number_to_string_base_10(x, 0, sc->float_format_precision, 'g', &nlen, P_WRITE);
   return(s7_make_string_with_length(sc, res, nlen));
@@ -12632,7 +12736,7 @@ static s7_pointer g_abs(s7_scheme *sc, s7_pointer args)
 	{
 	  if (numerator(x) == s7_int_min)
 	    return(s7_make_ratio(sc, s7_int_max, denominator(x)));
-	  return(s7_make_ratio(sc, -numerator(x), denominator(x)));
+	  return(make_simple_ratio(sc, -numerator(x), denominator(x)));
 	}
       return(x);
 
@@ -12685,7 +12789,7 @@ static s7_pointer g_magnitude(s7_scheme *sc, s7_pointer args)
 
     case T_RATIO:
       if (numerator(x) < 0)
-	return(s7_make_ratio(sc, -numerator(x), denominator(x)));
+	return(make_simple_ratio(sc, -numerator(x), denominator(x)));
       return(x);
 
     case T_REAL:
@@ -12900,7 +13004,7 @@ static s7_pointer g_make_polar(s7_scheme *sc, s7_pointer args)
 	  if (ang == 0.0) return(x);
 	  if (is_NaN(ang)) return(y);
 	  if (is_inf(ang)) return(real_NaN);
-	  if ((ang == M_PI) || (ang == -M_PI)) return(s7_make_ratio(sc, -numerator(x), denominator(x)));
+	  if ((ang == M_PI) || (ang == -M_PI)) return(make_simple_ratio(sc, -numerator(x), denominator(x)));
 	  mag = (s7_double)fraction(x);
 	  break;
 
@@ -14110,7 +14214,7 @@ static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
 
   if (d <= 1)
     return(make_integer(sc, n));
-  return(s7_make_ratio(sc, n, d));
+  return(make_simple_ratio(sc, n, d));
 }
 
 
@@ -14159,7 +14263,7 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 
   if (d <= 1)
     return(make_integer(sc, n));
-  return(s7_make_ratio(sc, n, d));
+  return(make_simple_ratio(sc, n, d));
 }
 
 
@@ -16075,7 +16179,7 @@ static s7_pointer g_subtract_1(s7_scheme *sc, s7_pointer args)
       return(make_integer(sc, -integer(p)));
 
     case T_RATIO:
-      return(s7_make_ratio(sc, -numerator(p), denominator(p)));
+      return(make_simple_ratio(sc, -numerator(p), denominator(p)));
 
     case T_REAL:
       return(make_real(sc, -real(p)));
@@ -17218,7 +17322,7 @@ static s7_pointer g_invert_1(s7_scheme *sc, s7_pointer args)
       return(division_by_zero_error(sc, sc->divide_symbol, args));
 
     case T_RATIO:
-      return(s7_make_ratio(sc, denominator(p), numerator(p)));
+      return(make_simple_ratio(sc, denominator(p), numerator(p)));
 
     case T_REAL:
       if (real(p) != 0.0)
@@ -21420,7 +21524,7 @@ static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_STRING);
-  b = mallocate(len + 2);                   /* terminated_string_read_white_space needs the second #\null */
+  b = mallocate(len + 2);                   /* terminated_string_read_white_space needs the second #\null (is this still the case?) */
   string_block(x) = b;
   string_value(x) = (char *)block_data(b);
   if ((fill != 0) && (len > 0))
@@ -23597,7 +23701,6 @@ static void input_write_string(s7_scheme *sc, const char *str, s7_int len, s7_po
   simple_wrong_type_argument_with_type(sc, sc->write_symbol, port, an_output_port_string);
 }
 
-
 static void closed_port_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer port)
 {
   simple_wrong_type_argument_with_type(sc, sc->write_symbol, port, an_open_port_string);
@@ -23613,6 +23716,7 @@ static void closed_port_display(s7_scheme *sc, const char *s, s7_pointer port)
 {
   simple_wrong_type_argument_with_type(sc, sc->write_symbol, port, an_open_port_string);
 }
+
 
 static void stdout_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer port)
 {
@@ -23638,6 +23742,7 @@ static void stderr_write_string(s7_scheme *sc, const char *str, s7_int len, s7_p
     }
 }
 
+
 static void string_write_string_resized(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
 {
   s7_int new_len;  /* len is known to be non-zero, str may not be 0-terminated */
@@ -23662,21 +23767,6 @@ static void string_write_string(s7_scheme *sc, const char *str, s7_int len, s7_p
 }
 
 
-static void file_display(s7_scheme *sc, const char *s, s7_pointer port)
-{
-  if (s)
-    {
-      if (port_position(port) > 0)
-	{
-	  if (fwrite((void *)(port_data(port)), 1, port_position(port), port_file(port)) != (size_t)port_position(port))
-	    s7_warn(sc, 64, "fwrite trouble in display\n");
-	  port_position(port) = 0;
-	}
-      if (fputs(s, port_file(port)) == EOF)
-	s7_warn(sc, 64, "write to %s: %s\n", port_filename(port), strerror(errno));
-    }
-}
-
 static void file_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer pt)
 {
   s7_int new_len;
@@ -23699,12 +23789,27 @@ static void file_write_string(s7_scheme *sc, const char *str, s7_int len, s7_poi
     }
 }
 
+
 static void string_display(s7_scheme *sc, const char *s, s7_pointer port)
 {
   if (s)
     string_write_string(sc, s, safe_strlen(s), port);
 }
 
+static void file_display(s7_scheme *sc, const char *s, s7_pointer port)
+{
+  if (s)
+    {
+      if (port_position(port) > 0)
+	{
+	  if (fwrite((void *)(port_data(port)), 1, port_position(port), port_file(port)) != (size_t)port_position(port))
+	    s7_warn(sc, 64, "fwrite trouble in display\n");
+	  port_position(port) = 0;
+	}
+      if (fputs(s, port_file(port)) == EOF)
+	s7_warn(sc, 64, "write to %s: %s\n", port_filename(port), strerror(errno));
+    }
+}
 
 static void function_display(s7_scheme *sc, const char *s, s7_pointer port)
 {
@@ -23722,11 +23827,11 @@ static void function_write_string(s7_scheme *sc, const char *str, s7_int len, s7
     (*(port_output_function(pt)))(sc, str[i], pt);
 }
 
+
 static void stdout_display(s7_scheme *sc, const char *s, s7_pointer port)
 {
   if (s) fputs(s, stdout);
 }
-
 
 static void stderr_display(s7_scheme *sc, const char *s, s7_pointer port)
 {
@@ -24232,7 +24337,8 @@ static s7_pointer open_input_file_1(s7_scheme *sc, const char *name, const char 
 	      len = safe_strlen(name) + safe_strlen(home) + 1;
 	      b = mallocate(len);
 	      filename = (char *)block_data(b);
-	      snprintf(filename, len, "%s%s", home, (char *)(name + 1));
+	      filename[0] = '\0';
+	      catstrs(filename, len, home, (char *)(name + 1), NULL);
 	      fp = fopen(filename, "r");
 	      liberate(b);
 	      if (fp)
@@ -25175,7 +25281,8 @@ static block_t *search_load_path(s7_scheme *sc, const char *name)
 	  if (new_dir)
 	    {
 	      FILE *fp;
-	      snprintf(filename, 1024, "%s/%s", new_dir, name);
+	      filename[0] = '\0';
+	      catstrs(filename, 1024, new_dir, "/", name, NULL);
 	      fp = fopen(filename, "r");
 	      if (fp) 
 		{
@@ -25268,10 +25375,15 @@ static block_t *full_filename(const char *filename)
   rtn = (char *)block_data(block);
   if (pwd)
     {
-      snprintf(rtn, len, "%s/%s", pwd, filename);
+      rtn[0] = '\0';
+      catstrs(rtn, len, pwd, "/", filename, NULL);
       free(pwd);
     }
-  else snprintf(rtn, len, "%s", filename);
+  else
+    {
+      memcpy((void *)rtn, (void *)filename, len);
+      rtn[len] = '\0';
+    }
   return(block);
 }
 #endif
@@ -25385,7 +25497,8 @@ defaults to the rootlet.  To load into the current environment instead, pass (cu
 	      len = safe_strlen(fname) + safe_strlen(home) + 1;
 	      b = mallocate(len);
 	      filename = (char *)block_data(b);
-	      snprintf(filename, len, "%s%s", home, (char *)(fname + 1));
+	      filename[0] = '\0';
+	      catstrs(filename, len, home, (char *)(fname + 1), NULL);
 	      fp = fopen(filename, "r");
 	      liberate(b);
 	    }
@@ -27180,7 +27293,8 @@ static void output_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, 
 		{
 		  char str[256];
 		  int32_t nlen;
-		  nlen = snprintf(str, 256, "(open-output-file \"%s\" \"a\")", port_filename(obj));
+		  str[0] = '\0';
+		  nlen = catstrs(str, 256, "(open-output-file \"", port_filename(obj), "\" \"a\")", NULL);
 		  port_write_string(port)(sc, str, nlen, port);
 		}
 	    }
@@ -27222,7 +27336,8 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 		    {
 		      char str[256];
 		      int32_t nlen;
-		      nlen = snprintf(str, 256, "(open-input-file \"%s\")", port_filename(obj));
+		      str[0] = '\0';
+		      nlen = catstrs(str, 256, "(open-input-file \"", port_filename(obj), "\")", NULL);
 		      port_write_string(port)(sc, str, nlen, port);
 		    }
 		  else
@@ -27238,14 +27353,17 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 			      #define DO_STR_LEN 1024
 			      char do_str[DO_STR_LEN];
 			      int32_t len;
+			      do_str[0] = '\0';
 			      if (port_position(obj) > 0)
 				{
-				  len = snprintf(do_str, DO_STR_LEN, "(let ((port (open-input-file \"%s\")))", filename);
+				  len = catstrs(do_str, DO_STR_LEN, "(let ((port (open-input-file \"", filename, "\")))", NULL);
 				  port_write_string(port)(sc, do_str, len, port);
-				  len = snprintf(do_str, DO_STR_LEN, " (do ((i 0 (+ i 1)) (c (read-char port) (read-char port))) ((= i %" print_s7_int ") port)))", 
-						 port_position(obj) - 1);
+				  do_str[0] = '\0';
+				  len = catstrs(do_str, DO_STR_LEN, " (do ((i 0 (+ i 1)) (c (read-char port) (read-char port))) ((= i ",
+						pos_int_to_str_direct(port_position(obj) - 1),
+						") port)))", NULL);
 				}
-			      else len = snprintf(do_str, DO_STR_LEN, "(open-input-file \"%s\")", filename);
+			      else len = catstrs(do_str, DO_STR_LEN, "(open-input-file \"", filename, "\")", NULL);
 			      port_write_string(port)(sc, do_str, len, port);
 			      return;
 			    }
@@ -27335,15 +27453,12 @@ static inline void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port
 static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_pointer vect, char *str, int32_t cur_dim)
 {
   s7_int size, ind;
-  char buf[64];
 
   size = vector_dimension(vect, cur_dim);
   ind = index % size;
   if (cur_dim > 0)
     multivector_indices_to_string(sc, (index - ind) / size, vect, str, cur_dim - 1);
-
-  snprintf(buf, 64, " %" print_s7_int, ind);
-  catstrs(str, 128, buf, NULL); /* 128=length of str */
+  catstrs(str, 128, " ", pos_int_to_str_direct(ind), NULL); 
   return(str);
 }
 
@@ -27420,28 +27535,27 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
   vlen = vector_length(vect);
   if (vector_rank(vect) == 1)
     {
-      plen = snprintf(buf, 128, "(make-%svector %" print_s7_int " ", vtyp, vlen);
+      plen = catstrs_direct(buf, "(make-", vtyp, "vector ", integer_to_string_no_length(vlen), " ", NULL);
       port_write_string(port)(sc, buf, plen, port);
     }
   else
     {
       s7_int dim;
-      plen = snprintf(buf, 128, "(make-%svector '(", vtyp);
+      plen = catstrs_direct(buf, "(make-", vtyp, "vector '(", NULL);
       port_write_string(port)(sc, buf, plen, port);
       for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 	{
-	  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
+	  plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), " ", NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
-      plen = snprintf(buf, 128, "%" print_s7_int ") ", vector_dimension(vect, dim));
+      plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), ") ", NULL);
       port_write_string(port)(sc, buf, plen, port);
     }
 }
 
 static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  s7_int i, len;
-  int32_t plen;
+  s7_int i, len, plen;
   bool too_long = false;
   char buf[128];
 
@@ -27450,7 +27564,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%" print_s7_int "d()", vector_ndims(vect));
+	  plen = catstrs_direct(buf, "#", pos_int_to_str_direct(vector_ndims(vect)), "d()", NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else port_write_string(port)(sc, "#()", 3, port);
@@ -27463,7 +27577,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (vector_rank(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%" print_s7_int "d(...)", vector_ndims(vect));
+	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(vector_ndims(vect)), "d(...)", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_string(port)(sc, "#(...)", 6, port);
@@ -27511,7 +27625,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
 	  if ((ci->defined[vref]) || (port == ci->cycle_port))
 	    {
-	      plen = snprintf(buf, 128, "<%d>", vref);
+	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(vref), ">", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	      return;
 	    }
@@ -27540,13 +27654,17 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  dimension = vector_rank(vect) - 1;
 			  b = callocate(128);
 			  indices = (char *)block_data(b);
-			  plen = snprintf(buf, 128, "(set! (<%d>%s) <%d>)\n ", vref, multivector_indices_to_string(sc, i, vect, indices, dimension), eref);
+			  plen = catstrs_direct(buf, "(set! (<", pos_int_to_str_direct(vref), ">",
+						multivector_indices_to_string(sc, i, vect, indices, dimension),
+						") <", pos_int_to_str_direct_1(eref), ">)\n ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(b);
 			}
 		      else
 			{
-			  len = snprintf(buf, 128, "  (set! (<%d> %" print_s7_int ") <%d>)\n", vref, i, eref);
+			  len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(vref), "> ", 
+					       integer_to_string(i, &plen), ") <",
+					       pos_int_to_str_direct_1(eref), ">)\n", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -27560,13 +27678,15 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  dimension = vector_rank(vect) - 1;
 			  b = callocate(128);
 			  indices = (char *)block_data(b);
-			  plen = snprintf(buf, 128, "(set! (<%d>%s) ", vref, multivector_indices_to_string(sc, i, vect, indices, dimension));
+			  buf[0] = '\0';
+			  multivector_indices_to_string(sc, i, vect, indices, dimension); /* writes to indices */
+			  plen = catstrs(buf, 128, "(set! (<", pos_int_to_str_direct(vref), ">", indices, ") ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(b);
 			}
 		      else
 			{
-			  len = snprintf(buf, 128, "  (set! (<%d> %" print_s7_int ") ", vref, i);
+			  len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(vref), "> ", integer_to_string_no_length(i), ") ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      
@@ -27588,12 +27708,12 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
-		  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
+		  plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), " ", NULL);
 		  port_write_string(port)(sc, buf, plen, port);
 		}
-	      plen = snprintf(buf, 128, "%" print_s7_int, vector_dimension(vect, dim));
+	      plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), "))", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
-	      port_write_string(port)(sc, "))", 2, port);
+	      /* port_write_string(port)(sc, "))", 2, port); */
 	    }
 	}
       else 
@@ -27620,12 +27740,12 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      port_write_string(port)(sc, " '(", 3, port);
 	      for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 		{
-		  plen = snprintf(buf, 128, "%" print_s7_int " ", vector_dimension(vect, dim));
+		  plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), " ", NULL);
 		  port_write_string(port)(sc, buf, plen, port);
 		}
-	      plen = snprintf(buf, 128, "%" print_s7_int, vector_dimension(vect, dim));
+	      plen = catstrs_direct(buf, integer_to_string_no_length(vector_dimension(vect, dim)), "))", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
-	      port_write_string(port)(sc, "))", 2, port);
+	      /* port_write_string(port)(sc, "))", 2, port); */
 	    }
 	}
     } 
@@ -27636,7 +27756,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  bool last = false;
 	  if (vector_ndims(vect) > 1)
 	    {
-	      plen = snprintf(buf, 32, "#%" print_s7_int "d", vector_ndims(vect));
+	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(vector_ndims(vect)), "d", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_character(port)(sc, '#', port);
@@ -27668,8 +27788,8 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
   if (len == 0)
     {
       if (vector_rank(vect) > 1)
-	plen = snprintf(buf, 32, "#%c%" print_s7_int "d()", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
-      else plen = snprintf(buf, 32, "#%c()", (is_int_vector(vect)) ? 'i' : 'r');
+	plen = catstrs_direct(buf, "#", (is_int_vector(vect)) ? "i" : "r", pos_int_to_str_direct(vector_ndims(vect)), "d()", NULL);
+      else plen = catstrs_direct(buf, "#", (is_int_vector(vect)) ? "i" : "r", "()", NULL);
       port_write_string(port)(sc, buf, plen, port);
       return(-1);
     }
@@ -27681,7 +27801,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = snprintf(buf, 32, "#%c%" print_s7_int "d(...)", (is_int_vector(vect)) ? 'i' : 'r', vector_ndims(vect));
+	  plen = catstrs_direct(buf, "#", (is_int_vector(vect)) ? "i" : "r", pos_int_to_str_direct(vector_ndims(vect)), "d(...)", NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else 
@@ -27700,10 +27820,10 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
 
 static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write, shared_info *ignored)
 {
-  s7_int i, len;
-  int32_t plen;
+  s7_int i, len, plen;
   bool too_long;
   char buf[128];
+  char *p;
 
   len = print_vector_length(sc, vect, port, use_write);
   if (len < 0) return;
@@ -27727,8 +27847,8 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-	  plen = snprintf(buf, 128, "%" print_s7_int, int_vector_element(vect, 0));
-	  port_write_string(port)(sc, buf, plen, port);
+	  p = integer_to_string(int_vector_element(vect, 0), &plen);
+	  port_write_string(port)(sc, p, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  return;
 	}
@@ -27739,11 +27859,11 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       port_write_string(port)(sc, "#i(", 3, port);
       if (!is_string_port(port))
 	{
-	  plen = snprintf(buf, 128, "%" print_s7_int, int_vector_element(vect, 0));
-	  port_write_string(port)(sc, buf, plen, port);
+	  p = integer_to_string(int_vector_element(vect, 0), &plen);
+	  port_write_string(port)(sc, p, plen, port);
 	  for (i = 1; i < len; i++)
 	    {
-	      plen = snprintf(buf, 128, " %" print_s7_int, int_vector_element(vect, i));
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(int_vector_element(vect, i)), NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	}
@@ -27762,7 +27882,8 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 	      next_len = port_data_size(port) - 128;
 	      dbuf = port_data(port);
 	    }
-	  plen = snprintf((char *)(dbuf + new_len), 128, "%" print_s7_int, int_vector_element(vect, 0));
+	  p = integer_to_string(int_vector_element(vect, 0), &plen);
+	  memcpy((void *)(dbuf + new_len), (void *)p, plen);
 	  new_len += plen;
 	  for (i = 1; i < len; i++)
 	    {
@@ -27772,7 +27893,8 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-	      plen = snprintf((char *)(dbuf + new_len), 128, " %" print_s7_int, int_vector_element(vect, i));
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(int_vector_element(vect, i)), NULL);
+	      memcpy((void *)(dbuf + new_len), (void *)buf, plen);
 	      new_len += plen;
 	    }
 	  port_position(port) = new_len;
@@ -27787,7 +27909,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#i%" print_s7_int "d", vector_ndims(vect));
+    plen = catstrs_direct(buf, "#i", pos_int_to_str_direct(vector_ndims(vect)), "d", NULL);
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -27852,7 +27974,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   /* multidimensional case */
   {
     bool last = false;
-    plen = snprintf(buf, 32, "#r%" print_s7_int "d", vector_ndims(vect));
+    plen = catstrs_direct(buf, "#r", pos_int_to_str_direct(vector_ndims(vect)), "d", NULL);
     port_write_string(port)(sc, buf, plen, port);
     multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
   }
@@ -27907,9 +28029,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
 	      if (i == vlen)
 		{
 		  char buf[128];
-		  plen = snprintf(buf, 128, "(make-byte-vector %" print_s7_int " ", vlen);
-		  port_write_string(port)(sc, buf, plen, port);
-		  plen = snprintf(buf, 128, "%u)", c);
+		  plen = catstrs_direct(buf, "(make-byte-vector ", pos_int_to_str_direct(vlen), " ", pos_int_to_str_direct_1(c), ")", NULL);
 		  port_write_string(port)(sc, buf, plen, port);
 		  return;
 		}
@@ -27954,7 +28074,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 	      int32_t nlen;
 	      s7_pointer c;
 	      c = chars[(int32_t)((uint8_t)(buf[0]))];
-	      nlen = snprintf(buf, 128, "(make-string %" print_s7_int " ", string_length(obj));
+	      nlen = catstrs_direct(buf, "(make-string ", pos_int_to_str_direct(string_length(obj)), " ", NULL);
 	      port_write_string(port)(sc, buf, nlen, port);
 	      port_write_string(port)(sc, character_name(c), character_name_length(c), port);
 	      /* (string-ref (eval-string (object->string (make-string 14766 (integer->char 255)) :readable)) 0) */
@@ -28050,7 +28170,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	{
 	  char buf[128];
 	  int32_t plen;
-	  plen = snprintf(buf, 128, "<%d>", href);
+	  plen = catstrs_direct(buf, "<", pos_int_to_str_direct(href), ">", NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
 	}
@@ -28132,7 +28252,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  else
 	    {
 	      if (lst_ref < 0) lst_ref = -lst_ref;
-	      snprintf(lst_name, 128, "<%d>", lst_ref);
+	      catstrs_direct(lst_name, "<", pos_int_to_str_direct(lst_ref), ">", NULL);
 	      port_write_string(port)(sc, "list", 4, port); /* '(' above */
 	    }
 	  
@@ -28163,8 +28283,8 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		{
 		  int32_t lref;
 		  if (i == 0)
-		    plen = snprintf(buf, 128, "  (set-car! %s ", lst_name);
-		  else plen = snprintf(buf, 128, "  (set! (%s %" print_s7_int ") ", lst_name, i);
+		    plen = catstrs_direct(buf, "  (set-car! ", lst_name, " ", NULL);
+		  else plen = catstrs_direct(buf, "  (set! (", lst_name, " ", pos_int_to_str_direct(i), ") ", NULL);
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  lref = peek_shared_ref(ci, car(x));
 		  if (lref == 0)
@@ -28172,7 +28292,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  else
 		    {
 		      if (lref < 0) lref = -lref;
-		      plen = snprintf(buf, 128, "<%d>", lref);
+		      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(lref), ">", NULL);
 		      port_write_string(local_port)(sc, buf, plen, local_port);
 		    }
 		  port_write_string(local_port)(sc, ")\n", 2, local_port);
@@ -28184,12 +28304,14 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  ref = peek_shared_ref(ci, cdr(x));
 		  if (ref < 0) ref = -ref;
 		  if (i == 0)
-		    plen = snprintf(buf, 128, "%s(set-cdr! %s <%d>)\n", (lst_local) ? "    " : "  ", lst_name, ref);
+		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " <", pos_int_to_str_direct(ref), ">)\n", NULL);
 		  else
 		    {
 		      if (i == 1)
-			plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) <%d>)\n", (lst_local) ? "    " : "  ", lst_name, ref);
-		      else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" print_s7_int ") <%d>)\n", (lst_local) ? "    " : "  ", lst_name, i, ref);
+			plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") <", pos_int_to_str_direct(ref), ">)\n", NULL);
+		      else plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", 
+						 "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct_1(i),
+						 ") <", pos_int_to_str_direct(ref), ">)\n", NULL);
 		    }
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  break;
@@ -28198,12 +28320,12 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  if (true_len < 0) /* dotted list */
 	    {
 	      if (true_len == -1) /* cons cell */
-		plen = snprintf(buf, 128, "%s(set-cdr! %s ", (lst_local) ? "    " : "  ", lst_name);
+		plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " ", NULL);
 	      else
 		{
 		  if (true_len == -2)
-		    plen = snprintf(buf, 128, "%s(set-cdr! (cdr %s) ", (lst_local) ? "    " : "  ", lst_name);
-		  else plen = snprintf(buf, 128, "%s(set-cdr! (list-tail %s %" print_s7_int ") ", (lst_local) ? "    " : "  ", lst_name, len - 2);
+		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") ", NULL);
+		  else plen = catstrs_direct(buf, "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct(len - 2), ") ", NULL);
 		}
 	      port_write_string(local_port)(sc, buf, plen, local_port);
 	      object_to_port_with_circle_check(sc, x, local_port, use_write, ci);
@@ -28337,7 +28459,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	{
 	  char buf[128];
 	  int32_t plen;
-	  plen = snprintf(buf, 128, "<%d>", href);
+	  plen = catstrs_direct(buf, "<", pos_int_to_str_direct(href), ">", NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	  return;
 	}
@@ -28383,24 +28505,21 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      int32_t eref, kref, plen;
 	      eref = peek_shared_ref(ci, val);
 	      kref = peek_shared_ref(ci, key);
-	      plen = snprintf(buf, 128, "  (set! (<%d> ", href);
+	      plen = catstrs_direct(buf, "(set! (<", pos_int_to_str_direct(href), "> ", NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 
 	      if (kref != 0)
 		{
 		  if (kref < 0) kref = -kref;
-		  plen = snprintf(buf, 128, "<%d>", kref);
+		  plen = catstrs_direct(buf, "<", pos_int_to_str_direct(kref), ">", NULL);
 		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 		}
-	      else 
-		{
-		  object_to_port(sc, key, ci->cycle_port, P_READABLE, ci);
-		}
+	      else object_to_port(sc, key, ci->cycle_port, P_READABLE, ci);
 	      
 	      if (eref != 0)
 		{
 		  if (eref < 0) eref = -eref;
-		  plen = snprintf(buf, 128, ") <%d>)\n", eref);
+		  plen = catstrs_direct(buf, ") <", pos_int_to_str_direct(eref), ">)\n", NULL);
 		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 		}
 	      else
@@ -28498,7 +28617,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  int32_t symref, len;
 	  port_write_string(port)(sc, " #f", 3, port);
 
-	  len = snprintf(buf, 128, "  (set! (<%d> ", -peek_shared_ref(ci, obj));
+	  len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(-peek_shared_ref(ci, obj)), "> ", NULL);
 	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	  symbol_to_port(sc, sym, ci->cycle_port, P_KEY, ci);
 
@@ -28506,7 +28625,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  if (symref != 0)
 	    {
 	      if (symref < 0) symref = -symref;
-	      len = snprintf(buf, 128, ") <%d>)\n", symref);
+	      len = catstrs_direct(buf, ") <", pos_int_to_str_direct(symref), ">)\n", NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	    }
 	  else
@@ -28580,7 +28699,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      {
 			char buf[128];
 			int32_t len;
-			len = snprintf(buf, 128, "<%d>", lref);
+			len = catstrs_direct(buf, "<", pos_int_to_str_direct(lref), ">", NULL);
 			port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			return;
 		      }
@@ -28590,7 +28709,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		    {
 		      char buf[128];
 		      int32_t len;
-		      len = snprintf(buf, 128, "  (set! (outlet <%d>) ", -peek_shared_ref(ci, obj));
+		      len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(-peek_shared_ref(ci, obj)), ">) ", NULL);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 		      let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
@@ -28611,7 +28730,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			{
 			  char buf[128];
 			  int32_t len;
-			  len = snprintf(buf, 128, "<%d>", -peek_shared_ref(ci, outlet(obj)));
+			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(-peek_shared_ref(ci, outlet(obj))), ">", NULL);
 			  port_write_string(port)(sc, buf, len, port);
 			}
 		      else let_to_port(sc, outlet(obj), port, use_write, ci);
@@ -29246,7 +29365,7 @@ static char *safe_object_to_string(s7_pointer p)
   if ((typ > T_FREE) && (typ < NUM_TYPES))
     return(string_value(s7_object_to_string(cur_sc, p, false)));
   buf = (char *)malloc(128 * sizeof(char));
-  snprintf(buf, 128, "type=%d", typ);
+  catstrs_direct(buf, "type=", pos_int_to_str_direct(typ), NULL);
   return(buf);
 }
 
@@ -29976,7 +30095,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		      ci->init_loc = s7_gc_protect(sc, ci->init_port);
 		    }
 		  port_write_string(port)(sc, "#f", 2, port);
-		  nlen = snprintf(buf, 128, "  (set! <%d> (make-iterator ", iter_ref);
+		  nlen = catstrs_direct(buf, "  (set! <", pos_int_to_str_direct(iter_ref), "> (make-iterator ", NULL);
 		  port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 		  
 		  flip_ref(ci, seq);
@@ -30040,7 +30159,9 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 			    {
 			      int32_t nlen;
 			      char str[128];
-			      nlen = snprintf(str, 128, "))) (do ((i 0 (+ i 1))) ((= i %" print_s7_int ") iter) (iter)))", iterator_position(obj));
+			      nlen = catstrs_direct(str, "))) (do ((i 0 (+ i 1))) ((= i ",
+						    pos_int_to_str_direct(iterator_position(obj)), 
+						    ") iter) (iter)))", NULL);
 			      port_write_string(port)(sc, str, nlen, port);
 			    }
 			}
@@ -30064,7 +30185,7 @@ static void baffle_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 {
   int32_t nlen;
   char buf[64];
-  nlen = snprintf(buf, 64, "#<baffle: %" print_s7_int "", baffle_key(obj));
+  nlen = catstrs_direct(buf, "#<baffle: ", pos_int_to_str_direct(baffle_key(obj)), NULL);
   port_write_string(port)(sc, buf, nlen, port);
 }
 
@@ -30166,8 +30287,8 @@ static void display_any(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     b = mallocate(len);
     str = (char *)block_data(b);
     if (is_free(obj))
-      nlen = snprintf(str, len, "<free cell! %s>", tmp);
-    else nlen = snprintf(str, len, "<unknown object! %s>", tmp);
+      nlen = catstrs_direct(str, "<free cell! ", tmp, ">", NULL);
+    else nlen = catstrs_direct(str, "<unknown object! ", tmp, ">", NULL);
     port_write_string(port)(sc, str, nlen, port);
     liberate(b);
   }
@@ -30232,7 +30353,7 @@ static void integer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
     {
       s7_int nlen;
       char *str;
-      str = integer_to_string_base_10(obj, &nlen);
+      str = integer_to_string(integer(obj), &nlen);
       set_print_name(obj, str, nlen);
       port_write_string(port)(sc, str, nlen, port);
     }
@@ -30405,7 +30526,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		{
 		  int32_t nlen;
 		  char buf[128];
-		  nlen = snprintf(buf, 128, "<%d>", href);
+		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(href), ">", NULL);
 		  port_write_string(port)(sc, buf, nlen, port);
 		  return;
 		}
@@ -30420,16 +30541,16 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		    {
 		      char buf[128];
 		      int32_t symref, len;
+
 		      port_write_string(port)(sc, " #f", 3, port);
-		      
-		      len = snprintf(buf, 128, "  (set! (<%d> %d) ", href, i);
+		      len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(href), "> ", pos_int_to_str_direct_1(i), ") ", NULL);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 		      
 		      symref = peek_shared_ref(ci, val);
 		      if (symref != 0)
 			{
 			  if (symref < 0) symref = -symref;
-			  len = snprintf(buf, 128, "<%d>)\n", symref);
+			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(symref), ">)\n", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      else
@@ -30560,7 +30681,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	      if (ci->defined[ref]) 
 		{
 		  flip_ref(ci, vr);
-		  nlen = snprintf(buf, 32, "<%d>", ref);
+		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(ref), ">", NULL);
 		  port_write_string(port)(sc, buf, nlen, port);
 		  return;
 		}
@@ -30580,7 +30701,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	  if (use_write == P_READABLE)
 	    {
 	      /* if ((!ci->defined[-ref]) && (port != ci->cycle_port)) fprintf(stderr, "%s[%d]: not yet defined\n", __func__, __LINE__); */
-	      nlen = snprintf(buf, 32, "<%d>", -ref);
+	      nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(-ref), ">", NULL);
 	      port_write_string(port)(sc, buf, nlen, port);
 	    }
 	  else 
@@ -30607,7 +30728,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     {
       ref = peek_shared_ref(ci, ci->objs[i]); /* refs may be in any order */
       if (ref < 0) {ref = -ref; flip_ref(ci, ci->objs[i]);}
-      len = snprintf(buf, 128, "%s(<%d> ", (i == 0) ? "" : "\n      ", ref);
+      len = catstrs_direct(buf, (i == 0) ? "(<" : "\n      (<", pos_int_to_str_direct(ref), "> ", NULL);
       port_write_string(port)(sc, buf, len, port);
       ci->defined[ref] = false;
       object_to_port_with_circle_check(sc, ci->objs[i], port, P_READABLE, ci);
@@ -30639,8 +30760,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     object_to_port_with_circle_check(sc, obj, port, P_READABLE, ci);
   else 
     {
-      if (ref < 0) ref = -ref;
-      len = snprintf(buf, 128, "<%d>", ref);
+      len = catstrs_direct(buf, "<", pos_int_to_str_direct((ref < 0) ? -ref : ref), ">", NULL);
       port_write_string(port)(sc, buf, len, port);
     }
 
@@ -32206,7 +32326,6 @@ system captures the output as a string and returns it."
       char *str = NULL;
       int32_t cur_len = 0, full_len = 0;
       FILE *fd;
-      s7_pointer res;
 
       fd = popen(string_value(name), "r");
       while (fgets(buf, BUF_SIZE, fd))
@@ -32224,10 +32343,24 @@ system captures the output as a string and returns it."
 	  cur_len += buf_len;
 	}
       pclose(fd);
-
-      res = s7_make_string_with_length(sc, str, cur_len);
-      if (str) free(str);
-      return(res);
+#if 1
+      if (str)
+	{
+	  block_t *b;
+	  b = mallocate_block();
+	  block_data(b) = (void *)str;
+	  block_set_index(b, TOP_BLOCK_LIST);
+	  return(block_to_string(sc, b, cur_len));
+	}
+      else return(make_empty_string(sc, 0, 0));
+#else
+      {
+	s7_pointer res;
+	res = s7_make_string_with_length(sc, str, cur_len);
+	if (str) free(str);
+	return(res);
+      }
+#endif
     }
   return(make_integer(sc, system(string_value(name))));
 }
@@ -40110,7 +40243,7 @@ s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fn
   len = safe_strlen(arglist) + 8;
   b = mallocate(len);
   internal_arglist = (char *)block_data(b);
-  snprintf(internal_arglist, len, "'(%s)", arglist);
+  catstrs_direct(internal_arglist, "'(", arglist, ")", NULL);
   local_args = s7_eval_c_string(sc, internal_arglist);
   gc_loc = s7_gc_protect_1(sc, local_args);
   liberate(b);
@@ -40657,7 +40790,8 @@ s7_pointer s7_dilambda(s7_scheme *sc,
   if (!name) return(sc->F);
   len = 16 + safe_strlen(name);
   internal_set_name = (char *)malloc(len * sizeof(char));
-  snprintf(internal_set_name, len, "[set-%s]", name);
+  internal_set_name[0] = '\0';
+  catstrs_direct(internal_set_name, "[set-", name, "]", NULL);
 
   get_func = s7_make_safe_function(sc, name, getter, get_req_args, get_opt_args, false, documentation);
   s7_define(sc, sc->nil, make_symbol(sc, name), get_func);
@@ -44869,23 +45003,28 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 		    {
 		      new_note_len += (4 + notes_start_col + ((notes) ? strlen(notes) : 0));
 		      str = (char *)malloc(new_note_len * sizeof(char));
-		      snprintf(str, new_note_len, "%s\n%s%s%s%s: %s",
-			       (notes) ? notes : "",
-			       (as_comment) ? "; " : "",
-			       (spaces_len >= notes_start_col) ? (char *)(spaces + spaces_len - notes_start_col) : "",
-			       (as_comment) ? "" : " ; ",
-			       symbol_name(code),
-			       objstr);
+		      /* str[0] = '\0'; */
+		      catstrs_direct(str, 
+			      (notes) ? notes : "",
+			      "\n",
+			      (as_comment) ? "; " : "",
+			      (spaces_len >= notes_start_col) ? (char *)(spaces + spaces_len - notes_start_col) : "",
+			      (as_comment) ? "" : " ; ",
+			      symbol_name(code),
+			      ": ",
+			      objstr, NULL);
 		    }
 		  else
 		    {
 		      new_note_len += ((notes) ? strlen(notes) : 0) + 4;
 		      str = (char *)malloc(new_note_len * sizeof(char));
-		      snprintf(str, new_note_len, "%s%s%s: %s",
-			       (notes) ? notes : "",
-			       (notes) ? ", " : " ; ",
-			       symbol_name(code),
-			       objstr);
+		      /* str[0] = '\0'; */
+		      catstrs_direct(str, 
+			      (notes) ? notes : "",
+			      (notes) ? ", " : " ; ",
+			      symbol_name(code),
+			      ": ",
+			      objstr, NULL);
 		    }
 		  if (notes) free(notes);
 		  return(str);
@@ -44915,21 +45054,28 @@ static block_t *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr,
       newlen = symbol_name_length(f) + errlen + 10;
       newp = mallocate(newlen);
       newstr = (char *)block_data(newp);
-      errlen = snprintf(newstr, newlen, "%s: %s", symbol_name(f), errstr);
+      /* newstr[0] = '\0'; */
+      errlen = catstrs_direct(newstr, symbol_name(f), ": ", errstr, NULL);
     }
   else
     {
       newlen = errlen + 8;
       newp = mallocate(newlen);
       newstr = (char *)block_data(newp);
+      /* newstr[0] = '\0'; */
       if ((errlen > 2) && (errstr[2] == '('))
-	errlen = snprintf(newstr, newlen, "  %s", errstr);
-      else errlen = snprintf(newstr, newlen, "%s", errstr);
+        errlen = catstrs_direct(newstr, "  ", errstr, NULL);
+      else
+	{
+	  memcpy((void *)newstr, (void *)errstr, errlen);
+	  newstr[errlen] = '\0';
+	}
     }
 
   newlen = code_max + 8 + ((notes) ? strlen(notes) : 0);
   b = mallocate(newlen * sizeof(char));
   str = (char *)block_data(b);
+  /* str[0] = '\0'; */
 
   if (errlen >= code_max)
     {
@@ -44937,13 +45083,13 @@ static block_t *stacktrace_add_func(s7_pointer f, s7_pointer code, char *errstr,
       newstr[code_max - 3] = '.';
       newstr[code_max - 2] = '.';
       newstr[code_max - 1] = '\0';
-      snprintf(str, newlen, "%s%s%s\n", (as_comment) ? "; " : "", newstr, (notes) ? notes : "");
+      catstrs_direct(str, (as_comment) ? "; " : "", newstr, (notes) ? notes : "", "\n", NULL);
     }
   else
     {
       /* send out newstr, pad with spaces to code_max, then notes */
       s7_int len;
-      len = snprintf(str, newlen, "%s%s", (as_comment) ? "; " : "", newstr);
+      len = catstrs_direct(str, (as_comment) ? "; " : "", newstr, NULL);
       if (notes)
 	{
 	  s7_int i;
@@ -45038,7 +45184,7 @@ static s7_pointer stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_col
 		      newlen = strlen(newstr) + 1 + ((str) ? strlen(str) : 0);
 		      catp = mallocate(newlen * sizeof(char));
 		      catstr = (char *)block_data(catp);
-		      snprintf(catstr, newlen, "%s%s", (str) ? str : "", newstr);
+		      catstrs_direct(catstr, (str) ? str : "", newstr, NULL);
 		      liberate(newp);
 		      if (strp) liberate(strp);
 		      strp = catp;
@@ -46381,7 +46527,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	      len = string_length(car(info)) + 8;
 	      b = mallocate(len);
 	      errstr = (char *)block_data(b);
-	      str_len = snprintf(errstr, len, "\n;%s", string_value(car(info)));
+	      str_len = catstrs_direct(errstr, "\n;", string_value(car(info)), NULL);
 	      format_to_port(sc, sc->error_port, errstr, cdr(info), NULL, false, str_len);
 	      liberate(b);
 	    }
@@ -46826,7 +46972,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       len = safe_strlen(syntax_msg) + 128;
       p = make_empty_string(sc, len, '\0');
       msg = string_value(p);
-      len = snprintf(msg, len, "missing close paren\n%s\n", syntax_msg);
+      len = catstrs(msg, len, "missing close paren\n", syntax_msg, "\n", NULL);
       free(syntax_msg);
       string_length(p) = len;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
@@ -80072,7 +80218,7 @@ static s7_pointer big_negate(s7_scheme *sc, s7_pointer args)
       return(make_integer(sc, -integer(p)));
 
     case T_RATIO:
-      return(s7_make_ratio(sc, -numerator(p), denominator(p)));
+      return(make_simple_ratio(sc, -numerator(p), denominator(p)));
 
     case T_REAL:
       return(make_real(sc, -real(p)));
@@ -80219,10 +80365,10 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
 
 	  return(x);
 	}
-      return(s7_make_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
+      return(make_simple_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
 
     case T_RATIO:
-      return(s7_make_ratio(sc, denominator(p), numerator(p)));
+      return(make_simple_ratio(sc, denominator(p), numerator(p)));
 
     case T_REAL:
       return(make_real(sc, 1.0 / real(p)));
@@ -80435,7 +80581,7 @@ static s7_pointer big_abs(s7_scheme *sc, s7_pointer args)
 
     case T_RATIO:
       if (numerator(p) < 0)
-	return(s7_make_ratio(sc, -numerator(p), denominator(p)));
+	return(make_simple_ratio(sc, -numerator(p), denominator(p)));
       return(p);
 
     case T_REAL:
@@ -86060,8 +86206,7 @@ int main(int argc, char **argv)
  *   try g_add_2 -> add_d_dd for example: op_safe_c_oo etc
  * top-like displays from *s7* 'memory-usage
  *   object->let *s7*: create a permanent (immutable) let holding slots and values (all outside gc, preset etc)
- *   each call fills the fields directly, memory-usage as a enclosed let
- * use catstrs [port_write_strings?, stacktrace snprintf to end]
+ *   each call fills the fields directly, memory-usage as an enclosed let
  *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
@@ -86103,14 +86248,14 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      ||  391 ||  377 |                                379
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1124
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1401
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1691
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1400
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1695
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  2019
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2385
+ * tread         |      |      |      ||      ||      |                   3009  2639  2442
  * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2449
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 124.4
- * tread         |      |      |      ||      ||      |                   3009  2639  2605
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2605
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2565
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  3184
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3208
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3445
