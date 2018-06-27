@@ -10041,9 +10041,9 @@ void g_init_chn(void)
   Xen_define_typed_procedure(S_edits,                   g_edits_w,                  0, 2, 0, H_edits,           pl_ptt);
   Xen_define_typed_procedure(S_peaks,                   g_peaks_w,                  0, 3, 0, H_peaks,           s7_make_signature(s7, 4, s, s, t, t));
 
-  Xen_define_typed_procedure(S_edit_hook,               g_edit_hook_w,              0, 2, 0, H_edit_hook,       s7_make_signature(s7, 3, h, t, t));
-  Xen_define_typed_procedure(S_after_edit_hook,         g_after_edit_hook_w,        0, 2, 0, H_after_edit_hook, s7_make_signature(s7, 3, h, t, t));
-  Xen_define_typed_procedure(S_undo_hook,               g_undo_hook_w,              0, 2, 0, H_undo_hook,       s7_make_signature(s7, 3, h, t, t));
+  Xen_define_unsafe_typed_procedure(S_edit_hook,        g_edit_hook_w,              0, 2, 0, H_edit_hook,       s7_make_signature(s7, 3, h, t, t));
+  Xen_define_unsafe_typed_procedure(S_after_edit_hook,  g_after_edit_hook_w,        0, 2, 0, H_after_edit_hook, s7_make_signature(s7, 3, h, t, t));
+  Xen_define_unsafe_typed_procedure(S_undo_hook,        g_undo_hook_w,              0, 2, 0, H_undo_hook,       s7_make_signature(s7, 3, h, t, t));
 
   Xen_define_typed_procedure(S_update_time_graph,       g_update_time_graph_w,      0, 2, 0, H_update_time_graph,      pl_btt);
   Xen_define_typed_procedure(S_update_lisp_graph,       g_update_lisp_graph_w,      0, 2, 0, H_update_lisp_graph,      pl_btt);
