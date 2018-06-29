@@ -41,9 +41,9 @@
 (define all-types ())
 
 ;;; preset some types that are getting confused
-(set! types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" "GdkWindow*" ;"GtkDrawingArea*"
+(set! types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
-(set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" "GdkWindow*" ;"GtkDrawingArea*"
+(set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
 
 (define idlers (list "g_source_remove" "g_idle_remove_by_data"
@@ -60,7 +60,8 @@
 	"GdkEventExpose*" "GdkEventFocus*" "GdkEventMotion*" "GdkEventNoExpose*" "GdkEventProperty*" "GdkEventProximity*"
 	"GdkEventScroll*" "GdkEventSelection*" "GdkEventSetting*" "GdkEventVisibility*" "GdkEventWindowState*" "GdkGCValues*"
 	"GdkGeometry*" "GdkInterpType" "GdkModifierType*" "GdkPixbufDestroyNotify" "GdkScreen**" "GdkSegment*" "GdkWChar*"
-	"GdkWMDecoration*"  "GdkWindowAttr*" "GtkAccelLabel*" "GtkAccelMapForeach" "GtkAccessible*" "GtkActionEntry*"
+	"GdkWMDecoration*"  ;"GdkWindowAttr*"
+	"GtkAccelLabel*" "GtkAccelMapForeach" "GtkAccessible*" "GtkActionEntry*"
 	"GtkAlignment*" "GtkAllocation*" 
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
@@ -85,7 +86,9 @@
 	
 	"GConnectFlags" "GSignalFlags" "GSignalMatchType" 
 	"GdkPropMode" ;"GdkRgbDither" 
-	"GdkWMFunction" "GdkWindowEdge" "GdkWindowHints" "GtkAccelFlags" ; "GtkArrowType"
+	"GdkWMFunction" ;"GdkWindowEdge" "GdkWindowHints"
+	"GdkSurfaceEdge" "GdkSurfaceHints"
+	"GtkAccelFlags" ; "GtkArrowType"
 	"GtkCellRendererState" ;"GtkCurveType"
 	"GtkDestDefaults" "GtkDestroyNotify" "GtkDialogFlags"
 	"GtkDirectionType" ;"GtkExpanderStyle" 
@@ -95,7 +98,7 @@
 	"PangoGlyph" "PangoUnderline"
 	"GtkMenuBar*" "GtkTranslateFunc"
 	
-	"GtkAssistant*" "GtkRecentChooser*" "GtkRecentChooserMenu*"
+	"GtkAssistant*" ;"GtkRecentChooser*" "GtkRecentChooserMenu*"
 	"GtkRecentData*" "GtkNotebookWindowCreationFunc"
 	
 	"GtkUnit" "GtkPageSetupDoneFunc"
@@ -109,7 +112,7 @@
 	
 	"gdouble*" ;"GdkFill" 
 	;"GdkSubwindowMode" ;"GdkLineStyle" "GdkCapStyle" "GdkJoinStyle"
-	"GtkInfoBar*" "GtkSpinner*" "GtkToolShell*" "GtkToolPalette*" "GtkToolPaletteDragTargets"
+	"GtkInfoBar*" "GtkSpinner*" "GtkToolShell*" ;"GtkToolPalette*" "GtkToolPaletteDragTargets"
 	;"GdkFunction" ;"GtkWrapBoxPacking" 
 	"GtkLinkButton*" "GtkActivatable*" "GtkOrientable*" "GtkCellArea*"
 	;"GdkNativeWindow"
@@ -131,7 +134,8 @@
 	"GtkLevelBar*" "GtkMenuButton*" "GNormalizeMode"
 ;	"GIcon*"
 
-	"GBytes" "GtkPlacesSidebar*" "GtkStackSwitcher*" "GtkRevealer*" "GtkHeaderBar*" "GtkListBox*" "GtkSearchBar*"
+	"GBytes" ;"GtkPlacesSidebar*"
+	"GtkStackSwitcher*" "GtkRevealer*" "GtkHeaderBar*" "GtkListBox*" "GtkSearchBar*"
 
 	"GtkFlowBox*" "GtkActionBar*" "GtkPopover*"
 	"GtkGestureDrag*" "GtkGesturePan*" "GtkGestureMultiPress*" "GtkGestureRotate*" "GtkGestureSingle*"
@@ -160,7 +164,8 @@
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
 	"GdkScrollDirection" "GdkSettingAction" ;"GdkVisibilityState"
-	"GdkWindowState" "GdkWindowType"
+	;"GdkWindowState" "GdkWindowType"
+	"GdkSurfaceState" "GdkSurfaceType"
 	"GtkImageType" "GtkTreeModelFlags" "gint8" "gshort" "guint8" "lambda"
 	
 	"time_t" ;"GtkWindowGroup*" 
@@ -186,7 +191,8 @@
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
 	"GdkScrollDirection" "GdkSettingAction" ;"GdkVisibilityState" 
-	"GdkWindowState" "GdkWindowType"
+	;"GdkWindowState" "GdkWindowType"
+	"GdkSurfaceState" "GdkSurfaceType"
 	"GtkImageType" "GtkTreeModelFlags" "etc" "gshort"
 	
 					;"GtkWindowGroup*" 
@@ -417,11 +423,11 @@
 					;(cons "GdkFillRule" "INT")
 					;(cons "GdkOverlapType" "INT")
 	(cons "GdkVisualType" "INT")
-	(cons "GdkWindowType" "INT")
-	(cons "GdkWindowState" "INT")
+	;(cons "GdkWindowType" "INT")
+	;(cons "GdkWindowState" "INT")
 	(cons "GdkWMDecoration" "INT")
 	(cons "GdkWMFunction" "INT")
-	(cons "GdkWindowEdge" "INT")
+	;(cons "GdkWindowEdge" "INT")
 	(cons "GtkAccelFlags" "INT")
 					;(cons "GtkArrowType" "INT")
 	(cons "GtkShadowType" "INT")
@@ -469,9 +475,9 @@
 	(cons "GtkSortType" "INT")
 	(cons "GtkDirectionType" "INT")
 	(cons "GtkWindowType" "INT")
-	(cons "GdkWindowTypeHint" "INT")
+	;(cons "GdkWindowTypeHint" "INT")
 	(cons "GdkGravity" "INT")
-	(cons "GdkWindowHints" "INT")
+	;(cons "GdkWindowHints" "INT")
 	(cons "GtkSizeRequestMode" "INT")
 	
 	(cons "GtkEntryIconPosition" "INT")
@@ -521,7 +527,7 @@
 	(cons "GtkAssistantPageType" "INT")
 	(cons "GtkCellRendererAccelMode" "INT")
 	(cons "GtkRecentSortType" "INT")
-	(cons "GtkRecentChooserError" "INT")
+	;(cons "GtkRecentChooserError" "INT")
 					;(cons "GtkRecentFilterFlags" "INT")
 	(cons "GtkRecentManagerError" "INT")
 	(cons "GtkTreeViewGridLines" "INT")
@@ -546,7 +552,7 @@
 	(cons "GdkPixbufError" "INT")
 	(cons "PangoRenderPart" "INT")
 	(cons "GtkDragResult" "INT")
-	(cons "GtkToolPaletteDragTargets" "INT")
+	;(cons "GtkToolPaletteDragTargets" "INT")
 	(cons "GtkInputPurpose" "INT")
 	(cons "GtkInputHints" "INT")
 	(cons "GdkFullscreenMode" "INT")
@@ -595,7 +601,7 @@
 					;(cons "GdkColorspace" "INT")
 					;(cons "GdkWindowAttributesType" "INT")
 					;(cons "GdkWindowClass" "INT")
-	(cons "GdkStatus" "INT")
+	;(cons "GdkStatus" "INT")
 					;(cons "GdkSubwindowMode" "INT")
 	(cons "GdkPropertyState" "INT")
 	(cons "GtkScrollablePolicy" "INT")
@@ -630,6 +636,15 @@
 	(cons "GtkApplicationInhibitFlags" "INT")
 	(cons "GtkStyleContextPrintFlags" "INT")
 	(cons "GtkCssProviderError" "INT")
+
+	(cons "GdkMemoryFormat" "INT")
+	(cons "GdkSurfaceState" "INT")
+	(cons "GdkPaintableFlags" "INT")
+	(cons "GdkSurfaceTypeHint" "INT")
+	(cons "GdkSurfaceEdge" "INT")
+	(cons "GdkSurfaceHints" "INT")
+	(cons "GdkSurfaceType" "INT")
+	(cons "GdkInputMode" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
@@ -852,11 +867,11 @@
 	 "destroy_func"
 	 (parse-args "lambda_data func_info" 'callback)
 	 'permanent)
-   (list 'GdkFilterFunc
-	 "GdkFilterReturn"
-	 "filter_func"
-	 (parse-args "GdkXEvent* xevent GdkEvent* event lambda_data func_info" 'callback)
-	 'permanent)
+					;   (list 'GdkFilterFunc
+					;	 "GdkFilterReturn"
+					;	 "filter_func"
+					;	 (parse-args "GdkXEvent* xevent GdkEvent* event lambda_data func_info" 'callback)
+					;	 'permanent)
    (list 'GdkEventFunc
 	 "void"
 	 "event_func"
@@ -1042,11 +1057,11 @@
 					;			      (parse-args "GtkLinkButton* button gchar* link lambda_data func_info" 'callback)
 					;			      ;; const gchar *link
 					;			      'permanent)
-   (list 'GtkRecentSortFunc
-	 "gint"
-	 "recent_sort"
-	 (parse-args "GtkRecentInfo* a GtkRecentInfo* b lambda_data func_info" 'callback)
-	 'permanent)
+					;   (list 'GtkRecentSortFunc
+					;	 "gint"
+					;	 "recent_sort"
+					;	 (parse-args "GtkRecentInfo* a GtkRecentInfo* b lambda_data func_info" 'callback)
+					;	 'permanent)
    
    (list 'GDestroyNotify
 	 "void"
@@ -1057,9 +1072,9 @@
    (list 'GdkSeatGrabPrepareFunc
 	 "void"
 	 "prepare_func"
-	 (parse-args "GdkSeat* seat GdkWindow* window lambda_data func_info" 'g-3.20)
+	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.20)
 	 'permanent
-	 "3.20")
+	 "3.99")
 
    (list 'GtkDrawingAreaDrawFunc
 	 "void"
@@ -1600,8 +1615,9 @@
 	"GdkEventCrossing*"
 	"GdkEventFocus*" "GdkEventConfigure*" "GdkEventProperty*" "GdkEventSelection*" "GdkEventProximity*" "GdkEventSetting*"
 	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" "GtkAccelMap"
-	"GtkCellRendererCombo*" "GtkCellRendererProgress*" "GtkCellRendererAccel*" "GtkCellRendererSpin*" "GtkRecentChooserDialog*"
-	"GtkRecentChooserWidget*" "GtkCellRendererSpinner*" ;"gboolean*"
+	"GtkCellRendererCombo*" "GtkCellRendererProgress*" "GtkCellRendererAccel*" "GtkCellRendererSpin*" ;"GtkRecentChooserDialog*"
+	;"GtkRecentChooserWidget*" 
+	"GtkCellRendererSpinner*" ;"gboolean*"
 	"GtkFontChooserDialog*" "GtkFontChooserWidget*" "GtkColorChooserDialog*" ;"GtkColorChooserWidget*"
 	"GtkColorWidget*"
 	"GtkGestureLongPress*"))

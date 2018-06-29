@@ -9153,7 +9153,7 @@ assuming we have the usual Scheme-to-C linkages (see snd-glistener.c):
 </p>
 
 <pre class="indented">
-(set! (listener-prompt) (byte-vector #xce #xbb (char-&gt;integer #\&gt;) (char-&gt;integer #\space)))
+(set! (listener-prompt) (byte-vector-&gt;string (byte-vector #xce #xbb (char-&gt;integer #\&gt;) (char-&gt;integer #\space))))
 (set! (listener-font) "Nimbus mono 10")
 (listener-set-prompt-tag *listener* ; ideally this too would be a setter
   (gtk_text_buffer_create_tag 
