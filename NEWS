@@ -1,11 +1,7 @@
-Snd 18.4:
+Snd 18.5:
 
-s7: s7_c_object_type_set* various changes
+s7 to version 7 (many internal changes).
 
-clm: added (clm-initialize-links) at end of all.lisp
-     Koen De Turck updated the openBSD audio support
+checked: sbcl 1.4.8|9, gtk 3.94.0
 
-checked: sbcl 1.4.7, FC 28 (gcc 8.0), Ubuntu 18.04, openbsd 6.3
-
-Thanks!: Kjetil Matheussen, Michael Edwards, Koen De Turck.
-
+Thanks!: Kjetil Matheussen

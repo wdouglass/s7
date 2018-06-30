@@ -353,7 +353,7 @@ int main(int argc, char **argv)
   add_file("tools/gcall.c");
 
   add_file("/home/bil/dist/snd/s7webserver/s7webserver.cpp");
-  add_file("/home/bil/test/radium/radium-master/embedded_scheme/scheme.cpp");
+  add_file("/home/bil/test/rad/radium-master/embedded_scheme/scheme.cpp");
 
   add_file("/home/bil/test/cm/src/CmSupport.cpp");
   add_file("/home/bil/test/cm/src/Scheme.cpp");

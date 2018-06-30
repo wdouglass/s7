@@ -140,7 +140,7 @@
 		(if checker ; map-values -> function here
 		    (for-each call-func1 cdr-auto-constants)
 		    (for-each call-func2 cdr-auto-constants))))
-	   
+
 	     (if checker
 		 (for-each
 		  (lambda (c)

@@ -1068,14 +1068,15 @@
 	 "destroy_func"
 	 (parse-args "lambda_data func_info" 'callback)
 	 'permanent)
-
+#|
+   ;; confusion caused by GdkSurface
    (list 'GdkSeatGrabPrepareFunc
 	 "void"
 	 "prepare_func"
-	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.20)
+	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.99)
 	 'permanent
 	 "3.99")
-
+|#
    (list 'GtkDrawingAreaDrawFunc
 	 "void"
 	 "draw_func"

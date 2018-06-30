@@ -68044,7 +68044,11 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
   
   if ((stepf == g_add_s1) &&
       (is_integer(slot_value(ctr))) &&
+#if (!WITH_GMP)
       ((endf == g_equal_2) || (endf == g_equal_2i)) &&
+#else
+      (endf == g_equal_2) &&
+#endif
       (is_integer(slot_value(end))))
     {
       s7_int i, start, stop;
@@ -86037,13 +86041,14 @@ int main(int argc, char **argv)
  *   each call fills the fields directly, memory-usage as an enclosed let
  * check float n->s snp: 1/3 faster than snp but 'g' match is not perfect (does it need to be?) -- need rounding in low bits etc
  *
- * *_P|*_E can be used throughtout, closure_aa_p could include _e (etc), also and_ap|e 
+ * *_P|*_E can be used throughout, closure_aa_p could include _e (etc), also and_ap|e 
  * set_currect_code to more closure bodies, more syn blocks
  * test-phases opt
  * remove packing from profile info
- * opt set_c_function_star_args: big overhead, why so few simple defaults?
+ * opt set_c_function_star_args: big overhead, why so few simple defaults? sym=constant
  *   why two flags for func* args have simple defaults?
  *   use symbol-list for duplicate check, not the checked bit
+ *   if constant, preset?
  * error funcs could be inline
  * is_pair_or_symbol?
  *
@@ -86084,25 +86089,25 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.1  18.2  18.3  18.4  18.5  18.6
  * ----------------------------------------------------------------------------------------------
  * tmac          |      |      |      || 9052 ||  264 |  264   266   280   280   279   279
- * tpeak         |      |      |      ||  391 ||  377 |                                377
+ * tpeak         |      |      |      ||  391 ||  377 |                                376
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1038  1038  1037  1040  1028
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1089
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1303
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1168  1162  1158  1131  1090
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1468  1483  1485  1456  1304
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1912  1892  1888  1705  1693
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2111  2126  2113  2051  1952
- * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2348
+ * lint          |      |      |      || 4041 || 2702 | 2696  2645  2653  2573  2488  2351
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3018  3092  3069  2462  2377
- * tread         |      |      |      ||      ||      |                   3009  2639  2401
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2520
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2894
+ * tread         |      |      |      ||      ||      |                   3009  2639  2398
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2781  2813  2768  2664  2522
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2586  2536  2536  2556  2864
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3988  3988  3987  3904  3207
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3440
- * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4082
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3450  3450  3451  3453  3439
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4200  4198  4192  4151  4076
  * titer         |      |      |      || 5971 || 4646 | 4646  5175  5246  5236  4997  4784
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6394
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7830  7824  7824  6874  6389
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.9  11.9  11.4  11.0
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.9  18.9  18.2  17.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  40.5
+ * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.0  42.1  42.1  41.3  40.4
  *               |      |      |      || 139  || 85.9 | 86.5  87.2  87.1  87.1  81.4  80.1
  * lg            |      |      |      || 211  || 133  | 133.4 132.2 132.8 130.9 125.7 118.3
  * tbig          |      |      |      ||      ||      |                       (185.8) 178.2

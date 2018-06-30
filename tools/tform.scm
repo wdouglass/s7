@@ -114,7 +114,7 @@
       (get-output-string op #t))
     (close-output-port op)))
 
-;(do ((k 0 (+ k 1))) ((= k 100)) (test-chars))
+;(do ((k 0 (+ k 1))) ((= k 1000)) (test-chars))
 
 (test-chars)
 
