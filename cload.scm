@@ -592,9 +592,9 @@
 			       o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
 	      ((provided? 'openbsd)
-	       (system (format #f "cc -fPIC -ftrampolines -c ~A -o ~A ~A ~A" 
+	       (system (format #f "gcc -fPIC -ftrampolines -c ~A -o ~A ~A ~A" 
 			       c-file-name o-file-name *cload-cflags* cflags))
-	       (system (format #f "cc ~A -shared -o ~A ~A ~A" 
+	       (system (format #f "gcc ~A -shared -o ~A ~A ~A" 
 			       o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
 	      ((provided? 'sunpro_c) ; just guessing here...
