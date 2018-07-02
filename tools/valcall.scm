@@ -19,6 +19,7 @@
 		     ("tgen.scm" . "v-gen")
 		     ("tall.scm" . "v-all")
 		     ("snd-test.scm" . "v-call")
+		     ("dup.scm" . "v-dup")
 		     ))
 
 (define (last-callg)
@@ -58,6 +59,7 @@
 	 (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" outfile (- next 1) outfile next)))))
    (list (list "repl" "tmac.scm")
 	 (list "snd -noinit" "tpeak.scm")
+	 (list "repl" "dup.scm")
 	 (list "repl" "tref.scm")
 	 (list "snd -noinit" "make-index.scm")
 	 (list "repl" "tauto.scm")
