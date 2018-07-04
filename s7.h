@@ -1,7 +1,7 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.0"
+#define S7_VERSION "7.1"
 #define S7_DATE "25-Jun-18"
 
 #include <stdint.h>           /* for int64_t */
@@ -900,6 +900,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 3-Jul:     changed make-shared-vector to subvector.
  * 20-May:    s7_keyword_to_symbol.
  * 6-May:     s7_mark_c_object -> s7_mark.
  * 26-Apr:    s7_c_type_set_to_list|string, s7_c_type_set_apply -> s7_c_type_set_ref, removed s7_c_type_set_set|apply_direct

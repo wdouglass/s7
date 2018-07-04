@@ -452,7 +452,7 @@
 			  'arity 'logbit? 
 			  'random-state? 'throw 'float-vector-set! 'make-iterator 'complex 
 			  'let-ref 'int-vector 'aritable? 'gensym? 'syntax? 'iterator-at-end? 'let? 
-			  'make-shared-vector 'float-vector 'iterator-sequence 'getenv 'float-vector-ref 
+			  'subvector 'float-vector 'iterator-sequence 'getenv 'float-vector-ref 
 			  'cyclic-sequences 'let->list 
 			  
 			  'setter 'int-vector? 
@@ -609,7 +609,7 @@
 		    "(mock-hash-table* 'b 2)"
 
 		    ;;" #| a comment |# "
-		    "(make-shared-vector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
+		    "(subvector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"

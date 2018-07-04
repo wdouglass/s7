@@ -339,7 +339,7 @@ squeezing in the frequency domain, then using the inverse DFT to get the time do
 	      (data1 (make-float-vector (+ len 1))))
 	  (copy data data1 1)
 	  (float-vector-abs! (float-vector-multiply! data1 data))
-	  (float-vector-multiply! data (make-shared-vector data1 (list len) 1))
+	  (float-vector-multiply! data (subvector data1 (list len) 1))
 	  (let ((amp1 (/ amp (float-vector-peak data))))
 	    (float-vector->channel (float-vector-scale! data amp1) 0 len snd chn current-edit-position "spike")))))))
 

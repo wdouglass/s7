@@ -117,7 +117,7 @@
 	      lambda lambda* lcm let->list length let let* let-ref let? letrec letrec* list list->string list->vector list-ref
 	      list-tail list? log logand logbit? logior lognot logxor
 	      macro? magnitude make-byte-vector make-float-vector make-int-vector make-hash-table make-hook make-iterator make-list make-polar
-	      make-rectangular make-shared-vector make-string make-vector map max member memq memv min modulo morally-equal?
+	      make-rectangular subvector make-string make-vector map max member memq memv min modulo morally-equal?
 	      nan? negative? not null? number->string number? numerator
 	      object->let object->string odd? openlet? or outlet output-port? owlet
 	      pair-line-number pair-filename pair? port-closed? port-filename port-line-number positive? documentation
@@ -173,7 +173,7 @@
 			         cdadar cddaar cdaddr cddddr cddadr cdddar assoc member list list-ref list-set! list-tail 
 			         make-list length copy fill! reverse reverse! sort! append assq assv memq memv vector-append 
 			         list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions 
-			         make-vector make-shared-vector vector float-vector make-float-vector float-vector-set! 
+			         make-vector subvector vector float-vector make-float-vector float-vector-set! 
 			         float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector 
 			         byte-vector make-byte-vector hash-table hash-table* make-hash-table hash-table-ref 
 			         hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
@@ -193,7 +193,7 @@
 		   '(gensym sublet inlet make-iterator let->list random-state random-state->list number->string object->let
 		     make-string string string-copy copy list->string string->list string-append substring object->string
 		     format cons list make-list reverse append vector-append list->vector vector->list make-vector
-		     make-shared-vector vector make-float-vector float-vector make-int-vector int-vector byte-vector
+		     subvector vector make-float-vector float-vector make-int-vector int-vector byte-vector
 		     hash-table hash-table* make-hash-table make-hook list-values append gentemp)) ; gentemp for other schemes
 		  h))
 
@@ -9344,13 +9344,13 @@
 					  (pair? (cddr arg1))))
 				 (len>1? (cadr arg1))
 				 (memq (caadr arg1) '(string->list vector->list)))
-			(let ((string-case (eq? (caadr arg1) 'string->list))    ; (cdr (vector->list v)) -> (make-shared-vector v (- (length v) 1) 1)
+			(let ((string-case (eq? (caadr arg1) 'string->list))    ; (cdr (vector->list v)) -> (subvector v (- (length v) 1) 1)
 			      (len-diff (case (car arg1) ((list-tail) (caddr arg1)) (else => cdr-count))))
 			  (lint-format "~A accepts ~A arguments, so perhaps ~A" caller head 
 				       (if string-case 'string 'vector)
 				       (lists->string arg1 (if string-case
 							       (list 'substring (cadadr arg1) len-diff)
-							       `(make-shared-vector ,(cadadr arg1) (- (length ,(cadadr arg1)) ,len-diff) ,len-diff)))))))
+							       `(subvector ,(cadadr arg1) (- (length ,(cadadr arg1)) ,len-diff) ,len-diff)))))))
 		    (when (and (eq? head 'for-each)
 			       (len>1? (cadr form))            ; (for-each (lambda (x) (+ (abs x) 1)) lst)
 			       (eq? (caadr form) 'lambda)
@@ -21470,7 +21470,7 @@
 	
 	;; -------- walk head=symbol --------
 	(denote walk-symbol 
-	  (letrec ((unsafe-makers '(sublet inlet copy cons list append make-shared-vector vector hash-table hash-table* 
+	  (letrec ((unsafe-makers '(sublet inlet copy cons list append subvector vector hash-table hash-table* 
 				    make-hash-table make-hook list-values append gentemp or and not))
 		   
 		   (equal-ignoring-constants? 

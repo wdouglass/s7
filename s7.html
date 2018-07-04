@@ -1989,7 +1989,7 @@ vector-dimensions returns a list of the dimensions.
 
 <pre class="indented">
 (define (make-array dims . inits)
-  (make-shared-vector (apply vector (flatten inits)) dims))
+  (subvector (apply vector (flatten inits)) dims))
 
 &gt; (make-array '(3 3) '(1 1 1) '(2 2 2) '(3 3 3))
 <em class="gray">#2d((1 1 1) (2 2 2) (3 3 3))</em>
@@ -2019,20 +2019,22 @@ s7_ints or s7_doubles:
 (<em class=def id="bytevectorset">byte-vector-set!</em> vect index byte)
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
+
+(<em class=def id="subvector">subvector</em> vector dimensions offset) ; does not apply to byte-vectors yet
 </pre>
 
 
 <p>To access a vector's elements with different dimensions than the original had, use 
-<code>(make-shared-vector original-vector new-dimensions (offset 0))</code>:
+<code>(subvector original-vector new-dimensions (offset 0))</code>:
 </p>
 
 <pre class="indented">
 &gt; (let ((v1 #2d((1 2 3) (4 5 6)))) 
-    (let ((v2 (make-shared-vector v1 '(6)))) ; flatten the original
+    (let ((v2 (subvector v1 '(6)))) ; flatten the original
       v2))
 <em class="gray">#(1 2 3 4 5 6)</em>
 &gt; (let ((v1 #(1 2 3 4 5 6))) 
-    (let ((v2 (make-shared-vector v1 '(3 2)))) 
+    (let ((v2 (subvector v1 '(3 2)))) 
       v2))
 <em class="gray">#2d((1 2) (3 4) (5 6))</em>
 </pre>
@@ -2242,18 +2244,18 @@ This also affects format and sort!:
 <em class="gray">#2d((4 3) (2 1))</em>
 </pre>
 
-<p>Perhaps make-shared-vector can help:
+<p>Perhaps subvector can help:
 </p>
 
 <pre class="indented">
-&gt;(make-shared-vector (list-&gt;vector '(1 2 3 4)) '(2 2))
+&gt;(subvector (list-&gt;vector '(1 2 3 4)) '(2 2))
 <em class="gray">#2d((1 2) (3 4))</em>
 &gt; (let ((a #2d((1 2) (3 4)))
         (b #2d((5 6) (7 8))))
-  (list (make-shared-vector (append a b) '(2 4))
-	(make-shared-vector (append a b) '(4 2))
-	(make-shared-vector (append (a 0) (b 0) (a 1) (b 1)) '(2 4))
-	(make-shared-vector (append (a 0) (b 0) (a 1) (b 1)) '(4 2))))
+  (list (subvector (append a b) '(2 4))
+	(subvector (append a b) '(4 2))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(2 4))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(4 2))))
 <em class="gray">(#2d((1 2 3 4) (5 6 7 8)) 
  #2d((1 2) (3 4) (5 6) (7 8)) 
  #2d((1 2 5 6) (3 4 7 8)) 

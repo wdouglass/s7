@@ -1202,7 +1202,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			    (if (not (let? p))
 				(apply format p args)
 				(write (apply format #f args) p))))))
-    (make-shared-vector v (list i)))) ; ignore extra trailing elements
+    (subvector v (list i)))) ; ignore extra trailing elements
 
 
 
@@ -1682,7 +1682,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	(error 'out-of-range "end: ~A should be greater than start: ~A" end start))
 
     (cond ((vector? obj) 
-	   (make-shared-vector obj (list new-len) start))
+	   (subvector obj (list new-len) start))
 
           ((string? obj)
            (if (integer? end)
@@ -2226,7 +2226,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      cdadar cddaar cdaddr cddddr cddadr cdddar assoc member list list-ref list-set! list-tail 
 	      make-list length copy fill! reverse reverse! sort! append assq assv memq memv vector-append 
 	      list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions 
-	      make-vector make-shared-vector vector float-vector make-float-vector float-vector-set! 
+	      make-vector subvector vector float-vector make-float-vector float-vector-set! 
 	      float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector 
 	      byte-vector make-byte-vector hash-table hash-table* make-hash-table hash-table-ref 
 	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 

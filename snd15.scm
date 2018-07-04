@@ -29,7 +29,7 @@
 (define vct-fill! fill!)
 (define vct float-vector)
 (define vct-length length)
-(define vct-reverse! reverse!)  ; slight difference: no optional length arg (use make-shared-vector)
+(define vct-reverse! reverse!)  ; slight difference: no optional length arg (use subvector)
 (define vct->list vector->list)
 (define (list->vct x) (apply float-vector x))
 (define make-vct make-float-vector)

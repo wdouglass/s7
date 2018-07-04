@@ -84,10 +84,10 @@
 					   (map values (obj 'value))
 					   (error 'wrong-type-arg "vector->list ~S ~S" obj args)))
 		 
-		 'make-shared-vector (lambda* (obj dim (off 0))
+		 'subvector (lambda* (obj dim (off 0))
 				       (if (mock-vector? obj)
-					   (#_make-shared-vector (obj 'value) dim off)
-					   (error 'wrong-type-arg "make-shared-vector ~S ~S ~S" obj dim off)))
+					   (#_subvector (obj 'value) dim off)
+					   (error 'wrong-type-arg "subvector ~S ~S ~S" obj dim off)))
 		 
 		 'vector-fill!       (lambda (obj . args)
 				       (if (mock-vector? obj)
@@ -667,11 +667,11 @@
 				   (#_vector-set! vec (ind 'value) val)
 				   (error 'wrong-type-arg "vector-set! ~S ~S ~S" vec ind val)))
 	   
-	   'make-shared-vector (lambda (obj dims offset) 
+	   'subvector (lambda (obj dims offset) 
 				 (if (and (vector? obj)
 					  (pair? dims))
-				     (#_make-shared-vector obj dims (offset 'value))
-				     (error 'wrong-type-arg "make-shared-vector ~S ~S ~S" obj dims offset)))
+				     (#_subvector obj dims (offset 'value))
+				     (error 'wrong-type-arg "subvector ~S ~S ~S" obj dims offset)))
 	   
 	   'read-string     (lambda* (k (port (current-input-port)))
 			      (#_read-string (k 'value) port))
@@ -900,10 +900,10 @@
 					 (apply #_copy (obj 'value) args)
 					 (error 'wrong-type-arg "copy ~S ~S" obj args)))
 		 
-		 'make-shared-vector (lambda (obj dims . args) 
+		 'subvector (lambda (obj dims . args) 
 				       (if (mock-pair? dims)
-					   (apply #_make-shared-vector obj (dims 'value) args)
-					   (error 'wrong-type-arg "make-shared-vector ~S ~S ~S" obj dims args)))
+					   (apply #_subvector obj (dims 'value) args)
+					   (error 'wrong-type-arg "subvector ~S ~S ~S" obj dims args)))
 		 'make-vector      (lambda (dims . args) 
 				     (if (mock-pair? dims)
 					 (apply #_make-vector (dims 'value) args)

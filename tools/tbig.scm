@@ -397,7 +397,7 @@
 	(test (morally-equal? big1 bigfv) #t)
 	(set! (big1 (- big-size 1)) 0.25)
 	(test (morally-equal? big1 bigfv) #f)
-	(let ((big2 (make-shared-vector big1 (list 20) (- (ash 1 31) 10))))
+	(let ((big2 (subvector big1 (list 20) (- (ash 1 31) 10))))
 	  (test big2 (make-float-vector 20 0.5))
 	  (test (length big2) 20)
 	  (let ((big3 (make-float-vector 20 0.0)))
@@ -709,7 +709,7 @@
 	(test (morally-equal? big1 bigfv) #t)
 	(set! (big1 (- big-size 1)) 25)
 	(test (morally-equal? big1 bigfv) #f)
-	(let ((big2 (make-shared-vector big1 (list 20) (- (ash 1 31) 10))))
+	(let ((big2 (subvector big1 (list 20) (- (ash 1 31) 10))))
 	  (test big2 (make-int-vector 20 5))
 	  (test (length big2) 20)
 	  (let ((big3 (make-int-vector 20 0)))
@@ -1945,7 +1945,7 @@
   `(make-vector (make-list (+ 1 (random 4)) (+ 1 (random 4))) ,val))
 
 (define-expansion (old-value ref)
-  `((make-shared-vector ,ref (list 1)) 0))
+  `((subvector ,ref (list 1)) 0))
 
 (define (complex-2d-fft data n dir)
   (when data

@@ -240,7 +240,7 @@
 				    (null? (cdr body))
 				    (pair? (car body))
 				    (eq? (caar body) 'float-vector-set!)
-					;(eqv? 0 (cadar vars)) -- we'll use shared-vector if not 0
+					;(eqv? 0 (cadar vars)) -- we'll use subvector if not 0
 				    (pair? (cddar vars))
 				    (eqv? (length (caddar vars)) 3))
 			   (let ((stepper (caddar vars))
