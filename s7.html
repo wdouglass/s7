@@ -2020,12 +2020,15 @@ s7_ints or s7_doubles:
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
 
-(<em class=def id="subvector">subvector</em> vector dimensions offset) ; does not apply to byte-vectors yet
+(<em class=def id="subvector">subvector</em> vector dimensions position) ; does not apply to byte-vectors yet
+(<em class=def id="subvectorp">subvector?</em> obj) 
+(<em class=def id="subvectorvector">subvector-vector</em> obj) 
+(<em class=def id="subvectorposition">subvector-position</em> obj)
 </pre>
 
 
 <p>To access a vector's elements with different dimensions than the original had, use 
-<code>(subvector original-vector new-dimensions (offset 0))</code>:
+<code>(subvector original-vector new-dimensions (position 0))</code>:
 </p>
 
 <pre class="indented">
@@ -2038,6 +2041,12 @@ s7_ints or s7_doubles:
       v2))
 <em class="gray">#2d((1 2) (3 4) (5 6))</em>
 </pre>
+<p>A subvector is a window onto some other vector's data.  The data is not copied, just accessed differently.
+The <code>new-dimensions</code> parameter can be either an integer or a list.  In the integer case, it sets
+the length of the subvector, otherwise the dimensions of the subvector.  <code>subvector-vector</code> returns
+the underlying vector, and <code>subvector-position</code> returns the starting point of the subvector
+in the underlying data.
+</p>
 <blockquote>
 
 <div class="indented">
