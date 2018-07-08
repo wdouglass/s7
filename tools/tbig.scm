@@ -1945,7 +1945,7 @@
   `(make-vector (make-list (+ 1 (random 4)) (+ 1 (random 4))) ,val))
 
 (define-expansion (old-value ref)
-  `((subvector ,ref (list 1)) 0))
+  `((subvector ,ref '(1)) 0))
 
 (define (complex-2d-fft data n dir)
   (when data

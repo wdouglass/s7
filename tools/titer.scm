@@ -4,6 +4,8 @@
 
 ;;; do/let/rec/tc/iter
 
+(let ()
+
 (define with-blocks #f)
 (when with-blocks
   (let ((new-env (sublet (curlet) (cons 'init_func 'block_init)))) ; load calls init_func if possible
@@ -103,3 +105,4 @@
 (s7-version)	
 (exit)
 
+)
