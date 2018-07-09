@@ -2301,19 +2301,21 @@ as:
 <p>Add optional and rest arguments, and you can't tell who is supposed to
 take which arguments.  
 Currently, you can mix types with implicit indices,
-but a function grabs all remaining indices.  Trickier than I expected!
+but a function grabs all remaining indices.
+To insist that all objects are of the same type, use an explicit getter:
 </p>
 
 <pre class="indented">
-&gt; (vector-ref (vector abs log) 0 -1)
-<em class="gray">1</em> ; hmm...
+&gt; (list-ref (list 1 (list 2 3)) 1 0) ; same as ((list 1 (list 2 3)) 1 0)
+<em class="gray">2</em>
+&gt; ((list 1 (vector 2 3)) 1 0)
+<em class="gray">2</em>
+&gt; (list-ref (list 1 (vector 2 3)) 1 0)
+<em class="red">error</em><em class="gray">: list-ref argument 1, #(2 3), is a vector but should be a proper list</em>
 </pre>
 </div>
 
 </blockquote>
-
-
-
 
 
 

@@ -830,24 +830,14 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 
 
 /* -------------------------------------------------------------------------------- */
-#if DISABLE_DEPRECATED
+#if (!DISABLE_DEPRECATED)
 #define s7_is_ulong(arg)          s7_is_integer(arg)
 #define s7_ulong(p)               (uint64_t)s7_integer(p)
 #define s7_make_ulong(sc, n)      s7_make_integer(sc, (s7_int)n)
-
 #define s7_is_ulong_long(arg)     s7_is_c_pointer((void *)arg)
 #define s7_ulong_long(p)          (uint64_t)s7_c_pointer(arg)
 #define s7_make_ulong_long(sc, n) s7_make_c_pointer(sc, (void *)n)
 
-#else
-bool s7_is_ulong(s7_pointer arg);
-unsigned long s7_ulong(s7_pointer p);
-s7_pointer s7_make_ulong(s7_scheme *sc, unsigned long n);
-bool s7_is_ulong_long(s7_pointer arg);
-uint64_t s7_ulong_long(s7_pointer p);
-s7_pointer s7_make_ulong_long(s7_scheme *sc, uint64_t n);
-
-/* old forms... */
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
 

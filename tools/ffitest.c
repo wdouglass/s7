@@ -1051,29 +1051,6 @@ int main(int argc, char **argv)
     s7_gc_on(sc, true);
   }
 
-#if 0
-  p = s7_make_ulong(sc, 123);
-  gc_loc = s7_gc_protect(sc, p);
-
-  if (!s7_is_ulong(p))
-    {fprintf(stderr, "%d: %s is not a ulong?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-  
-  if (s7_ulong(p) != (unsigned long)123)
-    {fprintf(stderr, "%d: %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-  s7_gc_unprotect_at(sc, gc_loc);
-
-
-  p = s7_make_ulong_long(sc, 123);
-  gc_loc = s7_gc_protect(sc, p);
-
-  if (!s7_is_ulong_long(p))
-    {fprintf(stderr, "%d: %s is not a ulong_long?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-  
-  if (s7_ulong_long(p) != (unsigned long long)123)
-    {fprintf(stderr, "%d: %s is not 123?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-  s7_gc_unprotect_at(sc, gc_loc);
-#endif
-
   s7_for_each_symbol_name(sc, symbol_func, NULL);
   s7_for_each_symbol(sc, symbol_func_1, NULL);
   s7_symbol_name(s7_make_symbol(sc, "a_symbol"));
