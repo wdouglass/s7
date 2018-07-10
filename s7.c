@@ -374,6 +374,8 @@
 
 #include "s7.h"
 
+#define NEW_OPTS 0
+
 #ifndef M_PI
   #define M_PI 3.1415926535897932384626433832795029L
 #endif
@@ -1400,8 +1402,8 @@ struct s7_scheme {
              lcm_symbol, length_symbol, leq_symbol, let_ref_fallback_symbol, let_ref_symbol, let_set_fallback_symbol,
              let_set_symbol, let_temporarily_symbol, list_ref_symbol, list_set_symbol, list_symbol, list_tail_symbol, list_values_symbol, 
              load_path_symbol, load_symbol, log_symbol, logand_symbol, logbit_symbol, logior_symbol, lognot_symbol, logxor_symbol, lt_symbol,
-             magnitude_symbol, make_byte_vector_symbol, make_float_vector_symbol, make_hash_table_symbol, make_int_vector_symbol,
-             make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
+             magnitude_symbol, make_byte_vector_symbol, make_float_vector_symbol, make_hash_table_symbol, make_weak_hash_table_symbol, 
+             make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
              make_vector_symbol, map_symbol, max_symbol, member_symbol, memq_symbol, memv_symbol, min_symbol, modulo_symbol, multiply_symbol, 
              newline_symbol, not_symbol, number_to_string_symbol, numerator_symbol, 
              object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol, 
@@ -2192,6 +2194,9 @@ static s7_scheme *cur_sc = NULL;
 #define set_has_let_set_fallback(p)   typeflag(T_Let(p)) |= T_HAS_LET_SET_FALLBACK
 #define set_all_methods(p, e)         typeflag(T_Let(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
 
+#define T_WEAK_HASH                   T_SAFE_STEPPER
+#define set_weak_hash_table(p)        typeflag(T_Hsh(p)) |= T_WEAK_HASH
+#define is_weak_hash_table(p)         ((typeflag(T_Hsh(p)) & T_WEAK_HASH) != 0)
 
 #define T_COPY_ARGS                   (1 << (TYPE_BITS + 20))
 #define needs_copied_args(p)          ((typeflag(T_Pos(p)) & T_COPY_ARGS) != 0)
@@ -4391,6 +4396,8 @@ static void mark_symbol(s7_pointer p)
 static void mark_noop(s7_pointer p) {}
 
 static void close_output_port(s7_scheme *sc, s7_pointer p);
+static void clear_weak_hash_table(s7_scheme *sc, s7_pointer table);
+
 #if S7_DEBUGGING
 static void check_string_wrappers(void);
 #endif
@@ -4524,7 +4531,12 @@ static void sweep(s7_scheme *sc)
 	  s1 = gp->list[i];
 	  if (is_free_and_clear(s1))
 	    free_hash_table(s1);
-	  else gp->list[j++] = s1;
+	  else 
+	    {
+	      if (is_weak_hash_table(s1))
+		clear_weak_hash_table(sc, s1);
+	      gp->list[j++] = s1;
+	    }
 	}
       gp->loc = j;
     }
@@ -4712,23 +4724,23 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 }
 
 
-#define add_c_object(sc, p)     add_to_gc_list(sc->c_objects, p)
-#define add_hash_table(sc, p)   add_to_gc_list(sc->hash_tables, p)
-#define add_string(sc, p)       add_to_gc_list(sc->strings, p)
-#define add_byte_vector(sc, p)  add_to_gc_list(sc->strings, p)
-#define add_input_port(sc, p)   add_to_gc_list(sc->input_ports, p)
-#define add_output_port(sc, p)  add_to_gc_list(sc->output_ports, p)
-#define add_continuation(sc, p) add_to_gc_list(sc->continuations, p)
-#define add_unknown(sc, p)      add_to_gc_list(sc->unknowns, p)
-#define add_vector(sc, p)       add_to_gc_list(sc->vectors, p)
-#define add_multivector(sc, p)  add_to_gc_list(sc->multivectors, p)
-#define add_lambda(sc, p)       add_to_gc_list(sc->lambdas, p)
+#define add_c_object(sc, p)        add_to_gc_list(sc->c_objects, p)
+#define add_hash_table(sc, p)      add_to_gc_list(sc->hash_tables, p)
+#define add_string(sc, p)          add_to_gc_list(sc->strings, p)
+#define add_byte_vector(sc, p)     add_to_gc_list(sc->strings, p)
+#define add_input_port(sc, p)      add_to_gc_list(sc->input_ports, p)
+#define add_output_port(sc, p)     add_to_gc_list(sc->output_ports, p)
+#define add_continuation(sc, p)    add_to_gc_list(sc->continuations, p)
+#define add_unknown(sc, p)         add_to_gc_list(sc->unknowns, p)
+#define add_vector(sc, p)          add_to_gc_list(sc->vectors, p)
+#define add_multivector(sc, p)     add_to_gc_list(sc->multivectors, p)
+#define add_lambda(sc, p)          add_to_gc_list(sc->lambdas, p)
 
 #if WITH_GMP
-#define add_bigint(sc, p)       add_to_gc_list(sc->bigints, p)
-#define add_bigratio(sc, p)     add_to_gc_list(sc->bigratios, p)
-#define add_bigreal(sc, p)      add_to_gc_list(sc->bigreals, p)
-#define add_bignumber(sc, p)    add_to_gc_list(sc->bignumbers, p)
+#define add_bigint(sc, p)          add_to_gc_list(sc->bigints, p)
+#define add_bigratio(sc, p)        add_to_gc_list(sc->bigratios, p)
+#define add_bigreal(sc, p)         add_to_gc_list(sc->bigreals, p)
+#define add_bignumber(sc, p)       add_to_gc_list(sc->bignumbers, p)
 #endif
 
 static void init_gc_caches(s7_scheme *sc)
@@ -5003,18 +5015,32 @@ static void mark_hash_table(s7_pointer p)
       len = hash_table_mask(p) + 1;
       last = (hash_entry_t **)(entries + len);
 
-      while (entries < last) /* counting entries here was slightly faster */
+      if (is_weak_hash_table(p))
 	{
-	  hash_entry_t *xp;
-	  for (xp = *entries++; xp; xp = hash_entry_next(xp))
+	  while (entries < last)
 	    {
-	      gc_mark(hash_entry_key(xp));
-	      gc_mark(hash_entry_value(xp));
+	      hash_entry_t *xp;
+	      for (xp = *entries++; xp; xp = hash_entry_next(xp))
+		gc_mark(hash_entry_value(xp));
+	      for (xp = *entries++; xp; xp = hash_entry_next(xp))
+		gc_mark(hash_entry_value(xp));
 	    }
-	  for (xp = *entries++; xp; xp = hash_entry_next(xp))
+	}
+      else
+	{
+	  while (entries < last) /* counting entries here was slightly faster */
 	    {
-	      gc_mark(hash_entry_key(xp));
-	      gc_mark(hash_entry_value(xp));
+	      hash_entry_t *xp;
+	      for (xp = *entries++; xp; xp = hash_entry_next(xp))
+		{
+		  gc_mark(hash_entry_key(xp));
+		  gc_mark(hash_entry_value(xp));
+		}
+	      for (xp = *entries++; xp; xp = hash_entry_next(xp))
+		{
+		  gc_mark(hash_entry_key(xp));
+		  gc_mark(hash_entry_value(xp));
+		}
 	    }
 	}
     }
@@ -29029,7 +29055,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						    ((is_c_function(obj)) ? " maybe-safe" :
 						     ((is_number(obj)) ? " print-name" :
 						      ((is_pair(obj)) ? " direct_x_opt" :
-						       " ?19?"))))) : "",
+						       ((is_hash_table(obj)) ? " weak-hash" :
+							" ?19?")))))) : "",
 	   /* bit 20, for c_function case see sc->apply */
 	   ((full_typ & T_COPY_ARGS) != 0) ?      (((is_any_macro(obj)) || (is_any_closure(obj)) || (is_c_function(obj))) ? " copy-args" :
 						    " ?20?") : "",
@@ -29100,7 +29127,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) && 
-      (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)))
+      (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
     return(true);
   if (((full_typ & T_SETTER) != 0) && 
       (!is_symbol(obj)) && (!is_pair(obj)) && (!is_closure(obj)) && (!is_hash_table(obj)) && (!is_let(obj))) 
@@ -38132,6 +38159,7 @@ static void free_hash_table(s7_pointer table)
     {
       s7_int i, len;
       len = hash_table_mask(table) + 1;
+
       for (i = 0; i < len; i++)
 	{
 	  hash_entry_t *p, *n;
@@ -39042,6 +39070,15 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
   return(s7_make_hash_table(sc, size));
 }
 
+static s7_pointer g_make_weak_hash_table(s7_scheme *sc, s7_pointer args)
+{
+  #define H_make_weak_hash_table "(make-weak-hash-table (size 8) eq-func) returns a new weak hash table"
+  #define Q_make_weak_hash_table s7_make_signature(sc, 3, sc->is_hash_table_symbol, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol))
+  s7_pointer table;
+  table = g_make_hash_table(sc, args);
+  set_weak_hash_table(table);
+  return(table);
+}
 
 void init_hash_maps(void)
 {
@@ -39299,6 +39336,49 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
     }
   liberate_block(x);
   return(sc->F);
+}
+
+static void clear_weak_hash_table(s7_scheme *sc, s7_pointer table)
+{
+  if (hash_table_entries(table) > 0)
+    {
+      s7_int i, len;
+      hash_entry_t **entries;
+
+      entries = hash_table_elements(table);
+      len = hash_table_mask(table) + 1;
+
+      for (i = 0; i < len; i++)
+	{
+	  hash_entry_t *xp, *nxp, *lxp;
+	  lxp = entries[i];
+	  for (xp = entries[i]; xp; xp = nxp)
+	    {
+	      nxp = hash_entry_next(xp);
+	      if (is_free_and_clear(hash_entry_key(xp)))
+		{
+		  if (xp == entries[i])
+		    {
+		      entries[i] = nxp;
+		      lxp = nxp;
+		    }
+		  else hash_entry_next(lxp) = nxp;
+                  liberate_block(xp);
+		  hash_table_entries(table)--;
+		  if (hash_table_entries(table) == 0)
+		    {
+		      if (!hash_table_checker_locked(table))
+			{
+			  hash_table_checker(table) = hash_empty;
+			  hash_clear_chosen(table);
+			}
+		      return;
+		    }
+		}
+	      else lxp = xp;
+	    }
+	}
+    }
 }
 
 static void hash_table_set_checker(s7_pointer table, uint8_t typ)
@@ -84929,6 +85009,7 @@ s7_scheme *s7_init(void)
   sc->hash_table_symbol =            defun("hash-table",	hash_table,		0, 0, true);
   sc->hash_table_star_symbol =       defun("hash-table*",	hash_table_star,	0, 0, true);
   sc->make_hash_table_symbol =       defun("make-hash-table",	make_hash_table,	0, 2, false);
+  sc->make_weak_hash_table_symbol =  defun("make-weak-hash-table", make_weak_hash_table,0, 2, false);
   sc->hash_table_ref_symbol =        defun("hash-table-ref",	hash_table_ref,		2, 0, true);
   sc->hash_table_set_symbol =        defun("hash-table-set!",	hash_table_set,		3, 0, false);
   sc->hash_table_entries_symbol =    defun("hash-table-entries", hash_table_entries,	1, 0, false);
@@ -85890,6 +85971,7 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *
+ * new optlists: local_slots can't be used (sigh -- a day in the life...)
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure?
  * simple_do_ex opt: is something like opt_p_pip_ssc, this can't call anything, so it is completely unwrappable:
@@ -85943,7 +86025,7 @@ int main(int argc, char **argv)
  * test-phases opt
  * redundancy involving pair_set_syntax_op (set syn_pair + opt_op)
  * equal? + subvector?
- * test of multi-thread s7's+database for shared vars
+ * test of multi-thread s7's+database for shared vars, lmdb.scm
  *
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
