@@ -219,6 +219,16 @@
 	   (int strcasecmp (char* char*))
 	   (int strncasecmp (char* char* size_t))
 	   
+	   (reader-cond 
+	    ((provided? 'linux)
+	     ;; -------- semaphore.h --------
+	     (int sem_init (sem_t* int int))
+	     (int sem_destroy (sem_t*))
+	     (sem_t* sem_open (char* int int int))
+	     (int sem_close (sem_t*))
+	     (int sem_unlink (char*))
+	     (int sem_wait (sem_t*))
+	     (int sem_post (sem_t*))))
 	   
 	   ;; -------- stdio.h --------
 	   (C-macro (int (_IOFBF _IOLBF _IONBF BUFSIZ EOF L_tmpnam TMP_MAX FILENAME_MAX L_ctermid L_cuserid FOPEN_MAX IOV_MAX)))
@@ -1727,6 +1737,7 @@
 	       "fenv.h" "stdio.h" "sys/utsname.h" "unistd.h" "dirent.h" "ftw.h" "sys/stat.h" "time.h" "sys/time.h"
 	       "utime.h" "termios.h" "grp.h" "pwd.h" "fnmatch.h" "glob.h" "signal.h" "sys/wait.h" "netdb.h" 
 	       "sys/resource.h"
+	       (reader-cond ((provided? 'linux) "semaphore.h"))
 	       (reader-cond ((not (provided? 'openbsd)) "wordexp.h"))
 	       (reader-cond ((provided? 'freebsd) "sys/socket.h" "netinet/in.h"))
 	       )

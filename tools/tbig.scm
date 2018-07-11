@@ -682,8 +682,8 @@
 	(set! mx (max mx (abs (float-vector-ref fvr 0 i)) (abs (float-vector-ref fvr 1 i)))))
       (format () "noise: ~A~%" mx))))
 
-(define (float-2d-test)
-  (let ((fvr (make-float-vector (list 2 fft-size) 0.0)))
+(define (float-2d-test skip)
+  (let ((fvr (make-float-vector (list skip fft-size) 0.0)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))
@@ -693,9 +693,15 @@
     (float-2d-fft #f fft-size 1)
     (float-2d-checker #f)))
 
-(float-2d-test)
+(float-2d-test 2)
 (clear-and-gc)
 
+#|
+;; now try a big float-vector, but same size fft
+(when (> total-memory (* 9 (ash 1 31)))
+  (float-2d-test (ash 1 14))) ; fft-size (ash 1 17) -> (* 8 (ash 1 31))
+|#
+  
 
 ;; --------------------------------------------------------------------------------
 (format () "~%int-vectors...~%")  
@@ -1116,8 +1122,8 @@
 	(set! mx (max mx (abs (vector-ref fvr 0 i)) (abs (vector-ref fvr 1 i)))))
       (format () "noise: ~A~%" mx))))
 
-(define (vector-2d-test)
-  (let ((fvr (make-vector (list 2 fft-size) 0.0)))
+(define (vector-2d-test skip)
+  (let ((fvr (make-vector (list skip fft-size) 0.0)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))
@@ -1127,7 +1133,7 @@
     (vector-2d-fft #f fft-size 1)
     (vector-2d-checker #f)))
 
-(vector-2d-test)
+(vector-2d-test 2)
 (clear-and-gc)
 
 
@@ -1334,7 +1340,7 @@
 
 (format () "~%hash-tables...~%")
 
-(when (> total-memory (* 9 2147483648))
+(when (> total-memory (* 9 (ash 1 31)))
   (clear-and-gc)
   
   (set! big-size 2000000000)
@@ -1351,7 +1357,7 @@
   (clear-and-gc)
   )
 
-(when (> total-memory (* 9 4294967296)) ; add some slack
+(when (> total-memory (* 9 (ash 1 32))) ; add some slack
   (set! big-size 2500000000)
   (let ((bigv (make-hash-table big-size)))
     (test (length bigv) 4294967296)
