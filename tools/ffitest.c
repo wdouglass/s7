@@ -815,7 +815,7 @@ int main(int argc, char **argv)
 
   if (!s7_is_vector(p))
     {fprintf(stderr, "%d: %s is not a vector?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-  if (s7_type_of(p) != s7_make_symbol(sc, "vector?"))
+  if (s7_type_of(sc, p) != s7_make_symbol(sc, "vector?"))
     fprintf(stderr, "type-of(vector) confused?\n");
 
   if (s7_vector_rank(p) != 1)

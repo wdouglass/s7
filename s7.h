@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.1"
-#define S7_DATE "25-Jun-18"
+#define S7_VERSION "7.2"
+#define S7_DATE "12-Jul-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -577,7 +577,7 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 
 s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);            /* (copy ...) */
 s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */
-s7_pointer s7_type_of(s7_pointer arg);                         /* (type-of arg) */
+s7_pointer s7_type_of(s7_scheme *sc, s7_pointer arg);          /* (type-of arg) */
 
 
 
