@@ -231,8 +231,11 @@ static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices,
 	  s7_int *offsets, *dimensions;
 
 	  elements = s7_vector_elements(vector);
-	  dimensions = s7_vector_dimensions(vector);
-	  offsets = s7_vector_offsets(vector);
+
+	  dimensions = (s7_int *)malloc(ndims * sizeof(s7_int));
+	  offsets = (s7_int *)malloc(ndims * sizeof(s7_int));
+	  s7_vector_dimensions(vector, dimensions, ndims);
+	  s7_vector_offsets(vector, offsets, ndims);
 
 	  for (i = 0; i < indices; i++)
 	    {
@@ -242,6 +245,8 @@ static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices,
 		  (ind >= dimensions[i]))
 		{
 		  va_end(ap);
+		  free(dimensions);
+		  free(offsets);
 		  return(s7_out_of_range_error(sc, 
                                                "multivector_ref", i, 
                                                s7_make_integer(sc, ind), 
@@ -250,6 +255,8 @@ static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices,
 	      index += (ind * offsets[i]);
 	    }
 	  va_end(ap);
+	  free(dimensions);
+	  free(offsets);
 	  return(elements[index]);
 	}
     }
@@ -1277,9 +1284,15 @@ int main(int argc, char **argv)
   {
     s7_int *dims, *offs;
     s7_pointer *els;
-    dims = s7_vector_dimensions(p1);
-    offs = s7_vector_offsets(p1);
+    s7_int ndims;
+
+    ndims = s7_vector_rank(p1);
+    dims = (s7_int *)malloc(ndims * sizeof(s7_int));
+    offs = (s7_int *)malloc(ndims * sizeof(s7_int));
+    s7_vector_dimensions(p1, dims, ndims);
+    s7_vector_offsets(p1, offs, ndims);
     els = s7_vector_elements(p1);
+
     if (dims[0] != 2) fprintf(stderr, "%d: dims[0]: %" print_s7_int "?\n", __LINE__, dims[0]);
     if (dims[1] != 3) fprintf(stderr, "%d: dims[1]: %" print_s7_int "?\n", __LINE__, dims[1]);
     if (dims[2] != 4) fprintf(stderr, "%d: dims[2]: %" print_s7_int "?\n", __LINE__, dims[2]);
@@ -1287,6 +1300,9 @@ int main(int argc, char **argv)
     if (offs[1] != 4) fprintf(stderr, "%d: offs[1]: %" print_s7_int "?\n", __LINE__, offs[1]);
     if (s7_integer(p = els[12 + 4 + 1]) != 32)
       {fprintf(stderr, "%d: %s is not 32?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+
+    free(dims);
+    free(offs);
   }
 
   s7_vector_fill(sc, p1, s7_t(sc));

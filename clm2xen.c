@@ -2313,7 +2313,6 @@ static Xen g_mus_set_ycoeff(Xen gen, Xen index, Xen val)
   return(val);
 }
 
-
 Xen g_mus_channels(Xen gen)
 {
   #define H_mus_channels "(" S_mus_channels " gen): gen's " S_mus_channels " field, if any"
@@ -2327,7 +2326,7 @@ Xen g_mus_channels(Xen gen)
   if (mus_is_vct(gen))
     {
       if (Xen_vector_rank(gen) > 1)
-	return(C_int_to_Xen_integer(s7_vector_dimensions(gen)[0]));
+	return(C_int_to_Xen_integer(s7_vector_dimension(gen, 0)));
       else return(C_int_to_Xen_integer(1));
     }
 #else
@@ -7980,12 +7979,18 @@ static mus_float_t in_any_3(const char *caller, mus_long_t pos, int in_chan, Xen
       if (pos < s7_vector_length(inp))
 	{
 	  s7_double *els;
+	  s7_int rank;
 	  els = s7_float_vector_elements(inp);
-	  if (s7_vector_rank(inp) > 1)
+	  rank = s7_vector_rank(inp);
+	  if (rank > 1)
 	    {
 	      s7_int *offsets;
-	      offsets = s7_vector_offsets(inp);
-	      return(els[in_chan * offsets[0] + pos]);
+	      s7_double x;
+	      offsets = (s7_int *)malloc(rank * sizeof(s7_int));
+	      s7_vector_offsets(inp, offsets, rank);
+	      x = els[in_chan * offsets[0] + pos];
+	      free(offsets);
+	      return(x);
 	    }
 	  return(els[pos]);
 	}
@@ -8083,10 +8088,14 @@ static Xen fallback_out_any_2(Xen outp, mus_long_t pos, mus_float_t inv, int chn
       else
 	{
 	  s7_int *offsets;
-	  offsets = s7_vector_offsets(outp);
+	  s7_int rank;
+	  rank = s7_vector_rank(outp);
+	  offsets = (s7_int *)malloc(rank * sizeof(s7_int));
+	  s7_vector_offsets(outp, offsets, rank);
 	  pos += (chn * offsets[0]);
 	  if (pos < mus_vct_length(v))
 	    vdata[pos] += inv;
+	  free(offsets);
 	}
 #endif
       return(xen_float_zero);
@@ -8145,11 +8154,11 @@ static Xen out_any_2_to_vct(mus_long_t pos, mus_float_t inv, int chn, const char
   else
     {
       s7_int chans;
-      chans = s7_vector_dimensions(clm_output_vct)[0];
+      chans = s7_vector_dimension(clm_output_vct, 0);
       if (chn < chans)
 	{
 	  s7_int chan_len;
-	  chan_len = s7_vector_dimensions(clm_output_vct)[1];
+	  chan_len = s7_vector_dimension(clm_output_vct, 1);
 	  if (pos < chan_len)
 	    vdata[chn * chan_len + pos] += inv;
 	}
@@ -8917,7 +8926,7 @@ static void mus_locsig_or_move_sound_to_vct_or_sound_data(mus_xen *ms, mus_any *
 	  else
 	    {
 	      s7_int chan_len;
-	      chan_len = s7_vector_dimensions(output)[1]; /* '(4 20) so each chan len is [1] */
+	      chan_len = s7_vector_dimension(output, 1); 
 	      if (pos < chan_len)
 		{
 		  int i;
@@ -8954,7 +8963,7 @@ static void mus_locsig_or_move_sound_to_vct_or_sound_data(mus_xen *ms, mus_any *
 	  else
 	    {
 	      s7_int chan_len;
-	      chan_len = s7_vector_dimensions(reverb)[1];
+	      chan_len = s7_vector_dimension(reverb, 1);
 	      if (pos < chan_len)
 		{
 		  int i;
@@ -9068,7 +9077,7 @@ static s7_pointer g_make_locsig(s7_scheme *sc, s7_pointer args)
       if (s7_is_float_vector(ov))
 	{
 	  if (s7_vector_rank(ov) > 1)
-	    out_chans = s7_vector_dimensions(ov)[0];
+	    out_chans = s7_vector_dimension(ov, 0);
 	  else out_chans = 1;
 	}
       else 
@@ -9093,7 +9102,7 @@ static s7_pointer g_make_locsig(s7_scheme *sc, s7_pointer args)
       if (s7_is_float_vector(rv))
 	{
 	  if (s7_vector_rank(rv) > 1)
-	    rev_chans = s7_vector_dimensions(rv)[0];
+	    rev_chans = s7_vector_dimension(rv, 0);
 	  else rev_chans = 1;
 	}
       else 
@@ -9239,7 +9248,7 @@ static Xen g_make_locsig(Xen arglist)
       if ((out_chans < 0) &&
 	  (s7_is_vector(ov)) &&
 	  (s7_vector_rank(ov) > 1))
-	out_chans = s7_vector_dimensions(ov)[0];
+	out_chans = s7_vector_dimension(ov, 0);
 #endif
     }
 
@@ -9258,7 +9267,7 @@ static Xen g_make_locsig(Xen arglist)
 	  rev_chans = 1;
 #if HAVE_SCHEME
 	  if (Xen_vector_rank(rv) > 1)
-	    rev_chans = s7_vector_dimensions(rv)[0];
+	    rev_chans = s7_vector_dimension(rv, 0);
 #endif
 	}
       else Xen_check_type(Xen_is_keyword(keys[4]) || Xen_is_false(keys[4]), keys[4], orig_arg[4], S_make_locsig, "a reverb output generator");

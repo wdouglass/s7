@@ -269,8 +269,9 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix);     /* (
 bool s7_is_vector(s7_pointer p);                                            /* (vector? p) */
 s7_int s7_vector_length(s7_pointer vec);                                    /* (vector-length vec) */
 s7_int s7_vector_rank(s7_pointer vect);                                     /* number of dimensions in vect */
-s7_int *s7_vector_dimensions(s7_pointer vec);                               /* dimensions (don't free the pointer) */
-s7_int *s7_vector_offsets(s7_pointer vec);                                  /* precalculated offsets to speed-up addressing (don't free) */
+s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size); /* vector dimensions */
+s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);    
+s7_int s7_vector_dimension(s7_pointer vec, s7_int dim);
 s7_pointer *s7_vector_elements(s7_pointer vec);                             /* a pointer to the array of s7_pointers */
 s7_int *s7_int_vector_elements(s7_pointer vec);
 s7_double *s7_float_vector_elements(s7_pointer vec);
@@ -890,6 +891,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 12-Jul:    changed s7_vector_dimensions|offsets.
  * 3-Jul:     changed make-shared-vector to subvector.
  * 20-May:    s7_keyword_to_symbol.
  * 6-May:     s7_mark_c_object -> s7_mark.
