@@ -245,7 +245,6 @@ indented and on a sort of brownish background.
       <li><a href="#definemacro1">C-side define-macro (s7_define_macro)</a>
       <li><a href="#definegeneric">define a generic function in C</a>
       <li><a href="#signal">signal handling (C-C to break out of an infinite loop)</a>
-      <li><a href="#vector">direct multidimensional vector element access</a>
       <li><a href="#notify">notification in C that a Scheme variable has been set!</a>
       <li><a href="#namespace">Load C defined stuff into a separate namespace</a>
       <li><a href="#Cerrors">Error handling in C</a>
@@ -6947,7 +6946,6 @@ The examples that follow show:
 <li><a href="#definemacro1">C-side define-macro (s7_define_macro)</a>
 <li><a href="#definegeneric">define a generic function in C</a>
 <li><a href="#signal">signal handling (C-C to break out of an infinite loop)</a>
-<li><a href="#vector">direct multidimensional vector element access</a>
 <li><a href="#notify">notification in C that a Scheme variable has been set!</a>
 <li><a href="#namespace">Load C defined stuff into a separate namespace</a>
 <li><a href="#Cerrors">Error handling in C</a>
@@ -8240,100 +8238,6 @@ int main(int argc, char **argv)
  *    3
  */
 </pre></div>
-
-
-
-
-
-<div class="header" id="vector"><h4>Multidimensional vector element access</h4></div>
-
-
-<div class="indented">
-<pre>
-#include &lt;stdlib.h&gt;
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;stdarg.h&gt;
-
-#include "s7.h"
-
-static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices, ...)
-{
-  /* multivector_ref returns an element of a multidimensional vector */
-  int ndims;
-  ndims = <em class=red>s7_vector_rank</em>(vector);
-
-  if (ndims == indices)
-    {
-      va_list ap;
-      s7_int index = 0;
-      va_start(ap, indices);
-
-      if (ndims == 1)
-	{
-	  index = va_arg(ap, s7_int);
-	  va_end(ap);
-	  return(s7_vector_ref(sc, vector, index));
-	}
-      else
-	{
-	  int i;
-	  s7_pointer *elements;
-	  s7_int *offsets, *dimensions;
-
-	  elements = <em class=red>s7_vector_elements</em>(vector);
-	  dimensions = <em class=red>s7_vector_dimensions</em>(vector);
-	  offsets = <em class=red>s7_vector_offsets</em>(vector);
-
-	  for (i = 0; i &lt; indices; i++)
-	    {
-	      int ind;
-	      ind = va_arg(ap, int);
-	      if ((ind &lt; 0) ||
-		  (ind &gt;= dimensions[i]))
-		{
-		  va_end(ap);
-		  return(s7_out_of_range_error(sc, 
-                                               "multivector_ref", i, 
-                                               s7_make_integer(sc, ind), 
-                                               "index should be between 0 and the dimension size"));
-		}
-	      index += (ind * offsets[i]);
-	    }
-	  va_end(ap);
-	  return(elements[index]);
-	}
-    }
-  return(s7_wrong_number_of_args_error(sc, 
-                                       "multivector_ref: wrong number of indices: ~A", 
-                                       s7_make_integer(sc, indices)));
-}
-
-int main(int argc, char **argv)
-{
-  char buffer[512];
-  char response[1024];
-  s7_scheme *s7;
-
-  s7 = s7_init(); 
-  s7_eval_c_string(s7, "(define vect (make-vector '(2 3 4) 0))");
-  s7_eval_c_string(s7, "(set! (vect 1 1 1) 32)");
-
-  fprintf(stdout, "vect[0,0,0]: %s, vect[1,1,1]: %s\n",
-	  s7_object_to_c_string(s7, <em class=red>multivector_ref</em>(s7, s7_name_to_value(s7, "vect"), 3, 0, 0, 0)),
-	  s7_object_to_c_string(s7, <em class=red>multivector_ref</em>(s7, s7_name_to_value(s7, "vect"), 3, 1, 1, 1)));
-}
-
-/* vect[0,0,0]: 0, vect[1,1,1]: 32
- */
-</pre>
-</div>
-
-<p>Much later... I decided to add s7_vector_ref_n and s7_vector_set_n to s7.
-</p>
-
-
-
 
 
 

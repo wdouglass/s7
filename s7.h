@@ -226,7 +226,7 @@ const char *s7_string(s7_pointer p);                                         /* 
 s7_pointer s7_make_string(s7_scheme *sc, const char *str);                   /* C string -> Scheme string (str is copied) */
 s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);  /* same as s7_make_string, but provides strlen */
 s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
-s7_pointer s7_make_permanent_string(const char *str);                        /* make a string that will never be GC'd */
+s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str);         /* make a string that will never be GC'd */
 s7_int s7_string_length(s7_pointer str);                                     /* (string-length str) */
 
 
@@ -269,8 +269,6 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix);     /* (
 bool s7_is_vector(s7_pointer p);                                            /* (vector? p) */
 s7_int s7_vector_length(s7_pointer vec);                                    /* (vector-length vec) */
 s7_int s7_vector_rank(s7_pointer vect);                                     /* number of dimensions in vect */
-s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size); /* vector dimensions */
-s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);    
 s7_int s7_vector_dimension(s7_pointer vec, s7_int dim);
 s7_pointer *s7_vector_elements(s7_pointer vec);                             /* a pointer to the array of s7_pointers */
 s7_int *s7_int_vector_elements(s7_pointer vec);
@@ -282,6 +280,8 @@ s7_pointer s7_vector_ref(s7_scheme *sc, s7_pointer vec, s7_int index);          
 s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer a);              /* (vector-set! vec index a) */
 s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, s7_int indices, ...);                   /* multidimensional vector-ref */
 s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, s7_int indices, ...); /* multidimensional vector-set! */
+s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size); /* vector dimensions */
+s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);    
 
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len);                                 /* (make-vector len) */
 s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info);
@@ -891,7 +891,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
- * 12-Jul:    changed s7_vector_dimensions|offsets.
+ * 12-Jul:    changed s7_vector_dimensions|offsets. Added s7_scheme* arg to make_permanent_string.
  * 3-Jul:     changed make-shared-vector to subvector.
  * 20-May:    s7_keyword_to_symbol.
  * 6-May:     s7_mark_c_object -> s7_mark.
