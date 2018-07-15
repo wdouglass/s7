@@ -13821,6 +13821,14 @@ static mus_long_t grn_location(mus_any *ptr) {return((mus_long_t)(((grn_info *)p
 static mus_long_t grn_set_location(mus_any *ptr, mus_long_t val) {((grn_info *)ptr)->randx = (unsigned long)val; return(val);}
 
 static mus_float_t grn_jitter(mus_any *ptr) {return(((grn_info *)ptr)->jitter);}
+static mus_float_t grn_set_jitter(mus_any *ptr, mus_float_t val) /* K Matheussen 15-Jul-18 */
+{ 
+  grn_info *gen = (grn_info *)ptr; 
+  gen->jitter = val; 
+  gen->s20 = 2 * (int)(val * gen->output_hop); 
+  gen->s50 = (int)(val * gen->output_hop * 0.4); 
+  return(val);
+} 
 
 static mus_float_t run_granulate(mus_any *ptr, mus_float_t unused1, mus_float_t unused2) {return(mus_granulate(ptr, NULL));}
 
@@ -13865,7 +13873,8 @@ static mus_any_class GRANULATE_CLASS = {
   MUS_NOT_SPECIAL,
   &grn_closure,
   0,
-  &grn_jitter, 0, 0, 0, 0, 0, 
+  &grn_jitter, &grn_set_jitter, 
+  0, 0, 0, 0, 
   &grn_hop, &grn_set_hop, 
   &grn_ramp, &grn_set_ramp,
   0, 0, 0, 0, 
@@ -13917,7 +13926,8 @@ mus_any *mus_make_granulate(mus_float_t (*input)(void *arg, int direction),
   spd->s50 = (int)(jitter * sampling_rate * hop * 0.4);
   spd->out_data_len = outlen;
   spd->out_data = (mus_float_t *)calloc(spd->out_data_len, sizeof(mus_float_t));
-  spd->in_data_len = outlen + spd->s20 + 1;
+  /* spd->in_data_len = outlen + spd->s20 + 1; */
+  spd->in_data_len = outlen + (2 * sampling_rate * hop) + 1;
   spd->in_data = (mus_float_t *)malloc(spd->in_data_len * sizeof(mus_float_t));
   spd->rd = input; 
   spd->block_rd = NULL;

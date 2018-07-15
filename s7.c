@@ -86530,7 +86530,7 @@ int main(int argc, char **argv)
  *   see t752.scm for more examples
  *
  * v cases need to save expected types [use top 2 bytes, 4 bits=16 types which is more than enough]
- *   add type args for slots in ss_set_type, check in oo_check
+ *   add type args for slots in oo_set_type, check in oo_check
  *   add oo_rcheck to runtime also (with size/slots check, run type checks too)
  *   detach sc->opts from the built-in scratch area
  *   try copy+call!
