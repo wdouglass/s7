@@ -850,8 +850,6 @@ typedef s7_double s7_Double;
 
 #define s7_define_integer_function s7_define_safe_function
 #define s7_make_random_state s7_random_state
-#define s7_eval_form s7_eval
-
 #define s7_is_constant(Obj) ((!s7_is_symbol(Obj)) || (s7_is_immutable(Obj)))
 
 s7_int s7_new_type(const char *name,
@@ -873,9 +871,6 @@ s7_int s7_new_type(const char *name,
 #define s7_object_let                s7_c_object_let
 #define s7_object_set_let            s7_c_object_set_let
 #define s7_set_object_print_readably s7_c_type_set_print_readably
-
-#define s7_symbol_access s7_symbol_setter
-#define s7_symbol_set_access s7_symbol_set_setter
 
 void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, 
 				    s7_function set_fnc, s7_int req_args, s7_int opt_args, const char *doc);
@@ -1117,7 +1112,6 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 27-Aug:    vector and hash-table sizes are now s7_ints, rather than ints.
  * 20-Aug:    s7_remove_from_heap.
  * 17-Aug:    *error-info*.
- * 14-Aug:    define-expansion.
  * 7-Aug:     s7_define_function_with_setter. 
  *            s7_quit and example of signal handling.
  * 6-Aug:     encapsulation.  s7_define_set_function.  s7_new_type_x.  

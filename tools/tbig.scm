@@ -26,6 +26,7 @@
 (define fft-size (ash 1 17))
 (define little-size 1000000)
 
+
 ;; --------------------------------------------------------------------------------
 (format () "complex fft...~%")
 
@@ -198,7 +199,7 @@
 ;; --------------------------------------------------------------------------------
 (format () "strings...~%")
 
-(when (> total-memory (* 2 big-size))
+(when (> total-memory (* 4 big-size))
   (clear-and-gc)
   (let ((bigstr (make-string big-size #\space)))
     (define (big-string-filler)
@@ -403,10 +404,12 @@
 	  (let ((big3 (make-float-vector 20 0.0)))
 	    (copy bigfv big3 (- (ash 1 31) 10) (+ (ash 1 31) 10))
 	    (test (morally-equal? big2 big3) #t)))))
+
     (define (big-float-vector-filler)
       (do ((i 0 (+ i 1)))
 	  ((= i big-size))
 	(float-vector-set! bigfv i 1.0)))
+
     (big-float-vector-filler)
     (test (bigfv 1) 1.0)))
 
@@ -465,9 +468,17 @@
     (test (float-vector-ref bigfv1 0 (- (/ big-size 2) 1)) 1.0)
     (test (float-vector-ref bigfv2 1 (- (/ big-size 2) 1)) 2.0)
     (let ((bigfv3 (append bigfv1 bigfv2)))
-      (test (length bigfv3) big-size)
-      (test (float-vector-ref bigfv3 (- (/ big-size 2) 1)) 1.0)
-      (test (float-vector-ref bigfv3 (+ (/ big-size 2) 1)) 2.0))))
+      (test (length bigfv3) (* 2 big-size))
+      (test (float-vector-ref bigfv3 (- big-size 1)) 1.0)
+      (test (float-vector-ref bigfv3 (+ big-size 1)) 2.0))))
+
+(when (> total-memory (* 32 big-size))
+  (format () "test 3a~%")
+  (clear-and-gc)
+  (let ((bigfv1 (make-float-vector (* big-size 2) 1.0))
+	(bigfv2 (make-float-vector (* big-size 2) 2.0)))
+    (test (float-vector-ref bigfv1 0 (- (/ big-size 2) 1)) 1.0)
+    (test (float-vector-ref bigfv2 1 (- (/ big-size 2) 1)) 2.0)))
 
 (when (> total-memory (* 9 big-size))
   (format () "test 4~%")
@@ -696,11 +707,13 @@
 (float-2d-test 2)
 (clear-and-gc)
 
-#|
 ;; now try a big float-vector, but same size fft
 (when (> total-memory (* 9 (ash 1 31)))
   (float-2d-test (ash 1 14))) ; fft-size (ash 1 17) -> (* 8 (ash 1 31))
-|#
+
+(when (> total-memory (* 9 (ash 1 33)))
+  (float-2d-test (ash 1 16))) ; fft-size (ash 1 17) -> (* 8 (ash 1 33))
+
   
 
 ;; --------------------------------------------------------------------------------
@@ -920,9 +933,9 @@
     ))
 (clear-and-gc)
 
-(when (> total-memory (* 68 big-size))
+(when (> total-memory (* 20 big-size))
   (let ((v (make-vector big-size)))
-    (do ((i 0 (+ i 1)))
+    (do ((i 0 (+ i 10)))
 	((= i big-size))
       (vector-set! v i (* 2.0 i)))
     (test (vector-ref v 100000000000) (* 2 100000000000))
@@ -1140,7 +1153,7 @@
 ;; --------------------------------------------------------------------------------
 (format () "~%blocks...~%")
 
-(when (> total-memory (* 5 big-size))
+(when (> total-memory (* 10 big-size))
   (clear-and-gc)
   (let ((bigv (make-block big-size)))
     (test (length bigv) big-size)

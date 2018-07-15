@@ -1051,10 +1051,6 @@ int main(int argc, char **argv)
     p = s7_eval(sc, c1234, s7_sublet(sc, s7_rootlet(sc), s7_nil(sc)));
     if (s7_integer(p) != 9)
       {fprintf(stderr, "%d: (eval '(+ 2 3 4)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-    p = s7_eval_form(sc, c1234, s7_sublet(sc, s7_rootlet(sc), s7_nil(sc)));
-    if (s7_integer(p) != 9)
-      {fprintf(stderr, "%d: (eval(form) '(+ 2 3 4)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
-    
     s7_gc_on(sc, true);
   }
 
@@ -1231,7 +1227,7 @@ int main(int argc, char **argv)
   p1 = s7_apply_function(sc, 
 	s7_name_to_value(sc, "mac-plus"),
 	s7_list(sc, 2, s7_make_integer(sc, 3), s7_make_integer(sc, 4)));
-  p = s7_eval_form(sc, p1, s7_rootlet(sc));
+  p = s7_eval(sc, p1, s7_rootlet(sc));
   if ((!s7_is_integer(p)) ||
       (s7_integer(p) != 7))
     {char *s2; fprintf(stderr, "%d: %s -> %s is not 7?\n", __LINE__, s1 = TO_STR(p1), s2 = TO_STR(p)); free(s1); free(s2);}
