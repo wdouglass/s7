@@ -2,8 +2,8 @@
 
 (require libc.scm)
 
-(set! (*s7* 'max-vector-length) (ash 1 33))
-(set! (*s7* 'max-string-length) (ash 1 33))
+(set! (*s7* 'max-vector-length) (ash 1 36))
+(set! (*s7* 'max-string-length) (ash 1 36))
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
@@ -25,7 +25,6 @@
 (define big-size 2500000000)
 (define fft-size (ash 1 17))
 (define little-size 1000000)
-
 
 ;; --------------------------------------------------------------------------------
 (format () "complex fft...~%")
@@ -473,12 +472,22 @@
       (test (float-vector-ref bigfv3 (+ big-size 1)) 2.0))))
 
 (when (> total-memory (* 32 big-size))
-  (format () "test 3a~%")
+  (format () "test 3b~%")
   (clear-and-gc)
   (let ((bigfv1 (make-float-vector (* big-size 2) 1.0))
 	(bigfv2 (make-float-vector (* big-size 2) 2.0)))
-    (test (float-vector-ref bigfv1 0 (- (/ big-size 2) 1)) 1.0)
-    (test (float-vector-ref bigfv2 1 (- (/ big-size 2) 1)) 2.0)))
+    (test (float-vector-ref bigfv1 (- (/ big-size 2) 1)) 1.0)
+    (test (float-vector-ref bigfv2 (- (/ big-size 2) 1)) 2.0)
+    (define (f-loop)
+      (do ((i (- (ash 1 32) 10) (+ i 1))
+	   (j 0 (+ j 1)))
+	  ((= i (+ (ash 1 32) 10)))
+	(set! (bigfv1 i) j)
+	(set! (bigfv2 i) (* (bigfv1 i) 2))))
+    (f-loop)
+    (test (subvector bigfv1 (list 20) (- (ash 1 32) 10)) (float-vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19))
+    (test (subvector bigfv2 (list 20) (- (ash 1 32) 10)) (float-vector 0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38))
+    (test (subvector bigfv1 (list 5) (+ (ash 1 32) 5)) (float-vector 15 16 17 18 19))))
 
 (when (> total-memory (* 9 big-size))
   (format () "test 4~%")
@@ -706,14 +715,21 @@
 
 (float-2d-test 2)
 (clear-and-gc)
+(let-temporarily ((fft-size 32))
+  (float-2d-test 2))
 
 ;; now try a big float-vector, but same size fft
 (when (> total-memory (* 9 (ash 1 31)))
   (float-2d-test (ash 1 14))) ; fft-size (ash 1 17) -> (* 8 (ash 1 31))
+(let-temporarily ((fft-size 32))
+  (float-2d-test 2))
+(clear-and-gc)
 
 (when (> total-memory (* 9 (ash 1 33)))
   (float-2d-test (ash 1 16))) ; fft-size (ash 1 17) -> (* 8 (ash 1 33))
-
+(let-temporarily ((fft-size 32))
+  (float-2d-test 2))
+(clear-and-gc)
   
 
 ;; --------------------------------------------------------------------------------
@@ -933,15 +949,16 @@
     ))
 (clear-and-gc)
 
-(when (> total-memory (* 20 big-size))
-  (let ((v (make-vector big-size)))
-    (do ((i 0 (+ i 10)))
-	((= i big-size))
-      (vector-set! v i (* 2.0 i)))
-    (test (vector-ref v 100000000000) (* 2 100000000000))
-    (test (vector-ref v (- big-size 10000000)) (* 2 (- big-size 10000000)))))
+(define (v-loop-test)
+  (when (> total-memory (* 20 big-size))
+    (let ((v (make-vector big-size)))
+      (do ((i 0 (+ i 1000)))
+	  ((= i big-size))
+	(vector-set! v i (* 2 i)))
+      (test (vector-ref v 100000000) (* 2 100000000))
+      (test (vector-ref v (- big-size 10000000)) (* 2 (- big-size 10000000))))))
+(v-loop-test)
 (clear-and-gc)
-
 
 (define (vector-fft rl im n dir)
   (when rl
@@ -1165,6 +1182,12 @@
     (test (bigv (- big-size 10000000)) 0.0)
     ))
 (clear-and-gc)
+
+(when (> total-memory (* (ash 1 33) 8))
+  (let ((b (make-block (ash 1 33))))
+    (set! (b (+ (ash 1 32) 10)) 1.0)
+    (test (b (+ (ash 1 32) 10)) 1.0))
+  (clear-and-gc))
 
 (define (block-fft rl im n dir)
   (when rl
@@ -1641,8 +1664,7 @@
 (clear-and-gc)
 
 (format () "~%sundries...~%")
-;; TODO: move to string section
-(set! fft-size (ash 1 15))
+;(set! fft-size (ash 1 15))
 
 (define (string-fft rl im n dir)
   (when rl
