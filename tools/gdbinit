@@ -52,7 +52,7 @@ set logging on
 bt
 set logging off
 # now gdb.txt has the backtrace
-print s7_decode_bt()
+print s7_decode_bt(cur_sc)
 end
 document s7bt
 print a C backtrace with s7 objects decoded as much as possible
@@ -64,7 +64,7 @@ set logging redirect on
 set logging on
 bt full
 set logging off
-print s7_decode_bt()
+print s7_decode_bt(cur_sc)
 end
 document s7btfull
 print a full C backtrace with s7 objects decoded as much as possible

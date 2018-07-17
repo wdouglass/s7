@@ -3726,7 +3726,7 @@ static Xen g_file_name(Xen snd)
 
 #if HAVE_SCHEME
   if ((s7_is_input_port(s7, snd)) || (s7_is_output_port(s7, snd)))
-    return(C_string_to_Xen_string(s7_port_filename(snd)));
+    return(C_string_to_Xen_string(s7_port_filename(s7, snd)));
 #endif
 
   if (Xen_is_string(snd))

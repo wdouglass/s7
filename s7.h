@@ -320,8 +320,8 @@ s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer func
 
 bool s7_is_input_port(s7_scheme *sc, s7_pointer p);                         /* (input-port? p) */
 bool s7_is_output_port(s7_scheme *sc, s7_pointer p);                        /* (output-port? p) */
-const char *s7_port_filename(s7_pointer x);                                 /* (port-filename p) */
-s7_int s7_port_line_number(s7_pointer p);                                   /* (port-line-number p) */
+const char *s7_port_filename(s7_scheme *sc, s7_pointer x);                  /* (port-filename p) */
+s7_int s7_port_line_number(s7_scheme *sc, s7_pointer p);                    /* (port-line-number p) */
 
 s7_pointer s7_current_input_port(s7_scheme *sc);                            /* (current-input-port) */
 s7_pointer s7_set_current_input_port(s7_scheme *sc, s7_pointer p);          /* (set-current-input-port) */
@@ -637,7 +637,7 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
    *   reverse: similarly...
    *   to_string: object->string for an object of this type
    *
-   * s7_is_c_object returns true if 'p' holds a value of a type created by s7_new_type.
+   * s7_is_c_object returns true if 'p' is a c_object
    * s7_c_object_type returns the c_object's type
    * s7_c_object_value returns the value bound to that c_object (the void *value of s7_make_c_object)
    * s7_make_c_object creates a new Scheme entity of the given type with the given (uninterpreted) value
@@ -842,23 +842,17 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
 
-/* cm uses this: */
+/* CM uses this: */
 #define s7_UNSPECIFIED(Sc) s7_unspecified(Sc)
 #define s7_NIL(Sc) s7_nil(Sc)
+
 #define s7_is_procedure_with_setter s7_is_dilambda
 #define s7_make_procedure_with_setter s7_dilambda
-
-#define s7_define_integer_function s7_define_safe_function
 #define s7_make_random_state s7_random_state
 #define s7_is_constant(Obj) ((!s7_is_symbol(Obj)) || (s7_is_immutable(Obj)))
 
-s7_int s7_new_type(const char *name,
-		   char *(*print)(s7_scheme *sc, void *value), 
-		   void (*free)(void *value), 
-		   bool (*equal)(void *val1, void *val2),
-		   void (*mark)(void *val),
-		   s7_pointer (*apply)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* these two args are ignored */
-		   s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
+/* this definition is for CM */
+#define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
 
 #define s7_is_object                 s7_is_c_object
 #define s7_object_type               s7_c_object_type
