@@ -2430,7 +2430,7 @@ D_METHOD(feedforward)
 D_METHOD(feedback)
 
 #define I_METHOD(Func)					\
-  static s7_int mus_ ## Func ## _ip(s7_pointer o)	\
+  static s7_int mus_ ## Func ## _ip(s7_scheme *sc, s7_pointer o)	\
   {							\
    return(mus_ ## Func(Xen_to_mus_any(o)));		\
   }
@@ -11684,7 +11684,7 @@ GEN_2(tap, mus_tap_unmodulated, mus_tap)
  *   need a simple version of the generator).
  */
 
-static s7_double file_to_sample_dpi(s7_pointer p, s7_int index)
+static s7_double file_to_sample_d7pi(s7_scheme *sc, s7_pointer p, s7_int index)
 {
   mus_any *g = NULL;
   mus_xen *gn;
@@ -11795,7 +11795,7 @@ static s7_double mus_set_formant_radius_and_frequency_dvdd(void *o, s7_double x1
 }
 
 
-static s7_double out_bank_d_pid(s7_pointer gens, s7_int loc, s7_double x)
+static s7_double out_bank_d_7pid(s7_scheme *sc, s7_pointer gens, s7_int loc, s7_double x)
 {
   int i, len;
   s7_pointer *els;
@@ -12086,7 +12086,7 @@ static void init_choosers(s7_scheme *sc)
   s7_set_d_ip_function(s7_name_to_value(sc, S_ina), ina_dip);
   s7_set_d_ip_function(s7_name_to_value(sc, S_inb), inb_dip);
 
-  s7_set_d_pi_function(s7_name_to_value(sc, S_file_to_sample), file_to_sample_dpi);
+  s7_set_d_7pi_function(s7_name_to_value(sc, S_file_to_sample), file_to_sample_d7pi);
 
   s7_set_d_p_function(s7_name_to_value(sc, S_pink_noise), mus_pink_noise);
   s7_set_d_pd_function(s7_name_to_value(sc, S_piano_noise), piano_noise_d_pd);
@@ -12096,7 +12096,7 @@ static void init_choosers(s7_scheme *sc)
   s7_set_d_vid_function(s7_name_to_value(sc, S_locsig), locsig_d_vid);
   s7_set_d_vid_function(s7_name_to_value(sc, S_locsig_set), locsig_set_d_vid);
 
-  s7_set_d_pid_function(s7_name_to_value(sc, S_out_bank), out_bank_d_pid);
+  s7_set_d_7pid_function(s7_name_to_value(sc, S_out_bank), out_bank_d_7pid);
 
   s7_set_b_p_function(s7_name_to_value(sc, S_is_all_pass), is_all_pass_b);
   s7_set_b_p_function(s7_name_to_value(sc, S_is_asymmetric_fm), is_asymmetric_fm_b);
@@ -12157,13 +12157,13 @@ static void init_choosers(s7_scheme *sc)
   s7_set_d_p_function(s7_name_to_value(sc, S_mus_feedforward), mus_feedforward_dp);
   s7_set_d_p_function(s7_name_to_value(sc, S_mus_feedback), mus_feedback_dp);
 
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_length), mus_length_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_order), mus_order_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_location), mus_location_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_channel), mus_channel_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_channels), mus_channels_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_ramp), mus_ramp_ip);
-  s7_set_i_p_function(s7_name_to_value(sc, S_mus_hop), mus_hop_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_length), mus_length_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_order), mus_order_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_location), mus_location_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_channel), mus_channel_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_channels), mus_channels_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_ramp), mus_ramp_ip);
+  s7_set_i_7p_function(s7_name_to_value(sc, S_mus_hop), mus_hop_ip);
 
 #endif /* gmp */
 }

@@ -415,8 +415,8 @@
 		   (set! local-name "_i")
 		   (format p "static s7_int ~A~A(void) {return(~A());}~%" func-name local-name func-name))
 		  ((double)
-		   (set! local-name "_i_d")
-		   (format p "static s7_int ~A~A(s7_double x) {return(~A(x));}~%" func-name local-name func-name))
+		   (set! local-name "_i_7d")
+		   (format p "static s7_int ~A~A(s7_scheme *sc, s7_double x) {return(~A(x));}~%" func-name local-name func-name))
 		  ((int)
 		   (if (= num-args 1)
 		       (begin

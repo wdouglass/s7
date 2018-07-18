@@ -6089,6 +6089,64 @@ the generic functions mechanism, much like a c-object:
 
 <div class="separator"></div>
 
+<p>s7 originally had Scheme-level multithreading support, but I removed it in August, 2011.
+It turned out to be less useful than I hoped,
+mainly because s7 threads shared the heap and therefore had to coordinate
+all cell allocations.  It was faster and simpler to use multiple
+processes each running a separate s7 interpreter, rather than one s7
+running multiple s7 threads.  In CLM, there was also contention for access
+to the output stream.  In GUI-related situations,
+threads were not useful mainly because the GUI toolkits are not thread safe.
+Last but not least, the effort to make the non-threaded
+s7 faster messed up parts of the threaded version.  Rather than
+waste a lot of time fixing this, I chose to flush multithreading.
+s7 is thread-safe:
+</p>
+
+<blockquote>
+<div class="indented">
+<pre>
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;pthread.h&gt;
+#include "s7.h"
+
+#define NUM_THREADS 16
+static pthread_t threads[NUM_THREADS];
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void *run_thread(void *obj)
+{
+  s7_scheme *sc = (s7_scheme *)obj;
+  const char *str;
+  str = s7_object_to_c_string(sc, s7_make_integer(sc, 123));
+  s7_eval_c_string(sc, "(do ((i 0 (+ i 1))) ((= i 10)) (do ((k 0 (+ k 1))) ((= k 1000000))) (format *stderr* \"~D \" i))");
+  pthread_mutex_lock(&lock);
+  fprintf(stderr, "%s\n", str);
+  pthread_mutex_unlock(&lock);
+}
+
+int main(int argc, char **argv)
+{
+  int32_t i;
+  for (i = 0; i &lt; NUM_THREADS; i++)
+    pthread_create(&threads[i], NULL, run_thread, (void *)s7_init());
+  for (i = 0; i &lt; NUM_THREADS; i++)
+    pthread_join(threads[i], NULL);
+  exit(0);
+}
+
+/* linux: gcc -o threads threads.c s7.o -g3 -Wl,-export-dynamic -pthread -lm -I. -ldl
+ */
+</div>
+</blockquote>
+</div>
+
+
+
+<div class="separator"></div>
+
 <blockquote>
 
 <div class="indented">
@@ -6862,26 +6920,6 @@ r7rs are handled in s7 via generic functions, records are classes, and so on.
 </p>
 </div>
 
-
-
-<details>
-<summary class="indented">threads</summary>
-<div class="indented">
-
-<p>s7 originally had multithreading support, but I removed it in August, 2011.
-It turned out to be less useful than I hoped,
-mainly because s7 threads shared the heap and therefore had to coordinate
-all cell allocations.  It was faster and simpler to use multiple
-processes each running a separate s7 interpreter, rather than one s7
-running multiple s7 threads.  In CLM, there was also contention for access
-to the output stream.  In GUI-related situations,
-threads were not useful mainly because the GUI toolkits are not thread safe.
-Last but not least, the effort to make the non-threaded
-s7 faster messed up parts of the threaded version.  Rather than
-waste a lot of time fixing this, I chose to flush multithreading.
-</p>
-</div>
-</details>
 
 <div class="indented">
 

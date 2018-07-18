@@ -339,6 +339,13 @@ int main(int argc, char **argv)
   add_file("xm.c");
   add_file("gl.c");
   add_file("xg.c");
+
+  add_file("libc_s7.c");
+  add_file("libgdbm_s7.c");
+  add_file("libgsl_s7.c");
+  add_file("libgtk_s7.c");
+  add_file("libm_s7.c");
+  add_file("utf8proc_s7.c");
   
   add_file("xen.h");
 
