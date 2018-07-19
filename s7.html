@@ -6106,7 +6106,6 @@ s7 is thread-safe:
 <blockquote>
 <div class="indented">
 <pre>
-
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;pthread.h&gt;
@@ -6122,16 +6121,16 @@ static void *run_thread(void *obj)
   const char *str;
   str = s7_object_to_c_string(sc, s7_make_integer(sc, 123));
   s7_eval_c_string(sc, "(do ((i 0 (+ i 1))) ((= i 10)) (do ((k 0 (+ k 1))) ((= k 1000000))) (format *stderr* \"~D \" i))");
-  pthread_mutex_lock(&lock);
+  pthread_mutex_lock(&amp;lock);
   fprintf(stderr, "%s\n", str);
-  pthread_mutex_unlock(&lock);
+  pthread_mutex_unlock(&amp;lock);
 }
 
 int main(int argc, char **argv)
 {
   int32_t i;
   for (i = 0; i &lt; NUM_THREADS; i++)
-    pthread_create(&threads[i], NULL, run_thread, (void *)s7_init());
+    pthread_create(&amp;threads[i], NULL, run_thread, (void *)s7_init());
   for (i = 0; i &lt; NUM_THREADS; i++)
     pthread_join(threads[i], NULL);
   exit(0);
@@ -6139,9 +6138,9 @@ int main(int argc, char **argv)
 
 /* linux: gcc -o threads threads.c s7.o -g3 -Wl,-export-dynamic -pthread -lm -I. -ldl
  */
+</pre>
 </div>
 </blockquote>
-</div>
 
 
 
