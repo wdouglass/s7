@@ -4877,14 +4877,6 @@ static void sweep(s7_scheme *sc)
 
 static inline void add_to_gc_list(gc_list *gp, s7_pointer p)
 {
-#if S7_DEBUGGING
-  {
-    int32_t i;
-    for (i = 0; i < gp->loc; i++)
-      if (gp->list[i] == p)
-	fprintf(stderr, "%p already in gc_list\n", p);
-  }
-#endif
   if (gp->loc == gp->size)
     {
       gp->size *= 2;
@@ -29140,6 +29132,7 @@ bool s7_is_valid(s7_scheme *sc, s7_pointer arg)
     {
 #if S7_DEBUGGING
       fprintf(stderr, "%p less than half sc!\n", arg);
+      abort();
 #endif
       return(false);
     }
@@ -49476,10 +49469,6 @@ static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o
 
 #if 0
 static const char *oo_types[14] = {"OO_P", "OO_I", "OO_D", "OO_V", "OO_IV", "OO_FV", "OO_PV", "OO_R", "OO_H", "OO_S", "OO_BV", "OO_L", "OO_E", "OO_AV"};
-#define oo_type_name(OO) oo_types[OO]
-static const char *oo_to_type_name[14] = {"#t", "integer?", "float", "c-object?", "int-vector?", "float-vector?",
-					    "vector?", "real?", "hash-table?", "string?", "byte-vector?",
-					    "pair?", "let?", "any-vector?"};
 #endif
 
 static const s7_int oo_to_s7[14] = {-1, 1LL << T_INTEGER, 1LL << T_REAL, 1LL << T_C_OBJECT, 1LL << T_INT_VECTOR, 
@@ -49671,7 +49660,7 @@ static opt_info *oo_set_type_1_1(opt_info *p, int size, int slot1, int type1, co
 {
 #if S7_DEBUGGING
   if ((type1 < 0) || (type1 > OO_AV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
-  /* fprintf(stderr, "%s[%d]: type_1 (%d %s)\n",func, line,  slot1, oo_type_name(type1)); */
+  /* fprintf(stderr, "%s[%d]: type_1 (%d %s)\n",func, line,  slot1, oo_types[type1]); */
 #endif
   p->typ.vtype = 0;
   oo_slots(p) = 1;
@@ -49692,7 +49681,7 @@ static opt_info *oo_set_type_2_1(opt_info *p, int size, int slot1, int slot2, in
 #if S7_DEBUGGING
   if ((type1 < 0) || (type1 > OO_AV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
   if ((type2 < 0) || (type2 > OO_AV)) fprintf(stderr, "%s[%d]: type2: %d\n", func, line, type2);
-  /* fprintf(stderr, "%s[%d]: type_2 (%d %s) (%d %s)\n",func, line,  slot1, oo_type_name(type1), slot2, oo_type_name(type2)); */
+  /* fprintf(stderr, "%s[%d]: type_2 (%d %s) (%d %s)\n",func, line,  slot1, oo_types[type1], slot2, oo_types[type2]); */
 #endif
   p->typ.vtype = 0;
   oo_slots(p) = 2;
@@ -49716,7 +49705,7 @@ static opt_info *oo_set_type_3_1(opt_info *p, int size, int slot1, int slot2, in
   if ((type1 < 0) || (type1 > OO_AV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
   if ((type2 < 0) || (type2 > OO_AV)) fprintf(stderr, "%s[%d]: type2: %d\n", func, line, type2);
   if ((type3 < 0) || (type3 > OO_AV)) fprintf(stderr, "%s[%d]: type3: %d\n", func, line, type3);
-  /* fprintf(stderr, "%s[%d]: type_3 (%d %s) (%d %s) (%d %s)\n", func, line, slot1, oo_type_name(type1), slot2, oo_type_name(type2), slot3, oo_type_name(type3)); */
+  /* fprintf(stderr, "%s[%d]: type_3 (%d %s) (%d %s) (%d %s)\n", func, line, slot1, oo_types[type1], slot2, oo_types[type2], slot3, oo_types[type3]); */
 #endif
   p->typ.vtype = 0;
   oo_slots(p) = 3;
@@ -49746,7 +49735,7 @@ static opt_info *oo_set_type_4_1(opt_info *p, int size, int slot1, int slot2, in
   if ((type3 < 0) || (type3 > OO_AV)) fprintf(stderr, "%s[%d]: type3: %d\n", func, line, type3);
   if ((type4 < 0) || (type4 > OO_AV)) fprintf(stderr, "%s[%d]: type4: %d\n", func, line, type4);
   /* fprintf(stderr, "%s[%d]: type_4 (%d %s) (%d %s) (%d %s) (%d %s)\n", func, line, slot1, 
-     oo_type_name(type1), slot2, oo_type_name(type2), slot3, oo_type_name(type3), slot4, oo_type_name(type4)); 
+     oo_types[type1], slot2, oo_types[type2], slot3, oo_types[type3], slot4, oo_types[type4]); 
   */
 #endif
   p->typ.vtype = 0;
@@ -53108,12 +53097,12 @@ static inline s7_double opt_fmv(void *p)
 
   oo_rcheck(o->sc, o, 6, 2);
   return(o->v[4].d_vid_f(o->v[5].obj, 
-		       integer(slot_value(o->v[2].p)),
-		       o1->v[3].d_dd_f(amp_env,
-				     o2->v[3].d_vd_f(o2->v[5].obj,
-						   o2->v[4].d_dd_f(vib,
-								 o3->v[4].d_dd_f(index_env,
-									       o3->v[6].d_vd_f(o3->v[2].obj, vib)))))));
+			 integer(slot_value(o->v[2].p)),
+			 o1->v[3].d_dd_f(amp_env,
+					 o2->v[3].d_vd_f(o2->v[5].obj,
+							 o2->v[4].d_dd_f(vib,
+									 o3->v[4].d_dd_f(index_env,
+											 o3->v[6].d_vd_f(o3->v[2].obj, vib)))))));
 }
 
 static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
@@ -55621,7 +55610,6 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		}
 	      if (cell_optimize(sc, cdddr(car_x)))
 		{
-		  /* fprintf(stderr, "set_type: %s\n", oo_type_name(op2)); */
 		  oo_set_type_2(opc, 4, 1, 2, op2, OO_I);
 		  if (!p_pip_ssf_combinable(sc, opc, start))
 		    {
@@ -56610,7 +56598,6 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 				  (s7_is_vector(obj)) ||
 				  (is_pair(obj)))
 				{
-				  /* fprintf(stderr, "set_type: %s\n", oo_type_name(op2)); */
 				  oo_set_type_2(opc, 5, 1, 2, op2, OO_I);
 				  if (!p_pip_ssf_combinable(sc, opc, start))
 				    {
@@ -66540,9 +66527,6 @@ static s7_pointer check_let(s7_scheme *sc)
 		  for (p = start; is_pair(p); p = cdr(p))      /* optimizing the value form here: car(p)=var+val, cdar(p)=val */
 		    set_x_call(cdar(p), all_x_eval(sc, cdar(p), sc->envir, let_symbol_is_safe));
 		  /* all-x-able body does not happen much */
-#if S7_DEBUGGING
-		  return(sc->code);
-#endif
 		}
 	    }
 	  else pair_set_syntax_op(form, OP_LET_UNCHECKED);
@@ -69356,7 +69340,6 @@ static s7_pointer check_do(s7_scheme *sc)
 			pair_set_syntax_op(car(body), symbol_syntax_op_checked(car(body)));
 			set_opt_pair2(code, caddr(caar(code)));
 			pair_set_syntax_op(form, OP_DOTIMES_P);           /* dotimes_p: simple + syntax body + 1 expr */
-			/* 5 bench, -60 gen, 653 all, 1423 snd-test */
 		      }
 		    
 		    /* now look for the very common dotimes case */
@@ -69640,7 +69623,7 @@ static int32_t dox_ex(s7_scheme *sc)
 	      lcode = car(code);
 
 	      if ((!pair_no_opt(code)) &&
-		  (has_safe_steppers(sc, sc->envir)))
+		  ((has_optlist(code)) || (has_safe_steppers(sc, sc->envir))))
 		body = new_s7_optimize(sc, code, sc->code);
 
 	      if (!body)
@@ -69768,22 +69751,16 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
   s7_function stepf, endf;
   s7_function func;
 
-  body = car(opt_pair2(code));
+  code = cdr(code);
+  body = caddr(code);
+  /* fprintf(stderr, "code: %s, body: %s\n", DISPLAY_80(code), DISPLAY_80(body)); */
 
-#if S7_DEBUGGING
-  if (!is_symbol(car(body)))
+  if (!pair_no_opt(cddr(code)))
     {
-      fprintf(stderr, "simple_do_ex car(body) not symbol: %s\n", DISPLAY_80(code));
-      return(fall_through);
-    }
-#endif
-    
-  if (!pair_no_opt(opt_pair2(code)))
-    {
-      func = s7_optimize_nr(sc, opt_pair2(code));
+      func = new_s7_optimize(sc, cddr(code), code);
       if (!func) 
 	{
-	  set_pair_no_opt(opt_pair2(code));
+	  set_pair_no_opt(cddr(code));
 	  return(fall_through);
 	}
     }
@@ -73389,14 +73366,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    form = sc->code;
 	    set_current_code(sc, form);
 	    sc->code = cdr(sc->code);
-	    choice = safe_dotimes_ex(sc); /* CDR! -- use form */
+	    choice = safe_dotimes_ex(sc);
 
 	    if (choice == goto_SAFE_DO_END_CLAUSES) goto SAFE_DO_END_CLAUSES;
 	    if (choice == goto_BEGIN1) goto BEGIN;
 	    if (choice == goto_EVAL) goto EVAL;
 	    if (choice == goto_START_NO_POP) goto START_NO_POP;
  	    pair_set_syntax_op(form, OP_SIMPLE_DO);
-
 	    sc->code = form;
 	    goto SIMPLE_DO;
 	  }
@@ -73492,15 +73468,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	SIMPLE_DO: /* check_do safe_dotimes */
 	  {
 	    /* body might not be safe in this case, but the step and end exprs are easy
-	     *   "not safe" merely means we hit something that the optimizer can't specialize
 	     * simple_do: set up local env, check end (c_c?), goto simple_do_ex
 	     *   if latter gets s7_optimize, run locally, else goto simple_do_step.
-	     *   but is not 1 expr body, etc -- just goto simple_do_step,
 	     */
-	    s7_pointer init, end, code;
+	    s7_pointer init, end, code, body;
 	    set_current_code(sc, sc->code);
-	    sc->code = cdr(sc->code);
-	    code = sc->code;
+	    code = cdr(sc->code);
 	    sc->envir = new_frame_in_env(sc, sc->envir);
 	    init = cadaar(code);
 	    if (is_symbol(init))
@@ -73526,20 +73499,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    
-	    set_opt_pair2(code, cddr(code));
-	    if ((is_null(cdr(opt_pair2(code)))) &&      /* one expr in body */
-		(is_pair(car(opt_pair2(code)))) &&      /*   and it is a pair */
+	    body = cddr(code);
+	    if ((is_null(cdr(body))) &&      /* one expr in body */
+		(is_pair(car(body))) &&      /*   and it is a pair */
 		(is_symbol(cadr(caddr(caar(code))))) && /* caar=(i 0 (+ i 1)), caddr=(+ i 1), so this is apparently checking that the stepf is reasonable? */
 		(is_t_integer(caddr(caddr(caar(code))))))
 	      {
 		int32_t choice;
-		choice = simple_do_ex(sc, code);
+		choice = simple_do_ex(sc, sc->code);
 		if (choice == goto_START) goto START;
 		if (choice == goto_BEGIN1) goto BEGIN;
 		if (choice == goto_DO_END_CLAUSES) goto DO_END_CLAUSES;
 	      }
+	    /* fprintf(stderr, "    use op_simple_do_step\n"); */
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-	    sc->code = T_Pair(opt_pair2(code));
+	    sc->code = body;
 	    goto BEGIN;
 	  }
 	  
@@ -73572,7 +73546,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-	    sc->code = T_Pair(opt_pair2(code));
+	    sc->code = T_Pair(cddr(code));
 	    goto BEGIN;
 	  }
 	  
@@ -85767,6 +85741,9 @@ s7_scheme *s7_init(void)
   pthread_mutex_lock(&init_lock);
   if (!already_inited)
     {
+      if (sizeof(void *) > sizeof(s7_int))
+	fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
+
       init_types();
       init_ctables();
       init_mark_functions();
@@ -85931,18 +85908,14 @@ s7_scheme *s7_init(void)
   sc->autoload_names_loc = 0;
   sc->is_autoloading = true;
 
-  sc->permanent_objects = NULL;
-
   sc->heap_size = INITIAL_HEAP_SIZE;
   if ((sc->heap_size % 32) != 0)
     sc->heap_size = 32 * (int64_t)ceil((double)(sc->heap_size) / 32.0);
   sc->heap = (s7_pointer *)malloc(sc->heap_size * sizeof(s7_pointer));
-
   sc->free_heap = (s7_cell **)malloc(sc->heap_size * sizeof(s7_cell *));
   sc->free_heap_top = (s7_cell **)(sc->free_heap + INITIAL_HEAP_SIZE);
   sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
   sc->previous_free_heap_top = sc->free_heap_top;
-
   {
     s7_cell *cells;
     cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell));  /* malloc here is not faster according to callgrind */
@@ -85964,12 +85937,6 @@ s7_scheme *s7_init(void)
   sc->gpofl = (s7_int *)malloc(INITIAL_PROTECTED_OBJECTS_SIZE * sizeof(s7_int));
   sc->gpofl_loc = INITIAL_PROTECTED_OBJECTS_SIZE - 1;
   sc->protected_objects = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-
-  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
-  sc->protected_setters_loc = 0;
-  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-
   for (i = 0; i < INITIAL_PROTECTED_OBJECTS_SIZE; i++)
     {
       vector_element(sc->protected_objects, i) = sc->gc_nil;
@@ -85978,6 +85945,11 @@ s7_scheme *s7_init(void)
       sc->gpofl[i] = i;
     }
 
+  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
+  sc->protected_setters_loc = 0;
+  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+
   sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
   sc->stack_start = vector_elements(sc->stack); /* stack type set below */
   sc->stack_end = sc->stack_start;
@@ -85985,7 +85957,6 @@ s7_scheme *s7_init(void)
   sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
   set_type(sc->stack, T_STACK);
   sc->max_stack_size = (1 << 30);
-
   initialize_op_stack(sc);
 
   /* keep the symbol table out of the heap */
@@ -85997,7 +85968,6 @@ s7_scheme *s7_init(void)
   vector_setter(sc->symbol_table) = default_vector_setter;
   s7_vector_fill(sc, sc->symbol_table, sc->nil);
   unheap(sc, sc->symbol_table);
-  
   make_base_optlist(sc);
 
 #if WITH_MULTITHREAD_CHECKS
@@ -86009,10 +85979,10 @@ s7_scheme *s7_init(void)
     pthread_mutex_init(&sc->lock, &attr);
   }
 #endif
+
   sc->c_object_types = NULL;
   sc->c_object_types_size = 0;
   sc->num_c_object_types = 0;
-
   sc->typnam = NULL;
   sc->typnam_len = 0;
   sc->default_rationalize_error = (s7_int_bits == 63) ? 1.0e-12 : 1.0e-6;
@@ -86108,8 +86078,8 @@ s7_scheme *s7_init(void)
     rootlet_element(sc->rootlet, i) = sc->nil;
   sc->envir = sc->nil;
   sc->shadow_rootlet = sc->nil;
-  init_wrappers(sc);
 
+  init_wrappers(sc);
   make_standard_ports(sc);
 
   #define quote_help             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
@@ -86184,7 +86154,6 @@ s7_scheme *s7_init(void)
   sc->with_let_symbol =          assign_syntax(sc, "with-let",        OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
   set_local_slot(sc->with_let_symbol, global_slot(sc->with_let_symbol)); /* for set_locals */
   set_immutable(sc->with_let_symbol);
-
   sc->setter_symbol = make_symbol(sc, "setter");
 
 #if WITH_IMMUTABLE_UNQUOTE
@@ -87378,7 +87347,6 @@ s7_scheme *s7_init(void)
   s7_set_b_pp_direct_function(slot_value(global_slot(sc->string_ci_eq_symbol)), string_ci_eq_b_direct);
 #endif
 
-
   /* -------------------------------------------------------------------------------- */
   s7_define_macro(sc, "quasiquote", g_quasiquote, 1, 0, false, H_quasiquote);
 
@@ -87503,19 +87471,12 @@ s7_scheme *s7_init(void)
 #endif
 
 #if S7_DEBUGGING
-  if (strcmp(op_names[HOP_SAFE_C_AAP], "h_safe_c_aap") != 0)
-    fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_AAP]);
-  if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0)
-    fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
-  if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0)
-    fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
+  if (strcmp(op_names[HOP_SAFE_C_AAP], "h_safe_c_aap") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_AAP]);
+  if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
+  if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
 #endif
-
   /* fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
   /* 64 bit machine: cell size: 56 [size 80 if gmp, 136 if debugging], block size: 40, max op: 823, opt: 424, 48 if 32 (let_id/typeflag etc is 64 bit) */
-
-  if (sizeof(void *) > sizeof(s7_int))
-    fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
 
   save_unlet(sc);
   init_s7_let(sc);          /* set up *s7* */
@@ -87629,13 +87590,12 @@ int main(int argc, char **argv)
  * is_pair could also check signature
  * test-phases opt [optimize, float stepper+end, inner loop has 2 steppers-by-1]
  *
+ * need s7_opt to handle multiple exprs
  * syms are now 12..15 -- need to fix this eventually
  *   float-stepper do and 2+1 stepper do
  *   add resize to all combinables [does this matter?]
  *   expand t830
  *   need symbol base not 12
- *   opt all s7_optimize (just simple_do, g_optimize, for-each/map??)
- *     simple_do_ex is using opt_pair2 for something
  *   perhaps in do/let try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
  *   tfft is cell/float case, tmap is bool, call/all float, gen for all
  *
@@ -87663,14 +87623,14 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1935
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2347
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2375 2372
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390 2399
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2375 2374
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390 2403
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3245
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3354 3357
  * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4142 4123
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4627
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6330 6339
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4627 4620
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6330 6348
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  11.2
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  40.2 40.1
