@@ -85933,6 +85933,11 @@ s7_scheme *s7_init(void)
   sc->max_heap_size = (1LL << 62);
 
   /* this has to precede s7_make_* allocations */
+  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
+  sc->protected_setters_loc = 0;
+  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+
   sc->protected_objects_size = INITIAL_PROTECTED_OBJECTS_SIZE;
   sc->gpofl = (s7_int *)malloc(INITIAL_PROTECTED_OBJECTS_SIZE * sizeof(s7_int));
   sc->gpofl_loc = INITIAL_PROTECTED_OBJECTS_SIZE - 1;
@@ -85944,11 +85949,6 @@ s7_scheme *s7_init(void)
       vector_element(sc->protected_setter_symbols, i) = sc->gc_nil;
       sc->gpofl[i] = i;
     }
-
-  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
-  sc->protected_setters_loc = 0;
-  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
 
   sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
   sc->stack_start = vector_elements(sc->stack); /* stack type set below */
