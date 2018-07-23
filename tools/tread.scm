@@ -2,6 +2,7 @@
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
 (set! (*s7* 'print-length) 8) ; :readable should ignore this
+(set! (*s7* 'default-hash-table-length) 4)
 
 (define (tester)
   (do ((baddies 0)
