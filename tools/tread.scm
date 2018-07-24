@@ -70,10 +70,10 @@
 	    (for-each 
 	     (lambda (x)
 	       (let ((str (object->string x :readable)))
-		 (unless (morally-equal? x (eval-string str))
+		 (unless (equal? x (eval-string str))
 		   (set! baddies (+ baddies 1))
 		   (format *stderr* "x: ~S~%" x)
-		   (format *stderr* "ex: ~S~%" (catch #t (lambda () (eval-string str)) (lambda (type info) (apply format #f info))))
+		   (format *stderr* "ex: ~S~%" (eval-string str))
 		   (format *stderr* "sets: ~S~%" (reverse sets))
 		   (format *stderr* "str: ~S~%" str)
 		   (pretty-print (with-input-from-string str read) *stderr* 0)
@@ -108,7 +108,6 @@
 		    sets)
 		   (format *stderr* "  ~A)~%" (#(p v cy h e it cp) bi)))
 		 (set! bi (+ bi 1))))
-	     
 	     bases)))))))
 
 (tester)

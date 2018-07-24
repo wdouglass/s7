@@ -183,7 +183,7 @@
        
        (checkout-1 ',form V (tester-1) (tester-2) (tester-3) (tester-4) (tester-5) (tester-6) (tester-11) (tester-12))
        )))
-    (define the-body (apply lambda () (list (copy body :readable))))
+    (define the-body (apply lambda () (list body)))
     (the-body)))
 
 (define (try2 form gen make-gen)
@@ -274,7 +274,7 @@
 		 (tester-1) (tester-2) (tester-3) (tester-4) (tester-5) (tester-6) 
 		 (tester-7) (tester-8) (tester-9) (tester-10) (tester-11) (tester-12))
        )))
-    (define the-body (apply lambda () (list (copy body :readable))))
+    (define the-body (apply lambda () (list body)))
     (the-body)))
 #|
 (define (try34 form gen make-gen args)
@@ -367,7 +367,7 @@
 		      (tester-1) (tester-2) (tester-3) (tester-4) (tester-5) (tester-6) 
 		      (tester-7) (tester-8) (tester-9) (tester-10) (tester-11) (tester-12))
 	    ))))
-      (define the-body (apply lambda () (list (copy body :readable))))
+      (define the-body (apply lambda () (list body)))
       (the-body)))
 |#
 

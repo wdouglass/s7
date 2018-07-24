@@ -2816,7 +2816,8 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
 
-#define subvector_vector(p)           vdims_original(vector_dimension_info(p))
+#define subvector_vector(p)            ((vector_dimension_info(p)) ? vdims_original(vector_dimension_info(p)) : (T_Vec(p))->object.vector.block->nx.ksym)
+#define subvector_set_vector(p, vect)  (T_Vec(p))->object.vector.block->nx.ksym = vect
 
 #define rootlet_element(p, i)         unchecked_vector_element(p, i)
 #define rootlet_elements(p)           unchecked_vector_elements(p)
@@ -5137,7 +5138,7 @@ static void mark_vector_possibly_shared(s7_pointer p)
    *   in use, we mark the middle one, but (since it itself is not in use anywhere else)
    *   we don't mark the original!  So we need to follow the share-vector chain marking every one.
    */
-  if ((vector_has_dimensional_info(p)) &&
+  if ((is_subvector(p)) &&
       (s7_is_vector(subvector_vector(p))))
     mark_vector_possibly_shared(subvector_vector(p));
 
@@ -14725,16 +14726,15 @@ static s7_pointer g_floor(s7_scheme *sc, s7_pointer args)
 
 static s7_int floor_i_i(s7_int i) {return(i);}
 
-static s7_double floor_d_7d(s7_scheme *sc, s7_double x) 
+static s7_int floor_i_7d(s7_scheme *sc, s7_double x)
 {
+
   if (is_NaN(x))
     simple_out_of_range(sc, sc->floor_symbol, wrap_real(sc, x), its_nan_string);
   if (fabs(x) > REAL_TO_INT_LIMIT)
     simple_out_of_range(sc, sc->floor_symbol, wrap_real(sc, x), its_too_large_string);
-  return(floor(x));
+  return((s7_int)floor(x));
 }
-
-static s7_int floor_i_7d(s7_scheme *sc, s7_double x) {return((s7_int)floor_d_7d(sc, x));}
 
 static s7_int floor_i_7p(s7_scheme *sc, s7_pointer p)
 {
@@ -14790,7 +14790,7 @@ static s7_pointer g_ceiling(s7_scheme *sc, s7_pointer args)
 
 static s7_int ceiling_i_i(s7_int i) {return(i);}
 
-static s7_double ceiling_d_7d(s7_scheme *sc, s7_double x) 
+static s7_int ceiling_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
     simple_out_of_range(sc, sc->ceiling_symbol, wrap_real(sc, x), its_nan_string);
@@ -14798,10 +14798,8 @@ static s7_double ceiling_d_7d(s7_scheme *sc, s7_double x)
       (x > REAL_TO_INT_LIMIT) ||
       (x < -REAL_TO_INT_LIMIT))
     simple_out_of_range(sc, sc->ceiling_symbol, wrap_real(sc, x), its_too_large_string);
-  return(ceil(x));
+  return((s7_int)ceil(x));
 }
-
-static s7_int ceiling_i_7d(s7_scheme *sc, s7_double x) {return((s7_int)ceiling_d_7d(sc, x));}
 
 static s7_int ceiling_i_7p(s7_scheme *sc, s7_pointer p)
 {
@@ -14848,7 +14846,7 @@ static s7_pointer g_truncate(s7_scheme *sc, s7_pointer args)
 
 static s7_int truncate_i_i(s7_int i) {return(i);}
 
-static s7_double truncate_d_7d(s7_scheme *sc, s7_double x) 
+static s7_int truncate_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
     simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_nan_string);
@@ -14858,14 +14856,12 @@ static s7_double truncate_d_7d(s7_scheme *sc, s7_double x)
     {
       if (x > s7_int_max)
 	simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_too_large_string);
-      return(floor(x)); 
+      return((s7_int)floor(x)); 
     }
   if (x < s7_int_min)
     simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_too_large_string);
-  return(ceil(x));
+  return((s7_int)ceil(x));
 }
-
-static s7_int truncate_i_7d(s7_scheme *sc, s7_double x) {return((s7_int)truncate_d_7d(sc, x));}
 
 
 /* -------------------------------- round -------------------------------- */
@@ -14936,7 +14932,9 @@ static s7_pointer g_round(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int round_i_i(s7_int i) {return(i);}
-static s7_double round_d_7d(s7_scheme *sc, s7_double z) 
+
+static s7_int round_i_7d(s7_scheme *sc, s7_double z)
+
 {
   if (is_NaN(z))
     simple_out_of_range(sc, sc->round_symbol, wrap_real(sc, z), its_nan_string);
@@ -14944,10 +14942,8 @@ static s7_double round_d_7d(s7_scheme *sc, s7_double z)
       (z > REAL_TO_INT_LIMIT) ||
       (z < -REAL_TO_INT_LIMIT))
     simple_out_of_range(sc, sc->round_symbol, wrap_real(sc, z), its_too_large_string);
-  return(round_per_R5RS(z));
+  return((s7_int)round_per_R5RS(z));
 }
-
-static s7_int round_i_7d(s7_scheme *sc, s7_double z) {return((s7_int)round_d_7d(sc, z));}
 
 
 static s7_int c_mod(s7_int x, s7_int y)
@@ -18909,7 +18905,7 @@ static s7_pointer lt_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(wrong_type_argument(sc, sc->lt_symbol, 2, y, T_REAL));
 }
 
-static s7_pointer c_less_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
+static inline s7_pointer c_less_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
 #if (!MS_WINDOWS)
   if (type(x) == type(y))
@@ -21039,7 +21035,7 @@ static s7_pointer g_simple_char_eq(s7_scheme *sc, s7_pointer args)
 }
 
 
-static void check_char2_args(s7_scheme *sc, s7_pointer caller, s7_pointer p1, s7_pointer p2)
+static inline void check_char2_args(s7_scheme *sc, s7_pointer caller, s7_pointer p1, s7_pointer p2)
 {
   if (!s7_is_character(p1))
     simple_wrong_type_argument(sc, caller, p1, T_CHARACTER);
@@ -36126,7 +36122,7 @@ static s7_pointer g_subvector_vector(s7_scheme *sc, s7_pointer args)
 static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7_int index)
 {
   s7_pointer x;
-  vdims_t *v;
+  s7_int dims;
 
   new_cell(sc, x, typeflag(vect) | T_SUBVECTOR | T_SAFE_PROCEDURE); /* typeflag(vect) picks up T_IMMUTABLE */
   vector_length(x) = 0;
@@ -36135,16 +36131,27 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
   vector_getter(x) = vector_getter(vect);
   vector_setter(x) = vector_setter(vect);
 
-  v = (vdims_t *)mallocate_block(sc);
-  vdims_ndims(v) = vector_ndims(vect) - skip_dims;
-  vdims_dims(v) = (s7_int *)(vector_dimensions(vect) + skip_dims);
-  vdims_offsets(v) = (s7_int *)(vector_offsets(vect) + skip_dims);
-  vdims_original(v) = vect;
+  dims = vector_ndims(vect) - skip_dims;
+  if (dims > 1)
+    {
+      vdims_t *v;
+      v = (vdims_t *)mallocate_block(sc);
+      vdims_ndims(v) = dims;
+      vdims_dims(v) = (s7_int *)(vector_dimensions(vect) + skip_dims);
+      vdims_offsets(v) = (s7_int *)(vector_offsets(vect) + skip_dims);
+      vdims_original(v) = vect;
+      vector_elements_should_be_freed(v) = false;
+      vector_set_dimension_info(x, v);
+    }
+  else 
+    {
+      vector_set_dimension_info(x, NULL);
+      subvector_set_vector(x, vect);
+    }
+
   if (is_normal_vector(vect))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(vect)] = mark_int_or_float_vector_possibly_shared; 
-  vector_elements_should_be_freed(v) = false;
-  vector_set_dimension_info(x, v);
 
   if (skip_dims > 0)
     vector_length(x) = vector_offset(vect, skip_dims - 1);
@@ -36228,12 +36235,7 @@ a vector that points to the same elements as the original-vector but with differ
       if ((new_len < 0) ||
 	  ((new_len + offset) > orig_len))
 	return(out_of_range(sc, sc->subvector_symbol, small_int(2), dims, (new_len < 0) ? its_negative_string : its_too_large_string));
-
-      v = (vdims_t *)mallocate_block(sc); /* liberate will ignore the (null) dimensional info */
-      vector_elements_should_be_freed(v) = false;
-      vdims_ndims(v) = 1;
-      vdims_dims(v) = NULL;
-      vdims_offsets(v) = NULL;
+      v = NULL;
     }
   else
     {
@@ -36262,9 +36264,9 @@ a vector that points to the same elements as the original-vector but with differ
 	  return(out_of_range(sc, sc->subvector_symbol, small_int(2), dims, 
 			      wrap_string(sc, "a subvector has to fit in the original vector", 45)));
 	}
+      vdims_original(v) = orig;
     }
 
-  vdims_original(v) = orig;
   if (is_normal_vector(orig))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
   else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; 
@@ -36272,6 +36274,7 @@ a vector that points to the same elements as the original-vector but with differ
   new_cell(sc, x, typeflag(orig) | T_SUBVECTOR | T_SAFE_PROCEDURE);
   vector_block(x) = mallocate_vector(sc, 0);
   vector_set_dimension_info(x, v);
+  if (!v) subvector_set_vector(x, orig);
   vector_length(x) = new_len;                 /* might be less than original length */
   vector_getter(x) = vector_getter(orig);
   vector_setter(x) = vector_setter(orig);
@@ -42179,28 +42182,22 @@ static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 static bool vector_rank_match(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   s7_int x_dims;
+  s7_int j;
 
   if (vector_has_dimensional_info(x))
     x_dims = vector_ndims(x);
-  else x_dims = 1;
-  if (vector_has_dimensional_info(y))
-    {
-      if (x_dims != vector_ndims(y))
-	return(false);
-    }
-  else 
-    {
-      if (x_dims != 1)
-	return(false);
-    }
+  else return((!vector_has_dimensional_info(y)) || (vector_ndims(y) == 1));
+  if (x_dims == 1)
+    return((!vector_has_dimensional_info(y)) || (vector_ndims(y) == 1));
 
-  if (x_dims > 1)
-    {
-      s7_int j;
-      for (j = 0; j < x_dims; j++)
-	if (vector_dimension(x, j) != vector_dimension(y, j))
-	  return(false);
-    }
+  if ((!vector_has_dimensional_info(y)) ||
+      (x_dims != vector_ndims(y)))
+    return(false);
+
+  for (j = 0; j < x_dims; j++)
+    if (vector_dimension(x, j) != vector_dimension(y, j))
+      return(false);
+
   return(true);
 }
 
@@ -48235,6 +48232,15 @@ static s7_pointer all_x_c_cdr_s(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t1_1));
 }
 
+static s7_pointer all_x_c_is_type_opsq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  /* fprintf(stderr, "all_x_c_is_type: %s\n", DISPLAY(arg)); */
+  val = symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)));
+  set_car(sc->t1_1, val);
+  return(make_boolean(sc, (uint8_t)(opt_con3(cdr(arg))) == type(c_call(cadr(arg))(sc, sc->t1_1))));
+}
+
 static s7_pointer all_x_c_not_opsq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -49151,7 +49157,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	      if (car(arg) == sc->cdr_symbol) return(all_x_cdr_s);
 	      if (car(arg) == sc->car_symbol) return(all_x_car_s);
 	      if (car(arg) == sc->cadr_symbol) return(all_x_cadr_s);
-	      if (is_global(car(arg)))
+	      if (is_global(car(arg))) /* guard against (op arg) where arg is a let with an op method */
 		{
 		  if (car(arg) == sc->is_null_symbol) return(all_x_is_null_s);
 		  if (car(arg) == sc->is_pair_symbol) return(all_x_is_pair_s);
@@ -49177,6 +49183,17 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 		{
 		  set_opt_sym2(cdr(arg), cadadr(arg));
 		  return(all_x_c_cdr_s);
+		}
+	      if (is_global(car(arg))) /* (? (op arg)) where (op arg) might return a let with a ? method etc */
+		{
+		  uint8_t typ;
+		  typ = symbol_type(car(arg));
+		  if (typ > 0) /* h_safe_c here so the type checker isn't shadowed */
+		    {
+		      set_opt_sym2(cdr(arg), cadadr(arg));
+		      set_opt_any3(cdr(arg), (s7_pointer)((intptr_t)typ));
+		      return(all_x_c_is_type_opsq);
+		    }
 		}
 	      return(all_x_c_opsq);
 
@@ -87151,13 +87168,9 @@ s7_scheme *s7_init(void)
   s7_set_d_d_function(slot_value(global_slot(sc->cosh_symbol)), cosh_d_d);
   s7_set_d_d_function(slot_value(global_slot(sc->tanh_symbol)), tanh_d_d);
   s7_set_d_7d_function(slot_value(global_slot(sc->random_symbol)), random_d_7d);
-  s7_set_d_7d_function(slot_value(global_slot(sc->round_symbol)), round_d_7d);
   s7_set_i_i_function(slot_value(global_slot(sc->round_symbol)), round_i_i);
-  s7_set_d_7d_function(slot_value(global_slot(sc->floor_symbol)), floor_d_7d);
   s7_set_i_i_function(slot_value(global_slot(sc->floor_symbol)), floor_i_i);
-  s7_set_d_7d_function(slot_value(global_slot(sc->truncate_symbol)), truncate_d_7d);
   s7_set_i_i_function(slot_value(global_slot(sc->truncate_symbol)), truncate_i_i);
-  s7_set_d_7d_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_d_7d);
   s7_set_i_i_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_i);
 #endif
 
@@ -87673,12 +87686,15 @@ int main(int argc, char **argv)
  *
  * need new_s7_opt to handle multiple exprs
  * syms are now 12..15 -- need to fix this eventually
- *   float-stepper do and 2+1 stepper do
+ *   float-stepper do and 2+1 stepper do, cdr stepper (seem now to go to dox?)
  *   add resize to all combinables [does this matter?]
  *   perhaps in do/let try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
  *   tfft is cell/float case, tmap is bool, call/all float, gen for all
  *   d_p_f from d_d_f with real(p) as in p_i_c et al? And all p/c args can be expanded, also "s" if constant etc
- *   all_x_is_type_opsq (iter etc): type not a method etc, 67047
+ *   d_c, dd_cc etc could be precalc'd, also s=constant->c [*stderr* to format, *s7* V=fv -- can reader handle these?]
+ *   or_type_s_direct, op_safe_c_type_opsq, maybe and_type_s_direct
+ *   check all_x_eval combinations that used to be all_x_c_opsq -> type, or_type_s_direct_2|3?
+ *   is all_x_c_type_s slower than all the type special cases?
  *
  * test of multi-thread s7's+database for shared vars, lmdb.scm
  *   need to set let_id/symbol_id of these variables (treat as globals? sym_id=0, let_id=-1?)
@@ -87694,29 +87710,29 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6 
  * ----------------------------------------------------------------------------------
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283
- * tpeak         |      |      |      ||  391 ||  377 |                    376   362
- * dup           |      |      |      ||      || 1030 |                    609   465
+ * dup           |      |      |      ||      || 1030 |                    609   435
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1086
  * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1316
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1668
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1935
- * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2347
+ * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2346
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2359
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2375
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3245
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3356
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4105
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4614
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4475
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  11.2
+ * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0   8.7
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9
- *               |      |      |      || 139  || 85.9 | 86.5  87.1  81.4  80.1  79.6
- * lg            |      |      |      || 211  || 133  |133.4 130.9 125.7 118.3 118.2
+ * sg            |      |      |      || 139  || 85.9 | 86.5  87.1  81.4  80.1  79.6
+ * lg            |      |      |      || 211  || 133  |133.4 130.9 125.7 118.3 118.1
  * tbig          |      |      |      ||      ||      |                        255.4
  * ----------------------------------------------------------------------------------
  */
