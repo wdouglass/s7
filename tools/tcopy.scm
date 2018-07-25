@@ -83,6 +83,7 @@
       (copy old-ivect new-pair)
       (copy old-let new-pair)
       (copy old-block new-pair)
+      (set! new-pair #f)
       
       (copy old-vector new-vector)
       (copy old-pair new-vector)
@@ -92,6 +93,7 @@
       (copy old-hash new-vector)
       (copy old-let new-vector)
       (copy old-block new-vector)
+      (set! new-vector #f)
       
       (copy old-fvect new-fvect)
       (copy old-ivect new-fvect)
@@ -140,6 +142,7 @@
 	(copy old-ivect new-pair start (+ start nsize))
 	(copy old-let new-pair start (+ start nsize))
 	(copy old-block new-pair start (+ start nsize))
+	(set! new-pair #f)
 	
 	(copy old-vector new-vector start (+ start nsize))
 	(copy old-pair new-vector start (+ start nsize))
@@ -149,6 +152,7 @@
 	(copy old-hash new-vector start (+ start nsize))
 	(copy old-let new-vector start (+ start nsize))
 	(copy old-block new-vector start (+ start nsize))
+	(set! new-vector #f)
 	
 	(copy old-fvect new-fvect start (+ start nsize))
 	(copy old-ivect new-fvect start (+ start nsize))
@@ -238,6 +242,7 @@
       (test (length bvec) (* size size))
       )))
       
+
 (define (t)
   (do ((i 0 (+ i 1)))
       ((= i 10000))
@@ -250,7 +255,7 @@
 
 #|
 (format *stderr* "copy~%")
-(test-copy 100000)
+(test-copy 1000000)
 ;100000 : .1
 ;1000000 : 4.6
 ;10000000 : 356 = about 120 million objects = about 6Gbytes, mark_pair/gc 

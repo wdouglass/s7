@@ -6423,17 +6423,6 @@ it is GC'd.  Here is an example:
 few times.  You can turn off the optimization in question by setting the variable <code>(*s7* 'safety)</code>
 to 3.  <code>(*s7* 'safety)</code> defaults to 0.  
 </p>
-
-<p>A similar problem arises when you want to walk a function's source or reuse a piece of
-code directly.  When the function is evaluated, the optimizer changes the program source
-to speed up subsequent evaluation.  This annotation process means that nothing in that
-source is what it appears to be, so a tree walker will be confused, and if you copy that
-source and try to insert it into some other program source, the existing annotations
-will not fit the new context.  In both cases, you can get a clean version of the code
-by copying it with :readable as the second argument to copy.  There is an example
-in lint.scm, and in the snd file tools/tgen.scm.
-</p>
-
 </div>
 </details>
 
@@ -6735,7 +6724,7 @@ These symbols are not just an optimization of string comparison:
 		 (do ((i 0 (+ i 1)))
 		     ((= i 10) (reverse L))
 		   (set! L (cons ,form L))))))
-    (define function (apply lambda () (list (copy body :readable))))
+    (define function (apply lambda () (list (copy body))))
     (function)))
 
 (let ()

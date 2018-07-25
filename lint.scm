@@ -683,7 +683,7 @@
       (let ((+documentation+ "(copy-tree lst) returns a full copy of lst"))
 	(lambda (lis)
 	  (if (pair? lis)
-	      (copy lis :readable)
+	      (copy lis) ;:readable)
 	      lis))))
 
     (define (proper-tree? tree)
@@ -971,7 +971,7 @@
 	     (if fd
 		 (and (symbol? (var-ftype fd))
 		      (var-signature fd))
-		 (signature fnc)))))
+		 (signature (symbol->value fnc))))))
     
     (define (arg-arity fnc env)
       (and (symbol? fnc)
@@ -2115,7 +2115,7 @@
 				  (and (not (null? f))
 				       (side-effect-with-vars? f env vars)))
 			   (cdr form))
-		     (let ((sig (signature (car form))))       ; sig has func arg and it is not known safe
+		     (let ((sig (signature (symbol->value (car form))))) ; sig has func arg and it is not known safe
 		       (and (pair? sig)
 			    (memq 'procedure? (cdr sig))
 			    (call-with-exit
@@ -2408,7 +2408,7 @@
       (and (proper-list? form) ;(not (infinite? (length form))) but when would a dotted list work?
 	   (catch #t
 	     (lambda ()
-	       (eval (copy form :readable)))
+	       (eval (copy form))); :readable)))
 	     (lambda args
 	       :checked-eval-error))))
     
@@ -6209,7 +6209,7 @@
       (if (just-code-constants? (cdr form))
 	  (catch #t
 	    (lambda ()
-	      (let ((val (eval (copy form :readable))))
+	      (let ((val (eval (copy form)))); :readable))))
 		(lint-format "perhaps ~A" caller (lists->string form val)))) ; (eq? #(0) #(0)) -> #f
 	    (lambda args
 	      #t))))

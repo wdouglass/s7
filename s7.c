@@ -1138,7 +1138,7 @@ struct s7_scheme {
   shared_info *circle_info;
   format_data **fdats;
   int32_t num_fdats, last_error_line;
-  s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2;
+  s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, clist_1;
   gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *unknowns, *lambdas, *multivectors, *optlists;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
@@ -1287,7 +1287,7 @@ struct s7_scheme {
            is_null_cadr_s, is_symbol_cadr_s, is_eq_car, is_eq_car_q, is_eq_caar_q, member_ss, member_sq, memq_2,
            memq_3, memq_4, memq_any, memq_car, memq_car_2, tree_set_memq_syms, read_line_uncopied, simple_inlet,
            lint_let_ref, lint_let_set, or_n, or_2, or_3, and_n, and_2, and_3, and_sc, if_x1, if_x2, if_not_x1,
-           if_not_x2, if_x_qq, if_x_qa, or_s_direct, and_s_direct, geq_2;
+           if_not_x2, if_x_qq, if_x_qa, or_s_direct, and_s_direct, geq_2, or_s_direct_2, and_s_direct_2, or_s_type_2;
 
 #if (!WITH_GMP)
   s7_pointer multiply_2, multiply_is, multiply_si, multiply_fs, multiply_sf, sqr_ss, invert_1, divide_1r, mod_si, equal_s_ic,
@@ -3816,7 +3816,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_CLOSURE_P_MV, OP_CLOSURE_AP_MV, OP_CLOSURE_PA_MV, 
       OP_SAFE_C_PA_1, OP_SAFE_C_PA_MV,
 
-      OP_SET_WITH_LET_1, OP_SET_WITH_LET_2,
+      OP_SET_WITH_LET_1, OP_SET_WITH_LET_2, OP_S7_LET,
       OP_MAX_DEFINED_1};
 
 #define OP_MAX_DEFINED (OP_MAX_DEFINED_1 + 1)
@@ -4037,7 +4037,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "closure_p_mv", "closure_ap_mv", "closure_pa_mv",
       "safe_c_pa_1", "safe_c_pa_mv",
 
-      "set_with_let_1", "set_with_let_2",
+      "set_with_let_1", "set_with_let_2", "*s7*",
 };
 #endif
 
@@ -4147,6 +4147,12 @@ static s7_pointer set_qlist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
   set_car(sc->qlist_2, x1);
   set_cadr(sc->qlist_2, x2);
   return(sc->qlist_2);
+} 
+
+static s7_pointer set_clist_1(s7_scheme *sc, s7_pointer x1)
+{
+  set_car(sc->clist_1, x1);
+  return(sc->clist_1);
 } 
 
 static s7_pointer set_plist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_pointer x3)
@@ -5448,6 +5454,7 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(car(sc->t3_1)); gc_mark(car(sc->t3_2)); gc_mark(car(sc->t3_3));
   gc_mark(car(sc->a4_1)); gc_mark(car(sc->a4_2)); gc_mark(car(sc->a4_3)); gc_mark(car(sc->a4_4));
   gc_mark(car(sc->plist_1));
+  gc_mark(car(sc->clist_1));
   gc_mark(car(sc->plist_2)); gc_mark(cadr(sc->plist_2));
   gc_mark(car(sc->qlist_2)); gc_mark(cadr(sc->qlist_2));
   gc_mark(sc->u1_1);
@@ -5684,6 +5691,7 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
   set_plist_1(sc, sc->nil);
   set_elist_2(sc, sc->nil, sc->nil);
   set_plist_2(sc, sc->nil, sc->nil);
+  set_clist_1(sc, sc->nil);
   set_qlist_2(sc, sc->nil, sc->nil);
   set_elist_3(sc, sc->nil, sc->nil, sc->nil);
   set_plist_3(sc, sc->nil, sc->nil, sc->nil);
@@ -40512,7 +40520,7 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_SYMBOL:
       p = s7_symbol_value(sc, p);
       if (!is_symbol(p))
-	return(g_signature(sc, set_plist_1(sc, p)));  /* lint depends on this currently */
+	return(g_signature(sc, set_plist_1(sc, p))); 
       break;
 
     default:
@@ -40757,7 +40765,7 @@ s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e)
 static s7_pointer c_object_length(s7_scheme *sc, s7_pointer obj)
 {
   if (c_object_len(sc, obj))
-    return((*(c_object_len(sc, obj)))(sc, set_plist_1(sc, obj)));
+    return((*(c_object_len(sc, obj)))(sc, set_clist_1(sc, obj)));
   eval_error(sc, "attempt to get length of ~S?", 28, obj);
 }
 
@@ -40766,7 +40774,7 @@ static s7_int c_object_length_to_int(s7_scheme *sc, s7_pointer obj)
   if (c_object_len(sc, obj))
     {
       s7_pointer res;
-      res = (*(c_object_len(sc, obj)))(sc, set_plist_1(sc, obj));
+      res = (*(c_object_len(sc, obj)))(sc, set_clist_1(sc, obj));
       if (s7_is_integer(res))
 	return(s7_integer(res));
     }
@@ -44203,6 +44211,7 @@ static s7_pointer g_append(s7_scheme *sc, s7_pointer args)
   /* it's possible to see brand-new lists at optimization time and set them to be uncopied here,
    *   but the various overheads swamp the gain.
    */
+
   if (is_null(args)) return(sc->nil);  /* (append) -> () */
   a1 = car(args);                      /* first arg determines result type unless all args but last are empty (sigh) */
   if (is_null(cdr(args))) return(a1);  /* (append <anything>) -> <anything> */
@@ -47701,12 +47710,8 @@ static s7_pointer g_type_of(s7_scheme *sc, s7_pointer args)
 {
   #define H_type_of "(type-of obj) returns a symbol describing obj's type"
   #define Q_type_of s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_symbol_symbol, sc->is_boolean_symbol), sc->T)
-  int32_t tp;
 
-  tp = type(car(args));
-  if ((tp >= 0) && (tp < NUM_TYPES))
-    return(sc->type_to_typers[type(car(args))]);
-  return(s7_make_symbol(sc, "unknown!"));
+  return(sc->type_to_typers[type(car(args))]);
 }
 
 
@@ -49498,7 +49503,7 @@ static const s7_int oo_to_s7[14] = {-1, 1LL << T_INTEGER, 1LL << T_REAL, 1LL << 
 #define oo_line(p) p->line
 #endif
 
-#define oo_symbol_base 12
+#define oo_symbol_base (NUM_VUNIONS - 4)
 
 static bool check_slot_type(s7_scheme *sc, s7_pointer slot, opt_info *o, int32_t i, const char *func, int line)
 {
@@ -62208,6 +62213,22 @@ static s7_pointer g_or_s_direct(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
+static s7_pointer g_or_s_direct_2(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x;
+  set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadar(args)));
+  x = c_call(car(args))(sc, sc->t1_1);
+  if (is_true(sc, x)) return(x);
+  return(c_call(cadr(args))(sc, sc->t1_1));
+}
+
+static s7_pointer g_or_s_type_2(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x;
+  x = symbol_to_value_unchecked(sc, cadar(args));
+  return(make_boolean(sc, (type(x) == symbol_type(caar(args))) || (type(x) == symbol_type(caadr(args)))));
+}
+
 static s7_pointer g_and_s_direct(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p, x = sc->T;
@@ -62219,6 +62240,15 @@ static s7_pointer g_and_s_direct(s7_scheme *sc, s7_pointer args)
 	return(x);
     }
   return(x);
+}
+
+static s7_pointer g_and_s_direct_2(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x;
+  set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadar(args)));
+  x = c_call(car(args))(sc, sc->t1_1);
+  if (is_false(sc, x)) return(x);
+  return(c_call(cadr(args))(sc, sc->t1_1));
 }
 
 
@@ -62519,6 +62549,9 @@ static void init_choosers(s7_scheme *sc)
 
   sc->or_s_direct = s7_make_function(sc, "or", g_or_s_direct, 0, 0, true, "or opt");
   sc->and_s_direct = s7_make_function(sc, "and", g_and_s_direct, 0, 0, true, "and opt");
+  sc->or_s_direct_2 = s7_make_function(sc, "or", g_or_s_direct_2, 0, 0, true, "or opt");
+  sc->and_s_direct_2 = s7_make_function(sc, "and", g_and_s_direct_2, 0, 0, true, "and opt");
+  sc->or_s_type_2 = s7_make_function(sc, "or", g_or_s_type_2, 0, 0, true, "or opt");
 }
 
 #define choose_c_function(Sc, Expr, Func, Args) set_c_function(Expr, c_function_chooser(Func)(Sc, Func, Args, Expr, true))
@@ -63244,6 +63277,15 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       annotate_arg(sc, cdr(expr), e);
       set_arglist_length(expr, small_int(1));
       return(OPT_T);
+    }
+
+  if ((func == sc->s7_let) &&
+      (((quotes == 1) && (is_symbol(cadr(arg1)))) || 
+       (is_keyword(arg1))))
+    {
+      /* (*s7* ...) */
+      set_optimize_op(expr, OP_S7_LET);
+      return(OPT_F);
     }
   /* unknown_* is set later */
 
@@ -64955,14 +64997,21 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		  if (op == OP_OR)
 		    {
 		      set_safe_optimize_op(expr, hop + OP_SAFE_C_C);
-		      set_c_function(expr, sc->or_s_direct);
+		      if (args == 2)
+			{
+			  if ((symbol_type(caadr(expr)) > 0) && (is_global(caadr(expr))) &&
+			      ((symbol_type(caaddr(expr)) > 0) && (is_global(caaddr(expr)))))
+			    set_c_function(expr, sc->or_s_type_2);
+			  else set_c_function(expr, sc->or_s_direct_2);
+			}
+		      else set_c_function(expr, sc->or_s_direct);
 		    }
 		  else
 		    {
 		      if (op == OP_AND)
 			{
 			  set_safe_optimize_op(expr, hop + OP_SAFE_C_C);
-			  set_c_function(expr, sc->and_s_direct);
+			  set_c_function(expr, (args == 2) ? sc->and_s_direct_2 : sc->and_s_direct);
 			}
 		    }
 		  return(OPT_F);
@@ -69640,6 +69689,8 @@ static int32_t dox_ex(s7_scheme *sc)
   s7_pointer frame, vars, slot, code, end, endp;
   s7_function endf;
 
+  /* fprintf(stderr, "dox: %s\n", DISPLAY(sc->code)); */
+
   new_frame(sc, sc->envir, frame);   /* new frame is not tied into the symbol lookup process yet */
   sc->temp10 = frame;
   for (vars = car(sc->code); is_pair(vars); vars = cdr(vars))
@@ -69700,7 +69751,7 @@ static int32_t dox_ex(s7_scheme *sc)
 	  s7_function f;
 	  s7_pointer a;
 
-	  f = c_callee(slot_expression(slots));
+	  f = c_callee(slot_expression(slots)); /* e.g. all_x_c_add1 */
 	  a = car(slot_expression(slots));
 	  if (f == all_x_c_c)
 	    {
@@ -69708,7 +69759,7 @@ static int32_t dox_ex(s7_scheme *sc)
 	      a = cdr(a);
 	    }
 
-	  while (true) /* thash titer */
+	  while (true)
 	    {
 	      slot_set_value(slots, f(sc, a));
 	      if (is_true(sc, sc->value = endf(sc, endp)))
@@ -77004,6 +77055,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto START;
 	  }
 	  
+	case OP_S7_LET:
+	  sc->value = g_s7_let_ref_fallback(sc, set_plist_2(sc, sc->s7_let, (is_keyword(cadr(sc->code))) ? keyword_symbol(cadr(sc->code)) : cadadr(sc->code)));
+	  goto START;
+
 	case OP_ENVIRONMENT_Q:
 	  {
 	    s7_pointer s;
@@ -85616,6 +85671,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->plist_2) return("plist_2");
   if (p == sc->plist_3) return("plist_3");
   if (p == sc->qlist_2) return("qlist_2");
+  if (p == sc->clist_1) return("clist_1");
   if (p == sc->wrong_type_arg_info) return("wrong_type_arg_info");
   if (p == sc->out_of_range_info) return("out_of_range_info");
   if (p == sc->simple_wrong_type_arg_info) return("simple_wrong_type_arg_info");
@@ -86120,6 +86176,7 @@ s7_scheme *s7_init(void)
   sc->plist_2_2 = cdr(sc->plist_2);
   sc->plist_3 = permanent_list(sc, 3);
   sc->qlist_2 = permanent_list(sc, 2);
+  sc->clist_1 = permanent_list(sc, 1);
   sc->elist_1 = permanent_list(sc, 1);
   sc->elist_2 = permanent_list(sc, 2);
   sc->elist_3 = permanent_list(sc, 3);
@@ -87322,6 +87379,8 @@ s7_scheme *s7_init(void)
   s7_set_b_p_function(slot_value(global_slot(sc->is_immutable_symbol)), s7_is_immutable);
 
   s7_set_p_p_function(slot_value(global_slot(sc->is_pair_symbol)), is_pair_p_p);
+  s7_set_p_p_function(slot_value(global_slot(sc->type_of_symbol)), s7_type_of);
+  /* s7_set_p_p_function(slot_value(global_slot(sc->openlet_symbol)), s7_openlet); -- needs error check */
   s7_set_p_p_function(slot_value(global_slot(sc->integer_to_char_symbol)), integer_to_char_p_p);
 
 #if WITH_SYSTEM_EXTRAS
@@ -87690,11 +87749,9 @@ int main(int argc, char **argv)
  *   add resize to all combinables [does this matter?]
  *   perhaps in do/let try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
  *   tfft is cell/float case, tmap is bool, call/all float, gen for all
- *   d_p_f from d_d_f with real(p) as in p_i_c et al? And all p/c args can be expanded, also "s" if constant etc
- *   d_c, dd_cc etc could be precalc'd, also s=constant->c [*stderr* to format, *s7* V=fv -- can reader handle these?]
- *   or_type_s_direct, op_safe_c_type_opsq, maybe and_type_s_direct
- *   check all_x_eval combinations that used to be all_x_c_opsq -> type, or_type_s_direct_2|3?
+ *   all p/c args can be expanded
  *   is all_x_c_type_s slower than all the type special cases?
+ *   other s7.h and related p_* funcs 87384 -- there's redundancy now (s7_list_ref vs list_ref_p_pi for example) [but error checks are different -- openlet]
  *
  * test of multi-thread s7's+database for shared vars, lmdb.scm
  *   need to set let_id/symbol_id of these variables (treat as globals? sym_id=0, let_id=-1?)
@@ -87714,25 +87771,25 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283
  * dup           |      |      |      ||      || 1030 |                    609   435
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1086
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1316
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1668
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1315
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1935
- * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2346
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2359
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
+ * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2357
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2374
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3245
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3246
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047
  * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4475
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342
  * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0   8.7
  * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.9
  * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9
  * sg            |      |      |      || 139  || 85.9 | 86.5  87.1  81.4  80.1  79.6
- * lg            |      |      |      || 211  || 133  |133.4 130.9 125.7 118.3 118.1
+ * lg            |      |      |      || 211  || 133  |133.4 130.9 125.7 118.3 117.9
  * tbig          |      |      |      ||      ||      |                        255.4
  * ----------------------------------------------------------------------------------
  */

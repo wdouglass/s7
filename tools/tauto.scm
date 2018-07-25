@@ -176,7 +176,7 @@
 		  all delete-file system set-cdr! stacktrace test-sym
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons hash-table* hash-table values
-		  symbol-table load local-symbol?
+		  symbol-table load 
 		  global-environment current-environment make-procedure-with-setter procedure-with-setter? make-rectangular
 		  
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!

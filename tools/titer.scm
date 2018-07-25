@@ -12,9 +12,10 @@
     (load "s7test-block.so" new-env)))
 
 (define-constant (find-if-a iter)
-  (or (string? (iterate iter))
-      (and (not (iterator-at-end? iter))
-	   (find-if-a iter))))
+  (case (type-of (iterate iter))
+    ((string?) #t)
+    ((eof-object?) #f)
+    (else (find-if-a iter))))
 
 (define-constant (find-if-b iter)
   (call-with-exit
@@ -26,9 +27,10 @@
 
 (define-constant (find-if-c iter)
   (let loop ()
-    (or (string? (iterate iter))
-	(and (not (iterator-at-end? iter))
-	     (loop)))))
+    (case (type-of (iterate iter))
+      ((string?) #t)
+      ((eof-object?) #f)
+      (else (loop)))))
 
 (define-constant (find-if-d iter)
   (do ((i 0 (+ i 1)))
@@ -36,7 +38,7 @@
        (not (iterator-at-end? iter)))
     (do ()
 	((or (string? (iterate iter)) (iterator-at-end? iter))))))
-       
+
 
 (define (test)
   (for-each
