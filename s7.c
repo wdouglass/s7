@@ -11803,7 +11803,7 @@ static s7_int string_to_integer(const char *str, s7_int radix, bool *overflow)
 	{
 	  dig = digits[(uint8_t)(*tmp++)];
 	  if (dig >= radix) break;
-#if HAVE_OVERFLOW_CHECKS
+#if HAVE_OVERFLOW_CHECKS && (!WITH_GMP)
 	  {
 	    s7_int oval = 0;
 	    if (multiply_overflow(lval, (s7_int)radix, &oval)) 
@@ -11834,7 +11834,7 @@ static s7_int string_to_integer(const char *str, s7_int radix, bool *overflow)
     }
 
 #if WITH_GMP
-  (*overflow) = ((lval > s7_int32_max) ||
+  (*overflow) = ((lval > s7_int32_max) || 
 		 ((tmp - tmp1) > s7_int_digits_by_radix[radix]));
   /* this tells the string->number readers to create a bignum.  We need to be very
    *    conservative here to catch contexts such as (/ 1/524288 19073486328125)
@@ -21667,6 +21667,10 @@ static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
     }
 
   len = s7_integer(n);
+#if WITH_GMP
+  if ((len == 0) && (!s7_is_zero(n)))
+    return(s7_out_of_range_error(sc, "make-string", 1, n, "big integer is too big for s7_int"));
+#endif
   if ((len < 0) || (len > sc->max_string_length))
     return(out_of_range(sc, sc->make_string_symbol, small_int(1), n, (len < 0) ? its_negative_string : its_too_large_string));
 
@@ -33479,18 +33483,21 @@ static s7_pointer g_make_list(s7_scheme *sc, s7_pointer args)
   #define H_make_list "(make-list length (initial-element #f)) returns a list of 'length' elements whose value is 'initial-element'."
   #define Q_make_list s7_make_signature(sc, 3, sc->is_proper_list_symbol, sc->is_integer_symbol, sc->T)
 
-  s7_pointer init;
+  s7_pointer init, n;
   s7_int len;
 
-  if (!s7_is_integer(car(args)))
-    return(method_or_bust(sc, car(args), sc->make_list_symbol, args, T_INTEGER, 1));
+  n = car(args);
+  if (!s7_is_integer(n))
+    return(method_or_bust(sc, n, sc->make_list_symbol, args, T_INTEGER, 1));
 
-  len = s7_integer(car(args));            /* needs to be s7_int here so that (make-list most-negative-fixnum) is handled correctly */
-  if (len < 0)
-    return(out_of_range(sc, sc->make_list_symbol, small_int(1), car(args), its_negative_string));
+  len = s7_integer(n);
+#if WITH_GMP
+  if ((len == 0) && (!s7_is_zero(n)))
+    return(s7_out_of_range_error(sc, "make-list", 1, n, "big integer is too big for s7_int"));
+#endif
+  if ((len < 0) || (len > sc->max_list_length))
+    return(out_of_range(sc, sc->make_list_symbol, small_int(1), n, (len < 0) ? its_negative_string : its_too_large_string));
   if (len == 0) return(sc->nil);          /* what about (make-list 0 123)? */
-  if (len > sc->max_list_length)
-    return(out_of_range(sc, sc->make_list_symbol, small_int(1), car(args), its_too_large_string));
 
   if (is_pair(cdr(args)))
     init = cadr(args);
@@ -43059,6 +43066,9 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
   have_indices = (is_pair(cddr(args)));
   if ((source == dest) && (!have_indices))
     return(dest);
+
+  if ((is_immutable(dest)) && (dest != sc->key_readable_symbol) && (dest != sc->nil)) /* error_hook copies with cadr(args) :readable, so it's currently NULL */
+    return(s7_wrong_type_arg_error(sc, "copy", 2, dest, "a mutable object"));         /*    so this segfaults if not checking for :readable */
   
   switch (type(source))
     {
@@ -43115,6 +43125,13 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       check_method(sc, source, sc->copy_symbol, args);
       if (source == sc->rootlet)
 	return(wrong_type_argument_with_type(sc, caller, 1, source, wrap_string(sc, "a sequence other than the rootlet", 33)));
+      if ((!have_indices) && (is_let(dest)))
+	{
+	  s7_pointer slot;
+	  for (slot = let_slots(source); is_slot(slot); slot = next_slot(slot))
+	    make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+	  return(dest);
+	}
       end = let_length(sc, source);
       break;
 
@@ -43143,9 +43160,6 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	return(wrong_type_argument_with_type(sc, caller, 2, dest, a_sequence_string));	
       return(dest);
     }
-
-  if ((is_immutable(dest)) && (dest != sc->nil))
-    return(s7_wrong_type_arg_error(sc, "copy", 2, dest, "a mutable object"));
 
   switch (type(dest))
     {
@@ -46294,6 +46308,10 @@ static bool catch_barrier_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_
 static bool catch_hook_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
 {
   sc->error_hook = stack_code(sc->stack, i);
+#if S7_DEBUGGING
+  if (!s7_is_valid(sc, sc->error_hook))
+    fprintf(stderr, "%s[%d]: error_hook bad\n", __func__, __LINE__);
+#endif
   /* apparently there was an error during *error-hook* evaluation, but Rick wants the hook re-established anyway */
   (*reset_hook) = true;
   /* avoid infinite loop -- don't try to (re-)evaluate (buggy) *error-hook*! */
@@ -47976,6 +47994,26 @@ static s7_pointer all_x_is_symbol_s(s7_scheme *sc, s7_pointer arg)
   return((is_symbol(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
 }
 
+static s7_pointer all_x_is_type_s(s7_scheme *sc, s7_pointer arg)
+{
+  return(make_boolean(sc, (uint8_t)(opt_con3(cdr(arg))) == type(symbol_to_value_unchecked(sc, cadr(arg)))));
+}
+
+static s7_pointer all_x_is_integer_s(s7_scheme *sc, s7_pointer arg)
+{
+  return((is_integer(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
+}
+
+static s7_pointer all_x_is_string_s(s7_scheme *sc, s7_pointer arg)
+{
+  return((is_string(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
+}
+
+static s7_pointer all_x_is_procedure_s(s7_scheme *sc, s7_pointer arg)
+{
+  return((is_procedure(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
+}
+
 static s7_pointer all_x_is_pair_s(s7_scheme *sc, s7_pointer arg)
 {
   return((is_pair(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
@@ -47984,21 +48022,6 @@ static s7_pointer all_x_is_pair_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer all_x_is_keyword_s(s7_scheme *sc, s7_pointer arg)
 {
   return((is_keyword(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer all_x_is_integer_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_integer(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer all_x_is_procedure_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_procedure(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer all_x_is_string_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_string(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
 }
 
 static s7_pointer all_x_is_vector_s(s7_scheme *sc, s7_pointer arg)
@@ -48240,7 +48263,6 @@ static s7_pointer all_x_c_cdr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer all_x_c_is_type_opsq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  /* fprintf(stderr, "all_x_c_is_type: %s\n", DISPLAY(arg)); */
   val = symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)));
   set_car(sc->t1_1, val);
   return(make_boolean(sc, (uint8_t)(opt_con3(cdr(arg))) == type(c_call(cadr(arg))(sc, sc->t1_1))));
@@ -49164,16 +49186,23 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 	      if (car(arg) == sc->cadr_symbol) return(all_x_cadr_s);
 	      if (is_global(car(arg))) /* guard against (op arg) where arg is a let with an op method */
 		{
+		  uint8_t typ;
 		  if (car(arg) == sc->is_null_symbol) return(all_x_is_null_s);
 		  if (car(arg) == sc->is_pair_symbol) return(all_x_is_pair_s);
 		  if (car(arg) == sc->is_symbol_symbol) return(all_x_is_symbol_s);
-		  if (car(arg) == sc->is_keyword_symbol) return(all_x_is_keyword_s);
 		  if (car(arg) == sc->is_integer_symbol) return(all_x_is_integer_s);
-		  if (car(arg) == sc->is_procedure_symbol) return(all_x_is_procedure_s);
 		  if (car(arg) == sc->is_string_symbol) return(all_x_is_string_s);
-		  if (car(arg) == sc->is_vector_symbol) return(all_x_is_vector_s);
-		  if (car(arg) == sc->is_proper_list_symbol) return(all_x_is_proper_list_s);
 		  if (car(arg) == sc->not_symbol) return(all_x_not_s);
+		  if (car(arg) == sc->is_proper_list_symbol) return(all_x_is_proper_list_s);
+		  if (car(arg) == sc->is_vector_symbol) return(all_x_is_vector_s);
+		  if (car(arg) == sc->is_keyword_symbol) return(all_x_is_keyword_s);
+		  if (car(arg) == sc->is_procedure_symbol) return(all_x_is_procedure_s);
+		  typ = symbol_type(car(arg));
+		  if (typ > 0)
+		    {
+		      set_opt_any3(cdr(arg), (s7_pointer)((intptr_t)typ));
+		      return(all_x_is_type_s);
+		    }
 		}
 	      return(all_x_c_s);
 
@@ -49190,7 +49219,7 @@ static s7_function all_x_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, sa
 		  return(all_x_c_cdr_s);
 		}
 	      if (is_global(car(arg))) /* (? (op arg)) where (op arg) might return a let with a ? method etc */
-		{
+		{                      /*    other possibility: all_x_c_a */
 		  uint8_t typ;
 		  typ = symbol_type(car(arg));
 		  if (typ > 0) /* h_safe_c here so the type checker isn't shadowed */
@@ -56102,11 +56131,11 @@ static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
       if (is_sequence(obj))
 	{
 	  opt_info *opc;
-	  int32_t op2 = OO_P;
 	  opc = alloc_opo(sc, car_x);
 	  opc->v[1].p = s_slot;
 	  if (len == 2)
 	    {
+	      int32_t op2 = OO_P;
 	      switch (type(obj))
 		{
 		case T_PAIR:       opc->v[3].p_pi_f = list_ref_p_pi_direct;       op2 = OO_L;	  break;
@@ -56517,12 +56546,12 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 	  if (is_slot(s_slot))
 	    {
 	      s7_pointer obj;
-	      int32_t op2 = OO_P;
 	      opc->v[1].p = s_slot;
 	      obj = slot_value(s_slot);
 	      if ((!has_methods(obj)) &&
 		  (is_mutable_sequence(obj)))
 		{
+		  int32_t op2 = OO_P;
 		  s7_pointer index;
 		  switch (type(obj))
 		    {
@@ -69337,9 +69366,11 @@ static bool is_simple_end(s7_scheme *sc, s7_pointer end)
 	 (is_pair(cddr(end))) &&      /* end: (zero? n) */
 	 (cadr(end) != caddr(end)) &&
 #if (!WITH_GMP)
-	 ((opt_any1(end) == sc->equal_s_ic) ||
+	 ((opt_any1(end) == sc->equal_s_ic) || 
+	  (optimize_op(end) == HOP_SAFE_C_SS) || (optimize_op(end) == HOP_SAFE_C_SC)));
+#else
+         ((optimize_op(end) == HOP_SAFE_C_SS) || (optimize_op(end) == HOP_SAFE_C_SC)));
 #endif
-	  ((optimize_op(end) == HOP_SAFE_C_SS) || (optimize_op(end) == HOP_SAFE_C_SC))));
 }
 
 static s7_pointer check_do(s7_scheme *sc)
@@ -69894,11 +69925,16 @@ static int32_t dox_ex(s7_scheme *sc)
 	}
     }
 
+  /* (set! (v i) ..)
+   * ((set! x y) (set! y (vector-ref vc i))) -- tsort -- these seem allxable
+   * ((set! tk tj) (set! tj (if (zero? (float-vector-ref radii j)) 1e-10 (* (float-vector-ref radii k) (float-vector-ref radii k)))) (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj)))) -- the if perhaps?? -- tall
+   */
+
   if ((is_null(cdr(code))) && /* one expr */
       (is_pair(car(code))))
     {
       code = car(code);
-      
+
       if ((is_syntactic_pair(code)) ||
 	  (is_syntactic_symbol(car(code))))
 	{
@@ -81320,6 +81356,10 @@ static s7_int big_integer_to_s7_int(mpz_t n)
 
   mpz_fdiv_q_2exp(x, x, 32);
   high = mpz_get_ui(x);
+
+  if (high > (1LL << 31)) /* most callers of this function do not take sc as an argument and are in s7.h (s7_integer for example) */
+    return(0);
+
   mpz_clear(x);
   if (need_sign)
     return(-(low + (high << 32)));
@@ -87712,7 +87752,7 @@ int main(int argc, char **argv)
  *   see t752.scm for more examples
  *
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
- *   need opt_closure?
+ *   need opt_closure? saved body optlist: setup frame, fixup optlist, call it (need fallback)
  * simple_do_ex opt: if something like opt_p_pip_ssc, this can't call anything, so it is completely unwrappable:
  * if fp is opt_p_pip_ssc, o->v[3].p_pip_f(slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[4].p)
  *   where all o->x can be preset, and pc is not used (so sc->pc = 0 is unnecessary)
@@ -87747,20 +87787,17 @@ int main(int argc, char **argv)
  * syms are now 12..15 -- need to fix this eventually
  *   float-stepper do and 2+1 stepper do, cdr stepper (seem now to go to dox?)
  *   add resize to all combinables [does this matter?]
- *   perhaps in do/let try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
+ *   perhaps in do/let/dox try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
  *   tfft is cell/float case, tmap is bool, call/all float, gen for all
  *   all p/c args can be expanded
- *   is all_x_c_type_s slower than all the type special cases?
  *   other s7.h and related p_* funcs 87384 -- there's redundancy now (s7_list_ref vs list_ref_p_pi for example) [but error checks are different -- openlet]
+ *   optimize_lambda -> optimize: try new_s7_opt? op_closure_opt, with is_recur=set slots and reset sc->pc.
  *
  * test of multi-thread s7's+database for shared vars, lmdb.scm
  *   need to set let_id/symbol_id of these variables (treat as globals? sym_id=0, let_id=-1?)
  *   threads.c -- still need lmdb stuff: add *thread*=i to each and *sum* as global through lmdb = sum [also libpthread.scm needs work]
  *   sem_open/post/wait/close/unlink
  *       now in libc.scm: use system to create, each reads scm file with sem_* on shared semaphore accessing gdbm I guess
- * need nested reader-cond tests [t828]
- * string->byte-vector is in-place -- kinda confusing
- * gmp str->num oddities
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  *
@@ -87772,12 +87809,12 @@ int main(int argc, char **argv)
  * dup           |      |      |      ||      || 1030 |                    609   435
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1315
+ * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1935
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1933
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344
  * tread         |      |      |      ||      ||      |       3009  2639  2398  2357
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2374
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3246

@@ -2016,8 +2016,8 @@ s7_ints or s7_doubles:
 (<em class=def id="makebytevector">make-byte-vector</em> len (init 0))
 (<em class=def id="bytevectorref">byte-vector-ref</em> vect index)
 (<em class=def id="bytevectorset">byte-vector-set!</em> vect index byte)
-(<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
-(<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
+(<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str) ; in-place
+(<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str) ; in-place
 
 (<em class=def id="subvector">subvector</em> vector dimensions position) ; does not apply to byte-vectors yet
 (<em class=def id="subvectorp">subvector?</em> obj) 
