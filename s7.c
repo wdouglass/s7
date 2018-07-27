@@ -1086,7 +1086,9 @@ struct s7_scheme {
   s7_pointer unbound_variable_hook;   /* *unbound-variable-hook* hook object */
   s7_pointer missing_close_paren_hook, rootlet_redefinition_hook;
   s7_pointer error_hook, read_error_hook; /* *error-hook* hook object, and *read-error-hook* */
-
+#if WITH_AFTER_GC_HOOK
+  s7_pointer after_gc_hook;
+#endif
   bool gc_off;                        /* gc_off: if true, the GC won't run */
   uint32_t gc_stats, gensym_counter, f_class, add_class, multiply_class, subtract_class, equal_class;
   int32_t format_column;
@@ -5579,6 +5581,12 @@ static int64_t gc(s7_scheme *sc)
     }
   
   sc->previous_free_heap_top = sc->free_heap_top;
+
+#if WITH_AFTER_GC_HOOK
+  if (hook_has_functions(sc->after_gc_hook))
+    s7_apply_function(sc, sc->after_gc_hook, sc-nil);
+#endif
+
   return(sc->gc_freed); /* needed by cell allocator to decide when to increase heap size */
 }
 
@@ -52248,6 +52256,19 @@ static s7_double opt_d_dd_fff(void *p)
   return(o->v[3].d_dd_f(x1, x2));
 }
 
+static s7_double opt_d_mm_fff(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o1, *o2;
+  s7_double x1, x2;
+  o1 = o->sc->opts[++o->sc->pc];
+  x1 = o1->v[5].d_7pi_f(o->sc, slot_value(o1->v[2].p), integer(slot_value(o1->v[3].p))) * real(slot_value(o1->v[1].p));
+  o2 = o->sc->opts[++o->sc->pc];
+  x2 = o2->v[5].d_7pi_f(o->sc, slot_value(o2->v[2].p), integer(slot_value(o2->v[3].p))) * real(slot_value(o2->v[1].p));
+  oo_rcheck(o->sc, o, 4, 0);
+  return(o->v[3].d_dd_f(x1, x2));
+}
+
 static s7_double opt_d_dd_fff_rev(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -52350,7 +52371,10 @@ static bool d_dd_ff_combinable(s7_scheme *sc, int32_t start)
       o2 = sc->opts[start + 1];
       if (o2->v[0].fd == opt_d_dd_fso)
 	{
-	  opc->v[0].fd = opt_d_dd_fff;
+	  if ((o1->v[4].d_dd_f == multiply_d_dd) &&
+	      (o2->v[4].d_dd_f == multiply_d_dd))
+	    opc->v[0].fd = opt_d_mm_fff;
+	  else opc->v[0].fd = opt_d_dd_fff;
 	  oo_set_type_0(opc, 4);
 	  oo_check(sc, opc); 
 	  return(true);
@@ -53153,11 +53177,8 @@ static inline s7_double opt_fmv(void *p)
   oo_rcheck(o->sc, o, 6, 2);
   return(o->v[4].d_vid_f(o->v[5].obj, 
 			 integer(slot_value(o->v[2].p)),
-			 o1->v[3].d_dd_f(amp_env,
-					 o2->v[3].d_vd_f(o2->v[5].obj,
-							 o2->v[4].d_dd_f(vib,
-									 o3->v[4].d_dd_f(index_env,
-											 o3->v[6].d_vd_f(o3->v[2].obj, vib)))))));
+			 amp_env * o2->v[3].d_vd_f(o2->v[5].obj,
+						   vib + (index_env * o3->v[6].d_vd_f(o3->v[2].obj, vib)))));
 }
 
 static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
@@ -53190,15 +53211,20 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		      (is_integer(slot_value(opc->v[2].p))) &&
 		      (float_optimize(sc, cdddr(car_x))))
 		    {
-		      opt_info *o1;
-		      o1 = sc->opts[start];
-		      if (o1->v[0].fd == opt_d_dd_ff_o1)
+		      opt_info *o2;
+		      o2 = sc->opts[start];
+		      if (o2->v[0].fd == opt_d_dd_ff_o1)
 			{
-			  o1 = sc->opts[start + 2];
-			  if (o1->v[0].fd == opt_d_vd_o1)
+			  opt_info *o3;
+			  o3 = sc->opts[start + 2];
+			  if (o3->v[0].fd == opt_d_vd_o1)
 			    {
+			      opt_info *o1;
 			      o1 = sc->opts[start + 4];
-			      if (o1->v[0].fd == opt_d_dd_ff_o3)
+			      if ((o1->v[0].fd == opt_d_dd_ff_o3) &&
+				  (o1->v[4].d_dd_f == multiply_d_dd) &&
+				  (o2->v[3].d_dd_f == multiply_d_dd) &&
+				  (o3->v[4].d_dd_f == add_d_dd))
 				opc->v[0].fd = opt_fmv;
 			    }
 			}
@@ -69924,11 +69950,12 @@ static int32_t dox_ex(s7_scheme *sc)
 	    }
 	}
     }
-
+#if 0
+  fprintf(stderr, "%s\n", DISPLAY(sc->code));
   /* (set! (v i) ..)
-   * ((set! x y) (set! y (vector-ref vc i))) -- tsort -- these seem allxable
-   * ((set! tk tj) (set! tj (if (zero? (float-vector-ref radii j)) 1e-10 (* (float-vector-ref radii k) (float-vector-ref radii k)))) (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj)))) -- the if perhaps?? -- tall
+   * ((set! x y) (set! y (vector-ref vc i))) -- tsort -- these seem allxable: slower with begin??
    */
+#endif
 
   if ((is_null(cdr(code))) && /* one expr */
       (is_pair(car(code))))
@@ -70419,15 +70446,14 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
 	  f2 = second->v[0].fd;
 	  f2(second);
 	  if ((f2 == opt_fmv) &&
-	      (f1 == opt_d_dd_ff_o2))
+	      (f1 == opt_d_dd_ff_o2) &&
+	      (first->v[3].d_dd_f == add_d_dd))
 	    {
 	      for (k = numerator(stepper) + 1; k < end; k++)
 		{
-		  s7_double x1;
 		  integer(ip) = k;
 		  sc->pc = 0;
-		  x1 = first->v[4].d_v_f(first->v[1].obj);
-		  set_real(xp, first->v[3].d_dd_f(x1, first->v[5].d_v_f(first->v[2].obj)));
+		  set_real(xp, first->v[4].d_v_f(first->v[1].obj) + first->v[5].d_v_f(first->v[2].obj));
 		  sc->pc = pc2;
 		  opt_fmv(second);
 		}
@@ -87641,6 +87667,12 @@ s7_scheme *s7_init(void)
 					"*rootlet-redefinition-hook* functions are called when a top-level variable's value is changed, (hook 'name 'value).");
   /* first parameter was originally 'symbol, but that collides with the built-in symbol function */
 
+#if WITH_AFTER_GC_HOOK
+  /* -------- *after-gc-hook* -------- */
+  sc->after_gc_hook = s7_eval_c_string(sc, "(make-hook)");
+  s7_define_constant_with_documentation(sc, "*after-gc-hook*", sc->after_gc_hook, "*after-gc-hook* functions (thunks) are invoked after the gc is called.");
+#endif
+
   sc->s7_let = s7_inlet(sc, /* have to use s7_inlet here because we're setting let fallbacks */
 		 s7_list(sc, 4, 
 			 sc->let_ref_fallback_symbol, s7_make_function(sc, "s7-let-ref", g_s7_let_ref_fallback, 2, 0, false, "*s7* reader"),
@@ -87751,37 +87783,21 @@ int main(int argc, char **argv)
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
  *
- * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
- *   need opt_closure? saved body optlist: setup frame, fixup optlist, call it (need fallback)
- * simple_do_ex opt: if something like opt_p_pip_ssc, this can't call anything, so it is completely unwrappable:
- * if fp is opt_p_pip_ssc, o->v[3].p_pip_f(slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[4].p)
- *   where all o->x can be preset, and pc is not used (so sc->pc = 0 is unnecessary)
- *   if stepper=slot_value o->v[2].p that also can be used
- *   if o->v[3].p.pip_f is string_set_unchecked, string_set_unchecked(slot_value(s1), integer(stepper), c)
- *   which becomes string_value(slot_value(s1))[integer(stepper]] = character(c)
- *   but the stepper is unneeded and string_value can be pulled out, and c is constant so
- *   str[i]=char, but that is memset(str, char, end - integer(stepper)) which is 30-100 times as fast (see opt_dotimes)
- *   so a chooser for opts?  
- *   also a way to classify opt_* in this way
- *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
  *   test other func cases in libgtk_s7, several more special funcs
  *   make|free-cairo: xm-enved.fs
  *   how to force access to a drawing_area widget's cairo_t? gtk_widget_queue_draw after everything comes up?
- *   object->let for gtk widgets?
  *
  * snd+gtk+script->eps fails??  Also why not make a graph in the no-gui case? t415.scm.
  * remove as many edpos args as possible, and num+bool->num
  * snd namespaces: dac, edits, fft, gxcolormaps, mix, region, snd.  for snd-mix, tie-ins are in place
  * why doesn't the GL spectrogram work for stereo files? snd-chn.c 3195
- * why does set-samples inf crash?
  *
  * need a timing test for macros (extend tmac) -- can expander precalc more?
  *   stuff has Display, typed-let, incf/decf, progv, value->symbol, destructuring-bind, let*-temporarily, do*, string-case, define-class et al
  *   also one for ffi/opt: libc/gsl? fft-window code from clm?
  * profiling via begin_op? (profile's file_and_line could be stored in opt2)
- *   set_current_code could be on safety with *_unchecked_1 as in sc->op_begin [and op_begin is half or more of the cost]
  *
  * need new_s7_opt to handle multiple exprs
  * syms are now 12..15 -- need to fix this eventually
@@ -87792,14 +87808,16 @@ int main(int argc, char **argv)
  *   all p/c args can be expanded
  *   other s7.h and related p_* funcs 87384 -- there's redundancy now (s7_list_ref vs list_ref_p_pi for example) [but error checks are different -- openlet]
  *   optimize_lambda -> optimize: try new_s7_opt? op_closure_opt, with is_recur=set slots and reset sc->pc.
+ *   t834(fm100) is float_opt in do_let but opt time is insignificant, tfft has better example
+ * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
+ *   need opt_closure? saved body optlist: setup frame, fixup optlist, call it (need fallback)
  *
- * test of multi-thread s7's+database for shared vars, lmdb.scm
- *   need to set let_id/symbol_id of these variables (treat as globals? sym_id=0, let_id=-1?)
- *   threads.c -- still need lmdb stuff: add *thread*=i to each and *sum* as global through lmdb = sum [also libpthread.scm needs work]
- *   sem_open/post/wait/close/unlink
- *       now in libc.scm: use system to create, each reads scm file with sem_* on shared semaphore accessing gdbm I guess
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
+ * need slot+let+expr, slot-in-let? = is let and local symbol->slot? get value, did gc run (recheck), set slot
+ *   so setter has (symbol let expr); *after-gc-hook*? -- ask type-of(let) #f=free?
+ *   temp immutable to catch loops, but how to keep zombie slots from setting? -- but how to clear immutable?
+ *   (immutable-temporarily (var1 ...) . body) -- any mutable vars set immutable for body and cleared at end (via dynamic-wind)
  *
  * ----------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6 
@@ -87809,7 +87827,7 @@ int main(int argc, char **argv)
  * dup           |      |      |      ||      || 1030 |                    609   435
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088
- * tauto     265 |   89 |  9   |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1933
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344
@@ -87817,16 +87835,16 @@ int main(int argc, char **argv)
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390
  * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3246
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288
  * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047
  * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342
- * tgen          |   71 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0   8.7
- * tall       90 |   43 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.9
- * calls     359 |  275 | 54   | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9
- * sg            |      |      |      || 139  || 85.9 | 86.5  87.1  81.4  80.1  79.6
- * lg            |      |      |      || 211  || 133  |133.4 130.9 125.7 118.3 117.9
+ * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0   8.7
+ * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9
+ * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6
+ * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9
  * tbig          |      |      |      ||      ||      |                        255.4
  * ----------------------------------------------------------------------------------
  */

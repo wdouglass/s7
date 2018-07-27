@@ -330,16 +330,17 @@
 		      ;; 		                   (* (float-vector-ref target-radii j) (float-vector-ref radii-pole-gains j)))))
 		      ))
 		;; set tract shape
-		(do ((tj 1.0)
-		     (tk 0.0)
-		     (k 0 (+ k 1))
-		     (j 1 (+ j 1)))
-		    ((= j tractlength))
-		  (set! tk tj)
-		  (set! tj (if (zero? (float-vector-ref radii j))
-			       1e-10
-			       (* (float-vector-ref radii k) (float-vector-ref radii k))))
-		  (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj))))
+		(let ((tj 1.0)
+		      (tk 0.0))
+		  (do ((k 0 (+ k 1))
+		       (j 1 (+ j 1)))
+		      ((= j tractlength))
+		    (begin
+		      (set! tk tj)
+		      (if (zero? (float-vector-ref radii j))
+			  (set! tj 1e-10)
+			  (set! tj (* (float-vector-ref radii k) (float-vector-ref radii k))))
+		      (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj))))))
 		
 		(set! glot-refl-gain (radii tractlength-1))
 		(set! lip-refl-gain (radii tractlength))
