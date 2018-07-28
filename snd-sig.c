@@ -3162,7 +3162,7 @@ char *scale_and_src(char **files, int len, int max_chans, mus_float_t amp, mus_f
   mus_long_t k, new_dur = 0, dur = 0;
   mus_float_t **data;
   file_info *hdr = NULL;
-  int j, ofd = 0, datumb = 0, err = 0, srate = 0;
+  int j, ofd = 0, datumb = 0, err = 0, srate = 0, olen;
   io_error_t io_err = IO_NO_ERROR;
   mus_float_t sum;
   mus_any *e = NULL;
@@ -3198,8 +3198,9 @@ char *scale_and_src(char **files, int len, int max_chans, mus_float_t amp, mus_f
 			snd_open_strerror()));
     }
 
-  fds = (snd_fd ***)calloc((size_t)len, sizeof(snd_fd **));
-  sps = (snd_info **)calloc((size_t)len, sizeof(snd_info *));
+  olen = len * sizeof(snd_fd **); /* try to turn off gcc's alloc-size-larger-than error message */
+  fds = (snd_fd ***)calloc(olen, 1);
+  sps = (snd_info **)calloc(olen, 1);
   for (i = 0; i < len; i++)
     {
       fds[i] = (snd_fd **)calloc(max_chans, sizeof(snd_fd *));

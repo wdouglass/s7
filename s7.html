@@ -6124,7 +6124,8 @@ static void *run_thread(void *obj)
                           (define (f) \
                             (do ((i 0 (+ i 1))) ((= i 10)) \
                               (do ((k 0 (+ k 1))) ((= k 1000000))) \
-                              (format *stderr* \"~D \" i))) (f))");
+                              (format *stderr* \"~D \" i))) \
+                          (f))");
   pthread_mutex_lock(&amp;lock);
   fprintf(stderr, "%s\n", str);
   pthread_mutex_unlock(&amp;lock);

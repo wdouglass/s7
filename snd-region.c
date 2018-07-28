@@ -513,8 +513,8 @@ void for_each_region_chan_with_refint(void (*func)(chan_info *ncp, int *val), in
 region_state *region_report(void)
 {
   region_state *rs;
-  int i, len;
-  size_t size;
+  int i, len, size;
+
   rs = (region_state *)calloc(1, sizeof(region_state));
   len = regions_size;
   for (i = 0; i < regions_size; i++) 

@@ -5,7 +5,7 @@ cp tools/ffitest.c .
 echo ' -------------------------------- without-gui -------------------------------- '
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include" --without-gui
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include" --without-gui
 make
 echo ' '
 echo ' '
@@ -40,7 +40,7 @@ echo ' '
 echo ' -------------------------------- without-gui sanitized -------------------------------- '
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-g3 -Wall -I/usr/local/include -Wbool-compare -Wsign-compare -fsanitize=bounds -fsanitize=address -fsanitize=undefined" --without-gui
+./configure --quiet CFLAGS="-g3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -Wbool-compare -Wsign-compare -fsanitize=bounds -fsanitize=address -fsanitize=undefined" --without-gui
 make
 echo ' '
 echo ' '
@@ -57,7 +57,7 @@ echo ' -------------------------------- without-gui S7_DEBUGGING=1 -------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include -DS7_DEBUGGING" --without-gui --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -DS7_DEBUGGING" --without-gui --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -80,7 +80,7 @@ echo ' -------------------------------- pure-s7 --------------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include -DWITH_PURE_S7=1" --without-gui --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -DWITH_PURE_S7=1" --without-gui --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -96,7 +96,7 @@ echo ' -------------------------------- no choosers ----------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include -DWITHOUT_CHOOSERS=1" --without-gui --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -DWITHOUT_CHOOSERS=1" --without-gui --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -112,7 +112,7 @@ echo ' -------------------------------- no vectorize ---------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -I/usr/local/include -DWITH_VECTORIZE=0 -DHAVE_OVERFLOW_CHECKS=0" --without-gui --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -DWITH_VECTORIZE=0 -DHAVE_OVERFLOW_CHECKS=0" --without-gui --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -128,7 +128,7 @@ echo ' -------------------------------- without-gui CC=g++ --disable-deprecated 
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -DWITH_EXTRA_EXPONENT_MARKERS=1" --without-gui --disable-deprecated CC=g++
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DWITH_EXTRA_EXPONENT_MARKERS=1" --without-gui --disable-deprecated CC=g++
 make
 echo ' '
 echo ' '
@@ -151,7 +151,7 @@ echo ' -------------------------------- without-gui --with-gmp -----------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --without-gui --with-gmp --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui --with-gmp --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -178,7 +178,7 @@ echo ' -------------------------------- without-gui --with-gmp debugging -------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall -DS7_DEBUGGING=1" --without-gui --with-gmp --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DS7_DEBUGGING=1" --without-gui --with-gmp --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -195,7 +195,7 @@ echo ' -------------------------------- motif -------------------------------- '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet --with-motif CFLAGS="-Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
+./configure --quiet --with-motif CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
 make
 echo ' '
 echo ' '
@@ -224,7 +224,7 @@ echo ' -------------------------------- motif + gl -----------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet --with-gl --with-motif CFLAGS="-Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
+./configure --quiet --with-gl --with-motif CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
 make
 echo ' '
 echo ' '
@@ -248,7 +248,7 @@ echo ' -------------------------------- motif + gl + debug ---------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet --with-gl --with-motif CFLAGS="-DS7_DEBUGGING -Wall -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
+./configure --quiet --with-gl --with-motif CFLAGS="-DS7_DEBUGGING -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib"
 make
 echo ' '
 echo ' '
@@ -264,7 +264,7 @@ echo ' '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --without-gui --quiet CC=clang CFLAGS="-Wall" LDFLAGS="-Wl,-export-dynamic"
+./configure --without-gui --quiet CC=clang CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" LDFLAGS="-Wl,-export-dynamic"
 make
 ./snd --version
 ./snd -l snd-test
@@ -279,7 +279,7 @@ echo ' -------------------------------- with-gtk -------------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --with-gtk --disable-deprecated
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -304,7 +304,7 @@ echo ' -------------------------------- with-gtk + debug -----------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-DS7_DEBUGGING -Wall" --with-gtk --disable-deprecated
+./configure --quiet CFLAGS="-DS7_DEBUGGING -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --disable-deprecated
 make
 echo ' '
 echo ' '
@@ -325,7 +325,7 @@ echo ' -------------------------------- without-gui ----------------------------
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --without-gui
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui
 make
 echo ' '
 echo ' '
@@ -393,7 +393,7 @@ echo ' '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" CC=g++
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" CC=g++
 make
 echo ' '
 echo ' '
@@ -408,7 +408,7 @@ echo ' '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --with-gtk --with-ladspa --without-audio
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --with-ladspa --without-audio
 make
 echo ' '
 echo ' '
@@ -423,7 +423,7 @@ echo ' '
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --with-gmp --without-gui
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gmp --without-gui
 make
 echo ' '
 echo ' '
@@ -442,7 +442,7 @@ mv tmp snd-test.scm
 make allclean
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-Wall" --without-gui
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui
 make
 echo ' '
 echo ' '

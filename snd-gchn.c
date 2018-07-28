@@ -549,7 +549,7 @@ static void remake_edit_history(chan_info *cp)
   lst = EDIT_HISTORY_LIST(cp);
   if (!lst) return;
 
-  /* if you try to update something in a closed pane, goddamn gtk grinds to a halt */
+  /* if you try to update something in a closed pane, gtk grinds to a halt */
   if (gtk_paned_get_position(GTK_PANED(cp->widgets[W_main_window])) < 10) return;
 
   slist_clear(lst);

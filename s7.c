@@ -5584,7 +5584,7 @@ static int64_t gc(s7_scheme *sc)
 
 #if WITH_AFTER_GC_HOOK
   if (hook_has_functions(sc->after_gc_hook))
-    s7_apply_function(sc, sc->after_gc_hook, sc-nil);
+    s7_apply_function(sc, sc->after_gc_hook, sc->nil);
 #endif
 
   return(sc->gc_freed); /* needed by cell allocator to decide when to increase heap size */
@@ -9169,13 +9169,13 @@ s7_pointer s7_make_keyword(s7_scheme *sc, const char *key)
   s7_pointer sym;
   block_t *b;
   char *name;
-  s7_int slen;
-  slen = safe_strlen(key);
+  size_t slen;
+  slen = (size_t)safe_strlen(key);
   b = mallocate(sc, slen + 2);
   name = (char *)block_data(b);
   name[0] = ':';                                     /* prepend ":" */
   name[1] = '\0';
-  memcpy((void *)(name + 1), (void *)key, slen);
+  memcpy((void *)(name + 1), (void *)key, slen);     /* gcc 8.1 error here is incorrect */
   sym = make_symbol_with_length(sc, name, slen + 1); /* keyword slot etc taken care of here (in new_symbol actually) */
   liberate(sc, b);
   return(sym);
@@ -29144,14 +29144,6 @@ bool s7_is_valid(s7_scheme *sc, s7_pointer arg)
   bool result = false;
   if (!arg) return(false);
 
-  if (((intptr_t)(void *)arg) < (((intptr_t)((void *)(sc->heap))) >> 1))
-    {
-#if S7_DEBUGGING
-      fprintf(stderr, "%p less than half sc!\n", arg);
-      abort();
-#endif
-      return(false);
-    }
 #if TRAP_SEGFAULT
   if (sigsetjmp(senv, 1) == 0)
     {
@@ -58810,6 +58802,15 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	{
 	  if (is_macro(s_func))
 	    return(return_false(sc, car_x, __func__, __LINE__)); /* macroexpand+cell_optimize here restarts the optimize process */
+#if 0
+	  else
+	    {
+	      /* s_func here assumes global_slot? */
+	      if ((is_closure(s_func)) &&
+		  (is_very_safe_closure(s_func)) &&
+		  (is_recur(slot)))
+	    }
+#endif
 	}
     }
   return(return_false(sc, car_x, __func__, __LINE__));
@@ -63085,9 +63086,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  set_safe_optimize_op(expr, hop + op);
 		  /* fallback is Z */
 		  if (!hop)
-		    {
-		      clear_hop(arg1);
-		    }
+		    clear_hop(arg1);
 		  else
 		    {
 		      if ((op == OP_SAFE_C_P) &&
@@ -66122,13 +66121,16 @@ static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool
   return(result);
 }
 
-static s7_pointer optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
+static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
 {
   s7_int len;
 
   len = s7_list_length(sc, body);
   if (len < 0)                /* (define (hi) 1 . 2) */
-    eval_error_with_caller(sc, "~A: function body messed up, ~A", 31, (unstarred_lambda) ? sc->lambda_symbol : sc->lambda_star_symbol, sc->code);
+    s7_error(sc, sc->syntax_error_symbol, 
+	     set_elist_3(sc, wrap_string(sc, "~A: function body messed up, ~A", 31), 
+			 (unstarred_lambda) ? sc->lambda_symbol : sc->lambda_star_symbol, 
+			 sc->code));
 
   if (len > 0)  /* i.e. not circular */
     {
@@ -66199,7 +66201,6 @@ static s7_pointer optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_point
 	    clear_all_optimizations(sc, body);
 	}
     }
-  return(NULL);
 }
 
 static void check_lambda(s7_scheme *sc)
@@ -66690,7 +66691,15 @@ static s7_pointer check_let(s7_scheme *sc)
 	  sc->args = safe_list_if_possible(sc, vars);
 	  for (ex = start, exp = sc->args; is_pair(ex); ex = cdr(ex), exp = cdr(exp))
 	    car(exp) = caar(ex);
-	  optimize_lambda(sc, true, car(sc->code), sc->args, cddr(sc->code));
+
+	  /* fprintf(stderr, "%s\n", DISPLAY(sc->code)); */ /* tlet -> safe_closure_a_lp */
+	  optimize_lambda(sc, true, car(sc->code), sc->args, cddr(sc->code)); /* car(sc->code) is the name */
+	  /* cddr(sc->code) == body in optimize_lambda, will had very_safe_closure bit */
+	  /* at runtime is_recur is true of func slot */
+	  /* if opt, while (sc->pc == 0)..., need frame (via funclet(func)?) */
+	  /* but how to tell check_let caller to run the loop? OP_OPT_NAMED_LET? */
+	  /* or put it off until unchecked_let+no no_opt_pair? -- see op_let_unchecked */
+
 	  clear_list_in_use(sc->args);
 	  sc->current_safe_list = 0;
 	}
@@ -76461,51 +76470,75 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_CLOSURE_A:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  check_stack_size(sc);
-	  sc->code = opt_lambda(sc->code);
-	  new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-	  closure_push_and_goto_eval(sc);
-	  
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    check_stack_size(sc);
+	    sc->code = opt_lambda(code);
+	    new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
+	    closure_push_and_goto_eval(sc);
+	  }
+
 	case OP_CLOSURE_A_P:
 	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_CLOSURE_A_P:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  check_stack_size(sc);
-	  sc->code = opt_lambda(sc->code);
-	  new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-	  closure_goto_eval(sc);
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    check_stack_size(sc);
+	    sc->code = opt_lambda(code);
+	    new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
+	    closure_goto_eval(sc);
+	  }
 	  
 	case OP_SAFE_CLOSURE_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_A:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  sc->code = opt_lambda(sc->code);
-	  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-	  closure_push_and_goto_eval(sc);
-	  
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    sc->code = opt_lambda(code);
+	    sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
+	    closure_push_and_goto_eval(sc);
+	  }
+
 	case OP_SAFE_CLOSURE_A_P:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_P, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_A_P:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  sc->code = opt_lambda(sc->code);
-	  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-	  closure_goto_eval(sc);
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    sc->code = opt_lambda(code);
+	    sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
+	    closure_goto_eval(sc);
+	  }
 
 	case OP_SAFE_CLOSURE_A_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_A, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_A_A:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  sc->code = opt_lambda(sc->code);
-	  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-          sc->value = c_call(closure_body(sc->code))(sc, car(closure_body(sc->code)));
-          goto START;
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    sc->code = opt_lambda(code);
+	    sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
+	    sc->value = c_call(closure_body(sc->code))(sc, car(closure_body(sc->code)));
+	    goto START;
+	  }
 
 	case OP_SAFE_CLOSURE_A_LP:
-	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	  sc->code = slot_value(local_slot(car(sc->code)));
-	  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-	  closure_goto_eval(sc);
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	    sc->code = slot_value(local_slot(car(code)));
+	    sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
+	    closure_goto_eval(sc);
+	  }
 	  /* -------------------------------- */
 	  
 	case OP_CLOSURE_AP:
@@ -78841,6 +78874,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    if (slot == local_slot(car(sc->code))) set_recur(slot, car(sc->code));
 		    sc->code = T_Pair(body);
 		    sc->x = sc->nil;
+
+		    /* if is_very_safe_closure and has recur (func's slot?), try new_s7_optimize */
+		    /* but that requires recur support in optimize which requires the let name be known(?) */
 		  }
 		else sc->code = T_Pair(cdr(sc->code));
 		goto BEGIN;
@@ -87782,6 +87818,7 @@ int main(int argc, char **argv)
  *   (concatenate lambda `((x)) (let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>))
  *   map/apply case (for example) hits the same loops
  *   see t752.scm for more examples
+ *   does equal? work here?
  *
  * for gtk 4:
  *   gtk gl: I can't see how to switch gl in and out as in the motif version -- I guess I need both gl_area and drawing_area
@@ -87811,13 +87848,14 @@ int main(int argc, char **argv)
  *   t834(fm100) is float_opt in do_let but opt time is insignificant, tfft has better example
  * new optlists: expand safe closure in place, if tc, set env and jump back to expansion start
  *   need opt_closure? saved body optlist: setup frame, fixup optlist, call it (need fallback)
- *
+ * 
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
  * need slot+let+expr, slot-in-let? = is let and local symbol->slot? get value, did gc run (recheck), set slot
  *   so setter has (symbol let expr); *after-gc-hook*? -- ask type-of(let) #f=free?
  *   temp immutable to catch loops, but how to keep zombie slots from setting? -- but how to clear immutable?
  *   (immutable-temporarily (var1 ...) . body) -- any mutable vars set immutable for body and cleared at end (via dynamic-wind)
+ *   also clear or reset: clear all associated setters
  *
  * ----------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6 
@@ -87829,12 +87867,12 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1933
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344
  * tread         |      |      |      ||      ||      |       3009  2639  2398  2357
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390
- * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2794
+ * tlet     5318 | 3701 | 3712 | 3700 || 4006 || 2467 | 2467  2536  2556  2864  2774
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288
  * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047

@@ -4145,7 +4145,7 @@ static void display_channel_data_with_size(chan_info *cp,
 	   *     surface = cairo_get_target(ss->cr);
 	   *     fprintf(stderr, "status: %d ", cairo_surface_status(surface));
 	   *  }
-	   * if prints 0 (success), and then dies!  I can't trace it in gdb because the goddamn gtk idle
+	   * if prints 0 (success), and then dies!  I can't trace it in gdb because the gtk idle
 	   *   mechanism gets confused.  I can't ask cairo if the surface is finished.  valgrind is happy. 
 	   *   cairo-trace shows nothing unusual.  cairo 1.8.0 is happy.
 	   * I am stuck.
