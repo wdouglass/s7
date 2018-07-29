@@ -3966,7 +3966,7 @@ In GUI toolkits hooks are called callback-lists, in CL conditions,
 in other contexts watchpoints or signals.  s7 itself has several
 hooks: <a href="#errorhook">*error-hook*</a>, <a href="#readerrorhook">*read-error-hook*</a>,
 <a href="#unboundvariablehook">*unbound-variable-hook*</a>, *missing-close-paren-hook*, *rootlet-redefinition-hook*,
-and <a href="#loadhook">*load-hook*</a>.
+*after-gc-hook*, and <a href="#loadhook">*load-hook*</a>.
 make-hook is:
 </p>
 
@@ -6041,7 +6041,10 @@ The defaults are '(3 45 80 45 #t).
 <pre class="indented">
 (<em class=def id="cobject">c-object?</em> obj)
 (<em class=def id="cpointer">c-pointer?</em> obj)
-(<em class=def id="cpoint">c-pointer</em> int type info)
+(<em class=def id="cpoint">c-pointer</em> int type info unmarked)
+(<em class=def id="cpointtype">c-pointer-type</em> obj)
+(<em class=def id="cpointinfo">c-pointer-info</em> obj)
+(<em class=def id="cpointunmarked">c-pointer-unmarked</em> obj)
 (<em class=def id="cpointertolist">c-pointer-&gt;list</em> obj)
 </pre>
 
@@ -6049,6 +6052,8 @@ The defaults are '(3 45 80 45 #t).
 c-object? returns the object's type tag (otherwise #f of course).  This tag is also the position
 of the object's type in the (*s7* 'c-types) list. 
 (*s7* 'c-types) returns a list of the types created by s7_make_c_type.
+The "unmarked" field is intended for custom "weak" references. The unmarked
+field is not marked during the GC sweep, much like a key in a weak-hash-table.
 </p>
 <p>
 You can wrap up raw C pointers and

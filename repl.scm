@@ -904,8 +904,7 @@
 						    (if (pair? (cdr args))
 							(cons 'values args)
 							(car args)))
-						  (eval `(let () (define (__f__) ,form) (__f__)) ; an experiment -- call upon the optimizer
-							(*repl* 'top-level-let)))))
+						  (eval form (*repl* 'top-level-let)))))
 					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
