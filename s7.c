@@ -799,11 +799,7 @@ typedef struct s7_cell {
 
     struct {                       /* c-pointers */
       void *c_pointer; 
-      s7_pointer c_type, info, unmarked;
-      /* if a gc_free function were included, the pointer could be freed (etc) via the GC-cache (sweep function), but then
-       *   every possible explicit free function would need to warn the GC not to try to free the pointer.
-       *   How to recognize an unfreed pointer at sweep time?
-       */
+      s7_pointer c_type, info, weak1, weak2;
     } cptr;
 
     s7_int baffle_key;             /* baffles */
@@ -1086,7 +1082,6 @@ struct s7_scheme {
   s7_pointer unbound_variable_hook;   /* *unbound-variable-hook* hook object */
   s7_pointer missing_close_paren_hook, rootlet_redefinition_hook;
   s7_pointer error_hook, read_error_hook; /* *error-hook* hook object, and *read-error-hook* */
-  s7_pointer after_gc_hook;
   bool gc_off;                        /* gc_off: if true, the GC won't run */
   uint32_t gc_stats, gensym_counter, f_class, add_class, multiply_class, subtract_class, equal_class;
   int32_t format_column;
@@ -1139,7 +1134,7 @@ struct s7_scheme {
   format_data **fdats;
   int32_t num_fdats, last_error_line;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, clist_1;
-  gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *unknowns, *lambdas, *multivectors, *optlists;
+  gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables, *gensyms, *unknowns, *lambdas, *multivectors, *optlists, *weak_refs;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
   s7_pointer *tree_pointers;
@@ -1177,7 +1172,7 @@ struct s7_scheme {
              ash_symbol, asin_symbol, asinh_symbol, assoc_symbol, assq_symbol, assv_symbol, atan_symbol, atanh_symbol,
              autoload_symbol, autoloader_symbol,
              byte_vector_symbol, byte_vector_ref_symbol, byte_vector_set_symbol, byte_vector_to_string_symbol,
-             c_pointer_symbol, c_pointer_info_symbol, c_pointer_to_list_symbol, c_pointer_type_symbol, c_pointer_unmarked_symbol,
+             c_pointer_symbol, c_pointer_info_symbol, c_pointer_to_list_symbol, c_pointer_type_symbol, c_pointer_weak1_symbol, c_pointer_weak2_symbol,
              caaaar_symbol, caaadr_symbol, caaar_symbol, caadar_symbol, caaddr_symbol, caadr_symbol,
              caar_symbol, cadaar_symbol, cadadr_symbol, cadar_symbol, caddar_symbol, cadddr_symbol, caddr_symbol, cadr_symbol,
              call_cc_symbol, call_with_current_continuation_symbol, call_with_exit_symbol, call_with_input_file_symbol, 
@@ -1231,7 +1226,7 @@ struct s7_scheme {
              string_geq_symbol, string_gt_symbol, string_leq_symbol, string_lt_symbol, string_position_symbol, string_ref_symbol,
              string_set_symbol, string_symbol, string_to_number_symbol, string_to_symbol_symbol, string_upcase_symbol,
              sublet_symbol, substring_symbol, subtract_symbol, subvector_symbol, subvector_position_symbol, subvector_vector_symbol,
-             symbol_setter_symbol, symbol_symbol, symbol_to_dynamic_value_symbol,
+             symbol_symbol, symbol_to_dynamic_value_symbol,
              symbol_to_keyword_symbol, symbol_to_string_symbol, symbol_to_value_symbol, s7_version_symbol,
              tan_symbol, tanh_symbol, throw_symbol, string_to_byte_vector_symbol, 
              tree_count_symbol, tree_leaves_symbol, tree_memq_symbol, tree_set_memq_symbol, tree_is_cyclic_symbol, truncate_symbol, type_of_symbol,
@@ -3039,11 +3034,13 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
 #define c_object_to_string(Sc, p)     c_object_info(Sc, p)->to_string
 #define c_object_scheme_name(Sc, p)   T_Str(c_object_info(Sc, p)->scheme_name)
 
-#define c_pointer(p)                (T_Ptr(p))->object.cptr.c_pointer
-#define c_pointer_type(p)           (T_Ptr(p))->object.cptr.c_type
-#define c_pointer_info(p)           (T_Ptr(p))->object.cptr.info
-#define c_pointer_unmarked(p)       (T_Ptr(p))->object.cptr.unmarked
-#define c_pointer_set_unmarked(p, q) (T_Ptr(p))->object.cptr.unmarked = q
+#define c_pointer(p)                  (T_Ptr(p))->object.cptr.c_pointer
+#define c_pointer_type(p)             (T_Ptr(p))->object.cptr.c_type
+#define c_pointer_info(p)             (T_Ptr(p))->object.cptr.info
+#define c_pointer_weak1(p)            (T_Ptr(p))->object.cptr.weak1
+#define c_pointer_weak2(p)            (T_Ptr(p))->object.cptr.weak2
+#define c_pointer_set_weak1(p, q)     (T_Ptr(p))->object.cptr.weak1 = q
+#define c_pointer_set_weak2(p, q)     (T_Ptr(p))->object.cptr.weak2 = q
 #define is_c_pointer(p)               (type(p) == T_C_POINTER)
 
 #define is_counter(p)                 (type(p) == T_COUNTER)
@@ -4448,12 +4445,14 @@ static s7_pointer g_immutable(s7_scheme *sc, s7_pointer args)
   return(c_mutable(sc, car(args), false));
 }
 
+#if 0
 static s7_pointer g_mutable(s7_scheme *sc, s7_pointer args)
 {
   #define H_mutable "(mutable! sequence) declares that the sequence's entries can be changed. The sequence is returned."
   #define Q_mutable s7_make_signature(sc, 2, sc->T, sc->T)
   return(c_mutable(sc, car(args), true));
 }
+#endif
 
 static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
 {
@@ -4842,6 +4841,26 @@ static void sweep(s7_scheme *sc)
       gp->loc = j;
     }
 
+  gp = sc->weak_refs;
+  if (gp->loc > 0)
+    {
+      for (i = 0, j = 0; i < gp->loc; i++)
+	{
+	  s1 = gp->list[i];
+	  if (!is_free_and_clear(s1))
+	    {
+	      if (is_free_and_clear(c_pointer_weak1(s1)))
+		c_pointer_weak1(s1) = sc->F;
+	      if (is_free_and_clear(c_pointer_weak2(s1)))
+		c_pointer_weak2(s1) = sc->F;
+	      if ((c_pointer_weak1(s1) != sc->F) || 
+		  (c_pointer_weak2(s1) != sc->F))
+		gp->list[j++] = s1;
+	    }
+	}
+      gp->loc = j;
+    }
+
 #if WITH_GMP
   gp = sc->bigints;
   if (gp->loc > 0)
@@ -4941,6 +4960,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_multivector(sc, p)     add_to_gc_list(sc->multivectors, p)
 #define add_lambda(sc, p)          add_to_gc_list(sc->lambdas, p)
 #define add_optlist(sc, p)         add_to_gc_list(sc->optlists, p)
+#define add_weak_ref(sc, p)        add_to_gc_list(sc->weak_refs, p)
 
 #if WITH_GMP
 #define add_bigint(sc, p)          add_to_gc_list(sc->bigints, p)
@@ -4963,6 +4983,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->c_objects = make_gc_list();
   sc->lambdas = make_gc_list();
   sc->optlists = make_gc_list();
+  sc->weak_refs = make_gc_list();
 #if WITH_GMP
   sc->bigints = make_gc_list();
   sc->bigratios = make_gc_list();
@@ -5598,9 +5619,6 @@ static int64_t gc(s7_scheme *sc)
     }
   
   sc->previous_free_heap_top = sc->free_heap_top;
-
-  if (hook_has_functions(sc->after_gc_hook))
-    s7_apply_function(sc, sc->after_gc_hook, sc->nil);
 
   return(sc->gc_freed); /* needed by cell allocator to decide when to increase heap size */
 }
@@ -8066,6 +8084,7 @@ static s7_pointer g_let_set(s7_scheme *sc, s7_pointer args)
   /* (let ((a 1)) (set! ((curlet) 'a) 32) a) */
   #define H_let_set "(let-set! env sym val) sets the symbol sym's value in the environment env to val"
   #define Q_let_set s7_make_signature(sc, 4, sc->T, sc->is_let_symbol, sc->is_symbol_symbol, sc->T)
+
   return(s7_let_set(sc, car(args), cadr(args), caddr(args)));
 }
 
@@ -9286,11 +9305,18 @@ static s7_pointer g_c_pointer_type(s7_scheme *sc, s7_pointer args)
   return(c_pointer_type(p));
 }
 
-static s7_pointer g_c_pointer_unmarked(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_c_pointer_weak1(s7_scheme *sc, s7_pointer args)
 {
-  #define H_c_pointer_unmarked "(c-pointer-unmarked obj) returns the c-pointer unmarked field"
-  #define Q_c_pointer_unmarked s7_make_signature(sc, 2, sc->T, sc->is_c_pointer_symbol)
-  return(c_pointer_unmarked(car(args)));
+  #define H_c_pointer_weak1 "(c-pointer-weak1 obj) returns the c-pointer weak1 field"
+  #define Q_c_pointer_weak1 s7_make_signature(sc, 2, sc->T, sc->is_c_pointer_symbol)
+  return(c_pointer_weak1(car(args)));
+}
+
+static s7_pointer g_c_pointer_weak2(s7_scheme *sc, s7_pointer args)
+{
+  #define H_c_pointer_weak2 "(c-pointer-weak2 obj) returns the c-pointer weak2 field"
+  #define Q_c_pointer_weak2 s7_make_signature(sc, 2, sc->T, sc->is_c_pointer_symbol)
+  return(c_pointer_weak2(car(args)));
 }
 
 static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
@@ -9298,28 +9324,40 @@ static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
   #define H_c_pointer "(c-pointer int type info unmarked) returns a c-pointer object. The type and info args are optional, defaulting to #f."
   #define Q_c_pointer s7_make_circular_signature(sc, 2, 3, sc->is_c_pointer_symbol, sc->is_integer_symbol, sc->T)
 
-  s7_pointer arg, type, info, unmarked, cp;
+  s7_pointer arg, type, info, weak1, weak2, cp;
   intptr_t p;
 
   type = sc->F;
   info = sc->F;
-  unmarked = sc->F;
+  weak1 = sc->F;
+  weak2 = sc->F;
   arg = car(args);
   if (!s7_is_integer(arg))
     return(method_or_bust(sc, arg, sc->c_pointer_symbol, args, T_INTEGER, 1));
   p = (intptr_t)s7_integer(arg);             /* (c-pointer (bignum "1234")) */
-  if (is_pair(cdr(args)))
+  args = cdr(args);
+  if (is_pair(args))
     {
-      type = cadr(args);
-      if (is_pair(cddr(args))) 
+      type = car(args);
+      args = cdr(args);
+      if (is_pair(args)) 
 	{
-	  info = caddr(args);
-	  if (is_pair(cdddr(args)))
-	    unmarked = cadddr(args);
+	  info = car(args);
+	  args = cdr(args);
+	  if (is_pair(args))
+	    {
+	      weak1 = car(args);
+	      args = cdr(args);
+	      if (is_pair(args))
+		weak2 = car(args);
+	    }
 	}
     }
   cp = s7_make_c_pointer_with_type(sc, (void *)p, type, info);
-  c_pointer_set_unmarked(cp, unmarked);
+  c_pointer_set_weak1(cp, weak1);
+  c_pointer_set_weak2(cp, weak2);
+  if ((weak1 != sc->F) || (weak2 != sc->F))
+    add_weak_ref(sc, cp);
   return(cp);
 }
 
@@ -25946,7 +25984,7 @@ void s7_provide(s7_scheme *sc, const char *feature) {c_provide(sc, s7_make_symbo
 
 static s7_pointer g_features_set(s7_scheme *sc, s7_pointer args)
 {
-  /* symbol_setter for set/let of *features* which can only be changed via provide */
+  /* setter for set/let of *features* which can only be changed via provide */
   if (s7_is_list(sc, cadr(args)))
     return(cadr(args));
   return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *features* to ~S", 26), cadr(args))));
@@ -41225,54 +41263,21 @@ static bool is_sequence_b(s7_pointer p) {return(is_simple_sequence(p));}
 
 #define SETTER_PRINT 0
 
-s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
-{
-  switch (type(p))
-    {
-    case T_MACRO:   case T_MACRO_STAR:
-    case T_BACRO:   case T_BACRO_STAR:
-    case T_CLOSURE: case T_CLOSURE_STAR:
-      closure_set_setter(p, setter);
-      if (setter == sc->F) 
-	closure_set_no_setter(p);
-      break;
-
-    case T_C_FUNCTION:
-    case T_C_ANY_ARGS_FUNCTION:
-    case T_C_OPT_ARGS_FUNCTION:
-    case T_C_RST_ARGS_FUNCTION:
-    case T_C_FUNCTION_STAR:
-      c_function_set_setter(p, setter);
-      if ((is_any_closure(setter)) ||
-	  (is_any_macro(setter)))
-	add_setter(sc, p, setter);
-      break;
-
-    case T_C_MACRO:
-      c_macro_set_setter(p, setter);
-      if ((is_any_closure(setter)) ||
-	  (is_any_macro(setter)))
-	add_setter(sc, p, setter);
-      break;
-    }
-  return(setter);
-}
-
-s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj)
-{
-  if (is_c_function(obj))
-    return(c_function_setter(obj));
-
-  return(closure_setter(obj));
-}
-
 static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
 {
-  #define H_setter "(setter obj) returns the setter associated with obj, or #f"
-  #define Q_setter s7_make_signature(sc, 2, sc->T, sc->is_procedure_symbol)
-  s7_pointer p;
+  #define H_setter "(setter obj env) returns the setter associated with obj, or #f"
+  #define Q_setter s7_make_circular_signature(sc, 1, 2, s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->is_procedure_symbol), sc->T)
+  s7_pointer p, e;
 
   p = car(args);
+  if (is_pair(cdr(args)))
+    {
+      e = cadr(args);
+      if (!((is_let(e)) || (e == sc->rootlet) || (e == sc->nil)))
+	return(wrong_type_argument(sc, sc->setter_symbol, 2, e, T_LET));
+    }
+  else e = sc->envir;
+
   switch (type(p))
     {
     case T_MACRO:   case T_MACRO_STAR:
@@ -41354,29 +41359,104 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
     case T_FLOAT_VECTOR:
       return(slot_value(global_slot(sc->float_vector_set_symbol)));
 
-    case T_SYMBOL:                             /* (symbol-setter obj) -- the env arg is not passable here */
-      if (is_keyword(p)) return(sc->F);
-      p = symbol_to_slot(sc, p);
-      if (!is_slot(p)) return(sc->F);
-      if (slot_has_setter(p)) return(slot_setter(p));
+    case T_SLOT:
+      if (slot_has_setter(p))
+	return(slot_setter(p));
       return(sc->F);
+
+    case T_SYMBOL:                             /* (setter symbol env) */
+      {
+	s7_pointer sym, slot;
+	sym = car(args);
+
+#if SETTER_PRINT
+	fprintf(stderr, "%s: %s\n", __func__, DISPLAY(sym));
+#endif
+	if (is_keyword(sym))
+	  return(sc->F);
+
+	if ((e == sc->rootlet) || (e == sc->nil))
+	  slot = global_slot(sym);
+	else
+	  {
+	    s7_pointer old_e;
+	    old_e = sc->envir;
+	    sc->envir = e;
+	    slot = symbol_to_slot(sc, sym);
+	    sc->envir = old_e;
+	  }
+
+#if SETTER_PRINT
+	fprintf(stderr, "%s %s %p\n", DISPLAY(sym), DISPLAY(slot), slot);
+#endif
+	if (!is_slot(slot))
+	  return(sc->F);
+
+	if (slot_has_setter(slot))
+	  {
+#if SETTER_PRINT
+	    fprintf(stderr, "symbol(%s)-setter: %s %p\n", DISPLAY(sym), DISPLAY(slot_setter(slot)), slot);	
+#endif
+	    return(slot_setter(slot));
+	  }
+	return(sc->F);
+      }
     }
-  return(s7_wrong_type_arg_error(sc, "setter", 0, p, "a procedure or a reasonable facsimile thereof"));
+  return(s7_wrong_type_arg_error(sc, "setter", 0, p, "something that might have a setter"));
 }
+
+s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj)
+{
+  return(g_setter(sc, set_plist_1(sc, obj)));
+}
+
+
+/* -------------------------------- set-setter -------------------------------- */
+s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
+{
+  switch (type(p))
+    {
+    case T_MACRO:   case T_MACRO_STAR:
+    case T_BACRO:   case T_BACRO_STAR:
+    case T_CLOSURE: case T_CLOSURE_STAR:
+      closure_set_setter(p, setter);
+      if (setter == sc->F) 
+	closure_set_no_setter(p);
+      break;
+
+    case T_C_FUNCTION:
+    case T_C_ANY_ARGS_FUNCTION:
+    case T_C_OPT_ARGS_FUNCTION:
+    case T_C_RST_ARGS_FUNCTION:
+    case T_C_FUNCTION_STAR:
+      c_function_set_setter(p, setter);
+      if ((is_any_closure(setter)) ||
+	  (is_any_macro(setter)))
+	add_setter(sc, p, setter);
+      break;
+
+    case T_C_MACRO:
+      c_macro_set_setter(p, setter);
+      if ((is_any_closure(setter)) ||
+	  (is_any_macro(setter)))
+	add_setter(sc, p, setter);
+      break;
+
+    case T_SLOT:
+      slot_setter(p) = setter;
+      slot_set_has_setter(p);
+      break;
+
+    }
+  return(setter);
+}
+/* TODO: include symbol case in s7_set_setter or fold it backwards */
 
 static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p, setter;
 
   p = car(args);
-  if (!is_any_procedure(p))
-    return(s7_wrong_type_arg_error(sc, "set! setter procedure", 1, p, "a procedure"));
-
-  setter = cadr(args);
-  if ((setter != sc->F) &&
-      (!is_any_procedure(setter)))
-    return(s7_wrong_type_arg_error(sc, "set! setter setter", 2, setter, "a procedure or #f"));
-
   /* should we check that p != setter?
    *   :(set! (setter <) <)
    *   <
@@ -41386,6 +41466,80 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
    *   #t
    * can this make sense?
    */
+
+  if (is_symbol(p))
+    {
+      s7_pointer sym, func, slot;
+      sym = p;
+#if SETTER_PRINT
+      fprintf(stderr, "%s: %s ", __func__, DISPLAY(sym));
+#endif
+      if (is_keyword(sym))
+	return(s7_wrong_type_arg_error(sc, "set! setter", 1, sym, "a normal symbol (a keyword can't be set)"));
+
+      if (is_pair(cddr(args)))
+	{
+	  s7_pointer e, old_e;
+	  e = cadr(args);
+	  func = caddr(args);
+	  if ((e == sc->rootlet) || (e == sc->nil))
+	    slot = global_slot(sym);
+	  else
+	    {
+	      if (!is_let(e))
+		return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 2, e, "a let"));
+	      old_e = sc->envir;
+	      sc->envir = e;
+	      slot = symbol_to_slot(sc, sym);
+	      sc->envir = old_e;
+	    }
+	}
+      else
+	{
+	  slot = symbol_to_slot(sc, sym);
+	  func = cadr(args);
+	}
+#if SETTER_PRINT
+      fprintf(stderr, "%s\n", DISPLAY_80(func));
+#endif
+
+      if ((!is_procedure_or_macro(func)) &&
+	  (func != sc->F))
+	return(s7_wrong_type_arg_error(sc, "set! setter", 3, func, "a function or #f"));
+
+      if (!is_slot(slot))
+	{
+#if SETTER_PRINT
+	  fprintf(stderr, "    not a slot: %s\n", DISPLAY(slot));
+#endif
+	  return(sc->F);
+	}
+
+      if (slot == global_slot(sym))
+	{
+#if SETTER_PRINT
+	  fprintf(stderr, "    setting global\n");
+#endif
+	  s7_symbol_set_setter(sc, sym, func); /* special GC protection for global vars */
+	  return(func);
+	}
+
+      slot_set_setter(slot, func);
+      if (func != sc->F)
+	{
+	  slot_set_has_setter(slot);
+	  if (s7_is_aritable(sc, func, 3))
+	    set_has_let_arg(func);
+	  symbol_set_has_setter(sym);
+	}
+      return(func);
+    }
+
+  setter = cadr(args);
+  if ((setter != sc->F) &&
+      (!is_any_procedure(setter)))
+    return(s7_wrong_type_arg_error(sc, "set! setter", 2, setter, "a procedure or #f"));
+
   return(s7_set_setter(sc, p, setter));
 }
 
@@ -41436,18 +41590,7 @@ static void protect_setter(s7_scheme *sc, s7_pointer sym, s7_pointer acc)
   vector_element(sc->protected_setter_symbols, loc) = sym;
 }
 
-s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym)
-{
-#if SETTER_PRINT
-  fprintf(stderr, "%s: %s\n", __func__, DISPLAY(sym));
-#endif
-  /* these refer to the rootlet */
-  if ((is_slot(global_slot(sym))) &&
-      (slot_has_setter(global_slot(sym))))
-    return(slot_setter(global_slot(sym)));
-  return(sc->F);
-}
-
+/* TODO: deprecate s7_symbol_set_setter */
 s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer func)
 {
 #if SETTER_PRINT
@@ -41497,130 +41640,6 @@ s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer fun
 /* (let () (define xxx 23) (define (hix) (set! xxx 24)) (hix) (set! (symbol-setter 'xxx) (lambda (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
  *    so set symbol-setter before use!
  */
-
-static s7_pointer g_symbol_setter(s7_scheme *sc, s7_pointer args)
-{
-  #define H_symbol_setter "(symbol-setter sym (env (curlet))) is the function called when the symbol is set!."
-  #define Q_symbol_setter s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->is_procedure_symbol), sc->is_symbol_symbol, sc->is_let_symbol)
-  s7_pointer sym, p;
-
-  sym = car(args);
-#if SETTER_PRINT
-  fprintf(stderr, "%s: %s\n", __func__, DISPLAY(sym));
-#endif
-  if (!is_symbol(sym))
-    return(method_or_bust_one_arg(sc, sym, sc->symbol_setter_symbol, args, T_SYMBOL));
-
-  if (is_keyword(sym))
-    {
-      if (is_pair(cdr(args)))
-	{
-	  s7_pointer e;
-	  e = cadr(args);
-	  if (!((is_let(e)) || (e == sc->rootlet) || (e == sc->nil)))
-	    return(wrong_type_argument(sc, sc->symbol_setter_symbol, 2, e, T_LET));
-	}
-      return(sc->F);
-    }
-
-  if (is_pair(cdr(args)))
-    {
-      s7_pointer e, old_e;
-      e = cadr(args);
-      if ((e == sc->rootlet) || (e == sc->nil))
-	p = global_slot(sym);
-      else
-	{
-	  if (!is_let(e))
-	    return(wrong_type_argument(sc, sc->symbol_setter_symbol, 2, e, T_LET));
-	  old_e = sc->envir;
-	  sc->envir = e;
-	  p = symbol_to_slot(sc, sym);
-	  sc->envir = old_e;
-	}
-    }
-  else p = symbol_to_slot(sc, sym);
-
-  if (!is_slot(p))
-    return(sc->F);
-
-  if (slot_has_setter(p))
-    return(slot_setter(p));
-
-  return(sc->F);
-}
-
-static s7_pointer g_symbol_set_setter(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer sym, func, p;
-
-  sym = car(args);
-#if SETTER_PRINT
-  fprintf(stderr, "%s: %s ", __func__, DISPLAY(sym));
-#endif
-  if (!is_symbol(sym))                 /* no check method because no method name? */
-    return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 1, sym, "a symbol"));
-  if (is_keyword(sym))
-    return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 1, sym, "a normal symbol (a keyword can't be set)"));
-
-  /* (set! (symbol-setter sym) f) or (set! (symbol-setter sym env) f) */
-  if (is_pair(cddr(args)))
-    {
-      s7_pointer e, old_e;
-      e = cadr(args);
-      func = caddr(args);
-      if ((e == sc->rootlet) || (e == sc->nil))
-	p = global_slot(sym);
-      else
-	{
-	  if (!is_let(e))
-	    return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 2, e, "a let"));
-	  old_e = sc->envir;
-	  sc->envir = e;
-	  p = symbol_to_slot(sc, sym);
-	  sc->envir = old_e;
-	}
-    }
-  else
-    {
-      p = symbol_to_slot(sc, sym);
-      func = cadr(args);
-    }
-#if SETTER_PRINT
-  fprintf(stderr, "%s\n", DISPLAY_80(func));
-#endif
-
-  if ((!is_procedure_or_macro(func)) &&
-      (func != sc->F))
-    return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 3, func, "a function or #f"));
-
-  if (!is_slot(p))
-    {
-#if SETTER_PRINT
-      fprintf(stderr, "    not a slot: %s\n", DISPLAY(p));
-#endif
-      return(sc->F);
-    }
-
-  if (p == global_slot(sym))
-    {
-#if SETTER_PRINT
-      fprintf(stderr, "    setting global\n");
-#endif
-      s7_symbol_set_setter(sc, sym, func); /* special GC protection for global vars */
-      return(func);
-    }
-
-  slot_set_setter(p, func);
-  if (func != sc->F)
-    {
-      slot_set_has_setter(p);
-      if (s7_is_aritable(sc, func, 3))
-	set_has_let_arg(func);
-      symbol_set_has_setter(sym);
-    }
-  return(func);
-}
 
 static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_value)
 {
@@ -41679,7 +41698,7 @@ static s7_pointer bind_symbol_with_setter(s7_scheme *sc, opcode_t op, s7_pointer
 #if SETTER_PRINT
   fprintf(stderr, "%s: %s\n", __func__, DISPLAY(symbol));
 #endif
-  func = g_symbol_setter(sc, set_plist_2(sc, symbol, sc->envir));
+  func = g_setter(sc, set_plist_2(sc, symbol, sc->envir));
   if (is_procedure_or_macro(func))
     {
       if (is_c_function(func))
@@ -44571,7 +44590,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_SYMBOL:
       return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
 			   sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : ((is_gensym(obj)) ? sc->is_gensym_symbol : sc->is_symbol_symbol),
-			   sc->setter_symbol, (is_keyword(obj)) ? sc->F : g_symbol_setter(sc, args)));
+			   sc->setter_symbol, (is_keyword(obj)) ? sc->F : g_setter(sc, args)));
       
     case T_STRING:
       return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
@@ -45162,7 +45181,8 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 	}
       return(notes);
     }
-  if (is_pair(code))
+  if ((is_pair(code)) &&
+      (s7_list_length(sc, code) > 0))
     {
       notes = stacktrace_walker(sc, car(code), e, notes, code_cols, total_cols, notes_start_col, as_comment);
       return(stacktrace_walker(sc, cdr(code), e, notes, code_cols, total_cols, notes_start_col, as_comment));
@@ -78912,8 +78932,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		s7_pointer arg;
 		arg = cdar(p);
-		arg = c_call(arg)(sc, car(arg));
-		add_slot(frame, caar(p), arg);
+		sc->value = c_call(arg)(sc, car(arg));
+		add_slot(frame, caar(p), sc->value);
 	      }
 	    sc->let_number++;
 	    sc->envir = frame;
@@ -86652,12 +86672,10 @@ s7_scheme *s7_init(void)
   sc->symbol_symbol =                defun("symbol",		symbol,			1, 0, true);
   sc->symbol_to_value_symbol =       defun("symbol->value",	symbol_to_value,	1, 1, false);
   sc->symbol_to_dynamic_value_symbol = defun("symbol->dynamic-value", symbol_to_dynamic_value, 1, 0, false);
-  s7_typed_dilambda(sc, "symbol-setter", g_symbol_setter, 1, 1, g_symbol_set_setter,	2, 1, H_symbol_setter, Q_symbol_setter, NULL);
-  sc->symbol_setter_symbol = make_symbol(sc, "symbol-setter");
   sc->immutable_symbol =             unsafe_defun("immutable!",	immutable,		1, 0, false);
   sc->is_immutable_symbol =          defun("immutable?",	is_immutable,		1, 0, false);
   sc->is_constant_symbol =           defun("constant?",	        is_constant,		1, 0, false);
-  /* sc->mutable_symbol = */         unsafe_defun("mutable!",	mutable,		1, 0, false);
+  /* sc->mutable_symbol =            unsafe_defun("mutable!",	mutable,		1, 0, false); */
 
   sc->string_to_keyword_symbol =     defun("string->keyword",	string_to_keyword,      1, 0, false);
   sc->symbol_to_keyword_symbol =     defun("symbol->keyword",	symbol_to_keyword,	1, 0, false);
@@ -86694,10 +86712,11 @@ s7_scheme *s7_init(void)
   typeflag(sc->provide_symbol) |= T_DEFINER;
   sc->is_defined_symbol =            defun("defined?",		is_defined,		1, 2, false);
 
-  sc->c_pointer_symbol =             defun("c-pointer",	        c_pointer,		1, 3, false);
+  sc->c_pointer_symbol =             defun("c-pointer",	        c_pointer,		1, 4, false);
   sc->c_pointer_info_symbol =        defun("c-pointer-info",    c_pointer_info,		1, 0, false);
   sc->c_pointer_type_symbol =        defun("c-pointer-type",    c_pointer_type,		1, 0, false);
-  sc->c_pointer_unmarked_symbol =    defun("c-pointer-unmarked",c_pointer_unmarked,	1, 0, false);
+  sc->c_pointer_weak1_symbol =       defun("c-pointer-weak1",   c_pointer_weak1,	1, 0, false);
+  sc->c_pointer_weak2_symbol =       defun("c-pointer-weak2",   c_pointer_weak2,	1, 0, false);
   sc->c_pointer_to_list_symbol =     defun("c-pointer->list",   c_pointer_to_list,      1, 0, false);
 
   sc->port_line_number_symbol =      defun("port-line-number",  port_line_number,	0, 1, false);
@@ -87052,7 +87071,7 @@ s7_scheme *s7_init(void)
   sc->procedure_source_symbol =      defun("procedure-source",  procedure_source,	1, 0, false);
   sc->funclet_symbol =               defun("funclet",		funclet,		1, 0, false);
   sc->dilambda_symbol =              defun("dilambda",          dilambda,               2, 0, false);
-  s7_typed_dilambda(sc, "setter", g_setter, 1, 0, g_set_setter, 2, 0, H_setter, Q_setter, NULL);
+  s7_typed_dilambda(sc, "setter", g_setter, 1, 1, g_set_setter, 2, 1, H_setter, Q_setter, NULL);
 
   sc->arity_symbol =                 defun("arity",		arity,			1, 0, false);
   sc->is_aritable_symbol =           defun("aritable?",	        is_aritable,		2, 0, false);
@@ -87804,10 +87823,6 @@ s7_scheme *s7_init(void)
 					"*rootlet-redefinition-hook* functions are called when a top-level variable's value is changed, (hook 'name 'value).");
   /* first parameter was originally 'symbol, but that collides with the built-in symbol function */
 
-  /* -------- *after-gc-hook* -------- */
-  sc->after_gc_hook = s7_eval_c_string(sc, "(make-hook)");
-  s7_define_constant_with_documentation(sc, "*after-gc-hook*", sc->after_gc_hook, "*after-gc-hook* functions run after the gc is called.");
-
   sc->s7_let = s7_inlet(sc, /* have to use s7_inlet here because we're setting let fallbacks */
 		 s7_list(sc, 4, 
 			 sc->let_ref_fallback_symbol, s7_make_function(sc, "s7-let-ref", g_s7_let_ref_fallback, 2, 0, false, "*s7* reader"),
@@ -87825,6 +87840,7 @@ s7_scheme *s7_init(void)
                           (define procedure-setter           setter)          \n\
                           (define procedure-signature        signature)       \n\
                           (define procedure-documentation    documentation)   \n\
+                          (define symbol-setter              setter)          \n\
                           (define make-shared-vector         subvector))");
 #if (!WITH_PURE_S7)
   s7_eval_c_string(sc, "(define-macro (defmacro name args . body) (cons 'define-macro (cons (cons name args) body)))");
@@ -87936,7 +87952,7 @@ int main(int argc, char **argv)
  * profiling via begin_op? (profile's file_and_line could be stored in opt2)
  *
  * need new_s7_opt to handle multiple exprs
- * syms are now 12..15 -- need to fix this eventually
+ *   syms are now 12..15 -- need to fix this eventually
  *   float-stepper do and 2+1 stepper do, cdr stepper (seem now to go to dox?)
  *   add resize to all combinables [does this matter?]
  *   perhaps in do/let/dox try opt after frame? save that via new_s7_opt (for-loop of cell_optimize currently, would be a multistatement s7_opt --or begin?)
@@ -87950,17 +87966,15 @@ int main(int argc, char **argv)
  * 
  * glistener curlet|owlet->rootlet display (tree-view?) where each can expand via object->let
  *   or the same using the status area
- * need slot+let+expr, slot-in-let? = is let and local symbol->slot? get value, did gc run (recheck), set slot
- *   so setter has (symbol let expr); *after-gc-hook*? -- ask type-of(let) #f=free?
- *   temp immutable to catch loops, but how to keep zombie slots from setting? -- but how to clear immutable?
- *   (immutable-temporarily (var1 ...) . body) -- any mutable vars set immutable for body and cleared at end (via dynamic-wind)
- *   also clear or reset: clear all associated setters
- * can add_setters ignore built-in functions?
  *
- * symbol_setter -> slot_setter? or just use setter? ref works, s7_set_setter doesn't know abobut symbols/slots same for g_set_setter
- *   so remove symbol-setter and set side, use just setter.
- * if *after-gc-hook* safe? 
- * test reactive-set! gc of lets, cycles, cascades, add generalized set for place, see s7test for about 30 tests, clearing old setters etc
+ * can add_setters ignore built-in functions?
+ * symbol_setter -> setter: see remaining stuff
+ *    rewrite s7.html reactive docs and s7test tests
+ *    reactive timing test
+ * test reactive-set! cycles?, add generalized set for place
+ *
+ * stacktrace_walker circle 45167 [added length check]
+ * logbit_b_ii needs to be b_7ii [no such option currently]
  *
  * ----------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6 

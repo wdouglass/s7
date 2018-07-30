@@ -987,7 +987,7 @@
 		'symbol->string        (lambda (obj) (#_symbol->string (obj 'value)))
 		'symbol->value         (lambda (obj . args) (apply #_symbol->value (obj 'value) args))
 		'symbol->dynamic-value (lambda (obj) (#_symbol->dynamic-value (obj 'value)))
-		'symbol-setter         (lambda (obj . args) (apply #_symbol-setter (obj 'value) args))
+		'setter                (lambda (obj . args) (apply #_setter (obj 'value) args))
 		'provided?             (lambda (obj) (#_provided? (obj 'value)))
 		'provide               (lambda (obj) (#_provide (obj 'value)))
 		'defined?              (lambda (obj) (#_defined? (obj 'value)))

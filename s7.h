@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.2"
-#define S7_DATE "12-Jul-18"
+#define S7_VERSION "7.3"
+#define S7_DATE "29-Jul-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -367,7 +367,9 @@ bool s7_is_keyword(s7_pointer obj);                                         /* (
 s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (string->keyword key) */
 s7_pointer s7_keyword_to_symbol(s7_scheme *sc, s7_pointer key);             /* (keyword->symbol key) */
 
-s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym);
+#if (!DISABLE_DEPRECATED)
+s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym); /* use s7_setter instead */
+#endif
 s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer func);
 
 s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol);
@@ -880,6 +882,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
+ * 29-Jul:    symbol-setter deprecated (use setter).
  * 12-Jul:    changed s7_vector_dimensions|offsets. 
  *            Added s7_scheme* arg to make_permanent_string and several of the optimizer functions.
  * 3-Jul:     changed make-shared-vector to subvector.

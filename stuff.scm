@@ -108,7 +108,7 @@
 	       vals)
      ,@(map (lambda (val)
 	      (if (pair? (cddr val))
-		  `(set! (symbol-setter ',(car val)) 
+		  `(set! (setter ',(car val)) 
 			 (lambda (s v)
 			   (if (not (,(caddr val) v))
 			       (error 'wrong-type-arg "(set! ~S ~S) but ~S is not ~A" s v v ',(caddr val)))
@@ -367,14 +367,14 @@
 	   ,@(map (lambda (binding)
 		    (list (car binding) (cadr binding)))
 		  vars))
-       ,@(do ((setter setters (cdr setter))
+       ,@(do ((s setters (cdr s))
 	      (var vars (cdr var))
 	      (i 0 (+ i 1))
 	      (result ()))
-	     ((null? setter)
+	     ((null? s)
 	      (reverse result))
-	   (if (car setter)
-	       (set! result (cons `(set! (symbol-setter (quote ,(caar var))) (list-ref ,gsetters ,i)) result))))
+	   (if (car s)
+	       (set! result (cons `(set! (setter (quote ,(caar var))) (list-ref ,gsetters ,i)) result))))
        ,@body)))
 
 (define-macro (while test . body)      ; while loop with predefined break and continue
@@ -1232,7 +1232,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define-macro (reflective-let vars . body)
   `(let ,vars
      ,@(map (lambda (vr)
-	      `(set! (symbol-setter ',(car vr))
+	      `(set! (setter ',(car vr))
 		     (lambda (s v)
 		       (format *stderr* "~S -> ~S~%" s v)
 		       v)))
@@ -1444,10 +1444,10 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
       (vlp (gensym)))
   
   ;; local symbol access -- this does not affect any other uses of these symbols
-  (set! (symbol-setter '*display-spacing* (curlet))
+  (set! (setter '*display-spacing* (curlet))
 	(lambda (s v) (if (and (integer? v) (not (negative? v))) v *display-spacing*)))
   
-  (set! (symbol-setter '*display-print-length* (curlet))
+  (set! (setter '*display-print-length* (curlet))
 	(lambda (s v) (if (and (integer? v) (not (negative? v))) v *display-print-length*)))
   
   ;; export *display* -- just a convenience
@@ -1914,7 +1914,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	   ht))
 	(baddies (list #_eval #_eval-string #_load #_autoload #_define-constant #_define-expansion #_require
 		       #_string->symbol #_symbol->value #_symbol->dynamic-value #_symbol-table #_symbol #_keyword->symbol 
-		       #_defined? #_symbol-setter
+		       #_defined? 
 		       #_call/cc #_gc #_read #_immutable!
 		       #_open-output-file #_call-with-output-file #_with-output-to-file
 		       #_open-input-file #_call-with-input-file #_with-input-from-file
@@ -1935,7 +1935,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		  (cond ((symbol? tree)
 			 (let ((val (symbol->value tree)))
 			   ;; don't accept any symbol with an accessor
-			   (if (or (symbol-setter tree)
+			   (if (or (setter tree)
 				   (memq tree '(*s7* unquote abort))
 				   (let? val))  ; not sure about this
 			       (quit #f))

@@ -1505,7 +1505,7 @@
 
 ;;; to display a variable's value as s7 runs using the repl help window:
 ;;;    (define xyz 1) ; some variable...
-;;;    (set! (symbol-setter 'xyz) (lambda (sym val) (set! (*repl* 'helpers) (list (lambda (c) (format #f "xyz: ~S" val)))) val))
+;;;    (set! (setter 'xyz) (lambda (sym val) (set! (*repl* 'helpers) (list (lambda (c) (format #f "xyz: ~S" val)))) val))
 
 
 ;;; --------------------------------------------------------------------------------

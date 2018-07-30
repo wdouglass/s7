@@ -147,7 +147,7 @@
 			         input-port? output-port? eof-object? integer? number? real? complex? rational? random-state? 
 			         char? string? list? pair? vector? float-vector? int-vector? byte-vector? hash-table? 
 			         continuation? procedure? dilambda? boolean? float? proper-list? sequence? null? gensym 
-			         symbol->string string->symbol symbol symbol->value symbol->dynamic-value symbol-setter 
+			         symbol->string string->symbol symbol symbol->value symbol->dynamic-value 
 			         string->keyword symbol->keyword keyword->symbol outlet rootlet curlet unlet sublet varlet 
 			         cutlet inlet owlet coverlet openlet let-ref let-set! make-iterator iterate iterator-sequence
 			         iterator-at-end? provided? provide defined? c-pointer port-line-number port-filename 
@@ -2177,7 +2177,7 @@
 		    vars))
 	(initialize-bad-var-names *report-bad-variable-names*)
 
-	(set! (symbol-setter '*report-bad-variable-names*) ; update these local variables if the global variable changes
+	(set! (setter '*report-bad-variable-names*) ; update these local variables if the global variable changes
 	      (lambda (sym val)
 		(when (just-symbols? val)
 		  (initialize-bad-var-names val))
@@ -10002,6 +10002,7 @@
 				(current-environment . curlet)
 				(make-procedure-with-setter . dilambda)
 				(procedure-with-setter? . dilambda?)
+				(symbol-setter . setter)
 				(make-keyword . string->keyword)
 				(make-random-state . random-state))))
 
@@ -14761,12 +14762,12 @@
 							   ((let-ref) 'let-set!))
 							 (append (cdadr form) (cddr form))))))
 				    
-				    ((and (eq? target 'symbol-setter)
+				    ((and (eq? target 'setter)
 					  (len>1? setval)
 					  (eq? (car setval) 'lambda)
 					  (list? (cadr setval))
 					  (not (= (length (cadr setval)) 2)))
-				     (lint-format "symbol-setter function should take 2 arguments: ~A" caller (truncated-list->string form)))
+				     (lint-format "setter function should take 2 arguments: ~A" caller (truncated-list->string form)))
 				    
 				    ((or (string? target)
 					 (vector? target))

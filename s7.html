@@ -220,7 +220,7 @@ indented and on a sort of brownish background.
   <li><a href="#IO">IO and other OS functions</a>
   <li><a href="#errors">errors</a>
   <li><a href="#autoload">autoload</a>
-  <li><a href="#constants">define-constant, symbol-setter</a>
+  <li><a href="#constants">define-constant</a>
   <li><a href="#miscellanea">marvels and curiousities:</a> 
 
   <ul>
@@ -3966,7 +3966,7 @@ In GUI toolkits hooks are called callback-lists, in CL conditions,
 in other contexts watchpoints or signals.  s7 itself has several
 hooks: <a href="#errorhook">*error-hook*</a>, <a href="#readerrorhook">*read-error-hook*</a>,
 <a href="#unboundvariablehook">*unbound-variable-hook*</a>, *missing-close-paren-hook*, *rootlet-redefinition-hook*,
-*after-gc-hook*, and <a href="#loadhook">*load-hook*</a>.
+and <a href="#loadhook">*load-hook*</a>.
 make-hook is:
 </p>
 
@@ -4994,7 +4994,7 @@ via <code>(varlet (curlet) *libgsl*)</code>.
 </p>
 
 
-<div class="header" id="constants"><h4>define-constant and symbol-setter</h4></div>
+<div class="header" id="constants"><h4>define-constant</h4></div>
 
 <p><b><em class=def id="defineconstant">define-constant</em></b> defines a symbol whose value is always the same (within the current lexical scope),
 <b><em class=def id="constantp">constant?</em></b> returns #t if its argument is a constant,
@@ -5058,10 +5058,10 @@ variable trace (informative function upon set or keeping a history of past value
 variable's values or doing automatic conversions upon set), and notification upon set (either in Scheme
 or in C; I wanted this many years ago in Snd).  The notification function is especially useful if
 you have a Scheme variable and want to reflect any change in its value immediately in C (see <a href="#notify">below</a>).
-In s7, <em class=def id="symbolsetter">symbol-setter</em> sets this function.
+In s7, setter sets this function.
 </p>
 
-<p>Each environment is a set of symbols and their associated values.  symbol-setter places a function (or macro) between a symbol
+<p>Each environment is a set of symbols and their associated values.  setter places a function (or macro) between a symbol
 and its value in a given environment.  The setter function takes two arguments, the symbol and the new value, and
 returns the value that is actually set.  If the setter function accepts a third argument, the current (symbol-relative) environment
 is also passed (the weird argument order is an historical artifact).
@@ -5073,9 +5073,9 @@ is also passed (the weird argument order is an historical artifact).
 	(y 3)  ; will always keep its initial value
 	(z 3)) ; will report set!
 
-    (set! (symbol-setter 'x) (lambda (s v) (if (integer? v) v x)))
-    (set! (symbol-setter 'y) (lambda (s v) y))
-    (set! (symbol-setter 'z) (lambda (s v) (format *stderr* "z ~A -&gt; ~A~%" z v) v))
+    (set! (setter 'x) (lambda (s v) (if (integer? v) v x)))
+    (set! (setter 'y) (lambda (s v) y))
+    (set! (setter 'z) (lambda (s v) (format *stderr* "z ~A -&gt; ~A~%" z v) v))
   
     (set! x 3.3) ; x does not change because 3.3 is not an integer
     (set! y 3.3) ; y does not change
@@ -5091,7 +5091,7 @@ is also passed (the weird argument order is an historical artifact).
 &gt; (define-macro (reflective-let vars . body)
     `(let ,vars
        ,@(map (lambda (vr)
-	        `(set! (symbol-setter ',(car vr))
+	        `(set! (setter ',(car vr))
 		       (lambda (s v)
 		         (format *stderr* "~S -&gt; ~S~%" s v)
 		         v)))
@@ -5101,7 +5101,7 @@ is also passed (the weird argument order is an historical artifact).
 &gt; (reflective-let ((a 1)) (set! a 2))
 <em class="gray">2</em>     ; prints "a -&gt; 2"
 &gt;(let ((a 0))
-     (set! (symbol-setter 'a)
+     (set! (setter 'a)
       (let ((history (make-vector 3 0))
 	    (position 0))
 	(lambda (s v)
@@ -5111,13 +5111,13 @@ is also passed (the weird argument order is an historical artifact).
 	  v)))
      (set! a 1)
      (set! a 2)
-     ((funclet (symbol-setter 'a)) 'history))
+     ((funclet (setter 'a)) 'history))
 <em class="gray">#(1 2 0)</em>
 </pre>
 
 <p>See also typed-let in stuff.scm.
-define-constant is more restrictive than a symbol-setter that raises an error: the latter
-does not block nested (possibly non-constant) bindings of the symbol.  The symbol-setters
+define-constant is more restrictive than a setter that raises an error: the latter
+does not block nested (possibly non-constant) bindings of the symbol.  The setters
 are kind of ugly.  Here's a macro that lets you put the let variable's setter after
 the initial value:
 </p>
@@ -5134,14 +5134,14 @@ the initial value:
 	   ,@(map (lambda (binding)
 		    (list (car binding) (cadr binding)))
 		  vars))
-       ,@(do ((setter setters (cdr setter))
+       ,@(do ((s setters (cdr s))
 	      (var vars (cdr var))
 	      (i 0 (+ i 1))
 	      (result ()))
-	     ((null? setter)
+	     ((null? s)
 	      (reverse result))
-	   (if (car setter)
-	       (set! result (cons `(set! (symbol-setter (quote ,(caar var))) (list-ref ,gsetters ,i)) result))))
+	   (if (car s)
+	       (set! result (cons `(set! (setter (quote ,(caar var))) (list-ref ,gsetters ,i)) result))))
        ,@body)))
 
 (let ((a 3))
@@ -5152,126 +5152,6 @@ the initial value:
    (set! b (+ a b))
    (display (list a b)) (newline)))
 </pre>
-
-<p>Reactive programming:
-</p>
-<pre class="indented">
-(let ((a 1)
-      (b 2)
-      (c 3))
-  (set! (symbol-setter 'b) (lambda (s v) (set! a (+ v c)) v))
-  (set! (symbol-setter 'c) (lambda (s v) (set! a (+ b v)) v))
-  (set! a (+ b c)) ; a will be updated if b or c is set
-  (set! b 4)
-  (set! c 5)
-  a)               ; a is 9 = (+ 4 5)
-</pre>
-
-<details>
-<summary class="indented">reactive-let</summary>
-<div class="indented">
-
-<p>stuff.scm has reactive-set!, reactive-vector, reactive-let, reactive-let*, and reactive-lambda*:
-</p>
-<pre class="indented">
-&gt; (let ((-a- 1)
-        (b 2))
-    (<em class=red>reactive-set!</em> -a- (* b 2))
-    (set! b 3)
-    -a-)
-<em class="gray">6</em>
-&gt; (let ((a 1)) 
-    (let ((v (<em class=red>reactive-vector</em> a (+ a 1) 2))) 
-      (set! a 4) 
-      v))
-<em class="gray">#(4 5 2)</em>
-&gt; (let ((a 1)) 
-    (<em class=red>reactive-let</em> ((-b- (+ a 1))) ; if 'a changes, '-b- does too
-    (set! a 3)                  ;   so '-b- is now 4
-    -b-))
-<em class="gray">4</em>
-&gt; (let ((a 1))
-    (<em class=red>reactive-lambda*</em> (s v)
-      (format *stderr* "~S -&gt; ~S~%" s v))
-    (set! a 3))
-<em class="gray">"a -&gt; 3"</em>
-</pre>
-
-<p>In the reactive-let example, the macro notices that '-b- depends on 'a, so it sets up a symbol-setter on 'a
-so that <code>(set! a 3)</code> triggers <code>(set! -b- (+ a 1))</code>.  I'm using -name- to distinguish
-the variables that can change value at any time; in the Lisp community, +name+ is often used to mark a constant,
-so this seems like a natural convention.
-</p>
-
-<p>Here's the standard example of following the mouse (assuming you're using Snd and glistener):
-</p>
-<pre class="indented">
-(let ((*mouse-x* 0) (*mouse-y* 0)
-      (x 0) (y 0))
-
-  (reactive-set! x (let ((val (round *mouse-x*))) 
-		     (format *stderr* "mouse: ~A ~A~%" x y) 
-		     val))
-  (reactive-set! y (round *mouse-y*))
-
-  (g_signal_connect (G_OBJECT (listener-text-widget *listener*)) "motion_notify_event" 
-		    (lambda (w e d) 
-		      (let ((mxy (cdr (gdk_event_get_coords (GDK_EVENT e)))))
-			(set! *mouse-x* (car mxy))
-			(set! *mouse-y* (cadr mxy))))))
-</pre>
-
-<!--
-(let ((*mouse-x* 0) (*mouse-y* 0))
-
-  (g_signal_connect (G_OBJECT (listener-text-widget *listener*)) "motion_notify_event" 
-		    (lambda (w e d) 
-		      (let ((mxy (gdk_event_get_coords (GDK_EVENT e))))
-			(set! *mouse-x* (cadr mxy))
-			(set! *mouse-y* (caddr mxy)))))
-
-  (with-accessors (*mouse-x* *mouse-y*)
-    (let ((x 0) (y 0))
-      (reactive-set! x (let ((val (round *mouse-x*))) 
-		       (format *stderr* "mouse: ~A ~A~%" x y) 
-		       val))
-      (reactive-set! y (round *mouse-y*))
-      (gtk_main))))
--->
-
-<p>reactive-lambda* is aimed at library consistency.  Say we have the following library
-that wants A to always be half B:
-</p>
-
-<pre class="indented">
-(define (make-library)
-  (let ((A 1.0)
-	(B 2.0))
-    (reactive-lambda* (s v)
-      (case s
-	((A) (set! B (* 2 v)))
-	((B) (set! A (/ v 2)))))
-    (define (f1 x) 
-      (+ A (* B x)))
-    (curlet)))
-
-(with-let (make-library)
-  (format *stderr* "(f1 3): ~A~%" (f1 3))
-  (set! A 3.0)
-  (format *stderr* "A: ~A, B: ~A, (f1 3): ~A~%" A B (f1 3))
-  (set! B 4.0)
-  (format *stderr* "A: ~A, B: ~A, (f1 3): ~A~%" A B (f1 3)))
-</pre>
-
-<p>reactive-lambda* sets up accessors on the library's top-level variables
-that call the lambda body if one of the variables is set.
-</p>
-
-<p>None of these macros does the right thing yet; I'm sort of following my nose.
-</p>
-
-</div>
-</details>
 
 
 
@@ -6041,10 +5921,10 @@ The defaults are '(3 45 80 45 #t).
 <pre class="indented">
 (<em class=def id="cobject">c-object?</em> obj)
 (<em class=def id="cpointer">c-pointer?</em> obj)
-(<em class=def id="cpoint">c-pointer</em> int type info unmarked)
+(<em class=def id="cpoint">c-pointer</em> int type info weak1 weak2)
 (<em class=def id="cpointtype">c-pointer-type</em> obj)
 (<em class=def id="cpointinfo">c-pointer-info</em> obj)
-(<em class=def id="cpointunmarked">c-pointer-unmarked</em> obj)
+(<em class=def id="cpointweak1">c-pointer-weak1</em> obj) ; also weak2
 (<em class=def id="cpointertolist">c-pointer-&gt;list</em> obj)
 </pre>
 
@@ -6052,8 +5932,9 @@ The defaults are '(3 45 80 45 #t).
 c-object? returns the object's type tag (otherwise #f of course).  This tag is also the position
 of the object's type in the (*s7* 'c-types) list. 
 (*s7* 'c-types) returns a list of the types created by s7_make_c_type.
-The "unmarked" field is intended for custom "weak" references. The unmarked
-field is not marked during the GC sweep, much like a key in a weak-hash-table.
+The "weak1" and "weak2" fields are intended for custom "weak" references. The weak
+fields values are not marked during the GC sweep, much like a key in a weak-hash-table.
+If either value is GC'd, that field is set to #f by the GC.
 </p>
 <p>
 You can wrap up raw C pointers and
@@ -6173,7 +6054,7 @@ int main(int argc, char **argv)
 <li>for-each and map accept different length arguments; the operation stops when any argument reaches its end.
 <li>for-each and map accept any applicable object as the first argument, and any sequence or iterator as a trailing argument.
 <li>letrec*, but without conviction.
-<li>set! and *-set! return the new value (modulo symbol-setter), not #&lt;unspecified&gt;.
+<li>set! and *-set! return the new value (modulo setter), not #&lt;unspecified&gt;.
 <li>define and its friends return the new value.
 <li>port-closed? 
 <li>list? means "pair or null", proper-list? is r5rs list?, float? means "real and not rational", sequence? = length.
@@ -6386,7 +6267,7 @@ to keep it from being evaluated, but
 <p>These examples bring up another odd corner of scheme: else.  In <code>(cond (else 1))</code>
 the 'else is evaluated (like any cond test), so its value might be #f; in <code>(case 0 (else 1))</code>
 it is not evaluated (like any case key), so it's just a symbol.  
-Since symbol setters are local in s7, 
+Since setters are local in s7, 
 someone can <code>(let ((else #f)) (cond (else 1)))</code> even if we protect the rootlet 'else.
 Of course, in scheme this kind of trouble is pervasive, so rather than make 'else a constant
 I think the best path is to use unlet:

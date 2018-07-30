@@ -92,7 +92,7 @@
 (define-constant _1234_ 1234)
 (define _dilambda_ (dilambda (lambda (x) (+ x 1)) (lambda (x y) (+ x y))))
 (define __var2__ 3)
-(set! (symbol-setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
+(set! (setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
 
 (define (free1) (set! x (- (+ x 1) 1)))
 (define (free2) (x i))
@@ -366,7 +366,7 @@
 			  'provide 'call-with-output-string 
 			  'checked-hash-table 'checked-hash-table*
 			  'with-output-to-string 
-			  'symbol-setter 
+			  ;'symbol-setter 
 			  's7-version 
 			  'dilambda?
 			  'hook-functions 
