@@ -104,7 +104,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 clang                                ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=clang CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
 make
 ./snd --version
 ./snd -noinit --features "'clm"
@@ -113,7 +113,7 @@ make allclean
 rm -f snd
 rm -f config.cache
 
-./configure --quiet CC=clang CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
 make
 make allclean
 rm -f snd

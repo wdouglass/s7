@@ -1144,7 +1144,7 @@ int main(int argc, char **argv)
   s7_define_variable(sc, "dax-data", 
                      s7_dilambda(sc, "dax-data", dax_data, 1, 0, set_dax_data, 2, 0, "dax data field"));
 
-  if (!s7_is_procedure_with_setter(s7_name_to_value(sc, "dax-x")))
+  if (!s7_is_dilambda(s7_name_to_value(sc, "dax-x")))
     {fprintf(stderr, "%d: dax-x is not a pws?\n", __LINE__);}
 
   p = make_dax(sc, s7_cons(sc, s7_make_real(sc, 1.0), s7_cons(sc, TO_S7_INT(2), s7_nil(sc))));
@@ -1814,7 +1814,7 @@ int main(int argc, char **argv)
 
   s7_define_function(sc, "notify-C", scheme_set_notification, 2, 0, false, "called if notified-var is set!");
   s7_define_variable(sc, "notified-var", s7_make_integer(sc, 0));
-  s7_symbol_set_setter(sc, s7_make_symbol(sc, "notified-var"), s7_name_to_value(sc, "notify-C"));
+  s7_set_setter(sc, s7_make_symbol(sc, "notified-var"), s7_name_to_value(sc, "notify-C"));
   s7_eval_c_string(sc, "(set! notified-var 32)");
   p = s7_name_to_value(sc, "notified-var");
   if (s7_integer(p) != 32)

@@ -191,15 +191,7 @@
 	  (copy lis :readable)
 	  lis))))
 
-(define tree-member 
-  (let ((+documentation+ "(tree-member sym tree) returns #t if sym is found anywhere in tree:\n\
-    (tree-member 'a '(1 (2 a))) -> #t"))
-    (lambda (sym tree)
-      (and (pair? tree)
-	   (or (eq? (car tree) sym)
-	       (and (pair? (car tree))
-		    (tree-member sym (car tree)))
-	       (tree-member sym (cdr tree)))))))
+(define tree-member tree-memq)
 
 (define adjoin 
   (let ((+documentation+ "(adjoin obj lst) adds obj to lst if it is not already in lst, returning the new list"))
@@ -1873,7 +1865,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      continuation? procedure? dilambda? boolean? float? proper-list? sequence? null? gensym 
 	      symbol->string string->keyword symbol->keyword byte-vector-ref byte-vector-set!
 	      inlet sublet coverlet openlet let-ref let-set! make-iterator iterate iterator-sequence
-	      iterator-at-end? provided? provide c-pointer port-line-number port-filename 
+	      iterator-at-end? provided? provide c-pointer c-pointer-type c-pointer-info port-line-number port-filename 
 	      pair-line-number pair-filename port-closed? let->list char-ready? flush-output-port 
 	      open-input-string open-output-string get-output-string quasiquote call-with-values multiple-value-bind
 	      newline write display read-char peek-char write-char write-string read-byte write-byte 

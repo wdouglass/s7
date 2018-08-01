@@ -367,11 +367,6 @@ bool s7_is_keyword(s7_pointer obj);                                         /* (
 s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (string->keyword key) */
 s7_pointer s7_keyword_to_symbol(s7_scheme *sc, s7_pointer key);             /* (keyword->symbol key) */
 
-#if (!DISABLE_DEPRECATED)
-s7_pointer s7_symbol_setter(s7_scheme *sc, s7_pointer sym); /* use s7_setter instead */
-#endif
-s7_pointer s7_symbol_set_setter(s7_scheme *sc, s7_pointer symbol, s7_pointer func);
-
 s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol);
 s7_pointer s7_slot_value(s7_pointer slot);
 s7_pointer s7_slot_set_value(s7_scheme *sc, s7_pointer slot, s7_pointer value);
@@ -399,8 +394,6 @@ s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name);
 s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym);
 s7_pointer s7_symbol_set_value(s7_scheme *sc, s7_pointer sym, s7_pointer val);
 s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local_env);
-char *s7_symbol_documentation(s7_scheme *sc, s7_pointer sym);
-char *s7_symbol_set_documentation(s7_scheme *sc, s7_pointer sym, const char *new_doc);
 bool s7_for_each_symbol_name(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
 bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, s7_pointer value, void *data), void *data);
   
@@ -457,6 +450,7 @@ const char *s7_help(s7_scheme *sc, s7_pointer obj);                         /* (
 s7_pointer s7_make_continuation(s7_scheme *sc);                             /* call/cc... (see example below) */
 
 const char *s7_documentation(s7_scheme *sc, s7_pointer p);                  /* (documentation x) if any (don't free the string) */
+const char *s7_set_documentation(s7_scheme *sc, s7_pointer p, const char *new_doc);
 s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj);                        /* (setter obj) */
 s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter);   /* (set! (setter p) setter) */
 s7_pointer s7_signature(s7_scheme *sc, s7_pointer func);                    /* (signature obj) */
@@ -616,10 +610,6 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
  *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
  *   For the copy function, either the first or second argument can be a c-object of the given type.
  */
-
-#if (!DISABLE_DEPRECATED)
-  void s7_c_type_set_print       (s7_scheme *sc, s7_int tag, char *(*print)(s7_scheme *sc, void *value));
-#endif
 
   /* These functions create a new Scheme object type.  There is a simple example in s7.html.
    *
@@ -840,41 +830,40 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 #define s7_is_ulong_long(arg)     s7_is_c_pointer((void *)arg)
 #define s7_ulong_long(p)          (uint64_t)s7_c_pointer(arg)
 #define s7_make_ulong_long(sc, n) s7_make_c_pointer(sc, (void *)n)
+#define s7_is_constant(Obj)       ((!s7_is_symbol(Obj)) || (s7_is_immutable(Obj)))
 
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
 
-/* CM uses this: */
+#define s7_define_function_with_setter(sc, name, get_fnc, set_fnc, req_args, opt_args, doc) \
+  s7_dilambda(sc, name, get_fnc, req_args, opt_args, set_fnc, req_args + 1, opt_args, doc)
+
+#define s7_is_procedure_with_setter   s7_is_dilambda
+#define s7_make_procedure_with_setter s7_dilambda
+#define s7_make_random_state          s7_random_state
+#define s7_is_object                  s7_is_c_object
+#define s7_object_type                s7_c_object_type
+#define s7_object_value               s7_c_object_value
+#define s7_object_value_checked       s7_c_object_value_checked
+#define s7_make_object                s7_make_c_object
+#define s7_make_object_with_let       s7_make_c_object_with_let
+#define s7_mark_object                s7_mark
+#define s7_mark_c_object              s7_mark
+#define s7_object_let                 s7_c_object_let
+#define s7_object_set_let             s7_c_object_set_let
+#define s7_set_object_print_readably  s7_c_type_set_print_readably
+#define s7_procedure_setter           s7_setter
+#define s7_procedure_documentation    s7_documentation
+#define s7_procedure_signature        s7_signature
+#define s7_symbol_documentation       s7_documentation
+#define s7_symbol_set_documentation   s7_set_documentation
+#define s7_symbol_setter              s7_setter
+#define s7_symbol_set_setter          s7_set_setter
+
+/* CM uses these */
 #define s7_UNSPECIFIED(Sc) s7_unspecified(Sc)
 #define s7_NIL(Sc) s7_nil(Sc)
-
-#define s7_is_procedure_with_setter s7_is_dilambda
-#define s7_make_procedure_with_setter s7_dilambda
-#define s7_make_random_state s7_random_state
-#define s7_is_constant(Obj) ((!s7_is_symbol(Obj)) || (s7_is_immutable(Obj)))
-
-/* this definition is for CM */
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
-
-#define s7_is_object                 s7_is_c_object
-#define s7_object_type               s7_c_object_type
-#define s7_object_value              s7_c_object_value
-#define s7_object_value_checked      s7_c_object_value_checked
-#define s7_make_object               s7_make_c_object
-#define s7_make_object_with_let      s7_make_c_object_with_let
-#define s7_mark_object               s7_mark
-#define s7_mark_c_object             s7_mark
-#define s7_object_let                s7_c_object_let
-#define s7_object_set_let            s7_c_object_set_let
-#define s7_set_object_print_readably s7_c_type_set_print_readably
-
-void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function get_fnc, 
-				    s7_function set_fnc, s7_int req_args, s7_int opt_args, const char *doc);
-  /* this is now the same as s7_dilambda (different args) */
-
-#define s7_procedure_setter        s7_setter
-#define s7_procedure_documentation s7_documentation
-#define s7_procedure_signature     s7_signature
 #endif
 
 
@@ -882,7 +871,7 @@ void s7_define_function_with_setter(s7_scheme *sc, const char *name, s7_function
  * 
  *        s7 changes
  *
- * 29-Jul:    symbol-setter deprecated (use setter).
+ * 29-Jul:    symbol-setter deprecated (use setter). s7_symbol_documentation (and setter) folded into s7_documentation.
  * 12-Jul:    changed s7_vector_dimensions|offsets. 
  *            Added s7_scheme* arg to make_permanent_string and several of the optimizer functions.
  * 3-Jul:     changed make-shared-vector to subvector.

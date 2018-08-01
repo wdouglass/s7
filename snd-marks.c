@@ -3037,11 +3037,11 @@ If the hook returns " PROC_TRUE ", the mark is not drawn."
   draw_mark_hook = Xen_define_hook(S_draw_mark_hook, "(make-hook 'id)", 1, H_draw_mark_hook);
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->mark_tag_height_symbol, s7_make_function(s7, "[acc-" S_mark_tag_height "]", acc_mark_tag_height, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->mark_tag_width_symbol, s7_make_function(s7, "[acc-" S_mark_tag_width "]", acc_mark_tag_width, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->mark_tag_height_symbol, s7_make_function(s7, "[acc-" S_mark_tag_height "]", acc_mark_tag_height, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->mark_tag_width_symbol, s7_make_function(s7, "[acc-" S_mark_tag_width "]", acc_mark_tag_width, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->mark_tag_height_symbol, "*mark-tag-height*: height (pixels) of mark tags (4)");
-  s7_symbol_set_documentation(s7, ss->mark_tag_width_symbol, "*mark-tag-width*: width (pixels) of mark tags (10)");
+  s7_set_documentation(s7, ss->mark_tag_height_symbol, "*mark-tag-height*: height (pixels) of mark tags (4)");
+  s7_set_documentation(s7, ss->mark_tag_width_symbol, "*mark-tag-width*: width (pixels) of mark tags (10)");
 #endif
 }
 

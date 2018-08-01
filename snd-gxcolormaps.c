@@ -1323,10 +1323,10 @@ void g_init_gxcolormaps(void)
 			    s7_make_signature(s7, 1, i),  s7_make_signature(s7, 2, i, i));
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->color_map_size_symbol, s7_make_function(s7, "[acc-" S_colormap_size "]", acc_colormap_size, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->color_map_symbol, s7_make_function(s7, "[acc-" S_colormap "]", acc_colormap, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->color_map_size_symbol, s7_make_function(s7, "[acc-" S_colormap_size "]", acc_colormap_size, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->color_map_symbol, s7_make_function(s7, "[acc-" S_colormap "]", acc_colormap, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->color_map_size_symbol, "*colormap-size*: current colormap size; default is 512.");
-  s7_symbol_set_documentation(s7, ss->color_map_symbol, "*colormap*: current colormap choice.");
+  s7_set_documentation(s7, ss->color_map_size_symbol, "*colormap-size*: current colormap size; default is 512.");
+  s7_set_documentation(s7, ss->color_map_symbol, "*colormap*: current colormap choice.");
 #endif
 }

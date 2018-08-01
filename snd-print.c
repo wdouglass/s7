@@ -813,14 +813,14 @@ void g_init_print(void)
 #endif
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->eps_bottom_margin_symbol, s7_make_function(s7, "[acc-" S_eps_bottom_margin "]", acc_eps_bottom_margin, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->eps_file_symbol, s7_make_function(s7, "[acc-" S_eps_file "]", acc_eps_file, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->eps_left_margin_symbol, s7_make_function(s7, "[acc-" S_eps_left_margin "]", acc_eps_left_margin, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->eps_size_symbol, s7_make_function(s7, "[acc-" S_eps_size "]", acc_eps_size, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->eps_bottom_margin_symbol, s7_make_function(s7, "[acc-" S_eps_bottom_margin "]", acc_eps_bottom_margin, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->eps_file_symbol, s7_make_function(s7, "[acc-" S_eps_file "]", acc_eps_file, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->eps_left_margin_symbol, s7_make_function(s7, "[acc-" S_eps_left_margin "]", acc_eps_left_margin, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->eps_size_symbol, s7_make_function(s7, "[acc-" S_eps_size "]", acc_eps_size, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->eps_bottom_margin_symbol, "*eps-bottom-margin*: File:Print and graph->ps bottom margin");
-  s7_symbol_set_documentation(s7, ss->eps_file_symbol, "*eps-file*: File:Print and graph->ps file name (snd.eps)");
-  s7_symbol_set_documentation(s7, ss->eps_left_margin_symbol, "*eps-left-margin*: File:Print and graph->ps left margin");
-  s7_symbol_set_documentation(s7, ss->eps_size_symbol, "*eps-size*: File:Print and graph->ps output size scaler (1.0)");
+  s7_set_documentation(s7, ss->eps_bottom_margin_symbol, "*eps-bottom-margin*: File:Print and graph->ps bottom margin");
+  s7_set_documentation(s7, ss->eps_file_symbol, "*eps-file*: File:Print and graph->ps file name (snd.eps)");
+  s7_set_documentation(s7, ss->eps_left_margin_symbol, "*eps-left-margin*: File:Print and graph->ps left margin");
+  s7_set_documentation(s7, ss->eps_size_symbol, "*eps-size*: File:Print and graph->ps output size scaler (1.0)");
 #endif
 }

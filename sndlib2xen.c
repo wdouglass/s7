@@ -1259,16 +1259,16 @@ void mus_sndlib_xen_initialize(void)
 
 #if HAVE_SCHEME
   mus_max_table_size_symbol = s7_define_variable(s7, "*" S_mus_max_table_size "*", s7_make_integer(s7, MUS_MAX_TABLE_SIZE_DEFAULT));
-  s7_symbol_set_documentation(s7, mus_max_table_size_symbol, "*mus-max-table-size*: maximum table size.");
-  s7_symbol_set_setter(s7, mus_max_table_size_symbol, s7_make_function(s7, "[acc-mus-max-table-size]" "]", acc_mus_max_table_size, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, mus_max_table_size_symbol, "*mus-max-table-size*: maximum table size.");
+  s7_set_setter(s7, mus_max_table_size_symbol, s7_make_function(s7, "[acc-mus-max-table-size]" "]", acc_mus_max_table_size, 2, 0, false, "accessor"));
 
   mus_max_malloc_symbol = s7_define_variable(s7, "*" S_mus_max_malloc "*", s7_make_integer(s7, MUS_MAX_MALLOC_DEFAULT));
-  s7_symbol_set_documentation(s7, mus_max_malloc_symbol, "*mus-max-malloc*: maximum number of bytes we will try to malloc.");
-  s7_symbol_set_setter(s7, mus_max_malloc_symbol, s7_make_function(s7, "[acc-mus-max-malloc]" "]", acc_mus_max_malloc, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, mus_max_malloc_symbol, "*mus-max-malloc*: maximum number of bytes we will try to malloc.");
+  s7_set_setter(s7, mus_max_malloc_symbol, s7_make_function(s7, "[acc-mus-max-malloc]" "]", acc_mus_max_malloc, 2, 0, false, "accessor"));
 
   mus_sound_path_symbol = s7_define_variable(s7, "*" S_mus_sound_path "*", s7_nil(s7));
-  s7_symbol_set_documentation(s7, mus_sound_path_symbol, "*" S_mus_sound_path "* is a list of directories to search for sound files");
-  s7_symbol_set_setter(s7, mus_sound_path_symbol, s7_make_function(s7, "[acc-mus-sound-path]" "]", acc_mus_sound_path, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, mus_sound_path_symbol, "*" S_mus_sound_path "* is a list of directories to search for sound files");
+  s7_set_setter(s7, mus_sound_path_symbol, s7_make_function(s7, "[acc-mus-sound-path]" "]", acc_mus_sound_path, 2, 0, false, "accessor"));
 #endif
 
 #if __APPLE__

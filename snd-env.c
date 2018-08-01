@@ -1933,18 +1933,18 @@ stretch-envelope from env.fth: \n\
   ss->enved->clipping = DEFAULT_ENVED_CLIPPING;
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->enved_base_symbol, s7_make_function(s7, "[acc-" S_enved_base "]", acc_enved_base, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->enved_filter_order_symbol, s7_make_function(s7, "[acc-" S_enved_filter_order "]", acc_enved_filter_order, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->enved_power_symbol, s7_make_function(s7, "[acc-" S_enved_power "]", acc_enved_power, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->enved_style_symbol, s7_make_function(s7, "[acc-" S_enved_style "]", acc_enved_style, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->enved_target_symbol, s7_make_function(s7, "[acc-" S_enved_target "]", acc_enved_target, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->enved_with_wave_symbol, s7_make_function(s7, "[acc-" S_enved_with_wave "]", acc_enved_with_wave, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_base_symbol, s7_make_function(s7, "[acc-" S_enved_base "]", acc_enved_base, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_filter_order_symbol, s7_make_function(s7, "[acc-" S_enved_filter_order "]", acc_enved_filter_order, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_power_symbol, s7_make_function(s7, "[acc-" S_enved_power "]", acc_enved_power, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_style_symbol, s7_make_function(s7, "[acc-" S_enved_style "]", acc_enved_style, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_target_symbol, s7_make_function(s7, "[acc-" S_enved_target "]", acc_enved_target, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->enved_with_wave_symbol, s7_make_function(s7, "[acc-" S_enved_with_wave "]", acc_enved_with_wave, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->enved_base_symbol, "*enved-base*: envelope editor exponential base value (1.0)");
-  s7_symbol_set_documentation(s7, ss->enved_filter_order_symbol, "*enved-filter-order*: envelope editor's FIR filter order (40)");
-  s7_symbol_set_documentation(s7, ss->enved_power_symbol, "*enved-power*: envelope editor base scale range (9.0^power)");
-  s7_symbol_set_documentation(s7, ss->enved_style_symbol, "*enved-style*: envelope editor breakpoint connection choice: envelope-linear or envelope-exponential");
-  s7_symbol_set_documentation(s7, ss->enved_target_symbol, "*enved-target*: determines how the envelope edit envelope is applied; enved-amplitude etc");
-  s7_symbol_set_documentation(s7, ss->enved_with_wave_symbol, "*enved-wave?*: #t if the envelope editor is displaying the waveform to be edited");
+  s7_set_documentation(s7, ss->enved_base_symbol, "*enved-base*: envelope editor exponential base value (1.0)");
+  s7_set_documentation(s7, ss->enved_filter_order_symbol, "*enved-filter-order*: envelope editor's FIR filter order (40)");
+  s7_set_documentation(s7, ss->enved_power_symbol, "*enved-power*: envelope editor base scale range (9.0^power)");
+  s7_set_documentation(s7, ss->enved_style_symbol, "*enved-style*: envelope editor breakpoint connection choice: envelope-linear or envelope-exponential");
+  s7_set_documentation(s7, ss->enved_target_symbol, "*enved-target*: determines how the envelope edit envelope is applied; enved-amplitude etc");
+  s7_set_documentation(s7, ss->enved_with_wave_symbol, "*enved-wave?*: #t if the envelope editor is displaying the waveform to be edited");
 #endif
 }

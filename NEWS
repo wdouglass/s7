@@ -1,7 +1,16 @@
-Snd 18.5:
+Snd 18.6.
 
-s7 to version 7 (many internal changes).
+clm: Kjetil added a method to the granulate generator to set the jitter amount.
 
-checked: sbcl 1.4.8|9, gtk 3.94.0
+s7: changed make-shared-vector to make-subvector (Matlab terminology)
+    added subvector?, subvector-position, subvector-vector
+    added make-weak-hash-table, weak-hash-table?
+    s7 is now thread-safe, I think.
+    symbol-setter has been folded into setter.
+    c-pointer-info|type|weak1|weak2 (the latter are "weak" values)
+    reactive.scm (the old stuff.scm code rewritten).
+
+checked: sbcl 1.4.10
 
 Thanks!: Kjetil Matheussen
+

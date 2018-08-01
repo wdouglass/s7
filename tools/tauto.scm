@@ -177,17 +177,14 @@
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons hash-table* hash-table values
 		  symbol-table load 
-		  global-environment current-environment make-procedure-with-setter procedure-with-setter? make-rectangular
-		  
+		  global-environment current-environment make-rectangular
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
-		  
 		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table*
 		  mock-symbol mock-port mock-hash-table m mock->string make-local-method
 		  *mock-number* *mock-pair* *mock-string* *mock-char* *mock-vector*
 		  *mock-symbol* *mock-port* *mock-hash-table* mp ms mv
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
-
 		  c-define-1 apropos map-values
 		  outlet-member make-method make-object))
 

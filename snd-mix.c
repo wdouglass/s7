@@ -4352,15 +4352,15 @@ void g_init_mix(void)
   draw_mix_hook = Xen_define_hook(S_draw_mix_hook, "(make-hook 'id 'old-x 'old-y 'x 'y)", 5, H_draw_mix_hook);
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->mix_tag_height_symbol, s7_make_function(s7, "[acc-" S_mix_tag_height "]", acc_mix_tag_height, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->mix_tag_width_symbol, s7_make_function(s7, "[acc-" S_mix_tag_width "]", acc_mix_tag_width, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->mix_waveform_height_symbol, s7_make_function(s7, "[acc-" S_mix_waveform_height "]", acc_mix_waveform_height, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->with_mix_tags_symbol, s7_make_function(s7, "[acc-" S_with_mix_tags "]", acc_with_mix_tags, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->mix_tag_height_symbol, s7_make_function(s7, "[acc-" S_mix_tag_height "]", acc_mix_tag_height, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->mix_tag_width_symbol, s7_make_function(s7, "[acc-" S_mix_tag_width "]", acc_mix_tag_width, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->mix_waveform_height_symbol, s7_make_function(s7, "[acc-" S_mix_waveform_height "]", acc_mix_waveform_height, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->with_mix_tags_symbol, s7_make_function(s7, "[acc-" S_with_mix_tags "]", acc_with_mix_tags, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->mix_tag_height_symbol, "*mix-tag-height*: height (pixels) of mix tags (14)");
-  s7_symbol_set_documentation(s7, ss->mix_tag_width_symbol, "*mix-tag-width*: width (pixels) of mix tags (6)");
-  s7_symbol_set_documentation(s7, ss->mix_waveform_height_symbol, "*mix-waveform-height*: max height (pixels) of mix waveforms (20)");
-  s7_symbol_set_documentation(s7, ss->with_mix_tags_symbol, "*with-mix-tags*: #t if Snd should try to use virtual (tagged) mixing");
+  s7_set_documentation(s7, ss->mix_tag_height_symbol, "*mix-tag-height*: height (pixels) of mix tags (14)");
+  s7_set_documentation(s7, ss->mix_tag_width_symbol, "*mix-tag-width*: width (pixels) of mix tags (6)");
+  s7_set_documentation(s7, ss->mix_waveform_height_symbol, "*mix-waveform-height*: max height (pixels) of mix waveforms (20)");
+  s7_set_documentation(s7, ss->with_mix_tags_symbol, "*with-mix-tags*: #t if Snd should try to use virtual (tagged) mixing");
 #endif
 }
 

@@ -31085,12 +31085,12 @@ void g_init_motif(void)
 
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->view_files_sort_symbol, s7_make_function(s7, "[acc-" S_view_files_sort "]", acc_view_files_sort, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->view_files_sort_symbol, s7_make_function(s7, "[acc-" S_view_files_sort "]", acc_view_files_sort, 2, 0, false, "accessor"));
   top_level_let = s7_nil(s7);
   s7_define_variable(s7, "top-level-let", 
                      s7_dilambda(s7, "top-level-let", g_top_level_let, 0, 0, g_set_top_level_let, 1, 0, "listener environment"));
-  s7_symbol_set_setter(s7, ss->graph_cursor_symbol, s7_make_function(s7, "[acc-" S_graph_cursor "]", acc_graph_cursor, 2, 0, false, "accessor"));
-  s7_symbol_set_documentation(s7, ss->graph_cursor_symbol, "*graph-cursor*: current graph cursor shape");
+  s7_set_setter(s7, ss->graph_cursor_symbol, s7_make_function(s7, "[acc-" S_graph_cursor "]", acc_graph_cursor, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, ss->graph_cursor_symbol, "*graph-cursor*: current graph cursor shape");
 #endif
 
   preload_best_completions();

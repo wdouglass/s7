@@ -3627,7 +3627,7 @@ and its value is returned."
 	  }
 	else
 	  {
-	    str = s7_symbol_documentation(s7, s7_make_symbol(s7, subject));
+	    str = (char *)s7_documentation(s7, s7_make_symbol(s7, subject));
 	  }
       }
   }
@@ -3906,10 +3906,10 @@ If more than one hook function, each function gets the previous function's outpu
 
 #if HAVE_SCHEME
   autoload_info(s7); /* snd-xref.c included above */
-  s7_symbol_set_setter(s7, ss->html_dir_symbol, s7_make_function(s7, "[acc-" S_html_dir "]", acc_html_dir, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->html_program_symbol, s7_make_function(s7, "[acc-" S_html_program "]", acc_html_program, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->html_dir_symbol, s7_make_function(s7, "[acc-" S_html_dir "]", acc_html_dir, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->html_program_symbol, s7_make_function(s7, "[acc-" S_html_program "]", acc_html_program, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->html_dir_symbol, "*html-dir*: location of Snd documentation");
-  s7_symbol_set_documentation(s7, ss->html_program_symbol, "*html-program*: name of documentation reader (firefox)");
+  s7_set_documentation(s7, ss->html_dir_symbol, "*html-dir*: location of Snd documentation");
+  s7_set_documentation(s7, ss->html_program_symbol, "*html-program*: name of documentation reader (firefox)");
 #endif
 }

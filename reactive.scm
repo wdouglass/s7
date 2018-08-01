@@ -106,7 +106,7 @@
 	val))))
 
 
-(define-bacro (reactive-set! place value)             ; or maybe macro* with traling arg: (e (outlet (curlet)))??
+(define-bacro (reactive-set! place value)             ; or maybe macro* with trailing arg: (e (outlet (curlet)))??
   (with-let (inlet 'place place                       ; with-let here gives us control over the names
 		   'value value 
 		   'e (outlet (curlet)))              ; the run-time (calling) environment
@@ -115,10 +115,13 @@
 	   (lt (symbol->let ',place ,e)))
 
        ;; if previous set expr, remove it from setters' followers lists
-       (when old-setter
+       (when (and old-setter
+		  (defined? 'followers (funclet old-setter))
+		  (defined? 'setters (funclet old-setter)))
 	 (set! old-followers ((funclet old-setter) 'followers))
 	 (for-each (lambda (s)
-		     (when (setter s)
+		     (when (and (setter s)
+				(defined? 'followers (funclet (setter s))))
 		       (let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
 			 (let-set! (funclet (setter s))
 				   'followers 
@@ -126,26 +129,29 @@
 		   (let-ref (funclet old-setter) 'setters)))
 
        ;; set up new setter
-       (let ((setters (gather-symbols ',value ,e () ()))
-	     (expr (copy ',value :readable)))
-	 (let ((cp (slot ',place expr lt ,e)))
-	   (set! (setter ',place lt)
-		 (make-setter ',place lt old-followers setters expr ,e))
+       (let ((setters (gather-symbols ',value ,e () ())))
+	 (when (pair? setters)
+	   (let ((expr (if (pair? ',value) (copy ',value :readable) ',value)))
+	     (let ((cp (slot ',place expr lt ,e)))
+	       (set! (setter ',place lt)
+		     (make-setter ',place lt old-followers setters expr ,e))
        
-	   ;; add the slot to the followers setter list of each variable in expr
-	   (for-each (lambda (s)
-		       (unless (setter s)
-			 (set! (setter s) (make-setter s (symbol->let s ,e))))
-		       (let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
-			 (unless (member cp setter-followers slot-equal?)
-			   (let-set! (funclet (setter s))
-				     'followers
-				     (cons cp setter-followers)))))
-		     setters)))
+	       ;; add the slot to the followers setter list of each variable in expr
+	       (for-each (lambda (s)
+			   (unless (and (setter s)
+					(defined? 'followers (funclet (setter s))))
+			     (set! (setter s) (make-setter s (symbol->let s ,e))))
+			   (let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
+			     (unless (member cp setter-followers slot-equal?)
+			       (let-set! (funclet (setter s))
+					 'followers
+					 (cons cp setter-followers)))))
+			 setters)))))
        (set! ,place ,value))))
 
 
 ;; --------------------------------------------------------------------------------
+#|
 (let ()
 (define a 2)
 (define b 1)
@@ -204,6 +210,12 @@
 (test (let ((a 1)) (let ((b 0) (c 0)) (reactive-set! b (* a 2)) (reactive-set! c (* a 3)) (let ((x 0)) (reactive-set! x (+ a b c)) (set! a 2) x))) 12)
 (test (let ((x 0)) (let ((a 1)) (reactive-set! x (* 2 a)) (set! a 2)) x) 4)
 
+(test (let ((x 0) (a 1)) (reactive-set! x (+ a 1)) (reactive-set! a (+ x 2)) (set! a 3) (set! x 4) (list x a)) (list 4 6))
+(test (let ((x 0) (a 1) (b 0)) (reactive-set! x (+ a 2)) (let ((x 2)) (reactive-set! x (+ a 1)) (set! a 4) (set! b x)) (list x a b)) (list 6 4 5))
+(test (let ((x 0)) (reactive-set! x (* 3 2)) x) 6)
+(test (let ((x 0)) (reactive-set! x (* pi 2)) x) (* pi 2))
+(test (let ((x 0)) (let ((a 1)) (reactive-set! x a) (set! a 2)) x) 2)
+
 ;;; (define-macro (with-setters vars . body) `(let-temporarily (,(map (lambda (var) `((setter ',var) #f)) vars)) ,@body))
 
 (let ((x 0))
@@ -222,8 +234,140 @@
       (reactive-set! x (* 2 a))
       (set! a 2))))
 
-;; for this we need to store the old-setter (how to tell it is not one of ours?)
-;  (test (let ((a 21) (b 1)) (set! (setter 'b) (lambda (x y) (* 2 y))) (reactive-set! a (* b 2)) (set! b 3) a) 12)
-;  (test (let ((a 21) (b 1)) (set! (setter 'b) (lambda (x y) (* 2 y))) (let ((b 2)) (reactive-set! a (* b 2)) (set! b 3) a)) 6)
+(test (let ((a 21) (b 1)) (set! (setter 'b) (lambda (x y) (* 2 y))) (reactive-set! a (* b 2)) (set! b 3) a) 6) ; old setter ignored
+(test (let ((a 21) (b 1)) (set! (setter 'b) (lambda (x y) (* 2 y))) (let ((b 2)) (reactive-set! a (* b 2)) (set! b 3) a)) 6)
 
 ;; also place as generalized set: (reactive-set! (v 0) (* a 2)) -- does v get the setter?
+|#
+;;; --------------------------------------------------------------------------------
+
+(define-bacro (reactive-let vars/inits . body)
+  (with-let (inlet 'vars/inits vars/inits 
+		   'body body
+		   'e (outlet (curlet)))
+    (let ((vars (map car vars/inits))
+	  (inits (map cadr vars/inits)))
+      (let ((reacts (map (lambda (var init)
+			   `(let ((setters (gather-symbols ',init ,e () ())))
+			      (when (pair? setters)
+				(let ((expr (if (pair? ',init) (copy ',init :readable) ',init))
+				      (lt (curlet)))
+				  (let ((cp (slot ',var expr lt ,e)))
+				    (set! (setter ',var lt)
+					  (make-setter ',var lt () setters expr ,e))
+				    (for-each (lambda (s)
+						(unless (and (setter s)
+							     (defined? 'followers (funclet (setter s))))
+						  (set! (setter s) (make-setter s lt)))
+						(let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
+						  (unless (member cp setter-followers slot-equal?)
+						    (let-set! (funclet (setter s))
+							      'followers
+							      (cons cp setter-followers)))))
+					      setters))))))
+			 vars inits)))
+      `(let ,vars/inits
+	 ,@reacts
+	 ,@body)))))
+
+;;; --------------------------------------------------------------------------------
+#|
+  (test (reactive-let () 3) 3)
+  (test (let ((a 1)) (reactive-let ((b (+ a 1))) b)) 2)
+  (test (let ((a 1)) (+ (reactive-let ((b (+ a 1))) (set! a 3) b) a)) 7)
+  (test (let ((a 1)) (+ (reactive-let ((b (+ a 1)) (a 0)) (set! a 3) b) a)) 3)
+  (test (let ((a 1)) (reactive-let ((a 2) (b (* a 3))) (set! a 3) b)) 3)
+  (test (let ((a 1) (b 2)) (reactive-let ((a (* b 2)) (b (* a 3))) (set! a 3) b)) 3)
+  (test (let ((a 1) (b 2)) (reactive-let ((a (* b 2)) (b (* a 3))) (set! b 3) a)) 4)
+  (test (let ((a 1) (b 2)) (reactive-let ((a (* b 2))) (set! b 3) a)) 6)
+  (test (let ((a 1)) (reactive-let ((b (+ a 1))) (set! a 3) b)) 4)
+  (test (let ((a 1)) (reactive-let ((b (+ a 1)) (c (* a 2))) (set! a 3) (+ c b))) 10)
+  (test (let ((a 1) (d 2)) (reactive-let ((b (+ a d)) (c (* a d)) (d 0)) (set! a 3) (+ b c))) 11)
+  (test (let ((a 1) (d 2)) (reactive-let ((b (+ a d)) (c (* a d)) (d 0)) (set! a 3)) (setter 'a)) #f)
+  (test (let ((a 1) (d 2)) (reactive-let ((b (+ a d)) (c (* a d)) (d 0)) (set! a 3) (set! d 12) (+ b c))) 11)
+  (test (let ((a 1) (b 2)) (+ (reactive-let ((b (+ a 1)) (c (* b 2))) (set! a 3) (+ b c)) a b)) 13)  ;c=4 because it watches the outer b
+  (test (let ((a 1)) (reactive-let ((b (* a 2))) (reactive-let ((c (* a 3))) (set! a 2) (+ b c)))) 10)
+  (test (let ((a 1)) (reactive-let ((b (* a 2))) (let ((d (reactive-let ((c (* a 3))) c))) (set! a 2) (+ b d)))) 7)
+  (test (let ((a 1)) (reactive-let ((b (* a 2))) (+ (reactive-let ((c (* a 3))) c) (set! a 2) b))) 9) ; a=2 is added to b=4 and c=3
+  (test (let ((a 1)) (reactive-let ((b (+ a 1))) (reactive-let ((c (* b 2))) (begin (set! a 3) (+ c b))))) 12)
+  (test (reactive-let ((a (lambda (b) b))) (a 1)) 1)
+  (test (reactive-let ((a (let ((b 1) (c 2)) (+ b c)))) a) 3)
+  (test (let ((b 1)) (reactive-let ((a (let ((b 1) (c 2)) (+ b c))) (c (* b 2))) (set! b 43) c)) 86)
+  (test (let ((x 0.0)) (reactive-let ((y (sin x))) (set! x 1.0) y)) (sin 1.0))
+  (test (let ((a 1)) (reactive-let ((b a) (c a)) (set! a 3) (list b c))) '(3 3))
+  (test (let ((a 1)) (reactive-let ((b a)) (reactive-let ((c (* b a))) (set! a 3) (list b c)))) '(3 9))
+  (test (let ((a 1) (b 2)) (reactive-let ((c a) (d (* b a))) (set! a 3) (list a b c d))) '(3 2 3 6))
+  (test (let ((a 1)) (reactive-let ((b (* a 2)) (c (* a 3)) (d (* a 4))) (set! a 2) (list a b c d))) '(2 4 6 8))
+  (test (let ((b 2)) (reactive-let ((a (* b 2))) (+ (reactive-let ((a (* b 3))) (set! b 3) a) a))) 15)
+|#
+;;; --------------------------------------------------------------------------------
+
+(define-macro (reactive-let* vars . body)
+  (let add-let ((v vars))
+    (if (pair? v)
+	`(reactive-let ((,(caar v) ,(cadar v)))
+	   ,(add-let (cdr v)))
+	(cons 'begin body))))
+
+
+;;; --------------------------------------------------------------------------------
+#|
+  (test (let ((a 1)) (reactive-let* ((b a) (c (* b a))) (set! a 3) (list b c))) '(3 9))
+  (test (let ((a 1)) (reactive-let* ((b a) (x (+ a b))) (set! a 3) (list b x))) '(3 6))
+  (test (let ((x 0.0)) (reactive-let* ((y x) (z (* y (cos x)))) (set! x 1.0) z)) (cos 1.0))
+|#
+;;; --------------------------------------------------------------------------------
+
+#|
+(let ()
+  (define xyzzy (let ((x 0)) 
+		  (dilambda 
+		   (lambda () 
+		     x) 
+		   (lambda (val)
+		     (set! x val)))))
+  (let ((a 1)) 
+    (reactive-set! (xyzzy) (+ a 1))
+    (set! a 2)
+    (xyzzy))
+
+  (let ((a 1))
+    (reactive-set! a (+ (xyzzy) 1))
+    (set! (xyzzy) 2)
+    a)
+
+  (reactive-let ((a (+ (xyzzy) 1)))
+    (set! (xyzzy) 2)
+    a))
+
+;;; not different?:
+
+(let ((v (vector 1 2 3)))
+  (let ((a 1))
+    (reactive-set! (v 0) (+ a 1))
+    (set! a 2)
+    (v 0)))
+
+;;; but where to place the setter in either case -- on 'a and save the location, but then how to erase if reset?
+;;;   and how to ignore if xyzzy arg not the same?
+;;; insist that (f) f be a thunk/dilambda, and in the (set! (f)...) case, put the setter on the setter? (set! (setter (setter f)) ...)
+
+
+<p>Here's the standard example of following the mouse (assuming you're using Snd and glistener):
+</p>
+<pre class="indented">
+(let ((*mouse-x* 0) (*mouse-y* 0)
+      (x 0) (y 0))
+
+  (reactive-set! x (let ((val (round *mouse-x*))) 
+		     (format *stderr* "mouse: ~A ~A~%" x y) 
+		     val))
+  (reactive-set! y (round *mouse-y*))
+
+  (g_signal_connect (G_OBJECT (listener-text-widget *listener*)) "motion_notify_event" 
+		    (lambda (w e d) 
+		      (let ((mxy (cdr (gdk_event_get_coords (GDK_EVENT e)))))
+			(set! *mouse-x* (car mxy))
+			(set! *mouse-y* (cadr mxy))))))
+</pre>
+|#

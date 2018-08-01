@@ -314,12 +314,12 @@ If it returns true, Snd assumes you've dealt the text yourself, and does not try
 
 #if HAVE_SCHEME
 #if USE_GTK
-  s7_symbol_set_documentation(s7, ss->listener_colorized_symbol, "*listener-colorized*: number of vector elements to print in the listener (default: 12)");
-  s7_symbol_set_setter(s7, ss->listener_colorized_symbol, s7_make_function(s7, "[acc-" S_listener_colorized "]", acc_listener_colorized, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, ss->listener_colorized_symbol, "*listener-colorized*: number of vector elements to print in the listener (default: 12)");
+  s7_set_setter(s7, ss->listener_colorized_symbol, s7_make_function(s7, "[acc-" S_listener_colorized "]", acc_listener_colorized, 2, 0, false, "accessor"));
 #endif
-  s7_symbol_set_documentation(s7, ss->listener_prompt_symbol, "*listener-prompt*: the current lisp listener prompt string (\">\") ");
-  s7_symbol_set_setter(s7, ss->listener_prompt_symbol, s7_make_function(s7, "[acc-" S_listener_prompt "]", acc_listener_prompt, 2, 0, false, "accessor"));
-  s7_symbol_set_documentation(s7, ss->stdin_prompt_symbol, "*stdin-prompt*: the current stdin prompt string");
-  s7_symbol_set_setter(s7, ss->stdin_prompt_symbol, s7_make_function(s7, "[acc-" S_stdin_prompt "]", acc_stdin_prompt, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, ss->listener_prompt_symbol, "*listener-prompt*: the current lisp listener prompt string (\">\") ");
+  s7_set_setter(s7, ss->listener_prompt_symbol, s7_make_function(s7, "[acc-" S_listener_prompt "]", acc_listener_prompt, 2, 0, false, "accessor"));
+  s7_set_documentation(s7, ss->stdin_prompt_symbol, "*stdin-prompt*: the current stdin prompt string");
+  s7_set_setter(s7, ss->stdin_prompt_symbol, s7_make_function(s7, "[acc-" S_stdin_prompt "]", acc_stdin_prompt, 2, 0, false, "accessor"));
 #endif  
 }

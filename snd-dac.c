@@ -3668,17 +3668,17 @@ If it returns " PROC_TRUE ", the sound is not played."
   start_playing_selection_hook = Xen_define_hook(S_start_playing_selection_hook, "(make-hook)",       0, H_start_playing_selection_hook);
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->cursor_location_offset_symbol, s7_make_function(s7, "[acc-" S_cursor_location_offset "]", acc_cursor_location_offset, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->cursor_update_interval_symbol, s7_make_function(s7, "[acc-" S_cursor_update_interval "]", acc_cursor_update_interval, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->dac_combines_channels_symbol, s7_make_function(s7, "[acc-" S_dac_combines_channels "]", acc_dac_combines_channels, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->dac_size_symbol, s7_make_function(s7, "[acc-" S_dac_size "]", acc_dac_size, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->with_tracking_cursor_symbol, s7_make_function(s7, "[acc-" S_with_tracking_cursor "]", acc_with_tracking_cursor, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->cursor_location_offset_symbol, s7_make_function(s7, "[acc-" S_cursor_location_offset "]", acc_cursor_location_offset, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->cursor_update_interval_symbol, s7_make_function(s7, "[acc-" S_cursor_update_interval "]", acc_cursor_update_interval, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->dac_combines_channels_symbol, s7_make_function(s7, "[acc-" S_dac_combines_channels "]", acc_dac_combines_channels, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->dac_size_symbol, s7_make_function(s7, "[acc-" S_dac_size "]", acc_dac_size, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->with_tracking_cursor_symbol, s7_make_function(s7, "[acc-" S_with_tracking_cursor "]", acc_with_tracking_cursor, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->cursor_location_offset_symbol, "*cursor-location-offset*: samples added to cursor location if cursor displayed during play.");
-  s7_symbol_set_documentation(s7, ss->cursor_update_interval_symbol, "*cursor-update-interval*: time (seconds) between cursor updates if with-tracking-cursor.");
-  s7_symbol_set_documentation(s7, ss->dac_combines_channels_symbol, "*dac-combines-channels*: #t if extra channels are to be mixed into available ones during playing.");
-  s7_symbol_set_documentation(s7, ss->dac_size_symbol, "*dac-size*: the current DAC buffer size in framples (256)");
-  s7_symbol_set_documentation(s7, ss->with_tracking_cursor_symbol, "*with-tracking-cursor*: #t if cursor always moves along in waveform display as sound is played");
+  s7_set_documentation(s7, ss->cursor_location_offset_symbol, "*cursor-location-offset*: samples added to cursor location if cursor displayed during play.");
+  s7_set_documentation(s7, ss->cursor_update_interval_symbol, "*cursor-update-interval*: time (seconds) between cursor updates if with-tracking-cursor.");
+  s7_set_documentation(s7, ss->dac_combines_channels_symbol, "*dac-combines-channels*: #t if extra channels are to be mixed into available ones during playing.");
+  s7_set_documentation(s7, ss->dac_size_symbol, "*dac-size*: the current DAC buffer size in framples (256)");
+  s7_set_documentation(s7, ss->with_tracking_cursor_symbol, "*with-tracking-cursor*: #t if cursor always moves along in waveform display as sound is played");
 #endif
 }
 

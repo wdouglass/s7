@@ -2335,11 +2335,11 @@ void g_init_regions(void)
 			    s7_make_signature(s7, 1, i), s7_make_signature(s7, 2, i, i));
 
 #if HAVE_SCHEME
-  s7_symbol_set_setter(s7, ss->max_regions_symbol, s7_make_function(s7, "[acc-" S_max_regions "]", acc_max_regions, 2, 0, false, "accessor"));
-  s7_symbol_set_setter(s7, ss->region_graph_style_symbol, s7_make_function(s7, "[acc-" S_region_graph_style "]", acc_region_graph_style, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->max_regions_symbol, s7_make_function(s7, "[acc-" S_max_regions "]", acc_max_regions, 2, 0, false, "accessor"));
+  s7_set_setter(s7, ss->region_graph_style_symbol, s7_make_function(s7, "[acc-" S_region_graph_style "]", acc_region_graph_style, 2, 0, false, "accessor"));
 
-  s7_symbol_set_documentation(s7, ss->max_regions_symbol, "*max-regions*: max number of regions saved on the region list");
-  s7_symbol_set_documentation(s7, ss->region_graph_style_symbol, "*region-graph-style*: graph style of the region dialog graph (graph-lines etc)");
+  s7_set_documentation(s7, ss->max_regions_symbol, "*max-regions*: max number of regions saved on the region list");
+  s7_set_documentation(s7, ss->region_graph_style_symbol, "*region-graph-style*: graph style of the region dialog graph (graph-lines etc)");
 
   s7_define_safe_function_star(s7, S_save_region, g_save_region, "region file sample-type header-type comment", H_save_region);
 #else
