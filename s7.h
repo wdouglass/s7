@@ -501,6 +501,9 @@ s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc, s7_
    *
    * s7_define_macro defines a Scheme macro; its arguments are not evaluated (unlike a function),
    *   but its returned value (assumed to be some sort of Scheme expression) is evaluated.
+   *
+   * Use the "unsafe" definer if the function might call the evaluator itself in some way (s7_apply_function for example),
+   *   or messes with s7's stack.
    */
 
   /* In s7, (define* (name . args) body) or (define name (lambda* args body))
@@ -824,45 +827,24 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 
 /* -------------------------------------------------------------------------------- */
 #if (!DISABLE_DEPRECATED)
-#define s7_is_ulong(arg)          s7_is_integer(arg)
-#define s7_ulong(p)               (uint64_t)s7_integer(p)
-#define s7_make_ulong(sc, n)      s7_make_integer(sc, (s7_int)n)
-#define s7_is_ulong_long(arg)     s7_is_c_pointer((void *)arg)
-#define s7_ulong_long(p)          (uint64_t)s7_c_pointer(arg)
-#define s7_make_ulong_long(sc, n) s7_make_c_pointer(sc, (void *)n)
-#define s7_is_constant(Obj)       ((!s7_is_symbol(Obj)) || (s7_is_immutable(Obj)))
-
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
 
-#define s7_define_function_with_setter(sc, name, get_fnc, set_fnc, req_args, opt_args, doc) \
-  s7_dilambda(sc, name, get_fnc, req_args, opt_args, set_fnc, req_args + 1, opt_args, doc)
-
-#define s7_is_procedure_with_setter   s7_is_dilambda
-#define s7_make_procedure_with_setter s7_dilambda
-#define s7_make_random_state          s7_random_state
+#define s7_is_ulong(arg)              s7_is_integer(arg)
+#define s7_ulong(p)                   (uint64_t)s7_integer(p)
+#define s7_make_ulong(sc, n)          s7_make_integer(sc, (s7_int)n)
 #define s7_is_object                  s7_is_c_object
 #define s7_object_type                s7_c_object_type
 #define s7_object_value               s7_c_object_value
-#define s7_object_value_checked       s7_c_object_value_checked
 #define s7_make_object                s7_make_c_object
-#define s7_make_object_with_let       s7_make_c_object_with_let
 #define s7_mark_object                s7_mark
-#define s7_mark_c_object              s7_mark
-#define s7_object_let                 s7_c_object_let
-#define s7_object_set_let             s7_c_object_set_let
-#define s7_set_object_print_readably  s7_c_type_set_print_readably
 #define s7_procedure_setter           s7_setter
-#define s7_procedure_documentation    s7_documentation
-#define s7_procedure_signature        s7_signature
 #define s7_symbol_documentation       s7_documentation
 #define s7_symbol_set_documentation   s7_set_documentation
 #define s7_symbol_setter              s7_setter
 #define s7_symbol_set_setter          s7_set_setter
-
-/* CM uses these */
-#define s7_UNSPECIFIED(Sc) s7_unspecified(Sc)
-#define s7_NIL(Sc) s7_nil(Sc)
+#define s7_UNSPECIFIED(Sc)            s7_unspecified(Sc)
+#define s7_NIL(Sc)                    s7_nil(Sc)
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
 #endif
 

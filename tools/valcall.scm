@@ -4,7 +4,6 @@
 		     ("teq.scm" . "v-eq")
 		     ("tfft.scm" . "v-fft")
 		     ("tref.scm" . "v-ref")
-		     ("tlet.scm" . "v-let")
 		     ("tauto.scm" . "v-auto")
 		     ("s7test.scm" . "v-test")
 		     ("tcopy.scm" . "v-cop")
@@ -20,6 +19,7 @@
 		     ("tall.scm" . "v-all")
 		     ("snd-test.scm" . "v-call")
 		     ("dup.scm" . "v-dup")
+		     ("tset.scm" . "v-st")
 		     ))
 
 (define (last-callg)
@@ -59,7 +59,6 @@
 	 (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" outfile (- next 1) outfile next)))))
    (list (list "snd -noinit" "tpeak.scm")
 	 (list "repl" "tmac.scm")
-	 (list "repl" "dup.scm")
 	 (list "repl" "tref.scm")
 	 (list "snd -noinit" "make-index.scm")
 	 (list "repl" "tauto.scm")
@@ -69,7 +68,6 @@
 	 (list "repl" "tread.scm")
 	 (list "repl" "tcopy.scm")
 	 (list "repl" "tform.scm")
-	 (list "repl" "tlet.scm")
 	 (list "repl" "tfft.scm")
 	 (list "repl" "tmap.scm")
 	 (list "repl" "titer.scm")
@@ -77,7 +75,9 @@
 	 ;(list "repl" "lg.scm")
 	 (list "repl" "thash.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
+	 (list "repl" "tset.scm")
 	 (list "snd -noinit" "tall.scm")
+	 (list "repl" "dup.scm")
 	 (list "snd -l" "snd-test.scm")
 	 )))
 	 
