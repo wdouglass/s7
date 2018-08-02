@@ -2,9 +2,6 @@
 ;;;
 ;;; reimplementation of code formerly in stuff.scm
 
-(define setter-print #f)
-
-
 (define (gather-symbols expr ce lst ignore)
   ;; collect settable variables in expr
   (cond ((symbol? expr)
@@ -64,7 +61,6 @@
 
 (define (setter-update cp)            ; cp: (slot var expr env expr-env)
   ;; when var set, all other vars dependent on it need to be set also, watching out for GC'd followers
-  (if setter-print (format *stderr* " -------- setter-update ~S~%" cp))
   (let ((var (slot-symbol cp))
 	(env (slot-env cp))
 	(expr (slot-expr cp)))
@@ -72,7 +68,6 @@
 	       (let? (slot-expr-env cp)))
       (let ((new-val (eval expr (slot-expr-env cp))))
 	(when (let? (slot-env cp))
-	  (if setter-print (format *stderr* " -------- let-set ~S ~S~%" var new-val))
 	  (let-set! env var new-val))))))
 
 
@@ -92,15 +87,11 @@
 
 (define* (make-setter var env (followers ()) (setters ()) (expr ()) expr-env)
   ;; return a new setter with closure containing the followers and setters of var, and the c-pointer holding its name, environment, and expression
-  (if setter-print (format *stderr* " -------- make-setter ~S ~S ~S ~S ~S~%" var env followers setters expr))
   (let ((followers followers)
 	(setters setters)
 	(cp (slot var expr env expr-env)))
     (lambda (sym val)
-      (if setter-print (format *stderr* " -------- setter ~S ~S ~S~%" sym val (*s7* 'stack-top)))
-      ;(if (> (*s7* 'stack-top) 30) (abort))
       (let-temporarily (((setter (slot-symbol cp) (slot-env cp)) #f))
-	(if setter-print (format *stderr* " -------- let-set ~S ~S: ~S in ~S~%" sym val (setter sym) (slot-env cp)))
 	(let-set! (slot-env cp) (slot-symbol cp) val) ; set new value without retriggering the setter
 	(for-each setter-update followers)            ; set any variables dependent on var
 	val))))
@@ -156,7 +147,6 @@
 (define a 2)
 (define b 1)
 (define x 0)
-(if setter-print (format *stderr* " -------- reactive-set...~%"))
 (reactive-set! x (+ a b))
 
 (set! a 3)

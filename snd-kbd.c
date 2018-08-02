@@ -1701,7 +1701,7 @@ void g_init_kbd(void)
   Xen_define_typed_procedure(S_key_binding, g_key_binding_w, 1, 2, 0, H_key_binding, s7_make_signature(s7, 4, t, t, n, b));
   Xen_define_typed_procedure(S_bind_key,    g_bind_key_w,    3, 3, 0, H_bind_key,    s7_make_signature(s7, 7, t, t, n, t, b, s, s)); 
   Xen_define_typed_procedure(S_unbind_key,  g_unbind_key_w,  2, 1, 0, H_unbind_key,  s7_make_signature(s7, 4, t, t, n, b));
-  Xen_define_typed_procedure(S_key,         g_key_w,         2, 2, 0, H_key,         s7_make_signature(s7, 5, t, n, n, t, t));
+  Xen_define_unsafe_typed_procedure(S_key,  g_key_w,         2, 2, 0, H_key,         s7_make_signature(s7, 5, t, n, n, t, t));
 
   for (i = 0; i < NUM_BUILT_IN_KEYS; i++)
     built_in_keys[i].func = Xen_false;
