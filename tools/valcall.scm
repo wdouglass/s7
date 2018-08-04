@@ -19,7 +19,7 @@
 		     ("tall.scm" . "v-all")
 		     ("snd-test.scm" . "v-call")
 		     ("dup.scm" . "v-dup")
-		     ("tset.scm" . "v-st")
+		     ("tset.scm" . "v-set")
 		     ))
 
 (define (last-callg)

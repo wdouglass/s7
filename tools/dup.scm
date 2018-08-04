@@ -79,14 +79,24 @@
 			(if (= jk (+ k size))
 			    (when (and (equal? lenseq (subvector lens size k))
 				       (equal? lineseq (subvector lines size k)))
-			      (if first
-				  (let ((first-line (int-vector-ref linenums i)))
-				    (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
-					    (subvector original-lines (- (int-vector-ref linenums (+ i size)) first-line) first-line)
-					    first-line
-					    (int-vector-ref linenums k))
-				    (set! first #f))
-				  (format *stderr* " ~D" (int-vector-ref linenums k))))
+			      (let ((full-size size))
+				(do ((nk jk (+ nk 1))
+				     (ni j (+ ni 1)))
+				    ((or (= nk total-lines)
+					 (not (= (int-vector-ref lens ni) (int-vector-ref lens nk)))
+					 (not (string=? (vector-ref lines ni) (vector-ref lines nk))))
+				     (set! full-size (+ size (- nk jk)))))
+				(if first
+				    (let ((first-line (int-vector-ref linenums i)))
+				      (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
+					      (subvector original-lines (- (int-vector-ref linenums (+ i size)) first-line) first-line)
+					      first-line
+					      (int-vector-ref linenums k))
+				      (set! first #f))
+				    (format *stderr* " ~D" (int-vector-ref linenums k)))
+				(set! i (+ i full-size))
+				(when (< size full-size)
+				  (format *stderr* "[~D]" full-size))))
 			    (set! k jk))))
 		    (unless first
 		      (format *stderr* "~%")))
@@ -94,36 +104,4 @@
 
 (dups 16 "s7.c" 88000)
 ;(dups 12 "ffitest.c" 2000)
-  
-
-
-#|
-  (let ((levenshtein 
-	 (lambda (s1 s2)
-	   (let ((L1 (length s1))
-		 (L2 (length s2)))
-	     (cond ((zero? L1) L2)
-		   ((zero? L2) L1)
-		   (else (let ((distance (make-vector (list (+ L2 1) (+ L1 1)) 0)))
-			   (do ((i 0 (+ i 1)))
-			       ((> i L1))
-			     (set! (distance 0 i) i))
-			   (do ((i 0 (+ i 1)))
-			       ((> i L2))
-			     (set! (distance i 0) i))
-			   (do ((i 1 (+ i 1)))
-			       ((> i L2))
-			     (do ((j 1 (+ j 1)))
-				 ((> j L1))
-			       (let ((c1 (+ (distance i (- j 1)) 1))
-				     (c2 (+ (distance (- i 1) j) 1))
-				     (c3 (if (char=? (s2 (- i 1)) (s1 (- j 1)))
-					     (distance (- i 1) (- j 1))
-					     (+ (distance (- i 1) (- j 1)) 1))))
-				 (set! (distance i j) (min c1 c2 c3)))))
-			   (distance L2 L1)))))))
-
-repl uses (< distance (floor (log str 2))) for a match, so if len diff > min2 don't check?
-
-same code as above but string=? -> fuzzy (and sorter use check above)
-|#
+;(dups 8 "ffitest.c" 2000)
