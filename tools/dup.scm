@@ -51,7 +51,7 @@
 		((= i total-lines))
 	      (vector-set! sortv i (cons (vector-ref lines i) i)))
 	    (set! sortv (sort! sortv (lambda (a b)
-				       (string<=? (car a) (car b)))))
+				       (string<? (car a) (car b)))))
 	    (let ((unctr -1))
 	      (do ((i 0))
 		  ((= i total-lines))
