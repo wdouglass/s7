@@ -43025,6 +43025,7 @@ EDITS: 1
 ;; 29-May-15: #(2 3 3 3 22  79 3 3 130 3  8 3 4  9  9 3  49 3    75 30  28 3  708     0 0 3 144) ;  13
 ;; fatty10
 ;; 30-Jan-17: #(0 0 1 0  6  45 1 1 101 1  4 1 1  3  4 1  29 1    48 12   9 3  389     0 0 1 181) ;   8
+;; 6-Aug-18:  #(1 1 1 1  7  52 1 1  95 1  5 1 2  4  6 1  29 1    43 15  15 3  367         1 168) ;   8
 
 ;;; -------- cleanup temp files
 
@@ -43342,5 +43343,30 @@ callgrind_annotate --auto=yes callgrind.out.<pid> > hi
   282,377,079  s7.c:opt_dotimes [/home/bil/motif-snd/snd]
   264,755,736  clm.c:run_hilbert [/home/bil/motif-snd/snd]
   239,373,538  clm.c:mus_src_to_buffer [/home/bil/motif-snd/snd]
+
+6-Aug-18:
+38,927,410,104
+4,452,499,340  s7.c:eval [/home/bil/motif-snd/snd]
+3,154,641,007  /build/glibc-OTsEL5/glibc-2.27/math/../sysdeps/ieee754/dbl-64/s_sin.c:sincos
+2,320,192,291  /build/glibc-OTsEL5/glibc-2.27/math/../sysdeps/ieee754/dbl-64/s_sin.c:__sin_fma [/lib/x86_64-linux-gnu/libm-2.27.so]
+1,724,852,171  /build/glibc-OTsEL5/glibc-2.27/math/../sysdeps/ieee754/dbl-64/s_sin.c:__cos_fma [/lib/x86_64-linux-gnu/libm-2.27.so]
+  960,563,119  s7.c:gc [/home/bil/motif-snd/snd]
+  899,741,681  clm.c:fir_ge_20 [/home/bil/motif-snd/snd]
+  842,540,085  /build/glibc-OTsEL5/glibc-2.27/string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:__memset_avx2_erms [/lib/x86_64-linux-gnu/libc-2.27.so]
+  827,739,907  clm.c:mus_src [/home/bil/motif-snd/snd]
+  603,673,241  clm.c:mus_phase_vocoder_with_editors [/home/bil/motif-snd/snd]
+  567,734,028  snd-edits.c:channel_local_maxamp [/home/bil/motif-snd/snd]
+  560,397,395  /build/glibc-OTsEL5/glibc-2.27/math/../sysdeps/ieee754/dbl-64/s_sincos.c:sincos [/lib/x86_64-linux-gnu/libm-2.27.so]
+  483,161,481  clm.c:mus_env_linear [/home/bil/motif-snd/snd]
+  466,582,141  io.c:mus_read_any_1.part.0 [/home/bil/motif-snd/snd]
+  460,946,971  clm2xen.c:safe_out_any_2_to_mus_xen [/home/bil/motif-snd/snd]
+  456,777,517  s7.c:eval'2 [/home/bil/motif-snd/snd]
+  349,537,710  clm.c:fb_one_with_amps_c1_c2 [/home/bil/motif-snd/snd]
+  274,938,780  clm.c:filter_ge_10 [/home/bil/motif-snd/snd]
+  265,902,302  /build/glibc-OTsEL5/glibc-2.27/math/../sysdeps/generic/math_private_calls.h:sincos
+  264,743,136  clm.c:run_hilbert [/home/bil/motif-snd/snd]
+  254,407,429  s7.c:fx_c_ss [/home/bil/motif-snd/snd]
+  247,359,272  s7.c:opt_dotimes [/home/bil/motif-snd/snd]
+  238,517,771  clm.c:mus_src_to_buffer [/home/bil/motif-snd/snd]
 
 |#

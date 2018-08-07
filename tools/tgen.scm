@@ -116,12 +116,12 @@
 (define-constant VV6 (make-float-vector 10))
 (define-constant VV8 (make-float-vector 10))
 (define-constant VV10 (make-float-vector 10))
-(define (Z) (mus-copy F))
+(define-constant (Z) (mus-copy F))
 
 (define G #f)
 (define I #f)
-(define (O) (vector #f (mus-copy I) #f))
-(define (Q) (mus-copy G))
+(define-constant (O) (vector #f (mus-copy I) #f))
+(define-constant (Q) (mus-copy G))
 
 (define (try1 form gen make-gen)
   (let ((body
