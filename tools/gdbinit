@@ -45,6 +45,14 @@ show all non-global variables that are currently accessible
 end
 
 
+define s7history
+print s7_show_history(cur_sc)
+end
+document s7history
+show the entries in the history buffer
+end
+
+
 define s7bt
 set logging overwrite on
 set logging redirect on
