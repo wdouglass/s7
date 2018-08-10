@@ -3740,7 +3740,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
 
       OP_LET_NO_VARS, OP_NAMED_LET, OP_NAMED_LET_NO_VARS, OP_NAMED_LET_STAR,
       OP_LET_C, OP_LET_S, OP_LET_S_P, OP_LET_ALL_C, OP_LET_ALL_S, OP_LET_FX,
-      OP_LET_STAR_FX, OP_LET_STAR_A2, OP_LET_STAR_A, OP_LET_opCq, OP_LET_opSSq, OP_LET_opSSq_E, OP_LET_opaSSq_E,
+      OP_LET_STAR_FX, OP_LET_STAR_A2, OP_LET_STAR_A, OP_LET_opCq, OP_LET_opSSq, OP_LET_opSSq_E, OP_LET_opaSSq, OP_LET_opaSSq_E,
       OP_LET_opSq, OP_LET_ALL_opSq, OP_LET_opSq_P, OP_LET_CAR, OP_LET_ONE, OP_LET_ONE_1, OP_LET_ONE_P, OP_LET_ONE_P_1, 
       OP_LET_Z, OP_LET_Z_1, OP_LET_A, OP_LET_A_P,
 
@@ -3957,7 +3957,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
 
       "let_no_vars", "named_let", "named_let_no_vars", "named_let*",
       "let_c", "let_s", "let_s_p", "let_all_c", "let_all_s", "let_fx",
-      "let*_fx", "let*_a2", "let*_a", "let_opcq", "let_opssq", "let_opssq_e", "let_opassq_e",
+      "let*_fx", "let*_a2", "let*_a", "let_opcq", "let_opssq", "let_opssq_e", "let_opassq", "let_opassq_e",
       "let_opsq", "let_all_opsq", "let_opsq_p", "let_car", "let_one", "let_one_1", "let_one_p", "let_one_p_1", 
       "let_z", "let_z_1", "let_a", "let_a_p",
 
@@ -39238,10 +39238,13 @@ static s7_pointer hash_table_ref_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p
   return(s7_hash_table_ref(sc, p1, p2));
 }
 
+#define hash_table_ref_p_pp_direct s7_hash_table_ref
+#if 0
 static s7_pointer hash_table_ref_p_pp_direct(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 {
   return(s7_hash_table_ref(sc, p1, p2));
 }
+#endif
 
 
 /* -------------------------------- hash-table-set! -------------------------------- */
@@ -46296,7 +46299,8 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
       op = sc->print_length;
       if (op < 32) sc->print_length = 32;
 
-      if (port_is_closed(sc->error_port))
+      if ((!is_output_port(sc->error_port)) || /* error-port can be #f */
+	  (port_is_closed(sc->error_port))) 
 	sc->error_port = sc->standard_error;
       /* if info is not a list, send object->string to current error port,
        *   else assume car(info) is a format control string, and cdr(info) are its args
@@ -66521,7 +66525,9 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 	  set_opt_pair2(sc->code, cadr(binding));
 	  if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 	    {
-	      pair_set_syntax_op(form, OP_LET_opSSq);
+	      if (c_call(cadr(binding)) == g_assq)
+		pair_set_syntax_op(form, OP_LET_opaSSq);
+	      else pair_set_syntax_op(form, OP_LET_opSSq);
 	      set_opt_sym3(sc->code, caddr(cadr(binding)));
 	    }
 	  else
@@ -69730,8 +69736,8 @@ static int32_t dox_ex(s7_scheme *sc)
   /* any number of steppers using dox exprs, end also dox, body and end result arbitrary.
    *    since all these exprs are local, we don't need to jump until the body
    */
-  int64_t id;
-  s7_pointer frame, vars, slot, code, end, endp;
+  int64_t id, steppers = 0;
+  s7_pointer frame, vars, slot, code, end, endp, stepper = NULL;
   s7_function endf;
 
   /* fprintf(stderr, "dox: %s\n", DISPLAY(sc->code)); */
@@ -69759,7 +69765,11 @@ static int32_t dox_ex(s7_scheme *sc)
       slot_set_value(slot, val);
 
       if (is_pair(cddar(vars)))
-	slot_set_expression(slot, cddar(vars));
+	{
+	  steppers++;
+	  stepper = slot;
+	  slot_set_expression(slot, cddar(vars));
+	}
       else slot_just_set_expression(slot, sc->nil);
 
       set_next_slot(slot, let_slots(frame));
@@ -69787,31 +69797,56 @@ static int32_t dox_ex(s7_scheme *sc)
   code = cddr(sc->code);
   if (is_null(code)) /* no body? */
     {
-      s7_pointer slots;
       if (endf == fx_c_c)
 	{
 	  endf = c_callee(endp);
 	  endp = cdr(endp);
 	}
-
-      slots = let_slots(sc->envir);
-      if ((is_null(next_slot(slots))) && 
-	  (slot_has_expression(slots)))
+      if (steppers == 1)
 	{
 	  s7_function f;
 	  s7_pointer a;
 
-	  f = c_callee(slot_expression(slots)); /* e.g. fx_c_add1 */
-	  a = car(slot_expression(slots));
+	  f = c_callee(slot_expression(stepper)); /* e.g. fx_c_add1 */
+	  a = car(slot_expression(stepper));
 	  if (f == fx_c_c)
 	    {
 	      f = c_callee(a);
 	      a = cdr(a);
 	    }
 
+	  if ((endf == fx_or2) &&
+	      (f == fx_c_add1))
+	    {
+	      s7_pointer a1, a2;
+	      s7_function o1, o2;
+	      endp = cdr(endp);
+	      o1 = c_callee(endp);
+	      a1 = car(endp);
+	      o2 = c_callee(cdr(endp));
+	      a2 = cadr(endp);
+	      while (true)
+		{
+		  s7_pointer ind;
+
+		  ind = slot_value(stepper);
+		  if (is_integer(ind))
+		    slot_set_value(stepper, make_integer(sc, integer(ind) + 1));
+		  else slot_set_value(stepper, g_add_sis(sc, ind, 1));
+
+		  sc->value = o1(sc, a1);
+		  if (sc->value == sc->F) 
+		    sc->value = o2(sc, a2);
+		  if (sc->value != sc->F)
+		    {
+		      sc->code = cdr(end);
+		      return(goto_DO_END_CLAUSES);
+		    }
+		}
+	    }
 	  while (true)
 	    {
-	      slot_set_value(slots, f(sc, a));
+	      slot_set_value(stepper, f(sc, a));
 	      if (is_true(sc, sc->value = endf(sc, endp)))
 		{
 		  sc->code = cdr(end);
@@ -69821,6 +69856,8 @@ static int32_t dox_ex(s7_scheme *sc)
 	}
       else
 	{
+	  s7_pointer slots;
+	  slots = let_slots(sc->envir);
 	  while (true)
 	    {
 	      s7_pointer slt;
@@ -69840,7 +69877,7 @@ static int32_t dox_ex(s7_scheme *sc)
       s7_pointer slots;
       slots = let_slots(sc->envir);
       /* is let activated? also multiexpr body  and other fx? */
-      
+
       if ((is_null(cdr(code))) &&
 	  (is_pair(car(code))))
 	{
@@ -69858,6 +69895,44 @@ static int32_t dox_ex(s7_scheme *sc)
 
 	  if (body)
 	    {
+	      if (steppers == 1)
+		{
+		  s7_pointer stepa;
+		  s7_function stepf;
+		  stepf = c_callee(slot_expression(stepper));
+		  stepa = car(slot_expression(stepper));
+
+		  if (body == opt_float_any_nr)
+		    {
+		      s7_double (*fd)(void *o);
+		      opt_info *o;
+		      o = sc->opts[0];
+		      fd = o->v[0].fd;
+		      while (true)
+			{
+			  sc->pc = 0;
+			  fd(o);
+			  slot_set_value(stepper, stepf(sc, stepa));
+			  if (is_true(sc, sc->value = endf(sc, endp)))
+			    {
+			      sc->code = cdr(end);
+			      return(goto_DO_END_CLAUSES);
+			    }
+			}
+		    }
+
+		  while (true)
+		    {
+		      body(sc, lcode);
+		      slot_set_value(stepper, stepf(sc, stepa));
+		      if (is_true(sc, sc->value = endf(sc, endp)))
+			{
+			  sc->code = cdr(end);
+			  return(goto_DO_END_CLAUSES);
+			}
+		    }
+		}
+
 	      while (true)
 		{
 		  s7_pointer slot1;
@@ -69907,9 +69982,17 @@ static int32_t dox_ex(s7_scheme *sc)
 	  if (is_null(p))
 	    {
 	      int32_t i;
+	      s7_pointer stepa;
+	      s7_function stepf;
 	      if (!use_opts)
 		annotate_args(sc, code, sc->envir);
 	      
+	      if (stepper)
+		{
+		  stepf = c_callee(slot_expression(stepper));
+		  stepa = car(slot_expression(stepper));
+		}
+
 	      while (true)
 		{
 		  s7_pointer slot;
@@ -69930,9 +70013,16 @@ static int32_t dox_ex(s7_scheme *sc)
 			c_call(p)(sc, car(p));
 		    }
 		  
-		  for (slot = slots; is_slot(slot); slot = next_slot(slot))
-		    if (slot_has_expression(slot))
-		      slot_set_value(slot, c_call(slot_expression(slot))(sc, car(slot_expression(slot))));
+		  if (steppers == 1)
+		    {
+		      slot_set_value(stepper, stepf(sc, stepa));
+		    }
+		  else
+		    {
+		      for (slot = slots; is_slot(slot); slot = next_slot(slot))
+			if (slot_has_expression(slot))
+			  slot_set_value(slot, c_call(slot_expression(slot))(sc, car(slot_expression(slot))));
+		    }
 		  if (is_true(sc, sc->value = endf(sc, endp)))
 		    {
 		      sc->code = cdr(end);
@@ -72914,6 +73004,38 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 #endif
 	  
 
+static inline void op_let_opssq(s7_scheme *sc)
+{
+  s7_pointer largs, in_val;
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+  largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
+  in_val = symbol_to_value_unchecked(sc, cadr(largs));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym3(sc->code))); /* caddr(largs)); */
+  set_car(sc->t2_1, in_val);
+  sc->value = c_call(largs)(sc, sc->t2_1);
+  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
+}
+
+static inline void op_let_opassq(s7_scheme *sc)
+{
+  s7_pointer largs, in_val, lst;
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+  largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
+  in_val = symbol_to_value_unchecked(sc, cadr(largs));
+  lst = symbol_to_value_unchecked(sc, opt_sym3(sc->code)); 
+  if (is_pair(lst))
+    sc->value = s7_assq(sc, in_val, lst);
+  else
+    {
+      if (is_null(lst))
+	sc->value = sc->F;
+      else sc->value = g_assq(sc, set_plist_2(sc, in_val, lst));
+    }
+  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
+}
+
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
 #if SHOW_EVAL_OPS
@@ -73872,7 +73994,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer slot;
 	    for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
-	      if (slot_has_expression(slot)) /* && (is_pair(slot_expression(slot)))) */
+	      if (slot_has_expression(slot))
 		slot_set_value(slot, c_call(slot_expression(slot))(sc, car(slot_expression(slot))));
 	    do_fx_end(cadr(sc->code));
 	    push_stack_no_args(sc, OP_DOX_STEP, sc->code);
@@ -73884,7 +74006,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer slot;
 	    for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
-	      if (slot_has_expression(slot)) /* && (is_pair(slot_expression(slot)))) */
+	      if (slot_has_expression(slot))
 		slot_set_value(slot, c_call(slot_expression(slot))(sc, car(slot_expression(slot))));
 	    do_fx_end(cadr(sc->code));
 	    push_stack_no_args(sc, OP_DOX_STEP_P, sc->code);
@@ -77381,8 +77503,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   * so set-cdr! of constant -- if marked immutable, we could catch this case and clear.
 	   */
 	  check_quote(sc, sc->code);
-	  sc->code = cdr(sc->code);
-	  sc->value = car(sc->code);
+	  /* sc->code = cdr(sc->code); */
+	  sc->value = cadr(sc->code);
 	  goto START;
 	  
 	case OP_DEFINE_FUNCHECKED: 
@@ -78368,54 +78490,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto BEGIN;
 	  
 	case OP_LET_opSSq:       /* one var, init is safe_c_ss */
-	  {
-	    s7_pointer largs, in_val;
-	    set_current_code(sc, sc->code);
-	    sc->code = cdr(sc->code);
-	    largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
-	    in_val = symbol_to_value_unchecked(sc, cadr(largs));
-	    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym3(sc->code))); /* caddr(largs)); */
-	    set_car(sc->t2_1, in_val);
-	    sc->value = c_call(largs)(sc, sc->t2_1);
-	    new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
-	    sc->code = T_Pair(cdr(sc->code));
-	    goto BEGIN;
-	  }
+	  op_let_opssq(sc);
+	  sc->code = T_Pair(cdr(sc->code));
+	  goto BEGIN;
 
 	case OP_LET_opSSq_E:  
-	  {
-	    s7_pointer largs, in_val;
-	    set_current_code(sc, sc->code);
-	    sc->code = cdr(sc->code);
-	    largs = T_Pair(opt_pair2(sc->code));                              /* cadr(caar(sc->code)); */
-	    in_val = symbol_to_value_unchecked(sc, cadr(largs));
-	    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym3(sc->code))); /* caddr(largs)); */
-	    set_car(sc->t2_1, in_val);
-	    sc->value = c_call(largs)(sc, sc->t2_1);
-	    new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
-	    sc->code = cadr(sc->code);
-	    goto EVAL;
-	  }
+	  op_let_opssq(sc);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
 	  
-	case OP_LET_opaSSq_E:  
-	  {
-	    s7_pointer in_val, lst;
-	    set_current_code(sc, sc->code);
-	    sc->code = cdr(sc->code);
-	    in_val = symbol_to_value_unchecked(sc, cadr(opt_pair2(sc->code)));
-	    lst = symbol_to_value_unchecked(sc, opt_sym3(sc->code)); 
-	    if (is_pair(lst))
-	      sc->value = s7_assq(sc, in_val, lst);
-	    else
-	      {
-		if (is_null(lst))
-		  sc->value = sc->F;
-		else sc->value = g_assq(sc, set_plist_2(sc, in_val, lst));
-	      }
-	    new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
-	    sc->code = cadr(sc->code);
-	    goto EVAL;
-	  }
+	case OP_LET_opaSSq:
+	  op_let_opassq(sc);
+	  sc->code = T_Pair(cdr(sc->code));
+	  goto BEGIN;
+
+	case OP_LET_opaSSq_E:
+	  op_let_opassq(sc);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
 	  
 	case OP_LET_Z: 
 	  set_current_code(sc, sc->code);
@@ -78540,7 +78632,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_FX: 
 	  {
 	    s7_pointer p, frame;
-	    /* fprintf(stderr, "let fx %s\n", DISPLAY(sc->code)); */
 	    set_current_code(sc, sc->code);
 	    sc->code = cdr(sc->code);
 	    frame = make_simple_let(sc);
@@ -79296,8 +79387,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer p;
 	    set_current_code(sc, sc->code);
-	    sc->code = cdr(sc->code);
-	    for (p = sc->code; is_pair(p); p = cdr(p))
+	    /* sc->code = cdr(sc->code); */
+	    for (p = cdr(sc->code); is_pair(p); p = cdr(p))
 	      {
 		sc->value = c_call(car(p))(sc, caar(p));
 		if (is_true(sc, sc->value))
@@ -87506,29 +87597,29 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   280
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280   278
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   283
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1082
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1318
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1087
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1322
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1911
- * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2326
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2364
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1933
+ * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2325
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2368
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2373
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2391
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2394
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3112
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3270
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3265
  * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  4047
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4094
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6351
- * tset          |      |      |      ||      ||      |                         10.0  7971
- * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.0
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4079
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6362
+ * tset          |      |      |      ||      ||      |                         10.0  8943
+ * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.3
- * dup           |      |      |      ||      ||      |                         20.8  18.5
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  38.9
+ * dup           |      |      |      ||      ||      |                         20.8  18.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
- * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 117.0
+ * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.9
  * tbig          |      |      |      ||      ||      |                        255.4 255.1
  * ------------------------------------------------------------------------------------------
  */

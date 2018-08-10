@@ -106,5 +106,6 @@
 		      (set! i j)))))))))))
 
 (dups 16 "s7.c" 88000)
+;(dups 6 "s7.c" 88000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
