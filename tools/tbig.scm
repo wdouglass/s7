@@ -238,10 +238,6 @@
 	  (let ((big3 (make-string 20 #\null)))
 	    (copy bigstr big3 (- (ash 1 31) 10) (+ (ash 1 31) 10))
 	    (test (string=? big2 big3) #t)))))
-    (let ((bstr (string-upcase bigstr)))
-      (test (string-ref bstr 0) #\B)
-      (test (string-ref bstr (- (ash 1 31) 1)) #\D)
-      (test (string-position "DDDD" bstr) (- (ash 1 31) 10)))
     (let ((p (call-with-output-string 
 	      (lambda (p)
 		(write-string bigstr p (- (ash 1 31) 10) (+ (ash 1 31) 10))))))

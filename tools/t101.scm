@@ -40,6 +40,8 @@
   "`(ok? ',tst (lambda () (stacktrace (- (random 100) 50) (- (random 100) 50) (- (random 100) 50) (- (random 100) 50) (> (random 100) 50)) ,tst) ,expected)"
   "`(ok? ',tst (lambda () (let ((__val__ (s7-optimize '(,tst)))) (if (eq? __val__ #<undefined>) ,tst __val__)))	,expected)"
   "`(ok? ',tst (lambda () (let ((!x 0)) (set! (setter '!x) (lambda (_A _B) ,tst)) (set! !x 1))) ,expected)"
+  "`(ok? ',tst (lambda () (define* (fgh1 (!x ,tst)) !x) (fgh1)) ,expected)"
+  "`(ok? ',tst (lambda () (define !f (let ((!x ,tst)) (lambda () !x))) (!f)) ,expected)"
   ))
 
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)

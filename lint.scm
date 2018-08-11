@@ -950,7 +950,7 @@
 				     sequence? sin sinh square sqrt string->number string->symbol 
 				     string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-downcase string-length
 				     string-position string-ref string-upcase string<=? string<? string=? string>=? string>? string?
-				     substring symbol symbol->keyword symbol->string symbol? syntax?
+				     substring  subvector? symbol symbol->keyword symbol->string symbol? syntax?
 				     tan tanh tree-leaves tree-memq truncate
 				     unspecified? undefined?
 				     vector-dimensions vector-length vector-ref vector?
@@ -1891,9 +1891,9 @@
 	    ((exact?)            (memq type2 '(real? rational? complex? number? integer? zero? negative? positive? odd? even?)))
 	    ((inexact?)          (memq type2 '(real? number? complex? float? zero? negative? positive? infinite? nan?)))
 	    ((infinite? nan?)    (memq type2 '(real? number? complex? positive? negative? inexact? float?)))
-	    ((vector?)           (memq type2 '(float-vector? int-vector? sequence?)))
-	    ((float-vector? int-vector?) (memq type2 '(vector? sequence?)))
-	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? tree-cyclic? openlet?
+	    ((vector?)           (memq type2 '(float-vector? int-vector? sequence? subvector?)))
+	    ((float-vector? int-vector?) (memq type2 '(vector? sequence? subvector?)))
+	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? tree-cyclic? openlet? subvector?
 					       string? let? hash-table? iterator? procedure? directory? file-exists?))) ; procedure? for extended iterator
 	    ((symbol?)           (memq type2 '(gensym? keyword? defined? provided?)))
 	    ((string?)           (memq type2 '(byte-vector? sequence? directory? file-exists?)))
@@ -1948,7 +1948,7 @@
 	    ((proper-list?)     (eq? type2 'null?))
 	    ((vector?)          (memq type2 '(float-vector? int-vector?)))
 	    ((symbol?)          (memq type2 '(keyword? gensym?))) ; defined? provided? ??
-	    ((sequence?)        (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector?
+	    ((sequence?)        (memq type2 '(list? pair? null? proper-list? vector?  subvector? float-vector? int-vector? byte-vector?
 					      string? let? hash-table? directory? file-exists?)))
 	    ((char?)            (memq type2 '(char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)))
 	    (else #f))))
@@ -2302,7 +2302,7 @@
 	((integer? rational? real? number? complex? float?) '(eqv? =))
 	((symbol? keyword? boolean? null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
 	((string? byte-vector?) '(equal? string=?))
-	((pair? vector? float-vector? int-vector? hash-table?) '(equal? equal?))
+	((pair? vector? float-vector? int-vector?  subvector? hash-table?) '(equal? equal?))
 	((eof-object?) '(eq? eof-object?))
 	(else 
 	 (if (and (len=2? x)
@@ -9948,7 +9948,7 @@
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults
 					max-stack-size stack catches exits float-format-precision bignum-precision default-rationalize-error 
 					default-random-state morally-equal-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
-					gc-stats history-size history profile-info autoloading?))
+					gc-stats history-size history profile-info autoloading? max-format-length))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)
@@ -22784,5 +22784,5 @@
     #f))
 |#
 
-;;; 64 917553
+;;; 64 918856
 

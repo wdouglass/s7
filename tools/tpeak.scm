@@ -91,9 +91,10 @@
 		     (vector? (vector-ref val k))))
 	    (format () "~A ~D[~D]: bad entry: ~A (a-len: ~A)~%" choice n k (vector-ref val k) a-len))
 	(if (vector? (vector-ref val k))
-	    (let ((v (vector-ref val k)))
+	    (let ((v (vector-ref val k))
+		  (len (length (vector-ref val k))))
 	      (do ((i 0 (+ i 1)))
-		  ((= i (length v)))
+		  ((= i len))
 		(if (> (abs (vector-ref v i)) 2.0)
 		    (format () "~A ~D[~D][~D]: needs mod: ~A~%" choice n k i (vector-ref v i))))))
 	(if (and (real? (vector-ref val k))
@@ -201,21 +202,18 @@
 		(set! even-lgs (cons (list lg choice i mn) even-lgs))))
 	     
 	     (set! sum (+ sum mn))
-	     (if (and (> i 6)
-		      (> mn (sqrt i)))
-		 (case choice
-		   ((:all) (set! all-dist (+ all-dist (- mn (sqrt i)))))
-		   ((:odd) (set! odd-dist (+ odd-dist (- mn (sqrt i)))))
-		   ((:even) (set! even-dist (+ even-dist (- mn (sqrt i)))))
-		   (else (set! prime-dist (+ prime-dist (- mn (sqrt i)))))))
-	     
-	     (if (and (> i 6)
-		      (< mn (sqrt i)))
-		 (case choice
-		   ((:all) (set! all-under (+ all-under (- (sqrt i) mn))))
-		   ((:odd) (set! odd-under (+ odd-under (- (sqrt i) mn))))
-		   ((:even) (set! even-under (+ even-under (- (sqrt i) mn))))
-		   (else (set! prime-under (+ prime-under (- (sqrt i) mn))))))
+	     (when (> i 6)
+	       (if (> mn (sqrt i))
+		   (case choice
+		     ((:all) (set! all-dist (+ all-dist (- mn (sqrt i)))))
+		     ((:odd) (set! odd-dist (+ odd-dist (- mn (sqrt i)))))
+		     ((:even) (set! even-dist (+ even-dist (- mn (sqrt i)))))
+		     (else (set! prime-dist (+ prime-dist (- mn (sqrt i))))))
+		   (case choice
+		     ((:all) (set! all-under (+ all-under (- (sqrt i) mn))))
+		     ((:odd) (set! odd-under (+ odd-under (- (sqrt i) mn))))
+		     ((:even) (set! even-under (+ even-under (- (sqrt i) mn))))
+		     (else (set! prime-under (+ prime-under (- (sqrt i) mn)))))))
 	     ))
 	 '(:all :odd :prime :even)))
       
@@ -226,7 +224,7 @@
 	 (for-each
 	  (lambda (choice)
 	    (let* ((mn (min-peak choice i))
-		   (lg (and mn (log mn i))))
+		   (lg (and (number? mn) (log mn i))))
 	      (if mn
 		  (case choice
 		    ((:all)

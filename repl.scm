@@ -901,9 +901,13 @@
 				    (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
 				      (newline *stderr*)
 				      (let ((val ((lambda args
-						    (if (pair? (cdr args))
-							(cons 'values args)
-							(car args)))
+						    (if (or (null? args)   ; try to trap (values) -> #<unspecified>
+							    (and (unspecified? (car args))
+								 (null? (cdr args))))
+							#<unspecified>
+							(if (pair? (cdr args))
+							    (cons 'values args)
+							    (car args))))
 						  (eval form (*repl* 'top-level-let)))))
 					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
