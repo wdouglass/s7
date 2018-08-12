@@ -26,11 +26,9 @@
      #f)))
 
 (define-constant (find-if-c iter)
-  (let loop ()
-    (case (type-of (iterate iter))
-      ((string?) #t)
-      ((eof-object?) #f)
-      (else (loop)))))
+  (do ((obj (iterate iter) (iterate iter)))
+      ((memq (type-of obj) '(eof-object? string?))
+       (string? obj))))
 
 (define-constant (find-if-d iter)
   (do ((i 0 (+ i 1)))
@@ -38,7 +36,6 @@
        (not (iterator-at-end? iter)))
     (do ()
 	((or (string? (iterate iter)) (iterator-at-end? iter))))))
-
 
 (define (test)
   (for-each

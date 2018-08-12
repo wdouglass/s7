@@ -293,6 +293,7 @@
   #define S7_DEBUGGING 0
 #endif
 #define CDR 0
+#define DEBUG_CATCH 0
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -9629,6 +9630,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	{
 	  s7_pointer x;
 	  x = stack_code(continuation_stack(c), i);
+
 	  if (dynamic_wind_in(x) != sc->F)
 	    {
 	      /* this can cause an infinite loop if the call/cc is trying to jump back into
@@ -9640,6 +9642,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	      sc->code = dynamic_wind_in(x);
 	      eval(sc, OP_APPLY);
 	    }
+
 	  dynamic_wind_state(x) = DWIND_BODY;
 	}
       else
@@ -25063,22 +25066,22 @@ static s7_pointer g_read_string(s7_scheme *sc, s7_pointer args)
   do {									\
       old_longjmp = Sc->longjmp_ok;					\
       old_jump_loc = Sc->setjmp_loc;					\
-      memcpy((void *)old_goto_start, (void *)(Sc->goto_start), sizeof(jmp_buf));\
+      memcpy((void *)old_goto_start, (void *)(Sc->goto_start), sizeof(jmp_buf)); \
   } while (0)
 
 #define restore_jump_info(Sc)						\
   do {									\
       Sc->longjmp_ok = old_longjmp;					\
       Sc->setjmp_loc = old_jump_loc;					\
-      memcpy((void *)(Sc->goto_start), (void *)old_goto_start, sizeof(jmp_buf));\
-      if ((jump_loc == ERROR_JUMP) &&\
-          (sc->longjmp_ok))\
-        longjmp(sc->goto_start, ERROR_JUMP);\
+      memcpy((void *)(Sc->goto_start), (void *)old_goto_start, sizeof(jmp_buf)); \
+      if ((jump_loc == ERROR_JUMP) &&					\
+          (sc->longjmp_ok))						\
+        longjmp(sc->goto_start, ERROR_JUMP);				\
   } while (0)
 
-#define set_jump_info(Sc, Tag)			\
-  do {						\
-      sc->longjmp_ok = true;			\
+#define set_jump_info(Sc, Tag)				\
+  do {							\
+      sc->longjmp_ok = true;				\
       sc->setjmp_loc = Tag;				\
       jump_loc = setjmp(sc->goto_start);		\
   } while (0)
@@ -26253,19 +26256,8 @@ static s7_pointer vector_iterate(s7_scheme *sc, s7_pointer obj)
 static s7_pointer closure_iterate(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer result;
-  /* TODO: push OP_ITERATE where the result check can use args=obj see dyn_wind 
-   *   but g_iterate returns our "result": if we push apply will it happen?
-   *   and iterate claims it is safe -- this would be false, I think, if we don't use apply_func
-   *   are we returning from eval not through op_eval_done? [reader errors, op_error_hook_quit, begin_hook quit etc]
-   * should the reader errors be calling return? [how to catch #t (load...)?]
-   * eval_done counter would need to be local to the stack (due to call/cc) -- then we'd be splitting cur_op?
-   * on DEBUG_CATCH add eval_done_ctr, increment at push, decr if changed or called or if return called elsewhere
-   *   change explicit quit to its own op [is s7_call safer here?]
-   * try method calling catch, load-hook, documentation (signature), unbound-variable-hook, method body
-   *   also sort function, but it should be less problematic [member/assoc?]
-   *   also throw and error (from func)
-   */
-  result = s7_apply_function(sc, iterator_sequence(obj), sc->nil);
+  result = s7_call(sc, iterator_sequence(obj), sc->nil);
+  /* this can't use s7_apply_function -- we need to catch the error handler's longjmp here */
   if (result == ITERATOR_END)
     {
       iterator_next(obj) = iterator_finished;
@@ -30547,9 +30539,41 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
+#define CYCLE_DEBUGGING 0
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
+#if CYCLE_DEBUGGING
+  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
+   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
+   *   and abort leaving us pointers we can decode.
+   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
+   *   so... let's try 100000 for starters.
+   */
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
+
   ref = shared_ref(ci, vr);
   if (ref != 0)
     {
@@ -30629,7 +30653,8 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
       ci->init_port = sc->F;
     }
   
-  port_write_string(port)(sc, (const char *)(port_data(ci->cycle_port)), port_position(ci->cycle_port), port);
+  if (port_position(ci->cycle_port) > 0)     /* 0 if e.g. (object->string (object->let (rootlet)) :readable) */
+    port_write_string(port)(sc, (const char *)(port_data(ci->cycle_port)), port_position(ci->cycle_port), port);
   s7_close_output_port(sc, ci->cycle_port);
   s7_gc_unprotect_at(sc, ci->cycle_loc);
   ci->cycle_port = sc->F;
@@ -37110,7 +37135,7 @@ static s7_int ref_check_index(s7_scheme *sc, s7_pointer v, s7_int i)
   return(i);
 }
 static s7_double float_vector_ref_d_7pi(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector_element(v, ref_check_index(sc, v, i)));}
-static s7_pointer float_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector_getter(sc, v, i));}
+static s7_pointer float_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_real(sc, float_vector_element(v, i)));}
 
 static s7_pointer float_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -37242,7 +37267,7 @@ static s7_int int_vector_ref_i_7pi(s7_scheme *sc, s7_pointer v, s7_int i)
     out_of_range(sc, sc->int_vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(int_vector_element(v, i));
 } 
-static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(int_vector_getter(sc, v, i));}
+static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_integer(sc, int_vector_element(v, i)));}
 
 static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
 {
@@ -45828,7 +45853,9 @@ static bool catch_all_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_poin
   sc->op_stack_now = (s7_pointer *)(sc->op_stack + catch_all_op_loc(catcher));
   sc->stack_end = (s7_pointer *)(sc->stack_start + catch_all_goto_loc(catcher));
   pop_stack(sc);
+#if 0
   if (sc->cur_op == OP_EVAL_DONE) sc->cur_op = OP_NO_OP;
+#endif
   if (is_pair(sc->value))
     {
       if (car(sc->value) == sc->quote_symbol)
@@ -45958,8 +45985,13 @@ static bool catch_1_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointe
 	      if (loc > 4)
 		{
 		  pop_stack(sc);
+#if DEBUG_CATCH
+		  fprintf(stderr, "pop in catch1: %s\n", op_names[sc->cur_op]);
+#endif
+#if 0
 		  if (sc->cur_op == OP_EVAL_DONE) 
 		    sc->cur_op = OP_NO_OP;
+#endif
 		}
 	      /* we're at OP_CATCH, normally we want to pop that away, but (handwaving...) if we're coming
 	       *   from s7_eval (indirectly perhaps through s7_eval_c_string), we might push the OP_EVAL_DONE
@@ -46194,7 +46226,8 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
    *   else send out the error info ourselves.
    */
   sc->format_depth = -1;
-  sc->gc_off = false;            /* this is in case we were triggered from the sort function -- clumsy! */
+  sc->gc_off = false;             /* this is in case we were triggered from the sort function -- clumsy! */
+  sc->object_out_locked = false;  /* poosible error in obj->str method after object_out has set this flag */
 
   if (sc->current_safe_list > 0) 
     {
@@ -46970,6 +47003,8 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
       T_Pos(car(p));
   }
 #endif
+  /* fprintf(stderr, "s7_apply_function %s %s\n", DISPLAY(fnc), DISPLAY(args)); */
+
   if (sc->safety > NO_SAFETY)
     set_current_code(sc, cons(sc, fnc, args));
   else set_current_code(sc, fnc);
@@ -47357,6 +47392,8 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
 {
   declare_jump_info();
   TRACK(sc);
+
+  /* fprintf(stderr, "s7_call %s %s\n", DISPLAY(func), DISPLAY(args)); */
 
   if (sc->safety > NO_SAFETY)
     set_current_code(sc, cons(sc, func, args));
@@ -69849,6 +69886,20 @@ static int32_t dox_ex(s7_scheme *sc)
 		    }
 		}
 	    }
+	  if ((f == fx_cdr_s) &&
+	      (cadr(a) == slot_symbol(stepper)))
+	    {
+	      while (true)
+		{
+		  slot_set_value(stepper, cdr(slot_value(stepper)));
+		  if (endf(sc, endp) != sc->F)
+		    {
+		      sc->value = sc->T;
+		      sc->code = cdr(end);
+		      return(goto_DO_END_CLAUSES);
+		    }
+		}
+	    }
 	  while (true)
 	    {
 	      slot_set_value(stepper, f(sc, a));
@@ -73074,6 +73125,16 @@ static inline void op_let_opassq(s7_scheme *sc)
       else sc->value = g_assq(sc, set_plist_2(sc, in_val, lst));
     }
   new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
+}
+
+static inline void op_closure_a(s7_scheme *sc)
+{
+  s7_pointer code;
+  code = sc->code;
+  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+  check_stack_size(sc);
+  sc->code = opt_lambda(code);
+  new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
 }
 
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
@@ -76388,28 +76449,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_CLOSURE_A:
-	  {
-	    s7_pointer code;
-	    code = sc->code;
-	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	    check_stack_size(sc);
-	    sc->code = opt_lambda(code);
-	    new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-	    closure_push_and_goto_eval(sc);
-	  }
+	  op_closure_a(sc);
+	  closure_push_and_goto_eval(sc);
 
 	case OP_CLOSURE_A_P:
 	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_CLOSURE_A_P:
-	  {
-	    s7_pointer code;
-	    code = sc->code;
-	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
-	    check_stack_size(sc);
-	    sc->code = opt_lambda(code);
-	    new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-	    closure_goto_eval(sc);
-	  }
+	  op_closure_a(sc);
+	  closure_goto_eval(sc);
 	  
 	case OP_SAFE_CLOSURE_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
@@ -86842,6 +86889,7 @@ s7_scheme *s7_init(void)
   s7_autoload(sc, make_symbol(sc, "stuff.scm"),       s7_make_permanent_string(sc, "stuff.scm"));
   s7_autoload(sc, make_symbol(sc, "mockery.scm"),     s7_make_permanent_string(sc, "mockery.scm"));
   s7_autoload(sc, make_symbol(sc, "write.scm"),       s7_make_permanent_string(sc, "write.scm"));
+  s7_autoload(sc, make_symbol(sc, "reactive.scm"),    s7_make_permanent_string(sc, "reactive.scm"));
   s7_autoload(sc, make_symbol(sc, "repl.scm"),        s7_make_permanent_string(sc, "repl.scm"));
   s7_autoload(sc, make_symbol(sc, "r7rs.scm"),        s7_make_permanent_string(sc, "r7rs.scm"));
 
@@ -87599,26 +87647,26 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   239
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280   230
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   283
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1087
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1323
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1324
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1933
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1932
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2325
  * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2369
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2373
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2394
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2398
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3112
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3265
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  4000
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4079
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6362
- * tset          |      |      |      ||      ||      |                         10.0  8943
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3264
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3829
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4078
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6356
+ * tset          |      |      |      ||      ||      |                         10.0  6698
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.3
- * dup           |      |      |      ||      ||      |                         20.8  18.1
+ * dup           |      |      |      ||      ||      |                         20.8  18.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
  * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.9

@@ -57,7 +57,7 @@
          ;;              my $space = ' ' x max($CC_col_widths->[$i] - length($count), 0);
 	 (format *stderr* "~NC ~A~D -> ~A~D: ~NC~%" 8 #\space outfile (- next 1) outfile next 8 #\space)
 	 (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" outfile (- next 1) outfile next)))))
-   (list (list "snd -noinit" "tpeak.scm")
+   (list (list "repl" "tpeak.scm")
 	 (list "repl" "tmac.scm")
 	 (list "repl" "tref.scm")
 	 (list "snd -noinit" "make-index.scm")

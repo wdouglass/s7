@@ -2,6 +2,8 @@
 ;;;
 ;;; reimplementation of code formerly in stuff.scm
 
+(provide 'reactive.scm)
+
 (define (gather-symbols expr ce lst ignore)
   ;; collect settable variables in expr
   (cond ((symbol? expr)
