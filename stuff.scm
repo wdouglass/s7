@@ -1711,6 +1711,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		 `((lambda* ,(cons ',e ',arg-names)                                ; prepend added env arg because there might be a rest arg
 		     (let ((,',result '?))
 		       (dynamic-wind
+			   (lambda () #f)
 			   (lambda ()                                              ; when function called, show args and caller
 			     (with-let (funclet Display)                           ; indent
 			       (prepend-spaces)
@@ -1721,8 +1722,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			     (let ((caller (eval '__func__ ,',e)))                 ; show caller 
 			       (if (not (eq? caller #<undefined>))
 				   (format (Display-port) " ;called from ~A" caller)))
-			     (newline (Display-port)))
-			   (lambda ()                                              ; the original function body
+			     (newline (Display-port))
 			     (set! ,',result ,',body))                             ;   but annotated by proc-walk
 			   (lambda ()                                              ; at the end, show the result
 			     (with-let (funclet Display)

@@ -9565,9 +9565,17 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
   /* called only from call_with_current_continuation */
   int64_t i, s_base = 0, c_base = -1;
   opcode_t op;
+#if CDR
+  fprintf(stderr, "%s, top: %ld\n", __func__, continuation_stack_top(c));
+  
+  /* don't search below continuation_stack_top(c)? */
+#endif
   for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
     {
       op = stack_op(sc->stack, i);
+#if CDR
+      fprintf(stderr, "%s at %ld\n", op_names[op], i);
+#endif
       switch (op)
 	{
 	case OP_DYNAMIC_WIND:
@@ -9583,6 +9591,9 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 		{
 		  s_base = i;
 		  c_base = j;
+#if CDR
+		  fprintf(stderr, "s: %ld, c: %ld, top: %ld\n", s_base, c_base, continuation_stack_top(c));
+#endif
 		  break;
 		}
 
@@ -9596,6 +9607,9 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 		    dynamic_wind_state(x) = DWIND_FINISH;
 		    if (dynamic_wind_out(x) != sc->F)
 		      {
+#if CDR
+			fprintf(stderr, "recall out\n");
+#endif
 			push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
 			sc->args = sc->nil;
 			sc->code = dynamic_wind_out(x);
@@ -9629,14 +9643,17 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
       if (op == OP_DYNAMIC_WIND)
 	{
 	  s7_pointer x;
+#if CDR
+	  fprintf(stderr, "found op at %ld\n", i);
+#endif
 	  x = stack_code(continuation_stack(c), i);
 
 	  if (dynamic_wind_in(x) != sc->F)
 	    {
-	      /* this can cause an infinite loop if the call/cc is trying to jump back into
-	       *   a dynamic-wind init function -- it's even possible to trick with-baffle!
-	       *   I can't find any fool-proof way to catch this problem.
-	       */
+#if CDR
+	      fprintf(stderr, "recall in\n");
+	      abort();
+#endif
 	      push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
 	      sc->args = sc->nil;
 	      sc->code = dynamic_wind_in(x);
@@ -18848,7 +18865,7 @@ static bool lt_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(false);
 }
 
-static inline bool c_less_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
+static inline bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
@@ -18908,8 +18925,8 @@ static inline bool c_less_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer lt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, c_less_2(sc, p1, p2)));}
-static s7_pointer g_less_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, c_less_2(sc, car(args), cadr(args))));}
+static s7_pointer lt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, lt_b_7pp(sc, p1, p2)));}
+static s7_pointer g_less_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, lt_b_7pp(sc, car(args), cadr(args))));}
 
 static bool ratio_leq_pi(s7_pointer x, s7_int y)
 {
@@ -18940,7 +18957,7 @@ static s7_pointer g_leq_s_ic(s7_scheme *sc, s7_pointer args)
 }
 
 
-static inline bool c_leq_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
+static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
@@ -19001,8 +19018,8 @@ static inline bool c_leq_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer leq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, c_leq_2(sc, p1, p2)));}
-static s7_pointer g_leq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, c_leq_2(sc, car(args), cadr(args))));}
+static s7_pointer leq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, leq_b_7pp(sc, p1, p2)));}
+static s7_pointer g_leq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, leq_b_7pp(sc, car(args), cadr(args))));}
 
 static s7_pointer g_greater_s_ic(s7_scheme *sc, s7_pointer args)
 {
@@ -19068,7 +19085,7 @@ static bool gt_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(false);
 }
 
-static inline bool c_greater_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
+static inline bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
@@ -19129,12 +19146,12 @@ static inline bool c_greater_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer gt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, c_greater_2(sc, p1, p2)));}
+static s7_pointer gt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, gt_b_7pp(sc, p1, p2)));}
 
 static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args) 
 {
 #if 0
-  return(make_boolean(sc, c_greater_2(sc, car(args), cadr(args))));
+  return(make_boolean(sc, gt_b_7pp(sc, car(args), cadr(args))));
 #else
   /* ridiculous repetition, but overheads are killing this poor thing */
   s7_pointer x, y;
@@ -19194,7 +19211,7 @@ static bool geq_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(false);
 }
 
-static inline bool c_geq_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
+static inline bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
@@ -19255,8 +19272,8 @@ static inline bool c_geq_2(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer geq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, c_geq_2(sc, p1, p2)));}
-static s7_pointer g_geq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, c_geq_2(sc, car(args), cadr(args))));}
+static s7_pointer geq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, geq_b_7pp(sc, p1, p2)));}
+static s7_pointer g_geq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, geq_b_7pp(sc, car(args), cadr(args))));}
 
 static s7_pointer g_geq_s_fc(s7_scheme *sc, s7_pointer args)
 {
@@ -19288,11 +19305,6 @@ static s7_pointer g_geq_s_ic(s7_scheme *sc, s7_pointer args)
   return(method_or_bust(sc, x, sc->geq_symbol, args, T_REAL, 1));
 }
 
-#define lt_b_7pp c_less_2
-#define leq_b_7pp c_leq_2
-#define gt_b_7pp c_greater_2
-#define geq_b_7pp c_geq_2
-#define req_b_pi equal_b_pi
 
 static bool req_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(c_equal_2(sc, x, y) != sc->F);}
 
@@ -39911,7 +39923,6 @@ s7_pointer s7_funclet(s7_scheme *sc, s7_pointer p)
   return(sc->rootlet);
 }
 
-
 static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p, e;
@@ -39936,7 +39947,6 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
   if (!((is_procedure_or_macro(p)) || (is_c_object(p))))
     return(simple_wrong_type_argument_with_type(sc, sc->funclet_symbol, p, 
 						wrap_string(sc, "a procedure or a macro", 22)));
-
   e = find_let(sc, p);
   if ((is_null(e)) &&
       (!is_c_object(p))) /* why this complication? */
@@ -45419,6 +45429,37 @@ static s7_pointer closure_or_f(s7_scheme *sc, s7_pointer p)
   return(p);
 }
 
+static s7_pointer make_baffled_closure(s7_scheme *sc, s7_pointer inp)
+{
+  s7_pointer nclo, frame;
+  nclo = make_closure(sc, sc->nil, closure_body(inp), type(inp), 0);
+  frame = new_frame_in_env(sc, closure_let(inp)); /* outlet(frame) = closure_let(inp) */
+  make_slot_1(sc, frame, sc->baffle_symbol, make_baffle(sc));
+  closure_set_let(nclo, frame);
+  return(nclo);
+}
+
+static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
+{
+  switch (type(x))
+    {
+    case T_MACRO: case T_BACRO: case T_CLOSURE: case T_MACRO_STAR: case T_BACRO_STAR:  case T_CLOSURE_STAR:
+      return(is_null(closure_args(x))); /* this is the case that does not match is_aritable */
+
+    case T_C_RST_ARGS_FUNCTION: case T_C_FUNCTION:
+      return((c_function_required_args(x) <= 0) && (c_function_all_args(x) >= 0));
+
+    case T_C_OPT_ARGS_FUNCTION: case T_C_ANY_ARGS_FUNCTION: case T_C_FUNCTION_STAR:
+      return(c_function_all_args(x) >= 0);
+
+    case T_C_MACRO:
+      return((c_macro_required_args(x) <= 0) && (c_macro_all_args(x) >= 0));
+
+    case T_GOTO: case T_CONTINUATION:
+      return(true);
+    }
+  return(false);
+}
 
 static s7_pointer g_dynamic_wind(s7_scheme *sc, s7_pointer args)
 {
@@ -45426,23 +45467,21 @@ static s7_pointer g_dynamic_wind(s7_scheme *sc, s7_pointer args)
 each a function of no arguments, guaranteeing that finish is called even if body is exited"
   #define Q_dynamic_wind s7_make_circular_signature(sc, 1, 2, sc->values_symbol, sc->is_procedure_symbol)
 
-  s7_pointer p;
+  s7_pointer p, inp, outp;
 
-  if (!is_thunk(sc, car(args)))
+  if (!is_dwind_thunk(sc, car(args)))
     return(method_or_bust_with_type(sc, car(args), sc->dynamic_wind_symbol, args, a_thunk_string, 1));
   if (!is_thunk(sc, cadr(args)))
     return(method_or_bust_with_type(sc, cadr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 2));
-  if (!is_thunk(sc, caddr(args)))
+  if (!is_dwind_thunk(sc, caddr(args)))
     return(method_or_bust_with_type(sc, caddr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 3));
 
   /* this won't work:
-
        (let ((final (lambda (a b c) (list a b c))))
          (dynamic-wind
            (lambda () #f)
            (lambda () (set! final (lambda () (display "in final"))))
            final))
-
    * but why not?  'final' is a thunk by the time it is evaluated.
    *   catch (the error handler) is similar.
    *
@@ -45455,12 +45494,19 @@ each a function of no arguments, guaranteeing that finish is called even if body
   dynamic_wind_body(p) = cadr(args);
   dynamic_wind_out(p) = closure_or_f(sc, caddr(args));
 
+  inp = dynamic_wind_in(p);
+  if ((is_any_closure(inp)) && (!is_safe_closure(inp)))    /* wrap this use of inp in a with-baffle */
+    dynamic_wind_in(p) = make_baffled_closure(sc, inp);
+
+  outp = dynamic_wind_out(p);
+  if ((is_any_closure(outp)) && (!is_safe_closure(outp)))
+    dynamic_wind_out(p) = make_baffled_closure(sc, outp);
+
   /* since we don't care about the in and out results, and they are thunks, if the body is not a pair,
    *   or is a quoted thing, we just ignore that function.
    */
-
   push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);          /* args will be the saved result, code = s7_dynwind_t obj */
-  if (dynamic_wind_in(p) != sc->F)
+  if (inp != sc->F)
     {
       dynamic_wind_state(p) = DWIND_INIT;
       push_stack(sc, OP_APPLY, sc->nil, dynamic_wind_in(p));
@@ -87395,7 +87441,7 @@ s7_scheme *s7_init(void)
   s7_set_b_7pp_function(slot_value(global_slot(sc->gt_symbol)), gt_b_7pp);
   s7_set_b_7pp_function(slot_value(global_slot(sc->geq_symbol)), geq_b_7pp);
 
-  s7_set_b_pi_function(slot_value(global_slot(sc->eq_symbol)), req_b_pi);
+  s7_set_b_pi_function(slot_value(global_slot(sc->eq_symbol)), equal_b_pi);
   s7_set_b_pi_function(slot_value(global_slot(sc->lt_symbol)), lt_b_pi);
   s7_set_b_pi_function(slot_value(global_slot(sc->leq_symbol)), leq_b_pi);
   s7_set_b_pi_function(slot_value(global_slot(sc->gt_symbol)), gt_b_pi);
