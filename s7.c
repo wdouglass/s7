@@ -149,6 +149,7 @@
 
 #ifndef INITIAL_HEAP_SIZE
 #define INITIAL_HEAP_SIZE 128000
+#endif
 /* the heap grows as needed, this is its initial size.
  * If the initial heap is small, s7 can run in about 2.5 Mbytes of memory. There are (many) cases where a bigger heap is faster.
  * The heap size must be a multiple of 32.  Each object takes about 60 bytes.
@@ -161,15 +162,15 @@
  *  snd (motif)   12Mb (285v)
  *  snd (gtk)     32Mb (515v!)
  */
-#endif
 
 #ifndef SYMBOL_TABLE_SIZE
 #define SYMBOL_TABLE_SIZE 13567
-/* names are hashed into the symbol table (a vector) and collisions are chained as lists.
- */
 #endif
+/* names are hashed into the symbol table (a vector) and collisions are chained as lists. */
 
+#ifndef INITIAL_STACK_SIZE
 #define INITIAL_STACK_SIZE 512
+#endif
 /* the stack grows as needed, each frame takes 4 entries, this is its initial size.
  *   this needs to be big enough to handle the eval_c_string's at startup (ca 100)
  *   In s7test.scm, the maximum stack size is ca 440.  In snd-test.scm, it's ca 200.
@@ -177,10 +178,14 @@
  *   the unused portion of the new stack, which requires memcpy of #<unspecified>'s.
  */
 
+#ifndef INITIAL_PROTECTED_OBJECTS_SIZE
 #define INITIAL_PROTECTED_OBJECTS_SIZE 16
+#endif
 /* a vector of objects that are (semi-permanently) protected from the GC, grows as needed */
 
+#ifndef GC_TEMPS_SIZE
 #define GC_TEMPS_SIZE 256
+#endif
 /* the number of recent objects that are temporarily gc-protected; 8 works for s7test and snd-test.
  *    For the FFI, this sets the lag between a call on s7_cons and the first moment when its result
  *    might be vulnerable to the GC.
@@ -211,9 +216,9 @@
 #endif
 
 #ifndef WITH_EXTRA_EXPONENT_MARKERS
-  #define WITH_EXTRA_EXPONENT_MARKERS 0
-  /* if 1, s7 recognizes "d", "f", "l", and "s" as exponent markers, in addition to "e" (also "D", "F", "L", "S") */
+#define WITH_EXTRA_EXPONENT_MARKERS 0
 #endif
+/* if 1, s7 recognizes "d", "f", "l", and "s" as exponent markers, in addition to "e" (also "D", "F", "L", "S") */
 
 #ifndef WITH_SYSTEM_EXTRAS
   #define WITH_SYSTEM_EXTRAS (!_MSC_VER)
@@ -293,7 +298,7 @@
   #define S7_DEBUGGING 0
 #endif
 #define CDR 0
-#define DEBUG_CATCH 0
+#define CYCLE_DEBUGGING 0
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -6059,7 +6064,7 @@ static void stack_reset(s7_scheme *sc)
 
 static void resize_stack(s7_scheme *sc)
 {
-  uint64_t i, loc;
+  uint64_t loc;
   uint32_t new_size;
   block_t *ob, *nb;
 
@@ -6083,8 +6088,22 @@ static void resize_stack(s7_scheme *sc)
 #endif
       s7_error(sc, s7_make_symbol(sc, "stack-too-big"), set_elist_1(sc, wrap_string(sc, "no room to expand stack?", 24)));
     }
+#if 0
   for (i = sc->stack_size; i < new_size; i++)
     stack_element(sc->stack, i) = sc->nil;
+#else
+  {
+    s7_pointer *orig;
+    s7_int i, left;
+    i = sc->stack_size;
+    left = new_size - i - 8;
+    orig = stack_elements(sc->stack);
+    while (i <= left)
+      LOOP_8(orig[i++] = sc->nil);
+    for (; i < new_size; i++)
+      orig[i] = sc->nil;
+  }
+#endif
   vector_length(sc->stack) = new_size;
   sc->stack_size = new_size;
 
@@ -9560,22 +9579,46 @@ static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code, s7_po
   eval(sc, OP_LET_TEMP_DONE);
 }
 
+#if CYCLE_DEBUGGING
+static char *dbase = NULL, *dmin_char = NULL;
+#endif
+
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
-  /* called only from call_with_current_continuation */
+  /* called only from call_with_current_continuation, still does not work reliably (see t844).
+   *   if call/cc jumps into a dynamic-wind, the init/finish funcs are wrapped in with-baffle
+   *   so they'll complain.  Otherwise we're supposed to re-run the init func before diving
+   *   into the body.  Similarly for let-temporarily.  If a call/cc jumps out of a dynamic-wind
+   *   body-func, we're supposed to call the finish-func. 
+   */
   int64_t i, s_base = 0, c_base = -1;
   opcode_t op;
-#if CDR
-  fprintf(stderr, "%s, top: %ld\n", __func__, continuation_stack_top(c));
-  
-  /* don't search below continuation_stack_top(c)? */
+
+#if CYCLE_DEBUGGING
+  char x;
+  if (!dbase) dbase = &x; 
+  else 
+    {
+      if (&x > dbase) dbase = &x; 
+      else 
+	{
+	  if ((!dmin_char) || (&x < dmin_char))
+	    {
+	      dmin_char = &x;
+	      if ((dbase - dmin_char) > 10000000)
+		{
+		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
+		  abort();
+		}
+	    }
+	}
+    }
 #endif
+
+  /* check sc->stack for dynamic-winds we're jumping out of */
   for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
     {
       op = stack_op(sc->stack, i);
-#if CDR
-      fprintf(stderr, "%s at %ld\n", op_names[op], i);
-#endif
       switch (op)
 	{
 	case OP_DYNAMIC_WIND:
@@ -9590,34 +9633,28 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 		  (x == stack_code(continuation_stack(c), j)))
 		{
 		  s_base = i;
-		  c_base = j;
-#if CDR
-		  fprintf(stderr, "s: %ld, c: %ld, top: %ld\n", s_base, c_base, continuation_stack_top(c));
-#endif
+		  if (op == OP_DYNAMIC_WIND) c_base = j;
 		  break;
 		}
 
-	    if (s_base != 0)
-	      break;
-
-	    if (op == OP_DYNAMIC_WIND)
+	    if (s_base == 0)
 	      {
-		if (dynamic_wind_state(x) == DWIND_BODY)
+		if (op == OP_DYNAMIC_WIND)
 		  {
-		    dynamic_wind_state(x) = DWIND_FINISH;
-		    if (dynamic_wind_out(x) != sc->F)
+		    if (dynamic_wind_state(x) == DWIND_BODY)
 		      {
-#if CDR
-			fprintf(stderr, "recall out\n");
-#endif
-			push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
-			sc->args = sc->nil;
-			sc->code = dynamic_wind_out(x);
-			eval(sc, OP_APPLY);
+			dynamic_wind_state(x) = DWIND_FINISH;
+			if (dynamic_wind_out(x) != sc->F)
+			  {
+			    push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
+			    sc->args = sc->nil;
+			    sc->code = dynamic_wind_out(x);
+			    eval(sc, OP_APPLY);
+			  }
 		      }
 		  }
+		else let_temp_done(sc, stack_args(sc->stack, i), stack_code(sc->stack, i), stack_let(sc->stack, i));
 	      }
-	    else let_temp_done(sc, stack_args(sc->stack, i), stack_code(sc->stack, i), stack_let(sc->stack, i));
 	  }
 	  break;
 
@@ -9636,30 +9673,21 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	}
     }
 
+  /* check continuation-stack for dynamic-winds we're jumping into */
   for (i = c_base + 4; i < continuation_stack_top(c); i += 4)
     {
       op = stack_op(continuation_stack(c), i);
-
       if (op == OP_DYNAMIC_WIND)
 	{
 	  s7_pointer x;
-#if CDR
-	  fprintf(stderr, "found op at %ld\n", i);
-#endif
 	  x = stack_code(continuation_stack(c), i);
-
 	  if (dynamic_wind_in(x) != sc->F)
 	    {
-#if CDR
-	      fprintf(stderr, "recall in\n");
-	      abort();
-#endif
 	      push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
 	      sc->args = sc->nil;
 	      sc->code = dynamic_wind_in(x);
 	      eval(sc, OP_APPLY);
 	    }
-
 	  dynamic_wind_state(x) = DWIND_BODY;
 	}
       else
@@ -9669,6 +9697,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	  /* not let_temp_done here! */
 	}
     }
+
   return(true);
 }
 
@@ -9683,7 +9712,7 @@ static bool call_with_current_continuation(s7_scheme *sc)
       (!(find_baffle(sc, continuation_key(c))))) /* should this raise an error? */
     return(false);
   
-  if (!check_for_dynamic_winds(sc, c)) /* if OP_BARRIER on stack deeper than continuation top(?), but can this happen? (it doesn't in s7test) */
+  if (!check_for_dynamic_winds(sc, c))
     return(true);
 
   /* we push_stack sc->code before calling an embedded eval above, so sc->code should still be c here, etc */
@@ -10813,8 +10842,9 @@ static bool s7_is_one(s7_pointer x)
 
 /* -------- optimize exponents -------- */
 
-/* we really want 2:64, 10: 20, 16: 16 here since this is used only in read/write float 
+/* we really want 2:64, 10:20, 16:16 here since this is used only in read/write float 
  *   it matters because, mirabile dictu or whatever, init_pows is about 20% of the total startup time
+ *   TODO: find the actual bounds and make a compile-time array, or at least reduce MAX_POW as radices grow
  */
 #define MAX_POW 64
 static double pepow[17][MAX_POW], mepow[17][MAX_POW];
@@ -30551,7 +30581,7 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#define CYCLE_DEBUGGING 0
+/* #define CYCLE_DEBUGGING 0 */
 #if CYCLE_DEBUGGING
 static char *base = NULL, *min_char = NULL;
 #endif
@@ -30578,7 +30608,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	      min_char = &x;
 	      if ((base - min_char) > 100000)
 		{
-		  fprintf(stderr, "infinite recursion?\n");
+		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
 		  abort();
 		}
 	    }
@@ -39929,11 +39959,6 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
   #define H_funclet "(funclet func) tries to return a function's definition environment"
   #define Q_funclet s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_null_symbol), sc->is_procedure_symbol)
 
-  /* this procedure gives direct access to a function's closure -- see s7test.scm
-   *   for some wild examples.  At least it provides a not-too-kludgey way for several functions
-   *   to share a closure.
-   */
-
   p = car(args);
   if (is_symbol(p))
     {
@@ -45444,7 +45469,7 @@ static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
   switch (type(x))
     {
     case T_MACRO: case T_BACRO: case T_CLOSURE: case T_MACRO_STAR: case T_BACRO_STAR:  case T_CLOSURE_STAR:
-      return(is_null(closure_args(x))); /* this is the case that does not match is_aritable */
+      return(is_null(closure_args(x))); /* this is the case that does not match is_aritable -- it could be loosened -- arity=0 below would need fixup */
 
     case T_C_RST_ARGS_FUNCTION: case T_C_FUNCTION:
       return((c_function_required_args(x) <= 0) && (c_function_all_args(x) >= 0));
@@ -46031,9 +46056,6 @@ static bool catch_1_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointe
 	      if (loc > 4)
 		{
 		  pop_stack(sc);
-#if DEBUG_CATCH
-		  fprintf(stderr, "pop in catch1: %s\n", op_names[sc->cur_op]);
-#endif
 #if 0
 		  if (sc->cur_op == OP_EVAL_DONE) 
 		    sc->cur_op = OP_NO_OP;
@@ -46358,9 +46380,6 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	if ((catcher) &&
 	    (catcher(sc, i, type, info, &reset_error_hook)))
 	  {
-#if DEBUG_CATCH
-	    if (sc->cur_op != OP_APPLY) fprintf(stderr, "%s op: %s, loc: %ld\n", op_names[stack_op(sc->stack, i)], op_names[sc->cur_op], i);
-#endif
 	    if (sc->longjmp_ok) longjmp(sc->goto_start, CATCH_JUMP);
 	    /* all the rest of the code expects s7_error to jump, not return, so presumably if we get here, we're in trouble */
 #if S7_DEBUGGING
@@ -59879,6 +59898,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
     {
       if (checked)
 	{
+	  /* copy_tree can't handle cyclic trees */
 	  if (8192 >= (sc->free_heap_top - sc->free_heap))
 	    {
 	      gc(sc);
@@ -71208,6 +71228,9 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
       /* we can't ignore the recheck here (i.e. set the hop bit) because the closure, even if a global can be set later:
        *   (begin (define *x* #f) (define (test) (display (*x*))) (define (setx n) (set! *x* (lambda () n))) (setx 1) (test) (setx 2) (test))
        * this is a case where the name matters (we need a pristine global), so it's easily missed.
+       *
+       * this mighht work, but it appears to cost more than it saves (it gets very few hits):
+       *   if ((is_immutable(f)) && (is_global(car(code))) && (car(code) == find_closure(sc, f, sc->envir))) hop = 1;
        */
       break;
       
@@ -80142,11 +80165,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 #endif
 	  return(sc->value); /* not executed I hope */
 	  
-	case OP_EVAL_DONE:
-#if DEBUG_CATCH
-	  fprintf(stderr, "op_eval_done\n");
-#endif
-	  /* this is the "time to quit" operator */
+	case OP_EVAL_DONE:   /* this is the "time to quit" operator */
 	  return(sc->F);
 	  
 	case OP_BARRIER:
@@ -87697,7 +87716,7 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   283
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1087
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1324
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1323
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1932
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2325
@@ -87716,6 +87735,6 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
  * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.9
- * tbig          |      |      |      ||      ||      |                        247.4 247.1
+ * tbig          |      |      |      ||      ||      |                        246.9 246.6
  * ------------------------------------------------------------------------------------------
  */

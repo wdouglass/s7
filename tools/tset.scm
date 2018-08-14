@@ -1,4 +1,4 @@
-(load "reactive.scm")
+(require reactive.scm)
 
 (define (t)
   (let ((x 0))
