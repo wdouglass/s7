@@ -47,6 +47,7 @@
   "`(ok? ',tst (lambda () (catch 'xyzzy (lambda () (throw 'xyzzy ,tst)) (lambda (type info) (car info)))) ,expected)"
   "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x #f)) ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (let () (define h! (make-hook '!x)) (set! (hook-functions h!) (list (lambda (!h) (set! (!h 'result) ,tst)))) (h!))) ,expected)"
+  "`(ok? ',tst (lambda () (let-temporarily (((*s7* 'autoloading?) #f)) (with-let (sublet (curlet)) ,tst))) ,expected)"
   ))
 
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)

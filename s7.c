@@ -298,7 +298,7 @@
   #define S7_DEBUGGING 0
 #endif
 #define CDR 0
-#define CYCLE_DEBUGGING 0
+#define CYCLE_DEBUGGING S7_DEBUGGING
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -9585,13 +9585,14 @@ static char *dbase = NULL, *dmin_char = NULL;
 
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
-  /* called only from call_with_current_continuation, still does not work reliably (see t844).
+  /* called only from call_with_current_continuation.
    *   if call/cc jumps into a dynamic-wind, the init/finish funcs are wrapped in with-baffle
    *   so they'll complain.  Otherwise we're supposed to re-run the init func before diving
    *   into the body.  Similarly for let-temporarily.  If a call/cc jumps out of a dynamic-wind
-   *   body-func, we're supposed to call the finish-func. 
+   *   body-func, we're supposed to call the finish-func.  The continuation is called at
+   *   s7_stack_top(sc); the continuation form is at continuation_stack_top(c).
    */
-  int64_t i, s_base = 0, c_base = -1;
+  int64_t i;
   opcode_t op;
 
 #if CYCLE_DEBUGGING
@@ -9605,7 +9606,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	  if ((!dmin_char) || (&x < dmin_char))
 	    {
 	      dmin_char = &x;
-	      if ((dbase - dmin_char) > 10000000)
+	      if ((dbase - dmin_char) > 1000000)
 		{
 		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
 		  abort();
@@ -9625,7 +9626,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	case OP_LET_TEMP_DONE:
 	  {
 	    s7_pointer x;
-	    int64_t j;
+	    int64_t j, s_base = 0;
 	    x = stack_code(sc->stack, i);
 	    for (j = 3; j < continuation_stack_top(c); j += 4)
 	      if (((stack_op(continuation_stack(c), j) == OP_DYNAMIC_WIND) || 
@@ -9633,10 +9634,8 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 		  (x == stack_code(continuation_stack(c), j)))
 		{
 		  s_base = i;
-		  if (op == OP_DYNAMIC_WIND) c_base = j;
 		  break;
 		}
-
 	    if (s_base == 0)
 	      {
 		if (op == OP_DYNAMIC_WIND)
@@ -9674,7 +9673,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
     }
 
   /* check continuation-stack for dynamic-winds we're jumping into */
-  for (i = c_base + 4; i < continuation_stack_top(c); i += 4)
+  for (i = s7_stack_top(sc) - 1; i < continuation_stack_top(c); i += 4)
     {
       op = stack_op(continuation_stack(c), i);
       if (op == OP_DYNAMIC_WIND)
@@ -9697,10 +9696,8 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	  /* not let_temp_done here! */
 	}
     }
-
   return(true);
 }
-
 
 static bool call_with_current_continuation(s7_scheme *sc)
 {
@@ -10846,31 +10843,22 @@ static bool s7_is_one(s7_pointer x)
  *   it matters because, mirabile dictu or whatever, init_pows is about 20% of the total startup time
  *   TODO: find the actual bounds and make a compile-time array, or at least reduce MAX_POW as radices grow
  */
-#define MAX_POW 64
-static double pepow[17][MAX_POW], mepow[17][MAX_POW];
+#define MAX_POW 24
+static double pepow[17][MAX_POW * 2];
 
 static void init_pows(void)
 {
   int32_t i, j;
   for (i = 2; i < 17; i++)        /* radix between 2 and 16 */
-    for (j = 0; j < MAX_POW; j++) /* saved exponent between 0 and +/- MAX_POW */
-      {
-	pepow[i][j] = pow((double)i, (double)j);
-	mepow[i][j] = pow((double)i, (double)(-j));
-      }
+    for (j = -MAX_POW; j < MAX_POW; j++) /* saved exponent between 0 and +/- MAX_POW */
+      pepow[i][j + MAX_POW] = pow((double)i, (double)j);
 }
 
 static double ipow(int32_t x, int32_t y)
 {
-  if (y >= 0) 
-    {
-      if (y < MAX_POW)
-	return(pepow[x][y]);
-      return(pow((double)x, (double)y));
-    }
-  if (y > (-MAX_POW))
-    return(mepow[x][-y]);
-  return(pow((double)x, (double)y));
+  if ((y >= MAX_POW) || (y <= -MAX_POW))
+    return(pow((double)x, (double)y));
+  return(pepow[x][y + MAX_POW]);
 }
 
 
@@ -58744,15 +58732,6 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	{
 	  if (is_macro(s_func))
 	    return(return_false(sc, car_x, __func__, __LINE__)); /* macroexpand+cell_optimize here restarts the optimize process */
-#if 0
-	  else
-	    {
-	      /* s_func here assumes global_slot? */
-	      if ((is_closure(s_func)) &&
-		  (is_very_safe_closure(s_func)) &&
-		  (is_recur(slot)))
-	    }
-#endif
 	}
     }
   return(return_false(sc, car_x, __func__, __LINE__));
@@ -70654,7 +70633,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
       if ((var_len == 1) && (body_len == 1))
 	{
 	  s7_pointer ip, xp;
-	  int32_t pc2, pc5;
+	  int32_t pc2;
 	  opt_info *first, *second;
 	  s7_double (*f1)(void *p);
 	  s7_double (*f2)(void *p);
@@ -70681,7 +70660,8 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
 	      s7_d_vid_t vf7;
 	      s7_pointer s1, s2;
 	      void *obj1, *obj2, *obj3, *obj4, *obj5, *obj6, *obj7;
-	      s7_double amp_env, vib;
+	      int32_t pc5;
+
 	      sc->pc = pc2;
 	      o1 = o->sc->opts[o->sc->pc + 1];
 	      o2 = o->sc->opts[o->sc->pc + 3];
@@ -70706,6 +70686,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc, bool 
 
 	      for (k = numerator(stepper) + 1; k < end; k++)
 		{
+		  s7_double amp_env, vib;
 		  integer(ip) = k;
 		  sc->pc = 0;
 		  set_real(xp, vf1(obj1) + vf2(obj2));
@@ -87712,27 +87693,27 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   230
- * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   283
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280   203
+ * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   282
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1087
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1323
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1086
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1322
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1932
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2325
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2369
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2373
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2398
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3112
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3264
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2371
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2372
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2396
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3111
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3264 [try g_for_each c_func s7_iterate expanded]
  * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3829
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4078
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4077
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6356
- * tset          |      |      |      ||      ||      |                         10.0  6698
+ * tset          |      |      |      ||      ||      |                         10.0  6689 [s7_apply_function in call_setter, let-set! via safe_c_sss setter-update etc in reactive.scm]
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.3
- * dup           |      |      |      ||      ||      |                         20.8  18.2
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1
+ * dup           |      |      |      ||      ||      |                         20.8  18.2 [inline symbol_to_slot?]
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1 [same]
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
  * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.9
  * tbig          |      |      |      ||      ||      |                        246.9 246.6
