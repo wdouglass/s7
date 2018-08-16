@@ -4329,7 +4329,7 @@ static s7_pointer g_is_eof_object(s7_scheme *sc, s7_pointer args)
 
 static bool s7_is_eof_object(s7_pointer p) {return(p == eof_object);}
 
-
+/* -------------------------------- not -------------------------------- */
 static s7_pointer g_not(s7_scheme *sc, s7_pointer args)
 {
   #define H_not "(not obj) returns #t if obj is #f, otherwise #t: (not ()) -> #f"
@@ -4339,19 +4339,15 @@ static s7_pointer g_not(s7_scheme *sc, s7_pointer args)
 
 static bool not_b_7p(s7_scheme *sc, s7_pointer p) {return(p == sc->F);}
 
-bool s7_boolean(s7_scheme *sc, s7_pointer x)
-{
-  return(x != sc->F);
-}
 
+bool s7_boolean(s7_scheme *sc, s7_pointer x) {return(x != sc->F);}
+s7_pointer s7_make_boolean(s7_scheme *sc, bool x) {return(make_boolean(sc, x));}
+
+
+/* -------------------------------- boolean? -------------------------------- */
 bool s7_is_boolean(s7_pointer x)
 {
   return(type(x) == T_BOOLEAN);
-}
-
-s7_pointer s7_make_boolean(s7_scheme *sc, bool x)
-{
-  return(make_boolean(sc, x));
 }
 
 static s7_pointer g_is_boolean(s7_scheme *sc, s7_pointer args)
@@ -4361,7 +4357,8 @@ static s7_pointer g_is_boolean(s7_scheme *sc, s7_pointer args)
   check_boolean_method(sc, s7_is_boolean, sc->is_boolean_symbol, args);
 }
 
-static s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
+/* -------------------------------- constant? -------------------------------- */
+static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
 static bool is_constant_symbol(s7_scheme *sc, s7_pointer sym)
 {
   if (is_immutable_symbol(sym))    /* for keywords */
@@ -4384,11 +4381,20 @@ static s7_pointer g_is_constant(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, is_constant(sc, car(args))));
 }
 
+/* -------------------------------- immutable? -------------------------------- */
 bool s7_is_immutable(s7_pointer p)
 {
   return(is_immutable(p));
 }
 
+static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_immutable "(immutable? sequence) returns #t if the sequence is immutable. (This function is work-in-progress)"
+  #define Q_is_immutable sc->pl_bt
+  return((is_immutable(car(args))) ? sc->T : sc->F);
+}
+
+/* -------------------------------- immutable! -------------------------------- */
 s7_pointer s7_immutable(s7_pointer p)
 {
   set_immutable(p);
@@ -4412,13 +4418,6 @@ static s7_pointer g_immutable(s7_scheme *sc, s7_pointer args)
 	}
     }
   return(s7_immutable(p));
-}
-
-static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
-{
-  #define H_is_immutable "(immutable? sequence) returns #t if the sequence is immutable. (This function is work-in-progress)"
-  #define Q_is_immutable sc->pl_bt
-  return((is_immutable(car(args))) ? sc->T : sc->F);
 }
 
 
@@ -8315,7 +8314,7 @@ static s7_pointer g_set_outlet(s7_scheme *sc, s7_pointer args)
   return(new_outer);
 }
 
-static s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol)
+static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol)
 {
   s7_pointer x;
 
@@ -10839,26 +10838,29 @@ static bool s7_is_one(s7_pointer x)
 
 /* -------- optimize exponents -------- */
 
-/* we really want 2:64, 10:20, 16:16 here since this is used only in read/write float 
- *   it matters because, mirabile dictu or whatever, init_pows is about 20% of the total startup time
- *   TODO: find the actual bounds and make a compile-time array, or at least reduce MAX_POW as radices grow
- */
 #define MAX_POW 24
-static double pepow[17][MAX_POW * 2];
+#define POW_LIMIT 64
+static double pepow[17][POW_LIMIT * 2];
 
 static void init_pows(void)
 {
   int32_t i, j;
+  memset((void *)pepow, 0, POW_LIMIT * 2 * sizeof(double));
   for (i = 2; i < 17; i++)        /* radix between 2 and 16 */
     for (j = -MAX_POW; j < MAX_POW; j++) /* saved exponent between 0 and +/- MAX_POW */
-      pepow[i][j + MAX_POW] = pow((double)i, (double)j);
+      pepow[i][j + POW_LIMIT] = pow((double)i, (double)j);
 }
 
 static double ipow(int32_t x, int32_t y)
 {
   if ((y >= MAX_POW) || (y <= -MAX_POW))
-    return(pow((double)x, (double)y));
-  return(pepow[x][y + MAX_POW]);
+    {
+      if ((y >= POW_LIMIT) || (y <= -POW_LIMIT))
+	return(pow((double)x, (double)y));
+      if (pepow[x][y + POW_LIMIT] == 0.0)
+	pepow[x][y + POW_LIMIT] = pow((double)x, (double)y);
+    }
+  return(pepow[x][y + POW_LIMIT]);
 }
 
 
@@ -41378,11 +41380,11 @@ static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_val
 	    }
 	  else
 	    {
-	      bool old_off;
-	      old_off = sc->gc_off;
-	      sc->gc_off = true;
-	      new_value = s7_apply_function(sc, func, list_3(sc, slot_symbol(slot), old_value, sc->envir));
-	      sc->gc_off = old_off;
+	      s7_pointer args;
+	      args = list_3(sc, slot_symbol(slot), old_value, sc->envir);
+	      push_stack(sc, OP_GC_PROTECT, args, slot);
+	      new_value = s7_apply_function(sc, func, args);
+	      sc->stack_end -= 4;
 	    }
 	}
       else
@@ -41395,11 +41397,11 @@ static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_val
 	    }
 	  else
 	    {
-	      bool old_off;
-	      old_off = sc->gc_off;
-	      sc->gc_off = true;
-	      new_value = s7_apply_function(sc, func, list_2(sc, slot_symbol(slot), old_value));
-	      sc->gc_off = old_off;
+	      s7_pointer args;
+	      args = list_2(sc, slot_symbol(slot), old_value);
+	      push_stack(sc, OP_GC_PROTECT, args, slot);
+	      new_value = s7_apply_function(sc, func, args);
+	      sc->stack_end -= 4;
 	    }
 	}
     }
@@ -51622,6 +51624,16 @@ static s7_double opt_d_vd_o(void *p)
   return(o->v[3].d_vd_f(o->v[5].obj, o->v[4].d_v_f(o->v[6].obj)));
 }
 
+static s7_double opt_d_vd_o1_mul(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o1;
+  oo_rcheck(o->sc, o, 6, 1);
+  o->sc->pc += 2;
+  o1 = o->sc->opts[o->sc->pc];
+  return(o->v[3].d_vd_f(o->v[5].obj, real(slot_value(o->v[2].p)) * o1->v[0].fd(o1)));
+}
+
 static s7_double opt_d_vd_o1(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -51657,6 +51669,7 @@ static s7_double opt_d_vd_ff(void *p)
 }
 
 static s7_double opt_d_dd_cs(void *p);
+static s7_double opt_d_dd_sf_mul(void *p);
 static s7_double opt_d_dd_sf(void *p);
 
 static bool d_vd_f_combinable(s7_scheme *sc, int32_t start)
@@ -51700,11 +51713,13 @@ static bool d_vd_f_combinable(s7_scheme *sc, int32_t start)
       backup_pc(sc);
       return(true);
     }
-  if (o1->v[0].fd == opt_d_dd_sf)
+  if ((o1->v[0].fd == opt_d_dd_sf_mul) || (o1->v[0].fd == opt_d_dd_sf))
     {
       opc->v[2].p = o1->v[1].p;
       opc->v[4].d_dd_f = o1->v[3].d_dd_f;
-      opc->v[0].fd = opt_d_vd_o1;
+      if (o1->v[0].fd == opt_d_dd_sf_mul)
+	opc->v[0].fd = opt_d_vd_o1_mul;
+      else opc->v[0].fd = opt_d_vd_o1;
       oo_set_type_2(opc, 6, 1 + (5 << 4), 2, OO_V, OO_D);
       oo_check(sc, opc);
       return(true);
@@ -51935,6 +51950,13 @@ static s7_double opt_d_dd_ss(void *p)
   return(o->v[3].d_dd_f(real(slot_value(o->v[1].p)), real(slot_value(o->v[2].p))));
 }
 
+static s7_double opt_d_dd_ss_mul(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 4, 2);
+  return(real(slot_value(o->v[1].p)) * real(slot_value(o->v[2].p)));
+}
+
 static s7_double opt_d_dd_cf(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -51960,6 +51982,15 @@ static s7_double opt_d_dd_sf(void *p)
   o1 = o->sc->opts[++o->sc->pc];
   oo_rcheck(o->sc, o, 4, 1);
   return(o->v[3].d_dd_f(real(slot_value(o->v[1].p)), o1->v[0].fd(o1)));
+}
+
+static s7_double opt_d_dd_sf_mul(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o1;
+  o1 = o->sc->opts[++o->sc->pc];
+  oo_rcheck(o->sc, o, 4, 1);
+  return(real(slot_value(o->v[1].p)) * o1->v[0].fd(o1));
 }
 
 
@@ -52132,6 +52163,15 @@ static s7_double opt_d_dd_ff_o1(void *p)
   return(o->v[3].d_dd_f(x1, o2->v[0].fd(o2)));
 }
 
+static s7_double opt_d_dd_ff_mul1(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o2;
+  o2 = o->sc->opts[o->sc->pc += 2];
+  oo_rcheck(o->sc, o, 4, 1);
+  return(o->v[2].d_v_f(o->v[1].obj) * o2->v[0].fd(o2));
+}
+
 static s7_double opt_d_dd_ff_o2(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -52139,6 +52179,13 @@ static s7_double opt_d_dd_ff_o2(void *p)
   oo_rcheck(o->sc, o, 6, 2);
   x1 = o->v[4].d_v_f(o->v[1].obj);
   return(o->v[3].d_dd_f(x1, o->v[5].d_v_f(o->v[2].obj)));
+}
+
+static s7_double opt_d_dd_ff_mul2(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 6, 2);
+  return(o->v[4].d_v_f(o->v[1].obj) * o->v[5].d_v_f(o->v[2].obj));
 }
 
 static s7_double opt_d_dd_ff_o3(void *p)
@@ -52198,6 +52245,13 @@ static s7_double opt_d_dd_ff_o4(void *p)
   return(o->v[3].d_dd_f(x1, o->v[7].d_vd_f(o->v[5].obj, o->v[4].d_v_f(o->v[6].obj))));
 }
 
+static s7_double opt_d_dd_ff_mul4(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 8, 3);
+  return(o->v[2].d_v_f(o->v[1].obj) * o->v[7].d_vd_f(o->v[5].obj, o->v[4].d_v_f(o->v[6].obj)));
+}
+
 static bool d_dd_ff_combinable(s7_scheme *sc, int32_t start)
 {
   opt_info *opc, *o1;
@@ -52217,7 +52271,9 @@ static bool d_dd_ff_combinable(s7_scheme *sc, int32_t start)
 	  opc->v[2].obj = o2->v[5].obj;
 	  opc->v[7].p = o2->v[1].p;
 	  opc->v[5].d_v_f = o2->v[3].d_v_f;
-	  opc->v[0].fd = opt_d_dd_ff_o2;
+	  if (opc->v[3].d_dd_f == multiply_d_dd)
+	    opc->v[0].fd = opt_d_dd_ff_mul2;
+	  else opc->v[0].fd = opt_d_dd_ff_o2;
 	  oo_set_type_2(opc, 8, 6 + (1 << 4), 7 + (2 << 4), OO_V, OO_V);
 	  oo_check(sc, opc);
 	  sc->pc -= 2;
@@ -52254,7 +52310,9 @@ static bool d_dd_ff_combinable(s7_scheme *sc, int32_t start)
 		  opc->v[9].p = o2->v[1].p;
 		  opc->v[6].obj = o2->v[6].obj;
 		  opc->v[10].p = o2->v[2].p;
-		  opc->v[0].fd = opt_d_dd_ff_o4;
+		  if (opc->v[3].d_dd_f == multiply_d_dd)
+		    opc->v[0].fd = opt_d_dd_ff_mul4;
+		  else opc->v[0].fd = opt_d_dd_ff_o4;
 		  oo_set_type_3(opc, 11, 8 + (1 << 4), 9 + (5 << 4), 10 + (6 << 4), OO_V, OO_V, OO_V);
 		  oo_check(sc, opc);
 		  sc->pc -= 2;
@@ -52264,7 +52322,9 @@ static bool d_dd_ff_combinable(s7_scheme *sc, int32_t start)
 		  opc->v[1].obj = o1->v[5].obj;
 		  opc->v[4].p = o1->v[1].p; 
 		  opc->v[2].d_v_f = o1->v[3].d_v_f;
-		  opc->v[0].fd = opt_d_dd_ff_o1;
+		  if (opc->v[3].d_dd_f == multiply_d_dd)
+		    opc->v[0].fd = opt_d_dd_ff_mul1;
+		  else opc->v[0].fd = opt_d_dd_ff_o1;
 		  oo_set_type_1(opc, 5, 4 + (1 << 4), OO_V);
 		  oo_check(sc, opc); 
 		}
@@ -52461,7 +52521,11 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			      if (is_float(slot_value(opc->v[2].p)))
 				{
 				  if (func)
-				    opc->v[0].fd = opt_d_dd_ss;
+				    {
+				      if (opc->v[3].d_dd_f == multiply_d_dd)
+					opc->v[0].fd = opt_d_dd_ss_mul;
+				      else opc->v[0].fd = opt_d_dd_ss;
+				    }
 				  else opc->v[0].fd = opt_d_7dd_ss;
 				  oo_set_type_2(opc, 4, 1, 2, OO_R, OO_D);
 				}
@@ -52471,7 +52535,11 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 				  if (float_optimize(sc, cddr(car_x)))
 				    {
 				      if (func)
-					opc->v[0].fd = opt_d_dd_sf;
+					{
+					  if (opc->v[3].d_dd_f == multiply_d_dd)
+					    opc->v[0].fd = opt_d_dd_sf_mul;
+					  else opc->v[0].fd = opt_d_dd_sf;
+					}
 				      else opc->v[0].fd = opt_d_7dd_sf;
 				    }
 				  else return(return_false(sc, car_x, __func__, __LINE__));
@@ -52487,7 +52555,11 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			      if (!d_dd_sf_combinable(sc, opc))
 				{
 				  if (func)
-				    opc->v[0].fd = opt_d_dd_sf;
+				    {
+				      if (opc->v[3].d_dd_f == multiply_d_dd)
+					opc->v[0].fd = opt_d_dd_sf_mul;
+				      else opc->v[0].fd = opt_d_dd_sf;
+				    }
 				  else opc->v[0].fd = opt_d_7dd_sf;
 				  oo_set_type_1(opc, 4, 1, OO_D);
 				}
@@ -53135,7 +53207,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		    {
 		      opt_info *o2;
 		      o2 = sc->opts[start];
-		      if (o2->v[0].fd == opt_d_dd_ff_o1)
+		      if (o2->v[0].fd == opt_d_dd_ff_mul1)
 			{
 			  opt_info *o3;
 			  o3 = sc->opts[start + 2];
@@ -53145,7 +53217,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 			      o1 = sc->opts[start + 4];
 			      if ((o1->v[0].fd == opt_d_dd_ff_o3) &&
 				  (o1->v[4].d_dd_f == multiply_d_dd) &&
-				  (o2->v[3].d_dd_f == multiply_d_dd) &&
+				  /* (o2->v[3].d_dd_f == multiply_d_dd) && */
 				  (o3->v[4].d_dd_f == add_d_dd))
 				opc->v[0].fd = opt_fmv;
 			    }
@@ -59299,7 +59371,7 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
 
       if (for_each_arg_is_null(sc, cdr(args))) return(sc->unspecified);
 
-      func = c_function_call(f);
+      func = c_function_call(f);    /* presumably this is either display/write, or method call? */
       sc->z = make_iterators(sc, args);
       sc->z = cons(sc, sc->z, make_list(sc, len, sc->nil));
       push_stack_no_let(sc, OP_GC_PROTECT, sc->args, sc->z); /* temporary GC protection */
@@ -79284,24 +79356,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_TEMP_DONE1:
 	  while (is_pair(car(sc->args)))
 	    {
-	      s7_pointer settee, old_value, slot;
+	      s7_pointer settee, slot;
 	      settee = caar(sc->args);
-	      old_value = caaddr(sc->args);
+	      sc->value = caaddr(sc->args);
 	      caddr(sc->args) = cdaddr(sc->args);
 	      car(sc->args) = cdar(sc->args);
 	      if ((!is_symbol(settee)) ||
 		  (symbol_has_setter(settee)))
 		{
 		  push_stack(sc, OP_LET_TEMP_DONE1, sc->args, sc->code);
-		  if ((is_pair(old_value)) || (is_symbol(old_value)))
-		    sc->code = list_3(sc, sc->set_symbol, settee, list_2(sc, sc->quote_symbol, old_value));
-		  else sc->code = list_3(sc, sc->set_symbol, settee, old_value);
+		  if ((is_pair(sc->value)) || (is_symbol(sc->value)))
+		    sc->code = list_3(sc, sc->set_symbol, settee, list_2(sc, sc->quote_symbol, sc->value));
+		  else sc->code = list_3(sc, sc->set_symbol, settee, sc->value);
 		  goto EVAL;
 		}
 	      slot = symbol_to_slot(sc, settee);
 	      if (is_immutable_slot(slot))
 		immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
-	      slot_set_value(slot, old_value);
+	      slot_set_value(slot, sc->value);
 	    }
 	  pop_stack(sc);
 	  sc->value = sc->code;
@@ -87693,29 +87765,29 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   203
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280   204
  * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   282
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1086
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1083
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1322
  * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1932
- * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2325
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2371
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1931
+ * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2322
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2364
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2372
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2396
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3111
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3264 [try g_for_each c_func s7_iterate expanded]
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3110
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3266
  * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3829
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4077
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6356
- * tset          |      |      |      ||      ||      |                         10.0  6689 [s7_apply_function in call_setter, let-set! via safe_c_sss setter-update etc in reactive.scm]
- * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.3
- * dup           |      |      |      ||      ||      |                         20.8  18.2 [inline symbol_to_slot?]
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  39.1 [same]
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4070
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6350
+ * tset          |      |      |      ||      ||      |                         10.0  6573
+ * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.0
+ * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.2
+ * dup           |      |      |      ||      ||      |                         20.8  18.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  38.9
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
- * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.9
- * tbig          |      |      |      ||      ||      |                        246.9 246.6
+ * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.7
+ * tbig          |      |      |      ||      ||      |                        246.9 246.7
  * ------------------------------------------------------------------------------------------
  */

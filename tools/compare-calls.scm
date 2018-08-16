@@ -198,10 +198,9 @@
 	     v)))))))
 
 (define (combine-latest)
-  (let ((file-names (list "v-eq" "v-iter" "v-map" "v-form" "v-hash" "v-cop"
-			  "v-lt" "v-gen" "v-auto" "v-index" "v-call" "v-all" 
-			  "v-test" "/home/bil/test/scheme/bench/src/v-b")))
-
+  (let ((file-names (list "v-index" "v-mac" "v-peak" "v-eq" "v-fft" "v-ref" "v-auto" "v-test" "v-cop"
+			  "v-lt" "v-form" "v-read" "v-map" "v-lg" "v-iter" "v-sort" "v-hash" "v-gen"
+			  "v-all" "v-call" "v-dup" "v-set")))
     (define (next-file f)
       (let ((name (system (format #f "ls -t ~A*" f) #t)))
 	(let ((len (length name)))
@@ -212,10 +211,3 @@
 	       (string-append f (substring name i (+ i 2))))))))
 
     (apply combine (map next-file file-names))))
-    
-
-#|
-(combine "v-call53" "v-map52" "v-all98" "v-hash31" "v-gen72" "v-auto51" 
-	 "v-lg73" "v-cop55" "v-form66" "v-eq46" "v-test57" "v-iter70" "v-index22"
-         "/home/bil/test/scheme/bench/src/v-b28")
-|#

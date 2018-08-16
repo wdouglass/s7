@@ -228,7 +228,7 @@ indented and on a sort of brownish background.
     <li><a href="#makelist">make-list</a>, <a href="#charposition">char-position</a>, <a href="#keywords">keywords</a>
     <li><a href="#symboltable">symbol-table</a>, <a href="#s7help">help</a>, <a href="#s7gc">gc</a>, <a href="#morallyequalp">morally-equal?</a>
     <li><a href="#expansion">define-expansion</a>, <a href="#s7env">*s7*</a>, <a href="#s7vsr5rs">r5rs</a>, <a href="#r7rs">r7rs</a>, 
-    <li><a href="#profiling">profiling</a>, <a href="#circle">circular lists</a>, <a href="#legolambda">legolambda</a>, etc...
+    <li><a href="#profiling">profiling</a>, <a href="#legolambda">legolambda</a>, etc...
     </ul>
 
   <li class="li_header"><a href="#FFIexamples">FFI examples</a>
@@ -613,35 +613,6 @@ Speaking of #b and friends, what should <code>(string-&gt;number "#xffff" 2)</co
 </p>
 </div>
 
-
-<details>
-<summary class="indented">more examples</summary>
-<div class="indented">
-
-<pre>
-(define (log-n-of n . ints)     ; return the bits on in exactly n of ints
-  (let ((len (length ints)))
-    (cond ((= len 0) (if (= n 0) -1 0))
-	  ((= n 0)   (lognot (apply logior ints)))
-	  ((= n len) (apply logand ints))
-	  ((&gt; n len) 0)
-	  (#t 
-	   (do ((1s 0)
-		(prev ints)
-		(i 0 (+ i 1)))
-	       ((= i len) 1s)
-	     (let ((cur (ints i)))
-	       (if (= i 0)
-		   (set! 1s (logior 1s (logand cur (apply log-n-of (- n 1) (cdr ints)))))
-		   (let ((mid (cdr prev)))
-		     (set! (cdr prev) (if (= i (- len 1)) () (cdr mid)))
-		     (set! 1s (logior 1s (logand cur (apply log-n-of (- n 1) ints))))
-		     (set! (cdr prev) mid)
-		     (set! prev mid)))))))))
-</pre>
-</div>
-</details>
-
 </blockquote>
 
 
@@ -798,8 +769,6 @@ To turn off this error check, add :allow-other-keys at the end of the parameter 
 </div>
 
 
-<details>
-<summary class="indented">rest arg nits</summary>
 <div class="indented">
 
 <p>s7's lambda* arglist handling is not the same as CL's lambda-list.  First,
@@ -845,7 +814,7 @@ such as:
 <em class="gray">(:a 1)</em>
 </pre>
 </div>
-</details>
+
 
 <!--
 unknown key handling is not good, :allow-key-values?
@@ -1033,8 +1002,6 @@ state.
 </div>
 
 
-<details>
-<summary class="indented">bacros</summary>
 <div class="indented">
 
 <p>A bacro is a macro that expands its body and evaluates
@@ -1140,11 +1107,8 @@ Here's a brief example of all four:
 -&gt; 37
 </pre>
 </div>
-</details>
 
 
-<details>
-<summary class="indented">backquote details</summary>
 <div class="indented">
 
 <p>Backquote (quasiquote) in s7 is almost trivial.  Constants are unchanged, symbols are quoted,
@@ -1188,7 +1152,6 @@ that I'm reluctant to change it.  The two unquote names, on the
 other hand, seem unnecessary.
 </p>
 </div>
-</details>
 </blockquote>
 
 <p>s7 macros are not hygienic.  For example,
@@ -2903,8 +2866,7 @@ and openlet? -&gt; methods?.
 </p>
 
 <blockquote>
-<details>
-<summary class="indented">let-ref and let-set! methods</summary>
+
 <div class="indented">
 <p>let-ref and let-set! are problematic as methods.  It is very easy to get into an infinite
 loop, especially with let-ref since any reference to the let within the method body probably
@@ -2941,7 +2903,6 @@ method can implement a copy-on-write let:
 </pre>
 
 </div>
-</details>
 </blockquote>
 
 
@@ -2963,292 +2924,6 @@ method in its local environment.  snd-marks.c has a simple example using a class
 holding as the value of its 'object-&gt;let field the function s7_mark_to_let.  The latter uses s7_varlet to
 add information to the namespace created by <code>(object-&gt;let mark)</code>.
 </p>
-
-<br>
-
-
-<blockquote>
-
-<details>
-<summary class="indented">define-class</summary>
-<div class="indented">
-
-<p>Here is yet another object system.  Each class and each instance is an environment.
-A class might be thought of as a template for instances, but
-there's actually no difference between them.  To make an instance of a class, copy it.  To inherit from
-another class, concatenate the environments. To access (get or set) a field or a method, use the implicit
-indexing syntax with the field or method name.  To evaluate a form in the context of an instance
-(CL's with-slots), use with-let. To run through all the fields, use map or for-each.
-</p>
-
-<pre>
-(define-macro* (define-class class-name inherited-classes (slots ()) (methods ()))
-  `(let ((outer-env (outlet (curlet)))
-	 (new-methods ())
-	 (new-slots ()))
-     
-     (for-each
-      (lambda (class)
-	;; each class is a set of nested environments, the innermost (first in the list)
-	;;   holds the local slots which are copied each time an instance is created,
-	;;   the next holds the class slots (global to all instances, not copied);
-	;;   these hold the class name and other such info.  The remaining environments
-	;;   hold the methods, with the localmost method first.  So in this loop, we
-	;;   are gathering the local slots and all the methods of the inherited
-	;;   classes, and will splice them together below as a new class.
-	
-	(set! new-slots (append (let-&gt;list class) new-slots))
-	(do ((e (outlet (outlet class)) (outlet e)))
-	    ((or (not (let? e))
-		 (eq? e (rootlet))))
-	  (set! new-methods (append (let-&gt;list e) new-methods))))
-      ,inherited-classes)
-     
-     (let ((remove-duplicates 
-	    (lambda (lst)         ; if multiple local slots with same name, take the localmost
-	      (letrec ((rem-dup
-			(lambda (lst nlst)
-			  (cond ((null? lst) nlst)
-				((assq (caar lst) nlst) (rem-dup (cdr lst) nlst))
-				(else (rem-dup (cdr lst) (cons (car lst) nlst)))))))
-		(reverse (rem-dup lst ()))))))
-       (set! new-slots 
-	     (remove-duplicates
-	      (append (map (lambda (slot)
-			     (if (pair? slot)
-				 (cons (car slot) (cadr slot))
-				 (cons slot #f)))
-			   ,slots)                    ; the incoming new slots, #f is the default value
-		      new-slots))))                   ; the inherited slots
-     
-     (set! new-methods 
-	   (append (map (lambda (method)
-			  (if (pair? method)
-			      (cons (car method) (cadr method))
-			      (cons method #f)))
-			,methods)                     ; the incoming new methods
-		   
-		   ;; add an object-&gt;string method for this class (this is already a generic function).
-		   (list (cons 'object-&gt;string 
-			       (lambda* (obj (use-write #t))
-				 (if (eq? use-write :readable)    ; write readably
-				     (format #f "(make-~A~{ :~A ~W~^~})" 
-					     ',class-name 
-					     (map (lambda (slot)
-						    (values (car slot) (cdr slot)))
-						  obj))
-				     (format #f "#&lt;~A: ~{~A~^ ~}&gt;" 
-					     ',class-name
-					     (map (lambda (slot)
-						    (list (car slot) (cdr slot)))
-						  obj))))))
-		   (reverse! new-methods)))                      ; the inherited methods, shadowed automatically
-     
-     (let ((new-class (openlet
-                       (apply sublet                             ; the local slots
-			      (sublet                            ; the global slots
-				  (apply inlet                   ; the methods
-					 (reverse new-methods))
-				'class-name ',class-name         ; class-name slot
-				'inherited ,inherited-classes
-				'inheritors ())                  ; classes that inherit from this class
-			      new-slots))))
-       
-       (varlet outer-env                  
-	 ',class-name new-class                                  ; define the class as class-name in the calling environment
-	 
-	 ;; define class-name? type check
-	 (string-&gt;symbol (string-append (symbol-&gt;string ',class-name) "?"))
-	 (lambda (obj)
-	   (and (let? obj)
-		(eq? (obj 'class-name) ',class-name))))
-       
-       (varlet outer-env
-	 ;; define the make-instance function for this class.  
-	 ;;   Each slot is a keyword argument to the make function.
-	 (string-&gt;symbol (string-append "make-" (symbol-&gt;string ',class-name)))
-	 (apply lambda* (map (lambda (slot)
-			       (if (pair? slot)
-				   (list (car slot) (cdr slot))
-				   (list slot #f)))
-			     new-slots)
-		`((let ((new-obj (copy ,,class-name)))
-		    ,@(map (lambda (slot)
-			     `(set! (new-obj ',(car slot)) ,(car slot)))
-			   new-slots)
-		    new-obj))))
-       
-       ;; save inheritance info for this class for subsequent define-method
-       (letrec ((add-inheritor (lambda (class)
-				 (for-each add-inheritor (class 'inherited))
-				 (if (not (memq new-class (class 'inheritors)))
-				     (set! (class 'inheritors) (cons new-class (class 'inheritors)))))))
-	 (for-each add-inheritor ,inherited-classes))
-       
-       ',class-name)))
-
-(define-macro (define-generic name)    ; (define (genfun any) ((any 'genfun) any))
-  `(define ,name 
-     (lambda args 
-       (let ((gf ((car args) ',name))) ; get local definition
-	 (if (not (eq? gf ,name))      ; avoid infinite recursion
-             (apply gf args)
-	     (error 'syntax-error "attempt to call generic function wrapper recursively"))))))
-
-(define-macro (define-slot-accessor name slot)
-  `(define ,name (dilambda 
-		  (lambda (obj) (obj ',slot)) 
-		  (lambda (obj val) (set! (obj ',slot) val)))))
-
-(define-macro (define-method name-and-args . body)
-  `(let* ((outer-env (outlet (curlet)))
-	  (method-name (car ',name-and-args))
-	  (method-args (cdr ',name-and-args))
-	  (object (caar method-args))
-	  (class (symbol-&gt;value (cadar method-args)))
-	  (old-method (class method-name))
-	  (method (apply lambda* method-args ',body)))
-     
-     ;; define the method as a normal-looking function
-     ;;   s7test.scm has define-method-with-next-method that implements call-next-method here
-     ;;   it also has make-instance 
-     (varlet outer-env
-       method-name (apply lambda* method-args 
-			  `(((,object ',method-name)
-			     ,@(map (lambda (arg)
-				      (if (pair? arg) (car arg) arg))
-				    method-args)))))
-     
-     ;; add the method to the class
-     (varlet (outlet (outlet class)) method-name method)
-     
-     ;; if there are inheritors, add it to them as well, but not if they have a shadowing version
-     (for-each
-      (lambda (inheritor) 
-	(if (not (eq? (inheritor method-name) #&lt;undefined&gt;)) ; defined? goes to the global env
-	    (if (eq? (inheritor method-name) old-method)
-		(set! (inheritor method-name) method))
-	    (varlet (outlet (outlet inheritor)) method-name method)))
-      (class 'inheritors))
-     
-     method-name))
-
-(define (all-methods obj method)
-  ;; for arbitrary method combinations: this returns a list of all the methods of a given name
-  ;;   in obj's class and the classes it inherits from (see example below)
-  (let* ((base-method (obj method))
-	 (methods (if (procedure? base-method) (list base-method) ())))
-    (for-each 
-     (lambda (ancestor)
-       (let ((next-method (ancestor method)))
-	 (if (and (procedure? next-method)
-		  (not (memq next-method methods)))
-	     (set! methods (cons next-method methods)))))
-     (obj 'inherited))
-    (reverse methods)))
-
-
-&gt; (define-class class-1 () 
-       '((a 1) (b 2)) 
-       (list (list 'add (lambda (obj) 
-                          (with-let obj
-                            (+ a b))))))
-<em class="gray">class-1</em>
-&gt; (define v (make-class-1 :a 32))
-<em class="gray">v </em>
-&gt; (v 'a)                         ; to set the 'a slot, (set! (v 'a) 0) 
-<em class="gray">32</em>
-&gt; (object-&gt;string v)             ; built-in functions are all generic
-<em class="gray">"#&lt;class-1: (a 32) (b 2)&gt;"</em>       ;   so this uses the method defined in the class definition
-&gt; ((v 'add) v)
-<em class="gray">34</em>
-&gt; (define-generic add)
-<em class="gray">add</em>
-&gt; (add v)                        ; syntactic sugar for ((v 'add) v)
-<em class="gray">34</em>
-&gt; (define-slot-accessor slot-a a) ; more sugar!
-<em class="gray">slot-a</em>
-&gt; (slot-a v)                     ; same as (v 'a), set via (set! (slot-a v) 123)
-<em class="gray">32</em>
-&gt; (map car v)                    ; map and for-each work with environments
-<em class="gray">(a b)</em>                               ;   map cdr would return '(32 2) in this case
-&gt; (define-class class-2 (list class-1)
-       '((c 3)) 
-       (list (list 'multiply (lambda (obj) 
-                               (with-let obj 
-                                 (* a b c))))))
-<em class="gray">class-2</em>
-&gt; (define v2 (make-class-2 :a 32))
-<em class="gray">v2</em>
-&gt; v2                            ; will use object-&gt;string
-<em class="gray">"#&lt;class-2: (c 3) (a 32) (b 2)&gt;"</em>
-&gt; ((v2 'multiply) v2)
-<em class="gray">192</em>
-&gt; (add v2)                      ; inherited from class-1
-<em class="gray">34</em>
-&gt; (define-method (subtract (obj class-1)) (with-let obj (- a b)))
-<em class="gray">subtract</em>
-&gt; (subtract v2)  ; class-2 inherits from class-1 so it knows about subtract
-<em class="gray">30</em>
-&gt; (define v1 (make-class-1))
-<em class="gray">v1</em>
-&gt; (varlet v1      ; change the add method just in this instance
-       'add (lambda (obj) 
-              (with-let obj
-                (+ 1 a (* 2 b)))))
-<em class="gray">#&lt;class-1: (a 1) (b 2) (add #&lt;lambda (obj)&gt;)&gt;</em>
-&gt; (add v1)
-<em class="gray">6</em>
-&gt; (add v)                       ; other class-1 instances are not affected
-<em class="gray">34</em>
-&gt; (define-class class-3 (list class-2) () 
-    (list (list 'multiply (lambda (obj num) 
-			    (* num 
-			       ((class-2 'multiply) obj) ; method combination 
-			       (add obj))))))
-<em class="gray">class-3</em>
-&gt; ((class-3 'multiply) class-3 10)
-<em class="gray">180                               ; (* 10 (* 1 2 3) (+ 1 2))</em>
-&gt; (define v3 (make-class-3))
-<em class="gray">v3</em>
-&gt; (all-methods v3 'multiply)
-<em class="gray">(#&lt;lambda (obj num)&gt; #&lt;lambda (obj)&gt;)</em>
-&gt; (for-each (lambda (p) (format () "~A~%" (procedure-source p))) (all-methods v3 'multiply))
-<em class="gray">(lambda (obj num) (* num ((class-2 'multiply) obj) (add obj)))</em>
-<em class="gray">(lambda (obj) (with-let obj (* a b c)))</em>
-</pre>
-
-<p>with-let (used briefly above) provides an even more striking simplification of syntax
-than implicit indexing or multidimensional vectors, and it is faster as well!
-See Snd's generators.scm for many examples.  
-</p>
-
-<!--
-at class definition time:
-    (list 'mac (symbol->value (define-macro (mac a) `(+ ,a 1))))
--->
-</div>
-</details>
-
-
-<details>
-<summary class="indented">more examples</summary>
-<div class="indented">
-<p>Implicit indexing of a local environment
-does not search the global environment.  Since unlet extends the
-current environment chain, it is considered a local environment:
-</p>
-
-<pre class="indented">
-&gt; ((rootlet) 'abs)
-<em class="gray">abs</em>
-&gt; (let () ((curlet) 'abs))
-<em class="gray">#&lt;undefined&gt;</em>
-&gt; ((unlet) 'abs)
-<em class="gray">#&lt;undefined&gt;</em>
-</pre>
-
-</div>
 
 
 <div class="indented">
@@ -3315,54 +2990,6 @@ current environment chain, it is considered a local environment:
 </div>
 
 
-<div class="indented">
-
-<p>I can't resist adding at least some of a quaternion implementation
-(finally "number?" is not the same
-as "complex?"!):
-</p>
-
-<pre>
-(define-class quaternion () 
-  '((r 0) (i 0) (j 0) (k 0))
-  (list (list 'number? (lambda (obj) #t))
-	(list 'complex? (lambda (obj) #f))
-	(list 'real? (lambda (obj) #f))
-	(list 'integer? (lambda (obj) #f))
-	(list 'rational? (lambda (obj) #f))
-
-	(list '+ (lambda orig-args
-		   (let add ((r ()) (i ()) (j ()) (k ()) (args orig-args))
-		     (if (null? args)
-			 (<em class=red>make-quaternion</em> 
-                           (apply + r) (apply + i) (apply + j) (apply + k)) 
-			 (let ((n (car args)))
-			   (cond
-			    ((real? n)
-			     (add (cons n r) i j k (cdr args)))
-			    ((complex? n)
-			     (add (cons (real-part n) r) (cons (imag-part n) i) j k (cdr args)))
-			    ((<em class=red>quaternion?</em> n)
-			       (add (cons (n 'r) r) (cons (n 'i) i) 
-                                    (cons (n 'j) j) (cons (n 'k) k) 
-                                    (cdr args)))
-                            ((not (<em class=red>openlet?</em> n))   ; maybe we'll add octonions later!
-                             (error 'wrong-type-arg "+ argument ~A is not a number" n))
-                            ((eq? n (car orig-args))
-                             (error 'missing-method "+ can't handle these arguments: ~A" args))
-                            (else
-			      (apply (n '+) 
-                                     (make-quaternion 
-                                       (apply + r) (apply + i) (apply + j) (apply + k)) 
-                                     (cdr args)))))))))))
-
-&gt; (let ((q1 (make-quaternion 1.0 1.0 0.0 0.0)))
-    (+ 1 q1 2.5+i))
-<em class="gray">#&lt;quaternion: (r 4.5) (i 2.0) (j 0.0) (k 0.0)&gt;</em>
-</pre>
-
-</div>
-</details>
 
 <div class="indented">
 <p>If an s7 function ignores the type of an argument, as in cons or vector for example,
@@ -3411,10 +3038,6 @@ know the field names in advance,
 <em class="gray">#&lt;secret function!&gt;</em>
 </pre>
 </div>
-
-</blockquote>
-
-
 
 
 
@@ -3580,25 +3203,6 @@ that the if statement
 was valid, or which branch would be taken!  So, in those cases where a syntactic form evaluates
 an argument, s7 follows CL, and uses only the first of the values (this affects if, when, unless, cond, and case).
 </p>
-
-
-
-<!--
-<details>
-<summary class="indented">more examples</summary>
-
-<pre>
-(define (flatten lst) 
-  (map values (list (let flatten-1 ((lst lst))
-                      (cond ((null? lst) (values))
-                            ((not (pair? lst)) lst)
-                            (else (values (flatten-1 (car lst)) 
-                                          (flatten-1 (cdr lst)))))))))
-</pre>
-
-<div class="indented">
-</details>
--->
 
 </blockquote>
 
@@ -4227,119 +3831,6 @@ in its closure:
 
 <blockquote>
 <br>
-
-
-<details>
-<summary class="indented">examples</summary>
-<div class="indented">
-
-<p>procedure-source returns the actual function source.  If you
-call the function, the optimizer changes the source to suit itself,
-so if you want to walk over the function body or change it in some way,
-make a clean copy of
-the procedure-source first (using, for example, copy-tree in stuff.scm).
-</p>
-
-<pre>
-(define-bacro (procedure-annotate proc) ; use "bacro" so we can annotate local functions
-  (let ((orig (<em class=red>procedure-source</em> proc))) ; this assumes we haven't called "proc" yet
-
-    (define (proc-walk source)
-      (cond ((not (pair? source))
-	     source)
-
-	    ((not (memq (car source) '(let let*))) ; if let or let*, show local variables
-	     (cons (proc-walk (car source))
-		   (proc-walk (cdr source))))
-
-	    ((symbol? (cadr source))               ; named let?
-	     (append               ; (let name vars . body) -&gt; (let name vars print-vars . body)
-	       (list (car source)
-		     (cadr source)
-		     (caddr source)
-		     `(format () "    (let ~A (~{~A~^ ~}) ...)~%" ,(cadr source) (curlet)))
-	       (cdddr source)))
-         
-            (else                  ; (let(*) vars . body) -&gt; (let vars print-vars . body)
-	      (append 
-	        (list (car source)
-		      (cadr source)
-		      `(format () "    (~A (~{~A~^ ~}) ...)~%" ,(car source) (curlet)))
-	        (cddr source)))))
-    
-    (let* ((new-body (proc-walk orig))
-	   (result (gensym))
-	   (new-source 
-	    `(lambda ,(cadr orig)
-	       (let ((,result #&lt;undefined&gt;))
-		 (dynamic-wind
-		     (lambda ()       ; upon entry, show procedure name and args
-		       (format () "(~A~{ ~A~})~%" 
-                               ',proc 
-			       (outlet (outlet (curlet)))))
-		     (lambda ()
-		       (set! ,result (,new-body ,@(cadr orig))))
-		     (lambda ()       ; at exit, show result
-		       (if (eq? ,result #&lt;undefined&gt;)
-			   (format () "  ~A returns early~%" ',proc)
-			   (format () "  ~A returns ~A~%" ',proc ,result))))))))
-
-      `(define ,proc ,new-source))))
-
-			 
-&gt; (define (hi a) (let ((b 12)) (+ b a)))
-<em class="gray">hi</em>
-&gt; (procedure-annotate hi)
-<em class="gray">#&lt;lambda (a)&gt;</em>
-&gt; (let ((x 32)) (+ 1 (hi x)))
-<em class="gray">45</em>
-;; printing: 
-(hi (a . 32))
-    (let ((b . 12)) ...)
-  hi returns 44
-</pre>
-
-<p>But maybe something less invasive is better. Here's a version of let that prints
-its bindings (this is borrowed from "nuntius" at reddit lisp):
-</p>
-
-<pre>
-(define-macro (print-let bindings . body)
-  (let ((temp-symbol (gensym)))
-    `(let ,(map (lambda (var/val)
-		  `(,(car var/val) 
-		    (let ((,temp-symbol ,(cadr var/val))) 
-		      (format () ";~S: ~S -&gt; ~S~%" 
-			      ',(car var/val) 
-			      ',(cadr var/val) 
-			      ,temp-symbol)
-		      ,temp-symbol)))
-		bindings)
-       ,@body)))
-
-;; or simpler:
-
-(define-macro (print-let bindings . body)
-  `(let ,bindings 
-     (format () "~{;~A~%~}" (curlet))
-     ,@body))	      
-</pre>
-
-</div>
-
-
-<div class="indented">
-
-<p>A minor footnote: there are cases in s7 where aritable? can't tell whether
-a given number of arguments can be applied to an object.  For example,
-<code>((list 1 (list 2 3)) 0 1)</code> is an error, but
-<code>((list 1 (list 2 3)) 1 1)</code> is 3.  So 
-<code>(aritable? (list 1 (list 2 3)) 2)</code> depdends on
-what actual arguments you pass.  In these cases, aritable? returns <code>#f</code>.
-</p>
-
-</div>
-</details>
 
 <div class="indented">
 
@@ -5459,8 +4950,7 @@ returns the value dynamically bound to it.  A variable can access both of its va
     (list x (<em class=red>symbol-&gt;value</em> 'x) (<em class=red>symbol-&gt;dynamic-value</em> 'x)))
   (let ((x 100))
     (let ((x 12))
-      (values (gx))))) ; this 'values' looks dumb, it is dumb, but see my unconvincing explanantion <a href="#weaselwords">below</a>.
-                       ;   briefly: "dynamic binding" in s7 is not "lexically apparent dynamic binding"
+      (values (gx)))))
 <em class="gray">(32 32 12)</em>
 </pre>
 
@@ -5510,107 +5000,6 @@ Here we scan the symbol table looking for any function that doesn't have documen
 </pre>
 </div>
 
-<details id="weaselwords">
-<summary class="indented">more on dynamic values</summary>
-<div class="indented">
-<p>Why the useless 'values' in our dynamic binding example?  The short answer: tail calls.
-The long winded one goes something like this.  symbol-&gt;dynamic-value searches the stack to find
-the latest binding of its argument.  But because we want to support tail calls, "let" does not
-push anything on the stack.  If we call a function as the last thing that happens in that let's body,
-and it tries (internally) to access a dynamic binding, the let that launched the function no longer exists; it might already
-be garbage collected, and it certainly isn't on the stack. Take our earlier example without the
-'values':
-</p>
-
-<pre class="indented">
-(let ((x 32))
-  (define (gx) 
-    (symbol-&gt;dynamic-value 'x))
-  (let ((x 100))
-    (gx)))
-</pre>
-
-<p>
-This returns 32 because the <code>(x 100)</code> binding no longer exists anywhere when the gx body is evaluated.
-So, in s7, the "dynamic binding" of x is the last binding of x that is accessible
-to s7.  This may not be the last binding that we can see in the code text, but I don't see that as
-an inconsistency. It's not lexical after all. 
-Leaving aside this special case, so to speak,
-dynamic binding does what you'd expect, even in the context of call/cc.  See s7test.scm for
-the MIT-Scheme test of that interaction.
-</p>
-
-<p>There is another way to get the call-time value:
-</p>
-<pre class="indented">
-(define-macro (elambda args . body)
-  `(define-macro (,(gensym) ,@args)
-    `((lambda* ,(append ',args `((*env* (curlet)))) 
-        ,'(begin ,@body)) 
-      ,,@args)))
-
-(define efunc (elambda (x) (+ (*env* 'y) x))) ; add x to the run-time value of y
-(let ((y 3)) (efunc 1)) ; returns 4
-</pre>
-
-<p>elambda does not suffer from the symbol-&gt;dynamic-value defects mentioned above, but
-it's probably slower.  We have to wrap the function in a macro because lambda*'s argument default
-values are evaluated in the definition environment, but we want the run-time environment.
-</p>
-
-<pre class="indented">
-(define-macro* (rlambda args . body) ; lambda* but eval arg defaults in run-time env
-  (let ((arg-names (map (lambda (arg) (if (pair? arg) (car arg) arg)) args))
-	(arg-defaults (map (lambda (arg) (if (pair? arg) `(,(car arg) (eval ,(cadr arg))) arg)) args)))
-    `(define-bacro* (,(gensym) ,@arg-defaults)
-      `((lambda ,',arg-names ,'(begin ,@body)) ,,@arg-names))))
-<!-- ( -->
-(let ()
-  (define rx (rlambda ((a x)) 
-               (if (> a 0) 
-                   (let ((x (- x 1))) ;:)
-                     (rx))
-                   0)))
-  (let ((x 3))
-    (rx)))
-</pre>
-
-<p>Now putting that idea with the procedure-annotation macro given earlier, and the __func__ business
-(to get the caller's name), and taking care to handle default arguments correctly, we make a
-macro that returns an anonymous macro that returns an anonymous function that &mdash; where was I?
-</p>
-<pre class="indented">
-(define-macro (Display definition) ; (Display (define (f1 x) (+ x 1))) -&gt; an annotated version of f1
-  (let ((func (caadr definition))
-	(args (cdadr definition)))
-    (let ((arg-names (map (lambda (a) (if (symbol? a) a (car a))) args))
-	  (body (proc-walk `(begin ,@(cddr definition))))) ; from procedure-annotation above
-      `(define ,func
-	  (define-macro* (,(gensym) ,@args)
-	    (let ((e (gensym))
-		  (result (gensym)))
-	      `((lambda* ,(append ',arg-names `((,e (curlet)))) ; the calling environment
-		  (let ((,result '?))
-		    (dynamic-wind
-			(lambda ()    ; display the caller, if any, as well as the incoming arguments
-			  (format *stderr* "(~A~{~^ ~A~})" ',',func 
-				  (map (lambda (slot)
-					 (if (gensym? (car slot)) (values) slot))
-				       (outlet (outlet (curlet)))))
-			  (let ((caller (eval '__func__ ,e)))
-			    (if (not (eq? caller #&lt;undefined&gt;))
-				(format *stderr* " ;called from ~S" caller))
-			    (newline *stderr*)))
-			(lambda ()   ; evaluate the original function's body with annotations
-			  (set! ,result ,',body))
-			(lambda ()   ; display the result (it is returned by the set! above)
-			  (format *stderr* "    -&gt; ~S~%" ,result)))))
-		,,@arg-names)))))))
-</pre>
-<p>stuff.scm has a more mature version of this macro.
-</p>
-</div>
-</details>
 
 <div class="separator"></div>
 
@@ -6230,8 +5619,6 @@ Better ideas are always welcome!
 
 
 
-<details>
-<summary class="indented">quotes</summary>
 <div class="indented">
 
 <p>Schemes vary in their treatment of ().  s7 considers it a constant that evaluates to itself,
@@ -6275,47 +5662,8 @@ I think the best path is to use unlet:
 can't be changed.
 </p>
 </div>
-</details>
 
 
-<details>
-<summary class="indented">notes on constants</summary>
-<div class="indented">
-
-<pre class="indented">
-&gt; (let ((x (lambda () "hiho"))) (string-set! (x) 1 #\x) (x))
-<em class="gray">"hxho"</em>
-&gt; (let ((x (lambda () (copy "hiho")))) (string-set! (x) 1 #\x) (x))
-<em class="gray">"hiho"</em>
-&gt; (let ((x (lambda () (immutable! "hiho")))) (string-set! (x) 1 #\x) (x))
-<em class="red">error</em><em class="gray">: can't string-set! "hiho" (it is immutable)</em>
-</pre>
-
-<p>s7 normally tries to optimize garbage collection by
-removing some list constants from the heap.  If you later
-set a member of it to something that needs GC protection, nobody in the heap points to it, so
-it is GC'd.  Here is an example:
-</p>
-
-<pre class="indented">
-(define (bad-idea)
-  (let* ((lst '(1 2 3))
-         (result (list-ref lst 1)))
-   (list-set! lst 1 (* 2.0 16.6))
-   (gc)
-   result))
-</pre>
-
-<p>Put this is a file, load it into the interpreter, then call <code>(bad-idea)</code> a
-few times.  You can turn off the optimization in question by setting the variable <code>(*s7* 'safety)</code>
-to 3.  <code>(*s7* 'safety)</code> defaults to 0.  
-</p>
-</div>
-</details>
-
-
-<details id="circle">
-<summary class="indented">circular lists</summary>
 <div class="indented">
 
 <p>s7 handles circular lists and vectors and dotted lists with its customary aplomb.  
@@ -6468,11 +5816,8 @@ sequences in its argument, or nil.
     (set-cdr! (list-tail vals (- len 1)) ())))    ; restore its original shape
 </pre>
 </div>
-</details>
 
 
-<details>
-<summary class="indented">unprintable symbols</summary>
 <div class="indented">
 
 <p>s7 and Snd use "*" in a variable name, *features* for example, to indicate
@@ -6563,8 +5908,6 @@ These symbols are not just an optimization of string comparison:
 <p>I hope that makes you as happy as it makes me!
 </p>
 </div>
-</details>
-
 
 
 <div class="indented">
@@ -6989,8 +6332,7 @@ g_io_channel_unref(channel);
 </pre></div>
 </blockquote>
 
-<details>
-<summary class="indented">repl with libtecla</summary>
+
 <p>Here's a version that uses libtecla for the line editor:
 </p>
 
@@ -7033,7 +6375,7 @@ int main(int argc, char **argv)
  */
 </pre></div>
 </blockquote>
-</details>
+
 
 <p>A repl (based on repl.scm) is built into s7.  Include the compiler flag -DWITH_MAIN:
 </p>
@@ -7043,119 +6385,6 @@ in Linux: gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
 in *BSD:  gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm -Wl,-export-dynamic
 in OSX:   gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm
 </pre>
-
-
-<details>
-<summary class="indented">repl in C++</summary>
-<p>If you prefer C++, here's a C++ version of the listener, extracted from Rick Taube's
-Common Music package:
-</p>
-
-<blockquote>
-<div class="indented">
-<pre>
-#include &lt;iostream&gt;
-#include "s7.h"
-
-static s7_pointer main_quit(s7_scheme *sc, s7_pointer args);
-static bool is_balanced(std::string str);
-static bool is_not_white(std::string str);
-
-int main(int argc, const char* argv[])
-{
-  s7_scheme* s7 = s7_init();
-  s7_pointer val;
-  std::string str;
-
-  try 
-    {
-      while (std::cin)
-	{
-	  std::cout &lt;&lt; "\ns7&gt; ";
-	  str = "";
-	  while (true)
-	    {
-	      std::string lin;
-	      std::getline(std::cin, lin);
-	      str = str + lin + "\n";
-	      if (is_balanced(str))
-		break;
-	    }
-	  if (is_not_white(str))
-	    {
-	      val = s7_eval_c_string(s7, str.c_str());
-	      std::cout &lt;&lt; s7_object_to_c_string(s7, val);
-	    }
-	}
-    }
-  catch(...)
-    {
-    }
-  std::cout &lt;&lt; "Bye!\n";
-  return 0;
-}
-
-static s7_pointer main_quit(s7_scheme *sc, s7_pointer args)
-{
-  throw 0;
-  return(s7_nil(sc));
-}
-
-static bool is_balanced(std::string str)
-{
-  int parens = 0;
-  int quotes = 0;
-  unsigned i = 0;
-  while (i &lt; str.size())
-    {
-      if (str[i] == ';')
-	{
-	  for (i = i + 1; i &lt; str.size(); i++)
-	    {
-	      if (str[i] == '\n')
-		break;
-	    }
-	}
-      else if (str[i] == '"')
-	{
-	  if (i == 0 || str[i - 1] != '\\')
-	    {
-	      quotes = 1;
-	      for (i = i + 1; i &lt; str.size(); i++)
-		{
-		  if (str[i] == '"' &amp;&amp; str[i - 1] != '\\')
-		    {
-		      quotes = 0;
-		      break;
-		    }
-		}
-	      if (quotes)
-		return false;
-	    }
-	}
-      else if (str[i] == '(')
-	parens++;
-      else if (str[i] == ')')
-	parens--;
-      i++;
-    }
-  return (parens == 0) &amp;&amp; (quotes == 0);
-}
-
-static bool is_not_white(std::string str)
-{
-  for (unsigned i = 0; (i &lt; str.size() &amp;&amp; str[i] != ';'); i++)
-    if (str[i] != ' ' && str[i] != '\n' &amp;&amp; str[i] != '\t')
-      return true;
-  return false;
-}
-
-/* g++ -I. -c repl.cpp
- * g++ -o repl repl.o s7.o -ldl
- */
-</pre></div>
-</blockquote>
-</details>
 
 
 <p id="beginhook">
@@ -9646,165 +8875,6 @@ a forgotten shadow types <code>(lint "insanely-great.scm")</code>...
 </div>
 </blockquote>
 
-
-
-<!-- ================================================================================ -->
-
-<script language=JavaScript>
-
-/** from Remy Sharp at GitHub
- * Note that this script is intended to be included at the *end* of the document, before </body>
- */ 
-(function (window, document) {
-if ('open' in document.createElement('details')) return; 
- 
-// made global by myself to be reused elsewhere
-var addEvent = (function () {
-  if (document.addEventListener) {
-    return function (el, type, fn) {
-      if (el && el.nodeName || el === window) {
-        el.addEventListener(type, fn, false);
-      } else if (el && el.length) {
-        for (var i = 0; i < el.length; i++) {
-          addEvent(el[i], type, fn);
-        }
-      }
-    };
-  } else {
-    return function (el, type, fn) {
-      if (el && el.nodeName || el === window) {
-        el.attachEvent('on' + type, function () { return fn.call(el, window.event); });
-      } else if (el && el.length) {
-        for (var i = 0; i < el.length; i++) {
-          addEvent(el[i], type, fn);
-        }
-      }
-    };
-  }
-})();
-  
- 
-/** details support - typically in it's own script */
-// find the first /real/ node
-function firstNode(source) {
-  var node = null;
-  if (source.firstChild.nodeName != "#text") {
-    return source.firstChild; 
-  } else {
-    source = source.firstChild;
-    do {
-      source = source.nextSibling;
-    } while (source && source.nodeName == '#text');
- 
-    return source || null;
-  }
-}
- 
-function isSummary(el) {
-  var nn = el.nodeName.toUpperCase();
-  if (nn == 'DETAILS') {
-    return false;
-  } else if (nn == 'SUMMARY') {
-    return true;
-  } else {
-    return isSummary(el.parentNode);
-  }
-}
- 
-function toggleDetails(event) {
-  // more sigh - need to check the clicked object
-  var keypress = event.type == 'keypress',
-      target = event.target || event.srcElement;
-  if (keypress || isSummary(target)) {
-    if (keypress) {
-      // if it's a keypress, make sure it was enter or space
-      keypress = event.which || event.keyCode;
-      if (keypress == 32 || keypress == 13) {
-        // all's good, go ahead and toggle
-      } else {
-        return;
-      }
-    }
- 
-    var open = this.getAttribute('open');
-    if (open === null) {
-      this.setAttribute('open', 'open');
-    } else {
-      this.removeAttribute('open');
-    }
-    
-    // this.className = open ? 'open' : ''; // Lame
-    // trigger reflow (required in IE - sometimes in Safari too)
-    setTimeout(function () {
-      document.body.className = document.body.className;
-    }, 13);
-    
-    if (keypress) {
-      event.preventDefault && event.preventDefault();
-      return false;
-    }
-  }
-}
- 
-function addStyle() {
-  var style = document.createElement('style'),
-      head = document.getElementsByTagName('head')[0],
-      key = style.innerText === undefined ? 'textContent' : 'innerText';
-      
-  var rules = ['details{display: block;}','details > *{display: none;}','details.open > *{display: block;}','details[open] > *{display: block;}','details > summary:first-child{display: block;cursor: pointer;}','details[open]{display: block;}'];
-      i = rules.length;
-  
-  style[key] = rules.join("\n");
-  head.insertBefore(style, head.firstChild);
-}
- 
-var details = document.getElementsByTagName('details'), 
-    wrapper,
-    i = details.length, 
-    j,
-    first = null, 
-    label = document.createElement('summary');
- 
-label.appendChild(document.createTextNode('Details'));
- 
-while (i--) {
-  first = firstNode(details[i]);
- 
-  if (first != null && first.nodeName.toUpperCase() == 'SUMMARY') {
-    // we've found that there's a details label already
-  } else {
-    // first = label.cloneNode(true); // cloned nodes weren't picking up styles in IE - random
-    first = document.createElement('summary');
-    first.appendChild(document.createTextNode('Details'));
-    if (details[i].firstChild) {
-      details[i].insertBefore(first, details[i].firstChild);
-    } else {
-      details[i].appendChild(first);
-    }
-  }
- 
-  // this feels *really* nasty, but we can't target details :text in css :(
-  j = details[i].childNodes.length;
-  while (j--) {
-    if (details[i].childNodes[j].nodeName === '#text' && (details[i].childNodes[j].nodeValue||'').replace(/\s/g, '').length) {
-      wrapper = document.createElement('text');
-      wrapper.appendChild(details[i].childNodes[j]);
-      details[i].insertBefore(wrapper, details[i].childNodes[j]);
-    }
-  }
-  
-  first.legend = true;
-  first.tabIndex = 0;
-}
- 
-// trigger details in case this being used on it's own
-document.createElement('details');
-addEvent(details, 'click', toggleDetails);
-addEvent(details, 'keypress', toggleDetails);
-addStyle();
- 
-})(window, document);
-</script>
 
 </body>
 </html>

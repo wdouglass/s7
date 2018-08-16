@@ -42,6 +42,6 @@
 		(not (= z 5)))
 	    (format *stderr* "let*: ~D ~D ~D~%" x y z)))
 
-      (gc))))
+      (if (zero? (modulo i 8)) (gc)))))
 
 (t)
