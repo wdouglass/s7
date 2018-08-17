@@ -4942,18 +4942,8 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
 
 <p>If ignore-global-env is #t, the search is confined to the given environment.
 <code>symbol-&gt;value</code> returns the value (lexically) bound to the symbol, whereas <code>symbol-&gt;dynamic-value</code>
-returns the value dynamically bound to it.  A variable can access both of its values:
+returns the value dynamically bound to it.
 </p>
-<pre class="indented">
-&gt; (let ((x 32))
-  (define (gx) ; return both bindings of 'x
-    (list x (<em class=red>symbol-&gt;value</em> 'x) (<em class=red>symbol-&gt;dynamic-value</em> 'x)))
-  (let ((x 100))
-    (let ((x 12))
-      (values (gx)))))
-<em class="gray">(32 32 12)</em>
-</pre>
-
 <p>
 <code>symbol-table</code> returns a vector containing the symbols currently in the symbol-table.
 Here we scan the symbol table looking for any function that doesn't have documentation:
