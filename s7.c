@@ -152,7 +152,7 @@
 #endif
 /* the heap grows as needed, this is its initial size.
  * If the initial heap is small, s7 can run in about 2.5 Mbytes of memory. There are (many) cases where a bigger heap is faster.
- * The heap size must be a multiple of 32.  Each object takes about 60 bytes.
+ * The heap size must be a multiple of 32.  Each object takes 48 bytes.
  *
  * repl runs in    4Mb (18v) (64bit) if heap is 8192
  *                11Mb (25v)         if 128k heap
@@ -298,7 +298,7 @@
   #define S7_DEBUGGING 0
 #endif
 #define CDR 0
-#define CYCLE_DEBUGGING S7_DEBUGGING
+#define CYCLE_DEBUGGING 0
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -748,7 +748,6 @@ typedef struct s7_cell {
       uint16_t high_flag;
     } opts;
   } tf;
-  int64_t hloc;                   /* heap location */
   union {
 
     union {                       /* integers, floats */
@@ -988,6 +987,19 @@ typedef struct s7_cell {
 } s7_cell;
 
 
+typedef struct s7_big_cell {
+  s7_cell cell;
+  int64_t big_hloc;
+} s7_big_cell;
+typedef struct s7_big_cell *s7_big_pointer;
+
+typedef struct heap_block_t {
+  intptr_t start, end;
+  int64_t offset;
+  struct heap_block_t *next;
+} heap_block_t;
+
+
 typedef struct {
   s7_pointer *objs;
   int32_t size, top, ref, size2;
@@ -1083,7 +1095,7 @@ struct s7_scheme {
   int32_t format_column;
   uint64_t capture_let_counter;
   bool short_print, is_autoloading, in_with_let, object_out_locked;
-  int64_t let_number, not_heap;
+  int64_t let_number;
   s7_double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
   s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length;
@@ -1139,6 +1151,8 @@ struct s7_scheme {
   uint32_t alloc_pointer_k, alloc_function_k, alloc_symbol_k;
   s7_cell *alloc_pointer_cells;
   c_proc_t *alloc_function_cells;
+  uint32_t alloc_big_pointer_k;
+  s7_big_cell *alloc_big_pointer_cells;
   s7_pointer *string_wrappers;
   uint8_t *alloc_symbol_cells;
   char *num_to_str;
@@ -1333,7 +1347,11 @@ struct s7_scheme {
   #define OPTS_SIZE 256          /* 128 overflows twice in s7test, 64 overflows 4 times in s7test, once in tall, pqw-vox needs 173 */
   opt_info *opts[OPTS_SIZE + 1]; /* this form is a lot faster than opt_info**! */
   opt_info *base_opts;
+
+  heap_block_t *heap_blocks;
 };
+
+static s7_scheme *cur_sc = NULL; /* intended for gdb (see gdbinit) */
 
 
 /* -------------------------------- mallocate -------------------------------- */
@@ -1812,6 +1830,8 @@ static void init_types(void)
 	{								\
 	  if (((typeflag(p) & T_IMMUTABLE) != 0) && ((typeflag(p) != (uint64_t)(f))))						\
 	    {fprintf(stderr, "%s[%d]: set immutable %p type %d to %" print_s7_int "\n", __func__, __LINE__, p, unchecked_type(p), (int64_t)(f)); abort();} \
+          if (((typeflag(p) & T_UNHEAP) != 0) && (((f) & T_UNHEAP) == 0)) \
+	    fprintf(stderr, "%s[%d]: clearing unheap in set type!\n", __func__, __LINE__);		\
 	}								\
       typeflag(p) = f;							\
     } while (0)
@@ -2354,7 +2374,7 @@ static void init_types(void)
 /* this bit distinguishes a symbol from a symbol that is also a keyword */
 
 
-#define UNUSED_BITS                   0x7f00000000000000
+#define UNUSED_BITS                   0x3f00000000000000
 /* 39 lower bits, sign bit as gc-mark, 16 for opt info */
 
 #define T_GC_MARK                     0x8000000000000000
@@ -2363,13 +2383,10 @@ static void init_types(void)
 #define clear_mark(p)                 typeflag(p) &= (~T_GC_MARK)
 /* using the sign bit, bit 23 (or 55) == 31 (or 63) for this makes a big difference in the GC */
 
-#define heap_location(p)              (p)->hloc
-/* hloc is not actually needed (see s7-unheap.c) but it speeds up the gc by about 20% (via s7_remove_from_heap). */
-#define not_in_heap(p)                ((T_Pos(p))->hloc < 0)
-#define in_heap(p)                    ((T_Pos(p))->hloc >= 0)
-#define global_unheap(p)              (p)->hloc = global_not_heap--
-#define unheap(sc, p)                 (p)->hloc = sc->not_heap--
-static int64_t global_not_heap = -1;
+#define T_UNHEAP                      0x4000000000000000
+#define not_in_heap(p)                ((typeflag(p) & T_UNHEAP) != 0)
+#define in_heap(p)                    ((typeflag(p) & T_UNHEAP) == 0)
+#define unheap(sc, p)                 typeflag(p) |= T_UNHEAP
 
 #define is_eof(p)                     ((T_Pos(p)) == eof_object)
 #define is_undefined(p)               (type(p) == T_UNDEFINED)
@@ -2663,7 +2680,7 @@ static int64_t global_not_heap = -1;
 #define symbol_name(p)                string_value(symbol_name_cell(p))
 #define symbol_name_length(p)         string_length(symbol_name_cell(p))
 #define gensym_block(p)               symbol_name_cell(p)->object.string.gensym_block
-#define symbol_hmap(p)                heap_location(p)
+#define symbol_hmap(p)                (s7_int)((intptr_t)(p) >> 8)
 #define symbol_id(p)                  (T_Sym(p))->object.sym.id
 #define symbol_set_id_unchecked(p, X) (T_Sym(p))->object.sym.id = X
 #if S7_DEBUGGING
@@ -2983,7 +3000,8 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define catch_tag(p)                  (T_Cat(p))->object.rcatch.tag
 #define catch_goto_loc(p)             (T_Cat(p))->object.rcatch.goto_loc
 #define catch_op_loc(p)               (T_Cat(p))->object.rcatch.op_stack_loc
-#define catch_handler(p)              (T_Cat(p))->object.rcatch.handler
+#define catch_handler(p)              T_Pos((T_Cat(p))->object.rcatch.handler)
+#define catch_set_handler(p, val)     (T_Cat(p))->object.rcatch.handler = T_Pos(val)
 
 #define catch_all_goto_loc(p)         (T_Let(p))->object.envr.edat.ctall.goto_loc
 #define catch_all_set_goto_loc(p, L)  (T_Let(p))->object.envr.edat.ctall.goto_loc = L
@@ -3132,8 +3150,7 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_IMMUTABLE | T_INTEGER;
-  global_unheap(p); /* SC?? */
+  typeflag(p) = T_IMMUTABLE | T_INTEGER | T_UNHEAP;
   integer(p) = i;
   return(p);
 }
@@ -3156,8 +3173,7 @@ static void init_small_ints(void)
       s7_pointer p;
       small_ints[i] = &cells[i];
       p = small_ints[i];
-      typeflag(p) = T_IMMUTABLE | T_INTEGER;
-      global_unheap(p);
+      typeflag(p) = T_IMMUTABLE | T_INTEGER | T_UNHEAP;
       integer(p) = i;
     }
   for (i = 0; i < 10; i++)
@@ -3168,7 +3184,7 @@ static void init_small_ints(void)
   cells = (s7_cell *)calloc(EXTRA_NUMBERS, sizeof(s7_cell));
 
   #define init_real(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_REAL | T_IMMUTABLE); global_unheap(Ptr); set_real(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
+    do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
 
   real_zero = &cells[0]; init_real(real_zero, 0.0, "0.0", 3);
   real_one = &cells[1]; init_real(real_one, 1.0, "1.0", 3);
@@ -3178,7 +3194,7 @@ static void init_small_ints(void)
   real_pi = &cells[5]; init_real(real_pi, 3.1415926535897932384626433832795029L, NULL, 0); /* M_PI is not good enough for s7_double = long double */
 
   #define init_integer(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_INTEGER | T_IMMUTABLE); global_unheap(Ptr); set_integer(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
+    do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
 
   arity_not_set = &cells[6]; init_integer(arity_not_set, CLOSURE_ARITY_NOT_SET, NULL, 0);
   max_arity = &cells[7]; init_integer(max_arity, MAX_ARITY, NULL, 0);
@@ -3209,6 +3225,15 @@ static void init_small_ints(void)
  *   does not return it to the free list: a memory leak.
  */
 
+#define GC_STATS 1
+#define HEAP_STATS 2
+#define STACK_STATS 4
+
+#define show_gc_stats(Sc) ((Sc->gc_stats & GC_STATS) != 0)
+#define show_stack_stats(Sc) ((Sc->gc_stats & STACK_STATS) != 0)
+#define show_heap_stats(Sc) ((Sc->gc_stats & HEAP_STATS) != 0)
+
+
 #if (!S7_DEBUGGING)
 #define new_cell(Sc, Obj, Type)			\
   do {						\
@@ -3230,13 +3255,13 @@ static void clear_cell(s7_pointer p, const char *func, int line)
   p->debugger_bits = 0;
 }
 
-#define new_cell(Sc, Obj, Type)			\
-  do {						\
-    if (Sc->free_heap_top <= Sc->free_heap_trigger) try_to_call_gc(Sc); \
-    Obj = (*(--(Sc->free_heap_top))); \
-    clear_cell(Obj, __func__, __LINE__); \
-    set_type(Obj, Type);	      \
-    } while (0)
+#define new_cell(Sc, Obj, Type)						\
+  do {									\
+    if (Sc->free_heap_top <= Sc->free_heap_trigger) {if (show_gc_stats(Sc)) fprintf(stderr, "%s[%d]: gc\n", __func__, __LINE__);  try_to_call_gc(Sc);} \
+    Obj = (*(--(Sc->free_heap_top)));					\
+    clear_cell(Obj, __func__, __LINE__);				\
+    set_type(Obj, Type);						\
+  } while (0)
 
 #define new_cell_no_check(Sc, Obj, Type)		    \
   do {							    \
@@ -5135,6 +5160,17 @@ static void mark_vector_possibly_shared(s7_pointer p)
    * If we have a subvector of a subvector, and the middle and original are not otherwise
    *   in use, we mark the middle one, but (since it itself is not in use anywhere else)
    *   we don't mark the original!  So we need to follow the share-vector chain marking every one.
+   *
+   * To remove a cell from the heap, we need its current heap location so that we can replace it.
+   *   The heap is allocated as needed in monolithic blocks of (say) 1/2M s7_cells. When a cell
+   *   is replaced, the new cell (at heap[x] say) is no longer from the original block. Since the
+   *   GC clears all type bits when it frees a cell, we can't use a type bit to distinguish the
+   *   replacements from the originals, but we need that info because in the base case, we use
+   *   the distance of the cell from the base cell to get "x", its location.  In the replacement
+   *   case, we add the location at the end of the s7_cell (s7_big_cell).  We track the current
+   *   heap blocks via the sc->heap_blocks list.  To get the location of "p" above, we run through
+   *   that list looking for a block it fits in.  If none is found, we assume it is an s7_big_cell
+   *   and use the saved location.
    */
   if ((is_subvector(p)) &&
       (s7_is_vector(subvector_vector(p))))
@@ -5353,14 +5389,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
 static bool has_odd_bits(s7_pointer obj);
 #endif
 
-#define GC_STATS 1
-#define HEAP_STATS 2
-#define STACK_STATS 4
-
-#define show_gc_stats(Sc) ((Sc->gc_stats & GC_STATS) != 0)
-#define show_stack_stats(Sc) ((Sc->gc_stats & STACK_STATS) != 0)
-#define show_heap_stats(Sc) ((Sc->gc_stats & HEAP_STATS) != 0)
-
 static int64_t gc(s7_scheme *sc)
 {
   s7_cell **old_free_heap_top;
@@ -5577,12 +5605,14 @@ static int64_t gc(s7_scheme *sc)
 
 void s7_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
 
+
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
   /* alloc more heap */
   int64_t old_size, old_free, k;
   s7_cell *cells;
   s7_pointer p;
+  heap_block_t *hp;
 
   old_size = sc->heap_size;
   old_free = sc->free_heap_top - sc->free_heap;
@@ -5612,7 +5642,14 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell)); /* optimization suggested by K Matheussen, malloc makes no difference */
   for (p = cells, k = old_size; k < sc->heap_size;)
-    LOOP_4(sc->heap[k] = p; heap_location(p) = k++; (*sc->free_heap_top++) = p++);
+    LOOP_4(sc->heap[k++] = p; (*sc->free_heap_top++) = p++);
+
+  hp = (heap_block_t *)malloc(sizeof(heap_block_t));
+  hp->start = (intptr_t)cells;
+  hp->end = (intptr_t)cells + ((sc->heap_size - old_size) * sizeof(s7_cell));
+  hp->offset = old_size;
+  hp->next = sc->heap_blocks;
+  sc->heap_blocks = hp;
 
   sc->previous_free_heap_top = sc->free_heap_top;
 
@@ -5634,7 +5671,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
 static void try_to_call_gc(s7_scheme *sc)
 {
-  /* called only from new_cell and cons */
+  /* called only from new_cell */
   if (sc->gc_off)
     {
       /* we can't just return here!  Someone needs a new cell, and once the heap free list is exhausted, segfault */
@@ -5710,6 +5747,22 @@ static s7_cell *alloc_pointer(s7_scheme *sc)
   return(&(sc->alloc_pointer_cells[sc->alloc_pointer_k++]));
 }
 
+#define ALLOC_BIG_POINTER_SIZE 256
+static s7_big_cell *alloc_big_pointer(s7_scheme *sc, int64_t loc)
+{
+  s7_big_pointer p;
+  if (sc->alloc_big_pointer_k == ALLOC_BIG_POINTER_SIZE)
+    {
+      sc->permanent_cells += ALLOC_BIG_POINTER_SIZE;
+      sc->alloc_big_pointer_cells = (s7_big_cell *)calloc(ALLOC_BIG_POINTER_SIZE, sizeof(s7_big_cell));
+      sc->alloc_big_pointer_k = 0;
+    }
+  p = (&(sc->alloc_big_pointer_cells[sc->alloc_big_pointer_k++]));
+  p->big_hloc = loc;
+  return(p);
+}
+
+
 static void add_permanent_object(s7_scheme *sc, s7_pointer obj)
 {
   gc_obj *g;
@@ -5754,14 +5807,54 @@ static void free_vlist(s7_scheme *sc, s7_pointer lst)
     }
 }
 
+static int64_t heap_location(s7_scheme *sc, s7_pointer p)
+{
+  heap_block_t *hp;
+  for (hp = sc->heap_blocks; hp; hp = hp->next)
+    {
+      if (((intptr_t)p >= hp->start) && ((intptr_t)p < hp->end))
+	return(hp->offset + (((intptr_t)p - hp->start) / sizeof(s7_cell)));
+    }
+  return(((s7_big_pointer)p)->big_hloc);
+}
+
+#if S7_DEBUGGING
+static void check_heap_location(s7_scheme *sc, s7_pointer x, int64_t loc, const char *func, int line)
+{
+  if ((in_heap(x)) && ((loc < 0) || (loc > sc->heap_size) || (sc->heap[loc] != x)))
+    {
+      s7_int i;
+      heap_block_t *hp;
+      fprintf(stderr, "%s[%d]: sc->heap[%ld] (%p) is not %p\n", func, line, loc, ((loc >= 0) && (loc < sc->heap_size)) ? sc->heap[loc] : NULL, x);
+      for (i = 0; i < sc->heap_size; i++)
+	if (sc->heap[i] == x)
+	  break;
+      if (i < sc->heap_size)
+	fprintf(stderr, "  correct location: %ld\n", i);
+      else fprintf(stderr, "  %p is not in the heap\n", x);
+      fprintf(stderr, "  bits: %s\n", describe_type_bits(sc, x));
+      fprintf(stderr, "blocks (x is %ld, big_hloc: %ld):\n", (intptr_t)x, ((s7_big_pointer)x)->big_hloc);
+      for (hp = sc->heap_blocks; hp; hp = hp->next)
+	{
+	  fprintf(stderr, "  %ld: %ld to %ld\n", hp->offset, hp->start, hp->end);
+	  if (((intptr_t)x >= hp->start) && ((intptr_t)x < hp->end))
+	    fprintf(stderr, "   (found it here: %ld\n", hp->offset + (((intptr_t)x - hp->start) / sizeof(s7_cell)));
+	}
+      abort();
+    }
+}
+#endif
+
 static inline s7_pointer petrify(s7_scheme *sc, s7_pointer x)
 {
   s7_pointer p;
   int64_t loc;
-  loc = heap_location(x);
-  p = alloc_pointer(sc);
+  loc = heap_location(sc, x);
+#if S7_DEBUGGING
+  check_heap_location(sc, x, loc, __func__, __LINE__);
+#endif
+  p = (s7_pointer)alloc_big_pointer(sc, loc);
   sc->heap[loc] = p;
-  heap_location(p) = loc;
   free_cell(sc, p);
   unheap(sc, x);
   return(x);
@@ -5815,28 +5908,20 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
       add_permanent_object(sc, x);
       return;
 
-#if S7_DEBUGGING
-    case T_SYNTAX:
-      fprintf(stderr, "syntax in remove?? %s\n", DISPLAY(x));
-      return;
-#endif
-
     case T_SYMBOL:
       if (is_gensym(x))
 	{
 	  s7_int i;
 	  gc_list *gp;
 	  int64_t loc;
-	  loc = heap_location(x);
-	  sc->heap[loc] = alloc_pointer(sc);
+	  loc = heap_location(sc, x);
+#if S7_DEBUGGING
+	  check_heap_location(sc, x, loc, __func__, __LINE__);
+#endif
+	  sc->heap[loc] = (s7_pointer)alloc_big_pointer(sc, loc);
 	  free_cell(sc, sc->heap[loc]);
-	  heap_location(sc->heap[loc]) = loc;
+	  unheap(sc, x);
 
-	  heap_location(x) = -heap_location(x);
-	  /* if gensym is a hash-table key, then is removed from the heap, we need to be sure the hash-table map to it
-	   *   continues to be valid.  symbol_hmap is heap_location, and the possible overlap with other not-in-heap
-	   *   ints is not problematic (they'll just hash to the same location).
-	   */
 	  gp = sc->gensyms;
 	  for (i = 0; i < gp->loc; i++) /* sc->gensyms reaches size 512 during s7test, but this search is called 3 times and costs nothing */
 	    if (gp->list[i] == x)
@@ -6186,14 +6271,12 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   memcpy((void *)val, (void *)name, len);
   val[len] = '\0';
 
-  unheap(sc, str);
-  typeflag(str) = T_STRING | T_IMMUTABLE;                  /* avoid debugging confusion involving set_type (also below) */
+  typeflag(str) = T_STRING | T_IMMUTABLE | T_UNHEAP;       /* avoid debugging confusion involving set_type (also below) */
   string_length(str) = len;
   string_value(str) = (char *)val;
   string_hash(str) = hash;
 
-  unheap(sc, x);
-  typeflag(x) = T_SYMBOL;
+  typeflag(x) = T_SYMBOL | T_UNHEAP;
   symbol_set_name_cell(x, str);
   set_global_slot(x, sc->undefined);                       /* was sc->nil */
   symbol_info(x) = (block_t *)(base + 3 * sizeof(s7_cell));
@@ -6216,8 +6299,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
 	  set_local_slot(x, slot);
 	}
     }
-  unheap(sc, p);
-  typeflag(p) = T_PAIR | T_IMMUTABLE;
+  typeflag(p) = T_PAIR | T_IMMUTABLE | T_UNHEAP;
   set_car(p, x);
   set_cdr(p, vector_element(sc->symbol_table, location));
   vector_element(sc->symbol_table, location) = p;
@@ -6477,11 +6559,10 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   location = hash % SYMBOL_TABLE_SIZE;
 
   /* make-string for symbol name */
-  unheap(sc, str);
 #if S7_DEBUGGING
   typeflag(str) = 0;
 #endif
-  set_type(str, T_STRING | T_IMMUTABLE);
+  set_type(str, T_STRING | T_IMMUTABLE | T_UNHEAP);
   string_length(str) = nlen;
   string_value(str) = name;
   string_hash(str) = hash;
@@ -6500,8 +6581,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
 #if S7_DEBUGGING
   typeflag(stc) = 0;
 #endif
-  unheap(sc, stc);
-  set_type(stc, T_PAIR | T_IMMUTABLE);
+  set_type(stc, T_PAIR | T_IMMUTABLE | T_UNHEAP);
   set_car(stc, x);
   set_cdr(stc, vector_element(sc->symbol_table, location));
   vector_element(sc->symbol_table, location) = stc;
@@ -6829,8 +6909,7 @@ static s7_pointer permanent_slot(s7_scheme *sc, s7_pointer symbol, s7_pointer va
 {
   s7_pointer x;
   x = alloc_pointer(sc);
-  unheap(sc, x);
-  set_type(x, T_SLOT);
+  set_type(x, T_SLOT | T_UNHEAP);
   slot_set_symbol(x, symbol);
   slot_set_value(x, value);
   return(x);
@@ -6982,7 +7061,7 @@ static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
       s7_pointer val;
       val = slot_value(p);
       if ((has_closure_let(val)) &&
-	  (heap_location(closure_args(val)) >= 0))
+	  (in_heap(closure_args(val))))
 	remove_function_from_heap(sc, val);
       else
 	{
@@ -7005,7 +7084,7 @@ static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
 		  s7_pointer key_val;
 		  key_val = hash_table_iterate(sc, iterator);
 		  if ((has_closure_let(cdr(key_val))) &&
-		      (heap_location(closure_args(cdr(key_val))) >= 0))
+		      (in_heap(closure_args(cdr(key_val)))))
 		    remove_function_from_heap(sc, cdr(key_val));
 		}
 	      hash_table_set_removed(val);
@@ -7137,7 +7216,7 @@ static void save_unlet(s7_scheme *sc)
   block_t *block;
 
   sc->unlet = (s7_pointer)calloc(1, sizeof(s7_cell));
-  set_type(sc->unlet, T_VECTOR);
+  set_type(sc->unlet, T_VECTOR | T_UNHEAP);
   vector_length(sc->unlet) = UNLET_ENTRIES;
   block = mallocate(sc, UNLET_ENTRIES * sizeof(s7_pointer));
   vector_block(sc->unlet) = block;
@@ -7147,7 +7226,6 @@ static void save_unlet(s7_scheme *sc)
   vector_setter(sc->unlet) = default_vector_setter;
   inits = vector_elements(sc->unlet);
   s7_vector_fill(sc, sc->unlet, sc->nil);
-  unheap(sc, sc->unlet);
 
   for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
     for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
@@ -8726,7 +8804,7 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   sc->code = caar(sc->code);
   if ((op == OP_DEFINE_EXPANSION) &&
       (!is_let(sc->envir)))
-    set_type(sc->code, T_EXPANSION | T_SYMBOL); /* see comment under READ_TOK */
+    set_type(sc->code, T_EXPANSION | T_SYMBOL | (typeflag(sc->code) & T_UNHEAP)); /* see comment under READ_TOK */
   /* symbol? macro name has already been checked, find name in environment, and define it */
   cx = symbol_to_local_slot(sc, sc->code, sc->envir);
   if (is_slot(cx))
@@ -9583,10 +9661,6 @@ static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code, s7_po
   eval(sc, OP_LET_TEMP_DONE);
 }
 
-#if CYCLE_DEBUGGING
-static char *dbase = NULL, *dmin_char = NULL;
-#endif
-
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
   /* called only from call_with_current_continuation.
@@ -9598,27 +9672,6 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
    */
   int64_t i;
   opcode_t op;
-
-#if CYCLE_DEBUGGING
-  char x;
-  if (!dbase) dbase = &x; 
-  else 
-    {
-      if (&x > dbase) dbase = &x; 
-      else 
-	{
-	  if ((!dmin_char) || (&x < dmin_char))
-	    {
-	      dmin_char = &x;
-	      if ((dbase - dmin_char) > 1000000)
-		{
-		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
 
   /* check sc->stack for dynamic-winds we're jumping out of */
   for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
@@ -20656,10 +20709,9 @@ static void init_chars(void)
 
   chars[0] = &cells[0];
   eof_object = chars[0];
-  set_type(eof_object, T_EOF_OBJECT | T_IMMUTABLE);
+  set_type(eof_object, T_EOF_OBJECT | T_IMMUTABLE | T_UNHEAP);
   unique_name_length(eof_object) = 6;
   unique_name(eof_object) = "#<eof>";
-  global_unheap(eof_object);
   chars++;                    /* now chars[EOF] == chars[-1] == eof_object */
   cells++;
   
@@ -20670,8 +20722,7 @@ static void init_chars(void)
       
       c = (uint8_t)i;
       cp = &cells[i];
-      typeflag(cp) = T_IMMUTABLE | T_CHARACTER;
-      global_unheap(cp);
+      typeflag(cp) = T_IMMUTABLE | T_CHARACTER | T_UNHEAP;
       character(cp) = c;
       upper_character(cp) = (uint8_t)toupper(i);
       is_char_alphabetic(cp) = (bool)isalpha(i);
@@ -21473,8 +21524,7 @@ s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str)
   /* for the symbol table which is never GC'd */
   s7_pointer x;
   x = alloc_pointer(sc);
-  unheap(sc, x);
-  set_type(x, T_STRING | T_IMMUTABLE);
+  set_type(x, T_STRING | T_IMMUTABLE | T_UNHEAP);
   if (str)
     {
       s7_int len;
@@ -21521,8 +21571,7 @@ static s7_pointer make_permanent_string(const char *str)
   s7_int len;
 
   x = (s7_pointer)calloc(1, sizeof(s7_cell));
-  global_unheap(x);
-  set_type(x, T_STRING | T_IMMUTABLE);
+  set_type(x, T_STRING | T_IMMUTABLE | T_UNHEAP);
 
   len = safe_strlen(str);
   string_length(x) = len;
@@ -24365,8 +24414,7 @@ static void make_standard_ports(s7_scheme *sc)
 
   /* standard output */
   x = alloc_pointer(sc);
-  unheap(sc, x);
-  set_type(x, T_OUTPUT_PORT | T_IMMUTABLE);
+  set_type(x, T_OUTPUT_PORT | T_IMMUTABLE | T_UNHEAP);
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
@@ -24387,8 +24435,7 @@ static void make_standard_ports(s7_scheme *sc)
 
   /* standard error */
   x = alloc_pointer(sc);
-  unheap(sc, x);
-  set_type(x, T_OUTPUT_PORT | T_IMMUTABLE);
+  set_type(x, T_OUTPUT_PORT | T_IMMUTABLE | T_UNHEAP);
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_data(x) = NULL;
@@ -24409,8 +24456,7 @@ static void make_standard_ports(s7_scheme *sc)
 
   /* standard input */
   x = alloc_pointer(sc);
-  unheap(sc, x);
-  set_type(x, T_INPUT_PORT | T_IMMUTABLE);
+  set_type(x, T_INPUT_PORT | T_IMMUTABLE | T_UNHEAP);
   port_port(x) = (port_t *)calloc(1, sizeof(port_t));
   port_type(x) = FILE_PORT;
   port_set_closed(x, false);
@@ -26134,11 +26180,8 @@ static s7_pointer iterator_copy(s7_scheme *sc, s7_pointer p)
 {
   /* fields are obj cur [loc|lcur] [len|slow|hcur] next, but untangling them in debugging case is a pain */
   s7_pointer iter;
-  int64_t hloc;
   new_cell(sc, iter, T_ITERATOR | T_SAFE_PROCEDURE);
-  hloc = heap_location(iter);
   memcpy((void *)iter, (void *)p, sizeof(s7_cell));
-  heap_location(iter) = hloc;
   return(iter);
 }
 
@@ -29104,19 +29147,25 @@ bool s7_is_valid(s7_scheme *sc, s7_pointer arg)
       can_jump = 1;
       old_segv = signal(SIGSEGV, segv);
 #endif
-      result = ((unchecked_type(arg) > T_FREE) &&
-		(unchecked_type(arg) < NUM_TYPES) &&
-		(heap_location(arg) >= sc->not_heap) &&
-		((heap_location(arg) < 0) ||
-		 ((heap_location(arg) < sc->heap_size) && (sc->heap[heap_location(arg)] == arg))));
-
+      if ((unchecked_type(arg) > T_FREE) &&
+	  (unchecked_type(arg) < NUM_TYPES))
+	{
+	  if (not_in_heap(arg))
+	    result = true;
+	  else
+	    {
+	      int64_t loc;
+	      loc = heap_location(sc, arg);
+	      if ((loc >= 0) && (loc < sc->heap_size))
+		result = (sc->heap[loc] == arg);
+	    }
+	}
 #if TRAP_SEGFAULT
       signal(SIGSEGV, old_segv);
     }
   else result = false;
   can_jump = 0;
 #endif
-
   return(result);
 }
 
@@ -29133,7 +29182,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 512, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 512, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   optimize_op(obj), 
@@ -29254,6 +29303,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_KEYWORD) != 0) ?        ((is_symbol(obj)) ? " keyword" : " ?31?") : "",
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
+	   /* bit 54 */
+	   ((full_typ & T_UNHEAP) != 0) ?         " unheap" : "",
 	   /* bit 55 */
 	   (((full_typ & T_GC_MARK) != 0) && (in_heap(obj))) ? " gc-marked" : "");
   return(buf);
@@ -29578,6 +29629,11 @@ static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line)
   if (typ == T_FREE)
     {
       fprintf(stderr, "%s%s[%d]: attempt to use free cell%s\n", BOLD_TEXT, func, line, UNBOLD_TEXT);
+      typeflag(p) = p->current_alloc_type;
+      fprintf(stderr, "  free cell %p alloc: %s[%d], alloc type: #x%x %s\n", 
+	      p, p->current_alloc_func, p->current_alloc_line, 
+	      (unsigned int)(p->current_alloc_type), describe_type_bits(cur_sc, p));
+      typeflag(p) = 0;
       if (stop_at_error) abort();
     }
   return(p);
@@ -29910,12 +29966,11 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
   b = mallocate(sc, len);
   str = (char *)block_data(b);
   nlen = snprintf(str, len,
-		  "\n<%s %s,\n  current: %s[%d] %s,\n  previous: %s[%d] %s\n  hloc: %" print_s7_int " (%d uses), free: %s[%d], alloc: %s[%d]>",
+		  "\n<%s %s,\n  current: %s[%d] %s,\n  previous: %s[%d] %s\n  %d uses, free: %s[%d], alloc: %s[%d]>",
 		  excl_name, current_bits,
 		  obj->current_alloc_func, obj->current_alloc_line, allocated_bits,
 		  obj->previous_alloc_func, obj->previous_alloc_line, previous_bits,
-		  heap_location(obj), obj->uses,
-		  obj->gc_func, obj->gc_line, obj->alloc_func, obj->alloc_line);
+		  obj->uses, obj->gc_func, obj->gc_line, obj->alloc_func, obj->alloc_line);
 
   if (is_null(port))
     fprintf(stderr, "%p: %s\n", obj, str);
@@ -32373,8 +32428,7 @@ static s7_pointer permanent_cons(s7_scheme *sc, s7_pointer a, s7_pointer b, uint
 {
   s7_pointer x;
   x = alloc_pointer(sc);
-  set_type(x, type);
-  unheap(sc, x);
+  set_type(x, type | T_UNHEAP);
   set_car(x, a);
   set_cdr(x, b);
   return(x);
@@ -39825,8 +39879,9 @@ s7_pointer s7_make_function(s7_scheme *sc, const char *name, s7_function f, s7_i
 {
   s7_pointer x;
   x = alloc_pointer(sc);
+  x = make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, alloc_permanent_function(sc));
   unheap(sc, x);
-  return(make_function(sc, name, f, required_args, optional_args, rest_arg, doc, x, alloc_permanent_function(sc)));
+  return(x);
 }
 
 s7_pointer s7_make_safe_function(s7_scheme *sc, const char *name, s7_function f, 
@@ -40024,7 +40079,7 @@ s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
 {
   s7_pointer func, sym;
   func = s7_make_function(sc, name, fnc, required_args, optional_args, rest_arg, doc);
-  set_type(func, T_C_MACRO | T_DONT_EVAL_ARGS);
+  set_type(func, T_C_MACRO | T_DONT_EVAL_ARGS | T_UNHEAP); /* s7_make_function includes T_UNHEAP */
   sym = make_symbol(sc, name);
   s7_define(sc, sc->nil, sym, func);
   return(sym);
@@ -40073,7 +40128,7 @@ s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fn
   n_args = safe_list_length(local_args);  /* currently rest arg not supported, and we don't notice :allow-other-keys etc */
 
   func = s7_make_function(sc, name, fnc, 0, n_args, false, doc);
-  set_type(func, T_C_FUNCTION_STAR);
+  set_type(func, T_C_FUNCTION_STAR | T_UNHEAP); /* unheap from s7_make_function */
   c_function_call_args(func) = NULL;
 
   names = (s7_pointer *)malloc(n_args * sizeof(s7_pointer));
@@ -45602,7 +45657,7 @@ static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
   catch_tag(p) = car(args);
   catch_goto_loc(p) = s7_stack_top(sc);
   catch_op_loc(p) = (int32_t)(sc->op_stack_now - sc->op_stack);
-  catch_handler(p) = err;
+  catch_set_handler(p, err);
 
   if (is_any_macro(err))
     push_stack(sc, OP_CATCH_2, args, p);
@@ -60900,7 +60955,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 {
   /* this always occurs in a context where we're trying to find anything, so I'll move a couple of those checks here */
   if (has_let_ref_fallback(sc->envir)) /* an experiment -- see s7test (with-let *db* (+ int32_t (length str))) */
-    apply_known_method(sc, sc->envir, sc->let_ref_fallback_symbol, sc->w = list_2(sc, sc->envir, sym));
+    apply_known_method(sc, sc->envir, sc->let_ref_fallback_symbol, sc->w = list_2(sc, sc->envir, T_Sym(sym)));
   /* but if the thing we want to hit this fallback happens to exist at a higher level, oops... */
 
   if (sym == sc->unquote_symbol)
@@ -61060,8 +61115,7 @@ static s7_pointer assign_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   x = new_symbol(sc, name, safe_strlen(name), hash, loc);
 
   syn = alloc_pointer(sc);
-  unheap(sc, syn);
-  set_type(syn, T_SYNTAX | T_SYNTACTIC | T_DONT_EVAL_ARGS | T_GLOBAL);
+  set_type(syn, T_SYNTAX | T_SYNTACTIC | T_DONT_EVAL_ARGS | T_GLOBAL | T_UNHEAP);
   syntax_opcode(syn) = op;
   syntax_set_symbol(syn, x);
   syntax_min_args(syn) = integer(min_args);
@@ -72450,6 +72504,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 {             /* load up the current args into the ((args) (lambda)) layout [via the current environment] */
   s7_pointer x, z, e;
   uint64_t id;
+
   e = sc->envir;
   id = let_id(e);
   for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
@@ -76291,7 +76346,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    catch_tag(p) = tag;
 	    catch_goto_loc(p) = s7_stack_top(sc);
 	    catch_op_loc(p) = sc->op_stack_now - sc->op_stack;
-	    catch_handler(p) = cdadr(args);      /* not yet a closure... */
+	    catch_set_handler(p, cdadr(args));       /* not yet a closure... */
 	    
 	    push_stack(sc, OP_CATCH_1, sc->code, p); /* code ignored here, except by GC */
 	    new_frame(sc, sc->envir, sc->envir);
@@ -77230,7 +77285,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  goto EVAL;
 		break;
 	      }
-	    sc->value = s7_let_ref(sc, s, cadadr(sc->code));
+	    sc->value = s7_let_ref(sc, T_Pos(s), cadadr(sc->code));
 	    goto START;
 	  }
 	  
@@ -85931,8 +85986,7 @@ static s7_pointer make_real_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_REAL;
-  global_unheap(p);
+  typeflag(p) = T_REAL | T_UNHEAP;
   return(p);
 }
 
@@ -85940,8 +85994,7 @@ static s7_pointer make_integer_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_INTEGER;
-  global_unheap(p); 
+  typeflag(p) = T_INTEGER | T_UNHEAP;
   return(p);
 }
 
@@ -85975,14 +86028,11 @@ static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ)
 {
   s7_pointer p;
   p = alloc_pointer(sc);
-  set_type(p, typ | T_IMMUTABLE);
+  set_type(p, typ | T_IMMUTABLE | T_UNHEAP);
   unique_name_length(p) = safe_strlen(name);
   unique_name(p) = copy_string_with_length(name, unique_name_length(p));
-  unheap(sc, p);
   return(p);
 }
-
-static s7_scheme *cur_sc = NULL; /* intended for gdb (see gdbinit) */
 
 static pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -86030,6 +86080,8 @@ s7_scheme *s7_init(void)
   sc->permanent_cells = 0;
   sc->alloc_pointer_k = ALLOC_POINTER_SIZE;
   sc->alloc_pointer_cells = NULL;
+  sc->alloc_big_pointer_k = ALLOC_BIG_POINTER_SIZE;
+  sc->alloc_big_pointer_cells = NULL;
   sc->alloc_function_k = ALLOC_FUNCTION_SIZE;
   sc->alloc_function_cells = NULL;
   sc->alloc_symbol_k = ALLOC_SYMBOL_SIZE;
@@ -86042,7 +86094,6 @@ s7_scheme *s7_init(void)
 
   sc->longjmp_ok = false;
   sc->setjmp_loc = NO_SET_JUMP;
-  sc->not_heap = global_not_heap;
 
   if (sizeof(s7_int) == 4)
     sc->max_vector_length = (1 << 24);
@@ -86182,12 +86233,16 @@ s7_scheme *s7_init(void)
       {
 	sc->heap[i] = &cells[i];
  	sc->free_heap[i] = sc->heap[i];
- 	heap_location(sc->heap[i]) = i;
 	i++;
 	sc->heap[i] = &cells[i];
  	sc->free_heap[i] = sc->heap[i];
- 	heap_location(sc->heap[i]) = i;
      }
+
+    sc->heap_blocks = (heap_block_t *)malloc(sizeof(heap_block_t));
+    sc->heap_blocks->start = (intptr_t)cells;
+    sc->heap_blocks->end = (intptr_t)cells + (sc->heap_size * sizeof(s7_cell));
+    sc->heap_blocks->offset = 0;
+    sc->heap_blocks->next = NULL;
   }
   sc->max_heap_size = (1LL << 62);
 
@@ -86220,13 +86275,12 @@ s7_scheme *s7_init(void)
 
   /* keep the symbol table out of the heap */
   sc->symbol_table = (s7_pointer)calloc(1, sizeof(s7_cell));
-  set_type(sc->symbol_table, T_VECTOR);
+  set_type(sc->symbol_table, T_VECTOR | T_UNHEAP);
   vector_length(sc->symbol_table) = SYMBOL_TABLE_SIZE;
   vector_elements(sc->symbol_table) = (s7_pointer *)malloc(SYMBOL_TABLE_SIZE * sizeof(s7_pointer));
   vector_getter(sc->symbol_table) = default_vector_getter;
   vector_setter(sc->symbol_table) = default_vector_setter;
   s7_vector_fill(sc, sc->symbol_table, sc->nil);
-  unheap(sc, sc->symbol_table);
   make_base_optlist(sc);
 
 #if WITH_MULTITHREAD_CHECKS
@@ -86930,7 +86984,7 @@ s7_scheme *s7_init(void)
   typeflag(sc->eval_string_symbol) |= T_DEFINER;
   sc->apply_symbol =                 unsafe_defun("apply",	apply,			1, 0, true);
   sc->apply_function = slot_value(global_slot(sc->apply_symbol));
-  set_type(sc->apply_function, type(sc->apply_function) | T_COPY_ARGS);
+  set_type(sc->apply_function, type(sc->apply_function) | T_COPY_ARGS | T_UNHEAP);
   /* (let ((x '((1 2) 3 4))) (catch #t (lambda () (apply apply apply x)) (lambda args 'error)) x) should not mess up x! */
 
   sc->for_each_symbol =              unsafe_defun("for-each",	for_each,		2, 0, true); 
@@ -87731,7 +87785,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
 #endif
   /* fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
-  /* 64 bit machine: cell size: 56 [size 80 if gmp, 160 if debugging], block size: 40, max op: 811, opt: 414, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* 64 bit machine: cell size: 48 [size 80 if gmp, 152 if debugging], block size: 40, max op: 813, opt: 412, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
   save_unlet(sc);
   init_s7_let(sc);          /* set up *s7* */
@@ -87800,29 +87854,29 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   204
- * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   282
+ * tpeak         |      |      |      ||  391 ||  377 |                    376   280   203
+ * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   281
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1057
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1082
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1074
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1322
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1664
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1931
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1668
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1937
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2319
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2364
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2372
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2396
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3110
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3266
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3829
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4070
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6350
+ * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2367
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2371
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2402
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  3109
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3262
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3821
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  4066
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6384 [hash_eq/symbol]
  * tset          |      |      |      ||      ||      |                         10.0  6573
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.0
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.2
  * dup           |      |      |      ||      ||      |                         20.8  18.3
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  38.8
- * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.3
- * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.6
- * tbig          |      |      |      ||      ||      |                        246.9 246.7
+ * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.2
+ * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.7
+ * tbig          |      |      |      ||      ||      |                        246.9 246.0
  * ------------------------------------------------------------------------------------------
  */
