@@ -285,9 +285,9 @@
 	  (set! url-str (string-append url-str
 				       (if href
 					   (if (char=? (href 1) #\#)
-					       (values "\"" file (substring href 1) (format #f ",\n  "))
-					       (values href (format #f ",\n  ")))
-					   (format #f "NULL,\n  "))))
+					       (values "\"" file (substring href 1) ",\n  ")
+					       (values href ",\n  "))
+					   "NULL,\n  ")))
 	  (set! loc (+ leof 1))))
 
       (set! (outstr j) #\")
@@ -999,7 +999,7 @@
 			       (string-position "<a href" dline)
 			       (string-position "<a class=quiet href" dline)
 			       (string-position "<a class=def href" dline)))
-		      (set! (xrefs current-general) (string-append (xrefs current-general) dline (format #f "\n"))))
+		      (set! (xrefs current-general) (string-append (xrefs current-general) dline "\n")))
 		  (when (and topic
 			     (string-position "<hr>" dline))
 		    (set! topic #f)))))))))

@@ -8624,6 +8624,8 @@
 	      (lambda (head str caller form)
 		(let ((curlys 0)
 		      (dirs 0)
+		      (tildes 1)
+		      (returns 0)
 		      (pos (char-position #\~ str)))
 		  (when pos
 		    (do ((len (length str))
@@ -8674,6 +8676,7 @@
 			    (case c 
 			      ((#\{) (set! curlys (+ curlys 1)))
 			      ((#\}) (set! curlys (- curlys 1)))
+			      ((#\%) (set! returns (+ returns 1)))
 			      ((#\^ #\|)
 			       (if (zero? curlys)   ; (format #f "~^")
 				   (lint-format "~A has ~~~C outside ~~{~~}?" caller str c))))
@@ -8683,10 +8686,11 @@
 					     (substring str (- i 1) (+ i 3))
 					     str
 					     (substring str (- i 1) (+ i 1)))))
-			  (begin
+			  (begin ; not tilde-time
 			    (set! pos (char-position #\~ str i))
 			    (if pos 
 				(begin
+				  (set! tildes (+ tildes 1))
 				  (set! tilde-time #t)
 				  (set! i pos))
 				(set! i len))))))
@@ -8698,6 +8702,19 @@
 				   (if (positive? curlys) "{" "}") 
 				   (if (> curlys 1) "s" "") 
 				   (truncated-list->string form)))
+		  (if (and (= tildes returns)
+			   (not (cadr form))                ; (format #f "...~%..." -> "...\n..."
+			   (positive? tildes))
+		      (lint-format "format is not needed in ~S: perhaps use \"~A\" instead"
+				   caller form
+				   (let ((strc (copy str))
+					 (len (length str)))
+				     (do ((i 0 (+ i 1)))
+					 ((>= i len) strc)
+				       (when (char=? (string-ref str i) #\~)
+					 (string-set! strc i #\\)
+					 (set! i (+ i 1))
+					 (string-set! strc i #\n))))))
 		  dirs))))
 	  
 	  (define (sp-format caller head form env)

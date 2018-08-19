@@ -30,6 +30,7 @@
   "`(ok? ',tst (lambda () (call-with-exit (lambda (!a!) (!a! ,tst)))) ,expected)"
   "`(ok? ',tst (lambda () (call/cc (lambda (!a!) (!a! ,tst)))) ,expected)"
   "`(ok? ',tst (lambda () (values ,tst)) ,expected)"
+  "`(ok? ',tst (lambda () (car (list (values ,tst 0)))) ,expected)"
   "`(ok? ',tst (lambda () ((lambda (!a! !b!) !b!) (values #f ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (define (_s7_ !a!) !a!) (_s7_ ,tst)) ,expected)"
   "`(ok? ',tst (lambda () (let ((___x #f)) (set! ___x ,tst))) ,expected)"
@@ -44,10 +45,11 @@
   "`(ok? ',tst (lambda () (define !f (let ((!x ,tst)) (lambda () !x))) (!f)) ,expected)"
   "`(ok? ',tst (lambda () (define !f (make-iterator (let ((+iterator+ #t)) (lambda () ,tst)))) (iterate !f)) ,expected)"
   "`(ok? ',tst (lambda () (let ((!str (object->string ,tst :readable))) (eval-string !str))) ,expected)"
-  "`(ok? ',tst (lambda () (catch 'xyzzy (lambda () (throw 'xyzzy ,tst)) (lambda (type info) (car info)))) ,expected)"
   "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x #f)) ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (let () (define h! (make-hook '!x)) (set! (hook-functions h!) (list (lambda (!h) (set! (!h 'result) ,tst)))) (h!))) ,expected)"
   "`(ok? ',tst (lambda () (let-temporarily (((*s7* 'autoloading?) #f)) (with-let (sublet (curlet)) ,tst))) ,expected)"
+  "`(ok? ',tst (lambda () (let-temporarily (((*s7* 'safety) 1)) ,tst)) ,expected)"
+  ;; this confuses get-zero-count, but otherwise is ok: `(ok? ',tst (lambda () (gc) ,tst) ,expected)
   ))
 
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)

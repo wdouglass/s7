@@ -1755,7 +1755,7 @@ static const char *Reverb_urls[] = {
 
 #if HAVE_SCHEME
 
-static const char *snd_names[11728] = {
+static const char *snd_names[11726] = {
     "*clm-array-print-length*", "ws.scm",
     "*clm-channels*", "ws.scm",
     "*clm-clipped*", "ws.scm",
@@ -7473,7 +7473,6 @@ static const char *snd_names[11728] = {
     "transpose-mixes", "mix.scm",
     "tree-for-each", "mix.scm",
     "tree-for-each-reversed", "mix.scm",
-    "tree-member", "stuff.scm",
     "true", "libc.scm",
     "trumpeter-swan-1", "animals.scm",
     "trunc", "libm.scm",
@@ -7624,7 +7623,7 @@ static const char *snd_names[11728] = {
 
 static void autoload_info(s7_scheme *sc)
 {
-  s7_autoload_set_names(sc, snd_names, 5864);
+  s7_autoload_set_names(sc, snd_names, 5863);
 }
 #endif
 

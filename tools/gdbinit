@@ -52,6 +52,13 @@ document s7history
 show the entries in the history buffer
 end
 
+define s7crawl
+print s7_show_stack(cur_sc)
+end
+document s7history
+show the ops in the stack
+end
+
 
 define s7bt
 set logging overwrite on
