@@ -8231,62 +8231,20 @@ assuming we have the usual Scheme-to-C linkages (see snd-glistener.c):
 
 <div class="header" id="gdb"><h4>gdb</h4></div>
 
-<p>It is possible to make a mistake while writing C code.
-I switched from Common Lisp to Scheme a long time ago
-partly because it was so painful to debug FFI troubles in Common Lisp, and I
-chose Guile at that time partly because I thought gdb would have native support
-for it.  As far as I know it is still impossible to debug CL FFI troubles, 20 years later!
-And in gdb Python has muscled Guile aside.  Anyway, say you have hit a segfault
-and find yourself staring at a stackful of opaque pointers.  Print statements are your
-friend, of course, and at the gdb command level, the main one in this context is
-s7_object_to_c_string.  Here are some commands (intended for your .gdbinit file)
-that can speed up the process.  They assume the s7_scheme pointer is named "sc".
-(These are now included in the gdbinit file in the s7 tarball).
+<p>
+gdbinit has some debugging commands, intended your ~/.gdbinit file.
 </p>
 
 <pre class="indented">
-define s7print
-print s7_object_to_c_string(sc, $arg0)
-end
-document s7print
-interpret the argument as an s7 value and display it
-end
-# the current expression is sc-&gt;cur_code
-# the current environment is sc-&gt;envir
-# the error environment is sc-&gt;owlet
-# so for example, to see the current local variables, s7p sc-&gt;envir
-
-define s7eval
-print s7_object_to_c_string(sc, s7_eval_c_string(sc, $arg0))
-end
-document s7eval
-eval the argument (a string)
-end
-
-define s7stack
-print s7_object_to_c_string(sc, s7_stacktrace(sc))
-end
-document s7stack
-display the current stack
-end
-
-define s7value
-print s7_object_to_c_string(sc, s7_name_to_value(sc, $arg0))
-end
-document s7value
-print the value of the variable passed by its print name: s7v "*features*"
-end
-
-define s7let
-print s7_show_let(cur_sc)
-end
-document s7let
-show all non-global variables that are currently accessible
-end
+s7print interprets its argument as an s7 value and displays it
+s7eval evals its argument (a string)
+s7stack displays the current s7 stack (nested lets)
+s7value prints the value of the variable passed by its print name: s7v "*features*"
+s7let shows all non-global variables that are currently accessible
 </pre>
 
 <p>gdbinit also has two backtrace
-decoders: s7bt and s7btfull (heh heh).  The bt replacements print the gdb backtrace info,
+decoders: s7bt and s7btfull.  The bt replacements print the gdb backtrace info,
 replacing bare pointer numbers with their s7 value, wherever possible:
 </p>
 
