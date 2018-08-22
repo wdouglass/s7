@@ -248,7 +248,7 @@
       (test (byte-vector? bv) #t)
       (test (length bv) (length bigstr))
       (let ((bvi (byte-vector-ref bv (- (ash 1 31) 100))))
-      (test bvi (char->integer (string-ref (byte-vector->string bigstr) (- (ash 1 31) 100)))))))
+      (test bvi (char->integer (string-ref (byte-vector->string bv) (- (ash 1 31) 100)))))))
   
   (clear-and-gc)
   (let ((size little-size))
@@ -699,6 +699,7 @@
       (format () "noise: ~A~%" mx))))
 
 (define (float-2d-test skip)
+  (format *stderr* "float-2d ~A~%" skip)
   (let ((fvr (make-float-vector (list skip fft-size) 0.0)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
@@ -721,12 +722,6 @@
   (float-2d-test 2))
 (clear-and-gc)
 
-(when (> total-memory (* 9 (ash 1 33)))
-  (float-2d-test (ash 1 16))) ; fft-size (ash 1 17) -> (* 8 (ash 1 33))
-(let-temporarily ((fft-size 32))
-  (float-2d-test 2))
-(clear-and-gc)
-  
 
 ;; --------------------------------------------------------------------------------
 (format () "~%int-vectors...~%")  
