@@ -1,11 +1,14 @@
 
 (define dups 
   (let ()
+
     (define-constant (all-positive? v start end)
-      (do ((i start (+ i 1)))
-	  ((or (= i end)
-	       (not (positive? (int-vector-ref v i))))
-	   i)))
+      (let ((j end))
+	(do ((i start (+ i 1)))
+	    ((= i end) j)
+	  (if (< (int-vector-ref v i) 0)
+	      (set! j i)))))
+
     (lambda (size file alloc-lines)
       ;; find match of "size" successive lines in "file" (ignoring empty lines and leading/trailing whitespace)
       (let ((lines (make-vector alloc-lines ""))

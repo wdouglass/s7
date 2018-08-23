@@ -43,7 +43,7 @@
   "`(ok? ',tst (lambda () (let ((!x 0)) (set! (setter '!x) (lambda (_A _B) ,tst)) (set! !x 1))) ,expected)"
   "`(ok? ',tst (lambda () (define* (fgh1 (!x ,tst)) !x) (fgh1)) ,expected)"
   "`(ok? ',tst (lambda () (define !f (let ((!x ,tst)) (lambda () !x))) (!f)) ,expected)"
-  "`(ok? ',tst (lambda () (define !f (make-iterator (let ((+iterator+ #t)) (lambda () ,tst)))) (iterate !f)) ,expected)"
+;;;  "`(ok? ',tst (lambda () (define !f (make-iterator (let ((+iterator+ #t)) (lambda () ,tst)))) (iterate !f)) ,expected)"
   "`(ok? ',tst (lambda () (let ((!str (object->string ,tst :readable))) (eval-string !str))) ,expected)"
   "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x #f)) ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (let () (define h! (make-hook '!x)) (set! (hook-functions h!) (list (lambda (!h) (set! (!h 'result) ,tst)))) (h!))) ,expected)"

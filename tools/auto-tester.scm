@@ -131,7 +131,6 @@
 (define (s7-set-default-rationalize-error x) (set! (*s7* 'default-rationalize-error) x))
 
 (define (s7-catches) (*s7* 'catches))
-(define (s7-exits) (*s7* 'exits))
 (define (s7-stack-top) (*s7* 'stack-top))
 (define (s7-stack-size) (*s7* 'stack-size))
 (define (s7-stack) (*s7* 'stack))
@@ -468,7 +467,7 @@
 			  'string->byte-vector 'byte-vector->string
 
 #|
-			  's7-catches 's7-exits 
+			  's7-catches
 			  's7-stack-top 's7-stack 
 			  's7-symbol-table 
 			  's7-gc-protected-objects
@@ -632,12 +631,10 @@
 		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
 
 		    "(begin (list? (*s7* 'catches)))"
-		    "(begin (list? (*s7* 'exits)))"
 		    "(begin (integer? (*s7* 'stack-top)))"
 		    ;"(begin (string? (object->string (*s7* 'stack))))"
 		    ;"(begin (string? (object->string (*s7* 'stack) :readable)))"
 		    "(begin (string? (object->string (*s7* 'catches))))"
-		    "(begin (string? (object->string (*s7* 'exits))))"
 		    "(begin (vector? (*s7* 'gc-protected-objects)))"
 		    "(begin (list? (*s7* 'stacktrace-defaults)))"
 
