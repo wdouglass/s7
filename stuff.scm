@@ -130,6 +130,8 @@
 (define (ninth obj)  (if (sequence? obj) (obj 8) (error 'wrong-type-arg "ninth argument, ~S, is not a sequence" obj)))
 (define (tenth obj)  (if (sequence? obj) (obj 9) (error 'wrong-type-arg "tenth argument, ~S, is not a sequence" obj)))
 
+(define (built-in? x) 
+  (not (undefined? (eval-string (string-append "#_" (object->string x)))))) ; just a guess...
 
 (define iota 
   (let ((+documentation+ "(iota n (start 0) (incr 1)) returns a list counting from start for n:\n\

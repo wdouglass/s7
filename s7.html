@@ -2449,7 +2449,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="curlet">curlet</em>)                the current (innermost) environment
 (<em class=def id="funclet">funclet</em> proc)          the environment at the time when proc was defined
 (owlet)                 the environment at the point of the last error
-(<em class=def id="unlet">unlet</em>)                 a let with any built-in functions do not have their original value
+(<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
 (<em class=def id="letref">let-ref</em> env sym)       get value of sym in env, same as (env sym)
 (<em class=def id="letset">let-set!</em> env sym val)  set value of sym in val to val, same as (set! (env sym) val)
@@ -5296,6 +5296,8 @@ The defaults are '(3 45 80 45 #t).
 <p>(Ideally we'd only redisplay the changed fields).
 </p>
 
+
+<div class="separator"></div>
 <pre class="indented">
 (<em class=def id="cobject">c-object?</em> obj)
 (<em class=def id="cpointer">c-pointer?</em> obj)

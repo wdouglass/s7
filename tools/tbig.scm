@@ -200,7 +200,7 @@
 
 (when (> total-memory (* 4 big-size))
   (clear-and-gc)
-  (let ((bigstr (make-string big-size #\space)))
+  (let ((bigstr (make-string big-size)))
     (define (big-string-filler)
       (do ((i 0 (+ i 1)))
 	  ((= i big-size))
@@ -235,7 +235,7 @@
 	(let ((big2 (substring big1 (- (ash 1 31) 10) (+ (ash 1 31) 10))))
 	  (test big2 "dddddddddddddddddddd")
 	  (test (length big2) 20)
-	  (let ((big3 (make-string 20 #\null)))
+	  (let ((big3 (make-string 20)))
 	    (copy bigstr big3 (- (ash 1 31) 10) (+ (ash 1 31) 10))
 	    (test (string=? big2 big3) #t)))))
     (let ((p (call-with-output-string 
@@ -286,7 +286,7 @@
 	(test (string=? str str1) #t))))
   
   (clear-and-gc)
-  (let ((bigstr (make-string (* 2 big-size) #\space)))
+  (let ((bigstr (make-string (* 2 big-size))))
     (test (length bigstr) (* 2 big-size))
     (string-set! bigstr (- big-size 10000000) #\a)
     (test (string-ref bigstr (- big-size 10000000)) #\a)

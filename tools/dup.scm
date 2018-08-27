@@ -1,3 +1,8 @@
+;;; dup.scm
+;;; (dups size file alloc-lines): 
+;;;    find all matches of "size" successive lines in "file" ignoring empty lines and leading/trailing whitespace
+;;;    "alloc-lines" is any number bigger than the number of lines in "file"
+;;;    (dups 16 "s7.c" 89000) finds all 16-line matches in s7.c which has less than 89000 lines in all
 
 (define dups 
   (let ()
@@ -10,7 +15,6 @@
 	      (set! j i)))))
 
     (lambda (size file alloc-lines)
-      ;; find match of "size" successive lines in "file" (ignoring empty lines and leading/trailing whitespace)
       (let ((lines (make-vector alloc-lines ""))
 	    (original-lines (make-vector alloc-lines ""))
 	    (lens (make-int-vector alloc-lines 0))
