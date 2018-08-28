@@ -336,7 +336,7 @@
 (format () "~%byte-vectors...~%")
 
 (when (> total-memory (* 4 big-size))
-  (let ((bigstr (make-byte-vector big-size 32)))
+  (let ((bigstr (make-byte-vector big-size)))
     (test (length bigstr) big-size)
     (byte-vector-set! bigstr (- big-size 10000000) 65)
     (test (byte-vector-ref bigstr (- big-size 10000000)) 65)

@@ -550,7 +550,7 @@ typedef block_t optfix_t;
 #define optfix_next(p)                   block_next(p)
 
 typedef block_t vdims_t;
-#define vdims_ndims(p)                   p->size
+#define vdims_rank(p)                    p->size
 #define vector_elements_should_be_freed(p) p->ln.filler
 #define vdims_dims(p)                    p->dx.i_ptr
 #define vdims_offsets(p)                 p->nx.ix_ptr
@@ -2811,7 +2811,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 
 #define vector_dimension_info(p)      ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
 #define vector_set_dimension_info(p, d) (T_Vec(p))->object.vector.block->ex.ex_info = (void  *)d
-#define vector_ndims(p)               vdims_ndims(vector_dimension_info(p))
+#define vector_ndims(p)               vdims_rank(vector_dimension_info(p))
 #define vector_dimension(p, i)        vdims_dims(vector_dimension_info(p))[i]
 #define vector_dimensions(p)          vdims_dims(vector_dimension_info(p))
 #define vector_offset(p, i)           vdims_offsets(vector_dimension_info(p))[i]
@@ -10302,9 +10302,10 @@ static s7_int c_gcd(s7_int u, s7_int v)
   /* there are faster gcd algorithms but does it ever matter? */
   while (b != 0)
     {
-      a %= b;
-      if (a == 0) return(b);
-      b %= a;
+      s7_int temp;
+      temp = a % b;
+      a = b;
+      b = temp;
     }
   /* if (a < 0) return(-a); */ /* why this? */
   return(a);
@@ -25971,6 +25972,33 @@ static s7_pointer eval_string_chooser(s7_scheme *sc, s7_pointer f, int32_t args,
   return(f);
 }
 
+static s7_pointer op_eval_string(s7_scheme *sc)
+{
+  while (s7_peek_char(sc, sc->input_port) != eof_object) /* (eval-string "(+ 1 2) this is a mistake") */
+    {
+      int32_t tk;
+      tk = token(sc);                             /* (eval-string "(+ 1 2) ; a comment (not a mistake)") */
+      if (tk != TOKEN_EOF)
+	{
+	  s7_int trail_len;
+	  s7_pointer trail_data;
+	  trail_len = port_data_size(sc->input_port) - port_position(sc->input_port) + 1;
+	  if (trail_len > 32) trail_len = 32;
+	  trail_data = s7_make_string_with_length(sc, (const char *)(port_data(sc->input_port) + port_position(sc->input_port) - 1), trail_len);
+	  s7_close_input_port(sc, sc->input_port);
+	  pop_input_port(sc);
+	  s7_error(sc, sc->read_error_symbol, 
+		   set_elist_2(sc, wrap_string(sc, "eval-string trailing junk: ~S", 29), trail_data));
+	}
+    }
+  s7_close_input_port(sc, sc->input_port);
+  pop_input_port(sc);
+  sc->code = sc->value;
+  return(NULL);
+}
+
+
+/* -------------------------------- call-with-input-string -------------------------------- */
 
 static s7_pointer call_with_input(s7_scheme *sc, s7_pointer port, s7_pointer args)
 {
@@ -25981,9 +26009,6 @@ static s7_pointer call_with_input(s7_scheme *sc, s7_pointer port, s7_pointer arg
   push_stack(sc, OP_APPLY, list_1(sc, port), p);
   return(sc->F);
 }
-
-
-/* -------------------------------- call-with-input-string -------------------------------- */
 
 static s7_pointer g_call_with_input_string(s7_scheme *sc, s7_pointer args)
 {
@@ -35389,7 +35414,7 @@ static vdims_t *make_wrap_only(s7_scheme *sc) /* this makes sc->wrap_only */
   v = (vdims_t *)mallocate_block(sc);
   vdims_original(v) = sc->F;
   vector_elements_should_be_freed(v) = false;
-  vdims_ndims(v) = 1;
+  vdims_rank(v) = 1;
   vdims_dims(v) = NULL;
   vdims_offsets(v) = NULL;
   return(v);
@@ -35408,7 +35433,7 @@ static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int 
       v = (vdims_t *)mallocate(sc, dims * 2 * sizeof(s7_int));
       vdims_original(v) = sc->F;
       vector_elements_should_be_freed(v) = elements_should_be_freed;
-      vdims_ndims(v) = dims;
+      vdims_rank(v) = dims;
       vdims_offsets(v) = (s7_int *)(vdims_dims(v) + dims);
 
       for (i = 0; i < dims; i++)
@@ -35424,7 +35449,7 @@ static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int 
       v = (vdims_t *)mallocate_block(sc);
       vdims_original(v) = sc->F;
       vector_elements_should_be_freed(v) = elements_should_be_freed;
-      vdims_ndims(v) = 1;
+      vdims_rank(v) = 1;
       vdims_dims(v) = NULL;
       vdims_offsets(v) = NULL;
     }
@@ -35824,13 +35849,13 @@ static s7_pointer vector_append_p_ppp(s7_scheme *sc, s7_pointer p1, s7_pointer p
 
 static s7_int flatten_multivector_indices(s7_scheme *sc, s7_pointer vector, s7_int indices, va_list ap)
 {
-  s7_int ndims, index;
+  s7_int rank, index;
 
-  ndims = s7_vector_rank(vector);
-  if (ndims != indices)
+  rank = s7_vector_rank(vector);
+  if (rank != indices)
     s7_wrong_number_of_args_error(sc, "s7_vector_ref_n: wrong number of indices: ~A", s7_make_integer(sc, indices));
 
-  if (ndims == 1)
+  if (rank == 1)
     index = va_arg(ap, s7_int);
   else
     {
@@ -36134,7 +36159,7 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
     {
       vdims_t *v;
       v = (vdims_t *)mallocate_block(sc);
-      vdims_ndims(v) = dims;
+      vdims_rank(v) = dims;
       vdims_dims(v) = (s7_int *)(vector_dimensions(vect) + skip_dims);
       vdims_offsets(v) = (s7_int *)(vector_offsets(vect) + skip_dims);
       vdims_original(v) = vect;
@@ -36176,7 +36201,7 @@ static vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
 
   len = safe_list_length(x);
   v = (vdims_t *)mallocate(sc, len * 2 * sizeof(s7_int));
-  vdims_ndims(v) = len;
+  vdims_rank(v) = len;
   vdims_offsets(v) = (s7_int *)(vdims_dims(v) + len);
   vector_elements_should_be_freed(v) = false;
   ds = vdims_dims(v);
@@ -36253,7 +36278,7 @@ a vector that points to the same elements as the original-vector but with differ
       v = list_to_dims(sc, dims);
 
       new_len = vdims_dims(v)[0];
-      for (i = 1; i < vdims_ndims(v); i++)
+      for (i = 1; i < vdims_rank(v); i++)
 	new_len *= vdims_dims(v)[i];
       if ((new_len < 0) || 
 	  ((new_len + offset) > vector_length(orig)))
@@ -37898,7 +37923,11 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 			{
 			  lp = symbol_to_value_unchecked(sc, car(expr));
 			  sc->sort_f = s7_b_7pp_function(lp);
-			  if (sc->sort_f) sort_func = vector_sort;
+			  if (sc->sort_f) 
+			    {
+			      sort_func = vector_sort;
+			      lessp = lp;
+			    }
 			}
 		      else
 			{
@@ -37911,7 +37940,10 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 			      lp = symbol_to_value_unchecked(sc, car(expr));
 			      sc->sort_f = s7_b_7pp_function(lp);
 			      if (sc->sort_f)
-				sort_func = ((caadr(expr) == sc->car_symbol) ? vector_car_sort : vector_cdr_sort);
+				{
+				  sort_func = ((caadr(expr) == sc->car_symbol) ? vector_car_sort : vector_cdr_sort);
+				  lessp = lp;
+				}
 			    }
 			}
 		      set_optimize_op(expr, orig_data);
@@ -59634,6 +59666,14 @@ s7_float_function s7_float_optimize(s7_scheme *sc, s7_pointer expr)
 
 s7_function s7_optimize_nr(s7_scheme *sc, s7_pointer expr);
 
+/* perhaps if types in saved optlist are #t, rerun rather than using the saved optlist?
+ *   can be tested with new_s7_bool_optimize, ~/old/new-bool-s7.c.
+ *   check_slot_type, if recorded_type == OO_P return false, not true
+ *   so fixup_slots returns false below -- should we then save the new optlist
+ *   if it is more specific?  Or can we check whether more restricted types
+ *   will make a difference (float-vector vs vector etc)
+ */
+
 static inline s7_function new_s7_optimize(s7_scheme *sc, s7_pointer code, s7_pointer scc)
 {
   optlist_t *opl;
@@ -74061,7 +74101,64 @@ static s7_pointer op_get_output_string(s7_scheme *sc)
   return(NULL);
 }
 
-static s7_pointer op_safe_c_star_fx(s7_scheme *sc)
+static s7_pointer op_set2(s7_scheme *sc)
+{
+  if (is_pair(sc->value))
+    {
+      /* (let ((L '((1 2 3)))) (set! ((L 0) 1) 32) L)
+       * (let ((L '(((1 2 3))))) (set! ((L 0) 0 1) 32) L)
+       * any deeper nesting was handled already by the first eval
+       *   set! looks at its first argument, if it's a symbol, it sets the associated value,
+       *   if it's a list, it looks at the car of that list to decide which setter to call,
+       *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
+       *   car of the result.  This means that we can do crazy things like:
+       *   (let ((x '(1)) (y '(2))) (set! ((if #t x y) 0) 32) x)
+       * the other args need to be evaluated (but not the list as if it were code):
+       *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
+       */
+      
+      if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
+	eval_error(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
+      
+      /* in all of these cases, we might need to GC protect the temporary lists */
+      
+      if (is_multiple_value(sc->value))
+	sc->code = cons(sc, sc->set_symbol, s7_append(sc, multiple_value(sc->value), s7_append(sc, sc->args, sc->code))); /* drop into OP_SET */
+      else
+	{
+	  if (sc->args != sc->nil)
+	    {
+	      push_op_stack(sc, sc->list_set_function);
+	      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), s7_append(sc, cdr(sc->args), sc->code));
+	      sc->code = car(sc->args);
+	    }
+	  else eval_error(sc, "list set!: not enough arguments: ~S", 35, sc->code);
+	  return(sc->code); /* goto EVAL; */
+	}
+    }
+  else
+    {
+      if (s7_is_vector(sc->value))
+	{
+	  /* (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
+	   * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
+	   */
+	  if (sc->args != sc->nil)
+	    {
+	      push_op_stack(sc, sc->vector_set_function);
+	      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), s7_append(sc, cdr(sc->args), sc->code));
+	      sc->code = car(sc->args);
+	    }
+	  else eval_error(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
+	  return(sc->code); /* goto EVAL; */
+	}
+      sc->code = cons_unchecked(sc, sc->set_symbol, cons_unchecked(sc, cons(sc, sc->value, sc->args), sc->code));
+    }
+  return(NULL); /* i.e. goto SET1 */
+}
+
+
+static s7_pointer safe_c_star_fx(s7_scheme *sc)
 {
   s7_pointer args, p;
   sc->args = safe_list_if_possible(sc, integer(arglist_length(sc->code)));
@@ -74071,6 +74168,45 @@ static s7_pointer op_safe_c_star_fx(s7_scheme *sc)
   sc->current_safe_list = 0;
   sc->code = opt_cfunc(sc->code);
   apply_c_function_star(sc);
+  return(NULL);
+}
+
+static s7_pointer safe_c_star_aa(s7_scheme *sc)
+{
+  set_car(sc->a2_1, c_call(cdr(sc->code))(sc, cadr(sc->code)));
+  set_car(sc->a2_2, c_call(cddr(sc->code))(sc, caddr(sc->code)));
+  sc->args = sc->a2_1;
+  sc->code = opt_cfunc(sc->code);
+  apply_c_function_star(sc);
+  return(NULL);
+}
+
+static s7_pointer safe_c_opaaq(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer arg, val;
+  arg = cadr(code);
+  val = c_call(cdr(arg))(sc, cadr(arg));
+  set_car(sc->a2_2, c_call(cddr(arg))(sc, caddr(arg)));
+  set_car(sc->a2_1, val);
+  set_car(sc->t1_1, c_call(arg)(sc, sc->a2_1));
+  return(c_call(code)(sc, sc->t1_1));
+}
+
+static s7_pointer op_and_safe_aa(s7_scheme *sc)
+{
+  sc->code = cdr(sc->code);
+  sc->value = c_call(sc->code)(sc, car(sc->code));
+  if (is_true(sc, sc->value))
+    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+  return(NULL);
+}
+
+static s7_pointer op_or_safe_aa(s7_scheme *sc)
+{
+  sc->code = cdr(sc->code);
+  sc->value = c_call(sc->code)(sc, car(sc->code));
+  if (is_false(sc, sc->value))
+    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
   return(NULL);
 }
 
@@ -74356,27 +74492,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = vector_into_string(sc->value, car(sc->args));
 	  free_cell(sc, sc->args); 
 	  goto START;
-	  
-	  /* batcher networks:
-	   *    ((0 2) (0 1) (1 2))
-	   *    ((0 2) (1 3) (0 1) (2 3) (1 2))
-	   *    etc -- see batcher in s7test.scm (from Doug Hoyte)
-	   * but since it has to be done here by hand, it turns into too much code, 3 is:
-	   *    < l0 l2 ?
-	   *    no goto L1
-	   *    < l0 l1 ?
-	   *    no  return 1 0 2
-	   *    < l1 l2?
-	   *    yes return 0 1 2 (direct)
-	   *    no  return 0 2 1
-	   *  L1:
-	   *    < l0 l1 ?
-	   *    yes return 2 0 1
-	   *    < l1 l2 ?
-	   *    yes return 1 2 0
-	   *    no  return 2 1 0
-	   * since each "<" op above goes to OP_APPLY, we have ca 5 labels, and ca 25-50 lines
-	   */
 	  
 	  /* -------------------------------- map -------------------------------- */
 	case OP_MAP_GATHER_1:
@@ -75485,17 +75600,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_opAAq:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_opAAq:
-	  {
-	    s7_pointer arg, val, code;
-	    code = sc->code;
-	    arg = cadr(code);
-	    val = c_call(cdr(arg))(sc, cadr(arg));
-	    set_car(sc->a2_2, c_call(cddr(arg))(sc, caddr(arg)));
-	    set_car(sc->a2_1, val);
-	    set_car(sc->t1_1, c_call(arg)(sc, sc->a2_1));
-	    sc->value = c_call(code)(sc, sc->t1_1);
-	    goto START;
-	  }
+	  sc->value = safe_c_opaaq(sc, sc->code);
+	  goto START;
 	  
 	case OP_SAFE_C_opAAAq:
 	  if (!c_function_is_ok(sc, sc->code)) break;
@@ -76669,17 +76775,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_STAR_AA:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_STAR_AA:
-	  set_car(sc->a2_1, c_call(cdr(sc->code))(sc, cadr(sc->code)));
-	  set_car(sc->a2_2, c_call(cddr(sc->code))(sc, caddr(sc->code)));
-	  sc->args = sc->a2_1;
-	  sc->code = opt_cfunc(sc->code);
-	  apply_c_function_star(sc);
+	  safe_c_star_aa(sc);
 	  goto START;
 	  
 	case OP_SAFE_C_STAR_FX:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_STAR_FX:
-	  op_safe_c_star_fx(sc);
+	  safe_c_star_fx(sc);
 	  goto START;
 	  
 	  
@@ -77713,7 +77815,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  (tree_is_cyclic(sc, sc->code)))
 		eval_error(sc, "attempt to evaluate a circular list: ~A", 39, sc->code);		
 	      
-	    EVAL_ARGS_PAIR:
+	    EVAL_ARGS_PAIR: /* pulling this out as a function slowed us down noticeably */
 	      car_code = car(sc->code);
 	      /* switch statement here is much slower for some reason */
 	      if (is_pair(car_code))
@@ -78064,28 +78166,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  define2_ex(sc);
 	  goto START;
 	  
-
 	case OP_EVAL_STRING:
-	  while (s7_peek_char(sc, sc->input_port) != eof_object) /* (eval-string "(+ 1 2) this is a mistake") */
-	    {
-	      int32_t tk;
-	      tk = token(sc);                             /* (eval-string "(+ 1 2) ; a comment (not a mistake)") */
-	      if (tk != TOKEN_EOF)
-		{
-		  s7_int trail_len;
-		  s7_pointer trail_data;
-		  trail_len = port_data_size(sc->input_port) - port_position(sc->input_port) + 1;
-		  if (trail_len > 32) trail_len = 32;
-		  trail_data = s7_make_string_with_length(sc, (const char *)(port_data(sc->input_port) + port_position(sc->input_port) - 1), trail_len);
-		  s7_close_input_port(sc, sc->input_port);
-		  pop_input_port(sc);
-		  s7_error(sc, sc->read_error_symbol, 
-			   set_elist_2(sc, wrap_string(sc, "eval-string trailing junk: ~S", 29), trail_data));
-		}
-	    }
-	  s7_close_input_port(sc, sc->input_port);
-	  pop_input_port(sc);
-	  sc->code = sc->value;
+	  op_eval_string(sc);
 	  goto EVAL;
 	  
 	  	  
@@ -78357,57 +78439,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;	  
 	  
 	case OP_SET2:
-	  if (is_pair(sc->value))
-	    {
-	      /* (let ((L '((1 2 3)))) (set! ((L 0) 1) 32) L)
-	       * (let ((L '(((1 2 3))))) (set! ((L 0) 0 1) 32) L)
-	       * any deeper nesting was handled already by the first eval
-	       *   set! looks at its first argument, if it's a symbol, it sets the associated value,
-	       *   if it's a list, it looks at the car of that list to decide which setter to call,
-	       *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
-	       *   car of the result.  This means that we can do crazy things like:
-	       *   (let ((x '(1)) (y '(2))) (set! ((if #t x y) 0) 32) x)
-	       * the other args need to be evaluated (but not the list as if it were code):
-	       *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
-	       */
-	      
-	      if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
-		eval_error(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
-	      
-	      /* in all of these cases, we might need to GC protect the temporary lists */
-	      
-	      if (is_multiple_value(sc->value))
-		sc->code = cons(sc, sc->set_symbol, s7_append(sc, multiple_value(sc->value), s7_append(sc, sc->args, sc->code))); /* drop into OP_SET */
-	      else
-		{
-		  if (sc->args != sc->nil)
-		    {
-		      push_op_stack(sc, sc->list_set_function);
-		      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), s7_append(sc, cdr(sc->args), sc->code));
-		      sc->code = car(sc->args);
-		    }
-		  else eval_error(sc, "list set!: not enough arguments: ~S", 35, sc->code);
-		  goto EVAL;
-		}
-	    }
-	  else
-	    {
-	      if (s7_is_vector(sc->value))
-		{
-		  /* (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
-		   * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
-		   */
-		  if (sc->args != sc->nil)
-		    {
-		      push_op_stack(sc, sc->vector_set_function);
-		      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), s7_append(sc, cdr(sc->args), sc->code));
-		      sc->code = car(sc->args);
-		    }
-		  else eval_error(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
-		  goto EVAL;
-		}
-	      sc->code = cons_unchecked(sc, sc->set_symbol, cons_unchecked(sc, cons(sc, sc->value, sc->args), sc->code));
-	    }
+	  if (op_set2(sc)) goto EVAL;
 	  goto SET1;
 	  
 	case OP_SET:                                                              /* entry for set! */
@@ -79967,11 +79999,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_AND_SAFE_AA: 
-	  /* we know both c_callee's are set */
-	  sc->code = cdr(sc->code);
-	  sc->value = c_call(sc->code)(sc, car(sc->code));
-	  if (is_true(sc, sc->value))
-	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	  op_and_safe_aa(sc);
 	  goto START;
 
 	  
@@ -80059,10 +80087,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_OR_SAFE_AA: 
-	  sc->code = cdr(sc->code);
-	  sc->value = c_call(sc->code)(sc, car(sc->code));
-	  if (is_false(sc, sc->value))
-	    sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	  op_or_safe_aa(sc);
 	  goto START;
 
 	  /* by going direct without a push_stack on the last one we get tail calls,
@@ -80912,6 +80937,19 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
 	  goto START;
 	  
+	case OP_READ_UNQUOTE:
+	  /* here if sc->value is a constant, the unquote is pointless (should we complain?) */
+	  if ((is_pair(sc->value)) ||
+	      (is_symbol(sc->value)))
+	    sc->value = list_2(sc, sc->unquote_symbol, sc->value);
+	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
+	  goto START;
+	  
+	case OP_READ_APPLY_VALUES:
+	  sc->value = list_2(sc, sc->unquote_symbol, list_2(sc, sc->apply_values_symbol, sc->value)); 
+	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
+	  goto START;
+	  
 	case OP_READ_VECTOR:
 	  if (is_dotted_pair(sc->value))            /* #(1 . 2) */
 	    read_error(sc, "vector constant data is not a proper list");
@@ -80956,19 +80994,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = g_byte_vector(sc, sc->value);
 	  free_vlist(sc, sc->v);
 	  if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
-	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
-	  goto START;
-	  
-	case OP_READ_UNQUOTE:
-	  /* here if sc->value is a constant, the unquote is pointless (should we complain?) */
-	  if ((is_pair(sc->value)) ||
-	      (is_symbol(sc->value)))
-	    sc->value = list_2(sc, sc->unquote_symbol, sc->value);
-	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
-	  goto START;
-	  
-	case OP_READ_APPLY_VALUES:
-	  sc->value = list_2(sc, sc->unquote_symbol, list_2(sc, sc->apply_values_symbol, sc->value)); 
 	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
 	  goto START;
 	  
@@ -88038,7 +88063,7 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1004
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1061
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1318
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1672
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1673
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1919
  * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2319
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2363
@@ -88046,7 +88071,7 @@ int main(int argc, char **argv)
  * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2388
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  2543
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3261
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3743
+ * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3743 
  * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  3998
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6153
  * tset          |      |      |      ||      ||      |                         10.0  6460
@@ -88056,6 +88081,6 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  38.7
  * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.2
  * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.5
- * tbig          |      |      |      ||      ||      |                        246.9 244.0
+ * tbig          |      |      |      ||      ||      |                        246.9 243.6
  * ------------------------------------------------------------------------------------------
  */

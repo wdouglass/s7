@@ -744,7 +744,7 @@ static int oss_mus_audio_open_input(int ur_dev, int srate, int chans, mus_sample
 }
 
 
-#if (!HAVE_ALSA)
+#if (!HAVE_ALSA) && (!HAVE_JACK_IN_LINUX)
 static int oss_sample_types(int ur_dev, mus_sample_t *val)
 {
   int fd, samp_types = 0, sys, ind;
@@ -3889,7 +3889,7 @@ static void sndjack_read_process(jack_nframes_t nframes){
     out[ch]=(sample_t*)jack_port_get_buffer(sndjack_read_channels[ch].port,nframes);
   }
 
-  for (i=0;i<nframes;i++){
+  for (i=0;i<(int)nframes;i++){
     if (sj_r_unread==sj_buffersize){
       sj_r_xrun+=nframes-i;
       goto exit;
@@ -3931,11 +3931,11 @@ static void sndjack_write_process(jack_nframes_t nframes){
       }
     }
 
-    for (i=0;i<nframes;i++){
+    for (i=0;i<(int)nframes;i++){
       if (sj_unread==0){	
 	if (sj_status==SJ_RUNNING)
 	  sj_xrun+=nframes-i;
-	for (;i<nframes;i++){
+	for (;i<(int)nframes;i++){
 	  for (ch=0;ch<sndjack_num_channels_inuse;ch++){
 	    out[ch][i]=0.0f;
 	  }
@@ -4101,7 +4101,6 @@ static int sndjack_getnuminchannels(void){
 static int sndjack_init(void){
   int ch;
   int numch;
-  int num=0;
 
   {
     jack_status_t status;
@@ -4466,7 +4465,7 @@ int jack_mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_
   sj_readplace=0;
 
 
-  if (srate!=jack_get_sample_rate(sndjack_client)){
+  if (srate!=(int)jack_get_sample_rate(sndjack_client)){
     int lokke;
     //printf("Warning, sample-rate differs between snd and jack. Sound will not be played correctly! %d/%d\n",srate,jack_get_sample_rate(sndjack_client));
     sndjack_srcratio=(double)jack_get_sample_rate(sndjack_client)/(double)srate;
@@ -4524,7 +4523,6 @@ static int sndjack_from_float(int ch,int chs,float *buf,float *out,int bytes){
 
 
 int jack_mus_audio_write(int line, char *buf, int bytes){
-  int i;
   int ch;
   int outlen=0;
 
@@ -4609,7 +4607,7 @@ int jack_mus_audio_open_input(int dev, int srate, int chans, mus_sample_t samp_t
     return MUS_ERROR;
   }
 
-  if (srate!=jack_get_sample_rate(sndjack_client)){
+  if (srate!=(int)jack_get_sample_rate(sndjack_client)){
     printf("Warning, jacks samplerate is %d (and not %d), and the recording will use this samplerate too.\n",jack_get_sample_rate(sndjack_client),srate);
   }
 
@@ -5626,9 +5624,9 @@ mus_sample_t mus_audio_device_sample_type(int dev) /* snd-dac */
 {
   mus_sample_t mixer_vals[16];
   mus_sample_t samp_type;
-
+  int i;
   /* we return the new sample type, so mixer_vals is just a local collector of possible sample types */
-  mixer_vals[0] = MUS_UNKNOWN_SAMPLE;
+  for (i = 0; i < 16; i++) mixer_vals[i] = MUS_UNKNOWN_SAMPLE;
 
 #if (!WITH_AUDIO)
   return(MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE);
