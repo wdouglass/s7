@@ -133,6 +133,11 @@
 (define (built-in? x) 
   (not (undefined? (eval-string (string-append "#_" (object->string x)))))) ; just a guess...
 
+(define (the type expr) 
+  (if (eq? type (symbol->value (type-of expr)))
+      expr
+      (error 'bad-type "~S is ~S but should be ~S" expr (type-of expr) type)))
+
 (define iota 
   (let ((+documentation+ "(iota n (start 0) (incr 1)) returns a list counting from start for n:\n\
     (iota 3) -> '(0 1 2)"))

@@ -910,7 +910,7 @@ typedef struct s7_cell {
       union {
 	struct {
 	  s7_pointer function;     /* __func__ (code) if this is a funclet */
-	  uint32_t line, file; /* __func__ location if it is known */
+	  uint32_t line, file;     /* __func__ location if it is known */
 	} efnc;
 	struct {
 	  s7_pointer dox1, dox2;   /* do loop variables */
@@ -3642,7 +3642,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_S_op_S_opSSqq, HOP_SAFE_C_S_op_S_opSSqq, OP_SAFE_C_S_op_S_opSqq, HOP_SAFE_C_S_op_S_opSqq,
       OP_SAFE_C_op_opSSq_q_C, HOP_SAFE_C_op_opSSq_q_C, OP_SAFE_C_op_opSq_q_C, HOP_SAFE_C_op_opSq_q_C, 
       OP_SAFE_C_op_opSSq_q_S, HOP_SAFE_C_op_opSSq_q_S, OP_SAFE_C_op_opSq_q_S, HOP_SAFE_C_op_opSq_q_S, 
-      OP_SAFE_C_S_op_opSSq_opSSqq, HOP_SAFE_C_S_op_opSSq_opSSqq,
+      OP_SAFE_C_S_op_opSSq_opSSqq, HOP_SAFE_C_S_op_opSSq_opSSqq, OP_SAFE_C_op_opSSq_Sq_S, HOP_SAFE_C_op_opSSq_Sq_S, 
       OP_SAFE_C_op_opSq_q, HOP_SAFE_C_op_opSq_q, 
       OP_SAFE_C_op_S_opSq_q, HOP_SAFE_C_op_S_opSq_q, OP_SAFE_C_op_opSq_S_q, HOP_SAFE_C_op_opSq_S_q, 
       OP_SAFE_C_opSq_Q, HOP_SAFE_C_opSq_Q, OP_SAFE_C_opSq_QS, HOP_SAFE_C_opSq_QS,
@@ -3862,7 +3862,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_c_s_op_s_opssqq", "h_safe_c_s_op_s_opssqq", "safe_c_s_op_s_opsqq", "h_safe_c_s_op_s_opsqq",
       "safe_c_op_opssq_q_c", "h_safe_c_op_opssq_q_c", "safe_c_op_opsq_q_c", "h_safe_c_op_opsq_q_c", 
       "safe_c_op_opssq_q_s", "h_safe_c_op_opssq_q_s", "safe_c_op_opsq_q_s", "h_safe_c_op_opsq_q_s", 
-      "safe_c_s_op_opssq_opssqq", "h_safe_c_s_op_opssq_opssqq",
+      "safe_c_s_op_opssq_opssqq", "h_safe_c_s_op_opssq_opssqq", "safe_c_opssq_sq_s", "h_safe_c_opssq_sq_s", 
       "safe_c_op_opsq_q", "h_safe_c_op_opsq_q", 
       "safe_c_op_s_opsq_q", "h_safe_c_op_s_opsq_q", "safe_c_op_opsq_s_q", "h_safe_c_op_opsq_s_q",
       "safe_c_opsq_q", "h_safe_c_opsq_q", "safe_c_opsq_qs", "h_safe_c_opsq_qs",
@@ -47808,6 +47808,44 @@ static s7_pointer g_abort(s7_scheme *sc, s7_pointer args) {abort();}
 static s7_function fx_function[OPT_MAX_DEFINED];
 #define is_fx_op(Op) (fx_function[Op])
 
+static bool aa_is_fx_safe(s7_pointer p)
+{
+  s7_pointer arg1, arg2;
+  arg1 = cadr(p);
+  arg2 = caddr(p);
+  return(((!is_pair(arg1)) || (!is_fxa_op(optimize_op(arg1)))) &&
+	 ((!is_pair(arg2)) || (!is_fxa_op(optimize_op(arg2)))));
+}
+
+static bool aa_is_indirectly_fx_safe(s7_pointer p)
+{
+  if ((is_pair(cadr(p))) && (optimize_op(cadr(p)) == HOP_SAFE_C_AA) &&
+      (is_pair(caddr(p))) && (optimize_op(caddr(p)) == HOP_SAFE_C_AA))
+    {
+      s7_pointer arg11, arg12, arg21, arg22;
+      arg11 = cadr(cadr(p));
+      arg12 = caddr(cadr(p));
+      arg21 = cadr(caddr(p));
+      arg22 = caddr(caddr(p));
+      return(((!is_pair(arg11)) || (!is_fxa_op(optimize_op(arg11)))) &&
+	     ((!is_pair(arg12)) || (!is_fxa_op(optimize_op(arg12)))) &&
+	     ((!is_pair(arg21)) || (!is_fxa_op(optimize_op(arg21)))) &&
+	     ((!is_pair(arg22)) | (!is_fxa_op(optimize_op(arg22)))));
+    }
+  return(false);
+}
+
+static bool aaa_is_fx_safe(s7_pointer p)
+{
+  s7_pointer arg1, arg2, arg3;
+  arg1 = cadr(p);
+  arg2 = caddr(p);
+  arg3 = cadddr(p);
+  return(((!is_pair(arg1)) || (!is_fxa_op(optimize_op(arg1)))) &&
+	 ((!is_pair(arg2)) || (!is_fxa_op(optimize_op(arg2)))) &&
+	 ((!is_pair(arg3)) || (!is_fxa_op(optimize_op(arg3)))));
+}
+
 static bool is_fx_safe(s7_scheme *sc, s7_pointer p)
 {
   if (!is_pair(p)) return(true);
@@ -47824,15 +47862,10 @@ static bool is_fx_safe(s7_scheme *sc, s7_pointer p)
 #endif
       if (is_fx_op(optimize_op(p)))
 	return(true);
-      if ((optimize_op(p) == HOP_SAFE_C_AA) &&
-	  ((!is_pair(cadr(p))) || (!is_fxa_op(optimize_op(cadr(p))))) &&
-	  ((!is_pair(caddr(p))) || (!is_fxa_op(optimize_op(caddr(p))))))
-	return(true);
-      if ((optimize_op(p) == HOP_SAFE_C_AAA) &&
-	  ((!is_pair(cadr(p))) || (!is_fxa_op(optimize_op(cadr(p))))) &&
-	  ((!is_pair(caddr(p))) || (!is_fxa_op(optimize_op(caddr(p))))) &&
-	  ((!is_pair(cadddr(p))) || (!is_fxa_op(optimize_op(cadddr(p))))))
-	return(true);
+      if (optimize_op(p) == HOP_SAFE_C_AA)
+	return(aa_is_fx_safe(p) || aa_is_indirectly_fx_safe(p));
+      if (optimize_op(p) == HOP_SAFE_C_AAA)
+	return(aaa_is_fx_safe(p));
     }
   return(is_proper_quote(sc, p));
 }
@@ -48947,6 +48980,34 @@ static s7_pointer fx_c_aa(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_aa_indirect(s7_scheme *sc, s7_pointer arg)
+{
+  /* opaaq_opaaq here where none of the "a" involve nested "a" */
+  int32_t tx1, tx2;
+  s7_pointer arg11, arg12, arg21, arg22;
+
+  arg11 = cdr(cadr(arg));
+  arg12 = cddr(cadr(arg));
+  arg21 = cdr(caddr(arg));
+  arg22 = cddr(caddr(arg));
+
+  tx1 = next_tx(sc);
+  tx2 = next_tx(sc);
+
+  sc->t_temps[tx1] = c_call(arg11)(sc, car(arg11));
+  set_car(sc->t2_2, c_call(arg12)(sc, car(arg12)));
+  set_car(sc->t2_1, sc->t_temps[tx1]);
+  sc->t_temps[tx1] = c_call(cadr(arg))(sc, sc->t2_1);
+
+  sc->t_temps[tx2] = c_call(arg21)(sc, car(arg21));
+  set_car(sc->t2_2, c_call(arg22)(sc, car(arg22)));
+  set_car(sc->t2_1, sc->t_temps[tx2]);
+
+  set_car(sc->t2_2, c_call(caddr(arg))(sc, sc->t2_1));
+  set_car(sc->t2_1, sc->t_temps[tx1]);
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer fx_c_aaa(s7_scheme *sc, s7_pointer arg)
 {
   /* here none of the "a"s can involve a nested "a" */
@@ -49029,6 +49090,19 @@ static s7_pointer fx_c_op_opssq_q_s(s7_scheme *sc, s7_pointer code)
   set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym2(cdr(arg))));
   set_car(sc->t1_1, c_call(arg)(sc, sc->t2_1));
   set_car(sc->t2_1, c_call(cadr(code))(sc, sc->t1_1));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(code)));
+  return(c_call(code)(sc, sc->t2_1));
+}
+
+static s7_pointer fx_c_op_opssq_sq_s(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer arg;
+  arg = cadadr(code);
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(arg)));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym2(cdr(arg))));
+  set_car(sc->t2_1, c_call(arg)(sc, sc->t2_1));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(cadr(code))));
+  set_car(sc->t2_1, c_call(cadr(code))(sc, sc->t2_1));
   set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(code)));
   return(c_call(code)(sc, sc->t2_1));
 }
@@ -49260,6 +49334,7 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_S_op_S_opSSqq] = fx_c_s_op_s_opssqq;
   fx_function[HOP_SAFE_C_S_op_opSq_Cq] = fx_c_s_op_opsq_cq;
   fx_function[HOP_SAFE_C_op_opSSq_q_S] = fx_c_op_opssq_q_s;
+  fx_function[HOP_SAFE_C_op_opSSq_Sq_S] = fx_c_op_opssq_sq_s;
   fx_function[HOP_SAFE_C_S_op_opSSq_opSSqq] = fx_c_s_op_opssq_opssqq;
   fx_function[HOP_SAFE_C_CAC] = fx_c_cac;
   fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
@@ -49489,16 +49564,12 @@ static s7_function fx_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, safe_
 	      return(fx_c_a);
 
 	    case HOP_SAFE_C_AA:
-	      if (((!is_pair(cadr(arg))) || (!is_fxa_op(optimize_op(cadr(arg))))) &&
-		  ((!is_pair(caddr(arg))) || (!is_fxa_op(optimize_op(caddr(arg))))))
-		return(fx_c_aa);
+	      if (aa_is_fx_safe(arg)) return(fx_c_aa);
+	      if (aa_is_indirectly_fx_safe(arg)) return(fx_c_aa_indirect);
 	      return(NULL);
 
 	    case HOP_SAFE_C_AAA:
-	      if (((!is_pair(cadr(arg))) || (!is_fxa_op(optimize_op(cadr(arg))))) &&
-		  ((!is_pair(caddr(arg))) || (!is_fxa_op(optimize_op(caddr(arg))))) &&
-		  ((!is_pair(cadddr(arg))) || (!is_fxa_op(optimize_op(cadddr(arg))))))
-		return(fx_c_aaa);
+	      if (aaa_is_fx_safe(arg)) return(fx_c_aaa);
 	      return(NULL);
 
 	    case HOP_SAFE_CLOSURE_S_A:
@@ -63619,6 +63690,7 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_SC:    return(OP_SAFE_C_opSCq_S);
 	case OP_SAFE_C_opSq:  return(OP_SAFE_C_op_opSq_q_S);
 	case OP_SAFE_C_opSSq: return(OP_SAFE_C_op_opSSq_q_S);
+	case OP_SAFE_C_opSSq_S: return(OP_SAFE_C_op_opSSq_Sq_S);
 	case OP_SAFE_C_A:     return(OP_SAFE_C_opAq_S);
 	}
       return(OP_SAFE_C_PS);
@@ -67663,7 +67735,6 @@ static s7_pointer check_let(s7_scheme *sc)
 		  s7_pointer p;
 		  for (p = start; is_pair(p); p = cdr(p))      /* optimizing the value form here: car(p)=var+val, cdar(p)=val */
 		    set_x_call(cdar(p), fx_eval(sc, cdar(p), sc->envir, let_symbol_is_safe));
-		  /* all-x-able body does not happen much */
 		}
 	    }
 	  else pair_set_syntax_op(form, OP_LET_UNCHECKED);
@@ -70317,6 +70388,7 @@ static bool is_simple_end(s7_scheme *sc, s7_pointer end)
 static s7_pointer check_do(s7_scheme *sc)
 {
   s7_pointer x, form, code;
+  /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY(sc->code)); */
   form = sc->code;
   code = cdr(sc->code);
   
@@ -70837,7 +70909,27 @@ static int32_t dox_ex(s7_scheme *sc)
 			}
 		    }
 		}
-
+	      
+	      if ((steppers == 2) &&
+		  (!is_slot(next_slot(next_slot(slots)))))
+		{
+		  s7_pointer s1, s2, p1, p2;
+		  s1 = slots;
+		  s2 = next_slot(slots);
+		  p1 = slot_expression(s1);
+		  p2 = slot_expression(s2);
+		  while (true)
+		    {
+		      body(sc, lcode);
+		      slot_set_value(s1, c_call(p1)(sc, car(p1)));
+		      slot_set_value(s2, c_call(p2)(sc, car(p2)));
+		      if (is_true(sc, sc->value = endf(sc, endp)))
+			{
+			  sc->code = cdr(end);
+			  return(goto_DO_END_CLAUSES);
+			}
+		    }
+		}
 	      while (true)
 		{
 		  s7_pointer slot1;
@@ -76292,6 +76384,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
 	case HOP_SAFE_C_op_opSSq_q_S:
 	  sc->value = fx_c_op_opssq_q_s(sc, sc->code); /* code: (> (magnitude (- old new)) s) */
+	  goto START;
+
+	case OP_SAFE_C_op_opSSq_Sq_S:
+	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSq_Sq_S:
+	  sc->value = fx_c_op_opssq_sq_s(sc, sc->code); /* (+ (* (- b a) c) d) */
 	  goto START;
 
 	case OP_SAFE_C_op_opSq_q_C:
@@ -88050,37 +88148,51 @@ int main(int argc, char **argv)
  */
 #endif
 
+/* typed-vector, also ratio/bit/byte=int+get/set restrictions, complex=real [another arg to make-vector? -- sig for bit? byte?]
+ *   but byte-vector needs byte? already and bit=boolean? type=closure->getter/setter localized, sig=(el-type int...) and similarly set-type
+ *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
+ *   symbol/slot types from setter=integer? meaning assure value is integer, so symbol type is integer [4th arg to define?]
+ *   with these changes we'd have a fully-statically-typed scheme (setters/getters on let fields?)
+ *   iterator => sequence element type
+ *   vector-setter (*-setter) would be the element setter frok scheme, use vset + bit? all need a bit to warn set!
+ *   hash-table has room in block index+filler I think, string (and bvect) in gensym_block, let in cdat union, c_obj has unused field
+ *     so there's room for all except pair (and if pair is data use optn?)
+ * tdo.scm to check loops [cdr, float step etc], need opt-let 
+ * multi-optlist for the #t/float problem
+ * need a simple way to build libgtk, and g_application_run -- some simple way to put up a window
+ * tbig: safe_c_S_opSSq_op_S_opSSqq safe_c_SS_op_opSSq_Sq safe_c_SCS_op_opSSq_Sq
+ */
 
 /* ------------------------------------------------------------------------------------------
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * ------------------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.3  18.4  18.5  18.6  18.7
- * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |                    376   280   199
- * tmac          |      |      |      || 9052 ||  264 |  264   280   279   279   283   266
- * tref          |      |      | 2372 || 2125 || 1036 | 1036  1037  1040  1028  1057  1004
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1158  1131  1090  1088  1061
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1485  1456  1304  1313  1318
- * teq           |      |      | 6612 || 2777 || 1931 | 1913  1888  1705  1693  1662  1673
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  2113  2051  1952  1929  1919
- * lint          |      |      |      || 4041 || 2702 | 2696  2573  2488  2351  2344  2319
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  3069  2462  2377  2373  2363
- * tread         |      |      |      ||      ||      |       3009  2639  2398  2357  2363
- * tform         |      |      | 6816 || 3714 || 2762 | 2751  2768  2664  2522  2390  2388
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3987  3904  3207  3113  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3451  3453  3439  3288  3261
- * titer         |      |      |      || 5971 || 4646 | 4646  5236  4997  4784  4047  3743 
- * tsort         |      |      |      || 8584 || 4111 | 4111  4192  4151  4076  4119  3998
- * thash         |      |      | 50.7 || 8778 || 7697 | 7694  7824  6874  6389  6342  6153
- * tset          |      |      |      ||      ||      |                         10.0  6460
- * dup           |      |      |      ||      ||      |                         20.8  9560
- * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.9  11.4  11.0  8715  11.0
- * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  18.9  18.2  17.9  17.5  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  42.1  41.3  40.4  39.9  38.7
- * sg            |      |      |      ||139.0 || 85.9 | 86.5  87.1  81.4  80.1  79.6  78.2
- * lg            |      |      |      ||211.0 ||133.0 |133.4 130.9 125.7 118.3 117.9 116.5
- * tbig          |      |      |      ||      ||      |                        246.9 243.6
- * ------------------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.0  18.5  18.6  18.7  18.8
+ * --------------------------------------------------------------------------------------
+ * tpeak         |      |      |      ||  391 ||  377 |        376   280   199
+ * tmac          |      |      |      || 9052 ||  264 |  264   279   283   266
+ * tref          |      |      | 2372 || 2125 || 1036 | 1036  1028  1057  1004
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1165  1090  1088  1061
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1475  1304  1313  1321
+ * teq           |      |      | 6612 || 2777 || 1931 | 1913  1693  1662  1673
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 2129  1952  1929  1919
+ * lint          |      |      |      || 4041 || 2702 | 2696  2351  2344  2318
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2965  2377  2373  2363
+ * tread         |      |      |      ||      ||      |       2398  2357  2363
+ * tform         |      |      | 6816 || 3714 || 2762 | 2751  2522  2390  2388
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3966  3207  3113  2543
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3445  3439  3288  3261
+ * titer         |      |      |      || 5971 || 4646 | 4646  4784  4047  3743 
+ * tsort         |      |      |      || 8584 || 4111 | 4111  4076  4119  3998
+ * thash         |      |      | 50.7 || 8778 || 7697 | 7694  6389  6342  6153
+ * tset          |      |      |      ||      ||      |             10.0  6445
+ * dup           |      |      |      ||      ||      |             20.8  9548
+ * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.0  8715  11.0
+ * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  17.9  17.5  17.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  40.4  39.9  38.7
+ * sg            |      |      |      ||139.0 || 85.9 | 86.5  80.1  79.6  78.2
+ * lg            |      |      |      ||211.0 ||133.0 |133.4 118.3 117.9 116.4
+ * tbig          |      |      |      ||      ||      |            246.9 242.7
+ * --------------------------------------------------------------------------------------
  */
