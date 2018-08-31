@@ -3628,7 +3628,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_opCSq, HOP_SAFE_C_opCSq, OP_SAFE_C_S_opSq, HOP_SAFE_C_S_opSq,
       OP_SAFE_C_C_opSCq, HOP_SAFE_C_C_opSCq,
       OP_SAFE_C_S_opSCq, HOP_SAFE_C_S_opSCq, OP_SAFE_C_S_opCSq, HOP_SAFE_C_S_opCSq,
-      OP_SAFE_C_opSq_S, HOP_SAFE_C_opSq_S, OP_SAFE_C_opSq_C, HOP_SAFE_C_opSq_C,
+      OP_SAFE_C_opSq_S, HOP_SAFE_C_opSq_S, OP_SAFE_C_CAR_S_S, HOP_SAFE_C_CAR_S_S, OP_SAFE_C_opSq_C, HOP_SAFE_C_opSq_C,
       OP_SAFE_C_opSq_opSq, HOP_SAFE_C_opSq_opSq, OP_SAFE_C_S_opSSq, HOP_SAFE_C_S_opSSq, OP_SAFE_C_C_opSq, HOP_SAFE_C_C_opSq,
       OP_SAFE_C_C_opCSq, HOP_SAFE_C_C_opCSq, OP_SAFE_C_opCSq_C, HOP_SAFE_C_opCSq_C,
       OP_SAFE_C_S_opCq, HOP_SAFE_C_S_opCq, OP_SAFE_C_opSSq_C, HOP_SAFE_C_opSSq_C, OP_SAFE_C_C_opSSq, HOP_SAFE_C_C_opSSq,
@@ -3848,7 +3848,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_c_opcsq", "h_safe_c_opcsq", "safe_c_s_opsq", "h_safe_c_s_opsq",
       "safe_c_c_opscq", "h_safe_c_c_opscq",
       "safe_c_s_opscq", "h_safe_c_s_opscq", "safe_c_s_opcsq", "h_safe_c_s_opcsq",
-      "safe_c_opsq_s", "h_safe_c_opsq_s", "safe_c_opsq_c", "h_safe_c_opsq_c",
+      "safe_c_opsq_s", "h_safe_c_opsq_s", "safe_c_car_s_s", "h_safe_c_car_s_s", "safe_c_opsq_c", "h_safe_c_opsq_c",
       "safe_c_opsq_opsq", "h_safe_c_opsq_opsq", "safe_c_s_opssq", "h_safe_c_s_opssq", "safe_c_c_opsq", "h_safe_c_c_opsq",
       "safe_c_c_opcsq", "h_safe_c_c_opcsq", "safe_c_opcsq_c", "h_safe_c_opcsq_c",
       "safe_c_s_opcq", "h_safe_c_s_opcq", "safe_c_opssq_c", "h_safe_c_opssq_c", "safe_c_c_opssq", "h_safe_c_c_opssq",
@@ -10001,6 +10001,30 @@ static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
    *   and certainly at the source level it is easier to read.
    */
   return(sc->nil);
+}
+
+static s7_pointer op_call_with_exit(s7_scheme *sc)
+{
+  s7_pointer go, args;
+  set_current_code(sc, sc->code);
+  args = opt_pair2(sc->code);
+  go = make_goto(sc);
+  push_stack_no_let_no_code(sc, OP_DEACTIVATE_GOTO, go); /* was also pushing code */
+  new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
+  sc->code = T_Pair(cdr(args));
+  return(NULL);
+}
+
+static s7_pointer op_call_with_exit_p(s7_scheme *sc)
+{
+  s7_pointer go, args;
+  set_current_code(sc, sc->code);
+  args = opt_pair2(sc->code);
+  go = make_goto(sc);
+  push_stack_no_let_no_code(sc, OP_DEACTIVATE_GOTO, go);
+  new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
+  sc->code = cadr(args);
+  return(NULL);
 }
 
 
@@ -24703,6 +24727,24 @@ If the optional 'clear-port' is #t, the current string is flushed."
   return(s7_make_string_with_length(sc, (const char *)port_data(p), port_position(p)));
 }
 
+static s7_pointer op_get_output_string(s7_scheme *sc)
+{
+  s7_pointer port;
+  port = sc->code;
+  if ((!is_output_port(port)) ||
+      (port_is_closed(port)))
+    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, 
+					 wrap_string(sc, "an open string output port", 26));
+  if (port_position(port) >= port_data_size(port))
+    sc->value = block_to_string(sc, reallocate(sc, port_data_block(port), port_position(port) + 1), port_position(port));
+  else sc->value = block_to_string(sc, port_data_block(port), port_position(port));
+  port_data(port) = NULL;
+  port_data_size(port) = 0;
+  port_data_block(port) = NULL;
+  port_needs_free(port) = false;
+  return(NULL);
+}
+
 /* -------------------------------- open-input-function -------------------------------- */
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port))
 {
@@ -38336,6 +38378,130 @@ static s7_pointer vector_into_string(s7_pointer vect, s7_pointer dest)
   return(dest);
 }
 
+#define SORT_N integer(vector_element(sc->code, 0))
+#define SORT_K integer(vector_element(sc->code, 1))
+#define SORT_J integer(vector_element(sc->code, 2))
+#define SORT_K1 integer(vector_element(sc->code, 3))
+#define SORT_CALLS integer(vector_element(sc->code, 4))
+#define SORT_STOP integer(vector_element(sc->code, 5))
+#define SORT_DATA(K) vector_element(car(sc->args), K)
+#define SORT_LESSP cadr(sc->args)
+	  
+static s7_pointer op_heapsort(s7_scheme *sc)
+{
+  s7_int n, j, k;
+  s7_pointer lx;
+  n = SORT_N;
+  k = SORT_K1;
+  
+  if ((n == k) || (k > ((s7_int)(n / 2)))) /* k == n == 0 is the first case */
+    return(sc->code);
+  
+  if (sc->safety > NO_SAFETY)
+    {
+      SORT_CALLS++;
+      if (SORT_CALLS > SORT_STOP)
+	eval_range_error(sc, "sort! is caught in an infinite loop, comparison: ~S", 51, SORT_LESSP);
+    }
+  j = 2 * k;
+  SORT_J = j;
+  if (j < n)
+    {
+      push_stack(sc, OP_SORT1, sc->args, sc->code);
+      lx = SORT_LESSP; /* cadr of sc->args */
+      if (needs_copied_args(lx))
+	sc->args = list_2(sc, SORT_DATA(j), SORT_DATA(j + 1));
+      else
+	{
+	  set_car(sc->t2_1, SORT_DATA(j));
+	  set_car(sc->t2_2, SORT_DATA(j + 1));
+	  sc->args = sc->t2_1;
+	}
+      sc->code = lx;
+      sc->value = sc->T; /* for eval */
+    }
+  else sc->value = sc->F;
+  return(NULL);
+}
+
+static bool op_sort1(s7_scheme *sc)
+{
+  s7_int j, k;
+  s7_pointer lx;
+  k = SORT_K1;
+  j = SORT_J;
+  if (is_true(sc, sc->value))
+    {
+      j = j + 1;
+      SORT_J = j;
+    }
+  push_stack(sc, OP_SORT2, sc->args, sc->code);
+  lx = SORT_LESSP;
+  if (needs_copied_args(lx))
+    sc->args = list_2(sc, SORT_DATA(k), SORT_DATA(j));
+  else
+    {
+      set_car(sc->t2_1, SORT_DATA(k));
+      set_car(sc->t2_2, SORT_DATA(j));
+      sc->args = sc->t2_1;
+    }
+  sc->code = lx;
+  return(false);
+}
+	  
+static bool op_sort2(s7_scheme *sc)
+{
+  s7_int j, k;
+  k = SORT_K1;
+  j = SORT_J;
+  if (is_true(sc, sc->value))
+    {
+      s7_pointer lx;
+      lx = SORT_DATA(j);
+      SORT_DATA(j) = SORT_DATA(k);
+      SORT_DATA(k) = lx;
+    }
+  else return(true);
+  SORT_K1 = SORT_J;
+  return(false);
+}
+
+static bool op_sort(s7_scheme *sc)
+{
+  /* coming in sc->args is sort args (data less?), sc->code = #(n k 0 ...)
+   * here we call the inner loop until k <= 0 [the local k! -- this is tricky because scheme passes args by value]
+   */
+  s7_int k;
+  k = SORT_K;
+  if (k > 0)
+    {
+      SORT_K = k - 1;
+      SORT_K1 = k - 1;
+      push_stack(sc, OP_SORT, sc->args, sc->code);
+      return(false);
+    }
+  return(true);
+}
+
+static bool op_sort3(s7_scheme *sc)
+{
+  s7_int n;
+  s7_pointer lx;
+  n = SORT_N;
+  if (n <= 0)
+    {
+      sc->value = car(sc->args);
+      return(true);
+    }
+  lx = SORT_DATA(0);
+  SORT_DATA(0) = SORT_DATA(n);
+  SORT_DATA(n) = lx;
+  SORT_N = n - 1;
+  SORT_K1 = 0;
+  push_stack(sc, OP_SORT3, sc->args, sc->code);
+  return(false);
+}
+
 
 /* -------- hash tables -------- */
 
@@ -48540,6 +48706,15 @@ static s7_pointer fx_c_opssq_c(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_car_s_s(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  val = symbol_to_value_unchecked(sc, cadadr(arg));
+  set_car(sc->t2_1, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
+  set_car(sc->t2_2, symbol_to_value_unchecked(sc, caddr(arg)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer fx_c_opsq_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -49293,6 +49468,7 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_SS] = fx_c_ss;
 
   fx_function[HOP_SAFE_C_opSq_S] = fx_c_opsq_s;
+  fx_function[HOP_SAFE_C_CAR_S_S] = fx_c_car_s_s;
   fx_function[HOP_SAFE_C_opSq_C] = fx_c_opsq_c;
   fx_function[HOP_SAFE_C_opSq_Q] = fx_c_opsq_q;
   fx_function[HOP_SAFE_C_opSq_QS] = fx_c_opsq_qs;
@@ -60208,6 +60384,112 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
   return(sc->unspecified);
 }
 
+static bool op_for_each(s7_scheme *sc)
+{
+  s7_pointer x, y, iterators, saved_args;
+  iterators = car(sc->args);
+  saved_args = cdr(sc->args);
+  for (x = saved_args, y = iterators; is_pair(x); x = cdr(x), y = cdr(y))
+    {
+      set_car(x, s7_iterate(sc, car(y)));
+      if (iterator_is_at_end(car(y)))
+	{
+	  sc->value = sc->unspecified;
+	  free_cell(sc, sc->args);
+	  sc->args = sc->nil;
+	  return(true);
+	}
+    }
+  push_stack(sc, OP_FOR_EACH, sc->args, sc->code);
+  sc->args = saved_args;
+  if (needs_copied_args(sc->code))
+    sc->args = copy_list(sc, sc->args);
+  return(false);
+}
+
+/* for-each et al remake the local frame, but that's only needed if the local env is exported,
+ *   and that can only happen through make-closure in various guises and curlet.
+ *   owlet captures, but it would require a deliberate error to use it in this context.
+ *   c_objects call object_set_let but that requires a prior curlet or sublet.  So we have
+ *   sc->capture_let_counter that is incremented every time an environment is captured, then
+ *   here we save that ctr, call body, on rerun check ctr, if it has not changed we are safe and can reuse frame.
+ */
+
+static bool op_for_each_1(s7_scheme *sc)
+{
+  s7_pointer counter, p, arg, code;
+  counter = sc->args;
+  p = counter_list(counter);
+  arg = s7_iterate(sc, p);
+  if (iterator_is_at_end(p))
+    {
+      sc->value = sc->unspecified;
+      free_cell(sc, counter);
+      sc->args = sc->nil;
+      return(true);
+    }
+  code = sc->code;
+  if (counter_capture(counter) != sc->capture_let_counter)
+    {
+      new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), arg);
+      counter_set_let(counter, sc->envir);
+      counter_set_slots(counter, let_slots(sc->envir));
+      counter_set_capture(counter, sc->capture_let_counter);
+    }
+  else 
+    {
+      let_set_slots(counter_let(counter), counter_slots(counter));
+      sc->envir = old_frame_with_slot(sc, counter_let(counter), arg);
+    }
+  push_stack(sc, OP_FOR_EACH_1, counter, code);
+  sc->code = T_Pair(closure_body(code));
+  return(false);
+}
+
+static bool op_for_each_2(s7_scheme *sc)
+{
+  s7_pointer c, lst, arg, code;
+  c = sc->args; /* the counter */
+  lst = counter_list(c);
+  if (!is_pair(lst))  /* '(1 2 . 3) as arg? -- counter_list can be anything here */
+    {
+      sc->value = sc->unspecified;
+      free_cell(sc, c);
+      sc->args = sc->nil;
+      return(true);
+    }
+  code = T_Clo(sc->code);
+  arg = car(lst);
+  counter_set_list(c, cdr(lst));
+  if (sc->cur_op == OP_FOR_EACH_3)
+    {
+      counter_set_result(c, cdr(counter_result(c)));
+      if (counter_result(c) == counter_list(c))
+	{
+	  sc->value = sc->unspecified;
+	  free_cell(sc, c);
+	  sc->args = sc->nil;
+	  return(true);
+	}
+      push_stack(sc, OP_FOR_EACH_2, c, code);
+    }
+  else push_stack(sc, OP_FOR_EACH_3, c, code);
+  if (counter_capture(c) != sc->capture_let_counter)
+    {
+      new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), arg);
+      counter_set_let(c, sc->envir);
+      counter_set_slots(c, let_slots(sc->envir));
+      counter_set_capture(c, sc->capture_let_counter);
+    }
+  else 
+    {
+      let_set_slots(counter_let(c), counter_slots(c));
+      sc->envir = old_frame_with_slot(sc, counter_let(c), arg);
+    }
+  sc->code = car(closure_body(code));
+  return(false);
+}
+
 
 /* ---------------------------------------- map ---------------------------------------- */
 
@@ -60447,6 +60729,124 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
   sc->z = sc->nil;
   return(sc->nil);
 }
+
+static bool op_map(s7_scheme *sc)
+{
+  s7_pointer y, iterators;
+  iterators = counter_list(sc->args);
+  sc->x = sc->nil;                     /* can't use preset args list here (as in for-each): (map list '(a b c)) */
+  for (y = iterators; is_pair(y); y = cdr(y))
+    {
+      s7_pointer x;
+      x = s7_iterate(sc, car(y));
+      if (iterator_is_at_end(car(y)))
+	{
+	  sc->value = safe_reverse_in_place(sc, counter_result(sc->args));
+	  free_cell(sc, sc->args); 
+	  sc->args = sc->nil;
+	  return(true);
+	}
+      sc->x = cons(sc, x, sc->x);
+    }
+  sc->x = safe_reverse_in_place(sc, sc->x);
+  push_stack(sc, OP_MAP_GATHER, sc->args, sc->code);
+  sc->args = sc->x;
+  sc->x = sc->nil;
+  
+  if (needs_copied_args(sc->code))
+    sc->args = copy_list(sc, sc->args);
+  return(false);
+}
+
+static bool op_map_1(s7_scheme *sc)
+{
+  s7_pointer x, args, p, code;
+  code = sc->code;
+  args = sc->args;
+  p = counter_list(args);
+  x = s7_iterate(sc, p);
+  
+  if (iterator_is_at_end(p))
+    {
+      sc->value = safe_reverse_in_place(sc, counter_result(args));
+      /* an experiment */	  
+      free_cell(sc, sc->args);
+      sc->args = sc->nil; 
+      return(true);
+    }
+  push_stack(sc, OP_MAP_GATHER_1, args, code);
+  if (counter_capture(args) != sc->capture_let_counter)
+    {
+      new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), x);
+      counter_set_let(args, sc->envir);
+      counter_set_slots(args, let_slots(sc->envir));
+      counter_set_capture(args, sc->capture_let_counter);
+    }
+  else 
+    {
+      /* the counter_slots field saves the original local let slot(s) representing the function
+       *   argument.  If the function has internal defines, they get added to the front of the
+       *   slots list, but old_frame_with_slot (maybe stupidly) assumes only the one original
+       *   slot exists when it updates its symbol_id from the (possibly changed) let_id.  So,
+       *   a subsequent reference to the parameter name causes "unbound variable", or a segfault
+       *   if the check has been optimized away.  I think each function call should start with
+       *   the original let slots, so counter_slots saves that pointer, and resets it here.
+       */
+      let_set_slots(counter_let(args), counter_slots(args));
+      sc->envir = old_frame_with_slot(sc, counter_let(args), x);
+    }
+  sc->code = T_Pair(closure_body(code));
+  return(false);
+}
+
+static bool op_map_2(s7_scheme *sc)
+{
+  s7_pointer x, c, p, code;
+  code = sc->code;
+  c = sc->args;
+  p = counter_list(c);
+  if (!is_pair(p))
+    {
+      sc->value = safe_reverse_in_place(sc, counter_result(c));
+      free_cell(sc, sc->args);
+      sc->args = sc->nil; 
+      return(true);
+    }
+  x = car(p);
+  counter_set_list(c, cdr(p));
+  
+  if (sc->cur_op == OP_MAP_GATHER_3)
+    {
+      closure_set_setter(code, cdr(closure_setter(code)));
+      /* this depends on code (the function) being non-recursive, else closure_setter gets stepped on */
+      if (closure_setter(code) == counter_list(c))
+	{
+	  sc->value = safe_reverse_in_place(sc, counter_result(c));
+	  free_cell(sc, c);
+	  sc->args = sc->nil;
+	  return(true);
+	}
+      push_stack(sc, OP_MAP_GATHER_2, c, code);
+    }
+  else push_stack(sc, OP_MAP_GATHER_3, c, code);
+  
+  if (counter_capture(c) != sc->capture_let_counter)
+    {
+      new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), x);
+      counter_set_let(c, sc->envir);
+      counter_set_slots(c, let_slots(sc->envir));
+      counter_set_capture(c, sc->capture_let_counter);
+    }
+  else 
+    {
+      let_set_slots(counter_let(c), counter_slots(c));
+      sc->envir = old_frame_with_slot(sc, counter_let(c), x);
+    }
+  sc->code = car(closure_body(code));
+  return(false);
+}
+	  
+
 
 
 /* -------------------------------- multiple-values -------------------------------- */
@@ -62195,6 +62595,7 @@ static s7_pointer is_eq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
   if (is_h_safe_c_s(cadr(expr)))
     {
       if (((optimize_op(expr) == HOP_SAFE_C_opSq_S) ||
+	   (optimize_op(expr) == HOP_SAFE_C_CAR_S_S) ||
 	   ((is_h_safe_c_c(expr)) &&
 	    (is_symbol(caddr(expr))))) &&
 	  (c_callee(cadr(expr)) == g_car))
@@ -63628,6 +64029,7 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_CS:     return(OP_SAFE_C_opCSq);
 	case OP_SAFE_C_opSq:   return(OP_SAFE_C_op_opSq_q);
 	case OP_SAFE_C_S_opSq: return(OP_SAFE_C_op_S_opSq_q);
+	case OP_SAFE_C_CAR_S_S:
 	case OP_SAFE_C_opSq_S: return(OP_SAFE_C_op_opSq_S_q);
 	case OP_SAFE_C_A:      return(OP_SAFE_C_opAq);
 	case OP_SAFE_C_AA:     return(OP_SAFE_C_opAAq);
@@ -63681,7 +64083,12 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
       arg_op = op_no_hop(arg);
       switch (arg_op)
 	{
-	case OP_SAFE_C_S: case OP_SAFE_CAR_S: case OP_SAFE_CDR_S: case OP_SAFE_CADR_S:
+	case OP_SAFE_CAR_S:
+	  return(OP_SAFE_C_CAR_S_S);
+	case OP_SAFE_C_S:
+	  if (c_call(arg) == g_car)
+	    return(OP_SAFE_C_CAR_S_S);
+	case OP_SAFE_CDR_S: case OP_SAFE_CADR_S:
 	case OP_SAFE_IS_PAIR_S: case OP_SAFE_IS_NULL_S: case OP_SAFE_IS_SYMBOL_S:
 	  return(OP_SAFE_C_opSq_S);
 	case OP_SAFE_C_SS:    return(OP_SAFE_C_opSSq_S);
@@ -71745,7 +72152,7 @@ static int32_t safe_dotimes_ex(s7_scheme *sc)
 
 static int32_t safe_do_ex(s7_scheme *sc)
 {
-  /* body is safe, step = +1, end is =, but stepper and end might be set (or at least indirectly exported) in the body:
+  /* body is safe, step = +1, end is = or >=, but stepper and end might be set (or at least indirectly exported) in the body:
    *    (let ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (let ((j (min i 100))) (set! lst (cons j lst)))) lst)
    *  however, we're very restrictive about this in check_do and do_is_safe; even this is considered trouble:
    *    (let ((x 0)) (do ((i i (+ i 1))) ((= i 7)) (set! x (+ x i))) x)
@@ -71754,6 +72161,7 @@ static int32_t safe_do_ex(s7_scheme *sc)
   s7_pointer end, init_val, end_val, code, form, old_envir;
 
   /* inits, if not >= opt_dotimes else safe_do_step */
+  /* fprintf(stderr, "safe_do: %s\n", DISPLAY_80(sc->code)); */
   form = sc->code;
   sc->code = cdr(sc->code);
   code = sc->code;
@@ -71771,7 +72179,7 @@ static int32_t safe_do_ex(s7_scheme *sc)
     end_val = symbol_to_value_checked(sc, end);
   else end_val = end;
 
-  if ((!s7_is_integer(init_val)) || (!s7_is_integer(end_val)))
+  if ((!s7_is_integer(init_val)) || (!s7_is_integer(end_val))) /* this almost never happens */
     {
       pair_set_syntax_op(form, OP_DO_UNCHECKED);
       return(goto_DO_UNCHECKED);
@@ -71810,7 +72218,7 @@ static int32_t safe_do_ex(s7_scheme *sc)
   sc->code = cddr(code);
   set_unsafe_do(sc->code);
   set_opt_pair2(code, sc->code);
-  push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
+  push_stack(sc, OP_SAFE_DO_STEP, sc->args, code); /* (do ((i 0 (+ i 1))) ((= i 2)) (set! (str i) #\a)) */
   return(goto_BEGIN1);
 }
 
@@ -74151,48 +74559,6 @@ static s7_pointer op_s_a(s7_scheme *sc)
   return(NULL);
 }
 
-static s7_pointer op_call_with_exit(s7_scheme *sc)
-{
-  s7_pointer go, args;
-  set_current_code(sc, sc->code);
-  args = opt_pair2(sc->code);
-  go = make_goto(sc);
-  push_stack_no_let_no_code(sc, OP_DEACTIVATE_GOTO, go); /* was also pushing code */
-  new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
-  sc->code = T_Pair(cdr(args));
-  return(NULL);
-}
-
-static s7_pointer op_call_with_exit_p(s7_scheme *sc)
-{
-  s7_pointer go, args;
-  set_current_code(sc, sc->code);
-  args = opt_pair2(sc->code);
-  go = make_goto(sc);
-  push_stack_no_let_no_code(sc, OP_DEACTIVATE_GOTO, go);
-  new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
-  sc->code = cadr(args);
-  return(NULL);
-}
-
-static s7_pointer op_get_output_string(s7_scheme *sc)
-{
-  s7_pointer port;
-  port = sc->code;
-  if ((!is_output_port(port)) ||
-      (port_is_closed(port)))
-    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, 
-					 wrap_string(sc, "an open string output port", 26));
-  if (port_position(port) >= port_data_size(port))
-    sc->value = block_to_string(sc, reallocate(sc, port_data_block(port), port_position(port) + 1), port_position(port));
-  else sc->value = block_to_string(sc, port_data_block(port), port_position(port));
-  port_data(port) = NULL;
-  port_data_size(port) = 0;
-  port_data_block(port) = NULL;
-  port_needs_free(port) = false;
-  return(NULL);
-}
-
 static s7_pointer op_set2(s7_scheme *sc)
 {
   if (is_pair(sc->value))
@@ -74447,128 +74813,24 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	 	  
 	  /* -------------------- sort! (heapsort, done directly so that call/cc in the sort function will work correctly) -------------------- */
-          #define SORT_N integer(vector_element(sc->code, 0))
-          #define SORT_K integer(vector_element(sc->code, 1))
-          #define SORT_J integer(vector_element(sc->code, 2))
-          #define SORT_K1 integer(vector_element(sc->code, 3))
-          #define SORT_CALLS integer(vector_element(sc->code, 4))
-          #define SORT_STOP integer(vector_element(sc->code, 5))
-          #define SORT_DATA(K) vector_element(car(sc->args), K)
-          #define SORT_LESSP cadr(sc->args)
-	  
 	HEAPSORT:
-	  {
-	    s7_int n, j, k;
-	    s7_pointer lx;
-	    n = SORT_N;
-	    k = SORT_K1;
-	    
-	    if ((n == k) || (k > ((s7_int)(n / 2)))) /* k == n == 0 is the first case */
-	      goto START;
-	    
-	    if (sc->safety > NO_SAFETY)
-	      {
-		SORT_CALLS++;
-		if (SORT_CALLS > SORT_STOP)
-		  eval_range_error(sc, "sort! is caught in an infinite loop, comparison: ~S", 51, SORT_LESSP);
-	      }
-	    j = 2 * k;
-	    SORT_J = j;
-	    if (j < n)
-	      {
-		push_stack(sc, OP_SORT1, sc->args, sc->code);
-		lx = SORT_LESSP; /* cadr of sc->args */
-		if (needs_copied_args(lx))
-		  sc->args = list_2(sc, SORT_DATA(j), SORT_DATA(j + 1));
-		else
-		  {
-		    set_car(sc->t2_1, SORT_DATA(j));
-		    set_car(sc->t2_2, SORT_DATA(j + 1));
-		    sc->args = sc->t2_1;
-		  }
-		sc->code = lx;
-		goto APPLY;
-	      }
-	    else sc->value = sc->F;
-	  }
+	  if (op_heapsort(sc)) goto START;
+	  if (sc->value != sc->F) goto APPLY;
 	  
 	case OP_SORT1:
-	  {
-	    s7_int j, k;
-	    s7_pointer lx;
-	    k = SORT_K1;
-	    j = SORT_J;
-	    if (is_true(sc, sc->value))
-	      {
-		j = j + 1;
-		SORT_J = j;
-	      }
-	    push_stack(sc, OP_SORT2, sc->args, sc->code);
-	    lx = SORT_LESSP;
-	    if (needs_copied_args(lx))
-	      sc->args = list_2(sc, SORT_DATA(k), SORT_DATA(j));
-	    else
-	      {
-		set_car(sc->t2_1, SORT_DATA(k));
-		set_car(sc->t2_2, SORT_DATA(j));
-		sc->args = sc->t2_1;
-	      }
-	    sc->code = lx;
-	    goto APPLY;
-	  }
+	  op_sort1(sc);
+	  goto APPLY;
 	  
 	case OP_SORT2:
-	  {
-	    s7_int j, k;
-	    k = SORT_K1;
-	    j = SORT_J;
-	    if (is_true(sc, sc->value))
-	      {
-		s7_pointer lx;
-		lx = SORT_DATA(j);
-		SORT_DATA(j) = SORT_DATA(k);
-		SORT_DATA(k) = lx;
-	      }
-	    else goto START;
-	    SORT_K1 = SORT_J;
-	    goto HEAPSORT;
-	  }
+	  if (op_sort2(sc)) goto START;
+	  goto HEAPSORT;
 	  
 	case OP_SORT:
-	  /* coming in sc->args is sort args (data less?), sc->code = #(n k 0 ...)
-	   * here we call the inner loop until k <= 0 [the local k! -- this is tricky because scheme passes args by value]
-	   */
-	  {
-	    s7_int k;
-	    k = SORT_K;
-	    if (k > 0)
-	      {
-		SORT_K = k - 1;
-		SORT_K1 = k - 1;
-		push_stack(sc, OP_SORT, sc->args, sc->code);
-		goto HEAPSORT;
-	      }
-	    /* else fall through */
-	  }
+	  if (!op_sort(sc)) goto HEAPSORT;
 
 	case OP_SORT3:
-	  {
-	    s7_int n;
-	    s7_pointer lx;
-	    n = SORT_N;
-	    if (n <= 0)
-	      {
-		sc->value = car(sc->args);
-		goto START;
-	      }
-	    lx = SORT_DATA(0);
-	    SORT_DATA(0) = SORT_DATA(n);
-	    SORT_DATA(n) = lx;
-	    SORT_N = n - 1;
-	    SORT_K1 = 0;
-	    push_stack(sc, OP_SORT3, sc->args, sc->code);
-	    goto HEAPSORT;
-	  }
+	  if (op_sort3(sc)) goto START;
+	  goto HEAPSORT;
 	  
 	case OP_SORT_PAIR_END:       /* sc->value is the sort vector which needs to be copied into the original list */
 	  sc->value = vector_into_list(sc->value, car(sc->args));
@@ -74595,45 +74857,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 	  
 	case OP_MAP_1:
-	  {
-	    s7_pointer x, args, p, code;
-	    code = sc->code;
-	    args = sc->args;
-	    p = counter_list(args);
-	    x = s7_iterate(sc, p);
-	    
-	    if (iterator_is_at_end(p))
-	      {
-		sc->value = safe_reverse_in_place(sc, counter_result(args));
-		/* an experiment */	  
-		free_cell(sc, sc->args);
-		sc->args = sc->nil; 
-		goto START;
-	      }
-	    push_stack(sc, OP_MAP_GATHER_1, args, code);
-	    if (counter_capture(args) != sc->capture_let_counter)
-	      {
-		new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), x);
-		counter_set_let(args, sc->envir);
-		counter_set_slots(args, let_slots(sc->envir));
-		counter_set_capture(args, sc->capture_let_counter);
-	      }
-	    else 
-	      {
-		/* the counter_slots field saves the original local let slot(s) representing the function
-		 *   argument.  If the function has internal defines, they get added to the front of the
-		 *   slots list, but old_frame_with_slot (maybe stupidly) assumes only the one original
-		 *   slot exists when it updates its symbol_id from the (possibly changed) let_id.  So,
-		 *   a subsequent reference to the parameter name causes "unbound variable", or a segfault
-		 *   if the check has been optimized away.  I think each function call should start with
-		 *   the original let slots, so counter_slots saves that pointer, and resets it here.
-		 */
-		let_set_slots(counter_let(args), counter_slots(args));
-		sc->envir = old_frame_with_slot(sc, counter_let(args), x);
-	      }
-	    sc->code = T_Pair(closure_body(code));
-	    goto BEGIN;
-	  }
+	  if (op_map_1(sc)) goto START;
+	  goto BEGIN;
 	  
 	case OP_MAP_GATHER:
 	  if (sc->value != sc->no_value)                   /* (map (lambda (x) (values)) (list 1)) */
@@ -74645,32 +74870,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 	  
 	case OP_MAP:
-	  {
-	    s7_pointer y, iterators;
-	    iterators = counter_list(sc->args);
-	    sc->x = sc->nil;                     /* can't use preset args list here (as in for-each): (map list '(a b c)) */
-	    for (y = iterators; is_pair(y); y = cdr(y))
-	      {
-		s7_pointer x;
-		x = s7_iterate(sc, car(y));
-		if (iterator_is_at_end(car(y)))
-		  {
-		    sc->value = safe_reverse_in_place(sc, counter_result(sc->args));
-		    free_cell(sc, sc->args); 
-		    sc->args = sc->nil;
-		    goto START;
-		  }
-		sc->x = cons(sc, x, sc->x);
-	      }
-	    sc->x = safe_reverse_in_place(sc, sc->x);
-	    push_stack(sc, OP_MAP_GATHER, sc->args, sc->code);
-	    sc->args = sc->x;
-	    sc->x = sc->nil;
-	    
-	    if (needs_copied_args(sc->code))
-	      sc->args = copy_list(sc, sc->args);
-	    goto APPLY;
-	  }
+	  if (op_map(sc)) goto START;
+	  goto APPLY;
 	  
 	case OP_MAP_GATHER_2:
 	case OP_MAP_GATHER_3:
@@ -74681,160 +74882,25 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      else counter_set_result(sc->args, cons(sc, sc->value, counter_result(sc->args)));
 	    }
 	case OP_MAP_2:
-	  {
-	    s7_pointer x, c, p, code;
-	    code = sc->code;
-	    c = sc->args;
-	    p = counter_list(c);
-	    if (!is_pair(p))
-	      {
-		sc->value = safe_reverse_in_place(sc, counter_result(c));
-		free_cell(sc, sc->args);
-		sc->args = sc->nil; 
-		goto START;
-	      }
-	    x = car(p);
-	    counter_set_list(c, cdr(p));
+	  if (op_map_2(sc)) goto START;
+	  goto EVAL;
 
-	    if (sc->cur_op == OP_MAP_GATHER_3)
-	      {
-		closure_set_setter(code, cdr(closure_setter(code)));
-		/* this depends on code (the function) being non-recursive, else closure_setter gets stepped on */
-		if (closure_setter(code) == counter_list(c))
-		  {
-		    sc->value = safe_reverse_in_place(sc, counter_result(c));
-		    free_cell(sc, c);
-		    sc->args = sc->nil;
-		    goto START;
-		  }
-		push_stack(sc, OP_MAP_GATHER_2, c, code);
-	      }
-	    else push_stack(sc, OP_MAP_GATHER_3, c, code);
 
-	    if (counter_capture(c) != sc->capture_let_counter)
-	      {
-		new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), x);
-		counter_set_let(c, sc->envir);
-		counter_set_slots(c, let_slots(sc->envir));
-		counter_set_capture(c, sc->capture_let_counter);
-	      }
-	    else 
-	      {
-		let_set_slots(counter_let(c), counter_slots(c));
-		sc->envir = old_frame_with_slot(sc, counter_let(c), x);
-	      }
-	    sc->code = car(closure_body(code));
-	    goto EVAL;
-	  }
-	  
 	  /* -------------------------------- for-each -------------------------------- */
 	case OP_FOR_EACH:
-	  {
-	    s7_pointer x, y, iterators, saved_args;
-	    iterators = car(sc->args);
-	    saved_args = cdr(sc->args);
-	    for (x = saved_args, y = iterators; is_pair(x); x = cdr(x), y = cdr(y))
-	      {
-		set_car(x, s7_iterate(sc, car(y)));
-		if (iterator_is_at_end(car(y)))
-		  {
-		    sc->value = sc->unspecified;
-		    free_cell(sc, sc->args);
-		    sc->args = sc->nil;
-		    goto START;
-		  }
-	      }
-	    push_stack(sc, OP_FOR_EACH, sc->args, sc->code);
-	    sc->args = saved_args;
-	    if (needs_copied_args(sc->code))
-	      sc->args = copy_list(sc, sc->args);
-	    goto APPLY;
-	  }
-	  
-	  /* for-each et al remake the local frame, but that's only needed if the local env is exported,
-	   *   and that can only happen through make-closure in various guises and curlet.
-	   *   owlet captures, but it would require a deliberate error to use it in this context.
-	   *   c_objects call object_set_let but that requires a prior curlet or sublet.  So we have
-	   *   sc->capture_let_counter that is incremented every time an environment is captured, then
-	   *   here we save that ctr, call body, on rerun check ctr, if it has not changed we are safe and can reuse frame.
-	   */
+	  if (op_for_each(sc)) goto START;
+	  goto APPLY;
 
 	case OP_FOR_EACH_1:
-	  {
-	    s7_pointer counter, p, arg, code;
-	    counter = sc->args;
-	    p = counter_list(counter);
-	    arg = s7_iterate(sc, p);
-	    if (iterator_is_at_end(p))
-	      {
-		sc->value = sc->unspecified;
-		free_cell(sc, counter);
-		sc->args = sc->nil;
-		goto START;
-	      }
-	    code = sc->code;
-	    if (counter_capture(counter) != sc->capture_let_counter)
-	      {
-		new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), arg);
-		counter_set_let(counter, sc->envir);
-		counter_set_slots(counter, let_slots(sc->envir));
-		counter_set_capture(counter, sc->capture_let_counter);
-	      }
-	    else 
-	      {
-		let_set_slots(counter_let(counter), counter_slots(counter));
-		sc->envir = old_frame_with_slot(sc, counter_let(counter), arg);
-	      }
-	    push_stack(sc, OP_FOR_EACH_1, counter, code);
-	    sc->code = T_Pair(closure_body(code));
-	    goto BEGIN;
-	  }
+	  if (op_for_each_1(sc)) goto START;
+	  goto BEGIN;
 
 	case OP_FOR_EACH_3:
 	case OP_FOR_EACH_2:
-	  {
-	    s7_pointer c, lst, arg, code;
-	    c = sc->args; /* the counter */
-	    lst = counter_list(c);
-	    if (!is_pair(lst))  /* '(1 2 . 3) as arg? -- counter_list can be anything here */
-	      {
-		sc->value = sc->unspecified;
-		free_cell(sc, c);
-		sc->args = sc->nil;
-		goto START;
-	      }
-	    code = T_Clo(sc->code);
-	    arg = car(lst);
-	    counter_set_list(c, cdr(lst));
-	    if (sc->cur_op == OP_FOR_EACH_3)
-	      {
-		counter_set_result(c, cdr(counter_result(c)));
-		if (counter_result(c) == counter_list(c))
-		  {
-		    sc->value = sc->unspecified;
-		    free_cell(sc, c);
-		    sc->args = sc->nil;
-		    goto START;
-		  }
-		push_stack(sc, OP_FOR_EACH_2, c, code);
-	      }
-	    else push_stack(sc, OP_FOR_EACH_3, c, code);
-	    if (counter_capture(c) != sc->capture_let_counter)
-	      {
-		new_frame_with_slot(sc, closure_let(code), sc->envir, car(closure_args(code)), arg);
-		counter_set_let(c, sc->envir);
-		counter_set_slots(c, let_slots(sc->envir));
-		counter_set_capture(c, sc->capture_let_counter);
-	      }
-	    else 
-	      {
-		let_set_slots(counter_let(c), counter_slots(c));
-		sc->envir = old_frame_with_slot(sc, counter_let(c), arg);
-	      }
-	    sc->code = car(closure_body(code));
-	    goto EVAL;
-	  }
-	  
+	  if (op_for_each_2(sc)) goto START;
+	  goto EVAL;
+
+	  /* -------------------------------- member, assoc -------------------------------- */
 	case OP_MEMBER_IF:
 	case OP_MEMBER_IF1:
 	  if (member_if(sc)) goto START;
@@ -76474,6 +76540,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
 	case HOP_SAFE_C_opSq_S:
 	  sc->value = fx_c_opsq_s(sc, sc->code);
+	  goto START;
+
+	case OP_SAFE_C_CAR_S_S:
+	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_CAR_S_S:
+	  sc->value = fx_c_car_s_s(sc, sc->code);
 	  goto START;
 
 	case OP_SAFE_C_opSq_P:
@@ -88159,8 +88231,7 @@ int main(int argc, char **argv)
  *     so there's room for all except pair (and if pair is data use optn?)
  * tdo.scm to check loops [cdr, float step etc], need opt-let 
  * multi-optlist for the #t/float problem
- * need a simple way to build libgtk, and g_application_run -- some simple way to put up a window
- * tbig: safe_c_S_opSSq_op_S_opSSqq safe_c_SS_op_opSSq_Sq safe_c_SCS_op_opSSq_Sq
+ * libgtk-tree-shaker
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88186,8 +88257,8 @@ int main(int argc, char **argv)
  * titer         |      |      |      || 5971 || 4646 | 4646  4784  4047  3743 
  * tsort         |      |      |      || 8584 || 4111 | 4111  4076  4119  3998
  * thash         |      |      | 50.7 || 8778 || 7697 | 7694  6389  6342  6153
- * tset          |      |      |      ||      ||      |             10.0  6445
- * dup           |      |      |      ||      ||      |             20.8  9548
+ * tset          |      |      |      ||      ||      |             10.0  6435
+ * dup           |      |      |      ||      ||      |             20.8  9525
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 12.1  11.0  8715  11.0
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 18.9  17.9  17.5  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 42.0  40.4  39.9  38.7

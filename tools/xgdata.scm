@@ -7992,6 +7992,9 @@
 ;;; gtk 3.3.6
 ;;; the scale troughs are changed -- in prefs they're all green or gray now?
 
+(CCAST-3.4 "GTK_APPLICATION" "GtkApplication*")
+(CCHK-3.4 "GTK_IS_APPLICATION" "GtkApplication*")
+
 (CCAST-3.4 "GTK_APPLICATION_WINDOW" "GtkApplicationWindow*")
 (CCHK-3.4 "GTK_IS_APPLICATION_WINDOW" "GtkApplicationWindow*")
 
@@ -9762,8 +9765,8 @@
 (CFNC-3.99 "void gtk_drag_source_set_target_list GtkWidget* widget GtkContentFormats* @target_list")
 (CFNC-3.99 "GtkWidget* gtk_scale_button_new gdouble min gdouble max gdouble step gchar** icons" 'const)
 
-(CCAST-3.99 "GTK_APPLICATION" "GtkApplication*")
-(CCHK-3.99 "GTK_IS_APPLICATION" "GtkApplication*")
+;(CCAST-3.22 "GTK_APPLICATION" "GtkApplication*")
+;(CCHK-3.99 "GTK_IS_APPLICATION" "GtkApplication*")
 (CINT-3.99 "GTK_APPLICATION_INHIBIT_LOGOUT" "GtkApplicationInhibitFlags")
 (CINT-3.99 "GTK_APPLICATION_INHIBIT_SWITCH" "GtkApplicationInhibitFlags")
 (CINT-3.99 "GTK_APPLICATION_INHIBIT_SUSPEND" "GtkApplicationInhibitFlags")

@@ -134,7 +134,7 @@
   (not (undefined? (eval-string (string-append "#_" (object->string x)))))) ; just a guess...
 
 (define (the type expr) 
-  (if (eq? type (symbol->value (type-of expr)))
+  (if (type expr)
       expr
       (error 'bad-type "~S is ~S but should be ~S" expr (type-of expr) type)))
 
