@@ -1,6 +1,6 @@
 Snd 18.7
 
-s7: basic cell size reduced from 56 to 48 bits
+s7: basic cell size reduced from 56 to 48 bytes
     removed (*s7* 'exits)
     gtk-script.c and coretemp.scm (gtk example)
 
