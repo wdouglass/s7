@@ -101,7 +101,6 @@
     (begin ; -noinit possibly
       (system "rm /var/tmp/snd_*")
       (system "rm /var/tmp/*.snd")))
-(system "rm core*")
 
 (define home-dir (getenv "HOME"))
 (define sf-dir "/sf1")
