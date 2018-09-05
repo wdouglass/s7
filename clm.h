@@ -616,6 +616,8 @@ MUS_EXPORT mus_any *mus_bank_generator(mus_any *g, int i);
 
 /* Change log.
  *
+ * 15-Jul:     granulate method to set jitter (K Matheussen).
+ * --------
  * 22-Sep:     removed clm_default_frequency.
  * 3-Aug:      mus_long_t is now int64_t.
  * 18-Jul:     mus_<method>_exists.

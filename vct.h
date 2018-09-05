@@ -7,6 +7,8 @@
 typedef struct vct vct;
 #endif
 
+#include "xen.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
