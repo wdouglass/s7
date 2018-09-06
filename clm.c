@@ -13781,8 +13781,21 @@ static mus_long_t grn_set_length(mus_any *ptr, mus_long_t val)
 static mus_float_t grn_scaler(mus_any *ptr) {return(((grn_info *)ptr)->amp);}
 static mus_float_t grn_set_scaler(mus_any *ptr, mus_float_t val) {((grn_info *)ptr)->amp = val; return(val);}
 
+static void grn_set_s20_and_s50(grn_info *gen)
+{
+  gen->s20 = 2 * (int)(gen->jitter * gen->output_hop);  /* was *.05 here and *.02 below */
+   /* added "2 *" 21-Mar-05 and replaced irandom with (grn)mus_irandom below */
+  gen->s50 = (int)(gen->jitter * gen->output_hop * 0.4); 
+}
+
 static mus_float_t grn_frequency(mus_any *ptr) {return(((mus_float_t)((grn_info *)ptr)->output_hop) / (mus_float_t)sampling_rate);}
-static mus_float_t grn_set_frequency(mus_any *ptr, mus_float_t val) {((grn_info *)ptr)->output_hop = (int)((mus_float_t)sampling_rate * val); return(val);}
+static mus_float_t grn_set_frequency(mus_any *ptr, mus_float_t val)
+{
+  grn_info *gen = ((grn_info *)ptr);
+  gen->output_hop = (int)((mus_float_t)sampling_rate * val);
+  grn_set_s20_and_s50(gen);
+  return(val);
+}
 
 static void *grn_closure(mus_any *rd) {return(((grn_info *)rd)->closure);}
 static void *grn_set_closure(mus_any *rd, void *e) {((grn_info *)rd)->closure = e; return(e);}
@@ -13802,7 +13815,13 @@ static mus_float_t grn_set_increment(mus_any *ptr, mus_float_t val)
 }
 
 static mus_long_t grn_hop(mus_any *ptr) {return(((grn_info *)ptr)->output_hop);}
-static mus_long_t grn_set_hop(mus_any *ptr, mus_long_t val) {((grn_info *)ptr)->output_hop = (int)val; return(val);}
+static mus_long_t grn_set_hop(mus_any *ptr, mus_long_t val) 
+{
+  grn_info *gen = ((grn_info *)ptr);
+  gen->output_hop = (int)val;
+  grn_set_s20_and_s50(gen);
+  return(val);
+}
 
 static mus_long_t grn_ramp(mus_any *ptr) {return(((grn_info *)ptr)->rmp);}
 
@@ -13825,8 +13844,7 @@ static mus_float_t grn_set_jitter(mus_any *ptr, mus_float_t val) /* K Matheussen
 { 
   grn_info *gen = (grn_info *)ptr; 
   gen->jitter = val; 
-  gen->s20 = 2 * (int)(val * gen->output_hop); 
-  gen->s50 = (int)(val * gen->output_hop * 0.4); 
+  grn_set_s20_and_s50(gen);
   return(val);
 } 
 
@@ -13921,9 +13939,7 @@ mus_any *mus_make_granulate(mus_float_t (*input)(void *arg, int direction),
   spd->jitter = jitter;
   spd->output_hop = (int)(hop * sampling_rate);
   spd->input_hop = (int)((mus_float_t)(spd->output_hop) / expansion);
-  spd->s20 = 2 * (int)(jitter * sampling_rate * hop); /* was *.05 here and *.02 below */
-   /* added "2 *" 21-Mar-05 and replaced irandom with (grn)mus_irandom below */
-  spd->s50 = (int)(jitter * sampling_rate * hop * 0.4);
+  grn_set_s20_and_s50(spd);
   spd->out_data_len = outlen;
   spd->out_data = (mus_float_t *)calloc(spd->out_data_len, sizeof(mus_float_t));
   /* spd->in_data_len = outlen + spd->s20 + 1; */
@@ -14102,7 +14118,7 @@ mus_float_t mus_granulate_with_editor(mus_any *ptr, mus_float_t (*input)(void *a
 	mus_add_floats(spd->out_data, spd->grain, new_len);
       }
       
-      /* set location of next grain calculation */
+      /* set location of next grain */
       spd->ctr = 0;
       spd->cur_out = spd->output_hop + grn_irandom(spd, 2 * spd->s50) - (spd->s50 >> 1); 
       /* this form suggested by Marc Lehmann */
