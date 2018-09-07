@@ -50,6 +50,8 @@
   "`(ok? ',tst (lambda () (let-temporarily (((*s7* 'autoloading?) #f)) (with-let (sublet (curlet)) ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (let-temporarily (((*s7* 'safety) 1)) ,tst)) ,expected)"
   ;; this confuses get-zero-count, but otherwise is ok: `(ok? ',tst (lambda () (gc) ,tst) ,expected)
+  ;; these are ok: "`(ok? ',tst (lambda () (define-macro (!m x) `(values ,x)) (!m ,tst)) ,expected)"
+  ;;               "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x ,tst)) !x))) ,expected)"
   ))
 
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)

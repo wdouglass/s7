@@ -14120,9 +14120,10 @@ mus_float_t mus_granulate_with_editor(mus_any *ptr, mus_float_t (*input)(void *a
       
       /* set location of next grain */
       spd->ctr = 0;
-      spd->cur_out = spd->output_hop + grn_irandom(spd, 2 * spd->s50) - (spd->s50 >> 1); 
+      spd->cur_out = spd->output_hop + grn_irandom(spd, 2 * spd->s50) - spd->s50; /* irandom is 0..x */
       /* this form suggested by Marc Lehmann */
       /* "2 *" added 21-Mar-05 and irandom replaced with mus_irandom, grn_irandom 28-Feb-06 */
+      /* in clm-2 (2004) it was spd->cur_out = spd->output_hop + irandom(spd->s50) */
       /* use of gen-local random sequence suggested by Kjetil Matheussen (to keep multi-channel grns in sync) */
       if (spd->cur_out < 0) spd->cur_out = 0;
 

@@ -3671,7 +3671,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_CLOSURE_C, HOP_CLOSURE_C, OP_CLOSURE_C_P, HOP_CLOSURE_C_P,
       OP_SAFE_CLOSURE_C, HOP_SAFE_CLOSURE_C, OP_SAFE_CLOSURE_C_P, HOP_SAFE_CLOSURE_C_P, OP_SAFE_CLOSURE_C_A, HOP_SAFE_CLOSURE_C_A, 
 
-      OP_CLOSURE_A, HOP_CLOSURE_A, OP_CLOSURE_A_P, HOP_CLOSURE_A_P,
+      OP_CLOSURE_A, HOP_CLOSURE_A, OP_CLOSURE_A_P, HOP_CLOSURE_A_P, 
       OP_SAFE_CLOSURE_A, HOP_SAFE_CLOSURE_A, OP_SAFE_CLOSURE_A_P, HOP_SAFE_CLOSURE_A_P, OP_SAFE_CLOSURE_A_A, HOP_SAFE_CLOSURE_A_A, 
 
       OP_CLOSURE_P, HOP_CLOSURE_P, OP_SAFE_CLOSURE_P, HOP_SAFE_CLOSURE_P, 
@@ -73356,7 +73356,42 @@ static int32_t dox_ex(s7_scheme *sc)
   return(fall_through);
 }
 
-	  
+static void op_simple_dox(s7_scheme *sc)
+{
+  s7_pointer slot, var, step, test, result;
+  s7_function testf, stepf;
+  
+  sc->code = cdr(sc->code);
+  var = caar(sc->code);
+  stepf = c_callee(cddr(var));
+  step = caddr(var);
+  if (stepf == fx_c_c)
+    {
+      stepf = c_callee(step);
+      step = cdr(step);
+    }
+  testf = c_callee(cadr(sc->code));
+  test = caadr(sc->code);
+  if (testf == fx_c_c)
+    {
+      testf = c_callee(test);
+      test = cdr(test);
+    }
+  result = cdadr(sc->code);
+  
+  new_frame_with_slot(sc, sc->envir, sc->envir, car(var), c_call(cdr(var))(sc, cadr(var)));
+  slot = let_slots(sc->envir);
+  while (true)
+    {
+      if (is_true(sc, testf(sc, test)))
+	{
+	  sc->value = c_call(result)(sc, car(result));
+	  return;
+	}
+      slot_set_value(slot, stepf(sc, step));
+    }
+}
+
 static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 {
 #if (!WITH_GMP)
@@ -74651,12 +74686,12 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 			}
 		    }
 		}
-	      else set_optimize_op(code, OP_CLOSURE_A_P);
+	      else set_optimize_op(code, OP_CLOSURE_A_P); 
 	    }
 	  else 
 	    {
 	      set_closure_has_multiform(f);
-	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A);
+	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A); 
 	    }
 	  set_opt_lambda(code, f);
 	  return(goto_EVAL);
@@ -77455,49 +77490,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_NOT_P_1:
 	  sc->value = ((sc->value == sc->F) ? sc->T : sc->F);
 	  goto START;
-
-	  
-	case OP_SAFE_C_opAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_opAq:
-	  sc->value = fx_c_opaq(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_opAAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_opAAq:
-	  sc->value = safe_c_opaaq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opAAAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_opAAAq:
-	  op_safe_c_opaaaq(sc);
-	  goto START;
-	  	  
-	case OP_SAFE_C_S_opAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opAq:
-	  sc->value = fx_c_s_opaq(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_opAq_S:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_opAq_S:
-	  sc->value = fx_c_opaq_s(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_S_opAAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opAAq:
-	  op_safe_c_s_opaaq(sc);
-	  goto START;
-	  
-	case OP_SAFE_C_S_opAAAq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opAAAq:
-	  op_safe_c_s_opaaaq(sc);
-	  goto START;
 	  
 	case OP_SAFE_C_ZZZ:
 	  if (!c_function_is_ok(sc, sc->code)) break;
@@ -77524,7 +77516,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = c_call(sc->code)(sc, sc->t3_1);
 	  goto START;
 	  
-
 	case OP_SAFE_C_A:
 	  if (!c_function_is_ok(sc, sc->code)) 
 	    {
@@ -77549,138 +77540,92 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto START;
 	  }
 	  
-	case OP_SAFE_C_AA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_AA:
-	  op_safe_c_aa(sc);
-	  goto START;
-	  
-	case OP_SAFE_C_AAA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_AAA:
-	  op_safe_c_aaa(sc);
-	  goto START;
-	  
-	case OP_SAFE_C_SSA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SSA:
-	  op_safe_c_ssa(sc);
-	  goto START;
-	  
-	case OP_SAFE_C_SAS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SAS:
-	  sc->value = fx_c_sas(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_opAq: sc->value = fx_c_opaq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_CAC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CAC:
-	  sc->value = fx_c_cac(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opAAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_opAAq: sc->value = safe_c_opaaq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_CSA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CSA:
-	  sc->value = fx_c_csa(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opAAAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_opAAAq: op_safe_c_opaaaq(sc); goto START;
+	  	  
+	case OP_SAFE_C_S_opAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opAq: sc->value = fx_c_s_opaq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_SCA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SCA:
-	  sc->value = fx_c_sca(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opAq_S: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_opAq_S: sc->value = fx_c_opaq_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_AAAA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_AAAA:
-	  op_safe_c_aaaa(sc);
-	  goto START;
+	case OP_SAFE_C_S_opAAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opAAq: op_safe_c_s_opaaq(sc); goto START;
 	  
-	case OP_SAFE_C_FX:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_FX:
-	  op_safe_c_fx(sc);
-	  goto START;
+	case OP_SAFE_C_S_opAAAq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opAAAq: op_safe_c_s_opaaaq(sc); goto START;
 	  
-	case OP_SAFE_C_ALL_QA:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_ALL_QA:
-	  op_safe_c_all_qa(sc);
-	  goto START;
+	case OP_SAFE_C_AA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_AA: op_safe_c_aa(sc); goto START;
 	  
-	case OP_SAFE_C_SCS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SCS:          /* (define (hi) (let ((x 32) (lst '(0 1))) (list-set! lst 0 x) x)) or (let-set! gen 'fm fm) -- old safe_c_sqs */
-	  sc->value = fx_c_scs(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_AAA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_AAA: op_safe_c_aaa(sc); goto START;
 	  
-	case OP_SAFE_C_SSC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SSC:          /* (define (hi) (let ((v #(0 1 2)) (i 0)) (vector-set! v i 1) v)) */
-	  sc->value = fx_c_ssc(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_SSA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SSA: op_safe_c_ssa(sc); goto START;
 	  
-	case OP_SAFE_C_SCC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SCC:                      /* (make-env E :length 100) */
-	  sc->value = fx_c_scc(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_CSC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CSC:
-	  sc->value = fx_c_csc(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_SAS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SAS: sc->value = fx_c_sas(sc, sc->code); goto START;
 
-	case OP_SAFE_C_CCS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CCS:
-	  sc->value = fx_c_ccs(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_CSS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CSS:
-	  op_safe_c_css(sc);
-	  goto START;
-
-	case OP_SAFE_C_SSS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SSS:
-	  sc->value = fx_c_sss(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_opCq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq:
-	  sc->value = fx_c_opcq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_CAC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CAC: sc->value = fx_c_cac(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opSq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq:
-	  op_safe_c_opsq(sc);
-	  goto START;
-	  
-	case OP_SAFE_C_op_opSq_q:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_q:
-	  sc->value = fx_c_op_opsq_q(sc, sc->code);
-	  goto START;
-	  /* op_op_opSq_q_q and op_opSq_q_op_opSq_q got almost no hits */
-	  
-	case OP_SAFE_C_op_S_opSq_q:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, caddr(cadr(sc->code))))) break;
-	case HOP_SAFE_C_op_S_opSq_q:    /* (exp (* r (cos x))) */
-	  sc->value = fx_c_op_s_opsq_q(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_CSA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CSA: sc->value = fx_c_csa(sc, sc->code); goto START;
 
-	case OP_SAFE_C_op_opSq_S_q:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_S_q:     /* (exp (* (cos x) r)) */
-	  sc->value = fx_c_op_opsq_s_q(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_SCA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SCA: sc->value = fx_c_sca(sc, sc->code); goto START;
+
+	case OP_SAFE_C_AAAA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_AAAA: op_safe_c_aaaa(sc); goto START;
+	  
+	case OP_SAFE_C_FX: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_FX: op_safe_c_fx(sc); goto START;
+	  
+	case OP_SAFE_C_ALL_QA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_ALL_QA: op_safe_c_all_qa(sc); goto START;
+	  
+	case OP_SAFE_C_SCS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SCS: sc->value = fx_c_scs(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_SSC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SSC: sc->value = fx_c_ssc(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_SCC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SCC: sc->value = fx_c_scc(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_CSC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CSC: sc->value = fx_c_csc(sc, sc->code); goto START;
+
+	case OP_SAFE_C_CCS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CCS: sc->value = fx_c_ccs(sc, sc->code); goto START;
+
+	case OP_SAFE_C_CSS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CSS: op_safe_c_css(sc); goto START;
+
+	case OP_SAFE_C_SSS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SSS: sc->value = fx_c_sss(sc, sc->code); goto START;
+
+	case OP_SAFE_C_opCq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq: sc->value = fx_c_opcq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq: op_safe_c_opsq(sc); goto START;
+	  
+	case OP_SAFE_C_op_opSq_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_q: sc->value = fx_c_op_opsq_q(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_op_S_opSq_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, caddr(cadr(sc->code))))) break;
+	case HOP_SAFE_C_op_S_opSq_q: sc->value = fx_c_op_s_opsq_q(sc, sc->code); goto START;
+
+	case OP_SAFE_C_op_opSq_S_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_S_q: sc->value = fx_c_op_opsq_s_q(sc, sc->code); goto START;
 	  
 	case OP_SAFE_C_PS:
 	  if (!c_function_is_ok(sc, sc->code)) break;
@@ -77875,307 +77820,154 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = c_function_base(opt_cfunc(sc->code));
 	  goto APPLY;
 	  
-	case OP_SAFE_C_AAP:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_AAP:
-	  op_safe_c_aap(sc);
-	  goto EVAL;
+	case OP_SAFE_C_AAP: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_AAP: op_safe_c_aap(sc); goto EVAL;
+	case OP_SAFE_C_AAP_1: op_safe_c_aap_1(sc); goto START;
+	case OP_SAFE_C_AAP_MV: op_safe_c_aap_mv(sc); goto APPLY;
 
-	case OP_SAFE_C_AAP_1:
-	  op_safe_c_aap_1(sc);
-	  goto START;
+	case OP_SAFE_C_opSSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq: sc->value = fx_c_opssq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_AAP_MV:
-	  op_safe_c_aap_mv(sc);
-	  goto APPLY;
+	case OP_SAFE_C_opSCq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSCq: sc->value = fx_c_opscq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSSq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq:
-	  sc->value = fx_c_opssq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opCSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCSq: sc->value = fx_c_opcsq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opSQq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSQq: sc->value = fx_c_opsqq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opQSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opQSq: sc->value = fx_c_opqsq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_S_opSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opSq: sc->value = fx_c_s_opsq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSCq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSCq:
-	  sc->value = fx_c_opscq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_S_opCq: if (!c_function_is_ok_caddr(sc, sc->code))break;
+	case HOP_SAFE_C_S_opCq: sc->value = fx_c_s_opcq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_C_opSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_C_opSq: sc->value = fx_c_c_opsq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opCSq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCSq:
-	  sc->value = fx_c_opcsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_C_opCq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_C_opCq: sc->value = fx_c_c_opcq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opSQq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSQq:
-	  sc->value = fx_c_opsqq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opQSq:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opQSq:
-	  sc->value = fx_c_opqsq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_S_opSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opSq:
-	  sc->value = fx_c_s_opsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_C_opCSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_C_opCSq: sc->value = fx_c_c_opcsq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_S_opCq:
-	  if (!c_function_is_ok_caddr(sc, sc->code))break;
-	case HOP_SAFE_C_S_opCq:
-	  sc->value = fx_c_s_opcq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_C_opSSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_C_opSSq: sc->value = fx_c_c_opssq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_C_opSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_C_opSq:
-	  sc->value = fx_c_c_opsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opCSq_C: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCSq_C: sc->value = fx_c_opcsq_c(sc, sc->code); goto START;
 
-	case OP_SAFE_C_C_opCq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_C_opCq:
-	  sc->value = fx_c_c_opcq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSSq_C: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq_C: sc->value = fx_c_opssq_c(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_C_opCSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_C_opCSq:
-	  sc->value = fx_c_c_opcsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSSq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq_S: sc->value = fx_c_opssq_s(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_op_opSSq_q_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSq_q_C: sc->value = fx_c_op_opssq_q_c(sc, sc->code); goto START;
 
-	case OP_SAFE_C_C_opSSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_C_opSSq:
-	  sc->value = fx_c_c_opssq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opCSq_C:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCSq_C:
-	  sc->value = fx_c_opcsq_c(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_op_opSSq_q_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSq_q_S: sc->value = fx_c_op_opssq_q_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSSq_C:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq_C:
-	  sc->value = fx_c_opssq_c(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSSq_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq_S:
-	  sc->value = fx_c_opssq_s(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_op_opSSq_q_C:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSSq_q_C:
-	  sc->value = fx_c_op_opssq_q_c(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_op_opSSq_Sq_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSq_Sq_S: sc->value = fx_c_op_opssq_sq_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_op_opSSq_q_S:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSSq_q_S:
-	  sc->value = fx_c_op_opssq_q_s(sc, sc->code); /* code: (> (magnitude (- old new)) s) */
-	  goto START;
+	case OP_SAFE_C_op_opSq_q_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_q_C: sc->value = fx_c_op_opsq_q_c(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_op_opSq_q_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_q_S: sc->value = fx_c_op_opsq_q_s(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_S_op_opSq_Cq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, cadr(caddr(sc->code))))) break;
+	case HOP_SAFE_C_S_op_opSq_Cq: sc->value = fx_c_s_op_opsq_cq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_S_op_S_opSqq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, caddr(caddr(sc->code))))) break;
+	case HOP_SAFE_C_S_op_S_opSqq: sc->value = fx_c_s_op_s_opsqq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_op_opSSq_Sq_S:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSSq_Sq_S:
-	  sc->value = fx_c_op_opssq_sq_s(sc, sc->code); /* (+ (* (- b a) c) d) */
-	  goto START;
+	case OP_SAFE_C_S_op_S_opSSqq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, caddr(caddr(sc->code))))) break;
+	case HOP_SAFE_C_S_op_S_opSSqq: sc->value = fx_c_s_op_s_opssqq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_op_opSq_q_C:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_q_C:
-	  sc->value = fx_c_op_opsq_q_c(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_op_opSq_q_S:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_q_S:
-	  sc->value = fx_c_op_opsq_q_s(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_S_op_opSq_Cq:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, cadr(caddr(sc->code))))) break;
-	case HOP_SAFE_C_S_op_opSq_Cq:                      /* (< a (- (length b) 1) */
-	  sc->value = fx_c_s_op_opsq_cq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_S_op_S_opSqq:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, caddr(caddr(sc->code))))) break;
-	case HOP_SAFE_C_S_op_S_opSqq:
-	  sc->value = fx_c_s_op_s_opsqq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_S_op_opSSq_opSSqq: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_S_op_opSSq_opSSqq: sc->value = fx_c_s_op_opssq_opssqq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_S_op_S_opSSqq:
-	  if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, caddr(caddr(sc->code))))) break;
-	case HOP_SAFE_C_S_op_S_opSSqq:
-	  sc->value = fx_c_s_op_s_opssqq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSCq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSCq_S: sc->value = fx_c_opscq_s(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opSCq_C: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSCq_C: sc->value = fx_c_opscq_c(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opCSq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCSq_S: sc->value = fx_c_opcsq_s(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_S_opSCq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opSCq: sc->value = fx_c_s_opscq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_C_opSCq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_C_opSCq: sc->value = fx_c_c_opscq(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_S_opSSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opSSq: sc->value = fx_c_s_opssq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_S_op_opSSq_opSSqq:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_S_op_opSSq_opSSqq:                 /* (* s (f3 (f1 a b) (f2 c d))) */
-	  sc->value = fx_c_s_op_opssq_opssqq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_S_opCSq: if (!c_function_is_ok_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_S_opCSq: sc->value = fx_c_s_opcsq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSCq_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSCq_S:
-	  sc->value = fx_c_opscq_s(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSCq_C:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSCq_C:
-	  sc->value = fx_c_opscq_c(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opCSq_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCSq_S:
-	  sc->value = fx_c_opcsq_s(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_S_opSCq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opSCq:
-	  sc->value = fx_c_s_opscq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_C_opSCq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_C_opSCq:
-	  sc->value = fx_c_c_opscq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_S_opSSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opSSq:              /* (* a (- b c)) */
-	  sc->value = fx_c_s_opssq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_S: sc->value = fx_c_opsq_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_S_opCSq:
-	  if (!c_function_is_ok_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_S_opCSq:              /* (* a (- 1 b)) or (logand a (ash 1 b)) */
-	  sc->value = fx_c_s_opcsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_CAR_S_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_CAR_S_S: sc->value = fx_c_car_s_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSq_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_S:
-	  sc->value = fx_c_opsq_s(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSq_P: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_P: op_safe_c_opsq_p(sc); goto EVAL;
+	  
+	case OP_SAFE_C_opSq_Q: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_Q: sc->value = fx_c_opsq_q(sc, sc->code); goto START;
 
-	case OP_SAFE_C_CAR_S_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_CAR_S_S:
-	  sc->value = fx_c_car_s_s(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSq_QS: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_QS: sc->value = fx_c_opsq_qs(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opCq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq_S: sc->value = fx_c_opcq_s(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opCq_C: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq_C: sc->value = fx_c_opcq_c(sc, sc->code); goto START;
+	  
+	case OP_SAFE_C_opSq_C: if (!c_function_is_ok_cadr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_C: sc->value = fx_c_opsq_c(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSq_P:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_P:
-	  op_safe_c_opsq_p(sc);
-	  goto EVAL;
+	case OP_SAFE_C_opSq_opSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_opSq: sc->value = fx_c_opsq_opsq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opSq_Q:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_Q:
-	  sc->value = fx_c_opsq_q(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opCq_opCq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq_opCq: sc->value = fx_c_opcq_opcq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSq_QS:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_QS:
-	  sc->value = fx_c_opsq_qs(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSq_opCq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_opCq: sc->value = fx_c_opsq_opcq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opCq_S:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq_S:
-	  sc->value = fx_c_opcq_s(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opCq_opSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq_opSq: sc->value = fx_c_opcq_opsq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opCq_C:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq_C:
-	  sc->value = fx_c_opcq_c(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opCq_opSSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opCq_opSSq: sc->value = fx_c_opcq_opssq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opSq_C:
-	  if (!c_function_is_ok_cadr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_C:
-	  sc->value = fx_c_opsq_c(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSCq_opSCq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSCq_opSCq: sc->value = fx_c_opscq_opscq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_opSq_opSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_opSq:
-	  sc->value = fx_c_opsq_opsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSSq_opSSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq_opSSq: sc->value = fx_c_opssq_opssq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opCq_opCq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq_opCq:
-	  sc->value = fx_c_opcq_opcq(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_opSq_opCq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_opCq:
-	  sc->value = fx_c_opsq_opcq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSSq_opSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq_opSq: sc->value = fx_c_opssq_opsq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opCq_opSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq_opSq:
-	  sc->value = fx_c_opcq_opsq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSq_opSSq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSq_opSSq: sc->value = fx_c_opsq_opssq(sc, sc->code); goto START;
 	  
-	case OP_SAFE_C_opCq_opSSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opCq_opSSq:
-	  sc->value = fx_c_opcq_opssq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSCq_opSCq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSCq_opSCq:
-	  sc->value = fx_c_opscq_opscq(sc, sc->code);
-	  goto START;
-
-	case OP_SAFE_C_opSSq_opSSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq_opSSq:
-	  sc->value = fx_c_opssq_opssq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSSq_opSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq_opSq:
-	  sc->value = fx_c_opssq_opsq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSq_opSSq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSq_opSSq:
-	  sc->value = fx_c_opsq_opssq(sc, sc->code);
-	  goto START;
-	  
-	case OP_SAFE_C_opSSq_opCq:
-	  if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
-	case HOP_SAFE_C_opSSq_opCq:
-	  sc->value = fx_c_opssq_opcq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_opSSq_opCq: if (!c_function_is_ok_cadr_caddr(sc, sc->code)) break;
+	case HOP_SAFE_C_opSSq_opCq: sc->value = fx_c_opssq_opcq(sc, sc->code); goto START;
 	  
 	case OP_SAFE_IFA_SS_A: /* ((if fx s s) fx) I think */
 	case HOP_SAFE_IFA_SS_A:
@@ -78626,7 +78418,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_CLOSURE_A_P:
 	  op_closure_a(sc);
 	  closure_goto_eval(sc);
-	  
+#if 0	  
+	case OP_ECLOSURE_A:
+	case HOP_ECLOSURE_A:
+	  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+	  sc->code = symbol_to_value_unchecked(sc, car(sc->code));
+	  if (needs_copied_args(sc->code))
+	    sc->args = list_1(sc, sc->value);
+	  else sc->args = set_plist_1(sc, sc->value);
+	  goto APPLY;
+#endif	  
 	case OP_SAFE_CLOSURE_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_A:
@@ -79950,40 +79751,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SIMPLE_DOX:
 	SIMPLE_DOX:
-	  {
-	    s7_pointer slot, var, step, test, result;
-	    s7_function testf, stepf;
-
-	    sc->code = cdr(sc->code);
-	    var = caar(sc->code);
-	    stepf = c_callee(cddr(var));
-	    step = caddr(var);
-	    if (stepf == fx_c_c)
-	      {
-		stepf = c_callee(step);
-		step = cdr(step);
-	      }
-	    testf = c_callee(cadr(sc->code));
-	    test = caadr(sc->code);
-	    if (testf == fx_c_c)
-	      {
-		testf = c_callee(test);
-		test = cdr(test);
-	      }
-	    result = cdadr(sc->code);
-
-	    new_frame_with_slot(sc, sc->envir, sc->envir, car(var), c_call(cdr(var))(sc, cadr(var)));
-	    slot = let_slots(sc->envir);
-	    while (true)
-	      {
-		if (is_true(sc, testf(sc, test)))
-		  {
-		    sc->value = c_call(result)(sc, car(result));
-		    goto START;
-		  }
-		slot_set_value(slot, stepf(sc, step));
-	      }
-	  }
+	  op_simple_dox(sc);
+	  goto START;
 	  
 	  /* we could use slot_pending_value, slot_expression, not this extra list, but the list seems simpler. */
         #define DO_VAR_SLOT(P) opt_slot1(P)
@@ -80021,8 +79790,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *    and only matters once in a blue moon (closure over enclosed lambda referring to a do var)
 	       *    and the caller can easily mimic the correct behavior in that case by adding a let or using a named let,
 	       *    making the rebinding explicit.
-	       *
-	       * Hmmm... I'll leave this alone, but there are other less cut-and-dried cases:
 	       *   (let ((j (lambda () 0))
 	       *         (k 0))
 	       *     (do ((i (j) (j))
@@ -80030,7 +79797,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *         ((= i 3) k)
 	       *       (set! k (+ k i))))
 	       *   is it 6 or 3?
-	       *
 	       *   (let ((f #f))
 	       *     (do ((i 0 (+ i 1)))
 	       *         ((= i 3))
@@ -80039,7 +79805,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	       *         (if (= i 1) (set! f x))))
 	       *    (f))
 	       * s7 says 3, guile says 1.
-	       *
 	       * If we set the value directly (not the cdr(binding) but, for example, integer(cdr(binding))), then
 	       *   every previous reference gets changed as a side-effect.  In the current code, we're "binding"
 	       *   the value in the sense that on each step, a new cell is assigned to the step variable.
@@ -80080,18 +79845,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  set_current_code(sc, sc->code);
 	  sc->code = cdr(sc->code);
 	DO_UNCHECKED: /* fall through above, safe_do_ex, dotimes_p_ex */
-	  /* (((k 0 (+ k 1))) ((= k len)) (vector-set! v k (list-ref vals (random vlen))))
-	   * (((j (+ i 1) (+ j 1))) ((= j len)) (if (eq? (vector-ref things i) (vector-ref things j)) (format #t ";(eq? ~A ~A) -> #t?~%" (vector-ref things i) (vector-ref things j))))
-	   * (((k 0 (+ k 1))) ((= k len)) (list-set! lst k (list-ref vals (random vlen))))
-	   * (((i 0 (+ i 1))) ((= i 100)) (hash-table-set! ht1 i (* i 2)) (hash-table-set! ht2 i (* i 2)))
-	   * (((i 0 (+ i 1))) ((= i 10) sum) (set! sum (+ sum ((v i))))) ; here and elsewhere we can tell at opt time the type of v
-	   * (((i 1 (+ i 1))) ((= i 4)) (set! (str i) i))
-	   * (((i 0 (+ i 1))) ((= i size)) (vector-set! v i (cons (random 1.0) (random 100000))))
-	   * (((i start1 (+ i 1)) (j start2 (+ j 1))) ((or (= i nd1) (= j nd2) (not (char-ci=? (str1 i) (str2 j)))) i))
-	   * ((({gensym}-519 3) (i 0 (+ i 1))) ((>= i {gensym}-519) i))
-	   * (set! (sample i)...) in body
-	   * (((i (- n hop) (+ i 1))) ((= i n)) (float-vector-set! data i (readin input)))
-	   */
 	  if (is_null(car(sc->code)))                           /* (do () ...) -- (let ((i 0)) (do () ((= i 1)) (set! i 1))) */
 	    {
 	      sc->envir = new_frame_in_env(sc, sc->envir);
@@ -80111,15 +79864,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	DO_END:
 	case OP_DO_END:
-	  /* here vars have been init'd or incr'd
-	   *    args = (list var-data end-expr return-expr-if-any)
-	   *      if (do ((i 0 (+ i 1))) ((= i 3) 10)),            args: (vars (= i 3) 10)
-	   *      if (do ((i 0 (+ i 1))) ((= i 3))),               args: (vars (= i 3)) and result expr is () == (begin)
-	   *      if (do ((i 0 (+ i 1))) (#t 10 12)),              args: (vars #t 10 12), result: ([begin] 10 12) -> 12
-	   *      if (call-with-exit (lambda (r) (do () () (r)))), args: '(())
-	   *    code = body
+	  /* here vars have been init'd or incr'd, args = (list var-data end-expr return-expr-if-any)
+	   *   (do ((i 0 (+ i 1))) ((= i 3) 10)) args: (vars (= i 3) 10)
 	   */
-	  
 	  if (is_not_null(cdr(sc->args)))
 	    {
 	      push_stack(sc, OP_DO_END1, sc->args, sc->code);
@@ -88882,16 +88629,10 @@ int main(int argc, char **argv)
  *   symbol/slot types from setter=integer? meaning assure value is integer, so symbol type is integer [4th arg to define?]
  *   with these changes we'd have a fully-statically-typed scheme (setters/getters on let fields?)
  *   iterator => sequence element type
- *   vector-setter (*-setter) would be the element setter frok scheme, use vset + bit? all need a bit to warn set!
+ *   vector-setter (*-setter) would be the element setter from scheme, use vset + bit? all need a bit to warn set!
  *   hash-table has room in block index+filler I think, string (and bvect) in gensym_block, let in cdat union, c_obj has unused field
  *     so there's room for all except pair (and if pair is data use optn?)
  * multi-optlist for the #t/float problem
- * libgtk-tree-shaker, omit libgtk_s7 from the snd build -- assume loaded by scheme code as needed
- * -pthread in s7.html compilation instructions?
- * opt (v i) in do -- do_opt? stored optlists ought to work here, but recalc if #t
- * ca 450 ops left in eval: goal while (true) {eval_f[optimize_op(sc->code)](sc);} to while (true) {evalf(sc->code)(sc);}
- *   so all eval-level labels need to go, all case->void f(sc), stack-frame 3 entries (cur_op+code->code)
- *   there are about 350 uses of EVAL and of START, 65 of APPLY, 75 of BEGIN, 16 of TOP_NO_POP
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88907,23 +88648,23 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1056
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1304
  * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1673
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1912
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2299
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2360
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1866
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2188
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2323
  * tread         |      |      |      ||      ||      | 2398  2357  2363  2359
- * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2399
+ * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2381
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3261
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3244
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3720
  * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3987
  * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  6146
  * tset          |      |      |      ||      ||      |       10.0  6435  6406
- * dup           |      |      |      ||      ||      |       20.8  9525  9896
+ * dup           |      |      |      ||      ||      |       20.8  9525  9316
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.0
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.7
- * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.3
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 115.2
- * tbig          |      |      |      ||      ||      |      246.9 242.7 242.6
+ * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.1
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 114.0
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 241.1
  * --------------------------------------------------------------------------------
  */

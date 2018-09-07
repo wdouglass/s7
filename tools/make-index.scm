@@ -1,5 +1,6 @@
 ;;; make-index.scm translated from index.cl
 ;;;   run this -noinit so that loads in ~/.snd_s7 don't confuse matters
+(set! (*s7* 'heap-size) 1024000)
 
 (if (provided? 'pure-s7)
     (define (char-ci=? . chars) (apply char=? (map char-upcase chars))))

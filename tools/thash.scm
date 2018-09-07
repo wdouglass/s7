@@ -1,4 +1,4 @@
-(set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'heap-size) (* 4 1024000))
 ;(set! (*s7* 'gc-stats) 6)
 ;heap ca 30*size!
 

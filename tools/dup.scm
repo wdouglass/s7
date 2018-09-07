@@ -4,6 +4,8 @@
 ;;;    "alloc-lines" is any number bigger than the number of lines in "file"
 ;;;    (dups 16 "s7.c" 89000) finds all 16-line matches in s7.c which has less than 89000 lines in all
 
+(set! (*s7* 'heap-size) (* 2 1024000))
+
 (define dups 
   (let ()
 
@@ -73,7 +75,7 @@
 			     (int-vector-set! lens (cdr (vector-ref sortv i)) unctr)
 			     (set! unctr (- unctr 1)))
 			   (set! i k)))))))
-	      
+
 	      ;; look for matches
 	      (do ((i 0 (+ i 1))
 		   (first #t #t)

@@ -1,5 +1,7 @@
 ;;; sequence tests
 
+(set! (*s7* 'heap-size) (* 4 1024000))
+
 (define (less-than a b)
   (or (< a b) (> b a)))
 

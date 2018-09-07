@@ -2,6 +2,8 @@
   ;; depends on running s7test first normally
   (load "s7test-block.so" new-env))
 
+(set! (*s7* 'heap-size) 1024000)
+
 (define (test-copy size)
   (let ((old-string (make-string size #\a))
 	(old-bvect (make-byte-vector size 1))
@@ -242,7 +244,6 @@
       (test (length bvec) (* size size))
       )))
       
-
 (define (t)
   (do ((i 0 (+ i 1)))
       ((= i 10000))
