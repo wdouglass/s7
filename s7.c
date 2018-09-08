@@ -6673,15 +6673,16 @@ static s7_pointer symbol_to_string_uncopied_p(s7_scheme *sc, s7_pointer sym)
 }
 
 
-static s7_pointer g_string_to_symbol_1(s7_scheme *sc, s7_pointer str, s7_pointer caller)
+static inline s7_pointer g_string_to_symbol_1(s7_scheme *sc, s7_pointer str, s7_pointer caller)
 {
-  if (!is_string(str))
-    return(method_or_bust_one_arg(sc, str, caller, list_1(sc, str), T_STRING));
-  if (string_length(str) == 0)
-    return(simple_wrong_type_argument_with_type(sc, caller, str, wrap_string(sc, "a non-null string", 17)));
-
-  /* currently if the string has an embedded null, it marks the end of the new symbol name. */
-  return(make_symbol_with_length(sc, string_value(str), string_length(str)));
+  if (is_string(str))
+    {
+      if (string_length(str) > 0)
+	return(make_symbol_with_length(sc, string_value(str), string_length(str)));
+      return(simple_wrong_type_argument_with_type(sc, caller, str, wrap_string(sc, "a non-null string", 17)));
+      /* currently if the string has an embedded null, it marks the end of the new symbol name. */
+    }
+  return(method_or_bust_one_arg(sc, str, caller, list_1(sc, str), T_STRING));
 }
 
 
@@ -6694,12 +6695,14 @@ static s7_pointer g_string_to_symbol(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer string_to_symbol_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if (!is_string(p))
-    simple_wrong_type_argument(sc, sc->string_to_symbol_symbol, p, T_STRING);
-  if (string_length(p) == 0)
-    simple_wrong_type_argument_with_type(sc, sc->string_to_symbol_symbol, p, 
-					 wrap_string(sc, "a non-null string", 17));
-  return(make_symbol_with_length(sc, string_value(p), string_length(p)));
+  if (is_string(p))
+    {
+      if (string_length(p) > 0)
+	return(make_symbol_with_length(sc, string_value(p), string_length(p)));
+      simple_wrong_type_argument_with_type(sc, sc->string_to_symbol_symbol, p, wrap_string(sc, "a non-null string", 17));
+    }
+  else simple_wrong_type_argument(sc, sc->string_to_symbol_symbol, p, T_STRING);
+  return(p);
 }
 
 static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args);
@@ -21418,22 +21421,23 @@ static s7_pointer g_char_position(s7_scheme *sc, s7_pointer args)
 static s7_pointer char_position_p_ppi(s7_scheme *sc, s7_pointer p1, s7_pointer p2, s7_int start)
 {
   /* p1 is char, p2 is string, p3 is int32_t */
-  char c;
-  c = character(p1);
-  if (!is_string(p2))
-    simple_wrong_type_argument(sc, sc->char_position_symbol, p2, T_STRING);
-  if (start < 0)
-    wrong_type_argument_with_type(sc, sc->char_position_symbol, 3, s7_make_integer(sc, start), a_non_negative_integer_string);
-  else
+  if (is_string(p2))
     {
-      const char *porig, *p;
-      s7_int len;
-      len = string_length(p2);
-      porig = string_value(p2);
-      if (start >= len) return(sc->F);
-      p = strchr((const char *)(porig + start), (int)c);
-      if (p) return(make_integer(sc, p - porig));
+      if (start >= 0)
+	{
+	  const char *porig, *p;
+	  s7_int len;
+	  char c;
+	  c = character(p1);
+	  len = string_length(p2);
+	  porig = string_value(p2);
+	  if (start >= len) return(sc->F);
+	  p = strchr((const char *)(porig + start), (int)c);
+	  if (p) return(make_integer(sc, p - porig));
+	}
+      else wrong_type_argument_with_type(sc, sc->char_position_symbol, 3, s7_make_integer(sc, start), a_non_negative_integer_string);
     }
+  else simple_wrong_type_argument(sc, sc->char_position_symbol, p2, T_STRING);
   return(sc->F);  
 }
 
@@ -21916,16 +21920,18 @@ static s7_pointer string_ref_p_pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
 {
   if (!is_string(p1))
     simple_wrong_type_argument(sc, sc->string_ref_symbol, p1, T_STRING);
-  if ((i1 < 0) || (i1 >= string_length(p1)))
-    out_of_range(sc, sc->string_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  return(chars[((uint8_t *)string_value(p1))[i1]]);
+  if ((i1 >= 0) && (i1 < string_length(p1)))
+    return(chars[((uint8_t *)string_value(p1))[i1]]);
+  out_of_range(sc, sc->string_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
+  return(p1);
 }
 
 static s7_pointer string_ref_p_pi_direct(s7_scheme *sc, s7_pointer p1, s7_int i1)
 {
-  if ((i1 < 0) || (i1 >= string_length(p1)))
-    out_of_range(sc, sc->string_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  return(chars[((uint8_t *)string_value(p1))[i1]]);
+  if ((i1 >= 0) && (i1 < string_length(p1)))
+    return(chars[((uint8_t *)string_value(p1))[i1]]);
+  out_of_range(sc, sc->string_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
+  return(p1);
 }
 
 static s7_pointer string_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(chars[((uint8_t *)string_value(p1))[i1]]);}
@@ -21975,17 +21981,17 @@ static s7_pointer string_set_p_pip(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_p
     simple_wrong_type_argument(sc, sc->string_set_symbol, p1, T_STRING);
   if (!s7_is_character(p2))
     simple_wrong_type_argument(sc, sc->string_set_symbol, p2, T_CHARACTER);
-  if ((i1 < 0) || (i1 >= string_length(p1)))
-    out_of_range(sc, sc->string_set_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  string_value(p1)[i1] = s7_character(p2);
+  if ((i1 >= 0) && (i1 < string_length(p1)))
+    string_value(p1)[i1] = s7_character(p2);
+  else out_of_range(sc, sc->string_set_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(p2);
 }
 
 static s7_pointer string_set_p_pip_direct(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) 
 {
-  if ((i1 < 0) || (i1 >= string_length(p1)))
-    out_of_range(sc, sc->string_set_symbol, small_int(2),make_integer(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  string_value(p1)[i1] = s7_character(p2);
+  if ((i1 >= 0) && (i1 < string_length(p1)))
+    string_value(p1)[i1] = s7_character(p2);  
+  else out_of_range(sc, sc->string_set_symbol, small_int(2),make_integer(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(p2);
 }
 
@@ -22927,10 +22933,10 @@ static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
 {
   if (!is_byte_vector(p1))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_ref_symbol, p1, a_byte_vector_string);
-  if ((i1 < 0) || 
-      (i1 >= byte_vector_length(p1)))
-    out_of_range(sc, sc->byte_vector_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  return((s7_int)((byte_vector_bytes(p1))[i1]));
+  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
+    return((s7_int)((byte_vector_bytes(p1))[i1]));
+  out_of_range(sc, sc->byte_vector_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
+  return(0);
 }
 
 static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector_bytes(p1))[i1]));}
@@ -22988,9 +22994,9 @@ static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, p1, a_byte_vector_string);
   if ((i2 < 0) || (i2 > 255))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i2), an_unsigned_byte_string);
-  if ((i1 < 0) || (i1 >= byte_vector_length(p1)))
-    simple_out_of_range(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  byte_vector_bytes(p1)[i1] = (uint8_t)i2;
+  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
+    byte_vector_bytes(p1)[i1] = (uint8_t)i2;
+  else simple_out_of_range(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(i2);
 }
 
@@ -35469,6 +35475,22 @@ static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 
   return(x);
 }
 
+static s7_pointer make_simple_int_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
+{
+  s7_pointer x;
+  block_t *b;
+  new_cell(sc, x, T_INT_VECTOR | T_SAFE_PROCEDURE);
+  vector_length(x) = len;
+  b = mallocate_vector(sc, len * sizeof(s7_int));
+  vector_block(x) = b;
+  int_vector_elements(x) = (s7_int *)block_data(b);
+  vector_set_dimension_info(x, NULL);
+  vector_getter(x) = int_vector_getter;
+  vector_setter(x) = int_vector_setter;
+  add_vector(sc, x);
+  return(x);
+}
+
 static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t typ)
 {
   s7_pointer x;
@@ -36195,8 +36217,7 @@ static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
   s7_pointer vec;
 
   len = safe_list_length(args);
-  vec = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
-  add_vector(sc, vec);
+  vec = make_simple_int_vector(sc, len);
   if (len > 0)
     {
       s7_int i;
@@ -36591,9 +36612,10 @@ static s7_pointer vector_ref_p_pi(s7_scheme *sc, s7_pointer v, s7_int i)
 
 static s7_pointer vector_ref_p_pi_direct(s7_scheme *sc, s7_pointer v, s7_int i) 
 {
-  if ((i < 0) || (i >= vector_length(v)))
-    out_of_range(sc, sc->vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
-  return(vector_getter(v)(sc, v, i));
+  if ((i >= 0) && (i < vector_length(v)))
+    return(vector_getter(v)(sc, v, i));
+  out_of_range(sc, sc->vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
+  return(v);
 }
 
 static s7_pointer vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(vector_getter(v)(sc, v, i));}
@@ -36738,9 +36760,9 @@ static s7_pointer vector_set_p_pip(s7_scheme *sc, s7_pointer v, s7_int i, s7_poi
 
 static s7_pointer vector_set_p_pip_direct(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {
-  if ((i < 0) || (i >= vector_length(v)))
-    out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
-  vector_element(v, i) = p;
+  if ((i >= 0) && (i < vector_length(v)))
+    vector_element(v, i) = p;
+  else out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(p);
 }
 
@@ -37600,9 +37622,10 @@ static s7_pointer g_int_vector_ref(s7_scheme *sc, s7_pointer args)
 static s7_int int_vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(int_vector_element(v, i));}
 static s7_int int_vector_ref_i_7pi(s7_scheme *sc, s7_pointer v, s7_int i) 
 {
-  if ((i < 0) || (i >= vector_length(v)))
-    out_of_range(sc, sc->int_vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
-  return(int_vector_element(v, i));
+  if ((i >= 0) && (i < vector_length(v)))
+    return(int_vector_element(v, i));
+  out_of_range(sc, sc->int_vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
+  return(0);
 } 
 static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_integer(sc, int_vector_element(v, i)));}
 
@@ -39679,7 +39702,7 @@ static void resize_hash_table(s7_scheme *sc, s7_pointer table)
 
 /* -------------------------------- hash-table-ref -------------------------------- */
 
-s7_pointer s7_hash_table_ref(s7_scheme *sc, s7_pointer table, s7_pointer key)
+inline s7_pointer s7_hash_table_ref(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
   x = (*hash_table_checker(table))(sc, table, key);
@@ -39864,7 +39887,7 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
     }
 }
 
-s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
+inline s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
   s7_int hash_len, loc; 
   hash_entry_t *p, *x;
@@ -61820,7 +61843,7 @@ static token_t read_dot(s7_scheme *sc, s7_pointer pt)
 }
 
 
-static token_t token(s7_scheme *sc)
+static token_t token(s7_scheme *sc) /* inline here is slower */
 {
   int32_t c;
   c = port_read_white_space(sc->input_port)(sc, sc->input_port);
@@ -74369,8 +74392,6 @@ static bool closure_star_is_ok_1(s7_scheme *sc, s7_pointer code, uint16_t type, 
 
 /* since T_HAS_METHODS is on if there might be methods, this can protect us from that case */
 
-/* unknown ops */
-
 static int32_t fixup_unknown_op(s7_pointer code, s7_pointer func, opcode_t op)
 {
   /* sc arg used if debugging */
@@ -77425,47 +77446,26 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto START;
 	  }
 	  
-	case OP_SAFE_C_ALL_S:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_ALL_S:
-	  sc->value = fx_c_all_s(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_ALL_S: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_ALL_S: sc->value = fx_c_all_s(sc, sc->code); goto START;
 
-	case OP_SAFE_C_SC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SC:
-	  op_safe_c_sc(sc);
-	  goto START;
+	case OP_SAFE_C_SC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SC: op_safe_c_sc(sc); goto START;
 	  
-	case OP_SAFE_C_CS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CS:
-	  op_safe_c_cs(sc);
-	  goto START;
+	case OP_SAFE_C_CS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CS: op_safe_c_cs(sc); goto START;
 	  
-	case OP_SAFE_C_SQ:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_SQ:
-	  sc->value = fx_c_sq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_SQ: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SQ: sc->value = fx_c_sq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_QS:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_QS:
-	  sc->value = fx_c_qs(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_QS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_QS: sc->value = fx_c_qs(sc, sc->code); goto START;
 
-	case OP_SAFE_C_CQ:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_CQ:
-	  sc->value = fx_c_cq(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_CQ: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_CQ: sc->value = fx_c_cq(sc, sc->code); goto START;
 
-	case OP_SAFE_C_QC:
-	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_SAFE_C_QC:
-	  sc->value = fx_c_qc(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_QC: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_QC: sc->value = fx_c_qc(sc, sc->code); goto START;
 
 	case OP_SAFE_C_P:
 	  if (!c_function_is_ok(sc, sc->code)) break;
@@ -78451,62 +78451,27 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 	  /* -------------------------------- */
 	  
-	case OP_CLOSURE_AP:
-	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
-	case HOP_CLOSURE_AP:
-	  op_closure_ap(sc);
-	  goto EVAL;
-	  
-	case OP_CLOSURE_AP_1:
-	  op_closure_ap_1(sc);
-	  goto BEGIN;
-	  
-	case OP_CLOSURE_AP_MV:
-	  op_closure_ap_mv(sc);
-	  goto APPLY;
+	case OP_CLOSURE_AP: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
+	case HOP_CLOSURE_AP: op_closure_ap(sc); goto EVAL;
+	case OP_CLOSURE_AP_1: op_closure_ap_1(sc); goto BEGIN;
+	case OP_CLOSURE_AP_MV: op_closure_ap_mv(sc); goto APPLY;
 
-	case OP_CLOSURE_PA:
-	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
-	case HOP_CLOSURE_PA:
-	  op_closure_pa(sc);
-	  goto EVAL;
+	case OP_CLOSURE_PA: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
+	case HOP_CLOSURE_PA: op_closure_pa(sc); goto EVAL;
+	case OP_CLOSURE_PA_1: op_closure_pa_1(sc); goto BEGIN;
+	case OP_CLOSURE_PA_MV: op_closure_pa_mv(sc); goto APPLY;
 	  
-	case OP_CLOSURE_PA_1:
-	  op_closure_pa_1(sc);
-	  goto BEGIN;
+	case OP_SAFE_CLOSURE_AP: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE, 2)) break;
+	case HOP_SAFE_CLOSURE_AP: op_safe_closure_ap(sc); goto EVAL;
+	case OP_SAFE_CLOSURE_AP_1: op_safe_closure_ap_1(sc); goto BEGIN;
 	  
-	case OP_CLOSURE_PA_MV:
-	  op_closure_pa_mv(sc);
-	  goto APPLY;
-	  
-	case OP_SAFE_CLOSURE_AP:
-	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE, 2)) break;
-	case HOP_SAFE_CLOSURE_AP:
-	  op_safe_closure_ap(sc);
-	  goto EVAL;
-	  
-	case OP_SAFE_CLOSURE_AP_1:
-	  op_safe_closure_ap_1(sc);
-	  goto BEGIN;
-	  
-	case OP_SAFE_CLOSURE_PA:
-	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE, 2)) break;
-	case HOP_SAFE_CLOSURE_PA:
-	  op_safe_closure_pa(sc);
-	  goto EVAL;
-	  
-	case OP_SAFE_CLOSURE_PA_1:
-	  op_safe_closure_pa_1(sc);
-	  goto BEGIN;
-	  /* -------------------------------- */
+	case OP_SAFE_CLOSURE_PA: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE, 2)) break;
+	case HOP_SAFE_CLOSURE_PA: op_safe_closure_pa(sc); goto EVAL;
+	case OP_SAFE_CLOSURE_PA_1: op_safe_closure_pa_1(sc); goto BEGIN;
 
-	case OP_CLOSURE_FA:
-	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
-	case HOP_CLOSURE_FA:
-	  op_closure_fa(sc);
-	  goto EVAL;
-	  
-	  /* -------------------------------- */
+	case OP_CLOSURE_FA: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
+	case HOP_CLOSURE_FA: op_closure_fa(sc); goto EVAL;
+
 	case OP_CLOSURE_SS:
 	  if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_CLOSURE_SS:
@@ -88633,6 +88598,7 @@ int main(int argc, char **argv)
  *   hash-table has room in block index+filler I think, string (and bvect) in gensym_block, let in cdat union, c_obj has unused field
  *     so there's room for all except pair (and if pair is data use optn?)
  * multi-optlist for the #t/float problem
+ * check order/inlines
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88644,27 +88610,27 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------------
  * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   199
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
- * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004  1004
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1056
+ * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   998
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1038
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1304
  * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1673
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1866
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2188
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2323
- * tread         |      |      |      ||      ||      | 2398  2357  2363  2359
- * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2381
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1864
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2186
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2298
+ * tread         |      |      |      ||      ||      | 2398  2357  2363  2357
+ * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2372
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3244
- * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3720
- * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3987
- * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  6146
- * tset          |      |      |      ||      ||      |       10.0  6435  6406
- * dup           |      |      |      ||      ||      |       20.8  9525  9316
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3153
+ * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
+ * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3961
+ * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5608
+ * tset          |      |      |      ||      ||      |       10.0  6435  6391
+ * dup           |      |      |      ||      ||      |       20.8  9525  9304
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.0
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.7
  * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.1
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 114.0
- * tbig          |      |      |      ||      ||      |      246.9 242.7 241.1
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.9
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 241.0
  * --------------------------------------------------------------------------------
  */
