@@ -1283,7 +1283,7 @@ struct s7_scheme {
   s7_pointer dox_slot_symbol;
 
   s7_pointer string_signature, vector_signature, float_vector_signature, int_vector_signature, byte_vector_signature,
-             c_object_signature, let_signature, hash_table_signature, pair_signature, iterator_signature;
+             c_object_signature, let_signature, hash_table_signature, pair_signature;
   s7_pointer pcl_bc, pcl_bs, pcl_bt, pcl_c, pcl_e, pcl_f, pcl_i, pcl_n, pcl_r, pcl_s, pcl_v, pl_bc, pl_bn, pl_bt, pl_p, pl_sf, pl_tl;
 
   /* optimizer s7_functions */
@@ -26924,7 +26924,7 @@ static bool collect_vector_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
   for (i = 0; i < plen; i++)
     {
       s7_pointer vel;
-      vel = unchecked_vector_element(top, i);
+      vel = unchecked_vector_element(top, i);   /* "unchecked" because top might be rootlet, I think */
       if ((has_structure(vel)) &&
 	  (collect_shared_info(sc, ci, vel, stop_at_print_length)))
 	{
@@ -40772,7 +40772,6 @@ static void init_signatures(s7_scheme *sc)
   sc->let_signature =          s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->T);
   sc->hash_table_signature =   s7_make_signature(sc, 3, sc->T, sc->is_hash_table_symbol, sc->T); /* should this be circular? */
   sc->pair_signature =         s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol);
-  sc->iterator_signature =     s7_make_signature(sc, 1, sc->T);
 }
 
 static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
@@ -40808,10 +40807,18 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_VECTOR:       return(sc->vector_signature);
     case T_FLOAT_VECTOR: return(sc->float_vector_signature);
     case T_INT_VECTOR:   return(sc->int_vector_signature);
-    case T_ITERATOR:     return(sc->iterator_signature);
     case T_PAIR:         return(sc->pair_signature);
     case T_STRING:       return(sc->string_signature);
     case T_BYTE_VECTOR:  return(sc->byte_vector_signature);
+
+    case T_ITERATOR:
+      p = iterator_sequence(p);
+      if ((is_hash_table(p)) || (is_let(p)))   /* cons returned -- would be nice to include the car/cdr types if known */
+	return(list_1(sc, sc->is_pair_symbol));
+      p = g_signature(sc, set_plist_1(sc, p));
+      if (is_pair(p))
+	return(list_1(sc, car(p)));
+      return(list_1(sc, sc->T));
 
     case T_C_OBJECT: 
       check_method(sc, p, sc->signature_symbol, args);
@@ -41349,6 +41356,7 @@ s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
       return(s7_cons(sc, small_int(1), small_int(1)));
 
     case T_C_OBJECT:
+      check_method_uncopied(sc, x, sc->arity_symbol, list_1(sc, x));
       if (is_safe_procedure(x))
 	return(s7_cons(sc, small_int(0), max_arity));
       return(sc->F);
@@ -41455,8 +41463,13 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
       return((args == 1) && (byte_vector_length(x) > 0));
 
     case T_C_OBJECT:
-      /* check_method_uncopied(sc, x, sc->is_aritable_symbol, list_2(sc, x, s7_make_integer(sc, args))); -- see below */
-      return(is_safe_procedure(x));
+      {
+	s7_pointer func;
+	if ((has_methods(x)) &&
+	    ((func = find_method(sc, find_let(sc, x), sc->is_aritable_symbol)) != sc->undefined))
+	  return(s7_apply_function(sc, func, list_2(sc, x, s7_make_integer(sc, args))) != sc->F);
+	return(is_safe_procedure(x));
+      }
 
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
@@ -41466,8 +41479,6 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
 	     (args <= vector_rank(x)));
 
     case T_LET:
-      /* check_method_uncopied(sc, x, sc->is_aritable_symbol, list_2(sc, x, s7_make_integer(sc, args))); */
-      /* this slows us down a lot */
     case T_HASH_TABLE:
     case T_PAIR:
       return(args == 1);
@@ -88588,17 +88599,17 @@ int main(int argc, char **argv)
  */
 #endif
 
-/* typed-vector, also ratio/bit/byte=int+get/set restrictions, complex=real [another arg to make-vector? -- sig for bit? byte?]
+/* typed-vector|hash-table, ratio/bit/byte=int+get/set restrictions, complex=real [another arg to make-vector? -- sig for bit? byte?]
  *   but byte-vector needs byte? already and bit=boolean? type=closure->getter/setter localized, sig=(el-type int...) and similarly set-type
  *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
- *   symbol/slot types from setter=integer? meaning assure value is integer, so symbol type is integer [4th arg to define?]
- *   with these changes we'd have a fully-statically-typed scheme (setters/getters on let fields?)
- *   iterator => sequence element type
  *   vector-setter (*-setter) would be the element setter from scheme, use vset + bit? all need a bit to warn set!
- *   hash-table has room in block index+filler I think, string (and bvect) in gensym_block, let in cdat union, c_obj has unused field
- *     so there's room for all except pair (and if pair is data use optn?)
+ *   hash-table has room in block index+filler I think
  * multi-optlist for the #t/float problem
  * check order/inlines
+ * copy->circular list?
+ * let+slots free-list for unsafe closures?
+ * t718
+ * check let/begin lint
  */
 
 /* ------------------------------------------------------------------------------------------
