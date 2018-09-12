@@ -6799,7 +6799,6 @@ static inline s7_pointer make_simple_let(s7_scheme *sc)
     let_set_slots(_x_, _slot_);					\
   } while (0)
 
-
 #define new_frame_with_two_slots(Sc, Old_Env, New_Env, Symbol1, Value1, Symbol2, Value2) \
   do {                                   \
     s7_pointer _x_, _slot_, _sym1_, _val1_, _sym2_, _val2_;		\
@@ -9564,6 +9563,8 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
   /* this gc call is needed if there are lots of call/cc's -- by pure bad luck
    *   we can end up hitting the end of the gc free list time after time while
    *   in successive copy_stack's below, causing s7 to core up until it runs out of memory.
+   *   It seems like it would make more sense to use len*32 or something similar as the
+   *   trigger, but that was slower in my timing tests!?
    */
 
   new_v = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
@@ -9576,6 +9577,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
     memcpy((void *)nv, (void *)ov, ((len > vector_length(old_v)) ? vector_length(old_v) : len) * sizeof(s7_pointer));
 
   s7_gc_on(sc, false);
+
   for (i = 2; i < top; i += 4)
     {
       s7_pointer p;
@@ -37910,6 +37912,11 @@ static int32_t vector_sort(const void *v1, const void *v2, void *arg)
   return(((*(sc->sort_f))(sc, (*(s7_pointer *)v1), (*(s7_pointer *)v2))) ? -1 : 1);
 }
 
+static int32_t vector_sort_lt(const void *v1, const void *v2, void *arg)
+{
+  return((lt_b_7pp((s7_scheme *)arg, (*(s7_pointer *)v1), (*(s7_pointer *)v2))) ? -1 : 1);
+}
+
 static int32_t vector_car_sort(const void *v1, const void *v2, void *arg)
 {
   s7_scheme *sc = (s7_scheme *)arg;
@@ -38063,7 +38070,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	return(wrong_type_argument_with_type(sc, sc->sort_symbol, 2, lessp, 
 					     wrap_string(sc, "sort! function should return a boolean", 38)));
       sc->sort_f = s7_b_7pp_function(lessp);
-      if (sc->sort_f) sort_func = vector_sort;
+      if (sc->sort_f) sort_func = (sc->sort_f == lt_b_7pp) ? vector_sort_lt : vector_sort;
     }
   else
     {
@@ -38100,7 +38107,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 			  sc->sort_f = s7_b_7pp_function(lp);
 			  if (sc->sort_f) 
 			    {
-			      sort_func = vector_sort;
+			      sort_func = (sc->sort_f == lt_b_7pp) ? vector_sort_lt : vector_sort;
 			      lessp = lp;
 			    }
 			}
@@ -39948,11 +39955,6 @@ static s7_pointer hash_table_set_p_ppp(s7_scheme *sc, s7_pointer p1, s7_pointer 
     simple_wrong_type_argument(sc, sc->hash_table_set_symbol, p1, T_HASH_TABLE);
   if (!is_mutable_hash_table(p1))
     return(mutable_method_or_bust(sc, p1, sc->hash_table_set_symbol, list_3(sc, p1, p2, p3), T_HASH_TABLE, 1));
-  return(s7_hash_table_set(sc, p1, p2, p3));
-}
-
-static s7_pointer hash_table_set_p_ppp_direct(s7_scheme *sc, s7_pointer p1, s7_pointer p2, s7_pointer p3)
-{
   return(s7_hash_table_set(sc, p1, p2, p3));
 }
 
@@ -51032,6 +51034,13 @@ static s7_int opt_i_7pi_ss(void *p)
   return(o->v[3].i_7pi_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p))));
 }
 
+static s7_int ivref_7pi_ss(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 4, 2);
+  return(int_vector_element(slot_value(o->v[1].p), integer(slot_value(o->v[2].p))));
+}
+
 static s7_int opt_i_7pi_sf(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -51085,7 +51094,10 @@ static bool i_7pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 			      if ((car(car_x) == sc->int_vector_ref_symbol) &&
 				  (is_step_end(opc->v[2].p)) &&
 				  (denominator(slot_value(opc->v[2].p)) <= vector_length(slot_value(opc->v[1].p))))
-				opc->v[3].i_7pi_f = int_vector_ref_unchecked;
+				{
+				  opc->v[0].fi = ivref_7pi_ss;
+				  opc->v[3].i_7pi_f = int_vector_ref_unchecked;
+				}
 			      oo_check(sc, opc);
 			      return(true);
 			    }
@@ -51250,7 +51262,7 @@ static bool i_ii_fc_combinable(s7_scheme *sc, opt_info *opc, s7_i_ii_t func)
     {
       opt_info *o1;
       o1 = sc->opts[sc->pc - 1];
-      if (o1->v[0].fi == opt_i_7pi_ss)
+      if ((o1->v[0].fi == opt_i_7pi_ss) || (o1->v[0].fi == ivref_7pi_ss))
 	{
 	  opc->v[5].i = opc->v[2].i; /* move v2.i ("c" in fc = arg2) out of the symbols' way */
 	  opc->v[4].i_7pi_f = o1->v[3].i_7pi_f;
@@ -54940,6 +54952,13 @@ static bool opt_b_7pp_ss(void *p)
   return(o->v[3].b_7pp_f(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));
 }
 
+static bool opt_lt_b_7pp_ss(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 4, 2);
+  return(lt_b_7pp(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));
+}
+
 static bool opt_b_7pp_sc(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -55036,7 +55055,7 @@ static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	  (is_slot(opc->v[2].p)) &&
 	  (!has_methods(slot_value(opc->v[2].p))))
 	{
-	  opc->v[0].fb = (bpf_case) ? opt_b_pp_ss : opt_b_7pp_ss;
+	  opc->v[0].fb = (bpf_case) ? opt_b_pp_ss : ((opc->v[3].b_7pp_f == lt_b_7pp) ? opt_lt_b_7pp_ss : opt_b_7pp_ss);
 	  oo_set_type_2(opc, 4, 1, 2, OO_P, OO_P);
 	  oo_check(sc, opc);
 	  return(true);
@@ -55554,7 +55573,8 @@ static bool opt_b_or_and(s7_scheme *sc, s7_pointer car_x, int32_t len, int32_t i
 	      (o1->v[0].fb == opt_b_ii_ss) || 
 	      (o1->v[0].fb == opt_b_ii_ss_lt) || (o1->v[0].fb == opt_b_ii_ss_gt) || (o1->v[0].fb == opt_b_ii_ss_leq) || (o1->v[0].fb == opt_b_ii_ss_geq) ||
 	      (o1->v[0].fb == opt_b_pp_ss) ||
-	      (o1->v[0].fb == opt_b_7pp_ss))
+	      (o1->v[0].fb == opt_b_7pp_ss) ||
+	      (o1->v[0].fb == opt_lt_b_7pp_ss))
 	    {
 	      opc->v[4].i = sc->pc - 1; 
 	      opc->v[7].fb = o1->v[0].fb;
@@ -57747,7 +57767,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 
 		    case T_HASH_TABLE:
 		      op2 = OO_H;
-		      opc->v[3].p_ppp_f = hash_table_set_p_ppp_direct;
+		      opc->v[3].p_ppp_f = s7_hash_table_set;
 		      break;
 
 		    case T_LET:        
@@ -65134,7 +65154,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      op = combine_ops(sc, func, expr, E_C_PP, arg1, arg2);
 	      set_safe_optimize_op(expr, hop + op);
 	      if (op == OP_SAFE_C_PP)
-		opt_sp_1(sc, c_function_call(func), expr);
+		opt_sp_1(sc, c_function_call(func), expr); /* calls set_opt_any1 */
 	      if (!hop)
 		{
 		  clear_hop(arg1);
@@ -73572,19 +73592,37 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 	  fp = o->v[0].fp;
 	  if (fp == opt_p_ppp_sss)
 	    {
+	      s7_p_ppp_t fp;
+	      fp = o->v[4].p_ppp_f;
 	      for (i = start; i < stop; i++)
 		{
 		  slot_set_value(ctr, make_integer(sc, i));
-		  o->v[4].p_ppp_f(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p), slot_value(o->v[3].p));
+		  fp(sc, slot_value(o->v[1].p), slot_value(o->v[2].p), slot_value(o->v[3].p));
 		}
 	    }
 	  else
 	    {
-	      for (i = start; i < stop; i++)
+	      if (fp == opt_p_ppp_sfs)
 		{
-		  slot_set_value(ctr, make_integer(sc, i));
-		  sc->pc = 0;
-		  fp(o);
+		  s7_p_ppp_t fp;
+		  opt_info *o1;
+		  fp = o->v[3].p_ppp_f;
+		  o1 = sc->opts[1];
+		  for (i = start; i < stop; i++)
+		    {
+		      slot_set_value(ctr, make_integer(sc, i));
+		      sc->pc = 1;
+		      fp(sc, slot_value(o->v[1].p), o1->v[0].fp(o1), slot_value(o->v[2].p));
+		    }
+		}
+	      else
+		{
+		  for (i = start; i < stop; i++)
+		    {
+		      slot_set_value(ctr, make_integer(sc, i));
+		      sc->pc = 0;
+		      fp(o);
+		    }
 		}
 	    }
 	}
@@ -73784,9 +73822,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		  s7_b_ii_t bif;
 		  s7_int i1;
 		  o1 = sc->opts[1];
-		  o2 = sc->opts[2];
 		  bif = o1->v[3].b_ii_f;
 		  i1 = o1->v[2].i;
+		  o2 = sc->opts[2];
 		  while (true)
 		    {
 		      sc->pc = 2;
@@ -73807,10 +73845,6 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	      while (true)
 		{
 		  func(sc, car(code));
-#if S7_DEBUGGING
-		  if (!is_integer(slot_value(step_slot)))
-		    fprintf(stderr, "%d not int: %s\n", __LINE__, DISPLAY(step_slot));
-#endif
 		  step = s7_integer(slot_value(step_slot)) + 1;
 		  slot_set_value(step_slot, make_integer(sc, step));
 		  if (step == s7_integer(slot_value(end_slot))) break;
@@ -74531,6 +74565,7 @@ static int32_t fixup_unknown_op(s7_pointer code, s7_pointer func, opcode_t op)
 
 static int32_t unknown_unknown(s7_scheme *sc)
 {
+  /* fprintf(stderr, "unknown %s\n", DISPLAY(sc->code)); */
   if ((is_symbol(car(sc->code))) &&
       (!is_slot(symbol_to_slot(sc, car(sc->code)))))
     eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
@@ -78315,14 +78350,22 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    s7_pointer code;
 	    code = sc->code;
 	    sc->code = symbol_to_value_unchecked(sc, car(code));
+	    if ((is_c_function(sc->code)) &&
+		(c_function_required_args(sc->code) == 1) &&
+		(!needs_copied_args(sc->code)))
+	      {
+		set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
+		sc->value = c_function_call(sc->code)(sc, sc->t1_1);
+		goto START;
+	      }
 	    if (!is_applicable(sc->code))
 	      apply_error(sc, sc->code, cdr(code));
 	    if (dont_eval_args(sc->code))
 	      sc->args = cdr(code);
 	    else 
 	      {
-		sc->args = sc->t1_1;
 		set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
+		sc->args = sc->t1_1;
 	      }
 	    if (needs_copied_args(sc->code))
 	      sc->args = copy_list(sc, sc->args);
@@ -78937,7 +78980,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      
 	    EVAL_ARGS_PAIR: /* pulling this out as a function slowed us down noticeably */
 	      car_code = car(sc->code);
-	      /* switch statement here is much slower for some reason */
+	      /* switch statement here is much slower */
 	      if (is_pair(car_code))
 		{
 		  if ((sc->safety == NO_SAFETY) && 
@@ -79215,102 +79258,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_GC_PROTECT:
 	  goto START;
 
-	case OP_READ_INTERNAL:
-	  /* if we're loading a file, and in the file we evaluate something like:
-	   *    (let ()
-	   *      (set-current-input-port (open-input-file "tmp2.r5rs"))
-	   *      (close-input-port (current-input-port)))
-	   *    ... (with no reset of input port to its original value)
-	   * the load process tries to read the loaded string, but the sc->input_port is now closed,
-	   * and the original is inaccessible!  So we get a segfault in token.  We don't want to put
-	   * a port_is_closed check there because token only rarely is in this danger.  I think this
-	   * is the only place where we can be about to call token, and someone has screwed up our port.
-	   *
-	   * We can't call read_error here because it assumes the input string is ok!
-	   */
-	  
-	  if (port_is_closed(sc->input_port))
-	    s7_error(sc, sc->read_error_symbol, 
-		     set_elist_1(sc, wrap_string(sc, "our input port got clobbered!", 29)));
-	  
-	  sc->tok = token(sc);
-	  switch (sc->tok)
-	    {
-	    case TOKEN_EOF:
-	      goto START;
-	      
-	    case TOKEN_RIGHT_PAREN:
-	      read_error(sc, "unexpected close paren");
-	      
-	    case TOKEN_COMMA:
-	      read_error(sc, "unexpected comma");
-	      
-	    default:
-	      sc->value = read_expression(sc);
-	      sc->current_line = port_line_number(sc->input_port);  /* this info is used to track down missing close parens */
-	      sc->current_file = port_filename(sc->input_port);
-	      break;
-	    }
-	  goto START;
-	  
-	  
-	  /* (read p) from scheme
-	   *    "p" becomes current input port for eval's duration, then pops back before returning value into calling expr
-	   */
-	case OP_READ_DONE:
-	  pop_input_port(sc);
-	  
-	  if (sc->tok == TOKEN_EOF)
-	    sc->value = eof_object;
-	  sc->current_file = NULL; /* this is for error handling */
-	  goto START;
-	  
-	  
-	  /* load("file"); from C (g_load) -- assume caller will clean up
-	   *   read and evaluate exprs until EOF that matches (stack reflects nesting)
-	   */
-	case OP_LOAD_RETURN_IF_EOF:  /* loop here until eof (via push stack below) */
-	  if (sc->tok != TOKEN_EOF)
-	    {
-	      push_stack_op_let(sc, OP_LOAD_RETURN_IF_EOF);
-	      push_stack_op_let(sc, OP_READ_INTERNAL);
-	      sc->code = sc->value;
-	      goto EVAL;             /* we read an expression, now evaluate it, and return to read the next */
-	    }
-	  sc->current_file = NULL;
-	  return(sc->F);
-	  
-	  
-	  /* (load "file") in scheme
-	   *    read and evaluate all exprs, then upon EOF, close current and pop input port stack
-	   */
-	case OP_LOAD_CLOSE_AND_POP_IF_EOF:
-	  if (sc->tok != TOKEN_EOF)
-	    {
-	      push_stack_op_let(sc, OP_LOAD_CLOSE_AND_POP_IF_EOF); /* was push args, code */
-	      if ((!is_string_port(sc->input_port)) ||
-		  (port_position(sc->input_port) < port_data_size(sc->input_port)))
-		{
-		  push_stack_op_let(sc, OP_READ_INTERNAL);
-		}
-	      else sc->tok = TOKEN_EOF;
-	      sc->code = sc->value;
-	      goto EVAL;             /* we read an expression, now evaluate it, and return to read the next */
-	    }
-#if S7_DEBUGGING
-	  if (!is_loader_port(sc->input_port))
-	    fprintf(stderr, "%s not loading?\n", DISPLAY(sc->input_port));
-	  /* if *#readers* func hits error, clear_loader_port might not be undone? */
-#endif
-	  s7_close_input_port(sc, sc->input_port);
-	  pop_input_port(sc);
-	  sc->current_file = NULL;
-	  
-	  if (is_multiple_value(sc->value))                    /* (load "file") where "file" is (values 1 2 3) */
-	    sc->value = splice_in_values(sc, multiple_value(sc->value));
-	  goto START;
-	  
-	 	  
 	  /* -------------------- sort! (heapsort, done directly so that call/cc in the sort function will work correctly) -------------------- */
 	HEAPSORT:
 	  if (op_heapsort(sc)) goto START;
@@ -80668,18 +80615,18 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 	  
 	  
-	case OP_LET_STAR_FX:    op_let_star_fx(sc);    goto BEGIN;
-	case OP_LET_STAR_A2:    op_let_star_a2(sc);    goto EVAL;
-	case OP_LET_STAR_A:     op_let_star_a(sc);     goto BEGIN;
-	case OP_NAMED_LET_STAR: op_named_let_star(sc); goto EVAL;
-	case OP_LET_STAR2:      op_let_star2(sc);      goto EVAL;
-	case OP_LET_STAR:       check_let_star(sc);
-	case OP_LET_STAR_UNCHECKED: if (op_let_star_unchecked(sc)) goto EVAL; goto BEGIN;
-	case OP_LET_STAR1:          if (op_let_star1(sc)) goto EVAL; goto BEGIN;
+	case OP_LET_STAR_FX:           op_let_star_fx(sc);    goto BEGIN;
+	case OP_LET_STAR_A2:           op_let_star_a2(sc);    goto EVAL;
+	case OP_LET_STAR_A:            op_let_star_a(sc);     goto BEGIN;
+	case OP_NAMED_LET_STAR:        op_named_let_star(sc); goto EVAL;
+	case OP_LET_STAR2:             op_let_star2(sc);      goto EVAL;
+	case OP_LET_STAR:              check_let_star(sc);
+	case OP_LET_STAR_UNCHECKED:    if (op_let_star_unchecked(sc)) goto EVAL; goto BEGIN;
+	case OP_LET_STAR1:             if (op_let_star1(sc)) goto EVAL; goto BEGIN;
 
-	case OP_LETREC:           check_letrec(sc, true);
-	case OP_LETREC_UNCHECKED: if (op_letrec_unchecked(sc)) goto EVAL; goto BEGIN;
-	case OP_LETREC1:          if (op_letrec1(sc)) goto BEGIN; goto EVAL;
+	case OP_LETREC:                check_letrec(sc, true);
+	case OP_LETREC_UNCHECKED:      if (op_letrec_unchecked(sc)) goto EVAL; goto BEGIN;
+	case OP_LETREC1:               if (op_letrec1(sc)) goto BEGIN; goto EVAL;
 
 	case OP_LETREC_STAR:           check_letrec(sc, false);
 	case OP_LETREC_STAR_UNCHECKED: if (op_letrec_star_unchecked(sc)) goto EVAL; goto BEGIN;
@@ -81247,6 +81194,102 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	  
 	  /* -------------------------------- the reader -------------------------------- */
+	case OP_READ_INTERNAL:
+	  /* if we're loading a file, and in the file we evaluate something like:
+	   *    (let ()
+	   *      (set-current-input-port (open-input-file "tmp2.r5rs"))
+	   *      (close-input-port (current-input-port)))
+	   *    ... (with no reset of input port to its original value)
+	   * the load process tries to read the loaded string, but the sc->input_port is now closed,
+	   * and the original is inaccessible!  So we get a segfault in token.  We don't want to put
+	   * a port_is_closed check there because token only rarely is in this danger.  I think this
+	   * is the only place where we can be about to call token, and someone has screwed up our port.
+	   *
+	   * We can't call read_error here because it assumes the input string is ok!
+	   */
+	  
+	  if (port_is_closed(sc->input_port))
+	    s7_error(sc, sc->read_error_symbol, 
+		     set_elist_1(sc, wrap_string(sc, "our input port got clobbered!", 29)));
+	  
+	  sc->tok = token(sc);
+	  switch (sc->tok)
+	    {
+	    case TOKEN_EOF:
+	      goto START;
+	      
+	    case TOKEN_RIGHT_PAREN:
+	      read_error(sc, "unexpected close paren");
+	      
+	    case TOKEN_COMMA:
+	      read_error(sc, "unexpected comma");
+	      
+	    default:
+	      sc->value = read_expression(sc);
+	      sc->current_line = port_line_number(sc->input_port);  /* this info is used to track down missing close parens */
+	      sc->current_file = port_filename(sc->input_port);
+	      break;
+	    }
+	  goto START;
+	  
+	  
+	  /* (read p) from scheme
+	   *    "p" becomes current input port for eval's duration, then pops back before returning value into calling expr
+	   */
+	case OP_READ_DONE:
+	  pop_input_port(sc);
+	  
+	  if (sc->tok == TOKEN_EOF)
+	    sc->value = eof_object;
+	  sc->current_file = NULL; /* this is for error handling */
+	  goto START;
+	  
+	  
+	  /* load("file"); from C (g_load) -- assume caller will clean up
+	   *   read and evaluate exprs until EOF that matches (stack reflects nesting)
+	   */
+	case OP_LOAD_RETURN_IF_EOF:  /* loop here until eof (via push stack below) */
+	  if (sc->tok != TOKEN_EOF)
+	    {
+	      push_stack_op_let(sc, OP_LOAD_RETURN_IF_EOF);
+	      push_stack_op_let(sc, OP_READ_INTERNAL);
+	      sc->code = sc->value;
+	      goto EVAL;             /* we read an expression, now evaluate it, and return to read the next */
+	    }
+	  sc->current_file = NULL;
+	  return(sc->F);
+	  
+	  
+	  /* (load "file") in scheme
+	   *    read and evaluate all exprs, then upon EOF, close current and pop input port stack
+	   */
+	case OP_LOAD_CLOSE_AND_POP_IF_EOF:
+	  if (sc->tok != TOKEN_EOF)
+	    {
+	      push_stack_op_let(sc, OP_LOAD_CLOSE_AND_POP_IF_EOF); /* was push args, code */
+	      if ((!is_string_port(sc->input_port)) ||
+		  (port_position(sc->input_port) < port_data_size(sc->input_port)))
+		{
+		  push_stack_op_let(sc, OP_READ_INTERNAL);
+		}
+	      else sc->tok = TOKEN_EOF;
+	      sc->code = sc->value;
+	      goto EVAL;             /* we read an expression, now evaluate it, and return to read the next */
+	    }
+#if S7_DEBUGGING
+	  if (!is_loader_port(sc->input_port))
+	    fprintf(stderr, "%s not loading?\n", DISPLAY(sc->input_port));
+	  /* if *#readers* func hits error, clear_loader_port might not be undone? */
+#endif
+	  s7_close_input_port(sc, sc->input_port);
+	  pop_input_port(sc);
+	  sc->current_file = NULL;
+	  
+	  if (is_multiple_value(sc->value))                    /* (load "file") where "file" is (values 1 2 3) */
+	    sc->value = splice_in_values(sc, multiple_value(sc->value));
+	  goto START;
+	  
+	 	  
 	POP_READ_LIST:
 	  /* push-stack OP_READ_LIST is always no_code and op is always OP_READ_LIST (and not used), sc->envir is apparently not needed here */
 	  sc->stack_end -= 4;
@@ -88088,7 +88131,7 @@ s7_scheme *s7_init(void)
   s7_set_p_pp_function(slot_value(global_slot(sc->hash_table_ref_symbol)), hash_table_ref_p_pp);
   s7_set_p_ppp_function(slot_value(global_slot(sc->hash_table_set_symbol)), hash_table_set_p_ppp);
   s7_set_p_pp_direct_function(slot_value(global_slot(sc->hash_table_ref_symbol)), s7_hash_table_ref);
-  s7_set_p_ppp_direct_function(slot_value(global_slot(sc->hash_table_set_symbol)), hash_table_set_p_ppp_direct);
+  s7_set_p_ppp_direct_function(slot_value(global_slot(sc->hash_table_set_symbol)), s7_hash_table_set);
 
 #if (!WITH_GMP)
   s7_set_p_ii_function(slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
@@ -88620,8 +88663,8 @@ int main(int argc, char **argv)
  *   vector-setter (*-setter) would be the element setter from scheme, use vset + bit? all need a bit to warn set!
  *   hash-table has room in block index+filler I think
  * multi-optlist for the #t/float problem
- * s7test let capture checks?
- * hash_table_set_p_ppp_sfs as direct in opt_p_ppp_sfs? or split out in simple_do_ex? (both cases are here)
+ * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
+ * ivref_7pi analogs
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88635,7 +88678,7 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   998
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1037
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1303
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1247
  * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1673
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1862
  * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2188
@@ -88643,12 +88686,12 @@ int main(int argc, char **argv)
  * tread         |      |      |      ||      ||      | 2398  2357  2363  2349
  * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2369
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3153
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3132
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
- * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3961
- * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5608
- * tset          |      |      |      ||      ||      |       10.0  6435  6406
- * dup           |      |      |      ||      ||      |       20.8  9525  7845
+ * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3948
+ * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5525
+ * tset          |      |      |      ||      ||      |       10.0  6435  6356
+ * dup           |      |      |      ||      ||      |       20.8  9525  7628
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6

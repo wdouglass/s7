@@ -19,8 +19,8 @@
     (lambda (size file alloc-lines)
       (let ((lines (make-vector alloc-lines ""))
 	    (original-lines (make-vector alloc-lines ""))
-	    (lens (make-int-vector alloc-lines 0))
-	    (linenums (make-int-vector alloc-lines 0)))
+	    (lens (make-int-vector alloc-lines))
+	    (linenums (make-int-vector alloc-lines)))
 	
 	(call-with-input-file file
 	  (lambda (p)
@@ -46,14 +46,14 @@
 			   (do ((j (- len 1) (- j 1)))
 			       ((or (< j 0)
 				    (not (char-whitespace? (string-ref line j))))
-				(when (not (= j (- len 1)))
+				(unless (= j (- len 1))
 				  (set! line (substring line 0 (+ j 1)))
-				  (set! len (+ j 1))))))
-			 (when (> len 0)
-			   (int-vector-set! linenums j i)
-			   (vector-set! lines j line)
-			   (int-vector-set! lens j (length line))
-			   (set! j (+ j 1))))))))
+				  (set! len (+ j 1)))))
+			   (when (> len 0)
+			     (int-vector-set! linenums j i)
+			     (vector-set! lines j line)
+			     (int-vector-set! lens j (length line))
+			     (set! j (+ j 1)))))))))
 	      
 	      (set! size (min size total-lines))
 
@@ -82,13 +82,15 @@
 		   (last-line (- total-lines size)))
 		  ((>= i last-line)) ; >= because i is set below
 		(let ((j (all-positive? lens i (+ i size))))   ; is a match possible?
-		  (if (= j (+ i size))
+		  (if (not (= j (+ i size)))
+		      (set! i j)
 		      (let ((lenseq (subvector lens size i))
 			    (lineseq (subvector lines size i)))
 			(do ((k (+ i 1) (+ k 1)))
 			    ((>= k last-line))
 			  (let ((jk (all-positive? lens k (+ k size))))
-			    (if (= jk (+ k size))
+			    (if (not (= jk (+ k size)))
+				(set! k jk)
 				(when (and (equal? lenseq (subvector lens size k))
 					   (equal? lineseq (subvector lines size k)))
 				  (let ((full-size size))
@@ -97,7 +99,7 @@
 					((or (= nk total-lines)
 					     (not (= (int-vector-ref lens ni) (int-vector-ref lens nk)))
 					     (not (string=? (vector-ref lines ni) (vector-ref lines nk))))
-					 (set! full-size (+ size (- nk jk)))))
+					 (set! full-size (- (+ size nk) jk))))
 				    (if first
 					(let ((first-line (int-vector-ref linenums i)))
 					  (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
@@ -108,11 +110,9 @@
 					(format *stderr* " ~D" (int-vector-ref linenums k)))
 				    (set! i (+ i full-size))
 				    (when (< size full-size)
-				      (format *stderr* "[~D]" full-size))))
-				(set! k jk))))
+				      (format *stderr* "[~D]" full-size)))))))
 			(unless first
-			  (format *stderr* "~%")))
-		      (set! i j)))))))))))
+			  (format *stderr* "~%")))))))))))))
 
 (dups 16 "s7.c" 90000)
 ;(dups 6 "s7.c" 90000)
