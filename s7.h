@@ -853,6 +853,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 12-Sep:    byte-vectors can be multidimensional.
  * 29-Jul:    symbol-setter deprecated (use setter). s7_symbol_documentation (and setter) folded into s7_documentation.
  * 12-Jul:    changed s7_vector_dimensions|offsets. 
  *            Added s7_scheme* arg to make_permanent_string and several of the optimizer functions.

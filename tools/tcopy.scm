@@ -223,7 +223,7 @@
 	  (ifvec (apply vector-append ifvecs))
 	  (allvec (apply vector-append allvecs))
 	  (str (apply string-append strs))
-	  (bvec (string->byte-vector (apply string-append bvecs))))
+	  (bvec (apply vector-append bvecs)))
       (test (vector? vec) #t)
       (test (length vec) (* size size))
       (test (float-vector? fvec) #t)

@@ -1958,8 +1958,8 @@ vector-dimensions returns a list of the dimensions.
 <em class="gray">#2d((1 1 1) (2 2 2) (3 3 3))</em>
 </pre>
 
-<p>make-int-vector and make-float-vector produce homogeneous vectors holding
-s7_ints or s7_doubles:
+<p>make-int-vector, make-float-vector, and make-byte-vector produce homogeneous vectors holding
+s7_ints, s7_doubles, or unsigned bytes.
 </p>
 
 <pre class="indented">
@@ -1978,12 +1978,13 @@ s7_ints or s7_doubles:
 (<em class=def id="bytevectorp">byte-vector?</em> obj)
 (<em class=def id="bytevector">byte-vector</em> . args)
 (<em class=def id="makebytevector">make-byte-vector</em> len (init 0))
-(<em class=def id="bytevectorref">byte-vector-ref</em> vect index)
-(<em class=def id="bytevectorset">byte-vector-set!</em> vect index byte)
+(<em class=def id="bytevectorref">byte-vector-ref</em> obj . indices)
+(<em class=def id="bytevectorset">byte-vector-set!</em> obj indices[...] byte)
+
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
 
-(<em class=def id="subvector">subvector</em> vector dimensions position) ; does not apply to byte-vectors yet
+(<em class=def id="subvector">subvector</em> vector dimensions position)
 (<em class=def id="subvectorp">subvector?</em> obj) 
 (<em class=def id="subvectorvector">subvector-vector</em> obj) 
 (<em class=def id="subvectorposition">subvector-position</em> obj)
@@ -5438,7 +5439,7 @@ int main(int argc, char **argv)
 <li>set! and *-set! return the new value (modulo setter), not #&lt;unspecified&gt;.
 <li>define and its friends return the new value.
 <li>port-closed? 
-<li>list? means "pair or null", proper-list? is r5rs list?, float? means "real and not rational", sequence? = length.
+<li>list? means "pair or null", proper-list? is r5rs list?, float? = real and not rational, sequence? = length, byte?.
 <!-- a vector can be a member of itself, and yet vector? returns #t, why is list? different; we even call it a circular list! -->
 <!-- <li>current-input-port, current-output-port, and current-error-port have setters (but I may remove these) -->
 <li>the default IO ports are named *stdin*, *stdout*, and *stderr*.
@@ -8329,6 +8330,7 @@ int main (int argc, char **argv)
 
 (main)
 </pre>
+
 </div>
 
 
