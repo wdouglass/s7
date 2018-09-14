@@ -6277,7 +6277,7 @@
     
     (define special-case-functions
       (let ((special-case-table (make-hash-table)))
-	
+
 	(define (hash-special key value)
 	  (if (hash-table-ref special-case-table key)
 	      (format *stderr* "~A already has a value: ~A~%" key (hash-table-ref special-case-table key)))
@@ -7726,10 +7726,6 @@
 	(let ()
 	  (define (sp-make-vector caller head form env)
 	    ;; type of initial value (for make-float|int-vector) is checked elsewhere
-	    (if (and (= (length form) 4)
-		     (eq? head 'make-vector))   ;  (make-vector 3 0 #t)
-		(lint-format "make-vector no longer has a fourth argument: ~A" caller form))
-	    
 	    (if (>= (length form) 3)
 		(case (caddr form)
 		  ((#<unspecified>) 

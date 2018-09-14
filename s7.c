@@ -819,7 +819,10 @@ typedef struct s7_cell {
       } elements;
       block_t *block;
       s7_pointer (*vget)(s7_scheme *sc, s7_pointer vec, s7_int loc);
-      s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
+      union {
+	s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
+	s7_pointer fset;
+      }setv;
     } vector;
 
     struct {                        /* stacks (internal) struct must match vector above for length/objects */
@@ -1571,17 +1574,17 @@ typedef enum {P_DISPLAY, P_WRITE, P_READABLE, P_KEY} use_write_t;
 static s7_pointer prepackaged_type_names[NUM_TYPES];
 
 static s7_pointer too_many_arguments_string, not_enough_arguments_string, missing_method_string,
-             a_boolean_string, a_byte_vector_string, a_format_port_string, a_let_string, a_list_string, a_non_constant_symbol_string, 
-             a_non_negative_integer_string, a_normal_procedure_string, a_normal_real_string, a_number_string, a_procedure_string, 
-             a_proper_list_string, a_random_state_object_string, a_rational_string, a_sequence_string, a_symbol_string, a_thunk_string, 
-             a_valid_radix_string, an_association_list_string, an_eq_func_string, an_input_file_port_string, an_input_port_string, 
-             an_input_string_port_string, an_open_port_string, an_output_file_port_string, an_output_port_string, an_output_string_port_string, 
-             an_unsigned_byte_string, caaar_a_list_string, caadr_a_list_string, caar_a_list_string, cadar_a_list_string, caddr_a_list_string, 
-             cadr_a_list_string, car_a_list_string, cdaar_a_list_string, cdadr_a_list_string, cdar_a_list_string, cddar_a_list_string, 
-             cdddr_a_list_string, cddr_a_list_string, cdr_a_list_string, immutable_error_string, its_infinite_string, its_nan_string, 
-             its_negative_string, its_too_large_string, its_too_small_string, parameter_set_twice_string, result_is_too_large_string, 
-             something_applicable_string, too_many_indices_string, value_is_missing_string,
-             format_string_1, format_string_2, format_string_3, format_string_4;
+  a_boolean_string, a_byte_vector_string, a_format_port_string, a_let_string, a_list_string, a_non_constant_symbol_string, 
+  a_non_negative_integer_string, a_normal_procedure_string, a_normal_real_string, a_number_string, a_procedure_string, 
+  a_proper_list_string, a_random_state_object_string, a_rational_string, a_sequence_string, a_symbol_string, a_thunk_string, 
+  a_valid_radix_string, an_association_list_string, an_eq_func_string, an_input_file_port_string, an_input_port_string, 
+  an_input_string_port_string, an_open_port_string, an_output_file_port_string, an_output_port_string, an_output_string_port_string, 
+  an_unsigned_byte_string, caaar_a_list_string, caadr_a_list_string, caar_a_list_string, cadar_a_list_string, caddr_a_list_string, 
+  cadr_a_list_string, car_a_list_string, cdaar_a_list_string, cdadr_a_list_string, cdar_a_list_string, cddar_a_list_string, 
+  cdddr_a_list_string, cddr_a_list_string, cdr_a_list_string, immutable_error_string, its_infinite_string, its_nan_string, 
+  its_negative_string, its_too_large_string, its_too_small_string, parameter_set_twice_string, result_is_too_large_string, 
+  something_applicable_string, too_many_indices_string, value_is_missing_string,
+  format_string_1, format_string_2, format_string_3, format_string_4;
 
 static bool t_number_p[NUM_TYPES], t_real_p[NUM_TYPES], t_rational_p[NUM_TYPES], t_big_number_p[NUM_TYPES];
 static bool t_simple_p[NUM_TYPES], t_structure_p[NUM_TYPES];
@@ -2344,6 +2347,10 @@ static void init_types(void)
 #define has_optlist(p)                ((typeflag(T_Pair(p)) & T_HAS_OPTLIST) != 0)
 #define set_has_optlist(p)            typeflag(T_Pair(p)) |= T_HAS_OPTLIST
 
+#define T_TYPED_VECTOR                T_S7_LET_FIELD
+#define is_typed_vector(p)            ((typeflag(T_Vec(p)) & T_TYPED_VECTOR) != 0)
+#define set_typed_vector(p)           typeflag(T_Vec(p)) |= T_TYPED_VECTOR
+
 #define T_DEFINER                     (1LL << (TYPE_BITS + BIT_ROOM + 26))
 #define is_definer(p)                 ((typeflag(T_Pos(p)) & T_DEFINER) != 0)
 
@@ -2785,23 +2792,24 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define vector_element(p, i)          ((T_Vec(p))->object.vector.elements.objects[i])
 #define vector_elements(p)            (T_Vec(p))->object.vector.elements.objects
 #define vector_getter(p)              (T_Vec(p))->object.vector.vget
-#define vector_setter(p)              (T_Vec(p))->object.vector.vset
+#define vector_setter(p)              (T_Vec(p))->object.vector.setv.vset
+#define typed_vector_typer(p)         (T_Vec(p))->object.vector.setv.fset
 #define vector_block(p)               (T_Vec(p))->object.vector.block
 #define unchecked_vector_block(p)     p->object.vector.block
 
 #define is_int_vector(p)              (type(p) == T_INT_VECTOR)
-#define int_vector_element(p, i)      ((T_Ivc(p))->object.vector.elements.ints[i])
-#define int_vector_elements(p)        (T_Ivc(p))->object.vector.elements.ints
+#define int_vector(p, i)      ((T_Ivc(p))->object.vector.elements.ints[i])
+#define int_vector_ints(p)            (T_Ivc(p))->object.vector.elements.ints
 
 #define is_float_vector(p)            (type(p) == T_FLOAT_VECTOR)
-#define float_vector_element(p, i)    ((T_Fvc(p))->object.vector.elements.floats[i])
-#define float_vector_elements(p)      (T_Fvc(p))->object.vector.elements.floats
+#define float_vector(p, i)    ((T_Fvc(p))->object.vector.elements.floats[i])
+#define float_vector_floats(p)        (T_Fvc(p))->object.vector.elements.floats
 
 #define is_byte_vector(p)             (type(p) == T_BYTE_VECTOR)
 #define is_mutable_byte_vector(p)     ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_BYTE_VECTOR)
 #define byte_vector_length(p)         (T_BVc(p))->object.vector.length
 #define byte_vector_bytes(p)          (T_BVc(p))->object.vector.elements.bytes
-#define byte_vector_element(p, i)     ((T_BVc(p))->object.vector.elements.bytes[i])
+#define byte_vector(p, i)     ((T_BVc(p))->object.vector.elements.bytes[i])
 #define is_string_or_byte_vector(p)   ((type(p) == T_STRING) || (type(p) == T_BYTE_VECTOR))
 
 #define vector_dimension_info(p)      ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
@@ -3538,7 +3546,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr);
 static void pc_fallback(s7_scheme *sc, int32_t new_pc);
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
-
+static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
 
 #if WITH_GMP
 static s7_int big_integer_to_s7_int(mpz_t n);
@@ -6393,8 +6401,7 @@ static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer args)
   for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
     for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
       syms++;
-  sc->w = make_vector_1(sc, syms, NOT_FILLED, T_VECTOR);
-  add_vector(sc, sc->w);
+  sc->w = make_simple_vector(sc, syms);
   els = vector_elements(sc->w);
 
   for (i = 0, j = 0; i < SYMBOL_TABLE_SIZE; i++)
@@ -9557,8 +9564,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
    *   trigger, but that was slower in my timing tests!?
    */
 
-  new_v = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-  add_vector(sc, new_v);
+  new_v = make_simple_vector(sc, len);
   set_type(new_v, T_STACK);
   temp_stack_top(new_v) = top;
   nv = stack_elements(new_v);
@@ -26114,7 +26120,7 @@ static s7_pointer byte_vector_iterate(s7_scheme *sc, s7_pointer obj)
 static s7_pointer float_vector_iterate(s7_scheme *sc, s7_pointer obj)
 {
   if (iterator_position(obj) < iterator_length(obj))
-    return(make_real(sc, float_vector_element(iterator_sequence(obj), iterator_position(obj)++)));
+    return(make_real(sc, float_vector(iterator_sequence(obj), iterator_position(obj)++)));
   iterator_next(obj) = iterator_finished;
   clear_iter_ok(obj);
   return(ITERATOR_END);
@@ -26123,7 +26129,7 @@ static s7_pointer float_vector_iterate(s7_scheme *sc, s7_pointer obj)
 static s7_pointer int_vector_iterate(s7_scheme *sc, s7_pointer obj)
 {
   if (iterator_position(obj) < iterator_length(obj))
-    return(make_integer(sc, int_vector_element(iterator_sequence(obj), iterator_position(obj)++)));
+    return(make_integer(sc, int_vector(iterator_sequence(obj), iterator_position(obj)++)));
   iterator_next(obj) = iterator_finished;
   clear_iter_ok(obj);
   return(ITERATOR_END);
@@ -27685,7 +27691,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       s7_int first;
       s7_int *els;
       vlen = vector_length(vect);
-      els = int_vector_elements(vect);
+      els = int_vector_ints(vect);
       first = els[0];
       for (i = 1; i < vlen; i++)
 	if (els[i] != first)
@@ -27693,7 +27699,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       if (i == vlen)
 	{
 	  make_vector_to_port(sc, vect, port);
-	  p = integer_to_string(sc, int_vector_element(vect, 0), &plen);
+	  p = integer_to_string(sc, int_vector(vect, 0), &plen);
 	  port_write_string(port)(sc, p, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  return;
@@ -27705,11 +27711,11 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
       port_write_string(port)(sc, "#i(", 3, port);
       if (!is_string_port(port))
 	{
-	  p = integer_to_string(sc, int_vector_element(vect, 0), &plen);
+	  p = integer_to_string(sc, int_vector(vect, 0), &plen);
 	  port_write_string(port)(sc, p, plen, port);
 	  for (i = 1; i < len; i++)
 	    {
-	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector_element(vect, i)), NULL);
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	}
@@ -27728,7 +27734,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 	      next_len = port_data_size(port) - 128;
 	      dbuf = port_data(port);
 	    }
-	  p = integer_to_string(sc, int_vector_element(vect, 0), &plen);
+	  p = integer_to_string(sc, int_vector(vect, 0), &plen);
 	  memcpy((void *)(dbuf + new_len), (void *)p, plen);
 	  new_len += plen;
 	  for (i = 1; i < len; i++)
@@ -27739,7 +27745,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector_element(vect, i)), NULL);
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), NULL);
 	      memcpy((void *)(dbuf + new_len), (void *)buf, plen);
 	      new_len += plen;
 	    }
@@ -27775,7 +27781,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   len = print_vector_length(sc, vect, port, use_write);
   if (len < 0) return;
   too_long = (len < vector_length(vect));
-  els = float_vector_elements(vect);
+  els = float_vector_floats(vect);
 
   if ((use_write == P_READABLE) &&
       (is_immutable(vect)))
@@ -27884,10 +27890,10 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
 	  port_write_string(port)(sc, "#u8(", 4, port);
 	  for (i = 0; i < len - 1; i++)
 	    {
-	      p = pos_int_to_str(sc, (int32_t)(byte_vector_element(vect, i)), &nlen, ' ');
+	      p = pos_int_to_str(sc, (int32_t)(byte_vector(vect, i)), &nlen, ' ');
 	      port_write_string(port)(sc, p, nlen - 1, port);
 	    }
-	  p = pos_int_to_str(sc, (int32_t)(byte_vector_element(vect, i)), &nlen, (too_long) ? '\0' : ')');
+	  p = pos_int_to_str(sc, (int32_t)(byte_vector(vect, i)), &nlen, (too_long) ? '\0' : ')');
 	  port_write_string(port)(sc, p, nlen - 1, port);
 
 	  if (too_long)
@@ -29117,7 +29123,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_S7_LET_FIELD) != 0) ?   ((is_symbol(obj)) ? " s7-let-field" : 
 						   ((is_let(obj)) ? " has-let-file" : 
 						    ((is_pair(obj)) ? " has-oplist" :
-						     " ?25?"))) : "",
+						     ((s7_is_vector(obj)) ? " typed-vector" :
+						      " ?25?")))) : "",
 	   /* bit 26+16 */
 	   ((full_typ & T_DEFINER) != 0) ?        ((is_symbol(obj)) ? " definer" : " ?26?") : "",
 	   /* bit 27+16 */
@@ -29159,7 +29166,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
-  if (((full_typ & T_S7_LET_FIELD) != 0) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_S7_LET_FIELD) != 0) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!s7_is_vector(obj))) return(true);
   if (((full_typ & T_DEFINER) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
   if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj))) return(true);
@@ -29325,7 +29332,7 @@ static s7_pointer check_ref4(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ;
   typ = unchecked_type(p);
-  if ((typ != T_VECTOR) && (typ != T_FLOAT_VECTOR) && (typ != T_INT_VECTOR) && (typ != T_BYTE_VECTOR) && (typ != T_FREE))
+  if ((!t_vector_p[typ]) && (typ != T_FREE))
     {
       fprintf(stderr, "%s%s[%d]: not a vector, but %s (%s)%s\n", 
 	      BOLD_TEXT, 
@@ -35059,7 +35066,7 @@ static s7_pointer append_in_place(s7_scheme *sc, s7_pointer a, s7_pointer b)
 
 static s7_pointer byte_vector_getter(s7_scheme *sc, s7_pointer bv, s7_int loc)
 {
-  return(make_integer(sc, (uint8_t)(byte_vector_element(bv, loc))));
+  return(make_integer(sc, (uint8_t)(byte_vector(bv, loc))));
 }
 
 static s7_pointer byte_vector_setter(s7_scheme *sc, s7_pointer str, s7_int loc, s7_pointer val)
@@ -35069,7 +35076,7 @@ static s7_pointer byte_vector_setter(s7_scheme *sc, s7_pointer str, s7_int loc, 
       s7_int byte;
       byte = s7_integer(val);
       if ((byte >= 0) && (byte < 256))
-	byte_vector_element(str, loc) = (uint8_t)byte;
+	byte_vector(str, loc) = (uint8_t)byte;
       else return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, val, an_unsigned_byte_string));
       return(val);
     }
@@ -35078,7 +35085,7 @@ static s7_pointer byte_vector_setter(s7_scheme *sc, s7_pointer str, s7_int loc, 
   return(s7_error(sc, sc->wrong_type_arg_symbol, sc->elist_3));
 }
 
-static s7_pointer make_empty_byte_vector(s7_scheme *sc, s7_int len)
+static s7_pointer make_simple_byte_vector(s7_scheme *sc, s7_int len)
 {
   s7_pointer x;
   block_t *b;
@@ -35110,12 +35117,12 @@ static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
   if (!is_byte_vector(p1))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_ref_symbol, p1, a_byte_vector_string);
   if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
-    return((s7_int)((byte_vector_element(p1, i1))));
+    return((s7_int)((byte_vector(p1, i1))));
   out_of_range(sc, sc->byte_vector_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
 }
 
-static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector_element(p1, i1))));}
+static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector(p1, i1))));}
 
 
 /* -------------------------------- byte-vector-set -------------------------------- */
@@ -35135,12 +35142,12 @@ static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7
   if ((i2 < 0) || (i2 > 255))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i2), an_unsigned_byte_string);
   if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
-    byte_vector_element(p1, i1) = (uint8_t)i2;
+    byte_vector(p1, i1) = (uint8_t)i2;
   else simple_out_of_range(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(i2);
 }
 
-static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector_element(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
+static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
 
 
 /* -------------------------------- byte-vector? -------------------------------- */
@@ -35189,7 +35196,7 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
   if (!is_integer(p))
     return(g_make_vector_1(sc, set_plist_2(sc, p, init), sc->make_byte_vector_symbol));
 
-  p = make_empty_byte_vector(sc, len);
+  p = make_simple_byte_vector(sc, len);
   if ((len > 0) && (is_pair(cdr(args))))
     local_memset((void *)(byte_vector_bytes(p)), ib, len);
   return(p);
@@ -35209,7 +35216,7 @@ static s7_pointer g_byte_vector(s7_scheme *sc, s7_pointer args)
   uint8_t *str;
 
   len = s7_list_length(sc, args);
-  vec = make_empty_byte_vector(sc, len);
+  vec = make_simple_byte_vector(sc, len);
   str = byte_vector_bytes(vec);
 
   for (i = 0, x = args; is_pair(x); i++, x = cdr(x))
@@ -35256,7 +35263,7 @@ static s7_pointer g_string_to_byte_vector(s7_scheme *sc, s7_pointer args)
   if (!is_string(str))
     return(method_or_bust(sc, str, sc->string_to_byte_vector_symbol, list_1(sc, str), T_STRING, 1));
 
-  return(s7_copy_1(sc, sc->string_to_byte_vector_symbol, set_plist_2(sc, str, make_empty_byte_vector(sc, string_length(str)))));
+  return(s7_copy_1(sc, sc->string_to_byte_vector_symbol, set_plist_2(sc, str, make_simple_byte_vector(sc, string_length(str)))));
 }
 
 /* -------------------------------- byte-vector->string -------------------------------- */
@@ -35295,12 +35302,17 @@ bool s7_is_vector(s7_pointer p)       {return(t_vector_p[type(p)]);}
 bool s7_is_float_vector(s7_pointer p) {return(type(p) == T_FLOAT_VECTOR);}
 bool s7_is_int_vector(s7_pointer p)   {return(type(p) == T_INT_VECTOR);}
 
-/* it would be neat to support (set! (vector-setter v) (lambda (v ind val) ...)) and (vector-setter ...)
- *   and shouldn't these setters (below) support multiple indices?  and perhaps be s7_functions?
- */
 static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
   vector_element(vec, loc) = val;
+  return(val);
+}
+
+static s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
+{
+  if (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F)
+    vector_element(vec, loc) = val;
+  else s7_wrong_type_arg_error(sc, "vector_set!", 3, val, "a value that satisfies the type function");
   return(val);
 }
 
@@ -35311,26 +35323,26 @@ static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int lo
 
 static s7_pointer int_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
-  if (!s7_is_integer(val)) 
-    s7_wrong_type_arg_error(sc, "int_vector_set!", 3, val, "an integer");
-  int_vector_element(vec, loc) = s7_integer(val);
+  if (s7_is_integer(val))
+    int_vector(vec, loc) = s7_integer(val);
+  else s7_wrong_type_arg_error(sc, "int_vector_set!", 3, val, "an integer");
   return(val);
 }
 
 static s7_pointer int_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
 {
-  return(make_integer(sc, int_vector_element(vec, loc)));
+  return(make_integer(sc, int_vector(vec, loc)));
 }
 
 static s7_pointer float_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
-  float_vector_element(vec, loc) = real_to_double(sc, val, "float-vector-set!");
+  float_vector(vec, loc) = real_to_double(sc, val, "float-vector-set!");
   return(val);
 }
 
 static s7_pointer float_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
 {
-  return(make_real(sc, float_vector_element(vec, loc)));
+  return(make_real(sc, float_vector(vec, loc)));
 }
 
 static inline block_t *mallocate_vector(s7_scheme *sc, s7_int len)
@@ -35368,7 +35380,7 @@ static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 
   vector_length(x) = len;
   b = mallocate_vector(sc, len * sizeof(s7_double));
   vector_block(x) = b;
-  float_vector_elements(x) = (s7_double *)block_data(b);
+  float_vector_floats(x) = (s7_double *)block_data(b);
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
@@ -35384,7 +35396,7 @@ static s7_pointer make_simple_int_vector(s7_scheme *sc, s7_int len) /* len >= 0 
   vector_length(x) = len;
   b = mallocate_vector(sc, len * sizeof(s7_int));
   vector_block(x) = b;
-  int_vector_elements(x) = (s7_int *)block_data(b);
+  int_vector_ints(x) = (s7_int *)block_data(b);
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
   vector_setter(x) = int_vector_setter;
@@ -35432,8 +35444,8 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 	    {
 	      b = mallocate_vector(sc, len * sizeof(s7_double));
 	      vector_block(x) = b;
-	      float_vector_elements(x) = (s7_double *)block_data(b);
-	      if (!float_vector_elements(x))
+	      float_vector_floats(x) = (s7_double *)block_data(b);
+	      if (!float_vector_floats(x))
 		return(s7_error(sc, make_symbol(sc, "out-of-memory"), 
 				set_elist_1(sc, wrap_string(sc, "make-float-vector allocation failed!", 36))));
 	      if (filled)
@@ -35451,8 +35463,8 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
 		{
 		  b = mallocate_vector(sc, len * sizeof(s7_int));
 		  vector_block(x) = b;
-		  int_vector_elements(x) = (s7_int *)block_data(b);
-		  if (!int_vector_elements(x))
+		  int_vector_ints(x) = (s7_int *)block_data(b);
+		  if (!int_vector_ints(x))
 		    return(s7_error(sc, make_symbol(sc, "out-of-memory"), 
 				    set_elist_1(sc, wrap_string(sc, "make-int-vector allocation failed!", 34))));
 		  if (filled)
@@ -35579,7 +35591,7 @@ s7_pointer s7_make_float_vector_wrapper(s7_scheme *sc, s7_int len, s7_double *da
   b = mallocate_vector(sc, 0);
   vector_block(x) = b;
   /* block_data(b) = data; */
-  float_vector_elements(x) = data;
+  float_vector_floats(x) = data;
   vector_getter(x) = float_vector_getter;
   vector_setter(x) = float_vector_setter;
   vector_length(x) = len;
@@ -35605,7 +35617,6 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
   s7_int len, i, left;
 
   len = vector_length(vec);
-  if (len == 0) return;
   left = len - 8;
   i = 0;
 
@@ -35617,17 +35628,18 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       else
 	{
 	  s7_double x;
+	  if (len == 0) return;
 	  x = s7_real(obj);
 	  if (x == 0.0)
 	    {
 	      if ((len & 0x7) == 0)
-		memclr64((void *)float_vector_elements(vec), len * sizeof(s7_double));
-	      else memclr((void *)float_vector_elements(vec), len * sizeof(s7_double));
+		memclr64((void *)float_vector_floats(vec), len * sizeof(s7_double));
+	      else memclr((void *)float_vector_floats(vec), len * sizeof(s7_double));
 	    }
 	  else
 	    {
 	      s7_double *orig;
-	      orig = float_vector_elements(vec);
+	      orig = float_vector_floats(vec);
 	      while (i <= left)
 		LOOP_8(orig[i++] = x);
 	      for (; i < len; i++)
@@ -35642,17 +35654,18 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       else
 	{
 	  s7_int k;
-	  k = s7_integer(obj);
+	  if (len == 0) return;
+  	  k = s7_integer(obj);
 	  if (k == 0)
 	    {
 	      if ((len & 0x7) == 0)
-		memclr64((void *)int_vector_elements(vec), len * sizeof(s7_int));
-	      else memclr((void *)int_vector_elements(vec), len * sizeof(s7_int));
+		memclr64((void *)int_vector_ints(vec), len * sizeof(s7_int));
+	      else memclr((void *)int_vector_ints(vec), len * sizeof(s7_int));
 	    }
 	  else
 	    {
 	      s7_int* orig;
-	      orig = int_vector_elements(vec);
+	      orig = int_vector_ints(vec);
 	      while (i <= left)
 		LOOP_8(orig[i++] = k);
 	      for (; i < len; i++)
@@ -35667,6 +35680,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       else
 	{
 	  s7_int byte;
+	  if (len == 0) return;
 	  byte = s7_integer(obj);
 	  if (byte == 0)
 	    memclr((void *)(byte_vector_bytes(vec)), len);
@@ -35677,6 +35691,12 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
     default:
       {
 	s7_pointer *orig;
+	if (len == 0) return;
+
+	if ((is_typed_vector(vec)) &&
+	    (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, obj)) == sc->F))
+	  s7_wrong_type_arg_error(sc, "vector fill!", 2, obj, "a value that satisfies the type function");
+
 	orig = vector_elements(vec);
 	while (i <= left)
 	  LOOP_8(orig[i++] = obj);
@@ -35721,15 +35741,18 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
     }
   else
     {
-      if (is_int_vector(x))
+      if ((is_int_vector(x)) || (is_byte_vector(x)))
 	{
 	  if (!s7_is_integer(fill))
 	    {
 	      s7_pointer p;
-	      p = check_value_slot(sc, fill);
+	      p = check_value_slot(sc, fill); /* value_slot = 'value method of let */
 	      if (!s7_is_integer(p))
 		return(wrong_type_argument(sc, caller, 2, fill, T_INTEGER));
 	      fill = p;
+	      if ((is_byte_vector(x)) &&
+		  ((s7_integer(fill) < 0) || (s7_integer(fill) > 255)))
+		return(out_of_range(sc, caller, small_int(2), fill, an_unsigned_byte_string));
 	    }
 	}
     }
@@ -35751,6 +35774,10 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
       s7_int i;
       if (is_normal_vector(x))
 	{
+	  if ((is_typed_vector(x)) &&
+	      (c_function_call(typed_vector_typer(x))(sc, set_plist_1(sc, fill)) == sc->F))
+	    s7_wrong_type_arg_error(sc, "vector fill!", 2, fill, "a value that satisfies the type function");
+
 	  for (i = start; i < end; i++)
 	    vector_element(x, i) = fill;
 	}
@@ -35761,11 +35788,11 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
 	      s7_int k;
 	      k = s7_integer(fill);
 	      if (k == 0)
-		memclr((void *)(int_vector_elements(x) + start), (end - start) * sizeof(s7_int));
+		memclr((void *)(int_vector_ints(x) + start), (end - start) * sizeof(s7_int));
 	      else
 		{
 		  for (i = start; i < end; i++)
-		    int_vector_element(x, i) = k;
+		    int_vector(x, i) = k;
 		}
 	    }
 	  else
@@ -35775,12 +35802,12 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
 		  s7_double y;
 		  y = s7_real(fill);
 		  if (y == 0.0)
-		    memclr((void *)(float_vector_elements(x) + start), (end - start) * sizeof(s7_double));
+		    memclr((void *)(float_vector_floats(x) + start), (end - start) * sizeof(s7_double));
 		  else
 		    {
 		      s7_double *orig;
 		      s7_int left;
-		      orig = float_vector_elements(x);
+		      orig = float_vector_floats(x);
 		      left = end - 8;
 		      i = start;
 		      while (i <= left)
@@ -35830,14 +35857,16 @@ s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer
   if (index >= vector_length(vec))
     return(out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, index), its_too_large_string));
 
+  if (is_typed_vector(vec))
+    return(typed_vector_setter(sc, vec, index, a));
   vector_setter(vec)(sc, vec, index, T_Pos(a));
   return(a);
 }
 
 
 s7_pointer *s7_vector_elements(s7_pointer vec)      {return(vector_elements(vec));}
-s7_int *s7_int_vector_elements(s7_pointer vec)      {return(int_vector_elements(vec));}
-s7_double *s7_float_vector_elements(s7_pointer vec) {return(float_vector_elements(vec));}
+s7_int *s7_int_vector_elements(s7_pointer vec)      {return(int_vector_ints(vec));}
+s7_double *s7_float_vector_elements(s7_pointer vec) {return(float_vector_floats(vec));}
 
 s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size)
 {
@@ -35897,11 +35926,7 @@ static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
   int32_t i;
 
   if (is_null(args))
-    {
-      p = make_vector_1(sc, 0, NOT_FILLED, T_VECTOR);
-      add_vector(sc, p);
-      return(p);
-    }
+    return(make_simple_vector(sc, 0));
 
   for (i = 0, p = args; is_pair(p); p = cdr(p), i++)
     {
@@ -36003,6 +36028,8 @@ s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, s
   va_list ap;
   va_start(ap, indices);
   index = flatten_multivector_indices(sc, vector, indices, ap);
+  if (is_typed_vector(vector))
+    return(typed_vector_setter(sc, vector, index, value));
   return(vector_setter(vector)(sc, vector, index, value));
 }
 
@@ -36078,8 +36105,7 @@ static s7_pointer vector_to_list_p_p(s7_scheme *sc, s7_pointer p)
 s7_pointer s7_make_and_fill_vector(s7_scheme *sc, s7_int len, s7_pointer fill)
 {
   s7_pointer vect;
-  vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-  add_vector(sc, vect);
+  vect = make_simple_vector(sc, len);
   s7_vector_fill(sc, vect, fill);
   return(vect);
 }
@@ -36130,7 +36156,7 @@ static s7_pointer g_float_vector(s7_scheme *sc, s7_pointer args)
       for (x = args, i = 0; is_pair(x); x = cdr(x), i++)
 	{
 	  if (s7_is_real(car(x))) /* bignum is ok here */
-	    float_vector_element(vec, i) = s7_real(car(x));
+	    float_vector(vec, i) = s7_real(car(x));
 	  else return(simple_wrong_type_argument(sc, sc->float_vector_symbol, car(x), T_REAL));
 	}
     }
@@ -36160,7 +36186,7 @@ static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
       s7_int i;
       s7_pointer x;
       for (x = args, i = 0; is_pair(x); x = cdr(x), i++)
-	int_vector_element(vec, i) = s7_number_to_integer_with_caller(sc, car(x), "int-vector");
+	int_vector(vec, i) = s7_number_to_integer_with_caller(sc, car(x), "int-vector");
     }
   return(vec);
 }
@@ -36287,11 +36313,11 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
   else vector_length(x) = vector_length(vect);
   
   if (is_int_vector(vect))
-    int_vector_elements(x) = (s7_int *)(int_vector_elements(vect) + index);
+    int_vector_ints(x) = (s7_int *)(int_vector_ints(vect) + index);
   else
     {
       if (is_float_vector(vect))
-	float_vector_elements(x) = (s7_double *)(float_vector_elements(vect) + index);
+	float_vector_floats(x) = (s7_double *)(float_vector_floats(vect) + index);
       else vector_elements(x) = (s7_pointer *)(vector_elements(vect) + index);
     }
   add_multivector(sc, x);
@@ -36409,11 +36435,11 @@ a vector that points to the same elements as the original-vector but with differ
   vector_setter(x) = vector_setter(orig);
 
   if (is_int_vector(orig))
-    int_vector_elements(x) = (s7_int *)(int_vector_elements(orig) + offset);
+    int_vector_ints(x) = (s7_int *)(int_vector_ints(orig) + offset);
   else
     {
       if (is_float_vector(orig))
-	float_vector_elements(x) = (s7_double *)(float_vector_elements(orig) + offset);
+	float_vector_floats(x) = (s7_double *)(float_vector_floats(orig) + offset);
       else vector_elements(x) = (s7_pointer *)(vector_elements(orig) + offset);
     }
 
@@ -36679,6 +36705,9 @@ static s7_pointer g_vector_set(s7_scheme *sc, s7_pointer args)
 	}
       val = caddr(args);
     }
+  
+  if (is_typed_vector(vec))
+    return(typed_vector_setter(sc, vec, index, val));
 
   vector_setter(vec)(sc, vec, index, val);
   return(val);
@@ -36691,6 +36720,10 @@ static s7_pointer vector_set_p_pip(s7_scheme *sc, s7_pointer v, s7_int i, s7_poi
       (i < 0) ||
       (i >= vector_length(v)))
     return(g_vector_set(sc, set_plist_3(sc, v, make_integer(sc, i), p)));
+
+  if (is_typed_vector(v))
+    return(typed_vector_setter(sc, v, i, p));
+
   vector_setter(v)(sc, v, i, p);
   return(p);
 }
@@ -36698,13 +36731,18 @@ static s7_pointer vector_set_p_pip(s7_scheme *sc, s7_pointer v, s7_int i, s7_poi
 static s7_pointer vector_set_p_pip_direct(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {
   if ((i >= 0) && (i < vector_length(v)))
-    vector_element(v, i) = p;
+    {
+      if (!is_typed_vector(v))
+	vector_element(v, i) = p;
+      else typed_vector_setter(sc, v, i, p);
+    }
   else out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(p);
 }
 
 static s7_pointer vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {  
+  /* typed-vectors are filtered out */
   vector_element(v, i) = p;
   return(p);
 }
@@ -36730,6 +36768,10 @@ static s7_pointer g_vector_set_ic(s7_scheme *sc, s7_pointer args)
     return(out_of_range(sc, sc->vector_set_symbol, small_int(2), cadr(args), its_too_large_string));
 
   val = symbol_to_value_unchecked(sc, caddr(args));
+
+  if (is_typed_vector(vec))
+    return(typed_vector_setter(sc, vec, index, val));
+
   vector_setter(vec)(sc, vec, index, val);
   return(val);
 }
@@ -36763,6 +36805,10 @@ static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
     return(out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, index), (index < 0) ? its_negative_string : its_too_large_string));
 
   val = caddr(args);
+
+  if (is_typed_vector(vec))
+    return(typed_vector_setter(sc, vec, index, val));
+
   vector_setter(vec)(sc, vec, index, val);
   return(val);
 }
@@ -36772,10 +36818,11 @@ static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err_sym)
 {
   s7_int len;
-  s7_pointer x, fill, vec;
+  s7_pointer x, fill, vec, typf;
   int32_t result_type = T_VECTOR;
 
   fill = sc->unspecified;
+  typf = sc->T;
   x = car(args);
   if (s7_is_integer(x))
     {
@@ -36820,7 +36867,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 	}
     }
 
-  if (is_not_null(cdr(args)))
+  if (is_pair(cdr(args)))
     {
       fill = cadr(args);
       if (err_sym == sc->make_int_vector_symbol)
@@ -36835,10 +36882,52 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 		result_type = T_BYTE_VECTOR;
 	    }
 	}
+      if (is_pair(cddr(args)))
+	{
+	  typf = caddr(args);
+	  if (((is_c_function(typf)) && (c_function_signature(typf) == sc->pl_bt)) || /* not cons, for example */
+	      (s7_is_boolean(typf)))
+	    {
+	      if (typf == slot_value(global_slot(sc->is_float_symbol)))
+		result_type = T_FLOAT_VECTOR;
+	      else
+		{
+		  if (typf == slot_value(global_slot(sc->is_integer_symbol)))
+		    result_type = T_INT_VECTOR;
+		  else
+		    {
+		      if (typf == slot_value(global_slot(sc->is_byte_symbol)))
+			result_type = T_BYTE_VECTOR;
+		    }
+		}
+	    }
+	  else return(wrong_type_argument_with_type(sc, err_sym, 3, typf, wrap_string(sc, "a procedure or #t", 17)));
+	}
     }
 
+  if ((result_type == T_VECTOR) &&
+      (!s7_is_boolean(typf)))
+    {
+      if (!is_c_function(typf))
+	return(wrong_type_argument_with_type(sc, err_sym, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
+      if (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F)
+	return(wrong_type_argument_with_type(sc, err_sym, 2, fill, wrap_string(sc, "initial value doesn't satisfy type function", 43)));
+    }
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
-  if (len > 0) s7_vector_fill(sc, vec, fill);
+  s7_vector_fill(sc, vec, fill); /* check type of fill even if len == 0 */
+
+  if ((result_type == T_VECTOR) &&
+      (!s7_is_boolean(typf)))
+    {
+      set_typed_vector(vec);
+      typed_vector_typer(vec) = typf;
+
+      /* vector_setter callers need to use typed_vector_setter if is_typed_vector:
+       *   copy not ready -- any others? fill! -- added checks not tested yet
+       * for gc mark/copy etc we need access to the element type -- via func->type table I guess (also sort! if string etc)
+       * check let-temp vector element -- ought to be set_pair
+       */
+    }
 
   if ((is_pair(x)) &&
       (is_pair(cdr(x))))
@@ -36855,11 +36944,12 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 
 static s7_pointer g_make_vector(s7_scheme *sc, s7_pointer args)
 {
-  #define H_make_vector "(make-vector len (value #<unspecified>)) returns a vector of len elements initialized to value. \
+  #define H_make_vector "(make-vector len (value #<unspecified>) type) returns a vector of len elements initialized to value. \
 To create a multidimensional vector, put the dimension bounds in a list (this is to avoid ambiguities such as \
 (make-vector 1 2) where it's not clear whether the '2' is an initial value or a dimension size).  (make-vector '(2 3) 1.0) \
 returns a 2 dimensional vector of 6 total elements, all initialized to 1.0."
-  #define Q_make_vector s7_make_signature(sc, 3, sc->is_vector_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_pair_symbol), sc->T)
+  #define Q_make_vector s7_make_signature(sc, 4, sc->is_vector_symbol, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_pair_symbol), sc->T, \
+					  s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_boolean_symbol))
   return(g_make_vector_1(sc, args, sc->make_vector_symbol));
 }
 
@@ -36904,12 +36994,12 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
   new_cell(sc, x, T_FLOAT_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
   vector_block(x) = arr;
-  float_vector_elements(x) = (s7_double *)block_data(arr);
+  float_vector_floats(x) = (s7_double *)block_data(arr);
   if (len > 0)
     {
       if ((len & 0x7) == 0)
-	memclr64((void *)float_vector_elements(x), len * sizeof(s7_double));
-      else memclr((void *)float_vector_elements(x), len * sizeof(s7_double));
+	memclr64((void *)float_vector_floats(x), len * sizeof(s7_double));
+      else memclr((void *)float_vector_floats(x), len * sizeof(s7_double));
     }
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = float_vector_getter;
@@ -36955,12 +37045,12 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   new_cell(sc, x, T_INT_VECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = len;
   vector_block(x) = arr;
-  int_vector_elements(x) = (s7_int *)block_data(arr);
+  int_vector_ints(x) = (s7_int *)block_data(arr);
   if (len > 0)
     {
       if ((len & 0x7) == 0)
-	memclr64((void *)int_vector_elements(x), len * sizeof(s7_int));
-      else memclr((void *)int_vector_elements(x), len * sizeof(s7_int));
+	memclr64((void *)int_vector_ints(x), len * sizeof(s7_int));
+      else memclr((void *)int_vector_ints(x), len * sizeof(s7_int));
     }
   vector_set_dimension_info(x, NULL);
   vector_getter(x) = int_vector_getter;
@@ -37157,11 +37247,7 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       s7_pointer *src, *dst;
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, list_1(sc, old_vect))));
-      else 
-	{
-	  new_vect = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-	  add_vector(sc, new_vect);
-	}
+      else new_vect = make_simple_vector(sc, len);
       /* here and in vector-fill! we have a problem with bignums -- should new bignums be allocated? (copy_list also) */
       src = (s7_pointer *)vector_elements(old_vect);
       dst = (s7_pointer *)vector_elements(new_vect);
@@ -37174,13 +37260,9 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       s7_double *src, *dst;
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector_1(sc, set_plist_2(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), real_zero), sc->make_float_vector_symbol);
-      else 
-	{
-	  new_vect = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
-	  add_vector(sc, new_vect);
-	}
-      src = (s7_double *)float_vector_elements(old_vect);
-      dst = (s7_double *)float_vector_elements(new_vect);
+      else new_vect = make_simple_float_vector(sc, len);
+      src = (s7_double *)float_vector_floats(old_vect);
+      dst = (s7_double *)float_vector_floats(new_vect);
       for (i = len; i > 0; i--) *dst++ = *src++;  /* same speed as memcpy(dst, src, len * sizeof(s7_double)); */
       return(new_vect);
     }
@@ -37190,13 +37272,9 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       s7_int *src, *dst;
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector_1(sc, set_plist_2(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), small_int(0)), sc->make_int_vector_symbol);
-      else 
-	{
-	  new_vect = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
-	  add_vector(sc, new_vect);
-	}
-      src = (s7_int *)int_vector_elements(old_vect);
-      dst = (s7_int *)int_vector_elements(new_vect);
+      else new_vect = make_simple_int_vector(sc, len);
+      src = (s7_int *)int_vector_ints(old_vect);
+      dst = (s7_int *)int_vector_ints(new_vect);
       for (i = len; i > 0; i--) *dst++ = *src++;
       return(new_vect);
     }
@@ -37206,11 +37284,7 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       uint8_t *src, *dst;
       if (vector_rank(old_vect) > 1)
 	new_vect = g_make_vector_1(sc, set_plist_2(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), small_int(0)), sc->make_byte_vector_symbol);
-      else 
-	{
-	  new_vect = make_vector_1(sc, len, NOT_FILLED, T_BYTE_VECTOR);
-	  add_vector(sc, new_vect);
-	}
+      else new_vect = make_simple_byte_vector(sc, len);
       src = (uint8_t *)byte_vector_bytes(old_vect);
       dst = (uint8_t *)byte_vector_bytes(new_vect);
       for (i = len; i > 0; i--) *dst++ = *src++;
@@ -37281,10 +37355,10 @@ static s7_pointer univect_ref(s7_scheme *sc, s7_pointer args, s7_pointer caller,
 	return(subvector(sc, v, i, ind));
     }
   if (typ == T_FLOAT_VECTOR)
-    return(make_real(sc, float_vector_element(v, ind)));
+    return(make_real(sc, float_vector(v, ind)));
   if (typ == T_INT_VECTOR)
-    return(make_integer(sc, int_vector_element(v, ind)));
-  return(small_int(byte_vector_element(v, ind)));
+    return(make_integer(sc, int_vector(v, ind)));
+  return(small_int(byte_vector(v, ind)));
 }
 
 
@@ -37356,7 +37430,7 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, s7_pointer caller,
     {
       if (!s7_is_real(val))
 	return(method_or_bust(sc, val, caller, args, T_REAL, 3));
-      float_vector_element(vec, index) = s7_real(val);
+      float_vector(vec, index) = s7_real(val);
     }
   else
     {
@@ -37364,13 +37438,13 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, s7_pointer caller,
 	{
 	  if (!s7_is_integer(val))
 	    return(method_or_bust(sc, val, caller, args, T_INTEGER, 3));
-	  int_vector_element(vec, index) = s7_integer(val);
+	  int_vector(vec, index) = s7_integer(val);
 	}
       else
 	{
 	  if (!is_byte(val))
 	    return(method_or_bust(sc, val, caller, args, T_INTEGER, 3));
-	  byte_vector_element(vec, index) = (uint8_t)s7_integer(val);
+	  byte_vector(vec, index) = (uint8_t)s7_integer(val);
 	}
     }
   return(val);
@@ -37399,7 +37473,7 @@ static s7_pointer g_fv_ref(s7_scheme *sc, s7_pointer args)
   ind = s7_integer(index);
   if ((ind < 0) || (ind >= vector_length(fv)))
     return(simple_out_of_range(sc, sc->float_vector_ref_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
-  return(make_real(sc, float_vector_element(fv, ind)));
+  return(make_real(sc, float_vector(fv, ind)));
 }
 
 static s7_pointer g_fv_ref_3(s7_scheme *sc, s7_pointer args)
@@ -37424,10 +37498,10 @@ static s7_pointer g_fv_ref_3(s7_scheme *sc, s7_pointer args)
   if ((ind2 < 0) || (ind2 >= vector_dimension(fv, 1)))
     return(simple_out_of_range(sc, sc->float_vector_ref_symbol, index, (ind2 < 0) ? its_negative_string : its_too_large_string));
   ind1 = ind1 * vector_offset(fv, 0) + ind2;
-  return(make_real(sc, float_vector_element(fv, ind1)));
+  return(make_real(sc, float_vector(fv, ind1)));
 }
 
-static s7_double float_vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector_element(v, i));}
+static s7_double float_vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector(v, i));}
 static inline s7_int ref_check_index(s7_scheme *sc, s7_pointer v, s7_int i)
 {
   /* according to valgrind, it is faster to split out the bounds check */
@@ -37435,8 +37509,8 @@ static inline s7_int ref_check_index(s7_scheme *sc, s7_pointer v, s7_int i)
     out_of_range(sc, sc->float_vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(i);
 }
-static s7_double float_vector_ref_d_7pi(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector_element(v, ref_check_index(sc, v, i)));}
-static s7_pointer float_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_real(sc, float_vector_element(v, i)));}
+static s7_double float_vector_ref_d_7pi(s7_scheme *sc, s7_pointer v, s7_int i) {return(float_vector(v, ref_check_index(sc, v, i)));}
+static s7_pointer float_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_real(sc, float_vector(v, i)));}
 
 static s7_pointer float_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -37475,7 +37549,7 @@ static s7_pointer g_fv_set(s7_scheme *sc, s7_pointer args)
     return(wrong_type_argument(sc, sc->float_vector_set_symbol, 3, value, T_REAL));
   if (is_immutable(fv))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->float_vector_set_symbol, fv)));
-  float_vector_element(fv, ind) = s7_real(value);
+  float_vector(fv, ind) = s7_real(value);
   return(value);
 }
 
@@ -37490,7 +37564,7 @@ static s7_pointer g_fv_set_unchecked(s7_scheme *sc, s7_pointer args)
   if (is_immutable(fv))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->float_vector_set_symbol, fv)));
   ind = s7_integer(cadr(args));
-  float_vector_element(fv, ind) = s7_real(value);
+  float_vector(fv, ind) = s7_real(value);
   return(value);
 }
 
@@ -37541,7 +37615,7 @@ static s7_pointer float_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t 
   return(f);
 }
 
-static s7_double float_vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_double x) {float_vector_element(v, i) = x; return(x);}
+static s7_double float_vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_double x) {float_vector(v, i) = x; return(x);}
 static s7_int set_check_index(s7_scheme *sc, s7_pointer v, s7_int i)
 {
   if ((i < 0) || (i >= vector_length(v)))
@@ -37549,11 +37623,11 @@ static s7_int set_check_index(s7_scheme *sc, s7_pointer v, s7_int i)
   return(i);
 }
 
-static s7_double float_vector_set_d_7pid(s7_scheme *sc, s7_pointer v, s7_int i, s7_double x) {float_vector_element(v, (set_check_index(sc, v, i))) = x; return(x);}
+static s7_double float_vector_set_d_7pid(s7_scheme *sc, s7_pointer v, s7_int i, s7_double x) {float_vector(v, (set_check_index(sc, v, i))) = x; return(x);}
 
 static s7_pointer float_vector_set_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {
-  float_vector_element(v, i) = real_to_double(sc, p, "float-vector-set!");
+  float_vector(v, i) = real_to_double(sc, p, "float-vector-set!");
   return(p);
 }
 
@@ -37566,15 +37640,15 @@ static s7_pointer g_int_vector_ref(s7_scheme *sc, s7_pointer args)
   return(univect_ref(sc, args, sc->int_vector_ref_symbol, T_INT_VECTOR));
 }
 
-static s7_int int_vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(int_vector_element(v, i));}
+static s7_int int_vector_ref_unchecked(s7_scheme *sc, s7_pointer v, s7_int i) {return(int_vector(v, i));}
 static s7_int int_vector_ref_i_7pi(s7_scheme *sc, s7_pointer v, s7_int i) 
 {
   if ((i >= 0) && (i < vector_length(v)))
-    return(int_vector_element(v, i));
+    return(int_vector(v, i));
   out_of_range(sc, sc->int_vector_ref_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(0);
 } 
-static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_integer(sc, int_vector_element(v, i)));}
+static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_integer(sc, int_vector(v, i)));}
 
 static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
 {
@@ -37591,7 +37665,7 @@ static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
   ind = s7_integer(index);
   if ((ind < 0) || (ind >= vector_length(v)))
     return(simple_out_of_range(sc, sc->int_vector_ref_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
-  return(make_integer(sc, int_vector_element(v, ind)));
+  return(make_integer(sc, int_vector(v, ind)));
 }
 
 static s7_pointer int_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -37610,19 +37684,19 @@ static s7_pointer g_int_vector_set(s7_scheme *sc, s7_pointer args)
   return(univect_set(sc, args, sc->int_vector_set_symbol, T_INT_VECTOR));
 }
 
-static s7_int int_vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_int x) {int_vector_element(v, i) = x; return(x);}
+static s7_int int_vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_int x) {int_vector(v, i) = x; return(x);}
 static s7_int int_vector_set_i_7pii(s7_scheme *sc, s7_pointer v, s7_int i, s7_int x) 
 {
   if ((i < 0) || (i >= vector_length(v)))
     out_of_range(sc, sc->int_vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
-  int_vector_element(v, i) = x;
+  int_vector(v, i) = x;
   return(x);
 } 
 static s7_pointer int_vector_set_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {
   if (!s7_is_integer(p)) 
     s7_wrong_type_arg_error(sc, "int_vector_set!", 3, p, "an integer");
-  int_vector_element(v, i) = s7_integer(p);
+  int_vector(v, i) = s7_integer(p);
   return(p);
 }
 
@@ -37646,7 +37720,7 @@ static s7_pointer g_iv_set(s7_scheme *sc, s7_pointer args)
     return(wrong_type_argument(sc, sc->int_vector_set_symbol, 3, value, T_INTEGER));
   if (is_immutable(v))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->int_vector_set_symbol, v)));
-  int_vector_element(v, ind) = s7_integer(value);
+  int_vector(v, ind) = s7_integer(value);
   return(value);
 }
 
@@ -38215,8 +38289,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	      }
 	  }
 #endif
-	vec = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-	add_vector(sc, vec);
+	vec = make_simple_vector(sc, len);
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);	   
 	elements = s7_vector_elements(vec);
 
@@ -38308,7 +38381,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	    local_qsort_r((void *)elements, len, sizeof(s7_pointer), sort_func, (void *)sc);
 
 	    for (i = 0; i < len; i++)
-	      vector_setter(data)(sc, data, i, elements[i]);
+	      vector_setter(data)(sc, data, i, elements[i]); /* data is not a typed vector */
 
 	    sc->stack_end -= 4;
 	    return(data);
@@ -38428,14 +38501,14 @@ static s7_pointer vector_into_fi_vector(s7_pointer source, s7_pointer dest)
   if (is_float_vector(dest))
     {
       s7_double *flts;
-      flts = float_vector_elements(dest);
+      flts = float_vector_floats(dest);
       for (i = 0; i < len; i++)
 	flts[i] = real(elements[i]);
     }
   else
     {
       s7_int *ints;
-      ints = int_vector_elements(dest);
+      ints = int_vector_ints(dest);
       for (i = 0; i < len; i++)
 	ints[i] = integer(elements[i]);
     }
@@ -38785,8 +38858,8 @@ static s7_int hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer ke
   if (vector_length(key) == 0)
     return(0);
   if (vector_length(key) == 1)
-    return(s7_int_abs(int_vector_element(key, 0)));
-  return(vector_length(key) + s7_int_abs(int_vector_element(key, 0)) + s7_int_abs(int_vector_element(key, 1)));
+    return(s7_int_abs(int_vector(key, 0)));
+  return(vector_length(key) + s7_int_abs(int_vector(key, 0)) + s7_int_abs(int_vector(key, 1)));
 }
 
 static s7_int hash_map_byte_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38794,8 +38867,8 @@ static s7_int hash_map_byte_vector(s7_scheme *sc, s7_pointer table, s7_pointer k
   if (byte_vector_length(key) == 0)
     return(0);
   if (byte_vector_length(key) == 1)
-    return((s7_int)byte_vector_element(key, 0));
-  return(byte_vector_length(key) + byte_vector_element(key, 0) + byte_vector_element(key, 1));
+    return((s7_int)byte_vector(key, 0));
+  return(byte_vector_length(key) + byte_vector(key, 0) + byte_vector(key, 1));
 }
 
 static s7_int hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -38803,8 +38876,8 @@ static s7_int hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer 
   if (vector_length(key) == 0)
     return(0);
   if (vector_length(key) == 1)
-    return(hash_float_location(float_vector_element(key, 0)));
-  return(vector_length(key) + hash_float_location(float_vector_element(key, 0)) + hash_float_location(float_vector_element(key, 1)));
+    return(hash_float_location(float_vector(key, 0)));
+  return(vector_length(key) + hash_float_location(float_vector(key, 0)) + hash_float_location(float_vector(key, 1)));
 }
 
 static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -40765,13 +40838,17 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
 	return(sc->F);
       }
 
+    case T_VECTOR:
+      if (!is_typed_vector(p))
+	return(sc->vector_signature);
+      return(s7_make_circular_signature(sc, 2, 3, s7_make_symbol(sc, c_function_name(typed_vector_typer(p))), sc->is_vector_symbol, sc->is_integer_symbol));
+
     case T_HASH_TABLE:   return(sc->hash_table_signature);
-    case T_VECTOR:       return(sc->vector_signature);
     case T_FLOAT_VECTOR: return(sc->float_vector_signature);
     case T_INT_VECTOR:   return(sc->int_vector_signature);
+    case T_BYTE_VECTOR:  return(sc->byte_vector_signature);
     case T_PAIR:         return(sc->pair_signature);
     case T_STRING:       return(sc->string_signature);
-    case T_BYTE_VECTOR:  return(sc->byte_vector_signature);
 
     case T_ITERATOR:
       p = iterator_sequence(p);
@@ -42566,16 +42643,16 @@ static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
       for (i = 0; i < len; i++)
 	{
 	  s7_double z;
-	  z = float_vector_element(x, i);
+	  z = float_vector(x, i);
 	  if ((is_NaN(z)) ||
-	      (z != float_vector_element(y, i)))
+	      (z != float_vector(y, i)))
 	    return(false);
 	}
       return(true);
     }
 
   if (is_int_vector(x))
-    return(iv_meq(int_vector_elements(x), int_vector_elements(y), len));
+    return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
 
   if (ci)
     equal_ref(sc, x, y, ci);
@@ -42626,8 +42703,8 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
     {
       s7_double *arr1, *arr2;
       s7_double fudge;
-      arr1 = float_vector_elements(x);
-      arr2 = float_vector_elements(y);
+      arr1 = float_vector_floats(x);
+      arr2 = float_vector_floats(y);
       fudge = sc->morally_equal_float_epsilon;
       if (fudge == 0.0)
 	{
@@ -42646,7 +42723,7 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
     }
 
   if (is_int_vector(x))
-    return(iv_meq(int_vector_elements(x), int_vector_elements(y), len));
+    return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
 
   if (ci)
     equal_ref(sc, x, y, ci);
@@ -43457,9 +43534,15 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-    case T_VECTOR:
     case T_BYTE_VECTOR:
       set = vector_setter(dest);
+      dest_len = vector_length(dest);
+      break;
+
+    case T_VECTOR:
+      if (is_typed_vector(dest))
+	set = typed_vector_setter;
+      else set = vector_setter(dest);
       dest_len = vector_length(dest);
       break;
 
@@ -43535,11 +43618,11 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  return(dest);
 
 	case T_INT_VECTOR:
-	  memcpy((void *)(int_vector_elements(dest)), (void *)((int_vector_elements(source)) + start), source_len * sizeof(s7_int));
+	  memcpy((void *)(int_vector_ints(dest)), (void *)((int_vector_ints(source)) + start), source_len * sizeof(s7_int));
 	  return(dest);
 
 	case T_FLOAT_VECTOR:
-	  memcpy((void *)(float_vector_elements(dest)), (void *)((float_vector_elements(source)) + start), source_len * sizeof(s7_double));
+	  memcpy((void *)(float_vector_floats(dest)), (void *)((float_vector_floats(source)) + start), source_len * sizeof(s7_double));
 	  return(dest);
 
 	case T_STRING:
@@ -43734,7 +43817,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	if (is_float_vector(dest))
 	  {
 	    s7_double *dst;
-	    dst = float_vector_elements(dest);
+	    dst = float_vector_floats(dest);
 	    for (i = start, j = 0; i < end; i++, j++)
 	      dst[j] = real_to_double(sc, vals[i], "copy");
 	    return(dest);
@@ -43742,7 +43825,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	if (is_int_vector(dest))
 	  {
 	    s7_int *dst;
-	    dst = int_vector_elements(dest);
+	    dst = int_vector_ints(dest);
 	    for (i = start, j = 0; i < end; i++, j++)
 	      {
 		if (!s7_is_integer(vals[i])) 
@@ -43785,11 +43868,11 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     case T_FLOAT_VECTOR:
       {
 	s7_double *src;
-	src = float_vector_elements(source);
+	src = float_vector_floats(source);
 	if (is_int_vector(dest))
 	  {
 	    s7_int *dst;
-	    dst = int_vector_elements(dest);
+	    dst = int_vector_ints(dest);
 	    for (i = start, j = 0; i < end; i++, j++)
 	      dst[j] = (s7_int)(src[i]);
 	    return(dest);
@@ -43808,11 +43891,11 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     case T_INT_VECTOR:
       {
 	s7_int *src;
-	src = int_vector_elements(source);
+	src = int_vector_ints(source);
 	if (is_float_vector(dest))
 	  {
 	    s7_double *dst;
-	    dst = float_vector_elements(dest);
+	    dst = float_vector_floats(dest);
 	    for (i = start, j = 0; i < end; i++, j++)
 	      dst[j] = (s7_double)(src[i]);
 	    return(dest);
@@ -43828,13 +43911,21 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	if (is_string(dest))
 	  {
 	    for (i = start, j = 0; i < end; i++, j++)
-	      string_value(dest)[j] = (uint8_t)(src[i]);
+	      {
+		if ((src[i] < 0) || (src[i] > 255))
+		  return(out_of_range(sc, caller, small_int(1), source, an_unsigned_byte_string));
+		string_value(dest)[j] = (uint8_t)(src[i]);
+	      }
 	    return(dest);
 	  }
 	if (is_byte_vector(dest))
 	  {
 	    for (i = start, j = 0; i < end; i++, j++)
-	      byte_vector_element(dest, j) = (uint8_t)(src[i]);
+	      {
+		if ((src[i] < 0) || (src[i] > 255))
+		  return(out_of_range(sc, caller, small_int(1), source, an_unsigned_byte_string));
+		byte_vector(dest, j) = (uint8_t)(src[i]);
+	      }
 	    return(dest);
 	  }
       }
@@ -43846,23 +43937,23 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  s7_pointer *dst;
 	  dst = vector_elements(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    dst[j] = make_integer(sc, (s7_int)(byte_vector_element(source, i)));
+	    dst[j] = make_integer(sc, (s7_int)(byte_vector(source, i)));
 	  return(dest);
 	}
       if (is_int_vector(dest))
 	{
 	  s7_int *els;
-	  els = int_vector_elements(dest);
+	  els = int_vector_ints(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    els[j] = (s7_int)((uint8_t)(byte_vector_element(source, i)));
+	    els[j] = (s7_int)((uint8_t)(byte_vector(source, i)));
 	  return(dest);
 	}
       if (is_float_vector(dest))
 	{
 	  s7_double *els;
-	  els = float_vector_elements(dest);
+	  els = float_vector_floats(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
-	    els[j] = (s7_double)((uint8_t)(byte_vector_element(source, i)));
+	    els[j] = (s7_double)((uint8_t)(byte_vector(source, i)));
 	  return(dest);
 	}
       break;
@@ -43879,7 +43970,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       if (is_int_vector(dest))
 	{
 	  s7_int *els;
-	  els = int_vector_elements(dest);
+	  els = int_vector_ints(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
 	    els[j] = (s7_int)((uint8_t)(string_value(source)[i]));
 	  return(dest);
@@ -43887,7 +43978,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       if (is_float_vector(dest))
 	{
 	  s7_double *els;
-	  els = float_vector_elements(dest);
+	  els = float_vector_floats(dest);
 	  for (i = start, j = 0; i < end; i++, j++)
 	    els[j] = (s7_double)((uint8_t)(string_value(source)[i]));
 	  return(dest);
@@ -43901,7 +43992,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       if (is_float_vector(source))
 	{
 	  s7_double *els;
-	  els = float_vector_elements(source);
+	  els = float_vector_floats(source);
 	  for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
 	    set_car(p, make_real(sc, els[i]));
 	}
@@ -43910,7 +44001,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  if (is_int_vector(source))
 	    {
 	      s7_int *els;
-	      els = int_vector_elements(source);
+	      els = int_vector_ints(source);
 	      for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p))
 		set_car(p, make_integer(sc, els[i]));
 	    }
@@ -43983,7 +44074,7 @@ also accepts a string or vector argument."
 	len = byte_vector_length(p);
 	source = byte_vector_bytes(p);
 	end = (uint8_t *)(source + len);
-	np = make_empty_byte_vector(sc, len);
+	np = make_simple_byte_vector(sc, len);
 	dest = (uint8_t *)(byte_vector_bytes(np) + len);
 	while (source < end) *(--dest) = *source++;
       }
@@ -43996,14 +44087,10 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector_1(sc, set_plist_2(sc, g_vector_dimensions(sc, set_plist_1(sc, p)), small_int(0)), sc->make_int_vector_symbol);
-	else 
-	  {
-	    np = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
-	    add_vector(sc, np);
-	  }
-	source = int_vector_elements(p);
+	else np = make_simple_int_vector(sc, len);
+	source = int_vector_ints(p);
 	end = (s7_int *)(source + len);
-	dest = (s7_int *)(int_vector_elements(np) + len);
+	dest = (s7_int *)(int_vector_ints(np) + len);
 	while (source < end) *(--dest) = *source++;
       }
       break;
@@ -44015,14 +44102,10 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector_1(sc, set_plist_2(sc, g_vector_dimensions(sc, set_plist_1(sc, p)), real_zero), sc->make_float_vector_symbol);
-	else 
-	  {
-	    np = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
-	    add_vector(sc, np);
-	  }
-	source = float_vector_elements(p);
+	else np = make_simple_float_vector(sc, len);
+	source = float_vector_floats(p);
 	end = (s7_double *)(source + len);
-	dest = (s7_double *)(float_vector_elements(np) + len);
+	dest = (s7_double *)(float_vector_floats(np) + len);
 	while (source < end) *(--dest) = *source++;
       }
       break;
@@ -44034,11 +44117,7 @@ also accepts a string or vector argument."
 	len = vector_length(p);
 	if (vector_rank(p) > 1)
 	  np = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, set_plist_1(sc, p))));
-	else 
-	  {
-	    np = make_vector_1(sc, len, NOT_FILLED, T_VECTOR);
-	    add_vector(sc, np);
-	  }
+	else np = make_simple_vector(sc, len);
 	source = vector_elements(p);
 	end = (s7_pointer *)(source + len);
 	dest = (s7_pointer *)(vector_elements(np) + len);
@@ -44173,7 +44252,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	  return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
 	len = vector_length(p);
 	if (len < 2) return(p);
-	s1 = int_vector_elements(p);
+	s1 = int_vector_ints(p);
 	s2 = (s7_int *)(s1 + len - 1);
 	if ((len & 0xf) == 0) /* not 0x7 -- odd multiple of 8 will leave center ints unreversed */
 	  {
@@ -44195,7 +44274,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	  return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->reverseb_symbol, p)));
 	len = vector_length(p);
 	if (len < 2) return(p);
-	s1 = float_vector_elements(p);
+	s1 = float_vector_floats(p);
 	s2 = (s7_double *)(s1 + len - 1);
 	if ((len & 0xf) == 0)
 	  {
@@ -44427,11 +44506,11 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
   else
     {
       if (typ == T_FLOAT_VECTOR)
-	fv_elements = float_vector_elements(new_vec);
+	fv_elements = float_vector_floats(new_vec);
       else 
 	{
 	  if (typ == T_INT_VECTOR)
-	    iv_elements = int_vector_elements(new_vec);
+	    iv_elements = int_vector_ints(new_vec);
 	  else byte_elements = byte_vector_bytes(new_vec);
 	}
     }
@@ -44459,11 +44538,11 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
 	      else
 		{
 		  if (typ == T_FLOAT_VECTOR)
-		    float_vector_elements(new_vec) = (s7_double *)(fv_elements + i);
+		    float_vector_floats(new_vec) = (s7_double *)(fv_elements + i);
 		  else 
 		    {
 		      if (typ == T_INT_VECTOR)
-			int_vector_elements(new_vec) = (s7_int *)(iv_elements + i);
+			int_vector_ints(new_vec) = (s7_int *)(iv_elements + i);
 		      else byte_vector_bytes(new_vec) = (uint8_t *)(byte_elements + i);
 		    }
 		}
@@ -44476,11 +44555,11 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
       else
 	{
 	  if (typ == T_FLOAT_VECTOR)
-	    float_vector_elements(new_vec) = fv_elements;
+	    float_vector_floats(new_vec) = fv_elements;
 	  else 
 	    {
 	      if (typ == T_INT_VECTOR)
-		int_vector_elements(new_vec) = iv_elements;
+		int_vector_ints(new_vec) = iv_elements;
 	      else byte_vector_bytes(new_vec) = byte_elements;
 	    }
 	}
@@ -51011,7 +51090,7 @@ static s7_int ivref_7pi_ss(void *p)
 {
   opt_info *o = (opt_info *)p;
   oo_rcheck(o->sc, o, 4, 2);
-  return(int_vector_element(slot_value(o->v[1].p), integer(slot_value(o->v[2].p))));
+  return(int_vector(slot_value(o->v[1].p), integer(slot_value(o->v[2].p))));
 }
 
 static s7_int opt_i_7pi_sf(void *p)
@@ -53889,7 +53968,7 @@ static s7_double opt_d_7pid_ssfo_fv(void *p)
   opt_info *o = (opt_info *)p;
   s7_double val;
   s7_double *els;
-  els = float_vector_elements(slot_value(o->v[1].p));
+  els = float_vector_floats(slot_value(o->v[1].p));
   val = o->v[6].d_dd_f(els[integer(slot_value(o->v[3].p))], real(slot_value(o->v[8].p)));
   els[integer(slot_value(o->v[2].p))] = val;
   oo_rcheck(o->sc, o, 7, 4);
@@ -53900,7 +53979,7 @@ static s7_pointer opt_d_7pid_ssfo_fv_nr(void *p)
 {
   opt_info *o = (opt_info *)p;
   s7_double *els;
-  els = float_vector_elements(slot_value(o->v[1].p));
+  els = float_vector_floats(slot_value(o->v[1].p));
   els[integer(slot_value(o->v[2].p))] = o->v[6].d_dd_f(els[integer(slot_value(o->v[3].p))], real(slot_value(o->v[8].p)));
   oo_rcheck(o->sc, o, 9, 4);
   return(NULL);
@@ -53910,7 +53989,7 @@ static s7_pointer opt_d_7pid_ssfo_fv_add_nr(void *p)
 {
   opt_info *o = (opt_info *)p;
   s7_double *els;
-  els = float_vector_elements(slot_value(o->v[1].p));
+  els = float_vector_floats(slot_value(o->v[1].p));
   els[integer(slot_value(o->v[2].p))] = els[integer(slot_value(o->v[3].p))] + real(slot_value(o->v[8].p));
   oo_rcheck(o->sc, o, 9, 4);
   return(NULL);
@@ -53920,7 +53999,7 @@ static s7_pointer opt_d_7pid_ssfo_fv_sub_nr(void *p)
 {
   opt_info *o = (opt_info *)p;
   s7_double *els;
-  els = float_vector_elements(slot_value(o->v[1].p));
+  els = float_vector_floats(slot_value(o->v[1].p));
   els[integer(slot_value(o->v[2].p))] = els[integer(slot_value(o->v[3].p))] - real(slot_value(o->v[8].p));
   oo_rcheck(o->sc, o, 9, 4);
   return(NULL);
@@ -56723,7 +56802,8 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		switch (type(obj))
 		  {
 		  case T_VECTOR:
-		    if (denominator(slot_value(slot2)) <= vector_length(obj))
+		    if ((!is_typed_vector(obj)) &&
+			(denominator(slot_value(slot2)) <= vector_length(obj)))
 		      {
 			opc->v[3].p_pip_f = vector_set_unchecked; 
 			op2 = OO_PV;
@@ -57797,6 +57877,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 				      if (s7_is_vector(obj)) /* true for all 3 vectors */
 					{
 					  if ((s7_is_vector(obj)) &&
+					      (!is_typed_vector(obj)) &&
 					      (denominator(slot_value(opc->v[2].p)) <= vector_length(obj)))
 					    {
 					      opc->v[3].p_pip_f = vector_set_unchecked;
@@ -60405,7 +60486,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	      s7_double *vals;
 	      s7_int i, len;
 	      len = vector_length(seq);
-	      vals = float_vector_elements(seq);
+	      vals = float_vector_floats(seq);
 	      
 	      if ((len > 1000) &&
 		  (!tree_has_setters(sc, body)))
@@ -60434,7 +60515,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	      s7_int *vals;
 	      s7_int i, len;
 	      len = vector_length(seq);
-	      vals = int_vector_elements(seq);
+	      vals = int_vector_ints(seq);
 	      
 	      if ((len > 1000) &&
 		  (!tree_has_setters(sc, body)))
@@ -71386,7 +71467,9 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	    eval_range_error(sc, "vector-set!: index must be less than vector length: ~S", 54, sc->code);
 	  if (is_immutable(obj))
 	    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, obj));
-	  vector_setter(obj)(sc, obj, index, value);
+	  if (is_typed_vector(obj))
+	    typed_vector_setter(sc, obj, index, value);
+	  else vector_setter(obj)(sc, obj, index, value);
 	  sc->value = T_Pos(value);
 	}
 #endif
@@ -71967,7 +72050,9 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	      {
 		if (is_symbol(val))
 		  val = symbol_to_value_checked(sc, val);
-		vector_setter(cx)(sc, cx, ind, val);
+		if (is_typed_vector(cx))
+		  typed_vector_setter(sc, cx, ind, val);
+		else vector_setter(cx)(sc, cx, ind, val);
 		sc->value = T_Pos(val);
 		return(goto_START);
 	      }
@@ -73647,7 +73732,7 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		    {
 		      s7_int val;
 		      s7_int *ex;
-		      ex = int_vector_elements(slot_value(o->v[1].p));
+		      ex = int_vector_ints(slot_value(o->v[1].p));
 		      val = o->v[4].i;
 		      if (val == 0)
 			{
@@ -75328,7 +75413,7 @@ static int32_t vector_a_ex(s7_scheme *sc)
 	      (index >= 0))
 	    {
 	      if (is_float_vector(v))
-		sc->value = make_real(sc, float_vector_element(v, index));
+		sc->value = make_real(sc, float_vector(v, index));
 	      else sc->value = vector_getter(v)(sc, v, index);
 	      return(goto_START);
 	    }
@@ -82590,7 +82675,9 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
   /* if the same bignum object is assigned to each element, different vector elements
    *    are actually the same -- we need to make a copy of obj for each one
    */
-  if ((is_normal_vector(vec)) && (is_big_number(obj)))
+  if ((is_normal_vector(vec)) && 
+      (!is_typed_vector(vec)) &&
+      (is_big_number(obj)))
     {
       s7_int gc_loc;
       s7_int i, len;
@@ -87553,7 +87640,7 @@ s7_scheme *s7_init(void)
   sc->vector_ref_symbol =            defun("vector-ref",	vector_ref,		2, 0, true);
   sc->vector_set_symbol =            defun("vector-set!",	vector_set,		3, 0, true);
   sc->vector_dimensions_symbol =     defun("vector-dimensions", vector_dimensions,	1, 0, false);
-  sc->make_vector_symbol =           defun("make-vector",	make_vector,		1, 1, false);
+  sc->make_vector_symbol =           defun("make-vector",	make_vector,		1, 2, false);
   sc->vector_symbol =                defun("vector",		vector,			0, 0, true);
   set_setter(sc->vector_symbol); /* like cons, I guess */
   sc->vector_function = slot_value(global_slot(sc->vector_symbol));
@@ -88478,11 +88565,12 @@ int main(int argc, char **argv)
  *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
  *   vector-setter (*-setter) would be the element setter from scheme, use vset + bit? all need a bit to warn set!
  *   hash-table has room in block index+filler I think
- *   for this, need 3rd arg to make-vector, type=func field for all vectors
- *     but both vector blocks are full (data and optional vdims) -- use a type bit+vector_getter
- *   s7test subvector of byte-vector, implicit/multi refs etc
+ *   for this, type=func field for all vectors -- use a type bit+vector_setter
+ *   object->let for type, vector-element-type? = car(sig)
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
+ * maybe move the 3 func* args in c_proc_t to c_proc_star_t? need T_Fstar? is opts field in use?
+ *   or reuse these for vector gc-mark etc? symbol-name/marker/equality/circle-safety(collect/map etc)/sort/print/hash
  */
 
 /* ------------------------------------------------------------------------------------------

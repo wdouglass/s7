@@ -1963,6 +1963,8 @@ s7_ints, s7_doubles, or unsigned bytes.
 </p>
 
 <pre class="indented">
+(<em class=def id="makevector">make-vector</em> length-or-list-of-dimensions initial-value element-type-function)
+
 (<em class=def>float-vector?</em> obj)
 (<em class=def>float-vector</em> . args)
 (<em class=def>make-float-vector</em> len (init 0.0))
@@ -1980,6 +1982,7 @@ s7_ints, s7_doubles, or unsigned bytes.
 (<em class=def id="makebytevector">make-byte-vector</em> len (init 0))
 (<em class=def id="bytevectorref">byte-vector-ref</em> obj . indices)
 (<em class=def id="bytevectorset">byte-vector-set!</em> obj indices[...] byte)
+(<em class=def id="bytep">byte?</em> obj)
 
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
@@ -1990,6 +1993,13 @@ s7_ints, s7_doubles, or unsigned bytes.
 (<em class=def id="subvectorposition">subvector-position</em> obj)
 </pre>
 
+<p>In addition to the dimension list mentioned above, make-vector accepts
+optional arguments giving the initial element and the element type. If the
+type is given, every attempt to set an element of the vector first calls
+the type function on the new value.  Currently, the type function can only be a built-in
+type checking function such as integer? or symbol?.  If omitted (or set to #t),
+no type checking is performed.
+</p>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
 <code>(subvector original-vector new-dimensions (position 0))</code>:
@@ -5439,9 +5449,8 @@ int main(int argc, char **argv)
 <li>set! and *-set! return the new value (modulo setter), not #&lt;unspecified&gt;.
 <li>define and its friends return the new value.
 <li>port-closed? 
-<li>list? means "pair or null", proper-list? is r5rs list?, float? = real and not rational, sequence? = length, byte?.
+<li>list? means "pair or null", proper-list? is r5rs list?, float? = real and not rational, sequence? = length, byte? = unsigned byte.
 <!-- a vector can be a member of itself, and yet vector? returns #t, why is list? different; we even call it a circular list! -->
-<!-- <li>current-input-port, current-output-port, and current-error-port have setters (but I may remove these) -->
 <li>the default IO ports are named *stdin*, *stdout*, and *stderr*.
 <li>#f as an output port means nothing is output (#f is /dev/null, I guess).
 <li>member and assoc accept an optional third argument, the comparison function (equal? is the default).
