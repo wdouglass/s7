@@ -607,10 +607,19 @@ typedef struct {
   uint32_t id;
   char *doc;
   block_t *block;
-  s7_pointer generic_ff, setter, signature, call_args;
+  opt_funcs *opt_data; /* vunion-functions (see below) not optlists */
+  s7_pointer generic_ff, setter, signature;
   s7_pointer (*chooser)(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops);
-  s7_pointer *arg_defaults, *arg_names;  /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
-  opt_funcs *opt_data;
+  /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
+  s7_pointer *arg_defaults;  
+  union {
+    s7_pointer *arg_names;
+    s7_pointer c_sym;
+  } sam;
+  union {
+    s7_pointer call_args;
+    void (*marker)(s7_pointer p, s7_int len);
+  } cam;
 } c_proc_t;
 
 
@@ -1879,7 +1888,7 @@ static void init_types(void)
   #define T_Fvc(P) check_ref(P, T_FLOAT_VECTOR,      __func__, __LINE__, "sweep", NULL)
   #define T_Ivc(P) check_ref(P, T_INT_VECTOR,        __func__, __LINE__, "sweep", NULL)
   #define T_Sym(P) check_ref(P, T_SYMBOL,            __func__, __LINE__, "sweep", "remove_gensym_from_symbol_table")
-  #define T_Fst(P) check_ref(P, T_C_FUNCTION_STAR,   __func__, __LINE__, "sweep", NULL) /* c_function* */
+  #define T_Fst(P) check_ref(P, T_C_FUNCTION_STAR,   __func__, __LINE__, "sweep", NULL)
   #define T_Exp(P) check_ref2(P, T_MACRO, T_SYMBOL,  __func__, __LINE__, NULL, NULL)
   #define T_Prt(P) check_ref3(P,                     __func__, __LINE__) /* input|output_port, or free */
   #define T_Vec(P) check_ref4(P,                     __func__, __LINE__) /* any vector or free */
@@ -2935,9 +2944,14 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define c_function_chooser(f)         c_function_data(f)->chooser
 #define c_function_base(f)            T_App(c_function_data(f)->generic_ff)
 #define c_function_set_base(f, Val)   c_function_data(f)->generic_ff = T_App(Val)
+#define c_function_marker(f)          c_function_data(f)->cam.marker
+#define c_function_set_marker(f, Val) c_function_data(f)->cam.marker = Val
+#define c_function_symbol(f)          c_function_data(f)->sam.c_sym
+
 #define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->arg_defaults
-#define c_function_call_args(f)       c_function_data(T_Fst(f))->call_args
-#define c_function_arg_names(f)       c_function_data(T_Fst(f))->arg_names
+#define c_function_call_args(f)       c_function_data(T_Fst(f))->cam.call_args
+#define c_function_arg_names(f)       c_function_data(T_Fst(f))->sam.arg_names
+
 #define set_c_function(X, f)          do {set_opt_cfunc(X, f); set_c_call(X, c_function_call(f));} while (0)
 #define c_function_opt_data(f)        c_function_data(f)->opt_data
 
@@ -3546,7 +3560,7 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr);
 static void pc_fallback(s7_scheme *sc, int32_t new_pc);
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
-static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
+static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
 
 #if WITH_GMP
 static s7_int big_integer_to_s7_int(mpz_t n);
@@ -5000,6 +5014,20 @@ static void add_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
   sc->setters[sc->setters_loc++] = permanent_cons(sc, p, setter, T_PAIR | T_IMMUTABLE);
 }
 
+static void mark_symbol_vector(s7_pointer p, s7_int len)
+{
+  set_mark(p);
+  if (mark_function[T_SYMBOL] != mark_noop) /* else no gensyms */
+    {
+      s7_int i;
+      s7_pointer *e;
+      e = vector_elements(p);
+      for (i = 0; i < len; i++)
+	if (is_gensym(e[i]))
+	  set_mark(e[i]);
+    }
+}
+
 static void mark_vector_1(s7_pointer p, s7_int top)
 {
   s7_pointer *tp, *tend, *tend4;
@@ -5140,7 +5168,9 @@ static void mark_continuation(s7_pointer p)
 
 static void mark_vector(s7_pointer p)
 {
-  mark_vector_1(p, vector_length(p));
+  if (is_typed_vector(p))
+    c_function_marker(typed_vector_typer(p))(p, vector_length(p));
+  else mark_vector_1(p, vector_length(p));
 }
 
 static void mark_vector_possibly_shared(s7_pointer p)
@@ -18096,10 +18126,10 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
     case T_PAIR:         return(make_boolean(sc, s7_list_length(sc, val) == ilen));
     case T_NIL:          return(make_boolean(sc, ilen == 0));
     case T_STRING:       return(make_boolean(sc, string_length(val) == ilen));
-    case T_BYTE_VECTOR:  return(make_boolean(sc, byte_vector_length(val) == ilen));
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) == ilen));
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) == ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) == ilen));
+    case T_BYTE_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) == ilen));
@@ -19025,10 +19055,10 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
     case T_PAIR:         return(make_boolean(sc, s7_list_length(sc, val) < ilen));
     case T_NIL:          return(make_boolean(sc, ilen > 0));
     case T_STRING:       return(make_boolean(sc, string_length(val) < ilen));
-    case T_BYTE_VECTOR:  return(make_boolean(sc, byte_vector_length(val) < ilen));
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) < ilen)); /* was <=? -- changed 15-Dec-15, then again 6-Jan-17: mask is len-1 */
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) < ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) < ilen));  /* this works because let_length handles the length method itself! */
+    case T_BYTE_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) < ilen));
@@ -35282,7 +35312,6 @@ static s7_pointer g_byte_vector_to_string(s7_scheme *sc, s7_pointer args)
   return(s7_copy_1(sc, sc->byte_vector_to_string_symbol, set_plist_2(sc, v, make_empty_string(sc, byte_vector_length(v), 0))));
 }
 
-
 static s7_pointer byte_vector_to_list(s7_scheme *sc, const uint8_t *str, s7_int len)
 {
   s7_int i;
@@ -35308,11 +35337,17 @@ static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int lo
   return(val);
 }
 
-static s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
+static inline s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
-  if (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F)
+  /* use sc->typed_vset? */
+  if (sc->safety == 0)
     vector_element(vec, loc) = val;
-  else s7_wrong_type_arg_error(sc, "vector_set!", 3, val, "a value that satisfies the type function");
+  else
+    {
+      if (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F)
+	vector_element(vec, loc) = val;
+      else s7_wrong_type_arg_error(sc, "vector_set!", 3, val, "a value that satisfies the type function");
+    }
   return(val);
 }
 
@@ -35356,7 +35391,7 @@ static inline block_t *mallocate_vector(s7_scheme *sc, s7_int len)
   return(b);
 }
 
-static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
+static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
 {
   s7_pointer x;
   block_t *b;
@@ -35372,7 +35407,7 @@ static s7_pointer make_simple_vector(s7_scheme *sc, s7_int len) /* len >= 0 and 
   return(x);
 }
 
-static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
+static inline s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
 {
   s7_pointer x;
   block_t *b;
@@ -35388,7 +35423,7 @@ static s7_pointer make_simple_float_vector(s7_scheme *sc, s7_int len) /* len >= 
   return(x);
 }
 
-static s7_pointer make_simple_int_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
+static inline s7_pointer make_simple_int_vector(s7_scheme *sc, s7_int len) /* len >= 0 and < max */
 {
   s7_pointer x;
   block_t *b;
@@ -36731,19 +36766,28 @@ static s7_pointer vector_set_p_pip(s7_scheme *sc, s7_pointer v, s7_int i, s7_poi
 static s7_pointer vector_set_p_pip_direct(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {
   if ((i >= 0) && (i < vector_length(v)))
-    {
-      if (!is_typed_vector(v))
-	vector_element(v, i) = p;
-      else typed_vector_setter(sc, v, i, p);
-    }
+    vector_element(v, i) = p;
+  else out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
+  return(p);
+}
+
+static s7_pointer typed_vector_set_p_pip_direct(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
+{
+  if ((i >= 0) && (i < vector_length(v)))
+    typed_vector_setter(sc, v, i, p);
   else out_of_range(sc, sc->vector_set_symbol, small_int(2), wrap_integer1(sc, i), (i < 0) ? its_negative_string : its_too_large_string);
   return(p);
 }
 
 static s7_pointer vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
 {  
-  /* typed-vectors are filtered out */
   vector_element(v, i) = p;
+  return(p);
+}
+
+static s7_pointer typed_vector_set_unchecked(s7_scheme *sc, s7_pointer v, s7_int i, s7_pointer p) 
+{  
+  typed_vector_setter(sc, v, i, p);
   return(p);
 }
 
@@ -36911,7 +36955,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
       if (!is_c_function(typf))
 	return(wrong_type_argument_with_type(sc, err_sym, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
       if (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F)
-	return(wrong_type_argument_with_type(sc, err_sym, 2, fill, wrap_string(sc, "initial value doesn't satisfy type function", 43)));
+	return(wrong_type_argument_with_type(sc, err_sym, 2, fill, wrap_string(sc, "something that satisfies the type function", 43)));
     }
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
   s7_vector_fill(sc, vec, fill); /* check type of fill even if len == 0 */
@@ -36921,12 +36965,10 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
     {
       set_typed_vector(vec);
       typed_vector_typer(vec) = typf;
+      c_function_set_marker(typf, mark_vector_1); /* just temporary... should be set at init time */
 
-      /* vector_setter callers need to use typed_vector_setter if is_typed_vector:
-       *   copy not ready -- any others? fill! -- added checks not tested yet
-       * for gc mark/copy etc we need access to the element type -- via func->type table I guess (also sort! if string etc)
-       * check let-temp vector element -- ought to be set_pair
-       */
+      if (c_function_call(typf) == g_is_symbol)
+	c_function_marker(typf) = mark_symbol_vector;
     }
 
   if ((is_pair(x)) &&
@@ -40501,7 +40543,6 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
   return(e);
 }
 
-
 s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc,
 			      s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
@@ -40511,7 +40552,6 @@ s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc,
   s7_define(sc, sc->nil, sym, func);
   return(sym);
 }
-
 
 s7_pointer s7_define_safe_function(s7_scheme *sc, const char *name, s7_function fnc,
 				   s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
@@ -40523,7 +40563,6 @@ s7_pointer s7_define_safe_function(s7_scheme *sc, const char *name, s7_function 
   s7_define(sc, sc->nil, sym, func);
   return(sym);
 }
-
 
 s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function fnc,
 				    s7_int required_args, s7_int optional_args, bool rest_arg, 
@@ -40537,6 +40576,19 @@ s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function
   return(sym);
 }
 
+static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_function fnc,
+				       s7_int required_args, s7_int optional_args, bool rest_arg, 
+				       const char *doc, s7_pointer signature, int32_t sym_to_type)
+{
+  s7_pointer func, sym;
+  func = s7_make_typed_function(sc, name, fnc, required_args, optional_args, rest_arg, doc, signature);
+  sym = make_symbol(sc, name);
+  s7_define(sc, sc->nil, sym, func);
+  if (sym_to_type != T_FREE)
+    symbol_set_type(sym, sym_to_type);
+  c_function_symbol(func) = sym;
+  return(sym);
+}
 
 s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_function fnc,
 					   s7_int required_args, s7_int optional_args, bool rest_arg, 
@@ -40841,7 +40893,7 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_VECTOR:
       if (!is_typed_vector(p))
 	return(sc->vector_signature);
-      return(s7_make_circular_signature(sc, 2, 3, s7_make_symbol(sc, c_function_name(typed_vector_typer(p))), sc->is_vector_symbol, sc->is_integer_symbol));
+      return(s7_make_circular_signature(sc, 2, 3, c_function_symbol(typed_vector_typer(p)), sc->is_vector_symbol, sc->is_integer_symbol));
 
     case T_HASH_TABLE:   return(sc->hash_table_signature);
     case T_FLOAT_VECTOR: return(sc->float_vector_signature);
@@ -43614,7 +43666,12 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  }
 
 	case T_VECTOR:
-	  memcpy((void *)(vector_elements(dest)), (void *)((vector_elements(source)) + start), source_len * sizeof(s7_pointer));
+	  if (is_typed_vector(dest))
+	    {
+	      for (i = start, j = 0; i < end; i++, j++)
+		typed_vector_setter(sc, dest, j, get(sc, source, i));
+	    }
+	  else memcpy((void *)(vector_elements(dest)), (void *)((vector_elements(source)) + start), source_len * sizeof(s7_pointer));
 	  return(dest);
 
 	case T_INT_VECTOR:
@@ -43625,16 +43682,16 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  memcpy((void *)(float_vector_floats(dest)), (void *)((float_vector_floats(source)) + start), source_len * sizeof(s7_double));
 	  return(dest);
 
-	case T_STRING:
-	  if (is_string(dest))
-	    memcpy((void *)string_value(dest), (void *)((string_value(source)) + start), source_len * sizeof(char));
-	  else memcpy((void *)byte_vector_bytes(dest), (void *)((string_value(source)) + start), source_len * sizeof(char));
-	  return(dest);
-
 	case T_BYTE_VECTOR:
 	  if (is_string(dest))
 	    memcpy((void *)string_value(dest), (void *)((byte_vector_bytes(source)) + start), source_len * sizeof(uint8_t));
 	  else memcpy((void *)byte_vector_bytes(dest), (void *)((byte_vector_bytes(source)) + start), source_len * sizeof(uint8_t));
+	  return(dest);
+
+	case T_STRING:
+	  if (is_string(dest))
+	    memcpy((void *)string_value(dest), (void *)((string_value(source)) + start), source_len * sizeof(char));
+	  else memcpy((void *)byte_vector_bytes(dest), (void *)((string_value(source)) + start), source_len * sizeof(char));
 	  return(dest);
 
 	case T_C_OBJECT:
@@ -43877,7 +43934,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      dst[j] = (s7_int)(src[i]);
 	    return(dest);
 	  }
-	if (is_normal_vector(dest))
+	if ((is_normal_vector(dest)) && (!is_typed_vector(dest)))
 	  {
 	    s7_pointer *dst;
 	    dst = vector_elements(dest);
@@ -43900,7 +43957,10 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      dst[j] = (s7_double)(src[i]);
 	    return(dest);
 	  }
-	if (is_normal_vector(dest))
+	if ((is_normal_vector(dest)) && (!is_typed_vector(dest))) 
+	  /* this could check that the typer is integer? (similarly elsewhere):
+	   *   (typed_vector_typer(dest) != slot_value(global_slot(sc->is_integer_symbol))) ?
+	   */
 	  {
 	    s7_pointer *dst;
 	    dst = vector_elements(dest);
@@ -43932,7 +43992,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_BYTE_VECTOR:
-      if (is_normal_vector(dest))
+      if ((is_normal_vector(dest)) && (!is_typed_vector(dest)))
 	{
 	  s7_pointer *dst;
 	  dst = vector_elements(dest);
@@ -43959,7 +44019,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_STRING:
-      if (is_normal_vector(dest))
+      if ((is_normal_vector(dest))  && (!is_typed_vector(dest)))
 	{
 	  s7_pointer *dst;
 	  dst = vector_elements(dest);
@@ -44896,11 +44956,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 			   sc->type_symbol, sc->is_string_symbol,
 			   sc->length_symbol, s7_length(sc, obj)));
       
-    case T_BYTE_VECTOR:
-      return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
-			   sc->type_symbol, sc->is_byte_vector_symbol,
-			   sc->length_symbol, s7_length(sc, obj)));
-      
     case T_PAIR:
       return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
 			   sc->type_symbol, sc->is_pair_symbol,
@@ -44933,6 +44988,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
+    case T_BYTE_VECTOR:
     case T_VECTOR:
       {
 	s7_pointer let;
@@ -44949,6 +45005,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    s7_varlet(sc, let, sc->position_symbol, make_integer(sc, (s7_int)(vector_elements(obj) - vector_elements(subvector_vector(obj)))));
 	    s7_varlet(sc, let, sc->vector_symbol, subvector_vector(obj));
 	  }
+	if (is_typed_vector(obj))
+	  s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
 	return(let);
       }
 
@@ -50316,15 +50374,16 @@ static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o
 #define OO_L 11
 #define OO_E 12
 #define OO_AV 13
+#define OO_TV 14
 
 #if 0
-static const char *oo_types[14] = {"OO_P", "OO_I", "OO_D", "OO_V", "OO_IV", "OO_FV", "OO_PV", "OO_R", "OO_H", "OO_S", "OO_BV", "OO_L", "OO_E", "OO_AV"};
+static const char *oo_types[15] = {"OO_P", "OO_I", "OO_D", "OO_V", "OO_IV", "OO_FV", "OO_PV", "OO_R", "OO_H", "OO_S", "OO_BV", "OO_L", "OO_E", "OO_AV", "OO_TV"};
 #endif
 
-static const s7_int oo_to_s7[14] = {-1, 1LL << T_INTEGER, 1LL << T_REAL, 1LL << T_C_OBJECT, 1LL << T_INT_VECTOR, 
+static const s7_int oo_to_s7[15] = {-1, 1LL << T_INTEGER, 1LL << T_REAL, 1LL << T_C_OBJECT, 1LL << T_INT_VECTOR, 
 				    1LL << T_FLOAT_VECTOR, 1LL << T_VECTOR, (1LL << T_REAL) + (1LL << T_RATIO) + (1LL << T_INTEGER), 
 				    1LL << T_HASH_TABLE, 1LL << T_STRING, 1LL << T_BYTE_VECTOR, 1LL << T_PAIR, 1LL << T_LET, 
-				    (1LL << T_VECTOR) + (1LL << T_INT_VECTOR) + (1LL << T_FLOAT_VECTOR)};
+				    (1LL << T_VECTOR) + (1LL << T_INT_VECTOR) + (1LL << T_FLOAT_VECTOR), 1LL << T_VECTOR};
 #if S7_DEBUGGING
 #define oo_func(p) p->func
 #define oo_line(p) p->line
@@ -50352,6 +50411,14 @@ static bool check_slot_type(s7_scheme *sc, s7_pointer slot, opt_info *o, int32_t
 	      oo_func(o), oo_line(o), func, line,
 	      symbol_name(slot_symbol(slot)), oo_to_type_name[recorded_val_type],
 	      DISPLAY(g_type_of(sc, set_plist_1(sc, val))));
+#endif
+      return(false);
+    }
+  if (((recorded_val_type == OO_TV) && (!is_typed_vector(val))) ||
+      ((recorded_val_type == OO_PV) && (is_typed_vector(val))))
+    {
+#if OPT_DEBUGGING
+      fprintf(stderr, "typed vector mismatch\n");
 #endif
       return(false);
     }
@@ -56768,24 +56835,31 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	  (checker))
 	{
 	  obj = slot_value(opc->v[1].p);
-	  if (((is_normal_vector(obj)) && (checker == sc->is_vector_symbol)) || /* watch out for (vector-set! float-vect i x) etc */
-	      ((is_pair(obj)) && (checker == sc->is_pair_symbol)))
-	    opc->v[3].p_pip_f = s7_p_pip_direct_function(s_func);
+	  if ((is_normal_vector(obj)) && (checker == sc->is_vector_symbol))
+	    {
+	      if (is_typed_vector(obj))
+		opc->v[3].p_pip_f = typed_vector_set_p_pip_direct;
+	      else opc->v[3].p_pip_f = vector_set_p_pip_direct;
+	    }
 	  else
 	    {
-	      s7_pointer val_type;
-	      val_type = opt_arg_type(sc, cdddr(car_x));
-	      if (val_type == cadddr(sig))
+	      if ((is_pair(obj)) && (checker == sc->is_pair_symbol))
+		opc->v[3].p_pip_f = s7_p_pip_direct_function(s_func);
+	      else
 		{
-		  if (((is_string(obj)) && (checker == sc->is_string_symbol)) ||
-		      ((is_float_vector(obj)) && (checker == sc->is_float_vector_symbol)) ||
-		      ((is_int_vector(obj)) && (checker == sc->is_int_vector_symbol)) ||
-		      ((is_byte_vector(obj)) && (checker == sc->is_byte_vector_symbol)))
-		    opc->v[3].p_pip_f = s7_p_pip_direct_function(s_func);
+		  s7_pointer val_type;
+		  val_type = opt_arg_type(sc, cdddr(car_x));
+		  if (val_type == cadddr(sig))
+		    {
+		      if (((is_string(obj)) && (checker == sc->is_string_symbol)) ||
+			  ((is_float_vector(obj)) && (checker == sc->is_float_vector_symbol)) ||
+			  ((is_int_vector(obj)) && (checker == sc->is_int_vector_symbol)) ||
+			  ((is_byte_vector(obj)) && (checker == sc->is_byte_vector_symbol)))
+			opc->v[3].p_pip_f = s7_p_pip_direct_function(s_func);
+		    }
 		}
 	    }
 	}
-      
       if (is_symbol(caddr(car_x)))
 	{
 	  s7_pointer slot2;
@@ -56802,12 +56876,9 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		switch (type(obj))
 		  {
 		  case T_VECTOR:
-		    if ((!is_typed_vector(obj)) &&
-			(denominator(slot_value(slot2)) <= vector_length(obj)))
-		      {
-			opc->v[3].p_pip_f = vector_set_unchecked; 
-			op2 = OO_PV;
-		      }
+		    op2 = (is_typed_vector(obj)) ? OO_TV : OO_PV;
+		    if (denominator(slot_value(slot2)) <= vector_length(obj))
+		      opc->v[3].p_pip_f = (is_typed_vector(obj)) ? typed_vector_set_unchecked : vector_set_unchecked;
 		    break;
 
 		  case T_INT_VECTOR:
@@ -56891,7 +56962,9 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	      (cell_optimize(sc, cdddr(car_x))))
 	    {
 	      opc->v[0].fp = opt_p_pip_sff;
-	      oo_set_type_1(opc, 4, 1, OO_P);
+	      if ((obj) && (is_normal_vector(obj)))
+		oo_set_type_1(opc, 4, 1, (is_typed_vector(obj)) ? OO_TV : OO_PV);
+	      else oo_set_type_1(opc, 4, 1, OO_P);
 	      oo_check(sc, opc);
 	      return(true);
 	    }
@@ -57280,8 +57353,6 @@ static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
 		case T_STRING:     opc->v[3].p_pi_f = string_ref_p_pi_direct;  op2 = OO_S; break;
 
 		case T_BYTE_VECTOR:
-		  return(return_false(sc, car_x, __func__, __LINE__));
-
 		case T_VECTOR:
 		case T_INT_VECTOR:
 		case T_FLOAT_VECTOR:
@@ -57790,8 +57861,16 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 		      return(return_false(sc, car_x, __func__, __LINE__));
 
 		    case T_VECTOR:
-		      op2 = OO_PV;
-		      opc->v[3].p_pip_f = vector_set_p_pip_direct;
+		      if (is_typed_vector(obj))
+			{
+			  op2 = OO_TV;
+			  opc->v[3].p_pip_f = typed_vector_set_p_pip_direct;
+			}
+		      else
+			{
+			  op2 = OO_PV;
+			  opc->v[3].p_pip_f = vector_set_p_pip_direct;
+			}
 		      break;
 
 		    case T_FLOAT_VECTOR:     
@@ -57877,11 +57956,18 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x)
 				      if (s7_is_vector(obj)) /* true for all 3 vectors */
 					{
 					  if ((s7_is_vector(obj)) &&
-					      (!is_typed_vector(obj)) &&
 					      (denominator(slot_value(opc->v[2].p)) <= vector_length(obj)))
 					    {
-					      opc->v[3].p_pip_f = vector_set_unchecked;
-					      op2 = OO_AV;
+					      if ((is_normal_vector(obj)) && (is_typed_vector(obj)))
+						{
+						  opc->v[3].p_pip_f = typed_vector_set_unchecked;
+						  op2 = OO_TV;
+						}
+					      else
+						{
+						  opc->v[3].p_pip_f = vector_set_unchecked;
+						  op2 = OO_AV; /* AV=any vector */
+						}
 					    }
 					}
 				    }
@@ -71060,7 +71146,11 @@ static bool op_cond_fx_1p_else(s7_scheme *sc)
   sc->value = c_call(car(p))(sc, caar(p));
   if (is_true(sc, sc->value))
     sc->code = T_Lst(cdar(p));
-  else sc->code = cdadr(p);
+  else 
+    {
+      sc->code = cdadr(p);
+      sc->value = sc->else_symbol;
+    }
   if (is_null(sc->code))
     return(true);
   sc->code = car(sc->code);
@@ -71085,7 +71175,11 @@ static bool op_cond_fx_2p_else(s7_scheme *sc)
       sc->value = c_call(car(p))(sc, caar(p));
       if (is_true(sc, sc->value))
 	sc->code = T_Lst(cdar(p));
-      else sc->code = cdadr(p);
+      else 
+	{
+	  sc->code = cdadr(p);
+	  sc->value = sc->else_symbol; /* in case (else) */
+	}
     }
   if (is_null(sc->code))
     return(true);
@@ -87235,52 +87329,53 @@ s7_scheme *s7_init(void)
 
   #define defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
   #define unsafe_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_unsafe_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
+  #define b_defun(Scheme_Name, C_Name, Opt, SymId) define_bool_function(sc, Scheme_Name, g_ ## C_Name, 1, Opt, false, H_ ## C_Name, Q_ ## C_Name, SymId)
 
   /* we need the sc->is_* symbols first for the procedure signature lists */
   sc->is_boolean_symbol = make_symbol(sc, "boolean?");
   sc->pl_bt = s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->T);
 
-  sc->is_symbol_symbol =             defun("symbol?",		is_symbol,		1, 0, false); symbol_set_type(sc->is_symbol_symbol,       T_SYMBOL);
-  sc->is_syntax_symbol =             defun("syntax?",		is_syntax,		1, 0, false); symbol_set_type(sc->is_syntax_symbol,       T_SYNTAX);
-  sc->is_gensym_symbol =             defun("gensym?",		is_gensym,		1, 0, false); 
-  sc->is_keyword_symbol =            defun("keyword?",		is_keyword,		1, 0, false);
-  sc->is_let_symbol =                defun("let?",		is_let,			1, 0, false); symbol_set_type(sc->is_let_symbol,          T_LET);
-  sc->is_openlet_symbol =            defun("openlet?",		is_openlet,		1, 0, false); 
-  sc->is_iterator_symbol =           defun("iterator?",	        is_iterator,		1, 0, false); symbol_set_type(sc->is_iterator_symbol,     T_ITERATOR);
-  sc->is_macro_symbol =              defun("macro?",		is_macro,		1, 0, false);
-  sc->is_c_pointer_symbol =          defun("c-pointer?",	is_c_pointer,		1, 1, false); symbol_set_type(sc->is_c_pointer_symbol,    T_C_POINTER);
-  sc->is_input_port_symbol =         defun("input-port?",	is_input_port,		1, 0, false); symbol_set_type(sc->is_input_port_symbol,   T_INPUT_PORT);
-  sc->is_output_port_symbol =        defun("output-port?",	is_output_port,		1, 0, false); symbol_set_type(sc->is_output_port_symbol,  T_OUTPUT_PORT);
-  sc->is_eof_object_symbol =         defun("eof-object?",	is_eof_object,		1, 0, false); symbol_set_type(sc->is_eof_object_symbol,   T_EOF_OBJECT);
-  sc->is_integer_symbol =            defun("integer?",		is_integer,		1, 0, false); /* can this be T_INTEGER if not gmp? */
-  sc->is_byte_symbol =               defun("byte?",		is_byte,		1, 0, false); 
-  sc->is_number_symbol =             defun("number?",		is_number,		1, 0, false);
-  sc->is_real_symbol =               defun("real?",		is_real,		1, 0, false);
-  sc->is_float_symbol =              defun("float?",            is_float,               1, 0, false);
-  sc->is_complex_symbol =            defun("complex?",		is_complex,		1, 0, false);
-  sc->is_rational_symbol =           defun("rational?",	        is_rational,		1, 0, false);
-  sc->is_random_state_symbol =       defun("random-state?",	is_random_state,	1, 0, false); symbol_set_type(sc->is_random_state_symbol, T_RANDOM_STATE);
-  sc->is_char_symbol =               defun("char?",		is_char,		1, 0, false); symbol_set_type(sc->is_char_symbol,         T_CHARACTER);
-  sc->is_string_symbol =             defun("string?",		is_string,		1, 0, false); symbol_set_type(sc->is_string_symbol,       T_STRING);
-  sc->is_list_symbol =               defun("list?",		is_list,		1, 0, false);
-  sc->is_pair_symbol =               defun("pair?",		is_pair,		1, 0, false); symbol_set_type(sc->is_pair_symbol,         T_PAIR);
-  sc->is_vector_symbol =             defun("vector?",		is_vector,		1, 0, false); 
-  sc->is_float_vector_symbol =       defun("float-vector?",	is_float_vector,	1, 0, false); symbol_set_type(sc->is_float_vector_symbol, T_FLOAT_VECTOR);
-  sc->is_int_vector_symbol =         defun("int-vector?",	is_int_vector,		1, 0, false); symbol_set_type(sc->is_int_vector_symbol,   T_INT_VECTOR);
-  sc->is_byte_vector_symbol =        defun("byte-vector?",	is_byte_vector,		1, 0, false);
-  sc->is_hash_table_symbol =         defun("hash-table?",	is_hash_table,		1, 0, false); symbol_set_type(sc->is_hash_table_symbol,   T_HASH_TABLE);
-  sc->is_continuation_symbol =       defun("continuation?",	is_continuation,	1, 0, false); symbol_set_type(sc->is_continuation_symbol, T_CONTINUATION);
-  sc->is_procedure_symbol =          defun("procedure?",	is_procedure,		1, 0, false);
-  sc->is_dilambda_symbol =           defun("dilambda?",	        is_dilambda,		1, 0, false);
-  /* set above */                    defun("boolean?",		is_boolean,		1, 0, false); symbol_set_type(sc->is_boolean_symbol,      T_BOOLEAN);
-  sc->is_proper_list_symbol =        defun("proper-list?",      is_proper_list,         1, 0, false);
-  sc->is_sequence_symbol =           defun("sequence?",	        is_sequence,		1, 0, false);
-  sc->is_null_symbol =               defun("null?",		is_null,		1, 0, false); symbol_set_type(sc->is_null_symbol,         T_NIL);
-  sc->is_undefined_symbol =          defun("undefined?",        is_undefined,           1, 0, false); symbol_set_type(sc->is_undefined_symbol,    T_UNDEFINED);
-  sc->is_unspecified_symbol =        defun("unspecified?",      is_unspecified,         1, 0, false); symbol_set_type(sc->is_unspecified_symbol,  T_UNSPECIFIED);
-  sc->is_c_object_symbol =           defun("c-object?",	        is_c_object,		1, 0, false); 
-  sc->is_subvector_symbol =          defun("subvector?",	is_subvector,		1, 0, false); 
-  sc->is_weak_hash_table_symbol =    defun("weak-hash-table?",	is_weak_hash_table,	1, 0, false); 
+  sc->is_symbol_symbol =          b_defun("symbol?",	      is_symbol,	  0, T_SYMBOL);
+  sc->is_syntax_symbol =          b_defun("syntax?",	      is_syntax,	  0, T_SYNTAX);
+  sc->is_gensym_symbol =          b_defun("gensym?",	      is_gensym,	  0, T_FREE); 
+  sc->is_keyword_symbol =         b_defun("keyword?",	      is_keyword,	  0, T_FREE);
+  sc->is_let_symbol =             b_defun("let?",	      is_let,		  0, T_LET);
+  sc->is_openlet_symbol =         b_defun("openlet?",	      is_openlet,	  0, T_FREE);
+  sc->is_iterator_symbol =        b_defun("iterator?",	      is_iterator,	  0, T_ITERATOR);
+  sc->is_macro_symbol =           b_defun("macro?",	      is_macro,		  0, T_FREE);
+  sc->is_c_pointer_symbol =       b_defun("c-pointer?",	      is_c_pointer,	  1, T_C_POINTER);
+  sc->is_input_port_symbol =      b_defun("input-port?",      is_input_port,	  0, T_INPUT_PORT);
+  sc->is_output_port_symbol =     b_defun("output-port?",     is_output_port,	  0, T_OUTPUT_PORT);
+  sc->is_eof_object_symbol =      b_defun("eof-object?",      is_eof_object,	  0, T_EOF_OBJECT);
+  sc->is_integer_symbol =         b_defun("integer?",	      is_integer,	  0, T_FREE); /* can this be T_INTEGER if not gmp? */
+  sc->is_byte_symbol =            b_defun("byte?",	      is_byte,		  0, T_FREE);
+  sc->is_number_symbol =          b_defun("number?",	      is_number,	  0, T_FREE);
+  sc->is_real_symbol =            b_defun("real?",	      is_real,		  0, T_FREE);
+  sc->is_float_symbol =           b_defun("float?",           is_float,           0, T_FREE);
+  sc->is_complex_symbol =         b_defun("complex?",	      is_complex,	  0, T_FREE);
+  sc->is_rational_symbol =        b_defun("rational?",	      is_rational,	  0, T_FREE);
+  sc->is_random_state_symbol =    b_defun("random-state?",    is_random_state,	  0, T_RANDOM_STATE);
+  sc->is_char_symbol =            b_defun("char?",	      is_char,		  0, T_CHARACTER);
+  sc->is_string_symbol =          b_defun("string?",	      is_string,	  0, T_STRING);
+  sc->is_list_symbol =            b_defun("list?",	      is_list,		  0, T_FREE);
+  sc->is_pair_symbol =            b_defun("pair?",	      is_pair,		  0, T_PAIR);
+  sc->is_vector_symbol =          b_defun("vector?",	      is_vector,	  0, T_FREE);
+  sc->is_float_vector_symbol =    b_defun("float-vector?",    is_float_vector,	  0, T_FLOAT_VECTOR);
+  sc->is_int_vector_symbol =      b_defun("int-vector?",      is_int_vector,	  0, T_INT_VECTOR);
+  sc->is_byte_vector_symbol =     b_defun("byte-vector?",     is_byte_vector,	  0, T_FREE);
+  sc->is_hash_table_symbol =      b_defun("hash-table?",      is_hash_table,      0, T_HASH_TABLE);
+  sc->is_continuation_symbol =    b_defun("continuation?",    is_continuation,	  0, T_CONTINUATION);
+  sc->is_procedure_symbol =       b_defun("procedure?",	      is_procedure,	  0, T_FREE);
+  sc->is_dilambda_symbol =        b_defun("dilambda?",	      is_dilambda,	  0, T_FREE);
+  /* set above */                 b_defun("boolean?",	      is_boolean,	  0, T_BOOLEAN);
+  sc->is_proper_list_symbol =     b_defun("proper-list?",     is_proper_list,     0, T_FREE);
+  sc->is_sequence_symbol =        b_defun("sequence?",	      is_sequence,	  0, T_FREE);
+  sc->is_null_symbol =            b_defun("null?",	      is_null,		  0, T_NIL);
+  sc->is_undefined_symbol =       b_defun("undefined?",       is_undefined,       0, T_UNDEFINED);
+  sc->is_unspecified_symbol =     b_defun("unspecified?",     is_unspecified,     0, T_UNSPECIFIED);
+  sc->is_c_object_symbol =        b_defun("c-object?",	      is_c_object,	  0, T_FREE);
+  sc->is_subvector_symbol =       b_defun("subvector?",	      is_subvector,	  0, T_FREE);
+  sc->is_weak_hash_table_symbol = b_defun("weak-hash-table?", is_weak_hash_table, 0, T_FREE);
 
   /* these are for signatures */
   sc->is_integer_or_real_at_end_symbol = s7_make_symbol(sc, "integer:real?");
@@ -88563,14 +88658,17 @@ int main(int argc, char **argv)
 /* typed-vector|hash-table, ratio/bit/byte=int+get/set restrictions, complex=real*2
  *   bit=boolean? type=closure->getter/setter localized, sig=(el-type int...) and similarly set-type
  *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
- *   vector-setter (*-setter) would be the element setter from scheme, use vset + bit? all need a bit to warn set!
  *   hash-table has room in block index+filler I think
- *   for this, type=func field for all vectors -- use a type bit+vector_setter
- *   object->let for type, vector-element-type? = car(sig)
+ *   c_proc_t for vector gc-mark symbol-name/equality/circle-safety(collect/map etc)/sort/print/hash
+ *      vector equal: eq if symbol (and does not have structure for collect_info -- another bit perhaps)
+ *      symbol_type(c_function_symbol(typed_vector_typer(vect))) is the type (might be T_FREE)
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
- * maybe move the 3 func* args in c_proc_t to c_proc_star_t? need T_Fstar? is opts field in use?
- *   or reuse these for vector gc-mark etc? symbol-name/marker/equality/circle-safety(collect/map etc)/sort/print/hash
+ * setter can give variable signature
+ * op_closure stored as opt2, called in CPP (no jump + switch to op)
+ *   [skip current goto EVAL] closure_is_ok, op_closure(sc) goto EVAL|BEGIN
+ *   in c_pp_1: same sequence: saves 2 eval/switch
+ * (non-recursive) macro template no-cons reusable
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88582,22 +88680,22 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------------
  * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   199
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
- * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   998
+ * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   997
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1037
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1264
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1290
  * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1672
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1885
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2188
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2294
- * tread         |      |      |      ||      ||      | 2398  2357  2363  2352
- * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2379
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1879
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2186
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2300
+ * tread         |      |      |      ||      ||      | 2398  2357  2363  2356
+ * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2371
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3129
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3127
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
- * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3948
+ * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3946
  * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5524
- * tset          |      |      |      ||      ||      |       10.0  6435  6389
- * dup           |      |      |      ||      ||      |       20.8  9525  7545
+ * tset          |      |      |      ||      ||      |       10.0  6435  6407
+ * dup           |      |      |      ||      ||      |       20.8  9525  7400
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
