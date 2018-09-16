@@ -2105,11 +2105,13 @@ in the underlying data.
 
 <div class="indented">
 
-<p>Multidimensional vector constant syntax is modelled after CL: #nd(...) or #nd(...) 
+<p>Multidimensional vector constant syntax is modelled after CL: #nd(...)
 signals that the lists specify the elements of an 'n' dimensional vector: <code>#2d((1 2 3) (4 5 6))</code>
 int-vector constants use #i, float-vectors use #r.  I wanted to use #f, but that is already taken.
-Append the "nD" business after the type indication: <code>#i2d((1 2) (3 4))</code>,
-or use <code>#2i((1 2) (3 4))</code> (I can't remember the first form).
+Append the "nd" business after the type indication: <code>#i2d((1 2) (3 4))</code>.  This syntax
+collides with r7rs's read-time byte-vector notation "#u8".  It's possible to disambiguate "#u82d", but
+it's hard to read, so s7 uses "#u(" for byte-vectors.  "#u2d(...)" is a two-dimensional byte-vector.
+For backwards compatibility, you can use "#u8(" for one-dimensional byte-vectors.
 </p>
 
 <pre class="indented">
@@ -8213,7 +8215,7 @@ at helpful documentation.
 
 <p>A multi-listener test program is the Snd file tools/gcall.c which
 is used by tools/gtest.scm for regression testing. One way to name unicode characters
-is: <code>(define-constant |lambda| #u8(#xce #xbb))</code>.  This can be embedded
+is: <code>(define-constant |lambda| #u(#xce #xbb))</code>.  This can be embedded
 in an ordinary s7 string with any string operation: <code>(string-append |lambda| "ambda")</code>
 which returns "&lambda;ambda".  (string-length will still return the number of bytes; to get
 the number of characters in a case like this, use g_utf8_strlen).

@@ -7757,7 +7757,7 @@
 		       (zero? (cadr form)))
 	      (if (pair? (cddr form))           ; (make-byte-vector 0 0)
 		  (lint-format "initial value is pointless here: ~A" caller form))
-	      (lint-format "perhaps ~A" caller (lists->string form (if (eq? head 'make-string) "" #u8())))))
+	      (lint-format "perhaps ~A" caller (lists->string form (if (eq? head 'make-string) "" #u())))))
 	  (for-each (lambda (f)
 		      (hash-special f sp-make-string))
 		    '(make-string make-byte-vector)))
@@ -22470,7 +22470,7 @@
 				       
 				       ((#\v) ; r6rs byte-vectors?
 					(if (string=? data "vu8")
-					    (format outport "~NCuse #u8 in s7, not #vu8~%" lint-left-margin #\space))
+					    (format outport "~NCuse #u in s7, not #vu8~%" lint-left-margin #\space))
 					(string->symbol data))
 				       
 				       ((#\>) ; for Chicken, apparently #>...<# encloses in-place C code
