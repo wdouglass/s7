@@ -611,7 +611,13 @@ typedef struct {
   s7_pointer generic_ff, setter, signature;
   s7_pointer (*chooser)(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops);
   /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
-  s7_pointer *arg_defaults;  
+  union {
+    s7_pointer *arg_defaults;  
+    struct {
+      bool simple;
+      int32_t unused;
+      } asdf;
+  } dam;
   union {
     s7_pointer *arg_names;
     s7_pointer c_sym;
@@ -1213,7 +1219,7 @@ struct s7_scheme {
              hash_table_entries_symbol, hash_table_ref_symbol, hash_table_set_symbol, hash_table_star_symbol, hash_table_symbol, help_symbol, 
              imag_part_symbol, immutable_symbol, inexact_to_exact_symbol, inlet_symbol, int_vector_ref_symbol, int_vector_set_symbol, int_vector_symbol,
              integer_decode_float_symbol, integer_to_char_symbol, is_aritable_symbol, is_boolean_symbol, is_byte_symbol, is_byte_vector_symbol,
-             is_c_object_symbol, is_c_pointer_symbol, is_char_alphabetic_symbol, is_char_lower_case_symbol, is_char_numeric_symbol,
+             is_c_object_symbol, c_object_type_symbol, is_c_pointer_symbol, is_char_alphabetic_symbol, is_char_lower_case_symbol, is_char_numeric_symbol,
              is_char_symbol, is_char_upper_case_symbol, is_char_whitespace_symbol, is_complex_symbol, is_constant_symbol,
              is_continuation_symbol, is_defined_symbol, is_dilambda_symbol, is_eof_object_symbol, is_eq_symbol, is_equal_symbol,
              is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_gensym_symbol, is_hash_table_symbol, is_immutable_symbol,
@@ -1324,7 +1330,7 @@ struct s7_scheme {
 #endif
   s7_pointer active_symbol, goto_symbol, data_symbol, weak_symbol, dimensions_symbol, info_symbol, c_type_symbol, source_symbol, c_object_ref_symbol,
              at_end_symbol, sequence_symbol, position_symbol, entries_symbol, locked_symbol, function_symbol, open_symbol, alias_symbol,port_type_symbol,
-             file_symbol, line_symbol, c_object_type_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, 
+             file_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, 
              c_object_copy_symbol, c_object_fill_symbol, c_object_reverse_symbol, c_object_to_list_symbol, c_object_to_string_symbol, closed_symbol;
 
 #if WITH_SYSTEM_EXTRAS
@@ -1887,6 +1893,7 @@ static void init_types(void)
   #define T_Con(P) check_ref(P, T_CONTINUATION,      __func__, __LINE__, "sweep", NULL)
   #define T_Fvc(P) check_ref(P, T_FLOAT_VECTOR,      __func__, __LINE__, "sweep", NULL)
   #define T_Ivc(P) check_ref(P, T_INT_VECTOR,        __func__, __LINE__, "sweep", NULL)
+  #define T_Nvc(P) check_ref(P, T_VECTOR,            __func__, __LINE__, "sweep", NULL)
   #define T_Sym(P) check_ref(P, T_SYMBOL,            __func__, __LINE__, "sweep", "remove_gensym_from_symbol_table")
   #define T_Fst(P) check_ref(P, T_C_FUNCTION_STAR,   __func__, __LINE__, "sweep", NULL)
   #define T_Exp(P) check_ref2(P, T_MACRO, T_SYMBOL,  __func__, __LINE__, NULL, NULL)
@@ -1931,6 +1938,7 @@ static void init_types(void)
   #define T_Prt(P)                    P
   #define T_Ivc(P)                    P
   #define T_Fvc(P)                    P
+  #define T_Nvc(P)                    P
   #define T_Vec(P)                    P
   #define T_Pair(P)                   P
   #define T_Ran(P)                    P
@@ -1976,7 +1984,7 @@ static void init_types(void)
 #define is_free(p)                    (type(p) == T_FREE)
 #define is_free_and_clear(p)          (typeflag(p) == T_FREE)
 #define is_simple(P)                  t_simple_p[type(P)]
-#define has_structure(P)              t_structure_p[type(P)]
+#define has_structure(P)              ((t_structure_p[type(P)]) && (!has_simple_elements(P)))
 
 #define is_any_macro(P)               t_any_macro_p[type(P)]
 #define is_any_closure(P)             t_any_closure_p[type(P)]
@@ -2390,8 +2398,11 @@ static void init_types(void)
 #define is_keyword(p)                 ((typeflag(T_Pos(p)) & T_KEYWORD) != 0)
 /* this bit distinguishes a symbol from a symbol that is also a keyword */
 
+#define T_SIMPLE_ELEMENTS             (1LL << (TYPE_BITS + BIT_ROOM + 32))
+#define has_simple_elements(p)        ((typeflag(T_Pos(p)) & T_SIMPLE_ELEMENTS) != 0)
+#define set_has_simple_elements(p)    typeflag(T_Nvc(p)) |= T_SIMPLE_ELEMENTS
 
-#define UNUSED_BITS                   0x3f00000000000000
+#define UNUSED_BITS                   0x3c00000000000000
 /* 39 lower bits, sign bit as gc-mark, 16 for opt info */
 
 #define T_GC_MARK                     0x8000000000000000
@@ -2948,8 +2959,10 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define c_function_marker(f)          c_function_data(f)->cam.marker
 #define c_function_set_marker(f, Val) c_function_data(f)->cam.marker = Val
 #define c_function_symbol(f)          c_function_data(f)->sam.c_sym
+#define c_function_has_simple_elements(f) c_function_data(f)->dam.asdf.simple
+#define c_function_set_has_simple_elements(f, Val) c_function_data(f)->dam.asdf.simple = Val
 
-#define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->arg_defaults
+#define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->dam.arg_defaults
 #define c_function_call_args(f)       c_function_data(T_Fst(f))->cam.call_args
 #define c_function_arg_names(f)       c_function_data(T_Fst(f))->sam.arg_names
 
@@ -3537,7 +3550,6 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, s7_int radix, bool want_symb
 static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args);
 static int32_t remember_file_name(s7_scheme *sc, const char *file);
 static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article);
-static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t typ);
 static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len);
 static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr);
 static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args);
@@ -5027,6 +5039,21 @@ static void mark_symbol_vector(s7_pointer p, s7_int len)
 	if (is_gensym(e[i]))
 	  set_mark(e[i]);
     }
+}
+
+static void mark_simple_vector(s7_pointer p, s7_int len)
+{
+  s7_int i;
+  s7_pointer *e;
+  set_mark(p);
+  e = vector_elements(p);
+  for (i = 0; i < len; i++)
+    set_mark(e[i]);
+}
+
+static void just_mark_vector(s7_pointer p, s7_int len)
+{
+  set_mark(p);
 }
 
 static void mark_vector_1(s7_pointer p, s7_int top)
@@ -19919,6 +19946,17 @@ static s7_pointer g_is_rational(s7_scheme *sc, s7_pointer args)
    */
 }
 
+static s7_pointer g_is_float(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_float "(float? x) returns #t is x is real and not rational."
+  #define Q_is_float sc->pl_bt
+  s7_pointer p;
+  p = car(args);
+  return(make_boolean(sc, is_float(p)));
+}
+
+static bool is_float_b(s7_pointer p) {return(is_float(p));}
+
 
 /* ---------------------------------------- even? odd?---------------------------------------- */
 
@@ -29063,12 +29101,12 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   uint8_t typ;
   char *buf;
 
-  buf = (char *)string_value(make_empty_string(sc, 512, '\0')); /* string here to free buf eventually */
+  buf = (char *)string_value(make_empty_string(sc, 1024, '\0')); /* string here to free buf eventually, gcc thinks 512 is too small */
   typ = unchecked_type(obj);
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 512, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 1024, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   optimize_op(obj), 
@@ -29188,6 +29226,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_CYCLIC_SET) != 0) ?     " cyclic-set" : "",
 	   /* bit 31+16 */
 	   ((full_typ & T_KEYWORD) != 0) ?        ((is_symbol(obj)) ? " keyword" : " ?31?") : "",
+	   ((full_typ & T_SIMPLE_ELEMENTS) != 0) ? " simple-elements" : "",
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
 	   /* bit 54 */
@@ -29206,6 +29245,7 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_SIMPLE_ELEMENTS) != 0) && (!is_normal_vector(obj))) return(true);
   if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
@@ -30774,6 +30814,9 @@ static inline void restore_format_port(s7_scheme *sc, s7_pointer strport)
   close_format_port(sc, strport);
 }
 
+
+/* -------------------------------- object->string -------------------------------- */
+
 s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /* unavoidable backwards compatibility rigidity here */
 {
   s7_pointer strport, res;
@@ -30791,8 +30834,6 @@ s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /*
   restore_format_port(sc, strport);
   return(res);
 }
-
-/* -------------------------------- object->string -------------------------------- */
 
 static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 {
@@ -33236,7 +33277,6 @@ static s7_pointer g_is_null(s7_scheme *sc, s7_pointer args)
   #define H_is_null "(null? obj) returns #t if obj is the empty list"
   #define Q_is_null sc->pl_bt
   check_boolean_method(sc, is_null, sc->is_null_symbol, args);
-  /* as a generic this could be: has_structure and length == 0 */
 }
 
 static s7_pointer g_is_pair(s7_scheme *sc, s7_pointer args)
@@ -33281,6 +33321,27 @@ static s7_pointer g_is_list(s7_scheme *sc, s7_pointer args)
   #define Q_is_list sc->pl_bt
   #define is_a_list(p) s7_is_list(sc, p)
   check_boolean_method(sc, is_a_list, sc->is_list_symbol, args);
+}
+
+
+static s7_pointer g_is_proper_list(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_proper_list "(proper-list? x) returns #t is x is a list that is neither circular nor dotted."
+  #define Q_is_proper_list sc->pl_bt
+  s7_pointer p;
+  p = car(args);
+  return(make_boolean(sc, s7_is_proper_list(sc, p)));
+}
+
+static bool is_proper_list_b_7p(s7_scheme *sc, s7_pointer p) {return(s7_is_proper_list(sc, p));}
+
+s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
+s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
+{
+  s7_int old_len;
+  old_len = sc->print_length;
+  sc->print_length = new_len;
+ return(old_len);
 }
 
 
@@ -35197,15 +35258,18 @@ static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int lo
   return(val);
 }
 
+static const char *make_type_name(s7_scheme *sc, const char *name, int32_t article);
+
 static inline s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
-  if (sc->safety == 0) /* or < 0?? */
+  if (sc->safety < 0) /* or == 0?? */
     vector_element(vec, loc) = val;
   else
     {
       if (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F)
 	vector_element(vec, loc) = val;
-      else s7_wrong_type_arg_error(sc, "vector_set!", 3, val, "a value that satisfies the type function");
+      else s7_wrong_type_arg_error(sc, "vector_set!", 3, val,
+				   make_type_name(sc, symbol_name(c_function_symbol(typed_vector_typer(vec))), INDEFINITE_ARTICLE));
     }
   return(val);
 }
@@ -35314,7 +35378,7 @@ static s7_pointer make_simple_byte_vector(s7_scheme *sc, s7_int len)
   return(x);
 }
 
-static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t typ)
+static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint8_t typ)
 {
   s7_pointer x;
 
@@ -35331,6 +35395,7 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint64_t
     {
       vector_block(x) = mallocate_vector(sc, 0);
       vector_elements(x) = NULL;
+      if (typ == T_VECTOR) set_has_simple_elements(x);
     }
   else
     {
@@ -35605,7 +35670,8 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 
 	if ((is_typed_vector(vec)) &&
 	    (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, obj)) == sc->F))
-	  s7_wrong_type_arg_error(sc, "vector fill!", 2, obj, "a value that satisfies the type function");
+	  s7_wrong_type_arg_error(sc, "vector fill!", 2, obj, 
+				  make_type_name(sc, symbol_name(c_function_symbol(typed_vector_typer(vec))), INDEFINITE_ARTICLE));
 
 	orig = vector_elements(vec);
 	while (i <= left)
@@ -35686,7 +35752,8 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
 	{
 	  if ((is_typed_vector(x)) &&
 	      (c_function_call(typed_vector_typer(x))(sc, set_plist_1(sc, fill)) == sc->F))
-	    s7_wrong_type_arg_error(sc, "vector fill!", 2, fill, "a value that satisfies the type function");
+	    s7_wrong_type_arg_error(sc, "vector fill!", 2, fill, 
+				    make_type_name(sc, symbol_name(c_function_symbol(typed_vector_typer(x))), INDEFINITE_ARTICLE));
 
 	  for (i = start; i < end; i++)
 	    vector_element(x, i) = fill;
@@ -36403,13 +36470,14 @@ a vector that points to the same elements as the original-vector but with differ
 
   if (is_normal_vector(orig))
     mark_function[T_VECTOR] = mark_vector_possibly_shared; 
-  else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; 
+  else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; /* I think this works for byte-vectors also */
 
   new_cell(sc, x, typeflag(orig) | T_SUBVECTOR | T_SAFE_PROCEDURE);
   vector_block(x) = mallocate_vector(sc, 0);
   vector_set_dimension_info(x, v);
   if (!v) subvector_set_vector(x, orig);
   vector_length(x) = new_len;                 /* might be less than original length */
+  if ((new_len == 0) && (is_normal_vector(orig))) set_has_simple_elements(x);
   vector_getter(x) = vector_getter(orig);
   vector_setter(x) = vector_setter(orig);
 
@@ -36914,10 +36982,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
     {
       set_typed_vector(vec);
       typed_vector_typer(vec) = typf;
-      c_function_set_marker(typf, mark_vector_1); /* just temporary... should be set at init time */
-
-      if (c_function_call(typf) == g_is_symbol)
-	c_function_marker(typf) = mark_symbol_vector;
+      if (c_function_has_simple_elements(typf)) 
+	set_has_simple_elements(vec);
     }
 
   if ((is_pair(x)) &&
@@ -40577,7 +40643,9 @@ s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function
 
 static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_function fnc,
 				       s7_int required_args, s7_int optional_args, bool rest_arg, 
-				       const char *doc, s7_pointer signature, int32_t sym_to_type)
+				       const char *doc, s7_pointer signature, int32_t sym_to_type, 
+				       void (*marker)(s7_pointer p, s7_int top),
+				       bool simple)
 {
   s7_pointer func, sym;
   func = s7_make_typed_function(sc, name, fnc, required_args, optional_args, rest_arg, doc, signature);
@@ -40586,6 +40654,8 @@ static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_funct
   if (sym_to_type != T_FREE)
     symbol_set_type(sym, sym_to_type);
   c_function_symbol(func) = sym;
+  c_function_set_marker(func, marker);
+  c_function_set_has_simple_elements(func, simple);
   return(sym);
 }
 
@@ -40890,16 +40960,17 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
       }
 
     case T_VECTOR:
+      if (vector_length(p) == 0) return(sc->F); /* sig () is #f so sig #() should be #f */
       if (!is_typed_vector(p))
 	return(sc->vector_signature);
       return(s7_make_circular_signature(sc, 2, 3, c_function_symbol(typed_vector_typer(p)), sc->is_vector_symbol, sc->is_integer_symbol));
 
-    case T_HASH_TABLE:   return(sc->hash_table_signature);
-    case T_FLOAT_VECTOR: return(sc->float_vector_signature);
-    case T_INT_VECTOR:   return(sc->int_vector_signature);
-    case T_BYTE_VECTOR:  return(sc->byte_vector_signature);
+    case T_FLOAT_VECTOR: return((vector_length(p) == 0) ? sc->F : sc->float_vector_signature);
+    case T_INT_VECTOR:   return((vector_length(p) == 0) ? sc->F : sc->int_vector_signature);
+    case T_BYTE_VECTOR:  return((vector_length(p) == 0) ? sc->F : sc->byte_vector_signature);
     case T_PAIR:         return(sc->pair_signature);
     case T_STRING:       return(sc->string_signature);
+    case T_HASH_TABLE:   return(sc->hash_table_signature);
 
     case T_ITERATOR:
       p = iterator_sequence(p);
@@ -40963,15 +41034,32 @@ bool s7_is_c_object(s7_pointer p)
 
 static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
 {
-  #define H_is_c_object "(c-object? obj) returns the c_object's type tag."
-  #define Q_is_c_object s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_boolean_symbol), sc->T)
+  #define H_is_c_object "(c-object? obj) returns #t is obj is a c-object."
+  #define Q_is_c_object sc->pl_bt
+  s7_pointer obj;
+  obj = car(args);
+  if (is_c_object(obj)) return(sc->T);
+  if (!has_methods(obj)) return(sc->F);
+  return(apply_boolean_method(sc, obj, sc->is_c_object_symbol));
+}
+
+s7_int s7_c_object_type(s7_pointer obj)
+{
+  if (is_c_object(obj))
+    return(c_object_type(obj));
+  return(-1);
+}
+
+static s7_pointer g_c_object_type(s7_scheme *sc, s7_pointer args)
+{
+  #define H_c_object_type "(c-object-type obj) returns the c_object's type tag."
+  #define Q_c_object_type s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_c_object_symbol)
 
   s7_pointer p;
   p = car(args);
   if (is_c_object(p)) 
     return(make_integer(sc, c_object_type(p))); /* this is the c_object_types table index = tag */
-  check_method(sc, p, sc->is_c_object_symbol, args);
-  return(sc->F);
+  return(method_or_bust(sc, p, sc->c_object_type_symbol, args, T_C_OBJECT, 0));
 }
 
 static s7_pointer g_c_object_set(s7_scheme *sc, s7_pointer args) /* called in c_object_set_function */
@@ -41112,13 +41200,6 @@ void *s7_c_object_value_checked(s7_pointer obj, s7_int type)
       (c_object_type(obj) == type))
     return(c_object_value(obj));
   return(NULL);
-}
-
-s7_int s7_c_object_type(s7_pointer obj)
-{
-  if (is_c_object(obj))
-    return(c_object_type(obj));
-  return(-1);
 }
 
 s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7_pointer let)
@@ -41433,8 +41514,7 @@ s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
       return(s7_cons(sc, small_int(0), max_arity));
 
     case T_STRING:
-      if (string_length(x) == 0)
-	return(sc->F);
+      if (string_length(x) == 0) return(sc->F);
       return(s7_cons(sc, small_int(1), small_int(1)));
 
     case T_LET:
@@ -41446,13 +41526,16 @@ s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
 	return(s7_cons(sc, small_int(0), max_arity));
       return(sc->F);
 
+    case T_VECTOR:
+      if (vector_length(x) == 0) return(sc->F);
+      if (has_simple_elements(x)) return(s7_cons(sc, small_int(1), make_integer(sc, vector_rank(x))));
+      return(s7_cons(sc, small_int(1), max_arity));
+
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-    case T_VECTOR:
     case T_BYTE_VECTOR:
-      if (vector_length(x) == 0)
-	return(sc->F);
-      return(s7_cons(sc, small_int(1), max_arity));
+      if (vector_length(x) == 0) return(sc->F);
+      return(s7_cons(sc, small_int(1), make_integer(sc, vector_rank(x))));
 
     case T_PAIR:
     case T_HASH_TABLE:
@@ -41554,9 +41637,9 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
 	return(is_safe_procedure(x));
       }
 
+    case T_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-    case T_VECTOR:
     case T_BYTE_VECTOR:
       return((args > 0) &&
 	     (vector_length(x) > 0) &&   /* (#() 0) -> error */
@@ -42657,13 +42740,10 @@ static bool byte_vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_
   s7_int i, len;
   uint8_t *xp, *yp;
   
-  if (x == y)
-    return(true);
-
+  if (x == y) return(true);
+  if (type(x) != type(y)) return(false);
   len = vector_length(x);
-  if ((type(x) != type(y)) || 
-      (len != vector_length(y)))
-    return(false);
+  if (len != vector_length(y)) return(false);
   
   xp = byte_vector_bytes(x);
   yp = byte_vector_bytes(y);
@@ -42671,6 +42751,50 @@ static bool byte_vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_
     if (xp[i] != yp[i])
       return(false);
   return(true);
+}
+
+static bool biv_meq(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  s7_int i, len;
+  uint8_t *xp;
+  s7_int *yp;
+  len = vector_length(x);
+  if (len != vector_length(y)) return(false);
+  xp = byte_vector_bytes(x);
+  yp = int_vector_ints(y);
+  for (i = 0; i < len; i++)
+    if ((s7_int)(xp[i]) != yp[i])
+      return(false);
+  return(true);
+}
+
+static bool types_are_compatible(s7_scheme *sc, s7_function x, s7_function y)
+{
+  if (x == y) return(true);
+  if (x == g_is_symbol) return((y == g_is_keyword) || (y == g_is_gensym));
+  if (x == g_is_keyword) return(y == g_is_symbol);
+  if (x == g_is_gensym) return(y == g_is_symbol);
+  if (x == g_is_pair) return(y == g_is_proper_list);
+  if (x == g_is_proper_list) return((y == g_is_pair) || (y == g_is_null));
+  if (x == g_is_list) return((y == g_is_pair) || (y == g_is_null) || (y == g_is_proper_list));
+  if (x == g_is_null) return((y == g_is_list) || (y == g_is_proper_list));
+  if (x == g_is_hash_table) return(y == g_is_weak_hash_table);
+  if (x == g_is_weak_hash_table) return(y == g_is_hash_table);
+  if (x == g_is_let) return(y == g_is_openlet);
+  if (x == g_is_openlet) return(y == g_is_let);
+  if (x == g_is_procedure) return(y == g_is_dilambda);
+  if (x == g_is_dilambda) return(y == g_is_procedure);
+#if 0
+  /* these seem wrong -- does equal? know about int/all-ints? (equal? #(1) #i(1)) is #f, if that is relevant here */
+  if (x == g_is_rational) return((y == g_is_real) || (y == g_is_complex) || (y == g_is_number));  /* integer? byte? float? go to built-in cases */
+  if (x == g_is_real) return((y == g_is_rational) || (y == g_is_complex) || (y == g_is_number));
+  if (x == g_is_complex) return((y == g_is_rational) || (y == g_is_real) || (y == g_is_number));
+  if (x == g_is_number) return((y == g_is_rational) || (y == g_is_real) || (y == g_is_complex));
+#else
+  if (x == g_is_complex) return(y == g_is_number);
+  if (x == g_is_number) return(y == g_is_complex);
+#endif
+  return(false);
 }
 
 static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -42704,11 +42828,20 @@ static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
 
   if (is_int_vector(x))
     return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
+  if (is_byte_vector(x))
+    return(byte_vector_equal(sc, x, y, NULL));
 
-  if (ci)
-    equal_ref(sc, x, y, ci);
-  else nci = new_shared_info(sc);
+  if ((is_typed_vector(x)) && 
+      (is_typed_vector(y)) && 
+      (!types_are_compatible(sc, c_function_call(typed_vector_typer(x)), c_function_call(typed_vector_typer(y)))))
+    return(false);
 
+  if (!has_simple_elements(x))
+    {
+      if (ci)
+	equal_ref(sc, x, y, ci);
+      else nci = new_shared_info(sc);
+    }
   for (i = 0; i < len; i++)
     if (!(s7_is_equal_1(sc, vector_element(x, i), vector_element(y, i), nci)))
       return(false);
@@ -42744,6 +42877,10 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       /* (morally-equal? (make-int-vector 3 0) (make-vector 3 0)) -> #t
        * (morally-equal? (make-float-vector 3 1.0) (vector 1 1 1)) -> #t
        */
+      if ((is_int_vector(x)) && (is_byte_vector(y)))
+	return(biv_meq(sc, y, x, NULL));
+      if ((is_byte_vector(x)) && (is_int_vector(y)))
+	return(biv_meq(sc, x, y, NULL));
       for (i = 0; i < len; i++)
 	if (!s7_is_morally_equal_1(sc, vector_getter(x)(sc, x, i), vector_getter(y)(sc, y, i), NULL)) /* this could be greatly optimized */
 	  return(false);
@@ -42775,11 +42912,20 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
 
   if (is_int_vector(x))
     return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
-
-  if (ci)
-    equal_ref(sc, x, y, ci);
-  else nci = new_shared_info(sc);
-
+  if (is_byte_vector(x))
+    return(byte_vector_equal(sc, x, y, NULL));
+#if 0
+  if ((is_typed_vector(x)) && 
+      (is_typed_vector(y)) && 
+      (!types_are_compatible(sc, c_function_call(typed_vector_typer(x)), c_function_call(typed_vector_typer(y)))))
+    return(false);
+#endif
+  if (!has_simple_elements(x))
+    {
+      if (ci)
+	equal_ref(sc, x, y, ci);
+      else nci = new_shared_info(sc);
+    }
   for (i = 0; i < len; i++)
     if (!(s7_is_morally_equal_1(sc, vector_element(x, i), vector_element(y, i), nci)))
       return(false);
@@ -42804,14 +42950,9 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	     (iterator_length(x) == iterator_length(y)) &&
 	     (string_equal(sc, x_seq, y_seq, ci)));
 
-    case T_BYTE_VECTOR:
-      return((is_byte_vector(y_seq)) &&
-	     (iterator_position(x) == iterator_position(y)) &&
-	     (iterator_length(x) == iterator_length(y)) &&
-	     (byte_vector_equal(sc, x_seq, y_seq, ci)));
-
     case T_VECTOR:
     case T_INT_VECTOR:
+    case T_BYTE_VECTOR:
     case T_FLOAT_VECTOR:
       return((is_any_vector(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
@@ -43111,7 +43252,6 @@ static void init_equals(void)
   equals[T_UNSPECIFIED] =  unspecified_equal;
   equals[T_UNDEFINED] =    undefined_equal;
   equals[T_STRING] =       string_equal;
-  equals[T_BYTE_VECTOR] =  byte_vector_equal;
   equals[T_SYNTAX] =       syntax_equal;
   equals[T_C_OBJECT] =     c_objects_are_equal;
   equals[T_RANDOM_STATE] = rng_equal;
@@ -43129,6 +43269,7 @@ static void init_equals(void)
   equals[T_PAIR] =         pair_equal;
   equals[T_VECTOR] =       vector_equal;
   equals[T_INT_VECTOR] =   vector_equal;
+  equals[T_BYTE_VECTOR] =  vector_equal;
   equals[T_FLOAT_VECTOR] = vector_equal;
   equals[T_INTEGER] =      integer_equal;
   equals[T_RATIO] =        fraction_equal;
@@ -43145,7 +43286,6 @@ static void init_equals(void)
   morally_equals[T_UNSPECIFIED] =  unspecified_equal;
   morally_equals[T_UNDEFINED] =    undefined_equal;
   morally_equals[T_STRING] =       string_equal;
-  morally_equals[T_BYTE_VECTOR] =  byte_vector_equal;
   morally_equals[T_SYNTAX] =       syntax_equal;
   morally_equals[T_C_OBJECT] =     c_object_morally_equal;
   morally_equals[T_RANDOM_STATE] = rng_equal;
@@ -43164,6 +43304,7 @@ static void init_equals(void)
   morally_equals[T_VECTOR] =       vector_morally_equal;
   morally_equals[T_INT_VECTOR] =   vector_morally_equal;
   morally_equals[T_FLOAT_VECTOR] = vector_morally_equal;
+  morally_equals[T_BYTE_VECTOR] =  vector_morally_equal;
   morally_equals[T_INTEGER] =      integer_morally_equal;
   morally_equals[T_RATIO] =        fraction_morally_equal;
   morally_equals[T_REAL] =         real_morally_equal;
@@ -45207,7 +45348,6 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	if (!sc->class_symbol)
 	  {
 	    sc->class_symbol = s7_make_symbol(sc, "class");
-	    sc->c_object_type_symbol = s7_make_symbol(sc, "c-object-type");
 	    sc->c_object_length_symbol = s7_make_symbol(sc, "c-object-length");
 	    sc->c_object_ref_symbol = s7_make_symbol(sc, "c-object-ref");
 	    sc->c_object_let_symbol = s7_make_symbol(sc, "c-object-let");
@@ -86079,7 +86219,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
   make_slot_1(sc, mu_let, s7_make_symbol(sc, "strings"), cons(sc, make_integer(sc, gp->loc), make_integer(sc, len)));
   
   {
-    s7_int vlen = 0, flen = 0, ilen = 0, k;
+    s7_int vlen = 0, flen = 0, ilen = 0, blen = 0, k;
     for (k = 0, gp = sc->vectors; k < 2; k++)
       {
 	for (i = 0; i < gp->loc; i++)
@@ -86092,17 +86232,23 @@ static s7_pointer memory_usage(s7_scheme *sc)
 	      {
 		if (is_int_vector(v))
 		  ilen += vector_length(v);
-		else vlen += vector_length(v);
+		else 
+		  {
+		    if (is_byte_vector(v))
+		      blen += vector_length(v);
+		    else vlen += vector_length(v);
+		  }
 	      }
 	  }
 	gp = sc->multivectors;
       }
     make_slot_1(sc, mu_let, s7_make_symbol(sc, "vectors"), 
-		s7_list(sc, 4, 
+		s7_list(sc, 5, 
 			make_integer(sc, sc->vectors->loc + sc->multivectors->loc), 
 			make_integer(sc, vlen),
 			make_integer(sc, flen),
-			make_integer(sc, ilen)));
+			make_integer(sc, ilen),
+			make_integer(sc, blen)));
   }
   {
     s7_int flen = 0;
@@ -86397,8 +86543,8 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     {
       if (s7_is_integer(val)) 
 	{
-	  if ((s7_integer(val) > 2) || (s7_integer(val) < 0))
-	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be between 0 (no safety) and 2 (max safety)", 50)));
+	  if ((s7_integer(val) > 2) || (s7_integer(val) < -1))
+	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be between -1 (no safety) and 2 (max safety)", 50)));
 	  sc->safety = s7_integer(val); 
 	  return(val);
 	}
@@ -86507,41 +86653,6 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 		    set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S)", 20), sym)));
 
   return(sc->undefined);      
-}
-
-
-/* some signature support functions */
-
-static s7_pointer g_is_float(s7_scheme *sc, s7_pointer args)
-{
-  #define H_is_float "(float? x) returns #t is x is real and not rational."
-  #define Q_is_float sc->pl_bt
-  s7_pointer p;
-  p = car(args);
-  return(make_boolean(sc, is_float(p)));
-}
-
-static bool is_float_b(s7_pointer p) {return(is_float(p));}
-
-
-static s7_pointer g_is_proper_list(s7_scheme *sc, s7_pointer args)
-{
-  #define H_is_proper_list "(proper-list? x) returns #t is x is a list that is neither circular nor dotted."
-  #define Q_is_proper_list sc->pl_bt
-  s7_pointer p;
-  p = car(args);
-  return(make_boolean(sc, s7_is_proper_list(sc, p)));
-}
-
-static bool is_proper_list_b_7p(s7_scheme *sc, s7_pointer p) {return(s7_is_proper_list(sc, p));}
-
-s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
-{
-  s7_int old_len;
-  old_len = sc->print_length;
-  sc->print_length = new_len;
- return(old_len);
 }
 
 
@@ -87171,7 +87282,6 @@ s7_scheme *s7_init(void)
   sc->source_symbol = NULL;
   sc->file_symbol = NULL;
   sc->line_symbol = NULL;
-  sc->c_object_type_symbol = NULL;
   sc->c_object_let_symbol = NULL;
   sc->class_symbol = NULL;
   sc->c_object_length_symbol = NULL;
@@ -87334,55 +87444,60 @@ s7_scheme *s7_init(void)
 
   sc->gc_off = false;
 
-  #define defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
-  #define unsafe_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_unsafe_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
-  #define b_defun(Scheme_Name, C_Name, Opt, SymId) define_bool_function(sc, Scheme_Name, g_ ## C_Name, 1, Opt, false, H_ ## C_Name, Q_ ## C_Name, SymId)
+  #define defun(Scheme_Name, C_Name, Req, Opt, Rst) \
+    s7_define_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
+
+  #define unsafe_defun(Scheme_Name, C_Name, Req, Opt, Rst) \
+    s7_define_unsafe_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
+
+  #define b_defun(Scheme_Name, C_Name, Opt, SymId, Marker, Simple) \
+    define_bool_function(sc, Scheme_Name, g_ ## C_Name, 1, Opt, false, H_ ## C_Name, Q_ ## C_Name, SymId, Marker, Simple)
 
   /* we need the sc->is_* symbols first for the procedure signature lists */
   sc->is_boolean_symbol = make_symbol(sc, "boolean?");
   sc->pl_bt = s7_make_signature(sc, 2, sc->is_boolean_symbol, sc->T);
 
-  sc->is_symbol_symbol =          b_defun("symbol?",	      is_symbol,	  0, T_SYMBOL);
-  sc->is_syntax_symbol =          b_defun("syntax?",	      is_syntax,	  0, T_SYNTAX);
-  sc->is_gensym_symbol =          b_defun("gensym?",	      is_gensym,	  0, T_FREE); 
-  sc->is_keyword_symbol =         b_defun("keyword?",	      is_keyword,	  0, T_FREE);
-  sc->is_let_symbol =             b_defun("let?",	      is_let,		  0, T_LET);
-  sc->is_openlet_symbol =         b_defun("openlet?",	      is_openlet,	  0, T_FREE);
-  sc->is_iterator_symbol =        b_defun("iterator?",	      is_iterator,	  0, T_ITERATOR);
-  sc->is_macro_symbol =           b_defun("macro?",	      is_macro,		  0, T_FREE);
-  sc->is_c_pointer_symbol =       b_defun("c-pointer?",	      is_c_pointer,	  1, T_C_POINTER);
-  sc->is_input_port_symbol =      b_defun("input-port?",      is_input_port,	  0, T_INPUT_PORT);
-  sc->is_output_port_symbol =     b_defun("output-port?",     is_output_port,	  0, T_OUTPUT_PORT);
-  sc->is_eof_object_symbol =      b_defun("eof-object?",      is_eof_object,	  0, T_EOF_OBJECT);
-  sc->is_integer_symbol =         b_defun("integer?",	      is_integer,	  0, (WITH_GMP) ? T_FREE : T_INTEGER);
-  sc->is_byte_symbol =            b_defun("byte?",	      is_byte,		  0, T_FREE);
-  sc->is_number_symbol =          b_defun("number?",	      is_number,	  0, T_FREE);
-  sc->is_real_symbol =            b_defun("real?",	      is_real,		  0, T_FREE);
-  sc->is_float_symbol =           b_defun("float?",           is_float,           0, T_FREE);
-  sc->is_complex_symbol =         b_defun("complex?",	      is_complex,	  0, T_FREE);
-  sc->is_rational_symbol =        b_defun("rational?",	      is_rational,	  0, T_FREE);
-  sc->is_random_state_symbol =    b_defun("random-state?",    is_random_state,	  0, T_RANDOM_STATE);
-  sc->is_char_symbol =            b_defun("char?",	      is_char,		  0, T_CHARACTER);
-  sc->is_string_symbol =          b_defun("string?",	      is_string,	  0, T_STRING);
-  sc->is_list_symbol =            b_defun("list?",	      is_list,		  0, T_FREE);
-  sc->is_pair_symbol =            b_defun("pair?",	      is_pair,		  0, T_PAIR);
-  sc->is_vector_symbol =          b_defun("vector?",	      is_vector,	  0, T_FREE);
-  sc->is_float_vector_symbol =    b_defun("float-vector?",    is_float_vector,	  0, T_FLOAT_VECTOR);
-  sc->is_int_vector_symbol =      b_defun("int-vector?",      is_int_vector,	  0, T_INT_VECTOR);
-  sc->is_byte_vector_symbol =     b_defun("byte-vector?",     is_byte_vector,	  0, T_BYTE_VECTOR);
-  sc->is_hash_table_symbol =      b_defun("hash-table?",      is_hash_table,      0, T_HASH_TABLE);
-  sc->is_continuation_symbol =    b_defun("continuation?",    is_continuation,	  0, T_CONTINUATION);
-  sc->is_procedure_symbol =       b_defun("procedure?",	      is_procedure,	  0, T_FREE);
-  sc->is_dilambda_symbol =        b_defun("dilambda?",	      is_dilambda,	  0, T_FREE);
-  /* set above */                 b_defun("boolean?",	      is_boolean,	  0, T_BOOLEAN);
-  sc->is_proper_list_symbol =     b_defun("proper-list?",     is_proper_list,     0, T_FREE);
-  sc->is_sequence_symbol =        b_defun("sequence?",	      is_sequence,	  0, T_FREE);
-  sc->is_null_symbol =            b_defun("null?",	      is_null,		  0, T_NIL);
-  sc->is_undefined_symbol =       b_defun("undefined?",       is_undefined,       0, T_UNDEFINED);
-  sc->is_unspecified_symbol =     b_defun("unspecified?",     is_unspecified,     0, T_UNSPECIFIED);
-  sc->is_c_object_symbol =        b_defun("c-object?",	      is_c_object,	  0, T_C_OBJECT);
-  sc->is_subvector_symbol =       b_defun("subvector?",	      is_subvector,	  0, T_FREE);
-  sc->is_weak_hash_table_symbol = b_defun("weak-hash-table?", is_weak_hash_table, 0, T_FREE);
+  sc->is_symbol_symbol =          b_defun("symbol?",	      is_symbol,	  0, T_SYMBOL,       mark_symbol_vector, true);
+  sc->is_syntax_symbol =          b_defun("syntax?",	      is_syntax,	  0, T_SYNTAX,       just_mark_vector,   true);
+  sc->is_gensym_symbol =          b_defun("gensym?",	      is_gensym,	  0, T_FREE,         mark_symbol_vector, true); 
+  sc->is_keyword_symbol =         b_defun("keyword?",	      is_keyword,	  0, T_FREE,         just_mark_vector,   true);
+  sc->is_let_symbol =             b_defun("let?",	      is_let,		  0, T_LET,          mark_vector_1,      false);
+  sc->is_openlet_symbol =         b_defun("openlet?",	      is_openlet,	  0, T_FREE,         mark_vector_1,      false);
+  sc->is_iterator_symbol =        b_defun("iterator?",	      is_iterator,	  0, T_ITERATOR,     mark_vector_1,      false);
+  sc->is_macro_symbol =           b_defun("macro?",	      is_macro,		  0, T_FREE,         mark_vector_1,      false);
+  sc->is_c_pointer_symbol =       b_defun("c-pointer?",	      is_c_pointer,	  1, T_C_POINTER,    mark_vector_1,      false);
+  sc->is_input_port_symbol =      b_defun("input-port?",      is_input_port,	  0, T_INPUT_PORT,   mark_vector_1,      true);
+  sc->is_output_port_symbol =     b_defun("output-port?",     is_output_port,	  0, T_OUTPUT_PORT,  mark_simple_vector, true);
+  sc->is_eof_object_symbol =      b_defun("eof-object?",      is_eof_object,	  0, T_EOF_OBJECT,   just_mark_vector,   true);
+  sc->is_integer_symbol =         b_defun("integer?",	      is_integer,	  0, (WITH_GMP) ? T_FREE : T_INTEGER, mark_simple_vector, true);
+  sc->is_byte_symbol =            b_defun("byte?",	      is_byte,		  0, T_FREE,         mark_simple_vector, true);
+  sc->is_number_symbol =          b_defun("number?",	      is_number,	  0, T_FREE,         mark_simple_vector, true);
+  sc->is_real_symbol =            b_defun("real?",	      is_real,		  0, T_FREE,         mark_simple_vector, true);
+  sc->is_float_symbol =           b_defun("float?",           is_float,           0, T_FREE,         mark_simple_vector, true);
+  sc->is_complex_symbol =         b_defun("complex?",	      is_complex,	  0, T_FREE,         mark_simple_vector, true);
+  sc->is_rational_symbol =        b_defun("rational?",	      is_rational,	  0, T_FREE,         mark_simple_vector, true);
+  sc->is_random_state_symbol =    b_defun("random-state?",    is_random_state,	  0, T_RANDOM_STATE, mark_simple_vector, true);
+  sc->is_char_symbol =            b_defun("char?",	      is_char,		  0, T_CHARACTER,    just_mark_vector,   true);
+  sc->is_string_symbol =          b_defun("string?",	      is_string,	  0, T_STRING,       mark_vector_1,      true);
+  sc->is_list_symbol =            b_defun("list?",	      is_list,		  0, T_FREE,         mark_vector_1,      false);
+  sc->is_pair_symbol =            b_defun("pair?",	      is_pair,		  0, T_PAIR,         mark_vector_1,      false);
+  sc->is_vector_symbol =          b_defun("vector?",	      is_vector,	  0, T_FREE,         mark_vector_1,      false);
+  sc->is_float_vector_symbol =    b_defun("float-vector?",    is_float_vector,	  0, T_FLOAT_VECTOR, mark_simple_vector, true);
+  sc->is_int_vector_symbol =      b_defun("int-vector?",      is_int_vector,	  0, T_INT_VECTOR,   mark_simple_vector, true);
+  sc->is_byte_vector_symbol =     b_defun("byte-vector?",     is_byte_vector,	  0, T_BYTE_VECTOR,  mark_simple_vector, true);
+  sc->is_hash_table_symbol =      b_defun("hash-table?",      is_hash_table,      0, T_HASH_TABLE,   mark_vector_1,      false);
+  sc->is_continuation_symbol =    b_defun("continuation?",    is_continuation,	  0, T_CONTINUATION, mark_vector_1,      false);
+  sc->is_procedure_symbol =       b_defun("procedure?",	      is_procedure,	  0, T_FREE,         mark_vector_1,      false);
+  sc->is_dilambda_symbol =        b_defun("dilambda?",	      is_dilambda,	  0, T_FREE,         mark_vector_1,      false);
+  /* set above */                 b_defun("boolean?",	      is_boolean,	  0, T_BOOLEAN,      just_mark_vector,   true);
+  sc->is_proper_list_symbol =     b_defun("proper-list?",     is_proper_list,     0, T_FREE,         mark_vector_1,      false);
+  sc->is_sequence_symbol =        b_defun("sequence?",	      is_sequence,	  0, T_FREE,         mark_vector_1,      false);
+  sc->is_null_symbol =            b_defun("null?",	      is_null,		  0, T_NIL,          just_mark_vector,   true);
+  sc->is_undefined_symbol =       b_defun("undefined?",       is_undefined,       0, T_UNDEFINED,    just_mark_vector,   true);
+  sc->is_unspecified_symbol =     b_defun("unspecified?",     is_unspecified,     0, T_UNSPECIFIED,  just_mark_vector,   true);
+  sc->is_c_object_symbol =        b_defun("c-object?",	      is_c_object,	  0, T_C_OBJECT,     mark_vector_1,      false);
+  sc->is_subvector_symbol =       b_defun("subvector?",	      is_subvector,	  0, T_FREE,         mark_vector_1,      false);
+  sc->is_weak_hash_table_symbol = b_defun("weak-hash-table?", is_weak_hash_table, 0, T_FREE,         mark_vector_1,      false);
 
   /* these are for signatures */
   sc->is_integer_or_real_at_end_symbol = s7_make_symbol(sc, "integer:real?");
@@ -87454,6 +87569,7 @@ s7_scheme *s7_init(void)
   typeflag(sc->provide_symbol) |= T_DEFINER;
   sc->is_defined_symbol =            defun("defined?",		is_defined,		1, 2, false);
 
+  sc->c_object_type_symbol =         defun("c-object-type",     c_object_type,		1, 0, false);
   sc->c_pointer_symbol =             defun("c-pointer",	        c_pointer,		1, 4, false);
   sc->c_pointer_info_symbol =        defun("c-pointer-info",    c_pointer_info,		1, 0, false);
   sc->c_pointer_type_symbol =        defun("c-pointer-type",    c_pointer_type,		1, 0, false);
@@ -88666,9 +88782,9 @@ int main(int argc, char **argv)
  *   bit=boolean? type=closure->getter/setter localized, sig=(el-type int...) and similarly set-type
  *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
  *   hash-table has room in block index+filler I think
- *   c_proc_t for vector gc-mark symbol-name/equality/circle-safety(collect/map etc)/sort/print/hash
- *      vector equal: eq if symbol (and does not have structure for collect_info -- another bit perhaps)
- *      symbol_type(c_function_symbol(typed_vector_typer(vect))) is the type (might be T_FREE)
+ *   pair-type->car, var-type->slot_value, inlet-types/field-type?
+ *   string-vector? opt of sort? lint support?
+ *   morally-equal? vector check needs its own type match
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
  * setter can give variable signature
@@ -88676,7 +88792,7 @@ int main(int argc, char **argv)
  *   [skip current goto EVAL] closure_is_ok, op_closure(sc) goto EVAL|BEGIN
  *   in c_pp_1: same sequence: saves 2 eval/switch
  * (non-recursive) macro template no-cons reusable
- * vector-equal of bv? for_each? memory_usage vlen? test iterator, for-each init, use is_any_vector, "value that fits"--use name, u8 reader
+ * does lint check len(pair)!=0 or len(lst)==0? (yes, but the message is dumb if it should know the type -- t872)
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88690,25 +88806,26 @@ int main(int argc, char **argv)
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   997
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1037
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1290
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1291
  * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1672
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1879
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2186
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2300
- * tread         |      |      |      ||      ||      | 2398  2357  2363  2356
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1862
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2189
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2305
+ * tread         |      |      |      ||      ||      | 2398  2357  2363  2357
  * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2371
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3127
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
  * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3946
+ * tlet          |      |      |      ||      ||      |                   4621
  * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5524
  * tset          |      |      |      ||      ||      |       10.0  6435  6407
  * dup           |      |      |      ||      ||      |       20.8  9525  7400
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
- * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.1
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.8
- * tbig          |      |      |      ||      ||      |      246.9 242.7 241.0
+ * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.3
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 114.0
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 234.0
  * --------------------------------------------------------------------------------
  */

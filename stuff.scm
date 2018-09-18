@@ -1867,7 +1867,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	   (for-each
 	    (lambda (op) 
 	      (set! (ht op) #t))
-	    '(symbol? gensym? keyword? let? openlet? iterator? macro? c-pointer? c-object? immutable? constant?
+	    '(symbol? gensym? keyword? let? openlet? iterator? macro? c-pointer? c-object? c-object-type immutable? constant?
 	      input-port? output-port? eof-object? integer? number? real? complex? rational? random-state? 
 	      char? string? list? pair? vector? float-vector? int-vector? byte-vector? hash-table? 
 	      continuation? procedure? dilambda? boolean? float? proper-list? sequence? null? gensym 

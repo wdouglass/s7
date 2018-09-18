@@ -56,7 +56,7 @@
 			'((a . 1)) #i(1) '((((A . B) C . D) (E . F) G . H) ((I . J) K . L) (M . N) O . P)
 
 			;(make-block 2) (block 1.0 2.0 3.0) (block) 
-			#u8(0 1 2) (openlet (inlet 'abs (lambda (x) (- x))))
+			#u(0 1 2) (openlet (inlet 'abs (lambda (x) (- x))))
 			(make-iterator (list 1 2 3)) (make-iterator "1") #<eof> #r2d((.1 .2) (.3 .4))
 			(dilambda (lambda () 1) (lambda (a) a))
 
@@ -199,7 +199,7 @@
 		  (strname (symbol->string sym)))
 	      (if (not (memv (strname 0) '(#\{ #\[ #\()))
 		  (begin
-		    ;(if (not (signature f)) (format *stderr* "~A~%" sym))
+		    ;(format *stderr* "~A~%" sym)
 		    (if (< top bottom)
 			(format *stderr* ";~A (bottom: ~A, top: ~A)...~%" sym bottom top))
 			;(format *stderr* ";~A...~%" sym))

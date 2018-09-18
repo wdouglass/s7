@@ -4,6 +4,7 @@
 
 (set! (*s7* 'max-vector-length) (ash 1 36))
 (set! (*s7* 'max-string-length) (ash 1 36))
+(set! (*s7* 'safety) -1)
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
@@ -88,7 +89,7 @@
       (format () "noise: ~A~%" mx))))
 
 (define (complex-test)
-  (let ((fvr (make-vector fft-size)))
+  (let ((fvr (make-vector fft-size 0.0 complex?)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))
@@ -179,8 +180,8 @@
       (format () "noise: ~A~%" (* 1.0 mx)))))
 
 (define (ratio-test)
-  (let ((fvr (make-vector fft-size))
-	(fvi (make-vector fft-size 0)))
+  (let ((fvr (make-vector fft-size 0 rational?))
+	(fvi (make-vector fft-size 0 rational?)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))
@@ -929,20 +930,20 @@
 ;; --------------------------------------------------------------------------------
 (format () "~%vectors...~%")
 (when (> total-memory (* 9 big-size))
-  (let ((bigv (make-vector big-size)))
+  (let ((bigv (make-vector big-size 'a symbol?)))
     (test (length bigv) big-size)
     (vector-set! bigv (- big-size 10000000) 'asdf)
     (test (vector-ref bigv (- big-size 10000000)) 'asdf)
     (reverse! bigv)
     (test (vector-ref bigv (- 10000000 1)) 'asdf)
-    (fill! bigv ())
-    (test (vector-ref bigv (- 10000000 1)) ())
+    (fill! bigv 'b)
+    (test (vector-ref bigv (- 10000000 1)) 'b)
     ))
 (clear-and-gc)
 
 (define (v-loop-test)
   (when (> total-memory (* 20 big-size))
-    (let ((v (make-vector big-size)))
+    (let ((v (make-vector big-size () null?)))
       (do ((i 0 (+ i 1000)))
 	  ((= i big-size))
 	(vector-set! v i (* 2 i)))
@@ -1040,8 +1041,8 @@
       (format () "noise: ~A~%" mx))))
 
 (define (vector-test)
-  (let ((fvr (make-vector fft-size))
-	(fvi (make-vector fft-size 0.0)))
+  (let ((fvr (make-vector fft-size 0.0 real?))
+	(fvi (make-vector fft-size 0.0 real?)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))
@@ -1144,7 +1145,7 @@
       (format () "noise: ~A~%" mx))))
 
 (define (vector-2d-test skip)
-  (let ((fvr (make-vector (list skip fft-size) 0.0)))
+  (let ((fvr (make-vector (list skip fft-size) 0.0 real?)))
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x (/ (* 8 pi) fft-size))))
 	((= i fft-size))

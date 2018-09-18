@@ -84,6 +84,7 @@ static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
   snprintf(str, data_str_len + 32, "#<dax %.3f %s>", o->x, data_str);
+  free(data_str);
   result = s7_make_string(sc, str);
   free(str);
   return(result);

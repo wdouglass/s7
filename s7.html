@@ -2109,8 +2109,7 @@ in the underlying data.
 signals that the lists specify the elements of an 'n' dimensional vector: <code>#2d((1 2 3) (4 5 6))</code>
 int-vector constants use #i, float-vectors use #r.  I wanted to use #f, but that is already taken.
 Append the "nd" business after the type indication: <code>#i2d((1 2) (3 4))</code>.  This syntax
-collides with r7rs's read-time byte-vector notation "#u8".  It's possible to disambiguate "#u82d", but
-it's hard to read, so s7 uses "#u(" for byte-vectors.  "#u2d(...)" is a two-dimensional byte-vector.
+collides with the r7rs byte-vector notation "#u8"; s7 uses "#u(" for byte-vectors.  "#u2d(...)" is a two-dimensional byte-vector.
 For backwards compatibility, you can use "#u8(" for one-dimensional byte-vectors.
 </p>
 
@@ -5314,6 +5313,8 @@ The defaults are '(3 45 80 45 #t).
 <div class="separator"></div>
 <pre class="indented">
 (<em class=def id="cobject">c-object?</em> obj)
+(<em class=def id="cobjecttypew">c-object-type</em> obj)
+
 (<em class=def id="cpointer">c-pointer?</em> obj)
 (<em class=def id="cpoint">c-pointer</em> int type info weak1 weak2)
 (<em class=def id="cpointtype">c-pointer-type</em> obj)
@@ -5323,12 +5324,10 @@ The defaults are '(3 45 80 45 #t).
 </pre>
 
 <p>
-c-object? returns the object's type tag (otherwise #f of course).  This tag is also the position
+c-object? returns #t is its argument is a c-object. 
+c-object-type returns the object's type tag (otherwise #f of course).  This tag is also the position
 of the object's type in the (*s7* 'c-types) list. 
 (*s7* 'c-types) returns a list of the types created by s7_make_c_type.
-The "weak1" and "weak2" fields are intended for custom "weak" references. The weak
-fields values are not marked during the GC sweep, much like a key in a weak-hash-table.
-If either value is GC'd, that field is set to #f by the GC.
 </p>
 <p>
 You can wrap up raw C pointers and
@@ -5351,6 +5350,9 @@ the generic functions mechanism, much like a c-object:
 <em class="gray">"I am pointer 1 of type 'abc!"</em>
 </pre>
 <p>c-pointer-&gt;list returns (list pointer-as-int type info).
+The "weak1" and "weak2" fields are intended for custom "weak" references. The weak
+fields values are not marked during the GC sweep, much like a key in a weak-hash-table.
+If either value is GC'd, that field is set to #f by the GC.
 </p>
 
 
@@ -6827,6 +6829,7 @@ static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
   snprintf(str, data_str_len + 32, \"&lt;dax %.3f %s&gt;\", o-&gt;x, data_str);
+  free(data_str);
   result = s7_make_string(sc, str);
   free(str);
   return(result);
