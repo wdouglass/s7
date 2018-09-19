@@ -164,7 +164,7 @@
  */
 
 #ifndef SYMBOL_TABLE_SIZE
-#define SYMBOL_TABLE_SIZE 13567
+#define SYMBOL_TABLE_SIZE 32749
 #endif
 /* names are hashed into the symbol table (a vector) and collisions are chained as lists. */
 
@@ -1329,7 +1329,7 @@ struct s7_scheme {
   s7_pointer seed_symbol, carry_symbol;
 #endif
   s7_pointer active_symbol, goto_symbol, data_symbol, weak_symbol, dimensions_symbol, info_symbol, c_type_symbol, source_symbol, c_object_ref_symbol,
-             at_end_symbol, sequence_symbol, position_symbol, entries_symbol, locked_symbol, function_symbol, open_symbol, alias_symbol,port_type_symbol,
+             at_end_symbol, sequence_symbol, position_symbol, entries_symbol, locked_symbol, function_symbol, open_symbol, alias_symbol, port_type_symbol,
              file_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, 
              c_object_copy_symbol, c_object_fill_symbol, c_object_reverse_symbol, c_object_to_list_symbol, c_object_to_string_symbol, closed_symbol;
 
@@ -1337,9 +1337,7 @@ struct s7_scheme {
   s7_pointer is_directory_symbol, file_exists_symbol, delete_file_symbol, getenv_symbol, system_symbol, directory_to_list_symbol, file_mtime_symbol;
 #endif
 
-  /* setter and quasiquote functions */
-  s7_pointer vector_set_function, string_set_function, list_set_function, hash_table_set_function, let_set_function, c_object_set_function,
-             apply_values_function, apply_function, vector_function, last_function, byte_vector_set_function;
+  s7_pointer vector_set_function, string_set_function, list_set_function, hash_table_set_function, let_set_function, c_object_set_function, last_function;
 
   s7_pointer wrong_type_arg_info, out_of_range_info, simple_wrong_type_arg_info, simple_out_of_range_info;
   s7_pointer integer_wrapper1, integer_wrapper2, integer_wrapper3;
@@ -3837,7 +3835,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_DO_NO_VARS, OP_DO_NO_VARS_NO_OPT, OP_DO_NO_VARS_NO_OPT_1,
 
       OP_SAFE_C_P_1, OP_SAFE_C_PP_1, OP_SAFE_C_PP_3_MV, OP_SAFE_C_PP_5, OP_SAFE_C_PP_6_MV,
-      OP_SAFE_C_SP_1, OP_SAFE_C_SP_MV, OP_SAFE_CONS_SP_1, OP_SAFE_MEMQ_SP_1, OP_SAFE_MULTIPLY_SP_1, 
+      OP_SAFE_C_SP_1, OP_SAFE_C_SP_MV, OP_SAFE_CONS_SP_1, OP_SAFE_MEMQ_SP_1, OP_SAFE_ADD_SP_1, OP_SAFE_MULTIPLY_SP_1, 
       OP_SAFE_C_PS_1, OP_SAFE_C_PC_1, OP_SAFE_C_PS_MV, OP_SAFE_C_PC_MV,
       OP_SAFE_C_AAP_1, OP_SAFE_C_AAP_MV, OP_EVAL_MACRO_MV, OP_MACROEXPAND_1, OP_APPLY_LAMBDA,
       OP_SAFE_CLOSURE_P_1, OP_CLOSURE_P_1, OP_SAFE_CLOSURE_AP_1, OP_SAFE_CLOSURE_PA_1, 
@@ -4054,7 +4052,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "do_no_vars", "do_no_vars_no_opt", "do_no_vars_no_opt_1",
 
       "safe_c_p_1", "safe_c_pp_1", "safe_c_pp_3_mv", "safe_c_pp_5", "safe_c_pp_6_mv",
-      "safe_c_sp_1", "safe_c_sp_mv", "safe_cons_sp_1", "safe_memq_sp_1", "safe_multiply_sp_1", 
+      "safe_c_sp_1", "safe_c_sp_mv", "safe_cons_sp_1", "safe_memq_sp_1", "safe_add_sp_1", "safe_multiply_sp_1", 
       "safe_c_ps_1", "safe_c_pc_1", "safe_c_ps_mv", "safe_c_pc_mv",
       "safe_c_aap_1", "safe_c_aap_mv", "eval_macro_mv", "macroexpand_1", "apply_lambda",
       "safe_closure_p_1", "closure_p_1", "safe_closure_ap_1", "safe_closure_pa_1", 
@@ -10933,7 +10931,11 @@ s7_int s7_integer(s7_pointer p)
 
 s7_double s7_real(s7_pointer x)
 {
-  /* s7_is_real inlcudes ratios and integers, so s7_real should do the same, 18-Nov-17 */
+  /* s7_is_real inlcudes ratios and integers, so s7_real should do the same, 18-Nov-17 but s7_integer doesn't check for errors 
+   *   this code simply repeats s7_number_to_double_with_caller above, but omits the error because we forgot to pass sc.
+   *   maybe return(s7_number_to_double_with_caller(NULL, x, "s7_real")) -- then an error will be obvious!
+   * or better: s7_is_float and s7_float to replace all s7_is_real and s7_real uses
+   */
   if (is_t_real(x))
     return(real(x));
 
@@ -35172,77 +35174,6 @@ static s7_pointer append_in_place(s7_scheme *sc, s7_pointer a, s7_pointer b)
 }
 
 
-/* -------------------------------- byte-vectors -------------------------------- */
-
-static s7_pointer byte_vector_getter(s7_scheme *sc, s7_pointer bv, s7_int loc)
-{
-  return(make_integer(sc, (uint8_t)(byte_vector(bv, loc))));
-}
-
-static s7_pointer byte_vector_setter(s7_scheme *sc, s7_pointer str, s7_int loc, s7_pointer val)
-{
-  if (s7_is_integer(val))
-    {
-      s7_int byte;
-      byte = s7_integer(val);
-      if ((byte >= 0) && (byte < 256))
-	byte_vector(str, loc) = (uint8_t)byte;
-      else return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, val, an_unsigned_byte_string));
-      return(val);
-    }
-  set_car(sc->elist_3, wrap_string(sc, "copy ~A to byte-vector, ~S is not a byte", 40));
-  set_caddr(sc->elist_3, val);
-  return(s7_error(sc, sc->wrong_type_arg_symbol, sc->elist_3));
-}
-
-
-/* -------------------------------- byte-vector-ref -------------------------------- */
-static s7_pointer univect_ref(s7_scheme *sc, s7_pointer args, s7_pointer caller, int32_t typ);
-
-static s7_pointer g_byte_vector_ref(s7_scheme *sc, s7_pointer args)
-{
-  #define H_byte_vector_ref "(byte-vector-ref vect index) returns the byte at the index-th element of the byte-vector vect"
-  #define Q_byte_vector_ref s7_make_circular_signature(sc, 2, 3, s7_make_signature(sc, 2, sc->is_byte_symbol, sc->is_byte_vector_symbol), sc->is_byte_vector_symbol, sc->is_integer_symbol)
-  return(univect_ref(sc, args, sc->byte_vector_ref_symbol, T_BYTE_VECTOR));
-}
-
-static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
-{
-  if (!is_byte_vector(p1))
-    simple_wrong_type_argument_with_type(sc, sc->byte_vector_ref_symbol, p1, a_byte_vector_string);
-  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
-    return((s7_int)((byte_vector(p1, i1))));
-  out_of_range(sc, sc->byte_vector_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  return(0);
-}
-
-static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector(p1, i1))));}
-
-
-/* -------------------------------- byte-vector-set -------------------------------- */
-static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, s7_pointer caller, int32_t typ);
-
-static s7_pointer g_byte_vector_set(s7_scheme *sc, s7_pointer args)
-{
-  #define H_byte_vector_set "(byte-vector-set! vect index byte) sets the index-th element of the byte-vector vect to the integer byte"
-  #define Q_byte_vector_set s7_make_circular_signature(sc, 2, 3, sc->is_byte_symbol, sc->is_byte_vector_symbol, sc->is_integer_symbol)
-  return(univect_set(sc, args, sc->byte_vector_set_symbol, T_BYTE_VECTOR));
-}
-
-static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_int i2)
-{
-  if (!is_byte_vector(p1))
-    simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, p1, a_byte_vector_string);
-  if ((i2 < 0) || (i2 > 255))
-    simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i2), an_unsigned_byte_string);
-  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
-    byte_vector(p1, i1) = (uint8_t)i2;
-  else simple_out_of_range(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
-  return(i2);
-}
-
-static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
-
 /* -------------------------------- vectors -------------------------------- */
 
 bool s7_is_vector(s7_pointer p)       {return(is_any_vector(p));}
@@ -35301,6 +35232,27 @@ static s7_pointer float_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc,
 static s7_pointer float_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
 {
   return(make_real(sc, float_vector(vec, loc)));
+}
+
+static s7_pointer byte_vector_getter(s7_scheme *sc, s7_pointer bv, s7_int loc)
+{
+  return(make_integer(sc, (uint8_t)(byte_vector(bv, loc))));
+}
+
+static s7_pointer byte_vector_setter(s7_scheme *sc, s7_pointer str, s7_int loc, s7_pointer val)
+{
+  if (s7_is_integer(val))
+    {
+      s7_int byte;
+      byte = s7_integer(val);
+      if ((byte >= 0) && (byte < 256))
+	byte_vector(str, loc) = (uint8_t)byte;
+      else return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, val, an_unsigned_byte_string));
+      return(val);
+    }
+  set_car(sc->elist_3, wrap_string(sc, "copy ~A to byte-vector, ~S is not a byte", 40));
+  set_caddr(sc->elist_3, val);
+  return(s7_error(sc, sc->wrong_type_arg_symbol, sc->elist_3));
 }
 
 static inline block_t *mallocate_vector(s7_scheme *sc, s7_int len)
@@ -36370,7 +36322,7 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
   return(x);
 }
 
-static vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
+static inline vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
 {
   s7_int i, offset, len;
   s7_pointer y;
@@ -36876,7 +36828,7 @@ static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- make-vector -------------------------------- */
-static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err_sym)
+static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   s7_int len;
   s7_pointer x, fill, vec, typf;
@@ -36889,15 +36841,15 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
     {
       len = s7_integer(x);
       if (len < 0)
-	return(wrong_type_argument_with_type(sc, err_sym, 1, x, a_non_negative_integer_string));
+	return(wrong_type_argument_with_type(sc, caller, 1, x, a_non_negative_integer_string));
     }
   else
     {
       if (!(is_pair(x)))
-	return(method_or_bust_with_type(sc, x, err_sym, args, wrap_string(sc, "an integer or a list of integers", 32), 1));
+	return(method_or_bust_with_type(sc, x, caller, args, wrap_string(sc, "an integer or a list of integers", 32), 1));
 
       if (!s7_is_integer(car(x)))
-	return(wrong_type_argument_with_type(sc, err_sym, 1, car(x),
+	return(wrong_type_argument_with_type(sc, caller, 1, car(x),
 					     wrap_string(sc, "each dimension should be an integer", 35)));
       if (is_null(cdr(x)))
 	len = s7_integer(car(x));
@@ -36908,22 +36860,22 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 
 	  dims = s7_list_length(sc, x);
 	  if (dims <= 0)                /* 0 if circular, negative if dotted */
-	    return(wrong_type_argument_with_type(sc, err_sym, 1, x, a_proper_list_string));
+	    return(wrong_type_argument_with_type(sc, caller, 1, x, a_proper_list_string));
 	  if (dims > sc->max_vector_dimensions)
-	    return(out_of_range(sc, err_sym, small_int(1), x, its_too_large_string));
+	    return(out_of_range(sc, caller, small_int(1), x, its_too_large_string));
 
 	  for (len = 1, y = x; is_not_null(y); y = cdr(y))
 	    {
 	      if (!s7_is_integer(car(y)))
-		return(wrong_type_argument(sc, err_sym, position_of(y, x), car(y), T_INTEGER));
+		return(wrong_type_argument(sc, caller, position_of(y, x), car(y), T_INTEGER));
 #if HAVE_OVERFLOW_CHECKS
 	      if (multiply_overflow(len, s7_integer(car(y)), &len)) /* or better perhaps len > sc->max_vector_length */
-		return(out_of_range(sc, err_sym, s7_make_integer(sc, position_of(y, x)), car(y), its_too_large_string));
+		return(out_of_range(sc, caller, s7_make_integer(sc, position_of(y, x)), car(y), its_too_large_string));
 #else
 	      len *= s7_integer(car(y));
 #endif
 	      if (len < 0)
-		return(wrong_type_argument_with_type(sc, err_sym, position_of(y, x), car(y), a_non_negative_integer_string));
+		return(wrong_type_argument_with_type(sc, caller, position_of(y, x), car(y), a_non_negative_integer_string));
 	    }
 	}
     }
@@ -36931,15 +36883,15 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
   if (is_pair(cdr(args)))
     {
       fill = cadr(args);
-      if (err_sym == sc->make_int_vector_symbol)
+      if (caller == sc->make_int_vector_symbol)
 	result_type = T_INT_VECTOR;
       else
 	{
-	  if (err_sym == sc->make_float_vector_symbol)
+	  if (caller == sc->make_float_vector_symbol)
 	    result_type = T_FLOAT_VECTOR;
 	  else
 	    {
-	      if (err_sym == sc->make_byte_vector_symbol)
+	      if (caller == sc->make_byte_vector_symbol)
 		result_type = T_BYTE_VECTOR;
 	    }
 	}
@@ -36962,7 +36914,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
 		    }
 		}
 	    }
-	  else return(wrong_type_argument_with_type(sc, err_sym, 3, typf, wrap_string(sc, "a procedure or #t", 17)));
+	  else return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a procedure or #t", 17)));
 	}
     }
 
@@ -36970,9 +36922,10 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer err
       (!s7_is_boolean(typf)))
     {
       if (!is_c_function(typf))
-	return(wrong_type_argument_with_type(sc, err_sym, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
+	return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
       if (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F)
-	return(wrong_type_argument_with_type(sc, err_sym, 2, fill, wrap_string(sc, "something that satisfies the type function", 43)));
+	return(s7_wrong_type_arg_error(sc, symbol_name(caller), 2, fill, 
+				       make_type_name(sc, symbol_name(c_function_symbol(typf)), INDEFINITE_ARTICLE)));
     }
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
   s7_vector_fill(sc, vec, fill); /* check type of fill even if len == 0 */
@@ -37837,6 +37790,50 @@ static s7_pointer int_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
     return(sc->iv_set);
   return(f);
 }
+
+/* -------------------------------- byte-vector-ref -------------------------------- */
+static s7_pointer g_byte_vector_ref(s7_scheme *sc, s7_pointer args)
+{
+  #define H_byte_vector_ref "(byte-vector-ref vect index) returns the byte at the index-th element of the byte-vector vect"
+  #define Q_byte_vector_ref s7_make_circular_signature(sc, 2, 3, s7_make_signature(sc, 2, sc->is_byte_symbol, sc->is_byte_vector_symbol), sc->is_byte_vector_symbol, sc->is_integer_symbol)
+  return(univect_ref(sc, args, sc->byte_vector_ref_symbol, T_BYTE_VECTOR));
+}
+
+static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
+{
+  if (!is_byte_vector(p1))
+    simple_wrong_type_argument_with_type(sc, sc->byte_vector_ref_symbol, p1, a_byte_vector_string);
+  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
+    return((s7_int)((byte_vector(p1, i1))));
+  out_of_range(sc, sc->byte_vector_ref_symbol, small_int(2), wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
+  return(0);
+}
+
+static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector(p1, i1))));}
+
+
+/* -------------------------------- byte-vector-set -------------------------------- */
+static s7_pointer g_byte_vector_set(s7_scheme *sc, s7_pointer args)
+{
+  #define H_byte_vector_set "(byte-vector-set! vect index byte) sets the index-th element of the byte-vector vect to the integer byte"
+  #define Q_byte_vector_set s7_make_circular_signature(sc, 2, 3, sc->is_byte_symbol, sc->is_byte_vector_symbol, sc->is_integer_symbol)
+  return(univect_set(sc, args, sc->byte_vector_set_symbol, T_BYTE_VECTOR));
+}
+
+static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_int i2)
+{
+  if (!is_byte_vector(p1))
+    simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, p1, a_byte_vector_string);
+  if ((i2 < 0) || (i2 > 255))
+    simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i2), an_unsigned_byte_string);
+  if ((i1 >= 0) && (i1 < byte_vector_length(p1)))
+    byte_vector(p1, i1) = (uint8_t)i2;
+  else simple_out_of_range(sc, sc->byte_vector_set_symbol, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
+  return(i2);
+}
+
+static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
+
 
 
 /* -------------------------------------------------------------------------------- */
@@ -42778,14 +42775,19 @@ static bool types_are_compatible(s7_scheme *sc, s7_function x, s7_function y)
   if (x == g_is_proper_list) return((y == g_is_pair) || (y == g_is_null));
   if (x == g_is_list) return((y == g_is_pair) || (y == g_is_null) || (y == g_is_proper_list));
   if (x == g_is_null) return((y == g_is_list) || (y == g_is_proper_list));
-  if (x == g_is_hash_table) return(y == g_is_weak_hash_table);
-  if (x == g_is_weak_hash_table) return(y == g_is_hash_table);
   if (x == g_is_let) return(y == g_is_openlet);
   if (x == g_is_openlet) return(y == g_is_let);
   if (x == g_is_procedure) return(y == g_is_dilambda);
   if (x == g_is_dilambda) return(y == g_is_procedure);
 #if 0
-  /* these seem wrong -- does equal? know about int/all-ints? (equal? #(1) #i(1)) is #f, if that is relevant here */
+  /* these seem inconsistent -- does equal? know about int/all-ints? (equal? #(1) #i(1)) is #f currently
+   *   I think the vector type should be ignored if the values match: int/byte, int/normal, etc.  So, 
+   *   byte and int can match int/byte/normal/real?/rational?/complex?/number?
+   *   float? can match normal/real?/rational?/complex?/number?
+   *   i.e. storage choice is irrelevant, so integer? -> int-vector does not change the equal type
+   *   so (type(x) != type(y)) && ((!any_vector(x) || (!any_vector(y))) ?
+   *   (morally-equal? 1 1.0): #t, (equal? 1 1.0): #f
+   */
   if (x == g_is_rational) return((y == g_is_real) || (y == g_is_complex) || (y == g_is_number));  /* integer? byte? float? go to built-in cases */
   if (x == g_is_real) return((y == g_is_rational) || (y == g_is_complex) || (y == g_is_number));
   if (x == g_is_complex) return((y == g_is_rational) || (y == g_is_real) || (y == g_is_number));
@@ -49646,6 +49648,14 @@ static s7_pointer fx_c_aa(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_add_aa(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer a1, a2;
+  a1 = cdr(arg);
+  a2 = cdr(a1);
+  return(add_p_pp(sc, c_call(a1)(sc, car(a1)), c_call(a2)(sc, car(a2))));
+}
+
 static s7_pointer fx_c_aa_indirect(s7_scheme *sc, s7_pointer arg)
 {
   /* opaaq_opaaq here where none of the "a" involve nested "a" */
@@ -50236,7 +50246,11 @@ static s7_function fx_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, safe_
 	      return(fx_c_a);
 
 	    case HOP_SAFE_C_AA:
-	      if (aa_is_fx_safe(arg)) return(fx_c_aa);
+	      if (aa_is_fx_safe(arg)) 
+		{
+		  if (c_call(arg) == g_add_2) return(fx_add_aa);
+		  return(fx_c_aa);
+		}
 	      if (aa_is_indirectly_fx_safe(arg)) return(fx_c_aa_indirect);
 	      return(NULL);
 
@@ -61437,6 +61451,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_C_SP_1:
     case OP_SAFE_CONS_SP_1:
     case OP_SAFE_MEMQ_SP_1:
+    case OP_SAFE_ADD_SP_1:
     case OP_SAFE_MULTIPLY_SP_1:
       stack_element(sc->stack, top) = (s7_pointer)OP_SAFE_C_SP_MV;
       return(args);
@@ -65299,8 +65314,9 @@ static void opt_sp_1(s7_scheme *sc, s7_function g, s7_pointer expr)
 #if WITH_GMP
 					OP_SAFE_C_SP_1))));
 #else
-					(((g == g_multiply) || (g == g_multiply_2)) ? OP_SAFE_MULTIPLY_SP_1: 
-					 OP_SAFE_C_SP_1)))));
+					(((g == g_multiply) || (g == g_multiply_2)) ? OP_SAFE_MULTIPLY_SP_1 : 
+					 (((g == g_add) || (g == g_add_2)) ? OP_SAFE_ADD_SP_1 :
+					  OP_SAFE_C_SP_1))))));
 #endif
 }
 
@@ -77308,6 +77324,7 @@ static void op_safe_c_aaa(s7_scheme *sc)
   sc->temp4 = sc->nil;
   sc->temp10 = sc->nil;
 }
+
 static void op_safe_c_ssa(s7_scheme *sc)
 {
   s7_pointer arg, val1, val2, code;
@@ -77336,6 +77353,7 @@ static void op_safe_c_opaaaq(s7_scheme *sc)
   set_car(sc->t1_1, c_call(arg)(sc, sc->a3_1));
   sc->value = c_call(code)(sc, sc->t1_1);
 }
+
 static void op_safe_c_s_opaaq(s7_scheme *sc)
 {
   s7_pointer arg, val1, code;
@@ -77348,6 +77366,7 @@ static void op_safe_c_s_opaaq(s7_scheme *sc)
   set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(code)));
   sc->value = c_call(code)(sc, sc->t2_1);
 }
+
 static void op_safe_c_s_opaaaq(s7_scheme *sc)
 {
   s7_pointer arg, p, val1, val2, code;
@@ -77407,6 +77426,7 @@ static void op_safe_c_fx(s7_scheme *sc)
    *   #(14800 14020 <output-string-port> 14800/3 14800 7400)
    */
 }
+
 static void op_safe_c_all_qa(s7_scheme *sc)
 {
   s7_pointer args, p, code;
@@ -77476,6 +77496,33 @@ static void op_safe_c_opsq_p(s7_scheme *sc)
   sc->code = caddr(sc->code);
 }
 
+#if 0
+static void op_c_fx(s7_scheme *sc)
+{ /* (set-cdr! lst ()) */
+  s7_int len;
+  s7_pointer args, p, new_args;
+  len = integer(arglist_length(sc->code));
+  if (needs_copied_args(opt_cfunc(sc->code)))
+    new_args = make_list(sc, len, sc->nil);
+  else 
+    {
+      new_args = safe_list_if_possible(sc, len);
+      len = 0;
+    }
+  sc->args = new_args;      
+  /* GC protect? fx stuff below can clobber sc->args:
+   *    (catch #f (vector-ref #(1 2) 0 1.0+1.0i) (vector-ref #(1 2) 0 1.0+1.0i))
+   */
+  for (args = cdr(sc->code), p = new_args; is_pair(args); args = cdr(args), p = cdr(p))
+    set_car(p, c_call(args)(sc, car(args)));
+  sc->value = c_call(sc->code)(sc, new_args);
+  if (!len)
+    {
+      clear_list_in_use(new_args);
+      sc->current_safe_list = 0;
+    }
+}
+#else
 static void op_c_fx(s7_scheme *sc)
 { /* (set-cdr! lst ()) */
   s7_pointer args, p, new_args;
@@ -77488,6 +77535,7 @@ static void op_c_fx(s7_scheme *sc)
     set_car(p, c_call(args)(sc, car(args)));
   sc->value = c_call(sc->code)(sc, new_args);
 }
+#endif
 
 static inline void op_eval_args1(s7_scheme *sc) /* inline is needed here */
 {
@@ -78047,9 +78095,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 #if (!WITH_GMP)	  
+	case OP_SAFE_ADD_SP_1:
+	  sc->value = add_p_pp(sc, sc->args, sc->value);
+	  goto START;
+
 	case OP_SAFE_MULTIPLY_SP_1:
 	  sc->value = multiply_p_pp(sc, sc->args, sc->value);
 	  goto START;
+
 #endif
 	  
 	case OP_SAFE_MEMQ_SP_1:
@@ -87478,7 +87531,7 @@ s7_scheme *s7_init(void)
   sc->is_rational_symbol =        b_defun("rational?",	      is_rational,	  0, T_FREE,         mark_simple_vector, true);
   sc->is_random_state_symbol =    b_defun("random-state?",    is_random_state,	  0, T_RANDOM_STATE, mark_simple_vector, true);
   sc->is_char_symbol =            b_defun("char?",	      is_char,		  0, T_CHARACTER,    just_mark_vector,   true);
-  sc->is_string_symbol =          b_defun("string?",	      is_string,	  0, T_STRING,       mark_vector_1,      true);
+  sc->is_string_symbol =          b_defun("string?",	      is_string,	  0, T_STRING,       mark_simple_vector, true);
   sc->is_list_symbol =            b_defun("list?",	      is_list,		  0, T_FREE,         mark_vector_1,      false);
   sc->is_pair_symbol =            b_defun("pair?",	      is_pair,		  0, T_PAIR,         mark_vector_1,      false);
   sc->is_vector_symbol =          b_defun("vector?",	      is_vector,	  0, T_FREE,         mark_vector_1,      false);
@@ -87861,7 +87914,6 @@ s7_scheme *s7_init(void)
   sc->make_vector_symbol =           defun("make-vector",	make_vector,		1, 2, false);
   sc->vector_symbol =                defun("vector",		vector,			0, 0, true);
   set_setter(sc->vector_symbol); /* like cons, I guess */
-  sc->vector_function = slot_value(global_slot(sc->vector_symbol));
 
   sc->subvector_symbol =             defun("subvector",         subvector,	        2, 1, false);
   sc->subvector_position_symbol =    defun("subvector-position", subvector_position,    1, 0, false);
@@ -87904,10 +87956,12 @@ s7_scheme *s7_init(void)
   sc->eval_string_symbol =           unsafe_defun("eval-string", eval_string,		1, 1, false);
   typeflag(sc->eval_string_symbol) |= T_DEFINER;
   sc->apply_symbol =                 unsafe_defun("apply",	apply,			1, 0, true);
-  sc->apply_function = slot_value(global_slot(sc->apply_symbol));
-  set_type(sc->apply_function, type(sc->apply_function) | T_COPY_ARGS | T_UNHEAP);
-  /* (let ((x '((1 2) 3 4))) (catch #t (lambda () (apply apply apply x)) (lambda args 'error)) x) should not mess up x! */
-
+  {
+    s7_pointer p;
+    p = slot_value(global_slot(sc->apply_symbol));
+    set_type(p, type(p) | T_COPY_ARGS | T_UNHEAP);
+    /* (let ((x '((1 2) 3 4))) (catch #t (lambda () (apply apply apply x)) (lambda args 'error)) x) should not mess up x! */
+  }
   sc->for_each_symbol =              unsafe_defun("for-each",	for_each,		2, 0, true); 
   sc->map_symbol =                   unsafe_defun("map",	map,			2, 0, true); 
   sc->dynamic_wind_symbol =          unsafe_defun("dynamic-wind", dynamic_wind,	        3, 0, false);
@@ -87920,8 +87974,6 @@ s7_scheme *s7_init(void)
 
   sc->apply_values_symbol =          unsafe_defun("apply-values", apply_values,         0, 1, false);
   set_immutable(sc->apply_values_symbol);
-  sc->apply_values_function = slot_value(global_slot(sc->apply_values_symbol));
-
   sc->list_values_symbol =           unsafe_defun("list-values", list_values,           0, 0, true); /* see comment above */
   set_immutable(sc->list_values_symbol);
   
@@ -88139,9 +88191,7 @@ s7_scheme *s7_init(void)
   sc->string_set_function = slot_value(global_slot(sc->string_set_symbol));
   set_setter(sc->string_set_symbol);
 
-  sc->byte_vector_set_function = slot_value(global_slot(sc->byte_vector_set_symbol));
   set_setter(sc->byte_vector_set_symbol);
-
   set_setter(sc->set_car_symbol);
   set_setter(sc->set_cdr_symbol);
 
@@ -88783,14 +88833,25 @@ int main(int argc, char **argv)
  *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
  *   hash-table has room in block index+filler I think
  *   pair-type->car, var-type->slot_value, inlet-types/field-type?
- *   string-vector? opt of sort? lint support?
+ *   lint support for typed vector?
  *   morally-equal? vector check needs its own type match
+ *   should equal treat all vectors equally? at least int=byte in type check, real?+float?+int etc
+ *
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
  * setter can give variable signature
- * op_closure stored as opt2, called in CPP (no jump + switch to op)
+ *
+ * op_closure_aa_p stored as opt2, called in CPP (no jump + switch to op)
  *   [skip current goto EVAL] closure_is_ok, op_closure(sc) goto EVAL|BEGIN
  *   in c_pp_1: same sequence: saves 2 eval/switch
+ *   trade-off jump+switch for function overhead, but at opt time: unknown_aa
+ *
+ * many "unsafe" functions don't need copied args, but only apply turns on T_COPY_ARGS(??)
+ *   so op_c_fx normally can use safe_lists -- all op_c_* calls could be split for this
+ *   but unsafe_defun needs to be split as well.  Maybe unsafe_defun_uncopied?
+ *   but then why does apply work -- apply_c_function passes sc->args and that is copied
+ *   only if T_COPY_ARGS.
+ *
  * (non-recursive) macro template no-cons reusable
  * does lint check len(pair)!=0 or len(lst)==0? (yes, but the message is dumb if it should know the type -- t872)
  */
@@ -88805,27 +88866,27 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   199
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   997
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1037
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1291
- * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1672
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1038
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1294
+ * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1694
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1862
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2189
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2191
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2305
  * tread         |      |      |      ||      ||      | 2398  2357  2363  2357
  * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2371
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3127
+ * tlet          |      |      |      ||      ||      |             4717  3522
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
- * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3946
- * tlet          |      |      |      ||      ||      |                   4621
- * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5524
- * tset          |      |      |      ||      ||      |       10.0  6435  6407
- * dup           |      |      |      ||      ||      |       20.8  9525  7400
+ * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3945
+ * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5410
+ * tset          |      |      |      ||      ||      |       10.0  6435  6341
+ * dup           |      |      |      ||      ||      |       20.8  9525  7506
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
  * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.3
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 114.0
- * tbig          |      |      |      ||      ||      |      246.9 242.7 234.0
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.7
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 233.2
  * --------------------------------------------------------------------------------
  */

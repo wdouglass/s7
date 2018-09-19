@@ -178,23 +178,6 @@
 
 (for-each test-hash (list 1 10 100 1000 10000 100000 1000000))
 (newline)
-;(gc)
-
-#|
-(load "write.scm")
-(for-each (lambda (func)
-	    (let ((source (procedure-source func)))
-	      (let walker ((tree source))
-		(when (pair? tree)
-		  (if (symbol? (car tree))
-		      (if (local-symbol? tree)
-			  (set-car! tree (symbol "[" (symbol->string (car tree)) "]")))
-		      (walker (car tree)))
-		  (walker (cdr tree))))
-	      (pretty-print source))
-	    (newline))
-	  (list reader test1 test2 test3 test4 test5 test6 test7 test8 test9 test10))
-|#
 
 (s7-version)
 (exit)
