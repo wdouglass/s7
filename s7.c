@@ -1982,7 +1982,7 @@ static void init_types(void)
 #define is_free(p)                    (type(p) == T_FREE)
 #define is_free_and_clear(p)          (typeflag(p) == T_FREE)
 #define is_simple(P)                  t_simple_p[type(P)]
-#define has_structure(P)              ((t_structure_p[type(P)]) && (!has_simple_elements(P)))
+#define has_structure(P)              ((t_structure_p[type(P)]) && ((!is_normal_vector(P)) || (!has_simple_elements(P))))
 
 #define is_any_macro(P)               t_any_macro_p[type(P)]
 #define is_any_closure(P)             t_any_closure_p[type(P)]
@@ -2366,6 +2366,10 @@ static void init_types(void)
 #define is_typed_vector(p)            ((typeflag(T_Vec(p)) & T_TYPED_VECTOR) != 0)
 #define set_typed_vector(p)           typeflag(T_Vec(p)) |= T_TYPED_VECTOR
 
+#define T_TYPED_HASH_TABLE            T_S7_LET_FIELD
+#define is_typed_hash_table(p)        ((typeflag(T_Hsh(p)) & T_TYPED_HASH_TABLE) != 0)
+#define set_typed_hash_table(p)       typeflag(T_Hsh(p)) |= T_TYPED_HASH_TABLE
+
 #define T_DEFINER                     (1LL << (TYPE_BITS + BIT_ROOM + 26))
 #define is_definer(p)                 ((typeflag(T_Pos(p)) & T_DEFINER) != 0)
 
@@ -2397,8 +2401,20 @@ static void init_types(void)
 /* this bit distinguishes a symbol from a symbol that is also a keyword */
 
 #define T_SIMPLE_ELEMENTS             (1LL << (TYPE_BITS + BIT_ROOM + 32))
-#define has_simple_elements(p)        ((typeflag(T_Pos(p)) & T_SIMPLE_ELEMENTS) != 0)
+#define has_simple_elements(p)        ((typeflag(T_Nvc(p)) & T_SIMPLE_ELEMENTS) != 0)
 #define set_has_simple_elements(p)    typeflag(T_Nvc(p)) |= T_SIMPLE_ELEMENTS
+
+#define T_SIMPLE_KEYS                 T_SIMPLE_ELEMENTS
+#define has_simple_keys(p)            ((typeflag(T_Hsh(p)) & T_SIMPLE_KEYS) != 0)
+#define set_has_simple_keys(p)        typeflag(T_Hsh(p)) |= T_SIMPLE_KEYS
+
+#define T_TYPE_INFO                   T_SIMPLE_ELEMENTS
+#define has_type_info(p)              ((typeflag(T_Fnc(p)) & T_TYPE_INFO) != 0)
+#define set_has_type_info(p)          typeflag(T_Fnc(p)) |= T_TYPE_INFO
+
+#define T_SIMPLE_VALUES               T_RECUR
+#define has_simple_values(p)          ((typeflag(T_Hsh(p)) & T_SIMPLE_VALUES) != 0)
+#define set_has_simple_values(p)      typeflag(T_Hsh(p)) |= T_SIMPLE_VALUES
 
 #define UNUSED_BITS                   0x3c00000000000000
 /* 39 lower bits, sign bit as gc-mark, 16 for opt info */
@@ -2866,6 +2882,10 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define hash_table_set_procedures(p, Lst) hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
 #define hash_table_procedures_checker(p) car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
+#define hash_table_key_typer(p)       opt_any1(hash_table_procedures(p))
+#define hash_table_set_key_typer(p, Fnc) set_opt_any1(p, Fnc)
+#define hash_table_value_typer(p)     opt_any2(hash_table_procedures(p))
+#define hash_table_set_value_typer(p, Fnc) set_opt_any2(p, Fnc)
 
 #if S7_DEBUGGING
 #define T_Itr_Pos(p)                  titr_pos(sc, T_Itr(p), __func__, __LINE__)
@@ -10845,7 +10865,7 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x, bool with_error)
 }
 #endif
 
-
+/* this is a mess -- it's too late to clean up s7.h (sigh) */
 s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char *caller)
 {
   if (is_t_real(x))
@@ -10867,22 +10887,22 @@ s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char 
   return(0.0);
 }
 
-
 s7_double s7_number_to_real(s7_scheme *sc, s7_pointer x)
 {
   return(s7_number_to_real_with_caller(sc, x, "s7_number_to_real"));
 }
 
-
 s7_int s7_number_to_integer_with_caller(s7_scheme *sc, s7_pointer x, const char *caller)
 {
-  if (!s7_is_integer(x))
-    s7_wrong_type_arg_error(sc, caller, 0, x, "an integer");
+  if (is_t_integer(x))
+    return(integer(x));
+
 #if WITH_GMP
   if (is_t_big_integer(x))
     return(big_integer_to_s7_int(big_integer(x)));
 #endif
-  return(integer(x));
+  s7_wrong_type_arg_error(sc, caller, 0, x, "an integer");
+  return(0);
 }
 
 s7_int s7_number_to_integer(s7_scheme *sc, s7_pointer x) 
@@ -10921,39 +10941,23 @@ s7_int s7_denominator(s7_pointer x)
 
 s7_int s7_integer(s7_pointer p)
 {
+  if (is_t_integer(p))
+    return(integer(p));
+
 #if WITH_GMP
   if (is_t_big_integer(p))
     return(big_integer_to_s7_int(big_integer(p)));
 #endif
-  return(integer(p));
-}
 
+  return(0);
+}
 
 s7_double s7_real(s7_pointer x)
 {
-  /* s7_is_real inlcudes ratios and integers, so s7_real should do the same, 18-Nov-17 but s7_integer doesn't check for errors 
-   *   this code simply repeats s7_number_to_double_with_caller above, but omits the error because we forgot to pass sc.
-   *   maybe return(s7_number_to_double_with_caller(NULL, x, "s7_real")) -- then an error will be obvious!
-   * or better: s7_is_float and s7_float to replace all s7_is_real and s7_real uses
-   */
   if (is_t_real(x))
     return(real(x));
-
-  switch (type(x))
-    {
-    case T_INTEGER:     return((s7_double)integer(x));
-    case T_RATIO:       return((s7_double)numerator(x) / (s7_double)denominator(x));
-    case T_REAL:        return(real(x));
-#if WITH_GMP
-    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / 
-					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
-    case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
-#endif
-    }
-  return(0.0);
+  return(s7_number_to_real_with_caller(cur_sc, x, "s7_real"));
 }
-
 
 #if (!WITH_GMP)
 static s7_complex s7_to_c_complex(s7_pointer p)
@@ -11413,7 +11417,7 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, s7_int r
       {
 	size_t len;
 	p = (char *)malloc((128 + width) * sizeof(char));
-	len = integer_to_string_any_base(p, s7_integer(obj), radix);
+	len = integer_to_string_any_base(p, integer(obj), radix);
 	if ((size_t)width > len)
 	  {
 	    size_t start;
@@ -18149,7 +18153,7 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
   s7_pointer val;
 
   val = symbol_to_value_unchecked(sc, cadar(args));
-  ilen = s7_integer(cadr(args));
+  ilen = integer(cadr(args));
 
   switch (type(val))
     {
@@ -19078,7 +19082,7 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
   s7_pointer val;
 
   val = symbol_to_value_unchecked(sc, cadar(args));
-  ilen = s7_integer(cadr(args));
+  ilen = integer(cadr(args));
 
   switch (type(val))
     {
@@ -19202,7 +19206,7 @@ static s7_pointer g_leq_s_ic(s7_scheme *sc, s7_pointer args)
   s7_pointer x;
 
   x = car(args);
-  y = s7_integer(cadr(args));
+  y = integer(cadr(args));
 
   if (type(x) == T_INTEGER)
     return(make_boolean(sc, integer(x) <= y));
@@ -19551,7 +19555,7 @@ static s7_pointer g_geq_s_ic(s7_scheme *sc, s7_pointer args)
   s7_pointer x;
 
   x = car(args);
-  y = s7_integer(cadr(args));
+  y = integer(cadr(args));
 
   if (type(x) == T_INTEGER)
     return(make_boolean(sc, integer(x) >= y));
@@ -19608,6 +19612,12 @@ static bool geq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
 }
 
 static s7_pointer geq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, geq_b_pi(sc, p1, p2)));}
+#else
+static s7_pointer big_less(s7_scheme *sc, s7_pointer args);
+static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
+{
+  return(big_less(sc, set_plist_2(sc, x, y)) != sc->F);
+}
 #endif
 /* end (!WITH_GMP) */
 
@@ -20540,7 +20550,7 @@ Pass this as the second argument to 'random' to get a repeatable random number s
   r1 = car(args);
   if (!s7_is_integer(r1))
     return(method_or_bust(sc, r1, sc->random_state_symbol, args, T_INTEGER, 1));
-  i1 = s7_integer(r1);
+  i1 = integer(r1);
   if (i1 < 0)
     return(out_of_range(sc, sc->random_state_symbol, small_int(1), r1, its_negative_string));
 
@@ -20555,7 +20565,7 @@ Pass this as the second argument to 'random' to get a repeatable random number s
   r2 = cadr(args);
   if (!s7_is_integer(r2))
     return(method_or_bust(sc, r2, sc->random_state_symbol, args, T_INTEGER, 2));
-  i2 = s7_integer(r2);
+  i2 = integer(r2);
   if (i2 < 0)
     return(out_of_range(sc, sc->random_state_symbol, small_int(2), r2, its_negative_string));
 
@@ -29213,13 +29223,15 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						   ((is_let(obj)) ? " has-let-file" : 
 						    ((is_pair(obj)) ? " has-oplist" :
 						     ((is_any_vector(obj)) ? " typed-vector" :
-						      " ?25?")))) : "",
+						      ((is_hash_table(obj)) ? " typed-hash-table" :
+						       " ?25?"))))) : "",
 	   /* bit 26+16 */
 	   ((full_typ & T_DEFINER) != 0) ?        ((is_symbol(obj)) ? " definer" : " ?26?") : "",
 	   /* bit 27+16 */
 	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : 
 						   ((is_pair(obj)) ? " tree-collected" : 
-						    " ?27?")) : "",
+						    ((is_hash_table(obj)) ? " simple-values" :
+						     " ?27?"))) : "",
 	   /* bit 28+16 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29+16 */
@@ -29228,7 +29240,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_CYCLIC_SET) != 0) ?     " cyclic-set" : "",
 	   /* bit 31+16 */
 	   ((full_typ & T_KEYWORD) != 0) ?        ((is_symbol(obj)) ? " keyword" : " ?31?") : "",
-	   ((full_typ & T_SIMPLE_ELEMENTS) != 0) ? " simple-elements" : "",
+	   ((full_typ & T_SIMPLE_ELEMENTS) != 0) ? ((is_normal_vector(obj)) ? " simple-elements" :
+						    ((is_hash_table(obj)) ? " simple-keys" :
+						     ((is_c_function(obj)) ? " type-info" :
+						      " 32?"))) : "",
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
 	   /* bit 54 */
@@ -29247,8 +29262,8 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_SIMPLE_ELEMENTS) != 0) && (!is_normal_vector(obj))) return(true);
-  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)))) return(true);
+  if (((full_typ & T_SIMPLE_ELEMENTS) != 0) && ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))) return(true);
+  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -29257,13 +29272,15 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
-  if (((full_typ & T_S7_LET_FIELD) != 0) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj))) return(true);
   if (((full_typ & T_DEFINER) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
   if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
+  if (((full_typ & T_S7_LET_FIELD) != 0) && 
+      (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj))) 
+    return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) && 
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
     return(true);
@@ -36921,7 +36938,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
   if ((result_type == T_VECTOR) &&
       (!s7_is_boolean(typf)))
     {
-      if (!is_c_function(typf))
+      if ((!is_c_function(typf)) ||
+	  (!has_type_info(typf)))
 	return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
       if (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F)
 	return(s7_wrong_type_arg_error(sc, symbol_name(caller), 2, fill, 
@@ -37305,9 +37323,18 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
   if (is_normal_vector(old_vect))
     {
       s7_pointer *src, *dst;
-      if (vector_rank(old_vect) > 1)
-	new_vect = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, list_1(sc, old_vect))));
-      else new_vect = make_simple_vector(sc, len);
+      if ((is_typed_vector(old_vect)) && (len > 0)) /* preserve the type info as well */
+	{
+	  if (vector_rank(old_vect) > 1)
+	    new_vect = g_make_vector(sc, set_plist_3(sc, g_vector_dimensions(sc, list_1(sc, old_vect)), vector_element(old_vect, 0), typed_vector_typer(old_vect)));
+	  else new_vect = g_make_vector(sc, set_plist_3(sc, make_integer(sc, len), vector_element(old_vect, 0), typed_vector_typer(old_vect)));
+	}
+      else
+	{
+	  if (vector_rank(old_vect) > 1)
+	    new_vect = g_make_vector(sc, set_plist_1(sc, g_vector_dimensions(sc, list_1(sc, old_vect))));
+	  else new_vect = make_simple_vector(sc, len);
+	}
       /* here and in vector-fill! we have a problem with bignums -- should new bignums be allocated? (copy_list also) */
       src = (s7_pointer *)vector_elements(old_vect);
       dst = (s7_pointer *)vector_elements(new_vect);
@@ -39547,9 +39574,9 @@ static s7_pointer g_is_morally_equal(s7_scheme *sc, s7_pointer args);
 
 static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 {
-  #define H_make_hash_table "(make-hash-table (size 8) eq-func) returns a new hash table"
-  #define Q_make_hash_table s7_make_signature(sc, 3, sc->is_hash_table_symbol, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol))
-
+  #define H_make_hash_table "(make-hash-table (size 8) eq-func typer) returns a new hash table"
+  #define Q_make_hash_table s7_make_signature(sc, 4, sc->is_hash_table_symbol, sc->is_integer_symbol, \
+					      s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol), sc->is_pair_symbol)
   s7_int size;
   size = sc->default_hash_table_length;
 
@@ -39575,16 +39602,51 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 
       if (is_not_null(cdr(args)))
 	{
-	  s7_pointer ht, proc;
+	  s7_pointer ht, proc, dproc;
+	  
+	  ht = s7_make_hash_table(sc, size);
+	  hash_set_chosen(ht);
+	  
+	  /* look for key/value type functions */
+	  dproc = sc->nil;
+	  if (is_pair(cddr(args)))
+	    {
+	      s7_pointer typers;
+	      typers = caddr(args);
+	      if (is_pair(typers))
+		{
+		  if ((is_c_function(car(typers))) && 
+		      (is_c_function(cdr(typers))) &&
+		      (has_type_info(car(typers))) &&
+		      (has_type_info(cdr(typers))))
+		    {
+		      dproc = cons(sc, sc->F, sc->F);
+		      hash_table_set_key_typer(dproc, car(typers));
+		      hash_table_set_value_typer(dproc, cdr(typers));
+		      hash_table_set_procedures(ht, dproc);	  
+		      set_typed_hash_table(ht);
+		      if (c_function_has_simple_elements(car(typers)))
+			set_has_simple_keys(ht);
+		      if (c_function_has_simple_elements(cdr(typers)))
+			set_has_simple_values(ht);
+		    }
+		  else return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
+		}
+	      else 
+		{
+		  if (typers != sc->F)
+		    return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
+		}
+	    }
+
+	  /* check eq_func */
 	  proc = cadr(args);
 
 	  if (is_c_function(proc))
 	    {
 	      if (!s7_is_aritable(sc, proc, 2))
-		return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc, an_eq_func_string));
+		return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 2, proc, an_eq_func_string));
 
-	      ht = s7_make_hash_table(sc, size);
-	      hash_set_chosen(ht);
 	      if (c_function_call(proc) == g_is_equal)
 		{
 		  hash_table_checker(ht) = hash_equal;
@@ -39663,8 +39725,6 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 		      (s7_is_aritable(sc, mapper, 1)))
 		    {
 		      s7_pointer sig;
-		      ht = s7_make_hash_table(sc, size);
-		      hash_set_chosen(ht);
 		      if (is_any_c_function(checker))
 			{
 			  sig = c_function_signature(checker);
@@ -39687,12 +39747,25 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 			  hash_table_mapper(ht) = c_function_hash_map;
 			}
 		      else hash_table_mapper(ht) = closure_hash_map;
-		      hash_table_set_procedures(ht, proc);
+		      if (is_null(dproc))
+			hash_table_set_procedures(ht, proc); /* only place this is newly set (as opposed to preserved in copy) */
+		      else
+			{
+			  set_car(dproc, car(proc));
+			  set_cdr(dproc, cdr(proc));
+			}
 		      return(ht);
 		    }
+		  return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc, 
+						       wrap_string(sc, "a cons of two functions", 23)));
 		}
-	      return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc, 
-						   wrap_string(sc, "a cons of two functions", 23)));
+	      else
+		{
+		  if (proc == sc->F)
+		    return(ht);
+		  return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc, 
+						       wrap_string(sc, "a cons of two functions", 23)));
+		}
 	    }
 	}
     }
@@ -39701,8 +39774,9 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_make_weak_hash_table(s7_scheme *sc, s7_pointer args)
 {
-  #define H_make_weak_hash_table "(make-weak-hash-table (size 8) eq-func) returns a new weak hash table"
-  #define Q_make_weak_hash_table s7_make_signature(sc, 3, sc->is_weak_hash_table_symbol, sc->is_integer_symbol, s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol))
+  #define H_make_weak_hash_table "(make-weak-hash-table (size 8) eq-func typers) returns a new weak hash table"
+  #define Q_make_weak_hash_table s7_make_signature(sc, 4, sc->is_weak_hash_table_symbol, sc->is_integer_symbol, \
+						   s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol), sc->is_pair_symbol)
   s7_pointer table;
   table = g_make_hash_table(sc, args);
   set_weak_hash_table(table);
@@ -40653,6 +40727,7 @@ static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_funct
   c_function_symbol(func) = sym;
   c_function_set_marker(func, marker);
   c_function_set_has_simple_elements(func, simple);
+  set_has_type_info(func);
   return(sym);
 }
 
@@ -40967,7 +41042,11 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
     case T_BYTE_VECTOR:  return((vector_length(p) == 0) ? sc->F : sc->byte_vector_signature);
     case T_PAIR:         return(sc->pair_signature);
     case T_STRING:       return(sc->string_signature);
-    case T_HASH_TABLE:   return(sc->hash_table_signature);
+
+    case T_HASH_TABLE:
+      if (is_typed_hash_table(p))
+	return(s7_make_signature(sc, 3, c_function_symbol(hash_table_value_typer(p)), sc->is_hash_table_symbol, c_function_symbol(hash_table_key_typer(p))));
+      return(sc->hash_table_signature);
 
     case T_ITERATOR:
       p = iterator_sequence(p);
@@ -40987,9 +41066,19 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
       return(sc->let_signature);
 
     case T_SYMBOL:
-      p = s7_symbol_value(sc, p);
-      if (!is_symbol(p))
-	return(g_signature(sc, set_plist_1(sc, p))); 
+      /* this used to get the symbol's value and call g_signature on that */
+      {
+	s7_pointer slot;
+	slot = symbol_to_slot(sc, p);
+	if ((is_slot(slot)) && (slot_has_setter(slot)))
+	  {
+	    s7_pointer setter;
+	    setter = slot_setter(slot);
+	    p = g_signature(sc, set_plist_1(sc, setter));
+	    if (is_pair(p))
+	      return(list_1(sc, car(p)));
+	  }
+      }
       break;
 
     default:
@@ -42765,56 +42854,32 @@ static bool biv_meq(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
   return(true);
 }
 
-static bool types_are_compatible(s7_scheme *sc, s7_function x, s7_function y)
-{
-  if (x == y) return(true);
-  if (x == g_is_symbol) return((y == g_is_keyword) || (y == g_is_gensym));
-  if (x == g_is_keyword) return(y == g_is_symbol);
-  if (x == g_is_gensym) return(y == g_is_symbol);
-  if (x == g_is_pair) return(y == g_is_proper_list);
-  if (x == g_is_proper_list) return((y == g_is_pair) || (y == g_is_null));
-  if (x == g_is_list) return((y == g_is_pair) || (y == g_is_null) || (y == g_is_proper_list));
-  if (x == g_is_null) return((y == g_is_list) || (y == g_is_proper_list));
-  if (x == g_is_let) return(y == g_is_openlet);
-  if (x == g_is_openlet) return(y == g_is_let);
-  if (x == g_is_procedure) return(y == g_is_dilambda);
-  if (x == g_is_dilambda) return(y == g_is_procedure);
-#if 0
-  /* these seem inconsistent -- does equal? know about int/all-ints? (equal? #(1) #i(1)) is #f currently
-   *   I think the vector type should be ignored if the values match: int/byte, int/normal, etc.  So, 
-   *   byte and int can match int/byte/normal/real?/rational?/complex?/number?
-   *   float? can match normal/real?/rational?/complex?/number?
-   *   i.e. storage choice is irrelevant, so integer? -> int-vector does not change the equal type
-   *   so (type(x) != type(y)) && ((!any_vector(x) || (!any_vector(y))) ?
-   *   (morally-equal? 1 1.0): #t, (equal? 1 1.0): #f
-   */
-  if (x == g_is_rational) return((y == g_is_real) || (y == g_is_complex) || (y == g_is_number));  /* integer? byte? float? go to built-in cases */
-  if (x == g_is_real) return((y == g_is_rational) || (y == g_is_complex) || (y == g_is_number));
-  if (x == g_is_complex) return((y == g_is_rational) || (y == g_is_real) || (y == g_is_number));
-  if (x == g_is_number) return((y == g_is_rational) || (y == g_is_real) || (y == g_is_complex));
-#else
-  if (x == g_is_complex) return(y == g_is_number);
-  if (x == g_is_number) return(y == g_is_complex);
-#endif
-  return(false);
-}
-
 static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   s7_int i, len;
   shared_info *nci = ci;
 
-  if (x == y)
-    return(true);
+  if (x == y) return(true);
+  if (!is_any_vector(y)) return(false);
 
   len = vector_length(x);
-  if (len == 0)
-    return((is_any_vector(y)) && (vector_length(y) == 0) && (vector_rank_match(sc, x, y)));
+  if (len != vector_length(y)) return(false);
+  if (!vector_rank_match(sc, x, y)) return(false);  /* ?? should #2d() equal #3d()? */
+  if (len == 0) return(true);
 
-  if ((type(x) != type(y)) || 
-      (len != vector_length(y)) || 
-      (!vector_rank_match(sc, x, y))) return(false);
+  if (type(x) != type(y))
+    {
+      if ((is_int_vector(x)) && (is_byte_vector(y)))
+	return(biv_meq(sc, y, x, NULL));
+      if ((is_byte_vector(x)) && (is_int_vector(y)))
+	return(biv_meq(sc, x, y, NULL));
+      for (i = 0; i < len; i++)
+	if (!s7_is_equal_1(sc, vector_getter(x)(sc, x, i), vector_getter(y)(sc, y, i), NULL)) /* this could be greatly optimized */
+	  return(false);
+      return(true);
+    }
 
+  /* types are the same, take care of the special cases first */
   if (is_float_vector(x))
     {
       for (i = 0; i < len; i++)
@@ -42827,16 +42892,10 @@ static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
 	}
       return(true);
     }
-
   if (is_int_vector(x))
     return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
   if (is_byte_vector(x))
     return(byte_vector_equal(sc, x, y, NULL));
-
-  if ((is_typed_vector(x)) && 
-      (is_typed_vector(y)) && 
-      (!types_are_compatible(sc, c_function_call(typed_vector_typer(x)), c_function_call(typed_vector_typer(y)))))
-    return(false);
 
   if (!has_simple_elements(x))
     {
@@ -42871,8 +42930,7 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
   len = vector_length(x);
   if (len != vector_length(y)) return(false);
   if (len == 0) return(true);
-  if (!vector_rank_match(sc, x, y))
-    return(false);
+  if (!vector_rank_match(sc, x, y)) return(false);
 
   if (type(x) != type(y))
     {
@@ -42911,17 +42969,11 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
 	}
       return(true);
     }
-
   if (is_int_vector(x))
     return(iv_meq(int_vector_ints(x), int_vector_ints(y), len));
   if (is_byte_vector(x))
     return(byte_vector_equal(sc, x, y, NULL));
-#if 0
-  if ((is_typed_vector(x)) && 
-      (is_typed_vector(y)) && 
-      (!types_are_compatible(sc, c_function_call(typed_vector_typer(x)), c_function_call(typed_vector_typer(y)))))
-    return(false);
-#endif
+
   if (!has_simple_elements(x))
     {
       if (ci)
@@ -43564,6 +43616,14 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    hash_table_mapper(new_hash) = hash_table_mapper(source);
 	    hash_table_set_procedures(new_hash, hash_table_procedures(source));
 	    hash_table_copy(sc, source, new_hash, 0, hash_table_entries(source));
+	    if (is_typed_hash_table(source))
+	      {
+		set_typed_hash_table(new_hash);
+		if (has_simple_keys(source))
+		  set_has_simple_keys(new_hash);
+		if (has_simple_values(source))
+		  set_has_simple_values(new_hash);
+	      }
 	    s7_gc_unprotect_at(sc, gc_loc);
 	    return(new_hash);
 	  }
@@ -45283,6 +45343,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 				      }}
 #endif
 			      }}}}}}
+	if (is_typed_hash_table(obj))
+	  s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
 	return(let);
       }
 
@@ -74038,9 +74100,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		    {
 		      sc->pc = 0;
 		      fp(o);
-		      step = s7_integer(slot_value(step_slot)) + 1;
+		      step = integer(slot_value(step_slot)) + 1;
 		      slot_set_value(step_slot, make_integer(sc, step));
-		      if (step == s7_integer(slot_value(end_slot))) break;
+		      if (step == integer(slot_value(end_slot))) break;
 		    }
 		}
 	      else
@@ -74061,9 +74123,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 			  o3 = sc->opts[++sc->pc];
 			  o3->v[0].fp(o3);
 			}
-		      step = s7_integer(slot_value(step_slot)) + 1;
+		      step = integer(slot_value(step_slot)) + 1;
 		      slot_set_value(step_slot, make_integer(sc, step));
-		      if (step == s7_integer(slot_value(end_slot))) break;
+		      if (step == integer(slot_value(end_slot))) break;
 		    }
 		}
 	    }
@@ -74072,9 +74134,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 	      while (true)
 		{
 		  func(sc, car(code));
-		  step = s7_integer(slot_value(step_slot)) + 1;
+		  step = integer(slot_value(step_slot)) + 1;
 		  slot_set_value(step_slot, make_integer(sc, step));
-		  if (step == s7_integer(slot_value(end_slot))) break;
+		  if (step == integer(slot_value(end_slot))) break;
 		}
 	    }
 	}
@@ -74134,9 +74196,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 			  sc->pc++;
 			}
 		      
-		      step = s7_integer(slot_value(step_slot)) + 1;
+		      step = integer(slot_value(step_slot)) + 1;
 		      slot_set_value(step_slot, make_integer(sc, step));
-		      if (step == s7_integer(slot_value(end_slot))) break;
+		      if (step == integer(slot_value(end_slot))) break;
 		    }
 		}
 	      sc->value = sc->T;
@@ -74193,9 +74255,9 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		      sc->pc++;
 		    }
 		  
-		  step = s7_integer(slot_value(step_slot)) + 1;
+		  step = integer(slot_value(step_slot)) + 1;
 		  slot_set_value(step_slot, make_integer(sc, step));
-		  if (step == s7_integer(slot_value(end_slot))) break;
+		  if (step == integer(slot_value(end_slot))) break;
 		}
 	    }
 	  sc->value = sc->T;
@@ -77496,37 +77558,13 @@ static void op_safe_c_opsq_p(s7_scheme *sc)
   sc->code = caddr(sc->code);
 }
 
-#if 0
-static void op_c_fx(s7_scheme *sc)
-{ /* (set-cdr! lst ()) */
-  s7_int len;
-  s7_pointer args, p, new_args;
-  len = integer(arglist_length(sc->code));
-  if (needs_copied_args(opt_cfunc(sc->code)))
-    new_args = make_list(sc, len, sc->nil);
-  else 
-    {
-      new_args = safe_list_if_possible(sc, len);
-      len = 0;
-    }
-  sc->args = new_args;      
-  /* GC protect? fx stuff below can clobber sc->args:
-   *    (catch #f (vector-ref #(1 2) 0 1.0+1.0i) (vector-ref #(1 2) 0 1.0+1.0i))
-   */
-  for (args = cdr(sc->code), p = new_args; is_pair(args); args = cdr(args), p = cdr(p))
-    set_car(p, c_call(args)(sc, car(args)));
-  sc->value = c_call(sc->code)(sc, new_args);
-  if (!len)
-    {
-      clear_list_in_use(new_args);
-      sc->current_safe_list = 0;
-    }
-}
-#else
 static void op_c_fx(s7_scheme *sc)
 { /* (set-cdr! lst ()) */
   s7_pointer args, p, new_args;
   new_args = make_list(sc, integer(arglist_length(sc->code)), sc->nil);
+  /* this make_list is usually unneeded -- most "unsafe" functions do not mess with their arguments, but
+   *   catching that and using safe_list_if_possible instead costs more than it saves in most cases.
+   */
   sc->args = new_args;      
   /* GC protect? fx stuff below can clobber sc->args:
    *    (catch #f (vector-ref #(1 2) 0 1.0+1.0i) (vector-ref #(1 2) 0 1.0+1.0i))
@@ -77535,7 +77573,6 @@ static void op_c_fx(s7_scheme *sc)
     set_car(p, c_call(args)(sc, car(args)));
   sc->value = c_call(sc->code)(sc, new_args);
 }
-#endif
 
 static inline void op_eval_args1(s7_scheme *sc) /* inline is needed here */
 {
@@ -77604,7 +77641,7 @@ static bool op_read_vector(s7_scheme *sc)
   sc->v = sc->value;
   if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
     sc->value = g_vector(sc, sc->value);
-  else sc->value = g_multivector(sc, s7_integer(sc->args), sc->value);
+  else sc->value = g_multivector(sc, integer(sc->args), sc->value);
   /* here and below all of the sc->value list can be freed, but my tests showed no speed up even in large cases */
   free_vlist(sc, sc->v);
   if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
@@ -77618,7 +77655,7 @@ static bool op_read_int_vector(s7_scheme *sc)
   sc->v = sc->value;
   if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
     sc->value = g_int_vector(sc, sc->value);
-  else sc->value = g_int_multivector(sc, s7_integer(sc->args), sc->value);
+  else sc->value = g_int_multivector(sc, integer(sc->args), sc->value);
   free_vlist(sc, sc->v);
   if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
   return(main_stack_op(sc) != OP_READ_LIST);
@@ -77631,7 +77668,7 @@ static bool op_read_float_vector(s7_scheme *sc)
   sc->v = sc->value;
   if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
     sc->value = g_float_vector(sc, sc->value);
-  else sc->value = g_float_multivector(sc, s7_integer(sc->args), sc->value);
+  else sc->value = g_float_multivector(sc, integer(sc->args), sc->value);
   free_vlist(sc, sc->v);
   if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
   return(main_stack_op(sc) != OP_READ_LIST);
@@ -77644,7 +77681,7 @@ static bool op_read_byte_vector(s7_scheme *sc)
   sc->v = sc->value;
   if (sc->args == small_int(1))             /* sc->args was sc->w earlier from read_sharp */
     sc->value = g_byte_vector(sc, sc->value);
-  else sc->value = g_byte_multivector(sc, s7_integer(sc->args), sc->value);
+  else sc->value = g_byte_multivector(sc, integer(sc->args), sc->value);
   free_vlist(sc, sc->v);
   if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
   return(main_stack_op(sc) != OP_READ_LIST);
@@ -79740,9 +79777,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    s7_pointer slot, code;
 	    code = sc->code;
 	    slot = dox_slot1(sc->envir);
-	    step = s7_integer(slot_value(slot)) + 1;
+	    step = integer(slot_value(slot)) + 1;
 	    slot_set_value(slot, make_integer(sc, step));
-	    end = s7_integer(slot_value(dox_slot2(sc->envir)));
+	    end = integer(slot_value(dox_slot2(sc->envir)));
 
 	    if ((step == end) ||
 		((step > end) &&
@@ -87938,8 +87975,8 @@ s7_scheme *s7_init(void)
 
   sc->hash_table_symbol =            defun("hash-table",	hash_table,		0, 0, true);
   sc->hash_table_star_symbol =       defun("hash-table*",	hash_table_star,	0, 0, true);
-  sc->make_hash_table_symbol =       defun("make-hash-table",	make_hash_table,	0, 2, false);
-  sc->make_weak_hash_table_symbol =  defun("make-weak-hash-table", make_weak_hash_table,0, 2, false);
+  sc->make_hash_table_symbol =       defun("make-hash-table",	make_hash_table,	0, 3, false);
+  sc->make_weak_hash_table_symbol =  defun("make-weak-hash-table", make_weak_hash_table,0, 3, false);
   sc->hash_table_ref_symbol =        defun("hash-table-ref",	hash_table_ref,		2, 0, true);
   sc->hash_table_set_symbol =        defun("hash-table-set!",	hash_table_set,		3, 0, false);
   sc->hash_table_entries_symbol =    defun("hash-table-entries", hash_table_entries,	1, 0, false);
@@ -88828,32 +88865,18 @@ int main(int argc, char **argv)
  */
 #endif
 
-/* typed-vector|hash-table, ratio/bit/byte=int+get/set restrictions, complex=real*2
- *   bit=boolean? type=closure->getter/setter localized, sig=(el-type int...) and similarly set-type
- *   hash-tables similarly -- (val-type key-type), use type-of to establish type of expr (the in s7.html but not func related)
- *   hash-table has room in block index+filler I think
- *   pair-type->car, var-type->slot_value, inlet-types/field-type?
- *   lint support for typed vector?
- *   morally-equal? vector check needs its own type match
- *   should equal treat all vectors equally? at least int=byte in type check, real?+float?+int etc
+/* typed-vector|hash-table -- let?
+ *   lint support for typed vector|hash-table?
+ *   hash-tables: need gc-mark/set--where to put the setter choice?? or marker?
+ *   variables: setter as integer? for example [in do-loops these could guarantee types]
+ *   lets: typer refers to all values, normal envrs have room for 2: setter/?? need typed_let/let-set/copy/gc-mark/object->let?? any set in the let
  *
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
- * setter can give variable signature
- *
- * op_closure_aa_p stored as opt2, called in CPP (no jump + switch to op)
- *   [skip current goto EVAL] closure_is_ok, op_closure(sc) goto EVAL|BEGIN
- *   in c_pp_1: same sequence: saves 2 eval/switch
- *   trade-off jump+switch for function overhead, but at opt time: unknown_aa
- *
- * many "unsafe" functions don't need copied args, but only apply turns on T_COPY_ARGS(??)
- *   so op_c_fx normally can use safe_lists -- all op_c_* calls could be split for this
- *   but unsafe_defun needs to be split as well.  Maybe unsafe_defun_uncopied?
- *   but then why does apply work -- apply_c_function passes sc->args and that is copied
- *   only if T_COPY_ARGS.
- *
  * (non-recursive) macro template no-cons reusable
  * does lint check len(pair)!=0 or len(lst)==0? (yes, but the message is dumb if it should know the type -- t872)
+ * obj->let for symbol add sig and all slots out to top?
+ * p_pip_ok[57180]: type1: 14 in t101 11/12/26 always after overflow
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88863,30 +88886,30 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.5  18.6  18.7  18.8
  * --------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   199
+ * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   200
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
- * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004   997
+ * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004  1001
  * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1038
  * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1294
- * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1694
+ * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1708
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1862
- * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2191
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2305
- * tread         |      |      |      ||      ||      | 2398  2357  2363  2357
- * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2371
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3127
- * tlet          |      |      |      ||      ||      |             4717  3522
+ * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2194
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2307
+ * tread         |      |      |      ||      ||      | 2398  2357  2363  2364
+ * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2377
+ * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2551
+ * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3137
+ * tlet          |      |      |      ||      ||      |             4717  3545
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3716
- * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3945
- * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5410
- * tset          |      |      |      ||      ||      |       10.0  6435  6341
- * dup           |      |      |      ||      ||      |       20.8  9525  7506
+ * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3948
+ * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5411
+ * tset          |      |      |      ||      ||      |       10.0  6435  6408
+ * dup           |      |      |      ||      ||      |       20.8  9525  7656
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
  * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.3
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.7
- * tbig          |      |      |      ||      ||      |      246.9 242.7 233.2
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.8
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 233.3
  * --------------------------------------------------------------------------------
  */

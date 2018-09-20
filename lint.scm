@@ -22094,6 +22094,7 @@
 
 	    ((vector? form)
 	     (unless (or (int-vector? form)
+			 (byte-vector? form)
 			 (float-vector? form))
 	       (let ((len (length form)))
 		 (when (positive? len)
