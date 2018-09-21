@@ -2298,8 +2298,8 @@ To insist that all objects are of the same type, use an explicit getter:
 
 
 <ul>
-<li>(<em class=def id="makehashtable">make-hash-table</em> (size 8) eq-func)
-<li>(<em class=def id="makeweakhashtable">make-weak-hash-table</em> (size 8) eq-func)
+<li>(<em class=def id="makehashtable">make-hash-table</em> (size 8) eq-func typers)
+<li>(<em class=def id="makeweakhashtable">make-weak-hash-table</em> (size 8) eq-func typers)
 <li>(<em class=def id="hashtable">hash-table</em> ...)
 <li>(<em class=def id="hashtablestar">hash-table*</em> ...)
 <li>(<em class=def id="hashtablep">hash-table?</em> obj)
@@ -2442,6 +2442,12 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
     '(32 . 2178309) '(33 . 3524578) '(34 . 5702887)))</em>
 </pre>
 </div>
+
+<p>The fourth argument, typers, sets type checkers for the keys and values in the table.
+It is a cons of the type functions (currently built-in functions only, as in vectors):
+<code>(cons symbol? integer?)</code> for example. This says that all the keys must
+be symbols and all the values integers.
+</p>
 
 </blockquote>
 
