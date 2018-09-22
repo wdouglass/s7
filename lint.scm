@@ -22567,7 +22567,8 @@
 	(set! *report-nested-if* (if (integer? *report-nested-if*) (max 3 *report-nested-if*) 4))
 	(set! *report-short-branch* (if (integer? *report-short-branch*) (max 0 *report-short-branch*) 12))
 	(set! *#readers* readers)
-	(set! (hook-functions *read-error-hook*) read-hooks)
+	(unless (defined? 'lint-no-read-error)
+	  (set! (hook-functions *read-error-hook*) read-hooks))
 
 	;; preset list-tail and list-ref
 	(vector-set! fragments 10 (make-hash-table))

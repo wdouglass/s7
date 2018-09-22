@@ -108,14 +108,19 @@
 	       vals)
      ,@(map (lambda (val)
 	      (if (pair? (cddr val))
-		  `(set! (setter ',(car val)) 
-			 (lambda (s v)
-			   (if (not (,(caddr val) v))
-			       (error 'wrong-type-arg "(set! ~S ~S) but ~S is not ~A" s v v ',(caddr val)))
-			   v))
+		  `(set! (setter ',(car val))
+			 (if (not (,(caddr val) ,(car val)))
+			     (error 'wrong-type "initial value ~S is not ~S" ,(car val) ,(caddr val))
+			     (lambda (s v)
+			       (if (not (,(caddr val) v))
+				   (error 'wrong-type-arg "(set! ~S ~S) but ~S is not ~A" s v v ',(caddr val)))
+			       v)))
 		  (values)))
 	    vals)
      ,@body))
+
+(define-macro (typed-inlet . vals) ; vals: ((var init [type])...)...) as in (typed-inlet (i 0 integer?)...)
+  `(typed-let ,vals (curlet)))
 
 
 ;;; ----------------

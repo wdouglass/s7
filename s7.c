@@ -148,7 +148,7 @@
 /* ---------------- initial sizes ---------------- */
 
 #ifndef INITIAL_HEAP_SIZE
-#define INITIAL_HEAP_SIZE 128000
+  #define INITIAL_HEAP_SIZE 128000
 #endif
 /* the heap grows as needed, this is its initial size.
  * If the initial heap is small, s7 can run in about 2.5 Mbytes of memory. There are (many) cases where a bigger heap is faster.
@@ -164,12 +164,12 @@
  */
 
 #ifndef SYMBOL_TABLE_SIZE
-#define SYMBOL_TABLE_SIZE 32749
+  #define SYMBOL_TABLE_SIZE 32749
 #endif
 /* names are hashed into the symbol table (a vector) and collisions are chained as lists. */
 
 #ifndef INITIAL_STACK_SIZE
-#define INITIAL_STACK_SIZE 512
+  #define INITIAL_STACK_SIZE 512
 #endif
 /* the stack grows as needed, each frame takes 4 entries, this is its initial size.
  *   this needs to be big enough to handle the eval_c_string's at startup (ca 100)
@@ -179,12 +179,12 @@
  */
 
 #ifndef INITIAL_PROTECTED_OBJECTS_SIZE
-#define INITIAL_PROTECTED_OBJECTS_SIZE 16
+  #define INITIAL_PROTECTED_OBJECTS_SIZE 16
 #endif
 /* a vector of objects that are (semi-permanently) protected from the GC, grows as needed */
 
 #ifndef GC_TEMPS_SIZE
-#define GC_TEMPS_SIZE 256
+  #define GC_TEMPS_SIZE 256
 #endif
 /* the number of recent objects that are temporarily gc-protected; 8 works for s7test and snd-test.
  *    For the FFI, this sets the lag between a call on s7_cons and the first moment when its result
@@ -216,7 +216,7 @@
 #endif
 
 #ifndef WITH_EXTRA_EXPONENT_MARKERS
-#define WITH_EXTRA_EXPONENT_MARKERS 0
+  #define WITH_EXTRA_EXPONENT_MARKERS 0
 #endif
 /* if 1, s7 recognizes "d", "f", "l", and "s" as exponent markers, in addition to "e" (also "D", "F", "L", "S") */
 
@@ -6087,7 +6087,6 @@ static void initialize_op_stack(s7_scheme *sc)
     sc->op_stack[i] = sc->nil;
 }
 
-
 static void resize_op_stack(s7_scheme *sc)
 {
   int32_t i, loc, new_size;
@@ -6100,7 +6099,6 @@ static void resize_op_stack(s7_scheme *sc)
   sc->op_stack_now = (s7_pointer *)(sc->op_stack + loc);
   sc->op_stack_end = (s7_pointer *)(sc->op_stack + sc->op_stack_size);
 }
-
 
 #define stack_code(Stack, Loc)  stack_element(Stack, Loc - 3)
 #define stack_let(Stack, Loc)   stack_element(Stack, Loc - 2)
@@ -6461,7 +6459,6 @@ static s7_pointer symbol_table_find_by_name(s7_scheme *sc, const char *name, uin
   return(sc->nil);
 }
 
-
 s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name)
 {
   uint64_t hash;
@@ -6515,7 +6512,6 @@ static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer args)
   return(lst);
 }
 
-
 bool s7_for_each_symbol_name(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data)
 {
   /* this includes the special constants #<unspecified> and so on for simplicity -- are there any others? */
@@ -6536,7 +6532,6 @@ bool s7_for_each_symbol_name(s7_scheme *sc, bool (*symbol_func)(const char *symb
 	 (symbol_func("#false", data)));
 }
 
-
 bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, s7_pointer value, void *data), void *data)
 {
   int32_t i;
@@ -6549,7 +6544,6 @@ bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_na
 
   return(false);
 }
-
 
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
 {
@@ -6577,7 +6571,6 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
 #endif
     }
 }
-
 
 s7_pointer s7_gensym(s7_scheme *sc, const char *prefix)
 {
@@ -8011,7 +8004,7 @@ static s7_pointer g_let_to_list(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- let-ref -------------------------------- */
 
-s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
+inline s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
 {
   s7_pointer x, y;
   /* (let ((a 1)) ((curlet) 'a))
@@ -9238,7 +9231,6 @@ void s7_define(s7_scheme *sc, s7_pointer envir, s7_pointer symbol, s7_pointer va
     }
 }
 
-
 s7_pointer s7_define_variable(s7_scheme *sc, const char *name, s7_pointer value)
 {
   s7_pointer sym;
@@ -9246,7 +9238,6 @@ s7_pointer s7_define_variable(s7_scheme *sc, const char *name, s7_pointer value)
   s7_define(sc, sc->nil, sym, value);
   return(sym);
 }
-
 
 s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help)
 {
@@ -11886,8 +11877,11 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
   /* check *read-error-hook* */
   if (hook_has_functions(sc->read_error_hook))
     {
-      s7_pointer result;
-      result = s7_call(sc, sc->read_error_hook, list_2(sc, sc->T, s7_make_string_wrapper(sc, name)));
+      s7_pointer result, old_hook;
+      old_hook = sc->read_error_hook;
+      sc->read_error_hook = sc->F; /* try to avoid loop if read-error-hook itself causes a read-error */
+      result = s7_call(sc, old_hook, list_2(sc, sc->T, s7_make_string_wrapper(sc, name)));
+      sc->read_error_hook = old_hook;
       if (result != sc->unspecified)
 	return(result);
     }
@@ -77788,7 +77782,6 @@ static void op_eval_macro(s7_scheme *sc)
        *   args=new list.  If it returns (values), should we use #<unspecified>?  I think that
        *   happens now without generating a multiple_value object:
        *       (define-macro (hi) (values)) (hi) -> #<unspecified>
-       *
        *   (define-macro (ho) (values '(+ 1 2) '(* 3 4))) (+ 1 (ho) 3) -> 19
        *   (define-macro (ha) (values '(define a 1) '(define b 2))) (let () (ha) (+ a b)) -> 3
        */
@@ -86837,6 +86830,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
 static const char *decoded_name(s7_scheme *sc, s7_pointer p)
 {
+  int32_t i;
   if (p == sc->value) return("value");
   if (p == sc->args) return("args");
   if (p == sc->code) return("code");
@@ -86917,6 +86911,16 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->plist_3) return("plist_3");
   if (p == sc->qlist_2) return("qlist_2");
   if (p == sc->clist_1) return("clist_1");
+  if (p == sc->integer_wrapper1) return("integer_wrapper1");
+  if (p == sc->integer_wrapper2) return("integer_wrapper2");
+  if (p == sc->integer_wrapper3) return("integer_wrapper3");
+  if (p == sc->real_wrapper1) return("real_wrapper1");
+  if (p == sc->real_wrapper2) return("real_wrapper2");
+  if (p == sc->real_wrapper3) return("real_wrapper3");
+  if (p == sc->real_wrapper4) return("real_wrapper4");
+  for (i = 0; i < NUM_STRING_WRAPPERS; i++)
+    if (p == sc->string_wrappers[i])
+      return("string_wrapper");
   if (p == sc->wrong_type_arg_info) return("wrong_type_arg_info");
   if (p == sc->out_of_range_info) return("out_of_range_info");
   if (p == sc->simple_wrong_type_arg_info) return("simple_wrong_type_arg_info");
@@ -86926,15 +86930,13 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == missing_method_string) return("missing_method_string");
   if (p == sc->stack) return("stack");
   
-  {
-    int32_t i;
-    for (i = 0; i < T_TEMPS_SIZE; i++)
-      if (p == sc->t_temps[i])
-	return("t_temp");
-    for (i = 0; i < NUM_SAFE_LISTS; i++)
-      if (p == sc->safe_lists[i])
-	return("safe_list");
-  }
+  for (i = 0; i < T_TEMPS_SIZE; i++)
+    if (p == sc->t_temps[i])
+      return("t_temp");
+  for (i = 0; i < NUM_SAFE_LISTS; i++)
+    if (p == sc->safe_lists[i])
+      return("safe_list");
+
   return(NULL);
 }
 
@@ -87103,7 +87105,7 @@ static void init_wrappers(s7_scheme *sc)
       s7_pointer p;
       p = (s7_pointer)calloc(1, sizeof(s7_cell));
       sc->string_wrappers[i] = p;
-      set_type_bit(p, T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE);
+      set_type_bit(p, T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE | T_UNHEAP);
       string_block(p) = NULL;
       string_value(p) = NULL;
       string_length(p) = 0;
@@ -88951,17 +88953,18 @@ int main(int argc, char **argv)
  */
 #endif
 
-/* typed-vector|hash-table -- let?
- *   lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?)
- *   variables: setter as integer? for example [in do-loops these could guarantee types]
- *   lets: typer refers to all values, normal envrs have room for 2: setter/?? need typed_let/let-set/copy/gc-mark/object->let?? any set in the let
+/* lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?)
+ *   variables: setter as integer?
  *   use b_7p or b_p for set type checks?
+ *   closure sigs should check?
+ *   ffi typer addition
  *
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
  * (non-recursive) macro template no-cons reusable
  * does lint check len(pair)!=0 or len(lst)==0? (yes, but the message is dumb if it should know the type -- t872)
  * obj->let for symbol add sig and all slots out to top?
+ * more direct_c_s
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -88974,27 +88977,27 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      ||  391 ||  377 |  376   280   199   200
  * tmac          |      |      |      || 9052 ||  264 |  279   283   266   266
  * tref          |      |      | 2372 || 2125 || 1036 | 1028  1057  1004  1011
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1038
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1291
- * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1683
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1865
+ * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1090  1088  1061  1039
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1304  1313  1316  1293
+ * teq           |      |      | 6612 || 2777 || 1931 | 1693  1662  1673  1680
+ * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1952  1929  1919  1756
  * lint          |      |      |      || 4041 || 2702 | 2351  2344  2318  2190
  * tcopy         |      |      | 13.6 || 3183 || 2974 | 2377  2373  2363  2324
- * tread         |      |      |      ||      ||      | 2398  2357  2363  2357
+ * tread         |      |      |      ||      ||      | 2398  2357  2363  2349
  * tform         |      |      | 6816 || 3714 || 2762 | 2522  2390  2388  2377
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3207  3113  2543  2543
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3439  3288  3261  3131
- * tlet          |      |      |      ||      ||      |             4717  3512
+ * tlet          |      |      |      ||      ||      |             4717  3503
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3718
  * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3946
  * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5472
  * tset          |      |      |      ||      ||      |       10.0  6435  6389
- * dup           |      |      |      ||      ||      |       20.8  9525  7490
+ * dup           |      |      |      ||      ||      |       20.8  9525  7494
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
- * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.3
- * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.8
- * tbig          |      |      |      ||      ||      |      246.9 242.7 233.2
+ * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.0
+ * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.7
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 233.1
  * --------------------------------------------------------------------------------
  */
