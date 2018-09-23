@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.3"
-#define S7_DATE "29-Jul-18"
+#define S7_VERSION "7.4"
+#define S7_DATE "24-Sep-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -211,6 +211,7 @@ bool s7_is_list(s7_scheme *sc, s7_pointer p);                                /* 
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer p);                         /* (proper-list? p) */
 s7_int s7_list_length(s7_scheme *sc, s7_pointer a);                          /* (length a) */
 s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...);                   /* (list ...) */
+s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...);                /* (list ...) arglist should be NULL terminated */
 s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a);                          /* (reverse a) */
 s7_pointer s7_append(s7_scheme *sc, s7_pointer a, s7_pointer b);             /* (append a b) */
 s7_pointer s7_list_ref(s7_scheme *sc, s7_pointer lst, s7_int num);           /* (list-ref lst num) */
@@ -853,6 +854,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 22-Sep:    s7_list_nl.
  * 12-Sep:    byte-vectors can be multidimensional; homogenous vectors of any built-in type. typed hash-tables.
  * 29-Jul:    symbol-setter deprecated (use setter). s7_symbol_documentation (and setter) folded into s7_documentation.
  * 12-Jul:    changed s7_vector_dimensions|offsets. 

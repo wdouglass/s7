@@ -2055,6 +2055,7 @@ static void init_types(void)
 #define is_safe_closure(p)            has_type0_bit(T_Pos(p), T_SAFE_CLOSURE)
 #define set_safe_closure(p)           set_type0_bit(p, T_SAFE_CLOSURE)
 #define clear_safe_closure(p)         clear_type0_bit(p, T_SAFE_CLOSURE)
+
 /* optimizer flag for a closure body that is completely simple (every expression is safe)
  *   set_safe_closure happens only in optimize_lambda (and define_funchcecked?), clear only in procedure_source, bits only here
  *   this has to be separate from T_SAFE_PROCEDURE, and should be in the second byte (closure_is_ok_1 checks typesflag).
@@ -35030,7 +35031,7 @@ static bool member_if(s7_scheme *sc)
   return(false);
 }
 
-
+/* -------------------------------- list -------------------------------- */
 static s7_pointer g_list(s7_scheme *sc, s7_pointer args)
 {
   #define H_list "(list ...) returns its arguments in a list"
@@ -35068,11 +35069,45 @@ s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...)
   if (num_values == 0)
     return(sc->nil);
 
+  sc->w = make_list(sc, num_values, sc->nil);
+  va_start(ap, num_values);
+  for (i = 0, p = sc->w; i < num_values; i++, p = cdr(p))
+    set_car(p, va_arg(ap, s7_pointer));
+  va_end(ap);
+
+  if (sc->safety > NO_SAFETY)
+    check_list_validity(sc, "s7_list", sc->w);
+
+  p = sc->w;
+  sc->w = sc->nil;
+  return(p);
+}
+
+s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...) /* arglist should be NULL terminated */
+{
+  s7_int i;
+  va_list ap;
+  s7_pointer p;
+
+  if (num_values == 0)
+    return(sc->nil);
+
   sc->w = sc->nil;
   va_start(ap, num_values);
   for (i = 0; i < num_values; i++)
-    sc->w = cons(sc, va_arg(ap, s7_pointer), sc->w);
+    {
+      p = va_arg(ap, s7_pointer);
+      if (!p)
+	{
+	  va_end(ap);
+	  return(s7_wrong_number_of_args_error(sc, "not enough args for s7_list: ~S", safe_reverse_in_place(sc, sc->w)));
+	}
+      sc->w = cons(sc, p, sc->w);
+    }
+  p = va_arg(ap, s7_pointer);
   va_end(ap);
+  if (p)
+    return(s7_wrong_number_of_args_error(sc, "too many args for s7_list: ~S", safe_reverse_in_place(sc, sc->w)));
 
   if (sc->safety > NO_SAFETY)
     check_list_validity(sc, "s7_list", sc->w);
@@ -35196,7 +35231,6 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
     }
   return(tp);
 }
-
 
 static s7_pointer append_in_place(s7_scheme *sc, s7_pointer a, s7_pointer b)
 {
@@ -88958,6 +88992,8 @@ int main(int argc, char **argv)
  *   use b_7p or b_p for set type checks?
  *   closure sigs should check?
  *   ffi typer addition
+ *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
+ *   s7_sigs are symbols, other are funcs
  *
  * multi-optlist for the #t/float problem
  * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
