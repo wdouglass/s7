@@ -211,7 +211,7 @@ bool s7_is_list(s7_scheme *sc, s7_pointer p);                                /* 
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer p);                         /* (proper-list? p) */
 s7_int s7_list_length(s7_scheme *sc, s7_pointer a);                          /* (length a) */
 s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...);                   /* (list ...) */
-s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...);                /* (list ...) arglist should be NULL terminated */
+s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...);                /* (list ...) arglist should be NULL terminated (more error checks than s7_list) */
 s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a);                          /* (reverse a) */
 s7_pointer s7_append(s7_scheme *sc, s7_pointer a, s7_pointer b);             /* (append a b) */
 s7_pointer s7_list_ref(s7_scheme *sc, s7_pointer lst, s7_int num);           /* (list-ref lst num) */

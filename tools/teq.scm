@@ -2,8 +2,6 @@
 
 ;;; equal? write/object->string/format cyclic-sequences
 
-;(set! (*s7* 'default-hash-table-length) 15)
-
 (define* (make-circular-list n init)
   (let ((l (make-list n init)))
     (set-cdr! (list-tail l (- n 1)) l)))
@@ -87,7 +85,6 @@
 	  (if (equal? vj (vector-ref teq-vars k))
 	      (if (not (= j k))
 		  (format *stderr* "oops! (~D ~D): ~A ~A~%" j k vj (vector-ref teq-vars k)))))
-		  ;;(display "oops"))))
 	(write vj p)
 	(set! str (get-output-string p #t))
 	(set! str (object->string vj))
