@@ -365,8 +365,10 @@
 
 #if __cplusplus
   #include <cmath>
+  #define s7_inline /* g++ 8.1.1 stupidity */
 #else
   #include <math.h>
+  #define s7_inline inline
 #endif
 
 #if HAVE_COMPLEX_NUMBERS
@@ -1304,7 +1306,7 @@ struct s7_scheme {
            char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp,
            string_greater_2, string_less_2, symbol_to_string_uncopied, vector_ref_ic, vector_ref_ic_0, vector_ref_ic_1,
            vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_set_ic, vector_set_3, fv_ref,
-           fv_ref_3, fv_set, fv_set_unchecked, iv_ref, iv_set, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
+           fv_ref_3, fv_set, fv_set_unchecked, iv_ref, iv_set, bv_ref, bv_set, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
            hash_table_ref_car, format_allg, format_allg_no_column, format_just_control_string, format_as_objstr,
            not_is_pair_s, not_is_null_s, not_is_symbol_s, not_is_number_s, not_is_eq_ss, not_is_eq_sq, not_is_pair_car_s,
            not_c_c, is_pair_car_s, is_pair_cdr_s, is_pair_cddr_s, is_pair_cadr_s, is_null_cdr, is_null_cddr_s,
@@ -1330,7 +1332,7 @@ struct s7_scheme {
 #endif
   s7_pointer active_symbol, goto_symbol, data_symbol, weak_symbol, dimensions_symbol, info_symbol, c_type_symbol, source_symbol, c_object_ref_symbol,
              at_end_symbol, sequence_symbol, position_symbol, entries_symbol, locked_symbol, function_symbol, open_symbol, alias_symbol, port_type_symbol,
-             file_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, 
+             file_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, current_value_symbol,
              c_object_copy_symbol, c_object_fill_symbol, c_object_reverse_symbol, c_object_to_list_symbol, c_object_to_string_symbol, closed_symbol;
 
 #if WITH_SYSTEM_EXTRAS
@@ -2493,8 +2495,7 @@ static void init_types(void)
 #define pair_raw_name(p)              (p)->object.sym_cons.fstr
 #define pair_set_raw_name(p, X)       (p)->object.sym_cons.fstr = X
 
-/* opt1 == raw_hash, opt2 == raw_name, opt3 == line|ctr + op|len, but hash/name/len only apply to the symbol table so there's no collision
- */
+/* opt1 == raw_hash, opt2 == raw_name, opt3 == line|ctr + op|len, but hash/name/len only apply to the symbol table so there's no collision */
 
 #else
 
@@ -3782,7 +3783,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_PS, HOP_SAFE_C_PS, OP_SAFE_C_PC, HOP_SAFE_C_PC, OP_SAFE_C_PQ, HOP_SAFE_C_PQ,
       OP_SAFE_C_AAP, HOP_SAFE_C_AAP,
       
-      OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1,
+      OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1, OP_S_AA,
       OP_GOTO, OP_GOTO_A,
       OP_ITERATE, OP_CONTINUATION_A, OP_VECTOR_A, OP_STRING_A, OP_C_OBJECT_A, OP_PAIR_A, OP_HASH_TABLE_A, OP_ENVIRONMENT_Q, OP_ENVIRONMENT_A,
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA,
@@ -3999,7 +4000,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_c_ps", "h_safe_c_ps", "safe_c_pc", "h_safe_c_pc", "safe_c_pq", "h_safe_c_pq",
       "safe_c_aap", "h_safe_c_aap",
       
-      "s", "s_s", "s_c", "s_a", "c_fa_1",
+      "s", "s_s", "s_c", "s_a", "c_fa_1", "s_aa",
       "goto", "goto_a",
       "iterate", "continuation_a", "vector_a", "string_a", "c_object_a", "pair_a", "hash_table_a", "environment_q", "environment_a",
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa", 
@@ -4559,7 +4560,7 @@ static void resize_gc_protect(s7_scheme *sc)
     }
 }
 
-inline s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
+s7_inline s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x)
 {
   s7_int loc;
   if (sc->gpofl_loc < 0)
@@ -10759,24 +10760,13 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
     {
       if (a == b)
 	return(small_int(1));
-
       /* we've got a problem... This should not trigger an error during reading -- we might have the
        *   ratio on a switch with-bignums or whatever, so its mere occurrence is just an annoyance.
-       *   We'll try to do something...
        */
       if (a & 1)
-	{
-	  if (a == 1)
-	    return(real_NaN);
-	  /* not an error here? we can't get this in the ratio reader, I think, because the denominator is negative */
-	  b = b + 1;
-	  /* so (/ -1 most-negative-fixnum) -> 1/9223372036854775807 -- not ideal, but ... */
-	}
-      else
-	{
-	  a /= 2;
-	  b /= 2;
-	}
+	return(make_real(sc, (long double)a / (long double)b));
+      a /= 2;
+      b /= 2;
     }
 #endif
 
@@ -10808,6 +10798,8 @@ static inline s7_pointer make_simple_ratio(s7_scheme *sc, s7_int num, s7_int den
     return(make_integer(sc, num));
   if (den == -1)
     return(make_integer(sc, -num));
+  if ((den == s7_int_min) && ((num & 1) != 0))
+    return(make_real(sc, (long double)num / (long double)den));
   new_cell(sc, x, T_RATIO);
   if (den < 0)
     {
@@ -11000,7 +10992,10 @@ static s7_pointer s7_negate(s7_scheme *sc, s7_pointer p)     /* can't use "negat
 {
   switch (type(p))
     {
-    case T_INTEGER: return(make_integer(sc, -integer(p)));
+    case T_INTEGER:
+      if (integer(p) == s7_int_min)
+	return(simple_out_of_range(sc, sc->subtract_symbol, p, wrap_string(sc, "most-negative-fixnum can't be negated", 37)));
+      return(make_integer(sc, -integer(p)));
     case T_RATIO:   return(make_simple_ratio(sc, -numerator(p), denominator(p)));
     case T_REAL:    return(make_real(sc, -real(p)));
     default:        return(s7_make_complex(sc, -real_part(p), -imag_part(p)));
@@ -11014,7 +11009,7 @@ static s7_pointer s7_invert(s7_scheme *sc, s7_pointer p)      /* s7_ to be consi
   switch (type(p))
     {
     case T_INTEGER:
-      return(make_simple_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
+      return(make_simple_ratio(sc, 1, integer(p)));           /* a already checked, not 0 */
 
     case T_RATIO:
       return(make_simple_ratio(sc, denominator(p), numerator(p)));
@@ -16447,7 +16442,7 @@ static s7_pointer g_subtract_1(s7_scheme *sc, s7_pointer args)
 #if WITH_GMP
 	return(big_negate(sc, set_plist_1(sc, promote_number(sc, T_BIG_INTEGER, p))));
 #else
-        return(make_integer(sc, s7_int_max));
+      return(simple_out_of_range(sc, sc->subtract_symbol, p, wrap_string(sc, "most-negative-fixnum can't be negated", 37)));
 #endif
       return(make_integer(sc, -integer(p)));
 
@@ -24344,9 +24339,9 @@ static void make_standard_ports(s7_scheme *sc)
   port_write_string(x) = input_write_string;
   sc->standard_input = x;
 
-  s7_define_constant(sc, "*stdin*", sc->standard_input);
-  s7_define_constant(sc, "*stdout*", sc->standard_output);
-  s7_define_constant(sc, "*stderr*", sc->standard_error);
+  s7_define_constant_with_documentation(sc, "*stdin*", sc->standard_input, "*stdin* is the built-in input port, C's stdin");
+  s7_define_constant_with_documentation(sc, "*stdout*", sc->standard_output, "*stdout* is the built-in buffered output port, C's stdout");
+  s7_define_constant_with_documentation(sc, "*stderr*", sc->standard_error, "*stderr* is the built-in unbuffered output port, C's stderr");
 
   sc->input_port = sc->standard_input;
   sc->output_port = sc->standard_output;
@@ -27689,7 +27684,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  if (vector_rank(vect) > 1)
 	    port_write_string(port)(sc, "(subvector ", 11, port);
 	  
-	  if (is_immutable(vect))
+	  if (is_immutable_vector(vect))
 	    port_write_string(port)(sc, "(immutable! ", 12, port);
 	  
 	  port_write_string(port)(sc, "(vector", 7, port);
@@ -27699,7 +27694,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	      object_to_port_with_circle_check(sc, vector_element(vect, i), port, P_READABLE, ci);
 	    }
 	  port_write_character(port)(sc, ')', port);
-	  if (is_immutable(vect))
+	  if (is_immutable_vector(vect))
 	    port_write_character(port)(sc, ')', port);
 	  
 	  if (vector_rank(vect) > 1)
@@ -27800,7 +27795,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
   too_long = (len < vector_length(vect));
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_string(port)(sc, "(immutable! ", 12, port);
 
   if (len > 1000)
@@ -27821,7 +27816,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 	  port_write_string(port)(sc, p, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  if ((use_write == P_READABLE) &&
-	      (is_immutable(vect)))
+	      (is_immutable_vector(vect)))
 	    port_write_character(port)(sc, ')', port);
 	  return;
 	}
@@ -27886,7 +27881,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
     }
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_character(port)(sc, ')', port);
 }
 
@@ -27903,7 +27898,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   els = float_vector_floats(vect);
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_string(port)(sc, "(immutable! ", 12, port);
 
   if (len > 1000)
@@ -27921,7 +27916,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
 	  plen = snprintf(buf, 128, "%.*g)", sc->float_format_precision, first);
 	  port_write_string(port)(sc, buf, plen, port);
 	  if ((use_write == P_READABLE) &&
-	      (is_immutable(vect)))
+	      (is_immutable_vector(vect)))
 	    port_write_character(port)(sc, ')', port);
 	  return;
 	}
@@ -27952,7 +27947,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
     }
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_character(port)(sc, ')', port);
 }
 
@@ -27968,7 +27963,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
   too_long = (len < vector_length(vect));
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_string(port)(sc, "(immutable! ", 12, port);
 
   if (len > 1000)
@@ -27989,7 +27984,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
 	  port_write_string(port)(sc, p, plen, port);
 	  port_write_character(port)(sc, ')', port);
 	  if ((use_write == P_READABLE) &&
-	      (is_immutable(vect)))
+	      (is_immutable_vector(vect)))
 	    port_write_character(port)(sc, ')', port);
 	  return;
 	}
@@ -28018,7 +28013,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
     }
 
   if ((use_write == P_READABLE) &&
-      (is_immutable(vect)))
+      (is_immutable_vector(vect)))
     port_write_character(port)(sc, ')', port);
 }
 
@@ -36712,7 +36707,7 @@ static s7_pointer g_vector_set(s7_scheme *sc, s7_pointer args)
   vec = car(args);
   if (!is_any_vector(vec))
     return(method_or_bust(sc, vec, sc->vector_set_symbol, args, T_VECTOR, 1));
-  if (is_immutable(vec))
+  if (is_immutable_vector(vec))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, vec)));
 
   if (vector_length(vec) == 0)
@@ -36839,7 +36834,7 @@ static s7_pointer g_vector_set_ic(s7_scheme *sc, s7_pointer args)
   if (!is_any_vector(vec))
     return(method_or_bust(sc, vec, sc->vector_set_symbol, list_3(sc, vec, cadr(args), symbol_to_value_unchecked(sc, caddr(args))), T_VECTOR, 1));
   /* the list_3 happens only if we find the method */
-  if (is_immutable(vec))
+  if (is_immutable_vector(vec))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, vec)));
 
   if (vector_rank(vec) > 1)
@@ -36867,7 +36862,7 @@ static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
   vec = car(args);
   if (!is_any_vector(vec))
     return(method_or_bust(sc, vec, sc->vector_set_symbol, args, T_VECTOR, 1));
-  if (is_immutable(vec))
+  if (is_immutable_vector(vec))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, vec)));
   if (vector_rank(vec) > 1)
     return(g_vector_set(sc, args));
@@ -37509,7 +37504,7 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, s7_pointer caller,
   vec = car(args);
   if (type(vec) != typ)
     return(method_or_bust(sc, vec, caller, args, typ, 1));
-  if (is_immutable(vec))
+  if (is_immutable_vector(vec))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, caller, vec)));
 
   if (vector_rank(vec) > 1)
@@ -37891,6 +37886,31 @@ static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
 
 static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector(p1, i1))));}
 
+static s7_pointer g_bv_ref(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer v, index;
+  s7_int ind;
+  v = car(args);
+  if (!is_byte_vector(v))
+    return(method_or_bust(sc, v, sc->byte_vector_ref_symbol, args, T_BYTE_VECTOR, 1)); 
+  if (vector_rank(v) != 1)
+    return(univect_ref(sc, args, sc->byte_vector_ref_symbol, T_BYTE_VECTOR));
+  index = cadr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->byte_vector_ref_symbol, 2, index, T_INTEGER));
+  ind = s7_integer(index);
+  if ((ind < 0) || (ind >= vector_length(v)))
+    return(simple_out_of_range(sc, sc->byte_vector_ref_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+  return(make_integer(sc, byte_vector(v, ind)));
+}
+
+static s7_pointer byte_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    return(sc->bv_ref);
+  return(f);
+}
+
 
 /* -------------------------------- byte-vector-set -------------------------------- */
 static s7_pointer g_byte_vector_set(s7_scheme *sc, s7_pointer args)
@@ -37914,6 +37934,41 @@ static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7
 
 static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
 
+static s7_pointer g_bv_set(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer v, index, value;
+  s7_int ind, uval;
+  v = car(args);
+  if (!is_byte_vector(v))
+    return(method_or_bust(sc, v, sc->byte_vector_set_symbol, args, T_BYTE_VECTOR, 1)); 
+  if (vector_rank(v) != 1)
+    return(univect_set(sc, args, sc->byte_vector_set_symbol, T_BYTE_VECTOR));
+  index = cadr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->byte_vector_set_symbol, 2, index, T_INTEGER));
+  ind = s7_integer(index);
+  if ((ind < 0) || (ind >= vector_length(v)))
+    return(simple_out_of_range(sc, sc->byte_vector_set_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+  value = caddr(args);
+  if (!s7_is_integer(value))
+    return(wrong_type_argument(sc, sc->byte_vector_set_symbol, 3, value, T_INTEGER));
+  if ((ind < 0) || (ind >= vector_length(v)))
+    return(simple_out_of_range(sc, sc->byte_vector_set_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+  uval = s7_integer(value);
+  if ((uval < 0) || (uval > 255))
+    simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, value, an_unsigned_byte_string);
+  if (is_immutable(v))
+    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->byte_vector_set_symbol, v)));
+  byte_vector(v, ind) = (uint8_t)uval;
+  return(value);
+}
+
+static s7_pointer byte_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 3)
+    return(sc->bv_set);
+  return(f);
+}
 
 
 /* -------------------------------------------------------------------------------- */
@@ -41045,11 +41100,6 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
 
   /* it would be neat if this would worK (define x (let ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
   check_method(sc, p, sc->documentation_symbol, args);
-  if ((!is_procedure(p)) &&
-      (!is_any_macro(p)) &&
-      (!is_syntax(p)))
-    return(simple_wrong_type_argument_with_type(sc, sc->documentation_symbol, p, a_procedure_string));
-
   return(s7_make_string(sc, s7_documentation(sc, p)));
 }
 
@@ -45248,7 +45298,9 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_undefined_symbol));
 
     case T_SYNTAX:
-      return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_syntax_symbol));
+      return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
+			   sc->type_symbol, sc->is_syntax_symbol,
+			   sc->documentation_symbol, s7_make_string(sc, syntax_documentation(obj))));
 
     case T_EOF_OBJECT:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_eof_object_symbol));
@@ -45276,14 +45328,35 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_complex_symbol));
 
     case T_SYMBOL:
-      return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
-			   sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : ((is_gensym(obj)) ? sc->is_gensym_symbol : sc->is_symbol_symbol),
-			   sc->setter_symbol, (is_keyword(obj)) ? sc->F : g_setter(sc, args)));
+      {
+	s7_pointer let;
+	let = g_local_inlet(sc, 4, sc->value_symbol, obj, 
+			    sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : ((is_gensym(obj)) ? sc->is_gensym_symbol : sc->is_symbol_symbol));
+	if (!is_keyword(obj))
+	  {
+	    s7_pointer val;
+	    if (!sc->current_value_symbol)
+	      sc->current_value_symbol = s7_make_symbol(sc, "current-value");
+	    val = s7_symbol_value(sc, obj);
+	    s7_varlet(sc, let, sc->current_value_symbol, val);
+	    s7_varlet(sc, let, sc->setter_symbol, g_setter(sc, args));
+	    s7_varlet(sc, let, sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_symbol(obj)));
+	    if (!is_undefined(val))
+	      {
+		const char *doc;
+		doc = s7_documentation(sc, obj);
+		if (doc)
+		  s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
+	      }
+	  }
+	return(let);
+      }
       
     case T_STRING:
-      return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
+      return(g_local_inlet(sc, 8, sc->value_symbol, obj, 
 			   sc->type_symbol, sc->is_string_symbol,
-			   sc->length_symbol, s7_length(sc, obj)));
+			   sc->length_symbol, s7_length(sc, obj),
+			   sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_string(obj))));
       
     case T_PAIR:
       return(g_local_inlet(sc, 6, sc->value_symbol, obj, 
@@ -45325,10 +45398,11 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  sc->dimensions_symbol = s7_make_symbol(sc, "dimensions");
 	if (!sc->position_symbol) 
 	  sc->position_symbol = s7_make_symbol(sc, "position");
-	let = g_local_inlet(sc, 8, sc->value_symbol, obj, 
+	let = g_local_inlet(sc, 10, sc->value_symbol, obj, 
 			    sc->type_symbol, (is_subvector(obj)) ? cons(sc, sc->is_subvector_symbol, s7_type_of(sc, subvector_vector(obj))) : s7_type_of(sc, obj),
 			    sc->length_symbol, s7_length(sc, obj),
-			    sc->dimensions_symbol, g_vector_dimensions(sc, set_plist_1(sc, obj)));
+			    sc->dimensions_symbol, g_vector_dimensions(sc, set_plist_1(sc, obj)),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_vector(obj)));
 	if (is_subvector(obj))
 	  {
 	    s7_varlet(sc, let, sc->position_symbol, make_integer(sc, (s7_int)(vector_elements(obj) - vector_elements(subvector_vector(obj)))));
@@ -45401,11 +45475,12 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  }
 	if (!sc->function_symbol)
 	  sc->function_symbol = s7_make_symbol(sc, "function");
-	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+	let = g_local_inlet(sc, 12, sc->value_symbol, obj,
 			    sc->type_symbol, sc->is_hash_table_symbol,
 			    sc->length_symbol, s7_length(sc, obj),
 			    sc->entries_symbol, s7_make_integer(sc, hash_table_entries(obj)),
-			    sc->locked_symbol, s7_make_boolean(sc, hash_table_checker_locked(obj)));
+			    sc->locked_symbol, s7_make_boolean(sc, hash_table_checker_locked(obj)),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
 	if (is_weak_hash_table(obj))
 	  s7_varlet(sc, let, sc->weak_symbol, sc->T);
 	if ((hash_table_checker(obj) == hash_eq) ||
@@ -45476,11 +45551,12 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    sc->file_symbol = s7_make_symbol(sc, "file");
 	    sc->line_symbol = s7_make_symbol(sc, "line");
 	  }
-	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+	let = g_local_inlet(sc, 12, sc->value_symbol, obj,
 			    sc->type_symbol, sc->is_let_symbol,
 			    sc->length_symbol, s7_length(sc, obj),
 			    sc->open_symbol, s7_make_boolean(sc, has_methods(obj)),
-			    sc->outlet_symbol, (obj == sc->rootlet) ? sc->nil : outlet(obj));
+			    sc->outlet_symbol, (obj == sc->rootlet) ? sc->nil : outlet(obj),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
 	if (obj == sc->rootlet)
 	  s7_varlet(sc, let, sc->alias_symbol, sc->rootlet_symbol);
 	else
@@ -45594,10 +45670,11 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	    sc->closed_symbol = s7_make_symbol(sc, "closed");
 	    if (!sc->position_symbol) sc->position_symbol = s7_make_symbol(sc, "position");
 	  }
-	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
+	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
 			    sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
 			    sc->port_type_symbol, (is_string_port(obj)) ? sc->string_symbol : ((is_file_port(obj)) ? sc->file_symbol : sc->function_symbol),
-			    sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)));
+			    sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_port(obj)));
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
 	if (is_file_port(obj))
 	  {
@@ -45638,9 +45715,10 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  }
 	if (!sc->source_symbol)
 	  sc->source_symbol = s7_make_symbol(sc, "source");
-	let = g_local_inlet(sc, 6, sc->value_symbol, obj,
+	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
 			    sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
-			    sc->arity_symbol, s7_arity(sc, obj));
+			    sc->arity_symbol, s7_arity(sc, obj),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
 	gc_loc = s7_gc_protect_1(sc, let);
 
 	sig = s7_signature(sc, obj);
@@ -45685,9 +45763,10 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       {
 	s7_pointer let, sig;
 	const char* doc;
-	let = g_local_inlet(sc, 6, sc->value_symbol, obj,
+	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
 			    sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
-			    sc->arity_symbol, s7_arity(sc, obj));
+			    sc->arity_symbol, s7_arity(sc, obj),
+			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
 
 	sig = c_function_signature(obj);
 	if (is_pair(sig))
@@ -60522,11 +60601,13 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 		    opc->v[0].fp = i_to_p;
 		    if (opc->v[7].fi == opt_i_ii_ss_add)
 		      opc->v[0].fp = opt_p_ii_ss_add;
+#if (!WITH_GMP)
 		    else
 		      {
 			if (opc->v[7].fi == opt_i_ii_fc_add)
 			  opc->v[0].fp = opt_p_ii_fc_add;
 		      }
+#endif
 		    return(true);
 		  }
 		pc_fallback(sc, pstart);
@@ -62729,7 +62810,6 @@ static s7_pointer read_string_constant(s7_scheme *sc, s7_pointer pt)
     }
 }
 
-
 static s7_pointer read_expression(s7_scheme *sc)
 {
   while (true)
@@ -63013,6 +63093,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 
 	  /* check *unbound-variable-hook* */
 	  if ((result == sc->undefined) &&
+	      (is_procedure(sc->unbound_variable_hook)) &&
 	      (hook_has_functions(sc->unbound_variable_hook)))
 	    {
 	      /* (let () (set! (hook-functions *unbound-variable-hook*) (list (lambda (v) _asdf_))) _asdf_) */
@@ -63020,7 +63101,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 
 	      old_hook = sc->unbound_variable_hook;
 	      set_car(sc->z2_1, old_hook);
-	      sc->unbound_variable_hook = sc->error_hook;      /* avoid the infinite loop mentioned above */
+	      sc->unbound_variable_hook = sc->error_hook;      /* avoid the infinite loop mentioned above -- error_hook might be () or #f if we're in error-hook now */
 	      result = s7_call(sc, old_hook, list_1(sc, sym)); /* not s7_apply_function */
 	      sc->unbound_variable_hook = old_hook;
 	    }
@@ -64650,6 +64731,14 @@ static void init_choosers(s7_scheme *sc)
   /* int-vector-set */
   f = set_function_chooser(sc, sc->int_vector_set_symbol, int_vector_set_chooser);
   sc->iv_set = make_function_with_class(sc, f, "int-vector-set!", g_iv_set, 3, 0, false, "int-vector-set! opt");
+
+  /* byte-vector-ref */
+  f = set_function_chooser(sc, sc->byte_vector_ref_symbol, byte_vector_ref_chooser);
+  sc->bv_ref = make_function_with_class(sc, f, "byte-vector-ref", g_bv_ref, 2, 0, false, "byte-vector-ref opt");
+
+  /* byte-vector-set */
+  f = set_function_chooser(sc, sc->byte_vector_set_symbol, byte_vector_set_chooser);
+  sc->bv_set = make_function_with_class(sc, f, "byte-vector-set!", g_bv_set, 3, 0, false, "byte-vector-set! opt");
 
   /* list-set! */
   f = set_function_chooser(sc, sc->list_set_symbol, list_set_chooser);
@@ -71074,6 +71163,45 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
   return(sc->code);
 }
 
+static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
+{
+  sc->code = sc->value;
+  if ((!is_pair(sc->code)) ||
+      (!is_pair(car(sc->code))) ||
+      (!is_symbol(caar(sc->code))))
+    eval_error(sc, "define-macro: ~S does not look like a macro?", 44, sc->code);
+  if ((is_immutable(sc->envir)) && 
+      (is_let(sc->envir))) /* not () */
+    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code));
+  sc->value = make_macro(sc, sc->cur_op);
+  return(NULL);
+}
+
+static bool op_define_macro(s7_scheme *sc)
+{
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+  check_define_macro(sc, sc->cur_op);
+  if (symbol_has_setter(caar(sc->code)))
+    {
+      s7_pointer x;
+      x = symbol_to_slot(sc, caar(sc->code));
+      if ((is_slot(x)) &&
+	  (slot_has_setter(x)))
+	{
+	  sc->value = bind_symbol_with_setter(sc, OP_DEFINE_MACRO_WITH_SETTER, caar(sc->code), sc->code);
+	  if (sc->value == sc->no_value)
+	    return(false);
+	  sc->code = sc->value;
+	}
+    }
+  if ((is_immutable(sc->envir)) && 
+      (is_let(sc->envir))) /* not () */
+    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_no_return_with_caller? */
+  sc->value = make_macro(sc, sc->cur_op);
+  return(true);
+}
+
 static int32_t expansion_ex(s7_scheme *sc)
 {
   int64_t loc;
@@ -74066,6 +74194,7 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 
   code = cdr(code);
   body = caddr(code);
+  /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY(code)); */
 
   if (!pair_no_opt(cddr(code)))
     {
@@ -74173,7 +74302,6 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 	}
     }
 #endif
-  /* no hits here in s7test or snd-test! */
   return(fall_through);
 }
 
@@ -75569,7 +75697,10 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
-  return(unknown_unknown(sc));
+
+  annotate_args(sc, cdr(code), sc->envir);
+  return(fixup_unknown_op(code, f, OP_S_AA));
+  /* return(unknown_unknown(sc)); */
 }
 
 static int32_t unknown_all_s_ex(s7_scheme *sc, s7_pointer f)
@@ -75725,7 +75856,8 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
     default:
       break;
     }
-  return(unknown_unknown(sc));
+  /* return(unknown_unknown(sc)); */
+  return(fixup_unknown_op(code, f, OP_S_AA));
 }
 
 static int32_t unknown_fx_ex(s7_scheme *sc, s7_pointer f)
@@ -77478,6 +77610,33 @@ static s7_pointer op_s_c(s7_scheme *sc)
   return(NULL);
 }
 
+static bool op_s_s(s7_scheme *sc)
+{
+  s7_pointer code;
+  code = sc->code;
+  sc->code = symbol_to_value_unchecked(sc, car(code));
+  if ((is_c_function(sc->code)) &&
+      (c_function_required_args(sc->code) == 1) &&
+      (!needs_copied_args(sc->code)))
+    {
+      set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
+      sc->value = c_function_call(sc->code)(sc, sc->t1_1);
+      return(true); /* goto START; */
+    }
+  if (!is_applicable(sc->code))
+    apply_error(sc, sc->code, cdr(code));
+  if (dont_eval_args(sc->code))
+    sc->args = cdr(code);
+  else 
+    {
+      set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
+      sc->args = sc->t1_1;
+    }
+  if (needs_copied_args(sc->code))
+    sc->args = copy_list(sc, sc->args);
+  return(false); /* goto APPLY; */
+}
+
 static s7_pointer op_s_a(s7_scheme *sc)
 {
   s7_pointer code;
@@ -77491,6 +77650,26 @@ static s7_pointer op_s_a(s7_scheme *sc)
     {
       set_car(sc->a1_1, c_call(cdr(code))(sc, cadr(code)));
       sc->args = sc->a1_1;
+    }
+  if (needs_copied_args(sc->code))
+    sc->args = copy_list(sc, sc->args);
+  return(NULL);
+}
+
+static s7_pointer op_s_aa(s7_scheme *sc)
+{
+  s7_pointer code;
+  code = sc->code;
+  sc->code = symbol_to_value_unchecked(sc, car(code));
+  if (!is_applicable(sc->code))
+    apply_error(sc, sc->code, cdr(code));
+  if (dont_eval_args(sc->code))
+    sc->args = cdr(code);
+  else 
+    {
+      set_car(sc->a2_1, c_call(cdr(code))(sc, cadr(code)));
+      set_car(sc->a2_2, c_call(cddr(code))(sc, caddr(code)));
+      sc->args = sc->a2_1;
     }
   if (needs_copied_args(sc->code))
     sc->args = copy_list(sc, sc->args);
@@ -78849,34 +79028,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto APPLY;
 
 	case OP_S_S:
-	  {
-	    s7_pointer code;
-	    code = sc->code;
-	    sc->code = symbol_to_value_unchecked(sc, car(code));
-	    if ((is_c_function(sc->code)) &&
-		(c_function_required_args(sc->code) == 1) &&
-		(!needs_copied_args(sc->code)))
-	      {
-		set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
-		sc->value = c_function_call(sc->code)(sc, sc->t1_1);
-		goto START;
-	      }
-	    if (!is_applicable(sc->code))
-	      apply_error(sc, sc->code, cdr(code));
-	    if (dont_eval_args(sc->code))
-	      sc->args = cdr(code);
-	    else 
-	      {
-		set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
-		sc->args = sc->t1_1;
-	      }
-	    if (needs_copied_args(sc->code))
-	      sc->args = copy_list(sc, sc->args);
-	    goto APPLY;
-	  }
-	  
+	  if (op_s_s(sc)) goto START;
+	  goto APPLY;
+
 	case OP_S_A:
 	  op_s_a(sc);
+	  goto APPLY;
+
+	case OP_S_AA:
+	  op_s_aa(sc);
 	  goto APPLY;
 
 	case OP_SAFE_C_STAR:
@@ -81386,15 +81546,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 	  
 	case OP_DEFINE_MACRO_WITH_SETTER:
-	  sc->code = sc->value;
-	  if ((!is_pair(sc->code)) ||
-	      (!is_pair(car(sc->code))) ||
-	      (!is_symbol(caar(sc->code))))
-	    eval_error(sc, "define-macro: ~S does not look like a macro?", 44, sc->code);
-	  if ((is_immutable(sc->envir)) && 
-	      (is_let(sc->envir))) /* not () */
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code));
-	  sc->value = make_macro(sc, sc->cur_op);
+	  op_define_macro_with_setter(sc);
 	  goto START;
 	  
 	case OP_DEFINE_BACRO: 
@@ -81402,27 +81554,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DEFINE_EXPANSION: 
 	case OP_DEFINE_MACRO: 
 	case OP_DEFINE_MACRO_STAR: 
-	  set_current_code(sc, sc->code);
-	  sc->code = cdr(sc->code);
-	  check_define_macro(sc, sc->cur_op);
-	  if (symbol_has_setter(caar(sc->code)))
-	    {
-	      s7_pointer x;
-	      x = symbol_to_slot(sc, caar(sc->code));
-	      if ((is_slot(x)) &&
-		  (slot_has_setter(x)))
-		{
-		  sc->value = bind_symbol_with_setter(sc, OP_DEFINE_MACRO_WITH_SETTER, caar(sc->code), sc->code);
-		  if (sc->value == sc->no_value)
-		    goto APPLY;
-		  sc->code = sc->value;
-		}
-	    }
-	  if ((is_immutable(sc->envir)) && 
-	      (is_let(sc->envir))) /* not () */
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_no_return_with_caller? */
-	  sc->value = make_macro(sc, sc->cur_op);
-	  goto START;
+	  if (op_define_macro(sc)) goto START;
+	  goto APPLY;
 	  
 	case OP_LAMBDA: 
 	  set_current_code(sc, sc->code);
@@ -87603,6 +87736,7 @@ s7_scheme *s7_init(void)
   sc->function_symbol = NULL;
   sc->open_symbol = NULL;
   sc->alias_symbol = NULL;
+  sc->current_value_symbol = NULL;
   sc->source_symbol = NULL;
   sc->file_symbol = NULL;
   sc->line_symbol = NULL;
@@ -88310,7 +88444,7 @@ s7_scheme *s7_init(void)
   sc->tree_is_cyclic_symbol = defun("tree-cyclic?",  tree_is_cyclic, 1, 0, false);
 
   /* -------- *features* -------- */
-  sc->features_symbol = s7_define_variable(sc, "*features*", sc->nil);
+  sc->features_symbol = s7_define_variable_with_documentation(sc, "*features*", sc->nil, "list of currently available features ('complex-numbers, etc)");
   s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "(set *features*)", g_features_set, 2, 0, false, "*features* setter"));
 
   /* -------- *load-path* -------- */
@@ -88332,7 +88466,7 @@ s7_scheme *s7_init(void)
   sc->autoloader_symbol = s7_define_typed_function(sc, "*autoload*", g_autoloader, 1, 0, false, H_autoloader, Q_autoloader);
   c_function_set_setter(slot_value(global_slot(sc->autoloader_symbol)), slot_value(global_slot(sc->autoload_symbol))); /* (set! (*autoload* x) y) */
 
-  sym = s7_define_variable(sc, "*libraries*", sc->nil);
+  sym = s7_define_variable_with_documentation(sc, "*libraries*", sc->nil, "list of currently loaded libraries (libc.scm, etc)");
   sc->libraries = global_slot(sym);
 
   s7_autoload(sc, make_symbol(sc, "cload.scm"),       s7_make_permanent_string(sc, "cload.scm"));
@@ -88355,7 +88489,7 @@ s7_scheme *s7_init(void)
   sc->stacktrace_defaults = s7_list(sc, 5, small_int(3), small_int(45), small_int(80), small_int(45), sc->T);
 
   /* -------- *#readers* -------- */
-  sym = s7_define_variable(sc, "*#readers*", sc->nil);
+  sym = s7_define_variable_with_documentation(sc, "*#readers*", sc->nil, "list of current reader macros");
   sc->sharp_readers = global_slot(sym);
   s7_set_setter(sc, sym, s7_make_function(sc, "(set! *#readers*)", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
 
@@ -89107,13 +89241,11 @@ int main(int argc, char **argv)
  *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   s7_sigs are symbols, other are funcs
  *
- * multi-optlist for the #t/float problem
- * unknown 2 args: vector/float-vector and c-obj, maybe op_s_ss etc?
- * (non-recursive) macro template no-cons reusable
- * does lint check len(pair)!=0 or len(lst)==0? (yes, but the message is dumb if it should know the type -- t872)
- * obj->let for symbol add sig and all slots out to top?
- * for bit-v: getter/setter length uint64_t storage
- * g_bv_ref|set (like iv_ref|set) -- used in tbig
+ * multi-optlist for the #t/float problem (or int/iv)
+ * if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
+ * t718 numerical troubles
+ * is_constant_symbol is 11 in s7test! how to avoid the slot lookup?
+ * g++ s7_gc_protect not found?? [ok 7.3.0, bad 8.1.1, new g++ delete inline! -- check current code] opt_i_ii_fc_add undeclared in gmp
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89140,13 +89272,13 @@ int main(int argc, char **argv)
  * titer         |      |      |      || 5971 || 4646 | 4784  4047  3743  3711
  * tsort         |      |      |      || 8584 || 4111 | 4076  4119  3998  3946
  * thash         |      |      | 50.7 || 8778 || 7697 | 6389  6342  6156  5472
- * tset          |      |      |      ||      ||      |       10.0  6435  6389
- * dup           |      |      |      ||      ||      |       20.8  9525  7482
+ * tset          |      |      |      ||      ||      |       10.0  6435  6398
+ * dup           |      |      |      ||      ||      |       20.8  9525  7507
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.9  17.5  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 40.4  39.9  38.7  38.6
  * sg            |      |      |      ||139.0 || 85.9 | 80.1  79.6  78.2  78.0
  * lg            |      |      |      ||211.0 ||133.0 |118.3 117.9 116.4 113.7
- * tbig          |      |      |      ||      ||      |      246.9 242.7 233.0
+ * tbig          |      |      |      ||      ||      |      246.9 242.7 232.8
  * --------------------------------------------------------------------------------
  */
