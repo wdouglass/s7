@@ -10,11 +10,12 @@
   (let ()
 
     (define-constant (all-positive? v start end)
-      (let ((j end))
-	(do ((i start (+ i 1)))
-	    ((= i end) j)
-	  (if (< (int-vector-ref v i) 0)
-	      (set! j i)))))
+      (do ((j (- end 1) (- j 1)))
+	  ((or (negative? (int-vector-ref v j))
+	       (= j start))
+	   (if (= j start)
+	       end
+	       j))))
 
     (lambda (size file alloc-lines)
       (let ((lines (make-vector alloc-lines ""))
