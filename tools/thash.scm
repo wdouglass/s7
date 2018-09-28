@@ -13,14 +13,20 @@
       (do ((pos (char-position #\space line) (char-position #\space line (+ pos 1))))
 	  ((not pos))
 	(unless (= pos new-pos)
-	  (set! start (do ((k new-pos (+ k 1))) ; char-position here is slower!
-			  ((or (char-alphabetic? (string-ref line k))
-			       (= k pos))
-			   k)))
-	  (set! end (do ((k (- pos 1) (- k 1)))
+	  (set! start 
+		(if (char-alphabetic? (string-ref line new-pos))
+		    new-pos
+		    (do ((k (+ new-pos 1) (+ k 1))) ; char-position here is slower!
 			((or (char-alphabetic? (string-ref line k))
-			     (= k start))
-			 (+ k 1))))
+			     (>= k pos))
+			 k))))
+	  (set! end 
+		(if (char-alphabetic? (string-ref line (- pos 1)))
+		    pos
+		    (do ((k (- pos 2) (- k 1)))
+			((or (char-alphabetic? (string-ref line k))
+			     (<= k start))
+			 (+ k 1)))))
 	  (when (> end start)
 	    (let ((word (string->symbol (substring line start end))))
 	      (let ((refs (or (hash-table-ref counts word) 0)))
