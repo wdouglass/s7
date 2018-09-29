@@ -76,8 +76,8 @@
 	 (list "repl" "tsort.scm")
 	 ;(list "repl" "lg.scm")
 	 (list "repl" "thash.scm")
-	 (list "repl" "tset.scm")
 	 (list "repl" "dup.scm")
+	 (list "repl" "tset.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
 	 (list "snd -noinit" "tall.scm")
 	 (list "snd -l" "snd-test.scm")

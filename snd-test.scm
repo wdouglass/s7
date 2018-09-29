@@ -31,7 +31,7 @@
 ;;; (set! (hook-functions *load-hook*) (list (lambda (hook) (format *stderr* "loading ~S...~%" (hook 'name)))))
 
 ;(set! (*s7* 'gc-stats) #t)
-(set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'heap-size) 1024000) ; bigger is slower here
 (set! (*s7* 'print-length) 12345)
 
 (when (provided? 'pure-s7)
@@ -19712,7 +19712,7 @@ EDITS: 2
 	  (if (fneq (data i) (next-sample reader))
 	      (snd-display "external reader trouble")))
 	(free-sampler reader)))
-    
+
     (let ((make-procs (vector
 		       make-all-pass make-asymmetric-fm make-moving-average make-moving-max make-moving-norm
 		       make-comb (lambda () (make-convolve :filter #r(0 1 2))) make-delay (lambda () (make-env '(0 1 1 0) :length 10))
