@@ -21,6 +21,8 @@
 		     ("snd-test.scm" . "v-call")
 		     ("dup.scm" . "v-dup")
 		     ("tset.scm" . "v-set")
+		     ("trec.scm" . "v-rec")
+		     ("tclo.scm" . "v-clo")
 		     ))
 
 (define (last-callg)
@@ -74,11 +76,13 @@
 	 (list "repl" "tlet.scm")
 	 (list "repl" "titer.scm")
 	 (list "repl" "tsort.scm")
+	 (list "repl" "tclo.scm")
 	 ;(list "repl" "lg.scm")
 	 (list "repl" "thash.scm")
 	 (list "repl" "dup.scm")
 	 (list "repl" "tset.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
+	 (list "repl" "trec.scm")
 	 (list "snd -noinit" "tall.scm")
 	 (list "snd -l" "snd-test.scm")
 	 )))

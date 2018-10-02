@@ -3763,9 +3763,10 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_CLOSURE_FX, HOP_CLOSURE_FX, OP_CLOSURE_ALL_S, HOP_CLOSURE_ALL_S, OP_CLOSURE_ANY_FX, HOP_CLOSURE_ANY_FX, 
       OP_SAFE_CLOSURE_SA, HOP_SAFE_CLOSURE_SA, OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, OP_SAFE_CLOSURE_FX, HOP_SAFE_CLOSURE_FX,
 
-      OP_CLOSURE_STAR_A, HOP_CLOSURE_STAR_A, OP_CLOSURE_STAR_FX, HOP_CLOSURE_STAR_FX,
+      OP_CLOSURE_STAR, HOP_CLOSURE_STAR, OP_CLOSURE_STAR_A, HOP_CLOSURE_STAR_A, 
+      OP_CLOSURE_STAR_FX, HOP_CLOSURE_STAR_FX,
 
-      OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
+      OP_SAFE_CLOSURE_STAR, HOP_SAFE_CLOSURE_STAR, OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
       OP_SAFE_CLOSURE_STAR_FX, HOP_SAFE_CLOSURE_STAR_FX,
 
       /* these can't be embedded, and have to be the last thing called */
@@ -3981,9 +3982,11 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "closure_fx", "h_closure_fx", "closure_all_s", "h_closure_all_s", "closure_any_fx", "h_closure_any_fx", 
 
       "safe_closure_sa", "h_safe_closure_sa", "safe_closure_saa", "h_safe_closure_saa", "safe_closure_fx", "h_safe_closure_fx",
-      "closure*_a", "h_closure*_a", "closure*_fx", "h_closure*_fx",
 
-      "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
+      "closure*", "h_closure*", "closure*_a", "h_closure*_a", 
+      "closure*_fx", "h_closure*_fx",
+
+      "safe_closure*", "h_safe_closure*", "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
       "safe_closure*_fx", "h_safe_closure*_fx",
 
       "apply_ss", "h_apply_ss",
@@ -41679,13 +41682,13 @@ static void closure_star_arity_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
 	closure_arity(x) = 0;
       else
 	{
-	  if (allows_other_keys(args))
+	  if ((is_symbol(args)) || (allows_other_keys(args)))
 	    closure_arity(x) = -1;
 	  else
 	    {
 	      s7_pointer p;
 	      int32_t i;
-	      for (i = 0, p = args; is_pair(p); p = cdr(p))
+	      for (i = 0, p = args; is_pair(p); p = cdr(p)) /* is_pair(p) so (f1 a . b) will end with b not null */
 		{
 		  s7_pointer arg;
 		  arg = car(p);
@@ -41703,9 +41706,6 @@ static void closure_star_arity_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
 
 static s7_pointer closure_star_arity_to_cons(s7_scheme *sc, s7_pointer x, s7_pointer x_args)
 {
-  if (is_symbol(x_args))
-    return(s7_cons(sc, small_int(0), max_arity));
-
   closure_star_arity_1(sc, x, x_args);
 
   if (closure_arity(x) == -1)
@@ -64940,6 +64940,7 @@ static void init_choosers(s7_scheme *sc)
 #define choose_c_function(Sc, Expr, Func, Args) set_c_function(Expr, c_function_chooser(Func)(Sc, Func, Args, Expr, true))
 
 #define OPTIMIZE_PRINT 0
+#define WITH_LSTAR_0 0
 
 static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, s7_pointer e)
 {
@@ -64948,7 +64949,7 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 #endif
   if (is_constant_symbol(sc, car(expr))) hop = 1;
 
-  if (is_closure(func))
+  if ((is_closure(func)) || (is_closure_star(func)))
     {
       if (is_immutable(func)) hop = 1;
       if (is_null(closure_args(func)))                 /* no rest arg funny business */
@@ -64978,6 +64979,16 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 	    }
 	  set_opt_lambda(expr, func);
 	}
+#if WITH_LSTAR_0
+      else
+	{
+	  if (is_closure_star(func)) /* there are optional args */
+	    {
+	      set_opt_lambda(expr, func);
+	      set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_STAR : OP_CLOSURE_STAR));
+	    }
+	}
+#endif
       return(OPT_F);
     }
 
@@ -65535,6 +65546,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       bool one_form, safe_case;
       s7_pointer body;
       int32_t arit;
+
       arit = closure_arity_to_int(sc, func);
       if (arit != 1)
 	{
@@ -65640,25 +65652,15 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 
   if (is_closure_star(func))
     {
-      bool safe_case;
       if ((!lambda_has_simple_defaults(closure_body(func))) ||
 	  (is_null(closure_args(func))))
 	return(OPT_F);
-      safe_case = is_safe_closure(func);
-      if (is_immutable(func)) hop = 1;
-      if (symbols == 1)
-	{
-	  annotate_arg(sc, cdr(expr), e);
-	  set_arglist_length(expr, small_int(1));
-	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_A : OP_CLOSURE_STAR_A));
-	  set_opt_lambda(expr, func);
-	  set_unsafely_optimized(expr);
-	  return(OPT_F);
-	}
-
       if ((!arglist_has_rest(sc, closure_args(func))) &&
 	  (fx_count(sc, expr) == 1))
 	{
+	  bool safe_case;
+	  safe_case = is_safe_closure(func);
+	  if (is_immutable(func)) hop = 1;
 	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_A : OP_CLOSURE_STAR_A));
 	  annotate_arg(sc, cdr(expr), e);
 	  set_opt_lambda(expr, func);
@@ -67565,7 +67567,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
   return(OPT_F);
 }
 
-#if 0
+#if TREC
 static bool only_last(s7_scheme *sc, s7_pointer sym, s7_pointer e)
 {
   s7_pointer p;
@@ -67820,7 +67822,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			  {
 			    set_arglist_length(expr, small_int(1));
 			    annotate_arg(sc, cdr(expr), e);
-#if 0
+#if TREC
 			    if ((symbol_is_in_list(sc, car_expr)) &&
 				(only_last(sc, car_expr, e)))
 			      {
@@ -68618,7 +68620,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
       if (is_symbol(func))    /* func can be sc->gc_nil (see check_lambda and check_lambda_star) */
  	{
  	  s7_pointer lst;
-#if 0
+#if TREC
  	  lst = cons(sc, add_symbol_to_list(sc, func), cons(sc, add_symbol_to_list(sc, sc->__func___symbol), sc->nil));
 #else
 	  lst = cons(sc, add_symbol_to_list(sc, func), sc->nil);
@@ -74070,19 +74072,14 @@ static int32_t dox_ex(s7_scheme *sc)
 	      (!is_slot(next_slot(next_slot(slots)))))
 	    {
 	      s7_pointer step1, step2, expr1, expr2;
-	      s7_function f1, f2;
 	      step1 = slots;
 	      expr1 = slot_expression(step1);
-	      f1 = c_callee(expr1);
-	      expr1 = car(expr1);
 	      step2 = next_slot(step1);
-	      expr2 = slot_expression(step2);
-	      f2 = c_callee(expr2);
-	      expr2 = car(expr2);
+	      expr2 = slot_expression(step2); /* presetting c_call/car(expr) is not faster */
 	      while (true)
 		{
-		  slot_set_value(step1, f1(sc, expr1));
-		  slot_set_value(step2, f2(sc, expr2));
+		  slot_set_value(step1, c_call(expr1)(sc, car(expr1)));
+		  slot_set_value(step2, c_call(expr2)(sc, car(expr2)));
 		  if (is_true(sc, sc->value = endf(sc, endp)))
 		    {
 		      sc->code = cdr(end);
@@ -74170,20 +74167,15 @@ static int32_t dox_ex(s7_scheme *sc)
 		  (!is_slot(next_slot(next_slot(slots)))))
 		{
 		  s7_pointer s1, s2, p1, p2;
-		  s7_function f1, f2;
 		  s1 = slots;
 		  s2 = next_slot(slots);
 		  p1 = slot_expression(s1);
-		  f1 = c_callee(p1);
-		  p1 = car(p1);
 		  p2 = slot_expression(s2);
-		  f2 = c_callee(p2);
-		  p2 = car(p2);
 		  while (true)
 		    {
 		      body(sc, lcode);
-		      slot_set_value(s1, f1(sc, p1));
-		      slot_set_value(s2, f2(sc, p2));
+ 		      slot_set_value(s1, c_call(p1)(sc, car(p1)));
+ 		      slot_set_value(s2, c_call(p2)(sc, car(p2)));
 		      if (is_true(sc, sc->value = endf(sc, endp)))
 			{
 			  sc->code = cdr(end);
@@ -74492,6 +74484,122 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
     }
 #endif
   return(fall_through);
+}
+
+static bool op_simple_do_step(s7_scheme *sc)
+{
+  s7_pointer step, ctr, end, code;
+  ctr = dox_slot1(sc->envir);
+  end = dox_slot2(sc->envir);
+  code = sc->code;
+  
+  step = caddr(caar(code));
+  if (is_symbol(cadr(step)))
+    {
+      set_car(sc->t2_1, slot_value(ctr));
+      set_car(sc->t2_2, caddr(step));
+    }
+  else
+    {
+      set_car(sc->t2_2, slot_value(ctr));
+      set_car(sc->t2_1, cadr(step));
+    }
+  slot_set_value(ctr, c_call(step)(sc, sc->t2_1));
+  
+  set_car(sc->t2_1, slot_value(ctr));
+  set_car(sc->t2_2, slot_value(end));
+  end = cadr(code);
+  sc->value = c_call(car(end))(sc, sc->t2_1); 
+  
+  if (is_true(sc, sc->value))
+    {
+      sc->code = cdr(end); 
+      return(false);
+    }
+  
+  push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
+  sc->code = T_Pair(cddr(code));
+  return(true);
+}
+
+static bool op_safe_do_step(s7_scheme *sc)
+{
+  s7_int step, end;
+  s7_pointer slot, code;
+  code = sc->code;
+  slot = dox_slot1(sc->envir);
+  step = integer(slot_value(slot)) + 1;
+  slot_set_value(slot, make_integer(sc, step));
+  end = integer(slot_value(dox_slot2(sc->envir)));
+  
+  if ((step == end) ||
+      ((step > end) &&
+       (opt_cfunc(caadr(code)) == sc->geq_2)))
+    {
+      sc->value = sc->T;
+      sc->code = cdadr(code);
+      return(false);
+    }
+  push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
+  sc->code = T_Pair(opt_pair2(code));
+  return(true);
+}
+
+static bool op_dotimes_step_p(s7_scheme *sc)
+{
+  s7_pointer ctr, now, end, end_test, code;
+  code = sc->code;
+  ctr = dox_slot1(sc->envir);
+  now = slot_value(ctr);
+  end = slot_value(dox_slot2(sc->envir));
+  end_test = opt_pair2(code);
+  
+  if (is_integer(now))
+    {
+      slot_set_value(ctr, make_integer(sc, integer(now) + 1));
+      now = slot_value(ctr);
+      if (is_integer(end))
+	{
+	  if ((integer(now) == integer(end)) ||
+	      ((integer(now) > integer(end)) &&
+	       (opt_cfunc(end_test) == sc->geq_2)))
+	    {
+	      sc->value = sc->T;
+	      sc->code = cdadr(code);
+	      return(false);
+	    }
+	}
+      else
+	{
+	  set_car(sc->t2_1, now);
+	  set_car(sc->t2_2, end);
+	  end = cadr(code);
+	  sc->value = c_call(car(end))(sc, sc->t2_1);
+	  if (is_true(sc, sc->value))
+	    {
+	      sc->code = cdr(end);
+	      return(false);
+	    }
+	}
+    }
+  else
+    {
+      set_car(sc->t1_1, now);
+      slot_set_value(ctr, g_add_s1(sc, sc->t1_1));
+      /* (define (hi) (let ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (set! x (+ x i)))) x)) */
+      set_car(sc->t2_1, slot_value(ctr));
+      set_car(sc->t2_2, end);
+      end = cadr(code);
+      sc->value = c_call(car(end))(sc, sc->t2_1);
+      if (is_true(sc, sc->value))
+	{
+	  sc->code = cdr(end);
+	  return(false);
+	}
+    }
+  push_stack(sc, OP_DOTIMES_STEP_P, sc->args, code);
+  sc->code = caddr(code);
+  return(true);
 }
 
 static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool safe_step)
@@ -75438,6 +75546,7 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
 			  slot = symbol_to_slot(sc, car(code));
 			  if (is_recur(slot))
 			    set_optimize_op(code, OP_SAFE_THUNK_LP);
+			  /* is_recur includes any call that is known to be local and unshadowed, not just recursive calls */
 			}
 		      set_closure_has_one_form(f);
 		    }
@@ -76929,18 +77038,18 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
 
 static void safe_closure_star_a(s7_scheme *sc, s7_pointer code)
 {
-  s7_pointer p, x, val;
+  s7_pointer p, x, val, func;
+  func = opt_lambda(code);
   val = c_call(cdr(code))(sc, cadr(code));
   if (is_keyword(val))
     s7_error(sc, sc->wrong_type_arg_symbol,
 	     set_elist_4(sc, wrap_string(sc, "~A: keyword argument's value is missing: ~S in ~S", 49),
-			 closure_name(sc, opt_lambda(code)), val, sc->args));
-  sc->envir = old_frame_with_slot(sc, closure_let(opt_lambda(code)), val);
+			 closure_name(sc, func), val, sc->args));
+  sc->envir = old_frame_with_slot(sc, closure_let(func), val);
   /* that sets the first arg to the passed symbol value; now set default values, if any */
   
-  /* fill_safe_closure_star(sc, next_slot(let_slots(closure_let(opt_lambda(code)))), cdr(closure_args(opt_lambda(code)))); */
-  p = cdr(closure_args(opt_lambda(code)));
-  x = next_slot(let_slots(closure_let(opt_lambda(code))));
+  p = cdr(closure_args(func));
+  x = next_slot(let_slots(closure_let(func)));
   for (; is_pair(p); p = cdr(p), x = next_slot(x))
     {
       if (is_pair(car(p)))
@@ -76954,12 +77063,12 @@ static void safe_closure_star_a(s7_scheme *sc, s7_pointer code)
       else slot_set_value(x, sc->F);
       symbol_set_local(slot_symbol(x), let_id(sc->envir), x);
     }
-  sc->code = T_Pair(closure_body(opt_lambda(sc->code)));
+  sc->code = T_Pair(closure_body(func));
 }
 
 static void safe_closure_star_aa(s7_scheme *sc, s7_pointer code)
 {
-  /* here closure_arity == 2 and we have 2 args, so no need to worry about trailing defaults */
+  /* here closure_arity == 2 and we have 2 args */
   s7_pointer arg1, arg2, clet, cargs;
   clet = closure_let(opt_lambda(code));
   cargs = closure_args(opt_lambda(code));
@@ -77012,53 +77121,59 @@ static void safe_closure_star_fx(s7_scheme *sc, s7_pointer code)
 
 static void closure_star_a(s7_scheme *sc, s7_pointer code)
 {
-  s7_pointer val, p;
+  s7_pointer val, p, func;
+
   val = c_call(cdr(code))(sc, cadr(code));
   if (is_keyword(val))
     s7_error(sc, sc->wrong_type_arg_symbol,
 	     set_elist_4(sc, wrap_string(sc, "~A: keyword argument's value is missing: ~S in ~S", 49),
 			 closure_name(sc, opt_lambda(code)), val, code));
-  sc->args = list_1(sc, val);
-  
-  p = cdr(closure_args(opt_lambda(code)));
-  for (; is_pair(p); p = cdr(p))
+
+  func = opt_lambda(code);
+  if (closure_star_arity_to_int(sc, func) == 1)
     {
-      if (is_pair(car(p)))
-	{
-	  s7_pointer defval;
-	  defval = cadar(p);
-	  if (is_pair(defval))
-	    sc->args = cons(sc, cadr(defval), sc->args);
-	  else sc->args = cons(sc, defval, sc->args);
-	}
-      else sc->args = cons(sc, sc->F, sc->args);
+      p = car(closure_args(func));
+      new_frame_with_slot(sc, closure_let(func), sc->envir, (is_pair(p)) ? car(p) : p, val);
     }
-  sc->args = safe_reverse_in_place(sc, sc->args);
-  sc->code = opt_lambda(sc->code);
-  
-  {
-    s7_pointer x, z, e;
-    uint64_t id;
-    
-    new_frame(sc, closure_let(sc->code), sc->envir);
-    e = sc->envir;
-    id = let_id(e);
-    
-    for (x = closure_args(sc->code), z = sc->args; is_pair(x); x = cdr(x))
-      {
-	s7_pointer sym, args;
-	if (is_pair(car(x)))
-	  sym = caar(x);
-	else sym = car(x);
-	args = cdr(z);
-	reuse_as_slot(z, sym, unchecked_car(z));
-	symbol_set_local(sym, id, z);
-	set_next_slot(z, let_slots(e));
-	let_set_slots(e, z);
-	z = args;
-      }
-    sc->code = T_Pair(closure_body(sc->code));
-  }
+  else
+    {
+      s7_pointer x, z, e;
+      uint64_t id;
+      
+      sc->args = list_1(sc, val);
+      p = cdr(closure_args(func));
+      for (; is_pair(p); p = cdr(p))
+	{
+	  if (is_pair(car(p)))
+	    {
+	      s7_pointer defval;
+	      defval = cadar(p);
+	      if (is_pair(defval))
+		sc->args = cons(sc, cadr(defval), sc->args);
+	      else sc->args = cons(sc, defval, sc->args);
+	    }
+	  else sc->args = cons(sc, sc->F, sc->args);
+	}
+      sc->args = safe_reverse_in_place(sc, sc->args);
+      new_frame(sc, closure_let(func), sc->envir);
+      e = sc->envir;
+      id = let_id(e);
+      
+      for (x = closure_args(func), z = sc->args; is_pair(x); x = cdr(x))
+	{
+	  s7_pointer sym, args;
+	  if (is_pair(car(x)))
+	    sym = caar(x);
+	  else sym = car(x);
+	  args = cdr(z);
+	  reuse_as_slot(z, sym, unchecked_car(z));
+	  symbol_set_local(sym, id, z);
+	  set_next_slot(z, let_slots(e));
+	  let_set_slots(e, z);
+	  z = args;
+	}
+    }
+  sc->code = T_Pair(closure_body(func));
 }
 
 static void closure_star_fx(s7_scheme *sc, s7_pointer code)
@@ -77073,6 +77188,22 @@ static void closure_star_fx(s7_scheme *sc, s7_pointer code)
   sc->envir = new_frame_in_env(sc, closure_let(sc->code));
 }
 
+#if WITH_LSTAR_0
+static void op_closure_star(s7_scheme *sc, s7_pointer code)
+{
+  sc->args = sc->nil;
+  sc->code = opt_lambda(code);
+  sc->envir = new_frame_in_env(sc, closure_let(sc->code));
+}
+
+static void op_safe_closure_star(s7_scheme *sc, s7_pointer code)
+{
+  sc->args = sc->nil;
+  sc->code = opt_lambda(code);
+  sc->envir = new_frame_in_env(sc, closure_let(sc->code)); 
+  /* safe, so no defines(?), thunk so no new slots: reuse old frame, but even after let_id increment that gives: id mismatch: sym: a 157093, let: 157069 */
+}
+#endif
 
 /* -------------------------------------------------------------------------------- */
 
@@ -79605,7 +79736,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_CLOSURE_ANY_FX: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, -1)) break;
 	case HOP_CLOSURE_ANY_FX: op_closure_any_fx(sc); goto BEGIN;
-	  	  
+
+	  /* -------------------------------------------------------------------------------- */
+
+#if WITH_LSTAR_0	  	  
+	case OP_SAFE_CLOSURE_STAR:
+	  if (!closure_star_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_STAR, 0)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case HOP_SAFE_CLOSURE_STAR:
+	  op_safe_closure_star(sc, sc->code);
+	  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
+	  goto BEGIN;
+#endif	  
 	case OP_SAFE_CLOSURE_STAR_A:
 	  if (!closure_star_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_STAR, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_SAFE_CLOSURE_STAR_A:
@@ -79629,6 +79770,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	  /* -------------------------------------------------------------------------------- */
 	  
+#if WITH_LSTAR_0
+	case OP_CLOSURE_STAR:
+	  if (!closure_star_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_STAR, 0)) {if (unknown_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
+	case HOP_CLOSURE_STAR:
+	  op_closure_star(sc, sc->code);
+	  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
+	  goto BEGIN;
+#endif	  
 	case OP_CLOSURE_STAR_A:
 	  if (!closure_star_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_STAR, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_STAR_A:
@@ -80366,27 +80515,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 
 	case OP_SAFE_DO_STEP:
-	  {
-	    s7_int step, end;
-	    s7_pointer slot, code;
-	    code = sc->code;
-	    slot = dox_slot1(sc->envir);
-	    step = integer(slot_value(slot)) + 1;
-	    slot_set_value(slot, make_integer(sc, step));
-	    end = integer(slot_value(dox_slot2(sc->envir)));
-
-	    if ((step == end) ||
-		((step > end) &&
-		 (opt_cfunc(caadr(code)) == sc->geq_2)))
-		{
-		  sc->value = sc->T;
-		  sc->code = cdadr(code);
-		  goto DO_END_CLAUSES;
-		}
-	    push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
-	    sc->code = T_Pair(opt_pair2(code));
+	  if (op_safe_do_step(sc))
 	    goto BEGIN;
-	  }
+	  goto DO_END_CLAUSES;
 	  
 	case OP_SIMPLE_DO: 
 	SIMPLE_DO: /* check_do safe_dotimes */
@@ -80436,32 +80567,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 	  
 	case OP_SIMPLE_DO_STEP:
-	  {
-	    s7_pointer step, ctr, end, code;
-	    ctr = dox_slot1(sc->envir);
-	    end = dox_slot2(sc->envir);
-	    code = sc->code;
-	    
-	    step = caddr(caar(code));
-	    if (is_symbol(cadr(step)))
-	      {
-		set_car(sc->t2_1, slot_value(ctr));
-		set_car(sc->t2_2, caddr(step));
-	      }
-	    else
-	      {
-		set_car(sc->t2_2, slot_value(ctr));
-		set_car(sc->t2_1, cadr(step));
-	      }
-	    slot_set_value(ctr, c_call(step)(sc, sc->t2_1));
-	    
-	    set_car(sc->t2_1, slot_value(ctr));
-	    set_car(sc->t2_2, slot_value(end));
-	    do_t2_end(cadr(code));
-	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
-	    sc->code = T_Pair(cddr(code));
+	  if (op_simple_do_step(sc))
 	    goto BEGIN;
-	  }
+	  goto DO_END_CLAUSES;
 	  
 	case OP_DOTIMES_P: 
 	DOTIMES_P: /* check_do */
@@ -80475,49 +80583,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 	  
 	case OP_DOTIMES_STEP_P:
-	  {
-	    s7_pointer ctr, now, end, end_test, code;
-	    code = sc->code;
-	    ctr = dox_slot1(sc->envir);
-	    now = slot_value(ctr);
-	    end = slot_value(dox_slot2(sc->envir));
-	    end_test = opt_pair2(code);
-	    
-	    if (is_integer(now))
-	      {
-		slot_set_value(ctr, make_integer(sc, integer(now) + 1));
-		now = slot_value(ctr);
-		if (is_integer(end))
-		  {
-		    if ((integer(now) == integer(end)) ||
-			((integer(now) > integer(end)) &&
-			 (opt_cfunc(end_test) == sc->geq_2)))
-			{
-			  sc->value = sc->T;
-			  sc->code = cdadr(code);
-			  goto DO_END_CLAUSES;
-			}
-		  }
-		else
-		  {
-		    set_car(sc->t2_1, now);
-		    set_car(sc->t2_2, end);
-		    do_t2_end(cadr(code));
-		  }
-	      }
-	    else
-	      {
-		set_car(sc->t1_1, now);
-		slot_set_value(ctr, g_add_s1(sc, sc->t1_1));
-		/* (define (hi) (let ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (set! x (+ x i)))) x)) */
-		set_car(sc->t2_1, slot_value(ctr));
-		set_car(sc->t2_2, end);
-		do_t2_end(cadr(code));
-	      }
-	    push_stack(sc, OP_DOTIMES_STEP_P, sc->args, code);
-	    sc->code = caddr(code);
+	  if (op_dotimes_step_p(sc))
 	    goto EVAL;
-	  }
+	  goto DO_END_CLAUSES;
 	  
 	case OP_DOX: 
 	DOX: /* check_do */
@@ -82449,6 +82517,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    goto TOP_NO_POP;
 		  }
 		sc->value = find_global_symbol_checked(sc, carc);
+		/* fprintf(stderr, "op_pair_sym: %s\n", DISPLAY(code)); */
 		set_optimize_op(code, OP_PAIR_SYM);
 		goto EVAL_ARGS_TOP;
 	      }
@@ -89449,7 +89518,7 @@ int main(int argc, char **argv)
  *   ffi typer addition
  *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   s7_sigs are symbols, other are funcs
- * lint: define-expansion not at top level -> define-macro
+ * check is_recur (75428) [perhaps it's seeing the function = local_slot?]
  *
  * multi-optlist for the #t/float problem (or int/iv)
  * if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
@@ -89457,9 +89526,19 @@ int main(int argc, char **argv)
  *   print bit-vector and bv-ref need hooks, and reversal, looks like > 100 lines -- is it worth it?
  *
  * recursive call without unknown*: these can be recognized, but choosing the correct op*_closure_* 
- *   requires later info (very_safe_closure, etc).  code commented out at 67559 (only_last), 67814, 68612 (__func__ marker in e).
+ *   requires later info (very_safe_closure, etc).  code commented under TREC.
  *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
  *   if c_func sees args a_lp, call as func, goto etc, also second env can reuse first -- 1/2 jumps and envs, no lookups or closure_ok
+ *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al?
+ * auto-memoization (top 8 or top 3 etc)
+ *
+ * tclo: if 1-par and 1-arg passed use standard closure calls (0 case is under LSTAR_0 which is slower!)
+ *       if 1-par and 2-args and first key that fits, use standard preceded by cdr(args) etc
+ *   c_ap: apply [safe]+[safe]
+ *   pair_sym == lstar_0 -- why slower? there must be other cases here (see apply closure*)
+ *   display_2 (or display_f)
+ *   safe_closure_a_a?
+ * trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89477,22 +89556,24 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 || 2777 || 1931 | 1662  1673  1548
  * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1929  1919  1726
  * lint          |      |      |      || 4041 || 2702 | 2344  2318  2191
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2373  2363  2327
+ * tcopy         |      |      | 13.6 || 3183 || 2974 | 2373  2363  2327 
  * tread         |      |      |      ||      ||      | 2357  2363  2344
  * tform         |      |      | 6816 || 3714 || 2762 | 2390  2388  2382
  * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3113  2543  2492
  * tmap          |      |      |  9.3 || 5279 || 3445 | 3288  3261  3032
  * tlet          |      |      |      ||      ||      |       4717  3507
- * titer         |      |      |      || 5971 || 4646 | 4047  3743  3688
+ * titer         |      |      |      || 5971 || 4646 | 4047  3743  3695
  * tsort         |      |      |      || 8584 || 4111 | 4119  3998  3946
+ * tclo          |      |      |      || 4707 || 4682 |       4526  4373
  * thash         |      |      | 50.7 || 8778 || 7697 | 6342  6156  5383
- * dup           |      |      |      ||      ||      | 20.8  9525  5748
- * tset          |      |      |      ||      ||      | 10.0  6435  6398
+ * dup           |      |      |      ||      ||      | 20.8  9525  6018
+ * tset          |      |      |      ||      ||      | 10.0  6435  6363
  * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0
+ * trec          |      |      |      || 16.4 || 16.4 |       13.4  12.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.5  17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 39.9  38.7  38.6
+ * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 39.9  38.7  38.5
  * sg            |      |      |      ||139.0 || 85.9 | 79.6  78.2  78.0
- * lg            |      |      |      ||211.0 ||133.0 |117.9 116.4 113.7
+ * lg            |      |      |      ||211.0 ||133.0 |117.9 116.4 113.8
  * tbig          |      |      |      ||      ||      |246.9 242.7 232.6
  * --------------------------------------------------------------------------------
  */

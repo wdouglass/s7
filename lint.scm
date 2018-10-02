@@ -11942,7 +11942,7 @@
 		   (reducible-scope caller local-var otype env)
 		   (if (and (eq? (var-ftype local-var) 'define-expansion)
 			    (not (eq? caller top-level:)))
-		       (format outport "~NCdefine-expansion for ~A is not at the top-level, so it is ignored~%" 
+		       (format outport "~NCdefine-expansion for ~A is not at the top-level, so it is simply define-macro~%" 
 			       lint-left-margin #\space
 			       (var-name local-var)))
 		   
