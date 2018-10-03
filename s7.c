@@ -3763,14 +3763,12 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_CLOSURE_FX, HOP_CLOSURE_FX, OP_CLOSURE_ALL_S, HOP_CLOSURE_ALL_S, OP_CLOSURE_ANY_FX, HOP_CLOSURE_ANY_FX, 
       OP_SAFE_CLOSURE_SA, HOP_SAFE_CLOSURE_SA, OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, OP_SAFE_CLOSURE_FX, HOP_SAFE_CLOSURE_FX,
 
-      OP_CLOSURE_STAR, HOP_CLOSURE_STAR, OP_CLOSURE_STAR_A, HOP_CLOSURE_STAR_A, 
-      OP_CLOSURE_STAR_FX, HOP_CLOSURE_STAR_FX,
-
-      OP_SAFE_CLOSURE_STAR, HOP_SAFE_CLOSURE_STAR, OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
+      OP_CLOSURE_STAR_A, HOP_CLOSURE_STAR_A, OP_CLOSURE_STAR_FX, HOP_CLOSURE_STAR_FX,
+      OP_SAFE_CLOSURE_STAR_A, HOP_SAFE_CLOSURE_STAR_A, OP_SAFE_CLOSURE_STAR_AA, HOP_SAFE_CLOSURE_STAR_AA, 
       OP_SAFE_CLOSURE_STAR_FX, HOP_SAFE_CLOSURE_STAR_FX,
 
       /* these can't be embedded, and have to be the last thing called */
-      OP_APPLY_SS, HOP_APPLY_SS, 
+      OP_APPLY_SS, HOP_APPLY_SS, OP_APPLY_AA, HOP_APPLY_AA, 
       OP_C_FX, HOP_C_FX, OP_CALL_WITH_EXIT, HOP_CALL_WITH_EXIT, OP_CALL_WITH_EXIT_P, HOP_CALL_WITH_EXIT_P, 
       OP_C_CATCH, HOP_C_CATCH, OP_C_CATCH_ALL, HOP_C_CATCH_ALL, OP_C_CATCH_ALL_P, HOP_C_CATCH_ALL_P,
       OP_C_S_opSq, HOP_C_S_opSq, OP_C_S_opCq, HOP_C_S_opCq, OP_C_SS, HOP_C_SS,
@@ -3983,13 +3981,11 @@ static const char* op_names[OP_MAX_DEFINED_1] =
 
       "safe_closure_sa", "h_safe_closure_sa", "safe_closure_saa", "h_safe_closure_saa", "safe_closure_fx", "h_safe_closure_fx",
 
-      "closure*", "h_closure*", "closure*_a", "h_closure*_a", 
-      "closure*_fx", "h_closure*_fx",
-
-      "safe_closure*", "h_safe_closure*", "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
+      "closure*_a", "h_closure*_a", "closure*_fx", "h_closure*_fx",
+      "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
       "safe_closure*_fx", "h_safe_closure*_fx",
 
-      "apply_ss", "h_apply_ss",
+      "apply_ss", "h_apply_ss", "apply_aa", "h_apply_aa",
       "c_fx", "h_c_fx", "call_with_exit", "h_call_with_exit", "call_with_exit_p", "h_call_with_exit_p", 
       "c_catch", "h_c_catch", "c_catch_all", "h_c_catch_all", "c_catch_all_p", "h_c_catch_all_p",
       "c_s_opsq", "h_c_s_opsq", "c_s_opcq", "h_c_s_opcq", "c_ss", "h_c_ss",
@@ -30962,12 +30958,9 @@ static s7_pointer g_newline(s7_scheme *sc, s7_pointer args)
   if (is_not_null(args))
     port = car(args);
   else port = sc->output_port;
-
+  if (port == sc->F) return(newline_char);
   if (!is_output_port(port))
-    {
-      if (port == sc->F) return(newline_char);
-      return(method_or_bust_with_type_one_arg(sc, port, sc->newline_symbol, args, an_output_port_string));
-    }
+    return(method_or_bust_with_type_one_arg(sc, port, sc->newline_symbol, args, an_output_port_string));
   /* shouldn't we check for closed output port? */
   s7_newline(sc, port);
   return(newline_char);
@@ -31013,11 +31006,9 @@ static s7_pointer g_write(s7_scheme *sc, s7_pointer args)
   if (is_pair(cdr(args)))
     port = cadr(args);
   else port = sc->output_port;
+  if (port == sc->F) return(car(args));
   if (!is_output_port(port))
-    {
-      if (port == sc->F) return(car(args));
-      return(method_or_bust_with_type(sc, port, sc->write_symbol, args, an_output_port_string, 2));
-    }
+    return(method_or_bust_with_type(sc, port, sc->write_symbol, args, an_output_port_string, 2));
   if (port_is_closed(port))
     return(s7_wrong_type_arg_error(sc, "write", 2, port, "an open output port"));
   return(object_out(sc, car(args), port, P_WRITE));
@@ -31063,11 +31054,9 @@ static s7_pointer g_display(s7_scheme *sc, s7_pointer args)
     port = cadr(args);
   else port = sc->output_port;
 
+  if (port == sc->F) return(car(args));
   if (!is_output_port(port))
-    {
-      if (port == sc->F) return(car(args));
-      return(method_or_bust_with_type(sc, port, sc->display_symbol, args, an_output_port_string, 2));
-    }
+    return(method_or_bust_with_type(sc, port, sc->display_symbol, args, an_output_port_string, 2));
   if (port_is_closed(port))
     return(s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port"));
   return(object_out(sc, car(args), port, P_DISPLAY));
@@ -49595,6 +49584,23 @@ static s7_pointer fx_c_s_opsq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_s_car(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  val = symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)));
+  set_car(sc->t2_2, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
+  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(arg)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer fx_add_s_car(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  val = symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)));
+  val = (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val));
+  return(add_p_pp(sc, symbol_to_value_unchecked(sc, cadr(arg)), val));
+}
+
 static s7_pointer fx_c_op_s_opsq_q(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer outer, args;
@@ -50521,6 +50527,15 @@ static s7_function fx_eval(s7_scheme *sc, s7_pointer holder, s7_pointer e, safe_
 	    case HOP_SAFE_C_SQ:
 	      if (c_call(arg) == g_memq_2) return(fx_memq_sq_2);
 	      return(fx_c_sq);
+	      
+	    case HOP_SAFE_C_S_opSq:
+	      if (car(caddr(arg)) == sc->car_symbol)
+		{
+		  set_opt_sym2(cdr(arg), cadr(caddr(arg)));
+		  if (car(arg) == sc->add_symbol) return(fx_add_s_car);
+		  return(fx_c_s_car);
+		}
+	      return(fx_c_s_opsq);
 
 	    case HOP_SAFE_C_opSSq:
 	      if (car(arg) == sc->not_symbol) return(fx_not_opssq);
@@ -64940,7 +64955,6 @@ static void init_choosers(s7_scheme *sc)
 #define choose_c_function(Sc, Expr, Func, Args) set_c_function(Expr, c_function_chooser(Func)(Sc, Func, Args, Expr, true))
 
 #define OPTIMIZE_PRINT 0
-#define WITH_LSTAR_0 0
 
 static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, s7_pointer e)
 {
@@ -64979,16 +64993,6 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 	    }
 	  set_opt_lambda(expr, func);
 	}
-#if WITH_LSTAR_0
-      else
-	{
-	  if (is_closure_star(func)) /* there are optional args */
-	    {
-	      set_opt_lambda(expr, func);
-	      set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_STAR : OP_CLOSURE_STAR));
-	    }
-	}
-#endif
       return(OPT_F);
     }
 
@@ -66226,61 +66230,57 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      return(OPT_T);
 	    }
 	}
-
-      if ((pairs == 1) &&
-	  (symbols == 1) &&
-	  (quotes == 0) &&
-	  (!func_is_safe) &&
-	  ((!is_pair(arg1)) ||
-	   ((is_optimized(arg1)) &&
-	    (is_fx_op(optimize_op(arg1))))))
+      else
 	{
-	  annotate_arg(sc, cdr(expr), e);
-	  set_unsafe_optimize_op(expr, hop + OP_C_AP);
-	  choose_c_function(sc, expr, func, 2);
-	  return(OPT_F);
-	}
-
-      if ((!func_is_safe) &&
-	  (car(expr) != sc->values_symbol) &&
-	  ((!is_pair(arg2)) ||
-	   ((is_optimized(arg2)) &&
-	    (is_fx_op(optimize_op(arg2))))))
-	{
-	  if ((is_pair(arg1)) &&
-	      (car(arg1) == sc->lambda_symbol))
+	  if (is_fx_safe(sc, arg1))
 	    {
-	      s7_pointer code;
-	      annotate_arg(sc, cddr(expr), e);
-	      set_unsafe_optimize_op(expr, hop + OP_C_FA);
-	      code = sc->code;               /* save old -- not of direct interest here -- just avoiding unexpected clobberage */
-	      sc->code = cadr(expr);
-	      /* check_lambda here can cause the optimizer to ignore possible catches and exit eval! */
-	      check_lambda(sc);
-	      sc->code = code;
-	      choose_c_function(sc, expr, func, 2);
-	      if (((c_call(expr) == g_for_each) || (c_call(expr) == g_map)) &&
-		  (is_pair(cadr(arg1))) &&
-		  (is_null(cdadr(arg1))) &&
-		  (is_pair(cddr(arg1))) &&
-		  (is_null(cdddr(arg1))) &&
-		  (!is_possibly_constant(caadr(arg1))))
+	      if (is_fx_safe(sc, arg2))
 		{
-		  set_c_call_unchecked(expr, (c_call(expr) == g_for_each) ? g_for_each_closure : NULL);
-		  set_unsafe_optimize_op(expr, OP_C_FA_1);
+		  if (c_function_call(func) == g_apply)
+		    {
+		      set_optimize_op(expr, hop + OP_APPLY_AA);
+		      set_opt_cfunc(expr, func); /* not quite set_c_function */
+		    }
+		  else set_unsafe_optimize_op(expr, hop + OP_C_AA);
+		  annotate_args(sc, cdr(expr), e);
+		  set_arglist_length(expr, small_int(2));
 		}
+	      else
+		{
+		  set_unsafe_optimize_op(expr, hop + OP_C_AP);
+		  annotate_arg(sc, cdr(expr), e);
+		}
+	      choose_c_function(sc, expr, func, 2);
 	      return(OPT_F);
 	    }
 	  
-	  if ((!is_pair(arg1)) ||
-	      ((is_optimized(arg1)) &&
-	       (is_fx_op(optimize_op(arg1)))))
+	  if ((car(expr) != sc->values_symbol) &&
+	      (is_fx_safe(sc, arg2)))
 	    {
-	      set_unsafe_optimize_op(expr, hop + OP_C_AA);
-	      annotate_args(sc, cdr(expr), e);
-	      set_arglist_length(expr, small_int(2));
-	      choose_c_function(sc, expr, func, 2);
-	      return(OPT_F);
+	      if ((is_pair(arg1)) &&
+		  (car(arg1) == sc->lambda_symbol))
+		{
+		  s7_pointer code;
+		  annotate_arg(sc, cddr(expr), e);
+		  set_unsafe_optimize_op(expr, hop + OP_C_FA);
+		  code = sc->code;               /* save old -- not of direct interest here -- just avoiding unexpected clobberage */
+		  sc->code = cadr(expr);
+		  /* check_lambda here can cause the optimizer to ignore possible catches and exit eval! */
+		  check_lambda(sc);
+		  sc->code = code;
+		  choose_c_function(sc, expr, func, 2);
+		  if (((c_call(expr) == g_for_each) || (c_call(expr) == g_map)) &&
+		      (is_pair(cadr(arg1))) &&
+		      (is_null(cdadr(arg1))) &&
+		      (is_pair(cddr(arg1))) &&
+		      (is_null(cdddr(arg1))) &&
+		      (!is_possibly_constant(caadr(arg1))))
+		    {
+		      set_c_call_unchecked(expr, (c_call(expr) == g_for_each) ? g_for_each_closure : NULL);
+		      set_unsafe_optimize_op(expr, OP_C_FA_1);
+		    }
+		  return(OPT_F);
+		}
 	    }
 	}
       return((is_optimized(expr)) ? OPT_T : OPT_F);
@@ -75522,6 +75522,7 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
   switch (type(f))
     {
     case T_CLOSURE:
+    case T_CLOSURE_STAR:
       if ((!has_methods(f)) &&
 	  (is_null(closure_args(f))))
 	{
@@ -76979,7 +76980,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
    */
   s7_pointer z, top, nxt;
   top = NULL;
-  nxt = NULL;
+  /* nxt = NULL; */
 
   for (z = closure_args(sc->code); is_pair(z); z = cdr(z))
     {
@@ -77188,22 +77189,6 @@ static void closure_star_fx(s7_scheme *sc, s7_pointer code)
   sc->envir = new_frame_in_env(sc, closure_let(sc->code));
 }
 
-#if WITH_LSTAR_0
-static void op_closure_star(s7_scheme *sc, s7_pointer code)
-{
-  sc->args = sc->nil;
-  sc->code = opt_lambda(code);
-  sc->envir = new_frame_in_env(sc, closure_let(sc->code));
-}
-
-static void op_safe_closure_star(s7_scheme *sc, s7_pointer code)
-{
-  sc->args = sc->nil;
-  sc->code = opt_lambda(code);
-  sc->envir = new_frame_in_env(sc, closure_let(sc->code)); 
-  /* safe, so no defines(?), thunk so no new slots: reuse old frame, but even after let_id increment that gives: id mismatch: sym: a 157093, let: 157069 */
-}
-#endif
 
 /* -------------------------------------------------------------------------------- */
 
@@ -79281,6 +79266,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto APPLY;
 	  }
 	  
+	case OP_APPLY_AA:
+	  if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_APPLY_AA:
+	  {
+	    s7_pointer code;
+	    code = sc->code;
+	    sc->code = c_call(cdr(code))(sc, cadr(code));
+	    sc->args = c_call(cddr(code))(sc, caddr(code));
+	    if (!s7_is_proper_list(sc, sc->args))                      /* (apply + #f) etc */
+	      apply_list_error(sc, sc->args);
+	    if (needs_copied_args(sc->code))
+	      sc->args = copy_list(sc, sc->args);
+	    goto APPLY;
+	  }
+	  
 	case OP_C_S_opSq:
 	  if ((!c_function_is_ok(sc, sc->code)) || (!indirect_c_function_is_ok(sc, caddr(sc->code)))) break;
 	case HOP_C_S_opSq:
@@ -79739,14 +79739,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	  /* -------------------------------------------------------------------------------- */
 
-#if WITH_LSTAR_0	  	  
-	case OP_SAFE_CLOSURE_STAR:
-	  if (!closure_star_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_STAR, 0)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
-	case HOP_SAFE_CLOSURE_STAR:
-	  op_safe_closure_star(sc, sc->code);
-	  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
-	  goto BEGIN;
-#endif	  
 	case OP_SAFE_CLOSURE_STAR_A:
 	  if (!closure_star_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_STAR, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
 	case HOP_SAFE_CLOSURE_STAR_A:
@@ -79770,14 +79762,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  
 	  /* -------------------------------------------------------------------------------- */
 	  
-#if WITH_LSTAR_0
-	case OP_CLOSURE_STAR:
-	  if (!closure_star_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_STAR, 0)) {if (unknown_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
-	case HOP_CLOSURE_STAR:
-	  op_closure_star(sc, sc->code);
-	  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
-	  goto BEGIN;
-#endif	  
 	case OP_CLOSURE_STAR_A:
 	  if (!closure_star_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_STAR, 1)) {if (unknown_a_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_STAR_A:
@@ -89518,26 +89502,20 @@ int main(int argc, char **argv)
  *   ffi typer addition
  *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   s7_sigs are symbols, other are funcs
- * check is_recur (75428) [perhaps it's seeing the function = local_slot?]
  *
  * multi-optlist for the #t/float problem (or int/iv)
  * if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
  * bit/string vectors -- can these be handled without types?
  *   print bit-vector and bv-ref need hooks, and reversal, looks like > 100 lines -- is it worth it?
+ *   b = (b * 0x0202020202ULL & 0x010884422010ULL) % 1023
  *
  * recursive call without unknown*: these can be recognized, but choosing the correct op*_closure_* 
  *   requires later info (very_safe_closure, etc).  code commented under TREC.
  *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
  *   if c_func sees args a_lp, call as func, goto etc, also second env can reuse first -- 1/2 jumps and envs, no lookups or closure_ok
- *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al?
+ *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al? T_SLOT_0 etc
  * auto-memoization (top 8 or top 3 etc)
- *
- * tclo: if 1-par and 1-arg passed use standard closure calls (0 case is under LSTAR_0 which is slower!)
- *       if 1-par and 2-args and first key that fits, use standard preceded by cdr(args) etc
- *   c_ap: apply [safe]+[safe]
- *   pair_sym == lstar_0 -- why slower? there must be other cases here (see apply closure*)
- *   display_2 (or display_f)
- *   safe_closure_a_a?
+ * tclo: safe_closure_star_a_a?
  * trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
  */
 
@@ -89545,35 +89523,35 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * --------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  ||  16  ||  17  | 18.6  18.7  18.8
- * --------------------------------------------------------------------------------
- * tpeak         |      |      |      ||  391 ||  377 |  280   199   200
- * tmac          |      |      |      || 9052 ||  264 |  283   266   236
- * tref          |      |      | 2372 || 2125 || 1036 | 1057  1004   985
- * index    44.3 | 3291 | 1725 | 1276 || 1255 || 1168 | 1088  1061  1038
- * tauto   265.0 | 89.0 |  9.0 |  8.4 || 2993 || 1457 | 1313  1316  1291
- * teq           |      |      | 6612 || 2777 || 1931 | 1662  1673  1548
- * s7test   1721 | 1358 |  995 | 1194 || 2926 || 2110 | 1929  1919  1726
- * lint          |      |      |      || 4041 || 2702 | 2344  2318  2191
- * tcopy         |      |      | 13.6 || 3183 || 2974 | 2373  2363  2327 
- * tread         |      |      |      ||      ||      | 2357  2363  2344
- * tform         |      |      | 6816 || 3714 || 2762 | 2390  2388  2382
- * tfft          |      | 15.5 | 16.4 || 17.3 || 3966 | 3113  2543  2492
- * tmap          |      |      |  9.3 || 5279 || 3445 | 3288  3261  3032
- * tlet          |      |      |      ||      ||      |       4717  3507
- * titer         |      |      |      || 5971 || 4646 | 4047  3743  3695
- * tsort         |      |      |      || 8584 || 4111 | 4119  3998  3946
- * tclo          |      |      |      || 4707 || 4682 |       4526  4373
- * thash         |      |      | 50.7 || 8778 || 7697 | 6342  6156  5383
- * dup           |      |      |      ||      ||      | 20.8  9525  6018
- * tset          |      |      |      ||      ||      | 10.0  6435  6363
- * tgen          | 71.0 | 70.6 | 38.0 || 12.6 || 11.9 | 11.0  11.0  11.0
- * trec          |      |      |      || 16.4 || 16.4 |       13.4  12.3
- * tall     90.0 | 43.0 | 14.5 | 12.7 || 17.9 || 18.8 | 17.5  17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 || 43.7 || 40.4 | 39.9  38.7  38.5
- * sg            |      |      |      ||139.0 || 85.9 | 79.6  78.2  78.0
- * lg            |      |      |      ||211.0 ||133.0 |117.9 116.4 113.8
- * tbig          |      |      |      ||      ||      |246.9 242.7 232.6
- * --------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  |  16  |  17  | 18.7  18.8  18.9
+ * ------------------------------------------------------------------------
+ * tpeak         |      |      |      |  391 |  377 |  199   200
+ * tmac          |      |      |      | 9052 |  264 |  266   236
+ * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1291
+ * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1726
+ * lint          |      |      |      | 4041 | 2702 | 2318  2191
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2327 
+ * tread         |      |      |      |      | 2357 | 2363  2344
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
+ * tlet          |      |      |      |      |      | 4717  3507
+ * titer         |      |      |      | 5971 | 4646 | 3743  3695
+ * tsort         |      |      |      | 8584 | 4111 | 3998  3946
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4013
+ * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
+ * dup           |      |      |      |      | 20.8 | 9525  5690
+ * tset          |      |      |      |      | 10.0 | 6435  6358
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.0
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5
+ * sg            |      |      |      |139.0 | 85.9 | 78.2  78.0
+ * lg            |      |      |      |211.0 |133.0 |116.4 113.8
+ * tbig          |      |      |      |      |246.9 |242.7 232.6
+ * -----------------------------------------------------------------------------
  */
