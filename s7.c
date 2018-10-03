@@ -510,6 +510,7 @@ typedef struct block_t {
   union {
     bool filler;
     int32_t len;
+    uint32_t tag;
   } ln;
   s7_int size;
   union {
@@ -758,8 +759,6 @@ typedef struct {
 
 /* -------------------------------- cell structure -------------------------------- */
 
-#define symbol_tag_t uint32_t     /* syms_tag may need 64-bits -- seems ok at 32 bits so far (16 bits was too few) */
-
 typedef struct s7_cell {
   union {
     uint64_t flag;                /* type info */
@@ -910,7 +909,7 @@ typedef struct s7_cell {
       s7_pointer name, global_slot, local_slot;
       int64_t id;                  /* which let last bound the symbol -- for faster symbol lookup */
       uint32_t ctr;                /* how many times has symbol been set -- may need to be 64-bits? */
-      symbol_tag_t tag;            /* symbol as member of a set (tree-set-memq etc) */
+      uint32_t tag;                /* symbol as member of a set (tree-set-memq etc) */
     } sym;
 
     struct {                       /* syntax */
@@ -1185,7 +1184,7 @@ struct s7_scheme {
   int32_t c_object_types_size, num_c_object_types;
   s7_pointer type_to_typers[NUM_TYPES];
 
-  symbol_tag_t syms_tag;
+  uint32_t syms_tag, syms_tag2;
   int32_t bignum_precision;
   s7_int baffle_ctr;
   s7_pointer default_rng;
@@ -2395,8 +2394,9 @@ static void init_types(void)
 
 #define T_RECUR                       (1LL << (TYPE_BITS + BIT_ROOM + 27))
 #define T_SHORT_RECUR                 (1 << 3)
-#define is_recur(p)                   ((has_type1_bit(T_Slt(p), T_SHORT_RECUR)) && (optimize_op(slot) == symbol_ctr(slot_symbol(slot))))
-#define set_recur(slot, symbol)       do {set_type1_bit(T_Slt(slot), T_SHORT_RECUR); set_optimize_op(slot, symbol_ctr(symbol) & 0xff);} while (0)
+#define is_recur(p)                   ((has_type1_bit(T_Slt(p), T_SHORT_RECUR)) && (optimize_op(slot) == (symbol_ctr(slot_symbol(slot)) & 0xffff)))
+#define set_recur(slot, symbol)       do {set_type1_bit(T_Slt(slot), T_SHORT_RECUR); set_optimize_op(slot, symbol_ctr(symbol) & 0xffff);} while (0)
+/* was using symbol_ctr here, but surely symbol_id changes when symbol_ctr changes? */
 
 #define T_TREE_COLLECTED              T_RECUR
 #define T_SHORT_TREE_COLLECTED        T_SHORT_RECUR
@@ -2761,7 +2761,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define set_global_slot(p, Val)       (T_Sym(p))->object.sym.global_slot = T_Sld(Val)
 #define local_slot(p)                 (T_Sym(p))->object.sym.local_slot
 #define set_local_slot(p, Val)        (T_Sym(p))->object.sym.local_slot = T_Sln(Val)
-#define keyword_symbol(p)             symbol_info(p)->nx.ksym
+#define keyword_symbol(p)             symbol_info(p)->nx.ksym               /* keyword only, so does not collide with documentation */
 #define keyword_set_symbol(p, Val)    symbol_info(p)->nx.ksym = T_Sym(Val)
 #define symbol_help(p)                symbol_info(p)->nx.documentation
 #define symbol_set_help(p, Doc)       symbol_info(p)->nx.documentation = Doc
@@ -2770,6 +2770,8 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define symbol_ctr(p)                 (T_Sym(p))->object.sym.ctr
 #define symbol_set_ctr(p, Val)        (T_Sym(p))->object.sym.ctr = Val
 #define symbol_increment_ctr(p)       (T_Sym(p))->object.sym.ctr++
+#define symbol_tag2(p)                symbol_info(p)->ln.tag
+#define symbol_set_tag2(p, Val)       symbol_info(p)->ln.tag = Val
 #define symbol_has_help(p)            (is_documented(symbol_name_cell(p)))
 #define symbol_set_has_help(p)        set_documented(symbol_name_cell(p))
 
@@ -3768,7 +3770,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_CLOSURE_STAR_FX, HOP_SAFE_CLOSURE_STAR_FX,
 
       /* these can't be embedded, and have to be the last thing called */
-      OP_APPLY_SS, HOP_APPLY_SS, OP_APPLY_AA, HOP_APPLY_AA, 
+      OP_APPLY_SS, HOP_APPLY_SS, OP_APPLY_SA, HOP_APPLY_SA, 
       OP_C_FX, HOP_C_FX, OP_CALL_WITH_EXIT, HOP_CALL_WITH_EXIT, OP_CALL_WITH_EXIT_P, HOP_CALL_WITH_EXIT_P, 
       OP_C_CATCH, HOP_C_CATCH, OP_C_CATCH_ALL, HOP_C_CATCH_ALL, OP_C_CATCH_ALL_P, HOP_C_CATCH_ALL_P,
       OP_C_S_opSq, HOP_C_S_opSq, OP_C_S_opCq, HOP_C_S_opCq, OP_C_SS, HOP_C_SS,
@@ -3985,7 +3987,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_closure*_a", "h_safe_closure*_a", "safe_closure*_aa", "h_safe_closure*_aa", 
       "safe_closure*_fx", "h_safe_closure*_fx",
 
-      "apply_ss", "h_apply_ss", "apply_aa", "h_apply_aa",
+      "apply_ss", "h_apply_ss", "apply_sa", "h_apply_sa",
       "c_fx", "h_c_fx", "call_with_exit", "h_call_with_exit", "call_with_exit_p", "h_call_with_exit_p", 
       "c_catch", "h_c_catch", "c_catch_all", "h_c_catch_all", "c_catch_all_p", "h_c_catch_all_p",
       "c_s_opsq", "h_c_s_opsq", "c_s_opcq", "h_c_s_opcq", "c_ss", "h_c_ss",
@@ -6619,7 +6621,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   uint32_t location;
   uint64_t hash;
   s7_pointer x, str, stc;
-  block_t *b;
+  block_t *b, *ib;
 
   /* get symbol name */
   if (is_not_null(args))
@@ -6632,13 +6634,15 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
     }
   else prefix = "gensym";
   plen = safe_strlen(prefix);
-  len = plen + 32;
+  len = plen + 8; /* why was this 32? */
 
-  b = mallocate(sc, len + 2 * sizeof(s7_cell));
+  b = mallocate(sc, len + /* sizeof(block_t) */ 16 + 2 * sizeof(s7_cell));
+  /* 16 here because only the ln.tag (symbol_tag2) field is used in this embedded block_t */
   base = (char *)block_data(b);
   str = (s7_cell *)base;
   stc = (s7_cell *)(base + sizeof(s7_cell));
-  name = (char *)(base + 2 * sizeof(s7_cell));
+  ib = (block_t *)(base + 2 * sizeof(s7_cell));
+  name = (char *)(base + /* sizeof(block_t) */ 16 + 2 * sizeof(s7_cell));
 
   name[0] = '{';
   if (plen > 0) memcpy((void *)(name + 1), prefix, plen);
@@ -6664,7 +6668,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   /* allocate the symbol in the heap so GC'd when inaccessible */
   new_cell(sc, x, T_SYMBOL | T_GENSYM);
   symbol_set_name_cell(x, str);
-  symbol_info(x) = NULL;         /* clobbers string_block */
+  symbol_info(x) = ib;
   set_global_slot(x, sc->undefined);
   /* set_initial_slot(x, sc->undefined); */
   symbol_set_local_unchecked(x, 0LL, sc->nil);
@@ -6817,16 +6821,21 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
 static inline s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
 {
   symbol_set_tag(sym, sc->syms_tag);
+  symbol_set_tag2(sym, sc->syms_tag2);
   return(sym);
 }
 
 static inline void clear_symbol_list(s7_scheme *sc)
 {
   sc->syms_tag++;
-  if (sc->syms_tag == 0) sc->syms_tag = 1; /* we're assuming (in let_equal) that this tag is not 0 */
+  if (sc->syms_tag == 0) 
+    {
+      sc->syms_tag = 1; /* we're assuming (in let_equal) that this tag is not 0 */
+      sc->syms_tag2++;
+    }
 }
 
-#define symbol_is_in_list(Sc, Sym) (symbol_tag(Sym) == Sc->syms_tag)
+#define symbol_is_in_list(Sc, Sym) ((symbol_tag(Sym) == Sc->syms_tag) && (symbol_tag2(Sym) == Sc->syms_tag2))
 
 
 /* -------------------------------- environments -------------------------------- */
@@ -31069,8 +31078,7 @@ static s7_pointer display_p_p(s7_scheme *sc, s7_pointer x)
 }
 static s7_pointer display_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer port) 
 {
-  if (port == sc->F)
-    return(x);
+  if (port == sc->F) return(x);
   if ((!is_output_port(port)) ||
       (port_is_closed(port)))
     s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port");
@@ -66236,9 +66244,10 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	    {
 	      if (is_fx_safe(sc, arg2))
 		{
-		  if (c_function_call(func) == g_apply)
+		  if ((c_function_call(func) == g_apply) &&
+		      (is_symbol(arg1)))
 		    {
-		      set_optimize_op(expr, hop + OP_APPLY_AA);
+		      set_optimize_op(expr, hop + OP_APPLY_SA);
 		      set_opt_cfunc(expr, func); /* not quite set_c_function */
 		    }
 		  else set_unsafe_optimize_op(expr, hop + OP_C_AA);
@@ -76980,7 +76989,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
    */
   s7_pointer z, top, nxt;
   top = NULL;
-  /* nxt = NULL; */
+  nxt = NULL; /* make the compiler happy */
 
   for (z = closure_args(sc->code); is_pair(z); z = cdr(z))
     {
@@ -78592,14 +78601,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_SS:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SS:
-	  {
-	    s7_pointer val;
-	    val = symbol_to_value_unchecked(sc, cadr(sc->code));
-	    set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym2(cdr(sc->code))));
-	    set_car(sc->t2_1, val);
-	    sc->value = c_call(sc->code)(sc, sc->t2_1);
-	    goto START;
-	  }
+	  set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(sc->code)));
+	  set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt_sym2(cdr(sc->code))));
+	  sc->value = c_call(sc->code)(sc, sc->t2_1);
+	  goto START;
 	  
 	case OP_SAFE_C_ALL_S: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_ALL_S: sc->value = fx_c_all_s(sc, sc->code); goto START;
@@ -79254,27 +79259,23 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_APPLY_SS:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_APPLY_SS:
-	  {
-	    s7_pointer code;
-	    code = sc->code;
-	    sc->code = symbol_to_value_unchecked(sc, cadr(code));      /* global search here was slower */
-	    sc->args = symbol_to_value_unchecked(sc, opt_sym2(code));  /* is this right if code=macro? */
-	    if (!s7_is_proper_list(sc, sc->args))                      /* (apply + #f) etc */
-	      apply_list_error(sc, sc->args);
-	    if (needs_copied_args(sc->code))
-	      sc->args = copy_list(sc, sc->args);
-	    goto APPLY;
-	  }
+	  sc->args = symbol_to_value_unchecked(sc, opt_sym2(sc->code));  /* is this right if code=macro? */
+	  sc->code = symbol_to_value_unchecked(sc, cadr(sc->code));      /* global search here was slower */
+	  if (!s7_is_proper_list(sc, sc->args))                          /* (apply + #f) etc */
+	    apply_list_error(sc, sc->args);
+	  if (needs_copied_args(sc->code))
+	    sc->args = copy_list(sc, sc->args);
+	  goto APPLY;
 	  
-	case OP_APPLY_AA:
+	case OP_APPLY_SA:
 	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_APPLY_AA:
+	case HOP_APPLY_SA:
 	  {
 	    s7_pointer code;
 	    code = sc->code;
-	    sc->code = c_call(cdr(code))(sc, cadr(code));
 	    sc->args = c_call(cddr(code))(sc, caddr(code));
-	    if (!s7_is_proper_list(sc, sc->args))                      /* (apply + #f) etc */
+	    sc->code = symbol_to_value_unchecked(sc, cadr(code));
+	    if (!s7_is_proper_list(sc, sc->args))                          /* (apply + #f) etc */
 	      apply_list_error(sc, sc->args);
 	    if (needs_copied_args(sc->code))
 	      sc->args = copy_list(sc, sc->args);
@@ -87957,6 +87958,7 @@ s7_scheme *s7_init(void)
   sc->profile_info = sc->nil;
   sc->baffle_ctr = 0;
   sc->syms_tag = 0;
+  sc->syms_tag2 = 0;
   sc->class_name_symbol = make_symbol(sc, "class-name");
   sc->circle_info = init_circle_info(sc);
   sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
@@ -89514,9 +89516,8 @@ int main(int argc, char **argv)
  *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
  *   if c_func sees args a_lp, call as func, goto etc, also second env can reuse first -- 1/2 jumps and envs, no lookups or closure_ok
  *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al? T_SLOT_0 etc
- * auto-memoization (top 8 or top 3 etc)
- * tclo: safe_closure_star_a_a?
- * trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
+ *   auto-memoization (top 8 or top 3 etc)
+ *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89529,24 +89530,24 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199   200
  * tmac          |      |      |      | 9052 |  264 |  266   236
  * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1291
- * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038 1039
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1291 1289
+ * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548 1550
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1726
- * lint          |      |      |      | 4041 | 2702 | 2318  2191
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2327 
- * tread         |      |      |      |      | 2357 | 2363  2344
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385
+ * lint          |      |      |      | 4041 | 2702 | 2318  2191 2192
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2327 2325
+ * tread         |      |      |      |      | 2357 | 2363  2344 2348
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385 2383
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
- * tlet          |      |      |      |      |      | 4717  3507
+ * tlet          |      |      |      |      |      | 4717  3507 3505
  * titer         |      |      |      | 5971 | 4646 | 3743  3695
  * tsort         |      |      |      | 8584 | 4111 | 3998  3946
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4013
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4013 4018 [apply_lambda_star]
  * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
- * dup           |      |      |      |      | 20.8 | 9525  5690
- * tset          |      |      |      |      | 10.0 | 6435  6358
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.0
+ * dup           |      |      |      |      | 20.8 | 9525  5690 5672
+ * tset          |      |      |      |      | 10.0 | 6435  6358 6410
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.0 11.1 [check_let|do etc]
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5
