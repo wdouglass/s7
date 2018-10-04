@@ -6636,13 +6636,13 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   plen = safe_strlen(prefix);
   len = plen + 8; /* why was this 32? */
 
-  b = mallocate(sc, len + /* sizeof(block_t) */ 16 + 2 * sizeof(s7_cell));
-  /* 16 here because only the ln.tag (symbol_tag2) field is used in this embedded block_t */
+  b = mallocate(sc, len + sizeof(block_t) + 2 * sizeof(s7_cell));
+  /* only 16 of block_t size is actually needed here because only the ln.tag (symbol_tag2) field is used in the embedded block_t */
   base = (char *)block_data(b);
   str = (s7_cell *)base;
   stc = (s7_cell *)(base + sizeof(s7_cell));
   ib = (block_t *)(base + 2 * sizeof(s7_cell));
-  name = (char *)(base + /* sizeof(block_t) */ 16 + 2 * sizeof(s7_cell));
+  name = (char *)(base + sizeof(block_t) + 2 * sizeof(s7_cell));
 
   name[0] = '{';
   if (plen > 0) memcpy((void *)(name + 1), prefix, plen);
@@ -7261,8 +7261,11 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
       
       if (symbol_id(symbol) == 0)    /* never defined locally? */
 	{
-	  if (symbol_info(symbol))   /* if a gensym, symbol_info is null */
+	  if (!is_gensym(symbol))
 	    {
+#if S7_DEBUGGING
+	      if (!symbol_info(symbol)) fprintf(stderr, "%s info is null?\n", symbol_name(symbol));
+#endif
 	      if (initial_slot(symbol) == sc->undefined)
 		set_initial_slot(symbol, permanent_slot(sc, symbol, value));
 	    }
@@ -7335,7 +7338,7 @@ static void save_unlet(s7_scheme *sc)
       {
 	s7_pointer sym;
 	sym = car(x);
-	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
+	if ((!is_gensym(sym)) && (is_slot(initial_slot(sym))))
 	  {
 	    s7_pointer val;
 	    val = slot_value(initial_slot(sym));
@@ -8970,9 +8973,9 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   new_cell(sc, x, type);
   closure_set_args(x, args);
   closure_set_body(x, code);
+  closure_set_let(x, sc->envir);
   closure_set_setter(x, sc->F);
   closure_arity(x) = arity;
-  closure_set_let(x, sc->envir);
   sc->capture_let_counter++;
   return(x);
 }
@@ -8982,9 +8985,9 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
     new_cell(Sc, X, T_CLOSURE | T_COPY_ARGS | safe_closure_bits(Code)); \
     closure_set_args(X, Args);						\
     closure_set_body(X, Code);				                \
+    closure_set_let(X, Env);						\
     closure_set_setter(X, sc->F);					\
     closure_arity(X) = Arity;						\
-    closure_set_let(X, Env);						\
     sc->capture_let_counter++;						\
   } while (0)
 
@@ -11952,7 +11955,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
       {
 	s7_pointer sym;
 	sym = make_symbol(sc, (char *)(name + 1));
-	if ((symbol_info(sym)) && (is_slot(initial_slot(sym))))
+	if ((!is_gensym(sym)) && (is_slot(initial_slot(sym))))
 	  return(slot_value(initial_slot(sym)));
 
 	/* here we should not necessarily raise an error that *_... is undefined.  reader-cond, for example, needs to
@@ -71430,6 +71433,18 @@ static int32_t expansion_ex(s7_scheme *sc)
   return(fall_through);
 }
 
+static void op_t_c_macro(s7_scheme *sc)
+{
+  s7_int len;
+  len = safe_list_length(sc->args);
+  if (len < c_macro_required_args(sc->code))
+    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
+  if (c_macro_all_args(sc->code) < len)
+    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
+  sc->value = c_macro_call(sc->code)(sc, sc->args);
+}
+
+
 /* -------------------------------- with-let -------------------------------- */
 static s7_pointer check_with_let(s7_scheme *sc)
 {
@@ -80247,16 +80262,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      goto BEGIN;
 	      
 	    case T_C_MACRO:
-	      {
-		s7_int len;
-		len = safe_list_length(sc->args);
-		if (len < c_macro_required_args(sc->code))
-		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
-		if (c_macro_all_args(sc->code) < len)
-		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
-		sc->value = c_macro_call(sc->code)(sc, sc->args);
-		goto START;
-	      }
+	      op_t_c_macro(sc);
+	      goto START;
 	    }
 	  eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->args);
 	  
@@ -89518,6 +89525,8 @@ int main(int argc, char **argv)
  *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al? T_SLOT_0 etc
  *   auto-memoization (top 8 or top 3 etc)
  *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
+ *
+ * free closure_let in op_closure_ss_p??
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89552,7 +89561,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5
  * sg            |      |      |      |139.0 | 85.9 | 78.2  78.0
- * lg            |      |      |      |211.0 |133.0 |116.4 113.8
- * tbig          |      |      |      |      |246.9 |242.7 232.6
+ * lg            |      |      |      |211.0 |133.0 |116.4 114.0
+ * tbig          |      |      |      |      |246.9 |242.7 232.5
  * -----------------------------------------------------------------------------
  */
