@@ -45,6 +45,7 @@
  * mockery.scm has the mock-data definitions.
  * reactive.scm has reactive-set and friends.
  * stuff.scm has some stuff.
+ * timing tests are in the snd tools directory
  *
  * s7.c is organized as follows:
  *
@@ -2785,7 +2786,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define slot_value(p)                 T_Pos((T_Slt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (T_Slt(p))->object.slt.val
 #if S7_DEBUGGING
-#define slot_set_value(p, Val)        do {if (is_immutable_slot(p)) fprintf(stderr, "set immutable %s\n", symbol_name(slot_symbol(p))); p->object.slt.val = T_Pos(Val);} while (0)
+#define slot_set_value(p, Val)        do {if (is_immutable_slot(p)) fprintf(stderr, "%s[%d]: set immutable %s\n", __func__, __LINE__, symbol_name(slot_symbol(p))); p->object.slt.val = T_Pos(Val);} while (0)
 #else
 #define slot_set_value(p, Val)        (T_Slt(p))->object.slt.val = T_Pos(Val)
 #endif
@@ -5756,7 +5757,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->previous_free_heap_top = sc->free_heap_top;
 
   if (show_heap_stats(sc))
-    fprintf(stderr, "heap grows to %" print_s7_int " (old free/size: %" print_s7_int "/%" print_s7_int ")\n", sc->heap_size, old_free, old_size);
+    s7_warn(sc, 256, "heap grows to %" print_s7_int " (old free/size: %" print_s7_int "/%" print_s7_int ")\n", sc->heap_size, old_free, old_size);
 
   if (sc->heap_size >= sc->max_heap_size)
     {
@@ -6336,7 +6337,7 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
       y = 0;
       len -= 8;
       memcpy((void *)cy, (void *)(key + 8), (len > 8) ? 8 : len);
-      x |= y;
+      x += y;  /* better than |= but still not great if (for example) > 1B gensyms -- maybe add z? */
     }
   return(x);
 }
@@ -6564,7 +6565,7 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
   else
     {
       s7_pointer y;
-      for (y = x, x = cdr(x); is_pair(x); y = x, x = cdr(x))
+	for (y = x, x = cdr(x); is_pair(x); y = x, x = cdr(x))
 	if (car(x) == sym)
 	  {
 	    set_cdr(y, cdr(x));
@@ -6631,10 +6632,14 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
       if (!is_string(gname))
 	return(method_or_bust_one_arg(sc, gname, sc->gensym_symbol, args, T_STRING));
       prefix = string_value(gname);
+      plen = safe_strlen(prefix);
     }
-  else prefix = "gensym";
-  plen = safe_strlen(prefix);
-  len = plen + 8; /* why was this 32? */
+  else 
+    {
+      prefix = "gensym";
+      plen = 6;
+    }
+  len = plen + 32; /* why 32 -- we need room for the gensym_counter integer, but (length "9223372036854775807") = 19 */
 
   b = mallocate(sc, len + sizeof(block_t) + 2 * sizeof(s7_cell));
   /* only 16 of block_t size is actually needed here because only the ln.tag (symbol_tag2) field is used in the embedded block_t */
@@ -25789,7 +25794,11 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
   else
     {
       if (!is_memq(sym, lst))
-	slot_set_value(p, cons(sc, sym, lst));
+	{
+	  if (is_immutable(p))
+	    s7_warn(sc, 256, "provide: *features* is immutable!\n");
+	  else slot_set_value(p, cons(sc, sym, lst));
+	}
       /* if two different provide statements provide the same symbol, is that an error?  
        * Should we warn about it if safety>0?
        * similarly should autoload warn about an overwrite? 
@@ -30839,7 +30848,7 @@ char *s7_object_to_c_string(s7_scheme *sc, s7_pointer obj)
   TRACK(sc);
   if ((sc->safety > NO_SAFETY) &&
       (!s7_is_valid(sc, obj)))
-    fprintf(stderr, "bad arg to %s: %p\n", __func__, obj);
+    s7_warn(sc, 256, "bad arg to %s: %p\n", __func__, obj);
 
   strport = open_format_port(sc);
   object_out(sc, obj, strport, P_WRITE);
@@ -30875,7 +30884,7 @@ s7_pointer s7_object_to_string(s7_scheme *sc, s7_pointer obj, bool use_write) /*
 
   if ((sc->safety > NO_SAFETY) &&
       (!s7_is_valid(sc, obj)))
-    fprintf(stderr, "bad arg to %s: %p\n", __func__, obj);
+    s7_warn(sc, 256, "bad arg to %s: %p\n", __func__, obj);
 
   strport = open_format_port(sc);
   object_out(sc, obj, strport, (use_write) ? P_WRITE : P_DISPLAY);
@@ -32474,7 +32483,7 @@ s7_pointer s7_make_circular_signature(s7_scheme *sc, s7_int cycle_point, s7_int 
   va_end(ap);
   if (end) set_cdr(end, back);
   if (i < len) 
-    fprintf(stderr, "s7_make_circular_signature got too few entries: %s\n", DISPLAY(res));
+    s7_warn(sc, 256, "s7_make_circular_signature got too few entries: %s\n", s7_object_to_c_string(sc, res));
   return((s7_pointer)res);
 }
 
@@ -35061,7 +35070,7 @@ static void check_list_validity(s7_scheme *sc, const char *caller, s7_pointer ls
   int32_t i;
   for (i = 1, p = lst; is_pair(p); p = cdr(p), i++)
     if (!s7_is_valid(sc, car(p)))
-      fprintf(stderr, "bad arg (#%d) to %s: %p\n", i, caller, car(p));
+      s7_warn(sc, 256, "bad arg (#%d) to %s: %p\n", i, caller, car(p));
 }
 
 s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...)
@@ -45203,7 +45212,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 		results++;
 		if (results > 10000)
 		  {
-		    fprintf(stderr, "iterator is creating a very long list!\n");
+		    s7_warn(sc, 256, "iterator is creating a very long list!\n");
 		    results = S7_LONG_MIN;
 		  }
 	      }
@@ -48435,9 +48444,9 @@ s7_pointer s7_eval(s7_scheme *sc, s7_pointer code, s7_pointer e)
   if (sc->safety > NO_SAFETY)
     {
       if (!s7_is_valid(sc, code))
-	fprintf(stderr, "bad code arg to %s: %p\n", __func__, code);
+	s7_warn(sc, 256, "bad code arg to %s: %p\n", __func__, code);
       if (!s7_is_valid(sc, e))
-	fprintf(stderr, "bad environment arg to %s: %p\n", __func__, e);
+	s7_warn(sc, 256, "bad environment arg to %s: %p\n", __func__, e);
     }
 
   store_jump_info(sc);
@@ -71433,17 +71442,6 @@ static int32_t expansion_ex(s7_scheme *sc)
   return(fall_through);
 }
 
-static void op_t_c_macro(s7_scheme *sc)
-{
-  s7_int len;
-  len = safe_list_length(sc->args);
-  if (len < c_macro_required_args(sc->code))
-    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
-  if (c_macro_all_args(sc->code) < len)
-    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
-  sc->value = c_macro_call(sc->code)(sc, sc->args);
-}
-
 
 /* -------------------------------- with-let -------------------------------- */
 static s7_pointer check_with_let(s7_scheme *sc)
@@ -80261,9 +80259,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
 	      goto BEGIN;
 	      
-	    case T_C_MACRO:
-	      op_t_c_macro(sc);
-	      goto START;
+	    case T_C_MACRO: /* moving this out of eval makes callgrind behave foolishly */
+	      {
+		s7_int len;
+		len = safe_list_length(sc->args);
+		if (len < c_macro_required_args(sc->code))
+		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
+		if (c_macro_all_args(sc->code) < len)
+		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
+		sc->value = c_macro_call(sc->code)(sc, sc->args);
+		goto START;
+	      }
 	    }
 	  eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->args);
 	  
@@ -89514,9 +89520,10 @@ int main(int argc, char **argv)
  *
  * multi-optlist for the #t/float problem (or int/iv)
  * if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
- * bit/string vectors -- can these be handled without types?
+ * bit/string vectors -- can these be handled without types? [name should be boolean-vector]
  *   print bit-vector and bv-ref need hooks, and reversal, looks like > 100 lines -- is it worth it?
  *   b = (b * 0x0202020202ULL & 0x010884422010ULL) % 1023
+ *   also complex or ratio vectors? (complex for GSL)
  *
  * recursive call without unknown*: these can be recognized, but choosing the correct op*_closure_* 
  *   requires later info (very_safe_closure, etc).  code commented under TREC.
@@ -89525,8 +89532,10 @@ int main(int argc, char **argv)
  *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al? T_SLOT_0 etc
  *   auto-memoization (top 8 or top 3 etc)
  *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
+ *     but these require eval ops currently, not fx*
  *
  * free closure_let in op_closure_ss_p??
+ * currently if we set (eg) make-string immutable, it's still possible to redefine it (see t725.scm) -- is this a bug? [s7_make_slot 7244 from define2_ex]
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89539,24 +89548,24 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199   200
  * tmac          |      |      |      | 9052 |  264 |  266   236
  * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038 1039
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1291 1289
- * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548 1550
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1289
+ * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1726
- * lint          |      |      |      | 4041 | 2702 | 2318  2191 2192
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2327 2325
- * tread         |      |      |      |      | 2357 | 2363  2344 2348
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385 2383
+ * lint          |      |      |      | 4041 | 2702 | 2318  2194
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325
+ * tread         |      |      |      |      | 2357 | 2363  2348
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2383
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
- * tlet          |      |      |      |      |      | 4717  3507 3505
- * titer         |      |      |      | 5971 | 4646 | 3743  3695
+ * tlet          |      |      |      |      |      | 4717  3505
+ * titer         |      |      |      | 5971 | 4646 | 3743  3687
  * tsort         |      |      |      | 8584 | 4111 | 3998  3946
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4013 4018 [apply_lambda_star]
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4018
  * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
- * dup           |      |      |      |      | 20.8 | 9525  5690 5672
- * tset          |      |      |      |      | 10.0 | 6435  6358 6410
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.0 11.1 [check_let|do etc]
+ * dup           |      |      |      |      | 20.8 | 9525  5648
+ * tset          |      |      |      |      | 10.0 | 6435  6405
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5
