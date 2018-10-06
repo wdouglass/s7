@@ -1139,7 +1139,7 @@ struct s7_scheme {
   char *read_line_buf;
   s7_int read_line_buf_size;
 
-  s7_pointer v, w, x, y, z;         /* evaluator local vars */
+  s7_pointer u, v, w, x, y, z;         /* evaluator local vars */
   s7_pointer temp1, temp2, temp3, temp4, temp6, temp7, temp8, temp9, temp10, temp11;
   s7_pointer temp_cell, temp_cell_1, temp_cell_2, u1_1;
   s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2;
@@ -2650,7 +2650,36 @@ static void init_types(void)
 #define car(p)                        (T_Pair(p))->object.cons.car
 #define set_car(p, Val)               (T_Pair(p))->object.cons.car = T_Pos(Val)
 #define cdr(p)                        (T_Pair(p))->object.cons.cdr
+#if S7_DEBUGGING
+static bool tn_ready = false;
+static bool is_permanent(s7_pointer p)
+{
+  if (!tn_ready) return(false);
+  if ((p == cur_sc->t1_1) || (cdr(cur_sc->t1_1) != cur_sc->nil)) {fprintf(stderr, "t1_1\n"); return(true);}
+  if ((p == cur_sc->t2_1) || (cdr(cur_sc->t2_1) != cur_sc->t2_2)) {fprintf(stderr, "t2_1\n"); return(true);}
+  if ((p == cur_sc->t2_2) || (cdr(cur_sc->t2_2) != cur_sc->nil)) {fprintf(stderr, "t2_2\n"); return(true);}
+  if ((p == cur_sc->t3_1) || (cdr(cur_sc->t3_1) != cur_sc->t3_2)) {fprintf(stderr, "t3_1\n"); return(true);}
+  if ((p == cur_sc->t3_2) || (cdr(cur_sc->t3_2) != cur_sc->t3_3)) {fprintf(stderr, "t3_2\n"); return(true);}
+  if ((p == cur_sc->t3_3) || (cdr(cur_sc->t3_3) != cur_sc->nil)) {fprintf(stderr, "t3_3\n"); return(true);}
+  if ((p == cur_sc->z2_1) || (cdr(cur_sc->z2_1) != cur_sc->z2_2)) {fprintf(stderr, "z2_1\n"); return(true);}
+  if ((p == cur_sc->z2_2) || (cdr(cur_sc->z2_2) != cur_sc->nil)) {fprintf(stderr, "z2_2\n"); return(true);}
+  if ((p == cur_sc->a1_1) || (cdr(cur_sc->a1_1) != cur_sc->nil)) {fprintf(stderr, "a1_1\n"); return(true);}
+  if ((p == cur_sc->a2_1) || (cdr(cur_sc->a2_1) != cur_sc->a2_2)) {fprintf(stderr, "a2_1\n"); return(true);}
+  if ((p == cur_sc->a2_2) || (cdr(cur_sc->a2_2) != cur_sc->nil)) {fprintf(stderr, "a2_2\n"); return(true);}
+  if ((p == cur_sc->a3_1) || (cdr(cur_sc->a3_1) != cur_sc->a3_2)) {fprintf(stderr, "a3_1\n"); return(true);}
+  if ((p == cur_sc->a3_2) || (cdr(cur_sc->a3_2) != cur_sc->a3_3)) {fprintf(stderr, "a3_2\n"); return(true);}
+  if ((p == cur_sc->a3_3) || (cdr(cur_sc->a3_3) != cur_sc->nil)) {fprintf(stderr, "a3_3\n"); return(true);}
+  if ((p == cur_sc->a4_1) || (cdr(cur_sc->a4_1) != cur_sc->a4_2)) {fprintf(stderr, "a4_1\n"); return(true);}
+  if ((p == cur_sc->a4_2) || (cdr(cur_sc->a4_2) != cur_sc->a4_3)) {fprintf(stderr, "a4_2\n"); return(true);}
+  if ((p == cur_sc->a4_3) || (cdr(cur_sc->a4_3) != cur_sc->a4_4)) {fprintf(stderr, "a4_3\n"); return(true);}
+  if ((p == cur_sc->a4_4) || (cdr(cur_sc->a4_4) != cur_sc->nil)) {fprintf(stderr, "a4_4\n"); return(true);}
+  return(false);
+}
+
+#define set_cdr(p, Val)               do {(T_Pair(p))->object.cons.cdr = T_Pos(Val); if (is_permanent(p)) {fprintf(stderr, "set_cdr immutable\n"); abort();}} while (0)
+#else
 #define set_cdr(p, Val)               (T_Pair(p))->object.cons.cdr = T_Pos(Val)
+#endif
 #define unchecked_car(p)              (T_Pos(p))->object.cons.car
 #define unchecked_cdr(p)              (T_Pos(p))->object.cons.cdr
 
@@ -3604,7 +3633,6 @@ static void pop_input_port(s7_scheme *sc);
 static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len);
 static token_t token(s7_scheme *sc);
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
-static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
 static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
 static void free_hash_table(s7_scheme *sc, s7_pointer table);
 void s7_show_let(s7_scheme *sc);
@@ -4638,6 +4666,7 @@ static void mark_noop(s7_pointer p) {}
 
 static void close_output_port(s7_scheme *sc, s7_pointer p);
 static void clear_weak_hash_table(s7_scheme *sc, s7_pointer table);
+static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
 
 static void sweep(s7_scheme *sc)
 {
@@ -5540,6 +5569,7 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(sc->code);
   mark_current_code(sc); /* probably redundant if with_history */
   mark_stack_1(sc->stack, s7_stack_top(sc));
+  gc_mark(sc->u);
   gc_mark(sc->v);
   gc_mark(sc->w);
   gc_mark(sc->x);
@@ -9118,6 +9148,7 @@ static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
     s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
   if (8192 >= (sc->free_heap_top - sc->free_heap))
     {
+      sc->w = p;
       gc(sc);
       while (8192 >= (sc->free_heap_top - sc->free_heap))
 	resize_heap(sc);
@@ -25787,22 +25818,22 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
     return(method_or_bust_one_arg(sc, sym, sc->provide_symbol, list_1(sc, sym), T_SYMBOL));
 
   p = symbol_to_local_slot(sc, sc->features_symbol, sc->envir); /* if sc->envir is nil, this returns the global slot, else local slot */
-  lst = slot_value(symbol_to_slot(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
-
-  if (p == sc->undefined)
-    make_slot_1(sc, sc->envir, sc->features_symbol, cons(sc, sym, lst));
+  if ((is_slot(p)) && (is_immutable(p)))
+    s7_warn(sc, 256, "provide: *features* is immutable!\n");
   else
     {
-      if (!is_memq(sym, lst))
+      lst = slot_value(symbol_to_slot(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
+      if (p == sc->undefined)
+	make_slot_1(sc, sc->envir, sc->features_symbol, cons(sc, sym, lst));
+      else
 	{
-	  if (is_immutable(p))
-	    s7_warn(sc, 256, "provide: *features* is immutable!\n");
-	  else slot_set_value(p, cons(sc, sym, lst));
+	  if (!is_memq(sym, lst))
+	    slot_set_value(p, cons(sc, sym, lst));
+	  /* if two different provide statements provide the same symbol, is that an error?  
+	   * Should we warn about it if safety>0?
+	   * similarly should autoload warn about an overwrite? 
+	   */
 	}
-      /* if two different provide statements provide the same symbol, is that an error?  
-       * Should we warn about it if safety>0?
-       * similarly should autoload warn about an overwrite? 
-       */
     }
 
   /* require looks up its symbol argument to see if the associated code (dsp.scm etc) has been autoloaded,
@@ -33234,11 +33265,13 @@ static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst)
 {
   s7_pointer p, tp, np;
   if (!is_pair(lst)) return(sc->nil);
+  sc->u = lst;
   tp = cons(sc, car(lst), sc->nil);
   sc->y = tp;
   for (p = cdr(lst), np = tp; is_pair(p); p = cdr(p), np = cdr(np))
     set_cdr(np, cons(sc, car(p), sc->nil));
   sc->y = sc->nil;
+  sc->u = sc->nil;
   return(tp);
 }
 
@@ -33249,11 +33282,13 @@ static s7_pointer copy_list_with_arglist_error(s7_scheme *sc, s7_pointer lst)
   if (is_null(lst)) return(sc->nil);
   if (!is_pair(lst))
     s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, wrap_string(sc, "stray dot?: ~S", 14), lst));
+  sc->u = lst;
   tp = cons(sc, car(lst), sc->nil);
   sc->y = tp;
   for (p = cdr(lst), np = tp; is_pair(p); p = cdr(p), np = cdr(np))
     set_cdr(np, cons(sc, car(p), sc->nil));
   sc->y = sc->nil;
+  sc->u = sc->nil;
   if (!is_null(p))
     s7_error(sc, sc->syntax_error_symbol, set_elist_2(sc, wrap_string(sc, "improper list of arguments: ~S", 30), lst));
   return(tp);
@@ -62160,7 +62195,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
   #define H_list_values "(list-values ...) returns its arguments in a list (internal to quasiquote)"
   #define Q_list_values s7_make_circular_signature(sc, 1, 2, sc->is_list_symbol, sc->T)
 
-  s7_pointer x, y, px;
+  s7_pointer x;
   bool checked = false;
 
   for (x = args; is_pair(x); x = cdr(x))
@@ -62183,6 +62218,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 	  /* copy_tree can't handle cyclic trees */
 	  if (8192 >= (sc->free_heap_top - sc->free_heap))
 	    {
+	      sc->u = args;
 	      gc(sc);
 	      while (8192 >= (sc->free_heap_top - sc->free_heap))
 		resize_heap(sc);
@@ -62206,28 +62242,22 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
    *   everything down intolerably, so...
    * if the checked bit it on in a macro expansion, that means we're re-expanding this macro, and therefore
    *   have to copy the tree.
+   * we can't set_cdr(pc...) as in earlier versions of this code -- might be an embedded permanent list
    */
 
   /* splice out #<no-values>, (list-values (apply-values ())) -> () etc */
-  px = sc->nil;
-  for (x = args, y = args; is_pair(y); y = cdr(y))
-    if (car(y) != sc->no_value)
-      {
-	set_car(x, car(y));
-	px = x;
-	x = cdr(x);
-      }
-
-  if ((is_not_null(y)) &&
-      (y != sc->no_value))
-    set_cdr(x, cdr(y));
-  else
+  sc->w = sc->nil;
+  for (x = args; is_pair(x); x = cdr(x))
+    if (car(x) != sc->no_value)
+      sc->w = cons(sc, car(x), sc->w);
+  sc->u = sc->nil;
+  if (is_pair(sc->w))
     {
-      if (is_null(px))
-	return(sc->nil);
-      set_cdr(px, sc->nil);
+      x = safe_reverse_in_place(sc, sc->w);
+      sc->w = sc->nil;
+      return(x);
     }
-  return(args);
+  return(sc->nil);
 }
 
 static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
@@ -62355,7 +62385,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 	  {
 	    if ((is_pair(cdr(orig))) &&             /* this was is_pair(orig) which seems to be always the case */
 		(cadr(orig) == sc->unquote_symbol)) /* `(1 . ,(+ 1 1)) -> '(1 unquote (+ 1 1)) -> '(1 . 2) etc */
-
 	      {
 		if (!is_pair(cddr(orig)))
 		  {
@@ -62389,7 +62418,6 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
     return(bq);
   }
 }
-
 
 static s7_pointer g_quasiquote(s7_scheme *sc, s7_pointer args)
 {
@@ -77302,6 +77330,8 @@ static void define2_ex(s7_scheme *sc)
 	      for (slot = let_slots(sc->envir); is_slot(slot); slot = next_slot(slot))
 		if (slot_symbol(slot) == sc->code)
 		  {
+		    if (is_immutable(slot))
+		      eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
 		    slot_set_value(slot, new_func);
 		    symbol_set_local(sc->code, sc->let_number, slot);	
 		    set_local(sc->code);
@@ -77323,7 +77353,13 @@ static void define2_ex(s7_scheme *sc)
 	    }
 	  set_local(sc->code);
 	}
-      else s7_make_slot(sc, sc->envir, sc->code, new_func); 
+      else 
+	{
+	  if ((is_slot(global_slot(sc->code))) &&
+	      (is_immutable(global_slot(sc->code))))
+	    eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	  s7_make_slot(sc, sc->envir, sc->code, new_func); 
+	}
       sc->value = new_func; /* 25-Jul-14 so define returns the value not the name */
     }
   else
@@ -77332,7 +77368,11 @@ static void define2_ex(s7_scheme *sc)
       /* add the newly defined thing to the current environment */
       lx = symbol_to_local_slot(sc, sc->code, sc->envir);
       if (is_slot(lx))
-	slot_set_value_with_hook(lx, sc->value);
+	{
+	  if (is_immutable(lx))
+	    eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	  slot_set_value_with_hook(lx, sc->value);
+	}
       else s7_make_slot(sc, sc->envir, sc->code, sc->value);
     }
 }
@@ -77935,14 +77975,8 @@ static s7_pointer op_s_c(s7_scheme *sc)
   if (!is_applicable(sc->code))
     apply_error(sc, sc->code, cdr(code));
   if (dont_eval_args(sc->code))
-    sc->args = cdr(code);
-  else 
-    {
-      sc->args = sc->t1_1;
-      set_car(sc->t1_1, cadr(code));
-    }
-  if (needs_copied_args(sc->code))
-    sc->args = copy_list(sc, sc->args);
+    sc->args = copy_list(sc, cdr(code));
+  else sc->args = list_1(sc, cadr(code));
   return(NULL);
 }
 
@@ -77962,14 +77996,8 @@ static bool op_s_s(s7_scheme *sc)
   if (!is_applicable(sc->code))
     apply_error(sc, sc->code, cdr(code));
   if (dont_eval_args(sc->code))
-    sc->args = cdr(code);
-  else 
-    {
-      set_car(sc->t1_1, symbol_to_value_unchecked(sc, cadr(code)));
-      sc->args = sc->t1_1;
-    }
-  if (needs_copied_args(sc->code))
-    sc->args = copy_list(sc, sc->args);
+    sc->args = copy_list(sc, cdr(code));
+  else sc->args = list_1(sc, symbol_to_value_unchecked(sc, cadr(code)));
   return(false); /* goto APPLY; */
 }
 
@@ -77981,14 +78009,8 @@ static s7_pointer op_s_a(s7_scheme *sc)
   if (!is_applicable(sc->code))
     apply_error(sc, sc->code, cdr(code));
   if (dont_eval_args(sc->code))
-    sc->args = cdr(code);
-  else 
-    {
-      set_car(sc->a1_1, c_call(cdr(code))(sc, cadr(code)));
-      sc->args = sc->a1_1;
-    }
-  if (needs_copied_args(sc->code))
-    sc->args = copy_list(sc, sc->args);
+    sc->args = copy_list(sc, cdr(code));
+  else sc->args = list_1(sc, c_call(cdr(code))(sc, cadr(code)));
   return(NULL);
 }
 
@@ -78000,15 +78022,14 @@ static s7_pointer op_s_aa(s7_scheme *sc)
   if (!is_applicable(sc->code))
     apply_error(sc, sc->code, cdr(code));
   if (dont_eval_args(sc->code))
-    sc->args = cdr(code);
-  else 
+    sc->args = copy_list(sc, cdr(code));
+  else
     {
-      set_car(sc->a2_1, c_call(cdr(code))(sc, cadr(code)));
-      set_car(sc->a2_2, c_call(cddr(code))(sc, caddr(code)));
-      sc->args = sc->a2_1;
+      s7_pointer val1, val2;
+      val1 = c_call(cdr(code))(sc, cadr(code));
+      val2 = c_call(cddr(code))(sc, caddr(code));
+      sc->args = list_2(sc, val1, val2);
     }
-  if (needs_copied_args(sc->code))
-    sc->args = copy_list(sc, sc->args);
   return(NULL);
 }
 
@@ -79219,7 +79240,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 
 	case OP_C_AP_1: /* goes to c_sp_mv if multiple values */
-	  sc->value = c_call(sc->code)(sc, list_2(sc, sc->args, sc->value));
+	  sc->value = c_call(sc->code)(sc, sc->args = list_2(sc, sc->args, sc->value));
 	  goto START;
 
 	case OP_C_FA: /* op_c_fs was not faster if fx_s below */
@@ -87815,6 +87836,10 @@ s7_scheme *s7_init(void)
 
   sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
+#if S7_DEBUGGING
+  tn_ready = true;
+#endif  
+
   for (i = 1; i < NUM_SAFE_LISTS; i++)
     sc->safe_lists[i] = sc->nil;
   sc->current_safe_list = 0;
@@ -87838,6 +87863,7 @@ s7_scheme *s7_init(void)
 #endif
   sc->args = sc->nil;
   sc->value = sc->nil;
+  sc->u = sc->nil;
   sc->v = sc->nil;
   sc->w = sc->nil;
   sc->x = sc->nil;
@@ -89535,7 +89561,6 @@ int main(int argc, char **argv)
  *     but these require eval ops currently, not fx*
  *
  * free closure_let in op_closure_ss_p??
- * currently if we set (eg) make-string immutable, it's still possible to redefine it (see t725.scm) -- is this a bug? [s7_make_slot 7244 from define2_ex]
  */
 
 /* ------------------------------------------------------------------------------------------
@@ -89549,22 +89574,22 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  266   236
  * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1289
- * teq           |      |      | 6612 | 2777 | 1931 | 1673  1548
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1726
- * lint          |      |      |      | 4041 | 2702 | 2318  2194
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1283
+ * teq           |      |      | 6612 | 2777 | 1931 | 1673  1550
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1740
+ * lint          |      |      |      | 4041 | 2702 | 2318  2195
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325
  * tread         |      |      |      |      | 2357 | 2363  2348
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2383
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2388
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
  * tlet          |      |      |      |      |      | 4717  3505
- * titer         |      |      |      | 5971 | 4646 | 3743  3687
- * tsort         |      |      |      | 8584 | 4111 | 3998  3946
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4018
- * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
- * dup           |      |      |      |      | 20.8 | 9525  5648
- * tset          |      |      |      |      | 10.0 | 6435  6405
+ * titer         |      |      |      | 5971 | 4646 | 3743  3695
+ * tsort         |      |      |      | 8584 | 4111 | 3998  3951
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4010
+ * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5388
+ * dup           |      |      |      |      | 20.8 | 9525  5633
+ * tset          |      |      |      |      | 10.0 | 6435  6362
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2

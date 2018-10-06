@@ -1,9 +1,14 @@
-Snd 18.7
+Snd 18.8:
 
-s7: basic cell size reduced from 56 to 48 bytes
-    removed (*s7* 'exits)
-    gtk-script.c and coretemp.scm (gtk example)
+in clm, Kjetil improved the granulate generator.
 
-checked: sbcl 1.4.11
+in s7, byte? (for byte-* signatures)
+       typed (homogenous) vectors of any built-in type, and typed hash-tables
+       multidimensional byte-vectors (byte-vectors are vectors now)
+       c-object-type (split from c-object?)
+       s7_list_nl in s7.h: NULL terminated version of s7_list.
 
+checked: sbcl 1.4.12
+
+Thanks!: Kjetil Matheussen
 
