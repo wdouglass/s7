@@ -2785,11 +2785,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define slot_set_symbol(p, Sym)       (T_Slt(p))->object.slt.sym = T_Sym(Sym)
 #define slot_value(p)                 T_Pos((T_Slt(p))->object.slt.val)
 #define unchecked_slot_value(p)       (T_Slt(p))->object.slt.val
-#if S7_DEBUGGING
-#define slot_set_value(p, Val)        do {if (is_immutable_slot(p)) fprintf(stderr, "%s[%d]: set immutable %s\n", __func__, __LINE__, symbol_name(slot_symbol(p))); p->object.slt.val = T_Pos(Val);} while (0)
-#else
 #define slot_set_value(p, Val)        (T_Slt(p))->object.slt.val = T_Pos(Val)
-#endif
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
 #define next_slot(p)                  (T_Slt(p))->object.slt.nxt
@@ -5987,8 +5983,8 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
    *     put that in a file, load it (to force removal), then call bad-idea a few times.
    * so... if (*s7* 'safety) is not 0, remove-from-heap is disabled.
    */
-  /* fprintf(stderr, "%s %d\n", DISPLAY(x), unchecked_type(x)); */
   if (not_in_heap(x)) return;
+  /* fprintf(stderr, "%s %d\n", DISPLAY(x), unchecked_type(x)); */
   if (is_pair(x))
     {
       s7_pointer p;
@@ -6041,12 +6037,12 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	      }
 	}
       return;
-#if 1
+
     case T_CLOSURE: case T_CLOSURE_STAR:
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
       return;
-#endif
+
     default:
       break;
     }
@@ -7219,7 +7215,7 @@ static void remove_function_from_heap(s7_scheme *sc, s7_pointer value)
   s7_remove_from_heap(sc, closure_args(value));
   s7_remove_from_heap(sc, closure_body(value));
   
-  /* remove closure if it's local to current func */
+  /* remove closure if it's local to current func (meaning (define f (let ...) (lambda ...)) removes the enclosing let) */
   lt = closure_let(value);
   if ((is_let(lt)) && (!let_removed(lt)) && (lt != sc->rootlet) && (lt != sc->shadow_rootlet))
     {
@@ -89548,8 +89544,6 @@ int main(int argc, char **argv)
  *   auto-memoization (top 8 or top 3 etc)
  *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
  *     but these require eval ops currently, not fx*
- *
- * free closure_let in op_closure_ss_p??
  */
 
 /* ------------------------------------------------------------------------------------------
