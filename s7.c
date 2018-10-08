@@ -2650,36 +2650,7 @@ static void init_types(void)
 #define car(p)                        (T_Pair(p))->object.cons.car
 #define set_car(p, Val)               (T_Pair(p))->object.cons.car = T_Pos(Val)
 #define cdr(p)                        (T_Pair(p))->object.cons.cdr
-#if S7_DEBUGGING
-static bool tn_ready = false;
-static bool is_permanent(s7_pointer p)
-{
-  if (!tn_ready) return(false);
-  if ((p == cur_sc->t1_1) || (cdr(cur_sc->t1_1) != cur_sc->nil)) {fprintf(stderr, "t1_1\n"); return(true);}
-  if ((p == cur_sc->t2_1) || (cdr(cur_sc->t2_1) != cur_sc->t2_2)) {fprintf(stderr, "t2_1\n"); return(true);}
-  if ((p == cur_sc->t2_2) || (cdr(cur_sc->t2_2) != cur_sc->nil)) {fprintf(stderr, "t2_2\n"); return(true);}
-  if ((p == cur_sc->t3_1) || (cdr(cur_sc->t3_1) != cur_sc->t3_2)) {fprintf(stderr, "t3_1\n"); return(true);}
-  if ((p == cur_sc->t3_2) || (cdr(cur_sc->t3_2) != cur_sc->t3_3)) {fprintf(stderr, "t3_2\n"); return(true);}
-  if ((p == cur_sc->t3_3) || (cdr(cur_sc->t3_3) != cur_sc->nil)) {fprintf(stderr, "t3_3\n"); return(true);}
-  if ((p == cur_sc->z2_1) || (cdr(cur_sc->z2_1) != cur_sc->z2_2)) {fprintf(stderr, "z2_1\n"); return(true);}
-  if ((p == cur_sc->z2_2) || (cdr(cur_sc->z2_2) != cur_sc->nil)) {fprintf(stderr, "z2_2\n"); return(true);}
-  if ((p == cur_sc->a1_1) || (cdr(cur_sc->a1_1) != cur_sc->nil)) {fprintf(stderr, "a1_1\n"); return(true);}
-  if ((p == cur_sc->a2_1) || (cdr(cur_sc->a2_1) != cur_sc->a2_2)) {fprintf(stderr, "a2_1\n"); return(true);}
-  if ((p == cur_sc->a2_2) || (cdr(cur_sc->a2_2) != cur_sc->nil)) {fprintf(stderr, "a2_2\n"); return(true);}
-  if ((p == cur_sc->a3_1) || (cdr(cur_sc->a3_1) != cur_sc->a3_2)) {fprintf(stderr, "a3_1\n"); return(true);}
-  if ((p == cur_sc->a3_2) || (cdr(cur_sc->a3_2) != cur_sc->a3_3)) {fprintf(stderr, "a3_2\n"); return(true);}
-  if ((p == cur_sc->a3_3) || (cdr(cur_sc->a3_3) != cur_sc->nil)) {fprintf(stderr, "a3_3\n"); return(true);}
-  if ((p == cur_sc->a4_1) || (cdr(cur_sc->a4_1) != cur_sc->a4_2)) {fprintf(stderr, "a4_1\n"); return(true);}
-  if ((p == cur_sc->a4_2) || (cdr(cur_sc->a4_2) != cur_sc->a4_3)) {fprintf(stderr, "a4_2\n"); return(true);}
-  if ((p == cur_sc->a4_3) || (cdr(cur_sc->a4_3) != cur_sc->a4_4)) {fprintf(stderr, "a4_3\n"); return(true);}
-  if ((p == cur_sc->a4_4) || (cdr(cur_sc->a4_4) != cur_sc->nil)) {fprintf(stderr, "a4_4\n"); return(true);}
-  return(false);
-}
-
-#define set_cdr(p, Val)               do {(T_Pair(p))->object.cons.cdr = T_Pos(Val); if (is_permanent(p)) {fprintf(stderr, "set_cdr immutable\n"); abort();}} while (0)
-#else
 #define set_cdr(p, Val)               (T_Pair(p))->object.cons.cdr = T_Pos(Val)
-#endif
 #define unchecked_car(p)              (T_Pos(p))->object.cons.car
 #define unchecked_cdr(p)              (T_Pos(p))->object.cons.cdr
 
@@ -6016,6 +5987,7 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
    *     put that in a file, load it (to force removal), then call bad-idea a few times.
    * so... if (*s7* 'safety) is not 0, remove-from-heap is disabled.
    */
+  /* fprintf(stderr, "%s %d\n", DISPLAY(x), unchecked_type(x)); */
   if (not_in_heap(x)) return;
   if (is_pair(x))
     {
@@ -6069,8 +6041,13 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	      }
 	}
       return;
-
-    default:   /* I don't think any_closure can happen here (code in tmp) */
+#if 1
+    case T_CLOSURE: case T_CLOSURE_STAR:
+    case T_MACRO:   case T_MACRO_STAR:
+    case T_BACRO:   case T_BACRO_STAR:
+      return;
+#endif
+    default:
       break;
     }
 
@@ -47366,20 +47343,23 @@ It looks for an existing catch with a matching tag, and jumps to it if found.  O
 
 static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...)
 {
-  va_list ap;
-  s7_pointer warning;
-  char *str;
-
-  warning = make_empty_string(sc, len * sizeof(char), 0);
-  string_value(warning)[0] = '\0';
-  str = (char *)string_value(warning);
-  va_start(ap, ctrl);
-  vsnprintf(str, len, ctrl, ap);
-  va_end(ap);
-
-  if (port_is_closed(sc->error_port))
-    sc->error_port = sc->standard_error;
-  s7_display(sc, warning, sc->error_port);
+  if (sc->error_port != sc->F)
+    {
+      va_list ap;
+      s7_pointer warning;
+      char *str;
+      
+      warning = make_empty_string(sc, len * sizeof(char), 0);
+      string_value(warning)[0] = '\0';
+      str = (char *)string_value(warning);
+      va_start(ap, ctrl);
+      vsnprintf(str, len, ctrl, ap);
+      va_end(ap);
+      
+      if (port_is_closed(sc->error_port))
+	sc->error_port = sc->standard_error;
+      s7_display(sc, warning, sc->error_port);
+    }
 }
 
 
@@ -69374,7 +69354,8 @@ static s7_pointer check_let(s7_scheme *sc)
 
       /* check for name collisions -- not sure this is required by Scheme */
       if (symbol_is_in_list(sc, y))
-	eval_error(sc, "duplicate identifier in let: ~A", 31, y);
+	s7_error(sc, sc->syntax_error_symbol, 
+		 set_elist_3(sc, wrap_string(sc, "duplicate identifier in let: ~S in ~S", 37), y, form)); 
       add_symbol_to_list(sc, y);
       set_local(y);
     }
@@ -77357,7 +77338,13 @@ static void define2_ex(s7_scheme *sc)
 	{
 	  if ((is_slot(global_slot(sc->code))) &&
 	      (is_immutable(global_slot(sc->code))))
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	    {
+	      s7_pointer old_value;
+	      old_value = slot_value(global_slot(sc->code));
+	      if ((type(old_value) != type(new_func)) ||
+		  (!s7_is_morally_equal(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
+		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	    }
 	  s7_make_slot(sc, sc->envir, sc->code, new_func); 
 	}
       sc->value = new_func; /* 25-Jul-14 so define returns the value not the name */
@@ -77370,7 +77357,13 @@ static void define2_ex(s7_scheme *sc)
       if (is_slot(lx))
 	{
 	  if (is_immutable(lx))
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	    {
+	      s7_pointer old_value;
+	      old_value = slot_value(lx);
+	      if ((type(old_value) != type(sc->value)) ||
+		  (!s7_is_morally_equal(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
+		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+	    }
 	  slot_set_value_with_hook(lx, sc->value);
 	}
       else s7_make_slot(sc, sc->envir, sc->code, sc->value);
@@ -87836,10 +87829,6 @@ s7_scheme *s7_init(void)
 
   sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
-#if S7_DEBUGGING
-  tn_ready = true;
-#endif  
-
   for (i = 1; i < NUM_SAFE_LISTS; i++)
     sc->safe_lists[i] = sc->nil;
   sc->current_safe_list = 0;
@@ -89573,23 +89562,23 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199   200
  * tmac          |      |      |      | 9052 |  264 |  266   236
  * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1038
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1283
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1037
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1292
  * teq           |      |      | 6612 | 2777 | 1931 | 1673  1550
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1740
- * lint          |      |      |      | 4041 | 2702 | 2318  2195
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1730
+ * lint          |      |      |      | 4041 | 2702 | 2318  2192
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325
- * tread         |      |      |      |      | 2357 | 2363  2348
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2388
+ * tread         |      |      |      |      | 2357 | 2363  2352
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
  * tlet          |      |      |      |      |      | 4717  3505
  * titer         |      |      |      | 5971 | 4646 | 3743  3695
- * tsort         |      |      |      | 8584 | 4111 | 3998  3951
+ * tsort         |      |      |      | 8584 | 4111 | 3998  3945
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4010
- * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5388
- * dup           |      |      |      |      | 20.8 | 9525  5633
- * tset          |      |      |      |      | 10.0 | 6435  6362
+ * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
+ * dup           |      |      |      |      | 20.8 | 9525  5634
+ * tset          |      |      |      |      | 10.0 | 6435  6396
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
