@@ -1469,10 +1469,15 @@ to be evaluated in its definition environment:
 (<em class=def id="dilambda">dilambda</em> proc setter)
 </pre>
 
-<p>Each function (or macro!) can have an associated setter, much like defsetf in CL.  As a convenience, there's also
-a way to associate the two functions under one name: dilambda.
-The setter is called when the procedure is the target of set!  Its last argument is the
-value passed to set!:
+<p>Each variable can have an associated setter.
+The setter is a function that is called before the variable is set.  The setter's arguments
+are the name of the variable (a symbol) and the new value.
+As a convenience, there's also
+a way to associate a function with its setter under one name (via dilambda),
+and you can use the built-in type checking functions such as integer? as a short-hand
+for a setter that insists the new value be an integer.  Coupled with the type arguments
+to make-vector and make-hash-table, the setter provides a way to statically type
+nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 </p>
 
 <pre class="indented">
@@ -1488,6 +1493,16 @@ value passed to set!:
     (set! (cadr lst) 4) 
     lst)
 <em class="gray">(1 4 3)</em>
+
+&gt; (let ((x 1)) 
+     (set! (setter 'x) integer?)
+     (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+
+;;; use typed-let from stuff.scm to do the same thing:
+&gt; (typed-let ((x 3 integer?))
+     (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
 <p>In some cases, the setter needs to be a macro:

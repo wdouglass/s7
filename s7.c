@@ -136,7 +136,7 @@
  * -ffast-math makes a mess of NaNs, and does not appear to be faster
  * for timing tests, I use: -O2 -march=native -fomit-frame-pointer -funroll-loops
  * according to callgrind, clang is normally about 10% slower than gcc, and vectorization either doesn't work or is much worse than gcc's
- *   also g++ appears to be slightly slower than gcc (though it takes forever to compile s7.c: gcc s7 compile time 37 secs, g++ 256!)
+ *   also g++ appears to be slightly slower than gcc
  */
 
 #if (defined(__GNUC__) || defined(__clang__)) /* s7 uses PRId64 so (for example) g++ 4.4 is too old */
@@ -617,10 +617,7 @@ typedef struct {
   /* arg_defaults|names call_args only T_C_FUNCTION_STAR -- call args for GC protection */
   union {
     s7_pointer *arg_defaults;  
-    struct {
-      bool simple;
-      int32_t unused;
-      } asdf;
+    s7_pointer bool_setter;
   } dam;
   union {
     s7_pointer *arg_names;
@@ -2389,6 +2386,10 @@ static void init_types(void)
 #define is_typed_hash_table(p)        has_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
 #define set_typed_hash_table(p)       set_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
 
+#define T_BOOL_SETTER                 T_S7_LET_FIELD
+#define c_function_has_bool_setter(p) has_type1_bit(T_Fnc(p), T_BOOL_SETTER)
+#define c_function_set_has_bool_setter(p) set_type1_bit(T_Fnc(p), T_BOOL_SETTER)
+
 #define T_FULL_DEFINER                (1LL << (TYPE_BITS + BIT_ROOM + 26))
 #define T_DEFINER                     (1 << 2)
 #define is_definer(p)                 has_type1_bit(T_Pos(p), T_DEFINER)
@@ -2431,12 +2432,14 @@ static void init_types(void)
 #define T_SIMPLE_ELEMENTS             (1 << 8)
 #define has_simple_elements(p)        has_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
 #define set_has_simple_elements(p)    set_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
+#define c_function_has_simple_elements(p)     has_type1_bit(T_Fnc(p), T_SIMPLE_ELEMENTS)
+#define c_function_set_has_simple_elements(p) set_type1_bit(T_Fnc(p), T_SIMPLE_ELEMENTS)
 
 #define T_SIMPLE_KEYS                 T_SIMPLE_ELEMENTS
 #define has_simple_keys(p)            has_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
 #define set_has_simple_keys(p)        set_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
 
-#define T_TYPE_INFO                   T_SIMPLE_ELEMENTS
+#define T_TYPE_INFO                   T_SHORT_RECUR
 #define has_type_info(p)              has_type1_bit(T_Fnc(p), T_TYPE_INFO)
 #define set_has_type_info(p)          set_type1_bit(T_Fnc(p), T_TYPE_INFO)
 
@@ -2801,7 +2804,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define slot_set_expression(p, Val)   do {(T_Slt(p))->object.slt.expr = T_Pos(Val); slot_set_has_expression(p);} while (0)
 #define slot_just_set_expression(p, Val) (T_Slt(p))->object.slt.expr = T_Pos(Val)
 #define slot_setter(p)                (T_Slt(p))->object.slt.expr
-#define slot_set_setter(p, Val)       (T_Slt(p))->object.slt.expr = T_App(Val)
+#define slot_set_setter_1(p, Val)     (T_Slt(p))->object.slt.expr = T_App(Val)
 
 #define is_syntax(p)                  (type(p) == T_SYNTAX)
 #define syntax_symbol(p)              T_Sym((T_Syn(p))->object.syn.symbol)
@@ -3001,9 +3004,9 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define c_function_marker(f)          c_function_data(f)->cam.marker
 #define c_function_set_marker(f, Val) c_function_data(f)->cam.marker = Val
 #define c_function_symbol(f)          c_function_data(f)->sam.c_sym
-#define c_function_has_simple_elements(f) c_function_data(f)->dam.asdf.simple
-#define c_function_set_has_simple_elements(f, Val) c_function_data(f)->dam.asdf.simple = Val
 
+#define c_function_bool_setter(f)     c_function_data(f)->dam.bool_setter
+#define c_function_set_bool_setter(f, Val) c_function_data(f)->dam.bool_setter = Val
 #define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->dam.arg_defaults
 #define c_function_call_args(f)       c_function_data(T_Fst(f))->cam.call_args
 #define c_function_arg_names(f)       c_function_data(T_Fst(f))->sam.arg_names
@@ -3291,6 +3294,14 @@ static void init_small_ints(void)
       set_print_name(mostfix, "2147483647", 10);
       set_print_name(leastfix, "-2147483648", 11);
     }
+}
+
+static void slot_set_setter(s7_pointer p, s7_pointer val)
+{
+  if ((type(val) == T_C_FUNCTION) &&
+      (c_function_has_bool_setter(val)))
+    slot_set_setter_1(p, c_function_bool_setter(val));
+  else slot_set_setter_1(p, val);
 }
 
 
@@ -29262,14 +29273,16 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							 ((is_pair(obj)) ? " has-oplist" :
 							  ((is_any_vector(obj)) ? " typed-vector" :
 							   ((is_hash_table(obj)) ? " typed-hash-table" :
-							    " ?25?"))))) : "",
+							    ((is_c_function(obj)) ? " has-bool-setter" :
+							     " ?25?")))))) : "",
 	   /* bit 26+16 */
 	   ((full_typ & T_FULL_DEFINER) != 0) ?   ((is_symbol(obj)) ? " definer" : " ?26?") : "",
 	   /* bit 27+16 */
 	   ((full_typ & T_RECUR) != 0) ?          ((is_slot(obj)) ? " recur" : 
 						   ((is_pair(obj)) ? " tree-collected" : 
 						    ((is_hash_table(obj)) ? " simple-values" :
-						     " ?27?"))) : "",
+						     ((is_c_function(obj)) ? " type-info" :
+						      " ?27?")))) : "",
 	   /* bit 28+16 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29+16 */
@@ -29280,8 +29293,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_KEYWORD) != 0) ?        ((is_symbol(obj)) ? " keyword" : " ?31?") : "",
 	   ((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) ? ((is_normal_vector(obj)) ? " simple-elements" :
 							 ((is_hash_table(obj)) ? " simple-keys" :
-							  ((is_c_function(obj)) ? " type-info" :
-							   " 32?"))) : "",
+							  " 32?")) : "",
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 	   
 	   /* bit 54 */
@@ -29300,7 +29312,7 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))) return(true);
+  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -29317,7 +29329,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) && ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))) return(true);
   if (((full_typ & T_FULL_S7_LET_FIELD) != 0) && 
-      (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj))) 
+      (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj))) 
     return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) && 
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
@@ -40915,7 +40927,7 @@ static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_funct
 				       s7_int required_args, s7_int optional_args, bool rest_arg, 
 				       const char *doc, s7_pointer signature, int32_t sym_to_type, 
 				       void (*marker)(s7_pointer p, s7_int top),
-				       bool simple)
+				       bool simple, s7_function bool_setter)
 {
   s7_pointer func, sym;
   func = s7_make_typed_function(sc, name, fnc, required_args, optional_args, rest_arg, doc, signature);
@@ -40925,8 +40937,10 @@ static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_funct
     symbol_set_type(sym, sym_to_type);
   c_function_symbol(func) = sym;
   c_function_set_marker(func, marker);
-  c_function_set_has_simple_elements(func, simple);
+  if (simple) c_function_set_has_simple_elements(func);
   set_has_type_info(func);
+  c_function_set_bool_setter(func, s7_make_function(sc, name, bool_setter, 2, 0, false, NULL));
+  c_function_set_has_bool_setter(func);
   return(sym);
 }
 
@@ -41972,6 +41986,76 @@ static bool is_sequence_b(s7_pointer p) {return(is_simple_sequence(p));}
 
 /* -------------------------------- setter ------------------------------------------------ */
 
+#define b_simple_setter(sc, typer, args)	\
+  do {						\
+       if (type(cadr(args)) == typer)		\
+         return(cadr(args));			\
+       return(s7_error(sc, sc->wrong_type_arg_symbol, \
+         set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34), \
+           car(args), cadr(args), prepackaged_type_names[type(cadr(args))], prepackaged_type_names[typer]))); \
+     } while (0)
+
+static s7_pointer b_is_symbol_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_SYMBOL, args);}
+static s7_pointer b_is_syntax_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_SYNTAX, args);}
+static s7_pointer b_is_let_setter(s7_scheme *sc, s7_pointer args)          {b_simple_setter(sc, T_LET, args);}
+static s7_pointer b_is_iterator_setter(s7_scheme *sc, s7_pointer args)     {b_simple_setter(sc, T_ITERATOR, args);}
+static s7_pointer b_is_c_pointer_setter(s7_scheme *sc, s7_pointer args)    {b_simple_setter(sc, T_C_POINTER, args);}
+static s7_pointer b_is_input_port_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_INPUT_PORT, args);}
+static s7_pointer b_is_output_port_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_OUTPUT_PORT, args);}
+static s7_pointer b_is_eof_object_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_EOF_OBJECT, args);}
+static s7_pointer b_is_random_state_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_RANDOM_STATE, args);}
+static s7_pointer b_is_char_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_CHARACTER, args);}
+static s7_pointer b_is_string_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_STRING, args);}
+static s7_pointer b_is_float_vector_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_FLOAT_VECTOR, args);}
+static s7_pointer b_is_int_vector_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_INT_VECTOR, args);}
+static s7_pointer b_is_byte_vector_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_BYTE_VECTOR, args);}
+static s7_pointer b_is_hash_table_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_HASH_TABLE, args);}
+static s7_pointer b_is_continuation_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_CONTINUATION, args);}
+static s7_pointer b_is_null_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_NIL, args);}
+static s7_pointer b_is_pair_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_PAIR, args);}
+static s7_pointer b_is_boolean_setter(s7_scheme *sc, s7_pointer args)      {b_simple_setter(sc, T_BOOLEAN, args);}
+static s7_pointer b_is_undefined_setter(s7_scheme *sc, s7_pointer args)    {b_simple_setter(sc, T_UNDEFINED, args);}
+static s7_pointer b_is_unspecified_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_UNSPECIFIED, args);}
+static s7_pointer b_is_c_object_setter(s7_scheme *sc, s7_pointer args)     {b_simple_setter(sc, T_C_OBJECT, args);}
+
+#define b_setter(sc, typer, args, str, len)	\
+  do {						\
+       if (typer(cadr(args)))			\
+	 return(cadr(args));			\
+       return(s7_error(sc, sc->wrong_type_arg_symbol, \
+         set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34), \
+           car(args), cadr(args), prepackaged_type_names[type(cadr(args))], wrap_string(sc, str, len))));\
+     } while (0)
+
+static s7_pointer b_is_number_setter(s7_scheme *sc, s7_pointer args)      {b_setter(sc, s7_is_complex, args, "a number", 8);}
+static s7_pointer b_is_complex_setter(s7_scheme *sc, s7_pointer args)     {b_setter(sc, s7_is_complex, args, "a number", 8);}
+static s7_pointer b_is_gensym_setter(s7_scheme *sc, s7_pointer args)      {b_setter(sc, is_gensym, args, "a gensym", 8);}
+static s7_pointer b_is_keyword_setter(s7_scheme *sc, s7_pointer args)     {b_setter(sc, is_keyword, args, "a keyword", 9);}
+static s7_pointer b_is_openlet_setter(s7_scheme *sc, s7_pointer args)     {b_setter(sc, has_methods, args, "an open let", 11);}
+static s7_pointer b_is_macro_setter(s7_scheme *sc, s7_pointer args)       {b_setter(sc, is_any_macro, args, "a macro", 7);}
+static s7_pointer b_is_integer_setter(s7_scheme *sc, s7_pointer args)     {b_setter(sc, s7_is_integer, args, "an integer", 10);}
+static s7_pointer b_is_byte_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_byte, args, "an unsigned byte", 16);}
+static s7_pointer b_is_real_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_real, args, "a real", 6);}
+static s7_pointer b_is_float_setter(s7_scheme *sc, s7_pointer args)       {b_setter(sc, is_float, args, "a float", 7);}
+static s7_pointer b_is_rational_setter(s7_scheme *sc, s7_pointer args)    {b_setter(sc, is_rational, args, "a rational", 10);}
+static s7_pointer b_is_list_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_list, args, "a list", 6);}
+static s7_pointer b_is_vector_setter(s7_scheme *sc, s7_pointer args)      {b_setter(sc, is_any_vector, args, "a vector", 8);}
+static s7_pointer b_is_procedure_setter(s7_scheme *sc, s7_pointer args)   {b_setter(sc, is_any_procedure, args, "a procedure", 11);}
+static s7_pointer b_is_dilambda_setter(s7_scheme *sc, s7_pointer args)    {b_setter(sc, s7_is_dilambda, args, "a dilambda", 10);}
+static s7_pointer b_is_sequence_setter(s7_scheme *sc, s7_pointer args)    {b_setter(sc, is_sequence, args, "a sequence", 10);}
+static s7_pointer b_is_subvector_setter(s7_scheme *sc, s7_pointer args)   {b_setter(sc, is_subvector, args, "a subvector", 11);}
+static s7_pointer b_is_weak_hash_table_setter(s7_scheme *sc, s7_pointer args) {b_setter(sc, is_weak_hash_table, args, "a weak hash-table", 17);}
+
+static s7_pointer b_is_proper_list_setter(s7_scheme *sc, s7_pointer args)
+{
+  if (s7_is_proper_list(sc, car(args))) 
+    return(cadr(args));
+  return(s7_error(sc, sc->wrong_type_arg_symbol,
+	  set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
+	    car(args), cadr(args), prepackaged_type_names[type(cadr(args))], wrap_string(sc, "a proper list", 13))));
+}
+
+
 #define SETTER_PRINT 0
 
 static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
@@ -42012,7 +42096,7 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
 	      closure_set_setter(p, f);
 	      return(f);
 	    }
-	  f = funclet_entry(sc, p, sc->setter_symbol);       /* look for setter */
+	  f = funclet_entry(sc, p, sc->setter_symbol);       /* look for setter method? */
 	  if (f)
 	    return(s7_apply_function(sc, f, args));
 	  closure_set_no_setter(p);
@@ -42279,7 +42363,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
       break;
 
     case T_SLOT:
-      slot_setter(p) = setter;
+      slot_set_setter(p, setter);
       slot_set_has_setter(p);
       break;
     }
@@ -43951,7 +44035,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	break;
 
     default:
-      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, wrap_string(sc, "can't ~S ~S to ~S~%", 19), caller, source, dest)));
+      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, wrap_string(sc, "can't ~S ~S to ~S", 17), caller, source, dest)));
     }
 
   start = 0;
@@ -44025,8 +44109,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       return(sc->nil);
 
     default:
-      return(s7_error(sc, sc->wrong_type_arg_symbol, 
-		      set_elist_4(sc, wrap_string(sc, "can't ~S ~S to ~S~%", 19), caller, source, dest)));
+      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, wrap_string(sc, "can't ~S ~S to ~S", 17), caller, source, dest)));
     }
 
   if (dest_len == 0)
@@ -88197,7 +88280,7 @@ s7_scheme *s7_init(void)
     s7_define_unsafe_typed_function(sc, Scheme_Name, g_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
 
   #define b_defun(Scheme_Name, C_Name, Opt, SymId, Marker, Simple) \
-    define_bool_function(sc, Scheme_Name, g_ ## C_Name, 1, Opt, false, H_ ## C_Name, Q_ ## C_Name, SymId, Marker, Simple)
+    define_bool_function(sc, Scheme_Name, g_ ## C_Name, 1, Opt, false, H_ ## C_Name, Q_ ## C_Name, SymId, Marker, Simple, b_ ## C_Name ## _setter)
 
   /* we need the sc->is_* symbols first for the procedure signature lists */
   sc->is_boolean_symbol = make_symbol(sc, "boolean?");
@@ -89521,21 +89604,16 @@ int main(int argc, char **argv)
  */
 #endif
 
-/* lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?)
- *   variables: integer? as setter: (set! (setter 'var) integer?)
- *   use b_7p or b_p for set type checks?
+/* setters/signatures:
  *   closure sigs should check?
  *   ffi typer addition
  *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   s7_sigs are symbols, other are funcs
+ *   lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?)
+ *   if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
+ *   opt (stepper) check setter=integer? (or its bool_setter version) etc: opt_arg_type [typed-do?]
  *
  * multi-optlist for the #t/float problem (or int/iv)
- * if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
- * bit/string vectors -- can these be handled without types? [name should be boolean-vector]
- *   print bit-vector and bv-ref need hooks, and reversal, looks like > 100 lines -- is it worth it?
- *   b = (b * 0x0202020202ULL & 0x010884422010ULL) % 1023
- *   also complex or ratio vectors? (complex for GSL)
- *
  * recursive call without unknown*: these can be recognized, but choosing the correct op*_closure_* 
  *   requires later info (very_safe_closure, etc).  code commented under TREC.
  *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
@@ -89553,32 +89631,32 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  | 18.7  18.8  18.9
  * ------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199   200
- * tmac          |      |      |      | 9052 |  264 |  266   236
- * tref          |      |      | 2372 | 2125 | 1036 | 1004   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1037
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1292
- * teq           |      |      | 6612 | 2777 | 1931 | 1673  1550
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1730
- * lint          |      |      |      | 4041 | 2702 | 2318  2192
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325
- * tread         |      |      |      |      | 2357 | 2363  2352
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030
- * tlet          |      |      |      |      |      | 4717  3505
- * titer         |      |      |      | 5971 | 4646 | 3743  3695
- * tsort         |      |      |      | 8584 | 4111 | 3998  3945
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4010
- * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383
- * dup           |      |      |      |      | 20.8 | 9525  5634
- * tset          |      |      |      |      | 10.0 | 6435  6396
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.2  78.0
- * lg            |      |      |      |211.0 |133.0 |116.4 114.0
- * tbig          |      |      |      |      |246.9 |242.7 232.5
+ * tpeak         |      |      |      |  391 |  377 |  199   200   200
+ * tmac          |      |      |      | 9052 |  264 |  266   236   236
+ * tref          |      |      | 2372 | 2125 | 1036 | 1004   985   985
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1037  1039
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1292  1283
+ * teq           |      |      | 6612 | 2777 | 1931 | 1673  1550  1541
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1730  1737
+ * lint          |      |      |      | 4041 | 2702 | 2318  2192  2193
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325  2325
+ * tread         |      |      |      |      | 2357 | 2363  2352  2355
+ * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385  2393
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492  2493
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030  3030
+ * tlet          |      |      |      |      |      | 4717  3505  3506
+ * titer         |      |      |      | 5971 | 4646 | 3743  3695  3703
+ * tsort         |      |      |      | 8584 | 4111 | 3998  3945  3945
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4010  4014
+ * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383  5388
+ * dup           |      |      |      |      | 20.8 | 9525  5634  5636
+ * tset          |      |      |      |      | 10.0 | 6435  6396  6363
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1  11.1
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7  11.7
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2  17.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5  38.7
+ * sg            |      |      |      |139.0 | 85.9 | 78.2  78.0  78.0
+ * lg            |      |      |      |211.0 |133.0 |116.4 114.0 114.0 
+ * tbig          |      |      |      |      |246.9 |242.7 232.5 232.3
  * -----------------------------------------------------------------------------
  */
