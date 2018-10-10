@@ -237,7 +237,7 @@
 		 (for-each
 		  (lambda (op)
 		    (set! (h op) #t))
-		  '(symbol? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
+		  '(symbol? byte? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		    char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		    output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
 		    unspecified? immutable? constant? syntax? undefined? tree-cyclic? iterator-at-end? openlet? subvector?))
@@ -247,13 +247,18 @@
 		  (for-each
 		   (lambda (op)
 		     (set! (h op) #t))
-		   '(symbol? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
+		   '(symbol? byte? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		     char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		     output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
 		     unspecified? exact? inexact? defined? provided? even? odd? char-whitespace? char-numeric? char-alphabetic?
 		     negative? positive? zero? syntax? undefined? tree-cyclic? not openlet? ; immutable? constant?
 		     infinite? nan? char-upper-case? char-lower-case? directory? file-exists? iterator-at-end? subvector?))
 		  h))
+
+	(setters '(symbol? syntax? gensym? keyword? let? openlet? iterator? macro? c-pointer? input-port? output-port? eof-object?
+		   integer? byte? number? real? float? complex? rational? random-state? char? string? list? pair? vector? float-vector?
+		   int-vector? byte-vector? hash-table? continuation? procedure? dilambda? boolean? properd-list? sequence? null?
+		   undefined? unspecified? c-object? subvector? weak-hash-table?))
 
 	(notables (let ((h (make-hash-table)))
 		    (for-each
@@ -924,7 +929,7 @@
 				     (set! (ht op) #t))
 				   '(* + - / < <= = > >= 
 				     abs acos acosh and angle append aritable? arity ash asin asinh assoc assq assv atan atanh 
-				     begin boolean? byte-vector byte-vector?
+				     begin boolean? byte? byte-vector byte-vector?
 				     caaaar caaadr caaar caadar caaddr caadr caar cadaar cadadr cadar caddar cadddr caddr cadr
 				     c-pointer c-pointer? c-object? c-object-type car case cdaaar cdaadr cdaar cdadar cdaddr cdadr cdar cddaar cddadr
 				     cddar cdddar cddddr cdddr cddr cdr ceiling char->integer char-alphabetic? char-ci<=?
@@ -1884,15 +1889,15 @@
 		    (hash-table-ref booleans type1)
 		    (hash-table-ref booleans type2)))
 	  (case type1
-	    ((number? complex?)  (memq type2 '(float? real? rational? integer? number? complex? exact? inexact? zero? negative? positive? even? odd? infinite? nan?)))
-	    ((real?)             (memq type2 '(float? rational? integer? complex? number? exact? inexact? zero? negative? positive? even? odd? infinite? nan?)))
-	    ((zero?)             (memq type2 '(float? real? rational? integer? number? complex? exact? inexact? even?)))
+	    ((number? complex?)  (memq type2 '(float? real? rational? integer? number? complex? exact? inexact? zero? negative? positive? even? odd? infinite? nan? byte?)))
+	    ((real?)             (memq type2 '(float? rational? integer? complex? number? exact? inexact? zero? negative? positive? even? odd? infinite? nan? byte?)))
+	    ((zero?)             (memq type2 '(float? real? rational? integer? number? complex? exact? inexact? even? byte?)))
 	    ((negative? positive?) (memq type2 '(float? real? rational? integer? complex? number? exact? inexact? even? odd? infinite? nan?)))
 	    ((float?)            (memq type2 '(real? complex? number? inexact? zero? negative? positive? infinite? nan?)))
-	    ((rational?)         (memq type2 '(integer? real? complex? number? exact? zero? negative? positive? even? odd?)))
-	    ((integer?)          (memq type2 '(real? rational? complex? number? exact? even? odd? zero? negative? positive?)))
-	    ((odd? even?)        (memq type2 '(real? rational? complex? number? exact? integer? zero? negative? positive?)))
-	    ((exact?)            (memq type2 '(real? rational? complex? number? integer? zero? negative? positive? odd? even?)))
+	    ((rational?)         (memq type2 '(integer? real? complex? number? exact? zero? negative? positive? even? odd? byte?)))
+	    ((integer?)          (memq type2 '(real? rational? complex? number? exact? even? odd? zero? negative? positive? byte?)))
+	    ((odd? even?)        (memq type2 '(real? rational? complex? number? exact? integer? zero? negative? positive? byte?)))
+	    ((exact?)            (memq type2 '(real? rational? complex? number? integer? zero? negative? positive? odd? even? byte?)))
 	    ((inexact?)          (memq type2 '(real? number? complex? float? zero? negative? positive? infinite? nan?)))
 	    ((infinite? nan?)    (memq type2 '(real? number? complex? positive? negative? inexact? float?)))
 	    ((vector?)           (memq type2 '(float-vector? int-vector? sequence? subvector?)))
@@ -1900,7 +1905,7 @@
 	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? tree-cyclic? openlet? subvector?
 					       string? let? hash-table? iterator? procedure? directory? file-exists?))) ; procedure? for extended iterator
 	    ((symbol?)           (memq type2 '(gensym? keyword? defined? provided?)))
-	    ((string?)           (memq type2 '(byte-vector? sequence? directory? file-exists?)))
+	    ((string?)           (memq type2 '(sequence? directory? file-exists?)))
 	    ((not output-port?)  (eq? type2 'boolean?))
 	    ((boolean?)          (eq? type2 'not))
 	    ((keyword? gensym?)  (memq type2 '(symbol? defined? provided?)))
@@ -1917,7 +1922,7 @@
 	    ((let?)              (memq type2 '(defined? sequence? openlet?)))
 	    ((openlet?)          (memq type2 '(let? c-pointer? macro? procedure? sequence? defined? undefined?)))
 	    ((hash-table?)       (eq? type2 'sequence?))
-	    ((byte-vector?)      (memq type2 '(string? sequence?)))
+	    ((byte-vector?)      (eq? type2 'sequence?))
 	    ((char? char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)
 	     (memq type2 '(char? char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)))
 	    ((tree-cyclic?)      (memq type2 '(list? pair? sequence?)))
@@ -1943,14 +1948,14 @@
       (or (eq? type1 type2)
 	  (case type1
 	    ((integer?)         (memq type2 '(even? odd?)))
-	    ((rational?)        (memq type2 '(integer? exact? odd? even?)))
-	    ((exact?)           (memq type2 '(integer? rational?)))
-	    ((real?)            (memq type2 '(integer? rational? float? negative? positive? zero? odd? even?)))
-	    ((complex? number?) (memq type2 '(integer? rational? float? real? complex? number? negative? positive? zero? 
+	    ((rational?)        (memq type2 '(integer? byte? exact? odd? even?)))
+	    ((exact?)           (memq type2 '(integer? byte? rational?)))
+	    ((real?)            (memq type2 '(integer? byte? rational? float? negative? positive? zero? odd? even?)))
+	    ((complex? number?) (memq type2 '(integer? byte? rational? float? real? complex? number? negative? positive? zero? 
 					      even? odd? exact? inexact? nan? infinite?)))
 	    ((list?)            (memq type2 '(pair? null? proper-list?)))
 	    ((proper-list?)     (eq? type2 'null?))
-	    ((vector?)          (memq type2 '(float-vector? int-vector?)))
+	    ((vector?)          (memq type2 '(float-vector? int-vector? byte-vector?)))
 	    ((symbol?)          (memq type2 '(keyword? gensym?))) ; defined? provided? ??
 	    ((sequence?)        (memq type2 '(list? pair? null? proper-list? vector?  subvector? float-vector? int-vector? byte-vector?
 					      string? let? hash-table? directory? file-exists?)))
@@ -2305,7 +2310,7 @@
 	((char?) '(eqv? char=?))
 	((integer? rational? real? number? complex? float?) '(eqv? =))
 	((symbol? keyword? boolean? null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
-	((string? byte-vector?) '(equal? string=?))
+	((string?) '(equal? string=?))
 	((pair? vector? float-vector? int-vector?  subvector? hash-table?) '(equal? equal?))
 	((eof-object?) '(eq? eof-object?))
 	(else 
@@ -2597,7 +2602,6 @@
 		   
 		   ((string?)
 		    (case type2
-		      ((byte-vector?) type2)
 		      ((string=?)
 		       (and (or (eq? (->lint-type (cadr arg2)) 'string?)
 				(eq? (->lint-type (caddr arg2)) 'string?))
@@ -2613,9 +2617,6 @@
 		   ((char-numeric? char-whitespace? char-alphabetic? char-upper-case? char-lower-case?) 
 		    (and (eq? type2 'char?) type1))
 		   
-		   ((byte-vector?) 
-		    (and (eq? type2 'string?) type1))
-
 		   ((directory?)
 		    (and (memq type2 '(string? file-exists?)) type1))
 
@@ -3055,7 +3056,7 @@
 			     (and (eq? type2 'char?)
 				  'contradictory))
 			    
-			    ((directory? file-exists? byte-vector?)
+			    ((directory? file-exists?)
 			     (and (memq type2 '(string? sequence?))
 				  'contradictory))
 
@@ -3096,10 +3097,8 @@
 			     (and (not (memq type2 '(constant? immutable?)))
 				  arg2))
 			    ((string?)
-			     (if (eq? type2 'byte-vector?)
-				 'true
-				 (and (not (memq type2 '(constant? immutable? sequence?)))
-				      arg2)))
+			     (and (not (memq type2 '(constant? immutable? sequence?)))
+				  arg2))
 			    ((sequence?)
 			     (and (memq type2 '(string? vector? proper-list? null? let? list? pair? float-vector? int-vector? byte-vector? hash-table? tree-cyclic?))
 				  'true))
@@ -7390,7 +7389,7 @@
 	  (for-each (lambda (f)
 		      (hash-special f sp-symbol?))
 		    '(symbol? rational? real? complex? float? keyword? gensym? byte-vector? proper-list? sequence? constant?
-		      char? boolean? float-vector? int-vector? vector? let? hash-table? input-port?
+		      char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? byte?
 		      output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
 		      syntax? undefined? unspecified?)))
 	
@@ -7727,17 +7726,22 @@
 	(let ()
 	  (define (sp-make-vector caller head form env)
 	    ;; type of initial value (for make-float|int-vector) is checked elsewhere
-	    (if (>= (length form) 3)
-		(case (caddr form)
-		  ((#<unspecified>) 
-		   (if (eq? head 'make-vector)  ;  (make-vector 3 #<unspecified>)
-		       (lint-format "#<unspecified> is the default initial value in ~A" caller form)))
-		  ((0)
-		   (if (not (eq? head 'make-vector))
-		       (lint-format "0 is the default initial value in ~A" caller form)))
-		  ((0.0)
-		   (if (eq? head 'make-float-vector)
-		       (lint-format "0.0 is the default initial value in ~A" caller form)))))
+	    (when (>= (length form) 3)
+	      (case (caddr form)
+		((#<unspecified>) 
+		 (if (eq? head 'make-vector)  ;  (make-vector 3 #<unspecified>)
+		     (lint-format "#<unspecified> is the default initial value in ~A" caller form)))
+		((0)
+		 (if (not (eq? head 'make-vector))
+		     (lint-format "0 is the default initial value in ~A" caller form)))
+		((0.0)
+		 (if (eq? head 'make-float-vector)
+		     (lint-format "0.0 is the default initial value in ~A" caller form))))
+
+	      (when (= (length form) 4)
+		(let ((typer (cadddr form)))
+		  (unless (memq typer setters)
+		    (lint-format "~A is not a built-in type" caller (cadddr form))))))
 	    
 	    (when (and (pair? (cdr form))
 		       (integer? (cadr form))
@@ -8889,8 +8893,7 @@
 		
 		(let ((str (cadr form)))
 		  
-		  (when (and (string? str)           ; (substring "++++++" 0 2) -> (make-string 2 #\+)
-			     (not (byte-vector? str)))
+		  (when (string? str)           ; (substring "++++++" 0 2) -> (make-string 2 #\+)
 		    (let ((len (length str)))
 		      (when (and (> len 0)
 				 (string=? str (make-string len (string-ref str 0))))
@@ -22087,7 +22090,6 @@
 	    ((string? form)
 	     (let ((len (length form)))
 	       (when (and (> len 8)               ; "*****************************" -> (format #f "~NC" 29 #\*)
-			  (not (byte-vector? form))
 			  (string=? form (make-string len (string-ref form 0))))
 		 (lint-format "perhaps ~S -> ~A" caller form `(format #f "~NC" ,len ,(string-ref form 0)))))
 	     env)

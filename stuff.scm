@@ -48,9 +48,9 @@
 	     (if (not (null? info))
 		 (format p ": ~A" info))))
 
-       (format p "~%error-code: ~S~%" (ow 'error-code))
+       (format p "~%error-code: ~S" (ow 'error-code))
        (when (ow 'error-line)
-	 (format p "~%error-file/line: ~S[~A]~%" (ow 'error-file) (ow 'error-line)))
+	 (format p "~%error-file/line: ~A[~A]" (ow 'error-file) (ow 'error-line)))
 	   
        ;; show history, if available
        (when (pair? (ow 'error-history)) ; a circular list, starts at error-code, entries stored backwards

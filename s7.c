@@ -1142,7 +1142,7 @@ struct s7_scheme {
   s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2;
   s7_pointer a1_1, a2_1, a2_2, a3_1, a3_2, a3_3, a4_1, a4_2, a4_3, a4_4;
   #define T_TEMPS_SIZE 32
-  s7_pointer t_temps[T_TEMPS_SIZE];              /* more eval temps */
+  s7_pointer t_temps[T_TEMPS_SIZE];    /* more eval temps */
   int32_t t_temp_ctr;
 
   jmp_buf goto_start;
@@ -6401,6 +6401,7 @@ static s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64
   set_initial_slot(x, sc->undefined);
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_tag(x, 0);
+  symbol_set_tag2(x, 0);
   symbol_set_ctr(x, 0);
   symbol_set_type(x, 0);
 
@@ -6692,6 +6693,8 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   /* set_initial_slot(x, sc->undefined); */
   symbol_set_local_unchecked(x, 0LL, sc->nil);
   symbol_set_ctr(x, 0);
+  symbol_set_tag(x, 0);
+  symbol_set_tag2(x, 0);
   gensym_block(x) = b;
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
@@ -67824,6 +67827,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	      return(OPT_F);
 	    }
 	}
+#if 1 /* TODO: either a bit here or omit this -- and set tag2, leaving tag1 0 */
       else
 	{
 	  /* car_expr is "complicated" */
@@ -67841,9 +67845,9 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	      else s7_warn(sc, 1024, "; %s might be undefined\n", DISPLAY(car_expr));
 	      symbol_set_tag(car_expr, 1);             /* one warning is enough */
 	    }
-	  /* we need local definitions and func args in e?  also check is_symbol case below
-	   */
+	  /* we need local definitions and func args in e?  also check is_symbol case below */
 	}
+#endif
 #if OPTIMIZE_PRINT
       fprintf(stderr, "  at line %d for %s\n", __LINE__, DISPLAY(car_expr));
 #endif
@@ -69354,6 +69358,8 @@ static s7_pointer check_let(s7_scheme *sc)
   bool named_let;
   int32_t vars;
 
+  /* fprintf(stderr, "check_let: %s\n", DISPLAY_80(sc->code)); */
+
   form = sc->code;
   sc->code = cdr(sc->code);
 
@@ -69418,11 +69424,6 @@ static s7_pointer check_let(s7_scheme *sc)
       if (is_not_null(cddr(carx)))                   /* (let ((x 1 2 3)) ...) */
 	eval_error(sc, "let variable declaration has more than one value?: ~A", 53, x);
 
-      /* currently if the extra value involves a read error, we get a kind of panicky-looking message:
-       *   (let ((x . 2 . 3)) x)
-       *   ;let variable declaration has more than one value?: (x error error "stray dot?: ...  ((x . 2 . 3)) x) ..")
-       */
-
       y = car(carx);
       if (!(is_symbol(y)))
 	eval_error(sc, "bad variable ~S in let", 22, carx);
@@ -69433,8 +69434,11 @@ static s7_pointer check_let(s7_scheme *sc)
 
       /* check for name collisions -- not sure this is required by Scheme */
       if (symbol_is_in_list(sc, y))
-	s7_error(sc, sc->syntax_error_symbol, 
-		 set_elist_3(sc, wrap_string(sc, "duplicate identifier in let: ~S in ~S", 37), y, form)); 
+	{
+	  /* fprintf(stderr, "sc tag: %u %u, %s tag: %u %u\n", sc->syms_tag, sc->syms_tag2, symbol_name(y), symbol_tag(y), symbol_tag2(y)); */
+	  s7_error(sc, sc->syntax_error_symbol, 
+		   set_elist_3(sc, wrap_string(sc, "duplicate identifier in let: ~S in ~S", 37), y, form)); 
+	}
       add_symbol_to_list(sc, y);
       set_local(y);
     }
@@ -79054,17 +79058,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_PP_1:
 	  /* unless multiple values from last call (first arg), sc->args == sc->nil because we pushed that.
 	   *   we get here only from OP_SAFE_C_PP.
-	   *
 	   * currently splice_in_values changes the operator so if we get here, sc->value is the result of the first arg
-	   *
 	   * safe_c_pp -> 1, but if mv, -> 3
-	   * 1: -> 2, if mv -> 4
-	   * 2: done (both normal)
-	   * 3: -> 5, but if mv, -> 6
-	   * 4: done (1 normal, 2 mv)
-	   * 5: done (1 mv, 2 normal)
-	   * 6: done (both mv)
-	   *
+	   *   1: -> 2, if mv -> 4
+	   *   2: done (both normal)
+	   *   3: -> 5, but if mv, -> 6
+	   *   4: done (1 normal, 2 mv)
+	   *   5: done (1 mv, 2 normal)
+	   *   6: done (both mv)
 	   * I think safe_c_ppp would require 18 branches (or maybe just collect the args and concatenate at the end?)
 	   */
 	  push_stack(sc, (opcode_t)opt_any1(cdr(sc->code)), sc->value, sc->code); /* mv -> 3 */
@@ -79754,10 +79755,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_FA: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE, 2)) break;
 	case HOP_CLOSURE_FA: op_closure_fa(sc); goto EVAL;
 
-	case OP_CLOSURE_SS: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_SS: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_SS: op_closure_ss(sc); goto EVAL;
 	  
-	case OP_CLOSURE_SS_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_SS_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_SS_P: op_closure_ss_p(sc); goto EVAL;
 	  
 	case OP_SAFE_CLOSURE_SS: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
@@ -79768,14 +79769,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_SS_A: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_A, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_SS_A: op_safe_closure_ss_a(sc); goto START;
-
 	case OP_SAFE_CLOSURE_SS_LP: op_safe_closure_ss_lp(sc); goto EVAL;
 
 
-	case OP_CLOSURE_SC: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_SC: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_SC: op_closure_sc(sc); goto EVAL;
 	  
-	case OP_CLOSURE_SC_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_SC_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_SC_P: op_closure_sc_p(sc); goto EVAL;
 	  
 	case OP_SAFE_CLOSURE_SC: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
@@ -79785,7 +79785,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_SC_P: op_safe_closure_sc_p(sc); goto EVAL;
 
 	  
-	case OP_CLOSURE_CS: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_CS: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_CS: op_closure_cs(sc); goto BEGIN;
 	  
 	case OP_SAFE_CLOSURE_CS: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 2)) {if (unknown_gg_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
@@ -79795,10 +79795,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_SA: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_SA: op_safe_closure_sa(sc); goto BEGIN;
 
-	case OP_CLOSURE_AA: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_AA: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_AA: op_closure_aa(sc); goto EVAL;
 	  
-	case OP_CLOSURE_AA_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}		  
+	case OP_CLOSURE_AA_P: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_P, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_AA_P: op_closure_aa_p(sc); goto EVAL;
 	  
 	case OP_SAFE_CLOSURE_AA: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_M, 2)) {if (unknown_aa_ex(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
@@ -80218,6 +80218,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	APPLY:
 	case OP_APPLY:
+	  set_current_code(sc, sc->code); /* ??  ideally we'd add (cons code args) but that's expensive */
 #if SHOW_EVAL_OPS
 	  fprintf(stderr, "  apply %s to %s\n", DISPLAY(sc->code), DISPLAY(sc->args)); 
 #endif
@@ -87723,7 +87724,7 @@ static s7_pointer make_real_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  set_type_bit(p, T_REAL | T_UNHEAP);
+  typeflag(p) = T_REAL | T_UNHEAP | T_MUTABLE;
   return(p);
 }
 
@@ -87731,7 +87732,7 @@ static s7_pointer make_integer_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  set_type_bit(p, T_INTEGER | T_UNHEAP);
+  typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE; /* mutable to turn off set_has_print_name */
   return(p);
 }
 
@@ -87753,7 +87754,7 @@ static void init_wrappers(s7_scheme *sc)
       s7_pointer p;
       p = (s7_pointer)calloc(1, sizeof(s7_cell));
       sc->string_wrappers[i] = p;
-      set_type_bit(p, T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE | T_UNHEAP);
+      typeflag(p) = T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE | T_UNHEAP;
       string_block(p) = NULL;
       string_value(p) = NULL;
       string_length(p) = 0;
@@ -89609,8 +89610,8 @@ int main(int argc, char **argv)
  *   ffi typer addition
  *   foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   s7_sigs are symbols, other are funcs
- *   lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?)
- *   if we had "the", stuff like (let-ref e 'a) could be optimized (the (let-ref e 'a) integer?)
+ *   lint support for typed vector|hash-table? (at least make-hash-table|vector arg checks?) and byte?
+ *     (set! strs #f) complains set! is pointless, but it isn't
  *   opt (stepper) check setter=integer? (or its bool_setter version) etc: opt_arg_type [typed-do?]
  *
  * multi-optlist for the #t/float problem (or int/iv)
