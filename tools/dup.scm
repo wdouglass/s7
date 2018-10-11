@@ -2,7 +2,7 @@
 ;;; (dups size file alloc-lines): 
 ;;;    find all matches of "size" successive lines in "file" ignoring empty lines and leading/trailing whitespace
 ;;;    "alloc-lines" is any number bigger than the number of lines in "file"
-;;;    (dups 16 "s7.c" 89000) finds all 16-line matches in s7.c which has less than 89000 lines in all
+;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which has less than 91000 lines in all
 
 (set! (*s7* 'heap-size) (* 2 1024000))
 
