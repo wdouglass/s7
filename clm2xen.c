@@ -7415,6 +7415,34 @@ static Xen g_env(Xen obj)
   return(C_double_to_Xen_real(mus_env(g)));
 }
 
+
+#if HAVE_SCHEME && (TYPED_APPLY)
+
+static mus_xen *typed_e;
+static s7_pointer g_env_typed(s7_pointer obj) 
+{
+  return(s7_make_real(sc, mus_env(typed_e->gen)));
+}
+
+static s7_pointer ga_env_typed(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_typed_apply_1(sc, g_env_typed, args);
+}
+
+static s7_pointer ga_env_setter(s7_scheme *sc, s7_pointer args)
+{
+  typed_e = (mus_xen *)s7_c_object_value_checked(car(args), mus_xen_tag);
+  if ((typed_e) &&
+      (mus_is_env((mus_any *)(typed_e->gen))))
+    return(xen_true);
+  return(xen_false);
+}
+
+define_typer(s7, "clm:env?", ga_env_setter, 2, 0, false, s7_list(s7, 1, [symbol?] env?), s7_list(sc, 1, "env"))??
+
+#endif
+
+
 #define H_make_env "(" S_make_env " envelope (scaler 1.0) duration (offset 0.0) (base 1.0) end length): \
 return a new envelope generator.  'envelope' is a list, vector, or " S_vct " of break-point pairs. To create the envelope, \
 these points are offset by 'offset', scaled by 'scaler', and mapped over the time interval defined by \

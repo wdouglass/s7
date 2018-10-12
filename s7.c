@@ -6195,8 +6195,8 @@ static void push_stack(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer c
 
 #else
 
-#define pop_stack(Sc) do {Sc->stack_end -= 4; memcpy ((void *)Sc, (void *)(Sc->stack_end), 4 * sizeof(s7_pointer));} while (0)
-#define pop_stack_no_op(Sc) {Sc->stack_end -= 4; memcpy ((void *)Sc, (void *)(Sc->stack_end), 3 * sizeof(s7_pointer));} while (0)
+#define pop_stack(Sc) do {Sc->stack_end -= 4; memcpy((void *)Sc, (void *)(Sc->stack_end), 4 * sizeof(s7_pointer));} while (0)
+#define pop_stack_no_op(Sc) {Sc->stack_end -= 4; memcpy((void *)Sc, (void *)(Sc->stack_end), 3 * sizeof(s7_pointer));} while (0)
 
 #define push_stack(Sc, Op, Args, Code) \
   do { \
@@ -6567,6 +6567,7 @@ bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_na
   return(false);
 }
 
+/* -------------------------------- gensym -------------------------------- */
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
 {
   /* sym is a free cell at this point (we're called after the GC), but the name_cell is still intact */
@@ -6680,7 +6681,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
 
   /* make-string for symbol name */
 #if S7_DEBUGGING
-  typeflag(str) = 0;
+  typeflag(str) = 0; /* here and below, this is needed to avoid set_type check errors (mallocate above) */
 #endif
   set_type(str, T_STRING | T_IMMUTABLE | T_UNHEAP);
   string_length(str) = nlen;
@@ -6721,7 +6722,7 @@ s7_pointer s7_name_to_value(s7_scheme *sc, const char *name)
   return(s7_symbol_value(sc, make_symbol(sc, name)));
 }
 
-
+/* -------------------------------- syntax? -------------------------------- */
 bool s7_is_syntax(s7_pointer p)
 {
   return(is_syntax(p));
@@ -6735,7 +6736,7 @@ static s7_pointer g_is_syntax(s7_scheme *sc, s7_pointer args)
   check_boolean_method(sc, is_syntax, sc->is_syntax_symbol, args);
 }
 
-
+/* -------------------------------- symbol? -------------------------------- */
 bool s7_is_symbol(s7_pointer p)
 {
   return(is_symbol(p));
@@ -6755,7 +6756,7 @@ const char *s7_symbol_name(s7_pointer p)
   return(symbol_name(p));
 }
 
-
+/* -------------------------------- symbol->string -------------------------------- */
 static s7_pointer g_symbol_to_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_symbol_to_string "(symbol->string sym) returns the symbol sym converted to a string"
@@ -6797,7 +6798,7 @@ static s7_pointer symbol_to_string_uncopied_p(s7_scheme *sc, s7_pointer sym)
   return(symbol_name_cell(sym));
 }
 
-
+/* -------------------------------- string->symbol -------------------------------- */
 static inline s7_pointer g_string_to_symbol_1(s7_scheme *sc, s7_pointer str, s7_pointer caller)
 {
   if (is_string(str))
@@ -6830,6 +6831,7 @@ static s7_pointer string_to_symbol_p_p(s7_scheme *sc, s7_pointer p)
   return(p);
 }
 
+/* -------------------------------- symbol -------------------------------- */
 static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args);
 
 static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
@@ -32452,19 +32454,14 @@ static s7_pointer permanent_list(s7_scheme *sc, s7_int len)
   return(p);
 }
 
-static void check_sig_entry(s7_scheme *sc, s7_pointer p, s7_pointer res, bool circle)
+static void check_sig_entry(s7_scheme *sc, s7_pointer p, s7_int pos, bool circle)
 {
   if ((!is_symbol(car(p))) && 
       (!s7_is_boolean(car(p))) &&
+      (!is_c_function(car(p))) &&
       (!is_pair(car(p))))
     {
-      s7_pointer np;
-      int32_t i;
-      for (np = res, i = 0; np != p; np = cdr(np), i++);
-      fprintf(stderr, "s7_make_%ssignature got an invalid entry at position %d: (", (circle) ? "circular_" : "", i);
-      for (np = res; np != p; np = cdr(np))
-	fprintf(stderr, "%s ", DISPLAY(car(np)));
-      fprintf(stderr, "...");
+      s7_warn(sc, 512, "s7_make_%ssignature got an invalid entry at position %" print_s7_int ": (", (circle) ? "circular_" : "", pos);
       set_car(p, sc->nil);
     }
 }
@@ -32472,14 +32469,15 @@ static void check_sig_entry(s7_scheme *sc, s7_pointer p, s7_pointer res, bool ci
 s7_pointer s7_make_signature(s7_scheme *sc, s7_int len, ...)
 {
   va_list ap;
+  s7_int i;
   s7_pointer p, res;
 
   res = permanent_list(sc, len);
   va_start(ap, len);
-  for (p = res; is_pair(p); p = cdr(p))
+  for (p = res, i = 0; is_pair(p); p = cdr(p), i++)
     {
       set_car(p, va_arg(ap, s7_pointer));
-      check_sig_entry(sc, p, res, false);
+      check_sig_entry(sc, p, i, false);
     }
   va_end(ap);
 
@@ -32497,7 +32495,7 @@ s7_pointer s7_make_circular_signature(s7_scheme *sc, s7_int cycle_point, s7_int 
   for (p = res, i = 0; is_pair(p); p = cdr(p), i++)
     {
       set_car(p, va_arg(ap, s7_pointer));
-      check_sig_entry(sc, p, res, true);
+      check_sig_entry(sc, p, i, true);
       if (i == cycle_point) back = p;
       if (i == (len - 1)) end = p;
     }
@@ -32569,6 +32567,25 @@ s7_pointer s7_apply_1(s7_scheme *sc, s7_pointer args, s7_pointer (*f1)(s7_pointe
   /* not currently used */
   return(f1(car(args)));
 }
+
+#if TYPED_APPLY
+s7_pointer s7_typed_apply_1(s7_scheme *sc, s7_function base_func, s7_pointer args) /* current s7_apply_1 order is backwards */
+{
+  s7_pointer sig, typer, pars;
+  sig = c_function_signature(base_func);
+  typer = cadr(sig);                       /* this is a c_function in this case?? */
+  if (typer(sc, args) == sc->T)
+    return(c_call(base_func)(sc, args));       /* ?? */
+  pars = c_function_parameters(base_func); /* TODO: need this field */
+  return(s7_error(sc, sc->wrong_type_arg_symbol,
+		  set_elist_5(sc, wrap_string(sc, "~S parameter ~S is ~S which is ~A but it should be ~A", 53),
+			      c_function_symbol(base_func), 
+			      car(pars),                       /* parameter name */
+			      car(args),
+			      prepackaged_type_names[type(car(args))], 
+			      wrap_string(sc, str, len))));    /* TODO: need this also -- description of required arg type */
+}
+#endif
 
 s7_pointer s7_apply_2(s7_scheme *sc, s7_pointer args, s7_pointer (*f2)(s7_pointer a1, s7_pointer a2))
 {
@@ -47425,7 +47442,7 @@ It looks for an existing catch with a matching tag, and jumps to it if found.  O
 }
 
 
-static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...)
+static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...) /* len = max size of output string (for vsnprintf) */
 {
   if (sc->error_port != sc->F)
     {
@@ -48936,6 +48953,15 @@ static s7_pointer fx_c_add1(s7_scheme *sc, s7_pointer arg)
   if (is_integer(x))
     return(make_integer(sc, integer(x) + 1));
   return(g_add_s1_1(sc, x, cdr(arg))); /* arg=(+ x 1) */
+}
+
+static s7_pointer fx_s_add1(s7_scheme *sc, s7_pointer arg)  
+{
+  s7_pointer x;
+  x = slot_value(let_slots(sc->envir));
+  if (is_integer(x))
+    return(make_integer(sc, integer(x) + 1));
+  return(add_p_pp(sc, x, small_int(1)));
 }
 
 static s7_pointer fx_c_sub1(s7_scheme *sc, s7_pointer arg)  
@@ -64064,8 +64090,7 @@ static s7_pointer chooser_check_arg_types(s7_scheme *sc, s7_pointer arg1, s7_poi
 
 static s7_pointer add_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
-  /* (+ s f) (+ (* s s) s) (+ s s) (+ s (* s s))
-   */
+  /* (+ s f) (+ (* s s) s) (+ s s) (+ s (* s s)) */
 #if (!WITH_GMP)
   if (args == 2)
     {
@@ -66320,24 +66345,21 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  choose_c_function(sc, expr, func, 2);
 		  return(OPT_F);
 		}
-	      else
+	      if (quotes == 1)
 		{
-		  if (quotes == 1)
+		  if (car(arg1) == sc->quote_symbol)
 		    {
-		      if (car(arg1) == sc->quote_symbol)
-			{
-			  set_optimize_op(expr, hop + OP_SAFE_C_QP);
-			  opt_sp_1(sc, c_function_call(func), expr);
-			}
-		      else 
-			{
-			  set_optimize_op(expr, hop + OP_SAFE_C_PQ);
-			  set_opt_con2(cdr(expr), cadr(caddr(expr)));
-			}
-		      set_unsafely_optimized(expr);
-		      choose_c_function(sc, expr, func, 2);
-		      return(OPT_F);
+		      set_optimize_op(expr, hop + OP_SAFE_C_QP);
+		      opt_sp_1(sc, c_function_call(func), expr);
 		    }
+		  else 
+		    {
+		      set_optimize_op(expr, hop + OP_SAFE_C_PQ);
+		      set_opt_con2(cdr(expr), cadr(caddr(expr)));
+		    }
+		  set_unsafely_optimized(expr);
+		  choose_c_function(sc, expr, func, 2);
+		  return(OPT_F);
 		}
 	    }
 	}
@@ -74133,7 +74155,7 @@ static int32_t dox_ex(s7_scheme *sc)
    */
   for (slot = let_slots(frame); is_slot(slot); slot = next_slot(slot))
     symbol_set_local_unchecked(slot_symbol(slot), id, slot);
-  
+
   end = cadr(sc->code);
   endp = car(end);
   endf = c_callee(end);
@@ -74143,6 +74165,11 @@ static int32_t dox_ex(s7_scheme *sc)
       return(goto_DO_END_CLAUSES);
     }
 	    
+  if ((steppers == 1) && /* TODO: or any number > 0 if let_slots=a stepper, fix it up (or revise tbig...) */
+      (c_callee(slot_expression(stepper)) == fx_c_add1) &&
+      (cadar(slot_expression(stepper)) == slot_symbol(let_slots(frame))))
+    set_c_call(slot_expression(stepper), fx_s_add1);
+
   code = cddr(sc->code);
   if (is_null(code)) /* no body? */
     {
@@ -74459,7 +74486,7 @@ static void op_simple_dox(s7_scheme *sc)
   if (is_safe_stepper(cddr(var)))
     {
       if ((is_t_integer(slot_value(slot))) &&
-	  ((stepf == fx_c_sub1) || (stepf == fx_c_add1)))
+	  ((stepf == fx_c_sub1) || (stepf == fx_c_add1) || (stepf == fx_s_add1)))
 	{
 	  s7_int incr;
 	  s7_pointer istep;
@@ -79091,9 +79118,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_SAFE_C_PP_1:
-	  /* unless multiple values from last call (first arg), sc->args == sc->nil because we pushed that.
-	   *   we get here only from OP_SAFE_C_PP.
-	   * currently splice_in_values changes the operator so if we get here, sc->value is the result of the first arg
+	  /* unless multiple values from last call (first arg) we get here only from OP_SAFE_C_PP.
+	   *   splice_in_values changes the operator so if we get here, sc->value is the result of the first arg
 	   * safe_c_pp -> 1, but if mv, -> 3
 	   *   1: -> 2, if mv -> 4
 	   *   2: done (both normal)
@@ -89647,10 +89673,15 @@ int main(int argc, char **argv)
  *   closure sigs should check? [if func in sig, if symbol in sig ignore]
  *     these can be checked at init time, bit set for T_ANY_SIG and T_ALL_SIG (non-symbol entries)
  *     then just use versions of s7_apply_* that follow the sigs
- *   ffi typer addition: foreign function with sig: no need to check arg types in function body! -- is this typed_func*
+ *     where to get parameter names or func sig?  Pass s7_pointer to fnc cell rather that (*f1)(...) in s7_apply_n now?
+ *       c* has arg_names in c_proc_t -- extend to all?
+ *     also need user-defined type checkers (mus-oscil? etc)
+ *     try full path here and check timings etc (dax?)
+ *     s7_typed_apply_* and s7_define_typer [currently define_bool_function] and allow funcs in sigs
+ *     g_env_typed in clm2xen.c
+ *     ffi typer addition: foreign function with sig: no need to check arg types in function body! -- is this typed_func*
  *   lint support for typed vector|hash-table? (at least make-hash-table arg checks) and byte?
  *     (set! strs #f) complains set! is pointless, but it isn't
- *     what if in closure let we mark the let/slots but not the values -- weak let? how to tell it's "in play"?
  *   opt (stepper) check setter=integer? (or its bool_setter version) etc: opt_arg_type [typed-do?]
  *   sym/setter can be opt'd safely if local/solitary
  *
@@ -89659,47 +89690,51 @@ int main(int argc, char **argv)
  *   requires later info (very_safe_closure, etc).  code commented under TREC.
  *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
  *   if c_func sees args a_lp, call as func, goto etc, also second env can reuse first -- 1/2 jumps and envs, no lookups or closure_ok
- *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al? T_SLOT_0 etc
+ *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al?
  *   auto-memoization (top 8 or top 3 etc)
  *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
  *     but these require eval ops currently, not fx*
- *   safe closure+1 arg+no-definers+arg not shadowed -> every arg=T_SLOT_0
+ *   fx_s_add1 is first step -- it is faster than fx_c_add1 [fx_s_cdr sub1 etc?]
+ *   safe closure+1 arg+no-definers+arg not shadowed: mark somehow in e (can't use type bit)
  * apply + (etc) -> op_safe_apply -> apply_c_function_any_args_function etc T_C_ANY_ARGS_FUNCTION
+ *   trec eval_args/apply is via op_pair_sym?? -- doesn't that mean op_unknown* failed?
+ *     op_pair_sym: (+ (trib (- n 1)) (trib (- n 2)) (trib (- n 3))) and (ack (- m 1) (ack m (- n 1)))
+ *     op_con: 1
  */
 
 /* ------------------------------------------------------------------------------------------
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * ------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  | 18.7  18.8  18.9
- * ------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199   200   200
- * tmac          |      |      |      | 9052 |  264 |  266   236   236
- * tref          |      |      | 2372 | 2125 | 1036 | 1004   985   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1061  1037  1039
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1316  1292  1283
- * teq           |      |      | 6612 | 2777 | 1931 | 1673  1550  1541
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1919  1730  1731
- * lint          |      |      |      | 4041 | 2702 | 2318  2192  2193
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2363  2325  2325
- * tread         |      |      |      |      | 2357 | 2363  2352  2347
- * tform         |      |      | 6816 | 3714 | 2762 | 2388  2385  2382
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2543  2492  2493
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3261  3030  3030
- * tlet          |      |      |      |      |      | 4717  3505  3506
- * titer         |      |      |      | 5971 | 4646 | 3743  3695  3703
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4526  4010  3819
- * tsort         |      |      |      | 8584 | 4111 | 3998  3945  3945
- * thash         |      |      | 50.7 | 8778 | 7697 | 6156  5383  5386
- * dup           |      |      |      |      | 20.8 | 9525  5634  5747
- * tset          |      |      |      |      | 10.0 | 6435  6396  6398
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.0  11.1  11.1
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 13.4  11.7  11.7
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.7  38.5  38.6
- * sg            |      |      |      |139.0 | 85.9 | 78.2  78.0  78.0
- * lg            |      |      |      |211.0 |133.0 |116.4 114.0 114.0 
- * tbig          |      |      |      |      |246.9 |242.7 232.5 232.3
- * -----------------------------------------------------------------------------
+ * ------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
+ * ------------------------------------------------------------------
+ * tpeak         |      |      |      |  391 |  377 |  200   200
+ * tmac          |      |      |      | 9052 |  264 |  236   236
+ * tref          |      |      | 2372 | 2125 | 1036 |  985   985
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1038
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1283
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1541
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1731
+ * lint          |      |      |      | 4041 | 2702 | 2192  2204
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2325
+ * tread         |      |      |      |      | 2357 | 2352  2347
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2382
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2493
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3030
+ * tlet          |      |      |      |      | 4717 | 3505  3506
+ * titer         |      |      |      | 5971 | 4646 | 3695  3695
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3819
+ * tsort         |      |      |      | 8584 | 4111 | 3945  3935
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5384
+ * dup           |      |      |      |      | 20.8 | 5634  5747
+ * tset          |      |      |      |      | 10.0 | 6396  6347
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.1
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.7
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.6
+ * sg            |      |      |      |139.0 | 85.9 | 78.0  78.0
+ * lg            |      |      |      |211.0 |133.0 |114.0 114.0 
+ * tbig          |      |      |      |      |246.9 |232.5 232.3
+ * -----------------------------------------------------------------------
  */
