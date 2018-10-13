@@ -272,22 +272,47 @@ void s7webserver_delete(S7WebServer *s7webserver){
 
 
 #ifdef WITH_MAIN
+
+#define OPTARGS_CHECK_GET(wrong,right) (lokke==argc-1?(fprintf(stderr,"Must supply argument for '%s'\n",argv[lokke]),exit(-4),wrong):right)
+
+#define OPTARGS_BEGIN(das_usage) {int lokke;const char *usage=das_usage;for(lokke=1;lokke<argc;lokke++){char *a=argv[lokke];if(!strcmp("--help",a)||!strcmp("-h",a)){fprintf(stderr,"%s",usage);exit(0);
+#define OPTARG(name,name2) }}else if(!strcmp(name,a)||!strcmp(name2,a)){{
+#define OPTARG_GETINT() OPTARGS_CHECK_GET(0,atoll(argv[++lokke]))
+//int optargs_inttemp;
+//#define OPTARG_GETINT() OPTARGS_CHECK_GET(0,(optargs_inttemp=strtol(argv[++lokke],(char**)NULL,10),errno!=0?(perror("strtol"),0):optargs_inttemp))
+#define OPTARG_GETFLOAT() OPTARGS_CHECK_GET(0.0f,atof(argv[++lokke]))
+#define OPTARG_GETSTRING() OPTARGS_CHECK_GET("",argv[++lokke])
+#define OPTARG_GETBOOL() ({const char *response = OPTARG_GETSTRING(); !strcasecmp(response,"false") ? false : !strcasecmp(response,"true") ? true : (fprintf(stderr,"Argument for '%s' must be \"false\" or \"true\"\n",argv[lokke-1]), exit(-5) , false);})
+#define OPTARG_LAST() }}else if(lokke==argc-1 && argv[lokke][0]!='-'){lokke--;{
+#define OPTARGS_ELSE() }else if(1){
+#define OPTARGS_END }else{fprintf(stderr,"%s",usage);exit(-1);}}}
+
+static const char *g_usage_string = ""
+  "Usage: s7webserver [--verbose] [--very-verbose] [--search-for-first-portnum false-or-true] [portnumber]\n" 
+  "\n"                                                                  
+  "Default values:\n"                                                  
+  "  verbose: false\n"                                                 
+  "  very-verbose: false\n"                                            
+  "  search-for-first-portnum: true\n"
+  "  portnumber: 6080\n"                                               
+  "\n"                                                                 
+  "Unless \'dont-search-for-first-portnum\' is set, s7webserver will search for the next free port number starting at \'portnumber\'.\n" 
+  "\n";
+                                                                        
 int main(int argc, char **argv){
-  if (argc<=1) {
-    printf("Usage: s7webserver portnumber [-verbose] [-very-verbose]\n");
-    return -1;
-  }
 
-  int portnumber = atoi(argv[1]);
+  int portnumber = 6080;
+  bool verbose = false;
+  bool very_verbose = false;
+  bool find_first_free_portnum = true;
 
-  bool verbose = argc>=3 && !strcmp(argv[2],"-verbose");  
-  verbose = verbose || (argc>=4 && !strcmp(argv[3],"-verbose"));
-
-  bool very_verbose = argc>=3 && !strcmp(argv[2],"-very-verbose");
-  very_verbose = very_verbose || (argc>=4 && !strcmp(argv[3],"-very-verbose"));
-
-  if (very_verbose)
-    verbose = true;
+  OPTARGS_BEGIN(g_usage_string)
+  {
+    OPTARG("--verbose","-v") verbose = true;
+    OPTARG("--very-verbose","-vv") very_verbose = true;
+    OPTARG("--search-for-first-portnum", "-s") find_first_free_portnum=OPTARG_GETBOOL();
+    OPTARG_LAST() portnumber=OPTARG_GETINT();
+  }OPTARGS_END;
 
   QCoreApplication app(argc, argv);
 
@@ -297,7 +322,7 @@ int main(int argc, char **argv){
     return -2;
   }
   
-  s7webserver_t *s7webserver = s7webserver_create(s7, portnumber, true);
+  s7webserver_t *s7webserver = s7webserver_create(s7, portnumber, find_first_free_portnum);
   if (s7webserver==NULL){
     fprintf(stderr, "Unable to start server. Port may be in use\n");
     return -3;
@@ -306,7 +331,7 @@ int main(int argc, char **argv){
   s7webserver_set_verbose(s7webserver, verbose);
   s7webserver_set_very_verbose(s7webserver, very_verbose);
   
-  printf("S7 server started on port %d. (verbose=%s) (very_verbose=%s)\n", s7webserver->portnumber, s7webserver->verbose==true?"true":"false", s7webserver->very_verbose==true?"true":"false");
+  printf("S7 server started on port %d. (verbose=%s) (very_verbose=%s) (--search-for-first-portnum=%s)\n", s7webserver->portnumber, s7webserver->verbose==true?"true":"false", s7webserver->very_verbose==true?"true":"false", find_first_free_portnum==true?"true":"false");
 
   app.exec();
 }

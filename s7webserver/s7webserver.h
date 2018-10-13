@@ -1,29 +1,15 @@
 /*
-  Written by Kjetil Matheussen: k.s.matheussen@notam02.no
+The C API:
 
-  Requires qhttpserver, written by Nikhil Marathe:
-  $wget https://github.com/kmatheussen/qhttpserver/archive/master.tar.gz
+  s7webserver *s7webserver_create(s7_scheme *s7, int portnum, bool find_first_free_portnum);
 
+  void s7webserver_set_verbose(s7webserver *s7server, bool verbose);
 
-  * Ways to access it:
+  void s7webserver_set_very_verbose(s7webserver *s7webserver, bool very_verbose);
 
-    * Using curl:
-    curl -i -X POST -H "Content-Type: text/plain" -d '(display 50)' http://localhost:6080
+  int s7webserver_get_portnumber(s7webserver *s7webserver);
 
-    * Using s7webserver_repl.py:
-    ./s7webserver_repl.py
-
-    * Using a browser:
-    firefox s7webserver_repl.html
-
-
-  * The C API:
-
-    s7webserver *s7webserver_create(s7_scheme *s7, int portnum, bool find_first_free_portnum);
-    void s7webserver_set_verbose(s7webserver *s7server, bool verbose);
-    void s7webserver_set_very_verbose(s7webserver *s7webserver, bool very_verbose);
-    int s7webserver_get_portnumber(s7webserver *s7webserver);
-    void s7webserver_delete(s7webserver *s7server);
+  void s7webserver_delete(s7webserver *s7server);
 */
 
 
