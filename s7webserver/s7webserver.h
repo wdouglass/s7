@@ -3,6 +3,8 @@ The C API:
 
   s7webserver *s7webserver_create(s7_scheme *s7, int portnum, bool find_first_free_portnum);
 
+  void s7webserver_call_very_often(void);  // Should be called approx. 20 times per second in non-qt programs.
+
   void s7webserver_set_verbose(s7webserver *s7server, bool verbose);
 
   void s7webserver_set_very_verbose(s7webserver *s7webserver, bool very_verbose);
