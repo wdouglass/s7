@@ -1,0 +1,51 @@
+Quick start
+===========
+
+make
+./s7webserver -verbose
+
+Then you can either access it by opening s7webserver_repl.html in a browser,
+or run the s7webserver_repl.py script.
+  
+s7webserver uses qhttpserver, written by Nikhil Marathe:
+https://github.com/kmatheussen/qhttpserver/archive/master.tar.gz
+This package is automatically downloaded and compiled when writing "make".
+
+
+
+Some ways to access the server
+==============================
+
+* Using curl:
+curl -i -X POST -H "Content-Type: text/plain" -d '(display 50)' http://localhost:6080
+
+* Using s7webserver_repl.py:
+./s7webserver_repl.py
+
+* Using a browser:
+firefox s7webserver_repl.html
+
+
+
+The C API
+=========
+
+if you want to include s7webserver in your own program (see s7webserver.h):
+
+  s7webserver *s7webserver_create(s7_scheme *s7, int portnum, bool find_first_free_portnum);
+    
+  void s7webserver_set_verbose(s7webserver *s7server, bool verbose);
+    
+  void s7webserver_set_very_verbose(s7webserver *s7webserver, bool very_verbose);
+    
+  int s7webserver_get_portnumber(s7webserver *s7webserver);
+    
+  void s7webserver_delete(s7webserver *s7server);
+
+
+
+CREDITS
+=======
+s7: Bill Schottstaedt: bil@ccrma.stanford.edu
+s7webserver: Kjetil Matheussen: k.s.matheussen@notam02.no
+
