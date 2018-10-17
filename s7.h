@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.4"
-#define S7_DATE "24-Sep-18"
+#define S7_VERSION "7.5"
+#define S7_DATE "15-Oct-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -367,11 +367,6 @@ s7_pointer s7_gensym(s7_scheme *sc, const char *prefix);                    /* (
 bool s7_is_keyword(s7_pointer obj);                                         /* (keyword? obj) */
 s7_pointer s7_make_keyword(s7_scheme *sc, const char *key);                 /* (string->keyword key) */
 s7_pointer s7_keyword_to_symbol(s7_scheme *sc, s7_pointer key);             /* (keyword->symbol key) */
-
-s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol);
-s7_pointer s7_slot_value(s7_pointer slot);
-s7_pointer s7_slot_set_value(s7_scheme *sc, s7_pointer slot, s7_pointer value);
-s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
 
 s7_pointer s7_rootlet(s7_scheme *sc);                                       /* (rootlet) */
 s7_pointer s7_shadow_rootlet(s7_scheme *sc);
@@ -768,11 +763,16 @@ s7_d_7pi_t s7_d_7pi_function(s7_pointer f);
 
 /* -------------------------------------------------------------------------------- */
 
-
+/* maybe remove these? */
+s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol);
+s7_pointer s7_slot_value(s7_pointer slot);
+s7_pointer s7_slot_set_value(s7_scheme *sc, s7_pointer slot, s7_pointer value);
+s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
 void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 
+/* -------------------------------------------------------------------------------- */
 
-  /* this is experimental */
+  /* these will be deprecated and removed eventually */
 s7_pointer s7_apply_1(s7_scheme *sc, s7_pointer args, s7_pointer (*f1)(s7_pointer a1));
 s7_pointer s7_apply_2(s7_scheme *sc, s7_pointer args, s7_pointer (*f2)(s7_pointer a1, s7_pointer a2));
 s7_pointer s7_apply_3(s7_scheme *sc, s7_pointer args, s7_pointer (*f3)(s7_pointer a1, s7_pointer a2, s7_pointer a3));

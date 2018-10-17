@@ -29224,48 +29224,6 @@ static s7_pointer lg_gtk_entry_get_icon_gicon(s7_scheme *sc, s7_pointer args)
   return(lg_make_c_pointer_with_type(sc, GIcon__sym, gtk_entry_get_icon_gicon((GtkEntry*)s7_c_pointer(entry), (GtkEntryIconPosition)s7_integer(icon_pos))));
 }
 
-static s7_pointer lg_gtk_container_set_focus_chain(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_container_set_focus_chain "void gtk_container_set_focus_chain(GtkContainer* container, \
-GList* focusable_widgets)"
-  s7_pointer _p;
-  s7_pointer container, focusable_widgets;
-  _p = args;
-  container = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(container, GtkContainer__sym)) s7_wrong_type_arg_error(sc, "gtk_container_set_focus_chain", 1, container, "GtkContainer*");
-  focusable_widgets = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(focusable_widgets, GList__sym)) s7_wrong_type_arg_error(sc, "gtk_container_set_focus_chain", 2, focusable_widgets, "GList*");
-  gtk_container_set_focus_chain((GtkContainer*)s7_c_pointer(container), (GList*)s7_c_pointer(focusable_widgets));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_container_get_focus_chain(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_container_get_focus_chain "gboolean gtk_container_get_focus_chain(GtkContainer* container, \
-GList** [focusable_widgets])"
-  s7_pointer _p;
-  s7_pointer container;
-  GList* ref_focusable_widgets = NULL;
-  _p = args;
-  container = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(container, GtkContainer__sym)) s7_wrong_type_arg_error(sc, "gtk_container_get_focus_chain", 1, container, "GtkContainer*");
-  {
-    s7_pointer result;
-    result = s7_make_boolean(sc, gtk_container_get_focus_chain((GtkContainer*)s7_c_pointer(container), &ref_focusable_widgets));
-      return(s7_list(sc, 2, result, s7_make_c_pointer(sc, ref_focusable_widgets)));
-   }
-}
-
-static s7_pointer lg_gtk_container_unset_focus_chain(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_container_unset_focus_chain "void gtk_container_unset_focus_chain(GtkContainer* container)"
-  s7_pointer container;
-  container = s7_car(args);
-  if (!s7_is_c_pointer_of_type(container, GtkContainer__sym)) s7_wrong_type_arg_error(sc, "gtk_container_unset_focus_chain", 1, container, "GtkContainer*");
-  gtk_container_unset_focus_chain((GtkContainer*)s7_c_pointer(container));
-  return(lg_false);
-}
-
 static s7_pointer lg_gtk_container_set_focus_vadjustment(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_container_set_focus_vadjustment "void gtk_container_set_focus_vadjustment(GtkContainer* container, \
@@ -34227,35 +34185,6 @@ gdouble y, gdouble width, gdouble height, GtkOrientation orientation)"
   orientation = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_integer(orientation)) s7_wrong_type_arg_error(sc, "gtk_render_slider", 7, orientation, "GtkOrientation");
   gtk_render_slider((GtkStyleContext*)s7_c_pointer(context), (cairo_t*)s7_c_pointer(cr), (gdouble)s7_real(x), (gdouble)s7_real(y), (gdouble)s7_real(width), (gdouble)s7_real(height), (GtkOrientation)s7_integer(orientation));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_render_frame_gap(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_render_frame_gap "void gtk_render_frame_gap(GtkStyleContext* context, cairo_t* cr, gdouble x, \
-gdouble y, gdouble width, gdouble height, GtkPositionType gap_side, gdouble xy0_gap, gdouble xy1_gap)"
-  s7_pointer _p;
-  s7_pointer context, cr, x, y, width, height, gap_side, xy0_gap, xy1_gap;
-  _p = args;
-  context = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(context, GtkStyleContext__sym)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 1, context, "GtkStyleContext*");
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(cr, cairo_t__sym)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 2, cr, "cairo_t*");
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 3, x, "gdouble");
-  y = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 4, y, "gdouble");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(width)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 5, width, "gdouble");
-  height = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(height)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 6, height, "gdouble");
-  gap_side = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(gap_side)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 7, gap_side, "GtkPositionType");
-  xy0_gap = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xy0_gap)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 8, xy0_gap, "gdouble");
-  xy1_gap = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xy1_gap)) s7_wrong_type_arg_error(sc, "gtk_render_frame_gap", 9, xy1_gap, "gdouble");
-  gtk_render_frame_gap((GtkStyleContext*)s7_c_pointer(context), (cairo_t*)s7_c_pointer(cr), (gdouble)s7_real(x), (gdouble)s7_real(y), (gdouble)s7_real(width), (gdouble)s7_real(height), (GtkPositionType)s7_integer(gap_side), (gdouble)s7_real(xy0_gap), (gdouble)s7_real(xy1_gap));
   return(lg_false);
 }
 
@@ -48557,13 +48486,13 @@ static void define_structs(s7_scheme *sc)
 static void define_functions(s7_scheme *sc)
 {
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_ts, pl_tsi, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_pt, pl_tu, pl_tut, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tubi, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuig, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuti, pl_tuuri, pl_tuugi, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_t, pl_sg, pl_gs, pl_gu, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_gussitu, pl_bi, pl_big, pl_g, pl_tts, pl_tti, pl_tg, pl_bsu, pl_bsigb, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_buui, pl_buus, pl_busu, pl_buub, pl_buig, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buuig, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_buuusuug, pl_b, pl_iit, pl_iiit, pl_bt, pl_tb, pl_bti, pl_btiib, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_isigutttiiu, pl_iu, pl_pi, pl_iur, pl_iug, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_i, pl_ssi, pl_ssig, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_s, pl_p, pl_gi, pl_igi, pl_bpt;
+  s7_pointer pl_gu, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_gussitu, pl_t, pl_bsu, pl_bsigb, pl_g, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_buui, pl_buus, pl_busu, pl_buub, pl_buig, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buuig, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_tts, pl_tti, pl_iit, pl_iiit, pl_tg, pl_b, pl_isigutttiiu, pl_si, pl_is, pl_bt, pl_tb, pl_isi, pl_bti, pl_sig, pl_isgt, pl_btiib, pl_iu, pl_pi, pl_iur, pl_iug, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_i, pl_ssi, pl_ssig, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_ti, pl_pu, pl_it, pl_pur, pl_tiu, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_itsub, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_itiiub, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_itstttg, pl_itgiiut, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_gi, pl_igi, pl_s, pl_p, pl_ts, pl_bi, pl_big, pl_tsi, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_sg, pl_gs, pl_pt, pl_tu, pl_tut, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tubi, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuig, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuti, pl_tuuri, pl_tuugi, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_bpt;
 #if GTK_CHECK_VERSION(3, 0, 0)
-  s7_pointer pl_tuuugi, pl_tuuuub, pl_pgr, pl_gug, pl_buigu, pl_puuig, pl_puiiui;
+  s7_pointer pl_pgr, pl_gug, pl_buigu, pl_puuig, pl_puiiui, pl_tuuugi, pl_tuuuub;
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
-  s7_pointer pl_tsu, pl_prrru, pl_suiig;
+  s7_pointer pl_prrru, pl_suiig, pl_tsu;
 #endif
 
 #if GTK_CHECK_VERSION(3, 6, 0)
@@ -48571,15 +48500,15 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 10, 0)
-  s7_pointer pl_tuuuui, pl_pusiig, pl_puuiig, pl_pusiigu;
+  s7_pointer pl_pusiig, pl_puuiig, pl_pusiigu, pl_tuuuui;
 #endif
 
 #if GTK_CHECK_VERSION(3, 16, 0)
-  s7_pointer pl_tuurrrrg, pl_tuurrrrgr, pl_tuurru;
+  s7_pointer pl_tuurru, pl_tuurrrrg;
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  s7_pointer pl_tussu, pl_tuuggu, pl_tugiis, pl_iugi;
+  s7_pointer pl_iugi, pl_tussu, pl_tuuggu, pl_tugiis;
 #endif
 
 #if GTK_CHECK_VERSION(3, 92, 0)
@@ -48587,7 +48516,7 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
-  s7_pointer pl_tsit, pl_turs, pl_tuiut, pl_tuuur, pl_tugug, pl_tugui, pl_turru, pl_tuuiut, pl_tutisi, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_turrrru, pl_guugbuut, pl_but, pl_busi, pl_buib, pl_bugu, pl_iuugs, pl_piigui, pl_pst, pl_tist, pl_puuugi, pl_puiiit, pl_pusiiugu;
+  s7_pointer pl_guugbuut, pl_but, pl_busi, pl_buib, pl_bugu, pl_iuugs, pl_piigui, pl_pst, pl_tist, pl_puuugi, pl_puiiit, pl_pusiiugu, pl_tsit, pl_turs, pl_tuiut, pl_tuuur, pl_tugug, pl_tugui, pl_turru, pl_tuuiut, pl_tutisi, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tusiiut, pl_tuuuggu, pl_turrrru;
 #endif
 
 
@@ -48601,16 +48530,156 @@ static void define_functions(s7_scheme *sc)
   s_gtk_enum_t = s7_make_symbol(sc, "gtk_enum_t?");
   s_any = s7_t(sc);
 
+  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
+  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
+  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
+  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
+  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
+  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
+  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
+  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
+  pl_bsigb = s7_make_circular_signature(sc, 4, 5, s_boolean, s_string, s_integer, s_gtk_enum_t, s_boolean);
+  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
+  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
+  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
+  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
+  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
+  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
+  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
+  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
+  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
+  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
+  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
+  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
+  pl_buig = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
+  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
+  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_buuig = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_buiuig = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_integer, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
+  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
+  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
+  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
+  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
+  pl_b = s7_make_circular_signature(sc, 0, 1, s_boolean);
+  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
+  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
+  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
+  pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
+  pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
+  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
+  pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
+  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
+  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
+  pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
+  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
+  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
+  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
+  pl_iug = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
+  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
+  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
+  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
+  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
+  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
+  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
+  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
+  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
+  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
+  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
+  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
+  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
+  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
+  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
+  pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
+  pl_ssi = s7_make_circular_signature(sc, 2, 3, s_string, s_string, s_integer);
+  pl_ssig = s7_make_circular_signature(sc, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
+  pl_psgbiiiit = s7_make_circular_signature(sc, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
+  pl_psiiuusu = s7_make_circular_signature(sc, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
+  pl_su = s7_make_circular_signature(sc, 1, 2, s_string, s_pair_false);
+  pl_ps = s7_make_circular_signature(sc, 1, 2, s_pair, s_string);
+  pl_sui = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_integer);
+  pl_sug = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
+  pl_psi = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_integer);
+  pl_psb = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_boolean);
+  pl_psu = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_pair_false);
+  pl_sus = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_string);
+  pl_psg = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_gtk_enum_t);
+  pl_psgi = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
+  pl_psiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_integer, s_pair_false);
+  pl_psut = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_pair_false, s_any);
+  pl_suuub = s7_make_circular_signature(sc, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_psugt = s7_make_circular_signature(sc, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
+  pl_psiuub = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
+  pl_psrrrb = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_real, s_real, s_real, s_boolean);
+  pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
+  pl_pu = s7_make_circular_signature(sc, 1, 2, s_pair, s_pair_false);
+  pl_it = s7_make_circular_signature(sc, 1, 2, s_integer, s_any);
+  pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
+  pl_tiu = s7_make_circular_signature(sc, 2, 3, s_any, s_integer, s_pair_false);
+  pl_pub = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_boolean);
+  pl_pui = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_integer);
+  pl_pug = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
+  pl_pus = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_string);
+  pl_put = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_any);
+  pl_pugi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_pubi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
+  pl_puri = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_real, s_integer);
+  pl_pust = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_any);
+  pl_pusi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_integer);
+  pl_pusu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
+  pl_pugu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_puiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
+  pl_itsub = s7_make_circular_signature(sc, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
+  pl_puiig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_puigu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_pusiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
+  pl_pusub = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
+  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
+  pl_puiiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_pussu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
+  pl_puibu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_pusig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t);
+  pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
+  pl_puiigi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
+  pl_puuubu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
+  pl_pusigu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_pusiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
+  pl_puuiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
+  pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
+  pl_pusiuiu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
+  pl_puuusuug = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_pusiuibu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_gi = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_integer);
+  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
+  pl_s = s7_make_circular_signature(sc, 0, 1, s_string);
+  pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
   pl_ts = s7_make_circular_signature(sc, 1, 2, s_any, s_string);
+  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
+  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
   pl_tsi = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_integer);
   pl_tsig = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_gtk_enum_t);
   pl_tsiu = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_pair_false);
   pl_tsiuui = s7_make_circular_signature(sc, 5, 6, s_any, s_string, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_tsiiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_tusiuiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false, s_integer);
-  pl_tuiiiiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
-  pl_tuuiiiirrrrg = s7_make_circular_signature(sc, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
-  pl_tuuiiiirrrrgi = s7_make_circular_signature(sc, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
+  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
+  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
   pl_pt = s7_make_circular_signature(sc, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(sc, 1, 2, s_any, s_pair_false);
   pl_tut = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_any);
@@ -48668,165 +48737,25 @@ static void define_functions(s7_scheme *sc)
   pl_tuuubr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_real);
   pl_tuuiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_tubiiiu = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_boolean, s_integer, s_integer, s_integer, s_pair_false);
-  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
-  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
-  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
-  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
-  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
-  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
-  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
-  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
-  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
-  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
-  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
-  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
-  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
-  pl_bsigb = s7_make_circular_signature(sc, 4, 5, s_boolean, s_string, s_integer, s_gtk_enum_t, s_boolean);
-  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
-  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
-  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
-  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
-  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
-  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
-  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
-  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
-  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
-  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
-  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
-  pl_buig = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
-  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
-  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_buuig = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buiuig = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_integer, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
-  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_b = s7_make_circular_signature(sc, 0, 1, s_boolean);
-  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
-  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
-  pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
-  pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
-  pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
-  pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
-  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
-  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
-  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
-  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
-  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
-  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
-  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
-  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
-  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
-  pl_iug = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
-  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
-  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
-  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
-  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
-  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
-  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
-  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
-  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
-  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
-  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
-  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
-  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
-  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
-  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
-  pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
-  pl_ssi = s7_make_circular_signature(sc, 2, 3, s_string, s_string, s_integer);
-  pl_ssig = s7_make_circular_signature(sc, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
-  pl_psgbiiiit = s7_make_circular_signature(sc, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
-  pl_psiiuusu = s7_make_circular_signature(sc, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
-  pl_su = s7_make_circular_signature(sc, 1, 2, s_string, s_pair_false);
-  pl_ps = s7_make_circular_signature(sc, 1, 2, s_pair, s_string);
-  pl_sui = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_integer);
-  pl_sug = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
-  pl_psi = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_integer);
-  pl_psb = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_boolean);
-  pl_psu = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_pair_false);
-  pl_sus = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_string);
-  pl_psg = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_gtk_enum_t);
-  pl_psgi = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
-  pl_psiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_integer, s_pair_false);
-  pl_psut = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_pair_false, s_any);
-  pl_suuub = s7_make_circular_signature(sc, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_psugt = s7_make_circular_signature(sc, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
-  pl_psiuub = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
-  pl_psrrrb = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_real, s_real, s_real, s_boolean);
-  pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
-  pl_it = s7_make_circular_signature(sc, 1, 2, s_integer, s_any);
-  pl_tiu = s7_make_circular_signature(sc, 2, 3, s_any, s_integer, s_pair_false);
-  pl_itsub = s7_make_circular_signature(sc, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
-  pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
-  pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
-  pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
-  pl_pu = s7_make_circular_signature(sc, 1, 2, s_pair, s_pair_false);
-  pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
-  pl_pub = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_boolean);
-  pl_pui = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_integer);
-  pl_pug = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
-  pl_pus = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_string);
-  pl_put = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_any);
-  pl_pugi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_pubi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
-  pl_puri = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_real, s_integer);
-  pl_pust = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_any);
-  pl_pusi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_integer);
-  pl_pusu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
-  pl_pugu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
-  pl_puiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
-  pl_puiig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_puigu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
-  pl_pusiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
-  pl_pusub = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
-  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
-  pl_puiiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_pussu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
-  pl_puibu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_pusig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t);
-  pl_puiigi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
-  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
-  pl_puuubu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
-  pl_pusigu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t, s_pair_false);
-  pl_pusiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
-  pl_puuiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_pusiuiu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
-  pl_puuusuug = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_pusiuibu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_s = s7_make_circular_signature(sc, 0, 1, s_string);
-  pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
-  pl_gi = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_integer);
-  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
+  pl_tusiuiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false, s_integer);
+  pl_tuiiiiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
+  pl_tuuiiiirrrrg = s7_make_circular_signature(sc, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
+  pl_tuuiiiirrrrgi = s7_make_circular_signature(sc, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
   pl_bpt = s7_make_signature(sc, 2, s_pair_false, s_any);
 #if GTK_CHECK_VERSION(3, 0, 0)
-  pl_tuuugi = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_tuuuub = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
   pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
   pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
   pl_buigu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
   pl_puuig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
   pl_puiiui = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
+  pl_tuuugi = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_tuuuub = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
-  pl_tsu = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_pair_false);
   pl_prrru = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
   pl_suiig = s7_make_circular_signature(sc, 4, 5, s_string, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_tsu = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_pair_false);
 #endif
 
 #if GTK_CHECK_VERSION(3, 6, 0)
@@ -48835,23 +48764,22 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 10, 0)
-  pl_tuuuui = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_pusiig = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_gtk_enum_t);
   pl_puuiig = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
   pl_pusiigu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_tuuuui = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 16, 0)
-  pl_tuurrrrg = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_pair_false, s_real, s_real, s_real, s_real, s_gtk_enum_t);
-  pl_tuurrrrgr = s7_make_circular_signature(sc, 8, 9, s_any, s_pair_false, s_pair_false, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_real);
   pl_tuurru = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
+  pl_tuurrrrg = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_pair_false, s_real, s_real, s_real, s_real, s_gtk_enum_t);
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
+  pl_iugi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tussu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_string, s_string, s_pair_false);
   pl_tuuggu = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_gtk_enum_t, s_gtk_enum_t, s_pair_false);
   pl_tugiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
-  pl_iugi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 92, 0)
@@ -48859,6 +48787,18 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
+  pl_guugbuut = s7_make_circular_signature(sc, 7, 8, s_gtk_enum_t, s_pair_false, s_pair_false, s_gtk_enum_t, s_boolean, s_pair_false, s_pair_false, s_any);
+  pl_but = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_any);
+  pl_busi = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_integer);
+  pl_buib = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
+  pl_bugu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
+  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
+  pl_tist = s7_make_circular_signature(sc, 3, 4, s_any, s_integer, s_string, s_any);
+  pl_puuugi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_puiiit = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_integer, s_any);
+  pl_pusiiugu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false, s_gtk_enum_t, s_pair_false);
   pl_tsit = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_any);
   pl_turs = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_real, s_string);
   pl_tuiut = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
@@ -48874,18 +48814,6 @@ static void define_functions(s7_scheme *sc)
   pl_tusiiut = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_string, s_integer, s_integer, s_pair_false, s_any);
   pl_tuuuggu = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_gtk_enum_t, s_pair_false);
   pl_turrrru = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
-  pl_guugbuut = s7_make_circular_signature(sc, 7, 8, s_gtk_enum_t, s_pair_false, s_pair_false, s_gtk_enum_t, s_boolean, s_pair_false, s_pair_false, s_any);
-  pl_but = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_any);
-  pl_busi = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_integer);
-  pl_buib = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
-  pl_bugu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_gtk_enum_t, s_pair_false);
-  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
-  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
-  pl_tist = s7_make_circular_signature(sc, 3, 4, s_any, s_integer, s_string, s_any);
-  pl_puuugi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_puiiit = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_integer, s_any);
-  pl_pusiiugu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false, s_gtk_enum_t, s_pair_false);
 #endif
 
 
@@ -51127,9 +51055,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_progress_bar_get_show_text", lg_gtk_progress_bar_get_show_text, 1, 0, 0, H_gtk_progress_bar_get_show_text, pl_bu);
   s7_define_typed_function(sc, "gtk_entry_get_icon_storage_type", lg_gtk_entry_get_icon_storage_type, 2, 0, 0, H_gtk_entry_get_icon_storage_type, pl_gug);
   s7_define_typed_function(sc, "gtk_entry_get_icon_gicon", lg_gtk_entry_get_icon_gicon, 2, 0, 0, H_gtk_entry_get_icon_gicon, pl_pug);
-  s7_define_typed_function(sc, "gtk_container_set_focus_chain", lg_gtk_container_set_focus_chain, 2, 0, 0, H_gtk_container_set_focus_chain, pl_tu);
-  s7_define_typed_function(sc, "gtk_container_get_focus_chain", lg_gtk_container_get_focus_chain, 1, 1, 0, H_gtk_container_get_focus_chain, pl_pu);
-  s7_define_typed_function(sc, "gtk_container_unset_focus_chain", lg_gtk_container_unset_focus_chain, 1, 0, 0, H_gtk_container_unset_focus_chain, pl_tu);
   s7_define_typed_function(sc, "gtk_container_set_focus_vadjustment", lg_gtk_container_set_focus_vadjustment, 2, 0, 0, H_gtk_container_set_focus_vadjustment, pl_tu);
   s7_define_typed_function(sc, "gtk_container_get_focus_vadjustment", lg_gtk_container_get_focus_vadjustment, 1, 0, 0, H_gtk_container_get_focus_vadjustment, pl_pu);
   s7_define_typed_function(sc, "gtk_container_set_focus_hadjustment", lg_gtk_container_set_focus_hadjustment, 2, 0, 0, H_gtk_container_set_focus_hadjustment, pl_tu);
@@ -51559,7 +51484,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_render_layout", lg_gtk_render_layout, 5, 0, 0, H_gtk_render_layout, pl_tuurru);
   s7_define_typed_function(sc, "gtk_render_line", lg_gtk_render_line, 6, 0, 0, H_gtk_render_line, pl_tuur);
   s7_define_typed_function(sc, "gtk_render_slider", lg_gtk_render_slider, 7, 0, 0, H_gtk_render_slider, pl_tuurrrrg);
-  s7_define_typed_function(sc, "gtk_render_frame_gap", lg_gtk_render_frame_gap, 0, 0, 1, H_gtk_render_frame_gap, pl_tuurrrrgr);
   s7_define_typed_function(sc, "gtk_render_handle", lg_gtk_render_handle, 6, 0, 0, H_gtk_render_handle, pl_tuur);
   s7_define_typed_function(sc, "gtk_render_activity", lg_gtk_render_activity, 6, 0, 0, H_gtk_render_activity, pl_tuur);
   s7_define_typed_function(sc, "gdk_gl_context_make_current", lg_gdk_gl_context_make_current, 1, 0, 0, H_gdk_gl_context_make_current, pl_tu);
@@ -56095,7 +56019,7 @@ void libgtk_s7_init(s7_scheme *sc)
   define_functions(sc);
   s7_define_function(sc, "g_signal_connect", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);
   s7_set_shadow_rootlet(sc, old_shadow);
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "30-Aug-18"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "16-Oct-18"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */
