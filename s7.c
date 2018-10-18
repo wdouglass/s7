@@ -940,7 +940,7 @@ typedef struct s7_cell {
 
     struct {                        /* special stuff like #<unspecified> */
       s7_pointer car, cdr;          /* unique_car|cdr, for sc->nil these are sc->unspecified for faster assoc etc */
-      int64_t let_id;               /* let_id(sc->nil) is -1, so this needs to align with envr.id above */
+      int64_t unused_let_id;        /* let_id(sc->nil) is -1, so this needs to align with envr.id above */
       /* these two fields are for some special case objects like #<unspecified> */
       union {
 	const char *name;
@@ -2392,16 +2392,22 @@ static void init_types(void)
 
 #define T_FULL_DEFINER                (1LL << (TYPE_BITS + BIT_ROOM + 26))
 #define T_DEFINER                     (1 << 2)
-#define is_definer(p)                 has_type1_bit(T_Pos(p), T_DEFINER)
-/* this is only set on symbols, marks "definers" like define and define-macro */
-
-/* TODO: use recur or simple_elements for binder symbol, add binder_syntax, tree_has_binder(_or_definer)? */
+#define is_definer(p)                 has_type1_bit(T_Sym(p), T_DEFINER)
+#define set_is_definer(p)             set_type1_bit(T_Sym(p), T_DEFINER)
+/* this marks "definers" like define and define-macro */
 
 #define T_RECUR                       (1LL << (TYPE_BITS + BIT_ROOM + 27))
 #define T_SHORT_RECUR                 (1 << 3)
 #define is_recur(p)                   ((has_type1_bit(T_Slt(p), T_SHORT_RECUR)) && (optimize_op(slot) == (symbol_ctr(slot_symbol(slot)) & 0xffff)))
 #define set_recur(slot, symbol)       do {set_type1_bit(T_Slt(slot), T_SHORT_RECUR); set_optimize_op(slot, symbol_ctr(symbol) & 0xffff);} while (0)
 /* was using symbol_ctr here, but surely symbol_id changes when symbol_ctr changes? */
+
+#define T_FULL_BINDER                 T_RECUR
+#define T_BINDER                      T_SHORT_RECUR
+#define is_binder(p)                  has_type1_bit(T_Sym(p), T_BINDER)
+#define is_definer_or_binder(p)       has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
+#define set_is_binder(p)              set_type1_bit(T_Sym(p), T_BINDER)
+/* this marks "binders" like let */
 
 #define T_TREE_COLLECTED              T_RECUR
 #define T_SHORT_TREE_COLLECTED        T_SHORT_RECUR
@@ -3418,7 +3424,6 @@ static inline s7_pointer wrap_real2(s7_scheme *sc, s7_double x) {real(sc->real_w
  * local versions of some standard C library functions
  * timing tests involving these are very hard to interpret
  * local_memset and memclr are faster using int64_t than int32_t
- * local_memcpy is exactly the same speed as memcpy
  */
 
 static void local_memset(void *s, uint8_t val, size_t n)
@@ -9359,9 +9364,7 @@ s7_pointer s7_make_keyword(s7_scheme *sc, const char *key)
   slen = (size_t)safe_strlen(key);
   b = mallocate(sc, slen + 2);
   name = (char *)block_data(b);
-  name[0] = ':';                                     /* prepend ":" */
-  name[1] = '\0';
-  memcpy((void *)(name + 1), (void *)key, slen);     /* gcc 8.1 error here is incorrect */
+  catstrs_direct(name, ":", key, NULL);              /* use catstrs_direct to get around a bug in gcc 8.1 */
   sym = make_symbol_with_length(sc, name, slen + 1); /* keyword slot etc taken care of here (in new_symbol actually) */
   liberate(sc, b);
   return(sym);
@@ -21009,6 +21012,7 @@ static void init_chars(void)
     }
 }
 
+/* -------------------------------- char-upcase, char-downcase ----------------------- */
 static s7_pointer g_char_upcase(s7_scheme *sc, s7_pointer args)
 {
   #define H_char_upcase "(char-upcase c) converts the character c to upper case"
@@ -21027,6 +21031,7 @@ static s7_pointer g_char_downcase(s7_scheme *sc, s7_pointer args)
   return(s7_make_character(sc, lowers[character(car(args))]));
 }
 
+/* -------------------------------- char-alphabetic? char-numeric? char-whitespace? -------------------------------- */
 static s7_pointer g_is_char_alphabetic(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_char_alphabetic "(char-alphabetic? c) returns #t if the character c is alphabetic"
@@ -21088,7 +21093,7 @@ static bool is_char_whitespace_b_7p(s7_scheme *sc, s7_pointer c)
 }
 static bool is_char_whitespace_c(s7_pointer c) {return(is_char_whitespace(c));}
 
-
+/* -------------------------------- char-upper-case? char-lower-case? -------------------------------- */
 static s7_pointer g_is_char_upper_case(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer arg;
@@ -21131,6 +21136,7 @@ static bool is_char_lower_case_b_7p(s7_scheme *sc, s7_pointer c)
 
 static bool is_char_lower_case_c(s7_pointer c) {return(is_char_lowercase(c));}
 
+/* -------------------------------- char? -------------------------------- */
 static s7_pointer g_is_char(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_char "(char? obj) returns #t if obj is a character"
@@ -21155,6 +21161,7 @@ uint8_t s7_character(s7_pointer p)
 }
 
 
+/* -------------------------------- char<? char<=? char>? char>=? char=? -------------------------------- */
 static int32_t charcmp(uint8_t c1, uint8_t c2)
 {
   return((c1 == c2) ? 0 : (c1 < c2) ? -1 : 1);
@@ -21163,7 +21170,6 @@ static int32_t charcmp(uint8_t c1, uint8_t c2)
    *   although (char<? #\_ #\e) is #t -- the spec does not say how to interpret this!
    */
 }
-
 
 static bool is_character_via_method(s7_scheme *sc, s7_pointer p)
 {
@@ -21178,7 +21184,6 @@ static bool is_character_via_method(s7_scheme *sc, s7_pointer p)
     }
   return(false);
 }
-
 
 static s7_pointer g_char_cmp(s7_scheme *sc, s7_pointer args, int32_t val, s7_pointer sym)
 {
@@ -21205,7 +21210,6 @@ static s7_pointer g_char_cmp(s7_scheme *sc, s7_pointer args, int32_t val, s7_poi
   return(sc->T);
 }
 
-
 static s7_pointer g_char_cmp_not(s7_scheme *sc, s7_pointer args, int32_t val, s7_pointer sym)
 {
   s7_pointer x, y;
@@ -21230,7 +21234,6 @@ static s7_pointer g_char_cmp_not(s7_scheme *sc, s7_pointer args, int32_t val, s7
     }
   return(sc->T);
 }
-
 
 static s7_pointer g_chars_are_equal(s7_scheme *sc, s7_pointer args)
 {
@@ -21268,7 +21271,6 @@ static s7_pointer g_chars_are_less(s7_scheme *sc, s7_pointer args)
   return(g_char_cmp(sc, args, -1, sc->char_lt_symbol));
 }
 
-
 static s7_pointer g_chars_are_greater(s7_scheme *sc, s7_pointer args)
 {
   #define H_chars_are_greater "(char>? char ...) returns #t if all the character arguments are decreasing"
@@ -21277,7 +21279,6 @@ static s7_pointer g_chars_are_greater(s7_scheme *sc, s7_pointer args)
   return(g_char_cmp(sc, args, 1, sc->char_gt_symbol));
 }
 
-
 static s7_pointer g_chars_are_geq(s7_scheme *sc, s7_pointer args)
 {
   #define H_chars_are_geq "(char>=? char ...) returns #t if all the character arguments are equal or decreasing"
@@ -21285,7 +21286,6 @@ static s7_pointer g_chars_are_geq(s7_scheme *sc, s7_pointer args)
 
   return(g_char_cmp_not(sc, args, -1, sc->char_geq_symbol));
 }
-
 
 static s7_pointer g_chars_are_leq(s7_scheme *sc, s7_pointer args)
 {
@@ -21344,7 +21344,7 @@ static bool char_eq_b_7pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
   return(character(p1) == character(p2));
 }
 
-
+/* -------------------------------- char-ci<? char-ci<=? char-ci>? char-ci>=? char-ci=? -------------------------------- */
 static s7_pointer g_char_equal_s_ic(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer c;
@@ -21434,7 +21434,6 @@ static s7_pointer g_char_cmp_ci_not(s7_scheme *sc, s7_pointer args, int32_t val,
   return(sc->T);
 }
 
-
 static s7_pointer g_chars_are_ci_equal(s7_scheme *sc, s7_pointer args)
 {
   #define H_chars_are_ci_equal "(char-ci=? char ...) returns #t if all the character arguments are equal, ignoring case"
@@ -21513,7 +21512,7 @@ static bool char_ci_eq_b_7pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 
 #endif /* not pure s7 */
 
-
+/* -------------------------------- char-position -------------------------------- */
 static s7_pointer g_char_position(s7_scheme *sc, s7_pointer args)
 {
   #define H_char_position "(char-position char-or-str str (start 0)) returns the position of the first occurrence of char in str, or #f"
@@ -21601,7 +21600,6 @@ static s7_pointer char_position_p_ppi(s7_scheme *sc, s7_pointer p1, s7_pointer p
   return(sc->F);  
 }
 
-
 static s7_pointer g_char_position_csi(s7_scheme *sc, s7_pointer args)
 {
   /* assume char arg1, no end */
@@ -21639,7 +21637,7 @@ static s7_pointer g_char_position_csi(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-
+/* -------------------------------- string-position -------------------------------- */
 static s7_pointer g_string_position(s7_scheme *sc, s7_pointer args)
 {
   #define H_string_position "(string-position str1 str2 (start 0)) returns the starting position of str1 in str2 or #f"
@@ -22876,7 +22874,7 @@ static s7_pointer g_string_1(s7_scheme *sc, s7_pointer args, s7_pointer sym)
   return(newstr);
 }
 
-
+/* -------------------------------- string -------------------------------- */
 static s7_pointer g_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_string "(string chr...) appends all its character arguments into one string"
@@ -25827,7 +25825,7 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
   /* this has to be relative to the curlet: (load file env)
    *   the things loaded are only present in env, and go away with it, so should not be in the global *features* list
    */
-  s7_pointer p, lst;
+  s7_pointer p;
   if (!is_symbol(sym))
     return(method_or_bust_one_arg(sc, sym, sc->provide_symbol, list_1(sc, sym), T_SYMBOL));
 
@@ -25836,6 +25834,7 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
     s7_warn(sc, 256, "provide: *features* is immutable!\n");
   else
     {
+      s7_pointer lst;
       lst = slot_value(symbol_to_slot(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
       if (p == sc->undefined)
 	make_slot_1(sc, sc->envir, sc->features_symbol, cons(sc, sym, lst));
@@ -25844,8 +25843,7 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
 	  if (!is_memq(sym, lst))
 	    slot_set_value(p, cons(sc, sym, lst));
 	  /* if two different provide statements provide the same symbol, is that an error?  
-	   * Should we warn about it if safety>0?
-	   * similarly should autoload warn about an overwrite? 
+	   * Should we warn about it if safety>0? similarly should autoload warn about an overwrite? 
 	   */
 	}
     }
@@ -29312,7 +29310,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						   ((is_pair(obj)) ? " tree-collected" : 
 						    ((is_hash_table(obj)) ? " simple-values" :
 						     ((is_c_function(obj)) ? " type-info" :
-						      " ?27?")))) : "",
+						      ((is_symbol(obj)) ? " binder" :
+						       " ?27?"))))) : "",
 	   /* bit 28+16 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29+16 */
@@ -29342,7 +29341,7 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))) return(true);
+  if (((full_typ & T_RECUR) != 0) && ((!is_slot(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_symbol(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -30044,34 +30043,15 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  switch (type(iterator_sequence(obj)))
 	    {
 	    case T_NIL:
-	    case T_PAIR:
-	      port_write_string(port)(sc, "(make-iterator ())", 18, port);
-	      break;
-	    case T_STRING:
-	      port_write_string(port)(sc, "(make-iterator \"\")", 18, port);
-	      break;
-	    case T_BYTE_VECTOR:
-	      port_write_string(port)(sc, "(make-iterator #u())", 20, port);
-	      break;
-	    case T_VECTOR:
-	      port_write_string(port)(sc, "(make-iterator #())", 19, port);
-	      break;
-	    case T_INT_VECTOR:
-	      port_write_string(port)(sc, "(make-iterator #i())", 20, port);
-	      break;
-	    case T_FLOAT_VECTOR:
-	      port_write_string(port)(sc, "(make-iterator #r())", 20, port);
-	      break;
-	    case T_LET:
-	      port_write_string(port)(sc, "(make-iterator (inlet))", 23, port);
-	      break;
-	    case T_HASH_TABLE:
-	      port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);
-	      break;
-	    default:
-	      /* c-object?? function? */
-	      port_write_string(port)(sc, "(make-iterator ())", 18, port);
-	      break;
+	    case T_PAIR:         port_write_string(port)(sc, "(make-iterator ())", 18, port);	        break;
+	    case T_STRING:       port_write_string(port)(sc, "(make-iterator \"\")", 18, port);	        break;
+	    case T_BYTE_VECTOR:  port_write_string(port)(sc, "(make-iterator #u())", 20, port);	        break;
+	    case T_VECTOR:       port_write_string(port)(sc, "(make-iterator #())", 19, port);	        break;
+	    case T_INT_VECTOR:	 port_write_string(port)(sc, "(make-iterator #i())", 20, port);	        break;
+	    case T_FLOAT_VECTOR: port_write_string(port)(sc, "(make-iterator #r())", 20, port);	        break;
+	    case T_LET:	         port_write_string(port)(sc, "(make-iterator (inlet))", 23, port);      break;
+	    case T_HASH_TABLE:   port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);	break;
+	    default:	         port_write_string(port)(sc, "(make-iterator ())", 18, port);	        break; /* c-object?? function? */
 	    }
 	}
       else
@@ -31427,7 +31407,6 @@ static void format_number(s7_scheme *sc, format_data *fdat, s7_int radix, s7_int
   fdat->ctr++;
 }
 
-
 static s7_int format_nesting(const char *str, char opener, char closer, s7_int start, s7_int end) /* start=i, end=str_len-1 */
 {
   s7_int k, nesting = 1;
@@ -31475,7 +31454,6 @@ static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_
   return(false);
 }
 
-
 static s7_int format_n_arg(s7_scheme *sc, const char *str, format_data *fdat, s7_pointer args)
 {
   s7_int n;
@@ -31496,7 +31474,6 @@ static s7_int format_n_arg(s7_scheme *sc, const char *str, format_data *fdat, s7
   fdat->args = cdr(fdat->args);    /* I don't think fdat->ctr should be incremented here -- it's for *vector-print-length* etc */
   return(n);
 }
-
 
 static s7_int format_numeric_arg(s7_scheme *sc, const char *str, s7_int str_len, format_data *fdat, s7_int *i)
 {
@@ -31520,7 +31497,6 @@ static s7_int format_numeric_arg(s7_scheme *sc, const char *str, s7_int str_len,
     }
   return(width);
 }
-
 
 #if WITH_GMP
 static bool s7_is_one_or_big_one(s7_pointer p);
@@ -32143,7 +32119,6 @@ static bool is_columnizing(const char *str)
   return(false);
 }
 
-
 static s7_pointer format_to_port(s7_scheme *sc, s7_pointer port, const char *str, s7_pointer args, s7_pointer *next_arg, bool with_result, s7_int len)
 {
   if ((with_result) ||
@@ -32186,7 +32161,6 @@ static s7_pointer g_format_1(s7_scheme *sc, s7_pointer args)
 			  string_value(str), cddr(args), NULL, !is_output_port(pt), true, string_length(str), str));
 }
 
-
 static s7_pointer g_format(s7_scheme *sc, s7_pointer args)
 {
   #define H_format "(format out str . args) substitutes args into str sending the result to out. Most of \
@@ -32211,7 +32185,6 @@ is #t, the string is also sent to the current-output-port."
   #define Q_format s7_make_circular_signature(sc, 1, 2, s7_make_signature(sc, 2, sc->is_string_symbol, sc->is_boolean_symbol), sc->T)
   return(g_format_1(sc, args));
 }
-
 
 const char *s7_format(s7_scheme *sc, s7_pointer args)
 {
@@ -49103,7 +49076,6 @@ static s7_pointer fx_cdr_s(s7_scheme *sc, s7_pointer arg)
   return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
 }
 
-#if 0
 static s7_pointer fx_s0_cdr(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
@@ -49114,7 +49086,6 @@ static s7_pointer fx_s0_cdr(s7_scheme *sc, s7_pointer arg)
   val = slot_value(let_slots(sc->envir));
   return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
 }
-#endif
 
 static s7_pointer fx_car_s(s7_scheme *sc, s7_pointer arg)
 {
@@ -63443,11 +63414,19 @@ static s7_pointer syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointe
   return(x);
 }
 
-static s7_pointer define_syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
+static s7_pointer definer_syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
 {
   s7_pointer x;
   x = syntax(sc, name, op, min_args, max_args, doc);
-  set_type_bit(x, T_FULL_DEFINER);
+  set_is_definer(x);
+  return(x);
+}
+
+static s7_pointer binder_syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
+{
+  s7_pointer x;
+  x = syntax(sc, name, op, min_args, max_args, doc);
+  set_is_binder(x);
   return(x);
 }
 
@@ -73771,6 +73750,16 @@ static inline bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
 	 (is_definer(tree)));  
 }
 
+static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
+{
+  s7_pointer p;
+  for (p = tree; is_pair(p); p = cdr(p))
+    if (tree_has_definers_or_binders(sc, car(p)))
+      return(true);
+  return((is_symbol(tree)) &&
+	 (is_definer_or_binder(tree)));  
+}
+
 static s7_pointer simple_stepper(s7_scheme *sc, s7_pointer v)
 {
   if ((safe_list_length(v) == 3) &&
@@ -76043,11 +76032,13 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		      if (is_very_safe_closure(f))
 			{
 			  s7_pointer slot;
-#if 0
-			  /* TODO: need tree_has_binders or something to make sure let does not interpose */
-			  if ((c_callee(cdr(code)) == fx_cdr_s) && (car(closure_args(f)) == cadadr(code)))
+			    
+			  if ((c_callee(cdr(code)) == fx_cdr_s) && 
+			      (car(closure_args(f)) == cadadr(code)) &&
+			      (!tree_has_definers_or_binders(sc, body))) /* code is just the recursive call */
 			    set_c_call(cdr(code), fx_s0_cdr);
-#endif
+			  /* this has some hope of working because a safe_closure's funclet does not change (and never reallocated) */
+
 			  slot = symbol_to_slot(sc, car(code));
 			  if (is_recur(slot))
 			    set_optimize_op(code, OP_SAFE_CLOSURE_A_LP);
@@ -76058,6 +76049,13 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	    }
 	  else 
 	    {
+	      if ((safe_case) &&
+		  (is_very_safe_closure(f)) &&
+		  (c_callee(cdr(code)) == fx_cdr_s) && 
+		  (car(closure_args(f)) == cadadr(code)) &&
+		  (!tree_has_definers_or_binders(sc, body))) /* code is just the recursive call */
+		set_c_call(cdr(code), fx_s0_cdr);
+
 	      set_closure_has_multiform(f);
 	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A); 
 	    }
@@ -88328,35 +88326,35 @@ s7_scheme *s7_init(void)
   #define with_let_help          "(with-let env ...) evaluates its body in the environment env."
   #define let_temporarily_help   "(let-temporarily ((var value)...) . body) sets each var to its new value, evals body, then returns each var to its original value."
 
-  sc->quote_symbol =             syntax(sc, "quote",                  OP_QUOTE,             small_int(1), small_int(1), quote_help);
-  sc->if_symbol =                syntax(sc, "if",                     OP_IF,                small_int(2), small_int(3), if_help);
-  sc->when_symbol =              syntax(sc, "when",                   OP_WHEN,              small_int(2), max_arity,    when_help);
-  sc->unless_symbol =            syntax(sc, "unless",                 OP_UNLESS,            small_int(2), max_arity,    unless_help);
-  sc->begin_symbol =             syntax(sc, "begin",                  OP_BEGIN,             small_int(0), max_arity,    begin_help);
-  sc->set_symbol =               syntax(sc, "set!",                   OP_SET,               small_int(2), small_int(2), set_help);
-  sc->let_symbol =               syntax(sc, "let",                    OP_LET,               small_int(2), max_arity,    let_help);
-  sc->let_star_symbol =          syntax(sc, "let*",                   OP_LET_STAR,          small_int(2), max_arity,    let_star_help);
-  sc->letrec_symbol =            syntax(sc, "letrec",                 OP_LETREC,            small_int(2), max_arity,    letrec_help);
-  sc->letrec_star_symbol =       syntax(sc, "letrec*",                OP_LETREC_STAR,       small_int(2), max_arity,    letrec_star_help);
-  sc->cond_symbol =              syntax(sc, "cond",                   OP_COND,              small_int(1), max_arity,    cond_help);
-  sc->and_symbol =               syntax(sc, "and",                    OP_AND,               small_int(0), max_arity,    and_help);
-  sc->or_symbol =                syntax(sc, "or",                     OP_OR,                small_int(0), max_arity,    or_help);
-  sc->case_symbol =              syntax(sc, "case",                   OP_CASE,              small_int(2), max_arity,    case_help);
-  sc->do_symbol =                syntax(sc, "do",                     OP_DO,                small_int(2), max_arity,    do_help); /* 2 because body can be null */
-  sc->lambda_symbol =            syntax(sc, "lambda",                 OP_LAMBDA,            small_int(2), max_arity,    lambda_help);
-  sc->lambda_star_symbol =       syntax(sc, "lambda*",                OP_LAMBDA_STAR,       small_int(2), max_arity,    lambda_star_help);
-  sc->define_symbol =            define_syntax(sc, "define",          OP_DEFINE,            small_int(2), max_arity,    define_help);
-  sc->define_star_symbol =       define_syntax(sc, "define*",         OP_DEFINE_STAR,       small_int(2), max_arity,    define_star_help);
-  sc->define_constant_symbol =   define_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   small_int(2), max_arity,    define_constant_help);
-  sc->define_macro_symbol =      define_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      small_int(2), max_arity,    define_macro_help);
-  sc->define_macro_star_symbol = define_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, small_int(2), max_arity,    define_macro_star_help);
-  sc->define_expansion_symbol =  define_syntax(sc, "define-expansion",OP_DEFINE_EXPANSION,  small_int(2), max_arity,    define_expansion_help);
-  sc->define_bacro_symbol =      define_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      small_int(2), max_arity,    define_bacro_help);
-  sc->define_bacro_star_symbol = define_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    define_bacro_star_help);
-  sc->with_baffle_symbol =       syntax(sc, "with-baffle",            OP_WITH_BAFFLE,       small_int(0), max_arity,    with_baffle_help); /* (with-baffle) is () */
-  sc->macroexpand_symbol =       syntax(sc, "macroexpand",            OP_MACROEXPAND,       small_int(1), small_int(1), macroexpand_help);
-  sc->let_temporarily_symbol =   syntax(sc, "let-temporarily",        OP_LET_TEMPORARILY,   small_int(2), max_arity,    let_temporarily_help);
-  sc->with_let_symbol =          syntax(sc, "with-let",               OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
+  sc->quote_symbol =             syntax(sc, "quote",                   OP_QUOTE,             small_int(1), small_int(1), quote_help);
+  sc->if_symbol =                syntax(sc, "if",                      OP_IF,                small_int(2), small_int(3), if_help);
+  sc->when_symbol =              syntax(sc, "when",                    OP_WHEN,              small_int(2), max_arity,    when_help);
+  sc->unless_symbol =            syntax(sc, "unless",                  OP_UNLESS,            small_int(2), max_arity,    unless_help);
+  sc->begin_symbol =             syntax(sc, "begin",                   OP_BEGIN,             small_int(0), max_arity,    begin_help);
+  sc->set_symbol =               syntax(sc, "set!",                    OP_SET,               small_int(2), small_int(2), set_help);
+  sc->cond_symbol =              syntax(sc, "cond",                    OP_COND,              small_int(1), max_arity,    cond_help);
+  sc->and_symbol =               syntax(sc, "and",                     OP_AND,               small_int(0), max_arity,    and_help);
+  sc->or_symbol =                syntax(sc, "or",                      OP_OR,                small_int(0), max_arity,    or_help);
+  sc->case_symbol =              syntax(sc, "case",                    OP_CASE,              small_int(2), max_arity,    case_help);
+  sc->with_baffle_symbol =       syntax(sc, "with-baffle",             OP_WITH_BAFFLE,       small_int(0), max_arity,    with_baffle_help); /* (with-baffle) is () */
+  sc->macroexpand_symbol =       syntax(sc, "macroexpand",             OP_MACROEXPAND,       small_int(1), small_int(1), macroexpand_help);
+  sc->define_symbol =            definer_syntax(sc, "define",          OP_DEFINE,            small_int(2), max_arity,    define_help);
+  sc->define_star_symbol =       definer_syntax(sc, "define*",         OP_DEFINE_STAR,       small_int(2), max_arity,    define_star_help);
+  sc->define_constant_symbol =   definer_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   small_int(2), max_arity,    define_constant_help);
+  sc->define_macro_symbol =      definer_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      small_int(2), max_arity,    define_macro_help);
+  sc->define_macro_star_symbol = definer_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, small_int(2), max_arity,    define_macro_star_help);
+  sc->define_expansion_symbol =  definer_syntax(sc, "define-expansion",OP_DEFINE_EXPANSION,  small_int(2), max_arity,    define_expansion_help);
+  sc->define_bacro_symbol =      definer_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      small_int(2), max_arity,    define_bacro_help);
+  sc->define_bacro_star_symbol = definer_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    define_bacro_star_help);
+  sc->let_symbol =               binder_syntax(sc, "let",              OP_LET,               small_int(2), max_arity,    let_help);
+  sc->let_star_symbol =          binder_syntax(sc, "let*",             OP_LET_STAR,          small_int(2), max_arity,    let_star_help);
+  sc->letrec_symbol =            binder_syntax(sc, "letrec",           OP_LETREC,            small_int(2), max_arity,    letrec_help);
+  sc->letrec_star_symbol =       binder_syntax(sc, "letrec*",          OP_LETREC_STAR,       small_int(2), max_arity,    letrec_star_help);
+  sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                small_int(2), max_arity,    do_help); /* 2 because body can be null */
+  sc->lambda_symbol =            binder_syntax(sc, "lambda",           OP_LAMBDA,            small_int(2), max_arity,    lambda_help);
+  sc->lambda_star_symbol =       binder_syntax(sc, "lambda*",          OP_LAMBDA_STAR,       small_int(2), max_arity,    lambda_star_help);
+  sc->let_temporarily_symbol =   binder_syntax(sc, "let-temporarily",  OP_LET_TEMPORARILY,   small_int(2), max_arity,    let_temporarily_help);
+  sc->with_let_symbol =          binder_syntax(sc, "with-let",         OP_WITH_LET,          small_int(1), max_arity,    with_let_help);
   set_local_slot(sc->with_let_symbol, global_slot(sc->with_let_symbol)); /* for set_locals */
   set_immutable(sc->with_let_symbol);
   sc->setter_symbol = make_symbol(sc, "setter");
@@ -89752,29 +89750,6 @@ int main(int argc, char **argv)
  */
 #endif
 
-/* setters/signatures:
- *   lint support for typed vector|hash-table? (at least make-hash-table arg checks) and byte?
- *     (set! strs #f) complains set! is pointless, but it isn't
- *   opt (stepper) check setter=integer? (or its bool_setter version) etc: opt_arg_type [typed-do?]
- *   sym/setter can be opt'd safely if local/solitary
- *
- * multi-optlist for the #t/float problem (or int/iv)
- * recursive call without unknown*: these can be recognized, but choosing the correct op*_closure_* 
- *   requires later info (very_safe_closure, etc).  code commented under TREC.
- *   lambda_opt could set safe closure sooner?  (h)op_(safe_)closure_s|a_lp. If 1-arg no binders, could use car(sc->envir) for slot(?)
- *   if c_func sees args a_lp, call as func, goto etc, also second env can reuse first -- 1/2 jumps and envs, no lookups or closure_ok
- *   can slots(sc->envir) op replace fx_s et al? can this be handled in check_do et al?
- *   auto-memoization (top 8 or top 3 etc)
- *   trec: fx_cdr_s where the "s" is slots(sc->envir) or the like (fx_c_add|sub1|i as well), if_is_type_s and if_csc
- *     but these require eval ops currently, not fx* [set_all_locals snd-17.9]
- *   safe closure+1 arg+no-definers+arg not shadowed: mark somehow in e (can't use type bit)
- * apply + (etc) -> op_safe_apply -> apply_c_function_any_args_function etc T_C_ANY_ARGS_FUNCTION
- *   trec eval_args/apply is via op_pair_sym?? -- doesn't that mean op_unknown* failed?
- *     op_pair_sym: (+ (trib (- n 1)) (trib (- n 2)) (trib (- n 3))) and (ack (- m 1) (ack m (- n 1)))
- *     op_con: 1
- * apply_sa if a is list, no need for proper-list? check, if s is safe, no need for list or apply
- */
-
 /* ------------------------------------------------------------------------------------------
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
@@ -89785,9 +89760,9 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  200   200
  * tmac          |      |      |      | 9052 |  264 |  236   236
  * tref          |      |      | 2372 | 2125 | 1036 |  985   985
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1038 1041
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1041
  * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1286
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1541 1547
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1547
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1714
  * lint          |      |      |      | 4041 | 2702 | 2192  2200
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2323
@@ -89795,13 +89770,13 @@ int main(int argc, char **argv)
  * tform         |      |      | 6816 | 3714 | 2762 | 2385  2382
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2493
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3030
- * tlet          |      |      |      |      | 4717 | 3505  3502 3476
+ * tlet          |      |      |      |      | 4717 | 3505  3476
  * titer         |      |      |      | 5971 | 4646 | 3695  3688
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3819
- * tsort         |      |      |      | 8584 | 4111 | 3945  3935 3918
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5384 5364
- * dup           |      |      |      |      | 20.8 | 5634  5736 5368
- * tset          |      |      |      |      | 10.0 | 6396  6347 6398
+ * tsort         |      |      |      | 8584 | 4111 | 3945  3918
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5364
+ * dup           |      |      |      |      | 20.8 | 5634  5368
+ * tset          |      |      |      |      | 10.0 | 6396  6398
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.1
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.7
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2
