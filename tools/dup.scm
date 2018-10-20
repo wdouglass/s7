@@ -118,3 +118,6 @@
 ;(dups 12 "s7.c" 91000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
+
+(s7-version)
+(exit)

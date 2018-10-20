@@ -45,3 +45,7 @@
       (if (zero? (modulo i 8)) (gc)))))
 
 (t)
+
+
+(s7-version)
+(exit)
