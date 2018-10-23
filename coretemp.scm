@@ -40,7 +40,7 @@
       (gtk_window_set_default_size (GTK_WINDOW window) 170 40)
       (let ((label (gtk_label_new text)))
 	(gtk_container_add (GTK_CONTAINER window) label)
-	(g_timeout_add 1000 update-temps label)
+	(g_timeout_add 60000 update-temps label) ; once a minute?
 	(gtk_widget_show label)
 	(gtk_widget_show window)))))
 

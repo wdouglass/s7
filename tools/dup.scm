@@ -64,22 +64,24 @@
 		  (vector-set! sortv i (cons (vector-ref lines i) i)))
 		(set! sortv (sort! sortv (lambda (a b)
 					   (string<? (car a) (car b)))))
-		(let ((unctr -1))
-		  (do ((i 0))
-		      ((= i total-lines))
-		    (let ((current (car (vector-ref sortv i))))
-		      (do ((k (+ i 1) (+ k 1)))
-			  ((or (= k total-lines)
-			       (not (string=? current (car (vector-ref sortv k)))))
-			   (when (= i (- k 1))
-			     (int-vector-set! lens (cdr (vector-ref sortv i)) unctr)
-			     (set! unctr (- unctr 1)))
-			   (set! i k)))))))
+		(let ((unctr -1)
+		      (matches #f)
+		      (current (vector-ref sortv 0)))
+		  (for-each (lambda (srt)
+			      (if (string=? (car current) (car srt))
+				  (set! matches #t)
+				  (begin
+				    (unless matches
+				      (int-vector-set! lens (cdr current) unctr)
+				      (set! unctr (- unctr 1)))
+				    (set! matches #f)
+				    (set! current srt))))
+			    sortv)))
 
 	      ;; look for matches
-	      (do ((i 0 (+ i 1))
-		   (first #t #t)
-		   (last-line (- total-lines size)))
+	      (do ((first #t #t)
+		   (last-line (- total-lines size))
+		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
 		(let ((j (all-positive? lens i (+ i size))))   ; is a match possible?
 		  (if (not (= j i))
