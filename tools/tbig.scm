@@ -271,6 +271,7 @@
 	    ((= i size))
 	  (if (string>? (vector-ref vs j) (vector-ref vs i))
 	      (display "oops"))))
+
       (string-checker)))
   
   (clear-and-gc)
@@ -366,6 +367,7 @@
 	    ((= i size))
 	  (if (> (byte-vector-ref vs j) (byte-vector-ref vs i))
 	      (display "oops"))))
+
       (byte-vector-checker)))
   
   (clear-and-gc)
@@ -431,6 +433,7 @@
 	    ((= i size))
 	  (if (> (float-vector-ref vs j) (float-vector-ref vs i))
 	      (display "oops"))))
+
       (float-vector-checker)))
   
   (clear-and-gc)
@@ -771,6 +774,7 @@
 	    ((= i size))
 	  (if (> (int-vector-ref vs j) (int-vector-ref vs i))
 	      (display "oops"))))
+
       (int-vector-checker)))
   (sort! '(1 2 3) <) ; clear temp3...
   (clear-and-gc)

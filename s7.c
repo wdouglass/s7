@@ -132,7 +132,7 @@
  * if you want this file to compile into a stand-alone interpreter, define WITH_MAIN
  *
  * -O3 is often slower, sometimes faster (at least according to callgrind), similarly for -finline-functions and -ftree-vectorize
- * -march=native -fomit-frame-pointer -m64 -funroll-loops gains about .1%
+ * -march=native seems to improve tree-vectorization which is important in Snd
  * -ffast-math makes a mess of NaNs, and does not appear to be faster
  * for timing tests, I use: -O2 -march=native -fomit-frame-pointer -funroll-loops
  * according to callgrind, clang is normally about 10% slower than gcc, and vectorization either doesn't work or is much worse than gcc's
@@ -1049,7 +1049,7 @@ struct s7_scheme {
   s7_pointer code;
   s7_pointer envir;                   /* curlet, layout of first 4 entries should match stack frame layout */
   s7_pointer args;                    /* arguments of current function */
-  opcode_t cur_op;                    /* making this global is much slower! */
+  opcode_t cur_op;
   s7_pointer value;
   s7_pointer cur_code;
   token_t tok;
@@ -1908,153 +1908,153 @@ static void init_types(void)
   #define T_Any(P) check_cell(P,                     __func__, __LINE__) /* any cell */
 
 #else
-  #define unchecked_type(p)           ((p)->tf.type_field)
-  #define type(p)                     ((p)->tf.type_field)
-  #define set_type(p, f)              typeflag(p) = f
-  #define T_Int(P)                    P
-  #define T_Rel(P)                    P
-  #define T_Frc(P)                    P
-  #define T_Cmp(P)                    P
-  #define T_Bgi(P)                    P
-  #define T_Bgr(P)                    P
-  #define T_Bgf(P)                    P
-  #define T_Bgz(P)                    P
-  #define T_Str(P)                    P
-  #define T_BVc(P)                    P
-  #define T_BSt(P)                    P
-  #define T_Syn(P)                    P
-  #define T_Chr(P)                    P
-  #define T_Obj(P)                    P
-  #define T_Ctr(P)                    P
-  #define T_Hsh(P)                    P
-  #define T_Itr(P)                    P
-  #define T_Ptr(P)                    P
-  #define T_Bfl(P)                    P
-  #define T_Got(P)                    P
-  #define T_Con(P)                    P
-  #define T_Stk(P)                    P
-  #define T_Prt(P)                    P
-  #define T_Ivc(P)                    P
-  #define T_Fvc(P)                    P
-  #define T_Nvc(P)                    P
-  #define T_Vec(P)                    P
-  #define T_Pair(P)                   P
-  #define T_Ran(P)                    P
-  #define T_Dyn(P)                    P
-  #define T_Cat(P)                    P
-  #define T_Clo(P)                    P
-  #define T_Fnc(P)                    P
-  #define T_Fst(P)                    P
-  #define T_Slt(P)                    P
-  #define T_Sln(P)                    P
-  #define T_Sld(P)                    P
-  #define T_Slp(P)                    P
-  #define T_Sym(P)                    P
-  #define T_Let(P)                    P
-  #define T_Lid(P)                    P
-  #define T_Lst(P)                    P
-  #define T_Num(P)                    P
-  #define T_Seq(P)                    P
-  #define T_Met(P)                    P
-  #define T_Mac(P)                    P
-  #define T_Arg(P)                    P
-  #define T_App(P)                    P
-  #define T_Exp(P)                    P
-  #define T_Pos(P)                    P
-  #define T_Any(P)                    P
+  #define unchecked_type(p)            ((p)->tf.type_field)
+  #define type(p)                      ((p)->tf.type_field)
+  #define set_type(p, f)               typeflag(p) = f
+  #define T_Int(P)                     P
+  #define T_Rel(P)                     P
+  #define T_Frc(P)                     P
+  #define T_Cmp(P)                     P
+  #define T_Bgi(P)                     P
+  #define T_Bgr(P)                     P
+  #define T_Bgf(P)                     P
+  #define T_Bgz(P)                     P
+  #define T_Str(P)                     P
+  #define T_BVc(P)                     P
+  #define T_BSt(P)                     P
+  #define T_Syn(P)                     P
+  #define T_Chr(P)                     P
+  #define T_Obj(P)                     P
+  #define T_Ctr(P)                     P
+  #define T_Hsh(P)                     P
+  #define T_Itr(P)                     P
+  #define T_Ptr(P)                     P
+  #define T_Bfl(P)                     P
+  #define T_Got(P)                     P
+  #define T_Con(P)                     P
+  #define T_Stk(P)                     P
+  #define T_Prt(P)                     P
+  #define T_Ivc(P)                     P
+  #define T_Fvc(P)                     P
+  #define T_Nvc(P)                     P
+  #define T_Vec(P)                     P
+  #define T_Pair(P)                    P
+  #define T_Ran(P)                     P
+  #define T_Dyn(P)                     P
+  #define T_Cat(P)                     P
+  #define T_Clo(P)                     P
+  #define T_Fnc(P)                     P
+  #define T_Fst(P)                     P
+  #define T_Slt(P)                     P
+  #define T_Sln(P)                     P
+  #define T_Sld(P)                     P
+  #define T_Slp(P)                     P
+  #define T_Sym(P)                     P
+  #define T_Let(P)                     P
+  #define T_Lid(P)                     P
+  #define T_Lst(P)                     P
+  #define T_Num(P)                     P
+  #define T_Seq(P)                     P
+  #define T_Met(P)                     P
+  #define T_Mac(P)                     P
+  #define T_Arg(P)                     P
+  #define T_App(P)                     P
+  #define T_Exp(P)                     P
+  #define T_Pos(P)                     P
+  #define T_Any(P)                     P
 #endif
 
-#define is_number(P)                  t_number_p[type(P)]
-#define is_integer(P)                 (type(P) == T_INTEGER)
-#define is_real(P)                    t_real_p[type(P)]
-#define is_rational(P)                t_rational_p[type(P)]
-#define is_big_number(p)              t_big_number_p[type(p)]
-#define is_t_integer(p)               (type(p) == T_INTEGER)
-#define is_t_ratio(p)                 (type(p) == T_RATIO)
-#define is_t_real(p)                  (type(p) == T_REAL)
-#define is_t_complex(p)               (type(p) == T_COMPLEX)
-#define is_t_big_integer(p)           (type(p) == T_BIG_INTEGER)
-#define is_t_big_ratio(p)             (type(p) == T_BIG_RATIO)
-#define is_t_big_real(p)              (type(p) == T_BIG_REAL)
-#define is_t_big_complex(p)           (type(p) == T_BIG_COMPLEX)
-#define is_float(p)                   ((is_real(p)) && (!is_rational(p)))
+#define is_number(P)                   t_number_p[type(P)]
+#define is_integer(P)                  (type(P) == T_INTEGER)
+#define is_real(P)                     t_real_p[type(P)]
+#define is_rational(P)                 t_rational_p[type(P)]
+#define is_big_number(p)               t_big_number_p[type(p)]
+#define is_t_integer(p)                (type(p) == T_INTEGER)
+#define is_t_ratio(p)                  (type(p) == T_RATIO)
+#define is_t_real(p)                   (type(p) == T_REAL)
+#define is_t_complex(p)                (type(p) == T_COMPLEX)
+#define is_t_big_integer(p)            (type(p) == T_BIG_INTEGER)
+#define is_t_big_ratio(p)              (type(p) == T_BIG_RATIO)
+#define is_t_big_real(p)               (type(p) == T_BIG_REAL)
+#define is_t_big_complex(p)            (type(p) == T_BIG_COMPLEX)
+#define is_float(p)                    ((is_real(p)) && (!is_rational(p)))
 
-#define is_free(p)                    (type(p) == T_FREE)
-#define is_free_and_clear(p)          (typeflag(p) == T_FREE)
-#define is_simple(P)                  t_simple_p[type(P)]
-#define has_structure(P)              ((t_structure_p[type(P)]) && ((!is_normal_vector(P)) || (!has_simple_elements(P))))
+#define is_free(p)                     (type(p) == T_FREE)
+#define is_free_and_clear(p)           (typeflag(p) == T_FREE)
+#define is_simple(P)                   t_simple_p[type(P)]
+#define has_structure(P)               ((t_structure_p[type(P)]) && ((!is_normal_vector(P)) || (!has_simple_elements(P))))
 
-#define is_any_macro(P)               t_any_macro_p[type(P)]
-#define is_any_closure(P)             t_any_closure_p[type(P)]
-#define is_procedure_or_macro(P)      ((t_procedure_p[type(P)]) || (t_any_macro_p[type(P)]))
-#define is_any_procedure(P)           (type(P) >= T_CLOSURE)
-#define has_closure_let(P)            t_has_closure_let[type(P)]
+#define is_any_macro(P)                t_any_macro_p[type(P)]
+#define is_any_closure(P)              t_any_closure_p[type(P)]
+#define is_procedure_or_macro(P)       ((t_procedure_p[type(P)]) || (t_any_macro_p[type(P)]))
+#define is_any_procedure(P)            (type(P) >= T_CLOSURE)
+#define has_closure_let(P)             t_has_closure_let[type(P)]
 
-#define is_simple_sequence(P)         (t_sequence_p[type(P)])
-#define is_sequence(P)                ((t_sequence_p[type(P)]) || (has_methods(P)))
-#define is_mutable_sequence(P)        (((t_sequence_p[type(P)]) || (has_methods(P))) && (!is_immutable(P)))
-#define is_mappable(P)                (t_mappable_p[type(P)])
-#define is_applicable(P)              (t_applicable_p[type(P)])
+#define is_simple_sequence(P)          (t_sequence_p[type(P)])
+#define is_sequence(P)                 ((t_sequence_p[type(P)]) || (has_methods(P)))
+#define is_mutable_sequence(P)         (((t_sequence_p[type(P)]) || (has_methods(P))) && (!is_immutable(P)))
+#define is_mappable(P)                 (t_mappable_p[type(P)])
+#define is_applicable(P)               (t_applicable_p[type(P)])
 /* this misses #() which actually is not applicable to anything, probably "" also, and inapplicable c-objects like random-state */
-#define is_procedure(p)               ((t_procedure_p[type(p)]) || ((is_c_object(p)) && (is_safe_procedure(p))))
-#define is_t_procedure(p)             (t_procedure_p[type(p)])
+#define is_procedure(p)                ((t_procedure_p[type(p)]) || ((is_c_object(p)) && (is_safe_procedure(p))))
+#define is_t_procedure(p)              (t_procedure_p[type(p)])
 
 /* the layout of these bits does matter in several cases -- don't shadow SYNTACTIC_PAIR and OPTIMIZED_PAIR */
-#define TYPE_BITS                     8
+#define TYPE_BITS                      8
 
-#define set_type_bit(p, b)            typeflag(p) |= (b)
-#define clear_type_bit(p, b)          typeflag(p) &= (~(b))
-#define has_type_bit(p, b)            ((typeflag(p) & (b)) != 0)
+#define set_type_bit(p, b)             typeflag(p) |= (b)
+#define clear_type_bit(p, b)           typeflag(p) &= (~(b))
+#define has_type_bit(p, b)             ((typeflag(p) & (b)) != 0)
 
-#define set_type0_bit(p, b)           typesflag(p) |= (b)
-#define clear_type0_bit(p, b)         typesflag(p) &= (~(b))
-#define has_type0_bit(p, b)           ((typesflag(p) & (b)) != 0)
+#define set_type0_bit(p, b)            typesflag(p) |= (b)
+#define clear_type0_bit(p, b)          typesflag(p) &= (~(b))
+#define has_type0_bit(p, b)            ((typesflag(p) & (b)) != 0)
 
-#define set_type1_bit(p, b)           (p)->tf.opts.high_flag |= (b)
-#define clear_type1_bit(p, b)         (p)->tf.opts.high_flag &= (~(b))
-#define has_type1_bit(p, b)           (((p)->tf.opts.high_flag & (b)) != 0)
+#define set_type1_bit(p, b)            (p)->tf.opts.high_flag |= (b)
+#define clear_type1_bit(p, b)          (p)->tf.opts.high_flag &= (~(b))
+#define has_type1_bit(p, b)            (((p)->tf.opts.high_flag & (b)) != 0)
 
-#define T_SYNTACTIC                   (1 << (TYPE_BITS + 1))
-#define is_syntactic(p)               has_type0_bit(T_Pos(p), T_SYNTACTIC)
-#define is_syntactic_symbol(p)        (typesflag(T_Pos(p)) == (uint16_t)(T_SYMBOL | T_SYNTACTIC))
-#define is_syntactic_pair(p)          (typesflag(T_Pos(p)) == (uint16_t)(T_PAIR | T_SYNTACTIC))
+#define T_SYNTACTIC                    (1 << (TYPE_BITS + 1))
+#define is_syntactic(p)                has_type0_bit(T_Pos(p), T_SYNTACTIC)
+#define is_syntactic_symbol(p)         (typesflag(T_Pos(p)) == (uint16_t)(T_SYMBOL | T_SYNTACTIC))
+#define is_syntactic_pair(p)           (typesflag(T_Pos(p)) == (uint16_t)(T_PAIR | T_SYNTACTIC))
 /* this marks symbols that represent syntax objects, it should be in the second byte */
 
 
-#define T_SIMPLE_ARG_DEFAULTS         (1 << (TYPE_BITS + 2))
-#define lambda_has_simple_defaults(p) has_type_bit(T_Pair(p), T_SIMPLE_ARG_DEFAULTS)
-#define lambda_set_simple_defaults(p) set_type_bit(T_Pair(p), T_SIMPLE_ARG_DEFAULTS)
+#define T_SIMPLE_ARG_DEFAULTS          (1 << (TYPE_BITS + 2))
+#define lambda_has_simple_defaults(p)  has_type_bit(T_Pair(p), T_SIMPLE_ARG_DEFAULTS)
+#define lambda_set_simple_defaults(p)  set_type_bit(T_Pair(p), T_SIMPLE_ARG_DEFAULTS)
 /* are all lambda* default values simple? This is set on closure_body, so it doesn't mess up closure_is_ok_1 */
 
-#define T_LIST_IN_USE                 T_SIMPLE_ARG_DEFAULTS
-#define list_is_in_use(p)             has_type0_bit(T_Pair(p), T_LIST_IN_USE)
-#define set_list_in_use(p)            set_type_bit(T_Pair(p), T_LIST_IN_USE)
-#define clear_list_in_use(p)          clear_type_bit(T_Pair(p), T_LIST_IN_USE)
+#define T_LIST_IN_USE                  T_SIMPLE_ARG_DEFAULTS
+#define list_is_in_use(p)              has_type0_bit(T_Pair(p), T_LIST_IN_USE)
+#define set_list_in_use(p)             set_type_bit(T_Pair(p), T_LIST_IN_USE)
+#define clear_list_in_use(p)           clear_type_bit(T_Pair(p), T_LIST_IN_USE)
 /* these could all be one permanent list, indexed from inside, and this bit is never actually protecting anything across a call */
 
-#define T_ONE_FORM                    T_SIMPLE_ARG_DEFAULTS
-#define set_closure_has_one_form(p)   set_type_bit(T_Clo(p), T_ONE_FORM)
-#define T_MULTIFORM                   (1 << (TYPE_BITS + 0))
-#define set_closure_has_multiform(p)  set_type_bit(T_Clo(p), T_MULTIFORM)
-#define set_closure_has_fx(p)         set_type_bit(T_Clo(p), T_ONE_FORM | T_MULTIFORM)
+#define T_ONE_FORM                     T_SIMPLE_ARG_DEFAULTS
+#define set_closure_has_one_form(p)    set_type_bit(T_Clo(p), T_ONE_FORM)
+#define T_MULTIFORM                    (1 << (TYPE_BITS + 0))
+#define set_closure_has_multiform(p)   set_type_bit(T_Clo(p), T_MULTIFORM)
+#define set_closure_has_fx(p)          set_type_bit(T_Clo(p), T_ONE_FORM | T_MULTIFORM)
 /* temporary extra bit (simplify development...) */
 
-#define T_OPTIMIZED                   (1 << (TYPE_BITS + 3))
-#define set_optimized(p)              set_type0_bit(T_Pair(p), T_OPTIMIZED)
-#define clear_optimized(p)            clear_type0_bit(T_Pair(p), T_OPTIMIZED | T_SYNTACTIC | T_HAS_FX)
-#define OPTIMIZED_PAIR                (uint16_t)(T_PAIR | T_OPTIMIZED)
-#define is_optimized(p)               (typesflag(T_Pos(p)) == OPTIMIZED_PAIR)
+#define T_OPTIMIZED                    (1 << (TYPE_BITS + 3))
+#define set_optimized(p)               set_type0_bit(T_Pair(p), T_OPTIMIZED)
+#define clear_optimized(p)             clear_type0_bit(T_Pair(p), T_OPTIMIZED | T_SYNTACTIC | T_HAS_FX)
+#define OPTIMIZED_PAIR                 (uint16_t)(T_PAIR | T_OPTIMIZED)
+#define is_optimized(p)                (typesflag(T_Pos(p)) == OPTIMIZED_PAIR)
 /* optimizer flag for an expression that has optimization info, it should be in the second byte */
 
-#define T_SCOPE_SAFE                  T_OPTIMIZED
-#define is_scope_safe(p)              has_type_bit(T_Fnc(p), T_SCOPE_SAFE)
-#define set_scope_safe(p)             set_type_bit(T_Fnc(p), T_SCOPE_SAFE)
+#define T_SCOPE_SAFE                   T_OPTIMIZED
+#define is_scope_safe(p)               has_type_bit(T_Fnc(p), T_SCOPE_SAFE)
+#define set_scope_safe(p)              set_type_bit(T_Fnc(p), T_SCOPE_SAFE)
 
 
-#define T_SAFE_CLOSURE                (1 << (TYPE_BITS + 4))
-#define is_safe_closure(p)            has_type0_bit(T_Pos(p), T_SAFE_CLOSURE)
-#define set_safe_closure(p)           set_type0_bit(p, T_SAFE_CLOSURE)
-#define clear_safe_closure(p)         clear_type0_bit(p, T_SAFE_CLOSURE)
+#define T_SAFE_CLOSURE                 (1 << (TYPE_BITS + 4))
+#define is_safe_closure(p)             has_type0_bit(T_Pos(p), T_SAFE_CLOSURE)
+#define set_safe_closure(p)            set_type0_bit(p, T_SAFE_CLOSURE)
+#define clear_safe_closure(p)          clear_type0_bit(p, T_SAFE_CLOSURE)
 
 /* optimizer flag for a closure body that is completely simple (every expression is safe)
  *   set_safe_closure happens only in optimize_lambda (and define_funchcecked?), clear only in procedure_source, bits only here
@@ -2065,37 +2065,37 @@ static void init_types(void)
  *   thereafter, optimizer uses OP_SAFE_CLOSURE* which calls old_frame*
  */
 
-#define T_DONT_EVAL_ARGS              (1 << (TYPE_BITS + 5))
-#define dont_eval_args(p)             has_type0_bit(T_Pos(p), T_DONT_EVAL_ARGS)
+#define T_DONT_EVAL_ARGS               (1 << (TYPE_BITS + 5))
+#define dont_eval_args(p)              has_type0_bit(T_Pos(p), T_DONT_EVAL_ARGS)
 /* this marks things that don't evaluate their arguments */
 
-#define T_EXPANSION                   (1 << (TYPE_BITS + 6))
-#define is_expansion(p)               has_type0_bit(T_Exp(p), T_EXPANSION)
-#define clear_expansion(p)            clear_type0_bit(T_Sym(p), T_EXPANSION)
+#define T_EXPANSION                    (1 << (TYPE_BITS + 6))
+#define is_expansion(p)                has_type0_bit(T_Exp(p), T_EXPANSION)
+#define clear_expansion(p)             clear_type0_bit(T_Sym(p), T_EXPANSION)
 /* this marks the symbol and its run-time macro value, distinguishing it from an ordinary macro */
 
-#define T_MULTIPLE_VALUE              (1 << (TYPE_BITS + 7))
-#define is_multiple_value(p)          has_type0_bit(T_Pos(p), T_MULTIPLE_VALUE)
-#define set_multiple_value(p)         set_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
-#define clear_multiple_value(p)       clear_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
-#define multiple_value(p)             p
+#define T_MULTIPLE_VALUE               (1 << (TYPE_BITS + 7))
+#define is_multiple_value(p)           has_type0_bit(T_Pos(p), T_MULTIPLE_VALUE)
+#define set_multiple_value(p)          set_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
+#define clear_multiple_value(p)        clear_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
+#define multiple_value(p)              p
 /* this bit marks a list (from "values") that is waiting for a
  *    chance to be spliced into its caller's argument list.  It is normally
  *    on only for a very short time.
  */
 
-#define T_MATCHED                     T_MULTIPLE_VALUE
-#define is_matched_pair(p)            has_type0_bit(T_Pair(p), T_MATCHED)
-#define set_match_pair(p)             set_type0_bit(T_Pair(p), T_MATCHED)
-#define clear_match_pair(p)           clear_type0_bit(T_Pair(p), T_MATCHED)
-#define is_matched_symbol(p)          has_type0_bit(T_Sym(p), T_MATCHED)
-#define set_match_symbol(p)           set_type0_bit(T_Sym(p), T_MATCHED)
-#define clear_match_symbol(p)         clear_type0_bit(T_Sym(p), T_MATCHED)
+#define T_MATCHED                      T_MULTIPLE_VALUE
+#define is_matched_pair(p)             has_type0_bit(T_Pair(p), T_MATCHED)
+#define set_match_pair(p)              set_type0_bit(T_Pair(p), T_MATCHED)
+#define clear_match_pair(p)            clear_type0_bit(T_Pair(p), T_MATCHED)
+#define is_matched_symbol(p)           has_type0_bit(T_Sym(p), T_MATCHED)
+#define set_match_symbol(p)            set_type0_bit(T_Sym(p), T_MATCHED)
+#define clear_match_symbol(p)          clear_type0_bit(T_Sym(p), T_MATCHED)
 
-#define T_GLOBAL                      (1 << (TYPE_BITS + 8))
-#define T_LOCAL                       (1 << (TYPE_BITS + 12))
-#define is_global(p)                  has_type_bit(T_Sym(p), T_GLOBAL)
-#define set_global(p)                 do {if ((typeflag(T_Sym(p)) & T_LOCAL) == 0) typeflag(p) |= T_GLOBAL;} while (0)
+#define T_GLOBAL                       (1 << (TYPE_BITS + 8))
+#define T_LOCAL                        (1 << (TYPE_BITS + 12))
+#define is_global(p)                   has_type_bit(T_Sym(p), T_GLOBAL)
+#define set_global(p)                  do {if ((typeflag(T_Sym(p)) & T_LOCAL) == 0) typeflag(p) |= T_GLOBAL;} while (0)
 /* T_LOCAL marks a symbol that has been used locally */
 /* T_GLOBAL marks something defined (bound) at the top-level, and never defined locally */
 
@@ -2112,403 +2112,403 @@ static void init_types(void)
   }
   #define set_local(Symbol) set_local_1(sc, Symbol, __func__, __LINE__)
 #else
-#define set_local(p)                  typeflag(T_Sym(p)) = ((typeflag(p) | T_LOCAL) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC))
+#define set_local(p)                   typeflag(T_Sym(p)) = ((typeflag(p) | T_LOCAL) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC))
 #endif
 
-#define T_UNSAFE_DO                   T_GLOBAL
-#define is_unsafe_do(p)               has_type_bit(T_Pair(p), T_UNSAFE_DO)
-#define set_unsafe_do(p)              set_type_bit(T_Pair(p), T_UNSAFE_DO)
+#define T_UNSAFE_DO                    T_GLOBAL
+#define is_unsafe_do(p)                has_type_bit(T_Pair(p), T_UNSAFE_DO)
+#define set_unsafe_do(p)               set_type_bit(T_Pair(p), T_UNSAFE_DO)
 /* marks do-loops that resist optimization */
 
-#define T_COLLECTED                   (1 << (TYPE_BITS + 9))
-#define is_collected(p)               has_type_bit(T_Seq(p), T_COLLECTED)
-#define set_collected(p)              set_type_bit(T_Seq(p), T_COLLECTED)
-/* #define clear_collected(p)         clear_type_bit(T_Seq(p), T_COLLECTED) */
+#define T_COLLECTED                    (1 << (TYPE_BITS + 9))
+#define is_collected(p)                has_type_bit(T_Seq(p), T_COLLECTED)
+#define set_collected(p)               set_type_bit(T_Seq(p), T_COLLECTED)
+/* #define clear_collected(p)          clear_type_bit(T_Seq(p), T_COLLECTED) */
 /* this is a transient flag used by the printer to catch cycles.  It affects only objects that have structure.
  *   We can't use a low bit (bit 7 for example), because collect_shared_info inspects the object's type.
  */
 
-#define T_LINE_NUMBER                 (1 << (TYPE_BITS + 10))
-#define has_line_number(p)            has_type_bit(T_Pair(p), T_LINE_NUMBER)
-#define set_has_line_number(p)        set_type_bit(T_Pair(p), T_LINE_NUMBER)
+#define T_LINE_NUMBER                  (1 << (TYPE_BITS + 10))
+#define has_line_number(p)             has_type_bit(T_Pair(p), T_LINE_NUMBER)
+#define set_has_line_number(p)         set_type_bit(T_Pair(p), T_LINE_NUMBER)
 /* pair in question has line/file info added during read, or the environment has function placement info
  *   this bit should not be in the first byte -- SYNTACTIC_PAIR ignores it.
  */
 
-#define T_LOADER_PORT                 T_LINE_NUMBER
-#define is_loader_port(p)             has_type_bit(T_Prt(p), T_LOADER_PORT)
-#define set_loader_port(p)            set_type_bit(T_Prt(p), T_LOADER_PORT)
-#define clear_loader_port(p)          clear_type_bit(T_Prt(p), T_LOADER_PORT)
+#define T_LOADER_PORT                  T_LINE_NUMBER
+#define is_loader_port(p)              has_type_bit(T_Prt(p), T_LOADER_PORT)
+#define set_loader_port(p)             set_type_bit(T_Prt(p), T_LOADER_PORT)
+#define clear_loader_port(p)           clear_type_bit(T_Prt(p), T_LOADER_PORT)
 /* to block random load-time reads from screwing up the load process, this bit marks a port used by the loader */
 
-#define T_HAS_SETTER                  T_LINE_NUMBER
-#define symbol_has_setter(p)          has_type_bit(T_Sym(p), T_HAS_SETTER)
-#define symbol_set_has_setter(p)      set_type_bit(T_Sym(p), T_HAS_SETTER)
-#define slot_has_setter(p)            has_type_bit(T_Slt(p), T_HAS_SETTER)
-#define slot_set_has_setter(p)        set_type_bit(T_Slt(p), T_HAS_SETTER)
+#define T_HAS_SETTER                   T_LINE_NUMBER
+#define symbol_has_setter(p)           has_type_bit(T_Sym(p), T_HAS_SETTER)
+#define symbol_set_has_setter(p)       set_type_bit(T_Sym(p), T_HAS_SETTER)
+#define slot_has_setter(p)             has_type_bit(T_Slt(p), T_HAS_SETTER)
+#define slot_set_has_setter(p)         set_type_bit(T_Slt(p), T_HAS_SETTER)
 /* marks a slot that has a setter or symbol that might have a setter */
 
-#define T_WITH_LET_LET                T_LINE_NUMBER
-#define is_with_let_let(p)            has_type_bit(T_Let(p), T_WITH_LET_LET)
-#define set_with_let_let(p)           set_type_bit(T_Let(p), T_WITH_LET_LET)
+#define T_WITH_LET_LET                 T_LINE_NUMBER
+#define is_with_let_let(p)             has_type_bit(T_Let(p), T_WITH_LET_LET)
+#define set_with_let_let(p)            set_type_bit(T_Let(p), T_WITH_LET_LET)
 /* marks a let that is the argument to with-let */
 
-#define T_SIMPLE_DEFAULTS             T_LINE_NUMBER
-#define c_func_has_simple_defaults(p) has_type_bit(T_Fnc(p), T_SIMPLE_DEFAULTS)
-#define c_func_set_simple_defaults(p) set_type_bit(T_Fnc(p), T_SIMPLE_DEFAULTS)
+#define T_SIMPLE_DEFAULTS              T_LINE_NUMBER
+#define c_func_has_simple_defaults(p)  has_type_bit(T_Fnc(p), T_SIMPLE_DEFAULTS)
+#define c_func_set_simple_defaults(p)  set_type_bit(T_Fnc(p), T_SIMPLE_DEFAULTS)
 #define c_func_clear_simple_defaults(p) clear_type_bit(T_Fnc(p), T_SIMPLE_DEFAULTS)
 /* flag c_func_star arg defaults that need GC protection */
 
-#define T_NO_SETTER                   T_LINE_NUMBER
-#define closure_no_setter(p)          has_type_bit(T_Clo(p), T_NO_SETTER)
-#define closure_set_no_setter(p)      set_type_bit(T_Clo(p), T_NO_SETTER)
+#define T_NO_SETTER                    T_LINE_NUMBER
+#define closure_no_setter(p)           has_type_bit(T_Clo(p), T_NO_SETTER)
+#define closure_set_no_setter(p)       set_type_bit(T_Clo(p), T_NO_SETTER)
 
-#define T_SHARED                      (1 << (TYPE_BITS + 11))
-#define is_shared(p)                  has_type_bit(T_Seq(p), T_SHARED)
-#define set_shared(p)                 set_type_bit(T_Seq(p), T_SHARED)
-#define is_collected_or_shared(p)     has_type_bit(p, T_COLLECTED | T_SHARED)
-#define clear_collected_and_shared(p) clear_type_bit(p, T_COLLECTED | T_SHARED) /* this can clear free cells = calloc */
+#define T_SHARED                       (1 << (TYPE_BITS + 11))
+#define is_shared(p)                   has_type_bit(T_Seq(p), T_SHARED)
+#define set_shared(p)                  set_type_bit(T_Seq(p), T_SHARED)
+#define is_collected_or_shared(p)      has_type_bit(p, T_COLLECTED | T_SHARED)
+#define clear_collected_and_shared(p)  clear_type_bit(p, T_COLLECTED | T_SHARED) /* this can clear free cells = calloc */
 
-#define T_SAFE_PROCEDURE              (1 << (TYPE_BITS + 13))
-#define is_safe_procedure(p)          has_type_bit(T_Pos(p), T_SAFE_PROCEDURE)
+#define T_SAFE_PROCEDURE               (1 << (TYPE_BITS + 13))
+#define is_safe_procedure(p)           has_type_bit(T_Pos(p), T_SAFE_PROCEDURE)
 #define is_safe_or_scope_safe_procedure(p) ((typeflag(T_Fnc(p)) & (T_SCOPE_SAFE | T_SAFE_PROCEDURE)) != 0)
 /* applicable objects that do not return or modify their arg list directly (no :rest arg in particular),
  *    and that can't call apply themselves either directly or via s7_call, and that don't mess with the stack.
  */
 
-#define T_CHECKED                     (1 << (TYPE_BITS + 14))
-#define set_checked(p)                set_type_bit(T_Pair(p), T_CHECKED)
-#define is_checked(p)                 has_type_bit(T_Pair(p), T_CHECKED)
-#define clear_checked(p)              clear_type_bit(T_Pair(p), T_CHECKED)
-#define set_checked_slot(p)           set_type_bit(T_Slt(p), T_CHECKED)
-#define is_checked_slot(p)            has_type_bit(T_Slt(p), T_CHECKED)
-#define is_not_checked_slot(p)        ((typeflag(T_Slt(p)) & T_CHECKED) == 0)
+#define T_CHECKED                      (1 << (TYPE_BITS + 14))
+#define set_checked(p)                 set_type_bit(T_Pair(p), T_CHECKED)
+#define is_checked(p)                  has_type_bit(T_Pair(p), T_CHECKED)
+#define clear_checked(p)               clear_type_bit(T_Pair(p), T_CHECKED)
+#define set_checked_slot(p)            set_type_bit(T_Slt(p), T_CHECKED)
+#define is_checked_slot(p)             has_type_bit(T_Slt(p), T_CHECKED)
+#define is_not_checked_slot(p)         ((typeflag(T_Slt(p)) & T_CHECKED) == 0)
 
-#define T_UNSAFE                      (1 << (TYPE_BITS + 15))
-#define set_unsafe(p)                 set_type_bit(T_Pair(p), T_UNSAFE)
-#define set_unsafely_optimized(p)     typeflag(T_Pair(p)) = (typeflag(p) | T_UNSAFE | T_OPTIMIZED)
-#define is_unsafe(p)                  has_type_bit(T_Pair(p), T_UNSAFE)
-#define clear_unsafe(p)               clear_type_bit(T_Pair(p), T_UNSAFE)
-#define is_safely_optimized(p)        ((typeflag(T_Pos(p)) & (T_OPTIMIZED | T_UNSAFE)) == T_OPTIMIZED)
+#define T_UNSAFE                       (1 << (TYPE_BITS + 15))
+#define set_unsafe(p)                  set_type_bit(T_Pair(p), T_UNSAFE)
+#define set_unsafely_optimized(p)      typeflag(T_Pair(p)) = (typeflag(p) | T_UNSAFE | T_OPTIMIZED)
+#define is_unsafe(p)                   has_type_bit(T_Pair(p), T_UNSAFE)
+#define clear_unsafe(p)                clear_type_bit(T_Pair(p), T_UNSAFE)
+#define is_safely_optimized(p)         ((typeflag(T_Pos(p)) & (T_OPTIMIZED | T_UNSAFE)) == T_OPTIMIZED)
 /* optimizer flag saying "this expression is not completely self-contained.  It might involve the stack, etc" */
 
-#define T_CLEAN_SYMBOL                T_UNSAFE
-#define is_clean_symbol(p)            has_type_bit(T_Sym(p), T_CLEAN_SYMBOL)
-#define set_clean_symbol(p)           set_type_bit(T_Sym(p), T_CLEAN_SYMBOL)
+#define T_CLEAN_SYMBOL                 T_UNSAFE
+#define is_clean_symbol(p)             has_type_bit(T_Sym(p), T_CLEAN_SYMBOL)
+#define set_clean_symbol(p)            set_type_bit(T_Sym(p), T_CLEAN_SYMBOL)
 /* set if we know the symbol name can be printed without quotes (slashification) */
 
-#define T_HAS_STEPPER                 T_UNSAFE
-#define has_stepper(p)                has_type_bit(T_Slt(p), T_HAS_STEPPER)
-#define set_has_stepper(p)            set_type_bit(T_Slt(p), T_HAS_STEPPER)
+#define T_HAS_STEPPER                  T_UNSAFE
+#define has_stepper(p)                 has_type_bit(T_Slt(p), T_HAS_STEPPER)
+#define set_has_stepper(p)             set_type_bit(T_Slt(p), T_HAS_STEPPER)
 
-#define T_IMMUTABLE                   (1 << (TYPE_BITS + 16))
-#define is_immutable(p)               has_type_bit(T_Pos(p), T_IMMUTABLE)
-#define set_immutable(p)              set_type_bit(T_Pos(p), T_IMMUTABLE)
-#define is_immutable_port(p)          has_type_bit(T_Prt(p), T_IMMUTABLE)
-#define is_immutable_symbol(p)        has_type_bit(T_Sym(p), T_IMMUTABLE)
-#define is_immutable_slot(p)          has_type_bit(T_Slt(p), T_IMMUTABLE)
-#define is_immutable_pair(p)          has_type_bit(T_Pair(p), T_IMMUTABLE)
-#define is_immutable_vector(p)        has_type_bit(T_Vec(p), T_IMMUTABLE)
-#define is_immutable_string(p)        has_type_bit(T_Str(p), T_IMMUTABLE)
+#define T_IMMUTABLE                    (1 << (TYPE_BITS + 16))
+#define is_immutable(p)                has_type_bit(T_Pos(p), T_IMMUTABLE)
+#define set_immutable(p)               set_type_bit(T_Pos(p), T_IMMUTABLE)
+#define is_immutable_port(p)           has_type_bit(T_Prt(p), T_IMMUTABLE)
+#define is_immutable_symbol(p)         has_type_bit(T_Sym(p), T_IMMUTABLE)
+#define is_immutable_slot(p)           has_type_bit(T_Slt(p), T_IMMUTABLE)
+#define is_immutable_pair(p)           has_type_bit(T_Pair(p), T_IMMUTABLE)
+#define is_immutable_vector(p)         has_type_bit(T_Vec(p), T_IMMUTABLE)
+#define is_immutable_string(p)         has_type_bit(T_Str(p), T_IMMUTABLE)
 
-#define T_SETTER                      (1 << (TYPE_BITS + 17))
-#define set_setter(p)                 set_type_bit(T_Sym(p), T_SETTER)
-#define is_setter(p)                  has_type_bit(T_Sym(p), T_SETTER)
+#define T_SETTER                       (1 << (TYPE_BITS + 17))
+#define set_setter(p)                  set_type_bit(T_Sym(p), T_SETTER)
+#define is_setter(p)                   has_type_bit(T_Sym(p), T_SETTER)
 /* optimizer flag for a procedure that sets some variable (set-car! for example). */
 
-#define T_ALLOW_OTHER_KEYS            T_SETTER
-#define set_allow_other_keys(p)       set_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
-#define allows_other_keys(p)          has_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
+#define T_ALLOW_OTHER_KEYS             T_SETTER
+#define set_allow_other_keys(p)        set_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
+#define allows_other_keys(p)           has_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
 /* marks arglist that allows keyword args other than those in the parameter list; can't allow
  *   (define* (f :allow-other-keys)...) because there's only one nil, and besides, it does say "other".
  */
 
 /* this bit is already in use on pairs, but the contexts never overlap, I hope... */
-#define T_HAS_FX                      T_SETTER
-#define set_has_fx(p)                 set_type_bit(T_Pair(p), T_HAS_FX)
-#define has_fx(p)                     has_type_bit(T_Pair(p), T_HAS_FX)
-#define clear_has_fx(p)               clear_type_bit(T_Pair(p), T_HAS_FX)
+#define T_HAS_FX                       T_SETTER
+#define set_has_fx(p)                  set_type_bit(T_Pair(p), T_HAS_FX)
+#define has_fx(p)                      has_type_bit(T_Pair(p), T_HAS_FX)
+#define clear_has_fx(p)                clear_type_bit(T_Pair(p), T_HAS_FX)
 
-#define T_HASH_REMOVED                T_SETTER
-#define hash_table_set_removed(p)     set_type_bit(T_Hsh(p), T_HASH_REMOVED)
-#define hash_table_removed(p)         has_type_bit(T_Hsh(p), T_HASH_REMOVED)
+#define T_HASH_REMOVED                 T_SETTER
+#define hash_table_set_removed(p)      set_type_bit(T_Hsh(p), T_HASH_REMOVED)
+#define hash_table_removed(p)          has_type_bit(T_Hsh(p), T_HASH_REMOVED)
 
-#define T_LET_REMOVED                 T_SETTER
-#define let_set_removed(p)            set_type_bit(T_Let(p), T_LET_REMOVED)
-#define let_removed(p)                has_type_bit(T_Let(p), T_LET_REMOVED)
+#define T_LET_REMOVED                  T_SETTER
+#define let_set_removed(p)             set_type_bit(T_Let(p), T_LET_REMOVED)
+#define let_removed(p)                 has_type_bit(T_Let(p), T_LET_REMOVED)
 /* these mark objects that have been removed from the heap or checked for that possibility */
 
-#define T_HAS_EXPRESSION              T_SETTER
-#define slot_set_has_expression(p)    set_type_bit(T_Slt(p), T_HAS_EXPRESSION)
-#define slot_has_expression(p)        has_type_bit(T_Slt(p), T_HAS_EXPRESSION)
+#define T_HAS_EXPRESSION               T_SETTER
+#define slot_set_has_expression(p)     set_type_bit(T_Slt(p), T_HAS_EXPRESSION)
+#define slot_has_expression(p)         has_type_bit(T_Slt(p), T_HAS_EXPRESSION)
 
-#define T_MUTABLE                     (1 << (TYPE_BITS + 18))
-#define is_mutable(p)                 has_type_bit(T_Num(p), T_MUTABLE)
-#define clear_mutable(p)              clear_type_bit(T_Num(p), T_MUTABLE)
+#define T_MUTABLE                      (1 << (TYPE_BITS + 18))
+#define is_mutable(p)                  has_type_bit(T_Num(p), T_MUTABLE)
+#define clear_mutable(p)               clear_type_bit(T_Num(p), T_MUTABLE)
 /* used for mutable numbers */
 
-#define T_HAS_KEYWORD                 T_MUTABLE
-#define has_keyword(p)                has_type_bit(T_Sym(p), T_HAS_KEYWORD)
-#define set_has_keyword(p)            set_type_bit(T_Sym(p), T_HAS_KEYWORD)
+#define T_HAS_KEYWORD                  T_MUTABLE
+#define has_keyword(p)                 has_type_bit(T_Sym(p), T_HAS_KEYWORD)
+#define set_has_keyword(p)             set_type_bit(T_Sym(p), T_HAS_KEYWORD)
 
-#define T_MARK_SEQ                    T_MUTABLE
-#define is_mark_seq(p)                has_type_bit(T_Itr(p), T_MARK_SEQ)
-#define set_mark_seq(p)               set_type_bit(T_Itr(p), T_MARK_SEQ)
+#define T_MARK_SEQ                     T_MUTABLE
+#define is_mark_seq(p)                 has_type_bit(T_Itr(p), T_MARK_SEQ)
+#define set_mark_seq(p)                set_type_bit(T_Itr(p), T_MARK_SEQ)
 /* used in iterators for GC mark of sequence */
 
-#define T_STEP_END                    T_MUTABLE
-#define is_step_end(p)                has_type_bit(T_Slt(p), T_STEP_END)
-#define set_step_end(p)               set_type_bit(T_Slt(p), T_STEP_END)
+#define T_STEP_END                     T_MUTABLE
+#define is_step_end(p)                 has_type_bit(T_Slt(p), T_STEP_END)
+#define set_step_end(p)                set_type_bit(T_Slt(p), T_STEP_END)
 /* marks a slot that holds a do-loop's step-or-end variable, numerator=current, denominator=end */
 
-#define T_PAIR_NO_OPT                 T_MUTABLE
-#define set_pair_no_opt(p)            set_type_bit(T_Pair(p), T_PAIR_NO_OPT)
-#define pair_no_opt(p)                has_type_bit(T_Pair(p), T_PAIR_NO_OPT)
+#define T_PAIR_NO_OPT                  T_MUTABLE
+#define set_pair_no_opt(p)             set_type_bit(T_Pair(p), T_PAIR_NO_OPT)
+#define pair_no_opt(p)                 has_type_bit(T_Pair(p), T_PAIR_NO_OPT)
 
-#define T_NO_INT_OPT                  T_SETTER
-#define set_no_int_opt(p)             set_type_bit(T_Pair(p), T_NO_INT_OPT)
-#define no_int_opt(p)                 has_type_bit(T_Pair(p), T_NO_INT_OPT)
+#define T_NO_INT_OPT                   T_SETTER
+#define set_no_int_opt(p)              set_type_bit(T_Pair(p), T_NO_INT_OPT)
+#define no_int_opt(p)                  has_type_bit(T_Pair(p), T_NO_INT_OPT)
 
-#define T_NO_FLOAT_OPT                T_UNSAFE
-#define set_no_float_opt(p)           set_type_bit(T_Pair(p), T_NO_FLOAT_OPT)
-#define no_float_opt(p)               has_type_bit(T_Pair(p), T_NO_FLOAT_OPT)
+#define T_NO_FLOAT_OPT                 T_UNSAFE
+#define set_no_float_opt(p)            set_type_bit(T_Pair(p), T_NO_FLOAT_OPT)
+#define no_float_opt(p)                has_type_bit(T_Pair(p), T_NO_FLOAT_OPT)
 
-#define T_NO_BOOL_OPT                 T_SAFE_STEPPER
-#define set_no_bool_opt(p)            set_type_bit(T_Pair(p), T_NO_BOOL_OPT)
-#define no_bool_opt(p)                has_type_bit(T_Pair(p), T_NO_BOOL_OPT)
+#define T_NO_BOOL_OPT                  T_SAFE_STEPPER
+#define set_no_bool_opt(p)             set_type_bit(T_Pair(p), T_NO_BOOL_OPT)
+#define no_bool_opt(p)                 has_type_bit(T_Pair(p), T_NO_BOOL_OPT)
 
-#define T_DIRECT_X_OPT                T_SAFE_STEPPER
-#define set_direct_x_opt(p)           set_type_bit(T_Pair(p), T_DIRECT_X_OPT)
-#define has_direct_x_opt(p)           has_type_bit(T_Pair(p), T_DIRECT_X_OPT)
+#define T_DIRECT_X_OPT                 T_SAFE_STEPPER
+#define set_direct_x_opt(p)            set_type_bit(T_Pair(p), T_DIRECT_X_OPT)
+#define has_direct_x_opt(p)            has_type_bit(T_Pair(p), T_DIRECT_X_OPT)
 
-#define T_SAFE_STEPPER                (1 << (TYPE_BITS + 19))
-#define is_safe_stepper(p)            has_type_bit(T_Slp(p), T_SAFE_STEPPER)
-#define set_safe_stepper(p)           set_type_bit(T_Slp(p), T_SAFE_STEPPER)
-#define clear_safe_stepper(p)         clear_type_bit(T_Pos(p), T_SAFE_STEPPER)
+#define T_SAFE_STEPPER                 (1 << (TYPE_BITS + 19))
+#define is_safe_stepper(p)             has_type_bit(T_Slp(p), T_SAFE_STEPPER)
+#define set_safe_stepper(p)            set_type_bit(T_Slp(p), T_SAFE_STEPPER)
+#define clear_safe_stepper(p)          clear_type_bit(T_Pos(p), T_SAFE_STEPPER)
 
-#define T_PRINT_NAME                  T_SAFE_STEPPER
-#define has_print_name(p)             has_type_bit(T_Num(p), T_PRINT_NAME)
-#define set_has_print_name(p)         set_type_bit(T_Num(p), T_PRINT_NAME)
+#define T_PRINT_NAME                   T_SAFE_STEPPER
+#define has_print_name(p)              has_type_bit(T_Num(p), T_PRINT_NAME)
+#define set_has_print_name(p)          set_type_bit(T_Num(p), T_PRINT_NAME)
 /* marks numbers that have a saved version of their string representation */
 
-#define T_MAYBE_SAFE                  T_SAFE_STEPPER
-#define is_maybe_safe(p)              has_type_bit(T_Fnc(p), T_MAYBE_SAFE)
-#define set_maybe_safe(p)             set_type_bit(T_Fnc(p), T_MAYBE_SAFE)
+#define T_MAYBE_SAFE                   T_SAFE_STEPPER
+#define is_maybe_safe(p)               has_type_bit(T_Fnc(p), T_MAYBE_SAFE)
+#define set_maybe_safe(p)              set_type_bit(T_Fnc(p), T_MAYBE_SAFE)
 
-#define T_HAS_LET_SET_FALLBACK        T_SAFE_STEPPER
-#define T_HAS_LET_REF_FALLBACK        T_MUTABLE
-#define has_let_ref_fallback(p)       ((typeflag(T_Lid(p)) & (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS))
-#define has_let_set_fallback(p)       ((typeflag(T_Lid(p)) & (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS))
-#define set_has_let_ref_fallback(p)   set_type_bit(T_Let(p), T_HAS_LET_REF_FALLBACK)
-#define set_has_let_set_fallback(p)   set_type_bit(T_Let(p), T_HAS_LET_SET_FALLBACK)
-#define set_all_methods(p, e)         typeflag(T_Let(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
+#define T_HAS_LET_SET_FALLBACK         T_SAFE_STEPPER
+#define T_HAS_LET_REF_FALLBACK         T_MUTABLE
+#define has_let_ref_fallback(p)        ((typeflag(T_Lid(p)) & (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_REF_FALLBACK | T_HAS_METHODS))
+#define has_let_set_fallback(p)        ((typeflag(T_Lid(p)) & (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS))
+#define set_has_let_ref_fallback(p)    set_type_bit(T_Let(p), T_HAS_LET_REF_FALLBACK)
+#define set_has_let_set_fallback(p)    set_type_bit(T_Let(p), T_HAS_LET_SET_FALLBACK)
+#define set_all_methods(p, e)          typeflag(T_Let(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
 
-#define T_WEAK_HASH                   T_SAFE_STEPPER
-#define set_weak_hash_table(p)        set_type_bit(T_Hsh(p), T_WEAK_HASH)
-#define is_weak_hash_table(p)         has_type_bit(T_Hsh(p), T_WEAK_HASH)
+#define T_WEAK_HASH                    T_SAFE_STEPPER
+#define set_weak_hash_table(p)         set_type_bit(T_Hsh(p), T_WEAK_HASH)
+#define is_weak_hash_table(p)          has_type_bit(T_Hsh(p), T_WEAK_HASH)
 
-#define T_COPY_ARGS                   (1 << (TYPE_BITS + 20))
-#define needs_copied_args(p)          has_type_bit(T_Pos(p), T_COPY_ARGS)
+#define T_COPY_ARGS                    (1 << (TYPE_BITS + 20))
+#define needs_copied_args(p)           has_type_bit(T_Pos(p), T_COPY_ARGS)
 /* this marks something that might mess with its argument list, it should not be in the second byte */
 
-#define T_GENSYM                      (1 << (TYPE_BITS + 21))
-#define is_gensym(p)                  has_type_bit(T_Sym(p), T_GENSYM)
+#define T_GENSYM                       (1 << (TYPE_BITS + 21))
+#define is_gensym(p)                   has_type_bit(T_Sym(p), T_GENSYM)
 /* symbol is from gensym (GC-able etc) */
 
-#define T_FUNCLET                     T_GENSYM
-#define is_funclet(p)                 has_type_bit(T_Let(p), T_FUNCLET)
-#define set_funclet(p)                set_type_bit(T_Let(p), T_FUNCLET)
+#define T_FUNCLET                      T_GENSYM
+#define is_funclet(p)                  has_type_bit(T_Let(p), T_FUNCLET)
+#define set_funclet(p)                 set_type_bit(T_Let(p), T_FUNCLET)
 /* this marks a funclet */
 
-#define T_HASH_CHOSEN                 T_GENSYM
-#define hash_chosen(p)                has_type_bit(T_Hsh(p), T_HASH_CHOSEN)
-#define hash_set_chosen(p)            set_type_bit(T_Hsh(p), T_HASH_CHOSEN)
-#define hash_clear_chosen(p)          clear_type_bit(T_Hsh(p), T_HASH_CHOSEN)
+#define T_HASH_CHOSEN                  T_GENSYM
+#define hash_chosen(p)                 has_type_bit(T_Hsh(p), T_HASH_CHOSEN)
+#define hash_set_chosen(p)             set_type_bit(T_Hsh(p), T_HASH_CHOSEN)
+#define hash_clear_chosen(p)           clear_type_bit(T_Hsh(p), T_HASH_CHOSEN)
 
-#define T_DOCUMENTED                  T_GENSYM
-#define is_documented(p)              has_type_bit(T_Str(p), T_DOCUMENTED)
-#define set_documented(p)             set_type_bit(T_Str(p), T_DOCUMENTED)
+#define T_DOCUMENTED                   T_GENSYM
+#define is_documented(p)               has_type_bit(T_Str(p), T_DOCUMENTED)
+#define set_documented(p)              set_type_bit(T_Str(p), T_DOCUMENTED)
 /* this marks a symbol that has documentation (bit is set on name cell) */
 
-#define T_DOTTED_PAIR                 T_GENSYM
-#define is_dotted_pair(p)             has_type_bit(T_Lst(p), T_DOTTED_PAIR)
-#define pair_set_dotted(p)            set_type_bit(T_Pair(p), T_DOTTED_PAIR)
+#define T_DOTTED_PAIR                  T_GENSYM
+#define is_dotted_pair(p)              has_type_bit(T_Lst(p), T_DOTTED_PAIR)
+#define pair_set_dotted(p)             set_type_bit(T_Pair(p), T_DOTTED_PAIR)
 /* reader indication that a list it just read was dotted */
 
-#define T_SUBVECTOR                   T_GENSYM
-#define is_subvector(p)               has_type_bit(T_Vec(p), T_SUBVECTOR)
+#define T_SUBVECTOR                    T_GENSYM
+#define is_subvector(p)                has_type_bit(T_Vec(p), T_SUBVECTOR)
 
-#define T_HAS_PENDING_VALUE           T_GENSYM
-#define slot_set_has_pending_value(p) set_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
-#define slot_has_pending_value(p)     has_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
+#define T_HAS_PENDING_VALUE            T_GENSYM
+#define slot_set_has_pending_value(p)  set_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
+#define slot_has_pending_value(p)      has_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
 
-#define T_HAS_METHODS                 (1 << (TYPE_BITS + 22))
-#define has_methods(p)                has_type_bit(T_Pos(p), T_HAS_METHODS)
-#define set_has_methods(p)            set_type_bit(T_Met(p), T_HAS_METHODS)
-#define clear_has_methods(p)          clear_type_bit(T_Met(p), T_HAS_METHODS)
+#define T_HAS_METHODS                  (1 << (TYPE_BITS + 22))
+#define has_methods(p)                 has_type_bit(T_Pos(p), T_HAS_METHODS)
+#define set_has_methods(p)             set_type_bit(T_Met(p), T_HAS_METHODS)
+#define clear_has_methods(p)           clear_type_bit(T_Met(p), T_HAS_METHODS)
 /* this marks an environment or closure that is "open" for generic functions etc, don't reuse this bit */
 
-#define T_ITER_OK                     (1LL << (TYPE_BITS + 23))
-#define iter_ok(p)                    has_type_bit(T_Pos(p), T_ITER_OK) /* not TItr(p) here because this bit is globally unique */
-#define clear_iter_ok(p)              clear_type_bit(T_Itr(p), T_ITER_OK)
+#define T_ITER_OK                      (1LL << (TYPE_BITS + 23))
+#define iter_ok(p)                     has_type_bit(T_Pos(p), T_ITER_OK) /* not TItr(p) here because this bit is globally unique */
+#define clear_iter_ok(p)               clear_type_bit(T_Itr(p), T_ITER_OK)
 
 /* its faster here to use the high_flag bits rather than typeflag bits */
-#define BIT_ROOM                      16
-#define T_FULL_SYMCONS                (1LL << (TYPE_BITS + BIT_ROOM + 24))
-#define T_SYMCONS                     (1 << 0)
-#define is_possibly_constant(p)       has_type1_bit(T_Sym(p), T_SYMCONS)
-#define set_possibly_constant(p)      set_type1_bit(T_Sym(p), T_SYMCONS)
+#define BIT_ROOM                       16
+#define T_FULL_SYMCONS                 (1LL << (TYPE_BITS + BIT_ROOM + 24))
+#define T_SYMCONS                      (1 << 0)
+#define is_possibly_constant(p)        has_type1_bit(T_Sym(p), T_SYMCONS)
+#define set_possibly_constant(p)       set_type1_bit(T_Sym(p), T_SYMCONS)
 
-#define T_HAS_LET_ARG                 T_SYMCONS
-#define has_let_arg(p)                has_type1_bit(T_Pos(p), T_HAS_LET_ARG)
-#define set_has_let_arg(p)            set_type1_bit(T_Pos(p), T_HAS_LET_ARG)
+#define T_HAS_LET_ARG                  T_SYMCONS
+#define has_let_arg(p)                 has_type1_bit(T_Pos(p), T_HAS_LET_ARG)
+#define set_has_let_arg(p)             set_type1_bit(T_Pos(p), T_HAS_LET_ARG)
 /* p is_procedure, but no checker for it, so use T_Pos */
 
-#define T_FULL_S7_LET_FIELD           (1LL << (TYPE_BITS + BIT_ROOM + 25))
-#define T_S7_LET_FIELD                (1 << 1)
-#define is_s7_let_field(p)            has_type1_bit(T_Sym(p), T_S7_LET_FIELD)
-#define set_s7_let_field(p)           set_type1_bit(T_Sym(p), T_S7_LET_FIELD)
+#define T_FULL_S7_LET_FIELD            (1LL << (TYPE_BITS + BIT_ROOM + 25))
+#define T_S7_LET_FIELD                 (1 << 1)
+#define is_s7_let_field(p)             has_type1_bit(T_Sym(p), T_S7_LET_FIELD)
+#define set_s7_let_field(p)            set_type1_bit(T_Sym(p), T_S7_LET_FIELD)
 
-#define T_HAS_LET_FILE                T_S7_LET_FIELD
-#define has_let_file(p)               has_type1_bit(T_Let(p), T_HAS_LET_FILE)
-#define set_has_let_file(p)           set_type1_bit(T_Let(p), T_HAS_LET_FILE)
-#define clear_has_let_file(p)         clear_type1_bit(T_Let(p), T_HAS_LET_FILE)
+#define T_HAS_LET_FILE                 T_S7_LET_FIELD
+#define has_let_file(p)                has_type1_bit(T_Let(p), T_HAS_LET_FILE)
+#define set_has_let_file(p)            set_type1_bit(T_Let(p), T_HAS_LET_FILE)
+#define clear_has_let_file(p)          clear_type1_bit(T_Let(p), T_HAS_LET_FILE)
 
-#define T_HAS_OPTLIST                 T_S7_LET_FIELD
-#define has_optlist(p)                has_type1_bit(T_Pair(p), T_HAS_OPTLIST)
-#define set_has_optlist(p)            set_type1_bit(T_Pair(p), T_HAS_OPTLIST)
+#define T_HAS_OPTLIST                  T_S7_LET_FIELD
+#define has_optlist(p)                 has_type1_bit(T_Pair(p), T_HAS_OPTLIST)
+#define set_has_optlist(p)             set_type1_bit(T_Pair(p), T_HAS_OPTLIST)
 
-#define T_TYPED_VECTOR                T_S7_LET_FIELD
-#define is_typed_vector(p)            has_type1_bit(T_Vec(p), T_TYPED_VECTOR)
-#define set_typed_vector(p)           set_type1_bit(T_Vec(p), T_TYPED_VECTOR)
+#define T_TYPED_VECTOR                 T_S7_LET_FIELD
+#define is_typed_vector(p)             has_type1_bit(T_Vec(p), T_TYPED_VECTOR)
+#define set_typed_vector(p)            set_type1_bit(T_Vec(p), T_TYPED_VECTOR)
 
-#define T_TYPED_HASH_TABLE            T_S7_LET_FIELD
-#define is_typed_hash_table(p)        has_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
-#define set_typed_hash_table(p)       set_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
+#define T_TYPED_HASH_TABLE             T_S7_LET_FIELD
+#define is_typed_hash_table(p)         has_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
+#define set_typed_hash_table(p)        set_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
 
-#define T_BOOL_SETTER                 T_S7_LET_FIELD
-#define c_function_has_bool_setter(p) has_type1_bit(T_Fnc(p), T_BOOL_SETTER)
+#define T_BOOL_SETTER                  T_S7_LET_FIELD
+#define c_function_has_bool_setter(p)  has_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 #define c_function_set_has_bool_setter(p) set_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 
-#define T_FULL_DEFINER                (1LL << (TYPE_BITS + BIT_ROOM + 26))
-#define T_DEFINER                     (1 << 2)
-#define is_definer(p)                 has_type1_bit(T_Sym(p), T_DEFINER)
-#define set_is_definer(p)             set_type1_bit(T_Sym(p), T_DEFINER)
+#define T_FULL_DEFINER                 (1LL << (TYPE_BITS + BIT_ROOM + 26))
+#define T_DEFINER                      (1 << 2)
+#define is_definer(p)                  has_type1_bit(T_Sym(p), T_DEFINER)
+#define set_is_definer(p)              set_type1_bit(T_Sym(p), T_DEFINER)
 /* this marks "definers" like define and define-macro */
 
-#define T_RECUR                       (1LL << (TYPE_BITS + BIT_ROOM + 27))
-#define T_SHORT_RECUR                 (1 << 3)
-#define is_recur(p)                   ((has_type1_bit(T_Slt(p), T_SHORT_RECUR)) && (optimize_op(slot) == (symbol_ctr(slot_symbol(slot)) & 0xffff)))
-#define set_recur(slot, symbol)       do {set_type1_bit(T_Slt(slot), T_SHORT_RECUR); set_optimize_op(slot, symbol_ctr(symbol) & 0xffff);} while (0)
+#define T_RECUR                        (1LL << (TYPE_BITS + BIT_ROOM + 27))
+#define T_SHORT_RECUR                  (1 << 3)
+#define is_recur(p)                    ((has_type1_bit(T_Slt(p), T_SHORT_RECUR)) && (optimize_op(slot) == (symbol_ctr(slot_symbol(slot)) & 0xffff)))
+#define set_recur(slot, symbol)        do {set_type1_bit(T_Slt(slot), T_SHORT_RECUR); set_optimize_op(slot, symbol_ctr(symbol) & 0xffff);} while (0)
 /* was using symbol_ctr here, but surely symbol_id changes when symbol_ctr changes? */
 
-#define T_FULL_BINDER                 T_RECUR
-#define T_BINDER                      T_SHORT_RECUR
-#define is_binder(p)                  has_type1_bit(T_Sym(p), T_BINDER)
-#define is_definer_or_binder(p)       has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
-#define set_is_binder(p)              set_type1_bit(T_Sym(p), T_BINDER)
+#define T_FULL_BINDER                  T_RECUR
+#define T_BINDER                       T_SHORT_RECUR
+#define is_binder(p)                   has_type1_bit(T_Sym(p), T_BINDER)
+#define is_definer_or_binder(p)        has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
+#define set_is_binder(p)               set_type1_bit(T_Sym(p), T_BINDER)
 /* this marks "binders" like let */
 
-#define T_TREE_COLLECTED              T_RECUR
-#define T_SHORT_TREE_COLLECTED        T_SHORT_RECUR
+#define T_TREE_COLLECTED               T_RECUR
+#define T_SHORT_TREE_COLLECTED         T_SHORT_RECUR
 #define is_tree_collected_or_shared(p) has_type_bit(T_Pair(p), (T_TREE_COLLECTED | T_SHARED))
-#define set_tree_collected(p)         set_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
-#define clear_tree_bits(p)            clear_type_bit(T_Pair(p), T_TREE_COLLECTED | T_SHARED)
+#define set_tree_collected(p)          set_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
+#define clear_tree_bits(p)             clear_type_bit(T_Pair(p), T_TREE_COLLECTED | T_SHARED)
 
-#define T_VERY_SAFE_CLOSURE           (1LL << (TYPE_BITS + BIT_ROOM + 28))
-#define T_SHORT_VERY_SAFE_CLOSURE     (1 << 4)
-#define is_very_safe_closure(p)       has_type1_bit(T_Pos(p), T_SHORT_VERY_SAFE_CLOSURE)
-#define set_very_safe_closure(p)      set_type1_bit(p, T_SHORT_VERY_SAFE_CLOSURE)
-#define safe_closure_bits(p)          (typeflag(T_Pos(p)) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
+#define T_VERY_SAFE_CLOSURE            (1LL << (TYPE_BITS + BIT_ROOM + 28))
+#define T_SHORT_VERY_SAFE_CLOSURE      (1 << 4)
+#define is_very_safe_closure(p)        has_type1_bit(T_Pos(p), T_SHORT_VERY_SAFE_CLOSURE)
+#define set_very_safe_closure(p)       set_type1_bit(p, T_SHORT_VERY_SAFE_CLOSURE)
+#define safe_closure_bits(p)           (typeflag(T_Pos(p)) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
 
-#define T_CYCLIC                      (1LL << (TYPE_BITS + BIT_ROOM + 29))
-#define T_SHORT_CYCLIC                (1 << 5)
-#define is_cyclic(p)                  has_type1_bit(T_Pos(p), T_SHORT_CYCLIC)
-#define set_cyclic(p)                 set_type1_bit(T_Pos(p), T_SHORT_CYCLIC)
+#define T_CYCLIC                       (1LL << (TYPE_BITS + BIT_ROOM + 29))
+#define T_SHORT_CYCLIC                 (1 << 5)
+#define is_cyclic(p)                   has_type1_bit(T_Pos(p), T_SHORT_CYCLIC)
+#define set_cyclic(p)                  set_type1_bit(T_Pos(p), T_SHORT_CYCLIC)
 
-#define T_CYCLIC_SET                  (1LL << (TYPE_BITS + BIT_ROOM + 30))
-#define T_SHORT_CYCLIC_SET            (1 << 6)
-#define is_cyclic_set(p)              has_type1_bit(T_Pos(p), T_SHORT_CYCLIC_SET)
-#define set_cyclic_set(p)             set_type1_bit(T_Pos(p), T_SHORT_CYCLIC_SET)
-#define clear_cyclic_bits(p)          clear_type_bit(p, T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET)
+#define T_CYCLIC_SET                   (1LL << (TYPE_BITS + BIT_ROOM + 30))
+#define T_SHORT_CYCLIC_SET             (1 << 6)
+#define is_cyclic_set(p)               has_type1_bit(T_Pos(p), T_SHORT_CYCLIC_SET)
+#define set_cyclic_set(p)              set_type1_bit(T_Pos(p), T_SHORT_CYCLIC_SET)
+#define clear_cyclic_bits(p)           clear_type_bit(p, T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET)
 
-#define T_KEYWORD                     (1LL << (TYPE_BITS + BIT_ROOM + 31))
-#define T_SHORT_KEYWORD               (1 << 7)
-#define is_keyword(p)                 has_type1_bit(T_Pos(p), T_SHORT_KEYWORD)
+#define T_KEYWORD                      (1LL << (TYPE_BITS + BIT_ROOM + 31))
+#define T_SHORT_KEYWORD                (1 << 7)
+#define is_keyword(p)                  has_type1_bit(T_Pos(p), T_SHORT_KEYWORD)
 /* this bit distinguishes a symbol from a symbol that is also a keyword */
 
-#define T_FULL_SIMPLE_ELEMENTS        (1LL << (TYPE_BITS + BIT_ROOM + 32))
-#define T_SIMPLE_ELEMENTS             (1 << 8)
-#define has_simple_elements(p)        has_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
-#define set_has_simple_elements(p)    set_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
+#define T_FULL_SIMPLE_ELEMENTS         (1LL << (TYPE_BITS + BIT_ROOM + 32))
+#define T_SIMPLE_ELEMENTS              (1 << 8)
+#define has_simple_elements(p)         has_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
+#define set_has_simple_elements(p)     set_type1_bit(T_Nvc(p), T_SIMPLE_ELEMENTS)
 #define c_function_has_simple_elements(p)     has_type1_bit(T_Fnc(p), T_SIMPLE_ELEMENTS)
 #define c_function_set_has_simple_elements(p) set_type1_bit(T_Fnc(p), T_SIMPLE_ELEMENTS)
 
-#define T_SIMPLE_KEYS                 T_SIMPLE_ELEMENTS
-#define has_simple_keys(p)            has_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
-#define set_has_simple_keys(p)        set_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
+#define T_SIMPLE_KEYS                  T_SIMPLE_ELEMENTS
+#define has_simple_keys(p)             has_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
+#define set_has_simple_keys(p)         set_type1_bit(T_Hsh(p), T_SIMPLE_KEYS)
 
-#define T_TYPE_INFO                   T_SHORT_RECUR
-#define has_type_info(p)              has_type1_bit(T_Fnc(p), T_TYPE_INFO)
-#define set_has_type_info(p)          set_type1_bit(T_Fnc(p), T_TYPE_INFO)
+#define T_TYPE_INFO                    T_SHORT_RECUR
+#define has_type_info(p)               has_type1_bit(T_Fnc(p), T_TYPE_INFO)
+#define set_has_type_info(p)           set_type1_bit(T_Fnc(p), T_TYPE_INFO)
 
-#define T_SIMPLE_VALUES               T_SHORT_RECUR
-#define has_simple_values(p)          has_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
-#define set_has_simple_values(p)      set_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
+#define T_SIMPLE_VALUES                T_SHORT_RECUR
+#define has_simple_values(p)           has_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
+#define set_has_simple_values(p)       set_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
 
-#define UNUSED_BITS                   0x3c00000000000000
+#define UNUSED_BITS                    0x3c00000000000000
 /* 39 lower bits, sign bit as gc-mark, 16 for opt info */
 
-#define T_GC_MARK                     0x8000000000000000
-#define is_marked(p)                  has_type_bit(p, T_GC_MARK)
-#define set_mark(p)                   set_type_bit(T_Pos(p), T_GC_MARK)
-#define clear_mark(p)                 clear_type_bit(p, T_GC_MARK)
+#define T_GC_MARK                      0x8000000000000000
+#define is_marked(p)                   has_type_bit(p, T_GC_MARK)
+#define set_mark(p)                    set_type_bit(T_Pos(p), T_GC_MARK)
+#define clear_mark(p)                  clear_type_bit(p, T_GC_MARK)
 /* using the sign bit, bit 23 (or 55) == 31 (or 63) for this makes a big difference in the GC */
 
-#define T_UNHEAP                      0x4000000000000000
-#define T_SHORT_UNHEAP                (1 << 14)
-#define not_in_heap(p)                has_type1_bit(p, T_SHORT_UNHEAP)
-#define in_heap(p)                    (((p)->tf.opts.high_flag & T_SHORT_UNHEAP) == 0)
-#define unheap(sc, p)                 set_type1_bit(p, T_SHORT_UNHEAP)
+#define T_UNHEAP                       0x4000000000000000
+#define T_SHORT_UNHEAP                 (1 << 14)
+#define not_in_heap(p)                 has_type1_bit(p, T_SHORT_UNHEAP)
+#define in_heap(p)                     (((p)->tf.opts.high_flag & T_SHORT_UNHEAP) == 0)
+#define unheap(sc, p)                  set_type1_bit(p, T_SHORT_UNHEAP)
 
-#define is_eof(p)                     ((T_Pos(p)) == eof_object)
-#define is_undefined(p)               (type(p) == T_UNDEFINED)
-#define is_true(Sc, p)                ((T_Pos(p)) != Sc->F)
-#define is_false(Sc, p)               ((T_Pos(p)) == Sc->F)
+#define is_eof(p)                      ((T_Pos(p)) == eof_object)
+#define is_undefined(p)                (type(p) == T_UNDEFINED)
+#define is_true(Sc, p)                 ((T_Pos(p)) != Sc->F)
+#define is_false(Sc, p)                ((T_Pos(p)) == Sc->F)
 
 #ifdef _MSC_VER
   static s7_pointer make_boolean(s7_scheme *sc, bool val) {if (val) return(sc->T); return(sc->F);}
 #else
-  #define make_boolean(sc, Val)       ((Val) ? sc->T : sc->F)
+  #define make_boolean(sc, Val)        ((Val) ? sc->T : sc->F)
 #endif
 
-#define is_pair(p)                    (type(T_Pos(p)) == T_PAIR)
-#define is_mutable_pair(p)            ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
-#define is_null(p)                    ((T_Pos(p)) == sc->nil)
-#define is_not_null(p)                ((T_Pos(p)) != sc->nil)
-#define is_list(p)                    ((is_pair(p)) || (type(p) == T_NIL))
+#define is_pair(p)                     (type(T_Pos(p)) == T_PAIR)
+#define is_mutable_pair(p)             ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_PAIR)
+#define is_null(p)                     ((T_Pos(p)) == sc->nil)
+#define is_not_null(p)                 ((T_Pos(p)) != sc->nil)
+#define is_list(p)                     ((is_pair(p)) || (type(p) == T_NIL))
 
-#define raw_opt1(p)                   ((p)->object.cons.opt1)
+#define raw_opt1(p)                    ((p)->object.cons.opt1)
 
 #if (!S7_DEBUGGING)
 
-#define opt1(p, r)                    ((p)->object.cons.opt1)
-#define set_opt1(p, x, r)             (p)->object.cons.opt1 = x
-#define opt2(p, r)                    ((p)->object.cons.opt2)
-#define set_opt2(p, x, r)             (p)->object.cons.opt2 = (s7_pointer)(x)
-#define opt3(p, r)                    ((p)->object.cons.opt3)
-#define set_opt3(p, x, r)             do {(p)->object.cons.opt3 = x; clear_type_bit(p, T_OPTIMIZED | T_LINE_NUMBER);} while (0)
+#define opt1(p, r)                     ((p)->object.cons.opt1)
+#define set_opt1(p, x, r)              (p)->object.cons.opt1 = x
+#define opt2(p, r)                     ((p)->object.cons.opt2)
+#define set_opt2(p, x, r)              (p)->object.cons.opt2 = (s7_pointer)(x)
+#define opt3(p, r)                     ((p)->object.cons.opt3)
+#define set_opt3(p, x, r)              do {(p)->object.cons.opt3 = x; clear_type_bit(p, T_OPTIMIZED | T_LINE_NUMBER);} while (0)
 
-#define pair_line(p)                  (p)->object.sym_cons.line
-#define pair_set_line(p, X)           (p)->object.sym_cons.line = X
-#define pair_file(p)                  (p)->object.sym_cons.file
-#define pair_set_file(p, X)           (p)->object.sym_cons.file = X
-#define pair_raw_hash(p)              (p)->object.sym_cons.hash
-#define pair_set_raw_hash(p, X)       (p)->object.sym_cons.hash = X
-#define pair_raw_len(p)               (p)->object.sym_cons.line
-#define pair_set_raw_len(p, X)        (p)->object.sym_cons.line = X
-#define pair_raw_name(p)              (p)->object.sym_cons.fstr
-#define pair_set_raw_name(p, X)       (p)->object.sym_cons.fstr = X
+#define pair_line(p)                   (p)->object.sym_cons.line
+#define pair_set_line(p, X)            (p)->object.sym_cons.line = X
+#define pair_file(p)                   (p)->object.sym_cons.file
+#define pair_set_file(p, X)            (p)->object.sym_cons.file = X
+#define pair_raw_hash(p)               (p)->object.sym_cons.hash
+#define pair_set_raw_hash(p, X)        (p)->object.sym_cons.hash = X
+#define pair_raw_len(p)                (p)->object.sym_cons.line
+#define pair_set_raw_len(p, X)         (p)->object.sym_cons.line = X
+#define pair_raw_name(p)               (p)->object.sym_cons.fstr
+#define pair_set_raw_name(p, X)        (p)->object.sym_cons.fstr = X
 
 /* opt1 == raw_hash, opt2 == raw_name, opt3 == line|ctr + op|len, but hash/name/len only apply to the symbol table so there's no collision */
 
@@ -2518,236 +2518,236 @@ static void init_types(void)
  * the bits and funcs here try to track each such use, and report any cross-talk or collisions.
  * all of this machinery vanishes if debugging is turned off.
  */
-#define S_NAME                        (1 << 25)
-#define S_HASH                        (1 << 26)
-#define S_LINE                        (1 << 27)
-#define S_LEN                         (1 << 28)
+#define S_NAME                         (1 << 25)
+#define S_HASH                         (1 << 26)
+#define S_LINE                         (1 << 27)
+#define S_LEN                          (1 << 28)
 
-#define E_SET                         (1 << 0)
-#define E_FAST                        (1 << 7)   /* fast list in member/assoc circular list check */
-#define E_CFUNC                       (1 << 8)   /* c-function */
-#define E_CLAUSE                      (1 << 9)   /* case clause */
-#define E_LAMBDA                      (1 << 11)  /* lambda(*) */
-#define E_SYM                         (1 << 12)  /* symbol */
-#define E_PAIR                        (1 << 13)  /* pair */
-#define E_CON                         (1 << 14)  /* constant from eval's point of view */
-#define E_GOTO                        (1 << 15)  /* call-with-exit exit func */
-#define E_ANY                         (1 << 16)  /* anything -- deliberate unchecked case */
-#define E_SLOT                        (1 << 17)  /* slot */
-#define E_MASK                        (E_FAST | E_CFUNC | E_CLAUSE | E_LAMBDA | E_SYM | E_PAIR | E_CON | E_GOTO | E_ANY | E_SLOT | S_HASH)
+#define E_SET                          (1 << 0)
+#define E_FAST                         (1 << 7)   /* fast list in member/assoc circular list check */
+#define E_CFUNC                        (1 << 8)   /* c-function */
+#define E_CLAUSE                       (1 << 9)   /* case clause */
+#define E_LAMBDA                       (1 << 11)  /* lambda(*) */
+#define E_SYM                          (1 << 12)  /* symbol */
+#define E_PAIR                         (1 << 13)  /* pair */
+#define E_CON                          (1 << 14)  /* constant from eval's point of view */
+#define E_GOTO                         (1 << 15)  /* call-with-exit exit func */
+#define E_ANY                          (1 << 16)  /* anything -- deliberate unchecked case */
+#define E_SLOT                         (1 << 17)  /* slot */
+#define E_MASK                         (E_FAST | E_CFUNC | E_CLAUSE | E_LAMBDA | E_SYM | E_PAIR | E_CON | E_GOTO | E_ANY | E_SLOT | S_HASH)
 
-#define opt1_is_set(p)                (((p)->debugger_bits & E_SET) != 0)
-#define set_opt1_is_set(p)            (p)->debugger_bits |= E_SET
-#define opt1_role_matches(p, Role)    (((p)->debugger_bits & E_MASK) == Role)
-#define set_opt1_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~E_MASK))
-#define opt1(p, Role)                 opt1_1(T_Pair(p), Role, __func__, __LINE__)
-#define set_opt1(p, x, Role)          set_opt1_1(T_Pair(p), x, Role, __func__, __LINE__)
+#define opt1_is_set(p)                 (((p)->debugger_bits & E_SET) != 0)
+#define set_opt1_is_set(p)             (p)->debugger_bits |= E_SET
+#define opt1_role_matches(p, Role)     (((p)->debugger_bits & E_MASK) == Role)
+#define set_opt1_role(p, Role)         (p)->debugger_bits = (Role | ((p)->debugger_bits & ~E_MASK))
+#define opt1(p, Role)                  opt1_1(T_Pair(p), Role, __func__, __LINE__)
+#define set_opt1(p, x, Role)           set_opt1_1(T_Pair(p), x, Role, __func__, __LINE__)
 
-#define F_SET                         (1 << 1)
-#define F_KEY                         (1 << 18)  /* case key */
-#define F_SLOW                        (1 << 19)  /* slow list in member/assoc circular list check */
-#define F_SYM                         (1 << 20)  /* symbol */
-#define F_PAIR                        (1 << 21)  /* pair */
-#define F_CON                         (1 << 22)  /* constant as above */
-#define F_CALL                        (1 << 23)  /* c-func */
-#define F_LAMBDA                      (1 << 24)  /* lambda form */
-#define F_MASK                        (F_KEY | F_SLOW | F_SYM | F_PAIR | F_CON | F_CALL | F_LAMBDA | S_NAME)
+#define F_SET                          (1 << 1)
+#define F_KEY                          (1 << 18)  /* case key */
+#define F_SLOW                         (1 << 19)  /* slow list in member/assoc circular list check */
+#define F_SYM                          (1 << 20)  /* symbol */
+#define F_PAIR                         (1 << 21)  /* pair */
+#define F_CON                          (1 << 22)  /* constant as above */
+#define F_CALL                         (1 << 23)  /* c-func */
+#define F_LAMBDA                       (1 << 24)  /* lambda form */
+#define F_MASK                         (F_KEY | F_SLOW | F_SYM | F_PAIR | F_CON | F_CALL | F_LAMBDA | S_NAME)
 
-#define opt2_is_set(p)                (((p)->debugger_bits & F_SET) != 0)
-#define set_opt2_is_set(p)            (p)->debugger_bits |= F_SET
-#define opt2_role_matches(p, Role)    (((p)->debugger_bits & F_MASK) == Role)
-#define set_opt2_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~F_MASK))
-#define opt2(p, Role)                 opt2_1(sc, T_Pair(p), Role, __func__, __LINE__)
-#define set_opt2(p, x, Role)          set_opt2_1(sc, T_Pair(p), (s7_pointer)x, Role, __func__, __LINE__)
+#define opt2_is_set(p)                 (((p)->debugger_bits & F_SET) != 0)
+#define set_opt2_is_set(p)             (p)->debugger_bits |= F_SET
+#define opt2_role_matches(p, Role)     (((p)->debugger_bits & F_MASK) == Role)
+#define set_opt2_role(p, Role)         (p)->debugger_bits = (Role | ((p)->debugger_bits & ~F_MASK))
+#define opt2(p, Role)                  opt2_1(sc, T_Pair(p), Role, __func__, __LINE__)
+#define set_opt2(p, x, Role)           set_opt2_1(sc, T_Pair(p), (s7_pointer)x, Role, __func__, __LINE__)
 
 /* opt3 collides with optimization and line number stuff (T_LINE_NUMBER, T_OPTIMIZED) */
-#define G_SET                         (1 << 2)
-#define G_ARGLEN                      (1 << 3)  /* arglist length */
-#define G_SYM                         (1 << 4)  /* expression symbol access */
-#define G_AND                         (1 << 5)  /* and second clause */
-#define G_DIRECT                      (1 << 6)  /* direct call info */
-#define G_MASK                        (G_ARGLEN | G_SYM | G_AND | S_LINE | S_LEN | G_DIRECT)
+#define G_SET                          (1 << 2)
+#define G_ARGLEN                       (1 << 3)  /* arglist length */
+#define G_SYM                          (1 << 4)  /* expression symbol access */
+#define G_AND                          (1 << 5)  /* and second clause */
+#define G_DIRECT                       (1 << 6)  /* direct call info */
+#define G_MASK                         (G_ARGLEN | G_SYM | G_AND | S_LINE | S_LEN | G_DIRECT)
 
-#define opt3_is_set(p)                (((p)->debugger_bits & G_SET) != 0)
-#define set_opt3_is_set(p)            (p)->debugger_bits |= G_SET
-#define opt3_role_matches(p, Role)    (((p)->debugger_bits & G_MASK) == Role)
-#define set_opt3_role(p, Role)        (p)->debugger_bits = (Role | ((p)->debugger_bits & ~G_MASK))
-#define opt3(p, Role)                 opt3_1(T_Pair(p), Role, __func__, __LINE__)
-#define set_opt3(p, x, Role)          set_opt3_1(T_Pair(p), x, Role, __func__, __LINE__)
+#define opt3_is_set(p)                 (((p)->debugger_bits & G_SET) != 0)
+#define set_opt3_is_set(p)             (p)->debugger_bits |= G_SET
+#define opt3_role_matches(p, Role)     (((p)->debugger_bits & G_MASK) == Role)
+#define set_opt3_role(p, Role)         (p)->debugger_bits = (Role | ((p)->debugger_bits & ~G_MASK))
+#define opt3(p, Role)                  opt3_1(T_Pair(p), Role, __func__, __LINE__)
+#define set_opt3(p, x, Role)           set_opt3_1(T_Pair(p), x, Role, __func__, __LINE__)
 
 /* opt1 == s_hash, opt2 == s_fstr, opt3 == s_op|len|line and op==len so they are contradictory (but only op/line|opt3 actually collide)
  * line|len|op: uint32_t set G_SET and S_* if S_LEN -> not op and vice versa
  */
 
-#define pair_line(p)                  s_line_1(T_Pair(p), __func__, __LINE__)
-#define pair_set_line(p, X)           set_s_line_1(T_Pair(p), X, __func__, __LINE__)
-#define pair_file(p)                  (p)->object.sym_cons.file
-#define pair_set_file(p, X)           set_s_file_1(sc, T_Pair(p), X, __func__, __LINE__)
-#define pair_raw_hash(p)              s_hash_1(T_Pair(p), __func__, __LINE__)
-#define pair_set_raw_hash(p, X)       set_s_hash_1(T_Pair(p), X, __func__, __LINE__)
-#define pair_raw_len(p)               s_len_1(T_Pair(p), __func__, __LINE__)
-#define pair_set_raw_len(p, X)        set_s_len_1(T_Pair(p), X, __func__, __LINE__)
-#define pair_raw_name(p)              s_name_1(T_Pair(p), __func__, __LINE__)
-#define pair_set_raw_name(p, X)       set_s_name_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_line(p)                   s_line_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_line(p, X)            set_s_line_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_file(p)                   (p)->object.sym_cons.file
+#define pair_set_file(p, X)            set_s_file_1(sc, T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_hash(p)               s_hash_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_hash(p, X)        set_s_hash_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_len(p)                s_len_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_len(p, X)         set_s_len_1(T_Pair(p), X, __func__, __LINE__)
+#define pair_raw_name(p)               s_name_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_raw_name(p, X)        set_s_name_1(T_Pair(p), X, __func__, __LINE__)
 
 #endif
 
-#define opt_fast(P)                   T_Lst(opt1(P,          E_FAST))
-#define set_opt_fast(P, X)            set_opt1(P, T_Pair(X), E_FAST)
-#define opt_cfunc(P)                  T_Pos(opt1(P,          E_CFUNC))
-#define set_opt_cfunc(P, X)           set_opt1(P, T_Pos(X),  E_CFUNC)
-#define opt_lambda_unchecked(P)       opt1(P,                E_LAMBDA) /* can be free/null? from s7_call? */
-#define opt_lambda(P)                 T_Clo(opt1(P,          E_LAMBDA))
-#define set_opt_lambda(P, X)          set_opt1(P, T_Pos(X),  E_LAMBDA)
-#define opt_goto(P)                   T_Pos(opt1(P,          E_GOTO))  /* used when checking for non-goto unknown in eval, so can't be T_Got */
-#define set_opt_goto(P, X)            set_opt1(P, T_Pos(X),  E_GOTO)
-#define opt_clause(P)                 T_Pos(opt1(P,          E_CLAUSE))
-#define set_opt_clause(P, X)          set_opt1(P, T_Pos(X),  E_CLAUSE)
-#define opt_sym1(P)                   T_Sym(opt1(P,          E_SYM))
-#define set_opt_sym1(P, X)            set_opt1(P, T_Sym(X),  E_SYM)
-#define opt_pair1(P)                  T_Lst(opt1(P,          E_PAIR))
-#define set_opt_pair1(P, X)           set_opt1(P, T_Lst(X),  E_PAIR)
-#define opt_con1(P)                   T_Pos(opt1(P,          E_CON))
-#define set_opt_con1(P, X)            set_opt1(P, T_Pos(X),  E_CON)
-#define opt_any1(P)                   opt1(P,                E_ANY)    /* can be free in closure_is_ok */
-#define set_opt_any1(P, X)            set_opt1(P, X,         E_ANY)
-#define opt_slot1(P)                  T_Slt(opt1(P,          E_SLOT))
-#define set_opt_slot1(P, X)           set_opt1(P, T_Slt(X),  E_SLOT)
+#define opt_fast(P)                    T_Lst(opt1(P,          E_FAST))
+#define set_opt_fast(P, X)             set_opt1(P, T_Pair(X), E_FAST)
+#define opt_cfunc(P)                   T_Pos(opt1(P,          E_CFUNC))
+#define set_opt_cfunc(P, X)            set_opt1(P, T_Pos(X),  E_CFUNC)
+#define opt_lambda_unchecked(P)        opt1(P,                E_LAMBDA) /* can be free/null? from s7_call? */
+#define opt_lambda(P)                  T_Clo(opt1(P,          E_LAMBDA))
+#define set_opt_lambda(P, X)           set_opt1(P, T_Pos(X),  E_LAMBDA)
+#define opt_goto(P)                    T_Pos(opt1(P,          E_GOTO))  /* used when checking for non-goto unknown in eval, so can't be T_Got */
+#define set_opt_goto(P, X)             set_opt1(P, T_Pos(X),  E_GOTO)
+#define opt_clause(P)                  T_Pos(opt1(P,          E_CLAUSE))
+#define set_opt_clause(P, X)           set_opt1(P, T_Pos(X),  E_CLAUSE)
+#define opt_sym1(P)                    T_Sym(opt1(P,          E_SYM))
+#define set_opt_sym1(P, X)             set_opt1(P, T_Sym(X),  E_SYM)
+#define opt_pair1(P)                   T_Lst(opt1(P,          E_PAIR))
+#define set_opt_pair1(P, X)            set_opt1(P, T_Lst(X),  E_PAIR)
+#define opt_con1(P)                    T_Pos(opt1(P,          E_CON))
+#define set_opt_con1(P, X)             set_opt1(P, T_Pos(X),  E_CON)
+#define opt_any1(P)                    opt1(P,                E_ANY)    /* can be free in closure_is_ok */
+#define set_opt_any1(P, X)             set_opt1(P, X,         E_ANY)
+#define opt_slot1(P)                   T_Slt(opt1(P,          E_SLOT))
+#define set_opt_slot1(P, X)            set_opt1(P, T_Slt(X),  E_SLOT)
 
-#define opt_any2_unchecked(P)         P->object.cons.opt2
-#define set_opt_any2_unchecked(P, X)  P->object.cons.opt2 = X
-#define opt_any2(P)                   opt2(P,                      F_KEY)
-#define set_opt_any2(P, X)            set_opt2(P, X,               F_KEY)
-#define opt_slow(P)                   T_Lst(opt2(P,                F_SLOW))
-#define set_opt_slow(P, X)            set_opt2(P, T_Pair(X),       F_SLOW)
-#define opt_sym2(P)                   T_Sym(opt2(P,                F_SYM))
-#define set_opt_sym2(P, X)            set_opt2(P, T_Sym(X),        F_SYM)
-#define opt_pair2(P)                  T_Lst(opt2(P,                F_PAIR))
-#define set_opt_pair2(P, X)           set_opt2(P, T_Lst(X),        F_PAIR)
-#define opt_con2(P)                   T_Pos(opt2(P,                F_CON))
-#define set_opt_con2(P, X)            set_opt2(P, T_Pos(X),        F_CON)
-#define opt_lambda2(P)                T_Pair(opt2(P,               F_LAMBDA))
-#define set_opt_lambda2(P, X)         set_opt2(P, T_Pair(X),       F_LAMBDA)
-#define opt_direct_x_call(P)          opt2(P,                      F_LAMBDA)
-#define set_opt_direct_x_call(P, X)   set_opt2(P, (s7_pointer)(X), F_LAMBDA)
+#define opt_any2_unchecked(P)          P->object.cons.opt2
+#define set_opt_any2_unchecked(P, X)   P->object.cons.opt2 = X
+#define opt_any2(P)                    opt2(P,                      F_KEY)
+#define set_opt_any2(P, X)             set_opt2(P, X,               F_KEY)
+#define opt_slow(P)                    T_Lst(opt2(P,                F_SLOW))
+#define set_opt_slow(P, X)             set_opt2(P, T_Pair(X),       F_SLOW)
+#define opt_sym2(P)                    T_Sym(opt2(P,                F_SYM))
+#define set_opt_sym2(P, X)             set_opt2(P, T_Sym(X),        F_SYM)
+#define opt_pair2(P)                   T_Lst(opt2(P,                F_PAIR))
+#define set_opt_pair2(P, X)            set_opt2(P, T_Lst(X),        F_PAIR)
+#define opt_con2(P)                    T_Pos(opt2(P,                F_CON))
+#define set_opt_con2(P, X)             set_opt2(P, T_Pos(X),        F_CON)
+#define opt_lambda2(P)                 T_Pair(opt2(P,               F_LAMBDA))
+#define set_opt_lambda2(P, X)          set_opt2(P, T_Pair(X),       F_LAMBDA)
+#define opt_direct_x_call(P)           opt2(P,                      F_LAMBDA)
+#define set_opt_direct_x_call(P, X)    set_opt2(P, (s7_pointer)(X), F_LAMBDA)
 
-#define arglist_length(P)             T_Int(opt3(cdr(P),           G_ARGLEN))
-#define set_arglist_length(P, X)      set_opt3(cdr(P), T_Int(X),   G_ARGLEN)
-#define opt_sym3(P)                   T_Sym(opt3(P,                G_SYM))
-#define set_opt_sym3(P, X)            set_opt3(P, T_Sym(X),        G_SYM)
-#define opt_pair3(P)                  T_Pair(opt3(P,               G_AND))
-#define set_opt_pair3(P, X)           set_opt3(P, T_Pair(X),       G_AND)
-#define opt_any3(P)                   opt3(P,                      G_AND)
-#define set_opt_any3(P, X)            set_opt3(P, X,               G_AND)
-#define opt_direct_x(P)               opt3(P,                      G_DIRECT)
-#define set_opt_direct_x(P, X)        set_opt3(P, (s7_pointer)(X), G_DIRECT)
+#define arglist_length(P)              T_Int(opt3(cdr(P),           G_ARGLEN))
+#define set_arglist_length(P, X)       set_opt3(cdr(P), T_Int(X),   G_ARGLEN)
+#define opt_sym3(P)                    T_Sym(opt3(P,                G_SYM))
+#define set_opt_sym3(P, X)             set_opt3(P, T_Sym(X),        G_SYM)
+#define opt_pair3(P)                   T_Pair(opt3(P,               G_AND))
+#define set_opt_pair3(P, X)            set_opt3(P, T_Pair(X),       G_AND)
+#define opt_any3(P)                    opt3(P,                      G_AND)
+#define set_opt_any3(P, X)             set_opt3(P, X,               G_AND)
+#define opt_direct_x(P)                opt3(P,                      G_DIRECT)
+#define set_opt_direct_x(P, X)         set_opt3(P, (s7_pointer)(X), G_DIRECT)
 
-#define opt_con3(P)                   T_Pair(P)->object.cons_ext.opt_type
-#define set_opt_con3(P, X)            T_Pair(P)->object.cons_ext.opt_type = X
+#define opt_con3(P)                    T_Pair(P)->object.cons_ext.opt_type
+#define set_opt_con3(P, X)             T_Pair(P)->object.cons_ext.opt_type = X
 
-#define c_callee(f)                   ((s7_function)opt2(f,      F_CALL))
-#define c_call(f)                     ((s7_function)opt2(f,      F_CALL))
+#define c_callee(f)                    ((s7_function)opt2(f,      F_CALL))
+#define c_call(f)                      ((s7_function)opt2(f,      F_CALL))
 
 #if S7_DEBUGGING
-  #define set_c_call_checked(f, _X_)  do {s7_pointer X; X = (s7_pointer)(_X_); if ((!(X)) && (strcmp(__func__, "check_and") != 0) && (strcmp(__func__, "check_or") != 0)) fprintf(stderr, "%s[%d] x_call null\n", __func__, __LINE__); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
-  #define set_c_call(f, _X_)          do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null: %s\n", __func__, __LINE__, DISPLAY(f)); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+  #define set_c_call_checked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); if ((!(X)) && (strcmp(__func__, "check_and") != 0) && (strcmp(__func__, "check_or") != 0)) fprintf(stderr, "%s[%d] x_call null\n", __func__, __LINE__); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+  #define set_c_call(f, _X_)           do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null: %s\n", __func__, __LINE__, DISPLAY(f)); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #else
-  #define set_c_call(f, X)            do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
-  #define set_c_call_checked(f, _X_)  do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+  #define set_c_call(f, X)             do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
+  #define set_c_call_checked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #endif
-#define set_c_call_direct(f, X)       set_opt2(f, (s7_pointer)(X), F_CALL)
-#define set_c_call_unchecked(f, _X_)  do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+#define set_c_call_direct(f, X)        set_opt2(f, (s7_pointer)(X), F_CALL)
+#define set_c_call_unchecked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 
 
-#define car(p)                        (T_Pair(p))->object.cons.car
-#define set_car(p, Val)               (T_Pair(p))->object.cons.car = T_Pos(Val)
-#define cdr(p)                        (T_Pair(p))->object.cons.cdr
-#define set_cdr(p, Val)               (T_Pair(p))->object.cons.cdr = T_Pos(Val)
-#define unchecked_car(p)              (T_Pos(p))->object.cons.car
-#define unchecked_cdr(p)              (T_Pos(p))->object.cons.cdr
+#define car(p)                         (T_Pair(p))->object.cons.car
+#define set_car(p, Val)                (T_Pair(p))->object.cons.car = T_Pos(Val)
+#define cdr(p)                         (T_Pair(p))->object.cons.cdr
+#define set_cdr(p, Val)                (T_Pair(p))->object.cons.cdr = T_Pos(Val)
+#define unchecked_car(p)               (T_Pos(p))->object.cons.car
+#define unchecked_cdr(p)               (T_Pos(p))->object.cons.cdr
 
-#define caar(p)                       car(car(p))
-#define cadr(p)                       car(cdr(p))
-#define set_cadr(p, Val)              (T_Pair(p))->object.cons.cdr->object.cons.car = T_Pos(Val)
-#define cdar(p)                       cdr(car(p))
-#define set_cdar(p, Val)              (T_Pair(p))->object.cons.car->object.cons.cdr = T_Pos(Val)
-#define cddr(p)                       cdr(cdr(p))
+#define caar(p)                        car(car(p))
+#define cadr(p)                        car(cdr(p))
+#define set_cadr(p, Val)               (T_Pair(p))->object.cons.cdr->object.cons.car = T_Pos(Val)
+#define cdar(p)                        cdr(car(p))
+#define set_cdar(p, Val)               (T_Pair(p))->object.cons.car->object.cons.cdr = T_Pos(Val)
+#define cddr(p)                        cdr(cdr(p))
 
-#define caaar(p)                      car(car(car(p)))
-#define cadar(p)                      car(cdr(car(p)))
-#define cdadr(p)                      cdr(car(cdr(p)))
-#define caddr(p)                      car(cdr(cdr(p)))
-#define set_caddr(p, Val)             (T_Pair(p))->object.cons.cdr->object.cons.cdr->object.cons.car = T_Pos(Val)
-#define caadr(p)                      car(car(cdr(p)))
-#define cdaar(p)                      cdr(car(car(p)))
-#define cdddr(p)                      cdr(cdr(cdr(p)))
-#define cddar(p)                      cdr(cdr(car(p)))
+#define caaar(p)                       car(car(car(p)))
+#define cadar(p)                       car(cdr(car(p)))
+#define cdadr(p)                       cdr(car(cdr(p)))
+#define caddr(p)                       car(cdr(cdr(p)))
+#define set_caddr(p, Val)              (T_Pair(p))->object.cons.cdr->object.cons.cdr->object.cons.car = T_Pos(Val)
+#define caadr(p)                       car(car(cdr(p)))
+#define cdaar(p)                       cdr(car(car(p)))
+#define cdddr(p)                       cdr(cdr(cdr(p)))
+#define cddar(p)                       cdr(cdr(car(p)))
 
-#define caaadr(p)                     car(car(car(cdr(p))))
-#define caadar(p)                     car(car(cdr(car(p))))
-#define cadaar(p)                     car(cdr(car(car(p))))
-#define cadddr(p)                     car(cdr(cdr(cdr(p))))
-#define caaddr(p)                     car(car(cdr(cdr(p))))
-#define cddddr(p)                     cdr(cdr(cdr(cdr(p))))
-#define caddar(p)                     car(cdr(cdr(car(p))))
-#define cdadar(p)                     cdr(car(cdr(car(p))))
-#define cdaddr(p)                     cdr(car(cdr(cdr(p))))
-#define caaaar(p)                     car(car(car(car(p))))
-#define cadadr(p)                     car(cdr(car(cdr(p))))
-#define cdaadr(p)                     cdr(car(car(cdr(p))))
-#define cdaaar(p)                     cdr(car(car(car(p))))
-#define cdddar(p)                     cdr(cdr(cdr(car(p))))
-#define cddadr(p)                     cdr(cdr(car(cdr(p))))
-#define cddaar(p)                     cdr(cdr(car(car(p))))
+#define caaadr(p)                      car(car(car(cdr(p))))
+#define caadar(p)                      car(car(cdr(car(p))))
+#define cadaar(p)                      car(cdr(car(car(p))))
+#define cadddr(p)                      car(cdr(cdr(cdr(p))))
+#define caaddr(p)                      car(car(cdr(cdr(p))))
+#define cddddr(p)                      cdr(cdr(cdr(cdr(p))))
+#define caddar(p)                      car(cdr(cdr(car(p))))
+#define cdadar(p)                      cdr(car(cdr(car(p))))
+#define cdaddr(p)                      cdr(car(cdr(cdr(p))))
+#define caaaar(p)                      car(car(car(car(p))))
+#define cadadr(p)                      car(cdr(car(cdr(p))))
+#define cdaadr(p)                      cdr(car(car(cdr(p))))
+#define cdaaar(p)                      cdr(car(car(car(p))))
+#define cdddar(p)                      cdr(cdr(cdr(car(p))))
+#define cddadr(p)                      cdr(cdr(car(cdr(p))))
+#define cddaar(p)                      cdr(cdr(car(car(p))))
 
 #if WITH_GCC
   /* slightly tricky because cons can be called recursively */
   #define cons(Sc, A, B)   ({s7_pointer _X_, _A_, _B_; _A_ = A; _B_ = B; new_cell(Sc, _X_, T_PAIR | T_SAFE_PROCEDURE); set_car(_X_, _A_); set_cdr(_X_, _B_); _X_;})
 #else
-  #define cons(Sc, A, B)              s7_cons(Sc, A, B)
+  #define cons(Sc, A, B)               s7_cons(Sc, A, B)
 #endif
 
-#define list_1(Sc, A)                 cons(Sc, A, Sc->nil)
-#define list_2(Sc, A, B)              cons_unchecked(Sc, A, cons(Sc, B, Sc->nil))
-#define list_3(Sc, A, B, C)           cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons(Sc, C, Sc->nil)))
-#define list_4(Sc, A, B, C, D)        cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons_unchecked(Sc, C, cons(Sc, D, Sc->nil))))
+#define list_1(Sc, A)                  cons(Sc, A, Sc->nil)
+#define list_2(Sc, A, B)               cons_unchecked(Sc, A, cons(Sc, B, Sc->nil))
+#define list_3(Sc, A, B, C)            cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons(Sc, C, Sc->nil)))
+#define list_4(Sc, A, B, C, D)         cons_unchecked(Sc, A, cons_unchecked(Sc, B, cons_unchecked(Sc, C, cons(Sc, D, Sc->nil))))
 
-#define is_string(p)                  (type(p) == T_STRING)
-#define is_mutable_string(p)          ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_STRING)
-#define string_value(p)               (T_Str(p))->object.string.svalue
-#define string_length(p)              (T_Str(p))->object.string.length
-#define string_hash(p)                (T_Str(p))->object.string.hash
-#define string_block(p)               (T_Str(p))->object.string.block
+#define is_string(p)                   (type(p) == T_STRING)
+#define is_mutable_string(p)           ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_STRING)
+#define string_value(p)                (T_Str(p))->object.string.svalue
+#define string_length(p)               (T_Str(p))->object.string.length
+#define string_hash(p)                 (T_Str(p))->object.string.hash
+#define string_block(p)                (T_Str(p))->object.string.block
 
-#define character(p)                  (T_Chr(p))->object.chr.c
-#define upper_character(p)            (T_Chr(p))->object.chr.up_c
-#define is_char_alphabetic(p)         (T_Chr(p))->object.chr.alpha_c
-#define is_char_numeric(p)            (T_Chr(p))->object.chr.digit_c
-#define is_char_whitespace(p)         (T_Chr(p))->object.chr.space_c
-#define is_char_uppercase(p)          (T_Chr(p))->object.chr.upper_c
-#define is_char_lowercase(p)          (T_Chr(p))->object.chr.lower_c
-#define character_name(p)             (T_Chr(p))->object.chr.c_name
-#define character_name_length(p)      (T_Chr(p))->object.chr.length
+#define character(p)                   (T_Chr(p))->object.chr.c
+#define upper_character(p)             (T_Chr(p))->object.chr.up_c
+#define is_char_alphabetic(p)          (T_Chr(p))->object.chr.alpha_c
+#define is_char_numeric(p)             (T_Chr(p))->object.chr.digit_c
+#define is_char_whitespace(p)          (T_Chr(p))->object.chr.space_c
+#define is_char_uppercase(p)           (T_Chr(p))->object.chr.upper_c
+#define is_char_lowercase(p)           (T_Chr(p))->object.chr.lower_c
+#define character_name(p)              (T_Chr(p))->object.chr.c_name
+#define character_name_length(p)       (T_Chr(p))->object.chr.length
 
-#define optimize_op(P)                (P)->tf.opts.opt_choice
-#define set_optimize_op(P, Op)        (P)->tf.opts.opt_choice = Op
-#define optimize_op_match(P, Q)       ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == Q))
-#define op_no_hop(P)                  (optimize_op(P) & 0xfffe)
-#define clear_hop(P)                  set_optimize_op(P, op_no_hop(P))
-#define clear_optimize_op(P)          set_optimize_op(P, 0)
-#define set_safe_optimize_op(P, Q)    do {set_optimized(P); set_optimize_op(P, Q);} while (0)
-#define set_unsafe_optimize_op(P, Q)  do {set_unsafely_optimized(P); set_optimize_op(P, Q);} while (0)
+#define optimize_op(P)                 (P)->tf.opts.opt_choice
+#define set_optimize_op(P, Op)         (P)->tf.opts.opt_choice = Op
+#define optimize_op_match(P, Q)        ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == Q))
+#define op_no_hop(P)                   (optimize_op(P) & 0xfffe)
+#define clear_hop(P)                   set_optimize_op(P, op_no_hop(P))
+#define clear_optimize_op(P)           set_optimize_op(P, 0)
+#define set_safe_optimize_op(P, Q)     do {set_optimized(P); set_optimize_op(P, Q);} while (0)
+#define set_unsafe_optimize_op(P, Q)   do {set_unsafely_optimized(P); set_optimize_op(P, Q);} while (0)
 
-#define is_symbol(p)                  (type(p) == T_SYMBOL)
-#define is_safe_symbol(p)             ((is_symbol(p)) && (is_slot(symbol_to_slot(sc, p))))
-#define symbol_name_cell(p)           T_Str((T_Sym(p))->object.sym.name)
-#define symbol_set_name_cell(p, S)    (T_Sym(p))->object.sym.name = T_Str(S)
-#define symbol_name(p)                string_value(symbol_name_cell(p))
-#define symbol_name_length(p)         string_length(symbol_name_cell(p))
-#define gensym_block(p)               symbol_name_cell(p)->object.string.gensym_block
-#define symbol_hmap(p)                (s7_int)((intptr_t)(p) >> 8)
-#define symbol_id(p)                  (T_Sym(p))->object.sym.id
-#define symbol_set_id_unchecked(p, X) (T_Sym(p))->object.sym.id = X
+#define is_symbol(p)                   (type(p) == T_SYMBOL)
+#define is_safe_symbol(p)              ((is_symbol(p)) && (is_slot(symbol_to_slot(sc, p))))
+#define symbol_name_cell(p)            T_Str((T_Sym(p))->object.sym.name)
+#define symbol_set_name_cell(p, S)     (T_Sym(p))->object.sym.name = T_Str(S)
+#define symbol_name(p)                 string_value(symbol_name_cell(p))
+#define symbol_name_length(p)          string_length(symbol_name_cell(p))
+#define gensym_block(p)                symbol_name_cell(p)->object.string.gensym_block
+#define symbol_hmap(p)                 (s7_int)((intptr_t)(p) >> 8)
+#define symbol_id(p)                   (T_Sym(p))->object.sym.id
+#define symbol_set_id_unchecked(p, X)  (T_Sym(p))->object.sym.id = X
 #if S7_DEBUGGING
 static void symbol_set_id(s7_pointer p, s7_int id)
 {
@@ -2759,396 +2759,396 @@ static void symbol_set_id(s7_pointer p, s7_int id)
   (T_Sym(p))->object.sym.id = id;
 }
 #else
-#define symbol_set_id(p, X)           (T_Sym(p))->object.sym.id = X
+#define symbol_set_id(p, X)            (T_Sym(p))->object.sym.id = X
 #endif
 /* we need 64-bits here, since we don't want this thing to wrap around, and frames are created at a great rate
  *    callgrind says this is faster than an uint32_t!
  */
-#define symbol_info(p)                (symbol_name_cell(p))->object.string.block
-#define symbol_type(p)                block_size(symbol_info(p))
-#define symbol_set_type(p, Type)      block_set_size(symbol_info(p), Type)
-#define initial_slot(p)               symbol_info(p)->ex.ex_ptr
-#define set_initial_slot(p, Val)      symbol_info(p)->ex.ex_ptr = T_Sld(Val)
+#define symbol_info(p)                 (symbol_name_cell(p))->object.string.block
+#define symbol_type(p)                 block_size(symbol_info(p))
+#define symbol_set_type(p, Type)       block_set_size(symbol_info(p), Type)
+#define initial_slot(p)                symbol_info(p)->ex.ex_ptr
+#define set_initial_slot(p, Val)       symbol_info(p)->ex.ex_ptr = T_Sld(Val)
 
-#define global_slot(p)                (T_Sym(p))->object.sym.global_slot
-#define set_global_slot(p, Val)       (T_Sym(p))->object.sym.global_slot = T_Sld(Val)
-#define local_slot(p)                 (T_Sym(p))->object.sym.local_slot
-#define set_local_slot(p, Val)        (T_Sym(p))->object.sym.local_slot = T_Sln(Val)
-#define keyword_symbol(p)             symbol_info(p)->nx.ksym               /* keyword only, so does not collide with documentation */
-#define keyword_set_symbol(p, Val)    symbol_info(p)->nx.ksym = T_Sym(Val)
-#define symbol_help(p)                symbol_info(p)->nx.documentation
-#define symbol_set_help(p, Doc)       symbol_info(p)->nx.documentation = Doc
-#define symbol_tag(p)                 (T_Sym(p))->object.sym.tag
-#define symbol_set_tag(p, Val)        (T_Sym(p))->object.sym.tag = Val
-#define symbol_ctr(p)                 (T_Sym(p))->object.sym.ctr
-#define symbol_set_ctr(p, Val)        (T_Sym(p))->object.sym.ctr = Val
-#define symbol_increment_ctr(p)       (T_Sym(p))->object.sym.ctr++
-#define symbol_tag2(p)                symbol_info(p)->ln.tag
-#define symbol_set_tag2(p, Val)       symbol_info(p)->ln.tag = Val
-#define symbol_has_help(p)            (is_documented(symbol_name_cell(p)))
-#define symbol_set_has_help(p)        set_documented(symbol_name_cell(p))
+#define global_slot(p)                 (T_Sym(p))->object.sym.global_slot
+#define set_global_slot(p, Val)        (T_Sym(p))->object.sym.global_slot = T_Sld(Val)
+#define local_slot(p)                  (T_Sym(p))->object.sym.local_slot
+#define set_local_slot(p, Val)         (T_Sym(p))->object.sym.local_slot = T_Sln(Val)
+#define keyword_symbol(p)              symbol_info(p)->nx.ksym               /* keyword only, so does not collide with documentation */
+#define keyword_set_symbol(p, Val)     symbol_info(p)->nx.ksym = T_Sym(Val)
+#define symbol_help(p)                 symbol_info(p)->nx.documentation
+#define symbol_set_help(p, Doc)        symbol_info(p)->nx.documentation = Doc
+#define symbol_tag(p)                  (T_Sym(p))->object.sym.tag
+#define symbol_set_tag(p, Val)         (T_Sym(p))->object.sym.tag = Val
+#define symbol_ctr(p)                  (T_Sym(p))->object.sym.ctr
+#define symbol_set_ctr(p, Val)         (T_Sym(p))->object.sym.ctr = Val
+#define symbol_increment_ctr(p)        (T_Sym(p))->object.sym.ctr++
+#define symbol_tag2(p)                 symbol_info(p)->ln.tag
+#define symbol_set_tag2(p, Val)        symbol_info(p)->ln.tag = Val
+#define symbol_has_help(p)             (is_documented(symbol_name_cell(p)))
+#define symbol_set_has_help(p)         set_documented(symbol_name_cell(p))
 
 #define symbol_set_local_unchecked(Symbol, Id, Slot) do {set_local_slot(Symbol, Slot); symbol_set_id_unchecked(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 #define symbol_set_local(Symbol, Id, Slot) do {set_local_slot(Symbol, Slot); symbol_set_id(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 /* set slot before id in case Slot is an expression that tries to find the current Symbol slot (using its old Id obviously) */
 
-#define is_slot(p)                    (type(p) == T_SLOT)
-#define slot_symbol(p)                T_Sym((T_Slt(p))->object.slt.sym)
-#define slot_set_symbol(p, Sym)       (T_Slt(p))->object.slt.sym = T_Sym(Sym)
-#define slot_value(p)                 T_Pos((T_Slt(p))->object.slt.val)
-#define unchecked_slot_value(p)       (T_Slt(p))->object.slt.val
-#define slot_set_value(p, Val)        (T_Slt(p))->object.slt.val = T_Pos(Val)
+#define is_slot(p)                     (type(p) == T_SLOT)
+#define slot_symbol(p)                 T_Sym((T_Slt(p))->object.slt.sym)
+#define slot_set_symbol(p, Sym)        (T_Slt(p))->object.slt.sym = T_Sym(Sym)
+#define slot_value(p)                  T_Pos((T_Slt(p))->object.slt.val)
+#define unchecked_slot_value(p)        (T_Slt(p))->object.slt.val
+#define slot_set_value(p, Val)         (T_Slt(p))->object.slt.val = T_Pos(Val)
 #define slot_set_value_with_hook(Slot, Value) \
   do {if (hook_has_functions(sc->rootlet_redefinition_hook)) slot_set_value_with_hook_1(sc, Slot, Value); else slot_set_value(Slot, Value);} while (0)
-#define next_slot(p)                  (T_Slt(p))->object.slt.nxt
-#define set_next_slot(p, Val)         (T_Slt(p))->object.slt.nxt = T_Sln(Val)
+#define next_slot(p)                   (T_Slt(p))->object.slt.nxt
+#define set_next_slot(p, Val)          (T_Slt(p))->object.slt.nxt = T_Sln(Val)
 #define slot_set_pending_value(p, Val) do {(T_Slt(p))->object.slt.pending_value = T_Pos(Val); slot_set_has_pending_value(p);} while (0)
 #if S7_DEBUGGING
 static s7_pointer slot_pending_value(s7_pointer p) {if (slot_has_pending_value(p)) return(p->object.slt.pending_value); fprintf(stderr, "slot: no pending value\n"); abort();}
 static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) return(p->object.slt.expr); fprintf(stderr, "slot: no expression\n"); abort();}
 #else
-#define slot_pending_value(p)         (T_Slt(p))->object.slt.pending_value
-#define slot_expression(p)            (T_Slt(p))->object.slt.expr
+#define slot_pending_value(p)          (T_Slt(p))->object.slt.pending_value
+#define slot_expression(p)             (T_Slt(p))->object.slt.expr
 #endif
-#define slot_set_expression(p, Val)   do {(T_Slt(p))->object.slt.expr = T_Pos(Val); slot_set_has_expression(p);} while (0)
+#define slot_set_expression(p, Val)    do {(T_Slt(p))->object.slt.expr = T_Pos(Val); slot_set_has_expression(p);} while (0)
 #define slot_just_set_expression(p, Val) (T_Slt(p))->object.slt.expr = T_Pos(Val)
-#define slot_setter(p)                (T_Slt(p))->object.slt.expr
-#define slot_set_setter_1(p, Val)     (T_Slt(p))->object.slt.expr = T_App(Val)
+#define slot_setter(p)                 (T_Slt(p))->object.slt.expr
+#define slot_set_setter_1(p, Val)      (T_Slt(p))->object.slt.expr = T_App(Val)
 
-#define is_syntax(p)                  (type(p) == T_SYNTAX)
-#define syntax_symbol(p)              T_Sym((T_Syn(p))->object.syn.symbol)
-#define syntax_set_symbol(p, Sym)     (T_Syn(p))->object.syn.symbol = T_Sym(Sym)
-#define syntax_opcode(p)              (T_Syn(p))->object.syn.op
-#define syntax_min_args(p)            (T_Syn(p))->object.syn.min_args
-#define syntax_max_args(p)            (T_Syn(p))->object.syn.max_args
-#define syntax_documentation(p)       (T_Syn(p))->object.syn.documentation
+#define is_syntax(p)                   (type(p) == T_SYNTAX)
+#define syntax_symbol(p)               T_Sym((T_Syn(p))->object.syn.symbol)
+#define syntax_set_symbol(p, Sym)      (T_Syn(p))->object.syn.symbol = T_Sym(Sym)
+#define syntax_opcode(p)               (T_Syn(p))->object.syn.op
+#define syntax_min_args(p)             (T_Syn(p))->object.syn.min_args
+#define syntax_max_args(p)             (T_Syn(p))->object.syn.max_args
+#define syntax_documentation(p)        (T_Syn(p))->object.syn.documentation
 
-#define set_syntactic_pair(p)         typeflag(T_Pair(p)) = (T_PAIR | T_SYNTACTIC | (typeflag(p) & (0xffffffffffff0000 & ~T_OPTIMIZED)))
-#define pair_set_syntax_op(p, X)      do {set_optimize_op(p, X); set_syntactic_pair(p);} while (0)
-#define symbol_syntax_op_checked(p)   ((is_syntactic_pair(p)) ? optimize_op(p) : symbol_syntax_op(car(p)))
-#define symbol_syntax_op(p)           syntax_opcode(slot_value(global_slot(p)))
+#define set_syntactic_pair(p)          typeflag(T_Pair(p)) = (T_PAIR | T_SYNTACTIC | (typeflag(p) & (0xffffffffffff0000 & ~T_OPTIMIZED)))
+#define pair_set_syntax_op(p, X)       do {set_optimize_op(p, X); set_syntactic_pair(p);} while (0)
+#define symbol_syntax_op_checked(p)    ((is_syntactic_pair(p)) ? optimize_op(p) : symbol_syntax_op(car(p)))
+#define symbol_syntax_op(p)            syntax_opcode(slot_value(global_slot(p)))
 
-#define ROOTLET_SIZE 512
-#define let_id(p)                     (T_Lid(p))->object.envr.id
-#define is_let(p)                     (type(p) == T_LET)
-#define let_slots(p)                  (T_Let(p))->object.envr.slots
-#define let_set_slots(p, Slot)        (T_Let(p))->object.envr.slots = T_Sln(Slot)
-#define outlet(p)                     (T_Let(p))->object.envr.nxt
-#define set_outlet(p, ol)             (T_Let(p))->object.envr.nxt = T_Lid(ol)
-#define funclet_function(p)           T_Sym((T_Let(p))->object.envr.edat.efnc.function)
-#define funclet_set_function(p, F)    (T_Let(p))->object.envr.edat.efnc.function = T_Sym(F)
-#define let_line(p)                   (T_Let(p))->object.envr.edat.efnc.line
-#define let_set_line(p, L)            (T_Let(p))->object.envr.edat.efnc.line = L
-#define let_file(p)                   (T_Let(p))->object.envr.edat.efnc.file
-#define let_set_file(p, F)            (T_Let(p))->object.envr.edat.efnc.file = F
-#define dox_slot1(p)                  T_Slt((T_Let(p))->object.envr.edat.dox.dox1)
-#define dox_set_slot1(p, S)           (T_Let(p))->object.envr.edat.dox.dox1 = T_Slt(S)
-#define dox_slot2(p)                  T_Slt((T_Let(p))->object.envr.edat.dox.dox2)
-#define dox_set_slot2(p, S)           (T_Let(p))->object.envr.edat.dox.dox2 = T_Slt(S)
-#define dox_slot2_unchecked(p)        T_Let(p)->object.envr.edat.dox.dox2
-#define dox_set_slot2_unchecked(p, S) T_Let(p)->object.envr.edat.dox.dox2 = (S)
+#define ROOTLET_SIZE                   512
+#define let_id(p)                      (T_Lid(p))->object.envr.id
+#define is_let(p)                      (type(p) == T_LET)
+#define let_slots(p)                   (T_Let(p))->object.envr.slots
+#define let_set_slots(p, Slot)         (T_Let(p))->object.envr.slots = T_Sln(Slot)
+#define outlet(p)                      (T_Let(p))->object.envr.nxt
+#define set_outlet(p, ol)              (T_Let(p))->object.envr.nxt = T_Lid(ol)
+#define funclet_function(p)            T_Sym((T_Let(p))->object.envr.edat.efnc.function)
+#define funclet_set_function(p, F)     (T_Let(p))->object.envr.edat.efnc.function = T_Sym(F)
+#define let_line(p)                    (T_Let(p))->object.envr.edat.efnc.line
+#define let_set_line(p, L)             (T_Let(p))->object.envr.edat.efnc.line = L
+#define let_file(p)                    (T_Let(p))->object.envr.edat.efnc.file
+#define let_set_file(p, F)             (T_Let(p))->object.envr.edat.efnc.file = F
+#define dox_slot1(p)                   T_Slt((T_Let(p))->object.envr.edat.dox.dox1)
+#define dox_set_slot1(p, S)            (T_Let(p))->object.envr.edat.dox.dox1 = T_Slt(S)
+#define dox_slot2(p)                   T_Slt((T_Let(p))->object.envr.edat.dox.dox2)
+#define dox_set_slot2(p, S)            (T_Let(p))->object.envr.edat.dox.dox2 = T_Slt(S)
+#define dox_slot2_unchecked(p)         T_Let(p)->object.envr.edat.dox.dox2
+#define dox_set_slot2_unchecked(p, S)  T_Let(p)->object.envr.edat.dox.dox2 = (S)
 
-#define unique_name(p)                (p)->object.unq.nm.name
-#define unique_name_length(p)         (p)->object.unq.len
-#define unknown_name(p)               (p)->object.unq.nm.unknown_name
-#define is_unspecified(p)             (type(p) == T_UNSPECIFIED)
-#define unique_car(p)                 (p)->object.unq.car
-#define unique_cdr(p)                 (p)->object.unq.cdr
+#define unique_name(p)                 (p)->object.unq.nm.name
+#define unique_name_length(p)          (p)->object.unq.len
+#define unknown_name(p)                (p)->object.unq.nm.unknown_name
+#define is_unspecified(p)              (type(p) == T_UNSPECIFIED)
+#define unique_car(p)                  (p)->object.unq.car
+#define unique_cdr(p)                  (p)->object.unq.cdr
 
-#define is_any_vector(p)              t_vector_p[type(p)]
-#define is_normal_vector(p)           (type(p) == T_VECTOR)
-#define vector_length(p)              (p)->object.vector.length
-#define unchecked_vector_elements(p)  (p)->object.vector.elements.objects
+#define is_any_vector(p)               t_vector_p[type(p)]
+#define is_normal_vector(p)            (type(p) == T_VECTOR)
+#define vector_length(p)               (p)->object.vector.length
+#define unchecked_vector_elements(p)   (p)->object.vector.elements.objects
 #define unchecked_vector_element(p, i) ((p)->object.vector.elements.objects[i])
-#define vector_element(p, i)          ((T_Vec(p))->object.vector.elements.objects[i])
-#define vector_elements(p)            (T_Vec(p))->object.vector.elements.objects
-#define vector_getter(p)              (T_Vec(p))->object.vector.vget
-#define vector_setter(p)              (T_Vec(p))->object.vector.setv.vset
-#define typed_vector_typer(p)         (T_Vec(p))->object.vector.setv.fset
-#define vector_block(p)               (T_Vec(p))->object.vector.block
-#define unchecked_vector_block(p)     p->object.vector.block
+#define vector_element(p, i)           ((T_Vec(p))->object.vector.elements.objects[i])
+#define vector_elements(p)             (T_Vec(p))->object.vector.elements.objects
+#define vector_getter(p)               (T_Vec(p))->object.vector.vget
+#define vector_setter(p)               (T_Vec(p))->object.vector.setv.vset
+#define typed_vector_typer(p)          (T_Vec(p))->object.vector.setv.fset
+#define vector_block(p)                (T_Vec(p))->object.vector.block
+#define unchecked_vector_block(p)      p->object.vector.block
 
-#define is_int_vector(p)              (type(p) == T_INT_VECTOR)
-#define int_vector(p, i)              ((T_Ivc(p))->object.vector.elements.ints[i])
-#define int_vector_ints(p)            (T_Ivc(p))->object.vector.elements.ints
+#define is_int_vector(p)               (type(p) == T_INT_VECTOR)
+#define int_vector(p, i)               ((T_Ivc(p))->object.vector.elements.ints[i])
+#define int_vector_ints(p)             (T_Ivc(p))->object.vector.elements.ints
 
-#define is_float_vector(p)            (type(p) == T_FLOAT_VECTOR)
-#define float_vector(p, i)            ((T_Fvc(p))->object.vector.elements.floats[i])
-#define float_vector_floats(p)        (T_Fvc(p))->object.vector.elements.floats
+#define is_float_vector(p)             (type(p) == T_FLOAT_VECTOR)
+#define float_vector(p, i)             ((T_Fvc(p))->object.vector.elements.floats[i])
+#define float_vector_floats(p)         (T_Fvc(p))->object.vector.elements.floats
 
-#define is_byte_vector(p)             (type(p) == T_BYTE_VECTOR)
-#define is_mutable_byte_vector(p)     ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_BYTE_VECTOR)
-#define byte_vector_length(p)         (T_BVc(p))->object.vector.length
-#define byte_vector_bytes(p)          (T_BVc(p))->object.vector.elements.bytes
-#define byte_vector(p, i)     ((T_BVc(p))->object.vector.elements.bytes[i])
-#define is_string_or_byte_vector(p)   ((type(p) == T_STRING) || (type(p) == T_BYTE_VECTOR))
+#define is_byte_vector(p)              (type(p) == T_BYTE_VECTOR)
+#define is_mutable_byte_vector(p)      ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_BYTE_VECTOR)
+#define byte_vector_length(p)          (T_BVc(p))->object.vector.length
+#define byte_vector_bytes(p)           (T_BVc(p))->object.vector.elements.bytes
+#define byte_vector(p, i)              ((T_BVc(p))->object.vector.elements.bytes[i])
+#define is_string_or_byte_vector(p)    ((type(p) == T_STRING) || (type(p) == T_BYTE_VECTOR))
 
-#define vector_dimension_info(p)      ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
+#define vector_dimension_info(p)       ((vdims_t *)(T_Vec(p))->object.vector.block->ex.ex_info)
 #define vector_set_dimension_info(p, d) (T_Vec(p))->object.vector.block->ex.ex_info = (void  *)d
-#define vector_ndims(p)               vdims_rank(vector_dimension_info(p))
-#define vector_dimension(p, i)        vdims_dims(vector_dimension_info(p))[i]
-#define vector_dimensions(p)          vdims_dims(vector_dimension_info(p))
-#define vector_offset(p, i)           vdims_offsets(vector_dimension_info(p))[i]
-#define vector_offsets(p)             vdims_offsets(vector_dimension_info(p))
-#define vector_rank(p)                ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
+#define vector_ndims(p)                vdims_rank(vector_dimension_info(p))
+#define vector_dimension(p, i)         vdims_dims(vector_dimension_info(p))[i]
+#define vector_dimensions(p)           vdims_dims(vector_dimension_info(p))
+#define vector_offset(p, i)            vdims_offsets(vector_dimension_info(p))[i]
+#define vector_offsets(p)              vdims_offsets(vector_dimension_info(p))
+#define vector_rank(p)                 ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
 
 #define subvector_vector(p)            ((vector_dimension_info(p)) ? vdims_original(vector_dimension_info(p)) : (T_Vec(p))->object.vector.block->nx.ksym)
 #define subvector_set_vector(p, vect)  (T_Vec(p))->object.vector.block->nx.ksym = vect
 
-#define rootlet_element(p, i)         unchecked_vector_element(p, i)
-#define rootlet_elements(p)           unchecked_vector_elements(p)
-#define rootlet_block(p)              unchecked_vector_block(p)
-#define stack_element(p, i)           unchecked_vector_element(T_Stk(p), i)
-#define stack_elements(p)             unchecked_vector_elements(T_Stk(p))
-#define stack_block(p)                unchecked_vector_block(T_Stk(p))
+#define rootlet_element(p, i)          unchecked_vector_element(p, i)
+#define rootlet_elements(p)            unchecked_vector_elements(p)
+#define rootlet_block(p)               unchecked_vector_block(p)
+#define stack_element(p, i)            unchecked_vector_element(T_Stk(p), i)
+#define stack_elements(p)              unchecked_vector_elements(T_Stk(p))
+#define stack_block(p)                 unchecked_vector_block(T_Stk(p))
 
-#define is_hash_table(p)              (type(p) == T_HASH_TABLE)
-#define is_mutable_hash_table(p)      ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
-#define hash_table_mask(p)            (T_Hsh(p))->object.hasher.mask
-#define hash_table_block(p)           (T_Hsh(p))->object.hasher.block
-#define hash_table_set_block(p, b)    (T_Hsh(p))->object.hasher.block = b
-#define hash_table_element(p, i)      (T_Hsh(p))->object.hasher.elements[i]
-#define hash_table_elements(p)        (T_Hsh(p))->object.hasher.elements
-#define hash_table_entries(p)         hash_table_block(p)->nx.nx_int
-#define hash_table_checker(p)         (T_Hsh(p))->object.hasher.hash_func
-#define hash_table_mapper(p)          (T_Hsh(p))->object.hasher.loc
-#define hash_table_checker_locked(p)  (hash_table_mapper(p) != default_hash_map)
-#define hash_table_procedures(p)      T_Lst(hash_table_block(p)->ex.ex_ptr)
+#define is_hash_table(p)               (type(p) == T_HASH_TABLE)
+#define is_mutable_hash_table(p)       ((typeflag(T_Pos(p)) & (0xff | T_IMMUTABLE)) == T_HASH_TABLE)
+#define hash_table_mask(p)             (T_Hsh(p))->object.hasher.mask
+#define hash_table_block(p)            (T_Hsh(p))->object.hasher.block
+#define hash_table_set_block(p, b)     (T_Hsh(p))->object.hasher.block = b
+#define hash_table_element(p, i)       (T_Hsh(p))->object.hasher.elements[i]
+#define hash_table_elements(p)         (T_Hsh(p))->object.hasher.elements
+#define hash_table_entries(p)          hash_table_block(p)->nx.nx_int
+#define hash_table_checker(p)          (T_Hsh(p))->object.hasher.hash_func
+#define hash_table_mapper(p)           (T_Hsh(p))->object.hasher.loc
+#define hash_table_checker_locked(p)   (hash_table_mapper(p) != default_hash_map)
+#define hash_table_procedures(p)       T_Lst(hash_table_block(p)->ex.ex_ptr)
 #define hash_table_set_procedures(p, Lst) hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
-#define hash_table_procedures_checker(p) car(hash_table_procedures(p))
-#define hash_table_procedures_mapper(p) cdr(hash_table_procedures(p))
-#define hash_table_key_typer(p)       opt_any1(hash_table_procedures(p))
-#define hash_table_set_key_typer(p, Fnc) set_opt_any1(p, Fnc)
-#define hash_table_value_typer(p)     opt_any2(hash_table_procedures(p))
+#define hash_table_procedures_checker(p)  car(hash_table_procedures(p))
+#define hash_table_procedures_mapper(p)   cdr(hash_table_procedures(p))
+#define hash_table_key_typer(p)           opt_any1(hash_table_procedures(p))
+#define hash_table_set_key_typer(p, Fnc)  set_opt_any1(p, Fnc)
+#define hash_table_value_typer(p)         opt_any2(hash_table_procedures(p))
 #define hash_table_set_value_typer(p, Fnc) set_opt_any2(p, Fnc)
 
 #if S7_DEBUGGING
-#define T_Itr_Pos(p)                  titr_pos(sc, T_Itr(p), __func__, __LINE__)
-#define T_Itr_Len(p)                  titr_len(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Hash(p)                 titr_hash(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Let(p)                  titr_let(T_Itr(p), __func__, __LINE__)
-#define T_Itr_Pair(p)                 titr_pair(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Pos(p)                   titr_pos(sc, T_Itr(p), __func__, __LINE__)
+#define T_Itr_Len(p)                   titr_len(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Hash(p)                  titr_hash(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Let(p)                   titr_let(T_Itr(p), __func__, __LINE__)
+#define T_Itr_Pair(p)                  titr_pair(T_Itr(p), __func__, __LINE__)
 #else
-#define T_Itr_Pos(p)                  p
-#define T_Itr_Len(p)                  p
-#define T_Itr_Hash(p)                 p
-#define T_Itr_Let(p)                  p
-#define T_Itr_Pair(p)                 p
+#define T_Itr_Pos(p)                   p
+#define T_Itr_Len(p)                   p
+#define T_Itr_Hash(p)                  p
+#define T_Itr_Let(p)                   p
+#define T_Itr_Pair(p)                  p
 #endif
 
-#define is_iterator(p)                (type(p) == T_ITERATOR)
-#define iterator_sequence(p)          (T_Itr(p))->object.iter.obj
-#define iterator_position(p)          (T_Itr_Pos(p))->object.iter.lc.loc
-#define iterator_length(p)            (T_Itr_Len(p))->object.iter.lw.len
-#define iterator_next(p)              (T_Itr(p))->object.iter.next
-#define iterator_is_at_end(p)         ((typeflag(T_Itr(p)) & T_ITER_OK) == 0)
-#define iterator_slow(p)              T_Lst((T_Itr_Pair(p))->object.iter.lw.slow)
-#define iterator_set_slow(p, Val)     (T_Itr_Pair(p))->object.iter.lw.slow = T_Lst(Val)
-#define iterator_hash_current(p)      (T_Itr_Hash(p))->object.iter.lw.hcur
-#define iterator_current(p)           (T_Itr(p))->object.iter.cur
-#define iterator_current_slot(p)      T_Sln((T_Itr_Let(p))->object.iter.lc.lcur)
+#define is_iterator(p)                 (type(p) == T_ITERATOR)
+#define iterator_sequence(p)           (T_Itr(p))->object.iter.obj
+#define iterator_position(p)           (T_Itr_Pos(p))->object.iter.lc.loc
+#define iterator_length(p)             (T_Itr_Len(p))->object.iter.lw.len
+#define iterator_next(p)               (T_Itr(p))->object.iter.next
+#define iterator_is_at_end(p)          ((typeflag(T_Itr(p)) & T_ITER_OK) == 0)
+#define iterator_slow(p)               T_Lst((T_Itr_Pair(p))->object.iter.lw.slow)
+#define iterator_set_slow(p, Val)      (T_Itr_Pair(p))->object.iter.lw.slow = T_Lst(Val)
+#define iterator_hash_current(p)       (T_Itr_Hash(p))->object.iter.lw.hcur
+#define iterator_current(p)            (T_Itr(p))->object.iter.cur
+#define iterator_current_slot(p)       T_Sln((T_Itr_Let(p))->object.iter.lc.lcur)
 #define iterator_set_current_slot(p, Val) (T_Itr_Let(p))->object.iter.lc.lcur = T_Sln(Val)
-#define iterator_let_cons(p)          (T_Itr_Let(p))->object.iter.cur
+#define iterator_let_cons(p)           (T_Itr_Let(p))->object.iter.cur
 
-#define ITERATOR_END                  eof_object
-#define ITERATOR_END_NAME             "#<eof>"
+#define ITERATOR_END                   eof_object
+#define ITERATOR_END_NAME              "#<eof>"
 
-#define is_input_port(p)              (type(p) == T_INPUT_PORT)
-#define is_output_port(p)             (type(p) == T_OUTPUT_PORT)
-#define port_port(p)                  (T_Prt(p))->object.prt.port
-#define is_string_port(p)             (port_type(p) == STRING_PORT)
-#define is_file_port(p)               (port_type(p) == FILE_PORT)
-#define is_function_port(p)           (port_type(p) == FUNCTION_PORT)
-#define port_filename_block(p)        port_port(p)->filename_block
-#define port_filename(p)              port_port(p)->filename
-#define port_filename_length(p)       port_port(p)->filename_length
-#define port_file(p)                  port_port(p)->file
-#define port_data_block(p)            port_port(p)->block
-#define port_line_number(p)           port_port(p)->line_number
-#define port_file_number(p)           port_port(p)->file_number
-#define port_data(p)                  (T_Prt(p))->object.prt.data
-#define port_data_size(p)             (T_Prt(p))->object.prt.size
-#define port_position(p)              (T_Prt(p))->object.prt.point
-#define port_block(p)                 (T_Prt(p))->object.prt.block
-#define port_type(p)                  port_port(p)->ptype
-#define port_is_closed(p)             port_port(p)->is_closed
-#define port_set_closed(p, Val)       port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
-#define port_needs_free(p)            port_port(p)->needs_free
-#define port_next(p)                  port_block(p)->nx.next
-#define port_output_function(p)       port_port(p)->output_function /* these two are for function ports */
-#define port_input_function(p)        port_port(p)->input_function
-#define port_original_input_string(p) port_port(p)->orig_str
-#define port_read_character(p)        port_port(p)->read_character
-#define port_read_line(p)             port_port(p)->read_line
-#define port_display(p)               port_port(p)->display
-#define port_write_character(p)       port_port(p)->write_character
-#define port_write_string(p)          port_port(p)->write_string
-#define port_read_semicolon(p)        port_port(p)->read_semicolon
-#define port_read_white_space(p)      port_port(p)->read_white_space
-#define port_read_name(p)             port_port(p)->read_name
-#define port_read_sharp(p)            port_port(p)->read_sharp
-#define port_gc_loc(p)                port_port(p)->gc_loc
-#define port_needs_unprotect(p)       port_port(p)->needs_unprotect
+#define is_input_port(p)               (type(p) == T_INPUT_PORT)
+#define is_output_port(p)              (type(p) == T_OUTPUT_PORT)
+#define port_port(p)                   (T_Prt(p))->object.prt.port
+#define is_string_port(p)              (port_type(p) == STRING_PORT)
+#define is_file_port(p)                (port_type(p) == FILE_PORT)
+#define is_function_port(p)            (port_type(p) == FUNCTION_PORT)
+#define port_filename_block(p)         port_port(p)->filename_block
+#define port_filename(p)               port_port(p)->filename
+#define port_filename_length(p)        port_port(p)->filename_length
+#define port_file(p)                   port_port(p)->file
+#define port_data_block(p)             port_port(p)->block
+#define port_line_number(p)            port_port(p)->line_number
+#define port_file_number(p)            port_port(p)->file_number
+#define port_data(p)                   (T_Prt(p))->object.prt.data
+#define port_data_size(p)              (T_Prt(p))->object.prt.size
+#define port_position(p)               (T_Prt(p))->object.prt.point
+#define port_block(p)                  (T_Prt(p))->object.prt.block
+#define port_type(p)                   port_port(p)->ptype
+#define port_is_closed(p)              port_port(p)->is_closed
+#define port_set_closed(p, Val)        port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
+#define port_needs_free(p)             port_port(p)->needs_free
+#define port_next(p)                   port_block(p)->nx.next
+#define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
+#define port_input_function(p)         port_port(p)->input_function
+#define port_original_input_string(p)  port_port(p)->orig_str
+#define port_read_character(p)         port_port(p)->read_character
+#define port_read_line(p)              port_port(p)->read_line
+#define port_display(p)                port_port(p)->display
+#define port_write_character(p)        port_port(p)->write_character
+#define port_write_string(p)           port_port(p)->write_string
+#define port_read_semicolon(p)         port_port(p)->read_semicolon
+#define port_read_white_space(p)       port_port(p)->read_white_space
+#define port_read_name(p)              port_port(p)->read_name
+#define port_read_sharp(p)             port_port(p)->read_sharp
+#define port_gc_loc(p)                 port_port(p)->gc_loc
+#define port_needs_unprotect(p)        port_port(p)->needs_unprotect
 
-#define is_c_function(f)              (type(f) >= T_C_FUNCTION)
-#define is_c_function_star(f)         (type(f) == T_C_FUNCTION_STAR)
-#define is_any_c_function(f)          (type(f) >= T_C_FUNCTION_STAR)
-#define c_function_data(f)            (T_Fnc(f))->object.fnc.c_proc
-#define c_function_call(f)            (T_Fnc(f))->object.fnc.ff
-#define c_function_required_args(f)   (T_Fnc(f))->object.fnc.required_args
-#define c_function_optional_args(f)   (T_Fnc(f))->object.fnc.optional_args
-#define c_function_all_args(f)        (T_Fnc(f))->object.fnc.all_args
-#define c_function_name(f)            c_function_data(f)->name
-#define c_function_name_length(f)     c_function_data(f)->name_length
-#define c_function_documentation(f)   c_function_data(f)->doc
-#define c_function_signature(f)       c_function_data(f)->signature
-#define c_function_setter(f)          T_App(c_function_data(f)->setter)
-#define c_function_set_setter(f, Val) c_function_data(f)->setter = T_App(Val)
-#define c_function_block(f)           (f)->object.fnc.c_proc->block /* no type checking here */
-#define c_function_class(f)           c_function_data(f)->id
-#define c_function_chooser(f)         c_function_data(f)->chooser
-#define c_function_base(f)            T_App(c_function_data(f)->generic_ff)
-#define c_function_set_base(f, Val)   c_function_data(f)->generic_ff = T_App(Val)
-#define c_function_marker(f)          c_function_data(f)->cam.marker
-#define c_function_set_marker(f, Val) c_function_data(f)->cam.marker = Val
-#define c_function_symbol(f)          c_function_data(f)->sam.c_sym
+#define is_c_function(f)               (type(f) >= T_C_FUNCTION)
+#define is_c_function_star(f)          (type(f) == T_C_FUNCTION_STAR)
+#define is_any_c_function(f)           (type(f) >= T_C_FUNCTION_STAR)
+#define c_function_data(f)             (T_Fnc(f))->object.fnc.c_proc
+#define c_function_call(f)             (T_Fnc(f))->object.fnc.ff
+#define c_function_required_args(f)    (T_Fnc(f))->object.fnc.required_args
+#define c_function_optional_args(f)    (T_Fnc(f))->object.fnc.optional_args
+#define c_function_all_args(f)         (T_Fnc(f))->object.fnc.all_args
+#define c_function_name(f)             c_function_data(f)->name
+#define c_function_name_length(f)      c_function_data(f)->name_length
+#define c_function_documentation(f)    c_function_data(f)->doc
+#define c_function_signature(f)        c_function_data(f)->signature
+#define c_function_setter(f)           T_App(c_function_data(f)->setter)
+#define c_function_set_setter(f, Val)  c_function_data(f)->setter = T_App(Val)
+#define c_function_block(f)            (f)->object.fnc.c_proc->block /* no type checking here */
+#define c_function_class(f)            c_function_data(f)->id
+#define c_function_chooser(f)          c_function_data(f)->chooser
+#define c_function_base(f)             T_App(c_function_data(f)->generic_ff)
+#define c_function_set_base(f, Val)    c_function_data(f)->generic_ff = T_App(Val)
+#define c_function_marker(f)           c_function_data(f)->cam.marker
+#define c_function_set_marker(f, Val)  c_function_data(f)->cam.marker = Val
+#define c_function_symbol(f)           c_function_data(f)->sam.c_sym
 
-#define c_function_bool_setter(f)     c_function_data(f)->dam.bool_setter
+#define c_function_bool_setter(f)      c_function_data(f)->dam.bool_setter
 #define c_function_set_bool_setter(f, Val) c_function_data(f)->dam.bool_setter = Val
-#define c_function_arg_defaults(f)    c_function_data(T_Fst(f))->dam.arg_defaults
-#define c_function_call_args(f)       c_function_data(T_Fst(f))->cam.call_args
-#define c_function_arg_names(f)       c_function_data(T_Fst(f))->sam.arg_names
+#define c_function_arg_defaults(f)     c_function_data(T_Fst(f))->dam.arg_defaults
+#define c_function_call_args(f)        c_function_data(T_Fst(f))->cam.call_args
+#define c_function_arg_names(f)        c_function_data(T_Fst(f))->sam.arg_names
 
-#define set_c_function(X, f)          do {set_opt_cfunc(X, f); set_c_call_direct(X, c_function_call(f));} while (0)
-#define c_function_opt_data(f)        c_function_data(f)->opt_data
+#define set_c_function(X, f)           do {set_opt_cfunc(X, f); set_c_call_direct(X, c_function_call(f));} while (0)
+#define c_function_opt_data(f)         c_function_data(f)->opt_data
 
-#define is_c_macro(p)                 (type(p) == T_C_MACRO)
-#define c_macro_data(f)               (T_Mac(f))->object.fnc.c_proc
-#define c_macro_call(f)               (T_Mac(f))->object.fnc.ff
-#define c_macro_name(f)               c_macro_data(f)->name
-#define c_macro_name_length(f)        c_macro_data(f)->name_length
-#define c_macro_required_args(f)      (T_Mac(f))->object.fnc.required_args
-#define c_macro_all_args(f)           (T_Mac(f))->object.fnc.all_args
-#define c_macro_setter(f)             T_App(c_macro_data(f)->setter)
-#define c_macro_set_setter(f, Val)    c_macro_data(f)->setter = T_App(Val)
+#define is_c_macro(p)                  (type(p) == T_C_MACRO)
+#define c_macro_data(f)                (T_Mac(f))->object.fnc.c_proc
+#define c_macro_call(f)                (T_Mac(f))->object.fnc.ff
+#define c_macro_name(f)                c_macro_data(f)->name
+#define c_macro_name_length(f)         c_macro_data(f)->name_length
+#define c_macro_required_args(f)       (T_Mac(f))->object.fnc.required_args
+#define c_macro_all_args(f)            (T_Mac(f))->object.fnc.all_args
+#define c_macro_setter(f)              T_App(c_macro_data(f)->setter)
+#define c_macro_set_setter(f, Val)     c_macro_data(f)->setter = T_App(Val)
 
-#define is_random_state(p)            (type(p) == T_RANDOM_STATE)
+#define is_random_state(p)             (type(p) == T_RANDOM_STATE)
 #if WITH_GMP
-#define random_gmp_state(p)           (T_Ran(p))->object.rng.state
+#define random_gmp_state(p)            (T_Ran(p))->object.rng.state
 #else
-#define random_seed(p)                (T_Ran(p))->object.rng.seed
-#define random_carry(p)               (T_Ran(p))->object.rng.carry
+#define random_seed(p)                 (T_Ran(p))->object.rng.seed
+#define random_carry(p)                (T_Ran(p))->object.rng.carry
 #endif
 
-#define continuation_block(p)         (T_Con(p))->object.cwcc.block
-#define continuation_stack(p)         (T_Con(p))->object.cwcc.stack
+#define continuation_block(p)          (T_Con(p))->object.cwcc.block
+#define continuation_stack(p)          (T_Con(p))->object.cwcc.stack
 #define continuation_set_stack(p, Val) (T_Con(p))->object.cwcc.stack = T_Stk(Val)
-#define continuation_stack_end(p)     (T_Con(p))->object.cwcc.stack_end
-#define continuation_stack_start(p)   (T_Con(p))->object.cwcc.stack_start
-#define continuation_stack_top(p)     (continuation_stack_end(p) - continuation_stack_start(p))
-#define continuation_op_stack(p)      (T_Con(p))->object.cwcc.op_stack
-#define continuation_stack_size(p)    continuation_block(p)->nx.ix.i1
-#define continuation_op_loc(p)        continuation_block(p)->nx.ix.i2
-#define continuation_op_size(p)       continuation_block(p)->ex.jx.i3
-#define continuation_key(p)           continuation_block(p)->ex.jx.i4
+#define continuation_stack_end(p)      (T_Con(p))->object.cwcc.stack_end
+#define continuation_stack_start(p)    (T_Con(p))->object.cwcc.stack_start
+#define continuation_stack_top(p)      (continuation_stack_end(p) - continuation_stack_start(p))
+#define continuation_op_stack(p)       (T_Con(p))->object.cwcc.op_stack
+#define continuation_stack_size(p)     continuation_block(p)->nx.ix.i1
+#define continuation_op_loc(p)         continuation_block(p)->nx.ix.i2
+#define continuation_op_size(p)        continuation_block(p)->ex.jx.i3
+#define continuation_key(p)            continuation_block(p)->ex.jx.i4
 
-#define call_exit_goto_loc(p)         (T_Got(p))->object.rexit.goto_loc
-#define call_exit_op_loc(p)           (T_Got(p))->object.rexit.op_stack_loc
-#define call_exit_active(p)           (T_Got(p))->object.rexit.active
+#define call_exit_goto_loc(p)          (T_Got(p))->object.rexit.goto_loc
+#define call_exit_op_loc(p)            (T_Got(p))->object.rexit.op_stack_loc
+#define call_exit_active(p)            (T_Got(p))->object.rexit.active
 
-#define temp_stack_top(p)             (T_Stk(p))->object.stk.top
-#define s7_stack_top(Sc)              ((Sc)->stack_end - (Sc)->stack_start)
+#define temp_stack_top(p)              (T_Stk(p))->object.stk.top
+#define s7_stack_top(Sc)               ((Sc)->stack_end - (Sc)->stack_start)
 
-#define is_continuation(p)            (type(p) == T_CONTINUATION)
-#define is_goto(p)                    (type(p) == T_GOTO)
-#define is_macro(p)                   (type(p) == T_MACRO)
-/* #define is_bacro(p)                (type(p) == T_BACRO) */
-#define is_macro_star(p)              (type(p) == T_MACRO_STAR)
-#define is_bacro_star(p)              (type(p) == T_BACRO_STAR)
+#define is_continuation(p)             (type(p) == T_CONTINUATION)
+#define is_goto(p)                     (type(p) == T_GOTO)
+#define is_macro(p)                    (type(p) == T_MACRO)
+/* #define is_bacro(p)                 (type(p) == T_BACRO) */
+#define is_macro_star(p)               (type(p) == T_MACRO_STAR)
+#define is_bacro_star(p)               (type(p) == T_BACRO_STAR)
 
-#define is_closure(p)                 (type(p) == T_CLOSURE)
-#define is_closure_star(p)            (type(p) == T_CLOSURE_STAR)
-#define closure_args(p)               (T_Clo(p))->object.func.args
-#define closure_set_args(p, Val)      (T_Clo(p))->object.func.args = T_Arg(Val)
-#define closure_body(p)               (T_Pair((T_Clo(p))->object.func.body))
-#define closure_set_body(p, Val)      (T_Clo(p))->object.func.body = T_Pair(Val)
-#define closure_let(p)                T_Lid((T_Clo(p))->object.func.env)
-#define closure_set_let(p, L)         (T_Clo(p))->object.func.env = T_Lid(L)
-#define closure_arity(p)              (T_Clo(p))->object.func.arity
-#define closure_setter(p)             (T_Clo(p))->object.func.setter
-#define closure_set_setter(p, Val)    (T_Clo(p))->object.func.setter = T_Pos(Val)
+#define is_closure(p)                  (type(p) == T_CLOSURE)
+#define is_closure_star(p)             (type(p) == T_CLOSURE_STAR)
+#define closure_args(p)                (T_Clo(p))->object.func.args
+#define closure_set_args(p, Val)       (T_Clo(p))->object.func.args = T_Arg(Val)
+#define closure_body(p)                (T_Pair((T_Clo(p))->object.func.body))
+#define closure_set_body(p, Val)       (T_Clo(p))->object.func.body = T_Pair(Val)
+#define closure_let(p)                 T_Lid((T_Clo(p))->object.func.env)
+#define closure_set_let(p, L)          (T_Clo(p))->object.func.env = T_Lid(L)
+#define closure_arity(p)               (T_Clo(p))->object.func.arity
+#define closure_setter(p)              (T_Clo(p))->object.func.setter
+#define closure_set_setter(p, Val)     (T_Clo(p))->object.func.setter = T_Pos(Val)
 
-#define CLOSURE_ARITY_NOT_SET         0x40000000
-#define MAX_ARITY                     0x20000000
-#define closure_arity_unknown(p)      (closure_arity(p) == CLOSURE_ARITY_NOT_SET)
-#define is_thunk(Sc, Fnc)             ((type(Fnc) >= T_GOTO) && (s7_is_aritable(Sc, Fnc, 0)))
+#define CLOSURE_ARITY_NOT_SET          0x40000000
+#define MAX_ARITY                      0x20000000
+#define closure_arity_unknown(p)       (closure_arity(p) == CLOSURE_ARITY_NOT_SET)
+#define is_thunk(Sc, Fnc)              ((type(Fnc) >= T_GOTO) && (s7_is_aritable(Sc, Fnc, 0)))
 
-#define hook_has_functions(p)         (is_pair(s7_hook_functions(sc, T_Clo(p))))
+#define hook_has_functions(p)          (is_pair(s7_hook_functions(sc, T_Clo(p))))
 
-#define catch_tag(p)                  (T_Cat(p))->object.rcatch.tag
-#define catch_goto_loc(p)             (T_Cat(p))->object.rcatch.goto_loc
-#define catch_op_loc(p)               (T_Cat(p))->object.rcatch.op_stack_loc
-#define catch_handler(p)              T_Pos((T_Cat(p))->object.rcatch.handler)
-#define catch_set_handler(p, val)     (T_Cat(p))->object.rcatch.handler = T_Pos(val)
+#define catch_tag(p)                   (T_Cat(p))->object.rcatch.tag
+#define catch_goto_loc(p)              (T_Cat(p))->object.rcatch.goto_loc
+#define catch_op_loc(p)                (T_Cat(p))->object.rcatch.op_stack_loc
+#define catch_handler(p)               T_Pos((T_Cat(p))->object.rcatch.handler)
+#define catch_set_handler(p, val)      (T_Cat(p))->object.rcatch.handler = T_Pos(val)
 
-#define catch_all_goto_loc(p)         (T_Let(p))->object.envr.edat.ctall.goto_loc
-#define catch_all_set_goto_loc(p, L)  (T_Let(p))->object.envr.edat.ctall.goto_loc = L
-#define catch_all_op_loc(p)           (T_Let(p))->object.envr.edat.ctall.op_stack_loc
-#define catch_all_set_op_loc(p, L)    (T_Let(p))->object.envr.edat.ctall.op_stack_loc = L
+#define catch_all_goto_loc(p)          (T_Let(p))->object.envr.edat.ctall.goto_loc
+#define catch_all_set_goto_loc(p, L)   (T_Let(p))->object.envr.edat.ctall.goto_loc = L
+#define catch_all_op_loc(p)            (T_Let(p))->object.envr.edat.ctall.op_stack_loc
+#define catch_all_set_op_loc(p, L)     (T_Let(p))->object.envr.edat.ctall.op_stack_loc = L
 
 enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
-#define dynamic_wind_state(p)         (T_Dyn(p))->object.winder.state
-#define dynamic_wind_in(p)            (T_Dyn(p))->object.winder.in
-#define dynamic_wind_out(p)           (T_Dyn(p))->object.winder.out
-#define dynamic_wind_body(p)          (T_Dyn(p))->object.winder.body
+#define dynamic_wind_state(p)          (T_Dyn(p))->object.winder.state
+#define dynamic_wind_in(p)             (T_Dyn(p))->object.winder.in
+#define dynamic_wind_out(p)            (T_Dyn(p))->object.winder.out
+#define dynamic_wind_body(p)           (T_Dyn(p))->object.winder.body
 
-#define is_c_object(p)                (type(p) == T_C_OBJECT)
-#define c_object_value(p)             (T_Obj(p))->object.c_obj.value
-#define c_object_type(p)              (T_Obj(p))->object.c_obj.type
-#define c_object_let(p)               T_Lid((T_Obj(p))->object.c_obj.e)
-#define c_object_set_let(p, L)        (T_Obj(p))->object.c_obj.e = T_Lid(L)
-#define c_object_mark(p)              (T_Obj(p))->object.c_obj.mark
+#define is_c_object(p)                 (type(p) == T_C_OBJECT)
+#define c_object_value(p)              (T_Obj(p))->object.c_obj.value
+#define c_object_type(p)               (T_Obj(p))->object.c_obj.type
+#define c_object_let(p)                T_Lid((T_Obj(p))->object.c_obj.e)
+#define c_object_set_let(p, L)         (T_Obj(p))->object.c_obj.e = T_Lid(L)
+#define c_object_mark(p)               (T_Obj(p))->object.c_obj.mark
 
-#define c_object_info(Sc, p)          Sc->c_object_types[c_object_type(T_Obj(p))]
-#define c_object_free(Sc, p)          c_object_info(Sc, p)->free
-#define c_object_ref(Sc, p)           c_object_info(Sc, p)->ref
-#define c_object_set(Sc, p)           c_object_info(Sc, p)->set
+#define c_object_info(Sc, p)           Sc->c_object_types[c_object_type(T_Obj(p))]
+#define c_object_free(Sc, p)           c_object_info(Sc, p)->free
+#define c_object_ref(Sc, p)            c_object_info(Sc, p)->ref
+#define c_object_set(Sc, p)            c_object_info(Sc, p)->set
 #if (!DISABLE_DEPRECATED)
-  #define c_object_print(Sc, p)       c_object_info(Sc, p)->print
+  #define c_object_print(Sc, p)        c_object_info(Sc, p)->print
 #endif
-#define c_object_len(Sc, p)           c_object_info(Sc, p)->length
-#define c_object_eql(Sc, p)           c_object_info(Sc, p)->equal
-#define c_object_fill(Sc, p)          c_object_info(Sc, p)->fill
-#define c_object_copy(Sc, p)          c_object_info(Sc, p)->copy
-#define c_object_reverse(Sc, p)       c_object_info(Sc, p)->reverse
-#define c_object_to_list(Sc, p)       c_object_info(Sc, p)->to_list
-#define c_object_to_string(Sc, p)     c_object_info(Sc, p)->to_string
-#define c_object_scheme_name(Sc, p)   T_Str(c_object_info(Sc, p)->scheme_name)
+#define c_object_len(Sc, p)            c_object_info(Sc, p)->length
+#define c_object_eql(Sc, p)            c_object_info(Sc, p)->equal
+#define c_object_fill(Sc, p)           c_object_info(Sc, p)->fill
+#define c_object_copy(Sc, p)           c_object_info(Sc, p)->copy
+#define c_object_reverse(Sc, p)        c_object_info(Sc, p)->reverse
+#define c_object_to_list(Sc, p)        c_object_info(Sc, p)->to_list
+#define c_object_to_string(Sc, p)      c_object_info(Sc, p)->to_string
+#define c_object_scheme_name(Sc, p)    T_Str(c_object_info(Sc, p)->scheme_name)
 
-#define c_pointer(p)                  (T_Ptr(p))->object.cptr.c_pointer
-#define c_pointer_type(p)             (T_Ptr(p))->object.cptr.c_type
-#define c_pointer_info(p)             (T_Ptr(p))->object.cptr.info
-#define c_pointer_weak1(p)            (T_Ptr(p))->object.cptr.weak1
-#define c_pointer_weak2(p)            (T_Ptr(p))->object.cptr.weak2
-#define c_pointer_set_weak1(p, q)     (T_Ptr(p))->object.cptr.weak1 = q
-#define c_pointer_set_weak2(p, q)     (T_Ptr(p))->object.cptr.weak2 = q
-#define is_c_pointer(p)               (type(p) == T_C_POINTER)
+#define c_pointer(p)                   (T_Ptr(p))->object.cptr.c_pointer
+#define c_pointer_type(p)              (T_Ptr(p))->object.cptr.c_type
+#define c_pointer_info(p)              (T_Ptr(p))->object.cptr.info
+#define c_pointer_weak1(p)             (T_Ptr(p))->object.cptr.weak1
+#define c_pointer_weak2(p)             (T_Ptr(p))->object.cptr.weak2
+#define c_pointer_set_weak1(p, q)      (T_Ptr(p))->object.cptr.weak1 = q
+#define c_pointer_set_weak2(p, q)      (T_Ptr(p))->object.cptr.weak2 = q
+#define is_c_pointer(p)                (type(p) == T_C_POINTER)
 
-#define is_counter(p)                 (type(p) == T_COUNTER)
-#define counter_result(p)             (T_Ctr(p))->object.ctr.result
-#define counter_set_result(p, Val)    (T_Ctr(p))->object.ctr.result = T_Pos(Val)
-#define counter_list(p)               (T_Ctr(p))->object.ctr.list
-#define counter_set_list(p, Val)      (T_Ctr(p))->object.ctr.list = T_Pos(Val)
-#define counter_capture(p)            (T_Ctr(p))->object.ctr.cap
-#define counter_set_capture(p, Val)   (T_Ctr(p))->object.ctr.cap = Val
-#define counter_let(p)                T_Lid((T_Ctr(p))->object.ctr.env)
-#define counter_set_let(p, L)         (T_Ctr(p))->object.ctr.env = T_Lid(L)
-#define counter_slots(p)              (T_Ctr(p))->object.ctr.slots
-#define counter_set_slots(p, Val)     (T_Ctr(p))->object.ctr.slots = T_Sln(Val)
+#define is_counter(p)                  (type(p) == T_COUNTER)
+#define counter_result(p)              (T_Ctr(p))->object.ctr.result
+#define counter_set_result(p, Val)     (T_Ctr(p))->object.ctr.result = T_Pos(Val)
+#define counter_list(p)                (T_Ctr(p))->object.ctr.list
+#define counter_set_list(p, Val)       (T_Ctr(p))->object.ctr.list = T_Pos(Val)
+#define counter_capture(p)             (T_Ctr(p))->object.ctr.cap
+#define counter_set_capture(p, Val)    (T_Ctr(p))->object.ctr.cap = Val
+#define counter_let(p)                 T_Lid((T_Ctr(p))->object.ctr.env)
+#define counter_set_let(p, L)          (T_Ctr(p))->object.ctr.env = T_Lid(L)
+#define counter_slots(p)               (T_Ctr(p))->object.ctr.slots
+#define counter_set_slots(p, Val)      (T_Ctr(p))->object.ctr.slots = T_Sln(Val)
 
-#define is_baffle(p)                  (type(p) == T_BAFFLE)
-#define baffle_key(p)                 (T_Bfl(p))->object.baffle_key
+#define is_baffle(p)                   (type(p) == T_BAFFLE)
+#define baffle_key(p)                  (T_Bfl(p))->object.baffle_key
 
 #if __cplusplus && HAVE_COMPLEX_NUMBERS
   using namespace std;                /* the code has to work in C as well as C++, so we can't scatter std:: all over the place */
@@ -3157,31 +3157,31 @@ enum {DWIND_INIT, DWIND_BODY, DWIND_FINISH};
   static s7_double Imag(complex<s7_double> x) {return(imag(x));}
 #endif
 
-#define integer(p)                    (T_Int(p))->object.number.integer_value
-#define set_integer(p, x)             integer(p) = x
-#define real(p)                       (T_Rel(p))->object.number.real_value
-#define set_real(p, x)                real(p) = x
-#define numerator(p)                  (T_Frc(p))->object.number.fraction_value.numerator
-#define denominator(p)                (T_Frc(p))->object.number.fraction_value.denominator
-#define fraction(p)                   (((long_double)numerator(p)) / ((long_double)denominator(p)))
-#define inverted_fraction(p)          (((long_double)denominator(p)) / ((long_double)numerator(p)))
-#define real_part(p)                  (T_Cmp(p))->object.number.complex_value.rl
-#define set_real_part(p, x)           real_part(p) = x
-#define imag_part(p)                  (T_Cmp(p))->object.number.complex_value.im
-#define set_imag_part(p, x)           imag_part(p) = x
+#define integer(p)                     (T_Int(p))->object.number.integer_value
+#define set_integer(p, x)              integer(p) = x
+#define real(p)                        (T_Rel(p))->object.number.real_value
+#define set_real(p, x)                 real(p) = x
+#define numerator(p)                   (T_Frc(p))->object.number.fraction_value.numerator
+#define denominator(p)                 (T_Frc(p))->object.number.fraction_value.denominator
+#define fraction(p)                    (((long_double)numerator(p)) / ((long_double)denominator(p)))
+#define inverted_fraction(p)           (((long_double)denominator(p)) / ((long_double)numerator(p)))
+#define real_part(p)                   (T_Cmp(p))->object.number.complex_value.rl
+#define set_real_part(p, x)            real_part(p) = x
+#define imag_part(p)                   (T_Cmp(p))->object.number.complex_value.im
+#define set_imag_part(p, x)            imag_part(p) = x
 #if HAVE_COMPLEX_NUMBERS
-  #define as_c_complex(p)             CMPLX(real_part(p), imag_part(p))
+  #define as_c_complex(p)              CMPLX(real_part(p), imag_part(p))
 #endif
 
 #if WITH_GMP
-#define big_integer(p)                ((T_Bgi(p))->object.number.big_integer)
-#define big_ratio(p)                  ((T_Bgf(p))->object.number.big_ratio)
-#define big_real(p)                   ((T_Bgr(p))->object.number.big_real)
-#define big_complex(p)                ((T_Bgz(p))->object.number.big_complex)
+#define big_integer(p)                 ((T_Bgi(p))->object.number.big_integer)
+#define big_ratio(p)                   ((T_Bgf(p))->object.number.big_ratio)
+#define big_real(p)                    ((T_Bgr(p))->object.number.big_real)
+#define big_complex(p)                 ((T_Bgz(p))->object.number.big_complex)
 #endif
 
-#define print_name(p)                 (char *)((T_Num(p))->object.number.pval.name + 1)
-#define print_name_length(p)          (T_Num(p))->object.number.pval.name[0]
+#define print_name(p)                  (char *)((T_Num(p))->object.number.pval.name + 1)
+#define print_name_length(p)           (T_Num(p))->object.number.pval.name[0]
 
 static void set_print_name(s7_pointer p, const char *name, int32_t len)
 {
@@ -6636,7 +6636,6 @@ s7_pointer s7_gensym(s7_scheme *sc, const char *prefix)
   return(x);
 }
 
-
 static bool s7_is_gensym(s7_pointer g) {return((is_symbol(g)) && (is_gensym(g)));}
 
 static s7_pointer g_is_gensym(s7_scheme *sc, s7_pointer args)
@@ -6646,7 +6645,6 @@ static s7_pointer g_is_gensym(s7_scheme *sc, s7_pointer args)
 
   check_boolean_method(sc, s7_is_gensym, sc->is_gensym_symbol, args);
 }
-
 
 static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
 {
@@ -6736,11 +6734,6 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
 }
 
 
-s7_pointer s7_name_to_value(s7_scheme *sc, const char *name)
-{
-  return(s7_symbol_value(sc, make_symbol(sc, name)));
-}
-
 /* -------------------------------- syntax? -------------------------------- */
 bool s7_is_syntax(s7_pointer p)
 {
@@ -6773,6 +6766,11 @@ static s7_pointer g_is_symbol(s7_scheme *sc, s7_pointer args)
 const char *s7_symbol_name(s7_pointer p)
 {
   return(symbol_name(p));
+}
+
+s7_pointer s7_name_to_value(s7_scheme *sc, const char *name)
+{
+  return(s7_symbol_value(sc, make_symbol(sc, name)));
 }
 
 /* -------------------------------- symbol->string -------------------------------- */
@@ -6846,7 +6844,6 @@ static inline s7_pointer g_string_to_symbol_1(s7_scheme *sc, s7_pointer str, s7_
   return(method_or_bust_one_arg(sc, str, caller, list_1(sc, str), T_STRING));
 }
 
-
 static s7_pointer g_string_to_symbol(s7_scheme *sc, s7_pointer args)
 {
   #define H_string_to_symbol "(string->symbol str) returns the string str converted to a symbol"
@@ -6877,7 +6874,6 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
     return(g_string_to_symbol_1(sc, car(args), sc->symbol_symbol));
   return(g_string_to_symbol_1(sc, g_string_append(sc, args), sc->symbol_symbol));
 }
-
 
 static inline s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
 {
@@ -46402,9 +46398,9 @@ static const char *type_name_from_type(int32_t typ, int32_t article)
 {
   static const char *frees[2] =          {"free cell",          "a free cell"};
   static const char *nils[2] =           {"nil",                "nil"};
-  static const char *eofs[2] =           {"eof",                "eof"};
-  static const char *unspecs[2] =        {"unspecified",        "unspecified"};
-  static const char *undefs[2] =         {"undefined",          "undefined"};
+  static const char *eofs[2] =           {"#<eof>",             "the end-of-file object"};
+  static const char *unspecs[2] =        {"#<unspecified>",     "the unspecified object"};
+  static const char *undefs[2] =         {"undefined",          "an undefined object"};
   static const char *booleans[2] =       {"boolean",            "boolean"};
   static const char *strings[2] =        {"string",             "a string"};
   static const char *byte_vectors[2] =   {"byte-vector",        "a byte-vector"};
@@ -49156,6 +49152,15 @@ static s7_pointer fx_is_null_s(s7_scheme *sc, s7_pointer arg)
   return((is_null(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
 }
 
+static s7_pointer fx_is_null_t(s7_scheme *sc, s7_pointer arg)
+{
+#if S7_DEBUGGING
+  if (let_slots(sc->envir) != symbol_to_slot(sc, cadr(arg)))
+    fprintf(stderr, "%s %s is out of date\n", __func__, DISPLAY(arg));
+#endif
+  return((is_null(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
+}
+
 static s7_pointer fx_is_symbol_s(s7_scheme *sc, s7_pointer arg)
 {
   return((is_symbol(symbol_to_value_unchecked(sc, cadr(arg)))) ? sc->T : sc->F);
@@ -49257,6 +49262,11 @@ static s7_pointer fx_add_ss(s7_scheme *sc, s7_pointer arg)
   return(add_p_pp(sc, symbol_to_value_unchecked(sc, cadr(arg)), symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)))));
 }
 
+static s7_pointer fx_add_ts(s7_scheme *sc, s7_pointer arg)
+{
+  return(add_p_pp(sc, slot_value(let_slots(sc->envir)), symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)))));
+}
+
 static s7_pointer fx_subtract_ss(s7_scheme *sc, s7_pointer arg)
 {
   return(subtract_p_pp(sc, symbol_to_value_unchecked(sc, cadr(arg)), symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)))));
@@ -49286,15 +49296,6 @@ static s7_pointer fx_gt_ss(s7_scheme *sc, s7_pointer arg)
 {
   return(gt_p_pp(sc, symbol_to_value_unchecked(sc, cadr(arg)), symbol_to_value_unchecked(sc, opt_sym2(cdr(arg)))));
 }
-
-#if 0
-static s7_pointer fx_gt_ut(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer slot;
-  slot = next_slot(let_slots(sc->envir));
-  return(gt_p_pp(sc, slot_value(next_slot(slot)), slot_value(slot)));
-}
-#endif
 
 static s7_pointer fx_leq_ss(s7_scheme *sc, s7_pointer arg)
 {
@@ -73876,10 +73877,10 @@ static bool is_simple_end(s7_scheme *sc, s7_pointer end)
 #endif
 }
 
-/* fx_gt_ss fx_c_ss (sort), null not pair (lg, closure-related)
+/* null not pair (lg, closure-related), add_ss tbig
  *  steps? first of safe? or any of very-safe? first of any if safe? other A choices in check_*?
  */
-static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper)
+static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_pointer previous_stepper)
 {
   s7_pointer p;
   p = car(tree);
@@ -73895,23 +73896,23 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper)
 #endif
       if ((c_callee(tree) == fx_c_opssq) && (caddr(cadr(p)) == stepper)) {set_c_call(tree, fx_c_opstq); return;}
       if ((c_callee(tree) == fx_c_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_t); return;}
-#if 0
-      /* sc->envir is not setup yet -- to do this we need the vars list, not just stepper, or stepper_slot */
-      if ((c_callee(tree) == fx_gt_ss) && 
-	  (is_slot(next_slot(let_slots(sc->envir)))) &&
-	  (is_slot(next_slot(next_slot(let_slots(sc->envir))))) &&
-	  (cadr(p) == slot_symbol(next_slot(next_slot(let_slots(sc->envir))))) &&
-	  (caddr(p) == slot_symbol(next_slot(let_slots(sc->envir)))))
-	{fprintf(stderr, "use ut\n");set_c_call(tree, fx_gt_ut); return;}
-#endif
+      if ((c_callee(tree) == fx_is_null_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_null_t); return;}
+
+      if ((c_callee(tree) == fx_add_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_add_ts); return;}
+      if (c_callee(tree) == fx_c_add_s1)
+	{
+	  /* fprintf(stderr, "%s %s: %s\n", DISPLAY(stepper), (previous_stepper) ? symbol_name(previous_stepper) : "none", DISPLAY(tree)); */
+	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_add_t1); return;}
+	  if (cadr(p) == previous_stepper) {set_c_call(tree, fx_c_add_u1); return;}
+	}
     }
 
   if ((is_pair(p)) && (is_pair(cdr(p))))
     {
       if (is_pair(cadr(p)))
-	fx_tree(sc, cdr(p), stepper);
+	fx_tree(sc, cdr(p), stepper, previous_stepper);
       if ((is_pair(cddr(p))) && (is_pair(caddr(p))))
-	fx_tree(sc, cddr(p), stepper);
+	fx_tree(sc, cddr(p), stepper, previous_stepper);
     }
 }
 
@@ -74151,87 +74152,97 @@ static s7_pointer check_do(s7_scheme *sc)
      *   and worse, the loop env can be changed by a top-level define in the body,
      *   clobbering the step_expression setters in dox_step!
      */
-    for (p = vars; is_pair(p); p = cdr(p))
-      {
-	s7_pointer var, val;
-	var = car(p);
-	val = cddr(var);
-	if (is_pair(val))
-	  {
-	    var = car(var);
-	    clear_match_symbol(var); /* ignore current var */
-	    if (tree_match(car(val)))
-	      {
-		s7_pointer q;
-		for (q = vars; is_pair(q); q = cdr(q))
-		  clear_match_symbol(caar(q));
-		return(code);
-	      }
-	    set_match_symbol(var);
-	  }
-      }
-
-    for (p = vars; is_pair(p); p = cdr(p))
-      clear_match_symbol(caar(p));
-
     {
-      s7_pointer last_stepper = NULL;
-      for (p = vars; is_pair(cdr(p)); p = cdr(p));
-      if ((is_pair(p)) && (is_pair(car(p)))) last_stepper = caar(p);
+      s7_pointer last_stepper = NULL, previous_stepper = NULL, last_expr = NULL, previous_expr = NULL;
+
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var, val;
+	  var = car(p);
+	  previous_stepper = last_stepper;
+	  previous_expr = last_expr;
+	  last_stepper = car(var);
+	  val = cddr(var);
+	  last_expr = val;
+	  if (is_pair(val))
+	    {
+	      var = car(var);
+	      clear_match_symbol(var); /* ignore current var */
+	      if (tree_match(car(val)))
+		{
+		  s7_pointer q;
+		  for (q = vars; is_pair(q); q = cdr(q))
+		    clear_match_symbol(caar(q));
+		  return(code);
+		}
+	      set_match_symbol(var);
+	    }
+	}
+      
+      for (p = vars; is_pair(p); p = cdr(p))
+	clear_match_symbol(caar(p));
+      
+      /* end and steps look ok! */
+      pair_set_syntax_op(form, OP_DOX);                                     /* dox: vars/end are fxable */
+      
+      /* each step expr is safe so not an explicit set!
+       *   the symbol_is_safe check in fx_eval needs to see the do envir, not the caller's
+       *   but that means the is_fx_safe check above also needs to use the local env?
+       */
+      for (p = vars; is_pair(p); p = cdr(p))
+	{
+	  s7_pointer var;
+	  var = car(p);
+	  set_c_call(cdr(var), fx_eval(sc, cdr(var), sc->envir, let_symbol_is_safe)); /* init val */
+	  if (is_pair(cddr(var)))
+	    {
+	      s7_pointer step_expr;
+	      step_expr = caddr(var);
+	      set_c_call(cddr(var), fx_eval(sc, cddr(var), vars, do_symbol_is_safe)); /* sets opt2(cddr(var)), not opt1 */
+	      
+	      if (!is_pair(step_expr))                            /* (i 0 0) */
+		{
+		  if (cadr(var) == caddr(var)) /* TODO: or same type at least */
+		    set_safe_stepper(cddr(var));
+		}
+	      else
+		{
+		  if ((car(step_expr) != sc->quote_symbol) &&     /* opt_cfunc(==opt1) might not be set in this case (sigh) */
+		      ((preserves_type(sc, c_function_class(opt_cfunc(step_expr)))) || /* add etc */
+		       (car(step_expr) == sc->cdr_symbol) ||
+		       (car(step_expr) == sc->cddr_symbol) ||
+		       ((is_pair(cadr(var))) &&
+			(is_pair(c_function_signature(c_function_base(opt_cfunc(step_expr))))) &&
+			(car(c_function_signature(c_function_base(opt_cfunc(step_expr)))) != sc->T) &&
+			(caadr(var) == car(step_expr)))))	       /* i.e. accept char-position as init/step, but not iterate */
+		    set_safe_stepper(cddr(var));
+		}
+	    }
+	}
+      /* there are only a couple of cases in snd-test where a multi-statement do body is completely fx-able */
+      
+      if ((is_null(body)) &&
+	  (is_null(cdr(vars))) &&
+	  (is_pair(cdr(end))) &&
+	  (is_null(cddr(end))) &&
+	  (is_simple_expression(sc, cadr(end))) &&
+	  (is_pair(cdar(vars))) &&
+	  (is_pair(cddar(vars))))
+	{
+	  set_c_call(cdr(end), fx_eval(sc, cdr(end), sc->envir, let_symbol_is_safe));
+	  pair_set_syntax_op(form, OP_SIMPLE_DOX);
+	}
+      
       if (last_stepper)
-	fx_tree(sc, end, last_stepper);
+	{
+	  fx_tree(sc, end, last_stepper, previous_stepper);
+	  /* fprintf(stderr, "%s: %s\n", DISPLAY(last_stepper), DISPLAY(last_expr)); */
+	  if ((last_expr) && (is_pair(last_expr)))
+	    fx_tree(sc, last_expr, last_stepper, previous_stepper);
+	  if ((previous_expr) && (is_pair(previous_expr)))
+	    fx_tree(sc, previous_expr, last_stepper, previous_stepper);
+	}
     }
-
-    /* end and steps look ok! */
-    pair_set_syntax_op(form, OP_DOX);                                     /* dox: vars/end are fxable */
-
-    /* each step expr is safe so not an explicit set!
-     *   the symbol_is_safe check in fx_eval needs to see the do envir, not the caller's
-     *   but that means the is_fx_safe check above also needs to use the local env?
-     */
-    for (p = vars; is_pair(p); p = cdr(p))
-      {
-	s7_pointer var;
-	var = car(p);
-	set_c_call(cdr(var), fx_eval(sc, cdr(var), sc->envir, let_symbol_is_safe)); /* init val */
-	if (is_pair(cddr(var)))
-	  {
-	    s7_pointer step_expr;
-	    step_expr = caddr(var);
-	    set_c_call(cddr(var), fx_eval(sc, cddr(var), vars, do_symbol_is_safe)); /* sets opt2(cddr(var)), not opt1 */
-
-	    if (!is_pair(step_expr))                            /* (i 0 0) */
-	      {
-		if (cadr(var) == caddr(var)) /* TODO: or same type at least */
-		  set_safe_stepper(cddr(var));
-	      }
-	    else
-	      {
-		if ((car(step_expr) != sc->quote_symbol) &&     /* opt_cfunc(==opt1) might not be set in this case (sigh) */
-		    ((preserves_type(sc, c_function_class(opt_cfunc(step_expr)))) || /* add etc */
-		     (car(step_expr) == sc->cdr_symbol) ||
-		     (car(step_expr) == sc->cddr_symbol) ||
-		     ((is_pair(cadr(var))) &&
-		      (is_pair(c_function_signature(c_function_base(opt_cfunc(step_expr))))) &&
-		      (car(c_function_signature(c_function_base(opt_cfunc(step_expr)))) != sc->T) &&
-		      (caadr(var) == car(step_expr)))))	       /* i.e. accept char-position as init/step, but not iterate */
-		  set_safe_stepper(cddr(var));
-	      }
-	  }
-      }
-    /* there are only a couple of cases in snd-test where a multi-statement do body is completely fx-able */
-
-    if ((is_null(body)) &&
-	(is_null(cdr(vars))) &&
-	(is_pair(cdr(end))) &&
-	(is_null(cddr(end))) &&
-	(is_simple_expression(sc, cadr(end))) &&
-	(is_pair(cdar(vars))) &&
-	(is_pair(cddar(vars))))
-      {
-	set_c_call(cdr(end), fx_eval(sc, cdr(end), sc->envir, let_symbol_is_safe));
-	pair_set_syntax_op(form, OP_SIMPLE_DOX);
-      }
     return(sc->nil);
   }
   return(code);
@@ -74312,17 +74323,6 @@ static int32_t dox_ex(s7_scheme *sc)
 	  steppers++;
 	  stepper = slot;
 	  slot_set_expression(slot, stp);
-	  if ((c_callee(stp) == fx_c_add_s1) &&
-	      (cadar(stp) == slot_symbol(slot)))
-	    {
-	      if (is_null(cdr(vars)))
-		set_c_call(stp, fx_c_add_t1);
-	      else
-		{
-		  if (is_null(cddr(vars)))
-		    set_c_call(stp, fx_c_add_u1);
-		}
-	    }
 	}
       else slot_just_set_expression(slot, sc->nil);
       set_next_slot(slot, let_slots(frame));
@@ -76148,7 +76148,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 			    set_c_call(cdr(code), fx_cdr_t);
 #else
 			  if (!tree_has_definers_or_binders(sc, body)) /* code is just the recursive call */
-			    fx_tree(sc, cdr(code), car(closure_args));
+			    fx_tree(sc, cdr(code), car(closure_args), NULL);
 #endif
 			  slot = symbol_to_slot(sc, car(code));
 			  if (is_recur(slot))
@@ -76171,7 +76171,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	      if ((safe_case) &&
 		  (is_very_safe_closure(f)) &&
 		  (!tree_has_definers_or_binders(sc, body)))
-		fx_tree(sc, cdr(code), car(closure_args));
+		fx_tree(sc, cdr(code), car(closure_args), NULL);
 #endif
 	      set_closure_has_multiform(f);
 	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A);
@@ -89853,37 +89853,36 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
  * ------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  200   194
- * tmac          |      |      |      | 9052 |  264 |  236   234
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037   920
- * tref          |      |      | 2372 | 2125 | 1036 |  985   975
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1246
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1483
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1672
- * lint          |      |      |      | 4041 | 2702 | 2192  2161
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2262
- * tread         |      |      |      |      | 2357 | 2352  2282
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2336
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2420
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3046
- * tsort         |      |      |      | 8584 | 4111 | 3945  3090
- * tlet          |      |      |      |      | 4717 | 3505  3379
- * titer         |      |      |      | 5971 | 4646 | 3695  3647
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3794
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5210
- * dup           |      |      |      |      | 20.8 | 5634  5441
- * tset          |      |      |      |      | 10.0 | 6396  6308
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.1
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.5
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  15.8
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  37.3
- * sg            |      |      |      |139.0 | 85.9 | 78.0  78.6
- * lg            |      |      |      |211.0 |133.0 |114.0 109.8
- * tbig          |      |      |      |      |246.9 |232.5 231.9
+ * tpeak         |      |      |      |  391 |  377 |  200   199   194
+ * tmac          |      |      |      | 9052 |  264 |  236   236   234
+ * tref          |      |      | 2372 | 2125 | 1036 |  985   982   975
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1033   920
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1287  1246
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1548  1483
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1723  1672
+ * lint          |      |      |      | 4041 | 2702 | 2192  2201  2161
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317  2262
+ * tread         |      |      |      |      | 2357 | 2352  2358  2282
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2381  2336
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492  2420
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3020  3046
+ * tsort         |      |      |      | 8584 | 4111 | 3945  3060  3090
+ * tlet          |      |      |      |      | 4717 | 3505  3228  3138
+ * titer         |      |      |      | 5971 | 4646 | 3695  3541  3495
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3822  3794
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5339  5210
+ * dup           |      |      |      |      | 20.8 | 5634  5408  5441
+ * tset          |      |      |      |      | 10.0 | 6396  6345  6308
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.1  11.1
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.6  11.5
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2  15.8
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.5  37.3
+ * sg            |      |      |      |139.0 | 85.9 | 78.0  78.1  78.6
+ * lg            |      |      |      |211.0 |133.0 |114.0 112.8 109.8
+ * tbig          |      |      |      |      |246.9 |232.5 231.7
  * in ubuntu, gcc 8.1, callgrind is confused -- add two unexecuted lines to s7.c and
  *   it panics (10% higher numbers); the run times are not affected. It works ok both
- *   ways in fc29, so I've switched to those numbers -- this chart is just approximate.
+ *   ways in fc29.
  * -----------------------------------------------------------------------
  * memo: n in unused trailing 32 bits of func struct, res in setter?
- * cadr argument, #<eof>, is eof but should be a pair
  */
