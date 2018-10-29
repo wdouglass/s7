@@ -126,8 +126,6 @@
 	(format *stderr* "total: ~A~%" total)))))
 
 
-
-
 (define (read-all-calls)
   ;; throw away the header
   (do ((i 0 (+ i 1)))
@@ -200,7 +198,7 @@
 (define (combine-latest)
   (let ((file-names (list "v-index" "v-mac" "v-peak" "v-eq" "v-fft" "v-ref" "v-auto" "v-test" "v-cop"
 			  "v-lt" "v-form" "v-read" "v-map" "v-lg" "v-iter" "v-sort" "v-hash" "v-gen"
-			  "v-all" "v-call" "v-dup" "v-set")))
+			  "v-all" "v-call" "v-dup" "v-set" "v-clo" "v-rec" "v-sg" "v-big")))
     (define (next-file f)
       (let ((name (system (format #f "ls -t ~A*" f) #t)))
 	(let ((len (length name)))
