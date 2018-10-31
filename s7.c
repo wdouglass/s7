@@ -996,7 +996,7 @@ typedef struct s7_cell {
   int32_t file_and_line;
 #endif
 #if S7_DEBUGGING
-  int32_t current_alloc_line, previous_alloc_line, alloc_line, uses, explicit_free_line;
+  int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line;
   int64_t current_alloc_type, previous_alloc_type, debugger_bits;
   const char *current_alloc_func, *previous_alloc_func;
 #endif
@@ -3799,7 +3799,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_SP, HOP_SAFE_C_SP, OP_SAFE_C_CP, HOP_SAFE_C_CP, OP_SAFE_C_QP, HOP_SAFE_C_QP,
       OP_SAFE_C_AP, HOP_SAFE_C_AP, OP_SAFE_C_PA, HOP_SAFE_C_PA,
       OP_SAFE_C_PS, HOP_SAFE_C_PS, OP_SAFE_C_PC, HOP_SAFE_C_PC, OP_SAFE_C_PQ, HOP_SAFE_C_PQ,
-      OP_SAFE_C_FP, HOP_SAFE_C_FP,
+      OP_SAFE_C_SSP, HOP_SAFE_C_SSP, OP_SAFE_C_FP, HOP_SAFE_C_FP,
 
       OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1, OP_S_AA,
       OP_GOTO, OP_GOTO_A,
@@ -3903,7 +3903,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_EVAL_MACRO_MV, OP_MACROEXPAND_1, OP_APPLY_LAMBDA,
       OP_SAFE_CLOSURE_P_1, OP_CLOSURE_P_1, OP_SAFE_CLOSURE_AP_1, OP_SAFE_CLOSURE_PA_1,
       OP_INCREMENT_SP_1, OP_INCREMENT_SP_MV,
-      OP_SAFE_C_FP_1, OP_SAFE_C_FP_MV_1,
+      OP_SAFE_C_FP_1, OP_SAFE_C_FP_MV_1, OP_SAFE_C_SSP_1, OP_SAFE_C_SSP_MV_1,
       OP_C_P_1, OP_C_P_MV, OP_C_AP_1, OP_NOT_P_1,
       OP_CLOSURE_AP_1, OP_CLOSURE_PA_1,
       OP_CLOSURE_P_MV, OP_CLOSURE_AP_MV, OP_CLOSURE_PA_MV,
@@ -4016,7 +4016,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_c_sp", "h_safe_c_sp", "safe_c_cp", "h_safe_c_cp", "safe_c_qp", "h_safe_c_qp",
       "safe_c_ap", "h_safe_c_ap", "safe_c_pa", "h_safe_c_pa",
       "safe_c_ps", "h_safe_c_ps", "safe_c_pc", "h_safe_c_pc", "safe_c_pq", "h_safe_c_pq",
-      "safe_c_fp", "h_safe_fp",
+      "safe_c_ssp", "h_safe_c_ssp", "safe_c_fp", "h_safe_c_fp",
       "s", "s_s", "s_c", "s_a", "c_fa_1", "s_aa",
       "goto", "goto_a",
       "iterate", "continuation_a", "vector_a", "string_a", "c_object_a", "pair_a", "hash_table_a", "environment_q", "environment_a",
@@ -4119,7 +4119,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "eval_macro_mv", "macroexpand_1", "apply_lambda",
       "safe_closure_p_1", "closure_p_1", "safe_closure_ap_1", "safe_closure_pa_1",
       "increment_sp_1", "increment_sp_mv",
-      "safe_c_fp_1", "safe_c_fp_mv_1",
+      "safe_c_fp_1", "safe_c_fp_mv_1", "safe_c_ssp_1", "safe_c_ssp_mv_1",
       "c_p_1", "c_p_mv", "c_ap_1", "not_1",
       "closure_ap_1", "closure_pa_1",
       "closure_p_mv", "closure_ap_mv", "closure_pa_mv",
@@ -6924,9 +6924,7 @@ static inline s7_pointer make_simple_let(s7_scheme *sc)
   return(frame);
 }
 
-/* in all these macros, symbol_set_local should follow slot_set_value so that we can evaluate the
- *    slot's value in its old state.
- */
+/* in all these macros, symbol_set_local should follow slot_set_value so that we can evaluate the slot's value in its old state. */
 #define add_slot(Frame, Symbol, Value)			\
   do {							\
     s7_pointer _slot_, _sym_, _val_;			\
@@ -26041,6 +26039,9 @@ static s7_pointer g_call_with_input_file(s7_scheme *sc, s7_pointer args)
   return(call_with_input(sc, open_input_file_1(sc, string_value(str), "r", "call-with-input-file"), args));
 }
 
+
+/* -------------------------------- with-input-from-string -------------------------------- */
+
 static s7_pointer with_input(s7_scheme *sc, s7_pointer port, s7_pointer args)
 {
   s7_pointer old_input_port, p;
@@ -26052,9 +26053,6 @@ static s7_pointer with_input(s7_scheme *sc, s7_pointer port, s7_pointer args)
   push_stack(sc, OP_APPLY, sc->nil, p);
   return(sc->F);
 }
-
-
-/* -------------------------------- with-input-from-string -------------------------------- */
 
 static s7_pointer g_with_input_from_string(s7_scheme *sc, s7_pointer args)
 {
@@ -50221,12 +50219,14 @@ static s7_pointer fx_c_aa_indirect(s7_scheme *sc, s7_pointer arg)
 {
   /* opaaq_opaaq here where none of the "a" involve nested "a" */
   int32_t tx1, tx2;
-  s7_pointer arg11, arg12, arg21, arg22;
+  s7_pointer p1, p2, arg11, arg12, arg21, arg22;
 
-  arg11 = cdr(cadr(arg));
-  arg12 = cddr(cadr(arg));
-  arg21 = cdr(caddr(arg));
-  arg22 = cddr(caddr(arg));
+  p1 = cadr(arg);
+  arg11 = cdr(p1);
+  arg12 = cddr(p1);
+  p2 = caddr(arg);
+  arg21 = cdr(p2);
+  arg22 = cddr(p2);
 
   tx1 = next_tx(sc);
   tx2 = next_tx(sc);
@@ -50234,13 +50234,13 @@ static s7_pointer fx_c_aa_indirect(s7_scheme *sc, s7_pointer arg)
   sc->t_temps[tx1] = c_call(arg11)(sc, car(arg11));
   set_car(sc->t2_2, c_call(arg12)(sc, car(arg12)));
   set_car(sc->t2_1, sc->t_temps[tx1]);
-  sc->t_temps[tx1] = c_call(cadr(arg))(sc, sc->t2_1);
+  sc->t_temps[tx1] = c_call(p1)(sc, sc->t2_1);
 
   sc->t_temps[tx2] = c_call(arg21)(sc, car(arg21));
   set_car(sc->t2_2, c_call(arg22)(sc, car(arg22)));
   set_car(sc->t2_1, sc->t_temps[tx2]);
 
-  set_car(sc->t2_2, c_call(caddr(arg))(sc, sc->t2_1));
+  set_car(sc->t2_2, c_call(p2)(sc, sc->t2_1));
   set_car(sc->t2_1, sc->t_temps[tx1]);
   return(c_call(arg)(sc, sc->t2_1));
 }
@@ -62190,6 +62190,9 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_C_FP_MV_1: 
       set_multiple_value(args);
       return(args);
+    case OP_SAFE_C_SSP_1: 
+      stack_element(sc->stack, top) = (s7_pointer)OP_SAFE_C_SSP_MV_1;
+      return(args);
       
     case OP_C_AP_1:
     case OP_SAFE_C_SP_1:
@@ -66986,6 +66989,16 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	      choose_c_function(sc, expr, func, 3);
 	      return(OPT_T);
 	    }
+	  else
+	    {
+	      if ((is_symbol(arg1)) && (is_symbol(arg2)))
+		{
+		  set_opt_pair3(expr, cadddr(expr));
+		  set_unsafe_optimize_op(expr, hop + OP_SAFE_C_SSP);
+		  choose_c_function(sc, expr, func, 3);
+		  return(OPT_F);
+		}
+	    }
 	  
 	  /* op_safe_c_fp, similar to op_and_p etc, but we have C_AAA above (fx_count==3) so any_nils is not needed */
 	  {
@@ -66997,6 +67010,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		set_c_call_checked(p, callee);
 	      }
 	    set_arglist_length(expr, small_int(3));
+	    if ((car(expr) == sc->vector_set_symbol) && (is_symbol(arg1)) && (is_symbol(arg2))) fprintf(stderr, "%s\n", DISPLAY(expr));
 	    set_unsafe_optimize_op(expr, hop + OP_SAFE_C_FP);
 	    choose_c_function(sc, expr, func, 3);
 	    return(OPT_F);
@@ -67224,22 +67238,38 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 		}
 	    }
 
-	  if ((args < GC_TRIGGER_SIZE) &&
-	      (fx_count(sc, expr) == args))
+	  if (args < GC_TRIGGER_SIZE)
 	    {
-	      set_optimized(expr);
-	      if (args == 4)
-		set_optimize_op(expr, hop + OP_SAFE_C_AAAA);
+	      if (fx_count(sc, expr) == args)
+		{
+		  set_optimized(expr);
+		  if (args == 4)
+		    set_optimize_op(expr, hop + OP_SAFE_C_AAAA);
+		  else
+		    {
+		      s7_pointer p;
+		      for (p = cdr(expr); (is_pair(p)) && (is_pair(cdr(p))) && (is_pair(car(p))) && (caar(p) == sc->quote_symbol); p = cddr(p));
+		      set_optimize_op(expr, hop + ((is_null(p)) ? OP_SAFE_C_ALL_QA : OP_SAFE_C_FX));
+		    }
+		  annotate_args(sc, cdr(expr), e);
+		  set_arglist_length(expr, make_permanent_integer(args));
+		  choose_c_function(sc, expr, func, args);
+		  return(OPT_T);
+		}
 	      else
 		{
 		  s7_pointer p;
-		  for (p = cdr(expr); (is_pair(p)) && (is_pair(cdr(p))) && (is_pair(car(p))) && (caar(p) == sc->quote_symbol); p = cddr(p));
-		  set_optimize_op(expr, hop + ((is_null(p)) ? OP_SAFE_C_ALL_QA : OP_SAFE_C_FX));
+		  for (p = cdr(expr); is_pair(p); p = cdr(p))
+		    {
+		      s7_function callee;
+		      callee = fx_eval(sc, p, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe);
+		      set_c_call_checked(p, callee);
+		    }
+		  set_arglist_length(expr, make_permanent_integer(args));
+		  set_unsafe_optimize_op(expr, hop + OP_SAFE_C_FP);
+		  choose_c_function(sc, expr, func, args);
+		  return(OPT_F);
 		}
-	      annotate_args(sc, cdr(expr), e);
-	      set_arglist_length(expr, make_permanent_integer(args));
-	      choose_c_function(sc, expr, func, args);
-	      return(OPT_T);
 	    }
 	}
       else /* c_func is not safe */
@@ -68053,10 +68083,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		  {
 		    if (car_expr != sc->quote_symbol) /* !! quote can be redefined locally, unsetting the T_SYNTACTIC flag -- can this happen elsewhere? */
 		      {
+			/* TODO: if car(expr) is a function parameter, maybe use OP_S_S|C here to avoid endless unknown_g_ex calls */
 			set_unsafe_optimize_op(expr, OP_UNKNOWN_G);
-			/* hooboy -- we get here in let bindings...
-			 * to save access to the caller, we'd need to pass it as an arg to optimize_expression
-			 */
 		      }
 		    return(OPT_F);
 		  }
@@ -77437,11 +77465,12 @@ static void safe_closure_star_a(s7_scheme *sc, s7_pointer code)
 static void safe_closure_star_aa(s7_scheme *sc, s7_pointer code)
 {
   /* here closure_arity == 2 and we have 2 args */
-  s7_pointer arg1, arg2, clet, cargs;
+  s7_pointer arg1, arg2, clet, cargs, p;
   clet = closure_let(opt_lambda(code));
   cargs = closure_args(opt_lambda(code));
-  arg1 = c_call(cdr(code))(sc, cadr(code));
-  arg2 = c_call(cddr(code))(sc, caddr(code));
+  p = cdr(code);
+  arg1 = c_call(p)(sc, car(p));
+  arg2 = c_call(cdr(p))(sc, cadr(p));
 
   if (is_keyword(arg1))
     {
@@ -79045,6 +79074,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_safe_c_fp(sc, OP_SAFE_C_FP_1, cons(sc, sc->value, sc->args)))
 	    goto EVAL;
 	  sc->stack_end -= 4;
+	  /* normally an outside function that calls gc_protect_via_stack should be declared unsafe (since it messes with the stack),
+	   *   but block_copy is a method with no way to say that it is unsafe!  so (c-fnc ... (copy (block)...) ...) will insert
+	   *   the OP_GC_PROTECT frame in the midst of our args, but we're expecting to get the original sc->code pointer from 
+	   *   the previous stack frame.
+	   */
+	  while (((opcode_t)sc->stack_end[3]) == OP_GC_PROTECT) {sc->stack_end -= 4;}
 	  sc->code = sc->stack_end[0];
 	  sc->value = c_call(sc->code)(sc, safe_reverse_in_place(sc, sc->args));
 	  goto START;
@@ -79053,9 +79088,31 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_safe_c_fp(sc, OP_SAFE_C_FP_MV_1, (is_multiple_value(sc->value)) ? s7_append(sc, s7_reverse(sc, sc->value), sc->args) : cons(sc, sc->value, sc->args)))
 	    goto EVAL;
 	  sc->stack_end -= 4;
+	  while (((opcode_t)sc->stack_end[3]) == OP_GC_PROTECT) {sc->stack_end -= 4;}
 	  sc->code = sc->stack_end[0];
 	  sc->code = c_function_base(opt_cfunc(sc->code));
 	  sc->args = safe_reverse_in_place(sc, sc->args);
+	  goto APPLY;
+
+	  
+	case OP_SAFE_C_SSP:
+	  if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SSP:
+	  check_stack_size(sc);
+	  push_stack_no_args(sc, OP_SAFE_C_SSP_1, sc->code);
+	  sc->code = opt_pair3(sc->code);
+	  goto EVAL;
+
+	case OP_SAFE_C_SSP_1:
+	  set_car(sc->t3_3, sc->value);
+	  set_car(sc->t3_1, symbol_to_value_unchecked(sc, cadr(sc->code)));
+	  set_car(sc->t3_2, symbol_to_value_unchecked(sc, caddr(sc->code)));
+	  sc->value = c_call(sc->code)(sc, sc->t3_1);
+	  goto START;
+
+	case OP_SAFE_C_SSP_MV_1:
+	  sc->args = cons(sc, symbol_to_value_unchecked(sc, cadr(sc->code)), cons(sc, symbol_to_value_unchecked(sc, caddr(sc->code)), sc->value));
+	  sc->code = c_function_base(opt_cfunc(sc->code));
 	  goto APPLY;
 
 
@@ -79657,10 +79714,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_APPLY_SA:
 	  {
-	    s7_pointer code;
-	    code = sc->code;
-	    sc->args = c_call(cddr(code))(sc, caddr(code));
-	    sc->code = symbol_to_value_unchecked(sc, cadr(code));
+	    s7_pointer p;
+	    p = cdr(sc->code);
+	    sc->args = c_call(cdr(p))(sc, cadr(p));
+	    sc->code = symbol_to_value_unchecked(sc, car(p));
 	    if (!s7_is_proper_list(sc, sc->args))                          /* (apply + #f) etc */
 	      apply_list_error(sc, sc->args);
 	    if (needs_copied_args(sc->code))
@@ -89719,7 +89776,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
 #endif
   /* fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED); */
-  /* 64 bit machine: cell size: 48 [size 80 if gmp, 112 if debugging], block size: 40, max op: 818, opt: 415, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* 64 bit machine: cell size: 48 [size 80 if gmp, 104 if debugging], block size: 40, max op: 813, opt: 415, 48 if 32 (let_id/typeflag etc is 64 bit) */
 
   save_unlet(sc);
   init_s7_let(sc);          /* set up *s7* */
@@ -89787,33 +89844,33 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
  * ------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  200   199   194
- * tmac          |      |      |      | 9052 |  264 |  236   236   234
- * tref          |      |      | 2372 | 2125 | 1036 |  985   982   975
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1036   920
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1287  1246
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1548  1483
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1714  1672
- * lint          |      |      |      | 4041 | 2702 | 2192  2198  2161
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317  2262
- * tread         |      |      |      |      | 2357 | 2352  2355  2278
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2379  2336
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492  2420
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3019  3046
- * tsort         |      |      |      | 8584 | 4111 | 3945  3059  3090
- * tlet          |      |      |      |      | 4717 | 3505  3245  3142
- * titer         |      |      |      | 5971 | 4646 | 3695  3541  3495
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3799  3770
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5339  5210
- * dup           |      |      |      |      | 20.8 | 5634  5423  5441
- * tset          |      |      |      |      | 10.0 | 6396  6345  6241
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2  11.1
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.2  11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.2  15.8
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.5  37.3
- * sg            |      |      |      |139.0 | 85.9 | 78.0  77.9  78.6
- * lg            |      |      |      |211.0 |133.0 |114.0 112.6 109.7
- * tbig          |      |      |      |      |246.9 |232.5 231.7
+ * tpeak         |      |      |      |  391 |  377 |  200   199
+ * tmac          |      |      |      | 9052 |  264 |  236   236
+ * tref          |      |      | 2372 | 2125 | 1036 |  985   982
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1018
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1287
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1548
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1714
+ * lint          |      |      |      | 4041 | 2702 | 2192  2192
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317
+ * tread         |      |      |      |      | 2357 | 2352  2345
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2389
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3019
+ * tsort         |      |      |      | 8584 | 4111 | 3945  3059
+ * tlet          |      |      |      |      | 4717 | 3505  3251
+ * titer         |      |      |      | 5971 | 4646 | 3695  3556
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3792
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5343
+ * dup           |      |      |      |      | 20.8 | 5634  5459
+ * tset          |      |      |      |      | 10.0 | 6396  6402
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0  77.9
+ * lg            |      |      |      |211.0 |133.0 |114.0 112.3
+ * tbig          |      |      |      |      |246.9 |232.5 231.6
  *
  * in ubuntu, gcc 8.1, callgrind is confused -- add two unexecuted lines to s7.c and
  *   it panics (10% higher numbers); the run times are not affected. It works ok both

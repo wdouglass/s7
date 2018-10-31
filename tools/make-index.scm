@@ -1,6 +1,6 @@
 ;;; make-index.scm translated from index.cl
 ;;;   run this -noinit so that loads in ~/.snd_s7 don't confuse matters
-(set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'heap-size) (* 4 1024000))
 
 (if (provided? 'pure-s7)
     (define (char-ci=? . chars) (apply char=? (map char-upcase chars))))
@@ -1554,7 +1554,7 @@
 		     (let ((epos (or (string-position "</a>" dline) 
 				     (string-position "</em>" dline) 
 				     (string-position "</A>" dline))))
-		       ;;actually should look for close double quote
+		       ;; actually should look for close double quote
 		       (if (not epos) 
 			   (format () "~A[~D]: <em...> but no </em> for ~A\n" file linectr dline)
 			   (begin

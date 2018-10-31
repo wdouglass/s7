@@ -271,7 +271,6 @@
 	    ((= i size))
 	  (if (string>? (vector-ref vs j) (vector-ref vs i))
 	      (display "oops"))))
-
       (string-checker)))
   
   (clear-and-gc)
@@ -2056,7 +2055,8 @@
     (complex-2d-fft fvr fft-size 1)
     (complex-2d-checker fvr)
     (complex-2d-fft #f fft-size 1)
-    (complex-2d-checker #f)))
+    (complex-2d-checker #f)
+    (fill! fvr #f)))
 (complex-2d-test)
 
 (clear-and-gc)
@@ -2130,7 +2130,8 @@
     (complex-hash-fft fvr fft-size 1)
     (complex-hash-checker fvr)
     (complex-hash-fft #f fft-size 1)
-    (complex-hash-checker #f)))
+    (complex-hash-checker #f)
+    (fill! fvr #f)))
 (complex-hash-test)
 
 (clear-and-gc)
@@ -2235,7 +2236,9 @@
     (iterator-vector-fft fvr fvi fft-size 1)
     (iterator-vector-checker fvr fvi)
     (iterator-vector-fft #f #f fft-size 1)
-    (iterator-vector-checker #f #f)))
+    (iterator-vector-checker #f #f)
+    (fill! fvr #f)
+    (fill! fvi #f)))
 
 (iterator-vector-test)
 (clear-and-gc)
@@ -2309,7 +2312,8 @@
     (complex-closure-fft fvr fft-size 1)
     (complex-closure-checker fvr)
     (complex-closure-fft #f fft-size 1)
-    (complex-closure-checker #f)))
+    (complex-closure-checker #f)
+    (fill! fvr #f)))
 (complex-closure-test)
 
 (clear-and-gc)
