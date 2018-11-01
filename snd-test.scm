@@ -8645,7 +8645,7 @@ EDITS: 2
 
       ;; float-vector-add! + subvector:
       (let* ((fv #r(1 2 3 4 5))
-	     (sv (subvector fv '(4) 1)))
+	     (sv (subvector fv 4 1)))
 	(float-vector-add! sv fv)
 	(if (not (mus-arrays-equal? fv #r(1.0 3.0 6.0 10.0 15.0)))
 	    (snd-display "float-vector+subvector: ~A" fv)))
@@ -9738,7 +9738,7 @@ EDITS: 2
 		     (data (channel->float-vector)))
 		 (do ((i 0 (+ i 1)))
 		     ((= i bins))
-		   (float-vector-set! resp i (float-vector-peak (subvector data (list size) (* i size)))))
+		   (float-vector-set! resp i (float-vector-peak (subvector data size (* i size)))))
 		 (close-sound ind)
 		 (list mx resp)))))
 	  
@@ -18334,7 +18334,7 @@ EDITS: 2
 	      (f2 (lambda (g)
 		    (if forward ; no change to data
 			(set! forward #f)
-			(let ((grain (subvector (mus-data g) (list (mus-length g)))))
+			(let ((grain (subvector (mus-data g) (mus-length g))))
 			  (set! forward #t)
 			  (reverse! grain))) ; should get ramps going up then down across overall rising ramp
 		    (mus-length g))))
@@ -18395,7 +18395,7 @@ EDITS: 2
 				   :edit (lambda (g)
 					   (if forward
 					       (set! forward #f)
-					       (let ((grain (subvector (mus-data g) (list (mus-length g)))))
+					       (let ((grain (subvector (mus-data g) (mus-length g))))
 						 (set! forward #t)
 						 (reverse! grain)))
 					   (mus-length g)))))
@@ -25990,7 +25990,7 @@ EDITS: 2
 				       ((= i len) v)
 				     (let ((bin (round (* 16.0 (abs (next-sample fd))))))
 				       (if (< bin steps)
-					   (float-vector-offset! (subvector v (list steps) bin) step))))))))
+					   (float-vector-offset! (subvector v steps bin) step))))))))
 	  (set! (x-bounds) '(.1 .2))
 	  (set! *transform-type* fourier-transform)
 	  (set! (x-bounds) '(.1 .2))

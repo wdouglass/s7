@@ -24,7 +24,7 @@
 	 (if (> x y)
 	     (format *stderr* "~A > ~A?~%" x y))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
 	 
   (define (check-chars vc)
     (let ((x (vector-ref vc 0)))
@@ -33,7 +33,7 @@
 	 (if (char>? x y)
 	     (format *stderr* "~A > ~A?~%" x y))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
     
   (define (check-strings vc)
     (let ((x (vector-ref vc 0)))
@@ -42,7 +42,7 @@
 	 (if (string>? x y)
 	     (format *stderr* "~A > ~A?~%" x y))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
 
   (define (check-car vc)
     (let ((x (vector-ref vc 0)))
@@ -51,7 +51,7 @@
 	 (if (> (car x) (car y)) 
 	     (format *stderr* "~A > ~A?~%" (car x) (car y)))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
   
   (define (check-cdr vc)
     (let ((x (vector-ref vc 0)))
@@ -60,7 +60,7 @@
 	 (if (> (cdr x) (cdr y)) 
 	     (format *stderr* "~A > ~A?~%" (cdr x) (cdr y)))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
   
   (define (check-cadr vc)
     (let ((x (vector-ref vc 0)))
@@ -69,7 +69,7 @@
 	 (if (> (cadr x) (cadr y)) 
 	     (format *stderr* "~A > ~A?~%" (cadr x) (cadr y)))
 	 (set! x y))
-       (subvector vc 1))))
+       (subvector vc (- size 1) 1))))
 	 
   (define (vfill-n v x)
     (do ((i 0 (+ i 1)))

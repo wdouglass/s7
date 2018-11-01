@@ -1,3 +1,5 @@
+(set! (*s7* 'heap-size) (* 4 1024000))
+
 (define big-list (make-list 10000 1))
 
 (define (fib n)

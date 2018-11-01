@@ -6810,16 +6810,17 @@
 	
 	;; ---------------- = ----------------
 	(let ()
+	  (define (any-real? lst)                      ; ignore 0.0 and 1.0 in this since they normally work
+	    (and (pair? lst)
+		 (or (and (number? (car lst))
+			  (not (rational? (car lst)))
+			  (not (member (car lst) '(0.0 1.0) =)))
+		     (any-real? (cdr lst)))))    ; (= x 1.5)
 	 (define (sp-= caller head form env)
 	   ;; repeated factors (= (+ x y) (+ x z)) never happen
 	   (let ((len (length form)))
 	     (if (and (> len 2)
-		      (let any-real? ((lst (cdr form)))       ; ignore 0.0 and 1.0 in this since they normally work
-			(and (pair? lst)
-			     (or (and (number? (car lst))
-				      (not (rational? (car lst)))
-				      (not (member (car lst) '(0.0 1.0) =)))
-				 (any-real? (cdr lst))))))    ; (= x 1.5)
+		      (any-real? (cdr form)))
 		 (lint-format "= can be troublesome with floats: ~A" caller (truncated-list->string form)))
 	     
 	     (let ((cleared-form (cons = (remove-if (lambda (x) (not (number? x))) (cdr form)))))
@@ -7604,7 +7605,31 @@
 	  (for-each (lambda (f)
 		      (hash-special f sp-vector-set!))
 		    '(vector-set! list-set! hash-table-set! float-vector-set! int-vector-set! string-set! byte-vector-set! let-set!)))
-	
+
+	;; ---------------- subvector ----------------
+	(let ()
+	  (define (sp-subvector caller head form env)
+	    (when (and (pair? (cdr form))
+		       (pair? (cddr form)))
+	      (let ((dims (caddr form))
+		    (offset (and (pair? (cdddr form))
+				 (cadddr form))))
+		(when (pair? dims)
+		  (let ((dl (catch #t
+			      (lambda ()
+				(eval dims))
+			      (lambda args
+				#f))))
+		    (when (and (pair? dl)
+			       (null? (cdr dl)))
+		      (lint-format "perhaps ~A" caller
+				   (lists->string form `(subvector ,(cadr form) ,(car dl) ,@(cdddr form)))))))
+		(when (eqv? offset 0)
+		  (lint-format "perhaps ~A" caller
+			       (lists->string form `(subvector ,(cadr form) ,(caddr form))))))))
+		  
+	  (hash-special 'subvector sp-subvector))
+
 	;; ---------------- object->string ----------------
 	(let ()
 	  (define (sp-object->string caller head form env)

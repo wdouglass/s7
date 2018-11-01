@@ -271,7 +271,8 @@
 	    ((= i size))
 	  (if (string>? (vector-ref vs j) (vector-ref vs i))
 	      (display "oops"))))
-      (string-checker)))
+      (string-checker)
+      (fill! vs #f)))
   
   (clear-and-gc)
   (let ((size little-size))
@@ -361,12 +362,12 @@
       (byte-vector-sorter)
       (sort! vs <)
       (define (byte-vector-checker)
-	(do ((i 1 (+ i 1))
-	     (j 0 (+ j 1)))
-	    ((= i size))
-	  (if (> (byte-vector-ref vs j) (byte-vector-ref vs i))
-	      (display "oops"))))
-
+ 	(let ((vj (byte-vector-ref vs 0)))
+ 	  (for-each
+ 	   (lambda (vi)
+ 	     (if (> vj vi) (display "oops"))
+ 	     (set! vj vi))
+ 	   (subvector vs (- size 1) 1))))
       (byte-vector-checker)))
   
   (clear-and-gc)
@@ -400,7 +401,7 @@
 	(test (morally-equal? big1 bigfv) #t)
 	(set! (big1 (- big-size 1)) 0.25)
 	(test (morally-equal? big1 bigfv) #f)
-	(let ((big2 (subvector big1 (list 20) (- (ash 1 31) 10))))
+	(let ((big2 (subvector big1 20 (- (ash 1 31) 10))))
 	  (test big2 (make-float-vector 20 0.5))
 	  (test (length big2) 20)
 	  (let ((big3 (make-float-vector 20 0.0)))
@@ -427,12 +428,12 @@
       (float-vector-sorter)
       (sort! vs <)
       (define (float-vector-checker)
-	(do ((i 1 (+ i 1))
-	     (j 0 (+ j 1)))
-	    ((= i size))
-	  (if (> (float-vector-ref vs j) (float-vector-ref vs i))
-	      (display "oops"))))
-
+ 	(let ((vj (float-vector-ref vs 0)))
+ 	  (for-each
+ 	   (lambda (vi)
+ 	     (if (> vj vi) (display "oops"))
+ 	     (set! vj vi))
+ 	   (subvector vs (- size 1) 1))))
       (float-vector-checker)))
   
   (clear-and-gc)
@@ -489,9 +490,9 @@
 	(set! (bigfv1 i) j)
 	(set! (bigfv2 i) (* (bigfv1 i) 2))))
     (f-loop)
-    (test (subvector bigfv1 (list 20) (- (ash 1 32) 10)) (float-vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19))
-    (test (subvector bigfv2 (list 20) (- (ash 1 32) 10)) (float-vector 0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38))
-    (test (subvector bigfv1 (list 5) (+ (ash 1 32) 5)) (float-vector 15 16 17 18 19))))
+    (test (subvector bigfv1 20 (- (ash 1 32) 10)) (float-vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19))
+    (test (subvector bigfv2 20 (- (ash 1 32) 10)) (float-vector 0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38))
+    (test (subvector bigfv1 5 (+ (ash 1 32) 5)) (float-vector 15 16 17 18 19))))
 
 (when (> total-memory (* 9 big-size))
   (format () "test 4~%")
@@ -743,7 +744,7 @@
 	(test (morally-equal? big1 bigfv) #t)
 	(set! (big1 (- big-size 1)) 25)
 	(test (morally-equal? big1 bigfv) #f)
-	(let ((big2 (subvector big1 (list 20) (- (ash 1 31) 10))))
+	(let ((big2 (subvector big1 20 (- (ash 1 31) 10))))
 	  (test big2 (make-int-vector 20 5))
 	  (test (length big2) 20)
 	  (let ((big3 (make-int-vector 20 0)))
@@ -768,12 +769,12 @@
       (int-vector-sorter)
       (sort! vs <)
       (define (int-vector-checker)
-	(do ((i 1 (+ i 1))
-	     (j 0 (+ j 1)))
-	    ((= i size))
-	  (if (> (int-vector-ref vs j) (int-vector-ref vs i))
-	      (display "oops"))))
-
+ 	(let ((vj (int-vector-ref vs 0)))
+ 	  (for-each
+ 	   (lambda (vi)
+ 	     (if (> vj vi) (display "oops"))
+ 	     (set! vj vi))
+ 	   (subvector vs (- size 1) 1))))
       (int-vector-checker)))
   (sort! '(1 2 3) <) ; clear temp3...
   (clear-and-gc)
@@ -1986,7 +1987,7 @@
   `(make-vector (make-list (+ 1 (random 4)) (+ 1 (random 4))) ,val))
 
 (define-expansion (old-value ref)
-  `((subvector ,ref '(1)) 0))
+  `((subvector ,ref 1) 0))
 
 (define (complex-2d-fft data n dir)
   (when data
