@@ -8,8 +8,7 @@
 (define (make-symbols)
   (do ((i 0 (+ i 1)))
       ((= i size))
-    (vector-set! symbols i (symbol "a-" (number->string i)))
-    (varlet e (vector-ref symbols i) i)))
+    (varlet e (vector-set! symbols i (symbol "a-" (number->string i))) i)))
 (make-symbols)
 
 (define (add)

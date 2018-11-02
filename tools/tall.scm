@@ -45,10 +45,9 @@
 	(osc (make-oscil :frequency 440))
 	(e1 (make-env '(0 0 1 1 2 0) :length size)))
     (set! *output* vals)
-    (s7-optimize
-     (do ((i 0 (+ i 1)))
-	 ((= i size))
-       (outa i (* (env e1) (oscil osc)))))
+    (do ((i 0 (+ i 1)))
+	((= i size))
+      (outa i (* (env e1) (oscil osc))))
     (set! *output* #f)))
 
 (let ((do1 (time-it (test-osc))))
