@@ -141,18 +141,22 @@
 		    (for-each call-func1 cdr-auto-constants)
 		    (for-each call-func2 cdr-auto-constants))))
 
-	     (if checker
-		 (for-each
-		  (lambda (c)
-		    (when (checker c)
+	     (let ((sig1 (if (pair? sig) (cdr sig) ()))
+		   (c-args1 c-args)
+		   (args-now1 (+ args-now 1))
+		   (args-left1 (- args-left 1)))
+	       (if checker
+		   (for-each
+		    (lambda (c)
+		      (when (checker c)
+			(set-car! p c)
+			(autotest func c-args1 args-now1 args-left1 sig1)))
+		    auto-constants)
+		   (for-each
+		    (lambda (c)
 		      (set-car! p c)
-		      (autotest func c-args (+ args-now 1) (- args-left 1) (if (pair? sig) (cdr sig) ()))))
-		  auto-constants)
-		 (for-each
-		  (lambda (c)
-		    (set-car! p c)
-		    (autotest func c-args (+ args-now 1) (- args-left 1) (if (pair? sig) (cdr sig) ())))
-		  auto-constants))))))))
+		      (autotest func c-args1 args-now1 args-left1 sig1))
+		    auto-constants)))))))))
 
 (define safe-fill!
   (let ((+signature+ '(#t sequence? #t)))

@@ -79,6 +79,8 @@
 	 (size1 3 (+ size1 1))
 	 (tries 4000 (+ tries 2000))
 	 (pos 0)
+	 (cs constants)
+	 (cs-len constants-len)
 	 (ctrl-str (make-string 16 #\space)))
 	((= size 15))
       (format *stderr* "~D " size)
@@ -90,9 +92,9 @@
 	    ((= j size1))
 	  (string-set! ctrl-str j (string-ref ctrl-chars (random ctrl-chars-len))))
 	
-	(set! x (constants (random constants-len)))
-	(set! y (constants (random constants-len)))
-	(set! z (constants (random constants-len)))
+	(set! x (cs (random cs-len)))
+	(set! y (cs (random cs-len)))
+	(set! z (cs (random cs-len)))
 	
 	(object->string x)
 	(display x op)

@@ -401,7 +401,7 @@ static bool symbol_func(const char *symbol_name, void *data)
   return(false);
 }
 
-static bool symbol_func_1(const char *symbol_name, s7_pointer value, void *data)
+static bool symbol_func_1(const char *symbol_name, void *data)
 {
   return(false);
 }

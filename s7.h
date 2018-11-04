@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.5"
-#define S7_DATE "15-Oct-18"
+#define S7_VERSION "7.6"
+#define S7_DATE "3-Nov-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -391,7 +391,7 @@ s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym);
 s7_pointer s7_symbol_set_value(s7_scheme *sc, s7_pointer sym, s7_pointer val);
 s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local_env);
 bool s7_for_each_symbol_name(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
-bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, s7_pointer value, void *data), void *data);
+bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
   
   /* these access the current environment and symbol table, providing
    *   a symbol's current binding (s7_name_to_value takes the symbol name as a char*,
@@ -400,12 +400,10 @@ bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_na
    *   as its third argument).
    *
    * To iterate over the complete symbol table, use s7_for_each_symbol_name,
-   *   and s7_for_each_symbol.  The latter calls the 'symbol_func' on each
-   *   symbol, passing the symbol name, its current binding, and the uninterpreted
-   *   'data' pointer.  s7_for_each_symbol_name is similar, but does not include
-   *   the current binding.
-   *
-   * The for-each loop stops if the symbol_func returns true, or at the end of the table.
+   *   and s7_for_each_symbol.  Both call 'symbol_func' on each symbol, passing it
+   *   the symbol or symbol name, and the uninterpreted 'data' pointer.
+   *   the current binding. The for-each loop stops if the symbol_func returns true, 
+   *   or at the end of the table.
    */
 
 s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish);
@@ -854,6 +852,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 3-Nov:     removed the "value" argument from s7_for_each_symbol.
  * 22-Sep:    s7_list_nl.
  * 12-Sep:    byte-vectors can be multidimensional; homogenous vectors of any built-in type. typed hash-tables.
  * 29-Jul:    symbol-setter deprecated (use setter). s7_symbol_documentation (and setter) folded into s7_documentation.

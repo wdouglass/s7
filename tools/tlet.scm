@@ -6,24 +6,28 @@
 (define e (inlet))
 
 (define (make-symbols)
-  (do ((i 0 (+ i 1)))
+  (do ((e1 e)
+       (syms symbols)
+       (i 0 (+ i 1)))
       ((= i size))
-    (varlet e (vector-set! symbols i (symbol "a-" (number->string i))) i)))
+    (varlet e1 (vector-set! syms i (symbol "a-" (number->string i))) i)))
 (make-symbols)
 
 (define (add)
-  (let ((sum 0))
+  (let ((sum 0)
+	(e1 e))
     (for-each
      (lambda (x)
-       (set! sum (+ sum (let-ref e x))))
+       (set! sum (+ sum (let-ref e1 x))))
      symbols)
     sum))
 
 (define (subtract)
-  (let ((sum 0))
+  (let ((sum 0)
+	(e1 e))
     (for-each
      (lambda (x)
-       (set! sum (- sum (let-ref e x))))
+       (set! sum (- sum (let-ref e1 x))))
      (reverse! symbols))
     sum))
 
@@ -37,7 +41,7 @@
 (format *stderr* "~A ~A ~A ~A~%" (/ (- (* size size) size) 2) (add) (subtract) (whatever))
 
 (define (in-e)
-  (with-let (sublet e :symbols symbols)
+  (with-let (sublet e :symbols symbols :size size)
     (let ((sum1 0.0)
 	  (sum2 0.0)
 	  (sum3 0.0)
@@ -53,3 +57,4 @@
 
 (s7-version)
 (exit)
+
