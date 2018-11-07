@@ -126,14 +126,25 @@
 (format *stderr* "~NC tset ~NC~%" 20 #\- 20 #\-)
 (system "./repl tset.scm")
 
+(format *stderr* "~NC tref ~NC~%" 20 #\- 20 #\-)
+(system "./repl tref.scm")
+
+(format *stderr* "~NC tsort ~NC~%" 20 #\- 20 #\-)
+(system "./repl tsort.scm")
+
+(format *stderr* "~NC tclo ~NC~%" 20 #\- 20 #\-)
+(system "./repl tclo.scm")
+
 (format *stderr* "~NC index ~NC~%" 20 #\- 20 #\-)
 (system "./snd make-index.scm")
 
+#|
 (format *stderr* "~NC makexg ~NC~%" 20 #\- 20 #\-)
 (system "./snd makexg.scm")
 
 (format *stderr* "~NC makegl ~NC~%" 20 #\- 20 #\-)
 (system "./snd makegl.scm")
+|#
 
 (format *stderr* "~NC tgen ~NC~%" 20 #\- 20 #\-)
 (system "./snd tgen.scm")
@@ -145,7 +156,7 @@
 (system "./snd -l snd-test.scm")
 
 (format *stderr* "~NC bench ~NC~%" 20 #\- 20 #\-)
-(system "(cd /home/bil/test/scheme/bench/src ; /home/bil/cl/snd test-all.scm)")
+(system "(cd /home/bil/test/scheme/bench/src ; /home/bil/cl/repl test-all.scm)")
 
 ;(format *stderr* "~NC lg ~NC~%" 20 #\- 20 #\-)
 ;(system "./repl lg.scm")
