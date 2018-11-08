@@ -4405,7 +4405,6 @@ static void *jack_mus_audio_watchdog(void *arg){
 }
 
 
-
 static void jack_mus_audio_set_realtime(void){
 #if HAVE_JACK_IN_LINUX
   struct sched_param par;
@@ -4442,6 +4441,10 @@ static void jack_mus_audio_set_non_realtime(void){
 #endif
 }
 
+#ifndef JACK_AUTO_SRC
+  #define JACK_AUTO_SRC 1
+#endif
+
 int jack_mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_type, int size){
   if (sndjack_client==NULL){
     if (jack_mus_audio_initialize()==MUS_ERROR)
@@ -4464,7 +4467,7 @@ int jack_mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_
   sj_writeplace=0;
   sj_readplace=0;
 
-
+#if JACK_AUTO_SRC
   if (srate!=(int)jack_get_sample_rate(sndjack_client)){
     int lokke;
     //printf("Warning, sample-rate differs between snd and jack. Sound will not be played correctly! %d/%d\n",srate,jack_get_sample_rate(sndjack_client));
@@ -4475,6 +4478,9 @@ int jack_mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_
   }else{
     sndjack_srcratio=1.0;
   }
+#else
+  sndjack_srcratio=1.0;
+#endif
 
   sndjack_format=samp_type;
   sndjack_num_channels_inuse=chans;

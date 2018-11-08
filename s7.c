@@ -2429,7 +2429,7 @@ static void init_types(void)
 #define T_SHORT_VERY_SAFE_CLOSURE      (1 << 4)
 #define is_very_safe_closure(p)        has_type1_bit(T_Clp(p), T_SHORT_VERY_SAFE_CLOSURE)
 #define set_very_safe_closure(p)       set_type1_bit(T_Clp(p), T_SHORT_VERY_SAFE_CLOSURE) /* T_Pos 1-Nov-18 (can be a pair) */
-#define closure_bits(p)                (typeflag(T_Clp(p)) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE | T_FRAME_SAFE))
+#define closure_bits(p)                (typeflag(T_Clp(p)) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
 
 #define T_CYCLIC                       (1LL << (TYPE_BITS + BIT_ROOM + 29))
 #define T_SHORT_CYCLIC                 (1 << 5)
@@ -2462,17 +2462,7 @@ static void init_types(void)
 #define ctr3_is_set(p)                 has_type1_bit(T_Pair(p), T_CTR3_SET)
 #define set_ctr3_is_set(p)             do {set_type1_bit(T_Pair(p), T_CTR3_SET); clear_type_bit(p, T_LINE_NUMBER);} while (0)
 
-#define T_FRAME_SAFE                   (1LL << (TYPE_BITS + BIT_ROOM + 33))
-#define T_SHORT_FRAME_SAFE             (1 << 9)
-#define is_frame_safe(p)               has_type1_bit(T_Clp(p), T_SHORT_FRAME_SAFE)
-#define set_frame_safe(p)              set_type1_bit(T_Clp(p), T_SHORT_FRAME_SAFE)
-
-#define T_RCLO                         (1LL << (TYPE_BITS + BIT_ROOM + 34))
-#define T_SHORT_RCLO                   (1 << 10)
-#define is_rclo(p)                     has_type1_bit(T_Pair(p), T_SHORT_RCLO)
-#define set_rclo(p)                    set_type1_bit(T_Pair(p), T_SHORT_RCLO)
-
-#define UNUSED_BITS                    0x3800000000000000
+#define UNUSED_BITS                    0x3e00000000000000
 
 #define T_GC_MARK                      0x8000000000000000
 #define is_marked(p)                   has_type_bit(p, T_GC_MARK)
@@ -29289,13 +29279,13 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 1024, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 1024, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   optimize_op(obj),
 	   full_typ,
 	   /* bit 0 (the first 8 bits are easy...) */
-	   ((full_typ & T_MULTIFORM) != 0) ?      ((is_any_closure(obj)) ? " multiform" : " ?0?") : "",
+	   ((full_typ & T_MULTIFORM) != 0) ?      ((is_any_closure(obj)) ? (((full_typ & T_ONE_FORM) != 0) ? " clo-has-fx" : " multiform") : " ?0?") : "",
 	   /* bit 1 */
 	   ((full_typ & T_SYNTACTIC) != 0) ?      (((is_pair(obj)) || (is_syntax(obj)) || (is_symbol(obj))) ? " syntactic" : " ?1?") : "",
 	   /* bit 2 */
@@ -29421,10 +29411,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							 ((is_hash_table(obj)) ? " simple-keys" :
 							  ((is_pair(obj)) ? " ctr3-set" :
 							   " 32?"))) : "",
-	   /* bit 33+16 */
-	   ((full_typ & T_FRAME_SAFE) != 0) ?     " frame-safe" : "",
-	   /* bit 34+16 */
-	   ((full_typ & T_RCLO) != 0) ?     " rclo" : "",
 
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
@@ -29459,8 +29445,6 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
-  if (((full_typ & T_FRAME_SAFE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
-  if (((full_typ & T_RCLO) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) && ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)))) return(true);
   if (((full_typ & T_FULL_S7_LET_FIELD) != 0) &&
       (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))
@@ -65390,6 +65374,8 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 
   if ((is_closure(func)) || (is_closure_star(func)))
     {
+      bool safe_case;
+      safe_case = is_safe_closure(func);
       if (is_immutable(func)) hop = 1;
       if (is_null(closure_args(func)))                 /* no rest arg funny business */
 	{
@@ -65398,24 +65384,15 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 	  if (is_null(cdr(body)))
 	    {
 	      if ((is_safe_closure(func)) &&
-		  (is_fx_safe(sc, car(body))))
+		  (is_fx_safe(sc, car(body))))         /* fx stuff is not set yet */
 		{
-		  /* fx stuff is not set yet */
 		  annotate_arg(sc, body, e);
 		  set_optimize_op(expr, OP_SAFE_THUNK_A);
 		  set_closure_has_fx(func);
 		}
-	      else
-		{
-		  /* set_closure_has_one_form(func); */
-		  set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_THUNK_P : OP_THUNK_P));
-		}
+	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_THUNK_P : OP_THUNK_P));
 	    }
-	  else
-	    {
-	      /* set_closure_has_multiform(func); */
-	      set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_THUNK : OP_THUNK));
-	    }
+	  else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_THUNK : OP_THUNK));
 	  set_opt1_lambda(expr, func);
 	}
       else
@@ -65423,7 +65400,7 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 	  if (is_closure_star(func))
 	    {
 	      set_opt1_lambda(expr, func);
-	      set_optimize_op(expr, hop + ((is_safe_closure(func)) ? OP_SAFE_CLOSURE_STAR_FX : OP_CLOSURE_STAR_FX));
+	      set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_FX : OP_CLOSURE_STAR_FX));
 	    }
 	}
       return(OPT_F);
@@ -65766,19 +65743,13 @@ static opt_t wrap_bad_args(s7_scheme *sc, s7_pointer func, s7_pointer expr, int3
       set_opt1_lambda(expr, func);
 
       if (one_form)
-	{
-	  /* set_closure_has_one_form(func); */
-	  set_optimize_op(expr, hop + ((safe_case) ?
-				       ((n_args == 1) ? OP_SAFE_CLOSURE_A_P : OP_SAFE_CLOSURE_AA_P) :
-				       ((n_args == 1) ? OP_CLOSURE_A_P : OP_CLOSURE_AA_P)));
-	}
+	set_optimize_op(expr, hop + ((safe_case) ?
+				     ((n_args == 1) ? OP_SAFE_CLOSURE_A_P : OP_SAFE_CLOSURE_AA_P) :
+				     ((n_args == 1) ? OP_CLOSURE_A_P : OP_CLOSURE_AA_P)));
       else
-	{
-	  /* set_closure_has_multiform(func); */
-	  set_optimize_op(expr, hop + ((safe_case) ?
-				       ((n_args == 1) ? OP_SAFE_CLOSURE_A : OP_SAFE_CLOSURE_AA) :
-				       ((n_args == 1) ? OP_CLOSURE_A : OP_CLOSURE_AA)));
-	}
+	set_optimize_op(expr, hop + ((safe_case) ?
+				     ((n_args == 1) ? OP_SAFE_CLOSURE_A : OP_SAFE_CLOSURE_AA) :
+				     ((n_args == 1) ? OP_CLOSURE_A : OP_CLOSURE_AA)));
       return(OPT_F);
     }
   if ((is_closure_star(func)) &&
@@ -66018,23 +65989,11 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_A : OP_SAFE_CLOSURE_C_A));
 		      set_closure_has_fx(func);
 		    }
-		  else
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P));
-		    }
+		  else set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P));
 		}
-	      else
-		{
-		  /* set_closure_has_one_form(func); */
-		  set_optimize_op(expr, hop + ((sym) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P));
-		}
+	      else set_optimize_op(expr, hop + ((sym) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P));
 	    }
-	  else
-	    {
-	      /* set_closure_has_multiform(func); */
-	      set_optimize_op(expr, hop + ((sym) ? ((safe_case) ? OP_SAFE_CLOSURE_S : OP_CLOSURE_S) : ((safe_case) ? OP_SAFE_CLOSURE_C : OP_CLOSURE_C)));
-	    }
+	  else set_optimize_op(expr, hop + ((sym) ? ((safe_case) ? OP_SAFE_CLOSURE_S : OP_CLOSURE_S) : ((safe_case) ? OP_SAFE_CLOSURE_C : OP_CLOSURE_C)));
 	  if (sym)
 	    set_opt2_sym(expr, arg1);
 	  else set_opt2_con(expr, arg1);
@@ -66066,15 +66025,10 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_A);
 		      set_closure_has_fx(func);
 		    }
-		  else
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_P);
-		    }
+		  else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_P);
 		}
 	      else
 		{
-		  /* set_closure_has_one_form(func); */
 		  if ((c_call(cdr(expr)) == fx_c_sub_si) || (c_call(cdr(expr)) == fx_c_sub_s1))
 		    {
 		      set_opt2_pair(expr, cdadr(expr));
@@ -66083,11 +66037,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  else set_optimize_op(expr, hop + OP_CLOSURE_A_P);
 		}
 	    }
-	  else
-	    {
-	      /* set_closure_has_multiform(func); */
-	      set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A));
-	    }
+	  else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A));
 	  set_unsafely_optimized(expr);
 	  return(OPT_F);
 	}
@@ -66795,23 +66745,11 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 			  set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_A);
 			  set_closure_has_fx(func);
 			}
-		      else
-			{
-			  /* set_closure_has_one_form(func); */
-			  set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_P);
-			}
+		      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_P);
 		    }
-		  else
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + OP_CLOSURE_SS_P);
-		    }
+		  else set_optimize_op(expr, hop + OP_CLOSURE_SS_P);
 		}
-	      else
-		{
-		  /* set_closure_has_multiform(func); */
-		  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_SS : OP_CLOSURE_SS));
-		}
+	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_SS : OP_CLOSURE_SS));
 	      set_opt2_sym(expr, arg2);
 
 	  set_opt1_lambda(expr, func);
@@ -66824,21 +66762,10 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      if (one_form)
 		{
 		  if (safe_case)
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + ((s1) ? OP_SAFE_CLOSURE_SC_P : OP_SAFE_CLOSURE_CS));
-		    }
-		  else
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + ((s1) ? OP_CLOSURE_SC_P : OP_CLOSURE_CS));
-		    }
+		    set_optimize_op(expr, hop + ((s1) ? OP_SAFE_CLOSURE_SC_P : OP_SAFE_CLOSURE_CS));
+		  else set_optimize_op(expr, hop + ((s1) ? OP_CLOSURE_SC_P : OP_CLOSURE_CS));
 		}
-	      else
-		{
-		  /* set_closure_has_multiform(func); */
-		  set_optimize_op(expr, hop + ((s1) ? ((safe_case) ? OP_SAFE_CLOSURE_SC : OP_CLOSURE_SC) : ((safe_case) ? OP_SAFE_CLOSURE_CS : OP_CLOSURE_CS)));
-		}
+	      else set_optimize_op(expr, hop + ((s1) ? ((safe_case) ? OP_SAFE_CLOSURE_SC : OP_CLOSURE_SC) : ((safe_case) ? OP_SAFE_CLOSURE_CS : OP_CLOSURE_CS)));
 	      if (s1)
 		set_opt2_con(expr, arg2);
 	      else set_opt2_sym(expr, arg2);
@@ -66860,27 +66787,15 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA_A);
 		      set_closure_has_fx(func);
 		    }
-		  else
-		    {
-		      /* set_closure_has_one_form(func); */
-		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA_P);
-		    }
+		  else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA_P);
 		}
-	      else
-		{
-		  /* set_closure_has_one_form(func); */
-		  set_optimize_op(expr, hop + OP_CLOSURE_AA_P);
-		}
+	      else set_optimize_op(expr, hop + OP_CLOSURE_AA_P);
 	    }
 	  else
 	    {
 	      if ((safe_case) && (is_symbol(arg1)))
 		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SA);
-	      else
-		{
-		  /* set_closure_has_multiform(func); */
-		  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
-		}
+	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
 	    }
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt1_lambda(expr, func);
@@ -68618,7 +68533,7 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, int32_t
  * in tsort does do init (vc i) cause trouble (vc is arg)?
  */
 
-typedef enum {UNSAFE_BODY=0, FRAME_SAFE_BODY=1, SAFE_BODY=2, VERY_SAFE_BODY=3} body_t;
+typedef enum {UNSAFE_BODY=0, SAFE_BODY=1, VERY_SAFE_BODY=2} body_t;
 static body_t min_body(body_t b1, body_t b2) {return((b1 < b2) ? b1 : b2);}
 
 static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool at_end);
@@ -68626,7 +68541,7 @@ static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool
 #if SAFE_FORM_PRINT
 static const char *display_min_body(body_t result)
 {
-  return((result == UNSAFE_BODY) ? "unsafe" : ((result == FRAME_SAFE_BODY) ? "frame-safe" : ((result == SAFE_BODY) ? "safe" : "very-safe")));
+  return((result == UNSAFE_BODY) ? "unsafe" : ((result == SAFE_BODY) ? "safe" : "very-safe"));
 }
 #endif
 
@@ -68916,12 +68831,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      if (is_pair(car(p)))
 		{
 		  if (caar(p) == func)    /* func called as arg, so not tail call */
-		    {
-		      /* return(UNSAFE_BODY); */
-		      set_rclo(car(p));
-		      if (result != UNSAFE_BODY)
-			result = FRAME_SAFE_BODY;
-		    }
+		    return(UNSAFE_BODY);
 		  result = min_body(result, form_is_safe(sc, func, car(p), false));
 		  if (result == UNSAFE_BODY)
 		    return(UNSAFE_BODY);
@@ -68929,18 +68839,14 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      else
 		{
 		  if (car(p) == func)
-		    {
-		      set_rclo(p);
-		      return(UNSAFE_BODY);
-		    }
+		    return(UNSAFE_BODY);
 		}
 	      if (follow) {sp = cdr(sp); if (p == sp) return(UNSAFE_BODY);}
 	      follow = (!follow);
 	    }
-	  set_rclo(x);
 	  if ((at_end) && (is_null(p))) /* tail call, so safe */
 	    return(result);
-          return(FRAME_SAFE_BODY);
+          return(UNSAFE_BODY);
 	}
 
       if (is_symbol(expr)) /* expr=car(x) */
@@ -68975,11 +68881,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      if (caar(p) == func)
 			{
 #if SAFE_FORM_PRINT
-			  fprintf(stderr, "  (%d) found %s -> frame_safe\n", __LINE__, DISPLAY(func));
+			  fprintf(stderr, "  (%d) found %s -> unsafe\n", __LINE__, DISPLAY(func));
 #endif
-			  set_rclo(car(p));
-			  if (result != UNSAFE_BODY)
-			    result = FRAME_SAFE_BODY;
+			  return(UNSAFE_BODY);
 			}
 		      if ((is_c_function(f)) && (is_scope_safe(f)) &&
 			  (caar(p) == sc->lambda_symbol))
@@ -69168,7 +69072,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	  if (happy)
 	    lambda_set_simple_defaults(body);
 	}
-      if (result > FRAME_SAFE_BODY)
+      if (result > UNSAFE_BODY)
 	{
 #if SAFE_FORM_PRINT
 	  fprintf(stderr, "%s %s is a safe-closure\n", __func__, DISPLAY_80(body));
@@ -69177,11 +69081,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	  /* this bit is set on the function itself in make_closure and friends */
 	  if (result == VERY_SAFE_BODY)
 	    set_very_safe_closure(body);
-	}
-      else
-	{
-	  if (result == FRAME_SAFE_BODY)
-	    set_frame_safe(body);
 	}
     }
   /* else fprintf(stderr, "rest: %d %s\n", result, DISPLAY(body)); */
@@ -76143,10 +76042,13 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
 	  (is_null(closure_args(f))))
 	{
 	  s7_pointer body;
+	  bool safe_case;
 	  body = closure_body(f);
+	  safe_case = is_safe_closure(f);
+
 	  if (is_null(cdr(body)))
 	    {
-	      if (is_safe_closure(f))
+	      if (safe_case)
 		{
 		  if (is_fx_safe(sc, car(body)))
 		    {
@@ -76154,22 +76056,13 @@ static int32_t unknown_ex(s7_scheme *sc, s7_pointer f)
 		      set_optimize_op(code, OP_SAFE_THUNK_A);
 		      set_closure_has_fx(f);
 		    }
-		  else
-		    {
-		      set_optimize_op(code, OP_SAFE_THUNK_P);
-		      /* set_closure_has_one_form(f); */
-		    }
+		  else set_optimize_op(code, OP_SAFE_THUNK_P);
 		}
-	      else
-		{
-		  /* set_closure_has_one_form(f); */
-		  set_optimize_op(code, OP_THUNK_P);
-		}
+	      else set_optimize_op(code, OP_THUNK_P);
 	    }
 	  else
 	    {
-	      /* set_closure_has_multiform(f); */
-	      if (is_safe_closure(f))
+	      if (safe_case)
 		set_optimize_op(code, OP_SAFE_THUNK);
 	      else set_optimize_op(code, OP_THUNK);
 	    }
@@ -76268,30 +76161,15 @@ static int32_t unknown_g_ex(s7_scheme *sc, s7_pointer f)
 		      set_optimize_op(code, (sym_case) ? OP_SAFE_CLOSURE_S_A : OP_SAFE_CLOSURE_C_A);
 		      set_closure_has_fx(f);
 		    }
-		  else 
-		    {
-		      /* set_closure_has_one_form(f); */
-		      set_optimize_op(code, (sym_case) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P);
-		    }
+		  else set_optimize_op(code, (sym_case) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P); 
 		}
-	      else
-		{
-		  /* set_closure_has_multiform(f); */
-		  set_optimize_op(code, (sym_case) ? OP_SAFE_CLOSURE_S : OP_SAFE_CLOSURE_C);
-		}
+	      else set_optimize_op(code, (sym_case) ? OP_SAFE_CLOSURE_S : OP_SAFE_CLOSURE_C);
 	    }
 	  else
 	    {
 	      if (is_null(cdr(body)))
-		{
-		  /* set_closure_has_one_form(f); */
-		  set_optimize_op(code, (sym_case) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P);
-		}
-	      else
-		{
-		  /* set_closure_has_multiform(f); */
-		  set_optimize_op(code, (sym_case) ? OP_CLOSURE_S : OP_CLOSURE_C);
-		}
+		set_optimize_op(code, (sym_case) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P);
+	      else set_optimize_op(code, (sym_case) ? OP_CLOSURE_S : OP_CLOSURE_C);
 	    }
 	  set_opt1_lambda(code, f);
 	  return(goto_EVAL);
@@ -76423,15 +76301,10 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		      set_optimize_op(code, OP_SAFE_CLOSURE_A_A);
 		      set_closure_has_fx(f);
 		    }
-		  else
-		    {
-		      set_optimize_op(code, OP_SAFE_CLOSURE_A_P);
-		      /* set_closure_has_one_form(f); */
-		    }
+		  else set_optimize_op(code, OP_SAFE_CLOSURE_A_P);
 		}
 	      else 
 		{
-		  /* set_closure_has_one_form(f); */
 		  if ((c_call(cdr(code)) == fx_c_sub_si) || (c_call(cdr(code)) == fx_c_sub_s1))
 		    {
 		      set_opt2_pair(code, cdadr(code));
@@ -76440,11 +76313,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		  else set_optimize_op(code, OP_CLOSURE_A_P);
 		}
 	    }
-	  else
-	    {
-	      /* set_closure_has_multiform(f); */
-	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A);
-	    }
+	  else set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_A : OP_CLOSURE_A);
 
 	  /* we might not be in "f" I think, tree_memq(sc, code, body)?? */
 	  if ((safe_case) &&
@@ -76582,7 +76451,6 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
 	    {
 	      if (one_form)
 		{
-		  /* set_closure_has_one_form(f); */
 		  if (safe_case)
 		    {
 		      if (is_fx_safe(sc, car(body)))
@@ -76591,33 +76459,21 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
 			  set_optimize_op(code, OP_SAFE_CLOSURE_SS_A);
 			  set_closure_has_fx(f);
 			}
-		      else
-			{
-			  set_optimize_op(code, OP_SAFE_CLOSURE_SS_P);
-			}
+		      else set_optimize_op(code, OP_SAFE_CLOSURE_SS_P);
 		    }
 		  else set_optimize_op(code, OP_CLOSURE_SS_P);
 		}
-	      else
-		{
-		  /* set_closure_has_multiform(f); */
-		  set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_SS : OP_CLOSURE_SS);
-		}
+	      else set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_SS : OP_CLOSURE_SS);
 	    }
 	  else
 	    {
 	      if (one_form)
 		{
-		  /* set_closure_has_one_form(f); */
 		  if (safe_case)
 		    set_optimize_op(code, (s1) ? OP_SAFE_CLOSURE_SC_P : OP_SAFE_CLOSURE_CS);
 		  else set_optimize_op(code, (s1) ? OP_CLOSURE_SC_P : OP_CLOSURE_CS);
 		}
-	      else
-		{
-		  /* set_closure_has_multiform(f); */
-		  set_optimize_op(code, (safe_case) ? ((s1) ? OP_SAFE_CLOSURE_SC : OP_SAFE_CLOSURE_CS) : ((s1) ? OP_CLOSURE_SC : OP_CLOSURE_CS));
-		}
+	      else set_optimize_op(code, (safe_case) ? ((s1) ? OP_SAFE_CLOSURE_SC : OP_SAFE_CLOSURE_CS) : ((s1) ? OP_CLOSURE_SC : OP_CLOSURE_CS));
 	    }
 	  if (s2)
 	    set_opt2_sym(code, caddr(code));
@@ -76762,7 +76618,6 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
 
 	  if (one_form)
 	    {
-	      /* set_closure_has_one_form(f); */
 	      if (safe_case)
 		{
 		  if (is_fx_safe(sc, car(body)))
@@ -76771,19 +76626,11 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
 		      set_optimize_op(code, OP_SAFE_CLOSURE_AA_A);
 		      set_closure_has_fx(f);
 		    }
-		  else
-		    {
-		      set_optimize_op(code, OP_SAFE_CLOSURE_AA_P);
-		    }
+		  else set_optimize_op(code, OP_SAFE_CLOSURE_AA_P);
 		}
 	      else set_optimize_op(code, OP_CLOSURE_AA_P);
 	    }
-	  else
-	    {
-	      /* set_closure_has_multiform(f); */
-	      set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA);
-	    }
-
+	  else set_optimize_op(code, (safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA);
 	  set_opt1_lambda(code, f);
 	  return(goto_EVAL);
 	}
@@ -77342,7 +77189,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 {             /* load up the current args into the ((args) (lambda)) layout [via the current environment] */
   s7_pointer x, z, e;
   uint64_t id;
-
+  
   e = sc->envir;
   id = let_id(e);
   for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
@@ -77415,26 +77262,6 @@ static s7_pointer lambda_star_argument_set_value(s7_scheme *sc, s7_pointer sym, 
 
 static s7_pointer lambda_star_set_args(s7_scheme *sc)
 {
-  /* sc->code is a closure: (args body envir)
-   * (define* (hi a (b 1)) (+ a b))
-   * (procedure-source hi) -> (lambda* (a (b 1)) (+ a b))
-   *
-   * so rather than spinning through the args binding names to values in the
-   *   procedure's new environment (as in the usual closure case above),
-   *   we scan the current args, and match against the
-   *   template in the car of the closure, binding as we go.
-   *
-   * for each actual arg, if it's not a keyword that matches a member of the
-   *   template, bind it to its current (place) arg, else bind it to
-   *   that arg.  If it's :rest bind the next arg to the trailing args at this point.
-   *   All args can be accessed by their name as a keyword.
-   *
-   * all args are optional, any arg with no default value defaults to #f.
-   *   but the rest arg should default to ().
-   * I later decided to add two warnings: if a parameter is set twice and if
-   *   an unknown keyword is seen in a keyword position and there is no rest arg.
-   */
-
   bool allow_other_keys;
   s7_pointer lx, cx, zx, code, args, slot;
 
@@ -77570,7 +77397,7 @@ static inline int32_t lambda_star_default(s7_scheme *sc)
 		      if (slot_value(z) == sc->undefined)
 			{
 			  /* the current environment here contains the function parameters which
-			   *   defaulted to #<undefined> earlier in apply_lambda_star,
+			   *   defaulted to #<undefined> (or maybe #<gc-nil>?) earlier in apply_lambda_star,
 			   *   so (define (f f) (define* (f (f f)) f) (f)) (f 0) looks for the
 			   *   default f, finds itself currently undefined, and raises an error!
 			   *   So, before claiming it is unbound, we need to check outlet as well.
@@ -77608,10 +77435,7 @@ static inline int32_t lambda_star_default(s7_scheme *sc)
 		      else slot_set_value(z, val);
 		    }
 		}
-	      else 
-		{
-		  slot_set_value(z, slot_expression(z));
-		}
+	      else slot_set_value(z, slot_expression(z));
 	    }
 	  sc->args = next_slot(z);
 	}
@@ -77777,7 +77601,7 @@ static void safe_closure_star_aa(s7_scheme *sc, s7_pointer code)
   sc->code = T_Pair(closure_body(opt1_lambda(code)));
 }
 
-static inline int32_t safe_closure_star_fx(s7_scheme *sc, s7_pointer code)
+static int32_t safe_closure_star_fx(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer old_args;
   check_stack_size(sc);
@@ -77951,7 +77775,6 @@ static void define2_ex(s7_scheme *sc)
 	{
 	  let_set_file(new_env, 0);
 	  let_set_line(new_env, 0);
-
 	  clear_has_let_file(new_env);
 	}
 
@@ -90033,13 +89856,13 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  236   236            234
  * tref          |      |      | 2372 | 2125 | 1036 |  985   983            975
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1019  1022      906
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1293  1299     1253
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1293  1300     1253
  * teq           |      |      | 6612 | 2777 | 1931 | 1550  1548           1482
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1714  1764     1679
- * lint          |      |      |      | 4041 | 2702 | 2192  2191  2197     2152
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1714  1750     1679
+ * lint          |      |      |      | 4041 | 2702 | 2192  2191  2200     2152
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317           2292
- * tread         |      |      |      |      | 2357 | 2352  2333  2338     2254
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2362  2367     2333
+ * tread         |      |      |      |      | 2357 | 2352  2333  2341     2254
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2362  2365     2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492           2420
  * tlet          |      |      |      |      | 4717 | 3505  2965  2958     2882
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3019           3038
@@ -90047,14 +89870,14 @@ int main(int argc, char **argv)
  * tsort         |      |      |      | 8584 | 4111 | 3945  3327           3060
  * titer         |      |      |      | 5971 | 4646 | 3695  3556  3587     3502
  * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5343  5353     5218
- * dup           |      |      |      |      | 20.8 | 5634  5603           5629
- * tset          |      |      |      |      | 10.0 | 6396  6413  6457     6269
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0  12.2     10.8
+ * dup           |      |      |      |      | 20.8 | 5634  5603  5575     5629
+ * tset          |      |      |      |      | 10.0 | 6396  6413  6452     6269
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0  11.3     10.8
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2           11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1           15.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.4  38.6     37.3
  * sg            |      |      |      |139.0 | 85.9 | 78.0  77.9  78.0     78.5
- * lg            |      |      |      |211.0 |133.0 |114.0 112.5 113.0    109.6
+ * lg            |      |      |      |211.0 |133.0 |114.0 112.5 112.9    109.6
  * tbig          |      |      |      |      |246.9 |232.5 230.3 230.6    155.7 (small mem)
  *
  * in ubuntu, gcc 8.1, callgrind is confused -- add two unexecuted lines to s7.c and
@@ -90062,14 +89885,13 @@ int main(int argc, char **argv)
  *   ways in fc29.
  * -----------------------------------------------------------------------
  *
- * removable: *_Q, *_QS, *SQ* *QS* *CQ* -- also if_x_qa|q -> c? (qq case is opt3)
+ * removable: *_Q, *_QS (but no C_opSq_CS currently), *SQ* *QS* *CQ* -- also if_x_qa|q -> c? (qq case is opt3)
  * find remaining C->D cases and vice versa, fx_k -> C, write|display_2->obj(write-char etc?)
  *    cleanup: is_h_safe_c_d includes stuff like op_and2 and too many options enclose it
- *
- * unsafe-closure* if no keys and args=arity could use apply_lambda?
- * apply_lambda for loop is expensive -- can this be split by arity and rest-arg?
- *
- * rclo/frame-safe => no new frame, so here unsafe_thunk==safe_thunk?
- * t912->s7test
- * one/multi->unchecked in unknown (using cur_op), and _a to unset
+ * unsafe-closure* if no keys and args=arity could use apply_lambda? similarly for safe*
+ *    for fx, if arglen=arity and no obvious keys goto apply_lambda_star_with_len? or 3?
+ * [safe]_closure_cdr?
+ * more tests like weird-var and A/B (multi/one/fx), coverage for rest
+ * one/multi->unchecked in unknown (using cur_op), and _a to unset (clear_fx=unset multi)
+ *   closure*_p|m cases?
  */
