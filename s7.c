@@ -1345,6 +1345,7 @@ struct s7_scheme {
   s7_pointer integer_wrapper1, integer_wrapper2, integer_wrapper3;
   s7_pointer real_wrapper1, real_wrapper2, real_wrapper3, real_wrapper4;
 
+  #define NUM_SAFE_PRELISTS 8
   #define NUM_SAFE_LISTS 64
   s7_pointer safe_lists[NUM_SAFE_LISTS];
   int32_t current_safe_list;
@@ -3647,14 +3648,8 @@ static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int
 static token_t token(s7_scheme *sc);
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
 static void free_hash_table(s7_scheme *sc, s7_pointer table);
-void s7_show_let(s7_scheme *sc);
 static s7_pointer g_cdr(s7_scheme *sc, s7_pointer args);
 static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
-static bool float_optimize(s7_scheme *sc, s7_pointer expr);
-static bool int_optimize(s7_scheme *sc, s7_pointer expr);
-static bool bool_optimize(s7_scheme *sc, s7_pointer expr);
-static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr);
-static bool cell_optimize(s7_scheme *sc, s7_pointer expr);
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
 static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
@@ -3817,7 +3812,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_CLOSURE_STAR_FX_1, HOP_SAFE_CLOSURE_STAR_FX_1, OP_SAFE_CLOSURE_STAR_FX_2, HOP_SAFE_CLOSURE_STAR_FX_2,
 
       /* these can't be embedded, and have to be the last thing called */
-      OP_APPLY_SS, HOP_APPLY_SS, OP_APPLY_SA, HOP_APPLY_SA,
+      OP_APPLY_SS, HOP_APPLY_SS, OP_APPLY_SA, HOP_APPLY_SA, OP_APPLY_SL, HOP_APPLY_SL,
       OP_C_FX, HOP_C_FX, OP_CALL_WITH_EXIT, HOP_CALL_WITH_EXIT, OP_CALL_WITH_EXIT_P, HOP_CALL_WITH_EXIT_P,
       OP_C_CATCH, HOP_C_CATCH, OP_C_CATCH_ALL, HOP_C_CATCH_ALL, OP_C_CATCH_ALL_P, HOP_C_CATCH_ALL_P,
       OP_C_S_opSq, HOP_C_S_opSq, OP_C_S_opDq, HOP_C_S_opDq, OP_C_SS, HOP_C_SS,
@@ -4033,7 +4028,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_closure*_fx", "h_safe_closure*_fx", "safe_closure*_fx_0", "h_safe_closure*_fx_0",
       "safe_closure*_fx_1", "h_safe_closure*_fx_1", "safe_closure*_fx_2", "h_safe_closure*_fx_2",
 
-      "apply_ss", "h_apply_ss", "apply_sa", "h_apply_sa",
+      "apply_ss", "h_apply_ss", "apply_sa", "h_apply_sa", "apply_sl", "h_apply_sl",
       "c_fx", "h_c_fx", "call_with_exit", "h_call_with_exit", "call_with_exit_p", "h_call_with_exit_p",
       "c_catch", "h_c_catch", "c_catch_all", "h_c_catch_all", "c_catch_all_p", "h_c_catch_all_p",
       "c_s_opsq", "h_c_s_opsq", "c_s_opdq", "h_c_s_opdq", "c_ss", "h_c_ss",
@@ -5546,6 +5541,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
 static bool has_odd_bits(s7_pointer obj);
 #endif
+void s7_show_let(s7_scheme *sc);
 
 static int64_t gc(s7_scheme *sc)
 {
@@ -35377,10 +35373,31 @@ s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...) /* arglist should b
   return(safe_reverse_in_place(sc, p));
 }
 
-static inline s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
+static s7_pointer safe_list_1(s7_scheme *sc)
 {
-  if ((num_args != 0) &&
-      (num_args < NUM_SAFE_LISTS))
+  if (!list_is_in_use(sc->safe_lists[1]))
+    {
+      sc->current_safe_list = 1;
+      set_list_in_use(sc->safe_lists[1]);
+      return(sc->safe_lists[1]);
+    }
+  return(cons(sc, sc->nil, sc->nil));
+}
+
+static s7_pointer safe_list_2(s7_scheme *sc)
+{
+  if (!list_is_in_use(sc->safe_lists[2]))
+    {
+      sc->current_safe_list = 2;
+      set_list_in_use(sc->safe_lists[2]);
+      return(sc->safe_lists[2]);
+    }
+  return(cons_unchecked(sc, sc->nil, cons(sc, sc->nil, sc->nil)));
+}
+
+static s7_pointer make_safe_list(s7_scheme *sc, s7_int num_args)
+{
+  if (num_args < NUM_SAFE_LISTS)
     {
       sc->current_safe_list = num_args;
       if (!is_pair(sc->safe_lists[num_args]))
@@ -35391,7 +35408,19 @@ static inline s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
 	  return(sc->safe_lists[num_args]);
 	}
     }
-  return(make_list(sc, num_args, sc->nil));
+  return(make_big_list(sc, num_args, sc->nil));
+}
+
+static inline s7_pointer safe_list_if_possible(s7_scheme *sc, s7_int num_args)
+{
+  if ((num_args < NUM_SAFE_PRELISTS) &&
+      (!list_is_in_use(sc->safe_lists[num_args])))
+    {
+      sc->current_safe_list = num_args;
+      set_list_in_use(sc->safe_lists[num_args]);
+      return(sc->safe_lists[num_args]);
+    }
+  return(make_safe_list(sc, num_args));
 }
 
 static s7_int sequence_length(s7_scheme *sc, s7_pointer lst);
@@ -38281,6 +38310,10 @@ static bool arglist_has_rest(s7_scheme *sc, s7_pointer args)
       return(true);
   return(!is_null(p));
 }
+
+static bool bool_optimize(s7_scheme *sc, s7_pointer expr);
+static bool bool_optimize_nw(s7_scheme *sc, s7_pointer expr);
+static bool cell_optimize(s7_scheme *sc, s7_pointer expr);
 
 static void pc_fallback(s7_scheme *sc, int32_t new_pc)
 {
@@ -51823,6 +51856,9 @@ static s7_pointer i_to_p_nr(void *p) {opt_info *o = (opt_info *)p; o->v[7].fi(o)
 
 
 /* -------------------------------- int opts -------------------------------- */
+
+static bool int_optimize(s7_scheme *sc, s7_pointer expr);
+static bool float_optimize(s7_scheme *sc, s7_pointer expr);
 
 static s7_int opt_i_c(void *p) {opt_info *o = (opt_info *)p; oo_rcheck(o->sc, p, 2, 0); return(o->v[1].i);}
 static s7_int opt_i_s(void *p) {opt_info *o = (opt_info *)p; oo_rcheck(o->sc, p, 2, 1); return(integer(slot_value(o->v[1].p)));}
@@ -66705,6 +66741,15 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      (is_normal_symbol(arg1)))
 		    {
 		      set_optimize_op(expr, hop + OP_APPLY_SA);
+		      if (is_pair(arg2))
+			{
+			  s7_pointer lister;
+			  lister = symbol_to_value_unchecked(sc, car(arg2));
+			  if ((is_c_function(lister)) &&
+			      (is_pair(c_function_signature(lister))) &&
+			      (car(c_function_signature(lister)) == sc->is_proper_list_symbol))
+			    set_optimize_op(expr, hop + OP_APPLY_SL);
+			}
 		      set_opt1_cfunc(expr, func); /* not quite set_c_function */
 		    }
 		  else set_unsafe_optimize_op(expr, hop + OP_C_AA);
@@ -77697,7 +77742,7 @@ static int32_t safe_closure_star_fx_1(s7_scheme *sc, s7_pointer code)
 {
   int32_t target;
   s7_pointer arglist;
-  sc->args = safe_list_if_possible(sc, 1);
+  sc->args = safe_list_1(sc);
   arglist = sc->args;
   set_car(sc->args, c_call(cdr(code))(sc, cadr(code)));
   sc->code = opt1_lambda(code);
@@ -77711,7 +77756,7 @@ static int32_t safe_closure_star_fx_2(s7_scheme *sc, s7_pointer code)
 {
   int32_t target;
   s7_pointer arglist, p;
-  sc->args = safe_list_if_possible(sc, 2);
+  sc->args = safe_list_2(sc);
   arglist = sc->args;
   set_car(sc->args, c_call(cdr(code))(sc, cadr(code)));
   p = cddr(code);
@@ -79880,6 +79925,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      apply_list_error(sc, sc->args);
 	    if (needs_copied_args(sc->code))
 	      sc->args = copy_list(sc, sc->args);
+	    goto APPLY;
+	  }
+
+	case OP_APPLY_SL:
+	  if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_APPLY_SL:
+	  {
+	    s7_pointer p;
+	    p = cdr(sc->code);
+	    sc->args = c_call(cdr(p))(sc, cadr(p));
+	    sc->code = symbol_to_value_unchecked(sc, car(p));
 	    goto APPLY;
 	  }
 
@@ -88282,7 +88338,10 @@ s7_scheme *s7_init(void)
 
   sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
-  for (i = 1; i < NUM_SAFE_LISTS; i++)
+  sc->safe_lists[0] = sc->nil;
+  for (i = 1; i < NUM_SAFE_PRELISTS; i++)
+    sc->safe_lists[i] = permanent_list(sc, i);
+  for (i = NUM_SAFE_PRELISTS; i < NUM_SAFE_LISTS; i++)
     sc->safe_lists[i] = sc->nil;
   sc->current_safe_list = 0;
 
@@ -89916,9 +89975,9 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 801) || (OPT_MAX_DEFINED != 410))
+  if ((OP_MAX_DEFINED != 803) || (OPT_MAX_DEFINED != 412))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
-  /* 64 bit machine: cell size: 48 [size 80 if gmp, 104 if debugging], block size: 40, max op: 799, opt: 408, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* 64 bit machine: cell size: 48 [size 80 if gmp, 104 if debugging], block size: 40, max op: 803, opt: 412, 48 if 32 (let_id/typeflag etc is 64 bit) */
 #endif
 
   save_unlet(sc);
@@ -89987,32 +90046,32 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
  * ------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  200   200      193
- * tmac          |      |      |      | 9052 |  264 |  236   236      234
- * tref          |      |      | 2372 | 2125 | 1036 |  985   983      975
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1020      906
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1290     1247
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1548     1482
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1731     1668
- * lint          |      |      |      | 4041 | 2702 | 2192  2192     2155
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317     2292
- * tread         |      |      |      |      | 2357 | 2352  2334     2254
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2362     2323
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492     2420
- * tlet          |      |      |      |      | 4717 | 3505  2963     2882
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3019     3038
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3125     3129
- * tsort         |      |      |      | 8584 | 4111 | 3945  3327     3355
- * titer         |      |      |      | 5971 | 4646 | 3695  3572     3532
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5347     5218
- * dup           |      |      |      |      | 20.8 | 5634  5783     5587
- * tset          |      |      |      |      | 10.0 | 6396  6381     6269
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0     10.7
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2     11.2
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1     15.8
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.5     37.3
- * sg            |      |      |      |139.0 | 85.9 | 78.0  78.1     78.4
- * lg            |      |      |      |211.0 |133.0 |114.0 112.5    109.6
+ * tpeak         |      |      |      |  391 |  377 |  200   200
+ * tmac          |      |      |      | 9052 |  264 |  236   236
+ * tref          |      |      | 2372 | 2125 | 1036 |  985   983
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1020
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1290
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1546
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1726
+ * lint          |      |      |      | 4041 | 2702 | 2192  2113
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2304
+ * tread         |      |      |      |      | 2357 | 2352  2334
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2360
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492
+ * tlet          |      |      |      |      | 4717 | 3505  2963
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3019
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3062
+ * tsort         |      |      |      | 8584 | 4111 | 3945  3327
+ * titer         |      |      |      | 5971 | 4646 | 3695  3572
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5347
+ * dup           |      |      |      |      | 20.8 | 5634  5783
+ * tset          |      |      |      |      | 10.0 | 6396  6381
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0  78.1
+ * lg            |      |      |      |211.0 |133.0 |114.0 112.1
  * tbig          |      |      |      |      |246.9 |232.5 230.3
  *
  * in ubuntu, gcc 8.1, callgrind is confused -- add two unexecuted lines to s7.c and
@@ -90022,9 +90081,6 @@ int main(int argc, char **argv)
  *
  * removable: *SQ* *QS* *CQ*[as CC] -- also if_x_qa|q -> c? (qq case is opt3)
  *    perhaps add OP_SAFE_C_C|CC + fx_c_c|cc and send current D -> C|CC
- *    cleanup: is_h_safe_c_d includes stuff like op_and2 and too many options enclose it
  * more tests like weird-var and A/B (multi/one/fx), coverage for rest
- * unsafe-closure* if no keys and args=arity could use apply_lambda? 
- * closure*_aaa cases? (c*_2... currently rest/any arity mismatch goes to fx I think)
  * much repetition: *SAFE*_AA for example 66606 -- maybe 10 cases (also unknown_aa?)
  */

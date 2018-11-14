@@ -697,8 +697,7 @@
 
     (define (proper-tree? tree)
       (or (not (pair? tree))
-	  (and (proper-list? tree)
-	       (lint-every? proper-tree? (cdr tree)))))
+	  (lint-every? proper-tree? tree)))
 
     (define (shadowed? sym tree1)
       (let shadow? ((tree tree1))
