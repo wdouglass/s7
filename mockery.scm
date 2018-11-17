@@ -637,7 +637,7 @@
 				   (#_string-set! str (ind 'value) val)
 				   (error 'wrong-type-arg "string-set! ~S ~S ~S" str ind val)))
 	   
-	   'string->number   (lambda (str radix) 
+	   'string->number   (lambda* (str (radix 10)) 
 			       (if (string? str)
 				   (#_string->number str (radix 'value))
 				   (error 'wrong-type-arg "string->number ~S ~S" str radix)))
@@ -674,7 +674,9 @@
 				     (error 'wrong-type-arg "subvector ~S ~S ~S" obj dims offset)))
 	   
 	   'read-string     (lambda* (k (port (current-input-port)))
-			      (#_read-string (k 'value) port))
+			      (if (input-port? port)
+				  (#_read-string (k 'value) port)
+				  (error 'wrong-type-arg "read-string ~S ~S" k port)))
 	   
 	   'length           (lambda (obj) #f)
 	   'number?          (lambda (obj) #t)
@@ -990,7 +992,7 @@
 		'setter                (lambda (obj . args) (apply #_setter (obj 'value) args))
 		'provided?             (lambda (obj) (#_provided? (obj 'value)))
 		'provide               (lambda (obj) (#_provide (obj 'value)))
-		'defined?              (lambda (obj) (#_defined? (obj 'value)))
+		'defined?              (lambda* (obj e globals) (#_defined? (obj 'value) (or e (curlet))))
 		'symbol->keyword       (lambda (obj) (#_symbol->keyword (obj 'value)))
 		'keyword?              (lambda (obj) (#_keyword? (obj 'value)))
 		'keyword->symbol       (lambda (obj) (#_keyword->symbol (obj 'value)))

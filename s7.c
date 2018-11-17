@@ -11877,7 +11877,7 @@ static s7_pointer check_sharp_readers(s7_scheme *sc, const char *name)
       if (name[0] == s7_character(caar(reader)))
 	{
 	  if (args == sc->F)
-	    args = list_1(sc, s7_make_string(sc, name));
+	    args = set_plist_1(sc, s7_make_string_wrapper(sc, name)); /* was list_1(sc, make_string(sc, name)) 16-Nov-18 */
 	  /* args is GC protected by s7_apply_function?? (placed on the stack) */
 	  value = s7_apply_function(sc, cdar(reader), args); /* this is much less error-safe than s7_call */
 	  if (value != sc->F)
@@ -16805,7 +16805,16 @@ static s7_pointer sub_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(ma
 
 /* ---------------------------------------- multiply ---------------------------------------- */
 
-static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
+static s7_pointer multiply_method_or_bust(s7_scheme *sc, s7_pointer obj, s7_pointer caller, s7_pointer args, s7_pointer typ, int32_t num)
+{
+  if (has_methods(obj))
+    return(find_and_apply_method(sc, find_let(sc, obj), sc->multiply_symbol, args));
+  if (num == 0)
+    return(simple_wrong_type_argument_with_type(sc, caller, obj, typ));
+  return(wrong_type_argument_with_type(sc, caller, num, obj, typ));
+}
+
+static s7_pointer g_multiply_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   #define H_multiply "(* ...) multiplies its arguments"
   #define Q_multiply sc->pcl_n
@@ -16824,7 +16833,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
   if (is_null(p))
     {
       if (!is_number(x))
-	return(method_or_bust_with_type_one_arg(sc, x, sc->multiply_symbol, args, a_number_string));
+	return(multiply_method_or_bust(sc, x, caller, args, a_number_string, 0));
       return(x);
     }
 
@@ -16901,7 +16910,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  goto MULTIPLY_COMPLEX;
 
 	default:
-	  return(method_or_bust_with_type(sc, x, sc->multiply_symbol, cons_unchecked(sc, s7_make_integer(sc, num_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
+	  return(multiply_method_or_bust(sc, x, caller, cons_unchecked(sc, s7_make_integer(sc, num_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
 	}
       break;
 
@@ -17000,7 +17009,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  }
 
 	default:
-	  return(method_or_bust_with_type(sc, x, sc->multiply_symbol, cons_unchecked(sc, s7_make_ratio(sc, num_a, den_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
+	  return(multiply_method_or_bust(sc, x, caller, cons_unchecked(sc, s7_make_ratio(sc, num_a, den_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
 	}
       break;
 
@@ -17035,7 +17044,7 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  goto MULTIPLY_COMPLEX;
 
 	default:
-	  return(method_or_bust_with_type(sc, x, sc->multiply_symbol, cons_unchecked(sc, make_real(sc, rl_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
+	  return(multiply_method_or_bust(sc, x, caller, cons_unchecked(sc, make_real(sc, rl_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
 	}
       break;
 
@@ -17088,14 +17097,19 @@ static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
 	  }
 
 	default:
-	  return(method_or_bust_with_type(sc, x, sc->multiply_symbol, cons_unchecked(sc, s7_make_complex(sc, rl_a, im_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
+	  return(multiply_method_or_bust(sc, x, caller, cons_unchecked(sc, s7_make_complex(sc, rl_a, im_a), cons(sc, x, p)), a_number_string, position_of(p, args) - 1));
 	}
       break;
 
     default:
-      return(method_or_bust_with_type(sc, x, sc->multiply_symbol, args, a_number_string, 1));
+      return(multiply_method_or_bust(sc, x, caller, args, a_number_string, 1));
     }
   return(NULL); /* make the compiler happy */
+}
+
+static s7_pointer g_multiply(s7_scheme *sc, s7_pointer args)
+{
+  return(g_multiply_1(sc, args, sc->multiply_symbol));
 }
 
 #if (!WITH_GMP)
@@ -17400,7 +17414,7 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
     y = cadr(args);
   else
     {
-      y = g_multiply(sc, p); /* in some schemes (/ 1 0 +nan.0) is not equal to (/ 1 (* 0 +nan.0)), in s7 they're both +nan.0 */
+      y = g_multiply_1(sc, p, sc->divide_symbol); /* in some schemes (/ 1 0 +nan.0) is not equal to (/ 1 (* 0 +nan.0)), in s7 they're both +nan.0 */
 #if WITH_GMP
       if (s7_is_bignum(y))
 	return(big_divide(sc, set_plist_2(sc, x, y)));
@@ -17414,6 +17428,8 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
 	{
 	  /* -------- integer x -------- */
 	case T_INTEGER:
+	  if (integer(y) == 0)
+	    return(division_by_zero_error(sc, sc->divide_symbol, set_elist_2(sc, x, y)));
 	  return(s7_make_ratio(sc, integer(x), integer(y)));
 
 	case T_RATIO:
@@ -17460,6 +17476,8 @@ static s7_pointer g_divide(s7_scheme *sc, s7_pointer args)
       switch (type(y))
 	{
 	case T_INTEGER:
+	  if (integer(y) == 0)
+	    return(division_by_zero_error(sc, sc->divide_symbol, set_elist_2(sc, x, y)));
 #if HAVE_OVERFLOW_CHECKS
 	  {
 	    s7_int dn;
@@ -31249,12 +31267,9 @@ static s7_pointer g_call_with_output_string(s7_scheme *sc, s7_pointer args)
   proc = car(args);
   if (is_let(proc))
     check_method(sc, proc, sc->call_with_output_string_symbol, args);
-  if (!s7_is_aritable(sc, proc, 1))
-    return(method_or_bust_with_type(sc, proc, sc->call_with_output_string_symbol, args,
-			     wrap_string(sc, "a procedure of one argument (the port)", 38), 1));
-
-  if ((is_continuation(proc)) || (is_goto(proc)))
-    return(wrong_type_argument_with_type(sc, sc->call_with_output_string_symbol, 1, proc, a_normal_procedure_string));
+  if ((!is_any_procedure(proc)) ||        /* this disallows goto/continuation */
+      (!s7_is_aritable(sc, proc, 1)))
+    return(method_or_bust_with_type(sc, proc, sc->call_with_output_string_symbol, args, wrap_string(sc, "a procedure of one argument (the port)", 38), 1));
 
   port = s7_open_output_string(sc);
   push_stack(sc, OP_GET_OUTPUT_STRING, sc->gc_nil, port); /* args checked in call_with_exit */
@@ -31275,12 +31290,9 @@ static s7_pointer g_call_with_output_file(s7_scheme *sc, s7_pointer args)
     return(method_or_bust(sc, file, sc->call_with_output_file_symbol, args, T_STRING, 1));
 
   proc = cadr(args);
-  if (!s7_is_aritable(sc, proc, 1))
-    return(method_or_bust_with_type(sc, proc, sc->call_with_output_file_symbol, args,
-			     wrap_string(sc, "a procedure of one argument (the port)", 38), 2));
-
-  if ((is_continuation(proc)) || is_goto(proc))
-    return(wrong_type_argument_with_type(sc, sc->call_with_output_file_symbol, 2, proc, a_normal_procedure_string));
+  if ((!is_any_procedure(proc)) ||
+      (!s7_is_aritable(sc, proc, 1)))
+    return(method_or_bust_with_type(sc, proc, sc->call_with_output_file_symbol, args, wrap_string(sc, "a procedure of one argument (the port)", 38), 2));
 
   port = s7_open_output_file(sc, string_value(file), "w");
   push_stack(sc, OP_UNWIND_OUTPUT, sc->gc_nil, port); /* as above, gc_nil here is a marker (needed) */
@@ -39904,7 +39916,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 static s7_pointer g_is_equal(s7_scheme *sc, s7_pointer args);
 static s7_pointer g_is_morally_equal(s7_scheme *sc, s7_pointer args);
 
-static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   #define H_make_hash_table "(make-hash-table (size 8) eq-func typer) returns a new hash table"
   #define Q_make_hash_table s7_make_signature(sc, 4, sc->is_hash_table_symbol, sc->is_integer_symbol, \
@@ -39921,16 +39933,15 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 	  s7_pointer p1;
 	  p1 = check_value_slot(sc, p);
 	  if (!s7_is_integer(p1))
-	    return(wrong_type_argument(sc, sc->make_hash_table_symbol, 2, p, T_INTEGER));
+	    return(wrong_type_argument(sc, caller, 1, p, T_INTEGER));
 	  size = s7_integer(p1);
 	}
       else size = s7_integer(p);
       if (size <= 0)                      /* we need s7_int here to catch (make-hash-table most-negative-fixnum) etc */
-	return(simple_out_of_range(sc, sc->make_hash_table_symbol, p,
-				   wrap_string(sc, "should be a positive integer", 28)));
+	return(simple_out_of_range(sc, caller, p, wrap_string(sc, "should be a positive integer", 28)));
       if ((size > sc->max_vector_length) ||
 	  (size >= (1LL << 32LL)))
-	return(simple_out_of_range(sc, sc->make_hash_table_symbol, p, its_too_large_string));
+	return(simple_out_of_range(sc, caller, p, its_too_large_string));
 
       if (is_not_null(cdr(args)))
 	{
@@ -39960,12 +39971,12 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 		      if (c_function_has_simple_elements(cdr(typers)))
 			set_has_simple_values(ht);
 		    }
-		  else return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
+		  else return(wrong_type_argument_with_type(sc, caller, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
 		}
 	      else
 		{
 		  if (typers != sc->F)
-		    return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
+		    return(wrong_type_argument_with_type(sc, caller, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
 		}
 	    }
 
@@ -39977,7 +39988,7 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 	      hash_set_chosen(ht);
 
 	      if (!s7_is_aritable(sc, proc, 2))
-		return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 2, proc, an_eq_func_string));
+		return(wrong_type_argument_with_type(sc, caller, 2, proc, an_eq_func_string));
 
 	      if (c_function_call(proc) == g_is_equal)
 		{
@@ -40039,8 +40050,7 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 		  hash_table_mapper(ht) = eqv_hash_map;
 		  return(ht);
 		}
-	      return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc,
-						   wrap_string(sc, "a hash function", 15)));
+	      return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a hash function", 15)));
 	    }
 	  /* proc not c_function */
 	  else
@@ -40065,8 +40075,7 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 			  if ((sig) &&
 			      (is_pair(sig)) &&
 			      (car(sig) != sc->is_boolean_symbol))
-			    return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc,
-								 wrap_string(sc, "equality function should return a boolean", 41)));
+			    return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "equality function should return a boolean", 41)));
 			  hash_table_checker(ht) = hash_c_function;
 			}
 		      else hash_table_checker(ht) = hash_closure;
@@ -40076,8 +40085,7 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 			  if ((sig) &&
 			      (is_pair(sig)) &&
 			      (car(sig) != sc->is_integer_symbol))
-			    return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc,
-								 wrap_string(sc, "mapping function should return an integer", 41)));
+			    return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "mapping function should return an integer", 41)));
 			  hash_table_mapper(ht) = c_function_hash_map;
 			}
 		      else hash_table_mapper(ht) = closure_hash_map;
@@ -40090,20 +40098,23 @@ static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
 			}
 		      return(ht);
 		    }
-		  return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc,
-						       wrap_string(sc, "a cons of two functions", 23)));
+		  return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a cons of two functions", 23)));
 		}
 	      else
 		{
 		  if (proc == sc->F) /* TODO: here if dproc/typers set the procs (or above?) */
 		    return(ht);
-		  return(wrong_type_argument_with_type(sc, sc->make_hash_table_symbol, 3, proc,
-						       wrap_string(sc, "a cons of two functions", 23)));
+		  return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a cons of two functions", 23)));
 		}
 	    }
 	}
     }
   return(s7_make_hash_table(sc, size));
+}
+
+static s7_pointer g_make_hash_table(s7_scheme *sc, s7_pointer args)
+{
+  return(g_make_hash_table_1(sc, args, sc->make_hash_table_symbol));
 }
 
 static s7_pointer g_make_weak_hash_table(s7_scheme *sc, s7_pointer args)
@@ -40112,7 +40123,7 @@ static s7_pointer g_make_weak_hash_table(s7_scheme *sc, s7_pointer args)
   #define Q_make_weak_hash_table s7_make_signature(sc, 4, sc->is_weak_hash_table_symbol, sc->is_integer_symbol, \
 						   s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_pair_symbol), sc->is_pair_symbol)
   s7_pointer table;
-  table = g_make_hash_table(sc, args);
+  table = g_make_hash_table_1(sc, args, sc->make_weak_hash_table_symbol);
   set_weak_hash_table(table);
   return(table);
 }
@@ -41886,8 +41897,7 @@ static s7_pointer g_dilambda(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer closure_arity_to_cons(s7_scheme *sc, s7_pointer x, s7_pointer x_args)
 {
-  /* x_args is unprocessed -- it is exactly the list as used in the closure[*] definition
-   */
+  /* x_args is unprocessed -- it is exactly the list as used in the closure[*] definition */
   int32_t len;
 
   if (is_symbol(x_args))                    /* any number of args is ok */
@@ -45450,6 +45460,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 	  x = sc->w;
 	  sc->w = sc->nil;
 	  sc->temp8 = sc->nil;
+	  free_cell(sc, iterator); /* 16-Nov-18 */
 	  return(x);
 	}
       return(sc->nil);
@@ -52089,7 +52100,7 @@ static s7_int opt_i_ii_cf(void *p)
   opt_info *o = (opt_info *)p;
   opt_info *o1;
   o1 = o->sc->opts[++o->sc->pc];
-  oo_rcheck(o->sc, o, 4,0);
+  oo_rcheck(o->sc, o, 4, 0);
   return(o->v[3].i_ii_f(o->v[1].i, o1->v[0].fi(o1)));
 }
 
@@ -59493,6 +59504,20 @@ static s7_pointer opt_if_nbp_fs(void *p)
   return(o->sc->unspecified);
 }
 
+static s7_pointer opt_if_nbp_fs_nr(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  opt_info *o1;
+  oo_rcheck(o->sc, o, 4, 1);
+  o1 = o->sc->opts[o->sc->pc];
+  if (!(o->v[2].b_pi_f(o->sc, o1->v[0].fp(o1), integer(slot_value(o->v[3].p))))) /* b_pi_fs */
+    {
+      o1 = o->sc->opts[++o->sc->pc];
+      o1->v[0].fp(o1);
+    }
+  return(NULL);
+}
+
 static s7_pointer opt_if_nbp_sf(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -61496,6 +61521,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	{
 	  expr = cons(sc, sc->begin_symbol, body);
 	  func = s7_cell_optimize(sc, cons(sc, expr, sc->nil), true);
+	  /* TODO: do these need gc-protection? free_cell? */
 	}
 
       if (func)
@@ -61590,6 +61616,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	      if (iterator_is_at_end(seq))
 		{
 		  unstack(sc);
+		  free_cell(sc, seq); /* 16-Nov-18 */
 		  return(sc->unspecified);
 		}
 	      func(sc, expr);
@@ -61695,6 +61722,7 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
 		   *   being treated as safe, c_call(for-each) assumes everywhere that sc->code is left alone.
 		   */
 		  unstack(sc);
+		  free_cell(sc, x); /* 16-Nov-18 */
 		  return(sc->unspecified);
 		}
 	      func(sc, y);
@@ -61874,6 +61902,7 @@ static s7_pointer g_map_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq)
 	{
 	  expr = cons(sc, sc->begin_symbol, body);
 	  func = s7_cell_optimize(sc, cons(sc, expr, sc->nil), false);
+	  /* TODO: do these need gc-protection? free_cell? */
 	}
 
       if (func)
@@ -62006,6 +62035,7 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
 		      if (iterator_is_at_end(car(x)))
 			{
 			  unstack(sc);
+			  free_cell(sc, car(x)); /* 16-Nov-18 */
 			  sc->args = old_args;
 			  return(safe_reverse_in_place(sc, car(val)));
 			}
@@ -65427,6 +65457,7 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_A:      return(OP_SAFE_C_opAq);
 	case OP_SAFE_C_AA:     return(OP_SAFE_C_opAAq);
 	case OP_SAFE_C_AAA:    return(OP_SAFE_C_opAAAq);
+	  /* deeper opA...q nestings are rare */
 	}
       /* opsq_c opsq_opsq s_opdq sss opssq? opdq opssq_s? */
       /* fprintf(stderr, "combine %s: %s\n", op_names[arg_op], DISPLAY(expr)); */
@@ -75053,10 +75084,20 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		    }
 		  else
 		    {
-		      if (fp == opt_if_bp) fp = opt_if_bp_nr;
+		      int32_t first_pc = 0;
+		      if (fp == opt_if_bp) 
+			fp = opt_if_bp_nr;
+		      else
+			{
+			  if (fp == opt_if_nbp_fs) 
+			    {
+			      fp = opt_if_nbp_fs_nr;
+			      first_pc = 2;
+			    }
+			}
 		      for (; integer(stepper) < end; integer(stepper)++)
 			{
-			  sc->pc = 0;
+			  sc->pc = first_pc;
 			  fp(o);
 			}
 		    }
@@ -78699,7 +78740,7 @@ static inline bool op_safe_c_fp(s7_scheme *sc, opcode_t op, s7_pointer args)
   p = sc->code;
   while ((is_pair(p)) && (has_fx(p)))
     {
-      sc->args = cons(sc, c_call(p)(sc, car(p)), sc->args);
+      sc->args = cons(sc, c_call(p)(sc, car(p)), sc->args); /* reversed before apply in OP_SAFE_C_FP_1 */
       p = cdr(p);
     }
   if (is_pair(p))
@@ -89833,35 +89874,36 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
  * ------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  200   200
+ * tpeak         |      |      |      |  391 |  377 |  200   199
  * tmac          |      |      |      | 9052 |  264 |  236   236
  * tref          |      |      | 2372 | 2125 | 1036 |  985   983
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1020
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1290 1303
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1549
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1022
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1304
+ * teq           |      |      | 6612 | 2777 | 1931 | 1550  1539
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1726
- * lint          |      |      |      | 4041 | 2702 | 2192  2112 2120
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2317
- * tread         |      |      |      |      | 2357 | 2352  2334
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2350
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2492
- * tlet          |      |      |      |      | 4717 | 3505  2948 2959
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3018
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3061 3084
+ * lint          |      |      |      | 4041 | 2702 | 2192  2120
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2320
+ * tread         |      |      |      |      | 2357 | 2352  2336
+ * tform         |      |      | 6816 | 3714 | 2762 | 2385  2362
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2493
+ * tlet          |      |      |      |      | 4717 | 3505  2959
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3015
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3084
  * tsort         |      |      |      | 8584 | 4111 | 3945  3327
- * titer         |      |      |      | 5971 | 4646 | 3695  3579 3587
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5347 5355
- * dup           |      |      |      |      | 20.8 | 5634  5853 5708
- * tset          |      |      |      |      | 10.0 | 6396  6430
+ * titer         |      |      |      | 5971 | 4646 | 3695  3587
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5309
+ * dup           |      |      |      |      | 20.8 | 5634  5711
+ * tset          |      |      |      |      | 10.0 | 6396  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0  78.1
- * lg            |      |      |      |211.0 |133.0 |114.0 112.1 112.6
- * tbig          |      |      |      |      |246.9 |232.5 230.3 230.7
+ * sg            |      |      |      |139.0 | 85.9 | 78.0  78.0
+ * lg            |      |      |      |211.0 |133.0 |114.0 112.7
+ * tbig          |      |      |      |      |246.9 |232.5 230.6
  * -----------------------------------------------------------------------
  *
  * boolean? -> not in sigs
- * opt_if_nbp_fs_nr (thash), preset start_pc, wrappers for temps, op_opaqq?
+ * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
+ * wrong caller name: symbol calls string-append, vector-append and append report copy
  */
