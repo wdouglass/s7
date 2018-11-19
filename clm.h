@@ -2,8 +2,8 @@
 #define CLM_H
 
 #define MUS_VERSION 6
-#define MUS_REVISION 18
-#define MUS_DATE "22-Sep-17"
+#define MUS_REVISION 19
+#define MUS_DATE "17-Nov-18"
 
 /* isn't mus_env_interp backwards? */
 
@@ -326,8 +326,8 @@ MUS_EXPORT mus_any *mus_make_pulse_train(mus_float_t freq, mus_float_t amp, mus_
 MUS_EXPORT bool mus_is_pulse_train(mus_any *gen);
 MUS_EXPORT mus_float_t mus_pulse_train_unmodulated(mus_any *ptr);
 
-MUS_EXPORT void mus_set_rand_seed(unsigned long seed);
-MUS_EXPORT unsigned long mus_rand_seed(void);
+MUS_EXPORT void mus_set_rand_seed(uint64_t seed);
+MUS_EXPORT uint64_t mus_rand_seed(void);
 MUS_EXPORT mus_float_t mus_random(mus_float_t amp);
 MUS_EXPORT mus_float_t mus_frandom(mus_float_t amp);
 MUS_EXPORT int mus_irandom(int amp);
@@ -616,7 +616,8 @@ MUS_EXPORT mus_any *mus_bank_generator(mus_any *g, int i);
 
 /* Change log.
  *
- * 15-Jul:     granulate method to set jitter (K Matheussen).
+ * 17-Nov:     changed rand seed unsigned long to uint64_t.
+ * 15-Jul-18:  granulate method to set jitter (K Matheussen).
  * --------
  * 22-Sep:     removed clm_default_frequency.
  * 3-Aug:      mus_long_t is now int64_t.

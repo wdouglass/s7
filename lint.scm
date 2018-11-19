@@ -1905,7 +1905,8 @@
 					       string? let? hash-table? iterator? procedure? directory? file-exists?))) ; procedure? for extended iterator
 	    ((symbol?)           (memq type2 '(gensym? keyword? defined? provided?)))
 	    ((string?)           (memq type2 '(sequence? directory? file-exists?)))
-	    ((not output-port?)  (eq? type2 'boolean?))
+	    ((not)               (eq? type2 'boolean?))
+	    ((output-port?)      (eq? type2 'not))
 	    ((boolean?)          (eq? type2 'not))
 	    ((keyword? gensym?)  (memq type2 '(symbol? defined? provided?)))
 	    ((defined?)          (memq type2 '(symbol? provided? keyword?)))
@@ -1987,6 +1988,7 @@
 	    ((length)    "a sequence")
 	    ((unspecified?) "untyped")
 	    ((undefined?) "not defined")
+	    ((not)        "#f")
 	    (else
 	     (let ((op-name (symbol->string op)))
 	       (string-append (if (memv (op-name 0) '(#\a #\e #\i #\o #\u)) "an " "a ")
@@ -2002,6 +2004,7 @@
 	    ((null?)     "null?")
 	    ((unspecified?) "untyped")
 	    ((undefined?) "not defined")
+	    ((not)        "#f")
 	    (else 
 	     (let ((op-name (symbol->string op)))
 	       (string-append (if (memv (op-name 0) '(#\a #\e #\i #\o #\u)) "an " "a ") op-name))))))
@@ -2308,13 +2311,14 @@
       (case x
 	((char?) '(eqv? char=?))
 	((integer? rational? real? number? complex? float?) '(eqv? =))
-	((symbol? keyword? boolean? null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
+	((symbol? keyword? boolean? not null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
 	((string?) '(equal? string=?))
 	((pair? vector? float-vector? int-vector?  subvector? hash-table?) '(equal? equal?))
 	((eof-object?) '(eq? eof-object?))
 	(else 
 	 (if (and (len=2? x)
-		  (or (and (memq 'boolean? x)
+		  (or (and (or (memq 'boolean? x)
+			       (memq 'not x))
 			   (or (memq 'real? x) (memq 'number? x) (memq 'integer? x)))
 		      (and (memq 'eof-object? x)
 			   (or (memq 'char? x) (memq 'integer? x)))))
@@ -2866,8 +2870,8 @@
 				  (let ((type (assq arg vars)))
 				    (if (not type)
 					(set! vars (cons (cons arg func) vars))
-					(if (not (compatible? (cdr type) func))
-					    (return #t))))))
+					(unless (compatible? (cdr type) func)
+					  (return #t))))))
 			    args)))))))))
 	
 	(define (and-redundants env . args)
@@ -2934,7 +2938,6 @@
 		      (set! diffs #t)
 		      (set-cdr! local (cons bool (cdr local))))
 		  (set! locals (cons (list (cadr bool) bool) locals))))))
-	
 	
 	(define (and-not-redundant arg1 arg2)
 	  (let ((type1 (car arg1))    ; (? ...)
@@ -3207,6 +3210,7 @@
 				  (if (hash-table-ref notables (car a))
 				      (set! revers (+ revers 1)))))))
 		      (cdr form))
+
 	    (cond ((= nots arglen)                               ; every arg is `(not ...)
 		   (let ((nf (simplify-boolean (cons new-head (map cadr (cdr form))) () () env)))
 		     (return (simplify-boolean (list 'not nf) () () env))))
@@ -3806,6 +3810,7 @@
 	  (case (car form)
 	    ;; --------------------------------
 	    ((not)
+	     ;(format *stderr* "not: ~S~%" form)
 	     (if (not (= len 2))
 		 form
 		 (let* ((arg (cadr form))
@@ -3816,7 +3821,7 @@
 				       env))
 			(arg-op (and (pair? arg) 
 				     (car arg))))
-		   
+
 		   (cond ((boolean? val) 
 			  (not val))
 			 
@@ -3825,8 +3830,10 @@
 				   (symbol? arg-op)
 				   (hash-table-ref no-side-effect-functions arg-op)
 				   (let ((ret (return-type arg-op env)))
-				     (and (or (symbol? ret) (pair? ret))
-					  (not (return-type-ok? 'boolean? ret))))
+				     (and (or (symbol? ret) 
+					      (pair? ret))
+					  (not (return-type-ok? 'boolean? ret))
+					  (not (return-type-ok? 'not ret))))
 				   (not (var-member arg-op env))))
 			  #f)
 			 
@@ -4135,7 +4142,7 @@
 							(member (cadr arg1) (car p))))
 					       (if (pair? p)
 						   (and-forgetful form 'and arg1 (car p) env))))))))
-			    
+
 			    (if (and (not (side-effect? arg1 env))
 				     (equal? arg1 arg2))                  ; (and x x) -> x
 				(return arg1))
@@ -4147,19 +4154,19 @@
 						      (equal? (cadr arg1) (caddr arg2))))
 					     (not (side-effect? arg1 env))
 					     (and-redundant? arg1 arg2)))) ; (and (integer? x) (number? x)) -> (integer? x)
-				(if t1
-				    (return (cond 
-					     ((memq t1 '(eq? eqv? equal?))
-					      (cons t1 (cdr arg2)))
-					     
-					     ((eq? t1 'memv)
-					      (let ((x ((if (equal? (cadr arg1) (cadr arg2)) caddr cadr) arg2)))
-						(if (rational? x)
-						    `(memv ,(cadr arg1) '(,x ,(* 1.0 x)))
-						    `(memv ,(cadr arg1) '(,(floor x) ,x)))))
-					     
-					     ((eq? t1 (car arg1)) arg1)
-					     (else arg2)))))
+				(when t1
+				  (return (cond 
+					   ((memq t1 '(eq? eqv? equal?))
+					    (cons t1 (cdr arg2)))
+					   
+					   ((eq? t1 'memv)
+					    (let ((x ((if (equal? (cadr arg1) (cadr arg2)) caddr cadr) arg2)))
+					      (if (rational? x)
+						  `(memv ,(cadr arg1) '(,x ,(* 1.0 x)))
+						  `(memv ,(cadr arg1) '(,(floor x) ,x)))))
+					   
+					   ((eq? t1 (car arg1)) arg1)
+					   (else arg2)))))
 
 			      (when (and (hash-table-ref reversibles (car arg1))
 					 (len=1? (cddr arg1))
@@ -4246,7 +4253,6 @@
 					     (and (len=1? (cddr arg2))
 						  (equal? (cadr arg1) (caddr arg2))))
 					 (hash-table-ref booleans (car arg1)))
-				
 				(when (or (eq? (car arg1) 'zero?)  ; perhaps rational? and integer? here -- not many hits
 					  (eq? (car arg2) 'zero?))
 				  (if (or (memq (car arg1) '(integer? rational? exact?))
@@ -4308,25 +4314,25 @@
 					   (eq? (cadadr arg1) (cadr arg2)))
 				  (return (cons 'eqv? (cdr arg2)))))
 
-			      (if (hash-table-ref bools (car arg1))
-				  (let ((p (member (cadr arg1) (cdr arg2))))
-				    (when p
-				      (let ((sig (arg-signature (car arg2) env))
-					    (pos (- (length arg2) (length p))))
-
-					(when (pair? sig)
-					  (let ((arg-type (and (> (length sig) pos)
-							       (list-ref sig pos))))
-					    (unless (compatible? (car arg1) arg-type)
-					      (let ((ln (and (< 0 line-number 100000) line-number)))
-						(format outport "~NCin ~A~A, ~A is ~A, but ~A wants ~A"
-							lint-left-margin #\space 
-							(truncated-list->string form) 
-							(if ln (format #f " (line ~D)" ln) "")
-							(cadr arg1) 
-							(prettify-checker-unq (car arg1))
-							(car arg2)
-							(prettify-checker arg-type))))))))))
+			      (when (hash-table-ref bools (car arg1))
+				(let ((p (member (cadr arg1) (cdr arg2))))
+				  (when p
+				    (let ((sig (arg-signature (car arg2) env))
+					  (pos (- (length arg2) (length p))))
+				      
+				      (when (pair? sig)
+					(let ((arg-type (and (> (length sig) pos)
+							     (list-ref sig pos))))
+					  (unless (compatible? (car arg1) arg-type)
+					    (let ((ln (and (< 0 line-number 100000) line-number)))
+					      (format outport "~NCin ~A~A, ~A is ~A, but ~A wants ~A"
+						      lint-left-margin #\space 
+						      (truncated-list->string form) 
+						      (if ln (format #f " (line ~D)" ln) "")
+						      (cadr arg1) 
+						      (prettify-checker-unq (car arg1))
+						      (car arg2)
+						      (prettify-checker arg-type))))))))))
 
 			      (cond ((not (and (eq? (car arg1) 'equal?) ; (and (equal? (car a1) (car a2)) (equal? (cdr a1) (cdr a2))) -> (equal? a1 a2)
 					       (eq? (car arg2) 'equal?)
@@ -4484,6 +4490,7 @@
 	;;   this is not really simplify boolean as in boolean algebra because in scheme there are many unequal truths, but only one falsehood
 	;;   'and and 'or are not boolean operators in a sense
 	(lambda (in-form true false env)
+	  ;(format *stderr* "simplify-boolean ~S~%" in-form)
 	  (and (not (or (reversible-member in-form false)
 			(and (len>1? in-form)
 			     (eq? (car in-form) 'not)
@@ -6342,6 +6349,7 @@
 						caadr)))
 				      (else #f))))))
 	      (lambda (caller head form env)
+		;(format *stderr* "memx: ~S~%" form)
 		(case (length form)
 		  ((3)
 		   (let ((selector (cadr form))
@@ -6764,6 +6772,7 @@
 	;; ---------------- not ----------------
 	(let ()
 	  (define (sp-not caller head form env)
+	    ;(format *stderr* "sp-not ~S~%" form)
 	    (if (and (pair? (cdr form))
 		     (pair? (cadr form)))
 		(if (eq? (caadr form) 'not)
@@ -6778,8 +6787,9 @@
 		      (let ((sig (arg-signature (caadr form) env)))
 			(if (and (pair? sig)
 				 (if (pair? (car sig))                      ; (not (+ x y))
-				     (not (memq 'boolean? (car sig)))
-				     (not (memq (car sig) '(#t values boolean?)))))
+				     (not (or (memq 'boolean? (car sig))
+					      (memq 'not (car sig))))
+				     (not (memq (car sig) '(#t values boolean? not)))))
 			    (lint-format "~A can't be true (~A never returns #f)" caller (truncated-list->string form) (caadr form)))))))
 					 
 	    (if (not (= line-number last-simplify-boolean-line-number))
@@ -8048,6 +8058,7 @@
 	;; ---------------- char->integer string->number etc ----------------
 	(let ()
 	  (define (sp-char->integer caller head form env)
+	    ;(format *stderr* "c->i ~S~%" form)
 	    (when (pair? (cdr form))
 	      (let ((inverses '((char->integer . integer->char)
 				(integer->char . char->integer)
@@ -10416,7 +10427,7 @@
 					     (prettify-arg-number arg-number)
 					     (prettify-checker-unq checker)
 					     (truncated-list->string arg)
-					     (car other)))))
+					     (prettify-checker (car other))))))
 			  (lint-format "in ~A,~%~NC~A's argument ~Ashould be ~A, but ~A is ~A" caller
 				       (truncated-list->string form)
 				       (+ lint-left-margin 4) #\space
@@ -11655,34 +11666,35 @@
 		(when (and (pair? sig)
 			   (< pos (length sig)))
 		  (let ((desired-type (list-ref sig pos)))
-		    (cond ((not (compatible? vtype desired-type))
-			   (lint-format "~A is ~A, but ~A in ~A wants ~A" caller
-					vname (prettify-checker-unq vtype)
-					func (truncated-list->string call) 
-					(prettify-checker desired-type)))
-			  
-			  ((and (memq vtype '(float-vector? int-vector?))
-				(memq func '(vector-set! vector-ref)))
-			   (lint-format "~A is ~A, so perhaps use ~A, not ~A" caller
-					vname (prettify-checker-unq vtype)
-					(if (eq? vtype 'float-vector?)
-					    (if (eq? func 'vector-set!) 'float-vector-set! 'float-vector-ref)
-					    (if (eq? func 'vector-set!) 'int-vector-set! 'int-vector-ref))
-					func))
-			  
-			  ((and (eq? vtype 'float-vector?)
-				(eq? func 'equal?)
-				(or (eq? (cadr call) vname)
-				    (not (symbol? (cadr call))))) ; don't repeat the suggestion when we hit the second vector
-			   (lint-format "perhaps use morally-equal? in ~A" caller (truncated-list->string call)))
-			  
-			  ((and (eq? vtype 'vector?)
-				(memq func '(float-vector-set! float-vector-ref int-vector-set! int-vector-ref)))
-			   (lint-format "~A is ~A, so use ~A, not ~A" caller
-					vname (prettify-checker-unq vtype)
-					(if (memq func '(float-vector-set! int-vector-set!))
-					    'vector-set! 'vector-ref)
-					func)))))))))
+		      (cond ((not (or (eq? desired-type #t)
+				       (any-compatible? vtype desired-type)))
+			     (lint-format "~A is ~A, but ~A in ~A wants ~A" caller
+					  vname (prettify-checker-unq vtype)
+					  func (truncated-list->string call) 
+					  (prettify-checker desired-type)))
+			    
+			    ((and (memq vtype '(float-vector? int-vector?))
+				  (memq func '(vector-set! vector-ref)))
+			     (lint-format "~A is ~A, so perhaps use ~A, not ~A" caller
+					  vname (prettify-checker-unq vtype)
+					  (if (eq? vtype 'float-vector?)
+					      (if (eq? func 'vector-set!) 'float-vector-set! 'float-vector-ref)
+					      (if (eq? func 'vector-set!) 'int-vector-set! 'int-vector-ref))
+					  func))
+			    
+			    ((and (eq? vtype 'float-vector?)
+				  (eq? func 'equal?)
+				  (or (eq? (cadr call) vname)
+				      (not (symbol? (cadr call))))) ; don't repeat the suggestion when we hit the second vector
+			     (lint-format "perhaps use morally-equal? in ~A" caller (truncated-list->string call)))
+			    
+			    ((and (eq? vtype 'vector?)
+				  (memq func '(float-vector-set! float-vector-ref int-vector-set! int-vector-ref)))
+			     (lint-format "~A is ~A, so use ~A, not ~A" caller
+					  vname (prettify-checker-unq vtype)
+					  (if (memq func '(float-vector-set! int-vector-set!))
+					      'vector-set! 'vector-ref)
+					  func)))))))))
 
 	;; -------- pointless-type-check
 	(define (pointless-type-check caller local-var vtype func call call-arg1 vars)

@@ -6552,14 +6552,14 @@ typedef struct {
 
 /* rand taken from the ANSI C standard (essentially the same as the Cmix form used earlier) */
 
-static unsigned long randx = 1;
+static uint64_t randx = 1;
 #define INVERSE_MAX_RAND  0.0000610351563
 #define INVERSE_MAX_RAND2 0.000030517579
 
 
-void mus_set_rand_seed(unsigned long val) {randx = val;}
+void mus_set_rand_seed(uint64_t val) {randx = val;}
 
-unsigned long mus_rand_seed(void) {return(randx);}
+uint64_t mus_rand_seed(void) {return(randx);}
 
 
 static mus_float_t next_random(void)
@@ -13706,7 +13706,7 @@ typedef struct {
   mus_float_t *grain;        /* grain data */
   int grain_len;
   bool first_samp;
-  unsigned long randx; /* gen-local random number seed */
+  uint64_t randx;            /* gen-local random number seed */
 } grn_info;
 
 
@@ -13837,7 +13837,7 @@ static mus_float_t *granulate_data(mus_any *ptr) {return(((grn_info *)ptr)->grai
 int mus_granulate_grain_max_length(mus_any *ptr) {return(((grn_info *)ptr)->in_data_len);}
 
 static mus_long_t grn_location(mus_any *ptr) {return((mus_long_t)(((grn_info *)ptr)->randx));}
-static mus_long_t grn_set_location(mus_any *ptr, mus_long_t val) {((grn_info *)ptr)->randx = (unsigned long)val; return(val);}
+static mus_long_t grn_set_location(mus_any *ptr, mus_long_t val) {((grn_info *)ptr)->randx = (uint64_t)val; return(val);}
 
 static mus_float_t grn_jitter(mus_any *ptr) {return(((grn_info *)ptr)->jitter);}
 static mus_float_t grn_set_jitter(mus_any *ptr, mus_float_t val) /* K Matheussen 15-Jul-18 */
