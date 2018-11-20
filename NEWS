@@ -1,14 +1,12 @@
-Snd 18.8:
+Snd 18.9:
 
-in clm, Kjetil improved the granulate generator.
+Kjetil updated the s7webserver directory
 
-in s7, byte? (for byte-* signatures)
-       typed (homogenous) vectors of any built-in type, and typed hash-tables
-       multidimensional byte-vectors (byte-vectors are vectors now)
-       c-object-type (split from c-object?)
-       s7_list_nl in s7.h: NULL terminated version of s7_list.
+s7: variables can be statically typed via the built-in type checkers like integer?
+      for example, (set! (setter 'x) integer?)
 
-checked: sbcl 1.4.12
+audio.c: added JACK_AUTO_SRC (defaults to 1).  
+
+checked: FC 29 (gcc 8.2.1), macOS Mojave, sbcl 1.4.13
 
 Thanks!: Kjetil Matheussen
-

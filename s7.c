@@ -17926,6 +17926,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int max_i_ii(s7_int i1, s7_int i2) {return((i1 > i2) ? i1 : i2);}
+static s7_int max_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 > i2) ? ((i1 > i3) ? i1 : i3) : ((i2 > i3) ? i2 : i3));}
 static s7_double max_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 > x2) ? x1 : x2);}
 
 static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
@@ -18119,6 +18120,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int min_i_ii(s7_int i1, s7_int i2) {return((i1 < i2) ? i1 : i2);}
+static s7_int min_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 < i2) ? ((i1 < i3) ? i1 : i3) : ((i2 < i3) ? i2 : i3));}
 static s7_double min_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 < x2) ? x1 : x2);}
 
 
@@ -20491,6 +20493,7 @@ static s7_pointer g_logior(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int logior_i_ii(s7_int i1, s7_int i2) {return(i1 | i2);}
+static s7_int logior_i_iii(s7_int i1, s7_int i2, s7_int i3) {return(i1 | i2 | i3);}
 
 
 /* -------------------------------- logxor -------------------------------- */
@@ -20511,6 +20514,7 @@ static s7_pointer g_logxor(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int logxor_i_ii(s7_int i1, s7_int i2) {return(i1 ^ i2);}
+static s7_int logxor_i_iii(s7_int i1, s7_int i2, s7_int i3) {return(i1 ^ i2 ^ i3);}
 
 
 /* -------------------------------- logand -------------------------------- */
@@ -20531,6 +20535,7 @@ static s7_pointer g_logand(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_int logand_i_ii(s7_int i1, s7_int i2) {return(i1 & i2);}
+static s7_int logand_i_iii(s7_int i1, s7_int i2, s7_int i3) {return(i1 & i2 & i3);}
 
 
 /* -------------------------------- lognot -------------------------------- */
@@ -29922,7 +29927,7 @@ static void show_opt2_bits(s7_pointer p, const char *func, int32_t line, uint32_
 	  opt2_role_name(role),
 	  p->debugger_bits, bits, role,
 	  ((role & F_SET) != 0) ? " f-set" : "",
-	  ((role & F_KEY) != 0) ? " key" : "",
+	  ((role & F_KEY) != 0) ? " any" : "",
 	  ((role & F_SLOW) != 0) ? " slow" : "",
 	  ((role & F_SYM) != 0) ? " sym" : "",
 	  ((role & F_PAIR) != 0) ? " pair" : "",
@@ -29955,6 +29960,10 @@ static void set_opt2_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role,
 	  (safe_strcmp(func, "check_or") != 0))
 	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, string_value(object_to_truncated_string(sc, p, 80)));
     }
+  if ((role != F_CALL) &&
+      (opt2_role_matches(p, F_CALL)) &&
+      (has_fx(p)))
+    fprintf(stderr, "%s[%d]: %s clobbers fx, p: %s\n", func, line, opt2_role_name(role), string_value(s7_object_to_string(sc, p, false)));
   p->object.cons.opt2 = x;
   set_opt2_role(p, role);
   set_opt2_is_set(p);
@@ -67339,7 +67348,10 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 		    {
 		      set_optimize_op(expr, hop + OP_SAFE_C_ALL_CA);
 		      for (p = cdr(expr); is_pair(p); p = cddr(p))
-			set_opt2_any(p, (is_pair(car(p))) ? cadar(p) : car(p));
+			{
+			  clear_has_fx(p);
+			  set_opt2_any(p, (is_pair(car(p))) ? cadar(p) : car(p));
+			}
 		    }
 		  return(OPT_T);
 		}
@@ -71026,6 +71038,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 	{
 	  if (is_h_safe_c_d(test))
 	    {
+	      clear_has_fx(sc->code);
 	      if (c_callee(test) == g_and_2)
 		{
 		  pair_set_syntax_op(form, choose_if_optc(IF_AND2, one_branch, reversed, not_case));
@@ -71062,6 +71075,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 		  set_opt3_con(sc->code, typ);
 		}
 	      else pair_set_syntax_op(form, choose_if_optc(IF_CS, one_branch, reversed, not_case));
+	      clear_has_fx(sc->code);
 	      set_opt2_sym(sc->code, cadr(test));
 	      return;
 	    }
@@ -71069,6 +71083,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 	  if (optimize_op(test) == HOP_SAFE_C_SS)
 	    {
 	      pair_set_syntax_op(form, choose_if_optc(IF_CSS, one_branch, reversed, not_case));
+	      clear_has_fx(sc->code);
 	      set_opt2_sym(sc->code, caddr(test));
 	      set_opt3_sym(sc->code, cadr(test));
 	      return;
@@ -71076,6 +71091,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 	  if (optimize_op(test) == HOP_SAFE_C_SC)
 	    {
 	      pair_set_syntax_op(form, choose_if_optc(IF_CSC, one_branch, reversed, not_case));
+	      clear_has_fx(sc->code);
 	      set_opt2_con(sc->code, (is_pair(caddr(test))) ? cadr(caddr(test)) : caddr(test));
 	      set_opt3_sym(sc->code, cadr(test));
 	      return;
@@ -71091,6 +71107,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 	    {
 	      uint8_t typ;
 	      typ = symbol_type(car(test));
+		  clear_has_fx(sc->code);
 	      if (typ > 0)
 		{
 		  pair_set_syntax_op(form, choose_if_optc(IF_IS_TYPE_opSq, one_branch, reversed, not_case));
@@ -89438,6 +89455,8 @@ s7_scheme *s7_init(void)
   s7_set_d_dd_function(slot_value(global_slot(sc->min_symbol)), min_d_dd);
   s7_set_i_ii_function(slot_value(global_slot(sc->max_symbol)), max_i_ii);
   s7_set_i_ii_function(slot_value(global_slot(sc->min_symbol)), min_i_ii);
+  s7_set_i_iii_function(slot_value(global_slot(sc->max_symbol)), max_i_iii);
+  s7_set_i_iii_function(slot_value(global_slot(sc->min_symbol)), min_i_iii);
 #if (!WITH_GMP)
   s7_set_d_7p_function(slot_value(global_slot(sc->real_part_symbol)), real_part_d_7p);
   s7_set_d_7p_function(slot_value(global_slot(sc->imag_part_symbol)), imag_part_d_7p);
@@ -89471,6 +89490,9 @@ s7_scheme *s7_init(void)
   s7_set_i_ii_function(slot_value(global_slot(sc->logior_symbol)), logior_i_ii);
   s7_set_i_ii_function(slot_value(global_slot(sc->logxor_symbol)), logxor_i_ii);
   s7_set_i_ii_function(slot_value(global_slot(sc->logand_symbol)), logand_i_ii);
+  s7_set_i_iii_function(slot_value(global_slot(sc->logior_symbol)), logior_i_iii);
+  s7_set_i_iii_function(slot_value(global_slot(sc->logxor_symbol)), logxor_i_iii);
+  s7_set_i_iii_function(slot_value(global_slot(sc->logand_symbol)), logand_i_iii);
 
 #if (!WITH_PURE_S7)
   s7_set_p_pp_function(slot_value(global_slot(sc->vector_append_symbol)), vector_append_p_pp);
@@ -89879,38 +89901,37 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
  * ------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  | 18.8  18.9
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  |  19.0
  * ------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  200   199
- * tmac          |      |      |      | 9052 |  264 |  236   236
- * tref          |      |      | 2372 | 2125 | 1036 |  985   983
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1037  1022
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1292  1304
- * teq           |      |      | 6612 | 2777 | 1931 | 1550  1539
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1730  1726
- * lint          |      |      |      | 4041 | 2702 | 2192  2120
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2325  2320
- * tread         |      |      |      |      | 2357 | 2352  2336
- * tform         |      |      | 6816 | 3714 | 2762 | 2385  2362
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2492  2493
- * tlet          |      |      |      |      | 4717 | 3505  2959
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3030  3015
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 4010  3084
- * tsort         |      |      |      | 8584 | 4111 | 3945  3327
- * titer         |      |      |      | 5971 | 4646 | 3695  3587
- * thash         |      |      | 50.7 | 8778 | 7697 | 5383  5309
- * dup           |      |      |      |      | 20.8 | 5634  5711
- * tset          |      |      |      |      | 10.0 | 6396  6432
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.7  11.0
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.1  11.2
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.2  17.1
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.5  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0  78.0
- * lg            |      |      |      |211.0 |133.0 |114.0 112.7
- * tbig          |      |      |      |      |246.9 |232.5 230.6
+ * tpeak         |      |      |      |  391 |  377 |  199 |  199
+ * tmac          |      |      |      | 9052 |  264 |  236 |  236
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1022
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1298
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1539
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1760
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2121
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2322
+ * tread         |      |      |      |      | 2357 | 2336 | 2337
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2363
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2493
+ * tlet          |      |      |      |      | 4717 | 2959 | 2958
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3015
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3085
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3327
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3586
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5310
+ * dup           |      |      |      |      | 20.8 | 5711 | 5716
+ * tset          |      |      |      |      | 10.0 | 6432 | 6433
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.2
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17,1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38,5
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |112.7
+ * tbig          |      |      |      |      |246.9 |230.6 |230.6
  * -----------------------------------------------------------------------
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
  * wrong caller name: symbol calls string-append, vector-append and append report copy
- *   sig entries: is_proper_pair (make-vector etc), not (set-current-*-port, etc), 
  */
