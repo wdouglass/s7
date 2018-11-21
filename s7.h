@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.6"
-#define S7_DATE "3-Nov-18"
+#define S7_VERSION "7.7"
+#define S7_DATE "21-Nov-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -117,15 +117,17 @@ s7_pointer s7_wrong_number_of_args_error(s7_scheme *sc, const char *caller, s7_p
 s7_pointer s7_stacktrace(s7_scheme *sc);
 s7_pointer s7_history(s7_scheme *sc);                                /* the current (circular backwards) history buffer */
 s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry);       /* add entry to the history buffer */
+bool s7_history_enabled(s7_scheme *sc);
+bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
+
+s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
+void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'gc-stats) */
 
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
-
-s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
-void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'gc-stats) */
 
   /* any s7_pointer object held in C (as a local variable for example) needs to be
    *   protected from garbage collection if there is any chance the GC may run without
@@ -143,10 +145,8 @@ void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'g
    *    very short term temps such as the arguments to s7_cons in:
    *
    *    s7_cons(s7, s7_make_real(s7, 3.14), 
-   *                s7_cons(s7, s7_make_integer(s7, 123), 
-   *                            s7_nil(s7)));
+   *                s7_cons(s7, s7_make_integer(s7, 123), s7_nil(s7)));
    */
-
 
 bool s7_is_eq(s7_pointer a, s7_pointer b);                                   /* (eq? a b) */
 bool s7_is_eqv(s7_pointer a, s7_pointer b);                                  /* (eqv? a b) */
@@ -847,6 +847,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 21-Nov:    added s7_history_enabled and s7_set_history_enabled.
  * 3-Nov:     removed the "value" argument from s7_for_each_symbol.
  * 22-Sep:    s7_list_nl.
  * 12-Sep:    byte-vectors can be multidimensional; homogenous vectors of any built-in type. typed hash-tables.

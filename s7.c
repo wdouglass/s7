@@ -1069,7 +1069,7 @@ struct s7_scheme {
 
 #if WITH_HISTORY
   s7_pointer eval_history1, eval_history2, error_history;
-  bool using_history1;
+  bool using_history1, history_enabled;
 #endif
 
 #if WITH_MULTITHREAD_CHECKS
@@ -1277,7 +1277,7 @@ struct s7_scheme {
   s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol,
              free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol, max_heap_size_symbol,
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
-             catches_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol,
+             catches_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol, history_enabled_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
              hash_table_float_epsilon_symbol, morally_equal_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
              undefined_identifier_warnings_symbol, print_length_symbol, bignum_precision_symbol, stacktrace_defaults_symbol, history_symbol, history_size_symbol;
@@ -1782,7 +1782,7 @@ static void init_types(void)
 
 #if WITH_HISTORY
 #define current_code(Sc)           car(Sc->cur_code)
-#define set_current_code(Sc, Code) do {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, Code);} while (0)
+#define set_current_code(Sc, Code) do {if (Sc->history_enabled) {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, Code);} } while (0)
 #define mark_current_code(Sc)      do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < sc->history_size; i++, p = cdr(p)) gc_mark(car(p));} while (0)
 #else
 #define current_code(Sc)           Sc->cur_code
@@ -17940,12 +17940,8 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 static s7_int max_i_ii(s7_int i1, s7_int i2) {return((i1 > i2) ? i1 : i2);}
 static s7_int max_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 > i2) ? ((i1 > i3) ? i1 : i3) : ((i2 > i3) ? i2 : i3));}
 static s7_double max_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 > x2) ? x1 : x2);}
-static s7_double max_d_ddd(s7_double x1, s7_double x2, s7_double x3) 
-{
-  if (is_NaN(x1)) return(x1); 
-  if (is_NaN(x2)) return(x2); 
-  return((x1 > x2) ? ((x1 > x3) ? x1 : x3) : ((x2 > x3) ? x2 : x3));
-}
+static s7_double max_d_ddd(s7_double x1, s7_double x2, s7_double x3) {return(max_d_dd(x1, max_d_dd(x2, x3)));}
+static s7_double max_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(max_d_dd(x1, max_d_ddd(x2, x3, x4)));}
 
 static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 {
@@ -18137,12 +18133,8 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 static s7_int min_i_ii(s7_int i1, s7_int i2) {return((i1 < i2) ? i1 : i2);}
 static s7_int min_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 < i2) ? ((i1 < i3) ? i1 : i3) : ((i2 < i3) ? i2 : i3));}
 static s7_double min_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 < x2) ? x1 : x2);}
-static s7_double min_d_ddd(s7_double x1, s7_double x2, s7_double x3) 
-{
-  if (is_NaN(x1)) return(x1); 
-  if (is_NaN(x2)) return(x2); 
-  return((x1 < x2) ? ((x1 < x3) ? x1 : x3) : ((x2 < x3) ? x2 : x3));
-}
+static s7_double min_d_ddd(s7_double x1, s7_double x2, s7_double x3) {return(min_d_dd(x1, min_d_dd(x2, x3)));}
+static s7_double min_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(min_d_dd(x1, min_d_ddd(x2, x3, x4)));}
 
 
 /* ---------------------------------------- = > < >= <= ---------------------------------------- */
@@ -40585,10 +40577,6 @@ static inline s7_pointer hash_table_add(s7_scheme *sc, s7_pointer table, s7_poin
 	(s7_is_equal(sc, hash_entry_key(x), key)))
       return(value);
 
-  if ((is_typed_hash_table(table)) &&
-      (sc->safety >= 0))
-    check_hash_types(sc, table, key, value);
-
   p = mallocate_block(sc);
   hash_entry_key(p) = key;
   hash_entry_set_value(p, T_Pos(value));
@@ -46516,7 +46504,7 @@ line to be preceded by a semicolon."
 }
 
 
-/* -------- s7_history, s7_add_to_history -------- */
+/* -------- s7_history, s7_add_to_history, s7_history_enabled -------- */
 
 s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry)
 {
@@ -46529,6 +46517,17 @@ s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry)
 s7_pointer s7_history(s7_scheme *sc)
 {
   return(sc->cur_code);
+}
+
+bool s7_history_enabled(s7_scheme *sc)
+{
+  return(sc->history_enabled);
+}
+
+bool s7_set_history_enabled(s7_scheme *sc, bool enabled)
+{
+  sc->history_enabled = enabled;
+  return(enabled);
 }
 
 
@@ -87227,6 +87226,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->memory_usage_symbol =                  s7_let_field(sc, "memory-usage");
   sc->float_format_precision_symbol =        s7_let_field(sc, "float-format-precision");
   sc->history_symbol =                       s7_let_field(sc, "history");
+  sc->history_enabled_symbol =               s7_let_field(sc, "history-enabled");
   sc->history_size_symbol =                  s7_let_field(sc, "history-size");
   sc->profile_info_symbol =                  s7_let_field(sc, "profile-info");
   sc->autoloading_symbol =                   s7_let_field(sc, "autoloading?");
@@ -87436,6 +87436,8 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
 #endif
   if (sym == sc->history_size_symbol)                                    /* history-size (eval history circular buffer size) */
     return(s7_make_integer(sc, sc->history_size));
+  if (sym == sc->history_enabled_symbol)                                 /* history-enabled (is history buffer receiving additions) */
+    return(s7_make_boolean(sc, sc->history_enabled));
   if (sym == sc->profile_info_symbol)                                    /* profile-info -- profiling data hash-table */
     return(sc->profile_info);
   if (sym == sc->max_list_length_symbol)                                 /* max-list-length (as arg to make-list) */
@@ -87585,6 +87587,16 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 #endif
 	}
       return(val);
+    }
+
+  if (sym == sc->history_enabled_symbol)
+    {
+      if (s7_is_boolean(val))
+        {
+          sc->history_enabled = s7_boolean(sc, val);
+          return(val);
+        }
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
     }
 
   if (sym == sc->gc_stats_symbol)
@@ -88335,6 +88347,7 @@ s7_scheme *s7_init(void)
   sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
   sc->true_history_size = DEFAULT_HISTORY_SIZE;
+  sc->history_enabled = WITH_HISTORY;
   sc->profile_info = sc->nil;
   sc->baffle_ctr = 0;
   sc->syms_tag = 0;
@@ -89444,6 +89457,8 @@ s7_scheme *s7_init(void)
   s7_set_d_dd_function(slot_value(global_slot(sc->min_symbol)), min_d_dd);
   s7_set_d_ddd_function(slot_value(global_slot(sc->max_symbol)), max_d_ddd);
   s7_set_d_ddd_function(slot_value(global_slot(sc->min_symbol)), min_d_ddd);
+  s7_set_d_dddd_function(slot_value(global_slot(sc->max_symbol)), max_d_dddd);
+  s7_set_d_dddd_function(slot_value(global_slot(sc->min_symbol)), min_d_dddd);
   s7_set_i_ii_function(slot_value(global_slot(sc->max_symbol)), max_i_ii);
   s7_set_i_ii_function(slot_value(global_slot(sc->min_symbol)), min_i_ii);
   s7_set_i_iii_function(slot_value(global_slot(sc->max_symbol)), max_i_iii);
@@ -89921,4 +89936,5 @@ int main(int argc, char **argv)
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
  * wrong caller name: symbol calls string-append, vector-append and append report copy
+ * new files for tools dir: check-sigs.scm tshoot.scm
  */
