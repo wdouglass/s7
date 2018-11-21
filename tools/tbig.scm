@@ -17,7 +17,7 @@
        (format *stderr* "    ~A~S -> ~S?~A~%" bold-text ',a ,a unbold-text)))
 
 (define (clear-and-gc)
-  (do ((x 0.0) (i 0 (+ i 1))) ((= i 256)) (set! x (complex i i))) ; clear temps
+  (do ((x 0+i) (i 0 (+ i 1))) ((= i 256)) (set! x (complex i i))) ; clear temps
   (gc) (gc))
 
 (define total-memory (with-let *libc* (* (sysconf _SC_PHYS_PAGES) (sysconf _SC_PAGESIZE)))) ; not quite what we want, but...

@@ -199,7 +199,7 @@
 					;Programs by Abelson and Sussman.
 ;;; ?? never tried to run it
 
-    defmacro				;has Common Lisp DEFMACRO
+;;;    defmacro				;has Common Lisp DEFMACRO
 ;;;	syntax-case			;has syncase:eval and syncase:load
 ;;;	record				;has user defined data structures
     string-port			    ;has CALL-WITH-INPUT-STRING and

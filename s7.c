@@ -1345,7 +1345,7 @@ struct s7_scheme {
   s7_pointer real_wrapper1, real_wrapper2, real_wrapper3, real_wrapper4;
 
   #define NUM_SAFE_PRELISTS 8
-  #define NUM_SAFE_LISTS 64
+  #define NUM_SAFE_LISTS 64               /* 36 is the biggest normally (lint.scm), 49 in s7test, 57 in snd-test */
   s7_pointer safe_lists[NUM_SAFE_LISTS];
   int32_t current_safe_list;
 
@@ -11764,7 +11764,7 @@ static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer
 
 /* -------------------------------------------------------------------------------- */
 #define CTABLE_SIZE 256
-static bool *exponent_table, *slashify_table, *char_ok_in_a_name, *white_space, *number_table, *symbol_slashify_table;
+static bool *exponent_table, *slashify_table, *char_ok_in_a_name, *white_space, *number_table, *symbol_slashify_table, *char_0;
 static int32_t *digits;
 
 static void init_ctables(void)
@@ -11775,6 +11775,7 @@ static void init_ctables(void)
   slashify_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   symbol_slashify_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   char_ok_in_a_name = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
+  char_0 = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   white_space = (bool *)calloc(CTABLE_SIZE + 1, sizeof(bool));
   white_space++;      /* leave white_space[-1] false for white_space[EOF] */
   number_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
@@ -11789,7 +11790,7 @@ static void init_ctables(void)
     }
 
   char_ok_in_a_name[0] = false;
-  char_ok_in_a_name[(uint8_t)'('] = false;  /* idiotic cast is for C++'s benefit */
+  char_ok_in_a_name[(uint8_t)'('] = false;  /* cast for C++ */
   char_ok_in_a_name[(uint8_t)')'] = false;
   char_ok_in_a_name[(uint8_t)';'] = false;
   char_ok_in_a_name[(uint8_t)'\t'] = false;
@@ -11797,7 +11798,14 @@ static void init_ctables(void)
   char_ok_in_a_name[(uint8_t)'\r'] = false;
   char_ok_in_a_name[(uint8_t)' '] = false;
   char_ok_in_a_name[(uint8_t)'"'] = false;
+  memcpy((void *)char_0, (void *)char_ok_in_a_name, CTABLE_SIZE * sizeof(bool));
   /* what about stuff like vertical tab?  or comma? */
+
+  char_0[(uint8_t)'#'] = false;
+  char_0[(uint8_t)'\''] = false;
+  char_0[(uint8_t)'`'] = false;
+  char_0[(uint8_t)','] = false;
+  char_0[(uint8_t)';'] = false;
 
   white_space[(uint8_t)'\t'] = true;
   white_space[(uint8_t)'\n'] = true;
@@ -12611,7 +12619,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, s7_int radix, bool want_symb
   p = q;
   c = *p++;
 
-  /* a number starts with + - . or digit, but so does 1+ for example (and there's also +nan.0 and +inf.0) */
+  /* a number starts with + - . or digit, but so does 1+ for example (and there's also nan.0 and inf.0) */
 
   switch (c)
     {
@@ -13552,6 +13560,13 @@ static s7_pointer complex_p_ii(s7_scheme *sc, s7_int x, s7_int y)
   if (y == 0)
     return(make_real(sc, (s7_double)x));
   return(c_complex(sc, (s7_double)x, (s7_double)y));
+}
+
+static s7_pointer complex_p_dd(s7_scheme *sc, s7_double x, s7_double y)
+{
+  if (y == 0)
+    return(make_real(sc, x));
+  return(c_complex(sc, x, y));
 }
 
 
@@ -17842,10 +17857,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 				  /* sigh -- both are ratios and the int32_t parts are equal */
 				  (((long_double)(num_a % den_a) / (long_double)den_a) <= ((long_double)(num_b % den_b) / (long_double)den_b)))
 				x = y;
-			    }
-			}
-		    }
-		}
+			    }}}}
 	    }
 	  if (is_t_ratio(x))
 	    goto MAX_RATIOS;
@@ -17928,6 +17940,12 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 static s7_int max_i_ii(s7_int i1, s7_int i2) {return((i1 > i2) ? i1 : i2);}
 static s7_int max_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 > i2) ? ((i1 > i3) ? i1 : i3) : ((i2 > i3) ? i2 : i3));}
 static s7_double max_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 > x2) ? x1 : x2);}
+static s7_double max_d_ddd(s7_double x1, s7_double x2, s7_double x3) 
+{
+  if (is_NaN(x1)) return(x1); 
+  if (is_NaN(x2)) return(x2); 
+  return((x1 > x2) ? ((x1 > x3) ? x1 : x3) : ((x2 > x3) ? x2 : x3));
+}
 
 static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 {
@@ -18037,10 +18055,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 				  ((vala == valb) && (is_t_integer(y))) ||
 				  (((long_double)(num_a % den_a) / (long_double)den_a) >= ((long_double)(num_b % den_b) / (long_double)den_b)))
 				x = y;
-			    }
-			}
-		    }
-		}
+			    }}}}
 	    }
 	  if (is_t_ratio(x))
 	    goto MIN_RATIOS;
@@ -18122,6 +18137,12 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 static s7_int min_i_ii(s7_int i1, s7_int i2) {return((i1 < i2) ? i1 : i2);}
 static s7_int min_i_iii(s7_int i1, s7_int i2, s7_int i3) {return((i1 < i2) ? ((i1 < i3) ? i1 : i3) : ((i2 < i3) ? i2 : i3));}
 static s7_double min_d_dd(s7_double x1, s7_double x2) {if (is_NaN(x1)) return(x1); return((x1 < x2) ? x1 : x2);}
+static s7_double min_d_ddd(s7_double x1, s7_double x2, s7_double x3) 
+{
+  if (is_NaN(x1)) return(x1); 
+  if (is_NaN(x2)) return(x2); 
+  return((x1 < x2) ? ((x1 < x3) ? x1 : x3) : ((x2 < x3) ? x2 : x3));
+}
 
 
 /* ---------------------------------------- = > < >= <= ---------------------------------------- */
@@ -26164,6 +26185,13 @@ static s7_pointer g_with_input_from_string(s7_scheme *sc, s7_pointer args)
   if (!is_string(str))
     return(method_or_bust(sc, str, sc->with_input_from_string_symbol, args, T_STRING, 1));
 
+  if (cadr(args) == slot_value(global_slot(sc->read_symbol)))
+    {
+      if (string_length(str) == 0)
+	return(eof_object);
+      if (char_0[(uint8_t)(string_value(str)[0])])
+	return(make_atom(sc, string_value(str), BASE_10, SYMBOL_OK, WITHOUT_OVERFLOW_ERROR));
+    }
   if (!is_thunk(sc, cadr(args)))
     return(method_or_bust_with_type(sc, cadr(args), sc->with_input_from_string_symbol, args, a_thunk_string, 2));
 
@@ -26175,6 +26203,7 @@ static s7_pointer g_with_input_from_string(s7_scheme *sc, s7_pointer args)
    */
   return(with_input(sc, open_and_protect_input_string(sc, str), args));
 }
+
 
 
 /* -------------------------------- with-input-from-file -------------------------------- */
@@ -30289,10 +30318,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 			    }
 			}
 		      else port_write_character(port)(sc, ')', port);
-		    }
-		}
-	    }
-	}
+		    }}}}
     }
   else
     {
@@ -40561,14 +40587,7 @@ static inline s7_pointer hash_table_add(s7_scheme *sc, s7_pointer table, s7_poin
 
   if ((is_typed_hash_table(table)) &&
       (sc->safety >= 0))
-    {
-      if (c_function_call(hash_table_key_typer(table))(sc, set_plist_1(sc, key)) == sc->F)
-	s7_wrong_type_arg_error(sc, "hash-table-set! key", 2, key,
-				make_type_name(sc, symbol_name(c_function_symbol(hash_table_key_typer(table))), INDEFINITE_ARTICLE));
-      if (c_function_call(hash_table_value_typer(table))(sc, set_plist_1(sc, value)) == sc->F)
-	s7_wrong_type_arg_error(sc, "hash-table-set! value", 3, value,
-				make_type_name(sc, symbol_name(c_function_symbol(hash_table_value_typer(table))), INDEFINITE_ARTICLE));
-    }
+    check_hash_types(sc, table, key, value);
 
   p = mallocate_block(sc);
   hash_entry_key(p) = key;
@@ -48050,28 +48069,19 @@ static char *truncate_string(char *form, s7_int len, use_write_t use_write)
       for (i = len - 5; i >= (len / 2); i--)
 	if (is_white_space((int32_t)f[i]))
 	  {
-	    form[i] = '.';
-	    form[i + 1] = '.';
-	    form[i + 2] = '.';
-	    form[i + 3] = '"';
-	    form[i + 4] = '\0';
+	    form[i] = '.'; form[i + 1] = '.'; form[i + 2] = '.'; form[i + 3] = '"'; form[i + 4] = '\0';
 	    return(form);
 	  }
       i = len - 5;
       if (i > 0)
 	{
-	  form[i] = '.';
-	  form[i + 1] = '.';
-	  form[i + 2] = '.';
-	  form[i + 3] = '"';
-	  form[i + 4] = '\0';
+	  form[i] = '.'; form[i + 1] = '.'; form[i + 2] = '.'; form[i + 3] = '"'; form[i + 4] = '\0';
 	}
       else
 	{
 	  if (len >= 2)
 	    {
-	      form[len - 1] = '"';
-	      form[len] = '\0';
+	      form[len - 1] = '"'; form[len] = '\0';
 	    }
 	}
     }
@@ -48081,19 +48091,13 @@ static char *truncate_string(char *form, s7_int len, use_write_t use_write)
       for (i = len - 4; i >= (len / 2); i--)
 	if (is_white_space((int32_t)f[i]))
 	  {
-	    form[i] = '.';
-	    form[i + 1] = '.';
-	    form[i + 2] = '.';
-	    form[i + 3] = '\0';
+	    form[i] = '.'; form[i + 1] = '.'; form[i + 2] = '.'; form[i + 3] = '\0';
 	    return(form);
 	  }
       i = len - 4;
       if (i >= 0)
 	{
-	  form[i] = '.';
-	  form[i + 1] = '.';
-	  form[i + 2] = '.';
-	  form[i + 3] = '\0';
+	  form[i] = '.'; form[i + 1] = '.'; form[i + 2] = '.'; form[i + 3] = '\0';
 	}
       else form[len] = '\0';
     }
@@ -52521,10 +52525,7 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			  return(true);
 			}
 		      pc_fallback(sc, start);
-		    }
-		}
-	    }
-	}
+		    }}}}
     }
   return(false);
 }
@@ -53703,10 +53704,7 @@ static bool d_vd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			  return(true);
 			}
 		      pc_fallback(sc, start);
-		    }
-		}
-	    }
-	}
+		    }}}}
     }
   return(false);
 }
@@ -68298,11 +68296,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			  annotate_arg(sc, cdr(car_expr), e);
 			  annotate_arg(sc, cdr(expr), e);
 			  return(OPT_T);
-			}
-		    }
-		}
-	    }
-	}
+			}}}}}
     }
   return(OPT_F);
 }
@@ -76369,6 +76363,26 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
   return(fixup_unknown_op(code, f, OP_S_A)); /* closure with methods etc */
 }
 
+static int32_t fixup_closure_star_aa(s7_scheme *sc, s7_pointer f, s7_pointer code)
+{
+  if (!has_methods(f))
+    {
+      set_opt3_arglen(code, small_int(2));
+      if (lambda_has_simple_defaults(closure_body(f)))
+	{
+	  if (closure_star_arity_to_int(sc, f) == 2)
+	    return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_AA : OP_CLOSURE_STAR_FX));
+	  return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_FX_2 : OP_CLOSURE_STAR_FX));
+	}
+      else
+	{
+	  if (is_safe_closure(f))
+	    return(fixup_unknown_op(code, f, OP_SAFE_CLOSURE_STAR_FX_2));
+	}
+    }
+  return(fixup_unknown_op(code, f, OP_S_AA));
+}
+
 static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
 {
   bool s1, s2;
@@ -76488,23 +76502,11 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
       break;
 
     case T_CLOSURE_STAR:
-      if ((!has_methods(f)) &&
-	  (closure_star_arity_to_int(sc, f) != 0) &&
+      if ((closure_star_arity_to_int(sc, f) != 0) &&
 	  (closure_star_arity_to_int(sc, f) != 1))
 	{
 	  annotate_args(sc, cdr(code), sc->envir);
-	  set_opt3_arglen(code, small_int(2));
-	  if (lambda_has_simple_defaults(closure_body(f)))
-	    {
-	      if (closure_star_arity_to_int(sc, f) == 2)
-		return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_AA : OP_CLOSURE_STAR_FX));
-	      return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_FX_2 : OP_CLOSURE_STAR_FX));
-	    }
-	  else
-	    {
-	      if (is_safe_closure(f))
-		return(fixup_unknown_op(code, f, OP_SAFE_CLOSURE_STAR_FX_2));
-	    }
+	  return(fixup_closure_star_aa(sc, f, code));
 	}
       break;
 
@@ -76652,21 +76654,7 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
       break;
 
     case T_CLOSURE_STAR:
-      if (!has_methods(f))
-	{
-	  set_opt3_arglen(code, small_int(2));
-	  if (lambda_has_simple_defaults(closure_body(f)))
-	    {
-	      if (closure_star_arity_to_int(sc, f) == 2)
-		return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_AA : OP_CLOSURE_STAR_FX));
-	      return(fixup_unknown_op(code, f, (is_safe_closure(f)) ? OP_SAFE_CLOSURE_STAR_FX_2 : OP_CLOSURE_STAR_FX));
-	    }
-	  else
-	    {
-	      if (is_safe_closure(f))
-		return(fixup_unknown_op(code, f, OP_SAFE_CLOSURE_STAR_FX_2));
-	    }
-	}
+      return(fixup_closure_star_aa(sc, f, code));
       break;
 
     default:
@@ -89369,6 +89357,7 @@ s7_scheme *s7_init(void)
 
 #if (!WITH_GMP)
   s7_set_p_ii_function(slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
+  s7_set_p_dd_function(slot_value(global_slot(sc->complex_symbol)), complex_p_dd);
   s7_set_p_p_function(slot_value(global_slot(sc->random_symbol)), random_p_p);
 #endif
 
@@ -89453,6 +89442,8 @@ s7_scheme *s7_init(void)
   s7_set_p_pp_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_pp);
   s7_set_d_dd_function(slot_value(global_slot(sc->max_symbol)), max_d_dd);
   s7_set_d_dd_function(slot_value(global_slot(sc->min_symbol)), min_d_dd);
+  s7_set_d_ddd_function(slot_value(global_slot(sc->max_symbol)), max_d_ddd);
+  s7_set_d_ddd_function(slot_value(global_slot(sc->min_symbol)), min_d_ddd);
   s7_set_i_ii_function(slot_value(global_slot(sc->max_symbol)), max_i_ii);
   s7_set_i_ii_function(slot_value(global_slot(sc->min_symbol)), min_i_ii);
   s7_set_i_iii_function(slot_value(global_slot(sc->max_symbol)), max_i_iii);
@@ -89822,10 +89813,6 @@ s7_scheme *s7_init(void)
                           (define current-environment        curlet)          \n\
                           (define make-keyword               string->keyword))");
   /* make-keyword is used in CM's scm/s7.scm */
-#if (!WITH_PURE_S7)
-  s7_eval_c_string(sc, "(define-macro (defmacro name args . body) (cons 'define-macro (cons (cons name args) body)))");
-  s7_eval_c_string(sc, "(define-macro (defmacro* name args . body) (cons 'define-macro* (cons (cons name args) body)))");
-#endif
 #endif
 
 #if S7_DEBUGGING
@@ -89834,7 +89821,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
   if ((OP_MAX_DEFINED != 795) || (OPT_MAX_DEFINED != 404))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
-  /* 64 bit machine: cell size: 48 [size 80 if gmp, 104 if debugging], block size: 40, max op: 795, opt: 404, 48 if 32 (let_id/typeflag etc is 64 bit) */
+  /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
 
   save_unlet(sc);
@@ -89909,19 +89896,19 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1022
  * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1298
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1539
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1760
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1757
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2121
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2322
- * tread         |      |      |      |      | 2357 | 2336 | 2337
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2363
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2321
+ * tread         |      |      |      |      | 2357 | 2336 | 2335
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2355
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2493
- * tlet          |      |      |      |      | 4717 | 2959 | 2958
+ * tlet          |      |      |      |      | 4717 | 2959 | 2959
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3015
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3085
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3084
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3327
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3586
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3587
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5310
- * dup           |      |      |      |      | 20.8 | 5711 | 5716
+ * dup           |      |      |      |      | 20.8 | 5711 | 5566
  * tset          |      |      |      |      | 10.0 | 6432 | 6433
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.2
@@ -89929,7 +89916,7 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38,5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |112.7
- * tbig          |      |      |      |      |246.9 |230.6 |230.6
+ * tbig          |      |      |      |      |246.9 |230.6 |224.1
  * -----------------------------------------------------------------------
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body

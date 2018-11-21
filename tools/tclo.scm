@@ -34,7 +34,15 @@
 (define* (f11 . a)
   (apply list a))
 
+(define* (tfib n (a 1) (b 1))
+  (if (= n 0)
+      a
+      (if (= n 1)
+	  b
+	  (tfib (- n 1) b (+ a b)))))
+
 (define (d1)
+  (tfib 35)
   (let ((x 1) (y 2))
     (do ((i 0 (+ i 1)))
 	((= i 200000))

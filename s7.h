@@ -837,11 +837,6 @@ typedef s7_double s7_Double;
 #define s7_object_value               s7_c_object_value
 #define s7_make_object                s7_make_c_object
 #define s7_mark_object                s7_mark
-#define s7_procedure_setter           s7_setter
-#define s7_symbol_documentation       s7_documentation
-#define s7_symbol_set_documentation   s7_set_documentation
-#define s7_symbol_setter              s7_setter
-#define s7_symbol_set_setter          s7_set_setter
 #define s7_UNSPECIFIED(Sc)            s7_unspecified(Sc)
 #define s7_NIL(Sc)                    s7_nil(Sc)
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
