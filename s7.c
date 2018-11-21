@@ -1069,8 +1069,9 @@ struct s7_scheme {
 
 #if WITH_HISTORY
   s7_pointer eval_history1, eval_history2, error_history;
-  bool using_history1, history_enabled;
+  bool using_history1;
 #endif
+  bool history_enabled;
 
 #if WITH_MULTITHREAD_CHECKS
   int32_t lock_count;
