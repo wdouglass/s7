@@ -1306,7 +1306,7 @@ struct s7_scheme {
            char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, 
            string_greater_2, string_less_2, symbol_to_string_uncopied, vector_ref_ic, vector_ref_ic_0, vector_ref_ic_1,
            vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_set_ic, vector_set_3, fv_ref,
-           fv_ref_3, fv_set, fv_set_unchecked, iv_ref, iv_set, bv_ref, bv_set, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
+           fv_ref_3, fv_set, fv_set_unchecked, iv_ref, iv_ref_0, iv_set, bv_ref, bv_set, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
            hash_table_ref_car, format_allg, format_allg_no_column, format_just_control_string, format_as_objstr,
            not_is_pair_s, not_is_null_s, not_is_symbol_s, not_is_number_s, not_is_eq_ss, not_is_eq_sq, not_is_pair_car_s,
            not_c_c, is_pair_car_s, is_pair_cdr_s, is_pair_cddr_s, is_pair_cadr_s, is_null_cdr, is_null_cddr_s,
@@ -6872,7 +6872,7 @@ static s7_pointer string_to_symbol_p_p(s7_scheme *sc, s7_pointer p)
 }
 
 /* -------------------------------- symbol -------------------------------- */
-static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args);
+static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer caller);
 
 static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
 {
@@ -6893,7 +6893,7 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
     {
       if (is_null(cdr(args)))
 	return(g_string_to_symbol_1(sc, car(args), sc->symbol_symbol));
-      return(g_string_to_symbol_1(sc, g_string_append(sc, args), sc->symbol_symbol));
+      return(g_string_to_symbol_1(sc, g_string_append_1(sc, args, sc->symbol_symbol), sc->symbol_symbol));
     }
   if (len == 0)
     return(simple_wrong_type_argument_with_type(sc, sc->symbol_symbol, car(args), wrap_string(sc, "a non-null string", 17)));
@@ -17729,7 +17729,6 @@ static bool is_real_via_method_1(s7_scheme *sc, s7_pointer p)
 
 #define is_real_via_method(sc, p) ((s7_is_real(p)) || ((has_methods(p)) && (is_real_via_method_1(sc, p))))
 
-
 static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 {
   #define H_max "(max ...) returns the maximum of its arguments"
@@ -22255,7 +22254,7 @@ static s7_pointer string_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, 
 
 
 /* -------------------------------- string-append -------------------------------- */
-static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   #define H_string_append "(string-append str1 ...) appends all its string arguments into one string"
   #define Q_string_append sc->pcl_s
@@ -22278,7 +22277,7 @@ static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
 	  if (has_methods(p))
 	    {
 	      s7_pointer func;
-	      func = find_method(sc, find_let(sc, p), sc->string_append_symbol);
+	      func = find_method(sc, find_let(sc, p), caller);
 	      if (func != sc->undefined)
 		{
 		  s7_pointer y;
@@ -22290,7 +22289,7 @@ static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
 		  return(s7_apply_function(sc, func, cons(sc, newstr, x)));
 		}
 	    }
-	  return(wrong_type_argument(sc, sc->string_append_symbol, position_of(x, args), p, T_STRING));
+	  return(wrong_type_argument(sc, caller, position_of(x, args), p, T_STRING));
 	}
       len += string_length(p);
     }
@@ -22299,7 +22298,8 @@ static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
 
   if (len > sc->max_string_length)
     return(s7_error(sc, sc->out_of_range_symbol,
-		    set_elist_3(sc, wrap_string(sc, "string-append new string length, ~D, is larger than (*s7* 'max-string-length): ~D", 81),
+		    set_elist_4(sc, wrap_string(sc, "~S new string length, ~D, is larger than (*s7* 'max-string-length): ~D", 70),
+				caller,
 				wrap_integer1(sc, len),
 				wrap_integer2(sc, sc->max_string_length))));
 
@@ -22310,6 +22310,11 @@ static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
       memcpy(pos, string_value(car(x)), string_length(car(x)));
 
   return(newstr);
+}
+
+static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
+{
+  return(g_string_append_1(sc, args, sc->string_append_symbol));
 }
 
 
@@ -22950,7 +22955,7 @@ static s7_pointer g_string_1(s7_scheme *sc, s7_pointer args, s7_pointer sym)
 		  str = string_value(newstr);
 		  for (i = 0, y = args; y != x; i++, y = cdr(y))
 		    str[i] = character(car(y));
-		  return(g_string_append(sc, set_plist_2(sc, newstr, s7_apply_function(sc, func, x))));
+		  return(g_string_append_1(sc, set_plist_2(sc, newstr, s7_apply_function(sc, func, x)), sym));
 		}
 	    }
 	  return(wrong_type_argument(sc, sym, len + 1, car(x), T_CHARACTER));
@@ -36152,7 +36157,7 @@ s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size)
 
 
 #if (!WITH_PURE_S7)
-static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ);
+static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_pointer caller);
 
 static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
 {
@@ -36198,7 +36203,7 @@ static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
 	  return(wrong_type_argument(sc, sc->vector_append_symbol, i + 1, x, T_VECTOR));
 	}
     }
-  return(vector_append(sc, args, type(car(args))));
+  return(vector_append(sc, args, type(car(args)), sc->vector_append_symbol));
 }
 
 static s7_pointer vector_append_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
@@ -38062,10 +38067,27 @@ static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
   return(make_integer(sc, int_vector(v, ind)));
 }
 
+static s7_pointer g_iv_ref_0(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer v;
+  v = car(args);
+  if (!is_int_vector(v))
+    return(method_or_bust(sc, v, sc->int_vector_ref_symbol, args, T_INT_VECTOR, 1));
+  if (vector_rank(v) != 1)
+    return(univect_ref(sc, args, sc->int_vector_ref_symbol, T_INT_VECTOR));
+  if (vector_length(v) == 0)
+    return(simple_out_of_range(sc, sc->int_vector_ref_symbol, small_int(0), its_too_large_string));
+  return(make_integer(sc, int_vector(v, 0)));
+}
+
 static s7_pointer int_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
-    return(sc->iv_ref);
+    {
+      if ((is_t_integer(caddr(expr))) && (s7_integer(caddr(expr)) == 0))
+	return(sc->iv_ref_0);
+      return(sc->iv_ref);
+    }
   return(f);
 }
 
@@ -45236,7 +45258,7 @@ static s7_int total_sequence_length(s7_scheme *sc, s7_pointer args, s7_pointer c
   return(len);
 }
 
-static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
+static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_pointer caller)
 {
   s7_pointer new_vec;
   s7_pointer *v_elements = NULL;
@@ -45245,7 +45267,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ)
   uint8_t *byte_elements = NULL;
   s7_int len;
 
-  len = total_sequence_length(sc, args, sc->vector_append_symbol, (typ == T_VECTOR) ? T_FREE : ((typ == T_FLOAT_VECTOR) ? T_REAL : T_INTEGER));
+  len = total_sequence_length(sc, args, caller, (typ == T_VECTOR) ? T_FREE : ((typ == T_FLOAT_VECTOR) ? T_REAL : T_INTEGER));
   new_vec = make_vector_1(sc, len, (typ == T_VECTOR) ? FILLED : NOT_FILLED, typ);  /* might hit GC in loop below so we can't use NOT_FILLED here */
   add_vector(sc, new_vec);
   if (typ == T_VECTOR)
@@ -45402,7 +45424,7 @@ static s7_pointer g_append(s7_scheme *sc, s7_pointer args)
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
     case T_BYTE_VECTOR:
-      return(vector_append(sc, args, type(a1)));
+      return(vector_append(sc, args, type(a1), sc->append_symbol));
 
     case T_STRING:
       return(string_append(sc, args));
@@ -51383,16 +51405,22 @@ static opt_info *oo_set_type_0_1(opt_info *p, int size, const char *func, int li
   return(p);
 }
 
+#if S7_DEBUGGING
+static void check_oo_type(int typ, int slot, int num, const char *func, int line)
+{
+  if ((typ < 0) || (typ > OO_TV)) fprintf(stderr, "%s[%d]: type%d: %d\n", func, line, typ, num);
+  if ((typ == OO_V) && ((slot >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr%d?\n", func, line, num);
+}
+#else
+#define check_oo_type(A, B, C, D, E)
+#endif
+
 /* slot value types stored from type_offset: type1 + (type2 << 4) | type3 + (type4 << 4) (leftmost=low index) */
 
 #define oo_set_type_1(P, Size, Slot1, Type1) oo_set_type_1_1(P, Size, Slot1, Type1, __func__, __LINE__)
 static opt_info *oo_set_type_1_1(opt_info *p, int size, int slot1, int type1, const char *func, int line)
 {
-#if S7_DEBUGGING
-  if ((type1 < 0) || (type1 > OO_TV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
-  if ((type1 == OO_V) && ((slot1 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr1?\n", func, line);
-  /* fprintf(stderr, "%s[%d]: type_1 (%d %s)\n",func, line,  slot1, oo_types[type1]); */
-#endif
+  check_oo_type(type1, slot1, 1, func, line);
   p->typ.vtype = 0;
   oo_slots(p) = 1;
   oo_size(p) = size;
@@ -51409,13 +51437,8 @@ static opt_info *oo_set_type_1_1(opt_info *p, int size, int slot1, int type1, co
 #define oo_set_type_2(P, Size, Slot1, Slot2, Type1, Type2) oo_set_type_2_1(P, Size, Slot1, Slot2, Type1, Type2, __func__, __LINE__)
 static opt_info *oo_set_type_2_1(opt_info *p, int size, int slot1, int slot2, int type1, int type2, const char *func, int line)
 {
-#if S7_DEBUGGING
-  if ((type1 < 0) || (type1 > OO_TV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
-  if ((type1 == OO_V) && ((slot1 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr1?\n", func, line);
-  if ((type2 < 0) || (type2 > OO_TV)) fprintf(stderr, "%s[%d]: type2: %d\n", func, line, type2);
-  if ((type2 == OO_V) && ((slot2 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr2?\n", func, line);
-  /* fprintf(stderr, "%s[%d]: type_2 (%d %s) (%d %s)\n",func, line,  slot1, oo_types[type1], slot2, oo_types[type2]); */
-#endif
+  check_oo_type(type1, slot1, 1, func, line);
+  check_oo_type(type2, slot2, 2, func, line);
   p->typ.vtype = 0;
   oo_slots(p) = 2;
   oo_size(p) = size;
@@ -51434,15 +51457,9 @@ static opt_info *oo_set_type_2_1(opt_info *p, int size, int slot1, int slot2, in
 #define oo_set_type_3(P, Size, Slot1, Slot2, Slot3, Type1, Type2, Type3) oo_set_type_3_1(P, Size, Slot1, Slot2, Slot3, Type1, Type2, Type3, __func__, __LINE__)
 static opt_info *oo_set_type_3_1(opt_info *p, int size, int slot1, int slot2, int slot3, int type1, int type2, int type3, const char *func, int line)
 {
-#if S7_DEBUGGING
-  if ((type1 < 0) || (type1 > OO_TV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
-  if ((type1 == OO_V) && ((slot1 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr1?\n", func, line);
-  if ((type2 < 0) || (type2 > OO_TV)) fprintf(stderr, "%s[%d]: type2: %d\n", func, line, type2);
-  if ((type2 == OO_V) && ((slot2 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr2?\n", func, line);
-  if ((type3 < 0) || (type3 > OO_TV)) fprintf(stderr, "%s[%d]: type3: %d\n", func, line, type3);
-  if ((type3 == OO_V) && ((slot3 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr3?\n", func, line);
-  /* fprintf(stderr, "%s[%d]: type_3 (%d %s) (%d %s) (%d %s)\n", func, line, slot1, oo_types[type1], slot2, oo_types[type2], slot3, oo_types[type3]); */
-#endif
+  check_oo_type(type1, slot1, 1, func, line);
+  check_oo_type(type2, slot2, 2, func, line);
+  check_oo_type(type3, slot3, 3, func, line);
   p->typ.vtype = 0;
   oo_slots(p) = 3;
   oo_size(p) = size;
@@ -51465,19 +51482,10 @@ static opt_info *oo_set_type_3_1(opt_info *p, int size, int slot1, int slot2, in
   oo_set_type_4_1(P, Size, Slot1, Slot2, Slot3, Slot4, Type1, Type2, Type3, Type4, __func__, __LINE__)
 static opt_info *oo_set_type_4_1(opt_info *p, int size, int slot1, int slot2, int slot3, int slot4, int type1, int type2, int type3, int type4, const char *func, int line)
 {
-#if S7_DEBUGGING
-  if ((type1 < 0) || (type1 > OO_TV)) fprintf(stderr, "%s[%d]: type1: %d\n", func, line, type1);
-  if ((type1 == OO_V) && ((slot1 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr1?\n", func, line);
-  if ((type2 < 0) || (type2 > OO_TV)) fprintf(stderr, "%s[%d]: type2: %d\n", func, line, type2);
-  if ((type2 == OO_V) && ((slot2 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr2?\n", func, line);
-  if ((type3 < 0) || (type3 > OO_TV)) fprintf(stderr, "%s[%d]: type3: %d\n", func, line, type3);
-  if ((type3 == OO_V) && ((slot3 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr3?\n", func, line);
-  if ((type4 < 0) || (type4 > OO_TV)) fprintf(stderr, "%s[%d]: type4: %d\n", func, line, type4);
-  if ((type4 == OO_V) && ((slot4 >> 4) == 0)) fprintf(stderr, "%s[%d]: missing obj addr4?\n", func, line);
-  /* fprintf(stderr, "%s[%d]: type_4 (%d %s) (%d %s) (%d %s) (%d %s)\n", func, line, slot1,
-     oo_types[type1], slot2, oo_types[type2], slot3, oo_types[type3], slot4, oo_types[type4]);
-  */
-#endif
+  check_oo_type(type1, slot1, 1, func, line);
+  check_oo_type(type2, slot2, 2, func, line);
+  check_oo_type(type3, slot3, 3, func, line);
+  check_oo_type(type4, slot4, 4, func, line);
   p->typ.vtype = 0;
   oo_slots(p) = 4;
   oo_size(p) = size;
@@ -65201,6 +65209,7 @@ static void init_choosers(s7_scheme *sc)
   /* int-vector-ref */
   f = set_function_chooser(sc, sc->int_vector_ref_symbol, int_vector_ref_chooser);
   sc->iv_ref = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref, 2, 0, false, "int-vector-ref opt");
+  sc->iv_ref_0 = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref_0, 2, 0, false, "int-vector-ref opt");
 
   /* int-vector-set */
   f = set_function_chooser(sc, sc->int_vector_set_symbol, int_vector_set_chooser);
@@ -82961,7 +82970,6 @@ static void mpc_init_set(mpc_ptr z, mpc_ptr y, mpc_rnd_t rnd)
   mpc_set(z, y, rnd);
 }
 
-
 mpfr_t *s7_big_real(s7_pointer x)    {return(&big_real(x));}
 mpz_t  *s7_big_integer(s7_pointer x) {return(&big_integer(x));}
 mpq_t  *s7_big_ratio(s7_pointer x)   {return(&big_ratio(x));}
@@ -83019,7 +83027,6 @@ static char *mpfr_to_string(mpfr_t val, int32_t radix)
   return(tmp);
 }
 
-
 static char *mpc_to_string(mpc_t val, int32_t radix, use_write_t use_write)
 {
   char *rl, *im, *tmp;
@@ -83044,7 +83051,6 @@ static char *mpc_to_string(mpc_t val, int32_t radix, use_write_t use_write)
   free(im);
   return(tmp);
 }
-
 
 static char *big_number_to_string_with_radix(s7_pointer p, s7_int radix, s7_int width, s7_int *nlen, use_write_t use_write)
 {
@@ -83078,7 +83084,6 @@ static char *big_number_to_string_with_radix(s7_pointer p, s7_int radix, s7_int 
   return(str);
 }
 
-
 static bool s7_is_one_or_big_one(s7_pointer p)
 {
   bool result = false;
@@ -83106,7 +83111,6 @@ static bool s7_is_one_or_big_one(s7_pointer p)
   return(result);
 }
 
-
 static s7_pointer string_to_big_integer(s7_scheme *sc, const char *str, int32_t radix)
 {
   s7_pointer x;
@@ -83116,7 +83120,6 @@ static s7_pointer string_to_big_integer(s7_scheme *sc, const char *str, int32_t 
   mpz_init_set_str(big_integer(x), (str[0] == '+') ? (const char *)(str + 1) : str, radix);
   return(x);
 }
-
 
 static s7_pointer mpz_to_big_integer(s7_scheme *sc, mpz_t val)
 {
@@ -83128,12 +83131,10 @@ static s7_pointer mpz_to_big_integer(s7_scheme *sc, mpz_t val)
   return(x);
 }
 
-
 s7_pointer s7_make_big_integer(s7_scheme *sc, mpz_t *val)
 {
   return(mpz_to_big_integer(sc, *val));
 }
-
 
 static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t radix)
 {
@@ -83158,7 +83159,6 @@ static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t ra
   return(x);
 }
 
-
 static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
 {
   s7_pointer x;
@@ -83171,12 +83171,10 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
   return(x);
 }
 
-
 s7_pointer s7_make_big_ratio(s7_scheme *sc, mpq_t *val)
 {
   return(mpq_to_big_ratio(sc, *val));
 }
-
 
 static s7_pointer mpz_to_big_ratio(s7_scheme *sc, mpz_t val)
 {
@@ -83189,14 +83187,12 @@ static s7_pointer mpz_to_big_ratio(s7_scheme *sc, mpz_t val)
   return(x);
 }
 
-
 static s7_pointer make_big_integer_or_ratio(s7_scheme *sc, s7_pointer z)
 {
   if (mpz_cmp_ui(mpq_denref(big_ratio(z)), 1) == 0)
     return(mpz_to_big_integer(sc, mpq_numref(big_ratio(z))));
   return(z);
 }
-
 
 static s7_pointer string_to_big_real(s7_scheme *sc, const char *str, int32_t radix)
 {
@@ -83256,7 +83252,6 @@ static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
   return(x);
 }
 
-
 static s7_pointer mpz_to_big_real(s7_scheme *sc, mpz_t val)
 {
   s7_pointer x;
@@ -83267,7 +83262,6 @@ static s7_pointer mpz_to_big_real(s7_scheme *sc, mpz_t val)
   return(x);
 }
 
-
 static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val)
 {
   s7_pointer x;
@@ -83277,7 +83271,6 @@ static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val)
   mpfr_init_set_q(big_real(x), val, GMP_RNDN);
   return(x);
 }
-
 
 static s7_pointer mpfr_to_big_real(s7_scheme *sc, mpfr_t val)
 {
@@ -83290,12 +83283,10 @@ static s7_pointer mpfr_to_big_real(s7_scheme *sc, mpfr_t val)
   return(x);
 }
 
-
 s7_pointer s7_make_big_real(s7_scheme *sc, mpfr_t *val)
 {
   return(mpfr_to_big_real(sc, *val));
 }
-
 
 static s7_pointer big_pi(s7_scheme *sc)
 {
@@ -83307,7 +83298,6 @@ static s7_pointer big_pi(s7_scheme *sc)
   mpfr_const_pi(big_real(x), GMP_RNDN);
   return(x);
 }
-
 
 static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
 {
@@ -83360,7 +83350,6 @@ static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
   return(x);
 }
 
-
 static s7_pointer make_big_real_or_complex(s7_scheme *sc, s7_pointer z)
 {
   double ipart;
@@ -83371,7 +83360,6 @@ static s7_pointer make_big_real_or_complex(s7_scheme *sc, s7_pointer z)
     return(mpfr_to_big_real(sc, mpc_realref(big_complex(z))));
   return(z);
 }
-
 
 static s7_pointer mpz_to_big_complex(s7_scheme *sc, mpz_t val)
 {
@@ -83388,7 +83376,6 @@ static s7_pointer mpz_to_big_complex(s7_scheme *sc, mpz_t val)
   return(x);
 }
 
-
 static s7_pointer mpq_to_big_complex(s7_scheme *sc, mpq_t val)
 {
   mpfr_t temp;
@@ -83404,7 +83391,6 @@ static s7_pointer mpq_to_big_complex(s7_scheme *sc, mpq_t val)
   return(x);
 }
 
-
 static s7_pointer mpfr_to_big_complex(s7_scheme *sc, mpfr_t val)
 {
   s7_pointer x;
@@ -83415,7 +83401,6 @@ static s7_pointer mpfr_to_big_complex(s7_scheme *sc, mpfr_t val)
   mpc_set_fr(big_complex(x), val, MPC_RNDNN);
   return(x);
 }
-
 
 static s7_pointer mpc_to_big_complex(s7_scheme *sc, mpc_t val)
 {
@@ -83428,12 +83413,10 @@ static s7_pointer mpc_to_big_complex(s7_scheme *sc, mpc_t val)
   return(x);
 }
 
-
 s7_pointer s7_make_big_complex(s7_scheme *sc, mpc_t *val)
 {
   return(mpc_to_big_complex(sc, *val));
 }
-
 
 static s7_pointer make_big_complex(s7_scheme *sc, mpfr_t rl, mpfr_t im)
 {
@@ -83449,7 +83432,6 @@ static s7_pointer make_big_complex(s7_scheme *sc, mpfr_t rl, mpfr_t im)
   mpc_set_fr_fr(big_complex(x), rl ,im, MPC_RNDNN);
   return(x);
 }
-
 
 /* gmp.h mpz_init_set_si the "si" part is "signed long int", so in 64-bit machines, s7_int already fits (if it's int64_t).
  *   I guess we can catch the 4-byte long int32_t (since no configure script) by noticing that sizeof(s7_int) == sizeof(long int)?
@@ -83480,7 +83462,6 @@ static void mpz_init_set_s7_int(mpz_t n, s7_int uval)
     }
 }
 
-
 static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val)
 {
   s7_pointer x;
@@ -83490,7 +83471,6 @@ static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val)
   mpz_init_set_s7_int(big_integer(x), val);
   return(x);
 }
-
 
 static s7_int big_integer_to_s7_int(mpz_t n)
 {
@@ -83523,7 +83503,6 @@ static s7_int big_integer_to_s7_int(mpz_t n)
   return(low + (high << 32));
 }
 
-
 static mpq_t *s7_ints_to_mpq(s7_int num, s7_int den)
 {
   /* den here always comes from denominator(x) so it is not negative */
@@ -83555,7 +83534,6 @@ static mpfr_t *s7_double_to_mpfr(s7_double val)
   return(n);
 }
 
-
 static mpc_t *s7_doubles_to_mpc(s7_double rl, s7_double im)
 {
   mpc_t *n;
@@ -83564,7 +83542,6 @@ static mpc_t *s7_doubles_to_mpc(s7_double rl, s7_double im)
   mpc_set_d_d(*n, rl, im, MPC_RNDNN);
   return(n);
 }
-
 
 static s7_pointer s7_ratio_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den)
 {
@@ -83588,7 +83565,6 @@ static s7_pointer s7_ratio_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den)
     }
   return(x);
 }
-
 
 static bool big_numbers_are_eqv(s7_pointer a, s7_pointer b)
 {
@@ -85035,8 +85011,6 @@ static s7_pointer big_sqrt(s7_scheme *sc, s7_pointer args)
   }
 }
 
-/* (define (diff f a) (magnitude (- (f a) (f (bignum (number->string a)))))) */
-
 enum {TRIG_NO_CHECK, TRIG_TAN_CHECK, TRIG_TANH_CHECK};
 
 static s7_pointer big_trig(s7_scheme *sc, s7_pointer args,
@@ -85434,7 +85408,6 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_asinh(s7_scheme *sc, s7_pointer args)
 {
   #define H_asinh "(asinh z) returns asinh(z)"
@@ -85456,7 +85429,6 @@ static s7_pointer big_asinh(s7_scheme *sc, s7_pointer args)
       mpfr_clear(n);
       return(p);
     }
-
   {
     mpc_t n;
     p = promote_number(sc, T_BIG_COMPLEX, p);
@@ -85468,7 +85440,6 @@ static s7_pointer big_asinh(s7_scheme *sc, s7_pointer args)
     return(p);
   }
 }
-
 
 static s7_pointer big_acosh(s7_scheme *sc, s7_pointer args)
 {
@@ -85495,7 +85466,6 @@ static s7_pointer big_acosh(s7_scheme *sc, s7_pointer args)
   mpc_clear(n);
   return(p);
 }
-
 
 static s7_pointer big_atanh(s7_scheme *sc, s7_pointer args)
 {
@@ -85538,7 +85508,6 @@ static s7_pointer big_atanh(s7_scheme *sc, s7_pointer args)
     return(p);
   }
 }
-
 
 static s7_pointer big_atan(s7_scheme *sc, s7_pointer args)
 {
@@ -85587,7 +85556,6 @@ static s7_pointer big_atan(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_acos(s7_scheme *sc, s7_pointer args)
 {
   #define H_acos "(acos z) returns acos(z); (cos (acos 1)) = 1"
@@ -85629,7 +85597,6 @@ static s7_pointer big_acos(s7_scheme *sc, s7_pointer args)
     return(p);
   }
 }
-
 
 static s7_pointer big_asin(s7_scheme *sc, s7_pointer args)
 {
@@ -85673,7 +85640,6 @@ static s7_pointer big_asin(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_lognot(s7_scheme *sc, s7_pointer args)
 {
   if (is_t_big_integer(car(args)))
@@ -85688,7 +85654,6 @@ static s7_pointer big_lognot(s7_scheme *sc, s7_pointer args)
     }
   return(g_lognot(sc, args));
 }
-
 
 #if (!WITH_PURE_S7)
 static s7_pointer big_integer_length(s7_scheme *sc, s7_pointer args)
@@ -85709,7 +85674,6 @@ static s7_pointer big_integer_length(s7_scheme *sc, s7_pointer args)
   return(g_integer_length(sc, args));
 }
 #endif
-
 
 static s7_pointer big_ash(s7_scheme *sc, s7_pointer args)
 {
@@ -85787,7 +85751,6 @@ static s7_pointer big_ash(s7_scheme *sc, s7_pointer args)
   return(g_ash(sc, args));
 }
 
-
 static bool is_integer_via_method(s7_scheme *sc, s7_pointer p)
 {
   if (s7_is_integer(p))
@@ -85847,14 +85810,12 @@ static s7_pointer big_bits(s7_scheme *sc, s7_pointer args, s7_pointer sym, int32
   return(g_bits(sc, args));
 }
 
-
 static s7_pointer big_logand(s7_scheme *sc, s7_pointer args)
 {
   if (is_null(args))
     return(minus_one);
   return(big_bits(sc, args, sc->logand_symbol, -1, g_logand, mpz_and));
 }
-
 
 static s7_pointer big_logior(s7_scheme *sc, s7_pointer args)
 {
@@ -85863,14 +85824,12 @@ static s7_pointer big_logior(s7_scheme *sc, s7_pointer args)
   return(big_bits(sc, args, sc->logior_symbol, 0, g_logior, mpz_ior));
 }
 
-
 static s7_pointer big_logxor(s7_scheme *sc, s7_pointer args)
 {
   if (is_null(args))
     return(small_int(0));
   return(big_bits(sc, args, sc->logxor_symbol, 0, g_logxor, mpz_xor));
 }
-
 
 static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
 {
@@ -86136,7 +86095,6 @@ static s7_pointer big_exact_to_inexact(s7_scheme *sc, s7_pointer args)
   return(promote_number(sc, T_BIG_REAL, to_big(sc, p)));
 }
 
-
 static s7_pointer big_inexact_to_exact(s7_scheme *sc, s7_pointer args)
 {
   #define H_inexact_to_exact "(inexact->exact num) converts num to an exact number; (inexact->exact 1.5) = 3/2"
@@ -86193,7 +86151,6 @@ static s7_pointer big_convert_to_int(s7_scheme *sc, s7_pointer args, s7_pointer 
   return(p);
 }
 
-
 static s7_pointer big_floor(s7_scheme *sc, s7_pointer args)
 {
   #define H_floor "(floor x) returns the integer closest to x toward -inf"
@@ -86201,7 +86158,6 @@ static s7_pointer big_floor(s7_scheme *sc, s7_pointer args)
 
   return(big_convert_to_int(sc, args, sc->floor_symbol, mpz_fdiv_q, GMP_RNDD));
 }
-
 
 static s7_pointer big_ceiling(s7_scheme *sc, s7_pointer args)
 {
@@ -86211,7 +86167,6 @@ static s7_pointer big_ceiling(s7_scheme *sc, s7_pointer args)
   return(big_convert_to_int(sc, args, sc->ceiling_symbol, mpz_cdiv_q, GMP_RNDU));
 }
 
-
 static s7_pointer big_truncate(s7_scheme *sc, s7_pointer args)
 {
   #define H_truncate "(truncate x) returns the integer closest to x toward 0"
@@ -86219,7 +86174,6 @@ static s7_pointer big_truncate(s7_scheme *sc, s7_pointer args)
 
   return(big_convert_to_int(sc, args, sc->truncate_symbol, mpz_tdiv_q, GMP_RNDZ));
 }
-
 
 static s7_pointer big_round(s7_scheme *sc, s7_pointer args)
 {
@@ -86309,7 +86263,6 @@ static s7_pointer big_round(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_quotient(s7_scheme *sc, s7_pointer args)
 {
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
@@ -86344,7 +86297,6 @@ static s7_pointer big_quotient(s7_scheme *sc, s7_pointer args)
     }
   return(big_truncate(sc, set_plist_1(sc, big_divide(sc, args))));
 }
-
 
 static s7_pointer big_remainder(s7_scheme *sc, s7_pointer args)
 {
@@ -86384,7 +86336,6 @@ static s7_pointer big_remainder(s7_scheme *sc, s7_pointer args)
             set_plist_2(sc, y,
              big_quotient(sc, args))))));
 }
-
 
 static s7_pointer big_modulo(s7_scheme *sc, s7_pointer args)
 {
@@ -86441,7 +86392,6 @@ static s7_pointer big_modulo(s7_scheme *sc, s7_pointer args)
                big_divide(sc,
 	        set_plist_2(sc, a, b)))))))));
 }
-
 
 static int32_t big_real_scan_args(s7_scheme *sc, s7_pointer args)
 {
@@ -86505,7 +86455,6 @@ static s7_pointer big_max(s7_scheme *sc, s7_pointer args)
   return(result);
 }
 
-
 static s7_pointer big_min(s7_scheme *sc, s7_pointer args)
 {
   int32_t result_type;
@@ -86541,7 +86490,6 @@ static s7_pointer big_min(s7_scheme *sc, s7_pointer args)
     return(bigrat_to_bigint(sc, result));
   return(result);
 }
-
 
 static s7_pointer big_less(s7_scheme *sc, s7_pointer args)
 {
@@ -86581,7 +86529,6 @@ static s7_pointer big_less(s7_scheme *sc, s7_pointer args)
   return(sc->T);
 }
 
-
 static s7_pointer big_less_or_equal(s7_scheme *sc, s7_pointer args)
 {
   #define H_less_or_equal "(<= x1 ...) returns #t if its arguments are in increasing order"
@@ -86619,7 +86566,6 @@ static s7_pointer big_less_or_equal(s7_scheme *sc, s7_pointer args)
   return(sc->T);
 }
 
-
 static s7_pointer big_greater(s7_scheme *sc, s7_pointer args)
 {
   #define H_greater "(> x1 ...) returns #t if its arguments are in decreasing order"
@@ -86656,7 +86602,6 @@ static s7_pointer big_greater(s7_scheme *sc, s7_pointer args)
   return(sc->T);
 }
 
-
 static s7_pointer big_greater_or_equal(s7_scheme *sc, s7_pointer args)
 {
   #define H_greater_or_equal "(>= x1 ...) returns #t if its arguments are in decreasing order"
@@ -86691,7 +86636,6 @@ static s7_pointer big_greater_or_equal(s7_scheme *sc, s7_pointer args)
     }
   return(sc->T);
 }
-
 
 static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
 {
@@ -86758,7 +86702,6 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
     }
   return(sc->T);
 }
-
 
 static s7_pointer bigrat(s7_scheme *sc, mpz_t n, mpz_t d)
 {
@@ -86860,7 +86803,6 @@ static s7_pointer big_gcd(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer big_lcm(s7_scheme *sc, s7_pointer args)
 {
   #define H_lcm "(lcm ...) returns the least common multiple of its rational arguments"
@@ -86952,7 +86894,6 @@ static s7_pointer big_lcm(s7_scheme *sc, s7_pointer args)
   }
 }
 
-
 static s7_pointer set_bignum_precision(s7_scheme *sc, int32_t precision)
 {
   mp_prec_t bits;
@@ -86965,7 +86906,6 @@ static s7_pointer set_bignum_precision(s7_scheme *sc, int32_t precision)
   s7_symbol_set_value(sc, sc->pi_symbol, big_pi(sc));
   return(sc->F);
 }
-
 
 static s7_pointer big_random_state(s7_scheme *sc, s7_pointer args)
 {
@@ -86987,7 +86927,6 @@ Pass this as the second argument to 'random' to get a repeatable random number s
   gmp_randseed(random_gmp_state(r), big_integer(seed));
   return(r);
 }
-
 
 static s7_pointer big_random(s7_scheme *sc, s7_pointer args)
 {
@@ -89910,12 +89849,12 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  236 |  236
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1022
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1298
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1297
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1539
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1757
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1737
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2121
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2321
- * tread         |      |      |      |      | 2357 | 2336 | 2335
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2312
+ * tread         |      |      |      |      | 2357 | 2336 | 2334
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2355
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2493
  * tlet          |      |      |      |      | 4717 | 2959 | 2959
@@ -89924,11 +89863,11 @@ int main(int argc, char **argv)
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3327
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3587
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5310
- * dup           |      |      |      |      | 20.8 | 5711 | 5566
+ * dup           |      |      |      |      | 20.8 | 5711 | 5569
  * tset          |      |      |      |      | 10.0 | 6432 | 6433
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.2
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17,1
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38,5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |112.7
@@ -89936,6 +89875,6 @@ int main(int argc, char **argv)
  * -----------------------------------------------------------------------
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
- * wrong caller name: symbol calls string-append, vector-append and append report copy
- * new files for tools dir: check-sigs.scm tshoot.scm
+ * new files for tools dir: check-sigs.scm tshoot.scm, maybe s7 add t*.scm, dup.scm grepl.c?
+ *    in s7 dir, gtkex.scm?
  */

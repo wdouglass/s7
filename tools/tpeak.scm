@@ -15,7 +15,7 @@
     (let ((a-val (vector-ref val 1))
 	  (a-len (length val))
 	  (a-data (vector-ref val 2)))
-      (do ((k 3 (+ 1 k)))
+      (do ((k 3 (+ k 1)))
 	  ((= k a-len)
 	   (list a-val a-data))
 	(when (and (real? (vector-ref val k))

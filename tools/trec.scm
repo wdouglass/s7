@@ -4,12 +4,12 @@
 
 (define (fib n)
   (if (< n 2)
-      1
+      n
       (+ (fib (- n 1))
          (fib (- n 2)))))
 
 (let ((f32 (fib 32)))
-  (unless (= f32 3524578)
+  (unless (= f32 2178309) ;3524578)
     (display f32) 
     (newline)))
 
@@ -22,6 +22,21 @@
          (trib (- n 3)))))
 
 (let ((f32 (trib 26)))
+  (unless (= f32 3311233)
+    (display f32) 
+    (newline)))
+
+;; tc is much faster:
+(define* (ttrib n (a 1) (b 1) (c 1))
+  (if (= n 0)
+      a
+      (if (= n 1)
+	  b
+	  (if (= n 2)
+	      c
+	      (ttrib (- n 1) b c (+ a b c))))))
+
+(let ((f32 (ttrib 26)))
   (unless (= f32 3311233)
     (display f32) 
     (newline)))
