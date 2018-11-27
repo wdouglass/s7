@@ -135,6 +135,9 @@
 (format *stderr* "~NC tclo ~NC~%" 20 #\- 20 #\-)
 (system "./repl tclo.scm")
 
+(format *stderr* "~NC tshoot ~NC~%" 20 #\- 20 #\-)
+(system "./repl tshoot.scm")
+
 (format *stderr* "~NC index ~NC~%" 20 #\- 20 #\-)
 (system "./snd make-index.scm")
 

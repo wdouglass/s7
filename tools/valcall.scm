@@ -25,6 +25,7 @@
 		     ("trec.scm" . "v-rec")
 		     ("tclo.scm" . "v-clo")
 		     ("tbig.scm" . "v-big")
+		     ("tshoot.scm" . "v-shoot")
 		     ))
 
 (define (last-callg)
@@ -74,6 +75,7 @@
 	 (list "repl" "tread.scm")
 	 (list "repl" "tform.scm")
 	 (list "repl" "tfft.scm")
+	 (list "repl" "tshoot.scm")
 	 (list "repl" "tlet.scm")
 	 (list "repl" "tmap.scm")
 	 (list "repl" "tclo.scm")
