@@ -1068,10 +1068,9 @@ struct s7_scheme {
   int64_t heap_size, gc_freed, max_heap_size;
 
 #if WITH_HISTORY
-  s7_pointer eval_history1, eval_history2, error_history;
+  s7_pointer eval_history1, eval_history2, error_history, history_sink, history_pairs;
   bool using_history1;
 #endif
-  bool history_enabled;
 
 #if WITH_MULTITHREAD_CHECKS
   int32_t lock_count;
@@ -1305,8 +1304,9 @@ struct s7_scheme {
            subtract_cs1, subtract_csn, subtract_sf, subtract_2f, subtract_fs,  simple_char_eq, char_equal_s_ic,
            char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, 
            string_greater_2, string_less_2, symbol_to_string_uncopied, vector_ref_ic, vector_ref_ic_0, vector_ref_ic_1,
-           vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_ref_3, vector_set_ic, vector_set_3, fv_ref,
-           fv_ref_3, fv_set, fv_set_unchecked, iv_ref, iv_ref_0, iv_set, bv_ref, bv_set, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
+           vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_ref_3, vector_set_ic, vector_set_3, 
+           fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_set_3, 
+           list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_star_2,
            hash_table_ref_car, format_allg, format_allg_no_column, format_just_control_string, format_as_objstr,
            not_is_pair_s, not_is_null_s, not_is_symbol_s, not_is_number_s, not_is_eq_ss, not_is_eq_sq, not_is_pair_car_s,
            not_c_c, is_pair_car_s, is_pair_cdr_s, is_pair_cddr_s, is_pair_cadr_s, is_null_cdr, is_null_cddr_s,
@@ -1783,7 +1783,7 @@ static void init_types(void)
 
 #if WITH_HISTORY
 #define current_code(Sc)           car(Sc->cur_code)
-#define set_current_code(Sc, Code) do {if (Sc->history_enabled) {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, Code);} } while (0)
+#define set_current_code(Sc, Code) do {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, Code);} while (0)
 #define mark_current_code(Sc)      do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < sc->history_size; i++, p = cdr(p)) gc_mark(car(p));} while (0)
 #else
 #define current_code(Sc)           Sc->cur_code
@@ -5271,7 +5271,7 @@ static void mark_stack_1(s7_pointer p, s7_int top)
 
 static void mark_stack(s7_pointer p)
 {
-  /* we can have a bare stack awaiting a continuation to hold it if the new_cell for the continuation triggers the GC!  But we need a top-of-stack?? */
+  /* we can have a bare stack waiting for a continuation to hold it if the new_cell for the continuation triggers the GC!  But we need a top-of-stack?? */
   mark_stack_1(p, temp_stack_top(p));
 }
 
@@ -20613,7 +20613,11 @@ order here follows gmp, and is the opposite of the CL convention.  (logbit? int3
 static bool logbit_b_ii(s7_int i1, s7_int i2)
 {
   if (i2 < 0)
-    return(false); /* no b_7ii_t apparently */
+    {
+      /* no b_7ii_t so fallback on cur_sc, etc -- kinda ugly */
+      out_of_range(cur_sc, cur_sc->logbit_symbol, small_int(2), make_integer(cur_sc, i1), its_negative_string);
+      return(false); 
+    }
   if (i2 >= s7_int_bits)
     return(i1 < 0);
   return((((int64_t)(1LL << (int64_t)i2)) & (int64_t)i1) != 0);
@@ -31856,7 +31860,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		 */
 		if (is_not_null(car(fdat->args)))               /* (format #f "~{~A ~}" ()) -> "" */
 		  {
-		    s7_pointer curly_arg;
+		    s7_pointer curly_arg, cycle_arg;
 		    /* perhaps use an iterator here -- rootlet->list is expensive! */
 		    curly_arg = object_to_list(sc, car(fdat->args)); /* if a pair, this simply returns the original */
 		    if (is_not_null(curly_arg))                /* (format #f "~{~A ~}" #()) -> "" */
@@ -31864,9 +31868,8 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 			char *curly_str = NULL;                /* this is the local (nested) format control string */
 			s7_pointer orig_arg;
 
-			if (!s7_is_proper_list(sc, curly_arg))
-			  format_error(sc, "'{' directive argument should be a proper list or something we can turn into a list", 83, str, args, fdat);
-
+			if (!is_pair(curly_arg))
+			  format_error(sc, "'{' directive argument should be a list or something we can turn into a list", 76, str, args, fdat);
 			fdat->curly_arg = curly_arg;
 			if (curly_arg != car(fdat->args))
 			  orig_arg = curly_arg;
@@ -31890,19 +31893,26 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 			 *   because the curly brackets may enclose multiple arguments -- we would need to use
 			 *   iterators throughout this function.
 			 */
-			while (is_not_null(curly_arg))
+			cycle_arg = curly_arg;
+			while (is_pair(curly_arg))
 			  {
 			    s7_pointer new_arg = sc->nil;
 			    format_to_port_1(sc, port, curly_str, curly_arg, &new_arg, false, columnized, curly_len - 1, NULL);
 			    if (curly_arg == new_arg)
 			      {
+				if (cdr(curly_arg) == curly_arg) break;
 				fdat->curly_arg = sc->nil;
 				format_error(sc, "'{...}' doesn't consume any arguments!", 38, str, args, fdat);
 			      }
 			    curly_arg = new_arg;
+			    if ((!is_pair(curly_arg)) || (curly_arg == cycle_arg))
+			      break;
+			    cycle_arg = cdr(cycle_arg);
+			    format_to_port_1(sc, port, curly_str, curly_arg, &new_arg, false, columnized, curly_len - 1, NULL);
+			    curly_arg = new_arg;
 			  }
 			fdat->curly_arg = sc->nil;
-			while (is_pair(orig_arg))
+			while (is_pair(orig_arg)) /* free_cell below clears the type, so a circular list here is ok */
  			  {
  			    s7_pointer p;
  			    p = orig_arg;
@@ -35512,17 +35522,16 @@ static const char *make_type_name(s7_scheme *sc, const char *name, int32_t artic
 
 static inline s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val)
 {
-  if (sc->safety < 0) /* or == 0?? */
-    vector_element(vec, loc) = val;
-  else
+  if ((sc->safety < 0) || /* or == 0?? */
+      (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F))
     {
-      if (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, val)) != sc->F)
-	vector_element(vec, loc) = val;
-      else s7_wrong_type_arg_error(sc, "vector_set!", 3, val,
-				   make_type_name(sc, symbol_name(c_function_symbol(typed_vector_typer(vec))), INDEFINITE_ARTICLE));
+      vector_element(vec, loc) = val;
+      return(val);
     }
-  return(val);
+  return(s7_wrong_type_arg_error(sc, "vector_set!", 3, val,
+				 make_type_name(sc, symbol_name(c_function_symbol(typed_vector_typer(vec))), INDEFINITE_ARTICLE)));
 }
+
 
 static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
 {
@@ -36933,13 +36942,15 @@ static s7_pointer g_vector_ref_2(s7_scheme *sc, s7_pointer args)
 
   vec = car(args);
   if (!is_any_vector(vec))
-    return(wrong_type_argument(sc, sc->vector_ref_symbol, 1, vec, T_VECTOR));    
+    /* return(wrong_type_argument(sc, sc->vector_ref_symbol, 1, vec, T_VECTOR));    */
+    return(g_vector_ref(sc, args));
   if (vector_rank(vec) != 1)
     return(g_vector_ref(sc, args));
 
   ind = cadr(args);
   if (!s7_is_integer(ind))
-    return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, ind, T_INTEGER));    
+    /* return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, ind, T_INTEGER));    */
+    return(g_vector_ref(sc, args));
   index = s7_integer(ind);
   if ((index < 0) || (index >= vector_length(vec)))
     return(out_of_range(sc, sc->vector_ref_symbol, small_int(2), ind, (index < 0) ? its_negative_string : its_too_large_string));
@@ -36954,17 +36965,20 @@ static s7_pointer g_vector_ref_3(s7_scheme *sc, s7_pointer args)
 
   vec = car(args);
   if (!is_any_vector(vec))
-    return(wrong_type_argument(sc, sc->vector_ref_symbol, 1, vec, T_VECTOR));    
+    /* return(wrong_type_argument(sc, sc->vector_ref_symbol, 1, vec, T_VECTOR));    */
+    return(g_vector_ref(sc, args));
   if (vector_rank(vec) != 2)
     return(g_vector_ref(sc, args));
 
   i1 = cadr(args);
   if (!s7_is_integer(i1))
-    return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, i1, T_INTEGER));    
-  ix = s7_integer(i1);
+    /* return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, i1, T_INTEGER));    */
+    return(g_vector_ref(sc, args));
   i2 = caddr(args);
   if (!s7_is_integer(i2))
-    return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, i2, T_INTEGER));    
+    /* return(wrong_type_argument(sc, sc->vector_ref_symbol, 2, i2, T_INTEGER));    */
+    return(g_vector_ref(sc, args));
+  ix = s7_integer(i1);
   iy = s7_integer(i2);
   if ((ix >= 0) &&
       (iy >= 0) &&
@@ -37141,12 +37155,14 @@ static s7_pointer g_vector_set_ic(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
 {
+  /* (vector-set! vector index value) */
   s7_pointer ind, vec, val;
   s7_int index;
 
   vec = car(args);
   if (!is_any_vector(vec))
-    return(method_or_bust(sc, vec, sc->vector_set_symbol, args, T_VECTOR, 1));
+    /* return(method_or_bust(sc, vec, sc->vector_set_symbol, args, T_VECTOR, 1)); */
+    return(g_vector_set(sc, args));
   if (is_immutable_vector(vec))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, vec)));
   if (vector_rank(vec) > 1)
@@ -37154,7 +37170,8 @@ static s7_pointer g_vector_set_3(s7_scheme *sc, s7_pointer args)
 
   ind = cadr(args);
   if (!s7_is_integer(ind))
-    index = vect_int_value(sc, sc->vector_set_symbol, 2, ind);
+    /* index = vect_int_value(sc, sc->vector_set_symbol, 2, ind); */
+    return(g_vector_set(sc, args));
   else index = s7_integer(ind);
   if ((index < 0) ||
       (index >= vector_length(vec)))
@@ -37848,7 +37865,7 @@ static s7_pointer g_float_vector_ref(s7_scheme *sc, s7_pointer args)
   return(univect_ref(sc, args, sc->float_vector_ref_symbol, T_FLOAT_VECTOR));
 }
 
-static s7_pointer g_fv_ref(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_fv_ref_2(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer fv, index;
   s7_int ind;
@@ -37905,7 +37922,7 @@ static s7_pointer float_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_i
 static s7_pointer float_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
-    return(sc->fv_ref);
+    return(sc->fv_ref_2);
   if (args == 3)
     return(sc->fv_ref_3);
   return(f);
@@ -37919,7 +37936,7 @@ static s7_pointer g_float_vector_set(s7_scheme *sc, s7_pointer args)
   return(univect_set(sc, args, sc->float_vector_set_symbol, T_FLOAT_VECTOR));
 }
 
-static s7_pointer g_fv_set(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_fv_set_3(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer fv, index, value;
   s7_int ind;
@@ -38000,7 +38017,7 @@ static s7_pointer float_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t 
     {
       if (find_matching_ref(sc, sc->float_vector_ref_symbol, expr))
 	return(sc->fv_set_unchecked);
-      return(sc->fv_set);
+      return(sc->fv_set_3);
     }
   return(f);
 }
@@ -38040,7 +38057,7 @@ static s7_int int_vector_ref_i_7pi(s7_scheme *sc, s7_pointer v, s7_int i)
 }
 static s7_pointer int_vector_ref_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int i) {return(make_integer(sc, int_vector(v, i)));}
 
-static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_iv_ref_2(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v, index;
   s7_int ind;
@@ -38058,7 +38075,7 @@ static s7_pointer g_iv_ref(s7_scheme *sc, s7_pointer args)
   return(make_integer(sc, int_vector(v, ind)));
 }
 
-static s7_pointer g_iv_ref_0(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_iv_ref_2i(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v;
   v = car(args);
@@ -38071,14 +38088,42 @@ static s7_pointer g_iv_ref_0(s7_scheme *sc, s7_pointer args)
   return(make_integer(sc, int_vector(v, 0)));
 }
 
+static s7_pointer g_iv_ref_3(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer iv, index;
+  s7_int ind1, ind2;
+  iv = car(args);
+  if (!is_int_vector(iv))
+    return(method_or_bust(sc, iv, sc->int_vector_ref_symbol, args, T_INT_VECTOR, 1));
+  if (vector_rank(iv) != 2)
+    return(univect_ref(sc, args, sc->int_vector_ref_symbol, T_INT_VECTOR));
+  index = cadr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->int_vector_ref_symbol, 2, index, T_INTEGER));
+  ind1 = s7_integer(index);
+  if ((ind1 < 0) || (ind1 >= vector_dimension(iv, 0)))
+    return(simple_out_of_range(sc, sc->int_vector_ref_symbol, index, (ind1 < 0) ? its_negative_string : its_too_large_string));
+  index = caddr(args);
+  if (!s7_is_integer(index))
+    return(wrong_type_argument(sc, sc->int_vector_ref_symbol, 3, index, T_INTEGER));
+  ind2 = s7_integer(index);
+  if ((ind2 < 0) || (ind2 >= vector_dimension(iv, 1)))
+    return(simple_out_of_range(sc, sc->int_vector_ref_symbol, index, (ind2 < 0) ? its_negative_string : its_too_large_string));
+  ind1 = ind1 * vector_offset(iv, 0) + ind2;
+  return(make_integer(sc, int_vector(iv, ind1)));
+}
+
+
 static s7_pointer int_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
     {
       if ((is_t_integer(caddr(expr))) && (s7_integer(caddr(expr)) == 0))
-	return(sc->iv_ref_0);
-      return(sc->iv_ref);
+	return(sc->iv_ref_2i);
+      return(sc->iv_ref_2);
     }
+  if (args == 3)
+    return(sc->iv_ref_3);
   return(f);
 }
 
@@ -38107,7 +38152,7 @@ static s7_pointer int_vector_set_unchecked_p(s7_scheme *sc, s7_pointer v, s7_int
   return(p);
 }
 
-static s7_pointer g_iv_set(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_iv_set_3(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v, index, value;
   s7_int ind;
@@ -38134,7 +38179,7 @@ static s7_pointer g_iv_set(s7_scheme *sc, s7_pointer args)
 static s7_pointer int_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 3)
-    return(sc->iv_set);
+    return(sc->iv_set_3);
   return(f);
 }
 
@@ -38159,7 +38204,7 @@ static s7_int byte_vector_ref_i_7pi(s7_scheme *sc, s7_pointer p1, s7_int i1)
 
 static s7_pointer byte_vector_ref_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1) {return(small_int((byte_vector(p1, i1))));}
 
-static s7_pointer g_bv_ref(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_bv_ref_2(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v, index;
   s7_int ind;
@@ -38180,7 +38225,7 @@ static s7_pointer g_bv_ref(s7_scheme *sc, s7_pointer args)
 static s7_pointer byte_vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
-    return(sc->bv_ref);
+    return(sc->bv_ref_2);
   return(f);
 }
 
@@ -38207,7 +38252,7 @@ static s7_int byte_vector_set_i_7pii(s7_scheme *sc, s7_pointer p1, s7_int i1, s7
 
 static s7_pointer byte_vector_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2) {byte_vector(p1, i1) = (uint8_t)s7_integer(p2); return(p2);}
 
-static s7_pointer g_bv_set(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_bv_set_3(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v, index, value;
   s7_int ind, uval;
@@ -38239,7 +38284,7 @@ static s7_pointer g_bv_set(s7_scheme *sc, s7_pointer args)
 static s7_pointer byte_vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 3)
-    return(sc->bv_set);
+    return(sc->bv_set_3);
   return(f);
 }
 
@@ -46536,14 +46581,38 @@ s7_pointer s7_history(s7_scheme *sc)
 
 bool s7_history_enabled(s7_scheme *sc)
 {
-  return(sc->history_enabled);
+#if WITH_HISTORY
+  return(sc->cur_code != sc->history_sink);
+#else
+  return(false);
+#endif
 }
 
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled)
 {
-  sc->history_enabled = enabled;
+#if WITH_HISTORY
+  if (enabled)
+    sc->cur_code = (sc->using_history1) ? sc->eval_history1 : sc->eval_history2;
+  else sc->cur_code = sc->history_sink;
   return(enabled);
+#else
+  return(false);
+#endif
 }
+
+#if WITH_HISTORY
+static s7_pointer history_cons(s7_scheme *sc, s7_pointer code, s7_pointer args)
+{
+  s7_pointer p;
+  p = car(sc->history_pairs);
+  sc->history_pairs = cdr(sc->history_pairs);
+  set_car(p, code);
+  set_cdr(p, args);
+  return(p);
+}
+#else
+#define history_cons(Sc, Code, Args) Code
+#endif
 
 
 /* -------- error handlers -------- */
@@ -48413,9 +48482,7 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
       T_Pos(car(p));
   }
 #endif
-  if (sc->safety > NO_SAFETY)
-    set_current_code(sc, cons(sc, fnc, args));
-  else set_current_code(sc, fnc);
+  set_current_code(sc, history_cons(sc, fnc, args));
 
   if (is_c_function(fnc))
     return(c_function_call(fnc)(sc, args));
@@ -48666,9 +48733,7 @@ static s7_pointer set_c_function_star_defaults(s7_scheme *sc, int32_t num)
 s7_pointer s7_apply_function_star(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
   TRACK(sc);
-  if (sc->safety > NO_SAFETY)
-    set_current_code(sc, cons(sc, fnc, args));
-  else set_current_code(sc, fnc);
+  set_current_code(sc, history_cons(sc, fnc, args));
 
   if (is_c_function_star(fnc))
     {
@@ -48770,10 +48835,7 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
 {
   declare_jump_info();
   TRACK(sc);
-
-  if (sc->safety > NO_SAFETY)
-    set_current_code(sc, cons(sc, func, args));
-  else set_current_code(sc, func);
+  set_current_code(sc, history_cons(sc, func, args));
 
   if (is_c_function(func))
     return(c_function_call(func)(sc, T_Pos(args)));  /* no check for wrong-number-of-args -- is that reasonable? */
@@ -50179,7 +50241,7 @@ static s7_pointer fx_c_s_op_opsq_cq(s7_scheme *sc, s7_pointer code)
   val = symbol_to_value_unchecked(sc, cadr(val1));
   set_car(sc->t1_1, val);
   set_car(sc->t2_1, c_call(val1)(sc, sc->t1_1));
-  set_car(sc->t2_2, caddr(args));
+  set_car(sc->t2_2, opt2_con(cdr(args)));                 /* caddr(args) E_C_PC in combine_ops */
   set_car(sc->t2_2, c_call(args)(sc, sc->t2_1));
   set_car(sc->t2_1, symbol_to_value_unchecked(sc, cadr(code)));
   return(c_call(code)(sc, sc->t2_1));
@@ -64119,7 +64181,7 @@ static s7_pointer not_chooser(s7_scheme *sc, s7_pointer g, int32_t args, s7_poin
 
 static s7_pointer vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
-  if (symbol_id(sc->vector_ref_symbol) != 0) return(f);
+  /* if (symbol_id(sc->vector_ref_symbol) != 0) return(f); */
   if (args == 2)
     {
       if (ops)
@@ -64158,7 +64220,7 @@ static s7_pointer vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, 
       /* vector_ref_sub_s1 was not worth the code, and few other easily optimized expressions happen here */
       return(sc->vector_ref_2);
     }
-  if ((args == 3) && (ops))
+  if (args == 3)
     return(sc->vector_ref_3);
   return(f);
 }
@@ -64166,6 +64228,7 @@ static s7_pointer vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, 
 
 static s7_pointer vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
+  /* fprintf(stderr, "%d %s\n", args, DISPLAY(expr)); */
   if (args == 3)
     {
       if (ops)
@@ -65193,30 +65256,31 @@ static void init_choosers(s7_scheme *sc)
 
   /* float-vector-ref */
   f = set_function_chooser(sc, sc->float_vector_ref_symbol, float_vector_ref_chooser);
-  sc->fv_ref = make_function_with_class(sc, f, "float-vector-ref", g_fv_ref, 2, 0, false, "float-vector-ref opt");
+  sc->fv_ref_2 = make_function_with_class(sc, f, "float-vector-ref", g_fv_ref_2, 2, 0, false, "float-vector-ref opt");
   sc->fv_ref_3 = make_function_with_class(sc, f, "float-vector-ref", g_fv_ref_3, 3, 0, false, "float-vector-ref opt");
 
   /* float-vector-set */
   f = set_function_chooser(sc, sc->float_vector_set_symbol, float_vector_set_chooser);
-  sc->fv_set = make_function_with_class(sc, f, "float-vector-set!", g_fv_set, 3, 0, false, "float-vector-set! opt");
+  sc->fv_set_3 = make_function_with_class(sc, f, "float-vector-set!", g_fv_set_3, 3, 0, false, "float-vector-set! opt");
   sc->fv_set_unchecked = make_function_with_class(sc, f, "float-vector-set!", g_fv_set_unchecked, 3, 0, false, "float-vector-set! opt");
 
   /* int-vector-ref */
   f = set_function_chooser(sc, sc->int_vector_ref_symbol, int_vector_ref_chooser);
-  sc->iv_ref = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref, 2, 0, false, "int-vector-ref opt");
-  sc->iv_ref_0 = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref_0, 2, 0, false, "int-vector-ref opt");
+  sc->iv_ref_2 = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref_2, 2, 0, false, "int-vector-ref opt");
+  sc->iv_ref_3 = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref_3, 3, 0, false, "int-vector-ref opt");
+  sc->iv_ref_2i = make_function_with_class(sc, f, "int-vector-ref", g_iv_ref_2i, 2, 0, false, "int-vector-ref opt");
 
   /* int-vector-set */
   f = set_function_chooser(sc, sc->int_vector_set_symbol, int_vector_set_chooser);
-  sc->iv_set = make_function_with_class(sc, f, "int-vector-set!", g_iv_set, 3, 0, false, "int-vector-set! opt");
+  sc->iv_set_3 = make_function_with_class(sc, f, "int-vector-set!", g_iv_set_3, 3, 0, false, "int-vector-set! opt");
 
   /* byte-vector-ref */
   f = set_function_chooser(sc, sc->byte_vector_ref_symbol, byte_vector_ref_chooser);
-  sc->bv_ref = make_function_with_class(sc, f, "byte-vector-ref", g_bv_ref, 2, 0, false, "byte-vector-ref opt");
+  sc->bv_ref_2 = make_function_with_class(sc, f, "byte-vector-ref", g_bv_ref_2, 2, 0, false, "byte-vector-ref opt");
 
   /* byte-vector-set */
   f = set_function_chooser(sc, sc->byte_vector_set_symbol, byte_vector_set_chooser);
-  sc->bv_set = make_function_with_class(sc, f, "byte-vector-set!", g_bv_set, 3, 0, false, "byte-vector-set! opt");
+  sc->bv_set_3 = make_function_with_class(sc, f, "byte-vector-set!", g_bv_set_3, 3, 0, false, "byte-vector-set! opt");
 
   /* list-set! */
   f = set_function_chooser(sc, sc->list_set_symbol, list_set_chooser);
@@ -73159,6 +73223,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
    */
   /* for gmp case, indices need to be decoded via s7_integer, not just integer */
 
+  /* fprintf(stderr, "code: %s, cx: %s\n", DISPLAY(sc->code), DISPLAY(cx)); */
   switch (type(cx))
     {
     case T_C_OBJECT:
@@ -73230,10 +73295,11 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	/*  args have not been evaluated! */
 
 	s7_pointer settee, index, val;
+	s7_int argnum;
 
-	if (is_null(cdr(sc->code)))
+	if (is_null(cdr(sc->code)))     /* (set! (v 0)) */
 	  s7_wrong_number_of_args_error(sc, "no value for vector-set!: ~S", sc->code);
-	if (!is_null(cddr(sc->code)))
+	if (!is_null(cddr(sc->code)))   /* (set! (v 0) 1 2) */
 	  s7_wrong_number_of_args_error(sc, "too many values for vector-set!: ~S", sc->code);
 
 	settee = car(sc->code);
@@ -73242,26 +73308,58 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	if (is_immutable(cx))
 	  immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, cx));
 
-	if ((!is_null(cddr(settee))) &&
-	    (is_normal_vector(cx)))
+	argnum = safe_list_length(cdr(settee));
+	if ((argnum > 1) &&
+	    (is_normal_vector(cx)) &&
+	    (argnum != vector_rank(cx)))
 	  {
+	    /* this block needs to be first to handle (eg):
+	     *   (let ((v (vector (inlet 'a 0)))) (set! (v 0 'a) 32) v): #((inlet 'a 32))
+	     */
 	    push_stack(sc, OP_SET2, cddr(settee), cdr(sc->code));
 	    sc->code = list_2(sc, car(settee), cadr(settee));
 	    sc->cur_op = optimize_op(sc->code);
 	    return(goto_TOP_NO_POP);
 	  }
 
-	if ((!is_null(cddr(settee))) ||
-	    (vector_rank(cx) > 1))
+	if ((argnum > 1) || (vector_rank(cx) > 1))
 	  {
-	    /* multi-index case -- use slow version */
-	    push_op_stack(sc, sc->vector_set_function);
-	    push_stack(sc, OP_EVAL_ARGS1, list_1(sc, cx), s7_append(sc, cddr(settee), cdr(sc->code)));
+	    if ((argnum == vector_rank(cx)) &&
+		(!is_pair(cadr(sc->code))))
+	      {
+		s7_pointer p;
+		for (p = cdr(settee); is_pair(p); p = cdr(p))
+		  if (is_pair(car(p))) break;
+		if (is_null(p))
+		  {
+		    s7_pointer args, pa;
+		    args = safe_list_if_possible(sc, argnum + 2);
+		    car(args) = cx;
+		    for (p = cdr(settee), pa = cdr(args); is_pair(p); p = cdr(p), pa = cdr(pa))
+		      {
+			index = car(p);
+			if (is_symbol(index))
+			  index = symbol_to_value_checked(sc, index);
+			if (!s7_is_integer(index))
+			  eval_error_no_return(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
+			car(pa) = index;
+		      }
+		    car(pa) = cadr(sc->code);
+		    if (is_symbol(car(pa)))
+		      car(pa) = symbol_to_value_checked(sc, car(pa));
+		    sc->value = g_vector_set(sc, args);
+		    clear_list_in_use(args);
+		    return(goto_START);
+		  }
+	      }
+	    push_op_stack(sc, sc->vector_set_function); /* vector_setter(cx) has wrong args */
+	    push_stack(sc, OP_EVAL_ARGS1, list_1(sc, cx), s7_append(sc, cddr(settee), cdr(sc->code))); /* i.e. rest(args) + val */
 	    sc->code = cadr(settee);
 	    sc->cur_op = optimize_op(sc->code);
 	    return(goto_TOP_NO_POP);
 	  }
 
+	/* one index, rank == 1 */
 	index = cadr(settee);
 	if (!is_pair(index))
 	  {
@@ -73291,14 +73389,10 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	    sc->code = cdr(sc->code);
 	    return(goto_EVAL_ARGS);
 	  }
-	else
-	  {
-	    /* here the index calc might be trivial -- (+ i 1) or (- j 1) but this branch hardly ever happens
-	     */
-	    push_stack(sc, OP_EVAL_ARGS1, list_1(sc, cx), cdr(sc->code));
-	    push_op_stack(sc, sc->vector_set_function);
-	    sc->code = cadr(settee);
-	  }
+	/* here the index calc might be trivial -- (+ i 1) or (- j 1) but this branch hardly ever happens */
+	push_stack(sc, OP_EVAL_ARGS1, list_1(sc, cx), cdr(sc->code));
+	push_op_stack(sc, sc->vector_set_function);
+	sc->code = cadr(settee);
       }
       break;
 
@@ -77169,6 +77263,7 @@ static void apply_syntax(s7_scheme *sc)                            /* -------- s
 static void apply_vector(s7_scheme *sc)                            /* -------- vector as applicable object -------- */
 {
   /* sc->code is the vector, sc->args is the list of indices */
+  /* fprintf(stderr, "%s: %s %s\n", __func__, DISPLAY(sc->code), DISPLAY(sc->args)); */
   if (is_null(sc->args))                  /* (#2d((1 2) (3 4))) */
     s7_wrong_number_of_args_error(sc, "not enough args for vector-ref: ~A", sc->args);
 
@@ -80682,7 +80777,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	APPLY:
 	case OP_APPLY:
-	  set_current_code(sc, sc->code); /* ??  ideally we'd add (cons code args) but that's expensive */
+	  set_current_code(sc, history_cons(sc, sc->code, sc->args));
 #if SHOW_EVAL_OPS
 	  fprintf(stderr, "  apply %s to %s\n", DISPLAY(sc->code), DISPLAY(sc->args));
 #endif
@@ -87418,14 +87513,18 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->history_symbol)                                         /* history (eval history circular buffer) */
 #if WITH_HISTORY
-    return(sc->cur_code);
+    {
+      if (sc->cur_code == sc->history_sink) /* i.e. history is current disabled */
+	return((sc->using_history1) ? sc->eval_history1 : sc->eval_history2);
+      return(sc->cur_code);
+    }
 #else
     return(sc->F);
 #endif
   if (sym == sc->history_size_symbol)                                    /* history-size (eval history circular buffer size) */
     return(s7_make_integer(sc, sc->history_size));
   if (sym == sc->history_enabled_symbol)                                 /* history-enabled (is history buffer receiving additions) */
-    return(s7_make_boolean(sc, sc->history_enabled));
+    return(s7_make_boolean(sc, s7_history_enabled(sc)));
   if (sym == sc->profile_info_symbol)                                    /* profile-info -- profiling data hash-table */
     return(sc->profile_info);
   if (sym == sc->max_list_length_symbol)                                 /* max-list-length (as arg to make-list) */
@@ -87538,16 +87637,21 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (sym == sc->history_size_symbol)
 	{
 #if WITH_HISTORY
-	  s7_pointer p1, p2;
+	  s7_pointer p1, p2, p3;
 	  if (iv > MAX_HISTORY_SIZE) iv = MAX_HISTORY_SIZE;
 	  if (iv > sc->true_history_size)
 	    {
 	      /* splice in the new cells, reattach the circles */
-	      s7_pointer next1, next2;
+	      s7_pointer next1, next2, next3;
 	      next1 = cdr(sc->eval_history1);
 	      next2 = cdr(sc->eval_history2);
+	      next3 = cdr(sc->history_pairs);
 	      set_cdr(sc->eval_history1, permanent_list(sc, iv - sc->true_history_size));
 	      set_cdr(sc->eval_history2, permanent_list(sc, iv - sc->true_history_size));
+	      set_cdr(sc->history_pairs, permanent_list(sc, iv - sc->true_history_size));
+	      for (p3 = cdr(sc->history_pairs); is_pair(cdr(p3)); p3 = cdr(p3)) set_car(p3, permanent_list(sc, 1));
+	      set_car(p3, permanent_list(sc, 1));
+	      set_cdr(p3, next3);
 	      for (p1 = sc->eval_history1, p2 = sc->eval_history2; is_pair(cdr(p1)); p1 = cdr(p1), p2 = cdr(p2));
 	      set_cdr(p1, next1);
 	      set_cdr(p2, next2);
@@ -87580,10 +87684,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->history_enabled_symbol)
     {
       if (s7_is_boolean(val))
-        {
-          sc->history_enabled = s7_boolean(sc, val);
-          return(val);
-        }
+	return(s7_make_boolean(sc, s7_set_history_enabled(sc, s7_boolean(sc, val))));
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
     }
 
@@ -88190,10 +88291,15 @@ s7_scheme *s7_init(void)
 #if WITH_HISTORY
   sc->eval_history1 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
   sc->eval_history2 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
+  sc->history_pairs = permanent_list(sc, DEFAULT_HISTORY_SIZE);
+  sc->history_sink = permanent_list(sc, 1);
+  cdr(sc->history_sink) = sc->history_sink;
   {
-    s7_pointer p1, p2;
+    s7_pointer p1, p2, p3;
+    for (p3 = sc->history_pairs; is_pair(cdr(p3)); p3 = cdr(p3)) set_car(p3, permanent_list(sc, 1));
+    set_car(p3, permanent_list(sc, 1));
+    set_cdr(p3, sc->history_pairs);
     for (p1 = sc->eval_history1, p2 = sc->eval_history2; is_pair(cdr(p1)); p1 = cdr(p1), p2 = cdr(p2));
-    /* permanent_list sets all cars to nil */
     set_cdr(p1, sc->eval_history1);
     set_cdr(p2, sc->eval_history2);
     sc->cur_code = sc->eval_history1;
@@ -88335,7 +88441,6 @@ s7_scheme *s7_init(void)
   sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
   sc->true_history_size = DEFAULT_HISTORY_SIZE;
-  sc->history_enabled = WITH_HISTORY;
   sc->profile_info = sc->nil;
   sc->baffle_ctr = 0;
   sc->syms_tag = 0;
@@ -89178,6 +89283,9 @@ s7_scheme *s7_init(void)
 #if HAVE_COMPLEX_NUMBERS
   s7_provide(sc, "complex-numbers");
 #endif
+#if WITH_HISTORY
+  s7_provide(sc, "history");
+#endif
 #if WITH_C_LOADER
   s7_provide(sc, "dlopen");
 #endif
@@ -89895,20 +90003,21 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  199
  * tmac          |      |      |      | 9052 |  264 |  236 |  236
- * tshoot        |      |      |      |      |      |      |  356
+ * tshoot        |      |      |      |      |      |  373 |  356
+ * tvect         |      |      |      |      |      | 1327 |  918
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1021
  * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1297
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1539
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1737
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2120
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1733
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2119
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2312
  * tread         |      |      |      |      | 2357 | 2336 | 2333
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2355
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2493
- * tlet          |      |      |      |      | 4717 | 2959 | 2959
+ * tlet          |      |      |      |      | 4717 | 2959 | 2953
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3015
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3084
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3083
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3327
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3587
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5310
@@ -89920,13 +90029,16 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38,5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |112.6
- * tbig          |      |      |      |      |246.9 |230.6 |223.7
+ * tbig          |      |      |      |      |246.9 |230.6 |223.4
  * -----------------------------------------------------------------------
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
  * opt: mvect ref/set, TODO: opt vref_3, float/int/byte(?)_vref_3s, all vset_4s
- *   tvect.scm -- dims/types/implicit
- *   no methods in other chooser cases? esp g_vector_set_3 (tbig)
- *   maybe return g_vector_ref if any error
+ *   tvect.scm -- dims/types/implicit in various exprs (opt arg)
+ *   no methods in other chooser cases? esp g_vector_set_3 (tbig) -- remove vect_int_value?
+ *   return g_vector_ref if any error (and elsewhere)
+ *   need i_pii etc for refs (and split the p_pi cases), also p_piip for sets, i_7pii for ref2, i_7piii set etc
  * tcobj trand tport? tcomplex tmacro?
+ * need history tests
+ * collapse make_int_vector? all index->ints could a macro/function
  */
