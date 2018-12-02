@@ -700,6 +700,10 @@ typedef s7_double (*s7_d_pd_t)(s7_pointer v, s7_double x);
 void s7_set_d_pd_function(s7_pointer f, s7_d_pd_t df);
 s7_d_pd_t s7_d_pd_function(s7_pointer f);
 
+typedef s7_double (*s7_d_7pi_t)(s7_scheme *sc, s7_pointer v, s7_int i);
+void s7_set_d_7pi_function(s7_pointer f, s7_d_7pi_t df);
+s7_d_7pi_t s7_d_7pi_function(s7_pointer f);
+
 typedef s7_double (*s7_d_7pid_t)(s7_scheme *sc, s7_pointer v, s7_int i, s7_double d);
 void s7_set_d_7pid_function(s7_pointer f, s7_d_7pid_t df);
 s7_d_7pid_t s7_d_7pid_function(s7_pointer f);
@@ -707,6 +711,10 @@ s7_d_7pid_t s7_d_7pid_function(s7_pointer f);
 typedef s7_double (*s7_d_id_t)(s7_int i, s7_double d);
 void s7_set_d_id_function(s7_pointer f, s7_d_id_t df);
 s7_d_id_t s7_d_id_function(s7_pointer f);
+
+typedef s7_double (*s7_d_ip_t)(s7_int i, s7_pointer p);
+void s7_set_d_ip_function(s7_pointer f, s7_d_ip_t df);
+s7_d_ip_t s7_d_ip_function(s7_pointer f);
 
 typedef s7_int (*s7_i_i_t)(s7_int x);
 void s7_set_i_i_function(s7_pointer f, s7_i_i_t df);
@@ -720,10 +728,6 @@ typedef s7_int (*s7_i_ii_t)(s7_int i1, s7_int i2);
 void s7_set_i_ii_function(s7_pointer f, s7_i_ii_t df);
 s7_i_ii_t s7_i_ii_function(s7_pointer f);
 
-typedef s7_double (*s7_d_ip_t)(s7_int i, s7_pointer p);
-void s7_set_d_ip_function(s7_pointer f, s7_d_ip_t df);
-s7_d_ip_t s7_d_ip_function(s7_pointer f);
-
 typedef s7_int (*s7_i_7p_t)(s7_scheme *sc, s7_pointer p);
 void s7_set_i_7p_function(s7_pointer f, s7_i_7p_t df);
 s7_i_7p_t s7_i_7p_function(s7_pointer f);
@@ -731,10 +735,6 @@ s7_i_7p_t s7_i_7p_function(s7_pointer f);
 typedef bool (*s7_b_p_t)(s7_pointer p);
 void s7_set_b_p_function(s7_pointer f, s7_b_p_t df);
 s7_b_p_t s7_b_p_function(s7_pointer f);
-
-typedef s7_double (*s7_d_7pi_t)(s7_scheme *sc, s7_pointer v, s7_int i);
-void s7_set_d_7pi_function(s7_pointer f, s7_d_7pi_t df);
-s7_d_7pi_t s7_d_7pi_function(s7_pointer f);
 
 /* Here is an example of using these functions; more extensive examples are in clm2xen.c in sndlib, and in s7.c.
  * (This example comes from a HackerNews discussion):
