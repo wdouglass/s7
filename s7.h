@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.7"
-#define S7_DATE "21-Nov-18"
+#define S7_VERSION "7.8"
+#define S7_DATE "3-Dec-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -124,7 +124,6 @@ s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) 
 void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'gc-stats) */
 
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
-void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
@@ -133,10 +132,9 @@ s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
    *   protected from garbage collection if there is any chance the GC may run without
    *   an existing Scheme-level reference to that object.  s7_gc_protect places the
    *   object in a vector that the GC always checks, returning the object's location
-   *   in that table.  s7_gc_unprotect and s7_gc_unprotect_at unprotect the object
-   *   (remove it from the vector).  s7_gc_unprotect_at uses the location passed
-   *   to it, whereas s7_gc_unprotect scans the vector to find the object.  
-   *   s7_gc_protected_at returns the object at the given location.
+   *   in that table.  s7_gc_unprotect_at unprotects the object (removes it from the
+   *   vector) using the location passed to it.  s7_gc_protected_at returns the object 
+   *   at the given location.
    * 
    * You can turn the GC on and off via s7_gc_on.
    *
@@ -840,6 +838,8 @@ typedef s7_double s7_Double;
 #define s7_UNSPECIFIED(Sc)            s7_unspecified(Sc)
 #define s7_NIL(Sc)                    s7_nil(Sc)
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
+
+void s7_gc_unprotect(s7_scheme *sc, s7_pointer x); /* used in CM */
 #endif
 
 
@@ -847,6 +847,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 3-Dec:     deprecate s7_gc_unprotect (use s7_gc_unprotect_at).
  * 21-Nov:    added s7_history_enabled and s7_set_history_enabled.
  * 3-Nov:     removed the "value" argument from s7_for_each_symbol.
  * 22-Sep:    s7_list_nl.

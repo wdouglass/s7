@@ -750,23 +750,12 @@ int main(int argc, char **argv)
   s7_immutable(p);
   if (!s7_is_immutable(p))
     fprintf(stderr, "s7_immutable failed?\n");
-  s7_gc_unprotect(sc, p);
+  s7_gc_unprotect_at(sc, gc_loc);
 
   p = s7_signature(sc, s7_name_to_value(sc, "abs"));
   if (!s7_is_pair(p))
     {fprintf(stderr, "%d: %s is not a pair?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   
-#if 0
-  {
-    int64_t size;
-    size = s7_heap_size(sc);
-    if (size <= 0) fprintf(stderr, "heap_size: %" print_s7_int "?\n", size);
-    size = s7_gc_freed(sc);
-    if (size < 0) fprintf(stderr, "gc_freed: %" print_s7_int "?\n", size);
-    s7_gc_stats(sc, false);
-  }
-#endif
-
   {
     s7_pointer p;
     p = s7_shadow_rootlet(sc);
