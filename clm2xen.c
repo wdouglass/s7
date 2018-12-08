@@ -408,11 +408,12 @@ Xen mus_optkey_to_procedure(Xen key, const char *caller, int n, Xen def, int req
 
 /* ---------------- clm keywords ---------------- */
 #if HAVE_SCHEME
-static s7_pointer kw_frequency, kw_radius;
+static s7_pointer kw_frequency, kw_radius, kw_readable;
 static void init_keywords(void)
 {
   kw_frequency = Xen_make_keyword("frequency");
   kw_radius = Xen_make_keyword("radius");
+  kw_readable = Xen_make_keyword("readable");
 }
 #else
 
@@ -1331,7 +1332,7 @@ static s7_pointer mus_generator_to_string(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer choice;
       choice = s7_cadr(args);
-      if (choice == s7_make_keyword(sc, "readable"))
+      if (choice == kw_readable)
 	s7_error(sc, s7_make_symbol(sc, "out-of-range"), s7_list(sc, 1, s7_make_string(sc, "can't write a clm generator readably")));
     }
   return(s7_make_string(sc, mus_describe(((mus_xen *)s7_c_object_value(g))->gen)));

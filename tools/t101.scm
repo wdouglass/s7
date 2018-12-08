@@ -91,13 +91,13 @@
 (system "./snd -e '(let () (catch #t (lambda () (load \"s7test.scm\" (curlet))) (lambda args #f)) (exit))'")
 
 (format *stderr* "~NC s7test ~NC~%" 20 #\- 20 #\-)
-(system "./snd s7test.scm")
+(system "./repl s7test.scm")
 
 (format *stderr* "~NC tpeak ~NC~%" 20 #\- 20 #\-)
-(system "./snd tpeak.scm")
+(system "./repl tpeak.scm")
 
 (format *stderr* "~NC lt ~NC~%" 20 #\- 20 #\-)
-(system "./snd lt.scm")
+(system "./repl lt.scm")
 
 (format *stderr* "~NC tcopy ~NC~%" 20 #\- 20 #\-)
 (system "./repl tcopy.scm")

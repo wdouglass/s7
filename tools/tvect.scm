@@ -11,7 +11,7 @@
 	(sum 0))
     (do ((i 0 (+ i 1)))
 	((= i size) sum)
-      (set! sum (+ sum (vector-ref v i))))))
+      (set! sum (+ sum (floor (vector-ref v i)))))))
 
 (unless (= (f1) size)
   (format *stderr* "f1: ~S~%" (f1)))
@@ -61,6 +61,17 @@
   (format *stderr* "f5: ~S~%" (f5)))
 
 
+(define (f6)
+  (let ((v (make-vector size #t boolean?))
+	(sum 0))
+    (do ((i 0 (+ i 1)))
+	((= i size) sum)
+      (set! sum (+ sum (if (vector-ref v i) 1 0))))))
+
+(unless (= (f6) size)
+  (format *stderr* "f6: ~S~%" (f6)))
+
+
 ;;; --------------------------------
 (define (f11)
   (let ((v (make-vector (list 10 size/10) 1))
@@ -69,7 +80,7 @@
 	((= k 10) sum)
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(set! sum (+ sum (vector-ref v k i)))))))
+	(set! sum (+ sum (round (vector-ref v k i))))))))
 
 (unless (= (f11) size)
   (format *stderr* "f11: ~S~%" (f11)))
@@ -127,6 +138,19 @@
   (format *stderr* "f15: ~S~%" (f15)))
 
 
+(define (f16)
+  (let ((v (make-vector (list 10 size/10) 'a symbol?))
+	(sum 0))
+    (do ((k 0 (+ k 1)))
+	((= k 10) sum)
+      (do ((i 0 (+ i 1)))
+	  ((= i size/10))
+	(set! sum (+ sum (if (eq? 'a (vector-ref v k i)) 1 0)))))))
+
+(unless (= (f16) size)
+  (format *stderr* "f16: ~S~%" (f15)))
+
+
 
 ;;; --------------------------------------------------------------------------------
 
@@ -135,7 +159,7 @@
 	(sum 0))
     (do ((i 0 (+ i 1)))
 	((= i size) sum)
-      (set! sum (+ sum (v i))))))
+      (set! sum (+ sum (ceiling (v i)))))))
 
 (unless (= (g1) size)
   (format *stderr* "g1: ~S~%" (g1)))
@@ -185,6 +209,17 @@
   (format *stderr* "g5: ~S~%" (g5)))
 
 
+(define (g6)
+  (let ((v (make-vector size 0+i complex?))
+	(sum 0))
+    (do ((i 0 (+ i 1)))
+	((= i size) sum)
+      (set! sum (+ sum (if (zero? (real-part (v i))) 1 0))))))
+
+(unless (= (g6) size)
+  (format *stderr* "g6: ~S~%" (g6)))
+
+
 ;;; --------------------------------
 
 (define (g11)
@@ -194,7 +229,7 @@
 	((= k 10) sum)
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(set! sum (+ sum (v k i)))))))
+	(set! sum (+ sum (floor (v k i))))))))
 
 (unless (= (g11) size)
   (format *stderr* "g11: ~S~%" (g11)))
@@ -252,6 +287,18 @@
   (format *stderr* "g15: ~S~%" (g15)))
 
 
+(define (g16)
+  (let ((v (make-vector (list 10 size/10) #\a char?))
+	(sum 0))
+    (do ((k 0 (+ k 1)))
+	((= k 10) sum)
+      (do ((i 0 (+ i 1)))
+	  ((= i size/10))
+	(set! sum (+ sum (if (char=? (v k i) #\a) 1 0)))))))
+
+(unless (= (g16) size)
+  (format *stderr* "g16: ~S~%" (g16)))
+
 
 ;;; --------------------------------------------------------------------------------
 
@@ -306,13 +353,23 @@
 
 
 (define (h6)
+  (let ((v (make-vector size #(1 0) vector?)))
+    (do ((i 0 (+ i 1)))
+	((= i size) (vector-ref v 0 0))
+      (vector-set! v i #(2 3)))))
+
+(unless (= (h6) 2)
+  (format *stderr* "h6: ~S~%" (h6)))
+
+
+(define (h7)
   (let ((v (make-vector size)))
     (do ((i 0 (+ i 1)))
 	((= i size) (vector-ref v 0))
       (list-values (vector-set! v i 2)))))
 
-(unless (= (h6) 2)
-  (format *stderr* "h6: ~S~%" (h6)))
+(unless (= (h7) 2)
+  (format *stderr* "h7: ~S~%" (h7)))
 
 
 ;;; --------------------------------
@@ -378,6 +435,18 @@
 
 
 (define (h16)
+  (let ((v (make-vector (list 10 size/10) :a keyword?)))
+    (do ((k 0 (+ k 1)))
+	((= k 10) (vector-ref v 0 0))
+      (do ((i 0 (+ i 1)))
+	  ((= i size/10))
+	(vector-set! v k i :b)))))
+
+(unless (eq? (h16) :b)
+  (format *stderr* "h16: ~S~%" (h16)))
+
+
+(define (h17)
   (let ((v (make-vector (list 10 size/10))))
     (do ((k 0 (+ k 1)))
 	((= k 10) (vector-ref v 0 0))
@@ -385,8 +454,8 @@
 	  ((= i size/10))
 	(list-values (vector-set! v k i 2))))))
 
-(unless (= (h16) 2)
-  (format *stderr* "h16: ~S~%" (h16)))
+(unless (= (h17) 2)
+  (format *stderr* "h17: ~S~%" (h17)))
 
 
 ;;; --------------------------------------------------------------------------------
@@ -541,10 +610,10 @@
   (let ((sum 0)
 	(v (h111)))
     (do ((k 0 (+ k 1)))
-	((= k 10) sum)
+	((= k 10) sum) ; (n-1) * (n/2) since we're starting at 0
       (do ((i 0 (+ i 1)))
 	  ((= i ssize/10))
-	(set! sum (+ sum (vector-ref v k i)))))))
+	(set! sum (+ sum (floor (vector-ref v k i))))))))
     
 (unless (= (sum-h111) 44999850000)
   (format *stderr* "h111: ~S~%" (sum-h111)))
@@ -614,7 +683,5 @@
 
 
 ;;; --------------------------------------------------------------------------------
-;;; exprs (for typed cases -- other than existing?)
 ;;; 3D?
-;;; list-values for fx/*v_ref/set
-;;; s7: add 3/4 cases v_ref/set and opt, and remove vect_int_value?
+
