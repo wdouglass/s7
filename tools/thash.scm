@@ -34,8 +34,10 @@
 	(set! new-pos (+ pos 1))))
     
     (close-input-port port)
-    (sort! (copy counts (make-vector (hash-table-entries counts)))
-	   (lambda (a b) (> (cdr a) (cdr b))))))
+    (let ((res (sort! (copy counts (make-vector (hash-table-entries counts)))
+		      (lambda (a b) (> (cdr a) (cdr b))))))
+      (set! counts #f)
+      res)))
 
 (format *stderr* "reader ")
 
@@ -75,7 +77,8 @@
     (do ((i 0 (+ i 1)))	
 	((= i size))
       (if (not (= (hash-table-ref int-hash i) i))
-	  (display "oops")))))
+	  (display "oops")))
+    (set! int-hash #f)))
 
 (define (test3 size)
   (let ((flt-hash (make-hash-table size)))
@@ -85,7 +88,8 @@
     (do ((i 0 (+ i 1)))	
 	((= i size))
       (if (not (= (hash-table-ref flt-hash (* 2.0 i)) i))
-	  (display "oops")))))
+	  (display "oops")))
+    (set! flt-hash #f)))
 
 (define (test4 size)
   (let ((sym-hash (make-hash-table size)))
@@ -95,7 +99,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (if (not (= (hash-table-ref sym-hash (vector-ref symbols i)) i)) 
-	  (display "oops")))))
+	  (display "oops")))
+    (set! sym-hash #f)))
 
 (define (test5 size)
   (let ((str-hash (make-hash-table size eq?)))
@@ -105,7 +110,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (if (not (= (hash-table-ref str-hash (vector-ref strings i)) i)) 
-	  (display "oops")))))
+	  (display "oops")))
+    (set! str-hash #f)))
 
 (define (test6 size)
   (let ((sym-hash (make-hash-table size eq?)))
@@ -115,7 +121,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (if (not (= (hash-table-ref sym-hash (vector-ref symbols i)) i)) 
-	  (display "oops")))))
+	  (display "oops")))
+    (set! sym-hash #f)))
 
 (define (test7 size)
   (let ((chr-hash (make-hash-table 256)))
@@ -125,7 +132,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i 256)) 
       (if (not (= (hash-table-ref chr-hash (integer->char i)) i))
-	  (display "oops")))))
+	  (display "oops")))
+    (set! chr-hash #f)))
 
 (define (test8 size)
   (let ((any-hash (make-hash-table size eq?)))
@@ -139,7 +147,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (if (not (= i (hash-table-ref any-hash (vector-ref strings i))))
-	  (display "oops")))))
+	  (display "oops")))
+    (set! any-hash #f)))
 
 (define (test9 size)
   (let ((any-hash1 (make-hash-table size eq?)))
@@ -155,7 +164,8 @@
 	((= i size)) 
       (if (not (= i (hash-table-ref any-hash1 (vector-ref strings i))))
 	  (display "oops")))
-    (vector-fill! strings #f)))
+    (vector-fill! strings #f)
+    (set! any-hash1 #f)))
 
 (define (test10 size)
   (let ((cmp-hash (make-hash-table size)))
@@ -165,7 +175,8 @@
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (if (not (= (hash-table-ref cmp-hash (complex i i)) i)) 
-	  (display "oops")))))
+	  (display "oops")))
+    (set! cmp-hash #f)))
 
 (define (test-hash size)
   (format *stderr* "~D " size)

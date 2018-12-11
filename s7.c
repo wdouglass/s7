@@ -2476,7 +2476,17 @@ static void init_types(void)
 #define ctr3_is_set(p)                 has_type1_bit(T_Pair(p), T_CTR3_SET)
 #define set_ctr3_is_set(p)             do {set_type1_bit(T_Pair(p), T_CTR3_SET); clear_type_bit(p, T_LINE_NUMBER);} while (0)
 
-#define UNUSED_BITS                    0x3e00000000000000
+#define T_FULL_FLET                    (1LL << (TYPE_BITS + BIT_ROOM + 33))
+#define T_FLET                         (1 << 9)
+#define is_flet(p)                     has_type1_bit(T_Pair(p), T_FLET)
+#define set_flet(p)                    set_type1_bit(T_Pair(p), T_FLET)
+
+#define T_FULL_FLET_CHECKED            (1LL << (TYPE_BITS + BIT_ROOM + 34))
+#define T_FLET_CHECKED                 (1 << 10)
+#define flet_checked(p)                has_type1_bit(T_Pair(p), T_FLET_CHECKED)
+#define set_flet_checked(p)            set_type1_bit(T_Pair(p), T_FLET_CHECKED)
+
+#define UNUSED_BITS                    0x3800000000000000
 
 #define T_GC_MARK                      0x8000000000000000
 #define is_marked(p)                   has_type_bit(p, T_GC_MARK)
@@ -2637,6 +2647,8 @@ static void init_types(void)
 #define set_opt1_any(P, X)             set_opt1(P, X,               E_ANY)
 #define opt1_slot(P)                   T_Slt(opt1(P,                E_SLOT))
 #define set_opt1_slot(P, X)            set_opt1(P, T_Slt(X),        E_SLOT)
+#define opt1_flet(P)                   (s7_pointer)(block_data(((block_t *)(opt1_any_unchecked(P)))))
+#define set_opt1_flet(P, X)            P->object.cons.opt1 = (s7_pointer)(X)
 
 #define opt2_any_unchecked(P)          P->object.cons.opt2
 #define set_opt2_any_unchecked(P, X)   P->object.cons.opt2 = X
@@ -3889,9 +3901,17 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
 
       OP_LET_NO_VARS, OP_NAMED_LET, OP_NAMED_LET_NO_VARS, OP_NAMED_LET_STAR,
       OP_LET_C, OP_LET_S, OP_LET_S_P, OP_LET_ALL_C, OP_LET_ALL_S, OP_LET_FX,
-      OP_LET_STAR_FX, OP_LET_STAR_A2, OP_LET_STAR_A, OP_LET_opDq, OP_LET_opSSq, OP_LET_opSSq_E, OP_LET_opaSSq, OP_LET_opaSSq_E,
+      OP_LET_STAR_FX, OP_LET_STAR_A2, OP_LET_STAR_A, OP_LET_opDq, 
+
+      OP_LET_opSSq, OP_FLET_opSSq, OP_FLET_opSSq_1,
+      OP_LET_opSSq_E, OP_FLET_opSSq_E, OP_FLET_opSSq_E_1,        /* flet unused */
+      OP_LET_opaSSq, OP_FLET_opaSSq, OP_FLET_opaSSq_1,           /* flet unused */
+      OP_LET_opaSSq_E, OP_FLET_opaSSq_E, OP_FLET_opaSSq_E_1,
+
       OP_LET_opSq, OP_LET_ALL_opSq, OP_LET_opSq_P, OP_LET_CAR, OP_LET_ONE, OP_LET_ONE_1, OP_LET_ONE_P, OP_LET_ONE_P_1,
-      OP_LET_A, OP_LET_A_P, OP_LET_A_A, OP_LET_A_A_1,
+
+      OP_LET_A, OP_LET_A_P, OP_FLET_A, OP_FLET_A_1, OP_FLET_A_P, OP_FLET_A_P_1,
+      OP_LET_A_A, OP_FLET_A_A, OP_FLET_A_A_1,
 
       OP_CASE_A_E_S, OP_CASE_A_I_S, OP_CASE_A_G_S, OP_CASE_A_E_G, OP_CASE_A_G_G,
       OP_CASE_S_E_S, OP_CASE_S_I_S, OP_CASE_S_G_S, OP_CASE_S_E_G, OP_CASE_S_G_G,
@@ -3903,7 +3923,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_COND_FEED, OP_COND_FEED_1, OP_WHEN_S, OP_WHEN_A, OP_WHEN_P, OP_UNLESS_S, OP_UNLESS_A, OP_UNLESS_P,
 
       OP_IF_S_P, OP_IF_S_P_P, OP_IF_S_R, OP_IF_S_N, OP_IF_S_N_N,
-      OP_IF_C_P, OP_IF_C_P_P, OP_IF_C_R, OP_IF_C_N, OP_IF_C_N_N,
+      OP_IF_D_P, OP_IF_D_P_P, OP_IF_D_R, OP_IF_D_N, OP_IF_D_N_N,
       OP_IF_CS_P, OP_IF_CS_P_P, OP_IF_CS_R, OP_IF_CS_N, OP_IF_CS_N_N,
       OP_IF_CSS_P, OP_IF_CSS_P_P, OP_IF_CSS_R, OP_IF_CSS_N, OP_IF_CSS_N_N,
       OP_IF_CSC_P, OP_IF_CSC_P_P, OP_IF_CSC_R, OP_IF_CSC_N, OP_IF_CSC_N_N,
@@ -4098,9 +4118,14 @@ static const char* op_names[OP_MAX_DEFINED_1] =
 
       "let_no_vars", "named_let", "named_let_no_vars", "named_let*",
       "let_c", "let_s", "let_s_p", "let_all_c", "let_all_s", "let_fx",
-      "let*_fx", "let*_a2", "let*_a", "let_opdq", "let_opssq", "let_opssq_e", "let_opassq", "let_opassq_e",
+      "let*_fx", "let*_a2", "let*_a", "let_opdq", 
+      "let_opssq", "flet_opssq", "flet_opssq_1", 
+      "let_opssq_e", "flet_opssq_e", "flet_opssq_e_1", 
+      "let_opassq", "flet_opassq", "flet_opassq_1",
+      "let_opassq_e", "flet_opassq_e", "flet_opassq_e_1",
       "let_opsq", "let_all_opsq", "let_opsq_p", "let_car", "let_one", "let_one_1", "let_one_p", "let_one_p_1",
-      "let_a", "let_a_p", "let_a_a", "let_a_a_1", 
+      "let_a", "let_a_p", "flet_a", "flet_a_1", "flet_a_p", "flet_a_p_1",
+      "let_a_a", "flet_a_a", "flet_a_a_1", 
 
       "case_a_e_s", "case_a_i_s", "case_a_g_s", "case_a_e_g", "case_a_g_g",
       "case_s_e_s", "case_s_i_s", "case_s_g_s", "case_s_e_g", "case_s_g_g",
@@ -4112,7 +4137,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "cond_feed", "cond_feed_1", "when_s", "when_a", "when_p", "unless_s", "unless_a", "unless_p",
 
       "if_s_p", "if_s_p_p", "if_s_r", "if_s_n", "if_s_n_n",
-      "if_c_p", "if_c_p_p", "if_c_r", "if_c_n", "if_c_n_n",
+      "if_d_p", "if_d_p_p", "if_d_r", "if_d_n", "if_d_n_n",
       "if_cs_p", "if_cs_p_p", "if_cs_r", "if_cs_n", "if_cs_n_n",
       "if_css_p", "if_css_p_p", "if_css_r","if_css_n", "if_css_n_n",
       "if_csc_p", "if_csc_p_p", "if_csc_r", "if_csc_n", "if_csc_n_n",
@@ -4969,7 +4994,7 @@ static void sweep(s7_scheme *sc)
 	      if (opt1_any_unchecked(s1))
 		{
 		  liberate(sc, (block_t *)opt1_any_unchecked(s1));
-		  set_opt1_any_unchecked(s1, NULL);
+		  set_opt1_flet(s1, NULL);
 		}
 	    }
 	  else gp->list[j++] = s1;
@@ -5722,7 +5747,7 @@ static int64_t gc(s7_scheme *sc)
       {
 	s7_pointer p;
 	p = gp->list[i];
-	gc_mark(slot_value(let_slots(opt3_any(p))));
+	gc_mark(slot_value(let_slots(opt1_flet(p))));
       }
   }
 
@@ -7100,17 +7125,16 @@ static s7_pointer mallocate_frame_with_slot(s7_scheme *sc, s7_pointer lt_form, s
   base = (uint8_t *)block_data(b);
   frame = (s7_cell *)base;
   slot = (s7_cell *)(base + sizeof(s7_cell));
-  set_type(frame, T_LET | T_SAFE_PROCEDURE); 
+  set_type(frame, T_LET | T_SAFE_PROCEDURE | T_UNHEAP); 
   let_id(frame) = ++sc->let_number;
   set_outlet(frame, outlt);
-  set_type(slot, T_SLOT);
+  set_type(slot, T_SLOT | T_UNHEAP);
   slot_set_symbol(slot, sym);
   slot_set_value(slot, val);
   symbol_set_local(sym, sc->let_number, slot);
   set_next_slot(slot, sc->nil);
   let_set_slots(frame, slot);
-  set_opt1_any_unchecked(lt_form, (s7_pointer)b);
-  set_opt3_any(lt_form, frame);
+  set_opt1_flet(lt_form, b);
   add_frame(sc, lt_form);
   return(frame);
 }
@@ -29354,7 +29378,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 1024, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 1024, "type: %d (%s), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   typ,
 	   type_name(sc, obj, NO_ARTICLE),
 	   optimize_op(obj),
@@ -29486,6 +29510,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							 ((is_hash_table(obj)) ? " simple-keys" :
 							  ((is_pair(obj)) ? " ctr3-set" :
 							   " 32?"))) : "",
+	   /* bit 33+16 */
+	   ((full_typ & T_FULL_FLET) != 0) ?      ((is_pair(obj)) ? " flet" : " ?32?") : "",
+	   /* bit 34+16 */
+	   ((full_typ & T_FULL_FLET_CHECKED) != 0) ? ((is_pair(obj)) ? " flet_checked" : " ?32?") : "",
 
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
@@ -29517,6 +29545,8 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_FULL_DEFINER) != 0) && (!is_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj))) return(true);
   if (((full_typ & T_FULL_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
   if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_FULL_FLET) != 0) && (!is_pair(obj))) return(true);
+  if (((full_typ & T_FULL_FLET_CHECKED) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
@@ -69054,7 +69084,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
   if (is_syntactic_symbol(expr))
     {
       if (!is_pair(cdr(x))) return(UNSAFE_BODY);
-      /* lambda_unchecked, if_c_p_p define_funchecked */
+      /* lambda_unchecked, if_d_p_p define_funchecked */
       switch (symbol_syntax_op_checked(x))
 	{
 	case OP_OR:
@@ -69205,7 +69235,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	    return(min_body(result, body_is_safe(sc, sc->F, cddr(x), at_end)));
 	  }
 
-	  /* in the name binders, we first have to check that "func" actually is the same thing as the caller's func */
+	  /* in the name binders, we first have to check that "func" actually is the same thing as the caller's func 
+	   *   for flet we need to track the current let's safety independent of anything else
+	   */
 	case OP_LET:
 	case OP_LET_STAR:
 	case OP_LETREC:
@@ -69213,12 +69245,16 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  {
 	    bool follow = false;
 	    s7_pointer vars, body, let_name, sp;
+	    body_t local_safety = VERY_SAFE_BODY;
+
+	    set_flet_checked(x);
 	    vars = cadr(x);
 	    body = cddr(x);
 	    if (is_symbol(vars))
 	      {
-		if (!is_pair(body)) return(UNSAFE_BODY); /* (let name . res) */
-		if (vars == func)                        /* named let shadows caller */
+		if (!is_pair(body)) 
+		  return(UNSAFE_BODY);        /* (let name . res) */
+		if (vars == func)             /* named let shadows caller */
 		  return(UNSAFE_BODY);
 		let_name = vars;
 		vars = caddr(x);
@@ -69244,7 +69280,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 
 		if (is_pair(cadr(let_var)))
 		  {
-		    result = min_body(result, form_is_safe(sc, let_name, cadr(let_var), false));
+		    local_safety = min_body(local_safety, form_is_safe(sc, let_name, cadr(let_var), false));
+		    result = min_body(result, local_safety);
 		    if (result == UNSAFE_BODY)
 		      return(UNSAFE_BODY);
 		  }
@@ -69260,7 +69297,10 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      }
 		  }
 	      }
-	    return(min_body(result, body_is_safe(sc, let_name, body, at_end)));
+	    local_safety = min_body(local_safety, body_is_safe(sc, let_name, body, at_end));
+	    if (local_safety != UNSAFE_BODY)
+	      set_flet(x);
+	    return(min_body(result, local_safety));
 	  }
 
 	case OP_DO:	  /* (do (...) (...) ...) */
@@ -70131,33 +70171,39 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 
 	      if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 		{
+		  /* no lt fx here, 4 s7test */
+#if S7_DEBUGGING && (false)
+		  if (!is_flet(form))
+		    fprintf(stderr, "%s[%d]: %sflet: %s\n\n", __func__, __LINE__, (is_flet(form)) ? "" : "not ", DISPLAY(form));
+		  /* not flet: (let* ((a (curlet))) a) because curlet is considered a definer */
+#endif
 		  set_opt2_pair(sc->code, cadr(binding));
-		  pair_set_syntax_op(form, OP_LET_opSSq_E);
+		  pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_opSSq_E : OP_LET_opSSq_E);
 		  if (c_call(cadr(binding)) == g_assq)
-		    pair_set_syntax_op(form, OP_LET_opaSSq_E);
+		    pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_opaSSq_E : OP_LET_opaSSq_E);
 		  set_opt3_sym(sc->code, caddr(cadr(binding)));
 		  return(sc->code);
 		}
 	      if (is_fx_safe(sc, cadr(binding)))
 		{
-		  pair_set_syntax_op(form, OP_LET_A);
+		  pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_A : OP_LET_A);
 		  annotate_arg(sc, cdr(binding), sc->envir);
 		  if (is_fx_safe(sc, cadr(sc->code)))
 		    {
 		      annotate_arg(sc, cdr(sc->code), sc->envir);
-		      pair_set_syntax_op(form, OP_LET_A_A);
+		      pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_A_A : OP_LET_A_A);
 		    }
 		  else
 		    {
 		      if ((is_optimized(cadr(sc->code))) ||
 			  (is_syntactic_pair(cadr(sc->code))))
-			pair_set_syntax_op(form, OP_LET_A_P);
+			pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_A_P : OP_LET_A_P);
 		      else
 			{
 			  if ((is_pair(cadr(sc->code))) &&
 			      (is_syntactic(caadr(sc->code))))
 			    {
-			      pair_set_syntax_op(form, OP_LET_A_P);
+			      pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_A_P: OP_LET_A_P);
 			      set_optimize_op(cadr(sc->code), syntax_opcode(slot_value(global_slot(caadr(sc->code)))));
 			    }
 			}
@@ -70177,8 +70223,8 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 	  if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 	    {
 	      if (c_call(cadr(binding)) == g_assq)
-		pair_set_syntax_op(form, OP_LET_opaSSq);
-	      else pair_set_syntax_op(form, OP_LET_opSSq);
+		pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_opaSSq : OP_LET_opaSSq);
+	      else pair_set_syntax_op(form, (is_flet(form)) ? OP_FLET_opSSq: OP_LET_opSSq);
 	      set_opt3_sym(sc->code, caddr(cadr(binding)));
 	    }
 	  else
@@ -70341,6 +70387,9 @@ static s7_pointer check_let(s7_scheme *sc)
     }
 
   /* not named let */
+  if (!flet_checked(form))
+    form_is_safe(sc, sc->gc_nil, form, false);
+
   if (is_null(start))
     pair_set_syntax_op(form, OP_LET_NO_VARS);
   else
@@ -70589,6 +70638,8 @@ static bool op_let1(s7_scheme *sc)
   return(true);
 }
 
+#define start_let(Sc) do {set_current_code(Sc, Sc->code); Sc->code = cdr(Sc->code);} while (0)
+
 static void op_let_c(s7_scheme *sc)
 {
   /* one var, init is constant, incoming sc->code is '(((var val))...)!
@@ -70596,8 +70647,7 @@ static void op_let_c(s7_scheme *sc)
    *   opt3_sym can be clobbered by a subsequent opt_back apparently??
    */
   s7_pointer binding;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = T_Pair(caar(sc->code));
   new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), cadr(binding));
   sc->code = T_Pair(cdr(sc->code));
@@ -70606,8 +70656,7 @@ static void op_let_c(s7_scheme *sc)
 static void op_let_car(s7_scheme *sc)
 {
   s7_pointer binding, val;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = T_Pair(caar(sc->code));
   val = symbol_to_value_unchecked(sc, opt2_sym(sc->code));
   sc->value = (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val));
@@ -70618,8 +70667,7 @@ static void op_let_car(s7_scheme *sc)
 
 static void op_let_no_vars(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   new_frame(sc, sc->envir, sc->envir);
   sc->code = T_Pair(cdr(sc->code));         /* ignore the () */
 }
@@ -70627,8 +70675,7 @@ static void op_let_no_vars(s7_scheme *sc)
 static void op_named_let_no_vars(s7_scheme *sc)
 {
   s7_pointer body;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   new_frame(sc, sc->envir, sc->envir);
   body = cddr(sc->code);
   sc->args = make_closure(sc, sc->nil, body, T_CLOSURE | T_COPY_ARGS, 0);  /* sc->args is a temp here */
@@ -70638,9 +70685,8 @@ static void op_named_let_no_vars(s7_scheme *sc)
 
 static void op_named_let(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
+  start_let(sc);
   sc->args = sc->nil;
-  sc->code = cdr(sc->code);
   sc->value = sc->code;
   sc->code = cadr(sc->code);
 }
@@ -70649,8 +70695,7 @@ static inline void op_let_s(s7_scheme *sc)
 {
   /* one var, init is symbol, incoming sc->code is '(((var sym))...) */
   s7_pointer binding;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = T_Pair(caar(sc->code));
   sc->value = symbol_to_value_checked(sc, cadr(binding));
   new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), sc->value);
@@ -70658,16 +70703,14 @@ static inline void op_let_s(s7_scheme *sc)
 
 static void op_let_one(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   push_stack(sc, OP_LET_ONE_1, opt2_sym(cdr(sc->code)), cdr(sc->code)); /* args code */
   sc->code = opt2_pair(sc->code);
 }
 
 static void op_let_one_p(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   push_stack(sc, OP_LET_ONE_P_1, opt2_sym(cdr(sc->code)), cadr(sc->code)); /* caaar(sc->code) */
   sc->code = T_Pair(opt2_pair(sc->code));
 }
@@ -70675,40 +70718,62 @@ static void op_let_one_p(s7_scheme *sc)
 static inline void op_let_a(s7_scheme *sc)
 {
   s7_pointer binding;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = caar(sc->code);
   new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
+}
+
+static inline void op_flet_a(s7_scheme *sc)
+{
+  s7_pointer binding;
+  start_let(sc);
+  binding = caar(sc->code);
+  sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
+}
+
+static inline void op_flet_a_1(s7_scheme *sc)
+{
+  s7_pointer binding, e;
+  start_let(sc);
+  binding = caar(sc->code);
+  e = sc->envir;
+  sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), c_call(cdr(binding))(sc, cadr(binding)));
+  set_outlet(sc->envir, e);
 }
 
 static void op_let_a_a(s7_scheme *sc)
 {
   s7_pointer binding;
-  /* optimize_op(sc->code) is OP_LET_A_A, opt1 and opt3 are not in use */
-  set_optimize_op(sc->code, OP_LET_A_A_1);
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
+  binding = caar(sc->code);
+  new_frame_with_slot(sc, sc->envir, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
+  sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
+}
+
+static void op_flet_a_a(s7_scheme *sc)
+{
+  s7_pointer binding;
+  set_optimize_op(sc->code, OP_FLET_A_A_1);
+  start_let(sc);
   binding = caar(sc->code);
   sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, car(binding), c_call(cdr(binding))(sc, cadr(binding)));
   sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
 }
 
-static void op_let_a_a_1(s7_scheme *sc)
+static void op_flet_a_a_1(s7_scheme *sc)
 {
   s7_pointer binding, e;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = caar(sc->code);
   e = sc->envir;
-  sc->envir = old_frame_with_slot(sc, opt3_any(sc->code), c_call(cdr(binding))(sc, cadr(binding)));
+  sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), c_call(cdr(binding))(sc, cadr(binding)));
   set_outlet(sc->envir, e);
   sc->value = c_call(cdr(sc->code))(sc, cadr(sc->code));
 }
 
 static void op_let_opdq(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   sc->value = c_call(opt2_pair(sc->code))(sc, cdr(opt2_pair(sc->code)));
   new_frame_with_slot(sc, sc->envir, sc->envir, opt3_sym(sc->code), sc->value);
   sc->code = T_Pair(cdr(sc->code));
@@ -70717,8 +70782,7 @@ static void op_let_opdq(s7_scheme *sc)
 static inline void op_let_opsq(s7_scheme *sc)
 {
   s7_pointer binding;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   binding = T_Pair(caar(sc->code));
   set_car(sc->t1_1, symbol_to_value_unchecked(sc, opt2_sym(sc->code)));
   sc->value = c_call(cadr(binding))(sc, sc->t1_1);
@@ -70728,21 +70792,18 @@ static inline void op_let_opsq(s7_scheme *sc)
 static inline void op_let_opssq(s7_scheme *sc)
 {
   s7_pointer largs, in_val;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   largs = T_Pair(opt2_pair(sc->code));                              /* cadr(caar(sc->code)); */
   in_val = symbol_to_value_unchecked(sc, cadr(largs));
   set_car(sc->t2_2, symbol_to_value_unchecked(sc, opt3_sym(sc->code))); /* caddr(largs)); */
   set_car(sc->t2_1, in_val);
   sc->value = c_call(largs)(sc, sc->t2_1);
-  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
 }
 
 static inline void op_let_opassq(s7_scheme *sc)
 {
   s7_pointer largs, in_val, lst;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   largs = T_Pair(opt2_pair(sc->code));                              /* cadr(caar(sc->code)); */
   in_val = symbol_to_value_unchecked(sc, cadr(largs));
   lst = symbol_to_value_unchecked(sc, opt3_sym(sc->code));
@@ -70754,14 +70815,12 @@ static inline void op_let_opassq(s7_scheme *sc)
 	sc->value = sc->F;
       else sc->value = g_assq(sc, set_plist_2(sc, in_val, lst));
     }
-  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
 }
 
 static void op_let_all_c(s7_scheme *sc)
 {
   s7_pointer p;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   new_frame(sc, sc->envir, sc->envir);
   for (p = car(sc->code); is_pair(p); p = cdr(p))
     add_slot(sc->envir, caar(p), cadar(p));
@@ -70774,8 +70833,7 @@ static void op_let_all_s(s7_scheme *sc)
  */
 {
   s7_pointer p, frame;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   frame = make_simple_let(sc);
   sc->args = frame;
   for (p = car(sc->code); is_pair(p); p = cdr(p))
@@ -70788,8 +70846,7 @@ static void op_let_all_s(s7_scheme *sc)
 static void op_let_all_opsq(s7_scheme *sc)
 {
   s7_pointer p, frame;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   frame = make_simple_let(sc);
   sc->args = frame;
   for (p = car(sc->code); is_pair(p); p = cdr(p))
@@ -70807,8 +70864,7 @@ static void op_let_all_opsq(s7_scheme *sc)
 static void op_let_fx(s7_scheme *sc)
 {
   s7_pointer p, frame;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   frame = make_simple_let(sc);
   sc->args = frame;
   for (p = car(sc->code); is_pair(p); p = cdr(p))
@@ -71088,24 +71144,21 @@ static void op_let_star_a(s7_scheme *sc)
 
 static void op_let_star_a2(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   push_stack(sc, OP_LET_STAR_A, sc->code, car(sc->code));
   sc->code = opt2_con(sc->code);
 }
 
 static void op_named_let_star(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   push_stack(sc, OP_LET_STAR1, sc->code, cadr(sc->code));
   sc->code = opt2_con(sc->code);
 }
 
 static void op_let_star2(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   push_stack(sc, OP_LET_STAR1, sc->code, car(sc->code));
   sc->code = opt2_con(sc->code);
 }
@@ -71230,8 +71283,7 @@ static bool op_letrec1(s7_scheme *sc)
 
 static bool op_letrec_star_unchecked(s7_scheme *sc)
 {
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
+  start_let(sc);
   /* get all local vars and set to #<undefined>
    * eval each member of values list and assign immediately, as in let*
    * eval body
@@ -71636,7 +71688,7 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 		  return;
 		}
 	      set_opt2_pair(sc->code, cdr(test));
-	      pair_set_syntax_op(form, choose_if_optc(IF_C, one_branch, reversed, not_case));
+	      pair_set_syntax_op(form, choose_if_optc(IF_D, one_branch, reversed, not_case));
 	      return;
 	    }
 
@@ -82328,8 +82380,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  else sc->value = sc->code;
 	  goto START;
 
-	  /* adding if*_z and if*_z_z made no difference */
-
         #define IF_CASE(Op, Code, Not_Code)						\
 	  case Op ## _P:   sc->code = cdr(sc->code); Code {sc->code = cadr(sc->code); goto EVAL;} else {sc->value = sc->unspecified; goto START;} \
 	  case Op ## _R:   sc->code = cdr(sc->code); Code {sc->value = sc->unspecified; goto START;} else {sc->code = cadr(sc->code); goto EVAL;} \
@@ -82345,7 +82395,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  if (is_true(sc, c_call(sc->code)(sc, car(sc->code)))),
 		  if (is_false(sc, c_call(cdar(sc->code))(sc, cadar(sc->code)))))
 
-	  IF_CASE(OP_IF_C,
+	  IF_CASE(OP_IF_D,
 		  if (is_true(sc, c_call(car(sc->code))(sc, opt2_pair(sc->code)))),
 		  if (is_false(sc, c_call(cadar(sc->code))(sc, opt2_pair(sc->code)))))
 
@@ -82562,41 +82612,128 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_LET_opSSq:       /* one var, init is safe_c_ss */
 	  op_let_opssq(sc);
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
 	  sc->code = T_Pair(cdr(sc->code));
 	  goto BEGIN;
 
-	case OP_LET_opSSq_E:
+	case OP_FLET_opSSq:
+	  set_optimize_op(sc->code, OP_FLET_opSSq_1);
 	  op_let_opssq(sc);
-	  sc->code = cadr(sc->code);
-	  goto EVAL;
-
-	case OP_LET_opaSSq:
-	  op_let_opassq(sc);
-	  sc->code = T_Pair(cdr(sc->code));
-	  goto BEGIN;
-
-	case OP_LET_opaSSq_E:
-	  op_let_opassq(sc);
-	  sc->code = cadr(sc->code);
-	  goto EVAL;
-
-	case OP_LET_A:
-	  op_let_a(sc);
+	  sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, caaar(sc->code), sc->value);
 	  sc->code = cdr(sc->code);
 	  goto BEGIN;
 
-	case OP_LET_A_A:
-	  op_let_a_a(sc);
-	  goto START;
+	case OP_FLET_opSSq_1:
+	  {
+	    s7_pointer e;
+	    op_let_opssq(sc);
+	    e = sc->envir;
+	    sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), sc->value);
+	    set_outlet(sc->envir, e);
+	    sc->code = cdr(sc->code);
+	    goto BEGIN;
+	  }
 
-	case OP_LET_A_A_1:
-	  op_let_a_a_1(sc);
-	  goto START;
-
-	case OP_LET_A_P:
-	  op_let_a(sc);
+	case OP_LET_opSSq_E:
+	  op_let_opssq(sc);
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
 	  sc->code = cadr(sc->code);
 	  goto EVAL;
+
+	case OP_FLET_opSSq_E:
+	  set_optimize_op(sc->code, OP_FLET_opSSq_E_1);
+	  op_let_opssq(sc);
+	  sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, caaar(sc->code), sc->value);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
+	case OP_FLET_opSSq_E_1:
+	  {
+	    s7_pointer e;
+	    op_let_opssq(sc);
+	    e = sc->envir;
+	    sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), sc->value);
+	    set_outlet(sc->envir, e);
+	    sc->code = cadr(sc->code);
+	    goto EVAL;
+	  }
+
+	case OP_LET_opaSSq:
+	  op_let_opassq(sc);
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
+	  sc->code = T_Pair(cdr(sc->code));
+	  goto BEGIN;
+
+	case OP_FLET_opaSSq:
+	  set_optimize_op(sc->code, OP_FLET_opaSSq_1);
+	  op_let_opassq(sc);
+	  sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, caaar(sc->code), sc->value);
+	  sc->code = cdr(sc->code);
+	  goto BEGIN;
+
+	case OP_FLET_opaSSq_1:
+	  {
+	    s7_pointer e;
+	    op_let_opassq(sc);
+	    e = sc->envir;
+	    sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), sc->value);
+	    set_outlet(sc->envir, e);
+	    sc->code = cdr(sc->code);
+	    goto BEGIN;
+	  }
+
+	case OP_LET_opaSSq_E:
+	  op_let_opassq(sc);
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caaar(sc->code), sc->value);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
+	case OP_FLET_opaSSq_E:
+	  set_optimize_op(sc->code, OP_FLET_opaSSq_E_1);
+	  op_let_opassq(sc);
+	  sc->envir = mallocate_frame_with_slot(sc, sc->code, sc->envir, caaar(sc->code), sc->value);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
+	case OP_FLET_opaSSq_E_1:
+	  {
+	    s7_pointer e;
+	    op_let_opassq(sc);
+	    e = sc->envir;
+	    sc->envir = old_frame_with_slot(sc, opt1_flet(sc->code), sc->value);
+	    set_outlet(sc->envir, e);
+	    sc->code = cadr(sc->code);
+	    goto EVAL;
+	  }
+
+	case OP_LET_A:   op_let_a(sc); sc->code = cdr(sc->code);  goto BEGIN;
+	case OP_LET_A_P: op_let_a(sc); sc->code = cadr(sc->code); goto EVAL;
+
+	case OP_FLET_A:
+	  set_optimize_op(sc->code, OP_FLET_A_1);
+	  op_flet_a(sc);
+	  sc->code = cdr(sc->code);  
+	  goto BEGIN;
+
+	case OP_FLET_A_P:
+	  set_optimize_op(sc->code, OP_FLET_A_P_1);
+	  op_flet_a(sc);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
+	case OP_FLET_A_1:
+	  op_flet_a_1(sc);
+	  sc->code = cdr(sc->code);  
+	  goto BEGIN;
+
+	case OP_FLET_A_P_1:
+	  op_flet_a_1(sc);
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
+	case OP_LET_A_A:    op_let_a_a(sc);    goto START;
+	case OP_FLET_A_A:   op_flet_a_a(sc);   goto START;
+	case OP_FLET_A_A_1: op_flet_a_a_1(sc); goto START;
 
 	case OP_LET_UNCHECKED:   /* not named, but has vars */
 	  if (op_let_unchecked(sc)) goto EVAL;
@@ -90421,7 +90558,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 798) || (OPT_MAX_DEFINED != 405))
+  if ((OP_MAX_DEFINED != 811) || (OPT_MAX_DEFINED != 405))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -90496,31 +90633,31 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  236 |  236
  * tshoot        |      |      |      |      |      |  373 |  356
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1021 1019
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1296 1287
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1531
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1015
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1278
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1533
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1740
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2119 2114
- * tvect         |      |      |      |      |      | 5314 | 2307 2296
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2312
- * tread         |      |      |      |      | 2357 | 2336 | 2333
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2355
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2496
- * tlet          |      |      |      |      | 4717 | 2959 | 2953 2940
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3015
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3083 3070
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2106
+ * tvect         |      |      |      |      |      | 5314 | 2295
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2300
+ * tread         |      |      |      |      | 2357 | 2336 | 2358 (form_is_safe)
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2359
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2497
+ * tlet          |      |      |      |      | 4717 | 2959 | 2938
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3013
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3062
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3327
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3587 3572
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5310
- * dup           |      |      |      |      | 20.8 | 5711 | 5078 5274
- * tset          |      |      |      |      | 10.0 | 6432 | 6451 6364
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.2
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5186
+ * dup           |      |      |      |      | 20.8 | 5711 | 5278
+ * tset          |      |      |      |      | 10.0 | 6432 | 6430
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.9
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3 (form_is_safe)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.5
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |112.6 112.2
- * tbig          |      |      |      |      |246.9 |230.6 |218.6 218.3
+ * lg            |      |      |      |211.0 |133.0 |112.7 |111.6
+ * tbig          |      |      |      |      |246.9 |230.6 |217.8
  * -----------------------------------------------------------------------
  *
  * if frame_safe, carry func-name+func, use at call, precalc local-var-using expr, reuse frame, go direct to closure_body
@@ -90531,7 +90668,8 @@ int main(int argc, char **argv)
  *   opt typed-vector-setter [direct]
  * collapse make_int_vector? all index->ints could a macro/function [inline function here == tbig overhead]
  * opt_int_slot etc, or general opt_chooser given possibilities
- * safe_closure_a_a et al -> opt, let_car_a? let_one_a? let_opsq_a etc, count ifs in this regard
- *    any non-recursive/no-definer let can be saved
- *    for-each/map counter? iterator?
+ * safe_closure_a_a et al -> opt (direct not via fx?)
+ * let/flet for rest of lets (as in let_a_a, flet_a_a et al could use sc->value = c_call...)
+ *   flet_opassq flet_opssq_e unused? [only flet_opassq_e in lt/b, none in test?]
+ *   check opssq in v*30
  */
