@@ -54,6 +54,35 @@
   ;;               "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x ,tst)) !x))) ,expected)"
   ))
 
+#|
+;; this quits at the quoted circular list (car '#1= (2 . #1#))
+(set! (*s7* 'safety) 1)
+
+(define-macro (test tst expected)
+  (let ((_call_ (gensym))
+	(_caller_ (gensym)))
+    `(ok? ',tst 
+	  (lambda ()
+	    (define (,_caller_) (,_call_ ,tst))
+	    (define (,_call_ x) x)
+	    (,_caller_)
+	    (,_caller_))
+	  ,expected)))
+
+(define-macro (num-test tst expected)
+  (let ((_call_ (gensym))
+	(_caller_ (gensym)))
+    `(nok? ',tst 
+	  (lambda ()
+	    (define (,_caller_) (,_call_ ,tst))
+	    (define (,_call_ x) x)
+	    (,_caller_)
+	    (,_caller_))
+	  ,expected)))
+  
+(load "s7test.scm")
+|#
+
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)
 (if (provided? 'linux)
     (begin
