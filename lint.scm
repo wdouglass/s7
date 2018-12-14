@@ -372,16 +372,15 @@
     (define target-line-length 80) ; also 120 via let-temporarily
 
     (denote (lint-truncate-string str)
-      (let ((len (length str)))
-	(if (< len target-line-length)
-	    str
-	    (do ((i (- target-line-length 6) (- i 1)))
+      (if (< (length str) target-line-length)
+	  str
+	  (do ((i (- target-line-length 6) (- i 1)))
 		((or (= i 40)
 		     (char-whitespace? (string-ref str i)))
 		 (string-append (substring str 0 (if (<= i 40) 
 						     (- target-line-length 6)
 						     i))
-				"..."))))))
+				"...")))))
 
     (denote (truncated-list->string form)
       ;; return form -> string with limits on its length

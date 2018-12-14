@@ -2686,7 +2686,7 @@ static void init_types(void)
 #else
   #define set_c_call(f, X)             do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
 #endif
-#define set_c_call_direct(f, X)        set_opt2(f, (s7_pointer)(X), F_CALL)
+#define set_c_call_direct(f, X)        do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
 #define set_c_call_unchecked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 
 
@@ -3388,14 +3388,14 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
   do {									\
     if (Sc->free_heap_top <= Sc->free_heap_trigger) {if (show_gc_stats(Sc)) fprintf(stderr, "%s[%d]: gc\n", __func__, __LINE__);  try_to_call_gc(Sc);} \
     Obj = (*(--(Sc->free_heap_top)));					\
-    Obj->debugger_bits = 0;						\
+    Obj->debugger_bits = 0; Obj->opt1_func = NULL; Obj->opt2_func = NULL; Obj->opt3_func = NULL; \
     set_type(Obj, Type);						\
   } while (0)
 
 #define new_cell_no_check(Sc, Obj, Type)		    \
   do {							    \
     Obj = (*(--(Sc->free_heap_top)));			    \
-    Obj->debugger_bits = 0;				    \
+    Obj->debugger_bits = 0; Obj->opt1_func = NULL; Obj->opt2_func = NULL; Obj->opt3_func = NULL; \
     set_type(Obj, Type);				    \
     } while (0)
 #endif
@@ -5697,7 +5697,7 @@ static int64_t gc(s7_scheme *sc)
       {									\
         if (!is_free_and_clear(p))					\
           {								\
-	    p->debugger_bits = 0;					\
+	    p->debugger_bits = 0; p->opt1_func = NULL; p->opt2_func = NULL; p->opt3_func = NULL; \
 	    if (has_odd_bits(p))					\
 	      {char *s; fprintf(stderr, "odd bits: %s\n", s = describe_type_bits(sc, p)); free(s);} \
             clear_type(p);						\
@@ -5928,6 +5928,9 @@ static void free_cell(s7_scheme *sc, s7_pointer p)
       /* abort(); */
     }
   p->debugger_bits = 0;
+  p->opt1_func = NULL; 
+  p->opt2_func = NULL; 
+  p->opt3_func = NULL;
   p->explicit_free_line = line;
 #endif
   clear_type(p);
@@ -29856,13 +29859,14 @@ static void show_opt1_bits(s7_pointer p, const char *func, int32_t line, uint32_
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
-  fprintf(stderr, "%s%s[%d]: opt1: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x (set %s[%d])%s\n",
+  fprintf(stderr, "%s%s[%d]: opt1: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x",
 	  BOLD_TEXT,
 	  func, line, p, p->object.cons.opt1,
 	  opt1_role_name(role),
-	  p->debugger_bits, bits, role,
-	  p->opt1_func, p->opt1_line,
-	  UNBOLD_TEXT);
+	  p->debugger_bits, bits, role);
+  if (p->opt1_func)
+    fprintf(stderr, " (set %s[%d])%s\n", p->opt1_func, p->opt1_line, UNBOLD_TEXT);
+  else fprintf(stderr, " (unset)%s\n", UNBOLD_TEXT);
   free(bits);
 }
 
@@ -29912,7 +29916,7 @@ static void show_opt2_bits(s7_pointer p, const char *func, int32_t line, uint32_
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
-  fprintf(stderr, "%s%s[%d]: opt2: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x%s%s%s%s%s%s%s%s%s (set %s[%d])%s\n",
+  fprintf(stderr, "%s%s[%d]: opt2: %p->%p wants %s, debugger bits are %" PRIx64 "%s but expects %x%s%s%s%s%s%s%s%s%s",
 	  BOLD_TEXT,
 	  func, line, p, p->object.cons.opt2,
 	  opt2_role_name(role),
@@ -29925,9 +29929,10 @@ static void show_opt2_bits(s7_pointer p, const char *func, int32_t line, uint32_
 	  ((role & F_CON) != 0) ? " con" : "",
 	  ((role & F_CALL) != 0) ? " call" : "",
 	  ((role & F_LAMBDA) != 0) ? " lambda" : "",
-	  ((role & S_NAME) != 0) ? " raw-name" : "",
-	  p->opt2_func, p->opt2_line,
-	  UNBOLD_TEXT);
+	  ((role & S_NAME) != 0) ? " raw-name" : "");
+  if (p->opt2_func)
+    fprintf(stderr, " (set %s[%d])%s\n", p->opt2_func, p->opt2_line, UNBOLD_TEXT);
+  else fprintf(stderr, " (unset)%s\n", UNBOLD_TEXT);
   free(bits);
 }
 
@@ -29940,6 +29945,15 @@ static s7_pointer opt2_1(s7_scheme *sc, s7_pointer p, uint32_t role, const char 
       fprintf(stderr, "p: %s\n", string_value(s7_object_to_string(sc, p, false)));
       if (stop_at_error) abort();
     }
+  if ((role == F_CALL) &&
+      (!has_fx(p)) &&
+      (!safe_strcmp(func, "check_and")) &&  /* these reflect set_c_call_checked|unchecked where the destination checks for null c_call */
+      (!safe_strcmp(func, "check_or")) &&
+      (!safe_strcmp(func, "eval")) &&
+      (!safe_strcmp(func, "optimize_func_two_args")) &&
+      (!safe_strcmp(func, "optimize_func_many_args")) &&
+      (!safe_strcmp(func, "optimize_func_three_args")))
+    fprintf(stderr, "%s[%d]: f_call but no fx\n", func, line);
   return(p->object.cons.opt2);
 }
 
@@ -29948,16 +29962,18 @@ static void set_opt2_1(s7_scheme *sc, s7_pointer p, s7_pointer x, uint32_t role,
   p->opt2_line = line;
   p->opt2_func = func;
   if ((role == F_CALL) &&
-      (x == NULL))  /* this happens apparently innocuously in check_and|or */
+      (x == NULL))
     {
-      if ((safe_strcmp(func, "check_and") != 0) &&
-	  (safe_strcmp(func, "check_or") != 0))
+      if ((!safe_strcmp(func, "check_and")) &&
+	  (!safe_strcmp(func, "check_or")) &&
+	  (!safe_strcmp(func, "eval")) &&
+	  (!safe_strcmp(func, "optimize_func_two_args")) &&
+	  (!safe_strcmp(func, "optimize_func_many_args")) &&
+	  (!safe_strcmp(func, "optimize_func_three_args")))
 	fprintf(stderr, "%s[%d]: set c_call for %s to null\n", func, line, string_value(object_to_truncated_string(sc, p, 80)));
     }
-  if ((role != F_CALL) &&
-      (opt2_role_matches(p, F_CALL)) &&
-      (has_fx(p)))
-    fprintf(stderr, "%s[%d]: %s clobbers fx, p: %s\n", func, line, opt2_role_name(role), string_value(s7_object_to_string(sc, p, false)));
+  if (role != F_CALL)
+    clear_has_fx(p);
   p->object.cons.opt2 = x;
   set_opt2_role(p, role);
   set_opt2_is_set(p);
@@ -29987,11 +30003,10 @@ static void show_opt3_bits(s7_pointer p, const char *func, int32_t line, int32_t
 {
   char *bits;
   bits = show_debugger_bits(p->debugger_bits);
-  fprintf(stderr, "%s%s[%d]: opt3: %s %" PRIx64 "%s (set %s[%d])%s\n",
-	  BOLD_TEXT,
-	  func, line, opt3_role_name(role), p->debugger_bits, bits,
-	  p->opt3_func, p->opt3_line,
-	  UNBOLD_TEXT);
+  fprintf(stderr, "%s%s[%d]: opt3: %s %" PRIx64 "%s", BOLD_TEXT, func, line, opt3_role_name(role), p->debugger_bits, bits);
+  if (p->opt3_func)
+    fprintf(stderr, " (set %s[%d])%s\n", p->opt3_func, p->opt3_line, UNBOLD_TEXT);
+  else fprintf(stderr, " (unset)%s\n", UNBOLD_TEXT);
   free(bits);
 }
 
@@ -58617,6 +58632,31 @@ static bool p_cf_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poin
   return(return_false(sc, car_x, __func__, __LINE__));
 }
 
+
+/* -------- p_fx_any -------- */
+
+static s7_pointer opt_p_fx_any(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 3, 0);
+  return(o->v[1].cf(o->sc, o->v[2].p));
+}
+
+static bool p_fx_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer x)
+{
+  s7_function f;
+  f = fx_choose(sc, x, sc->envir, let_symbol_is_safe);
+  if (f)
+    {
+      opc->v[0].fp = opt_p_fx_any;
+      opc->v[1].cf = f;
+      opc->v[2].p = car(x);
+      return(oo_set_type_0(opc, 3));
+    }
+  return(return_false(sc, x, __func__, __LINE__));
+}
+
+
 /* -------- p_implicit -------- */
 
 static bool p_implicit(s7_scheme *sc, s7_pointer car_x, int32_t len)
@@ -61421,11 +61461,9 @@ static bool int_optimize(s7_scheme *sc, s7_pointer expr)
   return(return_false(sc, car_x, __func__, __LINE__));
 }
 
-
 static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 {
   s7_pointer car_x, head;
-  /* cell_optimize should also try *-optimize(?? -- this is premature) and wrap the results if cell-opt doesn't work */
 
   /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY(expr)); */
   car_x = car(expr);
@@ -61621,6 +61659,13 @@ static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 	}
       else
 	{
+	  if (is_closure(s_func))
+	    {
+	      opt_info *opc;
+	      opc = alloc_opo(sc, car_x);
+	      if (p_fx_any_ok(sc, opc, s_func, expr))
+		return(true);
+	    }
 	  if (is_macro(s_func))
 	    return(return_false(sc, car_x, __func__, __LINE__)); /* macroexpand+cell_optimize here restarts the optimize process */
 	}
@@ -65041,7 +65086,8 @@ static s7_pointer equal_chooser(s7_scheme *sc, s7_pointer ur_f, int32_t args, s7
 
 	  if (s7_is_integer(arg2))
 	    {
-	      if (is_safely_optimized(arg1))
+	      if ((is_safely_optimized(arg1)) && 
+		  (has_fx(arg1)))
 		{
 		  s7_function f;
 		  f = c_callee(arg1);
@@ -65229,7 +65275,8 @@ static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr)
 	{
 	  pairs++;
 	  if ((is_symbol(car(arg))) &&
-	      (is_safely_optimized(arg)))
+	      (is_safely_optimized(arg)) &&
+	      (has_fx(arg)))
 	    {
 	      if (c_callee(arg) == g_substring)
 		{
@@ -66432,11 +66479,17 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       body = closure_body(func);
       one_form = is_null(cdr(body));
 
+      /* fprintf(stderr, "%s: hop: %d, id: %ld, constant: %d\n", DISPLAY(expr), hop, symbol_id(car(expr)), is_immutable(func)); */
+
       if (is_immutable(func)) hop = 1;
       if (pairs == 0)
 	{
 	  bool sym;
 	  sym = (symbols == 1);
+	  if (sym)
+	    set_opt2_sym(expr, arg1);
+	  else set_opt2_con(expr, arg1);
+	  set_opt1_lambda(expr, func);
 	  if (one_form)
 	    {
 	      if (safe_case)
@@ -66444,18 +66497,16 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  if (is_fx_safe(sc, car(body)))
 		    {
 		      annotate_arg(sc, body, e);
-		      set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_A : OP_SAFE_CLOSURE_C_A));
+		      set_safe_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_A : OP_SAFE_CLOSURE_C_A));
+		      /* fprintf(stderr, "%s op: %s\n", DISPLAY(expr), op_names[optimize_op(expr)]); */
 		      set_closure_has_fx(func);
+		      return(OPT_T);
 		    }
 		  else set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P));
 		}
 	      else set_optimize_op(expr, hop + ((sym) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P));
 	    }
 	  else set_optimize_op(expr, hop + ((sym) ? ((safe_case) ? OP_SAFE_CLOSURE_S : OP_CLOSURE_S) : ((safe_case) ? OP_SAFE_CLOSURE_C : OP_CLOSURE_C)));
-	  if (sym)
-	    set_opt2_sym(expr, arg1);
-	  else set_opt2_con(expr, arg1);
-	  set_opt1_lambda(expr, func);
 	  set_unsafely_optimized(expr);
 	  return(OPT_F);
 	}
@@ -66480,8 +66531,9 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  if (is_fx_safe(sc, car(body)))
 		    {
 		      annotate_arg(sc, body, e);
-		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_A);
+		      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_A);
 		      set_closure_has_fx(func);
+		      return(OPT_T);
 		    }
 		  else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_P);
 		}
@@ -67206,6 +67258,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  set_unsafely_optimized(expr);
 	  if (symbols == 2)
 	    {
+	      set_opt2_sym(expr, arg2);
+	      set_opt1_lambda(expr, func);
 	      if (one_form)
 		{
 		  if (safe_case)
@@ -67213,16 +67267,15 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      if (is_fx_safe(sc, car(body)))
 			{
 			  annotate_arg(sc, body, e);
-			  set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_A);
+			  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_A);
 			  set_closure_has_fx(func);
+			  return(OPT_T);
 			}
 		      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_P);
 		    }
 		  else set_optimize_op(expr, hop + OP_CLOSURE_SS_P);
 		}
 	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_SS : OP_CLOSURE_SS));
-	      set_opt2_sym(expr, arg2);
-	      set_opt1_lambda(expr, func);
 	      return(OPT_F);
 	    }
 	  else
@@ -90200,20 +90253,20 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1016
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1272
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1268
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1533
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1731
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2107
- * tvect         |      |      |      |      |      | 5314 | 2324
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1730
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2098
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2300
+ * tvect         |      |      |      |      |      | 5314 | 2324
  * tread         |      |      |      |      | 2357 | 2336 | 2329
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2355
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2350
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2497
  * tlet          |      |      |      |      | 4717 | 2959 | 2948
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3013
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3043
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3328
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3572
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3587
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5298
  * dup           |      |      |      |      | 20.8 | 5711 | 5262
  * tset          |      |      |      |      | 10.0 | 6432 | 6311
@@ -90222,7 +90275,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |111.8
+ * lg            |      |      |      |211.0 |133.0 |112.7 |111.1
  * tbig          |      |      |      |      |246.9 |230.6 |218.0
  * -----------------------------------------------------------------------
  *
@@ -90230,9 +90283,13 @@ int main(int argc, char **argv)
  * opt:
  *   no methods in other chooser cases? esp g_vector_set_3 (tbig) -- remove vect_int_value?
  *   return g_vector_ref if any error (and elsewhere)
- *   perhaps 3D cases? 
+ *   perhaps nD cases? 
  *   opt typed-vector-setter [direct]
  * collapse make_int_vector? all index->ints could a macro/function [inline function here == tbig overhead]
  * opt_int_slot etc, or general opt_chooser given possibilities
- * safe_closure_a_a et al -> opt (direct not via fx?)
+ * more closure->fx cases? [safe_closure_aa_a exists, also safe_thunk_a][fx_a, sa_a, sc|cs_a][fx_and_2|pair_closure_s exist too --already in?]
+ *   fx_c_closure_s_c to avoid huge overhead
+ *   fx_let_a_a etc and the opssq_e cases? [can't op_let_a_a free the let+slot?] maybe let_fx_a let_no_vars_a etc
+ *   fx_and|or_n fx_if_a_a (maybe not common?) fx_set_symbol_a (in do loop etc) but this is a set
+ * clear_has_fx in set_opt2*?
  */
