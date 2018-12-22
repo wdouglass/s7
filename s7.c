@@ -1272,7 +1272,7 @@ struct s7_scheme {
              unlet_symbol,
              values_symbol, varlet_symbol, vector_append_symbol, vector_dimensions_symbol, vector_fill_symbol, vector_ref_symbol,
              vector_set_symbol, vector_symbol,
-             with_input_from_file_symbol, with_input_from_string_symbol, with_output_to_file_symbol, with_output_to_string_symbol,
+             weak_hash_table_star_symbol, with_input_from_file_symbol, with_input_from_string_symbol, with_output_to_file_symbol, with_output_to_string_symbol,
              write_byte_symbol, write_char_symbol, write_string_symbol, write_symbol,
              local_documentation_symbol, local_signature_symbol, local_setter_symbol, local_iterator_symbol;
 #if (!WITH_PURE_S7)
@@ -28565,18 +28565,13 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
       (is_cyclic(hash)) &&
       (peek_shared_ref(ci, hash) != 0))
     {
-      /* TODO: eq-func if user-set */
-      /* (let ((<1> (make-hash-table <default-size> morally-equal?)))
-       *   and then fill all fields in cycle_port
-       *   hash_table_checker_locked?
-       * also weak hash (let ((h (make-weak-hash-table))) then (set! (h key) val)?
-       */
-
       int32_t href;
       href = peek_shared_ref(ci, hash);
       if (href < 0) href = -href;
-
-      port_write_string(port)(sc, "(hash-table*", 12, port); /* top level let */
+      
+      if (is_weak_hash_table(hash))
+	port_write_string(port)(sc, "(weak-hash-table*", 17, port);
+      else port_write_string(port)(sc, "(hash-table*", 12, port); /* top level let */
       for (i = 0; i < len; i++)
 	{
 	  s7_pointer key_val, key, val;
@@ -28627,7 +28622,9 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
     }
   else
     {
-      port_write_string(port)(sc, "(hash-table*", 12, port);
+      if (is_weak_hash_table(hash))
+	port_write_string(port)(sc, "(weak-hash-table*", 17, port);
+      else port_write_string(port)(sc, "(hash-table*", 12, port);
       for (i = 0; i < len; i++)
 	{
 	  s7_pointer key_val;
@@ -29125,7 +29122,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
     {
       if (tree_is_cyclic(sc, body))
 	s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "write_closure: body is cyclic", 29));
-      /* TODO: if any sequence in the closure_body is cyclic, complain, but how to check without clobbering ci?
+      /* perhaps: if any sequence in the closure_body is cyclic, complain, but how to check without clobbering ci?
        *   perhaps pass ci, and use make_shared_info if ci=null else continue_shared_info?
        *   this can happen only if (apply lambda ... cyclic-seq ...) I think
        *   long-term we need to include closure_body(obj) in the top object_out make_shared_info
@@ -35974,7 +35971,7 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
   if (end == 0) return(fill);
 
   if ((start == 0) && (end == vector_length(x)))
-    s7_vector_fill(sc, x, fill);                  /* TODO: this should accept indices rather than repeating code below */
+    s7_vector_fill(sc, x, fill);
   else
     {
       s7_int i;
@@ -40339,7 +40336,7 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 		}
 	      else
 		{
-		  if (proc == sc->F) /* TODO: here if dproc/typers set the procs (or above?) */
+		  if (proc == sc->F)
 		    return(ht);
 		  return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a cons of two functions", 23)));
 		}
@@ -40864,6 +40861,18 @@ static s7_pointer g_hash_table_star_2(s7_scheme *sc, s7_pointer args)
   if (cadr(args) != sc->F)
     hash_table_add(sc, ht, car(args), cadr(args));
   return(ht);
+}
+
+static s7_pointer g_weak_hash_table_star(s7_scheme *sc, s7_pointer args)
+{
+  #define H_weak_hash_table_star "(weak-hash-table* ...) returns a weak-hash-table containing the symbol/value pairs passed as its arguments. \
+That is, (weak-hash-table* 'a 1 'b 2) returns a new weak-hash-table with the two key/value pairs preinstalled."
+  #define Q_weak_hash_table_star Q_hash_table_star
+  
+  s7_pointer table;
+  table = g_hash_table_star(sc, args);
+  set_weak_hash_table(table);
+  return(table);
 }
 
 static s7_pointer hash_table_star_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -47669,7 +47678,6 @@ static bool catch_1_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointe
 	  new_cell(sc, p, T_CLOSURE | T_COPY_ARGS); /* never a safe_closure, apparently */
 	  closure_set_args(p, car(error_func));
 	  closure_set_body(p, cdr(error_func));
-	  /* TODO: set one-form etc */
 	  closure_set_setter(p, sc->F);
 	  closure_arity(p) = CLOSURE_ARITY_NOT_SET;
 	  closure_set_let(p, sc->temp4);
@@ -51823,20 +51831,6 @@ static void oo_resize(opt_info *o, int32_t new_size)
 #define oo_fixup_slots(sc, o) oo_fixup_slots_1(sc, o, __func__, __LINE__)
 static bool oo_fixup_slots_1(s7_scheme *sc, opt_info *o, const char *func, int line)
 {
-  /* TODO: local lets
-   *   we need a way to recognize a local let and an end-of-body index, and the loop needs to call fixup_slots once the
-   *   local let is in place (how to tell we're restoring rather than creating?)
-   *
-   * but opt_do_2 for example has the let built-in as o->v[2].p
-   *   save the old sc->envir, attach the new and move to it, and go on, but when to pop out? o->sc->pc = o->v[5].i?
-   *   where to store the stack of end-points?  Or perhaps use recursion here: pass to fixup_slots_upto(...)
-   *   none of the do-opts has outer vars to fixup,
-   *
-   * opc->v[0].fp is opt_do_2 (all do's are size=8, slots=0)
-   * oo_fixup_slots handles one opt_info struct, fixup_slots below handles all
-   *
-   * set oo_slots to 255?
-   */
   int32_t i;
   for (i = 0; i < oo_slots(o); i++)
     {
@@ -58671,8 +58665,7 @@ static bool p_cf_any_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poin
       (c_function_required_args(s_func) <= (len - 1)) &&
       (c_function_all_args(s_func) >= (len - 1)))
     {
-      s7_pointer p;
-      /* TODO: (vector-set! v k i 2) gets here */
+      s7_pointer p;      /* (vector-set! v k i 2) gets here */
       opc->v[1].i = (len - 1);
       for (p = cdr(car_x); is_pair(p); p = cdr(p))
 	if (!cell_optimize(sc, p))
@@ -62118,8 +62111,8 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
       else
 	{
 	  expr = cons(sc, sc->begin_symbol, body);
+	  sc->v = expr; /* GC protection? */
 	  func = s7_cell_optimize(sc, cons(sc, expr, sc->nil), true);
-	  /* TODO: do these need gc-protection? free_cell? */
 	}
 
       if (func)
@@ -62499,8 +62492,8 @@ static s7_pointer g_map_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq)
       else
 	{
 	  expr = cons(sc, sc->begin_symbol, body);
+	  sc->w = expr; /* GC protection? */
 	  func = s7_cell_optimize(sc, cons(sc, expr, sc->nil), false);
-	  /* TODO: do these need gc-protection? free_cell? */
 	}
 
       if (func)
@@ -66389,12 +66382,12 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		}
 	      return(OPT_T);
 	    }
-	  else                               /* c function is not safe */
+	  else                                         /* c function is not safe */
 	    {
 	      if (symbols == 0)
 		{
 		  set_unsafely_optimized(expr);
-		  set_optimize_op(expr, hop + OP_C_A); /* TODO: OP_C_C! */
+		  set_optimize_op(expr, hop + OP_C_A); /* OP_C_C never happens */
 		  annotate_arg(sc, cdr(expr), e);
 		  set_opt3_arglen(expr, small_int(1));
 		}
@@ -68689,10 +68682,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	      return(OPT_F);
 	    }
 	}
-#if 1 /* TODO: either a bit here or omit this -- and set tag2, leaving tag1 0 */
       else
 	{
-	  /* car_expr is "complicated" */
 	  if ((sc->undefined_identifier_warnings) &&
 	      (slot == sc->undefined) &&           /* car_expr is not in e or global */
 	      (symbol_tag(car_expr) == 0))         /*    and we haven't looked it up earlier */
@@ -68707,9 +68698,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	      else s7_warn(sc, 1024, "; %s might be undefined\n", DISPLAY(car_expr));
 	      symbol_set_tag(car_expr, 1);             /* one warning is enough */
 	    }
-	  /* we need local definitions and func args in e?  also check is_symbol case below */
 	}
-#endif
 #if OPTIMIZE_PRINT
       fprintf(stderr, "  at line %d for %s\n", __LINE__, DISPLAY(car_expr));
 #endif
@@ -74685,9 +74674,9 @@ static s7_pointer check_do(s7_scheme *sc)
 	      step_expr = caddr(var);
 	      set_c_call(cddr(var), fx_choose(sc, cddr(var), vars, do_symbol_is_safe)); /* sets opt2(cddr(var)), not opt1 */
 	      
-	      if (!is_pair(step_expr))                            /* (i 0 0) */
+	      if (!is_pair(step_expr))                /* (i 0 0) */
 		{
-		  if (cadr(var) == caddr(var)) /* TODO: or same type at least */
+		  if (cadr(var) == caddr(var))        /* not types match: (i x y) etc */
 		    set_safe_stepper(cddr(var));
 		}
 	      else
@@ -83277,7 +83266,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    s7_pointer carc;
 	    carc = car(code);
-	    if (is_syntactic_symbol(carc))  /* TODO: carc can be syntactic */
+	    if (is_syntactic_symbol(carc))  /* carc can also be syntactic */
 	      {
 		sc->cur_op = (opcode_t)symbol_syntax_op_checked(code);
 		pair_set_syntax_op(code, sc->cur_op);
@@ -87600,7 +87589,9 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
   make_slot_1(sc, mu_let, s7_make_symbol(sc, "IO"), cons(sc, make_integer(sc, info.ru_inblock), make_integer(sc, info.ru_oublock)));
 #endif
 #if (!S7_DEBUGGING)
-  make_slot_1(sc, mu_let, s7_make_symbol(sc, "permanent-cells"), cons(sc, make_integer(sc, sc->permanent_cells), kmg(sc, sc->permanent_cells * sizeof(s7_cell))));
+  make_slot_1(sc, mu_let, 
+	      s7_make_symbol(sc, "permanent-cells"), 
+	      cons(sc, make_integer(sc, sc->permanent_cells), kmg(sc, sc->permanent_cells * sizeof(s7_cell))));
 #else
   make_slot_1(sc, mu_let, s7_make_symbol(sc, "permanent-cells"), 
 	      s7_list(sc, 14, 
@@ -87722,16 +87713,23 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
 
   make_slot_1(sc, mu_let, s7_make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
 
-  sc->w = sc->nil;
-  for (i = 0; i < NUM_BLOCK_LISTS; i++)
-    {
-      block_t *b;
-      int k;
-      for (b = sc->block_lists[i], k = 0; b; b = block_next(b), k++);
-      sc->w = cons(sc, make_integer(sc, k), sc->w);
-    }
-  make_slot_1(sc, mu_let, s7_make_symbol(sc, "free_lists"), safe_reverse_in_place(sc, sc->w));
-  sc->w = sc->nil;
+  {
+    block_t *b;
+    int k;
+    for (i = 0, len = 0, sc->w = sc->nil; i < TOP_BLOCK_LIST; i++)
+      {
+	for (b = sc->block_lists[i], k = 0; b; b = block_next(b), k++);
+	sc->w = cons(sc, make_integer(sc, k), sc->w);
+	len += ((sizeof(block_t) + (1LL << i)) * k);
+      }
+    for (b = sc->block_lists[TOP_BLOCK_LIST], k = 0; b; b = block_next(b), k++)
+      len += (sizeof(block_t) + block_size(b));
+    sc->w = cons(sc, make_integer(sc, k), sc->w);
+    make_slot_1(sc, mu_let, s7_make_symbol(sc, "free_lists"), 
+		list_2(sc, cons(sc, s7_make_symbol(sc, "bytes"), kmg(sc, len)),
+		           cons(sc, s7_make_symbol(sc, "bins"), safe_reverse_in_place(sc, sc->w))));
+    sc->w = sc->nil;
+  }
 
   s7_gc_unprotect_at(sc, gc_loc);
   return(mu_let);
@@ -89382,6 +89380,7 @@ s7_scheme *s7_init(void)
   sc->hash_table_star_symbol =       defun("hash-table*",	hash_table_star,	0, 0, true);
   sc->make_hash_table_symbol =       defun("make-hash-table",	make_hash_table,	0, 3, false);
   sc->make_weak_hash_table_symbol =  defun("make-weak-hash-table", make_weak_hash_table,0, 3, false);
+  sc->weak_hash_table_star_symbol =  defun("weak-hash-table*",  weak_hash_table_star,   0, 0, true);
   sc->hash_table_ref_symbol =        defun("hash-table-ref",	hash_table_ref,		2, 0, true);
   sc->hash_table_set_symbol =        defun("hash-table-set!",	hash_table_set,		3, 0, false);
   sc->hash_table_entries_symbol =    defun("hash-table-entries", hash_table_entries,	1, 0, false);
@@ -90298,15 +90297,15 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  983
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1277
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1125
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1533
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1721
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2098
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2300
- * tvect         |      |      |      |      |      | 5314 | 2324
  * tread         |      |      |      |      | 2357 | 2336 | 2329
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2344
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2497
+ * tvect         |      |      |      |      |      | 5616 | 2702
  * tlet          |      |      |      |      | 4717 | 2959 | 2948
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3013
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3043
@@ -90323,7 +90322,4 @@ int main(int argc, char **argv)
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.9
  * tbig          |      |      |      |      |246.9 |230.6 |217.2
  * -----------------------------------------------------------------------
- *
- * why did repl start reading s7.c and passing it to system?
- * why keys but not corresponding symbols in t725 memory-usage?
  */

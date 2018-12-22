@@ -179,8 +179,8 @@
 (define baddies '(exit emergency-exit abort autotest s7-optimize
 		  all delete-file system set-cdr! stacktrace test-sym
 		  cutlet varlet gc cond-expand reader-cond
-		  openlet coverlet eval vector list cons hash-table* hash-table values
-		  symbol-table load 
+		  openlet coverlet eval vector list cons values
+		  symbol-table load throw error
 		  global-environment current-environment make-rectangular
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table*

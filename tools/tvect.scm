@@ -683,9 +683,84 @@
 
 
 ;;; --------------------------------------------------------------------------------
-;;; 3D?
 
-;(gc) (gc) (display (*s7* 'memory-usage)) (newline)
+(define size3 50)
+
+(define (h1111)
+  (let ((v (make-vector (list size3 size3 size3))))
+    (do ((k 0 (+ k 1)))
+	((= k size3) v)
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (vector-set! v k i n (+ (* i size3) (* k size3 size3) n)))))))
+
+(define (sum-h1111)
+  (let ((sum 0)
+	(v (h1111)))
+    (do ((k 0 (+ k 1)))
+	((= k size3) sum) 
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (set! sum (+ sum (floor (vector-ref v k i n)))))))))
+
+(unless (= (sum-h1111) 7812437500)
+  (format *stderr* "h1111: ~S~%" (sum-h1111)))
+
+
+(define (i1111)
+  (let ((v (make-int-vector (list size3 size3 size3))))
+    (do ((k 0 (+ k 1)))
+	((= k size3) v)
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (int-vector-set! v k i n (+ (* i size3) (* k size3 size3) n)))))))
+
+(define (sum-i1111)
+  (let ((sum 0)
+	(v (i1111)))
+    (do ((k 0 (+ k 1)))
+	((= k size3) sum) 
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (set! sum (+ sum (int-vector-ref v k i n))))))))
+
+(unless (= (sum-i1111) 7812437500)
+  (format *stderr* "i1111: ~S~%" (sum-i1111)))
+
+
+(define (f1111)
+  (let ((v (make-float-vector (list size3 size3 size3))))
+    (do ((k 0 (+ k 1)))
+	((= k size3) v)
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (float-vector-set! v k i n (+ 0.0 (* i size3) (* k size3 size3) n)))))))
+
+(define (sum-f1111)
+  (let ((sum 0.0)
+	(v (f1111)))
+    (do ((k 0 (+ k 1)))
+	((= k size3) sum) 
+      (do ((i 0 (+ i 1)))
+	  ((= i size3))
+	(do ((n 0 (+ n 1)))
+	    ((= n size3))
+	  (set! sum (+ sum (float-vector-ref v k i n))))))))
+
+(unless (= (sum-f1111) 7812437500.0)
+  (format *stderr* "f1111: ~S~%" (sum-f1111)))
+
+
 
 (s7-version)
 (exit)
