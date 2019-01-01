@@ -232,11 +232,6 @@
 	(set! (v 'value) (apply #_hash-table args))
 	v))
     
-    (define (mock-hash-table* . args)
-      (let ((v (make-mock-hash-table)))
-	(set! (v 'value) (apply #_hash-table* args))
-	v))
-    
     (set! mock-hash-table? (lambda (obj)
 			     (and (openlet? obj)
 				  (outlet-member obj mock-hash-table-class))))

@@ -1,12 +1,23 @@
-Snd 18.9:
+Snd 19.0
 
-Kjetil updated the s7webserver directory
+s7: added (*s7* 'history-enabled) at Kjetil's suggestion.
+    deprecated s7_gc_unprotect (use s7_gc_unprotect_at).
+    added weak-hash-table
 
-s7: variables can be statically typed via the built-in type checkers like integer?
-      for example, (set! (setter 'x) integer?)
+The main visible s7 change:
 
-audio.c: added JACK_AUTO_SRC (defaults to 1).  
+hash-table* is now hash-table, and the old hash-table is gone.
+This code can provide backwards compatibility except for some
+corner cases involving map and for-each:
 
-checked: FC 29 (gcc 8.2.1), macOS Mojave, sbcl 1.4.13
+(when (string>=? (s7-version) "8.0") 
+  (define hash-table* hash-table) 
+  (define (hash-table . args) 
+    (apply hash-table* (map (lambda (x) 
+			      (values (car x) (cdr x)))
+			    args))))
+
+
+checked: sbcl 1.4.14|15
 
 Thanks!: Kjetil Matheussen

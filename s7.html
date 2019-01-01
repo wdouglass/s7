@@ -2316,8 +2316,7 @@ To insist that all objects are of the same type, use an explicit getter:
 <li>(<em class=def id="makehashtable">make-hash-table</em> (size 8) eq-func typers)
 <li>(<em class=def id="makeweakhashtable">make-weak-hash-table</em> (size 8) eq-func typers)
 <li>(<em class=def id="hashtable">hash-table</em> ...)
-<li>(<em class=def id="hashtablestar">hash-table*</em> ...)
-<li>(<em class=def id="weakhashtablestar">weak-hash-table*</em> ...)
+<li>(<em class=def id="weakhashtable">weak-hash-table</em> ...)
 <li>(<em class=def id="hashtablep">hash-table?</em> obj)
 <li>(<em class=def id="weakhashtablep">weak-hash-table?</em> obj)
 <li>(<em class=def id="hashtableref">hash-table-ref</em> ht key)
@@ -2341,17 +2340,16 @@ set its value to #f; to remove all keys, <code>(fill! table #f)</code>.
 <em class="gray">123</em>
 </pre>
 
-<p>hash-table (the function) parallels the functions vector, list, and string.  Its arguments are conses containing key/value pairs.
-The result is a new hash-table with those values preinstalled: <code>(hash-table '("hi" . 32) '("ho" . 1))</code>.
-After much use, I now think it is more convenient here, as in inlet, to use hash-table*; its arguments are
-simply the keys and values, without the consing: <code>(hash-table* 'a 1 'b 2)</code>.
+<p>hash-table (the function) parallels the functions vector, list, and string.  
+Its arguments are
+the keys and values: <code>(hash-table 'a 1 'b 2)</code>.
 Implicit indexing gives multilevel hashes:
 </p>
 
 <pre class="indented">
-&gt; (let ((h (hash-table* 'a (hash-table* 'b 2 'c 3)))) (h 'a 'b))
+&gt; (let ((h (hash-table 'a (hash-table 'b 2 'c 3)))) (h 'a 'b))
 <em class="gray">2</em>
-&gt; (let ((h (hash-table* 'a (hash-table* 'b 2 'c 3)))) (set! (h 'a 'b) 4) (h 'a 'b))
+&gt; (let ((h (hash-table 'a (hash-table 'b 2 'c 3)))) (set! (h 'a 'b) 4) (h 'a 'b))
 <em class="gray">4</em>
 </pre>
 
@@ -2384,9 +2382,6 @@ an entry, <code>'(key . value)</code>, in whatever order the entries are encount
 <pre class="indented">
 (define (hash-table-&gt;alist table)
   (map values table))
-
-(define (merge-hash-tables . tables) ; probably faster: (define merge-hash-tables append)
-  (apply hash-table (apply map values hash-tables)))
 </pre>
 
 <p>reverse of a hash-table returns a new table with the keys and values reversed.
@@ -5543,8 +5538,6 @@ definition, and a later redefinition does not affect earlier uses.
 <p>With the move to s7_setter and s7_set_setter (setter in Scheme), 
 dilambda and dilambda? have been reduced to trivial conveniences, so perhaps they can also be
 removed.
-And, in retrospect, hash-table* is clearly superior to hash-table, so hash-table should be removed,
-and hash-table* renamed.
 </p>
 
 <p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,

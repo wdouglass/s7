@@ -11,7 +11,7 @@
 (define mock-char (*mock-char* 'mock-char))
 (define mock-vector (*mock-vector* 'mock-vector))
 (define mock-symbol (*mock-symbol* 'mock-symbol))
-(define mock-hash-table* (*mock-hash-table* 'mock-hash-table*))
+(define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 
 (define np (list 0 1 2 3 4))
 (define mp (mock-pair '(0 1 2 3 4)))
@@ -45,7 +45,7 @@
 			  (byte-vector 0 1 2) (byte-vector) (byte-vector 255 0 127) (make-iterator (vector '(a . 2)))
 			  (lambda (dir) 1.0) (float-vector) (make-float-vector '(2 2)) (int-vector 1 2 3) (int-vector)
 			  (inlet 'value 1 '+ (lambda args 1)) (inlet) (make-iterator (inlet 'a 1 'b 2) (cons #f #f))
-			  (make-iterator "123456") (make-iterator '(1 2 3)) (make-iterator (hash-table* 'a 1 'b 2) (cons #f #f))
+			  (make-iterator "123456") (make-iterator '(1 2 3)) (make-iterator (hash-table 'a 1 'b 2) (cons #f #f))
 			  (open-input-string "123123") (open-input-file "/home/bil/cl/4.aiff")
 			  (open-output-file "test.test") (open-output-string)
 			  
@@ -55,7 +55,7 @@
 			  (mock-char #\b)
 			  (mock-symbol 'c)
 			  (mock-vector 1 2 3 4)
-			  (mock-hash-table* 'b 2)
+			  (mock-hash-table 'b 2)
 			  
 			  (make-block 4) (block) (make-iterator (block 1 2 3 4))
 			  ))

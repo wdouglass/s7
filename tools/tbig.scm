@@ -931,7 +931,7 @@
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x scl)))
 	((= i fft-size))
-      (int-vector-set! fvr i (round (* 1000 (sin x)))))
+      (int-vector-set! fvr i (round (* 1000.0 (sin x)))))
     (int-vector-fft fvr fvi fft-size 1)
     (int-vector-checker fvr fvi)
     (int-vector-fft #f #f fft-size 1)
@@ -1174,7 +1174,6 @@
 (vector-2d-test 2)
 (clear-and-gc)
 
-
 ;; --------------------------------------------------------------------------------
 (format () "~%blocks...~%")
 
@@ -1321,12 +1320,12 @@
 	  (set! end (+ ii (* pw mmax)))
 	  (do ((i ii (+ i mmax)))
 	      ((= i end))
-	    (set! tempr (- (* wr ((vector-ref rl j) 0)) (* wi ((vector-ref im j) 0))))
-	    (set! tempi (+ (* wr ((vector-ref im j) 0)) (* wi ((vector-ref rl j) 0))))
-	    (vector-set! rl j (block (- ((vector-ref rl i) 0) tempr)))
-	    (vector-set! rl i (block (+ ((vector-ref rl i) 0) tempr)))
-	    (vector-set! im j (block (- ((vector-ref im i) 0) tempi)))
-	    (vector-set! im i (block (+ ((vector-ref im i) 0) tempi)))
+	    (set! tempr (- (* wr (block-ref (vector-ref rl j) 0)) (* wi (block-ref (vector-ref im j) 0))))
+	    (set! tempi (+ (* wr (block-ref (vector-ref im j) 0)) (* wi (block-ref (vector-ref rl j) 0))))
+	    (vector-set! rl j (block (- (block-ref (vector-ref rl i) 0) tempr)))
+	    (vector-set! rl i (block (+ (block-ref (vector-ref rl i) 0) tempr)))
+	    (vector-set! im j (block (- (block-ref (vector-ref im i) 0) tempi)))
+	    (vector-set! im i (block (+ (block-ref (vector-ref im i) 0) tempi)))
 	    (set! j (+ j mmax)))
 	  (set! wtemp wr)
 	  (set! wr (- (* wr wpr) (* wi wpi)))
@@ -1346,8 +1345,8 @@
 	  (mxloc 0))
       (do ((i 0 (+ i 1)))
 	  ((= i fft-size))
-	(set! vr ((vector-ref fvr i) 0))
-	(set! vi ((vector-ref fvi i) 0))
+	(set! vr (block-ref (vector-ref fvr i) 0))
+	(set! vi (block-ref (vector-ref fvi i) 0))
 	(set! pk (+ (* vr vr) (* vi vi)))
 	(when (> pk mx)
 	  (set! mx pk)
@@ -1361,7 +1360,7 @@
     (let ((mx 0.0))
       (do ((i 0 (+ i 1)))
 	  ((= i fft-size))
-	(set! mx (max mx (abs ((vector-ref fvr i) 0)) (abs ((vector-ref fvi i) 0)))))
+	(set! mx (max mx (abs (block-ref (vector-ref fvr i) 0)) (abs (block-ref (vector-ref fvi i) 0)))))
       (format () "noise: ~A~%" mx))))
 
 (define (block-vector-test)
@@ -1379,6 +1378,7 @@
 
 (block-vector-test)
 (clear-and-gc)
+
 
 
 ;; --------------------------------------------------------------------------------
@@ -2108,8 +2108,8 @@
 		 (jj 0 (+ jj 1)))
 		((>= jj pow))
 	      (let ((tc (* wc (hash-table-ref (vector-ref data j) 'z)))) ; this could be (data j 'z)!
-		(vector-set! data j (hash-table* 'z (- (hash-table-ref (vector-ref data i) 'z) tc)))
-		(vector-set! data i (hash-table* 'z (+ (hash-table-ref (vector-ref data i) 'z) tc)))))
+		(vector-set! data j (hash-table 'z (- (hash-table-ref (vector-ref data i) 'z) tc)))
+		(vector-set! data i (hash-table 'z (+ (hash-table-ref (vector-ref data i) 'z) tc)))))
 	    (set! wc (* wc wpc)))
 	  (set! prev mmax))))
     data))
@@ -2129,8 +2129,8 @@
       (format () "~A ~A~%" 
 	      (magnitude (hash-table-ref (vector-ref fvr 4) 'z))
 	      (magnitude (hash-table-ref (vector-ref fvr (- fft-size 4)) 'z))))
-    (vector-set! fvr 4 (hash-table* 'z 0.0))
-    (vector-set! fvr (- fft-size 4) (hash-table* 'z 0.0))
+    (vector-set! fvr 4 (hash-table 'z 0.0))
+    (vector-set! fvr (- fft-size 4) (hash-table 'z 0.0))
     (let ((mx 0.0))
       (do ((i 0 (+ i 1)))
 	  ((= i fft-size))
@@ -2143,7 +2143,7 @@
     (do ((i 0 (+ i 1))
 	 (x 0.0 (+ x scl)))
 	((= i fft-size))
-      (vector-set! fvr i (hash-table* 'z (sin x))))
+      (vector-set! fvr i (hash-table 'z (sin x))))
     (complex-hash-fft fvr fft-size 1)
     (complex-hash-checker fvr)
     (complex-hash-fft #f fft-size 1)

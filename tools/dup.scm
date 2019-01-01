@@ -55,7 +55,7 @@
 			     (set! j (+ j 1)))))))))
 	      
 	      (set! size (min size total-lines))
-	      ;; (format *stderr* "lines: ~S~%" total-lines)
+	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 79881
 
 	      ;; mark unmatchable strings
 	      (let ((sortv (make-vector total-lines)))
@@ -76,7 +76,9 @@
 				      (set! unctr (- unctr 1)))
 				    (set! matches #f)
 				    (set! current srt))))
-			    sortv)))
+			    sortv)
+		  ;; (format *stderr* "unmatched: ~D~%" (abs unctr)) ; 33796
+		  ))
 
 	      ;; look for matches
 	      (do ((first #t #t)
@@ -117,9 +119,10 @@
 			  (format *stderr* "~%")))))))))))))
 
 (dups 16 "s7.c" 91000)
-;(dups 12 "s7.c" 91000)
+;(dups 2 "s7.c" 91000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
+;(dups 16 "s7test.scm" 100000)
 
 (s7-version)
 (exit)

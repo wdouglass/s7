@@ -67,7 +67,7 @@ set logging on
 if $argc == 1
   bt $arg0
 end
-if $argc == 0)
+if $argc == 0
   bt
 end
 set logging off
@@ -85,7 +85,7 @@ set logging on
 if $argc == 1
   bt full $arg0
 end
-if $argc == 0)
+if $argc == 0
   bt full
 end
 set logging off

@@ -20,7 +20,7 @@
 (define mock-char (*mock-char* 'mock-char))
 (define mock-vector (*mock-vector* 'mock-vector))
 (define mock-symbol (*mock-symbol* 'mock-symbol))
-(define mock-hash-table* (*mock-hash-table* 'mock-hash-table*))
+(define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 
 (define np (list 0 1 2 3 4))
 (define mp (mock-pair '(0 1 2 3 4)))
@@ -66,7 +66,7 @@
 			(mock-char #\b)
 			(mock-symbol 'c)
 			(mock-vector 1 2 3 4)
-			(mock-hash-table* 'b 2)
+			(mock-hash-table 'b 2)
 			np mp nv mv ns ms (gensym)
 			))
       
@@ -183,7 +183,7 @@
 		  symbol-table load throw error
 		  global-environment current-environment make-rectangular
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
-		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table*
+		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table
 		  mock-symbol mock-port mock-hash-table m mock->string make-local-method
 		  *mock-number* *mock-pair* *mock-string* *mock-char* *mock-vector*
 		  *mock-symbol* *mock-port* *mock-hash-table* mp ms mv

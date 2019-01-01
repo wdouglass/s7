@@ -1054,7 +1054,7 @@ void enved_show_background_waveform(axis_info *ap, axis_info *gray_ap, bool appl
   if ((!active_channel) || 
       (active_channel->active < CHANNEL_HAS_AXES) ||
       (!active_channel->edits) ||
-      (!active_channel->fft))
+      ((show_fft) && (!active_channel->fft))) /* added show_fft 27-Dec-18? */
     return;
 
   old_printing = active_channel->printing;

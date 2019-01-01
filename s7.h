@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "7.8"
-#define S7_DATE "3-Dec-18"
+#define S7_VERSION "8.0"
+#define S7_DATE "2-Jan-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -599,7 +599,8 @@ void s7_c_type_set_fill     (s7_scheme *sc, s7_int tag, s7_pointer (*fill)     (
 void s7_c_type_set_reverse  (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)  (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_to_list  (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)  (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args));
-
+void s7_c_type_set_getter   (s7_scheme *sc, s7_int tag, s7_pointer getter);
+void s7_c_type_set_setter   (s7_scheme *sc, s7_int tag, s7_pointer setter);
 /* if a c-object might participate in a cyclic structure, and you want to check its equality to another such object
  *   or get a readable string representing that object, you need to implement the "to_list" and "set" cases above,
  *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
@@ -847,6 +848,9 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x); /* used in CM */
  * 
  *        s7 changes
  *
+ * --------
+ * 29-Dec:    s7_c_type_set_getter|setter (implicit c-object access).
+ * 23-Dec:    remove hash-table, rename hash-table* to hash-table. add weak-hash-table.
  * 3-Dec:     deprecate s7_gc_unprotect (use s7_gc_unprotect_at).
  * 21-Nov:    added s7_history_enabled and s7_set_history_enabled.
  * 3-Nov:     removed the "value" argument from s7_for_each_symbol.

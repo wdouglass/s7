@@ -151,13 +151,13 @@
 
 (if (not with-gui)
     (define y-bounds (dilambda
-		      (lambda args (if (string? args) args (list -1.0 1.0))) ; make lint happy...
-		      (lambda args (if (string? args) args (list -1.0 1.0))))))
+		      (lambda* (snd chn axis) (list -1.0 1.0))
+		      (lambda* (snd-chan axis value) (list -1.0 1.0)))))
 
 (if (not with-gui)
     (define x-bounds (dilambda
-		      (lambda args (if (string? args) args (list 0.0 0.1)))
-		      (lambda args (if (string? args) args (list 0.0 0.1))))))
+		      (lambda* (snd chn axis) (list 0.0 0.1))
+		      (lambda* (snd chn axis value) (list 0.0 0.1)))))
 
 (define real-time get-internal-real-time)
 (define (hundred n) (round (* 100 n)))
@@ -37469,7 +37469,7 @@ EDITS: 1
 	   (x 0.0 (+ x 10.0)))
 	  ((= i 4) g0)
 	(hash-table-set! g0 i x)))
-    (test (fv107) (hash-table* 0 0.0 1 10.0 2 20.0 3 30.0))
+    (test (fv107) (hash-table 0 0.0 1 10.0 2 20.0 3 30.0))
 
     (define (fv108)
       (let ((fv (make-float-vector 10)))
@@ -37899,7 +37899,7 @@ EDITS: 1
 	   (x 0.0 (+ x 10.0)))
 	  ((= i 4) g0)
 	(hash-table-set! g0 (vector-ref v i) x)))
-    (test (fv141) (hash-table* 0 0.0 1 10.0 2 20.0 3 30.0))
+    (test (fv141) (hash-table 0 0.0 1 10.0 2 20.0 3 30.0))
     
     (define (fv142)
       (do ((g0 (make-hash-table))
@@ -37907,7 +37907,7 @@ EDITS: 1
 	   (x 0.0 (+ x 10.0)))
 	  ((= i 4) g0)
 	(hash-table-set! g0 i (list x))))
-    (test (fv142) (hash-table* 0 '(0.0) 1 '(10.0) 2 '(20.0) 3 '(30.0)))
+    (test (fv142) (hash-table 0 '(0.0) 1 '(10.0) 2 '(20.0) 3 '(30.0)))
     
     (define (fv143)
       (do ((g0 (make-hash-table))
@@ -37916,7 +37916,7 @@ EDITS: 1
 	   (x 0.0 (+ x 10.0)))
 	  ((= i 4) g0)
 	(hash-table-set! g0 (vector-ref v i) (list x))))
-    (test (fv143) (hash-table* 0 '(0.0) 1 '(10.0) 2 '(20.0) 3 '(30.0)))
+    (test (fv143) (hash-table 0 '(0.0) 1 '(10.0) 2 '(20.0) 3 '(30.0)))
 
     (define (fv144)
       (do ((g0 (make-iterator '(0 1 2 3 4)))
@@ -38052,13 +38052,13 @@ EDITS: 1
     (test (fv157) (inlet 'a 0 'b 1 'c 2 'd 3))
     
     (define (fv158)
-      (do ((g0 (hash-table* 'a 0 'b 1 'c 2 'd 3))
+      (do ((g0 (hash-table 'a 0 'b 1 'c 2 'd 3))
 	   (syms (vector 'a 'b 'c 'd))
-	   (v (hash-table* 'a -1 'b -1 'c -1 'd -1))
+	   (v (hash-table 'a -1 'b -1 'c -1 'd -1))
 	   (i 0 (+ i 1)))
 	  ((= i 4) v)
 	(set! (v (syms i)) (g0 (syms i)))))
-    (test (fv158) (hash-table* 'a 0 'b 1 'c 2 'd 3))
+    (test (fv158) (hash-table 'a 0 'b 1 'c 2 'd 3))
 
     (define (fv160)
       (do ((fv (make-float-vector 4))

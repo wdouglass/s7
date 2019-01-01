@@ -9074,20 +9074,6 @@ static s7_double read_sample_dv(void *o)
   snd_fd *fd = (snd_fd *)o;
   return(read_sample(fd));
 }
-
-static s7_double next_mix_sample_dv(void *o)
-{
-  snd_fd *fd;
-  fd = (snd_fd *)mf_to_snd_fd(o);
-  return(protected_next_sample(fd));
-}
-
-static s7_double read_mix_sample_dv(void *o)
-{
-  snd_fd *fd;
-  fd = (snd_fd *)mf_to_snd_fd(o);
-  return(read_sample(fd));
-}
 #endif
 
 
@@ -9276,12 +9262,6 @@ keep track of which files are in a given saved state batch, and a way to rename 
 
     f = s7_name_to_value(s7, "read-sample");
     s7_set_d_v_function(f, read_sample_dv);
-
-    f = s7_name_to_value(s7, "next-mix-sample");
-    s7_set_d_v_function(f, next_mix_sample_dv);
-
-    f = s7_name_to_value(s7, "read-mix-sample");
-    s7_set_d_v_function(f, read_mix_sample_dv);
   }
 #endif
 

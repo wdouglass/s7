@@ -23,6 +23,7 @@ chan_info *make_chan_info(chan_info *cip, int chan, snd_info *sound)
       cp->last_wavogram = NULL;
       cp->temp_sonogram = NULL;
       cp->inset_graph = NULL;
+      cp->fft = NULL;
 #if HAVE_GL
       cp->gl_fft_list = NO_LIST;
       cp->gl_wavo_list = NO_LIST;

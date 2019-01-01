@@ -430,13 +430,7 @@
 	  (map values table)
 	  (error 'wrong-type-arg "hash-table->alist argument, ~A, is not a hash-table" table)))))
 
-(define merge-hash-tables 
-  (let ((+documentation+ "(merge-hash-tables . tables) returns a new hash-table with the contents of all the tables"))
-    (lambda tables
-      (apply hash-table 
-	     (apply append 
-		    (map hash-table->alist tables))))))
-
+(define merge-hash-tables append)
 
 
 ;;; ----------------
@@ -530,7 +524,9 @@ If func approves of one, index-if returns the index that gives that element's po
     (lambda (type f sequence)
       (unless (sequence? sequence)
 	(error 'wrong-type-arg "collect-if: sequence arg is ~A" sequence))
-      (apply type (map (lambda (arg) (if (f arg) arg (values))) sequence)))))
+      (if (eq? type hash-table)
+	  (apply hash-table (map (lambda (arg) (if (f arg) (values (car arg) (cdr arg)) (values))) sequence))
+	  (apply type (map (lambda (arg) (if (f arg) arg (values))) sequence))))))
 
 ;;; if type=list, this is slightly wasteful because list currently copies its args, so:
 ;;;   ((if (eq? type list) values (values apply type)) ...) would work
@@ -701,7 +697,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 ;;; ----------------
 (define sequences->list 
   (let ((+documentation+ "(sequences->list . sequences) returns a list of elements of all the sequences:\n\
-    (sequences->list \"hi\" #(0 1) (hash-table '(a . 2))) -> '(#\\h #\\i 0 1 (a . 2))"))
+    (sequences->list \"hi\" #(0 1) (hash-table 'a 2)) -> '(#\\h #\\i 0 1 (a . 2))"))
     (lambda sequences
       (apply append 
 	     (map (lambda (sequence) 
@@ -739,7 +735,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				(if (not (member obj lst))
 				    (set! lst (cons obj lst))))
 			      (apply sequences->list sequences))
-		    (reverse lst))))))
+		    (if (eq? type hash-table)
+			(map (lambda (x) (values (car x) (cdr x))) (reverse lst))
+			(reverse lst)))))))
 
 (define asymmetric-difference 
   (let ((+documentation+ "(asymmetric-difference type . sequences) returns the elements in the rest of the sequences that are not in the first:\n\
@@ -1383,7 +1381,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			((float-vector? val)  "#r(~{~A~| ~})")
 			((vector? val)        "#(~{~A~| ~})")
 			((let? val)           "(inlet ~{'~A~| ~})")
-			((hash-table? val)    "(hash-table ~{'~A~| ~})")
+			((hash-table? val)    "~W")
 			((not (string? val))  "(~{~A~| ~})")
 			(else                 "\"~{~A~|~}\""))))
     (format #f ctrl-str val)))
@@ -1461,7 +1459,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   (define (prepend-spaces)
     (format *display* (format #f "~~~DC" spaces) #\space))
   
-  (define (display-let le e)
+  (define (display-let le e) 
     (let ((vlp (*s7* 'print-length)))
       (for-each
        (lambda (slot)
@@ -1900,7 +1898,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions 
 	      make-vector subvector vector float-vector make-float-vector float-vector-set! 
 	      float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector 
-	      byte-vector make-byte-vector hash-table hash-table* make-hash-table hash-table-ref 
+	      byte-vector make-byte-vector hash-table make-hash-table hash-table-ref weak-hash-table
 	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 	      call-with-exit apply for-each map dynamic-wind values type-of
 	      catch throw error documentation signature help procedure-source

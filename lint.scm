@@ -113,7 +113,7 @@
 	      eof-object? eq? equal? eqv? even? exact->inexact exact? exp expt
 	      float? float-vector float-vector-ref float-vector? floor for-each funclet 
 	      gcd gensym gensym?
-	      hash-table hash-table* hash-table-entries hash-table-ref hash-table? help hook-functions
+	      hash-table  hash-table-entries hash-table-ref hash-table? help hook-functions
 	      if imag-part immutable? inexact->exact inexact? infinite? inlet input-port? 
 	      int-vector int-vector-ref int-vector? iterator-at-end? iterator-sequence integer->char
 	      integer-decode-float integer-length integer? iterator?
@@ -180,7 +180,7 @@
 			         list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions 
 			         make-vector subvector vector float-vector make-float-vector float-vector-set! 
 			         float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector 
-			         byte-vector make-byte-vector hash-table hash-table* make-hash-table hash-table-ref 
+			         byte-vector make-byte-vector hash-table  make-hash-table hash-table-ref 
 			         hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 			         call-with-exit load autoload eval eval-string apply for-each map dynamic-wind values 
 			         catch throw error documentation signature help procedure-source funclet 
@@ -200,7 +200,7 @@
 		     make-string string string-copy copy list->string string->list string-append substring object->string
 		     format cons list make-list reverse append vector-append list->vector vector->list make-vector
 		     subvector vector make-float-vector float-vector make-int-vector int-vector byte-vector
-		     hash-table hash-table* make-hash-table make-hook list-values append gentemp)) ; gentemp for other schemes
+		     hash-table  make-hash-table make-hook list-values append gentemp)) ; gentemp for other schemes
 		  h))
 
 	(non-negative-ops (let ((h (make-hash-table)))
@@ -310,10 +310,10 @@
 			 define-values define-module define-method
 			 define-syntax define-public define-inlinable define-integrable define^))
 
-	(cxars (hash-table '(car . ()) '(caar . car) '(cdar . cdr) 
-			   '(caaar . caar) '(cdaar . cdar) '(cddar . cddr) '(cadar . cadr)
-			   '(caaaar . caaar) '(caadar . caadr) '(cadaar . cadar) '(caddar . caddr)
-			   '(cdaaar . cdaar) '(cdadar . cdadr) '(cddaar . cddar) '(cdddar . cdddr)))
+	(cxars (hash-table 'car ()  'caar 'car  'cdar 'cdr 
+			   'caaar 'caar  'cdaar 'cdar  'cddar 'cddr  'cadar 'cadr
+			   'caaaar 'caaar  'caadar 'caadr  'cadaar 'cadar  'caddar 'caddr
+			   'cdaaar 'cdaar  'cdadar 'cdadr  'cddaar 'cddar  'cdddar 'cdddr))
 
 	(outport #t)
 	(linted-files ())
@@ -2196,7 +2196,7 @@
 	(lambda (caller vname)
 	  (set! sname (symbol->string vname)) ;(if (keyword? vname) (keyword->symbol vname) vname)))
 	  (set! slen (length sname))
-	  (set! s0 (sname 0))
+	  (set! s0 (string-ref sname 0))
 	  
 	  (cond ((assq s0 bad-var-names) =>
 		 (lambda (baddies)
@@ -6178,16 +6178,16 @@
       (list (reverse ci) (reverse ic)))
 |#
     (define match-cxr 
-      (let ((int->cxr (hash-table '(1 . car) '(2 . cdr) 
-				  '(5 . caar) '(6 . cadr) '(10 . cddr) '(9 . cdar) 
-				  '(21 . caaar) '(22 . caadr) '(26 . caddr) '(42 . cdddr) '(37 . cdaar) '(41 . cddar) '(25 . cadar) '(38 . cdadr) 
-				  '(106 . cadddr) '(170 . cddddr) '(85 . caaaar) '(86 . caaadr) '(89 . caadar) '(90 . caaddr) '(101 . cadaar) '(102 . cadadr) 
-				  '(105 . caddar) '(149 . cdaaar) '(150 . cdaadr) '(153 . cdadar) '(154 . cdaddr) '(165 . cddaar) '(166 . cddadr) '(169 . cdddar)))
-	    (cxr->int (hash-table '(car . 1) '(cdr . 2) 
-				  '(caar . 5) '(cadr . 6) '(cddr . 10) '(cdar . 9) 
-				  '(caaar . 21) '(caadr . 22) '(caddr . 26) '(cdddr . 42) '(cdaar . 37) '(cddar . 41) '(cadar . 25) '(cdadr . 38) 
-				  '(cadddr . 106) '(cddddr . 170) '(caaaar . 85) '(caaadr . 86) '(caadar . 89) '(caaddr . 90) '(cadaar . 101) '(cadadr . 102) 
-				  '(caddar . 105) '(cdaaar . 149) '(cdaadr . 150) '(cdadar . 153) '(cdaddr . 154) '(cddaar . 165) '(cddadr . 166) '(cdddar . 169))))
+      (let ((int->cxr (hash-table 1 'car 2 'cdr 
+				  5 'caar 6 'cadr 10 'cddr 9 'cdar 
+				  21 'caaar 22 'caadr 26 'caddr 42 'cdddr 37 'cdaar 41 'cddar 25 'cadar 38 'cdadr 
+				  106 'cadddr 170 'cddddr 85 'caaaar 86 'caaadr 89 'caadar 90 'caaddr 101 'cadaar 102 'cadadr 
+				  105 'caddar 149 'cdaaar 150 'cdaadr 153 'cdadar 154 'cdaddr 165 'cddaar 166 'cddadr 169 'cdddar))
+	    (cxr->int (hash-table 'car 1  'cdr 2 
+				  'caar 5  'cadr 6  'cddr 10  'cdar 9 
+				  'caaar 21  'caadr 22  'caddr 26  'cdddr 42  'cdaar 37  'cddar 41  'cadar 25  'cdadr 38 
+				  'cadddr 106  'cddddr 170  'caaaar 85  'caaadr 86  'caadar 89  'caaddr 90  'cadaar 101  'cadadr 102 
+				  'caddar 105  'cdaaar 149  'cdaadr 150 'cdadar 153 'cdaddr 154 'cddaar 165 'cddadr 166  'cdddar 169)))
 	(lambda (c1 c2)
 	  (hash-table-ref int->cxr (logand (or (hash-table-ref cxr->int c1) 0) 
 					   (or (hash-table-ref cxr->int c2) 0))))))
@@ -7534,7 +7534,7 @@
 							  (list seq1 (caddr seq) (caddr form))))))
 			(if (memq (car seq) '(make-vector make-list vector list
 							  make-float-vector make-int-vector float-vector int-vector
-							  make-hash-table hash-table hash-table*
+							  make-hash-table hash-table 
 							  inlet))
 			    (lint-format "this doesn't make much sense: ~A" caller form)))
 		    (when (eq? head 'list-ref)
@@ -7598,7 +7598,7 @@
 		      ((memq (car target) '(make-vector vector make-string string make-list list append cons 
 					    vector-append inlet sublet copy vector-copy string-copy list-copy
 					    int-vector float-vector byte-vector string-append make-byte-vector
-					    make-int-vector make-float-vector make-hash-table hash-table hash-table*
+					    make-int-vector make-float-vector make-hash-table hash-table 
 					    )) ;list-copy is from r7rs
 		       (lint-format "~A is simply discarded; perhaps ~A" caller
 				    (truncated-list->string target)   ; (vector-set! (make-vector 3) 1 1) -- does this ever happen?
@@ -9524,14 +9524,14 @@
 		(lint-format "perhaps use abs here: ~A" caller form)))
 	  (hash-special 'magnitude sp-magnitude))
 
-	;; ---------------- hash-table* ----------------
+	;; ---------------- hash-table ----------------
 	(let ()
-	  (define (sp-hash* caller head form env)
+	  (define (sp-hash caller head form env)
 	    (let ((len (length form)))
 	      (if (and (positive? len)
 		       (even? len))
 		  (lint-format "key with no value? ~A" caller (truncated-list->string form)))))
-	  (hash-special 'hash-table* sp-hash*))
+	  (hash-special 'hash-table sp-hash))
 
 	;; ---------------- open-input-file open-output-file ----------------
 	(let ()
@@ -11121,19 +11121,19 @@
 			      (cons (car e1) lst)))))
 
     (denote report-usage 
-      (let ((unwrap-cxr (hash-table '(caar car) '(cadr cdr) '(cddr cdr) '(cdar car)
-				    '(caaar caar car) '(caadr cadr cdr) '(caddr cddr cdr) '(cdddr cddr cdr)
-				    '(cdaar caar car) '(cddar cdar car) '(cadar cadr car) '(cdadr cadr cdr)
-				    '(cadddr cdddr cddr cdr) '(cddddr cdddr cddr cdr) '(caaaar caaar caar car) '(caaadr caadr cadr cdr)
-				    '(caadar cadar cdar car) '(caaddr caddr cddr cdr) '(cadaar cdaar caar car) '(cadadr cdadr cadr cdr)
-				    '(caddar cddar cdar car) '(cdaaar caaar caar car) '(cdaadr caadr cadr cdr) '(cdadar cadar cdar car)
-				    '(cdaddr caddr cddr cdr) '(cddaar cdaar caar car) '(cddadr cdadr cadr cdr) '(cdddar cddar cdar car)))
+      (let ((unwrap-cxr (hash-table 'caar '(car)  'cadr '(cdr)  'cddr '(cdr)  'cdar '(car)
+				     'caaar '(caar car)  'caadr '(cadr cdr)  'caddr '(cddr cdr)  'cdddr '(cddr cdr)
+				     'cdaar '(caar car)  'cddar '(cdar car)  'cadar '(cadr car)  'cdadr '(cadr cdr)
+				     'cadddr '(cdddr cddr cdr)  'cddddr '(cdddr cddr cdr)  'caaaar '(caaar caar car)  'caaadr '(caadr cadr cdr)
+				     'caadar '(cadar cdar car)  'caaddr '(caddr cddr cdr)  'cadaar '(cdaar caar car)  'cadadr '(cdadr cadr cdr)
+				     'caddar '(cddar cdar car)  'cdaaar '(caaar caar car)  'cdaadr '(caadr cadr cdr)  'cdadar '(cadar cdar car)
+				     'cdaddr '(caddr cddr cdr)  'cddaar '(cdaar caar car)  'cddadr '(cdadr cadr cdr)  'cdddar '(cddar cdar car)))
 	    (all-types-agree (lambda (v)
 			       (let ((base-type (->lint-type (var-initial-value v)))
 				     (vname (var-name v)))
 				 (let ((typef (lambda (p)
 						(or (not (and (len>2? p)
-							      (eq? (car p) 'set!)
+							      (eq? (car p)  'set!)
 							      (eq? vname (cadr p))))
 						    (let ((nt (->lint-type (caddr p))))
 						      (or (subsumes? base-type nt)
@@ -21428,7 +21428,7 @@
 
 		(else
 		 (set-outer outer-vars tree))))
-	    
+	    	    
 	(lambda (new-form leaves env fvar orig-form)
 	  (unless (tree-set-memq '(define define*
 				    ;; these propagate backwards and we're not returning the new env in this loop,
@@ -21525,7 +21525,7 @@
 	
 	;; -------- walk head=symbol --------
 	(denote walk-symbol 
-	  (letrec ((unsafe-makers '(sublet inlet copy cons list append subvector vector hash-table hash-table* 
+	  (letrec ((unsafe-makers '(sublet inlet copy cons list append subvector vector hash-table  
 				    make-hash-table make-hook list-values append gentemp or and not))
 		   
 		   (equal-ignoring-constants? 

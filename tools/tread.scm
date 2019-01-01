@@ -20,7 +20,7 @@
 	(let ((bases (vector (make-list 3 #f)
 			     (make-vector 3 #f)
 			     (make-cycle #f)
-			     (hash-table* 'a 1 'b 2 'c 3)
+			     (hash-table 'a 1 'b 2 'c 3)
 			     (inlet 'a 1 'b 2 'c 3)
 			     (make-iterator it-lst)
 			     (c-pointer 1 cp-lst)))
@@ -83,7 +83,7 @@
                      (let ((p (make-list 3 #f))
                            (v (make-vector 3 #f))
                            (cy (make-cycle #f))
-                           (h (hash-table* 'a 1 'b 2 'c 3))
+                           (h (hash-table 'a 1 'b 2 'c 3))
                            (e (inlet 'a 1 'b 2 'c 3))
                            (it (make-iterator (make-list 3 #f)))
                            (cp (c-pointer 1 (make-list 3 #f))))
@@ -92,7 +92,8 @@
 		    (lambda (set)
 		      (cond ((and (zero? (car set))
 				  (> (cadr set) 2))
-			     (format *stderr* "  (set-cdr! (list-tail p 2) ~A)~%" (#("p" "(cdr p)" "(cddr p)") (- (cadr set) 3))))
+			     (format *stderr* "  (set-cdr! (list-tail p 2) ~A)~%" 
+				     (#("p" "(cdr p)" "(cddr p)") (- (cadr set) 3))))
 			    ((< (car set) 5)
 			     (format *stderr* "  (set! (~A ~A) ~A)~%" 
 				     (#(p v cy h e) (car set))
@@ -103,8 +104,12 @@
 				       ((4) (symbol->keyword (cadr set))))
 				     (#(p v cy h e it cp) (caddr set))))
 			      ((= (car set) 5)
-			       (format *stderr* "  (set! ((iterator-sequence it) ~A) ~A)~%" (cadr set) (#(p v cy h e it cp) (caddr set))))
-			      (else (format *stderr* "  (set! (((object->let cp) 'c-type) ~A) ~A)~%" (cadr set) (#(p v cy h e it cp) (caddr set))))))
+			       (format *stderr* "  (set! ((iterator-sequence it) ~A) ~A)~%" 
+				       (cadr set) 
+				       (#(p v cy h e it cp) (caddr set))))
+			      (else (format *stderr* "  (set! (((object->let cp) 'c-type) ~A) ~A)~%" 
+					    (cadr set)
+					    (#(p v cy h e it cp) (caddr set))))))
 		    sets)
 		   (format *stderr* "  ~A)~%" (#(p v cy h e it cp) bi)))
 		 (set! bi (+ bi 1))))

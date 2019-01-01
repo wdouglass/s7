@@ -9,18 +9,18 @@
 (define list-0 (list 1 2 3 4))
 (define vect-0 (vector 1 2 3 4))
 (define let-0 (inlet :a 1 :b 2))
-(define hash-0 (hash-table* :a 1 :b 2))
+(define hash-0 (hash-table :a 1 :b 2))
 
 (define list-1 (make-circular-list 1))
 (set-car! list-1 #t)
-(define hash-1 (hash-table* :a list-1))
+(define hash-1 (hash-table :a list-1))
 (define vect-1 (vector list-1))
 (define let-1 (inlet :a list-1))
 (define list-2 (list list-1 list-1))
 (define list-3 (make-circular-list 3))
 (define vect-2 (let ((z (vector 1 2)))
 		 (let ((y (list 1 z 2)))
-		   (let ((x (hash-table (cons 'x y))))
+		   (let ((x (hash-table 'x y)))
 		     (set! (z 1) x)
 		     z))))
 (define vect-3 (let ((x '(1 2)))
@@ -58,8 +58,8 @@
 		  (set! (e 'b) e1)
 		  e)))
 (define let-4 (inlet :a vect-0 :b list-0))
-(define hash-3 (hash-table* :a vect-0 :b list-0))
-(define hash-4 (hash-table* :a hash-1))
+(define hash-3 (hash-table :a vect-0 :b list-0))
+(define hash-4 (hash-table :a hash-1))
 
 (define-constant teq-vars (list list-0 list-1 list-2 list-3 list-4
 			      vect-0 vect-1 vect-2 vect-3 vect-4
