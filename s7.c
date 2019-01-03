@@ -681,7 +681,6 @@ typedef s7_pointer (*s7_p_pip_t)(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_poi
 typedef s7_pointer (*s7_p_piip_t)(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_int i2, s7_pointer p3);
 typedef s7_pointer (*s7_p_i_t)(s7_scheme *sc, s7_int i);
 typedef s7_pointer (*s7_p_ii_t)(s7_scheme *sc, s7_int i1, s7_int i2);
-typedef s7_pointer (*s7_p_d_t)(s7_scheme *sc, s7_double x);
 typedef s7_pointer (*s7_p_dd_t)(s7_scheme *sc, s7_double x1, s7_double x2);
 typedef s7_double (*s7_d_7d_t)(s7_scheme *sc, s7_double p1);
 typedef s7_double (*s7_d_7dd_t)(s7_scheme *sc, s7_double p1, s7_double p2);
@@ -37328,8 +37327,9 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
       if (is_pair(cddr(args)))
 	{
 	  typf = caddr(args);
-	  if (((is_c_function(typf)) && (c_function_signature(typf) == sc->pl_bt)) || /* not cons, for example */
-	      (s7_is_boolean(typf)))
+	  if ((!is_c_function(typf)) && (typf != sc->T))
+	    return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a procedure or #t", 17)));
+	  if (is_c_function(typf))
 	    {
 	      if (typf == slot_value(global_slot(sc->is_float_symbol)))
 		result_type = T_FLOAT_VECTOR;
@@ -37341,26 +37341,22 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 		    {
 		      if (typf == slot_value(global_slot(sc->is_byte_symbol)))
 			result_type = T_BYTE_VECTOR;
-		    }
-		}
-	    }
-	  else return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a procedure or #t", 17)));
-	}
-    }
+		      else
+			{
+			  s7_pointer sig;
+			  sig = c_function_signature(typf);
+			  if ((sig != sc->pl_bt) &&
+			      (is_pair(sig)))
+			    {
+			      if ((car(sig) != sc->is_boolean_symbol) || (cadr(sig) != sc->T) || (!is_null(cddr(sig))))
+				return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type is not a boolean procedure", 31)));
 
-  if ((result_type == T_VECTOR) &&
-      (!s7_is_boolean(typf)))
-    {
-      if ((!is_c_function(typf)) ||
-	  (!has_type_info(typf)))
-	return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a built-in type-checking procedure", 34)));
-      if (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F)
-	return(s7_wrong_type_arg_error(sc, symbol_name(caller), 2, fill,
-				       make_type_name(sc, symbol_name(c_function_symbol(typf)), INDEFINITE_ARTICLE)));
-      /* this check is needed in spite of the vector_fill call below because the typed_vector bit has not yet been set on vec */
-    }
+			      if (!c_function_marker(typf)) c_function_set_marker(typf, mark_vector_1);
+			      if (!c_function_symbol(typf)) c_function_symbol(typf) = make_symbol(sc, c_function_name(typf));
+
+			    }}}}}}}
+
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
-  s7_vector_fill(sc, vec, fill);
 
   if ((result_type == T_VECTOR) &&
       (!s7_is_boolean(typf)))
@@ -37370,6 +37366,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
       if (c_function_has_simple_elements(typf))
 	set_has_simple_elements(vec);
     }
+
+  s7_vector_fill(sc, vec, fill);
 
   if ((is_pair(x)) &&
       (is_pair(cdr(x))))
@@ -41383,6 +41381,7 @@ s7_pointer s7_define_typed_function(s7_scheme *sc, const char *name, s7_function
   func = s7_make_typed_function(sc, name, fnc, required_args, optional_args, rest_arg, doc, signature);
   sym = make_symbol(sc, name);
   s7_define(sc, sc->nil, sym, func);
+  c_function_set_marker(func, NULL);
   return(sym);
 }
 
@@ -51453,6 +51452,9 @@ s7_i_ii_t s7_i_ii_function(s7_pointer f) {return((s7_i_ii_t)opt_func(f, o_i_ii))
 void s7_set_i_7d_function(s7_pointer f, s7_i_7d_t df) {add_opt_func(f, o_i_7d, (void *)df);}
 s7_i_7d_t s7_i_7d_function(s7_pointer f) {return((s7_i_7d_t)opt_func(f, o_i_7d));}
 
+/* s7test.scm */
+void s7_set_p_d_function(s7_pointer f, s7_p_d_t df) {add_opt_func(f, o_p_d, (void *)df);}
+s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 
 static void s7_set_d_7dd_function(s7_pointer f, s7_d_7dd_t df) {add_opt_func(f, o_d_7dd, (void *)df);}
 static s7_d_7dd_t s7_d_7dd_function(s7_pointer f) {return((s7_d_7dd_t)opt_func(f, o_d_7dd));}
@@ -51560,9 +51562,6 @@ static void s7_set_d_7piid_function(s7_pointer f, s7_d_7piid_t df) {add_opt_func
 static s7_d_7piid_t s7_d_7piid_function(s7_pointer f) {return((s7_d_7piid_t)opt_func(f, o_d_7piid));}
 
 static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_p_dd, (void *)df);}
-static void s7_set_p_d_function(s7_pointer f, s7_p_d_t df) {add_opt_func(f, o_p_d, (void *)df);}
-
-static s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
 
 #define oo_slots(p) p->typ.vt[0]
@@ -53705,25 +53704,42 @@ static s7_double opt_d_7pi_sf(void *p)
   return(o->v[3].d_7pi_f(o->sc, slot_value(o->v[1].p), o1->v[0].fi(o1)));
 }
 
+static s7_double opt_d_7pi_ff(void *p)
+{
+  opt_info *o1, *o = (opt_info *)p;
+  s7_pointer seq;
+  o1 = o->sc->opts[++o->sc->pc];
+  oo_rcheck(o->sc, o, 4, 0);
+  seq = o1->v[0].fp(o1);
+  o1 = o->sc->opts[++o->sc->pc];
+  return(o->v[3].d_7pi_f(o->sc, seq, o1->v[0].fi(o1)));
+}
+
+static s7_pointer opt_arg_type(s7_scheme *sc, s7_pointer argp);
+
 static bool d_7pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
 {
-  if (is_symbol(cadr(car_x)))
+  /* float-vector-ref is checked for a 1D float-vector arg, but other callers should do type checking */
+  s7_d_7pi_t ifunc;
+  ifunc = s7_d_7pi_function(s_func);
+  if (ifunc)
     {
-      s7_d_7pi_t ifunc;
-      ifunc = s7_d_7pi_function(s_func);
-      if (ifunc)
+      int32_t start;
+      start = sc->pc;
+      opc->v[3].d_7pi_f = ifunc;
+      if (is_symbol(cadr(car_x)))  /* (float-vector-ref v i) */
 	{
-	  s7_pointer arg2, p;
-	  int32_t start;
-	  start = sc->pc;
+	  s7_pointer arg2, p, obj;
 	  opc->v[1].p = symbol_to_slot(sc, cadr(car_x));
 	  if (!is_slot(opc->v[1].p))
 	    return(return_false(sc, car_x, __func__, __LINE__));
+
+	  obj = slot_value(opc->v[1].p);
 	  if ((car(car_x) == sc->float_vector_ref_symbol) &&
-	      ((!is_float_vector(slot_value(opc->v[1].p))) ||
-	       (vector_rank(slot_value(opc->v[1].p)) > 1)))
+	      ((!is_float_vector(obj)) ||
+	       (vector_rank(obj) > 1)))
 	    return(return_false(sc, car_x, __func__, __LINE__));
-	  opc->v[3].d_7pi_f = ifunc;
+
 	  arg2 = caddr(car_x);
 	  if (!is_pair(arg2))
 	    {
@@ -53755,7 +53771,20 @@ static bool d_7pi_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 	      return(oo_set_type_1(opc, 4, 1, OO_P));
 	    }
 	  pc_fallback(sc, start);
+	  return(return_false(sc, car_x, __func__, __LINE__));
 	}
+      
+      if ((car(car_x) == sc->float_vector_ref_symbol) &&
+	  (!is_float_vector(cadr(car_x))))
+	return(return_false(sc, car_x, __func__, __LINE__));
+
+      if ((cell_optimize(sc, cdr(car_x))) &&
+	  (int_optimize(sc, cddr(car_x))))
+	{
+	  opc->v[0].fd = opt_d_7pi_ff;
+	  return(oo_set_type_0(opc, 4));
+	}
+      pc_fallback(sc, start);
     }
   return(return_false(sc, car_x, __func__, __LINE__));
 }
@@ -59017,7 +59046,6 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 	  if ((is_some_number(sc, atype)) &&
 	      (!is_some_number(sc, stype)))
 	    return(return_false(sc, car_x, __func__, __LINE__));
-
 	  if (cell_optimize(sc, cddr(car_x)))
 	    {
 	      opc->v[0].fp = opt_set_p_p_f;
@@ -59039,7 +59067,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 	      s7_pointer obj;
 	      opc->v[1].p = s_slot;
 	      obj = slot_value(s_slot);
-	      if ((!has_methods(obj)) &&
+	      if (/* (!has_methods(obj)) && */ /* not mentioned in d_impicit */
 		  (is_mutable_sequence(obj)))
 		{
 		  int32_t op2 = OO_P;
@@ -90030,7 +90058,7 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6
- * tbig          |      |      |      |      |246.9 |230.6 |213.7
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3  210.2
  * -----------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90039,10 +90067,16 @@ int main(int argc, char **argv)
  *   but there are a million special cases here
  * or b_7p -> op_safe_o_b_7p, also fx_o_b_7p
  * need opt counters (called funcs) to see if any never called
- * p_cf_ppp_sss etc (c|ssf?) for tbig
+ * p_cf_ppp_sss etc (c|ssf?) for tbig [and op_safe_scsa? for vector-set! in vector-2d-fft -- why is this not opt'd?]
  * fx_c_s_opssq -> direct_call_2(arg)(sc, lookup(sc, cadr(arg)), direct_call_2(largs)(sc, lookup(sc, cadr(largs)), lookup(sc, opt2_sym(cdr(largs)))))
- * block-ref/set! as d_7pi and d_7pid (need set_implicit case)
- *   what about typed vector block? and hash type? -- no init val?
- *   can opt use the O_V ref (v[4].obj?) -- maybe d_vid for set. Currently no d_vi func.
- *   implicit oscil getter?  implicit let/hash?
+ * block-set! as d_7pid (need set_implicit case) opt_cell_set
+ *   what about hash type block? 
+ *   can opt use the O_V ref (v[4].obj?) -- maybe d_vid for set. Currently no d_vi func -- block-ref?
+ *   implicit oscil getter -- can't this use o_vd etc?  implicit let/hash?
+ *   p_d[d] etc for float-vector etc?
+ *   can car(expr)==float_v_sym be fooled?
+ * s7test load overwriting (t944.scm)
+ * opt call consistency check [use op_i_i + cases for i/x/p obj/cf fd/fb/fi/fp -- need get/set macros for all fields + checkers -- use ocheck/rcheck?]
+ * doc new c_type* funcs s7_c_type_set_getter|setter and all the rest
+ * gmp vector type
  */

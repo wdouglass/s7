@@ -735,6 +735,11 @@ typedef bool (*s7_b_p_t)(s7_pointer p);
 void s7_set_b_p_function(s7_pointer f, s7_b_p_t df);
 s7_b_p_t s7_b_p_function(s7_pointer f);
 
+typedef s7_pointer (*s7_p_d_t)(s7_scheme *sc, s7_double x);
+void s7_set_p_d_function(s7_pointer f, s7_p_d_t df);
+s7_p_d_t s7_p_d_function(s7_pointer f);
+
+
 /* Here is an example of using these functions; more extensive examples are in clm2xen.c in sndlib, and in s7.c.
  * (This example comes from a HackerNews discussion):
  * plus.c:
