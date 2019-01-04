@@ -121,7 +121,7 @@
 	      lambda lambda* lcm let->list length let let* let-ref let? letrec letrec* list list->string list->vector list-ref
 	      list-tail list? log logand logbit? logior lognot logxor
 	      macro? magnitude make-byte-vector make-float-vector make-int-vector make-hash-table make-hook make-iterator make-list make-polar
-	      make-rectangular subvector make-string make-vector map max member memq memv min modulo morally-equal?
+	      make-rectangular subvector make-string make-vector map max member memq memv min modulo equivalent?
 	      nan? negative? not null? number->string number? numerator
 	      object->let object->string odd? openlet? or outlet output-port? owlet
 	      pair-line-number pair-filename pair? port-closed? port-filename port-line-number positive? documentation
@@ -184,7 +184,7 @@
 			         hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 			         call-with-exit load autoload eval eval-string apply for-each map dynamic-wind values 
 			         catch throw error documentation signature help procedure-source funclet 
-			         setter arity aritable? not eq? eqv? equal? morally-equal? gc s7-version emergency-exit 
+			         setter arity aritable? not eq? eqv? equal? equivalent? gc s7-version emergency-exit 
 			         exit dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
 				 getenv directory? file-exists? type-of immutable! immutable? byte-vector-set! syntax?
 				 list-values apply-values unquote set-current-output-port unspecified? undefined? byte-vector-ref
@@ -278,7 +278,7 @@
 			  (set! (h (car op)) (cadr op)))
 			'((< >) (> <) (<= >=) (>= <=)
 			  (* *) (+ +) (= =) (char=? char=?) (string=? string=?)
-			  (eq? eq?) (eqv? eqv?) (equal? equal?) (morally-equal? morally-equal?)
+			  (eq? eq?) (eqv? eqv?) (equal? equal?) (equivalent? equivalent?)
 			  (logand logand) (logxor logxor) (logior logior)
 			  (max max) (min min) (lcm lcm) (gcd gcd)
 			  (char<? char>?) (char>? char<?) (char<=? char>=?) (char>=? char<=?) 
@@ -947,7 +947,7 @@
 				     lcm let->list length let-ref let? list-ref
 				     list-tail list? log logand logbit? logior lognot logxor
 				     macro? magnitude make-polar
-				     make-rectangular max member memq memv min modulo morally-equal?
+				     make-rectangular max member memq memv min modulo equivalent?
 				     nan? negative? not null? number->string number? numerator
 				     object->string odd? openlet? or output-port?
 				     pair? port-closed? positive? 
@@ -3172,7 +3172,7 @@
 					'(< = > <= >= char-ci>=? char-ci<? char-ready? char<? char-ci=? char>? 
 					    char<=? char-ci>? char-ci<=? char>=? char=? string-ci<=? string=? 
 					    string-ci>=? string<? string-ci<? string-ci=? string-ci>? string>=? string<=? string>?
-					    eqv? equal? eq? morally-equal?))
+					    eqv? equal? eq? equivalent?))
 			      h))
 	
 	(define (booleans-with-not? arg1 arg2 env)
@@ -3280,7 +3280,7 @@
 			   (memq (car p) '(char-ci=? string-ci=? =)))
 		       
 		       ;; = can't share: (equal? 1 1.0) -> #f, so (or (not x) (= x 1)) can't be simplified
-		       ;;   except via member+morally-equal? but that brings in float-epsilon and NaN differences.
+		       ;;   except via member+equivalent? but that brings in float-epsilon and NaN differences.
 		       ;;   We could add both: 1 1.0 as in cond?
 		       ;;
 		       ;; another problem: using memx below means the returned value of the expression
@@ -3564,7 +3564,7 @@
 				 (if (pair? p)
 				     (and-forgetful form 'or (cadr val) (car p) env)))))))))
 	      (if (not (or retry
-			   (morally-equal? val (car exprs)))) ; morally because val might be NaN!
+			   (equivalent? val (car exprs)))) ; morally because val might be NaN!
 		  (set! retry #t))
 	      
 	      (cond ((not val))                     ; #f in or is ignored
@@ -3689,7 +3689,7 @@
 				       (and-forgetful form 'and val (car p) env)))))))))
 	      
 	      (if (not (or retry
-			   (morally-equal? e (car exprs)))) ; NaN again
+			   (equivalent? e (car exprs)))) ; NaN again
 		  (set! retry #t))
 	      
 	      ;; (and x1 x2 x1) is not reducible
@@ -4962,7 +4962,7 @@
 						 (if (null? div)
 						     (cons '* (reverse mul))
 						     `(/ (* ,@(reverse mul)) ,@(reverse div))))))
-				   (if (morally-equal? expr form) ; possible NaN
+				   (if (equivalent? expr form) ; possible NaN
 				       form
 				       (simplify-numerics expr env)))))
 			      
@@ -5544,7 +5544,7 @@
 	    (let ()
 	      (define (numpol args form env)
 		(if (and (len=2? args)
-			 (morally-equal? (cadr args) 0.0))
+			 (equivalent? (cadr args) 0.0))
 		    (car args)
 		    (cons 'make-polar args)))
 	      (hash-table-set! h 'make-polar numpol))
@@ -5626,7 +5626,7 @@
 	      (define (numang args form env)
 		(cond ((not (pair? args)) form)
 		      ((eqv? (car args) -1) 'pi)
-		      ((or (morally-equal? (car args) 0.0)
+		      ((or (equivalent? (car args) 0.0)
 			   (eq? (car args) 'pi))
 		       0.0)
 		      (else (cons 'angle args))))
@@ -9241,23 +9241,23 @@
 	  (hash-special 'equal? sp-eqv?))
 
 	(let ()
-	  (define (sp-morally-equal caller head form env)
+	  (define (sp-equivalent caller head form env)
 	    (if (< (length form) 3)
 		(lint-format "~A needs 2 arguments: ~A" caller head (truncated-list->string form))
 		(if (= (length form) 3)
 		    (let ((arg1 (cadr form))
 			  (arg2 (caddr form)))
 		      (if (and (code-constant? arg1)
-			       (code-constant? arg2))     ; (morally-equal? 1 1) -> #t
+			       (code-constant? arg2))     ; (equivalent? 1 1) -> #t
 			  (lint-format "perhaps ~A" caller
 				       (lists->string form
-						      (apply morally-equal? (cdr form)))))
+						      (apply equivalent? (cdr form)))))
 		      (let ((t1 (->lint-type arg1))       ; (morallly-equal? (floor pi) 'a) -> #f
 			    (t2 (->lint-type arg2)))
 			(unless (compatible? t1 t2)
 			  (lint-format "perhaps ~A -> #f" caller form)))))))
 
-	  (hash-special 'morally-equal? sp-morally-equal))
+	  (hash-special 'equivalent? sp-equivalent))
 
 	
 	;; ---------------- map for-each ----------------
@@ -10001,7 +10001,7 @@
 				        max-vector-length max-vector-dimensions default-hash-table-length initial-string-port-length memory-usage
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults
 					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error 
-					default-random-state morally-equal-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
+					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
 					gc-stats history-size history profile-info autoloading? max-format-length))
 			    h)))
 	   (lambda (caller head form env)
@@ -10019,7 +10019,7 @@
 	   (if (= (length form) 3)
 	       (let ((func (caddr form)))
 		 (if (and (symbol? func)  ;  (make-hash-table eq? symbol-hash)
-			  (not (memq func '(eq? eqv? equal? morally-equal? char=? char-ci=? string=? string-ci=? =))))
+			  (not (memq func '(eq? eqv? equal? equivalent? char=? char-ci=? string=? string-ci=? =))))
 		     (lint-format "make-hash-table function, ~A, is not a hash function" caller func))))))
 	
 	;; ---------------- cond-expand ----------------
@@ -11685,7 +11685,7 @@
 				  (eq? func 'equal?)
 				  (or (eq? (cadr call) vname)
 				      (not (symbol? (cadr call))))) ; don't repeat the suggestion when we hit the second vector
-			     (lint-format "perhaps use morally-equal? in ~A" caller (truncated-list->string call)))
+			     (lint-format "perhaps use equivalent? in ~A" caller (truncated-list->string call)))
 			    
 			    ((and (eq? vtype 'vector?)
 				  (memq func '(float-vector-set! float-vector-ref int-vector-set! int-vector-ref)))
@@ -13351,7 +13351,7 @@
 			     (throw 'sequence-constant-done))))))) ; just report one constant -- the full list is annoying
 
     (define (code-equal? a b) ; these extra tests get no hits
-      ;; given NaNs, these 'equal?s should probably be morally-equal?
+      ;; given NaNs, these 'equal?s should probably be equivalent?
       (or (equal? a b)
 	  (and (pair? a)
 	       (pair? b)
@@ -21530,13 +21530,13 @@
 		   
 		   (equal-ignoring-constants? 
 		    (lambda (a b)
-		      (or (morally-equal? a b)
+		      (or (equivalent? a b)
 			  (and (symbol? a)
 			       (constant? a) 
-			       (morally-equal? (symbol->value a) b))
+			       (equivalent? (symbol->value a) b))
 			  (and (symbol? b)
 			       (constant? b)
-			       (morally-equal? (symbol->value b) a))
+			       (equivalent? (symbol->value b) a))
 			  (and (pair? a)
 			       (pair? b)
 			       (equal-ignoring-constants? (car a) (car b))

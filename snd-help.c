@@ -350,7 +350,7 @@ char *version_info(void)
   #endif
 #endif
 #if (!USE_MOTIF) && (!USE_GTK)
-	  "\n    without any graphics system",
+	  "\n    no graphics",
 #endif
 #if USE_MOTIF
 	  "\n    Xpm ", snd_itoa(XpmFormat), ".", 

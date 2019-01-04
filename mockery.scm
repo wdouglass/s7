@@ -38,7 +38,7 @@
 (define *mock-vector*
   (let* ((mock-vector? #f)
 	 (mock-vector-class
-	  (inlet 'morally-equal?     (make-local-method #_morally-equal?) ; see comment below
+	  (inlet 'equivalent?        (make-local-method #_equivalent?) ; see comment below
 		 
 		 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
 				       (if (vector? (obj 'value))
@@ -134,7 +134,7 @@
 
 
 #|
-;;; the morally-equal? method should track circles (via cyclic-sequences?)
+;;; the equivalent? method should track circles (via cyclic-sequences?)
 ;;;   as it is now, this code cores up indefinitely:
 (let ((v1 ((*mock-vector* 'mock-vector) 1 2 3 4))
       (v2 ((*mock-vector* 'mock-vector) 2 3 4))
@@ -144,7 +144,7 @@
   (vector-set! v1 0 v2)
   (vector-set! v4 0 v3)
   (vector-set! v3 0 v4)
-  (morally-equal? v1 v3))
+  (equivalent? v1 v3))
 ;;; but how to make this cooperate with the built-in method -- we should call cyclic-sequences just once
 |#
 
@@ -177,7 +177,7 @@
 (define *mock-hash-table*
   (let* ((mock-hash-table? #f)
 	 (mock-hash-table-class
-	  (inlet 'morally-equal?     (lambda (x y)          (#_morally-equal? (x 'value) y))
+	  (inlet 'equivalent?        (lambda (x y)          (#_equivalent? (x 'value) y))
 		 'hash-table-ref     (lambda (obj key)      (#_hash-table-ref (obj 'value) key))
 		 'hash-table-set!    (lambda (obj key val)  (#_hash-table-set! (obj 'value) key val))
 		 'hash-table-entries (lambda (obj)          (#_hash-table-entries (obj 'value)))
@@ -273,7 +273,7 @@
 (define *mock-string*
   (let* ((mock-string? #f)
 	 (mock-string-class
-	  (inlet 'morally-equal?         (lambda (x y) (#_morally-equal? (x 'value) y))
+	  (inlet 'equivalent?            (lambda (x y) (#_equivalent? (x 'value) y))
 		 'reverse                (lambda (obj) (#_reverse (obj 'value)))
 		 'object->string         (lambda args 
 					   (let ((w (or (null? (cdr args)) (cadr args))))
@@ -437,7 +437,7 @@
 (define *mock-char*
   (let* ((mock-char? #f)
 	 (mock-char-class
-	  (inlet 'morally-equal?     (lambda (x y) (#_morally-equal? (x 'value) y))
+	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (x 'value) y))
 		 'char-upcase        (lambda (obj) (#_char-upcase (obj 'value)))
 		 'char-downcase      (lambda (obj) (#_char-downcase (obj 'value)))
 		 'char->integer      (lambda (obj) (#_char->integer (obj 'value)))
@@ -521,7 +521,7 @@
   (let* ((mock-number? #f)
 	 (mock-number-class
 	  (inlet 
-	   'morally-equal?   (lambda (x y) (#_morally-equal? (x 'value) y))
+	   'equivalent?      (lambda (x y) (#_equivalent? (x 'value) y))
 	   'object->string   (lambda args 
 			       (let ((w (or (null? (cdr args)) (cadr args))))
 				 (copy (if (eq? w :readable) "*mock-number*" "#<mock-number-class>"))))
@@ -817,7 +817,7 @@
 (define *mock-pair*
   (let* ((mock-pair? #f)
 	 (mock-pair-class
-	  (inlet 'morally-equal?   (lambda (x y) (#_morally-equal? (x 'value) y))
+	  (inlet 'equivalent?      (lambda (x y) (#_equivalent? (x 'value) y))
 		 'pair-line-number (lambda (obj) (#_pair-line-number (obj 'value)))
 		 'list->string     (lambda (obj) (#_list->string (obj 'value)))
 		 'object->string   (lambda args 
@@ -978,7 +978,7 @@
 	 (inlet 'object->string        (lambda args 
 					 (let ((w (or (null? (cdr args)) (cadr args))))
 					   (copy (if (eq? w :readable) "*mock-symbol*" "#<mock-symbol-class>"))))
-		'morally-equal?        (lambda (x y) (#_morally-equal? (x 'value) y))
+		'equivalent?           (lambda (x y) (#_equivalent? (x 'value) y))
 		'gensym?               (lambda (obj) (#_gensym? (obj 'value)))
 		'append                (lambda args (error 'wrong-type-arg "append argument is a symbol"))
 		'symbol->string        (lambda (obj) (#_symbol->string (obj 'value)))
@@ -1018,7 +1018,7 @@
   (let* ((mock-port? #f)
 	 (mock-port-class
 	  (inlet 'port?               (lambda (obj) #t)
-		 'morally-equal?      (lambda (x y) (#_morally-equal? (x 'value) y))
+		 'equivalent?         (lambda (x y) (#_equivalent? (x 'value) y))
 		 'close-input-port    (lambda (obj) (#_close-input-port (obj 'value)))
 		 'close-output-port   (lambda (obj) (#_close-output-port (obj 'value)))
 		 'flush-output-port   (lambda (obj) (#_flush-output-port (obj 'value)))

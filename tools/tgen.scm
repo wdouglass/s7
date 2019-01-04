@@ -81,11 +81,11 @@
 
 
 (define-constant (vequal v1 v2)
-  (or (morally-equal? v1 v2)
+  (or (equivalent? v1 v2)
       (float-vector-equal? v1 v2 1e-5))) ; "relative" equality: diff/mx
 
-;(set! (*s7* 'morally-equal-float-epsilon) 1e-5)
-;(define vequal morally-equal?)
+;(set! (*s7* 'equivalent-float-epsilon) 1e-5)
+;(define vequal equivalent?)
 
 (define-constant (checkout str V v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12)
   (if (not (and (vequal V v1)

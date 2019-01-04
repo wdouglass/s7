@@ -1767,7 +1767,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :initial-string-port-length    (*s7* 'initial-string-port-length)
    :default-rationalize-error     (*s7* 'default-rationalize-error)
    :default-random-state          (*s7* 'default-random-state)
-   :morally-equal-float-epsilon   (*s7* 'morally-equal-float-epsilon)
+   :equivalent-float-epsilon   (*s7* 'equivalent-float-epsilon)
    :hash-table-float-epsilon      (*s7* 'hash-table-float-epsilon)
    :float-format-precision        (*s7* 'float-format-precision)
    :bignum-precision              (*s7* 'bignum-precision)
@@ -1902,7 +1902,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 	      call-with-exit apply for-each map dynamic-wind values type-of
 	      catch throw error documentation signature help procedure-source
-	      setter arity aritable? not eq? eqv? equal? morally-equal? s7-version
+	      setter arity aritable? not eq? eqv? equal? equivalent? s7-version
 	      dilambda make-hook hook-functions stacktrace tree-leaves tree-memq tree-set-memq tree-cyclic? tree-count object->let
 	      pi most-positive-fixnum most-negative-fixnum nan.0 inf.0 -nan.0 -inf.0
 	      *stderr* *stdout* *stdin*

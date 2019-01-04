@@ -1127,7 +1127,7 @@ struct s7_scheme {
   uint64_t capture_let_counter;
   bool short_print, is_autoloading, in_with_let, object_out_locked;
   int64_t let_number;
-  s7_double default_rationalize_error, morally_equal_float_epsilon, hash_table_float_epsilon;
+  s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
   s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length;
   s7_pointer stacktrace_defaults;
@@ -1238,7 +1238,7 @@ struct s7_scheme {
              is_continuation_symbol, is_defined_symbol, is_dilambda_symbol, is_eof_object_symbol, is_eq_symbol, is_equal_symbol,
              is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_gensym_symbol, is_hash_table_symbol, is_immutable_symbol,
              is_inexact_symbol, is_infinite_symbol, is_input_port_symbol, is_int_vector_symbol, is_integer_symbol, is_iterator_symbol,
-             is_keyword_symbol, is_let_symbol, is_list_symbol, is_macro_symbol, is_morally_equal_symbol, is_nan_symbol, is_negative_symbol,
+             is_keyword_symbol, is_let_symbol, is_list_symbol, is_macro_symbol, is_equivalent_symbol, is_nan_symbol, is_negative_symbol,
              is_null_symbol, is_number_symbol, is_odd_symbol, is_openlet_symbol, is_output_port_symbol, is_pair_symbol,
              is_port_closed_symbol, is_positive_symbol, is_procedure_symbol, is_proper_list_symbol, is_provided_symbol,
              is_random_state_symbol, is_rational_symbol, is_real_symbol, is_sequence_symbol, is_string_symbol, is_subvector_symbol,
@@ -1292,7 +1292,7 @@ struct s7_scheme {
              stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
              catches_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol, history_enabled_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
-             hash_table_float_epsilon_symbol, morally_equal_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
+             hash_table_float_epsilon_symbol, equivalent_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
              undefined_identifier_warnings_symbol, print_length_symbol, bignum_precision_symbol, stacktrace_defaults_symbol, history_symbol, history_size_symbol;
 
   /* syntax symbols et al */
@@ -36457,6 +36457,15 @@ static s7_pointer g_float_vector(s7_scheme *sc, s7_pointer args)
   return(vec);
 }
 
+static s7_pointer float_vector_p_d(s7_scheme *sc, s7_double x)
+{
+  s7_pointer vec;
+  vec = make_simple_float_vector(sc, 1);
+  float_vector(vec, 0) = x;
+  return(vec);
+}
+
+
 /* -------------------------------- int-vector? -------------------------------- */
 static s7_pointer g_is_int_vector(s7_scheme *sc, s7_pointer args)
 {
@@ -36489,6 +36498,15 @@ static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
     }
   return(vec);
 }
+
+static s7_pointer int_vector_p_i(s7_scheme *sc, s7_int x)
+{
+  s7_pointer vec;
+  vec = make_simple_int_vector(sc, 1);
+  int_vector(vec, 0) = x;
+  return(vec);
+}
+
 
 /* -------------------------------- byte-vector? -------------------------------- */
 static s7_pointer g_is_byte_vector(s7_scheme *sc, s7_pointer args)
@@ -37336,7 +37354,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 	      else
 		{
 		  if (typf == slot_value(global_slot(sc->is_integer_symbol)))
-		    result_type = T_INT_VECTOR;
+		    result_type = (WITH_GMP) ? T_VECTOR : T_INT_VECTOR;
 		  else
 		    {
 		      if (typf == slot_value(global_slot(sc->is_byte_symbol)))
@@ -37350,10 +37368,8 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 			    {
 			      if ((car(sig) != sc->is_boolean_symbol) || (cadr(sig) != sc->T) || (!is_null(cddr(sig))))
 				return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type is not a boolean procedure", 31)));
-
 			      if (!c_function_marker(typf)) c_function_set_marker(typf, mark_vector_1);
 			      if (!c_function_symbol(typf)) c_function_symbol(typf) = make_symbol(sc, c_function_name(typf));
-
 			    }}}}}}}
 
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
@@ -39515,7 +39531,7 @@ static s7_int hash_float_location(s7_double x)
   return((s7_int)x);
 }
 
-/* built in hash loc tables for eq? eqv? equal? morally-equal? = string=? string-ci=? char=? char-ci=? (default=equal?) */
+/* built in hash loc tables for eq? eqv? equal? equivalent? = string=? string-ci=? char=? char-ci=? (default=equal?) */
 
 #define hash_loc(Sc, Table, Key) (*(hash_table_mapper(Table)[type(Key)]))(Sc, Table, Key)
 
@@ -39525,7 +39541,7 @@ static hash_map_t string_eq_hash_map[NUM_TYPES];
 static hash_map_t number_eq_hash_map[NUM_TYPES];
 static hash_map_t char_eq_hash_map[NUM_TYPES];
 static hash_map_t closure_hash_map[NUM_TYPES];
-static hash_map_t morally_equal_hash_map[NUM_TYPES];
+static hash_map_t equivalent_hash_map[NUM_TYPES];
 static hash_map_t c_function_hash_map[NUM_TYPES];
 #if (!WITH_PURE_S7)
 static hash_map_t string_ci_eq_hash_map[NUM_TYPES];
@@ -39612,7 +39628,7 @@ static s7_int hash_map_ratio_eq(s7_scheme *sc, s7_pointer table, s7_pointer y)
 static s7_int hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* hash-tables are equal if key/values match independent of table size and entry order.
-   * if not using morally-equal?, hash_table_checker|mapper must also be the same.
+   * if not using equivalent?, hash_table_checker|mapper must also be the same.
    * Keys are supposed to be constant while keys, so a hash-table shouldn't be a key of itself.
    */
   return(hash_table_entries(key));
@@ -39919,7 +39935,7 @@ static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, s7_int loc,
   hash_entry_t *x;
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if ((is_t_complex(hash_entry_key(x))) &&
-	(s7_is_morally_equal(sc, hash_entry_key(x), key)))
+	(s7_is_equivalent(sc, hash_entry_key(x), key)))
       return(x);
   return(sc->unentry);
 }
@@ -39983,14 +39999,14 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
 
 static hash_entry_t *(*default_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
 static hash_entry_t *(*equal_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
-static hash_entry_t *(*morally_equal_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
+static hash_entry_t *(*equivalent_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
 
 static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   return((*(equal_hash_checks[type(key)]))(sc, table, key));
 }
 
-static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static hash_entry_t *hash_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
   s7_int hash, loc;
@@ -40003,7 +40019,7 @@ static hash_entry_t *hash_morally_equal(s7_scheme *sc, s7_pointer table, s7_poin
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if ((hash_entry_raw_hash(x) == hash) &&
-	(s7_is_morally_equal(sc, hash_entry_key(x), key)))
+	(s7_is_equivalent(sc, hash_entry_key(x), key)))
       return(x);
   return(sc->unentry);
 }
@@ -40204,7 +40220,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 }
 
 static s7_pointer g_is_equal(s7_scheme *sc, s7_pointer args);
-static s7_pointer g_is_morally_equal(s7_scheme *sc, s7_pointer args);
+static s7_pointer g_is_equivalent(s7_scheme *sc, s7_pointer args);
 
 static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
@@ -40247,22 +40263,34 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 	      typers = caddr(args);
 	      if (is_pair(typers))
 		{
-		  if ((is_c_function(car(typers))) &&
-		      (is_c_function(cdr(typers))) &&
-		      (has_type_info(car(typers))) &&
-		      (has_type_info(cdr(typers))))
+		  s7_pointer keyp, valp;
+		  keyp = car(typers);
+		  valp = cdr(typers);
+		  if ((keyp != sc->T) || (valp != sc->T))
 		    {
-		      dproc = cons(sc, sc->F, sc->F);
-		      hash_table_set_key_typer(dproc, car(typers));
-		      hash_table_set_value_typer(dproc, cdr(typers));
+		      if ((!is_c_function(keyp)) && (!is_c_function(valp)))
+			return(wrong_type_argument_with_type(sc, caller, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
+		      dproc = cons(sc, sc->T, sc->T);
 		      hash_table_set_procedures(ht, dproc);
+		      hash_table_set_key_typer(dproc, keyp);
+		      hash_table_set_value_typer(dproc, valp);
+		      if (is_c_function(keyp))
+			{
+			  if (c_function_has_simple_elements(keyp))
+			    set_has_simple_keys(ht);
+			  if (!c_function_symbol(keyp)) 
+			    c_function_symbol(keyp) = make_symbol(sc, c_function_name(keyp));
+			  /* c_function_marker is not currently used in this context */
+			}
+		      if (is_c_function(valp))
+			{
+			  if (c_function_has_simple_elements(valp))
+			    set_has_simple_values(ht);
+			  if (!c_function_symbol(valp)) 
+			    c_function_symbol(valp) = make_symbol(sc, c_function_name(valp));
+			}
 		      set_typed_hash_table(ht);
-		      if (c_function_has_simple_elements(car(typers)))
-			set_has_simple_keys(ht);
-		      if (c_function_has_simple_elements(cdr(typers)))
-			set_has_simple_values(ht);
 		    }
-		  else return(wrong_type_argument_with_type(sc, caller, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
 		}
 	      else
 		{
@@ -40286,10 +40314,10 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 		  hash_table_checker(ht) = hash_equal;
 		  return(ht);
 		}
-	      if (c_function_call(proc) == g_is_morally_equal)
+	      if (c_function_call(proc) == g_is_equivalent)
 		{
-		  hash_table_checker(ht) = hash_morally_equal;
-		  hash_table_mapper(ht) = morally_equal_hash_map;
+		  hash_table_checker(ht) = hash_equivalent;
+		  hash_table_mapper(ht) = equivalent_hash_map;
 		  return(ht);
 		}
 	      if (c_function_call(proc) == g_is_eq)
@@ -40446,7 +40474,7 @@ void init_hash_maps(void)
       eqv_hash_map[i] = hash_map_eq;
 
       equal_hash_checks[i] = hash_equal_any;
-      morally_equal_hash_checks[i] = hash_equal_any;
+      equivalent_hash_checks[i] = hash_equal_any;
       default_hash_checks[i] = hash_equal;
     }
   default_hash_map[T_INTEGER] =       hash_map_int;
@@ -40471,7 +40499,7 @@ void init_hash_maps(void)
   default_hash_map[T_BIG_COMPLEX] =   hash_map_big_complex;
 #endif
 
-  for (i = 0; i < NUM_TYPES; i++) morally_equal_hash_map[i] = default_hash_map[i];
+  for (i = 0; i < NUM_TYPES; i++) equivalent_hash_map[i] = default_hash_map[i];
 
   string_eq_hash_map[T_STRING] =      hash_map_string;
   string_eq_hash_map[T_BYTE_VECTOR] = hash_map_byte_vector;
@@ -40497,10 +40525,10 @@ void init_hash_maps(void)
   eqv_hash_map[T_REAL] =              hash_map_real_eq;
   eqv_hash_map[T_COMPLEX] =           hash_map_complex;
 
-  morally_equal_hash_map[T_INTEGER] = hash_map_int;
-  morally_equal_hash_map[T_RATIO] =   hash_map_ratio_eq;
-  morally_equal_hash_map[T_REAL] =    hash_map_real_eq;
-  morally_equal_hash_map[T_COMPLEX] = hash_map_complex;
+  equivalent_hash_map[T_INTEGER] = hash_map_int;
+  equivalent_hash_map[T_RATIO] =   hash_map_ratio_eq;
+  equivalent_hash_map[T_REAL] =    hash_map_real_eq;
+  equivalent_hash_map[T_COMPLEX] = hash_map_complex;
 
   equal_hash_checks[T_REAL] =         hash_equal_real;
   equal_hash_checks[T_COMPLEX] =      hash_equal_complex;
@@ -40741,10 +40769,12 @@ static void hash_table_set_checker(s7_pointer table, uint8_t typ)
 
 static void check_hash_types(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
-  if (c_function_call(hash_table_key_typer(table))(sc, set_plist_1(sc, key)) == sc->F)
+  if ((is_c_function(hash_table_key_typer(table))) && /* might be #t = untyped */
+      (c_function_call(hash_table_key_typer(table))(sc, set_plist_1(sc, key)) == sc->F))
     s7_wrong_type_arg_error(sc, "hash-table-set! key", 2, key,
 			    make_type_name(sc, symbol_name(c_function_symbol(hash_table_key_typer(table))), INDEFINITE_ARTICLE));
-  if (c_function_call(hash_table_value_typer(table))(sc, set_plist_1(sc, value)) == sc->F)
+  if ((is_c_function(hash_table_value_typer(table))) &&
+      (c_function_call(hash_table_value_typer(table))(sc, set_plist_1(sc, value)) == sc->F))
     s7_wrong_type_arg_error(sc, "hash-table-set! value", 3, value,
 			    make_type_name(sc, symbol_name(c_function_symbol(hash_table_value_typer(table))), INDEFINITE_ARTICLE));
 }
@@ -41720,7 +41750,10 @@ static s7_pointer g_signature(s7_scheme *sc, s7_pointer args)
 
     case T_HASH_TABLE:
       if (is_typed_hash_table(p))
-	return(list_3(sc, c_function_symbol(hash_table_value_typer(p)), sc->is_hash_table_symbol, c_function_symbol(hash_table_key_typer(p))));
+	return(list_3(sc, 
+		      (is_c_function(hash_table_value_typer(p))) ? c_function_symbol(hash_table_value_typer(p)) : sc->T,
+		      sc->is_hash_table_symbol, 
+		      (is_c_function(hash_table_key_typer(p)) ? c_function_symbol(hash_table_key_typer(p)) : sc->T)));
       return(sc->hash_table_signature);
 
     case T_ITERATOR:
@@ -43054,9 +43087,9 @@ static s7_pointer g_is_eqv(s7_scheme *sc, s7_pointer args)
 }
 
 static bool s7_is_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
-static bool s7_is_morally_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
+static bool s7_is_equivalent_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
 
-static bool floats_are_morally_equal(s7_scheme *sc, s7_double x, s7_double y)
+static bool floats_are_equivalent(s7_scheme *sc, s7_double x, s7_double y)
 {
   s7_double diff, eps;
   if (x == y) return(true);
@@ -43064,7 +43097,7 @@ static bool floats_are_morally_equal(s7_scheme *sc, s7_double x, s7_double y)
   if ((is_NaN(x)) || (is_NaN(y)))
     return((is_NaN(x)) && (is_NaN(y)));
 
-  eps = sc->morally_equal_float_epsilon;
+  eps = sc->equivalent_float_epsilon;
   diff = fabs(x - y);
   if (diff <= eps) return(true);
   if (x < 0.0) x = -x;
@@ -43077,10 +43110,10 @@ static bool eq_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
   return(x == y);
 }
 
-static bool symbol_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool symbol_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
-  if (!is_symbol(y)) return(false);                   /* (morally-equal? ''(1) '(1)) */
+  if (!is_symbol(y)) return(false);                   /* (equivalent? ''(1) '(1)) */
   return((is_slot(global_slot(x))) &&                 /* the optimizer can replace the original symbol with its own */
 	 (is_syntax(slot_value(global_slot(x)))) &&
 	 (is_slot(global_slot(y))) &&
@@ -43100,7 +43133,7 @@ static bool undefined_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_in
   return(safe_strcmp(unknown_name(x), unknown_name(y)));
 }
 
-static bool c_pointer_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool c_pointer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   shared_info *nci = ci;
   if (x == y) return(true);
@@ -43109,13 +43142,13 @@ static bool c_pointer_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, s
   if (c_pointer_type(x) != c_pointer_type(y))
     {
       if (!nci) nci = new_shared_info(sc);
-      if (!s7_is_morally_equal_1(sc, c_pointer_type(x), c_pointer_type(y), nci))
+      if (!s7_is_equivalent_1(sc, c_pointer_type(x), c_pointer_type(y), nci))
 	return(false);
     }
   if (c_pointer_info(x) != c_pointer_info(y))
     {
       if (!nci) nci = new_shared_info(sc);
-      if (!s7_is_morally_equal_1(sc, c_pointer_info(x), c_pointer_info(y), nci))
+      if (!s7_is_equivalent_1(sc, c_pointer_info(x), c_pointer_info(y), nci))
 	return(false);
     }
   return(true);
@@ -43157,7 +43190,7 @@ static bool port_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
   return(x == y);
 }
 
-static bool port_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool port_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
   if (type(x) != type(y)) return(false);
@@ -43243,24 +43276,24 @@ static bool c_objects_are_equal(s7_scheme *sc, s7_pointer a, s7_pointer b, share
   return(pa == pb); /* presumably both are nil if successful */
 }
 
-#define check_morally_equal_method(Sc, X, Y) \
+#define check_equivalent_method(Sc, X, Y) \
   do {						 \
       if (has_methods(X))						\
 	{								\
 	  s7_pointer equal_func;					\
-	  equal_func = find_method(Sc, find_let(Sc, X), Sc->is_morally_equal_symbol); \
+	  equal_func = find_method(Sc, find_let(Sc, X), Sc->is_equivalent_symbol); \
 	  if (equal_func != Sc->undefined)				\
 	    return(s7_boolean(Sc, s7_apply_function(Sc, equal_func, list_2(Sc, X, Y)))); \
 	}}								\
     while (0)
 
-static bool c_object_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool c_object_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
-  check_morally_equal_method(sc, x, y);
+  check_equivalent_method(sc, x, y);
   return(c_objects_are_equal(sc, x, y, ci));
 }
 
-static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool hash_table_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   hash_entry_t **lists;
   s7_int i, len;
@@ -43270,7 +43303,7 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
     return(true);
   if (!is_hash_table(y))
     {
-      check_morally_equal_method(sc, y, x);
+      check_equivalent_method(sc, y, x);
       return(false);
     }
   if (ci)
@@ -43290,10 +43323,10 @@ static bool hash_table_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, 
       for (p = lists[i]; p; p = hash_entry_next(p))
 	{
 	  hash_entry_t *y_val;
-	  y_val = hash_morally_equal(sc, y, hash_entry_key(p));  /* hash_table_checker(y) might be hash_equal */
+	  y_val = hash_equivalent(sc, y, hash_entry_key(p));  /* hash_table_checker(y) might be hash_equal */
 	  if (y_val == sc->unentry)
 	    return(false);
-	  if (!s7_is_morally_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
+	  if (!s7_is_equivalent_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
 	    return(false);
 	}
     }
@@ -43360,17 +43393,17 @@ static bool slots_match(s7_scheme *sc, s7_pointer px, s7_pointer y, shared_info 
   return(false);
 }
 
-static bool slots_morally_match(s7_scheme *sc, s7_pointer px, s7_pointer y, shared_info *nci)
+static bool slots_equivalent_match(s7_scheme *sc, s7_pointer px, s7_pointer y, shared_info *nci)
 {
   s7_pointer ey, py;
   for (ey = y; (is_let(ey)) && (ey != sc->rootlet); ey = outlet(ey))
     for (py = let_slots(ey); is_slot(py); py = next_slot(py))
       if (slot_symbol(px) == slot_symbol(py)) /* we know something will match */
-	return(s7_is_morally_equal_1(sc, slot_value(px), slot_value(py), nci));
+	return(s7_is_equivalent_1(sc, slot_value(px), slot_value(py), nci));
   return(false);
 }
 
-static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool morally)
+static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool equivalent)
 {
   s7_pointer ex, ey, px, py;
   shared_info *nci = ci;
@@ -43417,8 +43450,8 @@ static bool let_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *
       if (symbol_tag(slot_symbol(px)) == 0)                  /* unshadowed */
 	{
 	  symbol_set_tag(slot_symbol(px), sc->syms_tag);     /* values don't match */
-	  if (((!morally) && (!slots_match(sc, px, y, nci))) ||
-	      ((morally) && (!slots_morally_match(sc, px, y, nci))))
+	  if (((!equivalent) && (!slots_match(sc, px, y, nci))) ||
+	      ((equivalent) && (!slots_equivalent_match(sc, px, y, nci))))
 	    return(false);
 	}
   return(true);
@@ -43432,11 +43465,11 @@ static bool let_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci
   return(let_equal_1(sc, x, y, ci, false));
 }
 
-static bool let_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool let_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
-  check_morally_equal_method(sc, x, y);
-  check_morally_equal_method(sc, y, x);
+  check_equivalent_method(sc, x, y);
+  check_equivalent_method(sc, y, x);
   return(let_equal_1(sc, x, y, ci, true));
 }
 
@@ -43457,19 +43490,19 @@ static bool closure_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
   return(false);
 }
 
-static bool closure_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool closure_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y)
     return(true);
   if (type(x) != type(y))
     return(false);
   if (has_methods(y))
-    check_morally_equal_method(sc, x, y);
+    check_equivalent_method(sc, x, y);
   /* not sure about this -- we can't simply check let_equal(closure_let(x), closure_let(y))
    *   because locally defined constant functions on the second pass find the outer let.
    */
-  return((s7_is_morally_equal_1(sc, closure_args(x), closure_args(y), ci)) &&
-	 (s7_is_morally_equal_1(sc, closure_body(x), closure_body(y), ci)));
+  return((s7_is_equivalent_1(sc, closure_args(x), closure_args(y), ci)) &&
+	 (s7_is_equivalent_1(sc, closure_body(x), closure_body(y), ci)));
 }
 
 
@@ -43500,7 +43533,7 @@ static bool pair_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
   return(s7_is_equal_1(sc, px, py, nci));
 }
 
-static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool pair_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   shared_info *nci;
   s7_pointer px, py;
@@ -43509,7 +43542,7 @@ static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
     return(true);
   if (!is_pair(y))
     {
-      check_morally_equal_method(sc, y, x);
+      check_equivalent_method(sc, y, x);
       return(false);
     }
 
@@ -43520,15 +43553,15 @@ static bool pair_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
     }
   else nci = new_shared_info(sc);
 
-  if (!s7_is_morally_equal_1(sc, car(x), car(y), nci)) return(false);
+  if (!s7_is_equivalent_1(sc, car(x), car(y), nci)) return(false);
   for (px = cdr(x), py = cdr(y); (is_pair(px)) && (is_pair(py)); px = cdr(px), py = cdr(py))
     {
-      if (!s7_is_morally_equal_1(sc, car(px), car(py), nci)) return(false);
+      if (!s7_is_equivalent_1(sc, car(px), car(py), nci)) return(false);
       equal_ref(sc, px, py, nci);
     }
   if (px == py) /* normally nil? */
     return(true);
-  return(s7_is_morally_equal_1(sc, px, py, nci));
+  return(s7_is_equivalent_1(sc, px, py, nci));
 }
 
 static bool vector_rank_match(s7_scheme *sc, s7_pointer x, s7_pointer y)
@@ -43654,7 +43687,7 @@ static bool vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
   return(true);
 }
 
-static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool vector_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   s7_int i, len;
   shared_info *nci = ci;
@@ -43663,7 +43696,7 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
     return(true);
   if (!is_any_vector(y))
     {
-      check_morally_equal_method(sc, y, x);
+      check_equivalent_method(sc, y, x);
       return(false);
     }
   len = vector_length(x);
@@ -43673,15 +43706,15 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
 
   if (type(x) != type(y))
     {
-      /* (morally-equal? (make-int-vector 3 0) (make-vector 3 0)) -> #t
-       * (morally-equal? (make-float-vector 3 1.0) (vector 1 1 1)) -> #t
+      /* (equivalent? (make-int-vector 3 0) (make-vector 3 0)) -> #t
+       * (equivalent? (make-float-vector 3 1.0) (vector 1 1 1)) -> #t
        */
       if ((is_int_vector(x)) && (is_byte_vector(y)))
 	return(biv_meq(sc, y, x, NULL));
       if ((is_byte_vector(x)) && (is_int_vector(y)))
 	return(biv_meq(sc, x, y, NULL));
       for (i = 0; i < len; i++)
-	if (!s7_is_morally_equal_1(sc, vector_getter(x)(sc, x, i), vector_getter(y)(sc, y, i), NULL)) /* this could be greatly optimized */
+	if (!s7_is_equivalent_1(sc, vector_getter(x)(sc, x, i), vector_getter(y)(sc, y, i), NULL)) /* this could be greatly optimized */
 	  return(false);
       return(true);
     }
@@ -43692,7 +43725,7 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       s7_double fudge;
       arr1 = float_vector_floats(x);
       arr2 = float_vector_floats(y);
-      fudge = sc->morally_equal_float_epsilon;
+      fudge = sc->equivalent_float_epsilon;
       if (fudge == 0.0)
 	{
 	  for (i = 0; i < len; i++)
@@ -43703,7 +43736,7 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       else
 	{
 	  for (i = 0; i < len; i++)
-	    if (!floats_are_morally_equal(sc, arr1[i], arr2[i]))
+	    if (!floats_are_equivalent(sc, arr1[i], arr2[i]))
 	      return(false);
 	}
       return(true);
@@ -43720,12 +43753,12 @@ static bool vector_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       else nci = new_shared_info(sc);
     }
   for (i = 0; i < len; i++)
-    if (!(s7_is_morally_equal_1(sc, vector_element(x, i), vector_element(y, i), nci)))
+    if (!(s7_is_equivalent_1(sc, vector_element(x, i), vector_element(y, i), nci)))
       return(false);
   return(true);
 }
 
-static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool morally)
+static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool equivalent)
 {
   s7_pointer x_seq, y_seq, xs, ys;
 
@@ -43750,15 +43783,15 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
       return((is_any_vector(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
-	     ((morally) ? (vector_morally_equal(sc, x_seq, y_seq, ci)) :
+	     ((equivalent) ? (vector_equivalent(sc, x_seq, y_seq, ci)) :
 	                  (vector_equal(sc, x_seq, y_seq, ci))));
 
       /* iterator_next is a function (pair_iterate, iterator_finished etc) */
     case T_PAIR:
       if (iterator_next(x) != iterator_next(y)) return(false);     /* even if seqs are equal, one might be at end */
-      if (morally)
+      if (equivalent)
 	{
-	  if (!pair_morally_equal(sc, x_seq, y_seq, ci))
+	  if (!pair_equivalent(sc, x_seq, y_seq, ci))
 	    return(false);
 	}
       else
@@ -43772,15 +43805,15 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
       return(is_null(xs) && is_null(ys));
 
     case T_NIL:                                                    /* (make-iterator #()) works, so () should too */
-      return(is_null(y_seq));   /* perhaps for morally case, check position in y as well as pair(seq(y))? */
+      return(is_null(y_seq));   /* perhaps for equivalent case, check position in y as well as pair(seq(y))? */
 
     case T_C_OBJECT:
       if ((is_c_object(y_seq)) &&
 	  (iterator_position(x) == iterator_position(y)) &&
 	  (iterator_length(x) == iterator_length(y)))
 	{
-	  if (morally)
-	    return(c_object_morally_equal(sc, x_seq, y_seq, ci));
+	  if (equivalent)
+	    return(c_object_equivalent(sc, x_seq, y_seq, ci));
 	  return(c_objects_are_equal(sc, x_seq, y_seq, ci));
 	}
       return(false);
@@ -43790,9 +43823,9 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
       if (iterator_next(x) != iterator_next(y)) return(false);
       if (x_seq == sc->rootlet)
 	return(iterator_position(x) == iterator_position(y)); /* y_seq must also be sc->rootlet since nexts are the same (rootlet_iterate) */
-      if (morally)
+      if (equivalent)
 	{
-	  if (!let_morally_equal(sc, x_seq, y_seq, ci))
+	  if (!let_equivalent(sc, x_seq, y_seq, ci))
 	    return(false);
 	}
       else
@@ -43810,11 +43843,11 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
       if (hash_table_entries(x_seq) != hash_table_entries(y_seq)) return(false);
       if (hash_table_entries(x_seq) == 0) return(true);
       if (iterator_position(x) != iterator_position(y)) return(false);
-      if (!morally)
+      if (!equivalent)
 	return(hash_table_equal(sc, x_seq, y_seq, ci));
-      return(hash_table_morally_equal(sc, x_seq, y_seq, ci));
+      return(hash_table_equivalent(sc, x_seq, y_seq, ci));
 
-      /* no morally-equal for lets etc?, can t_lets be (morally-)equal? yes: let_morally_equal
+      /* no equivalent for lets etc?, can t_lets be let_equivalent
        * let case: (make-iterator (inlet 'integer? (lambda (f) #f)))
        * hash case: (make-iterator (hash-table 'a 1))
        */
@@ -43830,7 +43863,7 @@ static bool iterator_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_inf
   return(iterator_equal_1(sc, x, y, ci, false));
 }
 
-static bool iterator_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool iterator_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   return(iterator_equal_1(sc, x, y, ci, true));
 }
@@ -43842,7 +43875,7 @@ static bool bignum_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info 
   return(big_numbers_are_eqv(x, y));
 }
 
-static bool bignum_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool bignum_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (!s7_is_number(y)) return(false);
   return(big_equal(sc, set_plist_2(sc, x, y)) != sc->F);
@@ -43861,7 +43894,7 @@ static bool integer_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
   return(false);
 }
 
-static bool integer_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
 #if WITH_GMP
   if (is_big_number(y))
@@ -43874,15 +43907,15 @@ static bool integer_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 
   if (is_t_real(y))
     return((!is_NaN(real(y))) &&
-	   (floats_are_morally_equal(sc, (s7_double)integer(x), real(y))));
+	   (floats_are_equivalent(sc, (s7_double)integer(x), real(y))));
 
   if (is_t_ratio(y))
-    return(floats_are_morally_equal(sc, (s7_double)integer(x), (s7_double)fraction(y)));
+    return(floats_are_equivalent(sc, (s7_double)integer(x), (s7_double)fraction(y)));
 
   return((!is_NaN(real_part(y))) &&
 	 (!is_NaN(imag_part(y))) &&
-	 (floats_are_morally_equal(sc, (s7_double)integer(x), real_part(y))) &&
-	 (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
+	 (floats_are_equivalent(sc, (s7_double)integer(x), real_part(y))) &&
+	 (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
 }
 
 /* apparently ratio_equal is predefined in g++ -- name collision on mac */
@@ -43897,26 +43930,26 @@ static bool fraction_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_inf
 	 (denominator(x) == denominator(y)));
 }
 
-static bool fraction_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool fraction_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
 #if WITH_GMP
   if (is_big_number(y))
     return(big_equal(sc, set_plist_2(sc, x, y)) != sc->F);
 #endif
   if (is_t_ratio(y))
-    return(floats_are_morally_equal(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
+    return(floats_are_equivalent(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
 
   if (is_t_real(y))
-    return(floats_are_morally_equal(sc, (s7_double)fraction(x), real(y)));
+    return(floats_are_equivalent(sc, (s7_double)fraction(x), real(y)));
 
   if (is_integer(y))
-    return(floats_are_morally_equal(sc, (s7_double)fraction(x), (s7_double)integer(y)));
+    return(floats_are_equivalent(sc, (s7_double)fraction(x), (s7_double)integer(y)));
 
   if (is_t_complex(y))
     return((!is_NaN(real_part(y))) &&
 	   (!is_NaN(imag_part(y))) &&
-	   (floats_are_morally_equal(sc, (s7_double)fraction(x), real_part(y))) &&
-	   (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
+	   (floats_are_equivalent(sc, (s7_double)fraction(x), real_part(y))) &&
+	   (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
   return(false);
 }
 
@@ -43930,7 +43963,7 @@ static bool real_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
 	 (real(x) == real(y)));
 }
 
-static bool real_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   /* fprintf(stderr, "%s: %s %s\n", __func__, DISPLAY(x), DISPLAY(y)); */
 #if WITH_GMP
@@ -43940,24 +43973,24 @@ static bool real_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
   if (!is_number(y)) return(false);
 
   if (is_t_real(y))
-    return(floats_are_morally_equal(sc, real(x), real(y)));
+    return(floats_are_equivalent(sc, real(x), real(y)));
 
   if (is_integer(y))
     return((!is_NaN(real(x))) &&
-	   (floats_are_morally_equal(sc, real(x), (s7_double)integer(y))));
+	   (floats_are_equivalent(sc, real(x), (s7_double)integer(y))));
 
   if (is_t_ratio(y))
-    return(floats_are_morally_equal(sc, real(x), (s7_double)fraction(y)));
+    return(floats_are_equivalent(sc, real(x), (s7_double)fraction(y)));
 
   if (is_NaN(real(x)))
     return((is_NaN(real_part(y))) &&
-	   (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
+	   (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
 
   return((!is_NaN(real(x))) &&
 	 (!is_NaN(real_part(y))) &&
 	 (!is_NaN(imag_part(y))) &&
-	 (floats_are_morally_equal(sc, real(x), real_part(y))) &&
-	 (fabs(imag_part(y)) <= sc->morally_equal_float_epsilon));
+	 (floats_are_equivalent(sc, real(x), real_part(y))) &&
+	 (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
 }
 
 static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -43973,7 +44006,7 @@ static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
 	 (imag_part(x) == imag_part(y)));
 }
 
-static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool complex_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
 #if WITH_GMP
   if (is_big_number(y))
@@ -43984,14 +44017,14 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
   if (is_integer(y))
     return((!is_NaN(real_part(x))) &&
 	   (!is_NaN(imag_part(x))) &&
-	   (floats_are_morally_equal(sc, real_part(x), (s7_double)integer(y))) &&
-	   (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
+	   (floats_are_equivalent(sc, real_part(x), (s7_double)integer(y))) &&
+	   (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
 
   if (s7_is_ratio(y))
     return((!is_NaN(real_part(x))) &&
 	   (!is_NaN(imag_part(x))) &&
-	   (floats_are_morally_equal(sc, real_part(x), (s7_double)fraction(y))) &&
-	   (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
+	   (floats_are_equivalent(sc, real_part(x), (s7_double)fraction(y))) &&
+	   (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
 
   if (is_real(y))
     {
@@ -43999,27 +44032,27 @@ static bool complex_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
 	return(false);
       if (is_NaN(real(y)))
 	return((is_NaN(real_part(x))) &&
-	       (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
-      return((floats_are_morally_equal(sc, real_part(x), real(y))) &&
-	     (fabs(imag_part(x)) <= sc->morally_equal_float_epsilon));
+	       (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
+      return((floats_are_equivalent(sc, real_part(x), real(y))) &&
+	     (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
     }
 
-  /* should (morally-equal? +nan.0 (complex +nan.0 +nan.0)) be #t (it's #f above)? */
+  /* should (equivalent? +nan.0 (complex +nan.0 +nan.0)) be #t (it's #f above)? */
   if (is_NaN(real_part(x)))
     return((is_NaN(real_part(y))) &&
 	   (((is_NaN(imag_part(x))) && (is_NaN(imag_part(y)))) ||
-	    (floats_are_morally_equal(sc, imag_part(x), imag_part(y)))));
+	    (floats_are_equivalent(sc, imag_part(x), imag_part(y)))));
 
   if (is_NaN(imag_part(x)))
     return((is_NaN(imag_part(y))) &&
-	   (floats_are_morally_equal(sc, real_part(x), real_part(y))));
+	   (floats_are_equivalent(sc, real_part(x), real_part(y))));
 
   if ((is_NaN(real_part(y))) ||
       (is_NaN(imag_part(y))))
     return(false);
 
-  return((floats_are_morally_equal(sc, real_part(x), real_part(y))) &&
-	 (floats_are_morally_equal(sc, imag_part(x), imag_part(y))));
+  return((floats_are_equivalent(sc, real_part(x), real_part(y))) &&
+	 (floats_are_equivalent(sc, imag_part(x), imag_part(y))));
 }
 
 static bool rng_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -44035,12 +44068,12 @@ static bool rng_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci
 }
 
 static bool (*equals[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
-static bool (*morally_equals[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
+static bool (*equivalents[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
 
 static void init_equals(void)
 {
   int32_t i;
-  for (i = 0; i < NUM_TYPES; i++) {equals[i] = eq_equal; morally_equals[i] = eq_equal;}
+  for (i = 0; i < NUM_TYPES; i++) {equals[i] = eq_equal; equivalents[i] = eq_equal;}
   equals[T_SYMBOL] =       eq_equal;
   equals[T_C_POINTER] =    c_pointer_equal;
   equals[T_UNSPECIFIED] =  unspecified_equal;
@@ -44075,39 +44108,39 @@ static void init_equals(void)
   equals[T_BIG_REAL] =     bignum_equal;
   equals[T_BIG_COMPLEX] =  bignum_equal;
 #endif
-  morally_equals[T_SYMBOL] =       symbol_morally_equal;
-  morally_equals[T_C_POINTER] =    c_pointer_morally_equal;
-  morally_equals[T_UNSPECIFIED] =  unspecified_equal;
-  morally_equals[T_UNDEFINED] =    undefined_equal;
-  morally_equals[T_STRING] =       string_equal;
-  morally_equals[T_SYNTAX] =       syntax_equal;
-  morally_equals[T_C_OBJECT] =     c_object_morally_equal;
-  morally_equals[T_RANDOM_STATE] = rng_equal;
-  morally_equals[T_ITERATOR] =     iterator_morally_equal;
-  morally_equals[T_INPUT_PORT] =   port_morally_equal;
-  morally_equals[T_OUTPUT_PORT] =  port_morally_equal;
-  morally_equals[T_MACRO] =        closure_morally_equal;
-  morally_equals[T_MACRO_STAR] =   closure_morally_equal;
-  morally_equals[T_BACRO] =        closure_morally_equal;
-  morally_equals[T_BACRO_STAR] =   closure_morally_equal;
-  morally_equals[T_CLOSURE] =      closure_morally_equal;
-  morally_equals[T_CLOSURE_STAR] = closure_morally_equal;
-  morally_equals[T_HASH_TABLE] =   hash_table_morally_equal;
-  morally_equals[T_LET] =          let_morally_equal;
-  morally_equals[T_PAIR] =         pair_morally_equal;
-  morally_equals[T_VECTOR] =       vector_morally_equal;
-  morally_equals[T_INT_VECTOR] =   vector_morally_equal;
-  morally_equals[T_FLOAT_VECTOR] = vector_morally_equal;
-  morally_equals[T_BYTE_VECTOR] =  vector_morally_equal;
-  morally_equals[T_INTEGER] =      integer_morally_equal;
-  morally_equals[T_RATIO] =        fraction_morally_equal;
-  morally_equals[T_REAL] =         real_morally_equal;
-  morally_equals[T_COMPLEX] =      complex_morally_equal;
+  equivalents[T_SYMBOL] =       symbol_equivalent;
+  equivalents[T_C_POINTER] =    c_pointer_equivalent;
+  equivalents[T_UNSPECIFIED] =  unspecified_equal;
+  equivalents[T_UNDEFINED] =    undefined_equal;
+  equivalents[T_STRING] =       string_equal;
+  equivalents[T_SYNTAX] =       syntax_equal;
+  equivalents[T_C_OBJECT] =     c_object_equivalent;
+  equivalents[T_RANDOM_STATE] = rng_equal;
+  equivalents[T_ITERATOR] =     iterator_equivalent;
+  equivalents[T_INPUT_PORT] =   port_equivalent;
+  equivalents[T_OUTPUT_PORT] =  port_equivalent;
+  equivalents[T_MACRO] =        closure_equivalent;
+  equivalents[T_MACRO_STAR] =   closure_equivalent;
+  equivalents[T_BACRO] =        closure_equivalent;
+  equivalents[T_BACRO_STAR] =   closure_equivalent;
+  equivalents[T_CLOSURE] =      closure_equivalent;
+  equivalents[T_CLOSURE_STAR] = closure_equivalent;
+  equivalents[T_HASH_TABLE] =   hash_table_equivalent;
+  equivalents[T_LET] =          let_equivalent;
+  equivalents[T_PAIR] =         pair_equivalent;
+  equivalents[T_VECTOR] =       vector_equivalent;
+  equivalents[T_INT_VECTOR] =   vector_equivalent;
+  equivalents[T_FLOAT_VECTOR] = vector_equivalent;
+  equivalents[T_BYTE_VECTOR] =  vector_equivalent;
+  equivalents[T_INTEGER] =      integer_equivalent;
+  equivalents[T_RATIO] =        fraction_equivalent;
+  equivalents[T_REAL] =         real_equivalent;
+  equivalents[T_COMPLEX] =      complex_equivalent;
 #if WITH_GMP
-  morally_equals[T_BIG_INTEGER] =  bignum_morally_equal;
-  morally_equals[T_BIG_RATIO] =    bignum_morally_equal;
-  morally_equals[T_BIG_REAL] =     bignum_morally_equal;
-  morally_equals[T_BIG_COMPLEX] =  bignum_morally_equal;
+  equivalents[T_BIG_INTEGER] =  bignum_equivalent;
+  equivalents[T_BIG_RATIO] =    bignum_equivalent;
+  equivalents[T_BIG_REAL] =     bignum_equivalent;
+  equivalents[T_BIG_COMPLEX] =  bignum_equivalent;
 #endif
 }
 
@@ -44121,14 +44154,14 @@ bool s7_is_equal(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(s7_is_equal_1(sc, x, y, NULL));
 }
 
-static bool s7_is_morally_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool s7_is_equivalent_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
-  return((*(morally_equals[type(x)]))(sc, x, y, ci));
+  return((*(equivalents[type(x)]))(sc, x, y, ci));
 }
 
-bool s7_is_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y)
+bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  return(s7_is_morally_equal_1(sc, x, y, NULL));
+  return(s7_is_equivalent_1(sc, x, y, NULL));
 }
 
 static s7_pointer g_is_equal(s7_scheme *sc, s7_pointer args)
@@ -44138,19 +44171,19 @@ static s7_pointer g_is_equal(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, s7_is_equal(sc, car(args), cadr(args))));
 }
 
-static s7_pointer g_is_morally_equal(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_is_equivalent(s7_scheme *sc, s7_pointer args)
 {
-  #define H_is_morally_equal "(morally-equal? obj1 obj2) returns #t if obj1 is close enough to obj2."
-  #define Q_is_morally_equal sc->pcl_bt
-  return(make_boolean(sc, s7_is_morally_equal(sc, car(args), cadr(args))));
+  #define H_is_equivalent "(equivalent? obj1 obj2) returns #t if obj1 is close enough to obj2."
+  #define Q_is_equivalent sc->pcl_bt
+  return(make_boolean(sc, s7_is_equivalent(sc, car(args), cadr(args))));
 }
 
 static bool is_equal_b_7pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return(s7_is_equal(sc, a, b));}
-static bool is_morally_equal_b_7pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return(s7_is_morally_equal(sc, a, b));}
+static bool is_equivalent_b_7pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return(s7_is_equivalent(sc, a, b));}
 
 
 static s7_pointer is_equal_p_pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return((s7_is_equal(sc, a, b)) ? sc->T : sc->F);}
-static s7_pointer is_morally_equal_p_pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return((s7_is_morally_equal(sc, a, b)) ? sc->T : sc->F);}
+static s7_pointer is_equivalent_p_pp(s7_scheme *sc, s7_pointer a, s7_pointer b) {return((s7_is_equivalent(sc, a, b)) ? sc->T : sc->F);}
 
 
 /* ---------------------------------------- length, copy, fill ---------------------------------------- */
@@ -46094,8 +46127,8 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 		  s7_varlet(sc, let, sc->function_symbol, sc->is_equal_symbol);
 		else
 		  {
-		    if (hash_table_checker(obj) == hash_morally_equal)
-		      s7_varlet(sc, let, sc->function_symbol, sc->is_morally_equal_symbol);
+		    if (hash_table_checker(obj) == hash_equivalent)
+		      s7_varlet(sc, let, sc->function_symbol, sc->is_equivalent_symbol);
 		    else
 		      {
 			if ((hash_table_checker(obj) == hash_number) ||
@@ -58449,6 +58482,13 @@ static bool p_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 }
 
 /* -------- p_cf_ppp -------- */
+static s7_pointer opt_p_cf_sss(void *p)
+{
+  opt_info *o = (opt_info *)p;
+  oo_rcheck(o->sc, o, 5, 3);
+  return(o->v[4].cf(o->sc, set_plist_3(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p), slot_value(o->v[3].p))));
+}
+
 static s7_pointer opt_p_cf_ppp(void *p)
 {
   opt_info *o1, *o = (opt_info *)p;
@@ -58470,17 +58510,45 @@ static bool p_cf_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poin
 {
   int32_t start;
   start = sc->pc;
-  /* ccs scs cfc ssf sfc sss fsc -- sss and ssf then maybe scs */
+  /* css (tbig (<= 2 m j)) ccs scs cfc ssf sfc fsc -- ssf then maybe scs */
   if ((is_safe_procedure(s_func)) &&
       (c_function_required_args(s_func) <= 3) &&
-      (c_function_all_args(s_func) >= 3) &&
-      (cell_optimize(sc, cdr(car_x))) &&
-      (cell_optimize(sc, cddr(car_x))) &&
-      (cell_optimize(sc, cdddr(car_x))))
+      (c_function_all_args(s_func) >= 3))
     {
-      opc->v[2].cf = cf_call(sc, car_x, s_func, 3);
-      opc->v[0].fp = opt_p_cf_ppp;
-      return(oo_set_type_0(opc, 3));
+      s7_pointer slot, arg;
+      arg = cadr(car_x);
+      if (is_symbol(arg))
+	{
+	  slot = opt_simple_symbol(sc, arg);
+	  if (slot)
+	    {
+	      opc->v[1].p = slot;
+	      arg = caddr(car_x);
+	      if (is_symbol(arg))
+		{
+		  slot = opt_simple_symbol(sc, arg);
+		  if (slot)
+		    {
+		      opc->v[2].p = slot;
+		      arg = cadddr(car_x);
+		      if (is_symbol(arg))
+			{
+			  slot = opt_simple_symbol(sc, arg);
+			  if (slot)
+			    {
+			      opc->v[3].p = slot;
+			      opc->v[4].cf = cf_call(sc, car_x, s_func, 3);
+			      opc->v[0].fp = opt_p_cf_sss;
+			      return(oo_set_type_3(opc, 5, 1, 2, 3, OO_P, OO_P, OO_P));
+			    }}}}}}
+      if ((cell_optimize(sc, cdr(car_x))) &&
+	  (cell_optimize(sc, cddr(car_x))) &&
+	  (cell_optimize(sc, cdddr(car_x))))
+	{
+	  opc->v[2].cf = cf_call(sc, car_x, s_func, 3);
+	  opc->v[0].fp = opt_p_cf_ppp;
+	  return(oo_set_type_0(opc, 3));
+	}
     }
   pc_fallback(sc, start);
   return(return_false(sc, car_x, __func__, __LINE__));
@@ -58960,8 +59028,8 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 {
   opt_info *opc;
   s7_pointer target;
-
   /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY(car_x)); */
+
   opc = alloc_opo(sc, car_x);
   target = cadr(car_x);
   if (is_symbol(target))
@@ -59169,6 +59237,13 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 			  return(true);
 			}
 		      return(return_false(sc, car_x, __func__, __LINE__));
+
+#if 0
+		    case T_C_OBJECT:
+		      if (is_pair(cddr(target))) return(return_false(sc, car_x, __func__, __LINE__));
+		      /* if (!is_c_function(c_object_setf(obj))) return(return_false(sc, car_x, __func__, __LINE__)); */
+		      return(d_7pid_ok(sc, opc, car(target), car_x));
+#endif
 
 		    case T_PAIR:
 		      if (is_pair(cddr(target))) return(return_false(sc, car_x, __func__, __LINE__));
@@ -77366,7 +77441,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 {             /* load up the current args into the ((args) (lambda)) layout [via the current environment] */
   s7_pointer x, z, e;
   uint64_t id;
-  
+
   e = sc->envir;
   id = let_id(e);
   for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
@@ -77920,7 +77995,7 @@ static int32_t define1_ex(s7_scheme *sc)
       else x = symbol_to_slot(sc, sc->code);  /* local_slot can be free even if sc->code is immutable (local constant now defunct) */
       if (!((is_slot(x)) &&
 	    (type(sc->value) == unchecked_type(slot_value(x))) &&
-	    (s7_is_morally_equal(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
+	    (s7_is_equivalent(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
 	eval_error_no_return(sc, sc->syntax_error_symbol, "define: ~S is immutable", 23, sc->code);   /*   can't use s7_is_equal because value might be NaN, etc */
     }
   if (symbol_has_setter(sc->code))
@@ -78010,7 +78085,7 @@ static void define2_ex(s7_scheme *sc)
 	      s7_pointer old_value;
 	      old_value = slot_value(global_slot(sc->code));
 	      if ((type(old_value) != type(new_func)) ||
-		  (!s7_is_morally_equal(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
+		  (!s7_is_equivalent(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
 		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
 	    }
 	  s7_make_slot(sc, sc->envir, sc->code, new_func);
@@ -78029,7 +78104,7 @@ static void define2_ex(s7_scheme *sc)
 	      s7_pointer old_value;
 	      old_value = slot_value(lx);
 	      if ((type(old_value) != type(sc->value)) ||
-		  (!s7_is_morally_equal(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
+		  (!s7_is_equivalent(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
 		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
 	    }
 	  slot_set_value_with_hook(lx, sc->value);
@@ -86752,7 +86827,7 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
 {
   #define Q_equal s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_number_symbol)
 
-  /* this is morally-equal? for bignums, the other case goes through big_numbers_are_eqv */
+  /* this is equivalent? for bignums, the other case goes through big_numbers_are_eqv */
   int32_t result_type = T_INTEGER;
   s7_pointer x, y, result;
   bool got_nan = false;
@@ -86795,7 +86870,7 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
 	case T_BIG_REAL:
 	  {
 	    mpfr_t *a1;
-	    a1 = s7_double_to_mpfr(sc->morally_equal_float_epsilon);
+	    a1 = s7_double_to_mpfr(sc->equivalent_float_epsilon);
 	    if (mpfr_cmp(big_real(big_abs(sc, set_plist_1(sc, big_subtract(sc, set_plist_2(sc, result, arg))))), *a1) > 0)
 	      return(sc->F);
 	  }
@@ -86804,7 +86879,7 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
 	case T_BIG_COMPLEX:
 	  {
 	    mpfr_t *a1;
-	    a1 = s7_double_to_mpfr(sc->morally_equal_float_epsilon);
+	    a1 = s7_double_to_mpfr(sc->equivalent_float_epsilon);
 	    if (mpfr_cmp(big_real(big_magnitude(sc, set_plist_1(sc, big_subtract(sc, set_plist_2(sc, result, arg))))), *a1) > 0)
 	      return(sc->F);
 	  }
@@ -87270,7 +87345,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->initial_string_port_length_symbol =    s7_let_field(sc, "initial-string-port-length");
   sc->default_rationalize_error_symbol =     s7_let_field(sc, "default-rationalize-error");
   sc->default_random_state_symbol =          s7_let_field(sc, "default-random-state");
-  sc->morally_equal_float_epsilon_symbol =   s7_let_field(sc, "morally-equal-float-epsilon");
+  sc->equivalent_float_epsilon_symbol =   s7_let_field(sc, "equivalent-float-epsilon");
   sc->hash_table_float_epsilon_symbol =      s7_let_field(sc, "hash-table-float-epsilon");
   sc->print_length_symbol =                  s7_let_field(sc, "print-length");
   sc->bignum_precision_symbol =              s7_let_field(sc, "bignum-precision");
@@ -87561,8 +87636,8 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
     return(s7_make_integer(sc, sc->max_format_length));
   if (sym == sc->default_hash_table_length_symbol)                       /* default size for make-hash-table */
     return(s7_make_integer(sc, sc->default_hash_table_length));
-  if (sym == sc->morally_equal_float_epsilon_symbol)                     /* morally-equal-float-epsilon */
-    return(s7_make_real(sc, sc->morally_equal_float_epsilon));
+  if (sym == sc->equivalent_float_epsilon_symbol)                     /* equivalent-float-epsilon */
+    return(s7_make_real(sc, sc->equivalent_float_epsilon));
   if (sym == sc->hash_table_float_epsilon_symbol)                        /* hash-table-float-epsilon */
     return(s7_make_real(sc, sc->hash_table_float_epsilon));
   if (sym == sc->initial_string_port_length_symbol)                      /* initial-string-port-length */
@@ -87786,13 +87861,13 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
     }
 
-  if (sym == sc->morally_equal_float_epsilon_symbol)
+  if (sym == sc->equivalent_float_epsilon_symbol)
     {
       if (s7_is_real(val))
 	{
 	  if (s7_real(val) < 0.0)
 	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be positive", 18)));
-	  sc->morally_equal_float_epsilon = s7_real(val);
+	  sc->equivalent_float_epsilon = s7_real(val);
 	  return(val);
 	}
       return(simple_wrong_type_argument(sc, sym, val, T_REAL));
@@ -88442,7 +88517,7 @@ s7_scheme *s7_init(void)
   sc->typnam_len = 0;
   sc->default_rationalize_error = (s7_int_bits == 63) ? 1.0e-12 : 1.0e-6;
   sc->hash_table_float_epsilon = 1.0e-12;
-  sc->morally_equal_float_epsilon = 1.0e-15;
+  sc->equivalent_float_epsilon = 1.0e-15;
   sc->float_format_precision = WRITE_REAL_PRECISION;
   sc->default_hash_table_length = 8;
   sc->gensym_counter = 0;
@@ -89171,7 +89246,7 @@ s7_scheme *s7_init(void)
   sc->is_eq_symbol =                 defun("eq?",		is_eq,			2, 0, false);
   sc->is_eqv_symbol =                defun("eqv?",		is_eqv,			2, 0, false);
   sc->is_equal_symbol =              defun("equal?",		is_equal,		2, 0, false);
-  sc->is_morally_equal_symbol =      defun("morally-equal?",	is_morally_equal,	2, 0, false);
+  sc->is_equivalent_symbol =      defun("equivalent?",	is_equivalent,	2, 0, false);
   sc->type_of_symbol =               defun("type-of",		type_of,		1, 0, false);
 
   sc->gc_symbol =                    unsafe_defun("gc",		gc,			0, 1, false);
@@ -89499,6 +89574,11 @@ s7_scheme *s7_init(void)
   s7_set_p_ii_function(slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
   s7_set_p_dd_function(slot_value(global_slot(sc->complex_symbol)), complex_p_dd);
   s7_set_p_p_function(slot_value(global_slot(sc->random_symbol)), random_p_p);
+
+  s7_set_p_i_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_i);
+  s7_set_p_d_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_d); /* this is probably ok in gmp case -- uses is_float */
+  s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
+  s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
 #endif
 
   s7_set_p_p_function(slot_value(global_slot(sc->car_symbol)), car_p_p);
@@ -89524,10 +89604,6 @@ s7_scheme *s7_init(void)
   s7_set_p_pp_function(slot_value(global_slot(sc->read_line_symbol)), read_line_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->inlet_symbol)), inlet_p_pp);
   s7_set_i_7p_function(slot_value(global_slot(sc->port_line_number_symbol)), port_line_number_i_7p);
-  s7_set_p_i_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_i);
-  s7_set_p_d_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_d);
-  s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->cons_symbol)), cons_p_pp);
   s7_set_p_function(slot_value(global_slot(sc->s7_version_symbol)), s7_version_p);
   s7_set_p_function(slot_value(global_slot(sc->open_output_string_symbol)), open_output_string_p);
@@ -89580,6 +89656,8 @@ s7_scheme *s7_init(void)
   s7_set_i_ii_function(slot_value(global_slot(sc->modulo_symbol)), modulo_i_ii);
   s7_set_p_d_function(slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_d);
 #endif
+  s7_set_p_d_function(slot_value(global_slot(sc->float_vector_symbol)), float_vector_p_d);
+  s7_set_p_i_function(slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
 
   s7_set_d_d_function(slot_value(global_slot(sc->add_symbol)), add_d_d);
   s7_set_d_d_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_d);
@@ -89793,9 +89871,9 @@ s7_scheme *s7_init(void)
   s7_set_b_pp_function(slot_value(global_slot(sc->is_eq_symbol)), s7_is_eq);
   s7_set_b_pp_function(slot_value(global_slot(sc->is_eqv_symbol)), s7_is_eqv);
   s7_set_b_7pp_function(slot_value(global_slot(sc->is_equal_symbol)), is_equal_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_morally_equal_symbol)), is_morally_equal_b_7pp);
+  s7_set_b_7pp_function(slot_value(global_slot(sc->is_equivalent_symbol)), is_equivalent_b_7pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->is_equal_symbol)), is_equal_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->is_morally_equal_symbol)), is_morally_equal_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->is_equivalent_symbol)), is_equivalent_p_pp);
   s7_set_b_7pp_function(slot_value(global_slot(sc->char_lt_symbol)), char_lt_b_7pp);
   s7_set_b_7pp_function(slot_value(global_slot(sc->char_leq_symbol)), char_leq_b_7pp);
   s7_set_b_7pp_function(slot_value(global_slot(sc->char_gt_symbol)), char_gt_b_7pp);
@@ -89947,11 +90025,13 @@ s7_scheme *s7_init(void)
 			 sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer")));
   s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
 
+  s7_eval_c_string(sc, "(define morally-equal? equivalent?)");
 #if (!DISABLE_DEPRECATED)
   s7_eval_c_string(sc, "(begin                                         \n\
                           (define global-environment  rootlet)         \n\
                           (define current-environment curlet)          \n\
                           (define hash-table*         hash-table)      \n\
+                          ;(define morally-equal?      equivalent?)     \n\
                           (define make-keyword        string->keyword))");  /* make-keyword is used in CM's scm/s7.scm */
 #endif
 
@@ -90030,35 +90110,35 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  |  19.0  19.1
  * --------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  199
- * tmac          |      |      |      | 9052 |  264 |  236 |  236
- * tshoot        |      |      |      |      |      |  373 |  356
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264
- * tread         |      |      |      |      | 2357 | 2336 | 2338
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502
- * tvect         |      |      |      |      |      | 5616 | 2650
- * tlet          |      |      |      |      | 4717 | 2959 | 2946
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564
- * dup           |      |      |      |      | 20.8 | 5711 | 4137
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254
- * tset          |      |      |      |      | 10.0 | 6432 | 6317
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6
- * tbig          |      |      |      |      |246.9 |230.6 |213.3  210.2
+ * tpeak         |      |      |      |  391 |  377 |  199 |  199   199
+ * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
+ * tshoot        |      |      |      |      |      |  373 |  356   356
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   971
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018  1019
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1115
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1540
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1724
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2094
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2264
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2334
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2353
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2502
+ * tvect         |      |      |      |      |      | 5616 | 2650  2632
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2945
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3010
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3061
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3317
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3564
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  4137
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5260 5236
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6317
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  11.0
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.2
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.2
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.7
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 210.1
  * -----------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90066,17 +90146,15 @@ int main(int argc, char **argv)
  *   fx_c_s gives non-pp cases? p_p for is_*? cos/sin cxr mus_copy
  *   but there are a million special cases here
  * or b_7p -> op_safe_o_b_7p, also fx_o_b_7p
- * need opt counters (called funcs) to see if any never called
- * p_cf_ppp_sss etc (c|ssf?) for tbig [and op_safe_scsa? for vector-set! in vector-2d-fft -- why is this not opt'd?]
+ * p_cf_ppp_ssf etc (csf?) for tbig [and op_safe_scsa? for vector-set! in vector-2d-fft -- why is this not opt'd?]
  * fx_c_s_opssq -> direct_call_2(arg)(sc, lookup(sc, cadr(arg)), direct_call_2(largs)(sc, lookup(sc, cadr(largs)), lookup(sc, opt2_sym(cdr(largs)))))
- * block-set! as d_7pid (need set_implicit case) opt_cell_set
- *   what about hash type block? 
- *   can opt use the O_V ref (v[4].obj?) -- maybe d_vid for set. Currently no d_vi func -- block-ref?
+ * block-set! as d_7pid (need set_implicit case) opt_cell_set t946 59230
  *   implicit oscil getter -- can't this use o_vd etc?  implicit let/hash?
- *   p_d[d] etc for float-vector etc?
  *   can car(expr)==float_v_sym be fooled?
  * s7test load overwriting (t944.scm)
- * opt call consistency check [use op_i_i + cases for i/x/p obj/cf fd/fb/fi/fp -- need get/set macros for all fields + checkers -- use ocheck/rcheck?]
+ * opt call consistency check
+ *   need opt counters (called funcs) to see if any never called
  * doc new c_type* funcs s7_c_type_set_getter|setter and all the rest
- * gmp vector type
+ * gmp vector type/t725: maybe gmp timing case? 
+ *  memleak in gmp: how is big_*(p) freed or allocated? 87530 to report gc_list sizes
  */

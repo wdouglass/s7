@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.0"
-#define S7_DATE "2-Jan-19"
+#define S7_VERSION "8.1"
+#define S7_DATE "4-Jan-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -149,7 +149,7 @@ s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
 bool s7_is_eq(s7_pointer a, s7_pointer b);                                   /* (eq? a b) */
 bool s7_is_eqv(s7_pointer a, s7_pointer b);                                  /* (eqv? a b) */
 bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);                 /* (equal? a b) */
-bool s7_is_morally_equal(s7_scheme *sc, s7_pointer x, s7_pointer y);         /* (morally-equal? x y) */
+bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y);            /* (equivalent? x y) */
 
 bool s7_is_boolean(s7_pointer x);                                            /* (boolean? x) */
 bool s7_boolean(s7_scheme *sc, s7_pointer x);                                /* Scheme boolean -> C bool */
@@ -833,6 +833,7 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
 
+#define s7_is_morally_equal           s7_is_equivalent
 #define s7_is_ulong(arg)              s7_is_integer(arg)
 #define s7_ulong(p)                   (uint64_t)s7_integer(p)
 #define s7_make_ulong(sc, n)          s7_make_integer(sc, (s7_int)n)
@@ -853,6 +854,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x); /* used in CM */
  * 
  *        s7 changes
  *
+ * 4-Jan-19:  morally-equal? -> equivalent?
  * --------
  * 29-Dec:    s7_c_type_set_getter|setter (implicit c-object access).
  * 23-Dec:    remove hash-table, rename hash-table* to hash-table. add weak-hash-table.

@@ -7,7 +7,7 @@
 	(it-lst (make-list 3 #f)))
     (let ((bases (vector (make-list 3 #f)
 			 (make-vector 3 #f)
-			 (hash-table* 'a 1 'b 2 'c 3)
+			 (hash-table 'a 1 'b 2 'c 3)
 			 (inlet 'a 1 'b 2 'c 3)
 			 (make-iterator it-lst)
 			 (c-pointer 1 cp-lst)))
@@ -60,7 +60,7 @@
 (define mock-char (*mock-char* 'mock-char))
 (define mock-vector (*mock-vector* 'mock-vector))
 (define mock-symbol (*mock-symbol* 'mock-symbol))
-(define mock-hash-table* (*mock-hash-table* 'mock-hash-table*))
+(define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 
 (set! (*s7* 'safety) 1)
 
@@ -73,7 +73,7 @@
 (set! (*s7* 'max-vector-length) 10000)
 (set! (*s7* 'max-vector-dimensions) 10)
 (set! (*s7* 'autoloading?) #f)
-(set! (*s7* 'morally-equal-float-epsilon) 1.0e-6)
+(set! (*s7* 'equivalent-float-epsilon) 1.0e-6)
 (set! (current-output-port) #f)
 
 (define ostr "")
@@ -147,13 +147,13 @@
 (define (s7-history) (*s7* 'history))
 (define (s7-history-size) (*s7* 'history-size))
 
-(define (s7-set-morally-equal-float-epsilon x) (set! (*s7* 'morally-equal-float-epsilon) x))
+(define (s7-set-equivalent-float-epsilon x) (set! (*s7* 'equivalent-float-epsilon) x))
 (define (s7-set-hash-table-float-epsilon x) (set! (*s7* 'hash-table-float-epsilon) x))
 (define (s7-set-bignum-precision x) (set! (*s7* 'bignum-precision) x))
 (define (s7-set-float-format-precision x) (set! (*s7* 'float-format-precision) x))
 
 (define (s7-default-rationalize-error) (*s7* 'default-rationalize-error))
-(define (s7-morally-equal-float-epsilon) (*s7* 'morally-equal-float-epsilon))
+(define (s7-equivalent-float-epsilon) (*s7* 'equivalent-float-epsilon))
 (define (s7-hash-table-float-epsilon) (*s7* 'hash-table-float-epsilon))
 (define (s7-bignum-precision) (*s7* 'bignum-precision))
 (define (s7-float-format-precision) (*s7* 'float-format-precision))
@@ -177,8 +177,8 @@
   (and (null? (cyclic-sequences code))
        (eval code)))
 
-(define (checked-hash-table* . args)
-  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) morally-equal?)))
+(define (checked-hash-table . args)
+  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) equivalent?)))
     (do ((key/value args (cddr key/value)))
 	((null? key/value) _h_)
       (if (not (pair? (cdr key/value)))
@@ -186,7 +186,7 @@
 	  (set! (_h_ (car key/value)) (cadr key/value))))))
 
 (define (checked-hash-table . args)
-  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) morally-equal?)))
+  (let ((_h_ (make-hash-table (*s7* 'default-hash-table-length) equivalent?)))
     (do ((key/value args (cdr key/value)))
 	((null? key/value) _h_)
       (if (not (pair? (car key/value)))
@@ -315,7 +315,7 @@
 (define imfv (immutable! (float-vector 0 1 2)))
 (define imi (immutable! (inlet 'a 1 'b 2)))
 (define imb (immutable! (block 0.0 1.0 2.0)))
-(define imh (immutable! (hash-table* 'a 1 'b 2)))
+(define imh (immutable! (hash-table 'a 1 'b 2)))
 ;(define imp (immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ())))))))
 
 (set! (hook-functions *unbound-variable-hook*) ())
@@ -363,7 +363,7 @@
 			  'continuation? 'hash-table? 'port-closed? 
 			  'output-port? 'input-port? 
 			  'provide 'call-with-output-string 
-			  'checked-hash-table 'checked-hash-table*
+			  'checked-hash-table 'checked-hash-table
 			  'with-output-to-string 
 			  ;'symbol-setter 
 			  's7-version 
@@ -404,7 +404,7 @@
                           ;'port-line-number ;-- too many spurious diffs
 			  ;'load  ;'current-error-port ;-- spurious output
 			  ;'close-output-port 
-			  ; 'hash-table 'hash-table*; -- handled as morally equal via checked-hash-table
+			  ; 'hash-table ; -- handled as morally equal via checked-hash-table
 			  ;'current-output-port 
 			  ;'cutlet 
 			  ;'set-current-error-port ;-- too many bogus eq? complaints
@@ -430,7 +430,7 @@
 			  ;'random-state->list 
 			  ;'pair-filename 
 			  ;'let-set! ;-- rootlet troubles?
-			  ;'coverlet ;-- blocks block's morally-equal?
+			  ;'coverlet ;-- blocks block's equivalent?
                           ;'help ;-- snd goes crazy
 			  ;'macroexpand ;-- uninteresting objstr stuff
 			  'signature ; -- circular lists cause infinite loops with (e.g.) for-each??
@@ -460,7 +460,7 @@
 			  'iterate 'float-vector? 
 			  'apply-values 'values
 			  'byte-vector-ref 'file-exists? 'make-int-vector 'string-downcase 'string-upcase 
-			  'byte-vector 'morally-equal? 
+			  'byte-vector 'equivalent? 
 			  'c-pointer? 'int-vector-ref
 			  'float? 
 			  'list-values 'byte-vector? 'openlet? 'iterator? 
@@ -484,7 +484,7 @@
 			  's7-set-stacktrace-defaults
 			  's7-set-gc-stats
 			  's7-set-default-rationalize-error
-			  's7-set-morally-equal-float-epsilon 
+			  's7-set-equivalent-float-epsilon 
 			  's7-set-hash-table-float-epsilon 
 			  's7-set-bignum-precision 
 			  's7-set-float-format-precision
@@ -500,7 +500,7 @@
 			  ;;'s7-history ;-- causes stack to grow?
 			  's7-print-length 's7-max-string-length 's7-max-list-length 's7-max-vector-length 's7-max-vector-dimensions 's7-default-hash-table-length
 			  's7-initial-string-port-length 's7-history-size
-			  's7-default-rationalize-error 's7-morally-equal-float-epsilon
+			  's7-default-rationalize-error 's7-equivalent-float-epsilon
 			  's7-hash-table-float-epsilon 's7-bignum-precision 
 			  's7-float-format-precision 
 			  ;'s7-default-random-state 
@@ -566,9 +566,9 @@
 		    ;;"(f x) i" "x y z" "1 2"
 		    "`(+ ,a ,@b)" "`(+ ,a ,b)" "`(+ ,a ,b ,@c)" "`(+ ,a b ,@c ',d)"
 		    "_definee_" "(_definee_ __var__)" "(_definee_ x)" 
-		    "(hash-table* 'a 1)" "(hash-table)" 
+		    "(hash-table 'a 1)" "(hash-table)" 
 		    "(make-iterator (list 11 22 33))" "(make-iterator (int-vector 1 2 3))" "(make-iterator (string #\\1))" "(make-iterator x)" 
-		    "(make-iterator (hash-table* 'a 1 'b 2))" "(make-iterator (block 1 2 3))"
+		    "(make-iterator (hash-table 'a 1 'b 2))" "(make-iterator (block 1 2 3))"
 		    "(make-iterator (let ((lst '((a . 1) (b . 2) (c . 2))) 
                                        (+iterator+ #t)) (lambda () (if (pair? lst) (let ((res (list (caar lst) (cdar lst)))) (set! lst (cdr lst)) res) #<eof>))))"
 
@@ -605,7 +605,7 @@
 		    "(mock-char #\\b)"
 		    "(mock-symbol 'c)"
 		    "(mock-vector 1 2 3 4)"
-		    "(mock-hash-table* 'b 2)"
+		    "(mock-hash-table 'b 2)"
 
 		    ;;" #| a comment |# "
 		    "(subvector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
@@ -626,7 +626,7 @@
 
 		    "(let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>)"
 		    "(let ((<1> (inlet :a #f))) (set! (<1> :a) <1>) <1>)"
-		    "(let ((<1> (hash-table*))) (set! (<1> 'a) <1>) <1>)"
+		    "(let ((<1> (hash-table))) (set! (<1> 'a) <1>) <1>)"
 		    "(let ((<1> #f) (<2> (vector #f))) (set! <1> (make-iterator <2>)) (set! (<2> 0) <1>) <1>)"
 		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
 
@@ -950,7 +950,7 @@
 	  (let ((val1 (car (list (eval-string str)))))
 	    (let ((newstr (object->string val1 :readable)))
 	      (let ((val2 (eval-string newstr)))
-		(if (not (morally-equal? val1 val2))
+		(if (not (equivalent? val1 val2))
 		    (format *stderr* "~%~S~%~S~%    ~W -> ~W~%" str newstr val1 val2))))))
 	(lambda arg 'error))
 
@@ -962,7 +962,7 @@
 	       (lambda (ok)
 		 (for-each
 		  (lambda (x y)
-		    (unless (and (morally-equal x y)
+		    (unless (and (equivalent x y)
 				 (not (gensym? x)))
 		      (format *stderr* "eval/string ~%~S~%    ~W -> ~W~%" str val1 val2)
 		      (ok)))

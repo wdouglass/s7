@@ -226,7 +226,7 @@ indented and on a sort of brownish background.
   <ul>
     <li><a href="#loadpath">*load-path*</a>, <a href="#featureslist">*features*</a>, <a href="#sharpreaders">*#readers*</a>,
     <li><a href="#makelist">make-list</a>, <a href="#charposition">char-position</a>, <a href="#keywords">keywords</a>
-    <li><a href="#symboltable">symbol-table</a>, <a href="#s7help">help</a>, <a href="#s7gc">gc</a>, <a href="#morallyequalp">morally-equal?</a>
+    <li><a href="#symboltable">symbol-table</a>, <a href="#s7help">help</a>, <a href="#s7gc">gc</a>, <a href="#equivalentp">equivalent?</a>
     <li><a href="#expansion">define-expansion</a>, <a href="#s7env">*s7*</a>, <a href="#s7vsr5rs">r5rs</a>, <a href="#r7rs">r7rs</a>, 
     <li><a href="#profiling">profiling</a>, <a href="#legolambda">legolambda</a>, etc...
     </ul>
@@ -1808,7 +1808,7 @@ or even <code>(&gt; 1 0+i)</code>.
 (length obj)
 (append . sequences)
 (map func . sequences) and (for-each func . sequences)
-(<a href="#morallyequalp">morally-equal?</a> obj1 obj2)
+(<a href="#equivalentp">equivalent?</a> obj1 obj2)
 </pre>
 
 <p><b>copy</b> returns a (shallow) copy of its argument.  If a destination is provided,
@@ -2396,7 +2396,7 @@ of the table sizes, or the order in which the key/value pairs were added.
 s7 chooses the hashing equality and mapping functions based on the keys in the hash-table.
 There are times when you know
 in advance what equality function you want.  If it's one of the built-in s7 equality
-functions, eq?, eqv?, equal?, morally-equal?, =, string=?, string-ci=?, char=?, or char-ci=?,
+functions, eq?, eqv?, equal?, equivalent?, =, string=?, string-ci=?, char=?, or char-ci=?,
 you can pass that function as the third argument.  In any other case, you need to
 give s7 both the equality function and the mapping function. The latter takes any object
 and returns the hash-table location for it (an integer).  The problem here is that
@@ -2414,7 +2414,7 @@ But s7 doesn't realize that the mus-generator type covers 40 or 50 internal type
 </div>
 
 <div class="indented">
-<p>If the hash key is a float (a non-rational number), hash-table-ref uses <a href="#morallyequalp">morally-equal?</a>.
+<p>If the hash key is a float (a non-rational number), hash-table-ref uses <a href="#equivalentp">equivalent?</a>.
 Otherwise, for example, you could use NaN as a key, but then never be able to access it!
 </p>
 </div>
@@ -5047,7 +5047,7 @@ In foreign code, it probably indicates that you need to protect some s7_pointer 
 <div class="separator"></div>
 
 <pre class="indented">
-(<b><em class=def id="morallyequalp">morally-equal?</em></b> x y)
+(<b><em class=def id="equivalentp">equivalent?</em></b> x y)
 </pre>
 
 <p>
@@ -5077,28 +5077,28 @@ arguments, environments, and bodies are equal.
 Since there might be circles, it is not easy to write
 a replacement for equal? in Scheme.
 So, in s7, if one thing is basically the same as
-some other thing, they satisfy the function morally-equal?.
+some other thing, they satisfy the function equivalent?.
 </p>
 
 <pre class="indented">
-&gt; (morally-equal? 2 2.0)        ; would "equal!?" be a better name?
+&gt; (equivalent? 2 2.0)        ; would "equal!?" be a better name?
 <em class="gray">#t</em>
-&gt; (morally-equal? 1/0 1/0)      ; NaN
+&gt; (equivalent? 1/0 1/0)      ; NaN
 <em class="gray">#t</em>
-&gt; (morally-equal? .1 1/10)
+&gt; (equivalent? .1 1/10)
 <em class="gray">#t</em>                              ; floating-point epsilon here is 1.0e-15 or thereabouts
-&gt; (morally-equal? 0.0 1e-300)
+&gt; (equivalent? 0.0 1e-300)
 <em class="gray">#t</em>
-&gt; (morally-equal? 0.0 1e-14)
+&gt; (equivalent? 0.0 1e-14)
 <em class="gray">#f</em>                              ; its not always #t!
-&gt; (morally-equal? (lambda () #f) (lambda () #f))
+&gt; (equivalent? (lambda () #f) (lambda () #f))
 <em class="gray">#t</em>
 </pre>
 
-<p>The *s7* field morally-equal-float-epsilon sets the floating-point fudge factor.
-I can't decide how bignums should interact with morally-equal?.  Currently,
+<p>The *s7* field equivalent-float-epsilon sets the floating-point fudge factor.
+I can't decide how bignums should interact with equivalent?.  Currently,
 if a bignum is involved, either here or in a hash-table, s7 uses equal?.
-Finally, if either argument is an environment with a 'morally-equal? method,
+Finally, if either argument is an environment with a 'equivalent? method,
 that method is invoked.
 </p>
 
@@ -5250,7 +5250,7 @@ history-enabled               is history buffer receiving additions (if WITH_HIS
 profile-info                  profiling data if s7 built WITH_PROFILE=1
 
 default-rationalize-error     1e-12 (settable)
-morally-equal-float-epsilon   1e-15 (settable)
+equivalent-float-epsilon      1e-15 (settable)
 hash-table-float-epsilon      1e-12 (settable, but currently limited to less than 1e-3).
 bignum-precision              bits for bignum floats (128)
 float-format-precision        digits to print for floats (16)
