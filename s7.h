@@ -624,6 +624,7 @@ void s7_c_type_set_setter   (s7_scheme *sc, s7_int tag, s7_pointer setter);
    *   fill:    the function called to fill the object with some value.
    *   reverse: similarly...
    *   to_string: object->string for an object of this type
+   *   getter/setter: these help the optimizer handle applicable c-objects (see s7test.scm for an example)
    *
    * s7_is_c_object returns true if 'p' is a c_object
    * s7_c_object_type returns the c_object's type
@@ -632,7 +633,6 @@ void s7_c_type_set_setter   (s7_scheme *sc, s7_int tag, s7_pointer setter);
    * s7_mark marks any Scheme c_object as in-use (use this in the mark function to mark
    *    any embedded s7_pointer variables).
    */
-
 
 /* -------------------------------------------------------------------------------- */
 /* the new clm optimizer!  this time for sure! 
