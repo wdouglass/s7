@@ -1070,7 +1070,6 @@
 (vector-test)
 (clear-and-gc)
 
-
 (define (vector-2d-fft rl n dir)
   (when rl
     (let ((tempr 0.0)
@@ -1173,6 +1172,7 @@
 
 (vector-2d-test 2)
 (clear-and-gc)
+
 
 ;; --------------------------------------------------------------------------------
 (format () "~%blocks...~%")
@@ -1446,27 +1446,30 @@
 	(let ((wpr (cos theta))
 	      (wpi (sin theta))
 	      (wr 1.0)
-	      (wi 0.0))
+	      (wi 0.0)
+	      (wtemp 0.0)
+	      (tempr 0.0)
+	      (tempi 0.0))
 	  (do ((ii 0 (+ ii 1)))
 	      ((= ii prev))
 	    (do ((i ii (+ i mmax))
 		 (j (+ ii prev) (+ j mmax))
 		 (jj 0 (+ jj 1)))
 		((>= jj pow))
-	      (let ((tempr (- (* wr (hash-table-ref rl j)) (* wi (hash-table-ref im j))))
-		    (tempi (+ (* wr (hash-table-ref im j)) (* wi (hash-table-ref rl j)))))
-		(hash-table-set! rl j (- (hash-table-ref rl i) tempr))
-		(hash-table-set! rl i (+ (hash-table-ref rl i) tempr))
-		(hash-table-set! im j (- (hash-table-ref im i) tempi))
-		(hash-table-set! im i (+ (hash-table-ref im i) tempi))))
-	    (let ((wtemp wr))
-	      (set! wr (- (* wr wpr) (* wi wpi)))
-	      (set! wi (+ (* wi wpr) (* wtemp wpi)))))
+	      (set! tempr (- (* wr (hash-table-ref rl j)) (* wi (hash-table-ref im j))))
+	      (set! tempi (+ (* wr (hash-table-ref im j)) (* wi (hash-table-ref rl j))))
+	      (hash-table-set! rl j (- (hash-table-ref rl i) tempr))
+	      (hash-table-set! rl i (+ (hash-table-ref rl i) tempr))
+	      (hash-table-set! im j (- (hash-table-ref im i) tempi))
+	      (hash-table-set! im i (+ (hash-table-ref im i) tempi)))
+	    (set! wtemp wr)
+	    (set! wr (- (* wr wpr) (* wi wpi)))
+	    (set! wi (+ (* wi wpr) (* wtemp wpi))))
 	  (set! prev mmax))))
     rl))
 
 (define (hash-test)
-  (let ((fvr (make-hash-table fft-size))
+  (let ((fvr (make-hash-table fft-size)) ; (make-hash-table fft-size #t (cons #t float?))
 	(fvi (make-hash-table fft-size))
 	(scl (/ (* 8.0 pi) fft-size)))
     (do ((i 0 (+ i 1))
