@@ -3,6 +3,30 @@
 (define aux-counter 0)
 (system "make-repl")
 
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(set! (*s7* 'safety) 1)~%")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: safety=1~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
+
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(set! (*s7* 'initial-string-port-length) 32)~%(set! (*s7* 'undefined-identifier-warnings) #t)~%(set! (*s7* 'hash-table-float-epsilon) 1e-3)~%")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: safety=1~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
+
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(with-input-from-file \"all-lg-results\" (lambda () (display (with-output-to-string (lambda () (load \"s7test.scm\")))) (newline)))")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: safety=1~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
+
 (for-each
  (lambda (test-case)
    (let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
