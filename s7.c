@@ -1319,7 +1319,7 @@ struct s7_scheme {
   /* optimizer s7_functions */
   s7_pointer add_2, add_1s, add_s1, add_cs1, add_si, add_sf, add_fs, add_f_sf, subtract_1, subtract_2, subtract_s1,
            subtract_cs1, subtract_csn, subtract_sf, subtract_2f, subtract_fs,  simple_char_eq, char_equal_s_ic,
-           char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, 
+           char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, display_2,
            string_greater_2, string_less_2, symbol_to_string_uncopied, vector_ref_ic, vector_ref_ic_0, vector_ref_ic_1,
            vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_ref_3, vector_set_ic, vector_set_3, 
            fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3, 
@@ -3318,7 +3318,7 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
 #define NUM_SMALL_INTS 2048
 static s7_pointer small_ints[NUM_SMALL_INTS + 1];
 #define small_int(Val) small_ints[Val]
-#define is_small(n)    ((n & ~(NUM_SMALL_INTS - 1)) == 0)
+#define is_small(n) ((n & ~(NUM_SMALL_INTS - 1)) == 0)
 
 static s7_pointer real_zero, real_NaN, real_pi, real_one, arity_not_set, max_arity, real_infinity, real_minus_infinity, minus_one, minus_two, mostfix, leastfix;
 
@@ -4673,7 +4673,6 @@ s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc)
 
 #define gc_protected_at(Sc, Loc) vector_element(Sc->protected_objects, Loc)
 
-
 static void (*mark_function[NUM_TYPES])(s7_pointer p);
 
 void s7_mark(s7_pointer p)
@@ -5757,6 +5756,18 @@ s7_pointer s7_gc_on(s7_scheme *sc, bool on)
 {
   sc->gc_off = !on;
   return(s7_make_boolean(sc, on));
+}
+
+static void check_heap_size(s7_scheme *sc, s7_int size)
+{
+  s7_int free_cells;
+  free_cells = sc->free_heap_top - sc->free_heap;
+  if (free_cells < size)
+    {
+      gc(sc);
+      while ((sc->free_heap_top - sc->free_heap) < size)
+	resize_heap(sc);
+    }
 }
 
 #define ALLOC_POINTER_SIZE 256
@@ -9074,13 +9085,7 @@ static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   sc->w = p;
-  if (8192 >= (sc->free_heap_top - sc->free_heap))
-    {
-      sc->w = p;
-      gc(sc);
-      while (8192 >= (sc->free_heap_top - sc->free_heap))
-	resize_heap(sc);
-    }
+  check_heap_size(sc, 8192);
   if (sc->safety > NO_SAFETY)
     {
       if (tree_is_cyclic(sc, p))
@@ -12848,49 +12853,9 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
 /* -------------------------------- string->number -------------------------------- */
 
-static s7_pointer s7_string_to_number(s7_scheme *sc, char *str, int32_t radix)
+static inline s7_pointer string_to_number(s7_scheme *sc, char *str, int32_t radix)
 {
   s7_pointer x;
-  x = make_atom(sc, str, radix, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR);
-  if (s7_is_number(x))  /* only needed because str might start with '#' and not be a number (#t for example) */
-    return(x);
-  return(sc->F);
-}
-
-static s7_pointer g_string_to_number_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
-{
-  #define H_string_to_number "(string->number str (radix 10)) converts str into a number. \
-If str does not represent a number, string->number returns #f.  If 'str' has an embedded radix, \
-the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 3."
-  #define Q_string_to_number s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_number_symbol, sc->not_symbol), sc->is_string_symbol, sc->is_integer_symbol)
-
-  s7_int radix;
-  char *str;
-
-  if (!is_string(car(args)))
-    return(method_or_bust(sc, car(args), caller, args, T_STRING, 1));
-
-  if (is_pair(cdr(args)))
-    {
-      s7_pointer rad;
-      rad = cadr(args);
-      if (!s7_is_integer(rad))
-	{
-	  rad = check_value_slot(sc, rad);
-	  if (!s7_is_integer(rad))
-	    return(wrong_type_argument(sc, caller, 2, cadr(args), T_INTEGER));
-	}
-      radix = s7_integer(rad);
-      if ((radix < 2) ||              /* what about negative int as base (Knuth), reals such as phi, and some complex like -1+i */
-	  (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
-	return(out_of_range(sc, caller, small_int(2), rad, a_valid_radix_string));
-    }
-  else radix = 10;
-
-  str = (char *)string_value(car(args));
-  if ((!str) || (!(*str)))
-    return(sc->F);
-
   switch (str[0])
     {
     case 'n':
@@ -12913,64 +12878,74 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
 	return(real_infinity);
       break;
     }
-  return(s7_string_to_number(sc, str, radix));
+
+  x = make_atom(sc, str, radix, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR);
+  if (s7_is_number(x))  /* only needed because str might start with '#' and not be a number (#t for example) */
+    return(x);
+  return(sc->F);
+}
+
+static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_pointer radix1)
+{
+  s7_int radix;
+  char *str;
+
+  if (!is_string(str1))
+    return(wrong_type_argument(sc, sc->string_to_number_symbol, 1, str1, T_STRING));
+  str = (char *)string_value(str1);
+
+  if (!is_integer(radix1))
+    return(wrong_type_argument(sc, sc->string_to_number_symbol, 2, radix1, T_INTEGER));
+  radix = s7_integer(radix1);
+  if ((radix < 2) ||              /* what about negative int as base (Knuth), reals such as phi, and some complex like -1+i */
+      (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
+    return(out_of_range(sc, sc->string_to_number_symbol, small_int(2), radix1, a_valid_radix_string));
+
+  if ((!str) || (!(*str)))
+    return(sc->F);
+
+  return(string_to_number(sc, str, radix));
+}
+
+static s7_pointer g_string_to_number_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
+{
+  s7_int radix;
+  char *str;
+
+  if (!is_string(car(args)))
+    return(method_or_bust(sc, car(args), caller, args, T_STRING, 1));
+
+  if (is_pair(cdr(args)))
+    {
+      s7_pointer rad;
+      rad = cadr(args);
+      if (!s7_is_integer(rad))
+	{
+	  rad = check_value_slot(sc, rad);
+	  if (!s7_is_integer(rad))
+	    return(wrong_type_argument(sc, caller, 2, cadr(args), T_INTEGER));
+	}
+      radix = s7_integer(rad);
+      if ((radix < 2) ||              /* what about negative int as base (Knuth), reals such as phi, and some complex like -1+i */
+	  (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
+	return(out_of_range(sc, caller, small_int(2), rad, a_valid_radix_string));
+    }
+  else radix = 10;
+  str = (char *)string_value(car(args));
+  if ((!str) || (!(*str)))
+    return(sc->F);
+
+  return(string_to_number(sc, str, radix));
 }
 
 static s7_pointer g_string_to_number(s7_scheme *sc, s7_pointer args)
 {
+  #define H_string_to_number "(string->number str (radix 10)) converts str into a number. \
+If str does not represent a number, string->number returns #f.  If 'str' has an embedded radix, \
+the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 3."
+  #define Q_string_to_number s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_number_symbol, sc->not_symbol), sc->is_string_symbol, sc->is_integer_symbol)
+
   return(g_string_to_number_1(sc, args, sc->string_to_number_symbol));
-}
-
-
-static bool numbers_are_eqv(s7_pointer a, s7_pointer b)
-{
-  if (type(a) != type(b)) /* (eqv? 1 1.0) -> #f! */
-    return(false);
-
-  switch (type(a))
-    {
-    case T_INTEGER:
-      return((integer(a) == integer(b)));
-
-    case T_RATIO:
-      return((numerator(a) == numerator(b)) &&
-	     (denominator(a) == denominator(b)));
-
-    case T_REAL:
-      if (is_NaN(real(a)))
-	return(false);
-      return(real(a) == real(b));
-
-    case T_COMPLEX:
-      if ((is_NaN(real_part(a))) ||
-	  (is_NaN(imag_part(a))))
-	return(false);
-      return((real_part(a) == real_part(b)) &&
-	     (imag_part(a) == imag_part(b)));
-
-    default:
-#if WITH_GMP
-      if ((is_big_number(a)) || (is_big_number(b))) /* this can happen if (member bignum ...) -> memv */
-	return(big_numbers_are_eqv(a, b));
-#endif
-      break;
-    }
-  return(false);
-}
-
-
-static bool is_rational_via_method(s7_scheme *sc, s7_pointer p)
-{
-  if (s7_is_rational(p))
-    return(true);
-  if (has_methods(p))
-    {
-      s7_pointer f;
-      f = find_method(sc, find_let(sc, p), sc->is_rational_symbol);
-      if (f != sc->undefined)
-	return(is_true(sc, s7_apply_function(sc, f, cons(sc, p, sc->nil))));
-    }
-  return(false);
 }
 
 
@@ -14410,6 +14385,20 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- lcm -------------------------------- */
+static bool is_rational_via_method(s7_scheme *sc, s7_pointer p)
+{
+  if (s7_is_rational(p))
+    return(true);
+  if (has_methods(p))
+    {
+      s7_pointer f;
+      f = find_method(sc, find_let(sc, p), sc->is_rational_symbol);
+      if (f != sc->undefined)
+	return(is_true(sc, s7_apply_function(sc, f, cons(sc, p, sc->nil))));
+    }
+  return(false);
+}
+
 static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
 {
   /* (/ (* m n) (gcd m n)), (lcm a b c) -> (lcm a (lcm b c)) */
@@ -21863,6 +21852,13 @@ static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
   return(make_empty_string(sc, len, '\0')); /* #\null here means "don't fill/clear" */
 }
 
+static s7_pointer make_string_p_i(s7_scheme *sc, s7_int len) 
+{
+  if ((len < 0) || (len > sc->max_string_length))
+    return(out_of_range(sc, sc->make_string_symbol, small_int(1), make_integer(sc, len), (len < 0) ? its_negative_string : its_too_large_string));
+  return(make_empty_string(sc, len, '\0'));
+}
+
 
 #if (!WITH_PURE_S7)
 static s7_pointer g_string_length(s7_scheme *sc, s7_pointer args)
@@ -22806,13 +22802,7 @@ static s7_pointer s7_string_to_list(s7_scheme *sc, const char *str, s7_int len)
 
   if (len == 0)
     return(sc->nil);
-  if (len >= (sc->free_heap_top - sc->free_heap))
-    {
-      gc(sc);
-      while (len >= (sc->free_heap_top - sc->free_heap))
-	resize_heap(sc);
-    }
-
+  check_heap_size(sc, len);
   sc->v = sc->nil;
   for (i = len - 1; i >= 0; i--)
     sc->v = cons_unchecked(sc, s7_make_character(sc, ((uint8_t)str[i])), sc->v);
@@ -27332,7 +27322,8 @@ static bool symbol_needs_slashification(s7_scheme *sc, s7_pointer obj)
   str = symbol_name(obj);
   if ((str[0] == '#') || (str[0] == '\'') || (str[0] == ','))
     return(true);
-  if (s7_string_to_number(sc, (char *)str, 10) != sc->F)
+
+  if (s7_is_number(make_atom(sc, (char *)str, 10, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR)))
     return(true);
 
   len = symbol_name_length(obj);
@@ -31098,6 +31089,24 @@ static s7_pointer g_display(s7_scheme *sc, s7_pointer args)
   return(object_out(sc, car(args), port, P_DISPLAY));
 }
 
+static s7_pointer g_display_2(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer port;
+  port = cadr(args);
+  if (port == sc->F) return(car(args));
+  if (!is_output_port(port))
+    return(method_or_bust_with_type(sc, port, sc->display_symbol, args, an_output_port_string, 2));
+  if (port_is_closed(port))
+    return(s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port"));
+  return(object_out(sc, car(args), port, P_DISPLAY));
+}
+
+static s7_pointer display_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2) return(sc->display_2);
+  return(f);
+}
+
 static s7_pointer display_p_p(s7_scheme *sc, s7_pointer x)
 {
   if (sc->output_port == sc->F) return(x);
@@ -33417,12 +33426,7 @@ static s7_pointer make_big_list(s7_scheme *sc, int32_t len, s7_pointer init)
   s7_pointer result;
   int32_t i;
   
-  if (len >= (sc->free_heap_top - sc->free_heap))
-    {
-      gc(sc);
-      while (len >= (sc->free_heap_top - sc->free_heap))
-	resize_heap(sc);
-    }
+  check_heap_size(sc, len);
   sc->v = sc->nil;
   for (i = 0; i < len; i++)
     sc->v = cons_unchecked(sc, init, sc->v);
@@ -34741,6 +34745,41 @@ static s7_pointer memq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
   return(f);
 }
 
+static bool numbers_are_eqv(s7_pointer a, s7_pointer b)
+{
+  if (type(a) != type(b)) /* (eqv? 1 1.0) -> #f! */
+    return(false);
+
+  switch (type(a))
+    {
+    case T_INTEGER:
+      return((integer(a) == integer(b)));
+
+    case T_RATIO:
+      return((numerator(a) == numerator(b)) &&
+	     (denominator(a) == denominator(b)));
+
+    case T_REAL:
+      if (is_NaN(real(a)))
+	return(false);
+      return(real(a) == real(b));
+
+    case T_COMPLEX:
+      if ((is_NaN(real_part(a))) ||
+	  (is_NaN(imag_part(a))))
+	return(false);
+      return((real_part(a) == real_part(b)) &&
+	     (imag_part(a) == imag_part(b)));
+
+    default:
+#if WITH_GMP
+      if ((is_big_number(a)) || (is_big_number(b))) /* this can happen if (member bignum ...) -> memv */
+	return(big_numbers_are_eqv(a, b));
+#endif
+      break;
+    }
+  return(false);
+}
 
 static s7_pointer memv_number(s7_scheme *sc, s7_pointer obj, s7_pointer x)
 {
@@ -34754,7 +34793,6 @@ static s7_pointer memv_number(s7_scheme *sc, s7_pointer obj, s7_pointer x)
     }
   return(sc->F);
 }
-
 
 static s7_pointer g_memv(s7_scheme *sc, s7_pointer args)
 {
@@ -34828,7 +34866,6 @@ static s7_pointer member(s7_scheme *sc, s7_pointer obj, s7_pointer x)
     }
   return(sc->F); /* not reached */
 }
-
 
 static s7_pointer g_member(s7_scheme *sc, s7_pointer args)
 {
@@ -35355,7 +35392,6 @@ static inline s7_pointer typed_vector_setter(s7_scheme *sc, s7_pointer vec, s7_i
 				 make_type_name(sc, c_function_name(typed_vector_typer(vec)), INDEFINITE_ARTICLE)));
 }
 
-
 static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc)
 {
   return(vector_element(vec, loc));
@@ -35562,7 +35598,6 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint8_t 
   return(x);
 }
 
-
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len)
 {
   s7_pointer v;
@@ -35618,7 +35653,6 @@ static vdims_t *make_vdims(s7_scheme *sc, bool elements_should_be_freed, s7_int 
     }
   return(v);
 }
-
 
 s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info)
 {
@@ -36122,13 +36156,7 @@ s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect)
   len = vector_length(vect);
   if (len == 0)
     return(sc->nil);
-  if (len >= (sc->free_heap_top - sc->free_heap))
-    {
-      gc(sc);
-      while (len >= (sc->free_heap_top - sc->free_heap))
-	resize_heap(sc);
-    }
-
+  check_heap_size(sc, len);
   sc->v = sc->nil;
   for (i = len - 1; i >= 0; i--)
     sc->v = cons_unchecked(sc, vector_getter(vect)(sc, vect, i), sc->v);
@@ -36720,7 +36748,6 @@ static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indice
     }
   return((vector_getter(vect))(sc, vect, index));
 }
-
 
 static s7_pointer g_vector_ref(s7_scheme *sc, s7_pointer args)
 {
@@ -37389,6 +37416,16 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
   return(x);
 }
 
+static s7_pointer make_int_vector_p_ii(s7_scheme *sc, s7_int len, s7_int init)
+{
+  s7_pointer x;
+  x = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
+  int_vector_fill(sc, x, init);
+  add_vector(sc, x);
+  return(x);
+}
+
+
 /* -------------------------------- make-byte-vector -------------------------------- */
 static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
 {
@@ -37424,6 +37461,17 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
   p = make_simple_byte_vector(sc, len);
   if ((len > 0) && (is_pair(cdr(args))))
     local_memset((void *)(byte_vector_bytes(p)), ib, len);
+  return(p);
+}
+
+static s7_pointer make_byte_vector_p_ii(s7_scheme *sc, s7_int len, s7_int init)
+{
+  s7_pointer p;
+  if ((init < 0) || (init > 255))
+    return(simple_wrong_type_argument_with_type(sc, sc->make_byte_vector_symbol, make_integer(sc, init), an_unsigned_byte_string));
+  p = make_simple_byte_vector(sc, len);
+  if (len > 0)
+    local_memset((void *)(byte_vector_bytes(p)), init, len);
   return(p);
 }
 
@@ -49924,6 +49972,15 @@ static s7_pointer fx_c_opssq_s(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_opssq_s_direct(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = cadr(arg);
+  return(((s7_p_pp_t)opt2_direct_x_call(cdr(arg)))(sc, 
+	   ((s7_p_pp_t)opt3_direct_x(cdr(arg)))(sc, lookup(sc, cadr(largs)), lookup(sc, opt2_sym(cdr(largs)))),
+	   lookup(sc, caddr(arg))));
+}
+
 static s7_pointer fx_c_opscq_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -51093,6 +51150,17 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 			   s7_p_pp_function(slot_value(global_slot(car(arg)))), s7_p_pp_function(slot_value(global_slot(caaddr(arg)))));
 #endif
 	      return(fx_c_s_opssq);
+
+	    case HOP_SAFE_C_opSSq_S:
+	      if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
+		  (s7_p_pp_function(slot_value(global_slot(caadr(arg))))))
+		{
+		  set_direct_x_opt(arg);
+		  set_opt2_direct_x_call(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
+		  set_opt3_direct_x(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(caadr(arg))))));
+		  return(fx_c_opssq_s_direct);
+		}
+	      return(fx_c_opssq_s);
 
 	    case HOP_SAFE_C_opSq:
 	      if (car(arg) == sc->not_symbol) return(fx_not_opsq);
@@ -61727,7 +61795,7 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	      if (iterator_is_at_end(seq))
 		{
 		  unstack(sc);
-		  free_cell(sc, seq); /* 16-Nov-18 */
+		  /* free_cell(sc, seq); */ /* 16-Jan-19 */
 		  return(sc->unspecified);
 		}
 	      func(sc, expr);
@@ -61833,7 +61901,7 @@ Each object can be a list, string, vector, hash-table, or any other sequence."
 		   *   being treated as safe, c_call(for-each) assumes everywhere that sc->code is left alone.
 		   */
 		  unstack(sc);
-		  free_cell(sc, x); /* 16-Nov-18 */
+		  /* free_cell(sc, x); */ /* 16-Jan-19 */
 		  return(sc->unspecified);
 		}
 	      func(sc, y);
@@ -62146,7 +62214,7 @@ a list of the results.  Its arguments can be lists, vectors, strings, hash-table
 		      if (iterator_is_at_end(car(x)))
 			{
 			  unstack(sc);
-			  free_cell(sc, car(x)); /* 16-Nov-18 */
+			  /* free_cell(sc, car(x)); */ /* 16-Jan-19 iterator in circular list -- see s7test */
 			  sc->args = old_args;
 			  return(safe_reverse_in_place(sc, car(val)));
 			}
@@ -62631,15 +62699,8 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
     {
       if (checked)
 	{
-	  s7_int free_cells;
-	  free_cells = sc->free_heap_top - sc->free_heap;
-	  if (free_cells < 8192)
-	    {
-	      sc->u = args;
-	      gc(sc);                 /* checking tree_len here is not faster (we're about to call the gc in any case) */
-	      while ((sc->free_heap_top - sc->free_heap) < 8192)
-		resize_heap(sc);
-	    }
+	  sc->u = args;
+	  check_heap_size(sc, 8192);
 	  return(copy_tree(sc, args)); /* copy_tree can't handle cyclic trees */
 	}
       return((is_immutable(args)) ? copy_list(sc, args) : args);
@@ -65269,6 +65330,10 @@ static void init_choosers(s7_scheme *sc)
   f = slot_value(global_slot(sc->symbol_to_string_symbol));
   sc->symbol_to_string_uncopied = s7_make_function(sc, "symbol->string", g_symbol_to_string_uncopied, 1, 0, false, "symbol->string opt");
   s7_function_set_class(sc->symbol_to_string_uncopied, f);
+
+  /* display */
+  f = set_function_chooser(sc, sc->display_symbol, display_chooser);
+  sc->display_2 = make_function_with_class(sc, f, "display", g_display_2, 2, 0, false, "display opt");
 
   /* vector-ref */
   f = set_function_chooser(sc, sc->vector_ref_symbol, vector_ref_chooser);
@@ -77799,8 +77864,7 @@ static void define2_ex(s7_scheme *sc)
 static void profile(s7_scheme *sc, s7_pointer expr)
 {
   /* I tried using SIGPROF and a tick counter below (in addition to the line counter), but the added info did not seem very useful. */
-  if ((sc->free_heap_top - sc->free_heap) < 32)
-    gc(sc);
+  check_heap_size(sc, 32);
 
   if (is_null(sc->profile_info))
     {
@@ -89218,6 +89282,7 @@ s7_scheme *s7_init(void)
   s7_set_p_d_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_d); /* this is probably ok in gmp case -- uses is_float */
   s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_pp);
 #endif
 
   s7_set_p_p_function(slot_value(global_slot(sc->car_symbol)), car_p_p);
@@ -89436,6 +89501,9 @@ s7_scheme *s7_init(void)
   s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_type_symbol)), c_pointer_type_p_p);
   s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_weak1_symbol)), c_pointer_weak1_p_p);
   s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_weak2_symbol)), c_pointer_weak2_p_p);
+  s7_set_p_i_function(slot_value(global_slot(sc->make_string_symbol)), make_string_p_i);
+  s7_set_p_ii_function(slot_value(global_slot(sc->make_int_vector_symbol)), make_int_vector_p_ii);
+  s7_set_p_ii_function(slot_value(global_slot(sc->make_byte_vector_symbol)), make_byte_vector_p_ii);
 
 #if WITH_SYSTEM_EXTRAS
   s7_set_b_7p_function(slot_value(global_slot(sc->is_directory_symbol)), is_directory_b_7p);
@@ -89745,9 +89813,9 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1
  * --------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  199   161
+ * tpeak         |      |      |      |  391 |  377 |  199 |  199   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
- * tshoot        |      |      |      |      |      |  373 |  356   359
+ * tshoot        |      |      |      |      |      |  373 |  356   357
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018  1000
  * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1122
@@ -89756,24 +89824,24 @@ int main(int argc, char **argv)
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2093
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2252
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2328
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2482
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2480
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2503
  * tvect         |      |      |      |      |      | 5616 | 2650  2621
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2947
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3066
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3718
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3726
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5219
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6314
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  11.0
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  11.0 10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.6
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.6
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 204.9 204.3
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 204.1
  * --------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -89784,5 +89852,5 @@ int main(int argc, char **argv)
  *   the hash-set need not check type because it is known to be float
  * optimize_func op_safe_c_s_opssq -> op_safe_o_s_opssq rather than waiting for fx_choose (add/subtract_aa -> . -- none through eval)
  *   so op_safe_c_aa|a in fx_choose to fx_add_aa to fx_add_aa_direct? [has_direct_x_opt]
- *   tbig: fx_c_opssq_s fx_c_s_op_s_opssqq fx_c_op_opssq_q_s, p_i for make-string et al, p_pp for make*
+ *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s, p_i for make*? et al, p_pp for make-vector/string-ref? maybe pip for fv
  */

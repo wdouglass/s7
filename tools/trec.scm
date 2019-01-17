@@ -1,7 +1,5 @@
 (set! (*s7* 'heap-size) (* 4 1024000))
 
-(define big-list (make-list 10000 1))
-
 (define (fib n)
   (if (< n 2)
       n
@@ -66,6 +64,8 @@
 	(loop (cdr p) (+ sum (car p)))
 	sum)))
 
+(define big-list (make-list 10000 1))
+
 (define (more-add)
   (let ((lst big-list))
     (do ((i 0 (+ i 1)))
@@ -99,6 +99,7 @@
       (got-symbol lst))))
 (more-symbol)
 
+(set! big-list #f)
 
 ;;; add local-slot do cases to s7test
 
