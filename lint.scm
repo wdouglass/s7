@@ -8114,6 +8114,34 @@
 		      (hash-special f sp-char->integer))
 		    '(char->integer integer->char symbol->keyword keyword->symbol string->number)))
 	
+	;; ---------------- symbol ----------------
+	(let ()
+	  (define (sp-symbol caller head form env)
+	    (when (pair? (cdr form))
+
+	      (if (just-code-constants? (cdr form))           ; (symbol "a") -> 'a
+		  (let ((seq (checked-eval form)))
+		    (if (and (not (eq? seq :checked-eval-error))
+			     (not (char=? (string-ref (object->string seq :readable) 0) #\()))   ; (symbol "a b") turns into itself
+			(lint-format "perhaps ~A -> ~A~A" caller
+				     (truncated-list->string form)
+				     (if (pair? seq) "'" "")
+				     (if (symbol? seq)
+					 (object->string seq :readable)
+					 (object->string seq))))))
+
+	      (when (and (null? (cddr form))                  ; (symbol (string-append a b)) -> (symbol a b)
+			 (pair? (cadr form))
+			 (or (memq (caadr form) '(string-append append))
+			     (and (eq? (caadr form) 'apply)
+				  (memq (cadadr form) '(string-append append)))))
+		(lint-format "perhaps ~A" caller
+			     (lists->string form 
+					    (if (eq? (caadr form) 'apply)
+						(cons 'apply (cons 'symbol (cddadr form)))
+						(cons 'symbol (cdadr form))))))))
+	  (hash-special 'symbol sp-symbol))
+
 	;; ---------------- string->keyword ----------------
 	(let ()
 	  (define (sp-str->key caller head form env)
@@ -21448,7 +21476,7 @@
 	       (set! quit q)
 	       (set! fuvar fvar)
 	       (set! outer-vars (if fvar
-				    (do ((e (list (list (var-name fvar) (symbol "<F>") 0 ())))
+				    (do ((e (list (list (var-name fvar) '<F> 0 ())))
 					 (i 1 (+ i 1))
 					 (args (args->proper-list (var-arglist fvar)) (cdr args)))
 					((not (pair? args)) e)

@@ -428,7 +428,7 @@
 	((= k 10) (vector-ref v 0 0))
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(vector-set! v k i 2)))))
+	(vector-set! v k i 2))))) ; this calls int-vector-set!
 
 (unless (= (h15) 2)
   (format *stderr* "h15: ~S~%" (h15)))

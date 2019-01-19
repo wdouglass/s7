@@ -1,6 +1,6 @@
 (define size 1000000)
 (set! (*s7* 'safety) -1)
-(set! (*s7* 'heap-size) (* 4 1024000))
+(set! (*s7* 'heap-size) (* 9 1024000))
 
 (define symbols (make-vector size 'a symbol?))
 (define e (inlet))

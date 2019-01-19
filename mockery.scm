@@ -1014,6 +1014,30 @@
 
 ;;; --------------------------------------------------------------------------------
 
+(define *mock-c-pointer*
+  (let ((mock-c-pointer-class
+	 (inlet 'object->string        (lambda args "*c-pointer*")
+		'c-pointer?            (lambda (obj) #t)
+		'c-pointer-type        (lambda (obj) (vector-ref (obj 'value) 1))
+		'c-pointer-info        (lambda (obj) (vector-ref (obj 'value) 2))
+		'c-pointer-weak1       (lambda (obj) (vector-ref (obj 'value) 3))
+		'c-pointer-weak2       (lambda (obj) (vector-ref (obj 'value) 4))
+		'c-pointer->list       (lambda (obj) (vector->list (obj 'value))))))
+
+    (define* (mock-c-pointer (int 0) type info weak1 weak2)
+      (openlet 
+       (sublet (*mock-c-pointer* 'mock-c-pointer-class)
+	 'value (vector int type info weak1 weak2))))
+		
+    (define (mock-c-pointer? obj)
+      (and (openlet? obj)
+	   (outlet-member obj mock-c-pointer-class)))
+    
+    (curlet)))
+
+
+;;; --------------------------------------------------------------------------------
+
 (define *mock-port*
   (let* ((mock-port? #f)
 	 (mock-port-class

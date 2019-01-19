@@ -10,7 +10,7 @@
   (let ()
 
     (define-constant (all-positive? v start end)
-      (do ((j (- end 1) (- j 1)))
+      (do ((j end (- j 1)))
 	  ((or (negative? (int-vector-ref v j))
 	       (= j start))
 	   j)))
@@ -19,7 +19,8 @@
       (let ((lines (make-vector alloc-lines ""))
 	    (original-lines (make-vector alloc-lines ""))
 	    (lens (make-int-vector alloc-lines))
-	    (linenums (make-int-vector alloc-lines)))
+	    (linenums (make-int-vector alloc-lines))
+	    (size-1 0))
 	
 	(call-with-input-file file
 	  (lambda (p)
@@ -55,6 +56,7 @@
 			     (set! j (+ j 1)))))))))
 	      
 	      (set! size (min size total-lines))
+	      (set! size-1 (- size 1))
 	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 79881
 
 	      ;; mark unmatchable strings
@@ -85,14 +87,14 @@
 		   (last-line (- total-lines size))
 		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
-		(let ((j (all-positive? lens i (+ i size))))   ; is a match possible?
+		(let ((j (all-positive? lens i (+ i size-1))))   ; is a match possible?
 		  (if (not (= j i))
 		      (set! i j)
 		      (let ((lenseq (subvector lens size i))
 			    (lineseq (subvector lines size i)))
 			(do ((k (+ i 1) (+ k 1)))
 			    ((>= k last-line))
-			  (let ((jk (all-positive? lens k (+ k size))))
+			  (let ((jk (all-positive? lens k (+ k size-1))))
 			    (if (not (= jk k))
 				(set! k jk)
 				(when (and (equal? lenseq (subvector lens size k))
