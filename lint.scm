@@ -13648,14 +13648,19 @@
 		      (report-usage function-name definer nvars cur-env)))
 		cur-env))
 	    
-	    (if (not (or (symbol? args) 
+	    (if (not (or (symbol? args)
 			 (pair? args)))
 		(begin
 		  (lint-format "strange ~A parameter list ~A" function-name definer args)
 		  env)
 		(let ((args-as-vars 
 		       (if (symbol? args)                            ; this is getting arg names to add to the environment
-			   (list (make-lint-var args #f 'parameter))
+			   (begin
+			     (if (memq definer '(define* lambda* defmacro* define-macro* define-bacro*))
+				 (lint-format "~A could be ~A"       ; (lambda* args ...)
+					      function-name definer
+					      (symbol (substring (symbol->string definer) 0 (- (length (symbol->string definer)) 1)))))
+			     (list (make-lint-var args #f 'parameter)))
 			   (let ((star-definer (memq definer '(define* lambda* defmacro* define-macro* define-bacro* definstrument define*-public))))
 			     (map (lambda (arg)
 				    (if (symbol? arg)
@@ -14719,8 +14724,7 @@
 			      (lint-format "lambda arglist can't handle keywords (use lambda*)" caller))))
 
 		    (if (and (eq? head 'lambda*)              ; (lambda* ()...) -> (lambda () ...)
-			     (or (null? args)
-				 (symbol? args)))
+			     (null? args))                    ; (lambda* args ...) is caught elsewhere
 			(lint-format "lambda* could be lambda ~A" caller form))
 		    
 		    (when (pair? (cddr form))
