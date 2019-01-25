@@ -117,7 +117,10 @@
      ,@body))
 
 (define-macro (typed-inlet . vals) ; vals: ((var init [type])...)...) as in (typed-inlet (i 0 integer?)...)
-  `(typed-let ,vals (curlet)))
+  (let ((e (gensym)))
+    `(let ((,e (typed-let ,vals (curlet))))
+       (set! (outlet ,e) (rootlet)) ; mimic (inlet ...)
+       ,e)))
 
 
 ;;; ----------------
@@ -976,8 +979,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		   
 		   ;; add an object->string method for this class (this is already a generic function).
 		   (list (cons 'object->string 
-			       (lambda* (obj (use-write #t))
-				 (if (eq? use-write :readable)    ; write readably
+			       (lambda (obj . rest)
+				 (if (and (pair? rest)
+					  (eq? (car rest) :readable))    ; write readably
 				     (format #f "(make-~A~{ :~A ~W~^~})" 
 					     ',class-name 
 					     (map (lambda (slot)

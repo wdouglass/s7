@@ -26046,10 +26046,7 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 
   x = car(args);
   if (is_iterator(x)) return(sc->T);
-  /* check_closure_for(sc, x, sc->local_iterator_symbol);
-   *   closure itself is not an iterator:
-   * (let ((c1 (let ((+iterator+ #t) (a 0)) (lambda () (set! a (+ a 1)))))) (iterate c1)): error (a function not an iterator)
-   */
+  /* closure is not an iterator: (let ((c1 (let ((+iterator+ #t) (a 0)) (lambda () (set! a (+ a 1)))))) (iterate c1)): error (a function not an iterator) */
   check_boolean_method(sc, is_iterator, sc->is_iterator_symbol, args);
   return(sc->F);
 }
@@ -26385,7 +26382,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 	{
 	  free_cell(sc, iter);
 	  return(simple_wrong_type_argument_with_type(sc, sc->make_iterator_symbol, e,
-						      wrap_string(sc, "a function or macro with a '+iterator+ local that is not #f", 55)));
+						      wrap_string(sc, "a function or macro with a '+iterator+ local that is not #f", 59)));
 	}
       break;
 
@@ -27377,11 +27374,36 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 
 #define NOT_P_DISPLAY(Choice) ((Choice == P_DISPLAY) ? P_WRITE : Choice)
 
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
 				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
 				   use_write_t use_write, shared_info *ci)
 {
   int32_t i;
+
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
 
   if (use_write != P_READABLE)
     {
@@ -30680,32 +30702,25 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-/* #define CYCLE_DEBUGGING 0 */
 #if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
+static char *base1 = NULL, *min_char1 = NULL;
 #endif
 
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
 #if CYCLE_DEBUGGING
-  /* we're missing a cycle somewhere causing infinite recursion which segfaults leaving no way to see what
-   *   the calling code was.  So this horrible kludge tries to catch the stack overflow before the segfault
-   *   and abort leaving us pointers we can decode.
-   * max depth in s7test: 15400, in t725 about the same. limit stacksize is currently 1G on this machine.
-   *   so... let's try 100000 for starters.
-   */
   char x;
-  if (!base) base = &x;
+  if (!base1) base1 = &x;
   else
     {
-      if (&x > base) base = &x;
+      if (&x > base1) base1 = &x;
       else
 	{
-	  if ((!min_char) || (&x < min_char))
+	  if ((!min_char1) || (&x < min_char1))
 	    {
-	      min_char = &x;
-	      if ((base - min_char) > 1000000)
+	      min_char1 = &x;
+	      if ((base1 - min_char1) > 1000000)
 		{
 		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
 		  abort();
@@ -89858,5 +89873,10 @@ int main(int argc, char **argv)
  *   in mockery make functions for the ref/set multi arg cases etc
  *   also s7test char-position string-position string->number univect-ref/set tests, t952->s7test
  * what about (lambda* (:rest args)...)?
- * except non-cyclic let, :readable output doesn't know about setters (also equal? equivalent?)
+ *   (define* (f :rest asdf) asdf) (f :asdf 1) -> '(:asdf 1)
+ *   so this needs lint and s7 updates
+ *   (define* (f a :rest b) (list a b)) (f 1 2 :a 3): '(1 (2 :a 3)) but (f :b 3) '(#f 3) -- inconsistent? (f :a 1 :b 3): '(1 (:b 3))
+ *   same if (define* (f a . b) -- maybe say rest arg is not keyword accessible?
+ * except non-cyclic let, :readable output doesn't know about setters (also equal? equivalent? -- both ignore setters)
+ * cycle in multivector_to_port
  */

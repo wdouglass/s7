@@ -7,16 +7,18 @@
 
 (define (make-method f accessor)
   (lambda args
-    (if (let? (car args))
-	(apply f (accessor (car args)) (cdr args))
-	(if (or (null? (cdr args))
-		(not (let? (cadr args))))
-	    (apply f (map (lambda (arg)
-			    (if (openlet? arg)
-				(coverlet arg)
-				arg))
-			  args))
-	    (apply f (car args) (accessor (cadr args)) (cddr args))))))
+    (if (null? args)
+	(f)
+	(if (let? (car args))
+	    (apply f (accessor (car args)) (cdr args))
+	    (if (or (null? (cdr args))
+		    (not (let? (cadr args))))
+		(apply f (map (lambda (arg)
+				(if (openlet? arg)
+				    (coverlet arg)
+				    arg))
+			      args))
+		(apply f (car args) (accessor (cadr args)) (cddr args)))))))
 
 (define (make-object . args)
   (openlet
