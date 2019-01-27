@@ -299,7 +299,9 @@
   #define S7_DEBUGGING 0
 #endif
 
-#define CYCLE_DEBUGGING S7_DEBUGGING
+#ifndef CYCLE_DEBUGGING
+  #define CYCLE_DEBUGGING S7_DEBUGGING
+#endif
 
 #undef DEBUGGING
 #define DEBUGGING typo!
@@ -6264,7 +6266,7 @@ static void resize_stack(s7_scheme *sc)
 
 s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x)
 {
-  push_stack(sc, OP_GC_PROTECT, sc->args, sc->code);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, x);
   return(x);
 }
 
@@ -8414,6 +8416,11 @@ static s7_pointer let_copy(s7_scheme *sc, s7_pointer env)
 	      slot_set_value(z, slot_value(x));
 	      if (symbol_id(slot_symbol(z)) != id) /* keep shadowing intact */
 		symbol_set_local(slot_symbol(x), id, z);
+	      if (slot_has_setter(x))
+		{
+		  slot_set_setter(z, slot_setter(x));
+		  slot_set_has_setter(z);
+		}
 	      if (tis_slot(let_slots(new_e)))
 		set_next_slot(y, z);
 	      else let_set_slots(new_e, z);
@@ -28149,11 +28156,15 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
   if (is_multiple_value(lst))
     port_write_string(port)(sc, "values ", 7, port);
 
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, lst);
+  /* (define (f) (display (make-list 1001 (mock-string #\h #\o #\h #\o))) (newline)) (do ((i 0 (+ i 1))) ((= i 1000)) (f)) */
+
   if (use_write == P_READABLE)
     {
       if (!is_cyclic(lst))
 	{
 	  simple_list_readable_display(sc, lst, true_len, len, port, ci);
+	  unstack(sc);
 	  return;
 	}
       if (ci)
@@ -28190,6 +28201,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	      if (!lst_local)
 		{
 		  simple_list_readable_display(sc, lst, true_len, len, port, ci);
+		  unstack(sc);
 		  return;
 		}
 	    }
@@ -28288,6 +28300,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
       if (plen <= 0)
 	{
 	  port_write_string(port)(sc, "(list ...)", 10, port);
+	  unstack(sc);
 	  return;
 	}
 
@@ -28324,7 +28337,10 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		{
 		  object_to_port(sc, car(x), port, NOT_P_DISPLAY(use_write), ci);
 		  if (port_position(port) >= sc->objstr_max_len)
-		    return;
+		    {
+		      unstack(sc);
+		      return;
+		    }
 		  if (port_position(port) >= port_data_size(port))
 		    resize_port_data(sc, port, port_data_size(port) * 2);
 		  port_data(port)[port_position(port)++] = (uint8_t)' ';
@@ -28356,6 +28372,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  port_write_character(port)(sc, ')', port);
 	}
     }
+  unstack(sc);
 }
 
 static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -28533,29 +28550,42 @@ static int32_t slot_to_port_1(s7_scheme *sc, s7_pointer x, s7_pointer port, use_
   return(n + 1);
 }
 
-static void slot_list_to_port(s7_scheme *sc, s7_pointer slot, s7_pointer port, shared_info *ci)
+static void slot_list_to_port(s7_scheme *sc, s7_pointer slot, s7_pointer port, shared_info *ci, bool bindings)
 {
   if (tis_slot(slot))
     {
-      slot_list_to_port(sc, next_slot(slot), port, ci);
-      port_write_character(port)(sc, ' ', port);
-      symbol_to_port(sc, slot_symbol(slot), port, P_KEY, ci);  /* (object->string (inlet (symbol "(\")") 1) :readable) */
+      slot_list_to_port(sc, next_slot(slot), port, ci, bindings);
+      if (bindings)
+	{
+	  if (tis_slot(next_slot(slot)))
+	    port_write_string(port)(sc, " (", 2, port);
+	  else port_write_character(port)(sc, '(', port);
+	}
+      else port_write_character(port)(sc, ' ', port);
+      symbol_to_port(sc, slot_symbol(slot), port, (bindings) ? P_DISPLAY : P_KEY, ci);  /* (object->string (inlet (symbol "(\")") 1) :readable) */
       port_write_character(port)(sc, ' ', port);
       object_to_port_with_circle_check(sc, slot_value(slot), port, P_READABLE, ci);
+      if (bindings) port_write_character(port)(sc, ')', port);
     }
 }
 
-static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_pointer slot, s7_pointer port, shared_info *ci)
+static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_pointer slot, s7_pointer port, shared_info *ci, bool bindings)
 {
   if (tis_slot(slot))
     {
       s7_pointer sym, val;
-      slot_list_to_port_with_cycle(sc, obj, next_slot(slot), port, ci);
+      slot_list_to_port_with_cycle(sc, obj, next_slot(slot), port, ci, bindings);
       sym = slot_symbol(slot);
       val = slot_value(slot);
 
-      port_write_character(port)(sc, ' ', port);
-      symbol_to_port(sc, sym, port, P_KEY, ci);
+      if (bindings)
+	{
+	  if (tis_slot(next_slot(slot)))
+	    port_write_string(port)(sc, " (", 2, port);
+	  else port_write_character(port)(sc, '(', port);
+	}
+      else port_write_character(port)(sc, ' ', port);
+      symbol_to_port(sc, sym, port, (bindings) ? P_DISPLAY : P_KEY, ci);
       if (has_structure(val))
 	{
 	  char buf[128];
@@ -28585,10 +28615,10 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  port_write_character(port)(sc, ' ', port);
 	  object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
 	}
+      if (bindings) port_write_character(port)(sc, ')', port);
     }
 }
 
-#if CDR
 static bool let_has_setter(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer slot;
@@ -28596,19 +28626,6 @@ static bool let_has_setter(s7_scheme *sc, s7_pointer obj)
     if (slot_has_setter(slot))
       return(true);
   return(false);
-}
-
-static void slots_as_bindings_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, shared_info *ci)
-{
-  s7_pointer slot;
-  for (slot = let_slots(obj); tis_slot(slot); slot = next_slot(slot))
-    {
-      port_write_character(port)(sc, '(', port);
-      symbol_to_port(sc, slot_symbol(slot), port, P_DISPLAY, ci);
-      port_write_character(port)(sc, ' ', port);
-      object_to_port_with_circle_check(sc, slot_value(slot), port, P_READABLE, ci);
-      port_write_character(port)(sc, ')', port);
-    }
 }
 
 static void slot_setters_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, shared_info *ci)
@@ -28624,7 +28641,6 @@ static void slot_setters_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
 	port_write_character(port)(sc, ')', port);
       }
 }
-#endif
 
 static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
@@ -28643,7 +28659,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	    p = s7_apply_function(sc, print_func, list_1(sc, obj));
 	  else p = s7_apply_function(sc, print_func, list_2(sc, obj, (use_write == P_DISPLAY) ? sc->F : sc->key_readable_symbol));
 	  set_has_methods(obj);
-
+	  
 	  if ((is_string(p)) &&
 	      (string_length(p) > 0))
 	    port_write_string(port)(sc, string_value(p), string_length(p), port);
@@ -28672,19 +28688,17 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		  (is_cyclic(obj)) &&
 		  (peek_shared_ref(ci, obj) != 0))
 		{
-		  {
-		    int32_t lref;
-		    lref = peek_shared_ref(ci, obj);
-		    if (lref < 0) lref = -lref;
-		    if ((ci->defined[lref]) || (port == ci->cycle_port))
-		      {
-			char buf[128];
-			int32_t len;
-			len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
-			port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
-			return;
-		      }
-		  }
+		  int32_t lref;
+		  lref = peek_shared_ref(ci, obj);
+		  if (lref < 0) lref = -lref;
+		  if ((ci->defined[lref]) || (port == ci->cycle_port))
+		    {
+		      char buf[128];
+		      int32_t len;
+		      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
+		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+		      return;
+		    }
 		  if ((outlet(obj) != sc->nil) &&
 		      (outlet(obj) != sc->rootlet))
 		    {
@@ -28695,47 +28709,55 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 		    }
-		  port_write_string(port)(sc, "(inlet", 6, port);
-		  slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci);
-		  port_write_character(port)(sc, ')', port);
-		}
-	      else
-		{
-		  if (is_immutable(obj))
-		    port_write_string(port)(sc, "(immutable! ", 12, port);
-#if CDR
-		  /* also need cyclic version above */
-		  /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
 		  if (let_has_setter(sc, obj))
 		    {
 		      port_write_string(port)(sc, "(let (", 6, port);
-		      slots_as_bindings_to_port(sc, obj, port, ci);
+		      slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, true);
 		      port_write_string(port)(sc, ") ", 2, port);
 		      slot_setters_to_port(sc, obj, port, ci);
 		      port_write_string(port)(sc, " (curlet))", 10, port);
 		    }
 		  else
 		    {
-#endif
-		  if ((outlet(obj) != sc->nil) &&
-		      (outlet(obj) != sc->rootlet))
-		    {
-		      port_write_string(port)(sc, "(sublet ", 8, port);
-		      if ((ci) && (peek_shared_ref(ci, outlet(obj)) < 0))
-			{
-			  char buf[128];
-			  int32_t len;
-			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, outlet(obj))), ">", NULL);
-			  port_write_string(port)(sc, buf, len, port);
-			}
-		      else let_to_port(sc, outlet(obj), port, use_write, ci);
+		      port_write_string(port)(sc, "(inlet", 6, port);
+		      slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, false);
+		      port_write_character(port)(sc, ')', port);
 		    }
-		  else port_write_string(port)(sc, "(inlet", 6, port);
-		  slot_list_to_port(sc, let_slots(obj), port, ci);
-		  port_write_character(port)(sc, ')', port);
-#if CDR
-		  }
-#endif
+		}
+	      else
+		{
+		  if (is_immutable(obj))
+		    port_write_string(port)(sc, "(immutable! ", 12, port);
+		  /* this ignores outlet -- but is that a problem? */
+		  /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
+		  if (let_has_setter(sc, obj))
+		    {
+		      port_write_string(port)(sc, "(let (", 6, port);
+		      slot_list_to_port(sc, let_slots(obj), port, ci, true);
+		      port_write_string(port)(sc, ") ", 2, port);
+		      slot_setters_to_port(sc, obj, port, ci);
+		      /* perhaps set outlet here?? */
+		      port_write_string(port)(sc, " (curlet))", 10, port);
+		    }
+		  else
+		    {
+		      if ((outlet(obj) != sc->nil) &&
+			  (outlet(obj) != sc->rootlet))
+			{
+			  port_write_string(port)(sc, "(sublet ", 8, port);
+			  if ((ci) && (peek_shared_ref(ci, outlet(obj)) < 0))
+			    {
+			      char buf[128];
+			      int32_t len;
+			      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, outlet(obj))), ">", NULL);
+			      port_write_string(port)(sc, buf, len, port);
+			    }
+			  else let_to_port(sc, outlet(obj), port, use_write, ci);
+			}
+		      else port_write_string(port)(sc, "(inlet", 6, port);
+		      slot_list_to_port(sc, let_slots(obj), port, ci, false);
+		      port_write_character(port)(sc, ')', port);
+		    }
 		  if (is_immutable(obj))
 		    port_write_character(port)(sc, ')', port);
 		}
@@ -42851,7 +42873,7 @@ static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_val
 	    {
 	      s7_pointer args;
 	      args = list_3(sc, slot_symbol(slot), old_value, sc->envir);
-	      push_stack(sc, OP_GC_PROTECT, args, slot);
+	      push_stack_no_let(sc, OP_GC_PROTECT, args, slot);
 	      new_value = s7_apply_function(sc, func, args); /* we're called from let_set, so we can't push something and return to the eval loop */
 	      unstack(sc);
 	    }
@@ -42868,7 +42890,7 @@ static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_val
 	    {
 	      s7_pointer args;
 	      args = list_2(sc, slot_symbol(slot), old_value);
-	      push_stack(sc, OP_GC_PROTECT, args, slot);
+	      push_stack_no_let(sc, OP_GC_PROTECT, args, slot);
 	      new_value = s7_apply_function(sc, func, args);
 	      unstack(sc);
 	    }
@@ -43347,6 +43369,7 @@ static bool let_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci
   return(let_equal_1(sc, x, y, ci, false));
 }
 
+/* what should these do if there are setters? */
 static bool let_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
@@ -45461,7 +45484,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
       s7_int i;
 
       pargs = list_2(sc, new_vec, new_vec);
-      push_stack(sc, OP_GC_PROTECT, new_vec, pargs);
+      push_stack_no_let(sc, OP_GC_PROTECT, new_vec, pargs);
 
       for (i = 0, p = args; is_pair(p); p = cdr(p))
 	{
@@ -45534,7 +45557,7 @@ static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
       s7_pointer p;
       s7_int i;
 
-      push_stack(sc, OP_GC_PROTECT, new_str, sc->nil);
+      push_stack_no_let(sc, OP_GC_PROTECT, new_str, sc->nil);
       for (i = 0, p = args; is_pair(p); p = cdr(p))
 	{
 	  s7_pointer x;
@@ -45561,7 +45584,7 @@ static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer new_hash, p;
   new_hash = s7_make_hash_table(sc, sc->default_hash_table_length);
-  push_stack(sc, OP_GC_PROTECT, args, new_hash);
+  push_stack_no_let(sc, OP_GC_PROTECT, args, new_hash);
   for (p = args; is_pair(p); p = cdr(p))
     s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, car(p), new_hash));
   set_plist_2(sc, sc->nil, sc->nil);
@@ -48690,8 +48713,24 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
       return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, obj, indices)));
 
     default:                             /* (#(a b c) 0 1) -> error, but ((list (lambda (x) x)) 0 "hi") -> "hi" */
-      if (is_applicable(obj))
-	return(s7_apply_function(sc, obj, indices)); /* was g_apply 23-Jan-19 which assumes we're not in map */
+      if (is_applicable(obj))            /* (apply (list cons cons) (list 1 2)) needs the argnum check mentioned below */
+	{
+	  if ((is_c_function(obj)) &&
+	      (is_safe_procedure(obj)))
+	    {
+	      s7_int len;
+	      len = safe_list_length(indices);
+	      if ((c_function_required_args(obj) <= len) &&
+		  (c_function_all_args(obj) >= len))
+		return(c_function_call(obj)(sc, indices));
+	    }
+	  push_stack(sc, OP_EVAL_DONE, sc->args, sc->code);
+	  sc->code = obj;
+	  sc->args = (needs_copied_args(obj)) ? copy_list(sc, indices) : indices;
+	  eval(sc, OP_APPLY);
+	  return(sc->value);
+	  /* return(s7_apply_function(sc, obj, indices)); -- needs argnum check */ /* was g_apply 23-Jan-19 which assumes we're not in map */
+	}
       return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, obj, indices)));
     }
 }
@@ -48931,7 +48970,7 @@ pass (rootlet):\n\
       else sc->envir = e;
     }
   sc->code = car(args);
-  if ((sc->safety > NO_SAFETY) && 
+  if ((sc->safety > NO_SAFETY) &&
       (is_pair(sc->code)))
     {
       if (tree_is_cyclic(sc, sc->code))
@@ -57049,6 +57088,17 @@ static s7_pointer opt_p_ii_fs(void *p)
   return(o->v[3].p_ii_f(o->sc, o1->v[0].fi(o1), integer(slot_value(o->v[2].p))));
 }
 
+static s7_pointer opt_p_ii_ff(void *p)
+{
+  opt_info *o1, *o = (opt_info *)p;
+  s7_int i1;
+  oo_rcheck(o->sc, o, 4, 0);
+  o1 = o->sc->opts[++o->sc->pc];
+  i1 = o1->v[0].fi(o1);
+  o1 = o->sc->opts[++o->sc->pc];
+  return(o->v[3].p_ii_f(o->sc, i1, o1->v[0].fi(o1)));
+}
+
 static bool p_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x, int32_t pstart)
 {
   s7_p_ii_t ifunc;
@@ -57076,6 +57126,15 @@ static bool p_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	      opc->v[0].fp = opt_p_ii_fs;
 	      return(oo_set_type_1(opc, 4, 2, OO_I));
 	    }
+	  pc_fallback(sc, pstart);
+	  return(return_false(sc, car_x, __func__, __LINE__));
+	}
+      if ((int_optimize(sc, cdr(car_x))) &&
+	  (int_optimize(sc, cddr(car_x))))
+	{
+	  opc->v[3].p_ii_f = ifunc;
+	  opc->v[0].fp = opt_p_ii_ff;
+	  return(oo_set_type_0(opc, 4));
 	}
     }
   pc_fallback(sc, pstart);
@@ -59302,14 +59361,46 @@ static s7_pointer opt_begin_p_1(void *p)
   return(o1->v[0].fp(o1));
 }
 
+static void oo_idp_nr_fixup(opt_info *start)
+{
+  if (start->v[0].fp == d_to_p)
+    {
+      start->v[0].fp = d_to_p_nr;
+      if (start->v[7].fd == opt_d_7pid_ssf)
+	start->v[0].fp = opt_d_7pid_ssf_nr;
+      else
+	{
+	  if (start->v[7].fd == opt_d_7pid_ssfo_fv)
+	    {
+	      start->v[0].fp = opt_d_7pid_ssfo_fv_nr;
+	      if (start->v[6].d_dd_f == add_d_dd)
+		start->v[0].fp = opt_d_7pid_ssfo_fv_add_nr;
+	      else
+		{
+		  if (start->v[6].d_dd_f == subtract_d_dd)
+		    start->v[0].fp = opt_d_7pid_ssfo_fv_sub_nr;
+		}}}}
+  else
+    {
+      if (start->v[0].fp == i_to_p)
+	start->v[0].fp = i_to_p_nr;
+    }
+}
+
 static bool opt_cell_begin(s7_scheme *sc, s7_pointer car_x, int32_t len)
 {
   opt_info *opc;
   s7_pointer p;
   opc = alloc_opo(sc, car_x);
   for (p = cdr(car_x); is_pair(p); p = cdr(p))
-    if (!cell_optimize(sc, p))
-      return(return_false(sc, car_x, __func__, __LINE__));
+    {
+      opt_info *start;
+      start = sc->opts[sc->pc];
+      if (!cell_optimize(sc, p))
+	return(return_false(sc, car_x, __func__, __LINE__));
+      if (is_pair(cdr(p)))
+	oo_idp_nr_fixup(start);
+    }
   opc->v[1].i = len - 1;
   opc->v[0].fp = (len == 3) ? opt_begin_p_1 : opt_begin_p;
   return(oo_set_type_0(opc, 2));
@@ -59366,8 +59457,14 @@ static bool opt_cell_when(s7_scheme *sc, s7_pointer car_x, int32_t len)
   if (!bool_optimize(sc, cdr(car_x)))
     return(return_false(sc, car_x, __func__, __LINE__));
   for (p = cddr(car_x); is_pair(p); p = cdr(p))
-    if (!cell_optimize(sc, p))
-      return(return_false(sc, car_x, __func__, __LINE__));
+    {
+      opt_info *start;
+      start = sc->opts[sc->pc];
+      if (!cell_optimize(sc, p))
+	return(return_false(sc, car_x, __func__, __LINE__));
+      if (is_pair(cdr(p)))
+	oo_idp_nr_fixup(start);
+    }
   opc->v[1].i = len - 2;
   opc->v[3].i = sc->pc - 1;
   opc->v[0].fp = ((car(car_x) == sc->when_symbol) ? opt_when_p : opt_unless_p);
@@ -60185,7 +60282,7 @@ static s7_pointer opt_do_no_vars(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   loop = ++sc->pc;
@@ -60230,7 +60327,7 @@ static s7_pointer opt_do_1(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = let_slots(o->v[2].p);
@@ -60265,7 +60362,7 @@ static s7_pointer opt_do_n(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = let_slots(o->v[2].p);
@@ -60323,7 +60420,7 @@ static s7_pointer opt_dotimes_2(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = slot_value(dox_slot1(o->v[2].p));
@@ -60379,7 +60476,7 @@ static s7_pointer opt_do_list_simple(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = let_slots(o->v[2].p);
@@ -60415,7 +60512,7 @@ static s7_pointer opt_do_very_simple(void *p)
 
   oo_rcheck(sc, o, 6, 0); /* v[2].p is a let */
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = slot_value(dox_slot1(o->v[2].p));
@@ -60451,7 +60548,7 @@ static s7_pointer opt_do_prepackaged(void *p)
 
   oo_rcheck(sc, o, 6, 0);
   old_e = sc->envir;
-  push_stack(sc, OP_GC_PROTECT, old_e, sc->nil);
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, old_e);
   sc->envir = o->v[2].p;
 
   vp = slot_value(dox_slot1(o->v[2].p));
@@ -60587,32 +60684,6 @@ static bool stop_is_safe(s7_scheme *sc, s7_pointer stop, s7_pointer body)
 	(cadar(p) == stop))
       return(!s7_tree_memq(sc, stop, cdr(p)));
   return(true);
-}
-
-static void oo_idp_nr_fixup(opt_info *start)
-{
-  if (start->v[0].fp == d_to_p)
-    {
-      start->v[0].fp = d_to_p_nr;
-      if (start->v[7].fd == opt_d_7pid_ssf)
-	start->v[0].fp = opt_d_7pid_ssf_nr;
-      else
-	{
-	  if (start->v[7].fd == opt_d_7pid_ssfo_fv)
-	    {
-	      start->v[0].fp = opt_d_7pid_ssfo_fv_nr;
-	      if (start->v[6].d_dd_f == add_d_dd)
-		start->v[0].fp = opt_d_7pid_ssfo_fv_add_nr;
-	      else
-		{
-		  if (start->v[6].d_dd_f == subtract_d_dd)
-		    start->v[0].fp = opt_d_7pid_ssfo_fv_sub_nr;
-		}}}}
-  else
-    {
-      if (start->v[0].fp == i_to_p)
-	start->v[0].fp = i_to_p_nr;
-    }
 }
 
 static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_pointer var_list, bool *has_set);
@@ -71536,7 +71607,6 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 	      slot = make_slot_1(sc, new_env, arg, sc->nil);     /* set up rest arg */
 	      slot_set_expression(slot, sc->nil);
 	    }
-	  /* fprintf(stderr, "  -> let: %s\n", DISPLAY(new_env)); */
 	  if (tis_slot(let_slots(new_env)))
 	    {
 	      let_set_slots(new_env, reverse_slots(sc, let_slots(new_env)));
@@ -89836,30 +89906,30 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356   357
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1199
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1515
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1189
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1716
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2090
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2247
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2328
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2482
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2503
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2682
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3002
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3001
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3482
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3487
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5189
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6398
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  11.0
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5186
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6389
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.2
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.3
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 203.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.1
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 203.0
  * --------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -89869,14 +89939,9 @@ int main(int argc, char **argv)
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
- * t718:
- *   in mockery make functions for the ref/set multi arg cases etc
- *   also s7test char-position string-position string->number univect-ref/set tests, t952->s7test
  * what about (lambda* (:rest args)...)?
  *   (define* (f :rest asdf) asdf) (f :asdf 1) -> '(:asdf 1)
  *   so this needs lint and s7 updates
  *   (define* (f a :rest b) (list a b)) (f 1 2 :a 3): '(1 (2 :a 3)) but (f :b 3) '(#f 3) -- inconsistent? (f :a 1 :b 3): '(1 (:b 3))
- *   same if (define* (f a . b) -- maybe say rest arg is not keyword accessible?
- * except non-cyclic let, :readable output doesn't know about setters (also equal? equivalent? -- both ignore setters)
- * cycle in multivector_to_port
+ *   same if (define* (f a . b), (define* (f a :rest b c) (list a b c)) (f :b 3) -> '(#f 3 #f)
  */

@@ -2430,18 +2430,25 @@ D_METHOD(increment)
 D_METHOD(feedforward)
 D_METHOD(feedback)
 
+/* these two accept float-vectors and other non-generator arguments */
 #define I_METHOD(Func)					\
+  static s7_int mus_ ## Func ## _ip(s7_scheme *sc, s7_pointer o)	\
+  {							\
+   return(s7_integer(g_mus_ ## Func(o)));		\
+  }
+I_METHOD(length)
+I_METHOD(channels)
+
+#define I2_METHOD(Func)					\
   static s7_int mus_ ## Func ## _ip(s7_scheme *sc, s7_pointer o)	\
   {							\
    return(mus_ ## Func(Xen_to_mus_any(o)));		\
   }
-I_METHOD(length)
-I_METHOD(order)
-I_METHOD(location)
-I_METHOD(channel)
-I_METHOD(channels)
-I_METHOD(ramp)
-I_METHOD(hop)
+I2_METHOD(order)
+I2_METHOD(location)
+I2_METHOD(channel)
+I2_METHOD(ramp)
+I2_METHOD(hop)
 #endif
 
 
