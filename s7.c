@@ -2431,6 +2431,10 @@ static void init_types(void)
 #define c_function_has_bool_setter(p)  has_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 #define c_function_set_has_bool_setter(p) set_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 
+#define T_REST_SLOT                    T_S7_LET_FIELD
+#define is_rest_slot(p)                has_type1_bit(T_Slt(p), T_REST_SLOT)
+#define set_is_rest_slot(p)            set_type1_bit(T_Slt(p), T_REST_SLOT)
+
 #define T_FULL_DEFINER                 (1LL << (TYPE_BITS + BIT_ROOM + 26))
 #define T_DEFINER                      (1 << 2)
 #define is_definer(p)                  has_type1_bit(T_Sym(p), T_DEFINER)
@@ -7041,6 +7045,7 @@ static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
   return(sc->nil);
 }
 
+static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_value);
 
 static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
 {
@@ -7066,11 +7071,14 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer p;
       for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	slot_set_value(p, val);
+	{
+	  if (slot_has_setter(p))
+	    slot_set_value(p, call_setter(sc, p, val));
+	  else slot_set_value(p, val);
+	}
     }
   return(val);
 }
-
 
 static s7_pointer find_method(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
 {
@@ -8181,8 +8189,6 @@ static bool op_environment_a(s7_scheme *sc)
 
 
 /* -------------------------------- let-set! -------------------------------- */
-static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_value);
-
 static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value)
 {
   s7_pointer x, y;
@@ -11228,12 +11234,10 @@ static char *integer_to_string_no_length(s7_scheme *sc, s7_int num) /* do not fr
 
 #define BASE_10 10
 
-static char *floatify(char *str, s7_int *nlen)
+static inline char *floatify(char *str, s7_int *nlen)
 {
-  if ((!strchr(str, '.')) &&
-      (!strchr(str, 'e')))
+  if ((!strchr(str, '.')) && (!strchr(str, 'e'))) /* faster than (strcspn(str, ".e") >= (size_t)(*nlen)) */
     {
-      /* this assumes there is room in str for 2 more chars */
       s7_int len;
       len = *nlen;
       str[len]='.';
@@ -11563,7 +11567,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   #define H_number_to_string "(number->string num (radix 10)) converts the number num into a string."
   #define Q_number_to_string s7_make_signature(sc, 3, sc->is_string_symbol, sc->is_number_symbol, sc->is_integer_symbol)
 
-  s7_int nlen = 0, radix = 10;
+  s7_int nlen = 0, radix;
   char *res;
   s7_pointer x;
 
@@ -11580,9 +11584,19 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
       else return(method_or_bust(sc, y, sc->number_to_string_symbol, args, T_INTEGER, 2));
       if ((radix < 2) || (radix > 16))
 	return(out_of_range(sc, sc->number_to_string_symbol, small_int(2), y, a_valid_radix_string));
+#if (WITH_GMP)
+      if (!s7_is_bignum(x))
+#endif
+	{
+	  s7_pointer p;
+	  res = number_to_string_with_radix(sc, x, radix, 0, sc->float_format_precision, 'g', &nlen);
+	  p = make_string_with_length(sc, res, nlen);
+	  free(res);
+	  return(p);
+	}
     }
-
 #if WITH_GMP
+  else radix = 10;
   if (s7_is_bignum(x))
     {
       s7_pointer p;
@@ -11592,25 +11606,6 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
       return(p);
     }
 #endif
-
-  if (radix != 10)
-    {
-#if 0
-      /* weird -- this is much slower due to malloc? */
-      block_t *b;
-      res = number_to_string_with_radix(sc, x, radix, 0, sc->float_format_precision, 'g', &nlen);
-      b = mallocate_block(sc);
-      block_data(b) = (void *)res;
-      block_set_index(b, TOP_BLOCK_LIST);
-      return(block_to_string(sc, b, nlen));
-#else
-      s7_pointer p;
-      res = number_to_string_with_radix(sc, x, radix, 0, sc->float_format_precision, 'g', &nlen);
-      p = make_string_with_length(sc, res, nlen);
-      free(res);
-      return(p);
-#endif
-    }
   res = number_to_string_base_10(sc, x, 0, sc->float_format_precision, 'g', &nlen, P_WRITE);
   return(make_string_with_length(sc, res, nlen));
 }
@@ -29291,7 +29286,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							  ((is_any_vector(obj)) ? " typed-vector" :
 							   ((is_hash_table(obj)) ? " typed-hash-table" :
 							    ((is_c_function(obj)) ? " has-bool-setter" :
-							     " ?25?")))))) : "",
+							     ((is_slot(obj)) ? " rest-slot" :
+							      " ?25?"))))))) : "",
 	   /* bit 26+16 */
 	   ((full_typ & T_FULL_DEFINER) != 0) ?   ((is_symbol(obj)) ? " definer" :
 						   ((is_pair(obj)) ? " has-fx" :
@@ -29355,7 +29351,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) && ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)))) return(true);
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_FULL_S7_LET_FIELD) != 0) &&
-      (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)))
+      (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)))
     return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) &&
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
@@ -35333,8 +35329,9 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
   s7_pointer y, tp, np = NULL, pp;
   bool all_args_are_lists = true;
 
-  /* we know here that args is a pair and cdr(args) is not nil */
+  /* we know here that args is a pair and cdr(args) is not nil; this function does not check sc->max_list_length; called only in g_append */
   tp = sc->nil;
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, args);
   for (y = args; is_pair(y); y = cdr(y)) /* arglist so not dotted */
     {
       s7_pointer p;
@@ -35365,6 +35362,7 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 		}
 	    }
 	  sc->y = sc->nil;
+	  unstack(sc);
 	  return(tp);
 	}
 
@@ -35420,6 +35418,7 @@ static s7_pointer g_list_append(s7_scheme *sc, s7_pointer args)
 	    }
 	}
     }
+  unstack(sc);
   return(tp);
 }
 
@@ -35858,7 +35857,7 @@ static void normal_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       (c_function_call(typed_vector_typer(vec))(sc, set_plist_1(sc, obj)) == sc->F))
     s7_wrong_type_arg_error(sc, "vector fill!", 2, obj,
 			    make_type_name(sc, c_function_name(typed_vector_typer(vec)), INDEFINITE_ARTICLE));
-
+  /* splitting out this part made no difference in speed */
   orig = vector_elements(vec);
   left = len - 8;
   i = 0;
@@ -40164,6 +40163,8 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 	  ht = s7_make_hash_table(sc, size);
 	  /* look for key/value type functions */
 	  dproc = sc->nil;
+
+	  /* check for typers */
 	  if (is_pair(cddr(args)))
 	    {
 	      s7_pointer typers;
@@ -40173,9 +40174,10 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 		  s7_pointer keyp, valp;
 		  keyp = car(typers);
 		  valp = cdr(typers);
-		  if ((keyp != sc->T) || (valp != sc->T))
+		  if ((keyp != sc->T) || (valp != sc->T)) /* one of them is a type checker */
 		    {
-		      if ((!is_c_function(keyp)) && (!is_c_function(valp)))
+		      if (((keyp != sc->T) && (!is_c_function(keyp))) ||
+			  ((valp != sc->T) && (!is_c_function(valp))))
 			return(wrong_type_argument_with_type(sc, caller, 3, typers, wrap_string(sc, "(key-type . value-type)", 23)));
 		      dproc = cons(sc, sc->T, sc->T);
 		      hash_table_set_procedures(ht, dproc);
@@ -46080,6 +46082,10 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 
     case T_LET:
       {
+	/* how to handle setters? 
+	 *   (display (let ((e (let ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))): 
+	 *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open #f 'outlet () 'immutable? #f)"
+	 */
 	s7_pointer let;
 	if (!sc->open_symbol)
 	  {
@@ -77303,24 +77309,28 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 
 
 /* lambda* */
-static s7_pointer star_set(s7_scheme *sc, s7_pointer slot, s7_pointer val)
+static s7_pointer star_set(s7_scheme *sc, s7_pointer slot, s7_pointer val, bool check_rest)
 {
   if (is_checked_slot(slot))
     return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_4(sc, parameter_set_twice_string, closure_name(sc, sc->code), slot_symbol(slot), sc->args)));
+  if ((check_rest) && (is_rest_slot(slot)))
+    return(s7_error(sc, sc->wrong_type_arg_symbol,
+		    set_elist_3(sc, wrap_string(sc, "can't set rest arg ~S to ~S via keyword", 39),
+				slot_symbol(slot), val)));
   set_checked_slot(slot);
   slot_set_value(slot, val);
   return(val);
 }
 
-static s7_pointer lambda_star_argument_set_value(s7_scheme *sc, s7_pointer sym, s7_pointer val, s7_pointer slot)
+static s7_pointer lambda_star_argument_set_value(s7_scheme *sc, s7_pointer sym, s7_pointer val, s7_pointer slot, bool check_rest)
 {
   s7_pointer x;
   if (val == sc->no_value) val = sc->unspecified;
   if (sym == slot_symbol(slot))
-    return(star_set(sc, slot, val));
+    return(star_set(sc, slot, val, check_rest));
   for (x = let_slots(sc->envir) /* presumably the arglist */; tis_slot(x); x = next_slot(x))
     if (slot_symbol(x) == sym)
-      return(star_set(sc, x, val));
+      return(star_set(sc, x, val, check_rest));
   return(sc->no_value);
 }
 
@@ -77339,12 +77349,18 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
   while ((is_pair(cx)) &&
 	 (is_pair(lx)))
     {
-      if (car(cx) == sc->key_rest_symbol)           /* the rest arg */
+      if (car(cx) == sc->key_rest_symbol)           /* the rest arg, default arg not allowed here (see check_lambda_star_args) */
 	{
 	  /* next arg is bound to trailing args from this point as a list */
 	  zx = sc->key_rest_symbol;
 	  cx = cdr(cx);
-	  lambda_star_argument_set_value(sc, car(cx), lx, slot); /* default arg not allowed here (see check_lambda_star_args) */
+	  if ((is_keyword(car(lx))) && 
+	      (is_pair(cdr(lx))) &&
+	      (keyword_symbol(car(lx)) == car(cx)))
+	    return(s7_error(sc, sc->wrong_type_arg_symbol,
+			    set_elist_3(sc, wrap_string(sc, "can't set rest arg ~S to ~S via keyword", 39),
+					car(cx), cadr(lx))));
+	  lambda_star_argument_set_value(sc, car(cx), lx, slot, false);
 	  lx = cdr(lx);
 	  cx = cdr(cx);
 	  slot = next_slot(slot);
@@ -77370,8 +77386,7 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 				set_elist_4(sc, wrap_string(sc, "~A: keyword argument's value is missing: ~S in ~S", 49),
 					    closure_name(sc, code), lx, args)));
 	      sym = keyword_symbol(car_lx);
-
-	      if (lambda_star_argument_set_value(sc, sym, cadr(lx), slot) == sc->no_value)
+	      if (lambda_star_argument_set_value(sc, sym, cadr(lx), slot, true) == sc->no_value)
 		{
 		  /* if default value is a key, go ahead and use this value.
 		   *    (define* (f (a :b)) a) (f :c)
@@ -77415,7 +77430,15 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 	  (zx == sc->key_rest_symbol))
 	{
 	  if (is_symbol(cx))
-	    slot_set_value(slot, lx);
+	    {
+	      if ((is_keyword(car(lx))) && 
+		  (is_pair(cdr(lx))) &&
+		  (keyword_symbol(car(lx)) == cx))
+		return(s7_error(sc, sc->wrong_type_arg_symbol,
+				set_elist_3(sc, wrap_string(sc, "can't set rest arg ~S to ~S via keyword", 39),
+					    cx, cadr(lx))));
+	      slot_set_value(slot, lx);
+	    }
 	}
       else
 	{
@@ -77562,14 +77585,14 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
 	    {
 	      if (car_z == sc->key_rest_symbol) /* else it's :allow-other-keys? */
 		{
-		  make_slot_1(sc, sc->envir, cadr(z), sc->nil);
+		  set_is_rest_slot(make_slot_1(sc, sc->envir, cadr(z), sc->nil));
 		  z = cdr(z);
 		}
 	    }
 	}
     }
   if (is_symbol(z))
-    make_slot_1(sc, sc->envir, z, sc->nil);     /* set up rest arg */
+    set_is_rest_slot(make_slot_1(sc, sc->envir, z, sc->nil));     /* set up rest arg */
   let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
 
  SET_ARGS:
@@ -89916,7 +89939,7 @@ int main(int argc, char **argv)
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2482
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3001
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3001 2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3487
@@ -89929,7 +89952,7 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.1
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 203.0
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 203.0 202.9
  * --------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -89939,9 +89962,4 @@ int main(int argc, char **argv)
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
- * what about (lambda* (:rest args)...)?
- *   (define* (f :rest asdf) asdf) (f :asdf 1) -> '(:asdf 1)
- *   so this needs lint and s7 updates
- *   (define* (f a :rest b) (list a b)) (f 1 2 :a 3): '(1 (2 :a 3)) but (f :b 3) '(#f 3) -- inconsistent? (f :a 1 :b 3): '(1 (:b 3))
- *   same if (define* (f a . b), (define* (f a :rest b c) (list a b c)) (f :b 3) -> '(#f 3 #f)
  */
