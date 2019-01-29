@@ -2885,17 +2885,9 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define slot_just_set_expression(p, Val) (T_Slt(p))->object.slt.expr = T_Pos(Val)
 #define slot_setter(p)                 (T_Slt(p))->object.slt.expr
 #define slot_set_setter_1(p, Val)      (T_Slt(p))->object.slt.expr = T_App(Val)
-
-#if 0
-/* changed 19-Jan-19 */
-#define tis_slot(p) (type(p) != T_EOF_OBJECT) /* type(p) == T_SLOT */
-#define slot_end(sc) eof_object               /* sc->nil */
-#define is_slot_end(p) (p == eof_object)      /* type(p) == T_NIL */
-#else
 #define tis_slot(p) (p)
 #define slot_end(sc) NULL
 #define is_slot_end(p) (!(p))
-#endif
 
 #define is_syntax(p)                   (type(p) == T_SYNTAX)
 #define syntax_symbol(p)               T_Sym((T_Syn(p))->object.syn.symbol)
@@ -11127,6 +11119,411 @@ static double ipow(int32_t x, int32_t y)
   return(pepow[x][y + MAX_POW]);
 }
 
+/* -------------------------------- */
+#define WITH_DTOA 1
+#if WITH_DTOA
+/* fpconv, revised to fit the local coding style
+
+   The MIT License
+
+Copyright (c) 2013 Andreas Samoljuk
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#define npowers     87
+#define steppowers  8
+#define firstpower -348 /* 10 ^ -348 */
+#define expmax     -32
+#define expmin     -60
+
+typedef struct Fp {uint64_t frac; int exp;} Fp;
+
+static Fp powers_ten[] = {
+    { 18054884314459144840U, -1220 }, { 13451937075301367670U, -1193 },
+    { 10022474136428063862U, -1166 }, { 14934650266808366570U, -1140 },
+    { 11127181549972568877U, -1113 }, { 16580792590934885855U, -1087 },
+    { 12353653155963782858U, -1060 }, { 18408377700990114895U, -1034 },
+    { 13715310171984221708U, -1007 }, { 10218702384817765436U, -980 },
+    { 15227053142812498563U, -954 },  { 11345038669416679861U, -927 },
+    { 16905424996341287883U, -901 },  { 12595523146049147757U, -874 },
+    { 9384396036005875287U,  -847 },  { 13983839803942852151U, -821 },
+    { 10418772551374772303U, -794 },  { 15525180923007089351U, -768 },
+    { 11567161174868858868U, -741 },  { 17236413322193710309U, -715 },
+    { 12842128665889583758U, -688 },  { 9568131466127621947U,  -661 },
+    { 14257626930069360058U, -635 },  { 10622759856335341974U, -608 },
+    { 15829145694278690180U, -582 },  { 11793632577567316726U, -555 },
+    { 17573882009934360870U, -529 },  { 13093562431584567480U, -502 },
+    { 9755464219737475723U,  -475 },  { 14536774485912137811U, -449 },
+    { 10830740992659433045U, -422 },  { 16139061738043178685U, -396 },
+    { 12024538023802026127U, -369 },  { 17917957937422433684U, -343 },
+    { 13349918974505688015U, -316 },  { 9946464728195732843U,  -289 },
+    { 14821387422376473014U, -263 },  { 11042794154864902060U, -236 },
+    { 16455045573212060422U, -210 },  { 12259964326927110867U, -183 },
+    { 18268770466636286478U, -157 },  { 13611294676837538539U, -130 },
+    { 10141204801825835212U, -103 },  { 15111572745182864684U, -77 },
+    { 11258999068426240000U, -50 },   { 16777216000000000000U, -24 },
+    { 12500000000000000000U,   3 },   { 9313225746154785156U,   30 },
+    { 13877787807814456755U,  56 },   { 10339757656912845936U,  83 },
+    { 15407439555097886824U, 109 },   { 11479437019748901445U, 136 },
+    { 17105694144590052135U, 162 },   { 12744735289059618216U, 189 },
+    { 9495567745759798747U,  216 },   { 14149498560666738074U, 242 },
+    { 10542197943230523224U, 269 },   { 15709099088952724970U, 295 },
+    { 11704190886730495818U, 322 },   { 17440603504673385349U, 348 },
+    { 12994262207056124023U, 375 },   { 9681479787123295682U,  402 },
+    { 14426529090290212157U, 428 },   { 10748601772107342003U, 455 },
+    { 16016664761464807395U, 481 },   { 11933345169920330789U, 508 },
+    { 17782069995880619868U, 534 },   { 13248674568444952270U, 561 },
+    { 9871031767461413346U,  588 },   { 14708983551653345445U, 614 },
+    { 10959046745042015199U, 641 },   { 16330252207878254650U, 667 },
+    { 12166986024289022870U, 694 },   { 18130221999122236476U, 720 },
+    { 13508068024458167312U, 747 },   { 10064294952495520794U, 774 },
+    { 14996968138956309548U, 800 },   { 11173611982879273257U, 827 },
+    { 16649979327439178909U, 853 },   { 12405201291620119593U, 880 },
+    { 9242595204427927429U,  907 },   { 13772540099066387757U, 933 },
+    { 10261342003245940623U, 960 },   { 15290591125556738113U, 986 },
+    { 11392378155556871081U, 1013 },  { 16975966327722178521U, 1039 },
+    { 12648080533535911531U, 1066 }};
+
+static Fp dtoa_find_cachedpow10(int exp, int* k)
+{
+  int approx, idx;
+  const double one_log_ten = 0.30102999566398114;
+
+  approx = -(exp + npowers) * one_log_ten;
+  idx = (approx - firstpower) / steppowers;
+  while (true) 
+    {
+      int current;
+      current = exp + powers_ten[idx].exp + 64;
+      if (current < expmin) 
+	{
+	  idx++;
+	  continue;
+        }
+      if (current > expmax) 
+	{
+	  idx--;
+	  continue;
+        }
+      *k = (firstpower + idx * steppowers);
+      return(powers_ten[idx]);
+    }
+}
+
+#define fracmask  0x000FFFFFFFFFFFFFU
+#define expmask   0x7FF0000000000000U
+#define hiddenbit 0x0010000000000000U
+#define signmask  0x8000000000000000U
+#define expbias   (1023 + 52)
+#define absv(n)   ((n) < 0 ? -(n) : (n))
+#define minv(a, b) ((a) < (b) ? (a) : (b))
+
+static uint64_t dtoa_tens[] = 
+  { 10000000000000000000U, 1000000000000000000U, 100000000000000000U,
+    10000000000000000U, 1000000000000000U, 100000000000000U,
+    10000000000000U, 1000000000000U, 100000000000U,
+    10000000000U, 1000000000U, 100000000U,
+    10000000U, 1000000U, 100000U,
+    10000U, 1000U, 100U,
+    10U, 1U};
+
+static uint64_t dtoa_get_dbits(double d)
+{
+  union {double dbl; uint64_t i;} dbl_bits = {d};
+  return(dbl_bits.i);
+}
+
+static Fp dtoa_build_fp(double d)
+{
+  uint64_t bits;
+  Fp fp;
+
+  bits = dtoa_get_dbits(d);
+  fp.frac = bits & fracmask;
+  fp.exp = (bits & expmask) >> 52;
+  if (fp.exp) 
+    {
+      fp.frac += hiddenbit;
+      fp.exp -= expbias;
+    } 
+  else fp.exp = -expbias + 1;
+  return(fp);
+}
+
+static void dtoa_normalize(Fp* fp)
+{
+  int shift;
+  while ((fp->frac & hiddenbit) == 0)
+    {
+      fp->frac <<= 1;
+      fp->exp--;
+    }
+  shift = 64 - 52 - 1;
+  fp->frac <<= shift;
+  fp->exp -= shift;
+}
+
+static void dtoa_get_normalized_boundaries(Fp* fp, Fp* lower, Fp* upper)
+{
+  int u_shift, l_shift;
+  upper->frac = (fp->frac << 1) + 1;
+  upper->exp  = fp->exp - 1;
+  while ((upper->frac & (hiddenbit << 1)) == 0) 
+    {
+      upper->frac <<= 1;
+      upper->exp--;
+    }
+  u_shift = 64 - 52 - 2;
+  upper->frac <<= u_shift;
+  upper->exp = upper->exp - u_shift;
+  l_shift = fp->frac == hiddenbit ? 2 : 1;
+  lower->frac = (fp->frac << l_shift) - 1;
+  lower->exp = fp->exp - l_shift;
+  lower->frac <<= lower->exp - upper->exp;
+  lower->exp = upper->exp;
+}
+
+static Fp dtoa_multiply(Fp* a, Fp* b)
+{
+  Fp fp;
+  uint64_t ah_bl, al_bh, al_bl, ah_bh, tmp;
+  const uint64_t lomask = 0x00000000FFFFFFFF;
+
+  ah_bl = (a->frac >> 32)    * (b->frac & lomask);
+  al_bh = (a->frac & lomask) * (b->frac >> 32);
+  al_bl = (a->frac & lomask) * (b->frac & lomask);
+  ah_bh = (a->frac >> 32)    * (b->frac >> 32);
+  tmp = (ah_bl & lomask) + (al_bh & lomask) + (al_bl >> 32); 
+  /* round up */
+  tmp += 1U << 31;
+  fp.frac = ah_bh + (ah_bl >> 32) + (al_bh >> 32) + (tmp >> 32);
+  fp.exp = a->exp + b->exp + 64;
+  return(fp);
+}
+
+static void dtoa_round_digit(char* digits, int ndigits, uint64_t delta, uint64_t rem, uint64_t kappa, uint64_t frac)
+{
+  while ((rem < frac) && (delta - rem >= kappa) &&
+	 ((rem + kappa < frac) || (frac - rem > rem + kappa - frac)))
+    {
+      digits[ndigits - 1]--;
+      rem += kappa;
+    }
+}
+
+static int dtoa_generate_digits(Fp* fp, Fp* upper, Fp* lower, char* digits, int* K)
+{
+  uint64_t part1, part2, wfrac, delta;
+  uint64_t *divp, *unit;
+  int idx, kappa;
+  Fp one;
+
+  wfrac = upper->frac - fp->frac;
+  delta = upper->frac - lower->frac;
+  one.frac = 1ULL << -upper->exp;
+  one.exp  = upper->exp;
+  part1 = upper->frac >> -one.exp;
+  part2 = upper->frac & (one.frac - 1);
+  idx = 0;
+  kappa = 10;
+
+  /* 1000000000 */
+  for (divp = dtoa_tens + 10; kappa > 0; divp++) 
+    {
+      uint64_t tmp, div;
+      unsigned digit;
+      div = *divp;
+      digit = part1 / div;
+      if (digit || idx) 
+	digits[idx++] = digit + '0';
+      part1 -= digit * div;
+      kappa--;
+      tmp = (part1 << -one.exp) + part2;
+      if (tmp <= delta) 
+	{
+	  *K += kappa;
+	  dtoa_round_digit(digits, idx, delta, tmp, div << -one.exp, wfrac);
+	  return(idx);
+        }
+    }
+
+  /* 10 */
+  unit = dtoa_tens + 18;
+  while(true) 
+    {
+      unsigned digit;
+      part2 *= 10;
+      delta *= 10;
+      kappa--;
+      digit = part2 >> -one.exp;
+      if (digit || idx)
+	digits[idx++] = digit + '0';
+      part2 &= one.frac - 1;
+      if (part2 < delta)
+	{
+	  *K += kappa;
+	  dtoa_round_digit(digits, idx, delta, part2, one.frac, wfrac * *unit);
+	  return(idx);
+	}
+      unit--;
+    }
+}
+
+static int dtoa_grisu2(double d, char* digits, int* K)
+{
+  int k;
+  Fp cp, w, lower, upper;
+  w = dtoa_build_fp(d);
+  dtoa_get_normalized_boundaries(&w, &lower, &upper);
+  dtoa_normalize(&w);
+  cp = dtoa_find_cachedpow10(upper.exp, &k);
+  w = dtoa_multiply(&w, &cp);
+  upper = dtoa_multiply(&upper, &cp);
+  lower = dtoa_multiply(&lower, &cp);
+  lower.frac++;
+  upper.frac--;
+  *K = -k;
+  return(dtoa_generate_digits(&w, &upper, &lower, digits, K));
+}
+
+static int dtoa_emit_digits(char* digits, int ndigits, char* dest, int K, bool neg)
+{
+  int exp, idx, cent;
+  char sign;
+  exp = absv(K + ndigits - 1);
+
+  /* write plain integer */
+  if ((K >= 0) && (exp < (ndigits + 7))) 
+    {
+      memcpy(dest, digits, ndigits);
+      memset(dest + ndigits, '0', K);
+      return(ndigits + K);
+    }
+
+  /* write decimal w/o scientific notation */
+  if ((K < 0) && (K > -7 || exp < 4))
+    {
+      int offset;
+      offset = ndigits - absv(K);
+      /* fp < 1.0 -> write leading zero */
+      if (offset <= 0)
+	{
+	  offset = -offset;
+	  dest[0] = '0';
+	  dest[1] = '.';
+	  memset(dest + 2, '0', offset);
+	  memcpy(dest + offset + 2, digits, ndigits);
+	  return(ndigits + 2 + offset);
+	  /* fp > 1.0 */
+	} 
+      else
+	{
+	  memcpy(dest, digits, offset);
+	  dest[offset] = '.';
+	  memcpy(dest + offset + 1, digits + offset, ndigits - offset);
+	  return(ndigits + 1);
+	}
+    }
+  
+  /* write decimal w/ scientific notation */
+  ndigits = minv(ndigits, 18 - neg);
+  idx = 0;
+  dest[idx++] = digits[0];
+  if (ndigits > 1)
+    {
+      dest[idx++] = '.';
+      memcpy(dest + idx, digits + 1, ndigits - 1);
+      idx += ndigits - 1;
+    }
+  dest[idx++] = 'e';
+  sign = K + ndigits - 1 < 0 ? '-' : '+';
+  dest[idx++] = sign;
+  cent = 0;
+  if (exp > 99)
+    {
+      cent = exp / 100;
+      dest[idx++] = cent + '0';
+      exp -= cent * 100;
+    }
+  if (exp > 9)
+    {
+      int dec;
+      dec = exp / 10;
+      dest[idx++] = dec + '0';
+      exp -= dec * 10;
+    }
+  else
+    {
+      if (cent)
+	dest[idx++] = '0';
+    }
+  dest[idx++] = exp % 10 + '0';
+  return(idx);
+}
+
+static int dtoa_filter_special(double fp, char* dest)
+{
+  uint64_t bits;
+  bool nan;
+  if (fp == 0.0)
+    {
+      dest[0] = '0';
+      return(1);
+    }
+  bits = dtoa_get_dbits(fp);
+  nan = (bits & expmask) == expmask;
+  if (!nan) return(0);
+  
+  if (bits & fracmask)
+    {
+      dest[0] = 'n'; dest[1] = 'a'; dest[2] = 'n';
+    }
+  else
+    {
+      dest[0] = 'i'; dest[1] = 'n'; dest[2] = 'f';
+    }
+  return(3);
+}
+
+static inline int fpconv_dtoa(double d, char dest[24])
+{
+  char digits[18];
+  int str_len = 0, spec, K, ndigits;
+  bool neg = false;
+  
+  if (dtoa_get_dbits(d) & signmask)
+    {
+      dest[0] = '-';
+      str_len++;
+      neg = true;
+    }
+  
+  spec = dtoa_filter_special(d, dest + str_len);
+  if (spec) return(str_len + spec);
+  K = 0;
+  ndigits = dtoa_grisu2(d, digits, &K);
+  str_len += dtoa_emit_digits(digits, ndigits, dest + str_len, K, neg);
+  return(str_len);
+}
+#endif
 
 /* -------------------------------- number->string -------------------------------- */
 static const char dignum[] = "0123456789abcdef";
@@ -11321,9 +11718,24 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
 
     case T_REAL:
       if (width == 0)
-	len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
-		       (float_choice == 'g') ? "%.*g" : ((float_choice == 'f') ? "%.*f" : "%.*e"),
-		       (int32_t)precision, real(obj)); /* -4 for floatify */
+	{
+#if WITH_DTOA
+	  if ((float_choice == 'g') &&
+	      (precision == WRITE_REAL_PRECISION) &&
+	      (!is_NaN(real(obj))) &&
+	      (!is_inf(real(obj))))
+	    {
+	      len = fpconv_dtoa(real(obj), sc->num_to_str);
+	      sc->num_to_str[len] = '\0';
+	    }
+	  else
+#endif
+	    {
+	      len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
+			     (float_choice == 'g') ? "%.*g" : ((float_choice == 'f') ? "%.*f" : "%.*e"),
+			     (int32_t)precision, real(obj)); /* -4 for floatify */
+	    }
+	}
       else len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
 			  (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
 			  (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
@@ -89929,17 +90341,17 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356   357
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1189
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1177
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1716
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2371
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2482
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  3001 2832
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3487
@@ -89952,7 +90364,7 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.1
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 203.0 202.9
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 182.4
  * --------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -89962,4 +90374,6 @@ int main(int argc, char **argv)
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
+ * fpconv_dtoa could be tied more tightly into s7 (no floatify, handle nans/infs etc, maybe extend to 'f' and 'e')
+ *   dtoa_* for its macros etc
  */

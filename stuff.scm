@@ -1784,7 +1784,10 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :max-stack-size                (*s7* 'max-stack-size)
    :autoloading?                  (*s7* 'autoloading?)
    :undefined-identifier-warnings (*s7* 'undefined-identifier-warnings)
-   :catches                       (*s7* 'catches)))
+   :catches                       (*s7* 'catches)
+   :history-size                  (*s7* 'history-size)
+   :history-enabled               (*s7* 'history-enabled)
+   :history                       (*s7* 'history)))
 
 
 

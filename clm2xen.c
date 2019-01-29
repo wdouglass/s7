@@ -5949,7 +5949,7 @@ static Xen g_is_wave_train(Xen obj)
 
 /* ---------------- waveshaping ---------------- */
 
-enum {NO_PROBLEM_IN_LIST, NULL_LIST, ODD_LENGTH_LIST, NON_NUMBER_IN_LIST, NEGATIVE_NUMBER_IN_LIST, HUGE_NUMBER_IN_LIST};
+enum {NO_PROBLEM_IN_LIST, NULL_LIST, ODD_LENGTH_LIST, NON_NUMBER_IN_LIST, NON_INTEGER_IN_LIST, NEGATIVE_NUMBER_IN_LIST, HUGE_NUMBER_IN_LIST};
 
 static const char *list_to_partials_error_to_string(int code)
 {
@@ -5959,6 +5959,7 @@ static const char *list_to_partials_error_to_string(int code)
     case NULL_LIST:                   return("~A: partials list is null, ~A");                                
     case ODD_LENGTH_LIST:             return("~A: partials list has an odd number of elements: ~A");          
     case NON_NUMBER_IN_LIST:          return("~A: partials list has a non-numerical element: ~A");            
+    case NON_INTEGER_IN_LIST:         return("~A: partials list has a non-integral harmonic number: ~A");            
     case NEGATIVE_NUMBER_IN_LIST:     return("~A: partials list has a partial number that is negative: ~A");  
     case HUGE_NUMBER_IN_LIST:         return("~A: partials list has a partial number that is too large: ~A"); 
     }
@@ -5995,8 +5996,12 @@ static mus_float_t *list_to_partials(Xen harms, int *npartials, int *error_code)
 
   for (i = 0, lst = Xen_copy_arg(harms); i < listlen; i += 2, lst = Xen_cddr(lst))
     {
-      if ((!(Xen_is_integer(Xen_car(lst)))) ||
-	  (!(Xen_is_number(Xen_cadr(lst)))))
+      if (!(Xen_is_integer(Xen_car(lst))))
+	{
+	  (*error_code) = NON_INTEGER_IN_LIST;
+	  return(NULL);
+	}
+      if (!(Xen_is_number(Xen_cadr(lst))))
 	{
 	  (*error_code) = NON_NUMBER_IN_LIST;
 	  return(NULL);

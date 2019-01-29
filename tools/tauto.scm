@@ -178,7 +178,7 @@
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values
 		  symbol-table load throw error
-		  global-environment current-environment make-rectangular
+		  global-environment current-environment make-rectangular hash-table* make-keyword morally-equal?
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table
 		  mock-symbol mock-port mock-hash-table m mock->string make-local-method

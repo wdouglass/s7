@@ -119,9 +119,10 @@
 		 'class-name         'mock-vector)))
     
     (define* (make-mock-vector len (init #<unspecified>))
-      (openlet (sublet mock-vector-class 
-		 'value (#_make-vector len init)
-		 'object->string mock->string)))
+      (openlet 
+       (sublet mock-vector-class 
+	 'value (#_make-vector len init)
+	 'object->string mock->string)))
     
     (define (mock-vector . args)
       (let ((v (make-mock-vector 0)))
@@ -391,9 +392,10 @@
 		 'class-name             'mock-string)))
     
     (define* (make-mock-string len (init #\null))
-      (openlet (sublet mock-string-class 
-		 'value (#_make-string len init)
-		 'object->string mock->string)))
+      (openlet 
+       (sublet mock-string-class 
+	 'value (#_make-string len init)
+	 'object->string mock->string)))
     
     (define (mock-string . args)
       (let ((v (make-mock-string 0)))
@@ -490,10 +492,11 @@
     (define (mock-char c) 
       (if (and (char? c)
 	       (not (let? c)))
-	  (openlet
-	   (sublet (*mock-char* 'mock-char-class)
-	     'value c
-	     'object->string mock->string))
+	  (immutable!
+	   (openlet
+	    (sublet (*mock-char* 'mock-char-class)
+	      'value c
+	      'object->string mock->string)))
 	  (error 'wrong-type-arg "mock-char ~S is not a char" c)))
     
     (set! mock-char? (lambda (obj)
@@ -617,7 +620,13 @@
 	   'ash              (lambda (x y) (ash (->value x) (->value y)))
 	   'logbit?          (lambda (x y) (logbit? (->value x) (->value y)))
 	   'number->string   (lambda args (apply #_number->string (map ->value args)))
-	   'random           (lambda args (apply #_random (map ->value args)))
+	   'random           ;(lambda args (apply #_random (map ->value args)))
+	                     (lambda* (range state)
+			       (if state
+				   (if (random-state? state)
+				       (#_random (->value range) state)
+				       (error 'wrong-type-arg "~S is not a random-state" state))
+				   (#_random (->value range))))
 	   'quotient         (lambda (x y) (quotient (->value x) (->value y)))
 	   'remainder        (lambda (x y) (remainder (->value x) (->value y)))
 	   'modulo           (lambda (x y) (modulo (->value x) (->value y)))
@@ -768,11 +777,12 @@
     (define (mock-number x)
       (if (and (number? x)
 	       (not (let? x)))
-	  (openlet
-	   (sublet (*mock-number* 'mock-number-class)
-	     'value x
-	     'object->string mock->string
-	     ))
+	  (immutable!
+	   (openlet
+	    (sublet (*mock-number* 'mock-number-class)
+	      'value x
+	      'object->string mock->string
+	      )))
 	  (error 'wrong-type-arg "mock-number ~S is not a number" x)))
     
     (set! mock-number? (lambda (obj)
@@ -1088,10 +1098,11 @@
     (define (mock-symbol s)
       (if (and (symbol? s)
 	       (not (let? s)))
-	  (openlet
-	   (sublet (*mock-symbol* 'mock-symbol-class)
-	     'value s
-	     'object->string mock->string))
+	  (immutable!
+	   (openlet
+	    (sublet (*mock-symbol* 'mock-symbol-class)
+	      'value s
+	      'object->string mock->string)))
 	  (error 'wrong-type-arg "mock-symbol ~S is not a symbol" s)))
     
     (define (mock-symbol? obj)
@@ -1114,9 +1125,10 @@
 		'c-pointer->list       (lambda (obj) (vector->list (obj 'value))))))
 
     (define* (mock-c-pointer (int 0) type info weak1 weak2)
-      (openlet 
-       (sublet (*mock-c-pointer* 'mock-c-pointer-class)
-	 'value (vector int type info weak1 weak2))))
+      (immutable!
+       (openlet 
+	(sublet (*mock-c-pointer* 'mock-c-pointer-class)
+	  'value (vector int type info weak1 weak2)))))
 		
     (define (mock-c-pointer? obj)
       (and (openlet? obj)
