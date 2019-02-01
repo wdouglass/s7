@@ -36443,7 +36443,7 @@ EDITS: 1
 	 (fv1 1+i 2+2i 3+3i)) ; 'error? -- 3+i 
        (lambda args 
 	 (apply format #f (cadr args))))   ; float-vector-set! argument 3, 3+1i, is a complex number but should be a real
-     "float-vector-set! argument 3, 3+1i, is a complex number but should be a real")
+     "float-vector-set! argument 3, 3.0+1.0i, is a complex number but should be a real")
     
     (define (fv2 s2 s3)
       (do ((fv (make-float-vector 4))
@@ -37431,38 +37431,6 @@ EDITS: 1
 	  (float-vector-set! fv i (+ (float-vector-ref fv j) 1.0)))))
     (test (fv104) #r(0 1 2 3 4 5 6 7 8 9))
     
-    (when all-args
-      (define (do-permute init step end)
-	(let ((form `(let () 
-		       (define (t1)
-			 (let ((fv (make-float-vector 4)))
-			   (if (<= ,step 0) (error 'out-of-range "step > 0"))
-			   (do ((i ,init (+ i ,step))
-				(x 1.0 (+ x 1.0)))
-			       ((>= i ,end) fv)
-			     (float-vector-set! fv i x))))
-		       (define (t2)
-			 (let ((fv (make-float-vector 4)))
-			   (if (<= ,step 0) (error 'out-of-range "step > 0"))
-			   (do ((i ,init (+ i ,step))
-				(x 1.0 (+ x 1.0)))
-			       ((>= i ,end) fv)
-			     (float-vector-set! fv i x))))
-		       (let ((v1 (catch #t t1 (lambda args 'error)))
-			     (v2 (catch #t (lambda () (copy (t2) (make-float-vector 4))) (lambda args 'error))))
-			 (if (not (equivalent? v1 v2))
-			     (format *stderr* "~D: permute ~A, ~A -> ~A ~A, ~A~%" op args v1 v2 (float-vector-peak (float-vector-subtract! v1 v2))))))))
-	  (eval (copy form :readable))))
-      
-      (set! (*s7* 'equivalent-float-epsilon) 1e-12)
-      
-      (for-each-subset
-       (lambda (a b c)
-	 (for-each-permutation
-	  do-permute
-	  (list a b c)))
-       '(0 4 1 2 0.0 4.0 1.0 2.0 1/2 1+i 2/3 #\a "hi" #f)))
-
     (define (fv107)
       (do ((g0 (make-hash-table))
 	   (i 0 (+ i 1))
@@ -37690,82 +37658,6 @@ EDITS: 1
 	  ((= i 4) fv)
 	(float-vector-set! fv i ((if (char=? j #\a) + -) i 10.0))))
     (test (fv130) #r(10.0 11.0 12.0 13.0))
-
-    (define (char-permute op . args)
-      (let ((form `(let () 
-		     (define (t1)
-		       (let ((x #\a) (y #\A) (fv (make-float-vector 4)))
-			 (do ((i 0 (+ i 1))
-			      (x1 1.0 (+ x1 1.0)))
-			     ((= i 4) fv)
-			   (if (,op ,@args)
-			       (float-vector-set! fv i x1)
-			       (float-vector-set! fv i 0.0)))))
-		     (define (t2)
-		       (let ((x #\a) (y #\A) (fv (make-float-vector 4)))
-			 (do ((i 0 (+ i 1))
-			      (x1 1.0 (+ x1 1.0)))
-			     ((= i 4) fv)
-			   (if (apply ,op (list ,@args))
-			       (float-vector-set! fv i x1)
-			       (float-vector-set! fv i 0.0)))))
-		     (let ((v1 (t1))
-			   (v2 (t2)))
-		       (if (not (equivalent? v1 v2))
-			   (format *stderr* "char-permute ~A, ~A -> ~A ~A~%" op args v1 v2))))))
-	(eval (copy form :readable))))
-    
-    (for-each
-     (lambda (op)
-       (for-each-subset
-	(lambda s-args
-	  (if (= (length s-args) 2)
-	      (for-each-permutation 
-	       (lambda args 
-		 (apply char-permute op args)) 
-	       s-args)))
-	(list 'x 'y #\b #\newline)))
-     (if (provided? 'pure-s7)
-	 (list 'char=? 'char<? 'char<=? 'char>? 'char>=?)
-	 (list 'char=? 'char<? 'char<=? 'char>? 'char>=? 'char-ci=? 'char-ci<? 'char-ci<=? 'char-ci>? 'char-ci>=?)))
-    
-    (define (string-permute op . args)
-      (eval (copy `(let () 
-		     (define (t1)
-		       (let ((x "a") (y "A") (fv (make-float-vector 4)))
-			 (do ((i 0 (+ i 1))
-			      (x1 1.0 (+ x1 1.0)))
-			     ((= i 4) fv)
-			   (if (,op ,@args)
-			       (float-vector-set! fv i x1)
-			       (float-vector-set! fv i 0.0)))))
-		     (define (t2)
-		       (let ((x "a") (y "A") (fv (make-float-vector 4)))
-			 (do ((i 0 (+ i 1))
-			      (x1 1.0 (+ x1 1.0)))
-			     ((= i 4) fv)
-			   (if (apply ,op (list ,@args))
-			       (float-vector-set! fv i x1)
-			       (float-vector-set! fv i 0.0)))))
-		     (let ((v1 (t1))
-			   (v2 (t2)))
-		       (if (not (equivalent? v1 v2))
-			   (format *stderr* "string-permute ~A, ~A -> ~A ~A~%" op args v1 v2))))
-		  :readable)))
-    
-    (for-each
-     (lambda (op)
-       (for-each-subset
-	(lambda s-args
-	  (if (= (length s-args) 2)
-	      (for-each-permutation 
-	       (lambda args 
-		 (apply string-permute op args))
-	       s-args)))
-	(list 'x 'y "ab" "b")))
-     (if (provided? 'pure-s7)
-	 (list 'string=? 'string<? 'string<=? 'string>? 'string>=?)
-	 (list 'string=? 'string<? 'string<=? 'string>? 'string>=? 'string-ci=? 'string-ci<? 'string-ci<=? 'string-ci>? 'string-ci>=?)))
 
     (unless (provided? 'pure-s7)
       (define (fv131)

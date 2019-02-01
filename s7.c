@@ -3450,7 +3450,8 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
 #define make_real(Sc, X) ({ s7_pointer _R_; s7_double _N_ = (X); new_cell(Sc, _R_, T_REAL); set_real(_R_, _N_); _R_;})
 
 #define make_complex(Sc, R, I)						\
-  ({ s7_double im; im = (I); ((im == 0.0) ? make_real(Sc, R) : ({ s7_pointer _C_; new_cell(Sc, _C_, T_COMPLEX); set_real_part(_C_, R); set_imag_part(_C_, im); _C_;}) ); })
+  ({ s7_double _im_; _im_ = (I); ((_im_ == 0.0) ? make_real(Sc, R) : \
+				  ({ s7_pointer _C_; new_cell(Sc, _C_, T_COMPLEX); set_real_part(_C_, R); set_imag_part(_C_, _im_); _C_;}) ); })
 
 #define real_to_double(Sc, X, Caller)   ({ s7_pointer _x_; _x_ = (X); ((type(_x_) == T_REAL) ? real(_x_) : s7_number_to_real_with_caller(Sc, _x_, Caller)); })
 #define rational_to_double(Sc, X)       ({ s7_pointer _x_; _x_ = (X); ((type(_x_) == T_INTEGER) ? (s7_double)integer(_x_) : fraction(_x_)); })
@@ -9042,7 +9043,6 @@ static s7_pointer copy_tree(s7_scheme *sc, s7_pointer tree)
 			(is_pair(cdr(tree))) ? COPY_TREE(cdr(tree)) : cdr(tree)));
 }
 
-
 static inline bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
 {
   s7_pointer p;
@@ -9098,16 +9098,16 @@ static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
 }
 
+static inline s7_int tree_len(s7_scheme *sc, s7_pointer p);
+
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   sc->w = p;
-  check_heap_size(sc, 8192);
+  if (tree_is_cyclic(sc, p))
+    s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
+  check_heap_size(sc, 2 * tree_len(sc, p));
   if (sc->safety > NO_SAFETY)
-    {
-      if (tree_is_cyclic(sc, p))
-	s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
-      sc->w = copy_tree_with_type(sc, p);
-    }
+    sc->w = copy_tree_with_type(sc, p);
   else sc->w = copy_tree(sc, p);
   p = sc->w;
   sc->w = sc->nil;
@@ -9137,7 +9137,6 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
   #define Q_is_defined s7_make_signature(sc, 4, sc->is_boolean_symbol, sc->is_symbol_symbol, sc->is_let_symbol, sc->is_boolean_symbol)
 
   s7_pointer sym;
-
   /* is this correct?
    *    (defined? '_x) #f (symbol->value '_x) #<undefined>
    *    (define x #<undefined>) (defined? 'x) #t
@@ -9185,7 +9184,6 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
     return(sc->T);
   return(make_boolean(sc, is_slot(symbol_to_slot(sc, sym))));
 }
-
 
 bool s7_is_defined(s7_scheme *sc, const char *name)
 {
@@ -11148,93 +11146,72 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define npowers     87
-#define steppowers  8
-#define firstpower -348 /* 10 ^ -348 */
-#define expmax     -32
-#define expmin     -60
+#define dtoa_npowers     87
+#define dtoa_steppowers  8
+#define dtoa_firstpower -348 /* 10 ^ -348 */
+#define dtoa_expmax     -32
+#define dtoa_expmin     -60
 
-typedef struct Fp {uint64_t frac; int exp;} Fp;
+typedef struct dtoa_Fp {uint64_t frac; int exp;} dtoa_Fp;
 
-static Fp powers_ten[] = {
-    { 18054884314459144840U, -1220 }, { 13451937075301367670U, -1193 },
-    { 10022474136428063862U, -1166 }, { 14934650266808366570U, -1140 },
-    { 11127181549972568877U, -1113 }, { 16580792590934885855U, -1087 },
-    { 12353653155963782858U, -1060 }, { 18408377700990114895U, -1034 },
-    { 13715310171984221708U, -1007 }, { 10218702384817765436U, -980 },
-    { 15227053142812498563U, -954 },  { 11345038669416679861U, -927 },
-    { 16905424996341287883U, -901 },  { 12595523146049147757U, -874 },
-    { 9384396036005875287U,  -847 },  { 13983839803942852151U, -821 },
-    { 10418772551374772303U, -794 },  { 15525180923007089351U, -768 },
-    { 11567161174868858868U, -741 },  { 17236413322193710309U, -715 },
-    { 12842128665889583758U, -688 },  { 9568131466127621947U,  -661 },
-    { 14257626930069360058U, -635 },  { 10622759856335341974U, -608 },
-    { 15829145694278690180U, -582 },  { 11793632577567316726U, -555 },
-    { 17573882009934360870U, -529 },  { 13093562431584567480U, -502 },
-    { 9755464219737475723U,  -475 },  { 14536774485912137811U, -449 },
-    { 10830740992659433045U, -422 },  { 16139061738043178685U, -396 },
-    { 12024538023802026127U, -369 },  { 17917957937422433684U, -343 },
-    { 13349918974505688015U, -316 },  { 9946464728195732843U,  -289 },
-    { 14821387422376473014U, -263 },  { 11042794154864902060U, -236 },
-    { 16455045573212060422U, -210 },  { 12259964326927110867U, -183 },
-    { 18268770466636286478U, -157 },  { 13611294676837538539U, -130 },
-    { 10141204801825835212U, -103 },  { 15111572745182864684U, -77 },
-    { 11258999068426240000U, -50 },   { 16777216000000000000U, -24 },
-    { 12500000000000000000U,   3 },   { 9313225746154785156U,   30 },
-    { 13877787807814456755U,  56 },   { 10339757656912845936U,  83 },
-    { 15407439555097886824U, 109 },   { 11479437019748901445U, 136 },
-    { 17105694144590052135U, 162 },   { 12744735289059618216U, 189 },
-    { 9495567745759798747U,  216 },   { 14149498560666738074U, 242 },
-    { 10542197943230523224U, 269 },   { 15709099088952724970U, 295 },
-    { 11704190886730495818U, 322 },   { 17440603504673385349U, 348 },
-    { 12994262207056124023U, 375 },   { 9681479787123295682U,  402 },
-    { 14426529090290212157U, 428 },   { 10748601772107342003U, 455 },
-    { 16016664761464807395U, 481 },   { 11933345169920330789U, 508 },
-    { 17782069995880619868U, 534 },   { 13248674568444952270U, 561 },
-    { 9871031767461413346U,  588 },   { 14708983551653345445U, 614 },
-    { 10959046745042015199U, 641 },   { 16330252207878254650U, 667 },
-    { 12166986024289022870U, 694 },   { 18130221999122236476U, 720 },
-    { 13508068024458167312U, 747 },   { 10064294952495520794U, 774 },
-    { 14996968138956309548U, 800 },   { 11173611982879273257U, 827 },
-    { 16649979327439178909U, 853 },   { 12405201291620119593U, 880 },
-    { 9242595204427927429U,  907 },   { 13772540099066387757U, 933 },
-    { 10261342003245940623U, 960 },   { 15290591125556738113U, 986 },
+static dtoa_Fp dtoa_powers_ten[] = {
+    { 18054884314459144840U, -1220 }, { 13451937075301367670U, -1193 }, { 10022474136428063862U, -1166 }, { 14934650266808366570U, -1140 },
+    { 11127181549972568877U, -1113 }, { 16580792590934885855U, -1087 }, { 12353653155963782858U, -1060 }, { 18408377700990114895U, -1034 },
+    { 13715310171984221708U, -1007 }, { 10218702384817765436U, -980 }, { 15227053142812498563U, -954 },  { 11345038669416679861U, -927 },
+    { 16905424996341287883U, -901 },  { 12595523146049147757U, -874 }, { 9384396036005875287U,  -847 },  { 13983839803942852151U, -821 },
+    { 10418772551374772303U, -794 },  { 15525180923007089351U, -768 }, { 11567161174868858868U, -741 },  { 17236413322193710309U, -715 },
+    { 12842128665889583758U, -688 },  { 9568131466127621947U,  -661 }, { 14257626930069360058U, -635 },  { 10622759856335341974U, -608 },
+    { 15829145694278690180U, -582 },  { 11793632577567316726U, -555 }, { 17573882009934360870U, -529 },  { 13093562431584567480U, -502 },
+    { 9755464219737475723U,  -475 },  { 14536774485912137811U, -449 }, { 10830740992659433045U, -422 },  { 16139061738043178685U, -396 },
+    { 12024538023802026127U, -369 },  { 17917957937422433684U, -343 }, { 13349918974505688015U, -316 },  { 9946464728195732843U,  -289 },
+    { 14821387422376473014U, -263 },  { 11042794154864902060U, -236 }, { 16455045573212060422U, -210 },  { 12259964326927110867U, -183 },
+    { 18268770466636286478U, -157 },  { 13611294676837538539U, -130 }, { 10141204801825835212U, -103 },  { 15111572745182864684U, -77 },
+    { 11258999068426240000U, -50 },   { 16777216000000000000U, -24 }, { 12500000000000000000U,   3 },   { 9313225746154785156U,   30 },
+    { 13877787807814456755U,  56 },   { 10339757656912845936U,  83 }, { 15407439555097886824U, 109 },   { 11479437019748901445U, 136 },
+    { 17105694144590052135U, 162 },   { 12744735289059618216U, 189 }, { 9495567745759798747U,  216 },   { 14149498560666738074U, 242 },
+    { 10542197943230523224U, 269 },   { 15709099088952724970U, 295 }, { 11704190886730495818U, 322 },   { 17440603504673385349U, 348 },
+    { 12994262207056124023U, 375 },   { 9681479787123295682U,  402 }, { 14426529090290212157U, 428 },   { 10748601772107342003U, 455 },
+    { 16016664761464807395U, 481 },   { 11933345169920330789U, 508 }, { 17782069995880619868U, 534 },   { 13248674568444952270U, 561 },
+    { 9871031767461413346U,  588 },   { 14708983551653345445U, 614 }, { 10959046745042015199U, 641 },   { 16330252207878254650U, 667 },
+    { 12166986024289022870U, 694 },   { 18130221999122236476U, 720 }, { 13508068024458167312U, 747 },   { 10064294952495520794U, 774 },
+    { 14996968138956309548U, 800 },   { 11173611982879273257U, 827 }, { 16649979327439178909U, 853 },   { 12405201291620119593U, 880 },
+    { 9242595204427927429U,  907 },   { 13772540099066387757U, 933 }, { 10261342003245940623U, 960 },   { 15290591125556738113U, 986 },
     { 11392378155556871081U, 1013 },  { 16975966327722178521U, 1039 },
     { 12648080533535911531U, 1066 }};
 
-static Fp dtoa_find_cachedpow10(int exp, int* k)
+static dtoa_Fp dtoa_find_cachedpow10(int exp, int* k)
 {
   int approx, idx;
   const double one_log_ten = 0.30102999566398114;
 
-  approx = -(exp + npowers) * one_log_ten;
-  idx = (approx - firstpower) / steppowers;
+  approx = -(exp + dtoa_npowers) * one_log_ten;
+  idx = (approx - dtoa_firstpower) / dtoa_steppowers;
   while (true) 
     {
       int current;
-      current = exp + powers_ten[idx].exp + 64;
-      if (current < expmin) 
+      current = exp + dtoa_powers_ten[idx].exp + 64;
+      if (current < dtoa_expmin) 
 	{
 	  idx++;
 	  continue;
         }
-      if (current > expmax) 
+      if (current > dtoa_expmax) 
 	{
 	  idx--;
 	  continue;
         }
-      *k = (firstpower + idx * steppowers);
-      return(powers_ten[idx]);
+      *k = (dtoa_firstpower + idx * dtoa_steppowers);
+      return(dtoa_powers_ten[idx]);
     }
 }
 
-#define fracmask  0x000FFFFFFFFFFFFFU
-#define expmask   0x7FF0000000000000U
-#define hiddenbit 0x0010000000000000U
-#define signmask  0x8000000000000000U
-#define expbias   (1023 + 52)
-#define absv(n)   ((n) < 0 ? -(n) : (n))
-#define minv(a, b) ((a) < (b) ? (a) : (b))
+#define dtoa_fracmask  0x000FFFFFFFFFFFFFU
+#define dtoa_expmask   0x7FF0000000000000U
+#define dtoa_hiddenbit 0x0010000000000000U
+#define dtoa_signmask  0x8000000000000000U
+#define dtoa_expbias   (1023 + 52)
+#define dtoa_absv(n)   ((n) < 0 ? -(n) : (n))
+#define dtoa_minv(a, b) ((a) < (b) ? (a) : (b))
 
 static uint64_t dtoa_tens[] = 
   { 10000000000000000000U, 1000000000000000000U, 100000000000000000U,
@@ -11251,27 +11228,27 @@ static uint64_t dtoa_get_dbits(double d)
   return(dbl_bits.i);
 }
 
-static Fp dtoa_build_fp(double d)
+static dtoa_Fp dtoa_build_fp(double d)
 {
   uint64_t bits;
-  Fp fp;
+  dtoa_Fp fp;
 
   bits = dtoa_get_dbits(d);
-  fp.frac = bits & fracmask;
-  fp.exp = (bits & expmask) >> 52;
+  fp.frac = bits & dtoa_fracmask;
+  fp.exp = (bits & dtoa_expmask) >> 52;
   if (fp.exp) 
     {
-      fp.frac += hiddenbit;
-      fp.exp -= expbias;
+      fp.frac += dtoa_hiddenbit;
+      fp.exp -= dtoa_expbias;
     } 
-  else fp.exp = -expbias + 1;
+  else fp.exp = -dtoa_expbias + 1;
   return(fp);
 }
 
-static void dtoa_normalize(Fp* fp)
+static void dtoa_normalize(dtoa_Fp* fp)
 {
   int shift;
-  while ((fp->frac & hiddenbit) == 0)
+  while ((fp->frac & dtoa_hiddenbit) == 0)
     {
       fp->frac <<= 1;
       fp->exp--;
@@ -11281,12 +11258,12 @@ static void dtoa_normalize(Fp* fp)
   fp->exp -= shift;
 }
 
-static void dtoa_get_normalized_boundaries(Fp* fp, Fp* lower, Fp* upper)
+static void dtoa_get_normalized_boundaries(dtoa_Fp* fp, dtoa_Fp* lower, dtoa_Fp* upper)
 {
   int u_shift, l_shift;
   upper->frac = (fp->frac << 1) + 1;
   upper->exp  = fp->exp - 1;
-  while ((upper->frac & (hiddenbit << 1)) == 0) 
+  while ((upper->frac & (dtoa_hiddenbit << 1)) == 0) 
     {
       upper->frac <<= 1;
       upper->exp--;
@@ -11294,16 +11271,16 @@ static void dtoa_get_normalized_boundaries(Fp* fp, Fp* lower, Fp* upper)
   u_shift = 64 - 52 - 2;
   upper->frac <<= u_shift;
   upper->exp = upper->exp - u_shift;
-  l_shift = fp->frac == hiddenbit ? 2 : 1;
+  l_shift = fp->frac == dtoa_hiddenbit ? 2 : 1;
   lower->frac = (fp->frac << l_shift) - 1;
   lower->exp = fp->exp - l_shift;
   lower->frac <<= lower->exp - upper->exp;
   lower->exp = upper->exp;
 }
 
-static Fp dtoa_multiply(Fp* a, Fp* b)
+static dtoa_Fp dtoa_multiply(dtoa_Fp* a, dtoa_Fp* b)
 {
-  Fp fp;
+  dtoa_Fp fp;
   uint64_t ah_bl, al_bh, al_bl, ah_bh, tmp;
   const uint64_t lomask = 0x00000000FFFFFFFF;
 
@@ -11329,12 +11306,12 @@ static void dtoa_round_digit(char* digits, int ndigits, uint64_t delta, uint64_t
     }
 }
 
-static int dtoa_generate_digits(Fp* fp, Fp* upper, Fp* lower, char* digits, int* K)
+static int dtoa_generate_digits(dtoa_Fp* fp, dtoa_Fp* upper, dtoa_Fp* lower, char* digits, int* K)
 {
   uint64_t part1, part2, wfrac, delta;
   uint64_t *divp, *unit;
   int idx, kappa;
-  Fp one;
+  dtoa_Fp one;
 
   wfrac = upper->frac - fp->frac;
   delta = upper->frac - lower->frac;
@@ -11390,7 +11367,7 @@ static int dtoa_generate_digits(Fp* fp, Fp* upper, Fp* lower, char* digits, int*
 static int dtoa_grisu2(double d, char* digits, int* K)
 {
   int k;
-  Fp cp, w, lower, upper;
+  dtoa_Fp cp, w, lower, upper;
   w = dtoa_build_fp(d);
   dtoa_get_normalized_boundaries(&w, &lower, &upper);
   dtoa_normalize(&w);
@@ -11408,21 +11385,23 @@ static int dtoa_emit_digits(char* digits, int ndigits, char* dest, int K, bool n
 {
   int exp, idx, cent;
   char sign;
-  exp = absv(K + ndigits - 1);
+  exp = dtoa_absv(K + ndigits - 1);
 
   /* write plain integer */
   if ((K >= 0) && (exp < (ndigits + 7))) 
     {
       memcpy(dest, digits, ndigits);
       memset(dest + ndigits, '0', K);
-      return(ndigits + K);
+      dest[ndigits + K] = '.';
+      dest[ndigits + K + 1] = '0';
+      return(ndigits + K + 2);
     }
 
   /* write decimal w/o scientific notation */
   if ((K < 0) && (K > -7 || exp < 4))
     {
       int offset;
-      offset = ndigits - absv(K);
+      offset = ndigits - dtoa_absv(K);
       /* fp < 1.0 -> write leading zero */
       if (offset <= 0)
 	{
@@ -11444,7 +11423,7 @@ static int dtoa_emit_digits(char* digits, int ndigits, char* dest, int K, bool n
     }
   
   /* write decimal w/ scientific notation */
-  ndigits = minv(ndigits, 18 - neg);
+  ndigits = dtoa_minv(ndigits, 18 - neg);
   idx = 0;
   dest[idx++] = digits[0];
   if (ndigits > 1)
@@ -11479,28 +11458,33 @@ static int dtoa_emit_digits(char* digits, int ndigits, char* dest, int K, bool n
   return(idx);
 }
 
-static int dtoa_filter_special(double fp, char* dest)
+static int dtoa_filter_special(double fp, char* dest, bool neg)
 {
   uint64_t bits;
   bool nan;
   if (fp == 0.0)
     {
-      dest[0] = '0';
-      return(1);
+      dest[0] = '0'; dest[1] = '.'; dest[2] = '0';
+      return(3);
     }
   bits = dtoa_get_dbits(fp);
-  nan = (bits & expmask) == expmask;
+  nan = (bits & dtoa_expmask) == dtoa_expmask;
   if (!nan) return(0);
   
-  if (bits & fracmask)
+  if (!neg)
     {
-      dest[0] = 'n'; dest[1] = 'a'; dest[2] = 'n';
+      dest[0] = '+';
+      dest++;
+    }
+  if (bits & dtoa_fracmask)
+    {
+      dest[0] = 'n'; dest[1] = 'a'; dest[2] = 'n'; dest[3] = '.'; dest[4] = '0';
     }
   else
     {
-      dest[0] = 'i'; dest[1] = 'n'; dest[2] = 'f';
+      dest[0] = 'i'; dest[1] = 'n'; dest[2] = 'f'; dest[3] = '.'; dest[4] = '0';
     }
-  return(3);
+  return((neg) ? 5 : 6);
 }
 
 static inline int fpconv_dtoa(double d, char dest[24])
@@ -11509,14 +11493,14 @@ static inline int fpconv_dtoa(double d, char dest[24])
   int str_len = 0, spec, K, ndigits;
   bool neg = false;
   
-  if (dtoa_get_dbits(d) & signmask)
+  if (dtoa_get_dbits(d) & dtoa_signmask)
     {
       dest[0] = '-';
       str_len++;
       neg = true;
     }
   
-  spec = dtoa_filter_special(d, dest + str_len);
+  spec = dtoa_filter_special(d, dest + str_len, neg);
   if (spec) return(str_len + spec);
   K = 0;
   ndigits = dtoa_grisu2(d, digits, &K);
@@ -11629,14 +11613,26 @@ static char *integer_to_string_no_length(s7_scheme *sc, s7_int num) /* do not fr
   return(++p);
 }
 
-#define BASE_10 10
-
 static inline char *floatify(char *str, s7_int *nlen)
 {
   if ((!strchr(str, '.')) && (!strchr(str, 'e'))) /* faster than (strcspn(str, ".e") >= (size_t)(*nlen)) */
     {
       s7_int len;
       len = *nlen;
+      /* snprintf returns "nan" and "inf" but we (stupidly) want "+nan.0" and "+inf.0"; "-nan" and "-inf" will be handled by the normal case */
+      if (len == 3)
+	{
+	  if (str[0] == 'n')
+	    {
+	      str[0] = '+'; str[1] = 'n'; str[2] = 'a'; str[3] = 'n';
+	      len = 4;
+	    }
+	  if (str[0] == 'i')
+	    {
+	      str[0] = '+'; str[1] = 'i'; str[2] = 'n'; str[3] = 'f';
+	      len = 4;
+	    }
+	}
       str[len]='.';
       str[len + 1]='0';
       str[len + 2]='\0';
@@ -11721,20 +11717,17 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
 	{
 #if WITH_DTOA
 	  if ((float_choice == 'g') &&
-	      (precision == WRITE_REAL_PRECISION) &&
-	      (!is_NaN(real(obj))) &&
-	      (!is_inf(real(obj))))
+	      (precision == WRITE_REAL_PRECISION))
 	    {
 	      len = fpconv_dtoa(real(obj), sc->num_to_str);
 	      sc->num_to_str[len] = '\0';
+	      (*nlen) = len;
+	      return(sc->num_to_str);
 	    }
-	  else
 #endif
-	    {
-	      len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
-			     (float_choice == 'g') ? "%.*g" : ((float_choice == 'f') ? "%.*f" : "%.*e"),
-			     (int32_t)precision, real(obj)); /* -4 for floatify */
-	    }
+	  len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
+			 (float_choice == 'g') ? "%.*g" : ((float_choice == 'f') ? "%.*f" : "%.*e"),
+			 (int32_t)precision, real(obj)); /* -4 for floatify */
 	}
       else len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
 			  (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
@@ -11745,60 +11738,23 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
 
     default:
       {
-	if ((choice == P_READABLE) &&
-	    ((is_NaN(real_part(obj))) || (is_NaN(imag_part(obj))) || ((is_inf(real_part(obj))) || (is_inf(imag_part(obj))))))
-	  {
-	    char rbuf[128], ibuf[128];
-	    char *rp, *ip;
-	    if (is_NaN(real_part(obj)))
-	      rp = (char *)"+nan.0";
-	    else
-	      {
-		if (is_inf(real_part(obj)))
-		  {
-		    if (real_part(obj) < 0.0)
-		      rp = (char *)"-inf.0";
-		    else rp = (char *)"+inf.0";
-		  }
-		else
-		  {
-		    snprintf(rbuf, 128, "%.*g", (int32_t)precision, (double)real_part(obj));
-		    rp = rbuf;
-		  }
-	      }
-	    if (is_NaN(imag_part(obj)))
-	      ip = (char *)"+nan.0";
-	    else
-	      {
-		if (is_inf(imag_part(obj)))
-		  {
-		    if (imag_part(obj) < 0.0)
-		      ip = (char *)"-inf.0";
-		    else ip = (char *)"+inf.0";
-		  }
-		else
-		  {
-		    snprintf(ibuf, 128, "%.*g", (int32_t)precision, (double)imag_part(obj));
-		    ip = ibuf;
-		  }
-	      }
-	    sc->num_to_str[0] = '\0';
-	    len = catstrs(sc->num_to_str, sc->num_to_str_size, "(complex ", rp, " ", ip, ")", NULL);
-	  }
-	else
-	  {
-	    if (imag_part(obj) >= 0.0)
-	      len = snprintf(sc->num_to_str, sc->num_to_str_size,
-			     (float_choice == 'g') ? "%.*g+%.*gi" : ((float_choice == 'f') ? "%.*f+%.*fi" : "%.*e+%.*ei"),
-			     (int32_t)precision, (double)real_part(obj), (int32_t)precision, (double)imag_part(obj));
-	    else len = snprintf(sc->num_to_str, sc->num_to_str_size,
-				(float_choice == 'g') ? "%.*g%.*gi" : ((float_choice == 'f') ? "%.*f%.*fi" :"%.*e%.*ei"), /* minus sign comes with the imag_part */
-				(int32_t)precision, (double)real_part(obj), (int32_t)precision, (double)imag_part(obj));
-	  }
+	char *imag;
+
+	sc->num_to_str[0] = '\0';
+ 	real(sc->real_wrapper4) = imag_part(obj);
+	imag = copy_string(number_to_string_base_10(sc, sc->real_wrapper4, 0, precision, float_choice, &len, choice));
+
+	sc->num_to_str[0] = '\0';
+ 	real(sc->real_wrapper3) = real_part(obj);
+	number_to_string_base_10(sc, sc->real_wrapper3, 0, precision, float_choice, &len, choice);
+
+	sc->num_to_str[len] = '\0';
+	len = catstrs(sc->num_to_str, sc->num_to_str_size, ((imag[0] == '+') || (imag[0] == '-')) ? "" : "+", imag, "i", NULL);
+	free(imag);
 
 	if (width > len)  /* (format #f "~20g" 1+i) */
 	  {
-	    insert_spaces(sc, sc->num_to_str, width, len);
+	    insert_spaces(sc, sc->num_to_str, width, len); /* this checks sc->num_to_str_size */
 	    (*nlen) = width;
 	  }
 	else (*nlen) = len;
@@ -11909,7 +11865,6 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32_t 
 	min_frac = (s7_double)ipow(radix, -precision);
 
 	/* doesn't this assume precision < 128/256 and that we can fit in 256 digits (1e308)? */
-
 	for (i = 0, base = radix; (i < precision) && (frac_part > min_frac); i++, base *= radix)
 	  {
 	    s7_int ipart;
@@ -11936,11 +11891,11 @@ static char *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32_t 
 	char *n, *d;
 	p = (char *)malloc(512 * sizeof(char));
  	real(sc->real_wrapper3) = real_part(obj);
-	n = number_to_string_with_radix(sc, sc->real_wrapper3, radix, 0, precision, float_choice, &len);
+	n = number_to_string_with_radix(sc, sc->real_wrapper3, radix, 0, precision, float_choice, &len); /* include floatify */
  	real(sc->real_wrapper4) = imag_part(obj);
 	d = number_to_string_with_radix(sc, sc->real_wrapper4, radix, 0, precision, float_choice, &len);
 	p[0] = '\0';
-	len = catstrs(p, 512, n, (imag_part(obj) < 0.0) ? "" : "+", d, "i", NULL);
+	len = catstrs(p, 512, n, ((d[0] == '+') || (d[0] == '-')) ? "" : "+", d, "i", NULL);
 	str_len = 512;
 	free(n);
 	free(d);
@@ -12221,46 +12176,6 @@ static s7_pointer g_sharp_readers_set(s7_scheme *sc, s7_pointer args)
   return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *#readers* to ~S", 26), cadr(args))));
 }
 
-
-static bool is_abnormal(s7_pointer x)
-{
-  switch (type(x))
-    {
-    case T_INTEGER:
-    case T_RATIO:
-      return(false);
-
-    case T_REAL:
-      return(is_inf(real(x)) ||
-	     is_NaN(real(x)));
-
-    case T_COMPLEX:
-      return(((is_inf(s7_real_part(x)))  ||
-	      (is_inf(s7_imag_part(x)))  ||
-	      (is_NaN(s7_real_part(x))) ||
-	      (is_NaN(s7_imag_part(x)))));
-
-#if WITH_GMP
-    case T_BIG_INTEGER:
-    case T_BIG_RATIO:
-      return(false);
-
-    case T_BIG_REAL:
-      return((is_inf(s7_real_part(x))) ||
-	     (is_NaN(s7_real_part(x))));
-
-    case T_BIG_COMPLEX:
-      return((is_inf(s7_real_part(x))) ||
-	     (is_inf(s7_imag_part(x))) ||
-	     (is_NaN(s7_real_part(x))) ||
-	     (is_NaN(s7_imag_part(x))));
-#endif
-
-    default:
-      return(true);
-    }
-}
-
 static s7_pointer make_unknown(s7_scheme *sc, const char* name)
 {
   s7_pointer p;
@@ -12301,7 +12216,6 @@ static s7_pointer *chars;
 static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error)
 {
   /* name is the stuff after the '#', return sc->nil if not a recognized #... entity */
-  s7_pointer x;
 
   if ((name[0] == 't') &&
       ((name[1] == '\0') || (strings_are_equal(name, "true"))))
@@ -12313,6 +12227,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 
   if (is_not_null(slot_value(sc->sharp_readers)))
     {
+      s7_pointer x;
       x = check_sharp_readers(sc, name);
       if (x != sc->F)
 	return(x);
@@ -12340,14 +12255,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     case 'o':   /* #o (octal) */
     case 'x':   /* #x (hex) */
     case 'b':   /* #b (binary) */
-      {
-	int32_t num_at = 1;
-	/* the #b or whatever overrides any radix passed in earlier */
-	x = make_atom(sc, (char *)(name + num_at), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error);
-	if (is_abnormal(x))
-	  return(unknown_sharp_constant(sc, name));
-	return(x);
-      }
+      return(make_atom(sc, (char *)(name + 1), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error));
 
       /* -------- #_... -------- */
     case '_':
@@ -12418,7 +12326,6 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     }
   return(unknown_sharp_constant(sc, name));
 }
-
 
 static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 {
@@ -12560,6 +12467,7 @@ static s7_double string_to_double_with_radix_1(const char *ur_str, int32_t radix
 
   max_len = s7_int_digits_by_radix[radix];
   str = (char *)ur_str;
+  /* fprintf(stderr, "%s[%d]: str: %s\n", __func__, __LINE__, str); */
 
   if (*str == '+')
     str++;
@@ -12879,6 +12787,38 @@ static s7_double string_to_double_with_radix_1(const char *ur_str, int32_t radix
   return(sign * dval);
 }
 
+static s7_pointer nan1_or_bust(s7_scheme *sc, s7_double x, char *p, char *q, int32_t radix, bool want_symbol)
+{
+  s7_int len;
+  len = safe_strlen(p);
+  if (p[len - 1] == 'i')        /* +nan.0[+/-]...i */
+    {
+      char *ip;
+      s7_pointer imag;
+      if (len == 6)            /* +nan.0+i */
+	return(make_complex(sc, x, (p[4] == '+') ? 1.0 : -1.0));
+      ip = copy_string_with_length((const char *)(p + 4), len - 5);
+      imag = make_atom(sc, ip, radix, false, false);
+      free(ip);
+      if (s7_is_real(imag))
+	return(make_complex(sc, x, real_to_double(sc, imag, __func__))); /* +nan.0+2/3i etc */
+    }
+  return((want_symbol) ? make_symbol(sc, q) : sc->F);
+}
+
+static s7_pointer nan2_or_bust(s7_scheme *sc, s7_double x, char *p, char *q, int32_t radix, bool want_symbol)
+{
+  char *ip;
+  s7_pointer rl;
+  s7_int len;
+  len = safe_strlen(q);
+  ip = copy_string_with_length((const char *)q, len - 7);
+  rl = make_atom(sc, ip, radix, false, false);
+  free(ip);
+  if (s7_is_real(rl))
+    return(make_complex(sc, real_to_double(sc, rl, __func__), x));
+  return((want_symbol) ? make_symbol(sc, q) : sc->F);
+}
 
 static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error)
 {
@@ -12887,6 +12827,8 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
   char c, *p;
   bool has_dec_point1 = false;
+
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, q); */
 
   p = q;
   c = *p++;
@@ -12910,18 +12852,23 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	return((want_symbol) ? make_symbol(sc, q) : sc->F);
       if (!IS_DIGIT(c, radix))
 	{
+	  if (has_dec_point1)
+	    return((want_symbol) ? make_symbol(sc, q) : sc->F);
 	  if (c == 'n')
 	    {
-	      if (local_strcmp(p, "an.0"))
+	      if (local_strcmp(p, "an.0"))      /* +nan.0 */
 		return(real_NaN);
+	      if ((local_strncmp(p, "an.0", 4)) &&
+		  ((p[4] == '+') || (p[4] == '-')))
+		return(nan1_or_bust(sc, NAN, p, q, radix, want_symbol));
 	    }
-	  else
+	  if (c == 'i')
 	    {
-	      if (c == 'i')
-		{
-		  if (local_strcmp(p, "nf.0"))
-		    return((q[0] == '+') ? real_infinity : real_minus_infinity);
-		}
+	      if (local_strcmp(p, "nf.0"))  /* +inf.0 */
+		return((q[0] == '+') ? real_infinity : real_minus_infinity);
+	      if ((local_strncmp(p, "nf.0", 4)) &&
+		  ((p[4] == '+') || (p[4] == '-')))
+		return(nan1_or_bust(sc, (q[0] == '-') ? -INFINITY : INFINITY, p, q, radix, want_symbol));
 	    }
 	  return((want_symbol) ? make_symbol(sc, q) : sc->F);
 	}
@@ -12934,6 +12881,16 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
       if ((!c) || (!IS_DIGIT(c, radix)))
 	return((want_symbol) ? make_symbol(sc, q) : sc->F);
       break;
+
+    case 'n':
+      if (local_strcmp(p, "an.0"))      /* nan.0 */
+	return(real_NaN);
+      return((want_symbol) ? make_symbol(sc, q) : sc->F);
+
+    case 'i':
+      if (local_strcmp(p, "nf.0"))      /* inf.0 */
+	return(real_infinity);
+      return((want_symbol) ? make_symbol(sc, q) : sc->F);
 
     case '0':        /* these two are always digits */
     case '1':
@@ -12996,9 +12953,8 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	      case 'l': case 'L':
 #endif
 	      case 'e': case 'E':
-		if (current_radix > 10)
+		if (current_radix > 10) /* see above */
 		  return((want_symbol) ? make_symbol(sc, q) : sc->F);
-		/* see note above */
 		/* fall through -- if '@' used, radices>10 are ok */
 
 	      case '@':
@@ -13043,6 +12999,14 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
 		if (c == '+') has_plus_or_minus = 1; else has_plus_or_minus = -1;
 		plus = (char *)(p + 1);
+		/* now check for nan/inf as imaginary part */
+
+		if ((plus[0] == 'n') &&
+		    (local_strcmp(plus, "nan.0i")))
+		  return(nan2_or_bust(sc, NAN, p, q, radix, want_symbol));
+		if ((plus[0] == 'i') &&
+		    (local_strcmp(plus, "inf.0i")))
+		  return(nan2_or_bust(sc, (c == '+') ? INFINITY : -INFINITY, p, q, radix, want_symbol));
 		continue;
 
 		/* ratio marker */
@@ -13122,14 +13086,6 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
 	(*((char *)(plus - 1))) = '\0';
 
-	/* there is a slight inconsistency here:
-	   1/0      -> +nan.0
-           1/0+0i   -> +inf.0 (0/1+0i is 0.0)
-	   #i1/0+0i -> +inf.0
-	   0/0      -> +nan.0
-	   0/0+0i   -> -nan.0
-	*/
-
 #if (!WITH_GMP)
 	if ((has_dec_point1) ||
 	    (ex1))
@@ -13171,8 +13127,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	  {
 	    if (slash2)
 	      {
-		/* same as above: 0-0/100000000000000000000000000000000000000i
-		 */
+		/* same as above: 0-0/100000000000000000000000000000000000000i */
 		s7_int num, den;
 		num = string_to_integer(plus, radix, &overflow);
 		den = string_to_integer(slash2, radix, &overflow);
@@ -13206,7 +13161,6 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 	if (ex1) (*ex1) = e1;
 	if (ex2) (*ex2) = e2;
 #endif
-
 	return(result);
       }
 
@@ -13278,32 +13232,9 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
 /* -------------------------------- string->number -------------------------------- */
 
-static inline s7_pointer string_to_number(s7_scheme *sc, char *str, int32_t radix)
+static s7_pointer string_to_number(s7_scheme *sc, char *str, int32_t radix)
 {
   s7_pointer x;
-  switch (str[0])
-    {
-    case 'n':
-      if (safe_strcmp(str, "nan.0"))
-	return(real_NaN);
-      break;
-
-    case 'i':
-      if (safe_strcmp(str, "inf.0"))
-	return(real_infinity);
-      break;
-
-    case '-':
-      if ((str[1] == 'i') && (safe_strcmp((const char *)(str + 1), "inf.0")))
-	return(real_minus_infinity);
-      break;
-
-    case '+':
-      if ((str[1] == 'i') && (safe_strcmp((const char *)(str + 1), "inf.0")))
-	return(real_infinity);
-      break;
-    }
-
   x = make_atom(sc, str, radix, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR);
   if (s7_is_number(x))  /* only needed because str might start with '#' and not be a number (#t for example) */
     return(x);
@@ -13317,7 +13248,6 @@ static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_point
 
   if (!is_string(str1))
     return(wrong_type_argument(sc, sc->string_to_number_symbol, 1, str1, T_STRING));
-  str = (char *)string_value(str1);
 
   if (!is_integer(radix1))
     return(wrong_type_argument(sc, sc->string_to_number_symbol, 2, radix1, T_INTEGER));
@@ -13326,6 +13256,7 @@ static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_point
       (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
     return(out_of_range(sc, sc->string_to_number_symbol, small_int(2), radix1, a_valid_radix_string));
 
+  str = (char *)string_value(str1);
   if ((!str) || (!(*str)))
     return(sc->F);
 
@@ -13785,7 +13716,7 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
 static s7_pointer complex_p_ii(s7_scheme *sc, s7_int x, s7_int y)
 {
   if (y == 0)
-    return(make_real(sc, (s7_double)x));
+    return(make_integer(sc, x));
   return(c_complex(sc, (s7_double)x, (s7_double)y));
 }
 
@@ -14108,9 +14039,7 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
       /* if either real or imag part is very large, use explicit formula, not casin */
-      /*   this code taken from sbcl's src/code/irrat.lisp */
-      /* break is around x+70000000i */
-
+      /*   this code taken from sbcl's src/code/irrat.lisp; break is around x+70000000i */
       if ((fabs(real_part(n)) > 1.0e7) ||
 	  (fabs(imag_part(n)) > 1.0e7))
 	{
@@ -14293,14 +14222,6 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 
     case T_REAL:
     case T_RATIO:
-      /* this is not completely correct when optimization kicks in.
-       * :(define (hi) (do ((i 0 (+ i 1))) ((= i 1)) (display (cosh i))))
-       * hi
-       * :(hi)
-       * 1.0()
-       * :(cosh 0)
-       * 1
-       */
       return(make_real(sc, cosh(s7_real(x))));
 
     case T_COMPLEX:
@@ -14588,7 +14509,6 @@ static bool int_pow_ok(s7_int x, s7_int y)
 	 (int_nth_roots[y] >= s7_int_abs(x)));
 }
 
-
 static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 {
   #define H_expt "(expt z1 z2) returns z1^z2"
@@ -14606,7 +14526,6 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
   /* this provides more than 2 args to expt:
    *  if (is_not_null(cddr(args)))
    *    return(g_expt(sc, list_2(sc, car(args), g_expt(sc, cdr(args)))));
-   *
    * but it's unusual in scheme to process args in reverse order, and the
    * syntax by itself is ambiguous (does (expt 2 2 3) = 256 or 64?)
    */
@@ -14780,8 +14699,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	  if (denominator(pw) == 3)
 	    return(make_real(sc, cbrt(s7_real(n)))); /* (expt 27 1/3) should be 3, not 3.0... */
 
-	  /* but: (expt 512/729 1/3) -> 0.88888888888889 */
-	  /* and 4 -> sqrt(sqrt...) etc? */
+	  /* but: (expt 512/729 1/3) -> 0.88888888888889, and 4 -> sqrt(sqrt...) etc? */
 	}
 
       x = s7_real(n);
@@ -14792,8 +14710,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
       if (y == 0.0) return(real_one);
 
       if (x > 0.0)
-	return(make_real(sc, pow(x, y)));
-      /* tricky cases abound here: (expt -1 1/9223372036854775807) */
+	return(make_real(sc, pow(x, y)));      /* tricky cases abound here: (expt -1 1/9223372036854775807) */
     }
 
   /* (expt 0+i 1e+16) = 0.98156860153485-0.19111012657867i ?
@@ -14997,8 +14914,7 @@ static s7_pointer g_quotient(s7_scheme *sc, s7_pointer args)
 {
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
   #define Q_quotient sc->pcl_r
-  /* (define (quo x1 x2) (truncate (/ x1 x2))) ; slib
-   */
+  /* (define (quo x1 x2) (truncate (/ x1 x2))) ; slib */
   s7_pointer x, y;
   s7_int d1, d2, n1, n2;
 
@@ -16111,8 +16027,7 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 		if (is_null(p))
 		  return(s7_make_ratio(sc, num_a, den_a));
 	      }
-	    /* (+ 1/100 99/100 (- most-positive-fixnum 2)) should not be converted to real
-	     */
+	    /* (+ 1/100 99/100 (- most-positive-fixnum 2)) should not be converted to real */
 	    if (reduce_fraction(&num_a, &den_a) == T_INTEGER)
 	    goto ADD_INTEGERS;
 	  goto ADD_RATIOS;
@@ -18041,15 +17956,9 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 	   *    0.010000000000000000208166817117 and
 	   *    0.010000000000000000208166817117
 	   * that is, we can't distinguish these two fractions once they're coerced to doubles.
-	   *
 	   * Even long doubles fail in innocuous-looking cases:
 	   *     (min 21053343141/6701487259 3587785776203/1142027682075) -> 3587785776203/1142027682075
 	   *     (max 21053343141/6701487259 3587785776203/1142027682075) -> 3587785776203/1142027682075
-	   *
-	   * Another consequence: outside gmp, we can't handle cases like
-	   *    (max 9223372036854776/9223372036854775807 #i9223372036854775/9223372036854775000)
-	   *    (max #i9223372036854776/9223372036854775807 9223372036854775/9223372036854775000)
-	   * I guess if the user is using "inexact" numbers (#i...), he accepts their inexactness.
 	   */
 
 	  if ((num_a < 0) && (num_b >= 0)) /* x < 0, y >= 0 -> y */
@@ -18223,7 +18132,6 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 	  return(method_or_bust(sc, y, sc->min_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1));
 	}
 
-
     case T_RATIO:
     MIN_RATIOS:
       if (is_null(p)) return(x);
@@ -18305,7 +18213,6 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 	default:
 	  return(method_or_bust(sc, y, sc->min_symbol, cons_unchecked(sc, x, cons(sc, y, p)), T_REAL, position_of(p, args) - 1));
 	}
-
 
     case T_REAL:
       if (is_NaN(real(x)))
@@ -20786,8 +20693,8 @@ static s7_int lognot_i_i(s7_int i1) {return(~i1);}
 
 static s7_pointer g_logbit(s7_scheme *sc, s7_pointer args)
 {
-  #define H_logbit "(logbit? int32_t index) returns #t if the index-th bit is on in int, otherwise #f. The argument \
-order here follows gmp, and is the opposite of the CL convention.  (logbit? int32_t bit) is the same as (not (zero? (logand int32_t (ash 1 bit))))."
+  #define H_logbit "(logbit? int index) returns #t if the index-th bit is on in int, otherwise #f. The argument \
+order here follows gmp, and is the opposite of the CL convention.  (logbit? int bit) is the same as (not (zero? (logand int (ash 1 bit))))."
   #define Q_logbit s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_integer_symbol)
 
   s7_pointer x, y;
@@ -24162,6 +24069,8 @@ static void resize_strbuf(s7_scheme *sc, s7_int needed_size)
   for (i = old_size; i < sc->strbuf_size; i++) sc->strbuf[i] = '\0';
 }
 
+#define BASE_10 10
+
 static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool atom_case)
 {
   int32_t c;
@@ -24952,8 +24861,7 @@ static s7_pointer op_get_output_string(s7_scheme *sc)
   port = sc->code;
   if ((!is_output_port(port)) ||
       (port_is_closed(port)))
-    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port,
-					 wrap_string(sc, "an open string output port", 26));
+    simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, wrap_string(sc, "an open string output port", 26));
   if (port_position(port) >= port_data_size(port))
     sc->value = block_to_string(sc, reallocate(sc, port_data_block(port), port_position(port) + 1), port_position(port));
   else sc->value = block_to_string(sc, port_data_block(port), port_position(port));
@@ -37901,6 +37809,8 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
 static s7_pointer make_byte_vector_p_ii(s7_scheme *sc, s7_int len, s7_int init)
 {
   s7_pointer p;
+  if ((len < 0) || (len > sc->max_vector_length))
+    return(out_of_range(sc, sc->make_byte_vector_symbol, small_int(1), make_integer(sc, len), (len < 0) ? its_negative_string : its_too_large_string));
   if ((init < 0) || (init > 255))
     return(simple_wrong_type_argument_with_type(sc, sc->make_byte_vector_symbol, make_integer(sc, init), an_unsigned_byte_string));
   p = make_simple_byte_vector(sc, len);
@@ -49702,8 +49612,14 @@ static void check_let_slots(s7_scheme *sc, const char* func, s7_pointer expr, s7
   if (let_slots(sc->envir) != symbol_to_slot(sc, var))
     fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
 }
+static void check_next_let_slot(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer var)
+{
+  if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, var))
+    fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
+}
 #else
 #define check_let_slots(Sc, Func, Expr, Var)
+#define check_next_let_slot(Sc, Func, Expr, Var)
 #endif
 
 #if (!WITH_GMP)
@@ -49769,10 +49685,7 @@ static s7_pointer fx_c_add_u1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
   x = slot_value(next_slot(let_slots(sc->envir)));
-#if S7_DEBUGGING
-  if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, cadr(arg)))
-    fprintf(stderr, "%s %s is out of date\n", __func__, DISPLAY(arg));
-#endif
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
   if (is_integer(x))
     return(make_integer(sc, integer(x) + 1));
   return(add_p_pp(sc, x, small_int(1)));
@@ -61112,6 +61025,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
   s7_pointer p, end, frame = NULL, old_e, slot, stop, ind, ind_step, var;
   int32_t i, var_len, body_len, body_index, step_len, rtn_len;
   bool has_set = false;
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, DISPLAY(car_x)); */
 
   if (len < 3)
     return(return_false(sc, car_x, __func__, __LINE__));
@@ -74300,9 +74214,9 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer steppers, s7_p
 			      (*has_set) = true;
 			  }
 			if (!do_is_safe(sc, cddr(expr), steppers, var_list, has_set))
-			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
+			  {if (DO_PRINT) fprintf(stderr, "end-test: %d\n", __LINE__); return(false);}
 			if (!safe_stepper(expr, steppers))  /* is step var's value used as the stored value by set!? */
-			  {if (DO_PRINT) fprintf(stderr, "%d\n", __LINE__); return(false);}
+			  {if (DO_PRINT) fprintf(stderr, "unsafe stepper: %d\n", __LINE__); return(false);}
 		      }
 		      break;
 
@@ -90347,7 +90261,7 @@ int main(int argc, char **argv)
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2371
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2327
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
@@ -90357,23 +90271,25 @@ int main(int argc, char **argv)
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3487
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5186
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6389
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6433
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.5
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 182.4
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.9
  * --------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
  *   for OP_SAFE_C_S: fx_o_p_p_s: OP_SAFE_O_S where hop is assumed, but use opt2 not opt2(cdr)?
  *   fx_c_s gives non-pp cases? p_p for is_*? cos/sin cxr mus_copy but there are a million special cases here
  *   or b_7p -> op_safe_o_b_7p, also fx_o_b_7p
+ * (negative? (int-vector-ref...)) would need i_pp and b|p_i
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
- * fpconv_dtoa could be tied more tightly into s7 (no floatify, handle nans/infs etc, maybe extend to 'f' and 'e')
- *   dtoa_* for its macros etc
+ *   perhaps split add|sub_aa ->add|sub_op..._a
+ * zauto provide: fx_c_add_u1 is out of date
+ * perhaps tree_is_cyclic_with_length
  */

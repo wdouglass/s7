@@ -57,7 +57,7 @@
 	      
 	      (set! size (min size total-lines))
 	      (set! size-1 (- size 1))
-	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 79881
+	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 80263
 
 	      ;; mark unmatchable strings
 	      (let ((sortv (make-vector total-lines)))
