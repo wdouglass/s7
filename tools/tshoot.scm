@@ -218,7 +218,7 @@ long lived tree of depth 21	 check: 4194303
 	    (set! num i)))
 	(format *stderr* "Maximum stopping distance ~D, starting number ~D\n" len num)))))
 
-(collatz)
+;(collatz)
 ;; Maximum stopping distance 442, starting number 230631
 ;; .66 secs
 

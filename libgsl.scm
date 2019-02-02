@@ -951,7 +951,55 @@
 	 (void gsl_dht_free (gsl_dht*))
 	 (int gsl_dht_apply (gsl_dht* double* double*))
 	 
-	 
+#|
+	 ;; gsl_filter
+	 (reader-cond ((>= gsl-version 2.5)
+		       (int (GSL_FILTER_END_PADZERO GSL_FILTER_END_PADVALUE GSL_FILTER_END_TRUNCATE
+			     GSL_FILTER_SCALE_MAD GSL_FILTER_SCALE_IQR GSL_FILTER_SCALE_SN GSL_FILTER_SCALE_QN))
+		       (gsl_filter_gaussian_workspace* gsl_filter_gaussian_alloc (size_t))
+	               (void gsl_filter_gaussian_free (gsl_filter_gaussian_workspace*))
+	               (int gsl_filter_gaussian (gsl_filter_end_t double size_t gsl_vector* gsl_vector* gsl_filter_gaussian_workspace*))
+	               (int gsl_filter_gaussian_kernel (double size_t int gsl_vector*))
+	               (gsl_filter_median_workspace* gsl_filter_median_alloc (size_t))
+	               (void gsl_filter_median_free (gsl_filter_median_workspace*))
+	               (int gsl_filter_median (gsl_filter_end_t gsl_vector* gsl_vector* gsl_filter_median_workspace*))
+	               (gsl_filter_rmedian_workspace* gsl_filter_rmedian_alloc (size_t))
+	               (void gsl_filter_rmedian_free (gsl_filter_rmedian_workspace*))
+	               (int gsl_filter_rmedian (gsl_filter_end_t gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+	               (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+	               (gsl_filter_impulse_workspace* gsl_filter_impulse_alloc (size_t))
+	               (void gsl_filter_impulse_free (gsl_filter_impulse_workspace*))
+	               (int gsl_filter_impulse (gsl_filter_end_t gsl_filter_scale_t double gsl_vector* gsl_vector* gsl_vector* gsl_vector* size_t*
+                                                gsl_vector_int* gsl_filter_impulse_workspace*))))
+
+	 ;; gsl_movstat
+	 (reader-cond ((>= gsl-version 2.5)
+		       (int (GSL_MOVSTAT_END_PADZERO GSL_MOVSTAT_END_PADVALUE GSL_MOVSTAT_END_TRUNCATE))
+		       (C-macro GSL_MOVSTAT_FN_EVAL)
+	               (gsl_movstat_workspace* gsl_movstat_alloc (size_t))
+	               (gsl_movstat_workspace* gsl_movstat_alloc2 (size_t size_t))
+	               (gsl_movstat_workspace* gsl_movstat_alloc_with_size (size_t size_t size_t))
+	               (void gsl_movstat_free (gsl_movstat_workspace*))
+	               (int gsl_movstat_apply_accum (gsl_movstat_end_t gsl_vector* gsl_movstat_accum* void* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_apply (gsl_movstat_end_t gsl_movstat_function* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (size_t gsl_movstat_fill (gsl_movstat_end_t gsl_vector* size_t size_t size_t double*))
+	               (int gsl_movstat_mean (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_variance (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_sd (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_median (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_min (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_max (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_minmax (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_mad0 (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_mad (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_qqr (gsl_movstat_end_t gsl_vector* double gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_Sn (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_Qn (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_sum (gsl_movstat_end_t gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (gsl_movstat_accum* (gsl_movstat_accum_mad gsl_movstat_accum_max gsl_movstat_accum_mean gsl_movstat_accum_median gsl_movstat_accum_min
+	                                    gsl_movstat_accum_minmax gsl_movstat_accum_sd gsl_movstat_accum_Sn gsl_movstat_accum_sum gsl_movstat_accum_Qn
+	                                    gsl_movstat_accum_qqr gsl_movstat_accum_userfunc gsl_movstat_accum_variance))))
+|#
 	 ;; gsl_statistics
 	 (double gsl_stats_mean (double* size_t size_t))
 	 (double gsl_stats_variance (double* size_t size_t))
@@ -999,6 +1047,21 @@
 	 (void gsl_stats_minmax_index (size_t* size_t* double* size_t size_t))
 	 (double gsl_stats_median_from_sorted_data (double* size_t size_t))
 	 (double gsl_stats_quantile_from_sorted_data (double* size_t size_t double))
+#|
+	 (reader-cond ((>= gsl-version 2.5)
+ 	               (double gsl_stats_select (double* size_t size_t size_t))
+	               (double gsl_stats_median_from_sorted_data (double* size_t size_t))
+	               (double gsl_stats_median (double* size_t size_t))
+	               (double gsl_stats_quantile_from_sorted_data (double* size_t size_t double))
+	               (double gsl_stats_trmean_from_sorted_data (double double*, size_t size_t))
+	               (double gsl_stats_gastwirth_from_sorted_data (double* size_t size_t))
+	               (double gsl_stats_mad0 (double* size_t size_t double*))
+	               (double gsl_stats_mad (double* size_t size_t double*))
+	               (double gsl_stats_Sn0_from_sorted_data (double* size_t size_t double*))
+	               (double gsl_stats_Sn_from_sorted_data (double* size_t size_t double*))
+	               (double gsl_stats_Qn0_from_sorted_data (double* size_t size_t double* int*))
+	               (double gsl_stats_Qn_from_sorted_data (double* size_t size_t double* int*))))
+|#
 	 
 	 (gsl_interp_type* (gsl_interp_linear gsl_interp_polynomial gsl_interp_cspline gsl_interp_cspline_periodic 
 			    gsl_interp_akima gsl_interp_akima_periodic))
@@ -2077,6 +2140,9 @@
 	 (int gsl_integration_qawo_table_set (gsl_integration_qawo_table* double double int))
 	 (int gsl_integration_qawo_table_set_length (gsl_integration_qawo_table* double))
 	 (void gsl_integration_qawo_table_free (gsl_integration_qawo_table*))
+	 (reader-cond ((>= gsl-version 2.5)
+		       (gsl_integration_romberg_workspace* gsl_integration_romberg_alloc (size_t))
+                       (void gsl_integration_romberg_free (gsl_integration_romberg_workspace*))))
 	 
 	 (in-C "#define Integration(Name) \
                   static s7_pointer g_gsl_integration_ ## Name (s7_scheme *sc, s7_pointer args)   \
@@ -2101,7 +2167,23 @@
 	 (C-function ("gsl_integration_qk41" g_gsl_integration_qk41 "" 7))
 	 (C-function ("gsl_integration_qk51" g_gsl_integration_qk51 "" 7))
 	 (C-function ("gsl_integration_qk61" g_gsl_integration_qk61 "" 7))
-	 
+
+#|	 
+	 (reader-cond ((>= gsl-version 2.5)
+		       (in-C "static s7_pointer g_gsl_integration_romberg(s7_scheme *sc, s7_pointer args)
+                              {
+                                gsl_function gsl_f; make_gsl_function(s7_car(args));
+                                gsl_integration_romberg(&gsl_f, 
+                                                        s7_real(s7_cadr(args)), s7_real(s7_caddr(args)), 
+                                                        s7_real(s7_cadddr(args)), s7_real(s7_list_ref(sc, args, 4)),
+                                                        (double *)s7_c_pointer(s7_list_ref(sc, args, 5)),
+                                                        (size_t *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                                        (gsl_integration_romberg_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)));
+                                return(s7_car(args));
+                              }")
+		       (C-function ("gsl_integration_romberg" g_gsl_integration_romberg "" 8))))
+|#
+
 	 (in-C "static s7_pointer g_gsl_integration_qcheb(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f; make_gsl_function(s7_car(args));

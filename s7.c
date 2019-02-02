@@ -11977,6 +11977,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   return(make_string_with_length(sc, res, nlen));
 }
 
+#if (!WITH_GMP)
 static s7_pointer number_to_string_p_p(s7_scheme *sc, s7_pointer p)
 {
   s7_int nlen = 0;
@@ -12022,6 +12023,7 @@ static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer
   free(res);
   return(p);
 }
+#endif
 
 
 /* -------------------------------------------------------------------------------- */
@@ -13241,6 +13243,7 @@ static s7_pointer string_to_number(s7_scheme *sc, char *str, int32_t radix)
   return(sc->F);
 }
 
+#if (!WITH_GMP)
 static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_pointer radix1)
 {
   s7_int radix;
@@ -13262,6 +13265,7 @@ static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_point
 
   return(string_to_number(sc, str, radix));
 }
+#endif
 
 static s7_pointer g_string_to_number_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
@@ -13302,6 +13306,20 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
 
 
 /* -------------------------------- abs -------------------------------- */
+static bool is_rational_via_method(s7_scheme *sc, s7_pointer p) /* used in gmp as well as below */
+{
+  if (s7_is_rational(p))
+    return(true);
+  if (has_methods(p))
+    {
+      s7_pointer f;
+      f = find_method(sc, find_let(sc, p), sc->is_rational_symbol);
+      if (f != sc->undefined)
+	return(is_true(sc, s7_apply_function(sc, f, cons(sc, p, sc->nil))));
+    }
+  return(false);
+}
+
 #if (!WITH_GMP)
 static s7_pointer g_abs(s7_scheme *sc, s7_pointer args)
 {
@@ -14721,20 +14739,6 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- lcm -------------------------------- */
-static bool is_rational_via_method(s7_scheme *sc, s7_pointer p)
-{
-  if (s7_is_rational(p))
-    return(true);
-  if (has_methods(p))
-    {
-      s7_pointer f;
-      f = find_method(sc, find_let(sc, p), sc->is_rational_symbol);
-      if (f != sc->undefined)
-	return(is_true(sc, s7_apply_function(sc, f, cons(sc, p, sc->nil))));
-    }
-  return(false);
-}
-
 static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
 {
   /* (/ (* m n) (gcd m n)), (lcm a b c) -> (lcm a (lcm b c)) */
@@ -22989,7 +22993,6 @@ static bool string_ci_eq_b_7pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 }
 #endif /* pure s7 */
 
-
 static s7_pointer g_string_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 {
   s7_pointer x, chr;
@@ -28410,11 +28413,36 @@ static void simple_list_readable_display(s7_scheme *sc, s7_pointer lst, s7_int t
     port_write_character(port)(sc, ')', port);
 }
 
+#if CYCLE_DEBUGGING
+static char *base2 = NULL, *min_char2 = NULL;
+#endif
+
 static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   /* we need list_to_starboard... (making port_write_string|character local was noticeable slower) */
   s7_pointer x;
   s7_int i, len, true_len;
+
+#if CYCLE_DEBUGGING
+  char xx;
+  if (!base2) base2 = &xx; 
+  else 
+    {
+      if (&xx > base2) base2 = &xx; 
+      else 
+	{
+	  if ((!min_char2) || (&xx < min_char2))
+	    {
+	      min_char2 = &xx;
+	      if ((base2 - min_char2) > 1000000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
 
   true_len = s7_list_length(sc, lst);
   if (true_len < 0)                    /* a dotted list -- handle cars, then final cdr */
@@ -51810,8 +51838,10 @@ s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 static void s7_set_d_7dd_function(s7_pointer f, s7_d_7dd_t df) {add_opt_func(f, o_d_7dd, (void *)df);}
 static s7_d_7dd_t s7_d_7dd_function(s7_pointer f) {return((s7_d_7dd_t)opt_func(f, o_d_7dd));}
 
+#if (!WITH_GMP)
 static void s7_set_i_7i_function(s7_pointer f, s7_i_7i_t df) {add_opt_func(f, o_i_7i, (void *)df);}
 static s7_i_7i_t s7_i_7i_function(s7_pointer f) {return((s7_i_7i_t)opt_func(f, o_i_7i));}
+#endif
 
 static void s7_set_i_7ii_function(s7_pointer f, s7_i_7ii_t df) {add_opt_func(f, o_i_7ii, (void *)df);}
 static s7_i_7ii_t s7_i_7ii_function(s7_pointer f) {return((s7_i_7ii_t)opt_func(f, o_i_7ii));}
@@ -51855,8 +51885,10 @@ static s7_b_7pp_t s7_b_7pp_function(s7_pointer f) {return((s7_b_7pp_t)opt_func(f
 static void s7_set_d_7d_function(s7_pointer f, s7_d_7d_t df) {add_opt_func(f, o_d_7d, (void *)df);}
 static s7_d_7d_t s7_d_7d_function(s7_pointer f) {return((s7_d_7d_t)opt_func(f, o_d_7d));}
 
+#if (!WITH_GMP)
 static void s7_set_b_pi_function(s7_pointer f, s7_b_pi_t df) {add_opt_func(f, o_b_pi, (void *)df);}
 static s7_b_pi_t s7_b_pi_function(s7_pointer f) {return((s7_b_pi_t)opt_func(f, o_b_pi));}
+#endif
 
 static void s7_set_b_ii_function(s7_pointer f, s7_b_ii_t df) {add_opt_func(f, o_b_ii, (void *)df);}
 static s7_b_ii_t s7_b_ii_function(s7_pointer f) {return((s7_b_ii_t)opt_func(f, o_b_ii));}
@@ -51909,8 +51941,10 @@ static s7_p_ii_t s7_p_ii_function(s7_pointer f) {return((s7_p_ii_t)opt_func(f, o
 static void s7_set_d_7piid_function(s7_pointer f, s7_d_7piid_t df) {add_opt_func(f, o_d_7piid, (void *)df);}
 static s7_d_7piid_t s7_d_7piid_function(s7_pointer f) {return((s7_d_7piid_t)opt_func(f, o_d_7piid));}
 
+#if (!WITH_GMP)
 static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_p_dd, (void *)df);}
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
+#endif
 
 enum {OO_P, OO_I, OO_D, OO_V, OO_IV, OO_FV, OO_PV, OO_R, OO_H, OO_S, OO_BV, OO_L, OO_E, OO_AV, OO_TV};
 #if OPT_INFO_DEBUGGING
@@ -56213,6 +56247,7 @@ static bool opt_b_7p_f(void *p)
   return(o->v[2].b_7p_f(o->sc, o1->v[0].fp(o1)));
 }
 
+#if (!WITH_GMP)
 static bool opt_zero_mod(void *p)
 {
   opt_info *o = (opt_info *)p;
@@ -56221,6 +56256,7 @@ static bool opt_zero_mod(void *p)
   oo_rcheck(o->sc, o, 3, 1);
   return((x % o->v[2].i) == 0);
 }
+#endif
 
 static bool b_idp_ok(s7_scheme *sc, s7_pointer s_func, s7_pointer car_x, s7_pointer arg_type)
 {
@@ -85674,7 +85710,6 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	mpc_clear(z);
 	return(small_int(0));
       }
-
     if (mpc_cmp_si_si(z, 1, 0) == 0)
       {
 	mpc_clear(z);
@@ -85728,7 +85763,6 @@ static s7_pointer big_asinh(s7_scheme *sc, s7_pointer args)
 {
   #define H_asinh "(asinh z) returns asinh(z)"
   #define Q_asinh sc->pcl_n
-
   s7_pointer p;
 
   p = car(args);
@@ -85829,7 +85863,6 @@ static s7_pointer big_atan(s7_scheme *sc, s7_pointer args)
 {
   #define H_atan "(atan z) returns atan(z), (atan y x) returns atan(y/x)"
   #define Q_atan s7_make_signature(sc, 3, sc->is_number_symbol, sc->is_number_symbol, sc->is_real_symbol)
-
   s7_pointer p0, p1 = NULL, p;
 
   p0 = car(args);
@@ -85841,10 +85874,8 @@ static s7_pointer big_atan(s7_scheme *sc, s7_pointer args)
       p1 = cadr(args);
       if (!s7_is_real(p1))
 	return(method_or_bust(sc, p1, sc->atan_symbol, args, T_REAL, 2));
-
       if (!s7_is_real(p0))
 	return(wrong_type_argument(sc, sc->atan_symbol, 1, p0, T_REAL));
-
       p1 = promote_number(sc, T_BIG_REAL, p1);
     }
 
@@ -85876,7 +85907,6 @@ static s7_pointer big_acos(s7_scheme *sc, s7_pointer args)
 {
   #define H_acos "(acos z) returns acos(z); (cos (acos 1)) = 1"
   #define Q_acos sc->pcl_n
-
   s7_pointer p;
 
   p = car(args);
@@ -85918,7 +85948,6 @@ static s7_pointer big_asin(s7_scheme *sc, s7_pointer args)
 {
   #define H_asin "(asin z) returns asin(z); (sin (asin 1)) = 1"
   #define Q_asin sc->pcl_n
-
   s7_pointer p;
 
   p = car(args);
@@ -86393,16 +86422,13 @@ static s7_pointer big_exact_to_inexact(s7_scheme *sc, s7_pointer args)
 {
   #define H_exact_to_inexact "(exact->inexact num) converts num to an inexact number; (exact->inexact 3/2) = 1.5"
   #define Q_exact_to_inexact s7_make_signature(sc, 2, sc->is_number_symbol, sc->is_number_symbol)
-
   s7_pointer p;
 
   p = car(args);
   if (!s7_is_number(p))   /* apparently (exact->inexact 1+i) is not an error */
     return(method_or_bust_with_type_one_arg(sc, p, sc->exact_to_inexact_symbol, args, a_number_string));
-
   if (!s7_is_rational(p))
     return(p);
-
   return(promote_number(sc, T_BIG_REAL, to_big(sc, p)));
 }
 
@@ -86412,10 +86438,8 @@ static s7_pointer big_inexact_to_exact(s7_scheme *sc, s7_pointer args)
   #define Q_inexact_to_exact s7_make_signature(sc, 2, sc->is_real_symbol, sc->is_real_symbol)
   s7_pointer p;
   p = car(args);
-
   if (s7_is_rational(p))
     return(p);
-
   if (!s7_is_real(p))
     return(method_or_bust_one_arg(sc, p, sc->inexact_to_exact_symbol, args, T_REAL));
   return(big_rationalize(sc, args));
@@ -86433,7 +86457,6 @@ static s7_pointer big_convert_to_int(s7_scheme *sc, s7_pointer args, s7_pointer 
   p = car(args);
   if (!s7_is_real(p))
     return(method_or_bust_one_arg(sc, p, sym, args, T_REAL));
-
   if (s7_is_integer(p))
     return(p);
 
@@ -86737,13 +86760,10 @@ static s7_pointer big_max(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->max_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   if (result_type < T_BIG_INTEGER)
     return(g_max(sc, args));
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->max_symbol, args);
-
   result = promote_number(sc, result_type, car(args));
 
   for (x = cdr(args); is_not_null(x); x = cdr(x))
@@ -86773,13 +86793,10 @@ static s7_pointer big_min(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->min_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   if (result_type < T_BIG_INTEGER)
     return(g_min(sc, args));
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->min_symbol, args);
-
   result = promote_number(sc, result_type, car(args));
 
   for (x = cdr(args); is_not_null(x); x = cdr(x))
@@ -86812,14 +86829,11 @@ static s7_pointer big_less(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->lt_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   /* don't try to use g_less here */
   if (result_type < T_BIG_INTEGER)
     result_type += 4;
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->lt_symbol, args);
-
   previous = promote_number(sc, result_type, car(args));
 
   for (x = cdr(args); is_not_null(x); x = cdr(x))
@@ -86850,13 +86864,10 @@ static s7_pointer big_less_or_equal(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->leq_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   if (result_type < T_BIG_INTEGER)
     result_type += 4;
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->leq_symbol, args);
-
   previous = promote_number(sc, result_type, car(args));
 
   for (x = cdr(args); is_not_null(x); x = cdr(x))
@@ -86887,13 +86898,10 @@ static s7_pointer big_greater(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->gt_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   if (result_type < T_BIG_INTEGER)
     result_type += 4;
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->gt_symbol, args);
-
   previous = promote_number(sc, result_type, car(args));
 
   for (x = cdr(args); is_not_null(x); x = cdr(x))
@@ -86923,10 +86931,8 @@ static s7_pointer big_greater_or_equal(s7_scheme *sc, s7_pointer args)
   result_type = big_real_scan_args(sc, args);
   if (result_type < 0)
     return(wrong_type_argument(sc, sc->geq_symbol, -result_type, s7_list_ref(sc, args, -1 - result_type), T_REAL));
-
   if (result_type < T_BIG_INTEGER)
     result_type += 4;
-
   if (!s7_is_number(car(args)))
     check_method(sc, car(args), sc->geq_symbol, args);
   previous = promote_number(sc, result_type, car(args));
@@ -86983,13 +86989,8 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
       arg = promote_number(sc, result_type, car(y));
       switch (result_type)
 	{
-	case T_BIG_INTEGER:
-	  if (mpz_cmp(big_integer(result), big_integer(arg)) != 0) return(sc->F);
-	  break;
-
-	case T_BIG_RATIO:
-	  if (mpq_cmp(big_ratio(result),   big_ratio(arg)) != 0)   return(sc->F);
-	  break;
+	case T_BIG_INTEGER: if (mpz_cmp(big_integer(result), big_integer(arg)) != 0) return(sc->F); break;
+	case T_BIG_RATIO:   if (mpq_cmp(big_ratio(result),   big_ratio(arg)) != 0)   return(sc->F); break;
 
 	case T_BIG_REAL:
 	  {
@@ -90276,7 +90277,7 @@ int main(int argc, char **argv)
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.5
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.5 73.4
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.9
  * --------------------------------------------------------------------------
@@ -90290,6 +90291,7 @@ int main(int argc, char **argv)
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
  *   perhaps split add|sub_aa ->add|sub_op..._a
- * zauto provide: fx_c_add_u1 is out of date
  * perhaps tree_is_cyclic_with_length
+ * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
+ * gsl changes (libgsl.scm) when 2.5
  */

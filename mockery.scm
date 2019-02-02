@@ -43,10 +43,14 @@
 	  (inlet 'equivalent?        (make-local-method #_equivalent?) ; see comment below
 		 
 		 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
+				       (unless (integer? i)
+					 (error 'wrong-type-arg "stray mock-vector?"))
 				       (if (vector? (obj 'value))
 					   (#_vector-set! (obj 'value) i val)
 					   (error 'wrong-type-arg "vector-set! ~S ~S ~S" obj i val))) ; the wrong arg here is 'i
+
 		 'vector-set!        (lambda (obj i val) ((obj 'local-set!) obj i val) val)
+
 		 'let-set-fallback   (lambda (obj i val) 
 				       (if (and (integer? i)
 						(defined? 'value obj))
@@ -56,15 +60,16 @@
 					   (error 'out-of-range "unknown field: ~S" i)))
 		 
 		 'vector-ref         (lambda (obj i) 
-				       (if (mock-vector? obj)
-					   (#_vector-ref (obj 'value) i)
-					   (error 'wrong-type-arg "vector-ref ~S ~S" obj i)))
+				       (unless (integer? i)
+					 (error 'wrong-type-arg "stray mock-vector?"))
+				       (#_vector-ref (if (mock-vector? obj) (obj 'value) obj) i))
 		 
 		 'let-ref-fallback   (lambda (obj i) 
 				       (if (and (integer? i)
 						(defined? 'value obj))
 					   (#_vector-ref (obj 'value) i)   ; the implicit case
 					   (error 'out-of-range "unknown field: ~S" i)))
+
 		 'vector-length      (lambda (obj) (#_length (obj 'value)))
 		 'vector-append      (make-local-method #_vector-append)
 		 'reverse            (lambda (obj) (#_reverse (obj 'value)))
@@ -82,19 +87,13 @@
 		 'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
 		 
 		 'vector->list       (lambda (obj . args)
-				       (if (mock-vector? obj)
-					   (map values (obj 'value))
-					   (error 'wrong-type-arg "vector->list ~S ~S" obj args)))
+				       (map values (if (mock-vector? obj) (obj 'value) obj)))
 		 
-		 'subvector (lambda* (obj dim (off 0))
-				       (if (mock-vector? obj)
-					   (#_subvector (obj 'value) dim off)
-					   (error 'wrong-type-arg "subvector ~S ~S ~S" obj dim off)))
+		 'subvector          (lambda* (obj dim (off 0))
+				       (#_subvector (if (mock-vector? obj) (obj 'value) obj) dim off))
 		 
 		 'vector-fill!       (lambda (obj . args)
-				       (if (mock-vector? obj)
-					   (apply #_fill! (obj 'value) args)
-					   (error 'wrong-type-arg "vector-fill! ~S ~S ~S ~S" obj val start end)))
+				       (apply #_fill! (if (mock-vector? obj) (obj 'value) obj) args))
 		 
 		 'copy               (lambda* (source dest . args)
 				       ;; copy by itself does not make a new vector, but if no dest we
@@ -102,17 +101,17 @@
 				       ;;   we aren't caught in an infinite recursion.
 				       (if (mock-vector? source)
 					   (if (and dest (not (let? dest)))
-					       (apply copy (source 'value) dest args)
+					       (apply #_copy (source 'value) dest args)
 					       (let ((nobj (or dest 
 							       (dynamic-wind
 								   (lambda () (coverlet source))
 								   (lambda () (openlet (copy source)))
 								   (lambda () (openlet source))))))
 						 (if dest
-						     (apply copy (source 'value) (nobj 'value) args)
-						     (set! (nobj 'value) (copy (source 'value))))
+						     (apply #_copy (source 'value) (nobj 'value) args)
+						     (set! (nobj 'value) (#_copy (source 'value))))
 						 nobj))
-					   (error 'wrong-type-arg "copy ~S ~S ~S" source dest args)))
+					   (apply #_copy source dest args)))
 		 'vector?            (lambda (obj) #t)
 		 'length             (lambda (obj) (#_length (obj 'value)))
 		 'append             (make-local-method #_append)
@@ -180,11 +179,11 @@
 (define *mock-hash-table*
   (let* ((mock-hash-table? #f)
 	 (mock-hash-table-class
-	  (inlet 'equivalent?        (lambda (x y)          (#_equivalent? (x 'value) y))
-		 'hash-table-ref     (lambda (obj key)      (#_hash-table-ref (obj 'value) key))
-		 'hash-table-set!    (lambda (obj key val)  (#_hash-table-set! (obj 'value) key val))
-		 'hash-table-entries (lambda (obj)          (#_hash-table-entries (obj 'value)))
-		 'make-iterator      (lambda (obj)          (#_make-iterator (obj 'value)))
+	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (x 'value) y))
+		 'hash-table-ref     (lambda (obj key) (#_hash-table-ref (obj 'value) key))
+		 'hash-table-set!    (lambda (obj key val) (#_hash-table-set! (obj 'value) key val))
+		 'hash-table-entries (lambda (obj) (#_hash-table-entries (obj 'value)))
+		 'make-iterator      (lambda (obj) (#_make-iterator (obj 'value)))
 		 
 		 'let-ref-fallback   (lambda (obj key)
 				       (if (defined? 'value obj)
@@ -201,8 +200,8 @@
 		 ;;
 		 ;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
 		 
-		 'fill!              (lambda (obj val)      (#_fill! (obj 'value) val))
-		 'reverse            (lambda (obj)          (#_reverse (obj 'value)))
+		 'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
+		 'reverse            (lambda (obj) (#_reverse (obj 'value)))
 		 'object->string     (lambda args 
 				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>"))))
@@ -210,14 +209,14 @@
 		 'copy               (lambda* (source dest . args)
 				       (if (mock-hash-table? source)
 					   (if (and dest (not (let? dest)))
-					       (apply copy (source 'value) dest args)
-					       (let ((nobj (or dest (openlet (copy (coverlet source))))))
+					       (apply #_copy (source 'value) dest args)
+					       (let ((nobj (or dest (openlet (#_copy (coverlet source))))))
 						 (openlet source)
-						 (set! (nobj 'value) (copy (source 'value)))
+						 (set! (nobj 'value) (#_copy (source 'value)))
 						 nobj))
-					   (error 'wrong-type-arg "copy ~S ~S ~S" source dest args)))
+					   (apply #_copy source dest args)))
 		 'hash-table?        (lambda (obj) #t)
-		 'length             (lambda (obj)          (#_length (obj 'value)))
+		 'length             (lambda (obj) (#_length (obj 'value)))
 		 'append             (make-local-method #_append)
 		 'class-name         'mock-hash-table)))
     
@@ -275,6 +274,7 @@
 
 (define *mock-string*
   (let* ((mock-string? #f)
+	 (no-mock-strings #f)
 	 (mock-string-class
 	  (inlet 'equivalent?            (lambda (x y) (#_equivalent? (x 'value) y))
 		 'reverse                (lambda (obj) (#_reverse (obj 'value)))
@@ -324,32 +324,26 @@
 		 'string-fill!           (lambda* (obj val (start 0) end) 
 					   (if (mock-string? obj)
 					       (#_string-fill! (obj 'value) val start (or end (#_string-length (obj 'value))))
-					       (error 'wrong-type-arg "string-fill! ~S ~S ~S ~S" obj val start end)))
+					       (#_string_fill! (if (let? obj) (coverlet obj) obj) val start end)))
 		 
 		 'fill!                  (lambda (obj val) 
-					   (if (mock-string? obj)
-					       (#_fill! (obj 'value) val)
-					       (error 'wrong-type-arg "fill! ~S ~S" obj val)))
+					   (unless (char? val)
+					     (error 'wrong-type-arg "string-fill!: fill value is not a character"))
+					   (#_fill! (if (mock-string? obj) (obj 'value) obj) val))
 		 
 		 'copy                   (lambda (obj . args)
-					   (if (mock-string? obj)
-					       (apply #_copy (obj 'value) args)
-					       (error 'wrong-type-arg "copy ~S ~S" obj args)))
+					   (apply #_copy (if (mock-string? obj) (obj 'value) obj) (no-mock-strings args)))
 		 
 		 'substring              (lambda (obj . args) 
-					   (if (mock-string? obj)
-					       (apply #_substring (obj 'value) args)
-					       (error 'wrong-type-arg "substring ~S ~S" obj args)))
+					   (apply #_substring (if (mock-string? obj) (obj 'value) obj) (no-mock-strings args)))
 		 
 		 'string->number         (lambda* (obj (r 10))
-					   (if (mock-string? obj)
-					       (#_string->number (obj 'value) r)
-					       (error 'wrong-type-arg "string->number ~S ~S" obj r)))
+					   (unless (integer? r)
+					     (error 'wrong-type-arg "string-ref: stray mock-string?"))
+					   (#_string->number (if (mock-string? obj) (obj 'value) obj) r))
 		 
 		 'write-string           (lambda (obj . args) 
-					   (if (mock-string? obj)
-					       (apply #_write-string (obj 'value) args)
-					       (error 'wrong-type-arg "write-string ~S ~S" obj args)))
+					   (apply #_write-string (if (mock-string? obj) (obj 'value) obj) (no-mock-strings args)))
 		 
 		 'string-position        (lambda* (s1 s2 (start 0))
 					   (if (mock-string? s1)
@@ -357,15 +351,18 @@
 					       (if (mock-string? s2)
 						   (#_string-position s1 (s2 'value) start)
 						   (error 'wrong-type-arg "write-string ~S ~S ~S" s1 s2 start))))
-		 'string-ref             (lambda (obj i) 
-					   (if (mock-string? obj)
-					       (#_string-ref (obj 'value) i)
-					       (error 'wrong-type-arg "string-ref ~S ~S" obj i)))
+
+		 'string-ref             (lambda (obj i)
+					   (unless (integer? i)
+					     (error 'wrong-type-arg "string-ref: index is not an integer"))
+					   (#_string-ref (if (mock-string? obj) (obj 'value) obj) i))
 		 
 		 'string-set!            (lambda (obj i val) 
-					   (if (mock-string? obj)
-					       (#_string-set! (obj 'value) i val)
-					       (error 'wrong-type-arg "string-set! ~S ~S ~S" obj i val)))
+					   (unless (integer? i)
+					     (error 'wrong-type-arg "string-set!: index is not an integer"))
+					   (unless (char? val)
+					     (error 'wrong-type-arg "string-set!: value is not a character"))
+					   (#_string-set! (if (mock-string? obj) (obj 'value) obj) i val))
 		 
 		 'string->list           (if (provided? 'pure-s7)
 					     (lambda (obj) (#_map #_values obj))
@@ -409,6 +406,13 @@
 			 (and (openlet? obj)
 			      (outlet-member obj mock-string-class))))
     
+    (set! no-mock-strings (lambda (lst)
+			    (for-each
+			     (lambda (c)
+			       (if (mock-string? c)
+				   (error 'wrong-type-arg "stray mock-string?")))
+			     lst)
+			    lst))
     (curlet)))
 
 #|
@@ -440,6 +444,7 @@
 
 (define *mock-char*
   (let* ((mock-char? #f)
+	 (no-mock-chars #f)
 	 (mock-char-class
 	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (x 'value) y))
 		 'char-upcase        (lambda (obj) (#_char-upcase (obj 'value)))
@@ -465,26 +470,27 @@
 				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-char*" "#<mock-char-class>"))))
 		 'arity              (lambda (obj) (#_arity (obj 'value)))
-		 'append             (lambda args (error 'wrong-type-arg "append argument is a character"))
 		 'format             (make-local-method #_format)
 		 'make-string        (make-local-method #_make-string)
 		 'char-position      (make-local-method #_char-position)
 		 
 		 'write-char         (lambda (obj . args) 
-				       (if (mock-char? obj)
-					   (apply #_write-char (obj 'value) args)
-					   (error 'wrong-type-arg "write-char: ~S ~S" obj args)))
+				       (apply #_write-char (if (mock-char? obj) (obj 'value) obj) args))
 		 
 		 'string-set!        (lambda (obj ind val)
 				       (if (and (string? obj)
 						(integer? ind))
-					   (#_string-set! obj ind (val 'value))
+					   (#_string-set! obj ind (if (mock-char? val) (val 'value) val))
 					   (error 'wrong-type-arg "string-set! ~S ~S ~S" obj ind val)))
+
+		 'string-fill!       (lambda (obj chr . args)
+				       (if (string? obj)
+					   (apply #_string-fill! obj (if (mock-char? chr) (chr 'value) chr) (no-mock-chars args))
+					   (error 'wrong-type-arg "string-fill! ~S ~S ~S" obj chr args)))
 		 
-		 'copy               (lambda (obj . args) 
-				       (if (mock-char? obj)
-					   (obj 'value)
-					   (error 'wrong-type-arg "copy: ~S ~S" obj args)))
+		 'copy               (lambda (src . args) 
+				       (apply #_copy (if (mock-char? src) (src 'value) src) (no-mock-chars args)))
+
 		 'char?              (lambda (obj) #t)
 		 'class-name         'mock-char
 		 'length             (lambda (obj) #f))))
@@ -503,6 +509,14 @@
 		       (and (openlet? obj)
 			    (outlet-member obj mock-char-class))))
     
+    (set! no-mock-chars (lambda (lst)
+			  (for-each
+			   (lambda (c)
+			     (if (mock-char? c)
+				 (error 'wrong-type-arg "stray mock-char?")))
+			   lst)
+			  lst))
+
     (curlet)))
 
 #|
@@ -558,6 +572,8 @@
 	   'equivalent?      (lambda (x y) (#_equivalent? (->value x) (->value y)))
 	   'object->string   (lambda args 
 			       (let ((w (or (null? (cdr args)) (cadr args))))
+				 (unless (or (boolean? w) (eq? w :readable))
+				   (error 'wrong-type-arg "~A should be boolean of :readable" w))
 				 (copy (if (eq? w :readable) "*mock-number*" "#<mock-number-class>"))))
 	   'arity            (lambda (obj) (#_arity (->value obj)))
 	   'real-part        (lambda (obj) (#_real-part (->value obj)))
@@ -571,10 +587,7 @@
 	   'negative?        (lambda (obj) (#_negative? (->value obj)))
 	   'infinite?        (lambda (obj) (#_infinite? (->value obj)))
 	   'nan?             (lambda (obj) (#_nan? (->value obj)))
-	   'append           (lambda args 
-			       (if (pair? args)
-				   (error 'wrong-type-arg "append argument is a number")
-				   ())) ; (append) -> ()
+	   'append           (lambda args (apply #_append (map ->value args)))
 	   'make-polar       (if (provided? 'pure-s7)
 				 (lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
 				 (make-local-method #_make-polar))
@@ -706,9 +719,7 @@
 					 (error 'wrong-type-arg "start and end should be integers: ~S ~S" start end)))))
 	   
 	   'make-string      (lambda (ind . args) 
-			       (if (mock-number? ind)
-				   (apply #_make-string (ind 'value) args)
-				   (error 'wrong-type-arg "make-string ~S ~S" ind args)))
+			       (apply #_make-string (if (mock-number? ind) (ind 'value) ind) args))
 
 	   'string-ref       (lambda (str ind) 
 			       (if (string? str)
@@ -987,33 +998,22 @@
 		 'list->vector     (lambda (obj) (#_list->vector (obj 'value)))
 		 
 		 'list-tail        (lambda (obj . args) 
-				     (if (mock-pair? obj)
-					 (apply #_list-tail (obj 'value) args)
-					 (error 'wrong-type-arg "list-tail ~S ~S" obj args)))
+				     (apply #_list-tail (if (mock-pair? obj) (obj 'value) obj) args))
 		 
 		 'copy             (lambda (obj . args) 
-				     (if (mock-pair? obj)
-					 (apply #_copy (obj 'value) args)
-					 (error 'wrong-type-arg "copy ~S ~S" obj args)))
+				     (apply #_copy (if (mock-pair? obj) (obj 'value) obj) args))
 		 
-		 'subvector (lambda (obj dims . args) 
-				       (if (mock-pair? dims)
-					   (apply #_subvector obj (dims 'value) args)
-					   (error 'wrong-type-arg "subvector ~S ~S ~S" obj dims args)))
+		 'subvector        (lambda (obj dims . args) 
+			             (apply #_subvector obj (if (mock-pair? dims) (dims 'value) dims) args))
+
 		 'make-vector      (lambda (dims . args) 
-				     (if (mock-pair? dims)
-					 (apply #_make-vector (dims 'value) args)
-					 (error 'wrong-type-arg "make-vector ~S ~S" dims args)))
+				     (apply #_make-vector (if (mock-pair? dims) (dims 'value) dims) args))
 
 		 'list-ref         (lambda (obj ind) 
-				     (if (mock-pair? obj)
-					 (#_list-ref (obj 'value) ind)
-					 (error 'wrong-type-arg "list-ref ~S ~S" obj ind)))
+				     (#_list-ref (if (mock-pair? obj) (obj 'value) obj) ind))
 		 
 		 'list-set!        (lambda (obj ind val) 
-				     (if (mock-pair? obj)
-					 (#_list-set! (obj 'value) ind val)
-					 (error 'wrong-type-arg "list-set! ~S ~S ~S" obj ind val)))
+				     (#_list-set! (if (mock-pair? obj) (obj 'value) obj) ind val))
 		 
 		 'pair?            (lambda (obj) #t)
 		 'length           (lambda (obj) (#_length (obj 'value)))
@@ -1079,7 +1079,11 @@
 					   (copy (if (eq? w :readable) "*mock-symbol*" "#<mock-symbol-class>"))))
 		'equivalent?           (lambda (x y) (#_equivalent? (x 'value) y))
 		'gensym?               (lambda (obj) (#_gensym? (obj 'value)))
-		'append                (lambda args (error 'wrong-type-arg "append argument is a symbol"))
+		'append                (lambda args (apply #_append (map (lambda (s)
+									   (if (mock-symbol? s)
+									       (s 'value)
+									       s))
+									 args)))
 		'symbol->string        (lambda (obj) (#_symbol->string (obj 'value)))
 		'symbol->value         (lambda (obj . args) (apply #_symbol->value (obj 'value) args))
 		'symbol->dynamic-value (lambda (obj) (#_symbol->dynamic-value (obj 'value)))
@@ -1148,7 +1152,7 @@
 		 'close-output-port   (lambda (obj) (#_close-output-port (obj 'value)))
 		 'flush-output-port   (lambda (obj) (#_flush-output-port (obj 'value)))
 		 'get-output-string   (lambda (obj) (#_get-output-string (obj 'value)))
-		 'append              (lambda args (error 'wrong-type-arg "append argument is a port"))
+		 'append              (lambda args (error 'wrong-type-arg "stray mock-port?"))
 		 'newline             (lambda (obj) (#_newline (obj 'value)))
 		 'write               (lambda (x obj) (#_write x (obj 'value)))
 		 'display             (lambda (x obj) (#_display x (obj 'value)))
@@ -1173,24 +1177,17 @@
 		 'set-current-error-port  (lambda (obj) (#_set-current-error-port (obj 'value)))
 		 
 		 'write-char          (lambda (c obj) 
-					(if (mock-port? obj)
-					    (#_write-char c (obj 'value))
-					    (error 'wrong-type-arg "write-char ~S ~S" c obj)))
+					(#_write-char c (if (mock-port? obj) (obj 'value) obj)))
 		 
 		 'write-string        (lambda (s obj . args) 
-					(if (mock-port? obj)
-					    (apply #_write-string s (obj 'value) args)
-					    (error 'wrong-type-arg "write-string ~S ~S ~S" s obj args)))
+					(apply #_write-string s (if (mock-port? obj) (obj 'value) obj) args))
 		 
 		 'write-byte          (lambda (b obj) 
-					(if (mock-port? obj)
-					    (#_write-byte b (obj 'value))
-					    (error 'wrong-type-arg "write-byte ~S ~S" b obj)))
+					(#_write-byte b (if (mock-port? obj) (obj 'value) obj)))
 		 
 		 'read-string         (lambda (k obj) 
-					(if (mock-port? obj)
-					    (#_read-string k (obj 'value))
-					    (error 'wrong-type-arg "read-string ~S ~S" k obj)))
+					(#_read-string k (if (mock-port? obj) (obj 'value) obj)))
+
 		 'class-name          'mock-port
 		 )))
     

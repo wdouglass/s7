@@ -140,8 +140,8 @@
       clauses)
      (values))))
 
-(format *stderr* "~%~NC local s7test ~NC~%" 20 #\- 20 #\-)
-(system "./snd -e '(let () (catch #t (lambda () (load \"s7test.scm\" (curlet))) (lambda args #f)) (exit))'")
+;(format *stderr* "~%~NC local s7test ~NC~%" 20 #\- 20 #\-)
+;(system "./snd -e '(let () (catch #t (lambda () (load \"s7test.scm\" (curlet))) (lambda args #f)) (exit))'")
 
 (format *stderr* "~NC s7test ~NC~%" 20 #\- 20 #\-)
 (system "./repl s7test.scm")
@@ -175,6 +175,9 @@
 
 (format *stderr* "~NC tauto ~NC~%" 20 #\- 20 #\-)
 (system "./repl tauto.scm")
+
+(format *stderr* "~NC tauto ~NC~%" 20 #\- 20 #\-)
+(system "./repl mauto.scm")
 
 (format *stderr* "~NC tset ~NC~%" 20 #\- 20 #\-)
 (system "./repl tset.scm")

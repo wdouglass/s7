@@ -18,8 +18,8 @@ echo ' '
 echo ' '
 
 ./snd -noinit s7test.scm
-./snd lint.scm -e '(begin (lint "s7test.scm" #f) (exit))'
-./snd -e '(begin (load "snd-lint.scm") (lint "snd-test.scm") (exit))'
+# ./snd lint.scm -e '(begin (catch #t (lambda () (lint "s7test.scm" #f)) (lambda args #f)) (exit))'
+# ./snd -e '(begin (load "snd-lint.scm") (lint "snd-test.scm") (exit))'
 
 valgrind ./snd -noinit -l snd-test
 echo ' '
@@ -63,7 +63,7 @@ echo ' '
 echo ' '
 ./snd --version
 ./snd -l snd-test
-./snd lint.scm -e '(begin (lint "s7test.scm" #f) (exit))'
+# ./snd lint.scm -e '(begin (lint "s7test.scm" #f) (exit))'
 
 cp s7test.scm tmptest.scm
 ./snd tools/sed.scm -e '(sed "tmptest.scm" "tmp" "(define full-test #f)" "(define full-test #t)")'
@@ -117,7 +117,7 @@ make
 echo ' '
 echo ' '
 ./snd --version
-./snd -l snd-test
+./snd -l snd-test 8
 echo ' '
 echo ' '
 echo ' -------------------------------- that was snd-test without vectorize -------------------------------- '
