@@ -776,7 +776,7 @@
 				     (#_subvector obj dims (offset 'value))
 				     (error 'wrong-type-arg "subvector ~S ~S ~S" obj dims offset)))
 	   
-	   'read-string     (lambda* (k (port (current-input-port)))
+	   'read-string     (lambda* (k port)
 			      (if (input-port? port)
 				  (#_read-string (k 'value) port)
 				  (error 'wrong-type-arg "read-string ~S ~S" k port)))

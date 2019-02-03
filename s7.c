@@ -3116,7 +3116,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 
 #define is_random_state(p)             (type(p) == T_RANDOM_STATE)
 #if WITH_GMP
-#define random_gmp_state(p)            (T_Ran(p))->object.rng.state
+#define random_gmp_state(p)            p->object.rng.state /* sweep sees free cell in big_random_state gc_list and needs to call gmprandclear on its value */
 #else
 #define random_seed(p)                 (T_Ran(p))->object.rng.seed
 #define random_carry(p)                (T_Ran(p))->object.rng.carry
@@ -12005,6 +12005,7 @@ static s7_pointer number_to_string_p_d(s7_scheme *sc, s7_double x)
   floatify(sc->num_to_str, &len);
   return(make_string_with_length(sc, sc->num_to_str, len));
 }
+#endif
 
 static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 {
@@ -12023,7 +12024,6 @@ static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer
   free(res);
   return(p);
 }
-#endif
 
 
 /* -------------------------------------------------------------------------------- */
@@ -25238,17 +25238,18 @@ static s7_pointer g_read_string(s7_scheme *sc, s7_pointer args)
   if (!s7_is_integer(k))
     return(method_or_bust(sc, k, sc->read_string_symbol, args, T_INTEGER, 1));
   nchars = s7_integer(k);
-
-  if (!is_null(cdr(args)))
-    port = cadr(args);
-  else port = input_port_if_not_loading(sc);
-
   if (nchars < 0)
     return(wrong_type_argument_with_type(sc, sc->read_string_symbol, 1, wrap_integer1(sc, nchars), a_non_negative_integer_string));
   if (nchars > sc->max_string_length)
     return(out_of_range(sc, sc->read_string_symbol, small_int(1), wrap_integer1(sc, nchars), its_too_large_string));
 
-  if (!port) return(eof_object);
+  if (!is_null(cdr(args)))
+    port = cadr(args);
+  else 
+    {
+      port = input_port_if_not_loading(sc);
+      if (!port) return(eof_object);
+    }
   if (!is_input_port(port))
     return(method_or_bust_with_type(sc, port, sc->read_string_symbol, list_2(sc, make_integer(sc, nchars), port), an_input_port_string, 2));
 
@@ -28413,36 +28414,11 @@ static void simple_list_readable_display(s7_scheme *sc, s7_pointer lst, s7_int t
     port_write_character(port)(sc, ')', port);
 }
 
-#if CYCLE_DEBUGGING
-static char *base2 = NULL, *min_char2 = NULL;
-#endif
-
 static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   /* we need list_to_starboard... (making port_write_string|character local was noticeable slower) */
   s7_pointer x;
   s7_int i, len, true_len;
-
-#if CYCLE_DEBUGGING
-  char xx;
-  if (!base2) base2 = &xx; 
-  else 
-    {
-      if (&xx > base2) base2 = &xx; 
-      else 
-	{
-	  if ((!min_char2) || (&xx < min_char2))
-	    {
-	      min_char2 = &xx;
-	      if ((base2 - min_char2) > 1000000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
 
   true_len = s7_list_length(sc, lst);
   if (true_len < 0)                    /* a dotted list -- handle cars, then final cdr */
@@ -31366,11 +31342,11 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
       if (is_not_null(cddr(args)))
 	{
 	  arg = caddr(args);
-	  if (!is_integer(arg))
+	  if (!s7_is_integer(arg))
 	    return(wrong_type_argument(sc, sc->object_to_string_symbol, 3, arg, T_INTEGER));
-	  if (integer(arg) < 0)
+	  if (s7_integer(arg) < 0)
 	    return(out_of_range(sc, sc->object_to_string_symbol, small_int(3), arg, a_non_negative_integer_string));
-	  sc->objstr_max_len = integer(arg);
+	  sc->objstr_max_len = s7_integer(arg);
 	}
     }
   else choice = P_WRITE;
@@ -36234,7 +36210,7 @@ static void vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
     case T_BYTE_VECTOR:
       if (!is_byte(obj))
 	s7_wrong_type_arg_error(sc, "byte-vector fill!", 2, obj, "a byte");
-      else byte_vector_fill(sc, vec, (uint8_t)integer(obj));
+      else byte_vector_fill(sc, vec, (uint8_t)s7_integer(obj));
       break;
 
     default:
@@ -37560,8 +37536,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 	return(method_or_bust_with_type(sc, x, caller, args, wrap_string(sc, "an integer or a list of integers", 32), 1));
 
       if (!s7_is_integer(car(x)))
-	return(wrong_type_argument_with_type(sc, caller, 1, car(x),
-					     wrap_string(sc, "each dimension should be an integer", 35)));
+	return(wrong_type_argument_with_type(sc, caller, 1, car(x), wrap_string(sc, "each dimension should be an integer", 35)));
       if (is_null(cdr(x)))
 	len = s7_integer(car(x));
       else len = multivector_length(sc, x, caller);
@@ -37661,7 +37636,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
 
   p = car(args);
   if ((is_pair(cdr(args))) ||
-      (!is_integer(p)))
+      (!s7_is_integer(p)))      /* (make-float-vector (bignum "3")) */
     {
       s7_pointer init;
       if (is_pair(cdr(args)))
@@ -37677,7 +37652,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
 	    return(g_make_vector_1(sc, set_plist_2(sc, p, wrap_real(sc, rational_to_double(sc, init))), sc->make_float_vector_symbol));
 	}
       else init = real_zero;
-      if (is_integer(p))
+      if (s7_is_integer(p))
 	len = s7_integer(p);
       else 
 	{
@@ -37687,7 +37662,7 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
 	}
       x = make_vector_1(sc, len, NOT_FILLED, T_FLOAT_VECTOR);
       float_vector_fill(sc, x, s7_real(init));
-      if (is_integer(p))
+      if (s7_is_integer(p))
 	{
 	  add_vector(sc, x);
 	  return(x);
@@ -37733,17 +37708,17 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
 
   p = car(args);
   if ((is_pair(cdr(args))) ||
-      (!is_integer(p)))
+      (!s7_is_integer(p)))
     {
       s7_pointer init;
       if (is_pair(cdr(args)))
 	{
 	  init = cadr(args);
-	  if (!is_integer(init))
+	  if (!s7_is_integer(init))
 	    return(method_or_bust(sc, init, sc->make_int_vector_symbol, args, T_INTEGER, 2));
 	}
       else init = small_int(0);
-      if (is_integer(p))
+      if (s7_is_integer(p))
 	len = s7_integer(p);
       else 
 	{
@@ -37752,8 +37727,8 @@ static s7_pointer g_make_int_vector(s7_scheme *sc, s7_pointer args)
 	  len = multivector_length(sc, p, sc->make_int_vector_symbol);
 	}
       x = make_vector_1(sc, len, NOT_FILLED, T_INT_VECTOR);
-      int_vector_fill(sc, x, integer(init));
-      if (is_integer(p))
+      int_vector_fill(sc, x, s7_integer(init));
+      if (s7_is_integer(p))
 	{
 	  add_vector(sc, x);
 	  return(x);
@@ -37806,11 +37781,11 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
   s7_pointer p, init;
   p = car(args);
 
-  if (is_integer(p))
+  if (!is_pair(p))
     {
-      if (!is_integer(p))
+      if (!s7_is_integer(p))
 	return(method_or_bust(sc, p, sc->make_byte_vector_symbol, args, T_INTEGER, 1));
-      len = integer(p);
+      len = s7_integer(p);
       if ((len < 0) || (len > sc->max_vector_length))
 	return(out_of_range(sc, sc->make_byte_vector_symbol, small_int(1), p, (len < 0) ? its_negative_string : its_too_large_string));
     }
@@ -37825,8 +37800,8 @@ static s7_pointer g_make_byte_vector(s7_scheme *sc, s7_pointer args)
     }
   else init = small_int(0);
 
-  if (!is_integer(p))
-    return(g_make_vector_1(sc, set_plist_2(sc, p, init), sc->make_byte_vector_symbol));
+ if (!s7_is_integer(p))
+   return(g_make_vector_1(sc, set_plist_2(sc, p, init), sc->make_byte_vector_symbol));
 
   p = make_simple_byte_vector(sc, len);
   if ((len > 0) && (is_pair(cdr(args))))
@@ -51838,10 +51813,8 @@ s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 static void s7_set_d_7dd_function(s7_pointer f, s7_d_7dd_t df) {add_opt_func(f, o_d_7dd, (void *)df);}
 static s7_d_7dd_t s7_d_7dd_function(s7_pointer f) {return((s7_d_7dd_t)opt_func(f, o_d_7dd));}
 
-#if (!WITH_GMP)
 static void s7_set_i_7i_function(s7_pointer f, s7_i_7i_t df) {add_opt_func(f, o_i_7i, (void *)df);}
 static s7_i_7i_t s7_i_7i_function(s7_pointer f) {return((s7_i_7i_t)opt_func(f, o_i_7i));}
-#endif
 
 static void s7_set_i_7ii_function(s7_pointer f, s7_i_7ii_t df) {add_opt_func(f, o_i_7ii, (void *)df);}
 static s7_i_7ii_t s7_i_7ii_function(s7_pointer f) {return((s7_i_7ii_t)opt_func(f, o_i_7ii));}
@@ -51885,10 +51858,8 @@ static s7_b_7pp_t s7_b_7pp_function(s7_pointer f) {return((s7_b_7pp_t)opt_func(f
 static void s7_set_d_7d_function(s7_pointer f, s7_d_7d_t df) {add_opt_func(f, o_d_7d, (void *)df);}
 static s7_d_7d_t s7_d_7d_function(s7_pointer f) {return((s7_d_7d_t)opt_func(f, o_d_7d));}
 
-#if (!WITH_GMP)
 static void s7_set_b_pi_function(s7_pointer f, s7_b_pi_t df) {add_opt_func(f, o_b_pi, (void *)df);}
 static s7_b_pi_t s7_b_pi_function(s7_pointer f) {return((s7_b_pi_t)opt_func(f, o_b_pi));}
-#endif
 
 static void s7_set_b_ii_function(s7_pointer f, s7_b_ii_t df) {add_opt_func(f, o_b_ii, (void *)df);}
 static s7_b_ii_t s7_b_ii_function(s7_pointer f) {return((s7_b_ii_t)opt_func(f, o_b_ii));}
@@ -51941,10 +51912,8 @@ static s7_p_ii_t s7_p_ii_function(s7_pointer f) {return((s7_p_ii_t)opt_func(f, o
 static void s7_set_d_7piid_function(s7_pointer f, s7_d_7piid_t df) {add_opt_func(f, o_d_7piid, (void *)df);}
 static s7_d_7piid_t s7_d_7piid_function(s7_pointer f) {return((s7_d_7piid_t)opt_func(f, o_d_7piid));}
 
-#if (!WITH_GMP)
 static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_p_dd, (void *)df);}
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
-#endif
 
 enum {OO_P, OO_I, OO_D, OO_V, OO_IV, OO_FV, OO_PV, OO_R, OO_H, OO_S, OO_BV, OO_L, OO_E, OO_AV, OO_TV};
 #if OPT_INFO_DEBUGGING
@@ -83460,7 +83429,7 @@ static char *mpc_to_string(mpc_t val, int32_t radix, use_write_t use_write)
 
   if (use_write == P_READABLE)
     snprintf(tmp, len, "(complex %s %s)", rl, im);
-  else snprintf(tmp, len, "%s%s%si", rl, (im[0] == '-') ? "" : "+", im);
+  else snprintf(tmp, len, "%s%s%si", rl, ((im[0] == '-') || (im[0] == '+')) ? "" : "+", im);
 
   free(rl);
   free(im);
@@ -83899,8 +83868,9 @@ static s7_int big_integer_to_s7_int(mpz_t n)
   high = mpz_get_ui(x);
 
   if (high > (1LL << 31)) /* most callers of this function do not take sc as an argument and are in s7.h (s7_integer for example) */
-    return(0);
-
+    s7_error(cur_sc, cur_sc->out_of_range_symbol, 
+	     set_elist_2(cur_sc, wrap_string(cur_sc, "big int does not fit in s7_int: ~S", 34), 
+			 mpz_to_big_integer(cur_sc, n)));
   mpz_clear(x);
   if (need_sign)
     return(-(low + (high << 32)));
@@ -84487,7 +84457,7 @@ static s7_pointer big_add(s7_scheme *sc, s7_pointer args)
       p = car(x);
       result_type = get_result_type(sc, result_type, p);
       if (result_type < 0)
-	return(g_add(sc, args));
+	s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "+: non-numeric arg, ~A", 22), args));
     }
 
   if (result_type < T_BIG_INTEGER)
@@ -84587,7 +84557,7 @@ static s7_pointer big_subtract(s7_scheme *sc, s7_pointer args)
       p = car(x);
       result_type = get_result_type(sc, result_type, p);
       if (result_type < 0)
-	return(g_subtract(sc, args));
+	s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "-: non-numeric arg, ~A", 22), args));
     }
 
   if (result_type < T_BIG_INTEGER)
@@ -84640,7 +84610,7 @@ static s7_pointer big_multiply(s7_scheme *sc, s7_pointer args)
       p = car(x);
       result_type = get_result_type(sc, result_type, p);
       if (result_type < 0)
-	return(g_multiply(sc, args));
+	s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "*: non-numeric arg, ~A", 22), args));
     }
 
   if (result_type < T_BIG_INTEGER)
@@ -84814,7 +84784,7 @@ static s7_pointer big_divide(s7_scheme *sc, s7_pointer args)
        */
       result_type = get_result_type(sc, result_type, p);
       if (result_type < 0)
-	return(g_divide(sc, args));
+	s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "/: non-numeric arg, ~A", 22), args));
     }
 
   if (result_type < T_BIG_INTEGER)
@@ -86979,6 +86949,8 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
     }
   if (got_nan) return(sc->F); /* put this off until here so that non-numbers anywhere in the arg list will raise an error */
 
+  if (result_type < 0)
+    s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "=: non-numeric arg, ~A", 22), args));
   if (result_type < T_BIG_INTEGER)
     return(g_equal(sc, args));
 
@@ -90248,9 +90220,9 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * --------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1
- * --------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.2
+ * ----------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357
@@ -90261,26 +90233,26 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1716
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2327
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3487
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5186
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6433
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6423
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  78.5 73.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.9
- * --------------------------------------------------------------------------
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8
+ * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
  *   for OP_SAFE_C_S: fx_o_p_p_s: OP_SAFE_O_S where hop is assumed, but use opt2 not opt2(cdr)?
@@ -90293,5 +90265,7 @@ int main(int argc, char **argv)
  *   perhaps split add|sub_aa ->add|sub_op..._a
  * perhaps tree_is_cyclic_with_length
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
- * gsl changes (libgsl.scm) when 2.5
+ * gsl changes (libgsl.scm) tested
+ * [s7_][is_]integer is a mess
+ * gmp: quaternion check needs g_is_number to get q's number? method, t725
  */
