@@ -176,8 +176,8 @@
 (format *stderr* "~NC tauto ~NC~%" 20 #\- 20 #\-)
 (system "./repl tauto.scm")
 
-(format *stderr* "~NC mauto ~NC~%" 20 #\- 20 #\-)
-(system "./repl mauto.scm")
+;(format *stderr* "~NC mauto ~NC~%" 20 #\- 20 #\-)
+;(system "./repl mauto.scm")
 
 (format *stderr* "~NC tset ~NC~%" 20 #\- 20 #\-)
 (system "./repl tset.scm")
