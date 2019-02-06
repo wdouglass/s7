@@ -1,4 +1,4 @@
-;;; use with-sound to write the data to a sound file
+;;; use with-sound to write the data to a sound file: ./snd heart.scm medfly
 (require snd-ws.scm)
 
 ;;; turn off clipping (the numbers will be between 70 and 150)

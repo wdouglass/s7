@@ -833,7 +833,6 @@
     (test (bigfv (ash 1 31)) 3))
   (clear-and-gc))
 
-
 (define (int-vector-fft rl im n dir)
   (when rl
     (let ((tempr 0.0)

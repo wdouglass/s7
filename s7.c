@@ -41402,6 +41402,8 @@ static s7_pointer make_function(s7_scheme *sc, const char *name, s7_function f, 
   c_function_class(x) = ++sc->f_class;
   c_function_chooser(x) = fallback_chooser;
   c_function_opt_data(x) = NULL;
+  c_function_marker(x) = NULL;
+  c_function_symbol(x) = NULL;
 
   return(x);
 }
@@ -90224,4 +90226,9 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * [s7_][is_]integer is a mess
  * gmp: quaternion check needs g_is_number to get q's number? method, t725
+ * macro and shared code tests for tree-cyclic?
+ * trailers eval_done: (_m1_ a) from "(define-macro (_m1_ a) `(+ ,a 1))" so it must be something like (cond ...) and _m1_ (or a) is probably undefined?
+ * tests and snd 19.1 forth
+ * check t101 24/25 cyclic code complaints
+ * zauto: check write-char et al (test parallel calls)
  */

@@ -9,4 +9,4 @@ clm2xen.c: fixed an error message in partials->polynomial (it thought
 
 checked: sbcl-1.14.16
 
-Thanks!: Nando.
+Thanks!: Nando, Kjetil.
