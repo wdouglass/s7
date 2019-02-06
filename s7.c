@@ -310,8 +310,6 @@
   #define OP_NAMES 0
 #endif
 
-#define CDR S7_DEBUGGING
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 /* for qsort_r, grumble... */
@@ -1185,8 +1183,7 @@ struct s7_scheme {
   gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
-  s7_pointer *tree_pointers;
-  int32_t tree_pointers_size, tree_pointers_top, permanent_cells, string_wrapper_pos, num_to_str_size;
+  int32_t permanent_cells, string_wrapper_pos, num_to_str_size;
   s7_pointer format_ports;
   uint32_t alloc_pointer_k, alloc_function_k, alloc_symbol_k;
   s7_cell *alloc_pointer_cells;
@@ -2450,20 +2447,13 @@ static void init_types(void)
 #define slot_defaults(p)               has_type1_bit(T_Slt(p), T_SLOT_DEFAULTS)
 #define set_slot_defaults(p)           set_type1_bit(T_Slt(p), T_SLOT_DEFAULTS)
 
-#define T_TREE_COLLECTED               (1LL << (TYPE_BITS + BIT_ROOM + 27))
-#define T_SHORT_TREE_COLLECTED         (1 << 3)
-#define is_tree_collected_or_shared(p) has_type_bit(T_Pair(p), (T_TREE_COLLECTED | T_SHARED))
-#define set_tree_collected(p)          set_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
-#define clear_tree_bits(p)             clear_type_bit(T_Pair(p), T_TREE_COLLECTED | T_SHARED)
-
-/* #define T_FULL_BINDER               T_TREE_COLLECTED */
-#define T_BINDER                       T_SHORT_TREE_COLLECTED
-/* #define is_binder(p)                has_type1_bit(T_Sym(p), T_BINDER) */
+#define T_FULL_BINDER                  (1LL << (TYPE_BITS + BIT_ROOM + 27))
+#define T_BINDER                       (1 << 3)
 #define is_definer_or_binder(p)        has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
 #define set_is_binder(p)               set_type1_bit(T_Sym(p), T_BINDER)
 /* this marks "binders" like let */
 
-#define T_SIMPLE_VALUES                T_SHORT_TREE_COLLECTED
+#define T_SIMPLE_VALUES                T_BINDER
 #define has_simple_values(p)           has_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
 #define set_has_simple_values(p)       set_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
 
@@ -9043,52 +9033,11 @@ static s7_pointer copy_tree(s7_scheme *sc, s7_pointer tree)
 			(is_pair(cdr(tree))) ? COPY_TREE(cdr(tree)) : cdr(tree)));
 }
 
-static inline bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
-{
-  s7_pointer p;
-  if (car(tree) == sc->quote_symbol) return(false); /* not quite correct (given apply and circular list readers) */
-  for (p = tree; is_pair(p); p = cdr(p))
-    {
-      if (is_tree_collected_or_shared(p))
-	return(!is_shared(p));
-      set_tree_collected(p);
-
-      if (sc->tree_pointers_top == sc->tree_pointers_size)
-	{
-	  if (sc->tree_pointers_size == 0)
-	    {
-	      sc->tree_pointers_size = 8;
-	      sc->tree_pointers = (s7_pointer *)malloc(sc->tree_pointers_size * sizeof(s7_pointer));
-	    }
-	  else
-	    {
-	      sc->tree_pointers_size *= 2;
-	      sc->tree_pointers = (s7_pointer *)realloc(sc->tree_pointers, sc->tree_pointers_size * sizeof(s7_pointer));
-	    }
-	}
-      sc->tree_pointers[sc->tree_pointers_top++] = p;
-
-      if ((is_pair(car(p))) &&
-	  (tree_is_cyclic_1(sc, car(p))))
-	return(true);
-    }
-  set_shared(tree);
-  return(false);
-}
+static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
 
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
 {
-  if (is_pair(tree))
-    {
-      bool result;
-      int32_t i;
-      result = tree_is_cyclic_1(sc, tree);
-      for (i = 0; i < sc->tree_pointers_top; i++)
-	clear_tree_bits(sc->tree_pointers[i]);
-      sc->tree_pointers_top = 0;
-      return(result);
-    }
-  return(false);
+  return(cyclic_sequences(sc, tree, false) != sc->nil);
 }
 
 static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
@@ -9098,14 +9047,18 @@ static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
 }
 
-static inline s7_int tree_len(s7_scheme *sc, s7_pointer p);
-
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   sc->w = p;
-  if (tree_is_cyclic(sc, p))
-    s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
-  check_heap_size(sc, 2 * tree_len(sc, p));
+#if S7_DEBUGGING
+  {
+    if (tree_is_cyclic(sc, p))
+      s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
+    check_heap_size(sc, sc->circle_info->top * 2);  /* sc->circle_info->top is always close to tree_len(sc, p) */
+  }
+#else
+  check_heap_size(sc, 8192);
+#endif
   if (sc->safety > NO_SAFETY)
     sc->w = copy_tree_with_type(sc, p);
   else sc->w = copy_tree(sc, p);
@@ -26989,7 +26942,6 @@ static bool collect_vector_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length)
 {
   /* look for top in current list.
-   *
    * As we collect objects (guaranteed to have structure) we set the collected bit.  If we ever
    *   encounter an object with that bit on, we've seen it before so we have a possible cycle.
    *   Once the collection pass is done, we run through our list, and clear all these bits.
@@ -29071,7 +29023,14 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, outlet(obj))), ">", NULL);
 			      port_write_string(port)(sc, buf, len, port);
 			    }
-			  else let_to_port(sc, outlet(obj), port, use_write, ci);
+			  else 
+			    {
+			      s7_pointer name;
+			      name = s7_let_ref(sc, obj, make_symbol(sc, "class-name"));
+			      if (is_symbol(name))
+				symbol_to_port(sc, name, port, P_DISPLAY, ci);
+			      else let_to_port(sc, outlet(obj), port, use_write, ci);
+			    }
 			}
 		      else port_write_string(port)(sc, "(inlet", 6, port);
 		      slot_list_to_port(sc, let_slots(obj), port, ci, false);
@@ -29618,11 +29577,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						    ((is_slot(obj)) ? " slot-defaults" :
 						     " ?26?"))) : "",
 	   /* bit 27+16 */
-	   ((full_typ & T_TREE_COLLECTED) != 0) ?  ((is_pair(obj)) ? " tree-collected" :
-						    ((is_hash_table(obj)) ? " simple-values" :
-						     ((is_c_function(obj)) ? " type-info" :
-						      ((is_symbol(obj)) ? " binder" :
-						       " ?27?")))) : "",
+	   ((full_typ & T_FULL_BINDER) != 0) ?    ((is_hash_table(obj)) ? " simple-values" :
+						   ((is_symbol(obj)) ? " binder" :
+						    " ?27?")) : "",
 	   /* bit 28+16 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29+16 */
@@ -29657,7 +29614,7 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_TREE_COLLECTED) != 0) && ((!is_pair(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_symbol(obj)))) return(true);
+  if (((full_typ & T_FULL_BINDER) != 0) && ((!is_hash_table(obj)) && (!is_symbol(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -31346,7 +31303,6 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	{
 	  arg = caddr(args);
 	  if (!s7_is_integer(arg))
-	    /* return(wrong_type_argument(sc, sc->object_to_string_symbol, 3, arg, T_INTEGER)); */
 	    return(method_or_bust(sc, arg, sc->object_to_string_symbol, args, T_INTEGER, 3));
 	  if (s7_integer(arg) < 0)
 	    return(out_of_range(sc, sc->object_to_string_symbol, small_int(3), arg, a_non_negative_integer_string));
@@ -31839,28 +31795,22 @@ static s7_int format_nesting(const char *str, char opener, char closer, s7_int s
 
 static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_pointer port)
 {
-  s7_pointer obj, func;
+  s7_pointer func, obj;
+  char ctrl_str[3];
 
   obj = car(fdat->args);
-  if ((has_methods(obj)) &&
-      ((func = find_method(sc, find_let(sc, obj), sc->format_symbol)) != sc->undefined))
-    {
-      s7_pointer ctrl_str;
-      if (fdat->orig_str)
-	ctrl_str = fdat->orig_str;
-      else ctrl_str = s7_make_string_wrapper(sc, str);
+  if ((!has_methods(obj)) ||
+      ((func = find_method(sc, find_let(sc, obj), sc->format_symbol)) == sc->undefined))
+    return(false);
 
-      obj = s7_apply_function(sc, func, cons(sc, ctrl_str, fdat->args));
-      if (is_string(obj))
-	{
-	  if (string_length(obj) > 0)
-	    format_append_string(sc, fdat, string_value(obj), string_length(obj), port);
-	  fdat->args = cdr(fdat->args);
-	  fdat->ctr++;
-	  return(true);
-	}
-    }
-  return(false);
+  ctrl_str[0] = '~';
+  ctrl_str[1] = str[0];
+  ctrl_str[2] = '\0';
+  s7_apply_function(sc, func, list_3(sc, port, s7_make_string_wrapper(sc, ctrl_str), obj));
+
+  fdat->args = cdr(fdat->args);
+  fdat->ctr++;
+  return(true);
 }
 
 static s7_int format_n_arg(s7_scheme *sc, const char *str, format_data *fdat, s7_pointer args)
@@ -32197,36 +32147,33 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 
 		i++;
 		obj = car(fdat->args);
-#if 0
-		if ((!has_methods(obj)) ||
-		    (!format_method(sc, str, fdat, port)))
+		if ((use_write == P_READABLE) ||
+		    (!has_methods(obj)) ||
+		    (!format_method(sc, (char *)(str + i), fdat, port)))
 		  {
-#endif
-		/* for the column check, we need to know the length of the object->string output */
-		if (columnized)
-		  {
-		    strport = open_format_port(sc);
-		    fdat->strport = strport;
+		    /* for the column check, we need to know the length of the object->string output */
+		    if (columnized)
+		      {
+			strport = open_format_port(sc);
+			fdat->strport = strport;
+		      }
+		    else strport = port;
+		    object_out(sc, obj, strport, use_write);
+		    if (columnized)
+		      {
+			if (port_position(strport) >= port_data_size(strport))
+			  resize_port_data(sc, strport, port_data_size(strport) * 2);
+			
+			port_data(strport)[port_position(strport)] = '\0';
+			if (port_position(strport) > 0)
+			  format_append_string(sc, fdat, (const char *)port_data(strport), port_position(strport), port);
+			close_format_port(sc, strport);
+			fdat->strport = NULL;
+		      }
+		    
+		    fdat->args = cdr(fdat->args);
+		    fdat->ctr++;
 		  }
-		else strport = port;
-		object_out(sc, obj, strport, use_write);
-		if (columnized)
-		  {
-		    if (port_position(strport) >= port_data_size(strport))
-		      resize_port_data(sc, strport, port_data_size(strport) * 2);
-
-		    port_data(strport)[port_position(strport)] = '\0';
-		    if (port_position(strport) > 0)
-		      format_append_string(sc, fdat, (const char *)port_data(strport), port_position(strport), port);
-		    close_format_port(sc, strport);
-		    fdat->strport = NULL;
-		  }
-
-		fdat->args = cdr(fdat->args);
-		fdat->ctr++;
-#if 0
-	      }
-#endif
 		}
 	      break;
 
@@ -32322,12 +32269,11 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      if (is_null(fdat->args))
 			format_error(sc, "~~C: missing argument", 21, str, args, fdat);
 		      /* the "~~" here and below protects against "~C" being treated as a directive */
-		      /* i++; */
 		      obj = car(fdat->args);
 
 		      if (!s7_is_character(obj))
 			{
-			  if (!format_method(sc, str, fdat, port))
+			  if (!format_method(sc, (char *)(str + i), fdat, port)) /* i stepped forward above */
 			    format_error(sc, "'C' directive requires a character argument", 43, str, args, fdat);
 			}
 		      else
@@ -32352,7 +32298,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~F: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~F: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 10, width, precision, 'f', pad, port);
@@ -32363,7 +32309,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~G: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~G: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 10, width, precision, 'g', pad, port);
@@ -32374,7 +32320,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~E: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~E: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 10, width, precision, 'e', pad, port);
@@ -32397,7 +32343,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 			 *    current object (car(fdat->args)), and the arglist (args), and assume it will
 			 *    return a (scheme) string.
 			 */
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~D: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 10, width, precision, 'd', pad, port);
@@ -32408,7 +32354,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~O: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~O: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 8, width, precision, 'o', pad, port);
@@ -32419,7 +32365,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~X: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~X: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 16, width, precision, 'x', pad, port);
@@ -32430,7 +32376,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error(sc, "~~B: missing argument", 21, str, args, fdat);
 		    if (!(s7_is_number(car(fdat->args))))
 		      {
-			if (!format_method(sc, str, fdat, port))
+			if (!format_method(sc, (char *)(str + i), fdat, port))
 			  format_error(sc, "~~B: numeric argument required", 30, str, args, fdat);
 		      }
 		    else format_number(sc, fdat, 2, width, precision, 'b', pad, port);
@@ -32561,10 +32507,6 @@ static s7_pointer g_format_1(s7_scheme *sc, s7_pointer args)
   s7_pointer pt, str;
   sc->format_column = 0;
   pt = car(args);
-
-  if (is_string(pt))
-    return(format_to_port_1(sc, sc->F, string_value(pt), cdr(args), NULL, true, true, string_length(pt), pt));
-
   if (is_null(pt))
     {
       pt = sc->output_port;                  /* () -> (current-output-port) */
@@ -32609,7 +32551,7 @@ spacing (and spacing character) and precision.  ~{ starts an embedded format dir
 If the 'out' it is not an output port, the resultant string is returned.  If it \
 is #t, the string is also sent to the current-output-port."
 
-  #define Q_format s7_make_circular_signature(sc, 2, 3, s7_make_signature(sc, 2, sc->is_string_symbol, sc->not_symbol), s7_make_signature(sc, 4, sc->is_output_port_symbol, sc->is_boolean_symbol, sc->is_null_symbol, sc->is_string_symbol), sc->T)
+  #define Q_format s7_make_circular_signature(sc, 2, 3, s7_make_signature(sc, 2, sc->is_string_symbol, sc->not_symbol), s7_make_signature(sc, 3, sc->is_output_port_symbol, sc->is_boolean_symbol, sc->is_null_symbol), sc->T)
   return(g_format_1(sc, args));
 }
 
@@ -44740,7 +44682,6 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     case T_PAIR:
       if (dest == sc->key_readable_symbol)  /* a kludge, but I can't think of anything less stupid */
 	return(copy_body(sc, source));
-
       end = s7_list_length(sc, source);
       if (end == 0)
 	end = circular_list_entries(source);
@@ -46961,7 +46902,6 @@ static s7_pointer stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_col
 
       true_loc = (loc + 1) * 4 - 1;
       code = stack_code(sc->stack, true_loc);
-
       if ((is_pair(code)) &&
 	  (!tree_is_cyclic(sc, code)))
 	{
@@ -53817,7 +53757,9 @@ static bool d_d_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
       if (is_real(cadr(car_x)))
 	{
 	  if ((!is_float(cadr(car_x))) &&                          /* (random 1) != (random 1.0) */
-	      (car(car_x) == sc->random_symbol))
+	      ((car(car_x) == sc->random_symbol) ||
+	       (car(car_x) == sc->sin_symbol) ||
+	       (car(car_x) == sc->cos_symbol)))
 	    return(return_false(sc, car_x, __func__, __LINE__));
 	  opc->v[1].x = s7_number_to_real(sc, cadr(car_x));
 	  if (func)
@@ -64503,7 +64445,14 @@ static s7_pointer g_format_just_control_string(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_format_as_objstr(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_object_to_string(sc, caddr(args), false));
+  s7_pointer func, obj;
+
+  obj = caddr(args);
+  if ((!has_methods(obj)) ||
+      ((func = find_method(sc, find_let(sc, obj), sc->format_symbol)) == sc->undefined))
+    return(s7_object_to_string(sc, obj, false));
+
+  return(s7_apply_function(sc, func, list_3(sc, sc->F, cadr(args), obj)));
 }
 
 static s7_pointer g_format_allg_no_column(s7_scheme *sc, s7_pointer args)
@@ -64539,8 +64488,7 @@ static s7_pointer format_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       s7_pointer port, str_arg;
       port = cadr(expr);
       str_arg = caddr(expr);
-      if ((!is_string(port)) &&
-	  (is_string(str_arg)))
+      if (is_string(str_arg))
 	{
 	  if ((ops) && ((args == 2) || (args == 3)))
 	    {
@@ -79420,6 +79368,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
     TOP_NO_POP:
 #if SHOW_EVAL_OPS
       fprintf(stderr, "%s (%d), code: %s, args: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), DISPLAY_80(sc->code), DISPLAY_80(sc->args));
+#if S7_DEBUGGING
+      if (!s7_is_valid(sc, sc->error_hook))
+	fprintf(stderr, "%s[%d]: error_hook bad\n", __func__, __LINE__);
+#endif
 #endif
 
 #if WITH_PROFILE
@@ -86090,6 +86042,7 @@ static s7_pointer big_bits(s7_scheme *sc, s7_pointer args, s7_pointer sym, int32
 {
   s7_pointer x, lst;
   bool use_bigs = false;
+  args = copy_args_if_needed(sc, args);
   for (x = args; is_not_null(x); x = cdr(x))
     {
       if (!is_integer_via_method(sc, car(x)))
@@ -86935,37 +86888,37 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
   #define Q_equal s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_number_symbol)
 
   /* this is equivalent? for bignums, the other case goes through big_numbers_are_eqv */
-  int32_t result_type = T_INTEGER;
-  s7_pointer x, y, result;
+  int32_t i, result_type = T_INTEGER;
+  s7_pointer arg, x, y, result;
   bool got_nan = false;
 
   args = copy_args_if_needed(sc, args);
-  for (x = args; is_not_null(x); x = cdr(x))
+  for (i = 1, arg = args; is_not_null(arg); i++, arg = cdr(arg))
     {
       s7_pointer p;
-      p = car(x);
-      if (!s7_is_number(p))
-	{
-	  check_method(sc, car(args), sc->eq_symbol, x);
-	  return(wrong_type_argument_with_type(sc, sc->eq_symbol, position_of(x, args), p, a_number_string));
-	}
-
+      p = car(arg);
+      if (!is_number_via_method(sc, p))
+	return(wrong_type_argument(sc, sc->eq_symbol, i, s7_list_ref(sc, args, i - 1), T_COMPLEX));
       result_type = get_result_type(sc, result_type, p);
+
       if (!got_nan)
 	got_nan = (((is_t_real(p)) && (is_NaN(real(p)))) ||  /* (= (bignum "3") 1/0) */
 		   ((is_t_complex(p)) && ((is_NaN(real_part(p))) || (is_NaN(imag_part(p))))));
     }
   if (got_nan) return(sc->F); /* put this off until here so that non-numbers anywhere in the arg list will raise an error */
 
-  if (result_type < 0)
-    s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "=: non-numeric arg, ~A", 22), args));
   if (result_type < T_BIG_INTEGER)
-    return(g_equal(sc, args));
+    result_type += 4;
 
+  if (!s7_is_number(car(args)))
+    check_method(sc, car(args), sc->eq_symbol, args);
   result = promote_number(sc, result_type, car(args));
+
   for (y = cdr(args); is_not_null(y); y = cdr(y))
     {
-      s7_pointer arg;
+      if (!s7_is_number(car(y)))
+	check_method_uncopied(sc, car(y), sc->eq_symbol, cons(sc, result, y));
+
       arg = promote_number(sc, result_type, car(y));
       switch (result_type)
 	{
@@ -88711,9 +88664,6 @@ s7_scheme *s7_init(void)
   sc->c_object_to_string_symbol = NULL;
   sc->closed_symbol = NULL;
   sc->port_type_symbol = NULL;
-  sc->tree_pointers = NULL;
-  sc->tree_pointers_size = 0;
-  sc->tree_pointers_top = 0;
 
   sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
   set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
@@ -89201,7 +89151,7 @@ s7_scheme *s7_init(void)
   sc->substring_symbol =             defun("substring",	        substring,		2, 1, false);
   sc->string_symbol =                defun("string",		string,			0, 0, true);
   sc->object_to_string_symbol =      defun("object->string",	object_to_string,	1, 2, false);
-  sc->format_symbol =                defun("format",		format,			1, 0, true);
+  sc->format_symbol =                defun("format",		format,			2, 0, true); /* was 1, 5-Feb-19 */
   /* this was unsafe, but was that due to the (ill-advised) use of temp_call_2 in the arg lists? */
   sc->object_to_let_symbol =         defun("object->let",	object_to_let,	        1, 0, false);
 
@@ -90234,12 +90184,12 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356   357
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1177
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1716
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2327
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520
@@ -90250,7 +90200,7 @@ int main(int argc, char **argv)
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6423
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
@@ -90274,6 +90224,4 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * [s7_][is_]integer is a mess
  * gmp: quaternion check needs g_is_number to get q's number? method, t725
- *   272:   ;test 8- argument 1, 0.0, is a big real but should be a number: many more like this
- * t718 
  */

@@ -1,23 +1,12 @@
-Snd 19.0
+Snd 19.1
 
-s7: added (*s7* 'history-enabled) at Kjetil's suggestion.
-    deprecated s7_gc_unprotect (use s7_gc_unprotect_at).
-    added weak-hash-table
+in s7, replaced morally-equal? with equivalent?
+       format with the control-string as the first argument is now an error
+         (I can't remember why I made the port optional)
 
-The main visible s7 change:
+clm2xen.c: fixed an error message in partials->polynomial (it thought
+  an integer was not a number), and a mus-length optimization bug.
 
-hash-table* is now hash-table, and the old hash-table is gone.
-This code can provide backwards compatibility except for some
-corner cases involving map and for-each:
+checked: sbcl-1.14.16
 
-(when (string>=? (s7-version) "8.0") 
-  (define hash-table* hash-table) 
-  (define (hash-table . args) 
-    (apply hash-table* (map (lambda (x) 
-			      (values (car x) (cdr x)))
-			    args))))
-
-
-checked: sbcl 1.4.14|15
-
-Thanks!: Kjetil Matheussen
+Thanks!: Nando.

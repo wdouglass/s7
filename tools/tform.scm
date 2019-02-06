@@ -13,13 +13,6 @@
 (define mock-symbol (*mock-symbol* 'mock-symbol))
 (define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 
-(define np (list 0 1 2 3 4))
-(define mp (mock-pair '(0 1 2 3 4)))
-(define nv (vector 0 1 2 3 4))
-(define mv (mock-vector 0 1 2 3 4))
-(define ns "01234")
-(define ms (mock-string #\0 #\1 #\2 #\3 #\4))
-
 ;;(openlet (inlet 'i 0 'list-set! (lambda (l . args) (apply #_list-set! l ((car args) 'i) (cdr args))))))
 
 (define-constant constants (vector #f #t () #\a (/ most-positive-fixnum) (/ -1 most-positive-fixnum) 1.5+i 
@@ -49,7 +42,7 @@
 			  (open-input-string "123123") (open-input-file "/home/bil/cl/4.aiff")
 			  (open-output-file "test.test") (open-output-string)
 			  
-			  (mock-number 0) (mock-number 2) (mock-number 1-i) (mock-number 4/3) (mock-number 2.0)
+			  ;(mock-number 0) (mock-number 2) (mock-number 1-i) (mock-number 4/3) (mock-number 2.0)
 			  (mock-string #\h #\o #\h #\o)
 			  (mock-pair '(2 3 4))
 			  (mock-char #\b)
