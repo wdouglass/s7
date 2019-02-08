@@ -2171,7 +2171,7 @@ static void init_types(void)
 #define is_collected(p)                has_type_bit(T_Seq(p), T_COLLECTED)
 #define is_collected_unchecked(p)      has_type_bit(p, T_COLLECTED)
 #define set_collected(p)               set_type_bit(T_Seq(p), T_COLLECTED)
-/* #define clear_collected(p)          clear_type_bit(T_Seq(p), T_COLLECTED) */
+#define clear_collected(p)             clear_type_bit(T_Seq(p), T_COLLECTED)
 /* this is a transient flag used by the printer to catch cycles.  It affects only objects that have structure.
  *   We can't use a low bit (bit 7 for example), because collect_shared_info inspects the object's type.
  */
@@ -6724,6 +6724,7 @@ static s7_pointer symbol_to_string_uncopied_p(s7_scheme *sc, s7_pointer sym)
   return(symbol_name_cell(sym));
 }
 
+
 /* -------------------------------- string->symbol -------------------------------- */
 static inline s7_pointer g_string_to_symbol_1(s7_scheme *sc, s7_pointer str, s7_pointer caller)
 {
@@ -6746,15 +6747,9 @@ static s7_pointer g_string_to_symbol(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer string_to_symbol_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if (is_string(p))
-    {
-      if (string_length(p) > 0)
-	return(make_symbol_with_length(sc, string_value(p), string_length(p)));
-      simple_wrong_type_argument_with_type(sc, sc->string_to_symbol_symbol, p, wrap_string(sc, "a non-null string", 17));
-    }
-  else simple_wrong_type_argument(sc, sc->string_to_symbol_symbol, p, T_STRING);
-  return(p);
+  return(g_string_to_symbol_1(sc, p, sc->string_to_symbol_symbol));
 }
+
 
 /* -------------------------------- symbol -------------------------------- */
 static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer caller);
@@ -8576,7 +8571,6 @@ static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_chec
 #endif
 }
 
-
 s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol)
 {
   return(symbol_to_slot(sc, symbol));
@@ -8701,7 +8695,6 @@ symbol sym in the given environment: (let ((x 32)) (symbol->value 'x)) -> 32"
 
   return(s7_symbol_value(sc, sym));
 }
-
 
 s7_pointer s7_symbol_set_value(s7_scheme *sc, s7_pointer sym, s7_pointer val)
 {
@@ -8946,7 +8939,6 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   return(mac);
 }
 
-
 static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, uint64_t type, int32_t arity)
 {
   /* this is called every time a lambda form is evaluated, or during letrec, etc */
@@ -9033,11 +9025,91 @@ static s7_pointer copy_tree(s7_scheme *sc, s7_pointer tree)
 			(is_pair(cdr(tree))) ? COPY_TREE(cdr(tree)) : cdr(tree)));
 }
 
-static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list);
+#define TREE_NOT_CYCLIC 0
+#define TREE_CYCLIC 1
+#define TREE_HAS_PAIRS 2
+
+static int is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
+{
+  s7_pointer fast, slow;
+  bool has_pairs = false;
+
+  if (!is_pair(tree)) return(TREE_NOT_CYCLIC);
+  slow = tree;
+  fast = tree;
+  while (true)
+    {
+      if (is_collected(fast)) return(TREE_CYCLIC);
+      if ((!has_pairs) && 
+	  (is_unquoted_pair(car(fast))))
+	has_pairs = true;
+      fast = cdr(fast);
+      if (!is_pair(fast))
+	{
+	  if (!has_pairs) return(TREE_NOT_CYCLIC);
+	  break;
+	}
+      if (is_collected(fast)) return(TREE_CYCLIC);
+      if ((!has_pairs) && 
+	  (is_unquoted_pair(car(fast)))) 
+	has_pairs = true;
+      fast = cdr(fast);
+      if (!is_pair(fast))
+	{
+	  if (!has_pairs) return(TREE_NOT_CYCLIC);
+	  break;
+	}
+      slow = cdr(slow);
+      if (fast == slow) return(TREE_CYCLIC);
+    }
+  if (!has_pairs) fprintf(stderr, "at end but no pairs: %s\n", DISPLAY(tree));
+  return(TREE_HAS_PAIRS);
+}
+
+static inline shared_info *new_shared_info(s7_scheme *sc);
+static void enlarge_shared_info(shared_info *ci);
+
+static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree, shared_info *ci)
+{
+  s7_pointer p;
+  for (p = tree; is_pair(p); p = cdr(p))
+    {
+      set_collected(p);
+      if (ci->top == ci->size)
+	enlarge_shared_info(ci);
+      ci->objs[ci->top++] = p;
+      if (is_unquoted_pair(car(p)))
+	{
+	  int32_t i, old_top, result;
+	  old_top = ci->top;
+	  result = is_cyclic_or_has_pairs(sc, car(p));
+	  if ((result == TREE_CYCLIC) ||
+	      (tree_is_cyclic_1(sc, car(p), ci)))
+	    return(true);
+	  for (i = old_top; i < ci->top; i++)
+	    clear_collected(ci->objs[i]);
+	  ci->top = old_top;
+	}
+    }
+  return(false);
+}
 
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
 {
-  return(cyclic_sequences(sc, tree, false) != sc->nil);
+  int32_t i, result;
+  shared_info *ci;
+
+  result = is_cyclic_or_has_pairs(sc, tree);
+  if (result == TREE_NOT_CYCLIC) return(false);
+  if (result == TREE_CYCLIC) return(true);
+
+  result = tree_is_cyclic_1(sc, tree, ci = new_shared_info(sc));
+  for (i = 0; i < ci->top; i++)
+    clear_collected(ci->objs[i]);
+  ci->top = 0;
+  /* this is needed if, for example, we have a nested tree followed by another call -- the collected bits are still on etc */
+
+  return(result);
 }
 
 static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
@@ -9047,18 +9119,14 @@ static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, tree_is_cyclic(sc, car(args))));
 }
 
+static inline s7_int tree_len(s7_scheme *sc, s7_pointer p);
+
 static s7_pointer copy_body(s7_scheme *sc, s7_pointer p)
 {
   sc->w = p;
-#if S7_DEBUGGING
-  {
-    if (tree_is_cyclic(sc, p))
-      s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
-    check_heap_size(sc, sc->circle_info->top * 2);  /* sc->circle_info->top is always close to tree_len(sc, p) */
-  }
-#else
-  check_heap_size(sc, 8192);
-#endif
+  if (tree_is_cyclic(sc, p))
+    s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "copy: tree is cyclic", 20));
+  check_heap_size(sc, tree_len(sc, p) * 2);
   if (sc->safety > NO_SAFETY)
     sc->w = copy_tree_with_type(sc, p);
   else sc->w = copy_tree(sc, p);
@@ -15273,6 +15341,8 @@ static s7_int floor_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(floor_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(floor(fraction(p))));
+  if (has_methods(p))
+    return(s7_integer(find_and_apply_method(sc, find_let(sc, p), sc->floor_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "floor", 0, p, "a real number");
   return(0);
 }
@@ -15338,6 +15408,8 @@ static s7_int ceiling_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(ceiling_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(ceil(fraction(p))));
+  if (has_methods(p))
+    return(s7_integer(find_and_apply_method(sc, find_let(sc, p), sc->ceiling_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "ceiling", 0, p, "a real number");
   return(0);
 }
@@ -21094,32 +21166,22 @@ static s7_int char_to_integer_i_7p(s7_scheme *sc, s7_pointer p)
 }
 
 
-static s7_pointer g_integer_to_char(s7_scheme *sc, s7_pointer args)
-{
-  #define H_integer_to_char "(integer->char i) converts the non-negative integer i to a character"
-  #define Q_integer_to_char s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_integer_symbol)
-
-  s7_pointer x;
-  s7_int ind;
-
-  x = car(args);
-  if (!s7_is_integer(x))
-    return(method_or_bust_one_arg(sc, x, sc->integer_to_char_symbol, list_1(sc, x), T_INTEGER));
-  ind = s7_integer(x);
-  if ((ind < 0) || (ind >= NUM_CHARS))
-    return(s7_out_of_range_error(sc, "integer->char", 1, x, "it doen't fit in an unsigned byte"));
-  return(s7_make_character(sc, (uint8_t)ind));
-}
-
 static s7_pointer integer_to_char_p_p(s7_scheme *sc, s7_pointer x)
 {
   s7_int ind;
   if (!s7_is_integer(x))
-    simple_wrong_type_argument(sc, sc->integer_to_char_symbol, x, T_INTEGER);
+    return(method_or_bust_one_arg(sc, x, sc->integer_to_char_symbol, list_1(sc, x), T_INTEGER));
   ind = s7_integer(x);
   if ((ind >= 0) && (ind < NUM_CHARS))
     return(s7_make_character(sc, (uint8_t)ind));
   return(s7_out_of_range_error(sc, "integer->char", 1, x, "it doen't fit in an unsigned byte"));
+}
+
+static s7_pointer g_integer_to_char(s7_scheme *sc, s7_pointer args)
+{
+  #define H_integer_to_char "(integer->char i) converts the non-negative integer i to a character"
+  #define Q_integer_to_char s7_make_signature(sc, 2, sc->is_char_symbol, sc->is_integer_symbol)
+  return(integer_to_char_p_p(sc, car(args)));
 }
 
 static s7_pointer integer_to_char_p_i(s7_scheme *sc, s7_int ind)
@@ -27296,7 +27358,7 @@ static shared_info *make_shared_info(s7_scheme *sc, s7_pointer top, bool stop_at
 
 /* -------------------------------- cyclic-sequences -------------------------------- */
 
-static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_list)
+static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj)
 {
   if (has_structure(obj))
     {
@@ -27306,18 +27368,14 @@ static s7_pointer cyclic_sequences(s7_scheme *sc, s7_pointer obj, bool return_li
       else ci = make_shared_info(sc, obj, false); /* false=don't stop at print length (vectors etc) */
       if (ci)
 	{
-	  if (return_list)
-	    {
-	      int32_t i;
-	      s7_pointer lst;
-	      sc->w = sc->nil;
-	      for (i = 0; i < ci->top; i++)
-		sc->w = cons(sc, ci->objs[i], sc->w);
-	      lst = sc->w;
-	      sc->w = sc->nil;
-	      return(lst);
-	    }
-	  return(sc->T);
+	  int32_t i;
+	  s7_pointer lst;
+	  sc->w = sc->nil;
+	  for (i = 0; i < ci->top; i++)
+	    sc->w = cons(sc, ci->objs[i], sc->w);
+	  lst = sc->w;
+	  sc->w = sc->nil;
+	  return(lst);
 	}
     }
   return(sc->nil);
@@ -27327,7 +27385,7 @@ static s7_pointer g_cyclic_sequences(s7_scheme *sc, s7_pointer args)
 {
   #define H_cyclic_sequences "(cyclic-sequences obj) returns a list of elements that are cyclic."
   #define Q_cyclic_sequences s7_make_signature(sc, 2, sc->is_proper_list_symbol, sc->T)
-  return(cyclic_sequences(sc, car(args), true));
+  return(cyclic_sequences(sc, car(args)));
 }
 
 
@@ -31488,8 +31546,9 @@ static s7_pointer display_p_p(s7_scheme *sc, s7_pointer x)
 static s7_pointer display_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer port)
 {
   if (port == sc->F) return(x);
-  if ((!is_output_port(port)) ||
-      (port_is_closed(port)))
+  if (!is_output_port(port))
+    return(method_or_bust_with_type(sc, port, sc->display_symbol, list_2(sc, x, port), an_output_port_string, 2));
+  if (port_is_closed(port))
     s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port");
   if (port == sc->F) return(x);
   return(object_out(sc, x, port, P_DISPLAY));
@@ -39743,7 +39802,6 @@ static s7_int hash_float_location(s7_double x)
 }
 
 /* built in hash loc tables for eq? eqv? equal? equivalent? = string=? string-ci=? char=? char-ci=? (default=equal?) */
-
 #define hash_loc(Sc, Table, Key) (*(hash_table_mapper(Table)[type(Key)]))(Sc, Table, Key)
 
 static hash_map_t eq_hash_map[NUM_TYPES];
@@ -40140,7 +40198,6 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, s7_int loc, s7_pointer key)
 {
   hash_entry_t *x;
@@ -40151,18 +40208,15 @@ static hash_entry_t *hash_complex_1(s7_scheme *sc, s7_pointer table, s7_int loc,
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_equal_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   return(hash_float_1(sc, table, hash_loc(sc, table, key) & hash_table_mask(table), real(key)));
 }
 
-
 static hash_entry_t *hash_equal_complex(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   return(hash_complex_1(sc, table, hash_loc(sc, table, key) & hash_table_mask(table), key));
 }
-
 
 static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -40176,7 +40230,6 @@ static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_point
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
@@ -40187,7 +40240,6 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
       return(x);
   return(sc->unentry);
 }
-
 
 static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -40206,7 +40258,6 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
       return(x);
   return(sc->unentry);
 }
-
 
 static hash_entry_t *(*default_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
 static hash_entry_t *(*equal_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
@@ -40257,7 +40308,6 @@ static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* explicit eq? as hash equality func or (for example) symbols as keys */
@@ -40288,7 +40338,6 @@ static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
 
   return(sc->unentry);
 }
-
 
 static hash_entry_t *hash_number(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -44683,7 +44732,12 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     {
     case T_PAIR:
       if (dest == sc->key_readable_symbol)  /* a kludge, but I can't think of anything less stupid */
-	return(copy_body(sc, source));
+	{
+	  if (have_indices)                 /* it seems to me that the start/end args here don't make any sense so... */
+	    return(s7_error(sc, sc->wrong_number_of_args_symbol, 
+			    set_elist_3(sc, wrap_string(sc, "~S: start/end indices make no sense with :readable: ~S", 54), caller, args)));
+	  return(copy_body(sc, source));
+	}
       end = s7_list_length(sc, source);
       if (end == 0)
 	end = circular_list_entries(source);
@@ -83215,14 +83269,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	default:
 	  fprintf(stderr, "unknown operator: %" print_pointer " in %s\n", sc->cur_op, DISPLAY(current_code(sc)));
-#if S7_DEBUGGING
-	  fprintf(stderr, "stack size: %u\n", sc->stack_size);
-	  if (sc->stack_end < sc->stack_start)
-	    fprintf(stderr, "%sstack underflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
-	  if (sc->stack_end >= sc->stack_start + sc->stack_size)
-	    fprintf(stderr, "%sstack overflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
-	  abort();
-#endif
+	  fprintf(stderr, "estr: %s\n", s7_object_to_c_string(sc, s7_name_to_value(sc, "estr")));
 	  return(sc->F);
 	}
 #if S7_DEBUGGING
@@ -90181,35 +90228,35 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.2
  * ----------------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  199   160
- * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
- * tshoot        |      |      |      |      |      |  373 |  356   357
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335
- * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467
- * tvect         |      |      |      |      |      | 5616 | 2650  2520
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8
+ * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160
+ * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236
+ * tshoot        |      |      |      |      |      |  373 |  356   357   357
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   966
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   994
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1205
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1726
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2269
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2340
+ * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
+ * tvect         |      |      |      |      |      | 5616 | 2650  2520  2523
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2691
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3464
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3559
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5182
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6398
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.1
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 182.0
  * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90221,14 +90268,10 @@ int main(int argc, char **argv)
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
  *   perhaps split add|sub_aa ->add|sub_op..._a
- * perhaps tree_is_cyclic_with_length
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * gsl changes (libgsl.scm) tested
  * [s7_][is_]integer is a mess
  * gmp: quaternion check needs g_is_number to get q's number? method, t725
- * macro and shared code tests for tree-cyclic?
- * trailers eval_done: (_m1_ a) from "(define-macro (_m1_ a) `(+ ,a 1))" so it must be something like (cond ...) and _m1_ (or a) is probably undefined?
- * tests and snd 19.1 forth
- * check t101 24/25 cyclic code complaints
- * zauto: check write-char et al (test parallel calls)
+ * macro and shared code tests for tree-cyclic? (t101 24/25)
+ * trailers eval default: (_m1_ a) from "(define-macro (_m1_ a) `(+ ,a 1))" so it must be something like (cond ...) and _m1_ (or a) is probably undefined?
  */
