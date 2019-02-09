@@ -1183,7 +1183,8 @@ struct s7_scheme {
   gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
-  int32_t permanent_cells, string_wrapper_pos, num_to_str_size;
+  s7_pointer *tree_pointers;
+  int32_t tree_pointers_size, tree_pointers_top, permanent_cells, string_wrapper_pos, num_to_str_size;
   s7_pointer format_ports;
   uint32_t alloc_pointer_k, alloc_function_k, alloc_symbol_k;
   s7_cell *alloc_pointer_cells;
@@ -2453,6 +2454,12 @@ static void init_types(void)
 #define set_is_binder(p)               set_type1_bit(T_Sym(p), T_BINDER)
 /* this marks "binders" like let */
 
+#define T_TREE_COLLECTED               T_FULL_BINDER
+#define T_SHORT_TREE_COLLECTED         T_BINDER
+#define tree_is_collected(p)           has_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
+#define tree_set_collected(p)          set_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
+#define tree_clear_collected(p)        clear_type1_bit(T_Pair(p), T_SHORT_TREE_COLLECTED)
+
 #define T_SIMPLE_VALUES                T_BINDER
 #define has_simple_values(p)           has_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
 #define set_has_simple_values(p)       set_type1_bit(T_Hsh(p), T_SIMPLE_VALUES)
@@ -3429,6 +3436,7 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
 #define new_cell_no_check(Sc, Obj, Type)		    \
   do {							    \
     Obj = (*(--(Sc->free_heap_top)));			    \
+    if (Sc->free_heap_top < Sc->free_heap) fprintf(stderr, "free heap exhausted\n"); \
     Obj->debugger_bits = 0; Obj->opt1_func = NULL; Obj->opt2_func = NULL; Obj->opt3_func = NULL; \
     set_type(Obj, Type);				    \
     } while (0)
@@ -9029,7 +9037,7 @@ static s7_pointer copy_tree(s7_scheme *sc, s7_pointer tree)
 #define TREE_CYCLIC 1
 #define TREE_HAS_PAIRS 2
 
-static int is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
+static int tree_is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
 {
   s7_pointer fast, slow;
   bool has_pairs = false;
@@ -9039,7 +9047,7 @@ static int is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
   fast = tree;
   while (true)
     {
-      if (is_collected(fast)) return(TREE_CYCLIC);
+      if (tree_is_collected(fast)) return(TREE_CYCLIC);
       if ((!has_pairs) && 
 	  (is_unquoted_pair(car(fast))))
 	has_pairs = true;
@@ -9049,7 +9057,7 @@ static int is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
 	  if (!has_pairs) return(TREE_NOT_CYCLIC);
 	  break;
 	}
-      if (is_collected(fast)) return(TREE_CYCLIC);
+      if (tree_is_collected(fast)) return(TREE_CYCLIC);
       if ((!has_pairs) && 
 	  (is_unquoted_pair(car(fast)))) 
 	has_pairs = true;
@@ -9062,33 +9070,45 @@ static int is_cyclic_or_has_pairs(s7_scheme *sc, s7_pointer tree)
       slow = cdr(slow);
       if (fast == slow) return(TREE_CYCLIC);
     }
+#if S7_DEBUGGING
   if (!has_pairs) fprintf(stderr, "at end but no pairs: %s\n", DISPLAY(tree));
+#endif
   return(TREE_HAS_PAIRS);
 }
 
-static inline shared_info *new_shared_info(s7_scheme *sc);
-static void enlarge_shared_info(shared_info *ci);
+/* we can't use shared_info here because tree_is_cyclic may be called in the midst of output that depends on sc->circle_info */
 
-static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree, shared_info *ci)
+static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree)
 {
   s7_pointer p;
   for (p = tree; is_pair(p); p = cdr(p))
     {
-      set_collected(p);
-      if (ci->top == ci->size)
-	enlarge_shared_info(ci);
-      ci->objs[ci->top++] = p;
+      tree_set_collected(p);
+      if (sc->tree_pointers_top == sc->tree_pointers_size)
+	{
+	  if (sc->tree_pointers_size == 0)
+	    {
+	      sc->tree_pointers_size = 8;
+	      sc->tree_pointers = (s7_pointer *)malloc(sc->tree_pointers_size * sizeof(s7_pointer));
+	    }
+	  else
+	    {
+	      sc->tree_pointers_size *= 2;
+	      sc->tree_pointers = (s7_pointer *)realloc(sc->tree_pointers, sc->tree_pointers_size * sizeof(s7_pointer));
+	    }
+	}
+      sc->tree_pointers[sc->tree_pointers_top++] = p;
       if (is_unquoted_pair(car(p)))
 	{
 	  int32_t i, old_top, result;
-	  old_top = ci->top;
-	  result = is_cyclic_or_has_pairs(sc, car(p));
+	  old_top = sc->tree_pointers_top;
+	  result = tree_is_cyclic_or_has_pairs(sc, car(p));
 	  if ((result == TREE_CYCLIC) ||
-	      (tree_is_cyclic_1(sc, car(p), ci)))
+	      (tree_is_cyclic_1(sc, car(p))))
 	    return(true);
-	  for (i = old_top; i < ci->top; i++)
-	    clear_collected(ci->objs[i]);
-	  ci->top = old_top;
+	  for (i = old_top; i < sc->tree_pointers_top; i++)
+	    tree_clear_collected(sc->tree_pointers[i]);
+	  sc->tree_pointers_top = old_top;
 	}
     }
   return(false);
@@ -9097,19 +9117,22 @@ static bool tree_is_cyclic_1(s7_scheme *sc, s7_pointer tree, shared_info *ci)
 static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
 {
   int32_t i, result;
-  shared_info *ci;
 
-  result = is_cyclic_or_has_pairs(sc, tree);
+  result = tree_is_cyclic_or_has_pairs(sc, tree);
   if (result == TREE_NOT_CYCLIC) return(false);
   if (result == TREE_CYCLIC) return(true);
+  
+#if S7_DEBUGGING
+  if (sc->tree_pointers_top != 0)
+    fprintf(stderr, "top: %d\n", sc->tree_pointers_top);
+#endif
 
-  result = tree_is_cyclic_1(sc, tree, ci = new_shared_info(sc));
-  for (i = 0; i < ci->top; i++)
-    clear_collected(ci->objs[i]);
-  ci->top = 0;
-  /* this is needed if, for example, we have a nested tree followed by another call -- the collected bits are still on etc */
+  result = tree_is_cyclic_1(sc, tree);
+  for (i = 0; i < sc->tree_pointers_top; i++)
+    tree_clear_collected(sc->tree_pointers[i]);
+  sc->tree_pointers_top = 0;
 
-  return(result);
+ return(result);
 }
 
 static s7_pointer g_tree_is_cyclic(s7_scheme *sc, s7_pointer args)
@@ -29635,9 +29658,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						    ((is_slot(obj)) ? " slot-defaults" :
 						     " ?26?"))) : "",
 	   /* bit 27+16 */
-	   ((full_typ & T_FULL_BINDER) != 0) ?    ((is_hash_table(obj)) ? " simple-values" :
-						   ((is_symbol(obj)) ? " binder" :
-						    " ?27?")) : "",
+	   ((full_typ & T_FULL_BINDER) != 0) ?    ((is_pair(obj)) ? " tree-collected" :
+						   ((is_hash_table(obj)) ? " simple-values" :
+						    ((is_symbol(obj)) ? " binder" :
+						     " ?27?"))) : "",
 	   /* bit 28+16 */
 	   ((full_typ & T_VERY_SAFE_CLOSURE) != 0) ? " very-safe-closure" : "",
 	   /* bit 29+16 */
@@ -29672,7 +29696,7 @@ static bool has_odd_bits(s7_pointer obj)
   if ((full_typ & UNUSED_BITS) != 0) return(true);
   if (((full_typ & T_MULTIFORM) != 0) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_KEYWORD) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_FULL_BINDER) != 0) && ((!is_hash_table(obj)) && (!is_symbol(obj)))) return(true);
+  if (((full_typ & T_FULL_BINDER) != 0) && ((!is_pair(obj)) && (!is_hash_table(obj)) && (!is_symbol(obj)))) return(true);
   if (((full_typ & T_SYNTACTIC) != 0) && (!is_syntax(obj)) && (!is_pair(obj)) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
@@ -35988,6 +36012,10 @@ static s7_pointer make_vector_1(s7_scheme *sc, s7_int len, bool filled, uint8_t 
 		}
 	      else
 		{
+#if S7_DEBUGGING
+		  if (typ != T_BYTE_VECTOR)
+		    fprintf(stderr, "%s: typ=%d\n", __func__, (int)typ);
+#endif
 		  b = mallocate(sc, len);
 		  vector_block(x) = b;
 		  byte_vector_bytes(x) = (uint8_t *)block_data(b);
@@ -44737,7 +44765,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    return(s7_error(sc, sc->wrong_number_of_args_symbol, 
 			    set_elist_3(sc, wrap_string(sc, "~S: start/end indices make no sense with :readable: ~S", 54), caller, args)));
 	  return(copy_body(sc, source));
-	}
+	} 
       end = s7_list_length(sc, source);
       if (end == 0)
 	end = circular_list_entries(source);
@@ -45892,50 +45920,6 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
   return(new_vec);
 }
 
-static s7_pointer string_append(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer new_str;
-  s7_int len;
-  char *elements = NULL;
-
-  len = total_sequence_length(sc, args, sc->append_symbol, T_CHARACTER);
-  if (len > sc->max_string_length)
-    return(s7_error(sc, sc->out_of_range_symbol,
-		    set_elist_4(sc, wrap_string(sc, "~S new string length, ~D, is larger than (*s7* 'max-string-length): ~D", 70),
-				sc->append_symbol,
-				wrap_integer1(sc, len),
-				wrap_integer2(sc, sc->max_string_length))));
-
-  new_str = make_empty_string(sc, len, 0);
-  elements = string_value(new_str);
-  if (len > 0)
-    {
-      s7_pointer p;
-      s7_int i;
-
-      push_stack_no_let(sc, OP_GC_PROTECT, new_str, sc->nil);
-      for (i = 0, p = args; is_pair(p); p = cdr(p))
-	{
-	  s7_pointer x;
-	  s7_int n;
-	  x = car(p);
-	  n = sequence_length(sc, x);
-	  if (n > 0)
-	    {
-	      string_length(new_str) = n;
-	      s7_copy_1(sc, sc->append_symbol, list_2(sc, x, new_str));
-	      i += n;
-	      string_value(new_str) = (char *)(elements + i);
-	    }
-	}
-      unstack(sc);
-      set_plist_2(sc, sc->nil, sc->nil);
-      string_value(new_str) = elements;
-      string_length(new_str) = len;
-    }
-  return(new_str);
-}
-
 static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer new_hash, p;
@@ -45984,7 +45968,7 @@ static s7_pointer g_append(s7_scheme *sc, s7_pointer args)
       return(vector_append(sc, args, type(a1), sc->append_symbol));
 
     case T_STRING:
-      return(string_append(sc, args));
+      return(g_string_append_1(sc, args, sc->append_symbol));
 
     case T_HASH_TABLE:
       return(hash_table_append(sc, args));
@@ -49329,11 +49313,11 @@ pass (rootlet):\n\
       else sc->envir = e;
     }
   sc->code = car(args);
+
   if ((sc->safety > NO_SAFETY) &&
       (is_pair(sc->code)))
     {
-      if (tree_is_cyclic(sc, sc->code))
-	s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "eval: code is cyclic", 20));
+      check_heap_size(sc, 8192);
       sc->code = copy_body(sc, sc->code);
     }
   else
@@ -49341,6 +49325,7 @@ pass (rootlet):\n\
      if (is_optimized(sc->code))
        clear_all_optimizations(sc, sc->code);
    }
+
   if (s7_stack_top(sc) < 12)
     push_stack_op(sc, OP_BARRIER);
   push_stack(sc, OP_EVAL, sc->args, sc->code);
@@ -88713,6 +88698,9 @@ s7_scheme *s7_init(void)
   sc->c_object_to_string_symbol = NULL;
   sc->closed_symbol = NULL;
   sc->port_type_symbol = NULL;
+  sc->tree_pointers = NULL;
+  sc->tree_pointers_size = 0;
+  sc->tree_pointers_top = 0;
 
   sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
   set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
@@ -90233,30 +90221,30 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356   357   357
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   966
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   994
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1205
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1196
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1726
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2269
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2340
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2268
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
- * tvect         |      |      |      |      |      | 5616 | 2650  2520  2523
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2691
+ * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2679
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3464
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3517
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3559
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5182
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6398
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.1
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 182.0
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 181.9
  * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90272,6 +90260,5 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * [s7_][is_]integer is a mess
  * gmp: quaternion check needs g_is_number to get q's number? method, t725
- * macro and shared code tests for tree-cyclic? (t101 24/25)
  * trailers eval default: (_m1_ a) from "(define-macro (_m1_ a) `(+ ,a 1))" so it must be something like (cond ...) and _m1_ (or a) is probably undefined?
  */

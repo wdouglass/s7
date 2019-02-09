@@ -34,6 +34,8 @@
   (make-method f (lambda (obj) (obj 'value))))
 
 
+;;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
+;;;   so a mock object's method can be called even when no argument is a mock object
 
 ;;; --------------------------------------------------------------------------------
 
@@ -44,11 +46,9 @@
 	  (inlet 'equivalent?        (make-local-method #_equivalent?) ; see comment below
 		 
 		 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
-				       (unless (integer? i)
-					 (error 'wrong-type-arg "stray mock-vector?"))
-				       (if (vector? (obj 'value))
-					   (#_vector-set! (obj 'value) i val)
-					   (error 'wrong-type-arg "vector-set! ~S ~S ~S" obj i val))) ; the wrong arg here is 'i
+				       (if (mock-vector? i)
+					   (error 'wrong-type-arg "stray mock-vector? ~S" i))
+				       (#_vector-set! (if (mock-vector? obj) (obj 'value) obj) i val))
 
 		 'vector-set!        (lambda (obj i val) ((obj 'local-set!) obj i val) val)
 
@@ -61,8 +61,8 @@
 					   (error 'out-of-range "unknown field: ~S" i)))
 		 
 		 'vector-ref         (lambda (obj i) 
-				       (unless (integer? i)
-					 (error 'wrong-type-arg "stray mock-vector?"))
+				       (if (mock-vector? i)
+					   (error 'wrong-type-arg "stray mock-vector? ~S" i))
 				       (#_vector-ref (if (mock-vector? obj) (obj 'value) obj) i))
 		 
 		 'let-ref-fallback   (lambda (obj i) 
@@ -71,21 +71,27 @@
 					   (#_vector-ref (obj 'value) i)   ; the implicit case
 					   (error 'out-of-range "unknown field: ~S" i)))
 
-		 'vector-length      (lambda (obj) (#_length (obj 'value)))
+		 'vector-length      (lambda (obj) 
+				       (#_length (if (mock-vector? obj) (obj 'value) obj)))
 		 'vector-append      (make-local-method #_vector-append)
-		 'reverse            (lambda (obj) (#_reverse (obj 'value)))
+		 'reverse            (lambda (obj) 
+				       (#_reverse (if (mock-vector? obj) (obj 'value) obj)))
 		 'sort!              (lambda (obj f)
-				       (if (and (let? obj)
-						(defined? 'value obj))
-					   (#_sort! (obj 'value) f)
-					   (error 'out-of-range "sort! mock-vector as sort-function: ~S?" f)))
-		 'make-iterator      (lambda (obj) (#_make-iterator (obj 'value)))
-		 'arity              (lambda (obj) (#_arity (obj 'value)))
+				       (if (mock-vector? f)
+					   (error 'wrong-type-arg "sort! mock-vector as sort-function: ~S?" f))
+				       (#_sort! (if (mock-vector? obj) (obj 'value) obj) f))
+					   
+		 'make-iterator      (lambda (obj) 
+				       (#_make-iterator (if (mock-vector? obj) (obj 'value) obj)))
+		 'arity              (lambda (obj) 
+				       (#_arity (if (mock-vector? obj) (obj 'value) obj)))
 		 'object->string     (lambda args 
 				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-vector*" "#<mock-vector-class>"))))
-		 'vector-dimensions  (lambda (obj) (#_vector-dimensions (obj 'value)))
-		 'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
+		 'vector-dimensions  (lambda (obj) 
+				       (#_vector-dimensions (if (mock-vector? obj) (obj 'value) obj)))
+		 'fill!              (lambda (obj val) 
+				       (#_fill! (if (mock-vector? obj) (obj 'value) obj) val))
 		 
 		 'vector->list       (lambda (obj . args)
 				       (map values (if (mock-vector? obj) (obj 'value) obj)))
@@ -112,7 +118,8 @@
 						 nobj))))
 
 		 'vector?            (lambda (obj) #t)
-		 'length             (lambda (obj) (#_length (obj 'value)))
+		 'length             (lambda (obj) 
+				       (#_length (if (mock-vector? obj) (obj 'value) obj)))
 		 'append             (make-local-method #_append)
 		 'class-name         '*mock-vector*)))
     
@@ -187,10 +194,14 @@
 	 (no-mock-hash-tables #f)
 	 (mock-hash-table-class
 	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (x 'value) y))
-		 'hash-table-ref     (lambda (obj key) (#_hash-table-ref (obj 'value) key))
-		 'hash-table-set!    (lambda (obj key val) (#_hash-table-set! (obj 'value) key val))
-		 'hash-table-entries (lambda (obj) (#_hash-table-entries (obj 'value)))
-		 'make-iterator      (lambda (obj) (#_make-iterator (obj 'value)))
+		 'hash-table-ref     (lambda (obj key) 
+				       (#_hash-table-ref (if (mock-hash-table? obj) (obj 'value) obj) key))
+		 'hash-table-set!    (lambda (obj key val) 
+				       (#_hash-table-set! (if (mock-hash-table? obj) (obj 'value) obj) key val))
+		 'hash-table-entries (lambda (obj) 
+				       (#_hash-table-entries (if (mock-hash-table? obj) (obj 'value) obj)))
+		 'make-iterator      (lambda (obj) 
+				       (#_make-iterator (if (mock-hash-table? obj) (obj 'value) obj)))
 		 
 		 'let-ref-fallback   (lambda (obj key)
 				       (if (defined? 'value obj)
@@ -207,8 +218,10 @@
 		 ;;
 		 ;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
 		 
-		 'fill!              (lambda (obj val) (#_fill! (obj 'value) val))
-		 'reverse            (lambda (obj) (#_reverse (obj 'value)))
+		 'fill!              (lambda (obj val) 
+				       (#_fill! (if (mock-hash-table? obj) (obj 'value) obj) val))
+		 'reverse            (lambda (obj) 
+				       (#_reverse (if (mock-hash-table? obj) (obj 'value) obj)))
 		 'object->string     (lambda args 
 				       (let ((w (or (null? (cdr args)) (cadr args))))
 					 (copy (if (eq? w :readable) "*mock-hash-table*" "#<mock-hash-table-class>"))))
@@ -230,7 +243,8 @@
 						 nobj))))
 
 		 'hash-table?        (lambda (obj) #t)
-		 'length             (lambda (obj) (#_length (obj 'value)))
+		 'length             (lambda (obj) 
+				       (#_length (if (mock-hash-table? obj) (obj 'value) obj)))
 		 'append             (make-local-method #_append)
 		 'class-name         '*mock-hash-table*)))
     
@@ -297,13 +311,17 @@
   (let* ((mock-string? #f)
 	 (no-mock-strings #f)
 	 (mock-string-class
-	  (inlet 'equivalent?            (lambda (x y) (#_equivalent? (x 'value) y))
-		 'reverse                (lambda (obj) (#_reverse (obj 'value)))
+	  (inlet 'equivalent?            (lambda (x y) 
+					   (#_equivalent? (if (mock-string? x) (x 'value) x) (if (mock-string? y) (y 'value) y)))
+		 'reverse                (lambda (obj) 
+					   (#_reverse (if (mock-string? obj) (obj 'value) obj)))
 		 'object->string         (lambda args 
 					   (let ((w (or (null? (cdr args)) (cadr args))))
 					     (copy (if (eq? w :readable) "*mock-string*" "#<mock-string-class>"))))
-		 'arity                  (lambda (obj) (#_arity (obj 'value)))
-		 'make-iterator          (lambda (obj) (#_make-iterator (obj 'value)))
+		 'arity                  (lambda (obj) 
+					   (#_arity (if (mock-string? obj) (obj 'value) obj)))
+		 'make-iterator          (lambda (obj) 
+					   (#_make-iterator (if (mock-string? obj) (obj 'value) obj)))
 		 'let-ref-fallback       (lambda (obj i) 
 					   (if (and (integer? i)
 						    (defined? 'value obj))
@@ -314,35 +332,52 @@
 						    (defined? 'value obj))
 					       (#_string-set! (obj 'value) i val)
 					       (error 'out-of-range "unknown field: ~S" i)))
-		 'string-length          (lambda (obj) (#_length (obj 'value)))
+		 'string-length          (lambda (obj) 
+					   (#_length (if (mock-string? obj) (obj 'value) obj)))
 		 'string-append          (make-local-method #_string-append)
-		 'string-copy            (lambda (obj) (#_copy (obj 'value)))
+		 'string-copy            (lambda (obj) 
+					   (#_copy (if (mock-string? obj) (obj 'value) obj)))
 		 'string=?               (make-local-method #_string=?)
 		 'string<?               (make-local-method #_string<?)
 		 'string>?               (make-local-method #_string>?)
 		 'string<=?              (make-local-method #_string<=?)
 		 'string>=?              (make-local-method #_string>=?)
-		 'string-downcase        (lambda (obj) (#_string-downcase (obj 'value)))
-		 'string-upcase          (lambda (obj) (#_string-upcase (obj 'value)))
-		 'string->symbol         (lambda (obj) (#_string->symbol (obj 'value)))
-		 'symbol                 (lambda (obj) (#_symbol (obj 'value)))
-		 'gensym                 (lambda (obj) (#_gensym (obj 'value)))
-		 'string->keyword        (lambda (obj) (#_string->keyword (obj 'value)))
-		 'open-input-string      (lambda (obj) (#_open-input-string (obj 'value)))
-		 'call-with-input-string (lambda (obj f) (#_call-with-input-string (obj 'value) f))
-		 'with-input-from-string (lambda (obj f) (#_with-input-from-string (obj 'value) f))
-		 'directory?             (lambda (obj) (#_directory? (obj 'value)))
-		 'file-exists?           (lambda (obj) (#_file-exists? (obj 'value)))
-		 'getenv                 (lambda (obj) (#_getenv (obj 'value)))
-		 'delete-file            (lambda (obj) (#_delete-file (obj 'value)))
-		 'system                 (lambda* (obj cap) (#_system (obj 'value) cap))
-		 'string->byte-vector    (lambda (obj) (#_string->byte-vector (obj 'value))) ; this is in-place! 
-		 'load                   (lambda* (obj (e (curlet))) (#_load (obj 'value) e))
-		 'eval-string            (lambda* (obj (e (curlet))) (#_eval-string (obj 'value) e))
+		 'string-downcase        (lambda (obj) (#_string-downcase (if (mock-string? obj) (obj 'value) obj)))
+		 'string-upcase          (lambda (obj) (#_string-upcase (if (mock-string? obj) (obj 'value) obj)))
+		 'string->symbol         (lambda (obj) (#_string->symbol (if (mock-string? obj) (obj 'value) obj)))
+		 'symbol                 (lambda (obj) (#_symbol (if (mock-string? obj) (obj 'value) obj)))
+		 'gensym                 (lambda (obj) (#_gensym (if (mock-string? obj) (obj 'value) obj)))
+		 'string->keyword        (lambda (obj) (#_string->keyword (if (mock-string? obj) (obj 'value) obj)))
+		 'open-input-string      (lambda (obj) (#_open-input-string (if (mock-string? obj) (obj 'value) obj)))
+		 'call-with-input-string (lambda (obj f) 
+					   (if (mock-string? f)
+					       (error 'wrong-type-arg "call-with-input-string: stray mock string? ~S" f))
+					   (#_call-with-input-string (if (mock-string? obj) (obj 'value) obj) f))
+		 'with-input-from-string (lambda (obj f) 
+					   (if (mock-string? f)
+					       (error 'wrong-type-arg "with-input-from-string: stray mock string? ~S" f))
+					   (#_with-input-from-string (if (mock-string? obj) (obj 'value) obj) f))
+		 'directory?             (lambda (obj) (#_directory? (if (mock-string? obj) (obj 'value) obj)))
+		 'file-exists?           (lambda (obj) (#_file-exists? (if (mock-string? obj) (obj 'value) obj)))
+		 'getenv                 (lambda (obj) (#_getenv (if (mock-string? obj) (obj 'value) obj)))
+		 'delete-file            (lambda (obj) (#_delete-file (if (mock-string? obj) (obj 'value) obj)))
+		 'system                 (lambda* (obj cap) 
+					   (if (mock-string? cap)
+					       (error 'wrong-type-arg "system: stray mock string? ~S" cap))
+					   (#_system (if (mock-string? obj) (obj 'value) obj) cap))
+		 'string->byte-vector    (lambda (obj) (#_string->byte-vector (if (mock-string? obj) (obj 'value) obj)))
+		 'load                   (lambda* (obj (e (curlet))) 
+					   (if (mock-string? e)
+					       (error 'wrong-type-arg "load: stray mock string? ~S" e))
+					   (#_load (if (mock-string? obj) (obj 'value) obj) e))
+		 'eval-string            (lambda* (obj (e (curlet))) 
+					   (if (mock-string? e)
+					       (error 'wrong-type-arg "eval-string: stray mock string? ~S" e))
+					   (#_eval-string (if (mock-string? obj) (obj 'value) obj) e))
 		 'char-position          (make-local-method #_char-position)
 		 'bignum                 (lambda (obj)
 					   (if (provided? 'gmp)
-					       (#_bignum (obj 'value))
+					       (#_bignum (if (mock-string? obj) (obj 'value) obj))
 					       (error 'wrong-type-arg "no bignums in this version of s7")))
 
 		 'format                 (lambda (port ctrl . args)
@@ -417,7 +452,8 @@
 					     (make-local-method #_string-ci>=?))
 		 
 		 'string?                (lambda (obj) #t)
-		 'length                 (lambda (obj) (#_string-length (obj 'value)))
+		 'length                 (lambda (obj) 
+					   (#_string-length (if (mock-string? obj) (obj 'value) obj)))
 		 'append                 (make-local-method #_append)
 		 'class-name             '*mock-string*)))
     
@@ -479,15 +515,15 @@
   (let* ((mock-char? #f)
 	 (no-mock-chars #f)
 	 (mock-char-class
-	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (x 'value) y))
-		 'char-upcase        (lambda (obj) (#_char-upcase (obj 'value)))
-		 'char-downcase      (lambda (obj) (#_char-downcase (obj 'value)))
-		 'char->integer      (lambda (obj) (#_char->integer (obj 'value)))
-		 'char-upper-case?   (lambda (obj) (#_char-upper-case? (obj 'value)))
-		 'char-lower-case?   (lambda (obj) (#_char-lower-case? (obj 'value)))
-		 'char-alphabetic?   (lambda (obj) (#_char-alphabetic? (obj 'value)))
-		 'char-numeric?      (lambda (obj) (#_char-numeric? (obj 'value)))
-		 'char-whitespace?   (lambda (obj) (#_char-whitespace? (obj 'value)))
+	  (inlet 'equivalent?        (lambda (x y) (#_equivalent? (if (mock-char? x) (x 'value) x) y))
+		 'char-upcase        (lambda (obj) (#_char-upcase (if (mock-char? obj) (obj 'value) obj)))
+		 'char-downcase      (lambda (obj) (#_char-downcase (if (mock-char? obj) (obj 'value) obj)))
+		 'char->integer      (lambda (obj) (#_char->integer (if (mock-char? obj) (obj 'value) obj)))
+		 'char-upper-case?   (lambda (obj) (#_char-upper-case? (if (mock-char? obj) (obj 'value) obj)))
+		 'char-lower-case?   (lambda (obj) (#_char-lower-case? (if (mock-char? obj) (obj 'value) obj)))
+		 'char-alphabetic?   (lambda (obj) (#_char-alphabetic? (if (mock-char? obj) (obj 'value) obj)))
+		 'char-numeric?      (lambda (obj) (#_char-numeric? (if (mock-char? obj) (obj 'value) obj)))
+		 'char-whitespace?   (lambda (obj) (#_char-whitespace? (if (mock-char? obj) (obj 'value) obj)))
 		 'char=?             (make-local-method #_char=?)
 		 'char<?             (make-local-method #_char<?)
 		 'char>?             (make-local-method #_char>?)
@@ -509,7 +545,7 @@
 					   (error 'wrong-type-arg "format control-string arg is a mock-char: ~A" ctrl))
 				       (#_format port ctrl (if (mock-char? (car args)) ((car args) 'value) (car args))))
 
-		 'arity              (lambda (obj) (#_arity (obj 'value)))
+		 'arity              (lambda (obj) (#_arity (if (mock-char? obj) (obj 'value) obj)))
 		 'make-string        (make-local-method #_make-string)
 		 'char-position      (make-local-method #_char-position)
 		 
@@ -1249,27 +1285,70 @@
   (let* ((mock-port? #f)
 	 (no-mock-ports #f)
 	 (mock-port-class
-	  (inlet 'port?               (lambda (obj) #t)
-		 'equivalent?         (lambda (x y) (#_equivalent? (x 'value) y))
-		 'close-input-port    (lambda (obj) (#_close-input-port (obj 'value)))
-		 'close-output-port   (lambda (obj) (#_close-output-port (obj 'value)))
-		 'flush-output-port   (lambda (obj) (#_flush-output-port (obj 'value)))
-		 'get-output-string   (lambda (obj) (#_get-output-string (obj 'value)))
-		 'append              (lambda args (error 'wrong-type-arg "stray mock-port?"))
-		 'newline             (lambda (obj) (#_newline (obj 'value)))
-		 'write               (lambda (x obj) (#_write x (obj 'value)))
-		 'display             (lambda (x obj) (#_display x (obj 'value)))
-		 'read-char           (lambda (obj) (#_read-char (obj 'value)))
-		 'peek-char           (lambda (obj) (#_peek-char (obj 'value)))
-		 'read-byte           (lambda (obj) (#_read-byte (obj 'value)))
-		 'read-line           (lambda (obj . args) (apply #_read-line (obj 'value) args))
-		 'read                (lambda (obj) (#_read (obj 'value)))
-		 'input-port?         (lambda (obj) (#_input-port? (obj 'value)))
-		 'output-port?        (lambda (obj) (#_output-port? (obj 'value)))
-		 'port-closed?        (lambda (obj) (#_port-closed? (obj 'value)))
-		 'char-ready?         (lambda (obj) (#_char-ready? (obj 'value)))
-		 'port-line-number    (lambda (obj) (#_port-line-number (obj 'value)))
-		 'port-filename       (lambda (obj) (#_port-filename (obj 'value)))
+	  (inlet 'port?               (lambda (obj) (or (mock-port? obj) (#_port? obj)))
+		 'equivalent?         (lambda (x y) (#_equivalent? (if (mock-port? x) (x 'value) x) (if (mock-port? y) (y 'value) y)))
+		 'append              (lambda args  (error 'wrong-type-arg "stray mock-port?"))
+
+		 'close-input-port    (lambda (obj) (#_close-input-port (if (mock-port? obj) (obj 'value) obj)))
+		 'close-output-port   (lambda (obj) (#_close-output-port (if (mock-port? obj) (obj 'value) obj)))
+		 'flush-output-port   (lambda (obj) (#_flush-output-port (if (mock-port? obj) (obj 'value) obj)))
+
+		 'set-current-output-port (lambda (obj) (#_set-current-output-port (if (mock-port? obj) (obj 'value) obj)))
+		 'set-current-input-port  (lambda (obj) (#_set-current-input-port (if (mock-port? obj) (obj 'value) obj)))
+		 'set-current-error-port  (lambda (obj) (#_set-current-error-port (if (mock-port? obj) (obj 'value) obj)))
+		 
+		 'write               (lambda* (x (obj *stdout*)) (#_write (if (mock-port? x) (x 'value) x) (if (mock-port? obj) (obj 'value) obj)))
+		 'display             (lambda* (x (obj *stdout*)) (#_display (if (mock-port? x) (x 'value) x) (if (mock-port? obj) (obj 'value) obj)))
+
+		 'get-output-string   (lambda args
+					(if (null? args) 
+					    (#_get-output-string)
+					    (let ((obj (car args))) 
+					      (#_get-output-string (if (mock-port? obj) (obj 'value) obj)))))
+					      
+		 'newline             (lambda args  
+					(if (null? args) 
+					    (#_newline)
+					    (let ((obj (car args))) 
+					      (#_newline (if (mock-port? obj) (obj 'value) obj)))))
+
+		 'read-char           (lambda args 
+					(if (null? args) 
+					    (#_read-char)
+					    (let ((obj (car args))) 
+					      (#_read-char (if (mock-port? obj) (obj 'value) obj)))))
+
+		 'peek-char           (lambda args 
+					(if (null? args) 
+					    (#_peek-char)
+					    (let ((obj (car args))) 
+					      (#_peek-char (if (mock-port? obj) (obj 'value) obj)))))
+
+		 'read-byte           (lambda args 
+					(if (null? args) 
+					    (#_read-byte)
+					    (let ((obj (car args))) 
+					      (#_read-byte (if (mock-port? obj) (obj 'value) obj)))))
+
+		 'read-line           (lambda args
+					(if (null? args) 
+					    (#_read-line)
+					    (let ((obj (car args))) 
+					      (apply #_read-line (if (mock-port? obj) (obj 'value) obj) (cdr args)))))
+
+		 'read                (lambda args 
+					(if (null? args) 
+					    (#_read)
+					    (let ((obj (car args))) 
+					      (#_read (if (mock-port? obj) (obj 'value) obj)))))
+
+		 'input-port?         (lambda (obj) (#_input-port? (if (mock-port? obj) (obj 'value) obj)))
+		 'output-port?        (lambda (obj) (#_output-port? (if (mock-port? obj) (obj 'value) obj)))
+		 'port-closed?        (lambda (obj) (#_port-closed? (if (mock-port? obj) (obj 'value) obj)))
+		 'char-ready?         (lambda (obj) (#_char-ready? (if (mock-port? obj) (obj 'value) obj)))
+		 'port-line-number    (lambda (obj) (#_port-line-number (if (mock-port? obj) (obj 'value) obj)))
+		 'port-filename       (lambda (obj) (#_port-filename (if (mock-port? obj) (obj 'value) obj)))
+
 		 'object->string      (lambda args 
 					(let ((w (or (null? (cdr args)) (cadr args))))
 					  (copy (if (eq? w :readable) "*mock-port*" "#<mock-port-class>"))))
@@ -1279,10 +1358,6 @@
 					(if (mock-port? port)
 					    (apply #_format (port 'value) str args)
 					    (#_format port str (if (mock-port? (car args)) ((car args) 'value) (car args)))))
-		 
-		 'set-current-output-port (lambda (obj) (#_set-current-output-port (obj 'value)))
-		 'set-current-input-port  (lambda (obj) (#_set-current-input-port (obj 'value)))
-		 'set-current-error-port  (lambda (obj) (#_set-current-error-port (obj 'value)))
 		 
 		 'write-char          (lambda (c obj) 
 					(if (mock-port? c)
