@@ -22440,6 +22440,21 @@ static s7_pointer string_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, 
 
 
 /* -------------------------------- string-append -------------------------------- */
+#if S7_DEBUGGING
+#define unstack(sc) unstack_1(sc, __func__, __LINE__)
+static void unstack_1(s7_scheme *sc, const char *func, int line)
+{
+  sc->stack_end -= 4;
+  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
+    {
+      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
+      fprintf(stderr, "    code: %s, args: %s\n", DISPLAY(sc->code), DISPLAY(sc->args));
+    }
+}
+#else
+#define unstack(sc) sc->stack_end -= 4
+#endif
+
 static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   #define H_string_append "(string-append str1 ...) appends all its string arguments into one string"
@@ -22452,6 +22467,7 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer c
   if (is_null(args))
     return(make_string_with_length(sc, "", 0));
 
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, args);
   /* get length for new string */
   for (x = args; is_not_null(x); x = cdr(x))
     {
@@ -22493,6 +22509,7 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer c
   for (pos = string_value(newstr), x = args; is_not_null(x); pos += string_length(car(x)), x = cdr(x))
     if (string_length(car(x)) > 0)
       memcpy(pos, string_value(car(x)), string_length(car(x)));
+  unstack(sc);
   return(newstr);
 }
 
@@ -25969,21 +25986,6 @@ static s7_pointer g_autoloader(s7_scheme *sc, s7_pointer args)
 
 
 /* ---------------- require ---------------- */
-#if S7_DEBUGGING
-#define unstack(sc) unstack_1(sc, __func__, __LINE__)
-static void unstack_1(s7_scheme *sc, const char *func, int line)
-{
-  sc->stack_end -= 4;
-  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
-    {
-      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
-      fprintf(stderr, "    code: %s, args: %s\n", DISPLAY(sc->code), DISPLAY(sc->args));
-    }
-}
-#else
-#define unstack(sc) sc->stack_end -= 4
-#endif
-
 static s7_pointer g_require(s7_scheme *sc, s7_pointer args)
 {
   #define H_require "(require symbol . symbols) loads each file associated with each symbol if it has not been loaded already.\
@@ -26776,21 +26778,21 @@ static s7_pointer g_make_iterator(s7_scheme *sc, s7_pointer args)
 in the sequence each time it is called.  When it reaches the end, it returns " ITERATOR_END_NAME "."
   #define Q_make_iterator s7_make_signature(sc, 3, sc->is_iterator_symbol, sc->is_sequence_symbol, sc->is_pair_symbol)
 
-  s7_pointer iter;
+  s7_pointer iter, seq, carrier;
   /* we need to call s7_make_iterator before fixing up the optional second arg in case let->method */
-  iter = s7_make_iterator(sc, car(args));
+  seq = car(args);
+  carrier = (is_pair(cdr(args))) ? cadr(args) : NULL;
+  iter = s7_make_iterator(sc, seq);
 
-  if (is_pair(cdr(args)))
+  if (carrier)
     {
-      s7_pointer ip;
-      ip = cadr(args);
-      if (is_pair(ip))
+      if (is_pair(carrier))
 	{
-	  if (is_immutable_pair(ip))
-	    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->make_iterator_symbol, ip)));
+	  if (is_immutable_pair(carrier))
+	    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->make_iterator_symbol, carrier)));
 	  if (is_hash_table(iterator_sequence(iter)))
 	    {
-	      iterator_current(iter) = ip;
+	      iterator_current(iter) = carrier;
 	      set_mark_seq(iter);
 	    }
 	  else
@@ -26798,12 +26800,12 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 	      if ((is_let(iterator_sequence(iter))) &&
 		  (iterator_sequence(iter) != sc->rootlet))
 		{
-		  iterator_let_cons(iter) = ip;
+		  iterator_let_cons(iter) = carrier;
 		  set_mark_seq(iter);
 		}
 	    }
 	}
-      else return(simple_wrong_type_argument(sc, sc->make_iterator_symbol, ip, T_PAIR));
+      else return(simple_wrong_type_argument(sc, sc->make_iterator_symbol, carrier, T_PAIR));
     }
   return(iter);
 }
@@ -29761,10 +29763,13 @@ void s7_show_history(s7_scheme *sc)
 {
 #if WITH_HISTORY
   s7_pointer p;
-  for (p = cdr(sc->cur_code); p != sc->cur_code; p = cdr(p))
+  int32_t i, size;
+  size = sc->history_size;
+  for (i = 0, p = cdr(sc->cur_code); i < size; i++, p = cdr(p))
     fprintf(stderr, "%s\n", DISPLAY_80(car(p)));
-#endif
+#else
   fprintf(stderr, "%s\n", DISPLAY_80(sc->cur_code));
+#endif
 }
 
 void s7_show_stack(s7_scheme *sc)
@@ -45836,7 +45841,8 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
   s7_int *iv_elements = NULL;
   uint8_t *byte_elements = NULL;
   s7_int len;
-  
+
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, args);  
   len = total_sequence_length(sc, args, caller, (typ == T_VECTOR) ? T_FREE : ((typ == T_FLOAT_VECTOR) ? T_REAL : T_INTEGER));
   if (len > sc->max_vector_length)
     return(s7_error(sc, sc->out_of_range_symbol,
@@ -45917,6 +45923,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
 	}
       vector_length(new_vec) = len;
     }
+  unstack(sc);
   return(new_vec);
 }
 
@@ -45935,13 +45942,14 @@ static s7_pointer hash_table_append(s7_scheme *sc, s7_pointer args)
 static s7_pointer let_append(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer new_let, p, e;
-
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, args);
   e = car(args);
   check_method(sc, e, sc->append_symbol, args);
   new_let = new_frame_in_env(sc, sc->nil);
   for (p = args; is_pair(p); p = cdr(p))
     s7_copy_1(sc, sc->append_symbol, set_plist_2(sc, car(p), new_let));
   set_plist_2(sc, sc->nil, sc->nil);
+  unstack(sc);
   return(new_let);
 }
 
@@ -45955,6 +45963,7 @@ static s7_pointer g_append(s7_scheme *sc, s7_pointer args)
   a1 = car(args);                      /* first arg determines result type unless all args but last are empty (sigh) */
   if (is_null(cdr(args))) return(a1);  /* (append <anything>) -> <anything> */
 
+  args = copy_list(sc, args);
   switch (type(a1))
     {
     case T_NIL:

@@ -338,7 +338,10 @@
 |#
 
 (define-macro (and-let* vars . body)      ; bind vars, if any is #f stop, else evaluate body with those bindings
-  `(let () (and ,@(map (lambda (v) (cons 'define v)) vars) (begin ,@body))))
+  (if (or (pair? vars)
+	  (null? vars))
+      `(let () (and ,@(map (lambda (v) (cons 'define v)) vars) (begin ,@body)))
+      (error 'wrong-type-arg "and-let* var list is ~S" vars)))
 
 (define-macro (let*-temporarily vars . body)
   `(with-let (#_inlet :orig (#_curlet) 
