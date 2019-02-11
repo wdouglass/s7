@@ -217,10 +217,10 @@
 				       (#_equivalent? (x 'value) y))
 
 		 'hash-table-ref     (lambda (obj key) 
-				       (#_hash-table-ref (->value obj) key))
+				       (#_hash-table-ref (->value obj) (->value key)))
 
 		 'hash-table-set!    (lambda (obj key val) 
-				       (#_hash-table-set! (->value obj) key val))
+				       (#_hash-table-set! (->value obj) (->value key) val))
 
 		 'hash-table-entries (lambda (obj) 
 				       (#_hash-table-entries (->value obj)))
@@ -245,7 +245,7 @@
 		 ;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
 		 
 		 'fill!              (lambda (obj val) 
-				       (#_fill! (->value obj) val))
+				       (#_fill! (->value obj) (->value val)))
 
 		 'reverse            (lambda (obj) 
 				       (#_reverse (->value obj)))
@@ -1176,7 +1176,12 @@
 				     (if (mock-pair? obj)
 					 (set! (obj 'value) (#_reverse (obj 'value)))
 					 (#_reverse! obj)))
-		 'sort!            (lambda (obj f) (#_sort! (->value obj) f))
+
+		 'sort!            (lambda (obj f)
+				     (if (mock-pair? f)
+					 (error 'wrong-type-arg "sort function arg is a mock-pair? ~S" f))
+				     (#_sort! (->value obj) f))
+
 		 'make-iterator    (lambda (obj) (#_make-iterator (->value obj)))
 		 'eval             (lambda (f obj) (#_eval (->value obj)))
 		 'list->vector     (lambda (obj) (#_list->vector (->value obj)))
@@ -1388,7 +1393,10 @@
 
 		 'close-input-port    (lambda (obj) (#_close-input-port (->value obj)))
 		 'close-output-port   (lambda (obj) (#_close-output-port (->value obj)))
-		 'flush-output-port   (lambda (obj) (#_flush-output-port (->value obj)))
+		 'flush-output-port   (lambda args
+					(if (null? args)
+					    (#_flush_output_port)
+					    (#_flush-output-port (->value (car args)))))
 
 		 'set-current-output-port (lambda (obj) (#_set-current-output-port (->value obj)))
 		 'set-current-input-port  (lambda (obj) (#_set-current-input-port (->value obj)))
