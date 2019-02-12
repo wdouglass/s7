@@ -9700,18 +9700,18 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
   for (i = 2; i < top; i += 4)
     {
       s7_pointer p;
-      p = ov[i];                            /* args */
-      if (is_pair(p))                       /* args need not be a list (it can be a port or #f, etc) */
+      p = ov[i];                               /* args */
+      if (is_pair(p))                          /* args need not be a list (it can be a port or #f, etc) */
 	{
-	  nv[i] = protected_list_copy(sc, p);                /* args (copy is needed -- see s7test.scm) */
-	  set_type(nv[i], (typeflag(p)));   /* carry over T_IMMUTABLE */
+	  nv[i] = protected_list_copy(sc, p);  /* args (copy is needed -- see s7test.scm) */
+	  set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); /* carry over T_IMMUTABLE */
 	}
       /* lst can be dotted or circular here.  The circular list only happens in a case like:
        *    (dynamic-wind (lambda () (eq? (let ((lst (cons 1 2))) (set-cdr! lst lst) lst) (call/cc (lambda (k) k)))) (lambda () #f) (lambda () #f))
        */
       else
 	{
-	  if (is_counter(p))              /* these can only occur in this context */
+	  if (is_counter(p))                   /* these can only occur in this context */
 	    nv[i] = copy_counter(sc, p);
 	}
     }
@@ -23396,14 +23396,14 @@ s7_pointer s7_set_current_output_port(s7_scheme *sc, s7_pointer port)
 static s7_pointer g_current_output_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_current_output_port "(current-output-port) returns the current output port"
-  #define Q_current_output_port s7_make_signature(sc, 1, sc->is_output_port_symbol)
+  #define Q_current_output_port s7_make_signature(sc, 1, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   return(sc->output_port);
 }
 
 static s7_pointer g_set_current_output_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_output_port "(set-current-output-port port) sets the current-output port to port and returns the previous value of the output port"
-  #define Q_set_current_output_port s7_make_signature(sc, 2, sc->is_output_port_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
+  #define Q_set_current_output_port s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol), s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
 
   s7_pointer old_port, port;
   old_port = sc->output_port;
@@ -23434,14 +23434,14 @@ s7_pointer s7_set_current_error_port(s7_scheme *sc, s7_pointer port)
 static s7_pointer g_current_error_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_current_error_port "(current-error-port) returns the current error port"
-  #define Q_current_error_port s7_make_signature(sc, 1, sc->is_output_port_symbol)
+  #define Q_current_error_port s7_make_signature(sc, 1, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   return(sc->error_port);
 }
 
 static s7_pointer g_set_current_error_port(s7_scheme *sc, s7_pointer args)
 {
   #define H_set_current_error_port "(set-current-error-port port) sets the current-error port to port and returns the previous value of the error port"
-  #define Q_set_current_error_port s7_make_signature(sc, 2, sc->is_output_port_symbol, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
+  #define Q_set_current_error_port s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol), s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   s7_pointer old_port, port;
 
   old_port = sc->error_port;
@@ -24577,7 +24577,6 @@ static s7_pointer g_open_input_file(s7_scheme *sc, s7_pointer args)
 
   if (!is_string(name))
     return(method_or_bust(sc, name, sc->open_input_file_symbol, args, T_STRING, 1));
-  /* what if the file name is a byte-vector? currently we accept it */
 
   if (is_pair(cdr(args)))
     {
@@ -25405,15 +25404,6 @@ s7_pointer s7_read(s7_scheme *sc, s7_pointer port)
 
 static s7_pointer g_read(s7_scheme *sc, s7_pointer args)
 {
-  /* would it be useful to add an environment arg here?  (just set sc->envir at the end?)
-   *    except for expansions, nothing is evaluated at read time, unless...
-   *    say we set up a dot reader:
-   *        (set! *#readers* (cons (cons #\. (lambda (str) (if (string=? str ".") (eval (read)) #f))) *#readers*))
-   *    then
-   *        (call-with-input-string "(+ 1 #.(+ 1 hiho))" (lambda (p) (read p)))
-   *    evaluates hiho in the rootlet, but how to pass the env to the inner eval or read?
-   * (eval, eval-string and load already have an env arg)
-   */
   #define H_read "(read (port (current-input-port))) returns the next object in the input port, or #<eof> at the end"
   #define Q_read s7_make_signature(sc, 2, sc->T, sc->is_input_port_symbol)
   s7_pointer port;
@@ -25826,7 +25816,6 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
    * Also we need to decide how to handle name collisions (by order of autoload lib setup)
    * And (lastly?) how to handle different library versions?
    *
-   *
    * so autoload known libs here in s7 so we're indepentdent of snd
    *   (currently these are included in make-index.scm[line 575] -> snd-xref.c)
    * for each module, include an env in the lib env (*libgtk* 'gtkwidget.h) or whatever that has the names in that header
@@ -26100,7 +26089,6 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
 	   */
 	}
     }
-
   /* require looks up its symbol argument to see if the associated code (dsp.scm etc) has been autoloaded,
    *   so here we're defining the provided symbol for that possibility.  Perhaps better would be to forgo
    *   the definition here, and in require check *features* -- it is local to the current env.
@@ -36904,7 +36892,7 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
   s7_pointer x;
   s7_int dims;
 
-  new_cell(sc, x, typeflag(vect) | T_SUBVECTOR | T_SAFE_PROCEDURE); /* typeflag(vect) picks up T_IMMUTABLE */
+  new_cell(sc, x, (typeflag(vect) & (0xff | T_IMMUTABLE)) | T_SUBVECTOR | T_SAFE_PROCEDURE); /* not just typeflag(vect) here; T_COLLECTED might be on, for example */
   vector_length(x) = 0;
   vector_block(x) = mallocate_vector(sc, 0);
   vector_elements(x) = NULL;
@@ -49460,6 +49448,7 @@ static s7_pointer g_type_of(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- s7-version -------------------------------- */
+
 static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
 {
   #define H_s7_version "(s7-version) returns some string describing the current s7"
@@ -67358,6 +67347,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SA);
 	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
 	    }
+
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt1_lambda(expr, func);
 	  set_opt3_arglen(expr, small_int(2));
@@ -78399,7 +78389,7 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 	 do {								\
 	   sc->code = T_Pair(closure_body(sc->code));			\
 	   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));		\
-	   sc->code = car(sc->code);					\
+	   sc->code = car(sc->code); 					\
 	   goto EVAL;							\
 	 } while (0)
 #define closure_goto_eval(sc) do {sc->code = car(closure_body(sc->code)); goto EVAL;} while (0)
@@ -79372,7 +79362,6 @@ static bool op_eval_macro_mv(s7_scheme *sc)
   return(false);
 }
 
-
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
 #if SHOW_EVAL_OPS
@@ -79393,7 +79382,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       sc->code = car(sc->code);
       set_current_code(sc, sc->code);
 
-    EVAL:
+    EVAL: 
       sc->cur_op = optimize_op(sc->code);
 
     TOP_NO_POP:
@@ -83248,7 +83237,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  return(sc->F);
 	}
 #if S7_DEBUGGING
-      if (sc->cur_op >= OPT_MAX_DEFINED)
+      if ((sc->cur_op >= OPT_MAX_DEFINED) && (sc->cur_op != OP_EVAL_DONE))
 	fprintf(stderr, "trailers: %s, code: %s\n", op_names[sc->cur_op], DISPLAY(sc->code));
 #endif
       /* else cancel all the optimization info -- someone stepped on our symbol */
@@ -90254,5 +90243,6 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * [s7_][is_]integer is a mess
  * gmp: quaternion check needs g_is_number to get q's number? method, t725
- * trailers eval default: (_m1_ a) from "(define-macro (_m1_ a) `(+ ,a 1))" so it must be something like (cond ...) and _m1_ (or a) is probably undefined?
+ * transition-counts?
+ * 0xff as TYPE_MASK
  */
