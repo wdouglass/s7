@@ -75,9 +75,9 @@
 	  ((= j size1))
 	(string-set! ctrl-str j (string-ref ctrl-chars (random ctrl-chars-len))))
       
-      (set! x (cs (random cs-len)))
-      (set! y (cs (random cs-len)))
-      (set! z (cs (random cs-len)))
+      (set! x (vector-ref cs (random cs-len)))
+      (set! y (vector-ref cs (random cs-len)))
+      (set! z (vector-ref cs (random cs-len)))
       
       (object->string x)
       (display x op)

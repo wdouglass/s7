@@ -243,21 +243,21 @@
 		       (set! j 1))))
 	     (do ()
 		 ((>= i len))
-	       (let ((c (scheme-name i)))
+	       (let ((c (string-ref scheme-name i)))
 		 (if (or (alphanumeric? c)
 			 (memv c '(#\? #\!)))
 		     (begin
-		       (set! (rb-name j) c)
+		       (set! (string-ref rb-name j) c)
 		       (set! i (+ i 1))
 		       (set! j (+ j 1)))
 		     (if (and (char=? c #\-)
-			      (char=? (scheme-name (+ i 1)) #\>))
+			      (char=? (string-ref scheme-name (+ i 1)) #\>))
 			 (begin
-			   (set! (rb-name j) #\2)
+			   (set! (string-ref rb-name j) #\2)
 			   (set! j (+ j 1))
 			   (set! i (+ i 2)))
 			 (begin
-			   (set! (rb-name j) #\_)
+			   (set! (string-ref rb-name j) #\_)
 			   (set! i (+ i 1))
 			   (set! j (+ j 1)))))))
 	     (if (= j strlen)
@@ -299,7 +299,7 @@
 	   (in-name #f)
 	   (i 0 (+ i 1)))
 	  ((= i len))
-	(let ((c (xref i)))
+	(let ((c (string-ref xref i)))
 	  (if in-bracket
 	      (if (char=? c #\>)
 		  (begin
@@ -996,7 +996,7 @@
 				   (set! dline (substring dline (+ epos 4)))
 				   (set! pos (string-position "<em class=def id=" dline))))))))
 		  (if (and xrefing
-			   (or (not (char=? (dline 0) #\<))
+			   (or (not (char=? (string-ref dline 0) #\<))
 			       (string-position "<a href" dline)
 			       (string-position "<a class=quiet href" dline)
 			       (string-position "<a class=def href" dline)))
@@ -1316,9 +1316,9 @@
 			    (format () "~A[~D]: ~A has unclosed <?\n" file linectr line))
 			(set! openctr (+ openctr 1))
 			(if (and (< i (- len 3))
-				 (char=? (line (+ i 1)) #\!)
-				 (char=? (line (+ i 2)) #\-)
-				 (char=? (line (+ i 3)) #\-))
+				 (char=? (string-ref line (+ i 1)) #\!)
+				 (char=? (string-ref line (+ i 2)) #\-)
+				 (char=? (string-ref line (+ i 3)) #\-))
 			    (begin
 			      (set! comments (+ comments 1))
 			      (if (> comments 1)
@@ -1328,7 +1328,7 @@
 			      (set! in-comment #t)))
 			(if (and (not in-comment)
 				 (< i (- len 1))
-				 (char=? (line (+ i 1)) #\space))
+				 (char=? (string-ref line (+ i 1)) #\space))
 			    (format () "~A[~D]: '< ' in ~A?\n" file linectr line))))
 		     ;; else c != <
 		     
@@ -1336,8 +1336,8 @@
 		      (unless scripting
 			(set! openctr (- openctr 1))
 			(if (and (>= i 2)
-				 (char=? (line (- i 1)) #\-)
-				 (char=? (line (- i 2)) #\-))
+				 (char=? (string-ref line (- i 1)) #\-)
+				 (char=? (string-ref line (- i 2)) #\-))
 			    (begin
 			      (set! in-comment #f)
 			      (set! comments (- comments 1))
@@ -1352,10 +1352,10 @@
 			(set! openctr 0)
 			(if (and (not in-comment)
 				 (>= i 2)
-				 (char=? (line (- i 1)) #\-)
-				 (not (char=? (line (- i 2)) #\-))
+				 (char=? (string-ref line (- i 1)) #\-)
+				 (not (char=? (string-ref line (- i 2)) #\-))
 				 (< i (- len 1))
-				 (alphanumeric? (line (+ i 1))))
+				 (alphanumeric? (string-ref line (+ i 1))))
 			    (format () "~A[~D]: untranslated '>': ~A\n" file linectr line))))
 		     ;; else c != < or >
 		     
@@ -1367,7 +1367,7 @@
 		     
 		     ((#\")
 		      (if (or (= i 0)
-			      (not (char=? (line (- i 1)) #\\)))
+			      (not (char=? (string-ref line (- i 1)) #\\)))
 			  (set! p-quotes (+ p-quotes 1))))
 		     
 		     ((#\&) 
@@ -1588,7 +1588,7 @@
 			   (begin
 			     (set! epos (char-position #\" dline 1))
 			     (let ((cur-href #f))
-			       (if (char=? (dline 0) #\#)
+			       (if (char=? (string-ref dline 0) #\#)
 				   (set! cur-href (string-append file (substring dline 0 epos)))
 				   (begin
 				     (set! cur-href (substring dline 0 epos))
