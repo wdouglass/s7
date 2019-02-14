@@ -112,7 +112,7 @@
 						  (->value dest)
 						  (no-mock-vectors args))
 					   (if (not (mock-vector? source))
-					       (error 'wrong-type-arg "copy: stray mock-vector? ~A" args)
+					       (#_copy source)
 					       (let ((nobj (dynamic-wind
 							       (lambda () (coverlet source))
 							       (lambda () (openlet (#_copy source)))
@@ -258,7 +258,7 @@
 						  (if (mock-hash-table? dest) (dest 'value) dest)
 						  (no-mock-hash-tables args))
 					   (if (not (mock-hash-table? source))
-					       (error 'wrong-type-arg "copy: stray mock-hash-table? ~A" args)
+					       (#_copy source)            ; (with-let (mock-hash-table ...) (copy ...)) 
 					       (let ((nobj (dynamic-wind
 							       (lambda () (coverlet source))
 							       (lambda () (openlet (#_copy source)))
@@ -439,7 +439,15 @@
 					   (if (mock-string? ctrl)
 					       (apply #_format port (ctrl 'value) args)
 					       (#_format port ctrl (->value (car args)))))
-
+#|
+		 'write                  (lambda (obj . rest)
+					   (if (null? rest)
+					       (#_write (->value obj))
+					       (if (mock-string? (car rest))
+						   (error 'wrong-type-arg "write port arg is a mock-string: ~A" (car rest))
+						   (#_write (->value obj) (car rest))))
+					   obj)
+|#
 		 'string-fill!           (lambda* (obj val (start 0) end) 
 					   (if (or (mock-string? val)
 						   (mock-string? start)
@@ -602,7 +610,15 @@
 				       (if (mock-char? ctrl)
 					   (error 'wrong-type-arg "format control-string arg is a mock-char: ~A" ctrl))
 				       (#_format port ctrl (->value (car args))))
-
+#|
+		 'write              (lambda (obj . rest)
+				       (if (null? rest)
+					   (#_write (->value obj))
+					   (if (mock-char? (car rest))
+					       (error 'wrong-type-arg "write port arg is a mock-char: ~A" (car rest))
+					       (#_write (->value obj) (car rest))))
+				       obj)
+|#
 		 'arity              (lambda (obj) (#_arity (->value obj)))
 		 'make-string        (make-local-method #_make-string)
 		 'char-position      (make-local-method #_char-position)
@@ -791,7 +807,15 @@
 			       (if (mock-number? ctrl)
 				   (error 'wrong-type-arg "format control-string arg is a mock-number: ~A" ctrl))
 			       (#_format port ctrl (->value (car args))))
-
+#|	   
+	   'write            (lambda (obj . rest)
+			       (if (null? rest)
+				   (#_write (->value obj))
+				   (if (mock-number? (car rest))
+				       (error 'wrong-type-arg "write port arg is a mock-number: ~A" (car rest))
+				       (#_write (->value obj) (car rest))))
+			       obj)
+|#
 	   'vector->list     (lambda* (v (start 0) end)
 			       (with-bounds vector->list 'vector v start end))
 
@@ -1285,7 +1309,15 @@
 					  (if (mock-symbol? str)
 					      (error 'wrong-type-arg "format: control string arg is a mock-symbol? ~A" (str 'value)))
 					  (apply #_format port str (map ->value args)))
-		 
+#|
+		 'write                 (lambda (obj . rest)
+					  (if (null? rest)
+					      (#_write (->value obj))
+					      (if (mock-symbol? (car rest))
+						  (error 'wrong-type-arg "write port arg is a mock-symbol: ~A" (car rest))
+						  (#_write (->value obj) (car rest))))
+					  obj)
+|#		 
 		 'symbol?               (lambda (obj) #t)
 		 'class-name            '*mock-symbol*
 		 )))
@@ -1378,8 +1410,8 @@
 		 'set-current-input-port  (lambda (obj) (#_set-current-input-port (->value obj)))
 		 'set-current-error-port  (lambda (obj) (#_set-current-error-port (->value obj)))
 		 
-		 'write               (lambda* (x (obj *stdout*)) (#_write (->value x) (->value obj)))
-		 'display             (lambda* (x (obj *stdout*)) (#_display (->value x) (->value obj)))
+		 'write               (lambda* (x (obj *stdout*)) (#_write (->value x) (->value obj)) x)
+		 'display             (lambda* (x (obj *stdout*)) (#_display (->value x) (->value obj)) x)
 
 		 'get-output-string   (lambda args
 					(if (null? args) 

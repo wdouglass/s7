@@ -1178,7 +1178,7 @@ struct s7_scheme {
   shared_info *circle_info;
   format_data **fdats;
   int32_t num_fdats, last_error_line;
-  s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, clist_1;
+  s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, qlist_3, clist_1;
   gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables;
   gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs;
   s7_pointer *setters;
@@ -1621,6 +1621,7 @@ static block_t *reallocate(s7_scheme *sc, block_t *op, size_t bytes)
 /* (*s7* 'safety) settings */
 #define NO_SAFETY 0
 #define IMMUTABLE_VECTOR_SAFETY 1
+#define MORE_SAFETY_WARNINGS 2
 
 typedef enum {P_DISPLAY, P_WRITE, P_READABLE, P_KEY} use_write_t;
 
@@ -4289,6 +4290,14 @@ static s7_pointer set_qlist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
   return(sc->qlist_2);
 }
 
+static s7_pointer set_qlist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_pointer x3)
+{
+  set_car(sc->qlist_3, x1);
+  set_cadr(sc->qlist_3, x2);
+  set_caddr(sc->qlist_3, x3);
+  return(sc->qlist_3);
+}
+
 static s7_pointer set_clist_1(s7_scheme *sc, s7_pointer x1)
 {
   set_car(sc->clist_1, x1);
@@ -5503,6 +5512,7 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(car(sc->clist_1));
   gc_mark(car(sc->plist_2)); gc_mark(cadr(sc->plist_2));
   gc_mark(car(sc->qlist_2)); gc_mark(cadr(sc->qlist_2));
+  gc_mark(car(sc->qlist_3)); gc_mark(cadr(sc->qlist_3)); gc_mark(caddr(sc->qlist_3));
   gc_mark(sc->u1_1);
 
   {
@@ -5734,6 +5744,7 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
   set_plist_2(sc, sc->nil, sc->nil);
   set_clist_1(sc, sc->nil);
   set_qlist_2(sc, sc->nil, sc->nil);
+  set_qlist_3(sc, sc->nil, sc->nil, sc->nil);
   set_elist_3(sc, sc->nil, sc->nil, sc->nil);
   set_plist_3(sc, sc->nil, sc->nil, sc->nil);
   set_elist_4(sc, sc->nil, sc->nil, sc->nil, sc->nil);
@@ -8019,6 +8030,17 @@ static s7_pointer call_let_ref_fallback(s7_scheme *sc, s7_pointer env, s7_pointe
   return(p);
 }
 
+static s7_pointer call_let_set_fallback(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value)
+{
+  s7_pointer p;
+  push_stack_no_let(sc, OP_GC_PROTECT, sc->value, sc->code);
+  p = s7_apply_function(sc, find_method(sc, env, sc->let_set_fallback_symbol), set_qlist_3(sc, env, symbol, value));
+  sc->stack_end -= 4;  
+  sc->code =  T_Pos(sc->stack_end[0]);
+  sc->value =  T_Pos(sc->stack_end[2]);
+  return(p);
+}
+
 inline s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
 {
   s7_pointer x, y;
@@ -8240,7 +8262,7 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
   if (has_methods(env))
     {
       if (has_let_set_fallback(env))
-	apply_known_method(sc, env, sc->let_set_fallback_symbol, sc->w = list_3(sc, env, symbol, value));
+	return(call_let_set_fallback(sc, env, symbol, value));
     }
 
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, wrap_string(sc, "let-set!: ~A is not defined in ~A", 33), symbol, env)));
@@ -8258,7 +8280,7 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_point
   if (!is_symbol(symbol))
     {
       if (has_let_set_fallback(env))
-	apply_known_method(sc, env, sc->let_set_fallback_symbol, sc->w = list_3(sc, env, symbol, value));
+	return(call_let_set_fallback(sc, env, symbol, value));
       return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, a_symbol_string));
     }
 
@@ -8328,7 +8350,7 @@ static s7_pointer g_lint_let_set_1(s7_scheme *sc, s7_pointer lt1, s7_pointer sym
   if (has_methods(lt))
     {
       if (has_let_set_fallback(lt))
-	apply_known_method(sc, lt, sc->let_set_fallback_symbol, sc->w = list_3(sc, lt, sym, val));
+	return(call_let_set_fallback(sc, lt, sym, val));
     }
   else
     {
@@ -11984,8 +12006,6 @@ char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix)
   s7_int nlen = 0;
   return(number_to_string_with_radix(sc, obj, radix, 0, 20, 'g', &nlen));  /* (log top 10) so we get all the digits in base 10 (??) */
 }
-
-static s7_pointer block_to_string(s7_scheme *sc, block_t *block, s7_int len);
 
 static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 {
@@ -26767,7 +26787,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 
 static s7_pointer g_make_iterator(s7_scheme *sc, s7_pointer args)
 {
-  #define H_make_iterator "(make-iterator sequence) returns an iterator object that returns the next value \
+  #define H_make_iterator "(make-iterator sequence carrier) returns an iterator object that returns the next value \
 in the sequence each time it is called.  When it reaches the end, it returns " ITERATOR_END_NAME "."
   #define Q_make_iterator s7_make_signature(sc, 3, sc->is_iterator_symbol, sc->is_sequence_symbol, sc->is_pair_symbol)
 
@@ -26795,6 +26815,11 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 		{
 		  iterator_let_cons(iter) = carrier;
 		  set_mark_seq(iter);
+		}
+	      else         /* (let-temporarily (((*s7* 'safety) 1)) (make-iterator "asdf" (cons 1 2))) */
+		{ 
+		  if (sc->safety > MORE_SAFETY_WARNINGS)
+		    s7_warn(sc, 256, "(make-iterator %s %s) does not need the second argument\n", DISPLAY_80(seq), DISPLAY_80(carrier));
 		}
 	    }
 	}
@@ -27917,7 +27942,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  return;
 	}
     }
-
+  sc->temp8 = vect;
   if (use_write == P_READABLE)
     {
       if ((ci) &&
@@ -27935,6 +27960,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    {
 	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, vref), ">", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
+	      sc->temp8 = sc->nil;
 	      return;
 	    }
 
@@ -28063,6 +28089,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  else port_write_character(port)(sc, ')', port);
 	}
     }
+  sc->temp8 = sc->nil;
 }
 
 static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write)
@@ -31491,6 +31518,7 @@ static s7_pointer g_write(s7_scheme *sc, s7_pointer args)
   #define H_write "(write obj (port (current-output-port))) writes (object->string obj) to the output port"
   #define Q_write s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   
+  /* check_method(sc, car(args), sc->write_symbol, args); */
   return(write_p_pp(sc, car(args), (is_pair(cdr(args))) ? cadr(args) : sc->output_port));
 }
 
@@ -31528,6 +31556,7 @@ static s7_pointer g_display(s7_scheme *sc, s7_pointer args)
   #define H_display "(display obj (port (current-output-port))) prints obj"
   #define Q_display s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
 
+  /* check_method(sc, car(args), sc->display_symbol, args); */
   return(display_p_pp(sc, car(args), (is_pair(cdr(args))) ? cadr(args) : sc->output_port));
 }
 
@@ -40486,6 +40515,20 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
   return(table);
 }
 
+static bool compatible_types(s7_scheme *sc, s7_pointer eq_type, s7_pointer value_type)
+{
+  if (eq_type == sc->T) return(true);
+  if (eq_type == value_type) return(true);
+
+  if (eq_type == sc->is_number_symbol)              /* only = among built-ins, so otherr cases aren't needed */
+    return((value_type == sc->is_integer_symbol) || 
+	   (value_type == sc->is_real_symbol) || 
+	   (value_type == sc->is_complex_symbol) || 
+	   (value_type == sc->is_rational_symbol));
+
+  return(false);
+}
+
 static s7_pointer g_is_equal(s7_scheme *sc, s7_pointer args);
 static s7_pointer g_is_equivalent(s7_scheme *sc, s7_pointer args);
 
@@ -40556,6 +40599,19 @@ static s7_pointer g_make_hash_table_1(s7_scheme *sc, s7_pointer args, s7_pointer
 			    set_has_simple_values(ht);
 			  if (!c_function_symbol(valp)) 
 			    c_function_symbol(valp) = make_symbol(sc, c_function_name(valp));
+			  
+			  /* now a consistency check for eq-func and value type */
+			  proc = cadr(args);
+			  if (is_c_function(proc))
+			    {
+			      s7_pointer eq_sig;
+			      eq_sig = c_function_signature(proc);
+			      if ((eq_sig) &&
+				  (is_pair(eq_sig)) &&
+				  (is_pair(cdr(eq_sig))) &&
+				  (!compatible_types(sc, cadr(eq_sig), c_function_symbol(valp))))
+				return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "make-hash-table eq-func must match value type func", 50)));
+			    }
 			}
 		      set_typed_hash_table(ht);
 		    }
@@ -73267,6 +73323,11 @@ static s7_pointer op_set1(s7_scheme *sc)
       slot_set_value(lx, sc->value);
       return(sc->value);
     }
+  else
+    {
+      if (has_let_set_fallback(sc->envir))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
+	return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));	
+    }
   eval_type_error(sc, "set! ~A: unbound variable", 25, sc->code);
 }
 
@@ -88118,6 +88179,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->plist_2) return("plist_2");
   if (p == sc->plist_3) return("plist_3");
   if (p == sc->qlist_2) return("qlist_2");
+  if (p == sc->qlist_3) return("qlist_3");
   if (p == sc->clist_1) return("clist_1");
   if (p == sc->integer_wrapper1) return("integer_wrapper1");
   if (p == sc->integer_wrapper2) return("integer_wrapper2");
@@ -88646,6 +88708,7 @@ s7_scheme *s7_init(void)
   sc->plist_2_2 = cdr(sc->plist_2);
   sc->plist_3 = permanent_list(sc, 3);
   sc->qlist_2 = permanent_list(sc, 2);
+  sc->qlist_3 = permanent_list(sc, 3);
   sc->clist_1 = permanent_list(sc, 1);
   sc->elist_1 = permanent_list(sc, 1);
   sc->elist_2 = permanent_list(sc, 2);
@@ -90219,32 +90282,32 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   966
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   994 981
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   966  956
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   994  979
  * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1196
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1539
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1726
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2089
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2088
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2268
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2268 2295
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2679
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2674
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3517
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3559
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5185
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.5
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 181.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 181.8
  * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90258,8 +90321,9 @@ int main(int argc, char **argv)
  *   perhaps split add|sub_aa ->add|sub_op..._a
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * gsl changes (libgsl.scm) tested
- * hash-table typers implies eq-func in some cases (symbol? -> eq? etc): error checks for this as well? check eq-func arg sig against typer 40530
- * maybe for op combinations, a 2nd opt pass for each body?
- * does let_set_fallback need stack backup?
- * in: (make-iterator "asdf" (cons 1 2)), the cons is pointless
+ * should hash typers be symbols?
+ * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
+ *   or at end of body = nil = expr case
+ *   move into hop arg? along with export_ok? normally export_ok=false, next=false
+ * write/display method handling is marginal [and t725 obj-s>str/format cases for rd1/2?]
  */
