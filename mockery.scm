@@ -84,11 +84,14 @@
 				       (#_arity (->value obj)))
 
 		 'object->string     (lambda args
-				       (apply #_object->string 
-					      (if (let? (car args))
-						  ((car args) 'value)
-						  (car args))
-					      (map ->value (cdr args))))
+				       (apply #_object->string (map ->value args)))
+
+		 'format             (lambda (port str . args) 
+				       (if (mock-vector? port)
+					   (error 'wrong-type-arg "format: port arg is a mock-vector? ~A" (port 'value)))
+				       (if (mock-vector? str)
+					   (error 'wrong-type-arg "format: control string arg is a mock-vector? ~A" (str 'value)))
+				       (apply #_format port str (map ->value args)))
 
 		 'vector-dimensions  (lambda (obj) 
 				       (#_vector-dimensions (->value obj)))
@@ -433,13 +436,11 @@
 					       (#_bignum (->value obj))
 					       (error 'wrong-type-arg "no bignums in this version of s7")))
 
-		 'format                 (lambda (port ctrl . args)
+		 'format                 (lambda (port . args)
 					   (if (mock-string? port)
 					       (error 'wrong-type-arg "format port arg is a mock-string: ~A" port))
-					   (if (mock-string? ctrl)
-					       (apply #_format port (ctrl 'value) args)
-					       (#_format port ctrl (->value (car args)))))
-#|
+					   (apply #_format port (map ->value args)))
+
 		 'write                  (lambda (obj . rest)
 					   (if (null? rest)
 					       (#_write (->value obj))
@@ -447,7 +448,7 @@
 						   (error 'wrong-type-arg "write port arg is a mock-string: ~A" (car rest))
 						   (#_write (->value obj) (car rest))))
 					   obj)
-|#
+
 		 'string-fill!           (lambda* (obj val (start 0) end) 
 					   (if (or (mock-string? val)
 						   (mock-string? start)
@@ -1397,7 +1398,7 @@
     (let ((mock-port-class
 	  (inlet 'port?               (lambda (obj) (or (mock-port? obj) (#_port? obj)))
 		 'equivalent?         (lambda (x y) (#_equivalent? (->value x) (->value y)))
-		 'append              (lambda args  (error 'wrong-type-arg "stray mock-port?"))
+		 'append              (lambda args (apply #_append (map ->value args)))
 
 		 'close-input-port    (lambda (obj) (#_close-input-port (->value obj)))
 		 'close-output-port   (lambda (obj) (#_close-output-port (->value obj)))

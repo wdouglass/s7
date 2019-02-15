@@ -12012,7 +12012,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   #define H_number_to_string "(number->string num (radix 10)) converts the number num into a string."
   #define Q_number_to_string s7_make_signature(sc, 3, sc->is_string_symbol, sc->is_number_symbol, sc->is_integer_symbol)
 
-  s7_int nlen = 0, radix;
+  s7_int nlen = 0;
   char *res;
   s7_pointer x;
 
@@ -12023,6 +12023,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   if (is_pair(cdr(args)))
     {
       s7_pointer y;
+      s7_int radix;
       y = cadr(args);
       if (s7_is_integer(y))
 	radix = s7_integer(y);
@@ -12106,7 +12107,7 @@ static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer
 
 /* -------------------------------------------------------------------------------- */
 #define CTABLE_SIZE 256
-static bool *exponent_table, *slashify_table, *char_ok_in_a_name, *white_space, *number_table, *symbol_slashify_table, *char_0;
+static bool *exponent_table, *slashify_table, *char_ok_in_a_name, *white_space, *number_table, *symbol_slashify_table;
 static int32_t *digits;
 
 static void init_ctables(void)
@@ -12117,7 +12118,6 @@ static void init_ctables(void)
   slashify_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   symbol_slashify_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   char_ok_in_a_name = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
-  char_0 = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
   white_space = (bool *)calloc(CTABLE_SIZE + 1, sizeof(bool));
   white_space++;      /* leave white_space[-1] false for white_space[EOF] */
   number_table = (bool *)calloc(CTABLE_SIZE, sizeof(bool));
@@ -12140,14 +12140,6 @@ static void init_ctables(void)
   char_ok_in_a_name[(uint8_t)'\r'] = false;
   char_ok_in_a_name[(uint8_t)' '] = false;
   char_ok_in_a_name[(uint8_t)'"'] = false;
-  memcpy((void *)char_0, (void *)char_ok_in_a_name, CTABLE_SIZE * sizeof(bool));
-  /* what about stuff like vertical tab?  or comma? */
-
-  char_0[(uint8_t)'#'] = false;
-  char_0[(uint8_t)'\''] = false;
-  char_0[(uint8_t)'`'] = false;
-  char_0[(uint8_t)','] = false;
-  char_0[(uint8_t)';'] = false;
 
   white_space[(uint8_t)'\t'] = true;
   white_space[(uint8_t)'\n'] = true;
@@ -26324,11 +26316,21 @@ static s7_pointer g_with_input_from_string(s7_scheme *sc, s7_pointer args)
 
   if (cadr(args) == slot_value(global_slot(sc->read_symbol)))
     {
+      s7_pointer old_input_port;
       if (string_length(str) == 0)
 	return(eof_object);
-      if (char_0[(uint8_t)(string_value(str)[0])])
-	return(make_atom(sc, string_value(str), BASE_10, SYMBOL_OK, WITHOUT_OVERFLOW_ERROR));
+
+      old_input_port = sc->input_port;
+      sc->input_port = open_and_protect_input_string(sc, str);
+      port_original_input_string(sc->input_port) = str;
+      push_stack(sc, OP_UNWIND_INPUT, old_input_port, sc->input_port);
+
+      push_input_port(sc, sc->input_port);
+      push_stack_op_let(sc, OP_READ_DONE);
+      push_stack_op_let(sc, OP_READ_INTERNAL);
+      return(sc->input_port);
     }
+     
   if (!is_thunk(sc, cadr(args)))
     return(method_or_bust_with_type(sc, cadr(args), sc->with_input_from_string_symbol, args, a_thunk_string, 2));
 
@@ -45509,32 +45511,8 @@ also accepts a string or vector argument."
       eval_error(sc, "attempt to reverse ~S?", 22, p);
 
     case T_LET:
-      {
-	s7_pointer new_e, x;
-	s7_int id;
-	check_method(sc, p, sc->reverse_symbol, args);
-	if ((p == sc->rootlet) ||
-	    (!tis_slot(let_slots(p))) ||
-	    (!tis_slot(next_slot(let_slots(p)))))
-	  return(p);
-	new_e = new_frame_in_env(sc, outlet(p));
-	set_all_methods(new_e, p);
-	sc->temp3 = new_e;
-	id = let_id(new_e);
-	for (x = let_slots(p); tis_slot(x); x = next_slot(x))
-	  {
-	    s7_pointer z;
-	    new_cell(sc, z, T_SLOT);
-	    slot_set_symbol(z, slot_symbol(x));
-	    slot_set_value(z, slot_value(x));
-	    if (symbol_id(slot_symbol(z)) != id) /* keep shadowing intact */
-	      symbol_set_local(slot_symbol(x), id, z);
-	    next_slot(z) = let_slots(new_e);
-	    let_slots(new_e) = z;
-	  }
-	sc->temp3 = sc->nil;
-	return(new_e);
-      }
+      check_method(sc, p, sc->reverse_symbol, args);
+      return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "can't reverse let: ~S", 21), p)));
 
     default:
       return(method_or_bust_with_type_one_arg(sc, p, sc->reverse_symbol, args, a_sequence_string));
@@ -77263,9 +77241,9 @@ static int32_t read_s_ex(s7_scheme *sc)
 	  sc->tok = token(sc);
 	  switch (sc->tok)
 	    {
-	    case TOKEN_EOF:	      return(goto_START);
-	    case TOKEN_RIGHT_PAREN:   read_error(sc, "unexpected close paren");
-	    case TOKEN_COMMA:	      read_error(sc, "unexpected comma");
+	    case TOKEN_EOF:	    return(goto_START);
+	    case TOKEN_RIGHT_PAREN: read_error(sc, "unexpected close paren");
+	    case TOKEN_COMMA:	    read_error(sc, "unexpected comma");
 	    default:
 	      sc->value = read_expression(sc);
 	      sc->current_line = port_line_number(sc->input_port);  /* this info is used to track down missing close parens */
@@ -90282,23 +90260,23 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   966  956
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   994  979
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1196
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   956
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   978
+ * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1207
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1539
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2088
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2268 2295
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2290
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2674
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3559
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
@@ -90306,8 +90284,8 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 181.8 181.8
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.3
  * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90321,9 +90299,7 @@ int main(int argc, char **argv)
  *   perhaps split add|sub_aa ->add|sub_op..._a
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * gsl changes (libgsl.scm) tested
- * should hash typers be symbols?
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- *   move into hop arg? along with export_ok? normally export_ok=false, next=false
- * write/display method handling is marginal [and t725 obj-s>str/format cases for rd1/2?]
+ * write/display method handling is marginal [and t725 obj->str/format cases for rd1/2?]
  */

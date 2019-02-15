@@ -4979,13 +4979,14 @@ static s7_pointer g_make_one_pole(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_make_two_zero_a(s7_scheme *sc, s7_pointer args)
 {
   mus_any *gen;
-  mus_float_t a0, a1, a2;
+  mus_float_t a0, a1;
 
   a0 = s7_number_to_real(sc, s7_car(args));
   args = s7_cdr(args);
   a1 = s7_number_to_real(sc, s7_car(args));
   if (a0 < 20.0)
     {
+      mus_float_t a2;
       a2 = s7_number_to_real(sc, s7_cadr(args));
       gen = mus_make_two_zero(a0, a1, a2);
     }
@@ -5047,13 +5048,14 @@ static s7_pointer g_make_two_pole_f(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_make_two_pole_a(s7_scheme *sc, s7_pointer args)
 {
   mus_any *gen;
-  mus_float_t a0, b1, b2;
+  mus_float_t a0, b1;
 
   a0 = s7_number_to_real(sc, s7_car(args));
   args = s7_cdr(args);
   b1 = s7_number_to_real(sc, s7_car(args));
   if (a0 < 2.0)
     {
+      mus_float_t b2;
       b2 = s7_number_to_real(sc, s7_cadr(args));
       gen = mus_make_two_pole(a0, b1, b2);
     }
@@ -6595,7 +6597,7 @@ return a new polynomial-based waveshaping generator.  (" S_make_polywave " :part
 static s7_pointer g_make_polywave(s7_scheme *sc, s7_pointer args)
 {
   mus_any *ge;
-  int i, n = 0;
+  int n = 0;
   mus_float_t freq;
   mus_float_t *xcoeffs = NULL, *ycoeffs = NULL;
   mus_polynomial_t kind = MUS_CHEBYSHEV_FIRST_KIND; /* 1 clm.h */
@@ -6643,6 +6645,7 @@ static s7_pointer g_make_polywave(s7_scheme *sc, s7_pointer args)
   py = s7_cadr(p);
   if (py != Xen_false)
     {
+      s7_int i;
       if (!s7_is_float_vector(py))
 	return(s7_wrong_type_arg_error(sc, S_make_polywave, 5, py, "a float-vector"));
       vy = py;
@@ -7441,10 +7444,10 @@ static s7_pointer g_make_env(s7_scheme *sc, s7_pointer args)
 {
   mus_any *ge;
   mus_float_t base, scaler, offset, duration;
-  mus_long_t end, dur;
+  mus_long_t end;
   int i, len = 0;
   mus_float_t *brkpts;
-  s7_pointer v, p, durp, envp, ep, endp, durationp;
+  s7_pointer v, p, durp, envp, endp, durationp;
 
   durationp = s7_caddr(args);
   if (durationp != Xen_false)
@@ -7458,6 +7461,7 @@ static s7_pointer g_make_env(s7_scheme *sc, s7_pointer args)
   envp = s7_car(args);
   if (s7_is_pair(envp))
     {
+      s7_pointer ep;
       bool internal_lists = false;
       len = s7_list_length(sc, envp);
       if (s7_is_pair(s7_car(envp)))
@@ -7534,6 +7538,7 @@ static s7_pointer g_make_env(s7_scheme *sc, s7_pointer args)
   durp = s7_cadddr(p);
   if (durp != Xen_false)
     {
+      mus_long_t dur;
       if (!s7_is_integer(durp))
 	return(s7_wrong_type_arg_error(sc, S_make_env, 7, durp, "an integer"));
       dur = s7_integer(durp);
