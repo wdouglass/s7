@@ -257,8 +257,8 @@
 		 'copy               (lambda* (source dest . args)
 				       (if dest
 					   (apply #_copy 
-						  (if (mock-hash-table? source) (source 'value) source)
-						  (if (mock-hash-table? dest) (dest 'value) dest)
+						  (->value source)
+						  (->value dest)
 						  (no-mock-hash-tables args))
 					   (if (not (mock-hash-table? source))
 					       (#_copy source)            ; (with-let (mock-hash-table ...) (copy ...)) 
@@ -1396,7 +1396,10 @@
 	(no-mock-ports #f)
 	(->value #f))
     (let ((mock-port-class
-	  (inlet 'port?               (lambda (obj) (or (mock-port? obj) (#_port? obj)))
+	  (inlet 'input-port?         (lambda (obj) (#_input-port? (->value obj)))
+		 'output-port?        (lambda (obj) (#_output-port? (->value obj)))
+		 'port-closed?        (lambda (obj) (#_port-closed? (->value obj)))
+
 		 'equivalent?         (lambda (x y) (#_equivalent? (->value x) (->value y)))
 		 'append              (lambda args (apply #_append (map ->value args)))
 
@@ -1404,7 +1407,7 @@
 		 'close-output-port   (lambda (obj) (#_close-output-port (->value obj)))
 		 'flush-output-port   (lambda args
 					(if (null? args)
-					    (#_flush_output_port)
+					    (#_flush-output-port)
 					    (#_flush-output-port (->value (car args)))))
 
 		 'set-current-output-port (lambda (obj) (#_set-current-output-port (->value obj)))
@@ -1455,10 +1458,6 @@
 					    (#_read)
 					    (let ((obj (car args))) 
 					      (#_read (->value obj)))))
-
-		 'input-port?         (lambda (obj) (#_input-port? (->value obj)))
-		 'output-port?        (lambda (obj) (#_output-port? (->value obj)))
-		 'port-closed?        (lambda (obj) (#_port-closed? (->value obj)))
 
 		 'char-ready?         (lambda args
 					(if (null? args)

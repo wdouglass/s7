@@ -29,7 +29,7 @@ VERSION=19.2
 #--------------------------------------------------------------------------------
 # configuration options
 #   --with-motif          use Motif
-#   --with-gtk            use Gtk+ (the default)
+#   --with-gtk            use Gtk (the default)
 #   --with-alsa           use ALSA if possible (the default)
 #   --with-oss            use OSS 
 #   --with-jack           use Jack
@@ -58,7 +58,7 @@ VERSION=19.2
 #   --with-webserver      use webserver
 
 
-AC_ARG_WITH(gtk,         [  --with-gtk		  use Gtk+ to build Snd])
+AC_ARG_WITH(gtk,         [  --with-gtk		  use Gtk to build Snd])
 AC_ARG_WITH(gui,         [  --with-gui  	      	  make Snd with graphics support])
 AC_ARG_WITH(gl,          [  --with-gl		  include OpenGL support, Motif only])
 AC_ARG_WITH(gl2ps,       [  --with-gl2ps		  include gl2ps, Motif only])
@@ -188,7 +188,7 @@ fi
 
 # graphics: motif chosen if --with-motif
 #           no gui chosen if --without-gui
-#           gtk chosen if neither of above and we can find gtk-2.0.pc or gtk-3.0.pc
+#           gtk chosen if neither of above and we can find gtk-2.0.pc or gtk-3.0.pc, or gtk4.pc?
 #           else no gui
 
 XLIBS=""
@@ -261,7 +261,7 @@ fi
 if test "$ac_snd_gui_choice" = none ; then
   if test x$PKG_CONFIG != xno ; then
 
-     m4_foreach([gtk_version], [[gtk+-4.0], [gtk+-3.0], [gtk+-2.0]],
+     m4_foreach([gtk_version], [[gtk4], [gtk+-3.0], [gtk+-2.0]],
        [
        if test "$ac_snd_gui_choice" = none ; then
          if $PKG_CONFIG gtk_version --exists ; then
@@ -269,7 +269,7 @@ if test "$ac_snd_gui_choice" = none ; then
            GTK_LIBS="`$PKG_CONFIG gtk_version --libs`"
            GTK_LD_LIBS="`$PKG_CONFIG gtk_version --libs-only-L` `$PKG_CONFIG gtk_version --libs-only-l`"
            ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk_version --modversion`
+           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk_version --modversion`
          fi
        fi
        ])

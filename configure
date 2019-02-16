@@ -1408,7 +1408,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-gtk		  use Gtk+ to build Snd
+  --with-gtk		  use Gtk to build Snd
   --with-gui  	      	  make Snd with graphics support
   --with-gl		  include OpenGL support, Motif only
   --with-gl2ps		  include gl2ps, Motif only
@@ -3327,7 +3327,7 @@ VERSION=19.2
 #--------------------------------------------------------------------------------
 # configuration options
 #   --with-motif          use Motif
-#   --with-gtk            use Gtk+ (the default)
+#   --with-gtk            use Gtk (the default)
 #   --with-alsa           use ALSA if possible (the default)
 #   --with-oss            use OSS
 #   --with-jack           use Jack
@@ -4337,7 +4337,7 @@ fi
 
 # graphics: motif chosen if --with-motif
 #           no gui chosen if --without-gui
-#           gtk chosen if neither of above and we can find gtk-2.0.pc or gtk-3.0.pc
+#           gtk chosen if neither of above and we can find gtk-2.0.pc or gtk-3.0.pc, or gtk4.pc?
 #           else no gui
 
 XLIBS=""
@@ -5097,12 +5097,12 @@ if test "$ac_snd_gui_choice" = none ; then
 
 
        if test "$ac_snd_gui_choice" = none ; then
-         if $PKG_CONFIG gtk+-4.0 --exists ; then
-           GTK_CFLAGS="`$PKG_CONFIG gtk+-4.0 --cflags`"
-           GTK_LIBS="`$PKG_CONFIG gtk+-4.0 --libs`"
-           GTK_LD_LIBS="`$PKG_CONFIG gtk+-4.0 --libs-only-L` `$PKG_CONFIG gtk+-4.0 --libs-only-l`"
+         if $PKG_CONFIG gtk4 --exists ; then
+           GTK_CFLAGS="`$PKG_CONFIG gtk4 --cflags`"
+           GTK_LIBS="`$PKG_CONFIG gtk4 --libs`"
+           GTK_LD_LIBS="`$PKG_CONFIG gtk4 --libs-only-L` `$PKG_CONFIG gtk4 --libs-only-l`"
            ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-4.0 --modversion`
+           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk4 --modversion`
          fi
        fi
 
@@ -5112,7 +5112,7 @@ if test "$ac_snd_gui_choice" = none ; then
            GTK_LIBS="`$PKG_CONFIG gtk+-3.0 --libs`"
            GTK_LD_LIBS="`$PKG_CONFIG gtk+-3.0 --libs-only-L` `$PKG_CONFIG gtk+-3.0 --libs-only-l`"
            ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-3.0 --modversion`
+           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk+-3.0 --modversion`
          fi
        fi
 
@@ -5122,7 +5122,7 @@ if test "$ac_snd_gui_choice" = none ; then
            GTK_LIBS="`$PKG_CONFIG gtk+-2.0 --libs`"
            GTK_LD_LIBS="`$PKG_CONFIG gtk+-2.0 --libs-only-L` `$PKG_CONFIG gtk+-2.0 --libs-only-l`"
            ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk+-`$PKG_CONFIG gtk+-2.0 --modversion`
+           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk+-2.0 --modversion`
          fi
        fi
 

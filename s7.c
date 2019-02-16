@@ -1299,7 +1299,8 @@ struct s7_scheme {
              catches_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol, history_enabled_symbol,
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
              hash_table_float_epsilon_symbol, equivalent_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
-             undefined_identifier_warnings_symbol, print_length_symbol, bignum_precision_symbol, stacktrace_defaults_symbol, history_symbol, history_size_symbol;
+             undefined_identifier_warnings_symbol, undefined_constant_warnings_symbol, print_length_symbol, bignum_precision_symbol, 
+             stacktrace_defaults_symbol, history_symbol, history_size_symbol;
 
   /* syntax symbols et al */
   s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, unquote_symbol, macroexpand_symbol,
@@ -1376,7 +1377,7 @@ struct s7_scheme {
   s7_int autoload_names_loc, autoload_names_top;
   int32_t format_depth;
 
-  bool undefined_identifier_warnings;
+  bool undefined_identifier_warnings, undefined_constant_warnings;
   optfix_t *optimizer_fixups;
 
   jmp_buf opt_exit;
@@ -2800,7 +2801,11 @@ static void init_types(void)
 #define character_name_length(p)       (T_Chr(p))->object.chr.length
 
 #define optimize_op(P)                 (P)->tf.opts.opt_choice
+#if 0
+#define set_optimize_op(P, Op)         do {(P)->tf.opts.opt_choice = Op; fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, op_names[Op], string_value(object_to_truncated_string(cur_sc, P, 80)));} while (0)
+#else
 #define set_optimize_op(P, Op)         (P)->tf.opts.opt_choice = Op
+#endif
 #define optimize_op_match(P, Q)        ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == (Q)))
 #define op_no_hop(P)                   (optimize_op(P) & 0xfffe)
 #define clear_hop(P)                   set_optimize_op(P, op_no_hop(P))
@@ -4429,17 +4434,10 @@ static s7_pointer method_or_bust_with_type_one_arg(s7_scheme *sc, s7_pointer obj
   return(simple_wrong_type_argument_with_type(sc, method, obj, typ));
 }
 
-#define eval_error_any(Sc, ErrType, ErrMsg, Len, Obj) \
-  return(s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj)))
-
-#define eval_error(Sc, ErrMsg, Len, Obj) \
-  eval_error_any(Sc, Sc->syntax_error_symbol, ErrMsg, Len, Obj)
-
-#define eval_type_error(Sc, ErrMsg, Len, Obj) \
-  eval_error_any(Sc, Sc->wrong_type_arg_symbol, ErrMsg, Len, Obj)
-
-#define eval_range_error(Sc, ErrMsg, Len, Obj) \
-  eval_error_any(Sc, Sc->out_of_range_symbol, ErrMsg, Len, Obj)
+#define eval_error_any(Sc, ErrType, ErrMsg, Len, Obj) return(s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj)))
+#define eval_error(Sc, ErrMsg, Len, Obj)              eval_error_any(Sc, Sc->syntax_error_symbol, ErrMsg, Len, Obj)
+#define eval_type_error(Sc, ErrMsg, Len, Obj)         eval_error_any(Sc, Sc->wrong_type_arg_symbol, ErrMsg, Len, Obj)
+#define eval_range_error(Sc, ErrMsg, Len, Obj)        eval_error_any(Sc, Sc->out_of_range_symbol, ErrMsg, Len, Obj)
 
 #define eval_error_no_return(Sc, ErrType, ErrMsg, Len, Obj) \
   s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj))
@@ -4502,7 +4500,6 @@ static s7_pointer g_not(s7_scheme *sc, s7_pointer args)
 }
 
 static bool not_b_7p(s7_scheme *sc, s7_pointer p) {return(p == sc->F);}
-
 
 bool s7_boolean(s7_scheme *sc, s7_pointer x) {return(x != sc->F);}
 s7_pointer s7_make_boolean(s7_scheme *sc, bool x) {return(make_boolean(sc, x));}
@@ -4601,7 +4598,7 @@ static s7_int s7_gc_protect_2(s7_scheme *sc, s7_pointer x, int32_t line)
   loc = s7_gc_protect(sc, x);
   if (loc > 8192)
     {
-      fprintf(stderr, "infinite loop at line %d %s?\n", line, string_value(s7_object_to_string(sc, current_code(sc), false)));
+      fprintf(stderr, "infinite loop or memory leak at line %d %s?\n", line, string_value(s7_object_to_string(sc, current_code(sc), false)));
       abort();
     }
   return(loc);
@@ -12260,6 +12257,8 @@ static s7_pointer make_unknown(s7_scheme *sc, const char* name)
   if (len > 0)
     memcpy((void *)(newstr + 1), (void *)name, len);
   newstr[len + 1] = '\0';
+  if (sc->undefined_constant_warnings)
+    s7_warn(sc, len + 32, "%s is undefined\n", newstr);
   unique_name_length(p) = len + 1;
   unknown_name(p) = newstr;
   add_unknown(sc, p);
@@ -12268,8 +12267,7 @@ static s7_pointer make_unknown(s7_scheme *sc, const char* name)
 
 static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
 {
-  /* check *read-error-hook* */
-  if (hook_has_functions(sc->read_error_hook))
+  if (hook_has_functions(sc->read_error_hook))  /* check *read-error-hook* */
     {
       s7_pointer result;
       /* see sc->error_hook for a more robust way to handle this */
@@ -12277,7 +12275,6 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
       if (result != sc->unspecified)
 	return(result);
     }
-  /* old: return(sc->nil); */
   return(make_unknown(sc, name));
 }
 
@@ -23825,7 +23822,7 @@ static s7_pointer string_read_line(s7_scheme *sc, s7_pointer port, bool with_eol
       }
   i = port_data_size(port);
   port_position(port) = i;
-  if (i <= port_start)         /* the < part can happen -- if not caught we try to create a string of length -1 -> segfault */
+  if (i <= port_start)         /* the < part can happen -- if not caught we try to create a string of length - 1 -> segfault */
     return(eof_object);
 
   if (copied)
@@ -66452,8 +66449,13 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	    {
 	      int32_t op;
 	      op = combine_ops(sc, func, expr, E_C_P, arg1, NULL);
+	      if ((hop == 1) && ((optimize_op(arg1) & 1) == 0))
+		{
+		  /* TODO: three more cases */
+		  /* fprintf(stderr, "%s is inconsistent\n", DISPLAY_80(arg1)); */
+		  hop = 0;
+		}
 	      set_safe_optimize_op(expr, hop + op);
-	      /* fallback is Z */
 	      if ((!hop) && (is_h_optimized(arg1)))
 		clear_hop(arg1);
 	      else
@@ -66921,6 +66923,11 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	    {
 	      int32_t op;
 	      op = combine_ops(sc, func, expr, E_C_PP, arg1, arg2);
+	      if ((hop == 1) && (((optimize_op(arg1) & 1) == 0) || ((optimize_op(arg2) & 1) == 0)))
+		{
+		  /* fprintf(stderr, "%s or %s is inconsistent\n", DISPLAY_80(arg1), DISPLAY_80(arg2)); */
+		  hop = 0;
+		}
 	      set_safe_optimize_op(expr, hop + op);
 	      if (op == OP_SAFE_C_PP)
 		opt_sp_1(sc, c_function_call(func), expr); /* calls set_opt1_any, sets opt1(cdr(expr)) to OP_SAFE_CONS_SP_1 and friends */
@@ -66988,6 +66995,11 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  else orig_op = E_C_CP;
 		  op = combine_ops(sc, func, expr, orig_op, arg1, arg2);
 		  if ((!hop) && (is_h_optimized(arg2))) clear_hop(arg2);
+		}
+	      if ((hop == 1) && (((optimize_op(arg1) & 1) == 0) || ((optimize_op(arg2) & 1) == 0)))
+		{
+		  /* fprintf(stderr, "%s or %s is inconsistent\n", DISPLAY_80(arg1), DISPLAY_80(arg2)); */
+		  hop = 0;
 		}
 	      if ((((op == OP_SAFE_C_SP) || (op == OP_SAFE_C_CP)) &&
 		   (is_fx_safe(sc, arg2))) ||
@@ -87456,6 +87468,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->c_types_symbol =                       s7_let_field(sc, "c-types");
   sc->safety_symbol =                        s7_let_field(sc, "safety");
   sc->undefined_identifier_warnings_symbol = s7_let_field(sc, "undefined-identifier-warnings");
+  sc->undefined_constant_warnings_symbol =   s7_let_field(sc, "undefined-constant-warnings");
   sc->gc_stats_symbol =                      s7_let_field(sc, "gc-stats");
   sc->max_heap_size_symbol =                 s7_let_field(sc, "max-heap-size");
   sc->max_stack_size_symbol =                s7_let_field(sc, "max-stack-size");
@@ -87714,6 +87727,8 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
     return(s7_make_boolean(sc, sc->is_autoloading));
   if (sym == sc->undefined_identifier_warnings_symbol)                   /* undefined-identifier-warnings */
     return(s7_make_boolean(sc, sc->undefined_identifier_warnings));
+  if (sym == sc->undefined_constant_warnings_symbol)                     /* undefined-constant-warnings */
+    return(s7_make_boolean(sc, sc->undefined_constant_warnings));
   if (sym == sc->cpu_time_symbol)                                        /* cpu-time */
     return(s7_make_real(sc, (double)clock() / (double)CLOCKS_PER_SEC));
   if (sym == sc->catches_symbol)                                         /* catches */
@@ -87989,6 +88004,11 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
   if (sym == sc->undefined_identifier_warnings_symbol)
     {
       if (s7_is_boolean(val)) {sc->undefined_identifier_warnings = s7_boolean(sc, val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+    }
+  if (sym == sc->undefined_constant_warnings_symbol)
+    {
+      if (s7_is_boolean(val)) {sc->undefined_constant_warnings = s7_boolean(sc, val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
     }
 
@@ -88694,6 +88714,7 @@ s7_scheme *s7_init(void)
   sc->elist_4 = permanent_list(sc, 4);
   sc->elist_5 = permanent_list(sc, 5);
   sc->undefined_identifier_warnings = false;
+  sc->undefined_constant_warnings = false;
   sc->wrap_only = make_wrap_only(sc);
   sc->dox_slot_symbol = make_symbol(sc, "(dox_slot)");
   sc->unentry = (hash_entry_t *)malloc(sizeof(hash_entry_t));
@@ -90301,5 +90322,5 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * write/display method handling is marginal [and t725 obj->str/format cases for rd1/2?]
+ * write/display method handling is marginal [and t725 obj->str/format cases for rd1/2?] t718
  */
