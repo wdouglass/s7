@@ -207,65 +207,6 @@ static s7_pointer open_plus(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices, ...)
-{
-  /* multivector_ref returns an element of a multidimensional vector */
-  int ndims;
-  ndims = s7_vector_rank(vector);
-
-  if (ndims == indices)
-    {
-      va_list ap;
-      s7_int index = 0;
-      va_start(ap, indices);
-
-      if (ndims == 1)
-	{
-	  index = va_arg(ap, s7_int);
-	  va_end(ap);
-	  return(s7_vector_ref(sc, vector, index));
-	}
-      else
-	{
-	  int i;
-	  s7_pointer *elements;
-	  s7_int *offsets, *dimensions;
-
-	  elements = s7_vector_elements(vector);
-
-	  dimensions = (s7_int *)malloc(ndims * sizeof(s7_int));
-	  offsets = (s7_int *)malloc(ndims * sizeof(s7_int));
-	  s7_vector_dimensions(vector, dimensions, ndims);
-	  s7_vector_offsets(vector, offsets, ndims);
-
-	  for (i = 0; i < indices; i++)
-	    {
-	      int ind;
-	      ind = va_arg(ap, int);
-	      if ((ind < 0) ||
-		  (ind >= dimensions[i]))
-		{
-		  va_end(ap);
-		  free(dimensions);
-		  free(offsets);
-		  return(s7_out_of_range_error(sc, 
-                                               "multivector_ref", i, 
-                                               s7_make_integer(sc, ind), 
-                                               "index should be between 0 and the dimension size"));
-		}
-	      index += (ind * offsets[i]);
-	    }
-	  va_end(ap);
-	  free(dimensions);
-	  free(offsets);
-	  return(elements[index]);
-	}
-    }
-  return(s7_wrong_number_of_args_error(sc, 
-                                       "multivector_ref: wrong number of indices: ~A", 
-                                       s7_make_integer(sc, indices)));
-}
-
 
 typedef struct {
   size_t size;
@@ -1253,24 +1194,24 @@ int main(int argc, char **argv)
   s7_eval_c_string(sc,  "(set! (my-vect 1 1 1) 32)");
   p1 = s7_name_to_value(sc, "my-vect");
 
-  p = multivector_ref(sc,  p1, 3, 0, 0, 0);
+  p = s7_vector_ref_n(sc,  p1, 3, 0LL, 0LL, 0LL);
   if (s7_integer(p) != 0)
     {fprintf(stderr, "%d: %s is not 0?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
-  p = s7_vector_ref_n(sc,  p1, 3, 0, 0, 0);
+  p = s7_vector_ref_n(sc,  p1, 3, 0LL, 0LL, 0LL);
   if (s7_integer(p) != 0)
     {fprintf(stderr, "%d: %s is not 0?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
-  p = multivector_ref(sc,  p1, 3, 1, 1, 1);
+  p = s7_vector_ref_n(sc,  p1, 3, 1LL, 1LL, 1LL);
   if (s7_integer(p) != 32)
     {fprintf(stderr, "%d: %s is not 32?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
-  p = s7_vector_ref_n(sc,  p1, 3, 1, 1, 1);
+  p = s7_vector_ref_n(sc,  p1, 3, 1LL, 1LL, 1LL);
   if (s7_integer(p) != 32)
     {fprintf(stderr, "%d: %s is not 32?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
-  s7_vector_set_n(sc,  p1, TO_S7_INT(12), 3, 1, 1, 2);
-  p = s7_vector_ref_n(sc,  p1, 3, 1, 1, 2);
+  s7_vector_set_n(sc,  p1, TO_S7_INT(12), 3, 1LL, 1LL, 2LL);
+  p = s7_vector_ref_n(sc,  p1, 3, 1LL, 1LL, 2LL);
   if (s7_integer(p) != 12)
     {fprintf(stderr, "%d: %s is not 12?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 
@@ -1304,7 +1245,7 @@ int main(int argc, char **argv)
   }
 
   s7_vector_fill(sc, p1, s7_t(sc));
-  p = s7_vector_ref_n(sc,  p1, 3, 1, 1, 1);
+  p = s7_vector_ref_n(sc,  p1, 3, 1LL, 1LL, 1LL);
   if (p != s7_t(sc))
     {fprintf(stderr, "%d: %s is not #t?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
 

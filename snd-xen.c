@@ -3061,8 +3061,7 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   {
     s7_pointer motif, old_shadow;
     s7_define_constant(s7, "*motif*", motif = s7_inlet(s7, s7_nil(s7)));
-    old_shadow = s7_shadow_rootlet(s7);
-    s7_set_shadow_rootlet(s7, motif);
+    old_shadow = s7_set_shadow_rootlet(s7, motif);
     Init_libxm(s7);
     s7_set_shadow_rootlet(s7, old_shadow);
   }
@@ -3096,8 +3095,7 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   {
     s7_pointer gl, old_shadow;
     s7_define_constant(s7, "*gl*", gl = s7_inlet(s7, s7_nil(s7)));
-    old_shadow = s7_shadow_rootlet(s7);
-    s7_set_shadow_rootlet(s7, gl);
+    old_shadow = s7_set_shadow_rootlet(s7, gl);
     Init_libgl(s7);
     s7_set_shadow_rootlet(s7, old_shadow);
   }

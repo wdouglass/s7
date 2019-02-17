@@ -9,25 +9,25 @@
 
 ;(load "stuff.scm")
 ;(load "r7rs.scm")
-(require mockery.scm)
+;(require mockery.scm)
 ;(load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 (define max-args 3)
 (define-constant one 1)
 
-(define mock-number (*mock-number* 'mock-number))
-(define mock-pair (*mock-pair* 'mock-pair))
-(define mock-string (*mock-string* 'mock-string))
-(define mock-char (*mock-char* 'mock-char))
-(define mock-vector (*mock-vector* 'mock-vector))
-(define mock-symbol (*mock-symbol* 'mock-symbol))
-(define mock-hash-table (*mock-hash-table* 'mock-hash-table))
+;(define mock-number (*mock-number* 'mock-number))
+;(define mock-pair (*mock-pair* 'mock-pair))
+;(define mock-string (*mock-string* 'mock-string))
+;(define mock-char (*mock-char* 'mock-char))
+;(define mock-vector (*mock-vector* 'mock-vector))
+;(define mock-symbol (*mock-symbol* 'mock-symbol))
+;(define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 
-(define np (list 0 1 2 3 4))
-(define mp (mock-pair '(0 1 2 3 4)))
-(define nv (vector 0 1 2 3 4))
-(define mv (mock-vector 0 1 2 3 4))
-(define ns "01234")
-(define ms (mock-string #\0 #\1 #\2 #\3 #\4))
+;(define np (list 0 1 2 3 4))
+;(define mp (mock-pair '(0 1 2 3 4)))
+;(define nv (vector 0 1 2 3 4))
+;(define mv (mock-vector 0 1 2 3 4))
+;(define ns "01234")
+;(define ms (mock-string #\0 #\1 #\2 #\3 #\4))
 
 (define-constant auto-constants (list #f #t () #\a (/ most-positive-fixnum) (/ -1 most-positive-fixnum) 1.5+i
 			"hi455" :key hi: 'hi (list 1) (list 1 2) (cons 1 2) (list (list 1 2)) (list (list 1)) (list ()) #() 
@@ -52,11 +52,12 @@
 			(lambda (dir) 1.0) (float-vector) (make-float-vector '(2 32)) 
 			'((a . 1)) #i(1) '((((A . B) C . D) (E . F) G . H) ((I . J) K . L) (M . N) O . P)
 
-			;(make-block 2) (block 1.0 2.0 3.0) (block) 
 			#u(0 1 2) (openlet (inlet 'abs (lambda (x) (- x))))
 			(make-iterator (list 1 2 3)) (make-iterator "1") #<eof> #r2d((.1 .2) (.3 .4))
 			(dilambda (lambda () 1) (lambda (a) a))
-
+			(gensym)
+#|
+			(make-block 2) (block 1.0 2.0 3.0) (block) 
 			(mock-number 0) (mock-number 1-i) (mock-number 4/3) (mock-number 2.0)
 			(mock-string #\h #\o #\h #\o)
 			(mock-pair '(2 3 4))
@@ -64,7 +65,8 @@
 			(mock-symbol 'c)
 			(mock-vector 1 2 3 4)
 			(mock-hash-table 'b 2)
-			np mp nv mv ns ms (gensym)
+			np mp nv mv ns ms
+|#			
 			))
       
 (define car-auto-constants (car auto-constants))
@@ -180,10 +182,12 @@
 		  symbol-table load throw error
 		  global-environment current-environment make-rectangular hash-table* make-keyword morally-equal?
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
+#|
 		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table
 		  mock-symbol mock-port mock-hash-table m mock->string make-local-method
 		  *mock-number* *mock-pair* *mock-string* *mock-char* *mock-vector*
 		  *mock-symbol* *mock-port* *mock-hash-table* mp ms mv
+|#
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
 		  c-define-1 apropos map-values

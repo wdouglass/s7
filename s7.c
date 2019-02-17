@@ -4207,6 +4207,13 @@ static bool is_h_optimized(s7_pointer p)
 	 (optimize_op(p) < OP_S));
 }
 
+static bool is_not_h_optimized(s7_pointer p)
+{
+  return((is_optimized(p)) &&
+	 ((optimize_op(p) & 1) == 0) &&
+	 (optimize_op(p) < OP_S));
+}
+
 /* -------- */
 static s7_pointer set_elist_1(s7_scheme *sc, s7_pointer x1)
 {
@@ -8477,12 +8484,18 @@ static s7_pointer g_rootlet(s7_scheme *sc, s7_pointer ignore)
  */
 
 s7_pointer s7_rootlet(s7_scheme *sc) {return(sc->rootlet);}
+
+/* shadow_rootlet is a convenience for foreign function writers -- the C code can act as if it were loading everything into rootlet,
+ *   but when actually loaded, everything can be shunted into a separate namespace (*motif* for example).
+ */
 s7_pointer s7_shadow_rootlet(s7_scheme *sc) {return(sc->shadow_rootlet);}
 
 s7_pointer s7_set_shadow_rootlet(s7_scheme *sc, s7_pointer let)
 {
+  s7_pointer old_let;
+  old_let = sc->shadow_rootlet;
   sc->shadow_rootlet = let;
-  return(let);
+  return(old_let); /* like s7_set_curlet below */
 }
 
 
@@ -21990,6 +22003,21 @@ static s7_pointer g_string_position(s7_scheme *sc, s7_pointer args)
 /* prebuilding sc->empty_string and using it wherever len==0 did not produce more than about %.2 speedup
  *   (in index.scm where 11% of the strings are empty).  s7test max 4% empty, elsewhere much less.
  */
+bool s7_is_string(s7_pointer p)
+{
+  return(is_string(p));
+}
+
+const char *s7_string(s7_pointer p)
+{
+  return(string_value(p));
+}
+
+s7_int s7_string_length(s7_pointer str)
+{
+  return(string_length(str));
+}
+
 s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len)
 {
   return(make_string_with_length(sc, str, len));
@@ -22006,14 +22034,9 @@ static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len)
 {
   s7_pointer x;
   x = sc->string_wrappers[sc->string_wrapper_pos];
-  sc->string_wrapper_pos = (sc->string_wrapper_pos + 1) & (NUM_STRING_WRAPPERS - 1);
+  sc->string_wrapper_pos = (sc->string_wrapper_pos + 1) & (NUM_STRING_WRAPPERS - 1); /* i.e. next is pos+1 modulo len */
   string_value(x) = (char *)str;
   string_length(x) = len;
-#if S7_DEBUGGING
-  if ((strcmp(func, "g_substring_to_temp") != 0) &&
-      (safe_strlen(str) != len))
-    fprintf(stderr, "%s[%d]: %s len is not %" print_s7_int " but %" print_s7_int "\n", func, line, str, len, safe_strlen(str));
-#endif
   return(x);
 }
 
@@ -22103,18 +22126,6 @@ s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str)
   return(x);
 }
 
-bool s7_is_string(s7_pointer p)
-{
-  return(is_string(p));
-}
-
-
-const char *s7_string(s7_pointer p)
-{
-  return(string_value(p));
-}
-
-
 static s7_pointer g_is_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_string "(string? obj) returns #t if obj is a string"
@@ -22130,7 +22141,6 @@ static s7_pointer make_permanent_string(const char *str)
 
   x = (s7_pointer)calloc(1, sizeof(s7_cell));
   set_type(x, T_STRING | T_IMMUTABLE | T_UNHEAP);
-
   len = safe_strlen(str);
   string_length(x) = len;
   string_block(x) = NULL;
@@ -22345,11 +22355,6 @@ static s7_pointer g_string_upcase(s7_scheme *sc, s7_pointer args)
 	nstr[i] = uppers[(uint8_t)ostr[i]];
     }
   return(newstr);
-}
-
-s7_int s7_string_length(s7_pointer str)
-{
-  return(string_length(str));
 }
 
 
@@ -66449,10 +66454,13 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	    {
 	      int32_t op;
 	      op = combine_ops(sc, func, expr, E_C_P, arg1, NULL);
-	      if ((hop == 1) && ((optimize_op(arg1) & 1) == 0))
+	      if ((hop == 1) && 
+		  (is_not_h_optimized(arg1)))
 		{
-		  /* TODO: three more cases */
-		  /* fprintf(stderr, "%s is inconsistent\n", DISPLAY_80(arg1)); */
+#if S7_DEBUGGING && (0)
+		  fprintf(stderr, "%d: %s is inconsistent: %s %ld\n", __LINE__, DISPLAY_80(expr), 
+			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1);
+#endif
 		  hop = 0;
 		}
 	      set_safe_optimize_op(expr, hop + op);
@@ -66923,9 +66931,18 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	    {
 	      int32_t op;
 	      op = combine_ops(sc, func, expr, E_C_PP, arg1, arg2);
-	      if ((hop == 1) && (((optimize_op(arg1) & 1) == 0) || ((optimize_op(arg2) & 1) == 0)))
+	      if ((hop == 1) &&
+		  ((is_not_h_optimized(arg1)) || (is_not_h_optimized(arg2))))
+#if 0
+		  (((is_pair(arg1)) && ((optimize_op(arg1) & 1) == 0)) || 
+		   ((is_pair(arg2)) && ((optimize_op(arg2) & 1) == 0))))
+#endif
 		{
-		  /* fprintf(stderr, "%s or %s is inconsistent\n", DISPLAY_80(arg1), DISPLAY_80(arg2)); */
+#if S7_DEBUGGING && (0)
+		  fprintf(stderr, "%d: %s is inconsistent: %s %ld, %s %ld\n", __LINE__, DISPLAY_80(expr), 
+			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1,
+			  op_names[optimize_op(arg2)], ((is_pair(arg2)) && (is_symbol(car(arg2)))) ? symbol_id(car(arg2)) : -1);
+#endif
 		  hop = 0;
 		}
 	      set_safe_optimize_op(expr, hop + op);
@@ -66996,9 +67013,18 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  op = combine_ops(sc, func, expr, orig_op, arg1, arg2);
 		  if ((!hop) && (is_h_optimized(arg2))) clear_hop(arg2);
 		}
-	      if ((hop == 1) && (((optimize_op(arg1) & 1) == 0) || ((optimize_op(arg2) & 1) == 0)))
+	      if ((hop == 1) && 
+		  ((is_not_h_optimized(arg1)) || (is_not_h_optimized(arg2))))
+#if 0
+		  (((is_pair(arg1)) && ((optimize_op(arg1) & 1) == 0)) || 
+		   ((is_pair(arg2)) && ((optimize_op(arg2) & 1) == 0))))
+#endif
 		{
-		  /* fprintf(stderr, "%s or %s is inconsistent\n", DISPLAY_80(arg1), DISPLAY_80(arg2)); */
+#if S7_DEBUGGING && (0)
+		  fprintf(stderr, "%d: %s is inconsistent: %s %ld, %s %ld\n", __LINE__, DISPLAY_80(expr), 
+			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1,
+			  op_names[optimize_op(arg2)], ((is_pair(arg2)) && (is_symbol(car(arg2)))) ? symbol_id(car(arg2)) : -1);
+#endif
 		  hop = 0;
 		}
 	      if ((((op == OP_SAFE_C_SP) || (op == OP_SAFE_C_CP)) &&
@@ -90281,12 +90307,12 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   594
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   956
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   978
- * tauto   265.0 | 89.0 |  9.0 |  8.4 | 2993 | 1457 | 1304 | 1123  1203  1207
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1539
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087 2180
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2290
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
@@ -90294,10 +90320,10 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318 
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551 
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
@@ -90305,7 +90331,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2 115.5
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.3
  * ----------------------------------------------------------------------------------
  *
@@ -90323,4 +90349,6 @@ int main(int argc, char **argv)
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
  * write/display method handling is marginal [and t725 obj->str/format cases for rd1/2?] t718
+ * istr bug happens for *s7* stuff mostly, try after check and change order? only 3/4 and 5/6 break
+ * new hop handling -- track down lint problem
  */
