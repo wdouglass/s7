@@ -350,8 +350,6 @@
 		 'reverse                (lambda (obj) 
 					   (#_reverse (->value obj)))
 
-		 'object->string (lambda args (apply #_object->string (map ->value args)))
-
 		 'arity                  (lambda (obj) 
 					   (#_arity (->value obj)))
 
@@ -436,6 +434,9 @@
 					       (#_bignum (->value obj))
 					       (error 'wrong-type-arg "no bignums in this version of s7")))
 
+		 'object->string         (lambda args 
+					   (apply #_object->string (map ->value args)))
+
 		 'format                 (lambda (port . args)
 					   (if (mock-string? port)
 					       (error 'wrong-type-arg "format port arg is a mock-string: ~A" port))
@@ -449,6 +450,17 @@
 						   (#_write (->value obj) (car rest))))
 					   obj)
 
+		 'display                (lambda (obj . rest)
+					   (if (null? rest)
+					       (#_display (->value obj))
+					       (if (mock-string? (car rest))
+						   (error 'wrong-type-arg "display port arg is a mock-string: ~A" (car rest))
+						   (#_display (->value obj) (car rest))))
+					   obj)
+
+		 'write-string           (lambda (obj . args) 
+					   (apply #_write-string (->value obj) (no-mock-strings args)))
+		 
 		 'string-fill!           (lambda* (obj val (start 0) end) 
 					   (if (or (mock-string? val)
 						   (mock-string? start)
@@ -471,9 +483,6 @@
 					   (unless (integer? r)
 					     (error 'wrong-type-arg "string-ref: stray mock-string?"))
 					   (#_string->number (->value obj) r))
-		 
-		 'write-string           (lambda (obj . args) 
-					   (apply #_write-string (->value obj) (no-mock-strings args)))
 		 
 		 'string-position        (lambda* (s1 s2 (start 0))
 					   (if (mock-string? s1)

@@ -2801,11 +2801,7 @@ static void init_types(void)
 #define character_name_length(p)       (T_Chr(p))->object.chr.length
 
 #define optimize_op(P)                 (P)->tf.opts.opt_choice
-#if 0
-#define set_optimize_op(P, Op)         do {(P)->tf.opts.opt_choice = Op; fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, op_names[Op], string_value(object_to_truncated_string(cur_sc, P, 80)));} while (0)
-#else
 #define set_optimize_op(P, Op)         (P)->tf.opts.opt_choice = Op
-#endif
 #define optimize_op_match(P, Q)        ((is_optimized(P)) && ((optimize_op(P) & 0xfffe) == (Q)))
 #define op_no_hop(P)                   (optimize_op(P) & 0xfffe)
 #define clear_hop(P)                   set_optimize_op(P, op_no_hop(P))
@@ -31435,6 +31431,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
       if (out_len < 3)
 	{
 	  close_format_port(sc, strport);
+	  sc->objstr_max_len = s7_int_max;
 	  return(make_string_with_length(sc, "...", 3));
 	}
       for (i = out_len - 3; i < out_len; i++)
@@ -33571,13 +33568,6 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
   if (!s7_is_integer(count))
     return(simple_wrong_type_argument(sc, sc->tree_count_symbol, count, T_INTEGER));
   return(s7_make_integer(sc, tree_count_at_least(sc, obj, tree, 0, s7_integer(count))));
-}
-
-static s7_pointer print_truncate(s7_scheme *sc, s7_pointer code)
-{
-  if (tree_len(sc, code) > sc->print_length)
-    return(object_to_truncated_string(sc, code, sc->print_length * 10));
-  return(code);
 }
 
 s7_pointer s7_assoc(s7_scheme *sc, s7_pointer sym, s7_pointer lst)
@@ -66456,13 +66446,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	      op = combine_ops(sc, func, expr, E_C_P, arg1, NULL);
 	      if ((hop == 1) && 
 		  (is_not_h_optimized(arg1)))
-		{
-#if S7_DEBUGGING && (0)
-		  fprintf(stderr, "%d: %s is inconsistent: %s %ld\n", __LINE__, DISPLAY_80(expr), 
-			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1);
-#endif
-		  hop = 0;
-		}
+		hop = 0;
 	      set_safe_optimize_op(expr, hop + op);
 	      if ((!hop) && (is_h_optimized(arg1)))
 		clear_hop(arg1);
@@ -66933,18 +66917,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      op = combine_ops(sc, func, expr, E_C_PP, arg1, arg2);
 	      if ((hop == 1) &&
 		  ((is_not_h_optimized(arg1)) || (is_not_h_optimized(arg2))))
-#if 0
-		  (((is_pair(arg1)) && ((optimize_op(arg1) & 1) == 0)) || 
-		   ((is_pair(arg2)) && ((optimize_op(arg2) & 1) == 0))))
-#endif
-		{
-#if S7_DEBUGGING && (0)
-		  fprintf(stderr, "%d: %s is inconsistent: %s %ld, %s %ld\n", __LINE__, DISPLAY_80(expr), 
-			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1,
-			  op_names[optimize_op(arg2)], ((is_pair(arg2)) && (is_symbol(car(arg2)))) ? symbol_id(car(arg2)) : -1);
-#endif
-		  hop = 0;
-		}
+		hop = 0;
 	      set_safe_optimize_op(expr, hop + op);
 	      if (op == OP_SAFE_C_PP)
 		opt_sp_1(sc, c_function_call(func), expr); /* calls set_opt1_any, sets opt1(cdr(expr)) to OP_SAFE_CONS_SP_1 and friends */
@@ -67015,18 +66988,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		}
 	      if ((hop == 1) && 
 		  ((is_not_h_optimized(arg1)) || (is_not_h_optimized(arg2))))
-#if 0
-		  (((is_pair(arg1)) && ((optimize_op(arg1) & 1) == 0)) || 
-		   ((is_pair(arg2)) && ((optimize_op(arg2) & 1) == 0))))
-#endif
-		{
-#if S7_DEBUGGING && (0)
-		  fprintf(stderr, "%d: %s is inconsistent: %s %ld, %s %ld\n", __LINE__, DISPLAY_80(expr), 
-			  op_names[optimize_op(arg1)], ((is_pair(arg1)) && (is_symbol(car(arg1)))) ? symbol_id(car(arg1)) : -1,
-			  op_names[optimize_op(arg2)], ((is_pair(arg2)) && (is_symbol(car(arg2)))) ? symbol_id(car(arg2)) : -1);
-#endif
-		  hop = 0;
-		}
+		hop = 0;
 	      if ((((op == OP_SAFE_C_SP) || (op == OP_SAFE_C_CP)) &&
 		   (is_fx_safe(sc, arg2))) ||
 		  (((op == OP_SAFE_C_PS) || (op == OP_SAFE_C_PC)) &&
@@ -71815,6 +71777,13 @@ static bool op_unless_pp(s7_scheme *sc)
 
 
 /* -------------------------------- define -------------------------------- */
+static s7_pointer print_truncate(s7_scheme *sc, s7_pointer code)
+{
+  if (tree_len(sc, code) > sc->print_length)
+    return(object_to_truncated_string(sc, code, sc->print_length * 10));
+  return(code);
+}
+
 static s7_pointer check_define(s7_scheme *sc)
 {
   s7_pointer func, caller, form;
@@ -90312,7 +90281,7 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   978
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087 2180
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2290
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
@@ -90331,7 +90300,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2 115.5
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.3
  * ----------------------------------------------------------------------------------
  *
@@ -90348,7 +90317,10 @@ int main(int argc, char **argv)
  * gsl changes (libgsl.scm) tested
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * write/display method handling is marginal [and t725 obj->str/format cases for rd1/2?] t718
- * istr bug happens for *s7* stuff mostly, try after check and change order? only 3/4 and 5/6 break
- * new hop handling -- track down lint problem
+ * error print-length? enormous string check and don't call slashify
+ * see s7test for lint enormities
+ * mockery.scm write/display/format method handling is marginal
+ *   inlet with all built-ins to check non-mockery cases? [can this be built from symbol-table + sigs?]
+ *   or just construct on the fly: (f (openlet (inlet f lambda))...)
+ *   mock random-state for other randoms? bool? undef? iterator?
  */
