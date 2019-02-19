@@ -21220,7 +21220,7 @@ static s7_pointer g_char_to_integer(s7_scheme *sc, s7_pointer args)
 static s7_int char_to_integer_i_7p(s7_scheme *sc, s7_pointer p)
 {
   if (!s7_is_character(p))
-    simple_wrong_type_argument(sc, sc->char_to_integer_symbol, p, T_CHARACTER);
+    return(integer(method_or_bust_one_arg(sc, p, sc->char_to_integer_symbol, list_1(sc, p), T_CHARACTER)));
   return(character(p));
 }
 
@@ -26892,7 +26892,7 @@ static s7_pointer g_iterator_is_at_end(s7_scheme *sc, s7_pointer args)
   if (iter_ok(iter))
     return(sc->F);
   if (!is_iterator(iter))
-    return(simple_wrong_type_argument(sc, sc->iterator_is_at_end_symbol, iter, T_ITERATOR));
+    return(method_or_bust_one_arg(sc, iter, sc->iterator_is_at_end_symbol, args, T_ITERATOR));
   return(sc->T);
 }
 
@@ -26906,7 +26906,7 @@ static s7_pointer g_iterator_sequence(s7_scheme *sc, s7_pointer args)
 
   iter = car(args);
   if (!is_iterator(iter))
-    return(simple_wrong_type_argument(sc, sc->iterator_sequence_symbol, iter, T_ITERATOR));
+    return(method_or_bust_one_arg(sc, iter, sc->iterator_sequence_symbol, args, T_ITERATOR));
   return(iterator_sequence(iter));
 }
 
@@ -27753,37 +27753,11 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 
 #define NOT_P_DISPLAY(Choice) ((Choice == P_DISPLAY) ? P_WRITE : Choice)
 
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
 				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
 				   use_write_t use_write, shared_info *ci)
 {
   int32_t i;
-
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   if (use_write != P_READABLE)
     {
       if (*last)
@@ -31108,34 +31082,9 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#if CYCLE_DEBUGGING
-static char *base1 = NULL, *min_char1 = NULL;
-#endif
-
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base1) base1 = &x;
-  else
-    {
-      if (&x > base1) base1 = &x;
-      else
-	{
-	  if ((!min_char1) || (&x < min_char1))
-	    {
-	      min_char1 = &x;
-	      if ((base1 - min_char1) > 1000000)
-		{
-		  fprintf(stderr, "%s[%d]: infinite recursion?\n", __func__, __LINE__);
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   ref = shared_ref(ci, vr);
   if (ref != 0)
     {
@@ -31519,7 +31468,7 @@ static s7_pointer g_write(s7_scheme *sc, s7_pointer args)
   #define H_write "(write obj (port (current-output-port))) writes (object->string obj) to the output port"
   #define Q_write s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   
-  /* check_method(sc, car(args), sc->write_symbol, args); */
+  check_method(sc, car(args), sc->write_symbol, args);
   return(write_p_pp(sc, car(args), (is_pair(cdr(args))) ? cadr(args) : sc->output_port));
 }
 
@@ -31549,6 +31498,7 @@ static s7_pointer display_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer port)
     return(method_or_bust_with_type(sc, port, sc->display_symbol, list_2(sc, x, port), an_output_port_string, 2));
   if (port_is_closed(port))
     s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port");
+  check_method(sc, x, sc->display_symbol, list_2(sc, x, port));
   return(object_out(sc, x, port, P_DISPLAY));
 }
 
@@ -31557,7 +31507,6 @@ static s7_pointer g_display(s7_scheme *sc, s7_pointer args)
   #define H_display "(display obj (port (current-output-port))) prints obj"
   #define Q_display s7_make_signature(sc, 3, sc->T, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
 
-  /* check_method(sc, car(args), sc->display_symbol, args); */
   return(display_p_pp(sc, car(args), (is_pair(cdr(args))) ? cadr(args) : sc->output_port));
 }
 
@@ -31571,6 +31520,7 @@ static s7_pointer g_display_2(s7_scheme *sc, s7_pointer args)
     return(method_or_bust_with_type(sc, port, sc->display_symbol, args, an_output_port_string, 2));
   if (port_is_closed(port))
     return(s7_wrong_type_arg_error(sc, "display", 2, port, "an open output port"));
+  check_method(sc, car(args), sc->display_symbol, args);
   return(object_out(sc, car(args), port, P_DISPLAY));
 }
 
@@ -31583,6 +31533,7 @@ static s7_pointer display_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_
 static s7_pointer display_p_p(s7_scheme *sc, s7_pointer x)
 {
   if (sc->output_port == sc->F) return(x);
+  check_method(sc, x, sc->display_symbol, list_1(sc, x));
   return(object_out(sc, x, sc->output_port, P_DISPLAY));
 }
 
@@ -48367,7 +48318,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	      format_to_port(sc, sc->error_port, errstr, cdr(info), NULL, false, str_len);
 	      liberate(sc, b);
 	    }
-	  else format_to_port(sc, sc->error_port, "\n;~S ~S", set_plist_2(sc, type, info), NULL, false, 7);
+	  else format_to_port(sc, sc->error_port, "\n;~S ~S", set_plist_2(sc, type, info), NULL, false, 7); /* 7 = ctrl str len */
 	}
       if (op < 32) sc->print_length = op;
 
@@ -90276,9 +90227,9 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   594
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   956
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   978
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
@@ -90288,19 +90239,19 @@ int main(int argc, char **argv)
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2832
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318 
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551 
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.2
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.3
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.4
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.3
  * ----------------------------------------------------------------------------------
  *
@@ -90314,13 +90265,8 @@ int main(int argc, char **argv)
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
  *   perhaps split add|sub_aa ->add|sub_op..._a
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
- * gsl changes (libgsl.scm) tested
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * error print-length? enormous string check and don't call slashify
+ * gsl changes (libgsl.scm) tested
  * see s7test for lint enormities
- * mockery.scm write/display/format method handling is marginal
- *   inlet with all built-ins to check non-mockery cases? [can this be built from symbol-table + sigs?]
- *   or just construct on the fly: (f (openlet (inlet f lambda))...)
- *   mock random-state for other randoms? bool? undef? iterator?
  */
