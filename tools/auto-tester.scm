@@ -67,6 +67,7 @@
 (define mock-hash-table (*mock-hash-table* 'mock-hash-table))
 (define mock-c-pointer (*mock-c-pointer* 'mock-c-pointer))
 (define mock-port (*mock-port* 'mock-port))
+(define mock-random-state (*mock-random-state* 'mock-random-state))
 
 (set! (*s7* 'safety) 1) ; protect copy (in define-expansion evaluation) from circular lists
 
@@ -261,17 +262,6 @@
 (define-expansion (_ft2_ . args)
   `(let () (define (_f_) ,@args) (define (g) (_f_)) (g) (g)))
 
-#|
-(define-expansion (_fa1_ . args)
-  `(let ((_y_ (begin ,@args))) (define (f x) (x)) (f _y_)))
-
-(define-expansion (_fa2_ . args)
-  `((lambda (x) (apply x ())) (begin ,@args)))
-|#
-
-;(define-expansion (_lt2_ . args)
-;  `(let ((mx max)) ((lambda* ((max min) (min mx)) ,@args))))
-
 (define-expansion (_rf1_ . args)
   `(let ((y 0)) (define (_rf11_ i x) (if (> i 0) (_rf11_ (- i 1) x) (x))) (_rf11_ 1 (lambda () ,@args))))
 
@@ -317,23 +307,6 @@
 (define-expansion (_cop2_ . args)
   `(let ((x begin ,@args))
      (copy x)))
-
-#|
-(define-expansion (_rd1_ . args)
-  `(let ((port #f))
-     (dynamic-wind
-	 (lambda ()
-	   (set! port (open-input-string (format #f "~W" (car (list ,@args))))))
-	 (lambda ()
-	   (read port))
-	 (lambda ()
-	   (close-input-port port)))))
-
-(define-expansion (_rd2_ . args)
-  `(with-input-from-string
-       (object->string (car (list ,@args)) :readable)
-     read))
-|#
 
 (define-expansion (_rd3_ . args)
   `(let ((port #f))
@@ -393,6 +366,7 @@
 (define imp (immutable! (cons 0 (immutable! (cons 1 (immutable! (cons 2 ())))))))
 (define imfi (immutable! (mock-port (open-input-string "asdf"))))
 (define imfo (immutable! (mock-port (open-output-string))))
+(define imr (immutable! (mock-random-state 123456)))
 
 (if (provided? 'gmp)
     (begin
@@ -418,6 +392,12 @@
 (define x 0)
 (define max-stack (*s7* 'stack-top))
 (define last-error-type #f)
+
+(define (tp val)
+  (let ((str (object->string val)))
+    (if (< (length str) 512)
+	str
+	(string-append (substring str 0 509) "..."))))
 
 ;;; these two make sure the default value is set (otherwise randomness)
 (define* (make-string len (char #\space)) (#_make-string len char))
@@ -538,7 +518,7 @@
 			  ;'tree-count 'tree-leaves 'tree-memq 'tree-set-memq ;-- no cycle checks and we have signature creating circular lists
 			  'tree-cyclic?
                           'require
-			  'else '_mac_ '_mac*_ '_bac_ '_bac*_ 
+			  'else ;'_mac_ '_mac*_ '_bac_ '_bac*_ 
 			  '_fnc_ '_fnc*_ '_fnc1_ '_fnc2_ '_fnc3_ '_fnc4_ '_fnc5_ ;'_fnc6_
 			  'block 'make-block 'block? 'block-ref 'block-set!
 			  
@@ -705,7 +685,7 @@
 		    ;"(define (x) #f)" "(define (x) (if (not (integer? (*s7* 'print-length))) (__var__) 0))" "'__var__"
 		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" -- creates files by these names!
 
-		    "ims" "imbv" "imv" "imiv" "imfv" "imi" "imb" "imh" "imfi" "imfo" "imp" ;--many ways to clobber this
+		    "ims" "imbv" "imv" "imiv" "imfv" "imi" "imb" "imh" "imfi" "imfo" "imp" "imr"
 		    "vvv" "vvvi" "vvvf"
 		    "bigi0" "bigi1" "bigi2" "bigrat" "bigflt" "bigcmp" 
 
@@ -716,6 +696,8 @@
 		    "(mock-symbol 'c)"
 		    "(mock-vector 1 2 3 4)"
 		    "(mock-hash-table 'b 2)"
+		    "(mock-c-pointer -1)"
+		    "(mock-random-state 1234)"
 
 		    ;;" #| a comment |# "
 		    "(subvector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
@@ -733,7 +715,7 @@
 		    ;;"let" "let*" "do" "set!" "with-let" ;"define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 
 		    "(begin (string? (stacktrace)))" "(and (string? (stacktrace)))" 
-		    "(and (pair? (stacktrace)))" "(and (null? (stacktrace)))" "(and (integer? (stacktrace)))"
+		    ;; "(and (pair? (stacktrace)))" "(and (null? (stacktrace)))" "(and (integer? (stacktrace)))"
 
 		    "(let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>)"
 		    "(let ((<1> (inlet :a #f))) (set! (<1> :a) <1>) <1>)"
@@ -809,7 +791,6 @@
 	      (list "(for-each display (list " "(for-each (lambda (x) (display x)) (list ")
 	      (list "(begin (_ct1_ " "(begin (_ct2_ ")
 	      (list "(begin (_mem1_ " "(begin (_mem2_ ")
-	      ;;(list "(begin (_fa1_ " "(begin (_fa2_ ")
 	      (list "(with-output-to-string (lambda () " "(begin (_dw_out_ ")
 	      (list "(begin (_rf1_ " "(begin (_rf2_ ")
 	      (list "(let () (_do1_ " "(let () (_do2_ ")
@@ -820,13 +801,11 @@
 		    "(do ((i 0 (+ i 1))) ((= i 1)) (let ((j 0)) ")
 	      (list "(or (_cop1_ " "(and (_cop2_ ")
 	      (list "(let () (_do4_ " "(let () (_do5_ ")
-
 	      (list "(begin (_ft1_ " "(begin (_ft2_ ")
-	      ;(list "(begin (_rd1_ " "(begin (_rd2_ ") ; not quite parallel -- some mock objects have object->string but not format
 	      (list "(begin (_rd3_ " "(begin (_rd4_ ")
 	      (list "(begin (_rd5_ " "(begin (_rd6_ ")
 	      (list "(format #f \"~S\" (list " "(object->string (list ")
-	      ;(list "(begin (_wr1_ " "(begin (_wr2_ ") ; same as above?
+	      (list "(begin (_wr1_ " "(begin (_wr2_ ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -951,7 +930,7 @@
       (if (and (eq? (type-of val1) (type-of val2))
 	       (eq? (type-of val1) (type-of val3))
 	       (eq? (type-of val1) (type-of val4)))
-	  (cond ((or (openlet? val1)
+	  (cond ((or (catch #t (lambda () (openlet? val1)) (lambda args #t)) ; (openlet? (openlet (inlet 'openlet? ()))) -> error: attempt to apply nil to (inlet 'openlet? ())
 		     (string-position "(set!" str1)
 		     (string-position "gensym" str1)))
 
@@ -960,15 +939,15 @@
 		     (unless (and (gensym? val2)
 				  (gensym? val3)
 				  (gensym? val4))
-		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			       str str1 str2 str3 str4 
-			       val1 val2 val3 val4))
+			       (tp val1) (tp val2) (tp val3) (tp val4)))
 		     (unless (and (eq? val1 val2)
 				  (eq? val1 val3)
 				  (eq? val1 val4))
-		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			       str str1 str2 str3 str4 
-			       val1 val2 val3 val4))))
+			       (tp val1) (tp val2) (tp val3) (tp val4)))))
 		
 		((sequence? val1)
 		 (let ((len1 (length val1)))
@@ -976,17 +955,16 @@
 			       (and (eqv? len1 (length val2))
 				    (eqv? len1 (length val3))
 				    (eqv? len1 (length val4))))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
 			     str str1 str2 str3 str4 
-			     val1 val2 val3 val4))
+			     (tp val1) (tp val2) (tp val3) (tp val4)))
 		   (if (and (string? val1)
 			    (not (and (eq? (byte-vector? val1) (byte-vector? val2))
 				      (eq? (byte-vector? val1) (byte-vector? val3))
 				      (eq? (byte-vector? val1) (byte-vector? val4)))))
-		       (format *stderr* "~%~%~S ~S ~S~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
-			       (*s7* 'max-string-length) (*s7* 'max-list-length) (*s7* 'print-length)
+		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
 			       str str1 str2 str3 str4 
-			       val1 val2 val3 val4))))
+			       (tp val1) (tp val2) (tp val3) (tp val4)))))
 		
 		((number? val1)
 		 (if (or (and (nan? val1)
@@ -998,9 +976,9 @@
 			 (and (real? val1) (real? val2) (real? val3) (real? val4) 
 			      (or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
 				  (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%~%" 
+		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
 			     str str1 str2 str3 str4 
-			     val1 val2 val3 val4)))
+			     (tp val1) (tp val2) (tp val3) (tp val4))))
 		
 		((or (boolean? val1)
 		     (syntax? val1)
@@ -1011,32 +989,29 @@
 		 (unless (and (eq? val1 val2)
 			      (eq? val1 val3)
 			      (eq? val1 val4))
-		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			   str str1 str2 str3 str4 
-			   val1 val2 val3 val4)))
+			   (tp val1) (tp val2) (tp val3) (tp val4))))
 		
 		((or (undefined? val1)
 		     (c-object? val1))
 		 (unless (and (equal? val1 val2)
 			      (equal? val1 val3)
 			      (equal? val1 val4))
-		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~S ~S ~S ~S~%" 
+		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			   str str1 str2 str3 str4 
-			   val1 val2 val3 val4)))
+			   (tp val1) (tp val2) (tp val3) (tp val4))))
 		)
 	  (begin
-	    (format *stderr* "~%~%__var__: ~S~%~S~%~S~%~S~%~S~%    ~S~%    ~S~%    ~S~%    ~S~%" 
+	    (format *stderr* "~%~%__var__: ~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
 		    __old_var__
 		    str1 str2 str3 str4 
-		    val1 val2 val3 val4)
+		    (tp val1) (tp val2) (tp val3) (tp val4))
 	    (if (or (eq? val1 'error)
 		    (eq? val2 'error)
 		    (eq? val3 'error)
 		    (eq? val4 'error))
-		(let ((op (*s7* 'print-length)))
-		  (if (< op 256) (set! (*s7* 'print-length) 256))
-		  (format *stderr* "    ~S: ~S~%" error-type (apply format #f (car error-info) (cdr error-info)))
-		  (if (< op 256) (set! (*s7* 'print-length) op))))
+		(format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info)))))
 	    )))
 
     (define (eval-it str) 

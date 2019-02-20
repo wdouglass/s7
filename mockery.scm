@@ -1,5 +1,21 @@
 (provide 'mockery.scm)
 
+
+(define *mock-vector* #f)
+(define *mock-pair* #f)
+(define *mock-string* #f)
+(define *mock-hash-table* #f)
+(define *mock-symbol* #f)
+(define *mock-c-pointer* #f)
+(define *mock-random-state* #f)
+(define *mock-char* #f)
+(define *mock-number* #f)
+(define *mock-iterator* #f)
+(define *mock-port* #f)
+
+
+(let () ; rest of file is in this let
+
 (define (outlet-member obj e)
   (or (eq? obj e)
       (and (not (eq? obj (rootlet)))
@@ -20,25 +36,24 @@
 			      args))
 		(apply f (car args) (accessor (cadr args)) (cddr args)))))))
 
-(define (make-object . args)
-  (openlet
-   (apply inlet args)))
-
 (define (make-local-method f)
   (make-method f (lambda (obj) (obj 'value))))
 
 
-;;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
-;;;   so a mock object's method can be called even when no argument is a mock object
+;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
+;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
+;;   mock object can be a closure's containing (open)let: (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
+;;   only mock-c-pointer has code to handle this currently.
 
-;;; --------------------------------------------------------------------------------
+;; --------------------------------------------------------------------------------
 
-(define *mock-vector*
+(set! *mock-vector*
   (let ((mock-vector? #f)
 	(no-mock-vectors #f)
 	(->value #f))
     (let ((mock-vector-class
-	  (inlet 'equivalent?        (make-local-method #_equivalent?) ; see comment below
+	  (inlet 'equivalent?        (lambda (x y)
+				       (#_equivalent? (->value x) (->value y)))
 		 
 		 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
 				       (if (mock-vector? i)
@@ -225,13 +240,13 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-hash-table*
+(set! *mock-hash-table*
   (let ((mock-hash-table? #f)
 	(no-mock-hash-tables #f)
 	(->value #f))
     (let ((mock-hash-table-class
 	  (inlet 'equivalent?        (lambda (x y) 
-				       (#_equivalent? (x 'value) y))
+				       (#_equivalent? (->value x) (->value y)))
 
 		 'hash-table-ref     (lambda (obj key) 
 				       (#_hash-table-ref (->value obj) (->value key)))
@@ -381,7 +396,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-string*
+(set! *mock-string*
   (let ((mock-string? #f)
 	 (no-mock-strings #f)
 	 (->value #f))
@@ -629,7 +644,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-char*
+(set! *mock-char*
   (let ((mock-char? #f)
 	(no-mock-chars #f)
 	(->value #f))
@@ -749,7 +764,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-number*
+(set! *mock-number*
   (let ((mock-number? #f)
 	(no-mock-numbers #f)
 	(vref #f)
@@ -1174,7 +1189,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-pair*
+(set! *mock-pair*
   (let ((mock-pair? #f)
 	(no-mock-pairs #f)
 	(->value #f))
@@ -1197,7 +1212,7 @@
 				     (apply #_write (->value obj) (map ->value rest))
 				     obj)
 		 'display          (lambda (obj . rest)
-				     (apply #_write (->value obj) (map ->value rest))
+				     (apply #_display (->value obj) (map ->value rest))
 				     obj)
 
 		 'list?            (lambda (obj) (#_list? (->value obj)))
@@ -1364,7 +1379,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-symbol*
+(set! *mock-symbol*
   (let ((mock-symbol? #f)
 	(no-mock-symbols #f)
 	(->value #f))
@@ -1442,7 +1457,16 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-c-pointer*
+(define (cover-lets args)
+  (let ((opens ()))
+    (for-each (lambda (arg)
+		(when (openlet? arg)
+		  (coverlet arg)
+		  (set! opens (cons arg opens))))
+	      args)
+    opens))
+
+(set! *mock-c-pointer*
   (let ((->value #f)
 	(mock-c-pointer? #f))
     (let ((mock-c-pointer-class
@@ -1452,29 +1476,50 @@
 		  'c-pointer-weak1 (lambda (obj) (#_c-pointer-weak1 (->value obj)))
 		  'c-pointer-weak2 (lambda (obj) (#_c-pointer-weak2 (->value obj)))
 		  'c-pointer->list (lambda (obj) (#_c-pointer->list (->value obj)))
-		  'object->string  (lambda args (apply #_object->string (map ->value args)))
+
+		  'object->string  (lambda args
+				     (let ((new-args (map ->value args)))
+				       (let ((opens (cover-lets args)))
+					 (let ((result (apply #_object->string new-args)))
+					   (for-each openlet opens)
+					   result))))
 
 		  'format          (lambda (port str . args) 
 				     (if (mock-c-pointer? port)
 					 (error 'wrong-type-arg "format: port arg is a mock-c-pointer? ~A" (port 'value)))
 				     (if (mock-c-pointer? str)
 					 (error 'wrong-type-arg "format: control string arg is a mock-c-pointer? ~A" (str 'value)))
-				     (apply #_format port str (map ->value args)))
+				     (let ((new-args (map ->value args)))
+				       (let ((opens (cover-lets args)))
+					 (let ((result (apply #_format port str new-args)))
+					   (for-each openlet opens)
+					   result))))
 
 		 'write            (lambda (obj . rest)
-				     (if (null? rest)
-					 (#_write (->value obj))
-					 (if (mock-c-pointer? (car rest))
-					     (error 'wrong-type-arg "write port arg is a mock-c-pointer?: ~A" (car rest))
-					     (#_write (->value obj) (car rest))))
-				     obj)
+				     (let ((nobj (->value obj)))
+				       (dynamic-wind
+					   (lambda () (coverlet obj))
+					   (lambda ()
+					     (if (null? rest)
+						 (#_write nobj)
+						 (if (mock-c-pointer? (car rest))
+						     (error 'wrong-type-arg "write port arg is a mock-c-pointer?: ~A" (car rest))
+						     (#_write nobj (car rest))))
+					     obj)
+					   (lambda () (openlet obj)))))
+
 		 'display          (lambda (obj . rest)
-				     (if (null? rest)
-					 (#_display (->value obj))
-					 (if (mock-c-pointer? (car rest))
-					     (error 'wrong-type-arg "display port arg is a mock-c-pointer: ~A" (car rest))
-					     (#_display (->value obj) (car rest))))
-				     obj)
+				     (let ((nobj (->value obj)))
+				       (dynamic-wind
+					   (lambda () (coverlet obj))
+					   (lambda ()
+					     (if (null? rest)
+						 (#_display nobj)
+						 (if (mock-c-pointer? (car rest))
+						     (error 'wrong-type-arg "display port arg is a mock-c-pointer: ~A" (car rest))
+						     (#_display nobj (car rest))))
+					     obj)
+					   (lambda () (openlet obj)))))
 		 )))
 
     (define* (mock-c-pointer (int 0) type info weak1 weak2)
@@ -1486,6 +1531,7 @@
     (set! mock-c-pointer? 
 	  (lambda (obj)
 	    (and (openlet? obj)
+		 (let? obj)
 		 (outlet-member obj mock-c-pointer-class))))
     
     (set! ->value (lambda (obj)
@@ -1498,7 +1544,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-random-state*
+(set! *mock-random-state*
   (let ((->value #f)
 	(mock-random-state? #f))
     (let ((mock-random-state-class
@@ -1558,7 +1604,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-iterator*
+(set! *mock-iterator*
   (let ((->value #f)
 	(mock-iterator? #f))
     (let ((mock-iterator-class
@@ -1611,7 +1657,7 @@
 
 ;;; --------------------------------------------------------------------------------
 
-(define *mock-port*
+(set! *mock-port*
   (let ((mock-port? #f)
 	(no-mock-ports #f)
 	(->value #f))
@@ -1804,3 +1850,4 @@
 ((p 'owner) p) -> "bil"
 |#
 
+)

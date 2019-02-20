@@ -1755,7 +1755,7 @@ static const char *Reverb_urls[] = {
 
 #if HAVE_SCHEME
 
-static const char *snd_names[11728] = {
+static const char *snd_names[11720] = {
     "*clm-array-print-length*", "ws.scm",
     "*clm-channels*", "ws.scm",
     "*clm-clipped*", "ws.scm",
@@ -6546,9 +6546,7 @@ static const char *snd_names[11728] = {
     "make-literal-path", "dlocsig.scm",
     "make-literal-polar-path", "dlocsig.scm",
     "make-local-biquad", "dsp.scm",
-    "make-local-method", "mockery.scm",
     "make-lowpass", "dsp.scm",
-    "make-method", "mockery.scm",
     "make-mod-all-pass", "tankrev.scm",
     "make-moog", "moog.scm",
     "make-moog-filter", "moog.scm",
@@ -6581,7 +6579,6 @@ static const char *snd_names[11728] = {
     "make-nxy1sin", "generators.scm",
     "make-nxycos", "generators.scm",
     "make-nxysin", "generators.scm",
-    "make-object", "mockery.scm",
     "make-octaves-env", "grani.scm",
     "make-onep", "prc95.scm",
     "make-onezero", "prc95.scm",
@@ -6813,7 +6810,6 @@ static const char *snd_names[11728] = {
     "os-type", "r7rs.scm",
     "os-version", "r7rs.scm",
     "osc-formants", "examp.scm",
-    "outlet-member", "mockery.scm",
     "output-port-open?", "r7rs.scm",
     "output-type", "musglyphs.scm",
     "overlay-rms-env", "draw.scm",
@@ -7624,7 +7620,7 @@ static const char *snd_names[11728] = {
 
 static void autoload_info(s7_scheme *sc)
 {
-  s7_autoload_set_names(sc, snd_names, 5864);
+  s7_autoload_set_names(sc, snd_names, 5860);
 }
 #endif
 

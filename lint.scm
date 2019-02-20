@@ -8328,6 +8328,107 @@
 	
 	;; ---------------- append ----------------
 	(let ()
+	  (define (append->list . items)
+	    (let ((lst (list 'list)))
+	      (for-each 
+	       (lambda (item)
+		 (set! lst (append lst (if (eq? (car item) 'list)
+					   (cdr item)
+					   ((if (eq? (car item) 'cons) list distribute-quote) 
+					    (cadr item))))))
+	       items)
+	      lst))
+
+	  (define (transform-append form)
+	    (let ((len1 (- (length form) 1))
+		  (args (cdr form)))
+	      (case len1
+		((0) ())
+		((1) (car args))
+		((2)
+		 (let ((arg2 (cadr args))
+		       (arg1 (car args)))
+		   (cond ((or (any-null? arg2)           
+			      (equal? arg2 '(list)))
+			  (list 'copy arg1))
+			       
+			 ((null? arg1)
+			  arg2)
+			       
+			 ((not (pair? arg1))
+			  form)
+			       
+			 ((and (pair? arg2) 
+			       (or (eq? (car arg1) 'list)
+				   (and (eq? (car arg1) 'cons)
+					(any-null? (caddr arg1)))
+				   (quoted-undotted-pair? arg1))
+			       (or (eq? (car arg2) 'list)
+				   (and (eq? (car arg2) 'cons)
+					(len>1? (cdr arg2))
+					(any-null? (caddr arg2)))
+				   (quoted-undotted-pair? arg2)))
+			  (apply append->list args))
+			       
+			 ((and (eq? (car arg1) 'list)
+			       (len=1? (cdr arg1)))
+			  (list 'cons (cadr arg1) arg2))
+			       
+			 ((eq? (car arg1) 'cons)
+			  (if (any-null? (caddr arg1))
+			      (list 'cons (cadr arg1) arg2)
+			      (let ((cargs `(append ,(caddr arg1) ,arg2)))
+				`(cons ,(cadr arg1) ,cargs))))
+			       
+			 ((and (eq? (car arg1) 'list)
+			       (len=2? (cdr arg1)))
+			  `(cons ,(cadr arg1) (cons ,(caddr arg1) ,arg2)))
+			       
+			 ((and (quoted-pair? arg1)
+			       (null? (cdadr arg1)))
+			  (if (or (symbol? (caadr arg1))
+				  (pair? (caadr arg1)))
+			      `(cons ',(caadr arg1) ,arg2)
+			      (list 'cons (caadr arg1) arg2)))
+			       
+			 ((not (equal? (cdr form) args))
+			  (cons 'append args))
+			 
+			 (else form))))
+
+		      (else
+		       (cond ((lint-every? (lambda (item)
+					     (and (pair? item)
+						  (or (eq? (car item) 'list)
+						      (and (eq? (car item) 'cons)
+							   (len>1? (cdr item))
+							   (any-null? (caddr item)))
+						      (quoted-undotted-pair? item))))
+					   args)
+			      (apply append->list args))
+			     
+			     ((and (len=2? (car args))
+				   (eq? (caar args) 'list))
+			      (let ((cargs (transform-append `(append ,@(cdr args)))))
+			      `(cons ,(cadar args) ,cargs)))
+			     
+			     ((and (pair? (car args))
+				   (eq? (caar args) 'cons))
+			      (let ((cargs `(append ,(caddar args) ,@(cdr args))))
+				`(cons ,(cadar args) ,cargs)))
+			     
+			     ((let ((n-1 (list-ref args (- len1 2))))
+				(and (len=2? n-1)
+				     (eq? (car n-1) 'list)))
+			      `(append ,@(copy args (make-list (- len1 2)))
+				       (cons ,(cadr (list-ref args (- len1 2))) 
+					     ,(list-ref args (- len1 1)))))
+			     
+			     ((not (equal? (cdr form) args))
+			      (cons 'append args))
+			     
+			     (else form))))))
+
 	  (define (sp-append caller head form env)
 	    (unless (= line-number last-checker-line-number)
 	      (set! last-checker-line-number line-number)
@@ -8368,17 +8469,7 @@
 		
 		(let ((new-args (splice-append (cdr form))))     ; (append '(1) (append '(2) '(3))) -> (append '(1) '(2) '(3))
 		  (let ((len1 (length new-args))
-			(suggestion made-suggestion)
-			(append->list (lambda items
-					(let ((lst (list 'list)))
-					  (for-each 
-					   (lambda (item)
-					     (set! lst (append lst (if (eq? (car item) 'list)
-								       (cdr item)
-								       ((if (eq? (car item) 'cons) list distribute-quote) 
-									(cadr item))))))
-					   items)
-					  lst))))
+			(suggestion made-suggestion))
 		    
 		    (when (and (> len1 2)
 			       (null? (list-ref new-args (- len1 1)))
@@ -8473,13 +8564,14 @@
 			     
 			     ((and (len=2? (car new-args))               ; (append (list x) y (list z)) -> (cons x (append y (list z)))?
 				   (eq? (caar new-args) 'list))
-			      (lint-format "perhaps ~A" caller (lists->string form `(cons ,(cadar new-args) (append ,@(cdr new-args))))))
-			     
+			      (let ((cargs (transform-append `(append ,@(cdr new-args)))))
+				(lint-format "perhaps ~A" caller (lists->string form `(cons ,(cadar new-args) ,cargs)))))
+
 			     ((and (pair? (car new-args))
 				   (eq? (caar new-args) 'cons))
-			      (lint-format "perhaps ~A" caller 
-					   (lists->string form 
-							  `(cons ,(cadar new-args) (append ,(caddar new-args) ,@(cdr new-args))))))
+			      (let ((cargs (transform-append `(append ,(caddar new-args) ,@(cdr new-args)))))
+				(lint-format "perhaps ~A" caller 
+					     (lists->string form `(cons ,(cadar new-args) ,cargs)))))
 			     
 			     ((let ((n-1 (list-ref new-args (- len1 2))))
 				(and (len=2? n-1)
@@ -9162,14 +9254,30 @@
 					  (list 'null? arg1))))
 			  
 			  ((and (eq? arg1 #t)              ; (eq? #t <boolean-expr>) -> boolean-expr
-				(pair? arg2)
-				(eq? (return-type (car arg2) env) 'boolean?))
-			   (set! expr arg2))
+				(pair? arg2))              ; (eq? #t <never-#t-expr) -> #f
+			   (let ((rtn (return-type (car arg2) env)))
+			     (unless (boolean? rtn)        ; #t = any result possible, #f = no signature found, values->#t in return-type
+			       (if (eq? rtn 'boolean?)
+				   (set! expr arg2)
+				   (if (not (pair? rtn))
+				       (set! expr #f)
+				       (if (and (not (memq 'boolean? rtn))
+						(not (memq #t rtn))
+						(not (memq 'values rtn)))
+					   (set! expr #f)))))))
 			  
 			  ((and (eq? arg2 #t)              ; (eq? <boolean-expr> #t) -> boolean-expr
-				(pair? arg1)
-				(eq? (return-type (car arg1) env) 'boolean?))
-			   (set! expr arg1)))
+				(pair? arg1))              ; (eq? <never-#t-expr) #t) -> #f
+			   (let ((rtn (return-type (car arg1) env)))
+			     (unless (boolean? rtn)
+			       (if (eq? rtn 'boolean?)
+				   (set! expr arg1)
+				 (if (not (pair? rtn))
+				     (set! expr #f)
+				     (if (and (not (memq 'boolean? rtn))
+					      (not (memq #t rtn))
+					      (not (memq 'values rtn)))
+					 (set! expr #f))))))))
 
 		    (let ((t1 (->lint-type arg1))          ; (eq? (floor pi) 'a) -> #f
 			  (t2 (->lint-type arg2)))

@@ -8544,9 +8544,10 @@ static s7_pointer g_outlet(s7_scheme *sc, s7_pointer args)
   #define Q_outlet s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_let_symbol)
 
   s7_pointer env;
+
   env = car(args);
   if (!is_let(env))
-    return(method_or_bust_with_type_one_arg(sc, env, sc->outlet_symbol, args, a_let_string));
+    return(s7_wrong_type_arg_error(sc, "outlet", 1, env, "a let")); /* not a method call here! */
 
   if ((env == sc->rootlet) ||
       (is_null(outlet(env))))
@@ -24920,7 +24921,7 @@ If the optional 'clear-port' is #t, the current string is flushed."
 
   if (port_position(p) > sc->max_string_length)
     return(s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(p)),
-				 "output string length is greater than (*s7* 'max-string-length)"));
+				 "length is greater than (*s7* 'max-string-length)"));
   /* this includes (port_position(p) >= 2147483648) which will be a negative length in make_string_with_length */
 
   if ((clear_port) &&
@@ -30826,6 +30827,10 @@ static void closure_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
     {
       /* look for object->string method else fallback on ordinary case.
        * can't use recursion on closure_let here because then the fallback name is #<let>.
+       * this is tricky!: (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
+       *   calls object->string on the closure whose closure_let is the mock-c-pointer;
+       *   it has an object->string method that clears mock-c-pointers and tries again...
+       *   so, display methods need to use coverlet/openlet.
        */
       s7_pointer print_func;
       print_func = find_method(sc, closure_let(obj), sc->object_to_string_symbol);
@@ -90268,5 +90273,6 @@ int main(int argc, char **argv)
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
  * gsl changes (libgsl.scm) tested
- * see s7test for lint enormities
+ * see s7test for lint, are there other transformation like append? combine??
+ * display et al copy/paste mockery
  */
