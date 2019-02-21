@@ -9220,7 +9220,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
 /* -------------------------------- defined? -------------------------------- */
 static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
 {
-  #define H_is_defined "(defined? obj (env (curlet)) ignore-globals) returns #t if obj has a binding (a value) in the environment env"
+  #define H_is_defined "(defined? symbol (env (curlet)) ignore-globals) returns #t if symbol has a binding (a value) in the environment env.  Only env is searched if ignore-globals is not #f."
   #define Q_is_defined s7_make_signature(sc, 4, sc->is_boolean_symbol, sc->is_symbol_symbol, sc->is_let_symbol, sc->is_boolean_symbol)
 
   s7_pointer sym;
@@ -24922,8 +24922,6 @@ If the optional 'clear-port' is #t, the current string is flushed."
   if (port_position(p) > sc->max_string_length)
     return(s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(p)),
 				 "length is greater than (*s7* 'max-string-length)"));
-  /* this includes (port_position(p) >= 2147483648) which will be a negative length in make_string_with_length */
-
   if ((clear_port) &&
       (port_position(p) < port_data_size(p)))
     {
@@ -24944,13 +24942,20 @@ If the optional 'clear-port' is #t, the current string is flushed."
 static s7_pointer op_get_output_string(s7_scheme *sc)
 {
   s7_pointer port;
+
   port = sc->code;
   if ((!is_output_port(port)) ||
       (port_is_closed(port)))
     simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, wrap_string(sc, "an open string output port", 26));
-  if (port_position(port) >= port_data_size(port))
+
+  if (port_position(port) > sc->max_string_length)
+    return(s7_out_of_range_error(sc, "get-output-string", 0, s7_make_integer(sc, port_position(port)),
+				 "length is greater than (*s7* 'max-string-length)"));
+
+  if (port_position(port) >= port_data_size(port)) /* can the > part happen? */
     sc->value = block_to_string(sc, reallocate(sc, port_data_block(port), port_position(port) + 1), port_position(port));
   else sc->value = block_to_string(sc, port_data_block(port), port_position(port));
+
   port_data(port) = NULL;
   port_data_size(port) = 0;
   port_data_block(port) = NULL;
@@ -27917,7 +27922,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  return;
 	}
     }
-  sc->temp8 = vect;
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, vect);
   if (use_write == P_READABLE)
     {
       if ((ci) &&
@@ -27935,7 +27940,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    {
 	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, vref), ">", NULL);
 	      port_write_string(port)(sc, buf, plen, port);
-	      sc->temp8 = sc->nil;
+	      unstack(sc);
 	      return;
 	    }
 
@@ -28064,7 +28069,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  else port_write_character(port)(sc, ')', port);
 	}
     }
-  sc->temp8 = sc->nil;
+  unstack(sc);
 }
 
 static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_write_t use_write)
@@ -39271,6 +39276,7 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 			set_elist_2(sc, wrap_string(sc, "sort! argument 1 should be a proper list: ~S", 44), data)));
       if (len < 2)
 	return(data);
+
       if (sort_func)
 	{
 	  s7_int i;
@@ -42771,7 +42777,10 @@ static s7_pointer g_is_aritable(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, s7_is_aritable(sc, car(args), num)));
 }
 
-static bool is_aritable_b_7pp(s7_scheme *sc, s7_pointer f, s7_pointer i) {return(g_is_aritable(sc, set_plist_2(sc, f, i)) != sc->F);}
+static bool is_aritable_b_7pp(s7_scheme *sc, s7_pointer f, s7_pointer i) 
+{
+  return(g_is_aritable(sc, set_plist_2(sc, f, i)) != sc->F);
+}
 
 
 /* -------------------------------- sequence? -------------------------------- */
@@ -42897,9 +42906,7 @@ static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
 	      closure_set_setter(p, f);
 	      return(f);
 	    }
-	  f = funclet_entry(sc, p, sc->setter_symbol);       /* look for setter method? */
-	  if (f)
-	    return(s7_apply_function(sc, f, args));
+	  /* we used to search for setter here, but that can find the built-in setter causing an infinite loop (maybe check for that??) */
 	  closure_set_no_setter(p);
 	}
       return(sc->F);
@@ -48916,8 +48923,33 @@ static s7_pointer g_apply(s7_scheme *sc, s7_pointer args)
   return(sc->nil);
 }
 
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
+
   TRACK(sc);
 #if S7_DEBUGGING
   {
@@ -48928,6 +48960,7 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
       T_Pos(car(p));
   }
 #endif
+
   set_current_code(sc, history_cons(sc, fnc, args));
 
   if (is_c_function(fnc))
@@ -90273,6 +90306,7 @@ int main(int argc, char **argv)
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
  * gsl changes (libgsl.scm) tested
- * see s7test for lint, are there other transformation like append? combine??
- * display et al copy/paste mockery
+ * see s7test for lint, are there other transformations like append? combine??
+ * display et al copy/paste mockery, clean up others like copy
+ * t718 eqiv
  */
