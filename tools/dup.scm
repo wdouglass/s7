@@ -7,11 +7,11 @@
 (set! (*s7* 'heap-size) (* 2 1024000))
 
 (define dups 
-  (let ()
+  (let ((bv #f))
 
-    (define-constant (all-positive? v start end)
+    (define-constant (all-positive? start end)
       (do ((j end (- j 1)))
-	  ((or (negative? (int-vector-ref v j))
+	  ((or (vector-ref bv j)
 	       (= j start))
 	   j)))
 
@@ -21,6 +21,7 @@
 	    (lens (make-int-vector alloc-lines))
 	    (linenums (make-int-vector alloc-lines))
 	    (size-1 0))
+	(set! bv (make-vector alloc-lines #f))
 	
 	(call-with-input-file file
 	  (lambda (p)
@@ -75,6 +76,7 @@
 				  (begin
 				    (unless matches
 				      (int-vector-set! lens (cdr current) unctr)
+				      (vector-set! bv (cdr current) #t) ; bv = (negative? (lens...))
 				      (set! unctr (- unctr 1)))
 				    (set! matches #f)
 				    (set! current srt))))
@@ -87,14 +89,14 @@
 		   (last-line (- total-lines size))
 		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
-		(let ((j (all-positive? lens i (+ i size-1))))   ; is a match possible?
+		(let ((j (all-positive? i (+ i size-1))))   ; is a match possible?
 		  (if (not (= j i))
 		      (set! i j)
 		      (let ((lenseq (subvector lens size i))
 			    (lineseq (subvector lines size i)))
 			(do ((k (+ i 1) (+ k 1)))
 			    ((>= k last-line))
-			  (let ((jk (all-positive? lens k (+ k size-1))))
+			  (let ((jk (all-positive? k (+ k size-1))))
 			    (if (not (= jk k))
 				(set! k jk)
 				(when (and (equal? lenseq (subvector lens size k))

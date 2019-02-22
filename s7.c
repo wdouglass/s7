@@ -7428,8 +7428,7 @@ static s7_pointer g_is_openlet(s7_scheme *sc, s7_pointer args)
   #define Q_is_openlet sc->pl_bt
   s7_pointer e;
 
-  e = car(args);
-  /* if e is not a let, should this raise an error? -- no, easier to use this way in cond */
+  e = car(args);  /* if e is not a let, should this raise an error? -- no, easier to use this way in cond */
   check_method(sc, e, sc->is_openlet_symbol, args);
   return(make_boolean(sc, has_methods(e)));
 }
@@ -90279,8 +90278,8 @@ int main(int argc, char **argv)
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534 3143
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432
@@ -90297,7 +90296,6 @@ int main(int argc, char **argv)
  *   for OP_SAFE_C_S: fx_o_p_p_s: OP_SAFE_O_S where hop is assumed, but use opt2 not opt2(cdr)?
  *   fx_c_s gives non-pp cases? p_p for is_*? cos/sin cxr mus_copy but there are a million special cases here
  *   or b_7p -> op_safe_o_b_7p, also fx_o_b_7p
- * (negative? (int-vector-ref...)) would need i_pp and b|p_i
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
@@ -90305,8 +90303,8 @@ int main(int argc, char **argv)
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * gsl changes (libgsl.scm) tested
  * see s7test for lint, are there other transformations like append? combine??
  * display et al copy/paste mockery, clean up others like copy
- * t718 eqiv
+ * t718 eqiv *stdout* cc/vect-of-nil
+ * if s7_apply_function cycle check is cheap, maybe leave it in?
  */
