@@ -1131,7 +1131,7 @@ struct s7_scheme {
   uint32_t gc_stats, gensym_counter, f_class, add_class, multiply_class, subtract_class, equal_class;
   int32_t format_column;
   uint64_t capture_let_counter;
-  bool short_print, is_autoloading, in_with_let, object_out_locked;
+  bool short_print, is_autoloading, in_with_let, object_out_locked, has_openlets;
   int64_t let_number;
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
@@ -2391,6 +2391,7 @@ static void init_types(void)
 
 #define T_HAS_METHODS                  (1 << (TYPE_BITS + 22))
 #define has_methods(p)                 has_type_bit(T_Pos(p), T_HAS_METHODS)
+#define has_active_methods(sc, p)      ((has_type_bit(T_Pos(p), T_HAS_METHODS)) && (sc->has_openlets))
 #define set_has_methods(p)             set_type_bit(T_Met(p), T_HAS_METHODS)
 #define clear_has_methods(p)           clear_type_bit(T_Met(p), T_HAS_METHODS)
 /* this marks an environment or closure that is "open" for generic functions etc, don't reuse this bit */
@@ -4327,7 +4328,7 @@ static int32_t position_of(s7_pointer p, s7_pointer args)
 
 s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_method(sc, find_let(sc, obj), method));
   return(sc->undefined);
 }
@@ -4341,7 +4342,7 @@ static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
 #define check_method(Sc, Obj, Method, Args)		\
   {							\
     s7_pointer func;					\
-    if ((has_methods(Obj)) &&				\
+    if ((has_active_methods(sc, Obj)) &&				\
 	((func = find_method(Sc, find_let(Sc, Obj), Method)) != Sc->undefined)) \
       return(s7_apply_function(Sc, func, copy_list(Sc, Args))); \
   }
@@ -4349,7 +4350,7 @@ static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
 #define check_method_uncopied(Sc, Obj, Method, Args)		\
   {							\
     s7_pointer func;					\
-    if ((has_methods(Obj)) &&				\
+    if ((has_active_methods(sc, Obj)) &&				\
 	((func = find_method(Sc, find_let(Sc, Obj), Method)) != Sc->undefined)) \
       return(s7_apply_function(Sc, func, Args)); \
   }
@@ -4374,7 +4375,7 @@ static s7_pointer missing_method_error(s7_scheme *sc, s7_pointer method, s7_poin
     s7_pointer p;					       \
     p = car(Args);					       \
     if (Checker(p)) return(Sc->T);			       \
-    if (!has_methods(p)) return(Sc->F);			       \
+    if (!has_active_methods(sc, p)) return(Sc->F);			       \
     return(apply_boolean_method(Sc, p, Method));	       \
   }
 
@@ -4383,7 +4384,7 @@ static s7_pointer missing_method_error(s7_scheme *sc, s7_pointer method, s7_poin
     s7_pointer p;							\
     p = lookup(sc, cadar(Args));			\
     if (Checker(p)) return(Sc->F);					\
-    if (!has_methods(p)) return(Sc->T);					\
+    if (!has_active_methods(sc, p)) return(Sc->T);					\
     return((apply_boolean_method(Sc, p, Method) == sc->F) ? sc->T : sc->F); \
   }
 
@@ -4398,7 +4399,7 @@ static s7_pointer find_and_apply_method(s7_scheme *sc, s7_pointer lt, s7_pointer
 
 static s7_pointer method_or_bust(s7_scheme *sc, s7_pointer obj, s7_pointer method, s7_pointer args, uint8_t typ, int32_t num)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), method, args));
   return(wrong_type_argument(sc, method, num, obj, typ));
 }
@@ -4407,7 +4408,7 @@ static s7_pointer immutable_object_error(s7_scheme *sc, s7_pointer info) {return
 
 static s7_pointer mutable_method_or_bust(s7_scheme *sc, s7_pointer obj, s7_pointer method, s7_pointer args, uint8_t typ, int32_t num)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), method, args));
   if (type(obj) != typ)
     return(wrong_type_argument(sc, method, num, obj, typ));
@@ -4418,21 +4419,21 @@ static s7_pointer mutable_method_or_bust(s7_scheme *sc, s7_pointer obj, s7_point
 
 static s7_pointer method_or_bust_one_arg(s7_scheme *sc, s7_pointer obj, s7_pointer method, s7_pointer args, uint8_t typ)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), method, args));
   return(simple_wrong_type_argument(sc, method, obj, typ));
 }
 
 static s7_pointer method_or_bust_with_type(s7_scheme *sc, s7_pointer obj, s7_pointer method, s7_pointer args, s7_pointer typ, int32_t num)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), method, args));
   return(wrong_type_argument_with_type(sc, method, num, obj, typ));
 }
 
 static s7_pointer method_or_bust_with_type_one_arg(s7_scheme *sc, s7_pointer obj, s7_pointer method, s7_pointer args, s7_pointer typ)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), method, args));
   return(simple_wrong_type_argument_with_type(sc, method, obj, typ));
 }
@@ -7085,7 +7086,6 @@ static s7_pointer find_method(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
   if (symbol_id(symbol) == 0) /* this means the symbol has never been used locally, so how can it be a method? */
     return(sc->undefined);
 
-  /* I think the symbol_id is in sync with let_id, so the standard search should work */
   if (let_id(env) == symbol_id(symbol))
     return(slot_value(local_slot(symbol)));
 
@@ -7113,7 +7113,7 @@ static s7_int let_length(s7_scheme *sc, s7_pointer e)
   if (e == sc->rootlet)
     return(sc->rootlet_entries);
 
-  if (has_methods(e))
+  if (has_active_methods(sc, e))
     {
       s7_pointer length_func;
       length_func = find_method(sc, e, sc->length_symbol);
@@ -7454,12 +7454,28 @@ static s7_pointer g_openlet(s7_scheme *sc, s7_pointer args)
   if (!is_let(elet))
     return(simple_wrong_type_argument_with_type(sc, sc->openlet_symbol, e, a_let_string));
 
-  if ((has_methods(e)) &&
+  if ((has_active_methods(sc, e)) &&
       ((func = find_method(sc, elet, sc->openlet_symbol)) != sc->undefined))
     return(s7_apply_function(sc, func, args));
 
   set_has_methods(e);
   return(e);
+}
+
+static s7_pointer g_openlets(s7_scheme *sc, s7_pointer args) 
+{
+  #define H_openlets "(openlets) (re)activates any open lets"
+  #define Q_openlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
+  sc->has_openlets = true; 
+  return(sc->T);
+}
+
+static s7_pointer g_coverlets(s7_scheme *sc, s7_pointer args) 
+{
+  #define H_coverlets "(coverlets) deactivates any open lets"
+  #define Q_coverlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
+  sc->has_openlets = false; 
+  return(sc->F);
 }
 
 
@@ -7962,7 +7978,8 @@ s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer env)
       s7_pointer iter, func;
       /* need to check make-iterator method before dropping into let->list */
 
-      if ((has_methods(env)) && ((func = find_method(sc, env, sc->make_iterator_symbol)) != sc->undefined))
+      if ((has_active_methods(sc, env)) && 
+	  ((func = find_method(sc, env, sc->make_iterator_symbol)) != sc->undefined))
 	iter = s7_apply_function(sc, func, list_1(sc, env));
       else iter = sc->nil;
 
@@ -9450,7 +9467,7 @@ static s7_pointer g_is_c_pointer(s7_scheme *sc, s7_pointer args)
   p = car(args);
   if (!is_c_pointer(p))
     {
-      if (!has_methods(p)) return(sc->F);
+      if (!has_active_methods(sc, p)) return(sc->F);
       return(apply_boolean_method(sc, p, sc->is_c_pointer_symbol));
     }
   if (is_pair(cdr(args)))
@@ -13386,7 +13403,7 @@ static bool is_rational_via_method(s7_scheme *sc, s7_pointer p) /* used in gmp a
 {
   if (s7_is_rational(p))
     return(true);
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     {
       s7_pointer f;
       f = find_method(sc, find_let(sc, p), sc->is_rational_symbol);
@@ -15396,7 +15413,7 @@ static s7_int floor_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(floor_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(floor(fraction(p))));
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, find_let(sc, p), sc->floor_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "floor", 0, p, "a real number");
   return(0);
@@ -15463,7 +15480,7 @@ static s7_int ceiling_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(ceiling_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(ceil(fraction(p))));
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, find_let(sc, p), sc->ceiling_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "ceiling", 0, p, "a real number");
   return(0);
@@ -16239,14 +16256,14 @@ static s7_pointer add_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static s7_pointer add_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, find_let(sc, x), sc->add_symbol, list_2(sc, x, y)));
   return(wrong_type_argument_with_type(sc, sc->add_symbol, 1, x, a_number_string));
 }
 
 static s7_pointer add_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, find_let(sc, y), sc->add_symbol, list_2(sc, x, y)));
   return(wrong_type_argument_with_type(sc, sc->add_symbol, 2, y, a_number_string));
 }
@@ -17054,7 +17071,7 @@ static s7_pointer sub_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(ma
 
 static s7_pointer multiply_method_or_bust(s7_scheme *sc, s7_pointer obj, s7_pointer caller, s7_pointer args, s7_pointer typ, int32_t num)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     return(find_and_apply_method(sc, find_let(sc, obj), sc->multiply_symbol, args));
   if (num == 0)
     return(simple_wrong_type_argument_with_type(sc, caller, obj, typ));
@@ -17627,7 +17644,7 @@ static bool is_number_via_method(s7_scheme *sc, s7_pointer p)
 {
   if (s7_is_number(p))
     return(true);
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     {
       s7_pointer f;
       f = find_method(sc, find_let(sc, p), sc->is_number_symbol);
@@ -17955,7 +17972,7 @@ static bool is_real_via_method_1(s7_scheme *sc, s7_pointer p)
   return(false);
 }
 
-#define is_real_via_method(sc, p) ((s7_is_real(p)) || ((has_methods(p)) && (is_real_via_method_1(sc, p))))
+#define is_real_via_method(sc, p) ((s7_is_real(p)) || ((has_active_methods(sc, p)) && (is_real_via_method_1(sc, p))))
 
 static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 {
@@ -18549,7 +18566,7 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
     case T_FLOAT_VECTOR:
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) == ilen));
     case T_CLOSURE:
-    case T_CLOSURE_STAR: if (has_methods(val)) return(make_boolean(sc, closure_length(sc, val) == ilen));
+    case T_CLOSURE_STAR: if (has_active_methods(sc, val)) return(make_boolean(sc, closure_length(sc, val) == ilen));
     case T_ITERATOR:
       {
 	s7_pointer len;
@@ -18583,14 +18600,14 @@ static bool equal_b_pi(s7_scheme *sc, s7_pointer x, s7_int y)
 
 static s7_pointer eq_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, find_let(sc, x), sc->eq_symbol, list_2(sc, x, y)));
   return(wrong_type_argument_with_type(sc, sc->eq_symbol, 1, x, a_number_string));
 }
 
 static s7_pointer eq_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, find_let(sc, y), sc->eq_symbol, list_2(sc, x, y)));
   return(wrong_type_argument_with_type(sc, sc->eq_symbol, 2, y, a_number_string));
 }
@@ -19478,7 +19495,7 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
     case T_FLOAT_VECTOR:
     case T_VECTOR:       return(make_boolean(sc, vector_length(val) < ilen));
     case T_CLOSURE:
-    case T_CLOSURE_STAR: if (has_methods(val)) return(make_boolean(sc, closure_length(sc, val) < ilen));
+    case T_CLOSURE_STAR: if (has_active_methods(sc, val)) return(make_boolean(sc, closure_length(sc, val) < ilen));
     case T_ITERATOR:
       {
 	s7_pointer len;
@@ -19493,7 +19510,7 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
 
 static bool lt_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, find_let(sc, x), sc->lt_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->lt_symbol, 1, x, T_REAL);
   return(false);
@@ -19501,7 +19518,7 @@ static bool lt_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static bool lt_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, find_let(sc, y), sc->lt_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->lt_symbol, 2, y, T_REAL);
   return(false);
@@ -19713,7 +19730,7 @@ static s7_pointer g_greater_s_fc(s7_scheme *sc, s7_pointer args)
 
 static bool gt_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, find_let(sc, x), sc->gt_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->gt_symbol, 1, x, T_REAL);
   return(false);
@@ -19721,7 +19738,7 @@ static bool gt_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static bool gt_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, find_let(sc, y), sc->gt_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->gt_symbol, 2, y, T_REAL);
   return(false);
@@ -19839,7 +19856,7 @@ static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args)
 
 static bool geq_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, find_let(sc, x), sc->geq_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->geq_symbol, 1, x, T_REAL);
   return(false);
@@ -19847,7 +19864,7 @@ static bool geq_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static bool geq_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, find_let(sc, y), sc->geq_symbol, list_2(sc, x, y)) != sc->F);
   wrong_type_argument(sc, sc->geq_symbol, 2, y, T_REAL);
   return(false);
@@ -21495,7 +21512,7 @@ static bool is_character_via_method(s7_scheme *sc, s7_pointer p)
 {
   if (s7_is_character(p))
     return(true);
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     {
       s7_pointer f;
       f = find_method(sc, find_let(sc, p), sc->is_char_symbol);
@@ -22504,7 +22521,7 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer c
       if (!is_string(p))
 	{
 	  /* look for string-append and if found, cobble up a plausible intermediate call */
-	  if (has_methods(p))
+	  if (has_active_methods(sc, p))
 	    {
 	      s7_pointer func;
 	      func = find_method(sc, find_let(sc, p), caller);
@@ -22699,7 +22716,7 @@ static bool is_string_via_method(s7_scheme *sc, s7_pointer p)
 {
   if (s7_is_string(p))
     return(true);
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     {
       s7_pointer f;
       f = find_method(sc, find_let(sc, p), sc->is_string_symbol);
@@ -23131,7 +23148,7 @@ static s7_pointer g_string_1(s7_scheme *sc, s7_pointer args, s7_pointer sym)
       p = car(x);
       if (!s7_is_character(p))
 	{
-	  if (has_methods(p))
+	  if (has_active_methods(sc, p))
 	    {
 	      s7_pointer func;
 	      func = find_method(sc, find_let(sc, p), sym);
@@ -26654,7 +26671,7 @@ static s7_pointer pair_iterate_1(s7_scheme *sc, s7_pointer obj)
 static s7_pointer iterator_method(s7_scheme *sc, s7_pointer e)
 {
   s7_pointer func;
-  if ((has_methods(e)) &&
+  if ((has_active_methods(sc, e)) &&
       ((func = find_method(sc, find_let(sc, e), sc->make_iterator_symbol)) != sc->undefined))
     {
       s7_pointer it;
@@ -26758,7 +26775,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 	  iterator_current(iter) = p;
 	  set_mark_seq(iter);
 	  iterator_next(iter) = closure_iterate;
-	  if (has_methods(e))
+	  if (has_active_methods(sc, e))
 	    iterator_length(iter) = closure_length(sc, e);
 	  else iterator_length(iter) = s7_int_max;
 	}
@@ -28998,7 +29015,7 @@ static void slot_setters_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
 static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   /* if outer env points to (say) method list, the object needs to specialize object->string itself */
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     {
       s7_pointer print_func;
       print_func = find_method(sc, obj, sc->object_to_string_symbol);
@@ -30827,7 +30844,7 @@ static void character_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 
 static void closure_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (has_methods(obj))
+  if (has_active_methods(sc, obj))
     {
       /* look for object->string method else fallback on ordinary case.
        * can't use recursion on closure_let here because then the fallback name is #<let>.
@@ -31851,7 +31868,7 @@ static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_
   char ctrl_str[3];
 
   obj = car(fdat->args);
-  if ((!has_methods(obj)) ||
+  if ((!has_active_methods(sc, obj)) ||
       ((func = find_method(sc, find_let(sc, obj), sc->format_symbol)) == sc->undefined))
     return(false);
 
@@ -32200,7 +32217,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		i++;
 		obj = car(fdat->args);
 		if ((use_write == P_READABLE) ||
-		    (!has_methods(obj)) ||
+		    (!has_active_methods(sc, obj)) ||
 		    (!format_method(sc, (char *)(str + i), fdat, port)))
 		  {
 		    /* for the column check, we need to know the length of the object->string output */
@@ -36430,7 +36447,7 @@ static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
       x = car(p);
       if (!is_any_vector(x))
 	{
-	  if (has_methods(x))
+	  if (has_active_methods(sc, x))
 	    {
 	      s7_pointer func;
 	      func = find_method(sc, find_let(sc, x), sc->vector_append_symbol);
@@ -37483,6 +37500,7 @@ static s7_pointer g_vector_set_4(s7_scheme *sc, s7_pointer args)
   ip2 = caddr(args);
   if ((!is_any_vector(v)) || 
       (vector_rank(v) != 2) ||
+      (is_immutable(v)) ||
       (!s7_is_integer(ip1)) ||
       (!s7_is_integer(ip2)))
     return(g_vector_set(sc, args));
@@ -41899,7 +41917,7 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
 
   /* (documentation func) should act like (documentation abs) -- available without (openlet (funclet func)) or (openlet func)
    *   so we check that case ahead of time here, rather than going through check_method which does not
-   *   call find_let unless has_methods(func).  Adding T_HAS_METHODS to all closures causes other troubles.
+   *   call find_let unless has_active_methods(sc, func).  Adding T_HAS_METHODS to all closures causes other troubles.
    */
   if (has_closure_let(p))
     {
@@ -42107,7 +42125,7 @@ static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
   s7_pointer obj;
   obj = car(args);
   if (is_c_object(obj)) return(sc->T);
-  if (!has_methods(obj)) return(sc->F);
+  if (!has_active_methods(sc, obj)) return(sc->F);
   return(apply_boolean_method(sc, obj, sc->is_c_object_symbol));
 }
 
@@ -42728,7 +42746,7 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
     case T_C_OBJECT:
       {
 	s7_pointer func;
-	if ((has_methods(x)) &&
+	if ((has_active_methods(sc, x)) &&
 	    ((func = find_method(sc, find_let(sc, x), sc->is_aritable_symbol)) != sc->undefined))
 	  return(s7_apply_function(sc, func, list_2(sc, x, s7_make_integer(sc, args))) != sc->F);
 	return(is_safe_procedure(x));
@@ -43553,7 +43571,7 @@ static bool c_objects_are_equal(s7_scheme *sc, s7_pointer a, s7_pointer b, share
 
 #define check_equivalent_method(Sc, X, Y) \
   do {						 \
-      if (has_methods(X))						\
+      if (has_active_methods(sc, X))						\
 	{								\
 	  s7_pointer equal_func;					\
 	  equal_func = find_method(Sc, find_let(Sc, X), Sc->is_equivalent_symbol); \
@@ -43755,8 +43773,8 @@ static bool closure_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
     return(true);
   if (type(x) != type(y))
     return(false);
-  if ((has_methods(x)) &&
-      (has_methods(y)))
+  if ((has_active_methods(sc, x)) &&
+      (has_active_methods(sc, y)))
     {
       s7_pointer equal_func;
       equal_func = find_method(sc, closure_let(x), sc->is_equal_symbol);
@@ -43772,7 +43790,7 @@ static bool closure_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
     return(true);
   if (type(x) != type(y))
     return(false);
-  if (has_methods(y))
+  if (has_active_methods(sc, y))
     check_equivalent_method(sc, x, y);
   /* not sure about this -- we can't simply check let_equal(closure_let(x), closure_let(y))
    *   because locally defined constant functions on the second pass find the outer let.
@@ -44504,7 +44522,7 @@ static s7_pointer lt_length(s7_scheme *sc, s7_pointer lst)
 
 static s7_pointer fnc_length(s7_scheme *sc, s7_pointer lst)
 {
-  if (has_methods(lst))
+  if (has_active_methods(sc, lst))
     return(make_integer(sc, closure_length(sc, lst)));
   return(sc->F);
 }
@@ -45624,7 +45642,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	  return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, a_sequence_string));
 	}
       if ((is_simple_sequence(p)) &&
-	  (!has_methods(p)))
+	  (!has_active_methods(sc, p)))
 	return(simple_wrong_type_argument_with_type(sc, sc->reverseb_symbol, p, wrap_string(sc, "a vector, string, or list", 25)));
       return(method_or_bust_with_type_one_arg(sc, p, sc->reverseb_symbol, list_1(sc, p), a_sequence_string));
     }
@@ -45780,7 +45798,7 @@ static s7_int total_sequence_length(s7_scheme *sc, s7_pointer args, s7_pointer c
 	  (typ != T_FREE) &&
 	  ((type(seq) == T_HASH_TABLE) ||  /* can't append hash-tables (no obvious meaning to the operation) */
 	   ((type(seq) == T_LET) &&        /*   similarly for lets, unless this is a mock-string or something similar */
-	    ((!has_methods(seq)) || (find_method(sc, seq, caller) == sc->undefined)))))
+	    ((!has_active_methods(sc, seq)) || (find_method(sc, seq, caller) == sc->undefined)))))
 	{
 	  wrong_type_argument(sc, caller, i, seq, typ);
 	  return(0);
@@ -46436,7 +46454,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 		  }
 	      }
 	  }
-	if (has_methods(obj))
+	if (has_active_methods(sc, obj))
 	  {
 	    s7_pointer func;
 	    func = find_method(sc, obj, sc->object_to_let_symbol);
@@ -46493,7 +46511,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 	  s7_varlet(sc, let, sc->c_object_to_string_symbol, s7_lambda(sc, c_object_to_string(sc, obj), 1, 1, false));
 
 	if ((is_let(clet)) &&
-	    ((has_methods(clet)) || (has_methods(obj))))
+	    ((has_active_methods(sc, clet)) || (has_active_methods(sc, obj))))
 	  {
 	    s7_pointer func;
 	    func = find_method(sc, clet, sc->object_to_let_symbol);
@@ -47234,7 +47252,7 @@ static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article)
       return(make_type_name(sc, (is_file_port(arg)) ? "output file port" : ((is_string_port(arg)) ? "output string port" : "output port"), article));
 
     case T_LET:
-      if (has_methods(arg))
+      if (has_active_methods(sc, arg))
 	{
 	  s7_pointer class_name;
 	  class_name = find_method(sc, arg, sc->class_name_symbol);
@@ -47258,7 +47276,7 @@ static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x)
   s7_pointer p;
   uint8_t typ;
 
-  if (has_methods(x))
+  if (has_active_methods(sc, x))
     {
       p = find_method(sc, find_let(sc, x), sc->class_name_symbol);
       if (is_symbol(p))
@@ -49405,7 +49423,7 @@ s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args
 static inline bool gen_type_match(s7_scheme *sc, s7_pointer val, uint8_t typ)  /* opt3_con = uint8_t */
 {
   return((type(val) == typ) ||
-	 ((has_methods(val)) &&
+	 ((has_active_methods(sc, val)) &&
 	  (apply_boolean_method(sc, val, sc->type_to_typers[typ]) != sc->F)));
 }
 
@@ -64487,7 +64505,7 @@ static s7_pointer g_format_as_objstr(s7_scheme *sc, s7_pointer args)
   s7_pointer func, obj;
 
   obj = caddr(args);
-  if ((!has_methods(obj)) ||
+  if ((!has_active_methods(sc, obj)) ||
       ((func = find_method(sc, find_let(sc, obj), sc->format_symbol)) == sc->undefined))
     return(s7_object_to_string(sc, obj, false));
 
@@ -77750,7 +77768,7 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 	  s7_pointer car_lx;
 	  car_lx = car(lx);
 #if 0
-	  if (has_methods(car_lx)) /* perhaps call is_keyword as a method? then symbol->value? */
+	  if (has_active_methods(sc, car_lx)) /* perhaps call is_keyword as a method? then symbol->value? */
 	    {
 	      s7_pointer f;
 	      f = find_method(sc, car_lx, sc->symbol_to_value_symbol);
@@ -84449,7 +84467,7 @@ static s7_pointer big_is_bignum(s7_scheme *sc, s7_pointer args)
 static int32_t result_type_via_method(s7_scheme *sc, int32_t result_type, s7_pointer p)
 {
   s7_pointer f;
-  if (!has_methods(p)) return(-1);
+  if (!has_active_methods(sc, p)) return(-1);
 
   f = find_method(sc, find_let(sc, p), sc->is_integer_symbol);
   if ((f != sc->undefined) &&
@@ -84848,7 +84866,8 @@ static s7_pointer big_divide(s7_scheme *sc, s7_pointer args)
       if (!s7_is_number(car(x)))
 	{
 	  s7_pointer func;
-	  if ((has_methods(car(x))) && ((func = find_method(sc, find_let(sc, car(x)), sc->multiply_symbol)) != sc->undefined))
+	  if ((has_active_methods(sc, car(x))) && 
+	      ((func = find_method(sc, find_let(sc, car(x)), sc->multiply_symbol)) != sc->undefined))
 	    {
 	      divisor = s7_apply_function(sc, func, cons(sc, divisor, x));
 	      break;
@@ -86091,7 +86110,7 @@ static bool is_integer_via_method(s7_scheme *sc, s7_pointer p)
 {
   if (s7_is_integer(p))
     return(true);
-  if (has_methods(p))
+  if (has_active_methods(sc, p))
     {
       s7_pointer f;
       f = find_method(sc, find_let(sc, p), sc->is_integer_symbol);
@@ -88452,6 +88471,7 @@ s7_scheme *s7_init(void)
   sc->short_print = false;
   sc->in_with_let = false;
   sc->object_out_locked = false;
+  sc->has_openlets = true;
 
   sc->initial_string_port_length = 128;
   sc->format_depth = -1;
@@ -88998,6 +89018,8 @@ s7_scheme *s7_init(void)
   sc->owlet_symbol =                 defun("owlet",		owlet,			0, 0, false);
   sc->coverlet_symbol =              defun("coverlet",		coverlet,		1, 0, false);
   sc->openlet_symbol =               defun("openlet",		openlet,		1, 0, false);
+                                     defun("coverlets",		coverlets,		0, 0, false);
+                                     defun("openlets",		openlets,		0, 0, false);
   sc->let_ref_symbol =               defun("let-ref",		let_ref,		2, 0, false);
   sc->let_set_symbol =               defun("let-set!",		let_set,		3, 0, false);
   sc->let_ref_fallback_symbol = make_symbol(sc, "let-ref-fallback");
@@ -90307,4 +90329,5 @@ int main(int argc, char **argv)
  * display et al copy/paste mockery, clean up others like copy
  * t718 eqiv *stdout* cc/vect-of-nil
  * if s7_apply_function cycle check is cheap, maybe leave it in?
+ * coverlets/openlets doc/test extend to mockery
  */

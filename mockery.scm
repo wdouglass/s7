@@ -23,7 +23,7 @@
 	(obj 'value)
 	obj))
 
-  (define (cover-lets args)
+  (define (cover-lets args) ; TODO: replace this
     (let ((opens ()))
       (for-each (lambda (arg)
 		  (when (openlet? arg)
@@ -31,13 +31,46 @@
 		    (set! opens (cons arg opens))))
 		args)
       opens))
+
   
+  (define (mock? obj)
+    (and (let? obj)
+	 (symbol? (obj 'mock-type))))
+
+  (define (with-mock-wrapper func)
+    (lambda (obj)
+      (if (mock? obj)
+	  (dynamic-wind coverlets (lambda () (func (obj 'value))) openlets)
+	  (if (and (openlet? obj)           ; (with-let (mock-number 3) (abs (openlet (inlet 'abs (lambda (val) 0)))))
+		   (not (procedure? obj)))  ; (display (openlet (with-let (mock-number 0) (lambda () 1))))
+	      (let ((func-name (string->symbol (object->string func))))
+		(if (procedure? (obj func-name))
+		    ((obj func-name) obj)
+		    (func obj)))
+	      (func obj)))))
+
+  (define (with-mock-wrapper* func)
+    (lambda args
+      (let ((unknown-openlets #f))
+	(let ((new-args (map (lambda (arg)
+			       (if (mock? arg)
+				   (arg 'value)
+				   (begin
+				     (if (and (openlet? arg)
+					      (not (procedure? arg)))
+					 (set! unknown-openlets #t))
+				     arg)))
+			     args)))
+	  (if unknown-openlets
+	      (apply func new-args)
+	      (dynamic-wind coverlets (lambda () (apply func new-args)) openlets))))))
+
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
   ;;   mock object can be a closure's containing (open)let: (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
 
   ;; TODO: still need display et al for hash string pair symbol random-state iterator port
-  ;;       and a ton of ->value's are missing
+  ;;       and with-mock-wrapper
   ;;       and everything is a mess...
 
   ;; --------------------------------------------------------------------------------
@@ -74,81 +107,23 @@
 						  (#_vector-ref (obj 'value) i)   ; the implicit case
 						  (error 'out-of-range "unknown field: ~S" i)))
 			
-			'vector-length      (lambda (obj) 
-					      (#_length (->value obj)))
-			
-			'reverse            (lambda (obj) 
-					      (#_reverse (->value obj)))
+			'vector-length      (with-mock-wrapper #_length)
+			'reverse            (with-mock-wrapper #_reverse)
 			
 			'sort!              (lambda (obj f)
 					      (if (mock-vector? f)
 						  (error 'wrong-type-arg "sort! mock-vector as sort-function: ~S?" f))
 					      (#_sort! (->value obj) f))
 			
-			'make-iterator      (lambda (obj) 
-					      (#_make-iterator (->value obj)))
+			'make-iterator      (with-mock-wrapper #_make-iterator)
+			'arity              (with-mock-wrapper #_arity)
 			
-			'arity              (lambda (obj) 
-					      (#_arity (->value obj)))
+			'object->string     (with-mock-wrapper* #_object->string)
+			'format             (with-mock-wrapper* #_format)
+			'write              (with-mock-wrapper* #_write)
+			'display            (with-mock-wrapper* #_display)
 			
-			'object->string  (lambda args
-					   (let ((new-args (map ->value args)))
-					     (let ((opens (cover-lets args)))
-					       (let ((result (apply #_object->string new-args)))
-						 (for-each openlet opens)
-						 result))))
-			
-			'format          (lambda (port str . args) 
-					   (if (mock-vector? port)
-					       (error 'wrong-type-arg "format: port arg is a mock-vector? ~A" (port 'value)))
-					   (if (mock-vector? str)
-					       (error 'wrong-type-arg "format: control string arg is a mock-vector? ~A" (str 'value)))
-					   (let ((new-args (map ->value args)))
-					     (let ((opens (cover-lets args)))
-					       (let ((result (apply #_format (->value port) (->value str) new-args)))
-						 (for-each openlet opens)
-						 result))))
-			
-			'write            (lambda (obj . rest)
-					    (let ((nobj (->value obj))
-						  (open-obj #f))
-					      (dynamic-wind
-						  (lambda () 
-						    (when (openlet? obj)
-						      (coverlet obj)
-						      (set! open-obj obj)))
-						  (lambda ()
-						    (if (null? rest)
-							(#_write nobj)
-							(if (mock-vector? (car rest))
-							    (error 'wrong-type-arg "write port arg is a mock-vector?: ~A" (car rest))
-							    (#_write nobj (->value (car rest)))))
-						    obj)
-						  (lambda () 
-						    (if open-obj
-							(openlet open-obj))))))
-			
-			'display          (lambda (obj . rest)
-					    (let ((nobj (->value obj))
-						  (open-obj #f))
-					      (dynamic-wind
-						  (lambda () 
-						    (when (openlet? obj)
-						      (coverlet obj)
-						      (set! open-obj obj)))
-						  (lambda ()
-						    (if (null? rest)
-							(#_display nobj)
-							(if (mock-vector? (car rest))
-							    (error 'wrong-type-arg "display port arg is a mock-vector: ~A" (car rest))
-							    (#_display nobj (->value (car rest)))))
-						    obj)
-						  (lambda () 
-						    (if open-obj
-							(openlet open-obj))))))
-			
-			'vector-dimensions  (lambda (obj) 
-					      (#_vector-dimensions (->value obj)))
+			'vector-dimensions  (with-mock-wrapper #_vector-dimensions)
 			
 			'fill!              (lambda (obj val) 
 					      (#_fill! (->value obj) (->value val)))
@@ -177,20 +152,14 @@
 							(set! (nobj 'value) (#_copy (source 'value)))
 							nobj))))
 			
-			'vector?            (lambda (obj) (#_vector? (->value obj)))
-			'int-vector?        (lambda (obj) (#_int-vector? (->value obj)))
-			'byte-vector?       (lambda (obj) (#_byte-vector? (->value obj)))
-			'float-vector?      (lambda (obj) (#_float-vector? (->value obj)))
+			'vector?            (with-mock-wrapper #_vector?)
+			'int-vector?        (with-mock-wrapper #_int-vector?)
+			'byte-vector?       (with-mock-wrapper #_byte-vector?)
+			'float-vector?      (with-mock-wrapper #_float-vector?)
 			
-			'length             (lambda (obj) 
-					      (#_length (->value obj)))
-			
-			'vector-append      (lambda args
-					      (apply #_vector-append (map ->value args)))
-			
-			'append             (lambda args
-					      (apply #_append (map ->value args)))
-			
+			'length             (with-mock-wrapper #_length)
+			'vector-append      (with-mock-wrapper* #_vector-append)
+			'append             (with-mock-wrapper* #_append)
 			'class-name         '*mock-vector*)))
 	    
 	    (define (make-mock-vector len . rest)
@@ -263,11 +232,8 @@
 			'hash-table-set!    (lambda (obj key val) 
 					      (#_hash-table-set! (->value obj) (->value key) val))
 			
-			'hash-table-entries (lambda (obj) 
-					      (#_hash-table-entries (->value obj)))
-			
-			'make-iterator      (lambda (obj) 
-					      (#_make-iterator (->value obj)))
+			'hash-table-entries (with-mock-wrapper #_hash-table-entries)
+			'make-iterator      (with-mock-wrapper #_make-iterator)
 			
 			'let-ref-fallback   (lambda (obj key)
 					      (if (defined? 'value obj)
@@ -289,7 +255,7 @@
 					      (#_fill! (->value obj) (->value val)))
 			
 			'object->string     (lambda (obj . args) 
-					      (format #f "~S" (if (let? obj) (obj 'value) obj)))
+					      (format #f "~S" (->value obj)))
 			
 			'format             (lambda (port str . args) 
 					      (if (mock-hash-table? port)
@@ -314,11 +280,8 @@
 							 (#_display (->value obj) (->value (car rest)))))
 						 obj)
 			
-			'reverse            (lambda (obj) 
-					      (#_reverse (->value obj)))
-			
-			'arity              (lambda (obj)          
-					      (#_arity (obj 'value)))
+			'reverse            (with-mock-wrapper #_reverse)
+			'arity              (with-mock-wrapper #_arity)
 			
 			'copy               (lambda* (source dest . args)
 					      (if dest
@@ -332,16 +295,12 @@
 								      (lambda () (coverlet source))
 								      (lambda () (openlet (#_copy source)))
 								      (lambda () (openlet source)))))
-							(set! (nobj 'value) (#_copy (source 'value)))
+							(set! (nobj 'value) (#_copy (->value source)))
 							nobj))))
 			
-			'hash-table?        (lambda (obj) (#_hash-table? (->value obj)))
-			
-			'length             (lambda (obj) 
-					      (#_length (->value obj)))
-			
-			'append             (lambda args (apply #_append (map ->value args)))
-			
+			'hash-table?        (with-mock-wrapper #_hash-table?)
+			'length             (with-mock-wrapper #_length)
+			'append             (with-mock-wrapper* #_append)
 			'class-name         '*mock-hash-table*)))
 	    
 	    (define (make-mock-hash-table . rest)
@@ -401,11 +360,8 @@
 		 (inlet 'equivalent?            (lambda (x y) 
 						  (#_equivalent? (->value x) (->value y)))
 			
-			'reverse                (lambda (obj) 
-						  (#_reverse (->value obj)))
-			
-			'arity                  (lambda (obj) 
-						  (#_arity (->value obj)))
+			'reverse                (with-mock-wrapper #_reverse)
+			'arity                  (with-mock-wrapper #_arity)
 			
 			'make-iterator          (lambda (obj . args) 
 						  (if (pair? args)
@@ -424,30 +380,26 @@
 						      (#_string-set! (obj 'value) i val)
 						      (error 'out-of-range "unknown field: ~S" i)))
 			
-			'string-length          (lambda (obj) 
-						  (#_length (->value obj)))
+			'string-length          (with-mock-wrapper #_length)
+			'string-append          (with-mock-wrapper* #_string-append)
+			'string-copy            (with-mock-wrapper #_copy)
 			
-			'string-append          (lambda args (apply #_string-append (map ->value args)))
+			'string=?               (with-mock-wrapper* #_string=?)
+			'string<?               (with-mock-wrapper* #_string<?)
+			'string>?               (with-mock-wrapper* #_string>?)
+			'string<=?              (with-mock-wrapper* #_string<=?)
+			'string>=?              (with-mock-wrapper* #_string>=?)
 			
-			'string-copy            (lambda (obj) 
-						  (#_copy (->value obj)))
-			
-			'string=?               (lambda args (apply #_string=? (map ->value args)))
-			'string<?               (lambda args (apply #_string<? (map ->value args)))
-			'string>?               (lambda args (apply #_string>? (map ->value args)))
-			'string<=?              (lambda args (apply #_string<=? (map ->value args)))
-			'string>=?              (lambda args (apply #_string>=? (map ->value args)))
-			
-			'string-downcase        (lambda (obj) (#_string-downcase (->value obj)))
-			'string-upcase          (lambda (obj) (#_string-upcase (->value obj)))
-			'string->symbol         (lambda (obj) (#_string->symbol (->value obj)))
-			'symbol                 (lambda (obj) (#_symbol (->value obj)))
+			'string-downcase        (with-mock-wrapper #_string-downcase)
+			'string-upcase          (with-mock-wrapper #_string-upcase)
+			'string->symbol         (with-mock-wrapper #_string->symbol)
+			'symbol                 (with-mock-wrapper #_symbol)
 			'gensym                 (lambda args
 						  (if (pair? args)
 						      (#_gensym (->value (car args)))
 						      (#_gensym)))
-			'string->keyword        (lambda (obj) (#_string->keyword (->value obj)))
-			'open-input-string      (lambda (obj) (#_open-input-string (->value obj)))
+			'string->keyword        (with-mock-wrapper #_string->keyword)
+			'open-input-string      (with-mock-wrapper #_open-input-string)
 			
 			'call-with-input-string (lambda (obj f) 
 						  (if (mock-string? f)
@@ -459,17 +411,17 @@
 						      (error 'wrong-type-arg "with-input-from-string: stray mock string? ~S" f))
 						  (#_with-input-from-string (->value obj) f))
 			
-			'directory?             (lambda (obj) (#_directory? (->value obj)))
-			'file-exists?           (lambda (obj) (#_file-exists? (->value obj)))
-			'getenv                 (lambda (obj) (#_getenv (->value obj)))
-			'delete-file            (lambda (obj) (#_delete-file (->value obj)))
+			'directory?             (with-mock-wrapper #_directory?)
+			'file-exists?           (with-mock-wrapper #_file-exists?)
+			'getenv                 (with-mock-wrapper #_getenv)
+			'delete-file            (with-mock-wrapper #_delete-file)
 			
 			'system                 (lambda* (obj cap) 
 						  (if (mock-string? cap)
 						      (error 'wrong-type-arg "system: stray mock string? ~S" cap))
-						  (#_system (->value obj) cap))
+						  (#_system (->value obj) (->value cap)))
 			
-			'string->byte-vector    (lambda (obj) (#_string->byte-vector (->value obj)))
+			'string->byte-vector    (with-mock-wrapper #_string->byte-vector)
 			
 			'load                   (lambda* (obj (e (curlet))) 
 						  (if (mock-string? e)
@@ -481,15 +433,14 @@
 						      (error 'wrong-type-arg "eval-string: stray mock string? ~S" e))
 						  (#_eval-string (->value obj) e))
 			
-			'char-position          (lambda args (apply #_char-position (map ->value args)))
+			'char-position          (with-mock-wrapper* #_char-position)
 			
 			'bignum                 (lambda (obj)
 						  (if (provided? 'gmp)
 						      (#_bignum (->value obj))
 						      (error 'wrong-type-arg "no bignums in this version of s7")))
 			
-			'object->string         (lambda args 
-						  (apply #_object->string (map ->value args)))
+			'object->string         (with-mock-wrapper* #_object->string)
 			
 			'format                 (lambda (port . args)
 						  (if (mock-string? port)
@@ -520,7 +471,7 @@
 							  (mock-string? start)
 							  (mock-string? end))
 						      (error 'wrong-type-arg "string-fill! stray mock-string? ~A ~A ~A" val start end))
-						  (#_string-fill! (->value obj) val start (or end (#_string-length (->value obj)))))
+						  (#_string-fill! (->value obj) (->value val) (->value start) (or (->value end) (#_string-length (->value obj)))))
 			
 			'fill!                  (lambda (obj val) 
 						  (unless (char? val)
@@ -540,9 +491,9 @@
 			
 			'string-position        (lambda* (s1 s2 (start 0))
 						  (if (mock-string? s1)
-						      (#_string-position (s1 'value) s2 start)
+						      (#_string-position (s1 'value) (->value s2) (->value start))
 						      (if (mock-string? s2)
-							  (#_string-position s1 (s2 'value) start)
+							  (#_string-position (->value s1) (s2 'value) (->value start))
 							  (error 'wrong-type-arg "write-string ~S ~S ~S" s1 s2 start))))
 			
 			'string-ref             (lambda (obj i)
@@ -567,10 +518,9 @@
 			'string-ci<=?           (lambda strs (apply #_string<=? (map #_string-upcase (map ->value strs))))
 			'string-ci>=?           (lambda strs (apply #_string>=? (map #_string-upcase (map ->value strs))))
 			
-			'string?                (lambda (obj) (#_string? (->value obj)))
-			'length                 (lambda (obj) 
-						  (#_string-length (->value obj)))
-			'append                 (lambda args (apply #_append (map ->value args)))
+			'string?                (with-mock-wrapper #_string?)
+			'length                 (with-mock-wrapper #_string-length)
+			'append                 (with-mock-wrapper* #_append)
 			'class-name             '*mock-string*)))
 	    
 	    (define* (make-mock-string len (init #\null))
@@ -624,25 +574,25 @@
 	(let ((mock-char? #f))
 	  (let ((mock-char-class
 		 (inlet 'equivalent?        (lambda (x y) (#_equivalent? (->value x) (->value y)))
-			'char-upcase        (lambda (obj) (#_char-upcase (->value obj)))
-			'char-downcase      (lambda (obj) (#_char-downcase (->value obj)))
-			'char->integer      (lambda (obj) (#_char->integer (->value obj)))
-			'char-upper-case?   (lambda (obj) (#_char-upper-case? (->value obj)))
-			'char-lower-case?   (lambda (obj) (#_char-lower-case? (->value obj)))
-			'char-alphabetic?   (lambda (obj) (#_char-alphabetic? (->value obj)))
-			'char-numeric?      (lambda (obj) (#_char-numeric? (->value obj)))
-			'char-whitespace?   (lambda (obj) (#_char-whitespace? (->value obj)))
-			'char=?             (lambda args (apply #_char=? (map ->value args)))
-			'char<?             (lambda args (apply #_char<? (map ->value args)))
-			'char>?             (lambda args (apply #_char>? (map ->value args)))
-			'char<=?            (lambda args (apply #_char<=? (map ->value args)))
-			'char>=?            (lambda args (apply #_char>=? (map ->value args)))
-			'char-ci=?          (lambda args (apply #_char-ci=? (map ->value args)))
-			'char-ci<?          (lambda args (apply #_char-ci<? (map ->value args)))
-			'char-ci>?          (lambda args (apply #_char-ci>? (map ->value args)))
-			'char-ci<=?         (lambda args (apply #_char-ci<=? (map ->value args)))
-			'char-ci>=?         (lambda args (apply #_char-ci>=? (map ->value args)))
-			'string             (lambda args (apply #_string (map ->value args)))
+			'char-upcase        (with-mock-wrapper #_char-upcase)
+			'char-downcase      (with-mock-wrapper #_char-downcase)
+			'char->integer      (with-mock-wrapper #_char->integer)
+			'char-upper-case?   (with-mock-wrapper #_char-upper-case?)
+			'char-lower-case?   (with-mock-wrapper #_char-lower-case?)
+			'char-alphabetic?   (with-mock-wrapper #_char-alphabetic?)
+			'char-numeric?      (with-mock-wrapper #_char-numeric?)
+			'char-whitespace?   (with-mock-wrapper #_char-whitespace?)
+			'char=?             (with-mock-wrapper* #_char=?)
+			'char<?             (with-mock-wrapper* #_char<?)
+			'char>?             (with-mock-wrapper* #_char>?)
+			'char<=?            (with-mock-wrapper* #_char<=?)
+			'char>=?            (with-mock-wrapper* #_char>=?)
+			'char-ci=?          (with-mock-wrapper* #_char-ci=?)
+			'char-ci<?          (with-mock-wrapper* #_char-ci<?)
+			'char-ci>?          (with-mock-wrapper* #_char-ci>?)
+			'char-ci<=?         (with-mock-wrapper* #_char-ci<=?)
+			'char-ci>=?         (with-mock-wrapper* #_char-ci>=?)
+			'string             (with-mock-wrapper* #_string)
 			
 			'object->string  (lambda args
 					   (let ((new-args (map ->value args)))
@@ -700,9 +650,9 @@
 						    (if open-obj
 							(openlet open-obj))))))
 			
-			'arity              (lambda (obj) (#_arity (->value obj)))
-			'make-string        (lambda args (apply #_make-string (map ->value args)))
-			'char-position      (lambda args (apply #_char-position (map ->value args)))
+			'arity              (with-mock-wrapper #_arity)
+			'make-string        (with-mock-wrapper* #_make-string)
+			'char-position      (with-mock-wrapper* #_char-position)
 			
 			'write-char         (lambda (obj . args) 
 					      (apply #_write-char (->value obj) (map ->value args)))
@@ -721,7 +671,7 @@
 			'copy               (lambda (src . args) 
 					      (apply #_copy (->value src) (map ->value args)))
 			
-			'char?              (lambda (obj) (#_char? (->value obj)))
+			'char?              (with-mock-wrapper #_char?)
 			'class-name         '*mock-char*
 			'length             (lambda (obj) #f))))
 	    
@@ -765,64 +715,64 @@
 	  (let ((mock-number-class
 		 (inlet 
 		  'equivalent?      (lambda (x y) (#_equivalent? (->value x) (->value y)))
-		  'arity            (lambda (obj) (#_arity (->value obj)))
-		  'real-part        (lambda (obj) (#_real-part (->value obj)))
-		  'imag-part        (lambda (obj) (#_imag-part (->value obj)))
-		  'numerator        (lambda (obj) (#_numerator (->value obj)))
-		  'denominator      (lambda (obj) (#_denominator (->value obj)))
-		  'even?            (lambda (obj) (#_even? (->value obj)))
-		  'odd?             (lambda (obj) (#_odd? (->value obj)))
-		  'zero?            (lambda (obj) (#_zero? (->value obj)))
-		  'positive?        (lambda (obj) (#_positive? (->value obj)))
-		  'negative?        (lambda (obj) (#_negative? (->value obj)))
-		  'infinite?        (lambda (obj) (#_infinite? (->value obj)))
-		  'nan?             (lambda (obj) (#_nan? (->value obj)))
-		  'append           (lambda args (apply #_append (map ->value args)))
+		  'arity            (with-mock-wrapper #_arity)
+		  'real-part        (with-mock-wrapper #_real-part)
+		  'imag-part        (with-mock-wrapper #_imag-part)
+		  'numerator        (with-mock-wrapper #_numerator)
+		  'denominator      (with-mock-wrapper #_denominator)
+		  'even?            (with-mock-wrapper #_even?)
+		  'odd?             (with-mock-wrapper #_odd?)
+		  'zero?            (with-mock-wrapper #_zero?)
+		  'positive?        (with-mock-wrapper #_positive?)
+		  'negative?        (with-mock-wrapper #_negative?)
+		  'infinite?        (with-mock-wrapper #_infinite?)
+		  'nan?             (with-mock-wrapper #_nan?)
+		  'append           (with-mock-wrapper* #_append)
 		  'make-polar       (if (provided? 'pure-s7)
 					(lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
 					(lambda args (apply #_make-polar (map ->value args))))
 		  'make-rectangular (lambda args (apply #_complex (map ->value args)))
 		  'complex          (lambda args (apply #_complex (map ->value args)))
 		  'random-state     (lambda args (apply #_random-state (map ->value args)))
-		  'magnitude        (lambda (obj) (#_magnitude (->value obj)))
-		  'angle            (lambda (obj) (#_angle (->value obj)))
-		  'rationalize      (lambda args (apply #_rationalize (map ->value args)))
-		  'abs              (lambda (obj) (#_abs (->value obj)))
-		  'exp              (lambda (obj) (#_exp (->value obj)))
-		  'log              (lambda args (apply #_log (map ->value args)))
-		  'sin              (lambda (obj) (#_sin (->value obj)))
-		  'cos              (lambda (obj) (#_cos (->value obj)))
-		  'tan              (lambda (obj) (#_tan (->value obj)))
-		  'asin             (lambda (obj) (#_asin (->value obj)))
-		  'acos             (lambda (obj) (#_acos (->value obj)))
-		  'atan             (lambda args (apply #_atan (map ->value args)))
-		  'sinh             (lambda (obj) (#_sinh (->value obj)))
-		  'cosh             (lambda (obj) (#_cosh (->value obj)))
-		  'tanh             (lambda (obj) (#_tanh (->value obj)))
-		  'asinh            (lambda (obj) (#_asinh (->value obj)))
-		  'acosh            (lambda (obj) (#_acosh (->value obj)))
-		  'atanh            (lambda (obj) (#_atanh (->value obj)))
-		  'sqrt             (lambda (obj) (#_sqrt (->value obj)))
-		  'expt             (lambda args (apply #_expt (map ->value args)))
-		  'floor            (lambda (obj) (#_floor (->value obj)))
-		  'ceiling          (lambda (obj) (#_ceiling (->value obj)))
-		  'truncate         (lambda (obj) (#_truncate (->value obj)))
-		  'round            (lambda (obj) (#_round (->value obj)))
-		  'integer->char    (lambda (obj) (#_integer->char (->value obj)))
-		  'inexact->exact   (lambda (obj) (#_inexact->exact (->value obj)))
-		  'exact->inexact   (lambda (obj) (#_exact->inexact (->value obj)))
-		  'integer-length   (lambda (obj) (#_integer-length (->value obj)))
-		  'integer-decode-float (lambda (obj) (#_integer-decode-float (->value obj)))
-		  'number?          (lambda (obj) (#_number? (->value obj)))
-		  'integer?         (lambda (obj) (#_integer? (->value obj)))
-		  'real?            (lambda (obj) (#_real? (->value obj)))
-		  'complex?         (lambda (obj) (#_complex? (->value obj)))
-		  'rational?        (lambda (obj) (#_rational? (->value obj)))
-		  'exact?           (lambda (obj) (#_exact? (->value obj)))
-		  'inexact?         (lambda (obj) (#_inexact? (->value obj)))
+		  'magnitude        (with-mock-wrapper #_magnitude)
+		  'angle            (with-mock-wrapper #_angle)
+		  'rationalize      (with-mock-wrapper* #_rationalize)
+		  'abs              (with-mock-wrapper #_abs)
+		  'exp              (with-mock-wrapper #_exp)
+		  'log              (with-mock-wrapper* #_log)
+		  'sin              (with-mock-wrapper #_sin)
+		  'cos              (with-mock-wrapper #_cos)
+		  'tan              (with-mock-wrapper #_tan)
+		  'asin             (with-mock-wrapper #_asin)
+		  'acos             (with-mock-wrapper #_acos)
+		  'atan             (with-mock-wrapper* #_atan)
+		  'sinh             (with-mock-wrapper #_sinh)
+		  'cosh             (with-mock-wrapper #_cosh)
+		  'tanh             (with-mock-wrapper #_tanh)
+		  'asinh            (with-mock-wrapper #_asinh)
+		  'acosh            (with-mock-wrapper #_acosh)
+		  'atanh            (with-mock-wrapper #_atanh)
+		  'sqrt             (with-mock-wrapper #_sqrt)
+		  'expt             (with-mock-wrapper* #_expt)
+		  'floor            (with-mock-wrapper #_floor)
+		  'ceiling          (with-mock-wrapper #_ceiling)
+		  'truncate         (with-mock-wrapper #_truncate)
+		  'round            (with-mock-wrapper #_round)
+		  'integer->char    (with-mock-wrapper #_integer->char)
+		  'inexact->exact   (with-mock-wrapper #_inexact->exact)
+		  'exact->inexact   (with-mock-wrapper #_exact->inexact)
+		  'integer-length   (with-mock-wrapper #_integer-length)
+		  'integer-decode-float (with-mock-wrapper #_integer-decode-float)
+		  'number?          (with-mock-wrapper #_number?)
+		  'integer?         (with-mock-wrapper #_integer?)
+		  'real?            (with-mock-wrapper #_real?)
+		  'complex?         (with-mock-wrapper #_complex?)
+		  'rational?        (with-mock-wrapper #_rational?)
+		  'exact?           (with-mock-wrapper #_exact?)
+		  'inexact?         (with-mock-wrapper #_inexact?)
 		  'ash              (lambda (x y) (ash (->value x) (->value y)))
 		  'logbit?          (lambda (x y) (logbit? (->value x) (->value y)))
-		  'number->string   (lambda args (apply #_number->string (map ->value args)))
+		  'number->string   (with-mock-wrapper* #_number->string)
 		  'random           (lambda* (range state)
 				      (if state
 					  (if (random-state? state)
@@ -832,24 +782,24 @@
 		  'quotient         (lambda (x y) (quotient (->value x) (->value y)))
 		  'remainder        (lambda (x y) (remainder (->value x) (->value y)))
 		  'modulo           (lambda (x y) (modulo (->value x) (->value y)))
-		  'lognot           (lambda (obj) (#_lognot (->value obj)))
-		  'logior           (lambda args (apply #_logior (map ->value args)))
-		  'logxor           (lambda args (apply #_logxor (map ->value args)))
-		  'logand           (lambda args (apply #_logand (map ->value args)))
+		  'lognot           (with-mock-wrapper #_lognot)
+		  'logior           (with-mock-wrapper* #_logior)
+		  'logxor           (with-mock-wrapper* #_logxor)
+		  'logand           (with-mock-wrapper* #_logand)
 		  ;; any object that has lcm or gcd also needs rational?
-		  'lcm              (lambda args (apply #_lcm (map ->value args)))
-		  'gcd              (lambda args (apply #_gcd (map ->value args)))
-		  '+                (lambda args (apply #_+ (map ->value args)))
-		  '-                (lambda args (apply #_- (map ->value args)))
-		  '*                (lambda args (apply #_* (map ->value args)))
-		  '/                (lambda args (apply #_/ (map ->value args)))
-		  'max              (lambda args (apply #_max (map ->value args)))
-		  'min              (lambda args (apply #_min (map ->value args)))
-		  '=                (lambda args (apply #_= (map ->value args)))
-		  '<                (lambda args (apply #_< (map ->value args)))
-		  '>                (lambda args (apply #_> (map ->value args)))
-		  '<=               (lambda args (apply #_<= (map ->value args)))
-		  '>=               (lambda args (apply #_>= (map ->value args)))
+		  'lcm              (with-mock-wrapper* #_lcm)
+		  'gcd              (with-mock-wrapper* #_gcd)
+		  '+                (with-mock-wrapper* #_+)
+		  '-                (with-mock-wrapper* #_-)
+		  '*                (with-mock-wrapper* #_*)
+		  '/                (with-mock-wrapper* #_/)
+		  'max              (with-mock-wrapper* #_max)
+		  'min              (with-mock-wrapper* #_min)
+		  '=                (with-mock-wrapper* #_=)
+		  '<                (with-mock-wrapper* #_<)
+		  '>                (with-mock-wrapper* #_>)
+		  '<=               (with-mock-wrapper* #_<=)
+		  '>=               (with-mock-wrapper* #_>=)
 		  
 		  'write-byte       (lambda (byte . rest)
 				      (if (null? rest)
@@ -859,23 +809,23 @@
 					      (#_write-byte (->value byte) (->value (car rest))))))
 		  
 		  'make-list        (lambda (ind . args) (apply #_make-list (->value ind) (map ->value args)))
-		  'make-vector      (lambda args (apply #_make-vector (map ->value args)))
-		  'make-float-vector (lambda args (apply #_make-float-vector (map ->value args)))
-		  'make-int-vector  (lambda args (apply #_make-int-vector (map ->value args)))
+		  'make-vector      (with-mock-wrapper* #_make-vector)
+		  'make-float-vector (with-mock-wrapper* #_make-float-vector)
+		  'make-int-vector  (with-mock-wrapper* #_make-int-vector)
 		  'make-hash-table  (lambda args
 				      (if (pair? args)
 					  (let ((size (car args)))
 					    (apply #_make-hash-table (->value size) (map ->value (cdr args))))
 					  (#_make-hash-table)))
-		  'make-byte-vector  (lambda args (apply #_make-byte-vector (map ->value args)))
-		  
+		  'make-byte-vector  (with-mock-wrapper* #_make-byte-vector)
+
 		  'object->string  (lambda args
 				     (let ((new-args (map ->value args)))
 				       (let ((opens (cover-lets args)))
 					 (let ((result (apply #_object->string new-args)))
 					   (for-each openlet opens)
 					   result))))
-		  
+
 		  'format          (lambda (port str . args) 
 				     (if (mock-number? port)
 					 (error 'wrong-type-arg "format: port arg is a mock-number? ~A" (port 'value)))
@@ -886,7 +836,7 @@
 					 (let ((result (apply #_format (->value port) (->value str) new-args)))
 					   (for-each openlet opens)
 					   result))))
-		  
+
 		  'write            (lambda (obj . rest)
 				      (let ((nobj (->value obj))
 					    (open-obj #f))
@@ -905,7 +855,7 @@
 					    (lambda () 
 					      (if open-obj
 						  (openlet open-obj))))))
-		  
+#|		  
 		  'display          (lambda (obj . rest)
 				      (let ((nobj (->value obj))
 					    (open-obj #f))
@@ -924,7 +874,12 @@
 					    (lambda () 
 					      (if open-obj
 						  (openlet open-obj))))))
-		  
+|#
+;			'object->string     (with-mock-wrapper* #_object->string)
+;			'format             (with-mock-wrapper* #_format)
+;			'write              (with-mock-wrapper* #_write)
+			'display            (with-mock-wrapper* #_display)
+
 		  'vector->list     (lambda* (v (start 0) end)
 				      (with-bounds vector->list 'vector v start end))
 		  
@@ -1023,14 +978,14 @@
 		  'int-vector-set!  (lambda (vec ind . rest) (apply vref #_int-vector-set! vec ind rest))
 		  'byte-vector-set! (lambda (vec ind . rest) (apply vref #_byte-vector-set! vec ind rest))
 		  
-		  'float-vector     (lambda args (apply #_float-vector (map ->value args)))
-		  'int-vector       (lambda args (apply #_int-vector (map ->value args)))
-		  'byte-vector      (lambda args (apply #_byte-vector (map ->value args)))
+		  'float-vector     (with-mock-wrapper* #_float-vector)
+		  'int-vector       (with-mock-wrapper* #_int-vector)
+		  'byte-vector      (with-mock-wrapper* #_byte-vector)
 		  
 		  'subvector        (lambda* (obj dims (offset 0))
 				      (if (mock-number? obj)
 					  (error 'wrong-type-arg "subvector first arg is not a vector: ~S" obj))
-				      (#_subvector obj (->value dims) (->value offset)))
+				      (#_subvector (->value obj) (->value dims) (->value offset)))
 		  
 		  'read-string     (lambda* (k port)
 				     (if (input-port? port)
@@ -1206,8 +1161,8 @@
 	(let ((mock-pair? #f))
 	  (let ((mock-pair-class
 		 (inlet 'equivalent?      (lambda (x y) (#_equivalent? (->value x) (->value y)))
-			'pair-line-number (lambda (obj) (#_pair-line-number (->value obj)))
-			'list->string     (lambda (obj) (#_list->string (->value obj)))
+			'pair-line-number (with-mock-wrapper #_pair-line-number)
+			'list->string     (with-mock-wrapper #_list->string)
 			'object->string   (lambda (obj . args)
 					    (format #f (cond ((null? args) "~S")
 							     ((not (car args)) "~A")
@@ -1226,39 +1181,39 @@
 					    (apply #_display (->value obj) (map ->value rest))
 					    obj)
 			
-			'list?            (lambda (obj) (#_list? (->value obj)))
-			'car              (lambda (obj) (#_car (->value obj)))
-			'cdr              (lambda (obj) (#_cdr (->value obj)))
+			'list?            (with-mock-wrapper #_list?)
+			'car              (with-mock-wrapper #_car)
+			'cdr              (with-mock-wrapper #_cdr)
 			'set-car!         (lambda (obj val) (#_set-car! (->value obj) val))
 			'set-cdr!         (lambda (obj val) (#_set-cdr! (->value obj) val))
-			'caar             (lambda (obj) (#_caar (->value obj)))
-			'cadr             (lambda (obj) (#_cadr (->value obj)))
-			'cdar             (lambda (obj) (#_cdar (->value obj)))
-			'cddr             (lambda (obj) (#_cddr (->value obj)))
-			'caaar            (lambda (obj) (#_caaar (->value obj)))
-			'caadr            (lambda (obj) (#_caadr (->value obj)))
-			'cadar            (lambda (obj) (#_cadar (->value obj)))
-			'cdaar            (lambda (obj) (#_cdaar (->value obj)))
-			'caddr            (lambda (obj) (#_caddr (->value obj)))
-			'cdddr            (lambda (obj) (#_cdddr (->value obj)))
-			'cdadr            (lambda (obj) (#_cdadr (->value obj)))
-			'cddar            (lambda (obj) (#_cddar (->value obj)))
-			'caaaar           (lambda (obj) (#_caaaar (->value obj)))
-			'caaadr           (lambda (obj) (#_caaadr (->value obj)))
-			'caadar           (lambda (obj) (#_caadar (->value obj)))
-			'cadaar           (lambda (obj) (#_cadaar (->value obj)))
-			'caaddr           (lambda (obj) (#_caaddr (->value obj)))
-			'cadddr           (lambda (obj) (#_cadddr (->value obj)))
-			'cadadr           (lambda (obj) (#_cadadr (->value obj)))
-			'caddar           (lambda (obj) (#_caddar (->value obj)))
-			'cdaaar           (lambda (obj) (#_cdaaar (->value obj)))
-			'cdaadr           (lambda (obj) (#_cdaadr (->value obj)))
-			'cdadar           (lambda (obj) (#_cdadar (->value obj)))
-			'cddaar           (lambda (obj) (#_cddaar (->value obj)))
-			'cdaddr           (lambda (obj) (#_cdaddr (->value obj)))
-			'cddddr           (lambda (obj) (#_cddddr (->value obj)))
-			'cddadr           (lambda (obj) (#_cddadr (->value obj)))
-			'cdddar           (lambda (obj) (#_cdddar (->value obj)))
+			'caar             (with-mock-wrapper #_caar)
+			'cadr             (with-mock-wrapper #_cadr)
+			'cdar             (with-mock-wrapper #_cdar)
+			'cddr             (with-mock-wrapper #_cddr)
+			'caaar            (with-mock-wrapper #_caaar)
+			'caadr            (with-mock-wrapper #_caadr)
+			'cadar            (with-mock-wrapper #_cadar)
+			'cdaar            (with-mock-wrapper #_cdaar)
+			'caddr            (with-mock-wrapper #_caddr)
+			'cdddr            (with-mock-wrapper #_cdddr)
+			'cdadr            (with-mock-wrapper #_cdadr)
+			'cddar            (with-mock-wrapper #_cddar)
+			'caaaar           (with-mock-wrapper #_caaaar)
+			'caaadr           (with-mock-wrapper #_caaadr)
+			'caadar           (with-mock-wrapper #_caadar)
+			'cadaar           (with-mock-wrapper #_cadaar)
+			'caaddr           (with-mock-wrapper #_caaddr)
+			'cadddr           (with-mock-wrapper #_cadddr)
+			'cadadr           (with-mock-wrapper #_cadadr)
+			'caddar           (with-mock-wrapper #_caddar)
+			'cdaaar           (with-mock-wrapper #_cdaaar)
+			'cdaadr           (with-mock-wrapper #_cdaadr)
+			'cdadar           (with-mock-wrapper #_cdadar)
+			'cddaar           (with-mock-wrapper #_cddaar)
+			'cdaddr           (with-mock-wrapper #_cdaddr)
+			'cddddr           (with-mock-wrapper #_cddddr)
+			'cddadr           (with-mock-wrapper #_cddadr)
+			'cdddar           (with-mock-wrapper #_cdddar)
 			'assoc            (lambda (val obj . args) (apply #_assoc val (->value obj) (map ->value args)))
 			'assq             (lambda (val obj) (#_assq val (->value obj)))
 			'assv             (lambda (val obj) (#_assv val (->value obj)))
@@ -1281,9 +1236,9 @@
 							     (#_list-set! (obj 'value) ind val))))
 						  (openlet obj)
 						  val)))
-			'arity            (lambda (obj) (#_arity (->value obj)))
+			'arity            (with-mock-wrapper #_arity)
 			'fill!            (lambda (obj val) (#_fill! (->value obj) val))
-			'reverse          (lambda (obj) (#_reverse (->value obj)))
+			'reverse          (with-mock-wrapper #_reverse)
 			'reverse!         (lambda (obj) 
 					    (if (mock-pair? obj)
 						(set! (obj 'value) (#_reverse (obj 'value)))
@@ -1294,9 +1249,9 @@
 						(error 'wrong-type-arg "sort function arg is a mock-pair? ~S" f))
 					    (#_sort! (->value obj) f))
 			
-			'make-iterator    (lambda (obj) (#_make-iterator (->value obj)))
-			'eval             (lambda (f obj) (#_eval (->value obj)))
-			'list->vector     (lambda (obj) (#_list->vector (->value obj)))
+			'make-iterator    (with-mock-wrapper #_make-iterator)
+			'eval             (with-mock-wrapper #_eval)
+			'list->vector     (with-mock-wrapper #_list->vector)
 			
 			'list-tail        (lambda (obj . args)
 					    (when (and (pair? args)
@@ -1328,9 +1283,9 @@
 			'list-set!        (lambda (obj ind val)
 					    (#_list-set! (->value obj) (->value ind) (->value val)))
 			
-			'pair?            (lambda (obj) (#_pair? (->value obj)))
-			'length           (lambda (obj) (#_length (->value obj)))
-			'append           (lambda args (apply #_append (map ->value args)))
+			'pair?            (with-mock-wrapper #_pair?)
+			'length           (with-mock-wrapper #_length)
+			'append           (with-mock-wrapper* #_append)
 			'class-name       '*mock-pair*)))
 	    
 	    (define (mock-pair . args)
@@ -1384,20 +1339,20 @@
 	(let ((mock-symbol? #f))
 	  (let ((mock-symbol-class
 		 (inlet 'equivalent?           (lambda (x y) (#_equivalent? (->value x) (->value y)))
-			'gensym?               (lambda (obj) (#_gensym? (->value obj)))
-			'append                (lambda args (apply #_append (map ->value args)))
-			'symbol->string        (lambda (obj) (#_symbol->string (->value obj)))
+			'gensym?               (with-mock-wrapper #_gensym?)
+			'append                (with-mock-wrapper* #_append)
+			'symbol->string        (with-mock-wrapper #_symbol->string)
 			'symbol->value         (lambda (obj . args) (apply #_symbol->value (->value obj) (map ->value args)))
-			'symbol->dynamic-value (lambda (obj) (#_symbol->dynamic-value (->value obj)))
+			'symbol->dynamic-value (with-mock-wrapper #_symbol->dynamic-value)
 			'setter                (lambda (obj . args) (apply #_setter (->value obj) (map ->value args)))
-			'provided?             (lambda (obj) (#_provided? (->value obj)))
-			'provide               (lambda (obj) (#_provide (->value obj)))
+			'provided?             (with-mock-wrapper #_provided?)
+			'provide               (with-mock-wrapper #_provide)
 			'defined?              (lambda* (obj e globals) (#_defined? (->value obj) (or e (curlet))))
-			'symbol->keyword       (lambda (obj) (#_symbol->keyword (->value obj)))
-			'keyword?              (lambda (obj) (#_keyword? (->value obj)))
-			'keyword->symbol       (lambda (obj) (#_keyword->symbol (->value obj)))
+			'symbol->keyword       (with-mock-wrapper #_symbol->keyword)
+			'keyword?              (with-mock-wrapper #_keyword?)
+			'keyword->symbol       (with-mock-wrapper #_keyword->symbol)
 			
-			'object->string        (lambda args (apply #_object->string (map ->value args)))
+			'object->string        (with-mock-wrapper* #_object->string)
 			'format                (lambda (port str . args) 
 						 (if (mock-symbol? port)
 						     (error 'wrong-type-arg "format: port arg is a mock-symbol? ~A" (port 'value)))
@@ -1421,7 +1376,7 @@
 							 (#_display (->value obj) (->value (car rest)))))
 						 obj)
 			
-			'symbol?               (lambda (obj) (#_symbol? (->value obj)))
+			'symbol?               (with-mock-wrapper #_symbol?)
 			'class-name            '*mock-symbol*
 			)))
 	    
@@ -1448,12 +1403,12 @@
   (set! *mock-c-pointer*
 	(let ((mock-c-pointer? #f))
 	  (let ((mock-c-pointer-class
-		 (inlet 'c-pointer?      (lambda (obj) (#_c-pointer? (->value obj)))
-			'c-pointer-type  (lambda (obj) (#_c-pointer-type (->value obj)))
-			'c-pointer-info  (lambda (obj) (#_c-pointer-info (->value obj)))
-			'c-pointer-weak1 (lambda (obj) (#_c-pointer-weak1 (->value obj)))
-			'c-pointer-weak2 (lambda (obj) (#_c-pointer-weak2 (->value obj)))
-			'c-pointer->list (lambda (obj) (#_c-pointer->list (->value obj)))
+		 (inlet 'c-pointer?      (with-mock-wrapper #_c-pointer?)
+			'c-pointer-type  (with-mock-wrapper #_c-pointer-type)
+			'c-pointer-info  (with-mock-wrapper #_c-pointer-info)
+			'c-pointer-weak1 (with-mock-wrapper #_c-pointer-weak1)
+			'c-pointer-weak2 (with-mock-wrapper #_c-pointer-weak2)
+			'c-pointer->list (with-mock-wrapper #_c-pointer->list)
 			
 			'object->string  (lambda args
 					   (let ((new-args (map ->value args)))
@@ -1516,7 +1471,7 @@
 	      (immutable!
 	       (openlet 
 		(sublet (*mock-c-pointer* 'mock-c-pointer-class)
-		  'value (#_c-pointer int type info weak1 weak2)
+		  'value (#_c-pointer (->value int) (->value type) (->value info) (->value weak1) (->value weak2))
 		  'mock-type 'mock-c-pointer?))))
 	    
 	    (set! mock-c-pointer? 
@@ -1533,8 +1488,8 @@
   (set! *mock-random-state*
 	(let ((mock-random-state? #f))
 	  (let ((mock-random-state-class
-		 (inlet 'random-state?      (lambda (obj) (#_random-state? (->value obj)))
-			'random-state->list (lambda (obj) (#_random-state->list (->value obj)))
+		 (inlet 'random-state?      (with-mock-wrapper #_random-state?)
+			'random-state->list (with-mock-wrapper #_random-state->list)
 			
 			'random             (lambda (num . rest)
 					      (if (mock-random-state? num)
@@ -1543,7 +1498,7 @@
 						      (#_random num)
 						      (#_random num (->value (car rest))))))
 			
-			'object->string     (lambda args (apply #_object->string (map ->value args)))
+			'object->string     (with-mock-wrapper* #_object->string)
 			
 			'format             (lambda (port str . args) 
 					      (if (mock-random-state? port)
@@ -1589,12 +1544,12 @@
   (set! *mock-iterator*
 	(let ((mock-iterator? #f))
 	  (let ((mock-iterator-class
-		 (inlet 'iterator?         (lambda (obj) (#_iterator? (->value obj)))
-			'iterate           (lambda (obj) (#_iterate (->value obj)))
-			'iterator-at-end?  (lambda (obj) (#_iterator-at-end? (->value obj)))
-			'iterator-sequence (lambda (obj) (#_iterator-sequence (->value obj)))
+		 (inlet 'iterator?         (with-mock-wrapper #_iterator?)
+			'iterate           (with-mock-wrapper #_iterate)
+			'iterator-at-end?  (with-mock-wrapper #_iterator-at-end?)
+			'iterator-sequence (with-mock-wrapper #_iterator-sequence)
 			
-			'object->string    (lambda args (apply #_object->string (map ->value args)))
+			'object->string    (with-mock-wrapper* #_object->string)
 			'format            (lambda (port str . args) 
 					     (if (mock-iterator? port)
 						 (error 'wrong-type-arg "format: port arg is a mock-iterator? ~A" (port 'value)))
@@ -1638,23 +1593,23 @@
   (set! *mock-port*
 	(let ((mock-port? #f))
 	  (let ((mock-port-class
-		 (inlet 'input-port?         (lambda (obj) (#_input-port? (->value obj)))
-			'output-port?        (lambda (obj) (#_output-port? (->value obj)))
-			'port-closed?        (lambda (obj) (#_port-closed? (->value obj)))
+		 (inlet 'input-port?         (with-mock-wrapper #_input-port?)
+			'output-port?        (with-mock-wrapper #_output-port?)
+			'port-closed?        (with-mock-wrapper #_port-closed?)
 			
 			'equivalent?         (lambda (x y) (#_equivalent? (->value x) (->value y)))
-			'append              (lambda args (apply #_append (map ->value args)))
+			'append              (with-mock-wrapper* #_append)
 			
-			'close-input-port    (lambda (obj) (#_close-input-port (->value obj)))
-			'close-output-port   (lambda (obj) (#_close-output-port (->value obj)))
+			'close-input-port    (with-mock-wrapper #_close-input-port)
+			'close-output-port   (with-mock-wrapper #_close-output-port)
 			'flush-output-port   (lambda args
 					       (if (null? args)
 						   (#_flush-output-port)
 						   (#_flush-output-port (->value (car args)))))
 			
-			'set-current-output-port (lambda (obj) (#_set-current-output-port (->value obj)))
-			'set-current-input-port  (lambda (obj) (#_set-current-input-port (->value obj)))
-			'set-current-error-port  (lambda (obj) (#_set-current-error-port (->value obj)))
+			'set-current-output-port (with-mock-wrapper #_set-current-output-port)
+			'set-current-input-port  (with-mock-wrapper #_set-current-input-port)
+			'set-current-error-port  (with-mock-wrapper #_set-current-error-port)
 			
 			'get-output-string   (lambda args
 					       (if (null? args) 
@@ -1690,7 +1645,7 @@
 					       (if (null? args) 
 						   (#_read-line)
 						   (let ((obj (car args))) 
-						     (apply #_read-line (->value obj) (cdr args)))))
+						     (apply #_read-line (->value obj) (map ->value (cdr args))))))
 			
 			'read                (lambda args 
 					       (if (null? args) 
@@ -1713,7 +1668,7 @@
 						   (#_port-filename)
 						   (#_port-filename (->value (car args)))))
 			
-			'object->string      (lambda args (apply #_object->string (map ->value args)))
+			'object->string      (with-mock-wrapper* #_object->string)
 			
 			'format              (lambda (port str . args)
 					       (if (mock-port? str)

@@ -7,11 +7,11 @@
 (set! (*s7* 'heap-size) (* 2 1024000))
 
 (define dups 
-  (let ((bv #f))
+  (let ((unique #f))
 
     (define-constant (all-positive? start end)
       (do ((j end (- j 1)))
-	  ((or (vector-ref bv j)
+	  ((or (vector-ref unique j)
 	       (= j start))
 	   j)))
 
@@ -21,7 +21,7 @@
 	    (lens (make-int-vector alloc-lines))
 	    (linenums (make-int-vector alloc-lines))
 	    (size-1 0))
-	(set! bv (make-vector alloc-lines #f))
+	(set! unique (make-vector alloc-lines #f))
 	
 	(call-with-input-file file
 	  (lambda (p)
@@ -76,7 +76,7 @@
 				  (begin
 				    (unless matches
 				      (int-vector-set! lens (cdr current) unctr)
-				      (vector-set! bv (cdr current) #t) ; bv = (negative? (lens...))
+				      (vector-set! unique (cdr current) #t) ; unique = (negative? (lens...))
 				      (set! unctr (- unctr 1)))
 				    (set! matches #f)
 				    (set! current srt))))
