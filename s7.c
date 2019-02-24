@@ -7466,6 +7466,7 @@ static s7_pointer g_openlets(s7_scheme *sc, s7_pointer args)
 {
   #define H_openlets "(openlets) (re)activates any open lets"
   #define Q_openlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
+
   sc->has_openlets = true; 
   return(sc->T);
 }
@@ -7474,6 +7475,7 @@ static s7_pointer g_coverlets(s7_scheme *sc, s7_pointer args)
 {
   #define H_coverlets "(coverlets) deactivates any open lets"
   #define Q_coverlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
+
   sc->has_openlets = false; 
   return(sc->F);
 }
@@ -31580,6 +31582,7 @@ static s7_pointer g_call_with_output_string(s7_scheme *sc, s7_pointer args)
     return(method_or_bust_with_type(sc, proc, sc->call_with_output_string_symbol, args, wrap_string(sc, "a procedure of one argument (the port)", 38), 1));
 
   port = s7_open_output_string(sc);
+  push_stack(sc, OP_UNWIND_OUTPUT, sc->gc_nil, port);     /* gc_nil here is a marker (needed) */
   push_stack(sc, OP_GET_OUTPUT_STRING, sc->gc_nil, port); /* args checked in call_with_exit */
   push_stack(sc, OP_APPLY, list_1(sc, port), proc);
   return(sc->F);
@@ -31603,7 +31606,7 @@ static s7_pointer g_call_with_output_file(s7_scheme *sc, s7_pointer args)
     return(method_or_bust_with_type(sc, proc, sc->call_with_output_file_symbol, args, wrap_string(sc, "a procedure of one argument (the port)", 38), 2));
 
   port = s7_open_output_file(sc, string_value(file), "w");
-  push_stack(sc, OP_UNWIND_OUTPUT, sc->gc_nil, port); /* as above, gc_nil here is a marker (needed) */
+  push_stack(sc, OP_UNWIND_OUTPUT, sc->gc_nil, port); /* gc_nil here is a marker (needed) */
   push_stack(sc, OP_APPLY, list_1(sc, port), proc);
   return(sc->F);
 }
@@ -31625,6 +31628,7 @@ static s7_pointer g_with_output_to_string(s7_scheme *sc, s7_pointer args)
 
   old_output_port = sc->output_port;
   sc->output_port = s7_open_output_string(sc);
+  push_stack(sc, OP_UNWIND_OUTPUT, old_output_port, sc->output_port); 
   push_stack(sc, OP_GET_OUTPUT_STRING, old_output_port, sc->output_port);
   push_stack(sc, OP_APPLY, sc->nil, p);
   return(sc->F);
@@ -37631,6 +37635,13 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 			      if ((car(sig) != sc->is_boolean_symbol) || (cadr(sig) != sc->T) || (!is_null(cddr(sig))))
 				return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type is not a boolean procedure", 31)));
 			    }}}}}}}
+  /* before making the new vector, if fill is specified and the vector is typed, we have to check for a type error.
+   *    otherwise we can end up with a vector whose elements are NULL, causing a segfault in the  gc.
+   */
+  if ((result_type == T_VECTOR) &&
+      (is_c_function(typf)) &&
+      (c_function_call(typf)(sc, set_plist_1(sc, fill)) == sc->F))
+    s7_wrong_type_arg_error(sc, "make-vector", 3, fill, make_type_name(sc, c_function_name(typf), INDEFINITE_ARTICLE));
 
   vec = make_vector_1(sc, len, NOT_FILLED, result_type);
 
@@ -90293,14 +90304,14 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2290
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3534 3143
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3149
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
@@ -90310,8 +90321,8 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.3
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.4
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.3
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2
  * ----------------------------------------------------------------------------------
  *
  * full p_p* parallel safe_c_* -- safe_o?
@@ -90326,8 +90337,7 @@ int main(int argc, char **argv)
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
  * see s7test for lint, are there other transformations like append? combine??
- * display et al copy/paste mockery, clean up others like copy
- * t718 eqiv *stdout* cc/vect-of-nil
+ * t718 eqiv
  * if s7_apply_function cycle check is cheap, maybe leave it in?
- * coverlets/openlets doc/test extend to mockery
+ * coverlets/openlets doc/test extend to mockery, clean up mockery
  */

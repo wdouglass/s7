@@ -2498,6 +2498,8 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
+(<em class=def id="openlets">openlets</em>)               (re)activate all methods (these two are experimental)
+(<em class=def id="coverlets">coverlets</em> env)          deactivate all methods
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
