@@ -90320,7 +90320,7 @@ int main(int argc, char **argv)
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.3
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.2
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2
  * ----------------------------------------------------------------------------------
@@ -90337,7 +90337,5 @@ int main(int argc, char **argv)
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
  * see s7test for lint, are there other transformations like append? combine??
- * t718 eqiv
- * if s7_apply_function cycle check is cheap, maybe leave it in?
- * coverlets/openlets doc/test extend to mockery, clean up mockery
+ * clean up mockery
  */

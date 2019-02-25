@@ -80,8 +80,7 @@
   (set! *mock-vector*
 	(let ((mock-vector? #f))
 	  (let ((mock-vector-class
-		 (inlet 'equivalent?        (lambda (x y)
-					      (#_equivalent? (->value x) (->value y)))
+		 (inlet 'equivalent?        (with-mock-wrapper* #_equivalent?)
 			
 			'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
 					      (if (mock-vector? i)
@@ -136,8 +135,7 @@
 			'vector->list       (lambda (obj . args)
 					      (map values (->value obj)))
 			
-			'subvector          (lambda (obj . args)
-					      (apply #_subvector (->value obj) (map ->value args)))
+			'subvector          (with-mock-wrapper* #_subvector)
 			
 			'copy               (lambda* (source dest . args)
 					      (if dest
@@ -225,8 +223,7 @@
   (set! *mock-hash-table*
 	(let ((mock-hash-table? #f))
 	  (let ((mock-hash-table-class
-		 (inlet 'equivalent?        (lambda (x y) 
-					      (#_equivalent? (->value x) (->value y)))
+		 (inlet 'equivalent?        (with-mock-wrapper* #_equivalent?)
 			
 			'hash-table-ref     (lambda (obj key) 
 					      (#_hash-table-ref (->value obj) (->value key)))
@@ -338,9 +335,7 @@
   (set! *mock-string*
 	(let ((mock-string? #f))
 	  (let ((mock-string-class
-		 (inlet 'equivalent?            (lambda (x y) 
-						  (#_equivalent? (->value x) (->value y)))
-			
+		 (inlet 'equivalent?            (with-mock-wrapper* #_equivalent?)
 			'reverse                (with-mock-wrapper #_reverse)
 			'arity                  (with-mock-wrapper #_arity)
 			
@@ -428,13 +423,8 @@
 
 			'write-string           (lambda (obj . args) 
 						  (apply #_write-string (->value obj) (map ->value args)))
-			
-			'string-fill!           (lambda* (obj val (start 0) end) 
-						  (if (or (mock-string? val)
-							  (mock-string? start)
-							  (mock-string? end))
-						      (error 'wrong-type-arg "string-fill! stray mock-string? ~A ~A ~A" val start end))
-						  (#_string-fill! (->value obj) (->value val) (->value start) (or (->value end) (#_string-length (->value obj)))))
+
+			'string-fill!           (with-mock-wrapper* #_string-fill!)
 			
 			'fill!                  (lambda (obj val) 
 						  (unless (char? val)
@@ -536,7 +526,7 @@
   (set! *mock-char*
 	(let ((mock-char? #f))
 	  (let ((mock-char-class
-		 (inlet 'equivalent?        (lambda (x y) (#_equivalent? (->value x) (->value y)))
+		 (inlet 'equivalent?        (with-mock-wrapper* #_equivalent?)
 			'char-upcase        (with-mock-wrapper #_char-upcase)
 			'char-downcase      (with-mock-wrapper #_char-downcase)
 			'char->integer      (with-mock-wrapper #_char->integer)
@@ -575,10 +565,7 @@
 						  (#_string-set! obj ind (->value val))
 						  (error 'wrong-type-arg "string-set! ~S ~S ~S" obj ind val)))
 			
-			'string-fill!       (lambda (obj chr . args)
-					      (if (string? obj)
-						  (apply #_string-fill! obj (->value chr) (map ->value args))
-						  (error 'wrong-type-arg "string-fill! ~S ~S ~S" obj chr args)))
+			'string-fill!       (with-mock-wrapper* #_string-fill!)
 			
 			'copy               (lambda (src . args) 
 					      (apply #_copy (->value src) (map ->value args)))
@@ -626,7 +613,7 @@
 	  
 	  (let ((mock-number-class
 		 (inlet 
-		  'equivalent?      (lambda (x y) (#_equivalent? (->value x) (->value y)))
+		  'equivalent?      (with-mock-wrapper* #_equivalent?)
 		  'arity            (with-mock-wrapper #_arity)
 		  'real-part        (with-mock-wrapper #_real-part)
 		  'imag-part        (with-mock-wrapper #_imag-part)
@@ -757,20 +744,9 @@
 						(if (and (integer? i1) (integer? i2))
 						    (vector-fill! v val i1 i2)
 						    (error 'wrong-type-arg "start and end should be integers: ~S ~S" start end))))))
-		  
-		  'string-fill!     (lambda* (v val (start 0) end)
-				      (if (mock-number? v)
-					  (error 'wrong-type-arg "~S is a mock-number, not a string" v)
-					  (if (mock-number? val)
-					      (error 'wrong-type-arg "~S is a mock-number, not a character" v)
-					      (let ((i1 (->value start))
-						    (i2 (if (mock-number? end)
-							    (end 'value)
-							    (or end (length v)))))
-						(if (and (integer? i1) (integer? i2))
-						    (string-fill! v val i1 i2)
-						    (error 'wrong-type-arg "start and end should be integers: ~S ~S" start end))))))
-		  
+
+		  'string-fill!     (with-mock-wrapper* #_string-fill!)
+
 		  'copy             (lambda* (v val (start 0) end)
 				      (if (mock-number? v)
 					  (#_copy (->value v))
@@ -838,11 +814,8 @@
 		  'int-vector       (with-mock-wrapper* #_int-vector)
 		  'byte-vector      (with-mock-wrapper* #_byte-vector)
 		  
-		  'subvector        (lambda* (obj dims (offset 0))
-				      (if (mock-number? obj)
-					  (error 'wrong-type-arg "subvector first arg is not a vector: ~S" obj))
-				      (#_subvector (->value obj) (->value dims) (->value offset)))
-		  
+		  'subvector        (with-mock-wrapper* #_subvector)
+
 		  'read-string     (lambda* (k port)
 				     (if (input-port? port)
 					 (#_read-string (k 'value) port)
@@ -1016,7 +989,7 @@
   (set! *mock-pair*
 	(let ((mock-pair? #f))
 	  (let ((mock-pair-class
-		 (inlet 'equivalent?      (lambda (x y) (#_equivalent? (->value x) (->value y)))
+		 (inlet 'equivalent?      (with-mock-wrapper* #_equivalent?)
 			'pair-line-number (with-mock-wrapper #_pair-line-number)
 			'list->string     (with-mock-wrapper #_list->string)
 
@@ -1112,12 +1085,8 @@
 						  (error 'wrong-type-arg "copy: start or end point is not an integer: ~A~%" (cdr args))))
 					    (apply #_copy (->value obj) args))
 			
-			'subvector          (lambda* (obj dims (off 0))
-					      (if (or (mock-pair? obj)
-						      (mock-pair? off))
-						  (error 'wrong-type-arg "subvector: stray mock-pair? ~S ~S~%" obj off))
-					      (#_subvector obj (->value dims) off))
-			
+			'subvector        (with-mock-wrapper* #_subvector)
+
 			'make-vector      (lambda (dims . args) 
 					    (apply #_make-vector (->value dims) (map ->value args)))
 			
@@ -1182,7 +1151,7 @@
   (set! *mock-symbol*
 	(let ((mock-symbol? #f))
 	  (let ((mock-symbol-class
-		 (inlet 'equivalent?           (lambda (x y) (#_equivalent? (->value x) (->value y)))
+		 (inlet 'equivalent?           (with-mock-wrapper* #_equivalent?)
 			'gensym?               (with-mock-wrapper #_gensym?)
 			'append                (with-mock-wrapper* #_append)
 			'symbol->string        (with-mock-wrapper #_symbol->string)
@@ -1335,7 +1304,7 @@
 			'output-port?        (with-mock-wrapper #_output-port?)
 			'port-closed?        (with-mock-wrapper #_port-closed?)
 			
-			'equivalent?         (lambda (x y) (#_equivalent? (->value x) (->value y)))
+			'equivalent?         (with-mock-wrapper* #_equivalent?)
 			'append              (with-mock-wrapper* #_append)
 			
 			'close-input-port    (with-mock-wrapper #_close-input-port)
