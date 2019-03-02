@@ -23612,7 +23612,7 @@ void s7_flush_output_port(s7_scheme *sc, s7_pointer p)
       (port_is_closed(p)) ||
       (p == sc->F))
     return;
-
+  
   if (port_file(p))
     {
       if (port_position(p) > 0)
@@ -23627,7 +23627,7 @@ void s7_flush_output_port(s7_scheme *sc, s7_pointer p)
 
 static s7_pointer g_flush_output_port(s7_scheme *sc, s7_pointer args)
 {
-  #define H_flush_output_port "(flush-output-port port) flushes the port"
+  #define H_flush_output_port "(flush-output-port port) flushes the file port (that is, it writes any accumulated output to the output file)"
   #define Q_flush_output_port s7_make_signature(sc, 2, sc->T, s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->not_symbol))
   s7_pointer pt;
 
@@ -27777,11 +27777,35 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 
 #define NOT_P_DISPLAY(Choice) ((Choice == P_DISPLAY) ? P_WRITE : Choice)
 
+#if CYCLE_DEBUGGING
+static char *base1 = NULL, *min_char1 = NULL;
+#endif
+
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
 				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
 				   use_write_t use_write, shared_info *ci)
 {
   int32_t i;
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base1) base1 = &x; 
+  else 
+    {
+      if (&x > base1) base1 = &x; 
+      else 
+	{
+	  if ((!min_char1) || (&x < min_char1))
+	    {
+	      min_char1 = &x;
+	      if ((base1 - min_char1) > 100000)
+		{
+		  fprintf(stderr, "multivector infinite recursion?\n");
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
   if (use_write != P_READABLE)
     {
       if (*last)
@@ -63181,6 +63205,13 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 	{
 	  sc->u = args;
 	  check_heap_size(sc, 8192);
+#if S7_DEBUGGING
+	  if (tree_is_cyclic(sc, args))
+	    {
+	      fprintf(stderr, "%s[%d]: hit a cyclic list?\n", __func__, __LINE__);
+	      abort();
+	    }
+#endif
 	  return(copy_tree(sc, args)); /* copy_tree can't handle cyclic trees */
 	}
       return((is_immutable(args)) ? copy_list(sc, args) : args);
@@ -90336,6 +90367,4 @@ int main(int argc, char **argv)
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * see s7test for lint, are there other transformations like append? combine??
- * clean up mockery
  */
