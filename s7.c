@@ -3980,8 +3980,7 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_PA_1, OP_SAFE_C_PA_MV,
 
       OP_SET_WITH_LET_1, OP_SET_WITH_LET_2, OP_S7_LET,
-
-      OP_D1, OP_D2, OP_D3, OP_D4, OP_D5, OP_D6, OP_D7, OP_D8, 
+      OP_D1, OP_D2, OP_D3, OP_D4, 
       OP_MAX_DEFINED_1};
 
 #define OP_MAX_DEFINED (OP_MAX_DEFINED_1 + 1)
@@ -8531,22 +8530,28 @@ s7_pointer s7_curlet(s7_scheme *sc)
   return(sc->envir);
 }
 
+static void update_symbol_ids(s7_scheme *sc, s7_pointer e)
+{
+  s7_pointer p;
+  for (p = let_slots(e); tis_slot(p); p = next_slot(p))
+    {
+      s7_pointer sym;
+      sym = slot_symbol(p);
+      if (symbol_id(sym) != sc->let_number)
+	symbol_set_local(sym, sc->let_number, p);
+    }
+}
+
 s7_pointer s7_set_curlet(s7_scheme *sc, s7_pointer e)
 {
-  s7_pointer p, old_e;
+  s7_pointer old_e;
   old_e = sc->envir;
   sc->envir = e;
 
   if ((is_let(e)) && (let_id(e) > 0)) /* might be () [id=-1] or rootlet [id=0] etc */
     {
       let_id(e) = ++sc->let_number;
-      for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	{
-	  s7_pointer sym;
-	  sym = slot_symbol(p);
-	  if (symbol_id(sym) != sc->let_number)
-	    symbol_set_local(sym, sc->let_number, p);
-	}
+      update_symbol_ids(sc, e);
     }
 
   return(old_e);
@@ -11101,6 +11106,14 @@ static s7_pointer s7_negate(s7_scheme *sc, s7_pointer p)     /* can't use "negat
 }
 #endif
 
+static s7_pointer complex_invert(s7_scheme *sc, s7_pointer p)
+{
+  s7_double r2, i2, den;
+  r2 = real_part(p);
+  i2 = imag_part(p);
+  den = (r2 * r2 + i2 * i2);
+  return(s7_make_complex(sc, r2 / den, -i2 / den));
+}
 
 static s7_pointer s7_invert(s7_scheme *sc, s7_pointer p)      /* s7_ to be consistent... */
 {
@@ -11109,17 +11122,8 @@ static s7_pointer s7_invert(s7_scheme *sc, s7_pointer p)      /* s7_ to be consi
     case T_INTEGER: return(make_simple_ratio(sc, 1, integer(p)));           /* a already checked, not 0 */
     case T_RATIO:   return(make_simple_ratio(sc, denominator(p), numerator(p)));
     case T_REAL:    return(make_real(sc, 1.0 / real(p)));
-    case T_COMPLEX:
-      {
-	s7_double r2, i2, den;
-	r2 = real_part(p);
-	i2 = imag_part(p);
-	den = (r2 * r2 + i2 * i2);
-	return(s7_make_complex(sc, r2 / den, -i2 / den));
-      }
-
-    default:
-      return(wrong_type_argument_with_type(sc, sc->divide_symbol, 1, p, a_number_string));
+    case T_COMPLEX: return(complex_invert(sc, p));
+    default:        return(wrong_type_argument_with_type(sc, sc->divide_symbol, 1, p, a_number_string));
     }
 }
 
@@ -15857,12 +15861,15 @@ static s7_pointer g_mod_si(s7_scheme *sc, s7_pointer args)
 
   if (is_t_real(x))
     {
-      s7_double a, b;
+      s7_double a, b, c;
       a = real(x);
       if (is_NaN(a)) return(x);
       if (is_inf(a)) return(real_NaN);
       b = (s7_double)y;
-      return(make_real(sc, a - b * (s7_int)floor(a / b)));
+      c = a / b;
+      if ((c > 1e19) || (c < -1e19))
+	return(simple_out_of_range(sc, sc->modulo_symbol, make_real(sc, c), wrap_string(sc, "intermediate (a/b) is too large", 31)));
+      return(make_real(sc, a - b * (s7_int)floor(c)));
     }
 
   if (s7_is_ratio(x))
@@ -17919,13 +17926,7 @@ static s7_pointer g_invert_1(s7_scheme *sc, s7_pointer args)
       return(division_by_zero_error(sc, sc->divide_symbol, args));
 
     case T_COMPLEX:
-      {
-	s7_double r2, i2, den;
-	r2 = real_part(p);
-	i2 = imag_part(p);
-	den = (r2 * r2 + i2 * i2);
-	return(s7_make_complex(sc, r2 / den, -i2 / den));
-      }
+      return(complex_invert(sc, p));
 
     default:
       return(method_or_bust_with_type(sc, p, sc->divide_symbol, args, a_number_string, 1));
@@ -17976,6 +17977,14 @@ static bool is_real_via_method_1(s7_scheme *sc, s7_pointer p)
 
 #define is_real_via_method(sc, p) ((s7_is_real(p)) || ((has_active_methods(sc, p)) && (is_real_via_method_1(sc, p))))
 
+static s7_pointer nan_with_error_check(s7_scheme *sc, s7_pointer y, s7_pointer p, s7_pointer args, s7_pointer caller)
+{
+  for (; is_not_null(p); p = cdr(p))
+    if (!is_real_via_method(sc, car(p)))
+      return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
+  return(y);
+}
+
 static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 {
   #define H_max "(max ...) returns the maximum of its arguments"
@@ -18009,12 +18018,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 
 	case T_REAL:
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->max_symbol));
 	  if (integer(x) < real(y))
 	    {
 	      x = y;
@@ -18107,12 +18111,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 	case T_REAL:
 	  /* (max 3/4 +nan.0) should probably return NaN */
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->max_symbol));
 
 	  if (fraction(x) < real(y))
 	    {
@@ -18128,12 +18127,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 
     case T_REAL:
       if (is_NaN(real(x)))
-	{
-	  for (; is_not_null(p); p = cdr(p))
-	    if (!is_real_via_method(sc, car(p)))
-	      return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
-	  return(x);
-	}
+	return(nan_with_error_check(sc, x, p, args, sc->max_symbol));
 
     MAX_REALS:
       if (is_null(p)) return(x);
@@ -18160,12 +18154,7 @@ static s7_pointer g_max(s7_scheme *sc, s7_pointer args)
 
 	case T_REAL:
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->max_symbol));
 	  if (real(x) < real(y)) x = y;
 	  goto MAX_REALS;
 
@@ -18218,12 +18207,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 
 	case T_REAL:
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->min_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->min_symbol));
 	  if (integer(x) > real(y))
 	    {
 	      x = y;
@@ -18300,12 +18284,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 	case T_REAL:
 	  /* (min 3/4 +nan.0) should probably return NaN */
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->min_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->min_symbol));
 	  if (fraction(x) > real(y))
 	    {
 	      x = y;
@@ -18319,12 +18298,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 
     case T_REAL:
       if (is_NaN(real(x)))
-	{
-	  for (; is_not_null(p); p = cdr(p))
-	    if (!is_real_via_method(sc, car(p)))
-	      return(wrong_type_argument(sc, sc->min_symbol, position_of(p, args), car(p), T_REAL));
-	  return(x);
-	}
+	return(nan_with_error_check(sc, x, p, args, sc->min_symbol));
 
     MIN_REALS:
       if (is_null(p)) return(x);
@@ -18351,12 +18325,7 @@ static s7_pointer g_min(s7_scheme *sc, s7_pointer args)
 
 	case T_REAL:
 	  if (is_NaN(real(y)))
-	    {
-	      for (; is_not_null(p); p = cdr(p))
-		if (!is_real_via_method(sc, car(p)))
-		  return(wrong_type_argument(sc, sc->min_symbol, position_of(p, args), car(p), T_REAL));
-	      return(y);
-	    }
+	    return(nan_with_error_check(sc, y, p, args, sc->min_symbol));
 	  if (real(x) > real(y)) x = y;
 	  goto MIN_REALS;
 
@@ -21420,9 +21389,17 @@ static s7_pointer g_is_char_whitespace(s7_scheme *sc, s7_pointer args)
 
 static bool is_char_whitespace_b_7p(s7_scheme *sc, s7_pointer c)
 {
-  if (!s7_is_character(c))
-    simple_wrong_type_argument(sc, sc->is_char_whitespace_symbol, c, T_CHARACTER);
-  return(is_char_whitespace(c));
+  if (s7_is_character(c))
+    return(is_char_whitespace(c));
+  if (has_active_methods(sc, c))
+    {
+      s7_pointer f;
+      f = find_method(sc, find_let(sc, c), sc->is_char_whitespace_symbol);
+      if (f != sc->undefined)
+	return(is_true(sc, s7_apply_function(sc, f, cons(sc, c, sc->nil))));
+    }
+  simple_wrong_type_argument(sc, sc->is_char_whitespace_symbol, c, T_CHARACTER);
+  return(false);
 }
 static bool is_char_whitespace_c(s7_pointer c) {return(is_char_whitespace(c));}
 static s7_pointer is_char_whitespace_p_p(s7_scheme *sc, s7_pointer c) 
@@ -21524,6 +21501,15 @@ static bool is_character_via_method(s7_scheme *sc, s7_pointer p)
   return(false);
 }
 
+static s7_pointer char_with_error_check(s7_scheme *sc, s7_pointer x, s7_pointer args, s7_pointer caller)
+{
+  s7_pointer y;
+  for (y = cdr(x); is_pair(y); y = cdr(y)) /* before returning #f, check for bad trailing arguments */
+    if (!is_character_via_method(sc, car(y)))
+      return(wrong_type_argument(sc, caller, position_of(y, args), car(y), T_CHARACTER));
+  return(sc->F);
+}
+
 static s7_pointer g_char_cmp(s7_scheme *sc, s7_pointer args, int32_t val, s7_pointer sym)
 {
   s7_pointer x, y;
@@ -21536,14 +21522,8 @@ static s7_pointer g_char_cmp(s7_scheme *sc, s7_pointer args, int32_t val, s7_poi
     {
       if (!s7_is_character(car(x)))
 	return(method_or_bust(sc, car(x), sym, cons(sc, y, x), T_CHARACTER, position_of(x, args)));
-
       if (charcmp(character(y), character(car(x))) != val)
-	{
-	  for (y = cdr(x); is_pair(y); y = cdr(y)) /* before returning #f, check for bad trailing arguments */
-	    if (!is_character_via_method(sc, car(y)))
-	      return(wrong_type_argument(sc, sym, position_of(y, args), car(y), T_CHARACTER));
-	  return(sc->F);
-	}
+	return(char_with_error_check(sc, x, args, sym));
       y = car(x);
     }
   return(sc->T);
@@ -21561,14 +21541,8 @@ static s7_pointer g_char_cmp_not(s7_scheme *sc, s7_pointer args, int32_t val, s7
     {
       if (!s7_is_character(car(x)))
 	return(method_or_bust(sc, car(x), sym, cons(sc, y, x), T_CHARACTER, position_of(x, args)));
-
       if (charcmp(character(y), character(car(x))) == val)
-	{
-	  for (y = cdr(x); is_pair(y); y = cdr(y))
-	    if (!is_character_via_method(sc, car(y)))
-	      return(wrong_type_argument(sc, sym, position_of(y, args), car(y), T_CHARACTER));
-	  return(sc->F);
-	}
+	return(char_with_error_check(sc, x, args, sym));
       y = car(x);
     }
   return(sc->T);
@@ -21589,14 +21563,8 @@ static s7_pointer g_chars_are_equal(s7_scheme *sc, s7_pointer args)
     {
       if (!s7_is_character(car(x)))
 	return(method_or_bust(sc, car(x), sc->char_eq_symbol, cons(sc, y, x), T_CHARACTER, position_of(x, args)));
-
       if (car(x) != y)
-	{
-	  for (y = cdr(x); is_pair(y); y = cdr(y))
-	    if (!is_character_via_method(sc, car(y)))
-	      return(wrong_type_argument(sc, sc->char_eq_symbol, position_of(y, args), car(y), T_CHARACTER));
-	  return(sc->F);
-	}
+	return(char_with_error_check(sc, x, args, sc->char_eq_symbol));
     }
   return(sc->T);
 }
@@ -21739,12 +21707,7 @@ static s7_pointer g_char_cmp_ci(s7_scheme *sc, s7_pointer args, int32_t val, s7_
       if (!s7_is_character(car(x)))
 	return(method_or_bust(sc, car(x), sym, cons(sc, y, x), T_CHARACTER, position_of(x, args)));
       if (charcmp(upper_character(y), upper_character(car(x))) != val)
-	{
-	  for (y = cdr(x); is_pair(y); y = cdr(y))
-	    if (!is_character_via_method(sc, car(y)))
-	      return(wrong_type_argument(sc, sym, position_of(y, args), car(y), T_CHARACTER));
-	  return(sc->F);
-	}
+	return(char_with_error_check(sc, x, args, sym));
       y = car(x);
     }
   return(sc->T);
@@ -21762,12 +21725,7 @@ static s7_pointer g_char_cmp_ci_not(s7_scheme *sc, s7_pointer args, int32_t val,
       if (!s7_is_character(car(x)))
 	return(method_or_bust(sc, car(x), sym, cons(sc, y, x), T_CHARACTER, position_of(x, args)));
       if (charcmp(upper_character(y), upper_character(car(x))) == val)
-	{
-	  for (y = cdr(x); is_pair(y); y = cdr(y))
-	    if (!is_character_via_method(sc, car(y)))
-	      return(wrong_type_argument(sc, sym, position_of(y, args), car(y), T_CHARACTER));
-	  return(sc->F);
-	}
+	return(char_with_error_check(sc, x, args, sym));
       y = car(x);
     }
   return(sc->T);
@@ -27777,35 +27735,11 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
 
 #define NOT_P_DISPLAY(Choice) ((Choice == P_DISPLAY) ? P_WRITE : Choice)
 
-#if CYCLE_DEBUGGING
-static char *base1 = NULL, *min_char1 = NULL;
-#endif
-
 static int32_t multivector_to_port(s7_scheme *sc, s7_pointer vec, s7_pointer port,
 				   int32_t out_len, int32_t flat_ref, int32_t dimension, int32_t dimensions, bool *last,
 				   use_write_t use_write, shared_info *ci)
 {
   int32_t i;
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base1) base1 = &x; 
-  else 
-    {
-      if (&x > base1) base1 = &x; 
-      else 
-	{
-	  if ((!min_char1) || (&x < min_char1))
-	    {
-	      min_char1 = &x;
-	      if ((base1 - min_char1) > 100000)
-		{
-		  fprintf(stderr, "multivector infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
   if (use_write != P_READABLE)
     {
       if (*last)
@@ -42787,10 +42721,7 @@ bool s7_is_aritable(s7_scheme *sc, s7_pointer x, s7_int args)
 	return(is_safe_procedure(x));
       }
 
-    case T_VECTOR:
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_VECTOR: case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_BYTE_VECTOR:
       return((args > 0) &&
 	     (vector_length(x) > 0) &&   /* (#() 0) -> error */
 	     (args <= vector_rank(x)));
@@ -44105,10 +44036,7 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
 	     (iterator_length(x) == iterator_length(y)) &&
 	     (string_equal(sc, x_seq, y_seq, ci)));
 
-    case T_VECTOR:
-    case T_INT_VECTOR:
-    case T_BYTE_VECTOR:
-    case T_FLOAT_VECTOR:
+    case T_VECTOR: case T_INT_VECTOR: case T_BYTE_VECTOR: case T_FLOAT_VECTOR:
       return((is_any_vector(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
@@ -44746,10 +44674,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  check_method(sc, source, sc->copy_symbol, args);
 	  return(copy_closure(sc, source));
 
-	case T_INT_VECTOR:
-	case T_FLOAT_VECTOR:
-	case T_VECTOR:
-	case T_BYTE_VECTOR:
+	case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
 	  return(s7_vector_copy(sc, source)); /* "shallow" copy */
 
 	case T_PAIR:                    /* top level only, as in the other cases, last arg checks for circles */
@@ -44819,10 +44744,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	}
       break;
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR:  case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       get = vector_getter(source);
       end = vector_length(source);
       break;
@@ -45747,10 +45669,7 @@ s7_pointer s7_fill(s7_scheme *sc, s7_pointer args)
     case T_STRING:
       return(g_string_fill_1(sc, sc->fill_symbol, args)); /* redundant type check here and below */
 
-    case T_BYTE_VECTOR:
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
+    case T_BYTE_VECTOR: case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR:
       return(g_vector_fill_1(sc, sc->fill_symbol, args));
 
     case T_PAIR:
@@ -45985,10 +45904,7 @@ static s7_pointer g_append(s7_scheme *sc, s7_pointer args)
     case T_PAIR:
       return(g_list_append(sc, args)); /* only list case accepts any trailing arg because dotted lists are special */
 
-    case T_VECTOR:
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_VECTOR: case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_BYTE_VECTOR:
       return(vector_append(sc, args, type(a1), sc->append_symbol));
 
     case T_STRING:
@@ -48975,33 +48891,8 @@ static s7_pointer g_apply(s7_scheme *sc, s7_pointer args)
   return(sc->nil);
 }
 
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   TRACK(sc);
 #if S7_DEBUGGING
   {
@@ -59888,27 +59779,30 @@ static s7_pointer opt_cond(void *p)
   return(o->v[2].p);
 }
 
+static s7_pointer case_value(opt_info *o)
+{
+  opt_info *top, *o1;
+  int32_t i, len;
+  top = (opt_info *)(o->v[5].obj);
+  len = o->v[1].i - 1;
+  for (i = 0; i < len; i++)
+    {
+      o1 = o->sc->opts[++o->sc->pc];
+      o1->v[0].fp(o1);
+    }
+  o1 = o->sc->opts[++o->sc->pc];
+  top->v[2].p = o1->v[0].fp(o1);
+  o->sc->pc = top->v[1].i;
+  return(top->v[2].p);
+}
+
 static s7_pointer opt_cond_clause(void *p)
 {
   /* top->p1 gets result, top->i1 is end index, o->v[3].i is end of current clause, o->v[1].i = body len */
   opt_info *o1, *o = (opt_info *)p;
   o1 = o->sc->opts[++o->sc->pc];
   if (o1->v[0].fb(o1))
-    {
-      opt_info *top;
-      int32_t i, len;
-      top = (opt_info *)(o->v[5].obj);
-      len = o->v[1].i - 1;
-      for (i = 0; i < len; i++)
-	{
-	  o1 = o->sc->opts[++o->sc->pc];
-	  o1->v[0].fp(o1);
-	}
-      o1 = o->sc->opts[++o->sc->pc];
-      top->v[2].p = o1->v[0].fp(o1);
-      o->sc->pc = top->v[1].i;
-      return(top->v[2].p);
-    }
+    return(case_value(o));
   o->sc->pc = o->v[3].i;
   return(o->sc->unspecified);
 }
@@ -60531,20 +60425,7 @@ static s7_pointer opt_case_clause(void *p)
   top = (opt_info *)(o->v[5].obj);
   if ((o->v[2].p == o->sc->else_symbol) ||
       (case_memv(o->sc, top->v[4].p, o->v[2].p)))
-    {
-      opt_info *o1;
-      int32_t i, len;
-      len = o->v[1].i - 1;
-      for (i = 0; i < len; i++)
-	{
-	  o1 = o->sc->opts[++o->sc->pc];
-	  o1->v[0].fp(o1);
-	}
-      o1 = o->sc->opts[++o->sc->pc];
-      top->v[2].p = o1->v[0].fp(o1);
-      o->sc->pc = top->v[1].i;
-      return(top->v[2].p);
-    }
+    return(case_value(o));
   o->sc->pc = o->v[3].i;
   return(o->sc->unspecified);
 }
@@ -72355,7 +72236,6 @@ static s7_pointer op_with_let_s(s7_scheme *sc)
     sc->envir = sc->nil;
   else
     {
-      s7_pointer p;
       if (!is_let(e))
 	eval_type_error(sc, "with-let takes an environment argument: ~A", 42, e);
       set_with_let_let(e);
@@ -72367,13 +72247,7 @@ static s7_pointer op_with_let_s(s7_scheme *sc)
        *   when pounding on this one block, the loop only amounts to 1% of the time.  Normally it's
        *   negligible).
        */
-      for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	{
-	  s7_pointer sym;
-	  sym = slot_symbol(p);
-	  if (symbol_id(sym) != sc->let_number)
-	    symbol_set_local(sym, sc->let_number, p);
-	}
+      update_symbol_ids(sc, e);
     }
   sc->code = T_Pair(cdr(sc->code));
   return(NULL);
@@ -72698,6 +72572,19 @@ static bool op_cond_fx_2(s7_scheme *sc)
   return(is_null(sc->code));
 }
 
+static bool fx_cond_value(s7_scheme *sc)
+{
+  if (is_null(sc->code))
+    return(true);
+  sc->code = car(sc->code);
+  if (is_pair(sc->code))
+    return(false);
+  if (is_symbol(sc->code))
+    sc->value = lookup_checked(sc, sc->code);
+  else sc->value = sc->code;
+  return(true);
+}
+
 static bool op_cond_fx_p(s7_scheme *sc)
 {
   s7_pointer p;
@@ -72708,15 +72595,7 @@ static bool op_cond_fx_p(s7_scheme *sc)
       if (is_true(sc, sc->value))
 	{
 	  sc->code = T_Lst(cdar(p));
-	  if (is_null(sc->code))
-	    return(true);
-	  sc->code = car(sc->code);
-	  if (is_pair(sc->code))
-	    return(false);
-	  if (is_symbol(sc->code))
-	    sc->value = lookup_checked(sc, sc->code);
-	  else sc->value = sc->code;
-	  return(true);
+	  return(fx_cond_value(sc));
 	}
     }
   sc->value = sc->unspecified;
@@ -72735,15 +72614,7 @@ static bool op_cond_fx_1p_else(s7_scheme *sc)
       sc->code = cdadr(p);
       sc->value = sc->else_symbol;
     }
-  if (is_null(sc->code))
-    return(true);
-  sc->code = car(sc->code);
-  if (is_pair(sc->code))
-    return(false);
-  if (is_symbol(sc->code))
-    sc->value = lookup_checked(sc, sc->code);
-  else sc->value = sc->code;
-  return(true);
+  return(fx_cond_value(sc));
 }
 
 static bool op_cond_fx_2p_else(s7_scheme *sc)
@@ -72765,15 +72636,7 @@ static bool op_cond_fx_2p_else(s7_scheme *sc)
 	  sc->value = sc->else_symbol; /* in case (else) */
 	}
     }
-  if (is_null(sc->code))
-    return(true);
-  sc->code = car(sc->code);
-  if (is_pair(sc->code))
-    return(false);
-  if (is_symbol(sc->code))
-    sc->value = lookup_checked(sc, sc->code);
-  else sc->value = sc->code;
-  return(true);
+  return(fx_cond_value(sc));  
 }
 
 
@@ -73663,10 +73526,7 @@ static int32_t set_pair_ex(s7_scheme *sc)
 	return(goto_TOP_NO_POP);
       }
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       {
 	/* cx is the vector, sc->code is expr without the set! */
 	/*  args have not been evaluated! */
@@ -74169,17 +74029,10 @@ static void activate_let(s7_scheme *sc, s7_pointer e)
     sc->envir = sc->nil;                             /* (with-let (rootlet) ...) */
   else
     {
-      s7_pointer p;
       set_with_let_let(e);
       let_id(e) = ++sc->let_number;
       sc->envir = e;
-      for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	{
-	  s7_pointer sym;
-	  sym = slot_symbol(p);
-	  if (symbol_id(sym) != sc->let_number)
-	    symbol_set_local(sym, sc->let_number, p);
-	}
+      update_symbol_ids(sc, e);
     }
 }
 
@@ -76625,10 +76478,7 @@ static int32_t unknown_g_ex(s7_scheme *sc, s7_pointer f)
       set_opt3_arglen(code, small_int(1));
       return(fixup_unknown_op(code, f, OP_GOTO_A));
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       if ((sym_case) ||
 	  (is_t_integer(cadr(code))))      /* (v 4/3) */
 	{
@@ -76779,10 +76629,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	}
       break;
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       return(fixup_unknown_op(code, f, OP_VECTOR_A));
 
     case T_STRING:     return(fixup_unknown_op(code, f, OP_STRING_A));
@@ -76964,10 +76811,7 @@ static int32_t unknown_gg_ex(s7_scheme *sc, s7_pointer f)
 	}
       break;
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       annotate_args(sc, cdr(code), sc->envir);
       return(fixup_unknown_op(code, f, OP_VECTOR_AA));
 
@@ -77119,10 +76963,7 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
       return(fixup_closure_star_aa(sc, f, code));
       break;
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
-    case T_BYTE_VECTOR:
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
       return(fixup_unknown_op(code, f, OP_VECTOR_AA));
 
     default:
@@ -82387,7 +82228,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_let1(sc)) goto BEGIN;
 	  goto EVAL;
 
-	  /* now for gcc's benefit... (803/407 still matters) */
+	  /* now for gcc's benefit... (799/407 still matters) */
 	case OP_D1:
 	  fprintf(stderr, "oops\n");
 	  break;
@@ -82398,18 +82239,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  fprintf(stderr, "oops\n");
 	  break;
 	case OP_D4:
-	  fprintf(stderr, "oops\n");
-	  break;
-	case OP_D5:
-	  fprintf(stderr, "oops\n");
-	  break;
-	case OP_D6:
-	  fprintf(stderr, "oops\n");
-	  break;
-	case OP_D7:
-	  fprintf(stderr, "oops\n");
-	  break;
-	case OP_D8:
 	  fprintf(stderr, "oops\n");
 	  break;
 
@@ -84781,20 +84610,9 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
 	}
       return(make_simple_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
 
-    case T_RATIO:
-      return(make_simple_ratio(sc, denominator(p), numerator(p)));
-
-    case T_REAL:
-      return(make_real(sc, 1.0 / real(p)));
-
-    case T_COMPLEX:
-      {
-	s7_double r2, i2, den;
-	r2 = real_part(p);
-	i2 = imag_part(p);
-	den = (r2 * r2 + i2 * i2);
-	return(s7_make_complex(sc, r2 / den, -i2 / den));
-      }
+    case T_RATIO:   return(make_simple_ratio(sc, denominator(p), numerator(p)));
+    case T_REAL:    return(make_real(sc, 1.0 / real(p)));
+    case T_COMPLEX: return(complex_invert(sc, p));
 
     case T_BIG_INTEGER:
       /* p might be 1 or -1 */
@@ -90254,7 +90072,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 803) || (OPT_MAX_DEFINED != 407))
+  if ((OP_MAX_DEFINED != 799) || (OPT_MAX_DEFINED != 407))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -90342,7 +90160,7 @@ int main(int argc, char **argv)
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3149
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3149 3032
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
@@ -90367,4 +90185,5 @@ int main(int argc, char **argv)
  * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
+ * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow
  */

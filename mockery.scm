@@ -41,13 +41,14 @@
     (lambda (obj)
       (if (mock? obj)
 	  (dynamic-wind coverlets (lambda () (func (obj 'value))) openlets)
-	  (if (and (openlet? obj)           ; (with-let (mock-number 3) (abs (openlet (inlet 'abs (lambda (val) 0)))))
-		   (not (procedure? obj)))  ; (display (openlet (with-let (mock-number 0) (lambda () 1))))
-	      ;; TODO: and c-pointer? c-object?
-	      (let ((func-name (string->symbol (object->string func))))
-		(if (procedure? (obj func-name))
-		    ((obj func-name) obj)
-		    (func obj)))
+	  (if (openlet? obj)           ; (with-let (mock-number 3) (abs (openlet (inlet 'abs (lambda (val) 0)))))
+	      (if (procedure? obj)     ; (display (openlet (with-let (mock-number 0) (lambda () 1))))
+		  (dynamic-wind coverlets (lambda () (func obj)) openlets)
+		  ;; TODO: and c-pointer? c-object?
+		  (let ((func-name (string->symbol (object->string func))))
+		    (if (procedure? (obj func-name))
+			((obj func-name) obj)
+			(func obj))))
 	      (func obj)))))
 
   (define (with-mock-wrapper* func)
