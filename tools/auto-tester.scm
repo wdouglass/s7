@@ -611,7 +611,8 @@
 	 
       (args (vector "-123" "1234" "-3/4" "-1" "(expt 2 32)" "4294967297" "1001" "10001" ;;"(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
 		    "\"ho\"" ":ho" "'ho" "':go" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
-		    "#f" "#t" "()" "#()" "\"\"" "'#()" ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
+		    "#f" "#t" "()" "#()" "\"\"" "'#()" ; ":write" -- not this because sr2 calls write and this can be an arg to sublet redefining write
+		    ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
 		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" "+nan.0-3i" "+inf.0-nan.0i"
 		    "cons" "''2" "\"ra\"" 
 		    "(make-hook)" "(make-hook '__x__)"
@@ -672,8 +673,8 @@
 
 		    "(let-temporarily ((x 1)) (free1))" "(let-temporarily ((x #(1)) (i 0)) (free2))" "(let-temporarily ((local-func (lambda (x) x))) (free3))"
 
-		    "1+1e10i" "1e15+1e15i" "0+1e18i" "1e18" 
-		    ;;"(real-part (random 0+i))" -- (cond (real-part...))!
+		    "1+1e10i" "1e15-1e15i" "0+1e18i" "-1e18" 
+		    "(begin (real-part (random 0+i)))"
 		    ;;"(random 1.0)" ; number->string so lengths differ
 		    "(random 1)"
 		    ;;"(else ())" "(else (f x) B)"
@@ -698,8 +699,9 @@
 		    "(mock-hash-table 'b 2)"
 		    "(mock-c-pointer -1)"
 		    "(mock-random-state 1234)"
+		    "'value"
 
-		    ;;" #| a comment |# "
+		    " #| a comment |# "
 		    "(subvector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
@@ -714,7 +716,7 @@
 		    ;;"lambda*" "lambda" ;-- cyclic body etc
 		    ;;"let" "let*" "do" "set!" "with-let" ;"define" "define*" "define-macro" "define-macro*" "define-bacro" "define-bacro*"
 
-		    "(begin (string? (stacktrace)))" "(and (string? (stacktrace)))" 
+		    ;; "(begin (string? (stacktrace)))" "(and (string? (stacktrace)))" 
 		    ;; "(and (pair? (stacktrace)))" "(and (null? (stacktrace)))" "(and (integer? (stacktrace)))"
 
 		    "(let ((<1> (vector #f))) (set! (<1> 0) <1>) <1>)"
@@ -724,7 +726,7 @@
 		    "(let ((<1> (list 1 #f))) (set! (<1> 1) (let ((<L> (list #f 3))) (set-car! <L> <1>) <L>)) <1>)"
 		    "(let ((cp (list 1))) (set-cdr! cp cp) (list '+ 1 (list 'quote cp)))"
 
-		    "(gensym \"g\")"
+		    "(gensym \"g_123\")"
 		    "(make-list 256 1)"
 		    "(make-vector '(2 3) 1)"
 		    "(make-byte-vector '(2 3) 1)"
@@ -787,7 +789,7 @@
 	      ;;(list "(let ((mx max)) (let ((max min) (min mx)) " "(begin (_lt2_ ") ; loops?
 	      ;;(list "(begin (letrec ((x 1)) " "(begin (letrec* ((x 1)) ")
 	      ;(reader-cond ((not (provided? 'pure-s7)) (list "(with-input-from-string \"1234\" (lambda () " "(begin (_dw_string_ ")))
-	      (list "(map + (begin " "(map * (begin ")
+	      ;;(list "(map + (begin " "(map * (begin ")
 	      (list "(for-each display (list " "(for-each (lambda (x) (display x)) (list ")
 	      (list "(begin (_ct1_ " "(begin (_ct2_ ")
 	      (list "(begin (_mem1_ " "(begin (_mem2_ ")
@@ -806,6 +808,7 @@
 	      (list "(begin (_rd5_ " "(begin (_rd6_ ")
 	      (list "(format #f \"~S\" (list " "(object->string (list ")
 	      (list "(begin (_wr1_ " "(begin (_wr2_ ")
+	      (list "(begin (vector " "(apply vector (list ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -1003,15 +1006,16 @@
 			   (tp val1) (tp val2) (tp val3) (tp val4))))
 		)
 	  (begin
-	    (format *stderr* "~%~%__var__: ~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
-		    __old_var__
-		    str1 str2 str3 str4 
-		    (tp val1) (tp val2) (tp val3) (tp val4))
-	    (if (or (eq? val1 'error)
-		    (eq? val2 'error)
-		    (eq? val3 'error)
-		    (eq? val4 'error))
-		(format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info)))))
+	    (unless (eq? error-type 'baffled!) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
+	      (format *stderr* "~%~%__var__: ~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
+		      __old_var__
+		      str1 str2 str3 str4 
+		      (tp val1) (tp val2) (tp val3) (tp val4))
+	      (if (or (eq? val1 'error)
+		      (eq? val2 'error)
+		      (eq? val3 'error)
+		      (eq? val4 'error))
+		  (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info))))))
 	    )))
 
     (define (eval-it str) 
@@ -1019,6 +1023,7 @@
       (set! __var__ __old_var__)
       (set! (current-output-port) #f)
       (set! estr str)
+      (get-output-string imfo #t)
       (catch #t 
 	(lambda ()
 	  (car (list (eval-string str)))) ; wrap in (with-let (unlet)...) to avoid changes?
@@ -1037,6 +1042,7 @@
 
     (define (try-both str)
       (set! ostr str)
+      (set! (current-output-port) #f)
 
       (catch #t 
 	(lambda () 
@@ -1059,7 +1065,7 @@
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
 
 	  (when (current-output-port)
-	    (format *stderr* "current-output-port is ~S from ~S and ~S~%" (current-output-port) str1 str2)
+	    (format *stderr* "current-output-port is ~S from ~S and ~S~%" (current-output-port) str3 str4)
 	    (set! (current-output-port) #f))
 
 	  ;; if val1 examined, remember: (if (and (let? val1) (openlet? val1)); (not (eq? val1 (rootlet)))) (coverlet val1)) ; might be open and have a length func
@@ -1164,7 +1170,7 @@
 |#
 	  )
 	
-	(try-both (make-expr (+ 1 (random 6)))) ; min 1 here not 0
+	(try-both (make-expr (+ 1 (random 3)))) ; min 1 here not 0, was 6
 	(set! __var__ ((lambda args (car args)) (catch #t (lambda () (eval-string (get-arg))) (lambda () #f))))
 	(if (iterator? __var__) (set! __var__ #f))
 	(set! __old_var__ __var__)

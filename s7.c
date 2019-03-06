@@ -12041,7 +12041,7 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   #define H_number_to_string "(number->string num (radix 10)) converts the number num into a string."
   #define Q_number_to_string s7_make_signature(sc, 3, sc->is_string_symbol, sc->is_number_symbol, sc->is_integer_symbol)
 
-  s7_int nlen = 0;
+  s7_int nlen = 0, radix; /* ignore cppcheck complaint about radix! */
   char *res;
   s7_pointer x;
 
@@ -12052,7 +12052,6 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
   if (is_pair(cdr(args)))
     {
       s7_pointer y;
-      s7_int radix;
       y = cadr(args);
       if (s7_is_integer(y))
 	radix = s7_integer(y);
@@ -51768,7 +51767,9 @@ s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 static void s7_set_d_7dd_function(s7_pointer f, s7_d_7dd_t df) {add_opt_func(f, o_d_7dd, (void *)df);}
 static s7_d_7dd_t s7_d_7dd_function(s7_pointer f) {return((s7_d_7dd_t)opt_func(f, o_d_7dd));}
 
+#if (!WITH_GMP)
 static void s7_set_i_7i_function(s7_pointer f, s7_i_7i_t df) {add_opt_func(f, o_i_7i, (void *)df);}
+#endif
 static s7_i_7i_t s7_i_7i_function(s7_pointer f) {return((s7_i_7i_t)opt_func(f, o_i_7i));}
 
 static void s7_set_i_7ii_function(s7_pointer f, s7_i_7ii_t df) {add_opt_func(f, o_i_7ii, (void *)df);}
@@ -51813,7 +51814,9 @@ static s7_b_7pp_t s7_b_7pp_function(s7_pointer f) {return((s7_b_7pp_t)opt_func(f
 static void s7_set_d_7d_function(s7_pointer f, s7_d_7d_t df) {add_opt_func(f, o_d_7d, (void *)df);}
 static s7_d_7d_t s7_d_7d_function(s7_pointer f) {return((s7_d_7d_t)opt_func(f, o_d_7d));}
 
+#if (!WITH_GMP)
 static void s7_set_b_pi_function(s7_pointer f, s7_b_pi_t df) {add_opt_func(f, o_b_pi, (void *)df);}
+#endif
 static s7_b_pi_t s7_b_pi_function(s7_pointer f) {return((s7_b_pi_t)opt_func(f, o_b_pi));}
 
 static void s7_set_b_ii_function(s7_pointer f, s7_b_ii_t df) {add_opt_func(f, o_b_ii, (void *)df);}
@@ -51867,7 +51870,9 @@ static s7_p_ii_t s7_p_ii_function(s7_pointer f) {return((s7_p_ii_t)opt_func(f, o
 static void s7_set_d_7piid_function(s7_pointer f, s7_d_7piid_t df) {add_opt_func(f, o_d_7piid, (void *)df);}
 static s7_d_7piid_t s7_d_7piid_function(s7_pointer f) {return((s7_d_7piid_t)opt_func(f, o_d_7piid));}
 
+#if (!WITH_GMP)
 static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_p_dd, (void *)df);}
+#endif
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
 
 enum {OO_P, OO_I, OO_D, OO_V, OO_IV, OO_FV, OO_PV, OO_R, OO_H, OO_S, OO_BV, OO_L, OO_E, OO_AV, OO_TV};
@@ -83150,21 +83155,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (main_stack_op(sc) == OP_READ_LIST) goto POP_READ_LIST;
 	  goto START;
 
-	case OP_READ_VECTOR:
-	  if (op_read_vector(sc)) goto START;
-	  goto POP_READ_LIST;
-
-	case OP_READ_INT_VECTOR:
-	  if (op_read_int_vector(sc)) goto START;
-	  goto POP_READ_LIST;
-
-	case OP_READ_FLOAT_VECTOR:
-	  if (op_read_float_vector(sc)) goto START;
-	  goto POP_READ_LIST;
-
-	case OP_READ_BYTE_VECTOR:
-	  if (op_read_byte_vector(sc)) goto START;
-	  goto POP_READ_LIST;
+	case OP_READ_VECTOR:       if (op_read_vector(sc)) goto START;       goto POP_READ_LIST;
+	case OP_READ_INT_VECTOR:   if (op_read_int_vector(sc)) goto START;   goto POP_READ_LIST;
+	case OP_READ_FLOAT_VECTOR: if (op_read_float_vector(sc)) goto START; goto POP_READ_LIST;
+	case OP_READ_BYTE_VECTOR:  if (op_read_byte_vector(sc)) goto START;  goto POP_READ_LIST;
 
 	default:
 	  fprintf(stderr, "unknown operator: %" print_pointer " in %s\n", sc->cur_op, DISPLAY(current_code(sc)));
@@ -85279,8 +85273,7 @@ static s7_pointer big_trig(s7_scheme *sc, s7_pointer args,
 			   int32_t (*mpc_trig)(mpc_ptr, mpc_srcptr, mpc_rnd_t),
 			   int32_t tan_case, s7_pointer sym)
 /* these declarations mimic the mpfr.h and mpc.h declarations.  It seems to me that they ought to be:
- *			   int32_t (*mpfr_trig)(mpfr_t rop, mpfr_t op, mp_rnd_t rnd),
- *			   void (*mpc_trig)(mpc_t rop, mpc_t op, mpc_rnd_t rnd))
+ *    int32_t (*mpfr_trig)(mpfr_t rop, mpfr_t op, mp_rnd_t rnd), void (*mpc_trig)(mpc_t rop, mpc_t op, mpc_rnd_t rnd))
  */
 {
   s7_pointer p;
@@ -86832,7 +86825,7 @@ static s7_pointer big_equal(s7_scheme *sc, s7_pointer args)
 
   /* this is equivalent? for bignums, the other case goes through big_numbers_are_eqv */
   int32_t i, result_type = T_INTEGER;
-  s7_pointer arg, x, y, result;
+  s7_pointer arg, y, result;
   bool got_nan = false;
 
   args = copy_args_if_needed(sc, args);
@@ -87279,10 +87272,8 @@ static void s7_gmp_init(s7_scheme *sc)
   sc->asinh_symbol =            big_defun("asinh",            asinh,            1, 0, false);
   sc->acosh_symbol =            big_defun("acosh",            acosh,            1, 0, false);
   sc->atanh_symbol =            big_defun("atanh",            atanh,            1, 0, false);
-
   sc->random_symbol =           big_defun("random",           random,           1, 1, false);
   sc->random_state_symbol =     big_defun("random-state",     random_state,     1, 1, false);
-
   sc->is_bignum_symbol =        big_defun("bignum?",          is_bignum,        1, 0, false); /* needed by Q_bignum below */
   sc->bignum_symbol =           big_defun("bignum",           bignum,           1, 1, false);
 
@@ -90160,7 +90151,7 @@ int main(int argc, char **argv)
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086 
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3149 3032
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180
@@ -90169,21 +90160,16 @@ int main(int argc, char **argv)
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.2
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2
  * ----------------------------------------------------------------------------------
  *
- * full p_p* parallel safe_c_* -- safe_o?
- *   for OP_SAFE_C_S: fx_o_p_p_s: OP_SAFE_O_S where hop is assumed, but use opt2 not opt2(cdr)?
- *   fx_c_s gives non-pp cases? p_p for is_*? cos/sin cxr mus_copy but there are a million special cases here
- *   or b_7p -> op_safe_o_b_7p, also fx_o_b_7p
  * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
  *   the hash-set need not check type because it is known to be float
  *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
  *   perhaps split add|sub_aa ->add|sub_op..._a
- * i_if_ii_nr and d [for set! x (if...)] i_case|cond_i? 
  * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
  *   or at end of body = nil = expr case
- * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow
+ * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
  */
