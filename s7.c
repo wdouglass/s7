@@ -4934,7 +4934,6 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
   mark_function[T_SYMBOL] = just_mark;
 }
 
-
 #define add_c_object(sc, p)      add_to_gc_list(sc->c_objects, p)
 #define add_hash_table(sc, p)    add_to_gc_list(sc->hash_tables, p)
 #define add_string(sc, p)        add_to_gc_list(sc->strings, p)
@@ -4982,7 +4981,6 @@ static void init_gc_caches(s7_scheme *sc)
   sc->setters_loc = 0;
   sc->setters = (s7_pointer *)malloc(sc->setters_size * sizeof(s7_pointer));
 }
-
 
 static void add_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
 {
@@ -9230,7 +9228,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
   s7_pointer x, body;
 
   body = copy_body(sc, closure_body(fnc));
-  new_cell(sc, x, typeflag(fnc));
+  new_cell(sc, x, typeflag(fnc) & (~T_COLLECTED)); /* I'm paranoid about that is_collected bit */
   closure_set_args(x, closure_args(fnc));
   closure_set_body(x, body);
   closure_set_setter(x, closure_setter(fnc));
@@ -10064,7 +10062,7 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
  *   in a lambda form that is being exported.  See b-func in s7test for an example.
  */
 
-static void apply_continuation(s7_scheme *sc)               /* -------- continuation ("call/cc") -------- */
+static void apply_continuation(s7_scheme *sc)
 {
   if (!call_with_current_continuation(sc))
     s7_error(sc, sc->baffled_symbol,
@@ -36867,7 +36865,7 @@ static s7_pointer subvector(s7_scheme *sc, s7_pointer vect, s7_int skip_dims, s7
   s7_pointer x;
   s7_int dims;
 
-  new_cell(sc, x, (typeflag(vect) & (TYPE_MASK | T_IMMUTABLE)) | T_SUBVECTOR | T_SAFE_PROCEDURE); /* not just typeflag(vect) here; T_COLLECTED might be on, for example */
+  new_cell(sc, x, (typeflag(vect) & (~T_COLLECTED)) | T_SUBVECTOR | T_SAFE_PROCEDURE);
   vector_length(x) = 0;
   vector_block(x) = mallocate_vector(sc, 0);
   vector_elements(x) = NULL;
@@ -37021,7 +37019,8 @@ a vector that points to the same elements as the original-vector but with differ
     mark_function[T_VECTOR] = mark_vector_possibly_shared;
   else mark_function[type(orig)] = mark_int_or_float_vector_possibly_shared; /* I think this works for byte-vectors also */
 
-  new_cell(sc, x, typeflag(orig) | T_SUBVECTOR | T_SAFE_PROCEDURE);
+  new_cell(sc, x, (typeflag(orig) & (~T_COLLECTED)) | T_SUBVECTOR | T_SAFE_PROCEDURE);
+
   vector_block(x) = mallocate_vector(sc, 0);
   vector_set_dimension_info(x, v);
   if (!v) subvector_set_vector(x, orig);
@@ -48934,9 +48933,9 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
    * but...
    *   ((lambda (arg) arg) "hi" 0)
    * is currently an error (too many arguments)
-   * it should be (((lambda (arg) arg) "hi") 0) -> #\h
+   * maybe it should be (((lambda (arg) arg) "hi") 0) -> #\h
    *
-   * this applies to non-homogeneous cases, so float|int-vectors don't get here
+   * implicit_index applies to non-homogeneous cases, so float|int-vectors don't get here
    */
 
   switch (type(obj))
@@ -49128,10 +49127,7 @@ static s7_pointer set_c_function_star_args(s7_scheme *sc)
 			    if (is_pair(defval))
 			      set_car(kpar, s7_eval(sc, defval, sc->nil));
 			    else set_car(kpar, defval);
-			  }
-		      }
-		}
-	    }
+			  }}}}
 	  return(call_args);
 	}
     }
@@ -78093,8 +78089,6 @@ static inline void closure_star_fx(s7_scheme *sc, s7_pointer code)
 }
 
 
-/* -------------------------------------------------------------------------------- */
-
 static int32_t define1_ex(s7_scheme *sc)
 {
   /* sc->code is the symbol being defined, sc->value is its value
@@ -90165,11 +90159,5 @@ int main(int argc, char **argv)
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2
  * ----------------------------------------------------------------------------------
  *
- * in tbig if hash value type=float? key=symbol? need d_7pp? and d_7ppd, maybe without the "7", typed let could also use d_pp etc
- *   the hash-set need not check type because it is known to be float
- *   tbig: fx_c_s_op_s_opssqq fx_c_op_opssq_q_s
- *   perhaps split add|sub_aa ->add|sub_op..._a
- * perhaps: pass cdr(body-ptr) to opt = is there a next (can current value be dropped etc)
- *   or at end of body = nil = expr case
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
  */
