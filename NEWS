@@ -1,12 +1,8 @@
-Snd 19.1
+Snd 19.2:
 
-in s7, replaced morally-equal? with equivalent?
-       format with the control-string as the first argument is now an error
-         (I can't remember why I made the port optional)
+in s7, added (*s7* 'undefined-constant-warnings) to flag typos like #ff or #_input_port?
+       added coverlets and openlets (an experiment)
 
-clm2xen.c: fixed an error message in partials->polynomial (it thought
-  an integer was not a number), and a mus-length optimization bug.
+checked: sbcl 1.5.0
 
-checked: sbcl-1.14.16
-
-Thanks!: Nando, Kjetil.
+Thanks!: Kjetil
