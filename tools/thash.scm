@@ -125,7 +125,7 @@
     (set! sym-hash #f)))
 
 (define (test7 size)
-  (let ((chr-hash (make-hash-table 256)))
+  (let ((chr-hash (make-hash-table 256 char=?)))
     (do ((i 0 (+ i 1))) 
 	((= i 256)) 
       (hash-table-set! chr-hash (integer->char i) i))
@@ -168,7 +168,7 @@
     (set! any-hash1 #f)))
 
 (define (test10 size)
-  (let ((cmp-hash (make-hash-table size)))
+  (let ((cmp-hash (make-hash-table size =)))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (hash-table-set! cmp-hash (complex i i) i))
