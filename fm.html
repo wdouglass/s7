@@ -663,7 +663,7 @@ the 15 main components, with their sum in black:
     (let* ((angle 0.0)
 	   (incr (hz->radians 1.0))
 	   (n (ceiling (+ index 5)))
-	   (cur-phases (make-vct (* (+ n 1) 3 2))))
+	   (cur-phases (make-float-vector (* (+ n 1) 3 2))))
 
       (do ((i 0 (+ i 1))
 	   (j 0 (+ j 3)))
@@ -1546,7 +1546,7 @@ In general:
 	 (cr (make-oscil freq carrier-phase))
          (n (length mc-ratios))
          (modulators (make-vector n))
-         (fm-indices (make-vct n)))
+         (fm-indices (make-float-vector n)))
     (do ((i 0 (+ i 1)))
 	((= i n))
       (set! (modulators i) (make-oscil (* freq (mc-ratios i)) (mod-phases i)))

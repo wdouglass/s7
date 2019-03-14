@@ -3572,7 +3572,6 @@ static char *copy_string(const char *str)
   return(copy_string_with_length(str, safe_strlen(str)));
 }
 
-
 static bool local_strcmp(const char *s1, const char *s2)
 {
   while (true)
@@ -3775,11 +3774,6 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
 
 #define simple_out_of_range(Sc, Caller, Arg, Description)   simple_out_of_range_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Description)
 #define out_of_range(Sc, Caller, Arg_Num, Arg, Description) out_of_range_error_prepackaged(Sc, symbol_name_cell(Caller), Arg_Num, Arg, Description)
-
-
-#if (!HAVE_COMPLEX_NUMBERS)
-  static s7_pointer no_complex_numbers_string;
-#endif
 
 
 /* ---------------- evaluator ops ---------------- */
@@ -13840,6 +13834,10 @@ static s7_pointer complex_p_dd(s7_scheme *sc, s7_double x, s7_double y)
 
 
 /* -------------------------------- exp -------------------------------- */
+#if (!HAVE_COMPLEX_NUMBERS)
+  static s7_pointer no_complex_numbers_string;
+#endif
+
 static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 {
   #define H_exp "(exp z) returns e^z, (exp 1) is 2.718281828459"
@@ -31174,13 +31172,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
 static void object_out_1(s7_scheme *sc, s7_pointer obj, s7_pointer strport, use_write_t choice)
 {
   if (sc->object_out_locked)
-    {
-      /* if obj has an object->string (or format) method and choice == P_READABLE, #_object->string will be called, calling us.
-       *   if that happens in an ongoing display, we can't step on the current cycle info, but I'm not sure
-       *   it is always ok to simply carry through the outer one.  We might need support in cyclic_sequences.
-       */
-      object_to_port_with_circle_check(sc, obj, strport, choice, sc->circle_info);
-    }
+    object_to_port_with_circle_check(sc, obj, strport, choice, sc->circle_info);
   else
     {
       shared_info *ci;
@@ -48161,7 +48153,8 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
    */
   sc->format_depth = -1;
   sc->gc_off = false;             /* this is in case we were triggered from the sort function -- clumsy! */
-  sc->object_out_locked = false;  /* poosible error in obj->str method after object_out has set this flag */
+  sc->object_out_locked = false;  /* possible error in obj->str method after object_out has set this flag */
+  sc->has_openlets = true;        /*   same problem -- we need a cleaner way to handle this */
 
   if (sc->current_safe_list > 0)
     {
@@ -75707,19 +75700,20 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
   if (is_null(p))
     {
       s7_int k, end;
+      s7_pointer ip;
 
       end = denominator(stepper);
       let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
+      ip = slot_value(step_slot);
 
       if ((var_len == 1) && (body_len == 1))
 	{
-	  s7_pointer ip, xp;
+	  s7_pointer xp;
 	  int32_t pc2;
 	  opt_info *first, *o;
 	  s7_double (*f1)(void *p);
 	  s7_double (*f2)(void *p);
 	  xp = slot_value(let_slots(sc->envir));
-	  ip = slot_value(step_slot);
 	  first = sc->opts[0];
 	  f1 = first->v[0].fd;
 	  integer(ip) = numerator(stepper);
@@ -75732,7 +75726,7 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	  if ((f2 == opt_fmv) &&
 	      (f1 == opt_d_dd_ff_o2) &&
 	      (first->v[3].d_dd_f == add_d_dd) &&
-	      (slot_symbol(step_slot) == slot_symbol(o->v[2].p)))
+	      (slot_symbol(step_slot) == slot_symbol(o->v[2].p))) /* and _dv et al throughout (so sc->pc ignored) etc */
 	    {
 	      /* gcc now refuses to inline opt_fmv -- we are not amused... */
 	      opt_info *o1, *o2, *o3;
@@ -75740,13 +75734,13 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	      s7_d_vd_t vf5, vf6;
 	      s7_d_vid_t vf7;
 	      void *obj1, *obj2, *obj3, *obj4, *obj5, *obj6, *obj7;
-	      int32_t pc5;
+	      /* int32_t pc5; */
 
 	      sc->pc = pc2;
 	      o1 = o->sc->opts[o->sc->pc + 1];
 	      o2 = o->sc->opts[o->sc->pc + 3];
 	      o3 = o->sc->opts[o->sc->pc + 5];
-	      pc5 = sc->pc + 5;
+	      /* pc5 = sc->pc + 5; */
 	      vf1 = first->v[4].d_v_f;
 	      vf2 = first->v[5].d_v_f;
 	      vf3 = o1->v[2].d_v_f;
@@ -75765,11 +75759,11 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	      for (k = numerator(stepper) + 1; k < end; k++)
 		{
 		  s7_double amp_env, vib;
-		  sc->pc = 0;
+		  /* sc->pc = 0; */
 		  vib = vf1(obj1) + vf2(obj2);
-		  sc->pc = pc2;
+		  /* sc->pc = pc2; */
 		  amp_env = vf3(obj3);
-		  sc->pc = pc5;
+		  /* sc->pc = pc5; */
 		  vf7(obj5, k, amp_env * vf5(obj6, vib + (vf4(obj4) * vf6(obj7, vib))));
 		}
 	    }
@@ -75787,20 +75781,42 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	}
       else
 	{
-	  for (k = numerator(stepper); k < end; k++)
+	  int32_t i;
+	  for (i = 0, p = let_slots(sc->envir); tis_slot(p); i++, p = next_slot(p));
+	  if ((body_len == 1) && (i == 2))
 	    {
-	      int32_t i;
-	      integer(slot_value(step_slot)) = k;
-	      sc->pc = 0;
-	      for (p = let_slots(sc->envir); tis_slot(p); p = next_slot(p))
+	      s7_pointer s1, s2;
+	      s1 = let_slots(sc->envir);
+	      s2 = next_slot(s1);
+	      for (k = numerator(stepper); k < end; k++)
 		{
-		  set_real(slot_value(p), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
+		  integer(ip) = k;
+		  sc->pc = 0;
+		  set_real(slot_value(s1), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
 		  sc->pc++;
-		}
-	      for (i = 0; i < body_len; i++)
-		{
+		  set_real(slot_value(s2), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
+		  sc->pc++;
 		  sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
-		  sc->pc++;
+		}
+	    }
+	  else
+	    {
+	      /* next biggest: body_len==2 and i==1 */
+	      for (k = numerator(stepper); k < end; k++)
+		{
+		  int32_t i;
+		  integer(ip) = k;
+		  sc->pc = 0;
+		  for (p = let_slots(sc->envir); tis_slot(p); p = next_slot(p))
+		    {
+		      set_real(slot_value(p), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
+		      sc->pc++;
+		    }
+		  for (i = 0; i < body_len; i++)
+		    {
+		      sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
+		      sc->pc++;
+		    }
 		}
 	    }
 	}
@@ -89194,14 +89210,13 @@ s7_scheme *s7_init(void)
   sc->funclet_symbol =               defun("funclet",		funclet,		1, 0, false);
   sc->dilambda_symbol =              defun("dilambda",          dilambda,               2, 0, false);
   s7_typed_dilambda(sc, "setter", g_setter, 1, 1, g_set_setter, 2, 1, H_setter, Q_setter, NULL);
-
   sc->arity_symbol =                 defun("arity",		arity,			1, 0, false);
   sc->is_aritable_symbol =           defun("aritable?",	        is_aritable,		2, 0, false);
 
   sc->is_eq_symbol =                 defun("eq?",		is_eq,			2, 0, false);
   sc->is_eqv_symbol =                defun("eqv?",		is_eqv,			2, 0, false);
   sc->is_equal_symbol =              defun("equal?",		is_equal,		2, 0, false);
-  sc->is_equivalent_symbol =      defun("equivalent?",	is_equivalent,	2, 0, false);
+  sc->is_equivalent_symbol =         defun("equivalent?",	is_equivalent,	2, 0, false);
   sc->type_of_symbol =               defun("type-of",		type_of,		1, 0, false);
 
   sc->gc_symbol =                    unsafe_defun("gc",		gc,			0, 1, false);
@@ -90082,31 +90097,31 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357   358
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   598
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   593
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   950
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   978
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   977
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1522
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1725
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2101
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1720
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2100
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2245
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2321
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2316
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2334
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2662
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3029
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2976
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3574
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5187  5174
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6432
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.1
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5174
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6431
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  17.2  17.0
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.6
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  73.3
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.4
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.3
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.3
  * ----------------------------------------------------------------------------------
  *
