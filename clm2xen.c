@@ -11541,6 +11541,8 @@ static mus_float_t mus_src_two(mus_any *p, mus_float_t x) {return(mus_src(p, x, 
 static mus_float_t mus_convolve_simple(mus_any *p) {return(mus_convolve(p, NULL));}
 /* static mus_float_t mus_phase_vocoder_simple(mus_any *p) {return(mus_phase_vocoder(p, NULL));} */
 
+/* almost no error checking here; for example all the s7_c_object_value calls should check that their argument is a c-object */
+
 #define GEN_1(Type, Func)						\
   static bool is_ ## Type ## _b(s7_pointer p)				\
   {									\

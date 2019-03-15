@@ -19906,11 +19906,19 @@ EDITS: 2
 		   (for-each 
 		    (lambda (arg1)
 		      ;; how did this ever work??
-		      (catch #t (lambda () (runp gen arg1)) (lambda args (car args)))
-		      (for-each
-		       (lambda (arg2)
-			 (catch #t (lambda () (runp gen arg1 arg2)) (lambda args (car args))))
-		       a1))
+		      (catch #t 
+			(lambda () 
+			  (runp gen arg1)
+			  (for-each
+			   (lambda (arg2)
+			     (catch #t 
+			       (lambda () 
+				 (runp gen arg1 arg2)) 
+			       (lambda args 
+				 (car args))))
+			   a1))
+			(lambda args 
+			  (car args))))
 		    a2)
 		   
 		   ;; generic args

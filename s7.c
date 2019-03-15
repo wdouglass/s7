@@ -5525,7 +5525,6 @@ static int64_t gc(s7_scheme *sc)
   {
     s7_int i;
     s7_pointer p;
-    /* perhaps: if (sc->current_safe_list > 0) ... but this loop is down in the noise */
     for (i = 1; i < NUM_SAFE_LISTS; i++)
       if ((is_pair(sc->safe_lists[i])) &&
 	  (list_is_in_use(sc->safe_lists[i])))
@@ -13334,8 +13333,7 @@ static s7_pointer string_to_number_p_pp(s7_scheme *sc, s7_pointer str1, s7_point
   if (!is_t_integer(radix1))
     return(wrong_type_argument(sc, sc->string_to_number_symbol, 2, radix1, T_INTEGER));
   radix = s7_integer(radix1);
-  if ((radix < 2) ||              /* what about negative int as base (Knuth), reals such as phi, and some complex like -1+i */
-      (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
+  if ((radix < 2) || (radix > 16))
     return(out_of_range(sc, sc->string_to_number_symbol, small_int(2), radix1, a_valid_radix_string));
 
   str = (char *)string_value(str1);
@@ -13361,8 +13359,7 @@ static s7_pointer g_string_to_number_1(s7_scheme *sc, s7_pointer args, s7_pointe
       if (!s7_is_integer(rad))
 	return(method_or_bust(sc, rad, caller, args, T_INTEGER, 2));
       radix = s7_integer(rad);
-      if ((radix < 2) ||              /* what about negative int as base (Knuth), reals such as phi, and some complex like -1+i */
-	  (radix > 16))               /* the only problem here is printing the number; perhaps put each digit in "()" in base 10: (123)(0)(34) */
+      if ((radix < 2) || (radix > 16)) 
 	return(out_of_range(sc, caller, small_int(2), rad, a_valid_radix_string));
     }
   else radix = 10;
@@ -15990,10 +15987,8 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 		{
 		  rl_a = (s7_double)num_a + (s7_double)integer(x);
 		  if (is_null(p)) return(make_real(sc, rl_a));
-
 		  /* this is not ideal!  piano.scm has its own noise generator that wants integer
-		   *    arithmetic to overflow as an integer.  Perhaps 'safety==0 would not check
-		   *    anywhere?
+		   *    arithmetic to overflow as an integer.  Perhaps 'safety==0 would not check anywhere?
 		   */
 		  goto ADD_REALS;
 		}
@@ -21856,8 +21851,7 @@ static s7_pointer g_char_position(s7_scheme *sc, s7_pointer args)
     return(make_integer(sc, pos + start));
 
   /* but if the string has an embedded null, we can get erroneous results here --
-   *   perhaps check for null at pos+start?  What about a searched-for string that
-   *   also has embedded nulls?
+   *   perhaps check for null at pos+start?  What about a searched-for string that also has embedded nulls?
    */
   return(sc->F);
 }
@@ -22266,7 +22260,6 @@ static s7_pointer g_string_downcase(s7_scheme *sc, s7_pointer args)
 
   p = car(args);
   if (!is_string(p))
-    /* perhaps gc-protect p here and in upcase below */
     return(method_or_bust_one_arg(sc, p, sc->string_downcase_symbol, list_1(sc, p), T_STRING));
   len = string_length(p);
   newstr = make_empty_string(sc, len, 0);
@@ -40432,6 +40425,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
     }
 
   els = (block_t *)callocate(sc, size * sizeof(hash_entry_t *));
+#if 0
   if (!els)
     return(s7_error(sc, make_symbol(sc, "out-of-memory"),
 		    set_elist_1(sc, wrap_string(sc, "make-hash-table allocation failed!", 34))));
@@ -40439,7 +40433,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
    *   perhaps trap for segfault and touch the new block, or check sysinfo/sysconf vs size?
    * can we even depend on getting a segfault?
    */
-
+#endif
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
   hash_table_set_block(table, els);
@@ -41954,8 +41948,8 @@ static void init_signatures(s7_scheme *sc)
   sc->float_vector_signature = s7_make_circular_signature(sc, 2, 3, sc->is_float_symbol, sc->is_float_vector_symbol, sc->is_integer_symbol);
   sc->int_vector_signature =   s7_make_circular_signature(sc, 2, 3, sc->is_integer_symbol, sc->is_int_vector_symbol, sc->is_integer_symbol);
   sc->c_object_signature =     s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T);
-  sc->let_signature =          s7_make_signature(sc, 3, sc->T, sc->is_let_symbol, sc->T);
-  sc->hash_table_signature =   s7_make_signature(sc, 3, sc->T, sc->is_hash_table_symbol, sc->T); /* should this be circular? */
+  sc->let_signature =          s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_let_symbol, sc->is_symbol_symbol);
+  sc->hash_table_signature =   s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_hash_table_symbol, sc->T);
   sc->pair_signature =         s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol);
 }
 
@@ -47173,7 +47167,6 @@ static const char *type_name_from_type(int32_t typ, int32_t article)
   return(NULL);
 }
 
-
 static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article)
 {
   switch (unchecked_type(arg))
@@ -47205,7 +47198,6 @@ static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article)
     }
   return("messed up object");
 }
-
 
 static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x)
 {
@@ -47242,7 +47234,6 @@ static s7_pointer type_name_string(s7_scheme *sc, s7_pointer arg)
   return(s7_make_string_wrapper(sc, type_name(sc, arg, INDEFINITE_ARTICLE)));
 }
 
-
 static s7_pointer wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg_n, s7_pointer arg, s7_pointer typnam, s7_pointer descr)
 {
   /* info list is '(format_string caller arg_n arg type_name descr) */
@@ -47257,18 +47248,14 @@ static s7_pointer wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer cal
   return(s7_error(sc, sc->wrong_type_arg_symbol, sc->wrong_type_arg_info));
 }
 
-
 static s7_pointer simple_wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer typnam, s7_pointer descr)
 {
   set_wlist_4(cdr(sc->simple_wrong_type_arg_info), caller, arg, (typnam == sc->gc_nil) ? prepackaged_type_name(sc, arg) : typnam, descr);
   return(s7_error(sc, sc->wrong_type_arg_symbol, sc->simple_wrong_type_arg_info));
 }
 
-
 s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr)
 {
-  /* info list is '(format_string caller arg_n arg type_name descr) */
-  if (arg_n < 0) arg_n = 0;
   if (arg_n > 0)
     return(wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, safe_strlen(caller)), wrap_integer1(sc, arg_n),
 					    arg, type_name_string(sc, arg), wrap_string(sc, descr, safe_strlen(descr))));
@@ -47276,14 +47263,11 @@ s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, s7_int arg
 						 type_name_string(sc, arg), wrap_string(sc, descr, safe_strlen(descr))));
 }
 
-
 static s7_pointer out_of_range_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg_n, s7_pointer arg, s7_pointer descr)
 {
-  /* info list is '(format_string caller arg_n arg descr) */
   set_wlist_4(cdr(sc->out_of_range_info), caller, arg_n, arg, descr);
   return(s7_error(sc, sc->out_of_range_symbol, sc->out_of_range_info));
 }
-
 
 static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer descr)
 {
@@ -47291,12 +47275,8 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
   return(s7_error(sc, sc->out_of_range_symbol, sc->simple_out_of_range_info));
 }
 
-
 s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr)
 {
-  /* info list is '(format_string caller arg_n arg descr) */
-  if (arg_n < 0) arg_n = 0;
-
   if (arg_n > 0)
     return(out_of_range_error_prepackaged(sc, wrap_string(sc, caller, safe_strlen(caller)), wrap_integer1(sc, arg_n), arg,
 					  wrap_string(sc, descr, safe_strlen(descr))));
@@ -47304,18 +47284,15 @@ s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, s7_int arg_n
 					       arg, wrap_string(sc, descr, safe_strlen(descr))));
 }
 
-
 s7_pointer s7_wrong_number_of_args_error(s7_scheme *sc, const char *caller, s7_pointer args)
 {
   return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_2(sc, s7_make_string_wrapper(sc, caller), args))); /* "caller" includes the format directives */
 }
 
-
 static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg)
 {
   return(s7_error(sc, sc->division_by_zero_symbol, set_elist_3(sc, wrap_string(sc, "~A: division by zero, ~S", 24), caller, arg)));
 }
-
 
 static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *descr, const char *name)
 {
@@ -47327,6 +47304,7 @@ static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *desc
 }
 
 
+/* -------------------------------- dynamic-wind -------------------------------- */
 static s7_pointer closure_or_f(s7_scheme *sc, s7_pointer p)
 {
   s7_pointer body;
@@ -47349,7 +47327,6 @@ static s7_pointer make_baffled_closure(s7_scheme *sc, s7_pointer inp)
   return(nclo);
 }
 
-/* -------------------------------- dynamic-wind -------------------------------- */
 static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
@@ -47399,7 +47376,6 @@ each a function of no arguments, guaranteeing that finish is called even if body
    * It can't work here because we set up the dynamic_wind_out slot below and
    *   even if the thunk check was removed, we'd still be trying to apply the original function.
    */
-
   new_cell(sc, p, T_DYNAMIC_WIND);                          /* don't mark car/cdr, don't copy */
   dynamic_wind_in(p) = closure_or_f(sc, car(args));
   dynamic_wind_body(p) = cadr(args);
@@ -47429,7 +47405,6 @@ each a function of no arguments, guaranteeing that finish is called even if body
     }
   return(sc->F);
 }
-
 
 s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish)
 {
@@ -47513,7 +47488,7 @@ static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
   if (!is_applicable(err))
     return(wrong_type_argument_with_type(sc, sc->catch_symbol, 3, err, something_applicable_string));
 
-  /* should we check here for (aritable? err 2)? -- right now:
+  /* should we check here for (aritable? err 2)?
    *  (catch #t (lambda () 1) "hiho") -> 1
    * currently this is checked only if the error handler is called
    */
@@ -47605,8 +47580,6 @@ It has the additional local variables: error-type, error-data, error-code, error
 
   s7_pointer e, x;
   s7_int gc_loc;
-
-  /* try_to_call_gc(sc); */
 
   /* since error-data et al can be set at any time, and owlet can be called at any time, these fields
    *   can be free cells (or anything) without that representing an error. So, before copying, we need
@@ -62802,8 +62775,11 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_C_FP_1:
       stack_element(sc->stack, top) = (s7_pointer)OP_SAFE_C_FP_MV_1;
     case OP_SAFE_C_FP_MV_1:
+      if (is_immutable(args))
+	args = copy_list(sc, args);
       set_multiple_value(args);
       return(args);
+
     case OP_SAFE_C_SSP_1:
       stack_element(sc->stack, top) = (s7_pointer)OP_SAFE_C_SSP_MV_1;
       return(args);
@@ -64025,9 +64001,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 
       if (!is_pair(cur_code))
 	{
-	  /* isolated typo perhaps -- no pair to hold the position info, so make one.
-	   *   current_code(sc) is GC-protected, so this should be safe.
-	   */
+	  /* isolated typo perhaps -- no pair to hold the position info, so make one. current_code(sc) is GC-protected, so this should be safe. */
 	  cur_code = cons(sc, sym, sc->nil);     /* the error will say "(sym)" which is not too misleading */
 	  pair_set_line(cur_code, port_line_number(sc->input_port));
 	  pair_set_file(cur_code, port_file_number(sc->input_port));
@@ -82698,8 +82672,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	   *
 	   * the extra set! to pull in args, or fixup the outlet is annoying, but
 	   *   but with-let is hard to do right -- what if env is chained as in class/objects?
-	   * also, currently a mock-let is an error -- perhaps add the method checks?
-	   *   but unless 'values, that would require a 'with-let method (it's not a function)
 	   */
 	case OP_WITH_LET_S:
 	  op_with_let_s(sc);
@@ -90110,8 +90082,8 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2662
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2976
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3574
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5174
