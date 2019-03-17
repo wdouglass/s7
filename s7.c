@@ -2104,7 +2104,7 @@ static void init_types(void)
 
 
 #define T_SAFE_CLOSURE                 (1 << (TYPE_BITS + 4))
-#define is_safe_closure(p)             has_type0_bit(T_Clp(p), T_SAFE_CLOSURE)  /* T_Pos 1-Nov-18 */
+#define is_safe_closure(p)             has_type0_bit(T_Clp(p), T_SAFE_CLOSURE)
 #define set_safe_closure(p)            set_type0_bit(T_Clp(p), T_SAFE_CLOSURE)  /* T_Clp: has_closure_let, pair #f */
 #define clear_safe_closure(p)          clear_type0_bit(T_Clp(p), T_SAFE_CLOSURE)
 
@@ -2131,9 +2131,8 @@ static void init_types(void)
 #define set_multiple_value(p)          set_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
 #define clear_multiple_value(p)        clear_type0_bit(T_Pair(p), T_MULTIPLE_VALUE)
 #define multiple_value(p)              p
-/* this bit marks a list (from "values") that is waiting for a
- *    chance to be spliced into its caller's argument list.  It is normally
- *    on only for a very short time.
+/* this bit marks a list (from "values") that is waiting for a chance to be spliced into its caller's argument list.  
+ *   It is normally on only for a very short time.
  */
 
 #define T_MATCHED                      T_MULTIPLE_VALUE
@@ -2331,7 +2330,7 @@ static void init_types(void)
 #define T_SAFE_STEPPER                 (1 << (TYPE_BITS + 19))
 #define is_safe_stepper(p)             has_type_bit(T_Slp(p), T_SAFE_STEPPER)
 #define set_safe_stepper(p)            set_type_bit(T_Slp(p), T_SAFE_STEPPER)
-#define clear_safe_stepper(p)          clear_type_bit(T_Slp(p), T_SAFE_STEPPER) /* T_Pos 1-Nov-18 */
+#define clear_safe_stepper(p)          clear_type_bit(T_Slp(p), T_SAFE_STEPPER)
 
 #define T_PRINT_NAME                   T_SAFE_STEPPER
 #define has_print_name(p)              has_type_bit(T_Num(p), T_PRINT_NAME)
@@ -2408,7 +2407,7 @@ static void init_types(void)
 #define set_possibly_constant(p)       set_type1_bit(T_Sym(p), T_SYMCONS)
 
 #define T_HAS_LET_ARG                  T_SYMCONS
-#define has_let_arg(p)                 has_type1_bit(T_App(p), T_HAS_LET_ARG) /* was T_Pos 1-Nov-18 */
+#define has_let_arg(p)                 has_type1_bit(T_App(p), T_HAS_LET_ARG)
 #define set_has_let_arg(p)             set_type1_bit(T_App(p), T_HAS_LET_ARG)
 /* p is a setter procedure, "let arg" refers to the setter's optional third (let) argument */
 
@@ -2472,18 +2471,18 @@ static void init_types(void)
 #define T_VERY_SAFE_CLOSURE            (1LL << (TYPE_BITS + BIT_ROOM + 28))
 #define T_SHORT_VERY_SAFE_CLOSURE      (1 << 4)
 #define is_very_safe_closure(p)        has_type1_bit(T_Clp(p), T_SHORT_VERY_SAFE_CLOSURE)
-#define set_very_safe_closure(p)       set_type1_bit(T_Clp(p), T_SHORT_VERY_SAFE_CLOSURE) /* T_Pos 1-Nov-18 (can be a pair) */
+#define set_very_safe_closure(p)       set_type1_bit(T_Clp(p), T_SHORT_VERY_SAFE_CLOSURE)
 #define closure_bits(p)                (typeflag(T_Clp(p)) & (T_SAFE_CLOSURE | T_VERY_SAFE_CLOSURE))
 
 #define T_CYCLIC                       (1LL << (TYPE_BITS + BIT_ROOM + 29))
 #define T_SHORT_CYCLIC                 (1 << 5)
-#define is_cyclic(p)                   has_type1_bit(T_Seq(p), T_SHORT_CYCLIC) /* T_Pos 1-Nov-18 */
+#define is_cyclic(p)                   has_type1_bit(T_Seq(p), T_SHORT_CYCLIC)
 #define set_cyclic(p)                  set_type1_bit(T_Seq(p), T_SHORT_CYCLIC)
 
 #define T_CYCLIC_SET                   (1LL << (TYPE_BITS + BIT_ROOM + 30))
 #define T_SHORT_CYCLIC_SET             (1 << 6)
 #define is_cyclic_set(p)               has_type1_bit(T_Pos(p), T_SHORT_CYCLIC_SET)
-#define set_cyclic_set(p)              set_type1_bit(T_Seq(p), T_SHORT_CYCLIC_SET)  /* T_Pos 1-Nov-18 */
+#define set_cyclic_set(p)              set_type1_bit(T_Seq(p), T_SHORT_CYCLIC_SET)
 #define clear_cyclic_bits(p)           clear_type_bit(p, T_COLLECTED | T_SHARED | T_CYCLIC | T_CYCLIC_SET)
 
 #define T_KEYWORD                      (1LL << (TYPE_BITS + BIT_ROOM + 31))
@@ -2635,7 +2634,7 @@ static void init_types(void)
 
 #define pair_line(p)                   s_line_1(T_Pair(p), __func__, __LINE__)
 #define pair_set_line(p, X)            set_s_line_1(T_Pair(p), X, __func__, __LINE__)
-#define pair_file(p)                   (p)->object.sym_cons.file
+#define pair_file(p)                   (T_Pair(p))->object.sym_cons.file
 #define pair_set_file(p, X)            set_s_file_1(sc, T_Pair(p), X, __func__, __LINE__)
 #define pair_raw_hash(p)               s_hash_1(T_Pair(p), __func__, __LINE__)
 #define pair_set_raw_hash(p, X)        set_s_hash_1(T_Pair(p), X, __func__, __LINE__)
@@ -2709,7 +2708,7 @@ static void init_types(void)
 #define opt3_con(P)                    T_Pair(P)->object.cons_ext.ce.opt_type /* op_if_is_type */
 #define set_opt3_con(P, X)             do {T_Pair(P)->object.cons_ext.ce.opt_type = X; clear_type_bit(P, T_LINE_NUMBER);} while (0)
 #define opt3_ctr(P)                    T_Pair(P)->object.cons_ext.ce.ctr
-#define set_opt3_ctr(P, X)             do {T_Pair(P)->object.cons_ext.ce.ctr = X; set_ctr3_is_set(P);} while(0)
+#define set_opt3_ctr(P, X)             do {T_Pair(P)->object.cons_ext.ce.ctr = X; clear_type_bit(P, T_LINE_NUMBER); set_ctr3_is_set(P);} while(0)
 #define increment_opt3_ctr(P)          do {if (ctr3_is_set(P)) P->object.cons_ext.ce.ctr++; else set_opt3_ctr(P, 0);} while (0)
 #endif
 
@@ -7549,11 +7548,10 @@ s7_pointer s7_varlet(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointe
   return(value);
 }
 
-
 static s7_pointer g_varlet(s7_scheme *sc, s7_pointer args)
 {
-  #define H_varlet "(varlet env ...) adds its arguments (a let, a cons: symbol . value, or a pair of arguments, the symbol and its value) \
-to the let env, and returns env."
+  #define H_varlet "(varlet env ...) adds its arguments (a let, a cons: symbol . value, or two arguments, the symbol and its value) \
+to the let env, and returns env.  (varlet (curlet) 'a 1) adds 'a to the current environment with the value 1."
   #define Q_varlet s7_make_circular_signature(sc, 2, 4, sc->is_let_symbol, \
                      s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_null_symbol), \
                        s7_make_signature(sc, 3, sc->is_pair_symbol, sc->is_symbol_symbol, sc->is_let_symbol), \
@@ -23309,6 +23307,49 @@ static s7_pointer g_port_filename(s7_scheme *sc, s7_pointer args)
   return(c_port_filename(sc, (is_null(args)) ? sc->input_port : car(args)));
 }
 
+/* -------------------------------- pair-line-number -------------------------------- */
+static s7_pointer g_pair_line_number(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer p;
+  #define H_pair_line_number "(pair-line-number pair) returns the line number at which it read 'pair', or #f if no such number is available"
+  #define Q_pair_line_number s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->not_symbol), sc->is_pair_symbol)
+
+  p = car(args);
+  if (!is_pair(p))
+    return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
+
+  if (has_line_number(p))
+    return(make_integer(sc, pair_line(p)));
+  return(sc->F); /* was 0 21-Mar-17 */
+}
+
+static s7_pointer pair_line_number_p_p(s7_scheme *sc, s7_pointer p)
+{
+  if (!is_pair(p))
+    return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
+  if (has_line_number(p))
+    return(make_integer(sc, pair_line(p)));
+  return(sc->F);
+}
+
+/* -------------------------------- pair-filename -------------------------------- */
+static s7_pointer g_pair_filename(s7_scheme *sc, s7_pointer args)
+{
+  #define H_pair_filename "(pair-filename pair) returns the name of the file containing 'pair'"
+  #define Q_pair_filename s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_string_symbol, sc->not_symbol), sc->is_pair_symbol)
+  s7_pointer p;
+  p = car(args);
+
+  if (!is_pair(p))
+    {
+      check_method(sc, p, sc->pair_filename_symbol, args);
+      return(simple_wrong_type_argument(sc, sc->pair_filename_symbol, p, T_PAIR));
+    }
+  if (has_line_number(p))
+    return(sc->file_names[pair_file(p)]);
+  return(sc->F);
+}
+
 /* -------------------------------- input-port? -------------------------------- */
 bool s7_is_input_port(s7_scheme *sc, s7_pointer p) {return(is_input_port(p));}
 static bool is_input_port_b(s7_pointer p) {return(is_input_port(p));}
@@ -29785,6 +29826,8 @@ static void complain(const char* complaint, s7_pointer p, const char *func, int 
   if (stop_at_error) abort();
 }
 
+static char* show_debugger_bits(int64_t bits);
+
 static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *func, int32_t line, const char *func1, const char *func2)
 {
   if (!p)
@@ -29815,6 +29858,26 @@ static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *fun
 		}
 	    }
 	}
+#if 0
+      else
+	{
+	  if ((typ == T_PAIR) &&
+	      (has_type_bit(p, T_LINE_NUMBER)) &&
+	      ((p)->object.sym_cons.file < 2) &&
+	      (!safe_strcmp(func, "protected_list_copy")) &&
+	      (!safe_strcmp(func, "mark_pair")))
+	    {
+	      char *bits;
+	      bits = show_debugger_bits(p->debugger_bits);
+	      fprintf(stderr, "%s[%d]: file: %d %s, debug: %s\n", func, line, 
+		      (p)->object.sym_cons.file, 
+		      describe_type_bits(cur_sc, p), 
+		      bits);
+	      free(bits);
+	      if (stop_at_error) abort();
+	    }
+	}
+#endif
     }
   return(p);
 }
@@ -30310,6 +30373,7 @@ static int32_t opt3_ctr_1(s7_pointer p, int32_t role, const char *func, int32_t 
 
 static void set_opt3_ctr_1(s7_pointer p, int32_t x, uint32_t role, const char *func, int32_t line)
 {
+  clear_type_bit(p, T_LINE_NUMBER);
   p->object.cons_ext.ce.ctr = x;
   set_ctr3_is_set(p);
   base_opt3(p, role, func, line);
@@ -30317,6 +30381,7 @@ static void set_opt3_ctr_1(s7_pointer p, int32_t x, uint32_t role, const char *f
 
 static void increment_opt3_ctr_1(s7_pointer p, uint32_t role, const char *func, int32_t line)
 {
+  clear_type_bit(p, T_LINE_NUMBER);
   if (ctr3_is_set(p))
     p->object.cons_ext.ce.ctr++;
   else p->object.cons_ext.ce.ctr = 0;
@@ -62775,7 +62840,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_C_FP_1:
       stack_element(sc->stack, top) = (s7_pointer)OP_SAFE_C_FP_MV_1;
     case OP_SAFE_C_FP_MV_1:
-      if (is_immutable(args))
+      if (is_immutable(args)) /* (let () (define (func) (with-output-to-string (lambda () (apply-values (write '(1 2)))))) (func) (func)) */
 	args = copy_list(sc, args);
       set_multiple_value(args);
       return(args);
@@ -63999,7 +64064,8 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
       z = sc->z;
       sc->temp7 = cons(sc, code, cons(sc, args, cons(sc, value, cons(sc, cur_code, cons(sc, x, cons(sc, z, sc->nil)))))); /* not s7_list (debugger checks) */
 
-      if (!is_pair(cur_code))
+      if ((port_file_number(sc->input_port) > 1) &&
+	  (!is_pair(cur_code)))
 	{
 	  /* isolated typo perhaps -- no pair to hold the position info, so make one. current_code(sc) is GC-protected, so this should be safe. */
 	  cur_code = cons(sc, sym, sc->nil);     /* the error will say "(sym)" which is not too misleading */
@@ -64137,49 +64203,6 @@ static s7_pointer binder_syntax(s7_scheme *sc, const char *name, opcode_t op, s7
   set_is_binder(x);
   return(x);
 }
-
-static s7_pointer g_pair_line_number(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer p;
-  #define H_pair_line_number "(pair-line-number pair) returns the line number at which it read 'pair', or #f if no such number is available"
-  #define Q_pair_line_number s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->not_symbol), sc->is_pair_symbol)
-
-  p = car(args);
-  if (!is_pair(p))
-    return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
-
-  if (has_line_number(p))
-    return(make_integer(sc, pair_line(p)));
-  return(sc->F); /* was 0 21-Mar-17 */
-}
-
-static s7_pointer pair_line_number_p_p(s7_scheme *sc, s7_pointer p)
-{
-  if (!is_pair(p))
-    return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
-  if (has_line_number(p))
-    return(make_integer(sc, pair_line(p)));
-  return(sc->F);
-}
-
-
-static s7_pointer g_pair_filename(s7_scheme *sc, s7_pointer args)
-{
-  #define H_pair_filename "(pair-filename pair) returns the name of the file containing 'pair'"
-  #define Q_pair_filename s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_string_symbol, sc->not_symbol), sc->is_pair_symbol)
-  s7_pointer p;
-  p = car(args);
-
-  if (!is_pair(p))
-    {
-      check_method(sc, p, sc->pair_filename_symbol, args);
-      return(simple_wrong_type_argument(sc, sc->pair_filename_symbol, p, T_PAIR));
-    }
-  if (has_line_number(p))
-    return(sc->file_names[pair_file(p)]);
-  return(sc->F);
-}
-
 
 static s7_pointer g_is_pair_car_s(s7_scheme *sc, s7_pointer args)
 {
@@ -71710,6 +71733,8 @@ static s7_pointer check_define(s7_scheme *sc)
 	  /* not is_global here because that bit might not be set for initial symbols (why not? -- redef as method etc) */
 	  if (!is_pair(cdadr(sc->code)))                                         /* (define x (lambda . 1)) */
 	    eval_error_with_caller(sc, "~A: stray dot? ~A", 17, caller, form);
+	  if (!is_pair(cddr(cadr(sc->code))))                                    /* (define (f (arg))) or (define f (lambda (arg))) */
+	    eval_error_with_caller(sc, "~A: no body: ~A", 15, caller, form);
 	  if (caadr(sc->code) == sc->lambda_star_symbol)
 	    check_lambda_star_args(sc, cadadr(sc->code), &arity);
 	  else check_lambda_args(sc, cadadr(sc->code), &arity);
@@ -82958,10 +82983,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->value = safe_reverse_in_place(sc, sc->args);
 	      if (is_symbol(car(sc->value)))
 		{
-		  pair_set_line(sc->value, port_line_number(sc->input_port));
-		  pair_set_file(sc->value, port_file_number(sc->input_port));
-		  set_has_line_number(sc->value);	      /* sc->input_port above can't be nil(?) -- it falls back on stdin now */
-
+		  if (port_file_number(sc->input_port) > 1)
+		    {
+		      pair_set_line(sc->value, port_line_number(sc->input_port));
+		      pair_set_file(sc->value, port_file_number(sc->input_port));
+		      set_has_line_number(sc->value);	      /* sc->input_port above can't be nil(?) -- it falls back on stdin now */
+		    }
 		  if ((is_expansion(car(sc->value))) &&
 		      (expansion_ex(sc) == goto_APPLY))
 		    {
@@ -90098,4 +90125,5 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
+ * t718
  */

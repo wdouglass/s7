@@ -417,13 +417,13 @@
 
     (denote (lint-format str caller . args)
       (let ((outstr (apply format #f 
-			   (string-append (if line-number
+			   (string-append (if (and line-number (> line-number 0))
 					      "~NC~A (line ~D): " 
 					      "~NC~A: ")
 					  str "~%")
 			   lint-left-margin #\space
 			   (truncated-list->string caller)
-			   (if line-number
+			   (if (and line-number (> line-number 0))
 			       (values line-number args)
 			       args))))
 	(set! made-suggestion (+ made-suggestion 1))
@@ -434,6 +434,7 @@
     (denote (local-line-number tree)
       (let ((tree-line (and (pair? tree) (pair-line-number tree))))
 	(if (and (integer? tree-line)
+		 (> tree-line 0)
 		 (not (= tree-line line-number)))
 	    (format #f " (line ~D)" tree-line)
 	    "")))
@@ -2478,7 +2479,7 @@
 		    (format outport "~NCin ~A~A,~%~NCperhaps change ~S to ~S~A~%"
 			    lint-left-margin #\space 
 			    (truncated-list->string form)
-			    (if ln (format #f " (line ~D)" ln) "")
+			    (if (and ln (> ln 0)) (format #f " (line ~D)" ln) "")
 			    (+ lint-left-margin 4) #\space 
 			    old-arg new-arg comment))))))))
 
@@ -2665,7 +2666,7 @@
 		  (format outport "~NCin ~A~A,~%~NCperhaps change ~S to ~S~A~%"
 			  lint-left-margin #\space 
 			  (truncated-list->string form)
-			  (if ln (format #f " (line ~D)" ln) "")
+			  (if (and ln (> ln 0)) (format #f " (line ~D)" ln) "")
 			  (+ lint-left-margin 4) #\space 
 			  old-arg new-arg comment)))))))
       
@@ -2704,7 +2705,7 @@
 		  (format outport "~NCin ~A~A,~%~NCperhaps change ~A to ~A~%"
 			  lint-left-margin #\space 
 			  (truncated-list->string form)
-			  (if ln (format #f " (line ~D)" ln) "")
+			  (if (and ln (> ln 0)) (format #f " (line ~D)" ln) "")
 			  (+ lint-left-margin 4) #\space 
 			  (truncated-list->string a2)
 			  (list new-e '...)))))))))
@@ -3666,7 +3667,7 @@
 						    (format outport "~NCin ~A~A,~%~NCperhaps change ~S to ~S~%"
 							    lint-left-margin #\space 
 							    (truncated-list->string form)
-							    (if ln (format #f " (line ~D)" ln) "")
+							    (if (and ln (> ln 0)) (format #f " (line ~D)" ln) "")
 							    (+ lint-left-margin 4) #\space 
 							    (list 'and '... val '... p) 
 							    nval)
@@ -4327,7 +4328,7 @@
 					      (format outport "~NCin ~A~A, ~A is ~A, but ~A wants ~A"
 						      lint-left-margin #\space 
 						      (truncated-list->string form) 
-						      (if ln (format #f " (line ~D)" ln) "")
+						      (if (and ln (> ln 0)) (format #f " (line ~D)" ln) "")
 						      (cadr arg1) 
 						      (prettify-checker-unq (car arg1))
 						      (car arg2)
@@ -5844,7 +5845,7 @@
 	      (hash-table-set! h 'min nummax))
 	    h)) ; define numerics-table
 	
-	(lambda (form env)
+	(lambda (form env)                         ; simplify-numerics??
 	  (define (simplify-arg x)
 	    (if (or (null? x)                      ; constants and the like look dumb if simplified
 		    (not (proper-list? x))
@@ -12147,7 +12148,7 @@
 				 ((null? (cdr clause)))             ; ignore the initial value which depends on a different env
 			       (let ((call (car clause)))
 				 (if (pair? call)
-				     (set! line-number (or (pair-line-number call) line-number)))
+				     (set! line-number (or (pair-line-number call) (if (> line-number 0) line-number 0))))
 				 
 				 (when (pair? call)
 				   (let ((func (car call))
@@ -14137,7 +14138,7 @@
 							    (pair-line-number (var-initial-value v)))))
 					     (lint-format "~A in ~A is already a constant, defined ~A~A" caller sym
 							  (truncated-list->string form)
-							  (if line (format #f "(line ~D): " line) "")
+							  (if (and line (> line 0)) (format #f "(line ~D): " line) "")
 							  (truncated-list->string (var-initial-value v)))))))
 
 	    ((memq sym '(else =>)) ; also in r7rs ... and _, but that is for syntax-rules
@@ -14924,7 +14925,7 @@
 							    (pair-line-number (var-initial-value v)))))
 					     (lint-format "can't set! ~A in ~A (it is a constant: ~A~A)" caller settee
 							  (truncated-list->string form)
-							  (if line (format #f "(line ~D): " line) "")
+							  (if (and line (> line 0)) (format #f "(line ~D): " line) "")
 							  (truncated-list->string (var-initial-value v))))))
 
 				      ((and (not lint-in-with-let)
@@ -21269,7 +21270,8 @@
 				  ((not (var-member vname env))
 				   (lint-format "~A is the same as ~A" caller
 						func-name
-						(if (pair-line-number (var-initial-value v))
+						(if (and (pair-line-number (var-initial-value v))
+							 (> (pair-line-number (var-initial-value v)) 0))
 						    (format #f "~A (line ~D)" vname (pair-line-number (var-initial-value v)))
 						    (if (eq? func-name vname)
 							(format #f "previous ~A" vname)
@@ -22209,7 +22211,7 @@
 	;; -------- lint-walk-pair --------
 	(lambda (caller form env)
 	  (let ((head (car form)))
-	    (set! line-number (or (pair-line-number form) line-number))
+	    (set! line-number (or (pair-line-number form) (if (> line-number 0) line-number 0)))
 	    
 	    (if *report-repeated-code-fragments*
 		(lint-fragment form env))
@@ -22460,7 +22462,8 @@
 			     (hash-table-ref built-in-functions f))
 			(format outport "~NCtop-level ~Aredefinition of built-in function ~A: ~A~%" 
 				lint-left-margin #\space 
-				(if (pair-line-number form)
+				(if (and (pair-line-number form)
+					 (> (pair-line-number form) 0))
 				    (format #f "(line ~D) " (pair-line-number form))
 				    "")
 				f (truncated-list->string form)))))

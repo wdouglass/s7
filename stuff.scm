@@ -920,17 +920,13 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define (byte siz pos) ;; -> cache size, position and mask.
   (list siz pos (ash (- (ash 1 siz) 1) pos)))
 
-(define byte-size car)
-(define byte-position cadr)
-(define byte-mask caddr)
-
 (define (ldb bytespec integer)
-  (ash (logand integer (byte-mask bytespec))
-       (- (byte-position bytespec))))
+  (ash (logand integer (caddr bytespec))
+       (- (cadr bytespec))))
 
 (define (dpb integer bytespec into)
-  (logior (ash (logand integer (- (ash 1 (byte-size bytespec)) 1)) (byte-position bytespec))
-	  (logand into (lognot (byte-mask bytespec)))))
+  (logior (ash (logand integer (- (ash 1 (car bytespec)) 1)) (cadr bytespec))
+	  (logand into (lognot (caddr bytespec)))))
 
 
 ;;; ----------------
@@ -1938,6 +1934,13 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			 #_getenv #_system #_delete-file #_directory->list #_directory? #_file-exists? #_file-mtime))
 		       )))
     (lambda (code)
+      (if (tree-cyclic? code)
+	  (error 'wrong-type-arg "sandbox argument is circular: ~S~%" code))
+      (if (and (pair? code)
+	       (>= (length code) 10000))
+	  (error 'wrong-type-arg
+		 (let-temporarily (((*s7* 'print-length) 16))
+		   (format #f "sandbox code looks bogus: ~S~%" code))))
       ;; block any change to calling program, or access to files, etc
       (let ((new-code 
 	     (call-with-exit
@@ -1968,6 +1971,11 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			((not (pair? tree))
 			 tree)
 			
+			((eq? 'quote (car tree)) ; tree-cyclic? ignores quoted lists
+			 (if (tree-cyclic? (cdr tree))
+			     (error 'wrong-type-arg "sandbox argument is circular: ~S~%" tree))
+			 tree)
+
 			(else
 			 ;; do we need to check IO ports and set! here?
 			 (cons (walk (car tree))
