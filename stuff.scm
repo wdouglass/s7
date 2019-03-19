@@ -1407,30 +1407,30 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 ;;; ----------------
 
-(if (not (or (defined? 'apropos)
-	     (provided? 'snd)))
-    (define* (apropos name (port *stdout*) (e (rootlet)))
-      (let ((ap-name (if (string? name) 
-			 name 
-			 (if (symbol? name) 
-			     (symbol->string name)
-			     (error 'wrong-type-arg "apropos argument 1 should be a string or a symbol"))))
-	    (ap-env (if (let? e) 
-			e 
-			(error 'wrong-type-arg "apropos argument 3 should be an environment")))
-	    (ap-port (if (output-port? port) 
-			 port
-			 (error 'wrong-type-arg "apropos argument 2 should be an output port"))))
-	(for-each
-	 (lambda (binding)
-	   (if (and (pair? binding)
-		    (string-position ap-name (symbol->string (car binding))))
-	       (format ap-port "~A: ~A~%" 
-		       (car binding) 
-		       (if (procedure? (cdr binding))
-			   (documentation (cdr binding))
-			   (cdr binding)))))
-	 ap-env))))
+(unless (or (defined? 'apropos)
+	    (provided? 'snd))
+  (define* (apropos name (port *stdout*) (e (rootlet)))
+    (let ((ap-name (if (string? name) 
+		       name 
+		       (if (symbol? name) 
+			   (symbol->string name)
+			   (error 'wrong-type-arg "apropos argument 1 should be a string or a symbol"))))
+	  (ap-env (if (let? e) 
+		      e 
+		      (error 'wrong-type-arg "apropos argument 3 should be an environment")))
+	  (ap-port (if (output-port? port) 
+		       port
+		       (error 'wrong-type-arg "apropos argument 2 should be an output port"))))
+      (for-each
+       (lambda (binding)
+	 (if (and (pair? binding)
+		  (string-position ap-name (symbol->string (car binding))))
+	     (format ap-port "~A: ~A~%" 
+		     (car binding) 
+		     (if (procedure? (cdr binding))
+			 (documentation (cdr binding))
+			 (cdr binding)))))
+       ap-env))))
 
 
 ;;; ----------------

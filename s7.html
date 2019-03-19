@@ -2393,17 +2393,17 @@ of the table sizes, or the order in which the key/value pairs were added.
 </div>
 
 <div class="indented">
-<p>The third argument to make-hash-table (eq-func) is slightly complicated.  If it is omitted,
+<p>The second argument to make-hash-table (eq-func) is slightly complicated.  If it is omitted,
 s7 chooses the hashing equality and mapping functions based on the keys in the hash-table.
 There are times when you know
 in advance what equality function you want.  If it's one of the built-in s7 equality
 functions, eq?, eqv?, equal?, equivalent?, =, string=?, string-ci=?, char=?, or char-ci=?,
-you can pass that function as the third argument.  In any other case, you need to
+you can pass that function as the second argument.  In any other case, you need to
 give s7 both the equality function and the mapping function. The latter takes any object
 and returns the hash-table location for it (an integer).  The problem here is that
 for the arbitrary equality function to work, objects that are equal according to that
 function have to be mapped to the same hash-table location.  There's no way for s7 to intuit
-what this mapping should be except in the built-in cases.  So to specify some arbitrary function, the third
+what this mapping should be except in the built-in cases.  So to specify some arbitrary function, the second
 argument is a cons: '(equality-checker mapper).
 </p>
 
@@ -2455,7 +2455,7 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
 </pre>
 </div>
 
-<p>The fourth argument, typers, sets type checkers for the keys and values in the table.
+<p>The third argument, typers, sets type checkers for the keys and values in the table.
 It is a cons of the type functions (currently built-in functions only, as in vectors):
 <code>(cons symbol? integer?)</code> for example. This says that all the keys must
 be symbols and all the values integers.

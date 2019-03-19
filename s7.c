@@ -1253,7 +1253,7 @@ struct s7_scheme {
              is_float_symbol, is_integer_or_real_at_end_symbol, is_integer_or_any_at_end_symbol, is_unspecified_symbol, is_undefined_symbol,
              keyword_to_symbol_symbol,
              lcm_symbol, length_symbol, leq_symbol, let_ref_fallback_symbol, let_ref_symbol, let_set_fallback_symbol,
-             let_set_symbol, let_temporarily_symbol, list_ref_symbol, list_set_symbol, list_symbol, list_tail_symbol, list_values_symbol,
+             let_set_symbol, let_temporarily_symbol, libraries_symbol, list_ref_symbol, list_set_symbol, list_symbol, list_tail_symbol, list_values_symbol,
              load_path_symbol, load_symbol, log_symbol, logand_symbol, logbit_symbol, logior_symbol, lognot_symbol, logxor_symbol, lt_symbol,
              magnitude_symbol, make_byte_vector_symbol, make_float_vector_symbol, make_hash_table_symbol, make_weak_hash_table_symbol,
              make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
@@ -1370,7 +1370,7 @@ struct s7_scheme {
   s7_pointer safe_lists[NUM_SAFE_LISTS];
   int32_t current_safe_list;
 
-  s7_pointer autoload_table, libraries, profile_info, s7_let;
+  s7_pointer autoload_table, profile_info, s7_let;
   const char ***autoload_names;
   s7_int *autoload_names_sizes;
   bool **autoloaded_already;
@@ -2347,6 +2347,7 @@ static void init_types(void)
 #define has_let_set_fallback(p)        ((typeflag(T_Lid(p)) & (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS)) == (T_HAS_LET_SET_FALLBACK | T_HAS_METHODS))
 #define set_has_let_ref_fallback(p)    set_type_bit(T_Let(p), T_HAS_LET_REF_FALLBACK)
 #define set_has_let_set_fallback(p)    set_type_bit(T_Let(p), T_HAS_LET_SET_FALLBACK)
+#define has_let_fallback(p)            has_type_bit(T_Lid(p), (T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
 #define set_all_methods(p, e)          typeflag(T_Let(p)) |= (typeflag(e) & (T_HAS_METHODS | T_HAS_LET_REF_FALLBACK | T_HAS_LET_SET_FALLBACK))
 
 #define T_WEAK_HASH                    T_SAFE_STEPPER
@@ -7033,6 +7034,19 @@ static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
 
 static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_value);
 
+static inline s7_pointer checked_slot_set_value(s7_scheme *sc, s7_pointer y, s7_pointer value)
+{
+  if (slot_has_setter(y))
+    slot_set_value(y, call_setter(sc, y, value));
+  else 
+    {
+      if (is_immutable_slot(y))
+	return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, slot_symbol(y))));
+      slot_set_value(y, value);
+    }
+  return(slot_value(y));
+}
+
 static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer e, val;
@@ -7057,11 +7071,7 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer p;
       for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	{
-	  if (slot_has_setter(p))
-	    slot_set_value(p, call_setter(sc, p, val));
-	  else slot_set_value(p, val);
-	}
+	checked_slot_set_value(sc, p, val);
     }
   return(val);
 }
@@ -7602,6 +7612,9 @@ to the let env, and returns env.  (varlet (curlet) 'a 1) adds 'a to the current 
 
       if (is_constant_symbol(sc, sym))
 	return(wrong_type_argument_with_type(sc, sc->varlet_symbol, position_of(x, args), sym, a_non_constant_symbol_string));
+      if ((has_let_fallback(e)) && 
+	  ((sym == sc->let_ref_fallback_symbol) || (sym == sc->let_set_fallback_symbol)))
+	return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "varlet can't shadow ~S", 22), sym)));
 
       if (e == sc->rootlet)
 	{
@@ -7677,6 +7690,10 @@ static s7_pointer g_cutlet(s7_scheme *sc, s7_pointer args)
 	}
       else
 	{
+	  if ((has_let_fallback(e)) &&
+	      ((sym == sc->let_ref_fallback_symbol) || (sym == sc->let_set_fallback_symbol)))
+	    return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "cutlet can't remove ~S", 22), sym)));
+
 	  slot = let_slots(e);
 	  if (tis_slot(slot))
 	    {
@@ -8231,23 +8248,13 @@ static s7_pointer let_set_1(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7
    {
      y = local_slot(symbol);
      if (is_slot(y))
-       {
-	 if (slot_has_setter(y))
-	   slot_set_value(y, call_setter(sc, y, value));
-	 else slot_set_value(y, value);
-	 return(slot_value(y));
-       }
+       return(checked_slot_set_value(sc, y, value));
    }
 
   for (x = env; is_let(x); x = outlet(x))
     for (y = let_slots(x); tis_slot(y); y = next_slot(y))
       if (slot_symbol(y) == symbol)
-	{
-	  if (slot_has_setter(y))
-	    slot_set_value(y, call_setter(sc, y, value));
-	  else slot_set_value(y, value);
-	  return(slot_value(y));
-	}
+	return(checked_slot_set_value(sc, y, value));
 
   if (has_methods(env))
     {
@@ -26147,10 +26154,42 @@ void s7_provide(s7_scheme *sc, const char *feature) {c_provide(sc, s7_make_symbo
 
 static s7_pointer g_features_set(s7_scheme *sc, s7_pointer args)
 {
-  /* setter for set/let of *features* which can only be changed via provide */
-  if (s7_is_list(sc, cadr(args)))
-    return(cadr(args));
-  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *features* to ~S", 26), cadr(args))));
+  s7_pointer nf;
+  nf = cadr(args);
+  if (is_null(nf))
+    return(sc->nil);
+  if (is_pair(nf))
+    {
+      s7_pointer p;
+      if (s7_list_length(sc, nf) <= 0)
+	return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *features* to ~S", 26), nf)));
+      for (p = nf; is_pair(p); p = cdr(p))
+	if (!is_symbol(car(p)))
+	  return(simple_wrong_type_argument(sc, sc->features_symbol, car(p), T_SYMBOL));
+      return(nf);
+    }
+  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *features* to ~S", 26), nf)));
+}
+
+static s7_pointer g_libraries_set(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer nf;
+  nf = cadr(args);
+  if (is_null(nf))
+    return(sc->nil);
+  if (is_pair(nf))
+    {
+      s7_pointer p;
+      if (s7_list_length(sc, nf) <= 0)
+	return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *libraries* to ~S", 27), nf)));
+      for (p = nf; is_pair(p); p = cdr(p))
+	if ((!is_pair(car(p))) ||
+	    (!is_string(caar(p))) ||
+	    (!is_let(cdar(p))))
+	  return(simple_wrong_type_argument_with_type(sc, sc->libraries_symbol, car(p), wrap_string(sc, "a list of conses of the form (string . let)", 43)));
+      return(nf);
+    }
+  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set *libraries* to ~S", 27), nf)));
 }
 
 
@@ -29855,30 +29894,7 @@ static s7_pointer check_ref(s7_pointer p, uint8_t expected_type, const char *fun
 		{
 		  fprintf(stderr, "%s%s[%d]: free cell, not %s%s\n", BOLD_TEXT, func, line, check_name(expected_type), UNBOLD_TEXT);
 		  if (stop_at_error) abort();
-		}
-	    }
-	}
-#if 0
-      else
-	{
-	  if ((typ == T_PAIR) &&
-	      (has_type_bit(p, T_LINE_NUMBER)) &&
-	      ((p)->object.sym_cons.file < 2) &&
-	      (!safe_strcmp(func, "protected_list_copy")) &&
-	      (!safe_strcmp(func, "mark_pair")))
-	    {
-	      char *bits;
-	      bits = show_debugger_bits(p->debugger_bits);
-	      fprintf(stderr, "%s[%d]: file: %d %s, debug: %s\n", func, line, 
-		      (p)->object.sym_cons.file, 
-		      describe_type_bits(cur_sc, p), 
-		      bits);
-	      free(bits);
-	      if (stop_at_error) abort();
-	    }
-	}
-#endif
-    }
+		}}}}
   return(p);
 }
 
@@ -44637,7 +44653,7 @@ static s7_pointer let_setter(s7_scheme *sc, s7_pointer e, s7_int loc, s7_pointer
 	  s7_pointer slot;
 	  slot = slot_in_let(sc, e, sym);
 	  if (is_slot(slot))
-	    slot_set_value(slot, cdr(val));
+	    checked_slot_set_value(sc, slot, cdr(val));
 	  else make_slot_1(sc, e, sym, cdr(val));
 	  return(cdr(val));
 	}
@@ -44839,8 +44855,19 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    }
 	  else
 	    {
-	      for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
-		make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+	      if ((has_let_fallback(source)) &&
+		  (has_let_fallback(dest)))
+		{
+		  for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
+		    if ((slot_symbol(slot) != sc->let_ref_fallback_symbol) &&
+			(slot_symbol(slot) != sc->let_set_fallback_symbol))
+		      make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		}
+	      else
+		{
+		  for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
+		    make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		}
 	    }
 	  return(dest);
 	}
@@ -45092,8 +45119,19 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  {
 	    if (is_let(dest))
 	      {
-		for (i = start; i < end; i++, slot = next_slot(slot))
-		  make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		if ((has_let_fallback(source)) &&
+		    (has_let_fallback(dest)))
+		  {
+		    for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
+		      if ((slot_symbol(slot) != sc->let_ref_fallback_symbol) &&
+			  (slot_symbol(slot) != sc->let_set_fallback_symbol))
+			make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		  }
+		else
+		  {
+		    for (i = start; i < end; i++, slot = next_slot(slot))
+		      make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		  }
 	      }
 	    else
 	      {
@@ -45142,13 +45180,29 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	{
 	  if (is_let(dest))
 	    {
-	      for (i = start; i < end; i++)
+	      if (has_let_fallback(dest))
 		{
-		  while (!x) x = elements[++loc];
-		  if (!is_symbol(hash_entry_key(x)))
-		    return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
-		  make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
-		  x = hash_entry_next(x);
+		  for (i = start; i < end; i++)
+		    {
+		      while (!x) x = elements[++loc];
+		      if (!is_symbol(hash_entry_key(x)))
+			return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
+		      if ((hash_entry_key(x) != sc->let_ref_fallback_symbol) &&
+			  (hash_entry_key(x) != sc->let_set_fallback_symbol))
+			make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
+		      x = hash_entry_next(x);
+		    }
+		}
+	      else
+		{
+		  for (i = start; i < end; i++)
+		    {
+		      while (!x) x = elements[++loc];
+		      if (!is_symbol(hash_entry_key(x)))
+			return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
+		      make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
+		      x = hash_entry_next(x);
+		    }
 		}
 	    }
 	  else
@@ -45670,6 +45724,10 @@ static s7_pointer pair_fill(s7_scheme *sc, s7_pointer args)
   obj = car(args);
   if (is_immutable_pair(obj))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->fill_symbol, obj)));
+  if (obj == slot_value(global_slot(sc->features_symbol)))
+    return(s7_error(sc, sc->error_symbol, set_elist_1(sc, wrap_string(sc, "can't fill! *features*", 22))));
+  if (obj == slot_value(global_slot(sc->libraries_symbol)))
+    return(s7_error(sc, sc->error_symbol, set_elist_1(sc, wrap_string(sc, "can't fill! *libraries*", 23))));
 
   val = cadr(args);
   len = s7_list_length(sc, obj);
@@ -63995,7 +64053,7 @@ static s7_pointer read_expression(s7_scheme *sc)
 static s7_pointer loaded_library(s7_scheme *sc, const char *file)
 {
   s7_pointer p;
-  for (p = slot_value(sc->libraries); is_pair(p); p = cdr(p))
+  for (p = slot_value(global_slot(sc->libraries_symbol)); is_pair(p); p = cdr(p))
     if (local_strcmp(file, string_value(caar(p))))
       return(cdar(p));
   return(sc->nil);
@@ -66391,7 +66449,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	      s7_pointer lambda_expr;
 	      lambda_expr = arg1;
 	      if ((is_pair(lambda_expr)) &&
-		  (is_lambda(sc, car(lambda_expr))) &&     /* check for stuff like (define (f) (eval (lambda 2))) */
+		  (is_lambda(sc, car(lambda_expr))) &&               /* check for stuff like (define (f) (eval (lambda 2))) */
 		  (is_pair(cdr(lambda_expr))) &&
 		  (is_pair(cddr(lambda_expr))))
 		{
@@ -66399,7 +66457,8 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      (is_pair(cadr(lambda_expr))) &&
 		      (is_null(cdadr(lambda_expr))) &&
 		      (is_symbol(caadr(lambda_expr))) &&
-		      (!direct_memq(car(lambda_expr), e)) && /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
+		      (!is_possibly_constant(caadr(lambda_expr))) && /* (call-with-exit (lambda (pi) ...) */
+		      (!direct_memq(car(lambda_expr), e)) &&         /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
 		      (s7_is_proper_list(sc, cddr(lambda_expr))))
 		    {
 		      if (is_null(cdddr(lambda_expr)))
@@ -67660,7 +67719,9 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 			(!is_possibly_constant(cadr(error_lambda)))) ||
 		       ((is_pair(cadr(error_lambda))) &&                /* (lambda (type info) ... */
 			(is_pair(cdadr(error_lambda))) &&
-			(is_null(cddadr(error_lambda))))) &&
+			(is_null(cddadr(error_lambda))) &&
+			(!is_possibly_constant(caadr(error_lambda))) && /* (lambda (pi ...) ...) */
+			(!is_possibly_constant(cadadr(error_lambda))))) &&
 		      (is_not_null(cddr(error_lambda))))
 		    {
 		      s7_pointer error_result;
@@ -83698,8 +83759,7 @@ static void mpz_init_set_s7_int(mpz_t n, s7_int uval)
       bool need_sign;
       int64_t val;
       val = (int64_t)uval;
-      /* handle one special case (sigh) */
-      if (val == s7_int_min)
+      if (val == s7_int_min) /* handle one special case (sigh) */
 	mpz_init_set_str(n, "-9223372036854775808", 10);
       else
 	{
@@ -89286,8 +89346,8 @@ s7_scheme *s7_init(void)
   sc->autoloader_symbol = s7_define_typed_function(sc, "*autoload*", g_autoloader, 1, 0, false, H_autoloader, Q_autoloader);
   c_function_set_setter(slot_value(global_slot(sc->autoloader_symbol)), slot_value(global_slot(sc->autoload_symbol))); /* (set! (*autoload* x) y) */
 
-  sym = s7_define_variable_with_documentation(sc, "*libraries*", sc->nil, "list of currently loaded libraries (libc.scm, etc)");
-  sc->libraries = global_slot(sym);
+  sc->libraries_symbol = s7_define_variable_with_documentation(sc, "*libraries*", sc->nil, "list of currently loaded libraries (libc.scm, etc)");
+  s7_set_setter(sc, sc->libraries_symbol, s7_make_function(sc, "(set *libraries*)", g_libraries_set, 2, 0, false, "*libraries* setter"));
 
   s7_autoload(sc, make_symbol(sc, "cload.scm"),       s7_make_permanent_string(sc, "cload.scm"));
   s7_autoload(sc, make_symbol(sc, "lint.scm"),        s7_make_permanent_string(sc, "lint.scm"));
@@ -90008,6 +90068,13 @@ s7_scheme *s7_init(void)
 			 sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer")));
   s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
 
+  { /* make the two *s7* accessor fields immutable */
+    s7_pointer slot;
+    slot = let_slots(sc->s7_let);
+    set_immutable(slot);
+    set_immutable(next_slot(slot));
+  }
+
   s7_eval_c_string(sc, "(define morally-equal? equivalent?)");
 #if (!DISABLE_DEPRECATED)
   s7_eval_c_string(sc, "(begin                                         \n\
@@ -90097,33 +90164,32 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
  * tshoot        |      |      |      |      |      |  373 |  356   357   357   358
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   593
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   950
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   977
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1522
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1720
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2100
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2245
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1710
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  1997
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2316
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2334
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2662
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2976
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3060
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3574
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5174
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5170
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6431
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.3
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 111.9
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.3
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- * t718
  */
