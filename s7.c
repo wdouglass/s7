@@ -1180,7 +1180,7 @@ struct s7_scheme {
   int32_t num_fdats, last_error_line;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, qlist_3, clist_1;
   gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables;
-  gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs;
+  gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
   s7_pointer *tree_pointers;
@@ -2453,6 +2453,11 @@ static void init_types(void)
 #define slot_defaults(p)               has_type1_bit(T_Slt(p), T_SLOT_DEFAULTS)
 #define set_slot_defaults(p)           set_type1_bit(T_Slt(p), T_SLOT_DEFAULTS)
 
+#define T_WEAK_HASH_ITERATOR           T_DEFINER
+#define is_weak_hash_iterator(p)       has_type1_bit(T_Itr(p), T_WEAK_HASH_ITERATOR)
+#define set_weak_hash_iterator(p)      set_type1_bit(T_Itr(p), T_WEAK_HASH_ITERATOR)
+#define clear_weak_hash_iterator(p)    clear_type1_bit(T_Itr(p), T_WEAK_HASH_ITERATOR)
+
 #define T_FULL_BINDER                  (1LL << (TYPE_BITS + BIT_ROOM + 27))
 #define T_BINDER                       (1 << 3)
 #define is_definer_or_binder(p)        has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
@@ -2992,19 +2997,20 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define hash_table_block(p)            (T_Hsh(p))->object.hasher.block
 #define hash_table_set_block(p, b)     (T_Hsh(p))->object.hasher.block = b
 #define hash_table_element(p, i)       (T_Hsh(p))->object.hasher.elements[i]
-#define hash_table_elements(p)         (T_Hsh(p))->object.hasher.elements
+#define hash_table_elements(p)         (T_Hsh(p))->object.hasher.elements /* block data (dx) */
 #define hash_table_entries(p)          hash_table_block(p)->nx.nx_int
 #define hash_table_checker(p)          (T_Hsh(p))->object.hasher.hash_func
 #define hash_table_mapper(p)           (T_Hsh(p))->object.hasher.loc
 #define hash_table_checker_locked(p)   (hash_table_mapper(p) != default_hash_map)
 #define hash_table_procedures(p)       T_Lst(hash_table_block(p)->ex.ex_ptr)
-#define hash_table_set_procedures(p, Lst) hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
-#define hash_table_procedures_checker(p)  car(hash_table_procedures(p))
-#define hash_table_procedures_mapper(p)   cdr(hash_table_procedures(p))
-#define hash_table_key_typer(p)           opt1_any(hash_table_procedures(p))
-#define hash_table_set_key_typer(p, Fnc)  set_opt1_any(p, Fnc)
-#define hash_table_value_typer(p)         opt2_any(hash_table_procedures(p))
+#define hash_table_set_procedures(p, Lst)  hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
+#define hash_table_procedures_checker(p)   car(hash_table_procedures(p))
+#define hash_table_procedures_mapper(p)    cdr(hash_table_procedures(p))
+#define hash_table_key_typer(p)            opt1_any(hash_table_procedures(p))
+#define hash_table_set_key_typer(p, Fnc)   set_opt1_any(p, Fnc)
+#define hash_table_value_typer(p)          opt2_any(hash_table_procedures(p))
 #define hash_table_set_value_typer(p, Fnc) set_opt2_any(p, Fnc)
+#define weak_hash_iters(p)                 hash_table_block(p)->ln.tag
 
 #if S7_DEBUGGING
 #define T_Itr_Pos(p)                   titr_pos(sc, T_Itr(p), __func__, __LINE__)
@@ -4701,7 +4707,7 @@ static inline void mark_slot(s7_pointer p)
 static void mark_noop(s7_pointer p) {}
 
 static void close_output_port(s7_scheme *sc, s7_pointer p);
-static void clear_weak_hash_table(s7_scheme *sc, s7_pointer table);
+static void cull_weak_hash_table(s7_scheme *sc, s7_pointer table);
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
 
 static void process_multivector(s7_scheme *sc, s7_pointer s1)
@@ -4841,10 +4847,39 @@ static void sweep(s7_scheme *sc)
 	    free_hash_table(sc, s1);
 	  else
 	    {
-	      if (is_weak_hash_table(s1))
-		clear_weak_hash_table(sc, s1);
+	      if ((is_weak_hash_table(s1)) &&
+		  (weak_hash_iters(s1) == 0))
+		cull_weak_hash_table(sc, s1);
 	      gp->list[j++] = s1;
 	    }
+	}
+      gp->loc = j;
+    }
+
+  gp = sc->weak_hash_iterators;
+  if (gp->loc > 0)
+    {
+      for (i = 0, j = 0; i < gp->loc; i++)
+	{
+	  s1 = gp->list[i];
+	  if (is_free_and_clear(s1))
+	    {
+	      if (is_weak_hash_iterator(s1))
+		{
+		  s7_pointer h;
+		  clear_weak_hash_iterator(s1);
+		  h = iterator_sequence(s1);
+		  if (unchecked_type(h) == T_HASH_TABLE)
+		    {
+#if S7_DEBUGGING
+		      if (weak_hash_iters(h) == 0)
+			fprintf(stderr, "in gc weak has iters wrapping under!\n");
+#endif
+		      weak_hash_iters(h)--;
+		    }
+		}
+	    }
+	  else gp->list[j++] = s1;
 	}
       gp->loc = j;
     }
@@ -4939,6 +4974,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_multivector(sc, p)   add_to_gc_list(sc->multivectors, p)
 #define add_lambda(sc, p)        add_to_gc_list(sc->lambdas, p)
 #define add_weak_ref(sc, p)      add_to_gc_list(sc->weak_refs, p)
+#define add_weak_hash_iterator(sc, p) add_to_gc_list(sc->weak_hash_iterators, p)
 
 #if WITH_GMP
 #define add_big_integer(sc, p)   add_to_gc_list(sc->big_integers, p)
@@ -4962,6 +4998,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->c_objects = make_gc_list();
   sc->lambdas = make_gc_list();
   sc->weak_refs = make_gc_list();
+  sc->weak_hash_iterators = make_gc_list();
 #if WITH_GMP
   sc->big_integers = make_gc_list();
   sc->big_ratios = make_gc_list();
@@ -5263,7 +5300,8 @@ static void mark_hash_table(s7_pointer p)
       len = hash_table_mask(p) + 1;
       last = (hash_entry_t **)(entries + len);
 
-      if (is_weak_hash_table(p))
+      if ((is_weak_hash_table(p)) &&
+	  (weak_hash_iters(p) == 0))
 	{
 	  while (entries < last)
 	    {
@@ -26539,6 +26577,17 @@ static s7_pointer rootlet_iterate(s7_scheme *sc, s7_pointer iterator)
   return(iterator_quit(iterator));
 }
 
+static s7_pointer hash_entry_to_cons(s7_scheme *sc, hash_entry_t *entry, s7_pointer p)
+{
+  if (p)
+    {
+      set_car(p, hash_entry_key(entry));
+      set_cdr(p, hash_entry_value(entry));
+      return(p);
+    }
+  return(cons(sc, hash_entry_key(entry), hash_entry_value(entry)));
+}
+
 static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
 {
   s7_pointer table;
@@ -26550,17 +26599,8 @@ static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
   if (lst)
     {
       iterator_hash_current(iterator) = hash_entry_next(lst);
-      if (iterator_current(iterator))
-	{
-	  s7_pointer p;
-	  p = iterator_current(iterator);
-	  set_car(p, hash_entry_key(lst));
-	  set_cdr(p, hash_entry_value(lst));
-	  return(p);
-	}
-      return(cons(sc, hash_entry_key(lst), hash_entry_value(lst)));
+      return(hash_entry_to_cons(sc, lst, iterator_current(iterator)));
     }
-
   table = iterator_sequence(iterator); /* using iterator_length and hash_table_entries here was slightly slower */
   len = hash_table_mask(table) + 1;
   elements = hash_table_elements(table);
@@ -26573,16 +26613,17 @@ static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
 	{
 	  iterator_position(iterator) = loc;
 	  iterator_hash_current(iterator) = hash_entry_next(x);
-	  if (iterator_current(iterator))
-	    {
-	      s7_pointer p;
-	      p = iterator_current(iterator);
-	      set_car(p, hash_entry_key(x));
-	      set_cdr(p, hash_entry_value(x));
-	      return(p);
-	    }
-	  return(cons(sc, hash_entry_key(x), hash_entry_value(x)));
+	  return(hash_entry_to_cons(sc, x, iterator_current(iterator)));
 	}
+    }
+  if (is_weak_hash_table(table))
+    {
+      clear_weak_hash_iterator(iterator);
+#if S7_DEBUGGING
+      if (weak_hash_iters(table) == 0)
+	fprintf(stderr, "weak has iters wrapping under!\n");
+#endif
+      weak_hash_iters(table)--;
     }
   return(iterator_quit(iterator));
 }
@@ -26751,6 +26792,12 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
       iterator_current(iter) = NULL;
       iterator_position(iter) = -1;
       iterator_next(iter) = hash_table_iterate;
+      if (is_weak_hash_table(e))
+	{
+	  set_weak_hash_iterator(iter);
+	  weak_hash_iters(e)++;
+	  add_weak_hash_iterator(sc, iter);
+	}
       break;
 
     case T_STRING:
@@ -28903,6 +28950,14 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	  s7_pointer key_val;
 	  port_write_character(port)(sc, ' ', port);
 	  key_val = hash_table_iterate(sc, iterator);
+#if S7_DEBUGGING
+	  if (!is_pair(key_val))
+	    {
+	      fprintf(stderr, "hash entries clobbered\n");
+	      hash_table_entries(hash) = i;
+	      break;
+	    }
+#endif	  
 	  if (use_write != P_READABLE)
 	    {
 	      if ((is_symbol(car(key_val))) &&
@@ -29701,7 +29756,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_FULL_DEFINER) != 0) ?   ((is_symbol(obj)) ? " definer" :
 						   ((is_pair(obj)) ? " has-fx" :
 						    ((is_slot(obj)) ? " slot-defaults" :
-						     " ?26?"))) : "",
+						     ((is_iterator(obj)) ? " weak-hash-iterator" :
+						      " ?26?")))) : "",
 	   /* bit 27+16 */
 	   ((full_typ & T_FULL_BINDER) != 0) ?    ((is_pair(obj)) ? " tree-collected" :
 						   ((is_hash_table(obj)) ? " simple-values" :
@@ -29750,7 +29806,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
-  if (((full_typ & T_FULL_DEFINER) != 0) && (!is_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj))) return(true);
+  if (((full_typ & T_FULL_DEFINER) != 0) && (!is_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj))) return(true);
   if (((full_typ & T_FULL_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
   if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
@@ -40779,6 +40835,7 @@ static s7_pointer g_make_weak_hash_table(s7_scheme *sc, s7_pointer args)
   s7_pointer table;
   table = g_make_hash_table_1(sc, args, sc->make_weak_hash_table_symbol);
   set_weak_hash_table(table);
+  weak_hash_iters(table) = 0;
   return(table);
 }
 
@@ -41012,7 +41069,6 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   s7_int hash_len, loc;
 
   if (p == sc->unentry) return(sc->F);
-
   hash_len = hash_table_mask(table);
   loc = hash_entry_raw_hash(p) & hash_len;
 
@@ -41041,7 +41097,7 @@ static s7_pointer remove_from_hash_table(s7_scheme *sc, s7_pointer table, s7_poi
   return(sc->F);
 }
 
-static void clear_weak_hash_table(s7_scheme *sc, s7_pointer table)
+static void cull_weak_hash_table(s7_scheme *sc, s7_pointer table)
 {
   if (hash_table_entries(table) > 0)
     {
@@ -43163,6 +43219,9 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	  (func != sc->F))
 	return(s7_wrong_type_arg_error(sc, "set! setter", 3, func, "a function or #f"));
 
+      if (sym == sc->setter_symbol)
+	return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't set (setter setter) to ~S", 31), func)));
+
       if (!is_slot(slot))
 	{
 #if SETTER_PRINT
@@ -43211,6 +43270,8 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_RST_ARGS_FUNCTION:
     case T_C_FUNCTION_STAR:
+      if (p == slot_value(global_slot(sc->setter_symbol)))
+	return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't set (setter setter) to ~S", 31), setter)));
       c_function_set_setter(p, setter);
       if ((is_any_closure(setter)) ||
 	  (is_any_macro(setter)))

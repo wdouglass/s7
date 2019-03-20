@@ -6127,7 +6127,7 @@ for a peak-amp minimum using a simulated annealing form of the genetic algorithm
   pk_data **choices = NULL, **free_choices = NULL;
   mus_float_t *rl, *im;
   const char *file = NULL;
-  bool just_best = false;
+  bool just_best;
 
 #ifndef _MSC_VER
   {
@@ -6169,9 +6169,10 @@ for a peak-amp minimum using a simulated annealing form of the genetic algorithm
   min_phases = (mus_float_t *)calloc(n, sizeof(mus_float_t));
 
   overall_min = saved_min(choice, n);
+#if 0
   if (overall_min < sqrt((double)n)) overall_min = sqrt((double)n);
   overall_min += .5;
-
+#endif
   temp_phases = (mus_float_t *)calloc(n, sizeof(mus_float_t));
   diff_phases = (mus_float_t *)calloc(n, sizeof(mus_float_t));
 
