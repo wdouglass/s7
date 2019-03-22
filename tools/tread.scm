@@ -103,13 +103,13 @@
 				       ((3) (format #f "~W" (cadr set)))
 				       ((4) (symbol->keyword (cadr set))))
 				     (#(p v cy h e it cp) (caddr set))))
-			      ((= (car set) 5)
-			       (format *stderr* "  (set! ((iterator-sequence it) ~A) ~A)~%" 
-				       (cadr set) 
-				       (#(p v cy h e it cp) (caddr set))))
-			      (else (format *stderr* "  (set! (((object->let cp) 'c-type) ~A) ~A)~%" 
-					    (cadr set)
-					    (#(p v cy h e it cp) (caddr set))))))
+			    ((= (car set) 5)
+			     (format *stderr* "  (set! ((iterator-sequence it) ~A) ~A)~%" 
+				     (cadr set) 
+				     (#(p v cy h e it cp) (caddr set))))
+			    (else (format *stderr* "  (set! (((object->let cp) 'c-type) ~A) ~A)~%" 
+					  (cadr set)
+					  (#(p v cy h e it cp) (caddr set))))))
 		    sets)
 		   (format *stderr* "  ~A)~%" (#(p v cy h e it cp) bi)))
 		 (set! bi (+ bi 1))))

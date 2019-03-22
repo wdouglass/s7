@@ -48,7 +48,6 @@
  * timing tests are in the snd tools directory
  *
  * s7.c is organized as follows:
- *
  *    structs and type flags
  *    constants
  *    GC
@@ -1936,7 +1935,7 @@ static void init_types(void)
   #define T_BSt(P) check_ref2(P, T_BYTE_VECTOR, T_STRING, __func__, __LINE__, "sweep", NULL)
   #define T_Obj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", NULL)
   #define T_Hsh(P) check_ref(P, T_HASH_TABLE,        __func__, __LINE__, "sweep", "free_hash_table")
-  #define T_Itr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", NULL)
+  #define T_Itr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", "process_iterator")
   #define T_Con(P) check_ref(P, T_CONTINUATION,      __func__, __LINE__, "sweep", "process_continuation")
   #define T_Fvc(P) check_ref(P, T_FLOAT_VECTOR,      __func__, __LINE__, "sweep", NULL)
   #define T_Ivc(P) check_ref(P, T_INT_VECTOR,        __func__, __LINE__, "sweep", NULL)
@@ -2406,6 +2405,7 @@ static void init_types(void)
 #define T_SYMCONS                      (1 << 0)
 #define is_possibly_constant(p)        has_type1_bit(T_Sym(p), T_SYMCONS)
 #define set_possibly_constant(p)       set_type1_bit(T_Sym(p), T_SYMCONS)
+#define is_probably_constant(p)        has_type_bit(T_Sym(p), (T_FULL_SYMCONS | T_IMMUTABLE))
 
 #define T_HAS_LET_ARG                  T_SYMCONS
 #define has_let_arg(p)                 has_type1_bit(T_App(p), T_HAS_LET_ARG)
@@ -4707,8 +4707,26 @@ static inline void mark_slot(s7_pointer p)
 static void mark_noop(s7_pointer p) {}
 
 static void close_output_port(s7_scheme *sc, s7_pointer p);
-static void cull_weak_hash_table(s7_scheme *sc, s7_pointer table);
 static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym);
+static void cull_weak_hash_table(s7_scheme *sc, s7_pointer table);
+
+static void process_iterator(s7_scheme *sc, s7_pointer s1)
+{
+  if (is_weak_hash_iterator(s1))
+    {
+      s7_pointer h;
+      clear_weak_hash_iterator(s1);
+      h = iterator_sequence(s1);
+      if (unchecked_type(h) == T_HASH_TABLE)
+	{
+#if S7_DEBUGGING
+	  if (weak_hash_iters(h) == 0)
+	    fprintf(stderr, "in gc weak has iters wrapping under!\n");
+#endif
+	  weak_hash_iters(h)--;
+	}
+    }
+}
 
 static void process_multivector(s7_scheme *sc, s7_pointer s1)
 {
@@ -4857,32 +4875,7 @@ static void sweep(s7_scheme *sc)
     }
 
   gp = sc->weak_hash_iterators;
-  if (gp->loc > 0)
-    {
-      for (i = 0, j = 0; i < gp->loc; i++)
-	{
-	  s1 = gp->list[i];
-	  if (is_free_and_clear(s1))
-	    {
-	      if (is_weak_hash_iterator(s1))
-		{
-		  s7_pointer h;
-		  clear_weak_hash_iterator(s1);
-		  h = iterator_sequence(s1);
-		  if (unchecked_type(h) == T_HASH_TABLE)
-		    {
-#if S7_DEBUGGING
-		      if (weak_hash_iters(h) == 0)
-			fprintf(stderr, "in gc weak has iters wrapping under!\n");
-#endif
-		      weak_hash_iters(h)--;
-		    }
-		}
-	    }
-	  else gp->list[j++] = s1;
-	}
-      gp->loc = j;
-    }
+  process_gc_list(process_iterator(sc, s1));
 
   gp = sc->input_ports;
   process_gc_list(process_input_port(sc, s1));
@@ -18562,18 +18555,26 @@ static s7_pointer g_equal_length_ic(s7_scheme *sc, s7_pointer args)
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) == ilen));
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) == ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) == ilen));
+
     case T_BYTE_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-    case T_VECTOR:       return(make_boolean(sc, vector_length(val) == ilen));
-    case T_CLOSURE:
-    case T_CLOSURE_STAR: if (has_active_methods(sc, val)) return(make_boolean(sc, closure_length(sc, val) == ilen));
+    case T_VECTOR:       
+      return(make_boolean(sc, vector_length(val) == ilen));
+
     case T_ITERATOR:
       {
 	s7_pointer len;
 	len = s7_length(sc, iterator_sequence(val));
 	return(make_boolean(sc, (is_t_integer(len)) && (integer(len) == ilen)));
       }
+
+    case T_CLOSURE:
+    case T_CLOSURE_STAR: 
+      if (has_active_methods(sc, val)) 
+	return(make_boolean(sc, closure_length(sc, val) == ilen));
+      /* fall through */
+
     default:
       return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string));
       /* here we already lost because we checked for the length above */
@@ -19491,18 +19492,26 @@ static s7_pointer g_less_length_ic(s7_scheme *sc, s7_pointer args)
     case T_HASH_TABLE:   return(make_boolean(sc, (hash_table_mask(val) + 1) < ilen)); /* was <=? -- changed 15-Dec-15, then again 6-Jan-17: mask is len-1 */
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) < ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) < ilen));  /* this works because let_length handles the length method itself! */
+
     case T_BYTE_VECTOR:
     case T_INT_VECTOR:
     case T_FLOAT_VECTOR:
-    case T_VECTOR:       return(make_boolean(sc, vector_length(val) < ilen));
-    case T_CLOSURE:
-    case T_CLOSURE_STAR: if (has_active_methods(sc, val)) return(make_boolean(sc, closure_length(sc, val) < ilen));
+    case T_VECTOR:       
+      return(make_boolean(sc, vector_length(val) < ilen));
+
     case T_ITERATOR:
       {
 	s7_pointer len;
 	len = s7_length(sc, iterator_sequence(val));
 	return(make_boolean(sc, (is_t_integer(len)) && (integer(len) < ilen)));
       }
+
+    case T_CLOSURE:
+    case T_CLOSURE_STAR: 
+      if (has_active_methods(sc, val)) 
+	return(make_boolean(sc, closure_length(sc, val) < ilen));
+      /* fall through */
+
     default:
       return(simple_wrong_type_argument_with_type(sc, sc->length_symbol, val, a_sequence_string)); /* no check method here because we checked above */
     }
@@ -25936,8 +25945,8 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
 
 static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *already_loaded, bool loading)
 {
-  s7_int l = 0, pos = -1, lib, libs;
-  const char *name, *this_name;
+  s7_int l = 0, lib, libs;
+  const char *name;
 
   name = symbol_name(symbol);
   libs = sc->autoload_names_loc;
@@ -25951,7 +25960,8 @@ static const char *find_autoload_name(s7_scheme *sc, s7_pointer symbol, bool *al
 
       while (true)
 	{
-	  s7_int comp;
+	  s7_int comp, pos;
+	  const char *this_name;
 	  if (u < l) break;
 	  pos = (l + u) / 2;
 	  this_name = names[pos * 2];
@@ -26276,8 +26286,7 @@ static s7_pointer g_eval_string(s7_scheme *sc, s7_pointer args)
   push_stack(sc, OP_EVAL_STRING, args, sc->code);
   push_stack_op_let(sc, OP_READ_INTERNAL);
 
-  return(sc->F);
-  /* I think this means that sc->value defaults to #f in op_eval_string below, so (eval-string "") mimics (eval) -> #f */
+  return(sc->F);  /* I think this means that sc->value defaults to #f in op_eval_string below, so (eval-string "") mimics (eval) -> #f */
 }
 
 static s7_pointer eval_string_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -26301,8 +26310,7 @@ static s7_pointer op_eval_string(s7_scheme *sc)
 	  trail_data = make_string_with_length(sc, (const char *)(port_data(sc->input_port) + port_position(sc->input_port) - 1), trail_len);
 	  s7_close_input_port(sc, sc->input_port);
 	  pop_input_port(sc);
-	  s7_error(sc, sc->read_error_symbol,
-		   set_elist_2(sc, wrap_string(sc, "eval-string trailing junk: ~S", 29), trail_data));
+	  s7_error(sc, sc->read_error_symbol, set_elist_2(sc, wrap_string(sc, "eval-string trailing junk: ~S", 29), trail_data));
 	}
     }
   s7_close_input_port(sc, sc->input_port);
@@ -46859,7 +46867,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 		  char *objstr, *str;
 		  s7_pointer objp;
 		  const char *spaces;
-		  s7_int new_note_len, notes_max, cur_line_len = 0, spaces_len;
+		  s7_int new_note_len, notes_max, spaces_len;
 		  bool new_notes_line = false, old_short_print;
 		  s7_int old_len, objlen;
 
@@ -46898,6 +46906,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 		      if (notes)
 			{
 			  char *last_newline;
+			  s7_int cur_line_len;
 			  last_newline = strrchr(notes, (int)'\n'); /* returns ptr to end if none = nil if not found? */
 			  if (last_newline)
 			    cur_line_len = strlen(notes) - strlen(last_newline);
@@ -63190,6 +63199,7 @@ static s7_pointer values_p_p(s7_scheme *sc, s7_pointer p) {return(p);}
 
 
 /* -------------------------------- quasiquote -------------------------------- */
+#define CDR 1
 
 static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 {
@@ -63218,7 +63228,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 	{
 	  sc->u = args;
 	  check_heap_size(sc, 8192);
-#if S7_DEBUGGING
+#if S7_DEBUGGING || (CDR)
 	  if (tree_is_cyclic(sc, args))
 	    {
 	      fprintf(stderr, "%s[%d]: hit a cyclic list?\n", __func__, __LINE__);
@@ -64673,7 +64683,6 @@ static s7_pointer is_eq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
   return(f);
 }
 
-
 static s7_pointer g_not_is_pair_s(s7_scheme *sc, s7_pointer args)   {check_boolean_not_method(sc, is_pair,         sc->is_pair_symbol, args);}
 static s7_pointer g_not_is_null_s(s7_scheme *sc, s7_pointer args)   {check_boolean_not_method(sc, is_null,         sc->is_null_symbol, args);}
 static s7_pointer g_not_is_symbol_s(s7_scheme *sc, s7_pointer args) {check_boolean_not_method(sc, is_symbol,       sc->is_symbol_symbol, args);}
@@ -64771,7 +64780,6 @@ static s7_pointer not_chooser(s7_scheme *sc, s7_pointer g, int32_t args, s7_poin
   return(g);
 }
 
-
 static s7_pointer vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   /* if (symbol_id(sc->vector_ref_symbol) != 0) return(f); */
@@ -64818,14 +64826,12 @@ static s7_pointer vector_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, 
   return(f);
 }
 
-
 static s7_pointer vector_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 3) return(sc->vector_set_3);
   if (args == 4) return(sc->vector_set_4);
   return(f);
 }
-
 
 static s7_pointer list_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -65086,7 +65092,6 @@ static s7_pointer multiply_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
   return(f);
 }
 
-
 static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
 #if (!WITH_GMP)
@@ -65150,7 +65155,6 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
 #endif
   return(f);
 }
-
 
 static s7_pointer divide_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -65246,7 +65250,6 @@ static s7_pointer less_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
   return(f);
 }
 
-
 static s7_pointer leq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
@@ -65264,7 +65267,6 @@ static s7_pointer leq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
     }
   return(f);
 }
-
 
 static s7_pointer greater_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -65289,7 +65291,6 @@ static s7_pointer greater_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_
     }
   return(f);
 }
-
 
 static s7_pointer geq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -65609,7 +65610,6 @@ static s7_pointer g_and_s_direct_2(s7_scheme *sc, s7_pointer args)
   return(c_call(cadr(args))(sc, sc->t1_1));
 }
 
-
 static s7_pointer make_function_with_class(s7_scheme *sc, s7_pointer cls, const char *name, s7_function f,
 					   int32_t required_args, int32_t optional_args, bool rest_arg, const char *doc)
 {
@@ -65621,7 +65621,6 @@ static s7_pointer make_function_with_class(s7_scheme *sc, s7_pointer cls, const 
   return(uf);
 }
 
-
 static s7_pointer set_function_chooser(s7_scheme *sc, s7_pointer sym, s7_pointer (*chooser)(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops))
 {
   s7_pointer f;
@@ -65631,7 +65630,6 @@ static s7_pointer set_function_chooser(s7_scheme *sc, s7_pointer sym, s7_pointer
 #endif
   return(f);
 }
-
 
 static void init_choosers(s7_scheme *sc)
 {
@@ -66518,7 +66516,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		      (is_pair(cadr(lambda_expr))) &&
 		      (is_null(cdadr(lambda_expr))) &&
 		      (is_symbol(caadr(lambda_expr))) &&
-		      (!is_possibly_constant(caadr(lambda_expr))) && /* (call-with-exit (lambda (pi) ...) */
+		      (!is_probably_constant(caadr(lambda_expr))) && /* (call-with-exit (lambda (pi) ...) */
 		      (!direct_memq(car(lambda_expr), e)) &&         /* (let ((lambda #f)) (call-with-exit (lambda ...))) */
 		      (s7_is_proper_list(sc, cddr(lambda_expr))))
 		    {
@@ -67509,7 +67507,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
-
 static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
   s7_pointer arg1, arg2, arg3;
@@ -67777,12 +67774,12 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		      (is_null(cadr(body_lambda))) &&
 		      (is_not_null(cddr(body_lambda))) &&
 		      (((is_symbol(cadr(error_lambda))) &&              /* (lambda args ... */
-			(!is_possibly_constant(cadr(error_lambda)))) ||
+			(!is_probably_constant(cadr(error_lambda)))) ||
 		       ((is_pair(cadr(error_lambda))) &&                /* (lambda (type info) ... */
 			(is_pair(cdadr(error_lambda))) &&
 			(is_null(cddadr(error_lambda))) &&
-			(!is_possibly_constant(caadr(error_lambda))) && /* (lambda (pi ...) ...) */
-			(!is_possibly_constant(cadadr(error_lambda))))) &&
+			(!is_probably_constant(caadr(error_lambda))) && /* (lambda (pi ...) ...) */
+			(!is_probably_constant(cadadr(error_lambda))))) &&
 		      (is_not_null(cddr(error_lambda))))
 		    {
 		      s7_pointer error_result;
@@ -80251,7 +80248,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_C_CATCH_ALL:
 	  if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_C_CATCH_ALL:                    /* (catch #t (lambda () ...) (lambda args #f) */
+	case HOP_C_CATCH_ALL:                                /* (catch #t (lambda () ...) (lambda args #f) */
 	  set_current_code(sc, sc->code);
 	  new_frame(sc, sc->envir, sc->envir);
 	  catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
@@ -80263,7 +80260,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_C_CATCH_ALL_P:
 	  if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_C_CATCH_ALL_P:
-	  new_frame(sc, sc->envir, sc->envir);
+	  new_frame(sc, sc->envir, sc->envir);               /* frame is needed even if no definers because we're setting the dox1/2 slots */
 	  catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
 	  catch_all_set_op_loc(sc->envir, sc->op_stack_now - sc->op_stack);
 	  push_stack(sc, OP_CATCH_ALL, opt2_con(sc->code), sc->code);
@@ -80696,40 +80693,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 
 	  /* -------------------------------------------------------------------------------- */
-	case OP_UNKNOWN:
-	  if (unknown_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_G:
-	  if (unknown_g_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_GG:
-	  if (unknown_gg_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_ALL_S:
-	  if (unknown_all_s_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_A:
-	  if (unknown_a_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_AA:
-	  if (unknown_aa_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
-
-	case OP_UNKNOWN_FX:
-	  if (unknown_fx_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL)
-	    goto EVAL;
-	  break;
+	case OP_UNKNOWN:       if (unknown_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;       break;
+	case OP_UNKNOWN_G:     if (unknown_g_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;     break;
+	case OP_UNKNOWN_GG:    if (unknown_gg_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;    break;
+	case OP_UNKNOWN_ALL_S: if (unknown_all_s_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL; break;
+	case OP_UNKNOWN_A:     if (unknown_a_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;     break;
+	case OP_UNKNOWN_AA:    if (unknown_aa_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;    break;
+	case OP_UNKNOWN_FX:    if (unknown_fx_ex(sc, lookup_checked(sc, car(sc->code))) == goto_EVAL) goto EVAL;    break;
 	  /* -------------------------------------------------------------------------------- */
 
 
@@ -90249,7 +90219,7 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 111.9
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.3
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.2
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]

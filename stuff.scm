@@ -17,8 +17,6 @@
 
 (define applicable? arity)
 
-;(define sequence? length) -- now built-in for signatures
-
 (define (nth-value n . args) ; untested...
   (and (> (length args) n)
        (list-ref args n)))
@@ -361,8 +359,6 @@
 			  `(set! (orig ',(car v)) (list-ref saved ,(set! ctr (+ ctr 1))))
 			  `(set! (with-let orig ,(car v)) (list-ref saved ,(set! ctr (+ ctr 1)))))))
 		  vars)))))
-
-;;; 14-8-16: moved let-temporarily to s7.c
 
 (define-macro (let/setter vars . body)
   (let ((setters (map (lambda (binding)
