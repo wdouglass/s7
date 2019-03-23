@@ -5194,7 +5194,8 @@ static void mark_continuation(s7_pointer p)
 {
   uint32_t i;
   set_mark(p);
-  mark_stack_1(continuation_stack(p), continuation_stack_top(p));
+  if (!is_marked(continuation_stack(p))) /* can these be cyclic? */
+    mark_stack_1(continuation_stack(p), continuation_stack_top(p));
   for (i = 0; i < continuation_op_loc(p); i++)
     gc_mark(continuation_op_stack(p)[i]);
 }
@@ -10394,7 +10395,6 @@ static bool op_goto_a(s7_scheme *sc)
 
 static bool is_NaN(s7_double x) {return(x != x);}
 /* callgrind says this is faster than isnan, I think (very confusing data...) */
-
 
 #if defined(__sun) && defined(__SVR4)
   static bool is_inf(s7_double x) {return((x == x) && (is_NaN(x - x)));} /* there's no isinf in Solaris */
@@ -30983,28 +30983,24 @@ static void c_function_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
     }
   if (c_function_name_length(obj) > 0)
     port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
-  else port_write_string(port)(sc, "<unnamed c_function>", 20, port);
+  else port_write_string(port)(sc, "#<unnamed-c-function>", 21, port);
 }
 
 static void c_macro_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   if (c_macro_name_length(obj) > 0)
     port_write_string(port)(sc, c_macro_name(obj), c_macro_name_length(obj), port);
-  else port_write_string(port)(sc, "<unnamed c_macro>", 17, port);
+  else port_write_string(port)(sc, "#<unnamed-c-macro>", 18, port);
 }
 
 static void continuation_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (use_write == P_READABLE)
-    port_write_string(port)(sc, "continuation", 12, port);
-  else port_write_string(port)(sc, "#<continuation>", 15, port);
+  port_write_string(port)(sc, "#<continuation>", 15, port); /* how can a continuation be printed readably? */
 }
 
 static void goto_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (use_write == P_READABLE)
-    port_write_string(port)(sc, "goto", 4, port);
-  else port_write_string(port)(sc, "#<goto>", 7, port);
+  port_write_string(port)(sc, "#<goto>", 7, port); /* same query as above */
 }
 
 static void catch_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -33928,15 +33924,6 @@ static s7_pointer g_is_proper_list(s7_scheme *sc, s7_pointer args)
 }
 
 static bool is_proper_list_b_7p(s7_scheme *sc, s7_pointer p) {return(s7_is_proper_list(sc, p));}
-
-s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
-{
-  s7_int old_len;
-  old_len = sc->print_length;
-  sc->print_length = new_len;
- return(old_len);
-}
 
 
 /* -------------------------------- make-list -------------------------------- */
@@ -40570,15 +40557,6 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
     }
 
   els = (block_t *)callocate(sc, size * sizeof(hash_entry_t *));
-#if 0
-  if (!els)
-    return(s7_error(sc, make_symbol(sc, "out-of-memory"),
-		    set_elist_1(sc, wrap_string(sc, "make-hash-table allocation failed!", 34))));
-  /* this isn't hit, at least in Linux, even when the size is too large and the block_data will be null.
-   *   perhaps trap for segfault and touch the new block, or check sysinfo/sysconf vs size?
-   * can we even depend on getting a segfault?
-   */
-#endif
   new_cell(sc, table, T_HASH_TABLE | T_SAFE_PROCEDURE);
   hash_table_mask(table) = size - 1;
   hash_table_set_block(table, els);
@@ -63199,7 +63177,7 @@ static s7_pointer values_p_p(s7_scheme *sc, s7_pointer p) {return(p);}
 
 
 /* -------------------------------- quasiquote -------------------------------- */
-#define CDR 1
+#define CDR 0
 
 static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 {
@@ -87349,6 +87327,24 @@ static void s7_gmp_init(s7_scheme *sc)
 
 /* -------------------------------- *s7* environment -------------------------------- */
 
+s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
+s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
+{
+  s7_int old_len;
+  old_len = sc->print_length;
+  sc->print_length = new_len;
+ return(old_len);
+}
+
+s7_int s7_float_format_precision(s7_scheme *sc) {return(sc->float_format_precision);}
+s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
+{
+  s7_int old_len;
+  old_len = sc->float_format_precision;
+  sc->float_format_precision = new_len;
+ return(old_len);
+}
+
 static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
 {
   s7_pointer sym;
@@ -87388,7 +87384,7 @@ static void init_s7_let(s7_scheme *sc)
   sc->initial_string_port_length_symbol =    s7_let_field(sc, "initial-string-port-length");
   sc->default_rationalize_error_symbol =     s7_let_field(sc, "default-rationalize-error");
   sc->default_random_state_symbol =          s7_let_field(sc, "default-random-state");
-  sc->equivalent_float_epsilon_symbol =   s7_let_field(sc, "equivalent-float-epsilon");
+  sc->equivalent_float_epsilon_symbol =      s7_let_field(sc, "equivalent-float-epsilon");
   sc->hash_table_float_epsilon_symbol =      s7_let_field(sc, "hash-table-float-epsilon");
   sc->print_length_symbol =                  s7_let_field(sc, "print-length");
   sc->bignum_precision_symbol =              s7_let_field(sc, "bignum-precision");
@@ -89319,7 +89315,7 @@ s7_scheme *s7_init(void)
 #endif
   s7_define_function(sc, "s7-optimize", g_optimize, 1, 0, false, "short-term debugging aid");
 
-  sc->c_object_set_function = s7_make_function(sc, "(c-object setter)", g_c_object_set, 1, 0, true, "c-object setter");
+  sc->c_object_set_function = s7_make_function(sc, "#<c-object-setter>", g_c_object_set, 1, 0, true, "c-object setter");
   /* c_function_signature(sc->c_object_set_function) = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T); */
 
   set_scope_safe(slot_value(global_slot(sc->call_with_input_string_symbol)));
@@ -89356,12 +89352,12 @@ s7_scheme *s7_init(void)
 
   /* -------- *features* -------- */
   sc->features_symbol = s7_define_variable_with_documentation(sc, "*features*", sc->nil, "list of currently available features ('complex-numbers, etc)");
-  s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "(set *features*)", g_features_set, 2, 0, false, "*features* setter"));
+  s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "#<set-*features*>", g_features_set, 2, 0, false, "*features* setter"));
 
   /* -------- *load-path* -------- */
   sc->load_path_symbol = s7_define_variable_with_documentation(sc, "*load-path*", sc->nil,
 			   "*load-path* is a list of directories (strings) that the load function searches if it is passed an incomplete file name");
-  s7_set_setter(sc, sc->load_path_symbol, s7_make_function(sc, "(set *load-path*)", g_load_path_set, 2, 0, false, "*load-path* setter"));
+  s7_set_setter(sc, sc->load_path_symbol, s7_make_function(sc, "#<set-*load-path*>", g_load_path_set, 2, 0, false, "*load-path* setter"));
 
 #ifdef CLOAD_DIR
   sc->cload_directory_symbol = s7_define_variable(sc, "*cload-directory*", s7_make_string(sc, (char *)CLOAD_DIR));
@@ -89369,7 +89365,7 @@ s7_scheme *s7_init(void)
 #else
   sc->cload_directory_symbol = s7_define_variable(sc, "*cload-directory*", make_empty_string(sc, 0, 0));
 #endif
-  s7_set_setter(sc, sc->cload_directory_symbol, s7_make_function(sc, "(set! *cload-directory*)", g_cload_directory_set, 2, 0, false, "*cload-directory* setter"));
+  s7_set_setter(sc, sc->cload_directory_symbol, s7_make_function(sc, "#<set-*cload-directory*>", g_cload_directory_set, 2, 0, false, "*cload-directory* setter"));
 
   /* -------- *autoload* --------
    * this pretends to be a hash-table or environment, but it's actually a function
@@ -89378,7 +89374,7 @@ s7_scheme *s7_init(void)
   c_function_set_setter(slot_value(global_slot(sc->autoloader_symbol)), slot_value(global_slot(sc->autoload_symbol))); /* (set! (*autoload* x) y) */
 
   sc->libraries_symbol = s7_define_variable_with_documentation(sc, "*libraries*", sc->nil, "list of currently loaded libraries (libc.scm, etc)");
-  s7_set_setter(sc, sc->libraries_symbol, s7_make_function(sc, "(set *libraries*)", g_libraries_set, 2, 0, false, "*libraries* setter"));
+  s7_set_setter(sc, sc->libraries_symbol, s7_make_function(sc, "#<set-*libraries*>", g_libraries_set, 2, 0, false, "*libraries* setter"));
 
   s7_autoload(sc, make_symbol(sc, "cload.scm"),       s7_make_permanent_string(sc, "cload.scm"));
   s7_autoload(sc, make_symbol(sc, "lint.scm"),        s7_make_permanent_string(sc, "lint.scm"));
@@ -89402,7 +89398,7 @@ s7_scheme *s7_init(void)
   /* -------- *#readers* -------- */
   sym = s7_define_variable_with_documentation(sc, "*#readers*", sc->nil, "list of current reader macros");
   sc->sharp_readers = global_slot(sym);
-  s7_set_setter(sc, sym, s7_make_function(sc, "(set! *#readers*)", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
+  s7_set_setter(sc, sym, s7_make_function(sc, "#<set-*#readers*>", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
 
   /* *features* */
   s7_provide(sc, "s7");
@@ -89517,9 +89513,9 @@ s7_scheme *s7_init(void)
 #if (WITH_PURE_S7)
   /* we need to be able at least to set (current-output-port) to #f */
   c_function_set_setter(slot_value(global_slot(sc->current_input_port_symbol)),
-			s7_make_function(sc, "(set *stdin*)", g_set_current_input_port, 1, 0, false, "*stdin* setter"));
+			s7_make_function(sc, "#<set-*stdin*>", g_set_current_input_port, 1, 0, false, "*stdin* setter"));
   c_function_set_setter(slot_value(global_slot(sc->current_output_port_symbol)),
-			s7_make_function(sc, "(set *stdout*)", g_set_current_output_port, 1, 0, false, "*stdout* setter"));
+			s7_make_function(sc, "#<set-*stdout*>", g_set_current_output_port, 1, 0, false, "*stdout* setter"));
 #else
   set_setter(sc->set_current_input_port_symbol);
   set_setter(sc->set_current_output_port_symbol);
@@ -89547,9 +89543,9 @@ s7_scheme *s7_init(void)
   s7_function_set_setter(sc, "let-ref",          "let-set!");
   s7_function_set_setter(sc, "string-ref",       "string-set!");
   c_function_set_setter(slot_value(global_slot(sc->outlet_symbol)),
-			s7_make_function(sc, "(set! outlet)", g_set_outlet, 2, 0, false, "outlet setter"));
+			s7_make_function(sc, "#<set-outlet>", g_set_outlet, 2, 0, false, "outlet setter"));
   c_function_set_setter(slot_value(global_slot(sc->port_line_number_symbol)),
-			s7_make_function(sc, "(set! port-line-number)", g_set_port_line_number, 1, 1, false, "port line setter"));
+			s7_make_function(sc, "#<set-port-line-number>", g_set_port_line_number, 1, 1, false, "port line setter"));
 
   s7_define_constant(sc, "most-positive-fixnum", mostfix);
   s7_define_constant(sc, "most-negative-fixnum", leastfix);
@@ -90223,4 +90219,9 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
+ *
+ * cycle in mark_continuation? [added marked check]
+ * in place goto for readable print: (goto loc op active), but can this work (depends on current stack etc)
+ * in place call/cc could have stack vector (as in *s7*)
+ *   both within body are just the name
  */

@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.1"
-#define S7_DATE "4-Jan-19"
+#define S7_VERSION "8.2"
+#define S7_DATE "22-Mar-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -291,11 +291,6 @@ s7_pointer s7_make_and_fill_vector(s7_scheme *sc, s7_int len, s7_pointer fill); 
 void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj);                   /* (vector-fill! vec obj) */
 s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect);
 s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect);                         /* (vector->list vec) */
-
-
-s7_int s7_print_length(s7_scheme *sc);                                                /* value of (*s7* 'print-length) */
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);                            /* sets (*s7* 'print-length), returns old value */
-
   /* 
    *  (vect i) is the same as (vector-ref vect i)
    *  (set! (vect i) x) is the same as (vector-set! vect i x)
@@ -303,8 +298,7 @@ s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);                      
    *  (set! (vect i j k) x) sets that element (vector-ref and vector-set! can also be used)
    *  (make-vector (list 2 3 4)) returns a 3-dimensional vector with the given dimension sizes
    *  (make-vector '(2 3) 1.0) returns a 2-dim vector with all elements set to 1.0
-   */
-  
+   */  
 
 bool s7_is_hash_table(s7_pointer p);                                        /* (hash-table? p) */
 s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size);                  /* (make-hash-table size) */
@@ -570,6 +564,12 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);            /* (copy ...) */
 s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */
 s7_pointer s7_type_of(s7_scheme *sc, s7_pointer arg);          /* (type-of arg) */
+
+
+s7_int s7_print_length(s7_scheme *sc);                                                /* value of (*s7* 'print-length) */
+s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);                            /* sets (*s7* 'print-length), returns old value */
+s7_int s7_float_format_precision(s7_scheme *sc);                                      /* value of (*s7* 'float-format-precision) */
+s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len);                  /* sets (*s7* 'float-format-precision), returns old value */
 
 
 
@@ -854,6 +854,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x); /* used in CM */
  * 
  *        s7 changes
  *
+ * 22-Mar:    s7_float_format_precision.
  * 4-Jan-19:  morally-equal? -> equivalent?
  * --------
  * 29-Dec:    s7_c_type_set_getter|setter (implicit c-object access).

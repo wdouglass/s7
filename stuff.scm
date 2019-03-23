@@ -136,10 +136,22 @@
 (define (built-in? x) 
   (not (undefined? (eval-string (string-append "#_" (object->string x)))))) ; just a guess...
 
+#|
 (define (the type expr) 
   (if (type expr)
       expr
       (error 'bad-type "~S is ~S but should be ~S" expr (type-of expr) type)))
+|#
+(define (the type expr)
+  (let ((e expr)
+	(bp type))
+    (if (and (procedure? bp)
+	     (pair? (signature bp))
+	     (eq? 'boolean? (car (signature bp))))
+	(if (type e)
+	    e
+	    (error 'bad-type "~S is ~S but should be ~S" e (type-of e) bp))
+	(error 'bad-type "~S is not a boolean procedure" bp))))
 
 (define iota 
   (let ((+documentation+ "(iota n (start 0) (incr 1)) returns a list counting from start for n:\n\
