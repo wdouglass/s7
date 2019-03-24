@@ -25403,6 +25403,14 @@ static s7_pointer g_read_string(s7_scheme *sc, s7_pointer args)
       port_position(port) += len;
       return(s);
     }
+  if (is_file_port(port))
+    {
+      size_t len;
+      len = fread((void *)str, 1, nchars, port_file(port));
+      str[len] = '\0';
+      string_length(s) = len;
+      return(s);
+    }
   for (i = 0; i < nchars; i++)
     {
       int32_t c;
@@ -28839,8 +28847,8 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
   len = hash_table_entries(hash);
   if (len == 0)
     {
-      if ((is_weak_hash_table(hash)) && (use_write == P_READABLE))
-	port_write_string(port)(sc, "(make-weak-hash-table)", 22, port);
+      if (is_weak_hash_table(hash))
+	port_write_string(port)(sc, "(weak-hash-table)", 17, port);
       else port_write_string(port)(sc, "(hash-table)", 12, port);
       return;
     }
@@ -30596,8 +30604,15 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	    case T_INT_VECTOR:	 port_write_string(port)(sc, "(make-iterator #i())", 20, port);	        break;
 	    case T_FLOAT_VECTOR: port_write_string(port)(sc, "(make-iterator #r())", 20, port);	        break;
 	    case T_LET:	         port_write_string(port)(sc, "(make-iterator (inlet))", 23, port);      break;
-	    case T_HASH_TABLE:   port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);	break;
-	    default:	         port_write_string(port)(sc, "(make-iterator ())", 18, port);	        break; /* c-object?? function? */
+
+	    case T_HASH_TABLE:
+	      if (is_weak_hash_table(iterator_sequence(obj)))
+		port_write_string(port)(sc, "(make-iterator (weak-hash-table))", 33, port);
+	      else port_write_string(port)(sc, "(make-iterator (hash-table))", 28, port);
+	      break;
+
+	    default:	         
+	      port_write_string(port)(sc, "(make-iterator ())", 18, port);	        break; /* c-object?? function? */
 	    }
 	}
       else
@@ -30698,7 +30713,9 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
   else
     {
       const char *str;
-      str = type_name(sc, iterator_sequence(obj), NO_ARTICLE);
+      if ((is_hash_table(iterator_sequence(obj))) && (is_weak_hash_table(iterator_sequence(obj))))
+	str = "weak-hash-table";
+      else str = type_name(sc, iterator_sequence(obj), NO_ARTICLE);
       port_write_string(port)(sc, "#<iterator: ", 12, port);
       port_write_string(port)(sc, str, safe_strlen(str), port);
       port_write_character(port)(sc, '>', port);
@@ -44609,6 +44626,18 @@ static s7_pointer io_length(s7_scheme *sc, s7_pointer lst)
 {
   if (is_string_port(lst))
     return(make_integer(sc, port_data_size(lst)));
+#if (!MS_WINDOWS)
+  if (is_file_port(lst))
+    {
+      long cur_pos, len;
+      cur_pos = ftell(port_file(lst));
+      fseek(port_file(lst), 0, SEEK_END);
+      len = ftell(port_file(lst));
+      rewind(port_file(lst));
+      fseek(port_file(lst), cur_pos, SEEK_SET);
+      return(make_integer(sc, len));
+    }
+#endif
   return(sc->F);
 }
 
@@ -77609,48 +77638,28 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 
   e = sc->envir;
   id = let_id(e);
-  for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x)) /* closure_args can be a symbol, for example */
+  for (x = closure_args(sc->code), z = T_Lst(sc->args); is_pair(x); x = cdr(x), z = cdr(z)) /* closure_args can be a symbol, for example */
     {
-      s7_pointer sym, args;
-      /* reuse the value cells as the new frame slots */
-
+      s7_pointer sym, slot;
       if (is_null(z))
-	{
-	  s7_pointer name, ccode;
-	  name = closure_name(sc, sc->code);
-	  ccode = current_code(sc);
-	  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, (name == ccode) ? sc->code : name, ccode));
-	}
-      /* now that args are being reused as slots, the error message can't use sc->args,
-       *  so fallback on current_code(sc) in this section.
-       *  But that can be #f, and closure_name can be confusing in this context, so we need a better error message!
-       */
-
+	s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
+      new_cell(sc, slot, T_SLOT);
+#if S7_DEBUGGING
+      slot->debugger_bits = 0;
+#endif
       sym = car(x);
-      args = cdr(z);
-      reuse_as_slot(z, sym, unchecked_car(z));
-      symbol_set_local(sym, id, z);
-      set_next_slot(z, let_slots(e));
-      let_set_slots(e, z);
-      z = args;
+      slot_set_symbol(slot, sym);
+      slot_set_value(slot, T_Pos(unchecked_car(z)));
+      symbol_set_local(sym, id, slot);
+      set_next_slot(slot, let_slots(e));
+      let_set_slots(e, slot);
     }
-
   if (is_null(x))
     {
       if (is_not_null(z))
-	{
-	  s7_pointer name, ccode;
-	  name = closure_name(sc, sc->code);
-	  ccode = current_code(sc);
-	  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, (name == ccode) ? sc->code : name, ccode));
-	}
+	s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
     }
-  else
-    {
-      sc->temp6 = z; /* the rest arg */
-      make_slot_1(sc, sc->envir, x, z);
-      sc->temp6 = sc->nil;
-    }
+  else make_slot_1(sc, sc->envir, x, z);
   sc->code = closure_body(sc->code);
 }
 
@@ -90194,20 +90203,20 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   977
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1522
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1710
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1705
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  1997
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2316
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2662
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3060
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3056
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3574
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5170
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3567
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5166
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6431
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.1
@@ -90219,9 +90228,7 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- *
- * cycle in mark_continuation? [added marked check]
- * in place goto for readable print: (goto loc op active), but can this work (depends on current stack etc)
- * in place call/cc could have stack vector (as in *s7*)
- *   both within body are just the name
+ * port-position (settable): for string port_position, for file, ftell/fseek (file ports don't have port-data/position]
+ * t718
+ * doc/test length io, port-position
  */
