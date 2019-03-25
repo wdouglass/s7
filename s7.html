@@ -384,7 +384,7 @@ The following constants are predefined: pi, most-positive-fixnum, most-negative-
 Other math-related differences between s7 and r5rs:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>rational? and exact mean integer or ratio (i.e. not floating point), inexact means not exact.
 <li>floor, ceiling, truncate, and round return (exact) integer results.
 <li>"#" does not stand for an unknown digit.
@@ -4019,10 +4019,18 @@ Other functions:
 </p>
 
 <ul>
-<li>read-byte and write-byte: binary IO.
-<li>read-line: line-at-a-time reads, optional third argument #t to include the newline.
+<li>read-byte and write-byte: binary IO
+<li>read-line: line-at-a-time reads, optional third argument #t to include the newline
+<li>read-string (r7rs)
 <li>current-error-port, set-current-error-port
+<li><em class=def id="portfilename">port-filename</em> and <em class=def id="portlinenumber">port-line-number</em> (input ports)
+<li><em class=def id="portposition">port-position</em> (input port, settable)
 </ul>
+
+<p>Use length to get the length in bytes of an input port's file or string.
+port-line-number is settable (for fancy *#readers*). 
+port-position is the position in bytes of the reader in the port. It is settable.
+</p>
 
 <p>The variable (*s7* 'print-length) sets
 the upper limit on how many elements of a sequence are printed by object-&gt;string and format.
@@ -4685,10 +4693,10 @@ the initial value:
 <b><em class=def id="loadpath">*load-path*</em></b> is a list of directories to search when loading a file.
 <b><em class=def id="loadhook">*load-hook*</em></b> is a hook whose functions are called just before a file is loaded.  
 The hook function argument, named 'name, is the filename.
-While loading, the <em class=def id="portfilename">port-filename</em> and 
-<em class=def id="portlinenumber">port-line-number</em> of the current-input-port can tell you
-where you are in the file.  This data is available after loading via <em class=def id="pairlinenumber">pair-line-number</em>
-and <em class=def id="pairfilename">pair-filename</em>.  port-line-number is settable (for fancy *#readers*).
+While loading, port-filename and 
+port-line-number of the current-input-port can tell you
+where you are in the file.  This data is also available after loading via <em class=def id="pairlinenumber">pair-line-number</em>
+and <em class=def id="pairfilename">pair-filename</em>.
 </p>
 
 <pre class="indented">
@@ -4734,8 +4742,8 @@ at startup *features* is:
 
 <pre class="indented">
 &gt; *features*
-<em class="gray">(snd-18.0 snd17 snd audio snd-s7 snd-gtk gsl alsa gtk2 xg clm6 clm sndlib linux
- dlopen complex-numbers system-extras ratio s7-4.14 s7) </em>
+<em class="gray">(snd-19.3 snd19 snd audio snd-s7 snd-motif gsl alsa xm clm6 clm sndlib linux 
+autoload dlopen history complex-numbers system-extras overflow-checks ratio s7-8.2 s7)</em>
 &gt; (provided? 'gsl)
 <em class="gray">#t</em>
 </pre>
@@ -4993,10 +5001,14 @@ Here we scan the symbol table looking for any function that doesn't have documen
   (<em class=red>symbol-table</em>))
 </pre>
 
+<p>Or get a list of gensyms:</p>
+<pre>
+(map (lambda (sym) (if (gensym? sym) sym (values))) (<em class=red>symbol-table</em>))
+</pre>
 
 <div class="indented">
 
-<p>Here's a better example, an automatic software tester.
+<p>An automatic software tester (see tauto.scm and auto-tester.scm in snd tools for extensions):
 </p>
 
 <pre class="indented">
@@ -5084,9 +5096,9 @@ some other thing, they satisfy the function equivalent?.
 </p>
 
 <pre class="indented">
-&gt; (equivalent? 2 2.0)        ; would "equal!?" be a better name?
+&gt; (equivalent? 2 2.0)
 <em class="gray">#t</em>
-&gt; (equivalent? 1/0 1/0)      ; NaN
+&gt; (equivalent? 1/0 1/0)         ; NaN
 <em class="gray">#t</em>
 &gt; (equivalent? .1 1/10)
 <em class="gray">#t</em>                              ; floating-point epsilon here is 1.0e-15 or thereabouts
@@ -5101,7 +5113,7 @@ some other thing, they satisfy the function equivalent?.
 <p>The *s7* field equivalent-float-epsilon sets the floating-point fudge factor.
 I can't decide how bignums should interact with equivalent?.  Currently,
 if a bignum is involved, either here or in a hash-table, s7 uses equal?.
-Finally, if either argument is an environment with a 'equivalent? method,
+Finally, if either argument is an environment with an 'equivalent? method,
 that method is invoked.
 </p>
 
@@ -5462,7 +5474,7 @@ int main(int argc, char **argv)
 <p id="s7vsr5rs">Some other differences from r5rs:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>no force or delay (see <a href="#r7rs">below</a>).
 <li>no syntax-rules or any of its friends.
 <li>no scheme-report-environment, null-environment, or interaction-environment (use curlet).
@@ -5511,7 +5523,7 @@ definition, and a later redefinition does not affect earlier uses.
 <p>Here are some changes I'd make to s7 if I didn't care about compatibility with other Schemes:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>remove the exact/inexact distinction including #i and #e (done! #i means int-vector constant).
 <li>remove call-with-values and its friends
 <li>remove char-ready?
@@ -5526,7 +5538,7 @@ definition, and a later redefinition does not affect earlier uses.
 <p>(most of these are removed if you set the compiler flag WITH_PURE_S7), and perhaps:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>remove even? and odd?, gcd and lcm.
 <li>remove string-length and vector-length.
 <li>remove list-ref|set!, string-ref|set!, vector-ref|set!, hash-table-ref|set!, set-car!|cdr!, and set-current-output|input|error-port.
@@ -5607,7 +5619,7 @@ Better ideas are always welcome!
 
 <p>And the built-in constants:
 </p>
-<ul>
+<ul style="list-style-type:disc;">
 <li>pi
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
@@ -5627,7 +5639,7 @@ Better ideas are always welcome!
 
 <p>Currently WITH_PURE_S7:
 </p>
-<ul>
+<ul style="list-style-type:disc;">
 <li>places 'pure-s7 in *features*
 <li>omits char-ready, char-ci*, string-ci*
 <li>omits string-copy, string-fill!, vector-fill!, vector-append
@@ -8371,7 +8383,7 @@ int main (int argc, char **argv)
 <div class="header" id="gdb"><h4>gdb</h4></div>
 
 <p>
-gdbinit has some debugging commands, intended your ~/.gdbinit file.
+gdbinit has some debugging commands, intended for your ~/.gdbinit file.
 </p>
 
 <pre class="indented">

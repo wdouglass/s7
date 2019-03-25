@@ -1261,7 +1261,7 @@ struct s7_scheme {
              object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol,
              open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
              pair_filename_symbol, pair_line_number_symbol, peek_char_symbol, pi_symbol, port_filename_symbol, port_line_number_symbol,
-             procedure_source_symbol, provide_symbol,
+             port_position_symbol, procedure_source_symbol, provide_symbol,
              quotient_symbol,
              random_state_symbol, random_state_to_list_symbol, random_symbol, rationalize_symbol, read_byte_symbol,
              read_char_symbol, read_line_symbol, read_string_symbol, read_symbol, real_part_symbol, remainder_symbol,
@@ -3713,7 +3713,6 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
 static void free_hash_table(s7_scheme *sc, s7_pointer table);
 static s7_pointer g_cdr(s7_scheme *sc, s7_pointer args);
 static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
-static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree);
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
 static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
 static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
@@ -23280,6 +23279,62 @@ static bool is_port_closed_b_7p(s7_scheme *sc, s7_pointer x)
   simple_wrong_type_argument_with_type(sc, sc->is_port_closed_symbol, x, wrap_string(sc, "a port", 6));
   return(false);
 }
+
+/* -------------------------------- port-position -------------------------------- */
+
+static s7_pointer g_port_position(s7_scheme *sc, s7_pointer args)
+{
+  #define H_port_position "(port-position input-port) returns the current location (in bytes) in the port's data where the next read will take place."
+  #define Q_port_position s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_input_port_symbol)
+  s7_pointer port;
+
+  port = car(args);
+  if (!(is_input_port(port)))
+    return(simple_wrong_type_argument(sc, sc->port_position_symbol, port, T_INPUT_PORT));
+  if (port_is_closed(port))
+    return(s7_wrong_type_arg_error(sc, "port-position", 0, port, "an open input port"));
+  if (is_string_port(port))
+    return(make_integer(sc, port_position(port)));
+#if (!MS_WINDOWS)
+  if (is_file_port(port))
+    return(make_integer(sc, ftell(port_file(port))));
+#endif
+  return(small_int(0));
+}
+
+static s7_pointer g_set_port_position(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer port, pos;
+  s7_int position;
+
+  port = car(args);
+  if (!(is_input_port(port)))
+    return(s7_wrong_type_arg_error(sc, "set! port-position", 1, port, "an input port"));
+  if (port_is_closed(port))
+    return(s7_wrong_type_arg_error(sc, "set! port-position", 1, port, "an open input port"));
+
+  pos = cadr(args);
+  if (!is_t_integer(pos))
+    return(s7_wrong_type_arg_error(sc, "set! port-position", 2, pos, "an integer"));
+  position = s7_integer(pos);
+  if (position < 0)
+    return(out_of_range(sc, sc->port_position_symbol, small_int(2), pos, its_negative_string));
+    
+  if (is_string_port(port))
+    port_position(port) = position;
+#if (!MS_WINDOWS)
+  else
+    {
+      if (is_file_port(port))
+	{
+	  rewind(port_file(port));
+	  fseek(port_file(port), (long)position, SEEK_SET);
+	}
+    }
+#endif
+  return(pos);
+}
+
 
 /* -------------------------------- port-line-number -------------------------------- */
 static s7_pointer c_port_line_number(s7_scheme *sc, s7_pointer x)
@@ -88950,6 +89005,7 @@ s7_scheme *s7_init(void)
   sc->c_pointer_weak2_symbol =       defun("c-pointer-weak2",   c_pointer_weak2,	1, 0, false);
   sc->c_pointer_to_list_symbol =     defun("c-pointer->list",   c_pointer_to_list,      1, 0, false);
 
+  sc->port_position_symbol =         defun("port-position",	port_position,		1, 0, false);
   sc->port_line_number_symbol =      defun("port-line-number",  port_line_number,	0, 1, false);
   sc->port_filename_symbol =         defun("port-filename",	port_filename,		0, 1, false);
   sc->pair_line_number_symbol =      defun("pair-line-number",  pair_line_number,	1, 0, false);
@@ -89555,6 +89611,8 @@ s7_scheme *s7_init(void)
 			s7_make_function(sc, "#<set-outlet>", g_set_outlet, 2, 0, false, "outlet setter"));
   c_function_set_setter(slot_value(global_slot(sc->port_line_number_symbol)),
 			s7_make_function(sc, "#<set-port-line-number>", g_set_port_line_number, 1, 1, false, "port line setter"));
+  c_function_set_setter(slot_value(global_slot(sc->port_position_symbol)),
+			s7_make_function(sc, "#<set-port-position>", g_set_port_position, 2, 0, false, "port position setter"));
 
   s7_define_constant(sc, "most-positive-fixnum", mostfix);
   s7_define_constant(sc, "most-negative-fixnum", leastfix);
@@ -90228,7 +90286,10 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- * port-position (settable): for string port_position, for file, ftell/fseek (file ports don't have port-data/position]
- * t718
- * doc/test length io, port-position
+ *
+ * port-file (needed if e.g. fread in libc)?
+ * port-position for output ports? ("a" access, overwrite part of string, etc); buffers make this complicated
+ *   port-position opt funcs i_7p and i_7pi
+ * tport.scm?
+ * maybe if safety>0 tree* could call tree_is_cyclic
  */
