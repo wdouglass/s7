@@ -298,6 +298,8 @@
   #define S7_DEBUGGING 0
 #endif
 
+#define CDR S7_DEBUGGING
+
 #ifndef CYCLE_DEBUGGING
   #define CYCLE_DEBUGGING S7_DEBUGGING
 #endif
@@ -1261,7 +1263,7 @@ struct s7_scheme {
              object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol,
              open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
              pair_filename_symbol, pair_line_number_symbol, peek_char_symbol, pi_symbol, port_filename_symbol, port_line_number_symbol,
-             port_position_symbol, procedure_source_symbol, provide_symbol,
+             port_file_symbol, port_position_symbol, procedure_source_symbol, provide_symbol,
              quotient_symbol,
              random_state_symbol, random_state_to_list_symbol, random_symbol, rationalize_symbol, read_byte_symbol,
              read_char_symbol, read_line_symbol, read_string_symbol, read_symbol, real_part_symbol, remainder_symbol,
@@ -23335,6 +23337,26 @@ static s7_pointer g_set_port_position(s7_scheme *sc, s7_pointer args)
   return(pos);
 }
 
+/* -------------------------------- port-file -------------------------------- */
+
+static s7_pointer g_port_file(s7_scheme *sc, s7_pointer args)
+{
+  #define H_port_file "(port-file port) returns the FILE* pointer associated with the port wrapped in a c-pointer object"
+  #define Q_port_file s7_make_signature(sc, 2, sc->is_c_pointer_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_output_port_symbol))
+  s7_pointer port;
+
+  port = car(args);
+  if ((!is_input_port(port)) &&
+      (!is_output_port(port)))
+    return(s7_wrong_type_arg_error(sc, "port-file", 0, port, "a port"));
+  if (port_is_closed(port))
+    return(s7_wrong_type_arg_error(sc, "port-file", 0, port, "an open port"));
+#if (!MS_WINDOWS)
+  if (is_file_port(port))
+    return(s7_make_c_pointer_with_type(sc, (void *)(port_file(port)), s7_make_symbol(sc, "FILE*"), sc->F));
+#endif
+  return(s7_make_c_pointer(sc, NULL));
+}
 
 /* -------------------------------- port-line-number -------------------------------- */
 static s7_pointer c_port_line_number(s7_scheme *sc, s7_pointer x)
@@ -44677,19 +44699,21 @@ static s7_pointer fnc_length(s7_scheme *sc, s7_pointer lst)
   return(sc->F);
 }
 
-static s7_pointer io_length(s7_scheme *sc, s7_pointer lst)
+static s7_pointer io_length(s7_scheme *sc, s7_pointer port)
 {
-  if (is_string_port(lst))
-    return(make_integer(sc, port_data_size(lst)));
+  if (port_is_closed(port))
+    return(sc->F);             /* or 0? */
+  if (is_string_port(port))
+    return(make_integer(sc, port_data_size(port)));
 #if (!MS_WINDOWS)
-  if (is_file_port(lst))
+  if (is_file_port(port))
     {
       long cur_pos, len;
-      cur_pos = ftell(port_file(lst));
-      fseek(port_file(lst), 0, SEEK_END);
-      len = ftell(port_file(lst));
-      rewind(port_file(lst));
-      fseek(port_file(lst), cur_pos, SEEK_SET);
+      cur_pos = ftell(port_file(port));
+      fseek(port_file(port), 0, SEEK_END);
+      len = ftell(port_file(port));
+      rewind(port_file(port));
+      fseek(port_file(port), cur_pos, SEEK_SET);
       return(make_integer(sc, len));
     }
 #endif
@@ -44909,7 +44933,10 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 #endif
 
 	case T_C_POINTER:
-	  return(s7_make_c_pointer_with_type(sc, c_pointer(source), c_pointer_type(source), c_pointer_info(source)));
+	  dest = s7_make_c_pointer_with_type(sc, c_pointer(source), c_pointer_type(source), c_pointer_info(source));
+	  c_pointer_weak1(dest) = c_pointer_weak1(source);
+	  c_pointer_weak2(dest) = c_pointer_weak2(source);
+	  return(dest);
 	}
       return(source);
     }
@@ -46339,7 +46366,440 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
   return(obj);
 }
 
-static s7_pointer stack_entries(s7_scheme *sc, s7_pointer stack, int64_t top);
+static s7_pointer symbol_to_let(s7_scheme *sc, s7_pointer obj, s7_pointer args)
+{
+  s7_pointer let;
+  let = g_local_inlet(sc, 4, sc->value_symbol, obj,
+		      sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : ((is_gensym(obj)) ? sc->is_gensym_symbol : sc->is_symbol_symbol));
+  if (!is_keyword(obj))
+    {
+      s7_pointer val;
+      if (!sc->current_value_symbol)
+	sc->current_value_symbol = make_symbol(sc, "current-value");
+      val = s7_symbol_value(sc, obj);
+      s7_varlet(sc, let, sc->current_value_symbol, val);
+      s7_varlet(sc, let, sc->setter_symbol, g_setter(sc, args));
+      s7_varlet(sc, let, sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_symbol(obj)));
+      if (!is_undefined(val))
+	{
+	  const char *doc;
+	  doc = s7_documentation(sc, obj);
+	  if (doc)
+	    s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
+	}
+    }
+  return(let);
+}
+
+static s7_pointer random_state_to_let(s7_scheme *sc, s7_pointer obj)
+{
+#if WITH_GMP
+  return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_random_state_symbol));
+#else
+  if (!sc->seed_symbol)
+    {
+      sc->seed_symbol = make_symbol(sc, "seed");
+      sc->carry_symbol = make_symbol(sc, "carry");
+    }
+  return(g_local_inlet(sc, 8, sc->value_symbol, obj,
+		       sc->type_symbol, sc->is_random_state_symbol,
+		       sc->seed_symbol, s7_make_integer(sc, random_seed(obj)),
+		       sc->carry_symbol, s7_make_integer(sc, random_carry(obj))));
+#endif
+}
+
+static s7_pointer vector_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let;
+  if (!sc->dimensions_symbol)
+    sc->dimensions_symbol = make_symbol(sc, "dimensions");
+  if (!sc->position_symbol)
+    sc->position_symbol = make_symbol(sc, "position");
+  let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+		      sc->type_symbol, (is_subvector(obj)) ? cons(sc, sc->is_subvector_symbol, s7_type_of(sc, subvector_vector(obj))) : s7_type_of(sc, obj),
+		      sc->length_symbol, s7_length(sc, obj),
+		      sc->dimensions_symbol, g_vector_dimensions(sc, set_plist_1(sc, obj)),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_vector(obj)));
+  if (is_subvector(obj))
+    {
+      s7_varlet(sc, let, sc->position_symbol, make_integer(sc, (s7_int)(vector_elements(obj) - vector_elements(subvector_vector(obj)))));
+      s7_varlet(sc, let, sc->vector_symbol, subvector_vector(obj));
+    }
+  if (is_typed_vector(obj))
+    s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
+  return(let);
+}
+
+static s7_pointer hash_table_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let;
+  if (!sc->entries_symbol)
+    {
+      sc->entries_symbol = make_symbol(sc, "entries");
+      sc->locked_symbol = make_symbol(sc, "locked");
+      sc->weak_symbol = make_symbol(sc, "weak");
+    }
+  if (!sc->function_symbol)
+    sc->function_symbol = make_symbol(sc, "function");
+  let = g_local_inlet(sc, 12, sc->value_symbol, obj,
+		      sc->type_symbol, sc->is_hash_table_symbol,
+		      sc->length_symbol, s7_length(sc, obj),
+		      sc->entries_symbol, s7_make_integer(sc, hash_table_entries(obj)),
+		      sc->locked_symbol, s7_make_boolean(sc, hash_table_checker_locked(obj)),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  if (is_weak_hash_table(obj))
+    s7_varlet(sc, let, sc->weak_symbol, sc->T);
+  if ((hash_table_checker(obj) == hash_eq) ||
+      (hash_table_checker(obj) == hash_c_function) ||
+      (hash_table_checker(obj) == hash_closure) ||
+      (hash_table_checker(obj) == hash_equal_eq) ||
+      (hash_table_checker(obj) == hash_equal_syntax) ||
+      (hash_table_checker(obj) == hash_symbol))
+    s7_varlet(sc, let, sc->function_symbol, sc->is_eq_symbol);
+  else
+    {
+      if (hash_table_checker(obj) == hash_eqv)
+	s7_varlet(sc, let, sc->function_symbol, sc->is_eqv_symbol);
+      else
+	{
+	  if ((hash_table_checker(obj) == hash_equal) ||
+	      (hash_table_checker(obj) == hash_empty))
+	    s7_varlet(sc, let, sc->function_symbol, sc->is_equal_symbol);
+	  else
+	    {
+	      if (hash_table_checker(obj) == hash_equivalent)
+		s7_varlet(sc, let, sc->function_symbol, sc->is_equivalent_symbol);
+	      else
+		{
+		  if ((hash_table_checker(obj) == hash_number) ||
+		      (hash_table_checker(obj) == hash_int) ||
+		      (hash_table_checker(obj) == hash_float) ||
+		      (hash_table_checker(obj) == hash_equal_real) ||
+		      (hash_table_checker(obj) == hash_equal_complex))
+		    s7_varlet(sc, let, sc->function_symbol, sc->eq_symbol);
+		  else
+		    {
+		      if (hash_table_checker(obj) == hash_string)
+			s7_varlet(sc, let, sc->function_symbol, sc->string_eq_symbol);
+		      else
+			{
+			  if (hash_table_checker(obj) == hash_char)
+			    s7_varlet(sc, let, sc->function_symbol, sc->char_eq_symbol);
+#if (!WITH_PURE_S7)
+			  else
+			    {
+			      if (hash_table_checker(obj) == hash_ci_char)
+				s7_varlet(sc, let, sc->function_symbol, sc->char_ci_eq_symbol);
+			      else
+				{
+				  if (hash_table_checker(obj) == hash_ci_string)
+				    s7_varlet(sc, let, sc->function_symbol, sc->string_ci_eq_symbol);
+				}}
+#endif
+			}}}}}}
+  if (is_typed_hash_table(obj))
+    s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
+  return(let);
+}
+
+static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let, seq;
+  if (!sc->at_end_symbol)
+    {
+      sc->at_end_symbol = make_symbol(sc, "at-end");
+      sc->sequence_symbol = make_symbol(sc, "sequence");
+    }
+  seq = iterator_sequence(obj);
+  let = g_local_inlet(sc, 8, sc->value_symbol, obj,
+		      sc->type_symbol, sc->is_iterator_symbol,
+		      sc->at_end_symbol, s7_make_boolean(sc, iterator_is_at_end(obj)),
+		      sc->sequence_symbol, iterator_sequence(obj));
+  if (is_pair(seq))
+    s7_varlet(sc, let, sc->length_symbol, s7_length(sc, seq));
+  else
+    {
+      if (is_hash_table(seq))
+	s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, hash_table_entries(seq)));
+      else s7_varlet(sc, let, sc->length_symbol, s7_length(sc, obj));
+    }
+  if ((is_string(seq)) ||
+      (is_any_vector(seq)) ||
+      (seq == sc->rootlet) ||
+      (is_c_object(seq)) ||
+      (is_hash_table(seq)))
+    s7_varlet(sc, let, make_symbol(sc, "position"), s7_make_integer(sc, iterator_position(obj)));
+  else
+    {
+      if (is_pair(seq))
+	s7_varlet(sc, let, make_symbol(sc, "position"), iterator_current(obj));
+    }
+  return(let);
+}
+
+static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  /* how to handle setters?
+   *   (display (let ((e (let ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))):
+   *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open #f 'outlet () 'immutable? #f)"
+   */
+  s7_pointer let;
+  if (!sc->open_symbol)
+    {
+      sc->open_symbol = make_symbol(sc, "open");
+      sc->alias_symbol = make_symbol(sc, "alias");
+    }
+  if (!sc->function_symbol)
+    sc->function_symbol = make_symbol(sc, "function");
+  if (!sc->file_symbol)
+    {
+      sc->file_symbol = make_symbol(sc, "file");
+      sc->line_symbol = make_symbol(sc, "line");
+    }
+  let = g_local_inlet(sc, 12, sc->value_symbol, obj,
+		      sc->type_symbol, sc->is_let_symbol,
+		      sc->length_symbol, s7_length(sc, obj),
+		      sc->open_symbol, s7_make_boolean(sc, has_methods(obj)),
+		      sc->outlet_symbol, (obj == sc->rootlet) ? sc->nil : outlet(obj),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  if (obj == sc->rootlet)
+    s7_varlet(sc, let, sc->alias_symbol, sc->rootlet_symbol);
+  else
+    {
+      if (obj == sc->owlet) /* this can't happen, I think -- owlet is always copied first */
+	s7_varlet(sc, let, sc->alias_symbol, sc->owlet_symbol);
+      else
+	{
+	  if (is_funclet(obj))
+	    {
+	      s7_varlet(sc, let, sc->function_symbol, funclet_function(obj));
+	      if ((has_let_file(obj)) &&
+		  (let_file(obj) <= (s7_int)sc->file_names_top) &&
+		  (let_line(obj) > 0) &&
+		  (let_line(obj) < 100000))
+		{
+		  s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(obj)]);
+		  s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(obj)));
+		}
+	    }
+	}
+    }
+  if (has_active_methods(sc, obj))
+    {
+      s7_pointer func;
+      func = find_method(sc, obj, sc->object_to_let_symbol);
+      if (func != sc->undefined)
+	{
+	  s7_int gc_loc;
+	  gc_loc = s7_gc_protect_1(sc, let);
+	  s7_apply_function(sc, func, list_2(sc, obj, let));
+	  s7_gc_unprotect_at(sc, gc_loc);
+	}
+    }
+  return(let);
+}
+
+static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let, clet;
+  if (!sc->class_symbol)
+    {
+      sc->class_symbol = make_symbol(sc, "class");
+      sc->c_object_length_symbol = make_symbol(sc, "c-object-length");
+      sc->c_object_ref_symbol = make_symbol(sc, "c-object-ref");
+      sc->c_object_let_symbol = make_symbol(sc, "c-object-let");
+      sc->c_object_set_symbol = make_symbol(sc, "c-object-set!");
+      sc->c_object_copy_symbol = make_symbol(sc, "c-object-copy");
+      sc->c_object_fill_symbol = make_symbol(sc, "c-object-fill!");
+      sc->c_object_reverse_symbol = make_symbol(sc, "c-object-reverse");
+      sc->c_object_to_list_symbol = make_symbol(sc, "c-object->list");
+      sc->c_object_to_string_symbol = make_symbol(sc, "c-object->string");
+    }
+  clet = c_object_let(obj);
+  let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+		      sc->type_symbol, sc->is_c_object_symbol,
+		      sc->c_object_type_symbol, s7_make_integer(sc, c_object_type(obj)),
+		      sc->c_object_let_symbol, clet,
+		      sc->class_symbol, c_object_type_to_let(sc, obj));
+  
+  /* not sure these are useful */
+  if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
+    s7_varlet(sc, let, sc->c_object_length_symbol, s7_lambda(sc, c_object_len(sc, obj), 1, 0, false));
+  if (c_object_ref(sc, obj))
+    s7_varlet(sc, let, sc->c_object_ref_symbol, s7_lambda(sc, c_object_ref(sc, obj), 1, 0, true));
+  if (c_object_set(sc, obj))
+    s7_varlet(sc, let, sc->c_object_set_symbol, s7_lambda(sc, c_object_set(sc, obj), 2, 0, true));
+  if (c_object_copy(sc, obj))
+    s7_varlet(sc, let, sc->c_object_copy_symbol, s7_lambda(sc, c_object_copy(sc, obj), 1, 0, true));
+  if (c_object_fill(sc, obj))
+    s7_varlet(sc, let, sc->c_object_fill_symbol, s7_lambda(sc, c_object_fill(sc, obj), 1, 0, true));
+  if (c_object_reverse(sc, obj))
+    s7_varlet(sc, let, sc->c_object_reverse_symbol, s7_lambda(sc, c_object_reverse(sc, obj), 1, 0, true));
+  if (c_object_to_list(sc, obj))
+    s7_varlet(sc, let, sc->c_object_to_list_symbol, s7_lambda(sc, c_object_to_list(sc, obj), 1, 0, true));
+  if (c_object_to_string(sc, obj))
+    s7_varlet(sc, let, sc->c_object_to_string_symbol, s7_lambda(sc, c_object_to_string(sc, obj), 1, 1, false));
+  
+  if ((is_let(clet)) &&
+      ((has_active_methods(sc, clet)) || (has_active_methods(sc, obj))))
+    {
+      s7_pointer func;
+      func = find_method(sc, clet, sc->object_to_let_symbol);
+      if (func != sc->undefined)
+	{
+	  s7_int gc_loc;
+	  gc_loc = s7_gc_protect_1(sc, let);
+	  s7_apply_function(sc, func, list_2(sc, obj, let));
+	  s7_gc_unprotect_at(sc, gc_loc);
+	}
+    }
+  return(let);
+}
+
+static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let;
+  if (!sc->function_symbol)
+    sc->function_symbol = make_symbol(sc, "function");
+  if (!sc->file_symbol)
+    {
+      sc->file_symbol = make_symbol(sc, "file");
+      sc->line_symbol = make_symbol(sc, "line");
+    }
+  if (!sc->data_symbol)
+    {
+      sc->data_symbol = make_symbol(sc, "data");
+      sc->port_type_symbol = make_symbol(sc, "port-type");
+      sc->closed_symbol = make_symbol(sc, "closed");
+      if (!sc->position_symbol) sc->position_symbol = make_symbol(sc, "position");
+    }
+  let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+		      sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
+		      sc->port_type_symbol, (is_string_port(obj)) ? sc->string_symbol : ((is_file_port(obj)) ? sc->file_symbol : sc->function_symbol),
+		      sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_port(obj)));
+  push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
+  if (is_file_port(obj))
+    {
+      s7_varlet(sc, let, sc->file_symbol, g_port_filename(sc, set_plist_1(sc, obj)));
+      if (is_input_port(obj))
+	s7_varlet(sc, let, sc->line_symbol, g_port_line_number(sc, set_plist_1(sc, obj)));
+    }
+  if ((is_string_port(obj)) && /* file port might not have a data buffer */
+      (port_data(obj)) &&
+      (port_data_size(obj) > 0))
+    {
+      s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, port_data_size(obj)));
+      s7_varlet(sc, let, sc->position_symbol, s7_make_integer(sc, port_position(obj)));
+      /* I think port_data need not be null-terminated, but s7_make_string assumes it is:
+       *   both valgrind and lib*san complain about the uninitialized data during strlen.
+       */
+      if (port_position(obj) < sc->max_string_length)
+	s7_varlet(sc, let, sc->data_symbol, make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
+    }
+  unstack(sc);
+  return(let);
+}
+
+static s7_pointer closure_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let, sig;
+  const char* doc;
+  s7_int gc_loc;
+  if (!sc->file_symbol)
+    {
+      sc->file_symbol = make_symbol(sc, "file");
+      sc->line_symbol = make_symbol(sc, "line");
+    }
+  if (!sc->source_symbol)
+    sc->source_symbol = make_symbol(sc, "source");
+  let = g_local_inlet(sc, 8, sc->value_symbol, obj,
+		      sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
+		      sc->arity_symbol, s7_arity(sc, obj),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  gc_loc = s7_gc_protect_1(sc, let);
+  
+  sig = s7_signature(sc, obj);
+  if (is_pair(sig))
+    s7_varlet(sc, let, sc->local_signature_symbol, sig);
+  
+  doc = s7_documentation(sc, obj);
+  if (doc)
+    s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
+  
+  if (is_let(closure_let(obj)))
+    {
+      s7_pointer flet;
+      flet = closure_let(obj);
+      if ((has_let_file(flet)) &&
+	  (let_file(flet) <= (s7_int)sc->file_names_top) &&
+	  (let_line(flet) > 0))
+	{
+	  s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(flet)]);
+	  s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(flet)));
+	}
+    }
+  
+  if (closure_setter(obj) != sc->F)
+    s7_varlet(sc, let, sc->local_setter_symbol, closure_setter(obj));
+  
+  s7_varlet(sc, let, sc->source_symbol,
+	    append_in_place(sc, list_2(sc, (is_closure_star(obj)) ? sc->lambda_star_symbol : sc->lambda_symbol,
+				       closure_args(obj)),
+			    closure_body(obj)));
+  s7_gc_unprotect_at(sc, gc_loc);
+  return(let);
+}
+
+static s7_pointer c_pointer_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  /* c_pointer_info can be a let and might have an object->let method (see c_object below) */
+  if (!sc->c_type_symbol)
+    {
+      sc->c_type_symbol = make_symbol(sc, "c-type");
+      sc->info_symbol = make_symbol(sc, "info");
+    }
+  return(g_local_inlet(sc, 10, sc->value_symbol, obj,
+		       sc->type_symbol, sc->is_c_pointer_symbol,
+		       sc->c_pointer_symbol, s7_make_integer(sc, (s7_int)((intptr_t)c_pointer(obj))),
+		       sc->c_type_symbol, c_pointer_type(obj),
+		       sc->info_symbol, c_pointer_info(obj)));
+}
+
+static s7_pointer c_function_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  s7_pointer let, sig;
+  const char* doc;
+  let = g_local_inlet(sc, 8, sc->value_symbol, obj,
+		      sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
+		      sc->arity_symbol, s7_arity(sc, obj),
+		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  
+  sig = c_function_signature(obj);
+  if (is_pair(sig))
+    s7_varlet(sc, let, sc->local_signature_symbol, sig);
+  
+  doc = s7_documentation(sc, obj);
+  if (doc)
+    s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
+  
+  if (c_function_setter(obj) != sc->F) /* c_macro_setter is the same underlying field */
+    s7_varlet(sc, let, sc->local_setter_symbol, c_function_setter(obj));
+  
+  return(let);
+}
+
+static s7_pointer goto_to_let(s7_scheme *sc, s7_pointer obj)
+{
+  if (!sc->active_symbol)
+    {
+      sc->active_symbol = make_symbol(sc, "active");
+      sc->goto_symbol = make_symbol(sc, "goto?");
+    }
+  return(g_local_inlet(sc, 6, sc->value_symbol, obj,
+		       sc->type_symbol, sc->goto_symbol,
+		       sc->active_symbol, s7_make_boolean(sc, call_exit_active(obj))));
+}
 
 static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 {
@@ -46374,46 +46834,20 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
     case T_CHARACTER:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_char_symbol));
 
-    case T_INTEGER:
-    case T_BIG_INTEGER:
+    case T_INTEGER: case T_BIG_INTEGER:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_integer_symbol));
 
-    case T_RATIO:
-    case T_BIG_RATIO:
+    case T_RATIO: case T_BIG_RATIO:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_rational_symbol));
 
-    case T_REAL:
-    case T_BIG_REAL:
+    case T_REAL: case T_BIG_REAL:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_real_symbol));
 
-    case T_COMPLEX:
-    case T_BIG_COMPLEX:
+    case T_COMPLEX: case T_BIG_COMPLEX:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_complex_symbol));
 
     case T_SYMBOL:
-      {
-	s7_pointer let;
-	let = g_local_inlet(sc, 4, sc->value_symbol, obj,
-			    sc->type_symbol, (is_keyword(obj)) ? sc->is_keyword_symbol : ((is_gensym(obj)) ? sc->is_gensym_symbol : sc->is_symbol_symbol));
-	if (!is_keyword(obj))
-	  {
-	    s7_pointer val;
-	    if (!sc->current_value_symbol)
-	      sc->current_value_symbol = make_symbol(sc, "current-value");
-	    val = s7_symbol_value(sc, obj);
-	    s7_varlet(sc, let, sc->current_value_symbol, val);
-	    s7_varlet(sc, let, sc->setter_symbol, g_setter(sc, args));
-	    s7_varlet(sc, let, sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_symbol(obj)));
-	    if (!is_undefined(val))
-	      {
-		const char *doc;
-		doc = s7_documentation(sc, obj);
-		if (doc)
-		  s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
-	      }
-	  }
-	return(let);
-      }
+      return(symbol_to_let(sc, obj, args));
 
     case T_STRING:
       return(g_local_inlet(sc, 8, sc->value_symbol, obj,
@@ -46427,425 +46861,41 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 			   sc->length_symbol, s7_length(sc, obj)));
 
     case T_RANDOM_STATE:
-#if WITH_GMP
-      return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_random_state_symbol));
-#else
-      if (!sc->seed_symbol)
-	{
-	  sc->seed_symbol = make_symbol(sc, "seed");
-	  sc->carry_symbol = make_symbol(sc, "carry");
-	}
-      return(g_local_inlet(sc, 8, sc->value_symbol, obj,
-			   sc->type_symbol, sc->is_random_state_symbol,
-			   sc->seed_symbol, s7_make_integer(sc, random_seed(obj)),
-			   sc->carry_symbol, s7_make_integer(sc, random_carry(obj))));
-#endif
+      return(random_state_to_let(sc, obj));
 
     case T_GOTO:
-      if (!sc->active_symbol)
-	{
-	  sc->active_symbol = make_symbol(sc, "active");
-	  sc->goto_symbol = make_symbol(sc, "goto?");
-	}
-      return(g_local_inlet(sc, 6, sc->value_symbol, obj,
-			   sc->type_symbol, sc->goto_symbol,
-			   sc->active_symbol, s7_make_boolean(sc, call_exit_active(obj))));
+      return(goto_to_let(sc, obj));
 
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_BYTE_VECTOR:
-    case T_VECTOR:
-      {
-	s7_pointer let;
-	if (!sc->dimensions_symbol)
-	  sc->dimensions_symbol = make_symbol(sc, "dimensions");
-	if (!sc->position_symbol)
-	  sc->position_symbol = make_symbol(sc, "position");
-	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
-			    sc->type_symbol, (is_subvector(obj)) ? cons(sc, sc->is_subvector_symbol, s7_type_of(sc, subvector_vector(obj))) : s7_type_of(sc, obj),
-			    sc->length_symbol, s7_length(sc, obj),
-			    sc->dimensions_symbol, g_vector_dimensions(sc, set_plist_1(sc, obj)),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_vector(obj)));
-	if (is_subvector(obj))
-	  {
-	    s7_varlet(sc, let, sc->position_symbol, make_integer(sc, (s7_int)(vector_elements(obj) - vector_elements(subvector_vector(obj)))));
-	    s7_varlet(sc, let, sc->vector_symbol, subvector_vector(obj));
-	  }
-	if (is_typed_vector(obj))
-	  s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
-	return(let);
-      }
+    case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_BYTE_VECTOR: case T_VECTOR:
+      return(vector_to_let(sc, obj));
 
     case T_C_POINTER:
-      /* c_pointer_info can be a let and might have an object->let method (see c_object below) */
-      if (!sc->c_type_symbol)
-	{
-	  sc->c_type_symbol = make_symbol(sc, "c-type");
-	  sc->info_symbol = make_symbol(sc, "info");
-	}
-      return(g_local_inlet(sc, 10, sc->value_symbol, obj,
-			   sc->type_symbol, sc->is_c_pointer_symbol,
-			   sc->c_pointer_symbol, s7_make_integer(sc, (s7_int)((intptr_t)c_pointer(obj))),
-			   sc->c_type_symbol, c_pointer_type(obj),
-			   sc->info_symbol, c_pointer_info(obj)));
+      return(c_pointer_to_let(sc, obj));
 
     case T_CONTINUATION:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol));
 
     case T_ITERATOR:
-      {
-	s7_pointer let, seq;
-	if (!sc->at_end_symbol)
-	  {
-	    sc->at_end_symbol = make_symbol(sc, "at-end");
-	    sc->sequence_symbol = make_symbol(sc, "sequence");
-	  }
-	seq = iterator_sequence(obj);
-	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
-			    sc->type_symbol, sc->is_iterator_symbol,
-			    sc->at_end_symbol, s7_make_boolean(sc, iterator_is_at_end(obj)),
-			    sc->sequence_symbol, iterator_sequence(obj));
-	if (is_pair(seq))
-	  s7_varlet(sc, let, sc->length_symbol, s7_length(sc, seq));
-	else
-	  {
-	    if (is_hash_table(seq))
-	      s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, hash_table_entries(seq)));
-	    else s7_varlet(sc, let, sc->length_symbol, s7_length(sc, obj));
-	  }
-	if ((is_string(seq)) ||
-	    (is_any_vector(seq)) ||
-	    (seq == sc->rootlet) ||
-	    (is_c_object(seq)) ||
-	    (is_hash_table(seq)))
-	  s7_varlet(sc, let, make_symbol(sc, "position"), s7_make_integer(sc, iterator_position(obj)));
-	else
-	  {
-	    if (is_pair(seq))
-	      s7_varlet(sc, let, make_symbol(sc, "position"), iterator_current(obj));
-	  }
-	return(let);
-      }
+      return(iterator_to_let(sc, obj));
 
     case T_HASH_TABLE:
-      {
-	s7_pointer let;
-	if (!sc->entries_symbol)
-	  {
-	    sc->entries_symbol = make_symbol(sc, "entries");
-	    sc->locked_symbol = make_symbol(sc, "locked");
-	    sc->weak_symbol = make_symbol(sc, "weak");
-	  }
-	if (!sc->function_symbol)
-	  sc->function_symbol = make_symbol(sc, "function");
-	let = g_local_inlet(sc, 12, sc->value_symbol, obj,
-			    sc->type_symbol, sc->is_hash_table_symbol,
-			    sc->length_symbol, s7_length(sc, obj),
-			    sc->entries_symbol, s7_make_integer(sc, hash_table_entries(obj)),
-			    sc->locked_symbol, s7_make_boolean(sc, hash_table_checker_locked(obj)),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
-	if (is_weak_hash_table(obj))
-	  s7_varlet(sc, let, sc->weak_symbol, sc->T);
-	if ((hash_table_checker(obj) == hash_eq) ||
-	    (hash_table_checker(obj) == hash_c_function) ||
-	    (hash_table_checker(obj) == hash_closure) ||
-	    (hash_table_checker(obj) == hash_equal_eq) ||
-	    (hash_table_checker(obj) == hash_equal_syntax) ||
-	    (hash_table_checker(obj) == hash_symbol))
-	  s7_varlet(sc, let, sc->function_symbol, sc->is_eq_symbol);
-	else
-	  {
-	    if (hash_table_checker(obj) == hash_eqv)
-	      s7_varlet(sc, let, sc->function_symbol, sc->is_eqv_symbol);
-	    else
-	      {
-		if ((hash_table_checker(obj) == hash_equal) ||
-		    (hash_table_checker(obj) == hash_empty))
-		  s7_varlet(sc, let, sc->function_symbol, sc->is_equal_symbol);
-		else
-		  {
-		    if (hash_table_checker(obj) == hash_equivalent)
-		      s7_varlet(sc, let, sc->function_symbol, sc->is_equivalent_symbol);
-		    else
-		      {
-			if ((hash_table_checker(obj) == hash_number) ||
-			    (hash_table_checker(obj) == hash_int) ||
-			    (hash_table_checker(obj) == hash_float) ||
-			    (hash_table_checker(obj) == hash_equal_real) ||
-			    (hash_table_checker(obj) == hash_equal_complex))
-			  s7_varlet(sc, let, sc->function_symbol, sc->eq_symbol);
-			else
-			  {
-			    if (hash_table_checker(obj) == hash_string)
-			      s7_varlet(sc, let, sc->function_symbol, sc->string_eq_symbol);
-			    else
-			      {
-				if (hash_table_checker(obj) == hash_char)
-				  s7_varlet(sc, let, sc->function_symbol, sc->char_eq_symbol);
-#if (!WITH_PURE_S7)
-				else
-				  {
-				    if (hash_table_checker(obj) == hash_ci_char)
-				      s7_varlet(sc, let, sc->function_symbol, sc->char_ci_eq_symbol);
-				    else
-				      {
-					if (hash_table_checker(obj) == hash_ci_string)
-					  s7_varlet(sc, let, sc->function_symbol, sc->string_ci_eq_symbol);
-				      }}
-#endif
-			      }}}}}}
-	if (is_typed_hash_table(obj))
-	  s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
-	return(let);
-      }
+      return(hash_table_to_let(sc, obj));
 
     case T_LET:
-      {
-	/* how to handle setters?
-	 *   (display (let ((e (let ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))):
-	 *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open #f 'outlet () 'immutable? #f)"
-	 */
-	s7_pointer let;
-	if (!sc->open_symbol)
-	  {
-	    sc->open_symbol = make_symbol(sc, "open");
-	    sc->alias_symbol = make_symbol(sc, "alias");
-	  }
-	if (!sc->function_symbol)
-	  sc->function_symbol = make_symbol(sc, "function");
-	if (!sc->file_symbol)
-	  {
-	    sc->file_symbol = make_symbol(sc, "file");
-	    sc->line_symbol = make_symbol(sc, "line");
-	  }
-	let = g_local_inlet(sc, 12, sc->value_symbol, obj,
-			    sc->type_symbol, sc->is_let_symbol,
-			    sc->length_symbol, s7_length(sc, obj),
-			    sc->open_symbol, s7_make_boolean(sc, has_methods(obj)),
-			    sc->outlet_symbol, (obj == sc->rootlet) ? sc->nil : outlet(obj),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
-	if (obj == sc->rootlet)
-	  s7_varlet(sc, let, sc->alias_symbol, sc->rootlet_symbol);
-	else
-	  {
-	    if (obj == sc->owlet) /* this can't happen, I think -- owlet is always copied first */
-	      s7_varlet(sc, let, sc->alias_symbol, sc->owlet_symbol);
-	    else
-	      {
-		if (is_funclet(obj))
-		  {
-		    s7_varlet(sc, let, sc->function_symbol, funclet_function(obj));
-		    if ((has_let_file(obj)) &&
-			(let_file(obj) <= (s7_int)sc->file_names_top) &&
-			(let_line(obj) > 0) &&
-			(let_line(obj) < 100000))
-		      {
-			s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(obj)]);
-			s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(obj)));
-		      }
-		  }
-	      }
-	  }
-	if (has_active_methods(sc, obj))
-	  {
-	    s7_pointer func;
-	    func = find_method(sc, obj, sc->object_to_let_symbol);
-	    if (func != sc->undefined)
-	      {
-		s7_int gc_loc;
-		gc_loc = s7_gc_protect_1(sc, let);
-		s7_apply_function(sc, func, list_2(sc, obj, let));
-		s7_gc_unprotect_at(sc, gc_loc);
-	      }
-	  }
-	return(let);
-      }
+      return(let_to_let(sc, obj));
 
     case T_C_OBJECT:
-      {
-	s7_pointer let, clet;
-	if (!sc->class_symbol)
-	  {
-	    sc->class_symbol = make_symbol(sc, "class");
-	    sc->c_object_length_symbol = make_symbol(sc, "c-object-length");
-	    sc->c_object_ref_symbol = make_symbol(sc, "c-object-ref");
-	    sc->c_object_let_symbol = make_symbol(sc, "c-object-let");
-	    sc->c_object_set_symbol = make_symbol(sc, "c-object-set!");
-	    sc->c_object_copy_symbol = make_symbol(sc, "c-object-copy");
-	    sc->c_object_fill_symbol = make_symbol(sc, "c-object-fill!");
-	    sc->c_object_reverse_symbol = make_symbol(sc, "c-object-reverse");
-	    sc->c_object_to_list_symbol = make_symbol(sc, "c-object->list");
-	    sc->c_object_to_string_symbol = make_symbol(sc, "c-object->string");
-	  }
-	clet = c_object_let(obj);
-	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
-			    sc->type_symbol, sc->is_c_object_symbol,
-			    sc->c_object_type_symbol, s7_make_integer(sc, c_object_type(obj)),
-			    sc->c_object_let_symbol, clet,
-			    sc->class_symbol, c_object_type_to_let(sc, obj));
-
-	/* not sure these are useful */
-	if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
-	  s7_varlet(sc, let, sc->c_object_length_symbol, s7_lambda(sc, c_object_len(sc, obj), 1, 0, false));
-	if (c_object_ref(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_ref_symbol, s7_lambda(sc, c_object_ref(sc, obj), 1, 0, true));
-	if (c_object_set(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_set_symbol, s7_lambda(sc, c_object_set(sc, obj), 2, 0, true));
-	if (c_object_copy(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_copy_symbol, s7_lambda(sc, c_object_copy(sc, obj), 1, 0, true));
-	if (c_object_fill(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_fill_symbol, s7_lambda(sc, c_object_fill(sc, obj), 1, 0, true));
-	if (c_object_reverse(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_reverse_symbol, s7_lambda(sc, c_object_reverse(sc, obj), 1, 0, true));
-	if (c_object_to_list(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_to_list_symbol, s7_lambda(sc, c_object_to_list(sc, obj), 1, 0, true));
-	if (c_object_to_string(sc, obj))
-	  s7_varlet(sc, let, sc->c_object_to_string_symbol, s7_lambda(sc, c_object_to_string(sc, obj), 1, 1, false));
-
-	if ((is_let(clet)) &&
-	    ((has_active_methods(sc, clet)) || (has_active_methods(sc, obj))))
-	  {
-	    s7_pointer func;
-	    func = find_method(sc, clet, sc->object_to_let_symbol);
-	    if (func != sc->undefined)
-	      {
-		s7_int gc_loc;
-		gc_loc = s7_gc_protect_1(sc, let);
-		s7_apply_function(sc, func, list_2(sc, obj, let));
-		s7_gc_unprotect_at(sc, gc_loc);
-	      }
-	  }
-	return(let);
-      }
+      return(c_object_to_let(sc, obj));
 
     case T_INPUT_PORT:
     case T_OUTPUT_PORT:
-      {
-	s7_pointer let;
-	if (!sc->function_symbol)
-	  sc->function_symbol = make_symbol(sc, "function");
-	if (!sc->file_symbol)
-	  {
-	    sc->file_symbol = make_symbol(sc, "file");
-	    sc->line_symbol = make_symbol(sc, "line");
-	  }
-	if (!sc->data_symbol)
-	  {
-	    sc->data_symbol = make_symbol(sc, "data");
-	    sc->port_type_symbol = make_symbol(sc, "port-type");
-	    sc->closed_symbol = make_symbol(sc, "closed");
-	    if (!sc->position_symbol) sc->position_symbol = make_symbol(sc, "position");
-	  }
-	let = g_local_inlet(sc, 10, sc->value_symbol, obj,
-			    sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
-			    sc->port_type_symbol, (is_string_port(obj)) ? sc->string_symbol : ((is_file_port(obj)) ? sc->file_symbol : sc->function_symbol),
-			    sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_port(obj)));
-	push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
-	if (is_file_port(obj))
-	  {
-	    s7_varlet(sc, let, sc->file_symbol, g_port_filename(sc, set_plist_1(sc, obj)));
-	    if (is_input_port(obj))
-	      s7_varlet(sc, let, sc->line_symbol, g_port_line_number(sc, set_plist_1(sc, obj)));
-	  }
-	if ((is_string_port(obj)) && /* file port might not have a data buffer */
-	    (port_data(obj)) &&
-	    (port_data_size(obj) > 0))
-	  {
-	    s7_varlet(sc, let, sc->length_symbol, s7_make_integer(sc, port_data_size(obj)));
-	    s7_varlet(sc, let, sc->position_symbol, s7_make_integer(sc, port_position(obj)));
-	    /* I think port_data need not be null-terminated, but s7_make_string assumes it is:
-	     *   both valgrind and lib*san complain about the uninitialized data during strlen.
-	     */
-	    if (port_position(obj) < sc->max_string_length)
-	      s7_varlet(sc, let, sc->data_symbol, make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
-	  }
-	unstack(sc);
-	return(let);
-      }
+      return(port_to_let(sc, obj));
 
-    case T_CLOSURE:
-    case T_CLOSURE_STAR:
-    case T_MACRO:
-    case T_MACRO_STAR:
-    case T_BACRO:
-    case T_BACRO_STAR:
-      {
-	s7_pointer let, sig;
-	const char* doc;
-	s7_int gc_loc;
-	if (!sc->file_symbol)
-	  {
-	    sc->file_symbol = make_symbol(sc, "file");
-	    sc->line_symbol = make_symbol(sc, "line");
-	  }
-	if (!sc->source_symbol)
-	  sc->source_symbol = make_symbol(sc, "source");
-	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
-			    sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
-			    sc->arity_symbol, s7_arity(sc, obj),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
-	gc_loc = s7_gc_protect_1(sc, let);
+    case T_CLOSURE: case T_CLOSURE_STAR: case T_MACRO: case T_MACRO_STAR: case T_BACRO: case T_BACRO_STAR:
+      return(closure_to_let(sc, obj));
 
-	sig = s7_signature(sc, obj);
-	if (is_pair(sig))
-	  s7_varlet(sc, let, sc->local_signature_symbol, sig);
-
-	doc = s7_documentation(sc, obj);
-	if (doc)
-	  s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
-
-	if (is_let(closure_let(obj)))
-	  {
-	    s7_pointer flet;
-	    flet = closure_let(obj);
-	    if ((has_let_file(flet)) &&
-		(let_file(flet) <= (s7_int)sc->file_names_top) &&
-		(let_line(flet) > 0))
-	      {
-		s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(flet)]);
-		s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(flet)));
-	      }
-	  }
-
-	if (closure_setter(obj) != sc->F)
-	  s7_varlet(sc, let, sc->local_setter_symbol, closure_setter(obj));
-
-	s7_varlet(sc, let, sc->source_symbol,
-		  append_in_place(sc, list_2(sc, (is_closure_star(obj)) ? sc->lambda_star_symbol : sc->lambda_symbol,
-					     closure_args(obj)),
-				  closure_body(obj)));
-	s7_gc_unprotect_at(sc, gc_loc);
-	return(let);
-      }
-
-    case T_C_MACRO:
-    case T_C_FUNCTION_STAR:
-    case T_C_FUNCTION:
-    case T_C_ANY_ARGS_FUNCTION:
-    case T_C_OPT_ARGS_FUNCTION:
-    case T_C_RST_ARGS_FUNCTION:
-      {
-	s7_pointer let, sig;
-	const char* doc;
-	let = g_local_inlet(sc, 8, sc->value_symbol, obj,
-			    sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
-			    sc->arity_symbol, s7_arity(sc, obj),
-			    sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
-
-	sig = c_function_signature(obj);
-	if (is_pair(sig))
-	  s7_varlet(sc, let, sc->local_signature_symbol, sig);
-
-	doc = s7_documentation(sc, obj);
-	if (doc)
-	  s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
-
-	if (c_function_setter(obj) != sc->F) /* c_macro_setter is the same underlying field */
-	  s7_varlet(sc, let, sc->local_setter_symbol, c_function_setter(obj));
-
-	return(let);
-      }
+    case T_C_MACRO: case T_C_FUNCTION_STAR: case T_C_FUNCTION: case T_C_ANY_ARGS_FUNCTION: case T_C_OPT_ARGS_FUNCTION: case T_C_RST_ARGS_FUNCTION:
+      return(c_function_to_let(sc, obj));
 
     default:
       return(sc->F);
@@ -63261,7 +63311,6 @@ static s7_pointer values_p_p(s7_scheme *sc, s7_pointer p) {return(p);}
 
 
 /* -------------------------------- quasiquote -------------------------------- */
-#define CDR 0
 
 static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 {
@@ -77882,9 +77931,11 @@ static inline int32_t lambda_star_default(s7_scheme *sc)
       z = sc->args;
       if (tis_slot(z))
 	{
-	  if ((slot_value(z) == sc->undefined) && (!is_checked_slot(z)))
+	  if ((slot_value(z) == sc->undefined) &&    /* trouble: (lambda* ((e #<undefined>))...) */
+	      (slot_has_expression(z)) &&            /* if default val is not a pair or a symbol, this is false */
+	      (!is_checked_slot(z)))  
 	    {
-	      if (is_closure_star(sc->code)) /* as opposed to macro* and bacro* */
+	      if (is_closure_star(sc->code))         /* as opposed to macro* and bacro* */
 		{
 		  s7_pointer val;
 		  val = slot_expression(z);
@@ -89005,6 +89056,7 @@ s7_scheme *s7_init(void)
   sc->c_pointer_weak2_symbol =       defun("c-pointer-weak2",   c_pointer_weak2,	1, 0, false);
   sc->c_pointer_to_list_symbol =     defun("c-pointer->list",   c_pointer_to_list,      1, 0, false);
 
+  sc->port_file_symbol =             defun("port-file",	        port_file,		1, 0, false);
   sc->port_position_symbol =         defun("port-position",	port_position,		1, 0, false);
   sc->port_line_number_symbol =      defun("port-line-number",  port_line_number,	0, 1, false);
   sc->port_filename_symbol =         defun("port-filename",	port_filename,		0, 1, false);
@@ -90287,9 +90339,5 @@ int main(int argc, char **argv)
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
  *
- * port-file (needed if e.g. fread in libc)?
- * port-position for output ports? ("a" access, overwrite part of string, etc); buffers make this complicated
- *   port-position opt funcs i_7p and i_7pi
- * tport.scm?
- * maybe if safety>0 tree* could call tree_is_cyclic
+ * tree-leaves (as opt) hangs: is it cycle protected in this case? tree_leaves_p_p [no].  what about other tree*? tree_memq/set_memq also.
  */

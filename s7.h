@@ -854,7 +854,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x); /* used in CM */
  * 
  *        s7 changes
  *
- * 22-Mar:    s7_float_format_precision.
+ * 22-Mar:    s7_float_format_precision. port-position. port-file.
  * 4-Jan-19:  morally-equal? -> equivalent?
  * --------
  * 29-Dec:    s7_c_type_set_getter|setter (implicit c-object access).

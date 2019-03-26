@@ -4025,12 +4025,21 @@ Other functions:
 <li>current-error-port, set-current-error-port
 <li><em class=def id="portfilename">port-filename</em> and <em class=def id="portlinenumber">port-line-number</em> (input ports)
 <li><em class=def id="portposition">port-position</em> (input port, settable)
+<li><em class=def id="portfile">port-file</em> 
 </ul>
 
 <p>Use length to get the length in bytes of an input port's file or string.
 port-line-number is settable (for fancy *#readers*). 
-port-position is the position in bytes of the reader in the port. It is settable.
+<b>port-position</b> is the position in bytes of the reader in the port. It is settable.
+<b>port-file</b> is intended for use with the *libc* library.  It returns a c-pointer
+containing the FILE* pointer associated with the file port (except in Windows):
 </p>
+<pre class="indented">
+(call-with-input-file "s7test.scm"
+  (lambda (p)
+    (with-let (sublet *libc* :file (<em class=red>port-file</em> p))
+      (fseek file 1000 SEEK_SET))))
+</pre>
 
 <p>The variable (*s7* 'print-length) sets
 the upper limit on how many elements of a sequence are printed by object-&gt;string and format.
@@ -5386,7 +5395,9 @@ the generic functions mechanism, much like a c-object:
 <p>c-pointer-&gt;list returns (list pointer-as-int type info).
 The "weak1" and "weak2" fields are intended for custom "weak" references. The weak
 fields values are not marked during the GC sweep, much like a key in a weak-hash-table.
-If either value is GC'd, that field is set to #f by the GC.
+If either value is GC'd, that field is set to #f by the GC.  The weak fields are
+ignored by equal? and equivalent? when comparing c-pointers, and by object-&gt;string
+of a c-pointer even if :readable is specified.
 </p>
 
 
