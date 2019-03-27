@@ -25460,6 +25460,8 @@ static s7_pointer g_read_string(s7_scheme *sc, s7_pointer args)
     }
   if (!is_input_port(port))
     return(method_or_bust_with_type(sc, port, sc->read_string_symbol, list_2(sc, make_integer(sc, nchars), port), an_input_port_string, 2));
+  if (port_is_closed(port))
+    return(simple_wrong_type_argument_with_type(sc, sc->read_string_symbol, port, an_open_port_string));
 
   if (nchars == 0)
     return(make_empty_string(sc, 0, 0));
@@ -27177,6 +27179,7 @@ static void add_shared_ref(shared_info *ci, s7_pointer x, int32_t ref_x)
 
 static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, bool stop_at_print_length);
 static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key);
+static hash_entry_t *hash_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key);
 
 static bool check_collected(s7_pointer top, shared_info *ci)
 {
@@ -27319,7 +27322,9 @@ static bool collect_shared_info(s7_scheme *sc, shared_info *ci, s7_pointer top, 
 	  hash_entry_t **entries;
 	  bool keys_safe;
 
-	  keys_safe = ((hash_table_checker(top) != hash_equal) && (!hash_table_checker_locked(top)));
+	  keys_safe = ((hash_table_checker(top) != hash_equal) && 
+		       (hash_table_checker(top) != hash_equivalent) && 
+		       (!hash_table_checker_locked(top)));
 	  entries = hash_table_elements(top);
 	  len = hash_table_mask(top) + 1;
 	  for (i = 0; i < len; i++)
@@ -33524,6 +33529,8 @@ static s7_int tree_leaves_i_7p(s7_scheme *sc, s7_pointer p)
   return(tree_len(sc, p));
 }
 
+static s7_pointer tree_leaves_p_p(s7_scheme *sc, s7_pointer tree) {return(s7_make_integer(sc, tree_leaves_i_7p(sc, tree)));}
+
 static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
 {
   #define H_tree_leaves "(tree-leaves tree) returns the number of leaves in the tree"
@@ -33536,8 +33543,6 @@ static s7_pointer g_tree_leaves(s7_scheme *sc, s7_pointer args)
     s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "tree-leaves: tree is cyclic", 27));
   return(s7_make_integer(sc, tree_len(sc, tree)));
 }
-
-static s7_pointer tree_leaves_p_p(s7_scheme *sc, s7_pointer tree) {return(s7_make_integer(sc, tree_len(sc, tree)));}
 
 
 /* ---------------- tree-memq ---------------- */
@@ -41425,7 +41430,7 @@ static void check_old_hash(s7_scheme *sc, s7_pointer old_hash, s7_pointer new_ha
 
 static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer new_hash, s7_int start, s7_int end)
 {
-  s7_int i, old_len, new_len, count = 0;
+  s7_int i, old_len, new_mask, count = 0;
   hash_entry_t **old_lists, **new_lists;
   hash_entry_t *x, *p;
 
@@ -41437,7 +41442,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
     check_old_hash(sc, old_hash, new_hash, start, end);
 
   old_len = hash_table_mask(old_hash) + 1;
-  new_len = hash_table_mask(new_hash);
+  new_mask = hash_table_mask(new_hash);
   old_lists = hash_table_elements(old_hash);
   new_lists = hash_table_elements(new_hash);
 
@@ -41452,7 +41457,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	    for (x = old_lists[i]; x; x = hash_entry_next(x))
 	      {
 		s7_int loc;
-		loc = hash_entry_raw_hash(x) & new_len;
+		loc = hash_entry_raw_hash(x) & new_mask;
 		p = make_hash_entry(sc, hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
@@ -41471,7 +41476,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	    if (count >= start)
 	      {
 		s7_int loc;
-		loc = hash_entry_raw_hash(x) & new_len;
+		loc = hash_entry_raw_hash(x) & new_mask;
 		p = make_hash_entry(sc, hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
@@ -41497,7 +41502,7 @@ static s7_pointer hash_table_copy(s7_scheme *sc, s7_pointer old_hash, s7_pointer
 	    else
 	      {
 		s7_int loc;
-		loc = hash_entry_raw_hash(x) & new_len;
+		loc = hash_entry_raw_hash(x) & new_mask;
 		p = make_hash_entry(sc, hash_entry_key(x), hash_entry_value(x), hash_entry_raw_hash(x));
 		hash_entry_next(p) = new_lists[loc];
 		new_lists[loc] = p;
@@ -90314,7 +90319,7 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   977
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1522
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1705
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  1997
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  1998
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2316
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
@@ -90322,22 +90327,20 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3056
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3007
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3567
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5166
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6431
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.1
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 111.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 112.1
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.2
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- *
- * tree-leaves (as opt) hangs: is it cycle protected in this case? tree_leaves_p_p [no].  what about other tree*? tree_memq/set_memq also.
  */
