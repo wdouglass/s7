@@ -1185,6 +1185,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
       (if (continuation? ((owlet) 'continue))
 	  (((owlet) 'continue))))))
 
+;;; ----------------
+
 (define (call-with-input-vector v proc)
   (if (vector? v)
       (let ((i -1))
@@ -1212,7 +1214,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			    (if (not (let? p))
 				(apply format p args)
 				(write (apply format #f args) p))))))
-    (subvector v i))) ; ignore extra trailing elements
+    (subvector v i))) ; ignore extra trailing elements (i = subvector length)
 
 
 
