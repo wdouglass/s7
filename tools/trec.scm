@@ -11,6 +11,19 @@
     (display f32) 
     (newline)))
 
+#|
+(define* (tfib n (a 1) (b 1))
+   (if (= n 0)
+       a
+       (if (= n 1)
+           b
+           (tfib (- n 1) b (+ a b)))))
+
+(let ((f32 (tfib 31)))
+  (unless (= f32 2178309)
+    (display f32) 
+    (newline)))
+|#
 
 (define (trib n)
   (if (< n 3)
