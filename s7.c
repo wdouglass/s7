@@ -7318,11 +7318,8 @@ static s7_pointer g_unlet(s7_scheme *sc, s7_pointer args)
   /* slightly confusing:
    *    ((unlet) 'abs) -> #<undefined>
    *    (defined? 'abs (unlet)) -> #t
-   * this is because unlet sets up a local environment of unshadowed symbols,
-   *   and s7_let_ref below only looks at the local env chain (that is, if env is not
-   *   the global env, then the global env is not searched).
-   *
-   * Also (define hi 3) #_hi => 3, (set! hi 4), #_hi -> 3 but (with-let (unlet) hi) -> 4!
+   * this is because unlet sets up a local environment of unshadowed symbols, and s7_let_ref only looks at the local env chain
+   *   (that is, if env is not the global env, then the global env is not searched).
    */
   int32_t i;
   s7_pointer *inits;
@@ -30673,7 +30670,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 
 static void baffle_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  int32_t nlen;
+  int32_t nlen;          /* (with-baffle (display (curlet)) (newline)) */
   char buf[64];
   nlen = catstrs_direct(buf, "#<baffle: ", pos_int_to_str_direct(sc, baffle_key(obj)), ">", NULL);
   port_write_string(port)(sc, buf, nlen, port);
@@ -49587,6 +49584,29 @@ static int32_t fx_count(s7_scheme *sc, s7_pointer x)
   return(count);
 }
 
+#if S7_DEBUGGING
+static void check_let_slots(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer var)
+{
+  if (let_slots(sc->envir) != symbol_to_slot(sc, var))
+    {
+      fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
+      if (stop_at_error) abort();
+    }
+}
+
+static void check_next_let_slot(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer var)
+{
+  if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, var))
+    {
+      fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
+      if (stop_at_error) abort();
+    }
+}
+#else
+#define check_let_slots(Sc, Func, Expr, Var)
+#define check_next_let_slot(Sc, Func, Expr, Var)
+#endif
+
 /* arg here is the full expression */
 static s7_pointer fx_c(s7_scheme *sc, s7_pointer arg)       {return(arg);}
 static s7_pointer fx_q(s7_scheme *sc, s7_pointer arg)       {return(cadr(arg));}
@@ -49594,22 +49614,6 @@ static s7_pointer fx_unsafe_s(s7_scheme *sc, s7_pointer arg){return(lookup_check
 static s7_pointer fx_s(s7_scheme *sc, s7_pointer arg)       {return(lookup(sc, arg));}
 static s7_pointer fx_c_d(s7_scheme *sc, s7_pointer arg)     {return(d_call(sc, arg));}
 static s7_pointer fx_not_c_d(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, is_false(sc, d_call(sc, cadr(arg)))));}
-
-#if S7_DEBUGGING
-static void check_let_slots(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer var)
-{
-  if (let_slots(sc->envir) != symbol_to_slot(sc, var))
-    fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
-}
-static void check_next_let_slot(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer var)
-{
-  if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, var))
-    fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
-}
-#else
-#define check_let_slots(Sc, Func, Expr, Var)
-#define check_next_let_slot(Sc, Func, Expr, Var)
-#endif
 
 #if (!WITH_GMP)
 static s7_pointer fx_c_equal_s_ic_1(s7_scheme *sc, s7_pointer args, s7_pointer val, s7_int y)
@@ -63142,7 +63146,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
    * we can't set_cdr(pc...) as in earlier versions of this code -- might be an embedded permanent list
    */
 
-  /* splice out #<no-values>, (list-values (apply-values ())) -> () etc */
+  /* splice out #<values>, (list-values (apply-values ())) -> () etc */
   sc->w = sc->nil;
   for (x = args; is_pair(x); x = cdr(x))
     if (car(x) != sc->no_value)
@@ -74374,6 +74378,7 @@ static s7_pointer check_do(s7_scheme *sc)
 
     /* an annoying kludge -- define in the body can clobber the step expressions set up below!
      *      (let ((x 2)) (do ((i 0 (+ i x))) ((= i 4)) (define x 1) (display i)) (newline)) -- steps by 1
+     *  or much trickier: (apply (inlet) (func)) as do body where func returns '(define y 32)!
      *  but varlet is actually ok most of the time, so handle it separately
      *  tree_has_definers can't ignore a quoted list because the 'quote might be interpreted separately:
      *   ... (cond '(define x 0)) ...
@@ -82010,45 +82015,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 	  /* -------------------------------- when, unless -------------------------------- */
-	case OP_WHEN:
-	  check_when(sc);
-	  goto EVAL;
+	case OP_WHEN:    check_when(sc);                 goto EVAL;
+	case OP_WHEN_S:  if (op_when_s(sc)) goto START;  goto EVAL;
+	case OP_WHEN_A:  if (op_when_a(sc)) goto START;  goto EVAL;
+        case OP_WHEN_P:  op_when_p(sc);                  goto EVAL;
+	case OP_WHEN_PP: if (op_when_pp(sc)) goto START; goto EVAL;
 
-	case OP_WHEN_S:
-	  if (op_when_s(sc)) goto START;
-	  goto EVAL;
-
-	case OP_WHEN_A:
-	  if (op_when_a(sc)) goto START;
-	  goto EVAL;
-
-        case OP_WHEN_P:
-	  op_when_p(sc);
-	  goto EVAL;
-
-	case OP_WHEN_PP:
-	  if (op_when_pp(sc)) goto START;
-	  goto EVAL;
-
-	case OP_UNLESS:
-	  check_unless(sc);
-	  goto EVAL;
-
-	case OP_UNLESS_S:
-	  if (op_unless_s(sc)) goto START;
-	  goto EVAL;
-
-	case OP_UNLESS_A:
-	  if (op_unless_a(sc)) goto START;
-	  goto EVAL;
-
-        case OP_UNLESS_P:
-	  op_unless_p(sc);
-	  goto EVAL;
-
-	case OP_UNLESS_PP:
-	  if (op_unless_pp(sc)) goto START;
-	  goto EVAL;
+	case OP_UNLESS:    check_unless(sc);                 goto EVAL;
+	case OP_UNLESS_S:  if (op_unless_s(sc)) goto START;  goto EVAL;
+	case OP_UNLESS_A:  if (op_unless_a(sc)) goto START;  goto EVAL;
+        case OP_UNLESS_P:  op_unless_p(sc);                  goto EVAL;
+	case OP_UNLESS_PP: if (op_unless_pp(sc)) goto START; goto EVAL;
 
 
 	  /* -------------------------------- let -------------------------------- */
@@ -82660,7 +82637,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      break;
 	    }
 	  goto START;
-
 
 	  /* (read p) from scheme
 	   *    "p" becomes current input port for eval's duration, then pops back before returning value into calling expr
@@ -88200,7 +88176,7 @@ s7_scheme *s7_init(void)
   sc->undefined =   make_unique(sc, "#<undefined>",   T_UNDEFINED);
   sc->unspecified = make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
 #if S7_DEBUGGING
-  sc->no_value =    make_unique(sc, "#<no-value>",    T_UNSPECIFIED);
+  sc->no_value =    make_unique(sc, "#<values>",      T_UNSPECIFIED);
 #else
   sc->no_value =    make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
 #endif
@@ -89087,6 +89063,10 @@ s7_scheme *s7_init(void)
   sc->apply_symbol =                 unsafe_defun("apply",	apply,			1, 0, true);
   {
     s7_pointer p;
+    set_is_definer(sc->apply_symbol);  
+    /* yow... (apply (inlet) (f)) in do body where (f) returns '(define...) -- see s7test.scm under apply
+     *   perhaps better: if closure returns a definer in some way set its name as a definer? even this is not fool-proof
+     */
     p = slot_value(global_slot(sc->apply_symbol));
     set_type(p, type(p) | T_COPY_ARGS | T_UNHEAP);
     /* (let ((x '((1 2) 3 4))) (catch #t (lambda () (apply apply apply x)) (lambda args 'error)) x) should not mess up x! */
@@ -90020,7 +90000,7 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3007
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3007 2985
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3567
@@ -90036,4 +90016,5 @@ int main(int argc, char **argv)
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
+ * s7test letrec define
  */
