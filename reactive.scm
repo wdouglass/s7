@@ -51,7 +51,6 @@
 (define slot-expr-env c-pointer-weak2)
 (define (slot symbol expr env expr-env) (c-pointer 0 symbol expr env expr-env))
 
-
 (define (symbol->let symbol env)
   ;; return let in which symbol lives (not necessarily curlet)
   (if (not (let? env))
@@ -60,18 +59,13 @@
 	  env
 	  (symbol->let symbol (outlet env)))))
 
-
 (define (setter-update cp)            ; cp: (slot var expr env expr-env)
   ;; when var set, all other vars dependent on it need to be set also, watching out for GC'd followers
-  (let ((var (slot-symbol cp))
-	(env (slot-env cp))
-	(expr (slot-expr cp)))
-    (when (and (let? (slot-env cp))                  ; when slot-env is GC'd, the c-pointer field is set to #f (by the GC)
-	       (let? (slot-expr-env cp)))
-      (let ((new-val (eval expr (slot-expr-env cp))))
-	(when (let? (slot-env cp))
-	  (let-set! env var new-val))))))
-
+  (when (and (let? (slot-env cp))                  ; when slot-env is GC'd, the c-pointer field is set to #f (by the GC)
+	     (let? (slot-expr-env cp)))
+    (let-set! (slot-env cp) 
+	      (slot-symbol cp)
+	      (eval (slot-expr cp) (slot-expr-env cp)))))
 
 (define (slot-equal? cp1 cp2)
   (and (eq? (slot-symbol cp1) (slot-symbol cp2))
@@ -90,7 +84,7 @@
 (define* (make-setter var env (followers ()) (setters ()) (expr ()) expr-env)
   ;; return a new setter with closure containing the followers and setters of var, and the c-pointer holding its name, environment, and expression
   (let ((followers followers)
-	(setters setters)
+	(setters setters) ; all s7test tests work fine without this!  need better tests...
 	(cp (slot var expr env expr-env)))
     (lambda (sym val)
       (let-temporarily (((setter (slot-symbol cp) (slot-env cp)) #f))
@@ -258,9 +252,8 @@
 							      (cons cp setter-followers)))))
 					      setters))))))
 			 vars inits)))
-      `(let ,vars/inits
-	 ,@reacts
-	 ,@body)))))
+	(cons 'let (cons vars/inits (append reacts body)))))))
+
 
 ;;; --------------------------------------------------------------------------------
 #|

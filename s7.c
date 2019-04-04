@@ -298,8 +298,6 @@
   #define S7_DEBUGGING 0
 #endif
 
-#define CDR S7_DEBUGGING
-
 #ifndef CYCLE_DEBUGGING
   #define CYCLE_DEBUGGING S7_DEBUGGING
 #endif
@@ -10554,7 +10552,7 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
   /* #e1e19 is a killer -- it's bigger than most-positive-fixnum, but if we ceil(ux) below
    *   it turns into most-negative-fixnum.  1e19 is trouble in many places.
    */
-  if ((ux > s7_int_max) || (ux < s7_int_min))
+  if ((ux >= s7_int_max) || (ux <= s7_int_min)) /* (rationalize most-positive-fixnum) should not return most-negative-fixnum */
     {
       /* can't return false here because that confuses some of the callers! */
       if (ux > s7_int_min) (*numer) = s7_int_max; else (*numer) = s7_int_min;
@@ -25268,7 +25266,7 @@ If 'with-eol' is not #f, read-line includes the trailing end-of-line character."
 	return(method_or_bust_with_type(sc, port, sc->read_line_symbol, args, an_input_port_string, 1));
 
       if (is_not_null(cdr(args)))
-	with_eol = (cadr(args) != sc->F);
+	with_eol = (cadr(args) != sc->F); /* perhaps this should insist on #t: (read-line port (c-pointer 0)) */
     }
   else
     {
@@ -29728,7 +29726,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							   " 32?"))) : "",
 	   /* bit 33+16 */
 	   ((full_typ & T_FULL_CASE_KEY) != 0) ?  " case-key" : "",
-
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
 	   /* bit 54 */
@@ -39544,7 +39541,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
    */
 }
 
-
 /* these are for the eval sort -- sort a vector, then if necessary put that data into the original sequence */
 static s7_pointer vector_into_list(s7_pointer vect, s7_pointer lst)
 {
@@ -40195,7 +40191,6 @@ static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, s7_int loc, s
   return(sc->unentry);
 }
 
-
 static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* give the equality check some room. also inf == inf and nan == nan */
@@ -40748,7 +40743,6 @@ static s7_pointer g_is_weak_hash_table(s7_scheme *sc, s7_pointer args)
   #define is_weak_hash(p) ((is_hash_table(p)) && (is_weak_hash_table(p)))
   check_boolean_method(sc, is_weak_hash, sc->is_weak_hash_table_symbol, args);
 }
-
 
 void init_hash_maps(void)
 {
@@ -41398,7 +41392,6 @@ static s7_pointer hash_table_fill(s7_scheme *sc, s7_pointer args)
   return(val);
 }
 
-
 static s7_pointer hash_table_reverse(s7_scheme *sc, s7_pointer old_hash)
 {
   s7_int i, len;
@@ -41569,7 +41562,6 @@ static void s7_function_set_setter(s7_scheme *sc, const char *getter, const char
   c_function_set_setter(s7_name_to_value(sc, getter), s7_name_to_value(sc, setter));
 }
 
-
 s7_pointer s7_closure_body(s7_scheme *sc, s7_pointer p)
 {
   if (has_closure_let(p))
@@ -41577,14 +41569,12 @@ s7_pointer s7_closure_body(s7_scheme *sc, s7_pointer p)
   return(sc->nil);
 }
 
-
 s7_pointer s7_closure_let(s7_scheme *sc, s7_pointer p)
 {
   if (has_closure_let(p))
     return(closure_let(p));
   return(sc->nil);
 }
-
 
 s7_pointer s7_closure_args(s7_scheme *sc, s7_pointer p)
 {
@@ -41720,7 +41710,6 @@ static s7_pointer define_bool_function(s7_scheme *sc, const char *name, s7_funct
   return(sym);
 }
 
-
 s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_function fnc,
 					   s7_int required_args, s7_int optional_args, bool rest_arg,
 					   const char *doc, s7_pointer signature)
@@ -41734,7 +41723,6 @@ s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_f
   return(sym);
 }
 
-
 s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
 			   s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
@@ -41746,10 +41734,8 @@ s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
   return(sym);
 }
 
-
 bool s7_is_macro(s7_scheme *sc, s7_pointer x) {return(is_any_macro(x));}
 static bool is_macro_b(s7_pointer x) {return(is_any_macro(x));}
-
 
 static s7_pointer g_is_macro(s7_scheme *sc, s7_pointer args)
 {
@@ -41757,7 +41743,6 @@ static s7_pointer g_is_macro(s7_scheme *sc, s7_pointer args)
   #define Q_is_macro sc->pl_bt
   check_boolean_method(sc, is_any_macro, sc->is_macro_symbol, args);
 }
-
 
 static s7_pointer s7_macroexpand(s7_scheme *sc, s7_pointer mac, s7_pointer args)
 {
@@ -41768,7 +41753,6 @@ static s7_pointer s7_macroexpand(s7_scheme *sc, s7_pointer mac, s7_pointer args)
   eval(sc, OP_APPLY_LAMBDA);
   return(sc->value);
 }
-
 
 s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
 {
@@ -41965,7 +41949,6 @@ const char *s7_help(s7_scheme *sc, s7_pointer obj)
   /* if is string, apropos? (can scan symbol table) */
   return(NULL);
 }
-
 
 static s7_pointer g_help(s7_scheme *sc, s7_pointer args)
 {
@@ -42569,7 +42552,6 @@ static s7_pointer closure_star_arity_to_cons(s7_scheme *sc, s7_pointer x, s7_poi
   return(s7_cons(sc, small_int(0), s7_make_integer(sc, closure_arity(x))));
 }
 
-
 static int32_t closure_arity_to_int(s7_scheme *sc, s7_pointer x)
 {
   /* not lambda* here */
@@ -42590,14 +42572,12 @@ static int32_t closure_arity_to_int(s7_scheme *sc, s7_pointer x)
   return(closure_arity(x));
 }
 
-
 static int32_t closure_star_arity_to_int(s7_scheme *sc, s7_pointer x)
 {
   /* not lambda here */
   closure_star_arity_1(sc, x, closure_args(x));
   return(closure_arity(x));
 }
-
 
 s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
 {
@@ -42665,7 +42645,6 @@ s7_pointer s7_arity(s7_scheme *sc, s7_pointer x)
     }
   return(sc->F);
 }
-
 
 static s7_pointer g_arity(s7_scheme *sc, s7_pointer args)
 {
@@ -48927,7 +48906,6 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 #endif
 
   set_current_code(sc, history_cons(sc, fnc, args));
-
   if (is_c_function(fnc))
     return(c_function_call(fnc)(sc, args));
 
@@ -48951,12 +48929,8 @@ static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indic
    *   ((list (lambda (a) (+ a 1)) (lambda (b) (* b 2))) 1 2) -> 4
    * but what if func takes rest/optional args, etc?
    *   ((list (lambda args (car args))) 0 "hi" 0)
-   *   should this return #\h or "hi"??
-   *   currently it is "hi" which is consistent with
-   *  ((lambda args (car args)) "hi" 0)
-   * but...
-   *   ((lambda (arg) arg) "hi" 0)
-   * is currently an error (too many arguments)
+   *   should this return #\h or "hi"?? currently it is "hi" which is consistent with ((lambda args (car args)) "hi" 0)
+   * but ((lambda (arg) arg) "hi" 0) is currently an error (too many arguments)
    * maybe it should be (((lambda (arg) arg) "hi") 0) -> #\h
    *
    * implicit_index applies to non-homogeneous cases, so float|int-vectors don't get here
@@ -49348,9 +49322,7 @@ s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args
       sc->s7_call_file = file;
       sc->s7_call_line = line;
     }
-
   result = s7_call(sc, func, args);
-
   if (caller)
     {
       sc->s7_call_name = NULL;
@@ -49437,7 +49409,6 @@ static s7_pointer g_type_of(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- s7-version -------------------------------- */
-
 static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
 {
   #define H_s7_version "(s7-version) returns some string describing the current s7"
@@ -61405,7 +61376,6 @@ static bool p_syntax(s7_scheme *sc, s7_pointer car_x, int32_t len)
 }
 
 /* -------------------------------------------------------------------------------- */
-
 static bool float_optimize(s7_scheme *sc, s7_pointer expr)
 {
   s7_pointer car_x, head;
@@ -62001,8 +61971,6 @@ static s7_function s7_cell_optimize(s7_scheme *sc, s7_pointer expr, bool nr)
  *   finally that calls the actual function such as abs_d
  */
 
-
-/* -------------------------------------------------------------------------------- */
 static void clear_optimizer_fixups(s7_scheme *sc)
 {
   optfix_t *p, *n;
@@ -63104,7 +63072,7 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
 	{
 	  sc->u = args;
 	  check_heap_size(sc, 8192);
-#if S7_DEBUGGING || (CDR)
+#if S7_DEBUGGING
 	  if (tree_is_cyclic(sc, args))
 	    {
 	      fprintf(stderr, "%s[%d]: hit a cyclic list?\n", __func__, __LINE__);
@@ -65920,7 +65888,6 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
   return(OPT_F);
 }
 
-
 static opt_t optimize_func_dotted_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t args, s7_pointer e)
 {
   if (fx_count(sc, expr) == args)
@@ -66556,7 +66523,6 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
-
 
 static bool let_memq(s7_pointer symbol, s7_pointer symbols)
 {
@@ -69384,9 +69350,6 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
-/* null not pair (lg, closure-related), add_ss tbig
- *  steps? first of safe? or any of very-safe? first of any if safe? other A choices in check_*?
- */
 static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_pointer previous_stepper)
 {
   s7_pointer p;
@@ -70238,7 +70201,6 @@ static s7_pointer check_let(s7_scheme *sc)
 		{
 		  for (p = start; is_pair(p); p = cdr(p))      /* optimizing the value form here: car(p)=var+val, cdar(p)=val */
 		    set_c_call(cdar(p), fx_choose(sc, cdar(p), sc->envir, let_symbol_is_safe));
-		  /* op_let_fx_a got very few hits */
 		}
 	    }
 	  else pair_set_syntax_op(form, OP_LET_UNCHECKED);
@@ -70432,9 +70394,9 @@ static bool op_let1(s7_scheme *sc)
 
 static void op_let_no_vars(s7_scheme *sc)
 {
-  start_let(sc);
+  set_current_code(sc, sc->code);
   new_frame(sc, sc->envir, sc->envir);
-  sc->code = T_Pair(cdr(sc->code));         /* ignore the () */
+  sc->code = T_Pair(cddr(sc->code));         /* ignore the () */
 }
 
 static void op_named_let_no_vars(s7_scheme *sc)
@@ -70632,7 +70594,7 @@ static bool check_let_star(s7_scheme *sc)
 	      s7_pointer p;
 	      opcode_t opt;
 	      clear_symbol_list(sc);
-	      opt = OP_LET_STAR_FX;
+	      opt = OP_LET_STAR_FX;                     /* 2 var fx case is common */
 	      set_opt2_con(sc->code, cadaar(sc->code));
 	      for (p = car(sc->code); is_pair(p); p = cdr(p))
 		{
@@ -75168,7 +75130,6 @@ static int32_t simple_do_ex(s7_scheme *sc, s7_pointer code)
 	      func(sc, body);
 	    }
 	}
-
       sc->value = sc->T;
       sc->code = cdadr(code);
       return(goto_DO_END_CLAUSES);
@@ -76160,7 +76121,6 @@ static int32_t do_init_ex(s7_scheme *sc)
 
 
 /* -------------------------------------------------------------------------------- */
-
 static inline bool closure_is_ok_1(s7_scheme *sc, s7_pointer code, uint16_t type, int32_t args)
 {
   s7_pointer f;
@@ -76576,7 +76536,6 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 	      (!tree_has_definers_or_binders(sc, body)) &&
 	      (s7_tree_memq(sc, code, body)))
 	    fx_tree(sc, cdr(code), car(closure_args(f)), NULL);
-
 	  set_opt1_lambda(code, f);
 	  return(goto_EVAL);
 	}
@@ -89999,22 +89958,20 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  3007 2956
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2956
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3086
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  3469
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3567
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5166
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  6431
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.1
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.6 110.5
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.5
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.2
  * ----------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- * recur pass (from opt-lambda [if tc+safe?] if no binder/definer or non-recur closure or non-safe c-func)
- * t718: overflows, eofs
  */
