@@ -7181,8 +7181,8 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
       (env == sc->rootlet))
     {
       s7_pointer ge, slot;
-      if (is_immutable(sc->rootlet)) /* PERHAPS: since this is not reversible and disables much of s7, it should be an error? */
-	return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->define_symbol, sc->rootlet)));
+      if (is_immutable(sc->rootlet))
+	return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't define '~S; rootlet is immutable", 38), symbol)));
       if ((sc->safety == NO_SAFETY) &&
 	  (has_closure_let(value)))
 	remove_function_from_heap(sc, value);
@@ -7756,8 +7756,7 @@ static s7_pointer g_sublet(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- inlet -------------------------------- */
 s7_pointer s7_inlet(s7_scheme *sc, s7_pointer args)
 {
-  #define H_inlet "(inlet ...) adds its \
-arguments, each a let, a cons: '(symbol . value), or a keyword/value pair, to a new environment, and returns the \
+  #define H_inlet "(inlet ...) adds its arguments, each a let, a cons: '(symbol . value), or a keyword/value pair, to a new environment, and returns the \
 new environment. (inlet :a 1 :b 2) or (inlet '(a . 1) '(b . 2))"
   #define Q_inlet s7_make_circular_signature(sc, 1, 2, sc->is_let_symbol, sc->T)
 
@@ -8016,8 +8015,7 @@ inline s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
   check_method_uncopied(sc, env, sc->let_ref_symbol, list_2(sc, env, symbol));
   /* a let-ref method is almost impossible to write without creating an infinite loop:
    *   any reference to the let will probably call let-ref somewhere, calling us again, and looping.
-   *   This is not a problem in c-objects and funclets because c-object-ref and funclet-ref don't
-   *   exist -- perhaps let-ref should not also.
+   *   This is not a problem in c-objects and funclets because c-object-ref and funclet-ref don't exist.
    */
 
   if (is_keyword(symbol))
@@ -8361,8 +8359,7 @@ static s7_pointer let_copy(s7_scheme *sc, s7_pointer env)
       if (env == sc->rootlet)   /* (copy (rootlet)) or (copy (funclet abs)) etc */
 	return(sc->rootlet);
 
-      /* we can't make copy handle environments-as-objects specially because the
-       *   make-object function in define-class uses copy to make a new object!
+      /* we can't make copy handle environments-as-objects specially because the make-object function in define-class uses copy to make a new object!
        *   So if it is present, we get it here, and then there's almost surely trouble.
        */
       new_e = new_frame_in_env(sc, outlet(env));
@@ -8852,7 +8849,6 @@ static s7_pointer collect_parameters(s7_scheme *sc, s7_pointer lst, s7_pointer e
   return(sc->w);
 }
 
-
 typedef enum {OPT_F, OPT_T, OPT_OOPS} opt_t;
 static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e);
 
@@ -8873,7 +8869,6 @@ static void clear_all_optimizations(s7_scheme *sc, s7_pointer p)
       clear_all_optimizations(sc, car(p));
     }
 }
-
 
 static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 {
@@ -13939,8 +13934,7 @@ static s7_pointer g_sin(s7_scheme *sc, s7_pointer args)
   /* sin is totally inaccurate over about 1e18.  There's a way to get true results,
    *   but it involves fancy "range reduction" techniques.
    *   This means that lots of things are inaccurate:
-   * (sin (remainder 1e22 (* 2 pi)))
-   * -0.57876806033477
+   * (sin (remainder 1e22 (* 2 pi))) -> -0.57876806033477
    * but it should be -8.522008497671888065747423101326159661908E-1
    * ---
    * (remainder 1e22 (* 2 pi)) -> 1.0057952155665e+22 !!
@@ -21218,9 +21212,7 @@ static void init_chars(void)
 	    else len = snprintf((char *)(&(character_name(cp))), P_SIZE, "#\\%c", c);
 	    character_name_length(cp) = len;
 	    break;
-          }
-       }
-    }
+          }}}
 }
 
 /* -------------------------------- char-upcase, char-downcase ----------------------- */
@@ -21777,7 +21769,7 @@ static s7_pointer g_char_position(s7_scheme *sc, s7_pointer args)
   if ((pos + start) < len)
     return(make_integer(sc, pos + start));
 
-  /* but if the string has an embedded null, we can get erroneous results here --
+  /* if the string has an embedded null, we can get erroneous results here --
    *   perhaps check for null at pos+start?  What about a searched-for string that also has embedded nulls?
    */
   return(sc->F);
@@ -22788,7 +22780,6 @@ static bool string_eq_b_7pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 
 
 #if (!WITH_PURE_S7)
-
 static int32_t scheme_strcasecmp(s7_pointer s1, s7_pointer s2)
 {
   /* same as scheme_strcmp -- watch out for unwanted sign! and lack of trailing null (length sets string end).
@@ -23058,7 +23049,7 @@ static s7_pointer g_string(s7_scheme *sc, s7_pointer args)
   return(g_string_1(sc, args, sc->string_symbol));
 }
 
-
+/* -------------------------------- list->string -------------------------------- */
 #if (!WITH_PURE_S7)
 static s7_pointer g_list_to_string(s7_scheme *sc, s7_pointer args)
 {
@@ -23075,6 +23066,7 @@ static s7_pointer g_list_to_string(s7_scheme *sc, s7_pointer args)
 }
 #endif
 
+/* -------------------------------- string->list -------------------------------- */
 static s7_pointer s7_string_to_list(s7_scheme *sc, const char *str, s7_int len)
 {
   s7_int i;
@@ -24267,7 +24259,6 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
    *   since a *#readers* function might want to get further input, we can't mess with the input even when it is otherwise safe
    */
   char *str;
-
   str = (char *)(port_data(pt) + port_position(pt));
 
   if (char_ok_in_a_name[(uint8_t)*str])
@@ -26621,6 +26612,7 @@ static s7_pointer vector_iterate(s7_scheme *sc, s7_pointer obj)
 static s7_pointer closure_iterate(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer result;
+  /* TODO: check type */
   result = s7_call(sc, iterator_sequence(obj), sc->nil);
   /* this can't use s7_apply_function -- we need to catch the error handler's longjmp here */
   if (result == ITERATOR_END)
@@ -26706,6 +26698,8 @@ static s7_pointer iterator_method(s7_scheme *sc, s7_pointer e)
 /* -------------------------------- make-iterator -------------------------------- */
 static bool is_iterable_closure(s7_scheme *sc, s7_pointer x)
 {
+  if (!is_thunk(sc, x))
+    wrong_type_argument_with_type(sc, sc->make_iterator_symbol, 1, x, a_thunk_string);    
   if ((has_closure_let(x)) && (is_let(closure_let(x))))
     {
       s7_pointer val;
@@ -26849,6 +26843,7 @@ in the sequence each time it is called.  When it reaches the end, it returns " I
 
   s7_pointer iter, seq, carrier;
   /* we need to call s7_make_iterator before fixing up the optional second arg in case let->method */
+
   seq = car(args);
   carrier = (is_pair(cdr(args))) ? cadr(args) : NULL;
   iter = s7_make_iterator(sc, seq);
@@ -27544,9 +27539,8 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
    *    strings are clearly identified via the double-quotes, but this way of
    *    writing them is ugly:
    *      (let ((str (make-string 8 #\null))) (set! (str 0) #\a) str) -> "a\x00\x00\x00\x00\x00\x00\x00"
-   * but it would be misleading to omit them because:
+   *    but it would be misleading to omit them because:
    *      (let ((str (make-string 8 #\null))) (set! (str 0) #\a) (string-append str "bc")) -> "a\x00\x00\x00\x00\x00\x00\x00bc"
-   *
    * also it is problematic to use sc->print_length here because
    *    it is normally (say) 8 which truncates just about every string.  In CL, *print-length*
    *    does not affect strings, symbols, or bit-vectors.  But if the string is enormous,
@@ -29812,9 +29806,9 @@ void s7_show_history(s7_scheme *sc)
   int32_t i, size;
   size = sc->history_size;
   for (i = 0, p = cdr(sc->cur_code); i < size; i++, p = cdr(p)) /* stepper "i" is not redundant */
-    fprintf(stderr, "%s\n", DISPLAY_80(car(p)));
+    fprintf(stderr, "%s\n", DISPLAY(car(p)));
 #else
-  fprintf(stderr, "%s\n", DISPLAY_80(sc->cur_code));
+  fprintf(stderr, "%s\n", DISPLAY(sc->cur_code));
 #endif
 }
 
@@ -34781,9 +34775,6 @@ static s7_pointer g_assv(s7_scheme *sc, s7_pointer args)        /* g_assv is cal
   return(sc->F); /* not reached */
 }
 
-
-static s7_pointer fx_c_ss(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_c_d(s7_scheme *sc, s7_pointer arg);
 static s7_pointer g_is_eq(s7_scheme *sc, s7_pointer args);
 static s7_pointer g_is_eqv(s7_scheme *sc, s7_pointer args);
 static s7_function s7_bool_optimize(s7_scheme *sc, s7_pointer expr);
@@ -35236,7 +35227,6 @@ static s7_pointer g_memv(s7_scheme *sc, s7_pointer args)
     }
   return(sc->F); /* not reached */
 }
-
 
 static s7_pointer member(s7_scheme *sc, s7_pointer obj, s7_pointer x)
 {
@@ -43429,7 +43419,8 @@ static bool port_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_in
 	     (port_data_size(x) == port_data_size(y)) &&
 	     (local_strncmp((const char *)port_data(x), (const char *)port_data(y), (is_input_port(x)) ? port_data_size(x) : port_position(x))));
     case FILE_PORT:
-      return((port_position(x) == port_position(y)) &&
+      return((is_input_port(x)) &&
+	     (port_position(x) == port_position(y)) &&
 	     (local_strncmp((const char *)port_filename(x), (const char *)port_filename(y), port_filename_length(x))));
     case FUNCTION_PORT:
       if (is_input_port(x))
@@ -49280,10 +49271,10 @@ s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args)
 #endif
 
   if (is_c_function(func))
-    return(c_function_call(func)(sc, T_Pos(args)));  /* no check for wrong-number-of-args -- is that reasonable? */
+    return(c_function_call(func)(sc, args));         /* no check for wrong-number-of-args -- is that reasonable? */
 
-  sc->temp1 = T_Pos(func);                           /* this is feeble GC protection */
-  sc->temp2 = T_Pos(args);
+  sc->temp1 = T_App(func);                           /* this is feeble GC protection */
+  sc->temp2 = T_Lst(args);
 
   store_jump_info(sc);
   set_jump_info(sc, S7_CALL_SET_JUMP);
@@ -49556,7 +49547,7 @@ static void check_next_let_slot(s7_scheme *sc, const char* func, s7_pointer expr
 {
   if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, var))
     {
-      fprintf(stderr, "%s %s is out of date\n", func, DISPLAY(expr));
+      fprintf(stderr, "%s %s is out of date (%s in %s)\n", func, DISPLAY(expr), DISPLAY(var), DISPLAY(sc->envir));
       if (stop_at_error) abort();
     }
 }
@@ -49604,8 +49595,21 @@ static s7_pointer fx_c_equal_t_ic(s7_scheme *sc, s7_pointer arg)
   s7_int y;
   s7_pointer val, args;
   args = cdr(arg);
-  val = slot_value(let_slots(sc->envir));
   check_let_slots(sc, __func__, arg, cadr(arg));
+  val = slot_value(let_slots(sc->envir));
+  y = integer(cadr(args));
+  if (is_t_integer(val))
+    return(make_boolean(sc, integer(val) == y));
+  return(fx_c_equal_s_ic_1(sc, args, val, y));
+}
+
+static s7_pointer fx_c_equal_u_ic(s7_scheme *sc, s7_pointer arg)
+{
+  s7_int y;
+  s7_pointer val, args;
+  args = cdr(arg);
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  val = slot_value(next_slot(let_slots(sc->envir)));
   y = integer(cadr(args));
   if (is_t_integer(val))
     return(make_boolean(sc, integer(val) == y));
@@ -49629,17 +49633,17 @@ static s7_pointer fx_c_add_t1(s7_scheme *sc, s7_pointer arg) /* sub_t1 was not u
   check_let_slots(sc, __func__, arg, cadr(arg));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(add_p_pp(sc, x, small_int(1)));
+  return(g_add_s1_1(sc, x, cdr(arg)));
 }
 
 static s7_pointer fx_c_add_u1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  x = slot_value(next_slot(let_slots(sc->envir)));
   check_next_let_slot(sc, __func__, arg, cadr(arg));
+  x = slot_value(next_slot(let_slots(sc->envir)));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(add_p_pp(sc, x, small_int(1)));
+  return(g_add_s1_1(sc, x, cdr(arg)));
 }
 
 static s7_pointer fx_c_sub_s1(s7_scheme *sc, s7_pointer arg)
@@ -49651,10 +49655,30 @@ static s7_pointer fx_c_sub_s1(s7_scheme *sc, s7_pointer arg)
   return(minus_c1(sc, x));
 }
 
+static s7_pointer fx_c_sub_t1(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  x = slot_value(let_slots(sc->envir));
+  if (is_t_integer(x))
+    return(make_integer(sc, integer(x) - 1));
+  return(minus_c1(sc, x));
+}
+
 static s7_pointer fx_c_add_si(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
   x = lookup(sc, cadr(arg));
+  if (is_t_integer(x))
+    return(make_integer(sc, integer(x) + integer(caddr(arg))));
+  return(add_p_pp(sc, x, caddr(arg)));
+}
+
+static s7_pointer fx_c_add_ti(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + integer(caddr(arg))));
   return(add_p_pp(sc, x, caddr(arg)));
@@ -49813,9 +49837,21 @@ static s7_pointer fx_is_symbol_s(s7_scheme *sc, s7_pointer arg)
   return((is_symbol(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
 }
 
+static s7_pointer fx_is_symbol_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return((is_symbol(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
+}
+
 static s7_pointer fx_is_type_s(s7_scheme *sc, s7_pointer arg)
 {
   return(make_boolean(sc, (uint8_t)(opt3_con(cdr(arg))) == type(lookup(sc, cadr(arg)))));
+}
+
+static s7_pointer fx_is_type_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return(make_boolean(sc, (uint8_t)(opt3_con(cdr(arg))) == type(slot_value(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_is_integer_s(s7_scheme *sc, s7_pointer arg)
@@ -49842,10 +49878,24 @@ static s7_pointer fx_is_pair_s(s7_scheme *sc, s7_pointer arg)
   return((is_pair(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
 }
 
+static s7_pointer fx_is_pair_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return((is_pair(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
+}
+
 static s7_pointer fx_is_keyword_s(s7_scheme *sc, s7_pointer arg)
 {
   return((is_keyword(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
 }
+
+#if 0
+static s7_pointer fx_is_keyword_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return((is_keyword(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
+}
+#endif
 
 static s7_pointer fx_is_vector_s(s7_scheme *sc, s7_pointer arg)
 {
@@ -49860,6 +49910,12 @@ static s7_pointer fx_is_proper_list_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_not_s(s7_scheme *sc, s7_pointer arg)
 {
   return(make_boolean(sc, is_false(sc, lookup(sc, cadr(arg)))));
+}
+
+static s7_pointer fx_not_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return(make_boolean(sc, is_false(sc, slot_value(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_not_is_pair_s(s7_scheme *sc, s7_pointer arg)
@@ -69350,9 +69406,10 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
-static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_pointer previous_stepper)
+static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_pointer previous_stepper) /* previous_stepper can be NULL */
 {
   s7_pointer p;
+  /* fprintf(stderr, "fx_tree %s %s: %s\n", DISPLAY(stepper), (previous_stepper) ? DISPLAY(previous_stepper) : "", DISPLAY(tree)); */
   p = car(tree);
 
   if (has_fx(tree))
@@ -69362,17 +69419,38 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 #if (!WITH_GMP)
       if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_geq_ts); return;}
       if ((c_callee(tree) == fx_equal_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_equal_ts); return;}
-      if ((c_callee(tree) == fx_c_equal_s_ic) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_equal_t_ic); return;}
+      if (c_callee(tree) == fx_c_equal_s_ic)
+	{
+	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_equal_t_ic); return;}
+	  if (cadr(p) == previous_stepper) {set_c_call(tree, fx_c_equal_u_ic); return;}
+	}
+      if ((c_callee(tree) == fx_c_d) && (is_pair(p)) && (is_pair(cdr(p))))
+	{
+	  if (c_callee(p) == g_equal_s_ic)
+	    {
+	      if (cadr(p) == stepper) {set_c_call(tree, fx_c_equal_t_ic); return;}
+	      if (cadr(p) == previous_stepper) {set_c_call(tree, fx_c_equal_u_ic); return;}
+	    }
+	  /* c_callee(p) == g_add_sf (+ i 1.0) */
+	}
 #endif
       if ((c_callee(tree) == fx_c_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_t); return;}
+      if ((c_callee(tree) == fx_not_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_not_t); return;}
       if ((c_callee(tree) == fx_is_null_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_null_t); return;}
+      if ((c_callee(tree) == fx_is_pair_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_pair_t); return;}
+      if ((c_callee(tree) == fx_is_symbol_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_symbol_t); return;}
+      /* if ((c_callee(tree) == fx_is_keyword_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_keyword_t); return;} */
+      if ((c_callee(tree) == fx_is_type_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_type_t); return;}
 
       if ((c_callee(tree) == fx_add_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_add_ts); return;}
+      if ((c_callee(tree) == fx_c_add_si) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_add_ti); return;}
       if (c_callee(tree) == fx_c_add_s1)
 	{
 	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_add_t1); return;}
 	  if (cadr(p) == previous_stepper) {set_c_call(tree, fx_c_add_u1); return;}
 	}
+      if ((c_callee(tree) == fx_c_sub_s1) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_sub_t1); return;}
+
       if ((c_callee(tree) == fx_c_opssq) && (caddr(cadr(p)) == stepper))
 	{
 	  if ((s7_p_p_function(slot_value(global_slot(car(p))))) &&
@@ -69386,6 +69464,10 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 	  else set_c_call(tree, fx_c_opstq);
 	  return;
 	}
+#if 0
+      if ((is_pair(p)) && (is_pair(cdr(p))) && ((cadr(p) == stepper) || (cadr(p) == previous_stepper)))
+	  fprintf(stderr, "missed %s%s in %s\n", (cadr(p) == stepper) ? "" : "previous ", DISPLAY((cadr(p) == stepper) ? stepper : previous_stepper), DISPLAY_80(tree));
+#endif
     }
 
   if ((is_pair(p)) && (is_pair(cdr(p))))
@@ -69451,7 +69533,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	    set_very_safe_closure_body(body);
 	}
     }
-  /* else fprintf(stderr, "rest: %d %s\n", result, DISPLAY(body)); */
 
   if (is_symbol(func))    /* func can be sc->gc_nil (see check_lambda and check_lambda_star) */
     {
@@ -71110,7 +71191,7 @@ static bool check_and(s7_scheme *sc)
       (is_pair(cdr(sc->code))) &&
       (is_null(cddr(sc->code))))
     {
-      if (c_callee(sc->code) == fx_is_pair_s)
+      if ((c_callee(sc->code) == fx_is_pair_s) || (c_callee(sc->code) == fx_is_pair_t))
 	{
 	  pair_set_syntax_op(form, OP_AND_PAIR_P);
 	  set_opt3_sym(form, cadar(sc->code));
@@ -74360,8 +74441,7 @@ static s7_pointer check_do(s7_scheme *sc)
      *  tree_has_definers can't ignore a quoted list because the 'quote might be interpreted separately:
      *   ... (cond '(define x 0)) ...
      */
-    body = cddr(code);
-    if (tree_has_definers(sc, body))
+    if (tree_has_definers(sc, form)) /* we don't want definers in the step exprs or end exprs either */
       return(code);
 
     /* 1/1 is of course the biggy -- can 1/n share its code? */
@@ -74391,6 +74471,7 @@ static s7_pointer check_do(s7_scheme *sc)
      * also do body is optimized expr: vector_set_3 via hop_safe_c_sss for example or (vset v i (vref w i))
      */
 
+    body = cddr(code);
     if ((is_pair(end)) && (is_pair(car(end))) &&
 	(is_pair(vars)) && (is_null(cdr(vars))) &&
 	(is_pair(body)) && (is_pair(car(body))) && (is_symbol(caar(body))))
@@ -75008,11 +75089,11 @@ static void op_simple_dox(s7_scheme *sc)
   if (is_safe_stepper_expr(cddr(var)))
     {
       if ((is_t_integer(slot_value(slot))) &&
-	  ((stepf == fx_c_sub_s1) || (stepf == fx_c_add_s1) || (stepf == fx_c_add_t1) || (stepf == fx_c_add_u1)))
+	  ((stepf == fx_c_sub_s1) || (stepf == fx_c_add_s1) || (stepf == fx_c_add_t1) || (stepf == fx_c_sub_t1) || (stepf == fx_c_add_u1)))
 	{
 	  s7_int incr;
 	  s7_pointer istep;
-	  incr = (stepf == fx_c_sub_s1) ? -1 : 1;
+	  incr = ((stepf == fx_c_sub_s1) || (stepf == fx_c_sub_t1)) ? -1 : 1;
 	  istep = make_mutable_integer(sc, integer(slot_value(slot)));
 	  slot_set_value(slot, istep);
 	  while (true)
@@ -76520,7 +76601,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		}
 	      else
 		{
-		  if ((c_callee(cdr(code)) == fx_c_sub_si) || (c_callee(cdr(code)) == fx_c_sub_s1))
+		  if ((c_callee(cdr(code)) == fx_c_sub_si) || (c_callee(cdr(code)) == fx_c_sub_s1) || (c_callee(cdr(code)) == fx_c_sub_t1))
 		    {
 		      set_opt2_pair(code, cdadr(code));
 		      set_optimize_op(code, OP_CLOSURE_SUB_P);
@@ -78001,6 +78082,7 @@ static int32_t define1_ex(s7_scheme *sc)
       if (is_slot(global_slot(sc->code)))
 	x = global_slot(sc->code);
       else x = symbol_to_slot(sc, sc->code);  /* local_slot can be free even if sc->code is immutable (local constant now defunct) */
+
       if (!((is_slot(x)) &&
 	    (type(sc->value) == unchecked_type(slot_value(x))) &&
 	    (s7_is_equivalent(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
@@ -78090,11 +78172,12 @@ static void define2_ex(s7_scheme *sc)
 	  if ((is_slot(global_slot(sc->code))) &&
 	      (is_immutable(global_slot(sc->code))))
 	    {
-	      s7_pointer old_value;
+	      s7_pointer old_value, old_symbol;
+	      old_symbol = sc->code;
 	      old_value = slot_value(global_slot(sc->code));
 	      if ((type(old_value) != type(new_func)) ||
 		  (!s7_is_equivalent(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
-		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, old_symbol);
 	    }
 	  s7_make_slot(sc, sc->envir, sc->code, new_func);
 	}
@@ -78109,11 +78192,12 @@ static void define2_ex(s7_scheme *sc)
 	{
 	  if (is_immutable(lx))
 	    {
-	      s7_pointer old_value;
+	      s7_pointer old_value, old_symbol;
+	      old_symbol = sc->code;
 	      old_value = slot_value(lx);
 	      if ((type(old_value) != type(sc->value)) ||
 		  (!s7_is_equivalent(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
-		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, old_symbol);
 	    }
 	  slot_set_value_with_hook(lx, sc->value);
 	}
@@ -80964,7 +81048,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  free_cell(sc, sc->args);
 	  goto START;
 
-	  /* -------------------------------- map -------------------------------- */
+
 	case OP_MAP_GATHER_1:
 	  if (sc->value != sc->no_value)
 	    {
@@ -81015,6 +81099,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_FOR_EACH_2:
 	  if (op_for_each_2(sc)) goto START;
 	  goto EVAL;
+
 
 	case OP_MEMBER_IF:
 	case OP_MEMBER_IF1:
@@ -89139,6 +89224,7 @@ s7_scheme *s7_init(void)
   s7_autoload(sc, make_symbol(sc, "reactive.scm"),    s7_make_permanent_string(sc, "reactive.scm"));
   s7_autoload(sc, make_symbol(sc, "repl.scm"),        s7_make_permanent_string(sc, "repl.scm"));
   s7_autoload(sc, make_symbol(sc, "r7rs.scm"),        s7_make_permanent_string(sc, "r7rs.scm"));
+  s7_autoload(sc, make_symbol(sc, "profile.scm"),     s7_make_permanent_string(sc, "profile.scm"));
 
   s7_autoload(sc, make_symbol(sc, "libc.scm"),        s7_make_permanent_string(sc, "libc.scm"));
   s7_autoload(sc, make_symbol(sc, "libm.scm"),        s7_make_permanent_string(sc, "libm.scm"));
@@ -89947,15 +90033,15 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  373 |  356   357   357   358
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   593
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   977
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   976
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1522
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1705
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2104
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1696
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2101
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2316
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
- * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2519
+ * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2472
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2956
@@ -89969,7 +90055,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.5
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.4
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 187.2
  * ----------------------------------------------------------------------------------
  *

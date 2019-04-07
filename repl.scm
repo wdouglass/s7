@@ -1055,8 +1055,8 @@
 	    
 	    ;; -------- emacs --------
 	    (define (emacs-repl)
-	      ;; TODO: use the emacs language server protocol? (not our own rpc stuff or epc), for json, see json.scm 
-	      ;;   probably will need an argument/function? for repl to open the channel or whatever
+	      ;; someday maybe use the language server protocol? (not our own rpc stuff or epc), for json, see json.scm 
+	      ;;   probably will need an argument/function for repl to open the channel or whatever
 	      ;; also this does not resend the entire expression after editing
 	      ;;   and does not notice in-place edits
 	      ;;   can <cr> get entire expr?

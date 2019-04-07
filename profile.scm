@@ -1,3 +1,5 @@
+(provide 'profile.scm)
+
 (define* (show-profile (n 100))
   (let ((info (*s7* 'profile-info)))
     (if (null? info)

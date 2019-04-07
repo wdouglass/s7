@@ -67,24 +67,24 @@
 	      (slot-symbol cp)
 	      (eval (slot-expr cp) (slot-expr-env cp)))))
 
+
 (define (slot-equal? cp1 cp2)
   (and (eq? (slot-symbol cp1) (slot-symbol cp2))
        (eq? (slot-env cp1) (slot-env cp2))))
 
 (define (setter-remove cp lst)
   ;; if reactive-set! called again on a variable, its old setters need to remove the now obsolete set of that variable
-  (if (null? lst)
-      ()
-      (if (slot-equal? cp (car lst))
-	  (cdr lst)
-	  (cons (car lst)
-		(setter-remove cp (cdr lst))))))
+  (map (lambda (c)
+	 (if (slot-equal? cp c)
+	     (values)
+	     c))
+       lst))
 
 
 (define* (make-setter var env (followers ()) (setters ()) (expr ()) expr-env)
   ;; return a new setter with closure containing the followers and setters of var, and the c-pointer holding its name, environment, and expression
   (let ((followers followers)
-	(setters setters) ; all s7test tests work fine without this!  need better tests...
+	(setters setters)
 	(cp (slot var expr env expr-env)))
     (lambda (sym val)
       (let-temporarily (((setter (slot-symbol cp) (slot-env cp)) #f))

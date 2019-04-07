@@ -1,6 +1,5 @@
 (provide 'mockery.scm)
 
-
 ;;; the exported mock data classes
 (define *mock-vector* #f)
 (define *mock-pair* #f)
@@ -23,16 +22,6 @@
 	(obj 'value)
 	obj))
 
-  (define (cover-lets args) ; TODO: replace this
-    (let ((opens ()))
-      (for-each (lambda (arg)
-		  (when (openlet? arg)
-		    (coverlet arg)
-		    (set! opens (cons arg opens))))
-		args)
-      opens))
-
-  
   (define (mock? obj)
     (and (let? obj)
 	 (symbol? (obj 'mock-type))))
@@ -71,12 +60,6 @@
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
   ;;   mock object can be a closure's containing (open)let: (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
-
-  ;; TODO: still need display et al for port?
-  ;;       and with-mock-wrapper
-  ;;       and everything is a mess...
-  ;;       and char-ci* / string-ci* 
-
   ;; --------------------------------------------------------------------------------
 
   (set! *mock-vector*

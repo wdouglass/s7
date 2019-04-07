@@ -214,7 +214,7 @@
 	(sum 0))
     (do ((i 0 (+ i 1)))
 	((= i size) sum)
-      (set! sum (+ sum (if (zero? (real-part (v i))) 1 0))))))
+      (set! sum (+ sum (if (zero? (real-part (vector-ref v i))) 1 0)))))) ; faster is (imag-part...)
 
 (unless (= (g6) size)
   (format *stderr* "g6: ~S~%" (g6)))

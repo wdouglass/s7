@@ -16,6 +16,8 @@
 	    (format *stderr* "a: ~D ~D~%" a x)))
       (let ((a 3))
 	(set! a 2))
+      (if (not (= x 2))
+	  (format *stderr* "x: ~D~%" x))
       (let ((a 1))
 	(do ((k 0 (+ k 1)))
 	    ((= k 1))
@@ -27,8 +29,12 @@
 		(set! c 2)
 		(if (not (= x 5))
 		    (format *stderr* "set: ~S ~S ~S ~S~%" x a b c))))
-	    (set! b 3)))
-	(set! a 4))
+	    (set! b 3)
+	    (if (not (= x 6))
+		(format *stderr* "set: ~S ~S ~S~%" x a b))))
+	(set! a 4)
+	(if (not (= x 9))
+	    (format *stderr* "set: ~S ~S~%" x a)))
       (reactive-let ((y (* x 2))
 		     (z (+ (* x 3) 1)))
 	(set! x 1)
@@ -41,7 +47,7 @@
 	(if (or (not (= y 2))
 		(not (= z 5)))
 	    (format *stderr* "let*: ~D ~D ~D~%" x y z)))
-
+      
       (if (zero? (modulo i 8)) (gc)))))
 
 (t)
