@@ -103,10 +103,12 @@
 ;;;         (* 1024 mem)))))
 ;;; --------------------------------------------------------------------------------
 
-(define *cload-cflags* "") 
+(define *cload-cflags* (if (provided? 'clang) "-fPIC" ""))
 (define *cload-ldflags* "")
 (if (not (defined? '*cload-directory*))
     (define *cload-directory* ""))
+
+(define *cload-c-compiler* (if (provided? 'gcc) "gcc" (if (provided? 'clang) "clang" "cc")))
 
 
 (define-macro (defvar name value) 
@@ -580,10 +582,10 @@
 	
 	(cond ((provided? 'osx)
 	       ;; I assume the caller is also compiled with these flags?
-	       (system (format #f "gcc -c ~A -o ~A ~A ~A" 
-			       c-file-name o-file-name *cload-cflags* cflags))
-	       (system (format #f "gcc ~A -o ~A -dynamic -bundle -undefined suppress -flat_namespace ~A ~A" 
-			       o-file-name so-file-name *cload-ldflags* ldflags)))
+	       (system (format #f "~A -c ~A -o ~A ~A ~A" 
+			       *cload-c-complier* c-file-name o-file-name *cload-cflags* cflags))
+	       (system (format #f "~A ~A -o ~A -dynamic -bundle -undefined suppress -flat_namespace ~A ~A" 
+			       *cload-c-compiler* o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
 	      ((provided? 'freebsd)
 	       (system (format #f "cc -fPIC -c ~A -o ~A ~A ~A" 
@@ -592,10 +594,10 @@
 			       o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
 	      ((provided? 'openbsd)
-	       (system (format #f "gcc -fPIC -ftrampolines -c ~A -o ~A ~A ~A" 
-			       c-file-name o-file-name *cload-cflags* cflags))
-	       (system (format #f "gcc ~A -shared -o ~A ~A ~A" 
-			       o-file-name so-file-name *cload-ldflags* ldflags)))
+	       (system (format #f "~A -fPIC -ftrampolines -c ~A -o ~A ~A ~A" 
+			       *cload-c-compiler* c-file-name o-file-name *cload-cflags* cflags))
+	       (system (format #f "~A ~A -shared -o ~A ~A ~A" 
+			       *cload-c-compiler* o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
 	      ((provided? 'sunpro_c) ; just guessing here...
 	       (system (format #f "cc -c ~A -o ~A ~A ~A" 
@@ -603,13 +605,11 @@
 	       (system (format #f "cc ~A -G -o ~A ~A ~A" 
 			       o-file-name so-file-name *cload-ldflags* ldflags)))
 	      
-	      ;; what about clang?  Maybe use cc below, not gcc (and in osx case above)
-	      
 	      (else
-	       (system (format #f "gcc -fPIC -c ~A -o ~A ~A ~A" 
-			       c-file-name o-file-name *cload-cflags* cflags))
-	       (system (format #f "gcc ~A -shared -o ~A ~A ~A" 
-			       o-file-name so-file-name *cload-ldflags* ldflags)))))
+	       (system (format #f "~A -fPIC -c ~A -o ~A ~A ~A" 
+			       *cload-c-compiler* c-file-name o-file-name *cload-cflags* cflags))
+	       (system (format #f "~A ~A -shared -o ~A ~A ~A" 
+			       *cload-c-compiler* o-file-name so-file-name *cload-ldflags* ldflags)))))
       
       (define handle-declaration 
 	(let ()

@@ -179,7 +179,7 @@
 		  all delete-file system set-cdr! stacktrace test-sym
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values
-		  symbol-table load throw error
+		  symbol-table load throw error openlets coverlets
 		  global-environment current-environment make-rectangular hash-table* make-keyword morally-equal?
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 #|

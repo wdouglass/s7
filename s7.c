@@ -3459,8 +3459,13 @@ static void local_memset(void *s, uint8_t val, size_t n)
       int64_t ival;
       int64_t *s1 = (int64_t *)s;
       size_t n8 = n >> 3;
+#if 0
       ival = val | (val << 8) | (val << 16) | (val << 24); /* make gcc happy */
       ival = (ival << 32) | ival;
+#else
+      ival = val | (val << 8) | (val << 16) | (((uint64_t)val) << 24); /* make gcc/clang/fsanitize happy */
+      ival = (((uint64_t)ival) << 32) | ival;
+#endif
       do {*s1++ = ival;} while (--n8 > 0);
       n &= 7;
       s2 = (uint8_t *)s1;
@@ -24164,7 +24169,7 @@ static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool ato
     if (c == '\n')
       port_line_number(pt)++;
 
-    sc->strbuf[i++] = c;
+    sc->strbuf[i++] = (unsigned char)c;
     if (i >= sc->strbuf_size)
       resize_strbuf(sc, i);
   } while ((c != EOF) && (char_ok_in_a_name[c]));
@@ -63431,7 +63436,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	 */
 	s7_int dims;
 	int32_t d, loc = 0;
-	sc->strbuf[loc++] = c;
+	sc->strbuf[loc++] = (unsigned char)c;
 	dims = digits[c];
 
 	while (true)
@@ -63449,7 +63454,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 		(dims > S7_SHORT_MAX))
 	      s7_error(sc, sc->read_error_symbol,
 		       set_elist_2(sc, wrap_string(sc, "overflow while reading #nD: ~A", 30), wrap_integer1(sc, dims)));
-	    sc->strbuf[loc++] = d;
+	    sc->strbuf[loc++] = (unsigned char)d;
 	  }
 	sc->strbuf[loc++] = d;
 	if ((d == 'd') || (d == 'i') || (d == 'r') || (d == 'u'))
@@ -63459,7 +63464,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	    if (e == EOF)
 	      s7_error(sc, sc->read_error_symbol,
 		       set_elist_1(sc, wrap_string(sc, "unexpected end of input while reading #n()", 42)));
-	    sc->strbuf[loc++] = e;
+	    sc->strbuf[loc++] = (unsigned char)e;
 	    if (e == '(')
 	      {
 		sc->w = make_integer(sc, dims);
@@ -63500,7 +63505,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	for (reader = slot_value(sc->sharp_readers); is_pair(reader); reader = cdr(reader))
 	  if (s7_character(caar(reader)) == '!')
 	    {
-	      sc->strbuf[0] = c;
+	      sc->strbuf[0] = (unsigned char)c;
 	      return(TOKEN_SHARP_CONST); /* next stage notices any errors */
 	    }
 
@@ -63584,7 +63589,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	  }
       }
     }
-  sc->strbuf[0] = c;
+  sc->strbuf[0] = (unsigned char)c;
   return(TOKEN_SHARP_CONST); /* next stage notices any errors */
 }
 
@@ -63652,7 +63657,7 @@ static token_t token(s7_scheme *sc) /* inline here is slower */
     case '\0':
     case EOF:  return(TOKEN_EOF);
     default:
-      sc->strbuf[0] = c; /* every TOKEN_ATOM return goes to port_read_name, so we save a backchar/inchar shuffle by starting the read here */
+      sc->strbuf[0] = (unsigned char)c; /* every TOKEN_ATOM return goes to port_read_name, so we save a backchar/inchar shuffle by starting the read here */
       return(TOKEN_ATOM);
     }
 }
@@ -63680,14 +63685,14 @@ static int32_t read_x_char(s7_scheme *sc, int32_t i, s7_pointer pt)
       d1 = digits[c];
       if (d1 >= 16)
 	{
-	  sc->strbuf[i++] = c; /* just go on -- maybe a special char is not intended */
+	  sc->strbuf[i++] = (unsigned char)c; /* just go on -- maybe a special char is not intended */
 	  return(i);
 	}
       c = inchar(pt);
       if (c == '"')
 	{
-	  sc->strbuf[i++] = d1;
-	  backchar(c, pt);
+	  sc->strbuf[i++] = (unsigned char)d1;
+	  backchar((char)c, pt);
 	  return(i);
 	}
       if (c == EOF)
@@ -63697,16 +63702,16 @@ static int32_t read_x_char(s7_scheme *sc, int32_t i, s7_pointer pt)
 	}
       if (c == ';')
 	{
-	  sc->strbuf[i++] = d1;
+	  sc->strbuf[i++] = (unsigned char)d1;
 	  return(i);
 	}
       d2 = digits[c];
       if (d2 >= 16)
 	{
-	  sc->strbuf[i++] = c; /* just go on -- maybe a special char is not intended */
+	  sc->strbuf[i++] = (unsigned char)c; /* just go on -- maybe a special char is not intended */
 	  return(i);
 	}
-      sc->strbuf[i++] = 16 * d1 + d2;
+      sc->strbuf[i++] = (unsigned char)(16 * d1 + d2);
     }
   return(i);
 }
@@ -63803,7 +63808,7 @@ static s7_pointer read_string_constant(s7_scheme *sc, s7_pointer pt)
 	{
 	case '\n':
 	  port_line_number(pt)++;
-	  sc->strbuf[i++] = c;
+	  sc->strbuf[i++] = (unsigned char)c;
 	  break;
 
 	case EOF:
@@ -63823,15 +63828,15 @@ static s7_pointer read_string_constant(s7_scheme *sc, s7_pointer pt)
 	      return(sc->F);
 
 	    case '\\': case '"': case '|':
-	      sc->strbuf[i++] = c;
+	      sc->strbuf[i++] = (unsigned char)c;
               break;
 
 	    case 'n': sc->strbuf[i++] = '\n'; break;
 	    case 't': sc->strbuf[i++] = '\t'; break;
 	    case 'r': sc->strbuf[i++] = '\r'; break;
 	    case '/': sc->strbuf[i++] = '/';  break;
-	    case 'b': sc->strbuf[i++] = 8;    break;
-	    case 'f': sc->strbuf[i++] = 12;   break;
+	    case 'b': sc->strbuf[i++] = (unsigned char)8;    break;
+	    case 'f': sc->strbuf[i++] = (unsigned char)12;   break;
 
 	    case 'x':
 	      i = read_x_char(sc, i, pt);
@@ -63856,7 +63861,7 @@ static s7_pointer read_string_constant(s7_scheme *sc, s7_pointer pt)
 	  break;
 
 	default:
-	  sc->strbuf[i++] = c;
+	  sc->strbuf[i++] = (unsigned char)c;
 	  break;
 	}
 
@@ -82783,7 +82788,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  default:
 		    {
 		      s7_pointer x;
-		      sc->strbuf[0] = c;
+		      sc->strbuf[0] = (unsigned char)c;
 		      push_stack_no_let_no_code(sc, OP_READ_LIST, sc->args);
 		      check_stack_size(sc);
 		      sc->value = port_read_name(pt)(sc, pt);
@@ -82888,7 +82893,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		return(missing_close_paren_error(sc));
 
 	      default:
-		sc->strbuf[0] = c;
+		sc->strbuf[0] = (unsigned char)c;
 		sc->value = port_read_name(pt)(sc, pt);
 		goto READ_LIST;
 	      }
@@ -87167,7 +87172,7 @@ s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
   s7_int old_len;
   old_len = sc->print_length;
   sc->print_length = new_len;
- return(old_len);
+  return(old_len);
 }
 
 s7_int s7_float_format_precision(s7_scheme *sc) {return(sc->float_format_precision);}
@@ -87176,7 +87181,7 @@ s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
   s7_int old_len;
   old_len = sc->float_format_precision;
   sc->float_format_precision = new_len;
- return(old_len);
+  return(old_len);
 }
 
 static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
@@ -89322,11 +89327,18 @@ s7_scheme *s7_init(void)
 #if defined(__sun) && defined(__SVR4)
   s7_provide(sc, "solaris");
 #endif
+#ifdef __MINGW32__
+  s7_provide(sc, "mingw");
+#endif
+
 #ifdef __SUNPRO_C
   s7_provide(sc, "sunpro_c");
 #endif
-#ifdef __MINGW32__
-  s7_provide(sc, "mingw");
+#if (defined(__clang__))
+  s7_provide(sc, "clang");
+#endif
+#if (defined(__GNUC__))
+  s7_provide(sc, "gcc");
 #endif
 
   sc->vector_set_function = slot_value(global_slot(sc->vector_set_symbol));
@@ -90017,7 +90029,7 @@ int main(int argc, char **argv)
 /* in Linux:  gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -ldl -lm -Wl,-export-dynamic
  * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm -Wl,-export-dynamic
  * in OSX:    gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm
- *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and maybe "-fPIC")
+ *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and "-fPIC")
  */
 #endif
 
