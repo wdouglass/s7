@@ -63125,6 +63125,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       /* handle 'and' and 'or' specially */
     case OP_AND_P1:
     case OP_AND1:
+    case OP_AND_SAFE_P_REST: /* from OP_AND_SAFE_P1 or P2 */
       for (x = args; is_not_null(cdr(x)); x = cdr(x))
 	if (car(x) == sc->F)
 	  return(sc->F);
@@ -90223,12 +90224,12 @@ int main(int argc, char **argv)
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 185.1
  * ------------------------------------------------------------------------------------------
  *
- * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
+ * push pop s7 stack entry and abort on stack overflow [args/code as strings]
+ *
  * get rid of op_c_d (ca 50 cases) or add c_func field c_d->fx_*
  *   in fx_choose is the is_global check needed in all such cases? (how else HOP_SAFE??) [has_fx too op_safe_c_fp trec = is_pair+has_fx op_and_p--divide this?]
  * t978 needs fx_let, int sig remainder et al, why is closure so much slower?
  * lint needs to treat subvector? as compatible with vector? (signatures vector-ref etc)
  *      is wrong about moving make-index.scm 251 let+c -> do step (len check)
  *      check all-lg
- * values bugs (2 or 3?) in t718
  */
