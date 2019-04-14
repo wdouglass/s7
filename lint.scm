@@ -18,6 +18,7 @@
 (define *report-any-!-as-setter* #t)                      ; unknown funcs/macros ending in ! are treated as setters
 (define *report-doc-strings* #f)                          ; old-style (CL) doc strings (definstrument ignores this switch -- see ws.scm)
 (define *report-func-as-arg-arity-mismatch* #f)           ; as it says...
+(define *report-combinable-lets* #t)                      ; report lets that can be combined
 
 (define *report-ridiculous-variable-names* 50)            ; max length of var name 
 (define *report-bad-variable-names* '(l ll .. O ~ else))  ; bad names -- a list to check such as:
@@ -10136,7 +10137,7 @@
 					(hash-table-set! h f #t))
 				      '(print-length safety cpu-time heap-size max-heap-size free-heap-size gc-freed max-string-length max-list-length 
 				        max-vector-length max-vector-dimensions default-hash-table-length initial-string-port-length memory-usage
-					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults
+					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults history-enabled
 					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error 
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
 					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length))
@@ -18871,10 +18872,10 @@
 			(lint-format "perhaps ~A" caller
 				     (lists->string form (list 'do new-cadr '...)))))))
 		
-		;; let->do -- sometimes a bad idea, set *max-cdr-len* to #f to disable this.
+		;; let->do -- sometimes a bad idea, set *report-combinable-lets* to #f to disable this.
 		;;   (the main objection is that the s7/clm optimizer can't handle it, and
 		;;   instruments using it look kinda dumb -- the power of habit or something)
-		(when (and (integer? *max-cdr-len*)
+		(when (and *report-combinable-lets*
 			   (not (len>1? (cdr body)))
 			   ;; moving more than one expr here is usually ugly -- the only exception I've
 			   ;;   seen is where the do body is enormous and the end stuff very short, and
@@ -19930,7 +19931,8 @@
 			      (set! env (cdr es)))
 			    
 			    (when (pair? vars)
-			      (unless named-let
+			      (unless (or named-let
+					  (not *report-combinable-lets*))
 				(evert-function-locals form vars env))
 			      (when (and (pair? (cadr form))
 					 (pair? (caadr form)))
@@ -19963,7 +19965,7 @@
 	    (let ((body (cddr form))
 		  (varlist (cadr form)))
 	      ;; let*->do (could go further down)
-	      (when (and (integer? *max-cdr-len*)
+	      (when (and *report-combinable-lets*
 			 (pair? body)
 			 (pair? (car body))
 			 (eq? (caar body) 'do)

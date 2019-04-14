@@ -63,73 +63,73 @@
   ;; --------------------------------------------------------------------------------
 
   (set! *mock-vector*
-	(let ((mock-vector? #f))
-	  (let ((mock-vector-class
-		 (inlet 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
-					      (if (mock-vector? i)
-						  (error 'wrong-type-arg "stray mock-vector? ~S" i))
-					      (#_vector-set! (->value obj) i val))
-
-			'vector-set!        (lambda (obj i val) ((obj 'local-set!) obj i val) val)
-			
-			'let-set-fallback   (lambda (obj i val) 
-					      (if (and (integer? i)
-						       (defined? 'value obj))
-						  (begin
-						    ((obj 'local-set!) obj i val) 
-						    val)
-						  (error 'out-of-range "unknown field: ~S" i)))
-			
-			'let-ref-fallback   (lambda (obj i) 
-					      (if (and (integer? i)
-						       (defined? 'value obj))
-						  (#_vector-ref (obj 'value) i)   ; the implicit case
-						  (error 'out-of-range "unknown field: ~S" i)))
-			
-			'equivalent?        (with-mock-wrapper* #_equivalent?)
-			'vector-ref         (with-mock-wrapper* #_vector-ref)
-			'vector-length      (with-mock-wrapper #_length)
-			'reverse            (with-mock-wrapper #_reverse)
-			'sort!              (with-mock-wrapper* #_sort!)
-			'make-iterator      (with-mock-wrapper #_make-iterator)
-			'arity              (with-mock-wrapper #_arity)
-			'object->string     (with-mock-wrapper* #_object->string)
-			'format             (with-mock-wrapper* #_format)
-			'write              (with-mock-wrapper* #_write)
-			'display            (with-mock-wrapper* #_display)
-			'vector-dimensions  (with-mock-wrapper #_vector-dimensions)
-			'fill!              (with-mock-wrapper* #_fill!)
-			'vector-fill!       (with-mock-wrapper* #_vector-fill!)
-			'vector->list       (with-mock-wrapper* #_vector->list)
-			'subvector          (with-mock-wrapper* #_subvector)
-			'copy               (with-mock-wrapper* #_copy)
-			'vector?            (with-mock-wrapper #_vector?)
-			'int-vector?        (with-mock-wrapper #_int-vector?)
-			'byte-vector?       (with-mock-wrapper #_byte-vector?)
-			'float-vector?      (with-mock-wrapper #_float-vector?)
-			'length             (with-mock-wrapper #_length)
-			'vector-append      (with-mock-wrapper* #_vector-append)
-			'append             (with-mock-wrapper* #_append)
-			'class-name         '*mock-vector*)))
-	    
-	    (define (make-mock-vector len . rest)
-	      (openlet 
-	       (sublet mock-vector-class 
-		 'value (apply #_make-vector len rest)
-		 'mock-type 'mock-vector?)))
-	    
-	    (define (mock-vector . args)
-	      (openlet
-	       (sublet mock-vector-class 
-		 'value (apply #_vector args)
-		 'mock-type 'mock-vector?)))
-	    
-	    (set! mock-vector? (lambda (obj) 
-				 (and (let? obj)
-				      (defined? 'mock-type obj #t)
-				      (eq? (obj 'mock-type) 'mock-vector?))))
-	    
-	    (curlet))))
+	(let* ((mock-vector? #f)
+	       (mock-vector-class
+		(inlet 'local-set!         (lambda (obj i val)          ; reactive-vector uses this as a hook into vector-set!
+					     (if (mock-vector? i)
+						 (error 'wrong-type-arg "stray mock-vector? ~S" i))
+					     (#_vector-set! (->value obj) i val))
+		       
+		       'vector-set!        (lambda (obj i val) ((obj 'local-set!) obj i val) val)
+		       
+		       'let-set-fallback   (lambda (obj i val) 
+					     (if (and (integer? i)
+						      (defined? 'value obj))
+						 (begin
+						   ((obj 'local-set!) obj i val) 
+						   val)
+						 (error 'out-of-range "unknown field: ~S" i)))
+		       
+		       'let-ref-fallback   (lambda (obj i) 
+					     (if (and (integer? i)
+						      (defined? 'value obj))
+						 (#_vector-ref (obj 'value) i)   ; the implicit case
+						 (error 'out-of-range "unknown field: ~S" i)))
+		       
+		       'equivalent?        (with-mock-wrapper* #_equivalent?)
+		       'vector-ref         (with-mock-wrapper* #_vector-ref)
+		       'vector-length      (with-mock-wrapper #_length)
+		       'reverse            (with-mock-wrapper #_reverse)
+		       'sort!              (with-mock-wrapper* #_sort!)
+		       'make-iterator      (with-mock-wrapper #_make-iterator)
+		       'arity              (with-mock-wrapper #_arity)
+		       'object->string     (with-mock-wrapper* #_object->string)
+		       'format             (with-mock-wrapper* #_format)
+		       'write              (with-mock-wrapper* #_write)
+		       'display            (with-mock-wrapper* #_display)
+		       'vector-dimensions  (with-mock-wrapper #_vector-dimensions)
+		       'fill!              (with-mock-wrapper* #_fill!)
+		       'vector-fill!       (with-mock-wrapper* #_vector-fill!)
+		       'vector->list       (with-mock-wrapper* #_vector->list)
+		       'subvector          (with-mock-wrapper* #_subvector)
+		       'copy               (with-mock-wrapper* #_copy)
+		       'vector?            (with-mock-wrapper #_vector?)
+		       'int-vector?        (with-mock-wrapper #_int-vector?)
+		       'byte-vector?       (with-mock-wrapper #_byte-vector?)
+		       'float-vector?      (with-mock-wrapper #_float-vector?)
+		       'length             (with-mock-wrapper #_length)
+		       'vector-append      (with-mock-wrapper* #_vector-append)
+		       'append             (with-mock-wrapper* #_append)
+		       'class-name         '*mock-vector*)))
+	  
+	  (define (make-mock-vector len . rest)
+	    (openlet 
+	     (sublet mock-vector-class 
+	       'value (apply #_make-vector len rest)
+	       'mock-type 'mock-vector?)))
+	  
+	  (define (mock-vector . args)
+	    (openlet
+	     (sublet mock-vector-class 
+	       'value (apply #_vector args)
+	       'mock-type 'mock-vector?)))
+	  
+	  (set! mock-vector? (lambda (obj) 
+			       (and (let? obj)
+				    (defined? 'mock-type obj #t)
+				    (eq? (obj 'mock-type) 'mock-vector?))))
+	  
+	  (curlet)))
 
 
 #|
@@ -158,60 +158,60 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-hash-table*
-	(let ((mock-hash-table? #f))
-	  (let ((mock-hash-table-class
-		 (inlet 'let-ref-fallback   (lambda (obj key)
-					      (if (defined? 'value obj)
-						  (#_hash-table-ref (obj 'value) key)))
-			
-			'let-set-fallback  (lambda (obj key val)  
+	(let* ((mock-hash-table? #f)
+	       (mock-hash-table-class
+		(inlet 'let-ref-fallback   (lambda (obj key)
 					     (if (defined? 'value obj)
-						 (#_hash-table-set! (obj 'value) key val)))
-			
-			;; the fallbacks are needed because hash-tables and lets use exactly the same syntax in implicit indexing:
-			;;   (x 'y) but s7 can't tell that in this one case, we actually want the 'y to be a key not a field.
-			;;   So, to avoid infinite recursion in let-ref (implicit index), if let-ref can't find the let field,
-			;;   and the let has 'let-ref|set!-fallback, let-ref|set! passes the argument to that function rather than
-			;;   return #<undefined>.
-			;;
-			;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
-
-			'hash-table-ref     (with-mock-wrapper* #_hash-table-ref)
-			'hash-table-set!    (with-mock-wrapper* #_hash-table-set!)
-			'equivalent?        (with-mock-wrapper* #_equivalent?)
-			'hash-table-entries (with-mock-wrapper #_hash-table-entries)
-			'make-iterator      (with-mock-wrapper #_make-iterator)
-			'fill!              (with-mock-wrapper* #_fill!)
-			'object->string     (with-mock-wrapper* #_object->string)
-			'format             (with-mock-wrapper* #_format)
-			'write              (with-mock-wrapper* #_write)
-			'display            (with-mock-wrapper* #_display)
-			'reverse            (with-mock-wrapper #_reverse)
-			'arity              (with-mock-wrapper #_arity)
-			'copy               (with-mock-wrapper* #_copy)
-			'hash-table?        (with-mock-wrapper #_hash-table?)
-			'length             (with-mock-wrapper #_length)
-			'append             (with-mock-wrapper* #_append)
-			'class-name         '*mock-hash-table*)))
-	    
-	    (define (make-mock-hash-table . rest)
-	      (openlet 
-	       (sublet mock-hash-table-class 
-		 'value (apply #_make-hash-table rest)
-		 'mock-type 'mock-hash-table?)))
-	    
-	    (define (mock-hash-table . args)
-	      (openlet 
-	       (sublet mock-hash-table-class 
-		 'value (apply #_hash-table args)
-		 'mock-type 'mock-hash-table?)))
-	    
-	    (set! mock-hash-table? (lambda (obj)
-				     (and (let? obj)
-					  (defined? 'mock-type obj #t)
-					  (eq? (obj 'mock-type) 'mock-hash-table?))))
-	    
-	    (curlet))))
+						 (#_hash-table-ref (obj 'value) key)))
+		       
+		       'let-set-fallback  (lambda (obj key val)  
+					    (if (defined? 'value obj)
+						(#_hash-table-set! (obj 'value) key val)))
+		       
+		       ;; the fallbacks are needed because hash-tables and lets use exactly the same syntax in implicit indexing:
+		       ;;   (x 'y) but s7 can't tell that in this one case, we actually want the 'y to be a key not a field.
+		       ;;   So, to avoid infinite recursion in let-ref (implicit index), if let-ref can't find the let field,
+		       ;;   and the let has 'let-ref|set!-fallback, let-ref|set! passes the argument to that function rather than
+		       ;;   return #<undefined>.
+		       ;;
+		       ;; (round (openlet (inlet 'round (lambda (obj) (#_round (obj 'value))) 'let-ref-fallback (lambda args 3)))) -> 3
+		       
+		       'hash-table-ref     (with-mock-wrapper* #_hash-table-ref)
+		       'hash-table-set!    (with-mock-wrapper* #_hash-table-set!)
+		       'equivalent?        (with-mock-wrapper* #_equivalent?)
+		       'hash-table-entries (with-mock-wrapper #_hash-table-entries)
+		       'make-iterator      (with-mock-wrapper #_make-iterator)
+		       'fill!              (with-mock-wrapper* #_fill!)
+		       'object->string     (with-mock-wrapper* #_object->string)
+		       'format             (with-mock-wrapper* #_format)
+		       'write              (with-mock-wrapper* #_write)
+		       'display            (with-mock-wrapper* #_display)
+		       'reverse            (with-mock-wrapper #_reverse)
+		       'arity              (with-mock-wrapper #_arity)
+		       'copy               (with-mock-wrapper* #_copy)
+		       'hash-table?        (with-mock-wrapper #_hash-table?)
+		       'length             (with-mock-wrapper #_length)
+		       'append             (with-mock-wrapper* #_append)
+		       'class-name         '*mock-hash-table*)))
+	  
+	  (define (make-mock-hash-table . rest)
+	    (openlet 
+	     (sublet mock-hash-table-class 
+	       'value (apply #_make-hash-table rest)
+	       'mock-type 'mock-hash-table?)))
+	  
+	  (define (mock-hash-table . args)
+	    (openlet 
+	     (sublet mock-hash-table-class 
+	       'value (apply #_hash-table args)
+	       'mock-type 'mock-hash-table?)))
+	  
+	  (set! mock-hash-table? (lambda (obj)
+				   (and (let? obj)
+					(defined? 'mock-type obj #t)
+					(eq? (obj 'mock-type) 'mock-hash-table?))))
+	  
+	  (curlet)))
   
   
 #|
@@ -246,98 +246,98 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-string*
-	(let ((mock-string? #f))
-	  (let ((mock-string-class
-		 (inlet 'equivalent?            (with-mock-wrapper* #_equivalent?)
-			'reverse                (with-mock-wrapper #_reverse)
-			'arity                  (with-mock-wrapper #_arity)
-			'make-iterator          (with-mock-wrapper* #_make-iterator)
-
-			'let-ref-fallback       (lambda (obj i) 
-						  (if (and (integer? i)
-							   (defined? 'value obj))
-						      (#_string-ref (obj 'value) i)           ; these are the implicit cases
-						      (error 'out-of-range "unknown field: ~S" i)))
-			
-			'let-set-fallback       (lambda (obj i val) 
-						  (if (and (integer? i)
-							   (defined? 'value obj))
-						      (#_string-set! (obj 'value) i val)
-						      (error 'out-of-range "unknown field: ~S" i)))
-			
-			'string-length          (with-mock-wrapper #_length)
-			'string-append          (with-mock-wrapper* #_string-append)
-			'string-copy            (with-mock-wrapper #_copy)
-			
-			'string=?               (with-mock-wrapper* #_string=?)
-			'string<?               (with-mock-wrapper* #_string<?)
-			'string>?               (with-mock-wrapper* #_string>?)
-			'string<=?              (with-mock-wrapper* #_string<=?)
-			'string>=?              (with-mock-wrapper* #_string>=?)
-			
-			'string-downcase        (with-mock-wrapper #_string-downcase)
-			'string-upcase          (with-mock-wrapper #_string-upcase)
-			'string->symbol         (with-mock-wrapper #_string->symbol)
-			'symbol                 (with-mock-wrapper #_symbol)
-			'string->keyword        (with-mock-wrapper #_string->keyword)
-			'open-input-string      (with-mock-wrapper #_open-input-string)
-			'directory?             (with-mock-wrapper #_directory?)
-			'file-exists?           (with-mock-wrapper #_file-exists?)
-			'getenv                 (with-mock-wrapper #_getenv)
-			'delete-file            (with-mock-wrapper #_delete-file)
-			'string->byte-vector    (with-mock-wrapper #_string->byte-vector)
-			'object->string         (with-mock-wrapper* #_object->string)
-			'format                 (with-mock-wrapper* #_format)
-			'write                  (with-mock-wrapper* #_write)
-			'display                (with-mock-wrapper* #_display)
-			'char-position          (with-mock-wrapper* #_char-position)
-			'string-fill!           (with-mock-wrapper* #_string-fill!)
-			'gensym                 (with-mock-wrapper* #_gensym)
-			'call-with-input-string (with-mock-wrapper* #_call-with-input-string)
-			'with-input-from-string (with-mock-wrapper* #_with-input-from-string)
-			'system                 (with-mock-wrapper* #_system)
-			'load                   (with-mock-wrapper* #_load)
-			'eval-string            (with-mock-wrapper* #_eval-string)
-			'string->list           (with-mock-wrapper* #_string->list)
-			'bignum                 (with-mock-wrapper #_bignum)
-			'fill!                  (with-mock-wrapper* #_fill!)
-			'write-string           (with-mock-wrapper* #_write-string)
-			'copy                   (with-mock-wrapper* #_copy)
-			'substring              (with-mock-wrapper* #_substring)
-			'string->number         (with-mock-wrapper* #_string->number)
-			'string-position        (with-mock-wrapper* #_string-position)
-			'string-ref             (with-mock-wrapper* #_string-ref)
-			'string-set!            (with-mock-wrapper* #_string-set!)
-			'string-ci=?            (with-mock-wrapper* #_string-ci=?)
-			'string-ci<?            (with-mock-wrapper* #_string-ci<?)
-			'string-ci>?            (with-mock-wrapper* #_string-ci>?)
-			'string-ci<=?           (with-mock-wrapper* #_string-ci<=?)
-			'string-ci>=?           (with-mock-wrapper* #_string-ci>=?)
-			'string?                (with-mock-wrapper #_string?)
-			'length                 (with-mock-wrapper #_string-length)
-			'append                 (with-mock-wrapper* #_append)
-			'class-name             '*mock-string*)))
-	    
-	    (define* (make-mock-string len (init #\null))
-	      (openlet 
-	       (sublet mock-string-class 
-		 'value (#_make-string len init)
-		 'mock-type 'mock-string?)))
-	    
-	    (define (mock-string . args)
-	      (let ((v (make-mock-string 0)))
-		(set! (v 'value) 
-		      (if (string? (car args))
-			  (car args)
-			  (apply #_string args)))
-		v))
-	    
-	    (set! mock-string? (lambda (obj)
-				 (and (let? obj)
-				      (defined? 'mock-type obj #t)
-				      (eq? (obj 'mock-type) 'mock-string?))))
-	    
-	    (curlet))))
+	(let* ((mock-string? #f)
+	       (mock-string-class
+		(inlet 'equivalent?            (with-mock-wrapper* #_equivalent?)
+		       'reverse                (with-mock-wrapper #_reverse)
+		       'arity                  (with-mock-wrapper #_arity)
+		       'make-iterator          (with-mock-wrapper* #_make-iterator)
+		       
+		       'let-ref-fallback       (lambda (obj i) 
+						 (if (and (integer? i)
+							  (defined? 'value obj))
+						     (#_string-ref (obj 'value) i)           ; these are the implicit cases
+						     (error 'out-of-range "unknown field: ~S" i)))
+		       
+		       'let-set-fallback       (lambda (obj i val) 
+						 (if (and (integer? i)
+							  (defined? 'value obj))
+						     (#_string-set! (obj 'value) i val)
+						     (error 'out-of-range "unknown field: ~S" i)))
+		       
+		       'string-length          (with-mock-wrapper #_length)
+		       'string-append          (with-mock-wrapper* #_string-append)
+		       'string-copy            (with-mock-wrapper #_copy)
+		       
+		       'string=?               (with-mock-wrapper* #_string=?)
+		       'string<?               (with-mock-wrapper* #_string<?)
+		       'string>?               (with-mock-wrapper* #_string>?)
+		       'string<=?              (with-mock-wrapper* #_string<=?)
+		       'string>=?              (with-mock-wrapper* #_string>=?)
+		       
+		       'string-downcase        (with-mock-wrapper #_string-downcase)
+		       'string-upcase          (with-mock-wrapper #_string-upcase)
+		       'string->symbol         (with-mock-wrapper #_string->symbol)
+		       'symbol                 (with-mock-wrapper #_symbol)
+		       'string->keyword        (with-mock-wrapper #_string->keyword)
+		       'open-input-string      (with-mock-wrapper #_open-input-string)
+		       'directory?             (with-mock-wrapper #_directory?)
+		       'file-exists?           (with-mock-wrapper #_file-exists?)
+		       'getenv                 (with-mock-wrapper #_getenv)
+		       'delete-file            (with-mock-wrapper #_delete-file)
+		       'string->byte-vector    (with-mock-wrapper #_string->byte-vector)
+		       'object->string         (with-mock-wrapper* #_object->string)
+		       'format                 (with-mock-wrapper* #_format)
+		       'write                  (with-mock-wrapper* #_write)
+		       'display                (with-mock-wrapper* #_display)
+		       'char-position          (with-mock-wrapper* #_char-position)
+		       'string-fill!           (with-mock-wrapper* #_string-fill!)
+		       'gensym                 (with-mock-wrapper* #_gensym)
+		       'call-with-input-string (with-mock-wrapper* #_call-with-input-string)
+		       'with-input-from-string (with-mock-wrapper* #_with-input-from-string)
+		       'system                 (with-mock-wrapper* #_system)
+		       'load                   (with-mock-wrapper* #_load)
+		       'eval-string            (with-mock-wrapper* #_eval-string)
+		       'string->list           (with-mock-wrapper* #_string->list)
+		       'bignum                 (with-mock-wrapper #_bignum)
+		       'fill!                  (with-mock-wrapper* #_fill!)
+		       'write-string           (with-mock-wrapper* #_write-string)
+		       'copy                   (with-mock-wrapper* #_copy)
+		       'substring              (with-mock-wrapper* #_substring)
+		       'string->number         (with-mock-wrapper* #_string->number)
+		       'string-position        (with-mock-wrapper* #_string-position)
+		       'string-ref             (with-mock-wrapper* #_string-ref)
+		       'string-set!            (with-mock-wrapper* #_string-set!)
+		       'string-ci=?            (with-mock-wrapper* #_string-ci=?)
+		       'string-ci<?            (with-mock-wrapper* #_string-ci<?)
+		       'string-ci>?            (with-mock-wrapper* #_string-ci>?)
+		       'string-ci<=?           (with-mock-wrapper* #_string-ci<=?)
+		       'string-ci>=?           (with-mock-wrapper* #_string-ci>=?)
+		       'string?                (with-mock-wrapper #_string?)
+		       'length                 (with-mock-wrapper #_string-length)
+		       'append                 (with-mock-wrapper* #_append)
+		       'class-name             '*mock-string*)))
+	  
+	  (define* (make-mock-string len (init #\null))
+	    (openlet 
+	     (sublet mock-string-class 
+	       'value (#_make-string len init)
+	       'mock-type 'mock-string?)))
+	  
+	  (define (mock-string . args)
+	    (let ((v (make-mock-string 0)))
+	      (set! (v 'value) 
+		    (if (string? (car args))
+			(car args)
+			(apply #_string args)))
+	      v))
+	  
+	  (set! mock-string? (lambda (obj)
+			       (and (let? obj)
+				    (defined? 'mock-type obj #t)
+				    (eq? (obj 'mock-type) 'mock-string?))))
+	  
+	  (curlet)))
   
 #|
   ;; string that is always the current time of day
@@ -366,59 +366,59 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-char*
-	(let ((mock-char? #f))
-	  (let ((mock-char-class
-		 (inlet 'equivalent?        (with-mock-wrapper* #_equivalent?)
-			'char-upcase        (with-mock-wrapper #_char-upcase)
-			'char-downcase      (with-mock-wrapper #_char-downcase)
-			'char->integer      (with-mock-wrapper #_char->integer)
-			'char-upper-case?   (with-mock-wrapper #_char-upper-case?)
-			'char-lower-case?   (with-mock-wrapper #_char-lower-case?)
-			'char-alphabetic?   (with-mock-wrapper #_char-alphabetic?)
-			'char-numeric?      (with-mock-wrapper #_char-numeric?)
-			'char-whitespace?   (with-mock-wrapper #_char-whitespace?)
-			'char=?             (with-mock-wrapper* #_char=?)
-			'char<?             (with-mock-wrapper* #_char<?)
-			'char>?             (with-mock-wrapper* #_char>?)
-			'char<=?            (with-mock-wrapper* #_char<=?)
-			'char>=?            (with-mock-wrapper* #_char>=?)
-			'char-ci=?          (with-mock-wrapper* #_char-ci=?)
-			'char-ci<?          (with-mock-wrapper* #_char-ci<?)
-			'char-ci>?          (with-mock-wrapper* #_char-ci>?)
-			'char-ci<=?         (with-mock-wrapper* #_char-ci<=?)
-			'char-ci>=?         (with-mock-wrapper* #_char-ci>=?)
-			'string             (with-mock-wrapper* #_string)
-			'string-fill!       (with-mock-wrapper* #_string-fill!)
-			'object->string     (with-mock-wrapper* #_object->string)
-			'format             (with-mock-wrapper* #_format)
-			'write              (with-mock-wrapper* #_write)
-			'display            (with-mock-wrapper* #_display)
-			'arity              (with-mock-wrapper #_arity)
-			'make-string        (with-mock-wrapper* #_make-string)
-			'char-position      (with-mock-wrapper* #_char-position)
-			'write-char         (with-mock-wrapper* #_write-char)
-			'string-set!        (with-mock-wrapper* #_string-set!)
-			'copy               (with-mock-wrapper* #_copy)
-			'char?              (with-mock-wrapper #_char?)
-			'class-name         '*mock-char*
-			'length             (lambda (obj) #f))))
-	    
-	    (define (mock-char c) 
-	      (if (and (char? c)
-		       (not (let? c)))
-		  (immutable!
-		   (openlet
-		    (sublet (*mock-char* 'mock-char-class)
-		      'value c
-		      'mock-type 'mock-char?)))
-		  (error 'wrong-type-arg "mock-char arg ~S is not a char" c)))
-	    
-	    (set! mock-char? (lambda (obj)
-			       (and (let? obj)
-				    (defined? 'mock-type obj #t)
-				    (eq? (obj 'mock-type) 'mock-char?))))
-	    
-	    (curlet))))
+	(let* ((mock-char? #f)
+	       (mock-char-class
+		(inlet 'equivalent?        (with-mock-wrapper* #_equivalent?)
+		       'char-upcase        (with-mock-wrapper #_char-upcase)
+		       'char-downcase      (with-mock-wrapper #_char-downcase)
+		       'char->integer      (with-mock-wrapper #_char->integer)
+		       'char-upper-case?   (with-mock-wrapper #_char-upper-case?)
+		       'char-lower-case?   (with-mock-wrapper #_char-lower-case?)
+		       'char-alphabetic?   (with-mock-wrapper #_char-alphabetic?)
+		       'char-numeric?      (with-mock-wrapper #_char-numeric?)
+		       'char-whitespace?   (with-mock-wrapper #_char-whitespace?)
+		       'char=?             (with-mock-wrapper* #_char=?)
+		       'char<?             (with-mock-wrapper* #_char<?)
+		       'char>?             (with-mock-wrapper* #_char>?)
+		       'char<=?            (with-mock-wrapper* #_char<=?)
+		       'char>=?            (with-mock-wrapper* #_char>=?)
+		       'char-ci=?          (with-mock-wrapper* #_char-ci=?)
+		       'char-ci<?          (with-mock-wrapper* #_char-ci<?)
+		       'char-ci>?          (with-mock-wrapper* #_char-ci>?)
+		       'char-ci<=?         (with-mock-wrapper* #_char-ci<=?)
+		       'char-ci>=?         (with-mock-wrapper* #_char-ci>=?)
+		       'string             (with-mock-wrapper* #_string)
+		       'string-fill!       (with-mock-wrapper* #_string-fill!)
+		       'object->string     (with-mock-wrapper* #_object->string)
+		       'format             (with-mock-wrapper* #_format)
+		       'write              (with-mock-wrapper* #_write)
+		       'display            (with-mock-wrapper* #_display)
+		       'arity              (with-mock-wrapper #_arity)
+		       'make-string        (with-mock-wrapper* #_make-string)
+		       'char-position      (with-mock-wrapper* #_char-position)
+		       'write-char         (with-mock-wrapper* #_write-char)
+		       'string-set!        (with-mock-wrapper* #_string-set!)
+		       'copy               (with-mock-wrapper* #_copy)
+		       'char?              (with-mock-wrapper #_char?)
+		       'class-name         '*mock-char*
+		       'length             (lambda (obj) #f))))
+	  
+	  (define (mock-char c) 
+	    (if (and (char? c)
+		     (not (let? c)))
+		(immutable!
+		 (openlet
+		  (sublet (*mock-char* 'mock-char-class)
+		    'value c
+		    'mock-type 'mock-char?)))
+		(error 'wrong-type-arg "mock-char arg ~S is not a char" c)))
+	  
+	  (set! mock-char? (lambda (obj)
+			     (and (let? obj)
+				  (defined? 'mock-type obj #t)
+				  (eq? (obj 'mock-type) 'mock-char?))))
+	  
+	  (curlet)))
   
   ;; eventually I'll conjure up unichars like (define lambda (byte-vector #xce #xbb)) via mock-char,
   ;;   then combine those into unistring via mock-string
@@ -436,150 +436,149 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-number*
-	(let ((mock-number? #f))
+	(let* ((mock-number? #f)
+	       (mock-number-class
+		(inlet 
+		 'equivalent?      (with-mock-wrapper* #_equivalent?)
+		 'arity            (with-mock-wrapper #_arity)
+		 'real-part        (with-mock-wrapper #_real-part)
+		 'imag-part        (with-mock-wrapper #_imag-part)
+		 'numerator        (with-mock-wrapper #_numerator)
+		 'denominator      (with-mock-wrapper #_denominator)
+		 'even?            (with-mock-wrapper #_even?)
+		 'odd?             (with-mock-wrapper #_odd?)
+		 'zero?            (with-mock-wrapper #_zero?)
+		 'positive?        (with-mock-wrapper #_positive?)
+		 'negative?        (with-mock-wrapper #_negative?)
+		 'infinite?        (with-mock-wrapper #_infinite?)
+		 'nan?             (with-mock-wrapper #_nan?)
+		 'append           (with-mock-wrapper* #_append)
+		 'magnitude        (with-mock-wrapper #_magnitude)
+		 'angle            (with-mock-wrapper #_angle)
+		 'rationalize      (with-mock-wrapper* #_rationalize)
+		 'abs              (with-mock-wrapper #_abs)
+		 'exp              (with-mock-wrapper #_exp)
+		 'log              (with-mock-wrapper* #_log)
+		 'sin              (with-mock-wrapper #_sin)
+		 'cos              (with-mock-wrapper #_cos)
+		 'tan              (with-mock-wrapper #_tan)
+		 'asin             (with-mock-wrapper #_asin)
+		 'acos             (with-mock-wrapper #_acos)
+		 'atan             (with-mock-wrapper* #_atan)
+		 'sinh             (with-mock-wrapper #_sinh)
+		 'cosh             (with-mock-wrapper #_cosh)
+		 'tanh             (with-mock-wrapper #_tanh)
+		 'asinh            (with-mock-wrapper #_asinh)
+		 'acosh            (with-mock-wrapper #_acosh)
+		 'atanh            (with-mock-wrapper #_atanh)
+		 'sqrt             (with-mock-wrapper #_sqrt)
+		 'expt             (with-mock-wrapper* #_expt)
+		 'floor            (with-mock-wrapper #_floor)
+		 'ceiling          (with-mock-wrapper #_ceiling)
+		 'truncate         (with-mock-wrapper #_truncate)
+		 'round            (with-mock-wrapper #_round)
+		 'integer->char    (with-mock-wrapper #_integer->char)
+		 'inexact->exact   (with-mock-wrapper #_inexact->exact)
+		 'exact->inexact   (with-mock-wrapper #_exact->inexact)
+		 'integer-length   (with-mock-wrapper #_integer-length)
+		 'integer-decode-float (with-mock-wrapper #_integer-decode-float)
+		 'number?          (with-mock-wrapper #_number?)
+		 'integer?         (with-mock-wrapper #_integer?)
+		 'real?            (with-mock-wrapper #_real?)
+		 'complex?         (with-mock-wrapper #_complex?)
+		 'rational?        (with-mock-wrapper #_rational?)
+		 'exact?           (with-mock-wrapper #_exact?)
+		 'inexact?         (with-mock-wrapper #_inexact?)
+		 'lognot           (with-mock-wrapper #_lognot)
+		 'logior           (with-mock-wrapper* #_logior)
+		 'logxor           (with-mock-wrapper* #_logxor)
+		 'logand           (with-mock-wrapper* #_logand)
+		 'number->string   (with-mock-wrapper* #_number->string)
+		 'lcm              (with-mock-wrapper* #_lcm)
+		 'gcd              (with-mock-wrapper* #_gcd)
+		 '+                (with-mock-wrapper* #_+)
+		 '-                (with-mock-wrapper* #_-)
+		 '*                (with-mock-wrapper* #_*)
+		 '/                (with-mock-wrapper* #_/)
+		 'max              (with-mock-wrapper* #_max)
+		 'min              (with-mock-wrapper* #_min)
+		 '=                (with-mock-wrapper* #_=)
+		 '<                (with-mock-wrapper* #_<)
+		 '>                (with-mock-wrapper* #_>)
+		 '<=               (with-mock-wrapper* #_<=)
+		 '>=               (with-mock-wrapper* #_>=)
+		 
+		 'make-polar       (if (provided? 'pure-s7)
+				       (lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
+				       (lambda args (apply #_make-polar (map ->value args))))
+		 'make-rectangular (with-mock-wrapper* #_complex)
+		 'complex          (with-mock-wrapper* #_complex)
+		 'random-state     (with-mock-wrapper* #_random-state)
+		 'ash              (with-mock-wrapper* #_ash)
+		 'logbit?          (with-mock-wrapper* #_logbit?)
+		 'quotient         (with-mock-wrapper* #_quotient)
+		 'remainder        (with-mock-wrapper* #_remainder)
+		 'modulo           (with-mock-wrapper* #_modulo)
+		 'random           (with-mock-wrapper* #_random)
+		 'write-byte       (with-mock-wrapper* #_write-byte)
+		 'make-list        (with-mock-wrapper* #_make-list)
+		 'make-vector      (with-mock-wrapper* #_make-vector)
+		 'make-float-vector (with-mock-wrapper* #_make-float-vector)
+		 'make-int-vector  (with-mock-wrapper* #_make-int-vector)
+		 'make-byte-vector  (with-mock-wrapper* #_make-byte-vector)
+		 'make-hash-table  (with-mock-wrapper* #_make-hash-table)
+		 'object->string   (with-mock-wrapper* #_object->string)
+		 'format           (with-mock-wrapper* #_format)
+		 'write            (with-mock-wrapper* #_write)
+		 'display          (with-mock-wrapper* #_display)
+		 'string-fill!     (with-mock-wrapper* #_string-fill!)
+		 'copy             (with-mock-wrapper* #_copy)
+		 'vector->list     (with-mock-wrapper* #_vector->list)
+		 'string->list     (with-mock-wrapper* #_string->list)
+		 'substring        (with-mock-wrapper* #_substring)
+		 'vector-fill!     (with-mock-wrapper* #_vector-fill!)
+		 'make-string      (with-mock-wrapper* #_make-string)
+		 'string-ref       (with-mock-wrapper* #_string-ref)
+		 'string-set!      (with-mock-wrapper* #_string-set!)
+		 'string->number   (with-mock-wrapper* #_string->number)
+		 'list-ref         (with-mock-wrapper* #_list-ref)
+		 'list-set!        (with-mock-wrapper* #_list-set!)
+		 'list-tail        (with-mock-wrapper* #_list-tail)
+		 'vector-ref       (with-mock-wrapper* #_vector-ref)
+		 'float-vector-ref (with-mock-wrapper* #_float-vector-ref)
+		 'int-vector-ref   (with-mock-wrapper* #_int-vector-ref)
+		 'byte-vector-ref  (with-mock-wrapper* #_byte-vector-ref)
+		 'vector-set!      (with-mock-wrapper* #_vector-set!)
+		 'float-vector-set! (with-mock-wrapper* #_float-vector-set!)
+		 'int-vector-set!  (with-mock-wrapper* #_int-vector-set!)
+		 'byte-vector-set! (with-mock-wrapper* #_byte-vector-set!)
+		 'float-vector     (with-mock-wrapper* #_float-vector)
+		 'int-vector       (with-mock-wrapper* #_int-vector)
+		 'byte-vector      (with-mock-wrapper* #_byte-vector)
+		 'subvector        (with-mock-wrapper* #_subvector)
+		 'read-string      (with-mock-wrapper* #_read-string)
+		 'length           (with-mock-wrapper #_length)
+		 'number?          (with-mock-wrapper #_number?)
+		 'class-name       '*mock-number*)))
 	  
-	  (let ((mock-number-class
-		 (inlet 
-		  'equivalent?      (with-mock-wrapper* #_equivalent?)
-		  'arity            (with-mock-wrapper #_arity)
-		  'real-part        (with-mock-wrapper #_real-part)
-		  'imag-part        (with-mock-wrapper #_imag-part)
-		  'numerator        (with-mock-wrapper #_numerator)
-		  'denominator      (with-mock-wrapper #_denominator)
-		  'even?            (with-mock-wrapper #_even?)
-		  'odd?             (with-mock-wrapper #_odd?)
-		  'zero?            (with-mock-wrapper #_zero?)
-		  'positive?        (with-mock-wrapper #_positive?)
-		  'negative?        (with-mock-wrapper #_negative?)
-		  'infinite?        (with-mock-wrapper #_infinite?)
-		  'nan?             (with-mock-wrapper #_nan?)
-		  'append           (with-mock-wrapper* #_append)
-		  'magnitude        (with-mock-wrapper #_magnitude)
-		  'angle            (with-mock-wrapper #_angle)
-		  'rationalize      (with-mock-wrapper* #_rationalize)
-		  'abs              (with-mock-wrapper #_abs)
-		  'exp              (with-mock-wrapper #_exp)
-		  'log              (with-mock-wrapper* #_log)
-		  'sin              (with-mock-wrapper #_sin)
-		  'cos              (with-mock-wrapper #_cos)
-		  'tan              (with-mock-wrapper #_tan)
-		  'asin             (with-mock-wrapper #_asin)
-		  'acos             (with-mock-wrapper #_acos)
-		  'atan             (with-mock-wrapper* #_atan)
-		  'sinh             (with-mock-wrapper #_sinh)
-		  'cosh             (with-mock-wrapper #_cosh)
-		  'tanh             (with-mock-wrapper #_tanh)
-		  'asinh            (with-mock-wrapper #_asinh)
-		  'acosh            (with-mock-wrapper #_acosh)
-		  'atanh            (with-mock-wrapper #_atanh)
-		  'sqrt             (with-mock-wrapper #_sqrt)
-		  'expt             (with-mock-wrapper* #_expt)
-		  'floor            (with-mock-wrapper #_floor)
-		  'ceiling          (with-mock-wrapper #_ceiling)
-		  'truncate         (with-mock-wrapper #_truncate)
-		  'round            (with-mock-wrapper #_round)
-		  'integer->char    (with-mock-wrapper #_integer->char)
-		  'inexact->exact   (with-mock-wrapper #_inexact->exact)
-		  'exact->inexact   (with-mock-wrapper #_exact->inexact)
-		  'integer-length   (with-mock-wrapper #_integer-length)
-		  'integer-decode-float (with-mock-wrapper #_integer-decode-float)
-		  'number?          (with-mock-wrapper #_number?)
-		  'integer?         (with-mock-wrapper #_integer?)
-		  'real?            (with-mock-wrapper #_real?)
-		  'complex?         (with-mock-wrapper #_complex?)
-		  'rational?        (with-mock-wrapper #_rational?)
-		  'exact?           (with-mock-wrapper #_exact?)
-		  'inexact?         (with-mock-wrapper #_inexact?)
-		  'lognot           (with-mock-wrapper #_lognot)
-		  'logior           (with-mock-wrapper* #_logior)
-		  'logxor           (with-mock-wrapper* #_logxor)
-		  'logand           (with-mock-wrapper* #_logand)
-		  'number->string   (with-mock-wrapper* #_number->string)
-		  'lcm              (with-mock-wrapper* #_lcm)
-		  'gcd              (with-mock-wrapper* #_gcd)
-		  '+                (with-mock-wrapper* #_+)
-		  '-                (with-mock-wrapper* #_-)
-		  '*                (with-mock-wrapper* #_*)
-		  '/                (with-mock-wrapper* #_/)
-		  'max              (with-mock-wrapper* #_max)
-		  'min              (with-mock-wrapper* #_min)
-		  '=                (with-mock-wrapper* #_=)
-		  '<                (with-mock-wrapper* #_<)
-		  '>                (with-mock-wrapper* #_>)
-		  '<=               (with-mock-wrapper* #_<=)
-		  '>=               (with-mock-wrapper* #_>=)
-
-		  'make-polar       (if (provided? 'pure-s7)
-					(lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
-					(lambda args (apply #_make-polar (map ->value args))))
-		  'make-rectangular (with-mock-wrapper* #_complex)
-		  'complex          (with-mock-wrapper* #_complex)
-		  'random-state     (with-mock-wrapper* #_random-state)
-		  'ash              (with-mock-wrapper* #_ash)
-		  'logbit?          (with-mock-wrapper* #_logbit?)
-		  'quotient         (with-mock-wrapper* #_quotient)
-		  'remainder        (with-mock-wrapper* #_remainder)
-		  'modulo           (with-mock-wrapper* #_modulo)
-		  'random           (with-mock-wrapper* #_random)
-		  'write-byte       (with-mock-wrapper* #_write-byte)
-		  'make-list        (with-mock-wrapper* #_make-list)
-		  'make-vector      (with-mock-wrapper* #_make-vector)
-		  'make-float-vector (with-mock-wrapper* #_make-float-vector)
-		  'make-int-vector  (with-mock-wrapper* #_make-int-vector)
-		  'make-byte-vector  (with-mock-wrapper* #_make-byte-vector)
-		  'make-hash-table  (with-mock-wrapper* #_make-hash-table)
-		  'object->string   (with-mock-wrapper* #_object->string)
-		  'format           (with-mock-wrapper* #_format)
-		  'write            (with-mock-wrapper* #_write)
-		  'display          (with-mock-wrapper* #_display)
-		  'string-fill!     (with-mock-wrapper* #_string-fill!)
-		  'copy             (with-mock-wrapper* #_copy)
-		  'vector->list     (with-mock-wrapper* #_vector->list)
-		  'string->list     (with-mock-wrapper* #_string->list)
-		  'substring        (with-mock-wrapper* #_substring)
-		  'vector-fill!     (with-mock-wrapper* #_vector-fill!)
-		  'make-string      (with-mock-wrapper* #_make-string)
-		  'string-ref       (with-mock-wrapper* #_string-ref)
-		  'string-set!      (with-mock-wrapper* #_string-set!)
-		  'string->number   (with-mock-wrapper* #_string->number)
-		  'list-ref         (with-mock-wrapper* #_list-ref)
-		  'list-set!        (with-mock-wrapper* #_list-set!)
-		  'list-tail        (with-mock-wrapper* #_list-tail)
-		  'vector-ref       (with-mock-wrapper* #_vector-ref)
-		  'float-vector-ref (with-mock-wrapper* #_float-vector-ref)
-		  'int-vector-ref   (with-mock-wrapper* #_int-vector-ref)
-		  'byte-vector-ref  (with-mock-wrapper* #_byte-vector-ref)
-		  'vector-set!      (with-mock-wrapper* #_vector-set!)
-		  'float-vector-set! (with-mock-wrapper* #_float-vector-set!)
-		  'int-vector-set!  (with-mock-wrapper* #_int-vector-set!)
-		  'byte-vector-set! (with-mock-wrapper* #_byte-vector-set!)
-		  'float-vector     (with-mock-wrapper* #_float-vector)
-		  'int-vector       (with-mock-wrapper* #_int-vector)
-		  'byte-vector      (with-mock-wrapper* #_byte-vector)
-		  'subvector        (with-mock-wrapper* #_subvector)
-		  'read-string      (with-mock-wrapper* #_read-string)
-		  'length           (with-mock-wrapper #_length)
-		  'number?          (with-mock-wrapper #_number?)
-		  'class-name       '*mock-number*)))
-	    
-	    (define (mock-number x)
-	      (if (and (number? x)
-		       (not (let? x)))
-		  (immutable!
-		   (openlet
-		    (sublet (*mock-number* 'mock-number-class)
-		      'value x
-		      'mock-type 'mock-number?)))
-		  (error 'wrong-type-arg "mock-number ~S is not a number" x)))
-	    
-	    (set! mock-number? (lambda (obj)
-				 (and (let? obj)
-				      (defined? 'mock-type obj #t)
-				      (eq? (obj 'mock-type) 'mock-number?))))
-	    (curlet))))
+	  (define (mock-number x)
+	    (if (and (number? x)
+		     (not (let? x)))
+		(immutable!
+		 (openlet
+		  (sublet (*mock-number* 'mock-number-class)
+		    'value x
+		    'mock-type 'mock-number?)))
+		(error 'wrong-type-arg "mock-number ~S is not a number" x)))
+	  
+	  (set! mock-number? (lambda (obj)
+			       (and (let? obj)
+				    (defined? 'mock-type obj #t)
+				    (eq? (obj 'mock-type) 'mock-number?))))
+	  (curlet)))
 
 #|
-  ;; fuzzy number
+;; fuzzy number
   
   (define fuzzy-number
     (let ((fuzz (lambda (fx)
@@ -700,107 +699,107 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-pair*
-	(let ((mock-pair? #f))
-	  (let ((mock-pair-class
-		 (inlet 'equivalent?      (with-mock-wrapper* #_equivalent?)
-			'pair-line-number (with-mock-wrapper #_pair-line-number)
-			'list->string     (with-mock-wrapper #_list->string)
-			'object->string   (with-mock-wrapper* #_object->string)
-			'format           (with-mock-wrapper* #_format)
-			'write            (with-mock-wrapper* #_write)
-			'display          (with-mock-wrapper* #_display)
-			'list?            (with-mock-wrapper #_list?)
-			'car              (with-mock-wrapper #_car)
-			'cdr              (with-mock-wrapper #_cdr)
-			'set-car!         (with-mock-wrapper* #_set-car!)
-			'set-cdr!         (with-mock-wrapper* #_set-cdr!)
-			'caar             (with-mock-wrapper #_caar)
-			'cadr             (with-mock-wrapper #_cadr)
-			'cdar             (with-mock-wrapper #_cdar)
-			'cddr             (with-mock-wrapper #_cddr)
-			'caaar            (with-mock-wrapper #_caaar)
-			'caadr            (with-mock-wrapper #_caadr)
-			'cadar            (with-mock-wrapper #_cadar)
-			'cdaar            (with-mock-wrapper #_cdaar)
-			'caddr            (with-mock-wrapper #_caddr)
-			'cdddr            (with-mock-wrapper #_cdddr)
-			'cdadr            (with-mock-wrapper #_cdadr)
-			'cddar            (with-mock-wrapper #_cddar)
-			'caaaar           (with-mock-wrapper #_caaaar)
-			'caaadr           (with-mock-wrapper #_caaadr)
-			'caadar           (with-mock-wrapper #_caadar)
-			'cadaar           (with-mock-wrapper #_cadaar)
-			'caaddr           (with-mock-wrapper #_caaddr)
-			'cadddr           (with-mock-wrapper #_cadddr)
-			'cadadr           (with-mock-wrapper #_cadadr)
-			'caddar           (with-mock-wrapper #_caddar)
-			'cdaaar           (with-mock-wrapper #_cdaaar)
-			'cdaadr           (with-mock-wrapper #_cdaadr)
-			'cdadar           (with-mock-wrapper #_cdadar)
-			'cddaar           (with-mock-wrapper #_cddaar)
-			'cdaddr           (with-mock-wrapper #_cdaddr)
-			'cddddr           (with-mock-wrapper #_cddddr)
-			'cddadr           (with-mock-wrapper #_cddadr)
-			'cdddar           (with-mock-wrapper #_cdddar)
-			'assoc            (with-mock-wrapper* #_assoc)
-			'assq             (with-mock-wrapper* #_assq)
-			'assv             (with-mock-wrapper* #_assv)
-			'member           (with-mock-wrapper* #_member)
-			'memq             (with-mock-wrapper* #_memq)
-			'memv             (with-mock-wrapper* #_memv)
-
-			'let-ref-fallback (lambda (obj ind) 
-					    (if (eq? ind 'value)
-						#<undefined>
-						(let ((val (begin 
-							     (coverlet obj)
-							     (#_list-ref (obj 'value) ind))))
-						  (openlet obj) 
-						  val)))
-			'let-set-fallback (lambda (obj ind val) 
-					    (if (eq? ind 'value)
-						#<undefined>
-						(let ((val (begin 
-							     (coverlet obj)
-							     (#_list-set! (obj 'value) ind val))))
-						  (openlet obj)
-						  val)))
-
-			'reverse!         (lambda (obj) 
-					    (if (mock-pair? obj)
-						(set! (obj 'value) (#_reverse (obj 'value)))
-						(#_reverse! obj)))
-			
-			'list-tail        (with-mock-wrapper* #_list-tail)
-			'sort!            (with-mock-wrapper* #_sort!)
-			'reverse          (with-mock-wrapper #_reverse)
-			'arity            (with-mock-wrapper #_arity)
-			'make-iterator    (with-mock-wrapper #_make-iterator)
-			'eval             (with-mock-wrapper #_eval)
-			'list->vector     (with-mock-wrapper #_list->vector)
-			'fill!            (with-mock-wrapper* #_fill!)
-			'copy             (with-mock-wrapper* #_copy)
-			'subvector        (with-mock-wrapper* #_subvector)
-			'make-vector      (with-mock-wrapper* #_make-vector)
-			'list-ref         (with-mock-wrapper* #_list-ref)
-			'list-set!        (with-mock-wrapper* #_list-set!)
-			'pair?            (with-mock-wrapper #_pair?)
-			'length           (with-mock-wrapper #_length)
-			'append           (with-mock-wrapper* #_append)
-			'class-name       '*mock-pair*)))
-	    
-	    (define (mock-pair . args)
-	      (openlet
-	       (sublet (*mock-pair* 'mock-pair-class)
-		 'value (copy args)
-		 'mock-type 'mock-pair?)))
-	    
-	    (set! mock-pair? (lambda (obj)
-			       (and (let? obj)
-				    (defined? 'mock-type obj #t)
-				    (eq? (obj 'mock-type) 'mock-pair?))))
-	    
-	    (curlet))))
+	(let* ((mock-pair? #f)
+	       (mock-pair-class
+		(inlet 'equivalent?      (with-mock-wrapper* #_equivalent?)
+		       'pair-line-number (with-mock-wrapper #_pair-line-number)
+		       'list->string     (with-mock-wrapper #_list->string)
+		       'object->string   (with-mock-wrapper* #_object->string)
+		       'format           (with-mock-wrapper* #_format)
+		       'write            (with-mock-wrapper* #_write)
+		       'display          (with-mock-wrapper* #_display)
+		       'list?            (with-mock-wrapper #_list?)
+		       'car              (with-mock-wrapper #_car)
+		       'cdr              (with-mock-wrapper #_cdr)
+		       'set-car!         (with-mock-wrapper* #_set-car!)
+		       'set-cdr!         (with-mock-wrapper* #_set-cdr!)
+		       'caar             (with-mock-wrapper #_caar)
+		       'cadr             (with-mock-wrapper #_cadr)
+		       'cdar             (with-mock-wrapper #_cdar)
+		       'cddr             (with-mock-wrapper #_cddr)
+		       'caaar            (with-mock-wrapper #_caaar)
+		       'caadr            (with-mock-wrapper #_caadr)
+		       'cadar            (with-mock-wrapper #_cadar)
+		       'cdaar            (with-mock-wrapper #_cdaar)
+		       'caddr            (with-mock-wrapper #_caddr)
+		       'cdddr            (with-mock-wrapper #_cdddr)
+		       'cdadr            (with-mock-wrapper #_cdadr)
+		       'cddar            (with-mock-wrapper #_cddar)
+		       'caaaar           (with-mock-wrapper #_caaaar)
+		       'caaadr           (with-mock-wrapper #_caaadr)
+		       'caadar           (with-mock-wrapper #_caadar)
+		       'cadaar           (with-mock-wrapper #_cadaar)
+		       'caaddr           (with-mock-wrapper #_caaddr)
+		       'cadddr           (with-mock-wrapper #_cadddr)
+		       'cadadr           (with-mock-wrapper #_cadadr)
+		       'caddar           (with-mock-wrapper #_caddar)
+		       'cdaaar           (with-mock-wrapper #_cdaaar)
+		       'cdaadr           (with-mock-wrapper #_cdaadr)
+		       'cdadar           (with-mock-wrapper #_cdadar)
+		       'cddaar           (with-mock-wrapper #_cddaar)
+		       'cdaddr           (with-mock-wrapper #_cdaddr)
+		       'cddddr           (with-mock-wrapper #_cddddr)
+		       'cddadr           (with-mock-wrapper #_cddadr)
+		       'cdddar           (with-mock-wrapper #_cdddar)
+		       'assoc            (with-mock-wrapper* #_assoc)
+		       'assq             (with-mock-wrapper* #_assq)
+		       'assv             (with-mock-wrapper* #_assv)
+		       'member           (with-mock-wrapper* #_member)
+		       'memq             (with-mock-wrapper* #_memq)
+		       'memv             (with-mock-wrapper* #_memv)
+		       
+		       'let-ref-fallback (lambda (obj ind) 
+					   (if (eq? ind 'value)
+					       #<undefined>
+					       (let ((val (begin 
+							    (coverlet obj)
+							    (#_list-ref (obj 'value) ind))))
+						 (openlet obj) 
+						 val)))
+		       'let-set-fallback (lambda (obj ind val) 
+					   (if (eq? ind 'value)
+					       #<undefined>
+					       (let ((val (begin 
+							    (coverlet obj)
+							    (#_list-set! (obj 'value) ind val))))
+						 (openlet obj)
+						 val)))
+		       
+		       'reverse!         (lambda (obj) 
+					   (if (mock-pair? obj)
+					       (set! (obj 'value) (#_reverse (obj 'value)))
+					       (#_reverse! obj)))
+		       
+		       'list-tail        (with-mock-wrapper* #_list-tail)
+		       'sort!            (with-mock-wrapper* #_sort!)
+		       'reverse          (with-mock-wrapper #_reverse)
+		       'arity            (with-mock-wrapper #_arity)
+		       'make-iterator    (with-mock-wrapper #_make-iterator)
+		       'eval             (with-mock-wrapper #_eval)
+		       'list->vector     (with-mock-wrapper #_list->vector)
+		       'fill!            (with-mock-wrapper* #_fill!)
+		       'copy             (with-mock-wrapper* #_copy)
+		       'subvector        (with-mock-wrapper* #_subvector)
+		       'make-vector      (with-mock-wrapper* #_make-vector)
+		       'list-ref         (with-mock-wrapper* #_list-ref)
+		       'list-set!        (with-mock-wrapper* #_list-set!)
+		       'pair?            (with-mock-wrapper #_pair?)
+		       'length           (with-mock-wrapper #_length)
+		       'append           (with-mock-wrapper* #_append)
+		       'class-name       '*mock-pair*)))
+	  
+	  (define (mock-pair . args)
+	    (openlet
+	     (sublet (*mock-pair* 'mock-pair-class)
+	       'value (copy args)
+	       'mock-type 'mock-pair?)))
+	  
+	  (set! mock-pair? (lambda (obj)
+			     (and (let? obj)
+				  (defined? 'mock-type obj #t)
+				  (eq? (obj 'mock-type) 'mock-pair?))))
+	  
+	  (curlet)))
 
 #|  
   (let ((immutable-list-class 
@@ -837,194 +836,194 @@
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-symbol*
-	(let ((mock-symbol? #f))
-	  (let ((mock-symbol-class
-		 (inlet 'equivalent?           (with-mock-wrapper* #_equivalent?)
-			'gensym?               (with-mock-wrapper #_gensym?)
-			'append                (with-mock-wrapper* #_append)
-			'symbol->string        (with-mock-wrapper #_symbol->string)
-			'symbol->value         (with-mock-wrapper* #_symbol->value)
-			'symbol->dynamic-value (with-mock-wrapper #_symbol->dynamic-value)
-			'setter                (with-mock-wrapper #_setter)
-			'provided?             (with-mock-wrapper #_provided?)
-			'provide               (with-mock-wrapper #_provide)
-			'defined?              (with-mock-wrapper #_defined?)
-			'symbol->keyword       (with-mock-wrapper #_symbol->keyword)
-			'keyword?              (with-mock-wrapper #_keyword?)
-			'keyword->symbol       (with-mock-wrapper #_keyword->symbol)
-			'object->string        (with-mock-wrapper* #_object->string)
-			'format                (with-mock-wrapper* #_format)
-			'write                 (with-mock-wrapper* #_write)
-			'display               (with-mock-wrapper* #_display)
-			'symbol?               (with-mock-wrapper #_symbol?)
-			'class-name            '*mock-symbol*
-			)))
-	    
-	    (define (mock-symbol s)
-	      (if (and (symbol? s)
-		       (not (let? s)))
-		  (immutable!
-		   (openlet
-		    (sublet (*mock-symbol* 'mock-symbol-class)
-		      'value s
-		      'mock-type 'mock-symbol?)))
-		  (error 'wrong-type-arg "mock-symbol ~S is not a symbol" s)))
-	    
-	    (set! mock-symbol? (lambda (obj)
-				 (and (let? obj)
-				      (defined? 'mock-type obj #t)
-				      (eq? (obj 'mock-type) 'mock-symbol?))))
-	    
-	    (curlet))))
+	(let* ((mock-symbol? #f)
+	       (mock-symbol-class
+		(inlet 'equivalent?           (with-mock-wrapper* #_equivalent?)
+		       'gensym?               (with-mock-wrapper #_gensym?)
+		       'append                (with-mock-wrapper* #_append)
+		       'symbol->string        (with-mock-wrapper #_symbol->string)
+		       'symbol->value         (with-mock-wrapper* #_symbol->value)
+		       'symbol->dynamic-value (with-mock-wrapper #_symbol->dynamic-value)
+		       'setter                (with-mock-wrapper #_setter)
+		       'provided?             (with-mock-wrapper #_provided?)
+		       'provide               (with-mock-wrapper #_provide)
+		       'defined?              (with-mock-wrapper #_defined?)
+		       'symbol->keyword       (with-mock-wrapper #_symbol->keyword)
+		       'keyword?              (with-mock-wrapper #_keyword?)
+		       'keyword->symbol       (with-mock-wrapper #_keyword->symbol)
+		       'object->string        (with-mock-wrapper* #_object->string)
+		       'format                (with-mock-wrapper* #_format)
+		       'write                 (with-mock-wrapper* #_write)
+		       'display               (with-mock-wrapper* #_display)
+		       'symbol?               (with-mock-wrapper #_symbol?)
+		       'class-name            '*mock-symbol*
+		       )))
+	  
+	  (define (mock-symbol s)
+	    (if (and (symbol? s)
+		     (not (let? s)))
+		(immutable!
+		 (openlet
+		  (sublet (*mock-symbol* 'mock-symbol-class)
+		    'value s
+		    'mock-type 'mock-symbol?)))
+		(error 'wrong-type-arg "mock-symbol ~S is not a symbol" s)))
+	  
+	  (set! mock-symbol? (lambda (obj)
+			       (and (let? obj)
+				    (defined? 'mock-type obj #t)
+				    (eq? (obj 'mock-type) 'mock-symbol?))))
+	  
+	  (curlet)))
   
   
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-c-pointer*
-	(let ((mock-c-pointer? #f))
-	  (let ((mock-c-pointer-class
-		 (inlet 'c-pointer?      (with-mock-wrapper #_c-pointer?)
-			'c-pointer-type  (with-mock-wrapper #_c-pointer-type)
-			'c-pointer-info  (with-mock-wrapper #_c-pointer-info)
-			'c-pointer-weak1 (with-mock-wrapper #_c-pointer-weak1)
-			'c-pointer-weak2 (with-mock-wrapper #_c-pointer-weak2)
-			'c-pointer->list (with-mock-wrapper #_c-pointer->list)
-			'object->string  (with-mock-wrapper* #_object->string)
-			'format          (with-mock-wrapper* #_format)
-			'write           (with-mock-wrapper* #_write)
-			'display         (with-mock-wrapper* #_display)
-			)))
-	    
-	    (define* (mock-c-pointer (int 0) type info weak1 weak2)
-	      (immutable!
-	       (openlet 
-		(sublet (*mock-c-pointer* 'mock-c-pointer-class)
-		  'value (#_c-pointer (->value int) (->value type) (->value info) (->value weak1) (->value weak2))
-		  'mock-type 'mock-c-pointer?))))
-	    
-	    (set! mock-c-pointer? 
-		  (lambda (obj)
-		    (and (let? obj)
-			 (defined? 'mock-type obj #t)
-			 (eq? (obj 'mock-type) 'mock-c-pointer?))))
-	    
-	    (curlet))))
+	(let* ((mock-c-pointer? #f)
+	       (mock-c-pointer-class
+		(inlet 'c-pointer?      (with-mock-wrapper #_c-pointer?)
+		       'c-pointer-type  (with-mock-wrapper #_c-pointer-type)
+		       'c-pointer-info  (with-mock-wrapper #_c-pointer-info)
+		       'c-pointer-weak1 (with-mock-wrapper #_c-pointer-weak1)
+		       'c-pointer-weak2 (with-mock-wrapper #_c-pointer-weak2)
+		       'c-pointer->list (with-mock-wrapper #_c-pointer->list)
+		       'object->string  (with-mock-wrapper* #_object->string)
+		       'format          (with-mock-wrapper* #_format)
+		       'write           (with-mock-wrapper* #_write)
+		       'display         (with-mock-wrapper* #_display)
+		       )))
+	  
+	  (define* (mock-c-pointer (int 0) type info weak1 weak2)
+	    (immutable!
+	     (openlet 
+	      (sublet (*mock-c-pointer* 'mock-c-pointer-class)
+		'value (#_c-pointer (->value int) (->value type) (->value info) (->value weak1) (->value weak2))
+		'mock-type 'mock-c-pointer?))))
+	  
+	  (set! mock-c-pointer? 
+		(lambda (obj)
+		  (and (let? obj)
+		       (defined? 'mock-type obj #t)
+		       (eq? (obj 'mock-type) 'mock-c-pointer?))))
+	  
+	  (curlet)))
   
   
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-random-state*
-	(let ((mock-random-state? #f))
-	  (let ((mock-random-state-class
-		 (inlet 'random-state?      (with-mock-wrapper #_random-state?)
-			'random-state->list (with-mock-wrapper #_random-state->list)
-			'random             (with-mock-wrapper* #_random)
-			'object->string     (with-mock-wrapper* #_object->string)
-			'format             (with-mock-wrapper* #_format)
-			'write              (with-mock-wrapper* #_write)
-			'display            (with-mock-wrapper* #_display)
-			)))
-	    
-	    (define* (mock-random-state seed (carry 1675393560))
-	      (immutable!
-	       (openlet 
-		(sublet (*mock-random-state* 'mock-random-state-class)
-		  'value (#_random-state seed carry)
-		  'mock-type 'mock-random-state?))))
-	    
-	    (set! mock-random-state? 
-		  (lambda (obj)
-		    (and (let? obj)
-			 (defined? 'mock-type obj #t)
-			 (eq? (obj 'mock-type) 'mock-random-state?))))
-	    
-	    (curlet))))
+	(let* ((mock-random-state? #f)
+	       (mock-random-state-class
+		(inlet 'random-state?      (with-mock-wrapper #_random-state?)
+		       'random-state->list (with-mock-wrapper #_random-state->list)
+		       'random             (with-mock-wrapper* #_random)
+		       'object->string     (with-mock-wrapper* #_object->string)
+		       'format             (with-mock-wrapper* #_format)
+		       'write              (with-mock-wrapper* #_write)
+		       'display            (with-mock-wrapper* #_display)
+		       )))
+	  
+	  (define* (mock-random-state seed (carry 1675393560))
+	    (immutable!
+	     (openlet 
+	      (sublet (*mock-random-state* 'mock-random-state-class)
+		'value (#_random-state seed carry)
+		'mock-type 'mock-random-state?))))
+	  
+	  (set! mock-random-state? 
+		(lambda (obj)
+		  (and (let? obj)
+		       (defined? 'mock-type obj #t)
+		       (eq? (obj 'mock-type) 'mock-random-state?))))
+	  
+	  (curlet)))
   
   
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-iterator*
-	(let ((mock-iterator? #f))
-	  (let ((mock-iterator-class
-		 (inlet 'iterator?         (with-mock-wrapper #_iterator?)
-			'iterate           (with-mock-wrapper #_iterate)
-			'iterator-at-end?  (with-mock-wrapper #_iterator-at-end?)
-			'iterator-sequence (with-mock-wrapper #_iterator-sequence)
-			'object->string    (with-mock-wrapper* #_object->string)
-			'format            (with-mock-wrapper* #_format)
-			'write             (with-mock-wrapper* #_write)
-			'display           (with-mock-wrapper* #_display)
-			)))
-	    
-	    (define (make-mock-iterator . args)
-	      (immutable!
-	       (openlet 
-		(sublet (*mock-iterator* 'mock-iterator-class)
-		  'value (apply #_make-iterator args)
-		  'mock-type 'mock-iterator?))))
-	    
-	    (set! mock-iterator? 
-		  (lambda (obj)
-		    (and (let? obj)
-			 (defined? 'mock-type obj #t)
-			 (eq? (obj 'mock-type) 'mock-iterator?))))
-	    
-	    (curlet))))
+	(let* ((mock-iterator? #f)
+	       (mock-iterator-class
+		(inlet 'iterator?         (with-mock-wrapper #_iterator?)
+		       'iterate           (with-mock-wrapper #_iterate)
+		       'iterator-at-end?  (with-mock-wrapper #_iterator-at-end?)
+		       'iterator-sequence (with-mock-wrapper #_iterator-sequence)
+		       'object->string    (with-mock-wrapper* #_object->string)
+		       'format            (with-mock-wrapper* #_format)
+		       'write             (with-mock-wrapper* #_write)
+		       'display           (with-mock-wrapper* #_display)
+		       )))
+	  
+	  (define (make-mock-iterator . args)
+	    (immutable!
+	     (openlet 
+	      (sublet (*mock-iterator* 'mock-iterator-class)
+		'value (apply #_make-iterator args)
+		'mock-type 'mock-iterator?))))
+	  
+	  (set! mock-iterator? 
+		(lambda (obj)
+		  (and (let? obj)
+		       (defined? 'mock-type obj #t)
+		       (eq? (obj 'mock-type) 'mock-iterator?))))
+	  
+	  (curlet)))
   
   
   ;; --------------------------------------------------------------------------------
   
   (set! *mock-port*
-	(let ((mock-port? #f))
-	  (let ((mock-port-class
-		 (inlet 'input-port?         (with-mock-wrapper #_input-port?)
-			'output-port?        (with-mock-wrapper #_output-port?)
-			'port-closed?        (with-mock-wrapper #_port-closed?)
-			'equivalent?         (with-mock-wrapper* #_equivalent?)
-			'append              (with-mock-wrapper* #_append)
-			'set-current-output-port (with-mock-wrapper #_set-current-output-port)
-			'set-current-input-port  (with-mock-wrapper #_set-current-input-port)
-			'set-current-error-port  (with-mock-wrapper #_set-current-error-port)
-			'close-input-port    (with-mock-wrapper #_close-input-port)
-			'close-output-port   (with-mock-wrapper #_close-output-port)
-			'flush-output-port   (with-mock-wrapper* #_flush-output-port)
-			'get-output-string   (with-mock-wrapper* #_get-output-string)
-			'newline             (with-mock-wrapper* #_newline)
-		        'read-char           (with-mock-wrapper* #_read-char)
-                        'peek-char           (with-mock-wrapper* #_peek-char)
-                        'read-byte           (with-mock-wrapper* #_read-byte)
-                        'read-line           (with-mock-wrapper* #_read-line)
-			'read                (with-mock-wrapper* #_read)
-			'char-ready?         (with-mock-wrapper* #_char-ready?)
-		        'port-line-number    (with-mock-wrapper* #_port-line-number)
-			'port-filename       (with-mock-wrapper* #_port-filename)
-			'object->string      (with-mock-wrapper* #_object->string)
-			'display             (with-mock-wrapper* #_display)
-			'write               (with-mock-wrapper* #_write)
-			'format              (with-mock-wrapper* #_format)
-			'write-char          (with-mock-wrapper* #_write-char)
-			'write-string        (with-mock-wrapper* #_write-string)
-			'write-byte          (with-mock-wrapper* #_write-byte)
-			'read-string         (with-mock-wrapper* #_read-string)
-			'class-name          '*mock-port*
-			)))
+	(let* ((mock-port? #f)
+	       (mock-port-class
+		(inlet 'input-port?         (with-mock-wrapper #_input-port?)
+		       'output-port?        (with-mock-wrapper #_output-port?)
+		       'port-closed?        (with-mock-wrapper #_port-closed?)
+		       'equivalent?         (with-mock-wrapper* #_equivalent?)
+		       'append              (with-mock-wrapper* #_append)
+		       'set-current-output-port (with-mock-wrapper #_set-current-output-port)
+		       'set-current-input-port  (with-mock-wrapper #_set-current-input-port)
+		       'set-current-error-port  (with-mock-wrapper #_set-current-error-port)
+		       'close-input-port    (with-mock-wrapper #_close-input-port)
+		       'close-output-port   (with-mock-wrapper #_close-output-port)
+		       'flush-output-port   (with-mock-wrapper* #_flush-output-port)
+		       'get-output-string   (with-mock-wrapper* #_get-output-string)
+		       'newline             (with-mock-wrapper* #_newline)
+		       'read-char           (with-mock-wrapper* #_read-char)
+		       'peek-char           (with-mock-wrapper* #_peek-char)
+		       'read-byte           (with-mock-wrapper* #_read-byte)
+		       'read-line           (with-mock-wrapper* #_read-line)
+		       'read                (with-mock-wrapper* #_read)
+		       'char-ready?         (with-mock-wrapper* #_char-ready?)
+		       'port-line-number    (with-mock-wrapper* #_port-line-number)
+		       'port-filename       (with-mock-wrapper* #_port-filename)
+		       'object->string      (with-mock-wrapper* #_object->string)
+		       'display             (with-mock-wrapper* #_display)
+		       'write               (with-mock-wrapper* #_write)
+		       'format              (with-mock-wrapper* #_format)
+		       'write-char          (with-mock-wrapper* #_write-char)
+		       'write-string        (with-mock-wrapper* #_write-string)
+		       'write-byte          (with-mock-wrapper* #_write-byte)
+		       'read-string         (with-mock-wrapper* #_read-string)
+		       'class-name          '*mock-port*
+		       )))
 	    
-	    (define (mock-port port)
-	      (if (and (or (input-port? port)
-			   (output-port? port))
-		       (not (let? port)))
-		  (openlet
-		   (sublet (*mock-port* 'mock-port-class)
-		     'value port
-		     'mock-type 'mock-port?))
-		  (error 'wrong-type-arg "mock-port ~S is not a port" port)))
-	    
-	    (set! mock-port? (lambda (obj)
-			       (and (let? obj)
-				    (defined? 'mock-type obj #t)
-				    (eq? (obj 'mock-type) 'mock-port?))))
-	    
-	    (curlet))))
+	  (define (mock-port port)
+	    (if (and (or (input-port? port)
+			 (output-port? port))
+		     (not (let? port)))
+		(openlet
+		 (sublet (*mock-port* 'mock-port-class)
+		   'value port
+		   'mock-type 'mock-port?))
+		(error 'wrong-type-arg "mock-port ~S is not a port" port)))
+	  
+	  (set! mock-port? (lambda (obj)
+			     (and (let? obj)
+				  (defined? 'mock-type obj #t)
+				  (eq? (obj 'mock-type) 'mock-port?))))
+	  
+	  (curlet)))
   
   ;; sublet of any of these needs to include the value field or a let-ref-fallback
 

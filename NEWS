@@ -1,8 +1,10 @@
-Snd 19.2:
+Snd 19.3:
 
-in s7, added (*s7* 'undefined-constant-warnings) to flag typos like #ff or #_input_port?
-       added coverlets and openlets (an experiment)
+clm: Anders added support for 64-bit lispworks.
 
-checked: sbcl 1.5.0
+s7: port-position and port-file (for libc.scm).
+    deleted Display and sequence->string (stuff.scm)
 
-Thanks!: Kjetil
+checked: sbcl 1.5.1
+
+Thanks!: Daniel Hensel, Anders Vinjar.

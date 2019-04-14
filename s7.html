@@ -4024,7 +4024,8 @@ Other functions:
 <li>read-line: line-at-a-time reads, optional third argument #t to include the newline
 <li>read-string (r7rs)
 <li>current-error-port, set-current-error-port
-<li><em class=def id="portfilename">port-filename</em> and <em class=def id="portlinenumber">port-line-number</em> (input ports)
+<li><em class=def id="portfilename">port-filename</em> and 
+    <em class=def id="portlinenumber">port-line-number</em> (input ports)
 <li><em class=def id="portposition">port-position</em> (input port, settable)
 <li><em class=def id="portfile">port-file</em> 
 </ul>
@@ -8962,6 +8963,7 @@ variables at the start of lint.scm to control additional output:
 *report-boolean-functions-misbehaving*
 *report-repeated-code-fragments*
 *report-quasiquote-rewrites*
+*report-combinable-lets*
 </pre>
 
 <p>See lint.scm for more about these switches.  You can also extend lint by adding your own code,

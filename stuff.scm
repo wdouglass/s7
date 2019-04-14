@@ -146,7 +146,7 @@
   (let ((e expr)
 	(bp type))
     (if (and (procedure? bp)
-	     (pair? (signature bp))
+	     (signature bp)
 	     (eq? 'boolean? (car (signature bp))))
 	(if (type e)
 	    e
@@ -348,8 +348,7 @@
 |#
 
 (define-macro (and-let* vars . body)      ; bind vars, if any is #f stop, else evaluate body with those bindings
-  (if (or (pair? vars)
-	  (null? vars))
+  (if (list? vars)
       `(let () (and ,@(map (lambda (v) (cons 'define v)) vars) (begin ,@body)))
       (error 'wrong-type-arg "and-let* var list is ~S" vars)))
 

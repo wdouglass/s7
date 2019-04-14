@@ -236,17 +236,17 @@
 		 (if (or (alphanumeric? c)
 			 (memv c '(#\? #\!)))
 		     (begin
-		       (set! (string-ref rb-name j) c)
+		       (string-set! rb-name j c)
 		       (set! i (+ i 1))
 		       (set! j (+ j 1)))
 		     (if (and (char=? c #\-)
 			      (char=? (string-ref scheme-name (+ i 1)) #\>))
 			 (begin
-			   (set! (string-ref rb-name j) #\2)
+			   (string-set! rb-name j #\2)
 			   (set! j (+ j 1))
 			   (set! i (+ i 2)))
 			 (begin
-			   (set! (string-ref rb-name j) #\_)
+			   (string-set! rb-name j #\_)
 			   (set! i (+ i 1))
 			   (set! j (+ j 1)))))))
 	     (if (= j strlen)

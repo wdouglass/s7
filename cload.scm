@@ -583,7 +583,7 @@
 	(cond ((provided? 'osx)
 	       ;; I assume the caller is also compiled with these flags?
 	       (system (format #f "~A -c ~A -o ~A ~A ~A" 
-			       *cload-c-complier* c-file-name o-file-name *cload-cflags* cflags))
+			       *cload-c-compiler* c-file-name o-file-name *cload-cflags* cflags))
 	       (system (format #f "~A ~A -o ~A -dynamic -bundle -undefined suppress -flat_namespace ~A ~A" 
 			       *cload-c-compiler* o-file-name so-file-name *cload-ldflags* ldflags)))
 	      

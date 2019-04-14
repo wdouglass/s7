@@ -3864,7 +3864,8 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_CASE_P_E_S, OP_CASE_P_I_S, OP_CASE_P_G_S, OP_CASE_P_E_G, OP_CASE_P_G_G, OP_CASE_P_S_S, OP_CASE_P_S_G,
       OP_CASE_E_S, OP_CASE_I_S, OP_CASE_G_S, OP_CASE_E_G, OP_CASE_G_G, OP_CASE_S_S, OP_CASE_S_G,
 
-      OP_IF_UNCHECKED, OP_AND_P, OP_AND_P1, OP_AND_AP, OP_AND_SAFE_P, OP_AND_SAFE_P1, OP_AND_SAFE_P2, OP_AND_SAFE_P_REST, OP_AND_SAFE_AA, OP_AND_PAIR_P,
+      OP_IF_UNCHECKED, OP_AND_P, OP_AND_P1, OP_AND_AP, OP_AND_SAFE_AA, OP_AND_PAIR_P,
+      OP_AND_SAFE_P, OP_AND_SAFE_P1, OP_AND_SAFE_P2, OP_AND_SAFE_P3, OP_AND_SAFE_P_REST, 
       OP_OR_P, OP_OR_P1, OP_OR_AP, OP_OR_SAFE_P, OP_OR_SAFE_AA,
       OP_COND_FEED, OP_COND_FEED_1, OP_WHEN_S, OP_WHEN_A, OP_WHEN_P, OP_UNLESS_S, OP_UNLESS_A, OP_UNLESS_P,
 
@@ -4066,7 +4067,8 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "case_p_e_s", "case_p_i_s", "case_p_g_s", "case_p_e_g", "case_p_g_g", "case_p_s_s", "case_p_s_g",
       "case_e_s", "case_i_s", "case_g_s", "case_e_g", "case_g_g", "case_s_s", "case_s_g",
 
-      "if_unchecked", "and_p", "and_p1", "and_ap", "and_safe_p", "and_safe_p1", "op_and_safe_p2", "and_safe_p_rest", "and_safe_aa", "and_pair_p",
+      "if_unchecked", "and_p", "and_p1", "and_ap", "and_safe_aa", "and_pair_p",
+      "and_safe_p", "and_safe_p1", "op_and_safe_p2", "and_safe_p3", "and_safe_p_rest", 
       "or_p", "or_p1", "or_ap", "or_safe_p", "or_safe_aa",
       "cond_feed", "cond_feed_1", "when_s", "when_a", "when_p", "unless_s", "unless_a", "unless_p",
 
@@ -49773,11 +49775,13 @@ static s7_pointer fx_c_add_u1(s7_scheme *sc, s7_pointer arg)
   return(g_add_s1_1(sc, x, cdr(arg)));
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_c_add_tf(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
   return(g_add_sfs(sc, slot_value(let_slots(sc->envir)), real(caddr(arg))));
 }
+#endif
 
 static s7_pointer fx_c_sub_s1(s7_scheme *sc, s7_pointer arg)
 {
@@ -51768,8 +51772,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		    return(fx_closure_s_d);
 		  }
 	      }
-	      /* let_a_a never happens in an fx context */
-
+	      
 	    default:
 	      /* if ((!fx_function[optimize_op(arg)]) && (is_h_optimized(arg))) fprintf(stderr, "fx_choose %s %s\n", DISPLAY(arg), op_names[optimize_op(arg)]); */
 	      return(fx_function[optimize_op(arg)]);
@@ -68457,7 +68460,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	return(OPT_OOPS);
       }
   sc->temp9 = sc->nil;
-
   if ((hop == 1) &&
       (symbol_id(car(expr)) == 0))
     {
@@ -69593,16 +69595,7 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 	  else set_c_call(tree, fx_c_opstq);
 	  return;
 	}
-#if 0
-      if ((is_pair(p)) && ((s7_tree_memq(sc, stepper, p)) || ((previous_stepper) && (s7_tree_memq(sc, previous_stepper, p)))))
-	fprintf(stderr, "missed %s%s in %s (%s)\n", 
-		(s7_tree_memq(sc, stepper, p)) ? "" : "previous ",
-		DISPLAY((s7_tree_memq(sc, stepper, p)) ? stepper : previous_stepper), 
-		DISPLAY_80(p),
-		(is_optimized(p)) ? op_names[optimize_op(p)] : "unopt");
-#endif
     }
-
   if ((is_pair(p)) && (is_pair(cdr(p))))
     {
       if (is_pair(cadr(p)))
@@ -70193,6 +70186,30 @@ static void op_case_g_s(s7_scheme *sc)
 
 
 /* -------------------------------- let -------------------------------- */
+static void check_let_a_body(s7_scheme *sc, s7_pointer form)
+{
+  if (is_fx_safe(sc, cadr(sc->code)))
+    {
+      annotate_arg(sc, cdr(sc->code), sc->envir);
+      pair_set_syntax_op(form, OP_LET_A_A);
+    }
+  else
+    {
+      if ((is_optimized(cadr(sc->code))) ||
+	  (is_syntactic_pair(cadr(sc->code))))
+	pair_set_syntax_op(form, OP_LET_A_P);
+      else
+	{
+	  if ((is_pair(cadr(sc->code))) &&
+	      (is_syntactic(caadr(sc->code))))
+	    {
+	      pair_set_syntax_op(form, OP_LET_A_P);
+	      set_optimize_op(cadr(sc->code), syntax_opcode(slot_value(global_slot(caadr(sc->code)))));
+	    }
+	}
+    }
+}
+
 static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer start)
 {
   s7_pointer binding;
@@ -70226,30 +70243,10 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 		{
 		  pair_set_syntax_op(form, OP_LET_A);
 		  annotate_arg(sc, cdr(binding), sc->envir);
-		  if (is_fx_safe(sc, cadr(sc->code)))
-		    {
-		      annotate_arg(sc, cdr(sc->code), sc->envir);
-		      pair_set_syntax_op(form, OP_LET_A_A);
-		    }
-		  else
-		    {
-		      if ((is_optimized(cadr(sc->code))) ||
-			  (is_syntactic_pair(cadr(sc->code))))
-			pair_set_syntax_op(form, OP_LET_A_P);
-		      else
-			{
-			  if ((is_pair(cadr(sc->code))) &&
-			      (is_syntactic(caadr(sc->code))))
-			    {
-			      pair_set_syntax_op(form, OP_LET_A_P);
-			      set_optimize_op(cadr(sc->code), syntax_opcode(slot_value(global_slot(caadr(sc->code)))));
-			    }
-			}
-		    }
+		  check_let_a_body(sc, form);
 		  return(sc->code);
 		}
-	    } /* end is_null(cddr(sc->code)) */
-
+	    }
 	  if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 	    {
 	      if (c_callee(cadr(binding)) == g_assq)
@@ -70263,6 +70260,7 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 		{
 		  pair_set_syntax_op(form, OP_LET_A);
 		  annotate_arg(sc, cdr(binding), sc->envir);
+		  if (is_null(cddr(sc->code))) check_let_a_body(sc, form);
 		}
 	    }
 	}
@@ -70271,6 +70269,7 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
     {
       pair_set_syntax_op(form, OP_LET_A);
       annotate_arg(sc, cdr(binding), sc->envir);
+      if (is_null(cddr(sc->code))) check_let_a_body(sc, form);
     }
   return(sc->code);
 }
@@ -71338,17 +71337,17 @@ static bool check_and(s7_scheme *sc)
       pair_set_syntax_op(form, (any_nils > 0) ? OP_AND_P : OP_AND_SAFE_P);
       if ((any_nils == 1) && (len > 2))
 	{
-#if 0
-	  if (!has_fx(cddr(sc->code)))
-	    fprintf(stderr, "third (%d): %s\n", len, DISPLAY_80(sc->code));
-#endif
 	  if (!has_fx(sc->code))
 	    pair_set_syntax_op(form, OP_AND_SAFE_P1);
 	  else
 	    {
 	      if (!has_fx(cdr(sc->code)))
 		pair_set_syntax_op(form, OP_AND_SAFE_P2);
-	    }}}
+	      else
+		{
+		  if ((!has_fx(cddr(sc->code))) && (len == 3))
+		    pair_set_syntax_op(form, OP_AND_SAFE_P3);
+		}}}}
   sc->code = form;
   return(false);
 }
@@ -71387,7 +71386,6 @@ static void op_and_safe_aa(s7_scheme *sc)
 
 static void op_and_safe_p(s7_scheme *sc)
 {
-  /* sc->code = cdr(sc->code); */
   while (true)
     {
       sc->value = fx_call(sc, sc->code);
@@ -71603,8 +71601,8 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 		  if (symbol_syntax_op(car(test)) == OP_AND) check_and(sc); else check_or(sc);
 		  new_op = symbol_syntax_op_checked(test);
 		  sc->code = old_code;
-		  if ((new_op == OP_AND_P) || (new_op == OP_AND_AP) || (new_op == OP_AND_PAIR_P) ||
-		      (new_op == OP_AND_SAFE_P) || (new_op == OP_AND_SAFE_P1) || (new_op == OP_AND_SAFE_P2) || (new_op == OP_AND_SAFE_AA))
+		  if ((new_op == OP_AND_P) || (new_op == OP_AND_AP) || (new_op == OP_AND_PAIR_P) || (new_op == OP_AND_SAFE_AA) ||
+		      (new_op == OP_AND_SAFE_P) || (new_op == OP_AND_SAFE_P1) || (new_op == OP_AND_SAFE_P2) || (new_op == OP_AND_SAFE_P3))
 		    pair_set_syntax_op(form, choose_if_optc(IF_ANDP, one_branch, reversed, not_case));
 		  else
 		    {
@@ -82429,6 +82427,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = car(sc->code);
 	  goto EVAL;
 
+	case OP_AND_SAFE_P3:
+	  sc->code = cdr(sc->code);
+	  sc->value = fx_call(sc, sc->code);
+	  if (is_false(sc, sc->value)) goto START;
+	  sc->code = cdr(sc->code);
+	  sc->value = fx_call(sc, sc->code);
+	  if (is_false(sc, sc->value)) goto START;
+	  sc->code = cadr(sc->code);
+	  goto EVAL;
+
 	case OP_AND_SAFE_P_REST:  /* cdr(sc->code) is known to be a pair (and was pushed => sc->code) */
 	  if (is_false(sc, sc->value))
 	    goto START;
@@ -82482,7 +82490,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto START;
 	  goto OR_P;
 
-	case OP_OR_SAFE_P:
+	case OP_OR_SAFE_P:   /* op_or_safe_p* did not make much difference (unlike op_and_safe_p*) */
 	  op_or_safe_p(sc);
 	  goto START;
 
@@ -90113,7 +90121,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 802) || (OPT_MAX_DEFINED != 407))
+  if ((OP_MAX_DEFINED != 803) || (OPT_MAX_DEFINED != 407))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -90181,45 +90189,46 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
  *
- * ----------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.2  19.3
- * ----------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------------------------
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.2  19.3  19.4
+ * ------------------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
- * tshoot        |      |      |      |      |      |  373 |  356   357   357   357
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   596
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   595
+ * tshoot        |      |      |      |      |      |  710 |                    636
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   975
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   974
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1513
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1696
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2101
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1692
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2099
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2322
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2320
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2332
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2471
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2669
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2847
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2983
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2685
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2855
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2993
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  3464
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3567
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5155
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  11.0
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3551
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5150
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.4 110.3
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  73.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.1
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 185.1
- * ----------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------------------------
  *
  * new infinite recursion catch: push pop s7 stack entry and abort on stack overflow [args/code as strings]
- * missed
  * get rid of op_c_d (ca 50 cases) or add c_func field c_d->fx_*
  *   in fx_choose is the is_global check needed in all such cases? (how else HOP_SAFE??) [has_fx too op_safe_c_fp trec = is_pair+has_fx op_and_p--divide this?]
- * try GC_TRIGGER_SIZE 8192?
- * and-safe_p for 3rd, or cases? -- probably not used enough
- * t978 for tshoot? need fx_let
+ * t978 needs fx_let, int sig remainder et al, why is closure so much slower?
+ * lint needs to treat subvector? as compatible with vector? (signatures vector-ref etc)
+ *      is wrong about moving make-index.scm 251 let+c -> do step (len check)
+ *      check all-lg
+ * values bugs (2 or 3?) in t718
  */

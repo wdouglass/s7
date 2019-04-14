@@ -224,6 +224,33 @@ long lived tree of depth 21	 check: 4194303
 
 ;;; --------------------------------------------------------------------------------
 
+(define (prime? z)                       ; from exobrain.se
+  (or (memq z '(2 3 5 7))                ; memv...
+      (and (positive? (remainder z 2))
+           (positive? (remainder z 3))	  
+           (positive? (remainder z 5))	  
+           (positive? (remainder z 7))
+	   (let ((increments (list 4 2 4 2 4 6 2 6)))
+	     (set-cdr! (list-tail increments 7) increments)
+	     (do ((lim (sqrt z))
+		  (divisor 11 (+ divisor (car increments))))
+		 ((or (zero? (remainder z divisor))
+		      (>= divisor lim))
+		  (> divisor lim))
+	       (set! increments (cdr increments)))))))
+
+(let ()
+  (define (count-primes limit)          ; for limit=10000000 20.5 secs 664579
+    (let ((primes 0))
+      (do ((i 2 (+ i 1)))
+	  ((= i limit)
+	   primes)
+	(if (prime? i)
+	    (set! primes (+ primes 1))))))
+
+  (display (count-primes 100000)) (newline)) ; 9592
+
+;;; --------------------------------------------------------------------------------
 
 (s7-version)
 (exit)

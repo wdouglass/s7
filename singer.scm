@@ -335,12 +335,11 @@
 		  (do ((k 0 (+ k 1))
 		       (j 1 (+ j 1)))
 		      ((= j tractlength))
-		    (begin
-		      (set! tk tj)
-		      (if (zero? (float-vector-ref radii j))
-			  (set! tj 1e-10)
-			  (set! tj (* (float-vector-ref radii k) (float-vector-ref radii k))))
-		      (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj))))))
+		    (set! tk tj)
+		    (if (zero? (float-vector-ref radii j))
+			(set! tj 1e-10)
+			(set! tj (* (float-vector-ref radii k) (float-vector-ref radii k))))
+		    (float-vector-set! coeffs j (/ (- tk tj) (+ tk tj)))))
 		
 		(set! glot-refl-gain (radii tractlength-1))
 		(set! lip-refl-gain (radii tractlength))

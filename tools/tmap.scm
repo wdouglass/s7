@@ -268,8 +268,8 @@
        (v-tst (expt b i))
        (s-tst (expt b i))
        (p-tst (expt b i))))
-   (list 2 3 4 7 10)
-   (list 12 4 3 6 6)))
+   '(2 3 4 7 10)
+   '(12 4 3 6 6)))
 
 (test-it)
 
