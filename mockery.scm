@@ -28,34 +28,45 @@
 
   (define (with-mock-wrapper func)
     (lambda (obj)
-      (if (mock? obj)
-	  (dynamic-wind coverlets (lambda () (func (obj 'value))) openlets)
-	  (if (openlet? obj)           ; (with-let (mock-number 3) (abs (openlet (inlet 'abs (lambda (val) 0)))))
-	      (if (procedure? obj)     ; (display (openlet (with-let (mock-number 0) (lambda () 1))))
-		  (dynamic-wind coverlets (lambda () (func obj)) openlets)
-		  ;; TODO: and c-pointer? c-object?
-		  (let ((func-name (string->symbol (object->string func))))
-		    (if (procedure? (obj func-name))
-			((obj func-name) obj)
-			(func obj))))
-	      (func obj)))))
+      (cond ((mock? obj)
+	     (dynamic-wind
+		 coverlets
+		 (lambda ()
+		   (func (obj 'value)))
+		 openlets))
+
+	    ((not (openlet? obj)) 
+	     (func obj))
+
+	    ((procedure? obj) ; TODO: and c-pointer? c-object?
+	     (dynamic-wind
+		 coverlets
+		 (lambda ()
+		   (func obj))
+		 openlets))
+
+	    (else
+	     (let ((func-name (string->symbol (object->string func))))
+	       (if (procedure? (obj func-name))
+		   ((obj func-name) obj)
+		   (func obj)))))))
 
   (define (with-mock-wrapper* func)
     (lambda args
-      (let ((unknown-openlets #f))
-	(let ((new-args (map (lambda (arg)
-			       (if (mock? arg)
-				   (arg 'value)
-				   (begin
-				     (if (and (openlet? arg)
-					      (not (procedure? arg))
-					      (not (c-pointer? arg)))
-					 (set! unknown-openlets #t))
-				     arg)))
-			     args)))
-	  (if unknown-openlets
-	      (apply func new-args)
-	      (dynamic-wind coverlets (lambda () (apply func new-args)) openlets))))))
+      (let* ((unknown-openlets #f)
+	     (new-args (map (lambda (arg)
+			      (if (mock? arg)
+				  (arg 'value)
+				  (begin
+				    (if (and (openlet? arg)
+					     (not (procedure? arg))
+					     (not (c-pointer? arg)))
+					(set! unknown-openlets #t))
+				    arg)))
+			    args)))
+	(if unknown-openlets
+	    (apply func new-args)
+	    (dynamic-wind coverlets (lambda () (apply func new-args)) openlets)))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
@@ -860,8 +871,7 @@
 		       )))
 	  
 	  (define (mock-symbol s)
-	    (if (and (symbol? s)
-		     (not (let? s)))
+	    (if (symbol? s)
 		(immutable!
 		 (openlet
 		  (sublet (*mock-symbol* 'mock-symbol-class)

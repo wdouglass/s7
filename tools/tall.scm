@@ -138,9 +138,8 @@
 
 (define (test-gran)
   (with-sound (:channels 2 :statistics #f :to-snd #f :play #f :sample-type mus-ldouble) 
-    (let ((file "oboe.snd")) 
-      (grani 0 1 .5 "oboe.snd" 
-	     :grain-envelope '(0 0 0.2 0.2 0.5 1 0.8 0.2 1 0)))))
+    (grani 0 1 .5 "oboe.snd" 
+	   :grain-envelope '(0 0 0.2 0.2 0.5 1 0.8 0.2 1 0))))
 
 (let ((do1 (time-it (test-gran))))
   (format *stderr* "~5T~A" (hundred do1)))
@@ -223,8 +222,7 @@
 (set! *clm-sample-type* mus-ldouble)
 (load "animals.scm") 
 
-(define (test-bird)
-  (calling-all-animals))  
+(define test-bird calling-all-animals)
 
 (let ((do1 (time-it (test-bird))))
   (format *stderr* "~4T~A~%" (hundred do1)))

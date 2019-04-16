@@ -44,8 +44,6 @@
 (unless (defined? '*libgsl*)
   (define *libgsl*
     (with-let (unlet)
-      (set! *libraries* (cons (cons "libgsl.scm" (curlet)) *libraries*))
-
       (define GSL_REAL real-part)
       (define GSL_IMAG imag-part)
       (define GSL_COMPLEX_EQ equal?)
@@ -67,6 +65,8 @@
       (define gsl_max max)
       (define gsl_min min)
       
+      (set! *libraries* (cons (cons "libgsl.scm" (curlet)) *libraries*))
+
       (c-define 
        '((C-macro (double (GSL_CONST_CGS_SPEED_OF_LIGHT GSL_CONST_CGS_GRAVITATIONAL_CONSTANT GSL_CONST_CGS_PLANCKS_CONSTANT_H 
 			   GSL_CONST_CGS_PLANCKS_CONSTANT_HBAR GSL_CONST_CGS_ASTRONOMICAL_UNIT GSL_CONST_CGS_LIGHT_YEAR 

@@ -18,7 +18,6 @@
 (unless (defined? '*libc*)
     (define *libc*
       (with-let (unlet)
-	(set! *libraries* (cons (cons "libc.scm" (curlet)) *libraries*))
 	
 	;; -------- stddef.h --------
 	(define NULL (c-pointer 0 'void*))
@@ -48,7 +47,7 @@
 	(define-expansion (comment . stuff)
 	  (reader-cond (#t (values))))
 |#
-
+	(set! *libraries* (cons (cons "libc.scm" (curlet)) *libraries*))
 
 	;; -------- setjmp.h --------
 	;; longjmp etc

@@ -19,7 +19,7 @@
 			  "hi455" "\n  \t\x65;" :key hi: 'hi (list 1) (list 1 2) (cons 1 2) (list (list 1 2)) (list (list 1)) (list ()) #() 
 			  1/0+i 0+0/0i 0+1/0i 1+0/0i 0/0+0i 0/0+0/0i 1+1/0i 0/0+i cons ''2 
 			  1024 -1024 10000 10001 30000 512 -512 
-			  1+i 1+1e10i 1e15+1e15i 0+1e18i 1e18 (integer->char 255) (string (integer->char 255)) 1e308 
+			  1+i 1+1e10i 1e15+1e15i 0+1e18i 1e18 #\xff (string #\xff) 1e308 
 			  most-positive-fixnum most-negative-fixnum (- most-positive-fixnum 1) (+ most-negative-fixnum 1)
 			  -1 0 0.0 1 1.5 1.0-1.0i 3/4 #\null -63 (make-hash-table) (hash-table '(a . 2) '(b . 3))
 			  '((1 2) (3 4)) '((1 (2)) (((3) 4))) "" (list #(1) "1") '(1 2 . 3) (list (cons 'a 2) (cons 'b 3))
@@ -30,9 +30,9 @@
 			  quasiquote macroexpand cond-expand begin let letrec* if case cond (call-with-exit (lambda (goto) goto))
 			  (with-baffle (call/cc (lambda (cc) cc)))
 			  (string #\a #\null #\b) #2d((1 2) (3 4)) (inlet 'a 2 'b 3)
-			  #<undefined> #<unspecified> (make-int-vector 3 0) (make-float-vector 3 -1.4)
-			  (make-vector '(2 3) "hi") #("hiho" "hi" "hoho") (subvector (make-int-vector '(2 3) 1) '(6))
-			  (subvector (subvector (make-float-vector '(2 3) 1.0) '(6)) '(2 2))
+			  #<undefined> #<unspecified> (make-int-vector 3) (make-float-vector 3 -1.4)
+			  (make-vector '(2 3) "hi") #("hiho" "hi" "hoho") (subvector (make-int-vector '(2 3) 1) 6)
+			  (subvector (subvector (make-float-vector '(2 3) 1.0) 6) '(2 2))
 			  (vector-ref #2d((#(1 2 3)) (#(3 4 5))) 0 0) (define-macro (m a) `(+ ,a 1))
 			  (c-pointer 0) (c-pointer -1) :readable *s7* else (define-bacro* (m (a 1)) `(+ ,a 1))
 			  (byte-vector 0 1 2) (byte-vector) (byte-vector 255 0 127) (make-iterator (vector '(a . 2)))

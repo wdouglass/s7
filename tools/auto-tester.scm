@@ -90,11 +90,11 @@
 (define error-type #f)
 (define error-info #f)
 (define false #f)
-(define _undef_ (car (with-input-from-string "(#_asdf 1 2)" read)))
+(define-constant _undef_ (car (with-input-from-string "(#_asdf 1 2)" read)))
 (define kar car)
 (set! (setter kar) (lambda (sym e) (error 'oops "kar not settable: ~A" ostr)))
 (define-constant _1234_ 1234)
-(define _dilambda_ (dilambda (lambda (x) (+ x 1)) (lambda (x y) (+ x y))))
+(define-constant _dilambda_ (dilambda (lambda (x) (+ x 1)) (lambda (x y) (+ x y))))
 (define __var2__ 3)
 (set! (setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
 
@@ -104,6 +104,8 @@
 (define (free2) (x i))
 (define (free3) (local-func 0))
 (define (_vals_) (values #f 1 2))
+(define (_vals1_) (values 1 #f 2))
+(define (_vals2_) (values 1 2 #f))
 (define (finite? n) (not (or (nan? n) (infinite? n))))
 
 (define (s7-print-length) (*s7* 'print-length))
@@ -165,7 +167,7 @@
 (define (s7-float-format-precision) (*s7* 'float-format-precision))
 (define (s7-default-random-state) (*s7* 'default-random-state))
 (define (s7-cpu-time) (*s7* 'cpu-time))
-(define (s7-file-names) (*s7* 'file-names))
+;(define (s7-file-names) (*s7* 'file-names))
 
 (define-macro (_mac_ x) `(+ ,x 1))
 (define-macro* (_mac*_ (x 1)) `(+ ,x 1))
@@ -422,6 +424,29 @@
 (define-expansion (_map_ . args)
   `(map values (list ,@args)))
 
+(define-expansion (_cat1_ . args)
+  `(catch 'oops
+     (lambda ()
+       (catch 'not-oops
+	 (lambda ()
+	   (throw 'oops ,@args))
+	 (lambda (t i)
+	   'error)))
+     (lambda (t i)
+       'error)))
+
+(define-expansion (_cat2_ . args)
+  `(catch 'oops
+     (lambda ()
+       (catch 'not-oops
+	 (lambda ()
+	   (error 'oops ,@args))
+	 (lambda (t i)
+	   'error)))
+     (lambda (t i)
+       'error)))
+
+
 (define-constant ims (immutable! (string #\a #\b #\c)))
 (define-constant imbv (immutable! (byte-vector 0 1 2)))
 (define-constant imv (immutable! (vector 0 1 2)))
@@ -437,21 +462,21 @@
 
 (if (provided? 'gmp)
     (begin
-      (define bigi0 (bignum "0"))
-      (define bigi1 (bignum "1"))
-      (define bigi2 (bignum "123"))
-      (define bigrat (bignum "1/2"))
-      (define bigflt (bignum "1.5"))
-      (define bigcmp (bignum "1+2i")))
+      (define-constant bigi0 (bignum "0"))
+      (define-constant bigi1 (bignum "1"))
+      (define-constant bigi2 (bignum "123"))
+      (define-constant bigrat (bignum "1/2"))
+      (define-constant bigflt (bignum "1.5"))
+      (define-constant bigcmp (bignum "1+2i")))
     (begin
-      (define bigi0 0.0)
-      (define bigi1 1.0)
-      (define bigi2 123.0)
-      (define bigrat 1/2)
-      (define bigflt 1.5)
-      (define bigcmp 1+2i)))
+      (define-constant bigi0 0.0)
+      (define-constant bigi1 1.0)
+      (define-constant bigi2 123.0)
+      (define-constant bigrat 1/2)
+      (define-constant bigflt 1.5)
+      (define-constant bigcmp 1+2i)))
 
-(define vvv (let ((v (make-vector '(2 2)))) (set! (v 0 0) "asd") (set! (v 0 1) #r(4 5 6)) (set! (v 1 0) '(1 2 3)) (set! (v 1 1) 32) v))
+(define-constant vvv (let ((v (make-vector '(2 2)))) (set! (v 0 0) "asd") (set! (v 0 1) #r(4 5 6)) (set! (v 1 0) '(1 2 3)) (set! (v 1 1) 32) v))
 (define-constant vvvi (let ((v (make-vector '(2 2)))) (set! (v 0 0) "asd") (set! (v 0 1) #r(4 5 6)) (set! (v 1 0) '(1 2 3)) (set! (v 1 1) 32) (immutable! v)))
 (define-constant vvvf (immutable! (vector abs log sin)))
 
@@ -504,7 +529,8 @@
 			  'symbol->keyword 'string->keyword
 			  'keyword->symbol 'keyword?
 			  'logxor  'memv 'char-ready? 
-			  'exact? 'integer-length 'port-filename 'char>=? 
+			  'exact? 'integer-length ;'port-filename 
+			  'char>=? 
 			  'string-length 'list->string 'inexact? 
 			  'with-input-from-file 'type-of
 			  'vector-fill! 
@@ -663,8 +689,7 @@
 			  's7-float-format-precision 
 			  ;'s7-default-random-state 
 			  ;'s7-cpu-time
-			  's7-file-names
-			  's7-autoloading?
+			  ;;'s7-file-names ; one is *stdin* -> infinite loop if read*
 			  ;'s7-rootlet-size 's7-heap-size 's7-free-heap-size 's7-gc-freed 's7-stack-size 's7-max-stack-size 's7-gc-stats
 
 			  'block-reverse! 'subblock 'unquote 'block-append 'block-let
@@ -682,10 +707,11 @@
 
 			  ;;'log-n-of ; uninteresting complaints
 			  ;;'sandbox -- slow
-			  'circular-list? 'hash-table->alist 'weak-hash-table 'byte? 'the 'lognand 'logeqv 
+			  'circular-list? ;;'hash-table->alist -- hash map order problem
+			  'weak-hash-table 'byte? 'the 'lognand 'logeqv 
 			  'local-random 'local-read-string 'local-varlet 'local-let-set!
 			  ;'pp
-			  'kar '_dilambda_ '_vals_
+			  'kar '_dilambda_ '_vals_ '_vals1_ '_vals2_
 			  'free1 'free2 'free3
 			  'catch 'length 'eq? 'car '< 'assq 'complex? 'vector-ref 
 
@@ -752,9 +778,10 @@
 
 		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown"
 		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
+		    "(provide 'pizza)" "(require pizza)"
 		    
 		    "(call-with-exit (lambda (goto) goto))"
-		    "(with-baffle (call/cc (lambda (cc) cc)))"
+		    ;;"(with-baffle (call/cc (lambda (cc) cc)))"
 		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\\\")\")"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    ;;"(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
@@ -773,12 +800,12 @@
 
 		    "+signature+" "+documentation+" "+setter+" "+iterator+"
 		    "(let ((+documentation+ \"help\")) (lambda (x) x))"
-		    "(let ((+iterator+ #t)) (lambda (x) #<eof>))"
+		    "(let ((+iterator+ #t)) (lambda () #<eof>))"
 		    "(let ((+signature+ (list 'integer? 'integer?))) (lambda (x) (logand x 1)))"
 		    "(let ((x 1)) (let ((+setter+ (lambda (val) (set! x val)))) (lambda () x)))"
 
 		    "__var2__"
-		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" -- creates files by these names!
+		    ;; "\"~S~%\"" "\"~A~D~X\"" "\"~{~A~^~}~%\"" "\"~NC~&\"" ; -- creates files by these names?
 		    "(call-with-input-file \"s7test.scm\" (lambda (p) p))"
 		    "(call-with-output-string (lambda (p) p))"
 
@@ -926,6 +953,8 @@
 	      (list "(begin (values " "(apply values (list ")
 	      
 	      (list "(begin (_iter_ " "(begin (_map_ ")
+	      (list "(begin (_cat1_ " "(begin (_cat2_ ")
+	      (list "(let-temporarily (((*s7* 'print-length) 3)) (begin " "(let-temporarily (((*s7* 'print-length) 3)) (begin ")
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
@@ -943,16 +972,15 @@
 	    (cycler (+ 3 (random 3))))))
 
     ;(for-each (lambda (x) (if (not (symbol? x)) (format *stderr* "~A " x))) functions)
-    ;(for-each (lambda (x) (if (not (string? x)) (format *stderr* "~A " x))) args)
+    ;(for-each (lambda (x) (if (and x (not (string? x))) (format *stderr* "~A " x))) args)
     ;(do ((p (vector->list functions) (cdr p))) ((null? p)) (if (memq (car p) (cdr p)) (format *stderr* "~A repeats~%" (car p))))
-    ;(do ((p (vector->list args) (cdr p))) ((null? p)) (if (member (car p) (cdr p) string=?) (format *stderr* "~A repeats~%" (car p))))
-
+    ;(do ((p (vector->list args) (cdr p))) ((null? p)) (if (and (car p) (member (car p) (cdr p))) (format *stderr* "~A repeats~%" (car p))))
     ;;(let ((st (symbol-table))) (for-each (lambda (x) (if (and (procedure? (symbol->value x)) (not (memq x (vector->list functions)))) (format *stderr* "~A~%" x))) st))
 
     (define (fix-op op)
       (case op
-	((set!) (if (> (random 10) 4) "set! x" "set!"))
-	((let) "let ()")
+	((set!) "set! _definee_") ;"set!")
+	((let) "let ()")   ; need to block infinite loops like (let abs () (abs))
 	((let*) "let* ()")
 	((do) "_do3_")
 	((call-with-output-file) "call-with-output-file \"/dev/null\" ")
@@ -1049,86 +1077,84 @@
 	  (substring str 0 j))))
 
     (define (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
-      (if (and (eq? (type-of val1) (type-of val2))
-	       (eq? (type-of val1) (type-of val3))
-	       (eq? (type-of val1) (type-of val4)))
-	  (cond ((or (catch #t (lambda () (openlet? val1)) (lambda args #t)) ; (openlet? (openlet (inlet 'openlet? ()))) -> error: attempt to apply nil to (inlet 'openlet? ())
-		     (string-position "(set!" str1)
-		     (string-position "gensym" str1)))
+      (cond ((not (and (eq? (type-of val1) (type-of val2))
+		       (eq? (type-of val1) (type-of val3))
+		       (eq? (type-of val1) (type-of val4))))
+	     (unless (eq? error-type 'baffled!) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
+	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
+		       str1 str2 str3 str4 
+		       (tp val1) (tp val2) (tp val3) (tp val4))
+	       (if (or (eq? val1 'error)
+		       (eq? val2 'error)
+		       (eq? val3 'error)
+		       (eq? val4 'error))
+		   (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info)))))))
 
-		((symbol? val1)
-		 (if (gensym? val1)
-		     (unless (and (gensym? val2)
-				  (gensym? val3)
-				  (gensym? val4))
-		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
-			       str str1 str2 str3 str4 
-			       (tp val1) (tp val2) (tp val3) (tp val4)))
-		     (unless (and (eq? val1 val2)
-				  (eq? val1 val3)
-				  (eq? val1 val4))
-		       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
-			       str str1 str2 str3 str4 
-			       (tp val1) (tp val2) (tp val3) (tp val4)))))
-		
-		((sequence? val1) ; there are too many unreadable/unequivalent-but the same cases to check these by element (goto, continuation, ...)
-		 (let ((len1 (length val1)))
-		   (unless (or (let? val1)
-			       (hash-table? val1)
-			       (and (eqv? len1 (length val2))
-				    (eqv? len1 (length val3))
-				    (eqv? len1 (length val4))))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
-			     str str1 str2 str3 str4 
-			     (tp val1) (tp val2) (tp val3) (tp val4)))))
+	    ((or (catch #t (lambda () (openlet? val1)) (lambda args #t)) ; (openlet? (openlet (inlet 'openlet? ()))) -> error: attempt to apply nil to (inlet 'openlet? ())
+		 (string-position "(set!" str1)
+		 (string-position "gensym" str1)))
 
-		((number? val1)
-		 (if (or (and (nan? val1)
-			      (not (and (nan? val2) (nan? val3) (nan? val4))))
-			 (and (infinite? val1)
-			      (not (and (infinite? val2) (infinite? val3) (infinite? val4))))
-			 (and (finite? val1)
-			      (not (and (finite? val2) (finite? val3) (finite? val4))))
-			 (and (real? val1) (real? val2) (real? val3) (real? val4) 
-			      (or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
-				  (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
-		     (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
-			     str str1 str2 str3 str4 
-			     (tp val1) (tp val2) (tp val3) (tp val4))))
-		
-		((or (boolean? val1)
-		     (syntax? val1)
-		     (unspecified? val1)
-		     (char? val1)
-		     (eof-object? val1)
-		     (null? val1))
+	    ((symbol? val1)
+	     (if (gensym? val1)
+		 (unless (and (gensym? val2)
+			      (gensym? val3)
+			      (gensym? val4))
+		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
+			   str str1 str2 str3 str4 
+			   (tp val1) (tp val2) (tp val3) (tp val4)))
 		 (unless (and (eq? val1 val2)
 			      (eq? val1 val3)
 			      (eq? val1 val4))
 		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			   str str1 str2 str3 str4 
-			   (tp val1) (tp val2) (tp val3) (tp val4))))
-		
-		((or (undefined? val1)
-		     (c-object? val1))
-		 (unless (and (equal? val1 val2)
-			      (equal? val1 val3)
-			      (equal? val1 val4))
-		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
-			   str str1 str2 str3 str4 
-			   (tp val1) (tp val2) (tp val3) (tp val4))))
-		)
-	  (begin
-	    (unless (eq? error-type 'baffled!) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
-	      (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
-		      str1 str2 str3 str4 
-		      (tp val1) (tp val2) (tp val3) (tp val4))
-	      (if (or (eq? val1 'error)
-		      (eq? val2 'error)
-		      (eq? val3 'error)
-		      (eq? val4 'error))
-		  (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info))))))
-	    )))
+			   (tp val1) (tp val2) (tp val3) (tp val4)))))
+	    
+	    ((sequence? val1) ; there are too many unreadable/unequivalent-but the same cases to check these by element (goto, continuation, ...)
+	     (let ((len1 (length val1)))
+	       (unless (or (let? val1)
+			   (hash-table? val1)
+			   (and (eqv? len1 (length val2))
+				(eqv? len1 (length val3))
+				(eqv? len1 (length val4))))
+		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
+			 str str1 str2 str3 str4 
+			 (tp val1) (tp val2) (tp val3) (tp val4)))))
+	    
+	    ((number? val1)
+	     (if (or (and (nan? val1)
+			  (not (and (nan? val2) (nan? val3) (nan? val4))))
+		     (and (infinite? val1)
+			  (not (and (infinite? val2) (infinite? val3) (infinite? val4))))
+		     (and (finite? val1)
+			  (not (and (finite? val2) (finite? val3) (finite? val4))))
+		     (and (real? val1) (real? val2) (real? val3) (real? val4) 
+			  (or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
+			      (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
+		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
+			 str str1 str2 str3 str4 
+			 (tp val1) (tp val2) (tp val3) (tp val4))))
+	    
+	    ((or (boolean? val1)
+		 (syntax? val1)
+		 (unspecified? val1)
+		 (char? val1)
+		 (memq val1 '(#<eof> ())))
+	     (unless (and (eq? val1 val2)
+			  (eq? val1 val3)
+			  (eq? val1 val4))
+	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
+		       str str1 str2 str3 str4 
+		       (tp val1) (tp val2) (tp val3) (tp val4))))
+	    
+	    ((or (undefined? val1)
+		 (c-object? val1))
+	     (unless (and (equal? val1 val2)
+			  (equal? val1 val3)
+			  (equal? val1 val4))
+	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
+		       str str1 str2 str3 str4 
+		       (tp val1) (tp val2) (tp val3) (tp val4))))
+	  ))
 
     (define (eval-it str) 
       (set! (current-output-port) #f)
@@ -1149,10 +1175,10 @@
 	      (format *stderr* "stack overflow from ~S~%" str))
 	  (when (eq? type 'heap-too-big)
 	    (format *stderr* "heap overflow from ~S~%" str))
-	  (when (and (eq? type 'read-error)
-		     (not (string-position "junk" (car info)))
-		     (not (string-position "clobbered" (car info)))
-		     (not (string-position "unexpected" (car info))))
+	  (unless (or (not (eq? type 'read-error))
+		      (string-position "junk" (car info))
+		      (string-position "clobbered" (car info))
+		      (string-position "unexpected" (car info)))
 	    ;; "unexpected" close paren from: (eval-string (reverse (object->string ()))) -> (eval-string ")(")
 	    (format *stderr* "read-error from ~S: ~S~%" str (apply format #f info)))
           'error)))
@@ -1172,9 +1198,9 @@
       (set! last-error-type #f)
       (let* ((outer (codes (random codes-len)))
 	     (str1 (string-append "(let ((x #f) (i 0)) " (car outer) str ")))"))
-	     (str2 (string-append "(let () (define (func) " str1 ") (define (hi) (func) (func)) (hi) (hi))"))
+	     (str2 (string-append "(let () (define (func) " str1 ") (func))"))    ;(define (hi) (func) (func)) (hi) (hi))"))
 	     (str3 (string-append "(let ((x #f) (i 0)) " (cadr outer) str ")))"))
-	     (str4 (string-append "(let () (define (func) " str3 ") (define (hi) (func) (func)) (hi) (hi))")))
+	     (str4 (string-append "(let () (define (func) " str3 ") (func))")))   ;(define (hi) (func) (func)) (hi) (hi))")))
 	(let ((val1 (eval-it str1))
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))

@@ -241,7 +241,7 @@
 		  '(symbol? byte? integer? rational? real? number? complex? float? keyword? gensym? byte-vector? string? list? sequence?
 		    char? boolean? float-vector? int-vector? vector? let? hash-table? input-port? null? pair? proper-list?
 		    output-port? iterator? continuation? dilambda? procedure? macro? random-state? eof-object? c-pointer?
-		    unspecified? immutable? constant? syntax? undefined? tree-cyclic? iterator-at-end? openlet? subvector?))
+		    unspecified? immutable? constant? syntax? undefined? tree-cyclic? openlet? subvector?))
 		 h))
 
 	(booleans (let ((h (make-hash-table)))
@@ -1901,7 +1901,7 @@
 	    ((inexact?)          (memq type2 '(real? number? complex? float? zero? negative? positive? infinite? nan?)))
 	    ((infinite? nan?)    (memq type2 '(real? number? complex? positive? negative? inexact? float?)))
 	    ((vector?)           (memq type2 '(float-vector? int-vector? sequence? subvector?)))
-	    ((float-vector? int-vector?) (memq type2 '(vector? sequence? subvector?)))
+	    ((float-vector? int-vector? subvector?) (memq type2 '(vector? sequence? subvector?)))
 	    ((sequence?)         (memq type2 '(list? pair? null? proper-list? vector? float-vector? int-vector? byte-vector? tree-cyclic? openlet? subvector?
 					       string? let? hash-table? iterator? procedure? directory? file-exists?))) ; procedure? for extended iterator
 	    ((symbol?)           (memq type2 '(gensym? keyword? defined? provided?)))
@@ -1919,7 +1919,7 @@
 	    ((procedure?)        (memq type2 '(dilambda? iterator? macro? sequence? continuation?)))
 	    ((macro?)            (memq type2 '(dilambda? iterator? procedure?)))
 	    ((continuation?)     (eq? type2 'procedure?))
-	    ((iterator?)         (memq type2 '(dilambda? procedure? sequence? iterator-at-end?)))
+	    ((iterator?)         (memq type2 '(dilambda? procedure? sequence?))); iterator-at-end?)))
 	    ((let?)              (memq type2 '(defined? sequence? openlet?)))
 	    ((openlet?)          (memq type2 '(let? c-pointer? macro? procedure? sequence? defined? undefined?)))
 	    ((hash-table?)       (eq? type2 'sequence?))
@@ -1930,7 +1930,7 @@
 	    ((provided?)         (memq type2 '(defined? symbol?)))
 	    ((directory?)        (memq type2 '(string? sequence? file-exists?)))
 	    ((file-exists?)      (memq type2 '(string? sequence? directory?)))
-	    ((iterator-at-end?)  (memq type2 '(iterator? sequence?)))
+	    ;;((iterator-at-end?)  (memq type2 '(iterator? sequence?)))
 	    (else #f))))
     
     (define (any-compatible? type1 type2)
@@ -1961,6 +1961,7 @@
 	    ((sequence?)        (memq type2 '(list? pair? null? proper-list? vector?  subvector? float-vector? int-vector? byte-vector?
 					      string? let? hash-table? directory? file-exists?)))
 	    ((char?)            (memq type2 '(char-whitespace? char-numeric? char-alphabetic? char-upper-case? char-lower-case?)))
+	    ((iterator)         (eq? type2 'iterator-at-end?))
 	    (else #f))))
     
     (define (never-false expr)
@@ -18279,18 +18280,26 @@
 			 (pair? (car body)))
 		;; do+let
 		;;   no hits for define here
+		;;   this is tricky: make-index.scm (do () ((>= i len)) (let ((c (string-ref scheme-name i))) ...)) can't move the let upwards 
 		(if (and (eq? (caar body) 'let)
 			 (len>1? (cdar body))         ; body not ((let))!
 			 (not (symbol? (cadar body))) ; not named let
 			 (or (null? (cadar body))
 			     (not (tree-set-memq definers (cddar body)))) ; no let capture
-			 (let ((varset (map car vars)))
+			 (let ((varset (map car vars))
+			       (endset (if (and (pair? (caddr form))
+						(pair? (caaddr form)))
+					   (map (lambda (x)
+						  (if (symbol? x) x (values))) ; overkill obviously
+						(caaddr form))
+					   ())))
 			   (lint-every? (lambda (c) 
 					  (and (len>1? c)
 					       (not (memq (car c) varset)) ; no shadowing
 					       (or (code-constant? (cadr c))
 						   (not (or (side-effect? (cadr c) env) ; might change end-test calc?
-							    (tree-set-memq varset (cadr c)))))))
+							    (tree-set-memq varset (cadr c))
+							    (tree-set-memq endset (cadr c)))))))
 					(cadar body))))
 		    ;; (do ((i 0 (+ i 1))) ((= i 3)) (let ((a 12)) (set! a (+ a i)) (display a))) ->
 		    ;;    (do ((i 0 (+ i 1)) (a 12 12)) ((= i 3)) (set! a (+ a i)) ...)

@@ -7354,8 +7354,7 @@ static s7_pointer g_unlet(s7_scheme *sc, s7_pointer args)
 	    }
 	}
     }
-  /* if (set! + -) then + needs to be overridden, but the local bit isn't set,
-   *   so we have to check the actual values in the non-local case.
+  /* if (set! + -) then + needs to be overridden, but the local bit isn't set, so we have to check the actual values in the non-local case.
    *   (define (f x) (with-let (unlet) (+ x 1)))
    */
   x = sc->w;
@@ -7429,7 +7428,6 @@ static s7_pointer g_coverlets(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- coverlet -------------------------------- */
-
 static s7_pointer g_coverlet(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer e;
@@ -90188,40 +90186,40 @@ int main(int argc, char **argv)
 
 /* ------------------------------------------------------------------------------------------
  *
- * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive, /usr/ccrma/web/html/software/snd/index.html
+ * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html
  *
  * ------------------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.2  19.3  19.4
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.0  19.1  19.3  19.4
  * ------------------------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   160   161
+ * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   161   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   593   595
- * tshoot        |      |      |      |      |      |  710 |                    636
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   950   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   976   974
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1520  1513
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1720  1692
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2087  2099
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2249  2260
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2325  2320
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2332
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   595   595
+ * tshoot        |      |      |      |      |      |  710 |              636   636
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   954   954 
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   970
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1513  1514
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1692  1712
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2100
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2260
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2310
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
- * tvect         |      |      |      |      |      | 5616 | 2650  2520  2520  2471
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2671  2685
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2850  2855
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  3032  2993
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3086  3085
+ * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2472
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2685
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2855
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2993
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  6432  3464
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3464
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3551
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5180  5150
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  5150
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  10.9
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.1  11.2
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  17.2  16.9
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.5  38.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  73.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.3 110.1
- * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 187.2 185.1
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.2  11.2
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  16.9  16.9
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4  38.4
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 110.1
+ * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 185.1 185.1
  * ------------------------------------------------------------------------------------------
  *
  * push pop s7 stack entry and abort on stack overflow [args/code as strings]
@@ -90229,7 +90227,5 @@ int main(int argc, char **argv)
  * get rid of op_c_d (ca 50 cases) or add c_func field c_d->fx_*
  *   in fx_choose is the is_global check needed in all such cases? (how else HOP_SAFE??) [has_fx too op_safe_c_fp trec = is_pair+has_fx op_and_p--divide this?]
  * t978 needs fx_let, int sig remainder et al, why is closure so much slower?
- * lint needs to treat subvector? as compatible with vector? (signatures vector-ref etc)
- *      is wrong about moving make-index.scm 251 let+c -> do step (len check)
- *      check all-lg
+ *   fx_let: check_let sets op_let_a_a but that is after fx_choose/tree
  */

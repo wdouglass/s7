@@ -58,10 +58,8 @@
 
 (define (wc)
   (let ((newk 0)
-	(nl 0)
 	(nw 0)
 	(nc 0)
-	(inword #f)
 	(port (open-input-file "/home/bil/test/scheme/bench/src/bib")))
     (do ((str (read-line port) (read-line port))
 	 (nl 0 (+ nl 1)))
@@ -105,7 +103,7 @@
 	  ((> (string-length s) n))
 	(set! s (string-append "123" s "456" s "789"))
 	(set! s (string-append
-		 (substring s (quotient (string-length s) 2) (string-length s))
+		 (substring s (quotient (string-length s) 2))
 		 (substring s 0 (+ 1 (quotient (string-length s) 2)))))))))
 
 (display (string-cat 500000)) (newline) ; 524278
@@ -165,14 +163,14 @@
     
     (lambda (N)
       (let* ((min-depth 4)
-	     (max-depth (if (> (+ min-depth 2) N) (+ min-depth 2) N))
+	     (max-depth (max (+ min-depth 2) N))
 	     (stretch-depth (+ max-depth 1))
 	     (stretch-tree (bottom-up-tree stretch-depth)))
 	(format *stderr* "stretch tree of depth ~D~30Tcheck: ~D~%" stretch-depth (item-check stretch-tree))
 	(let ((long-lived-tree (bottom-up-tree max-depth)))
 	  (do ((depth min-depth (+ depth 2)))
 	      ((> depth max-depth))
-	    (let ((iterations (expt 2 (+ max-depth (- depth) min-depth))))
+	    (let ((iterations (expt 2 (- (+ max-depth min-depth) depth))))
 	      (do ((i 0 (+ i 1))
 		   (check 0 (+ check (item-check (bottom-up-tree depth)))))
 		  ((= i iterations)
@@ -181,19 +179,18 @@
 
 ;(binary-tree 21) ; 84.4 secs if (set! (*s7* 'heap-size) (* 36 1024000))
 
-"
-stretch tree of depth 22	 check: 8388607
-2097152	 trees of depth 4	 check: 65011712
-524288	 trees of depth 6	 check: 66584576
-131072	 trees of depth 8	 check: 66977792
-32768	 trees of depth 10	 check: 67076096
-8192	 trees of depth 12	 check: 67100672
-2048	 trees of depth 14	 check: 67106816
-512	 trees of depth 16	 check: 67108352
-128	 trees of depth 18	 check: 67108736
-32	 trees of depth 20	 check: 67108832
-long lived tree of depth 21	 check: 4194303
-"
+;;; stretch      tree of  depth 22	 check: 8388607
+;;; 2097152	 trees of depth 4	 check: 65011712
+;;; 524288	 trees of depth 6	 check: 66584576
+;;; 131072	 trees of depth 8	 check: 66977792
+;;; 32768	 trees of depth 10	 check: 67076096
+;;; 8192	 trees of depth 12	 check: 67100672
+;;; 2048	 trees of depth 14	 check: 67106816
+;;; 512	         trees of depth 16	 check: 67108352
+;;; 128	         trees of depth 18	 check: 67108736
+;;; 32	         trees of depth 20	 check: 67108832
+;;; long lived   tree of  depth 21	 check: 4194303
+
 
 ;;; --------------------------------------------------------------------------------
 
