@@ -12,7 +12,7 @@
     (newline)))
 
 #|
-(define* (tfib n (a 1) (b 1))
+(define* (tfib n (a 1) (b 1)) ; tail-call version
    (if (= n 0)
        a
        (if (= n 1)
@@ -23,6 +23,25 @@
   (unless (= f32 2178309)
     (display f32) 
     (newline)))
+
+(define (dfib Z)             ; do-loop equivalent to tfib
+  (do ((a 1 b)
+       (b 1 (+ a b))
+       (n Z (- n 1)))
+      ((< n 2)
+       (if (= n 0) a b))))
+
+(define (dofib n)            ; another do-loop, faster in s7 (twice as fast as tfib)
+  (if (< n 2)
+      1
+      (do ((a 1)
+	   (b 1)
+	   (c 0)
+	   (i 1 (+ i 1)))
+	  ((= i n) b)
+	(set! c b)
+	(set! b (+ a b))
+	(set! a c))))
 |#
 
 (define (trib n)

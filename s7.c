@@ -1794,6 +1794,7 @@ static void init_types(void)
   static s7_pointer check_ref10(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_ref11(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_ref12(s7_pointer p, const char *func, int32_t line);
+  static s7_pointer check_ref13(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_let_ref(s7_pointer p, uint64_t role, const char *func, int32_t line);
   static s7_pointer check_let_set(s7_pointer p, uint64_t role, const char *func, int32_t line);
@@ -1885,6 +1886,7 @@ static void init_types(void)
   #define T_Exp(P) check_ref2(P, T_MACRO, T_SYMBOL,  __func__, __LINE__, NULL, NULL)
   #define T_Prt(P) check_ref3(P,                     __func__, __LINE__) /* input|output_port */
   #define T_Vec(P) check_ref4(P,                     __func__, __LINE__) /* any vector */
+  #define T_SVec(P) check_ref13(P,                   __func__, __LINE__) /* subvector */
   #define T_Clo(P) check_ref5(P,                     __func__, __LINE__) /* has closure let */
   #define T_Fnc(P) check_ref6(P,                     __func__, __LINE__) /* any c_function|c_macro */
   #define T_Num(P) check_ref7(P,                     __func__, __LINE__) /* any number (not bignums I think) */
@@ -1926,6 +1928,7 @@ static void init_types(void)
   #define T_Fvc(P)                     P
   #define T_Nvc(P)                     P
   #define T_Vec(P)                     P
+  #define T_SVec(P)                    P
   #define T_Pair(P)                    P
   #define T_Ran(P)                     P
   #define T_Dyn(P)                     P
@@ -2919,8 +2922,8 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define vector_rank(p)                 ((vector_dimension_info(p)) ? vector_ndims(p) : 1)
 #define vector_has_dimensional_info(p) (vector_dimension_info(p))
 
-#define subvector_vector(p)            ((vector_dimension_info(p)) ? vdims_original(vector_dimension_info(p)) : (T_Vec(p))->object.vector.block->nx.ksym)
-#define subvector_set_vector(p, vect)  (T_Vec(p))->object.vector.block->nx.ksym = vect
+#define subvector_vector(p)            T_Vec(((vector_dimension_info(T_SVec(p))) ? vdims_original(vector_dimension_info(p)) : (p)->object.vector.block->nx.ksym))
+#define subvector_set_vector(p, vect)  (T_SVec(p))->object.vector.block->nx.ksym = T_Vec(vect)
 
 #define rootlet_element(p, i)          unchecked_vector_element(p, i)
 #define rootlet_elements(p)            unchecked_vector_elements(p)
@@ -5159,8 +5162,7 @@ static void mark_vector_possibly_shared(s7_pointer p)
    *   that list looking for a block it fits in.  If none is found, we assume it is an s7_big_cell
    *   and use the saved location.
    */
-  if ((is_subvector(p)) &&
-      (is_any_vector(subvector_vector(p))))
+  if (is_subvector(p))
     mark_vector_possibly_shared(subvector_vector(p));
 
   /* mark_vector_1 does not check the marked bit, so if subvector below is in a cycle involving
@@ -5177,10 +5179,8 @@ static void mark_int_or_float_vector(s7_pointer p)
 
 static void mark_int_or_float_vector_possibly_shared(s7_pointer p)
 {
-  if ((vector_has_dimensional_info(p)) &&
-      (is_any_vector(subvector_vector(p))))
+  if (is_subvector(p))
     mark_int_or_float_vector_possibly_shared(subvector_vector(p));
-
   set_mark(p);
 }
 
@@ -30102,6 +30102,17 @@ static s7_pointer check_ref12(s7_pointer p, const char *func, int32_t line)
   typ = unchecked_type(p);
   if ((typ != T_SLOT) && (typ != T_NIL)) /* unset slots are nil */
     complain("%s%s[%d]: slot is %s (%s)%s?\n", p, func, line, typ);
+  return(p);
+}
+
+static s7_pointer check_ref13(s7_pointer p, const char *func, int32_t line)
+{
+  uint8_t typ;
+  typ = unchecked_type(p);
+  if (!is_any_vector(p))
+    complain("%s%s[%d]: subvector is %s (%s)%s?\n", p, func, line, typ);
+  if (!is_subvector(p))
+    complain("%s%s[%d]: subvector is %s (%s), but not a subvector?%s\n", p, func, line, typ);
   return(p);
 }
 
@@ -74702,9 +74713,11 @@ static s7_pointer check_do(s7_scheme *sc)
 	      clear_match_symbol(caar(q));
 	    return(code);
 	  }
-	set_match_symbol(car(var));
+	if (is_pair(cddr(var))) /* if no step expr it's safe in other step exprs 16-Apr-19 */
+	  set_match_symbol(car(var));
       }
-   /* we want to use the pending_value slot for other purposes, so make sure
+
+   /* we want to use the pending_value slot for other purposes (?? where!?), so make sure
      *   the current val is not referred to in any trailing step exprs.  The inits
      *   are ok because at init-time, the new frame is not connected.
      * another tricky case: current var might be used in previous step expr(!)
@@ -74729,6 +74742,9 @@ static s7_pointer check_do(s7_scheme *sc)
 	      clear_match_symbol(var); /* ignore current var */
 	      if (tree_match(car(val)))
 		{
+		  /* TODO: just set a flag for pending vars OP_DOX_PENDING 
+		   *   t981 iter fib, but otherwise not common (a dozen in s7test)
+		   */
 		  s7_pointer q;
 		  for (q = vars; is_pair(q); q = cdr(q))
 		    clear_match_symbol(caar(q));
@@ -74742,6 +74758,9 @@ static s7_pointer check_do(s7_scheme *sc)
 
       /* end and steps look ok! */
       pair_set_syntax_op(form, OP_DOX);                                     /* dox: vars/end are fxable */
+      /* TODO: split out the constant cases from OP_DOX so dox_ex is less repetitive
+       *    1-var, no body, 1-expr body, steppers=1|2
+       */
 
       /* each step expr is safe so not an explicit set!
        *   the symbol_is_safe check in fx_choose needs to see the do envir, not the caller's
@@ -75033,7 +75052,7 @@ static int32_t dox_ex(s7_scheme *sc)
 			    }
 			}
 		    }
-
+		  /* TODO: tmap|ref get opt_cell_any_nr here */
 		  while (true)
 		    {
 		      body(sc, lcode);
@@ -75054,6 +75073,7 @@ static int32_t dox_ex(s7_scheme *sc)
 		  s2 = next_slot(slots);
 		  p1 = slot_expression(s1);
 		  p2 = slot_expression(s2);
+		  /* TODO: tgen|big|all|b get opt_float_any_nr here */
 		  while (true)
 		    {
 		      body(sc, lcode);
@@ -75151,9 +75171,7 @@ static int32_t dox_ex(s7_scheme *sc)
 		    }
 
 		  if (steppers == 1)
-		    {
-		      slot_set_value(stepper, stepf(sc, stepa));
-		    }
+		    slot_set_value(stepper, stepf(sc, stepa));
 		  else
 		    {
 		      s7_pointer slot;
@@ -75175,6 +75193,36 @@ static int32_t dox_ex(s7_scheme *sc)
       if ((is_syntactic_pair(code)) ||
 	  (is_syntactic_symbol(car(code))))
 	{
+	  
+	  /* fprintf(stderr, "step: %ld, code: %s\n", steppers, DISPLAY_80(code)); */
+	  /* an experiment -- need to expand this to increments, fxable? -- on the second pass all should be optimized?
+	   *   op_let_a_a(1), op_set_symbol_a(10), closure_c|s|a_a, dox? -- need fxable synops
+	   */
+	  if ((steppers == 1) &&
+	      (is_syntactic_pair(code)) &&
+	      (optimize_op(code) == OP_SET_SYMBOL_opSq) &&
+	      (car(caddr(code)) == sc->cdr_symbol) &&
+	      (cadr(code) == cadr(caddr(code))))
+	    {
+	      s7_pointer stepa, var_loc;
+	      s7_function stepf;
+	      stepf = c_callee(slot_expression(stepper));
+	      stepa = car(slot_expression(stepper));
+	      var_loc = symbol_to_slot(sc, cadr(code));
+	      while (true)
+		{
+		  if (is_pair(slot_value(var_loc)))
+		    slot_set_value(var_loc, cdr(slot_value(var_loc)));
+		  else slot_set_value(var_loc, g_cdr(sc, list_1(sc, slot_value(var_loc))));
+		  slot_set_value(stepper, stepf(sc, stepa));
+		  if (is_true(sc, sc->value = endf(sc, endp)))
+		    {
+		      sc->code = cdr(end);
+		      return(goto_DO_END_CLAUSES);
+		    }
+		}
+	    }
+
 	  push_stack_no_args(sc, OP_DOX_STEP_P, sc->code);
 
 	  if (is_syntactic_pair(code))
@@ -90193,26 +90241,26 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   161   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
+ * tshoot        |      |      |      |      |      |  710 |              636   562
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   595   595
- * tshoot        |      |      |      |      |      |  710 |              636   636
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   954   954 
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   970
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1513  1514
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1692  1712
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1692  1696
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2100
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2260
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2310
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2306
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2333
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2472
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2685
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2855
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2993
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2987
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3464
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3551
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  5150
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  5132
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.2  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  16.9  16.9
@@ -90224,8 +90272,6 @@ int main(int argc, char **argv)
  *
  * push pop s7 stack entry and abort on stack overflow [args/code as strings]
  *
- * get rid of op_c_d (ca 50 cases) or add c_func field c_d->fx_*
- *   in fx_choose is the is_global check needed in all such cases? (how else HOP_SAFE??) [has_fx too op_safe_c_fp trec = is_pair+has_fx op_and_p--divide this?]
- * t978 needs fx_let, int sig remainder et al, why is closure so much slower?
- *   fx_let: check_let sets op_let_a_a but that is after fx_choose/tree
+ * do doesn't use pending_value?? so for crossed-cases, set it, then set slot value 74712
+ * opt*_nr in dox_ex, maybe split dox_ex main cases (esp steppers==1)
  */

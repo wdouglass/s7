@@ -899,7 +899,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	((not (every? integer? ints))
 	 (error 'wrong-type-arg "log-n-of ints arguments, ~A, should all be integers" ints))
 	((not (positive? n))
-	 (error "log-n-of first argument should be positive: ~A" n))
+	 (error 'out-of-range "log-n-of first argument should be positive: ~A" n))
 	(else
 	 (let ((len (length ints)))
 	   (cond ((= len 0) (if (= n 0) -1 0))
@@ -1195,25 +1195,25 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
       (error 'wrong-type-arg "call-with-input-vector first argument, ~A, should be a vector" v)))
 
 (define (call-with-output-vector proc)
-  (let* ((size 1)
-	 (v (make-vector size #f))
-	 (i 0)
-	 (write-to-vector (lambda (obj p)
-			    (when (= i size) ; make the vector bigger to accommodate the output
-			      (set! v (copy v (make-vector (set! size (* size 2)) #f))))
-			    (set! (v i) obj)
-			    (set! i (+ i 1))
-			    #<unspecified>))) ; that's what write/display return!
-    (proc (openlet
-	   (inlet 'write (lambda* (obj p)
-			   ((if (not (let? p)) write write-to-vector) obj p))
-		  'display (lambda* (obj p)
-			     ((if (not (let? p)) display write-to-vector) obj p))
-		  'format (lambda (p . args)
-			    (if (not (let? p))
-				(apply format p args)
-				(write (apply format #f args) p))))))
-    (subvector v i))) ; ignore extra trailing elements (i = subvector length)
+  (let ((size 1)
+	(i 0))
+    (let* ((v (make-vector size #f))
+	   (write-to-vector (lambda (obj p)
+			      (when (= i size) ; make the vector bigger to accommodate the output
+				(set! v (copy v (make-vector (set! size (* size 2)) #f))))
+			      (set! (v i) obj)
+			      (set! i (+ i 1))
+			      #<unspecified>))) ; that's what write/display return!
+      (proc (openlet
+	     (inlet 'write (lambda* (obj p)
+			     ((if (not (let? p)) write write-to-vector) obj p))
+		    'display (lambda* (obj p)
+			       ((if (not (let? p)) display write-to-vector) obj p))
+		    'format (lambda (p . args)
+			      (if (not (let? p))
+				  (apply format p args)
+				  (write (apply format #f args) p))))))
+      (subvector v i)))) ; ignore extra trailing elements (i = subvector length)
 
 
 
