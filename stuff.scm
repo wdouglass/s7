@@ -1274,12 +1274,6 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 ;; and (let ((a 1) (b 2)) (list (set! a 3) (reflective-probe) b)) -> '(3 () 2)
 ;; or use it to print function args: (define (f a b) (reflective-probe) (+ a b))
 
-;; could this use reactive-lambda* to show changes as well?
-
-
-;;; ----------------
-;;; 28-Jul-18 I've started to rewrite the reactive* code: reactive.scm.
-;;; ----------------
 
 #|
 ;; this tests a bacro for independence of any runtime names

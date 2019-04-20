@@ -99,7 +99,12 @@
 		       
 		       'equivalent?        (with-mock-wrapper* #_equivalent?)
 		       'vector-ref         (with-mock-wrapper* #_vector-ref)
-		       'vector-length      (with-mock-wrapper #_length)
+		       'vector-length      (if (provided? 'pure-s7)
+					       (lambda (vect)
+						 (if (vector? vect)
+						     (length vect)
+						     (error 'wrong-type-arg "vector-length argument should be a vector: ~A" vect)))
+					       (with-mock-wrapper #_vector-length))
 		       'reverse            (with-mock-wrapper #_reverse)
 		       'sort!              (with-mock-wrapper* #_sort!)
 		       'make-iterator      (with-mock-wrapper #_make-iterator)
@@ -276,7 +281,13 @@
 						     (#_string-set! (obj 'value) i val)
 						     (error 'out-of-range "unknown field: ~S" i)))
 		       
-		       'string-length          (with-mock-wrapper #_length)
+		       'string-length          (if (provided? 'pure-s7)
+						   (lambda (str)
+						     (if (string? str)
+							 (length str)
+							 (error 'wrong-type-arg "string-length argument should be a string: ~A" str)))
+						   (with-mock-wrapper #_string-length))
+
 		       'string-append          (with-mock-wrapper* #_string-append)
 		       'string-copy            (with-mock-wrapper #_copy)
 		       
