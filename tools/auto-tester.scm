@@ -4,6 +4,18 @@
 	      (immutable! (car x))))
 	  (rootlet))
 
+(define (no-set s v)
+  (error 'bad "can't set ~S" s))
+
+(for-each (lambda (x)
+	    (when (syntax? (symbol->value x))
+	      (set! (setter x) no-set)
+	      (immutable! x)))
+	  (symbol-table))
+
+;(define debugging (provided? 'debugging))
+
+
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
 (define (cycler size)
@@ -226,9 +238,9 @@
 (define (checked-read . args) (with-input-from-file "s7test.scm" (lambda () (apply read args))))
 (define (checked-reverse! . args) (reverse! (copy (car args))))
 (define (checked-port-line-number . args) (apply port-line-number args) 0)
-(define (checked-let-set! . args) (apply let-set! (curlet) args))
-(define (checked-varlet . args) (apply varlet (curlet) args))
-(define (checked-cutlet . args) (apply cutlet (curlet) args))
+;(define (checked-let-set! . args) (apply let-set! (curlet) args))
+;(define (checked-varlet . args) (apply varlet (curlet) args))
+;(define (checked-cutlet . args) (apply cutlet (curlet) args))
 (define (checked-procedure-source . args) (copy (apply procedure-source args) :readable))
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
@@ -480,6 +492,13 @@
 (define-constant vvvi (let ((v (make-vector '(2 2)))) (set! (v 0 0) "asd") (set! (v 0 1) #r(4 5 6)) (set! (v 1 0) '(1 2 3)) (set! (v 1 1) 32) (immutable! v)))
 (define-constant vvvf (immutable! (vector abs log sin)))
 
+(define-constant a1 (hash-table +nan.0 1))
+(define-constant a2 (inlet :a (hash-table 'b 1)))
+(define-constant a3 (openlet (immutable! (inlet :a 1))))
+(define-constant a4 (subvector #i2d((1 2) (3 4)) 4))
+(define-constant a5 (subvector #i2d((1 2) (3 4)) '(4)))
+(define-constant a6 (subvector #i2d((1 2) (3 4)) '(2 1)))
+
 #|
 (define typed-hash (make-hash-table 8 eq? (cons symbol? integer?)))
 (define typed-vector (make-vector 8 'a symbol?))
@@ -500,15 +519,15 @@
 	(string-append (substring str 0 509) "..."))))
 
 ;;; these two make sure the default value is set (otherwise randomness)
-(define* (make-string len (char #\space)) (#_make-string len char))
-(define* (make-byte-vector len (byte 0)) (#_make-byte-vector len byte))
+;(define* (make-string len (char #\space)) (#_make-string len char))
+;(define* (make-byte-vector len (byte 0)) (#_make-byte-vector len byte))
 
 (let ((functions (vector 'not '= '+ 'cdr 'real? 'rational? 'number? '> '- 'integer? 'apply 'subvector? 'subvector-position 'subvector-vector
 			  'abs '* 'null? 'imag-part '/ 'vector-set! 'equal? 'magnitude 'real-part 'pair? 'max 'nan? 'string->number 'list
 			  'negative? 'cons 'string-set! 'list-ref 'eqv? 'positive? '>= 'expt 'number->string 'zero? 'floor 'denominator 'integer->char 
 			  'string? 'min '<= 'char->integer 'cos 'rationalize 'cadr 'sin 'char=? 'map 'list-set! 'defined? 'memq 'string-ref 'log 
 			  'for-each 'round 'ceiling 'truncate 'string=? 'atan 'eof-object? 'numerator 'char? 'cosh 'member 'vector 
-			  'even? 'string-append 'char-upcase 'sqrt 'make-string
+			  'even? 'string-append 'char-upcase 'sqrt ;'make-string
 			  'char-alphabetic? 'odd? 'call-with-exit 'tanh 'copy 'sinh 'make-vector
 			  'string 'char-ci=? 'caddr 'tan 'reverse 'cddr 'append 'vector? 'list? 'exp 'acos 'asin 'symbol? 'char-numeric? 'string-ci=? 
 			  'char-downcase 'acosh 'vector-length 'asinh 'format 'make-list 
@@ -566,7 +585,7 @@
 			  'random-state 
 			  'gensym
 			  'if 'begin 'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless 'let-temporarily
-			  'byte-vector-set! 'make-byte-vector 
+			  'byte-vector-set! ; 'make-byte-vector 
 			  'write-char 'call/cc 'write-byte 'write-string 
 			  'file-mtime
 			  'write 'display 
@@ -578,7 +597,7 @@
 			  ;'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
 			  'checked-read-char 'checked-read-line 'checked-read-string 'checked-read-byte 'checked-read
 			  'checked-reverse! 'checked-port-line-number 
-			  'checked-let-set! 'checked-varlet 'checked-cutlet
+			  ;;'checked-let-set! 'checked-varlet 'checked-cutlet
 			  'close-input-port 
 			  ;;'current-input-port ;-- too many (read...)
 			  ;;'set-current-input-port ; -- collides with rd8 etc
@@ -811,6 +830,7 @@
 
 		    "ims" "imbv" "imv" "imiv" "imfv" "imi" "imb" "imh" "imfi" "imfo" "imp" "imr"
 		    "vvv" "vvvi" "vvvf" ;"typed-hash" "typed-vector" "typed-let" "constant-let"
+		    "a1" "a2" "a3" "a4" "a5" "a6"
 
 		    "(make-hash-table 8 eq? (cons symbol? integer?))"
 		    "(make-hash-table 8 equivalent? (cons symbol? #t))"
@@ -902,6 +922,7 @@
 		    "(let ((<1> (vector #f #f #f))) (set! (<1> 0) <1>) (set! (<1> 1) <1>) (set! (<1> 2) <1>) <1>)"
 		    "#i3d(((1 2 3) (3 4 5)) ((5 6 1) (7 8 2)))"
 		    "(hash-table +nan.0 1)" "#\\7" "(inlet :a (hash-table 'b 1))" "(openlet (immutable! (inlet :a 1)))"
+		    "(subvector #i2d((1 2) (3 4)) 4)" "(subvector #i2d((1 2) (3 4)) '(4))" "(subvector #i2d((1 2) (3 4)) '(2 1))"
 
 		    #f #f #f
 		    ))
@@ -1163,7 +1184,7 @@
       (get-output-string imfo #t)
       (catch #t 
 	(lambda ()
-	  (car (list (eval-string str)))) ; wrap in (with-let (unlet)...) to avoid changes?
+	  (car (list (eval-string str))))
 	(lambda (type info)
 	  (set! error-type type)
 	  (set! error-info info)
@@ -1205,6 +1226,7 @@
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
+	  ;(gc) (gc)
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
 	  )))
 

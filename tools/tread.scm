@@ -3,6 +3,7 @@
 
 (set! (*s7* 'print-length) 8) ; :readable should ignore this
 (set! (*s7* 'default-hash-table-length) 4)
+(set! (*s7* 'heap-size) (* 10 1024000))
 
 (define (tester)
   (do ((baddies 0)
