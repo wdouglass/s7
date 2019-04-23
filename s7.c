@@ -455,6 +455,17 @@ enum {T_FREE = 0,
       NUM_TYPES};
 /* T_UNUSED, T_STACK, T_SLOT, T_BAFFLE, T_DYNAMIC_WIND, T_CATCH, T_GOTO, and T_COUNTER are internal */
 
+#if S7_DEBUGGING
+static const char *s7_type_names[] = 
+  {"free", "pair", "nil", "unused", "undefined", "unspecified", "eof_object", "boolean", "character", 
+     "syntax", "symbol", "integer", "ratio", "real", "complex", "big_integer", "big_ratio", "big_real", "big_complex", 
+     "string", "c_object", "vector", "int_vector", "float_vector", "byte_vector", "catch", "dynamic_wind", "hash_table", "let", 
+     "iterator", "stack", "counter", "slot", "c_pointer", "output_port", "input_port", "random_state", "continuation", "goto", "baffle", 
+     "closure", "closure*", "c_macro", "macro", "macro*", "bacro", "bacro*", "c_function*", "c_function", 
+     "c_any_args_function", "c_opt_args_function", "c_rst_args_function"
+   };
+#endif
+
 typedef struct block_t {
   union {
     void *data;
@@ -28689,6 +28700,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    port_write_string(port)(sc, ")))\n", 4, port);
 	  else port_write_character(port)(sc, ')', port);
 
+	  /* fill in the cyclic entries */
 	  local_port = ((lst_local) || (ci->cycle_port == sc->F)) ? port : ci->cycle_port; /* (object->string (list-values `(x . 1) (signature (int-vector))) :readable) */
 	  for (x = lst, i = 0; (i < len) && (is_pair(x)); x = cdr(x), i++)
 	    {
@@ -28733,6 +28745,9 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    }
 	  if (true_len < 0) /* dotted list */
 	    {
+	      s7_pointer end_x;
+	      for (end_x = lst; is_pair(end_x); end_x = cdr(end_x)); /* or maybe faster, start at x? */
+	      /* we can't depend on the loops above to set x to the last element because they sometimes break out */
 	      if (true_len == -1) /* cons cell */
 		plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " ", NULL);
 	      else
@@ -28742,7 +28757,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  else plen = catstrs_direct(buf, "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct(sc, len - 2), ") ", NULL);
 		}
 	      port_write_string(local_port)(sc, buf, plen, local_port);
-	      object_to_port_with_circle_check(sc, x, local_port, use_write, ci);
+	      object_to_port_with_circle_check(sc, end_x, local_port, use_write, ci);
 	      port_write_string(local_port)(sc, ")\n", 2, local_port);
 	    }
 
@@ -31247,6 +31262,14 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	      if ((base - min_char) > 100000)
 		{
 		  fprintf(stderr, "infinite recursion?\n");
+		  if (port_data(port))
+		    {
+		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
+		      if (port_position(port) > 10000)
+			port_data(port)[10000] = '\0';
+		      else port_data(port)[port_position(port)] = '\0';
+		      fprintf(stderr, "%s\n", port_data(port));
+		    }
 		  abort();
 		}
 	    }
@@ -49989,6 +50012,14 @@ static s7_pointer fx_car_s(s7_scheme *sc, s7_pointer arg)
   return((is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
 }
 
+static s7_pointer fx_car_t(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  val = slot_value(let_slots(sc->envir));
+  return((is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
+}
+
 static s7_pointer fx_cadr_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
@@ -50171,6 +50202,13 @@ static s7_pointer fx_geq_ts(s7_scheme *sc, s7_pointer arg)
   return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
+static s7_pointer fx_geq_tu(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
+}
+
 static s7_pointer fx_gt_ss(s7_scheme *sc, s7_pointer arg)
 {
   return(gt_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
@@ -50195,6 +50233,12 @@ static s7_pointer fx_equal_ts(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
   return(c_equal_2(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
+}
+
+static s7_pointer fx_equal_us(s7_scheme *sc, s7_pointer arg)
+{
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  return(c_equal_2(sc, slot_value(next_slot(let_slots(sc->envir))), lookup(sc, opt2_sym(cdr(arg)))));
 }
 #endif
 
@@ -69661,9 +69705,17 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
     {
       if ((c_callee(tree) == fx_c_sc) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_tc); return;}
       if ((c_callee(tree) == fx_cdr_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_cdr_t); return;}
+      if ((c_callee(tree) == fx_car_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_car_t); return;}
 #if (!WITH_GMP)
-      if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_geq_ts); return;}
+      if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper))
+	{
+	  if (caddr(p) == previous_stepper) 
+	    set_c_call(tree, fx_geq_tu); 
+	  else set_c_call(tree, fx_geq_ts); 
+	}
       if ((c_callee(tree) == fx_equal_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_equal_ts); return;}
+      if ((c_callee(tree) == fx_equal_ss) && (cadr(p) == previous_stepper)) {set_c_call(tree, fx_equal_us); return;}
+
       if (c_callee(tree) == fx_c_equal_s_ic)
 	{
 	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_equal_t_ic); return;}
@@ -69699,16 +69751,7 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 	}
       if ((c_callee(tree) == fx_c_sub_s1) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_sub_t1); return;}
       if ((c_callee(tree) == fx_c_opsq_c) && (cadadr(p) == stepper)) {set_c_call(tree, fx_c_optq_c); return;}
-
       if ((c_callee(tree) == fx_c_ss) && (caddr(p) == stepper)) {set_c_call(tree, fx_c_st); return;}
-
-      /* opsq_opsq[1] s7test/lt [or both as [0] eq sym) b
-       *   opsq_s can involve both (lt)
-       *   add both s: s7test(+ i j) in order I think
-       * o_p_p_t: lt (maybe 10??)
-       * savings is 4 per [see dup]
-       */
-
       if ((c_callee(tree) == fx_c_opssq) && (caddr(cadr(p)) == stepper))
 	{
 	  if ((s7_p_p_function(slot_value(global_slot(car(p))))) &&
@@ -90287,6 +90330,7 @@ s7_scheme *s7_init(void)
 #endif
 
 #if S7_DEBUGGING
+  if (!s7_type_names[0]) fprintf(stderr, "no type_names\n"); /* squelch a very stupid warning! */
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
@@ -90363,7 +90407,7 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  199   160   161   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236   236   236
- * tshoot        |      |      |      |      |      |  710 |              636   562
+ * tshoot        |      |      |      |      |      |  710 |              636   559
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   595   595
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   970
@@ -90372,28 +90416,25 @@ int main(int argc, char **argv)
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2097
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2261
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2281
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2300
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2295
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2472
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2674
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2673
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2871
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2908
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3464
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3462
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3520
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  5125
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.2  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  16.9  16.9
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4  38.4
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4  38.3
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.8
  * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 110.0
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 185.1 185.0
  * ------------------------------------------------------------------------------------------
  *
- * check the tbig cases fx_*t*, can fx_tree run on safe body lambda? (ensure no definers)
- *   would hop_safe_c_t work? a second pass like fx_tree (or part of fx_tree?)
- *   so if (!has_fx...) look at optimize_op? fx_choose branch for this, but what about choosers?
- *   c_aa -> c_ta? also for fx (SAFE_C_SA ideally), or (tbig c_at (not safe) I think)
+ * mutable cells (real) in opt for set (checking type in debugging)
  */

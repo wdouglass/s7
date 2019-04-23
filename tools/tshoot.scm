@@ -239,7 +239,7 @@
 		 (set! L (cdr L))))))))
 
 (let ()
-  (define (count-primes limit)          ; for limit=10000000 31.2 secs 664579
+  (define (count-primes limit)          ; for limit=10000000 12.7 secs 664579
     (let ((primes 0))
       (do ((i 2 (+ i 1)))
 	  ((= i limit)
