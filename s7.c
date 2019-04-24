@@ -28092,7 +28092,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  dimension = vector_rank(vect) - 1;
 			  b = callocate(sc, 128);
 			  indices = (char *)block_data(b);
-			  plen = catstrs_direct(buf, "(set! (<", pos_int_to_str_direct(sc, vref), ">",
+			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
 						multivector_indices_to_string(sc, i, vect, indices, dimension),
 						") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
@@ -28119,7 +28119,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  indices = (char *)block_data(b);
 			  buf[0] = '\0';
 			  multivector_indices_to_string(sc, i, vect, indices, dimension); /* writes to indices */
-			  plen = catstrs(buf, 128, "(set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", NULL);
+			  plen = catstrs(buf, 128, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
 			}
@@ -28938,7 +28938,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      int32_t eref, kref, plen;
 	      eref = peek_shared_ref(ci, val);
 	      kref = peek_shared_ref(ci, key);
-	      plen = catstrs_direct(buf, "(set! (<", pos_int_to_str_direct(sc, href), "> ", NULL);
+	      plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 
 	      if (kref != 0)
@@ -29097,6 +29097,13 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  object_to_port_with_circle_check(sc, val, port, P_READABLE, ci);
 	}
       if (bindings) port_write_character(port)(sc, ')', port);
+      if (is_immutable(obj))
+	{
+	  char buf[128];
+	  int32_t len;
+	  len = catstrs_direct(buf, "  (immutable! <", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), ">)\n", NULL);
+	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+	}
     }
 }
 
@@ -29162,9 +29169,6 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	   */
 	  if (use_write == P_READABLE)
 	    {
-	      if (has_methods(obj))
-		port_write_string(port)(sc, "(openlet ", 9, port);
-
 	      if ((ci) &&
 		  (is_cyclic(obj)) &&
 		  (peek_shared_ref(ci, obj) != 0))
@@ -29190,6 +29194,9 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 		    }
+		  if (has_methods(obj))
+		    port_write_string(port)(sc, "(openlet ", 9, port);
+		  /* not immutable here because we'll need to set the let fields below, then declare it immutable */
 		  if (let_has_setter(sc, obj))
 		    {
 		      port_write_string(port)(sc, "(let (", 6, port);
@@ -29204,11 +29211,16 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		      slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, false);
 		      port_write_character(port)(sc, ')', port);
 		    }
+		  if (has_methods(obj))
+		    port_write_character(port)(sc, ')', port);
 		}
 	      else
 		{
+		  if (has_methods(obj))
+		    port_write_string(port)(sc, "(openlet ", 9, port);
 		  if (is_immutable(obj))
 		    port_write_string(port)(sc, "(immutable! ", 12, port);
+
 		  /* this ignores outlet -- but is that a problem? */
 		  /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
 		  if (let_has_setter(sc, obj))
@@ -29248,9 +29260,9 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 		    }
 		  if (is_immutable(obj))
 		    port_write_character(port)(sc, ')', port);
+		  if (has_methods(obj))
+		    port_write_character(port)(sc, ')', port);
 		}
-	      if (has_methods(obj))
-		port_write_character(port)(sc, ')', port);
 	    }
 	  else /* not readable write */
 	    {
@@ -31361,7 +31373,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
   s7_gc_unprotect_at(sc, ci->cycle_loc);
   ci->cycle_port = sc->F;
 
-  if (is_immutable(obj))
+  if ((is_immutable(obj)) && (!is_let(obj)))
     port_write_string(port)(sc, "  (immutable! ", 14, port);
   else port_write_string(port)(sc, "  ", 2, port);
 
@@ -31374,7 +31386,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
       port_write_string(port)(sc, buf, len, port);
     }
 
-  if (is_immutable(obj))
+  if ((is_immutable(obj)) && (!is_let(obj)))
     port_write_string(port)(sc, "))\n", 3, port);
   else port_write_string(port)(sc, ")\n", 2, port);
 
@@ -40418,13 +40430,10 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
   hash = hash_loc(sc, table, key);
   loc = hash & hash_table_mask(table);
 
-  /* we can get into an infinite loop here, but it requires 2 hash tables that are members of each other
-   *    and key is one of them, so I changed the equality check above to use eq? -- not sure this is right.
-   */
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if ((hash_entry_raw_hash(x) == hash) &&
-	(s7_is_equal(sc, hash_entry_key(x), key)))
-      return(x);
+    if (hash_entry_raw_hash(x) == hash)
+      if (s7_is_equal(sc, hash_entry_key(x), key))
+	return(x);
   return(sc->unentry);
 }
 
@@ -40978,10 +40987,10 @@ void init_hash_maps(void)
   eqv_hash_map[T_REAL] =              hash_map_real_eq;
   eqv_hash_map[T_COMPLEX] =           hash_map_complex;
 
-  equivalent_hash_map[T_INTEGER] = hash_map_int;
-  equivalent_hash_map[T_RATIO] =   hash_map_ratio_eq;
-  equivalent_hash_map[T_REAL] =    hash_map_real_eq;
-  equivalent_hash_map[T_COMPLEX] = hash_map_complex;
+  equivalent_hash_map[T_INTEGER] =    hash_map_int;
+  equivalent_hash_map[T_RATIO] =      hash_map_ratio_eq;
+  equivalent_hash_map[T_REAL] =       hash_map_real_eq;
+  equivalent_hash_map[T_COMPLEX] =    hash_map_complex;
 
   equal_hash_checks[T_REAL] =         hash_equal_real;
   equal_hash_checks[T_COMPLEX] =      hash_equal_complex;
@@ -43595,6 +43604,7 @@ static bool port_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_in
   if (x == y) return(true);
   if (type(x) != type(y)) return(false);
   if ((port_is_closed(x)) && (port_is_closed(y))) return(true);
+  if ((port_is_closed(x)) || (port_is_closed(y))) return(false);
   if (port_type(x) != port_type(y)) return(false);
   switch (port_type(x))
     {
@@ -43694,17 +43704,20 @@ static bool c_object_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
   return(c_objects_are_equal(sc, x, y, ci));
 }
 
-static bool hash_table_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool hash_table_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool equivalent)
 {
   hash_entry_t **lists;
   s7_int i, len;
   shared_info *nci = ci;
+  hash_check_t hf;
+  bool (*eqf)(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
 
   if (x == y)
     return(true);
   if (!is_hash_table(y))
     {
-      check_equivalent_method(sc, y, x);
+      if (equivalent) 
+	check_equivalent_method(sc, y, x);
       return(false);
     }
   if (ci)
@@ -43714,44 +43727,7 @@ static bool hash_table_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, sha
     return(false);
   if (hash_table_entries(x) == 0)
     return(true);
-  len = hash_table_mask(x) + 1;
-  lists = hash_table_elements(x);
-  if (!nci) nci = new_shared_info(sc);
-
-  for (i = 0; i < len; i++)
-    {
-      hash_entry_t *p;
-      for (p = lists[i]; p; p = hash_entry_next(p))
-	{
-	  hash_entry_t *y_val;
-	  y_val = hash_equivalent(sc, y, hash_entry_key(p));  /* hash_table_checker(y) might be hash_equal */
-	  if (y_val == sc->unentry)
-	    return(false);
-	  if (!s7_is_equivalent_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
-	    return(false);
-	}
-    }
-  return(true);
-}
-
-static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
-{
-  hash_entry_t **lists;
-  s7_int i, len;
-  shared_info *nci = ci;
-  hash_check_t hf;
-
-  if (x == y)
-    return(true);
-  if (!is_hash_table(y)) return(false);
-  if (ci)
-    equal_ref(sc, x, y, ci);
-
-  if (hash_table_entries(x) != hash_table_entries(y))
-    return(false);
-  if (hash_table_entries(x) == 0)
-    return(true);
-  if ((hash_table_checker_locked(x)) || (hash_table_checker_locked(y)))
+  if ((!equivalent) && ((hash_table_checker_locked(x)) || (hash_table_checker_locked(y))))
     {
       if (hash_table_checker(x) != hash_table_checker(y))
 	return(false);
@@ -43763,24 +43739,70 @@ static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
   lists = hash_table_elements(x);
   if (!nci) nci = new_shared_info(sc);
 
+  if (equivalent)
+    eqf = s7_is_equivalent_1;
+  else eqf = s7_is_equal_1;
+
   hf = hash_table_checker(y);
+  if ((hf != hash_equal) && (hf != hash_equivalent))
+    {
+      for (i = 0; i < len; i++)
+	{
+	  hash_entry_t *p;
+	  for (p = lists[i]; p; p = hash_entry_next(p))
+	    {
+	      hash_entry_t *y_val;
+	      y_val = hf(sc, y, hash_entry_key(p));
+	      if (y_val == sc->unentry)
+		return(false);
+	      if (!eqf(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
+		return(false);
+	    }
+	}
+      /* if we get here, every key/value in x has a corresponding key/value in y, and the number of entries match,
+       *   so surely the tables are equal??
+       * if ci not null or hash-table-checker is equal/eqivalent, can't use hf?
+       */
+      return(true);
+    }
+  
+  /* we need to protect the current shared_info data (nci) here so the current hash_table_checker won't work -- 
+   *   outside equal?/eqivalent? they can safely assume that they can start a new shared_info process.
+   */
   for (i = 0; i < len; i++)
     {
       hash_entry_t *p;
       for (p = lists[i]; p; p = hash_entry_next(p))
 	{
-	  hash_entry_t *y_val;
-	  y_val = hf(sc, y, hash_entry_key(p)); /* or hash_equal? */
-	  if (y_val == sc->unentry)
+	  hash_entry_t *x;
+	  s7_int hash, loc;
+	  s7_pointer key;
+  
+	  key = hash_entry_key(p);
+	  hash = hash_loc(sc, y, key);
+	  loc = hash & hash_table_mask(y);
+
+	  for (x = hash_table_element(y, loc); x; x = hash_entry_next(x))
+	    if (hash_entry_raw_hash(x) == hash)
+	      if (eqf(sc, hash_entry_key(x), key, nci))
+		break;
+	  if (!x)
 	    return(false);
-	  if (!s7_is_equal_1(sc, hash_entry_value(p), hash_entry_value(y_val), nci))
+	  if (!eqf(sc, hash_entry_value(p), hash_entry_value(x), nci))
 	    return(false);
 	}
     }
-  /* if we get here, every key/value in x has a corresponding key/value in y, and the number of entries match,
-   *   so surely the tables are equal??
-   */
   return(true);
+}
+
+static bool hash_table_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  return(hash_table_equal_1(sc, x, y, ci, false));
+}
+
+static bool hash_table_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  return(hash_table_equal_1(sc, x, y, ci, true));
 }
 
 static bool slots_match(s7_scheme *sc, s7_pointer px, s7_pointer y, shared_info *nci)
@@ -49931,6 +49953,16 @@ static s7_pointer fx_is_pair_cdr_s(s7_scheme *sc, s7_pointer arg)
   return(g_is_pair(sc, set_plist_1(sc, g_cdr(sc, set_plist_1(sc, p)))));
 }
 
+static s7_pointer fx_is_pair_cdr_t(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  check_let_slots(sc, __func__, arg, cadadr(arg));
+  p = slot_value(let_slots(sc->envir));
+  if (is_pair(p))
+    return(make_boolean(sc, is_pair(cdr(p))));
+  return(g_is_pair(sc, set_plist_1(sc, g_cdr(sc, set_plist_1(sc, p)))));
+}
+
 static s7_pointer fx_is_pair_cddr_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
@@ -50002,6 +50034,14 @@ static s7_pointer fx_cdr_t(s7_scheme *sc, s7_pointer arg)
   s7_pointer val;
   check_let_slots(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(sc->envir));
+  return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
+}
+
+static s7_pointer fx_cdr_u(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer val;
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  val = slot_value(next_slot(let_slots(sc->envir)));
   return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
 }
 
@@ -50143,6 +50183,14 @@ static s7_pointer fx_c_cs(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_ct(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, caddr(arg));
+  set_car(sc->t2_1, opt1_con(cdr(arg))); /* cadr(arg) or cadadr */
+  set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer fx_c_ss(s7_scheme *sc, s7_pointer arg)
 {
   set_car(sc->t2_1, lookup(sc, cadr(arg)));
@@ -50155,6 +50203,14 @@ static s7_pointer fx_c_st(s7_scheme *sc, s7_pointer arg)
   check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
   set_car(sc->t2_1, lookup(sc, cadr(arg)));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer fx_c_ts(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
+  set_car(sc->t2_2, lookup(sc, opt2_sym(cdr(arg))));
   return(c_call(arg)(sc, sc->t2_1));
 }
 
@@ -50246,6 +50302,15 @@ static s7_pointer fx_is_eq_ss(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
   x = lookup(sc, cadr(arg));
+  y = lookup(sc, opt2_sym(cdr(arg)));
+  return(make_boolean(sc, (x == y) || ((is_unspecified(x)) && (is_unspecified(y)))));
+}
+
+static s7_pointer fx_is_eq_ts(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x, y;
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  x = slot_value(let_slots(sc->envir));
   y = lookup(sc, opt2_sym(cdr(arg)));
   return(make_boolean(sc, (x == y) || ((is_unspecified(x)) && (is_unspecified(y)))));
 }
@@ -66387,7 +66452,6 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 
 	case OP_SAFE_C_SS:
 	    set_opt1_sym(cdr(expr), cadr(arg));
-	    /* set_opt2_sym(cdr(expr), caddr(arg)); -- we're clobbering the old C_SS -> C_C_opSSq opt2_sym setting */
 	    if ((is_real(e1)) &&
 		(symbol_id(car(arg)) == 0) &&
 		(s7_d_pd_function(slot_value(global_slot(car(arg))))))
@@ -66470,7 +66534,7 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 static bool is_lambda(s7_scheme *sc, s7_pointer sym)
 {
   return((sym == sc->lambda_symbol) && (symbol_id(sym) == 0));
-  /* symbol_id==0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
+  /* symbol_id=0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
 }
 
 static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
@@ -69705,13 +69769,15 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
     {
       if ((c_callee(tree) == fx_c_sc) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_tc); return;}
       if ((c_callee(tree) == fx_cdr_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_cdr_t); return;}
+      if ((c_callee(tree) == fx_cdr_s) && (cadr(p) == previous_stepper)) {set_c_call(tree, fx_cdr_u); return;}
       if ((c_callee(tree) == fx_car_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_car_t); return;}
 #if (!WITH_GMP)
       if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper))
 	{
 	  if (caddr(p) == previous_stepper) 
 	    set_c_call(tree, fx_geq_tu); 
-	  else set_c_call(tree, fx_geq_ts); 
+	  else set_c_call(tree, fx_geq_ts);
+	  return;
 	}
       if ((c_callee(tree) == fx_equal_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_equal_ts); return;}
       if ((c_callee(tree) == fx_equal_ss) && (cadr(p) == previous_stepper)) {set_c_call(tree, fx_equal_us); return;}
@@ -69737,6 +69803,9 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
       if ((c_callee(tree) == fx_is_pair_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_pair_t); return;}
       if ((c_callee(tree) == fx_is_symbol_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_symbol_t); return;}
       if ((c_callee(tree) == fx_is_type_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_type_t); return;}
+      if ((c_callee(tree) == fx_is_eq_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_eq_ts); return;}
+      if ((c_callee(tree) == fx_c_cs) && (caddr(p) == stepper)) {set_c_call(tree, fx_c_ct); return;}
+      if ((c_callee(tree) == fx_is_pair_cdr_s) && (cadadr(p) == stepper)) {set_c_call(tree, fx_is_pair_cdr_t); return;}
 
       if (c_callee(tree) == fx_add_ss)
 	{
@@ -69751,7 +69820,11 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 	}
       if ((c_callee(tree) == fx_c_sub_s1) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_sub_t1); return;}
       if ((c_callee(tree) == fx_c_opsq_c) && (cadadr(p) == stepper)) {set_c_call(tree, fx_c_optq_c); return;}
-      if ((c_callee(tree) == fx_c_ss) && (caddr(p) == stepper)) {set_c_call(tree, fx_c_st); return;}
+      if (c_callee(tree) == fx_c_ss)
+	{
+	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_ts); return;}
+	  if (caddr(p) == stepper) {set_c_call(tree, fx_c_st); return;}
+	}
       if ((c_callee(tree) == fx_c_opssq) && (caddr(cadr(p)) == stepper))
 	{
 	  if ((s7_p_p_function(slot_value(global_slot(car(p))))) &&
@@ -90411,17 +90484,17 @@ int main(int argc, char **argv)
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   595   595
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   970
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1513  1515
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1513  1530
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1692  1696
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2097
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2261
- * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2281
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2096
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2261 
+ * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2284
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2295
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2472
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2673
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2871
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2908
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2904
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3085
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3462
@@ -90432,9 +90505,9 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4  38.3
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.8
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 110.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 109.9
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 185.1 185.0
  * ------------------------------------------------------------------------------------------
  *
- * mutable cells (real) in opt for set (checking type in debugging)
+ * mutable cells (real) in opt for set (checking type in debugging): t980
  */

@@ -5762,12 +5762,13 @@ io_error_t save_channel_edits(chan_info *cp, const char *ofile, int pos)
 	    {
 	      if (is_serious_io_error(err))
 		{
+		  char buf[1024];
+		  snprintf(buf, 1024, "save channel %s -> %s: %s (%s)", 
+			   nfile, ofile, 
+			   io_error_name(err),
+			   snd_io_strerror());
 		  free(nfile);
-		  nfile = NULL;
-		  snd_error("save channel %s -> %s: %s (%s)", 
-			    nfile, ofile, 
-			    io_error_name(err),
-			    snd_io_strerror());
+		  snd_error("%s", buf);
 		}
 	    }
 	}

@@ -1,5 +1,7 @@
 ;;; cyclic/shared timing tests
 
+(set! (*s7* 'heap-size) (* 2 1024000))
+
 ;;; equal? write/object->string/format cyclic-sequences
 
 (define* (make-circular-list n init)
