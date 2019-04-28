@@ -58,7 +58,7 @@
 	      
 	      (set! size (min size total-lines))
 	      (set! size-1 (- size 1))
-	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 80263
+	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 80820
 
 	      ;; mark unmatchable strings
 	      (let ((sortv (make-vector total-lines)))
@@ -122,8 +122,8 @@
 			(unless first
 			  (format *stderr* "~%")))))))))))))
 
-(dups 16 "s7.c" 91000)
-;(dups 2 "s7.c" 91000)
+(dups 16 "s7.c" 92000)
+;(dups 6 "s7.c" 92000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
 ;(dups 16 "s7test.scm" 100000)
