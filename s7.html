@@ -1585,7 +1585,14 @@ nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 </pre>	
 </div>
 
-
+<div class="indented">
+<p>I may remove dilambda and dilambda? someday; they are trivial:
+</p>
+<pre class="indented">
+(define (dilambda get set) (set! (setter get) set) get)
+(define dilambda? setter)
+</pre>
+</div>
 
 <div class="indented">
 <p>Speaking of INTERCAL, COME-FROM:

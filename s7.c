@@ -3679,88 +3679,7 @@ static s7_pointer make_symbol(s7_scheme *sc, const char *name);
 #endif
 
 #if S7_DEBUGGING && WITH_GCC
-#define WITH_COUNTS 0
-#if WITH_COUNTS
-s7_int *step1, *step2, *step3, *steps;
-const char **stepfs;
-static void init_steps(void)
-{
-  step1 = (s7_int *)calloc(100000, sizeof(s7_int));
-  step2 = (s7_int *)calloc(100000, sizeof(s7_int));
-  step3 = (s7_int *)calloc(100000, sizeof(s7_int));
-  steps = (s7_int *)calloc(100000, sizeof(s7_int));
-  stepfs = (const char **)calloc(100000, sizeof(char *));
-}
-static s7_pointer lookup_3(s7_scheme *sc, s7_pointer symbol);
-#define lookup_1(Sc, Sym) lookup_2(Sc, Sym, __func__, __LINE__)
-static s7_pointer lookup_2(s7_scheme *sc, s7_pointer symbol, const char *func, int32_t line)
-{
-  steps[line]++;
-  stepfs[line] = func;
-  if (is_let(sc->envir))
-    {
-      if (tis_slot(let_slots(sc->envir)))
-	{
-          if (symbol == slot_symbol(let_slots(sc->envir))) 
-            step1[line]++;
-          else
-	    {
-              if (tis_slot(next_slot(let_slots(sc->envir))))
-		{
-                  if (symbol == slot_symbol(next_slot(let_slots(sc->envir))))
-                    step2[line]++;
-		  else
-		    {
-                      if (tis_slot(next_slot(next_slot(let_slots(sc->envir)))))
-			{
-                          if (symbol == slot_symbol(next_slot(next_slot(let_slots(sc->envir)))))
-                            step3[line]++;
-                        }
-                    }    
-                }
-            }
-        }
-    }
-  return(lookup_3(sc, symbol));
-}
-void report_steps(void)
-{
-   int32_t line;
-   s7_int ts = 0, t1 = 0, t2 = 0, t3 = 0; 
-   while (true)
-     {
-       int32_t mx, pos;
-       mx = 0;
-       for (line = 0; line < 100000; line++)
-	 {
-	   if (steps[line] > mx)
-	     {
-	       mx = steps[line];
-	       pos = line;
-	     }
-	 }
-       if (mx == 0) break;
-       line = pos;
-
-       ts += steps[line];
-       if ((step1[line] > 0) || (step2[line] > 0) || (step3[line] > 0))
-	 {
-	   int flen, i;
-	   flen = safe_strlen(stepfs[line]);
-	   fprintf(stderr, "%s[%d]: ", stepfs[line], line);
-	   for (i = flen; i < 20; i++) fprintf(stderr, " ");
-	   fprintf(stderr, "%ld %ld %ld %ld\n", steps[line], step1[line], step2[line], step3[line]);
-	   t1 += step1[line];
-	   t2 += step2[line];
-	   t3 += step3[line];
-	}
-       steps[line] = 0;
-    }
-   fprintf(stderr, "totals: %ld %ld %ld %ld\n", ts, t1, t2, t3);
-}
-#else
   static s7_pointer lookup_1(s7_scheme *sc, s7_pointer symbol);
-#endif
   #define lookup(Sc, Sym) check_null_sym(Sc, lookup_1(Sc, Sym), Sym, __LINE__, __func__)
   static s7_pointer check_null_sym(s7_scheme *sc, s7_pointer p, s7_pointer sym, int32_t line, const char *func);
   #define lookup_unexamined(Sc, Sym) lookup_1(Sc, Sym)
@@ -3846,7 +3765,8 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_SAFE_C_op_S_opSq_q, HOP_SAFE_C_op_S_opSq_q, OP_SAFE_C_op_opSq_S_q, HOP_SAFE_C_op_opSq_S_q,
       OP_SAFE_C_opSq_CS, HOP_SAFE_C_opSq_CS,
 
-      OP_SAFE_C_A, HOP_SAFE_C_A, OP_SAFE_C_AA, HOP_SAFE_C_AA, OP_SAFE_C_AAA, HOP_SAFE_C_AAA, OP_SAFE_C_AAAA, HOP_SAFE_C_AAAA,
+      OP_SAFE_C_A, HOP_SAFE_C_A, OP_SAFE_C_AA, HOP_SAFE_C_AA,
+      OP_SAFE_C_AAA, HOP_SAFE_C_AAA, OP_SAFE_C_AAAA, HOP_SAFE_C_AAAA,
       OP_SAFE_C_FX, HOP_SAFE_C_FX, OP_SAFE_C_ALL_CA, HOP_SAFE_C_ALL_CA,
       OP_SAFE_C_SSA, HOP_SAFE_C_SSA, OP_SAFE_C_SAS, HOP_SAFE_C_SAS,
       OP_SAFE_C_CSA, HOP_SAFE_C_CSA, OP_SAFE_C_SCA, HOP_SAFE_C_SCA, OP_SAFE_C_CAC, HOP_SAFE_C_CAC,
@@ -4052,7 +3972,8 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "safe_c_op_s_opsq_q", "h_safe_c_op_s_opsq_q", "safe_c_op_opsq_s_q", "h_safe_c_op_opsq_s_q",
       "safe_c_opsq_cs", "h_safe_c_opsq_cs",
 
-      "safe_c_a", "h_safe_c_a", "safe_c_aa", "h_safe_c_aa", "safe_c_aaa", "h_safe_c_aaa", "safe_c_aaaa", "h_safe_c_aaaa",
+      "safe_c_a", "h_safe_c_a", "safe_c_aa", "h_safe_c_aa",
+      "safe_c_aaa", "h_safe_c_aaa", "safe_c_aaaa", "h_safe_c_aaaa",
       "safe_c_fx", "h_safe_c_fx", "safe_c_all_ca", "h_safe_c_all_ca",
       "safe_c_ssa", "h_safe_c_ssa", "safe_c_sas", "h_safe_c_sas",
       "safe_c_csa", "h_safe_c_csa", "safe_c_sca", "h_safe_c_sca", "safe_c_cac", "h_safe_c_cac",
@@ -8647,11 +8568,7 @@ static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol)
 }
 
 #if WITH_GCC && S7_DEBUGGING
-#if WITH_COUNTS
-static s7_pointer lookup_3(s7_scheme *sc, s7_pointer symbol)
-#else
 static s7_pointer lookup_1(s7_scheme *sc, s7_pointer symbol)
-#endif
 #else
 static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_checked includes the unbound_variable call */
 #endif
@@ -31371,43 +31288,9 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
-
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  if (port_data(port))
-		    {
-		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
-		      if (port_position(port) > 10000)
-			port_data(port)[10000] = '\0';
-		      else port_data(port)[port_position(port)] = '\0';
-		      fprintf(stderr, "%s\n", port_data(port));
-		    }
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   ref = (is_collected(vr)) ? shared_ref(ci, vr) : 0;
   if (ref != 0)
     {
@@ -42754,7 +42637,7 @@ bool s7_is_dilambda(s7_pointer obj)
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
-      return(is_any_procedure(closure_setter(obj))); /* type >= T_CLOSURE (excludes goto/continuation) */
+      return(is_any_procedure(closure_setter_or_map_list(obj))); /* type >= T_CLOSURE (excludes goto/continuation) */
 
     case T_C_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
@@ -49745,9 +49628,6 @@ static s7_pointer g_s7_version(s7_scheme *sc, s7_pointer args)
 {
   #define H_s7_version "(s7-version) returns some string describing the current s7"
   #define Q_s7_version sc->pcl_s
-#if WITH_COUNTS
-  report_steps();
-#endif
   return(s7_make_string(sc, "s7 " S7_VERSION ", " S7_DATE));
 }
 
@@ -69391,7 +69271,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 
 /* ---------------------------------------- error checks ---------------------------------------- */
 
-enum {goto_START, goto_BEGIN1, fall_through, goto_DO_END_CLAUSES, goto_SAFE_DO_END_CLAUSES, goto_EVAL, goto_TOP_NO_POP, goto_APPLY, goto_EVAL_ARGS, goto_DO_UNCHECKED};
+enum {goto_START, goto_BEGIN, fall_through, goto_DO_END_CLAUSES, goto_SAFE_DO_END_CLAUSES, goto_EVAL, goto_TOP_NO_POP, goto_APPLY, goto_EVAL_ARGS, goto_DO_UNCHECKED};
 
 static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity)
 {
@@ -69969,14 +69849,14 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
   
   p = car(tree);
 
-  if (has_fx(tree))
+  if ((has_fx(tree)) && (is_pair(p)) && (is_pair(cdr(p)))) /* confusion between c|d_call I think */
     {
       if ((c_callee(tree) == fx_c_sc) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_tc); return;}
       if ((c_callee(tree) == fx_cdr_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_cdr_t); return;}
       if ((c_callee(tree) == fx_cdr_s) && (cadr(p) == previous_stepper)) {set_c_call(tree, fx_cdr_u); return;}
       if ((c_callee(tree) == fx_car_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_car_t); return;}
 #if (!WITH_GMP)
-      if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper))
+      if ((c_callee(tree) == fx_geq_ss) && (cadr(p) == stepper) && (is_pair(cddr(p))))
 	{
 	  if (caddr(p) == previous_stepper) 
 	    set_c_call(tree, fx_geq_tu); 
@@ -70015,7 +69895,6 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
       if ((c_callee(tree) == fx_is_symbol_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_symbol_t); return;}
       if ((c_callee(tree) == fx_is_type_s) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_type_t); return;}
       if ((c_callee(tree) == fx_is_eq_ss) && (cadr(p) == stepper)) {set_c_call(tree, fx_is_eq_ts); return;}
-      if ((c_callee(tree) == fx_c_cs) && (caddr(p) == stepper)) {set_c_call(tree, fx_c_ct); return;}
       if ((c_callee(tree) == fx_is_pair_cdr_s) && (cadadr(p) == stepper)) {set_c_call(tree, fx_is_pair_cdr_t); return;}
       if ((c_callee(tree) == fx_not_is_pair_s) && (cadadr(p) == stepper)) {set_c_call(tree, fx_not_is_pair_t); return;}
 
@@ -70031,10 +69910,15 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 	  if (cadr(p) == previous_stepper) {set_c_call(tree, fx_c_add_u1); return;}
 	}
       if ((c_callee(tree) == fx_c_sub_s1) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_sub_t1); return;}
-      if (c_callee(tree) == fx_c_ss)
+
+      if (is_pair(cddr(p)))
 	{
-	  if (cadr(p) == stepper) {set_c_call(tree, fx_c_ts); return;}
-	  if (caddr(p) == stepper) {set_c_call(tree, fx_c_st); return;}
+	  if ((c_callee(tree) == fx_c_cs) && (caddr(p) == stepper)) {set_c_call(tree, fx_c_ct); return;}
+	  if (c_callee(tree) == fx_c_ss)
+	    {
+	      if (cadr(p) == stepper) {set_c_call(tree, fx_c_ts); return;}
+	      if (caddr(p) == stepper) {set_c_call(tree, fx_c_st); return;}
+	    }
 	}
       if ((c_callee(tree) == fx_c_opssq) && (caddr(cadr(p)) == stepper))
 	{
@@ -70651,6 +70535,7 @@ static void check_let_a_body(s7_scheme *sc, s7_pointer form)
   if (is_fx_safe(sc, cadr(sc->code)))
     {
       annotate_arg(sc, cdr(sc->code), sc->envir);
+      fx_tree(sc, cdr(sc->code), caaar(sc->code), NULL);
       pair_set_syntax_op(form, OP_LET_A_A);
 
       if (not_in_heap(form))
@@ -76415,10 +76300,10 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 
 static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 {
-  s7_pointer let_body, p = NULL, let_vars, let_code;
+  s7_pointer let_body, p = NULL, let_vars, let_code, ip;
   bool let_star;
   s7_pointer old_e, stepper;
-  s7_int body_len, var_len;
+  s7_int body_len, var_len, k, end;
 
   /* do_let with non-float vars doesn't get many fixable hits */
   let_code = caddr(scc);
@@ -76467,16 +76352,19 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	return(fall_through);
       }
 
-  if (is_null(p))
+  if (!is_null(p)) /* no hits in s7test or snd-test */
     {
-      s7_int k, end;
-      s7_pointer ip;
+      sc->envir = old_e;
+      return(fall_through);
+    }
 
-      end = denominator(stepper);
-      let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
-      ip = slot_value(step_slot);
-
-      if ((var_len == 1) && (body_len == 1))
+  end = denominator(stepper);
+  let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
+  ip = slot_value(step_slot);
+  
+  if (body_len == 1)
+    {
+      if (var_len == 1)
 	{
 	  s7_pointer xp;
 	  int32_t pc2;
@@ -76504,13 +76392,11 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	      s7_d_vd_t vf5, vf6;
 	      s7_d_vid_t vf7;
 	      void *obj1, *obj2, *obj3, *obj4, *obj5, *obj6, *obj7;
-	      /* int32_t pc5; */
-
+	      
 	      sc->pc = pc2;
 	      o1 = o->sc->opts[o->sc->pc + 1];
 	      o2 = o->sc->opts[o->sc->pc + 3];
 	      o3 = o->sc->opts[o->sc->pc + 5];
-	      /* pc5 = sc->pc + 5; */
 	      vf1 = first->v[4].d_v_f;
 	      vf2 = first->v[5].d_v_f;
 	      vf3 = o1->v[2].d_v_f;
@@ -76525,15 +76411,12 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	      obj5 = o->v[5].obj;
 	      obj6 = o2->v[5].obj;
 	      obj7 = o3->v[2].obj;
-
+	      
 	      for (k = numerator(stepper) + 1; k < end; k++)
 		{
 		  s7_double amp_env, vib;
-		  /* sc->pc = 0; */
 		  vib = vf1(obj1) + vf2(obj2);
-		  /* sc->pc = pc2; */
 		  amp_env = vf3(obj3);
-		  /* sc->pc = pc5; */
 		  vf7(obj5, k, amp_env * vf5(obj6, vib + (vf4(obj4) * vf6(obj7, vib))));
 		}
 	    }
@@ -76548,12 +76431,10 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 		  f2(o);
 		}
 	    }
-	}
+	} /* body_len == 1 and var_len == 1 */
       else
 	{
-	  int32_t i;
-	  for (i = 0, p = let_slots(sc->envir); tis_slot(p); i++, p = next_slot(p));
-	  if ((body_len == 1) && (i == 2))
+	  if (var_len == 2)
 	    {
 	      s7_pointer s1, s2;
 	      s1 = let_slots(sc->envir);
@@ -76568,13 +76449,11 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 		  sc->pc++;
 		  sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
 		}
-	    }
+	    } /* body_len == 1 and var_len == 2 */
 	  else
 	    {
-	      /* next biggest: body_len==2 and i==1 */
 	      for (k = numerator(stepper); k < end; k++)
 		{
-		  int32_t i;
 		  integer(ip) = k;
 		  sc->pc = 0;
 		  for (p = let_slots(sc->envir); tis_slot(p); p = next_slot(p))
@@ -76582,22 +76461,52 @@ static int32_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 		      set_real(slot_value(p), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
 		      sc->pc++;
 		    }
-		  for (i = 0; i < body_len; i++)
-		    {
-		      sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
-		      sc->pc++;
-		    }
+		  sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
 		}
 	    }
 	}
-      sc->envir = old_e;
-      sc->value = sc->T;
-      sc->code = cdadr(scc);
-      return(goto_SAFE_DO_END_CLAUSES);
+    } /* body_len == 1 */
+  else
+    {
+      if ((body_len == 2) && (var_len == 1))
+	{
+	  s7_pointer s1;
+	  s1 = let_slots(sc->envir);
+	  for (k = numerator(stepper); k < end; k++)
+	    {
+	      integer(ip) = k;
+	      sc->pc = 0;
+	      set_real(slot_value(s1), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
+	      sc->pc++;
+	      sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
+	      sc->pc++;
+	      sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
+	    }
+	}
+      else
+	{
+	  for (k = numerator(stepper); k < end; k++)
+	    {
+	      int32_t i;
+	      integer(ip) = k;
+	      sc->pc = 0;
+	      for (p = let_slots(sc->envir); tis_slot(p); p = next_slot(p))
+		{
+		  set_real(slot_value(p), sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]));
+		  sc->pc++;
+		}
+	      for (i = 0; i < body_len; i++)
+		{
+		  sc->opts[sc->pc]->v[0].fd(sc->opts[sc->pc]);
+		  sc->pc++;
+		}
+	    }
+	}
     }
   sc->envir = old_e;
-  /* no hits in s7test or snd-test */
-  return(fall_through);
+  sc->value = sc->T;
+  sc->code = cdadr(scc);
+  return(goto_SAFE_DO_END_CLAUSES);
 }
 
 static bool dotimes(s7_scheme *sc, s7_pointer code, bool safe_case)
@@ -76701,7 +76610,7 @@ static int32_t safe_dotimes_ex(s7_scheme *sc)
 
 	  set_opt2_pair(code, sc->code);
 	  push_stack(sc, OP_SAFE_DOTIMES_STEP, sc->args, code);
-	  return(goto_BEGIN1);
+	  return(goto_BEGIN);
 	}
     }
   /* no hits in s7test */
@@ -76776,7 +76685,7 @@ static int32_t safe_do_ex(s7_scheme *sc)
   set_unsafe_do(sc->code);
   set_opt2_pair(code, sc->code);
   push_stack(sc, OP_SAFE_DO_STEP, sc->args, code); /* (do ((i 0 (+ i 1))) ((= i 2)) (set! (str i) #\a)) */
-  return(goto_BEGIN1);
+  return(goto_BEGIN);
 }
 
 static int32_t dotimes_p_ex(s7_scheme *sc)
@@ -77318,6 +77227,7 @@ static int32_t unknown_a_ex(s7_scheme *sc, s7_pointer f)
 		      annotate_arg(sc, body, sc->envir);
 		      set_optimize_op(code, OP_SAFE_CLOSURE_A_A);
 		      set_closure_has_fx(f);
+		      fx_tree(sc, body, car(closure_args(f)), NULL);
 		    }
 		  else
 		    {
@@ -78531,7 +78441,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
 	s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, closure_name(sc, sc->code), sc->args));
       /* what about (define* (f :allow-other-keys) 0) (f :a-key 21) */
       sc->code = closure_body(sc->code);
-      return(goto_BEGIN1);
+      return(goto_BEGIN);
     }
 
   top = sc->nil;
@@ -78584,7 +78494,7 @@ static int32_t apply_lambda_star(s7_scheme *sc) 	                  /* -------- d
     }
 
   sc->code = closure_body(sc->code);
-  return(goto_BEGIN1);
+  return(goto_BEGIN);
 }
 
 static void safe_closure_star_a(s7_scheme *sc, s7_pointer code)
@@ -81948,7 +81858,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    choice = safe_dotimes_ex(sc);
 
 	    if (choice == goto_SAFE_DO_END_CLAUSES) goto SAFE_DO_END_CLAUSES;
-	    if (choice == goto_BEGIN1) goto BEGIN;
+	    if (choice == goto_BEGIN) goto BEGIN;
 	    if (choice == goto_EVAL) goto EVAL;
 	    if (choice == goto_TOP_NO_POP) goto TOP_NO_POP;
  	    pair_set_syntax_op(form, OP_SIMPLE_DO);
@@ -82033,7 +81943,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		int32_t choice;
 		choice = simple_do_ex(sc, sc->code);
 		if (choice == goto_START) goto START;
-		if (choice == goto_BEGIN1) goto BEGIN;
+		if (choice == goto_BEGIN) goto BEGIN;
 		if (choice == goto_DO_END_CLAUSES) goto DO_END_CLAUSES;
 	      }
 	    push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
@@ -82075,7 +81985,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    if (choice == goto_DO_END_CLAUSES) goto DO_END_CLAUSES;
 	    if (choice == goto_SAFE_DO_END_CLAUSES) goto SAFE_DO_END_CLAUSES;
 	    if (choice == goto_START) goto START;
-	    if (choice == goto_BEGIN1) goto BEGIN;
+	    if (choice == goto_BEGIN) goto BEGIN;
 	    if (choice == goto_TOP_NO_POP) goto TOP_NO_POP;
 	    if (choice == fall_through)
 	      pair_set_syntax_op(form, OP_DOX_INIT);
@@ -88919,9 +88829,6 @@ s7_scheme *s7_init(void)
       init_catchers();
       already_inited = true;
     }
-#if WITH_COUNTS
-  init_steps();
-#endif
 #if (!MS_WINDOWS)
   pthread_mutex_unlock(&init_lock);
 #endif
@@ -90806,7 +90713,7 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2463
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2673
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2786
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2786 2846
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2871
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3084
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
@@ -90825,16 +90732,18 @@ int main(int argc, char **argv)
  * mutable cells in opt for set
  * do definer is ok if in let etc?, or safe_closure if no definers (safe_body==constant funclet)
  * more s->t cases [fx_tree in any body without definers (let etc) = arg fxs] fxcounts
- * saved let in do_let(variable number of vars), assoc member
- *   perhaps: op_let_a et al if body is very safe (no recursion)? it this info saved? let_*_aa|fx?
- *   also in remove_from_heap if very safe func, also make let permanent if not already
- *   are func cells also out of the heap?
+ * saved let in assoc member
+ *   perhaps: op_let_a et al if body is very safe (no recursion/definers)? is this info saved? let_*_aa|fx?
+ *   also in remove_from_heap if very safe func, make let permanent if not already
+ *   are func cells also out of the heap? no! -- all s7_define* are normal slots
  * what if safe closure is fx_treed, then applied with unreversed let?
  * chained rec calls from top funclet: when top changes, update all, then skip the internal checks
  *   if tc, these could be just set vals and goto top
+ *   or could all such refs be hardwired to see the top? funclet field? __func__? permanent let with pointer to owning closure + outlet path
+ *   safe_rclo_a, opt_lambda call -> top=code, its opt1_lambda is the func
+ *     get func from opt1_lambda(opt1_lambda(code)), set let_slots->fx_call(a), code->body, closure_push
  * op-trans2 et al for combined ops [when_and_ap optimization order is pessimal]
  *   check* if used in this way can't push_stack (as does check_when)
- *   fx_c_ac maybe (lt), begin_2? begin_ns? begin_a_? (could ignore sc->value)
- *   let*_fx_b1? (thash) op_let_a|fx_b1 split safe_do_step
- * enum goto_BEGIN1 goes to BEGIN
+ *   let*_fx_b1? (thash) op_let_a|fx_b1
+ * trouble: safe closure let reversal, optimize_func*(2), shared_info
  */
