@@ -2215,6 +2215,7 @@ static void init_types(void)
 #define is_immutable_pair(p)           has_type_bit(T_Pair(p), T_IMMUTABLE)
 #define is_immutable_vector(p)         has_type_bit(T_Vec(p), T_IMMUTABLE)
 #define is_immutable_string(p)         has_type_bit(T_Str(p), T_IMMUTABLE)
+/* T_IMMUTABLE is compatible with T_MUTABLE -- the latter is an internal bit for locally mutable numbers */
 
 #define T_SETTER                       (1 << (TYPE_BITS + 17))
 #define set_setter(p)                  set_type_bit(T_Sym(p), T_SETTER)
@@ -2244,7 +2245,7 @@ static void init_types(void)
 #define T_MUTABLE                      (1 << (TYPE_BITS + 18))
 #define is_mutable(p)                  has_type_bit(T_Num(p), T_MUTABLE)
 #define clear_mutable(p)               clear_type_bit(T_Num(p), T_MUTABLE)
-/* used for mutable numbers */
+/* used for mutable numbers, can occur with T_IMMUTABLE (outside view vs inside) */
 
 #define T_HAS_KEYWORD                  T_MUTABLE
 #define has_keyword(p)                 has_type_bit(T_Sym(p), T_HAS_KEYWORD)
@@ -3128,6 +3129,9 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define closure_map_list(p)            (T_Pair((T_Clo(p))->object.func.setter))
 #define closure_set_map_list(p, Val)   (T_Clo(p))->object.func.setter = T_Pair(Val)
 #define closure_setter_or_map_list(p)  (T_Clo(p)->object.func.setter)
+/* closure_map_list refers to a cyclic list detector in map; since in this case map makes a new closure for its own use,
+ *   closure_map_list doesn't collide with closure_setter.
+ */
 
 #define CLOSURE_ARITY_NOT_SET          0x40000000
 #define MAX_ARITY                      0x20000000
@@ -3877,9 +3881,10 @@ enum {OP_UNOPT, HOP_UNOPT, OP_SYM, HOP_SYM, OP_CON, HOP_CON,
       OP_LAMBDA_STAR_UNCHECKED, OP_DO_UNCHECKED, OP_DEFINE_UNCHECKED, OP_DEFINE_STAR_UNCHECKED, OP_DEFINE_FUNCHECKED, OP_DEFINE_CONSTANT_UNCHECKED,
       OP_DEFINE_WITH_SETTER, OP_DEFINE_MACRO_WITH_SETTER,
 
-      OP_LET_NO_VARS, OP_NAMED_LET, OP_NAMED_LET_NO_VARS, OP_NAMED_LET_STAR, OP_LET_FX, OP_LET_FX_2, OP_LET_FX_3, OP_LET_STAR_FX,
+      OP_LET_NO_VARS, OP_NAMED_LET, OP_NAMED_LET_NO_VARS, OP_NAMED_LET_STAR, OP_LET_FX, OP_LET_FX_2, OP_LET_FX_3, 
+      OP_LET_STAR_FX, OP_LET_STAR_FX_A,
       OP_LET_opSSq, OP_LET_opSSq_E, OP_LET_opaSSq, OP_LET_opaSSq_E,
-      OP_LET_ONE, OP_LET_ONE_1, OP_LET_ONE_P, OP_LET_ONE_P_1, OP_LET_A, OP_LET_A_P, OP_LET_A_A,
+      OP_LET_ONE, OP_LET_ONE_1, OP_LET_ONE_P, OP_LET_ONE_P_1, OP_LET_ONE_P_2, OP_LET_A, OP_LET_A_P, OP_LET_A_A,
 
       OP_CASE_A_E_S, OP_CASE_A_I_S, OP_CASE_A_G_S, OP_CASE_A_E_G, OP_CASE_A_G_G, OP_CASE_A_S_S, OP_CASE_A_S_G,
       OP_CASE_S_E_S, OP_CASE_S_I_S, OP_CASE_S_G_S, OP_CASE_S_E_G, OP_CASE_S_G_G, OP_CASE_S_S_S, OP_CASE_S_S_G,
@@ -4081,9 +4086,10 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "lambda*_unchecked", "do_unchecked", "define_unchecked", "define*_unchecked", "define_funchecked", "define_constant_unchecked",
       "define_with_setter", "define_macro_with_setter",
 
-      "let_no_vars", "named_let", "named_let_no_vars", "named_let*", "let_fx", "let_fx_2", "let_fx_3", "let*_fx",
+      "let_no_vars", "named_let", "named_let_no_vars", "named_let*", "let_fx", "let_fx_2", "let_fx_3", 
+      "let*_fx", "let*_fx_a",
       "let_opssq", "let_opssq_e", "let_opassq", "let_opassq_e",
-      "let_one", "let_one_1", "let_one_p", "let_one_p_1", "let_a", "let_a_p", "let_a_a",
+      "let_one", "let_one_1", "let_one_p", "let_one_p_1", "let_one_p_1", "let_a", "let_a_p", "let_a_a",
 
       "case_a_e_s", "case_a_i_s", "case_a_g_s", "case_a_e_g", "case_a_g_g", "case_a_s_s", "case_a_s_g",
       "case_s_e_s", "case_s_i_s", "case_s_g_s", "case_s_e_g", "case_s_g_g", "case_s_s_s", "case_s_s_g",
@@ -6975,6 +6981,7 @@ static s7_pointer old_frame_with_three_slots(s7_scheme *sc, s7_pointer env, s7_p
   return(env);
 }
 
+
 #if S7_DEBUGGING
 static s7_int permanent_slots = 0;
 #endif
@@ -6992,9 +6999,11 @@ static s7_pointer permanent_slot(s7_scheme *sc, s7_pointer symbol, s7_pointer va
   return(x);
 }
 
-static s7_pointer permanent_frame_with_one_slot(s7_scheme *sc, s7_pointer symbol)
+static s7_pointer reverse_slots(s7_scheme *sc, s7_pointer list);
+
+static s7_pointer make_permanent_let(s7_scheme *sc, s7_pointer vars)
 {
-  s7_pointer frame, slot;
+  s7_pointer frame, var;
   frame = alloc_pointer(sc);
 #if S7_DEBUGGING
   permanent_slots++;
@@ -7002,12 +7011,35 @@ static s7_pointer permanent_frame_with_one_slot(s7_scheme *sc, s7_pointer symbol
   set_type(frame, T_LET | T_SAFE_PROCEDURE | T_UNHEAP);
   let_id(frame) = ++sc->let_number;
   set_outlet(frame, sc->envir);
-  slot = permanent_slot(sc, symbol, sc->F);
-  symbol_set_local(symbol, sc->let_number, slot);
-  set_next_slot(slot, slot_end(sc));
-  let_set_slots(frame, slot);
+  let_set_slots(frame, slot_end(sc));
+  for (var = vars; is_pair(var); var = cdr(var))
+    {
+      s7_pointer slot;
+      slot = permanent_slot(sc, caar(var), sc->F);
+      add_permanent_object(sc, slot);
+      symbol_set_local(caar(var), sc->let_number, slot);
+      set_next_slot(slot, let_slots(frame));
+      let_set_slots(frame, slot);
+    }
+  let_set_slots(frame, reverse_slots(sc, let_slots(frame)));
+  add_permanent_object(sc, frame); /* need to mark outlet and maybe slot values */
   return(frame);
 }
+
+static s7_pointer activate_permanent_let_star(s7_scheme *sc, s7_pointer frame, s7_pointer vars)
+{
+  s7_pointer slot, var;
+  let_id(frame) = ++sc->let_number;
+  set_outlet(frame, sc->envir);
+  sc->envir = frame;
+  for (var = vars, slot = let_slots(frame); is_pair(var); var = cdr(var), slot = next_slot(slot))
+    {
+      slot_set_value(slot, fx_call(sc, cdar(var)));
+      symbol_set_local(caar(var), sc->let_number, slot);
+    }
+  return(frame);
+}
+
 
 static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
 {
@@ -10724,7 +10756,7 @@ s7_pointer s7_make_integer(s7_scheme *sc, s7_int n)
 static s7_pointer make_mutable_integer(s7_scheme *sc, s7_int n)
 {
   s7_pointer x;
-  new_cell(sc, x, T_INTEGER | T_MUTABLE);
+  new_cell(sc, x, T_INTEGER | T_MUTABLE | T_IMMUTABLE);
   integer(x) = n;
   return(x);
 }
@@ -10753,7 +10785,7 @@ s7_pointer s7_make_real(s7_scheme *sc, s7_double n)
 s7_pointer s7_make_mutable_real(s7_scheme *sc, s7_double n)
 {
   s7_pointer x;
-  new_cell(sc, x, T_REAL | T_MUTABLE);
+  new_cell(sc, x, T_REAL | T_MUTABLE | T_IMMUTABLE);
   set_real(x, n);
   return(x);
 }
@@ -31288,9 +31320,43 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
+
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 400000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  if (port_data(port))
+		    {
+		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
+		      if (port_position(port) > 10000)
+			port_data(port)[10000] = '\0';
+		      else port_data(port)[port_position(port)] = '\0';
+		      fprintf(stderr, "%s\n", port_data(port));
+		    }
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
+
   ref = (is_collected(vr)) ? shared_ref(ci, vr) : 0;
   if (ref != 0)
     {
@@ -63377,6 +63443,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 
     case OP_LET_ONE_1:             /* sc->args = symbol */
     case OP_LET_ONE_P_1:
+    case OP_LET_ONE_P_2:
       eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
 			      stack_args(sc->stack, top), cons(sc, sc->values_symbol, args));
 
@@ -69742,7 +69809,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  f = slot_value(f_slot);
 	  c_safe = (is_c_function(f)) && (is_safe_or_scope_safe_procedure(f));
 	  result = ((is_sequence(f)) ||
-		    ((c_safe) && (is_global(expr)))) ? VERY_SAFE_BODY : SAFE_BODY;
+		    ((is_closure(f)) && (is_very_safe_closure(f))) ||
+		    ((c_safe) && ((is_immutable(f_slot)) || (is_global(expr))))) ? VERY_SAFE_BODY : SAFE_BODY;
 
 	  if ((c_safe) ||
 	      ((is_any_closure(f)) && (is_safe_closure(f))) ||
@@ -70539,7 +70607,7 @@ static void check_let_a_body(s7_scheme *sc, s7_pointer form)
       pair_set_syntax_op(form, OP_LET_A_A);
 
       if (not_in_heap(form))
-	set_opt3_any(sc->code, permanent_frame_with_one_slot(sc, caaar(sc->code)));
+	set_opt3_any(sc->code, make_permanent_let(sc, car(sc->code)));
       else set_opt3_any(sc->code, sc->F);
     }
   else
@@ -70576,8 +70644,12 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 
       if (is_h_optimized(cadr(binding)))
 	{
+	  /* if (not_in_heap(form)) fprintf(stderr, "unheap %s\n", DISPLAY_80(form)); */
+
 	  if (is_null(cddr(sc->code)))                   /* one statement body */
 	    {
+	      /* fprintf(stderr, "form: %d\n", (int)form_is_safe(sc, sc->unused, cadr(sc->code), true)); */
+
 	      if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 		{
 		  /* no lt fx here, 4 s7test */
@@ -70596,6 +70668,8 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 		  return(sc->code);
 		}
 	    }
+	  /* else fprintf(stderr, "body: %d\n", (int)body_is_safe(sc, sc->unused, cdr(sc->code), true)); */
+
 	  if (optimize_op(cadr(binding)) == HOP_SAFE_C_SS)
 	    {
 	      if (c_callee(cadr(binding)) == g_assq)
@@ -70612,6 +70686,15 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 		  if (is_null(cddr(sc->code))) check_let_a_body(sc, form);
 		}
 	    }
+	}
+      /* else fprintf(stderr, "let_one: %s body: %d\n", DISPLAY_80(form), (int)body_is_safe(sc, sc->unused, cdr(sc->code), true)); */
+
+      if (optimize_op(form) == OP_LET_ONE_P)
+	{
+	  if ((not_in_heap(form)) &&
+	      (body_is_safe(sc, sc->unused, cdr(sc->code), true) == VERY_SAFE_BODY))
+	    set_opt3_any(sc->code, make_permanent_let(sc, car(sc->code)));             /* TODO: fx_tree?? */
+	  else set_opt3_any(sc->code, sc->F);
 	}
     }
   else
@@ -71003,7 +71086,9 @@ static void op_let_one(s7_scheme *sc)
 static void op_let_one_p(s7_scheme *sc)
 {
   start_let(sc);
-  push_stack(sc, OP_LET_ONE_P_1, opt2_sym(cdr(sc->code)), cadr(sc->code)); /* caaar(sc->code) */
+  if (is_let(opt3_any(sc->code)))
+    push_stack(sc, OP_LET_ONE_P_2, opt2_sym(cdr(sc->code)), sc->code);
+  else push_stack(sc, OP_LET_ONE_P_1, opt2_sym(cdr(sc->code)), cadr(sc->code)); /* caaar(sc->code) */
   sc->code = T_Pair(opt2_pair(sc->code));
 }
 
@@ -71229,6 +71314,17 @@ static bool check_let_star(s7_scheme *sc)
 	      set_c_call(cdar(p), fx_choose(sc, cdar(p), sc->envir, let_star_symbol_is_safe));
 	      add_symbol_to_list(sc, caar(p));
 	    }
+	  
+	  if ((is_null(cddr(sc->code))) &&
+	      (is_fx_safe(sc, cadr(sc->code))))
+	    {
+	      annotate_arg(sc, cdr(sc->code), sc->envir);
+	      /* fprintf(stderr, "let*_fx_a: %s\n", DISPLAY(form)); */
+	      pair_set_syntax_op(form, OP_LET_STAR_FX_A);
+	      if (not_in_heap(form))
+		set_opt3_any(sc->code, make_permanent_let(sc, car(sc->code)));
+	      else set_opt3_any(sc->code, sc->F);
+	    }
 	}
     }
 
@@ -71319,20 +71415,30 @@ static bool op_let_star1(s7_scheme *sc)
 
 static void op_let_star_fx(s7_scheme *sc)
 {
-  s7_pointer p, e, arg;
-  set_current_code(sc, sc->code);
-  sc->code = cdr(sc->code);
-  p = car(sc->code);
-  arg = cdar(p);
-  new_frame_with_slot(sc, sc->envir, e, caar(p), fx_call(sc, arg));
+  s7_pointer e, p;
+  start_let(sc);
+  new_frame(sc, sc->envir, e);
   /* since each value is fx safe, there are no internal closures over the on-going stack of lets here (so use one frame) */
   sc->envir = e;
-  for (p = cdr(p); is_pair(p); p = cdr(p))
-    {
-      arg = cdar(p);
-      make_slot_1(sc, e, caar(p), fx_call(sc, arg));
-    }
+  for (p = car(sc->code); is_pair(p); p = cdr(p))
+    make_slot_1(sc, e, caar(p), fx_call(sc, cdar(p)));
   sc->code = T_Pair(cdr(sc->code));
+}
+
+static void op_let_star_fx_a(s7_scheme *sc)
+{
+  s7_pointer e, p;
+  start_let(sc);
+  if (is_let(opt3_any(sc->code)))
+    activate_permanent_let_star(sc, opt3_any(sc->code), car(sc->code));
+  else 
+    {
+      new_frame(sc, sc->envir, e);
+      sc->envir = e;
+      for (p = car(sc->code); is_pair(p); p = cdr(p))
+	make_slot_1(sc, e, caar(p), fx_call(sc, cdar(p)));
+    }
+  sc->value = fx_call(sc, cdr(sc->code));
 }
 
 static void op_named_let_star(s7_scheme *sc)
@@ -75222,7 +75328,7 @@ static s7_pointer check_do(s7_scheme *sc)
 	set_c_call(cdr(end), fx_choose(sc, cdr(end), sc->envir, let_symbol_is_safe_or_listed));
 
 	if (not_in_heap(cdr(form)))
-	  set_opt3_any(cdr(form), permanent_frame_with_one_slot(sc, caar(vars)));
+	  set_opt3_any(cdr(form), make_permanent_let(sc, vars));
 	else set_opt3_any(cdr(form), sc->F);
 
 	pair_set_syntax_op(form, OP_DOX_NO_BODY);
@@ -82722,19 +82828,37 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNLESS_PP: if (op_unless_pp(sc)) goto START; goto EVAL;
 
 	  /* -------------------------------- let -------------------------------- */
-	case OP_LET_NO_VARS: 	   op_let_no_vars(sc);	      goto BEGIN;
-	case OP_NAMED_LET_NO_VARS: op_named_let_no_vars(sc);  goto BEGIN;
-
-	case OP_LET_FX: 	   op_let_fx(sc);	      goto BEGIN;
-	case OP_LET_FX_2: 	   op_let_fx_2(sc);	      goto EVAL;
-	case OP_LET_FX_3: 	   op_let_fx_3(sc);	      goto EVAL;
-	case OP_NAMED_LET:	   op_named_let(sc);	      goto LET1;
+	case OP_LET_NO_VARS: 	   op_let_no_vars(sc);	       goto BEGIN;
+	case OP_NAMED_LET_NO_VARS: op_named_let_no_vars(sc);   goto BEGIN;
+	case OP_NAMED_LET:	   op_named_let(sc);	       goto LET1;
 	case OP_LET: 	           if (op_let(sc)) goto BEGIN; goto LET1;
+	case OP_LET_A_A:           op_let_a_a(sc);             goto START;
+	case OP_LET_FX: 	   op_let_fx(sc);	       goto BEGIN;
+	case OP_LET_FX_2: 	   op_let_fx_2(sc);	       goto EVAL;
+	case OP_LET_FX_3: 	   op_let_fx_3(sc);	       goto EVAL;
+	case OP_LET_ONE:	   op_let_one(sc);	       goto EVAL;
+	case OP_LET_ONE_P: 	   op_let_one_p(sc);	       goto EVAL;
 
-	case OP_LET_ONE:	   op_let_one(sc);	      goto EVAL;
-	case OP_LET_ONE_P: 	   op_let_one_p(sc);	      goto EVAL;
-	case OP_LET_ONE_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto BEGIN;
-	case OP_LET_ONE_P_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto EVAL;
+	case OP_LET_A:             op_let_a(sc); sc->code = cdr(sc->code);  goto BEGIN;
+	case OP_LET_A_P:           op_let_a(sc); sc->code = cadr(sc->code); goto EVAL;
+
+	case OP_LET_ONE_1:	   
+	  new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); 
+	  goto BEGIN;
+
+	case OP_LET_ONE_P_1:	   
+	  new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); 
+	  goto EVAL;
+
+	case OP_LET_ONE_P_2:
+	  {
+	    s7_pointer frame;
+	    frame = old_frame_with_slot(sc, opt3_any(sc->code), sc->value); 
+	    set_outlet(frame, sc->envir);
+	    sc->envir = frame;
+	    sc->code = cadr(sc->code);
+	    goto EVAL;
+	  }
 
 	case OP_LET_opSSq:       /* one var, init is safe_c_ss */
 	  op_let_opssq(sc);
@@ -82760,10 +82884,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = cadr(sc->code);
 	  goto EVAL;
 
-	case OP_LET_A:   op_let_a(sc); sc->code = cdr(sc->code);  goto BEGIN;
-	case OP_LET_A_P: op_let_a(sc); sc->code = cadr(sc->code); goto EVAL;
-	case OP_LET_A_A: op_let_a_a(sc);                          goto START;
-
 	case OP_LET_UNCHECKED:   /* not named, but has vars */
 	  if (op_let_unchecked(sc)) goto EVAL;
 
@@ -82773,6 +82893,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_LET_STAR_FX:           op_let_star_fx(sc);    goto BEGIN;
+	case OP_LET_STAR_FX_A:         op_let_star_fx_a(sc);  goto START;
 	case OP_NAMED_LET_STAR:        op_named_let_star(sc); goto EVAL;
 	case OP_LET_STAR2:             op_let_star2(sc);      goto EVAL;
 	case OP_LET_STAR:              if (check_let_star(sc)) goto EVAL; goto BEGIN;
@@ -88743,7 +88864,7 @@ static s7_pointer make_real_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_REAL | T_UNHEAP | T_MUTABLE;
+  typeflag(p) = T_REAL | T_UNHEAP | T_MUTABLE | T_IMMUTABLE;
   return(p);
 }
 
@@ -88751,7 +88872,7 @@ static s7_pointer make_integer_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE; /* mutable to turn off set_has_print_name */
+  typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE | T_IMMUTABLE; /* mutable to turn off set_has_print_name */
   return(p);
 }
 
@@ -90627,7 +90748,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 804) || (OPT_MAX_DEFINED != 409))
+  if ((OP_MAX_DEFINED != 806) || (OPT_MAX_DEFINED != 409))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -90703,47 +90824,56 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  710 |              636   559
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   594   595   595
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   966   954   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   969
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   993   974   972
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1518  1513  1530
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1715  1692  1696
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2087  2099  2088
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2261 
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2249  2260  2261 2287? (gc -- 1)
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2335  2332  2282
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2295
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2268  2320  2299
  * tvect         |      |      |      |      |      | 5616 | 2650  2520  2471  2463
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467  2467
  * tlet          |      |      |      |      | 4717 | 2959 | 2946  2678  2685  2673
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2786 2846
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  3469  2993  2754
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2832  2855  2871
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3085  3084
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 6317  6390  3464  3443
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3559  3551  3520
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  5124
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5181  5150  4994
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.9  10.9
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.1  11.1  11.2  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 17.1  17.2  16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.4  38.4  38.3
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 78.0  72.9  73.0  72.8
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 109.3
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.6 110.2 110.1 109.3 109.7 (gc + 1 -- 14?)
  * tbig          |      |      |      |      |246.9 |230.6 |213.3 187.3 185.1 184.9
  * ------------------------------------------------------------------------------------------
  *
- * mutable cells in opt for set
- * do definer is ok if in let etc?, or safe_closure if no definers (safe_body==constant funclet)
- * more s->t cases [fx_tree in any body without definers (let etc) = arg fxs] fxcounts
- * saved let in assoc member
- *   perhaps: op_let_a et al if body is very safe (no recursion/definers)? is this info saved? let_*_aa|fx?
- *   also in remove_from_heap if very safe func, make let permanent if not already
- *   are func cells also out of the heap? no! -- all s7_define* are normal slots
- * what if safe closure is fx_treed, then applied with unreversed let?
+ * mutable cells in opt for set [where?][currently 75403 has_safe_steppers]
+ *
+ * do definer is ok if in let etc
+ *
+ * more s->t cases [fx_tree in any body [with 1 var? let*_fx_a reverses but others don't] without definers (let etc) = arg fxs] fxcounts
+ *   70696 let_one_p
+ *
+ * saved let in assoc member [if bool_optimize]
+ *   perhaps: op_let_a et al if body is very safe (no recursion/definers/macros)? is this info saved? [save it!] let_*_aa|fx? [got let*_fx_a]
+ *   can't any unheaped let be permanent? -- need to make sure no [uncovered] definers [remove_from heap?]
+ *   are func cells also out of the heap? no! -- all s7_define* are normal slots -- if global/unlet make permanent?
+ *   what about do frame?
+ *   true let*, letrec(*) (timing?)
+ *
  * chained rec calls from top funclet: when top changes, update all, then skip the internal checks
  *   if tc, these could be just set vals and goto top
  *   or could all such refs be hardwired to see the top? funclet field? __func__? permanent let with pointer to owning closure + outlet path
  *   safe_rclo_a, opt_lambda call -> top=code, its opt1_lambda is the func
  *     get func from opt1_lambda(opt1_lambda(code)), set let_slots->fx_call(a), code->body, closure_push
+ *
  * op-trans2 et al for combined ops [when_and_ap optimization order is pessimal]
  *   check* if used in this way can't push_stack (as does check_when)
- *   let*_fx_b1? (thash) op_let_a|fx_b1
+ *
  * trouble: safe closure let reversal, optimize_func*(2), shared_info
+ *   needs split: optimize_func*, do*
+ *   what if safe closure is fx_treed, then applied with unreversed let?
  */

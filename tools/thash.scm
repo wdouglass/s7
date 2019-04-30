@@ -1,4 +1,4 @@
-(set! (*s7* 'heap-size) (* 6 1024000))
+(set! (*s7* 'heap-size) (* 5 1024000))
 ;(set! (*s7* 'gc-stats) 6)
 
 (define (reader)
