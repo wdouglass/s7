@@ -126,7 +126,7 @@
 ;(dups 6 "s7.c" 92000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
-;(dups 16 "s7test.scm" 100000)
+;(dups 1 "s7test.scm" 102000)
 
 (s7-version)
 (exit)
