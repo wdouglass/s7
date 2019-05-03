@@ -180,18 +180,13 @@
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values
 		  symbol-table load throw error openlets coverlets
-		  global-environment current-environment make-rectangular hash-table* make-keyword morally-equal?
+		  global-environment current-environment make-rectangular hash-table* make-keyword ;morally-equal?
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
-#|
-		  mock-number mock-pair mock-string mock-char mock-vector mock-hash-table
-		  mock-symbol mock-port mock-hash-table m mock->string make-local-method
-		  *mock-number* *mock-pair* *mock-string* *mock-char* *mock-vector*
-		  *mock-symbol* *mock-port* *mock-hash-table* mp ms mv
-|#
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
 		  c-define-1 apropos map-values
-		  outlet-member make-method make-object))
+		  ;outlet-member make-method make-object
+		  ))
 
 (define (test-sym sym)
   (if (and (not (memq sym baddies))

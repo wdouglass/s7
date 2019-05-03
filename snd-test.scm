@@ -1,32 +1,32 @@
 ;;; Snd tests
 ;;;
-;;;  test 0: constants                          [375]
-;;;  test 1: defaults                           [1020]
-;;;  test 2: headers                            [1373]
-;;;  test 3: variables                          [1687]
-;;;  test 4: sndlib                             [2238]
-;;;  test 5: simple overall checks              [3970]
-;;;  test 6: float-vectors                      [8582]
-;;;  test 7: colors                             [8842]
-;;;  test 8: clm                                [9326]
-;;;  test 9: mix                                [21076]
-;;;  test 10: marks                             [22795]
-;;;  test 11: dialogs                           [23712]
-;;;  test 12: extensions                        [23871]
-;;;  test 13: menus, edit lists, hooks, etc     [24108]
-;;;  test 14: all together now                  [25413]
-;;;  test 15: chan-local vars                   [26217]
-;;;  test 16: regularized funcs                 [27879]
-;;;  test 17: dialogs and graphics              [31373]
-;;;  test 18: save and restore                  [31478]
-;;;  test 19: transforms                        [33108]
-;;;  test 20: new stuff                         [35157]
-;;;  test 21: optimizer                         [36331]
-;;;  test 22: with-sound                        [38683]
-;;;  test 23: errors                            [41443]
-;;;  test 24: s7                                [42838]
-;;;  test the end                               [43132]
-
+;;;  test 0: constants                          [372]
+;;;  test 1: defaults                           [1017]
+;;;  test 2: headers                            [1370]
+;;;  test 3: variables                          [1684]
+;;;  test 4: sndlib                             [2236]
+;;;  test 5: simple overall checks              [3975]
+;;;  test 6: float-vectors                      [8585]
+;;;  test 7: colors                             [8845]
+;;;  test 8: clm                                [9334]
+;;;  test 9: mix                                [21100]
+;;;  test 10: marks                             [22819]
+;;;  test 11: dialogs                           [23737]
+;;;  test 12: extensions                        [23896]
+;;;  test 13: menus, edit lists, hooks, etc     [24133]
+;;;  test 14: all together now                  [25438]
+;;;  test 15: chan-local vars                   [26242]
+;;;  test 16: regularized funcs                 [27904]
+;;;  test 17: dialogs and graphics              [31398]
+;;;  test 18: save and restore                  [31501]
+;;;  test 19: transforms                        [33141]
+;;;  test 20: new stuff                         [35190]
+;;;  test 21: optimizer                         [36360]
+;;;  test 22: with-sound                        [38198]
+;;;  test 23: errors                            [40958]
+;;;  test 24: s7                                [42356]
+;;;  test all done                              [42489]
+;;;  test the end                               [42651]
 
 ;;; (set! (hook-functions *load-hook*) (list (lambda (hook) (format *stderr* "loading ~S...~%" (hook 'name)))))
 
@@ -3896,6 +3896,13 @@
 	    (doubles (vector 0.0 1.0 -1.0 0.1 -0.1 10.0 -10.0 1234.0 65536.0 -1234.0 -0.003)))
 	(load "binary-io.scm")
 	
+	(let ((lst (read-aif-header "4.aiff")))
+	  (if (not (equal? lst '("AIFF" 44 6758392 16 22050 4)))
+	      (snd-display "read-aif-header: ~S" lst)))
+	(let ((lst (read-au-header "oboe.snd")))
+	  (if (not (equal? lst '(".snd" 28 101656 3 22050 1 "")))
+	      (snd-display "read-au-header: ~S" lst)))
+
 	(with-output-to-file "idf1.data"
 	  (lambda ()
 	    
