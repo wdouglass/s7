@@ -22006,6 +22006,12 @@
 	;; -------- walk head=quasiquote (aimed at ,@x primarily) --------
 	(denote walk-qq 
 	  (let ((qq-form #f))
+
+	    (define (safe-av? p)
+	      (and (pair? p)
+		   (eq? (car p) 'apply-values)
+		   (not (tree-set-memq '(apply-values list-values append unquote) (cdr p)))))
+
 	    (lambda (caller head form env)
 	      (for-each (lambda (p)
 			  (let ((sym (and (symbol? p) p)))
@@ -22147,12 +22153,7 @@
 						  form 
 						  (unlist-values form)))))))
 			  
-			  (else                  ; checked already that form is a proper-list, so the length here is > 3
-			   (define (safe-av? p)
-			     (and (pair? p)
-				  (eq? (car p) 'apply-values)
-				  (not (tree-set-memq '(apply-values list-values append unquote) (cdr p)))))
-			   
+			  (else                  ; checked already that form is a proper-list, so the length here is > 3			   
 			   (let ((args (cdr form)))      ; car is list-values
 			     (cond ((lint-every? (lambda (p)              ; `((f . ,a) (g . ,b)...) -> (list (cons f a) (cons g b) ...)
 						   (and (pair? p)         ;     from (append (list x) y) -> (cons x y) 

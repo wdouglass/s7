@@ -1,6 +1,6 @@
 (set! (*s7* 'heap-size) (* 4 1024000))
 
-(define (fib n)
+(define-constant (fib n)
   (if (< n 2)
       n
       (+ (fib (- n 1))
@@ -10,6 +10,7 @@
   (unless (= f32 2178309) ;3524578)
     (display f32) 
     (newline)))
+
 
 #|
 (define* (tfib n (a 1) (b 1)) ; tail-call version
@@ -44,7 +45,8 @@
 	(set! a c))))
 |#
 
-(define (trib n)
+
+(define-constant (trib n)
   (if (< n 3)
       1
       (+ (trib (- n 1))
@@ -106,10 +108,11 @@
 (more-add)
 
 
-(define* (adder lst (sum 0))
-  (if (pair? lst)
-      (adder (cdr lst) (+ sum (car lst)))
-      sum))
+(define-constant adder 
+  (lambda* (lst (sum 0))
+    (if (pair? lst)
+	(adder (cdr lst) (+ sum (car lst)))
+	sum)))
 
 (define (more-adder)
   (let ((lst big-list))
@@ -119,7 +122,7 @@
 (more-adder)
 
 
-(define (got-symbol lst)
+(define-constant (got-symbol lst)
   (and (pair? lst)
        (or (symbol? (car lst))
 	   (got-symbol (cdr lst)))))
@@ -135,7 +138,7 @@
 
 ;;; add local-slot do cases to s7test
 
-(define (ack m n)
+(define-constant (ack m n)
   (cond ((= m 0) (+ n 1))
         ((= n 0) (ack (- m 1) 1))
         (else (ack (- m 1) (ack m (- n 1))))))
@@ -145,7 +148,7 @@
     (display n)
     (newline)))
 
-(define (tree-eq? a b)
+(define-constant (tree-eq? a b)
   (if (pair? a)
       (and (pair? b)
 	   (tree-eq? (car a) (car b))
