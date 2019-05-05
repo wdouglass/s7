@@ -17328,7 +17328,7 @@
 	    (when (and (= len 2)
 		       (not (check-bool-cond caller form (cadr form) (caddr form) env)))
 	      (cond-remove-not caller form env))
-	    ;; not+repeat got no 1 hit
+	    ;; not+repeat got 1 hit
 	    
 	    (when has-combinations
 	      (cond->or caller form all-eqv eqv-select simplifications env)
