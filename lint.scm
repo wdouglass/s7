@@ -17038,7 +17038,8 @@
 		  (falses ())
 		  (trues ())
 		  (prev-bool #f)
-		  (prev-clause #f))
+		  (prev-clause #f)
+		  (eqv-change 0))
 	      (for-each
 	       (lambda (clause)
 		 (set! ctr (+ ctr 1))
@@ -17048,8 +17049,16 @@
 		   (set! all-eqv (and eqv-select
 				      (not (and (pair? (cdr clause))
 						(eq? (cadr clause) '=>))) ; case sends selector, but cond sends test result
-				      (cond-eqv? (car clause) eqv-select #t))))
-		 
+				      (cond-eqv? (car clause) eqv-select #t)))
+		   (unless all-eqv
+		     (when (and eqv-select 
+				(pair? (car clause))
+				(eq? (caar clause) 'not)
+				(pair? (cdar clause))
+				(pair? (cadar clause))
+				(cond-eqv? (cadar clause) eqv-select #t))
+		     (set! eqv-change ctr))))
+
 		 ;; look for successive clause tests where the earlier includes the current (number? followed by integer? etc)
 		 ;;   slightly sloppy I guess -- the arg could be self-modifying!
 		 (if (not (and (len>1? (car clause))
@@ -17299,7 +17308,7 @@
 					       (set! falses (cons p falses))))
 					 (cdr expr))))))))
 	       (cdr form)) ; for-each clause
-	      
+
 	      (if has-else 
 		  (if (pair? result) ; all result clauses are the same (and not implicit)
 		      ;; (cond (x #t) (else #t)) -> #t
@@ -17318,12 +17327,12 @@
 			;; (cond (x y) (y z (else 3)))
 			(lint-format "perhaps cond else clause is misplaced: ~A in ~A" caller last-res last-clause))))
 	      
-	      (values has-else has-combinations simplifications all-eqv eqv-select)))
+	      (values has-else has-combinations simplifications all-eqv eqv-select eqv-change)))
 	
 
 	  ;; -------- cond-walker --------
 
-	  (define (cond-walker-1 caller form len suggest env has-else has-combinations simplifications all-eqv eqv-select)
+	  (define (cond-walker-1 caller form len suggest env has-else has-combinations simplifications all-eqv eqv-select eqv-change)
 
 	    (when (and (= len 2)
 		       (not (check-bool-cond caller form (cadr form) (caddr form) env)))
@@ -17335,12 +17344,45 @@
 	      (set! simplifications ())
 	      (set! all-eqv #f))
 	    
-	    (when (and all-eqv
-		       (> len (if has-else 2 1))) ; (cond (x y)) -- kinda dumb, but (if x y) isn't much shorter
-	      ;; (cond ((= x 0) x) ((= x 1) (= x 1))) -> (case x ((0) x) ((1) (= x 1)))
-	      (lint-format "perhaps use case instead of cond: ~A" caller
-			   (lists->string form (cond->case eqv-select (cdr form)))))
-	    
+	    ;; cond -> case 
+	    (if all-eqv
+		(if (> len (if has-else 2 1)) ; (cond (x y)) -- kinda dumb, but (if x y) isn't much shorter
+		    ;; (cond ((= x 0) x) ((= x 1) (= x 1))) -> (case x ((0) x) ((1) (= x 1)))
+		    (lint-format "perhaps use case instead of cond: ~A" caller
+				 (lists->string form (cond->case eqv-select (cdr form)))))
+
+		(when (and eqv-select 
+			   (> len 1))
+		  (if (= len eqv-change)            
+		      ;; (cond ((= x 0) 0) ((not (= x 1)) 1)) -> (case x ((0) 0) ((1) #<unspecified>) (else 1))
+		      (if (not (equal? (car (list-ref form (- len 1))) (cadar (list-ref form len))))
+			  (let ((new-cond (make-list (+ len 2))))
+			    (copy form new-cond 0 eqv-change)
+			    (list-set! new-cond len 
+				       (list (cadar (list-ref form len)) #<unspecified>))
+			    (list-set! new-cond (+ len 1) 
+				       (list 'else (cadr (list-ref form len))))
+			    (lint-format "perhaps use case instead of cond: ~A" caller
+					 (lists->string form 
+							(cond->case eqv-select (cdr new-cond))))))
+		      (if (= len (+ eqv-change 1))  
+			  ;; (cond ((= x 0) 0) ((not (= x 1)) 1) (else 2)) -> (case x ((0) 0) ((1) 2) (else 1)) 
+			  (let ((new-cond (make-list (+ len 1))))
+			    (copy form new-cond 0 eqv-change)
+			    (list-set! new-cond (- len 1) 
+				       (list (cadar (list-ref form (- len 1))) 
+					     (if (memq (car (list-ref form len)) '(#t else))
+						 (cadr (list-ref form len))
+						 (if (equal? (cadar (list-ref form (- len 1))) (car (list-ref form len)))
+						     (cadr (list-ref form len))
+						     #<unspecified>))))
+			    ;; (cond ((= x 0) 0) ((not (= x 1)) 1) ((= x 2) 2)) -> (case x ((0) 0) ((1) #<unspecified>) (else 1))
+			    ;; (cond ((= x 0) 0) ((not (= x 1)) 1) ((= x 1) 2)) -> (case x ((0) 0) ((1) 2) (else 1))
+			    (list-set! new-cond len 
+				       (list 'else (cadr (list-ref form (- len 1)))))
+			    (lint-format "perhaps use case instead of cond: ~A" caller
+					 (lists->string form 
+							(cond->case eqv-select (cdr new-cond)))))))))
 	    (if (and (= len 2)
 		     has-else
 		     (null? (cdadr form)))

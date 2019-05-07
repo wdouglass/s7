@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.2"
-#define S7_DATE "22-Mar-19"
+#define S7_VERSION "8.3"
+#define S7_DATE "7-May-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -127,6 +127,9 @@ s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc);
 s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
+s7_pointer s7_gc_unprotect_via_stack(s7_scheme *sc, s7_pointer x);
+s7_pointer s7_gc_protect_via_location(s7_scheme *sc, s7_pointer x, s7_int loc);
+s7_pointer s7_gc_unprotect_via_location(s7_scheme *sc, s7_int loc);
 
   /* any s7_pointer object held in C (as a local variable for example) needs to be
    *   protected from garbage collection if there is any chance the GC may run without
@@ -850,6 +853,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
  * 
  *        s7 changes
  *
+ * 7-May:     s7_gc_unprotect_via_stack and s7_gc_(un)protect_via_location.
  * 22-Mar:    s7_float_format_precision. port-position. port-file.
  * 4-Jan-19:  morally-equal? -> equivalent?
  * --------

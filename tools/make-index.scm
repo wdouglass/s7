@@ -1405,8 +1405,7 @@
 						    (format () "~A[~D]: extra '{'\n" file linectr))
 						   ((-1)
 						    (format () "~A[~D]: extra '}'\n" file linectr))
-						   ((0) 
-						    #f)
+						   ((0) #f)
 						   (else
 						    (format () "~A[~D]: curlys: ~D\n" file linectr p-curlys)))
 						 (set! p-curlys 0)

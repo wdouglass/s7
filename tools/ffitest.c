@@ -685,7 +685,7 @@ int main(int argc, char **argv)
 
   s2 = s7_number_to_string(sc, p, 10);
   if (strcmp(s2, "1.0+1.0i") != 0)
-    {fprintf(stderr, "%d: (number->string %s) is not \"1+1i\"?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+    {fprintf(stderr, "%d: (number->string %s) is not \"1.0+1.0i\"?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   free(s2);
 
   s7_immutable(p);

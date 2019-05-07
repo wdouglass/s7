@@ -972,6 +972,8 @@
 	      (list "(begin (string " "(apply string (list ")
 	      (list "(begin (float-vector " "(apply float-vector (list ")
 	      (list "(begin (values " "(apply values (list ")
+
+	      ;(list "(cond ((= x 0) " "(begin (when (= x 0) ")
 	      
 	      (list "(begin (_iter_ " "(begin (_map_ ")
 	      (list "(begin (_cat1_ " "(begin (_cat2_ ")
@@ -1201,7 +1203,11 @@
 		      (string-position "clobbered" (car info))
 		      (string-position "unexpected" (car info)))
 	    ;; "unexpected" close paren from: (eval-string (reverse (object->string ()))) -> (eval-string ")(")
-	    (format *stderr* "read-error from ~S: ~S~%" str (apply format #f info)))
+	    (format *stderr* "read-error from ~S: ~S~%" str (apply format #f info))
+	    (if (string-position "a1" str) (format *stderr* "a1: ~W~%" a1))
+	    (if (string-position "a2" str) (format *stderr* "a2: ~W~%" a2))
+	    (if (string-position "a3" str) (format *stderr* "a3: ~W~%" a3))
+	    (if (string-position "a4" str) (format *stderr* "a4: ~W~%" a4)))
           'error)))
 
     (define (try-both str)
@@ -1228,7 +1234,22 @@
 	      (val4 (eval-it str4)))
 	  ;(gc) (gc)
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
-	  )))
+	  ))
+#|
+      (let* ((outer (codes (random codes-len)))
+	     (str1 (string-append "(let () (define* (_f_ (x #f) (i 0)) " (car outer) str "))) (_f_))"))
+	     (str2 (string-append "(apply (lambda (x i) " (car outer) str "))) (list #f 0))"))
+	     (str3 (string-append "(let () (define (_f_ x i) " (cadr outer) str "))) (_f_ #f 0))"))
+	     (str4 (string-append "(let () (apply (lambda* ((x #f) (i 0)) " (cadr outer) str "))) ()))")))
+	(let ((val1 (eval-it str1))
+	      (val2 (eval-it str2))
+	      (val3 (eval-it str3))
+	      (val4 (eval-it str4)))
+	  ;(gc) (gc)
+	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
+	  ))
+|#
+      )
 
     (define dots (vector "." "-" "+" "-"))
     (define (test-it)
@@ -1251,3 +1272,8 @@
 	(test-it))
       (lambda (type info)
 	(format *stderr* "outer: ~S ~S from ~S~%" type (apply format #f info) estr)))))
+
+;;; (let () ((lambda () str))) (let () (define _f_ (lambda () str)) (_f_))
+;;; (let _f_ ((x #f) (i 0)) str)
+;;; (do ((x #f) (i 0) (_k_ str)) ((= i 0) _k_))
+
