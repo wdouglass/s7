@@ -343,8 +343,9 @@ static char *clm_array_to_string(mus_any **gens, int num_gens, const char *name,
 	{
 	  if (gens[i])
 	    {
-	      char *str = NULL;
-	      descrs[i] = mus_format("\n%s[%d]: %s", indent, i, str = mus_describe(gens[i]));
+	      char *str;
+	      str = mus_describe(gens[i]);
+	      descrs[i] = mus_format("\n%s[%d]: %s", indent, i, str);
 	      if (str) free(str);
 	    }
 	  else descrs[i] = mus_format("\n%s[%d]: nil", indent, i);
