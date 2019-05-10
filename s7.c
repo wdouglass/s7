@@ -2475,7 +2475,12 @@ static void init_types(void)
 #define is_case_key(p)                 has_type1_bit(T_Pos(p), T_CASE_KEY)
 #define set_case_key(p)                set_type1_bit(T_Sym(p), T_CASE_KEY)
 
-#define UNUSED_BITS                    0x3c00000000000000
+#define T_FULL_HAS_FN                  (1LL << (TYPE_BITS + BIT_ROOM + 34))
+#define T_HAS_FN                       (1 << 10)
+#define set_has_fn(p)                  set_type1_bit(T_Pair(p), T_HAS_FN)
+#define has_fn(p)                      has_type1_bit(T_Pair(p), T_HAS_FN)
+
+#define UNUSED_BITS                    0x3800000000000000
 
 #define T_GC_MARK                      0x8000000000000000
 #define is_marked(p)                   has_type_bit(p, T_GC_MARK)
@@ -29853,7 +29858,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   full_typ = typeflag(obj);
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
-  snprintf(buf, 1024, "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  snprintf(buf, 1024, "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   type_name(sc, obj, NO_ARTICLE),
 	   typ,
 	   optimize_op(obj),
@@ -29988,6 +29993,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 							   " 32?"))) : "",
 	   /* bit 33+16 */
 	   ((full_typ & T_FULL_CASE_KEY) != 0) ?  " case-key" : "",
+	   /* bit_34_+16 */
+	   ((full_typ & T_FULL_HAS_FN) != 0) ?    " has-fn" : "",
+
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
 	   /* bit 54 */
@@ -30023,6 +30031,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) && ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)))) return(true);
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_FULL_HAS_FN) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_FULL_S7_LET_FIELD) != 0) &&
       (!is_symbol(obj)) && (!is_let(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)))
     return(true);
@@ -73784,6 +73793,25 @@ static inline s7_pointer check_set(s7_scheme *sc)
   return(sc->code);
 }
 
+static inline void op_set_symbol_a(s7_scheme *sc)
+{
+  s7_pointer slot;
+  sc->code = cdr(sc->code);
+  slot = symbol_to_slot(sc, car(sc->code));
+  slot_set_value(slot, sc->value = fx_call(sc, cdr(sc->code)));
+}
+
+static inline void op_increment_sa(s7_scheme *sc)
+{
+  s7_pointer slot, arg;
+  sc->code = cdr(sc->code);
+  slot = symbol_to_slot(sc, car(sc->code));
+  arg = opt2_pair(sc->code);
+  set_car(sc->t2_2, fx_call(sc, arg));
+  set_car(sc->t2_1, slot_value(slot));
+  slot_set_value(slot, sc->value = c_call(cadr(sc->code))(sc, sc->t2_1));
+}
+
 static void op_set_pair_a(s7_scheme *sc)
 {
   s7_pointer obj, val;
@@ -75442,6 +75470,33 @@ static s7_pointer check_do(s7_scheme *sc)
 		      /* we're stepping by +1 and going to =
 		       *   the final integer check has to wait until run time (symbol value dependent)
 		       */
+		      if ((is_pair(car(body))) &&
+			  (is_null(cdr(body))) &&
+			  (is_checked(car(body))))
+			{
+			  if (caar(body) == sc->set_symbol)
+			    {
+			      s7_pointer oldc;
+			      oldc = sc->code;
+			      sc->code = car(body);
+			      check_set(sc);
+			      sc->code = oldc;
+			      if (optimize_op(car(body)) == OP_INCREMENT_SA)
+				{
+				  set_has_fn(body);
+				  set_opt3_any(body, (s7_pointer)op_increment_sa);
+				}
+			      else
+				{
+				  if (optimize_op(car(body)) == OP_SET_SYMBOL_A)
+				    {
+				      set_has_fn(body);
+				      set_opt3_any(body, (s7_pointer)op_set_symbol_a);
+				    }
+				}
+			    }
+			}
+
 		      pair_set_syntax_op(form, OP_SAFE_DO);          /* safe_do: body is safe, step by 1 */
 		      if ((!has_set) &&
 			  (c_function_class(opt1_cfunc(end)) == sc->equal_class))
@@ -76303,12 +76358,13 @@ static bool op_safe_do_step(s7_scheme *sc)
 {
   s7_int step, end;
   s7_pointer slot, code;
+
   code = sc->code;
   slot = dox_slot1(sc->envir);
-  step = integer(slot_value(slot)) + 1;
-  slot_set_value(slot, make_integer(sc, step));
   end = integer(slot_value(dox_slot2(sc->envir)));
 
+  step = integer(slot_value(slot)) + 1;
+  slot_set_value(slot, make_integer(sc, step));
   if ((step == end) ||
       ((step > end) &&
        (opt1_cfunc(caadr(code)) == sc->geq_2)))
@@ -76319,6 +76375,39 @@ static bool op_safe_do_step(s7_scheme *sc)
     }
   push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
   sc->code = T_Pair(opt2_pair(code));
+  return(true);
+}
+
+static bool op_safe_do_step_fn(s7_scheme *sc)
+{
+  s7_int step, end;
+  s7_pointer slot, code, body;
+  bool geq;
+  void (*func)(s7_scheme *sc);
+
+  code = sc->code;
+  geq = (opt1_cfunc(caadr(code)) == sc->geq_2);
+  slot = dox_slot1(sc->envir);
+  end = integer(slot_value(dox_slot2(sc->envir)));
+  func = (void (*)(s7_scheme *sc))(opt3_any(cddr(code)));
+  body = caddr(code);
+
+  while (true)
+    {
+      sc->code = body;
+      func(sc);
+      sc->code = code;
+
+      step = integer(slot_value(slot)) + 1;
+      slot_set_value(slot, make_integer(sc, step));
+      if ((step == end) ||
+	  ((geq) && (step > end)))
+	{
+	  sc->value = sc->T;
+	  sc->code = cdadr(sc->code);
+	  return(false);
+	}
+    }
   return(true);
 }
 
@@ -77041,6 +77130,7 @@ static int32_t safe_do_ex(s7_scheme *sc)
   s7_pointer end, init_val, end_val, code, form, old_envir;
 
   /* inits, if not >= opt_dotimes else safe_do_step */
+
   form = sc->code;
   sc->code = cdr(sc->code);
   code = sc->code;
@@ -77093,6 +77183,11 @@ static int32_t safe_do_ex(s7_scheme *sc)
       /* opt_dotimes can change sc->envir (indirectly via s7_optimize I think), but OP_SAFE_DO_STEP assumes dox1 is ok (above), so we can't go on here */
       if (sc->envir != old_envir)
 	return(goto_DO_UNCHECKED);
+    }
+  if (has_fn(cddr(code)))
+    {
+      op_safe_do_step_fn(sc);
+      return(goto_SAFE_DO_END_CLAUSES);
     }
   sc->code = cddr(code);
   set_unsafe_do(sc->code);
@@ -77211,6 +77306,7 @@ static int32_t do_init_ex(s7_scheme *sc)
   /* all the initial values are now in the args list */
   sc->args = safe_reverse_in_place(sc, sc->args);
   sc->code = car(sc->args);                       /* saved at the start */
+
   z = sc->args;
   sc->args = cdr(sc->args);                       /* init values */
 
@@ -82790,7 +82886,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DECREMENT_1:
 	  decrement_1_ex(sc);
 	  goto START;
+	  
+	case OP_SET_SYMBOL_A:
+	  op_set_symbol_a(sc);
+	  goto START;
 
+	case OP_INCREMENT_SA:
+	  op_increment_sa(sc);
+	  goto START;
+	  
         #define SET_CASE(Op, Code)					\
 	  case Op:							\
 	    {								\
@@ -82804,7 +82908,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	    SET_CASE(OP_SET_SYMBOL_C, slot_set_value(lx, opt2_con(sc->code)))
 
-	    SET_CASE(OP_SET_SYMBOL_A, slot_set_value(lx, fx_call(sc, cdr(sc->code))))
+	      /* SET_CASE(OP_SET_SYMBOL_A, slot_set_value(lx, fx_call(sc, cdr(sc->code)))) */
 
 	    SET_CASE(OP_SET_SYMBOL_S, slot_set_value(lx, lookup(sc, cadr(sc->code))))
 
@@ -82846,7 +82950,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			 slot_set_value(lx, global_add(sc, sc->t3_1));	\
 		       }						\
 		     } while (0))
-
+#if 0
 	    SET_CASE(OP_INCREMENT_SA,
 		     do {						\
 		       s7_pointer arg;					\
@@ -82855,7 +82959,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		       set_car(sc->t2_1, slot_value(lx));		\
 		       slot_set_value(lx, c_call(cadr(sc->code))(sc, sc->t2_1)); \
 		     } while (0))
-
+#endif
 	    SET_CASE(OP_INCREMENT_SAA,                                      /* (set! sum (+ sum (expt k i) (expt (- k) i))) -- oops */
 		     do {					\
 		       s7_pointer arg;					\
@@ -91146,14 +91250,14 @@ int main(int argc, char **argv)
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2260  2261
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2332  2274
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2320  2297
- * tvect         |      |      |      |      |      | 5616 | 2650  2471  2461
+ * tvect         |      |      |      |      |      | 5616 | 2650  2471  2461 2413
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2685  2594
- * dup           |      |      |      |      | 20.8 | 5711 | 4137  2993  2809
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2685  2594 2566
+ * dup           |      |      |      |      | 20.8 | 5711 | 4137  2993  2816
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2855  2838
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3081
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3315
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  3464  3451
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  3464  3451 3449
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3551  3465
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5150  4987
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.5
@@ -91181,18 +91285,19 @@ int main(int argc, char **argv)
  * more s->t cases [fx_tree in any body [with 1 var? let*_fx_a reverses but others don't] without definers (let etc) = arg fxs] fxcounts
  *   70696 let_one_*
  *
- * do steppers where not fxified can predetermine eval target like sc->begin_op and call via op*? need fx_choose-like table
- *   any goto eval could do this?? and goto begin could handle the first or all??
- *   need good first case, tlet safe_do_step->set_symbol_a|increment_sa, same tshoot to if_p_p, dox_step->unless_a[thash], set_symbol_a[tbig]
- *   if callable and no cdr, no push at all
+ * do body via op (op_increment_sa etc)
+ *   what about multiform bodies -- has_fn could be used anywhere has_fx is now
+ *   any goto eval could do this?? and goto begin could handle as and_p 
+ *   tlet safe_do_step->set_symbol_a[this is car], tshoot if_p_p, dox_step->unless_a[thash], set_symbol_a[tbig]
  *
  * op_let without the intermediate list (use slot list and pending_value), do_init_ex, then get rid of reuse_as_let|slot
  * why are we still dragging sc->code around in op_do?
  *    unstack in do (sc->code protection)
  *    do definer is ok if in let etc: has_top_level_definer
- * aren't do results fxified -- op_safe_do_step does not check
+ * aren't do results fxified -- op_safe_do_step does not check 82706 -- fx_call is commented out??
  * closure* for t725
- * gtk 3.96
+ * t718?
+ * gtk user_data? s7test tvect mistake
  *
  * trouble: safe closure let reversal [decl order], optimize_func*(2), shared_info
  *   needs split: optimize_func*[split by type at least, two split is slower], do*, s7_copy_1[watch out for let->break], eval

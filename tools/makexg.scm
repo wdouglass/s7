@@ -44,7 +44,8 @@
 (set! types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
 (set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
-		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
+		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
+		      "GtkMenuBar*"))
 
 (define idlers (list "g_source_remove" "g_idle_remove_by_data"
 		     "gtk_quit_remove" "gtk_quit_remove_by_data" 
@@ -645,6 +646,10 @@
 	(cons "GdkSurfaceHints" "INT")
 	(cons "GdkSurfaceType" "INT")
 	(cons "GdkInputMode" "INT")
+	
+	(cons "GtkEditableProperties" "INT")
+	(cons "GtkOverflow" "INT")
+	(cons "GtkPickFlags" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
