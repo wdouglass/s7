@@ -1646,7 +1646,11 @@ static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer d
 	      if (!gtk_text_iter_equal(&beg, &end))
 		{
 		  gtk_text_buffer_select_range(g->buffer, &beg, &end);
+#if GTK_CHECK_VERSION(3, 94, 0)
+		  gtk_text_buffer_cut_clipboard(g->buffer, gtk_widget_get_clipboard(w), true);
+#else
 		  gtk_text_buffer_cut_clipboard(g->buffer, gtk_widget_get_clipboard(w, GDK_SELECTION_CLIPBOARD), true);
+#endif
 		}
 	    }
 	  else return(false);

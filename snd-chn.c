@@ -4923,7 +4923,11 @@ static bool hit_cursor_triangle(chan_info *cp, int x, int y)
 #define GUI_SET_CURSOR(w, cursor)
 #else
 #if USE_GTK
+#if GTK_CHECK_VERSION(3, 94, 0)
+#define GUI_SET_CURSOR(w, cursor) gtk_widget_set_cursor(w, cursor)
+#else
 #define GUI_SET_CURSOR(w, cursor) gdk_window_set_cursor(WIDGET_TO_WINDOW(w), cursor)
+#endif
 #else
 #define GUI_SET_CURSOR(w, cursor) XUndefineCursor(XtDisplay(w), XtWindow(w)); XDefineCursor(XtDisplay(w), XtWindow(w), cursor)
 #endif

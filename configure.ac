@@ -261,7 +261,7 @@ fi
 if test "$ac_snd_gui_choice" = none ; then
   if test x$PKG_CONFIG != xno ; then
 
-     m4_foreach([gtk_version], [[gtk4], [gtk+-3.0], [gtk+-2.0]],
+     m4_foreach([gtk_version], [[gtk4], [gtk+-4.0], [gtk+-3.0], [gtk+-2.0]],
        [
        if test "$ac_snd_gui_choice" = none ; then
          if $PKG_CONFIG gtk_version --exists ; then

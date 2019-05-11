@@ -348,7 +348,8 @@
 		      ((g-3.20)     (set! types-3.20 (cons type types-3.20)))
 		      ((g-3.22)     (set! types-3.22 (cons type types-3.22)))
 		      ((g-3.92)     (set! types-3.92 (cons type types-3.92)))
-		      ((g-3.99)     (set! types-3.99 (cons type types-3.99)))
+		      ((g-3.94)     (set! types-3.94 (cons type types-3.94)))
+		      ((g-3.96)     (set! types-3.96 (cons type types-3.96)))
 		      ((cairo)      (set! cairo-types (cons type cairo-types)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
@@ -843,7 +844,8 @@
 (make-fnc "3.20")
 (make-fnc "3.22")
 (make-fnc "3.92")
-(make-fnc "3.99")
+(make-fnc "3.94")
+(make-fnc "3.96")
 
 (define callbacks
   (list            
@@ -877,11 +879,11 @@
 					;	 "filter_func"
 					;	 (parse-args "GdkXEvent* xevent GdkEvent* event lambda_data func_info" 'callback)
 					;	 'permanent)
-   (list 'GdkEventFunc
-	 "void"
-	 "event_func"
-	 (parse-args "GdkEvent* event lambda_data func_info" 'callback)
-	 'permanent)
+					;   (list 'GdkEventFunc
+					;	 "void"
+					;	 "event_func"
+					;	 (parse-args "GdkEvent* event lambda_data func_info" 'callback)
+					;	 'permanent)
 					;	(list 'GdkSpanFunc
 					;	      "void"
 					;	      "span_func"
@@ -1078,9 +1080,9 @@
    (list 'GdkSeatGrabPrepareFunc
 	 "void"
 	 "prepare_func"
-	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.99)
+	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.94)
 	 'permanent
-	 "3.99")
+	 "3.94")
 |#
    (list 'GtkDrawingAreaDrawFunc
 	 "void"
@@ -1301,45 +1303,45 @@
 
 
 (define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
-			 types-3.20 types-3.22 types-3.92 types-3.99
+			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96
 			 cairo-types))
 (define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.99
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			      with-cairo))
 
 (define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
-			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.99
+			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96
 			cairo-funcs cairo-png-funcs))
 (define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.99
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			     with-cairo with-cairo-png))
 
 (define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
-		       ints-3.20 ints-3.22 ints-3.92 ints-3.99
+		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96
 		       cairo-ints))
 (define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			    with-3.20 with-3.22 with-3.92 with-3.99
+			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			    with-cairo))
 
 (define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
-			casts-3.20 casts-3.22 casts-3.92 casts-3.99
+			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96
 			))
 (define all-cast-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.99
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			     ))
 
 (define all-checks (list checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
-			 checks-3.20 checks-3.22 checks-3.92 checks-3.99
+			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96
 			 ))
 (define all-check-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.99
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			      ))
 
 (define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
-			  strings-3.20 strings-3.22 strings-3.92 strings-3.99
+			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96
 			  cairo-strings))
 (define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
-			       with-3.20 with-3.22 with-3.92 with-3.99
+			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
 			       with-cairo))
 
 
@@ -2265,8 +2267,8 @@
 					(not return-type-void)))
 		(when using-result
 		  (hoy "  {~%")
-		  (hey "    Xen result;~%")
-		  (hay "    s7_pointer result;~%"))
+		  (hey "    Xen res_ult;~%")
+		  (hay "    s7_pointer res_ult;~%"))
 		(hey-start)
 		
 		(cond ((eq? spec 'etc))
@@ -2276,17 +2278,17 @@
 		       (hay "  "))
 		      
 		      ((not (= refargs 0))
-		       (hey-on "    result = C_to_Xen_~A(" (no-stars return-type))
+		       (hey-on "    res_ult = C_to_Xen_~A(" (no-stars return-type))
 		       (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			 (if (eq? call 's7_make_c_pointer)
-			     (hay "    result = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
-			     (hay "    result = ~A(sc, " call))))
+			     (hay "    res_ult = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
+			     (hay "    res_ult = ~A(sc, " call))))
 		      
 		      (else 
 		       (case spec
 			 ((free) 
-			  (hey-on "  {~%   ~A result;~%   Xen rtn;~%   result = " return-type)
-			  (hay "  {~%    ~A result;~%    s7_pointer rtn;~%    result = " return-type))
+			  (hey-on "  {~%   ~A res_ult;~%   Xen rtn;~%   res_ult = " return-type)
+			  (hay "  {~%    ~A res_ult;~%    s7_pointer rtn;~%    res_ult = " return-type))
 
 			 ((const-return) 
 			  (hey "    return(C_to_Xen_~A((~A)" (no-stars return-type) return-type)
@@ -2313,8 +2315,8 @@
 		(set! using-result (not return-type-void))
 		(hoy "  {~%")
 		(when using-result 
-		  (hey "    Xen result;~%")
-		  (hay "    s7_pointer result;~%"))
+		  (hey "    Xen res_ult;~%")
+		  (hay "    s7_pointer res_ult;~%"))
 
 		(if using-loc (hoy "    int loc;~%"))
 
@@ -2361,11 +2363,11 @@
 		(hey-start)
 		(if using-result
 		    (begin
-		      (hey-on "    result = C_to_Xen_~A(" (no-stars return-type))
+		      (hey-on "    res_ult = C_to_Xen_~A(" (no-stars return-type))
 		      (let ((call (hash-table-ref c->s7 (no-stars return-type))))
 			(if (eq? call 's7_make_c_pointer)
-			    (hay "    result = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
-			    (hay "    result = ~A(sc, " call))))
+			    (hay "    res_ult = lg_make_c_pointer_with_type(sc, ~A_sym, " (no-stars return-type))
+			    (hay "    res_ult = ~A(sc, " call))))
 		    (begin
 		      (heyc "    ")
 		      (hay "    ")))))
@@ -2387,7 +2389,7 @@
 		  (hoy "  {~%")
 		  (hoy "    int etc_len = 0;~%")
 		  (if (not return-type-void)
-		      (hoy "    ~A result = ~A;~%" return-type (if (has-stars return-type) "NULL" "0")))
+		      (hoy "    ~A res_ult = ~A;~%" return-type (if (has-stars return-type) "NULL" "0")))
 		  (do ((i 0 (+ i 1)))
 		      ((= i (- cargs 1)))
 		    (hoy "    ~A p_arg~D;~%" (car (args i)) i))
@@ -2422,7 +2424,7 @@
 		       (i min-len (+ i modlen)))
 		      ((> i max-len))
 		    (hoy (if (not return-type-void)
-			     "        case ~D: result = ~A("
+			     "        case ~D: res_ult = ~A("
 			     "        case ~D: ~A(")
 			 i name)
 		    (do ((j 0 (+ 1 j)))
@@ -2465,8 +2467,8 @@
 			(hey "    return(Xen_false);~%")
 			(hay "    return(lg_false);~%"))
 		      (begin
-			(hey "    return(C_to_Xen_~A(result));~%" (no-stars return-type))
-			(hay "    return(~A(sc, result));~%" (hash-table-ref c->s7 (no-stars return-type)))))
+			(hey "    return(C_to_Xen_~A(res_ult));~%" (no-stars return-type))
+			(hay "    return(~A(sc, res_ult));~%" (hash-table-ref c->s7 (no-stars return-type)))))
 		  (hoy "  }~%")))
 	      ;; --------------------------------
 	      ;; not (eq? spec 'etc) 
@@ -2535,9 +2537,9 @@
 		      (if (and callback-data
 			       (eq? (callback-gc callback-data) 'semi-permanent))
 			  (hey "    Xen_list_set(gxg_ptr, 2, Xen_list_3(xg_idler_symbol, ~A, C_int_to_Xen_integer(loc)));~%"
-			       (if return-type-void "Xen_false" "result")))
+			       (if return-type-void "Xen_false" "res_ult")))
 		      (if using-result
-			  (hoy "    return(result);~%")
+			  (hoy "    return(res_ult);~%")
 			  (begin
 			    (hey "    return(Xen_false);~%")
 			    (hay "    return(lg_false);~%")))
@@ -2555,14 +2557,14 @@
       if (ref_actual_property_type == GDK_TARGET_STRING)~%\
 	data_val = C_string_to_Xen_string((char *)ref_data);~%\
       else if (ref_actual_length > 0) data_val = C_string_to_Xen_string_with_length((char *)ref_data, ref_actual_length * ref_actual_format / 8);~%\
-     return(Xen_list_5(result, C_to_Xen_GdkAtom(ref_actual_property_type), C_to_Xen_gint(ref_actual_format), ~%\
+     return(Xen_list_5(res_ult, C_to_Xen_GdkAtom(ref_actual_property_type), C_to_Xen_gint(ref_actual_format), ~%\
                        C_to_Xen_gint(ref_actual_length), data_val));~%\
     }~%  }~%")
 				(hay "  {~%      s7_pointer data_val = lg_false;~%\
       if (ref_actual_property_type == GDK_TARGET_STRING)~%\
 	data_val = s7_make_string(sc, (char *)ref_data);~%\
       else if (ref_actual_length > 0) data_val = s7_make_string_with_length(sc, (char *)ref_data, ref_actual_length * ref_actual_format / 8);~%\
-     return(s7_list(sc, 5, result, s7_make_c_pointer(sc, ref_actual_property_type), s7_make_integer(sc, ref_actual_format), ~%\
+     return(s7_list(sc, 5, res_ult, s7_make_c_pointer(sc, ref_actual_property_type), s7_make_integer(sc, ref_actual_format), ~%\
                        s7_make_integer(sc, ref_actual_length), data_val));~%\
     }~%  }~%"))
 			      
@@ -2570,8 +2572,8 @@
 				(hey "  return(Xen_list_~D(" (if using-result (+ refargs 1) refargs))
 				(hay "    return(s7_list(sc, ~D, " (if using-result (+ refargs 1) refargs))
 				(when using-result 
-				  (heyc "result")
-				  (hay "result"))
+				  (heyc "res_ult")
+				  (hay "res_ult"))
 				(for-each 
 				 (lambda (arg)
 				   (when (ref-arg? arg)
@@ -2595,8 +2597,8 @@
 				(hey "  return(Xen_false);~%")
 				(hay "  return(lg_false);~%"))))))))
 	  (when (eq? spec 'free)
-	    (hey "   rtn = C_to_Xen_~A(result);~%   g_free(result);~%   return(rtn);~%  }~%" (no-stars return-type))
-	    (hay "    rtn = ~A(sc, result);~%    g_free(result);~%    return(rtn);~%  }~%" (hash-table-ref c->s7 (no-stars return-type))))
+	    (hey "   rtn = C_to_Xen_~A(res_ult);~%   g_free(res_ult);~%   return(rtn);~%  }~%" (no-stars return-type))
+	    (hay "    rtn = ~A(sc, res_ult);~%    g_free(res_ult);~%    return(rtn);~%  }~%" (hash-table-ref c->s7 (no-stars return-type))))
 	  (hoy "}~%~%"))))))
   
 

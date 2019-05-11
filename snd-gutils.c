@@ -739,7 +739,11 @@ gint16 widget_x(GtkWidget *w)
 gint16 widget_y(GtkWidget *w)
 {
   gint x, y;
+#if GTK_CHECK_VERSION(3, 94, 0)
+  gtk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
+#else
   gdk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
+#endif
   return(y);
 }
 
@@ -758,7 +762,11 @@ void set_widget_y(GtkWidget *w, gint16 y)
 
 void set_widget_size(GtkWidget *w, guint16 width, guint16 height)
 {
+#if GTK_CHECK_VERSION(3, 94, 0)
+  gtk_window_resize(WIDGET_TO_WINDOW(w), width, height);
+#else
   gdk_window_resize(WIDGET_TO_WINDOW(w), width, height);
+#endif
 #if 0
   /* This one doesn't do anything, and prints out errors. */
   gtk_window_resize(GTK_WINDOW(w), width, height);

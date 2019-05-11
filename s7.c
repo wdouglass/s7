@@ -49864,6 +49864,10 @@ static s7_pointer g_abort(s7_scheme *sc, s7_pointer args) {abort();}
 
 /* -------------------------------- optimizer stuff -------------------------------- */
 
+typedef void (*fn_func)(s7_scheme *sc);
+static fn_func fn_function[OP_MAX_DEFINED];
+
+
 static s7_function fx_function[OPT_MAX_DEFINED];
 
 static bool aa_is_fx_safe(s7_scheme *sc, s7_pointer p)
@@ -49981,7 +49985,7 @@ static s7_pointer fx_c_equal_s_ic_1(s7_scheme *sc, s7_pointer args, s7_pointer v
     case T_RATIO:   return(sc->F);
     case T_REAL:    return(make_boolean(sc, real(val) == y));
     case T_COMPLEX: return(sc->F);
-    default: return(method_or_bust_with_type(sc, val, sc->eq_symbol, args, a_number_string, 1));
+    default: return(method_or_bust_with_type(sc, val, sc->eq_symbol, list_2(sc, val, cadr(args)), a_number_string, 1));
     }
   return(sc->T);
 }
@@ -70585,7 +70589,7 @@ static bool op_case_e_g_1(s7_scheme *sc, s7_pointer selector, bool ok)
       for (x = cdr(sc->code); is_pair(x); x = cdr(x))
 	{
 	  y = opt2_any(x);
-	  if (!is_pair(y))
+	  if (!is_pair(y)) /* i.e. else? */
 	    goto ELSE_CASE_1;
 	  do {
 	    if (car(y) == selector)
@@ -71130,6 +71134,7 @@ static bool op_let1(s7_scheme *sc)
       for (n = 0, x = cadr(sc->code); is_pair(x); n++, x = cdr(x))
 	sc->w = cons(sc, caar(x), sc->w);
 
+      /* TODO: reverse slots */
       if (is_safe_closure_body(body))
 	{
 	  s7_pointer arg, new_env;
@@ -71140,7 +71145,6 @@ static bool op_let1(s7_scheme *sc)
 	    make_slot_1(sc, new_env, car(arg), sc->nil);
 	  let_set_slots(new_env, reverse_slots(sc, let_slots(new_env)));
 	}
-      /* TODO: reverse slots */
       else sc->x = make_closure(sc, sc->w = safe_reverse_in_place(sc, sc->w), body, T_CLOSURE | T_COPY_ARGS, n);
       make_slot_1(sc, sc->envir, let_name, sc->x);
       sc->envir = new_frame_in_env(sc, sc->envir);
@@ -71158,7 +71162,6 @@ static bool op_let1(s7_scheme *sc)
 	  symbol_set_local(sym, let_id(sc->envir), y);
 	  y = args;
 	}
-
       sc->code = T_Pair(body);
       sc->w = sc->nil;
       sc->x = sc->nil;
@@ -74043,12 +74046,11 @@ static bool op_set_pair(s7_scheme *sc)
   return(set_pair_p_3(sc, obj, arg, value));
 }
 
-static void op_set_safe(s7_scheme *sc)
+static inline void op_set_safe(s7_scheme *sc)
 {
   s7_pointer lx;
   lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
   slot_set_value(lx, sc->value);
-  /* sc->value = slot_value(lx); */ /* ?? */
 }
 
 static s7_pointer op_set1(s7_scheme *sc)
@@ -75365,7 +75367,11 @@ static s7_pointer check_do(s7_scheme *sc)
   end = cadr(code);
   if ((!is_pair(end)) || (!is_fx_safe(sc, car(end))))
     return(fxify_step_exprs(sc, code));
-  set_c_call(end, fx_choose(sc, end, sc->envir, let_symbol_is_safe));  /* car(end) is normally optimized here TODO: sc->envir as list of steppers? */
+  set_c_call(end, fx_choose(sc, end, sc->envir, let_symbol_is_safe_or_listed));  /* car(end) is normally optimized here TODO: sc->envir as list of steppers? */
+
+  if ((is_pair(cdr(end))) &&
+      (is_fx_safe(sc, cadr(end))))
+    set_c_call(cdr(end), fx_choose(sc, cdr(end), sc->envir, let_symbol_is_safe_or_listed));
 
   vars = car(code);
   if (is_null(vars))
@@ -75477,26 +75483,19 @@ static s7_pointer check_do(s7_scheme *sc)
 			  if (caar(body) == sc->set_symbol)
 			    {
 			      s7_pointer oldc;
+			      fn_func f;
 			      oldc = sc->code;
 			      sc->code = car(body);
 			      check_set(sc);
 			      sc->code = oldc;
-			      if (optimize_op(car(body)) == OP_INCREMENT_SA)
+			      f = fn_function[optimize_op(car(body))];
+			      if (f)
 				{
 				  set_has_fn(body);
-				  set_opt3_any(body, (s7_pointer)op_increment_sa);
-				}
-			      else
-				{
-				  if (optimize_op(car(body)) == OP_SET_SYMBOL_A)
-				    {
-				      set_has_fn(body);
-				      set_opt3_any(body, (s7_pointer)op_set_symbol_a);
-				    }
+				  set_opt3_any(body, (s7_pointer)f);
 				}
 			    }
 			}
-
 		      pair_set_syntax_op(form, OP_SAFE_DO);          /* safe_do: body is safe, step by 1 */
 		      if ((!has_set) &&
 			  (c_function_class(opt1_cfunc(end)) == sc->equal_class))
@@ -75604,12 +75603,11 @@ static s7_pointer check_do(s7_scheme *sc)
 	(is_null(cdr(vars))) &&
 	(is_pair(cdr(end))) &&
 	(is_null(cddr(end))) &&
-	(is_fx_safe(sc, cadr(end))) &&
+	(has_fx(cdr(end))) &&
 	(is_pair(cdar(vars))) &&
 	(is_pair(cddar(vars))))
       {
 	s7_function stepf;
-	set_c_call(cdr(end), fx_choose(sc, cdr(end), sc->envir, let_symbol_is_safe_or_listed));
 
 	if (not_in_heap(cdr(form)))
 	  set_opt3_any(cdr(form), make_permanent_let(sc, vars));
@@ -76373,6 +76371,7 @@ static bool op_safe_do_step(s7_scheme *sc)
       sc->code = cdadr(code);
       return(false);
     }
+  /* fprintf(stderr, "fn: %d %s\n", has_fn(opt2_pair(code)), op_names[optimize_op(opt2_pair(code))]); */
   push_stack(sc, OP_SAFE_DO_STEP, sc->args, code);
   sc->code = T_Pair(opt2_pair(code));
   return(true);
@@ -76389,7 +76388,7 @@ static bool op_safe_do_step_fn(s7_scheme *sc)
   geq = (opt1_cfunc(caadr(code)) == sc->geq_2);
   slot = dox_slot1(sc->envir);
   end = integer(slot_value(dox_slot2(sc->envir)));
-  func = (void (*)(s7_scheme *sc))(opt3_any(cddr(code)));
+  func = (fn_func)opt3_any(cddr(code));
   body = caddr(code);
 
   while (true)
@@ -78448,7 +78447,7 @@ static int32_t vector_aa_ex(s7_scheme *sc)
   return(goto_START);
 }
 
-static void increment_1_ex(s7_scheme *sc)
+static void op_increment_by_1(s7_scheme *sc)
 {
   /* ([set!] ctr (+ ctr 1)) */
   s7_pointer val, y;
@@ -78487,7 +78486,7 @@ static void increment_1_ex(s7_scheme *sc)
   slot_set_value(y, sc->value);
 }
 
-static void decrement_1_ex(s7_scheme *sc)
+static void op_decrement_by_1(s7_scheme *sc)
 {
   /* ([set!] ctr (- ctr 1)) */
   s7_pointer val, y;
@@ -79886,7 +79885,6 @@ static void op_closure_fx(s7_scheme *sc)
   symbol_set_local(car(p), let_id(e), last_slot);
   for (p = cdr(p), args = cdr(args); is_pair(p); p = cdr(p), args = cdr(args))
     add_slot_at_end(let_id(e), last_slot, car(p), fx_call(sc, args));
-  /* slot_set_next(last_slot, slot_end(sc)); */
   /* ssfx is a common pattern; hits 5m/23m in lg, but it's not faster (maybe lookup's fault) */
   sc->envir = e;
   sc->z = sc->nil;
@@ -80447,6 +80445,24 @@ static bool op_eval_macro_mv(s7_scheme *sc)
   sc->code = car(sc->code);
   return(false);
 }
+
+static void fn_function_init(void)
+{
+  int32_t i;
+  for (i = 0; i < OP_MAX_DEFINED; i++)
+    fn_function[i] = NULL;
+
+  fn_function[OP_INCREMENT_SA] = op_increment_sa;
+  fn_function[OP_SET_SYMBOL_A] = op_set_symbol_a;
+  fn_function[OP_SET_SAFE] = op_set_safe;
+  fn_function[OP_LET_A_A] = op_let_a_a;
+  fn_function[OP_LET_STAR_FX_A] = op_let_star_fx_a;
+  fn_function[OP_INCREMENT_1] = op_increment_by_1;
+  fn_function[OP_DECREMENT_1] = op_decrement_by_1;
+  fn_function[HOP_C_FX] = op_c_fx;
+  fn_function[OP_AND_SAFE_AA] = op_and_safe_aa;
+}
+
 
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
@@ -82534,72 +82550,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  op_dox_no_body(sc);
 	  goto START;
 
-	DO_STEP:
-	case OP_DO_STEP:
-	  /* increment all vars, return to endtest
-	   *   these are also updated in parallel at the end, so we gather all the incremented values first
-	   *
-	   * here we know car(sc->args) is not null, args is the list of steppable vars,
-	   *   any unstepped vars in the do var section are not in this list, so
-	   *   (do ((i 0 (+ i 1)) (j 2)) ...) arrives here with sc->args: '(slot<((+ i 1)=expr, 0=pending_value>))
-	   */
-	  push_stack(sc, OP_DO_END, sc->args, sc->code);
-	  sc->args = car(sc->args);                /* the var data lists */
-	  sc->code = sc->args;                     /* save the top of the list */
-
-	DO_STEP1:
-	  /* on each iteration, each arg incr expr is evaluated and the value placed in caddr while we cdr down args */
-	  if (is_null(sc->args))
-	    {
-	      s7_pointer x;
-	      for (x = sc->code; is_pair(x); x = cdr(x)) /* sc->code here is the original sc->args list */
-		slot_set_value(car(x), slot_pending_value(car(x)));
-	      pop_stack_no_op(sc);
-	      goto DO_END;
-	    }
-	  {
-	    s7_pointer code;
-	    code = slot_expression(car(sc->args));
-	    if (has_fx(code))
-	      {
-		sc->value = fx_call(sc, code);
-#if S7_DEBUGGING
-		/* can values happen here even in error? */
-		if (is_multiple_value(sc->value))
-		  fprintf(stderr, "got multiple values! %s\n", DISPLAY(sc->value));
-#endif
-		slot_set_pending_value(car(sc->args), sc->value);
-		sc->args = cdr(sc->args);                   /* go to next step var */
-		goto DO_STEP1;
-	      }
-	    push_stack(sc, OP_DO_STEP2, sc->args, sc->code);
-	    sc->code = car(code);
-	    goto EVAL;
-	  }
-
-	case OP_DO_STEP2:
-	  if (is_multiple_value(sc->value))
-	    eval_error(sc, "do: variable step value can't be ~S", 35, cons(sc, sc->values_symbol, sc->value));
-	  slot_set_pending_value(car(sc->args), sc->value);  /* save current value */
-	  sc->args = cdr(sc->args);                   /* go to next step var */
-	  goto DO_STEP1;
-
 	case OP_DO_INIT:
 	  if (is_multiple_value(sc->value))               /* (do ((i (values 1 2)))...) */
 	    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "do: variable initial value can't be ~S", 38, cons(sc, sc->values_symbol, sc->value));
-	  goto DO_INIT;
-
-	DO_END2:
-	  if (is_pair(sc->code))
-	    {
-	      if (is_null(car(sc->args)))
-		push_stack(sc, OP_DO_END, sc->args, sc->code);
-	      else push_stack(sc, OP_DO_STEP, sc->args, sc->code);
-	      goto BEGIN;
-	    }
-	  if (is_null(car(sc->args))) /* no steppers */
-	    goto DO_END;
-	  goto DO_STEP;
+	  if (do_init_ex(sc) == goto_EVAL) goto EVAL;
+	  goto DO_END;
 
 	case OP_DO:
 	  set_current_code(sc, sc->code);
@@ -82632,12 +82587,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->args = sc->nil;                             /* the evaluated var-data */
 	  sc->value = sc->code;                           /* protect it */
 	  sc->code = car(sc->code);                       /* the vars */
-
-	DO_INIT:
 	  if (do_init_ex(sc) == goto_EVAL) goto EVAL;
 
 	DO_END:
 	case OP_DO_END:
+	  /* car(sc->args) here is the var list used by do_end2 */
 	  if (!is_pair(cdr(sc->args))) goto DO_END2;
 	  if (!has_fx(cdr(sc->args)))
 	    {
@@ -82683,7 +82637,68 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->code = car(sc->code);
 	      goto EVAL;
 	    }
-	  goto DO_END2;
+	  /* end test false so fall through */
+
+	DO_END2:
+	  if (is_pair(sc->code))
+	    {
+	      if (is_null(car(sc->args)))
+		push_stack(sc, OP_DO_END, sc->args, sc->code);
+	      else push_stack(sc, OP_DO_STEP, sc->args, sc->code);
+	      goto BEGIN;
+	    }
+	  if (is_null(car(sc->args))) /* no steppers */
+	    goto DO_END;
+	  /* fall through */
+
+	case OP_DO_STEP:
+	  /* increment all vars, return to endtest
+	   *   these are also updated in parallel at the end, so we gather all the incremented values first
+	   *
+	   * here we know car(sc->args) is not null, args is the list of steppable vars,
+	   *   any unstepped vars in the do var section are not in this list, so
+	   *   (do ((i 0 (+ i 1)) (j 2)) ...) arrives here with sc->args: '(slot<((+ i 1)=expr, 0=pending_value>))
+	   */
+	  push_stack(sc, OP_DO_END, sc->args, sc->code);
+	  sc->args = car(sc->args);                /* the var data lists */
+	  sc->code = sc->args;                     /* save the top of the list */
+
+	DO_STEP1:
+	  {
+	    s7_pointer code;
+	    /* on each iteration, each arg incr expr is evaluated and the value placed in caddr while we cdr down args */
+	    if (is_null(sc->args))
+	      {
+		s7_pointer x;
+		for (x = sc->code; is_pair(x); x = cdr(x)) /* sc->code here is the original sc->args list */
+		  slot_set_value(car(x), slot_pending_value(car(x)));
+		pop_stack_no_op(sc);
+		goto DO_END;
+	      }
+	    code = slot_expression(car(sc->args));
+	    if (has_fx(code))
+	      {
+		sc->value = fx_call(sc, code);
+#if S7_DEBUGGING
+		/* can values happen here even in error? */
+		if (is_multiple_value(sc->value))
+		  fprintf(stderr, "got multiple values! %s\n", DISPLAY(sc->value));
+#endif
+		slot_set_pending_value(car(sc->args), sc->value);
+		sc->args = cdr(sc->args);                   /* go to next step var */
+		goto DO_STEP1;
+	      }
+	    push_stack(sc, OP_DO_STEP2, sc->args, sc->code);
+	    sc->code = car(code);
+	    goto EVAL;
+	  }
+
+	case OP_DO_STEP2:
+	  if (is_multiple_value(sc->value))
+	    eval_error(sc, "do: variable step value can't be ~S", 35, cons(sc, sc->values_symbol, sc->value));
+	  slot_set_pending_value(car(sc->args), sc->value);  /* save current value */
+	  sc->args = cdr(sc->args);                   /* go to next step var */
+	  goto DO_STEP1;
 
 	SAFE_DO_END_CLAUSES:
 	  if (is_null(sc->code)) /* I don't think multiple values (as test result) can happen here -- all safe do loops involve counters by 1 to some integer end */
@@ -82704,21 +82719,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if ((car(sc->code) == sc->feed_to_symbol) &&
 		  (s7_symbol_value(sc, sc->feed_to_symbol) == sc->undefined))
 		goto FEED_TO;
-	      /* never has_fx(sc->code) here */
+	      /* never has_fx(sc->code) here (first of a body) */
 	      push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
 	      sc->code = car(sc->code);
 	      goto EVAL;
 	    }
-	  sc->code = car(sc->code);
-	  if (is_pair(sc->code))
-	    goto EVAL;
-	  if (is_symbol(sc->code))
-	    sc->value = lookup_checked(sc, sc->code);
-	  else sc->value = sc->code;
-	  goto START;
+	  if (has_fx(sc->code)) 
+	    {
+	      sc->value = fx_call(sc, sc->code);
+	      goto START;
+	    }
+	  sc->code = T_Pair(car(sc->code));
+	  goto EVAL;
+
 
 	  /* -------------------------------- begin -------------------------------- */
-
 	case OP_BEGIN_UNCHECKED:
 	  set_current_code(sc, sc->code);
 	  sc->code = cdr(sc->code);
@@ -82880,21 +82895,21 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 	case OP_INCREMENT_1:
-	  increment_1_ex(sc);
+	  op_increment_by_1(sc);
 	  goto START;
 
 	case OP_DECREMENT_1:
-	  decrement_1_ex(sc);
+	  op_decrement_by_1(sc);
+	  goto START;
+	  
+	case OP_INCREMENT_SA:
+	  op_increment_sa(sc);
 	  goto START;
 	  
 	case OP_SET_SYMBOL_A:
 	  op_set_symbol_a(sc);
 	  goto START;
 
-	case OP_INCREMENT_SA:
-	  op_increment_sa(sc);
-	  goto START;
-	  
         #define SET_CASE(Op, Code)					\
 	  case Op:							\
 	    {								\
@@ -82907,8 +82922,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 
 	    SET_CASE(OP_SET_SYMBOL_C, slot_set_value(lx, opt2_con(sc->code)))
-
-	      /* SET_CASE(OP_SET_SYMBOL_A, slot_set_value(lx, fx_call(sc, cdr(sc->code)))) */
 
 	    SET_CASE(OP_SET_SYMBOL_S, slot_set_value(lx, lookup(sc, cadr(sc->code))))
 
@@ -82950,16 +82963,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 			 slot_set_value(lx, global_add(sc, sc->t3_1));	\
 		       }						\
 		     } while (0))
-#if 0
-	    SET_CASE(OP_INCREMENT_SA,
-		     do {						\
-		       s7_pointer arg;					\
-		       arg = opt2_pair(sc->code);			\
-		       set_car(sc->t2_2, fx_call(sc, arg));		\
-		       set_car(sc->t2_1, slot_value(lx));		\
-		       slot_set_value(lx, c_call(cadr(sc->code))(sc, sc->t2_1)); \
-		     } while (0))
-#endif
+
 	    SET_CASE(OP_INCREMENT_SAA,                                      /* (set! sum (+ sum (expt k i) (expt (- k) i))) -- oops */
 		     do {					\
 		       s7_pointer arg;					\
@@ -89364,6 +89368,7 @@ s7_scheme *s7_init(void)
       init_chars();
       init_strings();
       fx_function_init();
+      fn_function_init();
       init_catchers();
       already_inited = true;
     }
@@ -91243,21 +91248,21 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      |  710 |        636   559
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   595   595
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  971   954   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   974   972
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 | 1018   974   974
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1540  1513  1530
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1719  1692  1680
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2092  2099  2060
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2264  2260  2261
  * tread         |      |      |      |      | 2357 | 2336 | 2338  2332  2274
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2358  2320  2297
- * tvect         |      |      |      |      |      | 5616 | 2650  2471  2461 2413
+ * tvect         |      |      |      |      |      | 5616 | 2650  2471  2413 2411
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2502  2467  2467
- * tlet          |      |      |      |      | 4717 | 2959 | 2946  2685  2594 2566
+ * tlet          |      |      |      |      | 4717 | 2959 | 2946  2685  2565
  * dup           |      |      |      |      | 20.8 | 5711 | 4137  2993  2816
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 3061  2855  2838
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3009  3085  3081
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3317  3318  3315
- * tset          |      |      |      |      | 10.0 | 6432 | 6317  3464  3451 3449
+ * tset          |      |      |      |      | 10.0 | 6432 | 6317  3464  3457
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3564  3551  3465
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5254  5150  4987
  * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 11.0  10.9  10.5
@@ -91285,7 +91290,7 @@ int main(int argc, char **argv)
  * more s->t cases [fx_tree in any body [with 1 var? let*_fx_a reverses but others don't] without definers (let etc) = arg fxs] fxcounts
  *   70696 let_one_*
  *
- * do body via op (op_increment_sa etc)
+ * do body via op
  *   what about multiform bodies -- has_fn could be used anywhere has_fx is now
  *   any goto eval could do this?? and goto begin could handle as and_p 
  *   tlet safe_do_step->set_symbol_a[this is car], tshoot if_p_p, dox_step->unless_a[thash], set_symbol_a[tbig]
@@ -91294,10 +91299,9 @@ int main(int argc, char **argv)
  * why are we still dragging sc->code around in op_do?
  *    unstack in do (sc->code protection)
  *    do definer is ok if in let etc: has_top_level_definer
- * aren't do results fxified -- op_safe_do_step does not check 82706 -- fx_call is commented out??
  * closure* for t725
- * t718?
- * gtk user_data? s7test tvect mistake
+ * gtk changes for Snd
+ * closure_aa_a fxify body? -- check setter dilambda lint
  *
  * trouble: safe closure let reversal [decl order], optimize_func*(2), shared_info
  *   needs split: optimize_func*[split by type at least, two split is slower], do*, s7_copy_1[watch out for let->break], eval

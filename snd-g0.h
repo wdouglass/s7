@@ -238,8 +238,13 @@ typedef struct {
 #define picture_t cairo_surface_t
 
 #if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 94, 0)
+  typedef GdkSurface Drawable;
+  #define DRAWABLE(Widget) GDK_SURFACE(Widget)
+#else
   typedef GdkWindow Drawable;
   #define DRAWABLE(Widget) GDK_WINDOW(Widget)
+#endif
   /* as far as I can see, UPDATE_CONTINUOUS is now built-in */
   #define gtk_range_get_update_policy(W) 0
   #define gtk_range_set_update_policy(W, V)
