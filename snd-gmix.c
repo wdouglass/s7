@@ -582,11 +582,13 @@ static void mix_play_callback(GtkWidget *w, gpointer context)
 #if (GTK_CHECK_VERSION(3, 89, 0))
 static void mix_play_pix_expose(GtkDrawingArea *w, cairo_t *cr, int width, int height, gpointer data)
 {
+#if (!GTK_CHECK_VERSION(3, 94, 0))
   if ((mix_play_ax) && (GDK_IS_WINDOW(mix_play_ax->wn)))
     {
       cairo_set_source_surface(cr, snd_icon(SND_PNG_SPEAKER), 0, 0);
       cairo_paint(cr);
     }
+#endif
 }
 #else
 static gboolean mix_play_pix_expose(GtkWidget *w, GdkEventExpose *ev, gpointer data)

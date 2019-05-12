@@ -502,9 +502,18 @@ static void save_options(FILE *fd)
   if (listener_is_visible())
     pss_ss(fd, S_show_listener, b2s(true));
 
-#if USE_MOTIF || USE_GTK
+#if USE_MOTIF
   if (in_graph_cursor(ss) != DEFAULT_GRAPH_CURSOR)
     pss_sd(fd, S_graph_cursor, in_graph_cursor(ss));
+#else
+#if USE_GTK
+#if GTK_CHECK_VERSION(3, 94, 0)
+  pss_ss(fd, S_graph_cursor, in_graph_cursor(ss));
+#else
+  if (in_graph_cursor(ss) != DEFAULT_GRAPH_CURSOR)
+    pss_sd(fd, S_graph_cursor, in_graph_cursor(ss));
+#endif
+#endif
 #endif
 
   save_added_sound_file_extensions(fd);

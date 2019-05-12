@@ -140,23 +140,27 @@ bool set_axis_numbers_font(const char *font)
 int sg_text_width(const char *txt, PangoFontDescription *font)
 {
   int wid = 0;
-  PangoLayout *layout = NULL;
-  PangoContext *ctx;
   if (!txt) return(0);
   if (mus_strlen(txt) == 0) return(0);
   if (!(g_utf8_validate(txt, -1, NULL)))
     return(0);
 
-  ctx = gdk_pango_context_get();
-  layout = pango_layout_new(ctx);
-  if (layout)
-    {
-      pango_layout_set_font_description(layout, font);
-      pango_layout_set_text(layout, txt, -1);
-      pango_layout_get_pixel_size(layout, &wid, NULL); /* huge (6MBytes!) memleak here */
-      g_object_unref(G_OBJECT(layout));
-    }
-  g_object_unref(ctx);
+#if (!GTK_CHECK_VERSION(3, 94, 0))
+  {
+    PangoLayout *layout = NULL;
+    PangoContext *ctx;
+    ctx = gdk_pango_context_get();
+    layout = pango_layout_new(ctx);
+    if (layout)
+      {
+	pango_layout_set_font_description(layout, font);
+	pango_layout_set_text(layout, txt, -1);
+	pango_layout_get_pixel_size(layout, &wid, NULL); /* huge (6MBytes!) memleak here */
+	g_object_unref(G_OBJECT(layout));
+      }
+    g_object_unref(ctx);
+  }
+#endif
   return(wid);
 }
 
@@ -191,8 +195,6 @@ static int sg_font_width(PangoFontDescription *font)
   /* returns size in pixels */
   int wid;
   double dpi;
-  PangoContext *ctx;
-  PangoFontMetrics *m;
 
 #if HAVE_GTK_LINK_BUTTON_NEW
   dpi = gdk_screen_get_resolution(gdk_display_get_default_screen(gdk_display_get_default())); /* pixels/inch */
@@ -200,11 +202,19 @@ static int sg_font_width(PangoFontDescription *font)
   dpi = 96.0; /* see below */
 #endif
 
-  ctx = gdk_pango_context_get();
-  m = pango_context_get_metrics(ctx, font, gtk_get_default_language()); /* returns size in pango-scaled points (1024/72 inch) */
-  wid = (int)((dpi / 72.0) * PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(m)));
-  pango_font_metrics_unref(m);
-  g_object_unref(ctx);
+#if (!GTK_CHECK_VERSION(3, 94, 0))
+  {
+    PangoContext *ctx;
+    PangoFontMetrics *m;
+    ctx = gdk_pango_context_get();
+    m = pango_context_get_metrics(ctx, font, gtk_get_default_language()); /* returns size in pango-scaled points (1024/72 inch) */
+    wid = (int)((dpi / 72.0) * PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(m)));
+    pango_font_metrics_unref(m);
+    g_object_unref(ctx);
+  }
+#else
+  wid = (int)(dpi / 72.0);
+#endif
   return(wid);
 }
 #endif
@@ -215,8 +225,6 @@ static int sg_font_height(PangoFontDescription *font)
   /* returns size in pixels */
   double dpi;
   int hgt;
-  PangoContext *ctx;
-  PangoFontMetrics *m;
 
 #if HAVE_GTK_LINK_BUTTON_NEW
   /* gtk 2.1: gdk_display_get_default, gdk_display_get_default_screen */
@@ -226,11 +234,19 @@ static int sg_font_height(PangoFontDescription *font)
   dpi = 96.0; /* a plausible guess */
 #endif
 
-  ctx = gdk_pango_context_get();
-  m = pango_context_get_metrics(ctx, font, gtk_get_default_language()); 
-  hgt = (int)((dpi / 72.0) * PANGO_PIXELS(pango_font_metrics_get_ascent(m)));
-  pango_font_metrics_unref(m);
-  g_object_unref(ctx);
+#if (!GTK_CHECK_VERSION(3, 94, 0))
+  {
+    PangoContext *ctx;
+    PangoFontMetrics *m;
+    ctx = gdk_pango_context_get();
+    m = pango_context_get_metrics(ctx, font, gtk_get_default_language()); 
+    hgt = (int)((dpi / 72.0) * PANGO_PIXELS(pango_font_metrics_get_ascent(m)));
+    pango_font_metrics_unref(m);
+    g_object_unref(ctx);
+  }
+#else
+  hgt = (int)(dpi / 72.0);
+#endif
       
   return(hgt);
 }
@@ -731,7 +747,11 @@ void set_widget_width(GtkWidget *w, guint16 width)
 gint16 widget_x(GtkWidget *w)
 {
   gint x, y;
+#if GTK_CHECK_VERSION(3, 94, 0)
+  gdk_surface_get_position(GDK_SURFACE(w), &x, &y);
+#else
   gdk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
+#endif
   return(x);
 }
 
@@ -740,7 +760,7 @@ gint16 widget_y(GtkWidget *w)
 {
   gint x, y;
 #if GTK_CHECK_VERSION(3, 94, 0)
-  gtk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
+  gdk_surface_get_position(GDK_SURFACE(w), &x, &y);
 #else
   gdk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
 #endif
@@ -1481,9 +1501,10 @@ widget \"*.white_button\" style \"white_button\"\n");
 void init_gtk(void)
 {
 #if (GTK_CHECK_VERSION(3, 93, 0))
-  GtkStyleProvider *dp;
+  GtkCssProvider *dp;
   dp = gtk_css_provider_new();
-  gtk_style_context_add_provider_for_display(gdk_display_get_default(), dp, G_MAXUINT);
+  gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(dp), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  /* copied from gtk-3.96.0/tests/testwidgetfocus.c */
 #endif
 
   wb_provider = gtk_css_provider_new();

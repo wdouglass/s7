@@ -57,8 +57,12 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 
 
 /* no accessors: */
-#if (GTK_CHECK_VERSION(3, 92, 1))
+#if GTK_CHECK_VERSION(3, 92, 1)
+#if GTK_CHECK_VERSION(3, 94, 0)
+#define EVENT_WINDOW(Ev)      NULL
+#else
 #define EVENT_WINDOW(Ev)      gdk_event_get_window((GdkEvent *)(Ev))
+#endif
 #define EVENT_BUTTON(Ev)      sg_event_get_button((const GdkEvent *)(Ev))
 #define EVENT_KEYVAL(Ev)      sg_event_get_keyval((GdkEvent *)(Ev))
 #define EVENT_IS_HINT(Ev)     false
@@ -124,10 +128,18 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 #define gtk_table_set_col_spacings(Obj, Val) gtk_grid_set_column_spacing(Obj, Val)
 #define gtk_table_attach_defaults(Obj, Wid, Left, Right, Top, Bottom) gtk_grid_attach(Obj, Wid, Left, Top, Right - Left, Bottom - Top)
 #define gtk_table_attach(Obj, Wid, Left, Right, Top, Bottom, XOptions, YOptions, Xpad, YPad) gtk_grid_attach(Obj, Wid, Left, Top, Right - Left, Bottom - Top)
-
-#define window_get_pointer(Event, X, Y, Mask) gdk_window_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), X, Y, Mask)
 #define widget_set_hexpand(Wid, Val) gtk_widget_set_hexpand(Wid, Val)
 #define widget_set_vexpand(Wid, Val) gtk_widget_set_vexpand(Wid, Val)
+
+#if GTK_CHECK_VERSION(3, 96, 0)
+#define window_get_pointer(Event, X, Y, Mask) do {gdouble fx, fy; gdk_surface_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), &fx, &fy, Mask); X = (int)fx; Y = (int)fy;} while (0)
+#else
+#if GTK_CHECK_VERSION(3, 94, 0)
+#define window_get_pointer(Event, X, Y, Mask) gdk_surface_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), X, Y, Mask)
+#else
+#define window_get_pointer(Event, X, Y, Mask) gdk_window_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), X, Y, Mask)
+#endif
+#endif
 
 #else
 
@@ -138,10 +150,24 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 #endif
 
 /* 3.16: gdk_cursor_new removed */
+#if GTK_CHECK_VERSION(3, 94, 0)
+  #define GDK_WATCH             "wait"
+  #define GDK_LEFT_PTR          "default"
+  #define GDK_SB_H_DOUBLE_ARROW "col-resize"
+  #define GDK_SB_V_DOUBLE_ARROW "row-resize"
+  #define GDK_SB_RIGHT_ARROW    "e-resize"
+  #define GDK_SB_LEFT_ARROW     "w-resize"
+#endif
+#ifndef GDK_CURSOR_NEW
 #if GTK_CHECK_VERSION(3, 16, 0)
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#if GTK_CHECK_VERSION(3, 94, 0)
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_from_name(Type, NULL)
 #else
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new(Type)
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#endif
+#else
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new((GdkCursorType)Type)
+#endif
 #endif
 
 #if (!HAVE_SCHEME)
@@ -177,7 +203,11 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 
 #if HAVE_GTK_ADJUSTMENT_GET_UPPER
   /* 2.13.6 */
+#if GTK_CHECK_VERSION(3, 94, 0)
+  #define WIDGET_TO_WINDOW(Widget)                NULL
+#else
   #define WIDGET_TO_WINDOW(Widget)                gtk_widget_get_window(Widget)
+#endif
   #define DIALOG_CONTENT_AREA(Dialog)             gtk_dialog_get_content_area(GTK_DIALOG(Dialog))
   #define ADJUSTMENT_VALUE(Adjust)                gtk_adjustment_get_value(GTK_ADJUSTMENT(Adjust))
   #define ADJUSTMENT_PAGE_SIZE(Adjust)            gtk_adjustment_get_page_size(GTK_ADJUSTMENT(Adjust))
@@ -240,6 +270,7 @@ typedef struct {
 #if GTK_CHECK_VERSION(3, 0, 0)
 #if GTK_CHECK_VERSION(3, 94, 0)
   typedef GdkSurface Drawable;
+  typedef GdkSurface GdkWindow;
   #define DRAWABLE(Widget) GDK_SURFACE(Widget)
 #else
   typedef GdkWindow Drawable;

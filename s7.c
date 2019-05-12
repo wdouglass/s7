@@ -1316,7 +1316,7 @@ struct s7_scheme {
 #endif
   s7_pointer active_symbol, goto_symbol, data_symbol, weak_symbol, dimensions_symbol, info_symbol, c_type_symbol, source_symbol, c_object_ref_symbol,
              at_end_symbol, sequence_symbol, position_symbol, entries_symbol, locked_symbol, function_symbol, open_symbol, alias_symbol, port_type_symbol,
-             file_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, current_value_symbol,
+             file_symbol, file_info_symbol, line_symbol, c_object_let_symbol, class_symbol, c_object_length_symbol, c_object_set_symbol, current_value_symbol,
              c_object_copy_symbol, c_object_fill_symbol, c_object_reverse_symbol, c_object_to_list_symbol, c_object_to_string_symbol, closed_symbol;
 
 #if WITH_SYSTEM_EXTRAS
@@ -23418,7 +23418,7 @@ static s7_pointer g_set_port_position(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_port_file(s7_scheme *sc, s7_pointer args)
 {
-  #define H_port_file "(port-file port) returns the FILE* pointer associated with the port wrapped in a c-pointer object"
+  #define H_port_file "(port-file port) returns the FILE* pointer associated with the port, wrapped in a c-pointer object"
   #define Q_port_file s7_make_signature(sc, 2, sc->is_c_pointer_symbol, s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_output_port_symbol))
   s7_pointer port;
 
@@ -30377,15 +30377,19 @@ static void print_gc_info(s7_pointer obj, int32_t line)
 	{
 	  s7_int free_type;
 	  char *bits;
+	  char fline[128];
 	  free_type = typeflag(obj);
 	  typeflag(obj) = obj->current_alloc_type;
 	  bits = describe_type_bits(cur_sc, obj); /* this func called in type macro, so use cur_sc */
 	  typeflag(obj) = free_type;
-	  fprintf(stderr, "%s%p is free (line %d, alloc type: [%s]), current: %s[%d], previous: %s[%d]%s\n",
+	  if (obj->explicit_free_line > 0)
+	    snprintf(fline, 128, ", freed at %d", obj->explicit_free_line);
+	  fprintf(stderr, "%s%p is free (line %d, alloc type: [%s]), current: %s[%d], previous: %s[%d]%s%s\n",
 		  BOLD_TEXT,
 		  obj, line, bits,
 		  obj->current_alloc_func, obj->current_alloc_line,
 		  obj->previous_alloc_func, obj->previous_alloc_line,
+		  (obj->explicit_free_line > 0) ? fline : "",
 		  UNBOLD_TEXT);
 	  free(bits);
 	}
@@ -46793,7 +46797,7 @@ static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
   return(let);
 }
 
-static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj)
+static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underbars! */
 {
   s7_pointer let;
   if (!sc->function_symbol)
@@ -46808,9 +46812,11 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj)
       sc->data_symbol = make_symbol(sc, "data");
       sc->port_type_symbol = make_symbol(sc, "port-type");
       sc->closed_symbol = make_symbol(sc, "closed");
+      sc->file_info_symbol = make_symbol(sc, "file-info");
       if (!sc->position_symbol) sc->position_symbol = make_symbol(sc, "position");
     }
   let = g_local_inlet(sc, 10, sc->value_symbol, obj,
+		      /* obj as 'value means it will say "(closed)" when subsequently the let is displayed */
 		      sc->type_symbol, (is_input_port(obj)) ? sc->is_input_port_symbol : sc->is_output_port_symbol,
 		      sc->port_type_symbol, (is_string_port(obj)) ? sc->string_symbol : ((is_file_port(obj)) ? sc->file_symbol : sc->function_symbol),
 		      sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)),
@@ -46821,6 +46827,27 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj)
       s7_varlet(sc, let, sc->file_symbol, g_port_filename(sc, set_plist_1(sc, obj)));
       if (is_input_port(obj))
 	s7_varlet(sc, let, sc->line_symbol, g_port_line_number(sc, set_plist_1(sc, obj)));
+#if (!MS_WINDOWS)
+      if (!port_is_closed(obj))
+	{
+	  struct stat sb;
+	  s7_varlet(sc, let, sc->file_symbol, make_integer(sc, fileno(port_file(obj))));
+	  if (fstat(fileno(port_file(obj)), &sb) != -1)
+	    {
+	      char c1[64], c2[64], str[512];
+	      int bytes;
+	      strftime(c1, 64, "%a %d-%b-%Y %H:%M", localtime(&sb.st_atime));
+	      strftime(c2, 64, "%a %d-%b-%Y %H:%M", localtime(&sb.st_mtime));
+	      bytes = snprintf(str, 512, "mode: #o%d, links: %ld, owner uid: %d gid: %d, size: %ld bytes, last file access: %s, last file modification: %s",
+			       sb.st_mode,
+			       (int64_t)sb.st_nlink,
+			       (int)sb.st_uid, (int)sb.st_gid,
+			       (int64_t)sb.st_size,
+			       c1, c2);
+	      s7_varlet(sc, let, sc->file_info_symbol, make_string_with_length(sc, (const char *)str, bytes));
+	    }
+	}
+#endif
     }
   if ((is_string_port(obj)) && /* file port might not have a data buffer */
       (port_data(obj)) &&
@@ -91283,7 +91310,7 @@ int main(int argc, char **argv)
  *   do/closure lets in decl order, other lets in reversed order so shadowing is automatic
  *     in let_to_port, if is funclet, don't reverse in slot_list_to_port [and do curlet?]
  *     currently: (define (f a b c) (+ a b c)) (funclet f) -> (inlet 'c () 'b () 'a ())
- *   currently what if safe closure is fx_treed, then applied with unreversed let?
+ *   what if safe closure is fx_treed, then applied with unreversed let?
  *
  * mutable cells in opt for set [where?][currently 75403 has_safe_steppers] and in CLM [where are the allocs?]
  *
@@ -91299,9 +91326,9 @@ int main(int argc, char **argv)
  * why are we still dragging sc->code around in op_do?
  *    unstack in do (sc->code protection)
  *    do definer is ok if in let etc: has_top_level_definer
- * closure* for t725
- * gtk changes for Snd
- * closure_aa_a fxify body? -- check setter dilambda lint
+ *
+ * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
+ *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * trouble: safe closure let reversal [decl order], optimize_func*(2), shared_info
  *   needs split: optimize_func*[split by type at least, two split is slower], do*, s7_copy_1[watch out for let->break], eval

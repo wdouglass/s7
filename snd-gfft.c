@@ -1245,7 +1245,11 @@ GtkWidget *make_transform_dialog(bool managed)
 
 	graph_frame = gtk_frame_new(NULL);
 	gtk_table_attach_defaults(GTK_TABLE(outer_table), graph_frame, 6, 11, 7, 16);
+#if GTK_CHECK_VERSION(3, 94, 0)
+	gtk_frame_set_label_align(GTK_FRAME(graph_frame), 0.5);
+#else
 	gtk_frame_set_label_align(GTK_FRAME(graph_frame), 0.5, 0.0);
+#endif
 	gtk_frame_set_shadow_type(GTK_FRAME(graph_frame), GTK_SHADOW_IN);
 
 	g_vbox = gtk_vbox_new(false, 2);

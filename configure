@@ -5097,16 +5097,6 @@ if test "$ac_snd_gui_choice" = none ; then
 
 
        if test "$ac_snd_gui_choice" = none ; then
-         if $PKG_CONFIG gtk4 --exists ; then
-           GTK_CFLAGS="`$PKG_CONFIG gtk4 --cflags`"
-           GTK_LIBS="`$PKG_CONFIG gtk4 --libs`"
-           GTK_LD_LIBS="`$PKG_CONFIG gtk4 --libs-only-L` `$PKG_CONFIG gtk4 --libs-only-l`"
-           ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk4 --modversion`
-         fi
-       fi
-
-       if test "$ac_snd_gui_choice" = none ; then
          if $PKG_CONFIG gtk+-4.0 --exists ; then
            GTK_CFLAGS="`$PKG_CONFIG gtk+-4.0 --cflags`"
            GTK_LIBS="`$PKG_CONFIG gtk+-4.0 --libs`"

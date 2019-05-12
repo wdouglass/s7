@@ -3793,6 +3793,11 @@ void changed_file_dialog(snd_info *sp)
 }
 
 
+#if (GTK_CHECK_VERSION(3, 94, 0))
+void g_init_gxfile(void)
+{
+}
+#else
 /* drop */
 
 typedef struct {
@@ -3992,3 +3997,4 @@ event. If it returns " PROC_TRUE ", the file is not opened by Snd."
 
   drop_hook = Xen_define_hook(S_drop_hook, "(make-hook 'name)", 1, H_drop_hook); 
 }
+#endif

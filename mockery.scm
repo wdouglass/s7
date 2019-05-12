@@ -35,7 +35,7 @@
 		   (func (obj 'value)))
 		 openlets))
 
-	    ((not (openlet? obj)) 
+	    ((not (openlet? obj))
 	     (func obj))
 
 	    ((procedure? obj) ; TODO: and c-pointer? c-object?
@@ -773,19 +773,23 @@
 		       'let-ref-fallback (lambda (obj ind) 
 					   (if (eq? ind 'value)
 					       #<undefined>
-					       (let ((val (begin 
-							    (coverlet obj)
-							    (#_list-ref (obj 'value) ind))))
-						 (openlet obj) 
-						 val)))
+					       (if (integer? ind)
+						   (let ((val (begin 
+								(coverlet obj)
+								(#_list-ref (obj 'value) ind))))
+						     (openlet obj) 
+						     val)
+						   (error "let-ref mock-pair index is not an integer: ~S" ind))))
 		       'let-set-fallback (lambda (obj ind val) 
 					   (if (eq? ind 'value)
 					       #<undefined>
-					       (let ((val (begin 
-							    (coverlet obj)
-							    (#_list-set! (obj 'value) ind val))))
-						 (openlet obj)
-						 val)))
+					       (if (integer? ind)
+						   (let ((val (begin 
+								(coverlet obj)
+								(#_list-set! (obj 'value) ind val))))
+						     (openlet obj)
+						     val)
+						   (error "let-set! mock-pair index is not an integer: ~S" ind))))
 		       
 		       'reverse!         (lambda (obj) 
 					   (if (mock-pair? obj)

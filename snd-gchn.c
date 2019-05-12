@@ -467,6 +467,7 @@ static gboolean channel_resize_callback(GtkWidget *w, GdkEventConfigure *ev, gpo
 static Xen mouse_enter_graph_hook;
 static Xen mouse_leave_graph_hook;
 
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 static gboolean graph_mouse_enter(GtkWidget *w, GdkEventCrossing *ev, gpointer data)
 {
   /* how many args does this thing take?  does it return an int?  what does the return value mean? */
@@ -484,7 +485,11 @@ static gboolean graph_mouse_enter(GtkWidget *w, GdkEventCrossing *ev, gpointer d
 	       S_mouse_enter_graph_hook);
     }
 
+#if GTK_CHECK_VERSION(3, 94, 0)
+  gtk_widget_set_cursor(w, ss->graph_cursor);
+#else
   gdk_window_set_cursor(WIDGET_TO_WINDOW(w), ss->graph_cursor);
+#endif
   return(false);
 }
 
@@ -500,11 +505,14 @@ static gboolean graph_mouse_leave(GtkWidget *w, GdkEventCrossing *ev, gpointer d
 			  C_int_to_Xen_integer(unpack_channel(pdata))),
 	       S_mouse_leave_graph_hook);
     }
-
+#if GTK_CHECK_VERSION(3, 94, 0)
+  gtk_widget_set_cursor(w, ss->arrow_cursor);
+#else
   gdk_window_set_cursor(WIDGET_TO_WINDOW(w), ss->arrow_cursor);
+#endif
   return(false);
 }
-
+#endif
 
 static void hide_gz_scrollbars(snd_info *sp)
 {
@@ -667,7 +675,7 @@ void reflect_edit_counter_change(chan_info *cp)
  * but the actual channel depends on placement if mouse oriented.
  * virtual_selected_channel(cp) (snd-chn.c) retains the current selected channel
  */
-
+#if (!GTK_CHECK_VERSION(3, 89, 0))
 static gboolean real_graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer data)
 {
   chan_info *cp = (chan_info *)data;
@@ -696,7 +704,7 @@ static gboolean real_graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer dat
   g_signal_stop_emission((gpointer)w, g_signal_lookup("key_press_event", G_OBJECT_TYPE((gpointer)w)), 0);
   return(true);
 }
-
+#endif
 
 gboolean graph_key_press(GtkWidget *w, GdkEventKey *ev, gpointer data)
 {
@@ -792,7 +800,7 @@ static gboolean graph_button_motion(GtkWidget *w, GdkEventMotion *ev, gpointer d
   return(false);
 }
 
-
+#if (!GTK_CHECK_VERSION(3, 94, 0))
 static void channel_drop_watcher(GtkWidget *w, const char *filename, int x, int y, void *data)
 {
   drag_and_drop_mix_at_x_y(get_user_int_data(G_OBJECT(w)), filename, x, y);
@@ -833,7 +841,7 @@ static void channel_drag_watcher(GtkWidget *w, const char *filename, int x, int 
 	}
     }
 }
-
+#endif
 
 int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, GtkWidget *main, fw_button_t button_style, bool with_events)
 {
@@ -892,7 +900,9 @@ int add_channel_window(snd_info *sp, int channel, int chan_y, int insertion, Gtk
       gtk_widget_set_size_request(cw[W_graph_window], -1, chan_y);
 
       cw[W_graph] = gtk_drawing_area_new();
+#if (!GTK_CHECK_VERSION(3, 94, 0))
       add_drag_and_drop(cw[W_graph], channel_drop_watcher, channel_drag_watcher, NULL);
+#endif
       set_user_int_data(G_OBJECT(cw[W_graph]), pack_sound_and_channel(sp->index, cp->chan));
 #if (!GTK_CHECK_VERSION(3, 89, 0))
       sg_widget_set_events(cw[W_graph], GDK_ALL_EVENTS_MASK);
@@ -1455,10 +1465,19 @@ void color_chan_components(color_t color, slider_choice_t which_component)
 static Xen g_graph_cursor(void)
 {
   #define H_graph_cursor "(" S_graph_cursor "): current graph cursor shape"
+#if GTK_CHECK_VERSION(3, 94, 0)
+  return(C_string_to_Xen_string(in_graph_cursor(ss)));
+#else
   return(C_int_to_Xen_integer(in_graph_cursor(ss)));
+#endif
 }
 
-
+#if GTK_CHECK_VERSION(3, 94, 0)
+static Xen g_set_graph_cursor(Xen curs)
+{
+  return(curs);
+}
+#else
 static Xen g_set_graph_cursor(Xen curs)
 {
   int val;
@@ -1467,13 +1486,13 @@ static Xen g_set_graph_cursor(Xen curs)
   if ((val >= 0) && ((val & 1) == 0) && (val <= GDK_XTERM)) /* these are even numbers up to about 152 (gdkcursor.h) */
     {
       ss->Graph_Cursor = val;
-      ss->graph_cursor = GDK_CURSOR_NEW((GdkCursorType)in_graph_cursor(ss));
+      ss->graph_cursor = GDK_CURSOR_NEW(in_graph_cursor(ss));
       /* the gtk examples ignore g_object_ref|unref in this regard, so I will also */
     }
   else Xen_out_of_range_error(S_set S_graph_cursor, 1, curs, "invalid cursor");
   return(curs);
 }
-
+#endif
 
 Xen_wrap_2_args(g_in_w, g_in)
 Xen_wrap_no_args(g_graph_cursor_w, g_graph_cursor)

@@ -19,10 +19,18 @@
   #include <gdk/gdkkeysyms.h>
 #endif
 
+#ifndef GDK_CURSOR_NEW
 #if GTK_CHECK_VERSION(3, 16, 0)
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#if GTK_CHECK_VERSION(3, 94, 0)
+  #define GDK_WATCH "wait"
+  #define GDK_LEFT_PTR "default"
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_from_name(Type, NULL)
 #else
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new(Type)
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#endif
+#else
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new((GdkCursorType)Type)
+#endif
 #endif
 
 typedef struct glistener glistener;

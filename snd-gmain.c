@@ -315,7 +315,7 @@ static void startup_funcs(void)
   SG_SIGNAL_CONNECT(main_shell(ss), "window_state_event", window_iconify, NULL);
 #endif
 
-  ss->graph_cursor = GDK_CURSOR_NEW((GdkCursorType)in_graph_cursor(ss));
+  ss->graph_cursor = GDK_CURSOR_NEW(in_graph_cursor(ss));
   ss->wait_cursor = GDK_CURSOR_NEW(GDK_WATCH);
   ss->bounds_cursor = GDK_CURSOR_NEW(GDK_SB_H_DOUBLE_ARROW);
   ss->yaxis_cursor = GDK_CURSOR_NEW(GDK_SB_V_DOUBLE_ARROW);
@@ -375,7 +375,9 @@ static void startup_funcs(void)
 
 static void set_up_icon(void)
 {
+#if (!GTK_CHECK_VERSION(3, 94, 0))
   gtk_window_set_icon(GTK_WINDOW(main_shell(ss)), gdk_pixbuf_new_from_xpm_data(snd_icon_bits()));
+#endif
 }
 
 
@@ -649,14 +651,19 @@ void snd_doit(int argc, char **argv)
   gtk_widget_show(main_shell(ss));
   
 #if HAVE_GTK_ADJUSTMENT_GET_UPPER
-  main_window(ss) = gtk_widget_get_window(main_shell(ss));
+  main_window(ss) = WIDGET_TO_WINDOW(main_shell(ss));
 #else
   main_window(ss) = main_shell(ss)->window;
 #endif
   
   setup_gcs();
   if (batch) gtk_widget_hide(main_shell(ss));
-  else gdk_window_resize(WIDGET_TO_WINDOW(main_shell(ss)), INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
+  else 
+#if GTK_CHECK_VERSION(3, 94, 0)
+    gtk_window_resize(WIDGET_TO_WINDOW(main_shell(ss)), INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
+#else
+    gdk_window_resize(WIDGET_TO_WINDOW(main_shell(ss)), INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
+#endif
   
 #ifndef _MSC_VER
   if (setjmp(top_level_jump))

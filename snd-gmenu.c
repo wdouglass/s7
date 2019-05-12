@@ -353,7 +353,7 @@ static void help_colors_callback(GtkWidget *w, gpointer info) {colors_help();}
 
 void check_menu_labels(int key, int state, bool extended) {}
 
-
+#if (!GTK_CHECK_VERSION(3, 94, 0))
 static void menu_drop_watcher(GtkWidget *w, const char *filename, int x, int y, void *data)
 {
   snd_info *sp;
@@ -386,7 +386,7 @@ static void menu_drag_watcher(GtkWidget *w, const char *str, int x, int y, drag_
       break;
     }
 }
-
+#endif
 
 
 /* -------------------------------- MAIN MENU -------------------------------- */
@@ -451,7 +451,9 @@ GtkWidget *add_menu(void)
 
   main_menu = gtk_menu_bar_new();
   ml[m_menu] = NULL;
+#if (!GTK_CHECK_VERSION(3, 94, 0))
   add_drag_and_drop(main_menu, menu_drop_watcher, menu_drag_watcher, NULL);
+#endif
   sg_box_pack_start(GTK_BOX(main_pane(ss)), main_menu, false, true, 0);
   add_menu_style(main_menu);
   gtk_widget_show(main_menu);

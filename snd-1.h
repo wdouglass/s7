@@ -490,7 +490,7 @@ typedef struct snd_state {
   mus_float_t Enved_Base, Enved_Power, Auto_Update_Interval;
   bool Enved_With_Wave, Graphs_Horizontal, With_Background_Processes, With_File_Monitor;
   env_type_t Enved_Style;
-  int Graph_Cursor, Mix_Tag_Width, Mix_Tag_Height, Mark_Tag_Height, Mark_Tag_Width;
+  int Mix_Tag_Width, Mix_Tag_Height, Mark_Tag_Height, Mark_Tag_Width;
   enved_target_t Enved_Target;
   bool Clipping, Show_Indices, Just_Sounds;
   int Cursor_Size;
@@ -572,6 +572,16 @@ typedef struct snd_state {
     listener_colorized_symbol,
 #endif
     html_dir_symbol, html_program_symbol, open_file_dialog_directory_symbol;
+#endif
+
+#if USE_GTK
+#if GTK_CHECK_VERSION(3, 94, 0)
+  char* Graph_Cursor;
+#else
+  int Graph_Cursor;
+#endif
+#else
+  int Graph_Cursor;
 #endif
 
   bool tracking;
