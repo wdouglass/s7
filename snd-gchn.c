@@ -1485,8 +1485,8 @@ static Xen g_set_graph_cursor(Xen curs)
   val = Xen_integer_to_C_int(curs);
   if ((val >= 0) && ((val & 1) == 0) && (val <= GDK_XTERM)) /* these are even numbers up to about 152 (gdkcursor.h) */
     {
-      ss->Graph_Cursor = val;
-      ss->graph_cursor = GDK_CURSOR_NEW(in_graph_cursor(ss));
+      ss->Graph_Cursor = (GdkCursorType)val;
+      ss->graph_cursor = GDK_CURSOR_NEW((GdkCursorType)in_graph_cursor(ss));
       /* the gtk examples ignore g_object_ref|unref in this regard, so I will also */
     }
   else Xen_out_of_range_error(S_set S_graph_cursor, 1, curs, "invalid cursor");

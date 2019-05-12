@@ -315,7 +315,11 @@ static void startup_funcs(void)
   SG_SIGNAL_CONNECT(main_shell(ss), "window_state_event", window_iconify, NULL);
 #endif
 
+#if GTK_CHECK_VERSION(3, 94, 0)
   ss->graph_cursor = GDK_CURSOR_NEW(in_graph_cursor(ss));
+#else
+  ss->graph_cursor = GDK_CURSOR_NEW((GdkCursorType)in_graph_cursor(ss));
+#endif
   ss->wait_cursor = GDK_CURSOR_NEW(GDK_WATCH);
   ss->bounds_cursor = GDK_CURSOR_NEW(GDK_SB_H_DOUBLE_ARROW);
   ss->yaxis_cursor = GDK_CURSOR_NEW(GDK_SB_V_DOUBLE_ARROW);

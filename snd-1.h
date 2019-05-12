@@ -578,7 +578,7 @@ typedef struct snd_state {
 #if GTK_CHECK_VERSION(3, 94, 0)
   char* Graph_Cursor;
 #else
-  int Graph_Cursor;
+  GdkCursorType Graph_Cursor;
 #endif
 #else
   int Graph_Cursor;
