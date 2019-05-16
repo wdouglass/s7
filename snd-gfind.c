@@ -41,6 +41,7 @@ int help_text_width(const char *txt, int start, int end)
 static with_word_wrap_t outer_with_wrap = WITHOUT_WORD_WRAP;
 static int old_help_text_width = 0;
 
+#if (!GTK_CHECK_VERSION(3, 96, 0))
 static gboolean help_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   int curwid;
@@ -64,7 +65,7 @@ static gboolean help_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer 
     }
   return(false);
 }
-
+#endif
 
 static bool new_help(const char *pattern, bool complain)
 {
@@ -265,7 +266,9 @@ static void create_help_monolog(void)
 
   SG_SIGNAL_CONNECT(search, "activate", search_activated, NULL);
   gtk_widget_show(help_dialog);
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   SG_SIGNAL_CONNECT((gpointer)help_dialog, DRAW_SIGNAL, help_expose_callback, NULL);
+#endif
   set_dialog_widget(HELP_DIALOG, help_dialog);
 }
 

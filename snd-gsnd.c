@@ -2853,7 +2853,9 @@ GtkWidget *snd_entry_new_with_size(GtkWidget *container, int size)
 
   text = gtk_entry_new();
   gtk_editable_set_editable(GTK_EDITABLE(text), true);
+#if (!GTK_CHECK_VERSION(3, 96,0))
   gtk_entry_set_width_chars(GTK_ENTRY(text), size);
+#endif
   add_entry_style(text);
 
   settings = gtk_widget_get_settings(text);

@@ -41,6 +41,10 @@
 #define CALL_TIMEOUT(Func, Wait, Data) g_timeout_add_full(0, Wait, Func, (gpointer)Data, NULL)
 #define timeout_result_t               guint
 #define TIMEOUT_REMOVE(Id)             g_source_remove(Id)
+#if GTK_CHECK_VERSION(3, 96, 0)
+  #define gtk_entry_get_text(Widget) gtk_entry_buffer_get_text(GTK_ENTRY_BUFFER(gtk_entry_get_buffer(GTK_ENTRY(Widget))))
+  #define gtk_entry_set_text(Widget, Text) gtk_entry_buffer_set_text(GTK_ENTRY_BUFFER(gtk_entry_get_buffer(GTK_ENTRY(Widget))), Text, snd_strlen(Text))
+#endif
 
 typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 
@@ -132,7 +136,7 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 #define widget_set_vexpand(Wid, Val) gtk_widget_set_vexpand(Wid, Val)
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-#define window_get_pointer(Event, X, Y, Mask) do {gdouble fx, fy; gdk_surface_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), &fx, &fy, Mask); X = (int)fx; Y = (int)fy;} while (0)
+#define window_get_pointer(Event, X, Y, Mask) do {gdouble fx, fy; gdk_surface_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), &fx, &fy, Mask); *X = (int)fx; *Y = (int)fy;} while (0)
 #else
 #if GTK_CHECK_VERSION(3, 94, 0)
 #define window_get_pointer(Event, X, Y, Mask) gdk_surface_get_device_position(EVENT_WINDOW(Event), gdk_event_get_device((GdkEvent *)Event), X, Y, Mask)

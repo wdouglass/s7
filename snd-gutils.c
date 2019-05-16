@@ -1,5 +1,15 @@
 #include "snd.h"
 
+#if GTK_CHECK_VERSION(3, 96, 0)
+int snd_strlen(const char *str)
+{
+  char *tmp = (char *)str;
+  if ((!tmp) || (!(*tmp))) return(0);
+  while (*tmp++) {};
+  return(tmp - str - 1);
+}
+#endif
+
 #if (!GTK_CHECK_VERSION(3, 89, 0))
 
 #if GTK_CHECK_VERSION(3, 22, 0)
@@ -770,13 +780,17 @@ gint16 widget_y(GtkWidget *w)
 
 void set_widget_x(GtkWidget *w, gint16 x)
 {
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   gtk_window_move(GTK_WINDOW(w), x, widget_y(w));
+#endif
 }
 
 
 void set_widget_y(GtkWidget *w, gint16 y)
 {
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   gtk_window_move(GTK_WINDOW(w), widget_x(w), y);
+#endif
 }
 
 
@@ -796,7 +810,9 @@ void set_widget_size(GtkWidget *w, guint16 width, guint16 height)
 
 void set_widget_position(GtkWidget *w, gint16 x, gint16 y)
 {
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   gtk_window_move(GTK_WINDOW(w), x, y);
+#endif
 }
 
 

@@ -294,7 +294,7 @@
 	((= k 10) sum)
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(set! sum (+ sum (if (char=? (v k i) #\a) 1 0)))))))
+	(set! sum (+ sum (if (char=? (vector-ref v k i) #\a) 1 0)))))))
 
 (unless (= (g16) size)
   (format *stderr* "g16: ~S~%" (g16)))

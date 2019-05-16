@@ -1882,8 +1882,9 @@ void show_toolbar(void)
 #endif
 #endif
       sg_box_pack_start(GTK_BOX(main_pane(ss)), toolbar, false, false, 0); /* main_pane = top level vbox */
+#if (!GTK_CHECK_VERSION(3, 96, 0))
       gtk_box_reorder_child(GTK_BOX(main_pane(ss)), toolbar, 1);            /* put toolbar just under the top level menubar */
-
+#endif
 
       add_to_toolbar(toolbar, ICON_NEW,                 "open a new sound",           (GCallback)file_new_callback);
       add_to_toolbar(toolbar, ICON_OPEN,                "open a sound",               (GCallback)file_open_callback);

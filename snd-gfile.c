@@ -1634,7 +1634,9 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
 	gtk_widget_show(src_box);
 	
 	fdat->srate_text = snd_entry_new(src_box, NULL, WITH_WHITE_BACKGROUND);
+#if (!GTK_CHECK_VERSION(3, 96, 0))
 	gtk_entry_set_width_chars(GTK_ENTRY(fdat->srate_text), 8);
+#endif
 	SG_SIGNAL_CONNECT(fdat->srate_text, "key_press_event", data_panel_srate_key_press, NULL); /* srate completer */
 	
 	fdat->src_button = gtk_check_button_new_with_label("src");

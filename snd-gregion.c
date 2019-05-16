@@ -248,13 +248,13 @@ static gboolean region_resize_callback(GtkWidget *w, GdkEventConfigure *ev, gpoi
   return(false);
 }
 
-
+#if (!GTK_CHECK_VERSION(3, 96, 0))
 static gboolean region_expose_callback(GtkWidget *w, GdkEventExpose *ev, gpointer data)
 {
   region_update_graph((chan_info *)data);
   return(false);
 }
-
+#endif
 
 void delete_region_and_update_browser(int pos)
 {
@@ -775,8 +775,9 @@ static void make_region_dialog(void)
   gtk_paned_set_position(GTK_PANED(region_grf), (gint)floor(100 + rows * 14));
 
   SG_SIGNAL_CONNECT(channel_graph(cp), DRAW_SIGNAL, region_resize_callback, cp);
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   SG_SIGNAL_CONNECT(channel_graph(cp), "configure_event", region_expose_callback, cp);
-
+#endif
   SG_SIGNAL_CONNECT(channel_up_arrow(cp), "button_press_event", region_up_arrow_callback, NULL);
   SG_SIGNAL_CONNECT(channel_down_arrow(cp), "button_press_event", region_down_arrow_callback, NULL);
 

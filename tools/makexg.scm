@@ -45,7 +45,7 @@
 		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
 (set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
-		      "GtkMenuBar*"))
+		      "GtkMenuBar*" "GtkEventControllerLegacy*"))
 
 (define idlers (list "g_source_remove" "g_idle_remove_by_data"
 		     "gtk_quit_remove" "gtk_quit_remove_by_data" 
@@ -370,6 +370,7 @@
 	(cons "gdouble" "DOUBLE")
 	(cons "double" "DOUBLE")
 	(cons "gfloat" "DOUBLE")
+	(cons "float" "DOUBLE")
 	(cons "char" "CHAR")
 	(cons "gchar" "CHAR")
 	(cons "char*" "String")

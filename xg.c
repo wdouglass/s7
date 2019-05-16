@@ -204,7 +204,7 @@ static void define_xm_obj(void)
   #define Xg_field_pre "F"
 #endif
 
-static Xen xg_GtkTreeListRow__symbol, xg_GtkTreeListModelCreateModelFunc_symbol, xg_GtkTreeListModel__symbol, xg_GtkText__symbol, xg_GCompareDataFunc_symbol, xg_GtkSortListModel__symbol, xg_GtkSliceListModel__symbol, xg_GtkSingleSelection__symbol, xg_GtkPasswordEntry__symbol, xg_GtkMapListModelMapFunc_symbol, xg_GtkMapListModel__symbol, xg_GtkLayoutChild__symbol, xg_GtkGridLayoutChild__symbol, xg_GtkGridLayout__symbol, xg_GtkFlattenListModel__symbol, xg_GtkFixedLayoutChild__symbol, xg_GtkFilterListModelFilterFunc_symbol, xg_GtkFilterListModel__symbol, xg_GtkCustomAllocateFunc_symbol, xg_GtkCustomMeasureFunc_symbol, xg_GtkCustomRequestModeFunc_symbol, xg_GtkBoxLayout__symbol, xg_GVariant__symbol, xg_GtkPickFlags_symbol, xg_GtkOverflow_symbol, xg_graphene_point_t__symbol, xg_graphene_matrix_t__symbol, xg_GtkRoot__symbol, xg_GtkWidgetClass__symbol, xg_GtkLayoutManager__symbol, xg_GtkSelectionModel__symbol, xg_GtkStackPage__symbol, xg_GtkPopoverMenu__symbol, xg_GtkNotebookPage__symbol, xg_GskTransform__symbol, xg_GtkEventControllerMotion__symbol, xg_GtkEventControllerKey__symbol, xg_GParamSpec__symbol, xg_GObjectClass__symbol, xg_float_symbol, xg_GListModel__symbol, xg_GtkAssistantPage__symbol, xg_GdkEventMask_symbol, xg_GdkGrabOwnership_symbol, xg_GdkGrabStatus_symbol, xg_GtkAllocation__symbol, xg_GActionGroup__symbol, xg_GtkWidgetPaintable__symbol, xg_GtkVideo__symbol, xg_GtkPicture__symbol, xg_gint64_symbol, xg_GtkMediaFile__symbol, xg_GtkMediaControls__symbol, xg_GtkMediaStream__symbol, xg_GdkTimeCoord___symbol, xg_GdkAxisUse_symbol, xg_GtkGestureStylus__symbol, xg_GtkPropagationPhase_symbol, xg_GdkPaintableFlags_symbol, xg_GdkGLTexture__symbol, xg_GdkDrag__symbol, xg_GdkDrop__symbol, xg_GdkMemoryFormat_symbol, xg_GdkWMFunction_symbol, xg_GdkWMDecoration_symbol, xg_GdkAnchorHints_symbol, xg_gpointer__symbol, xg_GdkSurfaceHints_symbol, xg_GdkGeometry__symbol, xg_GdkSurfaceEdge_symbol, xg_GdkWMDecoration__symbol, xg_GdkVulkanContext__symbol, xg_GdkSurfaceTypeHint_symbol, xg_GdkSurfaceType_symbol, xg_GdkSurfaceState_symbol, xg_GdkFullscreenMode_symbol, xg_GdkFrameClock__symbol, xg_GdkCairoContext__symbol, xg_GdkSurface__symbol, xg_GMenu__symbol, xg_GtkApplicationInhibitFlags_symbol, xg_GApplicationFlags_symbol, xg_GtkDestDefaults_symbol, xg_GdkPaintable__symbol, xg_GdkAtom__symbol, xg_GtkIconSize_symbol, xg_GdkDragAction_symbol, xg_GdkCursor__symbol, xg_GBytes__symbol, xg_GdkContentDeserializer__symbol, xg_GdkContentSerializer__symbol, xg_GOutputStream__symbol, xg_GdkContentFormatsBuilder__symbol, xg_GString__symbol, xg_GdkTexture__symbol, xg_GInputStream__symbol, xg_GAsyncResult__symbol, xg_GAsyncReadyCallback_symbol, xg_GCancellable__symbol, xg_GdkContentProvider__symbol, xg_GdkContentFormats__symbol, xg_GdkClipboard__symbol, xg_GdkAppLaunchContext__symbol, xg_GtkEventControllerScroll__symbol, xg_GtkEventControllerScrollFlags_symbol, xg_GtkEventController__symbol, xg_GdkTouchpadGesturePhase_symbol, xg_GdkNotifyType_symbol, xg_GdkCrossingMode_symbol, xg_GtkCssProvider__symbol, xg_GtkStyleContextPrintFlags_symbol, xg_GtkCssSection__symbol, xg_GtkStyleProvider__symbol, xg_GtkScrollbar__symbol, xg_GtkCenterBox__symbol, xg_GtkCheckButton__symbol, xg_GtkDrawingAreaDrawFunc_symbol, xg_GtkShortcutLabel__symbol, xg_GtkPadActionType_symbol, xg_GtkPadActionEntry__symbol, xg_GtkPadController__symbol, xg_GdkGravity_symbol, xg_GdkDevicePadFeature_symbol, xg_GdkDevicePad__symbol, xg_GdkSubpixelLayout_symbol, xg_GdkMonitor__symbol, xg_GdkDeviceTool__symbol, xg_GdkAxisFlags_symbol, xg_GdkSeatCapabilities_symbol, xg_GdkSeat__symbol, xg_GtkPopoverConstraint_symbol, xg_GtkShortcutsWindow__symbol, xg_GtkStackSidebar__symbol, xg_GtkSearchEntry__symbol, xg_GtkStyleContext__symbol, xg_GdkGLContext__symbol, xg_GtkGLArea__symbol, xg_GtkGestureZoom__symbol, xg_GtkGestureSwipe__symbol, xg_GtkGestureSingle__symbol, xg_GtkGestureRotate__symbol, xg_GtkGestureMultiPress__symbol, xg_GtkGesturePan__symbol, xg_GtkGestureDrag__symbol, xg_GdkEventSequence__symbol, xg_GtkEventSequenceState_symbol, xg_GtkGesture__symbol, xg_GtkPopover__symbol, xg_GtkActionBar__symbol, xg_GtkFlowBox__symbol, xg_GtkFlowBoxChild__symbol, xg_GdkEventType_symbol, xg_GtkSearchBar__symbol, xg_GtkListBox__symbol, xg_GtkListBoxRow__symbol, xg_GtkHeaderBar__symbol, xg_GtkRevealerTransitionType_symbol, xg_GtkRevealer__symbol, xg_GtkStackTransitionType_symbol, xg_GtkStack__symbol, xg_GtkStackSwitcher__symbol, xg_GtkBaselinePosition_symbol, xg_GtkInputHints_symbol, xg_GtkInputPurpose_symbol, xg_GtkLevelBarMode_symbol, xg_GtkLevelBar__symbol, xg_GtkMenuButton__symbol, xg_GtkColorChooser__symbol, xg_GtkApplicationWindow__symbol, xg_GtkApplication__symbol, xg_GMenuModel__symbol, xg_guint___symbol, xg_GdkModifierIntent_symbol, xg_GtkFontChooser__symbol, xg_GdkScrollDirection_symbol, xg_GtkOverlay__symbol, xg_GtkWidgetPath__symbol, xg_GtkStateFlags_symbol, xg_GtkToolShell__symbol, xg_GtkWindowGroup__symbol, xg_GIcon__symbol, xg_GtkOrientable__symbol, xg_GtkCellArea__symbol, xg_GtkBorder__symbol, xg_GtkSwitch__symbol, xg_GtkScrollablePolicy_symbol, xg_GtkScrollable__symbol, xg_GtkGrid__symbol, xg_GdkRGBA__symbol, xg_GtkComboBoxText__symbol, xg_GtkAlign_symbol, xg_GtkSizeRequestMode_symbol, xg_cairo_region_overlap_t_symbol, xg_cairo_rectangle_int_t__symbol, xg_double__symbol, xg_cairo_rectangle_t__symbol, xg_cairo_device_t__symbol, xg_cairo_bool_t_symbol, xg_cairo_text_cluster_flags_t__symbol, xg_cairo_text_cluster_t___symbol, xg_cairo_glyph_t___symbol, xg_cairo_text_cluster_flags_t_symbol, xg_cairo_text_cluster_t__symbol, xg_cairo_region_t__symbol, xg_GtkMessageDialog__symbol, xg_GdkDevice__symbol, xg_GtkAccessible__symbol, xg_GdkModifierType__symbol, xg_GtkPackType_symbol, xg_GtkSpinner__symbol, xg_GtkEntryBuffer__symbol, xg_GtkMessageType_symbol, xg_GtkInfoBar__symbol, xg_GtkEntryIconPosition_symbol, xg_GFile__symbol, xg_GtkSensitivityType_symbol, xg_GdkAtom_symbol, xg_GtkScaleButton__symbol, xg_GtkCalendarDetailFunc_symbol, xg_GtkTooltip__symbol, xg_cairo_rectangle_list_t__symbol, xg_void__symbol, xg_cairo_filter_t_symbol, xg_cairo_extend_t_symbol, xg_cairo_format_t_symbol, xg_cairo_path_t__symbol, xg_cairo_destroy_func_t_symbol, xg_cairo_user_data_key_t__symbol, xg_cairo_text_extents_t__symbol, xg_cairo_font_extents_t__symbol, xg_cairo_font_face_t__symbol, xg_cairo_glyph_t__symbol, xg_cairo_scaled_font_t__symbol, xg_cairo_font_weight_t_symbol, xg_cairo_font_slant_t_symbol, xg_cairo_hint_metrics_t_symbol, xg_cairo_hint_style_t_symbol, xg_cairo_subpixel_order_t_symbol, xg_cairo_status_t_symbol, xg_bool_symbol, xg_cairo_matrix_t__symbol, xg_cairo_line_join_t_symbol, xg_cairo_line_cap_t_symbol, xg_cairo_fill_rule_t_symbol, xg_cairo_antialias_t_symbol, xg_cairo_operator_t_symbol, xg_cairo_pattern_t__symbol, xg_cairo_content_t_symbol, xg_GtkPageSet_symbol, xg_GtkPageRange__symbol, xg_GtkPrintPages_symbol, xg_GtkPrintQuality_symbol, xg_GtkPrintDuplex_symbol, xg_GtkPaperSize__symbol, xg_GtkPageOrientation_symbol, xg_GtkPrintSettingsFunc_symbol, xg_GtkPageSetupDoneFunc_symbol, xg_GtkPrintStatus_symbol, xg_GtkPrintOperationAction_symbol, xg_GtkPrintOperationResult_symbol, xg_GtkUnit_symbol, xg_GtkPrintSettings__symbol, xg_GtkPrintOperation__symbol, xg_GtkPageSetup__symbol, xg_GtkPrintContext__symbol, xg_cairo_surface_t__symbol, xg_GtkTreeViewGridLines_symbol, xg_GtkRecentData__symbol, xg_time_t_symbol, xg_GtkRecentInfo__symbol, xg_GtkRecentManager__symbol, xg_GtkLinkButton__symbol, xg_GtkAssistantPageType_symbol, xg_GtkAssistantPageFunc_symbol, xg_GtkAssistant__symbol, xg_GDestroyNotify_symbol, xg_GtkTreeViewSearchPositionFunc_symbol, xg_GtkIconViewDropPosition_symbol, xg_GValue__symbol, xg_GLogFunc_symbol, xg_PangoMatrix__symbol, xg_PangoRenderPart_symbol, xg_PangoRenderer__symbol, xg_GtkMenuToolButton__symbol, xg_GtkFileChooserButton__symbol, xg_PangoScriptIter__symbol, xg_PangoScript_symbol, xg_PangoAttrFilterFunc_symbol, xg_PangoEllipsizeMode_symbol, xg_GtkIconViewForeachFunc_symbol, xg_GtkAboutDialog__symbol, xg_GtkTreeViewRowSeparatorFunc_symbol, xg_GtkCellView__symbol, xg_GtkAccelMap__symbol, xg_GtkOrientation_symbol, xg_GtkToolButton__symbol, xg_GtkIconLookupFlags_symbol, xg_GtkIconInfo__symbol, xg_gchar___symbol, xg_GtkIconTheme__symbol, xg_GtkFileChooser__symbol, xg_GtkCellLayoutDataFunc_symbol, xg_GtkCellLayout__symbol, xg_GtkFileFilterFunc_symbol, xg_GtkFileFilterFlags_symbol, xg_GtkFileFilter__symbol, xg_GSourceFunc_symbol, xg_GtkToggleToolButton__symbol, xg_GtkSeparatorToolItem__symbol, xg_GtkRadioToolButton__symbol, xg_GtkEntryCompletionMatchFunc_symbol, xg_GtkFontButton__symbol, xg_GtkExpander__symbol, xg_GtkComboBox__symbol, xg_GtkTreeModelFilter__symbol, xg_GtkFileChooserAction_symbol, xg_GtkToolItem__symbol, xg_GtkCalendarDisplayOptions_symbol, xg_GdkDisplay__symbol, xg_PangoLayoutRun__symbol, xg_PangoLayoutIter__symbol, xg_PangoLayoutLine__symbol, xg_int__symbol, xg_PangoAlignment_symbol, xg_PangoWrapMode_symbol, xg_PangoItem__symbol, xg_PangoGlyphString__symbol, xg_PangoFontMap__symbol, xg_PangoGlyph_symbol, xg_PangoFontFace__symbol, xg_PangoFontFace___symbol, xg_PangoFontFamily__symbol, xg_PangoFontMask_symbol, xg_PangoFontDescription___symbol, xg_PangoCoverageLevel_symbol, xg_PangoCoverage__symbol, xg_PangoFontMetrics__symbol, xg_PangoFontset__symbol, xg_PangoFont__symbol, xg_PangoFontFamily___symbol, xg_PangoLogAttr__symbol, xg_PangoAnalysis__symbol, xg_PangoAttrList___symbol, xg_PangoAttrIterator__symbol, xg_PangoRectangle__symbol, xg_PangoUnderline_symbol, xg_PangoStretch_symbol, xg_PangoVariant_symbol, xg_PangoWeight_symbol, xg_PangoStyle_symbol, xg_guint16_symbol, xg_PangoAttribute__symbol, xg_PangoAttrType_symbol, xg_PangoColor__symbol, xg_GtkWindowPosition_symbol, xg_GtkWindowType_symbol, xg_GtkWindow__symbol, xg_GtkTextDirection_symbol, xg_PangoContext__symbol, xg_AtkObject__symbol, xg_GtkDirectionType_symbol, xg_GtkViewport__symbol, xg_GtkTreeViewSearchEqualFunc_symbol, xg_GtkTreeViewDropPosition_symbol, xg_GtkTreeViewMappingFunc_symbol, xg_GtkTreeViewColumnDropFunc_symbol, xg_GtkTreeViewColumnSizing_symbol, xg_GtkTreeCellDataFunc_symbol, xg_GtkTreeStore__symbol, xg_GtkTreeIterCompareFunc_symbol, xg_GtkSortType_symbol, xg_GtkTreeSortable__symbol, xg_GtkTreeSelectionForeachFunc_symbol, xg_GtkTreeModel___symbol, xg_GtkTreeSelectionFunc_symbol, xg_GtkSelectionMode_symbol, xg_GtkTreeModelSort__symbol, xg_GtkTreeModelForeachFunc_symbol, xg_GtkTreeModelFlags_symbol, xg_GtkTreeRowReference__symbol, xg_GtkTreeDragDest__symbol, xg_GtkTreeDragSource__symbol, xg_GtkToolbarStyle_symbol, xg_GtkToolbar__symbol, xg_GtkToggleButton__symbol, xg_PangoTabArray__symbol, xg_GtkWrapMode_symbol, xg_GtkTextWindowType_symbol, xg_GtkTextView__symbol, xg_GtkTextTagTableForeach_symbol, xg_GtkTextSearchFlags_symbol, xg_GtkTextCharPredicate_symbol, xg_GtkTextMark__symbol, xg_GtkTextChildAnchor__symbol, xg_GtkTextIter__symbol, xg_GtkTextTagTable__symbol, xg_GtkTextBuffer__symbol, xg_GtkStatusbar__symbol, xg_GtkSpinType_symbol, xg_GtkSpinButtonUpdatePolicy_symbol, xg_GtkSpinButton__symbol, xg_GtkSizeGroupMode_symbol, xg_GtkSizeGroup__symbol, xg_GtkSettings__symbol, xg_GtkSelectionData__symbol, xg_GtkCornerType_symbol, xg_GtkPolicyType_symbol, xg_GtkScrolledWindow__symbol, xg_GtkScale__symbol, xg_GtkRange__symbol, xg_GtkRadioMenuItem__symbol, xg_GtkRadioButton__symbol, xg_GtkProgressBar__symbol, xg_GtkPaned__symbol, xg_GtkPositionType_symbol, xg_GtkNotebook__symbol, xg_GtkMenuShell__symbol, xg_gint__symbol, xg_GtkMenuItem__symbol, xg_GtkMenu__symbol, xg_PangoLanguage__symbol, xg_GtkListStore__symbol, xg_GtkLayout__symbol, xg_PangoLayout__symbol, xg_GtkJustification_symbol, xg_GtkLabel__symbol, xg_guint16__symbol, xg_GtkIMContextSimple__symbol, xg_GdkEventKey__symbol, xg_PangoAttrList__symbol, xg_GtkIMContext__symbol, xg_GtkImageType_symbol, xg_GtkImage__symbol, xg_GtkShadowType_symbol, xg_GtkFrame__symbol, xg_GtkFixed__symbol, xg_GtkEntry__symbol, xg_GtkEditable__symbol, xg_etc_symbol, xg_GtkDialog__symbol, xg_GList__symbol, xg_GtkCallback_symbol, xg_GtkContainer__symbol, xg_GtkCheckMenuItem__symbol, xg_GtkCellRendererToggle__symbol, xg_GtkCellRendererText__symbol, xg_GtkCellRendererState_symbol, xg_GtkCellEditable__symbol, xg_GtkCalendar__symbol, xg_GtkReliefStyle_symbol, xg_GtkButton__symbol, xg_GtkBox__symbol, xg_GtkBin__symbol, xg_GtkBindingSet__symbol, xg_GtkButtonBox__symbol, xg_GtkButtonBoxStyle_symbol, xg_GtkAspectFrame__symbol, xg_GtkAdjustment__symbol, xg_GtkAccelMapForeach_symbol, xg_GtkAccelLabel__symbol, xg_GtkAccelGroupEntry__symbol, xg_lambda3_symbol, xg_GSList__symbol, xg_GObject__symbol, xg_GtkAccelFlags_symbol, xg_GtkAccelGroup__symbol, xg_GdkInterpType_symbol, xg_double_symbol, xg_gfloat_symbol, xg_guchar_symbol, xg_char___symbol, xg_GdkPixbufDestroyNotify_symbol, xg_GError__symbol, xg_char__symbol, xg_guchar__symbol, xg_GdkPixbuf__symbol, xg_GdkColorspace_symbol, xg_PangoDirection_symbol, xg_GdkKeymapKey__symbol, xg_GdkKeymap__symbol, xg_GdkRectangle__symbol, xg_gdouble_symbol, xg_guint32_symbol, xg_GSignalMatchType_symbol, xg_GConnectFlags_symbol, xg_GtkDestroyNotify_symbol, xg_GSignalEmissionHook_symbol, xg_gulong_symbol, xg_GSignalInvocationHint__symbol, xg_GQuark_symbol, xg_guint__symbol, xg_GSignalQuery__symbol, xg_GType__symbol, xg_GSignalCMarshaller_symbol, xg_gpointer_symbol, xg_GSignalAccumulator_symbol, xg_GSignalFlags_symbol, xg_GType_symbol, xg_GClosureNotify_symbol, xg_GCallback_symbol, xg_GNormalizeMode_symbol, xg_glong_symbol, xg_gssize_symbol, xg_gsize_symbol, xg_gunichar__symbol, xg_void_symbol, xg_int_symbol, xg_GtkDrawingArea__symbol, xg_GLogLevelFlags_symbol, xg_GtkIconView__symbol, xg_GtkEntryCompletion__symbol, xg_GtkFileFilterInfo__symbol, xg_GtkTreeSelection__symbol, xg_GtkCellRenderer__symbol, xg_gint_symbol, xg_GtkTreeViewColumn__symbol, xg_GtkTreeView__symbol, xg_gunichar_symbol, xg_GtkTreeIter__symbol, xg_GtkTreePath__symbol, xg_GtkTreeModel__symbol, xg_gboolean_symbol, xg_GdkModifierType_symbol, xg_guint_symbol, xg_gchar__symbol, xg_GtkTextTag__symbol, xg_GtkWidget__symbol, xg_lambda_data_symbol, xg_GClosure__symbol, xg_GtkAccelKey__symbol, xg_GdkEventMotion__symbol, xg_gdouble__symbol, xg_GdkEventAny__symbol, xg_GdkEvent__symbol, xg_cairo_t__symbol, xg_cairo_font_options_t__symbol, xg_PangoFontDescription__symbol, xg_GtkMenuBar__symbol, xg_GtkCellRendererPixbuf__symbol, xg_GtkSeparator__symbol, xg_GtkSeparatorMenuItem__symbol, xg_GdkEventExpose__symbol, xg_GdkEventNoExpose__symbol, xg_GdkEventVisibility__symbol, xg_GdkEventButton__symbol, xg_GdkEventCrossing__symbol, xg_GdkEventFocus__symbol, xg_GdkEventConfigure__symbol, xg_GdkEventProperty__symbol, xg_GdkEventSelection__symbol, xg_GdkEventProximity__symbol, xg_GdkEventSetting__symbol, xg_GdkEventWindowState__symbol, xg_GdkEventDND__symbol, xg_GtkFileChooserDialog__symbol, xg_GtkFileChooserWidget__symbol, xg_GtkColorButton__symbol, xg_GtkAccelMap_symbol, xg_GtkCellRendererCombo__symbol, xg_GtkCellRendererProgress__symbol, xg_GtkCellRendererAccel__symbol, xg_GtkCellRendererSpin__symbol, xg_GtkCellRendererSpinner__symbol, xg_GtkFontChooserDialog__symbol, xg_GtkFontChooserWidget__symbol, xg_GtkColorChooserDialog__symbol, xg_GtkColorWidget__symbol, xg_GtkGestureLongPress__symbol, xg_idler_symbol;
+static Xen xg_GtkTreeListRow__symbol, xg_GtkTreeListModel__symbol, xg_GtkText__symbol, xg_GtkSortListModel__symbol, xg_GtkSliceListModel__symbol, xg_GtkSingleSelection__symbol, xg_GtkPasswordEntry__symbol, xg_GtkMapListModel__symbol, xg_GtkLayoutChild__symbol, xg_GtkGridLayoutChild__symbol, xg_GtkGridLayout__symbol, xg_GtkFlattenListModel__symbol, xg_GtkFilterListModel__symbol, xg_GtkCustomAllocateFunc_symbol, xg_GtkCustomMeasureFunc_symbol, xg_GtkCustomRequestModeFunc_symbol, xg_GtkBoxLayout__symbol, xg_GVariant__symbol, xg_GtkPickFlags_symbol, xg_GtkOverflow_symbol, xg_graphene_point_t__symbol, xg_graphene_matrix_t__symbol, xg_GtkRoot__symbol, xg_GtkWidgetClass__symbol, xg_GtkLayoutManager__symbol, xg_GtkSelectionModel__symbol, xg_GtkStackPage__symbol, xg_GtkPopoverMenu__symbol, xg_GtkNotebookPage__symbol, xg_GskTransform__symbol, xg_GtkEventControllerMotion__symbol, xg_GtkEventControllerKey__symbol, xg_GParamSpec__symbol, xg_GObjectClass__symbol, xg_float_symbol, xg_GListModel__symbol, xg_GtkAssistantPage__symbol, xg_GtkAllocation__symbol, xg_GActionGroup__symbol, xg_GtkWidgetPaintable__symbol, xg_GtkVideo__symbol, xg_GtkPicture__symbol, xg_gint64_symbol, xg_GtkMediaFile__symbol, xg_GtkMediaControls__symbol, xg_GtkMediaStream__symbol, xg_GdkTimeCoord___symbol, xg_GdkAxisUse_symbol, xg_GtkGestureStylus__symbol, xg_GtkPropagationPhase_symbol, xg_GdkPaintableFlags_symbol, xg_GdkGLTexture__symbol, xg_GdkDrag__symbol, xg_GdkDrop__symbol, xg_GdkMemoryFormat_symbol, xg_GdkWMFunction_symbol, xg_GdkWMDecoration_symbol, xg_GdkAnchorHints_symbol, xg_GdkSurfaceHints_symbol, xg_GdkGeometry__symbol, xg_GdkSurfaceEdge_symbol, xg_GdkWMDecoration__symbol, xg_GdkVulkanContext__symbol, xg_GdkSurfaceTypeHint_symbol, xg_GdkSurfaceType_symbol, xg_GdkSurfaceState_symbol, xg_GdkFullscreenMode_symbol, xg_GdkFrameClock__symbol, xg_GdkCairoContext__symbol, xg_GdkSurface__symbol, xg_GMenu__symbol, xg_GtkApplicationInhibitFlags_symbol, xg_GApplicationFlags_symbol, xg_GtkDestDefaults_symbol, xg_GdkPaintable__symbol, xg_GdkAtom__symbol, xg_GtkIconSize_symbol, xg_GdkDragAction_symbol, xg_GdkCursor__symbol, xg_GBytes__symbol, xg_GInputStream__symbol, xg_GdkContentDeserializer__symbol, xg_GdkContentSerializer__symbol, xg_GOutputStream__symbol, xg_GdkContentFormatsBuilder__symbol, xg_GString__symbol, xg_GdkTexture__symbol, xg_GAsyncResult__symbol, xg_GAsyncReadyCallback_symbol, xg_GCancellable__symbol, xg_GdkContentProvider__symbol, xg_GdkContentFormats__symbol, xg_GdkClipboard__symbol, xg_GdkAppLaunchContext__symbol, xg_GtkEventControllerScroll__symbol, xg_GtkEventControllerScrollFlags_symbol, xg_GtkEventController__symbol, xg_GdkTouchpadGesturePhase_symbol, xg_GdkNotifyType_symbol, xg_GdkCrossingMode_symbol, xg_GtkCssProvider__symbol, xg_GtkStyleContextPrintFlags_symbol, xg_GtkCssSection__symbol, xg_GtkStyleProvider__symbol, xg_GtkScrollbar__symbol, xg_GtkCenterBox__symbol, xg_GtkCheckButton__symbol, xg_GtkDrawingAreaDrawFunc_symbol, xg_GtkShortcutLabel__symbol, xg_GtkPadActionType_symbol, xg_GtkPadActionEntry__symbol, xg_GtkPadController__symbol, xg_GdkGravity_symbol, xg_GdkDevicePadFeature_symbol, xg_GdkDevicePad__symbol, xg_GdkSubpixelLayout_symbol, xg_GdkMonitor__symbol, xg_GdkDeviceTool__symbol, xg_GdkAxisFlags_symbol, xg_GdkSeatCapabilities_symbol, xg_GdkSeat__symbol, xg_GtkPopoverConstraint_symbol, xg_GtkShortcutsWindow__symbol, xg_GtkStackSidebar__symbol, xg_GtkStyleContext__symbol, xg_GdkGLContext__symbol, xg_GtkGLArea__symbol, xg_GtkGestureZoom__symbol, xg_GtkGestureSwipe__symbol, xg_GtkGestureSingle__symbol, xg_GtkGestureRotate__symbol, xg_GtkGestureMultiPress__symbol, xg_GtkGesturePan__symbol, xg_GtkGestureDrag__symbol, xg_GdkEventSequence__symbol, xg_GtkEventSequenceState_symbol, xg_GtkGesture__symbol, xg_GtkPopover__symbol, xg_GtkActionBar__symbol, xg_GtkFlowBox__symbol, xg_GtkFlowBoxChild__symbol, xg_GdkEventType_symbol, xg_GtkSearchBar__symbol, xg_GtkListBox__symbol, xg_GtkListBoxRow__symbol, xg_GtkHeaderBar__symbol, xg_GtkRevealerTransitionType_symbol, xg_GtkRevealer__symbol, xg_GtkStackTransitionType_symbol, xg_GtkStack__symbol, xg_GtkStackSwitcher__symbol, xg_GtkBaselinePosition_symbol, xg_GtkInputHints_symbol, xg_GtkInputPurpose_symbol, xg_GtkLevelBarMode_symbol, xg_GtkLevelBar__symbol, xg_GtkMenuButton__symbol, xg_GtkColorChooser__symbol, xg_GtkApplicationWindow__symbol, xg_GtkApplication__symbol, xg_GMenuModel__symbol, xg_guint___symbol, xg_GdkModifierIntent_symbol, xg_GtkFontChooser__symbol, xg_GdkScrollDirection_symbol, xg_GtkOverlay__symbol, xg_GtkWidgetPath__symbol, xg_GtkStateFlags_symbol, xg_GtkToolShell__symbol, xg_GtkWindowGroup__symbol, xg_GIcon__symbol, xg_GtkOrientable__symbol, xg_GtkCellArea__symbol, xg_GtkBorder__symbol, xg_GtkSwitch__symbol, xg_GtkScrollablePolicy_symbol, xg_GtkScrollable__symbol, xg_GtkGrid__symbol, xg_GdkRGBA__symbol, xg_GtkComboBoxText__symbol, xg_GtkAlign_symbol, xg_GtkSizeRequestMode_symbol, xg_cairo_region_overlap_t_symbol, xg_cairo_rectangle_int_t__symbol, xg_double__symbol, xg_cairo_rectangle_t__symbol, xg_cairo_device_t__symbol, xg_cairo_bool_t_symbol, xg_cairo_text_cluster_flags_t__symbol, xg_cairo_text_cluster_t___symbol, xg_cairo_glyph_t___symbol, xg_cairo_text_cluster_flags_t_symbol, xg_cairo_text_cluster_t__symbol, xg_cairo_region_t__symbol, xg_GtkMessageDialog__symbol, xg_GdkDevice__symbol, xg_GtkAccessible__symbol, xg_GdkModifierType__symbol, xg_GtkPackType_symbol, xg_GtkSpinner__symbol, xg_GtkEntryBuffer__symbol, xg_GtkMessageType_symbol, xg_GtkInfoBar__symbol, xg_GtkEntryIconPosition_symbol, xg_GFile__symbol, xg_GtkSensitivityType_symbol, xg_GdkAtom_symbol, xg_GtkScaleButton__symbol, xg_GtkCalendarDetailFunc_symbol, xg_GtkTooltip__symbol, xg_cairo_rectangle_list_t__symbol, xg_void__symbol, xg_cairo_filter_t_symbol, xg_cairo_extend_t_symbol, xg_cairo_format_t_symbol, xg_cairo_path_t__symbol, xg_cairo_destroy_func_t_symbol, xg_cairo_user_data_key_t__symbol, xg_cairo_text_extents_t__symbol, xg_cairo_font_extents_t__symbol, xg_cairo_font_face_t__symbol, xg_cairo_glyph_t__symbol, xg_cairo_scaled_font_t__symbol, xg_cairo_font_weight_t_symbol, xg_cairo_font_slant_t_symbol, xg_cairo_hint_metrics_t_symbol, xg_cairo_hint_style_t_symbol, xg_cairo_subpixel_order_t_symbol, xg_cairo_status_t_symbol, xg_bool_symbol, xg_cairo_matrix_t__symbol, xg_cairo_line_join_t_symbol, xg_cairo_line_cap_t_symbol, xg_cairo_fill_rule_t_symbol, xg_cairo_antialias_t_symbol, xg_cairo_operator_t_symbol, xg_cairo_pattern_t__symbol, xg_cairo_content_t_symbol, xg_GtkPageSet_symbol, xg_GtkPageRange__symbol, xg_GtkPrintPages_symbol, xg_GtkPrintQuality_symbol, xg_GtkPrintDuplex_symbol, xg_GtkPaperSize__symbol, xg_GtkPageOrientation_symbol, xg_GtkPrintSettingsFunc_symbol, xg_GtkPageSetupDoneFunc_symbol, xg_GtkPrintStatus_symbol, xg_GtkPrintOperationAction_symbol, xg_GtkPrintOperationResult_symbol, xg_GtkUnit_symbol, xg_GtkPrintSettings__symbol, xg_GtkPrintOperation__symbol, xg_GtkPageSetup__symbol, xg_GtkPrintContext__symbol, xg_cairo_surface_t__symbol, xg_GtkTreeViewGridLines_symbol, xg_GtkRecentData__symbol, xg_time_t_symbol, xg_GtkRecentInfo__symbol, xg_GtkRecentManager__symbol, xg_GtkLinkButton__symbol, xg_GtkAssistantPageType_symbol, xg_GtkAssistantPageFunc_symbol, xg_GtkAssistant__symbol, xg_GDestroyNotify_symbol, xg_GtkTreeViewSearchPositionFunc_symbol, xg_GtkIconViewDropPosition_symbol, xg_GValue__symbol, xg_GLogFunc_symbol, xg_PangoMatrix__symbol, xg_PangoRenderPart_symbol, xg_PangoRenderer__symbol, xg_GtkMenuToolButton__symbol, xg_GtkFileChooserButton__symbol, xg_PangoScriptIter__symbol, xg_PangoScript_symbol, xg_PangoAttrFilterFunc_symbol, xg_PangoEllipsizeMode_symbol, xg_GtkIconViewForeachFunc_symbol, xg_GtkAboutDialog__symbol, xg_GtkTreeViewRowSeparatorFunc_symbol, xg_GtkCellView__symbol, xg_GtkAccelMap__symbol, xg_GtkOrientation_symbol, xg_GtkToolButton__symbol, xg_GtkIconLookupFlags_symbol, xg_GtkIconInfo__symbol, xg_gchar___symbol, xg_GtkIconTheme__symbol, xg_GtkFileChooser__symbol, xg_GtkCellLayoutDataFunc_symbol, xg_GtkCellLayout__symbol, xg_GtkFileFilterFunc_symbol, xg_GtkFileFilterFlags_symbol, xg_GtkFileFilter__symbol, xg_GSourceFunc_symbol, xg_GtkToggleToolButton__symbol, xg_GtkSeparatorToolItem__symbol, xg_GtkRadioToolButton__symbol, xg_GtkEntryCompletionMatchFunc_symbol, xg_GtkFontButton__symbol, xg_GtkExpander__symbol, xg_GtkComboBox__symbol, xg_GtkTreeModelFilter__symbol, xg_GtkFileChooserAction_symbol, xg_GtkToolItem__symbol, xg_GtkCalendarDisplayOptions_symbol, xg_GdkDisplay__symbol, xg_PangoLayoutRun__symbol, xg_PangoLayoutIter__symbol, xg_PangoLayoutLine__symbol, xg_int__symbol, xg_PangoAlignment_symbol, xg_PangoWrapMode_symbol, xg_PangoItem__symbol, xg_PangoGlyphString__symbol, xg_PangoFontMap__symbol, xg_PangoGlyph_symbol, xg_PangoFontFace__symbol, xg_PangoFontFace___symbol, xg_PangoFontFamily__symbol, xg_PangoFontMask_symbol, xg_PangoFontDescription___symbol, xg_PangoCoverageLevel_symbol, xg_PangoCoverage__symbol, xg_PangoFontMetrics__symbol, xg_PangoFontset__symbol, xg_PangoFont__symbol, xg_PangoFontFamily___symbol, xg_PangoLogAttr__symbol, xg_PangoAnalysis__symbol, xg_PangoAttrList___symbol, xg_PangoAttrIterator__symbol, xg_PangoRectangle__symbol, xg_PangoUnderline_symbol, xg_PangoStretch_symbol, xg_PangoVariant_symbol, xg_PangoWeight_symbol, xg_PangoStyle_symbol, xg_guint16_symbol, xg_PangoAttribute__symbol, xg_PangoAttrType_symbol, xg_PangoColor__symbol, xg_GtkWindowPosition_symbol, xg_GtkWindowType_symbol, xg_GtkWindow__symbol, xg_GtkTextDirection_symbol, xg_PangoContext__symbol, xg_AtkObject__symbol, xg_GtkDirectionType_symbol, xg_GtkViewport__symbol, xg_GtkTreeViewSearchEqualFunc_symbol, xg_GtkTreeViewDropPosition_symbol, xg_GtkTreeViewMappingFunc_symbol, xg_GtkTreeViewColumnDropFunc_symbol, xg_GtkTreeViewColumnSizing_symbol, xg_GtkTreeCellDataFunc_symbol, xg_GtkTreeStore__symbol, xg_GtkTreeIterCompareFunc_symbol, xg_GtkSortType_symbol, xg_GtkTreeSortable__symbol, xg_GtkTreeSelectionForeachFunc_symbol, xg_GtkTreeModel___symbol, xg_GtkTreeSelectionFunc_symbol, xg_GtkSelectionMode_symbol, xg_GtkTreeModelSort__symbol, xg_GtkTreeModelForeachFunc_symbol, xg_GtkTreeModelFlags_symbol, xg_GtkTreeRowReference__symbol, xg_GtkTreeDragDest__symbol, xg_GtkTreeDragSource__symbol, xg_GtkToolbarStyle_symbol, xg_GtkToolbar__symbol, xg_GtkToggleButton__symbol, xg_PangoTabArray__symbol, xg_GtkWrapMode_symbol, xg_GtkTextWindowType_symbol, xg_GtkTextView__symbol, xg_GtkTextTagTableForeach_symbol, xg_GtkTextSearchFlags_symbol, xg_GtkTextCharPredicate_symbol, xg_GtkTextMark__symbol, xg_GtkTextChildAnchor__symbol, xg_GtkTextIter__symbol, xg_GtkTextTagTable__symbol, xg_GtkTextBuffer__symbol, xg_GtkStatusbar__symbol, xg_GtkSpinType_symbol, xg_GtkSpinButtonUpdatePolicy_symbol, xg_GtkSpinButton__symbol, xg_GtkSizeGroupMode_symbol, xg_GtkSizeGroup__symbol, xg_GtkSettings__symbol, xg_GtkSelectionData__symbol, xg_GtkCornerType_symbol, xg_GtkPolicyType_symbol, xg_GtkScrolledWindow__symbol, xg_GtkScale__symbol, xg_GtkRange__symbol, xg_GtkRadioMenuItem__symbol, xg_GtkRadioButton__symbol, xg_GtkProgressBar__symbol, xg_GtkPaned__symbol, xg_GtkPositionType_symbol, xg_GtkNotebook__symbol, xg_GtkMenuShell__symbol, xg_gint__symbol, xg_GtkMenuItem__symbol, xg_GtkMenu__symbol, xg_PangoLanguage__symbol, xg_GtkListStore__symbol, xg_PangoLayout__symbol, xg_GtkJustification_symbol, xg_GtkLabel__symbol, xg_guint16__symbol, xg_GtkIMContextSimple__symbol, xg_GdkEventKey__symbol, xg_PangoAttrList__symbol, xg_GtkIMContext__symbol, xg_GtkImageType_symbol, xg_GtkImage__symbol, xg_GtkShadowType_symbol, xg_GtkFrame__symbol, xg_GtkFixed__symbol, xg_GtkEntry__symbol, xg_GtkEditable__symbol, xg_etc_symbol, xg_GtkDialog__symbol, xg_GList__symbol, xg_GtkCallback_symbol, xg_GtkContainer__symbol, xg_GtkCheckMenuItem__symbol, xg_GtkCellRendererToggle__symbol, xg_GtkCellRendererText__symbol, xg_GtkCellRendererState_symbol, xg_GtkCellEditable__symbol, xg_GtkCalendar__symbol, xg_GtkReliefStyle_symbol, xg_GtkButton__symbol, xg_GtkBox__symbol, xg_GtkBin__symbol, xg_GtkBindingSet__symbol, xg_GtkAspectFrame__symbol, xg_GtkAdjustment__symbol, xg_GtkAccelMapForeach_symbol, xg_GtkAccelLabel__symbol, xg_GtkAccelGroupEntry__symbol, xg_lambda3_symbol, xg_GSList__symbol, xg_GObject__symbol, xg_GtkAccelFlags_symbol, xg_GtkAccelGroup__symbol, xg_GdkInterpType_symbol, xg_double_symbol, xg_gfloat_symbol, xg_guchar_symbol, xg_char___symbol, xg_GdkPixbufDestroyNotify_symbol, xg_GError__symbol, xg_char__symbol, xg_guchar__symbol, xg_GdkPixbuf__symbol, xg_GdkColorspace_symbol, xg_PangoDirection_symbol, xg_GdkKeymapKey__symbol, xg_GdkKeymap__symbol, xg_GdkRectangle__symbol, xg_gdouble_symbol, xg_guint32_symbol, xg_GSignalMatchType_symbol, xg_GConnectFlags_symbol, xg_GtkDestroyNotify_symbol, xg_GSignalEmissionHook_symbol, xg_gulong_symbol, xg_GSignalInvocationHint__symbol, xg_GQuark_symbol, xg_guint__symbol, xg_GSignalQuery__symbol, xg_GType__symbol, xg_GSignalCMarshaller_symbol, xg_gpointer_symbol, xg_GSignalAccumulator_symbol, xg_GSignalFlags_symbol, xg_GType_symbol, xg_GClosureNotify_symbol, xg_GCallback_symbol, xg_GNormalizeMode_symbol, xg_glong_symbol, xg_gssize_symbol, xg_gsize_symbol, xg_gunichar__symbol, xg_void_symbol, xg_int_symbol, xg_GtkDrawingArea__symbol, xg_GLogLevelFlags_symbol, xg_GtkIconView__symbol, xg_GtkEntryCompletion__symbol, xg_GtkFileFilterInfo__symbol, xg_GtkTreeSelection__symbol, xg_GtkCellRenderer__symbol, xg_gint_symbol, xg_GtkTreeViewColumn__symbol, xg_GtkTreeView__symbol, xg_gunichar_symbol, xg_GtkTreeIter__symbol, xg_GtkTreePath__symbol, xg_GtkTreeModel__symbol, xg_gboolean_symbol, xg_GdkModifierType_symbol, xg_guint_symbol, xg_gchar__symbol, xg_GtkTextTag__symbol, xg_GtkWidget__symbol, xg_lambda_data_symbol, xg_GClosure__symbol, xg_GtkAccelKey__symbol, xg_GdkEventMotion__symbol, xg_gdouble__symbol, xg_GdkEventAny__symbol, xg_GdkEvent__symbol, xg_cairo_t__symbol, xg_cairo_font_options_t__symbol, xg_PangoFontDescription__symbol, xg_GtkMenuBar__symbol, xg_GtkEventControllerLegacy__symbol, xg_GtkCellRendererPixbuf__symbol, xg_GtkSeparator__symbol, xg_GtkSeparatorMenuItem__symbol, xg_GdkEventExpose__symbol, xg_GdkEventNoExpose__symbol, xg_GdkEventVisibility__symbol, xg_GdkEventButton__symbol, xg_GdkEventCrossing__symbol, xg_GdkEventFocus__symbol, xg_GdkEventConfigure__symbol, xg_GdkEventProperty__symbol, xg_GdkEventSelection__symbol, xg_GdkEventProximity__symbol, xg_GdkEventSetting__symbol, xg_GdkEventWindowState__symbol, xg_GdkEventDND__symbol, xg_GtkFileChooserDialog__symbol, xg_GtkFileChooserWidget__symbol, xg_GtkColorButton__symbol, xg_GtkAccelMap_symbol, xg_GtkCellRendererCombo__symbol, xg_GtkCellRendererProgress__symbol, xg_GtkCellRendererAccel__symbol, xg_GtkCellRendererSpin__symbol, xg_GtkCellRendererSpinner__symbol, xg_GtkFontChooserDialog__symbol, xg_GtkFontChooserWidget__symbol, xg_GtkColorChooserDialog__symbol, xg_GtkColorWidget__symbol, xg_GtkGestureLongPress__symbol, xg_idler_symbol;
 
 #define wrap_for_Xen(Name, Value) Xen_list_2(xg_ ## Name ## _symbol, Xen_wrap_C_pointer(Value))
 #define is_wrapped(Name, Value) (Xen_is_pair(Value) && (Xen_car(Value) == xg_ ## Name ## _symbol))
@@ -426,10 +426,6 @@ Xm_type_Ptr_2(GtkAccelGroupEntry_, GtkAccelGroupEntry*)
 Xm_type_Ptr_1(GtkAccelLabel_, GtkAccelLabel*)
 Xm_type_Ptr(GtkAdjustment_, GtkAdjustment*)
 Xm_type_Ptr_1(GtkAspectFrame_, GtkAspectFrame*)
-#define C_to_Xen_GtkButtonBoxStyle(Arg) C_int_to_Xen_integer(Arg)
-#define Xen_to_C_GtkButtonBoxStyle(Arg) (GtkButtonBoxStyle)(Xen_integer_to_C_int(Arg))
-#define Xen_is_GtkButtonBoxStyle(Arg) Xen_is_integer(Arg)
-Xm_type_Ptr_1(GtkButtonBox_, GtkButtonBox*)
 Xm_type_Ptr(GtkBindingSet_, GtkBindingSet*)
 Xm_type_Ptr_1(GtkBin_, GtkBin*)
 Xm_type_Ptr_1(GtkBox_, GtkBox*)
@@ -467,7 +463,6 @@ Xm_type_Ptr_1(GtkLabel_, GtkLabel*)
 #define Xen_to_C_GtkJustification(Arg) (GtkJustification)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GtkJustification(Arg) Xen_is_integer(Arg)
 Xm_type_Ptr(PangoLayout_, PangoLayout*)
-Xm_type_Ptr_1(GtkLayout_, GtkLayout*)
 Xm_type_Ptr(GtkListStore_, GtkListStore*)
 Xm_type_Ptr(PangoLanguage_, PangoLanguage*)
 Xm_type_Ptr(GtkMenu_, GtkMenu*)
@@ -829,7 +824,6 @@ Xm_type_Ptr_1(GtkGestureZoom_, GtkGestureZoom*)
 Xm_type_Ptr_1(GtkGLArea_, GtkGLArea*)
 Xm_type_Ptr(GdkGLContext_, GdkGLContext*)
 Xm_type_Ptr(GtkStyleContext_, GtkStyleContext*)
-Xm_type_Ptr_1(GtkSearchEntry_, GtkSearchEntry*)
 Xm_type_Ptr_1(GtkStackSidebar_, GtkStackSidebar*)
 #endif
 
@@ -893,13 +887,13 @@ Xm_type_Ptr(GdkContentProvider_, GdkContentProvider*)
 Xm_type_Ptr(GCancellable_, GCancellable*)
 Xm_type(GAsyncReadyCallback, GAsyncReadyCallback)
 Xm_type_Ptr(GAsyncResult_, GAsyncResult*)
-Xm_type_Ptr(GInputStream_, GInputStream*)
 Xm_type_Ptr(GdkTexture_, GdkTexture*)
 Xm_type_Ptr_1(GString_, GString*)
 Xm_type_Ptr(GdkContentFormatsBuilder_, GdkContentFormatsBuilder*)
 Xm_type_Ptr(GOutputStream_, GOutputStream*)
 Xm_type_Ptr(GdkContentSerializer_, GdkContentSerializer*)
 Xm_type_Ptr(GdkContentDeserializer_, GdkContentDeserializer*)
+Xm_type_Ptr(GInputStream_, GInputStream*)
 Xm_type_Ptr(GBytes_, GBytes*)
 Xm_type_Ptr(GdkCursor_, GdkCursor*)
 #define Xen_to_C_GdkDragAction(Arg) (GdkDragAction)(Xen_integer_to_C_int(Arg))
@@ -933,7 +927,6 @@ Xm_type_Ptr_1(GdkWMDecoration_, GdkWMDecoration*)
 Xm_type_Ptr_1(GdkGeometry_, GdkGeometry*)
 #define Xen_to_C_GdkSurfaceHints(Arg) (GdkSurfaceHints)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GdkSurfaceHints(Arg) Xen_is_integer(Arg)
-Xm_type_Ptr(gpointer_, gpointer*)
 #define C_to_Xen_GdkAnchorHints(Arg) C_int_to_Xen_integer(Arg)
 #define Xen_to_C_GdkAnchorHints(Arg) (GdkAnchorHints)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GdkAnchorHints(Arg) Xen_is_integer(Arg)
@@ -971,14 +964,11 @@ Xm_type_Ptr_1(GtkAllocation_, GtkAllocation*)
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-#define C_to_Xen_GdkGrabStatus(Arg) C_int_to_Xen_integer(Arg)
-Xm_type(GdkGrabOwnership, GdkGrabOwnership)
-#define C_to_Xen_GdkEventMask(Arg) C_int_to_Xen_integer(Arg)
-#define Xen_to_C_GdkEventMask(Arg) (GdkEventMask)(Xen_integer_to_C_int(Arg))
-#define Xen_is_GdkEventMask(Arg) Xen_is_integer(Arg)
 Xm_type_Ptr(GtkAssistantPage_, GtkAssistantPage*)
 Xm_type_Ptr(GListModel_, GListModel*)
-Xm_type(float, float)
+#define C_to_Xen_float(Arg) C_double_to_Xen_real(Arg)
+#define Xen_to_C_float(Arg) (float)(Xen_real_to_C_double(Arg))
+#define Xen_is_float(Arg) Xen_is_number(Arg)
 Xm_type_Ptr(GObjectClass_, GObjectClass*)
 Xm_type_Ptr_1(GParamSpec_, GParamSpec*)
 Xm_type_Ptr(GtkEventControllerKey_, GtkEventControllerKey*)
@@ -1005,22 +995,17 @@ Xm_type(GtkCustomRequestModeFunc, GtkCustomRequestModeFunc)
 Xm_type(GtkCustomMeasureFunc, GtkCustomMeasureFunc)
 Xm_type(GtkCustomAllocateFunc, GtkCustomAllocateFunc)
 Xm_type_Ptr(GtkFilterListModel_, GtkFilterListModel*)
-Xm_type(GtkFilterListModelFilterFunc, GtkFilterListModelFilterFunc)
-Xm_type_Ptr(GtkFixedLayoutChild_, GtkFixedLayoutChild*)
 Xm_type_Ptr(GtkFlattenListModel_, GtkFlattenListModel*)
 Xm_type_Ptr(GtkGridLayout_, GtkGridLayout*)
 Xm_type_Ptr(GtkGridLayoutChild_, GtkGridLayoutChild*)
 Xm_type_Ptr(GtkLayoutChild_, GtkLayoutChild*)
 Xm_type_Ptr(GtkMapListModel_, GtkMapListModel*)
-Xm_type(GtkMapListModelMapFunc, GtkMapListModelMapFunc)
 Xm_type_Ptr(GtkPasswordEntry_, GtkPasswordEntry*)
 Xm_type_Ptr(GtkSingleSelection_, GtkSingleSelection*)
 Xm_type_Ptr(GtkSliceListModel_, GtkSliceListModel*)
 Xm_type_Ptr(GtkSortListModel_, GtkSortListModel*)
-Xm_type(GCompareDataFunc, GCompareDataFunc)
 Xm_type_Ptr(GtkText_, GtkText*)
 Xm_type_Ptr(GtkTreeListModel_, GtkTreeListModel*)
-Xm_type(GtkTreeListModelCreateModelFunc, GtkTreeListModelCreateModelFunc)
 Xm_type_Ptr(GtkTreeListRow_, GtkTreeListRow*)
 #endif
 
@@ -3076,33 +3061,6 @@ gfloat yalign, gfloat ratio, gboolean obey_child)"
   return(Xen_false);
 }
 
-static Xen gxg_gtk_button_box_get_layout(Xen widget)
-{
-  #define H_gtk_button_box_get_layout "GtkButtonBoxStyle gtk_button_box_get_layout(GtkButtonBox* widget)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_get_layout", "GtkButtonBox*");
-  return(C_to_Xen_GtkButtonBoxStyle(gtk_button_box_get_layout(Xen_to_C_GtkButtonBox_(widget))));
-}
-
-static Xen gxg_gtk_button_box_set_layout(Xen widget, Xen layout_style)
-{
-  #define H_gtk_button_box_set_layout "void gtk_button_box_set_layout(GtkButtonBox* widget, GtkButtonBoxStyle layout_style)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_set_layout", "GtkButtonBox*");
-  Xen_check_type(Xen_is_GtkButtonBoxStyle(layout_style), layout_style, 2, "gtk_button_box_set_layout", "GtkButtonBoxStyle");
-  gtk_button_box_set_layout(Xen_to_C_GtkButtonBox_(widget), Xen_to_C_GtkButtonBoxStyle(layout_style));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_button_box_set_child_secondary(Xen widget, Xen child, Xen is_secondary)
-{
-  #define H_gtk_button_box_set_child_secondary "void gtk_button_box_set_child_secondary(GtkButtonBox* widget, \
-GtkWidget* child, gboolean is_secondary)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_set_child_secondary", "GtkButtonBox*");
-  Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_button_box_set_child_secondary", "GtkWidget*");
-  Xen_check_type(Xen_is_gboolean(is_secondary), is_secondary, 3, "gtk_button_box_set_child_secondary", "gboolean");
-  gtk_button_box_set_child_secondary(Xen_to_C_GtkButtonBox_(widget), Xen_to_C_GtkWidget_(child), Xen_to_C_gboolean(is_secondary));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_binding_set_new(Xen set_name)
 {
   #define H_gtk_binding_set_new "GtkBindingSet* gtk_binding_set_new(gchar* set_name)"
@@ -3759,30 +3717,6 @@ int end_pos)"
   }
 }
 
-static Xen gxg_gtk_editable_cut_clipboard(Xen editable)
-{
-  #define H_gtk_editable_cut_clipboard "void gtk_editable_cut_clipboard(GtkEditable* editable)"
-  Xen_check_type(Xen_is_GtkEditable_(editable), editable, 1, "gtk_editable_cut_clipboard", "GtkEditable*");
-  gtk_editable_cut_clipboard(Xen_to_C_GtkEditable_(editable));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_editable_copy_clipboard(Xen editable)
-{
-  #define H_gtk_editable_copy_clipboard "void gtk_editable_copy_clipboard(GtkEditable* editable)"
-  Xen_check_type(Xen_is_GtkEditable_(editable), editable, 1, "gtk_editable_copy_clipboard", "GtkEditable*");
-  gtk_editable_copy_clipboard(Xen_to_C_GtkEditable_(editable));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_editable_paste_clipboard(Xen editable)
-{
-  #define H_gtk_editable_paste_clipboard "void gtk_editable_paste_clipboard(GtkEditable* editable)"
-  Xen_check_type(Xen_is_GtkEditable_(editable), editable, 1, "gtk_editable_paste_clipboard", "GtkEditable*");
-  gtk_editable_paste_clipboard(Xen_to_C_GtkEditable_(editable));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_editable_delete_selection(Xen editable)
 {
   #define H_gtk_editable_delete_selection "void gtk_editable_delete_selection(GtkEditable* editable)"
@@ -4401,57 +4335,6 @@ gint* [y])"
   Xen_check_type(Xen_is_GtkLabel_(label), label, 1, "gtk_label_get_layout_offsets", "GtkLabel*");
   gtk_label_get_layout_offsets(Xen_to_C_GtkLabel_(label), &ref_x, &ref_y);
   return(Xen_list_2(C_to_Xen_gint(ref_x), C_to_Xen_gint(ref_y)));
-}
-
-static Xen gxg_gtk_layout_new(Xen hadjustment, Xen vadjustment)
-{
-  #define H_gtk_layout_new "GtkWidget* gtk_layout_new(GtkAdjustment* hadjustment, GtkAdjustment* vadjustment)"
-  Xen_check_type(Xen_is_GtkAdjustment_(hadjustment) || Xen_is_false(hadjustment), hadjustment, 1, "gtk_layout_new", "GtkAdjustment*");
-  Xen_check_type(Xen_is_GtkAdjustment_(vadjustment) || Xen_is_false(vadjustment), vadjustment, 2, "gtk_layout_new", "GtkAdjustment*");
-  return(C_to_Xen_GtkWidget_(gtk_layout_new(Xen_to_C_GtkAdjustment_(hadjustment), Xen_to_C_GtkAdjustment_(vadjustment))));
-}
-
-static Xen gxg_gtk_layout_put(Xen layout, Xen child_widget, Xen x, Xen y)
-{
-  #define H_gtk_layout_put "void gtk_layout_put(GtkLayout* layout, GtkWidget* child_widget, gint x, gint y)"
-  Xen_check_type(Xen_is_GtkLayout_(layout), layout, 1, "gtk_layout_put", "GtkLayout*");
-  Xen_check_type(Xen_is_GtkWidget_(child_widget), child_widget, 2, "gtk_layout_put", "GtkWidget*");
-  Xen_check_type(Xen_is_gint(x), x, 3, "gtk_layout_put", "gint");
-  Xen_check_type(Xen_is_gint(y), y, 4, "gtk_layout_put", "gint");
-  gtk_layout_put(Xen_to_C_GtkLayout_(layout), Xen_to_C_GtkWidget_(child_widget), Xen_to_C_gint(x), Xen_to_C_gint(y));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_layout_move(Xen layout, Xen child_widget, Xen x, Xen y)
-{
-  #define H_gtk_layout_move "void gtk_layout_move(GtkLayout* layout, GtkWidget* child_widget, gint x, \
-gint y)"
-  Xen_check_type(Xen_is_GtkLayout_(layout), layout, 1, "gtk_layout_move", "GtkLayout*");
-  Xen_check_type(Xen_is_GtkWidget_(child_widget), child_widget, 2, "gtk_layout_move", "GtkWidget*");
-  Xen_check_type(Xen_is_gint(x), x, 3, "gtk_layout_move", "gint");
-  Xen_check_type(Xen_is_gint(y), y, 4, "gtk_layout_move", "gint");
-  gtk_layout_move(Xen_to_C_GtkLayout_(layout), Xen_to_C_GtkWidget_(child_widget), Xen_to_C_gint(x), Xen_to_C_gint(y));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_layout_set_size(Xen layout, Xen width, Xen height)
-{
-  #define H_gtk_layout_set_size "void gtk_layout_set_size(GtkLayout* layout, guint width, guint height)"
-  Xen_check_type(Xen_is_GtkLayout_(layout), layout, 1, "gtk_layout_set_size", "GtkLayout*");
-  Xen_check_type(Xen_is_guint(width), width, 2, "gtk_layout_set_size", "guint");
-  Xen_check_type(Xen_is_guint(height), height, 3, "gtk_layout_set_size", "guint");
-  gtk_layout_set_size(Xen_to_C_GtkLayout_(layout), Xen_to_C_guint(width), Xen_to_C_guint(height));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_layout_get_size(Xen layout, Xen ignore_width, Xen ignore_height)
-{
-  #define H_gtk_layout_get_size "void gtk_layout_get_size(GtkLayout* layout, guint* [width], guint* [height])"
-  guint ref_width;
-  guint ref_height;
-  Xen_check_type(Xen_is_GtkLayout_(layout), layout, 1, "gtk_layout_get_size", "GtkLayout*");
-  gtk_layout_get_size(Xen_to_C_GtkLayout_(layout), &ref_width, &ref_height);
-  return(Xen_list_2(C_to_Xen_guint(ref_width), C_to_Xen_guint(ref_height)));
 }
 
 static Xen gxg_gtk_list_store_new(Xen n_columns, Xen types)
@@ -12628,15 +12511,6 @@ static Xen gxg_gdk_display_flush(Xen display)
   return(Xen_false);
 }
 
-static Xen gxg_gtk_button_box_get_child_secondary(Xen widget, Xen child)
-{
-  #define H_gtk_button_box_get_child_secondary "gboolean gtk_button_box_get_child_secondary(GtkButtonBox* widget, \
-GtkWidget* child)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_get_child_secondary", "GtkButtonBox*");
-  Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_button_box_get_child_secondary", "GtkWidget*");
-  return(C_to_Xen_gboolean(gtk_button_box_get_child_secondary(Xen_to_C_GtkButtonBox_(widget), Xen_to_C_GtkWidget_(child))));
-}
-
 static Xen gxg_gtk_calendar_set_display_options(Xen calendar, Xen flags)
 {
   #define H_gtk_calendar_set_display_options "void gtk_calendar_set_display_options(GtkCalendar* calendar, \
@@ -15388,24 +15262,6 @@ gchar* title)"
   Xen_check_type(Xen_is_gchar_(title), title, 2, "gtk_file_chooser_button_set_title", "gchar*");
   gtk_file_chooser_button_set_title(Xen_to_C_GtkFileChooserButton_(button), Xen_to_C_gchar_(title));
   return(Xen_false);
-}
-
-static Xen gxg_gtk_entry_layout_index_to_text_index(Xen entry, Xen layout_index)
-{
-  #define H_gtk_entry_layout_index_to_text_index "gint gtk_entry_layout_index_to_text_index(GtkEntry* entry, \
-gint layout_index)"
-  Xen_check_type(Xen_is_GtkEntry_(entry), entry, 1, "gtk_entry_layout_index_to_text_index", "GtkEntry*");
-  Xen_check_type(Xen_is_gint(layout_index), layout_index, 2, "gtk_entry_layout_index_to_text_index", "gint");
-  return(C_to_Xen_gint(gtk_entry_layout_index_to_text_index(Xen_to_C_GtkEntry_(entry), Xen_to_C_gint(layout_index))));
-}
-
-static Xen gxg_gtk_entry_text_index_to_layout_index(Xen entry, Xen text_index)
-{
-  #define H_gtk_entry_text_index_to_layout_index "gint gtk_entry_text_index_to_layout_index(GtkEntry* entry, \
-gint text_index)"
-  Xen_check_type(Xen_is_GtkEntry_(entry), entry, 1, "gtk_entry_text_index_to_layout_index", "GtkEntry*");
-  Xen_check_type(Xen_is_gint(text_index), text_index, 2, "gtk_entry_text_index_to_layout_index", "gint");
-  return(C_to_Xen_gint(gtk_entry_text_index_to_layout_index(Xen_to_C_GtkEntry_(entry), Xen_to_C_gint(text_index))));
 }
 
 static Xen gxg_gtk_file_chooser_set_show_hidden(Xen chooser, Xen show_hidden)
@@ -21024,13 +20880,6 @@ gchar* text)"
   return(Xen_false);
 }
 
-static Xen gxg_gtk_button_box_new(Xen orientation)
-{
-  #define H_gtk_button_box_new "GtkWidget* gtk_button_box_new(GtkOrientation orientation)"
-  Xen_check_type(Xen_is_GtkOrientation(orientation), orientation, 1, "gtk_button_box_new", "GtkOrientation");
-  return(C_to_Xen_GtkWidget_(gtk_button_box_new(Xen_to_C_GtkOrientation(orientation))));
-}
-
 static Xen gxg_gtk_box_new(Xen orientation, Xen spacing)
 {
   #define H_gtk_box_new "GtkWidget* gtk_box_new(GtkOrientation orientation, gint spacing)"
@@ -21681,26 +21530,6 @@ static Xen gxg_gtk_widget_path_to_string(Xen path)
   #define H_gtk_widget_path_to_string "char* gtk_widget_path_to_string(GtkWidgetPath* path)"
   Xen_check_type(Xen_is_GtkWidgetPath_(path), path, 1, "gtk_widget_path_to_string", "GtkWidgetPath*");
   return(C_to_Xen_char_(gtk_widget_path_to_string(Xen_to_C_GtkWidgetPath_(path))));
-}
-
-static Xen gxg_gtk_button_box_get_child_non_homogeneous(Xen widget, Xen child)
-{
-  #define H_gtk_button_box_get_child_non_homogeneous "gboolean gtk_button_box_get_child_non_homogeneous(GtkButtonBox* widget, \
-GtkWidget* child)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_get_child_non_homogeneous", "GtkButtonBox*");
-  Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_button_box_get_child_non_homogeneous", "GtkWidget*");
-  return(C_to_Xen_gboolean(gtk_button_box_get_child_non_homogeneous(Xen_to_C_GtkButtonBox_(widget), Xen_to_C_GtkWidget_(child))));
-}
-
-static Xen gxg_gtk_button_box_set_child_non_homogeneous(Xen widget, Xen child, Xen non_homogeneous)
-{
-  #define H_gtk_button_box_set_child_non_homogeneous "void gtk_button_box_set_child_non_homogeneous(GtkButtonBox* widget, \
-GtkWidget* child, gboolean non_homogeneous)"
-  Xen_check_type(Xen_is_GtkButtonBox_(widget), widget, 1, "gtk_button_box_set_child_non_homogeneous", "GtkButtonBox*");
-  Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_button_box_set_child_non_homogeneous", "GtkWidget*");
-  Xen_check_type(Xen_is_gboolean(non_homogeneous), non_homogeneous, 3, "gtk_button_box_set_child_non_homogeneous", "gboolean");
-  gtk_button_box_set_child_non_homogeneous(Xen_to_C_GtkButtonBox_(widget), Xen_to_C_GtkWidget_(child), Xen_to_C_gboolean(non_homogeneous));
-  return(Xen_false);
 }
 
 static Xen gxg_gtk_drag_source_set_icon_gicon(Xen widget, Xen icon)
@@ -24508,22 +24337,6 @@ gdouble y0, gdouble x1, gdouble y1)"
   return(Xen_false);
 }
 
-static Xen gxg_gtk_render_slider(Xen context, Xen cr, Xen x, Xen y, Xen width, Xen height, Xen orientation)
-{
-  #define H_gtk_render_slider "void gtk_render_slider(GtkStyleContext* context, cairo_t* cr, gdouble x, \
-gdouble y, gdouble width, gdouble height, GtkOrientation orientation)"
-  Xen_check_type(Xen_is_GtkStyleContext_(context), context, 1, "gtk_render_slider", "GtkStyleContext*");
-  Xen_check_type(Xen_is_cairo_t_(cr), cr, 2, "gtk_render_slider", "cairo_t*");
-  Xen_check_type(Xen_is_gdouble(x), x, 3, "gtk_render_slider", "gdouble");
-  Xen_check_type(Xen_is_gdouble(y), y, 4, "gtk_render_slider", "gdouble");
-  Xen_check_type(Xen_is_gdouble(width), width, 5, "gtk_render_slider", "gdouble");
-  Xen_check_type(Xen_is_gdouble(height), height, 6, "gtk_render_slider", "gdouble");
-  Xen_check_type(Xen_is_GtkOrientation(orientation), orientation, 7, "gtk_render_slider", "GtkOrientation");
-  gtk_render_slider(Xen_to_C_GtkStyleContext_(context), Xen_to_C_cairo_t_(cr), Xen_to_C_gdouble(x), Xen_to_C_gdouble(y), 
-                    Xen_to_C_gdouble(width), Xen_to_C_gdouble(height), Xen_to_C_GtkOrientation(orientation));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_render_handle(Xen context, Xen cr, Xen x, Xen y, Xen width, Xen height)
 {
   #define H_gtk_render_handle "void gtk_render_handle(GtkStyleContext* context, cairo_t* cr, gdouble x, \
@@ -24792,15 +24605,6 @@ static Xen gxg_gdk_gl_context_realize(Xen context, Xen ignore_error)
     res_ult = C_to_Xen_gboolean(gdk_gl_context_realize(Xen_to_C_GdkGLContext_(context), &ref_error));
     return(Xen_list_2(res_ult, C_to_Xen_GError_(ref_error)));
    }
-}
-
-static Xen gxg_gtk_search_entry_handle_event(Xen entry, Xen event)
-{
-  #define H_gtk_search_entry_handle_event "gboolean gtk_search_entry_handle_event(GtkSearchEntry* entry, \
-GdkEvent* event)"
-  Xen_check_type(Xen_is_GtkSearchEntry_(entry), entry, 1, "gtk_search_entry_handle_event", "GtkSearchEntry*");
-  Xen_check_type(Xen_is_GdkEvent_(event), event, 2, "gtk_search_entry_handle_event", "GdkEvent*");
-  return(C_to_Xen_gboolean(gtk_search_entry_handle_event(Xen_to_C_GtkSearchEntry_(entry), Xen_to_C_GdkEvent_(event))));
 }
 
 static Xen gxg_gdk_gl_context_get_version(Xen context, Xen ignore_major, Xen ignore_minor)
@@ -26736,22 +26540,6 @@ int io_priority, GCancellable* cancellable, GAsyncReadyCallback callback, gpoint
   return(Xen_false);
 }
 
-static Xen gxg_gdk_clipboard_read_finish(Xen clipboard, Xen out_mime_type, Xen result, Xen ignore_error)
-{
-  #define H_gdk_clipboard_read_finish "GInputStream* gdk_clipboard_read_finish(GdkClipboard* clipboard, \
-char** out_mime_type, GAsyncResult* result, GError** [error])"
-  GError* ref_error = NULL;
-  Xen_check_type(Xen_is_GdkClipboard_(clipboard), clipboard, 1, "gdk_clipboard_read_finish", "GdkClipboard*");
-  Xen_check_type(Xen_is_char__(out_mime_type), out_mime_type, 2, "gdk_clipboard_read_finish", "char**");
-  Xen_check_type(Xen_is_GAsyncResult_(result), result, 3, "gdk_clipboard_read_finish", "GAsyncResult*");
-  {
-    Xen res_ult;
-    res_ult = C_to_Xen_GInputStream_(gdk_clipboard_read_finish(Xen_to_C_GdkClipboard_(clipboard), (const char**)Xen_to_C_char__(out_mime_type), 
-                                                               Xen_to_C_GAsyncResult_(result), &ref_error));
-    return(Xen_list_2(res_ult, C_to_Xen_GError_(ref_error)));
-   }
-}
-
 static Xen gxg_gdk_clipboard_read_value_async(Xen clipboard, Xen type, Xen io_priority, Xen cancellable, Xen callback, Xen user_data)
 {
   #define H_gdk_clipboard_read_value_async "void gdk_clipboard_read_value_async(GdkClipboard* clipboard, \
@@ -27436,27 +27224,6 @@ static Xen gxg_gdk_cursor_get_hotspot_y(Xen cursor)
   return(C_to_Xen_int(gdk_cursor_get_hotspot_y(Xen_to_C_GdkCursor_(cursor))));
 }
 
-static Xen gxg_gdk_device_get_position(Xen device, Xen ignore_x, Xen ignore_y)
-{
-  #define H_gdk_device_get_position "void gdk_device_get_position(GdkDevice* device, gint* [x], gint* [y])"
-  gint ref_x;
-  gint ref_y;
-  Xen_check_type(Xen_is_GdkDevice_(device), device, 1, "gdk_device_get_position", "GdkDevice*");
-  gdk_device_get_position(Xen_to_C_GdkDevice_(device), &ref_x, &ref_y);
-  return(Xen_list_2(C_to_Xen_gint(ref_x), C_to_Xen_gint(ref_y)));
-}
-
-static Xen gxg_gdk_device_get_position_double(Xen device, Xen ignore_x, Xen ignore_y)
-{
-  #define H_gdk_device_get_position_double "void gdk_device_get_position_double(GdkDevice* device, gdouble* [x], \
-gdouble* [y])"
-  gdouble ref_x;
-  gdouble ref_y;
-  Xen_check_type(Xen_is_GdkDevice_(device), device, 1, "gdk_device_get_position_double", "GdkDevice*");
-  gdk_device_get_position_double(Xen_to_C_GdkDevice_(device), &ref_x, &ref_y);
-  return(Xen_list_2(C_to_Xen_gdouble(ref_x), C_to_Xen_gdouble(ref_y)));
-}
-
 static Xen gxg_gdk_display_get_clipboard(Xen display)
 {
   #define H_gdk_display_get_clipboard "GdkClipboard* gdk_display_get_clipboard(GdkDisplay* display)"
@@ -28023,14 +27790,6 @@ static Xen gxg_gtk_window_set_display(Xen window, Xen display)
   return(Xen_false);
 }
 
-static Xen gxg_gtk_window_set_default_icon(Xen icon)
-{
-  #define H_gtk_window_set_default_icon "void gtk_window_set_default_icon(GdkTexture* icon)"
-  Xen_check_type(Xen_is_GdkTexture_(icon), icon, 1, "gtk_window_set_default_icon", "GdkTexture*");
-  gtk_window_set_default_icon(Xen_to_C_GdkTexture_(icon));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_window_fullscreen_on_monitor(Xen window, Xen monitor)
 {
   #define H_gtk_window_fullscreen_on_monitor "void gtk_window_fullscreen_on_monitor(GtkWindow* window, \
@@ -28386,13 +28145,6 @@ int height)"
   Xen_check_type(Xen_is_int(width), width, 2, "gdk_surface_new_toplevel", "int");
   Xen_check_type(Xen_is_int(height), height, 3, "gdk_surface_new_toplevel", "int");
   return(C_to_Xen_GdkSurface_(gdk_surface_new_toplevel(Xen_to_C_GdkDisplay_(display), Xen_to_C_int(width), Xen_to_C_int(height))));
-}
-
-static Xen gxg_gdk_surface_get_group(Xen surface)
-{
-  #define H_gdk_surface_get_group "GdkSurface* gdk_surface_get_group(GdkSurface* surface)"
-  Xen_check_type(Xen_is_GdkSurface_(surface), surface, 1, "gdk_surface_get_group", "GdkSurface*");
-  return(C_to_Xen_GdkSurface_(gdk_surface_get_group(Xen_to_C_GdkSurface_(surface))));
 }
 
 static Xen gxg_gdk_surface_get_state(Xen surface)
@@ -28785,15 +28537,6 @@ gint* [y])"
   return(Xen_list_2(C_to_Xen_gint(ref_x), C_to_Xen_gint(ref_y)));
 }
 
-static Xen gxg_gdk_surface_get_user_data(Xen surface, Xen data)
-{
-  #define H_gdk_surface_get_user_data "void gdk_surface_get_user_data(GdkSurface* surface, gpointer* data)"
-  Xen_check_type(Xen_is_GdkSurface_(surface), surface, 1, "gdk_surface_get_user_data", "GdkSurface*");
-  Xen_check_type(Xen_is_gpointer_(data), data, 2, "gdk_surface_get_user_data", "gpointer*");
-  gdk_surface_get_user_data(Xen_to_C_GdkSurface_(surface), Xen_to_C_gpointer_(data));
-  return(Xen_false);
-}
-
 static Xen gxg_gdk_surface_hide(Xen surface)
 {
   #define H_gdk_surface_hide "void gdk_surface_hide(GdkSurface* surface)"
@@ -29103,26 +28846,6 @@ gint right, gint top, gint bottom)"
   return(Xen_false);
 }
 
-static Xen gxg_gdk_surface_set_skip_pager_hint(Xen surface, Xen skips_pager)
-{
-  #define H_gdk_surface_set_skip_pager_hint "void gdk_surface_set_skip_pager_hint(GdkSurface* surface, \
-gboolean skips_pager)"
-  Xen_check_type(Xen_is_GdkSurface_(surface), surface, 1, "gdk_surface_set_skip_pager_hint", "GdkSurface*");
-  Xen_check_type(Xen_is_gboolean(skips_pager), skips_pager, 2, "gdk_surface_set_skip_pager_hint", "gboolean");
-  gdk_surface_set_skip_pager_hint(Xen_to_C_GdkSurface_(surface), Xen_to_C_gboolean(skips_pager));
-  return(Xen_false);
-}
-
-static Xen gxg_gdk_surface_set_skip_taskbar_hint(Xen surface, Xen skips_taskbar)
-{
-  #define H_gdk_surface_set_skip_taskbar_hint "void gdk_surface_set_skip_taskbar_hint(GdkSurface* surface, \
-gboolean skips_taskbar)"
-  Xen_check_type(Xen_is_GdkSurface_(surface), surface, 1, "gdk_surface_set_skip_taskbar_hint", "GdkSurface*");
-  Xen_check_type(Xen_is_gboolean(skips_taskbar), skips_taskbar, 2, "gdk_surface_set_skip_taskbar_hint", "gboolean");
-  gdk_surface_set_skip_taskbar_hint(Xen_to_C_GdkSurface_(surface), Xen_to_C_gboolean(skips_taskbar));
-  return(Xen_false);
-}
-
 static Xen gxg_gdk_surface_set_startup_id(Xen surface, Xen startup_id)
 {
   #define H_gdk_surface_set_startup_id "void gdk_surface_set_startup_id(GdkSurface* surface, gchar* startup_id)"
@@ -29166,15 +28889,6 @@ static Xen gxg_gdk_surface_set_type_hint(Xen surface, Xen hint)
   Xen_check_type(Xen_is_GdkSurface_(surface), surface, 1, "gdk_surface_set_type_hint", "GdkSurface*");
   Xen_check_type(Xen_is_GdkSurfaceTypeHint(hint), hint, 2, "gdk_surface_set_type_hint", "GdkSurfaceTypeHint");
   gdk_surface_set_type_hint(Xen_to_C_GdkSurface_(surface), Xen_to_C_GdkSurfaceTypeHint(hint));
-  return(Xen_false);
-}
-
-static Xen gxg_gdk_surface_set_user_data(Xen window, Xen user_data)
-{
-  #define H_gdk_surface_set_user_data "void gdk_surface_set_user_data(GdkSurface* window, gpointer user_data)"
-  Xen_check_type(Xen_is_GdkSurface_(window) || Xen_is_false(window), window, 1, "gdk_surface_set_user_data", "GdkSurface*");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 2, "gdk_surface_set_user_data", "gpointer");
-  gdk_surface_set_user_data(Xen_to_C_GdkSurface_(window), Xen_to_C_gpointer(user_data));
   return(Xen_false);
 }
 
@@ -30249,16 +29963,6 @@ int baseline)"
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-static Xen gxg_gtk_box_reorder_child(Xen box, Xen child, Xen sibling)
-{
-  #define H_gtk_box_reorder_child "void gtk_box_reorder_child(GtkBox* box, GtkWidget* child, GtkWidget* sibling)"
-  Xen_check_type(Xen_is_GtkBox_(box), box, 1, "gtk_box_reorder_child", "GtkBox*");
-  Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_box_reorder_child", "GtkWidget*");
-  Xen_check_type(Xen_is_GtkWidget_(sibling), sibling, 3, "gtk_box_reorder_child", "GtkWidget*");
-  gtk_box_reorder_child(Xen_to_C_GtkBox_(box), Xen_to_C_GtkWidget_(child), Xen_to_C_GtkWidget_(sibling));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_drag_get_source_widget(Xen context)
 {
   #define H_gtk_drag_get_source_widget "GtkWidget* gtk_drag_get_source_widget(GdkDrag* context)"
@@ -30297,48 +30001,6 @@ static Xen gxg_gtk_menu_bar_new_from_model(Xen model)
   #define H_gtk_menu_bar_new_from_model "GtkWidget* gtk_menu_bar_new_from_model(GMenuModel* model)"
   Xen_check_type(Xen_is_GMenuModel_(model), model, 1, "gtk_menu_bar_new_from_model", "GMenuModel*");
   return(C_to_Xen_GtkWidget_(gtk_menu_bar_new_from_model(Xen_to_C_GMenuModel_(model))));
-}
-
-static Xen gxg_gdk_surface_handle_event(Xen event)
-{
-  #define H_gdk_surface_handle_event "gboolean gdk_surface_handle_event(GdkEvent* event)"
-  Xen_check_type(Xen_is_GdkEvent_(event), event, 1, "gdk_surface_handle_event", "GdkEvent*");
-  return(C_to_Xen_gboolean(gdk_surface_handle_event(Xen_to_C_GdkEvent_(event))));
-}
-
-static Xen gxg_gdk_device_grab(Xen device, Xen surface, Xen grab_ownership, Xen owner_events, Xen event_mask, Xen cursor, Xen time_)
-{
-  #define H_gdk_device_grab "GdkGrabStatus gdk_device_grab(GdkDevice* device, GdkSurface* surface, GdkGrabOwnership grab_ownership, \
-gboolean owner_events, GdkEventMask event_mask, GdkCursor* cursor, guint32 time_)"
-  Xen_check_type(Xen_is_GdkDevice_(device), device, 1, "gdk_device_grab", "GdkDevice*");
-  Xen_check_type(Xen_is_GdkSurface_(surface), surface, 2, "gdk_device_grab", "GdkSurface*");
-  Xen_check_type(Xen_is_GdkGrabOwnership(grab_ownership), grab_ownership, 3, "gdk_device_grab", "GdkGrabOwnership");
-  Xen_check_type(Xen_is_gboolean(owner_events), owner_events, 4, "gdk_device_grab", "gboolean");
-  Xen_check_type(Xen_is_GdkEventMask(event_mask), event_mask, 5, "gdk_device_grab", "GdkEventMask");
-  Xen_check_type(Xen_is_GdkCursor_(cursor), cursor, 6, "gdk_device_grab", "GdkCursor*");
-  Xen_check_type(Xen_is_guint32(time_), time_, 7, "gdk_device_grab", "guint32");
-  return(C_to_Xen_GdkGrabStatus(gdk_device_grab(Xen_to_C_GdkDevice_(device), Xen_to_C_GdkSurface_(surface), Xen_to_C_GdkGrabOwnership(grab_ownership), 
-                                                Xen_to_C_gboolean(owner_events), Xen_to_C_GdkEventMask(event_mask), Xen_to_C_GdkCursor_(cursor), 
-                                                Xen_to_C_guint32(time_))));
-}
-
-static Xen gxg_gdk_device_ungrab(Xen device, Xen time_)
-{
-  #define H_gdk_device_ungrab "void gdk_device_ungrab(GdkDevice* device, guint32 time_)"
-  Xen_check_type(Xen_is_GdkDevice_(device), device, 1, "gdk_device_ungrab", "GdkDevice*");
-  Xen_check_type(Xen_is_guint32(time_), time_, 2, "gdk_device_ungrab", "guint32");
-  gdk_device_ungrab(Xen_to_C_GdkDevice_(device), Xen_to_C_guint32(time_));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_application_set_screensaver_active(Xen application, Xen active)
-{
-  #define H_gtk_application_set_screensaver_active "void gtk_application_set_screensaver_active(GtkApplication* application, \
-gboolean active)"
-  Xen_check_type(Xen_is_GtkApplication_(application), application, 1, "gtk_application_set_screensaver_active", "GtkApplication*");
-  Xen_check_type(Xen_is_gboolean(active), active, 2, "gtk_application_set_screensaver_active", "gboolean");
-  gtk_application_set_screensaver_active(Xen_to_C_GtkApplication_(application), Xen_to_C_gboolean(active));
-  return(Xen_false);
 }
 
 static Xen gxg_gtk_assistant_get_page(Xen assistant, Xen child)
@@ -30395,13 +30057,6 @@ char* variant)"
   Xen_check_type(Xen_is_char_(variant), variant, 3, "gtk_css_provider_load_named", "char*");
   gtk_css_provider_load_named(Xen_to_C_GtkCssProvider_(provider), Xen_to_C_char_(name), Xen_to_C_char_(variant));
   return(Xen_false);
-}
-
-static Xen gxg_gtk_editable_get_alignment(Xen editable)
-{
-  #define H_gtk_editable_get_alignment "float gtk_editable_get_alignment(GtkEditable* editable)"
-  Xen_check_type(Xen_is_GtkEditable_(editable), editable, 1, "gtk_editable_get_alignment", "GtkEditable*");
-  return(C_to_Xen_float(gtk_editable_get_alignment(Xen_to_C_GtkEditable_(editable))));
 }
 
 static Xen gxg_gtk_editable_set_alignment(Xen editable, Xen xalign)
@@ -30968,48 +30623,11 @@ static Xen gxg_gtk_event_controller_legacy_new(void)
   return(C_to_Xen_GtkEventController_(gtk_event_controller_legacy_new()));
 }
 
-static Xen gxg_gtk_filter_list_model_new(Xen model, Xen filter_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_filter_list_model_new "GtkFilterListModel* gtk_filter_list_model_new(GListModel* model, \
-GtkFilterListModelFilterFunc filter_func, gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GListModel_(model), model, 1, "gtk_filter_list_model_new", "GListModel*");
-  Xen_check_type(Xen_is_GtkFilterListModelFilterFunc(filter_func), filter_func, 2, "gtk_filter_list_model_new", "GtkFilterListModelFilterFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 3, "gtk_filter_list_model_new", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 4, "gtk_filter_list_model_new", "GDestroyNotify");
-  {
-    Xen res_ult;
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    res_ult = C_to_Xen_GtkFilterListModel_(gtk_filter_list_model_new(Xen_to_C_GListModel_(model), Xen_to_C_GtkFilterListModelFilterFunc(filter_func), 
-                                                                     Xen_to_C_gpointer(user_data), Xen_to_C_GDestroyNotify(user_destroy)));
-    return(res_ult);
-   }
-}
-
 static Xen gxg_gtk_filter_list_model_new_for_type(Xen item_type)
 {
   #define H_gtk_filter_list_model_new_for_type "GtkFilterListModel* gtk_filter_list_model_new_for_type(GType item_type)"
   Xen_check_type(Xen_is_GType(item_type), item_type, 1, "gtk_filter_list_model_new_for_type", "GType");
   return(C_to_Xen_GtkFilterListModel_(gtk_filter_list_model_new_for_type(Xen_to_C_GType(item_type))));
-}
-
-static Xen gxg_gtk_filter_list_model_set_filter_func(Xen self, Xen filter_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_filter_list_model_set_filter_func "void gtk_filter_list_model_set_filter_func(GtkFilterListModel* self, \
-GtkFilterListModelFilterFunc filter_func, gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GtkFilterListModel_(self), self, 1, "gtk_filter_list_model_set_filter_func", "GtkFilterListModel*");
-  Xen_check_type(Xen_is_GtkFilterListModelFilterFunc(filter_func), filter_func, 2, "gtk_filter_list_model_set_filter_func", "GtkFilterListModelFilterFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 3, "gtk_filter_list_model_set_filter_func", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 4, "gtk_filter_list_model_set_filter_func", "GDestroyNotify");
-  {
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    gtk_filter_list_model_set_filter_func(Xen_to_C_GtkFilterListModel_(self), Xen_to_C_GtkFilterListModelFilterFunc(filter_func), 
-                                      Xen_to_C_gpointer(user_data), Xen_to_C_GDestroyNotify(user_destroy));
-    return(Xen_false);
-   }
 }
 
 static Xen gxg_gtk_filter_list_model_set_model(Xen self, Xen model)
@@ -31048,18 +30666,6 @@ static Xen gxg_gtk_fixed_layout_new(void)
 {
   #define H_gtk_fixed_layout_new "GtkLayoutManager* gtk_fixed_layout_new( void)"
   return(C_to_Xen_GtkLayoutManager_(gtk_fixed_layout_new()));
-}
-
-static Xen gxg_gtk_fixed_layout_child_set_position(Xen child, Xen gtk_fixed_layout_child_get_position, Xen child)
-{
-  #define H_gtk_fixed_layout_child_set_position "void gtk_fixed_layout_child_set_position(GtkFixedLayoutChild* child, \
-GskTransform* gtk_fixed_layout_child_get_position, GtkFixedLayoutChild* child)"
-  Xen_check_type(Xen_is_GtkFixedLayoutChild_(child), child, 1, "gtk_fixed_layout_child_set_position", "GtkFixedLayoutChild*");
-  Xen_check_type(Xen_is_GskTransform_(gtk_fixed_layout_child_get_position), gtk_fixed_layout_child_get_position, 2, "gtk_fixed_layout_child_set_position", "GskTransform*");
-  Xen_check_type(Xen_is_GtkFixedLayoutChild_(child), child, 3, "gtk_fixed_layout_child_set_position", "GtkFixedLayoutChild*");
-  gtk_fixed_layout_child_set_position(Xen_to_C_GtkFixedLayoutChild_(child), Xen_to_C_GskTransform_(gtk_fixed_layout_child_get_position), 
-                                      Xen_to_C_GtkFixedLayoutChild_(child));
-  return(Xen_false);
 }
 
 static Xen gxg_gtk_flatten_list_model_new(Xen item_type, Xen model)
@@ -31351,44 +30957,6 @@ GtkWidget* child)"
   Xen_check_type(Xen_is_GtkLayoutManager_(manager), manager, 1, "gtk_layout_manager_get_layout_child", "GtkLayoutManager*");
   Xen_check_type(Xen_is_GtkWidget_(child), child, 2, "gtk_layout_manager_get_layout_child", "GtkWidget*");
   return(C_to_Xen_GtkLayoutChild_(gtk_layout_manager_get_layout_child(Xen_to_C_GtkLayoutManager_(manager), Xen_to_C_GtkWidget_(child))));
-}
-
-static Xen gxg_gtk_map_list_model_new(Xen item_type, Xen model, Xen map_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_map_list_model_new "GtkMapListModel* gtk_map_list_model_new(GType item_type, GListModel* model, \
-GtkMapListModelMapFunc map_func, gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GType(item_type), item_type, 1, "gtk_map_list_model_new", "GType");
-  Xen_check_type(Xen_is_GListModel_(model), model, 2, "gtk_map_list_model_new", "GListModel*");
-  Xen_check_type(Xen_is_GtkMapListModelMapFunc(map_func), map_func, 3, "gtk_map_list_model_new", "GtkMapListModelMapFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 4, "gtk_map_list_model_new", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 5, "gtk_map_list_model_new", "GDestroyNotify");
-  {
-    Xen res_ult;
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    res_ult = C_to_Xen_GtkMapListModel_(gtk_map_list_model_new(Xen_to_C_GType(item_type), Xen_to_C_GListModel_(model), Xen_to_C_GtkMapListModelMapFunc(map_func), 
-                                                               Xen_to_C_gpointer(user_data), Xen_to_C_GDestroyNotify(user_destroy)));
-    return(res_ult);
-   }
-}
-
-static Xen gxg_gtk_map_list_model_set_map_func(Xen self, Xen map_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_map_list_model_set_map_func "void gtk_map_list_model_set_map_func(GtkMapListModel* self, \
-GtkMapListModelMapFunc map_func, gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GtkMapListModel_(self), self, 1, "gtk_map_list_model_set_map_func", "GtkMapListModel*");
-  Xen_check_type(Xen_is_GtkMapListModelMapFunc(map_func), map_func, 2, "gtk_map_list_model_set_map_func", "GtkMapListModelMapFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 3, "gtk_map_list_model_set_map_func", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 4, "gtk_map_list_model_set_map_func", "GDestroyNotify");
-  {
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    gtk_map_list_model_set_map_func(Xen_to_C_GtkMapListModel_(self), Xen_to_C_GtkMapListModelMapFunc(map_func), Xen_to_C_gpointer(user_data), 
-                                Xen_to_C_GDestroyNotify(user_destroy));
-    return(Xen_false);
-   }
 }
 
 static Xen gxg_gtk_map_list_model_set_model(Xen self, Xen model)
@@ -31684,48 +31252,11 @@ static Xen gxg_gtk_slice_list_model_get_size(Xen self)
   return(C_to_Xen_guint(gtk_slice_list_model_get_size(Xen_to_C_GtkSliceListModel_(self))));
 }
 
-static Xen gxg_gtk_sort_list_model_new(Xen model, Xen sort_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_sort_list_model_new "GtkSortListModel* gtk_sort_list_model_new(GListModel* model, GCompareDataFunc sort_func, \
-gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GListModel_(model), model, 1, "gtk_sort_list_model_new", "GListModel*");
-  Xen_check_type(Xen_is_GCompareDataFunc(sort_func), sort_func, 2, "gtk_sort_list_model_new", "GCompareDataFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 3, "gtk_sort_list_model_new", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 4, "gtk_sort_list_model_new", "GDestroyNotify");
-  {
-    Xen res_ult;
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    res_ult = C_to_Xen_GtkSortListModel_(gtk_sort_list_model_new(Xen_to_C_GListModel_(model), Xen_to_C_GCompareDataFunc(sort_func), 
-                                                                 Xen_to_C_gpointer(user_data), Xen_to_C_GDestroyNotify(user_destroy)));
-    return(res_ult);
-   }
-}
-
 static Xen gxg_gtk_sort_list_model_new_for_type(Xen item_type)
 {
   #define H_gtk_sort_list_model_new_for_type "GtkSortListModel* gtk_sort_list_model_new_for_type(GType item_type)"
   Xen_check_type(Xen_is_GType(item_type), item_type, 1, "gtk_sort_list_model_new_for_type", "GType");
   return(C_to_Xen_GtkSortListModel_(gtk_sort_list_model_new_for_type(Xen_to_C_GType(item_type))));
-}
-
-static Xen gxg_gtk_sort_list_model_set_sort_func(Xen self, Xen sort_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_sort_list_model_set_sort_func "void gtk_sort_list_model_set_sort_func(GtkSortListModel* self, \
-GCompareDataFunc sort_func, gpointer user_data, GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_GtkSortListModel_(self), self, 1, "gtk_sort_list_model_set_sort_func", "GtkSortListModel*");
-  Xen_check_type(Xen_is_GCompareDataFunc(sort_func), sort_func, 2, "gtk_sort_list_model_set_sort_func", "GCompareDataFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 3, "gtk_sort_list_model_set_sort_func", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 4, "gtk_sort_list_model_set_sort_func", "GDestroyNotify");
-  {
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    gtk_sort_list_model_set_sort_func(Xen_to_C_GtkSortListModel_(self), Xen_to_C_GCompareDataFunc(sort_func), Xen_to_C_gpointer(user_data), 
-                                  Xen_to_C_GDestroyNotify(user_destroy));
-    return(Xen_false);
-   }
 }
 
 static Xen gxg_gtk_sort_list_model_has_sort(Xen self)
@@ -31972,29 +31503,6 @@ static Xen gxg_gtk_text_grab_focus_without_selecting(Xen self)
   return(Xen_false);
 }
 
-static Xen gxg_gtk_tree_list_model_new(Xen passthrough, Xen root, Xen autoexpand, Xen create_func, Xen user_data, Xen user_destroy)
-{
-  #define H_gtk_tree_list_model_new "GtkTreeListModel* gtk_tree_list_model_new(gboolean passthrough, \
-GListModel* root, gboolean autoexpand, GtkTreeListModelCreateModelFunc create_func, gpointer user_data, \
-GDestroyNotify user_destroy)"
-  Xen_check_type(Xen_is_gboolean(passthrough), passthrough, 1, "gtk_tree_list_model_new", "gboolean");
-  Xen_check_type(Xen_is_GListModel_(root), root, 2, "gtk_tree_list_model_new", "GListModel*");
-  Xen_check_type(Xen_is_gboolean(autoexpand), autoexpand, 3, "gtk_tree_list_model_new", "gboolean");
-  Xen_check_type(Xen_is_GtkTreeListModelCreateModelFunc(create_func), create_func, 4, "gtk_tree_list_model_new", "GtkTreeListModelCreateModelFunc");
-  Xen_check_type(Xen_is_gpointer(user_data), user_data, 5, "gtk_tree_list_model_new", "gpointer");
-  Xen_check_type(Xen_is_GDestroyNotify(user_destroy), user_destroy, 6, "gtk_tree_list_model_new", "GDestroyNotify");
-  {
-    Xen res_ult;
-    Xen gxg_ptr = Xen_list_5(Xen_false, func_info, Xen_false, Xen_false, Xen_false);
-    xm_protect(gxg_ptr);
-    Xen_list_set(gxg_ptr, 3, user_destroy);
-    res_ult = C_to_Xen_GtkTreeListModel_(gtk_tree_list_model_new(Xen_to_C_gboolean(passthrough), Xen_to_C_GListModel_(root), 
-                                                                 Xen_to_C_gboolean(autoexpand), Xen_to_C_GtkTreeListModelCreateModelFunc(create_func), 
-                                                                 Xen_to_C_gpointer(user_data), Xen_to_C_GDestroyNotify(user_destroy)));
-    return(res_ult);
-   }
-}
-
 static Xen gxg_gtk_tree_list_model_get_model(Xen self)
 {
   #define H_gtk_tree_list_model_get_model "GListModel* gtk_tree_list_model_get_model(GtkTreeListModel* self)"
@@ -32112,15 +31620,13 @@ guint position)"
   return(C_to_Xen_GtkTreeListRow_(gtk_tree_list_row_get_child_row(Xen_to_C_GtkTreeListRow_(self), Xen_to_C_guint(position))));
 }
 
-static Xen gxg_gtk_drag_get_data(Xen widget, Xen context, Xen target, Xen time)
+static Xen gxg_gtk_drag_get_data(Xen widget, Xen drop, Xen target)
 {
-  #define H_gtk_drag_get_data "void gtk_drag_get_data(GtkWidget* widget, GdkDrag* context, GdkAtom target, \
-guint32 time)"
+  #define H_gtk_drag_get_data "void gtk_drag_get_data(GtkWidget* widget, GdkDrop* drop, GdkAtom target)"
   Xen_check_type(Xen_is_GtkWidget_(widget), widget, 1, "gtk_drag_get_data", "GtkWidget*");
-  Xen_check_type(Xen_is_GdkDrag_(context), context, 2, "gtk_drag_get_data", "GdkDrag*");
+  Xen_check_type(Xen_is_GdkDrop_(drop), drop, 2, "gtk_drag_get_data", "GdkDrop*");
   Xen_check_type(Xen_is_GdkAtom(target), target, 3, "gtk_drag_get_data", "GdkAtom");
-  Xen_check_type(Xen_is_guint32(time), time, 4, "gtk_drag_get_data", "guint32");
-  gtk_drag_get_data(Xen_to_C_GtkWidget_(widget), Xen_to_C_GdkDrag_(context), Xen_to_C_GdkAtom(target), Xen_to_C_guint32(time));
+  gtk_drag_get_data(Xen_to_C_GtkWidget_(widget), Xen_to_C_GdkDrop_(drop), Xen_to_C_GdkAtom(target));
   return(Xen_false);
 }
 
@@ -32156,15 +31662,6 @@ gint hot_y)"
   return(Xen_false);
 }
 
-static Xen gxg_gtk_drag_set_icon_surface(Xen context, Xen surface)
-{
-  #define H_gtk_drag_set_icon_surface "void gtk_drag_set_icon_surface(GdkDrag* context, cairo_surface_t* surface)"
-  Xen_check_type(Xen_is_GdkDrag_(context), context, 1, "gtk_drag_set_icon_surface", "GdkDrag*");
-  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 2, "gtk_drag_set_icon_surface", "cairo_surface_t*");
-  gtk_drag_set_icon_surface(Xen_to_C_GdkDrag_(context), Xen_to_C_cairo_surface_t_(surface));
-  return(Xen_false);
-}
-
 static Xen gxg_gtk_drag_set_icon_gicon(Xen context, Xen icon, Xen hot_x, Xen hot_y)
 {
   #define H_gtk_drag_set_icon_gicon "void gtk_drag_set_icon_gicon(GdkDrag* context, GIcon* icon, gint hot_x, \
@@ -32183,38 +31680,6 @@ static Xen gxg_gtk_drag_cancel(Xen context)
   Xen_check_type(Xen_is_GdkDrag_(context), context, 1, "gtk_drag_cancel", "GdkDrag*");
   gtk_drag_cancel(Xen_to_C_GdkDrag_(context));
   return(Xen_false);
-}
-
-static Xen gxg_gtk_drag_finish(Xen context, Xen success, Xen time)
-{
-  #define H_gtk_drag_finish "void gtk_drag_finish(GdkDrag* context, gboolean success, guint32 time)"
-  Xen_check_type(Xen_is_GdkDrag_(context), context, 1, "gtk_drag_finish", "GdkDrag*");
-  Xen_check_type(Xen_is_gboolean(success), success, 2, "gtk_drag_finish", "gboolean");
-  Xen_check_type(Xen_is_guint32(time), time, 3, "gtk_drag_finish", "guint32");
-  gtk_drag_finish(Xen_to_C_GdkDrag_(context), Xen_to_C_gboolean(success), Xen_to_C_guint32(time));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_drag_set_icon_pixbuf(Xen context, Xen texture, Xen hot_x, Xen hot_y)
-{
-  #define H_gtk_drag_set_icon_pixbuf "void gtk_drag_set_icon_pixbuf(GdkDrag* context, GdkTexture* texture, \
-gint hot_x, gint hot_y)"
-  Xen_check_type(Xen_is_GdkDrag_(context), context, 1, "gtk_drag_set_icon_pixbuf", "GdkDrag*");
-  Xen_check_type(Xen_is_GdkTexture_(texture), texture, 2, "gtk_drag_set_icon_pixbuf", "GdkTexture*");
-  Xen_check_type(Xen_is_gint(hot_x), hot_x, 3, "gtk_drag_set_icon_pixbuf", "gint");
-  Xen_check_type(Xen_is_gint(hot_y), hot_y, 4, "gtk_drag_set_icon_pixbuf", "gint");
-  gtk_drag_set_icon_pixbuf(Xen_to_C_GdkDrag_(context), Xen_to_C_GdkTexture_(texture), Xen_to_C_gint(hot_x), Xen_to_C_gint(hot_y));
-  return(Xen_false);
-}
-
-static Xen gxg_gtk_drag_dest_find_target(Xen widget, Xen context, Xen target_list)
-{
-  #define H_gtk_drag_dest_find_target "char* gtk_drag_dest_find_target(GtkWidget* widget, GdkDrag* context, \
-GdkContentFormats* target_list)"
-  Xen_check_type(Xen_is_GtkWidget_(widget), widget, 1, "gtk_drag_dest_find_target", "GtkWidget*");
-  Xen_check_type(Xen_is_GdkDrag_(context), context, 2, "gtk_drag_dest_find_target", "GdkDrag*");
-  Xen_check_type(Xen_is_GdkContentFormats_(target_list) || Xen_is_false(target_list), target_list, 3, "gtk_drag_dest_find_target", "GdkContentFormats*");
-    return(C_to_Xen_char_((char*)gtk_drag_dest_find_target(Xen_to_C_GtkWidget_(widget), Xen_to_C_GdkDrag_(context), Xen_to_C_GdkContentFormats_(target_list))));
 }
 
 static Xen gxg_gdk_surface_get_device_position(Xen surface, Xen device, Xen ignore_x, Xen ignore_y, Xen mask)
@@ -32245,6 +31710,32 @@ GdkContentFormats* targets, GdkDragAction actions)"
   gtk_drag_source_set(Xen_to_C_GtkWidget_(widget), Xen_to_C_GdkModifierType(start_button_mask), Xen_to_C_GdkContentFormats_(targets), 
                       Xen_to_C_GdkDragAction(actions));
   return(Xen_false);
+}
+
+static Xen gxg_gdk_clipboard_read_finish(Xen clip, Xen result, Xen out_mime_type, Xen ignore_error)
+{
+  #define H_gdk_clipboard_read_finish "GInputStream* gdk_clipboard_read_finish(GdkClipboard* clip, GAsyncResult* result, \
+char** out_mime_type, GError** [error])"
+  GError* ref_error = NULL;
+  Xen_check_type(Xen_is_GdkClipboard_(clip), clip, 1, "gdk_clipboard_read_finish", "GdkClipboard*");
+  Xen_check_type(Xen_is_GAsyncResult_(result), result, 2, "gdk_clipboard_read_finish", "GAsyncResult*");
+  Xen_check_type(Xen_is_char__(out_mime_type), out_mime_type, 3, "gdk_clipboard_read_finish", "char**");
+  {
+    Xen res_ult;
+    res_ult = C_to_Xen_GInputStream_(gdk_clipboard_read_finish(Xen_to_C_GdkClipboard_(clip), Xen_to_C_GAsyncResult_(result), 
+                                                               (const char**)Xen_to_C_char__(out_mime_type), &ref_error));
+    return(Xen_list_2(res_ult, C_to_Xen_GError_(ref_error)));
+   }
+}
+
+static Xen gxg_gdk_device_get_position(Xen device, Xen ignore_x, Xen ignore_y)
+{
+  #define H_gdk_device_get_position "void gdk_device_get_position(GdkDevice* device, gdouble* [x], gdouble* [y])"
+  gdouble ref_x;
+  gdouble ref_y;
+  Xen_check_type(Xen_is_GdkDevice_(device), device, 1, "gdk_device_get_position", "GdkDevice*");
+  gdk_device_get_position(Xen_to_C_GdkDevice_(device), &ref_x, &ref_y);
+  return(Xen_list_2(C_to_Xen_gdouble(ref_x), C_to_Xen_gdouble(ref_y)));
 }
 
 #endif
@@ -34653,7 +34144,6 @@ static Xen gxg_GTK_ACCEL_LABEL(Xen obj) {return((Xen_is_wrapped_object(obj)) ? X
 static Xen gxg_GTK_ACCESSIBLE(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkAccessible__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_ADJUSTMENT(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkAdjustment__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_ASPECT_FRAME(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkAspectFrame__symbol, Xen_cadr(obj)) : Xen_false);}
-static Xen gxg_GTK_BUTTON_BOX(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkButtonBox__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_BIN(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkBin__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_BOX(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkBox__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_BUTTON(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkButton__symbol, Xen_cadr(obj)) : Xen_false);}
@@ -34676,7 +34166,6 @@ static Xen gxg_GTK_IMAGE(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_lis
 static Xen gxg_GTK_IM_CONTEXT(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkIMContext__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_IM_CONTEXT_SIMPLE(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkIMContextSimple__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_LABEL(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkLabel__symbol, Xen_cadr(obj)) : Xen_false);}
-static Xen gxg_GTK_LAYOUT(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkLayout__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_LIST_STORE(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkListStore__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_MENU_BAR(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkMenuBar__symbol, Xen_cadr(obj)) : Xen_false);}
 static Xen gxg_GTK_MENU(Xen obj) {return((Xen_is_wrapped_object(obj)) ? Xen_list_2(xg_GtkMenu__symbol, Xen_cadr(obj)) : Xen_false);}
@@ -34899,7 +34388,6 @@ static Xen gxg_GTK_IS_ACCEL_LABEL(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_
 static Xen gxg_GTK_IS_ACCESSIBLE(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_ACCESSIBLE((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_ADJUSTMENT(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_ADJUSTMENT((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_ASPECT_FRAME(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_ASPECT_FRAME((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
-static Xen gxg_GTK_IS_BUTTON_BOX(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_BUTTON_BOX((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_BIN(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_BIN((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_BOX(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_BOX((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_BUTTON(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_BUTTON((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
@@ -34922,7 +34410,6 @@ static Xen gxg_GTK_IS_IMAGE(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrappe
 static Xen gxg_GTK_IS_IM_CONTEXT(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_IM_CONTEXT((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_IM_CONTEXT_SIMPLE(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_IM_CONTEXT_SIMPLE((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_LABEL(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_LABEL((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
-static Xen gxg_GTK_IS_LAYOUT(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_LAYOUT((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_LIST_STORE(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_LIST_STORE((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_MENU_BAR(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_MENU_BAR((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
 static Xen gxg_GTK_IS_MENU(Xen obj) {return(C_bool_to_Xen_boolean(Xen_is_wrapped_object(obj) && GTK_IS_MENU((GTypeInstance *)Xen_unwrap_C_pointer(Xen_cadr(obj)))));}
@@ -35695,9 +35182,6 @@ Xen_wrap_1_arg(gxg_gtk_adjustment_get_value_w, gxg_gtk_adjustment_get_value)
 Xen_wrap_2_args(gxg_gtk_adjustment_set_value_w, gxg_gtk_adjustment_set_value)
 Xen_wrap_5_args(gxg_gtk_aspect_frame_new_w, gxg_gtk_aspect_frame_new)
 Xen_wrap_5_args(gxg_gtk_aspect_frame_set_w, gxg_gtk_aspect_frame_set)
-Xen_wrap_1_arg(gxg_gtk_button_box_get_layout_w, gxg_gtk_button_box_get_layout)
-Xen_wrap_2_args(gxg_gtk_button_box_set_layout_w, gxg_gtk_button_box_set_layout)
-Xen_wrap_3_args(gxg_gtk_button_box_set_child_secondary_w, gxg_gtk_button_box_set_child_secondary)
 Xen_wrap_1_arg(gxg_gtk_binding_set_new_w, gxg_gtk_binding_set_new)
 Xen_wrap_1_arg(gxg_gtk_binding_set_by_class_w, gxg_gtk_binding_set_by_class)
 Xen_wrap_1_arg(gxg_gtk_binding_set_find_w, gxg_gtk_binding_set_find)
@@ -35770,9 +35254,6 @@ Xen_wrap_3_optional_args(gxg_gtk_editable_get_selection_bounds_w, gxg_gtk_editab
 Xen_wrap_4_optional_args(gxg_gtk_editable_insert_text_w, gxg_gtk_editable_insert_text)
 Xen_wrap_3_args(gxg_gtk_editable_delete_text_w, gxg_gtk_editable_delete_text)
 Xen_wrap_3_args(gxg_gtk_editable_get_chars_w, gxg_gtk_editable_get_chars)
-Xen_wrap_1_arg(gxg_gtk_editable_cut_clipboard_w, gxg_gtk_editable_cut_clipboard)
-Xen_wrap_1_arg(gxg_gtk_editable_copy_clipboard_w, gxg_gtk_editable_copy_clipboard)
-Xen_wrap_1_arg(gxg_gtk_editable_paste_clipboard_w, gxg_gtk_editable_paste_clipboard)
 Xen_wrap_1_arg(gxg_gtk_editable_delete_selection_w, gxg_gtk_editable_delete_selection)
 Xen_wrap_2_args(gxg_gtk_editable_set_position_w, gxg_gtk_editable_set_position)
 Xen_wrap_1_arg(gxg_gtk_editable_get_position_w, gxg_gtk_editable_get_position)
@@ -35846,11 +35327,6 @@ Xen_wrap_3_args(gxg_gtk_label_select_region_w, gxg_gtk_label_select_region)
 Xen_wrap_3_optional_args(gxg_gtk_label_get_selection_bounds_w, gxg_gtk_label_get_selection_bounds)
 Xen_wrap_1_arg(gxg_gtk_label_get_layout_w, gxg_gtk_label_get_layout)
 Xen_wrap_3_optional_args(gxg_gtk_label_get_layout_offsets_w, gxg_gtk_label_get_layout_offsets)
-Xen_wrap_2_args(gxg_gtk_layout_new_w, gxg_gtk_layout_new)
-Xen_wrap_4_args(gxg_gtk_layout_put_w, gxg_gtk_layout_put)
-Xen_wrap_4_args(gxg_gtk_layout_move_w, gxg_gtk_layout_move)
-Xen_wrap_3_args(gxg_gtk_layout_set_size_w, gxg_gtk_layout_set_size)
-Xen_wrap_3_optional_args(gxg_gtk_layout_get_size_w, gxg_gtk_layout_get_size)
 Xen_wrap_2_args(gxg_gtk_list_store_new_w, gxg_gtk_list_store_new)
 Xen_wrap_2_args(gxg_gtk_list_store_newv_w, gxg_gtk_list_store_newv)
 Xen_wrap_3_args(gxg_gtk_list_store_set_column_types_w, gxg_gtk_list_store_set_column_types)
@@ -36727,7 +36203,6 @@ Xen_wrap_2_args(gxg_g_list_remove_link_w, gxg_g_list_remove_link)
 Xen_wrap_2_args(gxg_g_object_get_data_w, gxg_g_object_get_data)
 Xen_wrap_3_args(gxg_g_object_set_data_w, gxg_g_object_set_data)
 Xen_wrap_1_arg(gxg_gdk_display_flush_w, gxg_gdk_display_flush)
-Xen_wrap_2_args(gxg_gtk_button_box_get_child_secondary_w, gxg_gtk_button_box_get_child_secondary)
 Xen_wrap_2_args(gxg_gtk_calendar_set_display_options_w, gxg_gtk_calendar_set_display_options)
 Xen_wrap_1_arg(gxg_gtk_calendar_get_display_options_w, gxg_gtk_calendar_get_display_options)
 Xen_wrap_2_args(gxg_gtk_check_menu_item_set_draw_as_radio_w, gxg_gtk_check_menu_item_set_draw_as_radio)
@@ -37034,8 +36509,6 @@ Xen_wrap_1_arg(gxg_pango_script_iter_free_w, gxg_pango_script_iter_free)
 Xen_wrap_1_arg(gxg_gtk_file_chooser_button_new_with_dialog_w, gxg_gtk_file_chooser_button_new_with_dialog)
 Xen_wrap_1_arg(gxg_gtk_file_chooser_button_get_title_w, gxg_gtk_file_chooser_button_get_title)
 Xen_wrap_2_args(gxg_gtk_file_chooser_button_set_title_w, gxg_gtk_file_chooser_button_set_title)
-Xen_wrap_2_args(gxg_gtk_entry_layout_index_to_text_index_w, gxg_gtk_entry_layout_index_to_text_index)
-Xen_wrap_2_args(gxg_gtk_entry_text_index_to_layout_index_w, gxg_gtk_entry_text_index_to_layout_index)
 Xen_wrap_2_args(gxg_gtk_file_chooser_set_show_hidden_w, gxg_gtk_file_chooser_set_show_hidden)
 Xen_wrap_1_arg(gxg_gtk_file_chooser_get_show_hidden_w, gxg_gtk_file_chooser_get_show_hidden)
 Xen_wrap_2_args(gxg_gtk_tree_view_set_hover_expand_w, gxg_gtk_tree_view_set_hover_expand)
@@ -37660,7 +37133,6 @@ Xen_wrap_1_arg(gxg_gtk_combo_box_get_active_id_w, gxg_gtk_combo_box_get_active_i
 Xen_wrap_4_args(gxg_gtk_combo_box_text_insert_w, gxg_gtk_combo_box_text_insert)
 Xen_wrap_3_args(gxg_gtk_combo_box_text_append_w, gxg_gtk_combo_box_text_append)
 Xen_wrap_3_args(gxg_gtk_combo_box_text_prepend_w, gxg_gtk_combo_box_text_prepend)
-Xen_wrap_1_arg(gxg_gtk_button_box_new_w, gxg_gtk_button_box_new)
 Xen_wrap_2_args(gxg_gtk_box_new_w, gxg_gtk_box_new)
 Xen_wrap_5_args(gxg_gtk_tree_view_set_cursor_on_cell_w, gxg_gtk_tree_view_set_cursor_on_cell)
 Xen_wrap_2_args(gxg_gtk_tree_view_set_rubber_banding_w, gxg_gtk_tree_view_set_rubber_banding)
@@ -37742,8 +37214,6 @@ Xen_wrap_2_args(gxg_gtk_entry_set_placeholder_text_w, gxg_gtk_entry_set_placehol
 Xen_wrap_2_args(gxg_gtk_expander_set_resize_toplevel_w, gxg_gtk_expander_set_resize_toplevel)
 Xen_wrap_1_arg(gxg_gtk_expander_get_resize_toplevel_w, gxg_gtk_expander_get_resize_toplevel)
 Xen_wrap_1_arg(gxg_gtk_widget_path_to_string_w, gxg_gtk_widget_path_to_string)
-Xen_wrap_2_args(gxg_gtk_button_box_get_child_non_homogeneous_w, gxg_gtk_button_box_get_child_non_homogeneous)
-Xen_wrap_3_args(gxg_gtk_button_box_set_child_non_homogeneous_w, gxg_gtk_button_box_set_child_non_homogeneous)
 Xen_wrap_2_args(gxg_gtk_drag_source_set_icon_gicon_w, gxg_gtk_drag_source_set_icon_gicon)
 Xen_wrap_2_args(gxg_gtk_combo_box_set_active_id_w, gxg_gtk_combo_box_set_active_id)
 Xen_wrap_1_arg(gxg_gtk_tree_view_column_get_x_offset_w, gxg_gtk_tree_view_column_get_x_offset)
@@ -38086,7 +37556,6 @@ Xen_wrap_6_args(gxg_gtk_render_expander_w, gxg_gtk_render_expander)
 Xen_wrap_6_args(gxg_gtk_render_focus_w, gxg_gtk_render_focus)
 Xen_wrap_5_args(gxg_gtk_render_layout_w, gxg_gtk_render_layout)
 Xen_wrap_6_args(gxg_gtk_render_line_w, gxg_gtk_render_line)
-Xen_wrap_7_args(gxg_gtk_render_slider_w, gxg_gtk_render_slider)
 Xen_wrap_6_args(gxg_gtk_render_handle_w, gxg_gtk_render_handle)
 Xen_wrap_6_args(gxg_gtk_render_activity_w, gxg_gtk_render_activity)
 Xen_wrap_1_arg(gxg_gdk_gl_context_make_current_w, gxg_gdk_gl_context_make_current)
@@ -38118,7 +37587,6 @@ Xen_wrap_1_arg(gxg_gdk_gl_context_get_debug_enabled_w, gxg_gdk_gl_context_get_de
 Xen_wrap_2_args(gxg_gdk_gl_context_set_forward_compatible_w, gxg_gdk_gl_context_set_forward_compatible)
 Xen_wrap_1_arg(gxg_gdk_gl_context_get_forward_compatible_w, gxg_gdk_gl_context_get_forward_compatible)
 Xen_wrap_2_optional_args(gxg_gdk_gl_context_realize_w, gxg_gdk_gl_context_realize)
-Xen_wrap_2_args(gxg_gtk_search_entry_handle_event_w, gxg_gtk_search_entry_handle_event)
 Xen_wrap_3_optional_args(gxg_gdk_gl_context_get_version_w, gxg_gdk_gl_context_get_version)
 Xen_wrap_3_args(gxg_gtk_gl_area_set_required_version_w, gxg_gtk_gl_area_set_required_version)
 Xen_wrap_3_optional_args(gxg_gtk_gl_area_get_required_version_w, gxg_gtk_gl_area_get_required_version)
@@ -38351,7 +37819,6 @@ Xen_wrap_1_arg(gxg_gdk_clipboard_get_content_w, gxg_gdk_clipboard_get_content)
 Xen_wrap_5_args(gxg_gdk_clipboard_store_async_w, gxg_gdk_clipboard_store_async)
 Xen_wrap_3_optional_args(gxg_gdk_clipboard_store_finish_w, gxg_gdk_clipboard_store_finish)
 Xen_wrap_6_args(gxg_gdk_clipboard_read_async_w, gxg_gdk_clipboard_read_async)
-Xen_wrap_4_optional_args(gxg_gdk_clipboard_read_finish_w, gxg_gdk_clipboard_read_finish)
 Xen_wrap_6_args(gxg_gdk_clipboard_read_value_async_w, gxg_gdk_clipboard_read_value_async)
 Xen_wrap_3_optional_args(gxg_gdk_clipboard_read_value_finish_w, gxg_gdk_clipboard_read_value_finish)
 Xen_wrap_4_args(gxg_gdk_clipboard_read_texture_async_w, gxg_gdk_clipboard_read_texture_async)
@@ -38428,8 +37895,6 @@ Xen_wrap_1_arg(gxg_gdk_cursor_get_name_w, gxg_gdk_cursor_get_name)
 Xen_wrap_1_arg(gxg_gdk_cursor_get_texture_w, gxg_gdk_cursor_get_texture)
 Xen_wrap_1_arg(gxg_gdk_cursor_get_hotspot_x_w, gxg_gdk_cursor_get_hotspot_x)
 Xen_wrap_1_arg(gxg_gdk_cursor_get_hotspot_y_w, gxg_gdk_cursor_get_hotspot_y)
-Xen_wrap_3_optional_args(gxg_gdk_device_get_position_w, gxg_gdk_device_get_position)
-Xen_wrap_3_optional_args(gxg_gdk_device_get_position_double_w, gxg_gdk_device_get_position_double)
 Xen_wrap_1_arg(gxg_gdk_display_get_clipboard_w, gxg_gdk_display_get_clipboard)
 Xen_wrap_1_arg(gxg_gdk_display_get_primary_clipboard_w, gxg_gdk_display_get_primary_clipboard)
 Xen_wrap_1_arg(gxg_gdk_display_get_keymap_w, gxg_gdk_display_get_keymap)
@@ -38494,7 +37959,6 @@ Xen_wrap_2_args(gxg_gtk_widget_set_cursor_w, gxg_gtk_widget_set_cursor)
 Xen_wrap_2_args(gxg_gtk_widget_set_cursor_from_name_w, gxg_gtk_widget_set_cursor_from_name)
 Xen_wrap_1_arg(gxg_gtk_widget_get_cursor_w, gxg_gtk_widget_get_cursor)
 Xen_wrap_2_args(gxg_gtk_window_set_display_w, gxg_gtk_window_set_display)
-Xen_wrap_1_arg(gxg_gtk_window_set_default_icon_w, gxg_gtk_window_set_default_icon)
 Xen_wrap_2_args(gxg_gtk_window_fullscreen_on_monitor_w, gxg_gtk_window_fullscreen_on_monitor)
 Xen_wrap_1_arg(gxg_gtk_text_iter_get_texture_w, gxg_gtk_text_iter_get_texture)
 Xen_wrap_4_args(gxg_gtk_icon_view_enable_model_drag_source_w, gxg_gtk_icon_view_enable_model_drag_source)
@@ -38537,7 +38001,6 @@ Xen_wrap_2_args(gxg_gdk_surface_new_child_w, gxg_gdk_surface_new_child)
 Xen_wrap_2_args(gxg_gdk_surface_new_popup_w, gxg_gdk_surface_new_popup)
 Xen_wrap_1_arg(gxg_gdk_surface_new_temp_w, gxg_gdk_surface_new_temp)
 Xen_wrap_3_args(gxg_gdk_surface_new_toplevel_w, gxg_gdk_surface_new_toplevel)
-Xen_wrap_1_arg(gxg_gdk_surface_get_group_w, gxg_gdk_surface_get_group)
 Xen_wrap_1_arg(gxg_gdk_surface_get_state_w, gxg_gdk_surface_get_state)
 Xen_wrap_1_arg(gxg_gdk_surface_get_surface_type_w, gxg_gdk_surface_get_surface_type)
 Xen_wrap_1_arg(gxg_gdk_surface_get_type_hint_w, gxg_gdk_surface_get_type_hint)
@@ -38579,7 +38042,6 @@ Xen_wrap_5_optional_args(gxg_gdk_surface_get_geometry_w, gxg_gdk_surface_get_geo
 Xen_wrap_3_optional_args(gxg_gdk_surface_get_position_w, gxg_gdk_surface_get_position)
 Xen_wrap_5_optional_args(gxg_gdk_surface_get_root_coords_w, gxg_gdk_surface_get_root_coords)
 Xen_wrap_3_optional_args(gxg_gdk_surface_get_root_origin_w, gxg_gdk_surface_get_root_origin)
-Xen_wrap_2_args(gxg_gdk_surface_get_user_data_w, gxg_gdk_surface_get_user_data)
 Xen_wrap_1_arg(gxg_gdk_surface_hide_w, gxg_gdk_surface_hide)
 Xen_wrap_1_arg(gxg_gdk_surface_iconify_w, gxg_gdk_surface_iconify)
 Xen_wrap_4_args(gxg_gdk_surface_input_shape_combine_region_w, gxg_gdk_surface_input_shape_combine_region)
@@ -38612,14 +38074,11 @@ Xen_wrap_2_args(gxg_gdk_surface_set_opacity_w, gxg_gdk_surface_set_opacity)
 Xen_wrap_2_args(gxg_gdk_surface_set_opaque_region_w, gxg_gdk_surface_set_opaque_region)
 Xen_wrap_2_args(gxg_gdk_surface_set_pass_through_w, gxg_gdk_surface_set_pass_through)
 Xen_wrap_5_args(gxg_gdk_surface_set_shadow_width_w, gxg_gdk_surface_set_shadow_width)
-Xen_wrap_2_args(gxg_gdk_surface_set_skip_pager_hint_w, gxg_gdk_surface_set_skip_pager_hint)
-Xen_wrap_2_args(gxg_gdk_surface_set_skip_taskbar_hint_w, gxg_gdk_surface_set_skip_taskbar_hint)
 Xen_wrap_2_args(gxg_gdk_surface_set_startup_id_w, gxg_gdk_surface_set_startup_id)
 Xen_wrap_2_args(gxg_gdk_surface_set_support_multidevice_w, gxg_gdk_surface_set_support_multidevice)
 Xen_wrap_2_args(gxg_gdk_surface_set_title_w, gxg_gdk_surface_set_title)
 Xen_wrap_2_args(gxg_gdk_surface_set_transient_for_w, gxg_gdk_surface_set_transient_for)
 Xen_wrap_2_args(gxg_gdk_surface_set_type_hint_w, gxg_gdk_surface_set_type_hint)
-Xen_wrap_2_args(gxg_gdk_surface_set_user_data_w, gxg_gdk_surface_set_user_data)
 Xen_wrap_1_arg(gxg_gdk_surface_show_w, gxg_gdk_surface_show)
 Xen_wrap_1_arg(gxg_gdk_surface_show_unraised_w, gxg_gdk_surface_show_unraised)
 Xen_wrap_1_arg(gxg_gdk_surface_stick_w, gxg_gdk_surface_stick)
@@ -38750,23 +38209,17 @@ Xen_wrap_3_args(gxg_gtk_widget_size_allocate_w, gxg_gtk_widget_size_allocate)
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-Xen_wrap_3_args(gxg_gtk_box_reorder_child_w, gxg_gtk_box_reorder_child)
 Xen_wrap_1_arg(gxg_gtk_drag_get_source_widget_w, gxg_gtk_drag_get_source_widget)
 Xen_wrap_2_args(gxg_gtk_search_bar_connect_entry_w, gxg_gtk_search_bar_connect_entry)
 Xen_wrap_1_arg(gxg_gtk_tree_view_get_search_entry_w, gxg_gtk_tree_view_get_search_entry)
 Xen_wrap_2_args(gxg_gtk_tree_view_set_search_entry_w, gxg_gtk_tree_view_set_search_entry)
 Xen_wrap_1_arg(gxg_gtk_menu_bar_new_from_model_w, gxg_gtk_menu_bar_new_from_model)
-Xen_wrap_1_arg(gxg_gdk_surface_handle_event_w, gxg_gdk_surface_handle_event)
-Xen_wrap_7_args(gxg_gdk_device_grab_w, gxg_gdk_device_grab)
-Xen_wrap_2_args(gxg_gdk_device_ungrab_w, gxg_gdk_device_ungrab)
-Xen_wrap_2_args(gxg_gtk_application_set_screensaver_active_w, gxg_gtk_application_set_screensaver_active)
 Xen_wrap_2_args(gxg_gtk_assistant_get_page_w, gxg_gtk_assistant_get_page)
 Xen_wrap_1_arg(gxg_gtk_assistant_page_get_child_w, gxg_gtk_assistant_page_get_child)
 Xen_wrap_1_arg(gxg_gtk_assistant_get_pages_w, gxg_gtk_assistant_get_pages)
 Xen_wrap_3_args(gxg_gtk_box_insert_child_after_w, gxg_gtk_box_insert_child_after)
 Xen_wrap_3_args(gxg_gtk_box_reorder_child_after_w, gxg_gtk_box_reorder_child_after)
 Xen_wrap_3_args(gxg_gtk_css_provider_load_named_w, gxg_gtk_css_provider_load_named)
-Xen_wrap_1_arg(gxg_gtk_editable_get_alignment_w, gxg_gtk_editable_get_alignment)
 Xen_wrap_2_args(gxg_gtk_editable_set_alignment_w, gxg_gtk_editable_set_alignment)
 Xen_wrap_1_arg(gxg_gtk_editable_get_width_chars_w, gxg_gtk_editable_get_width_chars)
 Xen_wrap_2_args(gxg_gtk_editable_set_width_chars_w, gxg_gtk_editable_set_width_chars)
@@ -38833,15 +38286,12 @@ Xen_wrap_2_args(gxg_gtk_box_layout_set_baseline_position_w, gxg_gtk_box_layout_s
 Xen_wrap_1_arg(gxg_gtk_box_layout_get_baseline_position_w, gxg_gtk_box_layout_get_baseline_position)
 Xen_wrap_3_args(gxg_gtk_custom_layout_new_w, gxg_gtk_custom_layout_new)
 Xen_wrap_no_args(gxg_gtk_event_controller_legacy_new_w, gxg_gtk_event_controller_legacy_new)
-Xen_wrap_4_args(gxg_gtk_filter_list_model_new_w, gxg_gtk_filter_list_model_new)
 Xen_wrap_1_arg(gxg_gtk_filter_list_model_new_for_type_w, gxg_gtk_filter_list_model_new_for_type)
-Xen_wrap_4_args(gxg_gtk_filter_list_model_set_filter_func_w, gxg_gtk_filter_list_model_set_filter_func)
 Xen_wrap_2_args(gxg_gtk_filter_list_model_set_model_w, gxg_gtk_filter_list_model_set_model)
 Xen_wrap_1_arg(gxg_gtk_filter_list_model_get_model_w, gxg_gtk_filter_list_model_get_model)
 Xen_wrap_1_arg(gxg_gtk_filter_list_model_has_filter_w, gxg_gtk_filter_list_model_has_filter)
 Xen_wrap_1_arg(gxg_gtk_filter_list_model_refilter_w, gxg_gtk_filter_list_model_refilter)
 Xen_wrap_no_args(gxg_gtk_fixed_layout_new_w, gxg_gtk_fixed_layout_new)
-Xen_wrap_3_args(gxg_gtk_fixed_layout_child_set_position_w, gxg_gtk_fixed_layout_child_set_position)
 Xen_wrap_2_args(gxg_gtk_flatten_list_model_new_w, gxg_gtk_flatten_list_model_new)
 Xen_wrap_2_args(gxg_gtk_flatten_list_model_set_model_w, gxg_gtk_flatten_list_model_set_model)
 Xen_wrap_1_arg(gxg_gtk_flatten_list_model_get_model_w, gxg_gtk_flatten_list_model_get_model)
@@ -38874,8 +38324,6 @@ Xen_wrap_1_arg(gxg_gtk_layout_manager_get_request_mode_w, gxg_gtk_layout_manager
 Xen_wrap_1_arg(gxg_gtk_layout_manager_get_widget_w, gxg_gtk_layout_manager_get_widget)
 Xen_wrap_1_arg(gxg_gtk_layout_manager_layout_changed_w, gxg_gtk_layout_manager_layout_changed)
 Xen_wrap_2_args(gxg_gtk_layout_manager_get_layout_child_w, gxg_gtk_layout_manager_get_layout_child)
-Xen_wrap_5_args(gxg_gtk_map_list_model_new_w, gxg_gtk_map_list_model_new)
-Xen_wrap_4_args(gxg_gtk_map_list_model_set_map_func_w, gxg_gtk_map_list_model_set_map_func)
 Xen_wrap_2_args(gxg_gtk_map_list_model_set_model_w, gxg_gtk_map_list_model_set_model)
 Xen_wrap_1_arg(gxg_gtk_map_list_model_get_model_w, gxg_gtk_map_list_model_get_model)
 Xen_wrap_1_arg(gxg_gtk_map_list_model_has_map_w, gxg_gtk_map_list_model_has_map)
@@ -38910,9 +38358,7 @@ Xen_wrap_2_args(gxg_gtk_slice_list_model_set_offset_w, gxg_gtk_slice_list_model_
 Xen_wrap_1_arg(gxg_gtk_slice_list_model_get_offset_w, gxg_gtk_slice_list_model_get_offset)
 Xen_wrap_2_args(gxg_gtk_slice_list_model_set_size_w, gxg_gtk_slice_list_model_set_size)
 Xen_wrap_1_arg(gxg_gtk_slice_list_model_get_size_w, gxg_gtk_slice_list_model_get_size)
-Xen_wrap_4_args(gxg_gtk_sort_list_model_new_w, gxg_gtk_sort_list_model_new)
 Xen_wrap_1_arg(gxg_gtk_sort_list_model_new_for_type_w, gxg_gtk_sort_list_model_new_for_type)
-Xen_wrap_4_args(gxg_gtk_sort_list_model_set_sort_func_w, gxg_gtk_sort_list_model_set_sort_func)
 Xen_wrap_1_arg(gxg_gtk_sort_list_model_has_sort_w, gxg_gtk_sort_list_model_has_sort)
 Xen_wrap_2_args(gxg_gtk_sort_list_model_set_model_w, gxg_gtk_sort_list_model_set_model)
 Xen_wrap_1_arg(gxg_gtk_sort_list_model_get_model_w, gxg_gtk_sort_list_model_get_model)
@@ -38944,7 +38390,6 @@ Xen_wrap_1_arg(gxg_gtk_text_get_attributes_w, gxg_gtk_text_get_attributes)
 Xen_wrap_2_args(gxg_gtk_text_set_tabs_w, gxg_gtk_text_set_tabs)
 Xen_wrap_1_arg(gxg_gtk_text_get_tabs_w, gxg_gtk_text_get_tabs)
 Xen_wrap_1_arg(gxg_gtk_text_grab_focus_without_selecting_w, gxg_gtk_text_grab_focus_without_selecting)
-Xen_wrap_6_args(gxg_gtk_tree_list_model_new_w, gxg_gtk_tree_list_model_new)
 Xen_wrap_1_arg(gxg_gtk_tree_list_model_get_model_w, gxg_gtk_tree_list_model_get_model)
 Xen_wrap_1_arg(gxg_gtk_tree_list_model_get_passthrough_w, gxg_gtk_tree_list_model_get_passthrough)
 Xen_wrap_2_args(gxg_gtk_tree_list_model_set_autoexpand_w, gxg_gtk_tree_list_model_set_autoexpand)
@@ -38960,18 +38405,16 @@ Xen_wrap_1_arg(gxg_gtk_tree_list_row_get_depth_w, gxg_gtk_tree_list_row_get_dept
 Xen_wrap_1_arg(gxg_gtk_tree_list_row_get_children_w, gxg_gtk_tree_list_row_get_children)
 Xen_wrap_1_arg(gxg_gtk_tree_list_row_get_parent_w, gxg_gtk_tree_list_row_get_parent)
 Xen_wrap_2_args(gxg_gtk_tree_list_row_get_child_row_w, gxg_gtk_tree_list_row_get_child_row)
-Xen_wrap_4_args(gxg_gtk_drag_get_data_w, gxg_gtk_drag_get_data)
+Xen_wrap_3_args(gxg_gtk_drag_get_data_w, gxg_gtk_drag_get_data)
 Xen_wrap_4_args(gxg_gtk_drag_set_icon_widget_w, gxg_gtk_drag_set_icon_widget)
 Xen_wrap_1_arg(gxg_gtk_drag_set_icon_default_w, gxg_gtk_drag_set_icon_default)
 Xen_wrap_4_args(gxg_gtk_drag_set_icon_name_w, gxg_gtk_drag_set_icon_name)
-Xen_wrap_2_args(gxg_gtk_drag_set_icon_surface_w, gxg_gtk_drag_set_icon_surface)
 Xen_wrap_4_args(gxg_gtk_drag_set_icon_gicon_w, gxg_gtk_drag_set_icon_gicon)
 Xen_wrap_1_arg(gxg_gtk_drag_cancel_w, gxg_gtk_drag_cancel)
-Xen_wrap_3_args(gxg_gtk_drag_finish_w, gxg_gtk_drag_finish)
-Xen_wrap_4_args(gxg_gtk_drag_set_icon_pixbuf_w, gxg_gtk_drag_set_icon_pixbuf)
-Xen_wrap_3_args(gxg_gtk_drag_dest_find_target_w, gxg_gtk_drag_dest_find_target)
 Xen_wrap_5_optional_args(gxg_gdk_surface_get_device_position_w, gxg_gdk_surface_get_device_position)
 Xen_wrap_4_args(gxg_gtk_drag_source_set_w, gxg_gtk_drag_source_set)
+Xen_wrap_4_optional_args(gxg_gdk_clipboard_read_finish_w, gxg_gdk_clipboard_read_finish)
+Xen_wrap_3_optional_args(gxg_gdk_device_get_position_w, gxg_gdk_device_get_position)
 #endif
 
 Xen_wrap_1_arg(gxg_cairo_create_w, gxg_cairo_create)
@@ -39253,7 +38696,6 @@ Xen_wrap_1_arg(gxg_GTK_ACCEL_LABEL_w, gxg_GTK_ACCEL_LABEL)
 Xen_wrap_1_arg(gxg_GTK_ACCESSIBLE_w, gxg_GTK_ACCESSIBLE)
 Xen_wrap_1_arg(gxg_GTK_ADJUSTMENT_w, gxg_GTK_ADJUSTMENT)
 Xen_wrap_1_arg(gxg_GTK_ASPECT_FRAME_w, gxg_GTK_ASPECT_FRAME)
-Xen_wrap_1_arg(gxg_GTK_BUTTON_BOX_w, gxg_GTK_BUTTON_BOX)
 Xen_wrap_1_arg(gxg_GTK_BIN_w, gxg_GTK_BIN)
 Xen_wrap_1_arg(gxg_GTK_BOX_w, gxg_GTK_BOX)
 Xen_wrap_1_arg(gxg_GTK_BUTTON_w, gxg_GTK_BUTTON)
@@ -39276,7 +38718,6 @@ Xen_wrap_1_arg(gxg_GTK_IMAGE_w, gxg_GTK_IMAGE)
 Xen_wrap_1_arg(gxg_GTK_IM_CONTEXT_w, gxg_GTK_IM_CONTEXT)
 Xen_wrap_1_arg(gxg_GTK_IM_CONTEXT_SIMPLE_w, gxg_GTK_IM_CONTEXT_SIMPLE)
 Xen_wrap_1_arg(gxg_GTK_LABEL_w, gxg_GTK_LABEL)
-Xen_wrap_1_arg(gxg_GTK_LAYOUT_w, gxg_GTK_LAYOUT)
 Xen_wrap_1_arg(gxg_GTK_LIST_STORE_w, gxg_GTK_LIST_STORE)
 Xen_wrap_1_arg(gxg_GTK_MENU_BAR_w, gxg_GTK_MENU_BAR)
 Xen_wrap_1_arg(gxg_GTK_MENU_w, gxg_GTK_MENU)
@@ -39499,7 +38940,6 @@ Xen_wrap_1_arg(gxg_GTK_IS_ACCEL_LABEL_w, gxg_GTK_IS_ACCEL_LABEL)
 Xen_wrap_1_arg(gxg_GTK_IS_ACCESSIBLE_w, gxg_GTK_IS_ACCESSIBLE)
 Xen_wrap_1_arg(gxg_GTK_IS_ADJUSTMENT_w, gxg_GTK_IS_ADJUSTMENT)
 Xen_wrap_1_arg(gxg_GTK_IS_ASPECT_FRAME_w, gxg_GTK_IS_ASPECT_FRAME)
-Xen_wrap_1_arg(gxg_GTK_IS_BUTTON_BOX_w, gxg_GTK_IS_BUTTON_BOX)
 Xen_wrap_1_arg(gxg_GTK_IS_BIN_w, gxg_GTK_IS_BIN)
 Xen_wrap_1_arg(gxg_GTK_IS_BOX_w, gxg_GTK_IS_BOX)
 Xen_wrap_1_arg(gxg_GTK_IS_BUTTON_w, gxg_GTK_IS_BUTTON)
@@ -39522,7 +38962,6 @@ Xen_wrap_1_arg(gxg_GTK_IS_IMAGE_w, gxg_GTK_IS_IMAGE)
 Xen_wrap_1_arg(gxg_GTK_IS_IM_CONTEXT_w, gxg_GTK_IS_IM_CONTEXT)
 Xen_wrap_1_arg(gxg_GTK_IS_IM_CONTEXT_SIMPLE_w, gxg_GTK_IS_IM_CONTEXT_SIMPLE)
 Xen_wrap_1_arg(gxg_GTK_IS_LABEL_w, gxg_GTK_IS_LABEL)
-Xen_wrap_1_arg(gxg_GTK_IS_LAYOUT_w, gxg_GTK_IS_LAYOUT)
 Xen_wrap_1_arg(gxg_GTK_IS_LIST_STORE_w, gxg_GTK_IS_LIST_STORE)
 Xen_wrap_1_arg(gxg_GTK_IS_MENU_BAR_w, gxg_GTK_IS_MENU_BAR)
 Xen_wrap_1_arg(gxg_GTK_IS_MENU_w, gxg_GTK_IS_MENU)
@@ -39724,9 +39163,9 @@ static void define_functions(void)
 {
 #if HAVE_SCHEME
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_sg, pl_du, pl_pr, pl_gs, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_bt, pl_tb, pl_bti, pl_btiib, pl_gu, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_gussitu, pl_t, pl_ssi, pl_ssig, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_bi, pl_big, pl_pu, pl_pur, pl_tts, pl_tti, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_i, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_g, pl_bsu, pl_bsigb, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_buui, pl_buus, pl_busu, pl_buub, pl_buig, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buuig, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_s, pl_tg, pl_iit, pl_iiit, pl_p, pl_ts, pl_tsi, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_pt, pl_tu, pl_gi, pl_igi, pl_tut, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuig, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_tuugi, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_isigutttiiu, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_b, pl_iu, pl_pi, pl_iur, pl_iug, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_bpt;
+  s7_pointer pl_pt, pl_tu, pl_tut, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuig, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tusu, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_tuugi, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_tg, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_buui, pl_buus, pl_busu, pl_buub, pl_buig, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buuig, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_iit, pl_iiit, pl_t, pl_b, pl_tts, pl_tti, pl_bt, pl_tb, pl_bti, pl_btiib, pl_isigutttiiu, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_iu, pl_pi, pl_iur, pl_iug, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_gi, pl_igi, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_i, pl_ssi, pl_ssig, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_psgbiiiit, pl_psiiuusu, pl_sg, pl_gs, pl_bi, pl_big, pl_pu, pl_pur, pl_pub, pl_pui, pl_pug, pl_pus, pl_put, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_pussu, pl_puibu, pl_pusig, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusigu, pl_pusiiu, pl_puuiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_gu, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_gussitu, pl_s, pl_p, pl_g, pl_ts, pl_tsi, pl_tsig, pl_tsiu, pl_tsiuui, pl_tsiiuui, pl_bsu, pl_bsigb, pl_bpt;
 #if GTK_CHECK_VERSION(3, 0, 0)
-  s7_pointer pl_pgr, pl_gug, pl_puuig, pl_puiiui, pl_buigu, pl_tuuugi, pl_tuuuub;
+  s7_pointer pl_tuuugi, pl_tuuuub, pl_buigu, pl_puuig, pl_puiiui, pl_pgr, pl_gug;
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -39738,11 +39177,11 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 10, 0)
-  s7_pointer pl_pusiig, pl_puuiig, pl_pusiigu, pl_tuuuui;
+  s7_pointer pl_tuuuui, pl_pusiig, pl_puuiig, pl_pusiigu;
 #endif
 
 #if GTK_CHECK_VERSION(3, 16, 0)
-  s7_pointer pl_tuurru, pl_tuurrrrg;
+  s7_pointer pl_tuurru;
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
@@ -39754,11 +39193,11 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 94, 0)
-  s7_pointer pl_pst, pl_purru, pl_purrrru, pl_busi, pl_buib, pl_tuiut, pl_tuuur, pl_tugug, pl_tugui, pl_tuuiut, pl_tutisi, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tuugggi, pl_tuuuggu, pl_iuugs, pl_piigui;
+  s7_pointer pl_tuiut, pl_tuuur, pl_tugug, pl_tugui, pl_tuuiut, pl_tutisi, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tuugggi, pl_tuuuggu, pl_busi, pl_buib, pl_iuugs, pl_piigui, pl_pst, pl_purru, pl_purrrru;
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-  s7_pointer pl_guutbgui, pl_purrg, pl_puuugi, pl_bg, pl_buiu, pl_buiib, pl_pbubt, pl_tubi, pl_tuuti, pl_tuiiiu, pl_tuugiu, pl_piut;
+  s7_pointer pl_tuiiiu, pl_tuugiu, pl_buiu, pl_buiib, pl_bg, pl_purrg, pl_puuugi;
 #endif
 
 #endif
@@ -39780,136 +39219,8 @@ static void define_functions(void)
   s_gtk_enum_t = s7_make_symbol(s7, "gtk_enum_t?");
   s_any = s7_t(s7);
 
-  pl_sg = s7_make_circular_signature(s7, 1, 2, s_string, s_gtk_enum_t);
-  pl_du = s7_make_circular_signature(s7, 1, 2, s_float, s_pair_false);
-  pl_pr = s7_make_circular_signature(s7, 1, 2, s_pair, s_real);
-  pl_gs = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_string);
-  pl_dui = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_integer);
-  pl_dus = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_string);
-  pl_dusi = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_integer);
-  pl_dusr = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_real);
-  pl_bt = s7_make_circular_signature(s7, 1, 2, s_boolean, s_any);
-  pl_tb = s7_make_circular_signature(s7, 1, 2, s_any, s_boolean);
-  pl_bti = s7_make_circular_signature(s7, 2, 3, s_boolean, s_any, s_integer);
-  pl_btiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
-  pl_gu = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_pg = s7_make_circular_signature(s7, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgi = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_pgu = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
-  pl_gui = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(s7, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(s7, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_gurrsiu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
-  pl_gussitu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
-  pl_t = s7_make_circular_signature(s7, 0, 1, s_any);
-  pl_ssi = s7_make_circular_signature(s7, 2, 3, s_string, s_string, s_integer);
-  pl_ssig = s7_make_circular_signature(s7, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
-  pl_su = s7_make_circular_signature(s7, 1, 2, s_string, s_pair_false);
-  pl_ps = s7_make_circular_signature(s7, 1, 2, s_pair, s_string);
-  pl_sui = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_integer);
-  pl_sug = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
-  pl_psi = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_integer);
-  pl_psb = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_boolean);
-  pl_psu = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_pair_false);
-  pl_sus = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_string);
-  pl_psg = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_gtk_enum_t);
-  pl_psgi = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
-  pl_psiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_integer, s_pair_false);
-  pl_psut = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_pair_false, s_any);
-  pl_suuub = s7_make_circular_signature(s7, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_psugt = s7_make_circular_signature(s7, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
-  pl_psiuub = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
-  pl_psrrrb = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_real, s_real, s_real, s_boolean);
-  pl_psgbiiiit = s7_make_circular_signature(s7, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
-  pl_psiiuusu = s7_make_circular_signature(s7, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
-  pl_bi = s7_make_circular_signature(s7, 1, 2, s_boolean, s_integer);
-  pl_big = s7_make_circular_signature(s7, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
-  pl_pu = s7_make_circular_signature(s7, 1, 2, s_pair, s_pair_false);
-  pl_pur = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_real);
-  pl_tts = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_string);
-  pl_tti = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_integer);
-  pl_pub = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_boolean);
-  pl_pui = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_integer);
-  pl_pug = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
-  pl_pus = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_string);
-  pl_put = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_any);
-  pl_pugi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_pubi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
-  pl_puri = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_real, s_integer);
-  pl_pust = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_any);
-  pl_pusi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_integer);
-  pl_pusu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
-  pl_pugu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
-  pl_puiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
-  pl_puiig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_puigu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
-  pl_pusiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
-  pl_pusub = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
-  pl_puuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
-  pl_puiiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_pussu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
-  pl_puibu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_pusig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t);
-  pl_puiigi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
-  pl_pugiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
-  pl_puuubu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
-  pl_pusigu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t, s_pair_false);
-  pl_pusiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
-  pl_puuiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_pusiuiu = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
-  pl_puuusuug = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_pusiuibu = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_i = s7_make_circular_signature(s7, 0, 1, s_integer);
-  pl_ti = s7_make_circular_signature(s7, 1, 2, s_any, s_integer);
-  pl_it = s7_make_circular_signature(s7, 1, 2, s_integer, s_any);
-  pl_tiu = s7_make_circular_signature(s7, 2, 3, s_any, s_integer, s_pair_false);
-  pl_itsub = s7_make_circular_signature(s7, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
-  pl_itiiub = s7_make_circular_signature(s7, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
-  pl_itstttg = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
-  pl_itgiiut = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
-  pl_g = s7_make_circular_signature(s7, 0, 1, s_gtk_enum_t);
-  pl_bsu = s7_make_circular_signature(s7, 2, 3, s_boolean, s_string, s_pair_false);
-  pl_bsigb = s7_make_circular_signature(s7, 4, 5, s_boolean, s_string, s_integer, s_gtk_enum_t, s_boolean);
-  pl_buuusuug = s7_make_circular_signature(s7, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_bu = s7_make_circular_signature(s7, 1, 2, s_boolean, s_pair_false);
-  pl_pb = s7_make_circular_signature(s7, 1, 2, s_pair, s_boolean);
-  pl_bur = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_real);
-  pl_bug = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
-  pl_bus = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_string);
-  pl_bui = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_integer);
-  pl_bub = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_boolean);
-  pl_buui = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
-  pl_buus = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
-  pl_busu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
-  pl_buub = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
-  pl_buig = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_busib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuub = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buttu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
-  pl_busgu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
-  pl_buuui = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_buuig = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buiuig = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_integer, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buusib = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuuub = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buurbr = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
-  pl_s = s7_make_circular_signature(s7, 0, 1, s_string);
-  pl_tg = s7_make_circular_signature(s7, 1, 2, s_any, s_gtk_enum_t);
-  pl_iit = s7_make_circular_signature(s7, 2, 3, s_integer, s_integer, s_any);
-  pl_iiit = s7_make_circular_signature(s7, 3, 4, s_integer, s_integer, s_integer, s_any);
-  pl_p = s7_make_circular_signature(s7, 0, 1, s_pair);
-  pl_ts = s7_make_circular_signature(s7, 1, 2, s_any, s_string);
-  pl_tsi = s7_make_circular_signature(s7, 2, 3, s_any, s_string, s_integer);
-  pl_tsig = s7_make_circular_signature(s7, 3, 4, s_any, s_string, s_integer, s_gtk_enum_t);
-  pl_tsiu = s7_make_circular_signature(s7, 3, 4, s_any, s_string, s_integer, s_pair_false);
-  pl_tsiuui = s7_make_circular_signature(s7, 5, 6, s_any, s_string, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_tsiiuui = s7_make_circular_signature(s7, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_pt = s7_make_circular_signature(s7, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(s7, 1, 2, s_any, s_pair_false);
-  pl_gi = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_integer);
-  pl_igi = s7_make_circular_signature(s7, 2, 3, s_integer, s_gtk_enum_t, s_integer);
   pl_tut = s7_make_circular_signature(s7, 2, 3, s_any, s_pair_false, s_any);
   pl_tus = s7_make_circular_signature(s7, 2, 3, s_any, s_pair_false, s_string);
   pl_tug = s7_make_circular_signature(s7, 2, 3, s_any, s_pair_false, s_gtk_enum_t);
@@ -39967,13 +39278,46 @@ static void define_functions(void)
   pl_tuiiiiui = s7_make_circular_signature(s7, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
   pl_tuuiiiirrrrg = s7_make_circular_signature(s7, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
   pl_tuuiiiirrrrgi = s7_make_circular_signature(s7, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
+  pl_tg = s7_make_circular_signature(s7, 1, 2, s_any, s_gtk_enum_t);
+  pl_buuusuug = s7_make_circular_signature(s7, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_bu = s7_make_circular_signature(s7, 1, 2, s_boolean, s_pair_false);
+  pl_pb = s7_make_circular_signature(s7, 1, 2, s_pair, s_boolean);
+  pl_bur = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_real);
+  pl_bug = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
+  pl_bus = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_string);
+  pl_bui = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_integer);
+  pl_bub = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_boolean);
+  pl_buui = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
+  pl_buus = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
+  pl_busu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
+  pl_buub = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
+  pl_buig = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_busib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuub = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buttu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
+  pl_busgu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
+  pl_buuui = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_buuig = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_buiuig = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_integer, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_buusib = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuuub = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buurbr = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_iit = s7_make_circular_signature(s7, 2, 3, s_integer, s_integer, s_any);
+  pl_iiit = s7_make_circular_signature(s7, 3, 4, s_integer, s_integer, s_integer, s_any);
+  pl_t = s7_make_circular_signature(s7, 0, 1, s_any);
+  pl_b = s7_make_circular_signature(s7, 0, 1, s_boolean);
+  pl_tts = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_string);
+  pl_tti = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_integer);
+  pl_bt = s7_make_circular_signature(s7, 1, 2, s_boolean, s_any);
+  pl_tb = s7_make_circular_signature(s7, 1, 2, s_any, s_boolean);
+  pl_bti = s7_make_circular_signature(s7, 2, 3, s_boolean, s_any, s_integer);
+  pl_btiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
   pl_isigutttiiu = s7_make_circular_signature(s7, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
   pl_si = s7_make_circular_signature(s7, 1, 2, s_string, s_integer);
   pl_is = s7_make_circular_signature(s7, 1, 2, s_integer, s_string);
   pl_isi = s7_make_circular_signature(s7, 2, 3, s_integer, s_string, s_integer);
   pl_sig = s7_make_circular_signature(s7, 2, 3, s_string, s_integer, s_gtk_enum_t);
   pl_isgt = s7_make_circular_signature(s7, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
-  pl_b = s7_make_circular_signature(s7, 0, 1, s_boolean);
   pl_iu = s7_make_circular_signature(s7, 1, 2, s_integer, s_pair_false);
   pl_pi = s7_make_circular_signature(s7, 1, 2, s_pair, s_integer);
   pl_iur = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_real);
@@ -39989,15 +39333,110 @@ static void define_functions(void)
   pl_iuisi = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
   pl_iuuuui = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_iuisut = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
+  pl_gi = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_integer);
+  pl_igi = s7_make_circular_signature(s7, 2, 3, s_integer, s_gtk_enum_t, s_integer);
+  pl_du = s7_make_circular_signature(s7, 1, 2, s_float, s_pair_false);
+  pl_pr = s7_make_circular_signature(s7, 1, 2, s_pair, s_real);
+  pl_dui = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_integer);
+  pl_dus = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_string);
+  pl_dusi = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_integer);
+  pl_dusr = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_real);
+  pl_i = s7_make_circular_signature(s7, 0, 1, s_integer);
+  pl_ssi = s7_make_circular_signature(s7, 2, 3, s_string, s_string, s_integer);
+  pl_ssig = s7_make_circular_signature(s7, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
+  pl_ti = s7_make_circular_signature(s7, 1, 2, s_any, s_integer);
+  pl_it = s7_make_circular_signature(s7, 1, 2, s_integer, s_any);
+  pl_tiu = s7_make_circular_signature(s7, 2, 3, s_any, s_integer, s_pair_false);
+  pl_itsub = s7_make_circular_signature(s7, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
+  pl_itiiub = s7_make_circular_signature(s7, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
+  pl_itstttg = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
+  pl_itgiiut = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
+  pl_su = s7_make_circular_signature(s7, 1, 2, s_string, s_pair_false);
+  pl_ps = s7_make_circular_signature(s7, 1, 2, s_pair, s_string);
+  pl_sui = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_integer);
+  pl_sug = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
+  pl_psi = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_integer);
+  pl_psb = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_boolean);
+  pl_psu = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_pair_false);
+  pl_sus = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_string);
+  pl_psg = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_gtk_enum_t);
+  pl_psgi = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
+  pl_psiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_integer, s_pair_false);
+  pl_psut = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_pair_false, s_any);
+  pl_suuub = s7_make_circular_signature(s7, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_psugt = s7_make_circular_signature(s7, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
+  pl_psiuub = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
+  pl_psrrrb = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_real, s_real, s_real, s_boolean);
+  pl_psgbiiiit = s7_make_circular_signature(s7, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
+  pl_psiiuusu = s7_make_circular_signature(s7, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
+  pl_sg = s7_make_circular_signature(s7, 1, 2, s_string, s_gtk_enum_t);
+  pl_gs = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_string);
+  pl_bi = s7_make_circular_signature(s7, 1, 2, s_boolean, s_integer);
+  pl_big = s7_make_circular_signature(s7, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
+  pl_pu = s7_make_circular_signature(s7, 1, 2, s_pair, s_pair_false);
+  pl_pur = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_real);
+  pl_pub = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_boolean);
+  pl_pui = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_integer);
+  pl_pug = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
+  pl_pus = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_string);
+  pl_put = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_any);
+  pl_pugi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_pubi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
+  pl_puri = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_real, s_integer);
+  pl_pust = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_any);
+  pl_pusi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_integer);
+  pl_pusu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
+  pl_pugu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_puiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
+  pl_puiig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_puigu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_pusiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
+  pl_pusub = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
+  pl_puuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
+  pl_puiiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_pussu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
+  pl_puibu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_pusig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t);
+  pl_puiigi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_pugiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
+  pl_puuubu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
+  pl_pusigu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_pusiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
+  pl_puuiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_pusiuiu = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
+  pl_puuusuug = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_pusiuibu = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_gu = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_pair_false);
+  pl_pg = s7_make_circular_signature(s7, 1, 2, s_pair, s_gtk_enum_t);
+  pl_gus = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgi = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_pgu = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
+  pl_gui = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_guut = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pgbi = s7_make_circular_signature(s7, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
+  pl_guuut = s7_make_circular_signature(s7, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_gurrsiu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
+  pl_gussitu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
+  pl_s = s7_make_circular_signature(s7, 0, 1, s_string);
+  pl_p = s7_make_circular_signature(s7, 0, 1, s_pair);
+  pl_g = s7_make_circular_signature(s7, 0, 1, s_gtk_enum_t);
+  pl_ts = s7_make_circular_signature(s7, 1, 2, s_any, s_string);
+  pl_tsi = s7_make_circular_signature(s7, 2, 3, s_any, s_string, s_integer);
+  pl_tsig = s7_make_circular_signature(s7, 3, 4, s_any, s_string, s_integer, s_gtk_enum_t);
+  pl_tsiu = s7_make_circular_signature(s7, 3, 4, s_any, s_string, s_integer, s_pair_false);
+  pl_tsiuui = s7_make_circular_signature(s7, 5, 6, s_any, s_string, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_tsiiuui = s7_make_circular_signature(s7, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_bsu = s7_make_circular_signature(s7, 2, 3, s_boolean, s_string, s_pair_false);
+  pl_bsigb = s7_make_circular_signature(s7, 4, 5, s_boolean, s_string, s_integer, s_gtk_enum_t, s_boolean);
   pl_bpt = s7_make_signature(s7, 2, s_pair_false, s_any);
 #if GTK_CHECK_VERSION(3, 0, 0)
-  pl_pgr = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_real);
-  pl_gug = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
-  pl_puuig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_puiiui = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
-  pl_buigu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
   pl_tuuugi = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuuuub = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buigu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
+  pl_puuig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_puiiui = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
+  pl_pgr = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_real);
+  pl_gug = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -40012,15 +39451,14 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 10, 0)
+  pl_tuuuui = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_pusiig = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_gtk_enum_t);
   pl_puuiig = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
   pl_pusiigu = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_integer, s_gtk_enum_t, s_pair_false);
-  pl_tuuuui = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 16, 0)
   pl_tuurru = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
-  pl_tuurrrrg = s7_make_circular_signature(s7, 7, 8, s_any, s_pair_false, s_pair_false, s_real, s_real, s_real, s_real, s_gtk_enum_t);
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
@@ -40035,11 +39473,6 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 94, 0)
-  pl_pst = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_any);
-  pl_purru = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_pair_false);
-  pl_purrrru = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
-  pl_busi = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_integer);
-  pl_buib = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
   pl_tuiut = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tuuur = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_real);
   pl_tugug = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
@@ -40051,23 +39484,23 @@ static void define_functions(void)
   pl_tusuiut = s7_make_circular_signature(s7, 6, 7, s_any, s_pair_false, s_string, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tuugggi = s7_make_circular_signature(s7, 6, 7, s_any, s_pair_false, s_pair_false, s_gtk_enum_t, s_gtk_enum_t, s_gtk_enum_t, s_integer);
   pl_tuuuggu = s7_make_circular_signature(s7, 6, 7, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_gtk_enum_t, s_pair_false);
+  pl_busi = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_integer);
+  pl_buib = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
   pl_iuugs = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
   pl_piigui = s7_make_circular_signature(s7, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_pst = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_any);
+  pl_purru = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_pair_false);
+  pl_purrrru = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-  pl_guutbgui = s7_make_circular_signature(s7, 7, 8, s_gtk_enum_t, s_pair_false, s_pair_false, s_any, s_boolean, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_purrg = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
-  pl_puuugi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_bg = s7_make_circular_signature(s7, 1, 2, s_boolean, s_gtk_enum_t);
-  pl_buiu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
-  pl_buiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
-  pl_pbubt = s7_make_circular_signature(s7, 4, 5, s_pair, s_boolean, s_pair_false, s_boolean, s_any);
-  pl_tubi = s7_make_circular_signature(s7, 3, 4, s_any, s_pair_false, s_boolean, s_integer);
-  pl_tuuti = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_pair_false, s_any, s_integer);
   pl_tuiiiu = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_integer, s_integer, s_integer, s_pair_false);
   pl_tuugiu = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer, s_pair_false);
-  pl_piut = s7_make_circular_signature(s7, 3, 4, s_pair, s_integer, s_pair_false, s_any);
+  pl_buiu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
+  pl_buiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
+  pl_bg = s7_make_circular_signature(s7, 1, 2, s_boolean, s_gtk_enum_t);
+  pl_purrg = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
+  pl_puuugi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
 #endif
 
 #endif
@@ -40228,9 +39661,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_adjustment_set_value, gxg_gtk_adjustment_set_value_w, 2, 0, 0, H_gtk_adjustment_set_value, pl_tur);
   Xg_define_procedure(gtk_aspect_frame_new, gxg_gtk_aspect_frame_new_w, 5, 0, 0, H_gtk_aspect_frame_new, pl_psrrrb);
   Xg_define_procedure(gtk_aspect_frame_set, gxg_gtk_aspect_frame_set_w, 5, 0, 0, H_gtk_aspect_frame_set, pl_turrrb);
-  Xg_define_procedure(gtk_button_box_get_layout, gxg_gtk_button_box_get_layout_w, 1, 0, 0, H_gtk_button_box_get_layout, pl_gu);
-  Xg_define_procedure(gtk_button_box_set_layout, gxg_gtk_button_box_set_layout_w, 2, 0, 0, H_gtk_button_box_set_layout, pl_tug);
-  Xg_define_procedure(gtk_button_box_set_child_secondary, gxg_gtk_button_box_set_child_secondary_w, 3, 0, 0, H_gtk_button_box_set_child_secondary, pl_tuub);
   Xg_define_procedure(gtk_binding_set_new, gxg_gtk_binding_set_new_w, 1, 0, 0, H_gtk_binding_set_new, pl_ps);
   Xg_define_procedure(gtk_binding_set_by_class, gxg_gtk_binding_set_by_class_w, 1, 0, 0, H_gtk_binding_set_by_class, pl_pt);
   Xg_define_procedure(gtk_binding_set_find, gxg_gtk_binding_set_find_w, 1, 0, 0, H_gtk_binding_set_find, pl_ps);
@@ -40303,9 +39733,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_editable_insert_text, gxg_gtk_editable_insert_text_w, 3, 1, 0, H_gtk_editable_insert_text, pl_pusiu);
   Xg_define_procedure(gtk_editable_delete_text, gxg_gtk_editable_delete_text_w, 3, 0, 0, H_gtk_editable_delete_text, pl_tui);
   Xg_define_procedure(gtk_editable_get_chars, gxg_gtk_editable_get_chars_w, 3, 0, 0, H_gtk_editable_get_chars, pl_sui);
-  Xg_define_procedure(gtk_editable_cut_clipboard, gxg_gtk_editable_cut_clipboard_w, 1, 0, 0, H_gtk_editable_cut_clipboard, pl_tu);
-  Xg_define_procedure(gtk_editable_copy_clipboard, gxg_gtk_editable_copy_clipboard_w, 1, 0, 0, H_gtk_editable_copy_clipboard, pl_tu);
-  Xg_define_procedure(gtk_editable_paste_clipboard, gxg_gtk_editable_paste_clipboard_w, 1, 0, 0, H_gtk_editable_paste_clipboard, pl_tu);
   Xg_define_procedure(gtk_editable_delete_selection, gxg_gtk_editable_delete_selection_w, 1, 0, 0, H_gtk_editable_delete_selection, pl_tu);
   Xg_define_procedure(gtk_editable_set_position, gxg_gtk_editable_set_position_w, 2, 0, 0, H_gtk_editable_set_position, pl_tui);
   Xg_define_procedure(gtk_editable_get_position, gxg_gtk_editable_get_position_w, 1, 0, 0, H_gtk_editable_get_position, pl_iu);
@@ -40379,11 +39806,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_label_get_selection_bounds, gxg_gtk_label_get_selection_bounds_w, 1, 2, 0, H_gtk_label_get_selection_bounds, pl_pu);
   Xg_define_procedure(gtk_label_get_layout, gxg_gtk_label_get_layout_w, 1, 0, 0, H_gtk_label_get_layout, pl_pu);
   Xg_define_procedure(gtk_label_get_layout_offsets, gxg_gtk_label_get_layout_offsets_w, 1, 2, 0, H_gtk_label_get_layout_offsets, pl_pu);
-  Xg_define_procedure(gtk_layout_new, gxg_gtk_layout_new_w, 2, 0, 0, H_gtk_layout_new, pl_pu);
-  Xg_define_procedure(gtk_layout_put, gxg_gtk_layout_put_w, 4, 0, 0, H_gtk_layout_put, pl_tuui);
-  Xg_define_procedure(gtk_layout_move, gxg_gtk_layout_move_w, 4, 0, 0, H_gtk_layout_move, pl_tuui);
-  Xg_define_procedure(gtk_layout_set_size, gxg_gtk_layout_set_size_w, 3, 0, 0, H_gtk_layout_set_size, pl_tui);
-  Xg_define_procedure(gtk_layout_get_size, gxg_gtk_layout_get_size_w, 1, 2, 0, H_gtk_layout_get_size, pl_pu);
   Xg_define_procedure(gtk_list_store_new, gxg_gtk_list_store_new_w, 2, 0, 0, H_gtk_list_store_new, pl_pit);
   Xg_define_procedure(gtk_list_store_newv, gxg_gtk_list_store_newv_w, 2, 0, 0, H_gtk_list_store_newv, pl_piu);
   Xg_define_procedure(gtk_list_store_set_column_types, gxg_gtk_list_store_set_column_types_w, 3, 0, 0, H_gtk_list_store_set_column_types, pl_tuiu);
@@ -41260,7 +40682,6 @@ static void define_functions(void)
   Xg_define_procedure(g_object_get_data, gxg_g_object_get_data_w, 2, 0, 0, H_g_object_get_data, pl_tus);
   Xg_define_procedure(g_object_set_data, gxg_g_object_set_data_w, 3, 0, 0, H_g_object_set_data, pl_tust);
   Xg_define_procedure(gdk_display_flush, gxg_gdk_display_flush_w, 1, 0, 0, H_gdk_display_flush, pl_tu);
-  Xg_define_procedure(gtk_button_box_get_child_secondary, gxg_gtk_button_box_get_child_secondary_w, 2, 0, 0, H_gtk_button_box_get_child_secondary, pl_bu);
   Xg_define_procedure(gtk_calendar_set_display_options, gxg_gtk_calendar_set_display_options_w, 2, 0, 0, H_gtk_calendar_set_display_options, pl_tug);
   Xg_define_procedure(gtk_calendar_get_display_options, gxg_gtk_calendar_get_display_options_w, 1, 0, 0, H_gtk_calendar_get_display_options, pl_gu);
   Xg_define_procedure(gtk_check_menu_item_set_draw_as_radio, gxg_gtk_check_menu_item_set_draw_as_radio_w, 2, 0, 0, H_gtk_check_menu_item_set_draw_as_radio, pl_tub);
@@ -41567,8 +40988,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_file_chooser_button_new_with_dialog, gxg_gtk_file_chooser_button_new_with_dialog_w, 1, 0, 0, H_gtk_file_chooser_button_new_with_dialog, pl_pu);
   Xg_define_procedure(gtk_file_chooser_button_get_title, gxg_gtk_file_chooser_button_get_title_w, 1, 0, 0, H_gtk_file_chooser_button_get_title, pl_su);
   Xg_define_procedure(gtk_file_chooser_button_set_title, gxg_gtk_file_chooser_button_set_title_w, 2, 0, 0, H_gtk_file_chooser_button_set_title, pl_tus);
-  Xg_define_procedure(gtk_entry_layout_index_to_text_index, gxg_gtk_entry_layout_index_to_text_index_w, 2, 0, 0, H_gtk_entry_layout_index_to_text_index, pl_iui);
-  Xg_define_procedure(gtk_entry_text_index_to_layout_index, gxg_gtk_entry_text_index_to_layout_index_w, 2, 0, 0, H_gtk_entry_text_index_to_layout_index, pl_iui);
   Xg_define_procedure(gtk_file_chooser_set_show_hidden, gxg_gtk_file_chooser_set_show_hidden_w, 2, 0, 0, H_gtk_file_chooser_set_show_hidden, pl_tub);
   Xg_define_procedure(gtk_file_chooser_get_show_hidden, gxg_gtk_file_chooser_get_show_hidden_w, 1, 0, 0, H_gtk_file_chooser_get_show_hidden, pl_bu);
   Xg_define_procedure(gtk_tree_view_set_hover_expand, gxg_gtk_tree_view_set_hover_expand_w, 2, 0, 0, H_gtk_tree_view_set_hover_expand, pl_tub);
@@ -42193,7 +41612,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_combo_box_text_insert, gxg_gtk_combo_box_text_insert_w, 4, 0, 0, H_gtk_combo_box_text_insert, pl_tuis);
   Xg_define_procedure(gtk_combo_box_text_append, gxg_gtk_combo_box_text_append_w, 3, 0, 0, H_gtk_combo_box_text_append, pl_tus);
   Xg_define_procedure(gtk_combo_box_text_prepend, gxg_gtk_combo_box_text_prepend_w, 3, 0, 0, H_gtk_combo_box_text_prepend, pl_tus);
-  Xg_define_procedure(gtk_button_box_new, gxg_gtk_button_box_new_w, 1, 0, 0, H_gtk_button_box_new, pl_pg);
   Xg_define_procedure(gtk_box_new, gxg_gtk_box_new_w, 2, 0, 0, H_gtk_box_new, pl_pgi);
   Xg_define_procedure(gtk_tree_view_set_cursor_on_cell, gxg_gtk_tree_view_set_cursor_on_cell_w, 5, 0, 0, H_gtk_tree_view_set_cursor_on_cell, pl_tuuuub);
   Xg_define_procedure(gtk_tree_view_set_rubber_banding, gxg_gtk_tree_view_set_rubber_banding_w, 2, 0, 0, H_gtk_tree_view_set_rubber_banding, pl_tub);
@@ -42275,8 +41693,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_expander_set_resize_toplevel, gxg_gtk_expander_set_resize_toplevel_w, 2, 0, 0, H_gtk_expander_set_resize_toplevel, pl_tub);
   Xg_define_procedure(gtk_expander_get_resize_toplevel, gxg_gtk_expander_get_resize_toplevel_w, 1, 0, 0, H_gtk_expander_get_resize_toplevel, pl_bu);
   Xg_define_procedure(gtk_widget_path_to_string, gxg_gtk_widget_path_to_string_w, 1, 0, 0, H_gtk_widget_path_to_string, pl_su);
-  Xg_define_procedure(gtk_button_box_get_child_non_homogeneous, gxg_gtk_button_box_get_child_non_homogeneous_w, 2, 0, 0, H_gtk_button_box_get_child_non_homogeneous, pl_bu);
-  Xg_define_procedure(gtk_button_box_set_child_non_homogeneous, gxg_gtk_button_box_set_child_non_homogeneous_w, 3, 0, 0, H_gtk_button_box_set_child_non_homogeneous, pl_tuub);
   Xg_define_procedure(gtk_drag_source_set_icon_gicon, gxg_gtk_drag_source_set_icon_gicon_w, 2, 0, 0, H_gtk_drag_source_set_icon_gicon, pl_tu);
   Xg_define_procedure(gtk_combo_box_set_active_id, gxg_gtk_combo_box_set_active_id_w, 2, 0, 0, H_gtk_combo_box_set_active_id, pl_bus);
   Xg_define_procedure(gtk_tree_view_column_get_x_offset, gxg_gtk_tree_view_column_get_x_offset_w, 1, 0, 0, H_gtk_tree_view_column_get_x_offset, pl_iu);
@@ -42619,7 +42035,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_render_focus, gxg_gtk_render_focus_w, 6, 0, 0, H_gtk_render_focus, pl_tuur);
   Xg_define_procedure(gtk_render_layout, gxg_gtk_render_layout_w, 5, 0, 0, H_gtk_render_layout, pl_tuurru);
   Xg_define_procedure(gtk_render_line, gxg_gtk_render_line_w, 6, 0, 0, H_gtk_render_line, pl_tuur);
-  Xg_define_procedure(gtk_render_slider, gxg_gtk_render_slider_w, 7, 0, 0, H_gtk_render_slider, pl_tuurrrrg);
   Xg_define_procedure(gtk_render_handle, gxg_gtk_render_handle_w, 6, 0, 0, H_gtk_render_handle, pl_tuur);
   Xg_define_procedure(gtk_render_activity, gxg_gtk_render_activity_w, 6, 0, 0, H_gtk_render_activity, pl_tuur);
   Xg_define_procedure(gdk_gl_context_make_current, gxg_gdk_gl_context_make_current_w, 1, 0, 0, H_gdk_gl_context_make_current, pl_tu);
@@ -42651,7 +42066,6 @@ static void define_functions(void)
   Xg_define_procedure(gdk_gl_context_set_forward_compatible, gxg_gdk_gl_context_set_forward_compatible_w, 2, 0, 0, H_gdk_gl_context_set_forward_compatible, pl_tub);
   Xg_define_procedure(gdk_gl_context_get_forward_compatible, gxg_gdk_gl_context_get_forward_compatible_w, 1, 0, 0, H_gdk_gl_context_get_forward_compatible, pl_bu);
   Xg_define_procedure(gdk_gl_context_realize, gxg_gdk_gl_context_realize_w, 1, 1, 0, H_gdk_gl_context_realize, pl_pu);
-  Xg_define_procedure(gtk_search_entry_handle_event, gxg_gtk_search_entry_handle_event_w, 2, 0, 0, H_gtk_search_entry_handle_event, pl_bu);
   Xg_define_procedure(gdk_gl_context_get_version, gxg_gdk_gl_context_get_version_w, 1, 2, 0, H_gdk_gl_context_get_version, pl_pu);
   Xg_define_procedure(gtk_gl_area_set_required_version, gxg_gtk_gl_area_set_required_version_w, 3, 0, 0, H_gtk_gl_area_set_required_version, pl_tui);
   Xg_define_procedure(gtk_gl_area_get_required_version, gxg_gtk_gl_area_get_required_version_w, 1, 2, 0, H_gtk_gl_area_get_required_version, pl_pu);
@@ -42884,7 +42298,6 @@ static void define_functions(void)
   Xg_define_procedure(gdk_clipboard_store_async, gxg_gdk_clipboard_store_async_w, 5, 0, 0, H_gdk_clipboard_store_async, pl_tuiut);
   Xg_define_procedure(gdk_clipboard_store_finish, gxg_gdk_clipboard_store_finish_w, 2, 1, 0, H_gdk_clipboard_store_finish, pl_pu);
   Xg_define_procedure(gdk_clipboard_read_async, gxg_gdk_clipboard_read_async_w, 6, 0, 0, H_gdk_clipboard_read_async, pl_tuuiut);
-  Xg_define_procedure(gdk_clipboard_read_finish, gxg_gdk_clipboard_read_finish_w, 3, 1, 0, H_gdk_clipboard_read_finish, pl_pu);
   Xg_define_procedure(gdk_clipboard_read_value_async, gxg_gdk_clipboard_read_value_async_w, 6, 0, 0, H_gdk_clipboard_read_value_async, pl_tuiiut);
   Xg_define_procedure(gdk_clipboard_read_value_finish, gxg_gdk_clipboard_read_value_finish_w, 2, 1, 0, H_gdk_clipboard_read_value_finish, pl_pu);
   Xg_define_procedure(gdk_clipboard_read_texture_async, gxg_gdk_clipboard_read_texture_async_w, 4, 0, 0, H_gdk_clipboard_read_texture_async, pl_tuut);
@@ -42961,8 +42374,6 @@ static void define_functions(void)
   Xg_define_procedure(gdk_cursor_get_texture, gxg_gdk_cursor_get_texture_w, 1, 0, 0, H_gdk_cursor_get_texture, pl_pu);
   Xg_define_procedure(gdk_cursor_get_hotspot_x, gxg_gdk_cursor_get_hotspot_x_w, 1, 0, 0, H_gdk_cursor_get_hotspot_x, pl_iu);
   Xg_define_procedure(gdk_cursor_get_hotspot_y, gxg_gdk_cursor_get_hotspot_y_w, 1, 0, 0, H_gdk_cursor_get_hotspot_y, pl_iu);
-  Xg_define_procedure(gdk_device_get_position, gxg_gdk_device_get_position_w, 1, 2, 0, H_gdk_device_get_position, pl_pu);
-  Xg_define_procedure(gdk_device_get_position_double, gxg_gdk_device_get_position_double_w, 1, 2, 0, H_gdk_device_get_position_double, pl_pu);
   Xg_define_procedure(gdk_display_get_clipboard, gxg_gdk_display_get_clipboard_w, 1, 0, 0, H_gdk_display_get_clipboard, pl_pu);
   Xg_define_procedure(gdk_display_get_primary_clipboard, gxg_gdk_display_get_primary_clipboard_w, 1, 0, 0, H_gdk_display_get_primary_clipboard, pl_pu);
   Xg_define_procedure(gdk_display_get_keymap, gxg_gdk_display_get_keymap_w, 1, 0, 0, H_gdk_display_get_keymap, pl_pu);
@@ -43027,7 +42438,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_widget_set_cursor_from_name, gxg_gtk_widget_set_cursor_from_name_w, 2, 0, 0, H_gtk_widget_set_cursor_from_name, pl_tus);
   Xg_define_procedure(gtk_widget_get_cursor, gxg_gtk_widget_get_cursor_w, 1, 0, 0, H_gtk_widget_get_cursor, pl_pu);
   Xg_define_procedure(gtk_window_set_display, gxg_gtk_window_set_display_w, 2, 0, 0, H_gtk_window_set_display, pl_tu);
-  Xg_define_procedure(gtk_window_set_default_icon, gxg_gtk_window_set_default_icon_w, 1, 0, 0, H_gtk_window_set_default_icon, pl_tu);
   Xg_define_procedure(gtk_window_fullscreen_on_monitor, gxg_gtk_window_fullscreen_on_monitor_w, 2, 0, 0, H_gtk_window_fullscreen_on_monitor, pl_tu);
   Xg_define_procedure(gtk_text_iter_get_texture, gxg_gtk_text_iter_get_texture_w, 1, 0, 0, H_gtk_text_iter_get_texture, pl_pu);
   Xg_define_procedure(gtk_icon_view_enable_model_drag_source, gxg_gtk_icon_view_enable_model_drag_source_w, 4, 0, 0, H_gtk_icon_view_enable_model_drag_source, pl_tugug);
@@ -43070,7 +42480,6 @@ static void define_functions(void)
   Xg_define_procedure(gdk_surface_new_popup, gxg_gdk_surface_new_popup_w, 2, 0, 0, H_gdk_surface_new_popup, pl_pu);
   Xg_define_procedure(gdk_surface_new_temp, gxg_gdk_surface_new_temp_w, 1, 0, 0, H_gdk_surface_new_temp, pl_pu);
   Xg_define_procedure(gdk_surface_new_toplevel, gxg_gdk_surface_new_toplevel_w, 3, 0, 0, H_gdk_surface_new_toplevel, pl_pui);
-  Xg_define_procedure(gdk_surface_get_group, gxg_gdk_surface_get_group_w, 1, 0, 0, H_gdk_surface_get_group, pl_pu);
   Xg_define_procedure(gdk_surface_get_state, gxg_gdk_surface_get_state_w, 1, 0, 0, H_gdk_surface_get_state, pl_gu);
   Xg_define_procedure(gdk_surface_get_surface_type, gxg_gdk_surface_get_surface_type_w, 1, 0, 0, H_gdk_surface_get_surface_type, pl_gu);
   Xg_define_procedure(gdk_surface_get_type_hint, gxg_gdk_surface_get_type_hint_w, 1, 0, 0, H_gdk_surface_get_type_hint, pl_gu);
@@ -43112,7 +42521,6 @@ static void define_functions(void)
   Xg_define_procedure(gdk_surface_get_position, gxg_gdk_surface_get_position_w, 1, 2, 0, H_gdk_surface_get_position, pl_pu);
   Xg_define_procedure(gdk_surface_get_root_coords, gxg_gdk_surface_get_root_coords_w, 3, 2, 0, H_gdk_surface_get_root_coords, pl_puiiu);
   Xg_define_procedure(gdk_surface_get_root_origin, gxg_gdk_surface_get_root_origin_w, 1, 2, 0, H_gdk_surface_get_root_origin, pl_pu);
-  Xg_define_procedure(gdk_surface_get_user_data, gxg_gdk_surface_get_user_data_w, 2, 0, 0, H_gdk_surface_get_user_data, pl_tu);
   Xg_define_procedure(gdk_surface_hide, gxg_gdk_surface_hide_w, 1, 0, 0, H_gdk_surface_hide, pl_tu);
   Xg_define_procedure(gdk_surface_iconify, gxg_gdk_surface_iconify_w, 1, 0, 0, H_gdk_surface_iconify, pl_tu);
   Xg_define_procedure(gdk_surface_input_shape_combine_region, gxg_gdk_surface_input_shape_combine_region_w, 4, 0, 0, H_gdk_surface_input_shape_combine_region, pl_tuui);
@@ -43145,14 +42553,11 @@ static void define_functions(void)
   Xg_define_procedure(gdk_surface_set_opaque_region, gxg_gdk_surface_set_opaque_region_w, 2, 0, 0, H_gdk_surface_set_opaque_region, pl_tu);
   Xg_define_procedure(gdk_surface_set_pass_through, gxg_gdk_surface_set_pass_through_w, 2, 0, 0, H_gdk_surface_set_pass_through, pl_tub);
   Xg_define_procedure(gdk_surface_set_shadow_width, gxg_gdk_surface_set_shadow_width_w, 5, 0, 0, H_gdk_surface_set_shadow_width, pl_tui);
-  Xg_define_procedure(gdk_surface_set_skip_pager_hint, gxg_gdk_surface_set_skip_pager_hint_w, 2, 0, 0, H_gdk_surface_set_skip_pager_hint, pl_tub);
-  Xg_define_procedure(gdk_surface_set_skip_taskbar_hint, gxg_gdk_surface_set_skip_taskbar_hint_w, 2, 0, 0, H_gdk_surface_set_skip_taskbar_hint, pl_tub);
   Xg_define_procedure(gdk_surface_set_startup_id, gxg_gdk_surface_set_startup_id_w, 2, 0, 0, H_gdk_surface_set_startup_id, pl_tus);
   Xg_define_procedure(gdk_surface_set_support_multidevice, gxg_gdk_surface_set_support_multidevice_w, 2, 0, 0, H_gdk_surface_set_support_multidevice, pl_tub);
   Xg_define_procedure(gdk_surface_set_title, gxg_gdk_surface_set_title_w, 2, 0, 0, H_gdk_surface_set_title, pl_tus);
   Xg_define_procedure(gdk_surface_set_transient_for, gxg_gdk_surface_set_transient_for_w, 2, 0, 0, H_gdk_surface_set_transient_for, pl_tu);
   Xg_define_procedure(gdk_surface_set_type_hint, gxg_gdk_surface_set_type_hint_w, 2, 0, 0, H_gdk_surface_set_type_hint, pl_tug);
-  Xg_define_procedure(gdk_surface_set_user_data, gxg_gdk_surface_set_user_data_w, 2, 0, 0, H_gdk_surface_set_user_data, pl_tut);
   Xg_define_procedure(gdk_surface_show, gxg_gdk_surface_show_w, 1, 0, 0, H_gdk_surface_show, pl_tu);
   Xg_define_procedure(gdk_surface_show_unraised, gxg_gdk_surface_show_unraised_w, 1, 0, 0, H_gdk_surface_show_unraised, pl_tu);
   Xg_define_procedure(gdk_surface_stick, gxg_gdk_surface_stick_w, 1, 0, 0, H_gdk_surface_stick, pl_tu);
@@ -43283,24 +42688,18 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-  Xg_define_procedure(gtk_box_reorder_child, gxg_gtk_box_reorder_child_w, 3, 0, 0, H_gtk_box_reorder_child, pl_tu);
   Xg_define_procedure(gtk_drag_get_source_widget, gxg_gtk_drag_get_source_widget_w, 1, 0, 0, H_gtk_drag_get_source_widget, pl_pu);
   Xg_define_procedure(gtk_search_bar_connect_entry, gxg_gtk_search_bar_connect_entry_w, 2, 0, 0, H_gtk_search_bar_connect_entry, pl_tu);
   Xg_define_procedure(gtk_tree_view_get_search_entry, gxg_gtk_tree_view_get_search_entry_w, 1, 0, 0, H_gtk_tree_view_get_search_entry, pl_pu);
   Xg_define_procedure(gtk_tree_view_set_search_entry, gxg_gtk_tree_view_set_search_entry_w, 2, 0, 0, H_gtk_tree_view_set_search_entry, pl_tu);
   Xg_define_procedure(gtk_menu_bar_new_from_model, gxg_gtk_menu_bar_new_from_model_w, 1, 0, 0, H_gtk_menu_bar_new_from_model, pl_pu);
-  Xg_define_procedure(gdk_surface_handle_event, gxg_gdk_surface_handle_event_w, 1, 0, 0, H_gdk_surface_handle_event, pl_bu);
-  Xg_define_procedure(gdk_device_grab, gxg_gdk_device_grab_w, 7, 0, 0, H_gdk_device_grab, pl_guutbgui);
-  Xg_define_procedure(gdk_device_ungrab, gxg_gdk_device_ungrab_w, 2, 0, 0, H_gdk_device_ungrab, pl_tui);
-  Xg_define_procedure(gtk_application_set_screensaver_active, gxg_gtk_application_set_screensaver_active_w, 2, 0, 0, H_gtk_application_set_screensaver_active, pl_tub);
   Xg_define_procedure(gtk_assistant_get_page, gxg_gtk_assistant_get_page_w, 2, 0, 0, H_gtk_assistant_get_page, pl_pu);
   Xg_define_procedure(gtk_assistant_page_get_child, gxg_gtk_assistant_page_get_child_w, 1, 0, 0, H_gtk_assistant_page_get_child, pl_pu);
   Xg_define_procedure(gtk_assistant_get_pages, gxg_gtk_assistant_get_pages_w, 1, 0, 0, H_gtk_assistant_get_pages, pl_pu);
   Xg_define_procedure(gtk_box_insert_child_after, gxg_gtk_box_insert_child_after_w, 3, 0, 0, H_gtk_box_insert_child_after, pl_tu);
   Xg_define_procedure(gtk_box_reorder_child_after, gxg_gtk_box_reorder_child_after_w, 3, 0, 0, H_gtk_box_reorder_child_after, pl_tu);
   Xg_define_procedure(gtk_css_provider_load_named, gxg_gtk_css_provider_load_named_w, 3, 0, 0, H_gtk_css_provider_load_named, pl_tus);
-  Xg_define_procedure(gtk_editable_get_alignment, gxg_gtk_editable_get_alignment_w, 1, 0, 0, H_gtk_editable_get_alignment, pl_tu);
-  Xg_define_procedure(gtk_editable_set_alignment, gxg_gtk_editable_set_alignment_w, 2, 0, 0, H_gtk_editable_set_alignment, pl_tut);
+  Xg_define_procedure(gtk_editable_set_alignment, gxg_gtk_editable_set_alignment_w, 2, 0, 0, H_gtk_editable_set_alignment, pl_tur);
   Xg_define_procedure(gtk_editable_get_width_chars, gxg_gtk_editable_get_width_chars_w, 1, 0, 0, H_gtk_editable_get_width_chars, pl_iu);
   Xg_define_procedure(gtk_editable_set_width_chars, gxg_gtk_editable_set_width_chars_w, 2, 0, 0, H_gtk_editable_set_width_chars, pl_tui);
   Xg_define_procedure(gtk_editable_get_max_width_chars, gxg_gtk_editable_get_max_width_chars_w, 1, 0, 0, H_gtk_editable_get_max_width_chars, pl_iu);
@@ -43366,15 +42765,12 @@ static void define_functions(void)
   Xg_define_procedure(gtk_box_layout_get_baseline_position, gxg_gtk_box_layout_get_baseline_position_w, 1, 0, 0, H_gtk_box_layout_get_baseline_position, pl_gu);
   Xg_define_procedure(gtk_custom_layout_new, gxg_gtk_custom_layout_new_w, 3, 0, 0, H_gtk_custom_layout_new, pl_pt);
   Xg_define_procedure(gtk_event_controller_legacy_new, gxg_gtk_event_controller_legacy_new_w, 0, 0, 0, H_gtk_event_controller_legacy_new, pl_p);
-  Xg_define_procedure(gtk_filter_list_model_new, gxg_gtk_filter_list_model_new_w, 4, 0, 0, H_gtk_filter_list_model_new, pl_put);
   Xg_define_procedure(gtk_filter_list_model_new_for_type, gxg_gtk_filter_list_model_new_for_type_w, 1, 0, 0, H_gtk_filter_list_model_new_for_type, pl_pi);
-  Xg_define_procedure(gtk_filter_list_model_set_filter_func, gxg_gtk_filter_list_model_set_filter_func_w, 4, 0, 0, H_gtk_filter_list_model_set_filter_func, pl_tut);
   Xg_define_procedure(gtk_filter_list_model_set_model, gxg_gtk_filter_list_model_set_model_w, 2, 0, 0, H_gtk_filter_list_model_set_model, pl_tu);
   Xg_define_procedure(gtk_filter_list_model_get_model, gxg_gtk_filter_list_model_get_model_w, 1, 0, 0, H_gtk_filter_list_model_get_model, pl_pu);
   Xg_define_procedure(gtk_filter_list_model_has_filter, gxg_gtk_filter_list_model_has_filter_w, 1, 0, 0, H_gtk_filter_list_model_has_filter, pl_bu);
   Xg_define_procedure(gtk_filter_list_model_refilter, gxg_gtk_filter_list_model_refilter_w, 1, 0, 0, H_gtk_filter_list_model_refilter, pl_tu);
   Xg_define_procedure(gtk_fixed_layout_new, gxg_gtk_fixed_layout_new_w, 0, 0, 0, H_gtk_fixed_layout_new, pl_p);
-  Xg_define_procedure(gtk_fixed_layout_child_set_position, gxg_gtk_fixed_layout_child_set_position_w, 3, 0, 0, H_gtk_fixed_layout_child_set_position, pl_tu);
   Xg_define_procedure(gtk_flatten_list_model_new, gxg_gtk_flatten_list_model_new_w, 2, 0, 0, H_gtk_flatten_list_model_new, pl_piu);
   Xg_define_procedure(gtk_flatten_list_model_set_model, gxg_gtk_flatten_list_model_set_model_w, 2, 0, 0, H_gtk_flatten_list_model_set_model, pl_tu);
   Xg_define_procedure(gtk_flatten_list_model_get_model, gxg_gtk_flatten_list_model_get_model_w, 1, 0, 0, H_gtk_flatten_list_model_get_model, pl_pu);
@@ -43407,8 +42803,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_layout_manager_get_widget, gxg_gtk_layout_manager_get_widget_w, 1, 0, 0, H_gtk_layout_manager_get_widget, pl_pu);
   Xg_define_procedure(gtk_layout_manager_layout_changed, gxg_gtk_layout_manager_layout_changed_w, 1, 0, 0, H_gtk_layout_manager_layout_changed, pl_tu);
   Xg_define_procedure(gtk_layout_manager_get_layout_child, gxg_gtk_layout_manager_get_layout_child_w, 2, 0, 0, H_gtk_layout_manager_get_layout_child, pl_pu);
-  Xg_define_procedure(gtk_map_list_model_new, gxg_gtk_map_list_model_new_w, 5, 0, 0, H_gtk_map_list_model_new, pl_piut);
-  Xg_define_procedure(gtk_map_list_model_set_map_func, gxg_gtk_map_list_model_set_map_func_w, 4, 0, 0, H_gtk_map_list_model_set_map_func, pl_tut);
   Xg_define_procedure(gtk_map_list_model_set_model, gxg_gtk_map_list_model_set_model_w, 2, 0, 0, H_gtk_map_list_model_set_model, pl_tu);
   Xg_define_procedure(gtk_map_list_model_get_model, gxg_gtk_map_list_model_get_model_w, 1, 0, 0, H_gtk_map_list_model_get_model, pl_pu);
   Xg_define_procedure(gtk_map_list_model_has_map, gxg_gtk_map_list_model_has_map_w, 1, 0, 0, H_gtk_map_list_model_has_map, pl_bu);
@@ -43443,9 +42837,7 @@ static void define_functions(void)
   Xg_define_procedure(gtk_slice_list_model_get_offset, gxg_gtk_slice_list_model_get_offset_w, 1, 0, 0, H_gtk_slice_list_model_get_offset, pl_iu);
   Xg_define_procedure(gtk_slice_list_model_set_size, gxg_gtk_slice_list_model_set_size_w, 2, 0, 0, H_gtk_slice_list_model_set_size, pl_tui);
   Xg_define_procedure(gtk_slice_list_model_get_size, gxg_gtk_slice_list_model_get_size_w, 1, 0, 0, H_gtk_slice_list_model_get_size, pl_iu);
-  Xg_define_procedure(gtk_sort_list_model_new, gxg_gtk_sort_list_model_new_w, 4, 0, 0, H_gtk_sort_list_model_new, pl_put);
   Xg_define_procedure(gtk_sort_list_model_new_for_type, gxg_gtk_sort_list_model_new_for_type_w, 1, 0, 0, H_gtk_sort_list_model_new_for_type, pl_pi);
-  Xg_define_procedure(gtk_sort_list_model_set_sort_func, gxg_gtk_sort_list_model_set_sort_func_w, 4, 0, 0, H_gtk_sort_list_model_set_sort_func, pl_tut);
   Xg_define_procedure(gtk_sort_list_model_has_sort, gxg_gtk_sort_list_model_has_sort_w, 1, 0, 0, H_gtk_sort_list_model_has_sort, pl_bu);
   Xg_define_procedure(gtk_sort_list_model_set_model, gxg_gtk_sort_list_model_set_model_w, 2, 0, 0, H_gtk_sort_list_model_set_model, pl_tu);
   Xg_define_procedure(gtk_sort_list_model_get_model, gxg_gtk_sort_list_model_get_model_w, 1, 0, 0, H_gtk_sort_list_model_get_model, pl_pu);
@@ -43477,7 +42869,6 @@ static void define_functions(void)
   Xg_define_procedure(gtk_text_set_tabs, gxg_gtk_text_set_tabs_w, 2, 0, 0, H_gtk_text_set_tabs, pl_tu);
   Xg_define_procedure(gtk_text_get_tabs, gxg_gtk_text_get_tabs_w, 1, 0, 0, H_gtk_text_get_tabs, pl_pu);
   Xg_define_procedure(gtk_text_grab_focus_without_selecting, gxg_gtk_text_grab_focus_without_selecting_w, 1, 0, 0, H_gtk_text_grab_focus_without_selecting, pl_tu);
-  Xg_define_procedure(gtk_tree_list_model_new, gxg_gtk_tree_list_model_new_w, 6, 0, 0, H_gtk_tree_list_model_new, pl_pbubt);
   Xg_define_procedure(gtk_tree_list_model_get_model, gxg_gtk_tree_list_model_get_model_w, 1, 0, 0, H_gtk_tree_list_model_get_model, pl_pu);
   Xg_define_procedure(gtk_tree_list_model_get_passthrough, gxg_gtk_tree_list_model_get_passthrough_w, 1, 0, 0, H_gtk_tree_list_model_get_passthrough, pl_bu);
   Xg_define_procedure(gtk_tree_list_model_set_autoexpand, gxg_gtk_tree_list_model_set_autoexpand_w, 2, 0, 0, H_gtk_tree_list_model_set_autoexpand, pl_tub);
@@ -43493,18 +42884,16 @@ static void define_functions(void)
   Xg_define_procedure(gtk_tree_list_row_get_children, gxg_gtk_tree_list_row_get_children_w, 1, 0, 0, H_gtk_tree_list_row_get_children, pl_pu);
   Xg_define_procedure(gtk_tree_list_row_get_parent, gxg_gtk_tree_list_row_get_parent_w, 1, 0, 0, H_gtk_tree_list_row_get_parent, pl_pu);
   Xg_define_procedure(gtk_tree_list_row_get_child_row, gxg_gtk_tree_list_row_get_child_row_w, 2, 0, 0, H_gtk_tree_list_row_get_child_row, pl_pui);
-  Xg_define_procedure(gtk_drag_get_data, gxg_gtk_drag_get_data_w, 4, 0, 0, H_gtk_drag_get_data, pl_tuuti);
+  Xg_define_procedure(gtk_drag_get_data, gxg_gtk_drag_get_data_w, 3, 0, 0, H_gtk_drag_get_data, pl_tuut);
   Xg_define_procedure(gtk_drag_set_icon_widget, gxg_gtk_drag_set_icon_widget_w, 4, 0, 0, H_gtk_drag_set_icon_widget, pl_tuui);
   Xg_define_procedure(gtk_drag_set_icon_default, gxg_gtk_drag_set_icon_default_w, 1, 0, 0, H_gtk_drag_set_icon_default, pl_tu);
   Xg_define_procedure(gtk_drag_set_icon_name, gxg_gtk_drag_set_icon_name_w, 4, 0, 0, H_gtk_drag_set_icon_name, pl_tusi);
-  Xg_define_procedure(gtk_drag_set_icon_surface, gxg_gtk_drag_set_icon_surface_w, 2, 0, 0, H_gtk_drag_set_icon_surface, pl_tu);
   Xg_define_procedure(gtk_drag_set_icon_gicon, gxg_gtk_drag_set_icon_gicon_w, 4, 0, 0, H_gtk_drag_set_icon_gicon, pl_tuui);
   Xg_define_procedure(gtk_drag_cancel, gxg_gtk_drag_cancel_w, 1, 0, 0, H_gtk_drag_cancel, pl_tu);
-  Xg_define_procedure(gtk_drag_finish, gxg_gtk_drag_finish_w, 3, 0, 0, H_gtk_drag_finish, pl_tubi);
-  Xg_define_procedure(gtk_drag_set_icon_pixbuf, gxg_gtk_drag_set_icon_pixbuf_w, 4, 0, 0, H_gtk_drag_set_icon_pixbuf, pl_tuui);
-  Xg_define_procedure(gtk_drag_dest_find_target, gxg_gtk_drag_dest_find_target_w, 3, 0, 0, H_gtk_drag_dest_find_target, pl_su);
   Xg_define_procedure(gdk_surface_get_device_position, gxg_gdk_surface_get_device_position_w, 3, 2, 0, H_gdk_surface_get_device_position, pl_pu);
   Xg_define_procedure(gtk_drag_source_set, gxg_gtk_drag_source_set_w, 4, 0, 0, H_gtk_drag_source_set, pl_tugug);
+  Xg_define_procedure(gdk_clipboard_read_finish, gxg_gdk_clipboard_read_finish_w, 3, 1, 0, H_gdk_clipboard_read_finish, pl_pu);
+  Xg_define_procedure(gdk_device_get_position, gxg_gdk_device_get_position_w, 1, 2, 0, H_gdk_device_get_position, pl_pu);
 #endif
 
   Xg_define_procedure(cairo_create, gxg_cairo_create_w, 1, 0, 0, H_cairo_create, pl_pu);
@@ -43774,7 +43163,6 @@ static void define_functions(void)
   Xg_define_procedure(GTK_ACCESSIBLE, gxg_GTK_ACCESSIBLE_w, 1, 0, 0, "(GTK_ACCESSIBLE obj) casts obj to GTK_ACCESSIBLE", pl_bpt);
   Xg_define_procedure(GTK_ADJUSTMENT, gxg_GTK_ADJUSTMENT_w, 1, 0, 0, "(GTK_ADJUSTMENT obj) casts obj to GTK_ADJUSTMENT", pl_bpt);
   Xg_define_procedure(GTK_ASPECT_FRAME, gxg_GTK_ASPECT_FRAME_w, 1, 0, 0, "(GTK_ASPECT_FRAME obj) casts obj to GTK_ASPECT_FRAME", pl_bpt);
-  Xg_define_procedure(GTK_BUTTON_BOX, gxg_GTK_BUTTON_BOX_w, 1, 0, 0, "(GTK_BUTTON_BOX obj) casts obj to GTK_BUTTON_BOX", pl_bpt);
   Xg_define_procedure(GTK_BIN, gxg_GTK_BIN_w, 1, 0, 0, "(GTK_BIN obj) casts obj to GTK_BIN", pl_bpt);
   Xg_define_procedure(GTK_BOX, gxg_GTK_BOX_w, 1, 0, 0, "(GTK_BOX obj) casts obj to GTK_BOX", pl_bpt);
   Xg_define_procedure(GTK_BUTTON, gxg_GTK_BUTTON_w, 1, 0, 0, "(GTK_BUTTON obj) casts obj to GTK_BUTTON", pl_bpt);
@@ -43797,7 +43185,6 @@ static void define_functions(void)
   Xg_define_procedure(GTK_IM_CONTEXT, gxg_GTK_IM_CONTEXT_w, 1, 0, 0, "(GTK_IM_CONTEXT obj) casts obj to GTK_IM_CONTEXT", pl_bpt);
   Xg_define_procedure(GTK_IM_CONTEXT_SIMPLE, gxg_GTK_IM_CONTEXT_SIMPLE_w, 1, 0, 0, "(GTK_IM_CONTEXT_SIMPLE obj) casts obj to GTK_IM_CONTEXT_SIMPLE", pl_bpt);
   Xg_define_procedure(GTK_LABEL, gxg_GTK_LABEL_w, 1, 0, 0, "(GTK_LABEL obj) casts obj to GTK_LABEL", pl_bpt);
-  Xg_define_procedure(GTK_LAYOUT, gxg_GTK_LAYOUT_w, 1, 0, 0, "(GTK_LAYOUT obj) casts obj to GTK_LAYOUT", pl_bpt);
   Xg_define_procedure(GTK_LIST_STORE, gxg_GTK_LIST_STORE_w, 1, 0, 0, "(GTK_LIST_STORE obj) casts obj to GTK_LIST_STORE", pl_bpt);
   Xg_define_procedure(GTK_MENU_BAR, gxg_GTK_MENU_BAR_w, 1, 0, 0, "(GTK_MENU_BAR obj) casts obj to GTK_MENU_BAR", pl_bpt);
   Xg_define_procedure(GTK_MENU, gxg_GTK_MENU_w, 1, 0, 0, "(GTK_MENU obj) casts obj to GTK_MENU", pl_bpt);
@@ -44032,7 +43419,6 @@ static void define_functions(void)
   Xg_define_procedure(GTK_IS_ACCESSIBLE, gxg_GTK_IS_ACCESSIBLE_w, 1, 0, 0, "(GTK_IS_ACCESSIBLE obj): " PROC_TRUE " if obj is a GtkAccessible*", pl_bt);
   Xg_define_procedure(GTK_IS_ADJUSTMENT, gxg_GTK_IS_ADJUSTMENT_w, 1, 0, 0, "(GTK_IS_ADJUSTMENT obj): " PROC_TRUE " if obj is a GtkAdjustment*", pl_bt);
   Xg_define_procedure(GTK_IS_ASPECT_FRAME, gxg_GTK_IS_ASPECT_FRAME_w, 1, 0, 0, "(GTK_IS_ASPECT_FRAME obj): " PROC_TRUE " if obj is a GtkAspectFrame*", pl_bt);
-  Xg_define_procedure(GTK_IS_BUTTON_BOX, gxg_GTK_IS_BUTTON_BOX_w, 1, 0, 0, "(GTK_IS_BUTTON_BOX obj): " PROC_TRUE " if obj is a GtkButtonBox*", pl_bt);
   Xg_define_procedure(GTK_IS_BIN, gxg_GTK_IS_BIN_w, 1, 0, 0, "(GTK_IS_BIN obj): " PROC_TRUE " if obj is a GtkBin*", pl_bt);
   Xg_define_procedure(GTK_IS_BOX, gxg_GTK_IS_BOX_w, 1, 0, 0, "(GTK_IS_BOX obj): " PROC_TRUE " if obj is a GtkBox*", pl_bt);
   Xg_define_procedure(GTK_IS_BUTTON, gxg_GTK_IS_BUTTON_w, 1, 0, 0, "(GTK_IS_BUTTON obj): " PROC_TRUE " if obj is a GtkButton*", pl_bt);
@@ -44055,7 +43441,6 @@ static void define_functions(void)
   Xg_define_procedure(GTK_IS_IM_CONTEXT, gxg_GTK_IS_IM_CONTEXT_w, 1, 0, 0, "(GTK_IS_IM_CONTEXT obj): " PROC_TRUE " if obj is a GtkIMContext*", pl_bt);
   Xg_define_procedure(GTK_IS_IM_CONTEXT_SIMPLE, gxg_GTK_IS_IM_CONTEXT_SIMPLE_w, 1, 0, 0, "(GTK_IS_IM_CONTEXT_SIMPLE obj): " PROC_TRUE " if obj is a GtkIMContextSimple*", pl_bt);
   Xg_define_procedure(GTK_IS_LABEL, gxg_GTK_IS_LABEL_w, 1, 0, 0, "(GTK_IS_LABEL obj): " PROC_TRUE " if obj is a GtkLabel*", pl_bt);
-  Xg_define_procedure(GTK_IS_LAYOUT, gxg_GTK_IS_LAYOUT_w, 1, 0, 0, "(GTK_IS_LAYOUT obj): " PROC_TRUE " if obj is a GtkLayout*", pl_bt);
   Xg_define_procedure(GTK_IS_LIST_STORE, gxg_GTK_IS_LIST_STORE_w, 1, 0, 0, "(GTK_IS_LIST_STORE obj): " PROC_TRUE " if obj is a GtkListStore*", pl_bt);
   Xg_define_procedure(GTK_IS_MENU_BAR, gxg_GTK_IS_MENU_BAR_w, 1, 0, 0, "(GTK_IS_MENU_BAR obj): " PROC_TRUE " if obj is a GtkMenuBar*", pl_bt);
   Xg_define_procedure(GTK_IS_MENU, gxg_GTK_IS_MENU_w, 1, 0, 0, "(GTK_IS_MENU obj): " PROC_TRUE " if obj is a GtkMenu*", pl_bt);
@@ -44431,11 +43816,6 @@ static void define_integers(void)
   define_integer(GTK_DEST_DEFAULT_HIGHLIGHT);
   define_integer(GTK_DEST_DEFAULT_DROP);
   define_integer(GTK_DEST_DEFAULT_ALL);
-  define_integer(GTK_BUTTONBOX_SPREAD);
-  define_integer(GTK_BUTTONBOX_EDGE);
-  define_integer(GTK_BUTTONBOX_START);
-  define_integer(GTK_BUTTONBOX_END);
-  define_integer(GTK_BUTTONBOX_CENTER);
   define_integer(GTK_DELETE_CHARS);
   define_integer(GTK_DELETE_WORD_ENDS);
   define_integer(GTK_DELETE_WORDS);
@@ -45592,22 +44972,17 @@ static void define_doubles(void)
 static void define_symbols(void)
 {
   xg_GtkTreeListRow__symbol = C_string_to_Xen_symbol("GtkTreeListRow_");
-  xg_GtkTreeListModelCreateModelFunc_symbol = C_string_to_Xen_symbol("GtkTreeListModelCreateModelFunc");
   xg_GtkTreeListModel__symbol = C_string_to_Xen_symbol("GtkTreeListModel_");
   xg_GtkText__symbol = C_string_to_Xen_symbol("GtkText_");
-  xg_GCompareDataFunc_symbol = C_string_to_Xen_symbol("GCompareDataFunc");
   xg_GtkSortListModel__symbol = C_string_to_Xen_symbol("GtkSortListModel_");
   xg_GtkSliceListModel__symbol = C_string_to_Xen_symbol("GtkSliceListModel_");
   xg_GtkSingleSelection__symbol = C_string_to_Xen_symbol("GtkSingleSelection_");
   xg_GtkPasswordEntry__symbol = C_string_to_Xen_symbol("GtkPasswordEntry_");
-  xg_GtkMapListModelMapFunc_symbol = C_string_to_Xen_symbol("GtkMapListModelMapFunc");
   xg_GtkMapListModel__symbol = C_string_to_Xen_symbol("GtkMapListModel_");
   xg_GtkLayoutChild__symbol = C_string_to_Xen_symbol("GtkLayoutChild_");
   xg_GtkGridLayoutChild__symbol = C_string_to_Xen_symbol("GtkGridLayoutChild_");
   xg_GtkGridLayout__symbol = C_string_to_Xen_symbol("GtkGridLayout_");
   xg_GtkFlattenListModel__symbol = C_string_to_Xen_symbol("GtkFlattenListModel_");
-  xg_GtkFixedLayoutChild__symbol = C_string_to_Xen_symbol("GtkFixedLayoutChild_");
-  xg_GtkFilterListModelFilterFunc_symbol = C_string_to_Xen_symbol("GtkFilterListModelFilterFunc");
   xg_GtkFilterListModel__symbol = C_string_to_Xen_symbol("GtkFilterListModel_");
   xg_GtkCustomAllocateFunc_symbol = C_string_to_Xen_symbol("GtkCustomAllocateFunc");
   xg_GtkCustomMeasureFunc_symbol = C_string_to_Xen_symbol("GtkCustomMeasureFunc");
@@ -45633,9 +45008,6 @@ static void define_symbols(void)
   xg_float_symbol = C_string_to_Xen_symbol("float");
   xg_GListModel__symbol = C_string_to_Xen_symbol("GListModel_");
   xg_GtkAssistantPage__symbol = C_string_to_Xen_symbol("GtkAssistantPage_");
-  xg_GdkEventMask_symbol = C_string_to_Xen_symbol("GdkEventMask");
-  xg_GdkGrabOwnership_symbol = C_string_to_Xen_symbol("GdkGrabOwnership");
-  xg_GdkGrabStatus_symbol = C_string_to_Xen_symbol("GdkGrabStatus");
   xg_GtkAllocation__symbol = C_string_to_Xen_symbol("GtkAllocation_");
   xg_GActionGroup__symbol = C_string_to_Xen_symbol("GActionGroup_");
   xg_GtkWidgetPaintable__symbol = C_string_to_Xen_symbol("GtkWidgetPaintable_");
@@ -45657,7 +45029,6 @@ static void define_symbols(void)
   xg_GdkWMFunction_symbol = C_string_to_Xen_symbol("GdkWMFunction");
   xg_GdkWMDecoration_symbol = C_string_to_Xen_symbol("GdkWMDecoration");
   xg_GdkAnchorHints_symbol = C_string_to_Xen_symbol("GdkAnchorHints");
-  xg_gpointer__symbol = C_string_to_Xen_symbol("gpointer_");
   xg_GdkSurfaceHints_symbol = C_string_to_Xen_symbol("GdkSurfaceHints");
   xg_GdkGeometry__symbol = C_string_to_Xen_symbol("GdkGeometry_");
   xg_GdkSurfaceEdge_symbol = C_string_to_Xen_symbol("GdkSurfaceEdge");
@@ -45680,13 +45051,13 @@ static void define_symbols(void)
   xg_GdkDragAction_symbol = C_string_to_Xen_symbol("GdkDragAction");
   xg_GdkCursor__symbol = C_string_to_Xen_symbol("GdkCursor_");
   xg_GBytes__symbol = C_string_to_Xen_symbol("GBytes_");
+  xg_GInputStream__symbol = C_string_to_Xen_symbol("GInputStream_");
   xg_GdkContentDeserializer__symbol = C_string_to_Xen_symbol("GdkContentDeserializer_");
   xg_GdkContentSerializer__symbol = C_string_to_Xen_symbol("GdkContentSerializer_");
   xg_GOutputStream__symbol = C_string_to_Xen_symbol("GOutputStream_");
   xg_GdkContentFormatsBuilder__symbol = C_string_to_Xen_symbol("GdkContentFormatsBuilder_");
   xg_GString__symbol = C_string_to_Xen_symbol("GString_");
   xg_GdkTexture__symbol = C_string_to_Xen_symbol("GdkTexture_");
-  xg_GInputStream__symbol = C_string_to_Xen_symbol("GInputStream_");
   xg_GAsyncResult__symbol = C_string_to_Xen_symbol("GAsyncResult_");
   xg_GAsyncReadyCallback_symbol = C_string_to_Xen_symbol("GAsyncReadyCallback");
   xg_GCancellable__symbol = C_string_to_Xen_symbol("GCancellable_");
@@ -45724,7 +45095,6 @@ static void define_symbols(void)
   xg_GtkPopoverConstraint_symbol = C_string_to_Xen_symbol("GtkPopoverConstraint");
   xg_GtkShortcutsWindow__symbol = C_string_to_Xen_symbol("GtkShortcutsWindow_");
   xg_GtkStackSidebar__symbol = C_string_to_Xen_symbol("GtkStackSidebar_");
-  xg_GtkSearchEntry__symbol = C_string_to_Xen_symbol("GtkSearchEntry_");
   xg_GtkStyleContext__symbol = C_string_to_Xen_symbol("GtkStyleContext_");
   xg_GdkGLContext__symbol = C_string_to_Xen_symbol("GdkGLContext_");
   xg_GtkGLArea__symbol = C_string_to_Xen_symbol("GtkGLArea_");
@@ -46013,7 +45383,6 @@ static void define_symbols(void)
   xg_GtkMenu__symbol = C_string_to_Xen_symbol("GtkMenu_");
   xg_PangoLanguage__symbol = C_string_to_Xen_symbol("PangoLanguage_");
   xg_GtkListStore__symbol = C_string_to_Xen_symbol("GtkListStore_");
-  xg_GtkLayout__symbol = C_string_to_Xen_symbol("GtkLayout_");
   xg_PangoLayout__symbol = C_string_to_Xen_symbol("PangoLayout_");
   xg_GtkJustification_symbol = C_string_to_Xen_symbol("GtkJustification");
   xg_GtkLabel__symbol = C_string_to_Xen_symbol("GtkLabel_");
@@ -46045,8 +45414,6 @@ static void define_symbols(void)
   xg_GtkBox__symbol = C_string_to_Xen_symbol("GtkBox_");
   xg_GtkBin__symbol = C_string_to_Xen_symbol("GtkBin_");
   xg_GtkBindingSet__symbol = C_string_to_Xen_symbol("GtkBindingSet_");
-  xg_GtkButtonBox__symbol = C_string_to_Xen_symbol("GtkButtonBox_");
-  xg_GtkButtonBoxStyle_symbol = C_string_to_Xen_symbol("GtkButtonBoxStyle");
   xg_GtkAspectFrame__symbol = C_string_to_Xen_symbol("GtkAspectFrame_");
   xg_GtkAdjustment__symbol = C_string_to_Xen_symbol("GtkAdjustment_");
   xg_GtkAccelMapForeach_symbol = C_string_to_Xen_symbol("GtkAccelMapForeach");
@@ -46129,6 +45496,7 @@ static void define_symbols(void)
   xg_cairo_font_options_t__symbol = C_string_to_Xen_symbol("cairo_font_options_t_");
   xg_PangoFontDescription__symbol = C_string_to_Xen_symbol("PangoFontDescription_");
   xg_GtkMenuBar__symbol = C_string_to_Xen_symbol("GtkMenuBar_");
+  xg_GtkEventControllerLegacy__symbol = C_string_to_Xen_symbol("GtkEventControllerLegacy_");
   xg_GtkCellRendererPixbuf__symbol = C_string_to_Xen_symbol("GtkCellRendererPixbuf_");
   xg_GtkSeparator__symbol = C_string_to_Xen_symbol("GtkSeparator_");
   xg_GtkSeparatorMenuItem__symbol = C_string_to_Xen_symbol("GtkSeparatorMenuItem_");
@@ -46469,11 +45837,6 @@ static enummer_t enum_info[] = {
         {"GTK_DEST_DEFAULT_HIGHLIGHT", "GtkDestDefaults", GTK_DEST_DEFAULT_HIGHLIGHT},
         {"GTK_DEST_DEFAULT_DROP", "GtkDestDefaults", GTK_DEST_DEFAULT_DROP},
         {"GTK_DEST_DEFAULT_ALL", "GtkDestDefaults", GTK_DEST_DEFAULT_ALL},
-        {"GTK_BUTTONBOX_SPREAD", "GtkButtonBoxStyle", GTK_BUTTONBOX_SPREAD},
-        {"GTK_BUTTONBOX_EDGE", "GtkButtonBoxStyle", GTK_BUTTONBOX_EDGE},
-        {"GTK_BUTTONBOX_START", "GtkButtonBoxStyle", GTK_BUTTONBOX_START},
-        {"GTK_BUTTONBOX_END", "GtkButtonBoxStyle", GTK_BUTTONBOX_END},
-        {"GTK_BUTTONBOX_CENTER", "GtkButtonBoxStyle", GTK_BUTTONBOX_CENTER},
         {"GTK_DELETE_CHARS", "GtkDeleteType", GTK_DELETE_CHARS},
         {"GTK_DELETE_WORD_ENDS", "GtkDeleteType", GTK_DELETE_WORD_ENDS},
         {"GTK_DELETE_WORDS", "GtkDeleteType", GTK_DELETE_WORDS},
@@ -47483,7 +46846,7 @@ void Init_libxg(void)
           Xen_provide_feature("gtk2");
         #endif
       #endif
-      Xen_define("xg-version", C_string_to_Xen_string("10-May-19"));
+      Xen_define("xg-version", C_string_to_Xen_string("15-May-19"));
       xg_already_inited = true;
 #if HAVE_SCHEME
 #if USE_SND

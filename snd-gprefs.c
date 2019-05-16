@@ -594,6 +594,7 @@ static GtkWidget *make_row_text(prefs_info *prf, const char *text_value, int col
   gtk_entry_set_has_frame(GTK_ENTRY(w), true);
   if (text_value) sg_entry_set_text(GTK_ENTRY(w), text_value);
   gtk_entry_set_has_frame(GTK_ENTRY(w), false);
+#if (!GTK_CHECK_VERSION(3, 96, 0))
   if (cols > 0)
     gtk_entry_set_width_chars(GTK_ENTRY(w), cols);
   else
@@ -601,6 +602,7 @@ static GtkWidget *make_row_text(prefs_info *prf, const char *text_value, int col
       if (len > 24) /* sigh... */
 	gtk_entry_set_width_chars(GTK_ENTRY(w), len);
     }
+#endif
   gtk_editable_set_editable(GTK_EDITABLE(w), true);
   settings = gtk_widget_get_settings(w);
   g_object_set(settings, "gtk-entry-select-on-focus", false, NULL);
