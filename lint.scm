@@ -4988,11 +4988,19 @@
 			     (case (length (car args))
 			       ((2) (if (eq? (caar args) '-)
 					(cadar args)                 ; (- (- x)) -> x
-					(cons '- args)))
+					(let ((arg2 (car args)))
+					  (if (and (eq? (car arg2) 'floor) ; (- (floor (- x))) -> (ceiling x)
+						   (pair? (cadr arg2))
+						   (eq? (caadr arg2) '-)
+						   (pair? (cdadr arg2))
+						   (null? (cddadr arg2)))
+					      `(ceiling ,(cadadr arg2))
+					      (cons '- args)))))
 			       ((3) (if (eq? (caar args) '-)
 					(list '- (caddar args) (cadar args)) ; (- (- x y)) -> (- y x)
 					(cons '- args)))
 			       (else (cons '- args))))))
+
 		    ((2) 
 		     (let ((arg1 (car args))
 			   (arg2 (cadr args)))
@@ -5435,7 +5443,7 @@
 			    (not (nan? (cadar args)))   ; (floor (random nan.0))!
 			    (= (floor (cadar args)) (cadar args)))
 		       (list 'random (floor (cadar args))))
-		      
+
 		      (else (cons (car form) args))))
 	      
 	      (for-each

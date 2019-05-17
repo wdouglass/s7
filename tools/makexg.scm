@@ -153,6 +153,8 @@
 
 	"GObject*" "GdkKeymap*" "GdkDragContext*" ;"GdkEventMotion*"
 	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" ;"char**"
+
+	"GtkEntry*"
 	))
 
 (define no-xen-p 
