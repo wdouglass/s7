@@ -1,10 +1,6 @@
-Snd 19.3:
+Snd 19.4:
 
-clm: Anders added support for 64-bit lispworks.
+no big news this time: things are faster, less buggy...
 
-s7: port-position and port-file (for libc.scm).
-    deleted Display and sequence->string (stuff.scm)
+checked: FC 30 (gcc 9), sbcl 1.5.2
 
-checked: sbcl 1.5.1
-
-Thanks!: Daniel Hensel, Anders Vinjar.

@@ -85,6 +85,7 @@
 
 (set! (*s7* 'max-stack-size) 32768)
 (set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
+(set! (*s7* 'max-port-data-size) (ash 1 23))
 ;(set! (*s7* 'gc-stats) #t)
 (set! (*s7* 'print-length) 1000)
 (set! (*s7* 'max-string-length) 100000)
@@ -109,6 +110,7 @@
 (define-constant _dilambda_ (dilambda (lambda (x) (+ x 1)) (lambda (x y) (+ x y))))
 (define __var2__ 3)
 (set! (setter '__var2__) (lambda (s v) (if (integer? v) v 3)))
+(define _definee_ #f)
 
 (define x 0)
 (define local-func (lambda (x) 0))
@@ -511,6 +513,7 @@
 (define x 0)
 (define max-stack (*s7* 'stack-top))
 (define last-error-type #f)
+(define old-definee #f)
 
 (define (tp val)
   (let ((str (object->string val)))
@@ -881,15 +884,15 @@
 		    "(let ((lst (list '+ 1))) (set-cdr! (cdr lst) (cdr lst)) (apply lambda* () lst ()))"
 
 		    "(gensym \"g_123\")"
-		    "(make-list 256 1)"
-		    "(make-vector '(2 3) 1)"
-		    "(make-byte-vector '(2 3) 1)"
-		    "(make-string 256 #\\1)"
-		    "(make-int-vector '(2 3) 1)"
-		    "(make-float-vector '(2 3) 1)"
-		    "(make-vector 3 'a symbol?)"
-		    "(make-vector 3 1+i complex?)"
-		    "(make-vector 3 #<eof> eof-object?)"
+		    "(make-list 256 1)"                  "(make-list 1024 #<eof>)"
+		    "(make-vector '(2 3) 1)"             "(make-vector '(12 14) #<undefined>)"
+		    "(make-byte-vector '(2 3) 1)"        "(make-byte-vector '(4 32) 255)"
+		    "(make-string 256 #\\1)"             "(make-string 1024 #\\null)"
+		    "(make-int-vector '(2 3) 1)"         "(make-int-vector '(2 128) most-negative-fixnum)"
+		    "(make-float-vector '(2 3) 1)"       "(make-float-vector '(128 3) pi)"
+		    "(make-vector 3 'a symbol?)"         "(make-vector '(2 3 4 3 2 3 4) 1)"
+		    "(make-vector 3 1+i complex?)"       "(make-vector (make-list 10 2))"
+		    "(make-vector 3 #<eof> eof-object?)" "(make-vector (make-list 256 1))"
 		    "(make-vector 3 '(1) pair?)"
 		    "(make-vector 3 :rest keyword?)"
 		    "(make-vector '(2 3) boolean?)"
@@ -1104,14 +1107,17 @@
 		       (eq? (type-of val1) (type-of val3))
 		       (eq? (type-of val1) (type-of val4))))
 	     (unless (eq? error-type 'baffled!) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
-	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
-		       str1 str2 str3 str4 
-		       (tp val1) (tp val2) (tp val3) (tp val4))
-	       (if (or (eq? val1 'error)
-		       (eq? val2 'error)
-		       (eq? val3 'error)
-		       (eq? val4 'error))
-		   (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info)))))))
+	       (unless (or (string-position "set! _definee_" str)
+			   (and (iterator? _definee_) (string-position "_definee_" str)))
+		 (when (string-position "_definee_" str) (format *stderr* "_definee_: ~S" old-definee))
+		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
+			 str1 str2 str3 str4 
+			 (tp val1) (tp val2) (tp val3) (tp val4))
+		 (if (or (eq? val1 'error)
+			 (eq? val2 'error)
+			 (eq? val3 'error)
+			 (eq? val4 'error))
+		   (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info))))))))
 
 	    ((or (catch #t (lambda () (openlet? val1)) (lambda args #t)) ; (openlet? (openlet (inlet 'openlet? ()))) -> error: attempt to apply nil to (inlet 'openlet? ())
 		 (string-position "(set!" str1)
@@ -1128,9 +1134,15 @@
 		 (unless (and (eq? val1 val2)
 			      (eq? val1 val3)
 			      (eq? val1 val4))
+		   (when (string-position "_definee_" str) (format *stderr* "_definee_: ~S" old-definee))
 		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			   str str1 str2 str3 str4 
-			   (tp val1) (tp val2) (tp val3) (tp val4)))))
+			   (tp val1) (tp val2) (tp val3) (tp val4))
+		   (if (or (eq? val1 'error)
+			   (eq? val2 'error)
+			   (eq? val3 'error)
+			   (eq? val4 'error))
+		       (format *stderr* "    ~S: ~S~%" error-type (tp (apply format #f (car error-info) (cdr error-info))))))))
 	    
 	    ((sequence? val1) ; there are too many unreadable/unequivalent-but the same cases to check these by element (goto, continuation, ...)
 	     (let ((len1 (length val1)))
@@ -1139,9 +1151,12 @@
 			   (and (eqv? len1 (length val2))
 				(eqv? len1 (length val3))
 				(eqv? len1 (length val4))))
-		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
-			 str str1 str2 str3 str4 
-			 (tp val1) (tp val2) (tp val3) (tp val4)))))
+		 (unless (or (string-position "set! _definee_" str) 
+			     (and (iterator? _definee_) (string-position "_definee_" str)))
+		   (when (string-position "_definee_" str) (format *stderr* "_definee_: ~S" old-definee))
+		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
+			   str str1 str2 str3 str4 
+			   (tp val1) (tp val2) (tp val3) (tp val4))))))
 	    
 	    ((number? val1)
 	     (if (or (and (nan? val1)
@@ -1165,9 +1180,12 @@
 	     (unless (and (eq? val1 val2)
 			  (eq? val1 val3)
 			  (eq? val1 val4))
-	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
-		       str str1 str2 str3 str4 
-		       (tp val1) (tp val2) (tp val3) (tp val4))))
+	       (unless (or (string-position "set! _definee_" str) 
+			   (and (iterator? _definee_) (string-position "_definee_" str)))
+		 (when (string-position "_definee_" str) (format *stderr* "_definee_: ~S" old-definee))
+		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
+			 str str1 str2 str3 str4 
+			 (tp val1) (tp val2) (tp val3) (tp val4)))))
 	    
 	    ((or (undefined? val1)
 		 (c-object? val1))
@@ -1183,6 +1201,7 @@
       (set! (current-output-port) #f)
       ;(format *stderr* "~S~%" str)
       (set! estr str)
+      (set! old-definee _definee_)
       (get-output-string imfo #t)
       (catch #t 
 	(lambda ()
@@ -1225,9 +1244,9 @@
       (set! last-error-type #f)
       (let* ((outer (codes (random codes-len)))
 	     (str1 (string-append "(let ((x #f) (i 0)) " (car outer) str ")))"))
-	     (str2 (string-append "(let () (define (func) " str1 ") (func))"))    ;(define (hi) (func) (func)) (hi) (hi))"))
+	     (str2 (string-append "(let () (define (func) " str1 ") (define (hi) (func)) (hi))"))
 	     (str3 (string-append "(let ((x #f) (i 0)) " (cadr outer) str ")))"))
-	     (str4 (string-append "(let () (define (func) " str3 ") (func))")))   ;(define (hi) (func) (func)) (hi) (hi))")))
+	     (str4 (string-append "(let () (define (func) " str3 ") (define (hi) (func)) (hi))")))
 	(let ((val1 (eval-it str1))
 	      (val2 (eval-it str2))
 	      (val3 (eval-it str3))

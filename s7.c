@@ -981,9 +981,9 @@ typedef struct s7_cell {
   int32_t file_and_line;
 #endif
 #if S7_DEBUGGING
-  int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line, opt1_line, opt2_line, opt3_line;
+  int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line, opt1_line, opt2_line, opt3_line, gc_line;
   int64_t current_alloc_type, previous_alloc_type, debugger_bits;
-  const char *current_alloc_func, *previous_alloc_func, *opt1_func, *opt2_func, *opt3_func;
+  const char *current_alloc_func, *previous_alloc_func, *gc_func, *opt1_func, *opt2_func, *opt3_func;
 #endif
 
 } s7_cell;
@@ -2035,7 +2035,7 @@ static void init_types(void)
 #define T_LIST_IN_USE                  T_SIMPLE_ARG_DEFAULTS
 #define list_is_in_use(p)              has_type0_bit(T_Pair(p), T_LIST_IN_USE)
 #define set_list_in_use(p)             set_type_bit(T_Pair(p), T_LIST_IN_USE)
-#define clear_list_in_use(p)           clear_type_bit(T_Pair(p), T_LIST_IN_USE)
+#define clear_list_in_use(p)           do {clear_type_bit(T_Pair(p), T_LIST_IN_USE); sc->current_safe_list = 0;} while (0)
 /* if (!is_immutable(p)) free_vlist(cur_sc, p) seems plausible here, but it got no hits in s7test and other cases */
 
 #define T_ONE_FORM                     T_SIMPLE_ARG_DEFAULTS
@@ -3400,6 +3400,13 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
  *   does not return it to the free list: a memory leak.
  */
 
+#if S7_DEBUGGING
+static void try_to_call_gc_1(s7_scheme *sc, const char *func, int line);
+#define try_to_call_gc(Sc) try_to_call_gc_1(Sc, __func__, __LINE__)
+#else
+static void try_to_call_gc(s7_scheme *sc);
+#endif
+
 #define GC_STATS 1
 #define HEAP_STATS 2
 #define STACK_STATS 4
@@ -3663,7 +3670,6 @@ static char *pos_int_to_str_direct_1(s7_scheme *sc, s7_int num)
 
 /* ---------------- forward decls ---------------- */
 
-static void try_to_call_gc(s7_scheme *sc);
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op);
 static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x);
 static const char *type_name(s7_scheme *sc, s7_pointer arg, int32_t article);
@@ -4317,7 +4323,7 @@ s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method)
 /* if a method is shadowing a built-in like abs, it should expect the same args as abs and
  *   behave the same -- no multiple values etc.
  */
-static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
+static inline s7_pointer copy_list(s7_scheme *sc, s7_pointer lst);
 
 #define check_method(Sc, Obj, Method, Args)		\
   {							\
@@ -5457,7 +5463,11 @@ static bool has_odd_bits(s7_pointer obj);
 #endif
 void s7_show_let(s7_scheme *sc);
 
+#if S7_DEBUGGING
+static int64_t gc(s7_scheme *sc, const char *func, int line)
+#else
 static int64_t gc(s7_scheme *sc)
+#endif
 {
   s7_cell **old_free_heap_top;
 #if (!MS_WINDOWS)
@@ -5623,7 +5633,7 @@ static int64_t gc(s7_scheme *sc)
       {									\
         if (!is_free_and_clear(p))					\
           {								\
-	    p->debugger_bits = 0; p->opt1_func = NULL; p->opt2_func = NULL; p->opt3_func = NULL; \
+	    p->debugger_bits = 0; p->opt1_func = NULL; p->opt2_func = NULL; p->opt3_func = NULL; p->gc_func = func; p->gc_line = line; \
 	    if (has_odd_bits(p))					\
 	      {char *s; fprintf(stderr, "odd bits: %s\n", s = describe_type_bits(sc, p)); free(s);} \
             clear_type(p);						\
@@ -5734,7 +5744,11 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
 #define resize_heap(Sc) resize_heap_to(Sc, 0)
 
+#if S7_DEBUGGING
+static void try_to_call_gc_1(s7_scheme *sc, const char *func, int line)
+#else
 static void try_to_call_gc(s7_scheme *sc)
+#endif
 {
   /* called only from new_cell */
   if (sc->gc_off)
@@ -5751,7 +5765,7 @@ static void try_to_call_gc(s7_scheme *sc)
 	  (freed_heap < 1000000)) /* if huge heap */
 	resize_heap(sc);
 #else
-      gc(sc);
+      gc(sc, func, line);
       if ((int64_t)(sc->free_heap_top - sc->free_heap) < sc->heap_size / 2)
 	resize_heap(sc);
 #endif
@@ -5790,7 +5804,11 @@ Evaluation produces a surprising amount of garbage, so don't leave the GC off fo
       if (sc->gc_off)
 	return(sc->F);
     }
+#if S7_DEBUGGING
+  gc(sc, __func__, __LINE__);
+#else
   gc(sc);
+#endif
   return(sc->unspecified);
 }
 
@@ -5800,13 +5818,22 @@ s7_pointer s7_gc_on(s7_scheme *sc, bool on)
   return(s7_make_boolean(sc, on));
 }
 
+#if S7_DEBUGGING
+static void check_heap_size_1(s7_scheme *sc, s7_int size, const char *func, int line)
+#define check_heap_size(Sc, Size) check_heap_size_1(Sc, Size, __func__, __LINE__)
+#else
 static void check_heap_size(s7_scheme *sc, s7_int size)
+#endif
 {
   s7_int free_cells;
   free_cells = sc->free_heap_top - sc->free_heap;
   if (free_cells < size)
     {
+#if S7_DEBUGGING
+      gc(sc, func, line);
+#else
       gc(sc);
+#endif
       while ((sc->free_heap_top - sc->free_heap) < size)
 	resize_heap(sc);
     }
@@ -9835,7 +9862,11 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
       if (len < CC_INITIAL_STACK_SIZE)
 	len = CC_INITIAL_STACK_SIZE;
     }
+#if S7_DEBUGGING
+  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 4)) gc(sc, __func__, __LINE__);
+#else
   if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 4)) gc(sc);
+#endif
   /* this gc call is needed if there are lots of call/cc's -- by pure bad luck
    *   we can end up hitting the end of the gc free list time after time while
    *   in successive copy_stack's below, causing s7 to core up until it runs out of memory.
@@ -34052,7 +34083,7 @@ s7_pointer s7_append(s7_scheme *sc, s7_pointer a, s7_pointer b)
   return(tp);
 }
 
-static s7_pointer copy_list(s7_scheme *sc, s7_pointer lst)
+static inline s7_pointer copy_list(s7_scheme *sc, s7_pointer lst)
 {
   s7_pointer p, tp, np;
   if (!is_pair(lst)) return(sc->nil);
@@ -48612,10 +48643,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
   sc->has_openlets = true;        /*   same problem -- we need a cleaner way to handle this */
 
   if (sc->current_safe_list > 0)
-    {
-      clear_list_in_use(sc->safe_lists[sc->current_safe_list]);
-      sc->current_safe_list = 0;
-    }
+    clear_list_in_use(sc->safe_lists[sc->current_safe_list]);
   slot_set_value(sc->error_type, type);
   slot_set_value(sc->error_data, info);
 
@@ -51633,9 +51661,9 @@ static s7_pointer fx_c_all_s(s7_scheme *sc, s7_pointer arg)
   sc->t_temps[tx] = safe_list_if_possible(sc, integer(opt3_arglen(arg)));
   for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
     set_car(p, lookup(sc, car(args)));
+  p = c_call(arg)(sc, sc->t_temps[tx]);
   clear_list_in_use(sc->t_temps[tx]);
-  sc->current_safe_list = 0;
-  return(c_call(arg)(sc, sc->t_temps[tx]));
+  return(p);
 }
 
 static s7_pointer fx_c_fx(s7_scheme *sc, s7_pointer arg)
@@ -51646,9 +51674,9 @@ static s7_pointer fx_c_fx(s7_scheme *sc, s7_pointer arg)
   sc->t_temps[tx] = safe_list_if_possible(sc, integer(opt3_arglen(arg)));
   for (args = cdr(arg), p = sc->t_temps[tx]; is_pair(args); args = cdr(args), p = cdr(p))
     set_car(p, fx_call(sc, args));
+  p = c_call(arg)(sc, sc->t_temps[tx]);
   clear_list_in_use(sc->t_temps[tx]);
-  sc->current_safe_list = 0;
-  return(c_call(arg)(sc, sc->t_temps[tx]));
+  return(p);
 }
 
 static s7_pointer fx_if_a_aa(s7_scheme *sc, s7_pointer arg)
@@ -59432,7 +59460,7 @@ static s7_pointer opt_p_cf_any(void *p)
       set_car(arg, o1->v[0].fp(o1));
     }
   arg = o->v[2].cf(o->sc, o->sc->t_temps[tx]);
-  clear_list_in_use(o->sc->t_temps[tx]);
+  clear_type_bit(T_Pair(o->sc->t_temps[tx]), T_LIST_IN_USE); /* clear_list_in_use but using o->sc */
   o->sc->current_safe_list = 0;
   return(arg);
 }
@@ -71050,7 +71078,7 @@ static s7_pointer check_let(s7_scheme *sc)
 	  /* or put it off until unchecked_let+no no_opt_pair? -- see op_let_unchecked */
 
 	  clear_list_in_use(sc->args);
-	  sc->current_safe_list = 0;
+	  sc->args = sc->nil;
 	}
       return(sc->code);
     }
@@ -79436,7 +79464,7 @@ static int32_t safe_closure_star_fx_0(s7_scheme *sc, s7_pointer code)
   return(apply_lambda_star(sc));
 }
 
-#define call_lambda_star(sc) do {sc->code = opt1_lambda(code); target = apply_lambda_star(sc); clear_list_in_use(arglist); sc->current_safe_list = 0;} while (0)
+#define call_lambda_star(sc) do {sc->code = opt1_lambda(code); target = apply_lambda_star(sc); clear_list_in_use(arglist);} while (0)
 
 static int32_t safe_closure_star_fx_1(s7_scheme *sc, s7_pointer code)
 {
@@ -79446,6 +79474,7 @@ static int32_t safe_closure_star_fx_1(s7_scheme *sc, s7_pointer code)
   arglist = sc->args;
   set_car(sc->args, fx_call(sc, cdr(code)));
   call_lambda_star(sc);
+  sc->args = sc->nil;
   return(target);
 }
 
@@ -79459,6 +79488,7 @@ static int32_t safe_closure_star_fx_2(s7_scheme *sc, s7_pointer code)
   p = cddr(code);
   set_car(cdr(sc->args), fx_call(sc, p));
   call_lambda_star(sc);
+  sc->args = sc->nil;
   return(target);
 }
 
@@ -79474,6 +79504,7 @@ static int32_t safe_closure_star_fx(s7_scheme *sc, s7_pointer code)
   for (p = sc->args, old_args = cdr(code); is_pair(p); p = cdr(p), old_args = cdr(old_args))
     set_car(p, fx_call(sc, old_args));
   call_lambda_star(sc);
+  sc->args = sc->nil;
   return(target);
 }
 
@@ -80119,8 +80150,6 @@ static void op_safe_closure_fx(s7_scheme *sc)
   sc->args = safe_list_if_possible(sc, integer(opt3_arglen(sc->code)));
   for (args = cdr(sc->code), p = sc->args; is_pair(args); args = cdr(args), p = cdr(p))
     set_car(p, fx_call(sc, args));
-  clear_list_in_use(sc->args);
-  sc->current_safe_list = 0;
   sc->code = opt1_lambda(sc->code);
 
   id = ++sc->let_number;
@@ -80132,6 +80161,10 @@ static void op_safe_closure_fx(s7_scheme *sc)
       slot_set_value(x, car(z));
       symbol_set_local(slot_symbol(x), id, x);
     }
+  
+  clear_list_in_use(sc->args);
+  sc->args = sc->nil;
+
   sc->envir = env;
   sc->code = closure_body(sc->code);
   if (is_pair(cdr(sc->code)))
@@ -80312,10 +80345,10 @@ static void safe_c_star_fx(s7_scheme *sc)
   sc->args = safe_list_if_possible(sc, integer(opt3_arglen(sc->code)));
   for (args = cdr(sc->code), p = sc->args; is_pair(args); args = cdr(args), p = cdr(p))
     set_car(p, fx_call(sc, args));
-  clear_list_in_use(sc->args);
-  sc->current_safe_list = 0;
   sc->code = opt1_cfunc(sc->code);
   apply_c_function_star(sc);
+  clear_list_in_use(sc->args);
+  sc->args = sc->nil;
 }
 
 static void safe_c_star_aa(s7_scheme *sc)
@@ -80509,9 +80542,9 @@ static void op_safe_c_fx(s7_scheme *sc)
   sc->args = safe_list_if_possible(sc, integer(opt3_arglen(code)));
   for (args = cdr(code), p = sc->args; is_pair(args); args = cdr(args), p = cdr(p))
     set_car(p, fx_call(sc, args));
-  clear_list_in_use(sc->args);
-  sc->current_safe_list = 0;
   sc->value = c_call(code)(sc, sc->args);
+  clear_list_in_use(sc->args); /* if c_call above triggers the GC, we need to have the "in-use" bit on to get its contents marked */
+  sc->args = sc->nil;
   /* we can't release a temp here:
    *   (define (hi) (vector 14800 14020 (oscil os) (* 1/3 14800) 14800 (* 1/2 14800))) (hi) where os returns non-zero:
    *   #(14800 14020 <output-string-port> 14800/3 14800 7400)
@@ -80548,9 +80581,9 @@ static void op_safe_c_all_ca(s7_scheme *sc)
       args = cdr(args);
       set_car(cdr(p), fx_call(sc, args));
     }
-  clear_list_in_use(sc->args);
-  sc->current_safe_list = 0;
   sc->value = c_call(code)(sc, sc->args);
+  clear_list_in_use(sc->args);
+  sc->args = sc->nil;
 }
 
 static void op_safe_c_pa_mv(s7_scheme *sc)
@@ -89259,7 +89292,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
 {
   int32_t i;
   if (p == sc->value) return("value");
-  if (p == sc->args) return("args");
+  if (p == sc->args) return("args"); 
   if (p == sc->code) return("code");
   if (p == sc->cur_code) return("cur_code");
   if (p == sc->envir) return("envir");
@@ -91517,7 +91550,6 @@ int main(int argc, char **argv)
  *
  * op_let without the intermediate list (use slot list and pending_value), do_init_ex, then get rid of reuse_as_let|slot
  *   tricky! see new-let-s7.c, main problem: sc->code does need gc protection
- * unstack in do (sc->code protection)
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
