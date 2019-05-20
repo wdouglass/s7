@@ -15292,8 +15292,8 @@ EDITS: 2
 	  (if (ffneq lv3 lv4) (snd-display "env-interp[pyr ~F]: ~A (~A)?" (* .2 i) lv3 lv4))))
       (do ((i 0 (+ i 1)))
 	  ((= i 100))
-	(let ((lv5 (env-interp (* i .02) e3))
-	      (lv6 (env e3)))
+	(let* ((lv5 (env-interp (* i .02) e3))
+	       (lv6 (env e3)))
 	  (if (ffneq lv5 lv6) (snd-display "env-interp[tri ~F]: ~A (~A)?" (* .02 i) lv5 lv6)))))
     
     (let ((e1 (make-env '(0 0 1 1 2 0) :length 10))
@@ -20057,8 +20057,8 @@ EDITS: 2
     (do ((g1 (make-moving-max 10))
 	 (i 0 (+ i 1)))
 	((= i 1000))
-      (let ((val (moving-max g1 (random 1.0)))
-	    (pk (float-vector-peak (mus-data g1))))
+      (let* ((val (moving-max g1 (random 1.0)))
+	     (pk (float-vector-peak (mus-data g1))))
 	(if (not (= pk val)) 
 	    (snd-display "moving-max ~A ~A" pk val))))
     

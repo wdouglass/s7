@@ -943,7 +943,6 @@
 (int-vector-test)
 (clear-and-gc)
 
-
 ;; --------------------------------------------------------------------------------
 (format () "~%vectors...~%")
 (when (> total-memory (* 9 big-size))

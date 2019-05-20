@@ -2,5 +2,5 @@ Snd 19.4:
 
 no big news this time: things are faster, less buggy...
 
-checked: FC 30 (gcc 9), sbcl 1.5.2
+checked: FC 30 (gcc 9), sbcl 1.5.2, gtk 3.96.0 (Snd compiles)
 
