@@ -2350,6 +2350,7 @@ static void init_types(void)
 #define T_HAS_PENDING_VALUE            T_GENSYM
 #define slot_set_has_pending_value(p)  set_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
 #define slot_has_pending_value(p)      has_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
+#define slot_clear_has_pending_value(p) clear_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
 
 #define T_HAS_METHODS                  (1 << (TYPE_BITS + 22))
 #define has_methods(p)                 has_type_bit(T_Pos(p), T_HAS_METHODS)
@@ -4713,6 +4714,8 @@ static inline void mark_slot(s7_pointer p)
   gc_mark(slot_value(p));
   if (slot_has_setter(p))
     gc_mark(slot_setter(p));
+  if (slot_has_pending_value(p))
+    gc_mark(slot_pending_value(p));
   set_mark(slot_symbol(p));
 }
 
@@ -5548,6 +5551,13 @@ static int64_t gc(s7_scheme *sc)
 
 	p1 = cdr(p1);
 	if (p1 == sc->eval_history1) break; /* these are circular lists */
+      }
+    for (p1 = sc->history_pairs; is_pair(p1); )
+      {
+	gc_mark(car(p1));
+	gc_mark(cadr(p1));
+	p1 = cdr(p1);
+	if (p1 == sc->history_pairs) break;
       }
   }
 #endif
@@ -30420,26 +30430,6 @@ static s7_pointer check_cell(s7_pointer p, const char *func, int32_t line)
   return(p);
 }
 
-static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line)
-{
-  uint8_t typ;
-  check_cell(p, func, line);
-  typ = unchecked_type(p);
-  if (typ == T_FREE)
-    {
-      char *s;
-      fprintf(stderr, "%s%s[%d]: attempt to use free cell%s\n", BOLD_TEXT, func, line, UNBOLD_TEXT);
-      typeflag(p) = p->current_alloc_type;
-      fprintf(stderr, "  free cell %p alloc: %s[%d], alloc type: #x%x %s\n",
-	      p, p->current_alloc_func, p->current_alloc_line,
-	      (unsigned int)(p->current_alloc_type), s = describe_type_bits(cur_sc, p));
-      free(s);
-      typeflag(p) = 0;
-      if (cur_sc->stop_at_error) abort();
-    }
-  return(p);
-}
-
 static void print_gc_info(s7_pointer obj, int32_t line)
 {
   if (!obj)
@@ -30458,18 +30448,34 @@ static void print_gc_info(s7_pointer obj, int32_t line)
 	  bits = describe_type_bits(cur_sc, obj); /* this func called in type macro, so use cur_sc */
 	  typeflag(obj) = free_type;
 	  if (obj->explicit_free_line > 0)
-	    snprintf(fline, 128, ", freed at %d", obj->explicit_free_line);
-	  fprintf(stderr, "%s%p is free (line %d, alloc type: [%s]), current: %s[%d], previous: %s[%d]%s%s\n",
+	    snprintf(fline, 128, ", freed at %d, ", obj->explicit_free_line);
+	  fprintf(stderr, "%s%p is free (line %d, alloc type: %s %ld #x%lx (%s)), current: %s[%d], previous: %s[%d], %sgc: %s[%d]%s\n",
 		  BOLD_TEXT,
-		  obj, line, bits,
+		  obj, line, 
+		  s7_type_names[obj->current_alloc_type & 0xff], obj->current_alloc_type, obj->current_alloc_type, 
+		  bits,
 		  obj->current_alloc_func, obj->current_alloc_line,
 		  obj->previous_alloc_func, obj->previous_alloc_line,
 		  (obj->explicit_free_line > 0) ? fline : "",
+		  obj->gc_func, obj->gc_line,
 		  UNBOLD_TEXT);
 	  free(bits);
 	}
     }
   if (cur_sc->stop_at_error) abort();
+}
+
+static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line)
+{
+  uint8_t typ;
+  check_cell(p, func, line);
+  typ = unchecked_type(p);
+  if (typ == T_FREE)
+    {
+      fprintf(stderr, "%s%s[%d]: attempt to use free cell%s\n", BOLD_TEXT, func, line, UNBOLD_TEXT);
+      print_gc_info(p, line);
+    }
+  return(p);
 }
 
 static const char *opt1_role_name(uint32_t role)
@@ -48106,12 +48112,12 @@ static s7_pointer init_owlet(s7_scheme *sc)
   sc->temp3 = sc->nil;
   return(e);
 }
-
+#if 0
 static bool type_is_bad(s7_pointer p)
 {
   return((is_free(p)) || (unchecked_type(p) >= NUM_TYPES)); /* type is unsigned */
 }
-
+#endif
 static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ);
 
 static s7_pointer g_owlet(s7_scheme *sc, s7_pointer args)
@@ -48129,10 +48135,7 @@ It has the additional local variables: error-type, error-data, error-code, error
   s7_pointer e, x;
   s7_int gc_loc;
 
-  /* since error-data et al can be set at any time, and owlet can be called at any time, these fields
-   *   can be free cells (or anything) without that representing an error. So, before copying, we need
-   *   to check that all cells (that will be copied) look ok.
-   */
+#if 0
   for (x = let_slots(sc->owlet); tis_slot(x); x = next_slot(x))
     {
       s7_pointer val;
@@ -48145,10 +48148,12 @@ It has the additional local variables: error-type, error-data, error-code, error
 	  slot_set_value(x, make_unique(sc, "#<free-cell>", T_UNDEFINED));
 	}
     }
+#endif
 
   e = let_copy(sc, sc->owlet);
   gc_loc = s7_gc_protect_1(sc, e);
 
+#if 0
   for (x = let_slots(e); tis_slot(x); x = next_slot(x))
     {
       s7_pointer val;
@@ -48207,6 +48212,7 @@ It has the additional local variables: error-type, error-data, error-code, error
 	    }
 	}
     }
+#endif
 
   /* make sure the pairs/reals/strings/integers are copied: should be error-data, error-code, and possibly error-history */
   sc->gc_off = true;
@@ -50072,7 +50078,7 @@ static void check_let_slots(s7_scheme *sc, const char* func, s7_pointer expr, s7
 {
   if (let_slots(sc->envir) != symbol_to_slot(sc, var))
     {
-      fprintf(stderr, "%s %s is out of date (%s in %s)\n", func, DISPLAY(expr), DISPLAY(var), DISPLAY(sc->envir));
+      fprintf(stderr, "%s %s is out of date (%s in %s -> %s)\n", func, DISPLAY(expr), DISPLAY(var), DISPLAY(sc->envir), DISPLAY(let_slots(sc->envir)));
       if (sc->stop_at_error) abort();
     }
 }
@@ -50081,7 +50087,7 @@ static void check_next_let_slot(s7_scheme *sc, const char* func, s7_pointer expr
 {
   if (next_slot(let_slots(sc->envir)) != symbol_to_slot(sc, var))
     {
-      fprintf(stderr, "%s %s is out of date (%s in %s)\n", func, DISPLAY(expr), DISPLAY(var), DISPLAY(sc->envir));
+      fprintf(stderr, "%s %s is out of date (%s in %s -> %s)\n", func, DISPLAY(expr), DISPLAY(var), DISPLAY(sc->envir), DISPLAY(next_slot(let_slots(sc->envir))));
       if (sc->stop_at_error) abort();
     }
 }
@@ -50557,6 +50563,13 @@ static s7_pointer fx_add_ts(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
   return(add_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
+}
+
+static s7_pointer fx_add_tu(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  return(add_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_add_us(s7_scheme *sc, s7_pointer arg)
@@ -70278,7 +70291,7 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer stepper, s7_point
 
       if (c_callee(tree) == fx_add_ss)
 	{
-	  if (cadr(p) == stepper) {set_c_call(tree, fx_add_ts); return;}
+	  if (cadr(p) == stepper) {set_c_call(tree, (caddr(p) == previous_stepper) ? fx_add_tu : fx_add_ts); return;}
 	  if (cadr(p) == previous_stepper) {set_c_call(tree, fx_add_us); return;}
 	}
       if ((c_callee(tree) == fx_c_add_si) && (cadr(p) == stepper)) {set_c_call(tree, fx_c_add_ti); return;}
@@ -71133,9 +71146,8 @@ static s7_pointer check_let(s7_scheme *sc)
 		  oldc = sc->code;  /* (name vars body) */
 		  
 		  sc->code = caddr(sc->code);
-		  check_if(sc); /* code=cdr(code) */
-		  if ((optimize_op(caddr(oldc)) == OP_IF_CSC_P_P) &&
-		      (is_fx_safe(sc, cadr(sc->code))) &&
+		  check_if(sc); /* sc->code = cdr(sc->code) internally */
+		  if ((is_fx_safe(sc, cadr(sc->code))) &&
 		      (optimize_op(caddr(sc->code)) == OP_UNKNOWN_AA) &&
 		      (car(caddr(sc->code)) == name))
 		    {
@@ -71144,8 +71156,12 @@ static s7_pointer check_let(s7_scheme *sc)
 		      annotate_args(sc, cdr(caddr(sc->code)), sc->args);
 		      pair_set_syntax_op(form, OP_SIMPLE_NAMED_LET);
 		      pair_set_syntax_op(caddr(oldc), OP_IF_UNCHECKED);
-		      annotate_arg(sc, cdr(caadr(oldc)), sc->args);
+		      annotate_arg(sc, cdr(caadr(oldc)), sc->args); /* initial values */
 		      annotate_arg(sc, cdr(cadadr(oldc)), sc->args);
+#if 0
+		      fx_tree(sc, sc->code, car(caadr(oldc)), cadr(caadr(oldc)));
+		      fx_tree(sc, cdr(sc->code), car(caadr(oldc)), cadr(caadr(oldc)));
+#endif
 		    }
 		  sc->code = oldc;
 		}
@@ -71209,7 +71225,6 @@ static s7_pointer check_let(s7_scheme *sc)
 	}
     }
 
-  /* move check_let_a permanent let to here */
   if (optimize_op(form) >= OP_LET_FX_OLD)
     {
       if ((not_in_heap(form)) &&
@@ -71280,7 +71295,7 @@ static bool op_let1(s7_scheme *sc)
 	sc->w = cons(sc, caar(x), sc->w);
       sc->w = safe_reverse_in_place(sc, sc->w);
 
-      /* TODO: reverse slots */
+#if 0
       if (is_safe_closure_body(body))
 	{
 	  s7_pointer arg, new_env;
@@ -71291,9 +71306,12 @@ static bool op_let1(s7_scheme *sc)
 	    make_slot_1(sc, new_env, car(arg), sc->nil);
 	  let_set_slots(new_env, reverse_slots(sc, let_slots(new_env)));
 	}
-      else sc->x = make_closure(sc, sc->w, body, T_CLOSURE | T_COPY_ARGS, n);
+      else 
+#endif
+	sc->x = make_closure(sc, sc->w, body, T_CLOSURE | T_COPY_ARGS, n);
       make_slot_1(sc, sc->envir, let_name, sc->x);
       sc->envir = new_frame_in_env(sc, sc->envir);
+      
       for (x = sc->w; is_not_null(y); x = cdr(x)) /* reuse the value cells as the new frame slots */
 	{
 	  s7_pointer sym, args;
@@ -71306,6 +71324,13 @@ static bool op_let1(s7_scheme *sc)
 	  symbol_set_local(sym, let_id(sc->envir), y);
 	  y = args;
 	}
+
+      if (is_safe_closure_body(body))
+	{
+	  closure_set_let(sc->x, sc->envir);
+	  let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
+	}
+
       sc->code = T_Pair(body);
       sc->w = sc->nil;
       sc->x = sc->nil;
@@ -78654,6 +78679,11 @@ static int32_t unknown_aa_ex(s7_scheme *sc, s7_pointer f)
 		    }
 		  else
 		    {
+#if 0
+		      fprintf(stderr, "aa_p: %s\n", DISPLAY(code));
+		      fx_tree(sc, cdr(code), car(closure_args(f)), cadr(closure_args(f)));
+		      fx_tree(sc, cddr(code), car(closure_args(f)), cadr(closure_args(f)));
+#endif
 		      set_optimize_op(code, hop + OP_SAFE_CLOSURE_AA_P);
 		      closure_clear_multiform(f);
 		    }
@@ -83236,7 +83266,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      {
 		s7_pointer x;
 		for (x = sc->code; is_pair(x); x = cdr(x)) /* sc->code here is the original sc->args list */
-		  slot_set_value(car(x), slot_pending_value(car(x)));
+		  {
+		    slot_set_value(car(x), slot_pending_value(car(x)));
+		    slot_clear_has_pending_value(car(x));
+		  }
 		pop_stack_no_op(sc);
 		goto DO_END;
 	      }
@@ -91774,23 +91807,24 @@ int main(int argc, char **argv)
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2099  2062  2064
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2260  2259  2262
  * tread         |      |      |      |      | 2357 | 2336 | 2332  2279  2281
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2320  2300  2301
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2320  2300  2300
  * tvect         |      |      |      |      |      | 5616 | 2471  2353  2355
  * tlet          |      |      |      |      | 4717 | 2959 | 2685  2456  2458
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467  2467
- * dup           |      |      |      |      | 20.8 | 5711 | 2993  2844  2872
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 |             2831
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2855  2805  2857
+ * dup           |      |      |      |      | 20.8 | 5711 | 2993  2844  2884
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3085  3081  3083
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3318  3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 3464  3453  3454
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3551  3465  3489
- * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5150  4986  4989
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.9  10.5  10.6
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3551  3465  3465
+ * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 5150  4986  4987
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.9  10.5  10.6 9858
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.2  11.4  11.4
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.4  38.1  38.1
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 73.0  72.7  72.6
- * lg            |      |      |      |211.0 |133.0 |112.7 |110.1 107.0 106.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |110.1 107.0 107.2
  * tbig          |      |      |      |      |246.9 |230.6 |185.1 184.7 184.8
  * ------------------------------------------------------------------------------------
  *
@@ -91805,6 +91839,7 @@ int main(int argc, char **argv)
  *     currently: (define (f a b c) (+ a b c)) (funclet f) -> (inlet 'c () 'b () 'a ())
  *   more s->t cases [fx_tree in any body [with 1 var? let*_fx_a reverses but others don't] without definers (let etc) = arg fxs] fxcounts
  *     70696 let_one_*
+ *     fx_tree with named_let (need direct decls)
  *
  * op_let without the intermediate list (use slot list and pending_value), do_init_ex, then get rid of reuse_as_let|slot
  *   tricky! see new-let-s7.c, main problem: sc->code does need gc protection
@@ -91816,13 +91851,9 @@ int main(int argc, char **argv)
  *   needs split: optimize_func*[split by type at least, two split is slower], do*, s7_copy_1[watch out for let->break], eval
  *   undo op_*D*+symbol cases
  *
- * gc_func info in print_gc_info and check_nref, also can we get the call-chain for the alloc? or the s7.h level caller?
- * tree check of error_history
- * int overflow -> int128_t? = bigint, float128_t if float too large/small, double -> float64_t?=__float128 in gcc
- * named_let_fn_a_p, simple_named_let_i1e|d1z_a|p? trec has if a name a
- *   similar simple_tc cases
- * t725 print-length for large vectors? or if all elements eq? (vector pi pi ...)
- * line do: (set! x (append x (list (list ...)))) -> (set! x (cons (list ...) x)) then reverse x
- * maybe add fbench.scm to the timing tests [also need named let tests alongside trec or maybe added to trec]
- * check lint for fbench -- lg.scm?
+ * tree check of error_history: trouble here is now apparently copy_stack+gc in protected_list_copy 
+ * named_let_fn_a_p, simple_named_let_i1e|d1z_a|p?
+ *   similar simple_tc cases, 1/-1 cases?
+ *
+ * tmat.scm for matrix ops
  */

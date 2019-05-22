@@ -15036,6 +15036,24 @@
 				    (lint-format "perhaps ~A" caller
 						 (lists->string form `(if (not ,(caadr setval)) (set! ,(cadr form) ,(cadr (caddr setval))))))))))
 
+		       ((append)                    ; in do loop, (set! sym (append sym ...)) -> (set! sym (cons ... sym)) + reverse later
+			(cond ((var-member :do env) => 
+			       (lambda (v)
+				 (let search ((tree (cddr (var-initial-value v))))
+				   (and (pair? tree)
+					(if (and (eq? (car tree) 'set!)
+						 (pair? (cdr tree))        ; (set!)?
+						 (symbol? (cadr tree))
+						 (pair? (cddr tree))
+						 (pair? (caddr tree))
+						 (eq? (caaddr tree) 'append)
+						 (pair? (cdaddr tree))
+						 (eq? (cadr tree) (cadr (caddr tree))))
+					    (lint-format "perhaps (set! ~A (append ~A ...)) -> (set! ~A (cons ... ~A)), reversing ~A at the end"
+							 caller (cadr tree) (cadr tree) (cadr tree) (cadr tree) (cadr tree))
+					    (or (search (car tree))
+						(search (cdr tree))))))))))
+		     
 		       ((or)                        ; (set! x (or x y)) -> (if (not x) (set! x y))
 			(if (and (= (length setval) 3)   ;    the other case here is not improved by using 'if
 				 (eq? settee (cadr setval)))

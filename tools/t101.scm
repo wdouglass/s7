@@ -191,6 +191,12 @@
 (format *stderr* "~NC tclo ~NC~%" 20 #\- 20 #\-)
 (system "./repl tclo.scm")
 
+(format *stderr* "~NC tclo ~NC~%" 20 #\- 20 #\-)
+(system "./repl tvect.scm")
+
+(format *stderr* "~NC tclo ~NC~%" 20 #\- 20 #\-)
+(system "./repl fbench.scm")
+
 (format *stderr* "~NC tshoot ~NC~%" 20 #\- 20 #\-)
 (system "./repl tshoot.scm")
 

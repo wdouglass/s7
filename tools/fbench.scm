@@ -23,7 +23,7 @@
 ;;;
 ;;;  Ported to s7 (and Guile) 20-May-2019
 
-(cond-expand ((not s7) (use-modules (ice-9 format)))) ; for Guile
+(cond-expand ((not s7) (use-modules (ice-9 format)) (define s7-version exit))) ; for Guile
 
 ;;      Wavelengths of standard spectral lines in Angstroms
 (define spectral-line
@@ -119,7 +119,10 @@
 (define (transit-surface)
   (let ((iang-sin 0))
     (if (= paraxial 1)
-	(if (not (= radius-of-curvature 0))
+	(if (= radius-of-curvature 0)
+	    (begin
+	      (set! object-distance (* object-distance (/ to-index from-index)))
+	      (set! axis-slope-angle (* axis-slope-angle (/ from-index to-index))))
 	    (begin
 	      (if (= object-distance 0)
 		  (begin
@@ -131,11 +134,11 @@
 		(set! axis-slope-angle (- (+ axis-slope-angle iang-sin) rang-sin))
 		(if (not (= object-distance 0))
 		    (set! ray-height (* object-distance old-axis-slope-angle)))
-		(set! object-distance (/ ray-height axis-slope-angle))))
-	    (begin
-	      (set! object-distance (* object-distance (/ to-index from-index)))
-	      (set! axis-slope-angle (* axis-slope-angle (/ from-index to-index)))))
-	(if (not (= radius-of-curvature 0))
+		(set! object-distance (/ ray-height axis-slope-angle)))))
+	(if (= radius-of-curvature 0)
+	    (let ((rang (- (asin (* (/ from-index to-index) (sin axis-slope-angle))))))
+	      (set! object-distance (* object-distance (/ (* to-index (cos rang)) (* from-index (cos axis-slope-angle)))))
+	      (set! axis-slope-angle (- rang)))
 	    (begin
 	      (if (= object-distance 0)
 		  (begin
@@ -148,10 +151,7 @@
 		(set! axis-slope-angle (+ axis-slope-angle (- iang (asin rang-sin))))
 		(let ((sagitta (sin (/ (+ old-axis-slope-angle iang) 2.0))))
 		  (set! sagitta (* 2 radius-of-curvature sagitta sagitta))
-		  (set! object-distance (+ (/ (* radius-of-curvature (sin (+ old-axis-slope-angle iang))) (tan axis-slope-angle)) sagitta)))))
-	    (let ((rang (- (asin (* (/ from-index to-index) (sin axis-slope-angle))))))
-	      (set! object-distance (* object-distance (/ (* to-index (cos rang)) (* from-index (cos axis-slope-angle)))))
-	      (set! axis-slope-angle (- rang)))))))
+		  (set! object-distance (+ (/ (* radius-of-curvature (sin (+ old-axis-slope-angle iang))) (tan axis-slope-angle)) sagitta)))))))))
 
 ;;	Perform ray trace in specific spectral line
 (define (trace-line line ray-h)
@@ -196,10 +196,9 @@
 	
 	;;	Trace marginal ray in F
 	(trace-line F-light (/ clear-aperture 2))
-	(let ((od-fline object-distance))
-	  (set! aberr-lspher (- (caadr od-sa) (caar od-sa)))
-	  (set! aberr-osc (- 1 (/ (* (caadr od-sa) (cadadr od-sa)) (* (sin (cadar od-sa)) (caar od-sa)))))
-	  (set! aberr-lchrom (- od-fline od-cline)))
+	(set! aberr-lspher (- (caadr od-sa) (caar od-sa)))
+	(set! aberr-osc (- 1 (/ (* (caadr od-sa) (cadadr od-sa)) (* (sin (cadar od-sa)) (caar od-sa)))))
+	(set! aberr-lchrom (- object-distance od-cline))
 	(set! max-lspher (sin (cadar od-sa)))
 	  
 	;;  D light
@@ -236,3 +235,6 @@
 
 (fbench 50000)
 ;(fbench 1)
+
+(s7-version)
+(exit)

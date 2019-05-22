@@ -94,9 +94,9 @@
 (define (add lst)
   (let loop ((p lst)
 	     (sum 0))
-    (if (pair? p)
-	(loop (cdr p) (+ sum (car p)))
-	sum)))
+    (if (null? p)
+	sum
+	(loop (cdr p) (+ sum (car p))))))
 
 (define big-list (make-list 10000 1))
 

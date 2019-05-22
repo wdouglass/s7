@@ -27,6 +27,7 @@
 		     ("tclo.scm" . "v-clo")
 		     ("tbig.scm" . "v-big")
 		     ("tshoot.scm" . "v-shoot")
+		     ("fbench.scm" . "v-fb")
 		     ))
 
 (define (last-callg)
@@ -79,8 +80,9 @@
 	 (list "repl" "tvect.scm")
 	 (list "repl" "tlet.scm")
 	 (list "repl" "tfft.scm")
-	 (list "repl" "dup.scm")
+	 (list "repl" "fbench.scm")
 	 (list "repl" "tclo.scm")
+	 (list "repl" "dup.scm")
 	 (list "repl" "tmap.scm")
 	 (list "repl" "tsort.scm")
 	 (list "repl" "tset.scm")
