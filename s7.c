@@ -3700,10 +3700,8 @@ static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
 static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
 static s7_pointer make_symbol(s7_scheme *sc, const char *name);
 static const char *decoded_name(s7_scheme *sc, s7_pointer p);
-
-#if WITH_HISTORY
 static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
-#endif
+
 
 #if S7_DEBUGGING
   #define wrap_string(Sc, Str, Len) wrap_string_1(Sc, Str, Len, __func__, __LINE__)
@@ -4186,7 +4184,6 @@ static const char* op_names[OP_MAX_DEFINED_1] =
 };
 #endif
 
-#define op_names op_names
 #define OPT_MAX_DEFINED OP_GC_PROTECT
 
 #define in_reader(Sc)     ((sc->cur_op >= OP_READ_LIST) && (sc->cur_op <= OP_READ_DONE) && (is_input_port(Sc->input_port)))
@@ -48170,10 +48167,12 @@ static void op_c_catch(s7_scheme *sc)
 /* -------------------------------- owlet -------------------------------- */
 /* error reporting info -- save filename and line number */
 
+/* TODO: make sure outlet is never rootlet */
+
 static s7_pointer init_owlet(s7_scheme *sc)
 {
   s7_pointer e;
-  e = new_frame_in_env(sc, sc->rootlet);
+  e = new_frame_in_env(sc, sc->nil);
   sc->temp3 = e;
   sc->error_type = make_slot_1(sc, e, make_symbol(sc, "error-type"), sc->F);  /* the error type or tag ('division-by-zero) */
   sc->error_data = make_slot_1(sc, e, make_symbol(sc, "error-data"), sc->F);  /* the message or information passed by the error function */
@@ -91892,4 +91891,5 @@ int main(int argc, char **argv)
  * tmat.scm for matrix ops (mult id), tletr for named let(*), add_ut? what was the lookup count file? make a new one
  *   libgsl cases? poly.scm?
  * snd-test 13 safe_c_star_fx?
+ * (let ((ow (owlet))) (ow 'asdf))
  */
