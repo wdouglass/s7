@@ -122,8 +122,8 @@
 			(unless first
 			  (format *stderr* "~%")))))))))))))
 
-(dups 16 "s7.c" 92000)
-;(dups 6 "s7.c" 92000)
+(dups 16 "s7.c" 93000)
+;(dups 6 "s7.c" 93000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
 ;(dups 1 "s7test.scm" 102000)

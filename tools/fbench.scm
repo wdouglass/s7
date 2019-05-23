@@ -172,6 +172,7 @@
 
 ;;	Set parameters for the design to be traced
 (set! clear-aperture 4)
+(define clear-aperture/2 (/ clear-aperture 2))
 (set! current-surfaces 4)
 
 (define (fbench iteration-count)
@@ -183,7 +184,7 @@
 	  ((> jp 1))
 	;;  Do main trace in D light
 	(set! paraxial jp)
-	(trace-line D-light (/ clear-aperture 2))
+	(trace-line D-light clear-aperture/2)
 	;; (set! od-sa (append od-sa (list (list object-distance axis-slope-angle)))) ; yikes!
 	(set! od-sa (cons (list object-distance axis-slope-angle) od-sa)))
       (set! od-sa (reverse! od-sa))
@@ -191,11 +192,11 @@
       (set! paraxial 0)
       
       ;;	Trace marginal ray in C
-      (trace-line C-light (/ clear-aperture 2))
+      (trace-line C-light clear-aperture/2)
       (let ((od-cline object-distance))
 	
 	;;	Trace marginal ray in F
-	(trace-line F-light (/ clear-aperture 2))
+	(trace-line F-light clear-aperture/2)
 	(set! aberr-lspher (- (caadr od-sa) (caar od-sa)))
 	(set! aberr-osc (- 1 (/ (* (caadr od-sa) (cadadr od-sa)) (* (sin (cadar od-sa)) (caar od-sa)))))
 	(set! aberr-lchrom (- object-distance od-cline))

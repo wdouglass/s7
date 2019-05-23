@@ -8,6 +8,7 @@ fgrep decrip *.html
 fgrep accomoda *.html
 fgrep pysical *.html
 fgrep decrip *.c
+fgrep decrib *.c
 fgrep maake *.c
 fgrep maake *.html
 fgrep accomoda *.c
