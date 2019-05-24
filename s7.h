@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.3"
-#define S7_DATE "7-May-19"
+#define S7_VERSION "8.5"
+#define S7_DATE "23-May-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -121,7 +121,7 @@ bool s7_history_enabled(s7_scheme *sc);
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
 
 s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
-void s7_gc_stats(s7_scheme *sc, bool on);                            /* (*s7* 'gc-stats) */
+void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
 
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
@@ -588,7 +588,7 @@ void *s7_c_object_value_checked(s7_pointer obj, s7_int type);
 s7_pointer s7_make_c_object(s7_scheme *sc, s7_int type, void *value);
 s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7_pointer let);
 s7_pointer s7_c_object_let(s7_pointer obj);
-s7_pointer s7_c_object_set_let(s7_pointer obj, s7_pointer e);
+s7_pointer s7_c_object_set_let(s7_scheme *sc, s7_pointer obj, s7_pointer e);
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name);
 void s7_c_type_set_free     (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
@@ -845,6 +845,8 @@ typedef s7_double s7_Double;
 #define s7_NIL(Sc)                    s7_nil(Sc)
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
 
+#define s7_gc_stats(Sc, On)           s7_set_gc_stats(Sc, On)
+
 void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
 #endif
 
@@ -853,6 +855,8 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
  * 
  *        s7 changes
  *
+ * 23-May:    added s7_scheme argument to s7_c_object_set_let.
+ * 19-May:    s7_gc_stats renamed s7_set_gc_stats.
  * 7-May:     s7_gc_unprotect_via_stack and s7_gc_(un)protect_via_location.
  * 22-Mar:    s7_float_format_precision. port-position. port-file.
  * 4-Jan-19:  morally-equal? -> equivalent?
