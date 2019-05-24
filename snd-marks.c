@@ -2083,7 +2083,7 @@ Xen new_xen_mark(int n)
   {
     s7_pointer m;
     m = Xen_make_object(xen_mark_tag, mx, 0, free_xen_mark);
-    s7_c_object_set_let(m, g_mark_methods);
+    s7_c_object_set_let(s7, m, g_mark_methods);
     return(m);
   }
 #else

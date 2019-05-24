@@ -234,7 +234,7 @@
 ; (sort! calls (lambda (a b) (< (car a) (car b)))))
 
 (s7-version)
-(exit)
+(#_exit)
 
 
 #|

@@ -218,20 +218,19 @@
 	    (format #f "Axial chromatic aberration:             ~16,11F" aberr-lchrom)
 	    (format #f "    (Maximum permissible):              ~16,11F" max-lchrom))))
       
-      (if (equal? results reference-results)
-	  (format #t "No errors in results.~%")
-	  (do ((errors 0)
-	       (received results (cdr received))
-	       (expected reference-results (cdr expected))
-	       (line 1 (+ line 1)))
-	      ((null? received)
-	       (format #t "~D error~A in results.~%" errors (if (> errors 1) "s" ""))) 
-	    (if (not (equal? (car expected) (car received)))
-		(begin
-		  (set! errors (+ errors 1))
-		  (format #t "Error in results in line ~D...~%" line)
-		  (format #t "Expected: ~A~%" (car expected))
-		  (format #t "Received: ~A~%" (car received)))))))))
+      (unless (equal? results reference-results)
+	(do ((errors 0)
+	     (received results (cdr received))
+	     (expected reference-results (cdr expected))
+	     (line 1 (+ line 1)))
+	    ((null? received)
+	     (format #t "~D error~A in results.~%" errors (if (> errors 1) "s" ""))) 
+	  (if (not (equal? (car expected) (car received)))
+	      (begin
+		(set! errors (+ errors 1))
+		(format #t "Error in results in line ~D...~%" line)
+		(format #t "Expected: ~A~%" (car expected))
+		(format #t "Received: ~A~%" (car received)))))))))
 
 
 (fbench 50000)

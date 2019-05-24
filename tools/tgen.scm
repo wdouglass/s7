@@ -393,5 +393,5 @@
 ;(gc)
 
 (s7-version)
-(exit)
+(#_exit)
 

@@ -7,12 +7,12 @@
   (let ((*pretty-print-length* 100)
 	(*pretty-print-spacing* 2)
 	(*pretty-print-float-format* "~,4F")
-	(*pretty-print-left-margin* 0)
-	(any? (lambda (f sequence) ; this and every? ought to be built-in!
-		(call-with-exit
-		 (lambda (return) 
-		   (for-each (lambda (arg) (if (f arg) (return #t))) sequence)
-		   #f)))))
+	(*pretty-print-left-margin* 0))
+
+    (define (any? f sequence)
+      (and (pair? sequence)
+	   (or (f (car sequence))
+	       (any? f (cdr sequence)))))
 
     (define pretty-print-1
       (letrec ((messy-number (lambda (z)
@@ -434,32 +434,7 @@
 		     (if (rational? obj)
 			 (write obj port)
 			 (display (messy-number obj) port)))
-		    
-		    ((hash-table? obj)
-		     (display "(hash-table" port)
-		     (for-each (lambda (field)
-				 (let ((symstr (object->string (car field))))
-				   (spaces port (+ column 2))
-				   (format port "'(~A . " symstr)
-				   (pretty-print-1 (cdr field) port (+ column 4 (length symstr)))
-				   (write-char #\) port)))
-			       obj)
-		     (write-char #\) port))
-		    
-		    ((let? obj)
-		     (if (and (openlet? obj)
-			      (defined? 'pretty-print obj))
-			 ((obj 'pretty-print) obj port column)
-			 (begin
-			   (display "(inlet" port)
-			   (for-each (lambda (field)
-				       (let ((symstr (symbol->string (car field))))
-					 (spaces port (+ column 5))
-					 (format port ":~A " symstr)
-					 (pretty-print-1 (cdr field) port (+ column 2 (length symstr)))))
-				     obj)
-			   (write-char #\) port))))
-		    
+
 		    ((or (int-vector? obj)
 			 (float-vector? obj))
 		     (if (> (length (vector-dimensions obj)) 1)
@@ -491,6 +466,34 @@
 					     (display #\space port)))
 				     (display numstr port)
 				     (set! col (+ col numlen 1)))))))))
+		    
+		    ((pair? (cyclic-sequences obj))
+		     (format port "~W" obj))
+
+		    ((hash-table? obj)
+		     (display "(hash-table" port)
+		     (for-each (lambda (field)
+				 (let ((symstr (object->string (car field))))
+				   (spaces port (+ column 2))
+				   (format port "'(~A . " symstr)
+				   (pretty-print-1 (cdr field) port (+ column 4 (length symstr)))
+				   (write-char #\) port)))
+			       obj)
+		     (write-char #\) port))
+		    
+		    ((let? obj)
+		     (if (and (openlet? obj)
+			      (defined? 'pretty-print obj))
+			 ((obj 'pretty-print) obj port column)
+			 (begin
+			   (display "(inlet" port)
+			   (for-each (lambda (field)
+				       (let ((symstr (symbol->string (car field))))
+					 (spaces port (+ column 5))
+					 (format port ":~A " symstr)
+					 (pretty-print-1 (cdr field) port (+ column 2 (length symstr)))))
+				     obj)
+			   (write-char #\) port))))
 		    
 		    ((vector? obj)
 		     (if (> (length (vector-dimensions obj)) 1)

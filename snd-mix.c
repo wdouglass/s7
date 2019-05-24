@@ -2814,7 +2814,7 @@ Xen new_xen_mix(int n)
   {
     s7_pointer m;
     m = Xen_make_object(xen_mix_tag, mx, 0, free_xen_mix);
-    s7_c_object_set_let(m, g_mix_methods);
+    s7_c_object_set_let(s7, m, g_mix_methods);
     return(m);
   }
 #else
@@ -3803,7 +3803,7 @@ Xen g_make_mix_sampler(Xen mix_id, Xen ubeg)
 	  {
 	    s7_pointer m;
 	    m = Xen_make_object(mf_tag, mf, 0, free_mf);
-	    s7_c_object_set_let(m, g_mix_sampler_methods);
+	    s7_c_object_set_let(s7, m, g_mix_sampler_methods);
 	    return(m);
 	  }
 #else
