@@ -158,6 +158,9 @@
 (format *stderr* "~NC tmap ~NC~%" 20 #\- 20 #\-)
 (system "./repl tmap.scm")
 
+(format *stderr* "~NC tmat ~NC~%" 20 #\- 20 #\-)
+(system "./repl tmat.scm")
+
 (format *stderr* "~NC teq ~NC~%" 20 #\- 20 #\-)
 (system "./repl teq.scm")
 
@@ -193,6 +196,9 @@
 
 (format *stderr* "~NC tvect ~NC~%" 20 #\- 20 #\-)
 (system "./repl tvect.scm")
+
+(format *stderr* "~NC tletr ~NC~%" 20 #\- 20 #\-)
+(system "./repl tletr.scm")
 
 (format *stderr* "~NC fbench ~NC~%" 20 #\- 20 #\-)
 (system "./repl fbench.scm")

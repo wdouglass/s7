@@ -391,8 +391,9 @@
     (define lint-pp-funclet #f)
     (let ()
       (require write.scm)
-      (set! lint-pp pp);
-      (set! lint-pp-funclet (funclet pretty-print)))
+      (set! lint-pp pp)
+      (set! lint-pp-funclet (funclet pretty-print))
+      (set! (lint-pp-funclet '*pretty-print-cycles*) #f))
     
     (denote (lists->string f1 f2)
       (let ((str1 (lint-truncate-string (object->string f1 #t (+ target-line-length 2)))))
@@ -12158,7 +12159,7 @@
 				 ((null? (cdr clause)))             ; ignore the initial value which depends on a different env
 			       (let ((call (car clause)))
 				 (if (pair? call)
-				     (set! line-number (or (pair-line-number call) (if (> line-number 0) line-number 0))))
+				     (set! line-number (or (pair-line-number call) (max line-number 0))))
 				 
 				 (when (pair? call)
 				   (let ((func (car call))
@@ -22296,7 +22297,7 @@
 	;; -------- lint-walk-pair --------
 	(lambda (caller form env)
 	  (let ((head (car form)))
-	    (set! line-number (or (pair-line-number form) (if (> line-number 0) line-number 0)))
+	    (set! line-number (or (pair-line-number form) (max line-number 0)))
 	    
 	    (if *report-repeated-code-fragments*
 		(lint-fragment form env))

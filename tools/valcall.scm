@@ -12,6 +12,7 @@
 		     ("tform.scm" . "v-form")
 		     ("tread.scm" . "v-read")
 		     ("tmap.scm" . "v-map")
+		     ("tmat.scm" . "v-mat")
 		     ("lg.scm" . "v-lg")
 		     ("titer.scm" . "v-iter")
 		     ("tsort.scm" . "v-sort")
@@ -28,6 +29,8 @@
 		     ("tbig.scm" . "v-big")
 		     ("tshoot.scm" . "v-shoot")
 		     ("fbench.scm" . "v-fb")
+		     ("tletr" . "v-letr")
+		     ("test-all" . "v-b")
 		     ))
 
 (define (last-callg)
@@ -52,19 +55,23 @@
    (lambda (caller+file)
      (system "rm callg*")
      (format *stderr* "~%~NC~%~NC ~A ~NC~%~NC~%" 40 #\- 16 #\- (cadr caller+file) 16 #\- 40 #\-)
-     ;(system (format #f "/home/bil/test/valgrind-3.12.0/vg-in-place --tool=callgrind ./~A ~A" (car caller+file) (cadr caller+file)))
      (system (format #f "valgrind --tool=callgrind ./~A ~A" (car caller+file) (cadr caller+file)))
+
      ;; valgrind 3.12 blathers endlessly -- I made this change:
      ;;   /home/bil/test/valgrind-3.12.0/coregrind/m_syswrap/syswrap-generic.c
      ;;   comment out lines 1333 to 1341
+
      (let ((outfile (cdr (assoc (cadr caller+file) file-names))))
        (let ((next (next-file outfile)))
 	 (system (format #f "callgrind_annotate --auto=yes --threshold=100 ~A > ~A~D" (last-callg) outfile next))
+
 	 ;; new callgrind blathers endlessly -- I made this change:
          ;;   (line 825) my $space = ' ' x ($CC_col_widths->[$i] - length($count));
          ;;              my $space = ' ' x max($CC_col_widths->[$i] - length($count), 0);
+
 	 (format *stderr* "~NC ~A~D -> ~A~D: ~NC~%" 8 #\space outfile (- next 1) outfile next 8 #\space)
 	 (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" outfile (- next 1) outfile next)))))
+
    (list (list "repl" "tpeak.scm")
 	 (list "repl" "tmac.scm")
 	 (list "repl" "tshoot.scm")
@@ -83,9 +90,11 @@
 	 (list "repl" "fbench.scm")
 	 (list "repl" "tclo.scm")
 	 (list "repl" "dup.scm")
+	 (list "repl" "tmat.scm")
 	 (list "repl" "tmap.scm")
 	 (list "repl" "tsort.scm")
 	 (list "repl" "tset.scm")
+	 (list "repl" "tletr.scm")
 	 (list "repl" "titer.scm")
 	 (list "repl" "thash.scm")
 	 (list "repl" "trec.scm")
@@ -95,8 +104,14 @@
 	 (list "snd -l" "full-snd-test.scm")
 	 (list "repl" "lg.scm")
 	 (list "repl" "tbig.scm")
-	 )))
-	 
+	 ))
+
+  (let ((next (next-file "v-b")))
+    (format *stderr* "~%~NC~%~NC ~A ~NC~%~NC~%" 40 #\- 16 #\- "test-all.scm" 16 #\- 40 #\-)
+    (system (format #f "(cd /home/bil/test/scheme/bench/src ; valgrind --tool=callgrind /home/bil/cl/repl test-all.scm ; callgrind_annotate --auto=yes --threshold=100 ~A > ~A~D)"
+		    (last-callg) "v-b" next))
+    (format *stderr* "~NC ~A~D -> ~A~D: ~NC~%" 8 #\space "v-b" (- next 1) "v-b" next 8 #\space)
+    (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" "v-b" (- next 1) "v-b" next))))
 
 (call-valgrind)
 

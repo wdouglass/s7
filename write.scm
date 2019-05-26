@@ -7,7 +7,8 @@
   (let ((*pretty-print-length* 100)
 	(*pretty-print-spacing* 2)
 	(*pretty-print-float-format* "~,4F")
-	(*pretty-print-left-margin* 0))
+	(*pretty-print-left-margin* 0)
+	(*pretty-print-cycles* #t))
 
     (define (any? f sequence)
       (and (pair? sequence)
@@ -467,7 +468,8 @@
 				     (display numstr port)
 				     (set! col (+ col numlen 1)))))))))
 		    
-		    ((pair? (cyclic-sequences obj))
+		    ((and *pretty-print-cycles*
+			  (pair? (cyclic-sequences obj)))
 		     (format port "~W" obj))
 
 		    ((hash-table? obj)
@@ -656,9 +658,9 @@
 (define (pp obj)
   (call-with-output-string
    (lambda (p)
-      (if (keyword? obj)
-	  (symbol->string obj)
-	  (pretty-print obj p)))))
+     (if (keyword? obj)
+	 (display obj p)
+	 (pretty-print obj p)))))
 
 #|
 (define (pretty-print-all)

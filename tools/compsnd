@@ -1,8 +1,5 @@
 #!/bin/csh -f
 
-# cp ~/dist/snd/snd.tar .
-# tar xf snd.tar
-
 # words I constantly missppelll
 fgrep decrip *.html
 fgrep accomoda *.html
@@ -30,6 +27,8 @@ fgrep -e "propogat" *.[ch]
 fgrep -e "propogat" *.html
 fgrep -e "propogat" *.scm
 grep ' \-\-$' *.html
+
+cp ~/cl/snd .
 /home/bil/cl/snd tools/va.scm
 
 echo ' '

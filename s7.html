@@ -746,7 +746,9 @@ have been evaluated (as in named let).
 <p>To try to catch what I believe are usually mistakes, I added two
 error checks.  One is triggered if you set the same parameter twice
 in the same call, and the other if an unknown keyword is encountered
-in the key position.  These problems arise in a case such as
+in the key position.  To turn off these errors, add :allow-other-keys
+at the end of the parameter list.
+These problems arise in a case such as
 </p>
 
 <pre class="indented">
@@ -764,8 +766,9 @@ in the key position.  These problems arise in a case such as
 
 <p>In the last case, to pass a keyword deliberately, either include the
 argument keyword: <code>(f :a :c)</code>, or make the default value a keyword:
-<code>(define* (f (a :c) ...))</code>.
-To turn off this error check, add :allow-other-keys at the end of the parameter list.
+<code>(define* (f (a :c) ...))</code>, or set <code>(*s7* 'accept-all-keyword-arguments)</code>
+to some true value.
+See s7test.scm for many examples.  
 </p>
 
 </div>
@@ -5298,6 +5301,7 @@ file-names                    currently loaded files (a list)
 safety                        0 (see below)
 undefined-identifier-warnings #f 
 undefined-constant-warnings   #f 
+accept-all-keyword-arguments  #f 
 autoloading?                  #t
 
 history			      a circular buffer of recent eval entries stored backwards
