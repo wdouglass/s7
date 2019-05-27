@@ -224,5 +224,4 @@
 ;(test-sym 'write)
 (all)
 
-(s7-version)
 (exit)

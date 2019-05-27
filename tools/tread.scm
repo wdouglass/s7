@@ -118,7 +118,4 @@
 
 (tester)
 
-  
-  
-(s7-version)
 (exit)

@@ -94,9 +94,4 @@
 
 (tests 10000)
 
-(s7-version)
 (exit)
-
-
-
-	

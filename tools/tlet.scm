@@ -55,6 +55,5 @@
       (format *stderr* "~A ~A ~A ~A~%" (/ (- (* size size) size) 2) sum1 sum2 sum3))))
 (in-e)
 
-(s7-version)
 (exit)
 

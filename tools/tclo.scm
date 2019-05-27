@@ -90,5 +90,4 @@
 
 (d1)
 
-(s7-version)
 (exit)

@@ -1611,7 +1611,6 @@
 
 (html-check '("sndlib.html" "snd.html" "extsnd.html" "grfsnd.html" "sndclm.html" "sndscm.html" "fm.html" "s7.html" "index.html"))
 
-(s7-version)
 (#_exit)
 
 

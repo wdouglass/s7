@@ -162,5 +162,4 @@
     (tree-eq? tree tree)))
 (more-eq)
 
-(s7-version)
 (exit)

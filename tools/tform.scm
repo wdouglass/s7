@@ -115,5 +115,4 @@
 
 ;(do ((i 0 (+ i 1))) ((= i 1000)) (test-chars))
 
-(s7-version)
 (exit)

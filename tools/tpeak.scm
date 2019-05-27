@@ -358,5 +358,4 @@
 (base-case)
 (checks)
 
-(s7-version)
 (exit)

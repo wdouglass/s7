@@ -29,8 +29,8 @@
 		     ("tbig.scm" . "v-big")
 		     ("tshoot.scm" . "v-shoot")
 		     ("fbench.scm" . "v-fb")
-		     ("tletr" . "v-letr")
-		     ("test-all" . "v-b")
+		     ("tletr.scm" . "v-letr")
+		     ("test-all.scm" . "v-b")
 		     ))
 
 (define (last-callg)
@@ -90,13 +90,13 @@
 	 (list "repl" "fbench.scm")
 	 (list "repl" "tclo.scm")
 	 (list "repl" "dup.scm")
-	 (list "repl" "tmat.scm")
 	 (list "repl" "tmap.scm")
 	 (list "repl" "tsort.scm")
 	 (list "repl" "tset.scm")
-	 (list "repl" "tletr.scm")
 	 (list "repl" "titer.scm")
+	 (list "repl" "tmat.scm")
 	 (list "repl" "thash.scm")
+	 (list "repl" "tletr.scm")
 	 (list "repl" "trec.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
 	 (list "snd -noinit" "tall.scm")
@@ -108,10 +108,9 @@
 
   (let ((next (next-file "v-b")))
     (format *stderr* "~%~NC~%~NC ~A ~NC~%~NC~%" 40 #\- 16 #\- "test-all.scm" 16 #\- 40 #\-)
-    (system (format #f "(cd /home/bil/test/scheme/bench/src ; valgrind --tool=callgrind /home/bil/cl/repl test-all.scm ; callgrind_annotate --auto=yes --threshold=100 ~A > ~A~D)"
+    (system (format #f "(cd /home/bil/test/scheme/bench/src ; valgrind --tool=callgrind /home/bil/motif-snd/repl test-all.scm ; callgrind_annotate --auto=yes --threshold=100 ~A > ~A~D)"
 		    (last-callg) "v-b" next))
-    (format *stderr* "~NC ~A~D -> ~A~D: ~NC~%" 8 #\space "v-b" (- next 1) "v-b" next 8 #\space)
-    (system (format #f "./snd compare-calls.scm -e '(compare-calls \"~A~D\" \"~A~D\")'" "v-b" (- next 1) "v-b" next))))
+    (format *stderr* "~NC ~A~D -> ~A~D: ~NC~%" 8 #\space "v-b" (- next 1) "v-b" next 8 #\space)))
 
 (call-valgrind)
 

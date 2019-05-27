@@ -264,6 +264,4 @@
 ;(test-append 10000)
 |#
 
-(s7-version)
 (exit)
-

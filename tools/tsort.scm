@@ -202,4 +202,4 @@
   
   (run-sort))
 
-(s7-version)
+(exit)

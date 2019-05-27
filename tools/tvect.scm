@@ -760,8 +760,5 @@
 (unless (= (sum-f1111) 7812437500.0)
   (format *stderr* "f1111: ~S~%" (sum-f1111)))
 
-
-
-(s7-version)
 (exit)
 

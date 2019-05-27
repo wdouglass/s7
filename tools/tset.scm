@@ -52,6 +52,4 @@
 
 (t)
 
-
-(s7-version)
 (exit)

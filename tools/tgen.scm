@@ -392,6 +392,4 @@
 
 ;(gc)
 
-(s7-version)
 (#_exit)
-

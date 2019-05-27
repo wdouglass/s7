@@ -233,7 +233,6 @@
 ;   (format #t "~A~%" n))
 ; (sort! calls (lambda (a b) (< (car a) (car b)))))
 
-(s7-version)
 (#_exit)
 
 

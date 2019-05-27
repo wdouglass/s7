@@ -236,5 +236,4 @@
 (fbench 50000)
 ;(fbench 1)
 
-(s7-version)
 (exit)

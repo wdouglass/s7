@@ -42647,7 +42647,6 @@ EDITS: 1
 
 (gc) (gc)
 
-(s7-version)
 (if with-exit (#_exit))
 
 ;;; ---------------- test the end
