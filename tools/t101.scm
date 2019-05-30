@@ -197,8 +197,8 @@
 (format *stderr* "~NC tvect ~NC~%" 20 #\- 20 #\-)
 (system "./repl tvect.scm")
 
-(format *stderr* "~NC tletr ~NC~%" 20 #\- 20 #\-)
-(system "./repl tletr.scm")
+(format *stderr* "~NC trclo ~NC~%" 20 #\- 20 #\-)
+(system "./repl trclo.scm")
 
 (format *stderr* "~NC fbench ~NC~%" 20 #\- 20 #\-)
 (system "./repl fbench.scm")

@@ -690,12 +690,10 @@
     
     
     ;; -------- trees --------
-    (define copy-tree 
-      (let ((+documentation+ "(copy-tree lst) returns a full copy of lst"))
-	(lambda (lis)
-	  (if (pair? lis)
-	      (copy lis) ;:readable)
-	      lis))))
+    (define (copy-tree lis)
+      (if (pair? lis)
+	  (copy lis) ;:readable)
+	  lis))
 
     (define (proper-tree? tree)
       (or (not (pair? tree))

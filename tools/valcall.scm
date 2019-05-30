@@ -29,7 +29,7 @@
 		     ("tbig.scm" . "v-big")
 		     ("tshoot.scm" . "v-shoot")
 		     ("fbench.scm" . "v-fb")
-		     ("tletr.scm" . "v-letr")
+		     ("trclo.scm" . "v-rclo")
 		     ("test-all.scm" . "v-b")
 		     ))
 
@@ -78,9 +78,9 @@
 	 (list "repl" "tauto.scm")
 	 (list "repl" "tref.scm")
 	 (list "snd -noinit" "make-index.scm")
+	 (list "repl" "trclo.scm")
 	 (list "repl" "teq.scm")
 	 (list "repl" "s7test.scm")
-	 (list "repl" "tletr.scm")
 	 (list "repl" "lt.scm")
 	 (list "repl" "tcopy.scm")
 	 (list "repl" "tread.scm")
@@ -104,12 +104,7 @@
 	 (list "snd -l" "full-snd-test.scm")
 	 (list "repl" "lg.scm")
 	 (list "repl" "tbig.scm")
-	 ))
-
-  (let ((next (next-file "v-b")))
-    (format *stderr* "~%~NC~%~NC ~A ~NC~%~NC~%" 40 #\- 16 #\- "test-all.scm" 16 #\- 40 #\-)
-    (system (format #f "(cd /home/bil/test/scheme/bench/src ; valgrind --tool=callgrind /home/bil/motif-snd/repl test-all.scm ; callgrind_annotate --auto=yes --threshold=100 ~A > ~/motif-snd/~A~D)"
-		    (last-callg) "v-b" next)))
+	 )))
 
 (call-valgrind)
 
