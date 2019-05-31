@@ -1,7 +1,7 @@
 ;;; tletr
 
 ;;; --------------------------------------------------------------------------------
-;;; one arg
+;;; or/and
 
 (define (and-1 lst)
   (let loop ((x lst))
@@ -15,11 +15,25 @@
 	(and (integer? (car x))
 	     (loop (cdr x))))))
 
+(define (and-3 lst)
+  (let loop ((x lst) (count 10000))
+    (and (positive? count)
+	 (or (null? x)
+	     (loop (cdr x) (- count 1))))))
+
+(define (and-4 lst)
+  (let loop ((x lst) (count 10000))
+    (or (null? x)
+	(and (positive? count)
+	     (loop (cdr x) (- count 1))))))
+
 (define big-list (make-list 10000 1))
 
 (define (and-f)
   (if (and-1 big-list) (format #t "and-1 returned #t\n"))
-  (if (not (and-2 big-list)) (format #t "and-2 returned #f\n")))
+  (if (not (and-2 big-list)) (format #t "and-2 returned #f\n"))
+  (if (and-3 big-list) (format #t "and-3 returned #t\n"))
+  (if (not (and-4 big-list)) (format #t "and-4 returned #f\n")))
 
 
 ;;; --------
@@ -34,13 +48,25 @@
       (and (integer? (car x))
 	   (pand-2 (cdr x)))))
 
+(define (pand-3 x count)
+  (and (positive? count)
+       (or (null? x)
+	   (pand-3 (cdr x) (- count 1)))))
+
+(define (pand-4 x count)
+  (or (null? x)
+      (and (positive? count)
+	   (pand-4 (cdr x) (- count 1)))))
+
 (define (pand-f)
   (if (pand-1 big-list) (format #t "pand-1 returned #t\n"))
-  (if (not (pand-2 big-list)) (format #t "pand-2 returned #f\n")))
+  (if (not (pand-2 big-list)) (format #t "pand-2 returned #f\n"))
+  (if (pand-3 big-list 10000) (format #t "pand-3 returned #t\n"))
+  (if (not (pand-4 big-list 10000)) (format #t "pand-4 returned #f\n")))
 
 
 ;;; --------------------------------------------------------------------------------
-;;; two args
+;;; if
 
 (define (sum-1 n)
   (let loop ((i n) (sum 0))
