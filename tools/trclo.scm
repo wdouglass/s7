@@ -92,6 +92,24 @@
         (loop (- i 1.0) (+ i sum))
         sum)))
 
+(define (sum-5 n)
+  (let loop ((i n) (sum 0))
+    (if (< i -1)
+	-2
+	(if (< i 0)
+	    sum
+	    (loop (- i 1) (+ sum i))))))
+
+(define big-str (make-string 10000 #\b))
+
+(define (sum-6 str)
+  (let loop ((i (- (length str) 1)))
+    (if (< i 0)
+	#f
+	(if (char=? (string-ref str i) #\a)
+	    #\?
+	    (loop (- i 1))))))
+
 (define (sum-f)
   (let ((n (sum-1 10000)))
     (if (not (= n 50005000))
@@ -107,7 +125,15 @@
 
   (let ((result (sum-4 10000.0)))
     (if (not (equal? result 50005000.0))
-	(format #t ";sum4: ~A~%" result))))
+	(format #t ";sum4: ~A~%" result)))
+
+  (let ((result (sum-5 10000)))
+    (if (not (= result 50005000))
+	(format #t ";sum5: ~A~%" n)))
+
+  (let ((result (sum-6 big-str)))
+    (if result
+	(format #t ";sum6: ~A~%" result))))
 
 ;;; --------
 
@@ -131,6 +157,20 @@
       (psum-4 (- i 1.0) (+ i sum))
       sum))
 
+(define (psum-5 i sum)
+  (if (< i -1)
+      -2
+      (if (< i 0)
+	  sum
+	  (psum-5 (- i 1) (+ sum i)))))
+
+(define (psum-6 i)
+  (if (< i 0)
+      #f
+      (if (char=? (string-ref big-str i) #\a)
+	  #\?
+	  (psum-6 (- i 1)))))
+
 (define (psum-f)
   (let ((n (psum-1 10000 0)))
     (if (not (= n 50005000))
@@ -146,7 +186,15 @@
 
   (let ((result (psum-4 10000.0 0.0)))
     (if (not (equal? result 50005000.0))
-	(format #t ";psum4: ~A~%" result))))
+	(format #t ";psum4: ~A~%" result)))
+
+  (let ((result (psum-5 10000 0)))
+    (if (not (= result 50005000))
+	(format #t ";psum5: ~A~%" result)))
+
+  (let ((result (psum-6 9999)))
+    (if result
+	(format #t ";psum6: ~A~%" result))))
 
 
 ;;; --------------------------------------------------------------------------------
