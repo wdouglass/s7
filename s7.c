@@ -1285,16 +1285,16 @@ struct s7_scheme {
 
   /* optimizer s7_functions */
   s7_pointer add_2, add_1s, add_s1, add_cs1, add_si, add_sf, add_fs, add_f_sf, subtract_1, subtract_2, subtract_s1,
-             subtract_cs1, subtract_csn, subtract_sf, subtract_2f, subtract_fs,  simple_char_eq, char_equal_s_ic,
+             subtract_cs1, subtract_csn, subtract_2f, subtract_fs,  simple_char_eq, char_equal_s_ic,
              char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, display_2,
              string_greater_2, string_less_2, symbol_to_string_uncopied, vector_ref_ic, vector_ref_ic_0, vector_ref_ic_1,
              vector_ref_ic_2, vector_ref_ic_3, vector_ref_2, vector_ref_2_direct, vector_ref_3, vector_set_3, vector_set_4,
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
-             list_0, list_1, list_2, list_set_ic, hash_table_ref_2, hash_table_ref_ss, hash_table_2,
+             list_0, list_1, list_2, list_set_ic, hash_table_ref_2, hash_table_2,
              hash_table_ref_car, format_allg, format_allg_no_column, format_just_control_string, format_as_objstr,
              not_is_pair_s, not_is_null_s, not_is_symbol_s, not_is_number_s, not_is_eq_ss, not_is_eq_sq, not_is_pair_car_s,
              not_c_c, is_pair_car_s, is_pair_cdr_s, is_pair_cddr_s, is_pair_cadr_s, is_null_cdr, is_null_cddr_s,
-             is_null_cadr_s, is_symbol_cadr_s, is_eq_car, is_eq_car_q, is_eq_caar_q, member_ss, member_sq, memq_2,
+             is_null_cadr_s, is_symbol_cadr_s, is_eq_car, is_eq_car_q, is_eq_caar_q, member_sq, memq_2,
              memq_3, memq_4, memq_any, memq_car, memq_car_2, tree_set_memq_syms, read_line_uncopied, simple_inlet,
              lint_let_ref, lint_let_set, or_n, or_2, or_3, and_n, and_2, and_3, if_a_a, if_a_aa, if_not_a_a,
              if_not_a_aa, if_x_qq, if_x_qa, or_s_direct, and_s_direct, geq_2, or_s_direct_2, and_s_direct_2, or_s_type_2;
@@ -2225,6 +2225,7 @@ static void init_types(void)
 #define T_IMMUTABLE                    (1 << (TYPE_BITS + 16))
 #define is_immutable(p)                has_type_bit(T_Pos(p), T_IMMUTABLE)
 #define set_immutable(p)               set_type_bit(T_Pos(p), T_IMMUTABLE)
+#define set_immutable_let(p)           set_type_bit(T_Lid(p), T_IMMUTABLE)
 #define is_immutable_port(p)           has_type_bit(T_Prt(p), T_IMMUTABLE)
 #define is_immutable_symbol(p)         has_type_bit(T_Sym(p), T_IMMUTABLE)
 #define is_immutable_slot(p)           has_type_bit(T_Slt(p), T_IMMUTABLE)
@@ -7766,6 +7767,7 @@ to the let env, and returns env.  (varlet (curlet) 'a 1) adds 'a to the current 
   s7_pointer x, e, sym, val, p;
 
   e = car(args);
+  /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, DISPLAY(args), is_immutable(e)); */
   if (is_null(e))
     e = sc->rootlet;
   else
@@ -17195,11 +17197,6 @@ static s7_pointer g_subtract_2f(s7_scheme *sc, s7_pointer args)
   return(x);
 }
 
-static s7_pointer g_subtract_sf(s7_scheme *sc, s7_pointer args)
-{
-  return(g_subtract_2f(sc, set_plist_2(sc, lookup(sc, car(args)), cadr(args))));
-}
-
 static s7_pointer g_subtract_fs(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer x;
@@ -21344,7 +21341,7 @@ static s7_pointer random_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       arg1 = cadr(expr);
       if (s7_is_integer(arg1))
 	{
-	  set_optimize_op(expr, HOP_SAFE_C_D);
+	  set_optimize_op(expr, HOP_SAFE_C_D); /* D here and below is C */
 	  return(sc->random_ic);
 	}
       if (is_float(arg1))
@@ -22361,8 +22358,8 @@ static void init_strings(void)
   format_string_3 = make_permanent_string("format: ~S ~{~S~^ ~}~&~NT^: ~A");
   format_string_4 = make_permanent_string("format: ~S~&~NT^: ~A");
 
-  too_many_arguments_string = make_permanent_string("~A: too many arguments: ~A");
-  not_enough_arguments_string = make_permanent_string("~A: not enough arguments: ~A");
+  too_many_arguments_string = make_permanent_string("~S: too many arguments: ~A");
+  not_enough_arguments_string = make_permanent_string("~S: not enough arguments: ~A");
   missing_method_string = make_permanent_string("missing ~S method in ~S");
 }
 
@@ -35898,27 +35895,6 @@ static s7_pointer g_member_sq(s7_scheme *sc, s7_pointer args)
   return(member(sc, obj, lst));
 }
 
-static s7_pointer g_member_ss(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer obj, x;
-
-  obj = lookup(sc, car(args));
-  x = lookup(sc, cadr(args));
-  if (!is_pair(x))
-    {
-      if (is_null(x)) return(sc->F);
-      return(method_or_bust_with_type(sc, x, sc->member_symbol, list_2(sc, obj, x), a_list_string, 2));
-    }
-
-  if (is_simple(obj))
-    return(s7_memq(sc, obj, x));
-
-  if (s7_is_number(obj))
-    return(memv_number(sc, obj, x));
-
-  return(member(sc, obj, x));
-}
-
 static s7_pointer member_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(g_member(sc, set_plist_2(sc, p1, p2)));}
 
 static s7_pointer member_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -35926,27 +35902,14 @@ static s7_pointer member_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
   if (!ops) return(f);
   if (args == 2)
     {
-      if (is_normal_symbol(caddr(expr)))
+      if (((optimize_op(expr) == HOP_SAFE_C_SC) || /* watch out for (member x '3) etc */
+	   (is_h_safe_c_d(expr))) &&
+	  (is_normal_symbol(cadr(expr))) &&
+	  (is_proper_quote(sc, caddr(expr))) &&
+	  (is_pair(cadr(caddr(expr)))))
 	{
-	  if ((optimize_op(expr) == HOP_SAFE_C_SS) ||
-	      ((is_h_safe_c_d(expr)) &&
-	       (is_normal_symbol(cadr(expr)))))
-	    {
-	      set_optimize_op(expr, HOP_SAFE_C_D);
-	      return(sc->member_ss);                    /* (member obj lst) */
-	    }
-	}
-      else
-	{
-	  if (((optimize_op(expr) == HOP_SAFE_C_SC) || /* watch out for (member x '3) etc */
-	       (is_h_safe_c_d(expr))) &&
-	      (is_normal_symbol(cadr(expr))) &&
-	      (is_proper_quote(sc, caddr(expr))) &&
-	      (is_pair(cadr(caddr(expr)))))
-	    {
-	      set_optimize_op(expr, HOP_SAFE_C_D);
-	      return(sc->member_sq);                    /* (member q '(quote lambda case)) */
-	    }
+	  set_optimize_op(expr, HOP_SAFE_C_D);
+	  return(sc->member_sq);                    /* (member q '(quote lambda case)) */
 	}
     }
 
@@ -41405,20 +41368,6 @@ static s7_pointer g_hash_table_ref_2(s7_scheme *sc, s7_pointer args)
   return(hash_entry_value(x));
 }
 
-static s7_pointer g_hash_table_ref_ss(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer table, key;
-  hash_entry_t *x;
-
-  table = lookup(sc, car(args));
-  key = lookup(sc, cadr(args));
-  if (!is_hash_table(table))
-    return(method_or_bust(sc, table, sc->hash_table_ref_symbol, list_2(sc, table, key), T_HASH_TABLE, 1));
-
-  x = (*hash_table_checker(table))(sc, table, key);
-  return(hash_entry_value(x));
-}
-
 static s7_pointer g_hash_table_ref_car(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer y, table;
@@ -46212,7 +46161,7 @@ s7_pointer s7_fill(s7_scheme *sc, s7_pointer args)
 
     case T_NIL:
       if (!is_null(cddr(args)))  /* (fill! () 1 21 #\a)? */
-	eval_error(sc, "fill! () ... includes indicies: ~S?", 35, cddr(args));
+	eval_error(sc, "fill! () ... includes indices: ~S?", 34, cddr(args));
       return(cadr(args));        /* this parallels the empty vector case */
 
     case T_HASH_TABLE:
@@ -52254,8 +52203,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		    }
 		  return(fx_not_c_d);
 		}
-	      if (c_callee(arg) == g_hash_table_ref_ss)
-		return(fx_c_hash_table_ref_ss);
 	      if (c_callee(arg) == g_hash_table_ref_car)
 		return(fx_c_hash_table_ref_car);
 	      return(fx_c_d);
@@ -52316,6 +52263,10 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      if (c_callee(arg) == g_is_eq) return(fx_is_eq_ss);
 	      if (c_callee(arg) == g_add_2) return(fx_add_ss);
 	      if (c_callee(arg) == g_subtract_2) return(fx_subtract_ss);
+
+	      if ((c_callee(arg) == g_hash_table_ref_2) && (is_symbol(car(arg))) && (is_symbol(cadr(arg))))
+		return(fx_c_hash_table_ref_ss);
+
 	      return(fx_c_ss);
 
 	    case HOP_SAFE_C_S_opSSq:
@@ -65557,7 +65508,7 @@ static s7_pointer hash_table_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
  if (args == 2)
     {
       /* choosers are run even in non-hop non-safe-symbol contexts, so any that look for a symbol
-       *   need some way to ensure it is safe before changing to (say) hash_table_ref_ss which
+       *   need some way to ensure it is safe before changing to (say) hash_table_ref_ss (now obsolete) which
        *   assumes that (coming from op_safe_c_ss normally).  But we get here more than once on
        *   the same expression somehow, so we have to recognize the initial case (h_safe_c_ss),
        *   then kludge up the returning case (h_safe_c_c).  Using is_slot(symbol_to_slot()) is
@@ -65566,14 +65517,6 @@ static s7_pointer hash_table_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
        */
       if (ops)
 	{
-	  if ((optimize_op(expr) == HOP_SAFE_C_SS) ||
-	      ((is_h_safe_c_d(expr)) &&
-	       (is_normal_symbol(cadr(expr))) &&
-	       (is_normal_symbol(caddr(expr)))))
-	    {
-	      set_optimize_op(expr, HOP_SAFE_C_D);
-	      return(sc->hash_table_ref_ss);
-	    }
 	  if (((optimize_op(expr) == HOP_SAFE_C_S_opSq) ||
 	       ((is_h_safe_c_d(expr)) && (is_symbol(cadr(expr))))) &&
 	      (is_h_safe_c_s(caddr(expr))) &&
@@ -65824,16 +65767,6 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
 		  return(sc->subtract_cs1);
 		}
 	      return(sc->subtract_s1);
-	    }
-
-	  if (is_t_real(arg2))
-	    {
-	      if ((optimize_op(expr) == HOP_SAFE_C_SC) ||    /* (- x 1.0) */
-		  ((is_h_safe_c_d(expr)) && (is_normal_symbol(arg1))))
-		{
-		  set_optimize_op(expr, HOP_SAFE_C_D);
-		  return(sc->subtract_sf);
-		}
 	    }
 
 	  if (is_t_real(arg1))
@@ -66375,7 +66308,6 @@ static void init_choosers(s7_scheme *sc)
   sc->subtract_s1 = make_function_with_class(sc, f, "-", g_subtract_s1, 2, 0, false, "- opt");
   sc->subtract_cs1 = make_function_with_class(sc, f, "-", g_subtract_cs1, 2, 0, false, "- opt");
   sc->subtract_csn = make_function_with_class(sc, f, "-", g_subtract_csn, 2, 0, false, "- opt");
-  sc->subtract_sf = make_function_with_class(sc, f, "-", g_subtract_sf, 2, 0, false, "- opt");
   sc->subtract_2f = make_function_with_class(sc, f, "-", g_subtract_2f, 2, 0, false, "- opt");
   sc->subtract_fs = make_function_with_class(sc, f, "-", g_subtract_fs, 2, 0, false, "- opt");
 
@@ -66556,7 +66488,6 @@ static void init_choosers(s7_scheme *sc)
   /* hash-table-ref */
   f = set_function_chooser(sc, sc->hash_table_ref_symbol, hash_table_ref_chooser);
   sc->hash_table_ref_2 = make_function_with_class(sc, f, "hash-table-ref", g_hash_table_ref_2, 2, 0, false, "hash-table-ref opt");
-  sc->hash_table_ref_ss = make_function_with_class(sc, f, "hash-table-ref", g_hash_table_ref_ss, 2, 0, false, "hash-table-ref opt");
   sc->hash_table_ref_car = make_function_with_class(sc, f, "hash-table-ref", g_hash_table_ref_car, 2, 0, false, "hash-table-ref opt");
 
   /* hash-table */
@@ -66612,7 +66543,6 @@ static void init_choosers(s7_scheme *sc)
 
   /* member */
   f = set_function_chooser(sc, sc->member_symbol, member_chooser);
-  sc->member_ss = make_function_with_class(sc, f, "member", g_member_ss, 2, 0, false, "member opt");
   sc->member_sq = make_function_with_class(sc, f, "member", g_member_sq, 2, 0, false, "member opt");
 
   /* memq */
@@ -70406,7 +70336,14 @@ static bool fx_tree_1(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	{
 	  if (c_callee(tree) == fx_c_s) {set_c_call(tree, fx_c_t); return(true);}
 	  if (c_callee(tree) == fx_c_ss) {set_c_call(tree, fx_c_ts); return(true);}
-	  if (c_callee(tree) == fx_c_sc) {set_c_call(tree, fx_c_tc); return(true);}
+
+	  if (c_callee(tree) == fx_c_sc)
+	    {
+	      if (c_callee(p) == g_subtract_2f) {set_c_call(tree, fx_subtract_tf); return(true);}
+	      set_c_call(tree, fx_c_tc); 
+	      return(true);
+	    }
+
 	  if (c_callee(tree) == fx_car_s) {set_c_call(tree, fx_car_t); return(true);}
 	  if (c_callee(tree) == fx_cdr_s) {set_c_call(tree, fx_cdr_t); return(true);}
 	  if (c_callee(tree) == fx_not_s) {set_c_call(tree, fx_not_t); return(true);}
@@ -70438,7 +70375,6 @@ static bool fx_tree_1(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	    {
 	      if (c_callee(p) == g_add_sf) {set_c_call(tree, fx_c_add_tf); return(true);}
 	      if (c_callee(p) == g_equal_s_ic) {set_c_call(tree, fx_c_equal_t_ic); return(true);}
-	      if (c_callee(p) == g_subtract_sf) {set_c_call(tree, fx_subtract_tf); return(true);}
 	    }
 #endif
 	}
@@ -70603,6 +70539,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	    {
 	      fx_tree(sc, body, (is_pair(args)) ? car(args) : args, ((is_pair(args)) && (is_pair(cdr(args)))) ? cadr(args) : NULL); 
 	      /* currently only safe closures guarantee reversed slots -- is this only true of named-lets? */
+
 	      if ((sc->got_tc) && (is_pair(args)) && (is_null(cdr(body))))
 		{
 		  int32_t nvars = 0;
@@ -71466,7 +71403,7 @@ static bool op_let1(s7_scheme *sc)
       sc->w = sc->nil;
       for (n = 0, x = cadr(sc->code); is_pair(x); n++, x = cdr(x))
 	sc->w = cons(sc, caar(x), sc->w);
-      sc->w = safe_reverse_in_place(sc, sc->w);
+      sc->w = safe_reverse_in_place(sc, sc->w); /* init values (y above) are also in "reversed" order */
 
       sc->x = make_closure(sc, sc->w, body, T_CLOSURE | T_COPY_ARGS, n);
       make_slot_1(sc, sc->envir, let_name, sc->x);
@@ -71489,8 +71426,6 @@ static bool op_let1(s7_scheme *sc)
 	{
 	  closure_set_let(sc->x, sc->envir);
 	  let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
-	  
-	  /* is this necessary? */
 	  if (optimize_op(car(body)) >= OP_RCLO_AND_A_OR_A_LA)
 	    set_opt1_lambda(car(body), sc->x);
 	}
@@ -73318,6 +73253,7 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 	      slot_set_pending_value(let_slots(new_env), first_default);
 	    }
 	}
+      /* TODO: set_immutable_let(new_env); */
     }
   else let_set_slots(new_env, slot_end(sc)); /* if unsafe closure, arg-holding-let will be created on each call */
   return(new_env);
@@ -73350,7 +73286,7 @@ static void define_funchecked(s7_scheme *sc)
 {
   s7_pointer new_func, code, slot;
   code = cdr(sc->code);
-  sc->value = caar(code);
+  sc->value = caar(code); /* func name */
 
   new_cell(sc, new_func, T_CLOSURE | T_COPY_ARGS);
   closure_set_args(new_func, cdar(code));
@@ -92048,32 +91984,30 @@ int main(int argc, char **argv)
  * trclo    10.1 | 7178 | 5559 | 5470 | 5160 | 5290 | 4489 |       1990
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2062  2072
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2259  2262
- * tread         |      |      |      |      | 2357 | 2336 | 2279  2286
+ * tread         |      |      |      |      | 2357 | 2336 | 2279  2284
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2300  2305
  * tvect         |      |      |      |      |      | 5616 | 2353  2373
  * tlet          |      |      |      |      | 4717 | 2959 | 2456  2582
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 |       2843
- * dup           |      |      |      |      | 20.8 | 5711 | 2844  2843
+ * dup           |      |      |      |      | 20.8 | 5711 | 2844  2852
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2805  2928
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3081  3083
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3318  3318
  * tset          |      |      |      |      | 10.0 | 6432 | 3453  3461
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3465  3497
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4723
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4713
  * thash         |      |      | 50.7 | 8778 | 7697 | 5309 | 4986  5007
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.5  8637
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.5  8634
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.4  11.5
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.1  38.2
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.8
- * lg            |      |      |      |211.0 |133.0 |112.7 |107.0 108.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |107.0 107.7
  * tbig          |      |      |      |      |246.9 |230.6 |184.7 185.5
  * ------------------------------------------------------------------------------------
  *
  * saved lets: dox|safe*_do+safe body, do*+safe step/body/end/result, for-each/map closure or closure-let?
- * currently op_named_let goes to op_let1 which is not reversed -- if it were all funclets would be and fx_tree could be moved to recur_body?
- *   closure_set_let might check? [t111]
  *
  * fx_let_a_a_old? cond_fx_fx case_a_fx fx_dox?
  *    sc->if_a_aa set in init_choosers to g_if_a_aa noticed in optimize_syntax, fx_choose -> fx_if_a_aa from op_safe_c_d (optimize_syntax)
@@ -92104,10 +92038,29 @@ int main(int argc, char **argv)
  *
  * callgrind segfault snd-test 24 read_string_constant (happened again) = s7test in snd context
  * mutable 0 there are several make_mutable_integers scattered around still -- which need clear/small_int?
- * use check_slot_1 in fx_tree? -- actually annotate_arg can handle it
  *
  * (number->string 0.0000001) is sensitive to (*s7* 'float-format-precision) and inconsistent: if 16 1e-7 else 0.0000001?
  *  (let ((x 0.000001))
  *    (display (number->string x)) (newline)
  *    (define (f1) (do ((i 0 (+ i 1))) ((= i 1)) (display (number->string x)) (newline))) (f1))
+ * 
+ * gen cond rclo? gen if? let+?? = (let_a+rclo)
+ *   if|cond|case where any branch can be recur -- mark recurs
+ *   and/or or/and with any clauses to recur at end
+ *
+ * lint: (and ... recur): #f (or ... recur): #t (or infinite loop)
+ *
+ * gfncs applied to iterator? reverse [copy?] sort! reverse! fill! append -- should ! cases copy the underlying sequence?
+ *   (reverse (iter hash)) = copy into new hash from iter pos reversing and reassign to iter
+ *   should iterator_copy copy the sequence?
+ * 
+ * can varlet|cutlet (etc) change a safe-closure funclet -- maybe make all such lets immutable (indepedent of unheap) -- t111
+ *    (define (ftc) (define (safef x) (if x 3 2)) (display (safef 4)) (varlet (funclet safef) 'y 1) (display (safef 4))) (ftc)
+ *    (define (ftc1) (define (safef x) (if x 3 2)) (display (safef 4)) (with-let (funclet safef) (define y 1)) (display (safef 4))) (ftc1) !!
+ *  checks are in place:
+ *     <1> (varlet (immutable! (inlet 'a 1)) 'b 2): error: varlet argument 1, (inlet 'a 1), is a let but should be a mutable let
+ *  where to do this?  optimize_lambda? 
+ *     <2> (with-let (immutable! (inlet 'a 1)) (define b 2)): error: define b: let is immutable
+ *  define* arg defaults are like let* so funclet can be changed!  Need to check that before safe_closure decision
+ *  check t725 varlet|cutlet
  */
