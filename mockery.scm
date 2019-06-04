@@ -60,6 +60,7 @@
 				  (begin
 				    (if (and (openlet? arg)
 					     (not (procedure? arg))
+					     (not (macro? arg))
 					     (not (c-pointer? arg)))
 					(set! unknown-openlets #t))
 				    arg)))
