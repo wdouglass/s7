@@ -1359,17 +1359,18 @@
 								   (if (null? (cdr arg2))
 								       arg2
 								       `((begin ,@arg2))))))))))))
-			     (else 
+			     
+			     ;; ((and or) (let ((last (last-ref exprs))) (if (and (pair? last) (eq? (car last) name)) (format *stderr* "~S~%" body)) #f))
+			     ;;   -> ((or done? (loop (process-stderr server)))) etc
+			     ;; zillions of or/and (well, 200) -- the problem is the result, and do is not shorter
+			     ;; (if (and (memq (caar body) '(or and)) (pair? (cadar body)) (memq (caadar body) '(= < > <= >=)) (format *stderr* "~A~%~%" (lint-pp body)))
+			     ;; (or (>= i len) (and (x i) (rec (+ i 1))))
+			     ;;   (do ((i 0 (+ i 1))) ((or (>= i len) (not (x i))) (>= i len)))
+			     ;; (and (< i len) (or (x i) (rec (+ i 1))))
+			     ;;   (do ((i 0 (+ i 1))) ((or (= i len) (x i)) (< i len)))
+			     ;; memx here might be shorter if var is a list
 
-			      ;; zillions of or/and (well, 200) -- the problem is the result, and do is not shorter
-			      ;; (if (and (memq (caar body) '(or and)) (pair? (cadar body)) (memq (caadar body) '(= < > <= >=)) (format *stderr* "~A~%~%" (lint-pp body)))
-			      ;; (or (>= i len) (and (x i) (rec (+ i 1))))
-			      ;;   (do ((i 0 (+ i 1))) ((or (>= i len) (not (x i))) (>= i len)))
-			      ;; (and (< i len) (or (x i) (rec (+ i 1))))
-			      ;;   (do ((i 0 (+ i 1))) ((or (= i len) (x i)) (< i len)))
-			      ;; memx here might be shorter if var is a list
-
-			      #f))))
+			     (else #f))))
 		
 		;; (caar body) is 'if 
 
