@@ -83,7 +83,7 @@
  * ---------------- compile time switches ----------------
  */
 
-#include "mus-config.h"
+#include "s7-config.h"
 
 /*
  * Your config file goes here, or just replace that #include line with the defines you need.
