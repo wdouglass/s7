@@ -2,23 +2,6 @@
 ;;;
 ;;; tie the gsl library into the *libgsl* environment
 
-
-#|
-2.1: gsl_multilarge.h
-+ double
-+ gsl_multifit_linear_rcond (const gsl_multifit_linear_workspace * w);
-+
-changes to sigs in multifit.h
-
-2.2:
-gsl_multifit_nlinear.h
-gsl_multilarge_nlinear.h
-gsl_permute_matrix_char.h
-gsl_permute_matrix_complex_double.h and float/long double and all other types
-many other additions/sig changes (triangular matrices primiarily)
-|#
-
-
 (require cload.scm)
 (provide 'libgsl.scm)
 
@@ -47,7 +30,7 @@ many other additions/sig changes (triangular matrices primiarily)
     (define gsl-version 0.0)		; define at top-level no matter where we are now
     (when (and (provided? 'linux)
 	       (defined? 'system))
-      (let* ((version (system "pkg-config gsl --modversion" #t))
+      (let* ((version (#_system "pkg-config gsl --modversion" #t))
 	     (len (length version)))
 	(when (positive? len)
 	  (set! gsl-version (string->number (if (char=? (version (- len 1)) #\newline)
@@ -61,8 +44,6 @@ many other additions/sig changes (triangular matrices primiarily)
 (unless (defined? '*libgsl*)
   (define *libgsl*
     (with-let (unlet)
-      (set! *libraries* (cons (cons "libgsl.scm" (curlet)) *libraries*))
-
       (define GSL_REAL real-part)
       (define GSL_IMAG imag-part)
       (define GSL_COMPLEX_EQ equal?)
@@ -84,6 +65,8 @@ many other additions/sig changes (triangular matrices primiarily)
       (define gsl_max max)
       (define gsl_min min)
       
+      (set! *libraries* (cons (cons "libgsl.scm" (curlet)) *libraries*))
+
       (c-define 
        '((C-macro (double (GSL_CONST_CGS_SPEED_OF_LIGHT GSL_CONST_CGS_GRAVITATIONAL_CONSTANT GSL_CONST_CGS_PLANCKS_CONSTANT_H 
 			   GSL_CONST_CGS_PLANCKS_CONSTANT_HBAR GSL_CONST_CGS_ASTRONOMICAL_UNIT GSL_CONST_CGS_LIGHT_YEAR 
@@ -380,8 +363,8 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (int gsl_sf_coulomb_CL_array (double int double double*))
 	 (int gsl_sf_coupling_3j_e (int int int int int int gsl_sf_result*))
 	 (double gsl_sf_coupling_3j (int int int int int int))
-	 (int gsl_sf_coupling_6j_e (int int int int int int gsl_sf_result*))
-	 (double gsl_sf_coupling_6j (int int int int int int))
+	 ;; out 2.4 (int gsl_sf_coupling_6j_e (int int int int int int gsl_sf_result*))
+	 ;; out 2.4 (double gsl_sf_coupling_6j (int int int int int int))
 	 (int gsl_sf_coupling_RacahW_e (int int int int int int gsl_sf_result*))
 	 (double gsl_sf_coupling_RacahW (int int int int int int))
 	 (int gsl_sf_coupling_9j_e (int int int int int int int int int gsl_sf_result*))
@@ -642,7 +625,40 @@ many other additions/sig changes (triangular matrices primiarily)
 		       (size_t gsl_sf_legendre_array_n (size_t))
 		       (size_t gsl_sf_legendre_array_index (size_t size_t))
 		       (size_t gsl_sf_legendre_nlm (size_t))))
-	 
+
+	 (reader-cond ((>= gsl-version 2.4)
+		       (int gsl_sf_hermite_prob_e (int double gsl_sf_result*))
+		       (double gsl_sf_hermite_prob (int double))
+		       (int gsl_sf_hermite_prob_der_e (int int double gsl_sf_result*))
+		       (double gsl_sf_hermite_prob_der (int int double))
+		       (int gsl_sf_hermite_phys_e (int double gsl_sf_result*))
+		       (double gsl_sf_hermite_phys (int double))
+		       (int gsl_sf_hermite_phys_der_e (int int double gsl_sf_result*))
+		       (double gsl_sf_hermite_phys_der (int int double))
+		       (int gsl_sf_hermite_func_e (int double gsl_sf_result*))
+		       (double gsl_sf_hermite_func (int double))
+		       (int gsl_sf_hermite_prob_array (int double double*))
+		       (int gsl_sf_hermite_prob_array_der (int int double double*))
+		       (int gsl_sf_hermite_prob_der_array (int int double double*))
+		       (int gsl_sf_hermite_prob_series_e (int double double* gsl_sf_result*))
+		       (double gsl_sf_hermite_prob_series (int double double*))
+		       (int gsl_sf_hermite_phys_array (int double double*))
+		       (int gsl_sf_hermite_phys_array_der (int int double double*))
+		       (int gsl_sf_hermite_phys_der_array (int int double double*))
+		       (int gsl_sf_hermite_phys_series_e (int double double* gsl_sf_result*))
+		       (double gsl_sf_hermite_phys_series (int double double*))
+		       (int gsl_sf_hermite_func_array (int double double*))
+		       (int gsl_sf_hermite_func_series_e (int double double* gsl_sf_result*))
+		       (double gsl_sf_hermite_func_series (int double double*))
+		       (int gsl_sf_hermite_func_der_e (int int double gsl_sf_result*))
+		       (double gsl_sf_hermite_func_der (int int double))
+		       (int gsl_sf_hermite_prob_zero_e (int int gsl_sf_result*))
+		       (double gsl_sf_hermite_prob_zero (int int))
+		       (int gsl_sf_hermite_phys_zero_e (int int gsl_sf_result*))
+		       (double gsl_sf_hermite_phys_zero (int int))
+		       (int gsl_sf_hermite_func_zero_e (int int gsl_sf_result*))
+		       (double gsl_sf_hermite_func_zero (int int))))
+
 	 (int gsl_sf_conicalP_half_e (double double gsl_sf_result*))
 	 (double gsl_sf_conicalP_half (double double))
 	 (int gsl_sf_conicalP_mhalf_e (double double gsl_sf_result*))
@@ -771,7 +787,7 @@ many other additions/sig changes (triangular matrices primiarily)
 	 
 	 (in-C "static s7_pointer g_gsl_sf_result_make(s7_scheme *sc, s7_pointer args)
                 {
-                  return(s7_make_c_pointer(sc, (void *)calloc(1, sizeof(gsl_sf_result))));
+                  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(gsl_sf_result)), s7_make_symbol(sc, \"gsl_sf_result*\"), s7_f(sc)));
                 }
                 static s7_pointer g_gsl_sf_result_val(s7_scheme *sc, s7_pointer args)
                 {
@@ -783,12 +799,12 @@ many other additions/sig changes (triangular matrices primiarily)
                 }
                 static s7_pointer g_gsl_sf_result_e10_make(s7_scheme *sc, s7_pointer args)
                 {
-                  return(s7_make_c_pointer(sc, (void *)calloc(1, sizeof(gsl_sf_result_e10))));
+                  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(gsl_sf_result_e10)), s7_make_symbol(sc, \"gsl_sf_result_e10*\"), s7_f(sc)));
                 }
                 static s7_pointer g_to_doubles(s7_scheme *sc, s7_pointer args)
                 {
                   if (s7_is_vector(s7_car(args)))
-                    return(s7_make_c_pointer(sc, (void *)s7_float_vector_elements(s7_car(args))));
+                    return(s7_make_c_pointer_with_type(sc, (void *)s7_float_vector_elements(s7_car(args)), s7_make_symbol(sc, \"double*\"), s7_f(sc)));
                   return(s7_car(args));
                 }
                 ")
@@ -935,7 +951,56 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (void gsl_dht_free (gsl_dht*))
 	 (int gsl_dht_apply (gsl_dht* double* double*))
 	 
-	 
+	 ;; gsl_filter
+	 (reader-cond ((>= gsl-version 2.5)
+		       (int (GSL_FILTER_END_PADZERO GSL_FILTER_END_PADVALUE GSL_FILTER_END_TRUNCATE
+			     GSL_FILTER_SCALE_MAD GSL_FILTER_SCALE_IQR GSL_FILTER_SCALE_SN GSL_FILTER_SCALE_QN))
+		       (gsl_filter_gaussian_workspace* gsl_filter_gaussian_alloc (size_t))
+	               (void gsl_filter_gaussian_free (gsl_filter_gaussian_workspace*))
+	               (int gsl_filter_gaussian ((gsl_filter_end_t int) double size_t gsl_vector* gsl_vector* gsl_filter_gaussian_workspace*))
+	               (int gsl_filter_gaussian_kernel (double size_t int gsl_vector*))
+	               (gsl_filter_median_workspace* gsl_filter_median_alloc (size_t))
+	               (void gsl_filter_median_free (gsl_filter_median_workspace*))
+	               (int gsl_filter_median ((gsl_filter_end_t int) gsl_vector* gsl_vector* gsl_filter_median_workspace*))
+	               (gsl_filter_rmedian_workspace* gsl_filter_rmedian_alloc (size_t))
+	               (void gsl_filter_rmedian_free (gsl_filter_rmedian_workspace*))
+	               (int gsl_filter_rmedian ((gsl_filter_end_t int) gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+	               (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+	               (gsl_filter_impulse_workspace* gsl_filter_impulse_alloc (size_t))
+	               (void gsl_filter_impulse_free (gsl_filter_impulse_workspace*))
+	               (int gsl_filter_impulse ((gsl_filter_end_t int) (gsl_filter_scale_t int) double gsl_vector* gsl_vector* gsl_vector* gsl_vector* size_t*
+                                                gsl_vector_int* gsl_filter_impulse_workspace*))))
+
+	 ;; gsl_movstat
+	 (reader-cond ((>= gsl-version 2.5)
+		       (int (GSL_MOVSTAT_END_PADZERO GSL_MOVSTAT_END_PADVALUE GSL_MOVSTAT_END_TRUNCATE))
+	               (gsl_movstat_workspace* gsl_movstat_alloc (size_t))
+	               (gsl_movstat_workspace* gsl_movstat_alloc2 (size_t size_t))
+	               (gsl_movstat_workspace* gsl_movstat_alloc_with_size (size_t size_t size_t))
+	               (void gsl_movstat_free (gsl_movstat_workspace*))
+	               (int gsl_movstat_apply_accum ((gsl_movstat_end_t int) gsl_vector* gsl_movstat_accum* void* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_apply ((gsl_movstat_end_t int) gsl_movstat_function* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (size_t gsl_movstat_fill ((gsl_movstat_end_t int) gsl_vector* size_t size_t size_t double*))
+	               (int gsl_movstat_mean ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_variance ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_sd ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_median ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_min ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_max ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_minmax ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_mad0 ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_mad ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_qqr ((gsl_movstat_end_t int) gsl_vector* double gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_Sn ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_Qn ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+	               (int gsl_movstat_sum ((gsl_movstat_end_t int) gsl_vector* gsl_vector* gsl_movstat_workspace*))
+#|
+	               (gsl_movstat_accum* (gsl_movstat_accum_mad gsl_movstat_accum_max gsl_movstat_accum_mean gsl_movstat_accum_median gsl_movstat_accum_min
+	                                    gsl_movstat_accum_minmax gsl_movstat_accum_sd gsl_movstat_accum_Sn gsl_movstat_accum_sum gsl_movstat_accum_Qn
+	                                    gsl_movstat_accum_qqr gsl_movstat_accum_userfunc gsl_movstat_accum_variance))
+|#
+		       ))
+
 	 ;; gsl_statistics
 	 (double gsl_stats_mean (double* size_t size_t))
 	 (double gsl_stats_variance (double* size_t size_t))
@@ -983,38 +1048,52 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (void gsl_stats_minmax_index (size_t* size_t* double* size_t size_t))
 	 (double gsl_stats_median_from_sorted_data (double* size_t size_t))
 	 (double gsl_stats_quantile_from_sorted_data (double* size_t size_t double))
+
+	 (reader-cond ((>= gsl-version 2.5)
+ 	               (double gsl_stats_select (double* size_t size_t size_t))
+	               (double gsl_stats_median (double* size_t size_t))
+	               (double gsl_stats_trmean_from_sorted_data (double double* size_t size_t))
+	               (double gsl_stats_gastwirth_from_sorted_data (double* size_t size_t))
+	               (double gsl_stats_mad0 (double* size_t size_t double*))
+	               (double gsl_stats_mad (double* size_t size_t double*))
+	               (double gsl_stats_Sn0_from_sorted_data (double* size_t size_t double*))
+	               (double gsl_stats_Sn_from_sorted_data (double* size_t size_t double*))
+	               (double gsl_stats_Qn0_from_sorted_data (double* size_t size_t double* int*))
+	               (double gsl_stats_Qn_from_sorted_data (double* size_t size_t double* int*))))
+
 	 
-	 (c-pointer (gsl_interp_linear gsl_interp_polynomial gsl_interp_cspline gsl_interp_cspline_periodic gsl_interp_akima
-		     gsl_interp_akima_periodic gsl_min_fminimizer_goldensection gsl_min_fminimizer_brent gsl_min_fminimizer_quad_golden
-		     gsl_multimin_fminimizer_nmsimplex gsl_multimin_fminimizer_nmsimplex2 gsl_multimin_fminimizer_nmsimplex2rand
-		     gsl_multiroot_fsolver_dnewton gsl_multiroot_fsolver_broyden gsl_multiroot_fsolver_hybrid gsl_multiroot_fsolver_hybrids
-		     gsl_prec_eps gsl_prec_sqrt_eps
-		     gsl_prec_root3_eps gsl_prec_root4_eps gsl_prec_root5_eps gsl_prec_root6_eps gsl_root_fsolver_bisection gsl_root_fsolver_brent
-		     gsl_root_fsolver_falsepos gsl_version
-		     gsl_wavelet_daubechies gsl_wavelet_daubechies_centered gsl_wavelet_haar gsl_wavelet_haar_centered gsl_wavelet_bspline
-		     gsl_wavelet_bspline_centered))
+	 (gsl_interp_type* (gsl_interp_linear gsl_interp_polynomial gsl_interp_cspline gsl_interp_cspline_periodic 
+			    gsl_interp_akima gsl_interp_akima_periodic))
+	 (gsl_min_fminimizer_type* (gsl_min_fminimizer_goldensection gsl_min_fminimizer_brent gsl_min_fminimizer_quad_golden))
+	 (gsl_multimin_fminimizer_type* (gsl_multimin_fminimizer_nmsimplex gsl_multimin_fminimizer_nmsimplex2 gsl_multimin_fminimizer_nmsimplex2rand))
+	 (gsl_multiroot_fsolver_type* (gsl_multiroot_fsolver_dnewton gsl_multiroot_fsolver_broyden gsl_multiroot_fsolver_hybrid gsl_multiroot_fsolver_hybrids))
+	 (double* (gsl_prec_eps gsl_prec_sqrt_eps gsl_prec_root3_eps gsl_prec_root4_eps gsl_prec_root5_eps gsl_prec_root6_eps))
+	 (gsl_root_fsolver_type* (gsl_root_fsolver_bisection gsl_root_fsolver_brent gsl_root_fsolver_falsepos))
+	 (char* (gsl_version))
+	 (gsl_wavelet_type* (gsl_wavelet_daubechies gsl_wavelet_daubechies_centered gsl_wavelet_haar gsl_wavelet_haar_centered gsl_wavelet_bspline
+			     gsl_wavelet_bspline_centered))
 	 
 	 (reader-cond ((>= gsl-version 1.16)
-		       (c-pointer (gsl_multifit_robust_default gsl_multifit_robust_bisquare gsl_multifit_robust_cauchy gsl_multifit_robust_fair
-				   gsl_multifit_robust_huber gsl_multifit_robust_ols gsl_multifit_robust_welsch))))
+		       (gsl_multifit_robust_type* (gsl_multifit_robust_default gsl_multifit_robust_bisquare gsl_multifit_robust_cauchy gsl_multifit_robust_fair
+				                   gsl_multifit_robust_huber gsl_multifit_robust_ols gsl_multifit_robust_welsch))))
 	 
 	 (reader-cond ((>= gsl-version 2.0)
-		       (c-pointer gsl_interp_steffen)))
+		       (gsl_interp_type* (gsl_interp_steffen))))
 	 
 	 (int (gsl_message_mask gsl_check_range))
 	 
 	 ;; randist, rng
-	 (c-pointer (gsl_qrng_niederreiter_2 gsl_qrng_sobol gsl_qrng_halton gsl_qrng_reversehalton
-		     gsl_rng_borosh13 gsl_rng_coveyou gsl_rng_cmrg gsl_rng_fishman18 gsl_rng_fishman20 gsl_rng_fishman2x gsl_rng_gfsr4 
-		     gsl_rng_knuthran gsl_rng_knuthran2 gsl_rng_knuthran2002 gsl_rng_lecuyer21 gsl_rng_minstd gsl_rng_mrg gsl_rng_mt19937 
-		     gsl_rng_mt19937_1999 gsl_rng_mt19937_1998 gsl_rng_r250 gsl_rng_ran0 gsl_rng_ran1 gsl_rng_ran2 gsl_rng_ran3 gsl_rng_rand 
-		     gsl_rng_rand48 gsl_rng_random128_bsd gsl_rng_random128_glibc2 gsl_rng_random128_libc5 gsl_rng_random256_bsd 
-		     gsl_rng_random256_glibc2 gsl_rng_random256_libc5 gsl_rng_random32_bsd gsl_rng_random32_glibc2 gsl_rng_random32_libc5 
-		     gsl_rng_random64_bsd gsl_rng_random64_glibc2 gsl_rng_random64_libc5 gsl_rng_random8_bsd gsl_rng_random8_glibc2 
-		     gsl_rng_random8_libc5 gsl_rng_random_bsd gsl_rng_random_glibc2 gsl_rng_random_libc5 gsl_rng_randu 
-		     gsl_rng_ranf gsl_rng_ranlux gsl_rng_ranlux389 gsl_rng_ranlxd1 gsl_rng_ranlxd2 gsl_rng_ranlxs0 gsl_rng_ranlxs1 
-		     gsl_rng_ranlxs2 gsl_rng_ranmar gsl_rng_slatec gsl_rng_taus gsl_rng_taus2 gsl_rng_taus113 gsl_rng_transputer 
-		     gsl_rng_tt800 gsl_rng_uni gsl_rng_uni32 gsl_rng_vax gsl_rng_waterman14 gsl_rng_zuf gsl_rng_default gsl_rng_default_seed))
+	 (gsl_qrng_type* (gsl_qrng_niederreiter_2 gsl_qrng_sobol gsl_qrng_halton gsl_qrng_reversehalton))
+	 (gsl_rng_type* (gsl_rng_default gsl_rng_borosh13 gsl_rng_coveyou gsl_rng_cmrg gsl_rng_fishman18 gsl_rng_fishman20 gsl_rng_fishman2x gsl_rng_gfsr4 
+		         gsl_rng_knuthran gsl_rng_knuthran2 gsl_rng_knuthran2002 gsl_rng_lecuyer21 gsl_rng_minstd gsl_rng_mrg gsl_rng_mt19937 
+			 gsl_rng_mt19937_1999 gsl_rng_mt19937_1998 gsl_rng_r250 gsl_rng_ran0 gsl_rng_ran1 gsl_rng_ran2 gsl_rng_ran3 gsl_rng_rand 
+			 gsl_rng_rand48 gsl_rng_random128_bsd gsl_rng_random128_glibc2 gsl_rng_random128_libc5 gsl_rng_random256_bsd 
+			 gsl_rng_random256_glibc2 gsl_rng_random256_libc5 gsl_rng_random32_bsd gsl_rng_random32_glibc2 gsl_rng_random32_libc5 
+			 gsl_rng_random64_bsd gsl_rng_random64_glibc2 gsl_rng_random64_libc5 gsl_rng_random8_bsd gsl_rng_random8_glibc2 
+			 gsl_rng_random8_libc5 gsl_rng_random_bsd gsl_rng_random_glibc2 gsl_rng_random_libc5 gsl_rng_randu 
+			 gsl_rng_ranf gsl_rng_ranlux gsl_rng_ranlux389 gsl_rng_ranlxd1 gsl_rng_ranlxd2 gsl_rng_ranlxs0 gsl_rng_ranlxs1 
+			 gsl_rng_ranlxs2 gsl_rng_ranmar gsl_rng_slatec gsl_rng_taus gsl_rng_taus2 gsl_rng_taus113 gsl_rng_transputer 
+			 gsl_rng_tt800 gsl_rng_uni gsl_rng_uni32 gsl_rng_vax gsl_rng_waterman14 gsl_rng_zuf gsl_rng_default_seed))
 	 
 	 (gsl_qrng* gsl_qrng_alloc (gsl_qrng_type* int))
 	 (int gsl_qrng_memcpy (gsl_qrng* gsl_qrng*))
@@ -2060,6 +2139,9 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (int gsl_integration_qawo_table_set (gsl_integration_qawo_table* double double int))
 	 (int gsl_integration_qawo_table_set_length (gsl_integration_qawo_table* double))
 	 (void gsl_integration_qawo_table_free (gsl_integration_qawo_table*))
+	 (reader-cond ((>= gsl-version 2.5)
+		       (gsl_integration_romberg_workspace* gsl_integration_romberg_alloc (size_t))
+                       (void gsl_integration_romberg_free (gsl_integration_romberg_workspace*))))
 	 
 	 (in-C "#define Integration(Name) \
                   static s7_pointer g_gsl_integration_ ## Name (s7_scheme *sc, s7_pointer args)   \
@@ -2084,7 +2166,22 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (C-function ("gsl_integration_qk41" g_gsl_integration_qk41 "" 7))
 	 (C-function ("gsl_integration_qk51" g_gsl_integration_qk51 "" 7))
 	 (C-function ("gsl_integration_qk61" g_gsl_integration_qk61 "" 7))
-	 
+
+	 (reader-cond ((>= gsl-version 2.5)
+		       (in-C "static s7_pointer g_gsl_integration_romberg(s7_scheme *sc, s7_pointer args)
+                              {
+                                gsl_function gsl_f; make_gsl_function(s7_car(args));
+                                gsl_integration_romberg(&gsl_f, 
+                                                        s7_real(s7_cadr(args)), s7_real(s7_caddr(args)), 
+                                                        s7_real(s7_cadddr(args)), s7_real(s7_list_ref(sc, args, 4)),
+                                                        (double *)s7_c_pointer(s7_list_ref(sc, args, 5)),
+                                                        (size_t *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                                        (gsl_integration_romberg_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)));
+                                return(s7_car(args));
+                              }")
+		       (C-function ("gsl_integration_romberg" g_gsl_integration_romberg "" 8))))
+
+
 	 (in-C "static s7_pointer g_gsl_integration_qcheb(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
@@ -2306,7 +2403,7 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (int gsl_linalg_hessenberg_unpack_accum (gsl_matrix* gsl_vector* gsl_matrix*))
 	 (int gsl_linalg_hessenberg_set_zero (gsl_matrix*))
 	 (int gsl_linalg_hessenberg_submatrix (gsl_matrix* gsl_matrix* size_t gsl_vector*))
-	 (int gsl_linalg_hessenberg (gsl_matrix* gsl_vector*))
+	 ;; out 2.4 (int gsl_linalg_hessenberg (gsl_matrix* gsl_vector*))
 	 (int gsl_linalg_hesstri_decomp (gsl_matrix* gsl_matrix* gsl_matrix* gsl_matrix* gsl_vector*))
 	 (int gsl_linalg_SV_decomp (gsl_matrix* gsl_matrix* gsl_vector* gsl_vector*))
 	 (int gsl_linalg_SV_decomp_mod (gsl_matrix* gsl_matrix* gsl_matrix* gsl_vector* gsl_vector*))
@@ -2570,6 +2667,8 @@ many other additions/sig changes (triangular matrices primiarily)
 	 (int gsl_multifit_linear_est (gsl_vector* gsl_vector* gsl_matrix* double* double*))
 	 (reader-cond ((>= gsl-version 2.1)
 		       (double gsl_multifit_linear_rcond (gsl_multifit_linear_workspace*))))
+	 (reader-cond ((>= gsl-version 2.3)
+		       (size_t gsl_multifit_linear_rank (double gsl_multifit_linear_workspace*))))
 	 (int gsl_multifit_linear_residuals (gsl_matrix* gsl_vector* gsl_vector* gsl_vector*))
 	 (reader-cond ((>= gsl-version 1.16) 
 		       (gsl_multifit_robust_workspace* gsl_multifit_robust_alloc (gsl_multifit_robust_type* size_t size_t))
@@ -2676,14 +2775,18 @@ many other additions/sig changes (triangular matrices primiarily)
                 static gsl_multimin_function gsl_mmf;
                 static double gsl_mmf_caller(const gsl_vector *x, void *p) 
                 {
-                  return(s7_real(s7_call(gsl_mmf_s7, (s7_pointer)p, s7_cons(gsl_mmf_s7, s7_make_c_pointer(gsl_mmf_s7, (void *)x), s7_nil(gsl_mmf_s7)))));
+                  return(s7_real(s7_call(gsl_mmf_s7, (s7_pointer)p, 
+                                         s7_cons(gsl_mmf_s7, 
+                                                 s7_make_c_pointer_with_type(gsl_mmf_s7, (void *)x, s7_make_symbol(gsl_mmf_s7, \"gsl_vector*\"), s7_f(gsl_mmf_s7)),
+                                                 s7_nil(gsl_mmf_s7)))));
                 }
                 #define make_gsl_mm_function(Args, Size) do {gsl_mmf.f = gsl_mmf_caller; gsl_mmf.n = Size; gsl_mmf.params = (void *)Args; gsl_mmf_s7 = sc;} while (0)
                 static s7_pointer g_gsl_multimin_fminimizer_set(s7_scheme *sc, s7_pointer args)
                 {
                   make_gsl_mm_function(s7_cadr(args), ((gsl_vector *)s7_c_pointer(s7_caddr(args)))->size);
                   return(s7_make_integer(sc, gsl_multimin_fminimizer_set((gsl_multimin_fminimizer *)s7_c_pointer(s7_car(args)),
-                                                &gsl_mmf, (gsl_vector *)s7_c_pointer(s7_caddr(args)), (gsl_vector *)s7_c_pointer(s7_cadddr(args)))));
+                                                &gsl_mmf, (gsl_vector *)s7_c_pointer(s7_caddr(args)), 
+                                                          (gsl_vector *)s7_c_pointer(s7_cadddr(args)))));
                 }
                 static s7_pointer g_gsl_multimin_diff(s7_scheme *sc, s7_pointer args)
                 {
@@ -2704,8 +2807,9 @@ many other additions/sig changes (triangular matrices primiarily)
                 static int gsl_rf_caller(const gsl_vector *x, void *p, gsl_vector *y) 
                 {
                   return(s7_integer(s7_call(gsl_rf_s7, (s7_pointer)p, 
-                          s7_cons(gsl_rf_s7, s7_make_c_pointer(gsl_rf_s7, (void *)x), 
-                             s7_cons(gsl_rf_s7, s7_make_c_pointer(gsl_rf_s7, (void *)y), s7_nil(gsl_rf_s7))))));
+                          s7_cons(gsl_rf_s7, s7_make_c_pointer_with_type(gsl_rf_s7, (void *)x, s7_make_symbol(gsl_rf_s7, \"gsl_vector*\"), s7_f(gsl_rf_s7)),
+                             s7_cons(gsl_rf_s7, s7_make_c_pointer_with_type(gsl_rf_s7, (void *)y, s7_make_symbol(gsl_rf_s7, \"gsl_vector*\"), s7_f(gsl_rf_s7)),
+                                     s7_nil(gsl_rf_s7))))));
                 }
                 #define make_gsl_rf_function(Args, Size) do {gsl_rf.f = gsl_rf_caller; gsl_rf.n = Size; gsl_rf.params = (void *)Args; gsl_rf_s7 = sc;} while (0)
                 static s7_pointer g_gsl_multiroot_fsolver_set(s7_scheme *sc, s7_pointer args)
@@ -2855,7 +2959,7 @@ many other additions/sig changes (triangular matrices primiarily)
 		       (size_t gsl_spblas_scatter (gsl_spmatrix* size_t double size_t* double* size_t gsl_spmatrix* size_t))
 		       
 		       ;; splinalg
-		       (c-pointer gsl_splinalg_itersolve_gmres)
+		       (gsl_splinalg_itersolve_type* gsl_splinalg_itersolve_gmres)
 		       
 		       (gsl_splinalg_itersolve* gsl_splinalg_itersolve_alloc (gsl_splinalg_itersolve_type* size_t size_t))
 		       (void gsl_splinalg_itersolve_free (gsl_splinalg_itersolve*))
@@ -2889,7 +2993,7 @@ many other additions/sig changes (triangular matrices primiarily)
 		       (int gsl_spmatrix_transpose_memcpy (gsl_spmatrix* gsl_spmatrix*))
 		       
 		       ;; interp2d
-		       (c-pointer (gsl_interp2d_bilinear gsl_interp2d_bicubic))
+		       (gsl_interp2d_type* (gsl_interp2d_bilinear gsl_interp2d_bicubic))
 		       
 		       (gsl_interp2d* gsl_interp2d_alloc (gsl_interp2d_type* size_t size_t))
 		       (char* gsl_interp2d_name (gsl_interp2d*))
@@ -2965,6 +3069,9 @@ many other additions/sig changes (triangular matrices primiarily)
 		"gsl/gsl_fft.h"
 		"gsl/gsl_fft_complex.h"
 		"gsl/gsl_fft_real.h"
+		(reader-cond ((>= gsl-version 2.5)
+			      "gsl/gsl_filter.h"
+			      "gsl/gsl_movstat.h"))
 		"gsl/gsl_fit.h"
 		"gsl/gsl_heapsort.h"
 		"gsl/gsl_histogram.h"

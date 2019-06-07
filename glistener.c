@@ -36,7 +36,11 @@ struct glistener {
   void (*evaluator)(glistener *g, const char *text);
   void (*completer)(glistener *g, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
   void (*colorizer)(glistener *g, glistener_colorizer_t type, int start, int end);
+#if (GTK_CHECK_VERSION(3, 92, 1))
+  bool (*keyer)(glistener *g, GtkWidget *w, GdkEvent *e);
+#else
   bool (*keyer)(glistener *g, GtkWidget *w, GdkEventKey *e);
+#endif
 };
 
 #if ((!GTK_CHECK_VERSION(3, 0, 0))) && (!defined(GDK_KEY_Return))
@@ -66,12 +70,17 @@ struct glistener {
   #define GDK_KEY_y         GDK_y
 #endif 
 
-#define EVENT_KEYVAL(Ev) (Ev)->keyval
-
-#if (GTK_CHECK_VERSION(3, 0, 0) && defined(__GNUC__) && (!(defined(__cplusplus))))
-  #define EVENT_STATE(Ev) ({ GdkModifierType Type;  gdk_event_get_state((GdkEvent *)Ev, &Type); Type; })
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static guint EVENT_KEYVAL(GdkEvent *e)
+{
+  guint val = 0;
+  gdk_event_get_keyval(e, &val);
+  return(val);
+}
+#define sg_widget_set_events(Wid, Ev)
 #else
-  #define EVENT_STATE(Ev) (Ev)->state
+  #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
+  #define EVENT_KEYVAL(Ev) (Ev)->keyval
 #endif
 
 #define ControlMask GDK_CONTROL_MASK
@@ -148,13 +157,20 @@ void glistener_set_colorizer(glistener *g, void (*colorizer)(glistener *g, glist
   else g->colorizer = default_colorizer;
 }
 
-
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static bool default_keyer(glistener *g, GtkWidget *w, GdkEvent *e)
+#else
 static bool default_keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
+#endif
 {
   return(false);
 }
 
+#if (GTK_CHECK_VERSION(3, 92, 1))
+void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEvent *e))
+#else
 void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEventKey *e))
+#endif
 {
   if (key)
     g->keyer = key;
@@ -341,7 +357,9 @@ static int glistener_cursor(glistener *g, GtkTextIter *cursor)
 
 void glistener_set_cursor_shape(glistener *g, GdkCursor *cursor_shape)
 {
+#if (!GTK_CHECK_VERSION(3, 93, 0))
   gdk_window_set_cursor(gtk_text_view_get_window(GTK_TEXT_VIEW(g->text), GTK_TEXT_WINDOW_TEXT), cursor_shape);
+#endif
 }
 
 
@@ -577,6 +595,10 @@ static bool is_prompt_end(glistener *g, int end_pos)
 
 /* ---------------- listener text ---------------- */
 
+GtkWidget *glistener_text_widget(glistener *g) {return(g->text);}
+GtkTextBuffer *glistener_text_buffer(glistener *g) {return(g->buffer);}
+GtkWidget *glistener_status_widget(glistener *g) {return(g->status);}
+
 static void remember_listener_string(glistener *g, const char *str)
 {
   int i, top, len;
@@ -640,7 +662,7 @@ void glistener_clear(glistener *g)
 
 bool glistener_write(glistener *g, FILE *fp)
 {
-  char *str = NULL;
+  char *str;
   GtkTextIter start, end;
 
   gtk_text_buffer_get_start_iter(g->buffer, &start);
@@ -1510,8 +1532,11 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 static void glistener_return_callback(glistener *g);
 static void glistener_completion(glistener *g, int end);
 
-
+#if (GTK_CHECK_VERSION(3, 92, 1))
+static gboolean glistener_key_press(GtkWidget *w, GdkEvent *event, gpointer data)
+#else
 static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer data)
+#endif
 {
   glistener *g = (glistener *)data;
 
@@ -1522,7 +1547,11 @@ static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer d
       GdkModifierType state;
 
       key = EVENT_KEYVAL(event);
-      state = (GdkModifierType)EVENT_STATE(event);
+#if (GTK_CHECK_VERSION(3, 0, 0))
+      gdk_event_get_state((GdkEvent *)event, &state);
+#else
+      state = (GdkModifierType)(event->state);
+#endif
       
       /* fprintf(stderr, "key: %d, state: %x\n", key, state); */
       
@@ -1617,7 +1646,11 @@ static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer d
 	      if (!gtk_text_iter_equal(&beg, &end))
 		{
 		  gtk_text_buffer_select_range(g->buffer, &beg, &end);
+#if GTK_CHECK_VERSION(3, 94, 0)
+		  gtk_text_buffer_cut_clipboard(g->buffer, gtk_widget_get_clipboard(w), true);
+#else
 		  gtk_text_buffer_cut_clipboard(g->buffer, gtk_widget_get_clipboard(w, GDK_SELECTION_CLIPBOARD), true);
+#endif
 		}
 	    }
 	  else return(false);
@@ -1790,8 +1823,14 @@ static void check_for_empty_listener(GtkTextView *w, gpointer data)
 static gboolean glistener_button_release(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
   glistener *g = (glistener *)data;
+  GdkModifierType state;
 
-  if (EVENT_STATE(ev) & GDK_BUTTON2_MASK)
+#if (GTK_CHECK_VERSION(3, 0, 0))
+  gdk_event_get_state((GdkEvent *)ev, &state);
+#else
+  state = (GdkModifierType)(ev->state);
+#endif
+  if (state & GDK_BUTTON2_MASK)
     glistener_set_cursor_position(g, g->insertion_position);
   else
     {
@@ -1813,8 +1852,6 @@ static gboolean glistener_button_release(GtkWidget *w, GdkEventButton *ev, gpoin
   post_help(g, glistener_cursor_position(g));
   return(false);
 }
-
-
 
 
 
@@ -2193,8 +2230,10 @@ static char *filename_completion(glistener *g, const char *partial_name)
       home = g_getenv("HOME");
       if (home)
 	{
-	  new_name = (char *)calloc(strlen(partial_name) + strlen(home) + 1, sizeof(char));
-	  strncpy(new_name, home, strlen(home));
+	  int len;
+	  len = strlen(home);
+	  new_name = (char *)calloc(strlen(partial_name) + len + 1, sizeof(char));
+	  strcat(new_name, home);
 	  strcat(new_name, (char *)(partial_name + 1));
 	}
     }
@@ -2283,7 +2322,7 @@ static char *filename_completion(glistener *g, const char *partial_name)
 	  /* attach matched portion to user's indication of dir */
 	  result = (char *)calloc(strlen(partial_name) + strlen(current_match) + 3, sizeof(char));
 	  temp = g_utf8_strrchr(partial_name, -1, (gunichar)'/');
-	  strncpy(result, partial_name, temp - partial_name + 1);
+	  memcpy(result, partial_name, temp - partial_name + 1);
 	  strcat(result, current_match);
 	  free(current_match);
 	}
@@ -2788,7 +2827,7 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(g->text), true);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(g->text), 4);
   gtk_container_add(GTK_CONTAINER(g->scroller), g->text);
-  gtk_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
+  sg_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
 
   if (default_font)
     glistener_set_font(g, default_font);
@@ -2875,6 +2914,10 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
 }
 
 /* changes:
+ * 31-Mar-18: gtk 4 support.
+ * --------
+ * 31-Jul-17: added access to text and buffer.
+ * --------
  * 19-Mar-15: changed strcopy macro.
  * 7-June:    added keyer function.
  * 4-June:    added colorizer function.

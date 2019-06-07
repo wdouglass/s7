@@ -45,12 +45,10 @@
 	  (apply #_make-hash-table args))))
 
 (define bytevector byte-vector)
-;(define ->bytevector string->byte-vector)
 (define bytevector? byte-vector?)
 (define make-bytevector make-byte-vector)
-(define bytevector-ref string-ref)
-(define bytevector-set! string-set!)
-
+(define bytevector-ref byte-vector-ref)
+(define bytevector-set! byte-vector-set!)
 (define bytevector-copy! vector-copy!)
 (define string-copy! vector-copy!)
 (define (bytevector->list bv) (map values bv))
@@ -76,10 +74,7 @@
 (define (digit-value c) (and (char-numeric? c) (- (char->integer c) (char->integer #\0))))
 
 
-(define +inf.0 inf.0)
-(define +nan.0 nan.0)
 (define (finite? n) (and (number? n) (not (nan? n)) (not (infinite? n))))
-
 (define exact-integer? integer?)	
 (define (exact-integer-sqrt i) (let ((sq (floor (sqrt i)))) (values sq (- i (* sq sq)))))
 (define inexact exact->inexact)
@@ -106,9 +101,9 @@
 (define (bytevector-u8-set! b k c) (set! (b k) c))
 (define bytevector-u8 (dilambda (lambda (b k) (b k)) (lambda (b k c) (set! (b k) c))))
 (define bytevector-length length)
-(define (bytevector-copy . args) (string->byte-vector (apply r7rs-string-copy args)))
-(define (bytevector-append . args) (string->byte-vector (apply string-append args)))
-(define write-bytevector write-string)
+(define bytevector-copy vector-copy!)
+(define bytevector-append append)
+(define write-bytevector write)
 (define* (read-bytevector! bv port (start 0) end)
   (let ((lim (or end (length bv)))
 	(pt (or port (current-input-port))))
@@ -119,7 +114,7 @@
 	 bv)
       (set! (bv i) c))))
 (define* (read-bytevector k port)
-  (read-bytevector! (string->byte-vector (make-string k)) port))
+  (read-bytevector! (make-byte-vector k) port))
 (define (get-output-bytevector port) (string->byte-vector (get-output-string port)))
 (define open-input-bytevector open-input-string)
 (define open-output-bytevector open-output-string)
@@ -132,7 +127,7 @@
 (define write-simple write)
 
 (define (eof-object) #<eof>)
-(define (features) *features*)
+(define-macro (features) '*features*) ; needs to be the local *features*
 
 
 (define (with-exception-handler handler thunk) (catch #t thunk handler))
@@ -422,7 +417,6 @@
 
 ;; other minor differences: 
 ;;  in s7, single-quote can occur in a name
-;;  s7 doesn't currently implement #\xxxx characters
 
 
 ;; records

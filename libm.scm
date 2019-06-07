@@ -26,6 +26,7 @@
 	(c-define 
 	 '((double j0 (double) "Bessel j0") 
 	   (double j1 (double)) 
+	   (double jn (int double)) 
 	   (double erf (double)) 
 	   (double erfc (double))
 	   (double lgamma (double))

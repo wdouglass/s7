@@ -206,8 +206,8 @@ indented and on a sort of brownish background.
   <li><a href="#math">math functions</a>
   <li><a href="#define*">define*, named let*</a>
   <li><a href="#macros">define-macro</a>
-  <li><a href="#pws">procedure-setter</a>
-  <li><a href="#generalizedset">generalized set!</a>
+  <li><a href="#pws">setter</a>
+  <li><a href="#generalizedset">generic functions, generalized set!</a>
   <li><a href="#multidimensionalvectors">multidimensional vectors</a>
   <li><a href="#hashtables">hash tables</a>
   <li><a href="#environments">environments</a>
@@ -215,20 +215,20 @@ indented and on a sort of brownish background.
   <li><a href="#callwithexit1">call-with-exit</a>
   <li><a href="#format1">format</a>
   <li><a href="#hooks">hooks</a>
-  <li><a href="#procedureinfo">procedure info</a>
+  <li><a href="#variableinfo">variable info</a>
   <li><a href="#evalstring">eval</a>
   <li><a href="#IO">IO and other OS functions</a>
   <li><a href="#errors">errors</a>
   <li><a href="#autoload">autoload</a>
-  <li><a href="#constants">define-constant, symbol-access</a>
+  <li><a href="#constants">define-constant</a>
   <li><a href="#miscellanea">marvels and curiousities:</a> 
 
   <ul>
     <li><a href="#loadpath">*load-path*</a>, <a href="#featureslist">*features*</a>, <a href="#sharpreaders">*#readers*</a>,
     <li><a href="#makelist">make-list</a>, <a href="#charposition">char-position</a>, <a href="#keywords">keywords</a>
-    <li><a href="#symboltable">symbol-table</a>, <a href="#s7help">help</a>, <a href="#s7gc">gc</a>, <a href="#morallyequalp">morally-equal?</a>
+    <li><a href="#symboltable">symbol-table</a>, <a href="#s7help">help</a>, <a href="#s7gc">gc</a>, <a href="#equivalentp">equivalent?</a>
     <li><a href="#expansion">define-expansion</a>, <a href="#s7env">*s7*</a>, <a href="#s7vsr5rs">r5rs</a>, <a href="#r7rs">r7rs</a>, 
-    <li><a href="#profiling">profiling</a>, <a href="#circle">circular lists</a>, <a href="#legolambda">legolambda</a>, etc...
+    <li><a href="#profiling">profiling</a>, <a href="#legolambda">legolambda</a>, etc...
     </ul>
 
   <li class="li_header"><a href="#FFIexamples">FFI examples</a>
@@ -245,7 +245,6 @@ indented and on a sort of brownish background.
       <li><a href="#definemacro1">C-side define-macro (s7_define_macro)</a>
       <li><a href="#definegeneric">define a generic function in C</a>
       <li><a href="#signal">signal handling (C-C to break out of an infinite loop)</a>
-      <li><a href="#vector">direct multidimensional vector element access</a>
       <li><a href="#notify">notification in C that a Scheme variable has been set!</a>
       <li><a href="#namespace">Load C defined stuff into a separate namespace</a>
       <li><a href="#Cerrors">Error handling in C</a>
@@ -253,6 +252,7 @@ indented and on a sort of brownish background.
       <li><a href="#dload">Load a C module dynamically</a>
       <li><a href="#gmpex">gmp and friends</a>
       <li><a href="#glistener">glistener.c</a>
+      <li><a href="#gtk">gtk script</a>
       <li><a href="#gdb">gdb</a>
   </ul>
 
@@ -274,7 +274,7 @@ indented and on a sort of brownish background.
 
 <p>All numeric types, integers, ratios, reals, and complex numbers are supported.
 The basic integer and real
-types are defined in s7.h, defaulting to long long int and double.  
+types are defined in s7.h, defaulting to int64_t and double.  
 A ratio consists of two integers, a complex number two reals.
 pi is predefined, as are
 most-positive-fixnum and most-negative-fixnum.
@@ -373,7 +373,7 @@ s7 includes:
 
 <ul>
 <li>sinh, cosh, tanh, asinh, acosh, atanh
-<li>logior, logxor, logand, lognot, logbit?, ash, integer-length, integer-decode-float
+<li>logior, logxor, logand, lognot, logbit?, ash, integer-decode-float
 <li>random
 <li>nan?, infinite?
 </ul>
@@ -384,7 +384,7 @@ The following constants are predefined: pi, most-positive-fixnum, most-negative-
 Other math-related differences between s7 and r5rs:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>rational? and exact mean integer or ratio (i.e. not floating point), inexact means not exact.
 <li>floor, ceiling, truncate, and round return (exact) integer results.
 <li>"#" does not stand for an unknown digit.
@@ -453,9 +453,8 @@ In s7, "@" is an exponent marker.
 
 <div class="indented">
 
-<p>Should s7 predefine the numbers +inf.0, -inf.0, and nan.0?  It doesn't currently, but you can
-get them via log or 1/0 (see <a href="#r7rs">below</a>).
-But what is <code>(/ 1.0 0.0)</code>?  s7 gives a "division by zero" error here, and also in <code>(/ 1 0)</code>.
+<p>
+What is <code>(/ 1.0 0.0)</code>?  s7 gives a "division by zero" error here, and also in <code>(/ 1 0)</code>.
 Guile returns +inf.0 in the first case, which seems reasonable, but a "numerical overflow" error in the second.
 Slightly weirder is <code>(expt 0.0 0+i)</code>.  Currently s7 returns 0.0, Guile returns +nan.0+nan.0i,
 Clisp and sbcl throw an error.  Everybody agrees that <code>(expt 0 0)</code> is 1, and Guile thinks
@@ -480,7 +479,7 @@ scheme@(guile-user)&gt;  (&lt; (/ 1.0 -0.0) -1e100 1e100 (/ 1.0 0.0))
 How can they be equal? In s7, the sign
 of -0.0 is ignored, and they really are equal.
 One other oddity: two floats can satisfy eq? and yet not be eqv?:
-<code>(eq? nan.0 nan.0)</code> might be #t (it is unspecified), but <code>(eqv? nan.0 nan.0)</code> is #f.
+<code>(eq? +nan.0 +nan.0)</code> might be #t (it is unspecified), but <code>(eqv? +nan.0 +nan.0)</code> is #f.
 The same problem afflicts memq and assq.  
 </p>
 </div>
@@ -597,7 +596,7 @@ we can maintain backwards compatibility via:
 (define (exact-&gt;inexact x) (* x 1.0))
 </pre>
 
-<p>#i and #e are also useless because you can
+<p>Standard Scheme's #i and #e are also useless because you can
 have any number after, for example, #b:
 </p>
 
@@ -610,38 +609,10 @@ have any number after, for example, #b:
 <em class="gray">15.625+1i</em>
 </pre>
 
-<p>Speaking of #b and friends, what should <code>(string-&gt;number "#xffff" 2)</code> return?
+<p>(But s7 uses #i for int-vector and does not implement #e).
+Speaking of #b and friends, what should <code>(string-&gt;number "#xffff" 2)</code> return?
 </p>
 </div>
-
-
-<details>
-<summary class="indented">more examples</summary>
-<div class="indented">
-
-<pre>
-(define (log-n-of n . ints)     ; return the bits on in exactly n of ints
-  (let ((len (length ints)))
-    (cond ((= len 0) (if (= n 0) -1 0))
-	  ((= n 0)   (lognot (apply logior ints)))
-	  ((= n len) (apply logand ints))
-	  ((&gt; n len) 0)
-	  (#t 
-	   (do ((1s 0)
-		(prev ints)
-		(i 0 (+ i 1)))
-	       ((= i len) 1s)
-	     (let ((cur (ints i)))
-	       (if (= i 0)
-		   (set! 1s (logior 1s (logand cur (apply log-n-of (- n 1) (cdr ints)))))
-		   (let ((mid (cdr prev)))
-		     (set! (cdr prev) (if (= i (- len 1)) () (cdr mid)))
-		     (set! 1s (logior 1s (logand cur (apply log-n-of (- n 1) ints))))
-		     (set! (cdr prev) mid)
-		     (set! prev mid)))))))))
-</pre>
-</div>
-</details>
 
 </blockquote>
 
@@ -662,7 +633,8 @@ the argument name.
 The last argument
 can be preceded by :rest or a dot to indicate that all other trailing arguments
 should be packaged as a list under that argument's name.  A trailing or rest
-argument's default value is ().
+argument's default value is () and can't be specified in the declaration.
+The rest argument is not available as a keyword argument.
 </p>
 
 <pre class="indented">
@@ -747,6 +719,25 @@ have been evaluated (as in named let).
 <pre class="indented">
 (define* (foo (a 0) (b (+ a 4)) (c (+ a 7))) (list a b c))
 </pre>
+<p>Also CL and s7 handle keywords as values in the same way:
+</p>
+<pre class="indented">
+&gt; (defun foo (&amp;key a) a)
+<em class="gray">FOO</em>
+&gt; (defvar x :a)
+<em class="gray">X</em>
+&gt; (foo x 1)
+<em class="gray">1</em>
+</pre>
+
+<pre class="indented">
+&gt; (define* (foo a) a)
+<em class="gray">foo</em>
+&gt; (define x :a)
+<em class="gray">:a</em>
+&gt; (foo x 1)
+<em class="gray">1</em>
+</pre>
 </div>
 
 
@@ -755,7 +746,9 @@ have been evaluated (as in named let).
 <p>To try to catch what I believe are usually mistakes, I added two
 error checks.  One is triggered if you set the same parameter twice
 in the same call, and the other if an unknown keyword is encountered
-in the key position.  These problems arise in a case such as
+in the key position.  To turn off these errors, add :allow-other-keys
+at the end of the parameter list.
+These problems arise in a case such as
 </p>
 
 <pre class="indented">
@@ -773,15 +766,14 @@ in the key position.  These problems arise in a case such as
 
 <p>In the last case, to pass a keyword deliberately, either include the
 argument keyword: <code>(f :a :c)</code>, or make the default value a keyword:
-<code>(define* (f (a :c) ...))</code>.
-To turn off this error check, add :allow-other-keys at the end of the parameter list.
+<code>(define* (f (a :c) ...))</code>, or set <code>(*s7* 'accept-all-keyword-arguments)</code>
+to some true value.
+See s7test.scm for many examples.  
 </p>
 
 </div>
 
 
-<details>
-<summary class="indented">rest arg nits</summary>
 <div class="indented">
 
 <p>s7's lambda* arglist handling is not the same as CL's lambda-list.  First,
@@ -827,7 +819,7 @@ such as:
 <em class="gray">(:a 1)</em>
 </pre>
 </div>
-</details>
+
 
 <!--
 unknown key handling is not good, :allow-key-values?
@@ -866,6 +858,17 @@ unknown key handling is not good, :allow-key-values?
   ((lambda* (hi ho) (list hi ho)) (symbol->keyword a) b))
 (f8 'hi 32) -> (32 #f)
 (f8 'ho 32) -> (#f 32)
+
+
+another amusing lambda* case:
+(call/cc 
+ (lambda* (a (b (call/cc (lambda (c) c)))) ; even with-baffle still a loop (legit)
+   (b (call/cc (lambda (d) d)))))
+
+;; equivalent to:
+(let ((c (call/cc (lambda (c) c))))
+  (call/cc (lambda (a)
+	     (c (call/cc (lambda (d) d))))))
 -->
 
 </blockquote>
@@ -940,6 +943,72 @@ giving the new symbol name's prefix.  gensym? returns #t if its argument is a sy
 <em class="gray">4</em>
 </pre>
 
+<blockquote>
+<div class="indented">
+
+<p>A macro is a first-class citizen of s7.  You can
+pass it as a function argument, apply it to a list, return it from a function,
+call it recursively, 
+and assign it to a variable.  You can even set its setter!
+</p>
+
+<pre class="indented">
+&gt; (define-macro (hi a) `(+ ,a 1))
+<em class="gray">hi</em>
+&gt; (apply hi '(4))
+<em class="gray">5</em>
+&gt; (define (fmac mac) (apply mac '(4)))
+<em class="gray">fmac</em>
+&gt; (fmac hi)
+<em class="gray">5</em>
+&gt; (define (fmac mac) (mac 4))
+<em class="gray">fmac</em>
+&gt; (fmac hi)
+<em class="gray">5</em>
+&gt; (define (make-mac)
+    (define-macro (hi a) `(+ ,a 1)))
+<em class="gray">make-mac</em>
+&gt; (let ((x (make-mac)))
+    (x 2))
+<em class="gray">3</em>
+&gt; (define-macro (ref v i) `(vector-ref ,v ,i))
+<em class="gray">ref</em>
+&gt; (define-macro (set v i x) `(vector-set! ,v ,i ,x))
+<em class="gray">set</em>
+&gt; (set! (setter ref) set)
+<em class="gray">set</em>
+&gt; (let ((v (vector 1 2 3))) (set! (ref v 0) 32) v)
+<em class="gray">#(32 2 3)</em>
+</pre>
+
+<p>To expand all the macros in a piece of code:
+</p>
+<pre class="indented">
+(define-macro (fully-macroexpand form)
+  (list 'quote
+    (let expand ((form form))
+      (cond ((not (pair? form)) form)
+            ((and (symbol? (car form))
+                  (macro? (symbol-&gt;value (car form))))
+             (expand (apply macroexpand (list form))))
+            ((and (eq? (car form) 'set!)  ; look for (set! (mac ...) ...) and use mac's setter
+                  (pair? (cdr form))
+                  (pair? (cadr form))
+                  (macro? (symbol-&gt;value (caadr form))))
+             (expand
+              (apply (eval
+                 (procedure-source (setter (symbol-&gt;value (caadr form)))))
+                (append (cdadr form) (cddr form)))))
+            (else (cons (expand (car form)) (expand (cdr form))))))))
+</pre>
+<p>This does not always handle bacros correctly because their expansion can depend on the run-time 
+state.
+</p>
+</div>
+
+
+<div class="indented">
+
 <p>A bacro is a macro that expands its body and evaluates
 the result in the calling environment. 
 </p>
@@ -984,11 +1053,6 @@ The calling environment itself is (outlet (curlet)) from within a bacro, so
 
 (f1 2 3) ; prints out "(f1 :a 2 :b 3)" and returns 5
 </pre>
-
-
-<blockquote>
-
-<div class="indented">
 
 <p>
 Since a bacro (normally) sheds its define-time environment:
@@ -1049,71 +1113,7 @@ Here's a brief example of all four:
 </pre>
 </div>
 
-<div class="indented">
 
-<p>As the setf example shows, a macro is a first-class citizen of s7.  You can
-pass it as a function argument, apply it to a list, return it from a function,
-call it recursively, 
-and assign it to a variable.  You can even set its procedure-setter!
-</p>
-
-<pre class="indented">
-&gt; (define-macro (hi a) `(+ ,a 1))
-<em class="gray">hi</em>
-&gt; (apply hi '(4))
-<em class="gray">5</em>
-&gt; (define (fmac mac) (apply mac '(4)))
-<em class="gray">fmac</em>
-&gt; (fmac hi)
-<em class="gray">5</em>
-&gt; (define (fmac mac) (mac 4))
-<em class="gray">fmac</em>
-&gt; (fmac hi)
-<em class="gray">5</em>
-&gt; (define (make-mac)
-    (define-macro (hi a) `(+ ,a 1)))
-<em class="gray">make-mac</em>
-&gt; (let ((x (make-mac)))
-    (x 2))
-<em class="gray">3</em>
-&gt; (define-macro (ref v i) `(vector-ref ,v ,i))
-<em class="gray">ref</em>
-&gt; (define-macro (set v i x) `(vector-set! ,v ,i ,x))
-<em class="gray">set</em>
-&gt; (set! (procedure-setter ref) set)
-<em class="gray">set</em>
-&gt; (let ((v (vector 1 2 3))) (set! (ref v 0) 32) v)
-<em class="gray">#(32 2 3)</em>
-</pre>
-
-<p>To expand all the macros in a piece of code:
-</p>
-<pre class="indented">
-(define-macro (fully-macroexpand form)
-  (list 'quote
-    (let expand ((form form))
-      (cond ((not (pair? form)) form)
-            ((and (symbol? (car form))
-                  (macro? (symbol-&gt;value (car form))))
-             (expand (apply macroexpand (list form))))
-            ((and (eq? (car form) 'set!)  ; look for (set! (mac ...) ...) and use mac's procedure-setter
-                  (pair? (cdr form))
-                  (pair? (cadr form))
-                  (macro? (symbol-&gt;value (caadr form))))
-             (expand
-              (apply (eval
-                 (procedure-source (procedure-setter (symbol-&gt;value (caadr form)))))
-                (append (cdadr form) (cddr form)))))
-            (else (cons (expand (car form)) (expand (cdr form))))))))
-</pre>
-<p>This does not always handle bacros correctly because their expansion can depend on the run-time 
-state.
-</p>
-</div>
-
-
-<details>
-<summary class="indented">backquote details</summary>
 <div class="indented">
 
 <p>Backquote (quasiquote) in s7 is almost trivial.  Constants are unchanged, symbols are quoted,
@@ -1157,8 +1157,7 @@ that I'm reluctant to change it.  The two unquote names, on the
 other hand, seem unnecessary.
 </p>
 </div>
-</details>
-
+</blockquote>
 
 <p>s7 macros are not hygienic.  For example,
 </p>
@@ -1333,6 +1332,7 @@ a with-let that captures the current environment, and at each use of a macro arg
 wrap it in a with-let that re-establishes that environment. 
 </p>
 
+<blockquote>
 <div class="indented">
 <pre>
 (define-macro (swap a b) ; assume a and b are symbols
@@ -1353,7 +1353,7 @@ wrap it in a with-let that re-establishes that environment.
 &gt; (let ((tmp (cons 1 2))) (swap (car tmp) (cdr tmp)) tmp)
 <em class="gray">(2 . 1)</em>
 
-(set! (procedure-setter swap) (define-macro (set-swap a b c) `(set! ,b ,c)))
+(set! (setter swap) (define-macro (set-swap a b c) `(set! ,b ,c)))
 
 &gt; (let ((a 1) (b 2) (c 3) (d 4)) (swap a (swap b (swap c d))) (list a b c d))
 <em class="gray">(2 3 4 1)</em>
@@ -1370,6 +1370,7 @@ wrap it in a with-let that re-establishes that environment.
 <em class="gray">(2 3 1)</em>
 </pre>
 </div>
+</blockquote>
 
 <p>
 If you want the macro's expanded result
@@ -1417,7 +1418,7 @@ to be evaluated in its definition environment:
 -->
 
 
-
+<blockquote>
 <div class="indented">
 
 <p>Here is Peter Seibel's wonderful once-only macro:
@@ -1455,7 +1456,6 @@ to be evaluated in its definition environment:
 <p>Sadly, with-let is simpler.
 </p>
 </div>
-
 </blockquote>
 
 <!--
@@ -1466,38 +1466,53 @@ to be evaluated in its definition environment:
 
 
 
-<div class="header" id="pws"><h4>procedure-setter</h4></div>
+<div class="header" id="pws"><h4>setter</h4></div>
 
 <pre class="indented">
-(<em class=def>procedure-setter</em> proc)
+(<em class=def>setter</em> proc)
 (<em class=def id="dilambda">dilambda</em> proc setter)
 </pre>
 
-<p>Each function (or macro!) can have an associated setter, much like defsetf in CL.  As a convenience, there's also
-a way to associate the two functions under one name: dilambda.
-The setter is called when the procedure is the target of set!  Its last argument is the
-value passed to set!:
+<p>Each variable can have an associated setter.
+The setter is a function that is called before the variable is set.  The setter's arguments
+are the name of the variable (a symbol) and the new value.
+As a convenience, there's also
+a way to associate a function with its setter under one name (via dilambda),
+and you can use the built-in type checking functions such as integer? as a short-hand
+for a setter that insists the new value be an integer.  Coupled with the type arguments
+to make-vector and make-hash-table, the setter provides a way to statically type
+nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 </p>
 
 <pre class="indented">
-&gt; (procedure-setter cadr)
+&gt; (setter cadr)
 <em class="gray">#f</em>
-&gt; (set! (procedure-setter cadr) 
+&gt; (set! (setter cadr) 
         (lambda (lst val) 
           (set! (car (cdr lst)) val)))
 <em class="gray">#&lt;lambda (lst val)&gt;</em>
-&gt; (procedure-source (procedure-setter cadr))
+&gt; (procedure-source (setter cadr))
 <em class="gray">(lambda (lst val) (set! (car (cdr lst)) val))</em>
 &gt; (let ((lst (list 1 2 3))) 
     (set! (cadr lst) 4) 
     lst)
 <em class="gray">(1 4 3)</em>
+
+&gt; (let ((x 1)) 
+     (set! (setter 'x) integer?)
+     (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+
+;;; use typed-let from stuff.scm to do the same thing:
+&gt; (typed-let ((x 3 integer?))
+     (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
 <p>In some cases, the setter needs to be a macro:
 </p>
 <pre class="indented">
-&gt; (set! (procedure-setter logbit?)
+&gt; (set! (setter logbit?)
           (define-macro (m var index on) ; here we want to set "var", so we need a macro
 	    `(if ,on
 	         (set! ,var (logior ,var (ash 1 ,index)))
@@ -1573,7 +1588,14 @@ value passed to set!:
 </pre>	
 </div>
 
-
+<div class="indented">
+<p>I may remove dilambda and dilambda? someday; they are trivial:
+</p>
+<pre class="indented">
+(define (dilambda get set) (set! (setter get) set) get)
+(define dilambda? setter)
+</pre>
+</div>
 
 <div class="indented">
 <p>Speaking of INTERCAL, COME-FROM:
@@ -1687,12 +1709,11 @@ Here's a generic FFT:
 	(let ((temp (data j)))
 	  (set! (data j) (data i))
 	  (set! (data i) temp)))
-    (do ((m (/ n 2)))
+    (do ((m (/ n 2) (/ m 2)))
         ((or (&lt; m 2) 
              (&lt; j m))
          (set! j (+ j m)))
-     (set! j (- j m))
-     (set! m (/ m 2))))
+     (set! j (- j m))))
   (do ((ipow (floor (log n 2)))
        (prev 1)
        (lg 0 (+ lg 1))
@@ -1798,7 +1819,25 @@ or even <code>(&gt; 1 0+i)</code>.
 (length obj)
 (append . sequences)
 (map func . sequences) and (for-each func . sequences)
-(<a href="#morallyequalp">morally-equal?</a> obj1 obj2)
+(<a href="#equivalentp">equivalent?</a> obj1 obj2)
+</pre>
+
+<p><b>copy</b> returns a (shallow) copy of its argument.  If a destination is provided,
+it need not match the source in size or type.  The start and end indices refer to the source.
+</p>
+<pre class="indented">
+&gt; (copy '(1 2 3 4) (make-list 2))
+<em class="gray">(1 2)</em>
+&gt; (copy #(1 2 3 4) (make-list 5) 1) ; start at 1 in the source
+<em class="gray">(2 3 4 #f #f)</em>
+&gt; (copy "1234" (make-vector 2))
+<em class="gray">#(#\1 #\2)</em>
+&gt; (define lst (list 1 2 3 4 5))
+<em class="gray">(1 2 3 4 5)</em>
+&gt; (copy #(8 9) (cddr lst))
+<em class="gray">(8 9 5)</em>
+&gt; lst
+<em class="gray">(1 2 8 9 5)</em>
 </pre>
 
 <p><b>reverse!</b> is an in-place version of reverse.  That is, 
@@ -1808,6 +1847,14 @@ If the sequence is a list, remember to use set!:
 but historically, lisp programmers have treated the in-place reverse as the fast
 version, so s7 follows suit.
 </p>
+<pre class="indented">
+&gt; (define lst (list 1 2 3))
+<em class="gray">(1 2 3)</em>
+&gt; (reverse! lst)
+<em class="gray">(3 2 1)</em>
+&gt; lst
+<em class="gray">(1)</em>
+</pre>
 
 <p>Leaving aside the weird list case,
 <b>append</b> returns a sequence of the same type as its first argument.
@@ -1873,21 +1920,20 @@ instead of eof-object?.
 </p>
 
 <p>The argument to make-iterator can also be a function or macro.  
-There should be a variable named 'iterator with a non-#f
+There should be a variable named '+iterator+ with a non-#f
 value in the closure's environment:
 </p>
 <pre class="indented">
 (define (make-circular-iterator obj)
   (let ((iter (make-iterator obj)))
     (make-iterator 
-     (let ((iterator? #t))
+     (let ((+iterator+ #t))
        (lambda ()
-         (let ((result (iter)))
-	   (if (eof-object? result)
-	       ((set! iter (make-iterator obj)))
-	       result)))))))
+         (case (iter) 
+           ((#&lt;eof&gt;) ((set! iter (make-iterator obj))))
+           (else)))))))
 </pre>
-<p>The 'iterator? variable is similar to the 'documentation variable used by procedure-documentation.
+<p>The 'iterator? variable is similar to the '+documentation+ variable used by documentation.
 It gives make-iterator some hope of catching inadvertent bogus function arguments that would
 otherwise cause an infinite loop. 
 </p>
@@ -1918,9 +1964,9 @@ vector-dimensions returns a list of the dimensions.
 
 <pre class="indented">
 &gt; (define v (make-vector '(2 3) 1.0))
-<em class="gray">#2D((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
+<em class="gray">#2d((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
 &gt; (set! (v 0 1) 2.0)
-<em class="gray">#2D((1.0 2.0 1.0) (1.0 1.0 1.0))</em>
+<em class="gray">#2d((1.0 2.0 1.0) (1.0 1.0 1.0))</em>
 &gt; (v 0 1)
 <em class="gray">2.0</em>
 &gt; (vector-length v)
@@ -1932,19 +1978,19 @@ vector-dimensions returns a list of the dimensions.
 
 <pre class="indented">
 (define (make-array dims . inits)
-  (make-shared-vector (apply vector (flatten inits)) dims))
+  (subvector (apply vector (flatten inits)) dims))
 
 &gt; (make-array '(3 3) '(1 1 1) '(2 2 2) '(3 3 3))
-<em class="gray">#2D((1 1 1) (2 2 2) (3 3 3))</em>
+<em class="gray">#2d((1 1 1) (2 2 2) (3 3 3))</em>
 </pre>
 
-<p>make-int-vector and make-float-vector produce homogeneous vectors holding
-s7_ints or s7_doubles.
-These are mostly useful in conjunction with C code.  These
-homogeneous vector functions are currently built-in:
+<p>make-int-vector, make-float-vector, and make-byte-vector produce homogeneous vectors holding
+s7_ints, s7_doubles, or unsigned bytes.
 </p>
 
 <pre class="indented">
+(<em class=def id="makevector">make-vector</em> length-or-list-of-dimensions initial-value element-type-function)
+
 (<em class=def>float-vector?</em> obj)
 (<em class=def>float-vector</em> . args)
 (<em class=def>make-float-vector</em> len (init 0.0))
@@ -1956,35 +2002,51 @@ homogeneous vector functions are currently built-in:
 (<em class=def id="makeintvector">make-int-vector</em> len (init 0))
 (<em class=def id="intvectorref">int-vector-ref</em> obj . indices)
 (<em class=def id="intvectorset">int-vector-set!</em> obj indices[...] value)
-</pre>
 
-<div class="indented">
-<p>And also, for completeness:</p>
-<pre class="indented">
 (<em class=def id="bytevectorp">byte-vector?</em> obj)
 (<em class=def id="bytevector">byte-vector</em> . args)
 (<em class=def id="makebytevector">make-byte-vector</em> len (init 0))
-(<em class=def id="bytevectorref">byte-vector-ref</em> vect index)
-(<em class=def id="bytevectorset">byte-vector-set!</em> vect index byte)
+(<em class=def id="bytevectorref">byte-vector-ref</em> obj . indices)
+(<em class=def id="bytevectorset">byte-vector-set!</em> obj indices[...] byte)
+(<em class=def id="bytep">byte?</em> obj)
+
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
+(<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
+
+(<em class=def id="subvector">subvector</em> vector dimensions position)
+(<em class=def id="subvectorp">subvector?</em> obj) 
+(<em class=def id="subvectorvector">subvector-vector</em> obj) 
+(<em class=def id="subvectorposition">subvector-position</em> obj)
 </pre>
-<p>but these are really just strings in disguise.</p>
-</div>
+
+<p>In addition to the dimension list mentioned above, make-vector accepts
+optional arguments giving the initial element and the element type. If the
+type is given, every attempt to set an element of the vector first calls
+the type function on the new value.  Currently, the type function can only be a built-in
+type checking function such as integer? or symbol?.  If omitted (or set to #t),
+no type checking is performed.
+</p>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
-<code>(make-shared-vector original-vector new-dimensions (offset 0))</code>:
+<code>(subvector original-vector new-dimensions (position 0))</code>:
 </p>
 
 <pre class="indented">
 &gt; (let ((v1 #2d((1 2 3) (4 5 6)))) 
-    (let ((v2 (make-shared-vector v1 '(6)))) ; flatten the original
+    (let ((v2 (subvector v1 '(6)))) ; flatten the original
       v2))
 <em class="gray">#(1 2 3 4 5 6)</em>
 &gt; (let ((v1 #(1 2 3 4 5 6))) 
-    (let ((v2 (make-shared-vector v1 '(3 2)))) 
+    (let ((v2 (subvector v1 '(3 2)))) 
       v2))
-<em class="gray">#2D((1 2) (3 4) (5 6))</em>
+<em class="gray">#2d((1 2) (3 4) (5 6))</em>
 </pre>
+<p>A subvector is a window onto some other vector's data.  The data is not copied, just accessed differently.
+The <code>new-dimensions</code> parameter can be either an integer or a list.  In the integer case, it sets
+the length of the subvector, otherwise the dimensions of the subvector.  <code>subvector-vector</code> returns
+the underlying vector, and <code>subvector-position</code> returns the starting point of the subvector
+in the underlying data.
+</p>
 <blockquote>
 
 <div class="indented">
@@ -2069,15 +2131,25 @@ homogeneous vector functions are currently built-in:
 
 <div class="indented">
 
-<p>Multidimensional vector constant syntax is modelled after CL: #nd(...) or #nD(...) 
-signals that the lists specify the elements of an 'n' dimensional vector: <code>#2D((1 2 3) (4 5 6))</code>
+<p>Multidimensional vector constant syntax is modelled after CL: #nd(...)
+signals that the lists specify the elements of an 'n' dimensional vector: <code>#2d((1 2 3) (4 5 6))</code>
+int-vector constants use #i, float-vectors use #r.  I wanted to use #f, but that is already taken.
+Append the "nd" business after the type indication: <code>#i2d((1 2) (3 4))</code>.  This syntax
+collides with the r7rs byte-vector notation "#u8"; s7 uses "#u" for byte-vectors.  "#u2d(...)" is a two-dimensional byte-vector.
+For backwards compatibility, you can use "#u8" for one-dimensional byte-vectors.
 </p>
 
 <pre class="indented">
-&gt; (vector-ref #2D((1 2 3) (4 5 6)) 1 2)
+&gt; (vector-ref #2d((1 2 3) (4 5 6)) 1 2)
 <em class="gray">6</em>
 &gt; (matrix-multiply #2d((-1 0) (0 -1)) #2d((2 0) (-2 2)))
-<em class="gray">#2D((-2 0) (2 -2))</em>
+<em class="gray">#2d((-2 0) (2 -2))</em>
+&gt; (int-vector 1 2 3)
+<em class="gray">#i(1 2 3)</em>
+&gt; (make-float-vector '(2 3) 1.0)
+<em class="gray">#r2d((1.0 1.0 1.0) (1.0 1.0 1.0))</em>
+&gt; (vector (vector 1 2) (int-vector 1 2) (float-vector 1 2))
+<em class="gray">#(#(1 2) #i(1 2) #r(1.0 2.0))</em>
 </pre>
 
 <p>If any dimension has 0 length, you get an n-dimensional empty vector.  It is not
@@ -2086,8 +2158,8 @@ equal to a 1-dimensional empty vector.
 
 <pre class="indented">
 &gt; (make-vector '(10 0 3))
-<em class="gray">#3D()</em>
-&gt; (equal? #() #3D())
+<em class="gray">#3d()</em>
+&gt; (equal? #() #3d())
 <em class="gray">#f</em>
 </pre>
 </div>
@@ -2129,7 +2201,7 @@ in the latter case, you can't clobber one of the inner vectors.
 &gt; (let ((V #(#(1 2 3) #(4 5 6)))) (set! (V 1) 32) V)
 <em class="gray">#(#(1 2 3) 32)</em>
 &gt; (let ((V #2d((1 2 3) (4 5 6)))) (set! (V 1) 32) V)
-<em class="gray">;not enough args for vector-set!: (#2D((1 2 3) (4 5 6)) 1 32)</em>
+<em class="gray">;not enough args for vector-set!: (#2d((1 2 3) (4 5 6)) 1 32)</em>
 </pre>
 </div>
 
@@ -2141,7 +2213,7 @@ in the latter case, you can't clobber one of the inner vectors.
 </p>
 
 <pre class="indented">
-#2D(((0) (0) ((0))) ((0) 0 ((0))))
+#2d(((0) (0) ((0))) ((0) 0 ((0))))
 </pre>
 
 <p>The "#()" notation is no better (the elements can be vectors), and I'm not a fan of "[]" parentheses.
@@ -2152,11 +2224,6 @@ Perhaps we could use different colors?  Or different size parentheses?
 #2D<em class=green>(</em><em class=red>(</em>(0) (0) ((0))<em class=red>)</em> <em class=red>(</em>(0) 0 ((0))<em class=red>)</em><em class=green>)</em>
 #2D<em class="bigger">(</em><em class="big">(</em>(0) (0) ((0))<em class="big">)</em> <em class="big">(</em>(0) 0 ((0))<em class="big">)</em><em class="bigger">)</em>
 </pre>
-
-<p>A similar problem afflicts homogeneous vectors.  We need some reasonable way to express
-such a vector even when it has more than one dimension.  My first thought was <code>#(...)#</code>,
-but that makes <code>(let ((b1 0)) (#(1 2)#b1))</code> ambiguous.
-</p>
 
 </div>
 
@@ -2184,15 +2251,25 @@ This also affects format and sort!:
 &gt; (format #f "~{~A~^ ~}" #2d((1 2) (3 4)))
 <em class="gray">"1 2 3 4"</em>
 &gt; (sort! #2d((1 4) (3 2)) &gt;) 
-<em class="gray">#2D((4 3) (2 1))</em>
+<em class="gray">#2d((4 3) (2 1))</em>
 </pre>
 
-<p>Perhaps make-shared-vector can help:
+<p>Perhaps subvector can help:
 </p>
 
 <pre class="indented">
-&gt;(make-shared-vector (list-&gt;vector '(1 2 3 4)) '(2 2))
-<em class="gray">#2D((1 2) (3 4))</em>
+&gt;(subvector (list-&gt;vector '(1 2 3 4)) '(2 2))
+<em class="gray">#2d((1 2) (3 4))</em>
+&gt; (let ((a #2d((1 2) (3 4)))
+        (b #2d((5 6) (7 8))))
+  (list (subvector (append a b) '(2 4))
+	(subvector (append a b) '(4 2))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(2 4))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(4 2))))
+<em class="gray">(#2d((1 2 3 4) (5 6 7 8)) 
+ #2d((1 2) (3 4) (5 6) (7 8)) 
+ #2d((1 2 5 6) (3 4 7 8)) 
+ #2d((1 2) (5 6) (3 4) (7 8)))</em>
 </pre>
 
 </div>
@@ -2225,15 +2302,21 @@ as:
 <p>Add optional and rest arguments, and you can't tell who is supposed to
 take which arguments.  
 Currently, you can mix types with implicit indices,
-but a function grabs all remaining indices.  Trickier than I expected!
+but a function grabs all remaining indices.
+To insist that all objects are of the same type, use an explicit getter:
 </p>
 
+<pre class="indented">
+&gt; (list-ref (list 1 (list 2 3)) 1 0) ; same as ((list 1 (list 2 3)) 1 0)
+<em class="gray">2</em>
+&gt; ((list 1 (vector 2 3)) 1 0)
+<em class="gray">2</em>
+&gt; (list-ref (list 1 (vector 2 3)) 1 0)
+<em class="red">error</em><em class="gray">: list-ref argument 1, #(2 3), is a vector but should be a proper list</em>
+</pre>
 </div>
 
 </blockquote>
-
-
-
 
 
 
@@ -2241,10 +2324,12 @@ but a function grabs all remaining indices.  Trickier than I expected!
 
 
 <ul>
-<li>(<em class=def id="makehashtable">make-hash-table</em> (size 8) eq-func)
+<li>(<em class=def id="makehashtable">make-hash-table</em> (size 8) eq-func typers)
+<li>(<em class=def id="makeweakhashtable">make-weak-hash-table</em> (size 8) eq-func typers)
 <li>(<em class=def id="hashtable">hash-table</em> ...)
-<li>(<em class=def id="hashtablestar">hash-table*</em> ...)
+<li>(<em class=def id="weakhashtable">weak-hash-table</em> ...)
 <li>(<em class=def id="hashtablep">hash-table?</em> obj)
+<li>(<em class=def id="weakhashtablep">weak-hash-table?</em> obj)
 <li>(<em class=def id="hashtableref">hash-table-ref</em> ht key)
 <li>(<em class=def id="hashtableset">hash-table-set!</em> ht key value)
 <li>(<em class=def id="hashtableentries">hash-table-entries</em> ht)
@@ -2266,17 +2351,16 @@ set its value to #f; to remove all keys, <code>(fill! table #f)</code>.
 <em class="gray">123</em>
 </pre>
 
-<p>hash-table (the function) parallels the functions vector, list, and string.  Its arguments are conses containing key/value pairs.
-The result is a new hash-table with those values preinstalled: <code>(hash-table '("hi" . 32) '("ho" . 1))</code>.
-After much use, I now think it is more convenient here, as in inlet, to use hash-table*; its arguments are
-simply the keys and values, without the consing: <code>(hash-table* 'a 1 'b 2)</code>.
+<p>hash-table (the function) parallels the functions vector, list, and string.  
+Its arguments are
+the keys and values: <code>(hash-table 'a 1 'b 2)</code>.
 Implicit indexing gives multilevel hashes:
 </p>
 
 <pre class="indented">
-&gt; (let ((h (hash-table* 'a (hash-table* 'b 2 'c 3)))) (h 'a 'b))
+&gt; (let ((h (hash-table 'a (hash-table 'b 2 'c 3)))) (h 'a 'b))
 <em class="gray">2</em>
-&gt; (let ((h (hash-table* 'a (hash-table* 'b 2 'c 3)))) (set! (h 'a 'b) 4) (h 'a 'b))
+&gt; (let ((h (hash-table 'a (hash-table 'b 2 'c 3)))) (set! (h 'a 'b) 4) (h 'a 'b))
 <em class="gray">4</em>
 </pre>
 
@@ -2309,9 +2393,6 @@ an entry, <code>'(key . value)</code>, in whatever order the entries are encount
 <pre class="indented">
 (define (hash-table-&gt;alist table)
   (map values table))
-
-(define (merge-hash-tables . tables) ; probably faster: (define merge-hash-tables append)
-  (apply hash-table (apply map values hash-tables)))
 </pre>
 
 <p>reverse of a hash-table returns a new table with the keys and values reversed.
@@ -2322,17 +2403,17 @@ of the table sizes, or the order in which the key/value pairs were added.
 </div>
 
 <div class="indented">
-<p>The third argument to make-hash-table (eq-func) is slightly complicated.  If it is omitted,
+<p>The second argument to make-hash-table (eq-func) is slightly complicated.  If it is omitted,
 s7 chooses the hashing equality and mapping functions based on the keys in the hash-table.
 There are times when you know
 in advance what equality function you want.  If it's one of the built-in s7 equality
-functions, eq?, eqv?, equal?, morally-equal?, =, string=?, string-ci=?, char=?, or char-ci=?,
-you can pass that function as the third argument.  In any other case, you need to
+functions, eq?, eqv?, equal?, equivalent?, =, string=?, string-ci=?, char=?, or char-ci=?,
+you can pass that function as the second argument.  In any other case, you need to
 give s7 both the equality function and the mapping function. The latter takes any object
 and returns the hash-table location for it (an integer).  The problem here is that
 for the arbitrary equality function to work, objects that are equal according to that
 function have to be mapped to the same hash-table location.  There's no way for s7 to intuit
-what this mapping should be except in the built-in cases.  So to specify some arbitrary function, the third
+what this mapping should be except in the built-in cases.  So to specify some arbitrary function, the second
 argument is a cons: '(equality-checker mapper).
 </p>
 
@@ -2344,7 +2425,7 @@ But s7 doesn't realize that the mus-generator type covers 40 or 50 internal type
 </div>
 
 <div class="indented">
-<p>If the hash key is a float (a non-rational number), hash-table-ref uses <a href="#morallyequalp">morally-equal?</a>.
+<p>If the hash key is a float (a non-rational number), hash-table-ref uses <a href="#equivalentp">equivalent?</a>.
 Otherwise, for example, you could use NaN as a key, but then never be able to access it!
 </p>
 </div>
@@ -2382,7 +2463,16 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
     '(27 . 196418) '(28 . 317811) '(29 . 514229) '(30 . 832040) '(31 . 1346269) 
     '(32 . 2178309) '(33 . 3524578) '(34 . 5702887)))</em>
 </pre>
+<p>but the tail recursive version of fib is simpler and almost as fast as the memoized version,
+and the iterative version beats both.
+</p>
 </div>
+
+<p>The third argument, typers, sets type checkers for the keys and values in the table.
+It is a cons of the type functions (currently built-in functions only, as in vectors):
+<code>(cons symbol? integer?)</code> for example. This says that all the keys must
+be symbols and all the values integers.
+</p>
 
 </blockquote>
 
@@ -2403,10 +2493,10 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="curlet">curlet</em>)                the current (innermost) environment
 (<em class=def id="funclet">funclet</em> proc)          the environment at the time when proc was defined
 (owlet)                 the environment at the point of the last error
-(<em class=def id="unlet">unlet</em>)                 the current environment, but all built-in functions have their original values
+(<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
 (<em class=def id="letref">let-ref</em> env sym)       get value of sym in env, same as (env sym)
-(<em class=def id="letset">let-set!</em> env sym val)
+(<em class=def id="letset">let-set!</em> env sym val)  set value of sym in val to val, same as (set! (env sym) val)
 
 (<em class=def id="inlet">inlet</em> . bindings)       make a new environment with the given bindings
 (<em class=def id="sublet">sublet</em> env . bindings)  same as inlet, but the new environment is local to env
@@ -2421,12 +2511,14 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
+(<em class=def id="openlets">openlets</em>)               (re)activate all methods (these two are experimental)
+(<em class=def id="coverlets">coverlets</em> env)          deactivate all methods
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
 </pre>
 
-<br>
+
 <blockquote>
 <pre class="indented">
 &gt; (inlet 'a 1 'b 2)
@@ -2460,8 +2552,21 @@ chain up to the rootlet.  That is, two environments are equal if any local varia
 </p>
 
 <p><b>let-ref</b> and <b>let-set!</b> return #&lt;undefined&gt; if the first argument is not
-defined in the environment or its parents.
+defined in the environment or its parents.  To search just the given environment (ignoring its outlet chain),
+use defined? with the third argument #t before calling let-ref or let-set!:
 </p>
+
+<pre class="indented">
+&gt; (defined? 'car (inlet 'a 1) #t)
+<em class="gray">#f</em>
+&gt; (defined? 'car (inlet 'a 1))
+<em class="gray">#t</em>
+</pre>
+
+<p>This matters in let-set!: <code>(let-set! (inlet 'a 1) 'car #f)</code>
+is the same as <code>(set! car #f)</code>!
+</p>
+
 <p>
 <b>with-let</b> evaluates its body in the given environment, so
 <code>(with-let e . body)</code> is equivalent to
@@ -2504,7 +2609,29 @@ original value.  It can handle anything settable:
 <p>This sets s7's print-length variable to 8 while displaying x, then
 puts it back to its original value.
 </p>
-
+<pre class="indented">
+&gt; (define ourlet
+    (let ((x 1))
+      (define (a-func) x)
+      (define b-func (let ((y 1))
+		       (lambda ()
+		         (+ x y))))
+    (curlet)))
+<em class="gray">(inlet 'x 1 'a-func a-func 'b-func b-func)</em>
+&gt; (ourlet 'x)
+<em class="gray">1</em>
+&gt; (let-temporarily (((ourlet 'x) 2))
+    ((ourlet 'a-func)))
+<em class="gray">2</em>
+&gt; ((funclet (ourlet 'b-func)) 'y)
+<em class="gray">1</em>
+&gt; (let-temporarily ((((funclet (ourlet 'b-func)) 'y) 3))
+    ((ourlet 'b-func)))
+<em class="gray">4</em>
+</pre>
+<p>Despite the name, no new environment is created by let-temporarily:
+<code>(let () (let-temporarily () (define x 2)) (+ x 1))</code> is 3.
+</p>
 
 <p>
 <b>sublet</b> adds bindings (symbols with associated values) to an environment.
@@ -2550,6 +2677,27 @@ local variable:
 <em class="gray">100</em>
 </pre>
 
+<p><b>funclet</b> returns a function's local environment.  Here's an example that
+keeps a circular buffer of the calls to that function:
+</p>
+
+<pre class="indented">
+(define func (let ((history (let ((lst (make-list 8 #f)))
+			      (set-cdr! (list-tail lst 7) lst))))
+	       (lambda (x y)
+		 (let ((result (+ x y)))
+		   (set-car! history (list result x y))
+		   (set! history (cdr history))
+		   result))))
+
+&gt; (func 1 2)
+<em class="gray">3</em>
+&gt; (func 3 4)
+<em class="gray">7</em>
+&gt; ((funclet func) 'history)
+<em class="gray">#1=(#f #f #f #f #f #f (3 1 2) (7 3 4) . #1#)</em>
+</pre>
+
 <blockquote>
 <div class="indented">
 <p>I originally used a bunch of foolishly pompous names for the environment functions.
@@ -2574,6 +2722,16 @@ wrap it in <code>(with-let (unlet) ...)</code>:
               (caar '((2) 3)))))
 <em class="gray">125</em>
 </pre>
+<p>Or perhaps better, to keep the current environment intact except for the 
+changed built-ins:
+</p>
+<pre class="indented">
+&gt; (let ((x 1) 
+        (display 3))
+    (with-let (sublet (curlet) (unlet)) ; (curlet) picks up 'x, (unlet) the original 'display
+      (display x)))
+<em class="gray">1</em>
+</pre>
 
 <p>
 with-let and unlet are constants, so you can
@@ -2581,12 +2739,14 @@ use them in any context without worrying about whether they've been redefined.
 As mentioned in the macro section, #_&lt;name&gt; is a built-in reader macro
 for <code>(with-let (unlet) &lt;name&gt;)</code>,
 so for example, #_+ is the built-in + function, no matter what.
-<code>(unlet)</code> cleans up the current environment whenever it's called,
-so you can use it to revert the REPL. (The environment of built-in functions
+(The environment of built-in functions
 that unlet accesses is not accessible from scheme code, so there's no way 
 that those values can be clobbered).
 </p>
 
+<p>
+<code>(fill! lt &lt;undefined&gt;)</code> removes all bindings from the let lt.
+</p>
 <blockquote>
 
 <div class="indented">
@@ -2711,8 +2871,8 @@ such as abs, we need to put it back to its original form:
 </blockquote>
 
 
-<p><b>openlet</b> marks its argument, either an environment, a closure, or a c-object
-as open.  I need better terminology here!  An open object is one that the
+<p><b>openlet</b> marks its argument, either an environment, a closure, a c-object, or a c-pointer
+as open; <b>coverlet</b> as closed.  I need better terminology here!  An open object is one that the
 built-in s7 functions handle specially.  If they encounter one in their
 argument list, they look in the object for their own name, and call that
 function if it exists.  A bare-bones example:
@@ -2751,6 +2911,47 @@ A slightly more complex example:
 and openlet? -&gt; methods?.
 </p>
 
+<blockquote>
+
+<div class="indented">
+<p>let-ref and let-set! are problematic as methods.  It is very easy to get into an infinite
+loop, especially with let-ref since any reference to the let within the method body probably
+calls let-ref, which notices the let-ref method... One way around this is to call coverlet 
+on the let before doing anything, then at the end, call openlet:
+</p>
+<pre class="indented">
+&gt; (let ((hi (openlet 
+              (inlet 'a 1 
+		     'let-ref (lambda (obj val)
+				(<em class="red">coverlet</em> obj)
+				(let ((res (+ (obj val) 1)))
+				  (<em class="red">openlet</em> obj)
+				  res))))))
+  (hi 'a))
+<em class="gray">2</em>
+</pre>
+
+<p>Use let-ref-fallback and let-set-fallback instead, if possible.  A let-set!
+method can implement a copy-on-write let:
+</p>
+
+<pre class="indented">
+(define (cowlet . fields) ; copy-on-write let
+  (openlet (apply inlet 
+                  'let-set! (lambda (obj field val)
+                              (let ((new-obj (copy (coverlet obj))))
+                                (set! (new-obj field) val)
+                                (openlet obj)
+                                (openlet new-obj)))
+                  fields)))
+(let ((lt1 (cowlet 'a 1 'b 2)))
+  (set! (lt1 'b) 1)) ; this leaves lt1 unchanged, returns a new let with b=1
+</pre>
+
+</div>
+</blockquote>
+
+
 <p><b>object-&gt;let</b> returns an environment (more of a dictionary really) that
 contains details about its argument.  It
 is intended as a debugging aid, underlying a debugger's "inspect" for example. 
@@ -2764,297 +2965,11 @@ is intended as a debugging aid, underlying a debugger's "inspect" for example.
 <em class="gray">(inlet 'value #&lt;iterator: string&gt; 'type iterator? 'at-end #f 'sequence "1234" 'length 4 'position 2)</em>
 </pre>
 
-<p>A c-object (in the sense of s7_new_type), can add its own info to this namespace via an object-&gt;let
+<p>A c-object (in the sense of s7_make_c_type), can add its own info to this namespace via an object-&gt;let
 method in its local environment.  snd-marks.c has a simple example using a class-wide environment (g_mark_methods),
 holding as the value of its 'object-&gt;let field the function s7_mark_to_let.  The latter uses s7_varlet to
 add information to the namespace created by <code>(object-&gt;let mark)</code>.
 </p>
-
-<br>
-
-
-<blockquote>
-
-<details>
-<summary class="indented">define-class</summary>
-<div class="indented">
-
-<p>Here is yet another object system.  Each class and each instance is an environment.
-A class might be thought of as a template for instances, but
-there's actually no difference between them.  To make an instance of a class, copy it.  To inherit from
-another class, concatenate the environments. To access (get or set) a field or a method, use the implicit
-indexing syntax with the field or method name.  To evaluate a form in the context of an instance
-(CL's with-slots), use with-let. To run through all the fields, use map or for-each.
-</p>
-
-<pre>
-(define-macro* (define-class class-name inherited-classes (slots ()) (methods ()))
-  `(let ((outer-env (outlet (curlet)))
-	 (new-methods ())
-	 (new-slots ()))
-     
-     (for-each
-      (lambda (class)
-	;; each class is a set of nested environments, the innermost (first in the list)
-	;;   holds the local slots which are copied each time an instance is created,
-	;;   the next holds the class slots (global to all instances, not copied);
-	;;   these hold the class name and other such info.  The remaining environments
-	;;   hold the methods, with the localmost method first.  So in this loop, we
-	;;   are gathering the local slots and all the methods of the inherited
-	;;   classes, and will splice them together below as a new class.
-	
-	(set! new-slots (append (let-&gt;list class) new-slots))
-	(do ((e (outlet (outlet class)) (outlet e)))
-	    ((or (not (let? e))
-		 (eq? e (rootlet))))
-	  (set! new-methods (append (let-&gt;list e) new-methods))))
-      ,inherited-classes)
-     
-     (let ((remove-duplicates 
-	    (lambda (lst)         ; if multiple local slots with same name, take the localmost
-	      (letrec ((rem-dup
-			(lambda (lst nlst)
-			  (cond ((null? lst) nlst)
-				((assq (caar lst) nlst) (rem-dup (cdr lst) nlst))
-				(else (rem-dup (cdr lst) (cons (car lst) nlst)))))))
-		(reverse (rem-dup lst ()))))))
-       (set! new-slots 
-	     (remove-duplicates
-	      (append (map (lambda (slot)
-			     (if (pair? slot)
-				 (cons (car slot) (cadr slot))
-				 (cons slot #f)))
-			   ,slots)                    ; the incoming new slots, #f is the default value
-		      new-slots))))                   ; the inherited slots
-     
-     (set! new-methods 
-	   (append (map (lambda (method)
-			  (if (pair? method)
-			      (cons (car method) (cadr method))
-			      (cons method #f)))
-			,methods)                     ; the incoming new methods
-		   
-		   ;; add an object-&gt;string method for this class (this is already a generic function).
-		   (list (cons 'object-&gt;string 
-			       (lambda* (obj (use-write #t))
-				 (if (eq? use-write :readable)    ; write readably
-				     (format #f "(make-~A~{ :~A ~W~^~})" 
-					     ',class-name 
-					     (map (lambda (slot)
-						    (values (car slot) (cdr slot)))
-						  obj))
-				     (format #f "#&lt;~A: ~{~A~^ ~}&gt;" 
-					     ',class-name
-					     (map (lambda (slot)
-						    (list (car slot) (cdr slot)))
-						  obj))))))
-		   (reverse! new-methods)))                      ; the inherited methods, shadowed automatically
-     
-     (let ((new-class (openlet
-                       (apply sublet                             ; the local slots
-			      (sublet                            ; the global slots
-				  (apply inlet                   ; the methods
-					 (reverse new-methods))
-				'class-name ',class-name         ; class-name slot
-				'inherited ,inherited-classes
-				'inheritors ())                  ; classes that inherit from this class
-			      new-slots))))
-       
-       (varlet outer-env                  
-	 ',class-name new-class                                  ; define the class as class-name in the calling environment
-	 
-	 ;; define class-name? type check
-	 (string-&gt;symbol (string-append (symbol-&gt;string ',class-name) "?"))
-	 (lambda (obj)
-	   (and (let? obj)
-		(eq? (obj 'class-name) ',class-name))))
-       
-       (varlet outer-env
-	 ;; define the make-instance function for this class.  
-	 ;;   Each slot is a keyword argument to the make function.
-	 (string-&gt;symbol (string-append "make-" (symbol-&gt;string ',class-name)))
-	 (apply lambda* (map (lambda (slot)
-			       (if (pair? slot)
-				   (list (car slot) (cdr slot))
-				   (list slot #f)))
-			     new-slots)
-		`((let ((new-obj (copy ,,class-name)))
-		    ,@(map (lambda (slot)
-			     `(set! (new-obj ',(car slot)) ,(car slot)))
-			   new-slots)
-		    new-obj))))
-       
-       ;; save inheritance info for this class for subsequent define-method
-       (letrec ((add-inheritor (lambda (class)
-				 (for-each add-inheritor (class 'inherited))
-				 (if (not (memq new-class (class 'inheritors)))
-				     (set! (class 'inheritors) (cons new-class (class 'inheritors)))))))
-	 (for-each add-inheritor ,inherited-classes))
-       
-       ',class-name)))
-
-(define-macro (define-generic name)    ; (define (genfun any) ((any 'genfun) any))
-  `(define ,name 
-     (lambda args 
-       (let ((gf ((car args) ',name))) ; get local definition
-	 (if (not (eq? gf ,name))      ; avoid infinite recursion
-             (apply gf args)
-	     (error 'syntax-error "attempt to call generic function wrapper recursively"))))))
-
-(define-macro (define-slot-accessor name slot)
-  `(define ,name (dilambda 
-		  (lambda (obj) (obj ',slot)) 
-		  (lambda (obj val) (set! (obj ',slot) val)))))
-
-(define-macro (define-method name-and-args . body)
-  `(let* ((outer-env (outlet (curlet)))
-	  (method-name (car ',name-and-args))
-	  (method-args (cdr ',name-and-args))
-	  (object (caar method-args))
-	  (class (symbol-&gt;value (cadar method-args)))
-	  (old-method (class method-name))
-	  (method (apply lambda* method-args ',body)))
-     
-     ;; define the method as a normal-looking function
-     ;;   s7test.scm has define-method-with-next-method that implements call-next-method here
-     ;;   it also has make-instance 
-     (varlet outer-env
-       method-name (apply lambda* method-args 
-			  `(((,object ',method-name)
-			     ,@(map (lambda (arg)
-				      (if (pair? arg) (car arg) arg))
-				    method-args)))))
-     
-     ;; add the method to the class
-     (varlet (outlet (outlet class)) method-name method)
-     
-     ;; if there are inheritors, add it to them as well, but not if they have a shadowing version
-     (for-each
-      (lambda (inheritor) 
-	(if (not (eq? (inheritor method-name) #&lt;undefined&gt;)) ; defined? goes to the global env
-	    (if (eq? (inheritor method-name) old-method)
-		(set! (inheritor method-name) method))
-	    (varlet (outlet (outlet inheritor)) method-name method)))
-      (class 'inheritors))
-     
-     method-name))
-
-(define (all-methods obj method)
-  ;; for arbitrary method combinations: this returns a list of all the methods of a given name
-  ;;   in obj's class and the classes it inherits from (see example below)
-  (let* ((base-method (obj method))
-	 (methods (if (procedure? base-method) (list base-method) ())))
-    (for-each 
-     (lambda (ancestor)
-       (let ((next-method (ancestor method)))
-	 (if (and (procedure? next-method)
-		  (not (memq next-method methods)))
-	     (set! methods (cons next-method methods)))))
-     (obj 'inherited))
-    (reverse methods)))
-
-
-&gt; (define-class class-1 () 
-       '((a 1) (b 2)) 
-       (list (list 'add (lambda (obj) 
-                          (with-let obj
-                            (+ a b))))))
-<em class="gray">class-1</em>
-&gt; (define v (make-class-1 :a 32))
-<em class="gray">v </em>
-&gt; (v 'a)                         ; to set the 'a slot, (set! (v 'a) 0) 
-<em class="gray">32</em>
-&gt; (object-&gt;string v)             ; built-in functions are all generic
-<em class="gray">"#&lt;class-1: (a 32) (b 2)&gt;"</em>       ;   so this uses the method defined in the class definition
-&gt; ((v 'add) v)
-<em class="gray">34</em>
-&gt; (define-generic add)
-<em class="gray">add</em>
-&gt; (add v)                        ; syntactic sugar for ((v 'add) v)
-<em class="gray">34</em>
-&gt; (define-slot-accessor slot-a a) ; more sugar!
-<em class="gray">slot-a</em>
-&gt; (slot-a v)                     ; same as (v 'a), set via (set! (slot-a v) 123)
-<em class="gray">32</em>
-&gt; (map car v)                    ; map and for-each work with environments
-<em class="gray">(a b)</em>                               ;   map cdr would return '(32 2) in this case
-&gt; (define-class class-2 (list class-1)
-       '((c 3)) 
-       (list (list 'multiply (lambda (obj) 
-                               (with-let obj 
-                                 (* a b c))))))
-<em class="gray">class-2</em>
-&gt; (define v2 (make-class-2 :a 32))
-<em class="gray">v2</em>
-&gt; v2                            ; will use object-&gt;string
-<em class="gray">"#&lt;class-2: (c 3) (a 32) (b 2)&gt;"</em>
-&gt; ((v2 'multiply) v2)
-<em class="gray">192</em>
-&gt; (add v2)                      ; inherited from class-1
-<em class="gray">34</em>
-&gt; (define-method (subtract (obj class-1)) (with-let obj (- a b)))
-<em class="gray">subtract</em>
-&gt; (subtract v2)  ; class-2 inherits from class-1 so it knows about subtract
-<em class="gray">30</em>
-&gt; (define v1 (make-class-1))
-<em class="gray">v1</em>
-&gt; (varlet v1      ; change the add method just in this instance
-       'add (lambda (obj) 
-              (with-let obj
-                (+ 1 a (* 2 b)))))
-<em class="gray">#&lt;class-1: (a 1) (b 2) (add #&lt;lambda (obj)&gt;)&gt;</em>
-&gt; (add v1)
-<em class="gray">6</em>
-&gt; (add v)                       ; other class-1 instances are not affected
-<em class="gray">34</em>
-&gt; (define-class class-3 (list class-2) () 
-    (list (list 'multiply (lambda (obj num) 
-			    (* num 
-			       ((class-2 'multiply) obj) ; method combination 
-			       (add obj))))))
-<em class="gray">class-3</em>
-&gt; ((class-3 'multiply) class-3 10)
-<em class="gray">180                               ; (* 10 (* 1 2 3) (+ 1 2))</em>
-&gt; (define v3 (make-class-3))
-<em class="gray">v3</em>
-&gt; (all-methods v3 'multiply)
-<em class="gray">(#&lt;lambda (obj num)&gt; #&lt;lambda (obj)&gt;)</em>
-&gt; (for-each (lambda (p) (format () "~A~%" (procedure-source p))) (all-methods v3 'multiply))
-<em class="gray">(lambda (obj num) (* num ((class-2 'multiply) obj) (add obj)))</em>
-<em class="gray">(lambda (obj) (with-let obj (* a b c)))</em>
-</pre>
-
-<p>with-let (used briefly above) provides an even more striking simplification of syntax
-than implicit indexing or multidimensional vectors, and it is faster as well!
-See Snd's generators.scm for many examples.  
-</p>
-
-<!--
-at class definition time:
-    (list 'mac (symbol->value (define-macro (mac a) `(+ ,a 1))))
--->
-</div>
-</details>
-
-
-<details>
-<summary class="indented">more examples</summary>
-<div class="indented">
-<p>Implicit indexing of a local environment
-does not search the global environment.  Since unlet extends the
-current environment chain, it is considered a local environment:
-</p>
-
-<pre class="indented">
-&gt; ((rootlet) 'abs)
-<em class="gray">abs</em>
-&gt; (let () ((curlet) 'abs))
-<em class="gray">#&lt;undefined&gt;</em>
-&gt; ((unlet) 'abs)
-<em class="gray">#&lt;undefined&gt;</em>
-</pre>
-
-</div>
 
 
 <div class="indented">
@@ -3101,7 +3016,7 @@ current environment chain, it is considered a local environment:
 	   	    :length (lambda (f) len)
 		    :object-&gt;string (lambda (f . args) "#&lt;fvector&gt;")
 		    :let-set! (lambda (fv i val) (#_vector-set! (fv 'v) i (-&gt;float val)))
-		    :let-ref (lambda (fv i) (#_vector-ref (fv 'v) i))))))
+		    :let-ref-fallback (lambda (fv i) (#_vector-ref (fv 'v) i))))))
     (set! fvector? (lambda (p)
 		     (and (let? p)
 			  (eq? (p 'type) type))))))
@@ -3121,54 +3036,6 @@ current environment chain, it is considered a local environment:
 </div>
 
 
-<div class="indented">
-
-<p>I can't resist adding at least some of a quaternion implementation
-(finally "number?" is not the same
-as "complex?"!):
-</p>
-
-<pre>
-(define-class quaternion () 
-  '((r 0) (i 0) (j 0) (k 0))
-  (list (list 'number? (lambda (obj) #t))
-	(list 'complex? (lambda (obj) #f))
-	(list 'real? (lambda (obj) #f))
-	(list 'integer? (lambda (obj) #f))
-	(list 'rational? (lambda (obj) #f))
-
-	(list '+ (lambda orig-args
-		   (let add ((r ()) (i ()) (j ()) (k ()) (args orig-args))
-		     (if (null? args)
-			 (<em class=red>make-quaternion</em> 
-                           (apply + r) (apply + i) (apply + j) (apply + k)) 
-			 (let ((n (car args)))
-			   (cond
-			    ((real? n)
-			     (add (cons n r) i j k (cdr args)))
-			    ((complex? n)
-			     (add (cons (real-part n) r) (cons (imag-part n) i) j k (cdr args)))
-			    ((<em class=red>quaternion?</em> n)
-			       (add (cons (n 'r) r) (cons (n 'i) i) 
-                                    (cons (n 'j) j) (cons (n 'k) k) 
-                                    (cdr args)))
-                            ((not (<em class=red>openlet?</em> n))   ; maybe we'll add octonions later!
-                             (error 'wrong-type-arg "+ argument ~A is not a number" n))
-                            ((eq? n (car orig-args))
-                             (error 'missing-method "+ can't handle these arguments: ~A" args))
-                            (else
-			      (apply (n '+) 
-                                     (make-quaternion 
-                                       (apply + r) (apply + i) (apply + j) (apply + k)) 
-                                     (cdr args)))))))))))
-
-&gt; (let ((q1 (make-quaternion 1.0 1.0 0.0 0.0)))
-    (+ 1 q1 2.5+i))
-<em class="gray">#&lt;quaternion: (r 4.5) (i 2.0) (j 0.0) (k 0.0)&gt;</em>
-</pre>
-
-</div>
-</details>
 
 <div class="indented">
 <p>If an s7 function ignores the type of an argument, as in cons or vector for example,
@@ -3203,9 +3070,20 @@ know the field names in advance,
 </p>
 <!-- add a field and it disappears, or sublet and read back -->
 </div>
-</blockquote>
 
 
+<div class="indented">
+<p>Here's one way to add a method to a closure:
+</p>
+<pre class="indented">
+(define sf (let ((object-&gt;string (lambda (obj . arg) 
+				   "#&lt;secret function!&gt;")))
+	     (openlet (lambda (x) 
+			(+ x 1)))))
+&gt; sf
+<em class="gray">#&lt;secret function!&gt;</em>
+</pre>
+</div>
 
 
 
@@ -3337,7 +3215,7 @@ but that has drawbacks.  First, <code>(abs -1 (values))</code>, or worse <code>(
 is no longer an error at the level of the program text; you lose the ability to see at a glance that
 a normal function has the right number of arguments.  Second, a lot of code currently assumes that
 (values) returns #&lt;unspecified&gt;, and that implies that <code>(apply values ())</code> does as well.
-
+But it would be nice if <code>((lambda* ((x 1)) x) (values))</code> returned 1!
 <!--
 Is <code>(apply apply func arglist)</code> the same as <code>(apply func (apply values arglist))</code>,
 or (leaving aside <code>'(()))</code>, <code>(func (apply values (apply values arglist)))</code>?
@@ -3354,144 +3232,23 @@ the same as <code>(set! x ...)</code>.  <code>(string-set! (values string) ...)<
 works because string-set! does evaluate its first argument.  <code>((values + 1 2) (values 3 4) 5)</code>
 is 15, as anyone would expect.
 </p>
-
 </div>
 
-
-<!--
-<details>
-<summary class="indented">more examples</summary>
-
-<pre>
-(define (flatten lst) 
-  (map values (list (let flatten-1 ((lst lst))
-                      (cond ((null? lst) (values))
-                            ((not (pair? lst)) lst)
-                            (else (values (flatten-1 (car lst)) 
-                                          (flatten-1 (cdr lst)))))))))
-</pre>
-
-<div class="indented">
-</details>
--->
-
-
-<details>
-<summary class="indented">more on values</summary>
-<div class="indented">
-
-<p>In some Schemes, values behaves like CL's prog1:
+<p>One problem with this way of handling multiple values involves cases where you can't
+tell whether an expression will return multiple values.  Then you have, for example, <code>(let ((val (expr)))...)</code>
+and need to accept either a normal single value from <code>expr</code>, or one member of the
+possible set of multiple values.  In lint.scm, I'm currently handling this with lambda:
+<code>(let ((val ((lambda args (car args)) (expr))))...)</code>, but this feels kludgey.
+CL has nth-value which appears to do "the right thing" in this context; perhaps s7 needs
+it too.
 </p>
-
-<pre class="indented">
-(not s7)&gt; (let ((x 1)) (cond ((values #f (set! x 2) #t) 3) (#t x)))
-<em class="gray">2</em>
-(not s7)&gt; (if (values #f #t) 1 2)
-<em class="gray">2</em>
-</pre>
-
-<p>But in s7 we're trying to implement real multiple values (else why have them at all?).
-There are many ways we could interpret <code>(cond ((values ...))...)</code> and
-<code>(cond ((values...) =&gt; func))</code>, but surely
-equivalent uses of "cond" and "if" should give the same result.
-Currently in s7, where a test is in progress, only <code>(values #f)</code> is the same as #f.
+<p>A similar difficulty arises in <code>(if (expr) ...)</code> where <code>(expr)</code> might
+return multiple values. CL (or sbcl anyway) treats this as if it were wrapped in <code>(nth-value 0 (expr))</code>.
+Splicing the values in, on the other hand, could lead to disaster: there would be no way to tell from the code
+that the if statement
+was valid, or which branch would be taken!  So, in those cases where a syntactic form evaluates
+an argument, s7 follows CL, and uses only the first of the values (this affects if, when, unless, cond, and case).
 </p>
-
-<pre class="indented">
-&gt; (if (values #f #f) 1 2)            ; (values #f #f) is not #f
-<em class="gray">1</em>
-&gt; (cond ((values #f #f) 1) (#t 2))
-<em class="gray">1</em>
-;;; but if we interpreted this as splicing in the values, we get an inconsistency:
-&gt; (cond (#f #f 1) (#t 2))
-<em class="gray">2</em>
-&gt; (if (values #f) 1 2)
-<em class="gray">2</em>
-&gt; (cond ((values #f) 1) (#t 2))
-<em class="gray">2</em>
-&gt; (if (values) 1 2)
-<em class="gray">1</em>
-&gt; (cond ((values) 1) (#t 2))
-<em class="gray">1</em>
-;;; this is consistent with (cond (1) (#t 2))
-</pre>
-
-<p>
-So "if" and "cond" agree, but it requires that in one case the "values"
-behavior is slightly weird.  <code>(or (values #f #f))</code> is #f, but that isn't inconsistent because
-"or" is not testing anything.
-We might choose to say that <code>(if (values #f #f)...)</code>
-is an error, but that would be hasty &mdash;
-our troubles have only begun.  First, "cond" can omit the expressions that follow the test, unlike "if":
-</p>
-
-<pre class="indented">
-&gt; (cond (3))
-<em class="gray">3</em>
-</pre>
-
-<p>and even trickier, "cond" can pass the test value to a function:
-</p>
-
-<pre class="indented">
-&gt; (cond (3 =&gt; +))
-<em class="gray">3</em>
-</pre>
-
-<p>The various standards agree that in the "=&gt;" case, the "fed to" function
-receives one argument, so
-</p>
-
-<pre class="indented">
-(not s7)&gt; (cond ((values 1 2) =&gt; +))
-<em class="gray">1</em>
-</pre>
-
-<p>If we were following the "splice immediately" model, this would be <code>(cond (1 2 =&gt; +))</code>
-which is an error in some Schemes.
-So something has to give.  My druthers is to make "values" work as consistently as possible, and hope
-that the one odd corner will not trip anyone.  From that point of view, the "one argument" standard
-looks like a wasted opportunity.
-s7 handles it this way:
-</p>
-
-<pre class="indented">
-&gt; (+ 1 (cond ((values 2 3))) 4)   ; trailing values are not ignored
-<em class="gray">10</em>
-&gt; (cond ((values 1 2 3) =&gt; +))
-<em class="gray">6</em>
-&gt; (cond 
-       ((cond 
-          ((cond ((assoc 'x '((x 1 2 3))) =&gt; cdr)
-                 (else #f))
-            =&gt; apply-values) 
-          (else #f))
-         =&gt; +)
-       (else #f))
-<em class="gray">6</em>
-</pre>
-
-<p>Of course, it is unproblematic that the expression can itself involve multiple values:
-</p>
-
-<pre class="indented">
-&gt; (+ (cond (#t (values 1 2))))
-<em class="gray">3</em>
-</pre>
-
-<p>Ideally we'd have a way to tie the values into the
-normal use of =&gt;.  That is, (cond ((assoc x y) =&gt; f)...) would have some nice
-way to take the non-#f value from assoc, wrap it arbitrarily in values and pass that
-to the fed-to function; or equivalently, indicate which argument in the fed-to function
-gets the assoc value (=&lt;?).
-Currently you have to use let or lambda, which partly defeats the
-purpose of =&gt;.  The multi-cond example above is as close as I've come so far,
-but it depends on an s7-internal function (the quasiquote helper apply-values)
-which I'd much rather avoid.
-</p>
-
-</div>
-</details>
 
 </blockquote>
 
@@ -3598,22 +3355,18 @@ handler.  Here is a sketch of the situation:
 </p>
 
 <pre class="indented">
-(let ()
-  (catch #t
-	 (lambda ()
-	   (let ((res (call/cc 
-                        (lambda (ok) 
-			  (error 'cerror "an error" ok)))))
-	     (display res) (newline)))
-	 (lambda args
-	   (if (and (eq? (car args) 'cerror)
-		    (<em class=red>continuation?</em> (cadadr args)))
-	       (begin
-		 (display "continuing...")
-		 ((cadadr args) 2)))
-	   (display "oops"))))
-
-continuing...2
+(catch #t
+       (lambda ()
+         (let ((res (call/cc 
+                      (lambda (ok) 
+                        (error 'cerror "an error" ok)))))
+           (display res) (newline)))
+       (lambda args
+         (when (and (eq? (car args) 'cerror)
+                    (<em class=red>continuation?</em> (cadadr args)))
+           (display "continuing...")
+           ((cadadr args) 2))
+         (display "oops")))
 </pre>
 
 <p>In a more general case, the error handler is separate from the
@@ -3651,9 +3404,10 @@ from a simple procedure.
 <div class="header" id="format1"><h4>format, object-&gt;string</h4></div>
 
 <p>object-&gt;string returns the string representation of its argument.  Its optional second argument
-can be #f (use display), #t (the default, use write), or :readable.  In the latter case, object-&gt;string
+can be #f or :display (use display), #t or :write (the default, use write), or :readable.  In the latter case, object-&gt;string
 tries to produce a string that can be evaluated via eval-string to return an object equal to the
-original.
+original.  The optional third argument sets the maximum desired string length; if object-&gt;string
+notices it has exceeded this limit, it returns the partial string.
 </p>
 
 <pre class="indented">
@@ -3713,7 +3467,6 @@ also sends the string to the current-output-port.  <code>(format () ...)</code> 
 the current-output-port without returning the string (this mimics the other IO routines
 such as display and newline).  Other built-in port choices are *stdout* and *stderr*.
 </p>
-
 
 <blockquote>
 
@@ -3929,69 +3682,95 @@ result = s7_call(s7, hook, s7_list(s7, 2, s7_make_integer(s7, 1), s7_make_intege
 
 
 
-<div class="header" id="procedureinfo"><h4>procedure info</h4></div>
+<div class="header" id="variableinfo"><h4>variable info</h4></div>
 
 
 <pre class="indented">
-(<em class=def id="proceduresource">procedure-source</em> proc)
-(<em class=def id="proceduredocumentation">procedure-documentation</em> proc)
-(<em class=def id="proceduresignature">procedure-signature</em> proc)
-(<em class=def id="proceduresetter">procedure-setter</em> proc)
-(funclet proc)
-
-(<em class=def id="arity">arity</em> obj)
+(<em class=def id="documentation">documentation</em> obj)          ; old name: (procedure-documentation obj)
+(<em class=def id="signature">signature</em> obj)              ; old:      (procedure-signature obj)
+(<em class=def id="setter">setter</em> obj)                 ; old:      (procedure-setter obj)
+(<em class=def id="arity">arity</em> obj)                  ; very old: (procedure-arity obj)
 (<em class=def id="aritablep">aritable?</em> obj num-args)
+(funclet proc)
+(<em class=def id="proceduresource">procedure-source</em> proc)
 </pre>
 
 <p>
-procedure-setter returns or sets the set function associated with a procedure (set-car! with car, for example).
-funclet returns
-a procedure's environment.  
-procedure-source returns the procedure source (a list). 
+<b>funclet</b> returns
+a procedure's environment.
+</p>
+<pre class="indented">
+&gt; (funclet (let ((b 32)) (lambda (a) (+ a b))))
+<em class="gray">(inlet 'b 32)</em>
+&gt; (funclet abs)
+<em class="gray">(rootlet)</em>
+</pre>
+
+<p>
+<b>setter</b> returns or sets the set function associated with a procedure (set-car! with car, for example).
 </p>
 
+<p>
+<b>procedure-source</b> returns the procedure source (a list):
+</p>
 <pre class="indented">
 (define (procedure-arglist f) (cadr (procedure-source f)))
 </pre>
 
 <p>
-procedure-documentation returns the documentation string associated with a procedure.  This used to be 
-the initial string in the function's body (as in CL), but now it is the value of the 'documentation variable, if any,
-in the procedure's local environment.  That is, <code>(define (f a) "doc string" a)</code> is now
-<code>(define f (let ((documentation "doc string")) (lambda (a) a)))</code>.  This change gets the 
-string out of the body (where it can slow down evaluation of the function to no purpose), and
-makes it possible to extend the function information arbitrarily. 
+<b>documentation</b> returns the documentation string associated with a procedure.  This used to be 
+the initial string in the function's body (as in CL), but now it is the value of the '+documentation+ variable, if any,
+in the procedure's local environment:
 </p>
+<pre class="indented">
+(define func 
+  (let ((+documentation+ "helpful info"))
+     (lambda (a) a)))
+
+&gt; (documentation func)
+<em class="gray">"helpful info"</em>
+</pre>
+<p>Since documentation is a method, a function's documentation can be computed at run-time:
+</p>
+<pre class="indented">
+(define func
+  (let ((documentation (lambda (f) (format #f "this is func's funclet: ~S" (funclet f)))))
+    (lambda (x)
+      (+ x 1))))
+
+&gt; (documentation func)
+<em class="gray">"this is func's funclet: (inlet 'x ())"</em>
+</pre>
 
 <p>
-arity takes any object and returns either #f if it is not applicable,
+<b>arity</b> takes any object and returns either #f if it is not applicable,
 or a cons containing the minimum and maximum number of arguments acceptable.  If the maximum reported
 is a really big number, that means any number of arguments is ok.
-aritable? takes two arguments, an object and an integer, and returns #t if the object can be
+<b>aritable?</b> takes two arguments, an object and an integer, and returns #t if the object can be
 applied to that many arguments. 
 </p>
 
 <pre class="indented">
-&gt; (define add-2 (let ((documentation "add-2 adds its 2 args")) (lambda* (a (b 32)) (+ a b))))
+&gt; (define* (add-2 a (b 32)) (+ a b))
 <em class="gray">add-2</em>
-&gt; (procedure-documentation add-2)
-<em class="gray">"add-2 adds its 2 args"</em>
 &gt; (procedure-source add-2)
 <em class="gray">(lambda* (a (b 32)) (+ a b))</em>
 &gt; (arity add-2)
 <em class="gray">(0 . 2)</em>
+&gt; (aritable? add-2 1)
+<em class="gray">#t</em>
 </pre>
 
 <p>
-procedure-signature is a list describing the argument types and returned value type
+<b>signature</b> is a list describing the argument types and returned value type
 of the function.  The first entry in the list is the return type, and the rest are
 argument types.  #t means any type is possible, and 'values means the function returns multiple values.
 </p>
 
 <pre class="indented">
-&gt; (procedure-signature round)
-<em class="gray">(integer? real?)</em> ; round takes a real argument, returns an integer
-&gt; (procedure-signature vector-ref)
+&gt; (signature round)
+<em class="gray">(integer? real?)</em>                   ; round takes a real argument, returns an integer
+&gt; (signature vector-ref)
 <em class="gray">(#t vector? . #1=(integer? . #1#))</em> ; trailing args are all integers (indices)
 </pre>
 
@@ -3999,25 +3778,25 @@ argument types.  #t means any type is possible, and 'values means the function r
 </p>
 
 <pre class="indented">
-&gt; (procedure-signature char-position)
+&gt; (signature char-position)
 <em class="gray">((boolean? integer?) (char? string?) string? integer?)</em>
 </pre>
 
 <p>which says that the first argument to char-position can be a string or a character,
 and the return type can be either boolean or an integer.
-If the function is defined in scheme, its signature is the value of the 'signature variable
+If the function is defined in scheme, its signature is the value of the '+signature+ variable
 in its closure:
 </p>
 
 <pre class="indented">
-&gt; (define f1 (let ((documentation "helpful info") 
-                   (signature '(boolean? real?))) 
+&gt; (define f1 (let ((+documentation+ "helpful info") 
+                   (+signature+ '(boolean? real?)))
                 (lambda (x) 
                   (positive? x))))
 <em class="gray">f1</em>
-&gt; (procedure-documentation f1)
+&gt; (documentation f1)
 <em class="gray">"helpful info"</em>
-&gt; (procedure-signature f1)
+&gt; (signature f1)
 <em class="gray">(boolean? real?)</em>
 </pre>
 
@@ -4025,133 +3804,79 @@ in its closure:
 </p>
 
 <pre class="indented">
-&gt; (define f1 (let ((procedure-documentation (lambda (f) "helpful info"))
-                    (procedure-signature (lambda (f) '(boolean? real?))))
-                (<em class=red>openlet</em>
+&gt; (define f1 (let ((documentation (lambda (f) "helpful info"))
+                   (signature (lambda (f) '(boolean? real?))))
+                (<em class=red>openlet</em>  ; openlet alerts s7 that f1 has methods
                   (lambda (x) 
                     (positive? x)))))
-&gt; (procedure-documentation f1)
+&gt; (documentation f1)
 <em class="gray">"helpful info"</em>
-&gt; (procedure-signature f1)
+&gt; (signature f1)
 <em class="gray">(boolean? real?)</em>
 </pre>
 
-<p>openlet alerts s7 that f1 has methods.
+<p>signature could also be used to implement CL's 'the:
 </p>
+<pre class="indented">
+(define-macro (the value-type form)
+  `((let ((+signature+ (list ,value-type)))
+      (lambda ()
+	,form))))
+
+(display (+ 1 (<em class="red">the</em> integer? (+ 2 3))))
+</pre>
+
+<p>but the optimizer currently doesn't know how to take advantage of this pattern.
+</p>
+
+<p>You can obviously add your own methods:
+</p>
+
+<pre class="indented">
+(define my-add
+  (let ((<em class="red">tester</em> (lambda ()
+		  (if (not (= (my-add 2 3) 5))
+		      (format #t "oops: (myadd 2 3) -&gt; ~A~%" 
+			      (my-add 2 3))))))
+    (lambda (x y)
+      (- x y))))
+
+(define (auto-test) ; scan the symbol table for procedures with testers
+  (let ((st (symbol-table)))
+    (for-each (lambda (f)
+		(let* ((fv (and (defined? f)
+			       (symbol-&gt;value f)))
+		       (testf (and (procedure? fv)
+				   ((funclet fv) '<em class="red">tester</em>))))
+		  (when (procedure? testf)  ; found one!
+		    (testf)))) 
+	      st)))
+
+&gt; (auto-test)
+<em class="gray">oops: (myadd 2 3) -&gt; -1</em>
+</pre>
+
+<p>Even the setter can be set this way:
+</p>
+<pre class="indented">
+(define flocals
+  (let ((x 1))
+    (let ((+setter+ (lambda (val) (set! x val))))
+      (lambda ()
+	x))))
+
+&gt; (flocals)
+<em class="gray">1</em>
+&gt; (setter flocals)
+<em class="gray">#&lt;lambda (val)&gt;</em>
+&gt; (set! (flocals) 32)
+<em class="gray">32</em>
+&gt; (flocals)
+<em class="gray">32</em>
+</pre>
+
 <blockquote>
 <br>
-
-<details>
-<summary class="indented">examples</summary>
-<div class="indented">
-
-<p>procedure-source returns the actual function source.  If you
-call the function, the optimizer changes the source to suit itself,
-so if you want to walk over the function body or change it in some way,
-make a clean copy of
-the procedure-source first (using, for example, copy-tree in stuff.scm).
-</p>
-
-<pre>
-(define-bacro (procedure-annotate proc) ; use "bacro" so we can annotate local functions
-  (let ((orig (<em class=red>procedure-source</em> proc))) ; this assumes we haven't called "proc" yet
-
-    (define (proc-walk source)
-      (cond ((not (pair? source))
-	     source)
-
-	    ((not (memq (car source) '(let let*))) ; if let or let*, show local variables
-	     (cons (proc-walk (car source))
-		   (proc-walk (cdr source))))
-
-	    ((symbol? (cadr source))               ; named let?
-	     (append               ; (let name vars . body) -&gt; (let name vars print-vars . body)
-	       (list (car source)
-		     (cadr source)
-		     (caddr source)
-		     `(format () "    (let ~A (~{~A~^ ~}) ...)~%" ,(cadr source) (curlet)))
-	       (cdddr source)))
-         
-            (else                  ; (let(*) vars . body) -&gt; (let vars print-vars . body)
-	      (append 
-	        (list (car source)
-		      (cadr source)
-		      `(format () "    (~A (~{~A~^ ~}) ...)~%" ,(car source) (curlet)))
-	        (cddr source)))))
-    
-    (let* ((new-body (proc-walk orig))
-	   (result (gensym))
-	   (new-source 
-	    `(lambda ,(cadr orig)
-	       (let ((,result #&lt;undefined&gt;))
-		 (dynamic-wind
-		     (lambda ()       ; upon entry, show procedure name and args
-		       (format () "(~A~{ ~A~})~%" 
-                               ',proc 
-			       (outlet (outlet (curlet)))))
-		     (lambda ()
-		       (set! ,result (,new-body ,@(cadr orig))))
-		     (lambda ()       ; at exit, show result
-		       (if (eq? ,result #&lt;undefined&gt;)
-			   (format () "  ~A returns early~%" ',proc)
-			   (format () "  ~A returns ~A~%" ',proc ,result))))))))
-
-      `(define ,proc ,new-source))))
-
-			 
-&gt; (define (hi a) (let ((b 12)) (+ b a)))
-<em class="gray">hi</em>
-&gt; (procedure-annotate hi)
-<em class="gray">#&lt;lambda (a)&gt;</em>
-&gt; (let ((x 32)) (+ 1 (hi x)))
-<em class="gray">45</em>
-;; printing: 
-(hi (a . 32))
-    (let ((b . 12)) ...)
-  hi returns 44
-</pre>
-
-<p>But maybe something less invasive is better. Here's a version of let that prints
-its bindings (this is borrowed from "nuntius" at reddit lisp):
-</p>
-
-<pre>
-(define-macro (print-let bindings . body)
-  (let ((temp-symbol (gensym)))
-    `(let ,(map (lambda (var/val)
-		  `(,(car var/val) 
-		    (let ((,temp-symbol ,(cadr var/val))) 
-		      (format () ";~S: ~S -&gt; ~S~%" 
-			      ',(car var/val) 
-			      ',(cadr var/val) 
-			      ,temp-symbol)
-		      ,temp-symbol)))
-		bindings)
-       ,@body)))
-
-;; or simpler:
-
-(define-macro (print-let bindings . body)
-  `(let ,bindings 
-     (format () "~{;~A~%~}" (curlet))
-     ,@body))	      
-</pre>
-
-</div>
-
-
-<div class="indented">
-
-<p>A minor footnote: there are cases in s7 where aritable? can't tell whether
-a given number of arguments can be applied to an object.  For example,
-<code>((list 1 (list 2 3)) 0 1)</code> is an error, but
-<code>((list 1 (list 2 3)) 1 1)</code> is 3.  So 
-<code>(aritable? (list 1 (list 2 3)) 2)</code> depdends on
-what actual arguments you pass.  In these cases, aritable? returns <code>#f</code>.
-</p>
-
-</div>
-</details>
 
 <div class="indented">
 
@@ -4307,10 +4032,28 @@ Other functions:
 </p>
 
 <ul>
-<li>read-byte and write-byte: binary IO.
-<li>read-line: line-at-a-time reads, optional third argument #t to include the newline.
+<li>read-byte and write-byte: binary IO
+<li>read-line: line-at-a-time reads, optional third argument #t to include the newline
+<li>read-string (r7rs)
 <li>current-error-port, set-current-error-port
+<li><em class=def id="portfilename">port-filename</em> and 
+    <em class=def id="portlinenumber">port-line-number</em> (input ports)
+<li><em class=def id="portposition">port-position</em> (input port, settable)
+<li><em class=def id="portfile">port-file</em> 
 </ul>
+
+<p>Use length to get the length in bytes of an input port's file or string.
+port-line-number is settable (for fancy *#readers*). 
+<b>port-position</b> is the position in bytes of the reader in the port. It is settable.
+<b>port-file</b> is intended for use with the *libc* library.  It returns a c-pointer
+containing the FILE* pointer associated with the file port (except in Windows):
+</p>
+<pre class="indented">
+(call-with-input-file "s7test.scm"
+  (lambda (p)
+    (with-let (sublet *libc* :file (<em class=red>port-file</em> p))
+      (fseek file 1000 SEEK_SET))))
+</pre>
 
 <p>The variable (*s7* 'print-length) sets
 the upper limit on how many elements of a sequence are printed by object-&gt;string and format.
@@ -4390,7 +4133,7 @@ the dumb "lambda".  Here are more useful examples:
 <pre class="indented">
 (openlet          ; a soft port for format that sends its output to *stderr* and returns the string
   (inlet 'format (lambda (port str . args)
- 	           (display (apply format #f str args) *stderr*))))
+ 	           (apply format *stderr* str args))))
 
 (define (open-output-log name)
   ;; return a soft output port that does not hold its output file open
@@ -4464,8 +4207,8 @@ via the error function, and can be trapped and dealt with via <em class=def id="
 <em class="gray">"abs: too many arguments: (1 2)"</em>
 &gt; (<em class=red>catch</em> 'division-by-zero
     (lambda () (/ 1.0 0.0))
-    (lambda args (string-&gt;number "inf.0")))
-<em class="gray">inf.0</em>
+    (lambda args (string-&gt;number "+inf.0")))
+<em class="gray">+inf.0</em>
 
 (define-macro (catch-all . body)
   `(<em class=red>catch</em> #t (lambda () ,@body) (lambda args args)))
@@ -4591,7 +4334,7 @@ map-with-exit would be
 
 <pre class="indented">
 (define-macro (catch-case clauses . body)
-  (let ((base `(lambda () ,@body)))
+  (let ((base (cons 'lambda (cons () body))))
     (for-each (lambda (clause)
 	        (let ((tag (car clause)))
 	          (set! base `(lambda () 
@@ -4738,7 +4481,7 @@ a top-level variable is redefined (via define and friends, not set!).
 <pre class="indented">
 (set! (hook-functions *rootlet-redefinition-hook*) 
       (list (lambda (hook) 
-              (format *stderr* "~A ~A~%" (hook 'symbol) (hook 'value)))))
+              (format *stderr* "~A ~A~%" (hook 'name) (hook 'value)))))
 </pre>
 <p>will print out the variable's name and the new value.
 </p>
@@ -4750,7 +4493,7 @@ which allows you to stop at some point, then evaluate arbitrary expressions in t
 
 
 <div class="indented">
-<p>The s7-built-in catch tags are 'wrong-type-arg, 'syntax-error, 'read-error, 
+<p>The s7-built-in catch tags are 'wrong-type-arg, 'syntax-error, 'read-error, 'unbound-variable,
 'out-of-memory, 'wrong-number-of-args, 'format-error, 'out-of-range, 'division-by-zero, 'io-error, and 'bignum-error.  
 </p>
 </div>
@@ -4806,14 +4549,22 @@ via <code>(varlet (curlet) *libgsl*)</code>.
 </p>
 
 
-<div class="header" id="constants"><h4>define-constant, constant?, symbol-access</h4></div>
+<div class="header" id="constants"><h4>define-constant</h4></div>
 
-<p><em class=def id="defineconstant">define-constant</em> defines a constant and 
-<em class=def id="constantp">constant?</em> returns #t if its argument
-is a constant.  A constant in s7 is really constant: it can't be set or rebound.
+<p><b><em class=def id="defineconstant">define-constant</em></b> defines a symbol whose value is always the same (within the current lexical scope),
+<b><em class=def id="constantp">constant?</em></b> returns #t if its argument is a constant,
+<b><em class=def id="immutableb">immutable!</em></b> declares a sequence to be immutable (its elements can't be changed), and
+<b><em class=def id="immutablep">immutable?</em></b> returns #t if its argument is immutable.
 </p>
 
 <pre class="indented">
+&gt; (define v (immutable! (vector 1 2 3)))
+<em class="gray">#(1 2 3)</em>
+&gt; (vector-set! v 0 23)
+<em class="red">error</em><em class="gray">: can't vector-set! #(1 2 3) (it is immutable)</em>
+&gt; (immutable? v)
+<em class="gray">#t</em>
+
 &gt; (define-constant var 32)
 <em class="gray">var</em>
 &gt; (set! var 1)
@@ -4822,18 +4573,37 @@ is a constant.  A constant in s7 is really constant: it can't be set or rebound.
 <em class="gray">;can't bind or set an immutable object: var, line 1</em>
 </pre>
 
-<p>This has the possibly surprising side effect that previous uses of the constant name
-become constants:
+<p>define-constant blocks any attempt to set! or shadow the constant (lexically speaking of course),
+so local constants behave as you'd expect:
 </p>
 
 <pre class="indented">
-(define (func a) (let ((cvar (+ a 1))) cvar))
-(define-constant cvar 23)
-(func 1)
-;can't bind or set an immutable object: cvar
+&gt; (let () (define-constant x 3) (let ((x 32)) x))
+<em class="red">error</em><em class="gray">: can't bind an immutable object: ((x 32))</em>
+&gt; (let ((x 3)) (set! x (let () (define-constant x 32) x))) ; outer x is not a constant
+32
+</pre>
+<p>But watch out for deferred bindings:
+</p>
+
+<pre class="indented">
+&gt; (define (func a) (let ((cvar (+ a 1))) cvar))
+<em class="gray">func</em>
+&gt; (define-constant cvar 23) ; cvar is now globally constant so it can't be shadowed
+<em class="gray">23</em>
+&gt; (func 1)                  ; here we're trying to shadow cvar
+<em class="red">error</em><em class="gray">: can't bind an immutable object: ((cvar (+ a 1)))</em>
+&gt; (let ((x 1)) 
+     (define z (let ()
+                 (define-constant x 3) 
+                 (lambda (y) 
+                   (let ((x y))  ; this x is the inner constant x
+                     x)))) 
+     (z 1))  ; so this is an error even though the outer x is not a constant
+<em class="red">error</em><em class="gray">: can't bind an immutable object: ((x y))</em>
 </pre>
 
-<p>So, obviously, choose unique names for your constants, or don't use define-constant.
+<p>
 A function can also be a constant.  In some cases, the optimizer can take advantage
 of this information to speed up function calls.
 </p>
@@ -4843,12 +4613,13 @@ variable trace (informative function upon set or keeping a history of past value
 variable's values or doing automatic conversions upon set), and notification upon set (either in Scheme
 or in C; I wanted this many years ago in Snd).  The notification function is especially useful if
 you have a Scheme variable and want to reflect any change in its value immediately in C (see <a href="#notify">below</a>).
-In s7, <em class=def id="symbolaccess">symbol-access</em> sets this function.
+In s7, setter sets this function.
 </p>
 
-<p>Each environment is a set of symbols and their associated values.  symbol-access places a function (or macro) between a symbol
-and its value in a given environment.  The accessor function takes two arguments, the symbol and the new value, and
-returns the value that is actually set.  For example, the function can ensure that a variable is always an integer:
+<p>Each environment is a set of symbols and their associated values.  setter places a function (or macro) between a symbol
+and its value in a given environment.  The setter function takes two arguments, the symbol and the new value, and
+returns the value that is actually set.  If the setter function accepts a third argument, the current (symbol-relative) environment
+is also passed (the weird argument order is an historical artifact).
 </p>
 
 <pre class="indented">
@@ -4857,9 +4628,9 @@ returns the value that is actually set.  For example, the function can ensure th
 	(y 3)  ; will always keep its initial value
 	(z 3)) ; will report set!
 
-    (set! (symbol-access 'x) (lambda (s v) (if (integer? v) v x)))
-    (set! (symbol-access 'y) (lambda (s v) y))
-    (set! (symbol-access 'z) (lambda (s v) (format *stderr* "z ~A -&gt; ~A~%" z v) v))
+    (set! (setter 'x) (lambda (s v) (if (integer? v) v x)))
+    (set! (setter 'y) (lambda (s v) y))
+    (set! (setter 'z) (lambda (s v) (format *stderr* "z ~A -&gt; ~A~%" z v) v))
   
     (set! x 3.3) ; x does not change because 3.3 is not an integer
     (set! y 3.3) ; y does not change
@@ -4875,7 +4646,7 @@ returns the value that is actually set.  For example, the function can ensure th
 &gt; (define-macro (reflective-let vars . body)
     `(let ,vars
        ,@(map (lambda (vr)
-	        `(set! (symbol-access ',(car vr))
+	        `(set! (setter ',(car vr))
 		       (lambda (s v)
 		         (format *stderr* "~S -&gt; ~S~%" s v)
 		         v)))
@@ -4885,7 +4656,7 @@ returns the value that is actually set.  For example, the function can ensure th
 &gt; (reflective-let ((a 1)) (set! a 2))
 <em class="gray">2</em>     ; prints "a -&gt; 2"
 &gt;(let ((a 0))
-     (set! (symbol-access 'a)
+     (set! (setter 'a)
       (let ((history (make-vector 3 0))
 	    (position 0))
 	(lambda (s v)
@@ -4895,130 +4666,47 @@ returns the value that is actually set.  For example, the function can ensure th
 	  v)))
      (set! a 1)
      (set! a 2)
-     ((funclet (symbol-access 'a)) 'history))
+     ((funclet (setter 'a)) 'history))
 <em class="gray">#(1 2 0)</em>
 </pre>
 
-<p>Or implement reactive programming:
-</p>
-<pre class="indented">
-(let ((a 1)
-      (b 2)
-      (c 3))
-  (set! (symbol-access 'b) (lambda (s v) (set! a (+ v c)) v))
-  (set! (symbol-access 'c) (lambda (s v) (set! a (+ b v)) v))
-  (set! a (+ b c)) ; a will be updated if b or c is set
-  (set! b 4)
-  (set! c 5)
-  a)               ; a is 9 = (+ 4 5)
-</pre>
-
-
-<details>
-<summary class="indented">reactive-let</summary>
-<div class="indented">
-
-<p>stuff.scm has reactive-set!, reactive-vector, reactive-let, reactive-let*, and reactive-lambda*:
-</p>
-<pre class="indented">
-&gt; (let ((-a- 1)
-        (b 2))
-    (<em class=red>reactive-set!</em> -a- (* b 2))
-    (set! b 3)
-    -a-)
-<em class="gray">6</em>
-&gt; (let ((a 1)) 
-    (let ((v (<em class=red>reactive-vector</em> a (+ a 1) 2))) 
-      (set! a 4) 
-      v))
-<em class="gray">#(4 5 2)</em>
-&gt; (let ((a 1)) 
-    (<em class=red>reactive-let</em> ((-b- (+ a 1))) ; if 'a changes, '-b- does too
-    (set! a 3)                  ;   so '-b- is now 4
-    -b-))
-<em class="gray">4</em>
-&gt; (let ((a 1))
-    (<em class=red>reactive-lambda*</em> (s v)
-      (format *stderr* "~S -&gt; ~S~%" s v))
-    (set! a 3))
-<em class="gray">"a -&gt; 3"</em>
-</pre>
-
-<p>In the reactive-let example, the macro notices that '-b- depends on 'a, so it sets up a symbol-access on 'a
-so that <code>(set! a 3)</code> triggers <code>(set! -b- (+ a 1))</code>.  I'm using -name- to distinguish
-the variables that can change value at any time; in the Lisp community, +name+ is often used to mark a constant,
-so this seems like a natural convention.
-</p>
-
-<p>Here's the standard example of following the mouse (assuming you're using Snd and glistener):
-</p>
-<pre class="indented">
-(let ((*mouse-x* 0) (*mouse-y* 0)
-      (x 0) (y 0))
-
-  (reactive-set! x (let ((val (round *mouse-x*))) 
-		     (format *stderr* "mouse: ~A ~A~%" x y) 
-		     val))
-  (reactive-set! y (round *mouse-y*))
-
-  (g_signal_connect (G_OBJECT (listener-text-widget *listener*)) "motion_notify_event" 
-		    (lambda (w e d) 
-		      (let ((mxy (cdr (gdk_event_get_coords (GDK_EVENT e)))))
-			(set! *mouse-x* (car mxy))
-			(set! *mouse-y* (cadr mxy))))))
-</pre>
-
-<!--
-(let ((*mouse-x* 0) (*mouse-y* 0))
-
-  (g_signal_connect (G_OBJECT (listener-text-widget *listener*)) "motion_notify_event" 
-		    (lambda (w e d) 
-		      (let ((mxy (gdk_event_get_coords (GDK_EVENT e))))
-			(set! *mouse-x* (cadr mxy))
-			(set! *mouse-y* (caddr mxy)))))
-
-  (with-accessors (*mouse-x* *mouse-y*)
-    (let ((x 0) (y 0))
-      (reactive-set! x (let ((val (round *mouse-x*))) 
-		       (format *stderr* "mouse: ~A ~A~%" x y) 
-		       val))
-      (reactive-set! y (round *mouse-y*))
-      (gtk_main))))
--->
-
-<p>reactive-lambda* is aimed at library consistency.  Say we have the following library
-that wants A to always be half B:
+<p>See also typed-let in stuff.scm.
+define-constant is more restrictive than a setter that raises an error: the latter
+does not block nested (possibly non-constant) bindings of the symbol.  The setters
+are kind of ugly.  Here's a macro that lets you put the let variable's setter after
+the initial value:
 </p>
 
 <pre class="indented">
-(define (make-library)
-  (let ((A 1.0)
-	(B 2.0))
-    (reactive-lambda* (s v)
-      (case s
-	((A) (set! B (* 2 v)))
-	((B) (set! A (/ v 2)))))
-    (define (f1 x) 
-      (+ A (* B x)))
-    (curlet)))
+(define-macro (let/setter vars . body)
+  ;; (let/setter ((name value [setter])...) ...)
+  (let ((setters (map (lambda (binding)
+			 (and (pair? (cddr binding))
+			      (caddr binding)))
+		       vars))
+	(gsetters (gensym)))
+    `(let ((,gsetters (list ,@setters))
+	   ,@(map (lambda (binding)
+		    (list (car binding) (cadr binding)))
+		  vars))
+       ,@(do ((s setters (cdr s))
+	      (var vars (cdr var))
+	      (i 0 (+ i 1))
+	      (result ()))
+	     ((null? s)
+	      (reverse result))
+	   (if (car s)
+	       (set! result (cons `(set! (setter (quote ,(caar var))) (list-ref ,gsetters ,i)) result))))
+       ,@body)))
 
-(with-let (make-library)
-  (format *stderr* "(f1 3): ~A~%" (f1 3))
-  (set! A 3.0)
-  (format *stderr* "A: ~A, B: ~A, (f1 3): ~A~%" A B (f1 3))
-  (set! B 4.0)
-  (format *stderr* "A: ~A, B: ~A, (f1 3): ~A~%" A B (f1 3)))
+(let ((a 3))
+  (let/setter ((a 1)
+	       (b 2 (lambda (s v)
+		      (+ v a)))) ; this is the outer "a"
+   (set! a (+ a 1))
+   (set! b (+ a b))
+   (display (list a b)) (newline)))
 </pre>
-
-<p>reactive-lambda* sets up accessors on the library's top-level variables
-that call the lambda body if one of the variables is set.
-</p>
-
-<p>None of these macros does the right thing yet; I'm sort of following my nose.
-</p>
-
-</div>
-</details>
 
 
 
@@ -5028,10 +4716,10 @@ that call the lambda body if one of the variables is set.
 <b><em class=def id="loadpath">*load-path*</em></b> is a list of directories to search when loading a file.
 <b><em class=def id="loadhook">*load-hook*</em></b> is a hook whose functions are called just before a file is loaded.  
 The hook function argument, named 'name, is the filename.
-While loading, the <em class=def id="portfilename">port-filename</em> and 
-<em class=def id="portlinenumber">port-line-number</em> of the current-input-port can tell you
-where you are in the file.  This data is available after loading via <em class=def id="pairlinenumber">pair-line-number</em>
-and <em class=def id="pairfilename">pair-filename</em>.  port-line-number is settable (for fancy *#readers*).
+While loading, port-filename and 
+port-line-number of the current-input-port can tell you
+where you are in the file.  This data is also available after loading via <em class=def id="pairlinenumber">pair-line-number</em>
+and <em class=def id="pairfilename">pair-filename</em>.
 </p>
 
 <pre class="indented">
@@ -5077,8 +4765,8 @@ at startup *features* is:
 
 <pre class="indented">
 &gt; *features*
-<em class="gray">(snd-17.0 snd17 snd audio snd-s7 snd-gtk gsl alsa gtk2 xg clm6 clm sndlib linux
- dlopen complex-numbers system-extras ratio s7-3.26 s7) </em>
+<em class="gray">(snd-19.3 snd19 snd audio snd-s7 snd-motif gsl alsa xm clm6 clm sndlib linux 
+autoload dlopen history complex-numbers system-extras overflow-checks ratio s7-8.2 s7)</em>
 &gt; (provided? 'gsl)
 <em class="gray">#t</em>
 </pre>
@@ -5155,7 +4843,7 @@ tokens that start with "#".  <b><em class=def id="sharpreaders">*#readers*</em><
 one argument, the string that follows the #-sign up to the next delimiter.  "func" is called
 when #&lt;char&gt; is encountered.  If it returns something other than #f, the #-expression
 is replaced with that value.  Scheme has several predefined #-readers for cases such
-as #b1, #\a, #i123, and so on, but you can override these if you like.  If the string
+as #b1, #\a, and so on, but you can override these if you like.  If the string
 passed in is not the complete #-expression, the function can use read-char or read to get the
 rest.  Say we'd like #t&lt;number&gt; to interpret the number in base 12:
 </p>
@@ -5236,7 +4924,7 @@ rest.  Say we'd like #t&lt;number&gt; to interpret the number in base 12:
 	      (define (traverse tree)
 		(if (pair? tree)                                             
 		    (cons (traverse (car tree))                             
-			  (if (null? (cdr tree)) () (traverse (cdr tree))))
+			  (case (cdr tree) ((())) (else =&gt; traverse)))
 		    (if (memq tree '(and or not)) tree                 
 			(and (symbol? tree) (provided? tree)))))
 	      (if (eval (traverse e))
@@ -5318,19 +5006,8 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
 
 <p>If ignore-global-env is #t, the search is confined to the given environment.
 <code>symbol-&gt;value</code> returns the value (lexically) bound to the symbol, whereas <code>symbol-&gt;dynamic-value</code>
-returns the value dynamically bound to it.  A variable can access both of its values:
+returns the value dynamically bound to it.
 </p>
-<pre class="indented">
-&gt; (let ((x 32))
-  (define (gx) ; return both bindings of 'x
-    (list x (<em class=red>symbol-&gt;value</em> 'x) (<em class=red>symbol-&gt;dynamic-value</em> 'x)))
-  (let ((x 100))
-    (let ((x 12))
-      (values (gx))))) ; this 'values' looks dumb, it is dumb, but see my unconvincing explanantion <a href="#weaselwords">below</a>.
-                       ;   briefly: "dynamic binding" in s7 is not "lexically apparent dynamic binding"
-<em class="gray">(32 32 12)</em>
-</pre>
-
 <p>
 <code>symbol-table</code> returns a vector containing the symbols currently in the symbol-table.
 Here we scan the symbol table looking for any function that doesn't have documentation:
@@ -5342,15 +5019,19 @@ Here we scan the symbol table looking for any function that doesn't have documen
      (if (<em class=red>defined?</em> sym)
          (let ((val (<em class=red>symbol-&gt;value</em> sym)))
            (if (and (procedure? val)
-                    (string=? "" (procedure-documentation val)))
+                    (string=? "" (documentation val)))
                (format *stderr* "~S " sym)))))
   (<em class=red>symbol-table</em>))
 </pre>
 
+<p>Or get a list of gensyms:</p>
+<pre>
+(map (lambda (sym) (if (gensym? sym) sym (values))) (<em class=red>symbol-table</em>))
+</pre>
 
 <div class="indented">
 
-<p>Here's a better example, an automatic software tester.
+<p>An automatic software tester (see tauto.scm and auto-tester.scm in snd tools for extensions):
 </p>
 
 <pre class="indented">
@@ -5377,107 +5058,6 @@ Here we scan the symbol table looking for any function that doesn't have documen
 </pre>
 </div>
 
-<details id="weaselwords">
-<summary class="indented">more on dynamic values</summary>
-<div class="indented">
-<p>Why the useless 'values' in our dynamic binding example?  The short answer: tail calls.
-The long winded one goes something like this.  symbol-&gt;dynamic-value searches the stack to find
-the latest binding of its argument.  But because we want to support tail calls, "let" does not
-push anything on the stack.  If we call a function as the last thing that happens in that let's body,
-and it tries (internally) to access a dynamic binding, the let that launched the function no longer exists; it might already
-be garbage collected, and it certainly isn't on the stack. Take our earlier example without the
-'values':
-</p>
-
-<pre class="indented">
-(let ((x 32))
-  (define (gx) 
-    (symbol-&gt;dynamic-value 'x))
-  (let ((x 100))
-    (gx)))
-</pre>
-
-<p>
-This returns 32 because the <code>(x 100)</code> binding no longer exists anywhere when the gx body is evaluated.
-So, in s7, the "dynamic binding" of x is the last binding of x that is accessible
-to s7.  This may not be the last binding that we can see in the code text, but I don't see that as
-an inconsistency. It's not lexical after all. 
-Leaving aside this special case, so to speak,
-dynamic binding does what you'd expect, even in the context of call/cc.  See s7test.scm for
-the MIT-Scheme test of that interaction.
-</p>
-
-<p>There is another way to get the call-time value:
-</p>
-<pre class="indented">
-(define-macro (elambda args . body)
-  `(define-macro (,(gensym) ,@args)
-    `((lambda* ,(append ',args `((*env* (curlet)))) 
-        ,'(begin ,@body)) 
-      ,,@args)))
-
-(define efunc (elambda (x) (+ (*env* 'y) x))) ; add x to the run-time value of y
-(let ((y 3)) (efunc 1)) ; returns 4
-</pre>
-
-<p>elambda does not suffer from the symbol-&gt;dynamic-value defects mentioned above, but
-it's probably slower.  We have to wrap the function in a macro because lambda*'s argument default
-values are evaluated in the definition environment, but we want the run-time environment.
-</p>
-
-<pre class="indented">
-(define-macro* (rlambda args . body) ; lambda* but eval arg defaults in run-time env
-  (let ((arg-names (map (lambda (arg) (if (pair? arg) (car arg) arg)) args))
-	(arg-defaults (map (lambda (arg) (if (pair? arg) `(,(car arg) (eval ,(cadr arg))) arg)) args)))
-    `(define-bacro* (,(gensym) ,@arg-defaults)
-      `((lambda ,',arg-names ,'(begin ,@body)) ,,@arg-names))))
-<!-- ( -->
-(let ()
-  (define rx (rlambda ((a x)) 
-               (if (> a 0) 
-                   (let ((x (- x 1))) ;:)
-                     (rx))
-                   0)))
-  (let ((x 3))
-    (rx)))
-</pre>
-
-<p>Now putting that idea with the procedure-annotation macro given earlier, and the __func__ business
-(to get the caller's name), and taking care to handle default arguments correctly, we make a
-macro that returns an anonymous macro that returns an anonymous function that &mdash; where was I?
-</p>
-<pre class="indented">
-(define-macro (Display definition) ; (Display (define (f1 x) (+ x 1))) -&gt; an annotated version of f1
-  (let ((func (caadr definition))
-	(args (cdadr definition)))
-    (let ((arg-names (map (lambda (a) (if (symbol? a) a (car a))) args))
-	  (body (proc-walk `(begin ,@(cddr definition))))) ; from procedure-annotation above
-      `(define ,func
-	  (define-macro* (,(gensym) ,@args)
-	    (let ((e (gensym))
-		  (result (gensym)))
-	      `((lambda* ,(append ',arg-names `((,e (curlet)))) ; the calling environment
-		  (let ((,result '?))
-		    (dynamic-wind
-			(lambda ()    ; display the caller, if any, as well as the incoming arguments
-			  (format *stderr* "(~A~{~^ ~A~})" ',',func 
-				  (map (lambda (slot)
-					 (if (gensym? (car slot)) (values) slot))
-				       (outlet (outlet (curlet)))))
-			  (let ((caller (eval '__func__ ,e)))
-			    (if (not (eq? caller #&lt;undefined&gt;))
-				(format *stderr* " ;called from ~S" caller))
-			    (newline *stderr*)))
-			(lambda ()   ; evaluate the original function's body with annotations
-			  (set! ,result ,',body))
-			(lambda ()   ; display the result (it is returned by the set! above)
-			  (format *stderr* "    -&gt; ~S~%" ,result)))))
-		,,@arg-names)))))))
-</pre>
-<p>stuff.scm has a more mature version of this macro.
-</p>
-</div>
-</details>
 
 <div class="separator"></div>
 
@@ -5505,7 +5085,7 @@ In foreign code, it probably indicates that you need to protect some s7_pointer 
 <div class="separator"></div>
 
 <pre class="indented">
-(<b><em class=def id="morallyequalp">morally-equal?</em></b> x y)
+(<b><em class=def id="equivalentp">equivalent?</em></b> x y)
 </pre>
 
 <p>
@@ -5535,28 +5115,28 @@ arguments, environments, and bodies are equal.
 Since there might be circles, it is not easy to write
 a replacement for equal? in Scheme.
 So, in s7, if one thing is basically the same as
-some other thing, they satisfy the function morally-equal?.
+some other thing, they satisfy the function equivalent?.
 </p>
 
 <pre class="indented">
-&gt; (morally-equal? 2 2.0)        ; would "equal!?" be a better name?
+&gt; (equivalent? 2 2.0)
 <em class="gray">#t</em>
-&gt; (morally-equal? 1/0 1/0)      ; NaN
+&gt; (equivalent? 1/0 1/0)         ; NaN
 <em class="gray">#t</em>
-&gt; (morally-equal? .1 1/10)
+&gt; (equivalent? .1 1/10)
 <em class="gray">#t</em>                              ; floating-point epsilon here is 1.0e-15 or thereabouts
-&gt; (morally-equal? 0.0 1e-300)
+&gt; (equivalent? 0.0 1e-300)
 <em class="gray">#t</em>
-&gt; (morally-equal? 0.0 1e-14)
+&gt; (equivalent? 0.0 1e-14)
 <em class="gray">#f</em>                              ; its not always #t!
-&gt; (morally-equal? (lambda () #f) (lambda () #f))
+&gt; (equivalent? (lambda () #f) (lambda () #f))
 <em class="gray">#t</em>
 </pre>
 
-<p>The *s7* field morally-equal-float-epsilon sets the floating-point fudge factor.
-I can't decide how bignums should interact with morally-equal?.  Currently,
+<p>The *s7* field equivalent-float-epsilon sets the floating-point fudge factor.
+I can't decide how bignums should interact with equivalent?.  Currently,
 if a bignum is involved, either here or in a hash-table, s7 uses equal?.
-Finally, if either argument is an environment with a 'morally-equal? method,
+Finally, if either argument is an environment with an 'equivalent? method,
 that method is invoked.
 </p>
 
@@ -5695,18 +5275,21 @@ profile.scm shows one way to sort and display this data. To clear the counts, <c
 state: 
 </p>
 <pre class="indented">
-print-length                  number of elements of a sequence to print
+print-length                  number of elements to print of a non-string sequence
 max-string-length             max size arg to make-string and read-string
+max-format-length             max size arg ~N or the width and precision fields for floats in format
 max-list-length               max size arg to make-list
+max-port-data-size            max size of a port data buffer
 max-vector-length             max size arg to make-vector and make-hash-table
 max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
 initial-string-port-length    128, initial size of a string port's buffer
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
+history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 profile-info                  profiling data if s7 built WITH_PROFILE=1
 
 default-rationalize-error     1e-12 (settable)
-morally-equal-float-epsilon   1e-15 (settable)
+equivalent-float-epsilon      1e-15 (settable)
 hash-table-float-epsilon      1e-12 (settable, but currently limited to less than 1e-3).
 bignum-precision              bits for bignum floats (128)
 float-format-precision        digits to print for floats (16)
@@ -5715,14 +5298,15 @@ default-random-state          the default arg for random (settable)
 cpu-time                      run time so far
 file-names                    currently loaded files (a list)
 
-safety                        0
+safety                        0 (see below)
 undefined-identifier-warnings #f 
+undefined-constant-warnings   #f 
+accept-all-keyword-arguments  #f 
 autoloading?                  #t
 
+history			      a circular buffer of recent eval entries stored backwards
 catches                       a list of the currently active catch tags
-exits                         a list of active call-with-exit exit functions
-c-types                       a list of c-object type names (from s7_new_type, etc)
-input-ports, output-ports, strings, gensyms, vectors, hash-tables, continuations
+c-types                       a list of c-object type names (from s7_make_c_type, etc)
 
 stack-top                     current stack location
 stack-size                    current stack size
@@ -5730,16 +5314,14 @@ max-stack-size                max stack size (settable)
 stack                         the current stack entries
 stacktrace-defaults           stacktrace formatting info for error handler
 
-symbol-table                  a vector
-symbol-table-locked?          #f (if #t, no new symbols can be added to the symbol table)
 rootlet-size                  the number of globals
-
-heap-size                     total cells currently available
+heap-size                     total cells currently available (settable)
+max-heap-size                 max heap size (settable)
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
 gc-protected-objects          vector of the objects permanently protected from the GC
 gc-stats                      #f (#t turns on printout of the GC activity)
-memory-usage                  a description of current memory allocations
+memory-usage                  a description of current memory allocations (sent to current-output-port)
 </pre>
 
 <p>
@@ -5748,12 +5330,25 @@ Use the standard environment syntax to access these fields:
 *s7*-&gt;list that returns most of these fields in a list.
 </p>
 
-<p>
-Set (*s7* 'safety) to 2 or higher
-to turn off optimization.  Set (*s7* 'autoloading) to #f to turn off the autoloader.
+<p><code>(set! (*s7* 'autoloading) #f)</code> turns off the autoloader.
 </p>
 
-<p>stacktrace-defaults is a list of four integers and a boolean that tell the error
+<p>The 'safety variable is an integer. Currently:
+</p>
+<pre class="indented">
+0: default.
+1: no remove_from_heap (a GC optimization)
+   infinite loop check in eval, sort! and some iterators
+   immutable object check in reverse!, sort!, and fill!
+   more info in (*s7* 'history) for s7_apply_function, s7_call and s7_eval
+   less aggressive optimization in with-let and lambda
+   warnings about syntax redefinition
+   incoming s7_pointer checks in some FFI functions
+   bignum int to s7_int conversion checks
+2: vector, string, and pair constants are immutable (but checks for this are currently sparse)
+</pre>
+
+<p><code>(*s7* 'stacktrace-defaults)</code> is a list of four integers and a boolean that tell the error
 handler how to format stacktrace information.  The four integers are: 
 how many frames to display, 
 how many columns are devoted to code display,
@@ -5763,20 +5358,139 @@ The boolean sets whether the entire output should be displayed as a comment.
 The defaults are '(3 45 80 45 #t).
 </p>
 
+<p>This will display s7 memory usage sort of like the top program:
+</p>
+<pre class="indented">
+(format *stderr* "~C[~D;~DH" #\escape 0 0)
+(format *stderr* "~C[J" #\escape)
+(display (with-output-to-string (lambda() (*s7* 'memory-usage))))
+</pre>
+<p>(Ideally we'd only redisplay the changed fields).
+</p>
+
+
+<div class="separator"></div>
 <pre class="indented">
 (<em class=def id="cobject">c-object?</em> obj)
+(<em class=def id="cobjecttypew">c-object-type</em> obj)
+
 (<em class=def id="cpointer">c-pointer?</em> obj)
-(<em class=def id="cpoint">c-pointer</em> int)
+(<em class=def id="cpoint">c-pointer</em> int type info weak1 weak2)
+(<em class=def id="cpointtype">c-pointer-type</em> obj)
+(<em class=def id="cpointinfo">c-pointer-info</em> obj)
+(<em class=def id="cpointweak1">c-pointer-weak1</em> obj) ; also weak2
+(<em class=def id="cpointertolist">c-pointer-&gt;list</em> obj)
 </pre>
 
+<p>
+c-object? returns #t is its argument is a c-object. 
+c-object-type returns the object's type tag (otherwise #f of course).  This tag is also the position
+of the object's type in the (*s7* 'c-types) list. 
+(*s7* 'c-types) returns a list of the types created by s7_make_c_type.
+</p>
 <p>
 You can wrap up raw C pointers and
 pass them around in s7 code. The function c-pointer returns a wrapped pointer,
 and c-pointer? returns #t if passed one.  <code>(define NULL (c-pointer 0))</code>.
-c-object? returns the object's type tag if passed such an object (otherwise #f of course).  This tag is also the position
-of the object's type in the (*s7* 'c-types) list. 
-(*s7* 'c-types) returns a list of the types created by s7_new_type_x and friends.
+If the type field is a symbol, it is used to check types in s7_c_pointer with_type.
+If the 'info field of a c-pointer is a let, that pointer can participate in 
+the generic functions mechanism, much like a c-object:
 </p>
+<pre class="indented">
+&gt; (let ((ptr (c-pointer 1 'abc 
+                (inlet 'object-&gt;string 
+		  (lambda (obj . args)
+		    (let ((lt (object-&gt;let obj)))
+		      (format #f "I am pointer ~A of type '~A!" 
+			      (lt 'c-pointer)        ; we need c-pointer-type etc
+			      (lt 'c-type))))))))
+    (openlet ptr)
+    (object-&gt;string ptr))
+<em class="gray">"I am pointer 1 of type 'abc!"</em>
+</pre>
+<p>c-pointer-&gt;list returns (list pointer-as-int type info).
+The "weak1" and "weak2" fields are intended for custom "weak" references. The weak
+fields values are not marked during the GC sweep, much like a key in a weak-hash-table.
+If either value is GC'd, that field is set to #f by the GC.  The weak fields are
+ignored by equal? and equivalent? when comparing c-pointers, and by object-&gt;string
+of a c-pointer even if :readable is specified.
+</p>
+
+
+<div class="separator"></div>
+
+<p>There are several tree-oriented functions currently built into s7:
+</p>
+<pre class="indented">
+(<em class=def id="treecyclic">tree-cyclic?</em> tree) returns #t if tree contains a cycle.
+(<em class=def id="treeleaves">tree-leaves</em> tree) returns the number of leaves in tree.
+(<em class=def id="treememq">tree-memq</em> obj tree) returns #t if obj is in tree (using eq?).
+(<em class=def id="treesetmemq">tree-set-memq</em> set tree) returns #t if any member of the list set is in tree.
+(<em class=def id="treecount">tree-count</em> obj tree) returns how many times obj is in tree.
+</pre>
+
+
+<div class="separator"></div>
+
+<p>s7 originally had Scheme-level multithreading support, but I removed it in August, 2011.
+It turned out to be less useful than I hoped,
+mainly because s7 threads shared the heap and therefore had to coordinate
+all cell allocations.  It was faster and simpler to use multiple
+processes each running a separate s7 interpreter, rather than one s7
+running multiple s7 threads.  In CLM, there was also contention for access
+to the output stream.  In GUI-related situations,
+threads were not useful mainly because the GUI toolkits are not thread safe.
+Last but not least, the effort to make the non-threaded
+s7 faster messed up parts of the threaded version.  Rather than
+waste a lot of time fixing this, I chose to flush multithreading.
+s7 is thread-safe:
+</p>
+
+<blockquote>
+<div class="indented">
+<pre>
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;pthread.h&gt;
+#include "s7.h"
+
+#define NUM_THREADS 16
+static pthread_t threads[NUM_THREADS];
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void *run_thread(void *obj)
+{
+  s7_scheme *sc = (s7_scheme *)obj;
+  const char *str;
+  str = s7_object_to_c_string(sc, s7_make_integer(sc, 123));
+  s7_eval_c_string(sc, "(let () \
+                          (define (f) \
+                            (do ((i 0 (+ i 1))) ((= i 10)) \
+                              (do ((k 0 (+ k 1))) ((= k 1000000))) \
+                              (format *stderr* \"~D \" i))) \
+                          (f))");
+  pthread_mutex_lock(&amp;lock);
+  fprintf(stderr, "%s\n", str);
+  pthread_mutex_unlock(&amp;lock);
+}
+
+int main(int argc, char **argv)
+{
+  int32_t i;
+  for (i = 0; i &lt; NUM_THREADS; i++)
+    pthread_create(&amp;threads[i], NULL, run_thread, (void *)s7_init());
+  for (i = 0; i &lt; NUM_THREADS; i++)
+    pthread_join(threads[i], NULL);
+  exit(0);
+}
+
+/* linux: gcc -o threads threads.c s7.o -Wl,-export-dynamic -pthread -lm -I. -ldl
+ * mac: clang -o threads threads.c s7.o -pthread -lm -I. -ldl
+ */
+</pre>
+</div>
+</blockquote>
+
 
 
 <div class="separator"></div>
@@ -5787,7 +5501,7 @@ of the object's type in the (*s7* 'c-types) list.
 <p id="s7vsr5rs">Some other differences from r5rs:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>no force or delay (see <a href="#r7rs">below</a>).
 <li>no syntax-rules or any of its friends.
 <li>no scheme-report-environment, null-environment, or interaction-environment (use curlet).
@@ -5797,12 +5511,11 @@ of the object's type in the (*s7* 'c-types) list.
 <li>for-each and map accept different length arguments; the operation stops when any argument reaches its end.
 <li>for-each and map accept any applicable object as the first argument, and any sequence or iterator as a trailing argument.
 <li>letrec*, but without conviction.
-<li>set! and *-set! return the new value (modulo symbol-access), not #&lt;unspecified&gt;.
+<li>set! and *-set! return the new value (modulo setter), not #&lt;unspecified&gt;.
 <li>define and its friends return the new value.
 <li>port-closed? 
-<li>list? means "pair or null", proper-list? is r5rs list?, float? means "real and not rational", sequence? = length.
+<li>list? means "pair or null", proper-list? is r5rs list?, float? = real and not rational, sequence? = length, byte? = unsigned byte.
 <!-- a vector can be a member of itself, and yet vector? returns #t, why is list? different; we even call it a circular list! -->
-<!-- <li>current-input-port, current-output-port, and current-error-port have setters (but I may remove these) -->
 <li>the default IO ports are named *stdin*, *stdout*, and *stderr*.
 <li>#f as an output port means nothing is output (#f is /dev/null, I guess).
 <li>member and assoc accept an optional third argument, the comparison function (equal? is the default).
@@ -5812,6 +5525,7 @@ of the object's type in the (*s7* 'c-types) list.
 <li>when and unless (for r7rs), returning the value of the last form.
 <li>the "d", "f", "s", and "l" exponent markers are not supported by default (use "e", "E", or "@").
 <li>quasiquoted vector constants are not supported (use the normal list expansions wrapped in list-&gt;vector).
+<li><em class=def id="typeof">type-of</em> returns a type indicator for its argument.
 </ul>
 
 <p>In s7 if a built-in function like gcd is referred to in a function
@@ -5836,22 +5550,22 @@ definition, and a later redefinition does not affect earlier uses.
 <p>Here are some changes I'd make to s7 if I didn't care about compatibility with other Schemes:
 </p>
 
-<ul>
-<li>remove the exact/inexact distinction including #i and #e
+<ul style="list-style-type:disc;">
+<li>remove the exact/inexact distinction including #i and #e (done! #i means int-vector constant).
 <li>remove call-with-values and its friends
 <li>remove char-ready?
 <li>change eof-object? to eof? or just omit it (you can use eq? #&lt;eof&gt;)
-<li>change make-rectangular to complex, and remove make-polar.
+<li>change make-rectangular to complex (done!), and remove make-polar.
 <li>remove unquote (the name, not the functionality).
 <li>remove cond-expand.
 <li>remove *-ci functions
-<li>remove #d
+<li>remove #d (done!)
 </ul>
 
 <p>(most of these are removed if you set the compiler flag WITH_PURE_S7), and perhaps:
 </p>
 
-<ul>
+<ul style="list-style-type:disc;">
 <li>remove even? and odd?, gcd and lcm.
 <li>remove string-length and vector-length.
 <li>remove list-ref|set!, string-ref|set!, vector-ref|set!, hash-table-ref|set!, set-car!|cdr!, and set-current-output|input|error-port.
@@ -5861,25 +5575,34 @@ definition, and a later redefinition does not affect earlier uses.
 <li>change with-output-to-* and with-input-from-* to omit the pointless lambda.
 <li>remove the with-* IO functions (e.g. with-input-from-string), keeping the call-with-* versions (call-with-input-string).
 <li>remove assq, assv, memq, and memv (these are pointless now that assoc and member can be passed eq? and eqv?).
-<li>remove unless: it is much harder to read than when.  The 'not should not be hidden.
+<li>move all the "*var*" names to *s7*: *load-hook* becomes (*s7* 'load-hook) for example.
 </ul>
+
+<p>With the move to s7_setter and s7_set_setter (setter in Scheme), 
+dilambda and dilambda? have been reduced to trivial conveniences, so perhaps they can also be
+removed.
+</p>
 
 <p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
 *most-positive-fixnum* (*fixleast* and *fixmost*?) so that all the built-in variables and constants have the
 same kind of name (or +pi+ to show it is a constant?).  
 get-output-string should be current-output-string. write-char behaves like display, not write.
 provided? should be feature? or *features* should be *provisions*.
+list-ref, list-set!, and list-tail actually only apply to pairs.
+let-temporarily should be templet, or maybe set-temporarily.
+Finally, the CL-inspired "log*" names such as logand look very old-fashioned.  Standard scheme opts
+for the name "bitwise*"; why not "integerwise" or "bytevectorwise"?  The "wise" business is just noise.
+Perhaps <code>(define & logand) (define | logior) (define ~ lognot)</code> and so on, but ^ for logxor
+(as in C) is not ideal; ^ should be expt.
 </p>
 
 <p>
-The name "cond-expand" is bad &mdash; we're not expanding anything, and the macro's point is to make it easy to
-operate with the *features* list; perhaps "cond-provided"?  Not only is cond-expand poorly named, but the whole
-idea is clumsy.  Take libgsl.scm; different versions of the GSL library have different functions.  We need to know
+cond-expand is dumb and its name is dumber.
+Take libgsl.scm; different versions of the GSL library have different functions.  We need to know
 when we're building the FFI what GSL version we're dealing with.  It would be nuts to start pushing and checking dozens
-of library version symbols when all we actually want is <code>(&gt; version 23.19)</code>. (We are also politely
-trying to ignore the ridiculous little language built into cond-expand; are we not running Scheme?).
+of library version symbols when all we actually want is <code>(&gt; version 23.19)</code>. 
 In place of cond-expand, s7 uses <a href="#readercond">reader-cond</a>,
-so the read-time decision involves normal evaluation.
+so the read-time decision involves normal Scheme evaluation.
 </p>
 
 <p>Then there's the case case: a case clause without a result appears to be an error in r7rs.
@@ -5888,12 +5611,14 @@ so if we allow <code>(begin)</code>, we should allow case clauses to have no exp
 In cond,
 the "implicit progn" (in CL terminology) includes the test expression, so a clause without a result returns
 the test result (if true of course).  In the case case, s7 returns the selector.
-<code>(case x ((0 1)))</code> is equivalent to <code>(case x ((0 1) => values))</code>, 
-just as <code>(cond (A))</code> is equivalent to <code>(cond (A => values))</code>.
+<code>(case x ((0 1)))</code> is equivalent to <code>(case x ((0 1) =&gt; values))</code>, 
+just as <code>(cond (A))</code> is equivalent to <code>(cond (A =&gt; values))</code>.
 One application is method lookup: <code>((case (obj 'abs) ((#&lt;undefined&gt;) abs) (else)) ...)</code>;
 we would otherwise have to save the lookup result or do it twice.
 This choice has a ripple
-effect on hash-tables.  Currently hash-table-ref returns #f if the key is not in the table,
+effect on do: if no result is specified for do, s7 returns the test result.
+It also affects 
+hash-tables.  Currently hash-table-ref returns #f if the key is not in the table,
 mimicking assoc and aimed at cond with =&gt;, but if we also use case and #&lt;undefined&gt;,
 it seems more useful and maybe intuitive to mimic let-ref instead.  But if hash-table-ref returns
 #&lt;undefined&gt;, it's harder to use hash-tables as sets.  Hmm.
@@ -5921,21 +5646,27 @@ Better ideas are always welcome!
 
 <p>And the built-in constants:
 </p>
-<ul>
+<ul style="list-style-type:disc;">
 <li>pi
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
-<li>nan.0 -nan.0 inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
+<li>nan.0 +nan.0 -nan.0 inf.0 +inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
 <li>most-positive-fixnum most-negative-fixnum
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
 <p>__func__ is the name (or name and location) of the function currently being called, as in C.
+<code>(symbol_value __func__)</code> is the current function, so this innocuous looking code:
+</p>
+<pre>
+(define (func p) (call-with-output-string (symbol-&gt;value __func__)))
+</pre>
+<p>can produce an infinite recursion!
 </p>
 
 <p>Currently WITH_PURE_S7:
 </p>
-<ul>
+<ul style="list-style-type:disc;">
 <li>places 'pure-s7 in *features*
 <li>omits char-ready, char-ci*, string-ci*
 <li>omits string-copy, string-fill!, vector-fill!, vector-append
@@ -5945,7 +5676,7 @@ Better ideas are always welcome!
 <li>omits unquote (the name)
 <li>omits d/f/s/l exponents
 <li>omits make-polar and make-rectangular (use complex)
-<li>omits integer-length, exact?, inexact?, exact-&gt;inexact, inexact-&gt;exact, #i and #e
+<li>omits exact?, inexact?, exact-&gt;inexact, inexact-&gt;exact
 <li>omits set-current-output-port and set-current-input-port
 </ul>
 
@@ -5953,8 +5684,6 @@ Better ideas are always welcome!
 
 
 
-<details>
-<summary class="indented">quotes</summary>
 <div class="indented">
 
 <p>Schemes vary in their treatment of ().  s7 considers it a constant that evaluates to itself,
@@ -5962,7 +5691,8 @@ so you don't need to quote it.  <code>(eq? () '())</code> is #t.
 This is consistent with, for example,
 <code>(eq? #f '#f)</code> which is also #t.
 The standard says "the empty list is a special object of its own type", so surely either choice is
-acceptable in that regard.  One place where the quote matters is in a case statement; the selector is
+acceptable in that regard (but, sigh, the standard stupidly goes on to deny that () can evaluate to itself).
+One place where the quote matters is in a case statement; the selector is
 evaluated but the key is not:
 </p>
 
@@ -5989,7 +5719,7 @@ to keep it from being evaluated, but
 <p>These examples bring up another odd corner of scheme: else.  In <code>(cond (else 1))</code>
 the 'else is evaluated (like any cond test), so its value might be #f; in <code>(case 0 (else 1))</code>
 it is not evaluated (like any case key), so it's just a symbol.  
-Since symbol accessors are local in s7, 
+Since setters are local in s7, 
 someone can <code>(let ((else #f)) (cond (else 1)))</code> even if we protect the rootlet 'else.
 Of course, in scheme this kind of trouble is pervasive, so rather than make 'else a constant
 I think the best path is to use unlet:
@@ -5997,132 +5727,8 @@ I think the best path is to use unlet:
 can't be changed.
 </p>
 </div>
-</details>
 
 
-<details>
-<summary class="indented">mutable constants</summary>
-<div class="indented">
-
-<p>How should s7 treat this:
-<code>(string-set! "hiho" 1 #\z)</code>, or 
-<code>(vector-set! #(1 2 3) 1 32)</code>, or
-<code>(list-set! '(1 2 3) 1 32)</code>?
-Originally, in s7, the first two were errors, and the third was allowed, which doesn't make much sense.
-Guile and Common Lisp accept all three, but that leads to weird cases where we can reach
-into a function's body:
-</p>
-
-<pre class="indented">
-&gt; (let ((x (lambda () '(1 2 3)))) (list-set! (x) 1 32) (x))
-<em class="gray">(1 32 3)</em> ; s7, Guile
-&gt; (flet ((x () '(1 2 3))) (setf (nth 1 (x)) 32) (x))
-<em class="gray">(1 32 3)</em> ; Clisp
-&gt; (let ((x (lambda () (list 1 2 3)))) (list-set! (x) 1 32) (x))
-<em class="gray">(1 2 3)</em>
-</pre>
-
-<p>
-But it's possible to reach into a function's closure, even when the
-closed-over thing is a constant:
-</p>
-
-<pre class="indented">
-&gt; (flet ((x () '(1 2 3))) (setf (nth 1 (x)) 32) (x))
-<em class="gray">(1 32 3)</em>
-&gt; (let ((xx (let ((x '(1 2 3))) (lambda () x)))) (list-set! (xx) 1 32) (xx))
-<em class="gray">(1 32 3)</em>
-&gt; (let ((xx (let ((x (list 1 2 3))) (lambda () x)))) (list-set! (xx) 1 32) (xx))
-<em class="gray">(1 32 3)</em>
-</pre>
-
-<p>
-And it's possible to reach into a constant list via list-set! (or set-car! of course):
-</p>
-
-<pre class="indented">
-&gt; (let* ((x '(1 2)) (y (list x)) (z (car y))) (list-set! z 1 32) (list x y z))
-<em class="gray">((1 32) ((1 32)) (1 32))</em>
-</pre>
-
-<p>
-It would be a programmer's nightmare to have to keep track of which piece of a list is
-constant, and an implementor's nightmare to copy every list.  set! in all its forms is
-used for its side-effects, so why should we try to put a fence around them?
-If we flush "immutable constant" because it is a ham-fisted, whack-it-with-a-shovel approach,
-the only real problem I can see is symbol-&gt;string.  In CL, this is explicitly an error:
-</p>
-
-<pre class="indented">
-&gt; (setf (elt (symbol-name 'xyz) 1) #\X)
-<em class="gray">*** - Attempt to modify a read-only string: "XYZ"</em>
-</pre>
-
-<p>And in Guile:
-</p>
-
-<pre class="indented">
-&gt; (string-set! (symbol-&gt;string 'symbol-&gt;string) 1 #\X)
-<em class="gray">ERROR: string is read-only: "symbol-&gt;string"</em>
-</pre>
-
-<p>So both have a notion of immutable strings.  
-I wonder what other Scheme programmers (not implementors!) want in this situation.
-Currently, there are no immutable list, string, or vector constants, and
-symbol-&gt;string
-returns a copy of the string.
-copy can protect some values.  Or combine object-&gt;string and string-&gt;symbol:
-</p>
-
-<pre class="indented">
-&gt; (let ((x (lambda () (copy "hiho")))) (string-set! (x) 1 #\x) (x))
-<em class="gray">"hiho"</em>
-&gt; (let ((x (string-&gt;symbol "hiho"))) (string-set! (symbol-&gt;string x) 1 #\x) (symbol-&gt;string x))
-<em class="gray">"hiho"</em>
-&gt; (define (immutable obj) (string-&gt;symbol (object-&gt;string obj :readable)))
-<em class="gray">immutable</em>
-&gt; (define (symbol-&gt;object sym) (eval-string (symbol-&gt;string sym)))
-<em class="gray">symbol-&gt;object</em>
-&gt; (symbol-&gt;object (immutable (list 1 2 3)))
-<em class="gray">(1 2 3)</em>
-</pre>
-
-<p>s7 normally tries to optimize garbage collection by
-removing some list constants from the heap.  If you later
-set a member of it to something that needs GC protection, nobody in the heap points to it, so
-it is GC'd.  Here is an example:
-</p>
-
-<pre class="indented">
-(define (bad-idea)
-  (let* ((lst '(1 2 3))
-         (result (list-ref lst 1)))
-   (list-set! lst 1 (* 2.0 16.6))
-   (gc)
-   result))
-</pre>
-
-<p>Put this is a file, load it into the interpreter, then call <code>(bad-idea)</code> a
-few times.  You can turn off the optimization in question by setting the variable <code>(*s7* 'safety)</code>
-to 1.  <code>(*s7* 'safety)</code> defaults to 0.  
-</p>
-
-<p>A similar problem arises when you want to walk a function's source or reuse a piece of
-code directly.  When the function is evaluated, the optimizer changes the program source
-to speed up subsequent evaluation.  This annotation process means that nothing in that
-source is what it appears to be, so a tree walker will be confused, and if you copy that
-source and try to insert it into some other program source, the existing annotations
-will not fit the new context.  In both cases, you can get a clean version of the code
-by copying it with :readable as the second argument to copy.  There is an example
-in lint.scm, and in the snd file tools/tgen.scm.
-</p>
-
-</div>
-</details>
-
-
-<details id="circle">
-<summary class="indented">circular lists</summary>
 <div class="indented">
 
 <p>s7 handles circular lists and vectors and dotted lists with its customary aplomb.  
@@ -6275,11 +5881,8 @@ sequences in its argument, or nil.
     (set-cdr! (list-tail vals (- len 1)) ())))    ; restore its original shape
 </pre>
 </div>
-</details>
 
 
-<details>
-<summary class="indented">unprintable symbols</summary>
 <div class="indented">
 
 <p>s7 and Snd use "*" in a variable name, *features* for example, to indicate
@@ -6370,8 +5973,6 @@ These symbols are not just an optimization of string comparison:
 <p>I hope that makes you as happy as it makes me!
 </p>
 </div>
-</details>
-
 
 
 <div class="indented">
@@ -6418,7 +6019,7 @@ These symbols are not just an optimization of string comparison:
 		 (do ((i 0 (+ i 1)))
 		     ((= i 10) (reverse L))
 		   (set! L (cons ,form L))))))
-    (define function (apply lambda () (list (copy body :readable))))
+    (define function (apply lambda () (list (copy body))))
     (function)))
 
 (let ()
@@ -6447,6 +6048,17 @@ These symbols are not just an optimization of string comparison:
 <em class="gray">1</em>
 </pre>
 
+<p>Now we notice that <code>(case 0.0 ((0.0) 1) (else 0))</code> is 1, but
+how to get pi into a key list?
+</p>
+<pre class="indented">
+&gt; (apply case 'pi `(((,pi) 1) (else 0)))
+<em class="gray">1</em>
+&gt; (let ((lst '(1 2))) (apply case 'lst `(((,lst) 1) (else 0))))
+<em class="gray">1</em>         ; same trick puts a list in the keys
+&gt; (apply case '+nan.0 `(((,+nan.0) 1) (else 0)))
+<em class="gray">0</em>         ; (eqv? +nan.0 +nan.0) is #f
+</pre>
 
 <p><code>(apply define ...)</code> is similar to CL's set.
 </p>
@@ -6503,8 +6115,8 @@ use a trailing null instead (mimicking apply* in some ancient lisps):
 <p>
 Currently, you can't set! a built-in syntactic keyword to some new value:
 <code>(set! if 3)</code>.
-I hope this kind of thing is not actually very useful, but let me
-know if you need it.  The issue is purely one of speed.
+let-temporarily uses set!, so <code>(let-temporarily ((if 3))...)</code>
+is also unlikely to work.
 </p>
 
 <p>Speaking of speed... It is widely believed
@@ -6520,12 +6132,10 @@ so misleading that I feel guilty about it):
 	(display ".")))
   (newline))
 
-(for-each
- (lambda (n) (do-loop n))
- (list 1000 1000000 10000000))
+(for-each do-loop (list 1000 1000000 10000000))
 </pre>
 
-<p>In s7, that takes 0.24 seconds on my home machine.  In tinyScheme, from
+<p>In s7, that takes 0.1 seconds on my home machine.  In tinyScheme, from
 whence we sprang, it takes 85 seconds.  In the chicken interpreter, 5.3
 seconds, and after compilation (using -O2) of the chicken compiler output,
 0.75 seconds.  So, s7 is comparable to chicken in speed, even though chicken
@@ -6547,6 +6157,46 @@ of it as being a little REPL.  begin does not introduce a new frame in
 the current environment, so defines happen in the enclosing environment.
 Finally, begin, explicit or otherwise, does not pretend to emulate letrec*.
 </p>
+
+<p>If we allow defines anywhere, the notion of "lexical scope" becomes problematic.
+Scheme is already a mess in that regard: take
+</p>
+
+<pre class="indented">
+(let ((x 1))
+  (do ((y x x)
+       (x 3))
+      ((> y 1) y)))
+</pre>
+
+<p>In <code>(y x x)</code> the first x is the outer one, and the second is the
+following do variable, so this returns 3!  But sticking to define, in
+</p>
+
+<pre class="indented">
+(let ((x 1))
+  (define y x)
+  (define x 2)
+  y)
+</pre>
+
+<p>s7 returns 1 even though technically the second x is in y's environment.
+Since we treat this as a REPL, y gets its value from the only x defined at
+the point it is defined.  However,
+</p>
+
+<pre class="indented">
+(let ((x 1))
+  (define y (lambda () x))
+  (define x 2)
+  (y))
+</pre>
+
+<p>returns 2 in s7 because the x in y's function body is not evaluated
+until after the second x is defined.  
+The define propagates backwards, but:
+<code>(list x (define x 0))</code>, or <code>(list x (begin (define x 0) x))</code>.
+</p>
 </div>
 
 
@@ -6554,89 +6204,10 @@ Finally, begin, explicit or otherwise, does not pretend to emulate letrec*.
 
 <p id="r7rs">The r7rs compatibility code is in r7rs.scm. I used to include it here, but
 as r7rs grew, this section got too large.  In general, all the conversion routines in
-r7rs are handled in s7 via generic functions, records are classes, byte-vectors are
-strings, and so on. 
+r7rs are handled in s7 via generic functions, records are classes, and so on. 
 </p>
 </div>
 
-
-
-<details>
-<summary class="indented">threads</summary>
-<div class="indented">
-
-<p>s7 originally had multithreading support, but I removed it in August, 2011.
-It turned out to be less useful than I hoped,
-mainly because s7 threads shared the heap and therefore had to coordinate
-all cell allocations.  It was faster and simpler to use multiple
-processes each running a separate s7 interpreter, rather than one s7
-running multiple s7 threads.  In CLM, there was also contention for access
-to the output stream.  In GUI-related situations,
-threads were not useful mainly because the GUI toolkits are not thread safe.
-Last but not least, the effort to make the non-threaded
-s7 faster messed up parts of the threaded version.  Rather than
-waste a lot of time fixing this, I chose to flush multithreading.
-Here's a very simple example of using an s7 interpreter per thread:
-</p>
-
-<pre class="indented">
-#include &lt;stdlib.h&gt;
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;pthread.h&gt;
-#include "s7.h"
-
-typedef struct {
-  s7_scheme *sc;
-  s7_pointer func;
-  pthread_t *thread;
-} thred;
-
-static void *run_thread(void *obj)
-{
-  thred *f = (thred *)obj;
-  return((void *)s7_call(f-&gt;sc, f-&gt;func, s7_nil(f-&gt;sc)));
-}
-
-static thred *make_thread(s7_function func)
-{
-  thred *f;
-  f = (thred *)malloc(sizeof(thred));
-  f-&gt;sc = s7_init();
-  f-&gt;func = s7_make_function(f-&gt;sc, "a-test", func, 0, 0, false, "a test");
-  f-&gt;thread = (pthread_t *)malloc(sizeof(pthread_t));
-  pthread_create(f-&gt;thread, NULL, run_thread, (void *)f);
-  return(f);
-}
-
-static s7_pointer a_test(s7_scheme *sc, s7_pointer args)
-{
-  fprintf(stderr, "I am %p\n", sc);
-  /* do something time-consuming... */
-  return(args);
-}
-
-int main(int argc, char **argv)
-{
-  thred *f1, *f2;
-  f1 = make_thread(a_test);
-  f2 = make_thread(a_test);
-
-  pthread_join(*(f1-&gt;thread), NULL);
-  pthread_join(*(f2-&gt;thread), NULL);
-}
-
-/* build s7 with -DWITH_THREADS, then
- * gcc -o repl repl.c s7.o -g3 -Wl,-export-dynamic -lpthread -lm -I. -ldl 
- */
-</pre>
-
-<p>Unfortunately, there's no way yet to
-free all the resources s7_init allocates (the heap, stack, etc).
-</p>
-
-</div>
-</details>
 
 <div class="indented">
 
@@ -6701,7 +6272,6 @@ The examples that follow show:
 <li><a href="#definemacro1">C-side define-macro (s7_define_macro)</a>
 <li><a href="#definegeneric">define a generic function in C</a>
 <li><a href="#signal">signal handling (C-C to break out of an infinite loop)</a>
-<li><a href="#vector">direct multidimensional vector element access</a>
 <li><a href="#notify">notification in C that a Scheme variable has been set!</a>
 <li><a href="#namespace">Load C defined stuff into a separate namespace</a>
 <li><a href="#Cerrors">Error handling in C</a>
@@ -6709,6 +6279,7 @@ The examples that follow show:
 <li><a href="#dload">Load a C module dynamically</a>
 <li><a href="#gmpex">gmp and friends</a>
 <li><a href="#glistener">glistener.c</a>
+<li><a href="#gtk">gtk script</a>
 <li><a href="#gdb">gdb</a>
 </ul>
 
@@ -6740,7 +6311,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                         /* evaluate the input and print the result */
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  <em class=red>s7_eval_c_string</em>(s7, response); 
 	}
     }
@@ -6764,6 +6335,7 @@ int main(int argc, char **argv)
  *
  * for long-term happiness in linux use:
  *   gcc -o repl repl.c s7.o -Wl,-export-dynamic -lm -I. -ldl
+ *   clang also needs -fPIC I think
  * freebsd:
  *   gcc -o repl repl.c s7.o -Wl,-export-dynamic -lm -I.
  * osx:
@@ -6826,8 +6398,7 @@ g_io_channel_unref(channel);
 </pre></div>
 </blockquote>
 
-<details>
-<summary class="indented">repl with libtecla</summary>
+
 <p>Here's a version that uses libtecla for the line editor:
 </p>
 
@@ -6856,7 +6427,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	  fprintf(stdout, "\n");
 	}
@@ -6870,7 +6441,7 @@ int main(int argc, char **argv)
  */
 </pre></div>
 </blockquote>
-</details>
+
 
 <p>A repl (based on repl.scm) is built into s7.  Include the compiler flag -DWITH_MAIN:
 </p>
@@ -6880,119 +6451,6 @@ in Linux: gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
 in *BSD:  gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm -Wl,-export-dynamic
 in OSX:   gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm
 </pre>
-
-
-<details>
-<summary class="indented">repl in C++</summary>
-<p>If you prefer C++, here's a C++ version of the listener, extracted from Rick Taube's
-Common Music package:
-</p>
-
-<blockquote>
-<div class="indented">
-<pre>
-#include &lt;iostream&gt;
-#include "s7.h"
-
-static s7_pointer main_quit(s7_scheme *sc, s7_pointer args);
-static bool is_balanced(std::string str);
-static bool is_not_white(std::string str);
-
-int main(int argc, const char* argv[])
-{
-  s7_scheme* s7 = s7_init();
-  s7_pointer val;
-  std::string str;
-
-  try 
-    {
-      while (std::cin)
-	{
-	  std::cout &lt;&lt; "\ns7&gt; ";
-	  str = "";
-	  while (true)
-	    {
-	      std::string lin;
-	      std::getline(std::cin, lin);
-	      str = str + lin + "\n";
-	      if (is_balanced(str))
-		break;
-	    }
-	  if (is_not_white(str))
-	    {
-	      val = s7_eval_c_string(s7, str.c_str());
-	      std::cout &lt;&lt; s7_object_to_c_string(s7, val);
-	    }
-	}
-    }
-  catch(...)
-    {
-    }
-  std::cout &lt;&lt; "Bye!\n";
-  return 0;
-}
-
-static s7_pointer main_quit(s7_scheme *sc, s7_pointer args)
-{
-  throw 0;
-  return(s7_nil(sc));
-}
-
-static bool is_balanced(std::string str)
-{
-  int parens = 0;
-  int quotes = 0;
-  unsigned i = 0;
-  while (i &lt; str.size())
-    {
-      if (str[i] == ';')
-	{
-	  for (i = i + 1; i &lt; str.size(); i++)
-	    {
-	      if (str[i] == '\n')
-		break;
-	    }
-	}
-      else if (str[i] == '"')
-	{
-	  if (i == 0 || str[i - 1] != '\\')
-	    {
-	      quotes = 1;
-	      for (i = i + 1; i &lt; str.size(); i++)
-		{
-		  if (str[i] == '"' &amp;&amp; str[i - 1] != '\\')
-		    {
-		      quotes = 0;
-		      break;
-		    }
-		}
-	      if (quotes)
-		return false;
-	    }
-	}
-      else if (str[i] == '(')
-	parens++;
-      else if (str[i] == ')')
-	parens--;
-      i++;
-    }
-  return (parens == 0) &amp;&amp; (quotes == 0);
-}
-
-static bool is_not_white(std::string str)
-{
-  for (unsigned i = 0; (i &lt; str.size() &amp;&amp; str[i] != ';'); i++)
-    if (str[i] != ' ' && str[i] != '\n' &amp;&amp; str[i] != '\t')
-      return true;
-  return false;
-}
-
-/* g++ -I. -c repl.cpp
- * g++ -o repl repl.o s7.o -ldl
- */
-</pre></div>
-</blockquote>
-</details>
 
 
 <p id="beginhook">
@@ -7085,7 +6543,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 
 	      if (use_begin_hook)
 		<em class=red>s7_set_begin_hook</em>(s7, watch_for_c_g);
@@ -7148,7 +6606,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7295,7 +6753,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7420,17 +6878,20 @@ typedef struct {
   s7_pointer data;
 } dax;
 
-static char *print_dax(s7_scheme *sc, void *val)
+static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
+  s7_pointer result;
   int data_str_len;
-  dax *o = (dax *)val;
+  dax *o = (dax *)s7_c_object_value(s7_car(args));
   data_str = s7_object_to_c_string(sc, o-&gt;data);
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
-  snprintf(str, data_str_len + 32, "#&lt;dax %.3f %s&gt;", o-&gt;x, data_str);
+  snprintf(str, data_str_len + 32, \"&lt;dax %.3f %s&gt;\", o-&gt;x, data_str);
   free(data_str);
-  return(str);
+  result = s7_make_string(sc, str);
+  free(str);
+  return(result);
 }
 
 static void free_dax(void *val)
@@ -7446,7 +6907,7 @@ static bool equal_dax(void *val1, void *val2)
 static void mark_dax(void *val)
 {
   dax *o = (dax *)val;
-  if (o) s7_mark_object(o-&gt;data);
+  if (o) s7_mark(o-&gt;data);
 }
 
 static int dax_type_tag = 0;
@@ -7459,27 +6920,27 @@ static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
   if (s7_cdr(args) != s7_nil(sc))
     o-&gt;data = s7_cadr(args);
   else o-&gt;data = s7_nil(sc);
-  return(<em class=red>s7_make_object</em>(sc, dax_type_tag, (void *)o));
+  return(<em class=red>s7_make_c_object</em>(sc, dax_type_tag, (void *)o));
 }
 
 static s7_pointer is_dax(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_boolean(sc, 
-			 <em class=red>s7_is_object</em>(s7_car(args)) &amp;&amp;
-			 <em class=red>s7_object_type</em>(s7_car(args)) == dax_type_tag));
+			 <em class=red>s7_is_c_object</em>(s7_car(args)) &amp;&amp;
+			 <em class=red>s7_c_object_type</em>(s7_car(args)) == dax_type_tag));
 }
 
 static s7_pointer dax_x(s7_scheme *sc, s7_pointer args)
 {
   dax *o;
-  o = (dax *)<em class=red>s7_object_value</em>(s7_car(args));
+  o = (dax *)<em class=red>s7_c_object_value</em>(s7_car(args));
   return(s7_make_real(sc, o-&gt;x));
 }
 
 static s7_pointer set_dax_x(s7_scheme *sc, s7_pointer args)
 {
   dax *o;
-  o = (dax *)s7_object_value(s7_car(args));
+  o = (dax *)s7_c_object_value(s7_car(args));
   o-&gt;x = s7_real(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -7487,14 +6948,14 @@ static s7_pointer set_dax_x(s7_scheme *sc, s7_pointer args)
 static s7_pointer dax_data(s7_scheme *sc, s7_pointer args)
 {
   dax *o;
-  o = (dax *)s7_object_value(s7_car(args));
+  o = (dax *)s7_c_object_value(s7_car(args));
   return(o-&gt;data);
 }
 
 static s7_pointer set_dax_data(s7_scheme *sc, s7_pointer args)
 {
   dax *o;
-  o = (dax *)s7_object_value(s7_car(args));
+  o = (dax *)s7_c_object_value(s7_car(args));
   o-&gt;data = s7_cadr(args);
   return(o-&gt;data);
 }
@@ -7509,7 +6970,12 @@ int main(int argc, char **argv)
   
   s7_define_variable(s7, "*listener-prompt*", s7_make_string(s7, "&gt;"));
 
-  dax_type_tag = <em class=red>s7_new_type</em>("dax", print_dax, free_dax, equal_dax, mark_dax, NULL, NULL);
+  dax_type_tag = <em class=red>s7_make_c_type</em>(s7, "dax");
+  s7_c_type_set_free(s7, dax_type_tag, free_dax);
+  s7_c_type_set_equal(s7, dax_type_tag, equal_dax);
+  s7_c_type_set_mark(s7, dax_type_tag, mark_dax);
+  s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
+  
   s7_define_function(s7, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");
   s7_define_function(s7, "dax?", is_dax, 1, 0, false, "(dax? anything) returns #t if its argument is a dax object");
 
@@ -7526,7 +6992,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response); /* evaluate input and write the result */
 	}
     }
@@ -7570,7 +7036,7 @@ int main(int argc, char **argv)
 
 #include "s7.h"
 
-static void my_print(s7_scheme *sc, unsigned char c, s7_pointer port)
+static void my_print(s7_scheme *sc, uint8_t c, s7_pointer port)
 {
   fprintf(stderr, "[%c] ", c);
 }
@@ -7598,7 +7064,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7672,7 +7138,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7728,7 +7194,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7778,7 +7244,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7838,7 +7304,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7891,7 +7357,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7967,7 +7433,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -7986,100 +7452,6 @@ int main(int argc, char **argv)
  *    3
  */
 </pre></div>
-
-
-
-
-
-<div class="header" id="vector"><h4>Multidimensional vector element access</h4></div>
-
-
-<div class="indented">
-<pre>
-#include &lt;stdlib.h&gt;
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;stdarg.h&gt;
-
-#include "s7.h"
-
-static s7_pointer multivector_ref(s7_scheme *sc, s7_pointer vector, int indices, ...)
-{
-  /* multivector_ref returns an element of a multidimensional vector */
-  int ndims;
-  ndims = <em class=red>s7_vector_rank</em>(vector);
-
-  if (ndims == indices)
-    {
-      va_list ap;
-      s7_int index = 0;
-      va_start(ap, indices);
-
-      if (ndims == 1)
-	{
-	  index = va_arg(ap, s7_int);
-	  va_end(ap);
-	  return(s7_vector_ref(sc, vector, index));
-	}
-      else
-	{
-	  int i;
-	  s7_pointer *elements;
-	  s7_int *offsets, *dimensions;
-
-	  elements = <em class=red>s7_vector_elements</em>(vector);
-	  dimensions = <em class=red>s7_vector_dimensions</em>(vector);
-	  offsets = <em class=red>s7_vector_offsets</em>(vector);
-
-	  for (i = 0; i &lt; indices; i++)
-	    {
-	      int ind;
-	      ind = va_arg(ap, int);
-	      if ((ind &lt; 0) ||
-		  (ind &gt;= dimensions[i]))
-		{
-		  va_end(ap);
-		  return(s7_out_of_range_error(sc, 
-                                               "multivector_ref", i, 
-                                               s7_make_integer(sc, ind), 
-                                               "index should be between 0 and the dimension size"));
-		}
-	      index += (ind * offsets[i]);
-	    }
-	  va_end(ap);
-	  return(elements[index]);
-	}
-    }
-  return(s7_wrong_number_of_args_error(sc, 
-                                       "multivector_ref: wrong number of indices: ~A", 
-                                       s7_make_integer(sc, indices)));
-}
-
-int main(int argc, char **argv)
-{
-  char buffer[512];
-  char response[1024];
-  s7_scheme *s7;
-
-  s7 = s7_init(); 
-  s7_eval_c_string(s7, "(define vect (make-vector '(2 3 4) 0))");
-  s7_eval_c_string(s7, "(set! (vect 1 1 1) 32)");
-
-  fprintf(stdout, "vect[0,0,0]: %s, vect[1,1,1]: %s\n",
-	  s7_object_to_c_string(s7, <em class=red>multivector_ref</em>(s7, s7_name_to_value(s7, "vect"), 3, 0, 0, 0)),
-	  s7_object_to_c_string(s7, <em class=red>multivector_ref</em>(s7, s7_name_to_value(s7, "vect"), 3, 1, 1, 1)));
-}
-
-/* vect[0,0,0]: 0, vect[1,1,1]: 32
- */
-</pre>
-</div>
-
-<p>Much later... I decided to add s7_vector_ref_n and s7_vector_set_n to s7.
-</p>
-
-
-
 
 
 
@@ -8110,7 +7482,7 @@ int main(int argc, char **argv)
 
   s7_define_function(s7, "notify-C", scheme_set_notification, 2, 0, false, "called if notified-var is set!");
   s7_define_variable(s7, "notified-var", s7_make_integer(s7, 0));
-  <em class=red>s7_symbol_set_access</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
+  <em class=red>s7_symbol_set_setter</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
 
   if (argc == 2)
     {
@@ -8129,7 +7501,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 	      s7_eval_c_string(s7, response);
 	    }
 	}
@@ -8206,7 +7578,7 @@ int main(int argc, char **argv)
 	  if ((buffer[0] != '\n') || 
 	      (strlen(buffer) &gt; 1))
 	    {                            
-	      sprintf(response, "(write %s)", buffer);
+	      snprintf(response, 1024, "(write %s)", buffer);
 	      s7_eval_c_string(s7, response);
 	    }
 	}
@@ -8395,7 +7767,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8529,7 +7901,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8552,7 +7924,7 @@ int main(int argc, char **argv)
  *
  * and run it:
  *   ex3
- *   &gt; (cload "/home/bil/snd-17/ex3a.so" "init_ex")
+ *   &gt; (cload "/home/bil/snd-18/ex3a.so" "init_ex")
  *   <em class="gray">#t</em>
  *   &gt; (add-1 2)
  *   <em class="gray">3</em>
@@ -8577,6 +7949,39 @@ called:
 <p>This links the s7 function m:j0 to the math library
 function j0.  See <a href="#cload">cload.scm</a> for more details.
 </p>
+
+
+<p>Here's a shorter example:
+</p>
+<div class="indented">
+<pre>
+add1.c:
+
+#include &lt;stdlib.h&gt;
+#include "s7.h"
+
+static s7_pointer add1(s7_scheme *sc, s7_pointer args)
+{
+  if (s7_is_integer(s7_car(args)))
+    return(s7_make_integer(sc, 1 + s7_integer(s7_car(args))));
+  return(s7_wrong_type_arg_error(sc, "add1", 1, s7_car(args), "an integer"));
+}
+
+void add1_init(s7_scheme *sc);
+void add1_init(s7_scheme *sc)
+{
+  s7_define_function(sc, "add1", add1, 1, 0, false, "(add1 int) adds 1 to int");
+}
+
+/* gcc -fpic -c add1.c
+ * gcc -shared -Wl,-soname,libadd1.so -o libadd1.so add1.o -lm -lc
+ * gcc s7.c -o repl -fpic -DWITH_MAIN -I. -ldl -lm -Wl,-export-dynamic -DUSE_SND=0
+ * repl
+ *   (load "libadd1.so" (inlet 'init_func 'add1_init))
+ *   (add1 2)
+ */
+</pre>
+</div>
 
 
 
@@ -8677,7 +8082,7 @@ int main(int argc, char **argv)
       if ((buffer[0] != '\n') || 
 	  (strlen(buffer) &gt; 1))
 	{                            
-	  sprintf(response, "(write %s)", buffer);
+	  snprintf(response, 1024, "(write %s)", buffer);
 	  s7_eval_c_string(s7, response);
 	}
     }
@@ -8775,7 +8180,7 @@ static void listener_init(glistener *g, GtkWidget *w)
    *   "g" is the new glistener pointer, passed to any function that wants to talk to this
    *   listener. 
    */
-  unsigned char prompt[4] = {0xce, 0xbb, '&gt;', '\0'}; /* lambda as prompt */
+  uint8_t prompt[4] = {0xce, 0xbb, '&gt;', '\0'}; /* lambda as prompt */
   GtkTextBuffer *buffer;
 
   buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w));
@@ -8819,7 +8224,12 @@ int main(int argc, char **argv)
 
   s7 = s7_init();  
 
+#if (GTK_CHECK_VERSION(3, 90, 0))
+  gtk_init();
+#else
   gtk_init(&amp;argc, &amp;argv);
+#endif  
+
   shell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   g_signal_connect(G_OBJECT(shell), "delete_event", G_CALLBACK(quit_repl), NULL);
 
@@ -8842,6 +8252,8 @@ int main(int argc, char **argv)
 
 /* in gtk-2: gcc gcall.c -o gcall s7.o glistener.o `pkg-config --libs gtk+-2.0 --cflags` -lm -ldl
  * in gtk-3: gcc gcall.c -o gcall s7.o glistener.o `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
+ * glistener.o can be built similarly:
+ * gcc glistener.c -c `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
  */
 </pre>
 
@@ -8865,7 +8277,7 @@ at helpful documentation.
 
 <p>A multi-listener test program is the Snd file tools/gcall.c which
 is used by tools/gtest.scm for regression testing. One way to name unicode characters
-is: <code>(define-constant |lambda| #u8(#xce #xbb))</code>.  This can be embedded
+is: <code>(define-constant |lambda| #u(#xce #xbb))</code>.  This can be embedded
 in an ordinary s7 string with any string operation: <code>(string-append |lambda| "ambda")</code>
 which returns "&lambda;ambda".  (string-length will still return the number of bytes; to get
 the number of characters in a case like this, use g_utf8_strlen).
@@ -8874,7 +8286,7 @@ assuming we have the usual Scheme-to-C linkages (see snd-glistener.c):
 </p>
 
 <pre class="indented">
-(set! (listener-prompt) (byte-vector #xce #xbb (char-&gt;integer #\&gt;) (char-&gt;integer #\space)))
+(set! (listener-prompt) (byte-vector-&gt;string (byte-vector #xce #xbb (char-&gt;integer #\&gt;) (char-&gt;integer #\space))))
 (set! (listener-font) "Nimbus mono 10")
 (listener-set-prompt-tag *listener* ; ideally this too would be a setter
   (gtk_text_buffer_create_tag 
@@ -8894,75 +8306,144 @@ assuming we have the usual Scheme-to-C linkages (see snd-glistener.c):
 </div>
 
 
+
+<div class="header" id="gtk"><h4>gtk script</h4></div>
+
+<p>gtk-script.c and coretemp.scm provide a very bare-bones example of running
+an s7 script using libgtk.  The C file fires up a gtk-application and loads
+the scheme file "coretemp.scm":
+</p>
+
+<div class="indented">
+<pre>
+#include &lt;gtk/gtk.h&gt;
+#include "s7.h"
+
+static void activate(GtkApplication* app, gpointer user_data)
+{
+  s7_scheme *s7;
+  s7_pointer gtk_env;
+  s7 = s7_init();                                  /* fire up s7 */
+  gtk_env = s7_inlet(s7, s7_list(s7, 2,            /* create an environment */
+	      s7_make_symbol(s7, "*gtk-app*"),     /*   with '*gtk-app* as the GtkApplication pointer */
+		s7_make_c_pointer_with_type(s7, (void *)app, 
+		  s7_make_symbol(s7, "GtkApplication*"), s7_f(s7))));
+  s7_load_with_environment(s7, "coretemp.scm", gtk_env);
+}
+
+int main (int argc, char **argv)
+{
+  GtkApplication *app;
+  int status;
+  app = gtk_application_new("s7gtk.script", G_APPLICATION_FLAGS_NONE);
+  g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+  status = g_application_run(G_APPLICATION(app), argc, argv);
+  g_object_unref(app);
+  return(status);
+}
+/* gtk3: gcc `pkg-config --cflags gtk+-3.0` -o gtk-script gtk-script.c s7.o \
+              -Wl,-export-dynamic -pthread -lm -ldl `pkg-config --libs gtk+-3.0`
+   use gtk+-4.0 for gtk4
+ */
+</pre>
+</div>
+
+<p>coretemp.scm has the libgtk script (this is intended for Linux):
+</p>
+
+<div class="indented">
+<pre>
+(require libc.scm)
+
+(define (main)
+  ;; load libgtk_s7.so (create it if necessary)
+  (when (or (not (defined? '*gtk*))
+	    (eq? #&lt;undefined&gt; (*gtk* 'gtk_window_set_title)))
+    (unless (file-exists? "libgtk_s7.so")
+      (if (file-exists? "libgtk_s7.c")
+	  (begin
+	    (format *stderr* "building libgtk_s7~%")
+	    (system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags gtk+-3.0` -lm -ldl")
+	    (system "gcc libgtk_s7.o -shared -o libgtk_s7.so"))
+	  (error 'no-such-file "can't find libgtk_s7.c")))
+    (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init))))
+
+  ;; run our script displaying cpu temperatures
+  (with-let (sublet *gtk* 
+	      :app (GTK_APPLICATION *gtk-app*) ; from the loading environment
+	      :*libc* *libc*)
+
+    (define (temps)
+      ;; get cpu temperatures
+      (let loop ((core 1) (lst ()))
+	(let ((file-name (string-append "/sys/class/hwmon/hwmon1/temp" (number-&gt;string core) "_input")))
+	  (if (file-exists? file-name)
+	      (let ((temp (let-temporarily (((current-output-port) #f)) ; squelch file size complaints
+			    (with-input-from-file file-name read))))
+		(loop (+ core 1) (cons (* .001 temp) lst)))
+	      (reverse lst)))))
+
+    (define (update-temps data)
+      ;; update the temperatures (this happens once per second)
+      (gtk_label_set_text (GTK_LABEL data) (format #f " ~{~,1F   ~}" (temps)))
+      #t)
+
+    (define (hostname)
+      ;; window's label is the hostname
+      (caddr ((*libc* 'uname))))
+
+    (let ((window (gtk_application_window_new app)) ; app comes from gtk-script.c via s7_load_with_environment
+	  (text (format #f " ~{~,1F   ~}" (temps))))
+      (gtk_window_set_title (GTK_WINDOW window) (hostname))
+      (gtk_window_set_default_size (GTK_WINDOW window) 170 40)
+      (let ((label (gtk_label_new text)))
+	(gtk_container_add (GTK_CONTAINER window) label)
+	(g_timeout_add 1000 update-temps label)     ; run once per second
+	(gtk_widget_show label)
+	(gtk_widget_show window)))))
+
+(main)
+</pre>
+
+</div>
+
+
 <div class="header" id="gdb"><h4>gdb</h4></div>
 
-<p>It is possible to make a mistake while writing C code.
-I switched from Common Lisp to Scheme a long time ago
-partly because it was so painful to debug FFI troubles in Common Lisp, and I
-chose Guile at that time partly because I thought gdb would have native support
-for it.  As far as I know it is still impossible to debug CL FFI troubles, 20 years later!
-And in gdb Python has muscled Guile aside.  Anyway, say you have hit a segfault
-and find yourself staring at a stackful of opaque pointers.  Print statements are your
-friend, of course, and at the gdb command level, the main one in this context is
-s7_object_to_c_string.  Here are some commands (intended for your .gdbinit file)
-that can speed up the process.  They assume the s7_scheme pointer is named "sc".
-(These are now included in the gdbinit file in the s7 tarball).
+<p>
+gdbinit has some debugging commands, intended for your ~/.gdbinit file.
 </p>
 
 <pre class="indented">
-define s7print
-print s7_object_to_c_string(sc, $arg0)
-end
-document s7print
-interpret the argument as an s7 value and display it
-end
-# the current expression is sc-&gt;cur_code
-# the current environment is sc-&gt;envir
-# the error environment is sc-&gt;owlet
-# so for example, to see the current local variables, s7p sc-&gt;envir
-
-define s7eval
-print s7_object_to_c_string(sc, s7_eval_c_string(sc, $arg0))
-end
-document s7eval
-eval the argument (a string)
-end
-
-define s7stack
-print s7_object_to_c_string(sc, s7_stacktrace(sc))
-end
-document s7stack
-display the current stack
-end
-
-define s7value
-print s7_object_to_c_string(sc, s7_name_to_value(sc, $arg0))
-end
-document s7value
-print the value of the variable passed by its print name: s7v "*features*"
-end
+s7print interprets its argument as an s7 value and displays it
+s7eval evals its argument (a string)
+s7stack displays the current s7 stack (nested lets)
+s7value prints the value of the variable passed by its print name: s7v "*features*"
+s7let shows all non-global variables that are currently accessible
+s7history shows the history entries (if enabled)
 </pre>
 
-<p>gdbinit also has s7cell to decode every field of an s7_pointer, and two backtrace
-decoders: s7bt and s7btfull (heh heh).  The bt replacements print the gdb backtrace info,
+<p>gdbinit also has two backtrace
+decoders: s7bt and s7btfull.  The bt replacements print the gdb backtrace info,
 replacing bare pointer numbers with their s7 value, wherever possible:
 </p>
 
 <pre class="indented">
-#1  0x000000000042104e in find_symbol_unchecked (sc=0x97edf0, symbol=<b>vars</b>) at s7.c:6677
-        x = <b>(inlet 'f import-lambda-definition-2)</b>
-        __FUNCTION__ = "find_symbol_unchecked"
-#2  0x00000000006e3424 in eval (sc=0x97edf0, first_op=9) at s7.c:63673
-        _x_ = <b>import-lambda-definition-2</b>
-        _slot_ = <b>'form import-lambda-definition-2</b>
-        _sym_ = <b>env</b>
-        _val_ = <b>import-lambda-definition-2</b>
-        args = <b>(vars)</b>
-        p = <b>(env)</b>
-        func = <b>lint-walk</b>
-        e = <b>(inlet 'name import-lambda-definition-2 'form import-lambda-definition-2)</b>
-        code = <b>(lint-walk name f vars)</b>
-        __FUNCTION__ = "eval"
+(gdb) s7bt
+#0  0x000055555567f7ca in check_cell (p=<b>#&lt;lambda (lst ind)&gt;</b>, 
+    func=0x5555559106e0 &lt;__FUNCTION__.10273&gt; "mark_slot", line=3976) at s7.c:28494
+#1  0x000055555567f84d in check_nref (p=<b>#&lt;lambda (lst ind)&gt;</b>, 
+    func=0x5555559106e0 &lt;__FUNCTION__.10273&gt; "mark_slot", line=3976) at s7.c:28507
+#2  0x0000555555563201 in mark_slot (p=<b>'list-ref #&lt;lambda (lst ind)&gt;</b>) at s7.c:3976
+#3  0x0000555555564ce0 in mark_let (env=<b>#&lt;mock-number-class&gt;</b>) at s7.c:4506
+#4  0x0000555555563239 in mark_slot (p=<b>'mock-number-class #&lt;mock-number-class&gt;</b>) at s7.c:3976
+#5  0x0000555555564ce0 in mark_let (env=<b>(inlet 'mock-number-class #&lt;mock-number-class&gt; 'mock-number mock-number)</b>) at s7.c:4506
+#6  0x0000555555563239 in mark_slot (p=<b>'*mock-number* (inlet 'mock-number-class #&lt;mock-number-class&gt; 'mock-number...)</b>) at s7.c:3976
+#7  0x0000555555564ce0 in mark_let (env=<b>(inlet '*features* (mockery.scm stuff.scm linux autoload dlopen...))</b>) at s7.c:4506
+#8  0x0000555555565697 in mark_closure (p=<b>reactive-vector</b>) at s7.c:4590
+#9  0x0000555555566872 in mark_rootlet (sc=0x555555b41eb0) at s7.c:4813
+#10 0x0000555555566a2f in gc (sc=0x555555b41eb0) at s7.c:4897
+#11 0x000055555558e903 in copy_stack (sc=0x555555b41eb0, old_v=<b>[sc-&gt;stack] #&lt;stack&gt;</b>) at s7.c:9024
 </pre>
 
 <br><br>
@@ -8979,6 +8460,7 @@ mockery.scm has mock data libraries,
 cload.scm is a wrapper for the FFI stuff described above, and 
 stuff.scm is just some arbitrary stuff.  
 gdbinit has some gdb commands for s7. 
+reactive.scm implements some reactive programming macros (set!, let).
 repl.scm is a repl.
 profile.scm provides access to profiling data, if it's enabled.
 </p>
@@ -9247,7 +8729,7 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 	    :let-ref-fallback (lambda (obj sym)
 				(eval-string (gdbm_fetch (obj 'file) (symbol-&gt;string sym))))
 	    
-	    :let-set!-fallback (lambda (obj sym val)
+	    :let-set-fallback (lambda (obj sym val)
 				 (gdbm_store (obj 'file)
 					     (symbol-&gt;string sym)
 					     (object-&gt;string val :readable)
@@ -9258,7 +8740,7 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 			     (let ((key #f)
 				   (length (lambda (obj) (expt 2 20))))
 			       (#_make-iterator
-                                (let ((iterator? #t))
+                                (let ((+iterator+ #t))
 				  (openlet 
 				   (lambda ()
 				     (if key
@@ -9298,7 +8780,6 @@ starting point with: <code>(set! (*repl* 'top-level-let) (sublet (rootlet)))</co
 You can save the current repl state via <code>((*repl* 'save-repl))</code>, and
 restore it later via <code>((*repl* 'restore-repl))</code>.  The repl's saved state
 is in the file save.repl, or the filename can be passed as an argument to save-repl and restore-repl.
-The special symbol '** holds the last value.
 </p>
 
 <p>Meta keys are a problem on the Mac.  You can use ESC instead, but that requires
@@ -9332,20 +8813,16 @@ you can also type shell commands just as in a shell:
 </p>
 
 <pre class="indented">
-&gt; pwd
+&lt;1&gt; pwd
 <em class="gray">/home/bil/cl</em>
-&gt; cd ..
+&lt;2&gt; cd ..
 <em class="gray">/home/bil</em>
-&gt; date
+&lt;3&gt; date
 <em class="gray">Wed 15-Apr-2015 17:32:24 PDT</em>
-&gt; **
-<em class="gray">"Wed 15-Apr-2015 17:32:24 PDT
-"</em>
 </pre>
 
 <p>In most cases, these are handled through *unbound-variable-hook*, checked using "command -v", then passed
-to the underlying shell via the system function.  If s7's (as opposed to libc's) system command
-is accessible, the '** variable holds whatever the command printed.
+to the underlying shell via the system function. 
 </p>
 
 <p>The prompt is set by the function (*repl* 'prompt).  It gets one argument,
@@ -9370,7 +8847,17 @@ the current line number, and should set the prompt string and its length.
 <p>The line number provides a quick way to move around in the history buffer.
 To get a previous line without laboriously typing M-p over and over,
 simply type the line number (without control or meta bits), then M-.
+In some CL repls, the special variable '* holds the last value computed.
+In repl.scm, each value is retained in variables of the form '&lt;n&gt; where n
+is the number shown in the prompt.
 </p>
+
+<pre class="indented">
+&lt;1&gt; (+ 1 2)
+<em class="gray">3</em>
+&lt;2&gt; (* &lt;1&gt; 2)
+<em class="gray">6</em>
+</pre>
 
 <p>Here is an example of adding to the keymap:
 </p>
@@ -9419,13 +8906,13 @@ then return to the caller:
 
 <pre class="indented">
 x: 32
-&gt; x
+&lt;1&gt; x
 <em class="gray">32</em>
-&gt; (set! x 91)
+&lt;2&gt; (set! x 91)
 <em class="gray">91</em>
-&gt; x
+&lt;3&gt; x
 <em class="gray">91</em>
-&gt; now x: 91  ; here I typed C-q at the prompt
+&lt;4&gt; now x: 91  ; here I typed C-q at the prompt
 </pre>
 
 <p>Another possibility:
@@ -9490,6 +8977,7 @@ variables at the start of lint.scm to control additional output:
 *report-boolean-functions-misbehaving*
 *report-repeated-code-fragments*
 *report-quasiquote-rewrites*
+*report-combinable-lets*
 </pre>
 
 <p>See lint.scm for more about these switches.  You can also extend lint by adding your own code,
@@ -9516,165 +9004,6 @@ a forgotten shadow types <code>(lint "insanely-great.scm")</code>...
 </blockquote>
 
 
-
-<!-- ================================================================================ -->
-
-<script language=JavaScript>
-
-/** from Remy Sharp at GitHub
- * Note that this script is intended to be included at the *end* of the document, before </body>
- */ 
-(function (window, document) {
-if ('open' in document.createElement('details')) return; 
- 
-// made global by myself to be reused elsewhere
-var addEvent = (function () {
-  if (document.addEventListener) {
-    return function (el, type, fn) {
-      if (el && el.nodeName || el === window) {
-        el.addEventListener(type, fn, false);
-      } else if (el && el.length) {
-        for (var i = 0; i < el.length; i++) {
-          addEvent(el[i], type, fn);
-        }
-      }
-    };
-  } else {
-    return function (el, type, fn) {
-      if (el && el.nodeName || el === window) {
-        el.attachEvent('on' + type, function () { return fn.call(el, window.event); });
-      } else if (el && el.length) {
-        for (var i = 0; i < el.length; i++) {
-          addEvent(el[i], type, fn);
-        }
-      }
-    };
-  }
-})();
-  
- 
-/** details support - typically in it's own script */
-// find the first /real/ node
-function firstNode(source) {
-  var node = null;
-  if (source.firstChild.nodeName != "#text") {
-    return source.firstChild; 
-  } else {
-    source = source.firstChild;
-    do {
-      source = source.nextSibling;
-    } while (source && source.nodeName == '#text');
- 
-    return source || null;
-  }
-}
- 
-function isSummary(el) {
-  var nn = el.nodeName.toUpperCase();
-  if (nn == 'DETAILS') {
-    return false;
-  } else if (nn == 'SUMMARY') {
-    return true;
-  } else {
-    return isSummary(el.parentNode);
-  }
-}
- 
-function toggleDetails(event) {
-  // more sigh - need to check the clicked object
-  var keypress = event.type == 'keypress',
-      target = event.target || event.srcElement;
-  if (keypress || isSummary(target)) {
-    if (keypress) {
-      // if it's a keypress, make sure it was enter or space
-      keypress = event.which || event.keyCode;
-      if (keypress == 32 || keypress == 13) {
-        // all's good, go ahead and toggle
-      } else {
-        return;
-      }
-    }
- 
-    var open = this.getAttribute('open');
-    if (open === null) {
-      this.setAttribute('open', 'open');
-    } else {
-      this.removeAttribute('open');
-    }
-    
-    // this.className = open ? 'open' : ''; // Lame
-    // trigger reflow (required in IE - sometimes in Safari too)
-    setTimeout(function () {
-      document.body.className = document.body.className;
-    }, 13);
-    
-    if (keypress) {
-      event.preventDefault && event.preventDefault();
-      return false;
-    }
-  }
-}
- 
-function addStyle() {
-  var style = document.createElement('style'),
-      head = document.getElementsByTagName('head')[0],
-      key = style.innerText === undefined ? 'textContent' : 'innerText';
-      
-  var rules = ['details{display: block;}','details > *{display: none;}','details.open > *{display: block;}','details[open] > *{display: block;}','details > summary:first-child{display: block;cursor: pointer;}','details[open]{display: block;}'];
-      i = rules.length;
-  
-  style[key] = rules.join("\n");
-  head.insertBefore(style, head.firstChild);
-}
- 
-var details = document.getElementsByTagName('details'), 
-    wrapper,
-    i = details.length, 
-    j,
-    first = null, 
-    label = document.createElement('summary');
- 
-label.appendChild(document.createTextNode('Details'));
- 
-while (i--) {
-  first = firstNode(details[i]);
- 
-  if (first != null && first.nodeName.toUpperCase() == 'SUMMARY') {
-    // we've found that there's a details label already
-  } else {
-    // first = label.cloneNode(true); // cloned nodes weren't picking up styles in IE - random
-    first = document.createElement('summary');
-    first.appendChild(document.createTextNode('Details'));
-    if (details[i].firstChild) {
-      details[i].insertBefore(first, details[i].firstChild);
-    } else {
-      details[i].appendChild(first);
-    }
-  }
- 
-  // this feels *really* nasty, but we can't target details :text in css :(
-  j = details[i].childNodes.length;
-  while (j--) {
-    if (details[i].childNodes[j].nodeName === '#text' && (details[i].childNodes[j].nodeValue||'').replace(/\s/g, '').length) {
-      wrapper = document.createElement('text');
-      wrapper.appendChild(details[i].childNodes[j]);
-      details[i].insertBefore(wrapper, details[i].childNodes[j]);
-    }
-  }
-  
-  first.legend = true;
-  first.tabIndex = 0;
-}
- 
-// trigger details in case this being used on it's own
-document.createElement('details');
-addEvent(details, 'click', toggleDetails);
-addEvent(details, 'keypress', toggleDetails);
-addStyle();
- 
-})(window, document);
-</script>
-
 </body>
 </html>
 
@@ -9682,8 +9011,8 @@ addStyle();
 <!--
 circular env without set!: 
 (let ()
-   (let ((b (curlet)))
-      (curlet)))
+  (let ((b (curlet)))
+    (curlet)))
 
 circular func (implicit set!):
 (letrec* ((b (lambda () (a)))
@@ -9693,4 +9022,8 @@ circular func (implicit set!):
 (letrec ((b (lambda () (a)))
 	 (a (lambda () (b))))
   (a))
+
+circular macro result:
+((define-macro (_m_) 
+   (signature int-vector)))
 -->

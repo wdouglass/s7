@@ -38,14 +38,14 @@ def get_input(prompt):
 
 
 def start(prompt, url):
-    line = get_input(prompt+" ")
+    line = get_input(prompt)
     while True:
         result = post(url, line)
         if result=="":
             line = get_input("")
         else:
             print
-            line = get_input(prompt+" ")
+            line = get_input(prompt)
 
 
 if __name__ == "__main__":

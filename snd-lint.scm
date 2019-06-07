@@ -89,18 +89,8 @@
 	  
 	  (let ((gen? (symbol name "?"))
 		(gen-make (symbol "make-" name)))
-	    (list (make-fvar :name gen?
-			     :ftype 'define
-			     :decl (dummy-func 'define `(define (,gen? x) (let? x)) '(define (_ x) #f))
-			     :initial-value `(define (,gen? x) (let? x))
-			     :arglist (list 'x)
-			     :env env)
-		  (make-fvar :name gen-make
-			     :ftype 'define*
-			     :decl (dummy-func 'define* `(define* (,gen-make :rest x :allow-other-keys) (apply inlet x)) '(define (_ . x) #f))
-			     :initial-value `(define* (,gen-make :rest x :allow-other-keys) (apply inlet x))
-			     :arglist (list :rest 'x :allow-other-keys)
-			     :env env)))))))
+	    (list (make-fvar gen? 'define (list 'x) `(define (,gen? x) (let? x)) env)
+		  (make-fvar gen-make 'define* (list :rest 'x :allow-other-keys) `(define* (,gen-make :rest x :allow-other-keys) (apply inlet x)) env)))))))
   
   (hash-table-set! (*lint* 'walker-functions) 'defgenerator
 		   (lambda (caller form env)
@@ -119,7 +109,7 @@
      beats-per-measure beats-per-minute bes-i0 bes-i1 bes-in bes-j0 bes-j1 bes-jn bes-k0 bes-k1 bes-kn bes-y0 bes-y1 bes-yn
      bold-peaks-font channel-amp-envs channel-data channel-properties channel-property channel-style
      channel-sync channel-widgets channels channels-equal? channels=? chans clipping
-     clm-default-frequency clm-table-size color->list color-cutoff color-inverted color-scale
+     clm-table-size color->list color-cutoff color-inverted color-scale
      color? colormap colormap-name colormap-ref colormap-size colormap? comb-bank?
      comb? combined-data-color comment contrast-control contrast-control-amp contrast-control-bounds contrast-control?
      contrast-enhancement convolve? count-matches current-font
@@ -147,7 +137,7 @@
      localtime locsig-ref locsig-reverb-ref locsig-type locsig? log-freq-start main-menu main-widgets 
 
      make-env make-pulsed-env make-one-pole make-fir-coeffs make-formant make-all-pass-bank make-iir-filter make-filter 
-     make-comb make-polywave make-bezier make-delay make-nrxycos make-moving-norm make-nrxysin make-firmant make-cairo 
+     make-comb make-polywave make-bezier make-delay make-nrxycos make-moving-norm make-nrxysin make-firmant 
      make-sawtooth-wave make-color make-graph-data make-oscil make-oscil-bank make-two-zero make-fft-window make-moving-max 
      make-filtered-comb-bank make-filtered-comb make-nsin make-rand-interp make-one-pole-all-pass make-rand make-formant-bank 
      make-all-pass make-table-lookup make-one-zero make-notch make-square-wave make-moving-average make-polyshape
@@ -208,7 +198,7 @@
      (hash-table-set! h s #t))
    '(make-env make-pulsed-env make-one-pole make-fir-coeffs make-convolve make-wave-train make-formant make-all-pass-bank 
      make-iir-filter make-filter make-comb make-sample->file make-polywave make-bezier make-delay make-nrxycos make-moving-norm 
-     make-nrxysin make-firmant make-cairo make-sawtooth-wave make-color make-player make-graph-data make-oscil make-oscil-bank 
+     make-nrxysin make-firmant make-sawtooth-wave make-color make-player make-graph-data make-oscil make-oscil-bank 
      make-two-zero make-fft-window make-moving-max make-filtered-comb-bank make-filtered-comb make-nsin make-rand-interp 
      make-one-pole-all-pass make-rand make-formant-bank make-readin make-all-pass make-phase-vocoder make-table-lookup 
      make-one-zero make-notch make-square-wave make-file->frample make-moving-average make-granulate make-polyshape 
@@ -230,3 +220,51 @@
 	    two-zero? wave-train? file->frample? frample->file?
 
 	    mark? mix? mix-sampler? region?))
+
+#|
+;;; a more complicated search:
+
+(let ((old-do-walker (hash-table-ref (*lint* 'walker-functions) 'do)))
+  ;; look for forms like (do ((i 0 (+ i 1))) ((= i 123)) (float-vector-set! v i (* .2 (float-vector-ref v i))))
+
+  (hash-table-set! (*lint* 'walker-functions) 'do
+		   (lambda (caller form env)
+		     (when (and (pair? (cdr form))
+				(pair? (cddr form)))
+		       (let ((vars (cadr form))
+			     (end+res (caddr form))
+			     (body (cdddr form)))
+			 (when (and (pair? vars)
+				    (null? (cdr vars))
+				    (pair? body)
+				    (null? (cdr body))
+				    (pair? (car body))
+				    (eq? (caar body) 'float-vector-set!)
+					;(eqv? 0 (cadar vars)) -- we'll use subvector if not 0
+				    (pair? (cddar vars))
+				    (eqv? (length (caddar vars)) 3))
+			   (let ((stepper (caddar vars))
+				 (expr (cdar body))
+				 (end (car end+res)))
+			     (when (and (eq? (car stepper) '+)
+					(memq (caar vars) stepper)
+					(memv 1 stepper)
+					(eqv? (length end) 3)
+					(memq (caar vars) end)
+					(memq (car end) '(= >=))
+					(symbol? (car expr))
+					(eq? (cadr expr) (caar vars))
+					(pair? (caddr expr)))
+			       (let ((ref (caddr expr)))
+				 (when (and (eq? (car ref) '*)
+					    (or (and (pair? (cadr ref))
+						     (eq? (caadr ref) 'float-vector-ref)
+						     (eq? (cadadr ref) (car expr))
+						     (eq? (caddr (cadr ref)) (caar vars)))
+						(and (pair? (caddr ref))
+						     (eq? (caaddr ref) 'float-vector-ref)
+						     (eq? (cadr (caddr ref)) (car expr))
+						     (eq? (caddr (caddr ref)) (caar vars)))))
+				   (format *stderr* "possible float-vector-scale: ~A~%" form))))))))
+		       (old-do-walker caller form env))))
+|#

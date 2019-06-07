@@ -1,26 +1,42 @@
+(provide 'profile.scm)
+
 (define* (show-profile (n 100))
   (let ((info (*s7* 'profile-info)))
     (if (null? info)
 	(format *stderr* "no profiling data!~%")
-	(let ((vect (make-vector (hash-table-entries info))))
+	(let* ((entries (hash-table-entries info))
+	       (vect (make-vector entries)))
+
 	  (copy info vect)
 	  (set! vect (sort! vect (lambda (a b) (> (cadr a) (cadr b)))))
-	  (set! n (min n (length vect)))
+
+	  (do ((total 0)
+	       (i 0 (+ i 1)))
+	      ((= i entries)
+	       (format *stderr* "total calls: ~A~%" total)) 
+	    (set! total (+ total (cadr (vector-ref vect i)))))
+	  
+	  (set! n (min n entries))
 	  (do ((i 0 (+ i 1)))
-	      ((= i n) (newline *stderr*))
-	    (let* ((data (vect i))
-		   (expr (cddr data)))
-	      (let ((key (car data))
+	      ((= i n) 
+	       (newline *stderr*))
+	    (let ((data (vect i)))
+	      (let ((expr (caddr data))
 		    (count (cadr data))
-		    (file (pair-filename expr))
-		    (line (pair-line-number expr)))
-		(if (> (ash key -20) 0)
-		    (format *stderr* "~A[~A]: ~A~30T~A~%" 
-			    file line count
-			    (let ((val (object->string expr)))
-			      (if (> (length val) 60)
-				  (string-append (substring val 0 56) " ...")
-				  val)))))))))))
+		    (key (car data))
+		    (func (cdddr data)))
+		(let ((file (profile-filename key))
+		      (line (profile-line-number key)))
+		  (if (> line 0)
+		      (format *stderr* "~A:~8T~A ~24T~A[~A]: ~48T~A~%" 
+			      count 
+			      (if (string? func)
+				  (format #f " ~A" func)
+				  "")
+			      file line
+			      (if (> (length expr) 60)
+				  (string-append (substring expr 0 56) " ...")
+				  expr)))))))))))
 
 #|
 (define old-version s7-version)

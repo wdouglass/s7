@@ -15,7 +15,7 @@
 	  (restore-history #f)      ; function to restore history buffer entries from a file
 	  (helpers ())              ; list of functions displaying help strings 
 	  (run #f)                  ; function that fires up a REPL
-	  (top-level-let (sublet (rootlet) :** #f)) ; environment in which evaluation takes place
+	  (top-level-let (sublet (rootlet))) ; environment in which evaluation takes place
 	  (repl-let                 ; environment for keymap functions to access all the REPL innards (cursor-position etc)
 	   
       (with-let (sublet *libc*)
@@ -28,13 +28,20 @@
 	    (call-with-exit
 	     (lambda (return)
 	       (for-each
-		(lambda (symbol)
-		  (let* ((sym (symbol->string symbol))
+		(lambda (par)
+		  (let* ((sym (symbol->string par))
 			 (sym-len (length sym)))
 		    (when (and (>= sym-len text-len)
 			       (string=? text (substring sym 0 text-len)))
 		      (if match
-			  (return text)
+			  ;; more than one match, save the longest text that all syms match
+			  (do ((min-len (min (string-length match) sym-len))
+			       (i text-len (+ i 1)))
+			      ((or (= i min-len)
+				   (not (char=? (match i) (sym i))))
+			       (if (= min-len text-len)
+				   (return text)
+				   (set! match (substring match 0 i)))))
 			  (set! match sym)))))
 		st)
 	       (or match text)))))
@@ -204,11 +211,8 @@
 				(zero? (system (string-append "command -v " var-name " >/dev/null"))))
 		       (set! unbound-case #t)
 		       (if (procedure? ((rootlet) 'system))
-			   (begin
-			     (set! ((*repl* 'top-level-let) '**) (((rootlet) 'system) cur-line #t))
-			     (display ((*repl* 'top-level-let) '**) *stderr*))
-			   (set! ((*repl* 'top-level-let) '**) (system cur-line)))
-		       (set! (h 'result) (symbol " ")))))))
+			   (set! (h 'result) (((rootlet) 'system) cur-line #f))
+			   (set! (h 'result) #f)))))))
 	    
 	    (define (with-repl-let body)
 	      ;; for multiline edits, we will use *missing-close-paren-hook* rather than try to parse the input ourselves.
@@ -238,22 +242,22 @@
 			 (set! (hook-functions *unbound-variable-hook*) old-unbound-var-hook))))
 		
 		  (let ((new-load 
-			 (let ((documentation "this is the repl's load replacement; its default is to use the repl's top-level-let.")
-			       (signature '(values string? let?)))
+			 (let ((+documentation+ "this is the repl's load replacement; its default is to use the repl's top-level-let.")
+			       (+signature+ '(values string? let?)))
 			   (lambda* (file (e (*repl* 'top-level-let)))
-			     (dynamic-wind original-hooks (lambda () (load file e)) repl-hooks))))
+			     (dynamic-wind repl-hooks (lambda () (load file e)) original-hooks))))
 			
 			(new-eval 
-			 (let ((documentation "this is the repl's eval replacement; its default is to use the repl's top-level-let.")
-			       (signature '(values list? let?)))
+			 (let ((+documentation+ "this is the repl's eval replacement; its default is to use the repl's top-level-let.")
+			       (+signature+ '(values list? let?)))
 			   (lambda* (form (e (*repl* 'top-level-let)))
-			     (dynamic-wind original-hooks (lambda () (eval form e)) repl-hooks))))
+			     (dynamic-wind repl-hooks (lambda () (eval form e)) original-hooks))))
 			
 			(new-eval-string 
-			 (let ((documentation "this is the repl's eval-string replacement; its default is to use the repl's top-level-let.")
-			       (signature '(values string? let?)))
+			 (let ((+documentation+ "this is the repl's eval-string replacement; its default is to use the repl's top-level-let.")
+			       (+signature+ '(values string? let?)))
 			   (lambda* (str (e (*repl* 'top-level-let)))
-			     (dynamic-wind original-hooks (lambda () (eval-string str e)) repl-hooks)))))
+			     (dynamic-wind repl-hooks (lambda () (eval-string str e)) original-hooks)))))
 		    
 		    (dynamic-wind
 			(lambda ()
@@ -413,10 +417,13 @@
 	    
 	    ;; to enable mouse click coords (in xterm anyway), (format *stderr* "~C[?9h" #\escape)
 	    ;;    disable: (format *stderr* "~C[?9l" #\escape)
+	    ;;    this is X10_MOUSE -- probably better to use SET_ANY_EVENT_MOUSE 1003
 	    ;; while enabled, mouse selection instead sends coords to repl (so it's annoying)
 	    ;;    also it's sticky!  exit repl does not clear this flag so mouse is effectively dead
-	    ;; upon click, we get ESC [ M bxy -- need to poll for this?
-	    
+	    ;; upon click, we get ESC [ M b x y (b = button info, x/y are coords starting at 32=0 -- 6 chars received)
+	    ;; to trap C-C (define (sigcatch no) (tty-reset) (#_exit)) (if (equal? (signal SIGINT sigcatch) SIG_ERR) (#_exit))
+	    ;; to see click, add a meta-key for M
+	    ;; all this apparently only works in xterm, so I hesitate to build on it here.
 	    
 	    ;; -------- display --------
 	    (define (display-prompt)
@@ -507,7 +514,7 @@
 		      ((null? lst))
 		    (let ((str ((car lst) c)))
 		      (move-cursor i col)
-		      (format *stderr* "~C[K| ~A"  #\escape (if (> (length str) col) (substring str 0 (- col 1)) str))))
+		      (format *stderr* "~C[K| ~A" #\escape (if (> (length str) col) (substring str 0 (- col 1)) str))))
 		  
 		  (move-cursor (+ 2 (length (*repl* 'helpers))) col)
 		  (format *stderr* "+~NC" (- col 2) #\-)
@@ -548,29 +555,29 @@
 	    (define keymap (dilambda
 			    (lambda (c)
 			      (cond ((char? c) 
-				     (keymap-functions (char->integer c)))
+				     (vector-ref keymap-functions (char->integer c)))
 				    ((integer? c) 
-				     (keymap-functions c))
+				     (vector-ref keymap-functions c))
 				    ((not (string? c))
 				     (error 'wrong-type-arg "keymap takes a character or string argument"))
 				    ((= (length c) 1) 
-				     (keymap-functions (char->integer (c 0))))
+				     (vector-ref keymap-functions (char->integer (c 0))))
 				    ((and (= (length c) 2)
 					  (char=? (c 0) #\escape))
-				     (meta-keymap-functions (char->integer (c 1))))
+				     (vector-ref meta-keymap-functions (char->integer (c 1))))
 				    (else (lambda (c) #t))))
 			    (lambda (c f)
 			      (cond ((char? c) 
-				     (set! (keymap-functions (char->integer c)) f))
+				     (vector-set! keymap-functions (char->integer c) f))
 				    ((integer? c) 
-				     (set! (keymap-functions c) f))
+				     (vector-set! keymap-functions c f))
 				    ((not (string? c))
 				     (error 'wrong-type-arg "set! keymap takes a character or string first argument"))
 				    ((= (length c) 1)
-				     (set! (keymap-functions (char->integer (c 0))) f))
+				     (vector-set! keymap-functions (char->integer (c 0)) f))
 				    ((and (= (length c) 2)
 					  (char=? (c 0) #\escape))
-				     (set! (meta-keymap-functions (char->integer (c 1))) f))))))
+				     (vector-set! meta-keymap-functions (char->integer (c 1)) f))))))
 	    
 	    (define C-a 1)     ; #\x01 etc
 	    (define C-b 2)
@@ -643,15 +650,15 @@
 	      
 	      (do ((i 0 (+ i 1)))
 		  ((= i 32))
-		(set! (keymap-functions i) no-op-keyfunc))
+		(vector-set! keymap-functions i no-op-keyfunc))
 	      
 	      (do ((i 32 (+ i 1)))
 		  ((= i 256))
-		(set! (keymap-functions i) main-keyfunc))
+		(vector-set! keymap-functions i main-keyfunc))
 	      
 	      (do ((i 0 (+ i 1)))
 		  ((= i 256))
-		(set! (meta-keymap-functions i) no-op-keyfunc)))
+		(vector-set! meta-keymap-functions i no-op-keyfunc)))
 	    
 	    
 	    ;; -------- cursor movement 
@@ -893,17 +900,19 @@
 				    ;; get the newline out if the expression does not involve a read error
 				    (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
 				      (newline *stderr*)
-				      (let ((val (eval form (*repl* 'top-level-let))))
+				      (let ((val ((lambda args
+						    (if (or (null? args)   ; try to trap (values) -> #<unspecified>
+							    (and (unspecified? (car args))
+								 (null? (cdr args))))
+							#<unspecified>
+							(if (pair? (cdr args))
+							    (cons 'values args)
+							    (car args))))
+						  (eval form (*repl* 'top-level-let)))))
+					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
-					    (begin
-					      (format *stderr* "~S~%" val)
-					      ;; this set! of '** has one odd consequence: if val is a lambda expression
-					      ;;   find_closure in s7 will fallback on the current environment trying to
-					      ;;   find an associated name, and the only thing it finds is '**!  So,
-					      ;;   when we type **, we get back **, which seems perverse.  I suppose
-					      ;;   we could trap the string above, see "**" and change to ~W or something.
-					      (set! ((*repl* 'top-level-let) '**) val))))))))
+					    (format *stderr* "~S~%" val)))))))
 			       
 			       (lambda (type info)
 				 (pop-history)               ; remove last history entry
@@ -911,13 +920,20 @@
 				 (return))))
 			   
 			   (lambda (type info)
-			     (format *stderr* "~A:" (red "error"))
-			     (if (and (pair? info)
-				      (string? (car info)))
-				 (format *stderr* " ~A" (apply format #f info))
-				 (if (not (null? info))
-				     (format *stderr* " ~A" info)))
-			     (newline *stderr*)))
+			     (with-let (unlet)
+			       (format *stderr* "~A:" (red "error"))
+			       (let ((op (*s7* 'print-length)))
+				 (if (< op 32) (set! (*s7* 'print-length) 32))
+				 (if (and (pair? info)
+					  (string? (car info)))
+				     (format *stderr* " ~A" (apply format #f info))
+				     (if (not (null? info))
+					 (format *stderr* " ~A" info)))
+				 (if (< op 32) (set! (*s7* 'print-length) op)))
+			       (with-repl-let
+				(lambda ()
+				  (eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))))
+			       (newline *stderr*))))
 			 
 			 (push-line (copy cur-line))
 			 (new-prompt))))))
@@ -1037,50 +1053,61 @@
 	      (set! (meta-keymap-functions (char->integer #\u)) upper-case)
 	      (set! (meta-keymap-functions (char->integer #\l)) lower-case))
 	    
-	    ;; -------- terminal setup --------
-	    (define* (run file)
-	      (let ((saved #f)
-		    (tty #t))
+	    ;; -------- emacs --------
+	    (define (emacs-repl)
+	      ;; someday maybe use the language server protocol? (not our own rpc stuff or epc), for json, see json.scm 
+	      ;;   probably will need an argument/function for repl to open the channel or whatever
+	      ;; also this does not resend the entire expression after editing
+	      ;;   and does not notice in-place edits
+	      ;;   can <cr> get entire expr?
+	      (let ((buf (c-pointer->string (calloc 512 1) 512)))
+		(format *stderr* "> ")
+		(do ((b (fgets buf 512 stdin) (fgets buf 512 stdin)))
+		    ((zero? (length b))
+		     (#_exit))
+		  (let ((len (strlen buf)))
+		    (when (positive? len)
+		      (do ((i 0 (+ i 1)))
+			  ((or (not (char-whitespace? (buf i)))
+			       (= i len))
+			   (when (< i len)
+			     (let ((str (substring buf 0 (- (strlen buf) 1))))
+			       ;(format *stderr* "str: ~S~%" str)
+			       (catch #t
+				 (lambda ()
+				   (do ()
+				       ((= (string-length str) 0))
+				     (catch 'string-read-error
+				       (lambda ()
+					 (with-repl-let
+					  (lambda ()
+					    (format *stderr* "~S~%> " (eval-string str (*repl* 'top-level-let)))
+					    (set! str ""))))
+				       (lambda (type info)
+					 (fgets buf 512 stdin)
+					 (set! str (string-append str " " (substring buf 0 (- (strlen buf) 1))))))))
+				 (lambda (type info)
+				   (set! str "")
+				   (apply format *stderr* info)
+				   (format *stderr* "~%> "))))))))))))
+
+	    ;; -------- rxvt et al --------
+	    (define (terminal-repl file)		
+	      (let ((saved #f))
 		
 		;; we're in libc here, so exit is libc's exit!
 		(define (tty-reset)
-		  (if tty (tcsetattr terminal-fd TCSAFLUSH saved))
+		  (tcsetattr terminal-fd TCSAFLUSH saved)
 		  (if (not (equal? input-fd terminal-fd)) (close input-fd))
 		  (#_exit))
 		
 		(varlet (*repl* 'top-level-let) 
-		  :exit (let ((documentation "(exit) resets the repl tty and exits the repl"))
+		  :exit (let ((+documentation+ "(exit) resets the repl tty and exits the repl"))
 			  (lambda ()
 			    (newline *stderr*)
 			    (tty-reset))))
 		
-		;; check for dumb terminal
-		(if (or (zero? (isatty terminal-fd))        ; not a terminal -- input from pipe probably
-			(string=? (getenv "TERM") "dumb"))  ; no vt100 codes -- emacs shell for example
-		    (let ((buf (c-pointer->string (calloc 512 1) 512)))
-		      (set! tty #f)
-		      (format *stderr* "> ")
-		      (do ((b (fgets buf 512 stdin) (fgets buf 512 stdin)))
-			  ((zero? (length b))
-			   (#_exit))
-			(let ((len (strlen buf)))
-			  (when (positive? len)
-			    (do ((i 0 (+ i 1)))
-				((or (not (char-whitespace? (buf i)))
-				     (= i len))
-				 (when (< i len)
-				   (with-repl-let
-				    (lambda ()
-				      (catch #t
-					(lambda ()
-					  (format *stderr* "~S~%" (eval-string (substring buf 0 (- (strlen buf) 1)) (*repl* 'top-level-let))))
-					(lambda (type info)
-					  (format *stderr* "error: ")
-					  (apply format *stderr* info)
-					  (newline *stderr*)))))
-				   (format *stderr* "> ")))))))))
-		
-		;; not a pipe or a dumb terminal -- hopefully all others accept vt100 codes
+		;; a "normal" terminal -- hopefully it accepts vt100 codes
 		(let ((buf (termios.make)))
 		  (let ((read-size 128))
 		    (set! next-char                                     ; this indirection is needed if user pastes the selection into the repl
@@ -1098,10 +1125,10 @@
 				   (set! chars (read input-fd cc read-size))
 				   (if (= chars 0)
 				       (tty-reset))
-
+				   
 				   (when (> chars (- last-col prompt-length 12))
 				     (let ((str (substring c 0 chars)))
-
+				       
 				       (when (= chars read-size)
 					 ;; concatenate buffers until we get the entire selection
 					 (let reading ((num (read input-fd cc read-size)))
@@ -1136,8 +1163,10 @@
 						    (unless (char=? (str pos) #\tab)
 						      (set! max-cols (max max-cols (- pos start)))
 						      (set! start pos)))
-						  (if (< (+ old-pos 1) (length str))
-						      (set! cur-line (string-append cur-line (substring str (+ old-pos 1)))))
+						  (when (< (+ old-pos 1) (length str))
+						    (set! cur-line (if (zero? old-pos)
+								       (copy str)
+								       (string-append cur-line (substring str (+ old-pos 1))))))
 						  
 						  ;; if the line is too long, the cursor gets confused, so try to reformat long strings
 						  ;;    this still messes up sometimes
@@ -1155,17 +1184,17 @@
 						(display-lines)
 						(return #\newline)))))
 				       ;; now the pasted-in line has inserted newlines, we hope
-
+				       
 				       (set! c str)
 				       (set! cc (string->c-pointer c))
-
+				       
 				       ;; avoid time-consuming redisplays.  We need to use a recursive call on next-char here
 				       ;;   since we might have multi-char commands (embedded #\escape -> meta, etc)
 				       ;; actually, the time is not the repl's fault -- xterm seems to be waiting
 				       ;;   for the window manager or someone to poke it -- if I move the mouse,
 				       ;;   I get immediate output.  I also get immediate output in any case in OSX.
 				       ;;   valgrind and ps say we're not computing, we're just sitting there.
-
+				       
 				       (catch #t
 					 (lambda ()
 					   (do ((ch (next-char) (next-char)))
@@ -1177,7 +1206,7 @@
 					 
 					 (lambda (type info)
 					   (set! chars 0)
-					   (move-cursor prompt-row prompt-col)
+					   ;(move-cursor prompt-row prompt-col)
 					   (format *stderr* "internal error: ")
 					   (apply format *stderr* info)
 					   (format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
@@ -1205,8 +1234,6 @@
 		  (when (negative? (tcsetattr terminal-fd TCSAFLUSH buf))
 		    (tty-reset))
 		  
-		  
-		  ;; -------- the repl --------
 		  (display-prompt)
 		  (cursor-bounds)
 		  ;; (debug-help)
@@ -1228,18 +1255,33 @@
 			  (help chr)))
 		      
 		      (lambda (type info)
-			(move-cursor prompt-row prompt-col)
+			;(move-cursor prompt-row prompt-col)
 			(format *stderr* "internal error: ")
 			(apply format *stderr* info)
 			(format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
 			(set! chars 0)
 			(new-prompt)))))))
 	    
+	    (define* (run file)
+	      ;; check for dumb terminal
+	      (if (or (zero? (isatty terminal-fd))        ; not a terminal -- input from pipe probably
+		      (string=? (getenv "TERM") "dumb"))  ; no vt100 codes -- emacs subjob for example
+		  (emacs-repl)                            ; TODO: restore support for the pipe case
+		  (terminal-repl file)))
+
 	    (curlet))))))
       
-      (define (save-repl) 
-	(call-with-output-file "save.repl" 
+      (define* (save-repl (file "save.repl"))
+	;; ((*repl* 'save-repl))
+	(call-with-output-file file
 	  (lambda (p) 
+	    (format p ";;; save-repl ~A~%~%" 
+		    (with-let (sublet *libc*)
+		      (let ((timestr (make-string 128))) 
+			(let ((len (strftime timestr 128 "%a %d-%b-%Y %H:%M:%S %Z"
+					     (localtime 
+					      (time.make (time (c-pointer 0 'time_t*)))))))
+			  (substring timestr 0 len)))))
 	    (format p "(for-each~%~NC~
                          (lambda (f)~%~NC~
                            (if (not (provided? f))~%~NC~
@@ -1250,12 +1292,14 @@
 	    (format p "(with-let (*repl* 'repl-let)~%")
 	    (((*repl* 'repl-let) 'write-history) p 2)
 	    (format p ")~%~%")
-	    (format p "~W" (*repl* 'top-level-let)))))
+	    (for-each (lambda (var)
+			(unless (eq? (car var) 'exit)
+			  (format p "(define ~S ~W)~%" (car var) (cdr var))))
+		      (*repl* 'top-level-let)))))
       
       (define (restore-repl) 
 	(set! (*repl* 'top-level-let) (load "save.repl")))  
       ;; I think this could be a merge rather than a reset by using (with-let top-level-let (load ...))
-      
       
       (set! keymap (repl-let 'keymap))
       (set! history (repl-let 'history))
@@ -1293,7 +1337,7 @@
 		(let ((timestr (make-string 128))) 
 		  (let ((len (strftime timestr 128 "%a %d-%b-%Y %H:%M:%S %Z"
 				       (localtime 
-					(time.make (time (c-pointer 0)))))))
+					(time.make (time (c-pointer 0 'time_t*)))))))
 		    (substring timestr 0 len)))))))
     (openlet (inlet 'object->string pd 'let-ref-fallback pd))))
 |#
@@ -1367,7 +1411,7 @@
 	       (make-iterator lt)
 	       (letrec ((iterloop 
 			 (let ((iter (make-iterator lt))
-			       (iterator? #t))
+			       (+iterator+ #t))
 			   (lambda ()
 			     (let ((result (iter)))
 			       (if (and (eof-object? result)
@@ -1409,7 +1453,7 @@
 					    "~C[38;5;208m~A~C[0m: ~S~%"))                              ; orange for less likely choices
 				    #\escape (caar b) #\escape
 				    (if (procedure? (cdar b))
-					(let ((doc (procedure-documentation (cdar b)))) ; returns "" if no doc
+					(let ((doc (documentation (cdar b)))) ; returns "" if no doc
 					  (if (positive? (length doc))
 					      doc
 					      'procedure))
@@ -1476,13 +1520,13 @@
 
 ;;; to display a variable's value as s7 runs using the repl help window:
 ;;;    (define xyz 1) ; some variable...
-;;;    (set! (symbol-access 'xyz) (lambda (sym val) (set! (*repl* 'helpers) (list (lambda (c) (format #f "xyz: ~S" val)))) val))
+;;;    (set! (setter 'xyz) (lambda (sym val) (set! (*repl* 'helpers) (list (lambda (c) (format #f "xyz: ~S" val)))) val))
 
 
 ;;; --------------------------------------------------------------------------------
 #|
 to work in a particular environment:
-    (set! (*repl* 'top-level-let) (sublet (rootlet) :** #f)) ; or any other like *libc*
+    (set! (*repl* 'top-level-let) (sublet (rootlet))) ; or any other like *libc*
 now (define g 43) puts g in the new top-level-let, so ((rootlet) 'g) -> #<undefined>, and ((*repl* 'top-level-let) 'g) -> 43 (= g in repl of course)
 to start with a fresh top-level, just set top-level-let to (sublet (rootlet)) again.
 

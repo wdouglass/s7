@@ -6,12 +6,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <signal.h>
-#include <limits.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <sys/types.h>
 #include <stdbool.h>
 
@@ -23,10 +19,18 @@
   #include <gdk/gdkkeysyms.h>
 #endif
 
+#ifndef GDK_CURSOR_NEW
 #if GTK_CHECK_VERSION(3, 16, 0)
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#if GTK_CHECK_VERSION(3, 94, 0)
+  #define GDK_WATCH "wait"
+  #define GDK_LEFT_PTR "default"
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_from_name(Type, NULL)
 #else
-  #define GDK_CURSOR_NEW(Type) gdk_cursor_new(Type)
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new_for_display(gdk_display_get_default(), Type)
+#endif
+#else
+  #define GDK_CURSOR_NEW(Type) gdk_cursor_new((GdkCursorType)Type)
+#endif
 #endif
 
 typedef struct glistener glistener;
@@ -75,11 +79,20 @@ void glistener_set_helper          (glistener *g, const char *(*help)(glistener 
 void glistener_set_checker         (glistener *g, const char *(*check)(glistener *g, const char *text));
 void glistener_set_evaluator       (glistener *g, void (*eval)(glistener *g, const char *text));
 void glistener_set_colorizer       (glistener *g, void (*colorizer)(glistener *g, glistener_colorizer_t type, int start, int end));
+#if (GTK_CHECK_VERSION(3, 92, 1))
+void glistener_set_keyer           (glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEvent *e));
+#else
 void glistener_set_keyer           (glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEventKey *e));
+#endif
 
 /* these are for regression testing */
 char *glistener_evaluate           (glistener *g);
 char *glistener_complete           (glistener *g);
+
+
+GtkWidget *glistener_text_widget(glistener *g);
+GtkTextBuffer *glistener_text_buffer(glistener *g);
+GtkWidget *glistener_status_widget(glistener *g);
 
 
 /* -------------------------------------------------------------------------------- */
@@ -139,7 +152,7 @@ char *glistener_complete           (glistener *g);
  *
  *  This sets the text of the prompt.  It defaults to ">" but can be anything.
  *  One way to get, for example, the unicode lower-case lambda followed by ">" as the prompt is:
- *    unsigned char prompt[4] = {0xce, 0xbb, '>', '\0'}; 
+ *    uint8_t prompt[4] = {0xce, 0xbb, '>', '\0'}; 
  *    glistener_set_prompt(g, prompt);
  *  UTF8 lambda is 0xce 0xbb.
  *
