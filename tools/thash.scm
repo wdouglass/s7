@@ -50,6 +50,49 @@
 
 ;;; ----------------------------------------
 
+(let ()
+  (define (walk p counts)
+    (if (pair? p)
+	(begin
+	  (walk (car p) counts)
+	  (if (pair? (cdr p))
+	      (walk (cdr p) counts)))
+	(hash-table-set! counts p (+ (or (hash-table-ref counts p) 0) 1))))
+  
+  (define (s7test-reader)
+    (let ((port (open-input-file "/home/bil/cl/s7test.scm"))
+	  (counts (make-hash-table)))
+      (do ((expr (read port) (read port)))
+	  ((eof-object? expr) 
+	   counts)
+	(walk expr counts))))
+  
+  (define (sort-counts counts)
+    (let ((len (hash-table-entries counts)))
+      (do ((v (make-vector len))
+	   (h (make-iterator counts))
+	   (i 0 (+ i 1)))
+	  ((= i len)
+	   (sort! v (lambda (e1 e2) (> (cdr e1) (cdr e2))))
+	   v)
+	(vector-set! v i (iterate h)))))
+  
+  (sort-counts (s7test-reader)))
+
+;;; ----------------------------------------
+
+(let ()
+  (define (hash-ints)
+    (let ((counts (make-hash-table 8 = (cons integer? integer?))))
+      (do ((i 0 (+ i 1))
+	   (z (random 100) (random 100)))
+	  ((= i 5000000) counts)
+	(hash-table-set! counts z (+ (or (hash-table-ref counts z) 0) 1)))))
+
+  (hash-ints))
+
+;;; ----------------------------------------
+
 (define symbols (make-vector 1))
 (define strings (make-vector 1))
 
