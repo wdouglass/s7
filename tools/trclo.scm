@@ -110,6 +110,13 @@
 	    #\?
 	    (loop (- i 1))))))
 
+(define (llet-1 x y)             ; rclo_let_if_a_laa
+  (let loop ((x x) (y y))
+    (let ((z (+ x y)))
+      (if (< z 0)
+	  z
+	  (loop (- x 1) (- y 1))))))
+
 (define (sum-f)
   (let ((n (sum-1 10000)))
     (if (not (= n 50005000))
@@ -133,7 +140,11 @@
 
   (let ((result (sum-6 big-str)))
     (if result
-	(format #t ";sum6: ~A~%" result))))
+	(format #t ";sum6: ~A~%" result)))
+
+  (let ((result (llet-1 10000 10001)))
+    (if (not (= result -1))
+	(format #t ";llet-1: ~A~%" result))))
 
 ;;; --------
 
@@ -171,6 +182,12 @@
 	  #\?
 	  (psum-6 (- i 1)))))
 
+(define (plet-1 x y)             ; rclo_let_if_a_laa
+  (let ((z (+ x y)))
+    (if (< z 0)
+	z
+	(plet-1 (- x 1) (- y 1)))))
+
 (define (psum-f)
   (let ((n (psum-1 10000 0)))
     (if (not (= n 50005000))
@@ -194,7 +211,11 @@
 
   (let ((result (psum-6 9999)))
     (if result
-	(format #t ";psum6: ~A~%" result))))
+	(format #t ";psum6: ~A~%" result)))
+
+  (let ((result (plet-1 10000 10001)))
+    (if (not (= result -1))
+	(format #t ";plet-1: ~A~%" result))))
 
 
 ;;; --------------------------------------------------------------------------------

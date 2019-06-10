@@ -909,10 +909,10 @@
 							    (cons 'values args)
 							    (car args))))
 						  (eval form (*repl* 'top-level-let)))))
-					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
-					    (format *stderr* "~S~%" val)))))))
+					    (format *stderr* "~S~%" val))
+					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet)))))))
 			       
 			       (lambda (type info)
 				 (pop-history)               ; remove last history entry
