@@ -97,8 +97,8 @@
 (define (call-with-port port proc) ((if (input-port? port) call-with-input-file call-with-output-file) port proc))
 
 
-(define (bytevector-u8-ref b k) (b k))
-(define (bytevector-u8-set! b k c) (set! (b k) c))
+(define bytevector-u8-ref byte-vector-ref)
+(define bytevector-u8-set! byte-vector-set!)
 (define bytevector-u8 (dilambda (lambda (b k) (b k)) (lambda (b k c) (set! (b k) c))))
 (define bytevector-length length)
 (define bytevector-copy vector-copy!)
@@ -122,8 +122,14 @@
 (define write-u8 write-byte) 
 (define u8-ready? char-ready?) 
 (define peek-u8 peek-char)
-(define* (utf8->string v (start 0) end) (substring v start (or end (length v))))
-(define* (string->utf8 s (start 0) end) (string->byte-vector (utf8->string s start end)))
+(define* (utf8->string v (start 0) end) 
+  (if (string? v)
+      v
+      (substring (byte-vector->string v) start (or end (length v)))))
+(define* (string->utf8 s (start 0) end) 
+  (if (byte-vector? s)
+      s
+      (string->byte-vector (utf8->string s start end))))
 (define write-simple write)
 
 (define (eof-object) #<eof>)
