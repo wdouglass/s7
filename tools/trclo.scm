@@ -283,6 +283,48 @@
     (if (not (= result -1))
 	(format #t ";plet-1: ~A~%" result))))
 
+;;; --------
+
+(define when-size 3000)
+
+(define (when1 fv z)
+  (let ((x (vector-ref fv 0)))
+    (when (< x when-size)
+      (vector-set! fv 0 z)
+      (when1 fv (+ z 1)))))
+
+(define (unless1 fv z)
+  (let ((x (vector-ref fv 0)))
+    (unless (>= x when-size)
+      (vector-set! fv 0 z)
+      (unless1 fv (+ z 1)))))
+
+(define (when2 fv z)
+  (let ((x (vector-ref fv 0)))
+    (when (< x z)
+      (vector-set! fv 0 (+ x 1))
+      (when2 fv z))))
+
+(define (unless2 fv z)
+  (let ((x (vector-ref fv 0)))
+    (unless (>= x z)
+      (vector-set! fv 0 (+ x 1))
+      (unless2 fv z))))
+
+(define (when3 fv z)
+  (let ((x (vector-ref fv 0)))
+    (when (< x z)
+      (vector-set! fv 0 (+ x 1))
+      (vector-set! fv 0 (+ x 1))
+      (when3 fv z))))
+
+(define (when-f)
+  (when1 (vector 0) 0)
+  (unless1 (vector 0) 0)
+  (when2 (vector 0) when-size)
+  (unless2 (vector 0) when-size)
+  (when3 (vector 0) when-size))
+
 
 ;;; --------------------------------------------------------------------------------
 (define (tests)
@@ -292,6 +334,7 @@
     (and-f)
     (psum-f)
     (pand-f)
+    (when-f)
     ))
 
 (tests)

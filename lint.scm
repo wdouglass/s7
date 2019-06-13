@@ -1260,6 +1260,98 @@
 	    (else (cons (tree-subst new old (car tree))
 			(tree-subst new old (cdr tree))))))
     
+
+    (define (do->make-list caller form var1 var2) ; (var1: (... (+/-)) var2: (... (cons)))
+      (when (and (len=2? (cdr var2))
+		 (len=3? (caddr var1))
+		 (len=3? (caddr var2)))
+	(let ((name1 (car var1))
+	      (name2 (car var2))
+	      (init1 (cadr var1))
+	      (init2 (cadr var2))
+	      (step1 (caddr var1))
+	      (step2 (caddr var2))
+	      ;; (do ((i 0 (+ i 1)) (lst () (cons 1 lst))) ((= i 10) lst)) -> (make-list 10 1)
+	      ;;      name1: i, init1: 0 :step1: (+ i 1), name2: lst, init2: (), step2: (cons 1 lst)
+	      ;;                                          end: (= i 10), result: (lst)
+	      (end (and (pair? (caddr form)) (caaddr form)))
+	      (result (and (pair? (caddr form)) (cdaddr form))))
+	  
+	  ;; the equivalent named let:
+	  ;; (let loop ((i 0) (lst ())) (if (= i 10) lst (loop (+ i 1) (cons 1 lst))))
+	  
+	  (when (eq? (car end) 'negative?)
+	    (set! end `(< ,(cadr end) 0)))
+	  
+	  (when (and (len=1? result)
+		     (eq? name2 (caddr step2))
+		     (eq? name1 (cadr end))
+		     (eq? (car result) name2)
+		     (len=3? end)
+		     (any-null? init2)
+		     (if (eq? (car step1) '+)          ; (+ i 1) or (+ 1 i)
+			 (and (memv 1 step1)
+			      (memq name1 step1)
+			      (memq (car end) '(= >= >)))
+			 (and (eq? name1 (cadr step1)) ; (- i 1)
+			      (eqv? 1 (caddr step1))
+			      (memq (car end) '(= <= <)))))
+	    
+	    (let ((fill (cadr step2)))
+	      (cond ((or (not (pair? fill))
+			 (eq? (car fill) 'quote)
+			 (not (tree-memq name1 fill))) ; perhaps if (pair? fill) check somehow for changing fill values
+		     (unless (eq? name1 fill) ; "iota" in this case
+		       (let ((len (cond 
+				   ((and (integer? init1)
+					 (integer? (caddr end)))
+				    (if (memq (car end) '(> <))
+					(+ (abs (- init1 (caddr end))) 1)
+					(abs (- init1 (caddr end)))))
+				   
+				   ((eq? (car step1) '+)
+				    (if (eqv? init1 0)
+					(if (eq? (car end) '>)
+					    `(+ ,(caddr end) 1)
+					    (caddr end))
+					(if (eq? (car end) '>)
+					    `(+ (- ,(caddr end) ,init1) 1)
+					    `(- ,(caddr end) ,init1))))
+				   
+				   ;; else (car step1) is '-
+				   ((eqv? (caddr end) 0)
+				    (if (eq? (car end) '<)
+					`(+ ,init1 1)
+					init1))
+				   
+				   ((eq? (car end) '<)
+				    `(+ (- ,init1 ,(caddr end)) 1))
+				   (else `(- ,init1 ,(caddr end))))))
+			 
+			 (lint-format "perhaps ~A~A" caller
+				      (if (and (pair? fill)
+					       (not (eq? (car fill) 'quote)))
+					  (format #f ", (assuming ~S is not problematic), " fill)
+					  "")
+				      (lists->string form
+						     `(make-list ,len ,fill))))))
+		    
+		    ((and (memq (car fill) '(string-ref vector-ref))
+			  (len=3? fill)
+			  (or (eq? (caddr fill) name1)
+			      (equal? (caddr fill) `(- ,name1 1))))
+		     (lint-format "perhaps ~A" caller
+				  (format #f "~A -> ~A" form 
+					  (if (eq? (car fill) 'string-ref) 'string->list 'vector->list))))
+		    
+		    ((and (len=2? fill)
+			  (len=3? (cadr fill))
+			  (memq (caadr fill) '(vector-ref string-ref byte-vector-ref float-vector-ref int-vector-ref  list-ref))
+			  (eq? name1 (caddr (cadr fill))))
+		     (lint-format "perhaps ~A" caller
+				  (format #f "~A -> ~A" form 
+					  `(map ,(car fill) ,(cadadr fill)))))))))))
+    
     (define recursion->iteration 
       (let ((rewrite-map 
 	     (lambda (map? name iter sequence form outer-form)
@@ -1304,7 +1396,6 @@
 	    
 	    (let ((body ((if (memq ftype '(let let*)) cdddr cddr) initial-value))
 		  (for-each-case #f)) ; avoid rewriting twice
-	      
 	      (when (and (len=1? body)
 			 (len>1? (car body))
 			 (let ((exprs (cdar body)))
@@ -1630,7 +1721,21 @@
 					   (lists->string initial-value
 							  (if (memq ftype '(let let*))
 							      do-loop
-							      (list (car initial-value) (cadr initial-value) do-loop)))))))))))))))))
+							      (list (car initial-value) (cadr initial-value) do-loop))))
+
+			      (when (and (len=2? arglist)
+					 (null? (cdddr do-loop))) ; no body
+				(let ((var1 (caadr do-loop)))
+				  (if (and (len=2? (cdr var1))
+					   (pair? (caddr var1))
+					   (eq? (caaddr var1) 'cons))
+				      (do->make-list name  do-loop (cadadr do-loop) var1)
+				      (let ((var2 (cadadr do-loop)))
+					(if (and (len=2? (cdr var2))
+						 (pair? (caddr var2))
+						 (eq? (caaddr var2) 'cons))
+					    (do->make-list name do-loop var1 var2))))))
+			      )))))))))))))
 
     (define (improper-arglist->define* name ftype arglist initial-value)
       ;; look for define/lambda -> define*/lambda*
@@ -18491,69 +18596,6 @@
 									  ,@(cadr-subst end-var new-sym (cdddr form)))
 									,end-var)))))))))))))))
 	  ;; -------- do->copy --------
-
-	  (define (do->make-list caller form var1 var2) ; (var1: (... (+/-)) var2: (... (cons)))
-	    ;(format *stderr* "do->make-list: ~S~%" form)
-
-	    (let ((end (and (pair? (caddr form)) (caaddr form)))
-		  (result (and (pair? (caddr form)) (cdaddr form))))
-	      (if (and (len=3? end)
-		       (len=1? result)
-		       (len=2? (cdr var2))
-		       (len=3? (caddr var1))
-		       (len=3? (caddr var2)))
-		  (let ((name1 (car var1))
-			(name2 (car var2))
-			(init1 (cadr var1))
-			(init2 (cadr var2))
-			(step1 (caddr var1))
-			(step2 (caddr var2)))
-		    ;; (do ((i 0 (+ i 1)) (lst () (cons 1 lst))) ((= i 10) lst)) -> (make-list 10 1)
-		    ;;      name1: i, init1: 0 :step1: (+ i 1), name2: lst, init2: (), step2: (cons 1 lst)
-		    ;;                                          end: (= i 10), result: (lst)
-
-		    ;; the equivalent named let:
-		    ;; (let loop ((i 0) (lst ())) (if (= i 10) lst (loop (+ i 1) (cons 1 lst))))
-
-		    (if (and (eq? name2 (caddr step2))
-			     (eq? name1 (cadr end))
-			     (eq? (car result) name2)
-			     (or (eq? (car end) '=) 
-				 (eq? (car end) (if (eq? (car step1) '+) '>= '<=)))
-			     (any-null? init2)
-			     (if (eq? (car step1) '+)          ; (+ i 1) or (+ 1 i)
-				 (and (memq 1 step1)
-				      (memq name1 step1)) 
-				 (and (eq? name1 (cadr step1)) ; (- i 1)
-				      (eqv? 1 (caddr step1)))))
-			;; if (tree-memq name1 step2) we might have string->list etc
-			(if (not (tree-memq name1 step2)) ; perhaps if (pair? fill) check somehow for changing fill values
-			    (let ((fill (cadr step2))
-				  (len (if (and (integer? init1)
-						(integer? (caddr end)))
-					   (abs (- init1 (caddr end)))
-					   (if (eq? (car step1) '+)
-					       (if (eqv? init1 0)
-						   (caddr end)
-						   `(- ,(caddr end) ,init1))
-					       (if (eqv? (caddr end) 0)
-						   init1
-						   `(- ,init1 ,(caddr end)))))))
-			      (lint-format "perhaps ~A~A" caller
-					   (if (and (pair? fill)
-						    (not (eq? (car fill) 'quote)))
-					       (format #f ", (assuming ~S is not problematic), " fill)
-					       "")
-					   (lists->string form
-							  `(make-list ,len ,fill))))
-			    ;; look for *->list and map
-			    ;(format *stderr* "memq: ~W~%" form)
-			    ;end test uses < 
-			    ;; (do ((i (- end 1) (- i 1)) (ans '() (cons (string-ref s i) ans))) ((< i start) ans)) -- (string->list s start end)?
-			    ;; (do ((i (- len 1) (- i 1)) (result '() (cons (f (byte-vector-ref bv i)) result))) ((negative? i) result)) -- (map f bv)?
-			    ;; (do ((k r (- k 1)) (r '() (cons (vector-ref v (- k 1)) r))) ((= k 10) r)) -> vector->list
-			    ))))))
-
 	  (define (do->copy caller form vars)
 	    ;; check for do-loop as copy/fill! stand-in and other similar cases
 	    (if (len=1? vars)
