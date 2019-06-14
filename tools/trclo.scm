@@ -325,6 +325,39 @@
   (unless2 (vector 0) when-size)
   (when3 (vector 0) when-size))
 
+;;; --------
+
+(define (cond1 x y)
+  (cond ((null? x) y)
+	((null? y) #f)
+	(else (cond1 (cdr x) (cdr y)))))
+
+(define (cond2 x y)
+  (cond ((null? x) y)
+	(else (cond2 (cdr x) y))))
+
+(define (cond3 x)
+  (cond ((null? x) 0)
+	(else (cond3 (cdr x)))))
+
+(define (cond4 x y)
+  (cond ((null? x) 0)
+	((null? y) (cond4 (cdr x) y))
+	(else (cond4 (cdr x) (cdr y)))))
+
+(define (cond5 lst res)
+  (cond ((null? lst) (reverse res))
+	((eqv? (car lst) 1) (cond5 (cdr lst) res))
+	((eqv? (car lst) 2) (cond5 (cdr lst) res))
+	(#t (cond5 (cdr lst) (cons (car lst) res)))))
+
+(define (cond-f)
+  (cond1 big-list big-list)
+  (cond2 big-list big-list)
+  (cond3 big-list)
+  (cond4 big-list big-list)
+  (do ((i 0 (+ i 1))) ((= i 1000)) (cond5 '(1 3 2 5 4 3 1) ())))
+  
 
 ;;; --------------------------------------------------------------------------------
 (define (tests)
@@ -335,6 +368,7 @@
     (psum-f)
     (pand-f)
     (when-f)
+    (cond-f)
     ))
 
 (tests)
