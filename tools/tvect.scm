@@ -760,5 +760,20 @@
 (unless (= (sum-f1111) 7812437500.0)
   (format *stderr* "f1111: ~S~%" (sum-f1111)))
 
+(define (vcop a b n)
+  (let ((c (do ((i (- n 1) (- i 1)))
+	       ((< i 0) b)
+	     (vector-set! b i (vector-ref a i)))))
+    (do ((i 0 (+ i 1)))
+	((= i n) a)
+      (vector-set! a i (vector-ref b i)))))
+
+(define (tvcop)
+  (do ((k 0 (+ k 1)))
+      ((= k 1000))
+    (vcop (make-vector 1000 1) (make-vector 1000 0) 1000) (make-vector 1000 1)))
+
+(tvcop)
+
 (exit)
 

@@ -351,12 +351,41 @@
 	((eqv? (car lst) 2) (cond5 (cdr lst) res))
 	(#t (cond5 (cdr lst) (cons (car lst) res)))))
 
+(define (lcond1 x y)
+  (let ((z (+ x y)))
+    (cond ((= 0 z) pi)
+	  ((< z 0) 'oops)
+	  (else (lcond1 (- x 1) (- y 1))))))
+
+(define (lcond2 x)
+  (let ((z (+ x 1)))
+    (cond ((= 0 z) pi)
+	  ((< z 0) 'oops)
+	  (else (lcond2 (- x 1))))))
+
+  (display (lcond2 5000)) (newline)
+
+(define (lcond3 x y)
+  (let ((z (+ x y)))
+    (cond ((= 0 z) pi)
+	  ((< z 0) (lcond3 (+ x 1) y))
+	  (else (lcond3 (- x 1) y)))))
+
+(define (lcond4 x y z)
+  (let ((a (+ x y z)))
+    (cond ((= 0 z) pi)
+	  (else (lcond4 x (- y 1) (- z 1))))))
+
 (define (cond-f)
   (cond1 big-list big-list)
   (cond2 big-list big-list)
   (cond3 big-list)
   (cond4 big-list big-list)
-  (do ((i 0 (+ i 1))) ((= i 1000)) (cond5 '(1 3 2 5 4 3 1) ())))
+  (do ((i 0 (+ i 1))) ((= i 1000)) (cond5 '(1 3 2 5 4 3 1) ()))
+  (lcond1 5000 5000)
+  (lcond2 5000)
+  (lcond3 5000 5000)
+  (lcond4 5000 5000 5000))
   
 
 ;;; --------------------------------------------------------------------------------

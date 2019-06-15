@@ -2591,6 +2591,7 @@
 			    old-arg new-arg comment))))))))
 
     (define (and-redundant? arg1 arg2)
+      ;(format *stderr* "ar: ~A ~A~%" arg1 arg2)
       (let ((type1 (car arg1))
 	    (type2 (car arg2)))
 	(and (symbol? type1)
@@ -11952,12 +11953,12 @@
 	  (let ((vname (var-name local-var)))
 	    (when (and (hash-table-ref bools func)
 		       (not (eq? vname func)))
-	      
 	      (when (or (eq? vtype func)
 			(and (compatible? vtype func)
-			     (not (subsumes? vtype func))))
+			     (not (subsumes? vtype func))
+			     (not (eq? vtype 'proper-list?))))
 		(lint-format "~A is ~A, so ~A is #t" caller vname (prettify-checker-unq vtype) call))
-	      
+
 	      (unless (compatible? vtype func)
 		(lint-format "~A is ~A, so ~A is #f" caller vname (prettify-checker-unq vtype) call)))
 	    
@@ -18607,40 +18608,69 @@
 		    (when (and (pair? end-test)
 			       (len=1? body)
 			       (pair? (car body)) 
-			       (memq (car end-test) '(>= =)))
-		      (let ((vname (car first-var))
-			    (start (cadr first-var))
-			    (step (and (pair? (cddr first-var))
-				       (caddr first-var)))
-			    (end (caddr end-test)))
-			(when (and (pair? step)
-				   (eq? (car step) '+)
-				   (memq vname step)
-				   (memv 1 step)
-				   (null? (cdddr step))
-				   (or (eq? (cadr end-test) vname)
-				       (and (eq? (car end-test) '=)
-					    (eq? (caddr end-test) vname)
-					    (set! end (cadr end-test)))))
-			  ;; we have (do ((v start (+ v 1)|(+ 1 v))) ((= v end)|(= end v)|(>= v end)) one-statement)
-			  (set! body (car body))
-			  ;; write-char is the only other common case here -> write-string in a few cases
-			  (when (and (memq (car body) '(vector-set! float-vector-set! int-vector-set! list-set! string-set!))
-				     ;; integer type check here isn't needed because we're using this as an index below
-				     ;;   the type error will be seen in report-usage if not earlier
-				     (eq? (caddr body) vname)
-				     (let ((val (cadddr body)))
-				       (set! setv val)
-				       (or (code-constant? val)
-					   (and (pair? val)
-						(memq (car val) '(vector-ref float-vector-ref int-vector-ref list-ref string-ref))
-						(eq? (caddr val) vname)))))
-			    ;; (do ((i 2 (+ i 1))) ((= i len)) (string-set! s i #\a)) -> (fill! s #\a 2 len)
-			    (lint-format "perhaps ~A" caller 
-					 (lists->string form 
-							(if (code-constant? setv)
-							    (list 'fill! (cadr body) (cadddr body) start end)
-							    (list 'copy (cadr setv) (cadr body) start end))))))))))
+			       (memq (car end-test) '(>= = < negative?)))
+		      (set! body (car body))
+		      (when (memq (car body) '(vector-set! float-vector-set! int-vector-set! list-set! string-set!))
+			(let ((vname (car first-var))
+			      (start (cadr first-var))
+			      (step (and (pair? (cddr first-var))
+					 (caddr first-var)))
+			      (end (if (eq? (car end-test) 'negative?) 0 (caddr end-test))))
+			  (when (and (eq? (caddr body) vname)
+				     (pair? step)
+				     (case (car step)
+				       ((+)
+					(and (memq vname step)
+					     (memv 1 step)
+					     (null? (cdddr step))           ; (+ v 1) or (+ 1 v)
+					     (memq (car end-test) '(>= =)))) ; (= ...) or (>= ...)
+				       ((-)
+					(and (eq? (cadr step) vname)
+					     (eqv? (caddr step) 1)          ; (- v 1)
+					     (case (car end-test)
+					       ((< = <=)                    ; (< ...) or (negative? ...)
+						(null? (cdddr step)))
+					       ((negative?
+						 (null? (cddr step))))
+					       (else #f))))
+				       (else #f))
+				     (or (eq? (cadr end-test) vname)
+					 (and (eq? (car end-test) '=)
+					      (eq? (caddr end-test) vname)
+					      (set! end (cadr end-test)))))
+			    ;; we have (do ((v start (+ v 1)|(+ 1 v))) ((= v end)|(= end v)|(>= v end)) one-statement)
+			    ;;      or (do ((v start (- v 1)))         ((= v end)|(= end v)|(negative? v)|(< v end)) one-statement)
+			    ;; write-char is the only other common case here -> write-string in a few cases
+			    ;; integer type check here isn't needed because we're using this as an index below
+			    ;;   the type error will be seen in report-usage if not earlier
+			    (let ((val (cadddr body)))
+			      (set! setv val)
+
+			      (when (eq? (car step) '-)
+				(let ((tmp start))
+				  (set! start end)
+				  (set! end tmp))
+				(if (and (len=3? end)
+					 (eq? (car end) '-)
+					 (eqv? (caddr end) 1))
+				    (set! end (cadr end))
+				    (set! end `(+ ,end 1))))
+
+			      (when (or (code-constant? val)  ; fill!
+					(and (pair? val)      ; copy
+					     (memq (car val) '(vector-ref float-vector-ref int-vector-ref list-ref string-ref))
+					     (eq? (caddr val) vname)))
+				;; (do ((i 2 (+ i 1))) ((= i len)) (string-set! s i #\a)) -> (fill! s #\a 2 len)
+				(lint-format "perhaps ~A" caller 
+					     (lists->string form 
+							    (if (code-constant? setv)
+								(list 'fill! (cadr body) (cadddr body) start end)
+								(if (and (eqv? start 0)
+									 (pair? end)
+									 (memq (car end) '(length vector-length string-length))
+									 (eq? (cadr end) (cadr setv)))
+								    (list 'copy (cadr setv) (cadr body))
+								    (list 'copy (cadr setv) (cadr body) start end)))))))))))))
 		(when (and (len=2? vars)
 			   (null? (cdddr form))) ; no body
 		  ;; (do ((i 0 (+ i 1)) (lst () (cons 1 lst))) ((= i 10) lst)) -> (make-list 10 1)
@@ -23119,7 +23149,7 @@
 	;; look for s7_eval_c_string, get string arg without backslashes, call lint
 	(let ((pos (string-position "s7_eval_c_string(sc, \"(" line)))
 	  (when pos
-	    (let ((code (substring line (+ pos (length "s7_eval_c_string(sc, \"")))))
+	    (let ((code (substring line (+ pos 22)))) ; (length "s7_eval_c_string(sc, \"")
 	      (if (not (string-position "\");" code))
 		  (do ((cline (read-line f #t) (read-line f #t))
 		       (rline 1 (+ rline 1)))
