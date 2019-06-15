@@ -2700,8 +2700,8 @@ static void init_types(void)
 #define increment_opt3_ctr(P)          do {if (ctr3_is_set(P)) P->object.cons_ext.ce.ctr++; else set_opt3_ctr(P, 0);} while (0)
 #endif
 
-#define c_callee(f)                    ((s7_function)opt2(f,      F_CALL))
-#define c_call(f)                      ((s7_function)opt2(f,      F_CALL))
+#define c_callee(f)                    ((s7_function)opt2(f, F_CALL))
+#define c_call(f)                      ((s7_function)opt2(f, F_CALL))
 #define set_c_call_checked(f, _X_)     do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #if S7_DEBUGGING
   #define set_c_call(f, _X_)           do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null: %s\n", __func__, __LINE__, DISPLAY(f)); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
@@ -77034,6 +77034,38 @@ static bool op_do_no_vars(s7_scheme *sc)
   return(false);
 }
 
+static bool opt_do_copy(s7_scheme *sc, opt_info *o, s7_int start, s7_int stop)
+{
+  s7_pointer (*fp)(void *o);
+  fp = o->v[0].fp;
+  if (start >= stop) return(true);
+  if ((fp == opt_p_pip_sso) &&
+      (o->v[2].p == o->v[4].p) &&
+      (o->v[5].p_pip_f == vector_set_p_pip_direct) &&
+      (is_normal_vector(slot_value(o->v[1].p))) && 
+      (is_normal_vector(slot_value(o->v[3].p))) && 
+      (!is_typed_vector(slot_value(o->v[1].p))) &&
+      (o->v[6].p_pi_f == vector_ref_p_pi_direct))
+    {
+      s7_pointer source, dest;
+      source = slot_value(o->v[3].p);
+      dest = slot_value(o->v[1].p);
+      if (start < 0) 
+	return(out_of_range(sc, sc->vector_set_symbol, wrap_integer1(sc, 2), wrap_integer2(sc, start), its_negative_string));
+      if (stop > vector_length(source))
+	return(out_of_range(sc, sc->vector_ref_symbol, wrap_integer1(sc, 2), wrap_integer2(sc, stop), its_too_large_string));
+      if (stop >= vector_length(dest))
+	return(out_of_range(sc, sc->vector_set_symbol, wrap_integer1(sc, 2), wrap_integer2(sc, stop), its_too_large_string));
+      memcpy((void *)(vector_elements(dest) + start), 
+	     (void *)((vector_elements(source)) + start), 
+	     (stop - start) * sizeof(s7_pointer));
+      
+      /* TODO: expand this to other types, and fill! */
+      return(true);
+    }
+  return(false);
+}
+
 static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
 {
 #if (!WITH_GMP)
@@ -77131,7 +77163,7 @@ static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
 
   if ((stepf == g_subtract_s1) &&
       (is_t_integer(slot_value(ctr_slot))) &&
-      (endf == g_less_x0) &&
+      ((endf == g_less_x0) || (endf == g_less_2)) &&
       (is_t_integer(slot_value(end_slot))))
     {
       s7_int i, start, stop;
@@ -77141,29 +77173,11 @@ static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
       if (func == opt_cell_any_nr)
 	{
 	  opt_info *o;
-	  s7_pointer (*fp)(void *o);
-	  /* (do ((i (- n 1) (- i 1))) ((< i 0) result) (vector-set! result i (vector-ref x i))) */
 	  o = sc->opts[0];
-	  fp = o->v[0].fp;
-	  if ((fp == opt_p_pip_sso) &&
-	      (o->v[2].p == o->v[4].p) &&
-	      (o->v[5].p_pip_f == vector_set_p_pip_direct) &&
-	      (is_normal_vector(slot_value(o->v[1].p))) && 
-	      (is_normal_vector(slot_value(o->v[3].p))) && 
-	      (!is_typed_vector(slot_value(o->v[1].p))) &&
-	      (o->v[6].p_pi_f == vector_ref_p_pi_direct))
+	  if (!opt_do_copy(sc, o, stop, start + 1))
 	    {
-	      s7_pointer source, dest;
-	      source = slot_value(o->v[3].p);
-	      dest = slot_value(o->v[1].p);
-	      memcpy((void *)(vector_elements(dest)), (void *)((vector_elements(source)) + stop), ((start - stop) + 1) * sizeof(s7_pointer));
-	      
-	      /* TODO: expand this to other types, and fill!
-	       *   and s7test bounds etc
-	       */
-	    }
-	  else
-	    {
+	      s7_pointer (*fp)(void *o);
+	      fp = o->v[0].fp;
 	      for (i = start; i >= stop; i--)
 		{
 		  slot_set_value(ctr_slot, make_integer(sc, i));
@@ -77560,27 +77574,8 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
 		    }
 		}
 	      else
-		{ /* TODO: this code copied directly from above */
-		  if ((fp == opt_p_pip_sso) &&
-		      (o->v[2].p == o->v[4].p) &&
-		      (o->v[5].p_pip_f == vector_set_p_pip_direct) &&
-		      (!is_typed_vector(slot_value(o->v[1].p))) &&
-		      (is_normal_vector(slot_value(o->v[1].p))) && 
-		      (is_normal_vector(slot_value(o->v[3].p))) && 
-		      (o->v[6].p_pi_f == vector_ref_p_pi_direct))
-		    {
-		      s7_pointer source, dest;
-		      s7_int start, stop;
-		      start = integer(slot_value(step_slot));
-		      stop = integer(slot_value(end_slot));
-		      source = slot_value(o->v[3].p);
-		      dest = slot_value(o->v[1].p);
-		      memcpy((void *)(vector_elements(dest)), (void *)((vector_elements(source)) + start), (stop - start) * sizeof(s7_pointer));
-		      /* TODO: expand this to other types, and fill!
-		       *   and s7test bounds etc
-		       */
-		    }
-		  else
+		{ 
+		  if (!opt_do_copy(sc, o, integer(slot_value(step_slot)), integer(slot_value(end_slot))))
 		    {
 		      while (true)
 			{
@@ -92630,5 +92625,6 @@ int main(int argc, char **argv)
  * named let* tc (* doesn't matter if all args present), define* the same -- do these recog tc? check the type cases (esum-2)
  *   any * call with all args -> non-* call but what about keys?? sig of arg expr?
  * trclo/s7test let_cond (sub_s1? ->v1?)
- * extend vector copy opt code to the rest (and fill), copied code in opt_dotimes, ideally use s7_copy
+ * extend vector copy opt code to the rest (and fill), ideally use s7_copy
+ * can choosers return s7_function and do away with the pointers?
  */
