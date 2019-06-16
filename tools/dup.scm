@@ -2,7 +2,7 @@
 ;;; (dups size file alloc-lines): 
 ;;;    find all matches of "size" successive lines in "file" ignoring empty lines and leading/trailing whitespace
 ;;;    "alloc-lines" is any number bigger than the number of lines in "file"
-;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which (we hope) has less than 91000 lines in all
+;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which (we wish) has less than 91000 lines in all
 
 (set! (*s7* 'heap-size) (* 2 1024000))
 
@@ -122,8 +122,8 @@
 			(unless first
 			  (format *stderr* "~%")))))))))))))
 
-(dups 16 "s7.c" 93000)
-;(dups 6 "s7.c" 93000)
+(dups 16 "s7.c" 95000)
+;(dups 6 "s7.c" 95000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
 ;(dups 1 "s7test.scm" 102000)

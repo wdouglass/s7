@@ -771,7 +771,7 @@
 (define (tvcop)
   (do ((k 0 (+ k 1)))
       ((= k 1000))
-    (vcop (make-vector 1000 1) (make-vector 1000 0) 1000) (make-vector 1000 1)))
+    (vcop (make-vector 1000 1) (make-vector 1000 0) 1000)))
 
 (tvcop)
 
