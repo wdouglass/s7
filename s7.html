@@ -6663,9 +6663,34 @@ int main(int argc, char **argv)
  *    now an-integer: 32
  *    (add1 2): 3
  */
-</pre></div>
+</pre>
 
-
+<p>In more complicated cases, it is probably easier use s7_eval_c_string_with_environment.
+As an example, say we want to have a C procedure that calls the pretty printer function pp
+in write.scm, returning a string to C.  We need to make sure pp is loaded, and catch
+any errors that come up.  And we need to pass the C-level s7 object to pp.  So...
+</p>
+<pre>
+static const char *pp(s7_scheme *sc, s7_pointer obj) /* (pp obj) */
+{
+  return(s7_string(
+          s7_eval_c_string_with_environment(sc,
+            "(catch #t                         \
+               (lambda ()                      \
+                 (unless (defined? 'pp)        \
+                   (load \"write.scm\"))       \
+                 (<em class=red>pp</em> obj))  \
+               (lambda (type info)             \
+                 (apply format #f info)))",
+	   s7_inlet(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
+}
+</pre>
+<p>and now when we want a pretty-printed representation of something: pp(sc, obj);
+The s7_inlet call is creating a local environment with the object "obj" bound
+in scheme to the name "obj" so that (pp obj) will find the "obj" that actually
+lives in C.
+</p>
+</div>
 
 
 
