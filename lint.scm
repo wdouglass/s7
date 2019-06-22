@@ -546,11 +546,11 @@
       (and (pair? x)
 	   (not (eq? (car x) 'quote))))
 
-    (define (remove item sequence)
+    (define (remove-one item sequence)
       (cond ((not (pair? sequence)) sequence)
 	    ((equal? item (car sequence)) (cdr sequence))
 	    (else (cons (car sequence) 
-			(remove item (cdr sequence))))))
+			(remove-one item (cdr sequence))))))
     
     (define (remq-set items sequence)
       (cond ((not (pair? sequence)) 
@@ -1693,8 +1693,8 @@
 					       (null? args)
 					       (and (pair? args)
 						    (let ((par ((if (pair? (car pars)) caar car) pars)))
-						      (and (not (memq (car args) (remove par arglist)))
-							   (not (tree-set-memq (remove par arglist) (car args)))
+						      (and (not (memq (car args) (remove-one par arglist)))
+							   (not (tree-set-memq (remove-one par arglist) (car args)))
 							   (check-iters (cdr pars) (cdr args)))))))))
 			    (let ((do-loop `(do ,(map (lambda (par init arg)
 							(let ((var (if (pair? par) (car par) par)))
@@ -4873,7 +4873,7 @@
 				       (if (member (car p) rset)
 					   (begin
 					     (set! times (cons (car p) times))
-					     (set! rset (remove (car p) rset)))
+					     (set! rset (remove-one (car p) rset)))
 					   (set! pluses (cons (car p) pluses)))))
 				    
 				    ((and (eq? (car arg1) '/)  ; (+ (/ a b) (/ c b)) -> (/ (+ a c) b)
@@ -4926,7 +4926,7 @@
 				((memv 0 val)                         ; (* x 0) -> 0
 				 0) 
 				((memv -1 val)
-				 (cons '- (remove -1 val)))           ; (* -1 x) -> (- x)
+				 (cons '- (remove-one -1 val)))           ; (* -1 x) -> (- x)
 				
 				((and (pair? arg1)                    ; (* (if x 1 y) z) -> (if x z (* y z))
 				      (eq? (car arg1) 'if)            ; (* (if x 0 y) z) -> (if x 0 (* y z))
@@ -5025,7 +5025,7 @@
 			       0) 
 			      
 			      ((memv -1 val)
-			       (list '- (cons '* (remove -1 val))))    ; (* -1 x y) -> (- (* x y))
+			       (list '- (cons '* (remove-one -1 val))))    ; (* -1 x y) -> (- (* x y))
 			      
 			      ((let search ((args val))       ; (* x (if y 0 z) w) -> (if y 0 (* x z w))
 				 (and (pair? args)
@@ -5038,7 +5038,7 @@
 					(or has-zero 
 					    (search (cdr args))))))
 			       => (lambda (gif)
-				    (let ((other-args (remove gif val)))
+				    (let ((other-args (remove-one gif val)))
 				      (list 'if (cadr gif) 
 					    (if (eqv? (caddr gif) 0) 0 (cons '* (cons (caddr gif) other-args)))
 					    (if (eqv? (cadddr gif) 0) 0 (cons '* (cons (cadddr gif) other-args)))))))
@@ -5061,8 +5061,8 @@
 					   val)
 				 (for-each (lambda (n)
 					     (when (member n div)
-					       (set! div (remove n div))
-					       (set! mul (remove n mul))))
+					       (set! div (remove-one n div))
+					       (set! mul (remove-one n mul))))
 					   (copy mul))
 				 (let ((expr (if (null? mul)
 						 (if (null? div)
@@ -5183,7 +5183,7 @@
 			   (let ((first-arg (car args))
 				 (nargs val))
 			     (when (member first-arg nargs)
-			       (set! nargs (remove first-arg nargs)) ; remove once
+			       (set! nargs (remove-one first-arg nargs))
 			       (set! first-arg 0))
 			     (cond ((null? nargs) first-arg)         ; (- x 0 0 0)?
 				   
@@ -5275,7 +5275,7 @@
 					   (eq? op2 '*)
 					   (not (side-effect? arg1 env))
 					   (member arg1 (cdr arg2)))
-				      (let ((n (remove arg1 (cdr arg2))))
+				      (let ((n (remove-one arg1 (cdr arg2))))
 					(cons '/ (if (len=1? n)
 						     n                ; (/ x (* y x)) -> (/ y)
 					             (cons 1 n)))))   ; (/ x (* y x z)) -> (/ 1 y z)
@@ -5369,7 +5369,7 @@
 			       arg1
 			       (if (and (member (car args) (cdr args))
 					(not (side-effect? arg1 env)))
-				   (let ((n (remove arg1 (cdr args))))
+				   (let ((n (remove-one arg1 (cdr args))))
 				     (cons '/ (if (null? (cdr n))
 						  n                ; (/ x y x) -> (/ y)
 						  (cons 1 n))))    ; (/ x y x z) -> (/ 1 y z)
@@ -10796,7 +10796,7 @@
 		(unless (symbol? expr)
 		  (let ((op (->lint-type expr)))
 		    (when (pair? op)
-		      (set! op (remove 'boolean? op)) ; this is for cond test, no result -- returns test if not #f, so it can't be #f!
+		      (set! op (remove-one 'boolean? op)) ; this is for cond test, no result -- returns test if not #f, so it can't be #f!
 		      (if (null? (cdr op))
 			  (set! op (car op))))
 		    (if (not (or (memq op '(#f #t values))
@@ -11699,7 +11699,7 @@
 		       (not (eq? caller top-level:))))
 	      (let ((scope (var-scope local-var)) ; might be #<undefined>?
 		    (vname (var-name local-var)))
-		(if (pair? scope) (set! scope (remove vname scope)))
+		(if (pair? scope) (set! scope (remove-one vname scope)))
 		(when (and (len=1? scope)
 			   (symbol? (car scope))
 			   (not (var-member (car scope) (let search ((e env))
@@ -11982,7 +11982,7 @@
 		 (lint-format "~A is ~A, so ~A" caller   ; (let ((x 1)) (and x (< x 1))) -> (< x 1)
 			      vname (prettify-checker-unq vtype)
 			      (lists->string call 
-					     (simplify-boolean (remove vname call) () () vars)))))
+					     (simplify-boolean (remove-one vname call) () () vars)))))
 	      ((not)
 	       (if (eq? vname (cadr call))
 		   (lint-format "~A is ~A, so ~A" caller
@@ -12175,7 +12175,7 @@
 									 (for-each (lambda (parnum)
 										     (let ((par-name (list-ref (cadr arg) parnum)))
 										       (if (tree-memq par-name (cddr arg))
-											   (set! new-unused (remove parnum new-unused)))))
+											   (set! new-unused (remove-one parnum new-unused)))))
 										   unused)
 									 (and (pair? new-unused)
 									      (set! unused new-unused)))))
@@ -12912,7 +12912,7 @@
 			      (null? (cdddr prev-f)))
 			  (not (side-effect? test2 env))
 			  (not (tree-change-member (gather-symbols test1) (cddr prev-f))))
-		     (set! test2 (remove test1 test2))
+		     (set! test2 (remove-one test1 test2))
 		     (test1-in-test2))
 		    
 		    ;; look for test2 as member of test1
@@ -12923,7 +12923,7 @@
 			      (null? (cdddr prev-f)))
 			  (not (side-effect? test1 env))
 			  (not (tree-change-member (gather-symbols test2) (cddr prev-f))))
-		     (set! test1 (remove test2 test1))
+		     (set! test1 (remove-one test2 test1))
 		     (test2-in-test1))
 		    
 		    ;; look for some intersection of test1 and test2
@@ -14502,7 +14502,7 @@
 		  (head (car form)))
 	      (let ((outer-args (cdr sym))
 		    (outer-name (if (eq? head 'define*) 
-				    (remove :optional (car sym))
+				    (remove-one :optional (car sym))
 				    (car sym))))
 		(if (symbol? (car outer-name))
 		    ;; perhaps a curried definition -- as a public service, we'll rewrite the dumb thing
@@ -18425,7 +18425,7 @@
 				  (if (and (or (not (var-step v))
 					       (= (tree-count (var-name v) (var-step v) 2) 1))
 					   ;; don't move if val contains ref to other step vars
-					   (not (tree-set-memq (remove (var-name v) (map var-name vars)) val))
+					   (not (tree-set-memq (remove-one (var-name v) (map var-name vars)) val))
 					   ;; don't move if var is referred to in any other step expr
 					   (not (lint-any? (lambda (binding)
 							     (and (not (eq? (car binding) var))
