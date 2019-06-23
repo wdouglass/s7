@@ -1,6 +1,6 @@
 (set! (*s7* 'heap-size) (* 4 1024000))
 
-(define-constant (fib n)
+(define (fib n)
   (if (< n 2)
       n
       (+ (fib (- n 1))
@@ -46,7 +46,7 @@
 |#
 
 
-(define-constant (trib n)
+(define (trib n)
   (if (< n 3)
       1
       (+ (trib (- n 1))
@@ -76,7 +76,7 @@
 
 (define all-coins '(50 25 10 5 1)) 
 
-(define-constant (cc amount kinds-of-coins) 
+(define (cc amount kinds-of-coins) 
   (cond ((= amount 0) 1) 
         ((or (< amount 0) (null? kinds-of-coins)) 0) 
         (else (+ (cc amount (cdr kinds-of-coins)) 
@@ -122,7 +122,7 @@
 (more-adder)
 
 
-(define-constant (got-symbol lst)
+(define (got-symbol lst)
   (and (pair? lst)
        (or (symbol? (car lst))
 	   (got-symbol (cdr lst)))))
@@ -138,7 +138,7 @@
 
 ;;; add local-slot do cases to s7test
 
-(define-constant (ack m n)
+(define (ack m n)
   (cond ((= m 0) (+ n 1))
         ((= n 0) (ack (- m 1) 1))
         (else (ack (- m 1) (ack m (- n 1))))))
