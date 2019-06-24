@@ -6674,15 +6674,15 @@ any errors that come up.  And we need to pass the C-level s7 object to pp.  So..
 static const char *pp(s7_scheme *sc, s7_pointer obj) /* (pp obj) */
 {
   return(s7_string(
-          s7_eval_c_string_with_environment(sc,
+          <em class=red>s7_eval_c_string_with_environment</em>(sc,
             "(catch #t                         \
                (lambda ()                      \
                  (unless (defined? 'pp)        \
                    (load \"write.scm\"))       \
-                 (<em class=red>pp</em> obj))  \
+                 (<em class=red>pp</em> obj))                     \
                (lambda (type info)             \
                  (apply format #f info)))",
-	   s7_inlet(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
+	   <em class=red>s7_inlet</em>(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
 }
 </pre>
 <p>and now when we want a pretty-printed representation of something: pp(sc, obj);

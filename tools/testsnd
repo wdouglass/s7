@@ -197,12 +197,12 @@ echo ' -------------------------------- that was motif -------------------------
 echo ' '
 echo ' '
 
-valgrind ./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was valgrind --with-motif? -------------------------------- '
-echo ' '
-echo ' '
+# valgrind ./snd -l snd-test
+# echo ' '
+# echo ' '
+# echo ' -------------------------------- that was valgrind --with-motif? -------------------------------- '
+# echo ' '
+# echo ' '
 
 echo ' -------------------------------- motif + gl -------------------------------- '
 make allclean
@@ -221,12 +221,12 @@ echo ' -------------------------------- that was motif? and gl -----------------
 echo ' '
 echo ' '
 
-valgrind ./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was valgrind --with-motif and gl -------------------------------- '
-echo ' '
-echo ' '
+# valgrind ./snd -l snd-test
+# echo ' '
+# echo ' '
+# echo ' -------------------------------- that was valgrind --with-motif and gl -------------------------------- '
+# echo ' '
+# echo ' '
 
 echo ' -------------------------------- motif + gl + debug -------------------------------- '
 make allclean

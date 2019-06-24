@@ -134,6 +134,7 @@
  * -march=native seems to improve tree-vectorization which is important in Snd
  * -ffast-math makes a mess of NaNs, and does not appear to be faster
  * for timing tests, I use: -O2 -march=native -fomit-frame-pointer -funroll-loops
+ *   some say -funroll-loops has no effect, but it is consistently faster (according to callgrind) in s7's timing tests
  * according to callgrind, clang is normally about 10% slower than gcc, and vectorization either doesn't work or is much worse than gcc's
  *   also g++ appears to be slightly slower than gcc
  */
@@ -3902,7 +3903,8 @@ enum {OP_UNOPT, OP_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1, OP_S_AA, 
       OP_GOTO, OP_GOTO_A,
       OP_ITERATE, OP_CONTINUATION_A, OP_VECTOR_A, OP_STRING_A, OP_C_OBJECT_A, OP_PAIR_A, OP_HASH_TABLE_A, OP_ENVIRONMENT_C, OP_ENVIRONMENT_A,
-      OP_VECTOR_AA,
+      OP_VECTOR_AA, 
+      OP_VECTOR_SET_3, OP_VECTOR_SET_4,
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA,
 
       OP_GC_PROTECT,
@@ -4133,6 +4135,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "goto", "goto_a",
       "iterate", "continuation_a", "vector_a", "string_a", "c_object_a", "pair_a", "hash_table_a", "environment_c", "environment_a",
       "vector_aa",
+      "vector_set_3", "vector_set_4",
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa",
 
       "gc_protect",
@@ -31976,6 +31979,8 @@ static void format_append_char(s7_scheme *sc, char c, s7_pointer port)
    * Clisp does this:
    *   (format nil "1 2~C3 4" (int-char 0)) -> "1 23 4"
    * whereas sbcl says int-char is undefined, and Guile returns "1 2\x003 4"
+   *
+   * if -O3 compiler flag, we hit a segfault here during s7test
    */
 }
 
@@ -72158,6 +72163,10 @@ static void op_let_a_a_old(s7_scheme *sc)
   /* upon return, we goto START, so sc->envir should be ok */
 }
 
+/* fx_let_a_a_old: save sc->envir, call op_let_a_a_old, restore sc->envir, return sc->value 
+ *   fx takes expr, so also need to set sc->code to arg, or embed op_let_a_a_old using arg (will opt2_pair|opt3_let be ok?)
+ */
+
 static void op_let_a_fx_new(s7_scheme *sc)
 {
   s7_pointer binding, p;
@@ -75431,7 +75440,7 @@ static bool op_set_with_let_1(s7_scheme *sc)
 	  return(true);
 	}
       sc->value = lookup_checked(sc, e);
-      sc->code = list_2(sc, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
+      sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
       return(false);
     }
   sc->code = e;                       /* 'e above, an expression we need to evaluate */
@@ -75455,8 +75464,8 @@ static bool op_set_with_let_2(s7_scheme *sc)
       return(true);
     }
   if ((is_symbol(x)) || (is_pair(x)))
-    sc->code = list_2(sc, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
-  else sc->code = sc->args;
+    sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
+  else sc->code = cons(sc, sc->set_symbol, sc->args);
   return(false);
 }
 
@@ -75596,10 +75605,9 @@ static goto_t set_implicit_c_object(s7_scheme *sc, s7_pointer cx)
   return(goto_TOP_NO_POP);
 }
 
-static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx)
+static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx, s7_pointer form)
 {
-  /* cx is the vector, sc->code is expr without the set! */
-  /*  args have not been evaluated! */
+  /* cx is the vector, sc->code is expr without the set!, form is the full expr,  args have not been evaluated! */
   
   s7_pointer settee, index, val;
   s7_int argnum;
@@ -75631,6 +75639,17 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx)
   
   if ((argnum > 1) || (vector_rank(cx) > 1))
     {
+
+      if ((argnum == 2) &&
+	  (is_fxable(sc, cadr(settee))) &&
+	  (is_fxable(sc, caddr(settee))) &&
+	  (is_fxable(sc, cadr(sc->code))))
+	{
+	  annotate_args(sc, cdr(settee), sc->envir);
+	  annotate_arg(sc, cdr(sc->code), sc->envir);
+	  pair_set_syntax_op(form, OP_VECTOR_SET_4);
+	}
+
       if ((argnum == vector_rank(cx)) &&
 	  (!is_pair(cadr(sc->code))))
 	{
@@ -75668,6 +75687,13 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx)
   
   /* one index, rank == 1 */
   index = cadr(settee);
+  if ((is_fxable(sc, index)) &&
+      (is_fxable(sc, cadr(sc->code))))
+    {
+      annotate_arg(sc, cdr(settee), sc->envir);
+      annotate_arg(sc, cdr(sc->code), sc->envir);
+      pair_set_syntax_op(form, OP_VECTOR_SET_3);
+    }
   if (!is_pair(index))
     {
       s7_int ind;
@@ -76086,10 +76112,12 @@ static goto_t set_implicit_syntax(s7_scheme *sc, s7_pointer cx)
   return(goto_TOP_NO_POP);
 }
 
-static goto_t set_implicit(s7_scheme *sc)
+static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ...) */
 {
-  s7_pointer caar_code, cx;
+  s7_pointer caar_code, cx, form;
 
+  form = sc->code;
+  sc->code = cdr(sc->code);
   caar_code = caar(sc->code);
   if (is_pair(caar_code))
     {
@@ -76111,17 +76139,6 @@ static goto_t set_implicit(s7_scheme *sc)
 
   /* code here is the setter and the value without the "set!": ((window-width) 800) */
   /*    (set! (hi 0) (* 2 3)) -> ((hi 0) (* 2 3)) */
-
-  /* for these kinds of objects, some Schemes restrict set!
-   * (list-set! '(1 2 3) 1 32) is accepted but does it make sense?
-   * (string-set! "hiho" 1 #\z)
-   * (vector-set! #(1 2 3) 1 32)
-   * (let ((x (lambda () #(1 2 3)))) (vector-set! (x) 1 32))
-   * (let ((str "hiho")) (string-set! str 1 #\x) str)
-   * (let ((x (lambda () "hiho"))) (string-set! (x) 1 #\x) (x))
-   * (let ((xx (let ((x '(1 2 3))) (lambda () x)))) (list-set! (xx) 1 32) (xx)) -> '(1 32 3)
-   * (let* ((x '(1 2)) (y (list x)) (z (car y))) (list-set! z 1 32) (list x y z)) -> '((1 32) ((1 32)) (1 32))
-   */
   /* for gmp case, indices need to be decoded via s7_integer, not just integer */
 
   switch (type(cx))
@@ -76130,7 +76147,7 @@ static goto_t set_implicit(s7_scheme *sc)
       return(set_implicit_c_object(sc, cx));
 
     case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
-      return(set_implicit_vector(sc, cx));
+      return(set_implicit_vector(sc, cx, form));
 
     case T_STRING:
       return(set_implicit_string(sc, cx));
@@ -84388,6 +84405,48 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_unknown_a(sc, opt1_goto(sc->code)) == goto_EVAL) goto EVAL;
 	  break;
 
+	case OP_VECTOR_SET_3:  /* (set! (v i) x) */
+	  {
+	    s7_pointer v, i1;
+	    v = lookup(sc, caadr(sc->code));
+	    if (!is_any_vector(v))
+	      {
+		/* fprintf(stderr, "%s[%d]: back out: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
+		pair_set_syntax_op(sc->code, OP_SET_UNCHECKED);
+		goto EVAL;
+	      }
+	    sc->code = cdr(sc->code);
+	    /* fprintf(stderr, "%s[%d] op_vector_set_3: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
+	    i1 = fx_call(sc, cdar(sc->code));
+	    set_car(sc->a3_3, fx_call(sc, cdr(sc->code)));
+	    set_car(sc->a3_1, v);
+	    set_car(sc->a3_2, i1);
+	    sc->value = g_vector_set_3(sc, sc->a3_1);
+	    goto START;
+	  }
+
+	case OP_VECTOR_SET_4:  /* (set! (v i j) x) */
+	  {
+	    s7_pointer v, i1, i2;
+	    v = lookup(sc, caadr(sc->code));
+	    if (!is_any_vector(v))
+	      {
+		/* fprintf(stderr, "%s[%d]: back out: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
+		pair_set_syntax_op(sc->code, OP_SET_UNCHECKED);
+		goto EVAL;
+	      }
+	    sc->code = cdr(sc->code);
+	    /* fprintf(stderr, "%s[%d] op_vector_set_4: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
+	    i1 = fx_call(sc, cdar(sc->code));
+	    i2 = fx_call(sc, cddar(sc->code));
+	    set_car(sc->a4_4, fx_call(sc, cdr(sc->code)));
+	    set_car(sc->a4_1, v);
+	    set_car(sc->a4_2, i1);
+	    set_car(sc->a4_3, i2);
+	    sc->value = g_vector_set_4(sc, sc->a4_1);
+	    goto START;
+	  }
+
 	case OP_UNOPT:
 	  goto UNOPT;
 
@@ -85395,7 +85454,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (is_pair(cadr(sc->code)))                                            /* has setter */
 	    {
 	      goto_t choice;
-	      sc->code = cdr(sc->code);
+	      /* sc->code = cdr(sc->code); */
 	      choice = set_implicit(sc);
 	      if (choice == goto_TOP_NO_POP) goto TOP_NO_POP;
 	      if (choice == goto_START) goto START;
@@ -85425,7 +85484,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	SET_WITH_LET:
 	  activate_let(sc, sc->value);  /* this activates sc->value, so the set! will happen in that environment */
-	  if (is_pair(car(sc->code)))
+	  if (is_pair(cadr(sc->code)))
 	    {
 	      goto_t choice;
 	      choice = set_implicit(sc);
@@ -93414,7 +93473,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 815) || (OPT_MAX_DEFINED != 379))
+  if ((OP_MAX_DEFINED != 817) || (OPT_MAX_DEFINED != 381))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -93487,74 +93546,63 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  161   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
- * tshoot        |      |      |      |      |      |  710 |  573   557
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   610
+ * tshoot        |      |      |      |      |      | 1095 |        835
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  976   977
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1521  1530
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1680  1702
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2062  2096
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2259  2249
- * tread         |      |      |      |      | 2357 | 2336 | 2279  2277
+ * tread         |      |      |      |      | 2357 | 2336 | 2279  2279
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2300  2306
- * tvect         |      |      |      |      |      | 5729 |       2395
+ * tvect         |      |      |      |      |      | 5729 |       2338
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
  * tlet          |      |      |      |      | 4717 | 2959 | 2456  2577
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 |       2835
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2805  2930
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3081  3069
- * dup           |      |      |      |      | 20.8 | 5711 | 2844  3190
+ * dup           |      |      |      |      | 20.8 | 5711 | 2844  3207
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3318  3315
- * trclo         |      | 10.1 | 10.2 | 9819 | 10.0 | 8380 |       4104 [tc_cond and tc_0]
  * tset          |      |      |      |      | 10.0 | 6432 | 3453  3463
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3465  3504
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4734
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.5  6299  6221
+ * trclo         |      | 10.1 | 10.2 | 9819 | 10.0 | 8380 |       4092 [tc_cond and tc_0]
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4519
+ * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.5  6221
  * thash         |      |      |      |      |      | 10.3 |       8837
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.4  11.5  11.3
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.4  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.1  38.2
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.8
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.7
  * lg            |      |      |      |211.0 |133.0 |112.7 |107.0 108.0
  * tbig          |      |      |      |      |246.9 |230.6 |184.7 184.8
  * ------------------------------------------------------------------------------------
  *
  * fx_let_a_a_old? cond_fx_fx case_a_fx fx_dox? -> opdq
  *    sc->if_a_aa set in init_choosers to g_if_a_aa noticed in optimize_syntax, fx_choose -> fx_if_a_aa from op_safe_c_d (optimize_syntax)
- *    71054 (now tmp): we can see the calling function, get its body and update its optimize_op for any syntactic checker
- *
- * setter checking type and subtype 
- *    (signature (make-vector n symbol?) -> '(symbol? vector? ...)
- *    (signature (make-hash-table 3 eq? (cons symbol? integer?)))-> '(integer? hash-table? symbol?)
- *    so signature can include closures
- *  others can be closures: why not here (closure_typed_vector or whatever to keep others fast)
- *    (define (vset v i val) (if (integer? val) val 'oops))
- *    (make-vector 3 0 vset) -> error, we can (set! (setter v) vset) but it appears to be ignored
- *    (let ((v (make-vector 3 3))) (set! (setter v) integer?) (set! (v 0) pi)) -> pi
- *    also (let ((a (inlet 'b 1))) (with-let a (set! (setter 'b) (lambda (s v) 1))) (set! (a 'b) 32) (a 'b)) -> 1 -- kinda awkward
- *         (let ((a (let ((b 1)) (set! (setter 'b) (lambda (s v) 1)) (curlet)))) (set! (a 'b) 32) (a 'b)) -> 1
- *   why can't vector-setter be set and a closure? (typed_vector=c_func set, scripted_vector=closure set)
- *   also FFI c_funcs should be ok
+ *    (now tmp 180): we can see the calling function, get its body and update its optimize_op for any syntactic checker
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * recur:
- *   perhaps restore runtime tc_0 code [if_a_z_laa and if_a_laa_z], tc_cond using let_cond throughout
+ *   perhaps restore runtime tc_0 code [if_a_z_laa and if_a_laa_z elsewhere?], tc_cond using let_cond throughout
  *   mutable counters?
  *   complete trec/trclo from t127, add recur/tc-maker to t725? t127: type mismatch inits
- *
- * do implicit vectors (tmat) go through the set-dilambda process? yes -- to set_pair.
- *   set_implicit could skip if it set_syntax_op (set_unchecked every time currently)
- *     set_pair_v_3|4?
- *     this needs to check that v is still a vector, if not go to set_implicit and reset the op from the type,
- *        and that argnum = rank etc, the pair arg check can be done once
- *     maybe set_implicit splits to seti_3|4|... and uses t3_1/g_vector_set_3|4... et al if possible
- *     op_set_vector_a|p checks first for vector -> set_implicit_vector
+ *      trclo needs op_tc_if_a_z_la op_tc_if_a_la_z, 
+ *      tshoot recur_ifaaopalalaq
+ *      trec needs op_recur_if_a_a_opa_laq op_recur_if_a_opa_laq_a op_recur_if_a_opla_laq_a op_recur_cond_a_a_opa_laq op_recur_cond_a_a_opa_laaq
+ *                 op_recur_cond_a_a_a_a_opla_laq op_recur_cond_a_a_a_a_opa_laaq
+ *   fx package outer call on these (and tc) so (+ 1 (rec a) (rec a)) can be aaa
+ *      fx_call: fx for arg, call rec etc.  safe_closure_a_a could include tc/rec cases: fxize the body and the rest is automatic
+ *         (recur body => safe_closure -- this can be in optimize_lambda)
+ *      OP_TC_... -> fx_function -- see above 72164 -- only if results ("z") are also fxable
+ *   is_fxable and fx_function use OPT_MAX_DEFINED which oddly goes above the HOP* ops??
  *
  * does optimize_lambda fx_tree do anything? apparently yes at least for named lets
- * why so few dilambda setters annotated/treed in lint? see above...
+ *   why so few dilambda setters annotated/treed in lint?
  * error reports highlighting/colorizing would be nice, and better location detection
- * letrec local func not optimized, if optimized no closure_let?
- * test pending_dox result
+ * letrec local func not optimized, if optimized no closure_let? t128 -- add to trclo/trec?
+ * loop over f/i/b-vector = *= += -= abs fma -> vectorize?
+ * vector setter as closure (35 is_typed_vector)
  */

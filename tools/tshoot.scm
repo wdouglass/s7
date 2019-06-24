@@ -145,11 +145,10 @@
 
 ;;; --------------------------------------------------------------------------------
 
-;;; this one is not very good (unsafe non-tc recursion is slow)
+;;; this one is not very good
 
 (define binary-tree
-  (let ((new-tree-node cons))
-
+  (let ()
     (define (item-check tree)
       (if (car tree)
 	  (+ 1 (item-check (car tree)) (item-check (cdr tree)))
@@ -157,9 +156,9 @@
     
     (define (bottom-up-tree depth)
       (if (zero? depth)
-	  (new-tree-node #f #f)
-	  (new-tree-node (bottom-up-tree (- depth 1)) 
-			 (bottom-up-tree (- depth 1)))))
+	  (cons #f #f)
+	  (cons (bottom-up-tree (- depth 1)) 
+		(bottom-up-tree (- depth 1)))))
     
     (lambda (N)
       (let* ((min-depth 4)
@@ -177,7 +176,8 @@
 		   (format *stderr* "~D~9Ttrees of depth ~D~30Tcheck: ~D~%" iterations depth check)))))
 	  (format *stderr* "long lived tree of depth ~D~30Tcheck: ~D~%" max-depth (item-check long-lived-tree)))))))
 
-;(binary-tree 21) ; 84.4 secs if (set! (*s7* 'heap-size) (* 36 1024000))
+;(binary-tree 21) ; 49.2 secs if (set! (*s7* 'heap-size) (* 36 1024000))
+(binary-tree 6)
 
 ;;; stretch      tree of  depth 22	 check: 8388607
 ;;; 2097152	 trees of depth 4	 check: 65011712
@@ -203,21 +203,22 @@
 	(if (logbit? n 0)
 	    (set! n (+ (* 3 n) 1))
 	    (set! n (ash n -1)))))
-    (lambda ()
+    (lambda (N)
       (let ((len 0)
 	    (num 0)
 	    (cur 0))
 	(do ((i 1 (+ i 1)))
-	    ((= i 300000))
+	    ((= i N)) ; 300000))
 	  (set! cur (collatz-count-until-1 i))
 	  (when (< len cur)
 	    (set! len cur)
 	    (set! num i)))
 	(format *stderr* "Maximum stopping distance ~D, starting number ~D\n" len num)))))
 
-;(collatz)
+;(collatz 300000)
 ;; Maximum stopping distance 442, starting number 230631
 ;; .66 secs
+(collatz 20000)
 
 ;;; --------------------------------------------------------------------------------
 
