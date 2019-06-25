@@ -1,4 +1,7 @@
-(set! (*s7* 'heap-size) (* 4 1024000))
+;(set! (*s7* 'heap-size) (* 4 1024000))
+(if (not (defined? 'unless))
+    (define-macro (unless test . body)
+      `(if (not ,test) (begin ,@body))))
 
 (define (fib n)
   (if (< n 2)
@@ -8,8 +11,29 @@
 
 (let ((f32 (fib 32)))
   (unless (= f32 2178309) ;3524578)
-    (display f32) 
-    (newline)))
+    (format *stderr* "fib ~A~%" f32)))
+
+
+(define (fibr n)
+  (if (>= n 2)
+      (+ (fibr (- n 1))
+         (fibr (- n 2)))
+      n))
+
+(let ((f32 (fibr 32)))
+  (unless (= f32 2178309) ;3524578)
+    (format *stderr* "fibr ~A~%" f32)))
+
+
+(define (fibc n)
+  (cond ((< n 1) n)
+	((< n 2) n)
+	(else (+ (fibc (- n 1))
+		 (fibc (- n 2))))))
+
+(let ((f32 (fibc 32)))
+  (unless (= f32 2178309) ;3524578)
+    (format *stderr* "fibc ~A~%" f32)))
 
 
 #|
@@ -22,8 +46,7 @@
 
 (let ((f32 (tfib 31)))
   (unless (= f32 2178309)
-    (display f32) 
-    (newline)))
+    (format *stderr* "tfib ~A~%" f32)))
 
 (define (dfib Z)             ; do-loop equivalent to tfib
   (do ((a 1 b)
@@ -55,8 +78,7 @@
 
 (let ((f32 (trib 26)))
   (unless (= f32 3311233)
-    (display f32) 
-    (newline)))
+    (format *stderr* "trib ~A~%" f32)))
 
 ;; tc is much faster:
 (define* (ttrib n (a 1) (b 1) (c 1))
@@ -70,8 +92,19 @@
 
 (let ((f32 (ttrib 26)))
   (unless (= f32 3311233)
-    (display f32) 
-    (newline)))
+    (format *stderr* "ttrib ~A~%" f32)))
+
+
+(define* (tribc n (a 1) (b 1) (c 1))
+  (case n
+    ((0) a)
+    ((1) b)
+    ((2) c)
+    (else (tribc (- n 1) b c (+ a b c)))))
+
+(let ((f32 (tribc 26)))
+  (unless (= f32 3311233)
+    (format *stderr* "tribc ~A~%" f32)))
 
 
 (define all-coins '(50 25 10 5 1)) 
@@ -87,9 +120,7 @@
 
 (let ((coins (count-change 400)))
   (unless (= coins 26517)
-    (display coins)
-    (newline)))
-
+    (format *stderr* "cc ~A~%" coins)))
 
 (define (add lst)
   (let loop ((p lst)
@@ -108,11 +139,10 @@
 (more-add)
 
 
-(define-constant adder 
-  (lambda* (lst (sum 0))
-    (if (pair? lst)
-	(adder (cdr lst) (+ sum (car lst)))
-	sum)))
+(define* (adder lst (sum 0))
+  (if (pair? lst)
+      (adder (cdr lst) (+ sum (car lst)))
+      sum))
 
 (define (more-adder)
   (let ((lst big-list))
@@ -145,8 +175,7 @@
 
 (let ((n (ack 3 8)))
   (unless (= n 2045)
-    (display n)
-    (newline)))
+    (format *stderr* "ack ~A~%" n)))
 
 (define-constant (tree-eq? a b)
   (if (pair? a)
@@ -161,5 +190,99 @@
       ((= i 100000))
     (tree-eq? tree tree)))
 (more-eq)
+
+
+(define (counts x)
+  (cond ((= x 0) 0)
+	(else (+ 1 (counts (- x 1))))))
+
+(define (more-counts)
+  (do ((i 0 (+ i 1)))
+      ((= i 1000) (counts 1000))
+    (counts 1000)))
+
+(let ((result (more-counts)))
+  (unless (= result 1000)
+    (format *stderr* "counts ~A~%" result)))
+
+
+(define (counts1 x)
+  (if (= x 0) 0
+      (+ 1 (counts1 (- x 1)))))
+
+(define (more-counts1)
+  (do ((i 0 (+ i 1)))
+      ((= i 1000) (counts1 1000))
+    (counts1 1000)))
+
+(let ((result (more-counts1)))
+  (unless (= result 1000)
+    (format *stderr* "counts1 ~A~%" result)))
+
+
+(define (counts2 x)
+  (if (> x 0)
+      (+ 1 (counts2 (- x 1)))
+      0))
+
+(define (more-counts2)
+  (do ((i 0 (+ i 1)))
+      ((= i 1000) (counts2 1000))
+    (counts2 1000)))
+
+(let ((result (more-counts2)))
+  (unless (= result 1000)
+    (format *stderr* "counts2 ~A~%" result)))
+
+
+(define (counts3 x y)
+  (cond ((= x 0) y)
+	(else (+ 1 (counts3 (- x 1) (+ y 1))))))
+
+(define (more-counts3)
+  (do ((i 0 (+ i 1)))
+      ((= i 1000) (counts3 1000 0))
+    (counts3 1000 0)))
+
+(let ((result (more-counts3)))
+  (unless (= result 2000)
+    (format *stderr* "counts3 ~A~%" result)))
+
+
+(define (counts4 x y)
+  (cond ((= x 0) y)
+	((negative? x) 0)
+	(else (+ 1 (counts4 (- x 1) (+ y 1))))))
+
+(define (more-counts4)
+  (do ((i 0 (+ i 1)))
+      ((= i 500) (counts4 1000 0))
+    (counts4 1000 0)))
+
+(let ((result (more-counts4)))
+  (unless (= result 2000)
+    (format *stderr* "counts4 ~A~%" result)))
+
+
+(define (counts5 x)
+  (if (<= x 0)
+      0
+      (+ 1 (counts5 (- x 1)) (counts5 (- x 2)))))
+
+(let ((result (counts5 30)))
+  (unless (= result 2178308)
+    (format *stderr* "counts5 ~A~%" result)))
+
+
+(define (counts6 x)
+  (if (> x 0)
+      (+ 1 (counts6 (- x 1)) (counts6 (- x 2)))
+      0))
+
+(let ((result (counts6 30)))
+  (unless (= result 2178308)
+    (format *stderr* "counts6 ~A~%" result)))
+
+
 
 (exit)

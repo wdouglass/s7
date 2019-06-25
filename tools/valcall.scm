@@ -96,8 +96,8 @@
 	 (list "repl" "titer.scm")
 	 (list "repl" "trclo.scm")
 	 (list "repl" "tmat.scm")
-	 (list "repl" "trec.scm")
 	 (list "repl" "thash.scm")
+	 (list "repl" "trec.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
 	 (list "snd -noinit" "tall.scm")
 	 (list "snd -l" "snd-test.scm")

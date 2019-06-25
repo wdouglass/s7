@@ -81785,7 +81785,7 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc)
   laa = la;
   laa_slot = next_slot(la_slot);
   laa = cdr(laa);
-  
+#if (!WITH_GMP)  
   if ((c_callee(if_test) == fx_lt_ti) &&
       (is_t_integer(slot_value(la_slot))) &&
       (c_callee(la) == fx_subtract_t1))
@@ -81804,6 +81804,7 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc)
 	}
     }
   else
+#endif
     {
       while (true)
 	{
@@ -93739,8 +93740,8 @@ int main(int argc, char **argv)
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3465  3504
  * trclo         |      |      |      | 10.2 | 10.3 | 8595 |       3905
  * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4513
- * trec     25.0 | 19.2 | 15.8 | 16.4 | 16.4 | 16.4 | 11.0 | 10.5  6184
  * thash         |      |      |      |      |      | 10.3 |       8873
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 |       10.4
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.4  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.1  38.2
@@ -93756,12 +93757,9 @@ int main(int argc, char **argv)
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
- * recur:
+ * recur: (trec) recur_if_a_opa_la_laq_a
  *   perhaps restore runtime tc_0f code, tc_cond using let_cond throughout
- *   mutable counters?
- *   complete trec from t127, t127: type mismatch inits
- *      trec needs op_recur_if_a_a_opa_laq op_recur_if_a_opa_laq_a op_recur_if_a_opla_laq_a op_recur_cond_a_a_opa_laq op_recur_cond_a_a_opa_laaq
- *                 op_recur_cond_a_a_a_a_opla_laq op_recur_cond_a_a_a_a_opa_laaq
+ *   mutable counters? combined recursions?
  *   fx package outer call on these (and tc)
  *      fx_call: fx for arg, call rec etc.  safe_closure_a_a could include tc/rec cases: fxize the body and the rest is automatic
  *         (recur body => safe_closure -- this can be in optimize_lambda)
@@ -93774,4 +93772,5 @@ int main(int argc, char **argv)
  * letrec local func not optimized, if optimized no closure_let? t128 -- add to trclo/trec?
  * loop over f/i/b-vector = *= += -= abs fma -> vectorize?
  * lambda* fx_tree [is_safe_closure_body in opt_lambda?]
+ * if #<lambda ...> is an iterator perhaps #<iterator-lambda...>?
  */

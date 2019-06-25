@@ -1,6 +1,7 @@
-Snd 19.4:
+Snd 19.5.
 
-no big news this time: things are faster, less buggy...
+setter function for vector element type or hash-table key/value can be a closure.
 
-checked: FC 30 (gcc 9), sbcl 1.5.2, gtk 3.96.0 (Snd compiles)
+checked: sbcl 1.5.3
 
+Thanks!: Kjetil Matheussen
