@@ -150,9 +150,9 @@
 (define binary-tree
   (let ()
     (define (item-check tree)
-      (if (car tree)
-	  (+ 1 (item-check (car tree)) (item-check (cdr tree)))
-	  1))
+      (if (not (car tree))
+	  1
+	  (+ 1 (item-check (car tree)) (item-check (cdr tree)))))
     
     (define (bottom-up-tree depth)
       (if (zero? depth)
@@ -176,7 +176,7 @@
 		   (format *stderr* "~D~9Ttrees of depth ~D~30Tcheck: ~D~%" iterations depth check)))))
 	  (format *stderr* "long lived tree of depth ~D~30Tcheck: ~D~%" max-depth (item-check long-lived-tree)))))))
 
-;(binary-tree 21) ; 49.2 secs if (set! (*s7* 'heap-size) (* 36 1024000))
+;(binary-tree 21) ; 30 secs if (set! (*s7* 'heap-size) (* 24 1024000))
 (binary-tree 6)
 
 ;;; stretch      tree of  depth 22	 check: 8388607

@@ -236,11 +236,22 @@
 	  #\?
 	  (psum-6 (- i 1)))))
 
+(define (psum-7 L)
+  (if (null? (cdr L))
+      (car L)
+      (psum-7 (cdr L))))
+
+(define (psum-8 L)
+  (if (pair? (cdr L))
+      (psum-8 (cdr L))
+      (car L)))
+
 (define (plet-1 x y)             ; rclo_let_if_a_laa
   (let ((z (+ x y)))
     (if (< z 0)
 	z
 	(plet-1 (- x 1) (- y 1)))))
+
 
 (define (psum-f)
   (let ((n (psum-1 10000 0)))
@@ -278,6 +289,15 @@
   (let ((result (psum-6 9999)))
     (if result
 	(format #t ";psum-6: ~A~%" result)))
+
+  (let-temporarily (((big-list 9999) 2))
+    (let ((result (psum-7 big-list)))
+      (if (not (= result 2))
+	  (format #t ";psum-7: ~A~%" result)))
+
+    (let ((result (psum-8 big-list)))
+      (if (not (= result 2))
+	  (format #t ";psum-8: ~A~%" result))))
 
   (let ((result (plet-1 10000 10001)))
     (if (not (= result -1))

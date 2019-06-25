@@ -2022,9 +2022,12 @@ s7_ints, s7_doubles, or unsigned bytes.
 <p>In addition to the dimension list mentioned above, make-vector accepts
 optional arguments giving the initial element and the element type. If the
 type is given, every attempt to set an element of the vector first calls
-the type function on the new value.  Currently, the type function can only be a built-in
-type checking function such as integer? or symbol?.  If omitted (or set to #t),
+the type function on the new value.  
+If the type function is omitted (or set to #t),
 no type checking is performed.
+If the type function is a closure (rather than a C-defined or built-in function),
+its name must be accessible; it can't be an anonymous lambda (the signature and
+error handlers need this name).
 </p>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
@@ -2468,8 +2471,9 @@ and the iterative version beats both.
 </p>
 </div>
 
-<p>The third argument, typers, sets type checkers for the keys and values in the table.
-It is a cons of the type functions (currently built-in functions only, as in vectors):
+<p>The third argument, typers, sets type checkers for the keys and values in the table,
+much like the third argument to make-vector.
+It is a cons of the type functions,
 <code>(cons symbol? integer?)</code> for example. This says that all the keys must
 be symbols and all the values integers.
 </p>
