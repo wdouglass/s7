@@ -4022,7 +4022,7 @@ enum {OP_UNOPT, OP_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       OP_TC_LET_IF_A_Z_LAA, 
 
       OP_RECUR_IF_A_A_opA_LAq, OP_RECUR_IF_A_A_opLA_LAq, OP_RECUR_IF_A_A_opA_LA_LAq, OP_RECUR_IF_A_A_opLA_LA_LAq, 
-      OP_RECUR_IF_A_opA_LAq_A, OP_RECUR_IF_A_opLA_LAq_A,
+      OP_RECUR_IF_A_opA_LAq_A, OP_RECUR_IF_A_opLA_LAq_A, OP_RECUR_IF_A_opA_LA_LAq_A,
       OP_RECUR_COND_A_A_opA_LAq, OP_RECUR_COND_A_A_opA_LAAq, 
       OP_RECUR_COND_A_A_A_A_opLA_LAq, OP_RECUR_COND_A_A_A_A_opLAA_LAAq, OP_RECUR_COND_A_A_A_A_opA_LAAq,
       OP_RECUR_COND_A_A_A_LAA_LopA_LAAq,
@@ -4252,7 +4252,7 @@ static const char* op_names[OP_MAX_DEFINED_1] =
       "tc_let_if_a_z_laa", 
 
       "recur_if_a_a_opa_laq", "recur_if_a_a_opla_laq", "recur_if_a_a_opa_la_laq", "recur_if_a_a_opla_la_laq", 
-      "recur_if_a_opa_laq_a", "recur_if_a_opla_laq_a", 
+      "recur_if_a_opa_laq_a", "recur_if_a_opla_laq_a", "recur_if_a_opa_la_laq_a", 
       "recur_cond_a_a_op_a_laq", "recur_cond_a_a_op_a_laaq", 
       "recur_cond_a_a_a_a_opla_laq", "recur_cond_a_a_a_a_oplaa_laaq", "recur_cond_a_a_a_a_opa_laaq",
       "recur_cond_a_a_a_laa_lopa_laaq",
@@ -26791,6 +26791,11 @@ static s7_pointer funclet_entry(s7_scheme *sc, s7_pointer x, s7_pointer sym)
   if ((has_closure_let(x)) && (is_let(closure_let(x))))
     {
       s7_pointer val;
+#if 0
+      fprintf(stderr, "%s[%d]: %s %s %s %d %s %s\n", __func__, __LINE__, 
+	      DISPLAY(x), DISPLAY(sym), DISPLAY(closure_let(x)), is_funclet(closure_let(x)), DISPLAY(outlet(closure_let(x))), 
+	      (is_let(outlet(closure_let(x)))) ? DISPLAY(outlet(outlet(closure_let(x)))) : "unlet");
+#endif
       val = symbol_to_local_slot(sc, sym, closure_let(x));
       if ((!is_slot(val)) && (is_let(outlet(closure_let(x)))))
 	val = symbol_to_local_slot(sc, sym, outlet(closure_let(x)));
@@ -67837,8 +67842,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 		}
 	      else
 		{
-		  if ((orig == cadddr(body)) &&
-		      (is_pair(cdddr(false_p))) &&
+		  if ((is_pair(cdddr(false_p))) &&
 		      (is_null(cddddr(false_p))))
 		    {
 		      s7_pointer la1, la2, la3;
@@ -67854,6 +67858,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 			  if ((is_pair(la1)) && (car(la1) == name) && (is_pair(cdr(la1))) && 
 			      (is_null(cddr(la1))) && (is_fxable(sc, cadr(la1))))
 			    {
+			      if (orig != cadddr(body)) return(false);
 			      set_optimize_op(body, OP_RECUR_IF_A_A_opLA_LA_LAq);
 			      annotate_arg(sc, cdr(la1), args);
 			    }
@@ -67861,13 +67866,13 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 			    {
 			      if (is_fxable(sc, la1))
 				{
-				  set_optimize_op(body, OP_RECUR_IF_A_A_opA_LA_LAq);
+				  set_optimize_op(body, (orig == cadddr(body)) ? OP_RECUR_IF_A_A_opA_LA_LAq : OP_RECUR_IF_A_opA_LA_LAq_A);
 				  annotate_arg(sc, cdr(false_p), args);
 				}
 			      else return(false);
 			    }
 			  annotate_arg(sc, cdr(body), args);
-			  annotate_arg(sc, cddr(body), args);
+			  annotate_arg(sc, obody, args);
 			  annotate_arg(sc, cdr(la2), args);
 			  annotate_arg(sc, cdr(la3), args);
 			  fx_tree(sc, cdr(body), car(args), NULL);
@@ -71171,6 +71176,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	clear_all_optimizations(sc, body);
       else
 	{
+	  /* fprintf(stderr, "%s %d %d %d\n", DISPLAY(body), is_safe_closure_body(body), sc->got_tc, sc->got_rec); */
 	  if (is_safe_closure_body(body))
 	    {
 	      int32_t nvars;
@@ -72755,7 +72761,7 @@ static void op_let_star2(s7_scheme *sc)
 static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
 {
   s7_pointer x, caller, form;
-
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
   form = sc->code;
   sc->code = cdr(sc->code);
 
@@ -72811,6 +72817,7 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
 
 static bool op_letrec_unchecked(s7_scheme *sc)
 {
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
   set_current_code(sc, sc->code);
   sc->code = cdr(sc->code);
   /*   get all local vars and set to #<undefined>
@@ -72846,20 +72853,11 @@ static bool op_letrec_unchecked(s7_scheme *sc)
   return(false);
 }
 
+static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer func_name, s7_pointer outer_env);
 static bool op_letrec1(s7_scheme *sc)
 {
   s7_pointer slot;
   slot_set_pending_value(sc->args, sc->value);
- 
-#if 0
-  /* fprintf(stderr, "%s[%d]: %s: %s\n", __func__, __LINE__, DISPLAY(sc->args), DISPLAY(sc->value)); */
-  if (is_closure(sc->value))
-    {
-      optimize_lambda(sc, true, slot_symbol(sc->args), closure_args(sc->value), closure_body(sc->value));
-      fprintf(stderr, "%s[%d]: env: %s\n", __func__, __LINE__, DISPLAY(closure_let(sc->value)));
-    }
-#endif
-
   sc->args = next_slot(sc->args);
   if (tis_slot(sc->args))
     {
@@ -72871,7 +72869,25 @@ static bool op_letrec1(s7_scheme *sc)
   for (slot = let_slots(sc->envir); tis_slot(slot); slot = next_slot(slot))
     if (is_checked_slot(slot))
       slot_set_value(slot, slot_pending_value(slot));
+
+#if 1
+  /* fprintf(stderr, "%s[%d]: %s: %s\n", __func__, __LINE__, DISPLAY(sc->args), DISPLAY(sc->value)); */
+  for (slot = let_slots(sc->envir); tis_slot(slot); slot = next_slot(slot))
+    if (is_closure(slot_value(slot)))
+      {
+	optimize_lambda(sc, true, slot_symbol(slot), closure_args(slot_value(slot)), closure_body(slot_value(slot)));
+#if 0
+	fprintf(stderr, "%s[%d]: %s args: %s, env: %s\n", __func__, __LINE__, 
+		DISPLAY(slot_symbol(slot)), 
+		DISPLAY(closure_args(slot_value(slot))),
+		DISPLAY(closure_let(slot_value(slot))));
+#endif
+	make_funclet(sc, slot_value(slot), slot_symbol(slot), closure_let(slot_value(slot)));
+      }
+#endif
+
   sc->code = T_Pair(cdr(sc->code));
+
   return(true);
 }
 
@@ -72925,6 +72941,17 @@ static bool op_letrec_star1(s7_scheme *sc)
       sc->code = slot_expression(slot);
       return(true);
     }
+
+#if 1
+  /* fprintf(stderr, "%s[%d]: %s: %s\n", __func__, __LINE__, DISPLAY(sc->args), DISPLAY(sc->value)); */
+  for (slot = let_slots(sc->envir); tis_slot(slot); slot = next_slot(slot))
+    if (is_closure(slot_value(slot)))
+      {
+	optimize_lambda(sc, true, slot_symbol(slot), closure_args(slot_value(slot)), closure_body(slot_value(slot)));
+	make_funclet(sc, slot_value(slot), slot_symbol(slot), closure_let(slot_value(slot)));
+      }
+#endif
+
   sc->code = T_Pair(cdr(sc->code));
   return(false);
 }
@@ -73843,7 +73870,7 @@ static bool op_define_unchecked(s7_scheme *sc)
 static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer func_name, s7_pointer outer_env)
 {
   s7_pointer new_env, arg;
-
+  /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, DISPLAY(new_func), DISPLAY(func_name), DISPLAY(outer_env)); */
   new_cell_no_check(sc, new_env, T_LET | T_FUNCLET);
   let_id(new_env) = ++sc->let_number;
   set_outlet(new_env, outer_env);
@@ -73972,6 +73999,7 @@ static bool op_define_constant(s7_scheme *sc)
 static void define_funchecked(s7_scheme *sc)
 {
   s7_pointer new_func, code, slot;
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, DISPLAY(sc->code)); */
   code = cdr(sc->code);
   sc->value = caar(code); /* func name */
 
@@ -82295,6 +82323,30 @@ static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc, s7_pointer stack)
   return(c_call(caller)(sc, sc->t3_1));
 }
 
+static s7_pointer op_recur_if_a_opa_la_laq_a(s7_scheme *sc, s7_pointer stack)
+{
+  s7_pointer caller, la1, la2, la3, slot;
+  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+
+  if (fx_call(sc, cdr(sc->code)) == sc->F)
+    return(fx_call(sc, cdddr(sc->code)));
+  
+  caller = opt3_pair(sc->code);
+  la1 = cdr(caller);
+  la2 = caddr(caller);
+  la3 = opt3_pair(caller);
+
+  slot = let_slots(sc->envir);
+  recur_push(sc, stack, fx_call(sc, la1));
+  recur_push(sc, stack, fx_call(sc, cdr(la2)));
+  slot_set_value(slot, fx_call(sc, cdr(la3)));
+  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_opa_la_laq_a(sc, stack)));
+  set_car(sc->t3_2, op_recur_if_a_opa_la_laq_a(sc, stack));
+  set_car(sc->t3_3, recur_pop(sc, stack));
+  set_car(sc->t3_1, recur_pop(sc, stack));
+  return(c_call(caller)(sc, sc->t3_1));
+}
+
 static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc, s7_pointer stack)
 {
   s7_pointer caller, la1, la2, la3, slot;
@@ -84395,11 +84447,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  }
 
 	case OP_RECUR_IF_A_A_opA_LA_LAq:
+	case OP_RECUR_IF_A_opA_LA_LAq_A:
 	  {
 	    s7_pointer stack;
 	    stack = recur_make_stack(sc);
 	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_if_a_a_opa_la_laq(sc, stack);
+	    sc->value = (sc->cur_op == OP_RECUR_IF_A_A_opA_LA_LAq) ? op_recur_if_a_a_opa_la_laq(sc, stack) : op_recur_if_a_opa_la_laq_a(sc, stack);
 	    unstack(sc);
 	    goto START;
 	  }
@@ -93645,7 +93698,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if ((OP_MAX_DEFINED != 818) || (OPT_MAX_DEFINED != 381))
+  if ((OP_MAX_DEFINED != 819) || (OPT_MAX_DEFINED != 381))
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), OP_MAX_DEFINED, OPT_MAX_DEFINED);
   /* 64 bit machine: cell size: 48, 80 if gmp, 104 if debugging, block size: 40 */
 #endif
@@ -93714,52 +93767,55 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html
  *
  * ------------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.4  19.5  19.6
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.5  19.6
  * ------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  161   161
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  594   610
- * tshoot        |      |      |      |      |      | 1095 |        834
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   610
+ * tshoot        |      |      |      |      |      | 1095 |  834   834
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  976   977
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1521  1530
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1680  1702
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2062  2096
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2259  2249
- * tread         |      |      |      |      | 2357 | 2336 | 2279  2279
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2300  2306
- * tvect         |      |      |      |      |      | 5729 |       2340
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   977
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1531
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1712
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2096
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2249
+ * tread         |      |      |      |      | 2357 | 2336 | 2279  2281
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2312
+ * tvect         |      |      |      |      |      | 5729 | 2340  2339
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
- * tlet          |      |      |      |      | 4717 | 2959 | 2456  2577
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 |       2835
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2805  2930
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3081  3069
- * dup           |      |      |      |      | 20.8 | 5711 | 2844  3207
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3318  3315
- * tset          |      |      |      |      | 10.0 | 6432 | 3453  3463
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3465  3504
- * trclo         |      |      |      | 10.2 | 10.3 | 8595 |       3905
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 |       4513
- * thash         |      |      |      |      |      | 10.3 |       8873
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 |       10.4
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.4  11.3
+ * tlet          |      |      |      |      | 4717 | 2959 | 2577  2585
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2930
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3212
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3315
+ * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3932
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4531
+ * thash         |      |      |      |      |      | 10.3 | 8873  8873
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  9658
+ * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.1  38.2
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.7
- * lg            |      |      |      |211.0 |133.0 |112.7 |107.0 108.0
- * tbig          |      |      |      |      |246.9 |230.6 |184.7 184.8
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  38.2
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.8
+ * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.0
+ * tbig          |      |      |      |      |246.9 |230.6 |184.8 184.8
  * ------------------------------------------------------------------------------------
  *
- * fx_let_a_a_old? cond_fx_fx case_a_fx fx_dox? -> opdq
+ * fx_let_a_a_old 72283? cond_fx_fx case_a_fx fx_dox? -> opdq
  *    sc->if_a_aa set in init_choosers to g_if_a_aa noticed in optimize_syntax, fx_choose -> fx_if_a_aa from op_safe_c_d (optimize_syntax)
  *    (now tmp 180): we can see the calling function, get its body and update its optimize_op for any syntactic checker
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
- * recur: (trec) recur_if_a_opa_la_laq_a
+ * recur:
  *   perhaps restore runtime tc_0f code, tc_cond using let_cond throughout
- *   mutable counters? combined recursions?
+ *   mutable counters? combined recursions? [test=is_null_cdr_t is_null_t, slot=cdr_t, is_equal_ti+subtract_t1]
+ *      so if cdr_t or subtract_t1 and slot=t (and init value is ok) make mutable and handle direct
+ *      can this be part of fx_tree: mutable val so integer(slot_val)-- etc or set at runtime as fx_call func
+ *      so no need for extra loop case
  *   fx package outer call on these (and tc)
  *      fx_call: fx for arg, call rec etc.  safe_closure_a_a could include tc/rec cases: fxize the body and the rest is automatic
  *         (recur body => safe_closure -- this can be in optimize_lambda)
@@ -93769,8 +93825,6 @@ int main(int argc, char **argv)
  * does optimize_lambda fx_tree do anything? apparently yes at least for named lets
  *   why so few dilambda setters annotated/treed in lint?
  * error reports highlighting/colorizing would be nice, and better location detection
- * letrec local func not optimized, if optimized no closure_let? t128 -- add to trclo/trec?
  * loop over f/i/b-vector = *= += -= abs fma -> vectorize?
- * lambda* fx_tree [is_safe_closure_body in opt_lambda?]
- * if #<lambda ...> is an iterator perhaps #<iterator-lambda...>?
+ * lambda* fx_tree [is_safe_closure_body in opt_lambda?] 1-arg lambda* can be recur_la et al
  */

@@ -246,6 +246,13 @@
       (psum-8 (cdr L))
       (car L)))
 
+(define (psum-9 L)
+  (letrec ((p9 (lambda (x)
+		 (if (pair? (cdr x))
+		     (p9 (cdr x))
+		     (car x)))))
+    (p9 L)))
+
 (define (plet-1 x y)             ; rclo_let_if_a_laa
   (let ((z (+ x y)))
     (if (< z 0)
@@ -297,7 +304,11 @@
 
     (let ((result (psum-8 big-list)))
       (if (not (= result 2))
-	  (format #t ";psum-8: ~A~%" result))))
+	  (format #t ";psum-8: ~A~%" result)))
+
+    (let ((result (psum-9 big-list)))
+      (if (not (= result 2))
+	  (format #t ";psum-9: ~A~%" result))))
 
   (let ((result (plet-1 10000 10001)))
     (if (not (= result -1))
