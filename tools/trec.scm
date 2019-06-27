@@ -1,4 +1,5 @@
-;(set! (*s7* 'heap-size) (* 4 1024000))
+(set! (*s7* 'heap-size) (* 4 1024000))
+
 (if (not (defined? 'unless))
     (define-macro (unless test . body)
       `(if (not ,test) (begin ,@body))))

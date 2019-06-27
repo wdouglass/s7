@@ -959,7 +959,7 @@
 
 (define (v-loop-test)
   (when (> total-memory (* 20 big-size))
-    (let ((v (make-vector big-size () null?)))
+    (let ((v (make-vector big-size ())))
       (do ((i 0 (+ i 1000)))
 	  ((= i big-size))
 	(vector-set! v i (* 2 i)))
