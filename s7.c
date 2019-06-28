@@ -828,7 +828,6 @@ typedef struct s7_cell {
       union {
 	s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
 	s7_pointer fset;
-	s7_int loc;
       }setv;
     } vector;
 
@@ -1110,8 +1109,8 @@ struct s7_scheme {
   int64_t let_number;
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
-  s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length, max_port_data_size;
-  s7_pointer stacktrace_defaults;
+  s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length, max_port_data_size, recur_loc, recur_len;
+  s7_pointer stacktrace_defaults, recur_stack;
   int32_t float_format_precision;
   vdims_t *wrap_only;
 
@@ -2510,6 +2509,7 @@ static void init_types(void)
 #define is_case_key(p)                 has_type1_bit(T_Pos(p), T_CASE_KEY)
 #define set_case_key(p)                set_type1_bit(T_Sym(p), T_CASE_KEY)
 
+/* T_LOCAL has room */
 #define UNUSED_BITS                    0x3c00000000000000
 
 #define T_GC_MARK                      0x8000000000000000
@@ -2950,8 +2950,6 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define vector_elements(p)             (T_Vec(p))->object.vector.elements.objects
 #define vector_getter(p)               (T_Vec(p))->object.vector.vget
 #define vector_setter(p)               (T_Vec(p))->object.vector.setv.vset
-#define vector_location(p)             (T_Vec(p))->object.vector.setv.loc
-#define vector_set_location(p, Loc)    (T_Vec(p))->object.vector.setv.loc = Loc
 #define vector_block(p)                (T_Vec(p))->object.vector.block
 #define unchecked_vector_block(p)      p->object.vector.block
 
@@ -50049,7 +50047,7 @@ static s7_pointer fx_add_si(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   x = lookup(sc, cadr(arg));
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) + integer(caddr(arg))));
+    return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
   return(add_p_pp(sc, x, caddr(arg)));
 }
 
@@ -50059,7 +50057,7 @@ static s7_pointer fx_add_ti(s7_scheme *sc, s7_pointer arg)
   check_let_slots(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) + integer(caddr(arg))));
+    return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
   return(add_p_pp(sc, x, caddr(arg)));
 }
 
@@ -50068,7 +50066,7 @@ static s7_pointer fx_subtract_si(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   x = lookup(sc, cadr(arg));
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) - integer(caddr(arg))));
+    return(make_integer(sc, integer(x) - integer(opt2_con(cdr(arg)))));
   return(subtract_p_pp(sc, x, caddr(arg)));
 }
 
@@ -50078,7 +50076,7 @@ static s7_pointer fx_subtract_ti(s7_scheme *sc, s7_pointer arg)
   check_let_slots(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) - integer(caddr(arg))));
+    return(make_integer(sc, integer(x) - integer(opt2_con(cdr(arg)))));
   return(subtract_p_pp(sc, x, caddr(arg)));
 }
 
@@ -50522,6 +50520,12 @@ static s7_pointer fx_is_pair_t(s7_scheme *sc, s7_pointer arg)
   return((is_pair(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
+static s7_pointer fx_is_pair_u(s7_scheme *sc, s7_pointer arg)
+{
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  return((is_pair(slot_value(next_slot(let_slots(sc->envir))))) ? sc->T : sc->F);
+}
+
 static s7_pointer fx_is_keyword_s(s7_scheme *sc, s7_pointer arg)
 {
   return((is_keyword(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
@@ -50691,6 +50695,13 @@ static s7_pointer fx_add_tu(s7_scheme *sc, s7_pointer arg)
   check_let_slots(sc, __func__, arg, cadr(arg));
   check_next_let_slot(sc, __func__, arg, caddr(arg));
   return(add_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
+}
+
+static s7_pointer fx_addi_tu_direct(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  return(make_integer(sc, integer(slot_value(let_slots(sc->envir))) + integer(slot_value(next_slot(let_slots(sc->envir))))));
 }
 
 static s7_pointer fx_add_ut(s7_scheme *sc, s7_pointer arg)
@@ -53030,6 +53041,7 @@ static const char *fx_name(s7_scheme *sc, s7_pointer p)
   if (c_callee(p) == fx_is_pair_cdr_t) return("fx_is_pair_cdr_t");
   if (c_callee(p) == fx_is_pair_s) return("fx_is_pair_s");
   if (c_callee(p) == fx_is_pair_t) return("fx_is_pair_t");
+  if (c_callee(p) == fx_is_pair_u) return("fx_is_pair_u");
   if (c_callee(p) == fx_is_procedure_s) return("fx_is_procedure_s");
   if (c_callee(p) == fx_is_proper_list_s) return("fx_is_proper_list_s");
   if (c_callee(p) == fx_is_string_s) return("fx_is_string_s");
@@ -53116,7 +53128,7 @@ static const char *fx_name(s7_scheme *sc, s7_pointer p)
 static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2, bool outer) /* var2 can be NULL */
 {
   s7_pointer p;
-  /* fprintf(stderr, "%s[%d] %s %s: %s\n", __func__, __LINE__, DISPLAY(var1), (var2) ? DISPLAY(var2) : "", DISPLAY(tree)); */
+  /* fprintf(stderr, "%s[%d] %s %s %d: %s\n", __func__, __LINE__, DISPLAY(var1), (var2) ? DISPLAY(var2) : "", has_fx(tree), DISPLAY(tree)); */
 
   p = car(tree);
   if (is_symbol(p))
@@ -53214,7 +53226,8 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	  if ((c_callee(tree) == fx_c_s_car_s) && (cadr(caddr(p)) == var2)) {set_c_call(tree, fx_c_t_car_u); return(true);}
 
 #if TREE_PRINT
-	  fprintf(stderr, "t: %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(p));
+	  if (optimize_op(p) == HOP_SAFE_C_D)
+	  fprintf(stderr, "t: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
 #endif
 	}
       
@@ -53233,8 +53246,10 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	  if (c_callee(tree) == fx_add_ss) {set_c_call(tree, (caddr(p) == var1) ? fx_add_ut : fx_add_us); return(true);}
 	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_u1); return(true);}
 	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_u1); return(true);}
+	  if (c_callee(tree) == fx_is_pair_s) {set_c_call(tree, fx_is_pair_u); return(true);}
 #if TREE_PRINT
-	  fprintf(stderr, "u: %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(p));
+	  if (optimize_op(p) == HOP_SAFE_C_D)
+	  fprintf(stderr, "u: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var2), DISPLAY(p));
 #endif
 	}
       
@@ -53317,12 +53332,19 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 
 static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2)
 {
-  /* if (is_pair(tree)) fprintf(stderr, "%s[%d]: %s %d %s %s\n", __func__, __LINE__, DISPLAY_80(tree), has_fx(tree), DISPLAY(var1), (var2) ? DISPLAY(var2) : ""); */
+#if 0
+  if (is_pair(tree)) 
+    fprintf(stderr, "%s[%d]: %s %s %d %s %s %s\n", __func__, __LINE__, 
+	    DISPLAY_80(tree), (is_optimized(tree)) ? op_names[optimize_op(tree)] : "unopt",
+	    has_fx(tree), (has_fx(tree)) ? fx_name(sc, tree) : "",
+	    DISPLAY(var1), (var2) ? DISPLAY(var2) : "");
+#endif
   if ((!is_pair(tree)) ||
       ((is_symbol(car(tree))) &&
        (is_definer_or_binder(car(tree)))))
     return;
-  if ((!has_fx(tree)) || (!fx_tree_1(sc, tree, var1, var2)))
+  if ((!has_fx(tree)) || 
+      (!fx_tree_1(sc, tree, var1, var2)))
     fx_tree(sc, car(tree), var1, var2);
   fx_tree(sc, cdr(tree), var1, var2);
 }
@@ -53334,7 +53356,8 @@ static void fx_tree_outer(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_po
       ((is_symbol(car(tree))) &&
        (is_definer_or_binder(car(tree)))))
     return;
-  if ((!has_fx(tree)) || (!fx_tree_2(sc, tree, var1, var2)))
+  if ((!has_fx(tree)) || 
+      (!fx_tree_2(sc, tree, var1, var2)))
     fx_tree_outer(sc, car(tree), var1, var2);
   fx_tree_outer(sc, cdr(tree), var1, var2);
 }
@@ -66896,6 +66919,7 @@ static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 static void annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
 {
   s7_pointer p;
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, DISPLAY(args), DISPLAY(e)); */
   for (p = args; is_pair(p); p = cdr(p))
     {
 #if S7_DEBUGGING
@@ -71177,19 +71201,17 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		  if (nvars > 0)
 		    fx_tree(sc, body, car(args), (nvars > 1) ? cadr(args) : NULL);
 		}
-	      if ((sc->got_tc) &&
-		  (is_null(cdr(body))))
-		check_tc(sc, func, nvars, args, car(body));
-
-	      if ((sc->got_rec) && 
-		  (result == RECUR_BODY) &&
-		  (is_null(cdr(body))))
+	      
+	      if ((unstarred_lambda) || (nvars == 1))
 		{
-#if 0
-		  int32_t nvars;
-		  for (nvars = 0, p = args; is_pair(p); nvars++, p = cdr(p));
-#endif
-		  check_recur(sc, func, nvars, args, car(body));
+		  if ((sc->got_tc) &&
+		      (is_null(cdr(body))))
+		    check_tc(sc, func, nvars, args, car(body));
+
+		  if ((sc->got_rec) && 
+		      (result >= RECUR_BODY) &&
+		      (is_null(cdr(body))))
+		    check_recur(sc, func, nvars, args, car(body));
 		}
 	    }
 	}
@@ -71913,7 +71935,7 @@ static s7_pointer check_let(s7_scheme *sc)
 	  pair_set_syntax_op(form, OP_NAMED_LET);
 	  /* this is (let name ...) so the initial values need to be removed from the closure arg list */
 
-	  sc->args = safe_list_if_possible(sc, vars);
+	  sc->args = T_Pair(safe_list_if_possible(sc, vars));
 	  for (ex = start, exp = sc->args; is_pair(ex); ex = cdr(ex), exp = cdr(exp))
 	    {
 	      s7_function fx;
@@ -81785,19 +81807,24 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc)
   laa_slot = next_slot(la_slot);
   laa = cdr(laa);
 #if (!WITH_GMP)  
+  /* this needs to be generalized etc */
   if ((c_callee(if_test) == fx_lt_ti) &&
       (is_t_integer(slot_value(la_slot))) &&
       (c_callee(la) == fx_subtract_t1))
     {
       s7_int start, end;
       s7_pointer val;
+      s7_function laa_f;
+      laa_f = c_callee(laa);
+      if ((laa_f == fx_add_tu) && (is_t_integer(slot_value(laa_slot))))
+	laa_f = fx_addi_tu_direct;
       start = integer(slot_value(la_slot));
       end = integer(caddar(if_test));
       slot_set_value(la_slot, val = make_mutable_integer(sc, start));
       while (start >= end)
 	{
 	  s7_pointer new2;
-	  new2 = fx_call(sc, laa);
+	  new2 = laa_f(sc, laa);
 	  integer(val) = --start;
 	  slot_set_value(laa_slot, new2);
 	}
@@ -82139,45 +82166,54 @@ static bool op_tc_cond_a_z_a_laa_laa(s7_scheme *sc)
 
 #define RECUR_INITIAL_STACK_SIZE 1024
 
-static void recur_resize(s7_scheme *sc, s7_pointer stack)
+static void recur_resize(s7_scheme *sc)
 {
-  s7_int i, old_len;
+  s7_int i;
+  s7_pointer stack;
   block_t *ob, *nb;
-  old_len = vector_length(stack);
-  vector_length(stack) = old_len * 2;
+
+  stack = sc->recur_stack;
+  vector_length(stack) = sc->recur_len * 2;
   ob = vector_block(stack);
   nb = reallocate(sc, ob, vector_length(stack) * sizeof(s7_pointer));
   block_info(nb) = NULL;
   vector_block(stack) = nb;
   vector_elements(stack) = (s7_pointer *)block_data(nb);
-  for (i = old_len; i < vector_length(stack); i++)
+  for (i = sc->recur_len; i < vector_length(stack); i++)
     vector_element(stack, i) = sc->F; /* GC will look at all elements */
+  sc->recur_len = vector_length(stack);
 }
 
-static inline void recur_push(s7_scheme *sc, s7_pointer stack, s7_pointer value)
+static inline void recur_push(s7_scheme *sc, s7_pointer value)
 {
-  if (vector_location(stack) == vector_length(stack))
-    recur_resize(sc, stack);
-  vector_element(stack, vector_location(stack)) = value;
-  vector_location(stack)++;
+  if (sc->recur_loc == sc->recur_len)
+    recur_resize(sc);
+  vector_element(sc->recur_stack, sc->recur_loc) = value;
+  sc->recur_loc++;
 }
 
-static s7_pointer recur_pop(s7_scheme *sc, s7_pointer stack)
+static inline void recur_push_unchecked(s7_scheme *sc, s7_pointer value)
 {
-  vector_location(stack)--;
-  return(vector_element(stack, vector_location(stack)));
+  vector_element(sc->recur_stack, sc->recur_loc) = value;
+  sc->recur_loc++;
 }
 
-static s7_pointer recur_ref(s7_scheme *sc, s7_pointer stack, s7_int loc)
+static s7_pointer recur_pop(s7_scheme *sc)
 {
-  return(vector_element(stack, vector_location(stack) - loc));
+  sc->recur_loc--;
+  return(vector_element(sc->recur_stack, sc->recur_loc));
 }
 
-static s7_pointer recur_swap(s7_scheme *sc, s7_pointer stack, s7_pointer value)
+static s7_pointer recur_ref(s7_scheme *sc, s7_int loc)
+{
+  return(vector_element(sc->recur_stack, sc->recur_loc - loc));
+}
+
+static s7_pointer recur_swap(s7_scheme *sc, s7_pointer value)
 {
   s7_pointer res;
-  res = vector_element(stack, vector_location(stack) - 1);
-  vector_element(stack, vector_location(stack) - 1) = value;
+  res = vector_element(sc->recur_stack, sc->recur_loc - 1);
+  vector_element(sc->recur_stack, sc->recur_loc - 1) = value;
   return(res);
 }
 
@@ -82186,11 +82222,12 @@ static s7_pointer recur_make_stack(s7_scheme *sc)
   s7_pointer v;
   v = make_simple_vector(sc, RECUR_INITIAL_STACK_SIZE);
   s7_vector_fill(sc, v, sc->F);
-  vector_set_location(v, 0);
+  sc->recur_loc = 0;
+  sc->recur_len = RECUR_INITIAL_STACK_SIZE;
   return(v);
 }
 
-static s7_pointer op_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_a_opa_laq(s7_scheme *sc)
 {
   s7_pointer caller, la, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82202,14 +82239,14 @@ static s7_pointer op_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer stack)
   la = opt3_pair(caller);       /* caddr(caller) */
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdr(caller)));
+  recur_push(sc, fx_call(sc, cdr(caller)));
   slot_set_value(slot, fx_call(sc, cdr(la)));
-  set_car(sc->t2_2, op_recur_if_a_a_opa_laq(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  set_car(sc->t2_2, op_recur_if_a_a_opa_laq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc)
 {
   s7_pointer caller, la, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82221,14 +82258,33 @@ static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc, s7_pointer stack)
   la = opt3_pair(caller);       /* caddr(caller) */
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdr(caller)));
+  recur_push(sc, fx_call(sc, cdr(caller)));
   slot_set_value(slot, fx_call(sc, cdr(la)));
-  set_car(sc->t2_2, op_recur_if_a_opa_laq_a(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  set_car(sc->t2_2, op_recur_if_a_opa_laq_a(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_a_opla_laq(s7_scheme *sc, s7_pointer stack)
+#if 0
+/* or use sc fields here (not globals in any case) rather than fs.* */
+struct {s7_function test, s7_function f1, s7_function f2, s7_function c1, s7_pointer la1, la2, code}
+testf f1 f2 cf resf p1 p2 testp resp
+static s7_pointer oprec_if_a_a_opla_la(s7_scheme *sc)
+{
+  if (fs.test(sc, fs.code) != sc->F) return(fs.resultf(sc, resp))
+  push fs.f1(sc, fs.la1)           f1 arg
+  set slot fs.f2(sc, la2)          f2 arg
+  set fs.f2(sc, swap(fs.f2(sc, oprec_...))) call f2 store set f1 arg
+  set_car1 oprec_...               f1 result
+  set_car2 pop                     f2 result
+  return(fs.c1(sc, t2_1)           cf(f1, f2)
+}
+/* which is so simple we could unroll the two calls, all tc's can also precompute args and funcs
+ *   and mutable slot value = no boxing (need int/float-vector stack and stack handlers?)
+ */
+#endif
+
+static s7_pointer op_recur_if_a_a_opla_laq(s7_scheme *sc)
 {
   s7_pointer caller, la1, la2, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82237,19 +82293,19 @@ static s7_pointer op_recur_if_a_a_opla_laq(s7_scheme *sc, s7_pointer stack)
     return(fx_call(sc, cddr(sc->code)));
 
   caller = opt3_pair(sc->code);
-  la1 = cadr(caller);
-  la2 = opt3_pair(caller);
+  la1 = cdadr(caller);
+  la2 = cdr(opt3_pair(caller));
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdr(la1)));
-  slot_set_value(slot, fx_call(sc, cdr(la2)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_a_opla_laq(sc, stack)));
-  set_car(sc->t2_1, op_recur_if_a_a_opla_laq(sc, stack));
-  set_car(sc->t2_2, recur_pop(sc, stack));
+  recur_push(sc, fx_call(sc, la1));
+  slot_set_value(slot, fx_call(sc, la2));
+  slot_set_value(slot, recur_swap(sc, op_recur_if_a_a_opla_laq(sc)));
+  set_car(sc->t2_1, op_recur_if_a_a_opla_laq(sc));
+  set_car(sc->t2_2, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_opla_laq_a(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_opla_laq_a(s7_scheme *sc)
 {
   s7_pointer caller, la1, la2, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82262,15 +82318,15 @@ static s7_pointer op_recur_if_a_opla_laq_a(s7_scheme *sc, s7_pointer stack)
   la2 = opt3_pair(caller);
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdr(la1)));
+  recur_push(sc, fx_call(sc, cdr(la1)));
   slot_set_value(slot, fx_call(sc, cdr(la2)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_opla_laq_a(sc, stack)));
-  set_car(sc->t2_1, op_recur_if_a_opla_laq_a(sc, stack));
-  set_car(sc->t2_2, recur_pop(sc, stack));
+  slot_set_value(slot, recur_swap(sc, op_recur_if_a_opla_laq_a(sc)));
+  set_car(sc->t2_1, op_recur_if_a_opla_laq_a(sc));
+  set_car(sc->t2_2, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc)
 {
   s7_pointer caller, la1, la2, la3, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82284,17 +82340,17 @@ static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc, s7_pointer stack)
   la3 = opt3_pair(caller);
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, la1));
-  recur_push(sc, stack, fx_call(sc, cdr(la2)));
+  recur_push(sc, fx_call(sc, la1));
+  recur_push(sc, fx_call(sc, cdr(la2)));
   slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_a_opa_la_laq(sc, stack)));
-  set_car(sc->t3_2, op_recur_if_a_a_opa_la_laq(sc, stack));
-  set_car(sc->t3_3, recur_pop(sc, stack));
-  set_car(sc->t3_1, recur_pop(sc, stack));
+  slot_set_value(slot, recur_swap(sc, op_recur_if_a_a_opa_la_laq(sc)));
+  set_car(sc->t3_2, op_recur_if_a_a_opa_la_laq(sc));
+  set_car(sc->t3_3, recur_pop(sc));
+  set_car(sc->t3_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t3_1));
 }
 
-static s7_pointer op_recur_if_a_opa_la_laq_a(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_opa_la_laq_a(s7_scheme *sc)
 {
   s7_pointer caller, la1, la2, la3, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82308,17 +82364,17 @@ static s7_pointer op_recur_if_a_opa_la_laq_a(s7_scheme *sc, s7_pointer stack)
   la3 = opt3_pair(caller);
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, la1));
-  recur_push(sc, stack, fx_call(sc, cdr(la2)));
+  recur_push(sc, fx_call(sc, la1));
+  recur_push(sc, fx_call(sc, cdr(la2)));
   slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_opa_la_laq_a(sc, stack)));
-  set_car(sc->t3_2, op_recur_if_a_opa_la_laq_a(sc, stack));
-  set_car(sc->t3_3, recur_pop(sc, stack));
-  set_car(sc->t3_1, recur_pop(sc, stack));
+  slot_set_value(slot, recur_swap(sc, op_recur_if_a_opa_la_laq_a(sc)));
+  set_car(sc->t3_2, op_recur_if_a_opa_la_laq_a(sc));
+  set_car(sc->t3_3, recur_pop(sc));
+  set_car(sc->t3_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t3_1));
 }
 
-static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc)
 {
   s7_pointer caller, la1, la2, la3, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82332,20 +82388,20 @@ static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc, s7_pointer stack)
   la3 = opt3_pair(caller);
 
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdr(la1)));
-  recur_push(sc, stack, fx_call(sc, cdr(la2)));
+  recur_push(sc, fx_call(sc, cdr(la1)));
+  recur_push(sc, fx_call(sc, cdr(la2)));
   slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_if_a_a_opla_la_laq(sc, stack)));
-  recur_push(sc, stack, op_recur_if_a_a_opla_la_laq(sc, stack));
-  slot_set_value(slot, recur_ref(sc, stack, 3));
-  set_car(sc->t3_1, op_recur_if_a_a_opla_la_laq(sc, stack));
-  set_car(sc->t3_2, recur_pop(sc, stack));
-  set_car(sc->t3_3, recur_pop(sc, stack));
-  recur_pop(sc, stack);
+  slot_set_value(slot, recur_swap(sc, op_recur_if_a_a_opla_la_laq(sc)));
+  recur_push(sc, op_recur_if_a_a_opla_la_laq(sc));
+  slot_set_value(slot, recur_ref(sc, 3));
+  set_car(sc->t3_1, op_recur_if_a_a_opla_la_laq(sc));
+  set_car(sc->t3_2, recur_pop(sc));
+  set_car(sc->t3_3, recur_pop(sc));
+  recur_pop(sc);
   return(c_call(caller)(sc, sc->t3_1));
 }
 
-static s7_pointer op_recur_cond_a_a_opa_laq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_opa_laq(s7_scheme *sc)
 {
   s7_pointer caller, la, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82357,14 +82413,14 @@ static s7_pointer op_recur_cond_a_a_opa_laq(s7_scheme *sc, s7_pointer stack)
   la = opt3_pair(caller);       /* caddr(caller) */
   slot = let_slots(sc->envir);
 
-  recur_push(sc, stack, fx_call(sc, cdr(caller)));
+  recur_push(sc, fx_call(sc, cdr(caller)));
   slot_set_value(slot, fx_call(sc, cdr(la)));
-  set_car(sc->t2_2, op_recur_cond_a_a_opa_laq(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  set_car(sc->t2_2, op_recur_cond_a_a_opa_laq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_cond_a_a_opa_laaq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_opa_laaq(s7_scheme *sc)
 {
   s7_pointer caller, la, slot1, slot2;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82377,16 +82433,16 @@ static s7_pointer op_recur_cond_a_a_opa_laaq(s7_scheme *sc, s7_pointer stack)
   slot1 = let_slots(sc->envir);
   slot2 = next_slot(slot1);
 
-  recur_push(sc, stack, fx_call(sc, cdr(caller)));
-  recur_push(sc, stack, fx_call(sc, cdr(la)));
+  recur_push(sc, fx_call(sc, cdr(caller)));
+  recur_push(sc, fx_call(sc, cdr(la)));
   slot_set_value(slot2, fx_call(sc, cddr(la)));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  set_car(sc->t2_2, op_recur_cond_a_a_opa_laaq(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  slot_set_value(slot1, recur_pop(sc));
+  set_car(sc->t2_2, op_recur_cond_a_a_opa_laaq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_cond_a_a_a_a_opla_laq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_a_a_opla_laq(s7_scheme *sc)
 {
   s7_pointer caller, slot;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82399,15 +82455,15 @@ static s7_pointer op_recur_cond_a_a_a_a_opla_laq(s7_scheme *sc, s7_pointer stack
 
   caller = opt3_pair(sc->code);
   slot = let_slots(sc->envir);
-  recur_push(sc, stack, fx_call(sc, cdadr(caller)));
+  recur_push(sc, fx_call(sc, cdadr(caller)));
   slot_set_value(slot, fx_call(sc, opt3_pair(caller)));
-  slot_set_value(slot, recur_swap(sc, stack, op_recur_cond_a_a_a_a_opla_laq(sc, stack)));
-  set_car(sc->t2_1, op_recur_cond_a_a_a_a_opla_laq(sc, stack));
-  set_car(sc->t2_2, recur_pop(sc, stack));
+  slot_set_value(slot, recur_swap(sc, op_recur_cond_a_a_a_a_opla_laq(sc)));
+  set_car(sc->t2_1, op_recur_cond_a_a_a_a_opla_laq(sc));
+  set_car(sc->t2_2, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_cond_a_a_a_a_opa_laaq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_a_a_opa_laaq(s7_scheme *sc)
 {
   s7_pointer caller, a, laa, slot1, slot2;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82424,16 +82480,16 @@ static s7_pointer op_recur_cond_a_a_a_a_opa_laaq(s7_scheme *sc, s7_pointer stack
   slot1 = let_slots(sc->envir);
   slot2 = next_slot(slot1);
 
-  recur_push(sc, stack, fx_call(sc, a));
-  recur_push(sc, stack, fx_call(sc, laa));
+  recur_push(sc, fx_call(sc, a));
+  recur_push(sc, fx_call(sc, laa));
   slot_set_value(slot2, fx_call(sc, cdr(laa)));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  set_car(sc->t2_2, op_recur_cond_a_a_a_a_opa_laaq(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  slot_set_value(slot1, recur_pop(sc));
+  set_car(sc->t2_2, op_recur_cond_a_a_a_a_opa_laaq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc)
 {
   s7_pointer caller, la, slot1, slot2;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82446,31 +82502,31 @@ static s7_pointer op_recur_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc, s7_pointer sta
 
   slot1 = let_slots(sc->envir);
   slot2 = next_slot(slot1);
-  recur_push(sc, stack, slot_value(slot1));
-  recur_push(sc, stack, slot_value(slot2));
+  recur_push(sc, slot_value(slot1));
+  recur_push(sc, slot_value(slot2));
 
   caller = opt3_pair(sc->code); /* cadr(cadddr(sc->code)) = (cfunc laa laa) */
   la = cdadr(caller); /* first laa arg, its args */
 
-  recur_push(sc, stack, fx_call(sc, la));
+  recur_push(sc, fx_call(sc, la));
   slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  sc->value = op_recur_cond_a_a_a_a_oplaa_laaq(sc, stack);
+  slot_set_value(slot1, recur_pop(sc));
+  sc->value = op_recur_cond_a_a_a_a_oplaa_laaq(sc);
 
-  slot_set_value(slot2, recur_pop(sc, stack));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  recur_push(sc, stack, sc->value);
+  slot_set_value(slot2, recur_pop(sc));
+  slot_set_value(slot1, recur_pop(sc));
+  recur_push_unchecked(sc, sc->value);
   
   la = opt3_pair(caller); /* cdaddr(caller) */
-  recur_push(sc, stack, fx_call(sc, la));
+  recur_push_unchecked(sc, fx_call(sc, la));
   slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  set_car(sc->t2_2, op_recur_cond_a_a_a_a_oplaa_laaq(sc, stack));
-  set_car(sc->t2_1, recur_pop(sc, stack));
+  slot_set_value(slot1, recur_pop(sc));
+  set_car(sc->t2_2, op_recur_cond_a_a_a_a_oplaa_laaq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
   return(c_call(caller)(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc, s7_pointer stack)
+static s7_pointer op_recur_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc)
 {
   s7_pointer caller, la, slot1, slot2;
   /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
@@ -82483,21 +82539,29 @@ static s7_pointer op_recur_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc, s7_pointer st
   if (fx_call(sc, caddr(sc->code)) != sc->F)
     {
       la = cdadr(caddr(sc->code));
-      recur_push(sc, stack, fx_call(sc, la));
+      recur_push(sc, fx_call(sc, la));
       slot_set_value(slot2, fx_call(sc, cdr(la)));
-      slot_set_value(slot1, recur_pop(sc, stack));
-      return(op_recur_cond_a_a_a_laa_lopa_laaq(sc, stack));
+      slot_set_value(slot1, recur_pop(sc));
+      return(op_recur_cond_a_a_a_laa_lopa_laaq(sc));
     }
   caller = opt3_pair(sc->code);
   la = cdr(caller);
-  recur_push(sc, stack, fx_call(sc, la));
+  recur_push(sc, fx_call(sc, la));
   la = opt3_pair(caller); /* cdaddr(caller) */
-  recur_push(sc, stack, fx_call(sc, la));
+  recur_push(sc, fx_call(sc, la));
   slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  slot_set_value(slot2, op_recur_cond_a_a_a_laa_lopa_laaq(sc, stack));
-  slot_set_value(slot1, recur_pop(sc, stack));
-  return(op_recur_cond_a_a_a_laa_lopa_laaq(sc, stack));
+  slot_set_value(slot1, recur_pop(sc));
+  slot_set_value(slot2, op_recur_cond_a_a_a_laa_lopa_laaq(sc));
+  slot_set_value(slot1, recur_pop(sc));
+  return(op_recur_cond_a_a_a_laa_lopa_laaq(sc));
+}
+
+static void wrap_recur(s7_scheme *sc, s7_pointer (*recur)(s7_scheme *sc))
+{
+  sc->recur_stack = recur_make_stack(sc);
+  push_stack_no_code(sc, OP_GC_PROTECT, sc->recur_stack);
+  sc->value = recur(sc);
+  unstack(sc);
 }
 
 
@@ -84396,108 +84460,49 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_TC_LET_IF_A_Z_LAA: if (op_tc_let_if_a_z_laa(sc)) goto START; goto EVAL;
 
+
 	case OP_RECUR_IF_A_A_opA_LAq:
 	case OP_RECUR_IF_A_opA_LAq_A:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = (sc->cur_op == OP_RECUR_IF_A_A_opA_LAq) ? op_recur_if_a_a_opa_laq(sc, stack) : op_recur_if_a_opa_laq_a(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opA_LAq) ? op_recur_if_a_a_opa_laq : op_recur_if_a_opa_laq_a);
+	  goto START;
 
 	case OP_RECUR_IF_A_A_opLA_LAq:
 	case OP_RECUR_IF_A_opLA_LAq_A:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = (sc->cur_op == OP_RECUR_IF_A_A_opLA_LAq) ? op_recur_if_a_a_opla_laq(sc, stack) : op_recur_if_a_opla_laq_a(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opLA_LAq) ? op_recur_if_a_a_opla_laq : op_recur_if_a_opla_laq_a);
+	  goto START;
 
 	case OP_RECUR_IF_A_A_opA_LA_LAq:
 	case OP_RECUR_IF_A_opA_LA_LAq_A:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = (sc->cur_op == OP_RECUR_IF_A_A_opA_LA_LAq) ? op_recur_if_a_a_opa_la_laq(sc, stack) : op_recur_if_a_opa_la_laq_a(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opA_LA_LAq) ? op_recur_if_a_a_opa_la_laq : op_recur_if_a_opa_la_laq_a);
+	  goto START;
 
 	case OP_RECUR_IF_A_A_opLA_LA_LAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_if_a_a_opla_la_laq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_if_a_a_opla_la_laq);
+	  goto START;
 
 	case OP_RECUR_COND_A_A_opA_LAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_opa_laq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_cond_a_a_opa_laq);
+	  goto START;
 
 	case OP_RECUR_COND_A_A_opA_LAAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_opa_laaq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_cond_a_a_opa_laaq);
+	  goto START;
 
 	case OP_RECUR_COND_A_A_A_A_opLA_LAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_a_a_opla_laq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_cond_a_a_a_a_opla_laq);
+	  goto START;
 
 	case OP_RECUR_COND_A_A_A_A_opA_LAAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_a_a_opa_laaq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_cond_a_a_a_a_opa_laaq);
+	  goto START;
 
 	case OP_RECUR_COND_A_A_A_A_opLAA_LAAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_a_a_oplaa_laaq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	  wrap_recur(sc, op_recur_cond_a_a_a_a_oplaa_laaq);
+	  goto START;
 
-	  case OP_RECUR_COND_A_A_A_LAA_LopA_LAAq:
-	  {
-	    s7_pointer stack;
-	    stack = recur_make_stack(sc);
-	    push_stack_no_code(sc, OP_GC_PROTECT, stack);
-	    sc->value = op_recur_cond_a_a_a_laa_lopa_laaq(sc, stack);
-	    unstack(sc);
-	    goto START;
-	  }
+	case OP_RECUR_COND_A_A_A_LAA_LopA_LAAq:
+	  wrap_recur(sc, op_recur_cond_a_a_a_laa_lopa_laaq);
+	  goto START;
 
 
 	  /* -------------------------------------------------------------------------------- */
@@ -93742,32 +93747,32 @@ int main(int argc, char **argv)
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   610
  * tshoot        |      |      |      |      |      | 1095 |  834   834
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   977
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   978
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1531
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1712
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2096
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2104
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2249
  * tread         |      |      |      |      | 2357 | 2336 | 2279  2281
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2312
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2308
  * tvect         |      |      |      |      |      | 5729 | 2340  2339
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
  * tlet          |      |      |      |      | 4717 | 2959 | 2577  2585
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2930
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3212
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3222
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3315
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3932
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4531
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3886
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4536
  * thash         |      |      |      |      |      | 10.3 | 8873  8873
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  9658
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  9477
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  38.2
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.8
- * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.0
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.7
+ * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.4
  * tbig          |      |      |      |      |246.9 |230.6 |184.8 184.8
  * ------------------------------------------------------------------------------------
  *
@@ -93775,7 +93780,6 @@ int main(int argc, char **argv)
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * error reports highlighting/colorizing would be nice, and better location detection
- * lambda* fx_tree [is_safe_closure_body in opt_lambda?] 1-arg lambda* can be recur_la et al [but there are none of these in trec/trclo]
- * why op_closure_fx not fx_treed? 
- * fx_c_d s cases from yesterday and maybe remove if additions, wrap_recur
+ * why op_closure_fx not fx_treed? recur: unsafe (frame-wise)
+ * s7 tools directory
  */

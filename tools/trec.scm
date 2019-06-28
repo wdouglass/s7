@@ -140,16 +140,19 @@
 (more-add)
 
 
-(define* (adder lst (sum 0))
-  (if (pair? lst)
-      (adder (cdr lst) (+ sum (car lst)))
-      sum))
+(define (adder lst)
+  (letrec ((add (lambda (L sum)
+		  (if (pair? L)
+		      (add (cdr L) (+ sum (car L)))
+		      sum))))
+    (add lst 0)))
 
 (define (more-adder)
-  (let ((lst big-list))
-    (do ((i 0 (+ i 1)))
-	((= i 1000))
-      (adder lst 0))))
+  (do ((lst big-list)
+       (i 0 (+ i 1)))
+      ((= i 1000))
+    (adder big-list)))
+
 (more-adder)
 
 
