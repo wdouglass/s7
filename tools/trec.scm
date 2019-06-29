@@ -45,6 +45,9 @@
            b
            (tfib (- n 1) b (+ a b)))))
 
+;;; overflow at (tfib 92): (tfib 92) 12200160415121877000.0, (tfib 91) 7540113804746346429 [this numbering is off-by-1]
+;;;                              93: 12200160415121876738          92: 7540113804746346429 http://www.maths.surrey.ac.uk/hosted-sites/R.Knott/Fibonacci/fibtable.html
+
 (let ((f32 (tfib 31)))
   (unless (= f32 2178309)
     (format *stderr* "tfib ~A~%" f32)))

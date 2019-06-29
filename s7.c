@@ -1110,11 +1110,13 @@ struct s7_scheme {
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
   s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length, max_port_data_size, rec_loc, rec_len;
-  s7_pointer stacktrace_defaults, rec_stack;
-  s7_pointer rec_testp, rec_f1p, rec_f2p, rec_resp, rec_slot;
-  s7_function rec_testf, rec_f1f, rec_f2f, rec_resf, rec_cf;
+  s7_pointer stacktrace_defaults;
+
+  s7_pointer rec_stack, rec_testp, rec_f1p, rec_f2p, rec_f3p, rec_f4p, rec_f5p, rec_f6p, rec_resp, rec_slot1, rec_slot2;
+  s7_function rec_testf, rec_f1f, rec_f2f, rec_f3f, rec_f4f, rec_f5f, rec_f6f, rec_resf, rec_cf;
   s7_double rec_f1r, rec_f2r, rec_testr;
   s7_int rec_testi, rec_f2i;
+
   int32_t float_format_precision;
   vdims_t *wrap_only;
 
@@ -67667,11 +67669,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 			  fx_tree(sc, cdr(let_body), car(caadr(body)), NULL);
 			  fx_tree_outer(sc, cdr(let_body), car(args), cadr(args));
 			  return(true);
-			}
-		    }
-		}
-	    }
-	}
+			}}}}}
       else
 	{
 	  if (car(let_body) == sc->cond_symbol)
@@ -67918,11 +67916,7 @@ static bool check_recur_if_one_var(s7_scheme *sc, s7_pointer name, s7_pointer ar
 		      set_opt3_pair(body, false_p);
 		      set_opt3_pair(false_p, la3);
 		      return(true);
-		    }
-		}
-	    }
-	}
-    }
+		    }}}}}
   return(false);
 }
 
@@ -68096,15 +68090,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 				      set_opt3_pair(body, la_clause);
 				      set_opt3_pair(la_clause, cdr(la2));
 				      return(true);
-				    }
-				}
-			    }
-			}
-		    }
-		}
-	    }
-	}
-    }
+				    }}}}}}}}}
   return(false);
 }
 
@@ -71858,12 +71844,7 @@ static s7_pointer check_let_one_var(s7_scheme *sc, s7_pointer form, s7_pointer s
 			  annotate_args(sc, cdr(sc->code), set_plist_1(sc, car(binding)));
 			  fx_tree(sc, cdr(sc->code), car(binding), NULL);
 			  return(sc->code);
-			}
-		    }
-		}
-	    }
-	}
-    }
+			}}}}}}
   else
     {
       set_opt2_pair(sc->code, binding);
@@ -74930,12 +74911,7 @@ static inline s7_pointer check_set(s7_scheme *sc)
 					  if ((!(is_let(closure_let(setter)))) ||
 					      (!(is_funclet(closure_let(setter)))))
 					    make_funclet(sc, setter, car(inner), closure_let(setter));
-					}
-				    }
-				}
-			    }
-			}
-		    }
+					}}}}}}
 		  else
 		    {
 		      if ((caadr(inner) == sc->quote_symbol) &&
@@ -81841,7 +81817,7 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc)
   laa_slot = next_slot(la_slot);
   laa = cdr(laa);
 #if (!WITH_GMP)  
-  /* this needs to be generalized etc */
+  /* TODO: this needs to be generalized etc (see below opinit cases) */
   if ((c_callee(if_test) == fx_lt_ti) &&
       (is_t_integer(slot_value(la_slot))) &&
       (c_callee(la) == fx_subtract_t1))
@@ -82121,10 +82097,7 @@ static bool op_tc_let_cond(s7_scheme *sc)
 		    }
 		  sc->code = car(result);
 		  return(false);
-		}
-	    }
-	}
-    }
+		}}}}
   return(false);
 }
 
@@ -82239,6 +82212,12 @@ static s7_pointer recur_pop(s7_scheme *sc)
   return(vector_element(sc->rec_stack, sc->rec_loc));
 }
 
+static s7_pointer recur_pop2(s7_scheme *sc)
+{
+  sc->rec_loc -= 2;
+  return(vector_element(sc->rec_stack, sc->rec_loc + 1));
+}
+
 static s7_pointer recur_ref(s7_scheme *sc, s7_int loc)
 {
   return(vector_element(sc->rec_stack, sc->rec_loc - loc));
@@ -82262,31 +82241,39 @@ static s7_pointer recur_make_stack(s7_scheme *sc)
   return(v);
 }
 
+/* -------- if_a_a_opa_laq and if_a_opa_laq_a -------- */
 static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op)
 {
   s7_pointer caller;
+
   sc->rec_testp = cdr(sc->code);
   sc->rec_testf = c_callee(sc->rec_testp);
   sc->rec_testp = car(sc->rec_testp);
+
   sc->rec_resp = (a_op) ?  cddr(sc->code) : cdddr(sc->code);
   sc->rec_resf = c_callee(sc->rec_resp);
   sc->rec_resp = car(sc->rec_resp);
+
   caller = opt3_pair(sc->code);
+
   sc->rec_f1p = cdr(caller);
   sc->rec_f1f = c_callee(sc->rec_f1p);
   sc->rec_f1p = car(sc->rec_f1p);
+
   sc->rec_f2p = cdr(opt3_pair(caller));
   sc->rec_f2f = c_callee(sc->rec_f2p);
   sc->rec_f2p = car(sc->rec_f2p);
-  sc->rec_slot = let_slots(sc->envir);
+
+  sc->rec_slot1 = let_slots(sc->envir);
   sc->rec_cf = c_callee(caller);
 }
 
 static s7_pointer oprec_if_a_a_opa_laq(s7_scheme *sc)
 {
-  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
-  slot_set_value(sc->rec_slot, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
   set_car(sc->t2_2, oprec_if_a_a_opa_laq(sc));
   set_car(sc->t2_1, recur_pop(sc));
   return(sc->rec_cf(sc, sc->t2_1));
@@ -82294,9 +82281,10 @@ static s7_pointer oprec_if_a_a_opa_laq(s7_scheme *sc)
 
 static s7_pointer oprec_if_a_opa_laq_a(s7_scheme *sc)
 {
-  if (sc->rec_testf(sc, sc->rec_testp) == sc->F) return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_testf(sc, sc->rec_testp) == sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
-  slot_set_value(sc->rec_slot, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
   set_car(sc->t2_2, oprec_if_a_opa_laq_a(sc));
   set_car(sc->t2_1, recur_pop(sc));
   return(sc->rec_cf(sc, sc->t2_1));
@@ -82314,35 +82302,28 @@ static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc)
   return(oprec_if_a_opa_laq_a(sc));
 }
 
-
-/* all tc's can also precompute args and funcs
- *   and mutable slot value = no boxing (need int/float-vector stack and stack handlers?)
- * try a local struct for the vars
- * subtract_t1e?
- */
-
 static s7_pointer fx_lt_ti_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, integer(slot_value(sc->rec_slot)) < sc->rec_testi));
+  return(make_boolean(sc, integer(slot_value(sc->rec_slot1)) < sc->rec_testi));
 }
 
 static s7_pointer fx_geq_ti_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, integer(slot_value(sc->rec_slot)) >= sc->rec_testi));
+  return(make_boolean(sc, integer(slot_value(sc->rec_slot1)) >= sc->rec_testi));
 }
 
 static s7_pointer fx_subtract_t1_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_integer(sc, integer(slot_value(sc->rec_slot)) - 1));
+  return(make_integer(sc, integer(slot_value(sc->rec_slot1)) - 1));
 }
 
 static s7_pointer fx_subtract_ti_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_integer(sc, integer(slot_value(sc->rec_slot)) - sc->rec_f2i));
+  return(make_integer(sc, integer(slot_value(sc->rec_slot1)) - sc->rec_f2i));
 }
 
 static s7_pointer g_add_2i(s7_scheme *sc, s7_pointer args)
@@ -82354,25 +82335,25 @@ static s7_pointer g_add_2i(s7_scheme *sc, s7_pointer args)
 static s7_pointer fx_lt_tf_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, real(slot_value(sc->rec_slot)) < sc->rec_testr));
+  return(make_boolean(sc, real(slot_value(sc->rec_slot1)) < sc->rec_testr));
 }
 
 static s7_pointer fx_geq_tf_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, real(slot_value(sc->rec_slot)) >= sc->rec_testr));
+  return(make_boolean(sc, real(slot_value(sc->rec_slot1)) >= sc->rec_testr));
 }
 
 static s7_pointer fx_subtract_tf1_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_real(sc, real(slot_value(sc->rec_slot)) - sc->rec_f1r));
+  return(make_real(sc, real(slot_value(sc->rec_slot1)) - sc->rec_f1r));
 }
 
 static s7_pointer fx_subtract_tf2_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_real(sc, real(slot_value(sc->rec_slot)) - sc->rec_f2r));
+  return(make_real(sc, real(slot_value(sc->rec_slot1)) - sc->rec_f2r));
 }
 
 static s7_pointer g_add_2r(s7_scheme *sc, s7_pointer args)
@@ -82380,41 +82361,57 @@ static s7_pointer g_add_2r(s7_scheme *sc, s7_pointer args)
   return(make_real(sc, real(car(args)) + real(cadr(args))));
 }
 
+/* -------- if_a_a_opla_laq and if_a_opla_laq_a -------- */
 static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 {
   s7_pointer caller;
   sc->rec_testp = cdr(sc->code);
   sc->rec_testf = c_callee(sc->rec_testp);
   sc->rec_testp = car(sc->rec_testp);
+
   sc->rec_resp = (a_op) ?  cddr(sc->code) : cdddr(sc->code);
   sc->rec_resf = c_callee(sc->rec_resp);
   sc->rec_resp = car(sc->rec_resp);
+
   caller = opt3_pair(sc->code);
+
   sc->rec_f1p = cdadr(caller);
   sc->rec_f1f = c_callee(sc->rec_f1p);
   sc->rec_f1p = car(sc->rec_f1p);
+
   sc->rec_f2p = cdr(opt3_pair(caller));
   sc->rec_f2f = c_callee(sc->rec_f2p);
   sc->rec_f2p = car(sc->rec_f2p);
-  sc->rec_slot = let_slots(sc->envir);
+
+  sc->rec_slot1 = let_slots(sc->envir);
   sc->rec_cf = c_callee(caller);
 
-  if ((is_t_integer(slot_value(sc->rec_slot))) &&
+  /* all we need is integer (or float below) values throughout so the f's here need only ensure integer args/results (except test is boolean result)
+   *    so testf=(boolean? integer? integer?)
+   *       f1f/f2f=(integer? integer? integer?)
+   *       cf needs to return type of args
+   * then ideally we could ask each f for its all-integer version
+   * also need to check resf return type
+   */
+
+  if ((is_t_integer(slot_value(sc->rec_slot1))) &&
       ((sc->rec_testf == fx_lt_ti) || (sc->rec_testf == fx_geq_ti)) &&
       (sc->rec_f1f == fx_subtract_t1) &&
-      (sc->rec_f2f == fx_subtract_ti))
+      (sc->rec_f2f == fx_subtract_ti) &&
+      (sc->rec_cf == g_add_2)) 
     {
       sc->rec_testf = (sc->rec_testf == fx_lt_ti) ? fx_lt_ti_direct : fx_geq_ti_direct;
       sc->rec_testi = integer(caddr(sc->rec_testp));
       sc->rec_f1f = fx_subtract_t1_direct;
       sc->rec_f2f = fx_subtract_ti_direct;
       sc->rec_f2i = integer(caddr(sc->rec_f2p));
-      if (sc->rec_cf == g_add_2) sc->rec_cf = g_add_2i;
+      sc->rec_cf = g_add_2i;
    }
-  if ((is_t_real(slot_value(sc->rec_slot))) &&
+  if ((is_t_real(slot_value(sc->rec_slot1))) &&
       ((sc->rec_testf == fx_lt_tf) || (sc->rec_testf == fx_geq_tf)) &&
       (sc->rec_f1f == fx_subtract_tf) &&
-      (sc->rec_f2f == fx_subtract_tf))
+      (sc->rec_f2f == fx_subtract_tf) &&
+      (sc->rec_cf == g_add_2))
     {
       sc->rec_testf = (sc->rec_testf == fx_lt_tf) ? fx_lt_tf_direct : fx_geq_tf_direct;
       sc->rec_testr = real(caddr(sc->rec_testp));
@@ -82422,16 +82419,17 @@ static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
       sc->rec_f1r = real(caddr(sc->rec_f1p));
       sc->rec_f2f = fx_subtract_tf2_direct;
       sc->rec_f2r = real(caddr(sc->rec_f2p));
-      if (sc->rec_cf == g_add_2) sc->rec_cf = g_add_2r;
+      sc->rec_cf = g_add_2r;
    }
 }
 
 static s7_pointer oprec_if_a_a_opla_laq(s7_scheme *sc)
 {
-  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
-  slot_set_value(sc->rec_slot, sc->rec_f2f(sc, sc->rec_f2p));
-  slot_set_value(sc->rec_slot, recur_swap(sc, oprec_if_a_a_opla_laq(sc)));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_if_a_a_opla_laq(sc)));
   set_car(sc->t2_1, oprec_if_a_a_opla_laq(sc));
   set_car(sc->t2_2, recur_pop(sc));
   return(sc->rec_cf(sc, sc->t2_1));
@@ -82439,10 +82437,11 @@ static s7_pointer oprec_if_a_a_opla_laq(s7_scheme *sc)
 
 static s7_pointer oprec_if_a_opla_laq_a(s7_scheme *sc)
 {
-  if (sc->rec_testf(sc, sc->rec_testp) == sc->F) return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_testf(sc, sc->rec_testp) == sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
-  slot_set_value(sc->rec_slot, sc->rec_f2f(sc, sc->rec_f2p));
-  slot_set_value(sc->rec_slot, recur_swap(sc, oprec_if_a_opla_laq_a(sc)));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_if_a_opla_laq_a(sc)));
   set_car(sc->t2_1, oprec_if_a_opla_laq_a(sc));
   set_car(sc->t2_2, recur_pop(sc));
   return(sc->rec_cf(sc, sc->t2_1));
@@ -82460,235 +82459,473 @@ static s7_pointer op_recur_if_a_opla_laq_a(s7_scheme *sc)
   return(oprec_if_a_opla_laq_a(sc));
 }
 
-static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc)
+/* -------- if_a_a_opa_la_laq and if_a_opa_la_laq_a -------- */
+static void opinit_if_a_a_opa_la_laq(s7_scheme *sc, bool a_op)
 {
-  s7_pointer caller, la1, la2, la3, slot;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  s7_pointer caller;
+  sc->rec_testp = cdr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
 
-  if (fx_call(sc, cdr(sc->code)) != sc->F)        /* if test... */
-    return(fx_call(sc, cddr(sc->code)));          /*        res */
-  
+  sc->rec_resp = (a_op) ?  cddr(sc->code) : cdddr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
   caller = opt3_pair(sc->code);
-  la1 = cdr(caller);
-  la2 = caddr(caller);
-  la3 = opt3_pair(caller);
 
-  slot = let_slots(sc->envir);
-  recur_push(sc, fx_call(sc, la1));
-  recur_push(sc, fx_call(sc, cdr(la2)));
-  slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, op_recur_if_a_a_opa_la_laq(sc)));
-  set_car(sc->t3_2, op_recur_if_a_a_opa_la_laq(sc));
+  sc->rec_f1p = cdr(caller);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdaddr(caller);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  sc->rec_f3p = cdr(opt3_pair(caller));
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_if_a_a_opa_la_laq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, sc->rec_f3f(sc, sc->rec_f3p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_if_a_a_opa_la_laq(sc)));
+  set_car(sc->t3_2, oprec_if_a_a_opa_la_laq(sc));
   set_car(sc->t3_3, recur_pop(sc));
   set_car(sc->t3_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t3_1));
+  return(sc->rec_cf(sc, sc->t3_1));
+}
+
+static s7_pointer oprec_if_a_opa_la_laq_a(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) == sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, sc->rec_f3f(sc, sc->rec_f3p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_if_a_opa_la_laq_a(sc)));
+  set_car(sc->t3_2, oprec_if_a_opa_la_laq_a(sc));
+  set_car(sc->t3_3, recur_pop(sc));
+  set_car(sc->t3_1, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t3_1));
+}
+
+static s7_pointer op_recur_if_a_a_opa_la_laq(s7_scheme *sc)
+{
+  opinit_if_a_a_opa_la_laq(sc, true);
+  return(oprec_if_a_a_opa_la_laq(sc));
 }
 
 static s7_pointer op_recur_if_a_opa_la_laq_a(s7_scheme *sc)
 {
-  s7_pointer caller, la1, la2, la3, slot;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_if_a_a_opa_la_laq(sc, false);
+  return(oprec_if_a_opa_la_laq_a(sc));
+}
 
-  if (fx_call(sc, cdr(sc->code)) == sc->F)
-    return(fx_call(sc, cdddr(sc->code)));
-  
+/* -------- if_a_a_opla_la_laq -------- */
+static void opinit_if_a_a_opla_la_laq(s7_scheme *sc, bool a_op)
+{
+  s7_pointer caller;
+  sc->rec_testp = cdr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
+
+  sc->rec_resp = (a_op) ?  cddr(sc->code) : cdddr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
   caller = opt3_pair(sc->code);
-  la1 = cdr(caller);
-  la2 = caddr(caller);
-  la3 = opt3_pair(caller);
 
-  slot = let_slots(sc->envir);
-  recur_push(sc, fx_call(sc, la1));
-  recur_push(sc, fx_call(sc, cdr(la2)));
-  slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, op_recur_if_a_opa_la_laq_a(sc)));
-  set_car(sc->t3_2, op_recur_if_a_opa_la_laq_a(sc));
-  set_car(sc->t3_3, recur_pop(sc));
-  set_car(sc->t3_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t3_1));
+  sc->rec_f1p = cdadr(caller);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdaddr(caller);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  sc->rec_f3p = cdr(opt3_pair(caller));
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_if_a_a_opla_la_laq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot1, sc->rec_f3f(sc, sc->rec_f3p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_if_a_a_opla_la_laq(sc)));
+  recur_push(sc, oprec_if_a_a_opla_la_laq(sc));
+  slot_set_value(sc->rec_slot1, recur_ref(sc, 3));
+  set_car(sc->t3_1, oprec_if_a_a_opla_la_laq(sc));
+  set_car(sc->t3_2, recur_pop(sc));
+  set_car(sc->t3_3, recur_pop2(sc));
+  return(sc->rec_cf(sc, sc->t3_1));
 }
 
 static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc)
 {
-  s7_pointer caller, la1, la2, la3, slot;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_if_a_a_opla_la_laq(sc, true);
+  return(oprec_if_a_a_opla_la_laq(sc));
+}
 
-  if (fx_call(sc, cdr(sc->code)) != sc->F)        /* if test... */
-    return(fx_call(sc, cddr(sc->code)));          /*        res */
-  
-  caller = opt3_pair(sc->code); /* as above */
-  la1 = cadr(caller);
-  la2 = caddr(caller);
-  la3 = opt3_pair(caller);
+/* -------- cond_a_a_opa_laq -------- */
+static void opinit_cond_a_a_opa_laq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  slot = let_slots(sc->envir);
-  recur_push(sc, fx_call(sc, cdr(la1)));
-  recur_push(sc, fx_call(sc, cdr(la2)));
-  slot_set_value(slot, fx_call(sc, cdr(la3)));
-  slot_set_value(slot, recur_swap(sc, op_recur_if_a_a_opla_la_laq(sc)));
-  recur_push(sc, op_recur_if_a_a_opla_la_laq(sc));
-  slot_set_value(slot, recur_ref(sc, 3));
-  set_car(sc->t3_1, op_recur_if_a_a_opla_la_laq(sc));
-  set_car(sc->t3_2, recur_pop(sc));
-  set_car(sc->t3_3, recur_pop(sc));
-  recur_pop(sc);
-  return(c_call(caller)(sc, sc->t3_1));
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
+
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
+  caller = opt3_pair(sc->code);
+
+  sc->rec_f1p = cdr(caller);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdr(opt3_pair(caller));
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_cond_a_a_opa_laq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+  set_car(sc->t2_2, oprec_cond_a_a_opa_laq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t2_1));
 }
 
 static s7_pointer op_recur_cond_a_a_opa_laq(s7_scheme *sc)
 {
-  s7_pointer caller, la, slot;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_cond_a_a_opa_laq(sc);
+  return(oprec_cond_a_a_opa_laq(sc));
+}
 
-  if (fx_call(sc, cadr(sc->code)) != sc->F)        /* cond test... */
-    return(fx_call(sc, cdadr(sc->code)));          /*        res */
-  
-  caller = opt3_pair(sc->code); /* cadr(caddr(sc->code)) */
-  la = opt3_pair(caller);       /* caddr(caller) */
-  slot = let_slots(sc->envir);
+/* -------- cond_a_a_opa_laaq -------- */
+static void opinit_cond_a_a_opa_laaq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  recur_push(sc, fx_call(sc, cdr(caller)));
-  slot_set_value(slot, fx_call(sc, cdr(la)));
-  set_car(sc->t2_2, op_recur_cond_a_a_opa_laq(sc));
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
+
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
+  caller = opt3_pair(sc->code);
+
+  sc->rec_f1p = cdr(caller);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdr(opt3_pair(caller));
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  sc->rec_f3p = cddr(opt3_pair(caller));
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_slot2 = next_slot(sc->rec_slot1);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_cond_a_a_opa_laaq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+  slot_set_value(sc->rec_slot2, sc->rec_f3f(sc, sc->rec_f3p));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  set_car(sc->t2_2, oprec_cond_a_a_opa_laaq(sc));
   set_car(sc->t2_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t2_1));
+  return(sc->rec_cf(sc, sc->t2_1));
 }
 
 static s7_pointer op_recur_cond_a_a_opa_laaq(s7_scheme *sc)
 {
-  s7_pointer caller, la, slot1, slot2;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_cond_a_a_opa_laaq(sc);
+  return(oprec_cond_a_a_opa_laaq(sc));
+}
 
-  if (fx_call(sc, cadr(sc->code)) != sc->F)        /* cond test... */
-    return(fx_call(sc, cdadr(sc->code)));          /*        res */
-  
-  caller = opt3_pair(sc->code); /* cadr(caddr(sc->code)) */
-  la = opt3_pair(caller);       /* caddr(caller) */
-  slot1 = let_slots(sc->envir);
-  slot2 = next_slot(slot1);
+/* -------- cond_a_a_a_a_opla_laq -------- */
+static void opinit_cond_a_a_a_a_opla_laq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  recur_push(sc, fx_call(sc, cdr(caller)));
-  recur_push(sc, fx_call(sc, cdr(la)));
-  slot_set_value(slot2, fx_call(sc, cddr(la)));
-  slot_set_value(slot1, recur_pop(sc));
-  set_car(sc->t2_2, op_recur_cond_a_a_opa_laaq(sc));
-  set_car(sc->t2_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t2_1));
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
+
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
+  sc->rec_f1p = caddr(sc->code);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdaddr(sc->code);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  caller = opt3_pair(sc->code);
+
+  sc->rec_f3p = cdadr(caller);
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+
+  sc->rec_f4p = opt3_pair(caller);
+  sc->rec_f4f = c_callee(sc->rec_f4p);
+  sc->rec_f4p = car(sc->rec_f4p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_cond_a_a_a_a_opla_laq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_f1f(sc, sc->rec_f1p) != sc->F) 
+    return(sc->rec_f2f(sc, sc->rec_f2p));
+  recur_push(sc, sc->rec_f3f(sc, sc->rec_f3p));
+  slot_set_value(sc->rec_slot1, sc->rec_f4f(sc, sc->rec_f4p));
+  slot_set_value(sc->rec_slot1, recur_swap(sc, oprec_cond_a_a_a_a_opla_laq(sc)));
+  set_car(sc->t2_1, oprec_cond_a_a_a_a_opla_laq(sc));
+  set_car(sc->t2_2, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t2_1));
 }
 
 static s7_pointer op_recur_cond_a_a_a_a_opla_laq(s7_scheme *sc)
 {
-  s7_pointer caller, slot;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_cond_a_a_a_a_opla_laq(sc);
+  return(oprec_cond_a_a_a_a_opla_laq(sc));
+}
 
-  if (fx_call(sc, cadr(sc->code)) != sc->F)
-    return(fx_call(sc, cdadr(sc->code)));
+/* -------- cond_a_a_a_a_opa_laaq -------- */
+static void opinit_cond_a_a_a_a_opa_laaq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  if (fx_call(sc, caddr(sc->code)) != sc->F)
-    return(fx_call(sc, cdaddr(sc->code)));
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
+
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
+  sc->rec_f1p = caddr(sc->code);
+  sc->rec_f2p = cdr(sc->rec_f1p);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
 
   caller = opt3_pair(sc->code);
-  slot = let_slots(sc->envir);
-  recur_push(sc, fx_call(sc, cdadr(caller)));
-  slot_set_value(slot, fx_call(sc, opt3_pair(caller)));
-  slot_set_value(slot, recur_swap(sc, op_recur_cond_a_a_a_a_opla_laq(sc)));
-  set_car(sc->t2_1, op_recur_cond_a_a_a_a_opla_laq(sc));
-  set_car(sc->t2_2, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t2_1));
+
+  sc->rec_f3p = cdr(caller);
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+
+  sc->rec_f4p = opt3_pair(caller);  /* cdaddr(caller) */
+  sc->rec_f4f = c_callee(sc->rec_f4p);
+  sc->rec_f4p = car(sc->rec_f4p);
+
+  sc->rec_f5p = cdr(opt3_pair(caller));
+  sc->rec_f5f = c_callee(sc->rec_f5p);
+  sc->rec_f5p = car(sc->rec_f5p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_slot2 = next_slot(sc->rec_slot1);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_cond_a_a_a_a_opa_laaq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_f1f(sc, sc->rec_f1p) != sc->F) 
+    return(sc->rec_f2f(sc, sc->rec_f2p));
+  recur_push(sc, sc->rec_f3f(sc, sc->rec_f3p));
+  recur_push(sc, sc->rec_f4f(sc, sc->rec_f4p));
+  slot_set_value(sc->rec_slot2, sc->rec_f5f(sc, sc->rec_f5p));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  set_car(sc->t2_2, oprec_cond_a_a_a_a_opa_laaq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t2_1));
 }
 
 static s7_pointer op_recur_cond_a_a_a_a_opa_laaq(s7_scheme *sc)
 {
-  s7_pointer caller, a, laa, slot1, slot2;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_cond_a_a_a_a_opa_laaq(sc);
+  return(oprec_cond_a_a_a_a_opa_laaq(sc));
+}
 
-  if (fx_call(sc, cadr(sc->code)) != sc->F)
-    return(fx_call(sc, cdadr(sc->code)));
+/* -------- cond_a_a_a_a_oplaa_laaq -------- */
 
-  if (fx_call(sc, caddr(sc->code)) != sc->F)
-    return(fx_call(sc, cdaddr(sc->code)));
+static void opinit_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  caller = opt3_pair(sc->code);
-  a = cdr(caller);
-  laa = opt3_pair(caller); /* cdaddr(caller) */
-  slot1 = let_slots(sc->envir);
-  slot2 = next_slot(slot1);
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
 
-  recur_push(sc, fx_call(sc, a));
-  recur_push(sc, fx_call(sc, laa));
-  slot_set_value(slot2, fx_call(sc, cdr(laa)));
-  slot_set_value(slot1, recur_pop(sc));
-  set_car(sc->t2_2, op_recur_cond_a_a_a_a_opa_laaq(sc));
-  set_car(sc->t2_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t2_1));
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
+
+  sc->rec_f1p = caddr(sc->code);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+
+  sc->rec_f2p = cdaddr(sc->code);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+
+  caller = opt3_pair(sc->code);  /* cadr(cadddr(sc->code)) = (cfunc laa laa) */
+
+  sc->rec_f3p = cdadr(caller);
+  sc->rec_f4p = cdr(sc->rec_f3p);
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
+  sc->rec_f4f = c_callee(sc->rec_f4p);
+  sc->rec_f4p = car(sc->rec_f4p);
+
+  sc->rec_f5p = opt3_pair(caller);
+  sc->rec_f6p = cdr(sc->rec_f5p);
+  sc->rec_f5f = c_callee(sc->rec_f5p);
+  sc->rec_f5p = car(sc->rec_f5p);
+  sc->rec_f6f = c_callee(sc->rec_f6p);
+  sc->rec_f6p = car(sc->rec_f6p);
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_slot2 = next_slot(sc->rec_slot1);
+  sc->rec_cf = c_callee(caller);
+}
+
+static s7_pointer oprec_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_f1f(sc, sc->rec_f1p) != sc->F) 
+    return(sc->rec_f2f(sc, sc->rec_f2p));
+  recur_push(sc, sc->rec_f3f(sc, sc->rec_f3p));
+  recur_push(sc, sc->rec_f4f(sc, sc->rec_f4p));
+  recur_push(sc, sc->rec_f5f(sc, sc->rec_f5p));
+  slot_set_value(sc->rec_slot2, sc->rec_f6f(sc, sc->rec_f6p));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  sc->value = oprec_cond_a_a_a_a_oplaa_laaq(sc);        /* second laa arg */
+  slot_set_value(sc->rec_slot2, recur_pop(sc));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  recur_push_unchecked(sc, sc->value);
+  set_car(sc->t2_1, oprec_cond_a_a_a_a_oplaa_laaq(sc)); /* first laa arg */
+  set_car(sc->t2_2, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t2_1));
 }
 
 static s7_pointer op_recur_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc)
 {
-  s7_pointer caller, la, slot1, slot2;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
+  opinit_cond_a_a_a_a_oplaa_laaq(sc);
+  return(oprec_cond_a_a_a_a_oplaa_laaq(sc));
+}
 
-  if (fx_call(sc, cadr(sc->code)) != sc->F)
-    return(fx_call(sc, cdadr(sc->code)));
+/* -------- cond_a_a_a_laa_lopa_laaq -------- */
 
-  if (fx_call(sc, caddr(sc->code)) != sc->F)
-    return(fx_call(sc, cdaddr(sc->code)));
+static void opinit_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc)
+{
+  s7_pointer caller;
 
-  slot1 = let_slots(sc->envir);
-  slot2 = next_slot(slot1);
-  recur_push(sc, slot_value(slot1));
-  recur_push(sc, slot_value(slot2));
+  sc->rec_testp = cadr(sc->code);
+  sc->rec_testf = c_callee(sc->rec_testp);
+  sc->rec_testp = car(sc->rec_testp);
 
-  caller = opt3_pair(sc->code); /* cadr(cadddr(sc->code)) = (cfunc laa laa) */
-  la = cdadr(caller); /* first laa arg, its args */
+  sc->rec_resp = cdadr(sc->code);
+  sc->rec_resf = c_callee(sc->rec_resp);
+  sc->rec_resp = car(sc->rec_resp);
 
-  recur_push(sc, fx_call(sc, la));
-  slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc));
-  sc->value = op_recur_cond_a_a_a_a_oplaa_laaq(sc);
-
-  slot_set_value(slot2, recur_pop(sc));
-  slot_set_value(slot1, recur_pop(sc));
-  recur_push_unchecked(sc, sc->value);
+  sc->rec_f1p = caddr(sc->code);
+  sc->rec_f2p = cdadr(sc->rec_f1p);
+  sc->rec_f3p = cdr(sc->rec_f2p);
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+  sc->rec_f3f = c_callee(sc->rec_f3p);
+  sc->rec_f3p = car(sc->rec_f3p);
   
-  la = opt3_pair(caller); /* cdaddr(caller) */
-  recur_push_unchecked(sc, fx_call(sc, la));
-  slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc));
-  set_car(sc->t2_2, op_recur_cond_a_a_a_a_oplaa_laaq(sc));
-  set_car(sc->t2_1, recur_pop(sc));
-  return(c_call(caller)(sc, sc->t2_1));
+  caller = opt3_pair(sc->code);
+
+  sc->rec_f4p = cdr(caller);
+  sc->rec_f4f = c_callee(sc->rec_f4p);
+  sc->rec_f4p = car(sc->rec_f4p);
+
+  sc->rec_f5p = opt3_pair(caller);
+  sc->rec_f6p = cdr(sc->rec_f5p);
+  sc->rec_f5f = c_callee(sc->rec_f5p);
+  sc->rec_f5p = car(sc->rec_f5p);
+  sc->rec_f6f = c_callee(sc->rec_f6p);
+  sc->rec_f6p = car(sc->rec_f6p);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_slot2 = next_slot(sc->rec_slot1);
+}
+
+static s7_pointer oprec_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_f1f(sc, sc->rec_f1p) != sc->F) 
+    {
+      recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+      slot_set_value(sc->rec_slot2, sc->rec_f3f(sc, sc->rec_f3p));
+      slot_set_value(sc->rec_slot1, recur_pop(sc));
+      return(oprec_cond_a_a_a_laa_lopa_laaq(sc));
+    }
+  recur_push(sc, sc->rec_f4f(sc, sc->rec_f4p));
+  recur_push(sc, sc->rec_f5f(sc, sc->rec_f5p));
+  slot_set_value(sc->rec_slot2, sc->rec_f6f(sc, sc->rec_f6p));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  slot_set_value(sc->rec_slot2, oprec_cond_a_a_a_laa_lopa_laaq(sc));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  return(oprec_cond_a_a_a_laa_lopa_laaq(sc));
 }
 
 static s7_pointer op_recur_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc)
 {
-  s7_pointer caller, la, slot1, slot2;
-  /* fprintf(stderr, "%s[%d] %s %s\n", __func__, __LINE__, DISPLAY(sc->code), DISPLAY(sc->envir)); */
-
-  if (fx_call(sc, cadr(sc->code)) != sc->F)
-    return(fx_call(sc, cdadr(sc->code)));
-
-  slot1 = let_slots(sc->envir);
-  slot2 = next_slot(slot1);
-  if (fx_call(sc, caddr(sc->code)) != sc->F)
-    {
-      la = cdadr(caddr(sc->code));
-      recur_push(sc, fx_call(sc, la));
-      slot_set_value(slot2, fx_call(sc, cdr(la)));
-      slot_set_value(slot1, recur_pop(sc));
-      return(op_recur_cond_a_a_a_laa_lopa_laaq(sc));
-    }
-  caller = opt3_pair(sc->code);
-  la = cdr(caller);
-  recur_push(sc, fx_call(sc, la));
-  la = opt3_pair(caller); /* cdaddr(caller) */
-  recur_push(sc, fx_call(sc, la));
-  slot_set_value(slot2, fx_call(sc, cdr(la)));
-  slot_set_value(slot1, recur_pop(sc));
-  slot_set_value(slot2, op_recur_cond_a_a_a_laa_lopa_laaq(sc));
-  slot_set_value(slot1, recur_pop(sc));
-  return(op_recur_cond_a_a_a_laa_lopa_laaq(sc));
+  opinit_cond_a_a_a_laa_lopa_laaq(sc);
+  return(oprec_cond_a_a_a_laa_lopa_laaq(sc));
 }
+
 
 static void wrap_recur(s7_scheme *sc, s7_pointer (*recur)(s7_scheme *sc))
 {
@@ -82698,7 +82935,7 @@ static void wrap_recur(s7_scheme *sc, s7_pointer (*recur)(s7_scheme *sc))
   unstack(sc);
 }
 
-
+/* -------------------------------- */
 static void op_safe_c_cs(s7_scheme *sc)
 {
   s7_pointer args;
@@ -93882,26 +94119,26 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      | 1095 |  834   834
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   978
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1531
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1530
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1712
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2104
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2249
  * tread         |      |      |      |      | 2357 | 2336 | 2279  2281
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2308
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2304
  * tvect         |      |      |      |      |      | 5729 | 2340  2339
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
  * tlet          |      |      |      |      | 4717 | 2959 | 2577  2585
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2930
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2933
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3222
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3308
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3315
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3886
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4536
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3835
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4500
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  8478
  * thash         |      |      |      |      |      | 10.3 | 8873  8873
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  9477  8963
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  38.2
@@ -93914,6 +94151,5 @@ int main(int argc, char **argv)
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * error reports highlighting/colorizing would be nice, and better location detection
- * why op_closure_fx not fx_treed? recur: unsafe (frame-wise)
- * s7 tools directory
+ * see lines for dups 12
  */
