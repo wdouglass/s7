@@ -108,7 +108,7 @@
 		  (car im))))
 
 	  ((even? pow)
-	   (square-matrix (matrix-exp mat (/ pow 2))))
+	   (square-matrix (matrix-exp mat (ash pow -1))))
 	  
 	  (else
 	   (matrix-multiply mat (matrix-exp mat (- pow 1))))))

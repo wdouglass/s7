@@ -37,10 +37,3 @@
 			      (if (> (length expr) 60)
 				  (string-append (substring expr 0 56) " ...")
 				  expr)))))))))))
-
-#|
-(define old-version s7-version)
-(define (s7-version)
-  (show-profile)
-  (old-version))
-|#
