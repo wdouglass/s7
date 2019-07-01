@@ -2141,6 +2141,10 @@ static void init_types(void)
 #define set_local(p)                   typeflag(T_Sym(p)) = ((typeflag(p) | T_LOCAL) & ~(T_DONT_EVAL_ARGS | T_GLOBAL | T_SYNTACTIC))
 #endif
 
+#define T_HIGH_C                       T_LOCAL
+#define has_high_c(p)                  has_type_bit(T_Pair(p), T_HIGH_C)
+#define set_has_high_c(p)              set_type_bit(T_Pair(p), T_HIGH_C)
+
 #define T_UNSAFE_DO                    T_GLOBAL
 #define is_unsafe_do(p)                has_type_bit(T_Pair(p), T_UNSAFE_DO)
 #define set_unsafe_do(p)               set_type_bit(T_Pair(p), T_UNSAFE_DO)
@@ -5813,12 +5817,15 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 
   old_size = sc->heap_size;
   old_free = sc->free_heap_top - sc->free_heap;
-
   if (size == 0)
     {
+#if 0
       if (sc->heap_size < 512000)
 	sc->heap_size *= 2;
       else sc->heap_size += 512000;
+#else
+      sc->heap_size *= 4;
+#endif
     }
   else
     {
@@ -29785,7 +29792,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_SHARED) != 0) ?         " shared" : "",
 	   /* bit 12 */
 	   ((full_typ & T_LOCAL) != 0) ?          ((is_symbol(obj)) ? " local" :
-						   " ?12?") : "",
+						   ((is_pair(obj)) ? " high-c" :
+						    " ?12?")) : "",
 	   /* bit 13 */
 	   ((full_typ & T_SAFE_PROCEDURE) != 0) ? " safe-procedure" : "",
 	   /* bit 14 */
@@ -29907,7 +29915,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
   if (((full_typ & T_FULL_DEFINER) != 0) && (!is_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj))) return(true);
   if (((full_typ & T_FULL_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj))) return(true);
-  if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj))) return(true);
+  if (((full_typ & T_LOCAL) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_pair(obj)) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_let(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
@@ -48587,7 +48595,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 			 NULL, false, 8);
 	  format_to_port(sc, sc->error_port, ";    ~A, line ~D\n",
 			 set_plist_2(sc, slot_value(sc->error_file), slot_value(sc->error_line)),
-			 NULL, false, 18);
+			 NULL, false, 17);
 	}
       else
 	{
@@ -61034,6 +61042,40 @@ static bool is_some_number(s7_scheme *sc, s7_pointer tp)
 	 (tp == sc->is_rational_symbol));
 }
 
+static bool check_type_uncertainty(s7_scheme *sc, s7_pointer target, s7_pointer car_x, opt_info *opc, int32_t start_pc)
+{
+  /* maybe the type uncertainty is not a problem */
+  if ((is_pair(sc->code)) &&      /* t101-aux-14: (vector-set! !v! 0 (do ((x (list 1 2 3) (cdr x)) (j -1)) ((null? x) j) (set! j (car x)))) */
+      (is_pair(car(sc->code))) &&
+      (is_pair(cadr(sc->code))) &&
+      (is_pair(caadr(sc->code))))
+    {
+      s7_int counts;
+      if (!has_high_c(sc->code))
+	counts = tree_count(sc, target, car(sc->code), 0) +
+	         tree_count(sc, target, caadr(sc->code), 0) +
+	         tree_count(sc, target, cddr(sc->code), 0);
+      else counts = 2;
+      /* fprintf(stderr, "%s[%d]: %s %ld %s\n", __func__, __LINE__, DISPLAY(target), counts, DISPLAY_80(sc->code)); */
+      /* TODO: vector-set!...target can be discounted and (target init) in car 
+       *   how to search for these?  we're seeing the entire nested tree of do loops
+       *   so (do ...) -> search cadr for car=target and no cddr = counts--
+       *   also (do vars (end result)...) search result for target as last in list+car=vector|list|hash-table-set! or just bare symbol = counts--
+       */
+      if (counts <= 2)
+	{
+	  set_has_high_c(sc->code);
+	  pc_fallback(sc, start_pc);
+	  if (cell_optimize(sc, cddr(car_x)))
+	    {
+	      opc->v[0].fp = opt_set_p_p_f;
+	      return(oo_set_type_1(opc, 3, 1, OO_P));
+	    }
+	}
+    }
+  return(return_false(sc, car_x, __func__, __LINE__));
+}
+
 static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_syntax) */
 {
   opt_info *opc;
@@ -61053,10 +61095,9 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 	  (!is_immutable(settee)) &&
 	  (!is_syntax(slot_value(settee))))
 	{
-	  /* type changes here can confuse the rest of the optimizer, but if the target is not used anywhere its type matters, isn't it ok?
-	   *   look for such uses? outer return, last arg of vector-set etc
-	   */
 	  s7_pointer atype, stype;
+ 	  int32_t start_pc;
+ 	  start_pc = sc->pc;
 
 	  opc->v[1].p = settee;
 	  stype = s7_type_of(sc, slot_value(settee));
@@ -61086,7 +61127,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 		      oo_check(sc, opc);
 		      return(true);
 		    }
-		  return(return_false(sc, car_x, __func__, __LINE__));
+		  return(check_type_uncertainty(sc, target, car_x, opc, start_pc));
 		}
 	    }
 	  if (stype == sc->is_float_symbol)
@@ -61117,7 +61158,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 			opc->v[0].fp = opt_set_p_d_f;
 		      return(oo_set_type_1(opc, 3, 1, OO_P));
 		    }
-		  return(return_false(sc, car_x, __func__, __LINE__));
+		  return(check_type_uncertainty(sc, target, car_x, opc, start_pc));
 		}
 	    }
 	  atype = opt_arg_type(sc, cddr(car_x));
@@ -78183,7 +78224,10 @@ static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool saf
       if (pair_no_opt(code)) return(false);
       func = s7_optimize_nr(sc, code);
       if (!func)
-	return(false);
+	{
+	  set_pair_no_opt(code);
+	  return(false);
+	}
       end = denominator(slot_value(sc->args));
       if (safe_step)
 	{
@@ -94091,7 +94135,7 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.5  19.6
  * ------------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  161   161
+ * tpeak         |      |      |      |  391 |  377 |  199 |  161   164
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   236
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   610
  * tshoot        |      |      |      |      |      | 1095 |  834   834
@@ -94100,21 +94144,21 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1529
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1712
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2102
+ * tvect         |      |      |      |      |      | 5729 | 2340  2202
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2249
  * tread         |      |      |      |      | 2357 | 2336 | 2279  2281
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2316
- * tvect         |      |      |      |      |      | 5729 | 2340  2339
+ * tlet          |      |      |      |      | 4717 | 2959 | 2577  2296
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2312
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
- * tlet          |      |      |      |      | 4717 | 2959 | 2577  2585
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2930
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3260
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3311
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3315
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3835
- * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4512
+ * tmat     8641 | 8458 |      |      | 8081 | 8065 | 7522 | 4513  4490  4445
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  8478
  * thash         |      |      |      |      |      | 10.3 | 8873  8873
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
@@ -94122,15 +94166,14 @@ int main(int argc, char **argv)
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  38.2
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.7
  * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.4
- * tbig          |      |      |      |      |246.9 |230.6 |184.8 184.8
+ * tbig          |      |      |      |      |246.9 |230.6 |184.8 184.1
  * ------------------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * why isn't t135 opt'd, all 3 do's are safe: safe_do(safe_do(dox)) 
- *   and why dox_step? (op_increment_sa is not fx_function) need better nested do support
- *   set should be ok if settee is not in any end test -- add to fx_functions
- *   this could check implicits as well (and no sets of targets)
- *   tvect opt's all nested-do's so this is some nesting limitation
+ *   finish the searcher 61055
+ * tmat: fx_s in vector_a|aa op_vector_set_3|4
+ * test simpler gc resize (*2 -- *4??) and a larger initial size and perhaps a growing/decreasing expander?
  */

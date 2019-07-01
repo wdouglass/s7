@@ -48,7 +48,7 @@
 	       ;; round-off troubles here
 	       (if (< (abs (matrix col col)) zero)
 		   (return #f))
-	       (let ((inverse-pivot (/ 1 (matrix col col))))
+	       (let ((inverse-pivot (/ 1.0 (matrix col col))))
 		 (set! (matrix col col) 1)
 		 (do ((k 0 (+ k 1)))
 		     ((= k n))
