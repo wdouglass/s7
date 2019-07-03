@@ -87,6 +87,7 @@
 	 (list "repl" "tlet.scm")
 	 (list "repl" "tform.scm")
 	 (list "repl" "tfft.scm")
+	 (list "repl" "tmat.scm")
 	 (list "repl" "fbench.scm")
 	 (list "repl" "tclo.scm")
 	 (list "repl" "tmap.scm")
@@ -95,7 +96,6 @@
 	 (list "repl" "tset.scm")
 	 (list "repl" "titer.scm")
 	 (list "repl" "trclo.scm")
-	 (list "repl" "tmat.scm")
 	 (list "repl" "trec.scm")
 	 (list "repl" "thash.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower

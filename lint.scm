@@ -2417,13 +2417,13 @@
     (define (->eqf x)
       (case x
 	((char?) '(eqv? char=?))
-	((integer? rational? real? number? complex? float?) '(eqv? =))
+	((integer? rational? real? number? complex? float? infinite? nan?) '(eqv? =))
 	((symbol? keyword? boolean? not null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
 	((string?) '(equal? string=?))
 	((pair? vector? float-vector? int-vector?  subvector? hash-table?) '(equal? equal?))
 	((eof-object?) '(eq? eof-object?))
 	(else 
-	 (if (and (len=2? x)
+	 (if (and (len>1? x)
 		  (or (and (or (memq 'boolean? x)
 			       (memq 'not x))
 			   (or (memq 'real? x) (memq 'number? x) (memq 'integer? x)))
@@ -9487,8 +9487,6 @@
 		    )))
 		  ;; very few hits:
 		  ;; (equal? (reverse em) '((0 -2 0) (0 -1 0) (1 -2 0) (1 -1 0)))
-		  ;; (equal? post-date (cons 0 0))
-		  ;; (equal? (cadr arg1) (list 'not (cadr arg2)))
 
 	  (hash-special 'eqv? sp-eqv?)
 	  (hash-special 'equal? sp-eqv?))

@@ -14,7 +14,7 @@
 		  (col 0 0)
 		  (row 0 0))
 		 ((= i n))
-	       (do ((biggest 0)
+	       (do ((biggest 0.0)
 		    (j 0 (+ j 1)))
 		   ((= j n)
 		    (if (< biggest zero) 
@@ -33,7 +33,7 @@
 			       (return #f))))))
 	       (set! (pivots col) (+ (pivots col) 1))
 	       (if (not (= row col))
-		   (let ((temp (if (sequence? b) (b row) 0)))
+		   (let ((temp (if (sequence? b) (b row) 0.0)))
 		     (if (sequence? b)
 			 (begin
 			   (set! (b row) (b col))
