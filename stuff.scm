@@ -1624,7 +1624,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		  (cond ((symbol? tree)
 			 (let ((val (symbol->value tree)))
 			   ;; don't accept any symbol with an accessor
-			   (if (or (setter tree)
+			   (if (or ;(setter val)
+				   (setter tree)
 				   (memq tree '(*s7* unquote abort))
 				   (let? val))  ; not sure about this
 			       (quit #f))

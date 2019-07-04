@@ -1767,6 +1767,13 @@ int main(int argc, char **argv)
   if (set_sym != s7_make_symbol(sc, "notified-var"))
     {fprintf(stderr, "%d: sym: %s\n", __LINE__, s1 = TO_STR(set_sym)); free(s1);}
     
+#if 0
+  {
+    int i;
+    for (i = 0; i < 1000000; i++)
+      s7_eval_c_string(sc, "(let ((a 1)) (+ a 1))");
+  }
+#endif
   return(0);
 }
 
