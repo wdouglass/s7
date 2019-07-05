@@ -1775,7 +1775,7 @@ evaluate their first argument, but set! does not (with a quibble; see below):
 </pre>
 
 <p>set! looks at its first argument to decide what to set.
-If it's a symbol, no problem.  If it's a list, set! looks at its car to see if it is
+If it's a symbol, no problem.  If it's a pair, set! looks at its car to see if it is
 some object that has a setter.  If the car is itself a list, set! evaluates the internal
 expression, and tries again.  So the second case above is the only one that won't work.
 And of course:
@@ -5696,12 +5696,19 @@ This is consistent with, for example,
 <code>(eq? #f '#f)</code> which is also #t.
 The standard says "the empty list is a special object of its own type", so surely either choice is
 acceptable in that regard (but, sigh, the standard stupidly goes on to deny that () can evaluate to itself).
+The confusion appears to be caused by the word "list".  I would describe the evaluator: "if it gets a
+constant (and () is a constant) it returns that constant; if it gets a pair, it looks at the pair's
+car to decide what to do".  It's nutty to insist on looking at the car of a list when you know () has no car!
+(And in standard scheme, the evaluator would have to traverse the entire list first; it might not be a proper list).
+</p>
+
+<!--
 One place where the quote matters is in a case statement; the selector is
 evaluated but the key is not:
 </p>
 
 <pre class="indented">
-&gt; (case '() ((()) 2) (else 1))
+&gt; (case '() ((()) 2) (else 1)) ; in s7 this is the same as (case () ((()) 2) (else 1))
 <em class="gray">2</em>
 &gt; (case '() (('()) 2) (else 1)) ; (eqv? '() ''()) is #f
 <em class="gray">1</em>
@@ -5711,8 +5718,9 @@ evaluated but the key is not:
 &gt; (case '#f (('#f) 2) (else 1)) ; (eqv? '#f ''#f) is #f
 <em class="gray">1</em>
 </pre>
+-->
 
-<p>Similarly, vector constants do not have to be quoted.  A list constant is quoted
+<p>Similarly, in s7, vector constants do not have to be quoted.  A list constant is quoted
 to keep it from being evaluated, but
 #(1 2 3) is as unproblematic as "123" or 123. 
 </p>
@@ -6692,7 +6700,9 @@ static const char *pp(s7_scheme *sc, s7_pointer obj) /* (pp obj) */
 <p>and now when we want a pretty-printed representation of something: pp(sc, obj);
 The s7_inlet call is creating a local environment with the object "obj" bound
 in scheme to the name "obj" so that (pp obj) will find the "obj" that actually
-lives in C.
+lives in C.  You may need to give the full filename for write.scm, or add its path
+to the <a href="#loadpath">load-path list</a>.  In the latter case, <code>(require write.scm)</code> could
+replace <code>(unless (defined?...))</code>.
 </p>
 </div>
 
