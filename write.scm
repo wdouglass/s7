@@ -10,11 +10,6 @@
 	(*pretty-print-left-margin* 0)
 	(*pretty-print-cycles* #t))
 
-    (define (any? f sequence)
-      (and (pair? sequence)
-	   (or (f (car sequence))
-	       (any? f (cdr sequence)))))
-
     (define pretty-print-1
       (letrec ((messy-number (lambda (z)
 			       (if (real? z)
@@ -94,6 +89,12 @@
 			(write-char #\) port))
 		      (write (car p) port))))) ; pretty-print? (it's always a symbol)
 	  
+	  (define (any-let-or-hash-table? sequence)
+	    (and (pair? sequence)
+		 (or (let? (car sequence))
+		     (hash-table? (car sequence))
+		     (any-let-or-hash-table? (cdr sequence)))))
+
 	  (let ((writers 
 		 (let ((h (make-hash-table)))
 		   
@@ -533,10 +534,7 @@
 		    ((hash-table-ref writers (car obj)) 
 		     => (lambda (f) (f obj port column)))
 		    
-		    ((any? (lambda (p)
-			     (or (hash-table? p)
-				 (let? p)))
-			   obj)
+		    ((any-let-or-hash-table? obj)
 		     (let ((first #t))
 		       (write-char #\( port)
 		       (for-each (lambda (p)
@@ -550,6 +548,15 @@
 			    (strlen (length objstr)))
 		       (if (< (+ column strlen) *pretty-print-length*)
 			   (display objstr port)
+
+			   ;; (format port "~A~A" (cond ((pair-line-number obj) => (lambda (line) (format #f "[~D] " line))) (else "")) objstr)
+			   ;; the other case is above (writers)
+			   ;;    (lambda (f) (format port "[~D]" line) (f obj port column))
+			   ;;    with column check, line check etc
+			   ;; so, the pp/profile hook only needs two calls
+			   ;; (lambda (f obj port column) (f obj port column))
+			   ;; and here (lambda (f obj port column) (f=display obj=objstr port)?
+
 			   (let ((lstlen (length obj)))
 			     
 			     (cond ((or (infinite? lstlen)

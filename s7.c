@@ -4036,7 +4036,7 @@ enum {OP_UNOPT, OP_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       
       OP_RECUR_COND_A_A_opA_LAq, OP_RECUR_COND_A_A_opA_LAAq, 
       OP_RECUR_COND_A_A_A_A_opLA_LAq, OP_RECUR_COND_A_A_A_A_opLAA_LAAq, OP_RECUR_COND_A_A_A_A_opA_LAAq,
-      OP_RECUR_COND_A_A_A_LAA_LopA_LAAq, 
+      OP_RECUR_COND_A_A_A_LAA_LopA_LAAq, OP_RECUR_COND_A_A_A_LAA_opA_LAAq,
 
       NUM_OPS};
 
@@ -4269,7 +4269,7 @@ static const char* op_names[NUM_OPS] =
 
       "recur_cond_a_a_op_a_laq", "recur_cond_a_a_op_a_laaq", 
       "recur_cond_a_a_a_a_opla_laq", "recur_cond_a_a_a_a_oplaa_laaq", "recur_cond_a_a_a_a_opa_laaq",
-      "recur_cond_a_a_a_laa_lopa_laaq", 
+      "recur_cond_a_a_a_laa_lopa_laaq", "recur_cond_a_a_a_laa_opa_laaq", 
 };
 #endif
 
@@ -67803,7 +67803,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 	    }
 	}
     }
-	  
+
   if (((vars == 1) || (vars == 2)) &&
       (car(body) == sc->if_symbol) &&
       (safe_list_length(body) == 4))
@@ -67941,13 +67941,14 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 			    fx_tree(sc, cdr(body), car(args), (vars == 1) ? NULL : cadr(args));
 			  return(true);
 			}}}}}}
-  
+
   if ((car(body) == sc->let_symbol) &&
       (is_pair(cadr(body))) &&
       (is_null(cdadr(body))) &&
       (is_fxable(sc, cadr(caadr(body)))) && /* let one var is fxable */
       (is_pair(cddr(body))) &&
-      (is_pair(caddr(body))))               /* body has one expr */
+      (is_pair(caddr(body))) &&
+      (is_null(cdddr(body))))                /* body has one expr */
     {
       s7_pointer let_body;
       let_body = caddr(body);
@@ -68048,6 +68049,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		  else return(false);
 		}
 	      /* cond form looks ok */
+	      /* fprintf(stderr, "tc_let_cond: %s\n", DISPLAY(let_body)); */
 	      set_optimize_op(body, OP_TC_LET_COND);
 	      set_opt3_sym(cdr(body), name);
 	      annotate_arg(sc, cdaadr(body), args);   /* let var */
@@ -68368,8 +68370,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 		  (is_null(cddr(la_clause))) &&
 		  (is_pair(cadr(la_clause))))
 		{
-		  la_clause = cadr(la_clause); /* (c_op arg (recur par)) or (c_op (recur) (recur)) or (l a laa) */
-
+		  la_clause = cadr(la_clause); /* (c_op arg (recur par)) or (c_op (recur) (recur)) or (op|l a laa) */
 		  /* fprintf(stderr, "la_clause1: %s %s\n", DISPLAY(la_clause), op_names[optimize_op(la_clause)]); */
 
 		  if ((is_pair(cdr(la_clause))) &&
@@ -68378,7 +68379,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 		    {
 		      if (is_h_optimized(la_clause))
 			{
-			  if ((is_fxable(sc, cadr(la_clause))) && (len == 3))
+			  if (is_fxable(sc, cadr(la_clause)))
 			    {
 			      s7_pointer la;
 			      la = caddr(la_clause);
@@ -68392,7 +68393,24 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 				    (is_fxable(sc, caddr(la))) &&
 				    (is_null(cdddr(la))))))
 				{
-				  set_optimize_op(body, (vars == 1) ? OP_RECUR_COND_A_A_opA_LAq : OP_RECUR_COND_A_A_opA_LAAq);
+				  if (len == 3)
+				    set_optimize_op(body, (vars == 1) ? OP_RECUR_COND_A_A_opA_LAq : OP_RECUR_COND_A_A_opA_LAAq);
+				  else
+				    {
+				      s7_pointer laa;
+				      laa = cadr(clause2);
+				      if ((vars == 2) && (len == 4) &&
+					  (safe_list_length(laa) == 3) &&
+					  (car(laa) == name) &&
+					  (is_fxable(sc, cadr(laa))) && /* args to first laa */
+					  (is_fxable(sc, caddr(laa))))
+					{
+					  set_optimize_op(body, OP_RECUR_COND_A_A_A_LAA_opA_LAAq);
+					  annotate_arg(sc, clause2, args);
+					  annotate_args(sc, cdr(laa), args);
+					}
+				      else return(false);
+				    }
 				  annotate_args(sc, clause, args);
 				  annotate_arg(sc, cdr(la_clause), args);
 				  annotate_args(sc, cdr(la), args);
@@ -68464,7 +68482,6 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 			  if (clause2)
 			    {
 			      s7_pointer laa;
-			      /* fprintf(stderr, "la_clause2: %s %s\n", DISPLAY(clause2), DISPLAY(la_clause)); */
 			      laa = cadr(clause2);
 			      
 			      if ((vars == 2) && (len == 4) &&
@@ -68479,6 +68496,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 				  if ((is_fxable(sc, la1)) &&
 				      (is_pair(la2)) &&
 				      (car(la2) == name) &&
+				      (safe_list_length(la2) == 3) &&
 				      (is_fxable(sc, cadr(la2))) &&
 				      (is_fxable(sc, caddr(la2))))
 				    {
@@ -71359,7 +71377,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      }
 		  }
 	      }
-	    return(min_body(result, body_is_safe(sc, let_name, body, at_end)));
+	    /* fprintf(stderr, "%s %s %d %d\n", DISPLAY(func), DISPLAY(let_name), func == let_name, at_end); */
+	    return(min_body(result, body_is_safe(sc, let_name, body, (let_name != func) || at_end)));
 	  }
 
 	case OP_DO:	  /* (do (...) (...) ...) */
@@ -71429,14 +71448,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		  if (caar(p) == func)    /* func called as arg, so not tail call */
 		    {
 		      sc->got_rec = true;   /* (ack (- m 1) (ack m (- n 1))) s7test -- this is redundant */
-
-		      /* TODO: these two bugs (here and just below) cancel each other, and shouldn't interleaved recursive calls be unsafe (above?)
-		       */
-#if 1
-		      return(RECUR_BODY);
-#else
 		      result = RECUR_BODY;
-#endif
 		    }
 		  result = min_body(result, form_is_safe(sc, func, car(p), false));
 		  if (result == UNSAFE_BODY)
@@ -71455,11 +71467,19 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      sc->got_tc = true;
 	      return(result);
 	    }
-	  /* fprintf(stderr, "%s[%d]: result: %d\n", __func__, __LINE__, result); */
-#if 0
+#if 1
 	  sc->got_rec = true;
 	  if (result != UNSAFE_BODY)
-	    fprintf(stderr, "%s%s[%d]: %s -> %d%s\n", BOLD_TEXT, __func__, __LINE__, DISPLAY(x), result, UNBOLD_TEXT);
+	    {
+	      result = RECUR_BODY;
+#if 0
+	      /* TODO: I think this messes up because at_end is not set sometimes when it should be (named let earlier) */
+	      fprintf(stderr, "%s%s[%d]: %s -> %d (at_end: %d, line: %u)%s\n", 
+		      BOLD_TEXT, __func__, __LINE__, DISPLAY(x), result, 
+		      at_end, (has_line_number(x)) ? pair_line_number(x) : 0,
+		      UNBOLD_TEXT);
+#endif
+	    }
 	  return(result);
 #else
 	  return_unsafe_body(sc);
@@ -71558,6 +71578,7 @@ static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool
   bool follow = false;
   s7_pointer p, sp;
   body_t result = VERY_SAFE_BODY;
+  /* fprintf(stderr, "%s: %s %s %d\n", __func__, DISPLAY(func), DISPLAY(body), at_end); */
   for (p = body, sp = body; is_pair(p); p = cdr(p))
     {
       if (is_pair(car(p)))
@@ -83459,6 +83480,58 @@ static s7_pointer op_recur_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc)
   return(oprec_cond_a_a_a_a_oplaa_laaq(sc));
 }
 
+/* -------- cond_a_a_a_laa_opa_laaq -------- */
+
+static void opinit_cond_a_a_a_laa_opa_laaq(s7_scheme *sc)
+{
+  s7_pointer caller;
+  rec_set_test(sc, cadr(sc->code));
+  rec_set_res(sc, cdadr(sc->code));
+  sc->rec_f1p = caddr(sc->code);
+  sc->rec_f2p = cdadr(sc->rec_f1p);
+  rec_set_f3(sc, cdr(sc->rec_f2p)); 
+  sc->rec_f1f = c_callee(sc->rec_f1p);
+  sc->rec_f1p = car(sc->rec_f1p);
+  sc->rec_f2f = c_callee(sc->rec_f2p);
+  sc->rec_f2p = car(sc->rec_f2p);
+  caller = opt3_pair(sc->code);
+  rec_set_f4(sc, cdr(caller));
+  sc->rec_f5p = cdr(opt3_pair(caller));
+  rec_set_f6(sc, cdr(sc->rec_f5p)); 
+  sc->rec_f5f = c_callee(sc->rec_f5p);
+  sc->rec_f5p = car(sc->rec_f5p);
+  sc->rec_cf = c_callee(caller);
+
+  sc->rec_slot1 = let_slots(sc->envir);
+  sc->rec_slot2 = next_slot(sc->rec_slot1);
+}
+
+static s7_pointer oprec_cond_a_a_a_laa_opa_laaq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F) 
+    return(sc->rec_resf(sc, sc->rec_resp));
+  if (sc->rec_f1f(sc, sc->rec_f1p) != sc->F) 
+    {
+      recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+      slot_set_value(sc->rec_slot2, sc->rec_f3f(sc, sc->rec_f3p));
+      slot_set_value(sc->rec_slot1, recur_pop(sc));
+      return(oprec_cond_a_a_a_laa_opa_laaq(sc));
+    }
+  recur_push(sc, sc->rec_f4f(sc, sc->rec_f4p));
+  recur_push(sc, sc->rec_f5f(sc, sc->rec_f5p));
+  slot_set_value(sc->rec_slot2, sc->rec_f6f(sc, sc->rec_f6p));
+  slot_set_value(sc->rec_slot1, recur_pop(sc));
+  set_car(sc->t2_2, oprec_cond_a_a_a_laa_opa_laaq(sc));
+  set_car(sc->t2_1, recur_pop(sc));
+  return(sc->rec_cf(sc, sc->t2_1));
+}
+
+static s7_pointer op_recur_cond_a_a_a_laa_opa_laaq(s7_scheme *sc)
+{
+  opinit_cond_a_a_a_laa_opa_laaq(sc);
+  return(oprec_cond_a_a_a_laa_opa_laaq(sc));
+}
+
 /* -------- cond_a_a_a_laa_lopa_laaq -------- */
 
 static void opinit_cond_a_a_a_laa_lopa_laaq(s7_scheme *sc)
@@ -85455,6 +85528,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_RECUR_COND_A_A_A_A_opLAA_LAAq:
 	  wrap_recur(sc, op_recur_cond_a_a_a_a_oplaa_laaq);
+	  goto START;
+
+	case OP_RECUR_COND_A_A_A_LAA_opA_LAAq:
+	  wrap_recur(sc, op_recur_cond_a_a_a_laa_opa_laaq);
 	  goto START;
 
 	case OP_RECUR_COND_A_A_A_LAA_LopA_LAAq:
@@ -94635,7 +94712,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 824)
+  if (NUM_OPS != 825)
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40 */
 #endif
@@ -94713,8 +94790,8 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   972
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1529
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1709
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2101  2097
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1709  1755
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2101  2095
  * tvect         |      |      |      |      |      | 5729 | 2340  2202  2192
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2221
  * tread         |      |      |      |      | 2357 | 2336 | 2279  2280
@@ -94728,7 +94805,7 @@ int main(int argc, char **argv)
  * dup           |      |      |      |      | 20.8 | 5711 | 3207  3369  3442
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3315
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470  3503
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3504  3511
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3835
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  8478  8546
  * thash         |      |      |      |      |      | 10.3 | 8873  8871  8897
@@ -94736,7 +94813,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  38.2
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  72.7
- * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.4  108.2
+ * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.4  108.0
  * tbig          |      |      |      |      |246.9 |230.6 |184.8 184.1  185.1 [gc? 382 calls before, 151 now but probably bigger heap?]
  * ------------------------------------------------------------------------------------
  *
@@ -94748,6 +94825,7 @@ int main(int argc, char **argv)
  * tc_or_a_and_a_a_laaa -> if case as well (and others? if #t...) [lint cases?]
  *   tc-cases and recur-cases [both are restricted to 1-expr body], tcrec else
  *   if a and a la -> if a if a la #f etc, if a z l3a?
- * g_vector 0/1/2/3/4/5 ?? safe_c_5a? (fxable)
- * form_is_safe double bug: both ways for safe/unsafe change
+ *   also cond-a-a... -> if a a if a laa opa laaq etc
+ * p1: maybe try 0..5 vectors [can the chooser omit the intermediate pointer? if hop, all the c_proc additions are unneeded?]
+ * (*s7* 'fixmost|least) and deprecate most-positive|negative-fixnum? maybe *pi* or remove it as a built-in constant
  */

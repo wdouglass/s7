@@ -120,7 +120,8 @@
 
 (define G #f)
 (define I #f)
-(define-constant (O) (vector #f (mus-copy I) #f))
+(define Ov (vector #f #f #f))
+(define-constant (O) (vector-set! Ov 1 (mus-copy I)) Ov)
 (define-constant (Q) (mus-copy G))
 
 (define (try1 form gen make-gen)

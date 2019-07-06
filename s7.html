@@ -5697,9 +5697,9 @@ This is consistent with, for example,
 The standard says "the empty list is a special object of its own type", so surely either choice is
 acceptable in that regard (but, sigh, the standard stupidly goes on to deny that () can evaluate to itself).
 The confusion appears to be caused by the word "list".  I would describe the evaluator: "if it gets a
-constant (and () is a constant) it returns that constant; if it gets a pair, it looks at the pair's
-car to decide what to do".  It's nutty to insist on looking at the car of a list when you know () has no car!
-(And in standard scheme, the evaluator would have to traverse the entire list first; it might not be a proper list).
+constant (and () is a constant) it returns that constant; if a symbol, it returns the value
+associated with that symbol; if a pair, it looks at the pair's
+car to decide what to do".  It's kinda looney to insist on looking at the car of a list when you know () has no car!
 </p>
 
 <!--
@@ -6155,6 +6155,84 @@ is compiling to C. I think Guile 2.0.9 takes about 1 second.
 The equivalent in CL:
 clisp interpreted 9.3 seconds, compiled 0.85 seconds; sbcl 0.21 seconds.
 </p>
+
+<div class="separator"></div>
+<small>
+<p>
+s7's timing tests are in its tools directory.  The script
+valcall.scm runs them through callgrind.  The results
+can be found at the end of s7.c.
+If you're interested in the standard Scheme benchmarks, it
+is possible to add s7 to that package.  First, s7-prelude.scm
+and s7-postlude.scm need to be added to the benchmarks src directory.
+s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
+</p>
+<pre>
+   (set! *load-path* (cons "/home/bil/motif-snd" *load-path*))
+   (load "r7rs.scm")
+   (define (this-scheme-implementation-name) "s7")
+</pre>
+<p>
+This says that the s7 files are in /home/bil/motif-snd.
+Here are the diffs for the bench script:
+</p>
+<pre>
+141a142
+&gt;     S7=${S7:-"/home/bil/motif-snd/repl"}
+187a189
+&gt;   s7               for s7
+406a409,421
+&gt; # Definitions specific to s7
+&gt; 
+&gt; s7_comp ()
+&gt; {
+&gt;     :
+&gt; }
+&gt; 
+&gt; s7_exec ()
+&gt; {
+&gt;     time ${S7} "$1" &lt; "$2"
+&gt; }
+&gt; 
+&gt; # -----------------------------------------------------------------------------
+940a957,966
+&gt; 
+&gt;         s7)    NAME='s7'
+&gt;                COMP=s7_comp
+&gt;                EXEC=s7_exec
+&gt;                COMPOPTS=""
+&gt;                EXTENSION="scm"
+&gt;                EXTENSIONCOMP="scm"
+&gt;                COMPCOMMANDS=""
+&gt;                EXECCOMMANDS=""
+&gt;                ;;
+</pre>
+<p>
+I call the standalone version of s7 "repl", so its path
+is /home/bil/motif-snd/repl.  To build repl, get s7.tar.gz
+from ftp://ccrma-ftp.stanford.edu/pub/Lisp/s7.tar.gz, 
+add the empty file mus-config.h to the tarball's contents,
+then (in Linux):
+</p>
+<pre>
+gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
+</pre>
+<p>
+mus-config.h normally has 
+</p>
+<pre>
+#define HAVE_COMPLEX_NUMBERS 1
+#define HAVE_COMPLEX_TRIG 1
+</pre>
+<p>
+but s7.c has defaults, so I think mus-config.h can be empty.
+Finally, go back to the benchmarks directory and
+</p>
+<pre>
+bench s7 all
+</pre>
+</small>
+
 </div>
 
 
