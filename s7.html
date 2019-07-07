@@ -6217,7 +6217,7 @@ then (in Linux):
 <pre>
 gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
 </pre>
-<p>
+<p>For timing tests, I add "-fomit-frame-pointer -funroll-loops -march=native".
 mus-config.h normally has 
 </p>
 <pre>
