@@ -8758,6 +8758,15 @@ ex1
 libutf8proc.scm exists, but I have not tested it at all.
 </p>
 
+<p>The default in the lib*.scm files is to use the C name as the Scheme name.
+This collides with (for example) the widespread use of "-", rather than "_" in Scheme, but
+I have found it much more straightforward to stick with one name.  In cases like
+libgsl and libgtk there are thousands of names, all documented at great length
+by the C name. Anyone who wants to use these functions has to start with the C name.
+If they are forced to fuss with some annoying Schemely translation of it, 
+the only sane response is: "forget it! I'll do it in C".
+</p>
+
 <div class="indented" id="libc">
 <pre>
 (require libc.scm)

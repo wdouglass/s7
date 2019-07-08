@@ -4,19 +4,21 @@
 
 (provide 'reactive.scm)
 
+(define (symbol->let symbol env)
+  ;; return let in which symbol lives (not necessarily curlet)
+  (if (defined? symbol env #t)
+      env	
+      (if (eq? env (rootlet))
+	  #<undefined>
+	  (symbol->let symbol (outlet env)))))
+
 (define (gather-symbols expr ce lst ignore)
   ;; collect settable variables in expr
   (cond ((symbol? expr)
 	 (if (or (memq expr lst)
 		 (memq expr ignore)
 		 (procedure? (symbol->value expr ce))
-		 (eq? (let symbol->let ((sym expr)
-					(ce ce))
-			(if (defined? sym ce #t)
-			    ce
-			    (and (not (eq? ce (rootlet)))
-				 (symbol->let sym (outlet ce)))))
-		      (rootlet)))
+		 (eq? (symbol->let expr ce) (rootlet)))
 	     lst
 	     (cons expr lst)))
 
@@ -50,14 +52,6 @@
 (define slot-env c-pointer-weak1)
 (define slot-expr-env c-pointer-weak2)
 (define (slot symbol expr env expr-env) (c-pointer 0 symbol expr env expr-env))
-
-(define (symbol->let symbol env)
-  ;; return let in which symbol lives (not necessarily curlet)
-  (if (not (let? env))
-      #<undefined>
-      (if (defined? symbol env)
-	  env
-	  (symbol->let symbol (outlet env)))))
 
 (define (setter-update cp)            ; cp: (slot var expr env expr-env)
   ;; when var set, all other vars dependent on it need to be set also, watching out for GC'd followers
