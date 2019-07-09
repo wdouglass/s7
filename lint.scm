@@ -14233,7 +14233,7 @@
 	     (lint-format "~A is one of its many names, but pi is a predefined constant in s7" caller (caddr form)))
 	    
 	    ((constant? sym)              ; (define most-positive-fixnum 432)
-	     (if (memv sym '(pi most-positive-fixnum most-negative-fixnum nan.0 -nan.0 inf.0 -inf.0
+	     (if (memv sym '(pi nan.0 -nan.0 inf.0 -inf.0
 			     *unbound-variable-hook* *missing-close-paren-hook* *read-error-hook*
 			     *load-hook* *error-hook* *rootlet-redefinition-hook*))
 		 (lint-format "~A is a constant in s7: ~A" caller sym form)))

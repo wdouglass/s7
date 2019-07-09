@@ -276,8 +276,7 @@ indented and on a sort of brownish background.
 The basic integer and real
 types are defined in s7.h, defaulting to int64_t and double.  
 A ratio consists of two integers, a complex number two reals.
-pi is predefined, as are
-most-positive-fixnum and most-negative-fixnum.
+pi is predefined.
 s7 can be built with multiprecision support 
 for all types,  using the gmp, mpfr, and mpc libraries (set WITH_GMP to 1 in s7.c).  
 If multiprecision arithmetic is
@@ -380,7 +379,6 @@ s7 includes:
 
 <p>
 The random function can take any numeric argument, including 0.
-The following constants are predefined: pi, most-positive-fixnum, most-negative-fixnum.
 Other math-related differences between s7 and r5rs:
 </p>
 
@@ -5299,6 +5297,9 @@ bignum-precision              bits for bignum floats (128)
 float-format-precision        digits to print for floats (16)
 default-random-state          the default arg for random (settable)
 
+most-positive-fixnum          if not using gmp, the most positive integer ("fixnum" comes from CL)
+most-negative-fixnum          as above, but negative
+
 cpu-time                      run time so far
 file-names                    currently loaded files (a list)
 
@@ -5587,9 +5588,7 @@ dilambda and dilambda? have been reduced to trivial conveniences, so perhaps the
 removed.
 </p>
 
-<p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
-*most-positive-fixnum* (*fixleast* and *fixmost*?) so that all the built-in variables and constants have the
-same kind of name (or +pi+ to show it is a constant?).  
+<p>There are several less-than-ideal names.  
 get-output-string should be current-output-string. write-char behaves like display, not write.
 provided? should be feature? or *features* should be *provisions*.
 list-ref, list-set!, and list-tail actually only apply to pairs.
@@ -5655,7 +5654,6 @@ Better ideas are always welcome!
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
 <li>nan.0 +nan.0 -nan.0 inf.0 +inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
-<li>most-positive-fixnum most-negative-fixnum
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 

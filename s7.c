@@ -1279,7 +1279,8 @@ struct s7_scheme {
              max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
              hash_table_float_epsilon_symbol, equivalent_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
              undefined_identifier_warnings_symbol, undefined_constant_warnings_symbol, print_length_symbol, bignum_precision_symbol,
-             stacktrace_defaults_symbol, history_symbol, history_size_symbol, max_port_data_size_symbol, accept_all_keyword_arguments_symbol;
+             stacktrace_defaults_symbol, history_symbol, history_size_symbol, max_port_data_size_symbol, accept_all_keyword_arguments_symbol,
+             most_positive_fixnum_symbol, most_negative_fixnum_symbol;
 
   /* syntax symbols et al */
   s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, unquote_symbol, macroexpand_symbol,
@@ -5844,6 +5845,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
       if (size > sc->heap_size)
 	while (sc->heap_size < size) sc->heap_size *= 2;
     }
+  /* do not call new_cell here! */
 
   sc->heap = (s7_cell **)realloc(sc->heap, sc->heap_size * sizeof(s7_cell *));
   if (!(sc->heap))
@@ -18043,7 +18045,7 @@ static s7_pointer nan_with_error_check(s7_scheme *sc, s7_pointer y, s7_pointer p
 {
   for (; is_not_null(p); p = cdr(p))
     if (!is_real_via_method(sc, car(p)))
-      return(wrong_type_argument(sc, sc->max_symbol, position_of(p, args), car(p), T_REAL));
+      return(wrong_type_argument(sc, caller, position_of(p, args), car(p), T_REAL));
   return(y);
 }
 
@@ -53442,7 +53444,9 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	  if ((is_pair(cddr(p))) && (caddr(p) == var2))
 	    {
 	      if (c_callee(tree) == fx_c_ts) {set_c_call(tree, fx_c_tU); return(true);}
+#if (!WITH_GMP)
 	      if (c_callee(tree) == fx_lt_ts) {set_c_call(tree, fx_lt_tU); return(true);}
+#endif
 	      if (c_callee(tree) == fx_cons_ts) {set_c_call(tree, fx_cons_tU); return(true);}
 #if TREE_PRINT
 	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
@@ -88075,6 +88079,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    goto TOP_NO_POP;
 		  }
 		sc->value = find_global_symbol_checked(sc, carc);
+		/* fprintf(stderr, "pair: %s\n", DISPLAY(code)); */
 		set_optimize_op(code, OP_PAIR_SYM);
 		goto EVAL_ARGS_TOP;
 	      }
@@ -90908,7 +90913,7 @@ static s7_pointer big_logxor(s7_scheme *sc, s7_pointer args)
 static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
 {
   #define H_rationalize "(rationalize x err) returns the ratio with lowest denominator within err of x"
-  #define Q_rationalize s7_make_signature(sc, 3, sc->is_real_symbol, sc->is_real_symbol, sc->is_real_symbol)
+  #define Q_rationalize s7_make_signature(sc, 3, sc->is_rational_symbol, sc->is_real_symbol, sc->is_real_symbol)
   /* can return be non-rational? */
 
   /* currently (rationalize 1/0 1e18) -> 0
@@ -91324,7 +91329,7 @@ static s7_pointer big_round(s7_scheme *sc, s7_pointer args)
 static s7_pointer big_quotient(s7_scheme *sc, s7_pointer args)
 {
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
-  #define Q_quotient sc->pcl_r
+  #define Q_quotient s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_real_symbol, sc->is_real_symbol)
 
   s7_pointer x, y, p;
   x = car(args);
@@ -92146,12 +92151,13 @@ static void s7_gmp_init(s7_scheme *sc)
 
   s7_symbol_set_value(sc, sc->pi_symbol, big_pi(sc));
 
+#if 0
   /* if these fixnum limits were read as strings, they'd be bignums in the gmp case,
    *   so for consistency make the symbolic versions bignums as well.
    */
   s7_symbol_set_value(sc, make_symbol(sc, "most-positive-fixnum"), s7_int_to_big_integer(sc, s7_integer(s7_name_to_value(sc, "most-positive-fixnum"))));
   s7_symbol_set_value(sc, make_symbol(sc, "most-negative-fixnum"), s7_int_to_big_integer(sc, s7_integer(s7_name_to_value(sc, "most-negative-fixnum"))));
-
+#endif
   s7_provide(sc, "gmp");
 }
 
@@ -92187,6 +92193,10 @@ static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
   return(sym);
 }
 
+/* handling all *s7* fields via fallbacks lets us use direct field accesses in the rest of s7, and avoids
+ *   using ca 100 cells for the let slots/values.  We would need the fallbacks anyway for 'files et al.
+ *   Since most of the fields need special setters, it's actually less code this way.  See old/s7-let-s7.c.
+ */
 static void init_s7_let(s7_scheme *sc)
 {
   sc->stack_top_symbol =                     s7_let_field(sc, "stack-top");
@@ -92230,6 +92240,8 @@ static void init_s7_let(s7_scheme *sc)
   sc->profile_info_symbol =                  s7_let_field(sc, "profile-info");
   sc->autoloading_symbol =                   s7_let_field(sc, "autoloading?");
   sc->accept_all_keyword_arguments_symbol =  s7_let_field(sc, "accept-all-keyword-arguments");
+  sc->most_positive_fixnum_symbol =          s7_let_field(sc, "most-positive-fixnum");
+  sc->most_negative_fixnum_symbol =          s7_let_field(sc, "most-negative-fixnum");
 }
 
 #ifdef __linux__
@@ -92444,6 +92456,17 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
 
   if (sym == sc->print_length_symbol)                                    /* print-length */
     return(s7_make_integer(sc, sc->print_length));
+#if WITH_GMP
+  if (sym == sc->most_positive_fixnum_symbol)                            /* most-positive-fixnum */
+    return(s7_int_to_big_integer(sc, s7_integer(mostfix)));
+  if (sym == sc->most_negative_fixnum_symbol)                            /* most-negative-fixnum */
+    return(s7_int_to_big_integer(sc, s7_integer(leastfix)));
+#else
+  if (sym == sc->most_positive_fixnum_symbol)                            /* most-positive-fixnum */
+    return(mostfix);
+  if (sym == sc->most_negative_fixnum_symbol)                            /* most-negative-fixnum */
+    return(leastfix);
+#endif
 
   if (sym == sc->stack_top_symbol)                                       /* stack-top = how many frames active (4 stack entries per frame) */
     return(s7_make_integer(sc, (sc->stack_end - sc->stack_start) / 4));
@@ -92784,7 +92807,8 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
     }
 
-  if ((sym == sc->cpu_time_symbol) || (sym == sc->profile_info_symbol) ||
+  if ((sym == sc->cpu_time_symbol) || (sym == sc->profile_info_symbol) || (sym == sc->memory_usage_symbol) ||
+      (sym == sc->most_positive_fixnum_symbol) || (sym == sc->most_negative_fixnum_symbol) ||
       (sym == sc->free_heap_size_symbol) || (sym == sc->gc_freed_symbol) || (sym == sc->gc_protected_objects_symbol) ||
       (sym == sc->file_names_symbol) || (sym == sc->c_types_symbol) || (sym == sc->catches_symbol) ||
       (sym == sc->rootlet_size_symbol) || (sym == sc->stack_top_symbol) || (sym == sc->stack_size_symbol))
@@ -94402,9 +94426,10 @@ s7_scheme *s7_init(void)
 			s7_make_function(sc, "#<set-port-line-number>", g_set_port_line_number, 1, 1, false, "port line setter"));
   c_function_set_setter(slot_value(global_slot(sc->port_position_symbol)),
 			s7_make_function(sc, "#<set-port-position>", g_set_port_position, 2, 0, false, "port position setter"));
-
+#if 0
   s7_define_constant(sc, "most-positive-fixnum", mostfix);
   s7_define_constant(sc, "most-negative-fixnum", leastfix);
+#endif
   sc->pi_symbol = s7_define_constant(sc, "pi", real_pi);
   sc->objstr_max_len = s7_int_max;
 
@@ -94956,13 +94981,6 @@ s7_scheme *s7_init(void)
     set_immutable(next_slot(slot));
   }
 
-#if (!DISABLE_DEPRECATED)
-  s7_eval_c_string(sc, "(begin                                         \n\
-                          (define global-environment  rootlet)         \n\
-                          (define current-environment curlet)          \n\
-                          (define make-keyword        string->keyword))");  /* these are used in CM's scm/s7.scm */
-#endif
-
 #if S7_DEBUGGING
   s7_define_function(sc, "report-missed-calls", g_report_missed_calls, 0, 0, false, NULL);
 #if WITH_GMP
@@ -94981,6 +94999,15 @@ s7_scheme *s7_init(void)
   save_unlet(sc);
   init_s7_let(sc);          /* set up *s7* */
   init_signatures(sc);      /* depends on procedure symbols */
+
+#if (!DISABLE_DEPRECATED)
+  s7_eval_c_string(sc, "(begin                                         \n\
+                          (define-constant most-positive-fixnum (*s7* 'most-positive-fixnum)) \n\
+                          (define-constant most-negative-fixnum (*s7* 'most-negative-fixnum)) \n\
+                          (define global-environment  rootlet)         \n\
+                          (define current-environment curlet)          \n\
+                          (define make-keyword        string->keyword))");  /* these are used in CM's scm/s7.scm */
+#endif
 
   return(sc);
 }
@@ -95084,10 +95111,5 @@ int main(int argc, char **argv)
  * gcc/clang have builtin __int128 or __int128_t and __uint128_t, use #if defined(__SIZEOF_INT128__)...#endif
  *   also __float128 -> s7_big_int|double 
  *
- * tc_or_a_and_a_a_laaa -> if case as well (and others? if #t...) [lint cases?]
- *   if a and a la -> if a if a la #f etc, if a z l3a? if-a-a-b-a-la tc-let-if-a-L-z if-a-z-and-a-laa=if-a-z-if-a-laa-#f
- *   possibly if*->cond (do these ever happen? yes but...)
- *
- * (*s7* 'fixmost|least) and deprecate most-positive|negative-fixnum? maybe *pi* or remove it as a built-in constant
- * look for fx chains
+ * op_pair_sym tmat ought to be unknown_op? [tset check], fx/tcrec
  */

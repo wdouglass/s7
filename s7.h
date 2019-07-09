@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.5"
-#define S7_DATE "23-May-19"
+#define S7_VERSION "8.6"
+#define S7_DATE "8-Jul-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -855,6 +855,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
  * 
  *        s7 changes
  *
+ * 8-July:    most-positive-fixnum and most-negative-fixnum moved to *s7*.
  * 23-May:    added s7_scheme argument to s7_c_object_set_let.
  * 19-May:    s7_gc_stats renamed s7_set_gc_stats.
  * 7-May:     s7_gc_unprotect_via_stack and s7_gc_(un)protect_via_location.

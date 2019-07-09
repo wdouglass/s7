@@ -213,7 +213,7 @@
 
 (define (%alloc-pattern)
   ;; flags data length datum period value state limit returning counting traversing next mapr cache
-  (make-pattern 0 (list) #f +nad+ #f +nad+ +nad+ most-positive-fixnum #f #:periods #:depth-first
+  (make-pattern 0 (list) #f +nad+ #f +nad+ +nad+ (*s7* 'most-positive-fixnum) #f #:periods #:depth-first
 		#f #f #f))
 
 (define (initialize-pattern obj data for rep flags len dper getr mapr)
@@ -258,7 +258,7 @@
 			  +count-values+))
 	     (set! flags (logior flags +count-periods+)))))
   (pattern-repeat-set! obj (if (and (number? rep) (> rep 0))
-			       rep most-positive-fixnum))
+			       rep (*s7* 'most-positive-fixnum)))
   (let ((per (or for dper)))
     ;; period not specified so mark that we are using default period
     (when (not for)

@@ -40,6 +40,10 @@
 	(complex (* mag (cos ang)) (* mag (sin ang)))
 	(error 'wrong-type-arg "make-polar args should be real"))))
 
+(unless (defined? 'most-positive-fixnum)
+  (define-constant most-positive-fixnum (*s7* 'most-positive-fixnum))
+  (define-constant most-negative-fixnum (*s7* 'most-negative-fixnum)))
+
 (define tests 1)
 (define keep-going #f)
 (define all-args #f)
