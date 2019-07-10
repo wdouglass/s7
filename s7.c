@@ -1271,17 +1271,6 @@ struct s7_scheme {
              make_rectangular_symbol;
 #endif
 
-  /* *s7* fields */
-  s7_pointer stack_top_symbol, heap_size_symbol, gc_freed_symbol, gc_protected_objects_symbol,
-             free_heap_size_symbol, file_names_symbol, symbol_table_symbol, cpu_time_symbol, float_format_precision_symbol, max_heap_size_symbol,
-             stack_size_symbol, rootlet_size_symbol, c_types_symbol, safety_symbol, max_stack_size_symbol, gc_stats_symbol, autoloading_symbol,
-             catches_symbol, stack_symbol, default_rationalize_error_symbol, max_string_length_symbol, default_random_state_symbol, history_enabled_symbol,
-             max_list_length_symbol, max_vector_length_symbol, max_vector_dimensions_symbol, default_hash_table_length_symbol, profile_info_symbol,
-             hash_table_float_epsilon_symbol, equivalent_float_epsilon_symbol, initial_string_port_length_symbol, memory_usage_symbol, max_format_length_symbol,
-             undefined_identifier_warnings_symbol, undefined_constant_warnings_symbol, print_length_symbol, bignum_precision_symbol,
-             stacktrace_defaults_symbol, history_symbol, history_size_symbol, max_port_data_size_symbol, accept_all_keyword_arguments_symbol,
-             most_positive_fixnum_symbol, most_negative_fixnum_symbol;
-
   /* syntax symbols et al */
   s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, unquote_symbol, macroexpand_symbol,
              define_expansion_symbol, baffle_symbol, with_let_symbol, if_symbol, autoload_error_symbol,
@@ -1292,7 +1281,7 @@ struct s7_scheme {
              baffled_symbol, __func___symbol, set_symbol, body_symbol, class_name_symbol, feed_to_symbol, format_error_symbol,
              wrong_number_of_args_symbol, read_error_symbol, string_read_error_symbol, syntax_error_symbol, division_by_zero_symbol,
              no_catch_symbol, io_error_symbol, invalid_escape_function_symbol, wrong_type_arg_symbol, out_of_range_symbol,
-             missing_method_symbol, unbound_variable_symbol, key_if_symbol;
+             missing_method_symbol, unbound_variable_symbol, key_if_symbol, symbol_table_symbol;
 
   /* signatures of sequences used as applicable objects: ("hi" 1) */
   s7_pointer string_signature, vector_signature, float_vector_signature, int_vector_signature, byte_vector_signature,
@@ -2416,29 +2405,26 @@ static void init_types(void)
 #define set_has_let_arg(p)             set_type1_bit(T_Prc(p), T_HAS_LET_ARG)
 /* p is a setter procedure, "let arg" refers to the setter's optional third (let) argument */
 
-#define T_FULL_S7_LET_FIELD            (1LL << (TYPE_BITS + BIT_ROOM + 25))
-#define T_S7_LET_FIELD                 (1 << 1)
-#define is_s7_let_field(p)             has_type1_bit(T_Sym(p), T_S7_LET_FIELD)
-#define set_s7_let_field(p)            set_type1_bit(T_Sym(p), T_S7_LET_FIELD)
-
-#define T_HAS_LET_FILE                 T_S7_LET_FIELD
+/* symbol free here */
+#define T_FULL_HAS_LET_FILE            (1LL << (TYPE_BITS + BIT_ROOM + 25))
+#define T_HAS_LET_FILE                 (1 << 1)
 #define has_let_file(p)                has_type1_bit(T_Let(p), T_HAS_LET_FILE)
 #define set_has_let_file(p)            set_type1_bit(T_Let(p), T_HAS_LET_FILE)
 #define clear_has_let_file(p)          clear_type1_bit(T_Let(p), T_HAS_LET_FILE)
 
-#define T_TYPED_VECTOR                 T_S7_LET_FIELD
+#define T_TYPED_VECTOR                 T_HAS_LET_FILE
 #define is_typed_vector(p)             has_type1_bit(T_Vec(p), T_TYPED_VECTOR)
 #define set_typed_vector(p)            set_type1_bit(T_Vec(p), T_TYPED_VECTOR)
 
-#define T_TYPED_HASH_TABLE             T_S7_LET_FIELD
+#define T_TYPED_HASH_TABLE             T_HAS_LET_FILE
 #define is_typed_hash_table(p)         has_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
 #define set_typed_hash_table(p)        set_type1_bit(T_Hsh(p), T_TYPED_HASH_TABLE)
 
-#define T_BOOL_SETTER                  T_S7_LET_FIELD
+#define T_BOOL_SETTER                  T_HAS_LET_FILE
 #define c_function_has_bool_setter(p)  has_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 #define c_function_set_has_bool_setter(p) set_type1_bit(T_Fnc(p), T_BOOL_SETTER)
 
-#define T_REST_SLOT                    T_S7_LET_FIELD
+#define T_REST_SLOT                    T_HAS_LET_FILE
 #define is_rest_slot(p)                has_type1_bit(T_Slt(p), T_REST_SLOT)
 #define set_is_rest_slot(p)            set_type1_bit(T_Slt(p), T_REST_SLOT)
 
@@ -2735,8 +2721,8 @@ static void init_types(void)
 #define set_c_call_direct(f, X)        do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
 #define set_c_call_unchecked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #if WITH_GCC
-#define fx_call(Sc, F)                 ({s7_pointer _P_; _P_ = F; tick(optimize_op(car(_P_))); c_call(_P_)(Sc, car(_P_));})
-#define d_call(Sc, F)                  ({s7_pointer _P_; _P_ = F; tick(optimize_op(_P_)); c_call(_P_)(Sc, cdr(_P_));})
+#define fx_call(Sc, F)                 ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, car(_P_));})
+#define d_call(Sc, F)                  ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, cdr(_P_));})
 #else
 #define fx_call(Sc, F)                 c_call(F)(Sc, car(F))
 #define d_call(Sc, F)                  c_call(F)(Sc, cdr(F))
@@ -2849,8 +2835,11 @@ static void symbol_set_id(s7_pointer p, s7_int id)
  *    callgrind says this is faster than an uint32_t!
  */
 #define symbol_info(p)                 (symbol_name_cell(p))->object.string.block
-#define symbol_type(p)                 block_size(symbol_info(p))
-#define symbol_set_type(p, Type)       block_set_size(symbol_info(p), Type)
+#define symbol_type(p)                 (block_size(symbol_info(p)) & 0xff)
+#define symbol_set_type(p, Type)       block_size(symbol_info(p)) = ((block_size(symbol_info(p)) & ~0xff) | (Type & 0xff))
+#define symbol_clear_type(p)           block_size(symbol_info(p)) = 0
+#define symbol_s7_let(p)               ((uint8_t)((block_size(symbol_info(p)) >> 8) & 0xff))
+#define symbol_set_s7_let(p, Field)    block_size(symbol_info(p)) = ((block_size(symbol_info(p)) & ~0xff00) | ((Field & 0xff) << 8))
 #define initial_slot(p)                T_Sld(symbol_info(p)->ex.ex_ptr)
 #define set_initial_slot(p, Val)       symbol_info(p)->ex.ex_ptr = T_Sld(Val)
 
@@ -3307,17 +3296,6 @@ static void set_print_name(s7_pointer p, const char *name, int32_t len)
       (print_name(p))[len] = 0;
     }
 }
-
-#define WITH_COUNTS 0
-#if WITH_COUNTS
-static int *counts;
-static void tick(int op)
-{
-  counts[op]++;
-}
-#else
-#define tick(P)
-#endif
 
 static s7_int s7_int_max = 0, s7_int_min = 0;
 static int32_t s7_int32_max = 0, s7_int32_min = 0, s7_int_bits = 0, s7_int_digits = 0;
@@ -6544,7 +6522,7 @@ static inline s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len,
   symbol_set_tag(x, 0);
   symbol_set_tag2(x, 0);
   symbol_set_ctr(x, 0);
-  symbol_set_type(x, 0);
+  symbol_clear_type(x);
 
   if (len > 1)                                             /* not 0, otherwise : is a keyword */
     {
@@ -6839,6 +6817,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   symbol_set_ctr(x, 0);
   symbol_set_tag(x, 0);
   symbol_set_tag2(x, 0);
+  symbol_clear_type(x);
   gensym_block(x) = b;
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
@@ -9471,7 +9450,7 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->is_defined_symbol, 2, e, a_let_string));
       if (e == sc->s7_let)
-	return(make_boolean(sc, is_s7_let_field(sym)));
+	return(make_boolean(sc, symbol_s7_let(sym) != 0));
 
       if (is_pair(cddr(args)))
 	{
@@ -29881,13 +29860,12 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						    " ?24?")) : "",
 
 	   /* bit 25+16 */
-	   ((full_typ & T_FULL_S7_LET_FIELD) != 0) ?   ((is_symbol(obj)) ? " s7-let-field" :
-							((is_let(obj)) ? " has-let-file" :
-							 ((is_any_vector(obj)) ? " typed-vector" :
-							  ((is_hash_table(obj)) ? " typed-hash-table" :
-							   ((is_c_function(obj)) ? " has-bool-setter" :
-							    ((is_slot(obj)) ? " rest-slot" :
-							     " ?25?")))))) : "",
+	   ((full_typ & T_FULL_HAS_LET_FILE) != 0) ? ((is_let(obj)) ? " has-let-file" :
+						      ((is_any_vector(obj)) ? " typed-vector" :
+						       ((is_hash_table(obj)) ? " typed-hash-table" :
+							((is_c_function(obj)) ? " has-bool-setter" :
+							 ((is_slot(obj)) ? " rest-slot" :
+							  " ?25?"))))) : "",
 	   /* bit 26+16 */
 	   ((full_typ & T_FULL_DEFINER) != 0) ?   ((is_symbol(obj)) ? " definer" :
 						   ((is_pair(obj)) ? " has-fx" :
@@ -29950,8 +29928,8 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_let(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
-  if (((full_typ & T_FULL_S7_LET_FIELD) != 0) &&
-      (!is_symbol(obj)) && (!is_let(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)))
+  if (((full_typ & T_FULL_HAS_LET_FILE) != 0) &&
+      (!is_let(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)))
     return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) &&
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
@@ -29972,7 +29950,15 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) && 
       ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)) && (unchecked_type(obj) < T_C_MACRO)))
     return(true);
-
+  
+  if (is_symbol(obj))
+    {
+      if ((uint8_t)(symbol_type(obj) & 0xff) >= NUM_TYPES)
+	return(true);
+      /* TODO: add s7_let check */
+      if ((symbol_type(obj) & ~0xffff) != 0)
+	return(true);
+    }
   return(false);
 }
 #endif
@@ -49763,61 +49749,14 @@ static s7_pointer g_emergency_exit(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-#if WITH_COUNTS
-static void init_counts(void)
-{
-  counts = (int *)calloc(1000, sizeof(int));
-}
-static void report_counts(void)
-{
-  int i;
-  int *prev_counts, *new_counts;
-  FILE *sum;
-  prev_counts = (int *)calloc(1000, sizeof(int));
-  new_counts = (int *)calloc(1000, sizeof(int));
-  sum = fopen("/home/bil/cl/counts.data", "r");
-  if (sum)
-    {
-      fread((void *)prev_counts, sizeof(int), 1000, sum);
-      fclose(sum);
-    }
-  for (i = 0; i < 1000; i++)
-    new_counts[i] = prev_counts[i] + counts[i];
-  while (true)
-    {
-      int loc, mx;
-      mx = 0;
-      for (i = 0; i < 1000; i++)
-	if (new_counts[i] > mx)
-	  {
-	    mx = new_counts[i];
-	    loc = i;
-	  }
-      if (mx == 0) break;
-      fprintf(stderr, "%s: %d %d\n", op_names[loc], new_counts[loc], counts[loc]);
-      new_counts[loc] = 0;
-    }
-  {
-    fprintf(stderr, "\n--------------------------------\n");
-    for (i = 0; i < NUM_OPS; i++)
-      {
-	new_counts[i] = prev_counts[i] + counts[i];
-	fprintf(stderr, "%s: %d\n", op_names[i], new_counts[i]);
-      }
-    fprintf(stderr, "--------------------------------\n");
-  }
-  sum = fopen("/home/bil/cl/counts.data", "w");
-  fwrite((void *)new_counts, sizeof(int), 1000, sum);
-  fclose(sum);
-}
-#endif
-
 static s7_pointer g_exit(s7_scheme *sc, s7_pointer args)
 {
   #define H_exit "(exit obj) exits s7"
   #define Q_exit s7_make_signature(sc, 2, sc->T, sc->T)
-#if WITH_COUNTS
-  report_counts();
+  /* calling s7_eval_c_string in an atexit function seems to be problematic -- it works, but args can be changed? longjmp perhaps? */
+#if 0
+  s7_load(sc, "profile.scm");
+  s7_eval_c_string(sc, "(show-profile 20)");
 #endif
   s7_quit(sc);
   return(g_emergency_exit(sc, args));
@@ -53024,381 +52963,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
   return(fx_c);
 }
 
-#if (S7_DEBUGGING) && (!WITH_GMP)
-static const char *fx_name(s7_scheme *sc, s7_pointer p) /* sc for c_callee */
-{
-  if (c_callee(p) == fx_T) return("fx_T");
-  if (c_callee(p) == fx_U) return("fx_U");
-  if (c_callee(p) == fx_add_aa) return("fx_add_aa");
-  if (c_callee(p) == fx_add_fs) return("fx_add_fs");
-  if (c_callee(p) == fx_add_s1) return("fx_add_s1");
-  if (c_callee(p) == fx_add_s_car_s) return("fx_add_s_car_s");
-  if (c_callee(p) == fx_add_sf) return("fx_add_sf");
-  if (c_callee(p) == fx_add_si) return("fx_add_si");
-  if (c_callee(p) == fx_add_ss) return("fx_add_ss");
-  if (c_callee(p) == fx_add_t1) return("fx_add_t1");
-  if (c_callee(p) == fx_add_T1) return("fx_add_T1");
-  if (c_callee(p) == fx_add_tf) return("fx_add_tf");
-  if (c_callee(p) == fx_add_ti) return("fx_add_ti");
-  if (c_callee(p) == fx_add_ts) return("fx_add_ts");
-  if (c_callee(p) == fx_add_tu) return("fx_add_tu");
-  if (c_callee(p) == fx_add_u1) return("fx_add_u1");
-  if (c_callee(p) == fx_add_U1) return("fx_add_U1");
-  if (c_callee(p) == fx_add_us) return("fx_add_us");
-  if (c_callee(p) == fx_add_ut) return("fx_add_ut");
-  if (c_callee(p) == fx_add_u_car_t) return("fx_add_u_car_t");
-  if (c_callee(p) == fx_and_2) return("fx_and_2");
-  if (c_callee(p) == fx_and_2_closure_s) return("fx_and_2_closure_s");
-  if (c_callee(p) == fx_and_3) return("fx_and_3");
-  if (c_callee(p) == fx_and_n) return("fx_and_n");
-  if (c_callee(p) == fx_and_pair_closure_s) return("fx_and_pair_closure_s");
-  if (c_callee(p) == fx_c) return("fx_c");
-  if (c_callee(p) == fx_c_T) return("fx_c_T");
-  if (c_callee(p) == fx_c_a) return("fx_c_a");
-  if (c_callee(p) == fx_c_aa) return("fx_c_aa");
-  if (c_callee(p) == fx_c_aaa) return("fx_c_aaa");
-  if (c_callee(p) == fx_c_all_s) return("fx_c_all_s");
-  if (c_callee(p) == fx_c_c_opcsq) return("fx_c_c_opcsq");
-  if (c_callee(p) == fx_c_c_opdq) return("fx_c_c_opdq");
-  if (c_callee(p) == fx_c_c_opscq) return("fx_c_c_opscq");
-  if (c_callee(p) == fx_c_c_opsq) return("fx_c_c_opsq");
-  if (c_callee(p) == fx_c_c_opssq) return("fx_c_c_opssq");
-  if (c_callee(p) == fx_c_c_sqr) return("fx_c_c_sqr");
-  if (c_callee(p) == fx_c_cac) return("fx_c_cac");
-  if (c_callee(p) == fx_c_car_s) return("fx_c_car_s");
-  if (c_callee(p) == fx_c_car_t) return("fx_c_car_t");
-  if (c_callee(p) == fx_c_car_u) return("fx_c_car_u");
-  if (c_callee(p) == fx_c_cdr_s) return("fx_c_cdr_s");
-  if (c_callee(p) == fx_c_cdr_t) return("fx_c_cdr_t");
-  if (c_callee(p) == fx_c_closure_s_a) return("fx_c_closure_s_a");
-  if (c_callee(p) == fx_c_closure_s_d) return("fx_c_closure_s_d");
-  if (c_callee(p) == fx_c_cq) return("fx_c_cq");
-  if (c_callee(p) == fx_c_cs) return("fx_c_cs");
-  if (c_callee(p) == fx_c_csa) return("fx_c_csa");
-  if (c_callee(p) == fx_c_csc) return("fx_c_csc");
-  if (c_callee(p) == fx_c_css) return("fx_c_css");
-  if (c_callee(p) == fx_c_ct) return("fx_c_ct");
-  if (c_callee(p) == fx_c_cu) return("fx_c_cu");
-  if (c_callee(p) == fx_c_d) return("fx_c_d");
-  if (c_callee(p) == fx_c_fx) return("fx_c_fx");
-  if (c_callee(p) == fx_c_op_opsq_q) return("fx_c_op_opsq_q");
-  if (c_callee(p) == fx_c_op_opsq_q_c) return("fx_c_op_opsq_q_c");
-  if (c_callee(p) == fx_c_op_opsq_s_q) return("fx_c_op_opsq_s_q");
-  if (c_callee(p) == fx_c_op_opssq_q_c) return("fx_c_op_opssq_q_c");
-  if (c_callee(p) == fx_c_op_opssq_q_s) return("fx_c_op_opssq_q_s");
-  if (c_callee(p) == fx_c_op_opssq_sq_s) return("fx_c_op_opssq_sq_s");
-  if (c_callee(p) == fx_c_op_s_opsq_q) return("fx_c_op_s_opsq_q");
-  if (c_callee(p) == fx_c_opaaq) return("fx_c_opaaq");
-  if (c_callee(p) == fx_c_opaaq_opaaq) return("fx_c_opaaq_opaaq");
-  if (c_callee(p) == fx_c_opaq) return("fx_c_opaq");
-  if (c_callee(p) == fx_c_opaq_s) return("fx_c_opaq_s");
-  if (c_callee(p) == fx_c_opcsq) return("fx_c_opcsq");
-  if (c_callee(p) == fx_c_opcsq_c) return("fx_c_opcsq_c");
-  if (c_callee(p) == fx_c_opcsq_s) return("fx_c_opcsq_s");
-  if (c_callee(p) == fx_c_opdq) return("fx_c_opdq");
-  if (c_callee(p) == fx_c_opdq_c) return("fx_c_opdq_c");
-  if (c_callee(p) == fx_c_opdq_opdq) return("fx_c_opdq_opdq");
-  if (c_callee(p) == fx_c_opdq_s) return("fx_c_opdq_s");
-  if (c_callee(p) == fx_c_opscq) return("fx_c_opscq");
-  if (c_callee(p) == fx_c_opscq_c) return("fx_c_opscq_c");
-  if (c_callee(p) == fx_c_opsq) return("fx_c_opsq");
-  if (c_callee(p) == fx_c_opsq_c) return("fx_c_opsq_c");
-  if (c_callee(p) == fx_c_opsq_cs) return("fx_c_opsq_cs");
-  if (c_callee(p) == fx_c_opsq_opsq) return("fx_c_opsq_opsq");
-  if (c_callee(p) == fx_c_opsq_opssq) return("fx_c_opsq_opssq");
-  if (c_callee(p) == fx_c_opsq_s) return("fx_c_opsq_s");
-  if (c_callee(p) == fx_c_opssq) return("fx_c_opssq");
-  if (c_callee(p) == fx_c_opssq_c) return("fx_c_opssq_c");
-  if (c_callee(p) == fx_c_opssq_opsq) return("fx_c_opssq_opsq");
-  if (c_callee(p) == fx_c_opssq_opssq) return("fx_c_opssq_opssq");
-  if (c_callee(p) == fx_c_opssq_s) return("fx_c_opssq_s");
-  if (c_callee(p) == fx_c_opssq_s_direct) return("fx_c_opssq_s_direct");
-  if (c_callee(p) == fx_c_opstq) return("fx_c_opstq");
-  if (c_callee(p) == fx_c_opstq_c) return("fx_c_opstq_c");
-  if (c_callee(p) == fx_c_opstq_direct) return("fx_c_opstq_direct");
-  if (c_callee(p) == fx_c_optq) return("fx_c_optq");
-  if (c_callee(p) == fx_c_optq_c) return("fx_c_optq_c");
-  if (c_callee(p) == fx_c_optq_cu) return("fx_c_optq_cu");
-  if (c_callee(p) == fx_c_optq_s) return("fx_c_optq_s");
-  if (c_callee(p) == fx_c_opuq_t) return("fx_c_opuq_t");
-  if (c_callee(p) == fx_c_s) return("fx_c_s");
-  if (c_callee(p) == fx_c_s_car_s) return("fx_c_s_car_s");
-  if (c_callee(p) == fx_c_s_op_opsq_cq) return("fx_c_s_op_opsq_cq");
-  if (c_callee(p) == fx_c_s_op_opssq_opssqq) return("fx_c_s_op_opssq_opssqq");
-  if (c_callee(p) == fx_c_s_op_s_opsqq) return("fx_c_s_op_s_opsqq");
-  if (c_callee(p) == fx_c_s_op_s_opssqq) return("fx_c_s_op_s_opssqq");
-  if (c_callee(p) == fx_c_s_opaq) return("fx_c_s_opaq");
-  if (c_callee(p) == fx_c_s_opcsq) return("fx_c_s_opcsq");
-  if (c_callee(p) == fx_c_s_opdq) return("fx_c_s_opdq");
-  if (c_callee(p) == fx_c_s_opscq) return("fx_c_s_opscq");
-  if (c_callee(p) == fx_c_s_opsq) return("fx_c_s_opsq");
-  if (c_callee(p) == fx_c_s_opssq) return("fx_c_s_opssq");
-  if (c_callee(p) == fx_c_s_opssq_direct) return("fx_c_s_opssq_direct");
-  if (c_callee(p) == fx_c_s_sqr) return("fx_c_s_sqr");
-  if (c_callee(p) == fx_c_sas) return("fx_c_sas");
-  if (c_callee(p) == fx_c_sc) return("fx_c_sc");
-  if (c_callee(p) == fx_c_sca) return("fx_c_sca");
-  if (c_callee(p) == fx_c_Tca) return("fx_c_Tca");
-  if (c_callee(p) == fx_c_scc) return("fx_c_scc");
-  if (c_callee(p) == fx_c_scs) return("fx_c_scs");
-  if (c_callee(p) == fx_c_sqr_sqr) return("fx_c_sqr_sqr");
-  if (c_callee(p) == fx_c_ss) return("fx_c_ss");
-  if (c_callee(p) == fx_c_ssa) return("fx_c_ssa");
-  if (c_callee(p) == fx_c_ssc) return("fx_c_ssc");
-  if (c_callee(p) == fx_c_sss) return("fx_c_sss");
-  if (c_callee(p) == fx_c_sssc) return("fx_c_sssc");
-  if (c_callee(p) == fx_c_st) return("fx_c_st");
-  if (c_callee(p) == fx_c_t) return("fx_c_t");
-  if (c_callee(p) == fx_c_t_car_u) return("fx_c_t_car_u");
-  if (c_callee(p) == fx_c_tc) return("fx_c_tc");
-  if (c_callee(p) == fx_c_tcs) return("fx_c_tcs");
-  if (c_callee(p) == fx_c_ts) return("fx_c_ts");
-  if (c_callee(p) == fx_c_tU) return("fx_c_tU");
-  if (c_callee(p) == fx_c_u) return("fx_c_u");
-  if (c_callee(p) == fx_c_weak1_type) return("fx_c_weak1_type");
-  if (c_callee(p) == fx_cadr_s) return("fx_cadr_s");
-  if (c_callee(p) == fx_cadr_t) return("fx_cadr_t");
-  if (c_callee(p) == fx_car_s) return("fx_car_s");
-  if (c_callee(p) == fx_car_t) return("fx_car_t");
-  if (c_callee(p) == fx_car_u) return("fx_car_u");
-  if (c_callee(p) == fx_cdr_s) return("fx_cdr_s");
-  if (c_callee(p) == fx_cdr_t) return("fx_cdr_t");
-  if (c_callee(p) == fx_cdr_u) return("fx_cdr_u");
-  if (c_callee(p) == fx_closure_a_a) return("fx_closure_a_a");
-  if (c_callee(p) == fx_closure_s_a) return("fx_closure_s_a");
-  if (c_callee(p) == fx_closure_t_a) return("fx_closure_t_a");
-  if (c_callee(p) == fx_closure_s_d) return("fx_closure_s_d");
-  if (c_callee(p) == fx_closure_t_d) return("fx_closure_t_d");
-  if (c_callee(p) == fx_closure_ss_a) return("fx_closure_ss_a");
-  if (c_callee(p) == fx_cons_ss) return("fx_cons_ss");
-  if (c_callee(p) == fx_cons_ts) return("fx_cons_ts");
-  if (c_callee(p) == fx_cons_tU) return("fx_cons_tU");
-  if (c_callee(p) == fx_equal_add_ss) return("fx_equal_add_ss");
-  if (c_callee(p) == fx_equal_length_i) return("fx_equal_length_i");
-  if (c_callee(p) == fx_equal_si) return("fx_equal_si");
-  if (c_callee(p) == fx_equal_ss) return("fx_equal_ss");
-  if (c_callee(p) == fx_equal_ti) return("fx_equal_ti");
-  if (c_callee(p) == fx_equal_ts) return("fx_equal_ts");
-  if (c_callee(p) == fx_equal_tu) return("fx_equal_tu");
-  if (c_callee(p) == fx_equal_ui) return("fx_equal_ui");
-  if (c_callee(p) == fx_equal_us) return("fx_equal_us");
-  if (c_callee(p) == fx_geq_ss) return("fx_geq_ss");
-  if (c_callee(p) == fx_geq_tf) return("fx_geq_tf");
-  if (c_callee(p) == fx_geq_ti) return("fx_geq_ti");
-  if (c_callee(p) == fx_geq_ts) return("fx_geq_ts");
-  if (c_callee(p) == fx_geq_tu) return("fx_geq_tu");
-  if (c_callee(p) == fx_gt_ss) return("fx_gt_ss");
-  if (c_callee(p) == fx_gt_tu) return("fx_gt_tu");
-  if (c_callee(p) == fx_hash_table_ref_car) return("fx_hash_table_ref_car");
-  if (c_callee(p) == fx_hash_table_ref_ss) return("fx_hash_table_ref_ss");
-  if (c_callee(p) == fx_hash_table_ref_st) return("fx_hash_table_ref_st");
-  if (c_callee(p) == fx_if_a_a) return("fx_if_a_a");
-  if (c_callee(p) == fx_if_a_aa) return("fx_if_a_aa");
-  if (c_callee(p) == fx_is_eq_caar_q) return("fx_is_eq_caar_q");
-  if (c_callee(p) == fx_is_eq_car_q) return("fx_is_eq_car_q");
-  if (c_callee(p) == fx_is_eq_car_t_q) return("fx_is_eq_car_t_q");
-  if (c_callee(p) == fx_is_eq_ss) return("fx_is_eq_ss");
-  if (c_callee(p) == fx_is_eq_ts) return("fx_is_eq_ts");
-  if (c_callee(p) == fx_is_integer_s) return("fx_is_integer_s");
-  if (c_callee(p) == fx_is_keyword_s) return("fx_is_keyword_s");
-  if (c_callee(p) == fx_is_null_cadr_s) return("fx_is_null_cadr_s");
-  if (c_callee(p) == fx_is_null_cddr_s) return("fx_is_null_cddr_s");
-  if (c_callee(p) == fx_is_null_cddr_t) return("fx_is_null_cddr_t");
-  if (c_callee(p) == fx_is_null_cdr_s) return("fx_is_null_cdr_s");
-  if (c_callee(p) == fx_is_null_cdr_t) return("fx_is_null_cdr_t");
-  if (c_callee(p) == fx_is_null_s) return("fx_is_null_s");
-  if (c_callee(p) == fx_is_null_t) return("fx_is_null_t");
-  if (c_callee(p) == fx_is_null_u) return("fx_is_null_u");
-  if (c_callee(p) == fx_is_pair_cadr_s) return("fx_is_pair_cadr_s");
-  if (c_callee(p) == fx_is_pair_cadr_t) return("fx_is_pair_cadr_t");
-  if (c_callee(p) == fx_is_pair_car_s) return("fx_is_pair_car_s");
-  if (c_callee(p) == fx_is_pair_car_t) return("fx_is_pair_car_t");
-  if (c_callee(p) == fx_is_pair_cddr_s) return("fx_is_pair_cddr_s");
-  if (c_callee(p) == fx_is_pair_cddr_t) return("fx_is_pair_cddr_t");
-  if (c_callee(p) == fx_is_pair_cdr_s) return("fx_is_pair_cdr_s");
-  if (c_callee(p) == fx_is_pair_cdr_t) return("fx_is_pair_cdr_t");
-  if (c_callee(p) == fx_is_pair_s) return("fx_is_pair_s");
-  if (c_callee(p) == fx_is_pair_t) return("fx_is_pair_t");
-  if (c_callee(p) == fx_is_pair_u) return("fx_is_pair_u");
-  if (c_callee(p) == fx_is_procedure_s) return("fx_is_procedure_s");
-  if (c_callee(p) == fx_is_proper_list_s) return("fx_is_proper_list_s");
-  if (c_callee(p) == fx_is_string_s) return("fx_is_string_s");
-  if (c_callee(p) == fx_is_symbol_cadr_s) return("fx_is_symbol_cadr_s");
-  if (c_callee(p) == fx_is_symbol_s) return("fx_is_symbol_s");
-  if (c_callee(p) == fx_is_symbol_t) return("fx_is_symbol_t");
-  if (c_callee(p) == fx_is_type_car_s) return("fx_is_type_car_s");
-  if (c_callee(p) == fx_is_type_car_t) return("fx_is_type_car_t");
-  if (c_callee(p) == fx_is_type_opsq) return("fx_is_type_opsq");
-  if (c_callee(p) == fx_is_type_optq) return("fx_is_type_optq");
-  if (c_callee(p) == fx_is_type_s) return("fx_is_type_s");
-  if (c_callee(p) == fx_is_type_t) return("fx_is_type_t");
-  if (c_callee(p) == fx_is_vector_s) return("fx_is_vector_s");
-  if (c_callee(p) == fx_is_vector_t) return("fx_is_vector_t");
-  if (c_callee(p) == fx_length_s) return("fx_length_s");
-  if (c_callee(p) == fx_leq_ss) return("fx_leq_ss");
-  if (c_callee(p) == fx_leq_tu) return("fx_leq_tu");
-  if (c_callee(p) == fx_less_length_i) return("fx_less_length_i");
-  if (c_callee(p) == fx_lint_let_ref) return("fx_lint_let_ref");
-  if (c_callee(p) == fx_lt_ss) return("fx_lt_ss");
-  if (c_callee(p) == fx_lt_tf) return("fx_lt_tf");
-  if (c_callee(p) == fx_lt_ti) return("fx_lt_ti");
-  if (c_callee(p) == fx_lt_ts) return("fx_lt_ts");
-  if (c_callee(p) == fx_lt_tU) return("fx_lt_tU");
-  if (c_callee(p) == fx_lt_tu) return("fx_lt_tu");
-  if (c_callee(p) == fx_memq_car_s) return("fx_memq_car_s");
-  if (c_callee(p) == fx_memq_car_s_2) return("fx_memq_car_s_2");
-  if (c_callee(p) == fx_memq_sq_2) return("fx_memq_sq_2");
-  if (c_callee(p) == fx_multiply_fs) return("fx_multiply_fs");
-  if (c_callee(p) == fx_multiply_is) return("fx_multiply_is");
-  if (c_callee(p) == fx_multiply_sf) return("fx_multiply_sf");
-  if (c_callee(p) == fx_multiply_si) return("fx_multiply_si");
-  if (c_callee(p) == fx_multiply_ss) return("fx_multiply_ss");
-  if (c_callee(p) == fx_not_a) return("fx_not_a");
-  if (c_callee(p) == fx_not_is_eq_car_q) return("fx_not_is_eq_car_q");
-  if (c_callee(p) == fx_not_is_eq_sq) return("fx_not_is_eq_sq");
-  if (c_callee(p) == fx_not_is_eq_ss) return("fx_not_is_eq_ss");
-  if (c_callee(p) == fx_not_is_null_s) return("fx_not_is_null_s");
-  if (c_callee(p) == fx_not_is_null_t) return("fx_not_is_null_t");
-  if (c_callee(p) == fx_not_is_null_u) return("fx_not_is_null_u");
-  if (c_callee(p) == fx_not_is_pair_s) return("fx_not_is_pair_s");
-  if (c_callee(p) == fx_not_is_pair_t) return("fx_not_is_pair_t");
-  if (c_callee(p) == fx_not_is_symbol_s) return("fx_not_is_symbol_s");
-  if (c_callee(p) == fx_not_opsq) return("fx_not_opsq");
-  if (c_callee(p) == fx_not_opssq) return("fx_not_opssq");
-  if (c_callee(p) == fx_not_s) return("fx_not_s");
-  if (c_callee(p) == fx_not_t) return("fx_not_t");
-  if (c_callee(p) == fx_number_to_string_aa) return("fx_number_to_string_aa");
-  if (c_callee(p) == fx_o_p_p_s) return("fx_o_p_p_s");
-  if (c_callee(p) == fx_o_p_p_t) return("fx_o_p_p_t");
-  if (c_callee(p) == fx_o_p_p_u) return("fx_o_p_p_u");
-  if (c_callee(p) == fx_or_2) return("fx_or_2");
-  if (c_callee(p) == fx_or_3) return("fx_or_3");
-  if (c_callee(p) == fx_or_and_2) return("fx_or_and_2");
-  if (c_callee(p) == fx_or_and_3) return("fx_or_and_3");
-  if (c_callee(p) == fx_or_n) return("fx_or_n");
-  if (c_callee(p) == fx_q) return("fx_q");
-  if (c_callee(p) == fx_s) return("fx_s");
-  if (c_callee(p) == fx_sqr_ss) return("fx_sqr_ss");
-  if (c_callee(p) == fx_subtract_T1) return("fx_subtract_T1");
-  if (c_callee(p) == fx_subtract_U1) return("fx_subtract_U1");
-  if (c_callee(p) == fx_subtract_aa) return("fx_subtract_aa");
-  if (c_callee(p) == fx_subtract_fs) return("fx_subtract_fs");
-  if (c_callee(p) == fx_subtract_s1) return("fx_subtract_s1");
-  if (c_callee(p) == fx_subtract_sf) return("fx_subtract_sf");
-  if (c_callee(p) == fx_subtract_si) return("fx_subtract_si");
-  if (c_callee(p) == fx_subtract_ss) return("fx_subtract_ss");
-  if (c_callee(p) == fx_subtract_t1) return("fx_subtract_t1");
-  if (c_callee(p) == fx_subtract_tf) return("fx_subtract_tf");
-  if (c_callee(p) == fx_subtract_ti) return("fx_subtract_ti");
-  if (c_callee(p) == fx_subtract_u1) return("fx_subtract_u1");
-  if (c_callee(p) == fx_t) return("fx_t");
-  if (c_callee(p) == fx_thunk_a) return("fx_thunk_a");
-  if (c_callee(p) == fx_u) return("fx_u");
-  if (c_callee(p) == fx_unsafe_s) return("fx_unsafe_s");
-  if (c_callee(p) == fx_x) return("fx_x");
-  return("unknown");
-}
-
-static bool fx_tu_name(s7_scheme *sc, s7_pointer p) /* sc for c_callee */
-{
-  if (c_callee(p) == fx_T) return(true);
-  if (c_callee(p) == fx_U) return(true);
-  if (c_callee(p) == fx_add_t1) return(true);
-  if (c_callee(p) == fx_add_T1) return(true);
-  if (c_callee(p) == fx_add_tf) return(true);
-  if (c_callee(p) == fx_add_ti) return(true);
-  if (c_callee(p) == fx_add_ts) return(true);
-  if (c_callee(p) == fx_add_tu) return(true);
-  if (c_callee(p) == fx_add_u1) return(true);
-  if (c_callee(p) == fx_add_U1) return(true);
-  if (c_callee(p) == fx_add_us) return(true);
-  if (c_callee(p) == fx_add_ut) return(true);
-  if (c_callee(p) == fx_add_u_car_t) return(true);
-  if (c_callee(p) == fx_c_T) return(true);
-  if (c_callee(p) == fx_c_car_t) return(true);
-  if (c_callee(p) == fx_c_car_u) return(true);
-  if (c_callee(p) == fx_c_cdr_t) return(true);
-  if (c_callee(p) == fx_closure_t_a) return(true);
-  if (c_callee(p) == fx_closure_t_d) return(true);
-  if (c_callee(p) == fx_c_ct) return(true);
-  if (c_callee(p) == fx_c_cu) return(true);
-  if (c_callee(p) == fx_c_opstq) return(true);
-  if (c_callee(p) == fx_c_opstq_c) return(true);
-  if (c_callee(p) == fx_c_opstq_direct) return(true);
-  if (c_callee(p) == fx_c_optq) return(true);
-  if (c_callee(p) == fx_c_optq_c) return(true);
-  if (c_callee(p) == fx_c_optq_cu) return(true);
-  if (c_callee(p) == fx_c_optq_s) return(true);
-  if (c_callee(p) == fx_c_opuq_t) return(true);
-  if (c_callee(p) == fx_c_st) return(true);
-  if (c_callee(p) == fx_c_t) return(true);
-  if (c_callee(p) == fx_c_t_car_u) return(true);
-  if (c_callee(p) == fx_c_tc) return(true);
-  if (c_callee(p) == fx_c_Tca) return(true);
-  if (c_callee(p) == fx_c_tcs) return(true);
-  if (c_callee(p) == fx_c_ts) return(true);
-  if (c_callee(p) == fx_c_tU) return(true);
-  if (c_callee(p) == fx_c_u) return(true);
-  if (c_callee(p) == fx_cadr_t) return(true);
-  if (c_callee(p) == fx_car_t) return(true);
-  if (c_callee(p) == fx_car_u) return(true);
-  if (c_callee(p) == fx_cdr_t) return(true);
-  if (c_callee(p) == fx_cdr_u) return(true);
-  if (c_callee(p) == fx_cons_ts) return(true);
-  if (c_callee(p) == fx_cons_tU) return(true);
-  if (c_callee(p) == fx_equal_ti) return(true);
-  if (c_callee(p) == fx_equal_ts) return(true);
-  if (c_callee(p) == fx_equal_tu) return(true);
-  if (c_callee(p) == fx_equal_ui) return(true);
-  if (c_callee(p) == fx_equal_us) return(true);
-  if (c_callee(p) == fx_geq_tf) return(true);
-  if (c_callee(p) == fx_geq_ti) return(true);
-  if (c_callee(p) == fx_geq_ts) return(true);
-  if (c_callee(p) == fx_geq_tu) return(true);
-  if (c_callee(p) == fx_gt_tu) return(true);
-  if (c_callee(p) == fx_hash_table_ref_st) return(true);
-  if (c_callee(p) == fx_is_eq_car_t_q) return(true);
-  if (c_callee(p) == fx_is_eq_ts) return(true);
-  if (c_callee(p) == fx_is_null_cddr_t) return(true);
-  if (c_callee(p) == fx_is_null_cdr_t) return(true);
-  if (c_callee(p) == fx_is_null_t) return(true);
-  if (c_callee(p) == fx_is_null_u) return(true);
-  if (c_callee(p) == fx_is_pair_cadr_t) return(true);
-  if (c_callee(p) == fx_is_pair_car_t) return(true);
-  if (c_callee(p) == fx_is_pair_cddr_t) return(true);
-  if (c_callee(p) == fx_is_pair_cdr_t) return(true);
-  if (c_callee(p) == fx_is_pair_t) return(true);
-  if (c_callee(p) == fx_is_pair_u) return(true);
-  if (c_callee(p) == fx_is_symbol_t) return(true);
-  if (c_callee(p) == fx_is_type_car_t) return(true);
-  if (c_callee(p) == fx_is_type_optq) return(true);
-  if (c_callee(p) == fx_is_type_t) return(true);
-  if (c_callee(p) == fx_is_vector_t) return(true);
-  if (c_callee(p) == fx_leq_tu) return(true);
-  if (c_callee(p) == fx_lt_tf) return(true);
-  if (c_callee(p) == fx_lt_ti) return(true);
-  if (c_callee(p) == fx_lt_ts) return(true);
-  if (c_callee(p) == fx_lt_tU) return(true);
-  if (c_callee(p) == fx_lt_tu) return(true);
-  if (c_callee(p) == fx_not_is_null_t) return(true);
-  if (c_callee(p) == fx_not_is_null_u) return(true);
-  if (c_callee(p) == fx_not_is_pair_t) return(true);
-  if (c_callee(p) == fx_not_t) return(true);
-  if (c_callee(p) == fx_o_p_p_t) return(true);
-  if (c_callee(p) == fx_o_p_p_u) return(true);
-  if (c_callee(p) == fx_subtract_T1) return(true);
-  if (c_callee(p) == fx_subtract_U1) return(true);
-  if (c_callee(p) == fx_subtract_t1) return(true);
-  if (c_callee(p) == fx_subtract_tf) return(true);
-  if (c_callee(p) == fx_subtract_ti) return(true);
-  if (c_callee(p) == fx_subtract_u1) return(true);
-  if (c_callee(p) == fx_t) return(true);
-  if (c_callee(p) == fx_u) return(true);
-  return(false);
-}
-#endif
-
-#define TREE_PRINT 0
 
 #define fx_tree_1(Sc, Tree, Var1, Var2) fx_tree_3(Sc, Tree, Var1, Var2, false)
 #define fx_tree_2(Sc, Tree, Var1, Var2) fx_tree_3(Sc, Tree, Var1, Var2, true)
@@ -53427,19 +52991,11 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	      if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_T1); return(true);}
 	      if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_T1); return(true);}
 	      if (c_callee(tree) == fx_c_sca) {set_c_call(tree, fx_c_Tca); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "T: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
-#endif
             }
 	  if (cadr(p) == var2)
 	    {
 	      if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_U1); return(true);}
 	      if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_U1); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "U: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
-#endif
 	    }
 	  if ((is_pair(cddr(p))) && (caddr(p) == var2))
 	    {
@@ -53448,10 +53004,6 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	      if (c_callee(tree) == fx_lt_ts) {set_c_call(tree, fx_lt_tU); return(true);}
 #endif
 	      if (c_callee(tree) == fx_cons_ts) {set_c_call(tree, fx_cons_tU); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "U: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
-#endif
 	    }
 	  return(false);
 	}
@@ -53532,10 +53084,6 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	  if (c_callee(tree) == fx_cons_ss) {set_c_call(tree, fx_cons_ts); return(true);}
 	  if ((c_callee(tree) == fx_c_s_car_s) && (cadr(caddr(p)) == var2)) {set_c_call(tree, fx_c_t_car_u); return(true);}
 
-#if TREE_PRINT
-	  if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-	    fprintf(stderr, "t: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
-#endif
 	}
       
       if (cadr(p) == var2)
@@ -53554,10 +53102,6 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_u1); return(true);}
 	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_u1); return(true);}
 	  if (c_callee(tree) == fx_is_pair_s) {set_c_call(tree, fx_is_pair_u); return(true);}
-#if TREE_PRINT
-	  if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-	    fprintf(stderr, "u: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var2), DISPLAY(p));
-#endif
 	}
       
       if (is_pair(cadr(p)))
@@ -53602,10 +53146,6 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	      if ((c_callee(tree) == fx_c_opsq_cs) && (cadddr(p) == var2)) {set_c_call(tree, fx_c_optq_cu); return(true);}
 	      if (c_callee(tree) == fx_c_opsq_s) {set_c_call(tree, fx_c_optq_s); return(true);}
 		
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "t: %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(p));
-#endif
 	    }
 
 	  if ((is_pair(cdadr(p))) && (cadadr(p) == var2))
@@ -53614,10 +53154,6 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	      if ((c_callee(tree) == fx_not_opssq) && (caddr(cadr(p)) == var1)) {set_c_call(tree, fx_not_oputq); return(true);}
 	      if ((c_callee(tree) == fx_c_opsq_s) && (caddr(p) == var1)) {set_c_call(tree, fx_c_opuq_t); return(true);}
 	      if (c_callee(tree) == fx_c_car_s) {set_c_call(tree, fx_c_car_u); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "u: %s %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(var1), DISPLAY(p));
-#endif
 	    }
 	}
       
@@ -53628,18 +53164,10 @@ static bool fx_tree_3(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointe
 	      if (c_callee(tree) == fx_c_cs) {set_c_call(tree, fx_c_ct); return(true);}
 	      if (c_callee(tree) == fx_c_ss) {set_c_call(tree, fx_c_st); return(true);}
 	      if (c_callee(tree) == fx_hash_table_ref_ss) {set_c_call(tree, fx_hash_table_ref_st); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "t: %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(p));
-#endif
 	    }
 	  if (caddr(p) == var2)
 	    {
 	      if (c_callee(tree) == fx_c_cs) {set_c_call(tree, fx_c_cu); return(true);}
-#if TREE_PRINT
-	      if ((optimize_op(p) != HOP_SAFE_C_D) && (!fx_tu_name(sc, tree)))
-		fprintf(stderr, "u: %s %s: %s\n", op_names[optimize_op(p)], fx_name(sc, tree), DISPLAY(p));
-#endif
 	    }
 	}
     }
@@ -68411,7 +67939,7 @@ static bool check_recur_if_one_or_two_vars(s7_scheme *sc, s7_pointer name, int32
 	      (is_pair(cddr(true_p))))
 	    {
 	      orig = true_p;
-	      true_p = false_p;
+	      /* true_p = false_p; */
 	      false_p = orig;
 	      obody = cdr(obody);
 	    }
@@ -76471,9 +75999,9 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx, s7_pointer form)
       return(goto_TOP_NO_POP);
     }
   
+  /* fprintf(stderr, "%s: %s %ld %ld\n", __func__, DISPLAY(form), argnum, vector_rank(cx)); */
   if ((argnum > 1) || (vector_rank(cx) > 1))
     {
-
       if ((argnum == 2) &&
 	  (is_fxable(sc, cadr(settee))) &&
 	  (is_fxable(sc, caddr(settee))) &&
@@ -76483,6 +76011,11 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx, s7_pointer form)
 	  annotate_arg(sc, cdr(sc->code), sc->envir);
 	  pair_set_syntax_op(form, OP_VECTOR_SET_4);
 	}
+      /* TODO: but if an index is itself an implicit vector-ref, we fall into the very slow code below
+       *   if ind not fxable but (name...) name is a (int-)vector, and its args are fxable
+       *   OP_VECTOR_SET_4_I1|2|3? -- backing out would be: send (name ...) to eval, 
+       *     OP_VECTOR_SET_4_I1_END etc, and set (name ...) to OP_VECTOR_A(A)
+       */
 
       if ((argnum == vector_rank(cx)) &&
 	  (!is_pair(cadr(sc->code))))
@@ -77407,7 +76940,6 @@ static bool do_tree_has_definers(s7_scheme *sc, s7_pointer tree)
 static s7_pointer check_do(s7_scheme *sc)
 {
   s7_pointer x, form, code, vars, end, body, p;
-  bool got_pending = false;
 
   form = sc->code;
   code = cdr(sc->code);
@@ -77635,6 +77167,7 @@ static s7_pointer check_do(s7_scheme *sc)
   
   {
     s7_pointer last_stepper = NULL, previous_stepper = NULL, last_expr = NULL, previous_expr = NULL;
+    bool got_pending = false;
     
     for (p = vars; is_pair(p); p = cdr(p))
       {
@@ -81808,7 +81341,14 @@ static void op_define_with_setter(s7_scheme *sc)
 
 #define remember_location(Line, File) (((File) << 20) | (Line))
 #define remembered_line_number(Line)  ((Line) & 0xfffff)
-#define remembered_file_name(Line)    ((((Line) >> 20) <= sc->file_names_top) ? sc->file_names[Line >> 20] : sc->F)
+static s7_pointer remembered_file_name(s7_scheme *sc, s7_int line)
+{
+  s7_int fnum;
+  fnum = line >> 20;
+  if ((fnum < 0) || (fnum > sc->file_names_top))
+    return(sc->F);
+  return(sc->file_names[fnum]);
+}
 
 static void profile(s7_scheme *sc, s7_pointer expr)
 {
@@ -81858,14 +81398,18 @@ static s7_pointer g_profile_line_number(s7_scheme *sc, s7_pointer args)
 {
   #define H_profile_line_number "(profile-line-number obj) returns the line number at which the profiler read obj"
   #define Q_profile_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, sc->T)
-  return(make_integer(sc, remembered_line_number(integer(car(args)))));
+  if (is_t_integer(car(args)))
+    return(make_integer(sc, remembered_line_number(integer(car(args)))));
+  return(small_int(0));
 }
 
 static s7_pointer g_profile_filename(s7_scheme *sc, s7_pointer args)
 {
   #define H_profile_filename "(profile-filename obj) returns the name of the file containing obj"
   #define Q_profile_filename s7_make_signature(sc, 2, sc->is_string_symbol, sc->T)
-  return(remembered_file_name(integer(car(args))));
+  if (is_t_integer(car(args)))
+    return(remembered_file_name(sc, integer(car(args))));
+  return(sc->F);
 }
 #endif
 
@@ -83355,6 +82899,7 @@ static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
    *       cf needs to return type of args
    * then ideally we could ask each f for its all-integer version
    * also need to check resf return type
+   * (c_function_class(f) == sc->add_class? [preserves_type above 76896]
    */
 #if (!WITH_GMP)
   if ((is_t_integer(slot_value(sc->rec_slot1))) &&
@@ -84622,8 +84167,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
        *    callgrind numbers 4808 to 4669; another good case was tread.scm: 2410 to 2386.  Most timings were a draw.  computed-gotos-s7.c has the code,
        *    macroized so it will work if such gotos aren't available.  I think I'll stick with a switch statement.
        */
-      tick(sc->cur_op);
-
       switch (sc->cur_op)
 	{
 	case OP_SAFE_C_D:
@@ -86953,7 +86496,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (is_pair(cadr(sc->code)))                                            /* has setter */
 	    {
 	      goto_t choice;
-	      /* sc->code = cdr(sc->code); */
 	      choice = set_implicit(sc);
 	      if (choice == goto_TOP_NO_POP) goto TOP_NO_POP;
 	      if (choice == goto_START) goto START;
@@ -92185,11 +91727,22 @@ s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
   return(old_len);
 }
 
-static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
+typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS, SL_HEAP_SIZE, SL_FREE_HEAP_SIZE, 
+	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY, 
+	      SL_UNDEFINED_IDENTIFIER_WARNINGS, SL_UNDEFINED_CONSTANT_WARNINGS, SL_GC_STATS, SL_MAX_HEAP_SIZE, 
+	      SL_MAX_PORT_DATA_SIZE, SL_MAX_STACK_SIZE, SL_CPU_TIME, SL_CATCHES, SL_STACK, SL_MAX_STRING_LENGTH, 
+	      SL_MAX_FORMAT_LENGTH, SL_MAX_LIST_LENGTH, SL_MAX_VECTOR_LENGTH, SL_MAX_VECTOR_DIMENSIONS,
+	      SL_DEFAULT_HASH_TABLE_LENGTH, SL_INITIAL_STRING_PORT_LENGTH, SL_DEFAULT_RATIONALIZE_ERROR,
+	      SL_DEFAULT_RANDOM_STATE, SL_EQUIVALENT_FLOAT_EPSILON, SL_HASH_TABLE_FLOAT_EPSILON, SL_PRINT_LENGTH, 
+	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
+	      SL_HISTORY_SIZE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS, 
+	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM} s7_let_field_t;
+
+static s7_pointer s7_let_field(s7_scheme *sc, const char *name, s7_let_field_t field)
 {
   s7_pointer sym;
   sym = make_symbol(sc, name);
-  set_s7_let_field(sym);
+  symbol_set_s7_let(sym, field);
   return(sym);
 }
 
@@ -92199,49 +91752,49 @@ static s7_pointer s7_let_field(s7_scheme *sc, const char *name)
  */
 static void init_s7_let(s7_scheme *sc)
 {
-  sc->stack_top_symbol =                     s7_let_field(sc, "stack-top");
-  sc->stack_size_symbol =                    s7_let_field(sc, "stack-size");
-  sc->stacktrace_defaults_symbol =           s7_let_field(sc, "stacktrace-defaults");
-  sc->heap_size_symbol =                     s7_let_field(sc, "heap-size");
-  sc->free_heap_size_symbol =                s7_let_field(sc, "free-heap-size");
-  sc->gc_freed_symbol =                      s7_let_field(sc, "gc-freed");
-  sc->gc_protected_objects_symbol =          s7_let_field(sc, "gc-protected-objects");
-  sc->file_names_symbol =                    s7_let_field(sc, "file-names");
-  sc->rootlet_size_symbol =                  s7_let_field(sc, "rootlet-size");
-  sc->c_types_symbol =                       s7_let_field(sc, "c-types");
-  sc->safety_symbol =                        s7_let_field(sc, "safety");
-  sc->undefined_identifier_warnings_symbol = s7_let_field(sc, "undefined-identifier-warnings");
-  sc->undefined_constant_warnings_symbol =   s7_let_field(sc, "undefined-constant-warnings");
-  sc->gc_stats_symbol =                      s7_let_field(sc, "gc-stats");
-  sc->max_heap_size_symbol =                 s7_let_field(sc, "max-heap-size");
-  sc->max_port_data_size_symbol =            s7_let_field(sc, "max-port-data-size");
-  sc->max_stack_size_symbol =                s7_let_field(sc, "max-stack-size");
-  sc->cpu_time_symbol =                      s7_let_field(sc, "cpu-time");
-  sc->catches_symbol =                       s7_let_field(sc, "catches");
-  sc->stack_symbol =                         s7_let_field(sc, "stack");
-  sc->max_string_length_symbol =             s7_let_field(sc, "max-string-length");
-  sc->max_format_length_symbol =             s7_let_field(sc, "max-format-length");
-  sc->max_list_length_symbol =               s7_let_field(sc, "max-list-length");
-  sc->max_vector_length_symbol =             s7_let_field(sc, "max-vector-length");
-  sc->max_vector_dimensions_symbol =         s7_let_field(sc, "max-vector-dimensions");
-  sc->default_hash_table_length_symbol =     s7_let_field(sc, "default-hash-table-length");
-  sc->initial_string_port_length_symbol =    s7_let_field(sc, "initial-string-port-length");
-  sc->default_rationalize_error_symbol =     s7_let_field(sc, "default-rationalize-error");
-  sc->default_random_state_symbol =          s7_let_field(sc, "default-random-state");
-  sc->equivalent_float_epsilon_symbol =      s7_let_field(sc, "equivalent-float-epsilon");
-  sc->hash_table_float_epsilon_symbol =      s7_let_field(sc, "hash-table-float-epsilon");
-  sc->print_length_symbol =                  s7_let_field(sc, "print-length");
-  sc->bignum_precision_symbol =              s7_let_field(sc, "bignum-precision");
-  sc->memory_usage_symbol =                  s7_let_field(sc, "memory-usage");
-  sc->float_format_precision_symbol =        s7_let_field(sc, "float-format-precision");
-  sc->history_symbol =                       s7_let_field(sc, "history");
-  sc->history_enabled_symbol =               s7_let_field(sc, "history-enabled");
-  sc->history_size_symbol =                  s7_let_field(sc, "history-size");
-  sc->profile_info_symbol =                  s7_let_field(sc, "profile-info");
-  sc->autoloading_symbol =                   s7_let_field(sc, "autoloading?");
-  sc->accept_all_keyword_arguments_symbol =  s7_let_field(sc, "accept-all-keyword-arguments");
-  sc->most_positive_fixnum_symbol =          s7_let_field(sc, "most-positive-fixnum");
-  sc->most_negative_fixnum_symbol =          s7_let_field(sc, "most-negative-fixnum");
+  s7_let_field(sc, "accept-all-keyword-arguments",  SL_ACCEPT_ALL_KEYWORD_ARGUMENTS);
+  s7_let_field(sc, "autoloading?",                  SL_AUTOLOADING);
+  s7_let_field(sc, "bignum-precision",              SL_BIGNUM_PRECISION);
+  s7_let_field(sc, "c-types",                       SL_C_TYPES);
+  s7_let_field(sc, "catches",                       SL_CATCHES);
+  s7_let_field(sc, "cpu-time",                      SL_CPU_TIME);
+  s7_let_field(sc, "default-hash-table-length",     SL_DEFAULT_HASH_TABLE_LENGTH);
+  s7_let_field(sc, "default-random-state",          SL_DEFAULT_RANDOM_STATE);
+  s7_let_field(sc, "default-rationalize-error",     SL_DEFAULT_RATIONALIZE_ERROR);
+  s7_let_field(sc, "equivalent-float-epsilon",      SL_EQUIVALENT_FLOAT_EPSILON);
+  s7_let_field(sc, "file-names",                    SL_FILE_NAMES);
+  s7_let_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
+  s7_let_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
+  s7_let_field(sc, "gc-freed",                      SL_GC_FREED);
+  s7_let_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
+  s7_let_field(sc, "gc-stats",                      SL_GC_STATS);
+  s7_let_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
+  s7_let_field(sc, "heap-size",                     SL_HEAP_SIZE);
+  s7_let_field(sc, "history",                       SL_HISTORY);
+  s7_let_field(sc, "history-enabled",               SL_HISTORY_ENABLED);
+  s7_let_field(sc, "history-size",                  SL_HISTORY_SIZE);
+  s7_let_field(sc, "initial-string-port-length",    SL_INITIAL_STRING_PORT_LENGTH);
+  s7_let_field(sc, "max-format-length",             SL_MAX_FORMAT_LENGTH);
+  s7_let_field(sc, "max-heap-size",                 SL_MAX_HEAP_SIZE);
+  s7_let_field(sc, "max-list-length",               SL_MAX_LIST_LENGTH);
+  s7_let_field(sc, "max-port-data-size",            SL_MAX_PORT_DATA_SIZE);
+  s7_let_field(sc, "max-stack-size",                SL_MAX_STACK_SIZE);
+  s7_let_field(sc, "max-string-length",             SL_MAX_STRING_LENGTH);
+  s7_let_field(sc, "max-vector-dimensions",         SL_MAX_VECTOR_DIMENSIONS);
+  s7_let_field(sc, "max-vector-length",             SL_MAX_VECTOR_LENGTH);
+  s7_let_field(sc, "memory-usage",                  SL_MEMORY_USAGE);
+  s7_let_field(sc, "most-negative-fixnum",          SL_MOST_NEGATIVE_FIXNUM);
+  s7_let_field(sc, "most-positive-fixnum",          SL_MOST_POSITIVE_FIXNUM);
+  s7_let_field(sc, "print-length",                  SL_PRINT_LENGTH);
+  s7_let_field(sc, "profile-info",                  SL_PROFILE_INFO);
+  s7_let_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
+  s7_let_field(sc, "safety",                        SL_SAFETY);
+  s7_let_field(sc, "stack",                         SL_STACK);
+  s7_let_field(sc, "stack-size",                    SL_STACK_SIZE);
+  s7_let_field(sc, "stack-top",                     SL_STACK_TOP);
+  s7_let_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
+  s7_let_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
+  s7_let_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
 }
 
 #ifdef __linux__
@@ -92443,6 +91996,50 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
   return(mu_let);
 }
 
+static s7_pointer sl_c_types(s7_scheme *sc)
+{
+  s7_pointer res;
+  int32_t i;
+  sc->w = sc->nil;
+  for (i = 0; i < sc->num_c_object_types; i++)                       /*   c-object type (tag) is i */
+    sc->w = cons(sc, sc->c_object_types[i]->scheme_name, sc->w);
+  res = safe_reverse_in_place(sc, sc->w);                            /*   so car(types) has tag 0 */
+  sc->w = sc->nil;
+  return(res);
+}
+
+static s7_pointer sl_file_names(s7_scheme *sc)
+{
+  int32_t i;
+  s7_pointer p;
+  sc->w = sc->nil;
+  for (i = 0; i <= sc->file_names_top; i++)
+    sc->w = cons(sc, sc->file_names[i], sc->w);
+  p = sc->w;
+  sc->w = sc->nil;
+  return(p);
+}
+
+static s7_pointer sl_int_fixup(s7_scheme *sc, s7_pointer val)
+{
+#if WITH_GMP
+  return(s7_int_to_big_integer(sc, s7_integer(val)));
+#else
+  return(val);
+#endif
+}
+
+static s7_pointer sl_history(s7_scheme *sc)
+  {
+#if WITH_HISTORY
+    if (sc->cur_code == sc->history_sink) /* i.e. history is current disabled */
+      return((sc->using_history1) ? sc->eval_history1 : sc->eval_history2);
+    return(sc->cur_code);
+#else
+    return(sc->F);
+#endif
+}
+
 static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer sym;
@@ -92450,154 +92047,89 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
   sym = cadr(args);
   if (!is_symbol(sym))
     return(simple_wrong_type_argument(sc, sc->let_ref_symbol, sym, T_SYMBOL));
-  if (!is_s7_let_field(sym))
-    return(s7_error(sc, sc->error_symbol,
-		    set_elist_2(sc, wrap_string(sc, "can't get (*s7* '~S); no such field in *s7*", 43), sym)));
-
-  if (sym == sc->print_length_symbol)                                    /* print-length */
-    return(s7_make_integer(sc, sc->print_length));
-#if WITH_GMP
-  if (sym == sc->most_positive_fixnum_symbol)                            /* most-positive-fixnum */
-    return(s7_int_to_big_integer(sc, s7_integer(mostfix)));
-  if (sym == sc->most_negative_fixnum_symbol)                            /* most-negative-fixnum */
-    return(s7_int_to_big_integer(sc, s7_integer(leastfix)));
-#else
-  if (sym == sc->most_positive_fixnum_symbol)                            /* most-positive-fixnum */
-    return(mostfix);
-  if (sym == sc->most_negative_fixnum_symbol)                            /* most-negative-fixnum */
-    return(leastfix);
-#endif
-
-  if (sym == sc->stack_top_symbol)                                       /* stack-top = how many frames active (4 stack entries per frame) */
-    return(s7_make_integer(sc, (sc->stack_end - sc->stack_start) / 4));
-  if (sym == sc->stack_size_symbol)                                      /* stack-size (max so far) */
-    return(s7_make_integer(sc, sc->stack_size));
-  if (sym == sc->max_stack_size_symbol)                                  /* max-stack-size */
-    return(s7_make_integer(sc, sc->max_stack_size));
-  if (sym == sc->stacktrace_defaults_symbol)                             /* stacktrace-defaults */
-    return(sc->stacktrace_defaults);
-
-  if (sym == sc->rootlet_size_symbol)                                    /* rootlet-size */
-    return(s7_make_integer(sc, sc->rootlet_entries));
-  if (sym == sc->safety_symbol)                                          /* safety */
-    return(s7_make_integer(sc, (s7_int)sc->safety));
-  if (sym == sc->autoloading_symbol)                                     /* autoloading? */
-    return(s7_make_boolean(sc, sc->is_autoloading));
-  if (sym == sc->undefined_identifier_warnings_symbol)                   /* undefined-identifier-warnings */
-    return(s7_make_boolean(sc, sc->undefined_identifier_warnings));
-  if (sym == sc->undefined_constant_warnings_symbol)                     /* undefined-constant-warnings */
-    return(s7_make_boolean(sc, sc->undefined_constant_warnings));
-  if (sym == sc->cpu_time_symbol)                                        /* cpu-time */
-    return(s7_make_real(sc, (double)clock() / (double)CLOCKS_PER_SEC));
-  if (sym == sc->catches_symbol)                                         /* catches */
-    return(active_catches(sc));
-  if (sym == sc->stack_symbol)                                           /* stack */
-    return(stack_entries(sc, sc->stack, s7_stack_top(sc)));
-
-  if (sym == sc->max_heap_size_symbol)                                   /* max-heap-size */
-    return(s7_make_integer(sc, sc->max_heap_size));
-  if (sym == sc->max_port_data_size_symbol)                              /* max-port-data-size */
-    return(s7_make_integer(sc, sc->max_port_data_size));
-  if (sym == sc->heap_size_symbol)                                       /* heap-size */
-    return(s7_make_integer(sc, sc->heap_size));
-  if (sym == sc->free_heap_size_symbol)                                  /* free-heap-size (number of unused cells in the heap) */
-    return(s7_make_integer(sc, sc->free_heap_top - sc->free_heap));
-  if (sym == sc->gc_freed_symbol)                                        /* gc-freed = how many cells freed during last GC sweep */
-    return(s7_make_integer(sc, sc->gc_freed));
-  if (sym == sc->gc_protected_objects_symbol)                            /* gc-protected-objects */
-    return(sc->protected_objects);
-  if (sym == sc->gc_stats_symbol)                                        /* gc-stats */
-    return(make_integer(sc, sc->gc_stats));
-
-  if (sym == sc->default_rationalize_error_symbol)                       /* default-rationalize-error */
-    return(make_real(sc, sc->default_rationalize_error));
-  if (sym == sc->default_random_state_symbol)                            /* default-random-state */
-    return(sc->default_rng);
-
-  if (sym == sc->history_symbol)                                         /* history (eval history circular buffer) */
-#if WITH_HISTORY
+  
+  switch (symbol_s7_let(sym))
     {
-      if (sc->cur_code == sc->history_sink) /* i.e. history is current disabled */
-	return((sc->using_history1) ? sc->eval_history1 : sc->eval_history2);
-      return(sc->cur_code);
+    case SL_ACCEPT_ALL_KEYWORD_ARGUMENTS:  return(make_boolean(sc, sc->accept_all_keyword_arguments));
+    case SL_AUTOLOADING:                   return(s7_make_boolean(sc, sc->is_autoloading));
+    case SL_BIGNUM_PRECISION:              return(s7_make_integer(sc, sc->bignum_precision));
+    case SL_CATCHES:                       return(active_catches(sc));
+    case SL_CPU_TIME:                      return(s7_make_real(sc, (double)clock() / (double)CLOCKS_PER_SEC));
+    case SL_C_TYPES:                       return(sl_c_types(sc));
+    case SL_DEFAULT_HASH_TABLE_LENGTH:     return(s7_make_integer(sc, sc->default_hash_table_length));
+    case SL_DEFAULT_RANDOM_STATE:          return(sc->default_rng);
+    case SL_DEFAULT_RATIONALIZE_ERROR:     return(make_real(sc, sc->default_rationalize_error));
+    case SL_EQUIVALENT_FLOAT_EPSILON:      return(s7_make_real(sc, sc->equivalent_float_epsilon));
+    case SL_FILE_NAMES:                    return(sl_file_names(sc));
+    case SL_FLOAT_FORMAT_PRECISION:        return(s7_make_integer(sc, sc->float_format_precision));
+    case SL_FREE_HEAP_SIZE:                return(s7_make_integer(sc, sc->free_heap_top - sc->free_heap));
+    case SL_GC_FREED:                      return(s7_make_integer(sc, sc->gc_freed));
+    case SL_GC_PROTECTED_OBJECTS:          return(sc->protected_objects);
+    case SL_GC_STATS:                      return(make_integer(sc, sc->gc_stats));
+    case SL_HASH_TABLE_FLOAT_EPSILON:      return(s7_make_real(sc, sc->hash_table_float_epsilon));
+    case SL_HEAP_SIZE:                     return(s7_make_integer(sc, sc->heap_size));
+    case SL_HISTORY:                       return(sl_history(sc));
+    case SL_HISTORY_ENABLED:               return(s7_make_boolean(sc, s7_history_enabled(sc)));
+    case SL_HISTORY_SIZE:                  return(s7_make_integer(sc, sc->history_size));
+    case SL_INITIAL_STRING_PORT_LENGTH:    return(s7_make_integer(sc, sc->initial_string_port_length));
+    case SL_MAX_FORMAT_LENGTH:             return(s7_make_integer(sc, sc->max_format_length));
+    case SL_MAX_HEAP_SIZE:                 return(s7_make_integer(sc, sc->max_heap_size));
+    case SL_MAX_LIST_LENGTH:               return(s7_make_integer(sc, sc->max_list_length));
+    case SL_MAX_PORT_DATA_SIZE:            return(s7_make_integer(sc, sc->max_port_data_size));
+    case SL_MAX_STACK_SIZE:                return(s7_make_integer(sc, sc->max_stack_size));
+    case SL_MAX_STRING_LENGTH:             return(s7_make_integer(sc, sc->max_string_length));
+    case SL_MAX_VECTOR_DIMENSIONS:         return(s7_make_integer(sc, sc->max_vector_dimensions));
+    case SL_MAX_VECTOR_LENGTH:             return(s7_make_integer(sc, sc->max_vector_length));
+    case SL_MEMORY_USAGE:                  return(memory_usage(sc));
+    case SL_MOST_NEGATIVE_FIXNUM:          return(sl_int_fixup(sc, leastfix));
+    case SL_MOST_POSITIVE_FIXNUM:          return(sl_int_fixup(sc, mostfix));
+    case SL_PRINT_LENGTH:                  return(s7_make_integer(sc, sc->print_length));
+    case SL_PROFILE_INFO:                  return(sc->profile_info);
+    case SL_ROOTLET_SIZE:                  return(s7_make_integer(sc, sc->rootlet_entries));
+    case SL_SAFETY:                        return(s7_make_integer(sc, (s7_int)sc->safety));
+    case SL_STACK:                         return(stack_entries(sc, sc->stack, s7_stack_top(sc)));
+    case SL_STACKTRACE_DEFAULTS:           return(sc->stacktrace_defaults);
+    case SL_STACK_SIZE:                    return(s7_make_integer(sc, sc->stack_size));
+    case SL_STACK_TOP:                     return(s7_make_integer(sc, (sc->stack_end - sc->stack_start) / 4));
+    case SL_UNDEFINED_CONSTANT_WARNINGS:   return(s7_make_boolean(sc, sc->undefined_constant_warnings));
+    case SL_UNDEFINED_IDENTIFIER_WARNINGS: return(s7_make_boolean(sc, sc->undefined_identifier_warnings));
+    default:
+      return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't get (*s7* '~S); no such field in *s7*", 43), sym)));
     }
-#else
-    return(sc->F);
-#endif
-  if (sym == sc->history_size_symbol)                                    /* history-size (eval history circular buffer size) */
-    return(s7_make_integer(sc, sc->history_size));
-  if (sym == sc->history_enabled_symbol)                                 /* history-enabled (is history buffer receiving additions) */
-    return(s7_make_boolean(sc, s7_history_enabled(sc)));
-  if (sym == sc->profile_info_symbol)                                    /* profile-info -- profiling data hash-table */
-    return(sc->profile_info);
-  if (sym == sc->max_list_length_symbol)                                 /* max-list-length (as arg to make-list) */
-    return(s7_make_integer(sc, sc->max_list_length));
-  if (sym == sc->max_vector_length_symbol)                               /* max-vector-length (as arg to make-vector and make-hash-table) */
-    return(s7_make_integer(sc, sc->max_vector_length));
-  if (sym == sc->max_vector_dimensions_symbol)                           /* max-vector-dimensions (make-vector) */
-    return(s7_make_integer(sc, sc->max_vector_dimensions));
-  if (sym == sc->max_string_length_symbol)                               /* max-string-length (as arg to make-string and read-string) */
-    return(s7_make_integer(sc, sc->max_string_length));
-  if (sym == sc->max_format_length_symbol)                               /* max-format-length (~N and width/precision args for floats) */
-    return(s7_make_integer(sc, sc->max_format_length));
-  if (sym == sc->default_hash_table_length_symbol)                       /* default size for make-hash-table */
-    return(s7_make_integer(sc, sc->default_hash_table_length));
-  if (sym == sc->equivalent_float_epsilon_symbol)                        /* equivalent-float-epsilon */
-    return(s7_make_real(sc, sc->equivalent_float_epsilon));
-  if (sym == sc->hash_table_float_epsilon_symbol)                        /* hash-table-float-epsilon */
-    return(s7_make_real(sc, sc->hash_table_float_epsilon));
-  if (sym == sc->initial_string_port_length_symbol)                      /* initial-string-port-length */
-    return(s7_make_integer(sc, sc->initial_string_port_length));
-  if (sym == sc->accept_all_keyword_arguments_symbol)                    /* accept-all-keyword-arguments */
-    return(make_boolean(sc, sc->accept_all_keyword_arguments));
-
-  if (sym == sc->file_names_symbol)                                      /* file-names (loaded files) */
-    {
-      int32_t i;
-      s7_pointer p;
-      sc->w = sc->nil;
-      for (i = 0; i <= sc->file_names_top; i++)
-	sc->w = cons(sc, sc->file_names[i], sc->w);
-      p = sc->w;
-      sc->w = sc->nil;
-      return(p);
-    }
-
-  if (sym == sc->c_types_symbol)                                         /* c-types */
-    {
-      s7_pointer res;
-      int32_t i;
-      sc->w = sc->nil;
-      for (i = 0; i < sc->num_c_object_types; i++)                       /*   c-object type (tag) is i */
-	sc->w = cons(sc, sc->c_object_types[i]->scheme_name, sc->w);
-      res = safe_reverse_in_place(sc, sc->w);                            /*   so car(types) has tag 0 */
-      sc->w = sc->nil;
-      return(res);
-    }
-
-  if (sym == sc->bignum_precision_symbol)                                /* bignum-precision */
-    return(s7_make_integer(sc, sc->bignum_precision));
-  if (sym == sc->float_format_precision_symbol)                          /* float-format-precision */
-    return(s7_make_integer(sc, sc->float_format_precision));
-  if (sym == sc->memory_usage_symbol)                                    /* memory-usage */
-    return(memory_usage(sc));
-
-  /* sc->unlet is a scheme vector of slots -- not very useful at the scheme level */
   return(sc->undefined);
 }
 
-#define s7_field_set_real(Sym, Field, Val) \
-  if (sym == Sym)			   \
-    {					   \
-      if (s7_is_real(Val))		   \
-	{				   \
-	  if (s7_real(Val) < 0.0)          \
-	    return(simple_out_of_range(sc, sym, Val, wrap_string(sc, "should be positive", 18))); \
-	  Field = s7_real(Val);            \
-	  return(val);                     \
-	}                                  \
-      return(simple_wrong_type_argument(sc, sym, Val, T_REAL)); \
-    }
+static s7_pointer sl_real_geq_0(s7_scheme *sc, s7_pointer sym, s7_pointer val)
+{
+  if (!s7_is_real(val))
+    return(simple_wrong_type_argument(sc, sym, val, T_REAL));
+  if (s7_real(val) < 0.0)
+    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be positive", 18)));
+  return(val);
+}
+
+static s7_pointer sl_integer_gt_0(s7_scheme *sc, s7_pointer sym, s7_pointer val)
+{
+  if (!s7_is_integer(val))
+    return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+  if (s7_integer(val) <= 0)
+    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be positive", 18)));
+  return(val);
+}
+
+static s7_pointer sl_integer_geq_0(s7_scheme *sc, s7_pointer sym, s7_pointer val)
+{
+  if (!s7_is_integer(val))
+    return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+  if (s7_integer(val) < 0)
+    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be non-negative", 18)));
+  return(val);
+}
+
+static s7_pointer sl_unsettable_error(s7_scheme *sc, s7_pointer sym)
+{
+  return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S)", 20), sym)));
+}
 
 static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 {
@@ -92606,89 +92138,103 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
   sym = cadr(args);
   if (!is_symbol(sym))
     return(simple_wrong_type_argument(sc, sc->let_set_symbol, sym, T_SYMBOL));
-  if (!is_s7_let_field(sym))
-    return(s7_error(sc, sc->error_symbol,
-		    set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S); no such field in *s7*", 43), sym)));
-
   val = caddr(args);
 
-  if (sym == sc->safety_symbol)
+  switch (symbol_s7_let(sym))
     {
-      if (s7_is_integer(val))
+    case SL_ACCEPT_ALL_KEYWORD_ARGUMENTS:
+      if (s7_is_boolean(val)) {sc->accept_all_keyword_arguments = s7_boolean(sc, val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    case SL_AUTOLOADING:
+      if (s7_is_boolean(val)) {sc->is_autoloading = s7_boolean(sc, val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    case SL_BIGNUM_PRECISION:
+      {
+	s7_int iv;
+	iv = s7_integer(sl_integer_gt_0(sc, sym, val));
+	sc->bignum_precision = iv;
+#if WITH_GMP
+	set_bignum_precision(sc, sc->bignum_precision);
+#endif
+	return(val);
+      }
+
+    case SL_CATCHES:  return(sl_unsettable_error(sc, sym));
+    case SL_CPU_TIME: return(sl_unsettable_error(sc, sym));
+    case SL_C_TYPES:  return(sl_unsettable_error(sc, sym));
+
+    case SL_DEFAULT_HASH_TABLE_LENGTH:
+      sc->default_hash_table_length = s7_integer(sl_integer_gt_0(sc, sym, val));
+      return(val);
+
+    case SL_DEFAULT_RANDOM_STATE:
+      if (is_random_state(val))
 	{
-	  if ((s7_integer(val) > 2) || (s7_integer(val) < -1))
-	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be between -1 (no safety) and 2 (max safety)", 51)));
-	  sc->safety = s7_integer(val);
+#if (!WITH_GMP)
+	  random_seed(sc->default_rng) = random_seed(val);
+	  random_carry(sc->default_rng) = random_carry(val);
+#endif
 	  return(val);
 	}
-      return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
-    }
+      return(wrong_type_argument_with_type(sc, sym, 1, val, a_random_state_object_string));
 
-  if ((sym == sc->bignum_precision_symbol) ||
-      (sym == sc->default_hash_table_length_symbol) ||
-      (sym == sc->float_format_precision_symbol) ||
-      (sym == sc->heap_size_symbol) ||
-      (sym == sc->history_size_symbol) ||
-      (sym == sc->initial_string_port_length_symbol) ||
-      (sym == sc->max_format_length_symbol) ||
-      (sym == sc->max_heap_size_symbol) ||
-      (sym == sc->max_list_length_symbol) ||
-      (sym == sc->max_port_data_size_symbol) ||
-      (sym == sc->max_stack_size_symbol) ||
-      (sym == sc->max_string_length_symbol) ||
-      (sym == sc->max_vector_dimensions_symbol) ||
-      (sym == sc->max_vector_length_symbol) ||
-      (sym == sc->print_length_symbol))
-    {
-      s7_int iv;
+    case SL_DEFAULT_RATIONALIZE_ERROR:
+      sc->default_rationalize_error = s7_real(sl_real_geq_0(sc, sym, val));
+      return(val);
 
-      if (!s7_is_integer(val))
-	return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+    case SL_EQUIVALENT_FLOAT_EPSILON:
+      sc->equivalent_float_epsilon = s7_real(sl_real_geq_0(sc, sym, val));
+      return(val);
 
-      iv = s7_integer(val);         /* might be bignum if gmp */
+    case SL_FILE_NAMES:
+      return(sl_unsettable_error(sc, sym));
 
-      if ((iv < 0) ||               /* only print-length and float-format-precision can be 0, none can be negative */
-	  ((iv == 0) &&
-	   ((sym != sc->print_length_symbol) &&
-	    (sym != sc->float_format_precision_symbol))))
-	return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be a positive integer", 28)));
+    case SL_FLOAT_FORMAT_PRECISION:
+      {
+	s7_int iv; /* float-format-precision should not be huge => hangs in snprintf -- what's a reasonable limit here? */
+	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
+	sc->float_format_precision = (iv < MAX_FLOAT_FORMAT_PRECISION) ? iv : MAX_FLOAT_FORMAT_PRECISION;
+	return(val);
+      }
 
-      /* float-format-precision should not be huge => hangs in snprintf -- what's a reasonable limit here? */
-      if (sym == sc->float_format_precision_symbol)
-	{
-	  sc->float_format_precision = (iv < MAX_FLOAT_FORMAT_PRECISION) ? iv : MAX_FLOAT_FORMAT_PRECISION;
-	  return(val);
-	}
+    case SL_FREE_HEAP_SIZE:       return(sl_unsettable_error(sc, sym));
+    case SL_GC_FREED:             return(sl_unsettable_error(sc, sym));
+    case SL_GC_PROTECTED_OBJECTS: return(sl_unsettable_error(sc, sym));
 
-      if (sym == sc->print_length_symbol)               {sc->print_length = iv;               return(val);}
-      if (sym == sc->default_hash_table_length_symbol)  {sc->default_hash_table_length = iv;  return(val);}
-      if (sym == sc->max_vector_length_symbol)          {sc->max_vector_length = iv;          return(val);}
-      if (sym == sc->max_vector_dimensions_symbol)      {sc->max_vector_dimensions = iv;      return(val);}
-      if (sym == sc->max_list_length_symbol)            {sc->max_list_length = iv;            return(val);}
-      if (sym == sc->max_string_length_symbol)          {sc->max_string_length = iv;          return(val);}
-      if (sym == sc->max_heap_size_symbol)              {sc->max_heap_size = iv;              return(val);}
-      if (sym == sc->max_port_data_size_symbol)         {sc->max_port_data_size = iv;         return(val);}
-      if (sym == sc->max_format_length_symbol)          {sc->max_format_length = iv;          return(val);}
-      if (sym == sc->initial_string_port_length_symbol) {sc->initial_string_port_length = iv; return(val);}
+    case SL_GC_STATS:
+      if (s7_is_boolean(val)) {sc->gc_stats = ((val == sc->T) ? GC_STATS : 0); return(val);}
+      if (s7_is_integer(val)) {sc->gc_stats = s7_integer(val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
 
-      if (sym == sc->max_stack_size_symbol)             
-	{
-	  if (iv < INITIAL_STACK_SIZE)
-	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be greater than the initial stack size (512)", 51)));
-	  sc->max_stack_size = (uint32_t)iv;
-	  return(val);
-	}
+    case SL_HASH_TABLE_FLOAT_EPSILON:
+      sc->hash_table_float_epsilon = s7_real(sl_real_geq_0(sc, sym, val));
+      return(val);
 
-      if (sym == sc->heap_size_symbol)                  
-	{
-	  if (iv > sc->heap_size) /* was heap_size * 2? */
-	    resize_heap_to(sc, iv);
-	  return(val);
-	}
+    case SL_HEAP_SIZE:
+      {
+	s7_int iv;
+	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
+	if (iv > sc->heap_size) /* was heap_size * 2? */
+	  resize_heap_to(sc, iv);
+	return(val);
+      }
 
-      if (sym == sc->history_size_symbol)
-	{
+    case SL_HISTORY:
+      return(sl_unsettable_error(sc, sym));
+
+    case SL_HISTORY_ENABLED:
+      if (s7_is_boolean(val))
+	return(s7_make_boolean(sc, s7_set_history_enabled(sc, s7_boolean(sc, val))));
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    case SL_HISTORY_SIZE:
+      {
+	s7_int iv;
+	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
 #if WITH_HISTORY
+	{
 	  s7_pointer p1, p2, p3;
 	  if (iv > MAX_HISTORY_SIZE) iv = MAX_HISTORY_SIZE;
 	  if (iv > sc->true_history_size)
@@ -92718,71 +92264,53 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	      p1 = cdr(p1);
 	      if (p1 == sc->eval_history1) break;
 	    }
+	}
 #else
-	  sc->history_size = iv;
+	sc->history_size = iv;
 #endif
+	return(val);
+      }
+
+    case SL_INITIAL_STRING_PORT_LENGTH: sc->initial_string_port_length = s7_integer(sl_integer_gt_0(sc, sym, val)); return(val);
+    case SL_MAX_FORMAT_LENGTH:          sc->max_format_length = s7_integer(sl_integer_gt_0(sc, sym, val));          return(val);
+    case SL_MAX_HEAP_SIZE:              sc->max_heap_size = s7_integer(sl_integer_gt_0(sc, sym, val));              return(val);
+    case SL_MAX_LIST_LENGTH:            sc->max_list_length = s7_integer(sl_integer_gt_0(sc, sym, val));            return(val);
+    case SL_MAX_PORT_DATA_SIZE:         sc->max_port_data_size = s7_integer(sl_integer_gt_0(sc, sym, val));         return(val);
+
+    case SL_MAX_STACK_SIZE:
+      {
+	s7_int iv;
+	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
+	if (iv < INITIAL_STACK_SIZE)
+	  return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be greater than the initial stack size (512)", 51)));
+	sc->max_stack_size = (uint32_t)iv;
+	return(val);
+      }
+
+    case SL_MAX_STRING_LENGTH:     sc->max_string_length = s7_integer(sl_integer_gt_0(sc, sym, val));     return(val);
+    case SL_MAX_VECTOR_DIMENSIONS: sc->max_vector_dimensions = s7_integer(sl_integer_gt_0(sc, sym, val)); return(val);
+    case SL_MAX_VECTOR_LENGTH:     sc->max_vector_length = s7_integer(sl_integer_gt_0(sc, sym, val));     return(val);
+    case SL_MEMORY_USAGE:          return(sl_unsettable_error(sc, sym));
+    case SL_MOST_NEGATIVE_FIXNUM:  return(sl_unsettable_error(sc, sym));
+    case SL_MOST_POSITIVE_FIXNUM:  return(sl_unsettable_error(sc, sym));
+    case SL_PRINT_LENGTH:          sc->print_length = s7_integer(sl_integer_geq_0(sc, sym, val));         return(val);
+    case SL_PROFILE_INFO:          return(sl_unsettable_error(sc, sym));
+    case SL_ROOTLET_SIZE:          return(sl_unsettable_error(sc, sym));
+
+    case SL_SAFETY:
+      if (s7_is_integer(val))
+	{
+	  if ((s7_integer(val) > 2) || (s7_integer(val) < -1))
+	    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be between -1 (no safety) and 2 (max safety)", 51)));
+	  sc->safety = s7_integer(val);
 	  return(val);
 	}
-      if (sym == sc->bignum_precision_symbol)
-	{
-	  sc->bignum_precision = s7_integer(val);
-#if WITH_GMP
-	  set_bignum_precision(sc, sc->bignum_precision);
-#endif
-	}
-      return(val);
-    }
+      return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
 
-  if (sym == sc->history_enabled_symbol)
-    {
-      if (s7_is_boolean(val))
-	return(s7_make_boolean(sc, s7_set_history_enabled(sc, s7_boolean(sc, val))));
-      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
-    }
+    case SL_STACK:
+      return(sl_unsettable_error(sc, sym));
 
-  if (sym == sc->gc_stats_symbol)
-    {
-      if (s7_is_boolean(val)) {sc->gc_stats = ((val == sc->T) ? GC_STATS : 0); return(val);}
-      if (s7_is_integer(val)) {sc->gc_stats = s7_integer(val); return(val);}
-      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
-    }
-
-  if (sym == sc->autoloading_symbol)
-    {
-      if (s7_is_boolean(val)) {sc->is_autoloading = s7_boolean(sc, val); return(val);}
-      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
-    }
-
-  if (sym == sc->undefined_identifier_warnings_symbol)
-    {
-      if (s7_is_boolean(val)) {sc->undefined_identifier_warnings = s7_boolean(sc, val); return(val);}
-      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
-    }
-  if (sym == sc->undefined_constant_warnings_symbol)
-    {
-      if (s7_is_boolean(val)) {sc->undefined_constant_warnings = s7_boolean(sc, val); return(val);}
-      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
-    }
-
-  s7_field_set_real(sc->equivalent_float_epsilon_symbol, sc->equivalent_float_epsilon, val)
-  s7_field_set_real(sc->hash_table_float_epsilon_symbol, sc->hash_table_float_epsilon, val)
-  s7_field_set_real(sc->default_rationalize_error_symbol, sc->default_rationalize_error, val)
-
-  if (sym == sc->default_random_state_symbol)
-    {
-      if (is_random_state(val))
-	{
-#if (!WITH_GMP)
-	  random_seed(sc->default_rng) = random_seed(val);
-	  random_carry(sc->default_rng) = random_carry(val);
-#endif
-	  return(val);
-	}
-      return(wrong_type_argument_with_type(sc, sym, 1, val, a_random_state_object_string));
-    }
-
-  if (sym == sc->stacktrace_defaults_symbol)
-    {
+    case SL_STACKTRACE_DEFAULTS:
       if (!is_pair(val))
 	return(simple_wrong_type_argument(sc, sym, val, T_PAIR));
       if (s7_list_length(sc, val) != 5)
@@ -92799,22 +92327,21 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	return(wrong_type_argument_with_type(sc, sym, 5, s7_list_ref(sc, val, 4), wrap_string(sc, "a boolean (treat-data-as-comment)", 33)));
       sc->stacktrace_defaults = copy_list(sc, val);
       return(val);
-    }
 
-  if (sym == sc->accept_all_keyword_arguments_symbol)
-    {
-      if (s7_is_boolean(val)) {sc->accept_all_keyword_arguments = s7_boolean(sc, val); return(val);}
+    case SL_STACK_SIZE: return(sl_unsettable_error(sc, sym));
+    case SL_STACK_TOP:  return(sl_unsettable_error(sc, sym));
+
+    case SL_UNDEFINED_CONSTANT_WARNINGS:
+      if (s7_is_boolean(val)) {sc->undefined_constant_warnings = s7_boolean(sc, val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    case SL_UNDEFINED_IDENTIFIER_WARNINGS:
+      if (s7_is_boolean(val)) {sc->undefined_identifier_warnings = s7_boolean(sc, val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    default:
+      return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S); no such field in *s7*", 43), sym)));
     }
-
-  if ((sym == sc->cpu_time_symbol) || (sym == sc->profile_info_symbol) || (sym == sc->memory_usage_symbol) ||
-      (sym == sc->most_positive_fixnum_symbol) || (sym == sc->most_negative_fixnum_symbol) ||
-      (sym == sc->free_heap_size_symbol) || (sym == sc->gc_freed_symbol) || (sym == sc->gc_protected_objects_symbol) ||
-      (sym == sc->file_names_symbol) || (sym == sc->c_types_symbol) || (sym == sc->catches_symbol) ||
-      (sym == sc->rootlet_size_symbol) || (sym == sc->stack_top_symbol) || (sym == sc->stack_size_symbol))
-    return(s7_error(sc, sc->error_symbol,
-		    set_elist_2(sc, wrap_string(sc, "can't set (*s7* '~S)", 20), sym)));
-
   return(sc->undefined);
 }
 
@@ -93173,9 +92700,6 @@ s7_scheme *s7_init(void)
       init_catchers();
       already_inited = true;
     }
-#if WITH_COUNTS
-  init_counts();
-#endif
 #if (!MS_WINDOWS)
   pthread_mutex_unlock(&init_lock);
 #endif
@@ -94983,11 +94507,7 @@ s7_scheme *s7_init(void)
 
 #if S7_DEBUGGING
   s7_define_function(sc, "report-missed-calls", g_report_missed_calls, 0, 0, false, NULL);
-#if WITH_GMP
   if (!s7_type_names[0]) fprintf(stderr, "no type_names\n"); /* squelch a very stupid warning! */
-#else
-  if ((!s7_type_names[0]) && (!fx_name(sc, sc->code)) && (!fx_tu_name(sc, sc->code))) fprintf(stderr, "no type_names\n"); /* squelch very stupid warnings! */
-#endif
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
@@ -95084,7 +94604,7 @@ int main(int argc, char **argv)
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2221
  * tread         |      |      |      |      | 2357 | 2336 | 2279  2278
  * tlet          |      |      |      |      | 4717 | 2959 | 2577  2297
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2326
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2326 2321
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
  * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2691
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
@@ -95092,7 +94612,7 @@ int main(int argc, char **argv)
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3115
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3323
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3469
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3469 3421
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3496
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3816
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  8546
@@ -95111,5 +94631,10 @@ int main(int argc, char **argv)
  * gcc/clang have builtin __int128 or __int128_t and __uint128_t, use #if defined(__SIZEOF_INT128__)...#endif
  *   also __float128 -> s7_big_int|double 
  *
- * op_pair_sym tmat ought to be unknown_op? [tset check], fx/tcrec
+ * op_pair_sym (tmat=14) ought to be unknown_op? implicit set? [tset check]  
+ * (t ...) from fx_tree?, type int opt via ff_class
+ * fx/tcrec, trailers
+ * cond_la(a); trec: recur_if_a_if_a_oplaa_laaq_a_a where op is and_2 or if_a_[and_a_laa_laa]_a or if_a_a_[and_a_laa_laa] or or_a_and_a_laa_laa with if support
+ * symbol_type is 8 bytes -- room maintains-type? or use freed s7_let_field bit?
+ * why no profile info in some tests?
  */

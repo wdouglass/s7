@@ -4397,7 +4397,7 @@
 					 (eq? (car arg1) 'inexact?)
 					 (eq? (car arg2) 'real?))
 				(return (list 'and arg2 arg1)))
-			      
+
 			      ;; this makes some of the code above redundant
 			      (let ((rel (relsub arg1 arg2 'and env)))
 				(if (or (boolean? rel)
@@ -16288,7 +16288,8 @@
 
 		       (let ((test (cadr form)))
 			 (unless (equal? expr test)             ; (or (not (pair? x)) (not (pair? z))) -> (not (and (pair? x) (pair? z)))
-			   (lint-format "perhaps ~A" caller (lists->string test expr)))
+					                        ; (and (equal? (car x) (car orig)) (equal? (cdr x) (cdr orig))) -> (equal? x orig)
+			   (lint-format "perhaps ~A" caller (lists->string test expr))) 
 			 ;; (if (cond...)...) doesn't happen much and is tricky to rewrite
 
 			 ;; (if ([=] x y) (f x) (f y)) gets only 2 hits, (if ([=] x y) x y) gets 1 hit -- are these so dumb we can't ignore them?
