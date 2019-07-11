@@ -1860,7 +1860,7 @@ static void init_types(void)
       typeflag(p) = f;							\
     } while (0)
 
-  /* these check most s7cell field references (and many type bits) for consistency */
+  /* these check most s7_cell field references (and many type bits) for consistency */
   #define T_Int(P) check_ref(P, T_INTEGER,           __func__, __LINE__, NULL, NULL)
   #define T_Rel(P) check_ref(P, T_REAL,              __func__, __LINE__, NULL, NULL)
   #define T_Frc(P) check_ref2(P, T_RATIO, T_INTEGER, __func__, __LINE__, NULL, NULL)
@@ -1914,6 +1914,7 @@ static void init_types(void)
   #define T_Any(P) check_cell(P,                     __func__, __LINE__) /* any cell */
 
 #else
+  /* if not debugging, all those checks go away */
   #define T_Int(P)  P
   #define T_Rel(P)  P
   #define T_Frc(P)  P
@@ -4003,10 +4004,10 @@ enum {OP_UNOPT, OP_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
 
       OP_SET_WITH_LET_1, OP_SET_WITH_LET_2, OP_S7_LET,
 
-      OP_TC_AND_A_OR_A_LA, OP_TC_OR_A_AND_A_LA, OP_TC_AND_A_OR_A_LAA, OP_TC_OR_A_AND_A_LAA, OP_TC_OR_A_A_AND_A_A_LA,
+      OP_TC_AND_A_OR_A_LA, OP_TC_OR_A_AND_A_LA, OP_TC_AND_A_OR_A_LAA, OP_TC_OR_A_AND_A_LAA, OP_TC_OR_A_A_AND_A_A_LA, OP_TC_OR_A_AND_A_A_L3A,
       OP_TC_LET_WHEN_LAA, OP_TC_LET_UNLESS_LAA,
       OP_TC_COND_A_Z_A_Z_LAA, OP_TC_COND_A_Z_A_LAA_LAA, OP_TC_LET_COND,
-      OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z, 
+      OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z, OP_TC_IF_A_T_AND_A_A_L3A,
       OP_TC_IF_A_Z_IF_A_Z_LA, OP_TC_IF_A_Z_IF_A_LA_Z, OP_TC_IF_A_Z_IF_A_Z_LAA, OP_TC_IF_A_Z_IF_A_LAA_Z, 
       OP_TC_LET_IF_A_Z_LAA, 
       OP_TC_CASE_LA,
@@ -4236,10 +4237,10 @@ static const char* op_names[NUM_OPS] =
 
       "set_with_let_1", "set_with_let_2", "*s7*",
 
-      "tc_and_a_or_a_la", "tc_or_a_and_a_la", "tc_and_a_or_a_laa", "tc_or_a_and_a_laa", "tc_or_a_a_and_a_a_la",
+      "tc_and_a_or_a_la", "tc_or_a_and_a_la", "tc_and_a_or_a_laa", "tc_or_a_and_a_laa", "tc_or_a_a_and_a_a_la", "tc_or_a_and_a_a_l3a",
       "tc_let_when_laa", "tc_let_unless_laa",
       "tc_cond_a_z_a_z_laa", "tc_cond_a_z_a_laa_laa", "tc_let_cond",
-      "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_la_z", "tc_if_a_laa_z", 
+      "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_la_z", "tc_if_a_laa_z", "tc_if_a_t_and_a_a_l3a",
       "tc_if_a_z_if_a_z_la", "tc_if_a_z_if_a_la_z", "tc_if_a_z_if_a_z_laa", "tc_if_a_z_if_a_laa_z", 
       "tc_let_if_a_z_laa", 
       "tc_case_la",
@@ -13796,15 +13797,9 @@ static s7_pointer g_rationalize(s7_scheme *sc, s7_pointer args)
 
 	if (c_rationalize(rat, err, &numer, &denom))
 	  return(s7_make_ratio(sc, numer, denom));
-#if S7_DEBUGGING
-	fprintf(stderr, "rationalize %s -> #f\n", DISPLAY(args));
-#endif
 	return(sc->F);
       }
     }
-#if S7_DEBUGGING
-  fprintf(stderr, "(at end) rationalize %s -> #f\n", DISPLAY(args));
-#endif
   return(sc->F); /* make compiler happy */
 }
 
@@ -29955,7 +29950,6 @@ static bool has_odd_bits(s7_pointer obj)
     {
       if ((uint8_t)(symbol_type(obj) & 0xff) >= NUM_TYPES)
 	return(true);
-      /* TODO: add s7_let check */
       if ((symbol_type(obj) & ~0xffff) != 0)
 	return(true);
     }
@@ -31389,7 +31383,7 @@ static char *base = NULL, *min_char = NULL;
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
-
+  
 #if CYCLE_DEBUGGING
   char x;
   if (!base) base = &x; 
@@ -31401,7 +31395,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	  if ((!min_char) || (&x < min_char))
 	    {
 	      min_char = &x;
-	      if ((base - min_char) > 400000)
+	      if ((base - min_char) > 1000000)
 		{
 		  fprintf(stderr, "infinite recursion?\n");
 		  if (port_data(port))
@@ -31420,12 +31414,17 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 #endif
 
   ref = (is_collected(vr)) ? shared_ref(ci, vr) : 0;
+  /* fprintf(stderr, "[%s %p: %d]\n", s7_type_names[type(vr)], vr, ref); */
+
   if (ref != 0)
     {
       char buf[32];
       int32_t nlen;
       char *p;
       s7_int len;
+
+      check_stack_size(sc); /* is this needed in non-circular cases? */
+  
       if (ref > 0)
 	{
 	  if (use_write == P_READABLE)
@@ -67494,6 +67493,37 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 	    }
 	}
     }
+  if ((vars == 3) &&
+      (((car(body) == sc->or_symbol) && (is_proper_list_2(sc, cdr(body)))) ||
+       ((car(body) == sc->if_symbol) && (is_proper_list_3(sc, cdr(body))) && (caddr(body) == sc->T))) &&
+      (is_fxable(sc, cadr(body))))
+    {
+      s7_pointer and_p;
+      and_p = (car(body) == sc->or_symbol) ? caddr(body) : cadddr(body);
+      if ((is_proper_list_4(sc, and_p)) &&
+	  (car(and_p) == sc->and_symbol) &&
+	  (is_fxable(sc, cadr(and_p))) &&
+	  (is_fxable(sc, caddr(and_p))))
+	{
+	  s7_pointer la;
+	  la = cadddr(and_p);
+	  if ((is_proper_list_4(sc, la)) &&
+	      (car(la) == name) &&
+	      (is_fxable(sc, cadr(la))) &&
+	      (is_fxable(sc, caddr(la))) &&
+	      (is_fxable(sc, cadddr(la))))
+	    {
+	      set_optimize_op(body, (car(body) == sc->or_symbol) ? OP_TC_OR_A_AND_A_A_L3A : OP_TC_IF_A_T_AND_A_A_L3A);
+	      /* fprintf(stderr, "%s %s\n", op_names[optimize_op(body)], DISPLAY(body)); */
+	      annotate_arg(sc, cdr(body), args);
+	      annotate_arg(sc, cdr(and_p), args);
+	      annotate_arg(sc, cddr(and_p), args);
+	      annotate_args(sc, cdr(la), args);
+	      fx_tree(sc, cdr(body), car(args), cadr(args));
+	      return(true);
+	    }
+	}
+    }
 
   if (((vars == 1) || (vars == 2)) &&
       (car(body) == sc->if_symbol) &&
@@ -67886,6 +67916,7 @@ static bool check_recur_if_one_or_two_vars(s7_scheme *sc, s7_pointer name, int32
       false_p = cadr(obody);      /* if_a_a_(if...) */
 
       /* fprintf(stderr, "%s %d %s %s\n", DISPLAY(name), vars, DISPLAY(args), DISPLAY(body)); */
+      /* fprintf(stderr, "false_p: %s\n", DISPLAY(false_p)); */
       if ((vars == 2) &&
 	  (is_proper_list_4(sc, false_p)) &&
 	  (car(false_p) == sc->if_symbol))
@@ -67944,6 +67975,7 @@ static bool check_recur_if_one_or_two_vars(s7_scheme *sc, s7_pointer name, int32
 	      obody = cdr(obody);
 	    }
 	}
+
       if (orig)
 	{
 	  if (is_null(cdddr(false_p))) /* 2 args to outer (c) func */
@@ -75648,7 +75680,9 @@ static void op_set_safe(s7_scheme *sc)
 {
   s7_pointer lx;
   lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
-  slot_set_value(lx, sc->value);
+  if (is_slot(lx))
+    slot_set_value(lx, sc->value);
+  else eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sc->code);
 }
 
 static s7_pointer op_set1(s7_scheme *sc)
@@ -81365,6 +81399,7 @@ static void profile(s7_scheme *sc, s7_pointer expr)
     {
       s7_pointer val, key;
       key = s7_make_integer(sc, profile_location(expr)); /* file + line */
+      /* sc->args = key;  */               /* GC protection?  (we're called at the top of the eval loop, so sc->args is free?) */
       val = s7_hash_table_ref(sc, sc->profile_info, key);
       if (val == sc->F)
 	{
@@ -82096,6 +82131,35 @@ static void op_tc_or_a_and_a_laa(s7_scheme *sc)
       if (p == sc->F) {sc->value = p; return;}
       slot_set_value(la_slot, fx_call(sc, fx_la));
       slot_set_value(laa_slot, fx_call(sc, fx_laa));
+    }
+}
+
+static void op_tc_or_a_and_a_a_l3a(s7_scheme *sc, bool or_case)
+{
+  s7_pointer fx_and1, fx_and2, fx_or, fx_la, la_slot, fx_laa, laa_slot, fx_l3a, l3a_slot;
+
+  fx_or = cdr(sc->code);         /* first clause of or */
+  fx_and1 = (or_case) ? cdadr(fx_or) : cdaddr(fx_or);
+  fx_and2 = cdr(fx_and1);
+  fx_la = cdadr(fx_and2);
+  la_slot = let_slots(sc->envir);
+  fx_laa = cdr(fx_la);
+  laa_slot = next_slot(la_slot);
+  fx_l3a = cdr(fx_laa);
+  l3a_slot = next_slot(laa_slot);
+
+  while (true)
+    {
+      s7_pointer p;
+      p = fx_call(sc, fx_or);
+      if (p != sc->F) {sc->value = p; return;}
+      p = fx_call(sc, fx_and1);
+      if (p == sc->F) {sc->value = p; return;}
+      p = fx_call(sc, fx_and2);
+      if (p == sc->F) {sc->value = p; return;}
+      slot_set_value(la_slot, fx_call(sc, fx_la));
+      slot_set_value(laa_slot, fx_call(sc, fx_laa));
+      slot_set_value(l3a_slot, fx_call(sc, fx_l3a));
     }
 }
 
@@ -82893,7 +82957,7 @@ static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
   sc->rec_slot1 = let_slots(sc->envir);
   sc->rec_cf = c_callee(caller);
 
-  /* all we need is integer (or float below) values throughout so the f's here need only ensure integer args/results (except test is boolean result)
+  /* TODO: all we need is integer (or float below) values throughout so the f's here need only ensure integer args/results (except test is boolean result)
    *    so testf=(boolean? integer? integer?)
    *       f1f/f2f=(integer? integer? integer?)
    *       cf needs to return type of args
@@ -85250,6 +85314,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_AND_A_OR_A_LAA:    tick_tc_rec(sc); op_tc_and_a_or_a_laa(sc);      goto START;
 	case OP_TC_OR_A_AND_A_LAA:    tick_tc_rec(sc); op_tc_or_a_and_a_laa(sc);      goto START;
 	case OP_TC_OR_A_A_AND_A_A_LA: tick_tc_rec(sc); op_tc_or_a_a_and_a_a_la(sc);   goto START;
+	case OP_TC_OR_A_AND_A_A_L3A:  tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, true); goto START;
 	case OP_TC_LET_WHEN_LAA:      tick_tc_rec(sc); op_tc_let_when_laa(sc, true);  goto START;
 	case OP_TC_LET_UNLESS_LAA:    tick_tc_rec(sc); op_tc_let_when_laa(sc, false); goto START;
 
@@ -85266,6 +85331,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_IF_A_Z_IF_A_LA_Z:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_la_z(sc))  goto START; goto EVAL;
 	case OP_TC_IF_A_Z_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, false)) goto START; goto EVAL;
 	case OP_TC_IF_A_Z_IF_A_LAA_Z: tick_tc_rec(sc); if (op_tc_if_a_z_if_a_laa_z(sc)) goto START; goto EVAL;
+	case OP_TC_IF_A_T_AND_A_A_L3A: tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, false); goto START;
 
 	case OP_TC_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc)) goto START; goto EVAL;
 	case OP_TC_CASE_LA: tick_tc_rec(sc); if (op_tc_case_la(sc)) goto START; goto BEGIN;
@@ -94511,7 +94577,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 827)
+  if (NUM_OPS != 829)
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40 */
 #endif
@@ -94597,7 +94663,7 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      | 1095 |  834   834
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   972
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1529
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1529 1537 (resize check)
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1726
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2097
  * tvect         |      |      |      |      |      | 5729 | 2340  2192
@@ -94606,15 +94672,15 @@ int main(int argc, char **argv)
  * tlet          |      |      |      |      | 4717 | 2959 | 2577  2297
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2326 2321
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2467
- * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2691
+ * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2691 2676
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2834
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2916
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3070
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3115
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3323
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3469 3421
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3469 3427
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3496
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3816
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3813
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  8546
  * thash         |      |      |      |      |      | 10.3 | 8873  8894
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
@@ -94631,10 +94697,12 @@ int main(int argc, char **argv)
  * gcc/clang have builtin __int128 or __int128_t and __uint128_t, use #if defined(__SIZEOF_INT128__)...#endif
  *   also __float128 -> s7_big_int|double 
  *
- * op_pair_sym (tmat=14) ought to be unknown_op? implicit set? [tset check]  
+ * op_pair_sym (tmat=14 76014) ought to be unknown_op? implicit set? [tset check]  
  * (t ...) from fx_tree?, type int opt via ff_class
  * fx/tcrec, trailers
- * cond_la(a); trec: recur_if_a_if_a_oplaa_laaq_a_a where op is and_2 or if_a_[and_a_laa_laa]_a or if_a_a_[and_a_laa_laa] or or_a_and_a_laa_laa with if support
- * symbol_type is 8 bytes -- room maintains-type? or use freed s7_let_field bit?
- * why no profile info in some tests?
+ * cond_la(a)
+ * trec: if_a_a_and_a_laa_laa
+ * see 82889 int/float recur opt -- is this useful in general?
+ * tc fx p: op_tc_ap: eval p, op_tc_ap_1: fx a, goto start(code?)
+ * tests for tc_or_a_and_a_a_l3a and tc_if_a_t_and_a_a_l3a
  */
