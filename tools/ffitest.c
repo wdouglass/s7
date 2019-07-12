@@ -1,6 +1,6 @@
 /* s7 ffi tester
  *
- * gcc -o ffitest ffitest.c -g3 -Wall s7.o -lm -I. -ldl
+ * gcc -o ffitest ffitest.c -g3 -Wall s7.o -lm -I. -ldl -Wl,-export-dynamic
  */
 
 #include <stdlib.h>
@@ -1338,7 +1338,7 @@ int main(int argc, char **argv)
 
 	s7_load(sc, "ffitest.scm");
 	if (!s7_is_defined(sc, "loaded_var"))
-	  {fprintf(stderr, "%d: load unhappy?\n", __LINE__);}
+	  {fprintf(stderr, "%d: load ffitest.scm unhappy?\n", __LINE__);}
 	else
 	  {
 	    if (s7_integer(p = s7_name_to_value(sc, "loaded_var")) != 321)
@@ -1376,6 +1376,24 @@ int main(int argc, char **argv)
 	      }
 	  }
       }
+
+    {
+      s7_pointer e, val;
+      e = s7_inlet(sc, s7_nil(sc));
+      gc_loc = s7_gc_protect(sc, e);
+      val = s7_load_with_environment(sc, "~/ffitest.scm", e);
+      if (val)
+	fprintf(stderr, "%d: load ~/ffitest.scm found!?\n", __LINE__);
+      val = s7_load_with_environment(sc, "~/cl/ffitest.scm", e);
+      if (!val)
+	fprintf(stderr, "%d: load ~/cl/ffitest.scm not found\n", __LINE__);
+      else
+	{
+	  if (s7_symbol_local_value(sc, s7_make_symbol(sc, "loaded_var"), e) == s7_undefined(sc))
+	    {fprintf(stderr, "%d: load ~/ffitest.scm unhappy? %s\n", __LINE__, s1 = TO_STR(e)); free(s1);}
+	}
+      s7_gc_unprotect_at(sc, gc_loc);
+    }
 
     port = s7_open_input_string(sc, "(+ 1 2)");
     if (!s7_is_input_port(sc, port))
@@ -1766,6 +1784,16 @@ int main(int argc, char **argv)
     {fprintf(stderr, "%d: sym val: %s\n", __LINE__, s1 = TO_STR(set_val)); free(s1);}
   if (set_sym != s7_make_symbol(sc, "notified-var"))
     {fprintf(stderr, "%d: sym: %s\n", __LINE__, s1 = TO_STR(set_sym)); free(s1);}
+
+  {
+    s7_pointer e, val;
+    e = s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), s7_make_symbol(sc, "block_init")));
+    gc_loc = s7_gc_protect(sc, e);
+    val = s7_load_with_environment(sc, "s7test-block.so", e);
+    if (!val)
+      fprintf(stderr, "can't load s7test-block.so\n");
+    s7_gc_unprotect_at(sc, gc_loc);
+  }
     
 #if 0
   {
