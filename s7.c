@@ -25590,37 +25590,34 @@ static void leave_lock_scope(lock_scope_t *st)
 #define TRACK(Sc)
 #endif
 
+/* various changes in this section courtesy of Woody Douglas 12-Jul-19 */
+
 static block_t *search_load_path(s7_scheme *sc, const char *name)
 {
-  s7_int len;
   s7_pointer lst;
 
   lst = s7_load_path(sc);
-  len = s7_list_length(sc, lst);
-
-  if (len > 0)
+  if (is_pair(lst))
     {
       block_t *b;
-      s7_int i;
       char *filename;
+      s7_pointer dir_names;
+
       b = mallocate(sc, 1024);
       filename = (char *)block_data(b);
 
-      for (i = 0; i < len; i++)
+      for (dir_names = lst; is_pair(dir_names); dir_names = cdr(dir_names))
 	{
 	  const char *new_dir;
-	  new_dir = string_value(s7_list_ref(sc, lst, i));
+	  new_dir = string_value(car(dir_names));
 	  if (new_dir)
 	    {
-	      FILE *fp;
 	      filename[0] = '\0';
-	      catstrs(filename, 1024, new_dir, "/", name, NULL);
-	      fp = fopen(filename, "r");
-	      if (fp)
-		{
-		  block_info(b) = (void *)fp;
-		  return(b);
-		}
+	      if (new_dir[strlen(new_dir) - 1] == '/')
+		catstrs(filename, 1024, new_dir, name, NULL);
+	      else catstrs(filename, 1024, new_dir, "/", name, NULL);
+	      if (access(filename, F_OK) == 0)
+		return(b);
 	    }
 	}
       liberate(sc, b);
@@ -25657,7 +25654,7 @@ static block_t *full_filename(s7_scheme *sc, const char *filename)
 static bool load_shared_object(s7_scheme *sc, const char *fname, s7_pointer env)
 {
   /* if fname ends in .so, try loading it as a c shared object
-   *   (load "/home/bil/cl/m_j0.so" (inlet (cons 'init_func 'init_m_j0)))
+   *   (load "/home/bil/cl/m_j0.so" (inlet 'init_func 'init_m_j0))
    */
   s7_int fname_len;
   
@@ -25671,8 +25668,24 @@ static bool load_shared_object(s7_scheme *sc, const char *fname, s7_pointer env)
 	      
       if (fname[0] != '/')
 	{
-	  pname = full_filename(sc, fname); /* this is necessary, at least in Linux -- we can't blithely dlopen whatever is passed to us */
-	  pwd_name = (char *)block_data(pname);
+	  block_t *searched;
+	  searched = search_load_path(sc, fname); /* returns NULL if *load-path* is nil, or if nothing matches */
+	  if (searched) 
+	    {
+	      if (((const char *)block_data(searched))[0] == '/')
+		pname = searched;
+	      else
+		{
+		  pname = full_filename(sc, block_data(searched)); /* this is necessary, at least in Linux -- we can't blithely dlopen whatever is passed to us */
+		  liberate(sc, searched);
+		}
+	      pwd_name = (char *)block_data(pname);
+	    }
+	  else /* perhaps no *load-path* entries */
+	    {
+	      pname = full_filename(sc, fname);
+	      pwd_name = (char *)block_data(pname);
+	    }
 	}
       library = dlopen((pname) ? pwd_name : fname, RTLD_NOW);
       if (library)
@@ -25741,15 +25754,18 @@ static FILE *expand_cwd(s7_scheme *sc, const char *fname)
 }
 #endif
 
-static FILE *find_scheme_file(s7_scheme *sc, const char *fname)
+static FILE *open_file_with_load_path(s7_scheme *sc, const char *fname)
 {
-  FILE *fp;
   block_t *b;
   b = search_load_path(sc, fname);
-  if (!b) return(NULL);
-  fp = (FILE *)block_info(b);
-  liberate(sc, b);
-  return(fp);
+  if (b) 
+    {
+      FILE *fp;
+      fp = fopen((const char *)block_data(b), "r");
+      liberate(sc, b);
+      return(fp);
+    }
+  return(NULL);
 }
 
 static s7_pointer read_scheme_file(s7_scheme *sc, FILE *fp, const char *fname)
@@ -25784,7 +25800,7 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
 #if WITH_GCC
   if (!fp) fp = expand_cwd(sc, filename);
 #endif
-  if (!fp) fp = find_scheme_file(sc, filename);
+  if (!fp) fp = open_file_with_load_path(sc, filename);
   if (!fp) return(NULL);
 
   port = read_scheme_file(sc, fp, filename);
@@ -25815,6 +25831,7 @@ s7_pointer s7_load(s7_scheme *sc, const char *filename)
 {
   return(s7_load_with_environment(sc, filename, sc->nil));
 }
+
 
 static s7_pointer g_load(s7_scheme *sc, s7_pointer args)
 {
@@ -25856,13 +25873,10 @@ defaults to the rootlet.  To load into the current environment instead, pass (cu
 
   fp = fopen(fname, "r");
 #if WITH_GCC
-  if (!fp) 
-    fp = expand_cwd(sc, fname);
+  if (!fp) fp = expand_cwd(sc, fname);
 #endif
-  if (!fp) 
-    fp = find_scheme_file(sc, fname);
-  if (!fp) 
-    return(file_error(sc, "load", "can't open", fname));
+  if (!fp) fp = open_file_with_load_path(sc, fname);
+  if (!fp) return(file_error(sc, "load", "can't open", fname));
   read_scheme_file(sc, fp, fname);
 
   push_stack_op_let(sc, OP_LOAD_CLOSE_AND_POP_IF_EOF);  /* was pushing args and code, but I don't think they're used later */
@@ -93946,7 +93960,8 @@ s7_scheme *s7_init(void)
   s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "#<set-*features*>", g_features_set, 2, 0, false, "*features* setter"));
 
   /* -------- *load-path* -------- */
-  sc->load_path_symbol = s7_define_variable_with_documentation(sc, "*load-path*", sc->nil,
+  sc->load_path_symbol = s7_define_variable_with_documentation(sc, "*load-path*",
+							       s7_list(sc, 1, s7_make_string(sc, ".")), /* was sc->nil 12-Jul-19 */
 			   "*load-path* is a list of directories (strings) that the load function searches if it is passed an incomplete file name");
   s7_set_setter(sc, sc->load_path_symbol, s7_make_function(sc, "#<set-*load-path*>", g_load_path_set, 2, 0, false, "*load-path* setter"));
 

@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.6"
-#define S7_DATE "8-Jul-19"
+#define S7_VERSION "8.7"
+#define S7_DATE "12-Jul-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -72,6 +72,11 @@ s7_pointer s7_add_to_load_path(s7_scheme *sc, const char *dir);      /* (set! *l
 s7_pointer s7_autoload(s7_scheme *sc, s7_pointer symbol, s7_pointer file_or_function);  /* (autoload symbol file-or-function) */
 
   /* the load path is a list of directories to search if load can't find the file passed as its argument.
+   *
+   *   s7_load and s7_load_with_environment can load shared object files as well as scheme code.
+   *   The scheme (load "somelib.so" (inlet 'init_func 'somelib_init)) is equivalent to
+   *     s7_load_with_environment(s7, "somelib.so", s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "init_func"), s7_make_symbol(s7, "somelib_init"))))
+   *   s7_load_with_environment returns NULL if it can't load the file.
    */
 void s7_quit(s7_scheme *sc);
   /* this tries to break out of the current evaluation, leaving everything else intact */
