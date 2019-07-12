@@ -184,12 +184,12 @@
   (unless (= n 2045)
     (format *stderr* "ack ~A~%" n)))
 
-(define-constant (tree-eq? a b)
-  (if (pair? a)
+(define (tree-eq? a b)
+  (if (not (pair? a))
+      (eq? a b)
       (and (pair? b)
 	   (tree-eq? (car a) (car b))
-	   (tree-eq? (cdr a) (cdr b)))
-      (eq? a b)))
+	   (tree-eq? (cdr a) (cdr b)))))
 
 (define tree '((a b) (c d e) (f) () (g h i j) (k (l m (n o)) p) (q ((r) s) (((t (u) v) w) x) y) z))
 (define (more-eq)
