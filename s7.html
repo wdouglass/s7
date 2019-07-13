@@ -6166,12 +6166,21 @@ and s7-postlude.scm need to be added to the benchmarks src directory.
 s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
 </p>
 <pre>
-   (set! *load-path* (cons "/home/bil/motif-snd" *load-path*))
-   (load "r7rs.scm")
-   (define (this-scheme-implementation-name) "s7")
+(define (this-scheme-implementation-name) "s7")
+(define exact-integer? integer?)	
+(define (exact-integer-sqrt i) (let ((sq (floor (sqrt i)))) (values sq (- i (* sq sq)))))
+(define inexact exact-&gt;inexact)
+(define exact inexact-&gt;exact)
+(define (square x) (* x x))
+(define (vector-map f v) (copy v)) ; for quicksort.scm
+(define-macro (import . args) #f)
+(define (jiffies-per-second) 1000)
+(define (current-jiffy) 0)
+(define (current-second) 0)
 </pre>
 <p>
 This says that the s7 files are in /home/bil/motif-snd.
+If you want to run gcbench, add the define-record-type macro from r7rs.scm, and load stuff.scm (for define-class).
 Here are the diffs for the bench script:
 </p>
 <pre>
