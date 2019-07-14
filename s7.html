@@ -6626,7 +6626,8 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {
@@ -7611,7 +7612,8 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {
@@ -7688,7 +7690,8 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {

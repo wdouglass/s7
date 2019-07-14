@@ -1794,7 +1794,21 @@ int main(int argc, char **argv)
       fprintf(stderr, "can't load s7test-block.so\n");
     s7_gc_unprotect_at(sc, gc_loc);
   }
-    
+
+  {
+    s7_pointer body, err, result;
+    body = s7_eval_c_string(sc, "(lambda () (+ 1 2))");
+    err = s7_eval_c_string(sc, "(lambda (type info) 'oops)");
+    result = s7_call_with_catch(sc, s7_t(sc), body, err);
+    if ((!s7_is_integer(result)) || (s7_integer(result) != 3))
+      {fprintf(stderr, "catch (3): %s\n", s1 = TO_STR(result)); free(s1);}
+
+    body = s7_eval_c_string(sc, "(lambda () (+ #f 2))");
+    err = s7_eval_c_string(sc, "(lambda (type info) 'oops)");
+    result = s7_call_with_catch(sc, s7_t(sc), body, err);
+    if (result != s7_make_symbol(sc, "oops"))
+      {fprintf(stderr, "catch (oops): %s\n", s1 = TO_STR(result)); free(s1);}
+  }
 #if 0
   {
     int i;

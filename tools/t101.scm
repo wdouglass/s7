@@ -110,11 +110,11 @@
 (format *stderr* "~NC ffitest ~NC~%" 20 #\- 20 #\-)
 (if (provided? 'linux)
     (begin
-      (system "gcc -o ffitest ffitest.c -g -Wall s7.o -lm -I. -ldl")
+      (system "gcc -o ffitest ffitest.c -g -Wall s7.o -lm -I. -ldl -Wl,-export-dynamic")
       (system "ffitest"))
     (if (provided? 'freebsd)
 	(begin
-	  (system "cc -o ffitest ffitest.c -g -Wall s7.o -lm -I. -ldl")
+	  (system "cc -o ffitest ffitest.c -g -Wall s7.o -lm -I. -ldl -Wl,-export-dynamic")
 	  (system "ffitest"))
 	(if (provided? 'osx)
 	    (begin
