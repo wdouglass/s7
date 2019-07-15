@@ -17343,7 +17343,7 @@ EDITS: 2
 	     (let ((diff (float-vector-peak (float-vector-subtract! last data))))
 	       (copy data last)
 	       (if (> diff .25)
-		   (format () ";locsig, increment ~F with deg ~F~%" diff x)))))))
+		 (format () ";locsig, increment ~F with deg ~F~%" diff x)))))))
      '(1 2 4 5 8))
     
     (for-each 
