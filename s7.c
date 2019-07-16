@@ -1117,6 +1117,11 @@ struct s7_scheme {
   s7_double rec_f1r, rec_f2r, rec_testr;
   s7_int rec_testi, rec_f2i;
 
+  opt_info *rec_test_o, *rec_result_o, *rec_a1_o, *rec_a2_o;
+  s7_i_ii_t rec_i_cf;
+  s7_d_dd_t rec_d_cf;
+  s7_pointer rec_val1;
+
   int32_t float_format_precision;
   vdims_t *wrap_only;
 
@@ -53690,8 +53695,8 @@ static void oo_rcheck_1(s7_scheme *sc, opt_info *o, int size, int slots, const c
       p_addr = o->addrs[i] & 0xf;
       slot = o->v[p_addr].p;
       if (!slot)
-	fprintf(stderr, "%s[%d]: o[%s[%d]] slot[%d] is null\n", func, line, oo_func(o), oo_line(o), i);
-      if (is_slot(slot))
+	fprintf(stderr, "%s[%d]: o[%s[%d]] slot[%d, p_addr: %d] is null\n", func, line, oo_func(o), oo_line(o), i, p_addr);
+      if (tis_slot(slot))
 	check_slot_type(sc, slot, o, i, func, line);
       else fprintf(stderr, "%s[%d]: slot: %s\n", func, line, DISPLAY(slot));
     }
@@ -82413,6 +82418,17 @@ static void op_tc_or_a_and_a_a_l3a(s7_scheme *sc, bool or_case)
     }
 }
 
+static bool z_return(s7_scheme *sc, s7_pointer expr)
+{
+  if (has_fx(expr))
+    {
+      sc->value = fx_call(sc, expr);
+      return(true);
+    }
+  sc->code = car(expr);
+  return(false);
+}
+
 static bool op_tc_if_a_z_la(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer if_test, if_true, la, la_slot;
@@ -82420,18 +82436,38 @@ static bool op_tc_if_a_z_la(s7_scheme *sc, s7_pointer code)
   if_true = cdr(if_test);
   la = cdadr(if_true);
   la_slot = let_slots(sc->envir);
+
+  /* an experiment */
+  if (is_t_integer(slot_value(la_slot)))
+    {
+      sc->pc = 0;
+      if (bool_optimize(sc, if_test))
+	{
+	  int32_t pc;
+	  pc = sc->pc;
+	  if (int_optimize(sc, la))            /* TODO: float|cell_optimize */
+	    {
+	      opt_info *o, *o1;
+	      s7_pointer val;
+	      slot_set_value(la_slot, val = make_mutable_integer(sc, integer(slot_value(la_slot))));
+	      o = sc->opts[0];
+	      o1 = sc->opts[pc];
+	      while (true)
+		{
+		  sc->pc = 0;
+		  if (o->v[0].fb(o)) break;
+		  integer(val) = o1->v[0].fi(o1);
+		}
+	      return(z_return(sc, if_true));
+	    }
+	}
+    }
   while (true)
     {
       if (fx_call(sc, if_test) != sc->F) break;
       slot_set_value(la_slot, fx_call(sc, la));
     }
-  if (has_fx(if_true))
-    {
-      sc->value = fx_call(sc, if_true);
-      return(true);
-    }
-  sc->code = car(if_true);
-  return(false);
+  return(z_return(sc, if_true));
 }
 
 static s7_pointer fx_tc_if_a_z_la(s7_scheme *sc, s7_pointer arg)
@@ -82455,13 +82491,7 @@ static bool op_tc_if_a_la_z(s7_scheme *sc, s7_pointer code)
       if (fx_call(sc, if_test) == sc->F) break;
       slot_set_value(la_slot, fx_call(sc, la));
     }
-  if (has_fx(if_false))
-    {
-      sc->value = fx_call(sc, if_false);
-      return(true);
-    }
-  sc->code = car(if_false);
-  return(false);
+  return(z_return(sc, if_false));
 }
 
 static s7_pointer fx_tc_if_a_la_z(s7_scheme *sc, s7_pointer arg)
@@ -82473,18 +82503,10 @@ static s7_pointer fx_tc_if_a_la_z(s7_scheme *sc, s7_pointer arg)
   return(sc->value);
 }
 
-#if (!WITH_GMP)
-static s7_pointer fx_addi_tu_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
-  return(make_integer(sc, integer(slot_value(let_slots(sc->envir))) + integer(slot_value(next_slot(let_slots(sc->envir))))));
-}
-#endif
-
 static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer if_test, if_true, la, laa, la_slot, laa_slot;
+  /* fprintf(stderr, "%s %s\n", __func__, DISPLAY(code)); */
   if_test = cdr(code);
   if_true = cdr(if_test);
   la = cdadr(if_true);
@@ -82492,50 +82514,89 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code)
   laa = la;
   laa_slot = next_slot(la_slot);
   laa = cdr(laa);
-#if (!WITH_GMP)  
-  /* TODO: this needs to be generalized etc (see below opinit cases) */
-  if ((c_callee(if_test) == fx_lt_ti) &&
-      (is_t_integer(slot_value(la_slot))) &&
-      (c_callee(la) == fx_subtract_t1))
+
+  /* an experiment */
+  if (!no_bool_opt(code))
     {
-      s7_int start, end;
-      s7_pointer val;
-      s7_function laa_f;
-      laa_f = c_callee(laa);
-      if ((laa_f == fx_add_tu) && (is_t_integer(slot_value(laa_slot))))
-	laa_f = fx_addi_tu_direct;
-      laa = car(laa); /* fx_call expanded below */
-      start = integer(slot_value(la_slot));
-      end = integer(caddar(if_test));
-      slot_set_value(la_slot, val = make_mutable_integer(sc, start));
-      while (start >= end)
+      sc->pc = 0;
+      if (bool_optimize(sc, if_test))
 	{
-	  s7_pointer new2;
-	  new2 = laa_f(sc, laa);
-	  integer(val) = --start;
-	  slot_set_value(laa_slot, new2);
+	  int32_t pc1;
+	  pc1 = sc->pc;
+	  if ((is_t_integer(slot_value(la_slot))) &&
+	      (is_t_integer(slot_value(laa_slot))))
+	    {
+	      if (int_optimize(sc, la))            /* TODO: cell_optimize */
+		{
+		  int32_t pc2;
+		  pc2 = sc->pc;
+		  if (int_optimize(sc, laa))
+		    {
+		      opt_info *o, *o1, *o2;
+		      s7_pointer val1, val2;
+		      slot_set_value(la_slot, val1 = make_mutable_integer(sc, integer(slot_value(la_slot))));
+		      slot_set_value(laa_slot, val2 = make_mutable_integer(sc, integer(slot_value(laa_slot))));
+		      o = sc->opts[0];
+		      o1 = sc->opts[pc1];
+		      o2 = sc->opts[pc2];
+		      while (true)
+			{
+			  s7_int i1;
+			  sc->pc = 0;
+			  if (o->v[0].fb(o)) break;
+			  i1 = o1->v[0].fi(o1);
+			  integer(val2) = o2->v[0].fi(o2);
+			  integer(val1) = i1;
+			}
+		      return(z_return(sc, if_true));
+		    }
+		}
+	    }
+
+	  if ((is_float(slot_value(la_slot))) &&
+	      (is_float(slot_value(laa_slot))))
+	    {
+	      sc->pc = pc1;
+	      if (float_optimize(sc, la))
+		{
+		  int32_t pc2;
+		  pc2 = sc->pc;
+		  if (float_optimize(sc, laa))
+		    {
+		      opt_info *o, *o1, *o2;
+		      s7_pointer val1, val2;
+		      slot_set_value(la_slot, val1 = s7_make_mutable_real(sc, real(slot_value(la_slot))));
+		      slot_set_value(laa_slot, val2 = s7_make_mutable_real(sc, real(slot_value(laa_slot))));
+		      o = sc->opts[0];
+		      o1 = sc->opts[pc1];
+		      o2 = sc->opts[pc2];
+		      while (true)
+			{
+			  s7_double x1;
+			  sc->pc = 0;
+			  if (o->v[0].fb(o)) break;
+			  x1 = o1->v[0].fd(o1);
+			  real(val2) = o2->v[0].fd(o2);
+			  real(val1) = x1;
+			}
+		      return(z_return(sc, if_true));
+		    }
+		}
+	    }
 	}
+      set_no_bool_opt(code);
     }
-  else
-#endif
+
+  while (true)
     {
-      while (true)
-	{
-	  s7_pointer a1;
-	  if (fx_call(sc, if_test) != sc->F) break;
-	  a1 = fx_call(sc, la);
-	  sc->w = a1;
-	  slot_set_value(laa_slot, fx_call(sc, laa));
-	  slot_set_value(la_slot, a1);
-	}
+      s7_pointer a1;
+      if (fx_call(sc, if_test) != sc->F) break;
+      a1 = fx_call(sc, la);
+      sc->w = a1;
+      slot_set_value(laa_slot, fx_call(sc, laa));
+      slot_set_value(la_slot, a1);
     }
-  if (has_fx(if_true))
-    {
-      sc->value = fx_call(sc, if_true);
-      return(true);
-    }
-  sc->code = car(if_true);
-  return(false);
+  return(z_return(sc, if_true));
 }
 
 static s7_pointer fx_tc_if_a_z_laa(s7_scheme *sc, s7_pointer arg)
@@ -82566,13 +82627,7 @@ static bool op_tc_if_a_laa_z(s7_scheme *sc, s7_pointer code)
       slot_set_value(laa_slot, fx_call(sc, laa));
       slot_set_value(la_slot, a1);
     }
-  if (has_fx(if_false))
-    {
-      sc->value = fx_call(sc, if_false);
-      return(true);
-    }
-  sc->code = car(if_false);
-  return(false);
+  return(z_return(sc, if_false));
 }
 
 static s7_pointer fx_tc_if_a_laa_z(s7_scheme *sc, s7_pointer arg)
@@ -82601,13 +82656,7 @@ static bool op_tc_if_a_z_if_a_z_la(s7_scheme *sc)
       if (fx_call(sc, f_test) != sc->F) {endp = f_true; break;}
       slot_set_value(la_slot, fx_call(sc, la));
     }
-  if (has_fx(endp))
-    {
-      sc->value = fx_call(sc, endp);
-      return(true);
-    }
-  sc->code = car(endp);
-  return(false);
+  return(z_return(sc, endp));
 }
 
 static bool op_tc_if_a_z_if_a_la_z(s7_scheme *sc)
@@ -82628,13 +82677,7 @@ static bool op_tc_if_a_z_if_a_la_z(s7_scheme *sc)
       if (fx_call(sc, f_test) == sc->F) {endp = f_false; break;}
       slot_set_value(la_slot, fx_call(sc, la));
     }
-  if (has_fx(endp))
-    {
-      sc->value = fx_call(sc, endp);
-      return(true);
-    }
-  sc->code = car(endp);
-  return(false);
+  return(z_return(sc, endp));
 }
 
 static bool op_tc_if_a_z_if_a_z_laa(s7_scheme *sc, bool cond, s7_pointer code)
@@ -82660,13 +82703,7 @@ static bool op_tc_if_a_z_if_a_z_laa(s7_scheme *sc, bool cond, s7_pointer code)
       slot_set_value(laa_slot, fx_call(sc, laa));
       slot_set_value(la_slot, a1);
     }
-  if (has_fx(endp))
-    {
-      sc->value = fx_call(sc, endp);
-      return(true);
-    }
-  sc->code = car(endp);
-  return(false);
+  return(z_return(sc, endp));
 }
 
 static s7_pointer fx_tc_if_a_z_if_a_z_laa(s7_scheme *sc, s7_pointer arg)
@@ -82711,13 +82748,7 @@ static bool op_tc_if_a_z_if_a_laa_z(s7_scheme *sc)
       slot_set_value(laa_slot, fx_call(sc, laa));
       slot_set_value(la_slot, a1);
     }
-  if (has_fx(endp))
-    {
-      sc->value = fx_call(sc, endp);
-      return(true);
-    }
-  sc->code = car(endp);
-  return(false);
+  return(z_return(sc, endp));
 }
 
 static bool op_tc_let_if_a_z_laa(s7_scheme *sc)
@@ -82757,13 +82788,7 @@ static bool op_tc_let_if_a_z_laa(s7_scheme *sc)
       sc->envir = inner_env;
     }
   unstack(sc);
-  if (has_fx(if_true))
-    {
-      sc->value = fx_call(sc, if_true);
-      return(true);
-    }
-  sc->code = car(if_true);
-  return(false);
+  return(z_return(sc, if_true));
 }
 
 static void op_tc_let_when_laa(s7_scheme *sc, bool when)
@@ -82904,13 +82929,7 @@ static bool op_tc_cond_a_z_a_laa_laa(s7_scheme *sc)
 	}
       slot_set_value(la_slot, a1);
     }
-  if (has_fx(c1))
-    {
-      sc->value = fx_call(sc, c1);
-      return(true);
-    }
-  sc->code = car(c1);
-  return(false);
+  return(z_return(sc, c1));
 }
 
 
@@ -83038,6 +83057,114 @@ static void rec_set_f6(s7_scheme *sc, s7_pointer p)
   sc->rec_f6f = c_callee(sc->rec_f6p);
   sc->rec_f6p = car(sc->rec_f6p);
 }
+
+
+/* int stack */
+
+static void recur_i_resize(s7_scheme *sc)
+{
+  s7_int i;
+  s7_pointer stack;
+  block_t *ob, *nb;
+
+  stack = sc->rec_stack;
+  vector_length(stack) = sc->rec_len * 2;
+  ob = vector_block(stack);
+  nb = reallocate(sc, ob, vector_length(stack) * sizeof(s7_int));
+  block_info(nb) = NULL;
+  vector_block(stack) = nb;
+  int_vector_ints(stack) = (s7_int *)block_data(nb);
+  for (i = sc->rec_len; i < vector_length(stack); i++)
+    int_vector_ints(stack)[i] = 0;
+  sc->rec_len = vector_length(stack);
+}
+
+static inline void recur_i_push(s7_scheme *sc, s7_int value)
+{
+  if (sc->rec_loc == sc->rec_len)
+    recur_i_resize(sc);
+  int_vector_ints(sc->rec_stack)[sc->rec_loc] = value;
+  sc->rec_loc++;
+}
+
+static s7_int recur_i_pop(s7_scheme *sc)
+{
+  sc->rec_loc--;
+  return(int_vector_ints(sc->rec_stack)[sc->rec_loc]);
+}
+
+static s7_int recur_i_swap(s7_scheme *sc, s7_int value)
+{
+  s7_int res;
+  res = int_vector_ints(sc->rec_stack)[sc->rec_loc - 1];
+  int_vector_ints(sc->rec_stack)[sc->rec_loc - 1] = value;
+  return(res);
+}
+
+static s7_pointer recur_make_i_stack(s7_scheme *sc)
+{
+  s7_pointer v;
+  v = make_simple_int_vector(sc, RECUR_INITIAL_STACK_SIZE);
+  int_vector_fill(sc, v, 0);
+  sc->rec_loc = 0;
+  sc->rec_len = RECUR_INITIAL_STACK_SIZE;
+  return(v);
+}
+
+
+/* float stack */
+
+static void recur_d_resize(s7_scheme *sc)
+{
+  s7_int i;
+  s7_pointer stack;
+  block_t *ob, *nb;
+
+  stack = sc->rec_stack;
+  vector_length(stack) = sc->rec_len * 2;
+  ob = vector_block(stack);
+  nb = reallocate(sc, ob, vector_length(stack) * sizeof(s7_double));
+  block_info(nb) = NULL;
+  vector_block(stack) = nb;
+  float_vector_floats(stack) = (s7_double *)block_data(nb);
+  for (i = sc->rec_len; i < vector_length(stack); i++)
+    float_vector_floats(stack)[i] = 0.0;
+  sc->rec_len = vector_length(stack);
+}
+
+static inline void recur_d_push(s7_scheme *sc, s7_double value)
+{
+  if (sc->rec_loc == sc->rec_len)
+    recur_d_resize(sc);
+  float_vector_floats(sc->rec_stack)[sc->rec_loc] = value;
+  sc->rec_loc++;
+}
+
+static s7_double recur_d_pop(s7_scheme *sc)
+{
+  sc->rec_loc--;
+  return(float_vector_floats(sc->rec_stack)[sc->rec_loc]);
+}
+
+static s7_double recur_d_swap(s7_scheme *sc, s7_double value)
+{
+  s7_double res;
+  res = float_vector_floats(sc->rec_stack)[sc->rec_loc - 1];
+  float_vector_floats(sc->rec_stack)[sc->rec_loc - 1] = value;
+  return(res);
+}
+
+static s7_pointer recur_make_d_stack(s7_scheme *sc)
+{
+  s7_pointer v;
+  v = make_simple_float_vector(sc, RECUR_INITIAL_STACK_SIZE);
+  float_vector_fill(sc, v, 0.0);
+  sc->rec_loc = 0;
+  sc->rec_len = RECUR_INITIAL_STACK_SIZE;
+  return(v);
+}
+
+
 
 /* -------- if_a_a_opa_laq and if_a_opa_laq_a -------- */
 static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, s7_pointer code)
@@ -83210,72 +83337,13 @@ static s7_pointer op_recur_cond_a_a_opa_laaq(s7_scheme *sc)
 }
 
 
-/* -------- */
-#if (!WITH_GMP)
-static s7_pointer fx_lt_ti_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, integer(slot_value(sc->rec_slot1)) < sc->rec_testi));
-}
-
-static s7_pointer fx_geq_ti_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, integer(slot_value(sc->rec_slot1)) >= sc->rec_testi));
-}
-
-static s7_pointer fx_subtract_t1_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_integer(sc, integer(slot_value(sc->rec_slot1)) - 1));
-}
-
-static s7_pointer fx_subtract_ti_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_integer(sc, integer(slot_value(sc->rec_slot1)) - sc->rec_f2i));
-}
-
-static s7_pointer g_add_2i(s7_scheme *sc, s7_pointer args)
-{
-  return(make_integer(sc, integer(car(args)) + integer(cadr(args))));
-  /* TODO: this should probably include the overflow check (with full backout) */
-}
-
-static s7_pointer fx_lt_tf_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, real(slot_value(sc->rec_slot1)) < sc->rec_testr));
-}
-
-static s7_pointer fx_geq_tf_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_boolean(sc, real(slot_value(sc->rec_slot1)) >= sc->rec_testr));
-}
-
-static s7_pointer fx_subtract_tf1_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_real(sc, real(slot_value(sc->rec_slot1)) - sc->rec_f1r));
-}
-
-static s7_pointer fx_subtract_tf2_direct(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  return(make_real(sc, real(slot_value(sc->rec_slot1)) - sc->rec_f2r));
-}
-
-static s7_pointer g_add_2r(s7_scheme *sc, s7_pointer args)
-{
-  return(make_real(sc, real(car(args)) + real(cadr(args))));
-}
-#endif
 
 /* -------- if_a_a_opla_laq and if_a_opla_laq_a -------- */
-static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
+typedef enum {OPT_PTR, OPT_INT, OPT_DBL} opt_pid_t;
+
+static opt_pid_t opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 {
-  s7_pointer caller;
+  s7_pointer caller, c_op;
   rec_set_test(sc, cdr(sc->code));
   rec_set_res(sc, (a_op) ?  cddr(sc->code) : cdddr(sc->code));
   caller = opt3_pair(sc->code);
@@ -83283,48 +83351,100 @@ static void opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
   rec_set_f2(sc, cdr(opt3_pair(caller)));
   sc->rec_slot1 = let_slots(sc->envir);
   sc->rec_cf = c_callee(caller);
+  
+  c_op = car(caller);
+  if ((is_symbol(c_op)) &&
+      ((is_global(c_op)) ||
+       ((is_slot(global_slot(c_op))) &&
+	(symbol_to_slot(sc, c_op) == global_slot(c_op)))))
+    {
+      s7_pointer s_func, slot;
+      s_func = slot_value(global_slot(c_op));
+      slot = let_slots(sc->envir);
+      if (is_c_function(s_func))
+	{
+	  sc->pc = 0;
+	  if (bool_optimize(sc, cdr(sc->code)))
+	    {
+	      int32_t start_pc;
+	      start_pc = sc->pc;
+	      sc->rec_test_o = sc->opts[0];
 
-  /* TODO: all we need is integer (or float below) values throughout so the f's here need only ensure integer args/results (except test is boolean result)
-   *    so testf=(boolean? integer? integer?)
-   *       f1f/f2f=(integer? integer? integer?)
-   *       cf needs to return type of args
-   * then ideally we could ask each f for its all-integer version
-   * also need to check resf return type
-   * (c_function_class(f) == sc->add_class? [preserves_type above 76896]
-   *
-   * if all int/float, perhaps make slot mutable, use direct sets/gets instead (including the stack? or use int/float stack?)
-   *   add|subtract_i_ii, lt_b_ii
-   *   recur_i_push|pop|swap, s7_int oprec...(sc, i, i) etc
-   */
-#if (!WITH_GMP)
-  if ((is_t_integer(slot_value(sc->rec_slot1))) &&
-      ((sc->rec_testf == fx_lt_ti) || (sc->rec_testf == fx_geq_ti)) &&
-      (sc->rec_f1f == fx_subtract_t1) &&
-      (sc->rec_f2f == fx_subtract_ti) &&
-      (sc->rec_cf == g_add_2)) 
-    {
-      sc->rec_testf = (sc->rec_testf == fx_lt_ti) ? fx_lt_ti_direct : fx_geq_ti_direct;
-      sc->rec_testi = integer(caddr(sc->rec_testp));
-      sc->rec_f1f = fx_subtract_t1_direct;
-      sc->rec_f2f = fx_subtract_ti_direct;
-      sc->rec_f2i = integer(caddr(sc->rec_f2p));
-      sc->rec_cf = g_add_2i;
-   }
-  if ((is_t_real(slot_value(sc->rec_slot1))) &&
-      ((sc->rec_testf == fx_lt_tf) || (sc->rec_testf == fx_geq_tf)) &&
-      (sc->rec_f1f == fx_subtract_tf) &&
-      (sc->rec_f2f == fx_subtract_tf) &&
-      (sc->rec_cf == g_add_2))
-    {
-      sc->rec_testf = (sc->rec_testf == fx_lt_tf) ? fx_lt_tf_direct : fx_geq_tf_direct;
-      sc->rec_testr = real(caddr(sc->rec_testp));
-      sc->rec_f1f = fx_subtract_tf1_direct;
-      sc->rec_f1r = real(caddr(sc->rec_f1p));
-      sc->rec_f2f = fx_subtract_tf2_direct;
-      sc->rec_f2r = real(caddr(sc->rec_f2p));
-      sc->rec_cf = g_add_2r;
-   }
-#endif
+	      if (is_t_integer(slot_value(slot)))
+		{
+		  sc->rec_i_cf = s7_i_ii_function(s_func);
+		  if (sc->rec_i_cf)
+		    {
+		      if (int_optimize(sc, (a_op) ? cddr(sc->code) : cdddr(sc->code)))
+			{
+			  int32_t pc;
+			  sc->rec_result_o = sc->opts[start_pc];
+			  pc = sc->pc;
+			  if (int_optimize(sc, cdadr(caller)))
+			    {
+			      sc->rec_a1_o = sc->opts[pc];
+			      pc = sc->pc;
+			      if (int_optimize(sc, cdr(opt3_pair(caller))))
+				{
+				  sc->rec_a2_o = sc->opts[pc];
+				  sc->rec_val1 = make_mutable_integer(sc, integer(slot_value(slot)));
+				  slot_set_value(slot, sc->rec_val1);
+				  return(OPT_INT);
+				}
+			    }
+			}
+		    }
+		}
+	      if (is_float(slot_value(slot)))
+		{
+		  sc->rec_d_cf = s7_d_dd_function(s_func);
+		  if (sc->rec_d_cf)
+		    {
+		      sc->pc = start_pc;
+		      if (float_optimize(sc, (a_op) ? cddr(sc->code) : cdddr(sc->code)))
+			{
+			  int32_t pc;
+			  sc->rec_result_o = sc->opts[start_pc];
+			  pc = sc->pc;
+			  if (float_optimize(sc, cdadr(caller)))
+			    {
+			      sc->rec_a1_o = sc->opts[pc];
+			      pc = sc->pc;
+			      if (float_optimize(sc, cdr(opt3_pair(caller))))
+				{
+				  sc->rec_a2_o = sc->opts[pc];
+				  sc->rec_val1 = s7_make_mutable_real(sc, real(slot_value(slot)));
+				  slot_set_value(slot, sc->rec_val1);
+				  return(OPT_DBL);
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+  return(OPT_PTR);
+}
+
+static s7_int oprec_i_if_a_a_opla_laq(s7_scheme *sc)
+{
+  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))                             /* if_(A) */
+    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));                   /* if_a_(A) */
+  recur_i_push(sc, sc->rec_a1_o->v[0].fi(sc->rec_a1_o));                   /* save a1 */
+  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);             /* slot1 = a2 */
+  integer(sc->rec_val1) = recur_i_swap(sc, oprec_i_if_a_a_opla_laq(sc));   /* slot1 = a1, save la2 */
+  return(sc->rec_i_cf(oprec_i_if_a_a_opla_laq(sc), recur_i_pop(sc)));      /* call op(la1, la2) */
+}
+
+static s7_double oprec_d_if_a_a_opla_laq(s7_scheme *sc)
+{
+  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))                             /* if_(A) */
+    return(sc->rec_result_o->v[0].fd(sc->rec_result_o));                   /* if_a_(A) */
+  recur_d_push(sc, sc->rec_a1_o->v[0].fd(sc->rec_a1_o));                   /* save a1 */
+  real(sc->rec_val1) = sc->rec_a2_o->v[0].fd(sc->rec_a2_o);                /* slot1 = a2 */
+  real(sc->rec_val1) = recur_d_swap(sc, oprec_d_if_a_a_opla_laq(sc));      /* slot1 = a1, save la2 */
+  return(sc->rec_d_cf(oprec_d_if_a_a_opla_laq(sc), recur_d_pop(sc)));      /* call op(la1, la2) */
 }
 
 static s7_pointer oprec_if_a_a_opla_laq(s7_scheme *sc)
@@ -83339,6 +83459,26 @@ static s7_pointer oprec_if_a_a_opla_laq(s7_scheme *sc)
   return(sc->rec_cf(sc, sc->t2_1));
 }
 
+static s7_int oprec_i_if_a_opla_laq_a(s7_scheme *sc)
+{
+  if (!(sc->rec_test_o->v[0].fb(sc->rec_test_o)))                          /* if_(A) */
+    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));                   /* if_a_opla_laq_(A) */
+  recur_i_push(sc, sc->rec_a1_o->v[0].fi(sc->rec_a1_o));                   /* save a1 */
+  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);             /* slot1 = a2 */
+  integer(sc->rec_val1) = recur_i_swap(sc, oprec_i_if_a_opla_laq_a(sc));   /* slot1 = a1, save la2 */
+  return(sc->rec_i_cf(oprec_i_if_a_opla_laq_a(sc), recur_i_pop(sc)));      /* call op(la1, la2) */
+}
+
+static s7_double oprec_d_if_a_opla_laq_a(s7_scheme *sc)
+{
+  if (!(sc->rec_test_o->v[0].fb(sc->rec_test_o)))                          /* if_(A) */
+    return(sc->rec_result_o->v[0].fd(sc->rec_result_o));                   /* if_a_opla_laq_(A) */
+  recur_d_push(sc, sc->rec_a1_o->v[0].fd(sc->rec_a1_o));                   /* save a1 */
+  real(sc->rec_val1) = sc->rec_a2_o->v[0].fd(sc->rec_a2_o);                /* slot1 = a2 */
+  real(sc->rec_val1) = recur_d_swap(sc, oprec_d_if_a_opla_laq_a(sc));      /* slot1 = a1, save la2 */
+  return(sc->rec_d_cf(oprec_d_if_a_opla_laq_a(sc), recur_d_pop(sc)));      /* call op(la1, la2) */
+}
+
 static s7_pointer oprec_if_a_opla_laq_a(s7_scheme *sc)
 {
   if (sc->rec_testf(sc, sc->rec_testp) == sc->F) 
@@ -83351,17 +83491,34 @@ static s7_pointer oprec_if_a_opla_laq_a(s7_scheme *sc)
   return(sc->rec_cf(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_a_opla_laq(s7_scheme *sc)
+static void wrap_recur_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 {
-  opinit_if_a_a_opla_laq(sc, true);
-  return(oprec_if_a_a_opla_laq(sc));
+  opt_pid_t choice;
+  choice = opinit_if_a_a_opla_laq(sc, a_op);
+  if (choice == OPT_INT)
+    {
+      sc->rec_stack = recur_make_i_stack(sc);
+      push_stack_no_code(sc, OP_GC_PROTECT, sc->rec_stack);
+      sc->value = make_integer(sc, (a_op) ? oprec_i_if_a_a_opla_laq(sc) : oprec_i_if_a_opla_laq_a(sc));
+    }
+  else
+    {
+      if (choice == OPT_PTR)
+	{
+	  sc->rec_stack = recur_make_stack(sc);
+	  push_stack_no_code(sc, OP_GC_PROTECT, sc->rec_stack);
+	  sc->value = (a_op) ? oprec_if_a_a_opla_laq(sc) : oprec_if_a_opla_laq_a(sc);
+	}
+      else
+	{
+	  sc->rec_stack = recur_make_d_stack(sc);
+	  push_stack_no_code(sc, OP_GC_PROTECT, sc->rec_stack);
+	  sc->value = make_real(sc, (a_op) ? oprec_d_if_a_a_opla_laq(sc) : oprec_d_if_a_opla_laq_a(sc));
+	}
+    }
+  unstack(sc);
 }
 
-static s7_pointer op_recur_if_a_opla_laq_a(s7_scheme *sc)
-{
-  opinit_if_a_a_opla_laq(sc, false);
-  return(oprec_if_a_opla_laq_a(sc));
-}
 
 /* -------- if_a_a_opa_la_laq and if_a_opa_la_laq_a -------- */
 static void opinit_if_a_a_opa_la_laq(s7_scheme *sc, bool a_op)
@@ -85630,8 +85787,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_RECUR_IF_A_A_opLA_LAq:
 	case OP_RECUR_IF_A_opLA_LAq_A:
-	  tick_tc_rec(sc); 
-	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opLA_LAq) ? op_recur_if_a_a_opla_laq : op_recur_if_a_opla_laq_a);
+	  tick_tc_rec(sc);
+	  wrap_recur_if_a_a_opla_laq(sc, sc->cur_op == OP_RECUR_IF_A_A_opLA_LAq);
 	  goto START;
 
 	case OP_RECUR_IF_A_A_opA_LA_LAq:
@@ -94962,7 +95119,7 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   954
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   971
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1529
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1722  1752
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1722
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2097
  * tvect         |      |      |      |      |      | 5729 | 2340  2181
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2226
@@ -94978,8 +95135,8 @@ int main(int argc, char **argv)
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3321
  * dup           |      |      |      |      | 20.8 | 5711 | 3207  3470
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3502
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3811
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  7568
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3811  3607
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  7568  7353
  * thash         |      |      |      |      |      | 10.3 | 8873  8896
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.3
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  16.9
@@ -95000,9 +95157,9 @@ int main(int argc, char **argv)
  * trailers (pair_sym etc), fx_tree could check ops as well as fx calls -- are these ever separate?
  *   opt_op=h_safe_c_s cadr=arg1 change h_safe_c_t
  * cond_la(a)
- * see 83014 int/float recur opt -- is this useful in general? yes
- * trec: extend if_a_a_and_a_laa_laa case to all recur and tc+fx (and more safe_closure_x_a cases?)
+ * trec: extend if_a_a_and_a_laa_laa case to all recur and tc+fx (and more safe_closure_x_a cases?) and opt_info cases
  *   why are fx* in s7test but not lt?
+ *   add all these to t725 (fx combinations etc)
  * let-temp optimize body (see tset -- it's always unopt!)
  *   (set! (setter (slot-symbol cp) (slot-env cp)) #f)
  *   (set! (big-list 9999) 2) trclo
