@@ -362,29 +362,9 @@
 ;; and why no euclidean-rationalize or exact-integer-expt?
 ;;   (imagine what will happen when r8rs stumbles on the zoo of continued fraction algorithms!)
 
-(let ((e (curlet)))
-  (c-define 
-    '((in-C "static int g_time(void) {return((int)time(NULL));} \n\
-             static struct timeval overall_start_time;  \n\
-             static bool time_set_up = false;           \n\
-             static double get_internal_real_time(void) \n\
-             {                                          \n\
-               struct timezone z0;                      \n\
-               struct timeval t0;                       \n\
-               double secs;                             \n\
-               if (!time_set_up) {gettimeofday(&overall_start_time, &z0); time_set_up = true;} \n\
-               gettimeofday(&t0, &z0);                  \n\
-               secs = difftime(t0.tv_sec, overall_start_time.tv_sec);\n\
-               return(secs + 0.000001 * (t0.tv_usec - overall_start_time.tv_usec)); \n\
-             }")
-      (double get_internal_real_time (void))
-      (int g_time (void)))
-    "" '("time.h" "sys/time.h"))
-  (varlet e 
-    (cons 'jiffies-per-second (lambda () 1000))
-    (cons 'current-jiffy (lambda () (round (* (get_internal_real_time) 1000.0))))
-    (cons 'current-second g_time)))
-
+(define (jiffies-per-second) 1000)
+(define (current-jiffy) (round (* (jiffies-per-second) (*s7* 'cpu-time))))
+(define (current-second) (floor (*s7* 'cpu-time)))
 
 (define (get-environment-variable x)
   (let ((val ((*libc* 'getenv) x)))

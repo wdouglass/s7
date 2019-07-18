@@ -6152,6 +6152,8 @@ seconds, and after compilation (using -O2) of the chicken compiler output,
 is compiling to C. I think Guile 2.0.9 takes about 1 second.
 The equivalent in CL:
 clisp interpreted 9.3 seconds, compiled 0.85 seconds; sbcl 0.21 seconds.
+Similarly, s7 computes (fib 40) in 1.5 seconds, approximately the same as sbcl.
+Guile 2.2.3 takes 7 seconds.
 </p>
 
 <div class="separator"></div>
@@ -6175,11 +6177,10 @@ s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
 (define (vector-map f v) (copy v)) ; for quicksort.scm
 (define-macro (import . args) #f)
 (define (jiffies-per-second) 1000)
-(define (current-jiffy) 0)
-(define (current-second) 0)
+(define (current-jiffy) (round (* (jiffies-per-second) (*s7* 'cpu-time))))
+(define (current-second) (floor (*s7* 'cpu-time)))
 </pre>
 <p>
-This says that the s7 files are in /home/bil/motif-snd.
 If you want to run gcbench, add the define-record-type macro from r7rs.scm, and load stuff.scm (for define-class).
 Here are the diffs for the bench script:
 </p>
