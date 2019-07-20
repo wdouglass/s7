@@ -4288,10 +4288,8 @@ static void display_channel_data_with_size(chan_info *cp,
 	  if (!(Xen_is_false(pixel_list))) pixel_loc = snd_protect(pixel_list);
 	}
 
-      if (up != cp->lisp_info)
-	up = cp->lisp_info;
-      if (uap != up->axis)
-	uap = up->axis;
+      up = cp->lisp_info;
+      uap = up->axis;
       /* if these were changed in the hook function, the old fields should have been saved across the change (g_graph below) */
 
 #if USE_GTK

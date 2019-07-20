@@ -1,6 +1,6 @@
 ;;; r7rs compatibility
 
-(require cload.scm libc.scm stuff.scm)
+(require libc.scm stuff.scm)
 (provide 'r7rs.scm)
 
 

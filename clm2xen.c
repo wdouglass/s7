@@ -209,7 +209,7 @@ int mus_optkey_unscramble(const char *caller, int num_args, int nkeys, Xen *keys
    *  (it is intended for error reports)
    */
   int arg_ctr = 0, key_start = 0, rtn_ctr = 0, end;
-  bool keying = false, key_found = false;
+  bool keying = false;
   end = num_args - 1;
 
   while (arg_ctr < num_args)
@@ -243,6 +243,7 @@ int mus_optkey_unscramble(const char *caller, int num_args, int nkeys, Xen *keys
 	{
 	  int i;
 	  Xen val;
+	  bool key_found;
 	  if (arg_ctr >= end)
 	    clm_error(caller, "keyword without value?", key);
 

@@ -11313,7 +11313,7 @@ static void flush_buffers(rdout *gen)
 	    memset((void *)zeros, sample_type_zero[sample_type], bytes);
 	  else /* it has to be a short */
 	    {
-	      int df, i, b1, b2;
+	      int df, b1, b2;
 	      df = sample_type_zero[sample_type];
 	      b1 = df >> 8;
 	      b2 = df & 0xff;
