@@ -1,6 +1,17 @@
 #!/bin/csh -f
 
 cp tools/ffitest.c .
+rm libc_s7.c
+rm libc_s7.so
+rm libm_s7.c
+rm libm_s7.so
+rm libdl_s7.c
+rm libdl_s7.so
+rm libgsl_s7.c
+rm libgsl_s7.so
+rm libgdbm_s7.c
+rm libgdbm_s7.so
+
 
 echo ' -------------------------------- without-gui -------------------------------- '
 rm -f snd

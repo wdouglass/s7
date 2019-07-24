@@ -13176,7 +13176,8 @@ EDITS: 2
 	  (snd-display "make-delay huge line: ~A" var)))
     (let ((var (catch #t (lambda () (make-delay 32 :max-size 41943040)) ;(* 1024 1024 40))
 		      (lambda args args))))
-      (if (not (eq? (car var) 'out-of-range))
+      (if (and (pair? var)
+	       (not (eq? (car var) 'out-of-range))) ; max-size can change in random tests
 	  (snd-display "make-delay huge line: ~A" var)))
     
     (let ((size 1000)
@@ -14371,6 +14372,9 @@ EDITS: 2
 	   (if (not (mus-arrays-equal? v0 #r(-0.5 -0.5 0.0 0.0 -0.5 -0.5 -0.5 0.0 0.0 -0.5 -0.5 -0.5 0.0 0.0 -0.5 -0.5 -0.5 0.0 0.0 -0.5)))
 	       (snd-display "square-wave -.5: ~A " v0)))
 	(set! (v0 i) (gen))))
+    (when (or (<= *clm-srate* 501.0) (<= (mus-srate) 501.0))
+      (format *stderr* "make-square-wave *clm-srate*: ~S, mus-srate: ~S~%" *clm-srate* (mus-srate))
+      (set! *clm-srate* 44100.0))
     
     (let ((gen (make-triangle-wave 440.0))
 	  (v0 (make-float-vector 10)))
@@ -14439,6 +14443,9 @@ EDITS: 2
 	   (if (not (mus-arrays-equal? v0 #r(0.0 0.0 0.0 0.0 -0.5 0.0 0.0 0.0 0.0 -0.5 0.0 0.0 0.0 0.0 -0.5 0.0 0.0 0.0 0.0 -0.5)))
 	       (snd-display "pulse-train -.5: ~A " v0)))
 	(set! (v0 i) (gen))))
+    (when (or (<= *clm-srate* 501.0) (<= (mus-srate) 501.0))
+      (format *stderr* "make-pulse-train *clm-srate*: ~S, mus-srate: ~S~%" *clm-srate* (mus-srate))
+      (set! *clm-srate* 44100.0))
     
     (let ((gen (make-two-pole 1200.0 .1)))
       (if (not (two-pole? gen)) (snd-display "~A not 2-polar?" gen))
