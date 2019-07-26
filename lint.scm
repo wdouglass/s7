@@ -15551,8 +15551,6 @@
 							   (list (car false) '...)))))))
 			     (lists->string form (cons 'cond (cons (cons nexpr nfalse) (cdr true))))))))
 			   
-	  ;; --------------------------------------------------------------------------------
-
 	  ;; -------- if->cond --------
 	  (define (if->cond caller form env)
 	    ;; unravel complicated if-then-else nestings into a single cond, if possible.
@@ -16320,6 +16318,23 @@
 			 (when (pair? true)
 			   (repeated-test->cond caller form expr true false)
 			   (simplify-if+ifs caller form expr true false env))
+#|
+			   ;; (if (not (eq? x y)) (set! x y)) -> (set! x y)
+			   (if (and (= len 3)  
+				    (pair? test)
+				    (eq? (car test) 'not)
+				    (eq? (car true) 'set!)
+				    (pair? (cadr test))
+				    (eq? (caadr test) 'eq?)
+				    (equal? (cdadr test) (cdr true)))
+			       (lint-format "perhaps ~A -> ~A" caller (truncated-list->string form) true))
+			   ;; (if (eq? x y) (not (eq? x y)))
+			   (if (and (eq? (car true) 'not)
+				    (pair? (cdr true)) 
+				    (pair? (cadr true))
+				    (equal? test (cadr true)))
+			       (lint-format "perhaps ~A -> ~A" caller (truncated-list->string form) `(if ,test #f))))
+|#
 
 			 (when (and (= suggestion made-suggestion)
 				    (not (= line-number last-if-line-number)))
