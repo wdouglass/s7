@@ -1,6 +1,5 @@
 #!/bin/csh -f
 
-cp tools/ffitest.c .
 rm libc_s7.c
 rm libc_s7.so
 rm libm_s7.c

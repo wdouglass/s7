@@ -49,14 +49,6 @@ echo ' '
 ./snd -noinit --features "'clm 'snd-s7 'snd-motif 'sndlib"
 ./snd -e '(begin (load "cload.scm") (set! *cload-cflags* "-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -Wno-format-overflow"))' libm.scm libc.scm libgdbm.scm libdl.scm libgsl.scm -e '(exit)'
 
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 ffitest                                               ----- '
-echo ' -------------------------------------------------------------------------------- '
-
-cp tools/ffitest.c .
-gcc -o ffitest ffitest.c -g3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses s7.o -lm -I. -ldl
-ffitest
-
 gcc s7.c -o repl -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g3 -Wl,-export-dynamic -ldl -lm
 
 echo '#define WITH_SYSTEM_EXTRAS 0' >mus-config.h

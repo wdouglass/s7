@@ -1201,6 +1201,8 @@ struct s7_scheme {
   opcode_t sort_op;
   s7_int sort_body_len;
   s7_b_7pp_t sort_f;
+  opt_info *sort_o;
+  bool (*sort_fb)(opt_info *o);
 
   #define INT_TO_STR_SIZE 32
   char int_to_str1[INT_TO_STR_SIZE], int_to_str2[INT_TO_STR_SIZE], int_to_str3[INT_TO_STR_SIZE], int_to_str4[INT_TO_STR_SIZE], int_to_str5[INT_TO_STR_SIZE];
@@ -39324,7 +39326,15 @@ static int32_t opt_bool_sort(const void *v1, const void *v2, void *arg)
   slot_set_value(sc->sort_v1, (*(s7_pointer *)v1)); /* first slot in curlet */
   slot_set_value(sc->sort_v2, (*(s7_pointer *)v2)); /* second slot in curlet */
   sc->pc = 0;                                       /* always opt_bool_call here, so insert it */
-  return((sc->opts[0]->v[0].fb(sc->opts[0])) ? -1 : 1);
+  return((sc->sort_fb(sc->sort_o)) ? -1 : 1);
+}
+
+static int32_t opt_bool_sort_0(const void *v1, const void *v2, void *arg)
+{
+  s7_scheme *sc = (s7_scheme *)arg;
+  slot_set_value(sc->sort_v1, (*(s7_pointer *)v1)); /* first slot in curlet */
+  slot_set_value(sc->sort_v2, (*(s7_pointer *)v2)); /* second slot in curlet */
+  return((sc->sort_fb(sc->sort_o)) ? -1 : 1);
 }
 
 static int32_t opt_bool_sort_p(const void *v1, const void *v2, void *arg)
@@ -39535,7 +39545,12 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 			{
 			  if (sc->opts[0]->v[0].fb == p_to_b)
 			    sort_func = opt_bool_sort_p;
-			  else sort_func = opt_bool_sort;
+			  else 
+			    {
+			      sc->sort_o = sc->opts[0];
+			      sc->sort_fb = sc->sort_o->v[0].fb;
+			      sort_func = (sc->pc == 1) ? opt_bool_sort_0 : opt_bool_sort;
+			    }
 			}
 		    }
 		  else
@@ -43658,13 +43673,13 @@ static bool floats_are_equivalent(s7_scheme *sc, s7_double x, s7_double y)
 {
   s7_double diff, eps;
   if (x == y) return(true);
+  eps = sc->equivalent_float_epsilon;
+  diff = fabs(x - y);
+  if (diff <= eps) return(true);
 
   if ((is_NaN(x)) || (is_NaN(y)))
     return((is_NaN(x)) && (is_NaN(y)));
 
-  eps = sc->equivalent_float_epsilon;
-  diff = fabs(x - y);
-  if (diff <= eps) return(true);
   if (x < 0.0) x = -x;
   return((x > 1.0) &&
 	 (diff < (x * eps)));
@@ -44473,20 +44488,12 @@ static bool integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 #endif
   if (is_t_integer(y))
     return(integer(x) == integer(y));
-  if (!is_number(y))
-    return(false);
-
-  if (is_t_real(y))
-    return((!is_NaN(real(y))) &&
-	   (floats_are_equivalent(sc, (s7_double)integer(x), real(y))));
-
-  if (is_t_ratio(y))
-    return(floats_are_equivalent(sc, (s7_double)integer(x), (s7_double)fraction(y)));
-
-  return((!is_NaN(real_part(y))) &&
-	 (!is_NaN(imag_part(y))) &&
-	 (floats_are_equivalent(sc, (s7_double)integer(x), real_part(y))) &&
-	 (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
+  if (is_real(y))
+    return(floats_are_equivalent(sc, (double)integer(x), s7_real(y)));
+  if (is_t_complex(y))
+    return((fabs(imag_part(y)) <= sc->equivalent_float_epsilon) &&
+	   (floats_are_equivalent(sc, (double)integer(x), real_part(y))));
+  return(false);
 }
 
 /* apparently ratio_equal is predefined in g++ -- name collision on mac */
@@ -44507,19 +44514,10 @@ static bool fraction_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
   if (is_big_number(y))
     return(big_num_eq(sc, set_plist_2(sc, x, y)) != sc->F);
 #endif
-  if (is_t_ratio(y))
-    return(floats_are_equivalent(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
-
-  if (is_t_real(y))
-    return(floats_are_equivalent(sc, (s7_double)fraction(x), real(y)));
-
-  if (is_t_integer(y))
-    return(floats_are_equivalent(sc, (s7_double)fraction(x), (s7_double)integer(y)));
-
+  if (is_real(y))
+    return(floats_are_equivalent(sc, (s7_double)fraction(x), s7_real(y)));
   if (is_t_complex(y))
-    return((!is_NaN(real_part(y))) &&
-	   (!is_NaN(imag_part(y))) &&
-	   (floats_are_equivalent(sc, (s7_double)fraction(x), real_part(y))) &&
+    return((floats_are_equivalent(sc, (s7_double)fraction(x), real_part(y))) &&
 	   (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
   return(false);
 }
@@ -44540,27 +44538,12 @@ static bool real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_in
   if (is_big_number(y))
     return(big_num_eq(sc, set_plist_2(sc, x, y)) != sc->F);
 #endif
-  if (!is_number(y)) return(false);
-
-  if (is_t_real(y))
-    return(floats_are_equivalent(sc, real(x), real(y)));
-
-  if (is_t_integer(y))
-    return((!is_NaN(real(x))) &&
-	   (floats_are_equivalent(sc, real(x), (s7_double)integer(y))));
-
-  if (is_t_ratio(y))
-    return(floats_are_equivalent(sc, real(x), (s7_double)fraction(y)));
-
-  if (is_NaN(real(x)))
-    return((is_NaN(real_part(y))) &&
-	   (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
-
-  return((!is_NaN(real(x))) &&
-	 (!is_NaN(real_part(y))) &&
-	 (!is_NaN(imag_part(y))) &&
-	 (floats_are_equivalent(sc, real(x), real_part(y))) &&
-	 (fabs(imag_part(y)) <= sc->equivalent_float_epsilon));
+  if (is_real(y))
+    return(floats_are_equivalent(sc, real(x), s7_real(y)));
+  if (is_t_complex(y))
+    return((fabs(imag_part(y)) <= sc->equivalent_float_epsilon) &&
+	   (floats_are_equivalent(sc, real(x), real_part(y))));
+  return(false);
 }
 
 static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -44570,8 +44553,6 @@ static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
     return(big_numbers_are_eqv(x, y));
 #endif
   return((is_t_complex(y)) &&
-	 (!is_NaN(real_part(x))) &&
-	 (!is_NaN(imag_part(x))) &&
 	 (real_part(x) == real_part(y)) &&
 	 (imag_part(x) == imag_part(y)));
 }
@@ -44584,42 +44565,9 @@ static bool complex_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 #endif
   if (!is_number(y)) return(false);
 
-  if (is_t_integer(y))
-    return((!is_NaN(real_part(x))) &&
-	   (!is_NaN(imag_part(x))) &&
-	   (floats_are_equivalent(sc, real_part(x), (s7_double)integer(y))) &&
-	   (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
-
-  if (s7_is_ratio(y))
-    return((!is_NaN(real_part(x))) &&
-	   (!is_NaN(imag_part(x))) &&
-	   (floats_are_equivalent(sc, real_part(x), (s7_double)fraction(y))) &&
-	   (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
-
-  if (is_real(y))
-    {
-      if (is_NaN(imag_part(x)))
-	return(false);
-      if (is_NaN(real(y)))
-	return((is_NaN(real_part(x))) &&
-	       (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
-      return((floats_are_equivalent(sc, real_part(x), real(y))) &&
-	     (fabs(imag_part(x)) <= sc->equivalent_float_epsilon));
-    }
-
-  /* should (equivalent? +nan.0 (complex +nan.0 +nan.0)) be #t (it's #f above)? */
-  if (is_NaN(real_part(x)))
-    return((is_NaN(real_part(y))) &&
-	   (((is_NaN(imag_part(x))) && (is_NaN(imag_part(y)))) ||
-	    (floats_are_equivalent(sc, imag_part(x), imag_part(y)))));
-
-  if (is_NaN(imag_part(x)))
-    return((is_NaN(imag_part(y))) &&
-	   (floats_are_equivalent(sc, real_part(x), real_part(y))));
-
-  if ((is_NaN(real_part(y))) ||
-      (is_NaN(imag_part(y))))
-    return(false);
+  if (is_real(y)) 
+    return((fabs(imag_part(x)) <= sc->equivalent_float_epsilon) &&
+	   (floats_are_equivalent(sc, real_part(x), s7_real(y))));
 
   return((floats_are_equivalent(sc, real_part(x), real_part(y))) &&
 	 (floats_are_equivalent(sc, imag_part(x), imag_part(y))));
@@ -51192,6 +51140,16 @@ static s7_pointer fx_c_sss(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t3_1));
 }
 
+static s7_pointer fx_c_tus(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  set_car(sc->t3_1, slot_value(let_slots(sc->envir)));
+  set_car(sc->t3_2, slot_value(next_slot(let_slots(sc->envir))));
+  set_car(sc->t3_3, lookup(sc, opt2_sym(cdr(arg)))); /* cadddr(arg) */
+  return(c_call(arg)(sc, sc->t3_1));
+}
+
 static s7_pointer fx_c_scs(s7_scheme *sc, s7_pointer arg)
 {
   set_car(sc->t3_1, lookup(sc, cadr(arg)));
@@ -53300,7 +53258,7 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2) /* var2 can be NULL */
 {
   s7_pointer p;
-  /* fprintf(stderr, "%s[%d] %s %s %d: %s, outer: %d\n", __func__, __LINE__, DISPLAY(var1), (var2) ? DISPLAY(var2) : "", has_fx(tree), DISPLAY(tree), outer); */
+  /* fprintf(stderr, "%s[%d] %s %s %d: %s\n", __func__, __LINE__, DISPLAY(var1), (var2) ? DISPLAY(var2) : "", has_fx(tree), DISPLAY(tree)); */
 
   p = car(tree);
   if (is_symbol(p))
@@ -53320,14 +53278,17 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_o_p_p_s) {set_c_call(tree, fx_o_p_p_t); return(true);}
 	  if (c_callee(tree) == fx_c_ss) {set_c_call(tree, fx_c_ts); return(true);}
 	  if (c_callee(tree) == fx_c_scs) {set_c_call(tree, fx_c_tcs); return(true);}
+	  if ((c_callee(tree) == fx_c_sss) && (caddr(p) == var2)) {set_c_call(tree, fx_c_tus); return(true);}
 	  
 #if (!WITH_GMP)
 	  if (c_callee(tree) == fx_subtract_sf) {set_c_call(tree, fx_subtract_tf); return(true);}
 	  if ((c_callee(tree) == fx_multiply_ss) && (is_pair(cddr(p))) && (caddr(p) == var2)) {set_c_call(tree, fx_multiply_tu); return(true);}
 	  if (c_callee(tree) == fx_add_sf) {set_c_call(tree, fx_add_tf); return(true);}
+#endif
 	  if (c_callee(tree) == fx_c_sc) 
 	    {
 	      set_c_call(tree, fx_c_tc);
+#if (!WITH_GMP)
 	      if (c_callee(p) == g_less_xf)
 		set_c_call(tree, fx_lt_tf);
 	      else
@@ -53342,13 +53303,12 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  if (c_callee(p) == g_geq_xi)
 		    set_c_call(tree, fx_geq_ti);
 		}
+#endif
 	      if (c_callee(p) == g_char_equal_2)
 		set_c_call(tree, fx_char_equal_tc);
 	      return(true);
 	    }
-#else
-	  if (c_callee(tree) == fx_c_sc) {set_c_call(tree, fx_c_tc); return(true);}
-#endif
+
 	  if (c_callee(tree) == fx_car_s) {set_c_call(tree, fx_car_t); return(true);}
 	  if (c_callee(tree) == fx_cdr_s) {set_c_call(tree, fx_cdr_t); return(true);}
 	  if (c_callee(tree) == fx_cadr_s) {set_c_call(tree, fx_cadr_t); return(true);}
@@ -53432,6 +53392,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  
 	  if ((is_pair(cdadr(p))) && (cadadr(p) == var1))
 	    {
+	      /* fprintf(stderr, "%d: %s %s\n", __LINE__, DISPLAY(var1), DISPLAY(p)); */
 	      if ((c_callee(tree) == fx_c_opsq_c) || (c_callee(tree) == fx_c_optq_c))
 		{
 		  set_c_call(tree, (c_callee(car(tree)) == g_lint_let_ref) ? fx_lint_let_ref : fx_c_optq_c);
@@ -53487,9 +53448,9 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer 
 {
 #if 0
   if (is_pair(tree)) 
-    fprintf(stderr, "%s[%d]: %s %s %d %s %s %s\n", __func__, __LINE__, 
+    fprintf(stderr, "%s[%d]: %s %s %d %s %s\n", __func__, __LINE__, 
 	    DISPLAY_80(tree), (is_optimized(tree)) ? op_names[optimize_op(tree)] : "unopt",
-	    has_fx(tree), (has_fx(tree)) ? fx_name(sc, tree) : "",
+	    has_fx(tree), /* (has_fx(tree)) ? fx_name(sc, tree) : "", */
 	    DISPLAY(var1), (var2) ? DISPLAY(var2) : "");
 #endif
   if ((!is_pair(tree)) ||
@@ -67006,6 +66967,7 @@ static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 #if S7_DEBUGGING
   s7_function fx;
 #if 1
+  /* fprintf(stderr, "%s: %s\n", __func__, DISPLAY(arg)); */
   if (has_fx(arg)) return;
 #endif
   fx = fx_choose(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe);
@@ -82671,16 +82633,19 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code)
 			}
 		      else
 			{
+			  s7_double (*fd1)(opt_info *o);
+			  s7_double (*fd2)(opt_info *o);
+			  bool (*fb)(opt_info *o);
+			  fb = o->v[0].fb;
+			  fd1 = o1->v[0].fd;
+			  fd2 = o2->v[0].fd;
 			  while (true)
 			    {
-			      s7_int i1;
-			      sc->pc = 0;
-			      if (o->v[0].fb(o)) break;
-			      sc->pc++;
-			      i1 = o1->v[0].fi(o1);
-			      sc->pc++;
-			      integer(val2) = o2->v[0].fi(o2);
-			      integer(val1) = i1;
+			      s7_double x1;
+			      if (fb(o)) break;
+			      x1 = fd1(o1);
+			      real(val2) = fd2(o2);
+			      real(val1) = x1;
 			    }
 			}
 		      return(op_tc_z(sc, if_true));
@@ -82700,16 +82665,30 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code)
 		      s7_pointer val1, val2;
 		      slot_set_value(la_slot, val1 = s7_make_mutable_real(sc, real(slot_value(la_slot))));
 		      slot_set_value(laa_slot, val2 = s7_make_mutable_real(sc, real(slot_value(laa_slot))));
-		      while (true)
+		      if (sc->pc == 3)
 			{
-			  s7_double x1;
-			  sc->pc = 0;
-			  if (o->v[0].fb(o)) break;
-			  sc->pc++;
-			  x1 = o1->v[0].fd(o1);
-			  sc->pc++;
-			  real(val2) = o2->v[0].fd(o2);
-			  real(val1) = x1;
+			  while (true)
+			    {
+			      s7_double x1;
+			      if (o->v[0].fb(o)) break;
+			      x1 = o1->v[0].fd(o1);
+			      real(val2) = o2->v[0].fd(o2);
+			      real(val1) = x1;
+			    }
+			}
+		      else
+			{
+			  while (true)
+			    {
+			      s7_double x1;
+			      sc->pc = 0;
+			      if (o->v[0].fb(o)) break;
+			      sc->pc++;
+			      x1 = o1->v[0].fd(o1);
+			      sc->pc++;
+			      real(val2) = o2->v[0].fd(o2);
+			      real(val1) = x1;
+			    }
 			}
 		      return(op_tc_z(sc, if_true));
 		    }
@@ -83101,12 +83080,12 @@ static bool op_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
 			      integer(val2) = o2->v[0].fi(o2);
 			      integer(val1) = i1;
 			      sc->pc++;
-			      sc->envir = outer_env;             /* can this matter? all slots are preset */
+			      /* sc->envir = outer_env;  */           /* can this matter? all slots are preset */
 			      integer(val3) = o3->v[0].fi(o3);
-			      sc->envir = inner_env;
+			      /* sc->envir = inner_env; */
 			    }
 			  unstack(sc);
-			  return(op_tc_z(sc, if_true));
+			  return(op_tc_z(sc, if_true));  /* sc->inner_env in effect here since it was the last set above */
 			}
 		    }
 		}
@@ -83216,7 +83195,7 @@ static s7_pointer fx_tc_let_unless_laa(s7_scheme *sc, s7_pointer arg)
 
 static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 {
-  s7_pointer outer_env, inner_env, let_var, let_slot, let_body, slots;
+  s7_pointer outer_env, inner_env, let_var, let_slot, let_body, slots, result;
 
   let_var = caadr(code);
   outer_env = sc->envir;
@@ -83228,9 +83207,48 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
   let_body = cdaddr(code);
   slots = let_slots(outer_env);
 
+  if (!tis_slot(slots)) /* no args?? */
+    {
+      while (true)
+	{
+	  s7_pointer p;
+	  for (p = let_body; is_pair(p); p = cdr(p))
+	    {
+	      if (fx_call(sc, car(p)) != sc->F)
+		{
+		  result = cdar(p);
+		  if (has_tc(result))
+		    {
+		      sc->envir = outer_env;
+		      slot_set_value(let_slot, fx_call(sc, let_var));
+		      sc->envir = inner_env;
+		      break;
+		    }
+		  else goto TC_LET_COND_DONE;
+		}}}}
+  if (!tis_slot(next_slot(slots)))
+    {
+      while (true)
+	{
+	  s7_pointer p;
+	  for (p = let_body; is_pair(p); p = cdr(p))
+	    {
+	      if (fx_call(sc, car(p)) != sc->F)
+		{
+		  result = cdar(p);
+		  if (has_tc(result))
+		    {
+		      slot_set_value(slots, fx_call(sc, cdar(result)));
+		      sc->envir = outer_env;
+		      slot_set_value(let_slot, fx_call(sc, let_var));
+		      sc->envir = inner_env;
+		      break;
+		    }
+		  else goto TC_LET_COND_DONE;
+		}}}}
   while (true)
     {
-      s7_pointer p, result;
+      s7_pointer p;
       for (p = let_body; is_pair(p); p = cdr(p))
 	{
 	  if (fx_call(sc, car(p)) != sc->F)
@@ -83252,17 +83270,17 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		  sc->envir = inner_env;
 		  break;
 		}
-	      else
-		{
-		  unstack(sc);
-		  if (has_fx(result))
-		    {
-		      sc->value = fx_call(sc, result);
-		      return(true);
-		    }
-		  sc->code = car(result);
-		  return(false);
-		}}}}
+	      else goto TC_LET_COND_DONE;
+	    }}}
+
+ TC_LET_COND_DONE:
+  unstack(sc);
+  if (has_fx(result))
+    {
+      sc->value = fx_call(sc, result);
+      return(true);
+    }
+  sc->code = car(result);
   return(false);
 }
 
@@ -84030,7 +84048,10 @@ static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc)
 }
 
 /* -------- if_a_a_lopl3a_l3a_l3aq(s7_scheme *sc) -------- 
- *  esteemed reader, please ignore this nonsense!
+ * esteemed reader, please ignore this nonsense!
+ *  The opt_info version was not a lot faster -- ~/old/tak-st.c: say 10% faster. The current fx-based
+ *  version has immediate lookups, and since the data is (ahem) simple, the GC is not a factor.
+ *  The opt version has its own overheads, and has to do the same amount of i-stack manipulations.
  */
 static void opinit_if_a_a_lopl3a_l3a_l3aq(s7_scheme *sc)
 {
@@ -84083,11 +84104,11 @@ static s7_pointer oprec_if_a_a_lopl3a_l3a_l3aq(s7_scheme *sc)
   slot_set_value(sc->rec_slot3, sc->rec_f9f(sc, sc->rec_f9p));
   slot_set_value(sc->rec_slot2, recur_pop(sc));
   slot_set_value(sc->rec_slot1, recur_pop(sc));
-  recur_push(sc, oprec_if_a_a_lopl3a_l3a_l3aq(sc)); /* 7 */
+  recur_push(sc, oprec_if_a_a_lopl3a_l3a_l3aq(sc));
   slot_set_value(sc->rec_slot3, recur_ref(sc, 2));
   slot_set_value(sc->rec_slot2, recur_ref(sc, 3));
   slot_set_value(sc->rec_slot1, recur_ref(sc, 4));
-  recur_push(sc, oprec_if_a_a_lopl3a_l3a_l3aq(sc)); /* 8 */
+  recur_push(sc, oprec_if_a_a_lopl3a_l3a_l3aq(sc));
   slot_set_value(sc->rec_slot3, recur_ref(sc, 6));
   slot_set_value(sc->rec_slot2, recur_ref(sc, 7));
   slot_set_value(sc->rec_slot1, recur_ref(sc, 8));
@@ -94785,7 +94806,7 @@ s7_scheme *s7_init(void)
 
   sc->apply_values_symbol =          unsafe_defun("apply-values", apply_values,         0, 1, false);
   set_immutable(sc->apply_values_symbol);
-  sc->list_values_symbol =           unsafe_defun("list-values", list_values,           0, 0, true);
+  sc->list_values_symbol =           defun("list-values",       list_values,            0, 0, true); /* was unsafe_defun 26-Jul-19 */
   set_immutable(sc->list_values_symbol);
 
   sc->documentation_symbol =         defun("documentation",     documentation,          1, 0, false);
@@ -95696,40 +95717,40 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  161   164
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   233
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   608   622
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   622
  * tshoot        |      |      |      |      |      | 1095 |  834   831
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   876
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   949
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1492
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1725
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2118
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2122
  * tvect         |      |      |      |      |      | 5729 | 2340  2180
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2228  2254 (gc -- permanent_lets?)
- * tread         |      |      |      |      | 2357 | 2336 | 2279  2266
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2255
+ * tread         |      |      |      |      | 2357 | 2336 | 2279  2271
  * tlet          |      |      |      |      | 4717 | 2959 | 2577  2290
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2306  2294
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2401
- * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2674
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2780
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2928  2705 (apply lambda* -- more safe cases now)
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3053  3035 (op_tc_let_cond)
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3068  3129 (gc)
+ * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2666
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2705
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2783
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3008  3001
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3116
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3332
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3123
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3314
  * tset          |      |      |      |      | 10.0 | 6432 | 3463  3470
- * dup           |      |      |      |      | 20.8 | 5711 | 3207  3720  3829
+ * dup           |      |      |      |      | 20.8 | 5711 | 3207  3775
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 10.4  7115
- * thash         |      |      |      |      |      | 10.3 | 8873  8913
+ * thash         |      |      |      |      |      | 10.3 | 8873  8852
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 11.3  11.2
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 16.9  14.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 38.2  35.6
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 72.7  69.5
- * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 108.8  109.7 (gc g_map_closure)
+ * lg            |      |      |      |211.0 |133.0 |112.7 |108.0 109.7
  * tbig          |      |      |      |      |246.9 |230.6 |184.8 182.3
  * ------------------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
- *    grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
+ *   grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
  *
  * gcc/clang have builtin __int128 or __int128_t and __uint128_t, use #if defined(__SIZEOF_INT128__)...#endif
  *   also __float128 -> s7_big_int|double 
@@ -95738,6 +95759,7 @@ int main(int argc, char **argv)
  * in unsafe closure, if no definers, shouldn't fx_tree still be ok?
  *   perhaps add define_safe to body_is_safe, so we can go down a step from recur_safe
  *   then walk tree handling 1-var lets also?
- *
- * for trclo fx_c_sss -> fx_add_tus, 1/2 arg cases without the slot loops [op_tc_let_cond], if_a_z_laa could omit the scc->pc++ (etc)
+ * annotate_tree for optimize_lambda (maybe everywhere?) t148/trclo -- we get here anyway from op_cond_fx_p
+ *   so maybe it is annotated in check_cond, but no subsequent fx_tree? -- all such annotations need fx_tree
+ *   so why not combine the two?
  */

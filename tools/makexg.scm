@@ -154,7 +154,8 @@
 	"GObject*" "GdkKeymap*" "GdkDragContext*" ;"GdkEventMotion*"
 	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" ;"char**"
 
-	"GtkEntry*"
+	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags" "float" 
+	"GdkMemoryFormat"
 	))
 
 (define no-xen-p 
