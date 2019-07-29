@@ -10,6 +10,7 @@ rm libgsl_s7.c
 rm libgsl_s7.so
 rm libgdbm_s7.c
 rm libgdbm_s7.so
+rm ffitest
 
 
 echo ' -------------------------------- without-gui -------------------------------- '
@@ -50,7 +51,7 @@ echo ' '
 echo ' -------------------------------- without-gui sanitized -------------------------------- '
 rm -f snd
 rm -f config.cache
-./configure --quiet CFLAGS="-g3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include -Wbool-compare -Wsign-compare -fsanitize=bounds -fsanitize=address -fsanitize=undefined" --without-gui
+./configure --quiet CFLAGS="-g3 -Wall -I/usr/local/include -fsanitize=bounds -fsanitize=address -fsanitize=undefined" --without-gui
 make
 echo ' '
 echo ' '

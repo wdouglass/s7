@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     {
       fprintf(stderr, "load %s\n", argv[1]);
       if (!s7_load(sc, argv[1]))
-	fprintf(stderr, "can't find %s\n", argv[1]);
+	fprintf(stderr, "can't find %s\n", argv[1]);  /* it could also be a directory */
     }
   else 
     {

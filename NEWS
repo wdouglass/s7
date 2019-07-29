@@ -1,7 +1,10 @@
-Snd 19.5.
+Snd 19.6:
 
-setter function for vector element type or hash-table key/value can be a closure.
+s7: added tools directory (timing tests etc)
+    moved most-positive|negative-fixnum to *s7*
+    s7_load now parallels scheme load; it returns NULL if file not found (or a directory).
+    added s7_call_with_catch.
 
-checked: sbcl 1.5.3
+checked: sbcl 1.5.4|5
 
-Thanks!: Kjetil Matheussen
+Thanks!: Kjetil Matheussen, Woody Douglas
