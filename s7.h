@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.7"
-#define S7_DATE "12-Jul-19"
+#define S7_VERSION "8.8"
+#define S7_DATE "30-Jul-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -863,6 +863,7 @@ void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
  * 
  *        s7 changes
  *
+ * 30-Jul:    define-expansion*.
  * 12-Jul:    s7_call_with_catch, s7_load now returns NULL if file not found (rather than raise an error).
  * 8-July:    most-positive-fixnum and most-negative-fixnum moved to *s7*.
  * 23-May:    added s7_scheme argument to s7_c_object_set_let.

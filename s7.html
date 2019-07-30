@@ -5149,10 +5149,11 @@ that method is invoked.
 <b><em class=def id="expansion">define-expansion</em></b> defines a macro that expands at read-time.
 It has the same syntax as
 define-macro, and (in normal use) the same result, but it is much faster because it expands only once.
-(See define-with-macros in s7test.scm for a way to expand macros in a function body at definition time).
+Similarly, <b>define-expansion*</b> defines a read-time macro*.
+(See also define-with-macros in s7test.scm for a way to expand macros in a function body at definition time).
 Since the reader knows almost nothing
 about the code it is reading, 
-you need to make sure the expansion is defined at the top level and that its name is unique!
+you need to make sure the expansion is defined at the top level and that its name is unique.
 The reader does know about global variables, so:
 </p>
 
@@ -5210,7 +5211,7 @@ You can do something similar with a normal macro, or make the indirection explic
 so if it does not see a list whose first element is a expansion name, it does
 not do anything special.  In the <code>(x a)</code> case above, the
 expansion happens when the code is evaluated, and the expansion result
-is simply returned, unevaluated.
+is simply returned, unevaluated.  
 </p>
 
 <p>You can also use macroexpand to cancel the evaluation of a macro's expansion:
@@ -7608,7 +7609,7 @@ int main(int argc, char **argv)
 
   s7_define_function(s7, "notify-C", scheme_set_notification, 2, 0, false, "called if notified-var is set!");
   s7_define_variable(s7, "notified-var", s7_make_integer(s7, 0));
-  <em class=red>s7_symbol_set_setter</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
+  <em class=red>s7_set_setter</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
 
   if (argc == 2)
     {

@@ -407,6 +407,20 @@ static s7_pointer int_list(s7_scheme *sc, s7_int len)
   return(s7_reverse(sc, s7_car(result)));
 }
 
+static const char *pretty_print(s7_scheme *sc, s7_pointer obj) /* (pretty-print obj) */
+{
+  return(s7_string(
+          s7_eval_c_string_with_environment(sc,
+            "(catch #t                                \
+               (lambda ()                             \
+                 (unless (defined? 'pp)		      \
+                   (load \"/home/bil/cl/write.scm\")) \
+                 (pp obj))			      \
+               (lambda (type info)		      \
+                 (apply format #f info)))",
+	   s7_inlet(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
+}
+
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
@@ -1392,6 +1406,9 @@ int main(int argc, char **argv)
 	  if (s7_symbol_local_value(sc, s7_make_symbol(sc, "loaded_var"), e) == s7_undefined(sc))
 	    {fprintf(stderr, "%d: load ~/ffitest.scm unhappy? %s\n", __LINE__, s1 = TO_STR(e)); free(s1);}
 	}
+      val = s7_load(sc, "/home/bil/snd-motif/");
+      if (val)
+	fprintf(stderr, "s7_load(directory) did not fail?\n");
       s7_gc_unprotect_at(sc, gc_loc);
     }
 
@@ -1808,6 +1825,17 @@ int main(int argc, char **argv)
     result = s7_call_with_catch(sc, s7_t(sc), body, err);
     if (result != s7_make_symbol(sc, "oops"))
       {fprintf(stderr, "catch (oops): %s\n", s1 = TO_STR(result)); free(s1);}
+  }
+
+  {
+    const char *str;
+    s7_pointer obj;
+    obj = s7_eval_c_string(sc, "'(* 3 (+ 1 2))");
+    gc_loc = s7_gc_protect(sc, obj);
+    str = pretty_print(sc, obj);
+    s7_gc_unprotect_at(sc, gc_loc);
+    if ((!str) || (strcmp(str, "(* 3 (+ 1 2))") != 0))
+      fprintf(stderr, "pretty_print: \"%s\"\n", str);
   }
 #if 0
   {

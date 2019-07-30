@@ -3,7 +3,7 @@ Snd 19.6:
 s7: added tools directory (timing tests etc)
     moved most-positive|negative-fixnum to *s7*
     s7_load now parallels scheme load; it returns NULL if file not found (or a directory).
-    added s7_call_with_catch.
+    added s7_call_with_catch and define-expansion*.
 
 checked: sbcl 1.5.4|5
 

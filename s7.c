@@ -1284,7 +1284,7 @@ struct s7_scheme {
 
   /* syntax symbols et al */
   s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, unquote_symbol, macroexpand_symbol,
-             define_expansion_symbol, baffle_symbol, with_let_symbol, if_symbol, autoload_error_symbol,
+             define_expansion_symbol, define_expansion_star_symbol, baffle_symbol, with_let_symbol, if_symbol, autoload_error_symbol,
              when_symbol, unless_symbol, begin_symbol, cond_symbol, case_symbol, and_symbol, or_symbol, do_symbol,
              define_symbol, define_star_symbol, define_constant_symbol, with_baffle_symbol, define_macro_symbol,
              define_macro_star_symbol, define_bacro_symbol, define_bacro_star_symbol, letrec_symbol, letrec_star_symbol, let_star_symbol,
@@ -3200,6 +3200,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 /* #define is_bacro(p)                 (type(p) == T_BACRO) */
 #define is_macro_star(p)               (type(p) == T_MACRO_STAR)
 #define is_bacro_star(p)               (type(p) == T_BACRO_STAR)
+#define is_either_macro(p)             ((is_macro(p)) || (is_macro_star(p)))
 
 #define is_closure(p)                  (type(p) == T_CLOSURE)
 #define is_closure_star(p)             (type(p) == T_CLOSURE_STAR)
@@ -3955,7 +3956,7 @@ enum {OP_UNOPT, OP_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       OP_LET_TEMP_S7, OP_LET_TEMP_FX, OP_LET_TEMP_UNWIND, OP_LET_TEMP_S7_UNWIND,
       OP_COND, OP_COND1, OP_FEED_TO_1, OP_COND_SIMPLE, OP_COND1_SIMPLE, OP_COND_SIMPLE_P, OP_COND1_SIMPLE_P,
       OP_AND, OP_OR, 
-      OP_DEFINE_MACRO, OP_DEFINE_MACRO_STAR, OP_DEFINE_EXPANSION,
+      OP_DEFINE_MACRO, OP_DEFINE_MACRO_STAR, OP_DEFINE_EXPANSION, OP_DEFINE_EXPANSION_STAR,
       OP_CASE,
       OP_READ_LIST, OP_READ_NEXT, OP_READ_DOT, OP_READ_QUOTE,
       OP_READ_QUASIQUOTE, OP_READ_UNQUOTE, OP_READ_APPLY_VALUES,
@@ -4193,7 +4194,7 @@ static const char* op_names[NUM_OPS] =
       "let_temp_s7", "let_temp_fx", "let_temp_unwind", "let_temp_s7_unwind",
       "cond", "cond1", "feed_to_1", "cond_simple", "cond1_simple", "cond_simple_p", "cond1_simple_p",
       "and", "or",
-      "define_macro", "define_macro*", "define_expansion",
+      "define_macro", "define_macro*", "define_expansion", "define_expansion*",
       "case", "read_list", "read_next", "read_dot", "read_quote",
       "read_quasiquote", "read_unquote", "read_apply_values",
       "read_vector", "read_byte_vector", "read_int_vector", "read_float_vector", "read_done",
@@ -9227,10 +9228,14 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 		typ = T_BACRO_STAR | T_DONT_EVAL_ARGS | T_COPY_ARGS;
 	      else
 		{
-		  if ((op == OP_DEFINE_EXPANSION) &&
-		      (!is_let(sc->envir)))        /* local expansions are just normal macros */
+		  if ((op == OP_DEFINE_EXPANSION) && (!is_let(sc->envir)))  /* local expansions are just normal macros */
 		    typ = T_MACRO | T_EXPANSION | T_DONT_EVAL_ARGS | T_COPY_ARGS;
-		  else typ = T_MACRO | T_DONT_EVAL_ARGS | T_COPY_ARGS;
+		  else
+		    {
+		      if ((op == OP_DEFINE_EXPANSION_STAR) && (!is_let(sc->envir)))
+			typ = T_MACRO_STAR | T_EXPANSION | T_DONT_EVAL_ARGS | T_COPY_ARGS;
+		      else typ = T_MACRO | T_DONT_EVAL_ARGS | T_COPY_ARGS;
+		    }
 		}
 	    }
 	}
@@ -9246,7 +9251,7 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 
   sc->capture_let_counter++;
   sc->code = caar(sc->code);
-  if ((op == OP_DEFINE_EXPANSION) &&
+  if (((op == OP_DEFINE_EXPANSION) || (op == OP_DEFINE_EXPANSION_STAR)) &&
       (!is_let(sc->envir)))
     set_type(sc->code, T_EXPANSION | T_SYMBOL | (typeflag(sc->code) & T_UNHEAP)); /* see comment under READ_TOK */
   /* symbol? macro name has already been checked, find name in environment, and define it */
@@ -29474,7 +29479,7 @@ static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
   arglist = closure_args(obj);
 
   port_write_string(port)(sc, "(define-", 8, port);
-  port_write_string(port)(sc, ((is_macro(obj)) || (is_macro_star(obj))) ? "macro" : "bacro", 5, port);
+  port_write_string(port)(sc, (is_either_macro(obj)) ? "macro" : "bacro", 5, port);
   if ((is_macro_star(obj)) || (is_bacro_star(obj)))
     port_write_character(port)(sc, '*', port);
   port_write_string(port)(sc, " (_m_", 5, port);
@@ -29633,7 +29638,9 @@ static void write_closure_name(s7_scheme *sc, s7_pointer closure, s7_pointer por
       break;
 
     case T_MACRO_STAR:
-      port_write_string(port)(sc, "#<macro* ", 9, port);
+      if (is_expansion(closure))
+	port_write_string(port)(sc, "#<expansion* ", 13, port);
+      else port_write_string(port)(sc, "#<macro* ", 9, port);
       break;
 
     case T_BACRO:
@@ -29904,7 +29911,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   /* bit 5 */
 	   ((full_typ & T_DONT_EVAL_ARGS) != 0) ? " dont-eval-args" : "",
 	   /* bit 6 */
-	   ((full_typ & T_EXPANSION) != 0) ?      (((is_symbol(obj)) || (is_macro(obj))) ? " expansion" :
+	   ((full_typ & T_EXPANSION) != 0) ?      (((is_symbol(obj)) || (is_either_macro(obj))) ? " expansion" :
 						   " ?6?") : "",
 	   /* bit 7 */
 	   ((full_typ & T_MULTIPLE_VALUE) != 0) ? ((is_symbol(obj)) ? " matched" :
@@ -30044,7 +30051,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_SIMPLE_ARG_DEFAULTS) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_OPTIMIZED) != 0) && (!is_c_function(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_SAFE_CLOSURE) != 0) && (!is_any_closure(obj)) && (!is_pair(obj))) return(true);
-  if (((full_typ & T_EXPANSION) != 0) && (!is_symbol(obj)) && (!is_macro(obj))) return(true);
+  if (((full_typ & T_EXPANSION) != 0) && (!is_symbol(obj)) && (!is_either_macro(obj))) return(true);
   if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
@@ -51454,6 +51461,7 @@ static s7_pointer fx_not_oputq(s7_scheme *sc, s7_pointer arg)
   return(sc->F);
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_not_lt_ut(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
@@ -51465,6 +51473,7 @@ static s7_pointer fx_not_lt_ut(s7_scheme *sc, s7_pointer arg)
     return(make_boolean(sc, integer(y) >= integer(x)));
   return(make_boolean(sc, geq_b_7pp(sc, y, x)));
 }
+#endif
 
 static s7_pointer fx_c_opscq(s7_scheme *sc, s7_pointer arg)
 {
@@ -53460,11 +53469,13 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if ((is_pair(cdadr(p))) && (cadadr(p) == var2))
 	    {
 	      if (c_callee(tree) == fx_not_is_null_s) {set_c_call(tree, fx_not_is_null_u); return(true);}
+#if (!WITH_GMP)
 	      if ((c_callee(tree) == fx_not_opssq) && (caddr(cadr(p)) == var1)) 
 		{
 		  if (c_callee(cadr(p)) == g_less_2) set_c_call(tree, fx_not_lt_ut); else set_c_call(tree, fx_not_oputq);
 		  return(true);
 		}
+#endif
 	      if ((c_callee(tree) == fx_c_opsq_s) && (caddr(p) == var1)) {set_c_call(tree, fx_c_opuq_t); return(true);}
 	      if (c_callee(tree) == fx_c_car_s) {set_c_call(tree, fx_c_car_u); return(true);}
 	    }
@@ -67512,13 +67523,13 @@ static opt_t optimize_c_function_one_arg(s7_scheme *sc, s7_pointer expr, s7_poin
 }
 
 #if S7_DEBUGGING && (0)
-static const char *pp(s7_scheme *sc, s7_pointer obj) /* (pp obj) */
+static const char *pretty_print(s7_scheme *sc, s7_pointer obj) /* (pretty-print obj) */
 {
   return(s7_string(
           s7_eval_c_string_with_environment(sc,
             "(catch #t                                \
                (lambda ()                             \
-                 (unless (defined? 'pp)               \
+                 (unless (defined? 'pp)		      \
                    (load \"/home/bil/cl/write.scm\")) \
                  (pp obj))			      \
                (lambda (type info)		      \
@@ -70275,7 +70286,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
     case OP_DEFINE_MACRO:    case OP_DEFINE_MACRO_STAR:
     case OP_DEFINE_BACRO:    case OP_DEFINE_BACRO_STAR:
-    case OP_DEFINE_CONSTANT: case OP_DEFINE_EXPANSION:
+    case OP_DEFINE_CONSTANT: case OP_DEFINE_EXPANSION: case OP_DEFINE_EXPANSION_STAR:
     case OP_DEFINE:          case OP_DEFINE_STAR:
       /* define adds a name to the incoming env (e), the added name is inserted into e after the first, so the caller
        *   can flush added symbols by maintaining its own pointer into the list if blockers set the car.
@@ -74578,11 +74589,12 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
   caller = sc->define_macro_symbol;
   switch (op)
     {
-    case OP_DEFINE_MACRO:      caller = sc->define_macro_symbol;      break;
-    case OP_DEFINE_MACRO_STAR: caller = sc->define_macro_star_symbol; break;
-    case OP_DEFINE_BACRO:      caller = sc->define_bacro_symbol;      break;
-    case OP_DEFINE_BACRO_STAR: caller = sc->define_bacro_star_symbol; break;
-    case OP_DEFINE_EXPANSION:  caller = sc->define_expansion_symbol;  break;
+    case OP_DEFINE_MACRO:          caller = sc->define_macro_symbol;      break;
+    case OP_DEFINE_MACRO_STAR:     caller = sc->define_macro_star_symbol; break;
+    case OP_DEFINE_BACRO:          caller = sc->define_bacro_symbol;      break;
+    case OP_DEFINE_BACRO_STAR:     caller = sc->define_bacro_star_symbol; break;
+    case OP_DEFINE_EXPANSION:      caller = sc->define_expansion_symbol;  break;
+    case OP_DEFINE_EXPANSION_STAR: caller = sc->define_expansion_star_symbol;  break;
     }
 
   if (!is_pair(sc->code))                                               /* (define-macro . 1) */
@@ -74617,7 +74629,7 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
       return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
 		      set_elist_3(sc, wrap_string(sc, "define-macro ~A parameter name is not a symbol: ~S", 49), x, y)));
 
-  if ((op == OP_DEFINE_MACRO_STAR) || (op == OP_DEFINE_BACRO_STAR))
+  if ((op == OP_DEFINE_MACRO_STAR) || (op == OP_DEFINE_BACRO_STAR) || (op == OP_DEFINE_EXPANSION_STAR))
     set_cdar(sc->code, check_lambda_star_args(sc, cdar(sc->code), NULL));
   else check_lambda_args(sc, cdar(sc->code), NULL);
 
@@ -74711,7 +74723,7 @@ static goto_t op_expansion(s7_scheme *sc)
    *   and in CL-style, you'd now have the body (+ ,arg 1) or maybe even 2, now call f with a function,
    *   or some other macro -- oops!
    */
-
+  
   loc = s7_stack_top(sc) - 1;
   if (is_pair(stack_args(sc->stack, loc)))
     caller = car(stack_args(sc->stack, loc)); /* this can be garbage */
@@ -74719,9 +74731,10 @@ static goto_t op_expansion(s7_scheme *sc)
   if ((loc >= 3) &&
       (stack_op(sc->stack, loc) != OP_READ_QUOTE) &&             /* '(hi 1) for example */
       (stack_op(sc->stack, loc) != OP_READ_VECTOR) &&            /* #(reader-cond) for example */
-      (caller != sc->quote_symbol) &&          /* (quote (hi 1)) */
-      (caller != sc->macroexpand_symbol) &&    /* (macroexpand (hi 1)) */
-      (caller != sc->define_expansion_symbol)) /* (define-expansion ...) being reloaded/redefined */
+      (caller != sc->quote_symbol) &&               /* (quote (hi 1)) */
+      (caller != sc->macroexpand_symbol) &&         /* (macroexpand (hi 1)) */
+      (caller != sc->define_expansion_symbol) &&    /* (define-expansion ...) being reloaded/redefined */
+      (caller != sc->define_expansion_star_symbol)) /* (define-expansion* ...) being reloaded/redefined */
     {
       s7_pointer symbol, slot;
       /* we're playing fast and loose with sc->envir in the reader, so here we need a disaster check */
@@ -74740,8 +74753,7 @@ static goto_t op_expansion(s7_scheme *sc)
       if (is_slot(slot))
 	sc->code = slot_value(slot);
       else sc->code = sc->undefined;
-
-      if ((!is_macro(sc->code)) || (!is_expansion(sc->code)))
+      if ((!is_either_macro(sc->code)) || (!is_expansion(sc->code)))
 	clear_expansion(symbol);
       else
 	{
@@ -74765,13 +74777,6 @@ static bool op_macroexpand(s7_scheme *sc)
   if (!is_null(cdr(sc->code)))
     eval_error(sc, "macroexpand: too many arguments: ~A", 35, sc->code);
   
-#if 0
-  if ((is_pair(cdar(sc->code))) &&
-      (is_pair(cadar(sc->code))) &&                      /* arg list if defining new macro, so it can be dotted */
-      (!s7_is_proper_list(sc, cadar(sc->code))))
-    /* eval_error(sc, "macroexpand: improper arg list: ~A", 34, sc->code); */
-    fprintf(stderr, "improper arg list: %s\n", DISPLAY(sc->code)); /* is a circular list possible here? */
-#endif  
   if (is_pair(caar(sc->code)))                            /* (macroexpand ((symbol->value 'mac) (+ 1 2))) */
     {
       push_stack_no_args(sc, OP_MACROEXPAND_1, sc->code);
@@ -88238,6 +88243,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DEFINE_BACRO:
 	case OP_DEFINE_BACRO_STAR:
 	case OP_DEFINE_EXPANSION:
+	case OP_DEFINE_EXPANSION_STAR:
 	case OP_DEFINE_MACRO:
 	case OP_DEFINE_MACRO_STAR:
 	  if (op_define_macro(sc)) goto START;
@@ -88694,7 +88700,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		{
 		  push_stack_no_code(sc, OP_EXPANSION, sc->nil);
 		  new_frame(sc, closure_let(sc->code), sc->envir);
-		  goto APPLY_LAMBDA;
+		  if (is_macro(sc->value)) goto APPLY_LAMBDA;         /* define-expansion* */
+		  if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;  /* define-expansion* */
+		  goto BEGIN;
+		  /* bacros don't seem to make sense here -- they are tied to the run-time environment,
+		   *   procedures would need to evaluate their arguments in rootlet
+		   */
 		}
 	      break;
 
@@ -94289,6 +94300,7 @@ s7_scheme *s7_init(void)
   #define H_define_macro      "(define-macro (mac args) ...) defines mac to be a macro."
   #define H_define_macro_star "(define-macro* (mac args) ...) defines mac to be a macro with optional/keyword arguments."
   #define H_define_expansion  "(define-expansion (mac args) ...) defines mac to be a read-time macro."
+  #define H_define_expansion_star "(define-expansion* (mac args) ...) defines mac to be a read-time macro*."
   #define H_define_bacro      "(define-bacro (mac args) ...) defines mac to be a bacro."
   #define H_define_bacro_star "(define-bacro* (mac args) ...) defines mac to be a bacro with optional/keyword arguments."
   #define H_with_baffle       "(with-baffle ...) evaluates its body in a context that is safe from outside interference."
@@ -94314,6 +94326,7 @@ s7_scheme *s7_init(void)
   sc->define_macro_symbol =      definer_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      small_int(2), max_arity,    H_define_macro);
   sc->define_macro_star_symbol = definer_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, small_int(2), max_arity,    H_define_macro_star);
   sc->define_expansion_symbol =  definer_syntax(sc, "define-expansion",OP_DEFINE_EXPANSION,  small_int(2), max_arity,    H_define_expansion);
+  sc->define_expansion_star_symbol = definer_syntax(sc, "define-expansion*",OP_DEFINE_EXPANSION_STAR, small_int(2), max_arity, H_define_expansion_star);
   sc->define_bacro_symbol =      definer_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      small_int(2), max_arity,    H_define_bacro);
   sc->define_bacro_star_symbol = definer_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, small_int(2), max_arity,    H_define_bacro_star);
   sc->let_symbol =               binder_syntax(sc, "let",              OP_LET,               small_int(2), max_arity,    H_let);
@@ -95708,7 +95721,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 838)
+  if (NUM_OPS != 839)
     fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40 */
 #endif
@@ -95792,10 +95805,10 @@ int main(int argc, char **argv)
  * tmac          |      |      |      | 9052 |  264 |  236 |  236   233
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  610   622
  * tshoot        |      |      |      |      |      | 1095 |  834   831
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   876
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  977   875
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  954   949
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1530  1492
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1725
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1702
  * tvect         |      |      |      |      |      | 5729 | 2340  2033
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2096  2121
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2249  2255
@@ -95805,8 +95818,8 @@ int main(int argc, char **argv)
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2467  2401
  * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 |       2664
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2930  2705
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2786
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3001
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2835  2783
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3932  3011
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3504  3022
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3069  3123
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3315  3314
@@ -95832,4 +95845,14 @@ int main(int argc, char **argv)
  * in unsafe closure, if no definers, shouldn't fx_tree still be ok?
  *   perhaps add define_safe to body_is_safe, so we can go down a step from recur_safe
  *   then walk tree handling 1-var lets also?
+ *
+ * fx_c_Wt -> vector_ref_2 -> vector_ref_p_pp, so fx_c_Wt_direct would be good in dup [see fx_c_opstq_direct?]
+ *   fx_c_ssa -> vector_ref_3(etc) (tbig)
+ *   op_safe_c_sc -> g_display_2 tclo
+ *   fx_c_optq -> g_iterate+g_type_of (iter)
+ *   fx_c_u -> g_is_positive (rclo) -- is_positive_b_7p? (if not gmp)
+ *   fx_c_sc -> direct cases (b)
+ * fx_tree v check (and residual tuTUVW)
+ * similarly lookup, maybe "v" arg in fx_tree
+ *   is there any way to do op_safe_t or op_safe_tu? op_set_symbol_t? if_css(tu)
  */
