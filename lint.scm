@@ -10253,7 +10253,8 @@
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults history-enabled
 					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error 
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
-					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length))
+					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length
+					most-positive-fixnum most-negative-fixnum))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)

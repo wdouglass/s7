@@ -176,10 +176,10 @@
 (set! current-surfaces 4)
 
 (define (fbench iteration-count)
-  (let ((od-sa '()))
+  (let ((od-sa ()))
     (do ((iteration 0 (+ iteration 1)))
 	((> iteration iteration-count))
-      (set! od-sa '())
+      (set! od-sa ())
       (do ((jp 0 (+ jp 1)))
 	  ((> jp 1))
 	;;  Do main trace in D light
@@ -228,9 +228,9 @@
 	  (if (not (equal? (car expected) (car received)))
 	      (begin
 		(set! errors (+ errors 1))
-		(format #t "Error in results in line ~D...~%" line)
-		(format #t "Expected: ~A~%" (car expected))
-		(format #t "Received: ~A~%" (car received)))))))))
+		(format () "Error in results in line ~D...~%" line)
+		(format () "Expected: ~A~%" (car expected))
+		(format () "Received: ~A~%" (car received)))))))))
 
 
 (fbench 50000)
