@@ -232,6 +232,14 @@ where
 
 TROUBLES:
 
+---- wayland ----
+
+Currently in wayland you need to run snd:
+
+GDK_BACKEND=x11 snd
+
+Thanks to Kenneth Flak for this tip!
+
 
 ---- audio (a can of worms) ----
 

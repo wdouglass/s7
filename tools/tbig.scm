@@ -27,6 +27,7 @@
 (define fft-size (ash 1 17))
 (define little-size 1000000)
 
+
 ;; --------------------------------------------------------------------------------
 (format () "complex fft...~%")
 
@@ -208,7 +209,7 @@
   (clear-and-gc)
   (let ((bigstr (make-string big-size)))
     (define (big-string-filler)
-      (fill! bigstr #\null 0 big-size))
+      ;(fill! bigstr #\null 0 big-size))
       (do ((i 0 (+ i 1)))
 	  ((= i big-size))
 	(string-set! bigstr i #\null)))
