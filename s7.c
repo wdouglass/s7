@@ -2645,7 +2645,7 @@ static void init_types(void)
 #define opt2_role_matches(p, Role)     (((p)->debugger_bits & F_MASK) == Role)
 #define set_opt2_role(p, Role)         (p)->debugger_bits = (Role | ((p)->debugger_bits & ~F_MASK))
 #define opt2(p, Role)                  opt2_1(sc, T_Pair(p), Role, __func__, __LINE__)
-#define set_opt2(p, x, Role)           set_opt2_1(sc, T_Pair(p), (s7_pointer)(x), Role, __func__, __LINE__)
+#define set_opt2(p, x, Role)           set_opt2_1(cur_sc, T_Pair(p), (s7_pointer)(x), Role, __func__, __LINE__)
 
 #define G_SET                          (1 << 2)
 #define G_ARGLEN                       (1 << 3)  /* arglist length */
@@ -2749,7 +2749,7 @@ static void init_types(void)
 #define c_call(f)                      ((s7_function)opt2(f, F_CALL))
 #define set_c_call_checked(f, _X_)     do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #if S7_DEBUGGING
-  #define set_c_call(f, _X_)           do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null: %s\n", __func__, __LINE__, DISPLAY(f)); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+  #define set_c_call(f, _X_)           do {s7_pointer X; X = (s7_pointer)(_X_); if (!(X)) fprintf(stderr, "%s[%d] x_call null\n", __func__, __LINE__); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #else
   #define set_c_call(f, X)             do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
 #endif
@@ -53637,6 +53637,16 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
   return(fx_c);
 }
 
+#if 0
+#include "fx_tree.h"
+#endif
+
+static bool with_c_call(s7_pointer p, s7_function f)
+{
+  set_c_call(p, f);
+  return(true);
+}
+
 static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_pointer v2, s7_pointer v3, s7_pointer v4)
 {
   s7_pointer p;
@@ -53650,8 +53660,7 @@ static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_point
 	    {
 	      set_direct_opt(p);
 	      set_opt2_direct(cdr(p), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(p))))));
-	      set_c_call(tree, fx_c_Wt_direct); 
-	      return(true);
+	      return(with_c_call(tree, fx_c_Wt_direct));
 	    }
 	}
     }
@@ -53661,13 +53670,14 @@ static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_point
 static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2)
 {
   s7_pointer p;
+  /* fprintf(stderr, "%s[%d] %s %s %d %s: %s\n", __func__, __LINE__, DISPLAY(var1), (var2) ? DISPLAY(var2) : "", has_fx(tree), fx_name(sc, tree),  DISPLAY(tree)); */
   p = car(tree);
   if (is_symbol(p))
     {
       if (c_callee(tree) == fx_s) 
 	{
-	  if (p == var1) {set_c_call(tree, fx_T); return(true);}
-	  if (p == var2) {set_c_call(tree, fx_U); return(true);}
+	  if (p == var1) return(with_c_call(tree, fx_T));
+	  if (p == var2) return(with_c_call(tree, fx_U));
 	}
       return(false);
     }
@@ -53675,31 +53685,31 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
     {
       if (cadr(p) == var1)
 	{
-	  if (c_callee(tree) == fx_c_s) {set_c_call(tree, fx_c_T); return(true);}
-	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_T1); return(true);}
-	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_T1); return(true);}
-	  if (c_callee(tree) == fx_c_sca) {set_c_call(tree, fx_c_Tca); return(true);}
+	  if (c_callee(tree) == fx_c_s) return(with_c_call(tree, fx_c_T));
+	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_T1));
+	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_T1));
+	  if (c_callee(tree) == fx_c_sca) return(with_c_call(tree, fx_c_Tca));
 	}
       if (cadr(p) == var2)
 	{
-	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_U1); return(true);}
-	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_U1); return(true);}
+	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_U1));
+	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_U1));
 	}
       if (is_pair(cddr(p)))
 	{
-	  if (caddr(p) == var2)
-	    {
-	      if (c_callee(tree) == fx_c_ts) {set_c_call(tree, fx_c_tU); return(true);}
-#if (!WITH_GMP)
-	      if (c_callee(tree) == fx_lt_ts) {set_c_call(tree, fx_lt_tU); return(true);}
-#endif
-	      if (c_callee(tree) == fx_cons_ts) {set_c_call(tree, fx_cons_tU); return(true);}
-	    }
 	  if (caddr(p) == var1)
 	    {
 #if (!WITH_GMP)
-	      if (c_callee(tree) == fx_num_eq_ts) {set_c_call(tree, fx_num_eq_tT); return(true);}
+	      if (c_callee(tree) == fx_num_eq_ts) return(with_c_call(tree, fx_num_eq_tT));
 #endif
+	    }
+	  if (caddr(p) == var2)
+	    {
+	      if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
+#if (!WITH_GMP)
+	      if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
+#endif
+	      if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
 	    }
 	}
     }
@@ -53707,10 +53717,6 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 }
 
 static s7_b_7p_t s7_b_7p_function(s7_pointer f);
-
-#if 0
-#include "fx_tree.h"
-#endif
 
 static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2) /* var2 can be NULL */
 {
@@ -53732,8 +53738,8 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
     {
       if (c_callee(tree) == fx_s) 
 	{
-	  if (p == var1) {set_c_call(tree, fx_t); return(true);}
-	  if (p == var2) {set_c_call(tree, fx_u); return(true);}
+	  if (p == var1) return(with_c_call(tree, fx_t));
+	  if (p == var2) return(with_c_call(tree, fx_u));
 	}
       return(false);
     }
@@ -53746,27 +53752,27 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
     {
       if (cadr(p) == var1)
 	{
-	  if (c_callee(tree) == fx_c_s) {set_c_call(tree, fx_c_t); return(true);}
-	  if (c_callee(tree) == fx_o_p_p_s) {set_c_call(tree, fx_o_p_p_t); return(true);}
-	  if (c_callee(tree) == fx_c_ss) {set_c_call(tree, fx_c_ts); return(true);}
-	  if (c_callee(tree) == fx_c_scs) {set_c_call(tree, fx_c_tcs); return(true);}
+	  if (c_callee(tree) == fx_c_s) return(with_c_call(tree, fx_c_t));
+	  if (c_callee(tree) == fx_o_p_p_s) return(with_c_call(tree, fx_o_p_p_t));
+	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_ts));
+	  if (c_callee(tree) == fx_c_scs) return(with_c_call(tree, fx_c_tcs));
 	  
 #if (!WITH_GMP)
-	  if (c_callee(tree) == fx_subtract_sf) {set_c_call(tree, fx_subtract_tf); return(true);}
-	  if ((c_callee(tree) == fx_multiply_ss) && (is_pair(cddr(p))) && (caddr(p) == var2)) {set_c_call(tree, fx_multiply_tu); return(true);}
-	  if (c_callee(tree) == fx_add_sf) {set_c_call(tree, fx_add_tf); return(true);}
+	  if (c_callee(tree) == fx_subtract_sf) return(with_c_call(tree, fx_subtract_tf));
+	  if ((c_callee(tree) == fx_multiply_ss) && (is_pair(cddr(p))) && (caddr(p) == var2)) return(with_c_call(tree, fx_multiply_tu));
+	  if (c_callee(tree) == fx_add_sf) return(with_c_call(tree, fx_add_tf));
 #endif
 	  if (c_callee(tree) == fx_c_sc) 
 	    {
 	      set_c_call(tree, fx_c_tc);
 #if (!WITH_GMP)
-	      if (c_callee(p) == g_less_xf) {set_c_call(tree, fx_lt_tf); return(true);}
-	      if ((c_callee(p) == g_less_xi) || (c_callee(p) == g_less_x0)) {set_c_call(tree, fx_lt_ti); return(true);}
-	      if (c_callee(p) == g_geq_xf) {set_c_call(tree, fx_geq_tf); return(true);}
-	      if (c_callee(p) == g_geq_xi) {set_c_call(tree, fx_geq_ti); return(true);}
-	      if (c_callee(p) == g_leq_xi) {set_c_call(tree, fx_leq_ti); return(true);}
-	      if (c_callee(p) == g_greater_xi) {set_c_call(tree, fx_gt_ti); return(true);}
-	      if (c_callee(p) == g_char_equal_2) {set_c_call(tree, fx_char_equal_tc); return(true);}
+	      if (c_callee(p) == g_less_xf) return(with_c_call(tree, fx_lt_tf));
+	      if ((c_callee(p) == g_less_xi) || (c_callee(p) == g_less_x0)) return(with_c_call(tree, fx_lt_ti));
+	      if (c_callee(p) == g_geq_xf) return(with_c_call(tree, fx_geq_tf));
+	      if (c_callee(p) == g_geq_xi) return(with_c_call(tree, fx_geq_ti));
+	      if (c_callee(p) == g_leq_xi) return(with_c_call(tree, fx_leq_ti));
+	      if (c_callee(p) == g_greater_xi) return(with_c_call(tree, fx_gt_ti));
+	      if (c_callee(p) == g_char_equal_2) return(with_c_call(tree, fx_char_equal_tc));
 	      if ((is_global(car(p))) && (s7_p_pp_function(slot_value(global_slot(car(p))))))
 		{
 		  set_direct_opt(p);
@@ -53777,55 +53783,54 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	      return(true);
 	    }
 
-	  if (c_callee(tree) == fx_car_s) {set_c_call(tree, fx_car_t); return(true);}
-	  if (c_callee(tree) == fx_cdr_s) {set_c_call(tree, fx_cdr_t); return(true);}
-	  if (c_callee(tree) == fx_cadr_s) {set_c_call(tree, fx_cadr_t); return(true);}
-	  if (c_callee(tree) == fx_not_s) {set_c_call(tree, fx_not_t); return(true);}
-	  if (c_callee(tree) == fx_is_null_s) {set_c_call(tree, fx_is_null_t); return(true);}
-	  if (c_callee(tree) == fx_is_pair_s) {set_c_call(tree, fx_is_pair_t); return(true);}
-	  if (c_callee(tree) == fx_is_symbol_s) {set_c_call(tree, fx_is_symbol_t); return(true);}
-	  if (c_callee(tree) == fx_is_string_s) {set_c_call(tree, fx_is_string_t); return(true);}
-	  if (c_callee(tree) == fx_is_vector_s) {set_c_call(tree, fx_is_vector_t); return(true);}
-	  if (c_callee(tree) == fx_is_type_s) {set_c_call(tree, fx_is_type_t); return(true);}
-	  if (c_callee(tree) == fx_is_eq_ss) {set_c_call(tree, (caddr(p) == var2) ? fx_is_eq_tu : fx_is_eq_ts); return(true);}
-	  if (c_callee(tree) == fx_is_eq_sc) {set_c_call(tree, fx_is_eq_tc); return(true);}
-	  if (c_callee(tree) == fx_add_ss) {set_c_call(tree, (caddr(p) == var2) ? fx_add_tu : fx_add_ts); return(true);}
-	  if (c_callee(tree) == fx_add_si) {set_c_call(tree, fx_add_ti); return(true);}
-	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_t1); return(true);}
-	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_t1); return(true);}
-	  if (c_callee(tree) == fx_subtract_si) {set_c_call(tree, fx_subtract_ti); return(true);}
-	  if (c_callee(tree) == fx_closure_s_a) {set_c_call(tree, fx_closure_t_a); return(true);}
-	  if (c_callee(tree) == fx_closure_s_d) {set_c_call(tree, fx_closure_t_d); return(true);}
-	  if (c_callee(tree) == fx_length_s) {set_c_call(tree, fx_length_t); return(true);}
-	  if ((c_callee(tree) == fx_c_s_opsq_direct) && (cadr(caddr(p)) == var2)) {set_c_call(tree, fx_c_t_opuq_direct); return(true);}
+	  if (c_callee(tree) == fx_car_s) return(with_c_call(tree, fx_car_t));
+	  if (c_callee(tree) == fx_cdr_s) return(with_c_call(tree, fx_cdr_t));
+	  if (c_callee(tree) == fx_cadr_s) return(with_c_call(tree, fx_cadr_t));
+	  if (c_callee(tree) == fx_not_s) return(with_c_call(tree, fx_not_t));
+	  if (c_callee(tree) == fx_is_null_s) return(with_c_call(tree, fx_is_null_t));
+	  if (c_callee(tree) == fx_is_pair_s) return(with_c_call(tree, fx_is_pair_t));
+	  if (c_callee(tree) == fx_is_symbol_s) return(with_c_call(tree, fx_is_symbol_t));
+	  if (c_callee(tree) == fx_is_string_s) return(with_c_call(tree, fx_is_string_t));
+	  if (c_callee(tree) == fx_is_vector_s) return(with_c_call(tree, fx_is_vector_t));
+	  if (c_callee(tree) == fx_is_type_s) return(with_c_call(tree, fx_is_type_t));
+	  if (c_callee(tree) == fx_is_eq_ss) return(with_c_call(tree, (caddr(p) == var2) ? fx_is_eq_tu : fx_is_eq_ts));
+	  if (c_callee(tree) == fx_is_eq_sc) return(with_c_call(tree, fx_is_eq_tc));
+	  if (c_callee(tree) == fx_add_ss) return(with_c_call(tree, (caddr(p) == var2) ? fx_add_tu : fx_add_ts));
+	  if (c_callee(tree) == fx_add_si) return(with_c_call(tree, fx_add_ti));
+	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_t1));
+	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_t1));
+	  if (c_callee(tree) == fx_subtract_si) return(with_c_call(tree, fx_subtract_ti));
+	  if (c_callee(tree) == fx_closure_s_a) return(with_c_call(tree, fx_closure_t_a));
+	  if (c_callee(tree) == fx_closure_s_d) return(with_c_call(tree, fx_closure_t_d));
+	  if (c_callee(tree) == fx_length_s) return(with_c_call(tree, fx_length_t));
+	  if ((c_callee(tree) == fx_c_s_opsq_direct) && (cadr(caddr(p)) == var2)) return(with_c_call(tree, fx_c_t_opuq_direct));
 #if (!WITH_GMP)
 	  if (c_callee(tree) == fx_num_eq_ss)
 	    {
-	      if (caddr(p) == var2) {set_c_call(tree, fx_num_eq_tu); return(true);}
-	      set_c_call(tree, fx_num_eq_ts); 
-	      return(true);
+	      if (caddr(p) == var2) return(with_c_call(tree, fx_num_eq_tu));
+	      return(with_c_call(tree, fx_num_eq_ts)); 
 	    }
 	  if (is_pair(cddr(p)))
 	    {
 	      if (caddr(p) == var2)
 		{
-		  if (c_callee(tree) == fx_gt_ss) {set_c_call(tree, fx_gt_tu); return(true);}
-		  if (c_callee(tree) == fx_lt_ss) {set_c_call(tree, fx_lt_tu); return(true);}
-		  if (c_callee(tree) == fx_leq_ss) {set_c_call(tree, fx_leq_tu); return(true);}
-		  if (c_callee(tree) == fx_geq_ss) {set_c_call(tree, fx_geq_tu); return(true);}
-		  if (c_callee(tree) == fx_c_sss) {set_c_call(tree, fx_c_tus); set_optimize_op(p, OP_SAFE_C_TUS); return(true);}
+		  if (c_callee(tree) == fx_gt_ss) return(with_c_call(tree, fx_gt_tu));
+		  if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_tu));
+		  if (c_callee(tree) == fx_leq_ss) return(with_c_call(tree, fx_leq_tu));
+		  if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_tu));
+		  if (c_callee(tree) == fx_c_sss) {set_optimize_op(p, OP_SAFE_C_TUS); return(with_c_call(tree, fx_c_tus));}
 		}
 	      else
 		{
-		  if (c_callee(tree) == fx_geq_ss) {set_c_call(tree, fx_geq_ts); return(true);}
-		  if (c_callee(tree) == fx_lt_ss) {set_c_call(tree, fx_lt_ts); return(true);}
+		  if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_ts));
+		  if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_ts));
 		}
 	    }
-	  if (c_callee(tree) == fx_num_eq_si) {set_c_call(tree, fx_num_eq_ti); return(true);}
-	  if (c_callee(tree) == fx_gt_ss) {set_c_call(tree, fx_gt_ts); return(true);}
+	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_ti));
+	  if (c_callee(tree) == fx_gt_ss) return(with_c_call(tree, fx_gt_ts));
 #endif
-	  if (c_callee(tree) == fx_cons_ss) {set_c_call(tree, fx_cons_ts); return(true);}
-	  if ((c_callee(tree) == fx_c_s_car_s) && (cadr(caddr(p)) == var2)) {set_c_call(tree, fx_c_t_car_u); return(true);}
+	  if (c_callee(tree) == fx_cons_ss) return(with_c_call(tree, fx_cons_ts));
+	  if ((c_callee(tree) == fx_c_s_car_s) && (cadr(caddr(p)) == var2)) return(with_c_call(tree, fx_c_t_car_u));
 	}
       
       if (cadr(p) == var2)
@@ -53836,24 +53841,23 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		{
 		  set_direct_opt(p);
 		  set_opt2_direct(cdr(p), (s7_pointer)(s7_p_p_function(slot_value(global_slot(car(p))))));
-		  set_c_call(tree, fx_c_u_direct);
+		  return(with_c_call(tree, fx_c_u_direct));
 		}
-	      else set_c_call(tree, fx_c_u); 
-	      return(true);
+	      return(with_c_call(tree, fx_c_u));
 	    }
-	  if (c_callee(tree) == fx_o_p_p_s) {set_c_call(tree, fx_o_p_p_u); return(true);}
-	  if (c_callee(tree) == fx_cdr_s) {set_c_call(tree, fx_cdr_u); return(true);}
-	  if (c_callee(tree) == fx_car_s) {set_c_call(tree, fx_car_u); return(true);}
-	  if (c_callee(tree) == fx_is_null_s) {set_c_call(tree, fx_is_null_u); return(true);}
+	  if (c_callee(tree) == fx_o_p_p_s) return(with_c_call(tree, fx_o_p_p_u));
+	  if (c_callee(tree) == fx_cdr_s) return(with_c_call(tree, fx_cdr_u));
+	  if (c_callee(tree) == fx_car_s) return(with_c_call(tree, fx_car_u));
+	  if (c_callee(tree) == fx_is_null_s) return(with_c_call(tree, fx_is_null_u));
 #if (!WITH_GMP)
-	  if (c_callee(tree) == fx_num_eq_ss) {set_c_call(tree, fx_num_eq_us); return(true);}
-	  if (c_callee(tree) == fx_num_eq_si) {set_c_call(tree, fx_num_eq_ui); return(true);}
-	  if ((c_callee(tree) == fx_add_s_car_s) && (cadr(caddr(p)) == var1)) {set_c_call(tree, fx_add_u_car_t); return(true);}
+	  if (c_callee(tree) == fx_num_eq_ss) return(with_c_call(tree, fx_num_eq_us));
+	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_ui));
+	  if ((c_callee(tree) == fx_add_s_car_s) && (cadr(caddr(p)) == var1)) return(with_c_call(tree, fx_add_u_car_t));
 #endif
 	  if (c_callee(tree) == fx_add_ss) {set_c_call(tree, (caddr(p) == var1) ? fx_add_ut : fx_add_us); return(true);}
-	  if (c_callee(tree) == fx_add_s1) {set_c_call(tree, fx_add_u1); return(true);}
-	  if (c_callee(tree) == fx_subtract_s1) {set_c_call(tree, fx_subtract_u1); return(true);}
-	  if (c_callee(tree) == fx_is_pair_s) {set_c_call(tree, fx_is_pair_u); return(true);}
+	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_u1));
+	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_u1));
+	  if (c_callee(tree) == fx_is_pair_s) return(with_c_call(tree, fx_is_pair_u));
 	}
 
       if (is_pair(cadr(p)))
@@ -53867,12 +53871,11 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  set_direct_opt(p);
 		  set_opt2_direct(cdr(p), (s7_pointer)(s7_p_p_function(slot_value(global_slot(car(p))))));
 		  set_opt3_direct(cdr(p), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(caadr(p))))));
-		  set_c_call(tree, fx_c_opstq_direct);
+		  return(with_c_call(tree, fx_c_opstq_direct));
 		}
-	      else set_c_call(tree, fx_c_opstq);
-	      return(true);
+	      return(with_c_call(tree, fx_c_opstq));
 	    }
-	  if ((c_callee(tree) == fx_c_opssq_c) && (caddr(cadr(p)) == var1)) {set_c_call(tree, fx_c_opstq_c); return(true);}
+	  if ((c_callee(tree) == fx_c_opssq_c) && (caddr(cadr(p)) == var1)) return(with_c_call(tree, fx_c_opstq_c));
 	  
 	  if ((is_pair(cdadr(p))) && (cadadr(p) == var1))
 	    {
@@ -53898,17 +53901,17 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		    }
 		  return(true);
 		}
-	      if (c_callee(tree) == fx_is_pair_car_s) {set_c_call(tree, fx_is_pair_car_t); return(true);}
-	      if (c_callee(tree) == fx_is_pair_cdr_s) {set_c_call(tree, fx_is_pair_cdr_t); return(true);}
-	      if (c_callee(tree) == fx_is_pair_cadr_s) {set_c_call(tree, fx_is_pair_cadr_t); return(true);}
-	      if (c_callee(tree) == fx_is_symbol_cadr_s) {set_c_call(tree, fx_is_symbol_cadr_t); return(true);}
-	      if (c_callee(tree) == fx_is_pair_cddr_s) {set_c_call(tree, fx_is_pair_cddr_t); return(true);}
-	      if (c_callee(tree) == fx_is_null_cdr_s) {set_c_call(tree, fx_is_null_cdr_t); return(true);}
-	      if (c_callee(tree) == fx_is_null_cddr_s) {set_c_call(tree, fx_is_null_cddr_t); return(true);}
-	      if (c_callee(tree) == fx_not_is_pair_s) {set_c_call(tree, fx_not_is_pair_t); return(true);}
-	      if (c_callee(tree) == fx_not_is_null_s) {set_c_call(tree, fx_not_is_null_t); return(true);}
-	      if (c_callee(tree) == fx_not_is_symbol_s) {set_c_call(tree, fx_not_is_symbol_t); return(true);}
-	      if (c_callee(tree) == fx_is_type_car_s) {set_c_call(tree, fx_is_type_car_t); return(true);}
+	      if (c_callee(tree) == fx_is_pair_car_s) return(with_c_call(tree, fx_is_pair_car_t));
+	      if (c_callee(tree) == fx_is_pair_cdr_s) return(with_c_call(tree, fx_is_pair_cdr_t));
+	      if (c_callee(tree) == fx_is_pair_cadr_s) return(with_c_call(tree, fx_is_pair_cadr_t));
+	      if (c_callee(tree) == fx_is_symbol_cadr_s) return(with_c_call(tree, fx_is_symbol_cadr_t));
+	      if (c_callee(tree) == fx_is_pair_cddr_s) return(with_c_call(tree, fx_is_pair_cddr_t));
+	      if (c_callee(tree) == fx_is_null_cdr_s) return(with_c_call(tree, fx_is_null_cdr_t));
+	      if (c_callee(tree) == fx_is_null_cddr_s) return(with_c_call(tree, fx_is_null_cddr_t));
+	      if (c_callee(tree) == fx_not_is_pair_s) return(with_c_call(tree, fx_not_is_pair_t));
+	      if (c_callee(tree) == fx_not_is_null_s) return(with_c_call(tree, fx_not_is_null_t));
+	      if (c_callee(tree) == fx_not_is_symbol_s) return(with_c_call(tree, fx_not_is_symbol_t));
+	      if (c_callee(tree) == fx_is_type_car_s) return(with_c_call(tree, fx_is_type_car_t));
 	      if (c_callee(tree) == fx_c_opsq) 
 		{
 		  if ((is_global(car(p))) && (is_global(caadr(p))) &&
@@ -53923,18 +53926,18 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  else set_c_call(tree, fx_c_optq); 
 		  return(true);
 		}
-	      if (c_callee(tree) == fx_is_type_opsq) {set_c_call(tree, fx_is_type_optq); return(true);}
-	      if (c_callee(tree) == fx_c_car_s) {set_c_call(tree, fx_c_car_t); return(true);}
-	      if (c_callee(tree) == fx_c_cdr_s) {set_c_call(tree, fx_c_cdr_t); return(true);}
-	      if (c_callee(tree) == fx_is_eq_car_q) {set_c_call(tree, fx_is_eq_car_t_q); return(true);}
+	      if (c_callee(tree) == fx_is_type_opsq) return(with_c_call(tree, fx_is_type_optq));
+	      if (c_callee(tree) == fx_c_car_s) return(with_c_call(tree, fx_c_car_t));
+	      if (c_callee(tree) == fx_c_cdr_s) return(with_c_call(tree, fx_c_cdr_t));
+	      if (c_callee(tree) == fx_is_eq_car_q) return(with_c_call(tree, fx_is_eq_car_t_q));
 	      
 	      if ((c_callee(tree) == fx_c_opsq_cs) && (cadddr(p) == var2)) {set_c_call(tree, fx_c_optq_cu); return(true);}
-	      if (c_callee(tree) == fx_c_opsq_s) {set_c_call(tree, fx_c_optq_s); return(true);}
+	      if (c_callee(tree) == fx_c_opsq_s) return(with_c_call(tree, fx_c_optq_s));
 	    }
 
 	  if ((is_pair(cdadr(p))) && (cadadr(p) == var2))
 	    {
-	      if (c_callee(tree) == fx_not_is_null_s) {set_c_call(tree, fx_not_is_null_u); return(true);}
+	      if (c_callee(tree) == fx_not_is_null_s) return(with_c_call(tree, fx_not_is_null_u));
 #if (!WITH_GMP)
 	      if ((c_callee(tree) == fx_not_opssq) && (caddr(cadr(p)) == var1)) 
 		{
@@ -53942,8 +53945,8 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  return(true);
 		}
 #endif
-	      if ((c_callee(tree) == fx_c_opsq_s) && (caddr(p) == var1)) {set_c_call(tree, fx_c_opuq_t); return(true);}
-	      if (c_callee(tree) == fx_c_car_s) {set_c_call(tree, fx_c_car_u); return(true);}
+	      if ((c_callee(tree) == fx_c_opsq_s) && (caddr(p) == var1)) return(with_c_call(tree, fx_c_opuq_t));
+	      if (c_callee(tree) == fx_c_car_s) return(with_c_call(tree, fx_c_car_u));
 	    }
 	}
       
@@ -53964,8 +53967,8 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  else set_c_call(tree, fx_c_ct); 
 		  return(true);
 		}
-	      if (c_callee(tree) == fx_c_ss) {set_c_call(tree, fx_c_st); return(true);}
-	      if (c_callee(tree) == fx_hash_table_ref_ss) {set_c_call(tree, fx_hash_table_ref_st); return(true);}
+	      if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_st));
+	      if (c_callee(tree) == fx_hash_table_ref_ss) return(with_c_call(tree, fx_hash_table_ref_st));
 	    }
 #if 0
 	  if ((is_pair(caddr(p))) && (is_pair(cdr(caddr(p)))) && (var1 == cadr(caddr(p))))
@@ -53976,7 +53979,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 #endif
 	  if (caddr(p) == var2)
 	    {
-	      if (c_callee(tree) == fx_c_cs) {set_c_call(tree, fx_c_cu); return(true);}
+	      if (c_callee(tree) == fx_c_cs) return(with_c_call(tree, fx_c_cu));
 	    }
 	}
     }
@@ -63161,12 +63164,57 @@ static s7_pointer opt_do_very_simple(opt_info *o)
   sc->pc = loop;
   o1 = sc->opts[loop]; /* the body */
   f = o1->v[0].fp;
-  while (integer(vp) < end)
+  if (f == opt_p_pip_ssf)
     {
-      f(o1);
-      sc->pc = loop;
-      integer(vp)++;
+      opt_info *o;
+      o = o1;
+      o1 = sc->opts[++loop];
+      while (integer(vp) < end)
+	{
+	  sc->pc = loop;
+	  o->v[3].p_pip_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o1->v[0].fp(o1));
+	  integer(vp)++;
+	}
     }
+  else
+    {
+      if (f == opt_p_pip_sso)
+	{
+	  while (integer(vp) < end)
+	    {
+	      o1->v[5].p_pip_f(o1->sc, slot_value(o1->v[1].p), integer(slot_value(o1->v[2].p)),
+			       o1->v[6].p_pi_f(o1->sc, slot_value(o1->v[3].p), integer(slot_value(o1->v[4].p))));
+	      sc->pc = loop;
+	      integer(vp)++;
+	    }
+	}
+      else
+	{
+	  if ((f == opt_set_p_i_f) && 
+	      (is_t_integer(slot_value(o1->v[1].p))) &&
+	      (o1->v[1].p != let_dox_slot1(o->v[2].p)))
+	    {
+	      s7_pointer ival;
+	      opt_info *o2;
+	      ival = make_mutable_integer(sc, integer(slot_value(o1->v[1].p)));
+	      slot_set_value(o1->v[1].p, ival);
+	      o2 = sc->opts[++loop];
+	      while (integer(vp) < end)
+		{
+		  sc->pc = loop;
+		  integer(ival) = o2->v[0].fi(o2);
+		  integer(vp)++;
+		}
+	      slot_set_value(o1->v[1].p, make_integer(sc, integer(slot_value(o1->v[1].p))));
+	    }
+	  else
+	    {
+	      while (integer(vp) < end)
+		{
+		  f(o1);
+		  sc->pc = loop;
+		  integer(vp)++;
+		  }}}}
   sc->pc = o->v[5].i;
   unstack(sc);
   sc->envir = old_e;
@@ -64469,6 +64517,9 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 		  s7_pointer sv;
 		  sv = make_mutable_integer(sc, 0);
 		  slot_set_value(slot, sv);
+		  /* here if func=opt_cell_any_nr -> opt_do_1 and car(cadddr(car(body)))==int-vector-set! then inner setp is mutable */
+		  /* opt_cell_any_nr: sc->opts[0]->v[0].fp(sc->opts[0]) fp=opt_do_1 */
+		  /*   so opt_do_1_mutable? -- can we see this via opt_do_1->vexpr? set a vunion field at opt_do_1 set? */
 		  for (i = 0; i < len; i++)
 		    {
 		      integer(sv) = vals[i];
@@ -71440,9 +71491,6 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 
 /* ---------------------------------------- error checks ---------------------------------------- */
 
-typedef enum {goto_START, goto_BEGIN, fall_through, goto_DO_END_CLAUSES, goto_SAFE_DO_END_CLAUSES, goto_EVAL, 
-	      goto_TOP_NO_POP, goto_APPLY, goto_EVAL_ARGS, goto_DO_UNCHECKED, goto_POP_READ_LIST, goto_READ_TOK} goto_t;
-
 static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity)
 {
   s7_pointer x;
@@ -75263,6 +75311,9 @@ static bool op_define_macro(s7_scheme *sc)
   return(true);
 }
 
+typedef enum {goto_START, goto_BEGIN, fall_through, goto_DO_END_CLAUSES, goto_SAFE_DO_END_CLAUSES, goto_EVAL, 
+	      goto_TOP_NO_POP, goto_APPLY, goto_EVAL_ARGS, goto_DO_UNCHECKED, goto_POP_READ_LIST, goto_READ_TOK} goto_t;
+
 static goto_t op_expansion(s7_scheme *sc)
 {
   int64_t loc;
@@ -75876,6 +75927,22 @@ static bool op_cond_fx_2p_else(s7_scheme *sc)
 	}
     }
   return(fx_cond_value(sc));
+}
+
+static bool op_cond_feed(s7_scheme *sc)
+{
+  /* (cond (expr => p)) where p is (lambda (s) ...) -- see check_cond */
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+  if (has_fx(car(sc->code)))
+    sc->value = fx_call(sc, car(sc->code));
+  else
+    {
+      push_stack_no_args(sc, OP_COND_FEED_1, sc->code);
+      sc->code = caar(sc->code);
+      return(true);
+    }
+  return(false);
 }
 
 
@@ -76740,6 +76807,36 @@ static void op_increment_sp_mv(s7_scheme *sc)
 {
   sc->value = c_call(cadr(sc->code))(sc, cons(sc, slot_value(sc->args), sc->value));
   slot_set_value(sc->args, sc->value);
+}
+
+static goto_t op_set_dilambda_p_1(s7_scheme *sc)
+{
+  s7_pointer obj, func, arg;
+  arg = cadar(sc->code);
+  if (is_symbol(arg))
+    arg = lookup_checked(sc, arg);
+  else
+    {
+      if (is_pair(arg))
+	arg = cadr(arg); /* can only be (quote ...) in this case */
+    }
+  obj = symbol_to_slot(sc, caar(sc->code));
+  func = slot_value(obj);
+  if ((is_closure(func)) &&
+      (is_safe_closure(closure_setter(func))))
+    {
+      s7_pointer setter;
+      setter = closure_setter(func);
+      if (is_pair(closure_args(setter)))
+	{
+	  sc->envir = old_frame_with_two_slots(sc, closure_let(setter), arg, sc->value);
+	  sc->code = T_Pair(closure_body(setter));
+	  return(goto_BEGIN);
+	}
+    }
+  if (set_pair_p_3(sc, obj, arg, sc->value))
+    return(goto_APPLY);
+  return(goto_START);
 }
 
 
@@ -78462,7 +78559,6 @@ static goto_t dox_ex(s7_scheme *sc)
 			    }
 			}
 		    }
-		  /* split out opt_cell_any_nr gained nothing (see tmp) */
 		  while (true)
 		    {
 		      bodyf(sc, body);
@@ -85697,7 +85793,7 @@ static bool op_read_byte_vector(s7_scheme *sc)
   return(main_stack_op(sc) != OP_READ_LIST);
 }
 
-static void op_eval_macro(s7_scheme *sc)
+static void op_eval_macro(s7_scheme *sc) /* after (scheme-side) macroexpansion, evaluate the resulting expression */
 {
   /* (define-macro (hi a) `(+ ,a 1))
    * (hi 2)
@@ -85731,6 +85827,20 @@ static bool op_eval_macro_mv(s7_scheme *sc)
   push_stack(sc, OP_EVAL_MACRO_MV, cons(sc, sc->value, sc->args), cdr(sc->code));
   sc->code = car(sc->code);
   return(false);
+}
+
+static void op_finish_expansion(s7_scheme *sc)
+{
+  /* after the expander has finished, if a list was returned, we need to add some annotations.
+   *   if the expander returned (values), the list-in-progress vanishes! (This mimics map and *#readers*).
+   */
+  if (sc->value == sc->no_value)
+    sc->stack_end[-1] = (s7_pointer)OP_READ_NEXT;
+  else
+    {
+      if (is_pair(sc->value))
+	sc->value = copy_body(sc, sc->value);
+    }
 }
 
 static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
@@ -86878,7 +86988,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_ANY_FX: if (!closure_is_fine(sc, sc->code, MATCH_UNSAFE_CLOSURE, -1)) break;
 	case HOP_CLOSURE_ANY_FX: op_closure_any_fx(sc); goto BEGIN;
 
-
 	case OP_SAFE_CLOSURE_FP:
 	  if (!closure_is_fine(sc, sc->code, MATCH_SAFE_CLOSURE, integer(opt3_arglen(sc->code)))) break;
 	case HOP_SAFE_CLOSURE_FP:
@@ -88008,33 +88117,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SET_DILAMBDA_P_1:
 	  {
-	    s7_pointer obj, func, arg;
-	    arg = cadar(sc->code);
-	    if (is_symbol(arg))
-	      arg = lookup_checked(sc, arg);
-	    else
-	      {
-		if (is_pair(arg))
-		  arg = cadr(arg); /* can only be (quote ...) in this case */
-	      }
-	    obj = symbol_to_slot(sc, caar(sc->code));
-	    func = slot_value(obj);
-	    if ((is_closure(func)) &&
-		(is_safe_closure(closure_setter(func))))
-	      {
-		s7_pointer setter;
-		setter = closure_setter(func);
-		if (is_pair(closure_args(setter)))
-		  {
-		    sc->envir = old_frame_with_two_slots(sc, closure_let(setter), arg, sc->value);
-		    sc->code = T_Pair(closure_body(setter));
-		    goto BEGIN;
-		  }
-	      }
-	    if (set_pair_p_3(sc, obj, arg, sc->value))
-	      goto APPLY;
+	    goto_t choice;
+	    choice = op_set_dilambda_p_1(sc);
+	    if (choice == goto_BEGIN) goto BEGIN;
+	    if (choice == goto_APPLY) goto APPLY;
+	    goto START;
 	  }
-	  goto START;
 
 	  /* this is (set! (getter) val) where getter is a global c_function (a built-in pws) and val is not a pair */
 	case OP_SET_PWS:        /* (set! (mus-clipping) #f) */
@@ -88255,17 +88343,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_COND_FEED:
-	  /* (cond (expr => p)) where p is (lambda (s) ...) -- see check_cond */
-	  set_current_code(sc, sc->code);
-	  sc->code = cdr(sc->code);
-	  if (has_fx(car(sc->code)))
-	    sc->value = fx_call(sc, car(sc->code));
-	  else
-	    {
-	      push_stack_no_args(sc, OP_COND_FEED_1, sc->code);
-	      sc->code = caar(sc->code);
-	      goto EVAL;
-	    }
+	  if (op_cond_feed(sc)) goto EVAL;
 
 	case OP_COND_FEED_1:
 	  if (is_true(sc, sc->value))
@@ -88329,14 +88407,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_A_P_NEW:       op_let_a_new(sc); sc->code = cadr(sc->code); goto EVAL;
 	case OP_LET_ONE_OLD_1:     op_let_one_old_1(sc);   goto BEGIN;
 	case OP_LET_ONE_P_OLD_1:   op_let_one_p_old_1(sc); goto EVAL;
-
-	case OP_LET_ONE_NEW_1:	   
-	  new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); 
-	  goto BEGIN;
-
-	case OP_LET_ONE_P_NEW_1:	   
-	  new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); 
-	  goto EVAL;
+	case OP_LET_ONE_NEW_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto BEGIN;
+	case OP_LET_ONE_P_NEW_1:   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto EVAL;
 
 	case OP_LET_opSSq_OLD:    op_let_opssq_old(sc);    goto BEGIN;
 	case OP_LET_opSSq_NEW:    op_let_opssq_new(sc);    goto BEGIN;
@@ -88397,7 +88469,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_let_temp_done1(sc)) goto START;
 	  goto EVAL;
 
-	  
 	case OP_LET_TEMP_S7:
 	  op_let_temp_s7(sc);
 	  goto BEGIN;
@@ -88573,37 +88644,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 
 	  /* -------------------------------- macro evaluation -------------------------------- */
-	case OP_EVAL_MACRO:    /* after (scheme-side) macroexpansion, evaluate the resulting expression */
-	  op_eval_macro(sc);
-	  goto EVAL;
+	case OP_EVAL_MACRO:               op_eval_macro(sc);                    goto EVAL;
+	case OP_EVAL_MACRO_MV:            if (op_eval_macro_mv(sc)) goto START; goto EVAL;
+	case OP_EXPANSION:                op_finish_expansion(sc);              goto START;
+	case OP_DEFINE_MACRO_WITH_SETTER: op_define_macro_with_setter(sc);      goto START;
 
-	case OP_EVAL_MACRO_MV:
-	  if (op_eval_macro_mv(sc)) goto START;
-	  goto EVAL;
-
-	case OP_EXPANSION:
-	  /* after the expander has finished, if a list was returned, we need to add some annotations.
-	   *   if the expander returned (values), the list-in-progress vanishes! (This mimics map and *#readers*).
-	   */
-	  if (sc->value == sc->no_value)
-	    sc->stack_end[-1] = (s7_pointer)OP_READ_NEXT;
-	  else
-	    {
-	      if (is_pair(sc->value))
-		sc->value = copy_body(sc, sc->value);
-	    }
-	  goto START;
-
-	case OP_DEFINE_MACRO_WITH_SETTER:
-	  op_define_macro_with_setter(sc);
-	  goto START;
-
-	case OP_DEFINE_BACRO:
-	case OP_DEFINE_BACRO_STAR:
-	case OP_DEFINE_EXPANSION:
-	case OP_DEFINE_EXPANSION_STAR:
-	case OP_DEFINE_MACRO:
-	case OP_DEFINE_MACRO_STAR:
+	case OP_DEFINE_BACRO:     case OP_DEFINE_BACRO_STAR:
+	case OP_DEFINE_EXPANSION: case OP_DEFINE_EXPANSION_STAR:
+	case OP_DEFINE_MACRO:     case OP_DEFINE_MACRO_STAR:
 	  if (op_define_macro(sc)) goto START;
 	  goto APPLY;
 
@@ -88618,13 +88666,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  make_closure_with_let(sc, sc->value, cadr(sc->code), cddr(sc->code), sc->envir, CLOSURE_ARITY_NOT_SET);  /* sc->value=new closure cell, car=args, cdr=body */
 	  goto START;
 
-	case OP_LAMBDA_STAR:
-	  op_lambda_star(sc);
-	  goto START;
+	case OP_LAMBDA_STAR:           op_lambda_star(sc);           goto START;
+	case OP_LAMBDA_STAR_UNCHECKED: op_lambda_star_unchecked(sc); goto START;
 
-	case OP_LAMBDA_STAR_UNCHECKED:
-	  op_lambda_star_unchecked(sc);
-	  goto START;
 
 	  /* -------------------------------- case -------------------------------- */
 	case OP_CASE:       /* case, car(sc->code) is the selector */
@@ -96096,19 +96140,19 @@ int main(int argc, char **argv)
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  622   621
  * tshoot        |      |      |      |      |      | 1095 |  831   823
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  875   872
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  949   947
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  949   877
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1492  1492
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1689
- * tvect         |      |      |      |      |      | 5729 | 2033  2032
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2115
+ * tvect         |      |      |      |      |      | 5729 | 2033  1931
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2114
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2237
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2255  2255
  * tread         |      |      |      |      | 2357 | 2336 | 2269  2268
  * tlet          |      |      |      |      | 4717 | 2959 | 2285  2272
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2401  2401
- * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 | 2664  2656
+ * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 | 2664  2680
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2705  2686
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2769
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2765
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3022  2843
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3011  2962
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3122
@@ -96122,9 +96166,9 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.9  14.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.7
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.5  69.5
- * lg            |      |      |      |211.0 |133.0 |112.7 |109.3 107.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |109.3 107.8
  * tbig          |      |      |      |      |246.9 |230.6 |182.2 181.8
- * ------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
  *   grepl compiles but the various key_press events are not valid, gtk-script appears to be ok
@@ -96134,4 +96178,5 @@ int main(int argc, char **argv)
  *   also __float128 -> s7_big_int|double 
  *
  * fx*direct p_pp opts
+ * opt_set_p_i_f* call make_integer, also p_d_f (tfft)
  */

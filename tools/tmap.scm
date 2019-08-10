@@ -314,8 +314,7 @@
 
 
 ;;; this is a revision of some code posted in comp.lang.lisp by melzzzzz for euler project 512
-;;;   apparently sbcl computes the big case (below) in "about a minute" -- well, so does s7!
-;;;   53 secs sbcl, 80 in s7
+
 #|
 (define (make-boolean-vector n)
   (make-int-vector (ceiling (/ n 63))))
@@ -383,7 +382,10 @@
     (display r)
     (newline)))
 
-;;; (display (getr 500000000)) ;50660591862310323
+;;; if heap 32M
+;;; (getr 5000000)    5066059769259     .5
+;;; (getr 50000000)   506605921933035    6
+;;; (getr 500000000)  50660591862310323  89
 
 (exit)
 
