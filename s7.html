@@ -5695,7 +5695,9 @@ This is consistent with, for example,
 <code>(eq? #f '#f)</code> which is also #t.
 The standard says "the empty list is a special object of its own type", so surely either choice is
 acceptable in that regard (but, sigh, the standard stupidly goes on to deny that () can evaluate to itself).
-The confusion appears to be caused by the word "list".  I would describe the evaluator: "if it gets a
+(I'm told that "is an error" means "is not portable" in the standard's weasely abuse of English; if
+they mean "is not portable" why not say so?).
+Some of the confusion appears to be caused by the word "list".  I would describe the evaluator: "if it gets a
 constant (and () is a constant) it returns that constant; if a symbol, it returns the value
 associated with that symbol; if a pair, it looks at the pair's
 car to decide what to do".  It's kinda looney to insist on looking at the car of a list when you know () has no car!

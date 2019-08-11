@@ -19,7 +19,7 @@
 
     (do ((i 0 (+ i 1)))
 	((= i size))
-      (hash-table-set! old-hash (string->symbol (number->string i)) #\a))
+      (hash-table-set! old-hash (string->symbol (number->string i)) #\a)) ; gensym is slower, even with "" as prefix 
     (copy old-hash old-let)
 
     (let ((new-string (make-string size #\space))
