@@ -52847,8 +52847,7 @@ static s7_pointer fx_thunk_a(s7_scheme *sc, s7_pointer code)
   gc_protect_direct(sc, sc->envir);
   f = opt1_lambda(code);
   sc->envir = closure_let(f);
-  code = closure_body(f);
-  result = fx_call(sc, code);
+  result = fx_call(sc, closure_body(f));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52859,8 +52858,7 @@ static s7_pointer fx_closure_s_a(s7_scheme *sc, s7_pointer code)
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), lookup(sc, opt2_sym(code)));
-  code = closure_body(opt1_lambda(code));
-  result = fx_call(sc, code);
+  result = fx_call(sc, closure_body(opt1_lambda(code)));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52872,8 +52870,7 @@ static s7_pointer fx_closure_t_a(s7_scheme *sc, s7_pointer code)
   check_let_slots(sc, __func__, code, opt2_sym(code));
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), slot_value(let_slots(sc->envir)));
-  code = closure_body(opt1_lambda(code));
-  result = fx_call(sc, code);
+  result = fx_call(sc, closure_body(opt1_lambda(code)));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52885,8 +52882,7 @@ static s7_pointer fx_c_closure_s_a(s7_scheme *sc, s7_pointer arg)
   clo_arg = cadr(arg);
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(clo_arg)), lookup(sc, opt2_sym(clo_arg)));
-  clo_arg = closure_body(opt1_lambda(clo_arg));
-  set_car(sc->t1_1, fx_call(sc, clo_arg));
+  set_car(sc->t1_1, fx_call(sc, closure_body(opt1_lambda(clo_arg))));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(c_call(arg)(sc, sc->t1_1));
@@ -52897,8 +52893,7 @@ static s7_pointer fx_closure_s_d(s7_scheme *sc, s7_pointer code)
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), lookup(sc, opt2_sym(code)));
-  code = closure_body(opt1_lambda(code));
-  result = d_call(sc, car(code));
+  result = d_call(sc, car(closure_body(opt1_lambda(code))));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52910,8 +52905,7 @@ static s7_pointer fx_closure_t_d(s7_scheme *sc, s7_pointer code)
   check_let_slots(sc, __func__, code, opt2_sym(code));
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), slot_value(let_slots(sc->envir)));
-  code = closure_body(opt1_lambda(code));
-  result = d_call(sc, car(code));
+  result = d_call(sc, car(closure_body(opt1_lambda(code))));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52923,8 +52917,7 @@ static s7_pointer fx_c_closure_s_d(s7_scheme *sc, s7_pointer arg)
   clo_arg = cadr(arg);
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(clo_arg)), lookup(sc, opt2_sym(clo_arg)));
-  clo_arg = closure_body(opt1_lambda(clo_arg));
-  set_car(sc->t1_1, d_call(sc, car(clo_arg)));
+  set_car(sc->t1_1, d_call(sc, car(closure_body(opt1_lambda(clo_arg)))));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(c_call(arg)(sc, sc->t1_1));
@@ -52963,8 +52956,7 @@ static s7_pointer fx_closure_a_a(s7_scheme *sc, s7_pointer code)
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), fx_call(sc, cdr(code)));
-  code = closure_body(opt1_lambda(code));
-  result = fx_call(sc, code);
+  result = fx_call(sc, closure_body(opt1_lambda(code)));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -52975,8 +52967,7 @@ static s7_pointer fx_closure_ss_a(s7_scheme *sc, s7_pointer code)
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_two_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)));
-  code = closure_body(opt1_lambda(code));
-  result = fx_call(sc, code);
+  result = fx_call(sc, closure_body(opt1_lambda(code)));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -76060,6 +76051,30 @@ static bool op_cond_feed(s7_scheme *sc)
   return(false);
 }
 
+static bool feed_to(s7_scheme *sc)
+{
+  if (is_multiple_value(sc->value))                            /* (cond ((values 1 2) => +)) */
+    {
+      sc->args = multiple_value(sc->value);
+      clear_multiple_value(sc->args);
+    }
+  else
+    {
+      if (is_symbol(cadr(sc->code)))
+	{
+	  s7_pointer func;
+	  func = lookup_checked(sc, cadr(sc->code));  /* car is => */
+	  sc->code = func;
+	  sc->args = (needs_copied_args(func)) ? list_1(sc, sc->value) : set_plist_1(sc, sc->value);
+	  return(true);
+	}
+      sc->args = list_1(sc, sc->value);                       /* not plist here */
+    }
+  push_stack(sc, OP_FEED_TO_1, sc->args, sc->code);
+  sc->code = cadr(sc->code);                                  /* need to evaluate the target function */
+  return(false);
+}
+
 
 /* -------------------------------- set! -------------------------------- */
 static void set_dilambda_opt(s7_scheme *sc, s7_pointer form, opcode_t opt, s7_pointer expr)
@@ -79102,6 +79117,26 @@ static bool op_do_no_vars(s7_scheme *sc)
   return(false);
 }
 
+static void op_do_no_vars_no_opt(s7_scheme *sc)
+{
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+  new_frame(sc, sc->envir, sc->envir);
+}
+
+static bool op_do_no_vars_no_opt_1(s7_scheme *sc)
+{
+  sc->value = fx_call(sc, cadr(sc->code));
+  if (is_true(sc, sc->value)) 
+    {
+      sc->code = cdadr(sc->code);
+      return(true);
+    }
+  push_stack_no_args(sc, OP_DO_NO_VARS_NO_OPT_1, sc->code);
+  sc->code = T_Pair(cddr(sc->code));
+  return(false);
+}
+
 static bool do_step1(s7_scheme *sc)
 {
   /* on each iteration, each arg incr expr is evaluated and the value placed in caddr while we cdr down args */
@@ -79138,6 +79173,16 @@ static bool do_step1(s7_scheme *sc)
 	  return(false);
 	}
     }
+}
+
+static bool op_do_step2(s7_scheme *sc)
+{
+  if (is_multiple_value(sc->value))
+    eval_error(sc, "do: variable step value can't be ~S", 35, cons(sc, sc->values_symbol, sc->value));
+  slot_set_pending_value(car(sc->args), sc->value);  /* save current value */
+  sc->args = cdr(sc->args);                   /* go to next step var */
+  if (do_step1(sc)) return(true);
+  return(false);
 }
 
 static bool opt_do_copy(s7_scheme *sc, opt_info *o, s7_int start, s7_int stop)
@@ -79452,6 +79497,24 @@ static bool op_safe_do_step(s7_scheme *sc)
     }
   push_stack(sc, OP_SAFE_DO_STEP, sc->args, sc->code);
   sc->code = T_Pair(opt2_pair(sc->code));
+  return(false);
+}
+
+static bool op_safe_dotimes_step(s7_scheme *sc)
+{
+  s7_pointer arg; 
+  arg = slot_value(sc->args); 
+  numerator(arg)++;
+  if (numerator(arg) == denominator(arg)) 
+    {
+      sc->value = sc->T; 
+      sc->code = cdadr(sc->code);
+      return(true);
+    }
+  push_stack(sc, OP_SAFE_DOTIMES_STEP, sc->args, sc->code);
+  sc->code = opt2_pair(sc->code); /* here we know the body has more than one form */
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
   return(false);
 }
 
@@ -82711,24 +82774,6 @@ static void op_safe_closure_a_p(s7_scheme *sc)
   sc->code = car(closure_body(sc->code));
 }
 
-static void op_safe_closure_s_a(s7_scheme *sc)
-{
-  sc->value = lookup(sc, opt2_sym(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-  sc->value = fx_call(sc, closure_body(sc->code));
-}
-
-static void op_safe_closure_a_a(s7_scheme *sc)
-{
-  s7_pointer code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(sc->code));
-  sc->code = opt1_lambda(code);
-  sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-  sc->value = fx_call(sc, closure_body(sc->code));
-}
-
 static void op_closure_ap(s7_scheme *sc)
 {
   s7_pointer val, code;
@@ -82833,15 +82878,6 @@ static void op_safe_closure_ss_p(s7_scheme *sc)
   sc->code = opt1_lambda(sc->code);
   sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
   sc->code = car(closure_body(sc->code));
-}
-
-static void op_safe_closure_ss_a(s7_scheme *sc)
-{
-  sc->temp5 = lookup(sc, opt2_sym(sc->code));
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  sc->value = fx_call(sc, closure_body(sc->code));
 }
 
 static void op_closure_ss(s7_scheme *sc)
@@ -84697,7 +84733,7 @@ static s7_int oprec_i_if_a_a_opla_laq(s7_scheme *sc)
 
 static s7_int oprec_i_if_a_a_opla_laq_0(s7_scheme *sc)
 {
-  s7_int i1, i2, i3;
+  s7_int i1, i2;
   if (sc->rec_fb1(sc->rec_test_o))
     return(sc->rec_fi1(sc->rec_result_o));
   i1 = sc->rec_fi2(sc->rec_a1_o);
@@ -84706,6 +84742,7 @@ static s7_int oprec_i_if_a_a_opla_laq_0(s7_scheme *sc)
     i2 = sc->rec_fi1(sc->rec_result_o);
   else
     {
+      s7_int i3;
       i2 = sc->rec_fi2(sc->rec_a1_o); 
       integer(sc->rec_val1) = sc->rec_fi3(sc->rec_a2_o);
       i3 = oprec_i_if_a_a_opla_laq_0(sc);
@@ -84765,7 +84802,7 @@ static s7_int oprec_i_if_a_opla_laq_a(s7_scheme *sc)
 
 static s7_int oprec_i_if_a_opla_laq_a_0(s7_scheme *sc)
 {
-  s7_int i1, i2, i3;
+  s7_int i1, i2;
   if (!sc->rec_fb1(sc->rec_test_o))
     return(sc->rec_fi1(sc->rec_result_o));
   i1 = sc->rec_fi2(sc->rec_a1_o);
@@ -84774,6 +84811,7 @@ static s7_int oprec_i_if_a_opla_laq_a_0(s7_scheme *sc)
     i2 = sc->rec_fi1(sc->rec_result_o);
   else
     {
+      s7_int i3;
       i2 = sc->rec_fi2(sc->rec_a1_o); 
       integer(sc->rec_val1) = sc->rec_fi3(sc->rec_a2_o);
       i3 = oprec_i_if_a_opla_laq_a_0(sc);
@@ -84932,7 +84970,7 @@ static s7_pointer op_recur_if_a_a_opla_la_laq(s7_scheme *sc)
  * esteemed reader, please ignore this nonsense!
  *  The opt_info version was not a lot faster -- ~/old/tak-st.c: say 10% faster. The current fx-based
  *  version has immediate lookups, and since the data is (ahem) simple, the GC is not a factor.
- *  The opt version has its own overheads, and has to do the same amount of i-stack manipulations.
+ *  The opt version has its own overheads, and has to do the same amount of stack manipulations.
  */
 static void opinit_if_a_a_lopl3a_l3a_l3aq(s7_scheme *sc)
 {
@@ -85613,6 +85651,21 @@ static void op_safe_c_ap(s7_scheme *sc)
   sc->code = caddr(code);
 }
 
+static void op_safe_c_pp_6_mv(s7_scheme *sc)
+{
+  sc->args = s7_append(sc, sc->args, sc->value);
+  /*
+   * c_callee(sc->code) here is g_add_2, but we have any number of args from a values call
+   *   the original (unoptimized) function is (hopefully) c_function_base(opt1_cfunc(sc->code))?
+   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (ho 1) (ho 2))) (hi)) -> 7
+   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (ho 1) (values 3 4))) (hi)) -> 10
+   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (values 3 4) (ho 1))) (hi)) -> 10
+   *   (let () (define (hi) (+ (values 1 2) (values 3 4))) (hi)) -> 10
+   */
+  sc->code = c_function_base(opt1_cfunc(sc->code));
+}
+
+
 static inline bool collect_fp_args(s7_scheme *sc, opcode_t op, s7_pointer args)
 {
   s7_pointer p;
@@ -86146,20 +86199,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
        */
       switch (sc->cur_op)
 	{
-	case OP_SAFE_C_D:
-	  if (!c_function_is_ok(sc, sc->code))
-	    {
-	      if (is_proper_list_1(sc, cdr(sc->code))) /* code here can be (values) for example, if values is a method in lt and we're in (with-let lt ...) */
-		{
-		  set_optimize_op(sc->code, OP_S_C);
-		  goto EVAL;
-		}
-	      break;
-	    }
-	  /* break = fall into the "trailers" section where optimizations are cleared */
-	case HOP_SAFE_C_D:
-	  sc->value = d_call(sc, sc->code);
-	  goto START;
+	case OP_SAFE_C_D: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_D: sc->value = d_call(sc, sc->code); goto START;
 
 	case OP_X:
 	case HOP_X:
@@ -86540,17 +86581,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = c_function_base(opt1_cfunc(sc->code));
 	  goto APPLY;
 
-	case OP_SAFE_C_PP_6_MV:	  /* both mv */
-	  sc->args = s7_append(sc, sc->args, sc->value);
-	  /*
-	   * c_callee(sc->code) here is g_add_2, but we have any number of args from a values call
-	   *   the original (unoptimized) function is (hopefully) c_function_base(opt1_cfunc(sc->code))?
-	   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (ho 1) (ho 2))) (hi)) -> 7
-	   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (ho 1) (values 3 4))) (hi)) -> 10
-	   *   (let () (define (ho a) (+ a 2)) (define (hi) (+ (values 3 4) (ho 1))) (hi)) -> 10
-	   *   (let () (define (hi) (+ (values 1 2) (values 3 4))) (hi)) -> 10
-	   */
-	  sc->code = c_function_base(opt1_cfunc(sc->code));
+	case OP_SAFE_C_PP_6_MV:
+	  op_safe_c_pp_6_mv(sc);
 	  goto APPLY;
 
 	case OP_SAFE_C_opSSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
@@ -86960,7 +86992,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_S_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_A, 1)) {if (op_unknown_g(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_S_A:
-	  op_safe_closure_s_a(sc);
+	  /* op_safe_closure_s_a(sc); */
+	  sc->value = fx_closure_s_a(sc, sc->code);
           goto START;
 
 
@@ -87073,7 +87106,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_A_A:
 	  if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_A, 1)) {if (op_unknown_a(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_A_A:
-	  op_safe_closure_a_a(sc);
+	  sc->value = fx_closure_a_a(sc, sc->code);
 	  goto START;
 
 
@@ -87111,7 +87144,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_SS_P: op_safe_closure_ss_p(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_SS_A: if (!closure_is_ok(sc, sc->code, MATCH_SAFE_CLOSURE_A, 2)) {if (op_unknown_gg(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
-	case HOP_SAFE_CLOSURE_SS_A: op_safe_closure_ss_a(sc); goto START;
+	case HOP_SAFE_CLOSURE_SS_A: sc->value = fx_closure_ss_a(sc, sc->code); goto START;
 
 	case OP_CLOSURE_3S: if (!closure_is_ok(sc, sc->code, MATCH_UNSAFE_CLOSURE_M, 3)) {if (op_unknown_all_s(sc, sc->last_function) == goto_EVAL) goto EVAL; break;}
 	case HOP_CLOSURE_3S: op_closure_3s(sc); closure_push(sc); goto EVAL;
@@ -87245,25 +87278,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code)) goto START; goto EVAL;
 	case OP_TC_CASE_LA: tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code)) goto START; goto BEGIN;
 
-	case OP_RECUR_IF_A_A_opA_LAq:
-	case OP_RECUR_IF_A_opA_LAq_A:
-	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opA_LAq) ? op_recur_if_a_a_opa_laq : op_recur_if_a_opa_laq_a);
-	  goto START;
-
-	case OP_RECUR_IF_A_A_opA_LAAq:
-	case OP_RECUR_IF_A_opA_LAAq_A:
-	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opA_LAAq) ? op_recur_if_a_a_opa_laaq : op_recur_if_a_opa_laaq_a);
-	  goto START;
-
-	case OP_RECUR_IF_A_A_opLA_LAq:
-	case OP_RECUR_IF_A_opLA_LAq_A:
-	  wrap_recur_if_a_a_opla_laq(sc, sc->cur_op == OP_RECUR_IF_A_A_opLA_LAq);
-	  goto START;
-
-	case OP_RECUR_IF_A_A_opA_LA_LAq:
-	case OP_RECUR_IF_A_opA_LA_LAq_A:
-	  wrap_recur(sc, (sc->cur_op == OP_RECUR_IF_A_A_opA_LA_LAq) ? op_recur_if_a_a_opa_la_laq : op_recur_if_a_opa_la_laq_a);
-	  goto START;
+	case OP_RECUR_IF_A_A_opA_LAq:    wrap_recur(sc, op_recur_if_a_a_opa_laq);    goto START;
+	case OP_RECUR_IF_A_opA_LAq_A:    wrap_recur(sc, op_recur_if_a_opa_laq_a);    goto START;
+	case OP_RECUR_IF_A_A_opA_LAAq:   wrap_recur(sc, op_recur_if_a_a_opa_laaq);   goto START;
+	case OP_RECUR_IF_A_opA_LAAq_A:   wrap_recur(sc, op_recur_if_a_opa_laaq_a);   goto START;
+	case OP_RECUR_IF_A_A_opLA_LAq:   wrap_recur_if_a_a_opla_laq(sc, true);       goto START;
+	case OP_RECUR_IF_A_opLA_LAq_A:   wrap_recur_if_a_a_opla_laq(sc, false);      goto START;
+	case OP_RECUR_IF_A_A_opA_LA_LAq: wrap_recur(sc, op_recur_if_a_a_opa_la_laq); goto START;
+	case OP_RECUR_IF_A_opA_LA_LAq_A: wrap_recur(sc, op_recur_if_a_opa_la_laq_a); goto START;
 
 	case OP_RECUR_IF_A_A_LopL3A_L3A_L3Aq:   wrap_recur(sc, op_recur_if_a_a_lopl3a_l3a_l3aq);   goto START;
 	case OP_RECUR_IF_A_A_AND_A_LAA_LAA:     wrap_recur(sc, op_recur_if_a_a_and_a_laa_laa);     goto START;
@@ -87832,19 +87854,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto BEGIN;
 
 	case OP_DO_NO_VARS_NO_OPT:
-	  set_current_code(sc, sc->code);
-	  sc->code = cdr(sc->code);
-	  new_frame(sc, sc->envir, sc->envir);
+	  op_do_no_vars_no_opt(sc);
 
 	case OP_DO_NO_VARS_NO_OPT_1:
-	  sc->value = fx_call(sc, cadr(sc->code));
-	  if (is_true(sc, sc->value)) 
-	    {
-	      sc->code = cdadr(sc->code);
-	      goto DO_END_CLAUSES;
-	    }
-	  push_stack_no_args(sc, OP_DO_NO_VARS_NO_OPT_1, sc->code);
-	  sc->code = T_Pair(cddr(sc->code));
+	  if (op_do_no_vars_no_opt_1(sc)) goto DO_END_CLAUSES;
 	  goto BEGIN;
 
 	case OP_SAFE_DOTIMES:
@@ -87857,14 +87870,18 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    set_current_code(sc, form);
 	    sc->code = cdr(sc->code);
 	    choice = safe_dotimes_ex(sc);
-
-	    if (choice == goto_SAFE_DO_END_CLAUSES) goto SAFE_DO_END_CLAUSES;
+	    if (choice == goto_SAFE_DO_END_CLAUSES)
+	      {
+		if (is_null(sc->code)) goto START;
+		goto DO_END_CODE;
+	      }
 	    if (choice == goto_BEGIN) goto BEGIN;
 	    if (choice == goto_EVAL) goto EVAL;
 	    if (choice == goto_TOP_NO_POP) goto TOP_NO_POP;
  	    pair_set_syntax_op(form, OP_SIMPLE_DO);
 	    sc->code = form;
-	    goto SIMPLE_DO;
+	    if (op_simple_do(sc)) goto DO_END_CLAUSES; 
+	    goto BEGIN;
 	  }
 
 #define do_stepper_end(sc)					    \
@@ -87883,26 +87900,18 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = T_Pair(opt2_pair(sc->code));
 	  goto EVAL;
 
-	case OP_SAFE_DOTIMES_STEP:
-	  do_stepper_end(sc);
-	  push_stack(sc, OP_SAFE_DOTIMES_STEP, sc->args, sc->code);
-	  sc->code = opt2_pair(sc->code); /* here we know the body has more than one form */
-	  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
-	  sc->code = car(sc->code);
-	  goto EVAL;
-
-	case OP_SIMPLE_DO:
-	SIMPLE_DO: /* from check_do safe_dotimes */
-	  if (op_simple_do(sc)) goto DO_END_CLAUSES; 
-	  goto BEGIN;
-
 	case OP_SAFE_DO:
 	SAFE_DO: /* from check_do */
 	  {
 	    goto_t choice;
 	    set_current_code(sc, sc->code);
 	    choice = safe_do_ex(sc);
-	    if (choice == goto_SAFE_DO_END_CLAUSES) goto SAFE_DO_END_CLAUSES;
+	    if (choice == goto_SAFE_DO_END_CLAUSES)
+	      {
+		if (is_null(sc->code)) /* I don't think multiple values (as test result) can happen here -- all safe do loops involve counters by 1 to some integer end */
+		  goto START;
+		goto DO_END_CODE;
+	      }
 	    if (choice == goto_DO_UNCHECKED) goto DO_UNCHECKED;
 	    goto BEGIN;
 	  }
@@ -87938,13 +87947,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    goto BEGIN;
 	  }
 
-	case OP_SAFE_DO_STEP:   if (op_safe_do_step(sc))   goto DO_END_CLAUSES; goto BEGIN;
-	case OP_SIMPLE_DO_STEP: if (op_simple_do_step(sc)) goto DO_END_CLAUSES; goto BEGIN;
-	case OP_DOTIMES_STEP_P: if (op_dotimes_step_p(sc)) goto DO_END_CLAUSES; goto EVAL;
-	case OP_DOX_INIT:       if (op_dox_init(sc))       goto DO_END_CLAUSES; goto BEGIN;
-	case OP_DOX_STEP:       if (op_dox_step(sc))       goto DO_END_CLAUSES; goto BEGIN;
-	case OP_DOX_STEP_P:     if (op_dox_step_p(sc))     goto DO_END_CLAUSES; goto EVAL;
-	case OP_DOX_NO_BODY:    op_dox_no_body(sc); goto START;
+	case OP_SAFE_DOTIMES_STEP: if (op_safe_dotimes_step(sc)) goto DO_END_CLAUSES; goto EVAL;
+	case OP_SAFE_DO_STEP:      if (op_safe_do_step(sc))      goto DO_END_CLAUSES; goto BEGIN;
+	case OP_SIMPLE_DO:         if (op_simple_do(sc))         goto DO_END_CLAUSES; goto BEGIN;
+	case OP_SIMPLE_DO_STEP:    if (op_simple_do_step(sc))    goto DO_END_CLAUSES; goto BEGIN;
+	case OP_DOTIMES_STEP_P:    if (op_dotimes_step_p(sc))    goto DO_END_CLAUSES; goto EVAL;
+	case OP_DOX_INIT:          if (op_dox_init(sc))          goto DO_END_CLAUSES; goto BEGIN;
+	case OP_DOX_STEP:          if (op_dox_step(sc))          goto DO_END_CLAUSES; goto BEGIN;
+	case OP_DOX_STEP_P:        if (op_dox_step_p(sc))        goto DO_END_CLAUSES; goto EVAL;
+	case OP_DOX_NO_BODY:       op_dox_no_body(sc); goto START;
 	case OP_DOX_PENDING_NO_BODY: op_dox_pending_no_body(sc); goto DO_END_CLAUSES;
 
 	case OP_DO_INIT:
@@ -87978,7 +87989,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  op_dox_pending_no_body(sc); 
 		  goto DO_END_CLAUSES;
 		}
-	      goto SIMPLE_DO;
+	      if (op_simple_do(sc)) goto DO_END_CLAUSES; 
+	      goto BEGIN;
 	    }
 
 	case OP_DO_UNCHECKED:
@@ -88003,14 +88015,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	DO_END:
 	case OP_DO_END:
 	  /* car(sc->args) here is the var list used by do_end2 */
-	  if (!is_pair(cdr(sc->args))) goto DO_END2;
-	  if (!has_fx(cdr(sc->args)))
+	  if (is_pair(cdr(sc->args)))
 	    {
-	      push_stack(sc, OP_DO_END1, sc->args, sc->code);
-	      sc->code = cadr(sc->args);               /* evaluate the end expr */
-	      goto EVAL;
+	      if (!has_fx(cdr(sc->args)))
+		{
+		  push_stack(sc, OP_DO_END1, sc->args, sc->code);
+		  sc->code = cadr(sc->args);               /* evaluate the end expr */
+		  goto EVAL;
+		}
+	      sc->value = fx_call(sc, cdr(sc->args));
 	    }
-	  sc->value = fx_call(sc, cdr(sc->args));
+	  else sc->value = sc->F;                 /* goto "if (is_pair(sc->code))..." below */
 
 	case OP_DO_END1:
 	  if (is_true(sc, sc->value))             /* sc->value is the result of end-test evaluation */
@@ -88048,9 +88063,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      sc->code = car(sc->code);
 	      goto EVAL;
 	    }
-	  /* end test false so fall through */
-
-	DO_END2:
 	  if (is_pair(sc->code))
 	    {
 	      if (is_null(car(sc->args)))
@@ -88060,7 +88072,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    }
 	  if (is_null(car(sc->args))) /* no steppers */
 	    goto DO_END;
-	  /* fall through */
+	  /* else fall through */
 
 	case OP_DO_STEP:
 	  /* increment all vars, return to endtest
@@ -88077,17 +88089,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_DO_STEP2:
-	  if (is_multiple_value(sc->value))
-	    eval_error(sc, "do: variable step value can't be ~S", 35, cons(sc, sc->values_symbol, sc->value));
-	  slot_set_pending_value(car(sc->args), sc->value);  /* save current value */
-	  sc->args = cdr(sc->args);                   /* go to next step var */
-	  if (do_step1(sc)) goto DO_END;
+	  if (op_do_step2(sc)) goto DO_END;
 	  goto EVAL;
-
-	SAFE_DO_END_CLAUSES:
-	  if (is_null(sc->code)) /* I don't think multiple values (as test result) can happen here -- all safe do loops involve counters by 1 to some integer end */
-	    goto START;
-	  goto DO_END_CODE;
 
 	DO_END_CLAUSES:
 	  if (is_null(sc->code))
@@ -88590,43 +88593,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 
-	  /* -------------------------------- => -------------------------------- */
-	FEED_TO:
-	  if (is_multiple_value(sc->value))                            /* (cond ((values 1 2) => +)) */
-	    {
-	      sc->args = multiple_value(sc->value);
-	      clear_multiple_value(sc->args);
-	    }
-	  else
-	    {
-	      if (is_symbol(cadr(sc->code)))
-		{
-		  s7_pointer func;
-		  func = lookup_checked(sc, cadr(sc->code));  /* car is => */
-		  if ((is_c_function(func)) &&
-		      (is_safe_procedure(func)))
-		    {
-		      if ((c_function_required_args(func) <= 1) &&
-			  (c_function_all_args(func) >= 1))
-			{
-			  sc->value = c_function_call(func)(sc, set_plist_1(sc, sc->value));
-			  goto START;
-			}
-		    }
-		  sc->code = func;
-		  sc->args = (needs_copied_args(func)) ? list_1(sc, sc->value) : set_plist_1(sc, sc->value);
-		  goto APPLY;
-		}
-	      sc->args = list_1(sc, sc->value);                       /* not plist here */
-	    }
-	  push_stack(sc, OP_FEED_TO_1, sc->args, sc->code);
-	  sc->code = cadr(sc->code);                                  /* need to evaluate the target function */
-	  goto EVAL;
-
-	case OP_FEED_TO_1:
-	  sc->code = sc->value;
-	  goto APPLY;
-
 	  /* -------------------------------- cond -------------------------------- */
 	case OP_COND:
 	  check_cond(sc);
@@ -88636,7 +88602,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_COND1:
 	  if (op_cond1(sc)) goto TOP_NO_POP;
-	  goto FEED_TO;
+	  /* fall through */
+
+	FEED_TO:
+	  if (feed_to(sc)) goto APPLY;
+	  goto EVAL;
+
+	case OP_FEED_TO_1:
+	  sc->code = sc->value;
+	  goto APPLY;   /* sc->args saved in feed_to via push_stack */
 
 	case OP_COND_SIMPLE: /* no => */
 	  if (op_cond_simple(sc)) goto EVAL;
@@ -88770,7 +88744,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (check_case(sc)) goto EVAL;
 	  /* else drop into CASE_G_G -- selector is a symbol or constant */
 
-	CASE_G_G:
 	case OP_CASE_G_G:
 	  if (op_case_g_g(sc)) goto TOP_NO_POP;
 	  goto FEED_TO;
@@ -88779,42 +88752,50 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_A_E_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_E_S;
+	  op_case_e_s(sc);
+	  goto EVAL;
 
 	case OP_CASE_A_S_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_S_S;
+	  op_case_s_s(sc);
+	  goto EVAL;
 
 	case OP_CASE_A_I_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_I_S;
+	  if (op_case_i_s(sc)) goto START;
+	  goto EVAL;
 
 	case OP_CASE_A_E_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_E_G;
+	  if (op_case_e_g_1(sc, sc->value, is_simple(sc->value))) goto TOP_NO_POP;
+	  goto FEED_TO;
 
 	case OP_CASE_A_S_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_S_G;
+	  if (op_case_e_g_1(sc, sc->value, is_case_key(sc->value))) goto TOP_NO_POP;
+	  goto FEED_TO;
 
 	case OP_CASE_A_G_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  goto CASE_G_G;
+	  if (op_case_g_g(sc)) goto TOP_NO_POP;
+	  goto FEED_TO;
 
 	case OP_CASE_S_G_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  goto CASE_G_S;
+	  op_case_g_s(sc);
+	  goto EVAL;
 
 	case OP_CASE_S_G_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  goto CASE_G_G;
+	  if (op_case_g_g(sc)) goto TOP_NO_POP;
+	  goto FEED_TO;
 
 	  /* selector = any */
 	case OP_CASE_P_E_S:
@@ -88855,9 +88836,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_S_E_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  /* goto CASE_E_S; */
+	  /* fall through */
 
-	CASE_E_S:
 	case OP_CASE_E_S:
 	  op_case_e_s(sc);
 	  goto EVAL;
@@ -88865,9 +88845,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_S_S_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  /* goto CASE_S_S; */
+	  /* fall through */
 
-	CASE_S_S:
 	case OP_CASE_S_S:
 	  op_case_s_s(sc);
 	  goto EVAL;
@@ -88875,9 +88854,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_S_I_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  /* goto CASE_I_S; */
+	  /* fall through */
 
-	CASE_I_S:
 	case OP_CASE_I_S:
 	  if (op_case_i_s(sc)) goto START;
 	  goto EVAL;
@@ -88885,9 +88863,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_A_G_S:
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, sc->code);
-	  /* goto CASE_G_S; */
+	  /* fall through */
 
-	CASE_G_S:
 	case OP_CASE_G_S:
 	  op_case_g_s(sc);
 	  goto EVAL;
@@ -88895,9 +88872,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_S_E_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  /* goto CASE_E_G; */
+	  /* fall through */
 
-	CASE_E_G:
 	case OP_CASE_E_G:
 	  if (op_case_e_g_1(sc, sc->value, is_simple(sc->value))) goto TOP_NO_POP;
 	  goto FEED_TO;
@@ -88905,9 +88881,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CASE_S_S_G:
 	  sc->code = cdr(sc->code);
 	  sc->value = lookup_checked(sc, car(sc->code));
-	  /* goto CASE_S_G; */
+	  /* fall through */
 
-	CASE_S_G:
 	case OP_CASE_S_G:
 	  if (op_case_e_g_1(sc, sc->value, is_case_key(sc->value))) goto TOP_NO_POP;
 	  goto FEED_TO;
@@ -88929,10 +88904,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_GC_PROTECT:
 	case OP_BARRIER:
-	case OP_CATCH_ALL:
-	case OP_CATCH:
-	case OP_CATCH_1:
-	case OP_CATCH_2:
+	case OP_CATCH_ALL: case OP_CATCH: case OP_CATCH_1: case OP_CATCH_2:
 	  goto START;
 
 	case OP_DEACTIVATE_GOTO:
@@ -96244,29 +96216,29 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1492  1492
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1689
  * tvect         |      |      |      |      |      | 5729 | 2033  1931
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2114  2122 see below [maybe a separate temp?]
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2237
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2122
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2234
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2255  2255
  * tread         |      |      |      |      | 2357 | 2336 | 2269  2268
  * tlet          |      |      |      |      | 4717 | 2959 | 2285  2272
  * tfft          |      | 15.5 | 16.4 | 17.3 | 3966 | 2493 | 2401  2401
- * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 | 2664  2661  2681 (mdo?)
+ * tmat     8641 | 8458 |      |      | 7248 | 7252 | 6823 | 2664  2660
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2705  2686
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2765
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3022  2843
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3011  2962
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3122  3063 (mdo)
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3062
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3314  3309
- * tset          |      |      |      |      | 10.0 | 6432 | 3477  3415
+ * tset          |      |      |      |      | 10.0 | 6432 | 3477  3413
  * tmac          |      |      |      | 12.9 | 12.9 | 3540 |       3444
- * dup           |      |      |      |      | 20.8 | 5711 | 3715  3503
+ * dup           |      |      |      |      | 20.8 | 5711 | 3715  3487
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 7115  6729
  * thash         |      |      |      |      |      | 10.3 | 8852  8840
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.9  14.9
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.9  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.6
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.5  69.5
- * lg            |      |      |      |211.0 |133.0 |112.7 |109.3 107.8  108.3 gc_protect_direct
+ * lg            |      |      |      |211.0 |133.0 |112.7 |109.3 108.3
  * tbig          |      |      |      |      |246.9 |230.6 |182.2 181.8
  * ------------------------------------------------------------------------
  *
@@ -96283,4 +96255,5 @@ int main(int argc, char **argv)
  * do fxable body is not fx_treed (and annotation is in dox_init rather than check_do??)
  * closure_xx_a? xxx_a?
  * why does opt_cell_do require a nested do-loop?
+ * t154: feed-to [needs case/do]
  */
