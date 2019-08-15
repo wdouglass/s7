@@ -1379,7 +1379,7 @@
 	    (* 0.000001 (- (cadr end) (cadr ,start))))))))
 
 
-(define apropos 
+(define apropos ; this misses syntax names (they aren't in rootlet)
   (let ((levenshtein 
 	 (lambda (s1 s2)
 	   (let ((L1 (length s1))
@@ -1425,7 +1425,8 @@
     
     (lambda* (name (e (*repl* 'top-level-let)))
       (let ((ap-name (if (string? name) name 
-			 (if (symbol? name) (symbol->string name)
+			 (if (symbol? name) 
+			     (symbol->string name)
 			     (error 'wrong-type-arg "apropos argument 1 should be a string or a symbol"))))
 	    (ap-env (if (let? e) e 
 			(error 'wrong-type-arg "apropos argument 2 should be an environment"))))

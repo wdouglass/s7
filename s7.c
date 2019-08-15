@@ -7383,8 +7383,8 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
   s7_pointer e, val;
   e = car(args);
 
-  if (e == sc->rootlet)
-    return(out_of_range(sc, sc->fill_symbol, small_int(1), e, wrap_string(sc, "can't fill! rootlet", 19)));
+  if ((e == sc->rootlet) || (e == sc->s7_let))
+    eval_error(sc, "attempt to fill! ~S?", 19, e);
   if (e == sc->owlet) /* (owlet) copies sc->owlet, so this probably can't happen */
     return(out_of_range(sc, sc->fill_symbol, small_int(1), e, wrap_string(sc, "can't fill! owlet", 17)));
   if (is_funclet(e))
@@ -7431,6 +7431,8 @@ static s7_pointer find_method(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
   return(sc->undefined);
 }
 
+static s7_int s7_let_length(void);
+
 static s7_int let_length(s7_scheme *sc, s7_pointer e)
 {
   /* used by length, applicable_length, copy, and some length optimizations */
@@ -7439,6 +7441,8 @@ static s7_int let_length(s7_scheme *sc, s7_pointer e)
 
   if (e == sc->rootlet)
     return(sc->rootlet_entries);
+  if (e == sc->s7_let)
+    return(s7_let_length());
 
   if (has_active_methods(sc, e))
     {
@@ -7801,8 +7805,8 @@ static s7_pointer g_coverlet(s7_scheme *sc, s7_pointer args)
   sc->temp3 = e;
   check_method_uncopied(sc, e, sc->coverlet_symbol, list_1(sc, e));
   sc->temp3 = sc->nil;
-  if (e == sc->rootlet)
-    s7_error(sc, sc->error_symbol, set_elist_1(sc, wrap_string(sc, "can't coverlet rootlet", 22)));
+  if ((e == sc->rootlet) || (e == sc->s7_let))
+    s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't coverlet ~S", 17), e));
 
   if ((is_let(e)) ||
       (has_closure_let(e)) ||
@@ -7821,15 +7825,10 @@ static void append_let(s7_scheme *sc, s7_pointer new_e, s7_pointer old_e)
 {
   s7_pointer x;
 
-  if (old_e == sc->rootlet)
+  if ((old_e == sc->rootlet) || (new_e == sc->s7_let))
     return;
 
-  if (new_e != sc->rootlet)
-    {
-      for (x = let_slots(old_e); tis_slot(x); x = next_slot(x))
-	make_slot_1(sc, new_e, slot_symbol(x), slot_value(x)); /* not add_slot here because we might run off the free heap end */
-    }
-  else
+  if (new_e == sc->rootlet)
     {
       for (x = let_slots(old_e); tis_slot(x); x = next_slot(x))
 	{
@@ -7839,6 +7838,32 @@ static void append_let(s7_scheme *sc, s7_pointer new_e, s7_pointer old_e)
 	  if (is_slot(global_slot(sym)))
 	    slot_set_value(global_slot(sym), val);
 	  else s7_make_slot(sc, new_e, sym, val);
+	}
+    }
+  else
+    {
+      if (old_e == sc->s7_let)
+	{
+	  s7_pointer iter, carrier;
+	  s7_int gc_loc;
+	  iter = s7_make_iterator(sc, sc->s7_let);
+	  gc_loc = s7_gc_protect(sc, iter);
+	  carrier = cons(sc, sc->F, sc->F);
+	  iterator_current(iter) = carrier;	  
+	  set_mark_seq(iter); /* so carrier is GC protected by mark_iterator */
+	  while (true)
+	    {
+	      s7_pointer x;
+	      x = s7_iterate(sc, iter);
+	      if (iterator_is_at_end(iter)) break;
+	      make_slot_1(sc, new_e, car(x), cdr(x));
+	    }
+	  s7_gc_unprotect_at(sc, gc_loc);
+	}
+      else
+	{
+	  for (x = let_slots(old_e); tis_slot(x); x = next_slot(x))
+	    make_slot_1(sc, new_e, slot_symbol(x), slot_value(x)); /* not add_slot here because we might run off the free heap end */
 	}
     }
 }
@@ -7893,7 +7918,7 @@ to the let env, and returns env.  (varlet (curlet) 'a 1) adds 'a to the current 
       check_method(sc, e, sc->varlet_symbol, args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->varlet_symbol, 1, e, a_let_string));
-      if (is_immutable(e))
+      if ((is_immutable(e)) || (e == sc->s7_let))
 	return(s7_wrong_type_arg_error(sc, "varlet", 1, e, "a mutable let"));
     }
   for (x = cdr(args); is_pair(x); x = cdr(x))
@@ -7979,7 +8004,7 @@ static s7_pointer g_cutlet(s7_scheme *sc, s7_pointer args)
       check_method(sc, e, sc->cutlet_symbol, args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->cutlet_symbol, 1, e, a_let_string));
-      if (is_immutable(e))
+      if ((is_immutable(e)) || (e == sc->s7_let))
 	return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->cutlet_symbol, e)));
     }
   /* besides removing the slot we have to make sure the symbol_id does not match else
@@ -8291,12 +8316,21 @@ s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer env)
   else
     {
       s7_pointer iter, func;
+      s7_int gc_loc = -1;
       /* need to check make-iterator method before dropping into let->list */
 
       if ((has_active_methods(sc, env)) &&
 	  ((func = find_method(sc, env, sc->make_iterator_symbol)) != sc->undefined))
 	iter = s7_apply_function(sc, func, list_1(sc, env));
-      else iter = sc->nil;
+      else 
+	{
+	  if (env == sc->s7_let)
+	    {
+	      iter = s7_make_iterator(sc, env);
+	      gc_loc = s7_gc_protect(sc, iter);
+	    }
+	  else iter = sc->nil;
+	}
 
       if (is_null(iter))
 	{
@@ -8314,6 +8348,8 @@ s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer env)
 	    }
 	  sc->w = safe_reverse_in_place(sc, sc->w);
 	}
+      if (gc_loc != -1)
+	s7_gc_unprotect_at(sc, gc_loc);
     }
   x = sc->w;
   sc->w = sc->temp3;
@@ -8846,7 +8882,7 @@ static s7_pointer g_set_outlet(s7_scheme *sc, s7_pointer args)
   env = car(args);
   if (!is_let(env))
     return(s7_wrong_type_arg_error(sc, "set! outlet", 1, env, "a let"));
-  if (is_immutable(env))
+  if ((is_immutable(env)) || (env == sc->s7_let))
     return(s7_wrong_type_arg_error(sc, "set! outlet", 1, env, "a mutable let"));
 
   new_outer = cadr(args);
@@ -25954,11 +25990,13 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
   declare_jump_info();
   TRACK(sc);
 
+  if (e == sc->s7_let) return(NULL);
+
 #if WITH_C_LOADER
   if (load_shared_object(sc, filename, (is_null(e)) ? sc->rootlet : e))
     return(sc->F);
 #endif
-
+  
   if (is_directory(filename))
     return(NULL);
   fp = fopen(filename, "r");
@@ -26018,6 +26056,8 @@ defaults to the rootlet.  To load into the current environment instead, pass (cu
       e = cadr(args);
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->load_symbol, 2, e, a_let_string));
+      if (e == sc->s7_let)
+	return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "can't load ~S into *s7*", 23), name)));
       if (e == sc->rootlet)
 	sc->envir = sc->nil;
       else sc->envir = e;
@@ -26728,10 +26768,11 @@ static s7_pointer titr_len(s7_pointer p, const char *func, int32_t line)
 static s7_pointer titr_pos(s7_scheme *sc, s7_pointer p, const char *func, int32_t line)
 {
   if (((is_let(iterator_sequence(p))) &&
-       (iterator_sequence(p) != sc->rootlet)) ||
+       (iterator_sequence(p) != sc->rootlet) &&
+       (iterator_sequence(p) != sc->s7_let)) ||
       (is_pair(iterator_sequence(p))))
     {
-      fprintf(stderr, "%s%s[%d]: iterator position sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
+      fprintf(stderr, "%s%s[%d]: iterator-position sequence is %s%s\n", BOLD_TEXT, func, line, check_name(unchecked_type(iterator_sequence(p))), UNBOLD_TEXT);
       if (sc->stop_at_error) abort();
     }
   return(p);
@@ -27007,9 +27048,11 @@ static bool is_iterable_closure(s7_scheme *sc, s7_pointer x)
   return((iter) && (iter != sc->F));
 }
 
+static s7_pointer s7_let_make_iterator(s7_scheme *sc, s7_pointer iter);
+
 s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 {
-  s7_pointer iter;
+  s7_pointer iter, p;
 
   new_cell(sc, iter, T_ITERATOR | T_SAFE_PROCEDURE | T_ITER_OK);
   iterator_sequence(iter) = e;
@@ -27024,18 +27067,18 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 	  iterator_current(iter) = rootlet_element(e, 0); /* unfortunately tricky -- let_iterate uses different fields */
 	  iterator_position(iter) = 0;
 	  iterator_next(iter) = rootlet_iterate;
+	  return(iter);
 	}
-      else
-	{
-	  s7_pointer f;
-	  sc->temp6 = iter;
-	  f = iterator_method(sc, e);
-	  sc->temp6 = sc->nil;
-	  if (f) {free_cell(sc, iter); return(f);}
-	  iterator_set_current_slot(iter, let_slots(e));
-	  iterator_next(iter) = let_iterate;
-	  iterator_let_cons(iter) = NULL;
-	}
+      if (e == sc->s7_let)
+	return(s7_let_make_iterator(sc, iter));
+
+      sc->temp6 = iter;
+      p = iterator_method(sc, e);
+      sc->temp6 = sc->nil;
+      if (p) {free_cell(sc, iter); return(p);}
+      iterator_set_current_slot(iter, let_slots(e));
+      iterator_next(iter) = let_iterate;
+      iterator_let_cons(iter) = NULL;
       break;
 
     case T_HASH_TABLE:
@@ -27093,7 +27136,6 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
     case T_CLOSURE: case T_CLOSURE_STAR:
       if (is_iterable_closure(sc, e))
 	{
-	  s7_pointer p;
 	  p = cons(sc, small_int(0), sc->nil);
 	  iterator_current(iter) = p;
 	  set_mark_seq(iter);
@@ -27111,17 +27153,14 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
       break;
 
     case T_C_OBJECT:
-      {
-	s7_pointer f;
-	iterator_length(iter) = c_object_length_to_int(sc, e);
-	sc->temp6 = iter;
-	f = iterator_method(sc, e);
-	sc->temp6 = sc->nil;
-	if (f) {free_cell(sc, iter); return(f);}
-	iterator_current(iter) = list_2(sc, e, small_int(0));
-	set_mark_seq(iter);
-	iterator_next(iter) = c_object_iterate;
-      }
+      iterator_length(iter) = c_object_length_to_int(sc, e);
+      sc->temp6 = iter;
+      p = iterator_method(sc, e);
+      sc->temp6 = sc->nil;
+      if (p) {free_cell(sc, iter); return(p);}
+      iterator_current(iter) = list_2(sc, e, small_int(0));
+      set_mark_seq(iter);
+      iterator_next(iter) = c_object_iterate;
       break;
 
     default:
@@ -29400,121 +29439,123 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     port_write_string(port)(sc, "(rootlet)", 9, port);
   else
     {
-      if (sc->short_print)
-	port_write_string(port)(sc, "#<let>", 6, port);
+      if (obj == sc->s7_let)
+	port_write_string(port)(sc, "*s7*", 4, port);
       else
 	{
-	  /* circles can happen here:
-	   *    (let () (let ((b (curlet))) (curlet))):    #<let 'b #<let>>
-	   * or (let ((b #f)) (set! b (curlet)) (curlet)): #1=#<let 'b #1#>
-	   */
-	  if (use_write == P_READABLE)
+	  if (sc->short_print)
+	    port_write_string(port)(sc, "#<let>", 6, port);
+	  else
 	    {
-	      int32_t lref;
-	      if ((ci) &&
-		  (is_cyclic(obj)) &&
-		  ((lref = peek_shared_ref(ci, obj)) != 0))
+	      /* circles can happen here:
+	       *    (let () (let ((b (curlet))) (curlet))):    #<let 'b #<let>>
+	       * or (let ((b #f)) (set! b (curlet)) (curlet)): #1=#<let 'b #1#>
+	       */
+	      if (use_write == P_READABLE)
 		{
-		  if (lref < 0) lref = -lref;
-		  if ((ci->defined[lref]) || (port == ci->cycle_port))
+		  int32_t lref;
+		  if ((ci) &&
+		      (is_cyclic(obj)) &&
+		      ((lref = peek_shared_ref(ci, obj)) != 0))
 		    {
-		      char buf[128];
-		      int32_t len;
-		      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
-		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
-		      return;
-		    }
-		  if ((outlet(obj) != sc->nil) &&
-		      (outlet(obj) != sc->rootlet))
-		    {
-		      char buf[128];
-		      int32_t len;
-		      len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", NULL);
-		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
-		      let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
-		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
-		    }
-		  if (has_methods(obj))
-		    port_write_string(port)(sc, "(openlet ", 9, port);
-		  /* not immutable here because we'll need to set the let fields below, then declare it immutable */
-		  if (let_has_setter(sc, obj))
-		    {
-		      port_write_string(port)(sc, "(let (", 6, port);
-		      slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, true);
-		      port_write_string(port)(sc, ") ", 2, port);
-		      slot_setters_to_port(sc, obj, port, ci);
-		      port_write_string(port)(sc, " (curlet))", 10, port);
-		    }
-		  else
-		    {
-		      port_write_string(port)(sc, "(inlet", 6, port);
-		      slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, false);
-		      port_write_character(port)(sc, ')', port);
-		    }
-		  if (has_methods(obj))
-		    port_write_character(port)(sc, ')', port);
-		}
-	      else
-		{
-		  if (has_methods(obj))
-		    port_write_string(port)(sc, "(openlet ", 9, port);
-		  if (is_immutable(obj))
-		    port_write_string(port)(sc, "(immutable! ", 12, port);
-
-		  /* this ignores outlet -- but is that a problem? */
-		  /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
-		  if (let_has_setter(sc, obj))
-		    {
-		      port_write_string(port)(sc, "(let (", 6, port);
-		      slot_list_to_port(sc, let_slots(obj), port, ci, true);
-		      port_write_string(port)(sc, ") ", 2, port);
-		      slot_setters_to_port(sc, obj, port, ci);
-		      /* perhaps set outlet here?? */
-		      port_write_string(port)(sc, " (curlet))", 10, port);
-		    }
-		  else
-		    {
+		      if (lref < 0) lref = -lref;
+		      if ((ci->defined[lref]) || (port == ci->cycle_port))
+			{
+			  char buf[128];
+			  int32_t len;
+			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
+			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			  return;
+			}
 		      if ((outlet(obj) != sc->nil) &&
 			  (outlet(obj) != sc->rootlet))
 			{
-			  int32_t ref;
-			  port_write_string(port)(sc, "(sublet ", 8, port);
-			  if ((ci) && ((ref = peek_shared_ref(ci, outlet(obj))) < 0))
-			    {
-			      char buf[128];
-			      int32_t len;
-			      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", NULL);
-			      port_write_string(port)(sc, buf, len, port);
-			    }
-			  else
-			    {
-			      s7_pointer name;
-			      name = s7_let_ref(sc, obj, make_symbol(sc, "class-name"));
-			      if (is_symbol(name))
-				symbol_to_port(sc, name, port, P_DISPLAY, ci);
-			      else let_to_port(sc, outlet(obj), port, use_write, ci);
-			    }
+			  char buf[128];
+			  int32_t len;
+			  len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", NULL);
+			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
+			  let_to_port(sc, outlet(obj), ci->cycle_port, use_write, ci);
+			  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 			}
-		      else port_write_string(port)(sc, "(inlet", 6, port);
-		      slot_list_to_port(sc, let_slots(obj), port, ci, false);
-		      port_write_character(port)(sc, ')', port);
+		      if (has_methods(obj))
+			port_write_string(port)(sc, "(openlet ", 9, port);
+		      /* not immutable here because we'll need to set the let fields below, then declare it immutable */
+		      if (let_has_setter(sc, obj))
+			{
+			  port_write_string(port)(sc, "(let (", 6, port);
+			  slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, true);
+			  port_write_string(port)(sc, ") ", 2, port);
+			  slot_setters_to_port(sc, obj, port, ci);
+			  port_write_string(port)(sc, " (curlet))", 10, port);
+			}
+		      else
+			{
+			  port_write_string(port)(sc, "(inlet", 6, port);
+			  slot_list_to_port_with_cycle(sc, obj, let_slots(obj), port, ci, false);
+			  port_write_character(port)(sc, ')', port);
+			}
+		      if (has_methods(obj))
+			port_write_character(port)(sc, ')', port);
 		    }
-		  if (is_immutable(obj))
-		    port_write_character(port)(sc, ')', port);
-		  if (has_methods(obj))
-		    port_write_character(port)(sc, ')', port);
+		  else
+		    {
+		      if (has_methods(obj))
+			port_write_string(port)(sc, "(openlet ", 9, port);
+		      if (is_immutable(obj))
+			port_write_string(port)(sc, "(immutable! ", 12, port);
+		      
+		      /* this ignores outlet -- but is that a problem? */
+		      /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
+		      if (let_has_setter(sc, obj))
+			{
+			  port_write_string(port)(sc, "(let (", 6, port);
+			  slot_list_to_port(sc, let_slots(obj), port, ci, true);
+			  port_write_string(port)(sc, ") ", 2, port);
+			  slot_setters_to_port(sc, obj, port, ci);
+			  /* perhaps set outlet here?? */
+			  port_write_string(port)(sc, " (curlet))", 10, port);
+			}
+		      else
+			{
+			  if ((outlet(obj) != sc->nil) &&
+			      (outlet(obj) != sc->rootlet))
+			    {
+			      int32_t ref;
+			      port_write_string(port)(sc, "(sublet ", 8, port);
+			      if ((ci) && ((ref = peek_shared_ref(ci, outlet(obj))) < 0))
+				{
+				  char buf[128];
+				  int32_t len;
+				  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", NULL);
+				  port_write_string(port)(sc, buf, len, port);
+				}
+			      else
+				{
+				  s7_pointer name;
+				  name = s7_let_ref(sc, obj, make_symbol(sc, "class-name"));
+				  if (is_symbol(name))
+				    symbol_to_port(sc, name, port, P_DISPLAY, ci);
+				  else let_to_port(sc, outlet(obj), port, use_write, ci);
+				}
+			    }
+			  else port_write_string(port)(sc, "(inlet", 6, port);
+			  slot_list_to_port(sc, let_slots(obj), port, ci, false);
+			  port_write_character(port)(sc, ')', port);
+			}
+		      if (is_immutable(obj))
+			port_write_character(port)(sc, ')', port);
+		      if (has_methods(obj))
+			port_write_character(port)(sc, ')', port);
+		    }
 		}
-	    }
-	  else /* not readable write */
-	    {
-	      port_write_string(port)(sc, "(inlet", 6, port);
-	      if (is_funclet(obj))
-		funclet_slots_to_port(sc, obj, port, use_write, ci);
-	      else slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
-	      port_write_character(port)(sc, ')', port);
-	    }
-	}
-    }
+	      else /* not readable write */
+		{
+		  port_write_string(port)(sc, "(inlet", 6, port);
+		  if (is_funclet(obj))
+		    funclet_slots_to_port(sc, obj, port, use_write, ci);
+		  else slot_to_port_1(sc, let_slots(obj), port, use_write, ci, 0);
+		  port_write_character(port)(sc, ')', port);
+		}}}}
 }
 
 static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
@@ -42451,6 +42492,9 @@ const char *s7_help(s7_scheme *sc, s7_pointer obj)
   if (is_procedure_or_macro(obj))
     return(s7_documentation(sc, obj));
 
+  if (obj == sc->s7_let)
+    return("*s7* is a let that gives access to s7's internal state: e.g. (*s7* 'print-length)");
+
   /* if is string, apropos? (can scan symbol table) */
   return(NULL);
 }
@@ -43625,6 +43669,8 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
   if ((setter != sc->F) &&
       (!is_any_procedure(setter)))
     return(s7_wrong_type_arg_error(sc, "set! setter", 2, setter, "a procedure or #f"));
+  if (p == sc->s7_let)
+    return(s7_wrong_type_arg_error(sc, "set! setter", 1, p, "something other than *s7*"));
 
   switch (type(p))
     {
@@ -45351,7 +45397,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       check_method(sc, source, sc->copy_symbol, args);
       if (source == sc->rootlet)
 	return(wrong_type_argument_with_type(sc, caller, 1, source, wrap_string(sc, "a sequence other than the rootlet", 33)));
-      if ((!have_indices) && (is_let(dest)))
+      if ((!have_indices) && (is_let(dest)) && (dest != sc->s7_let))
 	{
 	  s7_pointer slot;
 	  if (dest == sc->rootlet) /* (copy (inlet 'a 1) (rootlet)) */
@@ -45452,8 +45498,8 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       break;
 
     case T_LET:
-      if (dest == sc->rootlet)
-	return(wrong_type_argument_with_type(sc, caller, 2, dest, wrap_string(sc, "a sequence other than the rootlet", 33)));
+      if ((dest == sc->rootlet) || (dest == sc->s7_let))
+	return(wrong_type_argument_with_type(sc, caller, 2, dest, wrap_string(sc, "a sequence other than the rootlet or *s7*", 41)));
       set = let_setter;
       dest_len = source_len;          /* grows via set, so dest_len isn't relevant */
       set_cadr(sc->elist_3, caller);  /* for possible error handling in let_setter */
@@ -45514,51 +45560,76 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
       /* implicit index can give n-way reality check (ht growth by new entries)
        * if shadowed entries are they unshadowed by reversal?
        */
-      {
-	/* source and dest can't be rootlet (checked above) */
-	s7_pointer slot;
-	slot = let_slots(source);
-	for (i = 0; i < start; i++) slot = next_slot(slot);
-	if (is_pair(dest))
-	  {
-	    s7_pointer p;
-	    for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p), slot = next_slot(slot))
-	      set_car(p, cons(sc, slot_symbol(slot), slot_value(slot)));
-	  }
-	else
-	  {
-	    if (is_let(dest))
-	      {
-		if ((has_let_fallback(source)) &&
-		    (has_let_fallback(dest)))
-		  {
-		    for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
-		      if ((slot_symbol(slot) != sc->let_ref_fallback_symbol) &&
-			  (slot_symbol(slot) != sc->let_set_fallback_symbol))
+      if (source == sc->s7_let)
+	{
+	  s7_pointer iter;
+	  s7_int gc_loc;
+	  iter = s7_make_iterator(sc, sc->s7_let);
+	  gc_loc = s7_gc_protect(sc, iter);
+	  for (i = 0; i < start; i++)
+	    {
+	      s7_iterate(sc, iter);
+	      if (iterator_is_at_end(iter))
+		{
+		  s7_gc_unprotect_at(sc, gc_loc);
+		  return(dest);
+		}
+	    }
+	  for (i = start, j = 0; i < end; i++, j++)
+	    {
+	      s7_pointer val;
+	      val =  s7_iterate(sc, iter);
+	      if (iterator_is_at_end(iter)) break;
+	      set(sc, dest, j, val);
+	    }
+	  s7_gc_unprotect_at(sc, gc_loc);
+	}
+      else
+	{
+	  /* source and dest can't be rootlet (checked above), dest also can't be *s7* */
+	  s7_pointer slot;
+	  slot = let_slots(source);
+	  for (i = 0; i < start; i++) slot = next_slot(slot);
+	  if (is_pair(dest))
+	    {
+	      s7_pointer p;
+	      for (i = start, p = dest; (i < end) && (is_pair(p)); i++, p = cdr(p), slot = next_slot(slot))
+		set_car(p, cons(sc, slot_symbol(slot), slot_value(slot)));
+	    }
+	  else
+	    {
+	      if (is_let(dest))
+		{
+		  if ((has_let_fallback(source)) &&
+		      (has_let_fallback(dest)))
+		    {
+		      for (slot = let_slots(source); tis_slot(slot); slot = next_slot(slot))
+			if ((slot_symbol(slot) != sc->let_ref_fallback_symbol) &&
+			    (slot_symbol(slot) != sc->let_set_fallback_symbol))
+			  make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
+		    }
+		  else
+		    {
+		      for (i = start; i < end; i++, slot = next_slot(slot))
 			make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
-		  }
-		else
-		  {
-		    for (i = start; i < end; i++, slot = next_slot(slot))
-		      make_slot_1(sc, dest, slot_symbol(slot), slot_value(slot));
-		  }
-	      }
-	    else
-	      {
-		if (is_hash_table(dest))
-		  {
-		    for (i = start; i < end; i++, slot = next_slot(slot))
-		      s7_hash_table_set(sc, dest, slot_symbol(slot), slot_value(slot));
-		  }
-		else
-		  {
-		    for (i = start, j = 0; i < end; i++, j++, slot = next_slot(slot))
-		      set(sc, dest, j, cons(sc, slot_symbol(slot), slot_value(slot)));
-		  }
-	      }
-	  }
-	return(dest);
-      }
+		    }
+		}
+	      else
+		{
+		  if (is_hash_table(dest))
+		    {
+		      for (i = start; i < end; i++, slot = next_slot(slot))
+			s7_hash_table_set(sc, dest, slot_symbol(slot), slot_value(slot));
+		    }
+		  else
+		    {
+		      for (i = start, j = 0; i < end; i++, j++, slot = next_slot(slot))
+			set(sc, dest, j, cons(sc, slot_symbol(slot), slot_value(slot)));
+		    }
+		}
+	    }
+	}
+      return(dest);
 
     case T_HASH_TABLE:
       {
@@ -63027,7 +63098,7 @@ static s7_pointer opt_do_1(opt_info *o)
 	}
       else 
 	{
-#if S7_DEBUGGING
+#if S7_DEBUGGING && (0)
 	  fprintf(stderr, "%s: not add: %s\n", __func__, DISPLAY(o->vexpr));
 #endif
 	  o->v[8].i = 2;
@@ -76075,6 +76146,23 @@ static bool op_cond_feed(s7_scheme *sc)
   return(false);
 }
 
+static bool op_cond_feed_1(s7_scheme *sc)
+{
+  if (is_true(sc, sc->value))
+    {
+      if (is_multiple_value(sc->value))
+	sc->code = cons(sc, opt2_lambda(sc->code), multiple_value(sc->value));
+      else
+	{
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caadr(opt2_lambda(sc->code)), sc->value);
+	  sc->code = caddr(opt2_lambda(sc->code));
+	}
+      return(true);
+    }
+  sc->value = sc->unspecified; /* it's cond -- perhaps push as sc->args above; this was nil until 21-Feb-17! */
+  return(false);
+}
+
 static bool feed_to(s7_scheme *sc)
 {
   if (is_multiple_value(sc->value))
@@ -86158,6 +86246,17 @@ static void op_finish_expansion(s7_scheme *sc)
     }
 }
 
+static void macroexpand_c_macro(s7_scheme *sc)
+{
+  s7_int len;
+  len = safe_list_length(sc->args);
+  if (len < c_macro_required_args(sc->code))
+    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
+  if (c_macro_all_args(sc->code) < len)
+    s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
+  sc->value = c_macro_call(sc->code)(sc, sc->args);
+}
+
 static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
 {
   /* here we've reached the last arg (sc->code == nil), it is not a pair */
@@ -87475,25 +87574,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  /* sc->value is car=something applicable, sc->code = rest of expression
 	   * sc->args is nil (set by the drop-through cases above -- perhaps clearer to bring that down?)
 	   */
-	case OP_EVAL_ARGS5:
-	  op_eval_args5(sc);
-	  goto APPLY;
-
-	case OP_EVAL_ARGS2:          /* sc->value is the last arg, [so if is_null(cdr(sc->code) and current is pair, push args2] */
-	  op_eval_args2(sc);
-	  goto APPLY;
-
-	case OP_EVAL_ARGS3:          /* sc->value is the next-to-last arg, and we know the last arg is not a list (so values can't mess us up!) */
-	  op_eval_args3(sc);
-	  goto APPLY;
-
-	case OP_EVAL_ARGS4: 	     /* sc->code is a pair, and either cdr(sc->code) is not null or car(sc->code) is a pair */
-	  op_eval_args4(sc);
-	  goto EVAL_ARGS_PAIR;
-
-	case OP_EVAL_ARGS1:
-	  op_eval_args1(sc);
-	  goto EVAL_ARGS;
+	case OP_EVAL_ARGS5: op_eval_args5(sc); goto APPLY;
+	case OP_EVAL_ARGS2: op_eval_args2(sc); goto APPLY; /* sc->value is the last arg, [so if is_null(cdr(sc->code) and current is pair, push args2] */
+	case OP_EVAL_ARGS3: op_eval_args3(sc); goto APPLY; /* sc->value is the next-to-last arg, and we know the last arg is not a list (so values can't mess us up!) */
+	case OP_EVAL_ARGS4: op_eval_args4(sc); goto EVAL_ARGS_PAIR; /* sc->code is a pair, and either cdr(sc->code) is not null or car(sc->code) is a pair */
+	case OP_EVAL_ARGS1: op_eval_args1(sc); goto EVAL_ARGS;
 
 	EVAL_ARGS_TOP:
 	case OP_EVAL_ARGS:
@@ -87747,17 +87832,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      if (apply_lambda_star(sc) == goto_EVAL) goto EVAL;
 	      goto BEGIN;
 
-	    case T_C_MACRO: /* moving this out of eval makes callgrind behave foolishly */
-	      {
-		s7_int len;
-		len = safe_list_length(sc->args);
-		if (len < c_macro_required_args(sc->code))
-		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, not_enough_arguments_string, sc->code, sc->args));
-		if (c_macro_all_args(sc->code) < len)
-		  s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
-		sc->value = c_macro_call(sc->code)(sc, sc->args);
-		goto START;
-	      }
+	    case T_C_MACRO:
+	      macroexpand_c_macro(sc);
+	      goto START;
 	    }
 	  eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->args);
 
@@ -88188,13 +88265,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DEFINE1:
 	  if (op_define1(sc) == goto_APPLY) goto APPLY;
 
-	case OP_DEFINE_WITH_SETTER:
-	  op_define_with_setter(sc);
+	case OP_DEFINE_WITH_SETTER: 
+	  op_define_with_setter(sc); 
 	  goto START;
 
-	case OP_EVAL_STRING:
-	  op_eval_string(sc);
-	  goto EVAL;
+	case OP_EVAL_STRING: op_eval_string(sc); goto EVAL;
 
 
 	  /* -------------------------------- set! -------------------------------- */
@@ -88215,8 +88290,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->value = fx_call(sc, cdr(sc->code));
 	  /* fall through */
 
-	case OP_SET_PAIR_P_1:
-	  if (op_set_pair_p_1(sc)) goto APPLY;
+	case OP_SET_PAIR_P_1:      
+	  if (op_set_pair_p_1(sc)) goto APPLY; 
 	  goto START;
 
 	case OP_SET_PAIR:	   if (op_set_pair(sc)) goto APPLY; goto START;
@@ -88424,8 +88499,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_IF_ORP_N_N: sc->code = cdr(sc->code); push_stack_no_args(sc, OP_IF_PRR, opt2_any(sc->code)); sc->code = opt3_pair(sc->code); goto OR_P;
 
 	case OP_IF_PP:
-	  if (is_true(sc, sc->value))
-	    goto EVAL;
+	  if (is_true(sc, sc->value)) goto EVAL;
 	  sc->value = sc->unspecified;
 	  goto START;
 
@@ -88436,8 +88510,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_IF_PR:
-	  if (is_false(sc, sc->value))
-	    goto EVAL;
+	  if (is_false(sc, sc->value)) goto EVAL;
 	  sc->value = sc->unspecified;
 	  goto START;
 
@@ -88451,18 +88524,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_cond_feed(sc)) goto EVAL;
 
 	case OP_COND_FEED_1:
-	  if (is_true(sc, sc->value))
-	    {
-	      if (is_multiple_value(sc->value))
-		sc->code = cons(sc, opt2_lambda(sc->code), multiple_value(sc->value));
-	      else
-		{
-		  new_frame_with_slot(sc, sc->envir, sc->envir, caadr(opt2_lambda(sc->code)), sc->value);
-		  sc->code = caddr(opt2_lambda(sc->code));
-		}
-	      goto EVAL;
-	    }
-	  sc->value = sc->unspecified; /* it's cond -- perhaps push as sc->args above; this was nil until 21-Feb-17! */
+	  if (op_cond_feed_1(sc)) goto EVAL;
 	  goto START;
 
 	  /* -------------------------------- when, unless -------------------------------- */
@@ -93311,7 +93373,7 @@ static void s7_gmp_init(s7_scheme *sc)
 /* WITH_GMP */
 
 
-/* -------------------------------- *s7* environment -------------------------------- */
+/* -------------------------------- *s7* let -------------------------------- */
 
 s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
 s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
@@ -93340,9 +93402,23 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_DEFAULT_RANDOM_STATE, SL_EQUIVALENT_FLOAT_EPSILON, SL_HASH_TABLE_FLOAT_EPSILON, SL_PRINT_LENGTH, 
 	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
 	      SL_HISTORY_SIZE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS, 
-	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM} s7_let_field_t;
+	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_NUM_FIELDS} s7_let_field_t;
 
-static s7_pointer s7_let_field(s7_scheme *sc, const char *name, s7_let_field_t field)
+static const char *s7_let_field_names[SL_NUM_FIELDS] = 
+  {"no-field", "stack-top", "stack-size", "stacktrace-defaults", "heap-size", "free-heap-size", 
+   "gc-freed", "gc-protected-objects", "file-names", "rootlet-size", "c-types", "safety", 
+   "undefined-identifier-warnings", "undefined-constant-warnings", "gc-stats", "max-heap-size", 
+   "max-port-data-size", "max-stack-size", "cpu-time", "catches", "stack", "max-string-length", 
+   "max-format-length", "max-list-length", "max-vector-length", "max-vector-dimensions",
+   "default-hash-table-length", "initial-string-port-length", "default-rationalize-error",
+   "default-random-state", "equivalent-float-epsilon", "hash-table-float-epsilon", "print-length", 
+   "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
+   "history-size", "profile-info", "autoloading?", "accept-all-keyword-arguments", 
+   "most-positive-fixnum", "most-negative-fixnum"};
+
+static s7_int s7_let_length(void) {return(SL_NUM_FIELDS - 1);}
+
+static s7_pointer s7_let_add_field(s7_scheme *sc, const char *name, s7_let_field_t field)
 {
   s7_pointer sym;
   sym = make_symbol(sc, name);
@@ -93356,49 +93432,49 @@ static s7_pointer s7_let_field(s7_scheme *sc, const char *name, s7_let_field_t f
  */
 static void init_s7_let(s7_scheme *sc)
 {
-  s7_let_field(sc, "accept-all-keyword-arguments",  SL_ACCEPT_ALL_KEYWORD_ARGUMENTS);
-  s7_let_field(sc, "autoloading?",                  SL_AUTOLOADING);
-  s7_let_field(sc, "bignum-precision",              SL_BIGNUM_PRECISION);
-  s7_let_field(sc, "c-types",                       SL_C_TYPES);
-  s7_let_field(sc, "catches",                       SL_CATCHES);
-  s7_let_field(sc, "cpu-time",                      SL_CPU_TIME);
-  s7_let_field(sc, "default-hash-table-length",     SL_DEFAULT_HASH_TABLE_LENGTH);
-  s7_let_field(sc, "default-random-state",          SL_DEFAULT_RANDOM_STATE);
-  s7_let_field(sc, "default-rationalize-error",     SL_DEFAULT_RATIONALIZE_ERROR);
-  s7_let_field(sc, "equivalent-float-epsilon",      SL_EQUIVALENT_FLOAT_EPSILON);
-  s7_let_field(sc, "file-names",                    SL_FILE_NAMES);
-  s7_let_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
-  s7_let_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
-  s7_let_field(sc, "gc-freed",                      SL_GC_FREED);
-  s7_let_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
-  s7_let_field(sc, "gc-stats",                      SL_GC_STATS);
-  s7_let_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
-  s7_let_field(sc, "heap-size",                     SL_HEAP_SIZE);
-  s7_let_field(sc, "history",                       SL_HISTORY);
-  s7_let_field(sc, "history-enabled",               SL_HISTORY_ENABLED);
-  s7_let_field(sc, "history-size",                  SL_HISTORY_SIZE);
-  s7_let_field(sc, "initial-string-port-length",    SL_INITIAL_STRING_PORT_LENGTH);
-  s7_let_field(sc, "max-format-length",             SL_MAX_FORMAT_LENGTH);
-  s7_let_field(sc, "max-heap-size",                 SL_MAX_HEAP_SIZE);
-  s7_let_field(sc, "max-list-length",               SL_MAX_LIST_LENGTH);
-  s7_let_field(sc, "max-port-data-size",            SL_MAX_PORT_DATA_SIZE);
-  s7_let_field(sc, "max-stack-size",                SL_MAX_STACK_SIZE);
-  s7_let_field(sc, "max-string-length",             SL_MAX_STRING_LENGTH);
-  s7_let_field(sc, "max-vector-dimensions",         SL_MAX_VECTOR_DIMENSIONS);
-  s7_let_field(sc, "max-vector-length",             SL_MAX_VECTOR_LENGTH);
-  s7_let_field(sc, "memory-usage",                  SL_MEMORY_USAGE);
-  s7_let_field(sc, "most-negative-fixnum",          SL_MOST_NEGATIVE_FIXNUM);
-  s7_let_field(sc, "most-positive-fixnum",          SL_MOST_POSITIVE_FIXNUM);
-  s7_let_field(sc, "print-length",                  SL_PRINT_LENGTH);
-  s7_let_field(sc, "profile-info",                  SL_PROFILE_INFO);
-  s7_let_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
-  s7_let_field(sc, "safety",                        SL_SAFETY);
-  s7_let_field(sc, "stack",                         SL_STACK);
-  s7_let_field(sc, "stack-size",                    SL_STACK_SIZE);
-  s7_let_field(sc, "stack-top",                     SL_STACK_TOP);
-  s7_let_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
-  s7_let_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
-  s7_let_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
+  s7_let_add_field(sc, "accept-all-keyword-arguments",  SL_ACCEPT_ALL_KEYWORD_ARGUMENTS);
+  s7_let_add_field(sc, "autoloading?",                  SL_AUTOLOADING);
+  s7_let_add_field(sc, "bignum-precision",              SL_BIGNUM_PRECISION);
+  s7_let_add_field(sc, "c-types",                       SL_C_TYPES);
+  s7_let_add_field(sc, "catches",                       SL_CATCHES);
+  s7_let_add_field(sc, "cpu-time",                      SL_CPU_TIME);
+  s7_let_add_field(sc, "default-hash-table-length",     SL_DEFAULT_HASH_TABLE_LENGTH);
+  s7_let_add_field(sc, "default-random-state",          SL_DEFAULT_RANDOM_STATE);
+  s7_let_add_field(sc, "default-rationalize-error",     SL_DEFAULT_RATIONALIZE_ERROR);
+  s7_let_add_field(sc, "equivalent-float-epsilon",      SL_EQUIVALENT_FLOAT_EPSILON);
+  s7_let_add_field(sc, "file-names",                    SL_FILE_NAMES);
+  s7_let_add_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
+  s7_let_add_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
+  s7_let_add_field(sc, "gc-freed",                      SL_GC_FREED);
+  s7_let_add_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
+  s7_let_add_field(sc, "gc-stats",                      SL_GC_STATS);
+  s7_let_add_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
+  s7_let_add_field(sc, "heap-size",                     SL_HEAP_SIZE);
+  s7_let_add_field(sc, "history",                       SL_HISTORY);
+  s7_let_add_field(sc, "history-enabled",               SL_HISTORY_ENABLED);
+  s7_let_add_field(sc, "history-size",                  SL_HISTORY_SIZE);
+  s7_let_add_field(sc, "initial-string-port-length",    SL_INITIAL_STRING_PORT_LENGTH);
+  s7_let_add_field(sc, "max-format-length",             SL_MAX_FORMAT_LENGTH);
+  s7_let_add_field(sc, "max-heap-size",                 SL_MAX_HEAP_SIZE);
+  s7_let_add_field(sc, "max-list-length",               SL_MAX_LIST_LENGTH);
+  s7_let_add_field(sc, "max-port-data-size",            SL_MAX_PORT_DATA_SIZE);
+  s7_let_add_field(sc, "max-stack-size",                SL_MAX_STACK_SIZE);
+  s7_let_add_field(sc, "max-string-length",             SL_MAX_STRING_LENGTH);
+  s7_let_add_field(sc, "max-vector-dimensions",         SL_MAX_VECTOR_DIMENSIONS);
+  s7_let_add_field(sc, "max-vector-length",             SL_MAX_VECTOR_LENGTH);
+  s7_let_add_field(sc, "memory-usage",                  SL_MEMORY_USAGE);
+  s7_let_add_field(sc, "most-negative-fixnum",          SL_MOST_NEGATIVE_FIXNUM);
+  s7_let_add_field(sc, "most-positive-fixnum",          SL_MOST_POSITIVE_FIXNUM);
+  s7_let_add_field(sc, "print-length",                  SL_PRINT_LENGTH);
+  s7_let_add_field(sc, "profile-info",                  SL_PROFILE_INFO);
+  s7_let_add_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
+  s7_let_add_field(sc, "safety",                        SL_SAFETY);
+  s7_let_add_field(sc, "stack",                         SL_STACK);
+  s7_let_add_field(sc, "stack-size",                    SL_STACK_SIZE);
+  s7_let_add_field(sc, "stack-top",                     SL_STACK_TOP);
+  s7_let_add_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
+  s7_let_add_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
+  s7_let_add_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
 }
 
 #ifdef __linux__
@@ -93644,16 +93720,8 @@ static s7_pointer sl_history(s7_scheme *sc)
 #endif
 }
 
-static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
+static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
 {
-  s7_pointer sym;
-
-  sym = cadr(args);
-  if (!is_symbol(sym))
-    return(simple_wrong_type_argument(sc, sc->let_ref_symbol, sym, T_SYMBOL));
-  if (is_keyword(sym))
-    sym = keyword_symbol(sym);
-  
   switch (symbol_s7_let(sym))
     {
     case SL_ACCEPT_ALL_KEYWORD_ARGUMENTS:  return(make_boolean(sc, sc->accept_all_keyword_arguments));
@@ -93703,6 +93771,50 @@ static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
       return(s7_error(sc, sc->error_symbol, set_elist_2(sc, wrap_string(sc, "can't get (*s7* '~S); no such field in *s7*", 43), sym)));
     }
   return(sc->undefined);
+}
+
+static s7_pointer g_s7_let_ref_fallback(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer sym;
+
+  sym = cadr(args);
+  if (!is_symbol(sym))
+    return(simple_wrong_type_argument(sc, sc->let_ref_symbol, sym, T_SYMBOL));
+  if (is_keyword(sym))
+    sym = keyword_symbol(sym);
+  return(s7_let_field(sc, sym));
+}
+
+static s7_pointer s7_let_iterate(s7_scheme *sc, s7_pointer iterator)
+{
+  s7_pointer symbol, value, osw;
+
+  iterator_position(iterator)++;
+  if (iterator_position(iterator) >= SL_NUM_FIELDS)
+    return(iterator_quit(iterator));
+
+  symbol = make_symbol(sc, s7_let_field_names[iterator_position(iterator)]);
+  osw = sc->w;  /* protect against s7_let_field list making */
+  value = s7_let_field(sc, symbol);
+  sc->w = osw;
+
+  if (iterator_let_cons(iterator))
+    {
+      s7_pointer p;
+      p = iterator_let_cons(iterator);
+      set_car(p, symbol);
+      set_cdr(p, value);
+      return(p);
+    }
+  return(cons(sc, symbol, value));
+}
+
+static s7_pointer s7_let_make_iterator(s7_scheme *sc, s7_pointer iter)
+{
+  iterator_position(iter) = SL_NO_FIELD;
+  iterator_next(iter) = s7_let_iterate;
+  iterator_let_cons(iter) = NULL;
+  return(iter);
 }
 
 static s7_pointer sl_real_geq_0(s7_scheme *sc, s7_pointer sym, s7_pointer val)
@@ -93975,6 +94087,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->unused) return("#<unused>");
   if (p == sc->symbol_table) return("symbol_table");
   if (p == sc->rootlet) return("rootlet");
+  if (p == sc->s7_let) return("*s7*");
   if (p == sc->unlet) return("unlet");
   if (p == sc->input_port) return("input_port");
   if (p == sc->output_port) return("output_port");
@@ -96210,24 +96323,24 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  949   877
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1492  1492
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1689
- * tmisc         |      |      |      |      |      | 2306 |       1758
+ * tmisc         |      |      |      |      |      | 2306 |       1769
  * tvect         |      |      |      |      |      | 5729 | 2033  1931
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2122
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2234
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2230
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2255  2255
- * tread         |      |      |      |      | 2357 | 2336 | 2269  2268
+ * tread         |      |      |      |      | 2357 | 2336 | 2269  2275
  * tlet          |      |      |      |      | 4717 | 2959 | 2285  2272
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2664  2660
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2664  2666
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2705  2686
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2765
  * titer         |      |      |      | 5971 | 4646 | 3587 | 3022  2843
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3011  2962
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3062
- * tset          |      |      |      |      | 10.0 | 6432 | 3477  3413  3112
+ * tset          |      |      |      |      | 10.0 | 6432 | 3477  3112
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3314  3309
  * tmac     7834 | 7834 | 7002 | 5054 | 4980 | 4963 | 3485 |       3394
  * dup           |      |      |      |      | 20.8 | 5711 | 3715  3487
- * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 |       4083
+ * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 |       4080
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 7115  6729
  * thash         |      |      |      |      |      | 10.3 | 8852  8840
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.9

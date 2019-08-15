@@ -1424,7 +1424,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 ;;; --------------------------------------------------------------------------------
 
-(define (*s7*->list) 
+(define (*s7*->list) ;(let->list *s7*) but not using keywords
   (list 
    :print-length                  (*s7* 'print-length)
    :safety                        (*s7* 'safety)
@@ -1462,7 +1462,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :catches                       (*s7* 'catches)
    :history-size                  (*s7* 'history-size)
    :history-enabled               (*s7* 'history-enabled)
-   :history                       (*s7* 'history)))
+   :history                       (*s7* 'history)
+   :most-positive-fixnum          (*s7* 'most-positive-fixnum)
+   :most-negative-fixnum          (*s7* 'most-negative-fixnum)))
 
 
 
