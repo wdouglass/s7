@@ -69,7 +69,7 @@
 
 ;(format *stderr* "~A ~A ~A ~A ~A~%" (length hash-0) (length hash-1) (length hash-2) (length hash-3) (length hash-4))
 
-(set! (*s7* 'initial-string-port-length) 64)
+;(set! (*s7* 'initial-string-port-length) 64)
 
 (define (tests size)
   (let ((str #f)

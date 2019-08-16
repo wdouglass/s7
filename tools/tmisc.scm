@@ -1,3 +1,5 @@
+(set! (*s7* 'heap-size) 1024000)
+
 (define size 500000)
 
 ;;; let-temporarily
