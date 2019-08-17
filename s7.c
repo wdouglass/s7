@@ -1169,7 +1169,7 @@ struct s7_scheme {
   int32_t num_fdats, last_error_line;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, qlist_3, clist_1;
   gc_list *strings, *vectors, *input_ports, *output_ports, *continuations, *c_objects, *hash_tables;
-  gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators;
+  gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators, *lamlets;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
   s7_pointer *tree_pointers;
@@ -2719,8 +2719,8 @@ static void init_types(void)
 #define set_opt2_con(P, X)             set_opt2(P, T_Pos(X),        F_CON)
 #define opt2_lambda(P)                 T_Pair(opt2(P,               F_LAMBDA))
 #define set_opt2_lambda(P, X)          set_opt2(P, T_Pair(X),       F_LAMBDA)
-#define opt2_direct(P)               opt2(P,                      F_LAMBDA)
-#define set_opt2_direct(P, X)        set_opt2(P, (s7_pointer)(X), F_LAMBDA)
+#define opt2_direct(P)                 opt2(P,                      F_LAMBDA)
+#define set_opt2_direct(P, X)          set_opt2(P, (s7_pointer)(X), F_LAMBDA)
 
 #define opt3_arglen(P)                 T_Int(opt3(cdr(P),           G_ARGLEN))
 #define set_opt3_arglen(P, X)          set_opt3(cdr(P), T_Int(X),   G_ARGLEN)
@@ -2732,8 +2732,10 @@ static void init_types(void)
 #define set_opt3_any(P, X)             set_opt3(P, X,               G_ANY)
 #define opt3_let(P)                    T_Lid(opt3(P,                G_LET))
 #define set_opt3_let(P, X)             set_opt3(P, T_Lid(X),        G_LET)
-#define opt3_direct(P)               opt3(P,                      G_DIRECT)
-#define set_opt3_direct(P, X)        set_opt3(P, (s7_pointer)(X), G_DIRECT)
+#define opt3_lamlet(P)                 T_Pos(opt3(P,                G_LET))
+#define set_opt3_lamlet(P, X)          set_opt3(P, T_Pos(X),        G_LET)
+#define opt3_direct(P)                 opt3(P,                      G_DIRECT)
+#define set_opt3_direct(P, X)          set_opt3(P, (s7_pointer)(X), G_DIRECT)
 
 #if S7_DEBUGGING
 #define opt3_byte(p)                   opt3_byte_1(T_Pair(p),          G_BYTE, __func__, __LINE__)
@@ -4961,6 +4963,8 @@ static void process_continuation(s7_scheme *sc, s7_pointer s1)
   liberate_block(sc, continuation_block(s1));
 }
 
+static void process_noop(void) {}
+
 static void sweep(s7_scheme *sc)
 {
   s7_int i, j;
@@ -5034,6 +5038,9 @@ static void sweep(s7_scheme *sc)
 
   gp = sc->continuations;
   process_gc_list(process_continuation(sc, s1));
+
+  gp = sc->lamlets;
+  process_gc_list(process_noop());
 
   gp = sc->weak_refs;
   if (gp->loc > 0)
@@ -5116,6 +5123,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_multivector(sc, p)   add_to_gc_list(sc->multivectors, p)
 #define add_lambda(sc, p)        add_to_gc_list(sc->lambdas, p)
 #define add_weak_ref(sc, p)      add_to_gc_list(sc->weak_refs, p)
+#define add_lamlet(sc, p)        add_to_gc_list(sc->lamlets, p)
 #define add_weak_hash_iterator(sc, p) add_to_gc_list(sc->weak_hash_iterators, p)
 
 #if WITH_GMP
@@ -5140,6 +5148,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->c_objects = make_gc_list();
   sc->lambdas = make_gc_list();
   sc->weak_refs = make_gc_list();
+  sc->lamlets = make_gc_list();
   sc->weak_hash_iterators = make_gc_list();
 #if WITH_GMP
   sc->big_integers = make_gc_list();
@@ -5671,6 +5680,20 @@ static void unmark_permanent_objects(s7_scheme *sc)
 #endif
 }
 
+static void mark_lamlets(s7_scheme *sc)
+{
+  s7_int i;
+  gc_list *gp;
+  gp = sc->lamlets;
+  for (i = 0; i < gp->loc; i++)
+    {
+      s7_pointer s1;
+      s1 = gp->list[i];
+      if (!is_free_and_clear(s1))
+	gc_mark(opt3_lamlet(s1));
+    }
+}
+
 
 #if (!MS_WINDOWS)
   #include <time.h>
@@ -5816,6 +5839,7 @@ static int64_t gc(s7_scheme *sc)
   }
   mark_op_stack(sc);
   mark_permanent_objects(sc);
+  mark_lamlets(sc);
 
   /* free up all unmarked objects */
   old_free_heap_top = sc->free_heap_top;
@@ -7308,13 +7332,11 @@ static s7_pointer make_permanent_let(s7_scheme *sc, s7_pointer vars)
   set_type(frame, T_LET | T_SAFE_PROCEDURE | T_UNHEAP);
   let_id(frame) = ++sc->let_number;
   set_outlet(frame, sc->envir);
-  var = vars;
-  slot = make_permanent_slot(sc, caar(var), sc->F);
+  slot = make_permanent_slot(sc, caar(vars), sc->F);
   add_permanent_let_or_slot(sc, slot);
-  symbol_set_local(caar(var), sc->let_number, slot);
+  symbol_set_local(caar(vars), sc->let_number, slot);
   let_set_slots(frame, slot);
-  var = cdr(var);
-  while (is_pair(var))
+  for (var = cdr(vars); is_pair(var); var = cdr(var))
     {
       s7_pointer last_slot;
       last_slot = slot;
@@ -7322,7 +7344,6 @@ static s7_pointer make_permanent_let(s7_scheme *sc, s7_pointer vars)
       add_permanent_let_or_slot(sc, slot);
       symbol_set_local(caar(var), sc->let_number, slot);
       slot_set_next(last_slot, slot);
-      var = cdr(var);
     }
   slot_set_next(slot, slot_end(sc));
   add_permanent_let_or_slot(sc, frame); /* need to mark outlet and maybe slot values */
@@ -65656,18 +65677,16 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
   #define H_apply_values "(apply-values var) applies values to var.  This is an internal function."
   #define Q_apply_values s7_make_signature(sc, 2, sc->T, sc->is_list_symbol)
   s7_pointer x;
-
+  /* apply-values takes 1 arg: ,@a -> (apply-values a) */
   if (is_null(args))
     return(sc->no_value);
 
-  if (is_null(cdr(args)))
-    x = car(args);
-  else x = apply_list_star(sc, args);
+  x = car(args);
+  if (is_null(x))
+    return(sc->no_value);
 
   if (!s7_is_proper_list(sc, x))
     return(apply_list_error(sc, args));
-  if (is_null(x))
-    return(sc->no_value);
 
   return(g_values(sc, x));
 }
@@ -65765,7 +65784,7 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 
   {
     s7_int len, i;
-    s7_pointer orig, bq, old_scw;
+    s7_pointer orig, bq, old_scw, old_lv;
     bool dotted = false;
 
     len = s7_list_length(sc, form);
@@ -65782,9 +65801,11 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
       sc->w = cons(sc, sc->nil, sc->w);
 
     set_car(sc->w, sc->list_values_symbol);
+    old_lv = sc->w;
 
     if (!dotted)
       {
+	bool simple = true;
 	for (orig = form, bq = cdr(sc->w), i = 0; i < len; i++, orig = cdr(orig), bq = cdr(bq))
 	  {
 	    if ((is_pair(cdr(orig))) &&             /* this was is_pair(orig) which seems to be always the case */
@@ -65802,7 +65823,16 @@ and splices the resultant list into the outer list. `(1 ,(+ 1 1) ,@(list 3 4)) -
 		break;
 	      }
 	    else set_car(bq, g_quasiquote_1(sc, car(orig), false));
+	    
+#if S7_DEBUGGING
+	    if (car(bq) == sc->no_value) fprintf(stderr, "%s[%d] no-values!: %s\n", __func__, __LINE__, DISPLAY(form));
+#endif
+	    if ((simple) && 
+		((is_pair(car(bq))) && (caar(bq) != sc->quote_symbol)))
+	      simple = false;
 	  }
+	if (simple) 
+	  set_car(old_lv, sc->list_symbol);
       }
     else
       {
@@ -73115,6 +73145,7 @@ static s7_pointer check_let(s7_scheme *sc)
 	  clear_list_in_use(sc->args);
 	  sc->args = sc->nil;
 	}
+      set_opt3_lamlet(sc->code, sc->nil);
       return(sc->code);
     }
 
@@ -73173,6 +73204,10 @@ static s7_pointer check_let(s7_scheme *sc)
 
   if (optimize_op(form) >= OP_LET_FX_OLD)
     {
+      /* if body_is_safe, we could use sc->lamlets here to save the frame, even if not unheaped, but
+       *   that means we mark the frame one extra time, which matters in random lets, and body_is_safe
+       *   is somewhat expensive.  So in most timing tests, the saved let is not an improvement.
+       */
       if ((not_in_heap(form)) &&
 	  (body_is_safe(sc, sc->unused, cdr(sc->code), true) >= SAFE_BODY))
 	set_opt3_let(sc->code, make_permanent_let(sc, car(sc->code)));
@@ -73182,35 +73217,41 @@ static s7_pointer check_let(s7_scheme *sc)
 	  set_opt3_let(sc->code, sc->nil); 
 	}
     }
-
   return(sc->code);
 }
 
 static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in decl order */
 {
-  s7_pointer x, let_name, body;
+  s7_pointer body, x;
   s7_int n;
-
   /* fprintf(stderr, "named: %s: %s\n", DISPLAY_80(sc->code)); */
 
-  let_name = car(sc->code);
+  if (is_null(opt3_lamlet(sc->code)))
+    {
+      sc->w = sc->nil;
+      for (n = 0, x = cadr(sc->code); is_pair(x); n++, x = cdr(x))
+	sc->w = cons(sc, caar(x), sc->w);
+      sc->w = safe_reverse_in_place(sc, sc->w); /* init values (args) are also in "reversed" order */
+      set_opt3_lamlet(sc->code, sc->w);
+      set_opt2_any(sc->code, small_int(n));
+      add_lamlet(sc, sc->code);
+    }
+  else 
+    {
+      sc->w = opt3_lamlet(sc->code);
+      n = integer(opt2_any(sc->code));
+    }
+
   body = cddr(sc->code);
   sc->envir = new_frame_in_env(sc, sc->envir);
-  
-  sc->w = sc->nil;
-  for (n = 0, x = cadr(sc->code); is_pair(x); n++, x = cdr(x))
-    sc->w = cons(sc, caar(x), sc->w);
-  sc->w = safe_reverse_in_place(sc, sc->w); /* init values (args) are also in "reversed" order */
-  
   sc->x = make_closure(sc, sc->w, body, T_CLOSURE | T_COPY_ARGS, n);
-  make_slot_1(sc, sc->envir, let_name, sc->x);
+  make_slot_1(sc, sc->envir, car(sc->code), sc->x); /* let_name */
   sc->envir = new_frame_in_env(sc, sc->envir);
   
   for (x = sc->w; is_not_null(args); x = cdr(x)) /* reuse the value cells as the new frame slots */
     {
       s7_pointer sym, new_args;
       sym = car(x);
-      if (sym == let_name) let_name = sc->nil;
       new_args = cdr(args);
       reuse_as_slot(args, sym, unchecked_car(args)); /* args=slot, sym=symbol, car(args)=value */
       slot_set_next(args, let_slots(sc->envir));
@@ -85792,6 +85833,12 @@ static void op_safe_c_ap(s7_scheme *sc)
   sc->code = caddr(code);
 }
 
+static void op_safe_c_sp_mv(s7_scheme *sc)
+{
+  sc->args = cons(sc, sc->args, sc->value); /* don't use u2_1 or some permanent list here: immutable=copied later */
+  sc->code = c_function_base(opt1_cfunc(sc->code));
+}
+
 static void op_safe_c_pp_1(s7_scheme *sc)
 {
   /* unless multiple values from last call (first arg) we get here only from OP_SAFE_C_PP.
@@ -85869,6 +85916,17 @@ static void op_safe_c_fp(s7_scheme *sc) /* code: (func . args) where at least on
 #endif
   push_stack(sc, ((intptr_t)((is_pair(cdr(p))) ? OP_SAFE_C_FP_1 : OP_SAFE_C_FP_2)), sc->args, cdr(p));
   sc->code = T_Pair(car(p));
+}
+
+static bool op_safe_c_fp_mv_1(s7_scheme *sc)
+{
+  /* s7_append copies its first argument, as does s7_reverse, so use append_uncopied */
+  if (collect_fp_args(sc, OP_SAFE_C_FP_MV_1, (is_multiple_value(sc->value)) ? revappend(sc, sc->value, sc->args) : cons(sc, sc->value, sc->args)))
+    return(true);
+  sc->args = safe_reverse_in_place(sc, sc->args);
+  sc->code = c_function_base(opt1_cfunc(car(sc->args)));
+  sc->args = cdr(sc->args);
+  return(false);
 }
 
 static void op_safe_closure_fp(s7_scheme *sc)
@@ -86511,14 +86569,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 	case OP_SAFE_C_FP_MV_1:
-	  /* s7_append copies its first argument, as does s7_reverse, so use append_uncopied */
-	  if (collect_fp_args(sc, OP_SAFE_C_FP_MV_1, (is_multiple_value(sc->value)) ? revappend(sc, sc->value, sc->args) : cons(sc, sc->value, sc->args)))
-	    goto EVAL;
-	  sc->args = safe_reverse_in_place(sc, sc->args);
-	  sc->code = c_function_base(opt1_cfunc(car(sc->args)));
-	  sc->args = cdr(sc->args);
+	  if (op_safe_c_fp_mv_1(sc)) goto EVAL;
 	  goto APPLY;
-
 
 	case OP_SAFE_C_SSP:      if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SSP:     op_safe_c_ssp(sc); goto EVAL;
@@ -86732,8 +86784,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto START;
 
 	case OP_SAFE_C_SP_MV:
-	  sc->args = cons(sc, sc->args, sc->value); /* don't use u2_1 or some permanent list here: immutable=copied later */
-	  sc->code = c_function_base(opt1_cfunc(sc->code));
+	  op_safe_c_sp_mv(sc);
 	  goto APPLY;
 
 
@@ -96360,33 +96411,33 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.6  19.7
  * ------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  164   164
+ * tpeak         |      |      |      |  391 |  377 |  199 |  164   164  
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  622   621
  * tshoot        |      |      |      |      |      | 1095 |  831   823
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  875   872
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  875   873
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  949   877
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1492  1492
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1492  1483
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1702  1689
- * tmisc         |      |      |      |      |      | 2306 |       1769  1762
+ * tmisc         |      |      |      |      |      | 2306 |       1762
  * tvect         |      |      |      |      |      | 5729 | 2033  1931
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2122
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2121  2123
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2288  2230
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2255  2255
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2255  2254
  * tread         |      |      |      |      | 2357 | 2336 | 2269  2271
- * tlet          |      |      |      |      | 4717 | 2959 | 2285  2272
+ * tlet          |      |      |      |      | 4717 | 2959 | 2285  2273
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2664  2666
- * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2705  2686
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2765
- * titer         |      |      |      | 5971 | 4646 | 3587 | 3022  2843
+ * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2705  2698
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2783  2774
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 3022  2852
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 3011  2962
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3062
- * tset          |      |      |      |      | 10.0 | 6432 | 3477  3112
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3123  3061
+ * tset          |      |      |      |      | 10.0 | 6432 | 3477  3119
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3314  3309
- * tmac     7834 | 7834 | 7002 | 5054 | 4980 | 4963 | 3485 |       3394  3345
- * dup           |      |      |      |      | 20.8 | 5711 | 3715  3487  3511
+ * tmac     7834 | 7834 | 7002 | 5054 | 4980 | 4963 | 3485 |       3344  3279
+ * dup           |      |      |      |      | 20.8 | 5711 | 3715  3472
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 |       4080
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 7115  6729
- * thash         |      |      |      |      |      | 10.3 | 8852  8840
+ * thash         |      |      |      |      |      | 10.3 | 8852  8844
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.9
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.9  14.9
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.6
@@ -96405,11 +96456,9 @@ int main(int argc, char **argv)
  * fx*direct p_pp opts
  * opt_set_p_i_f* call make_integer, also p_d_f
  * does a rest arg block fx_tree? -- yes?? t153 (there's no fx_closure_star_ss_a)
- *
- * op_named_let_1: save closure in let-code, gc_list of pairs to mark attached closure? use directly for each subsequent call
- *   if unheap, make permanent. mark list=mark, at end same gc_list if type=0 remove from list (one extra mark)
- *   if safe, use old else make-closure copying? use for all make-closure=op_lambda_unchecked|op_named_let_1
- *   same for lets?  if body safe, even in heap code, it can be reused directly
- *
- * if gc_fraction<.01 -> 16? -- what are the numbers here?
+ * why OP_SYM|PAIR_SYM so much?
+ * find other lamlet cases: safe body (named let and lambda) in heap?
+ * tmac: g_list_values could be optimized (known # args etc)
+ *    fix lint/s7test LV cases
+ *    can the list call be optimized in quasiquote? would need list_3
  */
