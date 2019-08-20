@@ -9,8 +9,8 @@
 (define dups 
   (let ((unique #f))
 
-    (define-constant (all-positive? start end)
-      (do ((j end (- j 1)))
+    (define-constant (all-positive? start len)
+      (do ((j (+ start len) (- j 1)))
 	  ((or (vector-ref unique j)
 	       (= j start))
 	   j)))
@@ -89,14 +89,14 @@
 		   (last-line (- total-lines size))
 		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
-		(let ((j (all-positive? i (+ i size-1))))   ; is a match possible?
+		(let ((j (all-positive? i size-1)))   ; is a match possible?
 		  (if (not (= j i))
 		      (set! i j)
 		      (let ((lenseq (subvector lens size i))
 			    (lineseq (subvector lines size i)))
 			(do ((k (+ i 1) (+ k 1)))
 			    ((>= k last-line))
-			  (let ((jk (all-positive? k (+ k size-1))))
+			  (let ((jk (all-positive? k size-1)))
 			    (if (not (= jk k))
 				(set! k jk)
 				(when (and (equal? lenseq (subvector lens size k))
