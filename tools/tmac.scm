@@ -50,18 +50,18 @@
     (m5 1 3 4 5)))
 (f5-test)
 
-(define-macro (m6 a b) `(+ ,a ,@b))
-(define (f6-test mx)
+(define-macro (m61 a b) `(+ ,a ,@b))
+(define (f61-test mx)
   (do ((i 0 (+ i 1)))
       ((= i size))
     (mx 1 (3 4 5))))
-(f6-test m6)
+(f61-test m61)
 
 (define (f7-test mx)
   (do ((i 0 (+ i 1)))
       ((= i size))
     (mx 1 ())))
-(f7-test m6)
+(f7-test m61)
 
 (define (f8-test mx)
   (let loop ((ctr size))
