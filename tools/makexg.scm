@@ -182,7 +182,7 @@
 	"glong" "double" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
-	"GtkCssSection*"
+	"GtkCssSection*" "GdkPaintableFlags"
 	))
 
 (define no-xen-to-c 
@@ -211,7 +211,7 @@
 	"glong" "GdkAxisFlags" "GdkSubpixelLayout" 
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
-	"GtkCssSection*" 
+	"GtkCssSection*" "GdkPaintableFlags"
 	))
 
 (for-each (lambda (lst)
@@ -1748,7 +1748,7 @@
 					;(hey "#define C_to_Xen_GtkTreeSelectionFunc(Arg) wrap_for_Xen(GtkTreeSelectionFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkMenuPositionFunc(Arg) wrap_for_Xen(GtkMenuPositionFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkDestroyNotify(Arg) wrap_for_Xen(GtkDestroyNotify, Arg)~%")
-(hey "#define Xen_to_C_GdkFilterReturn(Arg) (GdkFilterReturn)Xen_integer_to_C_int(Arg)~%")
+;(hey "#define Xen_to_C_GdkFilterReturn(Arg) (GdkFilterReturn)Xen_integer_to_C_int(Arg)~%")
 
 ;(hey "#define Xen_to_C_String(Arg) Xen_string_to_C_string(Arg)~%")
 (hey "#define C_to_Xen_String(Arg) C_string_to_Xen_string((char *)Arg)~%")
