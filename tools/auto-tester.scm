@@ -85,10 +85,10 @@
 
 (set! (*s7* 'max-stack-size) 32768)
 (set! (*s7* 'max-heap-size) (ash 1 23)) ; 8M -- 560000000 is about 8G
-(set! (*s7* 'max-port-data-size) (ash 1 23))
+(set! (*s7* 'max-port-data-size) (ash 1 28))
 ;(set! (*s7* 'gc-stats) #t)
-(set! (*s7* 'print-length) 1000)
-(set! (*s7* 'max-string-length) 100000)
+(set! (*s7* 'print-length) 20)
+(set! (*s7* 'max-string-length) 5000000)
 (set! (*s7* 'max-list-length) 10000)
 (set! (*s7* 'max-vector-length) 10000)
 (set! (*s7* 'max-vector-dimensions) 10)
@@ -136,7 +136,7 @@
 (define (s7-stacktrace-defaults) (copy (*s7* 'stacktrace-defaults)))
 (define (s7-gc-stats) (*s7* 'gc-stats))
 (define (s7-undefined-identifier-warnings) (*s7* 'undefined-identifier-warnings))
-(define (s7-set-print-length x) (set! (*s7* 'print-length) x))
+;(define (s7-set-print-length x) (set! (*s7* 'print-length) x))
 (define (s7-set-stacktrace-defaults x) (set! (*s7* 'stacktrace-defaults) x))
 
 #|
@@ -197,13 +197,32 @@
 ;(define (_fnc6_ x) (unless (let? x) (let-temporarily (((*s7* 'safety) 1)) (fill! x #\a))))
 ;;; (define (_fnc7_ x) (let-temporarily (((*s7* 'safety) 1)) (reverse! x)))
 
+(define (fib n)
+  (if (< n 2)
+      n
+      (+ (fib (- n 1))
+         (fib (- n 2)))))
+
+(define (fibr n)
+  (if (>= n 2)
+      (+ (fibr (- n 1))
+         (fibr (- n 2)))
+      n))
+
+(define (fibf n)
+  (if (< n 2.0)
+      n
+      (+ (fibf (- n 1.0))
+         (fibf (- n 2.0)))))
+
+
 (define (local-random . args)
   (type-of (apply random args)))
 
 (define (local-read-string . args)
   (with-input-from-file "/home/bil/cl/all-lg-results"
     (lambda ()
-      (read-string (car args)))))
+      (read-string (min 1000 (car args))))))
 
 (define (checked-eval code)
   (and (pair? code)
@@ -237,12 +256,12 @@
 (define (checked-read-byte . args) (with-input-from-string "0123" (lambda () (apply read-byte args))))
 (define (checked-read-line . args) (with-input-from-file "s7test.scm" (lambda () (apply read-line args))))
 (define (checked-read-string . args) (with-input-from-file "s7test.scm" (lambda () (apply read-string args))))
-(define (checked-read . args) (with-input-from-file "s7test.scm" (lambda () (apply read args))))
+(define (checked-read . args) (with-input-from-file "dsp.scm" (lambda () (apply read args))))
 (define (checked-reverse! . args) (reverse! (copy (car args))))
 (define (checked-port-line-number . args) (apply port-line-number args) 0)
 ;(define (checked-let-set! . args) (apply let-set! (curlet) args))
-;(define (checked-varlet . args) (apply varlet (curlet) args))
-;(define (checked-cutlet . args) (apply cutlet (curlet) args))
+;(define (checked-varlet . args) (apply varlet (sublet (curlet)) args))
+;(define (checked-cutlet . args) (apply cutlet (sublet (curlet)) args))
 (define (checked-procedure-source . args) (copy (apply procedure-source args) :readable))
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
@@ -460,6 +479,48 @@
      (lambda (t i)
        'error)))
 
+#|
+(define-expansion (_fe1_ . args)
+  `(for-each (lambda (n) (n 0)) (list ,@args)))
+
+(define-expansion (_fe2_ . args)
+  `(do ((x (list ,@args) (cdr x)))
+       ((null? x) #unspscified>)
+     ((car x) 0)))
+
+(define-expansion (_fe3_ . args)
+  `(for-each (lambda (n) (set! (n) 0)) (list ,@args)))
+
+(define-expansion (_fe4_ . args)
+  `(do ((x (list ,@args) (cdr x)))
+       ((null? x) #unspscified>)
+     (set! ((car x)) 0)))
+|#
+
+(define-macro (trace f)
+  (let ((old-f (gensym)))
+    `(define ,f 
+       (let ((,old-f ,f))
+	 (apply lambda 'args 
+		`((format () "(~S ~{~S~^ ~}) -> " ',',f args)
+		  (let ((val (apply ,,old-f args))) 
+		    (format () "~S~%" val) 
+		    val)))))))
+
+(define-expansion (_tr1_ . args)
+  `(with-output-to-string
+     (lambda ()
+       (define (tracy . pars) pars)
+       (trace tracy)
+       (apply tracy ,@args ()))))
+
+(define-expansion (_tr2_ . args)
+  `(with-output-to-string
+     (lambda ()
+       ((lambda pars
+	  (format () "(tracy ~{~S~^ ~}) -> ~S~%" pars pars))
+	,@args))))
+
 
 (define-constant ims (immutable! (string #\a #\b #\c)))
 (define-constant imbv (immutable! (byte-vector 0 1 2)))
@@ -600,7 +661,8 @@
 			  ;'read-char 'read-byte 'read-line 'read-string 'read ; stdin=>hangs
 			  'checked-read-char 'checked-read-line 'checked-read-string 'checked-read-byte 'checked-read
 			  'checked-reverse! 'checked-port-line-number 
-			  ;;'checked-let-set! 'checked-varlet 'checked-cutlet
+			  ;;'checked-let-set! 
+			  'checked-varlet 'checked-cutlet
 			  'close-input-port 
 			  ;;'current-input-port ;-- too many (read...)
 			  ;;'set-current-input-port ; -- collides with rd8 etc
@@ -671,6 +733,8 @@
 			  'float? 
 			  'list-values 'byte-vector? 'openlet? 'iterator? 
 			  'string->byte-vector 'byte-vector->string
+
+			  ;'pp
 
 			  's7-catches 
 			  's7-stack-top 's7-stack 
@@ -749,7 +813,7 @@
 		    "cons" "''2" "\"ra\"" 
 		    "#\\a" "#\\A" "\"str1\"" "\"STR1\"" "#\\0"
 		    "(make-hook)" "(make-hook '__x__)"
-		    "1+i" "0+i" "(ash 1 43)" 
+		    "1+i" "0+i" "(ash 1 43)"  "(fib 8)" "(fibr 8)" "(fibf 8.0)"
 		    "(integer->char 255)" "(string (integer->char 255))" "(string #\\null)" "(byte-vector 0)"
 		    "pi" "+nan.0" "+inf.0" "-inf.0" "-nan.0"
 		    "(list)" "(string)" "#r()" "#u()" "(vector)" "#i()" "(make-iterator #(10 20))" "#i(1)"
@@ -795,7 +859,7 @@
                                               (set! lst (cdr lst)) res)
                                             #<eof>))))"
 
-		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown"
+		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown" "___lst"
 		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
 		    "(provide 'pizza)" "(require pizza)"
 		    
@@ -899,6 +963,8 @@
 		    "(make-hash-table 8 #f (cons symbol? block?))"
 		    "(let ((i 32)) (set! (setter 'i) integer?) (curlet))"
 
+		    "(let () (define (boolean|integer? x) (or (boolean? x) (integer? x))) (make-vector 3 #f boolean|integer?)))"
+
 		    "(immutable! #(1 2))" "(immutable! #r(1 2))" "(immutable! \"asdf\")" "(immutable! '(1 2))" "(immutable! (hash-table 'a 1))"
 		    ;"(lambda (x) (fill! x 0))"
 
@@ -924,6 +990,7 @@
 		    "(hash-table +nan.0 1)" "#\\7" "(inlet :a (hash-table 'b 1))" "(openlet (immutable! (inlet :a 1)))"
 		    "(subvector #i2d((1 2) (3 4)) 4)" "(subvector #i2d((1 2) (3 4)) '(4))" "(subvector #i2d((1 2) (3 4)) '(2 1))"
 
+		    "(begin (ow!) #f)"
 		    #f #f #f
 		    ))
 
@@ -972,8 +1039,13 @@
 	      (list "(begin (string " "(apply string (list ")
 	      (list "(begin (float-vector " "(apply float-vector (list ")
 	      (list "(begin (values " "(apply values (list ")
+	      (list "(begin (_tr1_ " "(begin (_tr2_ ")
+
+	      (list "(begin (do ((i 0 (+ i 1))) ((= i 1)) " "(let ((__x__ 1)) (do ((i 0 (+ i __x__))) ((= i __x__)) ")
 
 	      ;(list "(cond ((= x 0) " "(begin (when (= x 0) ")
+	      ;(list "(_fe1_ " "(_fe2_ ")
+	      ;(list "(_fe3_ " "(_fe4_ ")
 	      
 	      (list "(begin (_iter_ " "(begin (_map_ ")
 	      (list "(begin (_cat1_ " "(begin (_cat2_ ")
@@ -1195,6 +1267,7 @@
 	  ))
 
     (define (eval-it str) 
+      ;(ow!)
       (set! (current-output-port) #f)
       ;(format *stderr* "~S~%" str)
       (set! estr str)
@@ -1210,14 +1283,16 @@
 		     (not (eq? error-type last-error-type)))
 	    (format *stderr* "~S ~S~%" last-error-type error-type)
 	    (set! last-error-type error-type))
-	  (if (eq? type 'stack-too-big)
+	  (if (and (eq? type 'stack-too-big)
+		   (not (string-position "lambda" str)))
 	      (format *stderr* "stack overflow from ~S~%" str))
 	  (when (eq? type 'heap-too-big)
 	    (format *stderr* "heap overflow from ~S~%" str))
 	  (unless (or (not (eq? type 'read-error))
 		      (string-position "junk" (car info))
 		      (string-position "clobbered" (car info))
-		      (string-position "unexpected" (car info)))
+		      (string-position "unexpected" (car info))
+		      (string-position "eval-string" str))
 	    ;; "unexpected" close paren from: (eval-string (reverse (object->string ()))) -> (eval-string ")(")
 	    (format *stderr* "read-error from ~S: ~S~%" str (apply format #f info))
 	    (if (string-position "a1" str) (format *stderr* "a1: ~W~%" a1))
@@ -1249,7 +1324,10 @@
 	      (val3 (eval-it str3))
 	      (val4 (eval-it str4)))
 	  ;(gc) (gc)
+	  (set! (*s7* 'print-length) 20)
 	  (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
+	  (unless (hash-table? a1)
+	    (format *stderr* "a1: ~S, str: ~S~%" a1 str))
 	  ))
 #|
       (let* ((outer (codes (random codes-len)))
@@ -1287,7 +1365,8 @@
       (lambda ()
 	(test-it))
       (lambda (type info)
-	(format *stderr* "outer: ~S ~S from ~S~%" type (apply format #f info) estr)))))
+	(format *stderr* "~%~%outer: ~S ~S from ~S~%" type (apply format #f info) estr)
+	(format *stderr* "owlet: ~S~%" (owlet))))))
 
 ;;; (let () ((lambda () str))) (let () (define _f_ (lambda () str)) (_f_))
 ;;; (let _f_ ((x #f) (i 0)) str)

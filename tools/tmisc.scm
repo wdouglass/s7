@@ -93,4 +93,65 @@
 (wtest)
 
 
+;;; mv
+(define (mv1)
+  (+ (values 1 2 3)))
+(define (mv2)
+  (+ 1 (values 2 3)))
+(define (mv3)
+  (+ (values 1 2) 3))
+(define (mv4 x)
+  (+ x (values x x)))
+(define (mv5 x)
+  (+ (values x x) x))
+(define (mv-clo1 x y)
+  (+ x y))
+(define (mv6 x)
+  (mv-clo1 (values x 1)))
+(define (mv-clo2 . args)
+  (apply + args))
+(define (mv7 x)
+  (mv-clo2 (values x 1)))
+(define (mv8)
+  (+ (values 1 2 3) (values 3 -2 -1)))
+(define (mv9)
+  (+ (abs -1) (values 2 3 4) -4))
+(define (mv10)
+  (+ (values 1 2 3)))
+
+;;; pair_sym: (mv-clo (values x 1)), h_c_aa: (values x 1), splice_eval_args2 ([i] 1), eval_arg2->apply mv-clo! (loop below is safe_dotimes_step_p
+;;;   not enough args for mv-clo1? 
+;;; mv-clo2: closure_s_p -> pair_sym ->h_c_aa etc as above!
+;;;   perhaps apply_[safe_]closure?
+
+;;; splice_in_values cases: [c_pp c_fp c_p?] c_pa c_ap c_ssp safe_closure_fp|p|pa, goto?
+
+(define (mvtest)
+  (unless (= (mv1) 6) (format *stderr* "mv1: ~S~%" (mv1)))
+  (unless (= (mv2) 6) (format *stderr* "mv2: ~S~%" (mv2)))
+  (unless (= (mv3) 6) (format *stderr* "mv3: ~S~%" (mv3)))
+  (unless (= (mv4 2) 6) (format *stderr* "(mv4 2): ~S~%" (mv4 2)))
+  (unless (= (mv5 2) 6) (format *stderr* "(mv5 2): ~S~%" (mv5 2)))
+  (unless (= (mv6 5) 6) (format *stderr* "(mv6 5): ~S~%" (mv6 5)))
+  (unless (= (mv7 5) 6) (format *stderr* "(mv7 5): ~S~%" (mv7 5)))
+  (unless (= (mv8) 6) (format *stderr* "mv8: ~S~%" (mv8)))
+  (unless (= (mv9) 6) (format *stderr* "mv9: ~S~%" (mv9)))
+  (unless (= (mv10) 6) (format *stderr* "mv10: ~S~%" (mv10)))
+  (do ((i 0 (+ i 1)))
+      ((= i 50000))
+    (mv1)
+    (mv2)
+    (mv3)
+    (mv4 i)
+    (mv5 i)
+    (mv6 i)
+    (mv7 i)
+    (mv8)
+    (mv9)
+    (mv10)
+    ))
+
+(mvtest)
+
+
 (exit)

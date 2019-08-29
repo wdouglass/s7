@@ -1,3 +1,4 @@
+
 (define size 500000)
 
 (define-macro (m2 a b) `(+ ,a ,@b 1))
@@ -70,5 +71,27 @@
 	0
 	(loop (- ctr 1)))))
 (f8-test m5)
+
+
+(define-macro (trace f)
+  (let ((old-f (gensym)))
+    `(define ,f 
+       (let ((,old-f ,f))
+	 (apply lambda 'args 
+		`((format #f "(~S ~{~S~^ ~}) -> " ',',f args)
+		  (let ((val (apply ,,old-f args))) 
+		    (format #f "~S~%" val) 
+		    val)))))))
+
+(define (trace-test)
+  (let loop ((count 0))
+    (if (< count 30000) ; not 'when for old snd timings
+	(begin
+	  (let ((f1 (lambda (x y z) (+ x y z))))
+	    (trace f1) ; op_macro_d I think
+	    (f1 count count count)
+	    (loop (+ count 1)))))))
+
+(trace-test)
 
 (exit)
