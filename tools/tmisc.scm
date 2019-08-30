@@ -118,13 +118,15 @@
   (+ (abs -1) (values 2 3 4) -4))
 (define (mv10)
   (+ (values 1 2 3)))
+(define (mv11)
+  (+ (abs -1) (values -1 2 4)))
+(define (mv12 x y)
+  (+ x y (values 2 3 4)))
 
 ;;; pair_sym: (mv-clo (values x 1)), h_c_aa: (values x 1), splice_eval_args2 ([i] 1), eval_arg2->apply mv-clo! (loop below is safe_dotimes_step_p
 ;;;   not enough args for mv-clo1? 
 ;;; mv-clo2: closure_s_p -> pair_sym ->h_c_aa etc as above!
 ;;;   perhaps apply_[safe_]closure?
-
-;;; splice_in_values cases: [c_pp c_fp c_p?] c_pa c_ap c_ssp safe_closure_fp|p|pa, goto?
 
 (define (mvtest)
   (unless (= (mv1) 6) (format *stderr* "mv1: ~S~%" (mv1)))
@@ -137,6 +139,8 @@
   (unless (= (mv8) 6) (format *stderr* "mv8: ~S~%" (mv8)))
   (unless (= (mv9) 6) (format *stderr* "mv9: ~S~%" (mv9)))
   (unless (= (mv10) 6) (format *stderr* "mv10: ~S~%" (mv10)))
+  (unless (= (mv11) 6) (format *stderr* "mv11: ~S~%" (mv11)))
+  (unless (= (mv12 -1 -2) 6) (format *stderr* "(mv12 -1 -2): ~S~%" (mv12 -1 -2)))
   (do ((i 0 (+ i 1)))
       ((= i 50000))
     (mv1)
@@ -149,6 +153,8 @@
     (mv8)
     (mv9)
     (mv10)
+    (mv11)
+    (mv12 -2 -1)
     ))
 
 (mvtest)

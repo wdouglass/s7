@@ -11238,6 +11238,7 @@
 					   (set! bad-ops (cons op bad-ops)))))
 				   (let-ref fdata 'macro-ops))
 				  
+				  (if (equal? bad-quoted-locals '(quote)) (set! bad-quoted-locals ()))
 				  (when (or (pair? bad-locals)
 					    (pair? bad-quoted-locals) 
 					    ;; (define-macro (mac8 b) `(let ((a 12)) (+ (symbol->value ,b) a)))
