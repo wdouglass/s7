@@ -80256,7 +80256,7 @@ static bool op_safe_dotimes_step_p(s7_scheme *sc)
 }
 
 #if WITH_GCC
-static inline bool op_dotimes_step_p(s7_scheme *sc) __atribute__((always_inline));
+static inline bool op_dotimes_step_p(s7_scheme *sc) __attribute__((always_inline));
 #endif
 
 static inline bool op_dotimes_step_p(s7_scheme *sc)
