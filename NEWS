@@ -1,10 +1,7 @@
-Snd 19.6:
+Snd 19.7:
 
-s7: added tools directory (timing tests etc)
-    moved most-positive|negative-fixnum to *s7*
-    s7_load now parallels scheme load; it returns NULL if file not found (or a directory).
-    added s7_call_with_catch and define-expansion*.
+in clm, Anders fixed a bug in mus.lisp.
 
-checked: sbcl 1.5.4|5
+checked: sbcl 1.5.6
 
-Thanks!: Kjetil Matheussen, Woody Douglass
+Thanks!: Anders Vinjar, Kenneth Flak, David O'Toole
