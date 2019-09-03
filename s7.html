@@ -906,6 +906,16 @@ implement the standard old-time macros.
 <em class="gray">1.5</em>
 </pre>
 
+<!-- this also probably works:
+(define-macro (trace f)
+    `(define ,f 
+       (apply lambda 'args 
+         `((format () "(~A ~{~A~^ ~}) -> " ',',f args)
+           (let ((val (apply ,',f args))) 
+             (format () "~A~%" val) 
+             val)))))
+-->
+
 <p>macroexpand can help debug a macro.  I always forget that it
 wants an expression:
 </p>
