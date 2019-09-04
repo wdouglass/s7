@@ -6352,7 +6352,7 @@
 			  (eq? (caadr tree) 'apply-values))
 		     (list 'append (cadadr tree) (cadr (caddr tree)))
 		     (list 'cons (cadr tree) (cadr (caddr tree))))
-		 (cons 'list (unlist-values (cdr tree)))))
+		 (cons 'list (unlist-values (cdr tree))))) ; #_list perhaps? and #_cons #_append above?
 	    
 	    ((append)
 	     (if (and (len=2? (cdr tree))
@@ -14444,7 +14444,7 @@
 		  (when (pair? body)
 		    (let ((args (cdr body)))
 		      (case (car body)
-			((list-values list)
+			((list-values) ; was list also briefly
 			 (when (and (pair? args)
 				    (quoted-symbol? (car args)))
 			   (if (proper-list? outer-args)
@@ -22365,11 +22365,11 @@
 				   ((and (len=3? arg1)                        ; `((a . b) (c . d)) -> (list (cons a b) (cons c d))
 					 (eq? (car arg1) 'append)            ; `((a . (b . c))...) -> (list (cons a (cons b c)) ...)
 					 (pair? (cadr arg1))
-					 (memq (caadr arg1) '(list list-values))
+					 (eq? (caadr arg1) 'list-values) ; was memq+list
 					 (len=3? arg2)
 					 (eq? (car arg2) 'append)
 					 (pair? (cadr arg2))
-					 (memq (caadr arg2) '(list list-values)))
+					 (eq? (caadr arg2) 'list-values)) ; same
 				    (let ((ca1 (cadr arg1))
 					  (ca2 (cadr arg2)))
 				      (let ((len1 (length ca1))

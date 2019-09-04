@@ -75,9 +75,9 @@
 
    (list (list "repl" "tpeak.scm")
 	 (list "repl" "tauto.scm")
-	 (list "repl" "tshoot.scm")
 	 (list "repl" "tref.scm")
 	 (list "snd -noinit" "make-index.scm")
+	 (list "repl" "tshoot.scm")
 	 (list "repl" "teq.scm")
 	 (list "repl" "s7test.scm")
 	 (list "repl" "tvect.scm")

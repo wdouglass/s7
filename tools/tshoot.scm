@@ -251,5 +251,61 @@
   (display (count-primes 100000)) (newline)) ; 9592
 
 ;;; --------------------------------------------------------------------------------
+;;;
+;;; spectral-norm, based on code by Anthony Borla (Computer Benchmarks Game)
+
+(let ((weights #f))
+
+  (define (mulAv n v av)
+    (fill! av 0.0)
+    (do ((i 0 (+ i 1)))
+	((= i n))
+      (do ((j 0 (+ j 1)))
+          ((= j n))
+	(float-vector-set! av i (+ (float-vector-ref av i) 
+				   (* (/ 1.0 (+ i (float-vector-ref weights (+ i j))))
+				      (float-vector-ref v j)))))))
+  
+  (define (mulAtV n v atv)
+    (fill! atv 0.0)
+    (do ((i 0 (+ i 1)))
+	((= i n))
+      (do ((j 0 (+ j 1)))
+          ((= j n))
+	(float-vector-set! atv i (+ (float-vector-ref atv i) 
+				    (* (/ 1.0 (+ j (float-vector-ref weights (+ i j))))
+				       (float-vector-ref v j)))))))
+  
+  (define (mulAtAv n v atav)
+    (let ((u (make-float-vector n 0.0)))
+      (mulAv n v u)
+      (mulAtV n u atav)))
+  
+  (define (spectral-norm n)
+    (let ((u (make-float-vector n 1.0))
+          (v (make-float-vector n 0.0))
+          (vBv 0.0) (vV 0.0))
+      
+      (set! weights (make-float-vector (* 2 n)))
+      (do ((i 0 (+ i 1)))
+	  ((= i (* 2 n)))
+	(float-vector-set! weights i (+ (* 0.5 i (+ i 1)) 1.0)))
+      
+      (do ((i 0 (+ i 1)))
+          ((= i 10))
+	(mulAtAv n u v)
+	(mulAtAv n v u))
+      
+      (do ((i 0 (+ i 1)))
+          ((= i n))
+	(set! vBv (+ vBv (* (float-vector-ref u i) (float-vector-ref v i))))
+	(set! vV (+ vV (* (float-vector-ref v i) (float-vector-ref v i)))))
+      
+      (sqrt (/ vBv vV))))
+
+  (display (spectral-norm 125)) ; 1.2742, (spectral-norm 5500) takes about 33 secs
+  (newline))
+
+;;; --------------------------------------------------------------------------------
 
 (exit)
