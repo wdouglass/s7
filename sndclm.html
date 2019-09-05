@@ -9629,7 +9629,7 @@ We could mimic the fft display window in the "lisp graph" via:
 <p>moving-spectrum provides a sample-by-sample spectrum (amplitudes, frequencies, and current phases) of its
 input (currently assumed to be a readin generator).  It is identical to the first (analysis) portion of
 the phase-vocoder generator (see test-sv in generators.scm for details).  To access the current amps and so on,
-use moving-spectrum-amps, moving-spectrum-phases, and moving-spectrum-freqs.
+use (gen 'amps), (gen 'phases), and (gen 'freqs).
 </p>
 <div class="separator"></div>
 
