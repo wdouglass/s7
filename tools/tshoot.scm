@@ -301,7 +301,7 @@
       
       (sqrt (/ vBv vV))))
 
-  (display (spectral-norm 125)) ; 1.2742, (spectral-norm 5500) takes about 28 secs
+  (display (spectral-norm 125)) ; 1.2742, (spectral-norm 5500) takes about 25 secs
   (newline))
 
 ;;; --------------------------------------------------------------------------------

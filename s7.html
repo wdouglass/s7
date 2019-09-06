@@ -3573,8 +3573,24 @@ a modern GUI leaves formatting decisions to a text or table widget.
 		`(set! ,obj (eval (read))))
 	      objs))))
 </pre>
+</div>
 
-
+<div class="indented">
+<p>format is a mess.  It is trying to cram two different choices into its first ("port") argument.
+Perhaps it should be split into format-&gt;string and format-&gt;port.  format-&gt;string has no
+port argument and returns a string.  format-&gt;port writes to its port argument (which must be an output
+port, not a boolean), and returns #f or maybe &lt;unspecified&gt;.  Then:
+</p>
+<pre>
+(format #f ...) -&gt; (format-&gt;string ...)
+(format () ...) -&gt; (format-&gt;port (current-output-port) ...)
+(format #t ...) -&gt; (display (format-&gt;string ...))
+(format port ...) -&gt; (display (format-&gt;string ...) port)
+</pre>
+<p>and the currently unavailable choice, format to port without creating a string:
+<code>(format-&gt;port port ...)</code>.
+</p>
+</div>
 <!--
 
 :(objects->string "int: " 32 ", string: " "hi")
@@ -3611,8 +3627,6 @@ a modern GUI leaves formatting decisions to a text or table widget.
 (1 2)
 
 -->
-
-</div>
 
 </blockquote>
 
