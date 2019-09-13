@@ -2086,7 +2086,12 @@ static void init_types(void)
 #define set_optimized(p)               set_type0_bit(T_Pair(p), T_OPTIMIZED)
 #define clear_optimized(p)             clear_type0_bit(T_Pair(p), T_OPTIMIZED | T_SYNTACTIC | T_HAS_FX)
 #define OPTIMIZED_PAIR                 (uint16_t)(T_PAIR | T_OPTIMIZED)
+#if (!S7_DEBUGGING) || (1)
 #define is_optimized(p)                (typesflag(T_Pos(p)) == OPTIMIZED_PAIR)
+#else
+static bool is_optimized(s7_pointer p);
+#endif
+
 /* optimizer flag for an expression that has optimization info, it should be in the second byte */
 
 #define T_SCOPE_SAFE                   T_OPTIMIZED
@@ -4005,7 +4010,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SET_UNCHECKED, OP_SET_SYMBOL_C, OP_SET_SYMBOL_S, OP_SET_SYMBOL_P, OP_SET_SYMBOL_A,
       OP_SET_NORMAL, OP_SET_PAIR, OP_SET_DILAMBDA, OP_SET_DILAMBDA_P, OP_SET_DILAMBDA_P_1, OP_SET_DILAMBDA_SA_A,
       OP_SET_PAIR_A, OP_SET_PAIR_P, OP_SET_PAIR_ZA,
-      OP_SET_PAIR_P_1, OP_SET_WITH_SETTER, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
+      OP_SET_PAIR_P_1, OP_SET_FROM_SETTER, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
       OP_INCREMENT_1, OP_DECREMENT_1, OP_SET_CONS,
       OP_INCREMENT_SS, OP_INCREMENT_SP, OP_INCREMENT_SA, OP_INCREMENT_SAA,
 
@@ -4320,6 +4325,20 @@ static const char* op_names[NUM_OPS] =
       "recur_cond_a_a_a_laa_lopa_laaq", "recur_cond_a_a_a_laa_opa_laaq", 
 };
 #endif
+
+#if S7_DEBUGGING && (0)
+static bool is_optimized(s7_pointer p)
+{
+  bool res; 
+  res = (typesflag(T_Pos(p)) == OPTIMIZED_PAIR); 
+  if ((!res) && (is_pair(p)) && (optimize_op(p))) 
+    fprintf(stderr, "op/not opt: %s %s\n", op_names[optimize_op(p)], string_value(object_to_truncated_string(cur_sc, p, 80)));
+  if ((res) && (!optimize_op(p))) 
+    fprintf(stderr, "opt/no op: %s\n", string_value(object_to_truncated_string(cur_sc, p, 80)));
+  return(res);
+}
+#endif
+
 
 #define in_reader(Sc)     ((sc->cur_op >= OP_READ_LIST) && (sc->cur_op <= OP_READ_DONE) && (is_input_port(Sc->input_port)))
 #define is_safe_c_op(op)  ((op >= OP_SAFE_C_D) && (op < OP_THUNK))
@@ -42509,12 +42528,7 @@ s7_pointer s7_make_safe_function_star(s7_scheme *sc, const char *name, s7_functi
   s7_pointer func;
   func = s7_make_function_star(sc, name, fnc, arglist, doc);
   set_type(func, typeflag(func) | T_SAFE_PROCEDURE);   /* don't step on the c_func_has_simple_defaults flag */
-#if 0
-  c_function_call_args(func) = make_list(sc, c_function_optional_args(func), sc->F);
-  s7_remove_from_heap(sc, c_function_call_args(func));
-#else
   c_function_call_args(func) = permanent_list(sc, c_function_optional_args(func));
-#endif
   return(func);
 }
 
@@ -53547,12 +53561,7 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_op_opSSq_q_S] = fx_c_op_opssq_q_s;
   fx_function[HOP_SAFE_C_op_opSSq_Sq_S] = fx_c_op_opssq_sq_s;
   fx_function[HOP_SAFE_C_S_op_opSSq_opSSqq] = fx_c_s_op_opssq_opssqq;
-  fx_function[HOP_SAFE_C_CAC] = fx_c_cac;
-  fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
-  fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
-  fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
-  fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
-  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
+
   fx_function[OP_SAFE_C_TUS] = fx_c_tus;
   fx_function[HOP_SAFE_C_SSC] = fx_c_ssc;
   fx_function[HOP_SAFE_C_SSS] = fx_c_sss;
@@ -53563,14 +53572,20 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_CCS] = fx_c_ccs;
   fx_function[HOP_SAFE_C_SSSC] = fx_c_sssc;
   fx_function[HOP_SAFE_C_ALL_S] = fx_c_all_s;
-  fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
-  fx_function[HOP_SAFE_C_FX] = fx_c_fx;
 
   fx_function[HOP_SAFE_C_A] = fx_c_a;
   fx_function[HOP_SAFE_C_AA] = fx_c_aa;
   fx_function[HOP_SAFE_C_CA] = fx_c_ca;
   fx_function[HOP_SAFE_C_AC] = fx_c_ac;
   fx_function[HOP_SAFE_C_AAA] = fx_c_aaa;
+  fx_function[HOP_SAFE_C_CAC] = fx_c_cac;
+  fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
+  fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
+  fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
+  fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
+  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
+  fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
+  fx_function[HOP_SAFE_C_FX] = fx_c_fx;
   fx_function[HOP_SAFE_C_4A] = fx_c_4a;
   fx_function[HOP_SAFE_C_opAq] = fx_c_opaq;
   fx_function[HOP_SAFE_C_opAAq] = fx_c_opaaq;
@@ -54422,7 +54437,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_tu));
 		  if (c_callee(tree) == fx_leq_ss) return(with_c_call(tree, fx_leq_tu));
 		  if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_tu));
-		  if (c_callee(tree) == fx_c_sss) {set_optimize_op(p, OP_SAFE_C_TUS); return(with_c_call(tree, fx_c_tus));}
+		  if (c_callee(tree) == fx_c_sss) {set_safe_optimize_op(p, OP_SAFE_C_TUS); return(with_c_call(tree, fx_c_tus));}
 		}
 	      else
 		{
@@ -66324,31 +66339,6 @@ static s7_pointer g_list_values(s7_scheme *sc, s7_pointer args)
   return(sc->nil);
 }
 
-static s7_pointer list_values_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
-{
-  if (args == 0)
-    return(sc->list_0);
-
-  if (args < 4) /* args == 4 doesn't seem to happen much */
-    {
-      opcode_t op;
-      op = optimize_op(expr); 
-      /* if (args == 1) fprintf(stderr, "%s %s\n", op_names[op], op_names[optimize_op(cadr(expr))]); */
-      if (((op & 1) != 0) &&                        /* op & 1 should be unnecessary -- list-values is immutable */
-	  (((op >= HOP_SAFE_C_S) && (op <= HOP_SAFE_C_SSSC)) ||
-	   ((op == HOP_SAFE_C_A) && (optimize_op(cadr(expr)) >= HOP_SAFE_C_S) && (optimize_op(cadr(expr)) <= HOP_SAFE_C_SSSC))))
-	{
-	  switch (args)
-	    {
-	      case 1: return(sc->list_1);
-	      case 2: return(sc->list_2);
-	      case 3: return(sc->list_3);
-	    }
-	}
-    }
-  return(f);
-}
-
 
 /* -------------------------------- apply-values -------------------------------- */
 static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
@@ -68372,9 +68362,6 @@ static void init_choosers(s7_scheme *sc)
   sc->list_2 = make_function_with_class(sc, f, "list", g_list_2, 2, 0, false);
   sc->list_3 = make_function_with_class(sc, f, "list", g_list_3, 3, 0, false);
 
-  /* list-values */
-  f = set_function_chooser(sc, sc->list_values_symbol, list_values_chooser);
-
   /* member */
   set_function_chooser(sc, sc->member_symbol, member_chooser);
 
@@ -68492,16 +68479,16 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 	}
       if (is_symbol(closure_args(func))) /* (define* (f1 . a) ...) called (f1) -- called a closure (not closure*) in define_unchecked */
 	{	
-	  set_optimized(expr);
+	  /* set_optimized(expr); */
 	  set_opt1_lambda(expr, func);
-	  set_optimize_op(expr, hop + OP_THUNK_NIL);
+	  set_safe_optimize_op(expr, hop + OP_THUNK_NIL);
 	  return(OPT_F);
 	}
       if (is_closure_star(func))
 	{
-	  set_optimized(expr);
+	  /* set_optimized(expr); */
 	  set_opt1_lambda(expr, func);
-	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_FX_0 : OP_CLOSURE_STAR_FX));
+	  set_safe_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_FX_0 : OP_CLOSURE_STAR_FX));
 	}
       return(OPT_F);
     }
@@ -68524,8 +68511,8 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
 
   if (is_c_function_star(func))
     {
-      set_optimized(expr);
-      set_optimize_op(expr, hop + OP_SAFE_C_FUNCTION_STAR);
+      /* set_optimized(expr); */
+      set_safe_optimize_op(expr, hop + OP_SAFE_C_FUNCTION_STAR);
       set_c_function(expr, func);
       return(OPT_T);
     }
@@ -69468,6 +69455,10 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
       if (results_fxable) set_optimized(body);
       return(results_fxable);
     }
+#if 0
+  if (tree_count(sc, name, body, 0) == 1)
+    fprintf(stderr, "%s[%d]: %s %d %s\n\n", __func__, __LINE__, DISPLAY(name), vars, DISPLAY(body));
+#endif
   return(false);
 }
 
@@ -70051,8 +70042,8 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       (fx_count(sc, expr) == 1))
     {
       if ((hop == 0) && (symbol_id(car(expr)) == 0)) hop = 1;
-      set_optimized(expr);
-      set_optimize_op(expr, hop + OP_SAFE_C_FUNCTION_STAR_A); /* if one arg passed, it's obviously not a keyword-as-parameter-name */
+      /* set_optimized(expr); */
+      set_safe_optimize_op(expr, hop + OP_SAFE_C_FUNCTION_STAR_A); /* if one arg passed, it's obviously not a keyword-as-parameter-name */
       annotate_arg(sc, cdr(expr), e);
       set_opt3_arglen(expr, small_int(1));
       set_c_function(expr, func);
@@ -70073,7 +70064,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
        (is_keyword(arg1))))
     {
       /* (*s7* ...) */
-      set_optimize_op(expr, OP_IMPLICIT_S7_LET_REF);
+      set_safe_optimize_op(expr, OP_IMPLICIT_S7_LET_REF);
       return(OPT_F);
     }
   /* unknown_* is set later */
@@ -70178,10 +70169,10 @@ static void opt_sp_1(s7_scheme *sc, s7_function g, s7_pointer expr)
 
 static bool safe_c_aa_to_ca(s7_scheme *sc, s7_pointer arg, int hop)
 {
-  if (c_callee(cddr(arg)) == fx_c) {set_opt3_any(arg, caddr(arg)); set_optimize_op(arg, hop + OP_SAFE_C_AC); return(true);}
-  if (c_callee(cdr(arg)) == fx_c) {set_opt3_any(arg, cadr(arg)); set_optimize_op(arg, hop + OP_SAFE_C_CA); return(true);}
-  if (c_callee(cddr(arg)) == fx_q) {set_opt3_any(arg, cadr(caddr(arg))); set_optimize_op(arg, hop + OP_SAFE_C_AC); return(true);}
-  if (c_callee(cdr(arg)) == fx_q) {set_opt3_any(arg, cadadr(arg)); set_optimize_op(arg, hop + OP_SAFE_C_CA); return(true);}
+  if (c_callee(cddr(arg)) == fx_c) {set_opt3_any(arg, caddr(arg)); set_safe_optimize_op(arg, hop + OP_SAFE_C_AC); return(true);}
+  if (c_callee(cdr(arg)) == fx_c)  {set_opt3_any(arg, cadr(arg));  set_safe_optimize_op(arg, hop + OP_SAFE_C_CA); return(true);}
+  if (c_callee(cddr(arg)) == fx_q) {set_opt3_any(arg, cadr(caddr(arg))); set_safe_optimize_op(arg, hop + OP_SAFE_C_AC); return(true);}
+  if (c_callee(cdr(arg)) == fx_q)  {set_opt3_any(arg, cadadr(arg));      set_safe_optimize_op(arg, hop + OP_SAFE_C_CA); return(true);}
   return(false);
 }
 
@@ -70474,6 +70465,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  else
 		    {
 		      set_opt1_con(cdr(expr), cadr(arg1));
+		      /* fprintf(stderr, "%s %d\n", DISPLAY(expr), hop); */
 		      set_optimize_op(expr, hop + OP_SAFE_C_CS);
 		    }
 		  choose_c_function(sc, expr, func, 2);
@@ -70483,8 +70475,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		{
 		  if ((pairs == 1) && (is_pair(arg2))) /* QC never happens */
 		    {
-		      set_optimized(expr);
-		      set_optimize_op(expr, hop + OP_SAFE_C_CQ);
+		      /* set_optimized(expr); */
+		      set_safe_optimize_op(expr, hop + OP_SAFE_C_CQ);
 		      set_opt2_con(cdr(expr), cadr(arg2));
 		      choose_c_function(sc, expr, func, 2);
 		      return(OPT_T);
@@ -70494,7 +70486,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		    {
 		      if ((is_fxable(sc, arg1)) && (is_fxable(sc, arg2)))
 			{
-			  set_optimize_op(expr, hop + OP_SAFE_C_AA);
+			  set_safe_optimize_op(expr, hop + OP_SAFE_C_AA);
 			  annotate_args(sc, cdr(expr), e);
 			  if (!safe_c_aa_to_ca(sc, expr, hop))
 			    set_opt3_arglen(expr, small_int(2));
@@ -70521,7 +70513,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
       if (quotes == 2)
 	{
 	  if (func_is_safe)
-	    set_optimize_op(expr, hop + OP_SAFE_C_AA);
+	    set_safe_optimize_op(expr, hop + OP_SAFE_C_AA);
 	  else set_unsafe_optimize_op(expr, hop + OP_C_AA);
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt3_arglen(expr, small_int(2));
@@ -70823,7 +70815,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		  if (is_fxable(sc, car(body)))
 		    {
 		      annotate_arg(sc, body, e);
-		      set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA_A);
+		      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_AA_A);
 		      set_closure_has_fx(func);
 		      annotate_args(sc, cdr(expr), e);
 		      set_opt1_lambda(expr, func);
@@ -70837,8 +70829,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  else
 	    {
 	      if ((safe_case) && (is_normal_symbol(arg1)))
-		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_SA);
-	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
+		set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_SA);
+	      else set_safe_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AA : OP_CLOSURE_AA));
 	    }
 
 	  annotate_args(sc, cdr(expr), e);
@@ -70851,7 +70843,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	{
 	  set_unsafely_optimized(expr);
 	  annotate_arg(sc, cdr(expr), e);
-	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AP : OP_CLOSURE_AP));
+	  set_safe_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AP : OP_CLOSURE_AP));
 	  set_opt1_lambda(expr, func);
 	  return(OPT_F);
 	}
@@ -76100,6 +76092,9 @@ static s7_pointer check_define(s7_scheme *sc)
 
 static bool op_define_unchecked(s7_scheme *sc)
 {
+  set_current_code(sc, sc->code);
+  sc->code = cdr(sc->code);
+
   if (sc->cur_op == OP_DEFINE_STAR_UNCHECKED) /* sc->cur_op changed above if define* */
     {
       s7_pointer x;
@@ -77837,7 +77832,7 @@ static s7_pointer op_set1(s7_scheme *sc)
 		  else
 		    {
 		      sc->args = list_3(sc, sc->code, sc->value, sc->envir);
-		      push_stack(sc, OP_SET_WITH_SETTER, sc->args, lx); /* op, args, code */
+		      push_stack(sc, OP_SET_FROM_SETTER, sc->args, lx); /* op, args, code */
 		      sc->code = func;
 		      return(NULL);
 		    }
@@ -77853,7 +77848,7 @@ static s7_pointer op_set1(s7_scheme *sc)
 		  else
 		    {
 		      sc->args = list_2(sc, sc->code, sc->value);
-		      push_stack(sc, OP_SET_WITH_SETTER, sc->args, lx); /* op, args, code */
+		      push_stack(sc, OP_SET_FROM_SETTER, sc->args, lx); /* op, args, code */
 		      sc->code = func;
 		      return(NULL);
 		    }
@@ -77936,6 +77931,13 @@ static s7_pointer op_set2(s7_scheme *sc)
     }
   return(NULL); /* i.e. goto SET1 */
 }
+
+static void op_set_from_setter(s7_scheme *sc)
+{
+  if (is_immutable(sc->code))
+    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, sc->code));
+  slot_set_value(sc->code, sc->value);
+}	  
 
 static bool op_set_with_let_1(s7_scheme *sc)
 {
@@ -79102,6 +79104,9 @@ static s7_pointer fxify_step_exprs(s7_scheme *sc, s7_pointer code)
 
 static inline bool do_tree_has_definers(s7_scheme *sc, s7_pointer tree)
 {
+  /* we can't be very fancy here because quote gloms up everything: (cond '(define x 0) ...) etc, and the tree here can
+   *   be arbitrarily messed up, and we need to be reasonably fast.  So we accept some false positives: (case ((define)...)...) or '(define...)
+   */
   s7_pointer p;
   for (p = tree; is_pair(p); p = cdr(p))
     {
@@ -79114,7 +79119,12 @@ static inline bool do_tree_has_definers(s7_scheme *sc, s7_pointer tree)
 	       ((is_pair(cdr(p))) &&         /* if varlet, is target let local? */
 		(is_symbol(cadr(p))) &&
 		(!symbol_is_in_list(sc, cadr(p))))))
-	    return(true);
+	    {
+#if DO_PRINT
+	      fprintf(stderr, "definer: %s\n", DISPLAY(pp));
+#endif
+	      return(true);
+	    }
 	}
       else
 	{
@@ -79206,6 +79216,7 @@ static s7_pointer check_do(s7_scheme *sc)
     {
 #if DO_PRINT
       fprintf(stderr, "%s end unsafe\n", DISPLAY_80(form));
+      if (is_pair(end)) fprintf(stderr, "  %d %s\n", is_fxable(sc, car(end)), op_names[optimize_op(car(end))]);
 #endif
       if (is_null(cddr(code)))
 	{
@@ -79372,7 +79383,13 @@ static s7_pointer check_do(s7_scheme *sc)
 	  for (q = vars; q != p; q = cdr(q))
 	    clear_match_symbol(caar(q));
 #if DO_PRINT
-	  fprintf(stderr, "  step no fx safe\n");
+	  fprintf(stderr, "  step not fx safe: %s\n  ", DISPLAY(var));
+	  if (!is_fxable(sc, cadr(var))) 
+	    fprintf(stderr, "can't fxify %s (%s)\n", DISPLAY(cadr(var)), op_names[optimize_op(cadr(var))]);
+	  if ((is_pair(cddr(var))) && (!is_fxable(sc, caddr(var))))
+	    fprintf(stderr, "can't fxify %s (%s)\n", DISPLAY(caddr(var)), op_names[optimize_op(caddr(var))]);
+	  if ((is_symbol(cadr(var))) && (is_definer_or_binder(cadr(var)))) 
+	    fprintf(stderr, "%s is a definer or binder\n", DISPLAY(cadr(var)));
 #endif
 	  return(fxify_step_exprs(sc, code));
 	}
@@ -82633,7 +82650,7 @@ static goto_t op_unknown_aa(s7_scheme *sc, s7_pointer f)
 
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
-      set_optimize_op(code, (is_safe_procedure(f)) ? OP_SAFE_C_AA : OP_C_FX);
+      set_safe_optimize_op(code, (is_safe_procedure(f)) ? OP_SAFE_C_AA : OP_C_FX);
       set_c_function(code, f);
       return(goto_eval);
 
@@ -82657,12 +82674,12 @@ static goto_t op_unknown_aa(s7_scheme *sc, s7_pointer f)
 		  if (is_fxable(sc, car(body)))
 		    {
 		      annotate_arg(sc, body, sc->envir);
-		      set_optimize_op(code, hop + OP_SAFE_CLOSURE_AA_A);
+		      set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_AA_A);
 		      set_closure_has_fx(f);
 		    }
 		  else
 		    {
-		      set_optimize_op(code, hop + OP_SAFE_CLOSURE_AA_P);
+		      set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_AA_P);
 		      closure_clear_multiform(f);
 		    }
 		}
@@ -82712,8 +82729,8 @@ static goto_t op_unknown_fx(s7_scheme *sc, s7_pointer f)
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
       if (is_safe_procedure(f))
-	set_optimize_op(code, (num_args == 3) ? OP_SAFE_C_AAA : OP_SAFE_C_FX);
-      else set_optimize_op(code, OP_C_FX);
+	set_safe_optimize_op(code, (num_args == 3) ? OP_SAFE_C_AAA : OP_SAFE_C_FX);
+      else set_safe_optimize_op(code, OP_C_FX);
       annotate_args(sc, cdr(code), sc->envir);
       set_c_function(code, f);
       return(goto_eval);
@@ -82729,11 +82746,11 @@ static goto_t op_unknown_fx(s7_scheme *sc, s7_pointer f)
 	    {
 	      if ((is_symbol(cadr(code))) &&
 		  (num_args == 3))
-		set_optimize_op(code, hop + OP_SAFE_CLOSURE_SAA);
-	      else set_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
+		set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_SAA);
+	      else set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
 	      /* recur doesn't happen much here */
 	    }
-	  else set_optimize_op(code, hop + OP_CLOSURE_FX);
+	  else set_safe_optimize_op(code, hop + OP_CLOSURE_FX);
 	  set_opt1_lambda(code, f);
 	  return(goto_eval);
 	}
@@ -89440,24 +89457,15 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
  	      case OP_DOTIMES_P:    goto DOTIMES_P;
  	      case OP_SAFE_DO:	    goto SAFE_DO;
 	      case OP_DO_NO_BODY_FX_VARS: goto DO_NO_BODY;
-
- 	      case OP_DO_NO_VARS:
-		if (op_do_no_vars(sc)) goto DO_END_CLAUSES;
-		goto BEGIN;
-
-	      case OP_DOX_NO_BODY:
-		op_dox_no_body(sc); 
-		continue;
-
-	      case OP_DOX_PENDING_NO_BODY:
-		op_dox_pending_no_body(sc); 
-		goto DO_END_CLAUSES;
-
-	      default:
-		if (op_simple_do(sc)) goto DO_END_CLAUSES; 
-		goto BEGIN;
+ 	      case OP_DO_NO_VARS:   if (op_do_no_vars(sc)) goto DO_END_CLAUSES; goto BEGIN;
+	      case OP_DOX_NO_BODY:  op_dox_no_body(sc); continue;
+	      case OP_DOX_PENDING_NO_BODY: op_dox_pending_no_body(sc); goto DO_END_CLAUSES;
+	      default:              if (op_simple_do(sc)) goto DO_END_CLAUSES; goto BEGIN;
 	      }
-
+#if 0
+	  fprintf(stderr, "----------------------------------------\n");
+	  fprintf(stderr, "%s (do %s\n    %s\n  %s)\n\n", op_names[optimize_op(sc->code)], DISPLAY_80(cadr(sc->code)), DISPLAY_80(caddr(sc->code)), DISPLAY_80(cdddr(sc->code)));
+#endif
 	case OP_DO_UNCHECKED:
 	  op_do_unchecked(sc);
 
@@ -89519,8 +89527,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_BEGIN_1:
 	  sc->code = car(sc->code);
 
-	case OP_EVAL:
-	  goto EVAL;
+	case OP_EVAL: goto EVAL;
+	case OP_EVAL_STRING: op_eval_string(sc); goto EVAL;
 
 	case OP_QUOTE: sc->value = check_quote(sc, sc->code); continue;
 
@@ -89537,19 +89545,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_DEFINE_CONSTANT_UNCHECKED:
 	case OP_DEFINE_STAR_UNCHECKED:
 	case OP_DEFINE_UNCHECKED:
-	  set_current_code(sc, sc->code);
-	  sc->code = cdr(sc->code);
 	  if (op_define_unchecked(sc)) goto TOP_NO_POP;
 
-	case OP_DEFINE1:
-	  if (op_define1(sc) == goto_apply) goto APPLY;
-
-	case OP_DEFINE_WITH_SETTER: 
-	  op_define_with_setter(sc); 
-	  continue;
-
-	case OP_EVAL_STRING: op_eval_string(sc); goto EVAL;
-
+	case OP_DEFINE1: if (op_define1(sc) == goto_apply) goto APPLY;
+	case OP_DEFINE_WITH_SETTER: op_define_with_setter(sc); continue;
 
 	case OP_SET_LET_S:        /* (set! (*s7* 'print-length) i) */
 	  sc->code = cdr(sc->code);
@@ -89566,7 +89565,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SET_PAIR_ZA:     /* unknown setter pair, but value is easy */
 	  sc->code = cdr(sc->code);
 	  sc->value = fx_call(sc, cdr(sc->code));
-	  /* fall through */
+
 	case OP_SET_PAIR_P_1:      if (op_set_pair_p_1(sc)) goto APPLY; continue;
 	case OP_SET_PAIR:	   if (op_set_pair(sc))     goto APPLY; continue;
 
@@ -89615,25 +89614,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      default:              goto EVAL_ARGS;
 	      }
 
-	case OP_SET_NORMAL:
-	  if (op_set_normal(sc)) goto EVAL;
+	case OP_SET_NORMAL: if (op_set_normal(sc)) goto EVAL;
+	case OP_SET1:       if (op_set1(sc)) continue; goto APPLY;
 
-	case OP_SET1:
-	  if (op_set1(sc)) continue;
-	  goto APPLY;
+	case OP_SET_FROM_SETTER: op_set_from_setter(sc); continue;
 
-	case OP_SET_WITH_SETTER:
-	  if (is_immutable(sc->code))
-	    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, sc->code));
-	  slot_set_value(sc->code, sc->value);
-	  continue;
-
-	case OP_SET_WITH_LET_1:
-	  if (op_set_with_let_1(sc)) goto TOP_NO_POP;
-	  goto SET_WITH_LET;
-
-	case OP_SET_WITH_LET_2:
-	  if (op_set_with_let_2(sc)) continue;
+	case OP_SET_WITH_LET_1: if (op_set_with_let_1(sc)) goto TOP_NO_POP; goto SET_WITH_LET;
+	case OP_SET_WITH_LET_2: if (op_set_with_let_2(sc)) continue;
 
 	SET_WITH_LET:
 	  activate_let(sc, sc->value);  /* this activates sc->value, so the set! will happen in that environment */
@@ -90078,7 +90065,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  case '#':  sc->tok = read_sharp(sc, pt);              break;
 		  case '\0': case EOF: sc->tok = TOKEN_EOF;             break;
 
-		  default:
+		  default: /* read first element of list (ignore callgrind confusion -- this happens a lot) */
 		    {
 		      s7_pointer x;
 		      sc->strbuf[0] = (unsigned char)c;
@@ -90091,7 +90078,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      sc->args = x;
 		      set_file_and_line_number(sc, x);
 #if WITH_PROFILE
-		      profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
+		      profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
 #endif
 		      c = port_read_white_space(pt)(sc, pt);
 		      goto READ_C;
@@ -90110,7 +90097,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    sc->args = x;
 		    set_file_and_line_number(sc, x);
 #if WITH_PROFILE
-		    profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
+		    profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
 #endif
 		    c = port_read_white_space(pt)(sc, pt);
 		    goto READ_C;
@@ -97247,10 +97234,10 @@ int main(int argc, char **argv)
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  880   879
  * tshoot        |      |      |      |      |      | 1224 |        896
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1485  1485
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1677
- * tvect         |      |      |      |      |      | 5729 | 1919  1891
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1677  1674
+ * tvect         |      |      |      |      |      | 5729 | 1919  1891  1867
  * tmisc         |      |      |      |      |      | 2636 | 1949  1892
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2082
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2082  2075
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2190
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2236
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2254
@@ -97258,22 +97245,22 @@ int main(int argc, char **argv)
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2613
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2666
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2681
- * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2828
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2828  2820
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2879
- * tset          |      |      |      |      | 10.0 | 6432 | 2980  2987
+ * tset          |      |      |      |      | 10.0 | 6432 | 2980  2987  2977
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3051
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3114
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3114  3076
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3230
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3518
- * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4038
+ * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4035
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6435  6435
  * thash         |      |      |      |      |      | 10.3 | 8467  8451
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.1
- * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 105.6
- * tbig          |      |      |      |      |246.9 |230.6 |181.2 181.1
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.1  69.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 105.6 105.0
+ * tbig          |      |      |      |      |246.9 |230.6 |181.2 181.1 180.8
  * --------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
@@ -97294,6 +97281,17 @@ int main(int argc, char **argv)
  * split add|mul_p_pp -- aren't there splittable pp cases? add_p_pi ip pd dp and mul/-/= [di id?]
  *   op_c_s_opssq_direct -> add should notice int-vector et al and use add_p_xx?
  *   no ip dp pd yet
+ *   closure_s_to_sc: fxable 1+ 1-
  *
- * left in eval (1987): eval_args, read, or|and_p, if_case, set, apply
+ * left in eval (1971): eval_args, read, or|and_p, if_case, apply
+ * t718 -> s7test (tmac)
+ *
+ * check all set_optimize_op's (fxify for example depends on is_optimized) 180 of these currently [thunk_nil unsafe?]
+ *   acc for let-set lt, aca? for ht set, opaaq->opsaq? l-ltref case
+ *   there are a bazillion C->Q cases -- which are most common?
+ *   fx_q: gen mac lg set b rclo
+ *     mac is 4a: qqtq or something like that (list-values) + op_safe_c_fp = s+q
+ *     rclo: safe_closure_aa_p->cc_p?
+ *     set is fx_c_aa?? and aaa [also lg]
+ *     gen cca
  */
