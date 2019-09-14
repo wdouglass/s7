@@ -1,7 +1,7 @@
 ;;; translation of new-effects.scm to gtk/xg
 
 (unless (provided? 'gtk4)
-  (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
+  (error 'gtk-error "gtk-effects.scm only works in gtk4"))
 
 (provide 'snd-gtk-effects.scm)
 (require snd-gtk snd-gtk-effects-utils.scm snd-xm-enved.scm snd-moog.scm snd-rubber.scm snd-dsp.scm)
