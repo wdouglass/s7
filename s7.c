@@ -4036,13 +4036,14 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_OR_P, OP_OR_P1, OP_OR_AP, 
       OP_OR_SAFE_AA,
       OP_COND_FEED, OP_COND_FEED_1, 
-      OP_WHEN_S, OP_WHEN_A, OP_WHEN_P, OP_WHEN_AND_AP, OP_UNLESS_S, OP_UNLESS_A, OP_UNLESS_P,
+      OP_WHEN_S, OP_WHEN_A, OP_WHEN_P, OP_WHEN_AND_AP, OP_WHEN_AND_2, OP_WHEN_AND_3, OP_UNLESS_S, OP_UNLESS_A, OP_UNLESS_P,
 
       OP_IF_S_P, OP_IF_S_P_P, OP_IF_S_R, OP_IF_S_N, OP_IF_S_N_N,
       OP_IF_opSq_P, OP_IF_opSq_P_P, OP_IF_opSq_R, OP_IF_opSq_N, OP_IF_opSq_N_N,
       OP_IF_IS_TYPE_S_P, OP_IF_IS_TYPE_S_P_P, OP_IF_IS_TYPE_S_R, OP_IF_IS_TYPE_S_N, OP_IF_IS_TYPE_S_N_N,
       OP_IF_A_P, OP_IF_A_P_P, OP_IF_A_R, OP_IF_A_N, OP_IF_A_N_N,
       OP_IF_AND2_P, OP_IF_AND2_P_P, OP_IF_AND2_R, OP_IF_AND2_N, OP_IF_AND2_N_N,
+      OP_IF_AND3_P, OP_IF_AND3_P_P, OP_IF_AND3_R, OP_IF_AND3_N, OP_IF_AND3_N_N,
       OP_IF_P_P, OP_IF_P_P_P, OP_IF_P_R, OP_IF_P_N, OP_IF_P_N_N,
       OP_IF_ANDP_P, OP_IF_ANDP_P_P, OP_IF_ANDP_R, OP_IF_ANDP_N, OP_IF_ANDP_N_N,
       OP_IF_ORP_P, OP_IF_ORP_P_P, OP_IF_ORP_R, OP_IF_ORP_N, OP_IF_ORP_N_N,
@@ -4271,13 +4272,14 @@ static const char* op_names[NUM_OPS] =
       "or_p", "or_p1", "or_ap", 
       "or_safe_aa",
       "cond_feed", "cond_feed_1", 
-      "when_s", "when_a", "when_p", "when_and_ap", "unless_s", "unless_a", "unless_p",
+      "when_s", "when_a", "when_p", "when_and_ap", "when_and_2", "when_and_3", "unless_s", "unless_a", "unless_p",
 
       "if_s_p", "if_s_p_p", "if_s_r", "if_s_n", "if_s_n_n",      
       "if_opsq_p", "if_opsq_p_p", "if_opsq_r", "if_opsq_n", "if_opsq_n_n",
       "if_is_type_s_p", "if_is_type_s_p_p", "if_is_type_s_r", "if_is_type_s_n", "if_is_type_s_n_n",
       "if_a_p", "if_a_p_p", "if_a_r", "if_a_n", "if_a_n_n",
       "if_and2_p", "if_and2_p_p", "if_and2_r", "if_and2_n", "if_and2_n_n",
+      "if_and3_p", "if_and3_p_p", "if_and3_r", "if_and3_n", "if_and3_n_n",
       "if_p_p", "if_p_p_p", "if_p_r", "if_p_n", "if_p_n_n",
       "if_andp_p", "if_andp_p_p", "if_andp_r", "if_andp_n", "if_andp_n_n",
       "if_orp_p", "if_orp_p_p", "if_orp_r", "if_orp_n", "if_orp_n_n",
@@ -53620,11 +53622,12 @@ static void fx_function_init(void)
 
   fx_function[HOP_SAFE_THUNK_A] = fx_thunk_a;
   fx_function[HOP_SAFE_CLOSURE_S_A] = fx_safe_closure_s_a;
-  fx_function[HOP_SAFE_CLOSURE_S_TO_S] = fx_safe_closure_s_to_s;
-  fx_function[HOP_SAFE_CLOSURE_S_TO_SC] = fx_safe_closure_s_to_sc;
   fx_function[HOP_SAFE_CLOSURE_A_A] = fx_safe_closure_a_a;
   fx_function[HOP_SAFE_CLOSURE_SS_A] = fx_safe_closure_ss_a;
   fx_function[HOP_SAFE_CLOSURE_AA_A] = fx_safe_closure_aa_a;
+
+  fx_function[HOP_SAFE_CLOSURE_S_TO_S] = fx_safe_closure_s_to_s;
+  fx_function[HOP_SAFE_CLOSURE_S_TO_SC] = fx_safe_closure_s_to_sc;
 
   fx_function[OP_COND_FX_FX] = fx_cond_fx_fx;
   fx_function[OP_opIF_A_SSq_A] = fx_opif_a_ssq_a;
@@ -68011,8 +68014,7 @@ static s7_pointer g_or_2(s7_scheme *sc, s7_pointer args)
   s7_pointer p;
   p = fx_call(sc, args);
   if (p != sc->F) return(p);
-  p = cdr(args);
-  return(fx_call(sc, p));
+  return(fx_call(sc, cdr(args)));
 }
 
 static s7_pointer g_or_3(s7_scheme *sc, s7_pointer args)
@@ -68055,8 +68057,7 @@ static s7_pointer g_and_3(s7_scheme *sc, s7_pointer args)
   p = cdr(args);
   if (fx_call(sc, p) == sc->F)
     return(sc->F);
-  p = cdr(p);
-  return(fx_call(sc, p));
+  return(fx_call(sc, cdr(p)));
 }
 
 static s7_pointer g_if_a_a(s7_scheme *sc, s7_pointer args)
@@ -74149,11 +74150,7 @@ static bool op_let1(s7_scheme *sc)
 
   while (true)
     {
-      new_cell(sc, x, T_PAIR);
-      set_car(x, sc->value); /* the first time (now handled above), this saves the entire let body across the evaluations -- we pick it up later */
-      set_cdr(x, sc->args);
-      sc->args = x;
-
+      sc->args = cons(sc, sc->value, sc->args);
       if (is_pair(sc->code))
 	{
 	  x = cdar(sc->code);
@@ -74242,10 +74239,7 @@ static bool op_let_unchecked(s7_scheme *sc)     /* not named, but has vars */
 {
   s7_pointer x;
   start_let(sc);
-  new_cell(sc, x, T_PAIR);
-  set_car(x, sc->code);
-  set_cdr(x, sc->nil);
-  sc->args = x;
+  sc->args = cons(sc, sc->code, sc->nil);
   sc->code = car(sc->code);
   x = cdar(sc->code);
   if (has_fx(x))
@@ -75621,6 +75615,15 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 		  set_opt3_pair(sc->code, cddr(test));
 		  return;
 		}
+	      if (c_callee(test) == g_and_3)
+		{
+		  clear_has_fx(sc->code);
+		  pair_set_syntax_op(form, choose_if_optc(IF_AND3, one_branch, reversed, not_case));
+		  set_opt2_pair(sc->code, cdr(test));
+		  set_opt3_pair(sc->code, cddr(test));
+		  set_opt1_pair(sc->code, cdddr(test));
+		  return;
+		}
 	      if (c_callee(test) == g_or_2)
 		{
 		  clear_has_fx(sc->code);
@@ -75806,9 +75809,16 @@ static s7_pointer check_when(s7_scheme *sc)
 	  if (is_fxable(sc, test))
 	    {
 	      pair_set_syntax_op(form, OP_WHEN_A);
-	      set_opt2_con(form, cadr(sc->code));
-	      set_opt3_pair(form, cddr(sc->code));
-	      set_c_call(sc->code, fx_choose(sc, sc->code, sc->envir, let_symbol_is_safe));
+	      if (is_pair(car(sc->code))) set_opt2_pair(form, cdar(sc->code));
+	      set_opt3_pair(form, cdr(sc->code));
+	      set_c_call(sc->code, fx_choose(sc, sc->code, sc->envir, let_symbol_is_safe)); /* "A" in when_a */
+	      if (c_callee(sc->code) == fx_and_2)
+		pair_set_syntax_op(form, OP_WHEN_AND_2);
+	      else
+		{
+		  if (c_callee(sc->code) == fx_and_3)
+		    pair_set_syntax_op(form, OP_WHEN_AND_3);
+		}
 	    }
 	  else
 	    {
@@ -75853,8 +75863,35 @@ static bool op_when_a(s7_scheme *sc)
   set_current_code(sc, sc->code);
   if (is_true(sc, fx_call(sc, cdr(sc->code))))
     {
-      push_stack_no_args(sc, sc->begin_op, opt3_pair(sc->code)); /* cdddr(sc->code) */
-      sc->code = opt2_con(sc->code);                             /* caddr(sc->code) */
+      push_stack_no_args(sc, sc->begin_op, cdr(opt3_pair(sc->code))); /* cdddr(sc->code) */
+      sc->code = car(opt3_pair(sc->code));                            /* caddr(sc->code) */
+      return(false);
+    }
+  sc->value = sc->unspecified;
+  return(true);
+}
+
+static bool op_when_and_2(s7_scheme *sc)
+{
+  set_current_code(sc, sc->code);
+  if ((is_true(sc, fx_call(sc, opt2_pair(sc->code)))) && (is_true(sc, fx_call(sc, cdr(opt2_pair(sc->code))))))
+    {
+      push_stack_no_args(sc, sc->begin_op, cdr(opt3_pair(sc->code))); /* cdddr(sc->code) */
+      sc->code = car(opt3_pair(sc->code));                            /* caddr(sc->code) */
+      return(false);
+    }
+  sc->value = sc->unspecified;
+  return(true);
+}
+
+static bool op_when_and_3(s7_scheme *sc)
+{
+  
+  set_current_code(sc, sc->code);
+  if ((is_true(sc, fx_call(sc, opt2_pair(sc->code)))) && (is_true(sc, fx_call(sc, cdr(opt2_pair(sc->code))))) && (is_true(sc, fx_call(sc, cddr(opt2_pair(sc->code))))))
+    {
+      push_stack_no_args(sc, sc->begin_op, cdr(opt3_pair(sc->code))); /* cdddr(sc->code) */
+      sc->code = car(opt3_pair(sc->code));                            /* caddr(sc->code) */
       return(false);
     }
   sc->value = sc->unspecified;
@@ -87850,15 +87887,6 @@ static void op_c_s(s7_scheme *sc)
   sc->value = c_call(sc->code)(sc, sc->args);
 }
 
-static inline void op_eval_args1(s7_scheme *sc) /* inline is needed here */
-{
-  s7_pointer x;
-  new_cell(sc, x, T_PAIR);
-  set_car(x, sc->value);
-  set_cdr(x, sc->args);
-  sc->args = x;
-}
-
 static s7_pointer fx_opif_a_ssq_a(s7_scheme *sc, s7_pointer code)   /* ((if fx s s) fx) I think */
 {
   s7_function f;
@@ -87907,9 +87935,7 @@ static void op_eval_args2(s7_scheme *sc)
 {
   s7_pointer x;
   sc->code = pop_op_stack(sc);
-  new_cell(sc, x, T_PAIR);
-  set_car(x, sc->value);
-  set_cdr(x, sc->args);
+  x = cons(sc, sc->value, sc->args);
   if (!is_null(sc->args))
     sc->args = safe_reverse_in_place(sc, x);
   else sc->args = x;
@@ -87921,34 +87947,17 @@ static void op_eval_args3(s7_scheme *sc)
   val = sc->code;
   if (is_symbol(val))
     val = lookup_checked(sc, val);
-  new_cell(sc, x, T_PAIR);
-  new_cell_no_check(sc, y, T_PAIR);
-  set_car(x, sc->value);
-  set_cdr(x, sc->args);
-  set_car(y, val);
-  set_cdr(y, x);
+  x = cons(sc, sc->value, sc->args);
+  y = cons_unchecked(sc, val, x);
   sc->args = safe_reverse_in_place(sc, y);
   sc->code = pop_op_stack(sc);
-}
-
-static void op_eval_args4(s7_scheme *sc)
-{
-  s7_pointer x;
-  new_cell(sc, x, T_PAIR);
-  set_car(x, sc->value);
-  set_cdr(x, sc->args);
-  sc->args = x;          /* all the others reverse -- why not this case? -- reverse is at end? (below) */
 }
 
 static void op_eval_args5(s7_scheme *sc)      /* sc->value is the last arg, sc->code is the previous */
 {
   s7_pointer x, y;
-  new_cell(sc, x, T_PAIR);
-  new_cell_no_check(sc, y, T_PAIR);
-  set_car(x, sc->code);
-  set_cdr(x, sc->args);
-  set_car(y, sc->value);
-  set_cdr(y, x);
+  x = cons(sc, sc->code, sc->args);
+  y = cons_unchecked(sc, sc->value, x);
   sc->args = safe_reverse_in_place(sc, y);
   sc->code = pop_op_stack(sc);
 }
@@ -88180,10 +88189,7 @@ static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
     val = lookup_checked(sc, car_code); /* this has to precede the set_type below */
   else val = car_code;
   sc->temp4 = val;
-  new_cell(sc, x, T_PAIR);
-  set_car(x, val);
-  set_cdr(x, sc->args);
-  
+  x = cons(sc, val, sc->args);
   if (!is_null(sc->args))
     sc->args = safe_reverse_in_place(sc, x);
   else sc->args = x;
@@ -89189,8 +89195,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_EVAL_ARGS5: op_eval_args5(sc); goto APPLY;
 	case OP_EVAL_ARGS2: op_eval_args2(sc); goto APPLY; /* sc->value is the last arg, [so if is_null(cdr(sc->code) and current is pair, push args2] */
 	case OP_EVAL_ARGS3: op_eval_args3(sc); goto APPLY; /* sc->value is the next-to-last arg, and we know the last arg is not a list (so values can't mess us up!) */
-	case OP_EVAL_ARGS4: op_eval_args4(sc); goto EVAL_ARGS_PAIR; /* sc->code is a pair, and either cdr(sc->code) is not null or car(sc->code) is a pair */
-	case OP_EVAL_ARGS1: op_eval_args1(sc); goto EVAL_ARGS;
+	case OP_EVAL_ARGS4: sc->args = cons(sc, sc->value, sc->args); goto EVAL_ARGS_PAIR;
+	case OP_EVAL_ARGS1: sc->args = cons(sc, sc->value, sc->args); goto EVAL_ARGS;
 
 	EVAL_ARGS_TOP:
 	case OP_EVAL_ARGS:
@@ -89274,12 +89280,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 		      /* get the current arg, which is not a list */
 		      sc->code = pop_op_stack(sc);
-		      new_cell(sc, x, T_PAIR);
-		      new_cell_no_check(sc, y, T_PAIR);
-		      set_car(x, sc->value);
-		      set_cdr(x, sc->args);
-		      set_car(y, val);
-		      set_cdr(y, x);
+		      x = cons(sc, sc->value, sc->args);
+		      y = cons_unchecked(sc, val, x);
 		      sc->args = safe_reverse_in_place(sc, y);
 		      /* drop into APPLY */
 		    }
@@ -89287,9 +89289,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		    {
 		      /* here we know sc->code is a pair, cdr(sc->code) is not null, sc->value is the previous arg's value */
 		      s7_pointer x;
-		      new_cell(sc, x, T_PAIR);
-		      set_car(x, sc->value);
-		      set_cdr(x, sc->args);
+		      x = cons(sc, sc->value, sc->args);
 		      sc->args = x;
 		      goto EVAL_ARGS_PAIR;
 		    }
@@ -89707,13 +89707,14 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  IF_CASE(OP_IF_opSq,
 		    set_car(sc->t1_1, lookup(sc, opt2_sym(cdr(sc->code)))); if (is_true(sc, c_call(cadr(sc->code))(sc, sc->t1_1))),
 		    set_car(sc->t1_1, lookup(sc, opt2_sym(cdr(sc->code)))); if (is_false(sc, c_call(cadadr(sc->code))(sc, sc->t1_1))))
-	    /* lg: A: opCSq: 0, fx_gt_ss: 9, and_pair_closure_s: 11, is_pair_cdr_s: 0, and_3: 77
-	     *   so op_if_and3 might help
-	     */
 
 	  IF_CASE(OP_IF_AND2,
 		  if ((is_true(sc, fx_call(sc, opt2_pair(cdr(sc->code))))) && (is_true(sc, fx_call(sc, opt3_pair(cdr(sc->code)))))),
 		  if ((is_false(sc, fx_call(sc, opt2_pair(cdr(sc->code))))) || (is_false(sc, fx_call(sc, opt3_pair(cdr(sc->code)))))))
+
+	  IF_CASE(OP_IF_AND3,
+		  if ((is_true(sc, fx_call(sc, opt2_pair(cdr(sc->code))))) && (is_true(sc, fx_call(sc, opt3_pair(cdr(sc->code))))) && (is_true(sc, fx_call(sc, opt1_pair(cdr(sc->code)))))),
+		  if ((is_false(sc, fx_call(sc, opt2_pair(cdr(sc->code))))) || (is_false(sc, fx_call(sc, opt3_pair(cdr(sc->code))))) || (is_false(sc, fx_call(sc, opt1_pair(cdr(sc->code)))))))
 
 	  IF_CASE(OP_IF_OR2,
 		  if ((is_true(sc, fx_call(sc, opt2_pair(cdr(sc->code))))) || (is_true(sc, fx_call(sc, opt3_pair(cdr(sc->code)))))),
@@ -89751,6 +89752,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_WHEN_S:      if (op_when_s(sc)) continue;      goto EVAL;
 	case OP_WHEN_A:      if (op_when_a(sc)) continue;      goto EVAL;
         case OP_WHEN_P:      op_when_p(sc);                    goto EVAL;
+	case OP_WHEN_AND_2:  if (op_when_and_2(sc)) continue;  goto EVAL;
+	case OP_WHEN_AND_3:  if (op_when_and_3(sc)) continue;  goto EVAL;
 	case OP_WHEN_AND_AP: if (op_when_and_ap(sc)) continue; goto EVAL;
 	case OP_WHEN_PP:     if (op_when_pp(sc)) continue;     goto EVAL;
 
@@ -90060,12 +90063,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->args = sc->stack_end[2];
 	  if (is_null(sc->args))
 	    {
-	      s7_pointer x;
-	      new_cell(sc, x, T_PAIR);
-	      set_car(x, sc->value);
-	      set_cdr(x, sc->args);
-	      sc->args = x;
-	      set_file_and_line_number(sc, x);
+	      sc->args = cons(sc, sc->value, sc->args);
+	      set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
 	      profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
 #endif
@@ -90075,11 +90074,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	READ_LIST:
 	case OP_READ_LIST:        /* sc->args is sc->nil at first */
 	  {
-	    s7_pointer x;
-	    new_cell(sc, x, T_PAIR);
-	    set_car(x, sc->value);
-	    set_cdr(x, sc->args);
-	    sc->args = x;
+	    sc->args = cons(sc, sc->value, sc->args);
 #if WITH_PROFILE
 	    profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
 #endif
@@ -90114,16 +90109,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 		  default: /* read first element of list (ignore callgrind confusion -- this happens a lot) */
 		    {
-		      s7_pointer x;
 		      sc->strbuf[0] = (unsigned char)c;
 		      push_stack_no_let_no_code(sc, OP_READ_LIST, sc->args);
 		      check_stack_size(sc);
 		      sc->value = port_read_name(pt)(sc, pt);
-		      new_cell(sc, x, T_PAIR);
-		      set_car(x, sc->value);
-		      set_cdr(x, sc->nil);
-		      sc->args = x;
-		      set_file_and_line_number(sc, x);
+		      sc->args = cons(sc, sc->value, sc->nil);
+		      set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
 		      profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
 #endif
@@ -90134,15 +90125,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 		if (sc->tok == TOKEN_ATOM)
 		  {
-		    s7_pointer x;
 		    push_stack_no_let_no_code(sc, OP_READ_LIST, sc->args);
 		    check_stack_size(sc);
 		    sc->value = port_read_name(pt)(sc, pt);
-		    new_cell(sc, x, T_PAIR);
-		    set_car(x, sc->value);
-		    set_cdr(x, sc->nil);
-		    sc->args = x;
-		    set_file_and_line_number(sc, x);
+		    sc->args = cons(sc, sc->value, sc->nil);
+		    set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
 		    profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
 #endif
@@ -97195,7 +97182,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 834) fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
+  if (NUM_OPS != 841) fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40 */
 #endif
 
@@ -97284,7 +97271,7 @@ int main(int argc, char **argv)
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1677
  * tvect         |      |      |      |      |      | 5729 | 1919  1889
  * tmisc         |      |      |      |      |      | 2636 | 1949  1896
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2076
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2076  2073
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2190
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2249
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2254
@@ -97292,11 +97279,11 @@ int main(int argc, char **argv)
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2613
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2677
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2689
- * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2820
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2820  2812
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2879
  * tset          |      |      |      |      | 10.0 | 6432 | 2980  2978
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3051
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3080
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3080  3063
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3230
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3580
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4035
@@ -97306,7 +97293,7 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.1
- * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 105.1
+ * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 105.1 104.7
  * tbig          |      |      |      |      |246.9 |230.6 |181.2 180.8
  * --------------------------------------------------------------------------
  *
@@ -97328,10 +97315,15 @@ int main(int argc, char **argv)
  * split add|mul_p_pp -- aren't there splittable pp cases? add_p_pi ip pd dp and mul/-/= [di id?]
  *   op_c_s_opssq_direct -> add should notice int-vector et al and use add_p_xx?
  *   no ip dp pd yet
- * s_to_s|sc where first is t etc?
+ *
+ * if_or_3?, op_let_a_a_old->fx?
+ *   preset all offsets in and|or_|3|n -- use in fx and g, try cdr(sc->code in if_and_3 
  *
  * left in eval (1949): eval_args, read, or|and_p, if_case, apply
  *
  * check all set_optimize_op's (fxify for example depends on is_optimized) 180 of these currently
  *   acc for let-set lt, aca? for ht set
+ *
+ * t718
+ * safe_closure_a_a -> safe_closure_a_and2|3
  */
