@@ -2930,37 +2930,11 @@ and openlet? -&gt; methods?.
 <div class="indented">
 <p>let-ref and let-set! are problematic as methods.  It is very easy to get into an infinite
 loop, especially with let-ref since any reference to the let within the method body probably
-calls let-ref, which notices the let-ref method... One way around this is to call coverlet 
-on the let before doing anything, then at the end, call openlet:
+calls let-ref, which calls the let-ref method.  We used to recommend coverlet here, but
+even that is not enough, so not let-ref and let-set! are immutable; they can't be used
+as methods.
+Use let-ref-fallback and let-set-fallback instead, if possible.
 </p>
-<pre class="indented">
-&gt; (let ((hi (openlet 
-              (inlet 'a 1 
-		     'let-ref (lambda (obj val)
-				(<em class="red">coverlet</em> obj)
-				(let ((res (+ (obj val) 1)))
-				  (<em class="red">openlet</em> obj)
-				  res))))))
-  (hi 'a))
-<em class="gray">2</em>
-</pre>
-
-<p>Use let-ref-fallback and let-set-fallback instead, if possible.  A let-set!
-method can implement a copy-on-write let:
-</p>
-
-<pre class="indented">
-(define (cowlet . fields) ; copy-on-write let
-  (openlet (apply inlet 
-                  'let-set! (lambda (obj field val)
-                              (let ((new-obj (copy (coverlet obj))))
-                                (set! (new-obj field) val)
-                                (openlet obj)
-                                (openlet new-obj)))
-                  fields)))
-(let ((lt1 (cowlet 'a 1 'b 2)))
-  (set! (lt1 'b) 1)) ; this leaves lt1 unchanged, returns a new let with b=1
-</pre>
 
 </div>
 </blockquote>
