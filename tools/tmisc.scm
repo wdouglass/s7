@@ -1,4 +1,4 @@
-(set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'heap-size) (* 2 1024000))
 
 (define size 500000)
 

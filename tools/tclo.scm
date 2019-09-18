@@ -1,3 +1,5 @@
+(set! (*s7* 'heap-size) (* 8 1024000))
+
 (define* (f0 a b)
   (display b #f))
 
