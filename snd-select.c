@@ -675,8 +675,8 @@ void update_possible_selection_in_progress(mus_long_t samp)
 	  ed = cp->edits[cp->edit_ctr];
 	  ed->selection_maxamp = -1.0;
 	  ed->selection_maxamp_position = -1;
-	  if (samp > current_samples(cp))
-	    new_end = current_samples(cp);
+	  if (samp >= current_samples(cp))
+	    new_end = current_samples(cp) - 1;
 	  else new_end = samp;
 
 	  if (new_end < original_beg)

@@ -980,7 +980,7 @@ void set_x_axis_x0x1(chan_info *cp, double x0, double x1)
   ap->changed = true;
 }
 
-
+#if 0
 static void set_x_axis_x0(chan_info *cp, mus_long_t left)
 {
   if (cp)
@@ -997,7 +997,7 @@ static void set_x_axis_x0(chan_info *cp, mus_long_t left)
 	}
     }
 }
-
+#endif
 
 static void set_x_axis_x1(chan_info *cp, mus_long_t right)
 {
@@ -1520,6 +1520,7 @@ static int make_graph_1(chan_info *cp, double cur_srate, graph_choice_t graph_ch
       ap->losamp = snd_round_mus_long_t(ap->x0 * cur_srate); /* was ceil??? */
       if (ap->losamp < 0) ap->losamp = 0;
       ap->hisamp = (mus_long_t)((ap->x1 * cur_srate) + 0.5); /* + 0.5 for 1-sample case */
+      if (ap->hisamp >= current_samples(cp)) ap->hisamp = current_samples(cp) - 1;
       if ((ap->losamp == 0) && (ap->hisamp == 0)) return(0);
     }
 
@@ -5689,7 +5690,7 @@ void graph_button_release_callback(chan_info *cp, int x, int y, int key_state, i
 		mus_long_t rsamp;
 		rsamp = samp + snd_round_mus_long_t(0.5 * (cp->axis->hisamp - cp->axis->losamp));
 		if (rsamp < 0) rsamp = 0;
-		if (rsamp > current_samples(cp)) rsamp = current_samples(cp);
+		if (rsamp >= current_samples(cp)) rsamp = current_samples(cp) - 1;
 		set_x_axis_x1(cp, rsamp);
 		update_graph(cp);
 	      }
@@ -6846,14 +6847,49 @@ static Xen channel_set(Xen snd, Xen chn_n, Xen on, cp_field_t fld, const char *c
       return(on);
 
     case CP_LOSAMP:
+#if 0
       Xen_check_type(Xen_is_integer(on), on, 1, S_set S_left_sample, "an integer");
       set_x_axis_x0(cp, beg_to_sample(on, caller));
       return(on);
+#else
+      /* keep losamp (and hisamp below) within the current sound bounds -- 20-Sep-19 thanks to Tito Latini */
+      /* I changed Tito's code to try to keep the unset axis side unmoved */
+      {
+        axis_info *ap;
+        mus_long_t lsamp;
+        Xen_check_type(Xen_is_integer(on), on, 1, S_set S_left_sample, "an integer");
+        lsamp = beg_to_sample(on, caller);
+        ap = cp->axis;
+        if (ap)
+          {
+	    if (lsamp >= ap->hisamp) lsamp = ap->hisamp - 1;
+	    set_x_axis_x0x1(cp, (double)lsamp / (double)snd_srate(cp->sound), ap->x1);
+	  }
+        return(C_int_to_Xen_integer(lsamp)); 
+      }
+#endif
 
     case CP_HISAMP:
+#if 0
       Xen_check_type(Xen_is_integer(on), on, 1, S_set S_right_sample, "an integer");
       set_x_axis_x1(cp, beg_to_sample(on, caller));
       return(on);
+#else
+      {
+        mus_long_t rsamp;
+	axis_info *ap;
+	ap = cp->axis; 
+        Xen_check_type(Xen_is_integer(on), on, 1, S_set S_right_sample, "an integer");
+        rsamp = beg_to_sample(on, caller);
+        if (rsamp >= current_samples(cp)) rsamp = current_samples(cp) - 1;
+	if (ap)
+	  {
+	    if (rsamp <= ap->losamp) rsamp = ap->losamp + 1;
+	    set_x_axis_x0x1(cp, ap->x0, (double)rsamp / (double)snd_srate(cp->sound));
+	  }
+        return(C_int_to_Xen_integer(rsamp));
+      }
+#endif
 
     case CP_SQUELCH_UPDATE:
       cp->squelch_update = Xen_boolean_to_C_bool(on);

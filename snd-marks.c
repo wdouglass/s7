@@ -445,7 +445,7 @@ static bool move_mark_1(chan_info *cp, mark *mp, int x)
   if (mp->samp < 0) mp->samp = 0;
 
   samps = current_samples(cp);
-  if (mp->samp > samps) mp->samp = samps;
+  if (mp->samp >= samps) mp->samp = samps - 1;
 
   if (Xen_hook_has_list(mark_drag_hook))
     ss->squelch_mark_drag_info = Xen_is_true(run_progn_hook(mark_drag_hook,
@@ -1557,7 +1557,7 @@ static bool move_syncd_mark(chan_info *cp, mark *m, int x)
 		  mp->samp += diff;
 		  if (mp->samp < 0) mp->samp = 0;
 		  samps = current_samples(ncp);
-		  if (mp->samp > samps) mp->samp = samps;
+		  if (mp->samp >= samps) mp->samp = samps - 1;
 		  if (mark_control_clicked)
 		    make_mark_graph(ncp, mark_sd->initial_samples[i], mp->samp, i);
 		  if ((mp->samp >= ap->losamp) && 
