@@ -5,6 +5,7 @@
 (set! (*s7* 'max-vector-length) (ash 1 36))
 (set! (*s7* 'max-string-length) (ash 1 36))
 (set! (*s7* 'safety) -1)
+;; setting heap-size slows us down
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
@@ -199,7 +200,6 @@
 
 (ratio-test)
 (clear-and-gc)
-
 
 
 ;; --------------------------------------------------------------------------------

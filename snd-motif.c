@@ -374,8 +374,11 @@ void check_for_event(void)
     {
       msk = XtAppPending(app);
       /* if (msk & (XtIMXEvent | XtIMAlternateInput)) */
-      if (msk & XtIMXEvent)
-	/* was also tracking alternate input events, but these are problematic if libfam is in use (even with check) */
+      /* if (msk & XtIMXEvent) */
+	/* was also tracking alternate input events, but these are problematic if libfam is in use (even with check)
+	 *   but libfam is now long-since forgotten; new form below is thanks to Tito Latini
+	 */
+      if ((msk & (XtIMXEvent | XtIMAlternateInput)) == XtIMXEvent)
 	{
 	  XtAppNextEvent(app, &event);
 	  XtDispatchEvent(&event);
