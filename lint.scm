@@ -6726,7 +6726,6 @@
 				     (when (and (pair? args)
 						(not (tree-memq (car args) (cddr func))))
 				       (lint-format "~A is ignored, so perhaps (member #f ...)" caller (car args)))))))))))))))
-		    
 
 	  (for-each (lambda (f)
 		      (hash-special f sp-memx))

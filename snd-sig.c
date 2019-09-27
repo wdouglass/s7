@@ -2151,7 +2151,7 @@ static char *direct_filter(chan_info *cp, int order, env *e, snd_fd *sf, mus_lon
     }
 
   if (reporting) finish_progress_report(cp);
-  if (origin)
+  if ((origin) && (!mus_strcmp(origin, S_filter_channel)))
     new_origin = mus_strdup(origin);
   else
     {
@@ -5698,6 +5698,12 @@ applies an FIR filter to snd's channel chn. 'env' is the frequency response enve
     }
   if (Xen_is_string(origin))
     caller = Xen_string_to_C_string(origin);
+  else caller = S_filter_channel;
+  /* if origin is NULL, direct_filter fills out the necessary parameters so that edit-list->function can re-call it,
+   *   so if we set it to S_filter_channel here, we need to ignore it in direct_filter.
+   *   Actually, the origin calculation in direct_filter should probably be moved here --
+   *   otherwise convolution_filter will not work with edit-list->function -- I haven't tested this.
+   */
 
   errstr = filter_channel(cp, order_1, e_1, beg_1, dur_1, edpos_1, caller, truncate_1, coeffs);
 

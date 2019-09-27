@@ -7468,6 +7468,7 @@ static void as_one_edit_set_origin(chan_info *cp, void *origin)
 	    {
 	      if (ed->origin) free(ed->origin);
 	      ed->origin = mus_strdup((char *)origin);
+	      reflect_edit_history_change(cp);
 	    }
 	}
     }

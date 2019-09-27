@@ -1,4 +1,4 @@
-(set! (*s7* 'heap-size) 1024000)
+;(set! (*s7* 'heap-size) 1024000)
 (let ((size 100000))
 
   (define (less a b)

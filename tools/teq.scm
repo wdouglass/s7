@@ -1,6 +1,6 @@
 ;;; cyclic/shared timing tests
 
-(set! (*s7* 'heap-size) (* 2 1024000))
+;(set! (*s7* 'heap-size) (* 2 1024000))
 
 ;;; equal? write/object->string/format cyclic-sequences
 
