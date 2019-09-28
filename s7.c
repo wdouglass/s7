@@ -540,20 +540,6 @@ enum {NO_SAFETY = 0, IMMUTABLE_VECTOR_SAFETY, MORE_SAFETY_WARNINGS};  /* (*s7* '
 typedef enum {FILE_PORT, STRING_PORT, FUNCTION_PORT} port_type_t;
 
 typedef struct {
-  bool needs_free, needs_unprotect, is_closed;
-  port_type_t ptype;
-  FILE *file;
-  char *filename;
-  block_t *filename_block;
-  uint32_t line_number, file_number;
-  s7_int gc_loc, filename_length;
-  block_t *block;
-  s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
-  void (*output_function)(s7_scheme *sc, uint8_t c, s7_pointer port);
-  /* a version of string ports using a pointer to the current location and a pointer to the end
-   *   (rather than an integer for both, indexing from the base string) was not faster.
-   */
-  s7_pointer orig_str;                                                   /* GC protection for string port string */
   int32_t (*read_character)(s7_scheme *sc, s7_pointer port);             /* function to read a character, int32_t for EOF */
   void (*write_character)(s7_scheme *sc, uint8_t c, s7_pointer port);    /* function to write a character */
   void (*write_string)(s7_scheme *sc, const char *str, s7_int len, s7_pointer port); /* function to write a string of known length */
@@ -563,6 +549,22 @@ typedef struct {
   s7_pointer (*read_sharp)(s7_scheme *sc, s7_pointer pt);                /* internal get-next-sharp-constant reader */
   s7_pointer (*read_line)(s7_scheme *sc, s7_pointer pt, bool eol_case, bool copied);  /* function to read a string up to \n */
   void (*display)(s7_scheme *sc, const char *s, s7_pointer pt);
+  void (*close_port)(s7_scheme *sc, s7_pointer p);                       /* close-in|output-port */
+} port_functions;
+
+typedef struct {
+  bool needs_free, needs_unprotect, is_closed;
+  port_type_t ptype;
+  FILE *file;
+  char *filename;
+  block_t *filename_block;
+  uint32_t line_number, file_number;
+  s7_int gc_loc, filename_length;
+  block_t *block;
+  s7_pointer orig_str;    /* GC protection for string port string */
+  const port_functions *pf;
+  s7_pointer (*input_function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port);
+  void (*output_function)(s7_scheme *sc, uint8_t c, s7_pointer port);
 } port_t;
 
 typedef enum {o_d_v, o_d_vd, o_d_vdd, o_d_vid, o_d_id, o_d_7pi, o_d_7pii, o_d_7piid,
@@ -1169,7 +1171,7 @@ struct s7_scheme {
   format_data **fdats;
   int32_t num_fdats, last_error_line;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, qlist_3, clist_1;
-  gc_list *strings, *vectors, *input_ports, *output_ports, *string_input_ports, *continuations, *c_objects, *hash_tables;
+  gc_list *strings, *vectors, *input_ports, *output_ports, *input_string_ports, *continuations, *c_objects, *hash_tables;
   gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators, *lamlets;
   s7_pointer *setters;
   s7_int setters_size, setters_loc;
@@ -3131,20 +3133,22 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_set_closed(p, Val)        port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
 #define port_needs_free(p)             port_port(p)->needs_free
 #define port_next(p)                   port_block(p)->nx.next
-#define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
-#define port_input_function(p)         port_port(p)->input_function
-#define port_original_input_string(p)  port_port(p)->orig_str
-#define port_read_character(p)         port_port(p)->read_character
-#define port_read_line(p)              port_port(p)->read_line
-#define port_display(p)                port_port(p)->display
-#define port_write_character(p)        port_port(p)->write_character
-#define port_write_string(p)           port_port(p)->write_string
-#define port_read_semicolon(p)         port_port(p)->read_semicolon
-#define port_read_white_space(p)       port_port(p)->read_white_space
-#define port_read_name(p)              port_port(p)->read_name
-#define port_read_sharp(p)             port_port(p)->read_sharp
 #define port_gc_loc(p)                 port_port(p)->gc_loc
 #define port_needs_unprotect(p)        port_port(p)->needs_unprotect
+#define port_original_input_string(p)  port_port(p)->orig_str
+#define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
+#define port_input_function(p)         port_port(p)->input_function
+
+#define port_read_character(p)         port_port(p)->pf->read_character
+#define port_read_line(p)              port_port(p)->pf->read_line
+#define port_display(p)                port_port(p)->pf->display
+#define port_write_character(p)        port_port(p)->pf->write_character
+#define port_write_string(p)           port_port(p)->pf->write_string
+#define port_read_semicolon(p)         port_port(p)->pf->read_semicolon
+#define port_read_white_space(p)       port_port(p)->pf->read_white_space
+#define port_read_name(p)              port_port(p)->pf->read_name
+#define port_read_sharp(p)             port_port(p)->pf->read_sharp
+#define port_close(p)                  port_port(p)->pf->close_port
 
 #define is_c_function(f)               (type(f) >= T_C_FUNCTION)
 #define is_c_function_star(f)          (type(f) == T_C_FUNCTION_STAR)
@@ -4899,11 +4903,11 @@ static void process_multivector(s7_scheme *sc, s7_pointer s1)
   liberate(sc, vector_block(s1));
 }
 
-static void process_string_input_port(s7_scheme *sc, s7_pointer s1)
+static void process_input_string_port(s7_scheme *sc, s7_pointer s1)
 {
 #if S7_DEBUGGING
-  /* this set of ports is different from the ports that respond true to is_string_port -- 
-   *   the latter include file ports fully read into local memory; see read_file which uses add_input_port, not add_string_input_port
+  /* this set of ports is a subset of the ports that respond true to is_string_port -- 
+   *   the latter include file ports fully read into local memory; see read_file which uses add_input_port, not add_input_string_port
    */
   if (port_filename(s1))
     fprintf(stderr, "string input port has a filename: %s\n", port_filename(s1));
@@ -4917,6 +4921,18 @@ static void process_string_input_port(s7_scheme *sc, s7_pointer s1)
       port_needs_unprotect(s1) = false;
     }
   liberate(sc, port_block(s1));
+}
+
+static void free_port_data(s7_scheme *sc, s7_pointer s1)
+{
+  if (port_data(s1))
+    {
+      liberate(sc, port_data_block(s1));
+      port_data_block(s1) = NULL;
+      port_data(s1) = NULL;
+      port_data_size(s1) = 0;
+    }
+  port_needs_free(s1) = false;
 }
 
 static void process_input_port(s7_scheme *sc, s7_pointer s1)
@@ -4941,17 +4957,9 @@ static void process_input_port(s7_scheme *sc, s7_pointer s1)
 	    }
 	}
     }
-  if (port_needs_free(s1))
-    {
-      if (port_data(s1))
-	{
-	  liberate(sc, port_data_block(s1));
-	  port_data_block(s1) = NULL;
-	  port_data(s1) = NULL;
-	  port_data_size(s1) = 0;
-	}
-      port_needs_free(s1) = false;
-    }
+  if (port_needs_free(s1)) 
+    free_port_data(sc, s1);
+
   if (port_filename(s1))
     {
       liberate(sc, port_filename_block(s1));
@@ -5051,8 +5059,8 @@ static void sweep(s7_scheme *sc)
   gp = sc->input_ports;
   process_gc_list(process_input_port(sc, s1));
 
-  gp = sc->string_input_ports;
-  process_gc_list(process_string_input_port(sc, s1));
+  gp = sc->input_string_ports;
+  process_gc_list(process_input_string_port(sc, s1));
 
   gp = sc->output_ports;
   process_gc_list(process_output_port(sc, s1));
@@ -5137,7 +5145,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_hash_table(sc, p)    add_to_gc_list(sc->hash_tables, p)
 #define add_string(sc, p)        add_to_gc_list(sc->strings, p)
 #define add_input_port(sc, p)    add_to_gc_list(sc->input_ports, p)
-#define add_string_input_port(sc, p) add_to_gc_list(sc->string_input_ports, p)
+#define add_input_string_port(sc, p) add_to_gc_list(sc->input_string_ports, p)
 #define add_output_port(sc, p)   add_to_gc_list(sc->output_ports, p)
 #define add_continuation(sc, p)  add_to_gc_list(sc->continuations, p)
 #define add_unknown(sc, p)       add_to_gc_list(sc->unknowns, p)
@@ -5165,7 +5173,7 @@ static void init_gc_caches(s7_scheme *sc)
   sc->multivectors = make_gc_list();
   sc->hash_tables = make_gc_list();
   sc->input_ports = make_gc_list();
-  sc->string_input_ports = make_gc_list();
+  sc->input_string_ports = make_gc_list();
   sc->output_ports = make_gc_list();
   sc->continuations = make_gc_list();
   sc->c_objects = make_gc_list();
@@ -10167,9 +10175,9 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
 	len = CC_INITIAL_STACK_SIZE;
     }
 #if S7_DEBUGGING
-  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 4)) gc(sc, __func__, __LINE__);
+  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8)) gc(sc, __func__, __LINE__);
 #else
-  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 4)) gc(sc);
+  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8)) gc(sc);
 #endif
   /* this gc call is needed if there are lots of call/cc's -- by pure bad luck
    *   we can end up hitting the end of the gc free list time after time while
@@ -10194,7 +10202,14 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
       p = ov[i];                               /* args */
       if (is_pair(p))                          /* args need not be a list (it can be a port or #f, etc) */
 	{
-	  nv[i] = protected_list_copy(sc, p);  /* args (copy is needed -- see s7test.scm) */
+	  if (is_null(cdr(p)))
+	    nv[i] = list_1(sc, car(p));
+	  else
+	    {
+	      if (is_null(cddr(p)))
+		nv[i] = list_2(sc, car(p), cadr(p));
+	      else nv[i] = protected_list_copy(sc, p);  /* args (copy is needed -- see s7test.scm) */
+	    }
 	  set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); /* carry over T_IMMUTABLE */
 	}
       /* lst can be dotted or circular here.  The circular list only happens in a case like:
@@ -23962,63 +23977,74 @@ static void closed_port_write_char(s7_scheme *sc, uint8_t c, s7_pointer port);
 static void closed_port_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer port);
 static void closed_port_display(s7_scheme *sc, const char *s, s7_pointer port);
 
-void s7_close_input_port(s7_scheme *sc, s7_pointer p)
+static void close_closed_port(s7_scheme *sc, s7_pointer port) {return;}
+
+static port_functions closed_port_functions = 
+  {closed_port_read_char, closed_port_write_char, closed_port_write_string, NULL, NULL, NULL, NULL, 
+   closed_port_read_line, closed_port_display, close_closed_port};
+
+
+static void close_input_file(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_immutable_port(p)) ||
-      ((is_input_port(p)) && (port_is_closed(p))))
-    {
-#if S7_DEBUGGING
-      if (port_needs_free(p))
-	fprintf(stderr, "closed input needs free\n");
-#endif
-      return;
-    }
   if (port_filename(p))
     {
       /* for string ports, this is the original input file name */
       liberate(sc, port_filename_block(p));
       port_filename(p) = NULL;
     }
-
-  if (is_string_port(p))
+  if (port_file(p))
     {
-      if (port_needs_unprotect(p))
-	{
-	  s7_gc_unprotect_at(sc, port_gc_loc(p));
-	  port_needs_unprotect(p) = false;
-	}
-    }
-  else
-    {
-      if (is_file_port(p))
-	{
-	  if (port_file(p))
-	    {
-	      fclose(port_file(p));
-	      port_file(p) = NULL;
-	    }
-	}
+      fclose(port_file(p));
+      port_file(p) = NULL;
     }
   if (port_needs_free(p))
-    {
-      if (port_data(p))
-	{
-	  liberate(sc, port_data_block(p));
-	  port_data_block(p) = NULL;
-	  port_data(p) = NULL;
-	  port_data_size(p) = 0;
-	}
-      port_needs_free(p) = false;
-    }
+    free_port_data(sc, p);
 
-  port_read_character(p) = closed_port_read_char;
-  port_read_line(p) = closed_port_read_line;
-  port_write_character(p) = closed_port_write_char;
-  port_write_string(p) = closed_port_write_string;
-  port_display(p) = closed_port_display;
+  port_port(p)->pf = &closed_port_functions;
   port_set_closed(p, true);
   port_position(p) = 0;
 }
+
+static void close_input_string(s7_scheme *sc, s7_pointer p)
+{
+  if (port_filename(p))
+    {
+      /* for string ports, this is the original input file name */
+      liberate(sc, port_filename_block(p));
+      port_filename(p) = NULL;
+    }
+  if (port_needs_unprotect(p))
+    {
+      s7_gc_unprotect_at(sc, port_gc_loc(p));
+      port_needs_unprotect(p) = false;
+    }
+  if (port_needs_free(p))
+    free_port_data(sc, p);
+
+  port_port(p)->pf = &closed_port_functions;
+  port_set_closed(p, true);
+  port_position(p) = 0;
+}
+
+static void close_simple_input_string(s7_scheme *sc, s7_pointer p)
+{
+#if S7_DEBUGGING
+  if (port_filename(p))
+    fprintf(stderr, "%s: port has a filename\n", __func__);
+  if (port_needs_free(p))
+    fprintf(stderr, "%s: port needs free\n", __func__);
+#endif
+  if (port_needs_unprotect(p))
+    {
+      s7_gc_unprotect_at(sc, port_gc_loc(p));
+      port_needs_unprotect(p) = false;
+    }
+  port_port(p)->pf = &closed_port_functions;
+  port_set_closed(p, true);
+  port_position(p) = 0;
+}
+
+void s7_close_input_port(s7_scheme *sc, s7_pointer p) {port_close(p)(sc, p);}
 
 
 /* -------------------------------- close-input-port -------------------------------- */
@@ -24080,54 +24106,51 @@ static s7_pointer g_flush_output_port(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- close-output-port -------------------------------- */
-static void close_output_port(s7_scheme *sc, s7_pointer p)
+static void close_output_file(s7_scheme *sc, s7_pointer p)
 {
-  if (is_file_port(p))
+  if (port_filename(p)) /* only a file output port has a filename(?) */
     {
-      if (port_filename(p)) /* only a file output port has a filename(?) */
-	{
-	  liberate(sc, port_filename_block(p));
-	  port_filename(p) = NULL;
-	  port_filename_length(p) = 0;
-	}
-      if (port_file(p))
-	{
-	  if (port_position(p) > 0)
-	    {
-	      if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != (size_t)port_position(p))
-		s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
-	    }
-	  fflush(port_file(p));
-	  fclose(port_file(p));
-	  port_file(p) = NULL;
-	}
+      liberate(sc, port_filename_block(p));
+      port_filename(p) = NULL;
+      port_filename_length(p) = 0;
     }
-  else
+  if (port_file(p))
     {
-      if (is_string_port(p))
+      if (port_position(p) > 0)
 	{
-	  if (port_data(p))
-	    {
-	      port_data(p) = NULL;
-	      port_data_size(p) = 0;
-	    }
+	  if (fwrite((void *)(port_data(p)), 1, port_position(p), port_file(p)) != (size_t)port_position(p))
+	    s7_warn(sc, 64, "fwrite trouble in close-output-port\n");
 	}
+      fflush(port_file(p));
+      fclose(port_file(p));
+      port_file(p) = NULL;
     }
-  port_read_character(p) = closed_port_read_char;
-  port_read_line(p) = closed_port_read_line;
-  port_write_character(p) = closed_port_write_char;
-  port_write_string(p) = closed_port_write_string;
-  port_display(p) = closed_port_display;
+  port_port(p)->pf = &closed_port_functions;
   port_set_closed(p, true);
   port_position(p) = 0;
 }
 
+static void close_output_string(s7_scheme *sc, s7_pointer p)
+{
+#if S7_DEBUGGING
+  if (port_filename(p))
+    fprintf(stderr, "%s: string has a filename\n", __func__);
+#endif
+  if (port_data(p))
+    {
+      port_data(p) = NULL;
+      port_data_size(p) = 0;
+    }
+  port_port(p)->pf = &closed_port_functions;
+  port_set_closed(p, true);
+  port_position(p) = 0;
+}
+
+static void close_output_port(s7_scheme *sc, s7_pointer p) {port_close(p)(sc, p);}
+
 void s7_close_output_port(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_immutable_port(p)) ||
-      ((is_output_port(p)) && (port_is_closed(p))) ||
-      (p == sc->F))
-    return;
+  if ((p == sc->F) || (is_immutable_port(p))) return; /* can these happen? */
   close_output_port(sc, p);
 }
 
@@ -24143,8 +24166,7 @@ static s7_pointer g_close_output_port(s7_scheme *sc, s7_pointer args)
       if (pt == sc->F) return(sc->unspecified);
       return(method_or_bust_with_type_one_arg(sc, pt, sc->close_output_port_symbol, set_plist_1(sc, pt), an_output_port_string));
     }
-  if (!(is_immutable_port(pt)))
-    s7_close_output_port(sc, pt);
+  s7_close_output_port(sc, pt);
   return(sc->unspecified);
 }
 
@@ -24822,6 +24844,15 @@ static block_t *mallocate_port(s7_scheme *sc)
   return(p);
 }
 
+static port_functions input_file_functions = 
+  {file_read_char, input_write_char, input_write_string, file_read_semicolon, file_read_white_space,
+   file_read_name, file_read_sharp, file_read_line, input_display, close_input_file};
+
+static port_functions input_string_functions_1 = 
+  {string_read_char, input_write_char, input_write_string, string_read_semicolon, terminated_string_read_white_space,
+   string_read_name, string_read_sharp, string_read_line, input_display, close_input_string};
+
+
 static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int max_size, const char *caller)
 {
   s7_pointer port;
@@ -24838,9 +24869,6 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
   port_port(port) = (port_t *)block_data(b);
   port_set_closed(port, false);
   port_original_input_string(port) = sc->nil;
-  port_write_character(port) = input_write_char;
-  port_write_string(port) = input_write_string;
-
   /* if we're constantly opening files, and each open saves the file name in permanent memory, we gradually core-up. */
   port_filename_length(port) = safe_strlen(name);
   port_set_filename(sc, port, name, port_filename_length(port));
@@ -24889,13 +24917,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       port_position(port) = 0;
       port_needs_free(port) = true;
       port_needs_unprotect(port) = false;
-      port_read_character(port) = string_read_char;
-      port_read_line(port) = string_read_line;
-      port_display(port) = input_display;
-      port_read_semicolon(port) = string_read_semicolon;
-      port_read_white_space(port) = terminated_string_read_white_space;
-      port_read_name(port) = string_read_name;
-      port_read_sharp(port) = string_read_sharp;
+      port_port(port)->pf = &input_string_functions_1;
     }
   else
     {
@@ -24906,13 +24928,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       port_data_size(port) = 0;
       port_position(port) = 0;
       port_needs_free(port) = false;
-      port_read_character(port) = file_read_char;
-      port_read_line(port) = file_read_line;
-      port_display(port) = input_display;
-      port_read_semicolon(port) = file_read_semicolon;
-      port_read_white_space(port) = file_read_white_space;
-      port_read_name(port) = file_read_name;
-      port_read_sharp(port) = file_read_sharp; /* was string_read_sharp?? */
+      port_port(port)->pf = &input_file_functions;
     }
 #else
   /* _stat64 is no better than the fseek/ftell route, and
@@ -24926,13 +24942,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
   port_data_block(port) = NULL;
   port_data_size(port) = 0;
   port_position(port) = 0;
-  port_read_character(port) = file_read_char;
-  port_read_line(port) = file_read_line;
-  port_display(port) = input_display;
-  port_read_semicolon(port) = file_read_semicolon;
-  port_read_white_space(port) = file_read_white_space;
-  port_read_name(port) = file_read_name;
-  port_read_sharp(port) = file_read_sharp;
+  port_port(port)->pf = &input_file_functions;
 #endif
 
   s7_gc_unprotect_at(sc, port_loc);
@@ -25070,6 +25080,20 @@ static s7_pointer g_open_input_file(s7_scheme *sc, s7_pointer args)
 static s7_int permanent_ports = 0;
 #endif
 
+static void close_stdin(s7_scheme *sc, s7_pointer port) {return;}
+static void close_stdout(s7_scheme *sc, s7_pointer port) {return;}
+static void close_stderr(s7_scheme *sc, s7_pointer port) {return;}
+
+static port_functions stdin_functions = 
+  {file_read_char, input_write_char, input_write_string, file_read_semicolon, file_read_white_space,
+   file_read_name, file_read_sharp, stdin_read_line, input_display, close_stdin};
+
+static port_functions stdout_functions = 
+  {output_read_char, stdout_write_char, stdout_write_string, NULL, NULL, NULL, NULL, output_read_line, stdout_display, close_stdout};
+
+static port_functions stderr_functions = 
+  {output_read_char, stderr_write_char, stderr_write_string, NULL, NULL, NULL, NULL, output_read_line, stderr_display, close_stderr};
+
 static void make_standard_ports(s7_scheme *sc)
 {
   s7_pointer x;
@@ -25091,11 +25115,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_line_number(x) = 0;
   port_file(x) = stdout;
   port_needs_free(x) = false;
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = stdout_display;
-  port_write_character(x) = stdout_write_char;
-  port_write_string(x) = stdout_write_string;
+  port_port(x)->pf = &stdout_functions;
   sc->standard_output = x;
 
   /* standard error */
@@ -25112,11 +25132,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_line_number(x) = 0;
   port_file(x) = stderr;
   port_needs_free(x) = false;
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = stderr_display;
-  port_write_character(x) = stderr_write_char;
-  port_write_string(x) = stderr_write_string;
+  port_port(x)->pf = &stderr_functions;
   sc->standard_error = x;
 
   /* standard input */
@@ -25133,15 +25149,7 @@ static void make_standard_ports(s7_scheme *sc)
   port_file(x) = stdin;
   port_data_block(x) = NULL;
   port_needs_free(x) = false;
-  port_read_character(x) = file_read_char;
-  port_read_line(x) = stdin_read_line;
-  port_display(x) = input_display;
-  port_read_semicolon(x) = file_read_semicolon;
-  port_read_white_space(x) = file_read_white_space;
-  port_read_name(x) = file_read_name;
-  port_read_sharp(x) = file_read_sharp;
-  port_write_character(x) = input_write_char;
-  port_write_string(x) = input_write_string;
+  port_port(x)->pf = &stdin_functions;
   sc->standard_input = x;
 
   s7_define_constant_with_documentation(sc, "*stdin*", sc->standard_input, "*stdin* is the built-in input port, C's stdin");
@@ -25157,6 +25165,9 @@ static void make_standard_ports(s7_scheme *sc)
 
 
 /* -------------------------------- open-output-file -------------------------------- */
+static port_functions output_file_functions = 
+  {output_read_char, file_write_char, file_write_string, NULL, NULL, NULL, NULL, output_read_line, file_display, close_output_file};
+
 s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode)
 {
   FILE *fp;
@@ -25187,16 +25198,12 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_file_number(x) = 0;
   port_file(x) = fp;
   port_needs_free(x) = true;  /* hmm -- I think these are freed via s7_close_output_port -> close_output_port */
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = file_display;
-  port_write_character(x) = file_write_char;
-  port_write_string(x) = file_write_string;
   port_position(x) = 0;
   port_data_size(x) = PORT_DATA_SIZE;
   block = mallocate(sc, PORT_DATA_SIZE);
   port_data_block(x) = block;
   port_data(x) = (uint8_t *)(block_data(block));
+  port_port(x)->pf = &output_file_functions;
   add_output_port(sc, x);
   return(x);
 }
@@ -25222,6 +25229,14 @@ static s7_pointer g_open_output_file(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- open-input-string -------------------------------- */
+      /* a version of string ports using a pointer to the current location and a pointer to the end
+       *   (rather than an integer for both, indexing from the base string) was not faster.
+       */
+
+static port_functions input_string_functions = 
+  {string_read_char, input_write_char, input_write_string, string_read_semicolon, terminated_string_read_white_space,
+   string_read_name_no_free, string_read_sharp,	string_read_line, input_display, close_simple_input_string};
+
 static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_int len)
 {
   s7_pointer x;
@@ -25244,10 +25259,6 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_line_number(x) = 0;
   port_needs_free(x) = false;
   port_needs_unprotect(x) = false;
-  port_read_character(x) = string_read_char;
-  port_read_line(x) = string_read_line;
-  port_display(x) = input_display;
-  port_read_semicolon(x) = string_read_semicolon;
 #if S7_DEBUGGING
   if (input_string[len] != '\0')
     {
@@ -25255,12 +25266,8 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
       abort();
     }
 #endif
-  port_read_white_space(x) = terminated_string_read_white_space;
-  port_read_name(x) = string_read_name_no_free;
-  port_read_sharp(x) = string_read_sharp;
-  port_write_character(x) = input_write_char;
-  port_write_string(x) = input_write_string;
-  add_string_input_port(sc, x);
+  port_port(x)->pf = &input_string_functions;
+  add_input_string_port(sc, x);
   return(x);
 }
 
@@ -25278,8 +25285,6 @@ s7_pointer s7_open_input_string(s7_scheme *sc, const char *input_string)
   return(open_input_string(sc, input_string, safe_strlen(input_string)));
 }
 
-
-/* -------------------------------- open-output-string -------------------------------- */
 static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
 {
   #define H_open_input_string "(open-input-string str) opens an input port reading str"
@@ -25293,11 +25298,16 @@ static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
   return(port);
 }
 
+
+/* -------------------------------- open-output-string -------------------------------- */
 #define FORMAT_PORT_LENGTH 128
 /* the large majority (> 99% in my tests) of the output strings have less than 128 chars when the port is finally closed
  *   256 is slightly slower (the calloc time below dominates the realloc time in string_write_string)
  *   64 is much slower (realloc dominates)
  */
+
+static port_functions output_string_functions = 
+  {output_read_char, string_write_char, string_write_string, NULL, NULL, NULL, NULL, output_read_line, string_display, close_output_string};
 
 static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
 {
@@ -25319,11 +25329,7 @@ static s7_pointer open_output_string(s7_scheme *sc, s7_int len)
   port_filename_block(x) = NULL;
   port_filename_length(x) = 0;   /* protect against (port-filename (open-output-string)) */
   port_filename(x) = NULL;
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = string_display;
-  port_write_character(x) = string_write_char;
-  port_write_string(x) = string_write_string;
+  port_port(x)->pf = &output_string_functions;
   add_output_port(sc, x);
   return(x);
 }
@@ -25420,6 +25426,16 @@ static s7_pointer op_get_output_string(s7_scheme *sc)
 
 
 /* -------------------------------- open-input-function -------------------------------- */
+
+static void close_input_function(s7_scheme *sc, s7_pointer p)
+{
+  port_port(p)->pf = &closed_port_functions;
+  port_set_closed(p, true);
+}
+
+static port_functions input_function_functions = 
+  {function_read_char, input_write_char, input_write_string, NULL, NULL, NULL, NULL, function_read_line, input_display, close_input_function};
+
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port))
 {
   s7_pointer x;
@@ -25439,17 +25455,22 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   port_file_number(x) = 0;
   port_line_number(x) = 0;
   port_input_function(x) = function;
-  port_read_character(x) = function_read_char;
-  port_read_line(x) = function_read_line;
-  port_display(x) = input_display;
-  port_write_character(x) = input_write_char;
-  port_write_string(x) = input_write_string;
+  port_port(x)->pf = &input_function_functions;
   add_input_port(sc, x);
   return(x);
 }
 
 
 /* -------------------------------- open-output-function -------------------------------- */
+static void close_output_function(s7_scheme *sc, s7_pointer p)
+{
+  port_port(p)->pf = &closed_port_functions;
+  port_set_closed(p, true);
+}
+
+static port_functions output_function_functions = 
+  {output_read_char, function_write_char, function_write_string, NULL, NULL, NULL, NULL, output_read_line, function_display, close_output_function};
+
 s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, uint8_t c, s7_pointer port))
 {
   s7_pointer x;
@@ -25464,11 +25485,7 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
   port_set_closed(x, false);
   port_needs_free(x) = false;
   port_output_function(x) = function;
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = function_display;
-  port_write_character(x) = function_write_char;
-  port_write_string(x) = function_write_string;
+  port_port(x)->pf = &output_function_functions;
   add_output_port(sc, x);
   return(x);
 }
@@ -30589,16 +30606,10 @@ static s7_pointer check_ref2(s7_pointer p, uint8_t expected_type, int32_t other_
 
 static s7_pointer check_ref3(s7_pointer p, const char *func, int32_t line)
 {
-  if ((strcmp(func, "process_input_port") != 0) &&
-      (strcmp(func, "process_string_input_port") != 0) &&
-      (strcmp(func, "process_output_port") != 0) &&
-      (strcmp(func, "close_output_port") != 0))
-    {
-      uint8_t typ;
-      typ = unchecked_type(p);
-      if ((typ != T_INPUT_PORT) && (typ != T_OUTPUT_PORT))
-	complain("%s%s[%d]: not a port, but %s (%s)%s\n", p, func, line, typ);
-    }
+  uint8_t typ;
+  typ = unchecked_type(p);
+  if ((typ != T_INPUT_PORT) && (typ != T_OUTPUT_PORT) && (typ != T_FREE))
+    complain("%s%s[%d]: not a port, but %s (%s)%s\n", p, func, line, typ);
   return(p);
 }
 
@@ -32027,11 +32038,7 @@ static s7_pointer open_format_port(s7_scheme *sc)
   port_data(x)[0] = '\0';
   port_position(x) = 0;
   port_needs_free(x) = false;
-  port_read_character(x) = output_read_char;
-  port_read_line(x) = output_read_line;
-  port_display(x) = string_display;
-  port_write_character(x) = string_write_char;
-  port_write_string(x) = string_write_string;
+  port_port(x)->pf = &output_string_functions;
   return(x);
 }
 
@@ -67188,7 +67195,7 @@ static void read_double_quote(s7_scheme *sc)
   if (sc->safety > IMMUTABLE_VECTOR_SAFETY) set_immutable(sc->value);
 }
 
-static bool read_sharp_const(s7_scheme *sc)
+static inline bool read_sharp_const(s7_scheme *sc)
 {
   sc->value = port_read_sharp(sc->input_port)(sc, sc->input_port);
   if (sc->value == sc->no_value)
@@ -84964,14 +84971,11 @@ static void op_closure_any_fx(s7_scheme *sc) /* for (lambda a ...) ? */
 
 /* -------- */
 #if S7_DEBUGGING
-static int *tc_rec_calls = NULL;
+static int *tc_rec_calls = NULL; /* check optimizer coverage */
 #define TC_REC_SIZE NUM_OPS
 #define TC_REC_LOW_OP OP_TC_AND_A_OR_A_LA
 
-static void init_tc_rec(void)
-{
-  tc_rec_calls = (int *)calloc(TC_REC_SIZE, sizeof(int));
-}
+static void init_tc_rec(void) {tc_rec_calls = (int *)calloc(TC_REC_SIZE, sizeof(int));}
 
 static s7_pointer g_report_missed_calls(s7_scheme *sc, s7_pointer args)
 {
@@ -94549,14 +94553,14 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
 	  v = gp->list[i];
 	  if (port_data(v)) len += port_data_size(v);
 	}
-      gp = sc->string_input_ports;
+      gp = sc->input_string_ports;
       for (i = 0, len = 0; i < gp->loc; i++)
 	{
 	  s7_pointer v;
 	  v = gp->list[i];
 	  if (port_data(v)) len += port_data_size(v);
 	}
-      make_slot_1(sc, mu_let, make_symbol(sc, "input-ports"), cons(sc, make_integer(sc, sc->input_ports->loc + sc->string_input_ports->loc), make_integer(sc, len)));
+      make_slot_1(sc, mu_let, make_symbol(sc, "input-ports"), cons(sc, make_integer(sc, sc->input_ports->loc + sc->input_string_ports->loc), make_integer(sc, len)));
       
       gp = sc->output_ports;
       for (i = 0, len = 0; i < gp->loc; i++)
@@ -97264,17 +97268,17 @@ int main(int argc, char **argv)
  * tvect         |      |      |      |      |      | 5729 | 1919  1889
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2051
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2180
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2227
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2227  2219
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2235
- * tread         |      |      |      |      | 2357 | 2336 | 2258  2271  2269
+ * tread         |      |      |      |      | 2357 | 2336 | 2258  2271  2265
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2397
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2656
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2656  2651
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2654
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2805
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2879
  * tset          |      |      |      |      | 10.0 | 6432 | 2980  2951
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3003
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3109
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3109  3073
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3221
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3555
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4029
@@ -97283,9 +97287,9 @@ int main(int argc, char **argv)
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 103.7
- * tbig          |      |      |      |      |246.9 |230.6 |181.2 179.3
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.1
+ * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 103.7 103.8
+ * tbig          |      |      |      |      |246.9 |230.6 |181.2 179.3 178.8
  * --------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
@@ -97301,9 +97305,8 @@ int main(int argc, char **argv)
  * split add|mul_p_pp -- aren't there splittable pp cases? add_p_pi ip pd dp and mul/-/= [di id?]
  *   op_c_s_opssq_direct -> add should notice int-vector et al and use add_p_xx?
  *   no ip dp pd yet
- * perhaps hash-table-default [where to store it?]
- * perhaps names for the gc-stats bits -- in *s7*?
- * close_input_port could be a port-specific function (would type bits be faster -- no access to port_t)
- * a timing test for arithmetic
- * fx_c_a: fb is safe_c_op_opssq_cq [g_sin]
+ * perhaps hash-table-default [where to store it? -- block_size is free I think -- requires another union in block_t]
+ *   don't other uses of block_size confuse the memory usage stats?
+ * perhaps names for the gc-stats bits -- in *s7*? [GC HEAP STACK]
+ * snd-test edit-list->function complaints
  */
