@@ -16936,7 +16936,7 @@ static s7_pointer g_add_i_random(s7_scheme *sc, s7_pointer args)
   s7_int x, y;
   x = integer(car(args));
   y = integer(opt3_any(args)); /* cadadr */
-  return(make_integer(sc, (s7_int)(x + (y * next_random(sc->default_rng)))));
+  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
 }
 
 static s7_pointer g_add_2_ff(s7_scheme *sc, s7_pointer args) {return(make_real(sc, real(car(args)) + real(cadr(args))));}
@@ -97308,5 +97308,6 @@ int main(int argc, char **argv)
  * perhaps hash-table-default [where to store it? -- block_size is free I think -- requires another union in block_t]
  *   don't other uses of block_size confuse the memory usage stats?
  * perhaps names for the gc-stats bits -- in *s7*? [GC HEAP STACK]
- * snd-test edit-list->function complaints
+ * need timing for rats/complex -- make sure rats stay that way, 
+ *   opt centered random (- (random x) y) x/y any type [tmap s7test], also f case of add_i_r, (- x (random y))
  */
