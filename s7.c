@@ -10206,7 +10206,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
 	    nv[i] = list_1(sc, car(p));
 	  else
 	    {
-	      if (is_null(cddr(p)))
+	      if ((is_pair(cdr(p))) && (is_null(cddr(p))))
 		nv[i] = list_2(sc, car(p), cadr(p));
 	      else nv[i] = protected_list_copy(sc, p);  /* args (copy is needed -- see s7test.scm) */
 	    }
@@ -57526,6 +57526,14 @@ static s7_double opt_d_dd_fc_add(opt_info *o)
   return(o1->v[0].fd(o1) + o->v[2].x);
 }
 
+static s7_double opt_d_dd_fc_subtract(opt_info *o)
+{
+  opt_info *o1;
+  oo_rc(o->sc, o, 4, 0);
+  o1 = o->sc->opts[++o->sc->pc];
+  return(o1->v[0].fd(o1) - o->v[2].x);
+}
+
 static s7_double opt_d_dd_sf(opt_info *o)
 {
   opt_info *o1;
@@ -58160,8 +58168,13 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	      if (func)
 		{
 		  if (func == add_d_dd)
-		    opc->v[0].fd = opt_d_dd_fc_add;
-		  else opc->v[0].fd = opt_d_dd_fc;
+		    opc->v[0].fd = opt_d_dd_fc_add; /* opt_i_7i_c o->v[2].i_7i_f = random_i_7i else as below except add_i_ii in opt_i_ii_cf = (+ i1 (random i2)) */
+		  else 
+		    {
+		      if (func == subtract_d_dd)
+			opc->v[0].fd = opt_d_dd_fc_subtract; /* if o1->v[0].fd = opt_d_7d_c and its o->v[3].d_7d_f = random_d_7d it's (- (random f1) f2) */
+		      opc->v[0].fd = opt_d_dd_fc;
+		    }
 		}
 	      else opc->v[0].fd = opt_d_7dd_fc;
 	      return(oo_set_type_0(opc, 4));
@@ -67886,8 +67899,8 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
 	  arg1 = cadr(expr);
 	  arg2 = caddr(expr);
 	  if (arg2 == small_int(1)) return(sc->subtract_s1);
-	  if (is_t_real(arg1))	    return(sc->subtract_f2);
-	  if (is_t_real(arg2))	    return(sc->subtract_2f);
+	  if (is_t_real(arg1)) return(sc->subtract_f2);
+	  if (is_t_real(arg2)) return(sc->subtract_2f);
 	}
       return(sc->subtract_2);
     }
@@ -97257,39 +97270,39 @@ int main(int argc, char **argv)
  * --------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.7  19.8
  * --------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  163   164
+ * tpeak         |      |      |      |  391 |  377 |  199 |  163   165
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  630   621
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  876   830
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  880   875
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  876   831
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  880   876
  * tshoot        |      |      |      |      |      | 1224 |        895
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1485  1485
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1675
- * tmisc         |      |      |      |      |      | 2636 | 1949  1850
+ * tmisc         |      |      |      |      |      | 2636 | 1949  1852
  * tvect         |      |      |      |      |      | 5729 | 1919  1889
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2051
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2054
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2180
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2227  2219
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2227
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2235
- * tread         |      |      |      |      | 2357 | 2336 | 2258  2271  2265
+ * tread         |      |      |      |      | 2357 | 2336 | 2258  2265
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2397
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2656  2651
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2656
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2654
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2805
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2879
- * tset          |      |      |      |      | 10.0 | 6432 | 2980  2951
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3003
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3109  3073
+ * tset          |      |      |      |      | 10.0 | 6432 | 2980  2953
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3002
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3074
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3221
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3555
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4029
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6435  6434
- * thash         |      |      |      |      |      | 10.3 | 8467  8199
+ * thash         |      |      |      |      |      | 10.3 | 8467  8202
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.5
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.1
- * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 103.7 103.8
- * tbig          |      |      |      |      |246.9 |230.6 |181.2 179.3 178.8
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.0
+ * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 103.8
+ * tbig          |      |      |      |      |246.9 |230.6 |181.2 178.8
  * --------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
@@ -97309,5 +97322,8 @@ int main(int argc, char **argv)
  *   don't other uses of block_size confuse the memory usage stats?
  * perhaps names for the gc-stats bits -- in *s7*? [GC HEAP STACK]
  * need timing for rats/complex -- make sure rats stay that way, 
- *   opt centered random (- (random x) y) x/y any type [tmap s7test], also f case of add_i_r, (- x (random y))
+ *   opt centered random (- (random x) y) x/y any type [tmap s7test], also f case of add_i_r: (- x (random y))
+ *   maybe these as fx/opt not opt_c_d?
+ * add the class-name (if possible) to error messages (type is confusing)
+ * replace closure_id*
  */
