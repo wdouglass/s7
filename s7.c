@@ -3912,7 +3912,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_CLOSURE_S_TO_S, HOP_SAFE_CLOSURE_S_TO_S, OP_SAFE_CLOSURE_S_TO_SC, HOP_SAFE_CLOSURE_S_TO_SC,
       OP_CLOSURE_C, HOP_CLOSURE_C, OP_CLOSURE_C_P, HOP_CLOSURE_C_P,
       OP_SAFE_CLOSURE_C, HOP_SAFE_CLOSURE_C, OP_SAFE_CLOSURE_C_P, HOP_SAFE_CLOSURE_C_P, OP_SAFE_CLOSURE_C_A, HOP_SAFE_CLOSURE_C_A,
-      OP_SAFE_CLOSURE_ID_C, HOP_SAFE_CLOSURE_ID_C, OP_SAFE_CLOSURE_ID_S, HOP_SAFE_CLOSURE_ID_S, 
+      OP_SAFE_CLOSURE_ID_S, HOP_SAFE_CLOSURE_ID_S, 
       OP_CLOSURE_A, HOP_CLOSURE_A, OP_CLOSURE_A_P, HOP_CLOSURE_A_P, 
       OP_SAFE_CLOSURE_A, HOP_SAFE_CLOSURE_A, OP_SAFE_CLOSURE_A_P, HOP_SAFE_CLOSURE_A_P, OP_SAFE_CLOSURE_A_A, HOP_SAFE_CLOSURE_A_A,
       OP_CLOSURE_P, HOP_CLOSURE_P, OP_SAFE_CLOSURE_P, HOP_SAFE_CLOSURE_P,
@@ -3968,7 +3968,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA,
 
       OP_SYM, OP_GLOBAL_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY, OP_UNSPECIFIED,
-      OP_SSA_DIRECT, OP_SAFE_C_TUS,
+      OP_SSA_DIRECT, OP_HASH_INCREMENT, OP_SAFE_C_TUS,
 
       OP_READ_INTERNAL, OP_EVAL,
       OP_EVAL_ARGS, OP_EVAL_ARGS1, OP_EVAL_ARGS2, OP_EVAL_ARGS3, OP_EVAL_ARGS4, OP_EVAL_ARGS5,
@@ -4152,7 +4152,7 @@ static const char* op_names[NUM_OPS] =
       "safe_closure_s_to_s", "h_safe_closure_s_to_s", "safe_closure_s_to_sc", "h_safe_closure_s_to_sc",
       "closure_c", "h_closure_c", "closure_c_p", "h_closure_c_p",
       "safe_closure_c", "h_safe_closure_c", "safe_closure_c_p", "h_safe_closure_c_p", "safe_closure_c_a", "h_safe_closure_c_a",
-      "safe_closure_id_c", "h_safe_closure_id_c", "safe_closure_id_s", "h_safe_closure_id_s",
+      "safe_closure_id_s", "h_safe_closure_id_s",
       "closure_a", "h_closure_a", "closure_a_p", "h_closure_a_p", 
       "safe_closure_a", "h_safe_closure_a", "safe_closure_a_p", "h_safe_closure_a_p", "safe_closure_a_a", "h_safe_closure_a_a",
       "closure_p", "h_closure_p", "safe_closure_p", "h_safe_closure_p",
@@ -4206,7 +4206,7 @@ static const char* op_names[NUM_OPS] =
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa",
 
       "symbol", "global-symbol", "constant", "pair_sym", "pair_pair", "pair_any", "unspec",
-      "ssa_direct", "safe_c_tus",
+      "ssa_direct", "hash_incrment", "safe_c_tus",
 
       "read_internal", "eval",
       "eval_args", "eval_args1", "eval_args2", "eval_args3", "eval_args4", "eval_args5",
@@ -51886,6 +51886,29 @@ static s7_pointer fx_hash_table_ref_car(s7_scheme *sc, s7_pointer arg)
   return(hash_entry_value((*hash_table_checker(table))(sc, table, car(lst))));
 }
 
+static s7_pointer fx_hash_increment(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer table, key;
+  hash_entry_t *val;
+
+  table = lookup(sc, cadr(arg));
+  key = lookup(sc, caddr(arg));
+  if (!is_hash_table(table))
+    return(((s7_p_ppp_t)opt2_direct(cdr(arg)))(sc, table, key, fx_call(sc, cdddr(arg))));
+
+  val = (*hash_table_checker(table))(sc, table, key);
+  if (val != sc->unentry)
+    {
+      if (!is_t_integer(hash_entry_value(val)))
+	simple_wrong_type_argument(sc, sc->add_symbol, cadddr(arg), T_INTEGER);
+
+      hash_entry_set_value(val, make_integer(sc, integer(hash_entry_value(val)) + 1));
+      return(hash_entry_value(val));
+    }
+  s7_hash_table_set(sc, table, key, small_int(1));
+  return(small_int(1));
+}
+
 static s7_pointer fx_lint_let_ref(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer lt, sym, y;
@@ -53487,7 +53510,6 @@ static s7_pointer fx_safe_closure_t_a(s7_scheme *sc, s7_pointer code)
   return(result);
 }
 
-static s7_pointer fx_safe_closure_id_c(s7_scheme *sc, s7_pointer arg) {return(opt2_con(arg));}
 static s7_pointer fx_safe_closure_id_s(s7_scheme *sc, s7_pointer arg) {return(lookup(sc, opt2_sym(arg)));}
 
 static s7_pointer fx_safe_closure_s_to_s(s7_scheme *sc, s7_pointer arg)
@@ -53739,7 +53761,6 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
   fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
   fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
-  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
   fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
   fx_function[HOP_SAFE_C_FX] = fx_c_fx;
   fx_function[HOP_SAFE_C_4A] = fx_c_4a;
@@ -53757,7 +53778,9 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_CLOSURE_SS_A] = fx_safe_closure_ss_a;
   fx_function[HOP_SAFE_CLOSURE_AA_A] = fx_safe_closure_aa_a;
 
-  fx_function[HOP_SAFE_CLOSURE_ID_C] = fx_safe_closure_id_c;
+  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
+  fx_function[OP_HASH_INCREMENT] = fx_hash_increment;
+
   fx_function[HOP_SAFE_CLOSURE_ID_S] = fx_safe_closure_id_s;
 
   fx_function[HOP_SAFE_CLOSURE_S_TO_S] = fx_safe_closure_s_to_s;
@@ -55926,6 +55949,9 @@ static s7_int opt_i_7ii_ff(opt_info *o)
   return(o->v[3].i_7ii_f(sc, i1, o1->v[0].fi(o1)));
 }
 
+static s7_int opt_add_i_random_i(opt_info *o) {return(o->v[1].i + (s7_int)(o->v[2].i * next_random(o->sc->default_rng)));}
+static s7_int opt_subtract_random_i_i(opt_info *o) {return((s7_int)(o->v[1].i * next_random(o->sc->default_rng)) - o->v[2].i);}
+
 static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer car_x)
 {
   s7_i_ii_t ifunc;
@@ -55977,7 +56003,17 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	      if (int_optimize(sc, cddr(car_x)))
 		{
 		  if (ifunc)
-		    opc->v[0].fi = opt_i_ii_cf;
+		    {
+		      opc->v[0].fi = opt_i_ii_cf;       /* sc->opts[start]->v[0].fi -> opt_i_7i_c -> same_opt->v[2].i_7i_f = random_i_7i tmap */
+		      if ((ifunc == add_i_ii) && (opc == sc->opts[sc->pc - 2]) &&
+			  (sc->opts[start]->v[0].fi == opt_i_7i_c) && 
+			  (sc->opts[start]->v[2].i_7i_f == random_i_7i))
+			{
+			  opc->v[0].fi = opt_add_i_random_i;
+			  opc->v[2].i = sc->opts[start]->v[1].i;
+			  backup_pc(sc);
+			}
+		    }
 		  else opc->v[0].fi = opt_i_7ii_cf;
 		  return(oo_set_type_0(opc, 4));
 		}
@@ -56097,7 +56133,18 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 				{
 				  if (opc->v[3].i_ii_f == add_i_ii)
 				    opc->v[0].fi = opt_i_ii_fc_add;
-				  else opc->v[0].fi = opt_i_ii_fc;
+				  else
+				    {
+				      if ((opc->v[3].i_ii_f == subtract_i_ii) && (opc == sc->opts[sc->pc - 2]) &&
+					  (sc->opts[start]->v[0].fi == opt_i_7i_c) && 
+					  (sc->opts[start]->v[2].i_7i_f == random_i_7i))
+					{
+					  opc->v[0].fi = opt_subtract_random_i_i;
+					  opc->v[1].i = sc->opts[start]->v[1].i;
+					  backup_pc(sc);
+					}
+				      else opc->v[0].fi = opt_i_ii_fc;
+				    }
 				}
 			      else opc->v[0].fi = opt_i_7ii_fc;
 #if (!WITH_GMP)
@@ -57518,6 +57565,8 @@ static s7_double opt_d_dd_fc(opt_info *o)
   return(o->v[3].d_dd_f(o1->v[0].fd(o1), o->v[2].x));
 }
 
+static s7_double opt_subtract_random_f_f(opt_info *o) {return(o->v[1].x * next_random(o->sc->default_rng) - o->v[2].x);}
+
 static s7_double opt_d_dd_fc_add(opt_info *o)
 {
   opt_info *o1;
@@ -58172,8 +58221,18 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 		  else 
 		    {
 		      if (func == subtract_d_dd)
-			opc->v[0].fd = opt_d_dd_fc_subtract; /* if o1->v[0].fd = opt_d_7d_c and its o->v[3].d_7d_f = random_d_7d it's (- (random f1) f2) */
-		      opc->v[0].fd = opt_d_dd_fc;
+			{
+			  opc->v[0].fd = opt_d_dd_fc_subtract; /* if o1->v[0].fd = opt_d_7d_c and its o->v[3].d_7d_f = random_d_7d it's (- (random f1) f2) */
+			  if ((opc == sc->opts[sc->pc - 2]) &&
+			      (sc->opts[start]->v[0].fd == opt_d_7d_c) && 
+			      (sc->opts[start]->v[3].d_7d_f == random_d_7d))
+			    {
+			      opc->v[0].fd = opt_subtract_random_f_f;
+			      opc->v[1].x = sc->opts[start]->v[1].x; /* random arg */
+			      backup_pc(sc);
+			    }
+			}
+		      else opc->v[0].fd = opt_d_dd_fc;
 		    }
 		}
 	      else opc->v[0].fd = opt_d_7dd_fc;
@@ -67773,6 +67832,35 @@ static s7_pointer hash_table_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
   return(f);
 }
 
+static s7_pointer hash_table_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+ if ((args == 3) && (optimize_op(expr) == OP_SSA_DIRECT)) /* a tedious experiment... OP=HOP here */
+   {
+     s7_pointer val;
+     val = cadddr(expr);
+     if ((is_pair(val)) && (car(val) == sc->add_symbol) && (safe_list_length(val) == 3) && 
+	 ((cadr(val) == small_int(1)) || (caddr(val) == small_int(1))))
+       {
+	 s7_pointer add1;
+	 add1 = (cadr(val) == small_int(1)) ? caddr(val) : cadr(val);
+	 if ((is_pair(add1)) && (car(add1) == sc->or_symbol) && (safe_list_length(add1) == 3) && 
+	     (caddr(add1) == small_int(0)))
+	   {
+	     s7_pointer or1;
+	     or1 = cadr(add1);
+	     if ((is_pair(or1)) && (car(or1) == sc->hash_table_ref_symbol) && (safe_list_length(or1) == 3) && 
+		 (cadr(or1) == cadr(expr)) && (caddr(or1) == caddr(expr)))
+	       {
+		 /* (hash-table-set! counts p (+ (or (hash-table-ref counts p) 0) 1)) -- ssa_direct and hop_safe_c_ss */
+		 /* fprintf(stderr, "%s: %s %s\n", DISPLAY(expr), op_names[optimize_op(expr)], op_names[optimize_op(or1)]); */
+		 set_optimize_op(expr, OP_HASH_INCREMENT);
+	       }
+	   }
+       }
+   }
+ return(f);
+}
+
 static s7_pointer argument_type(s7_scheme *sc, s7_pointer arg1)
 {
   if (is_pair(arg1))
@@ -68376,6 +68464,9 @@ static void init_choosers(s7_scheme *sc)
   /* hash-table-ref */
   f = set_function_chooser(sc, sc->hash_table_ref_symbol, hash_table_ref_chooser);
   sc->hash_table_ref_2 = make_function_with_class(sc, f, "hash-table-ref", g_hash_table_ref_2, 2, 0, false);
+
+  /* hash-table-set! */
+  f = set_function_chooser(sc, sc->hash_table_set_symbol, hash_table_set_chooser);
 
   /* hash-table */
   f = set_function_chooser(sc, sc->hash_table_symbol, hash_table_chooser);
@@ -69931,17 +70022,9 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
 			}
 		      else 
 			{
-			  if (is_code_constant(sc, car(body)))
-			    {
-			      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_ID_C);
-			      set_opt2_con(expr, (is_quoted_pair(car(body))) ? cadar(body) : car(body));
-			    }
-			  else
-			    {
-			      if (car(closure_args(func)) == car(body))
-				set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_ID_S);
-			      else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_A);
-			    }
+			  if (car(closure_args(func)) == car(body))
+			    set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_ID_S);
+			  else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_A);
 			}
 		    }
 		  else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_C_A);
@@ -88568,6 +88651,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_SSA: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SSA: sc->value = fx_c_ssa(sc, sc->code); continue;
 	case OP_SSA_DIRECT: sc->value = fx_c_ssa_direct(sc, sc->code); continue;
+	case OP_HASH_INCREMENT: sc->value = fx_hash_increment(sc, sc->code); continue;
 
 	case OP_SAFE_C_SAS: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SAS: sc->value = fx_c_sas(sc, sc->code); continue;
@@ -88892,9 +88976,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_S_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 1)) {if (op_unknown_g(sc, sc->last_function) == goto_eval) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_S_A: sc->value = fx_safe_closure_s_a(sc, sc->code); continue;
-
-	case OP_SAFE_CLOSURE_ID_C: if (!closure_is_eq(sc)) {if (op_unknown_g(sc, sc->last_function) == goto_eval) goto EVAL; break;}
-	case HOP_SAFE_CLOSURE_ID_C: sc->value = fx_safe_closure_id_c(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_ID_S: if (!closure_is_eq(sc)) {if (op_unknown_g(sc, sc->last_function) == goto_eval) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_ID_S: sc->value = fx_safe_closure_id_s(sc, sc->code); continue;
@@ -97190,7 +97271,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 856) fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
+  if (NUM_OPS != 855) fprintf(stderr, "size: cell: %d, block: %d, max op: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS);
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40 */
 #endif
 
@@ -97277,32 +97358,32 @@ int main(int argc, char **argv)
  * tshoot        |      |      |      |      |      | 1224 |        895
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1485  1485
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1675
- * tmisc         |      |      |      |      |      | 2636 | 1949  1852
+ * tmisc         |      |      |      |      |      | 2636 | 1949  1851
  * tvect         |      |      |      |      |      | 5729 | 1919  1889
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2054
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2053
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2180
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2227
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2223
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2235
- * tread         |      |      |      |      | 2357 | 2336 | 2258  2265
+ * tread         |      |      |      |      | 2357 | 2336 | 2258  2267
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2397
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2656
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2654
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2639
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2653
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2805
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2879
  * tset          |      |      |      |      | 10.0 | 6432 | 2980  2953
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  3002
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3074
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  2969
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3076
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3221
- * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3555
+ * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3558
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  4029
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6435  6434
- * thash         |      |      |      |      |      | 10.3 | 8467  8202
+ * thash         |      |      |      |      |      | 10.3 | 8467  7605
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.8
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.5
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 69.1  69.0
  * lg            |      |      |      |211.0 |133.0 |112.7 |106.8 103.8
- * tbig          |      |      |      |      |246.9 |230.6 |181.2 178.8
+ * tbig          |      |      |      |      |246.9 |230.6 |181.2 178.6
  * --------------------------------------------------------------------------
  *
  * glistener, gtk-script, s7.html for gtk4, grepl.c gcall.c gcall2.c?
@@ -97320,10 +97401,10 @@ int main(int argc, char **argv)
  *   no ip dp pd yet
  * perhaps hash-table-default [where to store it? -- block_size is free I think -- requires another union in block_t]
  *   don't other uses of block_size confuse the memory usage stats?
- * perhaps names for the gc-stats bits -- in *s7*? [GC HEAP STACK]
  * need timing for rats/complex -- make sure rats stay that way, 
- *   opt centered random (- (random x) y) x/y any type [tmap s7test], also f case of add_i_r: (- x (random y))
- *   maybe these as fx/opt not opt_c_d?
- * add the class-name (if possible) to error messages (type is confusing)
- * replace closure_id*
+ *   opt centered random cases like (+ r i) -- any similar?
+ * replace closure_id_s
+ * tmat: opt_do_step_1 use int stepper direct (i_to_p now), combined in tmap
+ * tvect: opy_i_ii_sf|fc_add -- if bring constant or combine ops, ++sc->pc can go away
+ *   o1 = o->sc->opts[++o->sc->pc]; is everywhere
  */

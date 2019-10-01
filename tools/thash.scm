@@ -28,9 +28,8 @@
 			     (<= k start))
 			 (+ k 1)))))
 	  (when (> end start)
-	    (let* ((word (string->symbol (substring line start end)))
-		   (refs (or (hash-table-ref counts word) 0)))
-	      (hash-table-set! counts word (+ refs 1)))))
+	    (let ((word (string->symbol (substring line start end))))
+	      (hash-table-set! counts word (+ (or (hash-table-ref counts word) 0) 1)))))
 	(set! new-pos (+ pos 1))))
     
     (close-input-port port)
