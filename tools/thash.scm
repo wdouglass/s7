@@ -82,7 +82,7 @@
 
 (let ()
   (define (hash-ints)
-    (let ((counts (make-hash-table 8 = (cons integer? integer?))))
+    (let ((counts (make-hash-table)))
       (do ((i 0 (+ i 1))
 	   (z (random 100) (random 100)))
 	  ((= i 5000000) counts)
