@@ -176,7 +176,7 @@
 		   (format *stderr* "~D~9Ttrees of depth ~D~30Tcheck: ~D~%" iterations depth check)))))
 	  (format *stderr* "long lived tree of depth ~D~30Tcheck: ~D~%" max-depth (item-check long-lived-tree)))))))
 
-;(binary-tree 21) ; 26 secs
+;;(binary-tree 21) ; 20 secs
 (binary-tree 6)
 
 ;;; stretch      tree of  depth 22	 check: 8388607
@@ -217,7 +217,8 @@
 
 ;(collatz 300000)
 ;; Maximum stopping distance 442, starting number 230631
-;; .66 secs
+;; .6 secs
+
 (collatz 20000)
 
 ;;; --------------------------------------------------------------------------------
@@ -240,14 +241,13 @@
 		 (set! L (cdr L))))))))
 
 (let ()
-  (define (count-primes limit)          ; for limit=10000000 12.7 secs 664579
+  (define (count-primes limit)          ; for limit=10000000 12.3 secs 664579
     (let ((primes 0))
       (do ((i 2 (+ i 1)))
 	  ((= i limit)
 	   primes)
 	(if (prime? i)
 	    (set! primes (+ primes 1))))))
-
   (display (count-primes 100000)) (newline)) ; 9592
 
 ;;; --------------------------------------------------------------------------------
@@ -265,6 +265,7 @@
 	(float-vector-set! av i (+ (float-vector-ref av i) 
 				   (* (/ 1.0 (+ i (float-vector-ref weights (+ i j))))
 				      (float-vector-ref v j)))))))
+  
   (define (mulAtV n v atv)
     (fill! atv 0.0)
     (do ((i 0 (+ i 1)))
@@ -274,6 +275,7 @@
 	(float-vector-set! atv i (+ (float-vector-ref atv i) 
 				    (* (/ 1.0 (+ j (float-vector-ref weights (+ i j))))
 				       (float-vector-ref v j)))))))
+  
   (define (mulAtAv n v atav)
     (let ((u (make-float-vector n 0.0)))
       (mulAv n v u)
@@ -301,7 +303,7 @@
       
       (sqrt (/ vBv vV))))
 
-  (display (spectral-norm 125)) ; 1.2742, (spectral-norm 5500) takes about 25 secs
+  (display (spectral-norm 125)) ; (spectral-norm 5500) takes about 22 secs
   (newline))
 
 ;;; --------------------------------------------------------------------------------
