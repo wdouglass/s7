@@ -22,7 +22,7 @@
 (let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
   (call-with-output-file aux-file
     (lambda (p)
-      (format p "(with-input-from-file \"all-lg-results\" (lambda () (display (with-output-to-string (lambda () (load \"s7test.scm\")))) (newline)))")
+      (format p "(with-input-from-file \"/home/bil/cl/all-lg-results\" (lambda () (display (with-output-to-string (lambda () (load \"s7test.scm\")))) (newline)))")
       (format p "(load \"s7test.scm\")~%(exit)~%")))
   (format *stderr* "~%~NC~%test: stdin from all-lg-results~%" 80 #\-)
   (system (string-append "./repl " aux-file)))
