@@ -55385,6 +55385,7 @@ static opt_info *alloc_opo_1(s7_scheme *sc)
     }
 #endif
   o = sc->opts[sc->pc++];
+  o->v[O_WRAP].fd = NULL; /* see bool_optimize -- this is a kludge */
 #if S7_DEBUGGING
   o->vexpr = expr;
   o->func = func;
@@ -58351,18 +58352,16 @@ static bool d_ddd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 /* -------- d_7pid -------- */
 static s7_double opt_d_7pid_ssf(opt_info *o)
 {
-  opt_info *o1;
-  o1 = o->sc->opts[++o->sc->pc];
   oo_rc(o->sc, o, 2);
-  return(o->v[4].d_7pid_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o1->v[0].fd(o1)));
+  o->sc->pc++;
+  return(o->v[4].d_7pid_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[11].fd(o->v[10].o1)));
 }
 
 static s7_pointer opt_d_7pid_ssf_nr(opt_info *o)
 {
-  opt_info *o1;
-  o1 = o->sc->opts[++o->sc->pc];
   oo_rc(o->sc, o, 2);
-  o->v[4].d_7pid_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o1->v[0].fd(o1));
+  o->sc->pc++;
+  o->v[4].d_7pid_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[11].fd(o->v[10].o1));
   return(NULL);
 }
 
@@ -58555,6 +58554,7 @@ static bool opt_float_vector_set(s7_scheme *sc, opt_info *opc, s7_pointer v, s7_
       start = sc->pc;
       if (is_float_vector(slot_value(settee)))
 	{
+	  opc->v[10].o1 = sc->opts[start];
 	  if ((!indexp2) &&
 	      (vector_rank(slot_value(settee)) == 1))
 	    {
@@ -58581,6 +58581,7 @@ static bool opt_float_vector_set(s7_scheme *sc, opt_info *opc, s7_pointer v, s7_
 		    }
 		  if (float_optimize(sc, valp))
 		    {
+		      opc->v[11].fd = sc->opts[start]->v[0].fd;
 		      if (d_7pid_ssf_combinable(sc, opc))
 			return(true);
 		      opc->v[0].fd = opt_d_7pid_ssf;
@@ -58611,7 +58612,6 @@ static bool opt_float_vector_set(s7_scheme *sc, opt_info *opc, s7_pointer v, s7_
 			{
 			  opc->v[0].fd = opt_d_7piid_scsf;
 			  opc->v[2].i = integer(car(indexp1));
-			  opc->v[10].o1 = sc->opts[start];
 			  opc->v[11].fd = sc->opts[start]->v[0].fd;
 			  return(oo_set_type_2(opc, 1, 3, OO_FV, OO_I));
 			}
@@ -58745,6 +58745,7 @@ static bool d_7pid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointe
       opc->v[1].p = symbol_to_slot(sc, cadr(car_x));
       if (is_slot(opc->v[1].p))
 	{
+	  opc->v[10].o1 = sc->opts[start];
 	  slot = opt_integer_symbol(sc, caddr(car_x));
 	  if (slot)
 	    {
@@ -58758,6 +58759,7 @@ static bool d_7pid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointe
 		}
 	      if (float_optimize(sc, cdddr(car_x)))
 		{
+		  opc->v[11].fd = sc->opts[start]->v[0].fd;
 		  if (d_7pid_ssf_combinable(sc, opc))
 		    return(true);
 		  opc->v[0].fd = opt_d_7pid_ssf;
@@ -58794,27 +58796,24 @@ static bool d_7piid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_point
 /* -------- d_vid -------- */
 static s7_double opt_d_vid_ssf(opt_info *o)
 {
-  opt_info *o1;
-  o1 = o->sc->opts[++o->sc->pc];
   oo_rc(o->sc, o, 2);
-  return(o->v[4].d_vid_f(o->v[5].obj, integer(slot_value(o->v[2].p)), o1->v[0].fd(o1)));
+  o->sc->pc++;
+  return(o->v[4].d_vid_f(o->v[5].obj, integer(slot_value(o->v[2].p)), o->v[11].fd(o->v[10].o1)));
 }
 
 static inline s7_double opt_fmv(opt_info *o)
 {
-  /* d_vid_ssf -> d_dd_ff_o1 -> d_vd_o1 -> d_dd_ff_o3 */
+  /* d_vid_ssf -> d_dd_ff_o1 -> d_vd_o1 -> d_dd_ff_o3, this is a placeholder */
   opt_info *o1, *o2, *o3;
   s7_double amp_env, index_env, vib;
   s7_scheme *sc;
   sc = o->sc;
-
   o1 = sc->opts[sc->pc + 1];
   o2 = sc->opts[sc->pc + 3];
   o3 = sc->opts[sc->pc += 5];
   amp_env = o1->v[2].d_v_f(o1->v[1].obj);
   vib = real(slot_value(o2->v[2].p));
   index_env = o3->v[5].d_v_f(o3->v[1].obj);
-
   oo_rc(o->sc, o, 2);
   return(o->v[4].d_vid_f(o->v[5].obj,
 			 integer(slot_value(o->v[2].p)),
@@ -58845,6 +58844,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		  s7_pointer slot;
 		  opc->v[0].fd = opt_d_vid_ssf;
 		  opc->v[1].p = vslot;
+		  opc->v[10].o1 = sc->opts[start];
 		  slot = opt_integer_symbol(sc, caddr(car_x));
 		  if ((slot) &&
 		      (float_optimize(sc, cdddr(car_x))))
@@ -58852,6 +58852,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		      opt_info *o2;
 		      opc->v[2].p = slot;
 		      opc->v[5].obj = (void *)c_object_value(slot_value(vslot));
+		      opc->v[11].fd = opc->v[10].o1->v[0].fd;
 		      o2 = sc->opts[start];
 		      if (o2->v[0].fd == opt_d_dd_ff_mul1)
 			{
@@ -58864,7 +58865,7 @@ static bool d_vid_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 			      if ((o1->v[0].fd == opt_d_dd_ff_o3) &&
 				  (o1->v[4].d_dd_f == multiply_d_dd) &&
 				  (o3->v[4].d_dd_f == add_d_dd))
-				opc->v[0].fd = opt_fmv;
+				opc->v[0].fd = opt_fmv; /* a placeholder -- see below */
 			    }
 			}
 		      return(oo_set_type_2(opc, 1 + (5 << 4), 2, OO_V, OO_I));
@@ -62615,11 +62616,13 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 			      slot = opt_integer_symbol(sc, cadr(target));
 			      if (slot)
 				{
+				  opc->v[10].o1 = sc->opts[sc->pc];
 				  if (float_optimize(sc, cddr(car_x)))
 				    {
 				      opc->v[O_WRAP].fd = opt_d_7pid_ssf;
 				      opc->v[0].fp = d_to_p; /* cell_optimize, so need to return s7_pointer */
 				      opc->v[2].p = slot;
+				      opc->v[11].fd = opc->v[10].o1->v[0].fd;
 				      return(oo_set_type_2(opc, 1, 2, OO_V, OO_I));
 				    }
 				}
@@ -81406,7 +81409,6 @@ static goto_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
 	      (first->v[3].d_dd_f == add_d_dd) &&
 	      (slot_symbol(step_slot) == slot_symbol(o->v[2].p))) /* and _dv et al throughout (so sc->pc ignored) etc */
 	    {
-	      /* gcc now refuses to inline opt_fmv -- we are not amused... */
 	      opt_info *o1, *o2, *o3;
 	      s7_d_v_t vf1, vf2, vf3, vf4;
 	      s7_d_vd_t vf5, vf6;
@@ -97310,30 +97312,30 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  163   163
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  630   621
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  876   791
- * tshoot        |      |      |      |      |      | 1224 |        856
+ * tshoot        |      |      |      |      |      | 1224 |        854
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  880   876
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1485  1479
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1685  1674
  * tvect         |      |      |      |      |      | 5729 | 1919  1801
- * tmisc         |      |      |      |      |      | 2636 | 1949  1848
+ * tmisc         |      |      |      |      |      | 2636 | 1949  1850
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2090  2053
  * tlet          |      |      |      |      | 4717 | 2959 | 2241  2148
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2212
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2225  2214
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2238  2219
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2251  2220
  * tread         |      |      |      |      | 2357 | 2336 | 2258  2265
  * tclo          |      | 4391 | 4666 | 4651 | 4682 | 3084 | 2626  2397
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2571
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2655  2577
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2681  2653
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2828  2727
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2886  2820
  * tset          |      |      |      |      | 10.0 | 6432 | 2980  2928
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  2930
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3123
- * dup           |      |      |      |      | 20.8 | 5711 | 3028  3099
- * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3520
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 3049  2928
+ * tsort         |      |      |      | 8584 | 4111 | 3327 | 3236  3114
+ * dup           |      |      |      |      | 20.8 | 5711 | 3028  3099  3276
+ * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3624  3518
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 4029  3876
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6435  6434
- * thash         |      |      |      |      |      | 10.3 | 8467  6683
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6435  6432
+ * thash         |      |      |      |      |      | 10.3 | 8467  6684
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.8  14.7
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.6  35.4
@@ -97361,7 +97363,7 @@ int main(int argc, char **argv)
  *   opt centered random cases like (+ r i) -- any similar?
  * replace closure_id_s with all_s? = (define x y) but done stupidly, 71533
  *
- * opt_cond_2 (map) opt_b_7pp_ffo sg/gen? d_7pid_ssf d_vid_ssf, opt_p_call_any(vect=15)
+ * opt_cond_2 (map) opt_b_7pp_ffo opt_p_call_any(vect=15)
  * (zero? (remainder... int)) or (= (remainder... int) 0) [tshoot]
  *   start at fx_c_ac: c=0, c_callee(arg)=num_eq_xi, cadr is fx_c_opuq_t_direct with car=sc->remainder_symbol, use direct cadadr, expect int etc
  *   (positive? (remainder ... int) in tshoot [other is using fx_c_opuq_t_direct, so now we want to use numbers direct for (= x 0) at least if ints]
@@ -97369,5 +97371,5 @@ int main(int argc, char **argv)
  * g_vector several, fx_sqr_1 using t [let* first?] ftree opssq_s? -- wrong order?
  * O1=8 O2=10 o1_call_fp o1_store_fp etc
  * (t180=overheads)
- * check (named-)let(*) for optimize_lambda, but letrec(*) is safer since outlet is blocked here
+ * check (named-)let(*) for optimize_lambda, but letrec(*) is safer since outlet is blocked here [these need tests]
  */
