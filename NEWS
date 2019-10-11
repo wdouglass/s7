@@ -1,7 +1,9 @@
-Snd 19.7:
+Snd 19.8
 
-in clm, Anders fixed a bug in mus.lisp.
+In Snd, Tito fixed many Snd bugs, involving left-sample and right-sample,
+  off-by-1 cases for mark-sample and selection-samples, etc, and
+  a bug in s7_load.
 
-checked: sbcl 1.5.6
+checked: sbcl 1.5.7
 
-Thanks!: Anders Vinjar, Kenneth Flak, David O'Toole
+Thanks!: Kjetil Matheussen, David O'Toole, Tito Latini
