@@ -1,8 +1,7 @@
 Snd 19.8
 
 In Snd, Tito fixed many Snd bugs, involving left-sample and right-sample,
-  off-by-1 cases for mark-sample and selection-samples, etc, and
-  a bug in s7_load.
+  off-by-1 cases for mark-sample and selection-samples, a bug in s7_load, etc.
 
 checked: sbcl 1.5.7
 

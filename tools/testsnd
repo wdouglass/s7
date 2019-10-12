@@ -76,10 +76,10 @@ echo ' '
 ./snd -l snd-test
 # ./snd lint.scm -e '(begin (lint "s7test.scm" #f) (exit))'
 
-cp s7test.scm tmptest.scm
-./snd tools/sed.scm -e '(sed "tmptest.scm" "tmp" "(define full-test #f)" "(define full-test #t)")'
-mv tmp tmptest.scm
-./snd tmptest.scm
+# cp s7test.scm tmptest.scm
+# ./snd tools/sed.scm -e '(sed "tmptest.scm" "tmp" "(define full-test #f)" "(define full-test #t)")'
+# mv tmp tmptest.scm
+# ./snd tmptest.scm
 
 echo ' '
 echo ' '
@@ -345,6 +345,7 @@ cp orig-snd-test.scm snd-test.scm
 # sed snd-test.scm -e 's/(define test-at-random 0)/(define test-at-random 100)/g' > tmp
 mv tmp snd-test.scm
 
+# this hangs sometimes?
 echo ' '
 echo ' '
 ./snd --version
