@@ -61785,6 +61785,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 		    {
 		      opc->v[2].p = val_slot;
 		      opc->v[0].fp = opt_set_p_i_s;
+		      fprintf(stderr, "expr: %s\n", DISPLAY(car_x));
 		      return(oo_set_type_2(opc, 1, 2, OO_I, OO_I));
 		    }
 		}
@@ -96646,4 +96647,5 @@ int main(int argc, char **argv)
  * closure_s_to_opscq_c?
  * if all opts[pc] refs gone at runtime, can all pc++ be removed? [267(+44?) o->sc->pc++][9|56 ++o...]
  *   can o_wrap be finessed via b_to_p_0 et al? [28? cases]
+ * direct op|fx_safe_c_s|s?
  */
