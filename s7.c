@@ -61785,7 +61785,6 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 		    {
 		      opc->v[2].p = val_slot;
 		      opc->v[0].fp = opt_set_p_i_s;
-		      fprintf(stderr, "expr: %s\n", DISPLAY(car_x));
 		      return(oo_set_type_2(opc, 1, 2, OO_I, OO_I));
 		    }
 		}
