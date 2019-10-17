@@ -52,7 +52,7 @@
 
 ;; (fannkuch 7): (228 . 16), 8: (1616 . 22), 9: (8629 . 30), 10: (73196 . 38), 11: (556355 . 51), 12: (3968050 . 65)
 (display (fannkuch 7)) (newline)
-;; (fannkuch 12) takes around 5 minutes (297 secs)
+;(fannkuch 12) ;takes around 5 minutes (297 secs)
 
 ;;; --------------------------------------------------------------------------------
 
@@ -176,7 +176,7 @@
 		   (format *stderr* "~D~9Ttrees of depth ~D~30Tcheck: ~D~%" iterations depth check)))))
 	  (format *stderr* "long lived tree of depth ~D~30Tcheck: ~D~%" max-depth (item-check long-lived-tree)))))))
 
-;;(binary-tree 21) ; 20 secs
+;(binary-tree 21) ; 20 secs
 (binary-tree 6)
 
 ;;; stretch      tree of  depth 22	 check: 8388607
@@ -217,7 +217,7 @@
 
 ;(collatz 300000)
 ;; Maximum stopping distance 442, starting number 230631
-;; .6 secs
+;; .5 secs
 
 (collatz 20000)
 
@@ -241,7 +241,7 @@
 		 (set! L (cdr L))))))))
 
 (let ()
-  (define (count-primes limit)          ; for limit=10000000 12.3 secs 664579
+  (define (count-primes limit)          ; for limit=10000000 10.4 secs 664579
     (let ((primes 0))
       (do ((i 2 (+ i 1)))
 	  ((= i limit)
@@ -303,7 +303,7 @@
       
       (sqrt (/ vBv vV))))
 
-  (display (spectral-norm 125)) ; (spectral-norm 5500) takes about 19.4 secs
+  (display (spectral-norm 125)) ; (spectral-norm 5500) takes about 14.3 secs
   (newline))
 
 ;;; --------------------------------------------------------------------------------
