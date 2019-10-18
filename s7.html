@@ -6148,14 +6148,14 @@ so misleading that I feel guilty about it):
 (for-each do-loop (list 1000 1000000 10000000))
 </pre>
 
-<p>In s7, that takes 0.1 seconds on my home machine.  In tinyScheme, from
+<p>In s7, that takes 0.09 seconds on my home machine.  In tinyScheme, from
 whence we sprang, it takes 85 seconds.  In the chicken interpreter, 5.3
 seconds, and after compilation (using -O2) of the chicken compiler output,
 0.75 seconds.  So, s7 is comparable to chicken in speed, even though chicken
 is compiling to C. I think Guile 2.0.9 takes about 1 second.
 The equivalent in CL:
 clisp interpreted 9.3 seconds, compiled 0.85 seconds; sbcl 0.21 seconds.
-Similarly, s7 computes (fib 40) in 1.5 seconds, approximately the same as sbcl.
+Similarly, s7 computes (fib 40) in 0.8 seconds, approximately the same as sbcl.
 Guile 2.2.3 takes 7 seconds.
 </p>
 

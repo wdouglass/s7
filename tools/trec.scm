@@ -5,8 +5,8 @@
       `(if (not ,test) (begin ,@body))))
 
 (define (fib n)
-  (if (< n 2)
-      n
+  (if (<= n 2)
+      1
       (+ (fib (- n 1))
          (fib (- n 2)))))
 
@@ -16,10 +16,10 @@
 
 
 (define (fibr n)
-  (if (>= n 2)
+  (if (> n 2)
       (+ (fibr (- n 1))
          (fibr (- n 2)))
-      n))
+      1))
 
 (let ((f32 (fibr 32)))
   (unless (= f32 2178309) ;3524578)
