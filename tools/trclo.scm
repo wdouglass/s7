@@ -384,13 +384,13 @@
 
 (define (lcond1 x y)
   (let ((z (+ x y)))
-    (cond ((= 0 z) pi)
+    (cond ((= z 0) pi)
 	  ((< z 0) 'oops)
 	  (else (lcond1 (- x 1) (- y 1))))))
 
 (define (lcond2 x)
   (let ((z (+ x 1)))
-    (cond ((= 0 z) pi)
+    (cond ((= z 0) pi)
 	  ((< z 0) 'oops)
 	  (else (lcond2 (- x 1))))))
 
@@ -398,13 +398,13 @@
 
 (define (lcond3 x y)
   (let ((z (+ x y)))
-    (cond ((= 0 z) pi)
+    (cond ((= z 0) pi)
 	  ((< z 0) (lcond3 (+ x 1) y))
 	  (else (lcond3 (- x 1) y)))))
 
 (define (lcond4 x y z)
   (let ((a (+ x y z)))
-    (cond ((= 0 z) pi)
+    (cond ((= z 0) pi)
 	  (else (lcond4 x (- y 1) (- z 1))))))
 
 (define (cond-f)

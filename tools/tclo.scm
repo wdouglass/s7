@@ -92,4 +92,75 @@
 
 (d1)
 
+;;; -------- comparison with non-key case: --------
+
+(define size 1000000)
+
+(define fib
+   (lambda (n)
+     (if (<= n 2) 1 (+ (fib (- n 2))
+                       (fib (- n 1))))))
+
+(define key-fib
+  (lambda* (n)
+    (if (<= n 2) 1 
+	(+ (key-fib :n (- n 2))
+           (key-fib :n (- n 1))))))
+
+(define (f1 a b)
+  (when (> a b)
+    (+ a b)))
+
+(define* (f2 a b)
+  (when (> a b)
+    (+ a b)))
+
+(define* (f3 (a 1) (b 0))
+  (when (> a b)
+    (+ a b)))
+
+
+(define (g1)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f1 i i)))
+
+(define (g2)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f2 i i)))
+
+(define (g3)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f2 :a i :b i)))
+
+(define (g4)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f2 :b i :a i)))
+
+(define (g5)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f3)))
+
+(define (g6)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f3 i i)))
+
+(define (g7)
+  (do ((i 0 (+ i 1)))
+      ((= i size))
+    (f3 :a i)))
+
+(g1)
+(g2)
+(g3)
+(g4)
+(g5)
+(g6)
+(g7)
+
 (exit)
