@@ -3775,7 +3775,6 @@ static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int
 static token_t token(s7_scheme *sc);
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
 static void free_hash_table(s7_scheme *sc, s7_pointer table);
-static s7_pointer g_cdr(s7_scheme *sc, s7_pointer args);
 static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
 static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
@@ -53784,191 +53783,7 @@ static inline s7_pointer fx_cond_fx_fx(s7_scheme *sc, s7_pointer code)  /* all t
   return(sc->unspecified);
 }
 
-static s7_pointer fx_tc_and_a_or_a_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_or_a_and_a_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_or_a_a_and_a_a_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_and_a_or_a_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_or_a_and_a_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_la_z(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_l3a(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_laa_z(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_if_a_la_z(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_if_a_z_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_if_a_z_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_if_a_l3a_l3a(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_z_if_a_laa_z(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_cond_a_z_a_z_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_case_la(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_or_a_and_a_a_l3a(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_if_a_t_and_a_a_l3a(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_let_when_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_let_unless_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_let_cond(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_tc_cond_a_z_a_laa_laa(s7_scheme *sc, s7_pointer arg);
-
-static s7_pointer fx_recur_if_a_a_and_a_laa_laa(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_recur_if_a_opa_laq_a(s7_scheme *sc, s7_pointer arg);
-static s7_pointer fx_recur_cond_a_a_a_a_opla_laq(s7_scheme *sc, s7_pointer arg);
-
-static s7_pointer fx_opif_a_ssq_a(s7_scheme *sc, s7_pointer code);
-
 static s7_function fx_function[NUM_OPS];
-
-static void fx_function_init(void)
-{
-  int32_t i;
-  for (i = 0; i < NUM_OPS; i++)
-    fx_function[i] = NULL;
-
-  fx_function[HOP_SAFE_C_D] = fx_c_d;
-
-  fx_function[HOP_SAFE_C_S] = fx_c_s;
-  fx_function[HOP_SAFE_C_opDq] = fx_c_opdq;
-  fx_function[HOP_SAFE_C_opSq] = fx_c_opsq;
-  fx_function[HOP_SAFE_C_opSSq] = fx_c_opssq;
-  fx_function[HOP_SAFE_C_opSCq] = fx_c_opscq;
-  fx_function[HOP_SAFE_C_opCSq] = fx_c_opcsq;
-
-  fx_function[HOP_SAFE_C_SC] = fx_c_sc;
-  fx_function[HOP_SAFE_C_CS] = fx_c_cs;
-  fx_function[HOP_SAFE_C_CQ] = fx_c_cq;
-  fx_function[HOP_SAFE_C_SS] = fx_c_ss;
-
-  fx_function[HOP_SAFE_C_opSq_S] = fx_c_opsq_s;
-  fx_function[HOP_SAFE_C_opSq_C] = fx_c_opsq_c;
-  fx_function[HOP_SAFE_C_opSq_CS] = fx_c_opsq_cs;
-  fx_function[HOP_SAFE_C_S_opSq] = fx_c_s_opsq;
-  fx_function[HOP_SAFE_C_S_opDq] = fx_c_s_opdq;
-  fx_function[HOP_SAFE_C_opDq_S] = fx_c_opdq_s;
-  fx_function[HOP_SAFE_C_C_opSq] = fx_c_c_opsq;
-  fx_function[HOP_SAFE_C_C_opDq] = fx_c_c_opdq;
-  fx_function[HOP_SAFE_C_opCSq_C] = fx_c_opcsq_c;
-  fx_function[HOP_SAFE_C_opCSq_S] = fx_c_opcsq_s;
-  fx_function[HOP_SAFE_C_C_opCSq] = fx_c_c_opcsq;
-  fx_function[HOP_SAFE_C_S_opCSq] = fx_c_s_opcsq;
-  fx_function[HOP_SAFE_C_opSSq_C] = fx_c_opssq_c;
-  fx_function[HOP_SAFE_C_opSCq_C] = fx_c_opscq_c;
-  fx_function[HOP_SAFE_C_opSSq_S] = fx_c_opssq_s;
-  fx_function[HOP_SAFE_C_S_opSSq] = fx_c_s_opssq;
-  fx_function[HOP_SAFE_C_C_opSSq] = fx_c_c_opssq;
-  fx_function[HOP_SAFE_C_S_opSCq] = fx_c_s_opscq;
-  fx_function[HOP_SAFE_C_C_opSCq] = fx_c_c_opscq;
-  fx_function[HOP_SAFE_C_opSq_opSq] = fx_c_opsq_opsq;
-  fx_function[HOP_SAFE_C_opSq_opSSq] = fx_c_opsq_opssq;
-  fx_function[HOP_SAFE_C_opSSq_opSq] = fx_c_opssq_opsq;
-  fx_function[HOP_SAFE_C_opSSq_opSSq] = fx_c_opssq_opssq;
-  fx_function[HOP_SAFE_C_op_opSSq_q_C] = fx_c_op_opssq_q_c;
-  fx_function[HOP_SAFE_C_op_opSq_q] = fx_c_op_opsq_q;
-  fx_function[HOP_SAFE_C_op_opSq_q_C] = fx_c_op_opsq_q_c;
-  fx_function[HOP_SAFE_C_op_S_opSq_q] = fx_c_op_s_opsq_q;
-  fx_function[HOP_SAFE_C_op_opSq_S_q] = fx_c_op_opsq_s_q;
-  fx_function[HOP_SAFE_C_S_op_S_opSqq] = fx_c_s_op_s_opsqq;
-  fx_function[HOP_SAFE_C_S_op_S_opSSqq] = fx_c_s_op_s_opssqq;
-  fx_function[HOP_SAFE_C_S_op_opSq_Cq] = fx_c_s_op_opsq_cq;
-  fx_function[HOP_SAFE_C_op_opSSq_q_S] = fx_c_op_opssq_q_s;
-  fx_function[HOP_SAFE_C_op_opSSq_Sq_S] = fx_c_op_opssq_sq_s;
-  fx_function[HOP_SAFE_C_S_op_opSSq_opSSqq] = fx_c_s_op_opssq_opssqq;
-
-  fx_function[OP_SAFE_C_TUS] = fx_c_tus;
-  fx_function[HOP_SAFE_C_SSC] = fx_c_ssc;
-  fx_function[HOP_SAFE_C_SSS] = fx_c_sss;
-  fx_function[HOP_SAFE_C_SCS] = fx_c_scs;
-  fx_function[HOP_SAFE_C_SCC] = fx_c_scc;
-  fx_function[HOP_SAFE_C_CSS] = fx_c_css;
-  fx_function[HOP_SAFE_C_CSC] = fx_c_csc;
-  fx_function[HOP_SAFE_C_CCS] = fx_c_ccs;
-  fx_function[HOP_SAFE_C_ALL_S] = fx_c_all_s;
-
-  fx_function[HOP_SAFE_C_A] = fx_c_a;
-  fx_function[HOP_SAFE_C_AA] = fx_c_aa;
-  fx_function[HOP_SAFE_C_CA] = fx_c_ca;
-  fx_function[HOP_SAFE_C_AC] = fx_c_ac;
-  fx_function[HOP_SAFE_C_AAA] = fx_c_aaa;
-  fx_function[HOP_SAFE_C_CAC] = fx_c_cac;
-  fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
-  fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
-  fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
-  fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
-  fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
-  fx_function[HOP_SAFE_C_FX] = fx_c_fx;
-  fx_function[HOP_SAFE_C_4A] = fx_c_4a;
-  fx_function[HOP_SAFE_C_opAq] = fx_c_opaq;
-  fx_function[HOP_SAFE_C_opAAq] = fx_c_opaaq;
-  fx_function[HOP_SAFE_C_opAAAq] = fx_c_opaaaq;
-  fx_function[HOP_SAFE_C_opAq_S] = fx_c_opaq_s;
-  fx_function[HOP_SAFE_C_S_opAq] = fx_c_s_opaq;
-  fx_function[HOP_SAFE_C_S_opAAq] = fx_c_s_opaaq;
-  fx_function[HOP_SAFE_C_S_opAAAq] = fx_c_s_opaaaq;
-
-  fx_function[HOP_SAFE_THUNK_A] = fx_safe_thunk_a;
-  fx_function[HOP_SAFE_CLOSURE_S_A] = fx_safe_closure_s_a;
-  fx_function[HOP_SAFE_CLOSURE_A_A] = fx_safe_closure_a_a;
-  fx_function[HOP_SAFE_CLOSURE_SS_A] = fx_safe_closure_ss_a;
-  fx_function[HOP_SAFE_CLOSURE_AA_A] = fx_safe_closure_aa_a;
-  fx_function[HOP_SAFE_CLOSURE_3S_A] = fx_safe_closure_3s_a;
-
-  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
-  fx_function[OP_HASH_INCREMENT] = fx_hash_increment;
-
-  fx_function[HOP_SAFE_CLOSURE_S_TO_S] = fx_safe_closure_s_to_s;
-  fx_function[HOP_SAFE_CLOSURE_S_TO_SC] = fx_safe_closure_s_to_sc;
-
-  fx_function[OP_COND_FX_FX] = fx_cond_fx_fx;
-  fx_function[OP_opIF_A_SSq_A] = fx_opif_a_ssq_a;
-  fx_function[OP_IF_A_CC] = fx_if_a_cc;
-  fx_function[OP_IF_A_A] = fx_if_a_a;
-  fx_function[OP_IF_A_AA] = fx_if_a_aa;
-  fx_function[OP_IF_NOT_A_A] = fx_if_not_a_a;
-  fx_function[OP_IF_NOT_A_AA] = fx_if_not_a_aa;
-  fx_function[OP_OR_2] = fx_or_2;
-  fx_function[OP_OR_S_2] = fx_or_s_2;
-  fx_function[OP_OR_S_TYPE_2] = fx_or_s_type_2;
-  fx_function[OP_OR_3] = fx_or_3;
-  fx_function[OP_OR_N] = fx_or_n;
-  fx_function[OP_AND_2] = fx_and_2;
-  fx_function[OP_AND_S_2] = fx_and_s_2;
-  fx_function[OP_AND_3] = fx_and_3;
-  fx_function[OP_AND_N] = fx_and_n;
-
-  fx_function[OP_SYM] = fx_unsafe_s; /* these 4 probably never happen */
-  fx_function[OP_GLOBAL_SYM] = fx_g;
-  fx_function[OP_CON] = fx_c;
-  fx_function[OP_UNSPECIFIED] = fx_unspecified;
-
-  fx_function[OP_TC_AND_A_OR_A_LA] = fx_tc_and_a_or_a_la;
-  fx_function[OP_TC_OR_A_AND_A_LA] = fx_tc_or_a_and_a_la;
-  fx_function[OP_TC_OR_A_A_AND_A_A_LA] = fx_tc_or_a_a_and_a_a_la;
-  fx_function[OP_TC_AND_A_OR_A_LAA] = fx_tc_and_a_or_a_laa;
-  fx_function[OP_TC_OR_A_AND_A_LAA] = fx_tc_or_a_and_a_laa;
-  fx_function[OP_TC_IF_A_Z_LA] = fx_tc_if_a_z_la;
-  fx_function[OP_TC_IF_A_LA_Z] = fx_tc_if_a_la_z;
-  fx_function[OP_TC_IF_A_Z_LAA] = fx_tc_if_a_z_laa;
-  fx_function[OP_TC_IF_A_Z_L3A] = fx_tc_if_a_z_l3a;
-  fx_function[OP_TC_IF_A_LAA_Z] = fx_tc_if_a_laa_z;
-  fx_function[OP_TC_IF_A_Z_IF_A_Z_LA] = fx_tc_if_a_z_if_a_z_la;
-  fx_function[OP_TC_IF_A_Z_IF_A_LA_Z] = fx_tc_if_a_z_if_a_la_z;
-  fx_function[OP_TC_IF_A_Z_IF_A_Z_LAA] = fx_tc_if_a_z_if_a_z_laa;
-  fx_function[OP_TC_IF_A_Z_IF_A_L3A_L3A] = fx_tc_if_a_z_if_a_l3a_l3a;
-  fx_function[OP_TC_IF_A_Z_IF_A_LAA_Z] = fx_tc_if_a_z_if_a_laa_z;
-  fx_function[OP_TC_COND_A_Z_A_Z_LAA] = fx_tc_cond_a_z_a_z_laa;
-  fx_function[OP_TC_CASE_LA] = fx_tc_case_la;
-  fx_function[OP_TC_OR_A_AND_A_A_L3A] = fx_tc_or_a_and_a_a_l3a;
-  fx_function[OP_TC_IF_A_T_AND_A_A_L3A] = fx_tc_if_a_t_and_a_a_l3a;
-  fx_function[OP_TC_LET_IF_A_Z_LAA] = fx_tc_let_if_a_z_laa;
-  fx_function[OP_TC_LET_WHEN_LAA] = fx_tc_let_when_laa;
-  fx_function[OP_TC_LET_UNLESS_LAA] = fx_tc_let_unless_laa;
-  fx_function[OP_TC_LET_COND] = fx_tc_let_cond;
-  fx_function[OP_TC_COND_A_Z_A_LAA_LAA] = fx_tc_cond_a_z_a_laa_laa;
-
-  fx_function[OP_RECUR_IF_A_A_opA_LAq] = fx_recur_if_a_a_opa_laq;
-  fx_function[OP_RECUR_IF_A_opA_LAq_A] = fx_recur_if_a_opa_laq_a;
-  fx_function[OP_RECUR_IF_A_A_AND_A_LAA_LAA] = fx_recur_if_a_a_and_a_laa_laa;
-  fx_function[OP_RECUR_COND_A_A_A_A_opLA_LAq] = fx_recur_cond_a_a_a_a_opla_laq;
-}
 
 static bool is_fxable(s7_scheme *sc, s7_pointer p)
 {
@@ -54567,15 +54382,17 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
   return(NULL);
 }
 
-#if 0
-#include "fx_tree.h"
-#endif
-
 static bool with_c_call(s7_pointer p, s7_function f)
 {
   set_c_call(p, f);
   return(true);
 }
+
+#define WITH_FX_TREE 0
+#if WITH_FX_TREE
+static const char *fx_name(s7_scheme *sc, s7_pointer p);
+static bool fx_tu_name(s7_scheme *sc, s7_pointer p);
+#endif
 
 static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_pointer v2, s7_pointer v3, s7_pointer v4)
 {
@@ -54586,7 +54403,7 @@ static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_point
       if ((c_callee(tree) == fx_c_st) &&
 	  (cadr(p) != v1) && (cadr(p) != v2) && (cadr(p) != v3) && (cadr(p) != v4))
 	{
-	  if (s7_p_pp_function(slot_value(global_slot(car(p)))))
+	  if (s7_p_pp_function(slot_value(global_slot(car(p))))) /* dup (vector-ref unique j), envir=out(out(envir)) then lookup "unique" */
 	    {
 	      set_direct_opt(p);
 	      set_opt2_direct(cdr(p), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(p))))));
@@ -54623,29 +54440,46 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_Ti));
 #endif
 	}
-      if (cadr(p) == var2)
+      else
 	{
-	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_U1));
-	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_U1));
-	}
-      if (is_pair(cddr(p)))
+	  if (cadr(p) == var2)
+	    {
+	      if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_U1));
+	      if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_U1));
+	    }
+	  else
+	    {
+	      if (is_pair(cddr(p)))
+		{
+		  if (caddr(p) == var1)
+		    {
+#if (!WITH_GMP)
+		      if (c_callee(tree) == fx_num_eq_ts) return(with_c_call(tree, fx_num_eq_tT));
+		      if (c_callee(tree) == fx_gt_ts) return(with_c_call(tree, fx_gt_tT));
+#endif
+		    }
+		  else
+		    {
+		      if (caddr(p) == var2)
+			{
+			  if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
+#if (!WITH_GMP)
+			  if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
+#endif
+			  if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
+			}}}}}
+#if WITH_FX_TREE
+      if (!fx_tu_name(sc, tree))
 	{
-	  if (caddr(p) == var1)
+	  if (cadr(p) == var1) fprintf(stderr, "T1: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	  if (cadr(p) == var2) fprintf(stderr, "U1: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	  if (is_pair(cddr(p)))
 	    {
-#if (!WITH_GMP)
-	      if (c_callee(tree) == fx_num_eq_ts) return(with_c_call(tree, fx_num_eq_tT));
-	      if (c_callee(tree) == fx_gt_ts) return(with_c_call(tree, fx_gt_tT));
-#endif
-	    }
-	  if (caddr(p) == var2)
-	    {
-	      if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
-#if (!WITH_GMP)
-	      if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
-#endif
-	      if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
+	      if (caddr(p) == var1) fprintf(stderr, "T2: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	      if (caddr(p) == var2) fprintf(stderr, "U2: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
 	    }
 	}
+#endif
     }
   return(false);
 }
@@ -54999,6 +54833,23 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	      if (c_callee(tree) == fx_c_cs) return(with_c_call(tree, fx_c_cu));
 	    }
 	}
+#if WITH_FX_TREE      
+      if (!fx_tu_name(sc, tree))
+	{
+	  if (cadr(p) == var1) fprintf(stderr, "t1: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	  if (cadr(p) == var2) fprintf(stderr, "u1: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	  if ((is_pair(cadr(p))) && (is_pair(cdadr(p))))
+	    {
+	      if (cadadr(p) == var1) fprintf(stderr, "t1(1): %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	      if (cadadr(p) == var2) fprintf(stderr, "u1(1): %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	    }
+	  if (is_pair(cddr(p)))
+	    {
+	      if (caddr(p) == var1) fprintf(stderr, "t2: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	      if (caddr(p) == var2) fprintf(stderr, "u2: %s %s\n", display_80(p), (has_fx(tree)) ? fx_name(sc, tree) : "");
+	    }
+	}
+#endif
     }
   return(false);
 }
@@ -69012,6 +68863,34 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
   return(false);
 }
 
+static opt_t fxify_safe_closure_one_arg(s7_scheme *sc, s7_pointer func, s7_pointer expr, s7_pointer e, bool sym, int32_t hop)
+{
+  s7_pointer body;
+  body = closure_body(func);
+  annotate_arg(sc, body, e);
+  if (sym)
+    {
+      if (((optimize_op(car(body)) == HOP_SAFE_C_S) || (optimize_op(car(body)) == HOP_SAFE_C_SC)) &&
+	  (car(closure_args(func)) == cadar(body)))
+	{
+	  if (optimize_op(car(body)) == HOP_SAFE_C_S)
+	    set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_S);
+	  else 
+	    {
+	      s7_pointer body_arg2;
+	      body_arg2 = caddar(body);
+	      set_opt3_any(cdr(expr), (is_pair(body_arg2)) ? cadr(body_arg2) : body_arg2);
+	      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_SC);
+	    }
+	}
+      else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_A);
+    }
+  else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_C_A);
+  set_closure_has_fx(func);
+  fx_tree(sc, body, car(closure_args(func)), NULL);
+  return(OPT_T);
+}
+
 static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func,
 				      int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -69048,28 +68927,7 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  if (safe_case)
 	    {
 	      if (is_fxable(sc, car(body)))
-		{
-		  annotate_arg(sc, body, e);
-		  if (sym)
-		    {
-		      if (((optimize_op(car(body)) == HOP_SAFE_C_S) || (optimize_op(car(body)) == HOP_SAFE_C_SC)) &&
-			  (car(closure_args(func)) == cadar(body)))
-			{
-			  if (optimize_op(car(body)) == HOP_SAFE_C_S)
-			    set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_S);
-			  else 
-			    {
-			      set_opt3_any(cdr(expr), caddar(body));
-			      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_SC);
-			    }
-			}
-		      else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_A);
-		    }
-		  else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_C_A);
-		  set_closure_has_fx(func);
-		  fx_tree(sc, body, car(closure_args(func)), NULL);
-		  return(OPT_T);
-		}
+		return(fxify_safe_closure_one_arg(sc, func, expr, e, sym, hop));
 	      set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P));
 	    }
 	  else set_optimize_op(expr, hop + ((sym) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P));
@@ -81289,12 +81147,7 @@ static goto_t op_unknown_g(s7_scheme *sc, s7_pointer f)
 	      if (is_null(cdr(body)))
 		{
 		  if (is_fxable(sc, car(body)))
-		    {
-		      annotate_arg(sc, body, sc->envir);
-		      set_safe_optimize_op(code, hop + ((sym_case) ? OP_SAFE_CLOSURE_S_A : OP_SAFE_CLOSURE_C_A));
-		      set_closure_has_fx(f);
-		      fx_tree(sc, body, car(closure_args(f)), NULL);
-		    }
+		    fxify_safe_closure_one_arg(sc, f, code, sc->envir, sym_case, hop);
 		  else
 		    {
 		      /* hop if is_constant(sc, car(code)) is not foolproof here (see t967.scm):
@@ -94367,6 +94220,163 @@ char *s7_decode_bt(s7_scheme *sc)
 
 /* -------------------------------- initialization -------------------------------- */
 
+static void fx_function_init(void)
+{
+  int32_t i;
+  for (i = 0; i < NUM_OPS; i++)
+    fx_function[i] = NULL;
+
+  fx_function[HOP_SAFE_C_D] = fx_c_d;
+
+  fx_function[HOP_SAFE_C_S] = fx_c_s;
+  fx_function[HOP_SAFE_C_opDq] = fx_c_opdq;
+  fx_function[HOP_SAFE_C_opSq] = fx_c_opsq;
+  fx_function[HOP_SAFE_C_opSSq] = fx_c_opssq;
+  fx_function[HOP_SAFE_C_opSCq] = fx_c_opscq;
+  fx_function[HOP_SAFE_C_opCSq] = fx_c_opcsq;
+
+  fx_function[HOP_SAFE_C_SC] = fx_c_sc;
+  fx_function[HOP_SAFE_C_CS] = fx_c_cs;
+  fx_function[HOP_SAFE_C_CQ] = fx_c_cq;
+  fx_function[HOP_SAFE_C_SS] = fx_c_ss;
+
+  fx_function[HOP_SAFE_C_opSq_S] = fx_c_opsq_s;
+  fx_function[HOP_SAFE_C_opSq_C] = fx_c_opsq_c;
+  fx_function[HOP_SAFE_C_opSq_CS] = fx_c_opsq_cs;
+  fx_function[HOP_SAFE_C_S_opSq] = fx_c_s_opsq;
+  fx_function[HOP_SAFE_C_S_opDq] = fx_c_s_opdq;
+  fx_function[HOP_SAFE_C_opDq_S] = fx_c_opdq_s;
+  fx_function[HOP_SAFE_C_C_opSq] = fx_c_c_opsq;
+  fx_function[HOP_SAFE_C_C_opDq] = fx_c_c_opdq;
+  fx_function[HOP_SAFE_C_opCSq_C] = fx_c_opcsq_c;
+  fx_function[HOP_SAFE_C_opCSq_S] = fx_c_opcsq_s;
+  fx_function[HOP_SAFE_C_C_opCSq] = fx_c_c_opcsq;
+  fx_function[HOP_SAFE_C_S_opCSq] = fx_c_s_opcsq;
+  fx_function[HOP_SAFE_C_opSSq_C] = fx_c_opssq_c;
+  fx_function[HOP_SAFE_C_opSCq_C] = fx_c_opscq_c;
+  fx_function[HOP_SAFE_C_opSSq_S] = fx_c_opssq_s;
+  fx_function[HOP_SAFE_C_S_opSSq] = fx_c_s_opssq;
+  fx_function[HOP_SAFE_C_C_opSSq] = fx_c_c_opssq;
+  fx_function[HOP_SAFE_C_S_opSCq] = fx_c_s_opscq;
+  fx_function[HOP_SAFE_C_C_opSCq] = fx_c_c_opscq;
+  fx_function[HOP_SAFE_C_opSq_opSq] = fx_c_opsq_opsq;
+  fx_function[HOP_SAFE_C_opSq_opSSq] = fx_c_opsq_opssq;
+  fx_function[HOP_SAFE_C_opSSq_opSq] = fx_c_opssq_opsq;
+  fx_function[HOP_SAFE_C_opSSq_opSSq] = fx_c_opssq_opssq;
+  fx_function[HOP_SAFE_C_op_opSSq_q_C] = fx_c_op_opssq_q_c;
+  fx_function[HOP_SAFE_C_op_opSq_q] = fx_c_op_opsq_q;
+  fx_function[HOP_SAFE_C_op_opSq_q_C] = fx_c_op_opsq_q_c;
+  fx_function[HOP_SAFE_C_op_S_opSq_q] = fx_c_op_s_opsq_q;
+  fx_function[HOP_SAFE_C_op_opSq_S_q] = fx_c_op_opsq_s_q;
+  fx_function[HOP_SAFE_C_S_op_S_opSqq] = fx_c_s_op_s_opsqq;
+  fx_function[HOP_SAFE_C_S_op_S_opSSqq] = fx_c_s_op_s_opssqq;
+  fx_function[HOP_SAFE_C_S_op_opSq_Cq] = fx_c_s_op_opsq_cq;
+  fx_function[HOP_SAFE_C_op_opSSq_q_S] = fx_c_op_opssq_q_s;
+  fx_function[HOP_SAFE_C_op_opSSq_Sq_S] = fx_c_op_opssq_sq_s;
+  fx_function[HOP_SAFE_C_S_op_opSSq_opSSqq] = fx_c_s_op_opssq_opssqq;
+
+  fx_function[OP_SAFE_C_TUS] = fx_c_tus;
+  fx_function[HOP_SAFE_C_SSC] = fx_c_ssc;
+  fx_function[HOP_SAFE_C_SSS] = fx_c_sss;
+  fx_function[HOP_SAFE_C_SCS] = fx_c_scs;
+  fx_function[HOP_SAFE_C_SCC] = fx_c_scc;
+  fx_function[HOP_SAFE_C_CSS] = fx_c_css;
+  fx_function[HOP_SAFE_C_CSC] = fx_c_csc;
+  fx_function[HOP_SAFE_C_CCS] = fx_c_ccs;
+  fx_function[HOP_SAFE_C_ALL_S] = fx_c_all_s;
+
+  fx_function[HOP_SAFE_C_A] = fx_c_a;
+  fx_function[HOP_SAFE_C_AA] = fx_c_aa;
+  fx_function[HOP_SAFE_C_CA] = fx_c_ca;
+  fx_function[HOP_SAFE_C_AC] = fx_c_ac;
+  fx_function[HOP_SAFE_C_AAA] = fx_c_aaa;
+  fx_function[HOP_SAFE_C_CAC] = fx_c_cac;
+  fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
+  fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
+  fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
+  fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
+  fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
+  fx_function[HOP_SAFE_C_FX] = fx_c_fx;
+  fx_function[HOP_SAFE_C_4A] = fx_c_4a;
+  fx_function[HOP_SAFE_C_opAq] = fx_c_opaq;
+  fx_function[HOP_SAFE_C_opAAq] = fx_c_opaaq;
+  fx_function[HOP_SAFE_C_opAAAq] = fx_c_opaaaq;
+  fx_function[HOP_SAFE_C_opAq_S] = fx_c_opaq_s;
+  fx_function[HOP_SAFE_C_S_opAq] = fx_c_s_opaq;
+  fx_function[HOP_SAFE_C_S_opAAq] = fx_c_s_opaaq;
+  fx_function[HOP_SAFE_C_S_opAAAq] = fx_c_s_opaaaq;
+
+  fx_function[HOP_SAFE_THUNK_A] = fx_safe_thunk_a;
+  fx_function[HOP_SAFE_CLOSURE_S_A] = fx_safe_closure_s_a;
+  fx_function[HOP_SAFE_CLOSURE_A_A] = fx_safe_closure_a_a;
+  fx_function[HOP_SAFE_CLOSURE_SS_A] = fx_safe_closure_ss_a;
+  fx_function[HOP_SAFE_CLOSURE_AA_A] = fx_safe_closure_aa_a;
+  fx_function[HOP_SAFE_CLOSURE_3S_A] = fx_safe_closure_3s_a;
+
+  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
+  fx_function[OP_HASH_INCREMENT] = fx_hash_increment;
+
+  fx_function[HOP_SAFE_CLOSURE_S_TO_S] = fx_safe_closure_s_to_s;
+  fx_function[HOP_SAFE_CLOSURE_S_TO_SC] = fx_safe_closure_s_to_sc;
+
+  fx_function[OP_COND_FX_FX] = fx_cond_fx_fx;
+  fx_function[OP_opIF_A_SSq_A] = fx_opif_a_ssq_a;
+  fx_function[OP_IF_A_CC] = fx_if_a_cc;
+  fx_function[OP_IF_A_A] = fx_if_a_a;
+  fx_function[OP_IF_A_AA] = fx_if_a_aa;
+  fx_function[OP_IF_NOT_A_A] = fx_if_not_a_a;
+  fx_function[OP_IF_NOT_A_AA] = fx_if_not_a_aa;
+  fx_function[OP_OR_2] = fx_or_2;
+  fx_function[OP_OR_S_2] = fx_or_s_2;
+  fx_function[OP_OR_S_TYPE_2] = fx_or_s_type_2;
+  fx_function[OP_OR_3] = fx_or_3;
+  fx_function[OP_OR_N] = fx_or_n;
+  fx_function[OP_AND_2] = fx_and_2;
+  fx_function[OP_AND_S_2] = fx_and_s_2;
+  fx_function[OP_AND_3] = fx_and_3;
+  fx_function[OP_AND_N] = fx_and_n;
+
+  fx_function[OP_SYM] = fx_unsafe_s; /* these 4 probably never happen */
+  fx_function[OP_GLOBAL_SYM] = fx_g;
+  fx_function[OP_CON] = fx_c;
+  fx_function[OP_UNSPECIFIED] = fx_unspecified;
+
+  fx_function[OP_TC_AND_A_OR_A_LA] = fx_tc_and_a_or_a_la;
+  fx_function[OP_TC_OR_A_AND_A_LA] = fx_tc_or_a_and_a_la;
+  fx_function[OP_TC_OR_A_A_AND_A_A_LA] = fx_tc_or_a_a_and_a_a_la;
+  fx_function[OP_TC_AND_A_OR_A_LAA] = fx_tc_and_a_or_a_laa;
+  fx_function[OP_TC_OR_A_AND_A_LAA] = fx_tc_or_a_and_a_laa;
+  fx_function[OP_TC_IF_A_Z_LA] = fx_tc_if_a_z_la;
+  fx_function[OP_TC_IF_A_LA_Z] = fx_tc_if_a_la_z;
+  fx_function[OP_TC_IF_A_Z_LAA] = fx_tc_if_a_z_laa;
+  fx_function[OP_TC_IF_A_LAA_Z] = fx_tc_if_a_laa_z;
+  fx_function[OP_TC_IF_A_Z_L3A] = fx_tc_if_a_z_l3a;
+  fx_function[OP_TC_IF_A_Z_IF_A_Z_LA] = fx_tc_if_a_z_if_a_z_la;
+  fx_function[OP_TC_IF_A_Z_IF_A_LA_Z] = fx_tc_if_a_z_if_a_la_z;
+  fx_function[OP_TC_IF_A_Z_IF_A_Z_LAA] = fx_tc_if_a_z_if_a_z_laa;
+  fx_function[OP_TC_IF_A_Z_IF_A_L3A_L3A] = fx_tc_if_a_z_if_a_l3a_l3a;
+  fx_function[OP_TC_IF_A_Z_IF_A_LAA_Z] = fx_tc_if_a_z_if_a_laa_z;
+  fx_function[OP_TC_COND_A_Z_A_Z_LAA] = fx_tc_cond_a_z_a_z_laa;
+  fx_function[OP_TC_CASE_LA] = fx_tc_case_la;
+  fx_function[OP_TC_OR_A_AND_A_A_L3A] = fx_tc_or_a_and_a_a_l3a;
+  fx_function[OP_TC_IF_A_T_AND_A_A_L3A] = fx_tc_if_a_t_and_a_a_l3a;
+  fx_function[OP_TC_LET_IF_A_Z_LAA] = fx_tc_let_if_a_z_laa;
+  fx_function[OP_TC_LET_WHEN_LAA] = fx_tc_let_when_laa;
+  fx_function[OP_TC_LET_UNLESS_LAA] = fx_tc_let_unless_laa;
+  fx_function[OP_TC_LET_COND] = fx_tc_let_cond;
+  fx_function[OP_TC_COND_A_Z_A_LAA_LAA] = fx_tc_cond_a_z_a_laa_laa;
+
+  fx_function[OP_RECUR_IF_A_A_opA_LAq] = fx_recur_if_a_a_opa_laq;
+  fx_function[OP_RECUR_IF_A_opA_LAq_A] = fx_recur_if_a_opa_laq_a;
+  fx_function[OP_RECUR_IF_A_A_AND_A_LAA_LAA] = fx_recur_if_a_a_and_a_laa_laa;
+  fx_function[OP_RECUR_COND_A_A_A_A_opLA_LAq] = fx_recur_cond_a_a_a_a_opla_laq;
+}
+
+#if WITH_FX_TREE
+#include "fx_tree.h"
+#endif
+
+
 static s7_pointer make_real_wrapper(void)
 {
   s7_pointer p;
@@ -96426,13 +96436,14 @@ int main(int argc, char **argv)
  * need timing for rats/complex -- make sure rats stay that way: continued fractions (t184)
  * (t180=overheads)
  * check (named-)let(*) for optimize_lambda, but letrec(*) is safer since outlet is blocked here [these need tests]
- * closure_s_to: [ray=sqr_tt, sch=cdr_t, conf=is_eq_ts] -- in fx_choose? [could it see all_s->define?]
- *  closure_ss_to: [ear=fx_c_t_opucq]
- *  maybe check for other body=a cases closure_fx|sc|cs|c|sa|all_s|4s
+ * maybe check for other body=a cases closure_fx|sc|cs|c|sa|all_s|4s
  * names for opt_info fields (and collapse out unused fields)
  * other increment cases
  *   (fv-set v i (op (fv-ref v i) ...)) -- op_d_dx? = fx_c_op_opssq... opt_d_7pid_ssfo_fv_nr et al
  *   (any-set ... (op (any-ref ...) ...)) as incr (v|l|s|set v i (op ... (v|l|s|ref v i)...))
- * fix optimize_lambda annotate_args
- * direct lookup somehow for fx_tree
+ * fix optimize_lambda annotate_args -- can fx_tree handle this?
+ * functify rest unknown* (a_a|p etc)
+ * fx_tree->lookup choices (t|u|T|U (tc), and possible v|V), fx_c_a|a|a->combos, let_slot for closure_ok (recur)? also op_sym
+ *   besides recur, (define (f x) (x 1)) etc
+ *   array of tu_name (and remove from fx_tree.h)
  */
