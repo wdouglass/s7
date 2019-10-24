@@ -1,6 +1,6 @@
 ;;; vector timing tests
 
-(set! (*s7* 'heap-size) 1024000)
+(set! (*s7* 'heap-size) (* 2 1024000))
 
 (define size 300000)
 (define size/10 (/ size 10))

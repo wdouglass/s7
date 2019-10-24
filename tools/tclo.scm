@@ -1,5 +1,16 @@
 (set! (*s7* 'heap-size) (* 8 1024000))
 
+(define d1-size 200000)
+(define g-size 1000000)
+(define kf-size 30)
+(define k100-size 10000)
+#|
+(define d1-size 0)
+(define g-size 0)
+(define kf-size 30)
+(define k100-size 0)
+|#
+
 (define* (f0 a b)
   (display b #f))
 
@@ -18,7 +29,7 @@
 (define* (f5 (a 1))
   (apply + (list a 2)))
 
-(define* (f6 a . b)
+(define* (f6 a . b)          ; unsafe 
   (apply values (cons a b)))
 
 (define* (f7 (a 1) (b 2))
@@ -47,7 +58,7 @@
   (tfib 35)
   (let ((x 1) (y 2))
     (do ((i 0 (+ i 1)))
-	((= i 200000))
+	((= i d1-size))
       (f0 1 2)
       (f0 x y)
       (f0 :a x)
@@ -94,12 +105,10 @@
 
 ;;; -------- comparison with non-key case: --------
 
-(define size 1000000)
-
-(define fib
+(define no-key-fib
    (lambda (n)
-     (if (<= n 2) 1 (+ (fib (- n 2))
-                       (fib (- n 1))))))
+     (if (<= n 2) 1 (+ (no-key-fib (- n 2))
+                       (no-key-fib (- n 1))))))
 
 (define key-fib
   (lambda* (n)
@@ -107,56 +116,60 @@
 	(+ (key-fib :n (- n 2))
            (key-fib :n (- n 1))))))
 
-(define (f1 a b)
+(define (f12 a b)
   (when (> a b)
     (+ a b)))
 
-(define* (f2 a b)
+(define* (f13 a b)
   (when (> a b)
     (+ a b)))
 
-(define* (f3 (a 1) (b 0))
+(define* (f14 (a 1) (b 0))
   (when (> a b)
     (+ a b)))
 
+
+(define size g-size)
 
 (define (g1)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f1 i i)))
+      ((= i g-size))
+    (f12 i i)))
 
 (define (g2)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f2 i i)))
+      ((= i g-size))
+    (f13 i i)))
 
 (define (g3)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f2 :a i :b i)))
+      ((= i g-size))
+    (f13 :a i :b i)))
 
 (define (g4)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f2 :b i :a i)))
+      ((= i g-size))
+    (f13 :b i :a i)))
 
 (define (g5)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f3)))
+      ((= i g-size))
+    (f14)))
 
 (define (g6)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f3 i i)))
+      ((= i g-size))
+    (f14 i i)))
 
 (define (g7)
   (do ((i 0 (+ i 1)))
-      ((= i size))
-    (f3 :a i)))
+      ((= i g-size))
+    (f14 :a i)))
 
-#|
-(define* (yow a0 a1 a2 a3 a4 a5 a6 a7 a8 a9
+
+;;; -------- 100 key args --------
+
+(define* (k100 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9
 	      a10 a11 a12 a13 a14 a15 a16 a17 a18 a19
 	      a20 a21 a22 a23 a24 a25 a26 a27 a28 a29
 	      a30 a31 a32 a33 a34 a35 a36 a37 a38 a39
@@ -168,10 +181,10 @@
 	      a90 a91 a92 a93 a94 a95 a96 a97 a98 a99)
   (+ a0 a1))
 
-(define (g)
+(define (g100)
   (do ((i 0 (+ i 1)))
-      ((= i 10000))
-    (yow :a0 1 :a1 1 :a2 1 :a3 1 :a4 1 :a5 1 :a6 1 :a7 1 :a8 1 :a9 1
+      ((= i k100-size))
+    (k100 :a0 1 :a1 1 :a2 1 :a3 1 :a4 1 :a5 1 :a6 1 :a7 1 :a8 1 :a9 1
 	 :a10 1 :a11 1 :a12 1 :a13 1 :a14 1 :a15 1 :a16 1 :a17 1 :a18 1 :a19 1
 	 :a20 1 :a21 1 :a22 1 :a23 1 :a24 1 :a25 1 :a26 1 :a27 1 :a28 1 :a29 1
 	 :a30 1 :a31 1 :a32 1 :a33 1 :a34 1 :a35 1 :a36 1 :a37 1 :a38 1 :a39 1
@@ -181,7 +194,13 @@
 	 :a70 1 :a71 1 :a72 1 :a73 1 :a74 1 :a75 1 :a76 1 :a77 1 :a78 1 :a79 1
 	 :a80 1 :a81 1 :a82 1 :a83 1 :a84 1 :a85 1 :a86 1 :a87 1 :a88 1 :a89 1
 	 :a90 1 :a91 1 :a92 1 :a93 1 :a94 1 :a95 1 :a96 1 :a97 1 :a98 1 :a99 1)))
-|#
+
+
+;;; --------------------------------
+(define (kcall)
+  (no-key-fib kf-size)
+  (key-fib kf-size))
+(kcall)
 
 (g1)
 (g2)
@@ -190,5 +209,7 @@
 (g5)
 (g6)
 (g7)
+
+(g100)
 
 (exit)

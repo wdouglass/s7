@@ -1237,7 +1237,7 @@ One long-winded way in s7 uses <a href="#unlet">unlet</a>:
 <em class="gray">5</em>
 </pre>
 
-<p>But this is hard to read, and it's not inconceivable that we might want all three
+<p>But this is hard to read, and we might want all three
 values of a symbol, the start-up value, the definition-time value, and the
 current value.  The latter can be accessed with the bare symbol, the definition-time
 value with unquote (','), and the start-up value with either unlet
@@ -1298,7 +1298,9 @@ national debt.  gensym is the standard approach:
 <em class="gray">13</em>
 </pre>
 
-<p>But in s7, the simplest approach uses environments.  You have complete
+<p>I think syntax-rules and its friends try to conjure up gensyms automatically, but
+the real problem is not name collisions, but unspecified environments.
+In s7 we have first-class environments, so you have complete
 control over the environment at any point:
 </p>
 
