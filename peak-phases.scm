@@ -1,5 +1,5 @@
 (provide 'snd-peak-phases.scm)
-(load "primes.scm")
+(load "low-primes.scm")
 
 ;;; multiply these phases by pi before use as initial-phases (and use sin, not cos -- see tstall below)
 ;;; to translate these peaks into the more standard crest-factor, (/ (* peak (sqrt 2)) (sqrt N))

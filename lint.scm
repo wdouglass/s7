@@ -13771,6 +13771,12 @@
 					     (not (= (car ary) (cdr ary)))
 					     (not (= (length args) (cdr ary))))
 					(format #f "leaving aside ~A's optional arg~P, " cval (- (cdr ary) (length args)))
+					;; optional args is only one of the problems:
+					;;   (define (f5 x) (read x)) (with-input-from-string f5) -- f5 is not a thunk
+					;;   (define (f5 x y) (macro x y)) -- f5 evals its arguments, passing (values x y) makes this worse
+					;;   (define (f5 x) (f6 x)) where f6 can be redefined later -- expectation is that new f6 is called
+					;;   (object->string (define (f5 x y) (+ x y)) :readable) returns "+"
+					;;   and undoubtedly many more
 					"")
 				    function-name 
 				    function-name 

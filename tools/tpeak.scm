@@ -1,5 +1,4 @@
 (if (not (provided? 'snd-peak-phases.scm)) (load "peak-phases.scm"))
-(load "primes.scm")
 
 (define (get-best choice n)
   (let ((val (vector-ref (case choice 
