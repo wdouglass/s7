@@ -215,9 +215,9 @@
 	    (set! num i)))
 	(format *stderr* "Maximum stopping distance ~D, starting number ~D\n" len num)))))
 
-;(collatz 300000)
+;; (collatz 300000)
 ;; Maximum stopping distance 442, starting number 230631
-;; .5 secs
+;; .45 secs
 
 (collatz 20000)
 

@@ -34850,6 +34850,29 @@ static s7_pointer list_set_p_pip_direct(s7_scheme *sc, s7_pointer p1, s7_int i1,
   return(p2);
 }
 
+static s7_pointer list_increment_p_pip_direct(opt_info *o)
+{
+  s7_scheme *sc;
+  s7_pointer p, p1, p2;
+  s7_int i, index;
+  sc = o->sc;
+  p = slot_value(o->v[2].p);
+  index = integer(p);
+  if ((index < 0) || (index > sc->max_list_length))
+    out_of_range(sc, sc->list_set_symbol, small_int(2), p, (index < 0) ? its_negative_string : its_too_large_string);
+  p1 = slot_value(o->v[1].p);
+  for (i = 0, p = p1; ((is_pair(p)) && (i < index)); i++, p = cdr(p));
+  if (!is_pair(p))
+    {
+      if (type(p) == T_NIL)
+	out_of_range(sc, sc->list_set_symbol, small_int(2), wrap_integer1(sc, index), its_too_large_string);
+      else simple_wrong_type_argument_with_type(sc, sc->list_set_symbol, p1, a_proper_list_string);
+    }
+  p2 = g_add_xi(sc, car(p), integer(o->v[3].p));
+  set_car(p, p2);
+  return(p2);
+}
+
 static s7_pointer list_set_p_pip(s7_scheme *sc, s7_pointer p1, s7_int i1, s7_pointer p2)
 {
   if (!is_pair(p1))
@@ -61981,6 +62004,26 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 		      if (is_pair(cddr(target))) return(return_false(sc, car_x, __func__, __LINE__));
 		      op2 = OO_L;
 		      opc->v[3].p_pip_f = list_set_p_pip_direct;
+
+		      /* an experiment -- is this ever hit in normal code? */
+		      {
+			s7_pointer val;
+			val = caddr(car_x);
+			if ((is_pair(val)) && (car(val) == sc->add_symbol) && (is_t_integer(caddr(val))) && (is_null(cdddr(val))) && (is_symbol(cadr(taraget))) &&
+			    (car(target) == (caadr(val))) && (is_pair(cdadr(val))) && (is_null(cddadr(val))) && (cadr(target) == cadadr(val)))
+			  {
+			    s7_pointer slot;
+			    index = cadr(target);
+			    slot = opt_simple_symbol(sc, index);
+			    if ((slot) && (is_opt_int(slot_value(slot))))
+			      {
+				opc->v[2].p = slot;
+				opc->v[3].p = caddr(val);
+				opc->v[0].fp = list_increment_p_pip_direct;
+				return(oo_set_type_2(opc, 1, 2, op2, OO_I));
+			      }
+			  }
+		      }
 		      break;
 
 		    case T_HASH_TABLE:
@@ -79291,6 +79334,22 @@ static goto_t dox_ex(s7_scheme *sc)
 			{
 			  fd(o);
 			  slot_set_value(stepper, stepf(sc, stepa));
+			  if (is_true(sc, sc->value = endf(sc, endp)))
+			    {
+			      sc->code = cdr(end);
+			      return(goto_do_end_clauses);
+			    }
+			}
+		    }
+		  
+		  if ((stepf == fx_add_t1) && (stepper == let_slots(sc->envir)) && (is_t_integer(slot_value(stepper))))
+		    {
+		      s7_int i;
+		      i = integer(slot_value(stepper));
+		      while (true)
+			{
+			  bodyf(sc, body);
+			  slot_set_value(stepper, make_integer(sc, ++i));
 			  if (is_true(sc, sc->value = endf(sc, endp)))
 			    {
 			      sc->code = cdr(end);
@@ -96713,8 +96772,8 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  163   129
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   620
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   752
- * tshoot        |      |      |      |      |      | 1224 |  847   769
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   752  715
+ * tshoot        |      |      |      |      |      | 1224 |  847   769  740
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   876
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673
@@ -96747,7 +96806,17 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *
  * z_first: op_tc_let_if_a_z_laa, tcs, if_a_z_if_a_laa_laa (l3a->la2 case), tc_if_a_z_let_laa (lint)?
- * generalize the vref cases, s7test for fx coverage
- * set up s7/index.html, point to s7.tar.gz
- * pango troubles in FC 31, also FC31-32 bit
+ * generalize the vref cases
+ * s7test for fx coverage (t195)
+ *   fx_subtract_U1 fx_not_is_eq_car_q fx_is_null_cddr_s 
+ *   fx_is_integer_s fx_is_vector_t fx_is_proper_list_s fx_not_t fx_vector_ref_direct fx_c_cu
+ *   fx_c_Wt_direct fx_cons_tU fx_c_tU fx_subtract_sf fx_subtract_fs fx_multiply_fs fx_c_sqr_sqr fx_geq_tT
+ *   fx_geq_tu fx_gt_tg fx_leq_tu fx_lt_tu fx_lt_tU fx_num_eq_tg fx_hash_increment fx_not_oputq fx_add_s_vref
+ *   fx_subtract_s_vref fx_multiply_s_vref fx_gt_vref_s fx_vref_vref_tu_s fx_geq_s_vref fx_is_eq_s_vref
+ *   fx_vref_s_add fx_vref_vref_s fx_vref_vref_t fx_c_opgsq_t_direct fx_vref_vref_3 fx_vref_vref_gs_t fx_c_opuq_t_direct
+ *   fx_c_g_opgsq_direct fx_vref_g_vref_gs fx_num_eq_add_ss fx_c_c_opssq_direct fx_add_s_car_s fx_add_u_car_t
+ *   fx_c_opsq_opsq_direct fx_c_opsq_optuq_direct fx_sub_mul2 fx_lt_sub2 fx_sub_vref2 fx_c_s_op_s_opssqq_direct 
+ *   fx_string_ref_0_symbol_a fx_is_zero_remainder fx_number_to_string_aa fx_c_gac fx_c_op_opssq_q_s_direct
+ *   fx_and_or_2_vref fx_len3 fx_len2 fx_not_symbol_or_keyword fx_c_closure_s_a fx_safe_closure_t_d fx_c_closure_s_d
+ *   fx_and_pair_closure_s fx_safe_closure_3s_to_s 
  */
