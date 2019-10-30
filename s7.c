@@ -52425,6 +52425,7 @@ static s7_pointer fx_c_opssq_s_direct(s7_scheme *sc, s7_pointer arg)
 	   lookup(sc, caddr(arg))));
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_add_vref_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -52501,6 +52502,7 @@ static s7_pointer fx_vref_s_add(s7_scheme *sc, s7_pointer arg)
   largs = cdaddr(arg);
   return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), add_p_pp(sc, lookup(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
 }
+#endif
 
 static s7_pointer fx_vref_vref_s(s7_scheme *sc, s7_pointer arg)
 {
@@ -52725,6 +52727,7 @@ static s7_pointer fx_c_s_opssq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_c_s_opssq_direct(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -52733,7 +52736,6 @@ static s7_pointer fx_c_s_opssq_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_pp_t)opt2_direct(arg))(sc, lookup(sc, car(arg)),
 	   ((s7_p_pp_t)opt3_direct(arg))(sc, lookup(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
 }
-/* multiply_s_opssq_direct saved almost nothing */
 
 static s7_pointer fx_c_g_opgsq_direct(s7_scheme *sc, s7_pointer arg)
 {
@@ -52753,7 +52755,6 @@ static s7_pointer fx_vref_g_vref_gs(s7_scheme *sc, s7_pointer arg)
 	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
 }
 
-#if (!WITH_GMP)
 static s7_pointer fx_num_eq_add_ss(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs, x, y, z;
@@ -53020,6 +53021,7 @@ static s7_pointer fx_c_opssq_opssq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_sub_mul2(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer a1;
@@ -53046,6 +53048,25 @@ static s7_pointer fx_lt_sub2(s7_scheme *sc, s7_pointer arg)
   a1 = cdadr(arg);
   return(lt_p_pp(sc, subtract_p_pp(sc, lookup(sc, car(a1)), lookup(sc, cadr(a1))), sc->u));
 }
+
+static s7_pointer fx_sub_vref2(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p1, p2, v1, a1;
+  a1 = cdadr(arg);
+  v1 = lookup(sc, car(a1));
+  p1 = lookup(sc, cadr(a1));
+  p2 = lookup(sc, caddr(caddr(arg)));
+  if ((is_t_integer(p1)) && (is_t_integer(p2)) && ((is_normal_vector(v1)) && (vector_rank(v1) == 1)))
+    {
+      s7_int i1, i2;
+      i1 = integer(p1);
+      i2 = integer(p2);
+      if ((i1 >= 0) && (i1 <= vector_length(v1)) && (i2 >= 0) && (i2 < vector_length(v1)))
+	return(subtract_p_pp(sc, vector_ref_p_pi(sc, v1, i1), vector_ref_p_pi(sc, v1, i2)));
+    }
+  return(subtract_p_pp(sc, vector_ref_p_pp(sc, v1, p1), vector_ref_p_pp(sc, v1, p2)));
+}
+#endif
 
 static s7_pointer fx_c_op_opssq_q_c(s7_scheme *sc, s7_pointer code)
 {
@@ -53686,6 +53707,7 @@ static inline s7_pointer fx_and_s_2(s7_scheme *sc, s7_pointer arg)
   return(c_call(caddr(arg))(sc, sc->t1_1));
 }
 
+#if (!WITH_GMP)
 static s7_pointer fx_and_or_2_vref(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer or1, arg11, v, ip, jp, xp, arg12;
@@ -53717,6 +53739,7 @@ static s7_pointer fx_and_or_2_vref(s7_scheme *sc, s7_pointer arg)
 		}}}}
   return(fx_and_2(sc, arg));
 }
+#endif
 
 static s7_pointer fx_len2(s7_scheme *sc, s7_pointer arg)
 {
@@ -54123,6 +54146,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    }
 	  return(fx_or_2);
 
+#if (!WITH_GMP)
 	case OP_AND_2:
 	  if ((c_callee(cdr(arg)) == fx_or_2) && (c_callee(cddr(arg)) == fx_or_2))
 	    {
@@ -54143,6 +54167,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 			    return(fx_and_or_2_vref);
 			}}}}
 	  return(fx_and_2);
+#endif
 
 	case OP_AND_3:
 	  if ((c_callee(cdr(arg)) == fx_is_pair_t) && (c_callee(cddr(arg)) == fx_is_pair_cdr_t))
@@ -54259,8 +54284,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    return(fx_c_4a);
 	  }
 
-	case HOP_SAFE_C_S_opSSq:
 #if (!WITH_GMP)
+	case HOP_SAFE_C_S_opSSq:
 	  {
 	    s7_pointer s2;
 	    s2 = caddr(arg);
@@ -54270,7 +54295,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    if ((car(arg) == sc->num_eq_symbol) && (car(s2) == sc->add_symbol))
 	      return(fx_num_eq_add_ss);
 	  }
-#endif
 	  if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
 	      (s7_p_pp_function(slot_value(global_slot(caaddr(arg))))))
 	    {
@@ -54298,6 +54322,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    }
 	  return(fx_c_s_opssq);
 	  
+
 	case HOP_SAFE_C_opSSq_S:
 	  if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
 	      (s7_p_pp_function(slot_value(global_slot(caadr(arg))))))
@@ -54316,7 +54341,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    }
 	  return(fx_c_opssq_s);
 	  
-#if (!WITH_GMP)
 	case HOP_SAFE_C_opSSq_opSSq:
 	  {
 	    s7_pointer s1, s2;
@@ -54329,6 +54353,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		if (car(arg) == sc->add_symbol) return(fx_add_mul2);
 	      }
 	    if ((car(arg) == sc->lt_symbol) && (car(s1) == sc->subtract_symbol) && (car(s2) == sc->subtract_symbol)) return(fx_lt_sub2);
+	    if ((car(arg) == sc->subtract_symbol) && (car(s1) == sc->vector_ref_symbol) && (car(s2) == sc->vector_ref_symbol) && (cadr(s1) == cadr(s2))) return(fx_sub_vref2);
 	    return(fx_c_opssq_opssq);
 	  }
 #endif
@@ -96616,9 +96641,9 @@ s7_scheme *s7_init(void)
   s7_eval_c_string(sc, "(begin                                         \n\
                           (define-constant most-positive-fixnum (*s7* 'most-positive-fixnum)) \n\
                           (define-constant most-negative-fixnum (*s7* 'most-negative-fixnum)) \n\
-                          (define global-environment  rootlet)         \n\
+                          (define global-environment rootlet)          \n\
                           (define current-environment curlet)          \n\
-                          (define make-keyword        string->keyword))");  /* these are used in CM's scm/s7.scm */
+                          (define make-keyword string->keyword))");  /* these are used in CM's scm/s7.scm */
 #endif
 
   return(sc);
@@ -96641,6 +96666,8 @@ int main(int argc, char **argv)
   s7_scheme *sc;
 
   sc = s7_init();
+  fprintf(stderr, "s7: %s\n", S7_DATE);
+
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
@@ -96684,7 +96711,7 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.8  19.9
  * ------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  163   161   129
+ * tpeak         |      |      |      |  391 |  377 |  199 |  163   129
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   620
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   752
  * tshoot        |      |      |      |      |      | 1224 |  847   769
@@ -96692,7 +96719,7 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673
  * tvect         |      |      |      |      |      | 5729 | 1793  1690
- * tmisc         |      |      |      |      |      | 2636 | 1846  1838  1824
+ * tmisc         |      |      |      |      |      | 2636 | 1846  1824
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2047
  * tlet          |      |      |      |      | 4717 | 2959 | 2148  2124
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2197
@@ -96719,6 +96746,8 @@ int main(int argc, char **argv)
  * tbig          |      |      |      |      |246.9 |230.6 |177.9 177.1
  * ------------------------------------------------------------------------
  *
- * z_first: op_tc_let_if_a_z_laa, tcs, if_a_z_if_a_laa_laa (l3a->la2 case)
- * t718
+ * z_first: op_tc_let_if_a_z_laa, tcs, if_a_z_if_a_laa_laa (l3a->la2 case), tc_if_a_z_let_laa (lint)?
+ * generalize the vref cases, s7test for fx coverage
+ * set up s7/index.html, point to s7.tar.gz
+ * pango troubles in FC 31, also FC31-32 bit
  */

@@ -310,6 +310,9 @@ Its argument is a string representing the desired number:
 <em class="gray">1.12312312312312312312312312300000000009E0</em>
 </pre>
 
+<p>Currently the gmp code is not completely integrated into s7's optimizer, so the gmp version
+of s7 is much slower than the ordinary version.  I hope to fix this someday...
+</p>
 
 <blockquote> 
 <div class="indented">
@@ -1399,6 +1402,63 @@ to be evaluated in its definition environment:
     (list (mac 1) 
 	  (mac-1 1))))
 </pre>
+
+<blockquote>
+<div class="indented">
+<p>Here are some variations on "unless", inspired by the wikipedia hygienic macro page:
+</p>
+<pre>
+(define-macro (my-unless condition . body)
+ `(with-let (inlet (unlet) :condition ,condition) ; here unlet protects body (format below)
+    (if (not condition) (begin ,@body))))
+
+(let ((not (lambda (x) x))
+      (begin 32)
+      (if +)
+      (format abs))
+  (my-unless #t (format #t "This should not be printed!\n"))
+  (my-unless #f (format #t "This should be printed!\n")))
+
+(set! format abs)
+(let ((not (lambda (x) x)))
+  (my-unless #t (format #t "This should not be printed!\n"))
+  (my-unless #f (format #t "This should be printed!\n")))
+
+(define (user-defined-operator x) (not x))
+
+(define-macro (my-unless-1 condition . body)
+ `(with-let (inlet (unlet) :condition ,condition)
+    (if (user-defined-operator condition) (begin ,@body))))
+
+(let ((user-defined-operator (lambda (x) x)))
+  (my-unless-1 #t (format #t "This should not be printed!\n"))
+  (my-unless-1 #f (format #t "This should be printed!\n")))
+
+(define my-unless-2
+  (let ((op1 (lambda (x) (not x))))
+    (define-macro (_ condition . body)
+      `(with-let (inlet (unlet) (funclet my-unless-2) :condition ,condition) 
+         ;; funclet above to get my-unless-2's version of op1
+	 (if (op1 condition) (begin ,@body))))))
+
+(let ((op1 (lambda (x) x)))
+  (my-unless-2 #t (format #t "This should not be printed!\n"))
+  (my-unless-2 #f (format #t "This should be printed!\n")))
+      
+(define my-unless-3
+  (let ((op1 (lambda (x) x)))
+    (define-macro (_ condition . body)
+      `(with-let (inlet (unlet) :condition ,condition :local-env (curlet)) 
+         ;; curlet to get run-time local version of op1
+	 (if ((with-let local-env op1) condition) (begin ,@body))))))
+
+(let ((op1 (lambda (x) (not x))))
+  (my-unless-3 #t (format #t "This should not be printed!\n"))
+  (my-unless-3 #f (format #t "This should be printed!\n")))
+</pre>
+</div>
+</blockquote>      
+
 
 
 <!--
@@ -2761,7 +2821,7 @@ that those values can be clobbered).
 </p>
 
 <p>
-<code>(fill! lt &lt;undefined&gt;)</code> removes all bindings from the let lt.
+<code>(fill! lt #&lt;undefined&gt;)</code> removes all bindings from the let lt.
 </p>
 <blockquote>
 
