@@ -3860,11 +3860,11 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_C_opSSq_S, HOP_SAFE_C_opSSq_S, OP_SAFE_C_opCSq_S, HOP_SAFE_C_opCSq_S, OP_SAFE_C_opSCq_C, HOP_SAFE_C_opSCq_C, 
       OP_SAFE_C_S_op_opSq_Cq, HOP_SAFE_C_S_op_opSq_Cq,
       OP_SAFE_C_S_op_S_opSSqq, HOP_SAFE_C_S_op_S_opSSqq, OP_SAFE_C_S_op_S_opSqq, HOP_SAFE_C_S_op_S_opSqq,
-      OP_SAFE_C_op_opSSq_q_C, HOP_SAFE_C_op_opSSq_q_C, OP_SAFE_C_op_opSq_q_C, HOP_SAFE_C_op_opSq_q_C,
-      OP_SAFE_C_op_opSSq_q_S, HOP_SAFE_C_op_opSSq_q_S, 
+      OP_SAFE_C_op_opSSqq_C, HOP_SAFE_C_op_opSSqq_C, OP_SAFE_C_op_opSqq_C, HOP_SAFE_C_op_opSqq_C,
+      OP_SAFE_C_op_opSSqq_S, HOP_SAFE_C_op_opSSqq_S, 
       OP_SAFE_C_S_op_opSSq_opSSqq, HOP_SAFE_C_S_op_opSSq_opSSqq, OP_SAFE_C_op_opSSq_Sq_S, HOP_SAFE_C_op_opSSq_Sq_S,
-      OP_SAFE_C_op_opSq_q, HOP_SAFE_C_op_opSq_q,
-      OP_SAFE_C_op_S_opSq_q, HOP_SAFE_C_op_S_opSq_q, OP_SAFE_C_op_opSq_S_q, HOP_SAFE_C_op_opSq_S_q,
+      OP_SAFE_C_op_opSqq, HOP_SAFE_C_op_opSqq, OP_SAFE_C_op_opSq_Cq, HOP_SAFE_C_op_opSq_Cq,
+      OP_SAFE_C_op_S_opSqq, HOP_SAFE_C_op_S_opSqq, OP_SAFE_C_op_opSq_Sq, HOP_SAFE_C_op_opSq_Sq,
       OP_SAFE_C_opSq_CS, HOP_SAFE_C_opSq_CS,
 
       OP_SAFE_C_A, HOP_SAFE_C_A, OP_SAFE_C_AA, HOP_SAFE_C_AA, OP_SAFE_C_CA, HOP_SAFE_C_CA, OP_SAFE_C_AC, HOP_SAFE_C_AC,
@@ -4100,11 +4100,11 @@ static const char* op_names[NUM_OPS] =
       "safe_c_opssq_s", "h_safe_c_opssq_s", "safe_c_opcsq_s", "h_safe_c_opcsq_s", "safe_c_opscq_c", "h_safe_c_opscq_c", 
       "safe_c_s_op_opsq_cq", "h_safe_c_s_op_opsq_cq",
       "safe_c_s_op_s_opssqq", "h_safe_c_s_op_s_opssqq", "safe_c_s_op_s_opsqq", "h_safe_c_s_op_s_opsqq",
-      "safe_c_op_opssq_q_c", "h_safe_c_op_opssq_q_c", "safe_c_op_opsq_q_c", "h_safe_c_op_opsq_q_c",
-      "safe_c_op_opssq_q_s", "h_safe_c_op_opssq_q_s", 
+      "safe_c_op_opssqq_c", "h_safe_c_op_opssqq_c", "safe_c_op_opsqq_c", "h_safe_c_op_opsqq_c",
+      "safe_c_op_opssqq_s", "h_safe_c_op_opssqq_s", 
       "safe_c_s_op_opssq_opssqq", "h_safe_c_s_op_opssq_opssqq", "safe_c_opssq_sq_s", "h_safe_c_opssq_sq_s",
-      "safe_c_op_opsq_q", "h_safe_c_op_opsq_q",
-      "safe_c_op_s_opsq_q", "h_safe_c_op_s_opsq_q", "safe_c_op_opsq_s_q", "h_safe_c_op_opsq_s_q",
+      "safe_c_op_opsqq", "h_safe_c_op_opsqq", "safe_c_op_opsq_cq", "h_safe_c_op_opsq_cq",
+      "safe_c_op_s_opsqq", "h_safe_c_op_s_opsqq", "safe_c_op_opsq_sq", "h_safe_c_op_opsq_sq",
       "safe_c_opsq_cs", "h_safe_c_opsq_cs",
 
       "safe_c_a", "h_safe_c_a", "safe_c_aa", "h_safe_c_aa", "safe_c_ca", "h_safe_c_ca", "safe_c_ac", "h_safe_c_ac",
@@ -50810,12 +50810,12 @@ static s7_pointer fx_is_eq_caar_q(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_not_is_eq_car_q(s7_scheme *sc, s7_pointer arg)
 {
-  s7_pointer lst, a;
-  a = opt2_pair(cdr(arg));
-  lst = lookup(sc, opt2_sym(a));
+  s7_pointer lst;
+  /* fprintf(stderr, "%s %s\n", __func__, display(arg)); */
+  lst = lookup(sc, opt2_sym(cdr(arg)));
   if (is_pair(lst))
-    return(make_boolean(sc, car(lst) != opt3_any(a)));
-  return(make_boolean(sc, !s7_is_eq(g_car(sc, set_plist_1(sc, lst)), opt3_any(a))));
+    return(make_boolean(sc, car(lst) != opt3_any(cdr(arg))));
+  return(make_boolean(sc, !s7_is_eq(g_car(sc, set_plist_1(sc, lst)), opt3_any(cdr(arg)))));
 }
 
 static s7_pointer fx_is_pair_car_s(s7_scheme *sc, s7_pointer arg)
@@ -52324,8 +52324,20 @@ static s7_pointer fx_c_opstq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  set_car(sc->t2_1, lookup(sc, cadr(largs)));
   check_let_slots(sc, __func__, arg, caddr(largs));
+  set_car(sc->t2_1, lookup(sc, cadr(largs)));
+  set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
+  set_car(sc->t1_1, c_call(largs)(sc, sc->t2_1));
+  return(c_call(arg)(sc, sc->t1_1));
+}
+
+static s7_pointer fx_c_oputq(s7_scheme *sc, s7_pointer arg) /* very few calls */
+{
+  s7_pointer largs;
+  largs = cadr(arg);
+  check_let_slots(sc, __func__, arg, caddr(largs));
+  check_next_let_slot(sc, __func__, arg, cadr(largs));
+  set_car(sc->t2_1, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   set_car(sc->t1_1, c_call(largs)(sc, sc->t2_1));
   return(c_call(arg)(sc, sc->t1_1));
@@ -52335,6 +52347,12 @@ static s7_pointer fx_c_opstq_direct(s7_scheme *sc, s7_pointer arg)
 {
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc,
             ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), slot_value(let_slots(sc->envir)))));
+}
+
+static s7_pointer fx_c_oputq_direct(s7_scheme *sc, s7_pointer arg) /* never called */
+{
+  return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc,
+            ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir))), slot_value(let_slots(sc->envir)))));
 }
 
 #if (!WITH_GMP)
@@ -52777,18 +52795,6 @@ static s7_pointer fx_vref_g_vref_gs(s7_scheme *sc, s7_pointer arg)
   return(vector_ref_p_pp(sc, lookup_global(sc, car(arg)),
 	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
 }
-
-static s7_pointer fx_num_eq_add_ss(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer largs, x, y, z;
-  largs = cdaddr(arg);
-  x = lookup(sc, car(largs));
-  y = lookup(sc, cadr(largs));
-  z = lookup(sc, cadr(arg));
-  if ((is_t_integer(x)) && (is_t_integer(y)) && (is_t_integer(z)))
-    return(make_boolean(sc, (integer(x) + integer(y)) == integer(z)));
-  return(num_eq_p_pp(sc, z, add_p_pp(sc, x, y)));
-}
 #endif
 
 static s7_pointer fx_c_c_opssq(s7_scheme *sc, s7_pointer arg)
@@ -52919,7 +52925,7 @@ static s7_pointer fx_add_u_car_t(s7_scheme *sc, s7_pointer arg)
 }
 #endif
 
-static s7_pointer fx_c_op_s_opsq_q(s7_scheme *sc, s7_pointer arg)
+static s7_pointer fx_c_op_s_opsqq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer outer, args;
   outer = cadr(arg);
@@ -52931,7 +52937,7 @@ static s7_pointer fx_c_op_s_opsq_q(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t1_1));
 }
 
-static s7_pointer fx_c_op_opsq_s_q(s7_scheme *sc, s7_pointer arg)
+static s7_pointer fx_c_op_opsq_sq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer outer, args;
   outer = cadr(arg);
@@ -52939,6 +52945,19 @@ static s7_pointer fx_c_op_opsq_s_q(s7_scheme *sc, s7_pointer arg)
   set_car(sc->t1_1, lookup(sc, cadr(args)));
   set_car(sc->t2_1, c_call(args)(sc, sc->t1_1));
   set_car(sc->t2_2, lookup(sc, caddr(outer)));
+  set_car(sc->t1_1, c_call(outer)(sc, sc->t2_1));
+  return(c_call(arg)(sc, sc->t1_1));
+}
+
+static s7_pointer fx_c_op_opsq_cq(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer outer, args;
+  outer = cadr(arg);
+  args = cadr(outer);
+  /* fprintf(stderr, "%s %s: outer %s, args %s\n", __func__, display(arg), display(outer), display(args)); */
+  set_car(sc->t1_1, lookup(sc, cadr(args)));
+  set_car(sc->t2_1, c_call(args)(sc, sc->t1_1));
+  set_car(sc->t2_2, opt2_con(cdr(outer))); /* caddr(outer)); */ /* opt2_any(...) */
   set_car(sc->t1_1, c_call(outer)(sc, sc->t2_1));
   return(c_call(arg)(sc, sc->t1_1));
 }
@@ -53091,7 +53110,7 @@ static s7_pointer fx_sub_vref2(s7_scheme *sc, s7_pointer arg)
 }
 #endif
 
-static s7_pointer fx_c_op_opssq_q_c(s7_scheme *sc, s7_pointer code)
+static s7_pointer fx_c_op_opssqq_c(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = cadadr(code);
@@ -53103,7 +53122,7 @@ static s7_pointer fx_c_op_opssq_q_c(s7_scheme *sc, s7_pointer code)
   return(c_call(code)(sc, sc->t2_1));
 }
 
-static s7_pointer fx_c_op_opsq_q(s7_scheme *sc, s7_pointer code)
+static s7_pointer fx_c_op_opsqq(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = cadadr(code);
@@ -53168,7 +53187,7 @@ static s7_pointer fx_c_s_op_s_opssqq_direct(s7_scheme *sc, s7_pointer code)
                ((s7_p_pp_t)opt3_direct(cdr(code)))(sc, lookup(sc, cadr(val1)), lookup(sc, caddr(val1))))));
 }
 
-static s7_pointer fx_c_op_opsq_q_c(s7_scheme *sc, s7_pointer code)
+static s7_pointer fx_c_op_opsqq_c(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = cadadr(code);
@@ -53575,7 +53594,7 @@ static s7_pointer fx_c_s_opcsq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
-static s7_pointer fx_c_op_opssq_q_s(s7_scheme *sc, s7_pointer code)
+static s7_pointer fx_c_op_opssqq_s(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = opt1_pair(cdr(code));
@@ -53587,7 +53606,7 @@ static s7_pointer fx_c_op_opssq_q_s(s7_scheme *sc, s7_pointer code)
   return(c_call(code)(sc, sc->t2_1));
 }
 
-static s7_pointer fx_c_op_opssq_q_s_direct(s7_scheme *sc, s7_pointer code)
+static s7_pointer fx_c_op_opssqq_s_direct(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = opt1_pair(cdr(code));
@@ -53944,53 +53963,6 @@ static s7_pointer fx_safe_closure_a_to_sc(s7_scheme *sc, s7_pointer arg)
   return(c_call(car(closure_body(opt1_lambda(arg))))(sc, sc->t2_1));
 }
 
-static s7_pointer fx_c_closure_s_a(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer clo_arg;
-  clo_arg = cadr(arg);
-  gc_protect_direct(sc, sc->envir);
-  sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(clo_arg)), lookup(sc, opt2_sym(clo_arg)));
-  set_car(sc->t1_1, fx_call(sc, closure_body(opt1_lambda(clo_arg))));
-  sc->envir = sc->stack_end[-2];
-  sc->stack_end -= 4;
-  return(c_call(arg)(sc, sc->t1_1));
-}
-
-static s7_pointer fx_safe_closure_s_d(s7_scheme *sc, s7_pointer code)
-{
-  s7_pointer result;
-  gc_protect_direct(sc, sc->envir);
-  sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), lookup(sc, opt2_sym(code)));
-  result = d_call(sc, car(closure_body(opt1_lambda(code))));
-  sc->envir = sc->stack_end[-2];
-  sc->stack_end -= 4;
-  return(result);
-}
-
-static s7_pointer fx_safe_closure_t_d(s7_scheme *sc, s7_pointer code)
-{
-  s7_pointer result;
-  check_let_slots(sc, __func__, code, opt2_sym(code));
-  gc_protect_direct(sc, sc->envir);
-  sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), slot_value(let_slots(sc->envir)));
-  result = d_call(sc, car(closure_body(opt1_lambda(code))));
-  sc->envir = sc->stack_end[-2];
-  sc->stack_end -= 4;
-  return(result);
-}
-
-static s7_pointer fx_c_closure_s_d(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer clo_arg;
-  clo_arg = cadr(arg);
-  gc_protect_direct(sc, sc->envir);
-  sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(clo_arg)), lookup(sc, opt2_sym(clo_arg)));
-  set_car(sc->t1_1, d_call(sc, car(closure_body(opt1_lambda(clo_arg)))));
-  sc->envir = sc->stack_end[-2];
-  sc->stack_end -= 4;
-  return(c_call(arg)(sc, sc->t1_1));
-}
-
 static s7_pointer fx_and_2_closure_s(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 */
 {
   s7_pointer result;
@@ -54192,16 +54164,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  return(fx_and_2);
 #endif
 
-	case OP_AND_3:
-	  if ((c_callee(cdr(arg)) == fx_is_pair_t) && (c_callee(cddr(arg)) == fx_is_pair_cdr_t))
-	    {
-	      if (c_callee(cdddr(arg)) == fx_is_null_cddr_t)
-		return(fx_len2);
-	      if (c_callee(cdddr(arg)) == fx_is_pair_cddr_t)
-		return(fx_len3);
-	    }
-	  return(fx_and_3);
-	  
 	case HOP_SAFE_C_S:
 	  if (car(arg) == sc->cdr_symbol) return(fx_cdr_s);
 	  if (car(arg) == sc->car_symbol) return(fx_car_s);
@@ -54314,9 +54276,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    s2 = caddr(arg);
 	    if ((car(s2) == sc->multiply_symbol) && (cadr(s2) == caddr(s2)))
 	      return(fx_c_s_sqr);
-	    
-	    if ((car(arg) == sc->num_eq_symbol) && (car(s2) == sc->add_symbol))
-	      return(fx_num_eq_add_ss);
 	  }
 	  if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
 	      (s7_p_pp_function(slot_value(global_slot(caaddr(arg))))))
@@ -54627,7 +54586,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  if (has_direct_opt(arg)) return(fx_c_opsq_opsq_direct);
 	  return(fx_c_opsq_opsq);
 	  
-	case HOP_SAFE_C_op_opSq_q:
+	case HOP_SAFE_C_op_opSq_Cq:
 	  if ((car(arg) == sc->not_symbol) &&      /* (not (eq? (car s) 's)) */
 	      (c_callee(cadr(arg)) == g_is_eq) &&
 	      (c_callee(cadadr(arg)) == g_car) &&
@@ -54638,7 +54597,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      set_opt3_any(cdr(arg), cadaddr(cadr(arg))); 
 	      return(fx_not_is_eq_car_q);
 	    }
-	  return(fx_c_op_opsq_q);
+	  return(fx_c_op_opsq_cq);
 	  
 	case HOP_SAFE_C_S_op_S_opSSqq:
 	  if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
@@ -54653,7 +54612,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    }
 	  return(fx_c_s_op_s_opssqq);
 	  
-	case HOP_SAFE_C_op_opSSq_q_S:
+	case HOP_SAFE_C_op_opSSqq_S:
 	  if ((s7_p_pp_function(slot_value(global_slot(car(arg))))) &&
 	      (s7_p_p_function(slot_value(global_slot(caadr(arg))))) &&
 	      (s7_p_pp_function(slot_value(global_slot(car(cadr(cadr(arg))))))))
@@ -54662,23 +54621,21 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      set_opt3_direct(arg, (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      set_opt2_direct(cdr(arg), (s7_pointer)(s7_p_p_function(slot_value(global_slot(caadr(arg))))));
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(caadr(cadr(arg)))))));
-	      return(fx_c_op_opssq_q_s_direct);
+	      return(fx_c_op_opssqq_s_direct);
 	    }
-	  return(fx_c_op_opssq_q_s);
+	  return(fx_c_op_opssqq_s);
 
-	case HOP_SAFE_C_op_opSq_q_C:
+	case HOP_SAFE_C_op_opSqq_C:
 	  if ((c_callee(arg) == g_string_ref) && (is_t_integer(caddr(arg))) && (integer(caddr(arg)) == 0) && 
 	      (c_callee(cadr(arg)) == g_symbol_to_string_uncopied))
 	    {
 	      set_opt3_any(arg, cadadr(arg));
 	      return(fx_string_ref_0_symbol_a);
 	    }
-	  return(fx_c_op_opsq_q_c);
+	  return(fx_c_op_opsqq_c);
 	  
 	case HOP_SAFE_C_A:
 	  if (car(arg) == sc->not_symbol) return(fx_not_a);
-	  if (c_callee(cdr(arg)) == fx_safe_closure_s_d) return(fx_c_closure_s_d);
-	  if (c_callee(cdr(arg)) == fx_safe_closure_s_a) return(fx_c_closure_s_a);
 	  return(fx_c_a);
 
 	case HOP_SAFE_C_AA:
@@ -54713,10 +54670,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		      return(fx_and_pair_closure_s);
 		    return(fx_and_2_closure_s);
 		  }
-
-		if (is_h_safe_c_d(body))
-		  return(fx_safe_closure_s_d);
-
 		if (optimize_op(body) == HOP_SAFE_C_opSq_C)
 		  {
 		    if ((c_callee(body) == g_lint_let_ref) &&
@@ -54914,7 +54867,6 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_subtract_s1) return(with_c_call(tree, fx_subtract_t1));
 	  if (c_callee(tree) == fx_subtract_si) return(with_c_call(tree, fx_subtract_ti));
 	  if (c_callee(tree) == fx_safe_closure_s_a) return(with_c_call(tree, fx_safe_closure_t_a));
-	  if (c_callee(tree) == fx_safe_closure_s_d) return(with_c_call(tree, fx_safe_closure_t_d));
 	  if (c_callee(tree) == fx_length_s) return(with_c_call(tree, fx_length_t));
 	  if ((c_callee(tree) == fx_c_s_opsq_direct) && (cadaddr(p) == var2)) return(with_c_call(tree, fx_c_t_opuq_direct));
 	  if (c_callee(tree) == fx_c_s_opscq)
@@ -55001,9 +54953,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			      if ((opt2_direct(cdr(p)) == (s7_pointer)is_zero_p_p) && (opt3_direct(cdr(p)) == (s7_pointer)remainder_p_pp))
 				return(with_c_call(tree, fx_is_zero_remainder_1));
 #endif
-			      return(with_c_call(tree, fx_c_opstq_direct));
+			      return(with_c_call(tree, (cadadr(p) == var2) ? fx_c_oputq_direct : fx_c_opstq_direct));
 			    }
-			  return(with_c_call(tree, fx_c_opstq));
+			  return(with_c_call(tree, (cadadr(p) == var2) ? fx_c_oputq : fx_c_opstq));
 			}
 		      if ((cadr(cadr(p)) == var1) && (caddr(cadr(p)) == var2)) return(with_c_call(tree, fx_c_optuq));
 		    }
@@ -55080,13 +55032,24 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			  if ((c_callee(tree) == fx_c_opssq_s_direct) && (caddr(cadr(p)) == var2) &&
 			      (opt2_direct(cdr(p)) == (s7_pointer)vector_ref_p_pp) && (opt3_direct(cdr(p)) == (s7_pointer)vector_ref_p_pp))
 			    return(with_c_call(tree, fx_vref_vref_tu_s));
+
+			  if (c_callee(tree) == fx_and_3)
+			    {
+			      if ((c_callee(cdr(p)) == fx_is_pair_t) && (c_callee(cddr(p)) == fx_is_pair_cdr_t))
+				{
+				  if (c_callee(cdddr(p)) == fx_is_null_cddr_t)
+				    return(with_c_call(tree, fx_len2));
+				  if (c_callee(cdddr(p)) == fx_is_pair_cddr_t)
+				    return(with_c_call(tree, fx_len3));
+				}
+			    }
 			}
 		  
 		      if (cadadr(p) == var2)
 			{
 			  if (c_callee(tree) == fx_not_is_null_s) return(with_c_call(tree, fx_not_is_null_u));
 #if (!WITH_GMP)
-			  if ((c_callee(tree) == fx_not_opssq) && (caddr(cadr(p)) == var1)) 
+			  if ((c_callee(tree) == fx_not_opssq) && (caddr(cadr(p)) == var1))
 			    {
 			      if (c_callee(cadr(p)) == g_less_2) set_c_call(tree, fx_not_lt_ut); else set_c_call(tree, fx_not_oputq);
 			      return(true);
@@ -67858,9 +67821,10 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_SS:     return(OP_SAFE_C_opSSq);
 	case OP_SAFE_C_SC:     return(OP_SAFE_C_opSCq);
 	case OP_SAFE_C_CS:     return(OP_SAFE_C_opCSq);
-	case OP_SAFE_C_opSq:   return(OP_SAFE_C_op_opSq_q);
-	case OP_SAFE_C_S_opSq: return(OP_SAFE_C_op_S_opSq_q);
-	case OP_SAFE_C_opSq_S: return(OP_SAFE_C_op_opSq_S_q);
+	case OP_SAFE_C_opSq:   return(OP_SAFE_C_op_opSqq);
+	case OP_SAFE_C_opSq_C: return(OP_SAFE_C_op_opSq_Cq);
+	case OP_SAFE_C_S_opSq: return(OP_SAFE_C_op_S_opSqq);
+	case OP_SAFE_C_opSq_S: return(OP_SAFE_C_op_opSq_Sq);
 	case OP_SAFE_C_A:      return(OP_SAFE_C_opAq);
 	case OP_SAFE_C_AA:     return(OP_SAFE_C_opAAq);
 	case OP_SAFE_C_AAA:    return(OP_SAFE_C_opAAAq);
@@ -67918,7 +67882,7 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_A:     return(OP_SAFE_C_opAq_S);
 	case OP_SAFE_C_opSSq:
 	  set_opt1_pair(cdr(expr), cadadr(expr));
-	  return(OP_SAFE_C_op_opSSq_q_S);
+	  return(OP_SAFE_C_op_opSSqq_S);
 	case OP_SAFE_C_opSSq_S:
 	  set_opt3_pair(expr, cadadr(expr));
 	  return(OP_SAFE_C_op_opSSq_Sq_S);
@@ -67936,8 +67900,8 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	  return(OP_SAFE_C_opSq_C);
 	case OP_SAFE_C_CS:    return(OP_SAFE_C_opCSq_C);
 	case OP_SAFE_C_SC:    return(OP_SAFE_C_opSCq_C);
-	case OP_SAFE_C_opSq:  return(OP_SAFE_C_op_opSq_q_C);
-	case OP_SAFE_C_opSSq: return(OP_SAFE_C_op_opSSq_q_C);
+	case OP_SAFE_C_opSq:  return(OP_SAFE_C_op_opSqq_C);
+	case OP_SAFE_C_opSSq: return(OP_SAFE_C_op_opSSqq_C);
 	case OP_SAFE_C_SS:    return(OP_SAFE_C_opSSq_C);
 	}
       set_opt2_con(cdr(expr), caddr(expr));
@@ -68537,7 +68501,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 	  test_expr = cadr(let_body);
 	  if (is_fxable(sc, test_expr))
 	    {
-	      if (car(let_body) == sc->if_symbol)
+	      if ((car(let_body) == sc->if_symbol) && (is_pair(cdddr(let_body))))
 		{
 		  s7_pointer laa;
 		  laa = cadddr(let_body);
@@ -69215,6 +69179,7 @@ static opt_t fxify_safe_closure_s(s7_scheme *sc, s7_pointer func, s7_pointer exp
 {
   s7_pointer body;
   /* fprintf(stderr, "%s: %s %d\n", __func__, display(expr), hop); */
+
   body = closure_body(func);
   annotate_arg(sc, body, e);
   if (sym)
@@ -73525,6 +73490,11 @@ static bool op_let1(s7_scheme *sc)
 
   while (true)
     {
+#if S7_DEBUGGING
+      /* can this be a multiple-value? */
+      if (is_multiple_value(sc->value))
+	fprintf(stderr, "%s[%d]: value is a multiple-value? %s from %s\n", __func__, __LINE__, display(sc->value), display(sc->code));
+#endif
       sc->args = cons(sc, sc->value, sc->args);
       if (is_pair(sc->code))
 	{
@@ -76917,6 +76887,7 @@ static inline s7_pointer check_set(s7_scheme *sc)
 			    {
 			      if (settee == cadr(value))
 				{
+				  /* TODO?: +/- via (c_callee(value)) as g_add_2/g_subtract_2 - integer case */
 				  pair_set_syntax_op(form, OP_INCREMENT_SS);
 				  set_opt2_sym(sc->code, caddr(value));
 				}
@@ -76944,7 +76915,6 @@ static inline s7_pointer check_set(s7_scheme *sc)
 					{
 					  pair_set_syntax_op(form, OP_INCREMENT_SA);
 					  annotate_arg(sc, cddr(value), sc->envir); /* this sets c_callee(arg) */
-					  /* increment_sc does not happen much here */
 					  set_opt2_pair(sc->code, cddr(value));
 					}
 				      else
@@ -87028,11 +86998,9 @@ static inline bool collect_fp_args(s7_scheme *sc, opcode_t op, s7_pointer args) 
 static inline bool collect_fp_args(s7_scheme *sc, opcode_t op, s7_pointer args)
 {
   s7_pointer p;
-
   sc->args = args;
   for (p = sc->code; (is_pair(p)) && (has_fx(p)); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, p), sc->args); /* reversed before apply in OP_SAFE_C_FP_1 */
-
   if (is_pair(p))
     {
       push_stack(sc, op, sc->args, cdr(p));
@@ -87945,14 +87913,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_opSq: if (!c_function_is_ok_cadr(sc, sc->code)) break;
 	case HOP_SAFE_C_opSq: sc->value = fx_c_opsq(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_opSq_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_q: sc->value = fx_c_op_opsq_q(sc, sc->code); continue;
+	case OP_SAFE_C_op_opSqq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSqq: sc->value = fx_c_op_opsqq(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_S_opSq_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, caddr(cadr(sc->code))))) break;
-	case HOP_SAFE_C_op_S_opSq_q: sc->value = fx_c_op_s_opsq_q(sc, sc->code); continue;
+	case OP_SAFE_C_op_opSq_Cq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_Cq: sc->value = fx_c_op_opsq_cq(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_opSq_S_q: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_S_q: sc->value = fx_c_op_opsq_s_q(sc, sc->code); continue;
+	case OP_SAFE_C_op_S_opSqq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, caddr(cadr(sc->code))))) break;
+	case HOP_SAFE_C_op_S_opSqq: sc->value = fx_c_op_s_opsqq(sc, sc->code); continue;
+
+	case OP_SAFE_C_op_opSq_Sq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSq_Sq: sc->value = fx_c_op_opsq_sq(sc, sc->code); continue;
 
 	case OP_SAFE_C_PS:    if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_PS:   op_safe_c_ps(sc); goto EVAL;
@@ -88031,17 +88002,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_opSSq_S: if (!c_function_is_ok_cadr(sc, sc->code)) break;
 	case HOP_SAFE_C_opSSq_S: sc->value = fx_c_opssq_s(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_opSSq_q_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSSq_q_C: sc->value = fx_c_op_opssq_q_c(sc, sc->code); continue;
+	case OP_SAFE_C_op_opSSqq_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSqq_C: sc->value = fx_c_op_opssqq_c(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_opSSq_q_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSSq_q_S: sc->value = fx_c_op_opssq_q_s(sc, sc->code); continue;
+	case OP_SAFE_C_op_opSSqq_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSSqq_S: sc->value = fx_c_op_opssqq_s(sc, sc->code); continue;
 
 	case OP_SAFE_C_op_opSSq_Sq_S: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
 	case HOP_SAFE_C_op_opSSq_Sq_S: sc->value = fx_c_op_opssq_sq_s(sc, sc->code); continue;
 
-	case OP_SAFE_C_op_opSq_q_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
-	case HOP_SAFE_C_op_opSq_q_C: sc->value = fx_c_op_opsq_q_c(sc, sc->code); continue;
+	case OP_SAFE_C_op_opSqq_C: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, cadr(sc->code))) || (!c_function_is_ok(sc, cadadr(sc->code)))) break;
+	case HOP_SAFE_C_op_opSqq_C: sc->value = fx_c_op_opsqq_c(sc, sc->code); continue;
 
 	case OP_SAFE_C_S_op_opSq_Cq: if ((!c_function_is_ok(sc, sc->code)) || (!c_function_is_ok(sc, caddr(sc->code))) || (!c_function_is_ok(sc, cadaddr(sc->code)))) break;
 	case HOP_SAFE_C_S_op_opSq_Cq: sc->value = fx_c_s_op_opsq_cq(sc, sc->code); continue;
@@ -94645,15 +94616,16 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_opSq_opSSq] = fx_c_opsq_opssq;
   fx_function[HOP_SAFE_C_opSSq_opSq] = fx_c_opssq_opsq;
   fx_function[HOP_SAFE_C_opSSq_opSSq] = fx_c_opssq_opssq;
-  fx_function[HOP_SAFE_C_op_opSSq_q_C] = fx_c_op_opssq_q_c;
-  fx_function[HOP_SAFE_C_op_opSq_q] = fx_c_op_opsq_q;
-  fx_function[HOP_SAFE_C_op_opSq_q_C] = fx_c_op_opsq_q_c;
-  fx_function[HOP_SAFE_C_op_S_opSq_q] = fx_c_op_s_opsq_q;
-  fx_function[HOP_SAFE_C_op_opSq_S_q] = fx_c_op_opsq_s_q;
+  fx_function[HOP_SAFE_C_op_opSSqq_C] = fx_c_op_opssqq_c;
+  fx_function[HOP_SAFE_C_op_opSqq] = fx_c_op_opsqq;
+  fx_function[HOP_SAFE_C_op_opSq_Cq] = fx_c_op_opsq_cq;
+  fx_function[HOP_SAFE_C_op_opSqq_C] = fx_c_op_opsqq_c;
+  fx_function[HOP_SAFE_C_op_S_opSqq] = fx_c_op_s_opsqq;
+  fx_function[HOP_SAFE_C_op_opSq_Sq] = fx_c_op_opsq_sq;
   fx_function[HOP_SAFE_C_S_op_S_opSqq] = fx_c_s_op_s_opsqq;
   fx_function[HOP_SAFE_C_S_op_S_opSSqq] = fx_c_s_op_s_opssqq;
   fx_function[HOP_SAFE_C_S_op_opSq_Cq] = fx_c_s_op_opsq_cq;
-  fx_function[HOP_SAFE_C_op_opSSq_q_S] = fx_c_op_opssq_q_s;
+  fx_function[HOP_SAFE_C_op_opSSqq_S] = fx_c_op_opssqq_s;
   fx_function[HOP_SAFE_C_op_opSSq_Sq_S] = fx_c_op_opssq_sq_s;
   fx_function[HOP_SAFE_C_S_op_opSSq_opSSqq] = fx_c_s_op_opssq_opssqq;
 
@@ -96688,7 +96660,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 869) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 871) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -96770,30 +96742,30 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.8  19.9
  * ------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  163   129
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   620
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   752  715
- * tshoot        |      |      |      |      |      | 1224 |  847   769  740
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   876
+ * tpeak         |      |      |      |  391 |  377 |  199 |  163   114
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   621
+ * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   715
+ * tshoot        |      |      |      |      |      | 1224 |  847   740
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   862
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
+ * tvect         |      |      |      |      |      | 5729 | 1793  1620
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673
- * tvect         |      |      |      |      |      | 5729 | 1793  1690
  * tmisc         |      |      |      |      |      | 2636 | 1846  1824
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2047
  * tlet          |      |      |      |      | 4717 | 2959 | 2148  2124
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2197
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2220  2212
  * tread         |      |      |      |      | 2357 | 2336 | 2264  2260
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2394
- * dup           |      |      |      |      | 20.8 | 5711 | 3362  2562
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2383
+ * dup           |      |      |      |      | 20.8 | 5711 | 3362  2617
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2635
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2680
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2729
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2712
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2712
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2737
  * tset          |      |      |      |      | 10.0 | 6432 | 2928  2907
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3090  2935
- * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3514  3499  3523
- * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 3873  3720  3729
+ * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3514  3144
+ * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 3873  3728
  * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 5213  4688
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6432  6135
  * thash         |      |      |      |      |      | 10.3 | 6647  6557
@@ -96801,22 +96773,17 @@ int main(int argc, char **argv)
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.6  14.3
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.1  34.8
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.6  68.2
- * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.5
+ * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.6
  * tbig          |      |      |      |      |246.9 |230.6 |177.9 177.1
  * ------------------------------------------------------------------------
  *
- * z_first: op_tc_let_if_a_z_laa, tcs, if_a_z_if_a_laa_laa (l3a->la2 case), tc_if_a_z_let_laa (lint)?
+ * z_first: op_tc_let_if_a_z_laa, if_a_z_if_a_laa_laa (l3a->la2 case), also and_a_or_a_a_la and_a_or_laa_laa and_a_or_[a]_la_la
  * generalize the vref cases
- * s7test for fx coverage (t195)
- *   fx_subtract_U1 fx_not_is_eq_car_q fx_is_null_cddr_s 
- *   fx_is_integer_s fx_is_vector_t fx_is_proper_list_s fx_not_t fx_vector_ref_direct fx_c_cu
- *   fx_c_Wt_direct fx_cons_tU fx_c_tU fx_subtract_sf fx_subtract_fs fx_multiply_fs fx_c_sqr_sqr fx_geq_tT
- *   fx_geq_tu fx_gt_tg fx_leq_tu fx_lt_tu fx_lt_tU fx_num_eq_tg fx_hash_increment fx_not_oputq fx_add_s_vref
- *   fx_subtract_s_vref fx_multiply_s_vref fx_gt_vref_s fx_vref_vref_tu_s fx_geq_s_vref fx_is_eq_s_vref
- *   fx_vref_s_add fx_vref_vref_s fx_vref_vref_t fx_c_opgsq_t_direct fx_vref_vref_3 fx_vref_vref_gs_t fx_c_opuq_t_direct
- *   fx_c_g_opgsq_direct fx_vref_g_vref_gs fx_num_eq_add_ss fx_c_c_opssq_direct fx_add_s_car_s fx_add_u_car_t
- *   fx_c_opsq_opsq_direct fx_c_opsq_optuq_direct fx_sub_mul2 fx_lt_sub2 fx_sub_vref2 fx_c_s_op_s_opssqq_direct 
- *   fx_string_ref_0_symbol_a fx_is_zero_remainder fx_number_to_string_aa fx_c_gac fx_c_op_opssq_q_s_direct
- *   fx_and_or_2_vref fx_len3 fx_len2 fx_not_symbol_or_keyword fx_c_closure_s_a fx_safe_closure_t_d fx_c_closure_s_d
- *   fx_and_pair_closure_s fx_safe_closure_3s_to_s 
+ * s7test for fx coverage (t195 and s7test 3872)
+ *   fx_and_pair_closure_s fx_safe_closure_3s_to_s fx_vref_vref_tu_s fx_geq_tT[thash] fx_vector_ref_direct fx_c_Wt_direct fx_c_sqr_sqr 
+ *   fx_vref_s_add fx_vref_vref_s fx_vref_vref_t fx_c_opgsq_t_direct fx_vref_vref_3 fx_vref_vref_gs_t fx_c_opuq_t_direct fx_cons_tU 
+ *   fx_c_opsq_opsq_direct fx_c_opsq_optuq_direct fx_sub_vref2 fx_c_s_op_s_opssqq_direct fx_add_s_car_s fx_c_g_opgsq_direct 
+ *   fx_string_ref_0_symbol_a fx_is_zero_remainder fx_number_to_string_aa[tbig] fx_c_gac fx_c_op_opssqq_s_direct fx_vref_g_vref_gs 
+ *   fx_and_or_2_vref fx_not_symbol_or_keyword[lt] fx_c_c_opssq_direct 
+ * fully_fx_treed flag?
  */

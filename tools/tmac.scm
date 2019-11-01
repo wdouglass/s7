@@ -51,7 +51,7 @@
     (m5 1 3 4 5)))
 (f5-test)
 
-(define-macro (m61 a b) `(+ ,a ,@b))
+(define-macro (m61 a b) (cons '+ (cons a b)))
 (define (f61-test mx)
   (do ((i 0 (+ i 1)))
       ((= i size))
@@ -86,11 +86,10 @@
 (define (trace-test)
   (let loop ((count 0))
     (if (< count 30000) ; not 'when for old snd timings
-	(begin
-	  (let ((f1 (lambda (x y z) (+ x y z))))
-	    (trace f1) ; op_macro_d I think
-	    (f1 count count count)
-	    (loop (+ count 1)))))))
+	(let ((f1 (lambda (x y z) (+ x y z))))
+	  (trace f1) ; op_macro_d I think
+	  (f1 count count count)
+	  (loop (+ count 1))))))
 
 (trace-test)
 

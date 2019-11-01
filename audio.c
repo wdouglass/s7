@@ -5046,8 +5046,11 @@ int mus_audio_close(int line)
   return(MUS_NO_ERROR);
 }
 
-
-static int netbsd_default_outputs = (AUDIO_HEADPHONE | AUDIO_LINE_OUT | AUDIO_SPEAKER); 
+#if defined(__NetBSD__) && (__NetBSD_Version__ < 900000000)
+  static int netbsd_default_outputs = (AUDIO_HEADPHONE | AUDIO_LINE_OUT | AUDIO_SPEAKER); 
+#else
+  static int netbsd_default_outputs = 0;
+#endif
 
 int mus_audio_open_output(int dev, int srate, int chans, mus_sample_t samp_type, int size) 
 {

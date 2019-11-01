@@ -366,7 +366,7 @@
   (let ((v (make-vector size)))
     (do ((i 0 (+ i 1)))
 	((= i size) (vector-ref v 0))
-      (list-values (vector-set! v i 2)))))
+      (values (vector-set! v i 2)))))
 
 (unless (= (h7) 2)
   (format *stderr* "h7: ~S~%" (h7)))
@@ -452,7 +452,7 @@
 	((= k 10) (vector-ref v 0 0))
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(list-values (vector-set! v k i 2))))))
+	(values (vector-set! v k i 2))))))
 
 (unless (= (h17) 2)
   (format *stderr* "h17: ~S~%" (h17)))
@@ -515,7 +515,7 @@
   (let ((v (make-vector size)))
     (do ((i 0 (+ i 1)))
 	((= i size) (v 0))
-      (list-values (set! (v i) 2)))))
+      (values (set! (v i) 2)))))
 
 (unless (= (j6) 2)
   (format *stderr* "j6: ~S~%" (j6)))
@@ -587,7 +587,7 @@
 	((= k 10) (v 0 0))
       (do ((i 0 (+ i 1)))
 	  ((= i size/10))
-	(list-values (set! (v k i) 2))))))
+	(values (set! (v k i) 2))))))
 
 (unless (= (j16) 2)
   (format *stderr* "j16: ~S~%" (j16)))
