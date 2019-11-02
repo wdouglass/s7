@@ -3911,7 +3911,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_CLOSURE_FX, HOP_CLOSURE_FX, OP_CLOSURE_ALL_S, HOP_CLOSURE_ALL_S, OP_CLOSURE_ANY_FX, HOP_CLOSURE_ANY_FX,
       OP_SAFE_CLOSURE_SA, HOP_SAFE_CLOSURE_SA, OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, OP_SAFE_CLOSURE_FX, HOP_SAFE_CLOSURE_FX,
       OP_SAFE_CLOSURE_3S, HOP_SAFE_CLOSURE_3S, OP_SAFE_CLOSURE_ALL_S, HOP_SAFE_CLOSURE_ALL_S, 
-      OP_SAFE_CLOSURE_3S_A, HOP_SAFE_CLOSURE_3S_A, OP_SAFE_CLOSURE_3S_TO_S, HOP_SAFE_CLOSURE_3S_TO_S,
+      OP_SAFE_CLOSURE_3S_A, HOP_SAFE_CLOSURE_3S_A, 
       OP_SAFE_CLOSURE_FP, HOP_SAFE_CLOSURE_FP,
 
       OP_CLOSURE_STAR_A, HOP_CLOSURE_STAR_A, OP_CLOSURE_STAR_FX, HOP_CLOSURE_STAR_FX,
@@ -4150,7 +4150,7 @@ static const char* op_names[NUM_OPS] =
 
       "safe_closure_sa", "h_safe_closure_sa", "safe_closure_saa", "h_safe_closure_saa", "safe_closure_fx", "h_safe_closure_fx",
       "safe_closure_3s", "h_safe_closure_3s", "safe_closure_all_s", "h_safe_closure_all_s",
-      "safe_closure_3s_a", "h_safe_closure_3s_a", "safe_closure_3s_to_s", "h_safe_closure_3s_to_s", 
+      "safe_closure_3s_a", "h_safe_closure_3s_a", 
       "safe_closure_fp", "h_safe_closure_fp",
 
       "closure*_a", "h_closure*_a", "closure*_fx", "h_closure*_fx",
@@ -13470,13 +13470,17 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
       break;
 
     case 'n':
+#if 0
       if (local_strcmp(p, "an.0"))      /* nan.0 */
 	return(real_NaN);
+#endif
       return((want_symbol) ? make_symbol(sc, q) : sc->F);
 
     case 'i':
+#if 0
       if (local_strcmp(p, "nf.0"))      /* inf.0 */
 	return(real_infinity);
+#endif
       return((want_symbol) ? make_symbol(sc, q) : sc->F);
 
     case '0':        /* these two are always digits */
@@ -49404,6 +49408,12 @@ static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args)
   /* the operator type is needed here else the error message is confusing:
    *    (apply '+ (list 1 2))) -> ;attempt to apply + to (1 2)?
    */
+#if 0
+  fprintf(stderr, "code: %s, cur_code: %s\n", display(sc->code), display(sc->cur_code));
+  fprintf(stderr, "stack code: %s, args: %s\n", display(stack_code(sc->stack, s7_stack_top(sc) - 1)), display(stack_args(sc->stack, s7_stack_top(sc) - 1)));
+  /* for op_do, args has useful info on original code
+   */
+#endif
   if (is_null(obj))
     return(s7_error(sc, sc->syntax_error_symbol,
 		    set_elist_3(sc, wrap_string(sc, "attempt to apply nil to ~S in ~S?", 33),
@@ -54023,11 +54033,6 @@ static s7_pointer fx_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
-}
-
-static s7_pointer fx_safe_closure_3s_to_s(s7_scheme *sc, s7_pointer code)
-{
-  return(((s7_p_ppp_t)opt2_direct(closure_body(opt1_lambda(code))))(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
 }
 
 /* fx_c_s b, dx_c+fx_cdr_s->fx_tc_if_a_laa_z lg */
@@ -70656,15 +70661,6 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		  fx_tree(sc, body, car(closure_args(func)), cadr(closure_args(func)));
 		  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_3S_A);
 		  set_closure_has_fx(func);
-		  if ((c_callee(body) == fx_c_tus) && 
-		      (caddr(closure_args(func)) == cadddr(car(body))) && /* i.e. args match */
-		      (is_symbol(caar(body))) &&
-		      (s7_p_ppp_function(slot_value(global_slot(caar(body))))))
-		    {
-		      set_direct_opt(body);
-		      set_opt2_direct(body, (s7_pointer)(s7_p_ppp_function(slot_value(global_slot(caar(body))))));
-		      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_3S_TO_S);
-		    }
 		}
 	      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_3S);
 	      return(OPT_T);
@@ -88344,9 +88340,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_3S_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 3)) {if (op_unknown_all_s(sc, sc->last_function) == goto_eval) goto EVAL; break;}
 	case HOP_SAFE_CLOSURE_3S_A: sc->value = fx_safe_closure_3s_a(sc, sc->code); continue;
 
-	case OP_SAFE_CLOSURE_3S_TO_S: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 3)) {if (op_unknown_all_s(sc, sc->last_function) == goto_eval) goto EVAL; break;}
-	case HOP_SAFE_CLOSURE_3S_TO_S: sc->value = fx_safe_closure_3s_to_s(sc, sc->code); continue;
-
 	case OP_CLOSURE_ALL_S: switch (op_check_closure_all_s(sc)) {case goto_eval: goto EVAL; case goto_unopt: goto UNOPT; default: break;}
 	case HOP_CLOSURE_ALL_S: op_closure_all_s(sc); goto EVAL;
 
@@ -94666,7 +94659,6 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_CLOSURE_SS_A] = fx_safe_closure_ss_a;
   fx_function[HOP_SAFE_CLOSURE_AA_A] = fx_safe_closure_aa_a;
   fx_function[HOP_SAFE_CLOSURE_3S_A] = fx_safe_closure_3s_a;
-  fx_function[HOP_SAFE_CLOSURE_3S_TO_S] = fx_safe_closure_3s_to_s;
 
   fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
   fx_function[OP_HASH_INCREMENT] = fx_hash_increment;
@@ -95929,8 +95921,13 @@ s7_scheme *s7_init(void)
   sc->local_iterator_symbol =      make_symbol(sc, "+iterator+");
 
   /* for backwards compatibility */
+#if 0
   s7_define_constant(sc, "nan.0", real_NaN);
   s7_define_constant(sc, "inf.0", real_infinity);
+#else
+  s7_define_variable(sc, "nan.0", real_NaN);
+  s7_define_variable(sc, "inf.0", real_infinity);
+#endif
 
 #if WITH_PURE_S7
   s7_provide(sc, "pure-s7");
@@ -96660,7 +96657,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 871) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 869) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -96692,6 +96689,26 @@ s7_scheme *s7_init(void)
 
 #if (WITH_MAIN && (!USE_SND))
 
+static void dumb_repl(s7_scheme *sc)
+{
+  while (true)
+    {
+      char buffer[512];
+      char response[1024];
+      fprintf(stdout, "\n> ");
+      fgets(buffer, 512, stdin);
+      if ((buffer[0] != '\n') || (strlen(buffer) > 1))
+	{
+	  snprintf(response, 1024, "(write %s)", buffer);
+	  s7_eval_c_string(sc, response);
+	}
+    }
+}
+
+#ifndef _MSC_VER
+  #include <libgen.h> /* dirname */
+#endif
+
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
@@ -96706,21 +96723,29 @@ int main(int argc, char **argv)
     }
   else
     {
-#if (!MS_WINDOWS)
-      s7_load(sc, "repl.scm");              /* this is libc dependent */
-      s7_eval_c_string(sc, "((*repl* 'run))");
+#ifdef _MSC_VER
+      dumb_repl(sc);
 #else
-      while (1)                             /* a minimal repl -- taken from s7.html */
+      s7_pointer old_e, e, val;
+      s7_int gc_loc;
+      /* try to get lib_s7.so from the repl's directory, and set *libc*.
+       *   otherwise repl.scm will try to load libc.scm which will try to build libc_s7.so locally, but that requires s7.h
+       */
+      s7_add_to_load_path(sc, dirname(argv[0]));
+      e = s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), s7_make_symbol(sc, "libc_s7_init")));
+      gc_loc = s7_gc_protect(sc, e);
+      old_e = s7_set_curlet(sc, e);   /* e is now (curlet) so loaded names from libc will be placed there, not in (rootlet) */
+      val = s7_load_with_environment(sc, "libc_s7.so", e);
+      s7_define_variable(sc, "*libc*", e);
+      s7_eval_c_string(sc, "(set! *libraries* (cons (cons \"libc.scm\" *libc*) *libraries*))");
+      s7_gc_unprotect_at(sc, gc_loc);
+      s7_set_curlet(sc, old_e);       /* restore incoming (curlet) */
+      if (!val) 
+	dumb_repl(sc);
+      else
 	{
-	  char buffer[512];
-	  char response[1024];
-	  fprintf(stdout, "\n> ");
-	  fgets(buffer, 512, stdin);
-	  if ((buffer[0] != '\n') || (strlen(buffer) > 1))
-	    {
-	      snprintf(response, 1024, "(write %s)", buffer);
-	      s7_eval_c_string(sc, response);
-	    }
+	  s7_load(sc, "repl.scm");
+	  s7_eval_c_string(sc, "((*repl* 'run))");
 	}
 #endif
     }
@@ -96750,14 +96775,14 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
  * tvect         |      |      |      |      |      | 5729 | 1793  1620
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673
- * tmisc         |      |      |      |      |      | 2636 | 1846  1824
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2047
- * tlet          |      |      |      |      | 4717 | 2959 | 2148  2124
+ * tlet          |      |      |      |      | 4717 | 2959 | 2148  2125
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2197
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2220  2212
  * tread         |      |      |      |      | 2357 | 2336 | 2264  2260
+ * tmisc         |      |      |      |      |      | 3087 |       2283
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2383
- * dup           |      |      |      |      | 20.8 | 5711 | 3362  2617
+ * dup           |      |      |      |      | 20.8 | 5711 | 3362  2587
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2635
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2680
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2712
@@ -96780,10 +96805,10 @@ int main(int argc, char **argv)
  * z_first: op_tc_let_if_a_z_laa, if_a_z_if_a_laa_laa (l3a->la2 case), also and_a_or_a_a_la and_a_or_laa_laa and_a_or_[a]_la_la
  * generalize the vref cases
  * s7test for fx coverage (t195 and s7test 3872)
- *   fx_and_pair_closure_s fx_safe_closure_3s_to_s fx_vref_vref_tu_s fx_geq_tT[thash] fx_vector_ref_direct fx_c_Wt_direct fx_c_sqr_sqr 
- *   fx_vref_s_add fx_vref_vref_s fx_vref_vref_t fx_c_opgsq_t_direct fx_vref_vref_3 fx_vref_vref_gs_t fx_c_opuq_t_direct fx_cons_tU 
- *   fx_c_opsq_opsq_direct fx_c_opsq_optuq_direct fx_sub_vref2 fx_c_s_op_s_opssqq_direct fx_add_s_car_s fx_c_g_opgsq_direct 
- *   fx_string_ref_0_symbol_a fx_is_zero_remainder fx_number_to_string_aa[tbig] fx_c_gac fx_c_op_opssqq_s_direct fx_vref_g_vref_gs 
- *   fx_and_or_2_vref fx_not_symbol_or_keyword[lt] fx_c_c_opssq_direct 
- * fully_fx_treed flag?
+ *   fx_and_pair_closure_s[lt] fx_vref_vref_tu_s fx_vector_ref_direct fx_c_Wt_direct[dup] fx_c_sqr_sqr[tbig, call]
+ *   fx_vref_vref_s fx_vref_vref_t fx_c_opgsq_t_direct fx_vref_vref_3 fx_vref_vref_gs_t fx_c_opuq_t_direct fx_cons_tU 
+ *   fx_c_opsq_opsq_direct[gen call all] fx_c_opsq_optuq_direct fx_c_s_op_s_opssqq_direct fx_add_s_car_s fx_c_g_opgsq_direct 
+ *   fx_number_to_string_aa[tbig] fx_c_op_opssqq_s_direct fx_vref_g_vref_gs fx_and_or_2_vref fx_c_c_opssq_direct 
+ * fully_fx_treed flag? [88 in tgen]
+ * oputq_direct removed?
  */
