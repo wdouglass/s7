@@ -13470,14 +13470,14 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
       break;
 
     case 'n':
-#if 0
+#if (!DISABLE_DEPRECATED)
       if (local_strcmp(p, "an.0"))      /* nan.0 */
 	return(real_NaN);
 #endif
       return((want_symbol) ? make_symbol(sc, q) : sc->F);
 
     case 'i':
-#if 0
+#if (!DISABLE_DEPRECATED)
       if (local_strcmp(p, "nf.0"))      /* inf.0 */
 	return(real_infinity);
 #endif
@@ -52341,28 +52341,10 @@ static s7_pointer fx_c_opstq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t1_1));
 }
 
-static s7_pointer fx_c_oputq(s7_scheme *sc, s7_pointer arg) /* very few calls */
-{
-  s7_pointer largs;
-  largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, caddr(largs));
-  check_next_let_slot(sc, __func__, arg, cadr(largs));
-  set_car(sc->t2_1, slot_value(next_slot(let_slots(sc->envir))));
-  set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
-  set_car(sc->t1_1, c_call(largs)(sc, sc->t2_1));
-  return(c_call(arg)(sc, sc->t1_1));
-}
-
 static s7_pointer fx_c_opstq_direct(s7_scheme *sc, s7_pointer arg)
 {
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc,
             ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), slot_value(let_slots(sc->envir)))));
-}
-
-static s7_pointer fx_c_oputq_direct(s7_scheme *sc, s7_pointer arg) /* never called */
-{
-  return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc,
-            ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir))), slot_value(let_slots(sc->envir)))));
 }
 
 #if (!WITH_GMP)
@@ -54602,6 +54584,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      set_opt3_any(cdr(arg), cadaddr(cadr(arg))); 
 	      return(fx_not_is_eq_car_q);
 	    }
+	  /* other common cases: (not (eq?|eqv? (cadr s) q)) (memq (cxr s) q) */
 	  return(fx_c_op_opsq_cq);
 	  
 	case HOP_SAFE_C_S_op_S_opSSqq:
@@ -54958,9 +54941,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			      if ((opt2_direct(cdr(p)) == (s7_pointer)is_zero_p_p) && (opt3_direct(cdr(p)) == (s7_pointer)remainder_p_pp))
 				return(with_c_call(tree, fx_is_zero_remainder_1));
 #endif
-			      return(with_c_call(tree, (cadadr(p) == var2) ? fx_c_oputq_direct : fx_c_opstq_direct));
+			      return(with_c_call(tree, fx_c_opstq_direct)); /* oputq never happens */
 			    }
-			  return(with_c_call(tree, (cadadr(p) == var2) ? fx_c_oputq : fx_c_opstq));
+			  return(with_c_call(tree, fx_c_opstq));
 			}
 		      if ((cadr(cadr(p)) == var1) && (caddr(cadr(p)) == var2)) return(with_c_call(tree, fx_c_optuq));
 		    }
@@ -55103,13 +55086,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		}
 	      if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, (is_global(cadr(p))) ? fx_c_gt : fx_c_st));
 	      if (c_callee(tree) == fx_hash_table_ref_ss) return(with_c_call(tree, fx_hash_table_ref_st));
-	      if ((c_callee(tree) == fx_c_opssq_s_direct) && (is_global(cadr(cadr(p)))))
-		{
-		  if ((opt2_direct(cdr(p)) == (s7_pointer)vector_ref_p_pp) &&
-		      (opt3_direct(cdr(p)) == (s7_pointer)vector_ref_p_pp))
-		    return(with_c_call(tree, fx_vref_vref_gs_t));
-		  return(with_c_call(tree, fx_c_opgsq_t_direct));
-		}
+
+	      if ((c_callee(tree) == fx_vref_vref_s) && (is_global(cadr(cadr(p))))) return(with_c_call(tree, fx_vref_vref_gs_t));
+	      if ((c_callee(tree) == fx_c_opssq_s_direct) && (is_global(cadr(cadr(p))))) return(with_c_call(tree, fx_c_opgsq_t_direct));
 	    }
 
 	  if (is_pair(caddr(p)))
@@ -95920,8 +95899,7 @@ s7_scheme *s7_init(void)
   sc->local_setter_symbol =        make_symbol(sc, "+setter+");
   sc->local_iterator_symbol =      make_symbol(sc, "+iterator+");
 
-  /* for backwards compatibility */
-#if 0
+#if (!DISABLE_DEPRECATED)
   s7_define_constant(sc, "nan.0", real_NaN);
   s7_define_constant(sc, "inf.0", real_infinity);
 #else
@@ -96687,8 +96665,6 @@ s7_scheme *s7_init(void)
   #define WITH_MAIN 0
 #endif
 
-#if (WITH_MAIN && (!USE_SND))
-
 static void dumb_repl(s7_scheme *sc)
 {
   while (true)
@@ -96704,6 +96680,32 @@ static void dumb_repl(s7_scheme *sc)
 	}
     }
 }
+
+void s7_repl(s7_scheme *sc)
+{
+  s7_pointer old_e, e, val;
+  s7_int gc_loc;
+  /* try to get lib_s7.so from the repl's directory, and set *libc*.
+   *   otherwise repl.scm will try to load libc.scm which will try to build libc_s7.so locally, but that requires s7.h
+   */
+  e = s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), s7_make_symbol(sc, "libc_s7_init")));
+  gc_loc = s7_gc_protect(sc, e);
+  old_e = s7_set_curlet(sc, e);   /* e is now (curlet) so loaded names from libc will be placed there, not in (rootlet) */
+  val = s7_load_with_environment(sc, "libc_s7.so", e);
+  s7_define_variable(sc, "*libc*", e);
+  s7_eval_c_string(sc, "(set! *libraries* (cons (cons \"libc.scm\" *libc*) *libraries*))");
+  s7_gc_unprotect_at(sc, gc_loc);
+  s7_set_curlet(sc, old_e);       /* restore incoming (curlet) */
+  if (!val) 
+    dumb_repl(sc);
+  else
+    {
+      s7_load(sc, "repl.scm");
+      s7_eval_c_string(sc, "((*repl* 'run))");
+    }
+}
+
+#if (WITH_MAIN && (!USE_SND))
 
 #ifndef _MSC_VER
   #include <libgen.h> /* dirname */
@@ -96726,27 +96728,8 @@ int main(int argc, char **argv)
 #ifdef _MSC_VER
       dumb_repl(sc);
 #else
-      s7_pointer old_e, e, val;
-      s7_int gc_loc;
-      /* try to get lib_s7.so from the repl's directory, and set *libc*.
-       *   otherwise repl.scm will try to load libc.scm which will try to build libc_s7.so locally, but that requires s7.h
-       */
       s7_add_to_load_path(sc, dirname(argv[0]));
-      e = s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), s7_make_symbol(sc, "libc_s7_init")));
-      gc_loc = s7_gc_protect(sc, e);
-      old_e = s7_set_curlet(sc, e);   /* e is now (curlet) so loaded names from libc will be placed there, not in (rootlet) */
-      val = s7_load_with_environment(sc, "libc_s7.so", e);
-      s7_define_variable(sc, "*libc*", e);
-      s7_eval_c_string(sc, "(set! *libraries* (cons (cons \"libc.scm\" *libc*) *libraries*))");
-      s7_gc_unprotect_at(sc, gc_loc);
-      s7_set_curlet(sc, old_e);       /* restore incoming (curlet) */
-      if (!val) 
-	dumb_repl(sc);
-      else
-	{
-	  s7_load(sc, "repl.scm");
-	  s7_eval_c_string(sc, "((*repl* 'run))");
-	}
+      s7_repl(sc);
 #endif
     }
   return(0);
@@ -96810,5 +96793,5 @@ int main(int argc, char **argv)
  *   fx_c_opsq_opsq_direct[gen call all] fx_c_opsq_optuq_direct fx_c_s_op_s_opssqq_direct fx_add_s_car_s fx_c_g_opgsq_direct 
  *   fx_number_to_string_aa[tbig] fx_c_op_opssqq_s_direct fx_vref_g_vref_gs fx_and_or_2_vref fx_c_c_opssq_direct 
  * fully_fx_treed flag? [88 in tgen]
- * oputq_direct removed?
+ * not cases? 54599
  */
