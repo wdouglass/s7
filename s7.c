@@ -86986,25 +86986,6 @@ static inline bool op_safe_c_fp_mv_1(s7_scheme *sc)
   return(false);
 }
 
-
-/* push closure_let + closure (opt1_lambda(sc->code))
-   set slots in order until !has_fx
-   push op 1|2 slot cdr(p)
-   set code
-
-   in fp_1, 
-   pop slot/cdr, 
-   set_slot via sc->value
-   continue down cdr
-   
-   in fp2 dont cdr
-   fp mv: fill out args given values, then continue cdr
-
-   at end, error checks, body etc
-
-   no args list, no use of collect_fp_args, no reverse
-*/
-   
 static void op_safe_closure_fp(s7_scheme *sc)
 {
   s7_pointer p;
@@ -96686,21 +96667,37 @@ void s7_repl(s7_scheme *sc)
 
 #if (WITH_MAIN && (!USE_SND))
 
+#if (!MS_WINDOWS)
 static char *realdir(const char *filename) /* this code courtesy Lassi Kortela 4-Nov-19 */
 {
   char *path;
   char *p;
 
+  if (!strchr(filename, '/'))
+    {
+      char *pwd;
+      if (!file_probe("libc_s7.so"))
+	{
+	  fprintf(stderr, "%s needs libc_s7.so (give the explicit pathname)\n", filename); /* env PATH=/home/bil/cl repl */
+	  exit(2);
+	}
+      return(NULL); /* we're in the libc_s7.so directory, I hope (user could start a version of s7 that does not match the local libc_s7.so...) */
+    }
   if (!(path = realpath(filename, NULL)))
-    return(NULL);
+    {
+      fprintf(stderr, "%s: %s\n", strerror(errno), filename);
+      exit(2);
+    }
   if (!(p = strrchr(path, '/')))
     {
       free(path);
-      return(NULL);
+      fprintf(stderr, "please provide the full pathname for %s\n", filename);
+      exit(2);
     }
   if (p > path) *p = '\0'; else p[1] = 0;
   return(path);
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -96716,17 +96713,20 @@ int main(int argc, char **argv)
     }
   else
     {
-#ifdef _MSC_VER
+#if MS_WINDOWS
       dumb_repl(sc);
 #else
-      char *dir;
-      if (!(dir = realdir(argv[0])))
-        {
-          fprintf(stderr, "%s: %s\n", strerror(errno), argv[0]);
-          return(2);
-        }
-      s7_add_to_load_path(sc, dir);
-      free(dir);
+#if S7_LOAD_PATH
+      s7_add_to_load_path(sc, S7_LOAD_PATH);
+#else
+      char *dir; 
+      dir = realdir(argv[0]);
+      if (dir)
+	{
+	  s7_add_to_load_path(sc, dir);
+	  free(dir);
+	}
+#endif
       s7_repl(sc);
 #endif
     }
