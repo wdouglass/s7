@@ -86986,6 +86986,25 @@ static inline bool op_safe_c_fp_mv_1(s7_scheme *sc)
   return(false);
 }
 
+
+/* push closure_let + closure (opt1_lambda(sc->code))
+   set slots in order until !has_fx
+   push op 1|2 slot cdr(p)
+   set code
+
+   in fp_1, 
+   pop slot/cdr, 
+   set_slot via sc->value
+   continue down cdr
+   
+   in fp2 dont cdr
+   fp mv: fill out args given values, then continue cdr
+
+   at end, error checks, body etc
+
+   no args list, no use of collect_fp_args, no reverse
+*/
+   
 static void op_safe_closure_fp(s7_scheme *sc)
 {
   s7_pointer p;
@@ -87000,7 +87019,6 @@ static void op_safe_closure_fp(s7_scheme *sc)
 
 static void op_safe_closure_fp_1(s7_scheme *sc)
 {
-  /* in-coming sc->value has the current arg value, sc->args is all previous args */
   uint64_t id;
   s7_pointer x, z;
 
@@ -96675,8 +96693,12 @@ static char *realdir(const char *filename) /* this code courtesy Lassi Kortela 4
 
   if (!(path = realpath(filename, NULL)))
     return(NULL);
-  if ((p = strrchr(path, '/')) > path)
-    *p = '\0';
+  if (!(p = strrchr(path, '/')))
+    {
+      free(path);
+      return(NULL);
+    }
+  if (p > path) *p = '\0'; else p[1] = 0;
   return(path);
 }
 

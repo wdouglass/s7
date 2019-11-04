@@ -12,8 +12,12 @@ static char *realdir(const char *filename)
 
   if (!(path = realpath(filename, NULL)))
     return(NULL);
-  if ((p = strrchr(path, '/')) > path)
-    *p = '\0';
+  if (!(p = strrchr(path, '/')))
+    {
+      free(path);
+      return(NULL);
+    }
+  if (p > path) *p = '\0'; else p[1] = 0;
   return(path);
 }
 
