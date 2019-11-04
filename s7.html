@@ -4140,9 +4140,8 @@ form containing #&lt;eof&gt;, just as with any other constant.  If it hits the e
 the input while reading a form, it raises an error (e.g. "missing close paren").
 If it encounters
 #&lt;eof&gt; all by itself at the top level (this never happens),
-it returns that #&lt;eof&gt;.  Consider it a feature!  If you want a top level 
-#&lt;eof&gt; without stopping read, either quote it, or <code>(define *eof* #&lt;eof&gt;)</code> and use *eof* in the
-source: read will return the symbol *eof*.  Built-in #&lt;eof&gt; has lots of
+it returns that #&lt;eof&gt;.  
+Built-in #&lt;eof&gt; has lots of
 uses, and as far as I can see, no drawbacks.  For example,
 it is very common to call
 read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
