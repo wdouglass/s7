@@ -3398,8 +3398,10 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
   return(p);
 }
 
-#define NUM_SMALL_INTS 2048
-static s7_pointer small_ints[NUM_SMALL_INTS + 1];
+#ifndef NUM_SMALL_INTS
+  #define NUM_SMALL_INTS 8192
+#endif
+static s7_pointer small_ints[NUM_SMALL_INTS];
 #define small_int(Val) small_ints[Val]
 #define is_small(n) ((n & ~(NUM_SMALL_INTS - 1)) == 0)
 
@@ -3410,8 +3412,8 @@ static void init_small_ints(void)
   const char *ones[10] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
   s7_cell *cells;
   int32_t i;
-  cells = (s7_cell *)calloc((NUM_SMALL_INTS + 1), sizeof(s7_cell));
-  for (i = 0; i <= NUM_SMALL_INTS; i++)
+  cells = (s7_cell *)calloc((NUM_SMALL_INTS), sizeof(s7_cell));
+  for (i = 0; i < NUM_SMALL_INTS; i++)
     {
       s7_pointer p;
       small_ints[i] = &cells[i];
@@ -3898,7 +3900,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_CLOSURE_AP, HOP_CLOSURE_AP, OP_CLOSURE_PA, HOP_CLOSURE_PA, OP_CLOSURE_PP, HOP_CLOSURE_PP, 
       OP_SAFE_CLOSURE_AP, HOP_SAFE_CLOSURE_AP, OP_SAFE_CLOSURE_PA, HOP_SAFE_CLOSURE_PA, OP_SAFE_CLOSURE_PP, HOP_SAFE_CLOSURE_PP,
       OP_CLOSURE_FA, HOP_CLOSURE_FA,
-      OP_SAFE_CLOSURE_3P, HOP_SAFE_CLOSURE_3P,
+      OP_SAFE_OR_UNSAFE_CLOSURE_3P, HOP_SAFE_OR_UNSAFE_CLOSURE_3P,
 
       OP_CLOSURE_SS, HOP_CLOSURE_SS, OP_CLOSURE_SS_P, HOP_CLOSURE_SS_P,
       OP_SAFE_CLOSURE_SS, HOP_SAFE_CLOSURE_SS, OP_SAFE_CLOSURE_SS_P, HOP_SAFE_CLOSURE_SS_P, OP_SAFE_CLOSURE_SS_A, HOP_SAFE_CLOSURE_SS_A,
@@ -4050,7 +4052,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_C_P_1, OP_C_P_MV, OP_C_AP_1, OP_C_AP_MV, OP_NOT_P_1, OP_SAFE_C_FP_2,
       OP_CLOSURE_AP_1, OP_CLOSURE_PA_1, OP_CLOSURE_PP_1,
       OP_SAFE_C_PA_1, OP_SAFE_C_PA_MV, OP_SAFE_CLOSURE_FP_2,
-      OP_SAFE_CLOSURE_3P_1, OP_SAFE_CLOSURE_3P_2, OP_SAFE_CLOSURE_3P_3,
+      OP_SAFE_OR_UNSAFE_CLOSURE_3P_1, OP_SAFE_OR_UNSAFE_CLOSURE_3P_2, OP_SAFE_OR_UNSAFE_CLOSURE_3P_3,
 
       OP_SET_WITH_LET_1, OP_SET_WITH_LET_2, 
 
@@ -4139,7 +4141,7 @@ static const char* op_names[NUM_OPS] =
       "closure_ap", "h_closure_ap", "closure_pa", "h_closure_pa", "closure_pp", "h_closure_pp",
       "safe_closure_ap", "h_safe_closure_ap", "safe_closure_pa", "h_safe_closure_pa", "safe_closure_pp", "h_safe_closure_pp",
       "closure_fa", "h_closure_fa",
-      "safe_closure_3p", "h_safe_closure_3p",
+      "safe_or_unsafe_closure_3p", "h_safe_or_unsafe_closure_3p",
 
       "closure_ss", "h_closure_ss", "closure_ss_p", "h_closure_ss_p",
       "safe_closure_ss", "h_safe_closure_ss", "safe_closure_ss_p", "h_safe_closure_ss_p", "safe_closure_ss_a", "h_safe_closure_ss_a",
@@ -4286,7 +4288,7 @@ static const char* op_names[NUM_OPS] =
       "c_p_1", "c_p_mv", "c_ap_1", "c_ap_mv", "not_1", "safe_c_fp_2",
       "closure_ap_1", "closure_pa_1", "closure_pp_1",
       "safe_c_pa_1", "safe_c_pa_mv", "safe_closure_fp_2",
-      "safe_closure_3p_1", "safe_closure_3p_2", "safe_closure_3p_3", 
+      "safe_or_unsafe_closure_3p_1", "safe_or_unsafe_closure_3p_2", "safe_or_unsafe_closure_3p_3", 
 
       "set_with_let_1", "set_with_let_2", 
 
@@ -65450,7 +65452,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_CLOSURE_AP_1: case OP_CLOSURE_AP_1:
     case OP_SAFE_CLOSURE_PP_1: case OP_CLOSURE_PP_1:
     case OP_SAFE_CLOSURE_PA_1: case OP_CLOSURE_PA_1:      /* arity is 2, we have 2 args, this has to be an error */
-    case OP_SAFE_CLOSURE_3P_1: case OP_SAFE_CLOSURE_3P_2: case OP_SAFE_CLOSURE_3P_3:
+    case OP_SAFE_OR_UNSAFE_CLOSURE_3P_1: case OP_SAFE_OR_UNSAFE_CLOSURE_3P_2: case OP_SAFE_OR_UNSAFE_CLOSURE_3P_3:
       return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, stack_code(sc->stack, top), sc->value)));
 
     case OP_SAFE_C_PP_1:
@@ -70644,7 +70646,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  set_opt3_arglen(expr, small_int(3));
 	  return(OPT_F);
 	}
-      return(set_safe_closure_fp(sc, func, expr, e, 3, hop + OP_SAFE_CLOSURE_3P)); 
+      return(set_safe_closure_fp(sc, func, expr, e, 3, hop + OP_SAFE_OR_UNSAFE_CLOSURE_3P)); 
     }
 
   if (is_closure_star(func))
@@ -83936,7 +83938,7 @@ static void new_frame_with_three_slots(s7_scheme *sc, s7_pointer func, s7_pointe
   add_slot_at_end(let_id(sc->envir), last_slot, caddr(closure_args(func)), val3);
 }
 
-static void op_safe_closure_3p(s7_scheme *sc)
+static void op_safe_or_unsafe_closure_3p(s7_scheme *sc)
 {
   s7_pointer p;
   p = cdr(sc->code);
@@ -83946,23 +83948,23 @@ static void op_safe_closure_3p(s7_scheme *sc)
       p = cdr(p);
       if (has_fx(p))
 	{
-	  push_stack(sc, OP_SAFE_CLOSURE_3P_3, cons(sc, sc->value, fx_call(sc, p)), sc->code);
+	  push_stack(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_3, cons(sc, sc->value, fx_call(sc, p)), sc->code);
 	  sc->code = cadr(p);
 	}
       else
 	{
-	  push_stack(sc, OP_SAFE_CLOSURE_3P_2, sc->value, sc->code);
+	  push_stack(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_2, sc->value, sc->code);
 	  sc->code = car(p);
 	}
     }
   else
     {
-      push_stack_no_args(sc, OP_SAFE_CLOSURE_3P_1, sc->code);
+      push_stack_no_args(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_1, sc->code);
       sc->code = car(p);
     }
 }
 
-static bool op_safe_closure_3p_1(s7_scheme *sc)
+static bool op_safe_or_unsafe_closure_3p_1(s7_scheme *sc)
 {
   s7_pointer p;
   p = cddr(sc->code);
@@ -83978,18 +83980,18 @@ static bool op_safe_closure_3p_1(s7_scheme *sc)
 	  sc->code = T_Pair(closure_body(func));
 	  return(true);
 	}
-      push_stack(sc, OP_SAFE_CLOSURE_3P_3, cons(sc, sc->value, fx_call(sc, p)), sc->code);
+      push_stack(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_3, cons(sc, sc->value, fx_call(sc, p)), sc->code);
       sc->code = cadr(p);
     }
   else
     {
-      push_stack(sc, OP_SAFE_CLOSURE_3P_2, sc->value, sc->code);
+      push_stack(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_2, sc->value, sc->code);
       sc->code = car(p);
     }
   return(false);
 }
 
-static bool op_safe_closure_3p_2(s7_scheme *sc)
+static bool op_safe_or_unsafe_closure_3p_2(s7_scheme *sc)
 {
   s7_pointer p;
   p = cdddr(sc->code);
@@ -84004,12 +84006,12 @@ static bool op_safe_closure_3p_2(s7_scheme *sc)
       /* fprintf(stderr, "%s: %s %s\n", __func__, display(sc->envir), display(sc->code)); */
       return(true);
     }
-  push_stack(sc, OP_SAFE_CLOSURE_3P_3, cons(sc, sc->args, sc->value), sc->code);
+  push_stack(sc, OP_SAFE_OR_UNSAFE_CLOSURE_3P_3, cons(sc, sc->args, sc->value), sc->code);
   sc->code = car(p);
   return(false);
 }
 
-static void op_safe_closure_3p_3(s7_scheme *sc)
+static void op_safe_or_unsafe_closure_3p_3(s7_scheme *sc)
 {
   s7_pointer func;
   func = opt1_lambda(sc->code);
@@ -88330,11 +88332,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_PP: op_safe_closure_pp(sc); goto EVAL;
 	case OP_SAFE_CLOSURE_PP_1: op_safe_closure_pp_1(sc); goto EVAL;
 
-	case OP_SAFE_CLOSURE_3P: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) break;
-	case HOP_SAFE_CLOSURE_3P: op_safe_closure_3p(sc); goto EVAL;
-	case OP_SAFE_CLOSURE_3P_1: if (!op_safe_closure_3p_1(sc)) goto EVAL; goto BEGIN;
-	case OP_SAFE_CLOSURE_3P_2: if (!op_safe_closure_3p_2(sc)) goto EVAL; goto BEGIN;
-	case OP_SAFE_CLOSURE_3P_3: op_safe_closure_3p_3(sc); goto BEGIN;
+	case OP_SAFE_OR_UNSAFE_CLOSURE_3P:   if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) break;
+	case HOP_SAFE_OR_UNSAFE_CLOSURE_3P:  op_safe_or_unsafe_closure_3p(sc); goto EVAL;
+	case OP_SAFE_OR_UNSAFE_CLOSURE_3P_1: if (!op_safe_or_unsafe_closure_3p_1(sc)) goto EVAL; goto BEGIN;
+	case OP_SAFE_OR_UNSAFE_CLOSURE_3P_2: if (!op_safe_or_unsafe_closure_3p_2(sc)) goto EVAL; goto BEGIN;
+	case OP_SAFE_OR_UNSAFE_CLOSURE_3P_3: op_safe_or_unsafe_closure_3p_3(sc); goto BEGIN;
 
 	case OP_CLOSURE_FA: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) break;
 	case HOP_CLOSURE_FA: op_closure_fa(sc); goto EVAL;
@@ -94535,7 +94537,7 @@ static bool is_decodable(s7_scheme *sc, s7_pointer p)
       }
 
   for (i = 0; i < NUM_CHARS; i++) if (p == chars[i]) return(true);
-  for (i = 0; i <= NUM_SMALL_INTS; i++) if (p == small_ints[i]) return(true);
+  for (i = 0; i < NUM_SMALL_INTS; i++) if (p == small_ints[i]) return(true);
   /* also real_one and friends, sc->safe_lists, p|elist? */
 
   /* check the heap */
@@ -96864,14 +96866,18 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(sc, argv[1]);
+      if (!s7_load(sc, argv[1]))
+	{
+	  fprintf(stderr, "can't load %s\n", argv[1]);
+	  return(2);
+	}
     }
   else
     {
 #if MS_WINDOWS
       dumb_repl(sc);
 #else
-#if S7_LOAD_PATH
+#ifdef S7_LOAD_PATH
       s7_add_to_load_path(sc, S7_LOAD_PATH);
 #else
       char *dir; 
@@ -96906,35 +96912,36 @@ int main(int argc, char **argv)
  * tpeak         |      |      |      |  391 |  377 |  199 |  163   114
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   621
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   715
- * tshoot        |      |      |      |      |      | 1224 |  847   740
+ * tshoot        |      |      |      |      |      | 1224 |  847   735
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   862
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
- * tvect         |      |      |      |      |      | 5729 | 1793  1620
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673
+ * tvect         |      |      |      |      |      | 5729 | 1793  1617
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1673  [1700]
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2047
- * tlet          |      |      |      |      | 4717 | 2959 | 2148  2125
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2196
+ * tlet          |      |      |      |      | 4717 | 2959 | 2148  2127
+ * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2202
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2220  2212
- * tread         |      |      |      |      | 2357 | 2336 | 2264  2260
- * tmisc         |      |      |      |      |      | 3087 |       2283  2337 [new]
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2383  2400
- * dup           |      |      |      |      | 20.8 | 5711 | 3362  2587  2613
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2635  2625
- * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2680
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2712
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2737
+ * tread         |      |      |      |      | 2357 | 2336 | 2264  2262
+ * tmisc         |      |      |      |      |      | 3087 |       2341
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2397
+ * dup           |      |      |      |      | 20.8 | 5711 | 3362  2626
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2625
+ * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2672
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2726
+ * tb            |      |      |      |      |      | 3481 |       2755
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2614
  * tset          |      |      |      |      | 10.0 | 6432 | 2928  2907
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3090  2935
- * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3514  3144
+ * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3514  3142
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 3873  3728
- * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 5213  4688
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6432  6135
- * thash         |      |      |      |      |      | 10.3 | 6647  6557
+ * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 5213  4706
+ * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6432  5949
+ * thash         |      |      |      |      |      | 10.3 | 6647  6511
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.6  14.3
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.1  34.8
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.6  68.2
- * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.5
+ * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.6
  * tbig          |      |      |      |      |246.9 |230.6 |177.9 177.1
  * ------------------------------------------------------------------------
  *
@@ -96944,5 +96951,5 @@ int main(int argc, char **argv)
  *   (lambda ...) as arg: fx_lambda+check_lambda at opt time
  * lamlet for op_dox? needs body_is_safe I think
  * recur call func is in outlet? (closure_is_ok) or local_slot?
- * a1 pip_direct
+ * hop_safe_c_t|tu, OP_L, OP_SAFE_C_L|LL|3L with fx? 4p?
  */
