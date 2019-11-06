@@ -176,7 +176,8 @@
 	    (with-let (unlet)
 	      (eval `(set! ,(syms i) 42) (rootlet)))))
 	(lambda (type info)
-	  (format *stderr* "~S unchanged: ~S~%" (syms i) (apply format #f info)))))
+	  ;(format *stderr* "~S unchanged: ~S~%" (syms i) (apply format #f info))
+	  #f)))
     
     (with-let (unlet)
       (do ((k 0 (+ k 1)))
@@ -194,4 +195,4 @@
     (unlet-test i)))
 
 
-(exit)
+(#_exit) ; we just clobbered exit above
