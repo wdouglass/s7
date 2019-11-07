@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 #ifdef _MSC_VER
       dumb_repl(sc);
 #else
-#if S7_LOAD_PATH
+#ifdef S7_LOAD_PATH
       s7_add_to_load_path(sc, S7_LOAD_PATH);
 #else
       char *dir; 

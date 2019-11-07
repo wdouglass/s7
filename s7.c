@@ -3953,7 +3953,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA,
 
       OP_SYM, OP_GLOBAL_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY, OP_UNSPECIFIED,
-      OP_SSA_DIRECT, OP_HASH_INCREMENT, OP_SAFE_C_TUS,
+      OP_SSA_DIRECT, OP_HASH_INCREMENT, OP_SAFE_C_T, OP_SAFE_C_TUS,
 
       OP_READ_INTERNAL, OP_EVAL,
       OP_EVAL_ARGS, OP_EVAL_ARGS1, OP_EVAL_ARGS2, OP_EVAL_ARGS3, OP_EVAL_ARGS4, OP_EVAL_ARGS5,
@@ -4192,7 +4192,7 @@ static const char* op_names[NUM_OPS] =
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa",
 
       "symbol", "global-symbol", "constant", "pair_sym", "pair_pair", "pair_any", "unspec",
-      "ssa_direct", "hash_incrment", "safe_c_tus",
+      "ssa_direct", "hash_incrment", "safe_c_t", "safe_c_tus",
 
       "read_internal", "eval",
       "eval_args", "eval_args1", "eval_args2", "eval_args3", "eval_args4", "eval_args5",
@@ -54801,7 +54801,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
     {
       if (cadr(p) == var1)
 	{
-	  if (c_callee(tree) == fx_c_s) return(with_c_call(tree, fx_c_t));
+	  if (c_callee(tree) == fx_c_s) {set_safe_optimize_op(p, OP_SAFE_C_T); return(with_c_call(tree, fx_c_t));}
 	  if (c_callee(tree) == fx_c_s_direct) return(with_c_call(tree, fx_c_t_direct));
 	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_ts));
 	  if (c_callee(tree) == fx_c_scs) return(with_c_call(tree, fx_c_tcs));
@@ -65970,7 +65970,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
 	    if (dig >= 10) break;
 	    dims = dig + (dims * 10);
 	    if ((dims <= 0) ||
-		(dims > S7_SHORT_MAX))
+		(dims > sc->max_vector_dimensions)) /* was S7_SHORT_MAX?? */
 	      s7_error(sc, sc->read_error_symbol,
 		       set_elist_2(sc, wrap_string(sc, "overflow while reading #nD: ~A", 30), wrap_integer1(sc, dims)));
 	    sc->strbuf[loc++] = (unsigned char)d;
@@ -78870,7 +78870,7 @@ static s7_pointer check_do(s7_scheme *sc)
       clear_match_symbol(caar(p));
     
     /* end and steps look ok! */
-    /* TODO: split out the constant cases from OP_DOX so dox_ex is less repetitive
+    /* TODO: split out the constant cases from OP_DOX so op_dox is less repetitive
      *    1-var, no body, 1-expr body, steppers=1|2
      */
     for (p = vars; is_pair(p); p = cdr(p))
@@ -79077,7 +79077,7 @@ static bool op_dox_init(s7_scheme *sc)
   return(false); /* goto BEGIN */
 }
 
-static goto_t dox_ex(s7_scheme *sc)
+static goto_t op_dox(s7_scheme *sc)
 {
   /* any number of steppers using dox exprs, end also dox, body and end result arbitrary.
    *    since all these exprs are local, we don't need to jump until the body
@@ -79085,8 +79085,6 @@ static goto_t dox_ex(s7_scheme *sc)
   int64_t id, steppers = 0;
   s7_pointer frame, vars, slot, code, end, endp, stepper = NULL, form;
   s7_function endf;
-
-  /* fprintf(stderr, "dox_ex: %s\n", display(sc->code)); */
 
   form = sc->code;
   set_current_code(sc, sc->code);
@@ -79929,7 +79927,7 @@ static bool opt_do_copy(s7_scheme *sc, opt_info *o, s7_int start, s7_int stop)
   return(false);
 }
 
-static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
+static bool op_simple_do_1(s7_scheme *sc, s7_pointer code)
 {
 #if (!WITH_GMP)
   s7_pointer body, step_expr, step_var, ctr_slot, end_slot;
@@ -79938,7 +79936,6 @@ static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
 
   code = cdr(code);
   body = caddr(code);
-  /* fprintf(stderr, "simple_do_ex: %s\n", display(code)); */
 
   if (no_cell_opt(cddr(code)))
     return(false);
@@ -80099,7 +80096,7 @@ static bool simple_do_ex(s7_scheme *sc, s7_pointer code)
 static bool op_simple_do(s7_scheme *sc)
 {
   /* body might not be safe in this case, but the step and end exprs are easy
-   * simple_do: set up local env, check end (c_c?), goto simple_do_ex
+   * simple_do: set up local env, check end (c_c?), goto op_simple_do_1
    *   if latter gets s7_optimize, run locally, else goto simple_do_step.
    */
   s7_pointer end, code, body;
@@ -80128,7 +80125,7 @@ static bool op_simple_do(s7_scheme *sc)
       (is_pair(car(body))) &&      /*   and it is a pair */
       (is_symbol(cadaddr(caar(code)))) && /* caar=(i 0 (+ i 1)), caddr=(+ i 1), so this is apparently checking that the stepf is reasonable? */
       (is_t_integer(caddr(caddr(caar(code))))) &&
-      (simple_do_ex(sc, sc->code)))
+      (op_simple_do_1(sc, sc->code)))
     return(true);   /* goto DO_END_CLAUSES */
 
   push_stack(sc, OP_SIMPLE_DO_STEP, sc->args, code);
@@ -80791,7 +80788,7 @@ static bool dotimes(s7_scheme *sc, s7_pointer code, bool safe_case)
   return(opt_dotimes(sc, cddr(code), code, safe_case));
 }
 
-static goto_t safe_dotimes_ex(s7_scheme *sc)
+static goto_t op_safe_dotimes(s7_scheme *sc)
 {
   s7_pointer init_val, form;
   form = sc->code;
@@ -80886,7 +80883,7 @@ static goto_t safe_dotimes_ex(s7_scheme *sc)
   return(goto_begin);
 }
 
-static goto_t safe_do_ex(s7_scheme *sc)
+static goto_t op_safe_do(s7_scheme *sc)
 {
   /* body is safe, step = +1, end is = or >=, but stepper and end might be set (or at least indirectly exported) in the body:
    *    (let ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (let ((j (min i 100))) (set! lst (cons j lst)))) lst)
@@ -80991,7 +80988,7 @@ static goto_t safe_do_ex(s7_scheme *sc)
   return(goto_begin);
 }
 
-static goto_t dotimes_p_ex(s7_scheme *sc)
+static goto_t op_dotimes_p(s7_scheme *sc)
 {
   s7_pointer end, code, init_val, end_val, slot, form, old_e;
   /* (do ... (set! args ...)) -- one line, syntactic */
@@ -81062,7 +81059,7 @@ static goto_t dotimes_p_ex(s7_scheme *sc)
   return(goto_eval);
 }
 
-static goto_t do_init_ex(s7_scheme *sc)
+static goto_t op_do_init_1(s7_scheme *sc)
 {
   s7_pointer x, y, z;
   while (true)  /* at start, first value is the loop (for GC protection?), returning sc->value is the next value */
@@ -81129,7 +81126,7 @@ static bool op_do_init(s7_scheme *sc)
 {
   if (is_multiple_value(sc->value))               /* (do ((i (values 1 2)))...) */
     eval_error_no_return(sc, sc->wrong_type_arg_symbol, "do: variable initial value can't be ~S", 38, cons(sc, sc->values_symbol, sc->value));
-  if (do_init_ex(sc) == goto_eval) return(false);
+  if (op_do_init_1(sc) == goto_eval) return(false);
   return(true);
 }
 
@@ -81153,7 +81150,7 @@ static bool do_unchecked(s7_scheme *sc)
   sc->args = sc->nil;                             /* the evaluated var-data */
   sc->value = sc->code;                           /* protect it */
   sc->code = car(sc->code);                       /* the vars */
-  return(do_init_ex(sc) == goto_eval);
+  return(op_do_init_1(sc) == goto_eval);
 }
 
 static bool op_do_end(s7_scheme *sc)
@@ -86986,6 +86983,12 @@ static inline void op_safe_c_s(s7_scheme *sc)
   sc->value = c_call(sc->code)(sc, sc->t1_1);
 }
 
+static inline void op_safe_c_t(s7_scheme *sc)
+{
+  set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
+  sc->value = c_call(sc->code)(sc, sc->t1_1);
+}
+
 static inline void op_safe_c_ss(s7_scheme *sc)
 {
   set_car(sc->t2_1, lookup(sc, cadr(sc->code)));
@@ -87856,8 +87859,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_D: if (!c_function_is_ok(sc, sc->code)) break;  /* break refers to the switch statement */
 	case HOP_SAFE_C_D: sc->value = d_call(sc, sc->code); continue; /* continue refers to the outer while loop -- unfortunate C ambiguity */
 
-	case OP_SAFE_C_S: if (op_check_safe_c_s(sc)) goto EVAL; 
+	case OP_SAFE_C_S:  if (op_check_safe_c_s(sc)) goto EVAL; 
 	case HOP_SAFE_C_S: op_safe_c_s(sc); continue;
+	case OP_SAFE_C_T:  op_safe_c_t(sc); continue;
 
 	case OP_SAFE_C_SS: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SS: op_safe_c_ss(sc); continue;
@@ -88808,7 +88812,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_DOTIMES:
 	SAFE_DOTIMES:         /* check_do */
-	  switch (safe_dotimes_ex(sc))
+	  switch (op_safe_dotimes(sc))
 	    {
 	    case goto_safe_do_end_clauses: if (is_null(sc->code)) continue; goto DO_END_CODE;
 	    case goto_do_end_clauses: goto DO_END_CLAUSES;
@@ -88819,7 +88823,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_DO:
 	SAFE_DO:             /* from check_do */
-	  switch (safe_do_ex(sc))
+	  switch (op_safe_do(sc))
 	    {
 	    case goto_safe_do_end_clauses:
 	      if (is_null(sc->code)) /* I don't think multiple values (as test result) can happen here -- all safe do loops involve counters by 1 to some integer end */
@@ -88832,7 +88836,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_DOTIMES_P:
 	DOTIMES_P:           /* from check_do */
-	  switch (dotimes_p_ex(sc))
+	  switch (op_dotimes_p(sc))
 	    {
 	    case goto_do_end_clauses: goto DO_END_CLAUSES;
 	    case goto_do_unchecked:   goto DO_UNCHECKED;
@@ -88841,7 +88845,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_DOX:
 	DOX:                 /* from check_do */
-	  switch (dox_ex(sc))
+	  switch (op_dox(sc))
 	    {
 	    case goto_do_end_clauses: goto DO_END_CLAUSES;
 	    case goto_start:          continue;
@@ -94662,6 +94666,7 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_D] = fx_c_d;
 
   fx_function[HOP_SAFE_C_S] = fx_c_s;
+  fx_function[OP_SAFE_C_T] = fx_c_t;
   fx_function[HOP_SAFE_C_opDq] = fx_c_opdq;
   fx_function[HOP_SAFE_C_opSq] = fx_c_opsq;
   fx_function[HOP_SAFE_C_opSSq] = fx_c_opssq;
@@ -96745,7 +96750,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 879) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 880) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -96928,7 +96933,7 @@ int main(int argc, char **argv)
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2625
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2672
  * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2726
- * tb            |      |      |      |      |      | 3481 |       2755
+ * tb            |      |      | 4727 | 4742 | 4735 | 3481 |       2754
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2614
  * tset          |      |      |      |      | 10.0 | 6432 | 2928  2907
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3090  2935
@@ -96947,9 +96952,8 @@ int main(int argc, char **argv)
  *
  * z_first: op_tc_let_if_a_z_laa, if_a_z_if_a_laa_laa (l3a->la2 case), also and_a_or_a_a_la and_a_or_laa_laa and_a_or_[a]_la_la
  * generalize the vref cases
- * fully_fx_treed flag? [88 in tgen], try out-of-order def opts, some way to combine even unsafe calls?
- *   (lambda ...) as arg: fx_lambda+check_lambda at opt time
- * lamlet for op_dox? needs body_is_safe I think
- * recur call func is in outlet? (closure_is_ok) or local_slot?
- * hop_safe_c_t|tu, OP_L, OP_SAFE_C_L|LL|3L with fx? 4p?
+ * fully_fx_treed flag? [88 in tgen]
+ * recur call func is in outlet? (closure_is_ok)
+ * check op_safe_c_t numbers [OP_L, OP_SAFE_C_L|LL|3L with fx?]
+ * t200 if in order unsets hop for op_safe_c_sp?? not_h_optimized gets symbol -> #t??
  */
