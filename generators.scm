@@ -5596,23 +5596,22 @@ returns the sum of the last n inputs weighted by (-n/(n+1))^k"))
       (make-polywave frequency :xcoeffs cos-amps :ycoeffs sin-amps))))
 
 
-(define (polyoid-env gen fm amps phases)
+(define (polyoid-env gen fm amps phases original-data)
   ;; amps and phases are the envelopes, one for each harmonic, setting the sample-wise amp and phase
-  (let ((original-data (polyoid-partial-amps-and-phases gen)))
-    (let ((data-len (length original-data))
-	  (amps-len (length amps))
-	  (tn (polyoid-tn gen))
-	  (un (polyoid-un gen)))
-      (do ((i 0 (+ i 3))
-	   (j 0 (+ j 1)))
-	  ((or (= j amps-len)
-	       (= i data-len)))
-	(let ((hn (floor (original-data i)))
-	      (amp (env (amps j)))
-	      (phase (env (phases j))))
-	  (set! (tn hn) (* amp (sin phase)))
-	  (set! (un hn) (* amp (cos phase)))))
-      (polyoid gen fm))))
+  (let ((data-len (length original-data))
+	(amps-len (length amps))
+	(tn (polyoid-tn gen))
+	(un (polyoid-un gen)))
+    (do ((i 0 (+ i 3))
+	 (j 0 (+ j 1)))
+	((or (= j amps-len)
+	     (= i data-len)))
+      (let ((hn (floor (original-data i)))
+	    (amp (env (amps j)))
+	    (phase (env (phases j))))
+	(set! (tn hn) (* amp (sin phase)))
+	(set! (un hn) (* amp (cos phase)))))
+    (polyoid gen fm)))
 
 #|
 (with-sound (:clipped #f)
@@ -5667,7 +5666,7 @@ returns the sum of the last n inputs weighted by (-n/(n+1))^k"))
 
 ;;; 0 diff up to 4096 so far (unopt and opt) -- 1.0e-12 at 4096, opt is more than 20 times as fast
 
-
+;; these won't work as is -- polyoid-env needs the vectors passed to make-polyoid as its "original-data" argument
 (with-sound (:clipped #f :channels 2 :statistics #t)
   (let* ((samps 44100)
 	 (gen1 (make-polyoid 100.0 (vector 1 0.5 0.0  3 0.25 0.0  4 .25 0.0)))
