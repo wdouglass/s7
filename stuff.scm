@@ -1146,7 +1146,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 
 ;;; ----------------
-(define (clamp minimum x maximum)
+(define (clamp minimum x maximum) ; if min>max maybe an error? (clamp 3 2 1) -> 1
   (min maximum (max x minimum)))
 
 (define (1- x) (- x 1))
