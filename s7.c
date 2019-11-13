@@ -8263,11 +8263,13 @@ static s7_pointer g_simple_inlet(s7_scheme *sc, s7_pointer args)
   for (x = args; is_pair(x); x = cddr(x))
     {
       s7_pointer symbol, slot;
+
       symbol = car(x);
       if (is_keyword(symbol))                 /* (inlet ':allow-other-keys 3) */
 	symbol = keyword_symbol(symbol);
       if (is_constant_symbol(sc, symbol))     /* (inlet 'pi 1) */
 	return(wrong_type_argument_with_type(sc, sc->inlet_symbol, 1, symbol, a_non_constant_symbol_string));
+
       new_cell_no_check(sc, slot, T_SLOT);
       slot_set_symbol(slot, symbol);
       slot_set_value(slot, cadr(x));
@@ -8290,6 +8292,9 @@ static s7_pointer inlet_p_pp(s7_scheme *sc, s7_pointer symbol, s7_pointer value)
     symbol = keyword_symbol(symbol);
   if (is_constant_symbol(sc, symbol))
     return(wrong_type_argument_with_type(sc, sc->inlet_symbol, 1, symbol, a_non_constant_symbol_string));
+  if ((is_global(symbol)) &&
+      (is_syntax(slot_value(global_slot(symbol)))))
+    return(wrong_type_argument_with_type(sc, sc->inlet_symbol, 1, symbol, wrap_string(sc, "a non-syntactic name", 20)));
 
   new_cell(sc, x, T_LET | T_SAFE_PROCEDURE);
   sc->temp3 = x;
@@ -12745,8 +12750,8 @@ static s7_pointer check_sharp_readers(s7_scheme *sc, const char *name)
    *    The procedure can call read-char to read ahead in the current-input-port.
    *    If it returns anything other than #f, that is the value of the sharp expression.
    *    Since #f means "nothing found", it is tricky to handle #F:
-   *       (cons #\F (lambda (str) (and (string=? str "F") (list 'not #t))))
-   * This search happens after #|, #t, and #f (and #nD for multivectors?). #! has a fallback.
+   *       (cons #\F (lambda (str) (and (string=? str "F") (list 'not #t)))) ; or ''#f used in lint.scm
+   * This search happens after #|, #t, and #f (and #nD for multivectors?). #! has a fallback.  Added #_ later)
    */
 
   need_loader_port = is_loader_port(sc->input_port);
@@ -12828,6 +12833,23 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 {
   /* name is the stuff after the '#', return sc->nil if not a recognized #... entity */
 
+  if (name[0] == '_')
+    {
+      /* this needs to be unsettable via *#readers*:
+       *    (set! *#readers* (list (cons #\_ (lambda (str) (string->symbol (substring str 1))))))
+       *    (let ((+ -)) (#_+ 1 2)): -1
+       */
+      s7_pointer sym;
+      sym = make_symbol(sc, (char *)(name + 1));
+      if ((!is_gensym(sym)) && (is_slot(initial_slot(sym))))
+	return(slot_value(initial_slot(sym)));
+      /* here we should not necessarily raise an error that *_... is undefined.  reader-cond, for example, needs to
+       *    read undefined #_ vals that it will eventually discard.
+       */
+      return(make_unknown(sc, name));    /* (define x (with-input-from-string "(#_asdf 1 2)" read)) (type-of (car x)) -> undefined? */
+    }
+
+  /* stupid r7rs special cases */
   if ((name[0] == 't') &&
       ((name[1] == '\0') || (strings_are_equal(name, "true"))))
     return(sc->T);
@@ -12867,19 +12889,6 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     case 'x':   /* #x (hex) */
     case 'b':   /* #b (binary) */
       return(make_atom(sc, (char *)(name + 1), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error));
-
-      /* -------- #_... -------- */
-    case '_':
-      {
-	s7_pointer sym;
-	sym = make_symbol(sc, (char *)(name + 1));
-	if ((!is_gensym(sym)) && (is_slot(initial_slot(sym))))
-	  return(slot_value(initial_slot(sym)));
-	/* here we should not necessarily raise an error that *_... is undefined.  reader-cond, for example, needs to
-	 *    read undefined #_ vals that it will eventually discard.
-	 */
-	return(make_unknown(sc, name));    /* (define x (with-input-from-string "(#_asdf 1 2)" read)) (type-of (car x)) -> undefined? */
-      }
 
       /* -------- #\... -------- */
     case '\\':
@@ -26964,7 +26973,7 @@ static s7_pointer g_with_input_from_string(s7_scheme *sc, s7_pointer args)
   if (!is_string(str))
     return(method_or_bust(sc, str, sc->with_input_from_string_symbol, args, T_STRING, 1));
 
-  if (cadr(args) == slot_value(global_slot(sc->read_symbol)))
+  if (cadr(args) == slot_value(global_slot(sc->read_symbol))) /* if chooser for this, make_function_with_class needs to handle unsafe functions */
     {
       s7_pointer old_input_port;
       if (string_length(str) == 0)
@@ -46046,29 +46055,20 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	{
 	  if (is_let(dest))
 	    {
-	      if (has_let_fallback(dest))
+	      for (i = start; i < end; i++)
 		{
-		  for (i = start; i < end; i++)
-		    {
-		      while (!x) x = elements[++loc];
-		      if (!is_symbol(hash_entry_key(x)))
-			return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
-		      if ((hash_entry_key(x) != sc->let_ref_fallback_symbol) &&
-			  (hash_entry_key(x) != sc->let_set_fallback_symbol))
-			make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
-		      x = hash_entry_next(x);
-		    }
-		}
-	      else
-		{
-		  for (i = start; i < end; i++)
-		    {
-		      while (!x) x = elements[++loc];
-		      if (!is_symbol(hash_entry_key(x)))
-			return(simple_wrong_type_argument(sc, caller, hash_entry_key(x), T_SYMBOL));
-		      make_slot_1(sc, dest, hash_entry_key(x), hash_entry_value(x));
-		      x = hash_entry_next(x);
-		    }
+		  s7_pointer symbol;
+		  while (!x) x = elements[++loc];
+		  symbol = hash_entry_key(x);
+		  if (!is_symbol(symbol))
+		    return(simple_wrong_type_argument(sc, caller, symbol, T_SYMBOL));
+		  if (is_constant_symbol(sc, symbol))
+		    return(s7_error(sc, sc->wrong_type_arg_symbol,
+				    set_elist_4(sc, wrap_string(sc, "~A into ~A: ~A is a constant", 28), caller, dest, symbol)));
+		  if ((symbol != sc->let_ref_fallback_symbol) &&
+		      (symbol != sc->let_set_fallback_symbol))
+		    make_slot_1(sc, dest, symbol, hash_entry_value(x));
+		  x = hash_entry_next(x);
 		}
 	    }
 	  else
@@ -52351,6 +52351,13 @@ static s7_pointer fx_c_opssq(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t1_1));
 }
 
+#if 0
+static s7_pointer fx_c_opssq_direct(s7_scheme *sc, s7_pointer arg) /* opt1_sym = caddr */
+{
+  return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), lookup(sc, opt1_sym(cdr(arg))))));
+}
+#endif
+
 static s7_pointer fx_c_optuq(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(cadr(arg)));
@@ -52374,8 +52381,7 @@ static s7_pointer fx_c_opstq(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_opstq_direct(s7_scheme *sc, s7_pointer arg)
 {
-  return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc,
-            ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), slot_value(let_slots(sc->envir)))));
+  return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), slot_value(let_slots(sc->envir)))));
 }
 
 #if (!WITH_GMP)
@@ -52651,6 +52657,13 @@ static s7_pointer fx_c_opsq_s(s7_scheme *sc, s7_pointer arg)
   set_car(sc->t2_1, c_call(largs)(sc, sc->t1_1));
   set_car(sc->t2_2, lookup(sc, caddr(arg)));
   return(c_call(arg)(sc, sc->t2_1));
+}
+
+static s7_pointer fx_c_opsq_s_direct(s7_scheme *sc, s7_pointer arg)
+{
+  return(((s7_p_pp_t)opt2_direct(cdr(arg)))(sc, 
+            ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt1_sym(cdr(arg)))), /* cadadr(arg) */
+            lookup(sc, caddr(arg))));
 }
 
 static s7_pointer fx_c_optq_s(s7_scheme *sc, s7_pointer arg)
@@ -54262,6 +54275,18 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      return(fx_c_ss_direct);
 	    }
 	  return(fx_c_ss);
+
+	case HOP_SAFE_C_opSq_S:
+	  if ((is_global_and_has_func(car(arg), s7_p_pp_function)) &&
+	      (is_global_and_has_func(caadr(arg), s7_p_p_function)))
+	    {
+	      set_direct_opt(arg);
+	      set_opt1_sym(cdr(arg), cadadr(arg));
+	      set_opt2_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
+	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_p_function(slot_value(global_slot(caadr(arg))))));
+	      return(fx_c_opsq_s_direct);
+	    }
+	  return(fx_c_opsq_s);
 	  
 #if (!WITH_GMP)
 	case HOP_SAFE_C_SSS:
@@ -55054,6 +55079,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 				}
 			      return(with_c_call(tree, fx_c_optq_s));
 			    }
+			  if (c_callee(tree) == fx_c_opsq_s_direct) return(with_c_call(tree, fx_c_optq_s_direct));
 			  if (c_callee(tree) == fx_and_3)
 			    {
 			      if ((c_callee(cdr(p)) == fx_is_pair_t) && (c_callee(cddr(p)) == fx_is_pair_cdr_t))
@@ -55088,6 +55114,8 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 				}
 			      return(with_c_call(tree, fx_c_opuq_t));
 			    }
+			  if ((c_callee(tree) == fx_c_opsq_s_direct) && (caddr(p) == var1)) 
+			    return(with_c_call(tree, (car(p) == sc->cons_symbol) ? fx_cons_opuq_t : fx_c_opuq_t_direct));
 			  if (c_callee(tree) == fx_c_car_s) return(with_c_call(tree, fx_c_car_u));
 			}
 #if (!WITH_GMP)
@@ -67432,7 +67460,9 @@ static s7_pointer make_function_with_class(s7_scheme *sc, s7_pointer cls, const 
 					   int32_t required_args, int32_t optional_args, bool rest_arg)
 {
   s7_pointer uf;
-  /* the "safe_function" business here doesn't matter -- this is after the optimizer decides what is safe */
+#if S7_DEBUGGING
+  if (!is_safe_procedure(slot_value(global_slot(s7_make_symbol(sc, name))))) fprintf(stderr, "%s unsafe: %s\n", __func__, name);
+#endif
   uf = s7_make_safe_function(sc, name, f, required_args, optional_args, rest_arg, NULL);
   s7_function_set_class(uf, cls);
   c_function_signature(uf) = c_function_signature(cls);
@@ -87222,8 +87252,16 @@ static void op_safe_c_pp_3_mv(s7_scheme *sc)
 
 static void op_safe_c_pp_5(s7_scheme *sc)
 {
-  /* 1 mv, 2 normal */
-  sc->args = s7_append(sc, sc->args, list_1(sc, sc->value));
+  /* 1 mv, 2 normal, sc->args was copied above (and this is a safe c function so its args are in no danger) */
+  s7_pointer p;
+  if (is_null(sc->args))
+    sc->args = list_1(sc, sc->value);
+  else
+    {
+      for (p = sc->args; is_pair(cdr(p)); p = cdr(p));
+      set_cdr(p, cons(sc, sc->value, sc->nil));
+    }
+  /* sc->args = s7_append(sc, sc->args, list_1(sc, sc->value)); */
   sc->code = c_function_base(opt1_cfunc(sc->code));
 }
 
@@ -97094,47 +97132,41 @@ int main(int argc, char **argv)
  *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.8  19.9
  * ------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  163   113
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   621
+ * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  621   623
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  791   715
  * tshoot        |      |      |      |      |      | 1224 |  847   735
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   871
+ * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  876   866
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1479  1447
  * tvect         |      |      |      |      |      | 5729 | 1793  1617
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1684  1677
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2043  2041
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1674  1680
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2053  2042
  * tlet          |      |      |      |      | 4717 | 2959 | 2148  2124
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2207  2193
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2220  2212
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2220  2225
  * tread         |      |      |      |      | 2357 | 2336 | 2264  2259
  * tmisc         |      |      |      |      |      | 3087 |       2297
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2463  2396
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2604
- * dup           |      |      |      |      | 20.8 | 5711 | 3362  2617  2584
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2619  2615
+ * dup           |      |      |      |      | 20.8 | 5711 | 3362  2580
+ * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2820  2604  2601
+ * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2653  2616
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2727  2672
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2726
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2897  2725
  * tb            |      |      | 4727 | 4742 | 4735 | 3481 |       2742
- * tset          |      |      |      |      | 10.0 | 6432 | 2928  2906  2923?
+ * tset          |      |      |      |      | 10.0 | 6432 | 2928  2922
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 3090  2935
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3514  3139
  * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 3873  3727
- * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 5213  4685
+ * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 5213  4676
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 6432  5949
  * thash         |      |      |      |      |      | 10.3 | 6647  6499
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8  10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.6  14.3
  * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 35.1  34.6
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.6  68.0
- * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.3
- * tbig          |      |      |      |      |246.9 |230.6 |177.9 177.1 176.9
+ * lg            |      |      |      |211.0 |133.0 |112.7 |103.8 103.3 103.2
+ * tbig          |      |      |      |      |246.9 |230.6 |177.9 176.9
  * ------------------------------------------------------------------------
  *
- * tvals -> misc (see tmisc comment), hygmac->tmac t204
- * overheads: opa_laq direct? (cons add_p_ip|pp etc), dstr s7_cons = cons_p_pp
- * opt* coverage tests, check t101 cases
- * op_safe_c_pp_5 uses s7_append+list, but args is known to be copied from _3? -- tmisc=9 from mv? same _6 -- lint sp-append too?
- *    (set-cdr! (list-tail x (- len 1)) (list y)) -> append_in_place, 
- * list_append, not s7_append
- * chooser for s7_values (_0|1|many cases) (misc), similarly list-values?
- * *#readers* unhygienic
+ * opt* coverage tests
+ * maybe opssq_direct[tbig] and move *_direct to fx_choose
  */

@@ -1266,9 +1266,10 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
 <em class="gray">"hiho"</em>
 </pre>
 
-<p>#_&lt;name&gt; could be implemented via *#readers*:
+<blockquote>
+<div class="indented">
+<p>Conceptually, #_&lt;name&gt; could be implemented via *#readers*:
 </p>
-
 <pre class="indented">
 (set! *#readers*
   (cons (cons #\_ (lambda (str)
@@ -1276,6 +1277,19 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
                       (string-&gt;symbol (substring str 1)))))
 	*#readers*))
 </pre>
+<p>but #\_ can't be set by *#readers*;  otherwise someone could:
+</p>
+<pre class="indented">
+(set! *#readers* (list (cons #\_ (lambda (str) (string-&gt;symbol (substring str 1))))))
+</pre>
+<p>and now #_ provides no protection:
+</p>
+<pre>
+&gt; (let ((+ -)) (#_+ 1 2))
+<em class="gray">-1</em>
+</pre>
+</div>
+</blockquote>
 
 <p>
 So, now we have only the variable capture problem ('a' has been captured in the preceding examples).
@@ -1459,8 +1473,6 @@ to be evaluated in its definition environment:
 </div>
 </blockquote>      
 
-
-
 <!--
 (define (tree-quote tree args)
   (if (pair? tree)
@@ -1478,7 +1490,7 @@ to be evaluated in its definition environment:
     `(define-macro ,name-and-args
        (list 'with-let 
 	     (list 'inlet ,@(map (lambda (arg)
-				   (values (symbol->keyword arg) arg))
+				   (values (symbol-&gt;keyword arg) arg))
 				 args))
 	     ,@(tree-quote body args)))))
 
@@ -1488,6 +1500,47 @@ to be evaluated in its definition environment:
 ; (procedure-source mac)
 ; (lambda (a b) (list 'with-let (list 'inlet :a a :b b) (list-values '+ 'a 'b)))
 -->
+
+<blockquote>
+<div class="indented">
+<p>On the subject of *#readers*, say we have:
+</p>
+<pre>
+(set! *#readers* (list (cons #\o (lambda (str) 42))  ; #o... -&gt; 42
+                       (cons #\x (lambda (str) 3)))) ; #x... -&gt; 3
+</pre>
+<p>Now we load a file with:
+</p>
+<pre>
+(define (oct) #o123)
+
+(let-temporarily ((*#readers* ()))
+  (eval (with-input-from-string "(define (hex) #x123)" read)))
+
+(define-constant old-readers *#readers*)
+(set! *#readers* ())
+
+(define (oct1) #o123)
+(define (hex1) #x123)
+
+(set! *#readers* old-readers)
+
+(define (oct2) #o123)
+(define (hex2) #x123)
+</pre>
+<p>Now we evaluate these functions, and get:
+</p>
+<pre>
+(oct): 42   ; oct is not read-time hygienic so #o123 -&gt; 42
+(oct1): 83  ; oct1 is protected by the top-level set, #o123 -&gt; 83
+(oct2): 42  ; same as oct
+(hex): 291  ; hex is protected by let-temporarily + read
+(hex1): 291 ; hex1 is like oct1
+(hex2): 3   ; hex2 is like oct
+</pre>
+
+</div>
+</blockquote>
 
 
 <blockquote>
