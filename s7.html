@@ -2625,7 +2625,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
 (<em class=def id="letref">let-ref</em> env sym)       get value of sym in env, same as (env sym)
-(<em class=def id="letset">let-set!</em> env sym val)  set value of sym in val to val, same as (set! (env sym) val)
+(<em class=def id="letset">let-set!</em> env sym val)  set value of sym in env to val, same as (set! (env sym) val)
 
 (<em class=def id="inlet">inlet</em> . bindings)       make a new environment with the given bindings
 (<em class=def id="sublet">sublet</em> env . bindings)  same as inlet, but the new environment is local to env
