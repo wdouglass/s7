@@ -4009,7 +4009,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_LET_ONE_OLD, OP_LET_ONE_NEW, OP_LET_ONE_P_OLD, OP_LET_ONE_P_NEW,
       OP_LET_ONE_OLD_1, OP_LET_ONE_NEW_1, OP_LET_ONE_P_OLD_1, OP_LET_ONE_P_NEW_1,
       OP_LET_A_OLD, OP_LET_A_NEW, OP_LET_A_P_OLD, OP_LET_A_P_NEW, OP_LET_A_A_OLD, OP_LET_A_A_NEW, OP_LET_A_FX_OLD, OP_LET_A_FX_NEW, OP_LET_A_OLD_2, OP_LET_A_NEW_2,
-      OP_LET_STAR_FX_OLD, OP_LET_STAR_FX_NEW, OP_LET_STAR_FX_A_OLD, OP_LET_STAR_FX_A_NEW,
+      OP_LET_STAR_FX, OP_LET_STAR_FX_A,
 
       OP_CASE_A_E_S, OP_CASE_A_I_S, OP_CASE_A_G_S, OP_CASE_A_E_G, OP_CASE_A_G_G, OP_CASE_A_S_S, OP_CASE_A_S_G,
       OP_CASE_S_E_S, OP_CASE_S_I_S, OP_CASE_S_G_S, OP_CASE_S_E_G, OP_CASE_S_G_G, OP_CASE_S_S_S, OP_CASE_S_S_G,
@@ -4083,7 +4083,6 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       NUM_OPS};
 
 #define is_tc_op(Op) ((Op >= OP_TC_AND_A_OR_A_LA) && (Op <= OP_TC_CASE_LA))
-#define is_rec_op(Op) ((Op >= OP_RECUR_IF_A_A_opA_LAq) && (Op <= OP_RECUR_COND_A_A_A_LAA_opA_LAAq))
 
 typedef enum{E_C_P, E_C_PP, E_C_CP, E_C_SP, E_C_PC, E_C_PS} combine_op_t;
 
@@ -4247,7 +4246,7 @@ static const char* op_names[NUM_OPS] =
       "let_one_old", "let_one_new", "let_one_p_old", "let_one_p_new", 
       "let_one_old_1", "let_one_new_1", "let_one_p_old_1", "let_one_p_new_1", 
       "let_a_old", "let_a_new", "let_a_p_old", "let_a_p_new", "let_a_a_old", "let_a_a_new", "let_a_fx_old", "let_a_fx_new", "let_a_old_2", "let_a_new_2",
-      "let*_fx_old", "let*_fx_new", "let*_fx_a_old", "let*_fx_a_new",
+      "let*_fx", "let*_fx_a", 
 
       "case_a_e_s", "case_a_i_s", "case_a_g_s", "case_a_e_g", "case_a_g_g", "case_a_s_s", "case_a_s_g",
       "case_s_e_s", "case_s_i_s", "case_s_g_s", "case_s_e_g", "case_s_g_g", "case_s_s_s", "case_s_s_g",
@@ -5885,8 +5884,8 @@ static int64_t gc(s7_scheme *sc)
     heap_top = (s7_pointer *)(sc->heap + sc->heap_size);
 
 #if S7_DEBUGGING
-#define gc_call(P, Tp)							\
-    p = (*tp++);							\
+  #define gc_call(Tp)							\
+    p = (*Tp++);							\
     if (is_marked(T_Any(p)))						\
       clear_mark(p);							\
     else								\
@@ -5900,16 +5899,16 @@ static int64_t gc(s7_scheme *sc)
             (*fp++) = p;						\
           }}
 #else
-  #define gc_call(P, Tp) p = (*tp++); if (is_marked(p)) clear_mark(p); else {if (!is_free_and_clear(p)) {clear_type(p); (*fp++) = p;}}
+  #define gc_call(Tp) p = (*Tp++); if (is_marked(p)) clear_mark(p); else {if (!is_free_and_clear(p)) {clear_type(p); (*fp++) = p;}}
 #endif
 
     while (tp < heap_top)          /* != here or ^ makes no difference */
       {
 	s7_pointer p;
-	LOOP_8(gc_call(p, tp));
-	LOOP_8(gc_call(p, tp));
-	LOOP_8(gc_call(p, tp));
-	LOOP_8(gc_call(p, tp));
+	LOOP_8(gc_call(tp));
+	LOOP_8(gc_call(tp));
+	LOOP_8(gc_call(tp));
+	LOOP_8(gc_call(tp));
       }
 
     sc->free_heap_top = fp;
@@ -7410,21 +7409,6 @@ static s7_pointer make_permanent_let(s7_scheme *sc, s7_pointer vars)
   return(frame);
 }
 
-static s7_pointer activate_permanent_let_star(s7_scheme *sc, s7_pointer frame, s7_pointer vars)
-{
-  s7_pointer slot, var;
-  let_id(frame) = ++sc->let_number;
-  set_outlet(frame, sc->envir);
-  sc->envir = frame;
-  for (var = vars, slot = let_slots(frame); is_pair(var); var = cdr(var), slot = next_slot(slot))
-    {
-      slot_set_value(slot, fx_call(sc, cdar(var)));
-      symbol_set_local(caar(var), sc->let_number, slot);
-    }
-  return(frame);
-}
-
-
 static s7_pointer find_let(s7_scheme *sc, s7_pointer obj)
 {
   if (is_let(obj)) return(obj);
@@ -7711,7 +7695,6 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_poi
 
 static s7_pointer make_slot(s7_scheme *sc, s7_pointer variable, s7_pointer value)
 {
-  /* this is for a do-loop optimization -- an unattached slot */
   s7_pointer y;
   new_cell(sc, y, T_SLOT);
   slot_set_symbol(y, variable);
@@ -74088,36 +74071,43 @@ static bool check_let_star(s7_scheme *sc)
       else
 	{
 	  if (is_null(cdar(sc->code)))
-	    check_let_one_var(sc, form, car(sc->code)); /* (let* ((var...))...) -> (let ((var...))...) */
-	  else 
 	    {
-	      pair_set_syntax_op(form, (fxable) ? OP_LET_STAR_FX_OLD : OP_LET_STAR2);
-	      set_opt2_con(sc->code, cadaar(sc->code));
+	      check_let_one_var(sc, form, car(sc->code)); /* (let* ((var...))...) -> (let ((var...))...) */
+	      if (optimize_op(form) >= OP_LET_FX_OLD)
+		{
+		  if ((not_in_heap(form)) &&
+		      (body_is_safe(sc, sc->unused, cdr(sc->code), true) >= SAFE_BODY))
+		    set_opt3_let(sc->code, make_permanent_let(sc, car(sc->code)));
+		  else 
+		    {
+		      set_optimize_op(form, optimize_op(form) + 1); /* *_old -> *_new */
+		      set_opt3_let(sc->code, sc->nil); 
+		    }
+		}
 	    }
-	}
-      if (optimize_op(form) == OP_LET_STAR_FX_OLD)
-	{
-	  if ((is_null(cddr(sc->code))) &&
-	      (is_fxable(sc, cadr(sc->code))))
+	  else  /* multiple variables */
 	    {
-	      annotate_arg(sc, cdr(sc->code), sc->envir);
-	      pair_set_syntax_op(form, OP_LET_STAR_FX_A_OLD); /* does this ever happen? */
+	      s7_pointer last_var;
+	      if (fxable)
+		{
+		  pair_set_syntax_op(form, OP_LET_STAR_FX);
+		  if ((is_null(cddr(sc->code))) &&
+		      (is_fxable(sc, cadr(sc->code))))
+		    {
+		      annotate_arg(sc, cdr(sc->code), sc->envir);
+		      pair_set_syntax_op(form, OP_LET_STAR_FX_A); /* does this ever happen? */
+		    }
+		}
+	      else pair_set_syntax_op(form, OP_LET_STAR2);
+	      set_opt2_con(sc->code, cadaar(sc->code));
+	      
+	      for (last_var = caaar(sc->code), vars = cdar(sc->code); is_pair(vars); last_var = caar(vars), vars = cdr(vars))
+		if (has_fx(cdar(vars)))
+		  fx_tree(sc, cdar(vars), last_var, NULL);
 	    }
 	}
     }
 
-  if (optimize_op(form) >= OP_LET_FX_OLD)
-    {
-      if ((not_in_heap(form)) &&
-	  (is_null(cdar(sc->code))) && /* else order of vars in permanent let can confuse fx_tree */
-	  (body_is_safe(sc, sc->unused, cdr(sc->code), true) >= SAFE_BODY))
-	set_opt3_let(sc->code, make_permanent_let(sc, car(sc->code)));
-      else 
-	{
-	  set_optimize_op(form, optimize_op(form) + 1);
-	  set_opt3_let(sc->code, sc->nil);
-	}
-    }
 
   /* let_star_unchecked... */
   set_current_code(sc, form);
@@ -74203,40 +74193,44 @@ static inline bool op_let_star1(s7_scheme *sc)
   return(false);
 }
 
-static void op_let_star_fx_new(s7_scheme *sc)
+static void op_let_star_fx(s7_scheme *sc)
 {
-  s7_pointer e, p;
+  /* fx safe does not mean we can dispense with the inner frames (curlet is safe for example) */
+  s7_pointer p;
+  uint64_t let_counter = S7_LLONG_MAX;
   start_let(sc);
-  new_frame(sc, sc->envir, e);
-  /* since each value is fx safe, there are no internal closures over the on-going stack of lets here (so use one frame) */
-  sc->envir = e;
   for (p = car(sc->code); is_pair(p); p = cdr(p))
-    make_slot_1(sc, e, caar(p), fx_call(sc, cdar(p)));
+    {
+      s7_pointer val;
+      val = fx_call(sc, cdar(p)); /* eval in outer env */
+      if (let_counter == sc->capture_let_counter)
+	make_slot_1(sc, sc->envir, caar(p), val);
+      else 
+	{
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caar(p), val);
+	  let_counter = sc->capture_let_counter;
+	}
+    }
   sc->code = T_Pair(cdr(sc->code));
 }
 
-static void op_let_star_fx_old(s7_scheme *sc)
+static void op_let_star_fx_a(s7_scheme *sc)
 {
+  s7_pointer p;
+  uint64_t let_counter = S7_LLONG_MAX;
   start_let(sc);
-  activate_permanent_let_star(sc, opt3_let(sc->code), car(sc->code));
-  sc->code = T_Pair(cdr(sc->code));
-}
-
-static void op_let_star_fx_a_old(s7_scheme *sc)
-{
-  start_let(sc);
-  activate_permanent_let_star(sc, opt3_let(sc->code), car(sc->code));
-  sc->value = fx_call(sc, cdr(sc->code));
-}
-
-static void op_let_star_fx_a_new(s7_scheme *sc)
-{
-  s7_pointer e, p;
-  start_let(sc);
-  new_frame(sc, sc->envir, e);
-  sc->envir = e;
   for (p = car(sc->code); is_pair(p); p = cdr(p))
-    make_slot_1(sc, e, caar(p), fx_call(sc, cdar(p)));
+    {
+      s7_pointer val;
+      val = fx_call(sc, cdar(p));
+      if (let_counter == sc->capture_let_counter)
+	make_slot_1(sc, sc->envir, caar(p), val);
+      else 
+	{
+	  new_frame_with_slot(sc, sc->envir, sc->envir, caar(p), val);
+	  let_counter = sc->capture_let_counter;
+	}
+    }
   sc->value = fx_call(sc, cdr(sc->code));
 }
 
@@ -88930,9 +88924,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  else
 		    {
 		      /* here we know sc->code is a pair, cdr(sc->code) is not null, sc->value is the previous arg's value */
-		      s7_pointer x;
-		      x = cons(sc, sc->value, sc->args);
-		      sc->args = x;
+		      sc->args = cons(sc, sc->value, sc->args);
 		      goto EVAL_ARGS_PAIR;
 		    }
 		}
@@ -89462,10 +89454,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_opaSSq_E_OLD: op_let_opassq_e_old(sc); goto EVAL;
 	case OP_LET_opaSSq_E_NEW: op_let_opassq_e_new(sc); goto EVAL;
 
-	case OP_LET_STAR_FX_OLD:    op_let_star_fx_old(sc);    goto BEGIN;
-	case OP_LET_STAR_FX_NEW:    op_let_star_fx_new(sc);    goto BEGIN;
-	case OP_LET_STAR_FX_A_OLD:  op_let_star_fx_a_old(sc);  continue;
-	case OP_LET_STAR_FX_A_NEW:  op_let_star_fx_a_new(sc);  continue;
+	case OP_LET_STAR_FX:      op_let_star_fx(sc);    goto BEGIN;
+	case OP_LET_STAR_FX_A:    op_let_star_fx_a(sc);  continue;
 
 	case OP_NAMED_LET_STAR:     op_named_let_star(sc); goto EVAL;
 	case OP_LET_STAR2:          op_let_star2(sc);      goto EVAL;
@@ -96159,7 +96149,6 @@ s7_scheme *s7_init(void)
   set_scope_safe(slot_value(global_slot(sc->with_input_from_file_symbol)));
   set_scope_safe(slot_value(global_slot(sc->with_output_to_string_symbol)));
   set_scope_safe(slot_value(global_slot(sc->with_output_to_file_symbol)));
-  set_scope_safe(slot_value(global_slot(sc->set_cdr_symbol)));
   set_maybe_safe(slot_value(global_slot(sc->assoc_symbol)));
   set_scope_safe(slot_value(global_slot(sc->assoc_symbol)));
   set_maybe_safe(slot_value(global_slot(sc->member_symbol)));
@@ -96175,7 +96164,8 @@ s7_scheme *s7_init(void)
   set_scope_safe(slot_value(global_slot(sc->throw_symbol)));
   set_scope_safe(slot_value(global_slot(sc->error_symbol)));
   set_scope_safe(slot_value(global_slot(sc->apply_values_symbol)));
-  set_scope_safe(slot_value(global_slot(sc->list_values_symbol)));
+  /* set_scope_safe(slot_value(global_slot(sc->set_cdr_symbol))); */ /* now safe */
+  /* set_scope_safe(slot_value(global_slot(sc->list_values_symbol))); */ /* now safe */
 
   sc->tree_leaves_symbol =    defun("tree-leaves",   tree_leaves,    1, 0, false);
   sc->tree_memq_symbol =      defun("tree-memq",     tree_memq,      2, 0, false);
@@ -96981,7 +96971,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 882) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 880) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97181,4 +97171,6 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------
  *
  * opt* coverage tests t206 opt_i|d|p*
+ * main allocations: frames+slots, arglists: use scope_safe with closure? or needs_copied_args?
+ *   lambda arg ok if self-contained
  */
