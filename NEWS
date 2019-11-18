@@ -1,8 +1,8 @@
-Snd 19.8
+Snd 19.9:
 
-In Snd, Tito fixed many Snd bugs, involving left-sample and right-sample,
-  off-by-1 cases for mark-sample and selection-samples, a bug in s7_load, etc.
+Mike fixed an audio problem in the openbsd support.
+Juan Reyes updated leslie.ins and leslie.cms.
 
-checked: sbcl 1.5.7
+checked: sbcl 1.5.8, FC 31
 
-Thanks!: Kjetil Matheussen, David O'Toole, Tito Latini
+Thanks!: Michael Scholz, Lassi Kortela, David O'Toole, Juan Reyes
