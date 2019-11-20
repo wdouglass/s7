@@ -1422,6 +1422,26 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			 (cdr binding)))))
        ap-env))))
 
+#|
+(define* (apropos->list name (e (rootlet)))
+  (let ((ap-name (if (string? name) 
+		     name 
+		     (if (symbol? name) 
+			 (symbol->string name)
+			 (error 'wrong-type-arg "apropos->let argument 1 should be a string or a symbol")))))
+    (map (lambda (binding)
+	   (if (and (pair? binding)
+		    (string-position ap-name (symbol->string (car binding))))
+	       (if (procedure? (cdr binding))
+		   (cons (car binding) (documentation (cdr binding)))
+		   binding)
+	       (values)))
+	 (if (let? e) 
+	     e 
+	     (error 'wrong-type-arg "apropos argument 2 should be an environment")))))
+|#
+
+
 ;;; --------------------------------------------------------------------------------
 
 (define (*s7*->list) ;(let->list *s7*) but not using keywords

@@ -6128,17 +6128,17 @@
 	     (char=? (string-ref str (- (length str) 1)) #\!))
 	   (not (var-member (car form) env))))
 
-    (define (easy-lambda? x)
+    (denote (easy-lambda? x)
       (and (len>2? x)
 	   (eq? (car x) 'lambda)
 	   (len=1? (cadr x))))
     
-    (define (identity? x) ; (lambda (x) x), or (define (x) x) -> procedure-source
+    (denote (identity? x) ; (lambda (x) x), or (define (x) x) -> procedure-source
       (and (easy-lambda? x)
 	   (null? (cdddr x))
 	   (eq? (caddr x) (caadr x))))
     
-    (define (simple-lambda? x)
+    (denote (simple-lambda? x)
       (and (easy-lambda? x)
 	   (null? (cdddr x))
 	   (= (tree-count (caadr x) (caddr x) 2) 1)))
