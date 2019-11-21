@@ -19,6 +19,7 @@
 (define *report-doc-strings* #f)                          ; old-style (CL) doc strings (definstrument ignores this switch -- see ws.scm)
 (define *report-func-as-arg-arity-mismatch* #f)           ; as it says...
 (define *report-combinable-lets* #t)                      ; report lets that can be combined
+(define *report-splittable-lets* #f)                      ; report let*'s that can be split into a few nested lets
 
 (define *report-ridiculous-variable-names* 50)            ; max length of var name 
 (define *report-bad-variable-names* '(l ll .. O ~ else))  ; bad names -- a list to check such as:
@@ -20383,6 +20384,7 @@
 						    '...)))))
 
 	      (when (and no-repeats
+			 *report-splittable-lets*
 			 (len>2? vars))
 		(let ((outer-vars ())
 		      (inner-vars ())

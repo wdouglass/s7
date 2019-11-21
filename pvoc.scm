@@ -236,94 +236,94 @@
     (lambda* ((fftsize 512) (overlap 4) (time 1.0)
 	      (pitch 1.0) (gate 0.0) (hoffset 0.0)
 	      (snd 0) (chn 0))
-      (let ((len (framples))
-	    (N2 (floor (/ fftsize 2)))
-	    (window (make-fft-window hamming-window fftsize))
-	    (in-data (channel->float-vector 0 (* fftsize 2) snd chn)))
-	(let ((lastamp (make-float-vector N2))
-	      (lastfreq (make-float-vector N2))
-	      (outlen (floor (* time len)))
-	      (interp (* (floor (/ fftsize overlap)) time)))
-	  (let ((obank (make-oscil-bank lastfreq (make-float-vector N2) lastamp))
-		(filptr 0)
-		(D (floor (/ fftsize overlap)))
-		(syngate (if (= 0.0 gate)    ; take a resynthesis gate specificed in dB, convert to linear amplitude
-			     0.0000
-			     (expt 10 (/ (- (abs gate)) 20))))
-		(poffset (hz->radians hoffset))
-		(fdr (make-float-vector fftsize))
-		(fdi (make-float-vector fftsize))
-		(lastphase (make-float-vector N2))
-		(ampinc (make-float-vector N2))
-		(freqinc (make-float-vector N2))
-		(fundamental (/ pi2 fftsize))
-		(output interp)
-		(out-data (make-float-vector (max len outlen)))
-		(in-data-beg 0))
-	    
-	    (set! window (float-vector-scale! window (/ 2.0 (* 0.54 fftsize)))) ;den = hamming window integrated
-	    
-	    (do ((i 0 (+ i 1)))
-		((>= i outlen))
-	      (when (>= output interp) ;; if all the samples have been output then do the next frame
-		(let ((buffix (modulo filptr fftsize)))
+      (let* ((len (framples))
+	     (N2 (floor (/ fftsize 2)))
+	     (window (make-fft-window hamming-window fftsize))
+	     (in-data (channel->float-vector 0 (* fftsize 2) snd chn))
+	     (lastamp (make-float-vector N2))
+	     (lastfreq (make-float-vector N2))
+	     (outlen (floor (* time len)))
+	     (interp (* (floor (/ fftsize overlap)) time))
+	     (obank (make-oscil-bank lastfreq (make-float-vector N2) lastamp))
+	     (filptr 0)
+	     (D (floor (/ fftsize overlap)))
+	     (syngate (if (= 0.0 gate)    ; take a resynthesis gate specificed in dB, convert to linear amplitude
+			  0.0000
+			  (expt 10 (/ (- (abs gate)) 20))))
+	     (poffset (hz->radians hoffset))
+	     (fdr (make-float-vector fftsize))
+	     (fdi (make-float-vector fftsize))
+	     (lastphase (make-float-vector N2))
+	     (ampinc (make-float-vector N2))
+	     (freqinc (make-float-vector N2))
+	     (fundamental (/ pi2 fftsize))
+	     (output interp)
+	     (out-data (make-float-vector (max len outlen)))
+	     (in-data-beg 0))
+	
+	(set! window (float-vector-scale! window (/ 2.0 (* 0.54 fftsize)))) ;den = hamming window integrated
+	
+	(do ((i 0 (+ i 1)))
+	    ((>= i outlen))
+	  (when (>= output interp) ;; if all the samples have been output then do the next frame
+	    (let ((buffix (modulo filptr fftsize)))
 					; buffix is the index into the input buffer
 					; it wraps around circularly as time increases in the input
-		  (set! output 0)       ; reset the output sample counter
-		  ;; save the old amplitudes and frequencies
-		  (fill! lastamp 0.0)
-		  (fill! lastfreq 0.0)
-		  (float-vector-add! lastamp fdr)
-		  (float-vector-add! lastfreq fdi)
-		  (do ((k 0 (+ k 1)))
-		      ((= k fftsize))
-		    ;; apply the window and then stuff into the input array
-		    (set! (fdr buffix) (* (window k) (in-data (- filptr in-data-beg))))
-		    (set! filptr (+ 1 filptr))
-		    ;; increment the buffer index with wrap around
-		    (set! buffix (+ 1 buffix))
-		    (if (>= buffix fftsize) (set! buffix 0)))
-		  ;; rewind the file for the next hop
-		  (set! filptr (- (+ filptr D) fftsize))
-		  (if (> filptr (+ in-data-beg fftsize))
-		      (begin
-			(set! in-data-beg filptr)
-			(set! in-data (channel->float-vector in-data-beg (* fftsize 2) snd chn))))
-		  ;; no imaginary component input so zero out fdi
-		  (fill! fdi 0.0)
-		  ;; compute the fft
-		  (mus-fft fdr fdi fftsize 1)
-		  ;; now convert into magnitude and interpolated frequency
-		  (do ((k 0 (+ k 1)))
-		      ((= k N2))
-		    (let ((a (fdr k))
-			  (b (fdi k))
-			  (phasediff 0))			  
-		      (let ((mag (sqrt (+ (* a a) (* b b)))))
-			(set! (fdr k) mag)    ;; current amp stored in fdr
-			;; mag is always positive
-			;; if it is zero then the phase difference is zero
-			(if (> mag 0)
-			    (let ((phase (- (atan b a))))
-			      (set! phasediff (- phase (lastphase k)))
-			      (set! (lastphase k) phase)
-			      ;; frequency wrapping from Moore p. 254
-			      (if (> phasediff pi) (do () ((<= phasediff pi)) (set! phasediff (- phasediff pi2))))
-			      (if (< phasediff (- pi)) (do () ((>= phasediff (- pi))) (set! phasediff (+ phasediff pi2)))))))
-		      ;; current frequency stored in fdi
-		      ;; scale by the pitch transposition
-		      (set! (fdi k) (* pitch (+ (/ phasediff D) (* k fundamental) poffset))))
-		    ;; resynthesis gating
-		    (if (< (fdr k) syngate) (set! (fdr k) 0.0))
-		    ;; take (lastamp k) and count up to (fdr k)
-		    ;; interpolating by ampinc
-		    (set! (ampinc k) (/ (- (fdr k) (lastamp k)) interp))
-		    ;; take (lastfreq k) and count up to (fdi k)
-		    ;; interpolating by freqinc
-		    (set! (freqinc k) (/ (- (fdi k) (lastfreq k)) interp)))))
-	      ;; loop over the partials interpolate frequency and amplitude
-	      (float-vector-add! lastamp ampinc)
-	      (float-vector-add! lastfreq freqinc)
-	      (float-vector-set! out-data i (oscil-bank obank))
-	      (set! output (+ 1 output)))
-	    (float-vector->channel out-data 0 (max len outlen))))))))
+	      (set! output 0)       ; reset the output sample counter
+	      ;; save the old amplitudes and frequencies
+	      (fill! lastamp 0.0)
+	      (fill! lastfreq 0.0)
+	      (float-vector-add! lastamp fdr)
+	      (float-vector-add! lastfreq fdi)
+	      (do ((k 0 (+ k 1)))
+		  ((= k fftsize))
+		;; apply the window and then stuff into the input array
+		(set! (fdr buffix) (* (window k) (in-data (- filptr in-data-beg))))
+		(set! filptr (+ 1 filptr))
+		;; increment the buffer index with wrap around
+		(set! buffix (+ 1 buffix))
+		(if (>= buffix fftsize) (set! buffix 0)))
+	      ;; rewind the file for the next hop
+	      (set! filptr (- (+ filptr D) fftsize))
+	      (if (> filptr (+ in-data-beg fftsize))
+		  (begin
+		    (set! in-data-beg filptr)
+		    (set! in-data (channel->float-vector in-data-beg (* fftsize 2) snd chn))))
+	      ;; no imaginary component input so zero out fdi
+	      (fill! fdi 0.0)
+	      ;; compute the fft
+	      (mus-fft fdr fdi fftsize 1)
+	      ;; now convert into magnitude and interpolated frequency
+	      (do ((k 0 (+ k 1)))
+		  ((= k N2))
+		(let ((a (fdr k))
+		      (b (fdi k))
+		      (phasediff 0))			  
+		  (let ((mag (sqrt (+ (* a a) (* b b)))))
+		    (set! (fdr k) mag)    ;; current amp stored in fdr
+		    ;; mag is always positive
+		    ;; if it is zero then the phase difference is zero
+		    (if (> mag 0)
+			(let ((phase (- (atan b a))))
+			  (set! phasediff (- phase (lastphase k)))
+			  (set! (lastphase k) phase)
+			  ;; frequency wrapping from Moore p. 254
+			  (if (> phasediff pi) (do () ((<= phasediff pi)) (set! phasediff (- phasediff pi2))))
+			  (if (< phasediff (- pi)) (do () ((>= phasediff (- pi))) (set! phasediff (+ phasediff pi2)))))))
+		  ;; current frequency stored in fdi
+		  ;; scale by the pitch transposition
+		  (set! (fdi k) (* pitch (+ (/ phasediff D) (* k fundamental) poffset))))
+		;; resynthesis gating
+		(if (< (fdr k) syngate) (set! (fdr k) 0.0))
+		;; take (lastamp k) and count up to (fdr k)
+		;; interpolating by ampinc
+		(set! (ampinc k) (/ (- (fdr k) (lastamp k)) interp))
+		;; take (lastfreq k) and count up to (fdi k)
+		;; interpolating by freqinc
+		(set! (freqinc k) (/ (- (fdi k) (lastfreq k)) interp)))))
+	  ;; loop over the partials interpolate frequency and amplitude
+	  (float-vector-add! lastamp ampinc)
+	  (float-vector-add! lastfreq freqinc)
+	  (float-vector-set! out-data i (oscil-bank obank))
+	  (set! output (+ 1 output)))
+	(float-vector->channel out-data 0 (max len outlen))))))

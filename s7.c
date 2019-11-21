@@ -3542,10 +3542,10 @@ static void try_to_call_gc(s7_scheme *sc);
 #define rational_to_double(Sc, X)     s7_number_to_real(Sc, X)
 #endif
 
-static inline s7_pointer wrap_real(s7_scheme *sc, s7_double x) {real(sc->real_wrapper1) = x; return(sc->real_wrapper1);}
 static inline s7_pointer wrap_integer1(s7_scheme *sc, s7_int x) {integer(sc->integer_wrapper1) = x; return(sc->integer_wrapper1);}
 static inline s7_pointer wrap_integer2(s7_scheme *sc, s7_int x) {integer(sc->integer_wrapper2) = x; return(sc->integer_wrapper2);}
 static inline s7_pointer wrap_integer3(s7_scheme *sc, s7_int x) {integer(sc->integer_wrapper3) = x; return(sc->integer_wrapper3);}
+static inline s7_pointer wrap_real1(s7_scheme *sc, s7_double x) {real(sc->real_wrapper1) = x; return(sc->real_wrapper1);}
 #if (!WITH_GMP)
 static inline s7_pointer wrap_real2(s7_scheme *sc, s7_double x) {real(sc->real_wrapper2) = x; return(sc->real_wrapper2);}
 #endif
@@ -15482,7 +15482,7 @@ static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   
 {
   if ((xf > s7_int_max) ||
       (xf < s7_int_min))
-    return(simple_out_of_range(sc, caller, wrap_real(sc, xf), its_too_large_string));
+    return(simple_out_of_range(sc, caller, wrap_real1(sc, xf), its_too_large_string));
 
   if (xf > 0.0)
     return(make_integer(sc, (s7_int)floor(xf)));
@@ -15503,14 +15503,14 @@ static s7_int c_quo_dbl(s7_scheme *sc, s7_double x, s7_double y)
   s7_double xf;
 
   if (y == 0.0)
-    division_by_zero_error(sc, sc->quotient_symbol, set_elist_2(sc, wrap_real(sc, x), wrap_real2(sc, y)));
+    division_by_zero_error(sc, sc->quotient_symbol, set_elist_2(sc, wrap_real1(sc, x), wrap_real2(sc, y)));
   if ((is_inf(y)) || (is_NaN(y)))
-    wrong_type_argument_with_type(sc, sc->quotient_symbol, 2, wrap_real(sc, y), a_normal_real_string);
+    wrong_type_argument_with_type(sc, sc->quotient_symbol, 2, wrap_real1(sc, y), a_normal_real_string);
 
   xf = x / y;
   if ((xf > s7_int_max) ||
       (xf < s7_int_min))
-    simple_out_of_range(sc, sc->quotient_symbol, wrap_real(sc, xf), its_too_large_string);
+    simple_out_of_range(sc, sc->quotient_symbol, wrap_real1(sc, xf), its_too_large_string);
 
   if (xf > 0.0)
     return((s7_int)floor(xf));
@@ -15657,13 +15657,13 @@ static s7_double c_rem_dbl(s7_scheme *sc, s7_double x, s7_double y)
   s7_int quo;
   s7_double pre_quo;
   if (y == 0.0)
-    division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, wrap_real(sc, x), wrap_real2(sc, y)));
+    division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, wrap_real1(sc, x), wrap_real2(sc, y)));
   if ((is_inf(y)) || (is_NaN(y)))
-    wrong_type_argument_with_type(sc, sc->remainder_symbol, 2, set_elist_1(sc, wrap_real(sc, y)), a_normal_real_string);
+    wrong_type_argument_with_type(sc, sc->remainder_symbol, 2, set_elist_1(sc, wrap_real1(sc, y)), a_normal_real_string);
 
   pre_quo = x / y;
   if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
-    simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, make_real(sc, x), wrap_real(sc, y)), its_too_large_string);
+    simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, make_real(sc, x), wrap_real1(sc, y)), its_too_large_string);
   if (pre_quo > 0.0)
     quo = (s7_int)floor(pre_quo);
   else quo = (s7_int)ceil(pre_quo);
@@ -15676,7 +15676,7 @@ static s7_int remainder_i_ii_direct(s7_int i1, s7_int i2) {return(i1 % i2);} /* 
 static s7_double remainder_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
 {
   if ((is_inf(x1)) || (is_NaN(x1)))
-    wrong_type_argument_with_type(sc, sc->remainder_symbol, 1, set_elist_1(sc, wrap_real(sc, x1)), a_normal_real_string);
+    wrong_type_argument_with_type(sc, sc->remainder_symbol, 1, set_elist_1(sc, wrap_real1(sc, x1)), a_normal_real_string);
   return(c_rem_dbl(sc, x1, x2));
 }
 
@@ -15927,9 +15927,9 @@ static s7_int floor_i_7d(s7_scheme *sc, s7_double x)
 {
 
   if (is_NaN(x))
-    simple_out_of_range(sc, sc->floor_symbol, wrap_real(sc, x), its_nan_string);
+    simple_out_of_range(sc, sc->floor_symbol, wrap_real1(sc, x), its_nan_string);
   if (fabs(x) > REAL_TO_INT_LIMIT)
-    simple_out_of_range(sc, sc->floor_symbol, wrap_real(sc, x), its_too_large_string);
+    simple_out_of_range(sc, sc->floor_symbol, wrap_real1(sc, x), its_too_large_string);
   return((s7_int)floor(x));
 }
 
@@ -15992,11 +15992,11 @@ static s7_int ceiling_i_i(s7_int i) {return(i);}
 static s7_int ceiling_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
-    simple_out_of_range(sc, sc->ceiling_symbol, wrap_real(sc, x), its_nan_string);
+    simple_out_of_range(sc, sc->ceiling_symbol, wrap_real1(sc, x), its_nan_string);
   if ((is_inf(x)) ||
       (x > REAL_TO_INT_LIMIT) ||
       (x < -REAL_TO_INT_LIMIT))
-    simple_out_of_range(sc, sc->ceiling_symbol, wrap_real(sc, x), its_too_large_string);
+    simple_out_of_range(sc, sc->ceiling_symbol, wrap_real1(sc, x), its_too_large_string);
   return((s7_int)ceil(x));
 }
 
@@ -16050,17 +16050,17 @@ static s7_int truncate_i_i(s7_int i) {return(i);}
 static s7_int truncate_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
-    simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_nan_string);
+    simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_nan_string);
   if (is_inf(x))
-    simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_infinite_string);
+    simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_infinite_string);
   if (x > 0.0)
     {
       if (x > s7_int_max)
-	simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_too_large_string);
+	simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_too_large_string);
       return((s7_int)floor(x));
     }
   if (x < s7_int_min)
-    simple_out_of_range(sc, sc->truncate_symbol, wrap_real(sc, x), its_too_large_string);
+    simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_too_large_string);
   return((s7_int)ceil(x));
 }
 
@@ -16137,11 +16137,11 @@ static s7_int round_i_i(s7_int i) {return(i);}
 static s7_int round_i_7d(s7_scheme *sc, s7_double z)
 {
   if (is_NaN(z))
-    simple_out_of_range(sc, sc->round_symbol, wrap_real(sc, z), its_nan_string);
+    simple_out_of_range(sc, sc->round_symbol, wrap_real1(sc, z), its_nan_string);
   if ((is_inf(z)) ||
       (z > REAL_TO_INT_LIMIT) ||
       (z < -REAL_TO_INT_LIMIT))
-    simple_out_of_range(sc, sc->round_symbol, wrap_real(sc, z), its_too_large_string);
+    simple_out_of_range(sc, sc->round_symbol, wrap_real1(sc, z), its_too_large_string);
   return((s7_int)r5rs_round(z));
 }
 
@@ -38542,10 +38542,10 @@ static s7_pointer g_make_float_vector(s7_scheme *sc, s7_pointer args)
 	    return(method_or_bust(sc, init, sc->make_float_vector_symbol, args, T_REAL, 2));
 #if WITH_GMP
 	  if (s7_is_bignum(init))
-	    return(g_make_vector_1(sc, set_plist_2(sc, p, wrap_real(sc, s7_real(init))), sc->make_float_vector_symbol));
+	    return(g_make_vector_1(sc, set_plist_2(sc, p, wrap_real1(sc, s7_real(init))), sc->make_float_vector_symbol));
 #endif
 	  if (is_rational(init))
-	    return(g_make_vector_1(sc, set_plist_2(sc, p, wrap_real(sc, rational_to_double(sc, init))), sc->make_float_vector_symbol));
+	    return(g_make_vector_1(sc, set_plist_2(sc, p, wrap_real1(sc, rational_to_double(sc, init))), sc->make_float_vector_symbol));
 	}
       else init = real_zero;
       if (s7_is_integer(p))
@@ -53469,10 +53469,6 @@ static s7_pointer fx_c_gac(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t3_1));
 }
 
-/* add s_opaaq opaaaq s_opaaaq aaaa all_ca check ifa_ss_a */
-/* op_safe_c_* for these below
- */
-
 static s7_pointer fx_c_opaq_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer arg2;
@@ -53486,7 +53482,7 @@ static s7_pointer fx_c_opaq_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_s_opaq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer arg2;
-  arg2 = cdaddr(arg);
+  arg2 = opt3_pair(arg); /* cdaddr(arg); */
   set_car(sc->t1_1, fx_call(sc, arg2));
   set_car(sc->t2_2, c_call(caddr(arg))(sc, sc->t1_1));
   set_car(sc->t2_1, lookup_checked(sc, cadr(arg)));
@@ -67975,7 +67971,9 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_S_opSSq:	    return(OP_SAFE_C_S_op_S_opSSqq);
 	case OP_SAFE_C_S_opSq:	    return(OP_SAFE_C_S_op_S_opSqq);
 	case OP_SAFE_C_opSSq_opSSq: return(OP_SAFE_C_S_op_opSSq_opSSqq);
-	case OP_SAFE_C_A:	    return(OP_SAFE_C_S_opAq);
+	case OP_SAFE_C_A:	    
+	  set_opt3_pair(expr, cdaddr(expr));
+	  return(OP_SAFE_C_S_opAq);
 	case OP_SAFE_C_AA:	    return(OP_SAFE_C_S_opAAq);
 	case OP_SAFE_C_AAA:  	    return(OP_SAFE_C_S_opAAAq);
 	}
@@ -74152,7 +74150,6 @@ static bool check_let_star(s7_scheme *sc)
 	    }
 	}
     }
-
 
   /* let_star_unchecked... */
   set_current_code(sc, form);
@@ -97205,7 +97202,7 @@ int main(int argc, char **argv)
  * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1447   1448
  * tvect         |      |      |      |      |      | 5729 | 1617   1617
  * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1680   1677
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2038   2035
+ * lint          |      |      |      | 4041 | 2702 | 2120 | 2038   2035  2036
  * tlet          |      |      |      |      | 4717 | 2959 | 2123   2122
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2205   2210
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2225   2225
@@ -97227,22 +97224,35 @@ int main(int argc, char **argv)
  * thash         |      |      |      |      |      | 10.3 | 6497   6497
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8   10.8
  * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.3   14.3
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 34.6   34.7
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 34.6   34.7  34.8
  * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.2   68.2
- * lg            |      |      |      |211.0 |133.0 |112.7 |103.1  103.1
+ * lg            |      |      |      |211.0 |133.0 |112.7 |103.1  103.1  102.7
  * tbig          |      |      |      |      |246.9 |230.6 |177.8  177.7
  * --------------------------------------------------------------------------
  *
  * opt* coverage tests t206 opt_i|d|p*
  *
- * main allocations: frames+slots, arglists
+ * main allocations: frames+slots
  *   lambda arg ok if self-contained
  *   also gx_call? op_safe_closure_s_a->check+call else jump(back to fp caller) as in no fx_call case, could include unknown* call: lt
  *     gx_functions? or gx_checks+fx_function given hop bit, applies to ap, pa etc, safe_closure_p_a
  *   look at reason for eval_args*, fp
  *   ss_a|aa_a unsafe because local to func or defined later?
  *
+ * when can we forego incrementing sc->let_number (a separate issue from capture_let_counter)
+ *   func+let+tail-let: (let (...) ... (let...)) -- any let ending in tc or return from func
+ *   these could be marked and activated with the current (outer) let_id, if no shadowing and no call/cc
+ *   same for do and local function: (define (f) (define (f1)...) f1-call)
+ *   same for top let in func (args -> let all as one)
+ *   let* (even with captured let) if no shadowing: this is not an error: (let* ((a 1) (b a) (a 2)) a)
+ *     need pair bit, T_SAFE_LET: no shadowing, tail_let or no use of any vars in rest of body -> no sc->let_number change
+ *     need tests (t211)
+ *     let* with no possible capture in safe_closure -> saved let [tree_has_definers_or_binders vars]: op_let_star_fx_old[_a]
+ *   func+let is ok even if shadowing/definers
+ *
  * there are lots of offsets in fx* -- cdaddr etc (caddr esp)
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * t718
+ * equivalent of string temp check for numbers [check_for_substring_temp]
+ *   what are the most common cases? inc/dec stepper
+ * lint move variable inward? or into do + step=constant (t212)
  */
