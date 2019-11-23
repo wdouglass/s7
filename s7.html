@@ -1277,7 +1277,7 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
                       (string-&gt;symbol (substring str 1)))))
 	*#readers*))
 </pre>
-<p>but #\_ can't be set by *#readers*;  otherwise someone could:
+<p>but s7 doesn't let you change the meaning of #\_;  otherwise:
 </p>
 <pre class="indented">
 (set! *#readers* (list (cons #\_ (lambda (str) (string-&gt;symbol (substring str 1))))))
@@ -1288,6 +1288,8 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
 &gt; (let ((+ -)) (#_+ 1 2))
 <em class="gray">-1</em>
 </pre>
+<p>#t and #f (along with their stupid r7rs cousins #true and #false) are also not settable.
+</p>
 </div>
 </blockquote>
 

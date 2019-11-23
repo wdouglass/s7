@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.9"
-#define S7_DATE "2019-11-22"
+#define S7_VERSION "8.10"
+#define S7_DATE "2019-11-25"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -852,10 +852,7 @@ typedef s7_double s7_Double;
 #define s7_UNSPECIFIED(Sc)    s7_unspecified(Sc)
 #define s7_NIL(Sc)            s7_nil(Sc)
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
-
 #define s7_gc_stats(Sc, On)   s7_set_gc_stats(Sc, On)
-
-void s7_gc_unprotect(s7_scheme *sc, s7_pointer x);
 #endif
 
 
