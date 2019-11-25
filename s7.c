@@ -1107,7 +1107,7 @@ struct s7_scheme {
   bool short_print, is_autoloading, in_with_let, object_out_locked, has_openlets, accept_all_keyword_arguments, got_tc, got_rec;
   int64_t let_number;
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
-  s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size;
+  s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size, output_port_data_size;
   s7_int max_vector_length, max_string_length, max_list_length, max_vector_dimensions, max_format_length, max_port_data_size, rec_loc, rec_len;
   s7_pointer stacktrace_defaults;
 
@@ -4061,7 +4061,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_Z_L3A, OP_TC_IF_A_L3A_Z, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z, OP_TC_IF_A_T_AND_A_A_L3A,
       OP_TC_IF_A_Z_IF_A_Z_LA, OP_TC_IF_A_Z_IF_A_LA_Z, OP_TC_IF_A_Z_IF_A_Z_LAA, OP_TC_COND_A_Z_A_Z_LA,
       OP_TC_IF_A_Z_IF_A_LAA_Z, OP_TC_IF_A_Z_IF_A_L3A_L3A,
-      OP_TC_LET_IF_A_Z_LAA,
+      OP_TC_LET_IF_A_Z_LAA, OP_TC_LET_IF_A_Z_LAA_CHECKED,
       OP_TC_CASE_LA,
 
       OP_RECUR_IF_A_A_opA_LAq, OP_RECUR_IF_A_opA_LAq_A,
@@ -4298,7 +4298,7 @@ static const char* op_names[NUM_OPS] =
       "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_z_l3a", "tc_if_a_l3a_z", "tc_if_a_la_z", "tc_if_a_laa_z", "tc_if_a_t_and_a_a_l3a",
       "tc_if_a_z_if_a_z_la", "tc_if_a_z_if_a_la_z", "tc_if_a_z_if_a_z_laa", "tc_cond_a_z_a_z_la",
       "tc_if_a_z_if_a_laa_z", "tc_if_a_z_if_a_l3a_l3a",
-      "tc_let_if_a_z_laa",
+      "tc_let_if_a_z_laa", "tc_let_if_a_z_laa_checked",
       "tc_case_la",
 
       "recur_if_a_a_opa_laq", "recur_if_a_opa_laq_a",
@@ -4327,7 +4327,7 @@ static bool is_h_optimized(s7_pointer p)
 {
   return((is_optimized(p)) &&
 	 ((optimize_op(p) & 1) != 0) &&
-	 (optimize_op(p) < OP_S) &&
+	 (optimize_op(p) < OP_APPLY_SS) && /* was OP_S? */
 	 (optimize_op(p) > OP_GC_PROTECT));
 }
 
@@ -11667,7 +11667,7 @@ static void init_pows(void)
 
 static double dpow(int32_t x, int32_t y)
 {
-  if ((y >= MAX_POW) || (y < -MAX_POW))
+  if ((y >= MAX_POW) || (y < -MAX_POW)) /* this can happen (once in a blue moon) */
     return(pow((double)x, (double)y));
   return(pepow[x][y + MAX_POW]);
 }
@@ -24390,12 +24390,11 @@ static void function_write_char(s7_scheme *sc, uint8_t c, s7_pointer port)
   (*(port_output_function(port)))(sc, c, port);
 }
 
-#define PORT_DATA_SIZE 256
 static void file_write_char(s7_scheme *sc, uint8_t c, s7_pointer port)
 {
-  if (port_position(port) == PORT_DATA_SIZE)
+  if (port_position(port) == sc->output_port_data_size)
     {
-      if (fwrite((void *)(port_data(port)), 1, PORT_DATA_SIZE, port_file(port)) != PORT_DATA_SIZE)
+      if (fwrite((void *)(port_data(port)), 1, sc->output_port_data_size, port_file(port)) != (size_t)sc->output_port_data_size)
 	s7_warn(sc, 64, "fwrite trouble during write-char\n");
       port_position(port) = 0;
     }
@@ -24486,7 +24485,7 @@ static void file_write_string(s7_scheme *sc, const char *str, s7_int len, s7_poi
 {
   s7_int new_len;
   new_len = port_position(pt) + len;
-  if (new_len >= PORT_DATA_SIZE)
+  if (new_len >= sc->output_port_data_size)
     {
       if (port_position(pt) > 0)
 	{
@@ -25233,8 +25232,8 @@ s7_pointer s7_open_output_file(s7_scheme *sc, const char *name, const char *mode
   port_file(x) = fp;
   port_needs_free(x) = true;  /* hmm -- I think these are freed via s7_close_output_port -> close_output_port */
   port_position(x) = 0;
-  port_data_size(x) = PORT_DATA_SIZE;
-  block = mallocate(sc, PORT_DATA_SIZE);
+  port_data_size(x) = sc->output_port_data_size;
+  block = mallocate(sc, sc->output_port_data_size);
   port_data_block(x) = block;
   port_data(x) = (uint8_t *)(block_data(block));
   port_port(x)->pf = &output_file_functions;
@@ -27298,7 +27297,7 @@ static s7_pointer pair_iterate_1(s7_scheme *sc, s7_pointer obj)
   return(iterator_quit(obj));
 }
 
-static s7_pointer iterator_method(s7_scheme *sc, s7_pointer e)
+static s7_pointer find_make_iterator_method(s7_scheme *sc, s7_pointer e)
 {
   s7_pointer func;
   if ((has_active_methods(sc, e)) &&
@@ -27363,7 +27362,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 	return(s7_let_make_iterator(sc, iter));
 
       sc->temp6 = iter;
-      p = iterator_method(sc, e);
+      p = find_make_iterator_method(sc, e);
       sc->temp6 = sc->nil;
       if (p) {free_cell(sc, iter); return(p);}
       iterator_set_current_slot(iter, let_slots(e));
@@ -27445,7 +27444,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
     case T_C_OBJECT:
       iterator_length(iter) = c_object_length_to_int(sc, e);
       sc->temp6 = iter;
-      p = iterator_method(sc, e);
+      p = find_make_iterator_method(sc, e);
       sc->temp6 = sc->nil;
       if (p) {free_cell(sc, iter); return(p);}
       iterator_current(iter) = list_2(sc, e, small_int(0));
@@ -54116,6 +54115,23 @@ static bool is_fxable(s7_scheme *sc, s7_pointer p)
   return(is_proper_quote(sc, p));
 }
 
+static bool is_gfxable(s7_scheme *sc, s7_pointer p)
+{
+#if 1
+  return(is_fxable(sc, p));
+#else
+  if (!is_pair(p)) return(true);
+  if (is_optimized(p))
+    {
+      opcode_t op;
+      op = optimize_op(p);
+      if (fx_function[op]) return(true);
+      if (((op & 1) == 0) && (op < OP_APPLY_SS) && (op > OP_GC_PROTECT) && (fx_function[op + 1])) return(true);
+    }
+  return(is_proper_quote(sc, p));
+#endif
+}
+
 static int32_t fx_count(s7_scheme *sc, s7_pointer x)
 {
   int32_t count = 0;
@@ -68557,7 +68573,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 	{
 	  s7_pointer test_expr;
 	  test_expr = cadr(let_body);
-	  if (is_fxable(sc, test_expr))
+	  if (is_gfxable(sc, test_expr))
 	    {
 	      if ((car(let_body) == sc->if_symbol) && (is_pair(cdddr(let_body))))
 		{
@@ -68568,18 +68584,28 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		      (is_fxable(sc, cadr(laa))) &&
 		      (is_fxable(sc, caddr(laa))))
 		    {
-		      set_optimize_op(body, OP_TC_LET_IF_A_Z_LAA);
-		      annotate_arg(sc, cdaadr(body), args);
-		      annotate_arg(sc, cdr(let_body), args);
-		      annotate_args(sc, cdr(laa), args);
-		      if (is_fxable(sc, caddr(let_body)))
+		      bool need_check = false;
+		      s7_pointer let_var;
+		      let_var = caadr(body);
+		      annotate_arg(sc, cdr(let_var), args);
+		      if (is_fxable(sc, cadr(let_body))) 
+			annotate_arg(sc, cdr(let_body), args); 
+		      else 
 			{
-			  annotate_arg(sc, cddr(let_body), args);
+			  /* TODO: set all hop bits, saving locations set, annotate_arg, unset all locations */
+			  need_check = true;
+			  set_no_bool_opt(body);
+			}
+		      annotate_args(sc, cdr(laa), args);      /* tc args */
+		      set_optimize_op(body, (need_check) ? OP_TC_LET_IF_A_Z_LAA_CHECKED : OP_TC_LET_IF_A_Z_LAA);
+		      if ((!need_check) && (is_fxable(sc, caddr(let_body))))
+			{
+			  annotate_arg(sc, cddr(let_body), args); /* let body */
 			  fx_tree(sc, cdaadr(body), car(args), cadr(args)); /* these are references to the outer env */
 			  fx_tree(sc, cdr(let_body), car(caadr(body)), NULL);
 			  fx_tree_outer(sc, cdr(let_body), car(args), cadr(args));
 			  set_optimized(body);
-			  return(true);
+			  return(true); /* set safe_closure_body */
 			}
 		      return(false);
 		    }
@@ -85358,9 +85384,14 @@ static s7_pointer fx_tc_if_a_z_if_a_l3a_l3a(s7_scheme *sc, s7_pointer arg)
   return(sc->value);
 }
 
-static bool op_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
+static bool op_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer code, bool checked)
 {
   s7_pointer body, if_test, if_true, if_false, la, la_slot, let_slot, laa, laa_slot, let_var, outer_env, inner_env;
+
+#if S7_DEBUGGING
+  if (checked) tc_rec_calls[OP_TC_LET_IF_A_Z_LAA_CHECKED]++; else tc_rec_calls[OP_TC_LET_IF_A_Z_LAA]++;
+#endif
+
   let_var = caadr(code);
   body = caddr(code);
   outer_env = sc->envir;
@@ -85371,6 +85402,11 @@ static bool op_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
   let_var = cdr(let_var);
 
   if_test = cdr(body);
+
+  /* if checked we need to check that test expr is ok fx'd else clear opt and goto eval (return false with code set) */
+  /* if (checked) fprintf(stderr, "checked %d\n", no_bool_opt(code)); */
+  /* break out fx_call for if_test = c_call(if_test)+car(if_test) */
+
   if_true = cddr(body);
   if_false = cadddr(body);
 
@@ -85439,10 +85475,7 @@ static bool op_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
 
 static s7_pointer fx_tc_let_if_a_z_laa(s7_scheme *sc, s7_pointer arg)
 {
-#if S7_DEBUGGING
-  tc_rec_calls[OP_TC_LET_IF_A_Z_LAA]++;
-#endif
-  op_tc_let_if_a_z_laa(sc, arg);
+  op_tc_let_if_a_z_laa(sc, arg, false);
   sc->rec_p1 = sc->F;
   return(sc->value);
 }
@@ -88028,7 +88061,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       profile_at_start = sc->code;
       profile(sc, sc->code);
 #endif
-
       /* it is only slightly faster to use labels as values (computed gotos) here. In my timing tests (June-2018), the best case speedup was in titer.scm
        *    callgrind numbers 4808 to 4669; another good case was tread.scm: 2410 to 2386.  Most timings were a draw.  computed-gotos-s7.c has the code,
        *    macroized so it will work if such gotos aren't available.  I think I'll stick with a switch statement.
@@ -88653,7 +88685,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_IF_A_Z_IF_A_L3A_L3A: tick_tc_rec(sc); if (op_tc_if_a_z_if_a_l3a_l3a(sc, sc->code)) continue; goto EVAL;
 	case OP_TC_IF_A_Z_IF_A_LAA_Z:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_laa_z(sc, sc->code))   continue; goto EVAL;
 	case OP_TC_IF_A_T_AND_A_A_L3A: tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, false, sc->code); continue;
-	case OP_TC_LET_IF_A_Z_LAA:     tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code))      continue; goto EVAL;
+	case OP_TC_LET_IF_A_Z_LAA:     tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code, false))      continue; goto EVAL;
+	case OP_TC_LET_IF_A_Z_LAA_CHECKED: tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code, true))      continue; goto EVAL;
 	case OP_TC_CASE_LA:            tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))             continue; goto BEGIN;
 
 	case OP_RECUR_IF_A_A_opA_LAq:           wrap_recur(sc, op_recur_if_a_a_opa_laq);           continue;
@@ -93907,7 +93940,7 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_DEFAULT_RANDOM_STATE, SL_EQUIVALENT_FLOAT_EPSILON, SL_HASH_TABLE_FLOAT_EPSILON, SL_PRINT_LENGTH,
 	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
 	      SL_HISTORY_SIZE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
-	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_NUM_FIELDS} s7_let_field_t;
+	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_OUTPUT_PORT_DATA_SIZE, SL_NUM_FIELDS} s7_let_field_t;
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
   {"no-field", "stack-top", "stack-size", "stacktrace-defaults", "heap-size", "free-heap-size",
@@ -93919,7 +93952,7 @@ static const char *s7_let_field_names[SL_NUM_FIELDS] =
    "default-random-state", "equivalent-float-epsilon", "hash-table-float-epsilon", "print-length",
    "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
    "history-size", "profile-info", "autoloading?", "accept-all-keyword-arguments",
-   "most-positive-fixnum", "most-negative-fixnum"};
+   "most-positive-fixnum", "most-negative-fixnum", "output-port-data-size"};
 
 static s7_int s7_let_length(void) {return(SL_NUM_FIELDS - 1);}
 
@@ -93970,6 +94003,7 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "memory-usage",                  SL_MEMORY_USAGE);
   s7_let_add_field(sc, "most-negative-fixnum",          SL_MOST_NEGATIVE_FIXNUM);
   s7_let_add_field(sc, "most-positive-fixnum",          SL_MOST_POSITIVE_FIXNUM);
+  s7_let_add_field(sc, "output-port-data-size",         SL_OUTPUT_PORT_DATA_SIZE);
   s7_let_add_field(sc, "print-length",                  SL_PRINT_LENGTH);
   s7_let_add_field(sc, "profile-info",                  SL_PROFILE_INFO);
   s7_let_add_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
@@ -94273,6 +94307,7 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_MEMORY_USAGE:                  return(memory_usage(sc));
     case SL_MOST_NEGATIVE_FIXNUM:          return(sl_int_fixup(sc, leastfix));
     case SL_MOST_POSITIVE_FIXNUM:          return(sl_int_fixup(sc, mostfix));
+    case SL_OUTPUT_PORT_DATA_SIZE:         return(s7_make_integer(sc, sc->output_port_data_size));
     case SL_PRINT_LENGTH:                  return(s7_make_integer(sc, sc->print_length));
     case SL_PROFILE_INFO:                  return(sc->profile_info);
     case SL_ROOTLET_SIZE:                  return(s7_make_integer(sc, sc->rootlet_entries));
@@ -94529,6 +94564,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_MEMORY_USAGE:          return(sl_unsettable_error(sc, sym));
     case SL_MOST_NEGATIVE_FIXNUM:  return(sl_unsettable_error(sc, sym));
     case SL_MOST_POSITIVE_FIXNUM:  return(sl_unsettable_error(sc, sym));
+    case SL_OUTPUT_PORT_DATA_SIZE: sc->output_port_data_size = s7_integer(sl_integer_gt_0(sc, sym, val)); return(val);
     case SL_PRINT_LENGTH:          sc->print_length = s7_integer(sl_integer_geq_0(sc, sym, val));         return(val);
     case SL_PROFILE_INFO:          return(sl_unsettable_error(sc, sym));
     case SL_ROOTLET_SIZE:          return(sl_unsettable_error(sc, sym));
@@ -95268,6 +95304,10 @@ s7_scheme *s7_init(void)
   }
   sc->max_heap_size = (1LL << 62);
   sc->max_port_data_size = (1LL << 62);
+#ifndef OUTPUT_PORT_DATA_SIZE
+  #define OUTPUT_PORT_DATA_SIZE 2048
+#endif
+  sc->output_port_data_size = OUTPUT_PORT_DATA_SIZE;
 
   /* this has to precede s7_make_* allocations */
   sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
@@ -96929,7 +96969,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 880) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 881) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97139,5 +97179,5 @@ int main(int argc, char **argv)
  * equivalent of string temp check for numbers [check_for_substring_temp]
  *   what are the most common cases? inc/dec stepper
  *   fx_c_s_op_opssq_opssqq: (+ s (* (- s s) (- s s))): gather types etc
- * why does file_write use PORT_DATA_SIZE?  why is it 256?
+ * op_let_if_a_z_laa_checked: if fxable with hop set, check at init time and get fx func(s), else clear opt and goto eval
  */
