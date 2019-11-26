@@ -5407,19 +5407,17 @@ output-port-data-size         2048, size of an output port's buffer
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 profile-info                  profiling data if s7 built WITH_PROFILE=1
+max-stack-size                maximum stack size
+stacktrace-defaults           stacktrace formatting info for error handler
 
-default-rationalize-error     1e-12 (settable)
-equivalent-float-epsilon      1e-15 (settable)
-hash-table-float-epsilon      1e-12 (settable, but currently limited to less than 1e-3).
+default-rationalize-error     1e-12
+equivalent-float-epsilon      1e-15
+hash-table-float-epsilon      1e-12 (currently limited to less than 1e-3).
 bignum-precision              bits for bignum floats (128)
 float-format-precision        digits to print for floats (16)
-default-random-state          the default arg for random (settable)
-
+default-random-state          the default arg for random
 most-positive-fixnum          if not using gmp, the most positive integer ("fixnum" comes from CL)
 most-negative-fixnum          as above, but negative
-
-cpu-time                      run time so far
-file-names                    currently loaded files (a list)
 
 safety                        0 (see below)
 undefined-identifier-warnings #f 
@@ -5427,23 +5425,24 @@ undefined-constant-warnings   #f
 accept-all-keyword-arguments  #f 
 autoloading?                  #t
 
+heap-size                     total cells currently available
+max-heap-size                 maximum heap size
+gc-stats                      #f (#t turns on printout of the GC activity)
+
+;; the rest are not settable
+cpu-time                      run time so far
+file-names                    currently loaded files (a list)
 history			      a circular buffer of recent eval entries stored backwards
 catches                       a list of the currently active catch tags
 c-types                       a list of c-object type names (from s7_make_c_type, etc)
 
 stack-top                     current stack location
 stack-size                    current stack size
-max-stack-size                maximum stack size (settable)
 stack                         the current stack entries
-stacktrace-defaults           stacktrace formatting info for error handler
-
 rootlet-size                  the number of globals
-heap-size                     total cells currently available (settable)
-max-heap-size                 maximum heap size (settable)
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
 gc-protected-objects          vector of the objects permanently protected from the GC
-gc-stats                      #f (#t turns on printout of the GC activity)
 memory-usage                  a description of current memory allocations (sent to current-output-port)
 </pre>
 
