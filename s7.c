@@ -5925,6 +5925,8 @@ static int64_t gc(s7_scheme *sc)
 
 void s7_set_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
 
+#define RESIZE_BY_4_FRACTION 0.67
+
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
   int64_t old_size, old_free, k;
@@ -5936,7 +5938,9 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   old_free = sc->free_heap_top - sc->free_heap;
   if (size == 0)
     {
-      if (sc->heap_size < 8192000)
+      /* (sc->heap_size < 2048000) */  /* 8192000 here improves various gc benchmarks only slightly */
+      /* maybe the choice of 4 should depend on how much space was freed rather than the current heap_size? */
+      if (old_free < old_size * RESIZE_BY_4_FRACTION)
 	sc->heap_size *= 4;          /* *8 if < 1M (or whatever) doesn't make much difference */
       else sc->heap_size *= 2;
     }
@@ -54004,11 +54008,21 @@ static s7_pointer fx_safe_closure_s_to_sc(s7_scheme *sc, s7_pointer arg)
   return(c_call(car(closure_body(opt1_lambda(arg))))(sc, sc->t2_1));
 }
 
+static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg)
+{
+  return(vector_ref_p_pp(sc, lookup(sc, opt2_sym(arg)), opt3_any(cdr(arg))));
+}
+
 static s7_pointer fx_safe_closure_a_to_sc(s7_scheme *sc, s7_pointer arg)
 {
   set_car(sc->t2_1, fx_call(sc, cdr(arg)));
   set_car(sc->t2_2, opt3_any(cdr(arg)));
   return(c_call(car(closure_body(opt1_lambda(arg))))(sc, sc->t2_1));
+}
+
+static s7_pointer fx_safe_closure_a_to_vref(s7_scheme *sc, s7_pointer arg)
+{
+  return(vector_ref_p_pp(sc, fx_call(sc, cdr(arg)), opt3_any(cdr(arg))));
 }
 
 static s7_pointer fx_and_2_closure_s(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 */
@@ -69256,7 +69270,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
   return(false);
 }
 
-static opt_t fxify_safe_closure_s(s7_scheme *sc, s7_pointer func, s7_pointer expr, s7_pointer e, bool sym, int32_t hop)
+static opt_t fxify_closure_s(s7_scheme *sc, s7_pointer func, s7_pointer expr, s7_pointer e, bool sym, int32_t hop)
 {
   s7_pointer body;
   /* fprintf(stderr, "%s: %s %d\n", __func__, display(expr), hop); */
@@ -69278,6 +69292,9 @@ static opt_t fxify_safe_closure_s(s7_scheme *sc, s7_pointer func, s7_pointer exp
 		  body_arg2 = caddar(body);
 		  set_opt3_any(cdr(expr), (is_pair(body_arg2)) ? cadr(body_arg2) : body_arg2);
 		  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_SC);
+		  if ((caar(body) == sc->vector_ref_symbol) && (is_global(sc->vector_ref_symbol)))
+		    set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_vref, F_CALL);
+		  else set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_sc, F_CALL);
 		}
 	    }
 	}
@@ -69309,6 +69326,9 @@ static bool fxify_closure_a(s7_scheme *sc, s7_pointer func, bool one_form, bool 
 		      body_arg2 = caddar(body);
 		      set_opt3_any(cdr(expr), (is_pair(body_arg2)) ? cadr(body_arg2) : body_arg2);
 		      set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_A_TO_SC);
+		      if ((caar(body) == sc->vector_ref_symbol) && (is_global(sc->vector_ref_symbol)))
+			set_opt2(expr, (s7_pointer)fx_safe_closure_a_to_vref, F_CALL);
+		      else set_opt2(expr, (s7_pointer)fx_safe_closure_a_to_sc, F_CALL);
 		    }
 		}
 
@@ -69360,7 +69380,7 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  if (safe_case)
 	    {
 	      if (is_fxable(sc, car(body)))
-		return(fxify_safe_closure_s(sc, func, expr, e, sym, hop));
+		return(fxify_closure_s(sc, func, expr, e, sym, hop));
 	      set_optimize_op(expr, hop + ((sym) ? OP_SAFE_CLOSURE_S_P : OP_SAFE_CLOSURE_C_P));
 	    }
 	  else set_optimize_op(expr, hop + ((sym) ? OP_CLOSURE_S_P : OP_CLOSURE_C_P));
@@ -71285,12 +71305,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	  (!is_checked(caddr(expr))) &&
 	  (optimize_expression(sc, caddr(expr), hop, e, body_export_ok) == OPT_OOPS))
 	return(OPT_OOPS);
-
       return(OPT_F);
-
-      /* old form: body = cddr(expr); body_export_ok = false; */
-
-      break;
 
     case OP_WITH_LET:
       /* we can't trust anything here, so hop ought to be off.  For example,
@@ -81668,7 +81683,7 @@ static goto_t op_unknown_g(s7_scheme *sc, s7_pointer f)
 	      if (is_null(cdr(body)))
 		{
 		  if (is_fxable(sc, car(body)))
-		    fxify_safe_closure_s(sc, f, code, sc->envir, sym_case, hop);
+		    fxify_closure_s(sc, f, code, sc->envir, sym_case, hop);
 		  else
 		    {
 		      /* hop if is_constant(sc, car(code)) is not foolproof here (see t967.scm):
@@ -88544,10 +88559,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_S_TO_S: sc->value = fx_safe_closure_s_to_s(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_S_TO_SC: if (!closure_is_eq(sc)) {if (op_unknown_g(sc, sc->last_function) == goto_eval) goto EVAL; break;}
-	case HOP_SAFE_CLOSURE_S_TO_SC: sc->value = fx_safe_closure_s_to_sc(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_S_TO_SC: sc->value = c_call(cdr(sc->code))(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_A_TO_SC: if (!closure_is_eq(sc)) {if (op_unknown_a(sc, sc->last_function) == goto_eval) goto EVAL; break;}
-	case HOP_SAFE_CLOSURE_A_TO_SC: sc->value = fx_safe_closure_a_to_sc(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_A_TO_SC: sc->value = c_call(sc->code)(sc, sc->code); continue;
 
 	case OP_CLOSURE_C: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_M, 1)) {if (op_unknown_g(sc, sc->last_function) == goto_eval) goto EVAL; break;}
 	case HOP_CLOSURE_C: op_closure_c(sc); goto EVAL;
@@ -94110,7 +94125,7 @@ static s7_pointer kmg(s7_scheme *sc, s7_int bytes)
 
 static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda (f) (format *stderr* "~S~%" f)) (*s7* 'memory-usage)) */
 {
-  s7_int gc_loc;
+  s7_int gc_loc, in_use = 0;
   s7_pointer x, mu_let;
   gc_list *gp;
 
@@ -94130,7 +94145,7 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
   make_slot_1(sc, mu_let, make_symbol(sc, "IO"), cons(sc, make_integer(sc, info.ru_inblock), make_integer(sc, info.ru_oublock)));
 #endif
 
-  if (sc->safety > 0)
+  if (sc->safety >= 0)
     {
       s7_int i, k, len;
       s7_int ts[NUM_TYPES];
@@ -94160,9 +94175,13 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
       sc->w = sc->nil;
       for (i = 0; i < NUM_TYPES; i++)
 	{
+	  if (i > 0) in_use += ts[i];
 	  if (ts[i] > 50)
 	    sc->w = cons(sc, cons(sc, make_symbol(sc, (i == 0) ? "free" : type_name_from_type(i, NO_ARTICLE)), make_integer(sc, ts[i])), sc->w);
 	}
+      
+      make_slot_1(sc, mu_let, make_symbol(sc, "cells-in-use/free"), cons(sc, make_integer(sc, in_use), make_integer(sc, sc->free_heap_top - sc->free_heap)));
+
       if (is_pair(sc->w))
 	make_slot_1(sc, mu_let, make_symbol(sc, "types"), sc->w);
       sc->w = sc->nil;
@@ -94261,9 +94280,11 @@ static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda
       for (i = 0, len = 0; i < gp->loc; i++)
 	if (is_continuation(gp->list[i]))
 	  len += continuation_stack_size(gp->list[i]);
-      make_slot_1(sc, mu_let, make_symbol(sc, "continuations"), cons(sc, make_integer(sc, sc->continuations->loc), make_integer(sc, len)));
+      if (len > 0)
+	make_slot_1(sc, mu_let, make_symbol(sc, "continuations"), cons(sc, make_integer(sc, sc->continuations->loc), make_integer(sc, len)));
 
-      make_slot_1(sc, mu_let, make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
+      if (sc->c_objects->loc > 0)
+	make_slot_1(sc, mu_let, make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
 #if WITH_GMP
       make_slot_1(sc, mu_let, make_symbol(sc, "bignums"),
 		  s7_list(sc, 5, make_integer(sc, sc->big_integers->loc), make_integer(sc, sc->big_ratios->loc),
@@ -97199,22 +97220,22 @@ int main(int argc, char **argv)
  * tref          |      |      | 2372 | 2125 | 1036 |  983 |  715    715
  * tshoot        |      |      |      |      |      | 1224 |  735    732
  * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  866    864
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1447   1448
+ * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1447   1449
  * tvect         |      |      |      |      |      | 5729 | 1617   1617
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1680   1677  1668
+ * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1680   1677  1662
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2038   2035
  * tlet          |      |      |      |      | 4717 | 2959 | 2123   2122
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2205   2203
  * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2225   2225
  * tread         |      |      |      |      | 2357 | 2336 | 2256   2255
- * tmisc         |      |      |      |      |      | 3087 | 2298   2298
+ * tmisc         |      |      |      |      |      | 3087 | 2298   2298  2270
  * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2399   2393
- * dup           |      |      |      |      | 20.8 | 5711 | 2576   2548
+ * dup           |      |      |      |      | 20.8 | 5711 | 2576   2558
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2601   2601
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2613   2613
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2687   2680
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2725   2727
- * tb            |      |      | 4727 | 4742 | 4735 | 3481 | 2739   2735
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2725   2753
+ * tb            |      |      | 4727 | 4742 | 4735 | 3481 | 2739   2728
  * tset          |      |      |      |      | 10.0 | 6432 | 2922   2922
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 2935   2935
  * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3139   3140
@@ -97230,18 +97251,14 @@ int main(int argc, char **argv)
  * tbig          |      |      |      |      |246.9 |230.6 |177.8  177.7
  * --------------------------------------------------------------------------
  *
- * opt* coverage tests t206 opt_i|d|p*
- *
- * lambda arg ok if self-contained
- * gx?
- *   gx_checkers+fx_function given hop bit
- *   has_gx (not has_fx), gxable = gx_checks[op]
- *   all back-out checks done before any calcs, each gx op walks its tree for gx checks
- *   so opt2=fx, set has_gx, then eval: fx_call(top) or if checks fail, clear all has_gx flags, goto eval
- *   can we use "a" ops with has_gx? -- get gx checker during tree walk -- has_gx needs to be propagated backwards
- *   annotate_args can do has_gx+fx_function
+ * qxable: op_safe* = check then call fx_call, checker from qx_functions, backout from original op (hop_safe_cp etc)
+ *   annotate_args sets fx_call 
+ *   combine_ops: if C_SP and P is qxable set has_qx bit at top (fx_call and has_qx bit ignored by default)
  * look at reason for eval_args*
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * equivalent of string temp check for numbers [check_for_substring_temp]
  * add [safe_]_closure_star_fp, more trigger_size args can probably go (op_closure_fx looks ok), op_s_fp|x?
+ * lambda arg ok if self-contained: op_lambda_unchecked -> fx_lambda but needs to be set in optimize_syntax? check_lambda_1 + false=opt (already opt'd)
+ * opt* coverage tests t206 opt_i|d|p*
+ * heap analysis -- do permanent lets release?
+ * t220 -> s7test
  */

@@ -3402,7 +3402,7 @@
 		       ;;   (memq x '(#(1))) may be #f (or #t!) when (member x '(#(1))) is '(#(1)).
 		       ;;
 		       ;; I think I'll try to turn out a more-or-less working expression, but warn about it.
-		       
+
 		       (case (car p) 
 			 ((string=? equal?)
 			  (set! eqfnc (if (or (not eqfnc)
@@ -17246,7 +17246,6 @@
 		       (test (car clause))
 		       (sequel (cdr clause))
 		       (first-sequel (and (pair? (cdr clause)) (cadr clause))))
-		   
 		   (if (not (equal? expr test))
 		       (set! simplifications (cons (cons clause expr) simplifications)))
 		   

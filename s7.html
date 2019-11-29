@@ -4202,6 +4202,7 @@ it is very common to call
 read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
 a case statement.  In s7, we can dispense with the extra if (and let), and include
 the #&lt;eof&gt; in the case statement: <code>(case (read-char) ((#&lt;eof&gt;) (quit-reading)) ((#\a)...))</code>.
+Another example: <code>(or (eof-object? x) (eqv x 24)...)</code> can be instead: <code>(memv x '(#&lt;eof&gt; 24 ...)</code>.
 </p>
 <pre class="indented">
 &gt; (with-input-from-string "(or x #&lt;eof&gt;)" read)

@@ -165,7 +165,6 @@
 |#
 (define (s7-c-types) (*s7* 'c-types))
 (define (s7-profile-info) (*s7* 'profile-info))
-(define (s7-memory-usage) (string? (with-output-to-string (lambda () (*s7* 'memory-usage)))))
 (define (s7-history) (*s7* 'history))
 (define (s7-history-size) (*s7* 'history-size))
 
@@ -764,7 +763,6 @@
 			  's7-profile-info 
 			  's7-autoloading? 
 
-			  ;'s7-memory-usage ; too slow
 			  's7-safety 
 			  's7-c-types 
 			  ;;'s7-history ;-- causes stack to grow?

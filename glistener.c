@@ -1491,17 +1491,17 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 
-  /* right-arrow end of line */
-  gtk_binding_entry_remove(set, GDK_KEY_Right, (GdkModifierType)0);
+  /* right-arrow forward char */
+  gtk_binding_entry_remove(set, GDK_KEY_Right, (GdkModifierType)0); 
   gtk_binding_entry_add_signal(set, GDK_KEY_Right, (GdkModifierType)0, "move_cursor", 3,
-			       G_TYPE_ENUM, GTK_MOVEMENT_DISPLAY_LINE_ENDS,
+			       G_TYPE_ENUM, GTK_MOVEMENT_VISUAL_POSITIONS,
 			       G_TYPE_INT, 1,
 			       G_TYPE_BOOLEAN, false);
 
-  /* left-arrow start of line */
-  gtk_binding_entry_remove(set, GDK_KEY_Left, (GdkModifierType)0);
+  /* left-arrow back char */
+  gtk_binding_entry_remove(set, GDK_KEY_Left, (GdkModifierType)0); 
   gtk_binding_entry_add_signal(set, GDK_KEY_Left, (GdkModifierType)0, "move_cursor", 3,
-			       G_TYPE_ENUM, GTK_MOVEMENT_DISPLAY_LINE_ENDS,
+			       G_TYPE_ENUM, GTK_MOVEMENT_VISUAL_POSITIONS,
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 
