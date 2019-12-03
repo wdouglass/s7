@@ -1252,21 +1252,21 @@
   (define showing-disk-space #f) ; for prefs dialog
   
   (define show-disk-space
-    (let ((+documentation+ "(show-disk-space snd) adds a label to snd's status-area area showing the current free space (for use with after-open-hook: (set! (hook-functions after-open-hook) (list (*motif* 'show-disk-space)))")
-	  (labelled-snds ())
-
-	  (kmg (lambda (num)
-		 (cond ((<= num 0)      (copy "disk full!"))
-		       ((<= num 1024)   (format #f "space: ~10DK" num))
-		       ((> num 1048576) (format #f "space: ~6,3FG" (/ num (* 1024.0 1024.0))))
-		       (else            (format #f "space: ~6,3FM" (/ num 1024.0))))))
-	  
-	  (show-label (lambda (data id)
-			(if (sound? (car data))
-			    (let ((str (XmStringCreateLocalized (kmg (disk-kspace (file-name (car data)))))))
-			      (XtSetValues (cadr data) (list XmNlabelString str))
-			      (XmStringFree str)
-			      (XtAppAddTimeOut (caddr data) 10000 show-label data))))))
+    (letrec ((+documentation+ "(show-disk-space snd) adds a label to snd's status-area area showing the current free space (for use with after-open-hook: (set! (hook-functions after-open-hook) (list (*motif* 'show-disk-space)))")
+	     (labelled-snds ())
+	     
+	     (kmg (lambda (num)
+		    (cond ((<= num 0)      (copy "disk full!"))
+			  ((<= num 1024)   (format #f "space: ~10DK" num))
+			  ((> num 1048576) (format #f "space: ~6,3FG" (/ num (* 1024.0 1024.0))))
+			  (else            (format #f "space: ~6,3FM" (/ num 1024.0))))))
+	     
+	     (show-label (lambda (data id)
+			   (if (sound? (car data))
+			       (let ((str (XmStringCreateLocalized (kmg (disk-kspace (file-name (car data)))))))
+				 (XtSetValues (cadr data) (list XmNlabelString str))
+				 (XmStringFree str)
+				 (XtAppAddTimeOut (caddr data) 10000 show-label data))))))
       (lambda (hook)
 	(let* ((snd (hook 'snd))
 	       (previous-label (find-if (lambda (n) (equal? (car n) snd)) labelled-snds)))

@@ -772,6 +772,15 @@ to some true value.
 See s7test.scm for many examples.  
 </p>
 
+<p>Since named let* is a form of lambda*, the prohibition of repeated variable names makes it different
+from let*: <code>(let* ((a 1) (a 2)) a)</code> is 2, but <code>(let* loop ((a 1) (a 2)) a)</code> is an error.
+If let* and named let* agreed in this, we'd have an inconsistency with lambda*.  If all three allowed repeated
+variables, the decision as to which parameter is intended becomes messy: <code>((lambda* (a a) a) 2 :a 3)</code>,
+or <code>(let* loop ((a 1) (a 2)) (loop 2 :a 3))</code>.
+CL and standard scheme accept repeated variables in let*, so I think the current
+choice is the least surprising.
+</p>
+
 </div>
 
 
