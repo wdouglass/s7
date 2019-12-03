@@ -82393,7 +82393,10 @@ static goto_t op_unknown_fx(s7_scheme *sc, s7_pointer f)
       /* TODO: maybe arity < 0 as below */
       if ((closure_arity_to_int(sc, f) == -1) &&
 	  (is_symbol(closure_args(f))))
-	return(optimize_func_dotted_args(sc, code, f, 0, num_args, sc->envir));
+	{
+	  optimize_func_dotted_args(sc, code, f, 0, num_args, sc->envir);
+	  return(goto_eval); /* TODO: test this */
+	}
 
       break;
 
