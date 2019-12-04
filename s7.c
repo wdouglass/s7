@@ -21315,6 +21315,12 @@ Pass this as the second argument to 'random' to get a repeatable random number s
     (let ((seed (random-state 1234))) (random 1.0 seed))"
   #define Q_random_state s7_make_circular_signature(sc, 1, 2, sc->is_random_state_symbol, sc->is_integer_symbol)
 
+  /* if we disallow (random 0) the programmer has to protect every call on random with (if (= x 0) 0 (random x)).  If
+   *   we claim we're using a half-open interval, then we should also disallow (random 0.0); otherwise the following
+   *   must be true: (let* ((x 0.0) (y (random x))) (and (>= y 0.0) (< y x))).  The definition above is consistent
+   *   with (random 0) -> 0, and simpler to use in practice, and certainly no worse than (/ 0 0) -> 1.
+   */
+
   s7_pointer r1, r2, p;
   s7_int i1, i2;
 
@@ -21458,7 +21464,7 @@ s7_double s7_random(s7_scheme *sc, s7_pointer state)
 
 static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
 {
-  #define H_random "(random num (state #f)) returns a random number between 0 and num (0 if num=0)."
+  #define H_random "(random num (state #f)) returns a random number of the same type as num between zero and num, equalling num only if num is zero"
   #define Q_random s7_make_signature(sc, 3, sc->is_number_symbol, sc->is_number_symbol, sc->is_random_state_symbol)
   s7_pointer r, num;
 
@@ -54869,6 +54875,7 @@ static bool fx_tu_name(s7_scheme *sc, s7_pointer p);
 static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer v1, s7_pointer v2, s7_pointer v3, s7_pointer v4)
 {
   s7_pointer p;
+  /* fprintf(stderr, "%s[%d] %s %s %d: %s\n", __func__, __LINE__, display(v1), (v2) ? display(v2) : "", has_fx(tree), display(tree)); */
   p = car(tree);
   if ((is_pair(p)) && (is_pair(cdr(p))))
     {
@@ -65582,7 +65589,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SAFE_CLOSURE_P_1:  case OP_CLOSURE_P_1:
     case OP_SAFE_CLOSURE_AP_1: case OP_CLOSURE_AP_1:
     case OP_SAFE_CLOSURE_PP_1: case OP_CLOSURE_PP_1:
-    case OP_SAFE_CLOSURE_PA_1: case OP_CLOSURE_PA_1:      /* arity is 2, we have 2 args, this has to be an error (see optimize_func_dotted_args) */
+    case OP_SAFE_CLOSURE_PA_1: case OP_CLOSURE_PA_1:      /* arity is 2, we have 2 args, this has to be an error (see optimize_closure_dotted_args) */
     case OP_SAFE_OR_UNSAFE_CLOSURE_3P_1: case OP_SAFE_OR_UNSAFE_CLOSURE_3P_2: case OP_SAFE_OR_UNSAFE_CLOSURE_3P_3:
       return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, stack_code(sc->stack, top), sc->value)));
 
@@ -67927,8 +67934,11 @@ static opt_t optimize_thunk(s7_scheme *sc, s7_pointer expr, s7_pointer func, int
   return(OPT_F);
 }
 
-static opt_t optimize_func_dotted_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t args, s7_pointer e)
+static opt_t optimize_closure_dotted_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t args, s7_pointer e)
 {
+#if S7_DEBUGGING
+  if (!is_symbol(closure_args(func))) fprintf(stderr, "%s[%d]: %s but %s\n", __func__, __LINE__, display_80(expr), display(func));
+#endif
   if (fx_count(sc, expr) == args) /* fx_count starts at cdr, args here is the number of exprs in cdr(expr) -- so this means "are all args fxable" */
     {
       annotate_args(sc, cdr(expr), e);
@@ -69376,7 +69386,7 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
     {
       if ((arit == -1) &&
 	  (is_symbol(closure_args(func))))
-	return(optimize_func_dotted_args(sc, expr, func, hop, 1, e));
+	return(optimize_closure_dotted_args(sc, expr, func, hop, 1, e));
       return(OPT_F);
     }
 
@@ -70224,7 +70234,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	{
 	  if ((arit == -1) &&
 	      (is_symbol(closure_args(func))))
-	    return(optimize_func_dotted_args(sc, expr, func, hop, 2, e));
+	    return(optimize_closure_dotted_args(sc, expr, func, hop, 2, e));
 	  return(OPT_F);
 	}
       if (is_immutable(func)) hop = 1;
@@ -70758,7 +70768,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	{
 	  if ((arit == -1) &&
 	      (is_symbol(closure_args(func))))
-	    return(optimize_func_dotted_args(sc, expr, func, hop, 3, e));
+	    return(optimize_closure_dotted_args(sc, expr, func, hop, 3, e));
 	  return(OPT_F);
 	}
       if (is_immutable(func)) hop = 1;
@@ -70960,7 +70970,7 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 	{
 	  if ((arit == -1) &&
 	      (is_symbol(closure_args(func))))
-	    return(optimize_func_dotted_args(sc, expr, func, hop, args, e));
+	    return(optimize_closure_dotted_args(sc, expr, func, hop, args, e));
 	  return(OPT_F);
 	}
       if (is_immutable(func)) hop = 1;
@@ -82209,8 +82219,6 @@ static goto_t op_unknown_all_s(s7_scheme *sc, s7_pointer f)
       return(goto_eval);
 
     case T_CLOSURE:
-      /* TODO: if arity=-1, use op_closure_any_fx? */
-
       if ((!has_methods(f)) &&
 	  (closure_arity_to_int(sc, f) == num_args))
 	{
@@ -82223,6 +82231,9 @@ static goto_t op_unknown_all_s(s7_scheme *sc, s7_pointer f)
 	    return(fixup_unknown_op(code, f, hop + ((is_safe_closure(f)) ? OP_SAFE_CLOSURE_ALL_S : OP_CLOSURE_4S_B)));
 	  return(fixup_unknown_op(code, f, hop + ((is_safe_closure(f)) ? OP_SAFE_CLOSURE_ALL_S : OP_CLOSURE_ALL_S)));
 	}
+#if S7_DEBUGGING
+      if (is_symbol(closure_args(f))) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(f));
+#endif
       break;
 
     case T_CLOSURE_STAR:
@@ -82390,14 +82401,11 @@ static goto_t op_unknown_fx(s7_scheme *sc, s7_pointer f)
 	  return(goto_eval);
 	}
 
-      /* TODO: maybe arity < 0 as below */
-      if ((closure_arity_to_int(sc, f) == -1) &&
-	  (is_symbol(closure_args(f))))
+      if (is_symbol(closure_args(f)))
 	{
-	  optimize_func_dotted_args(sc, code, f, 0, num_args, sc->envir);
-	  return(goto_eval); /* TODO: test this */
+	  optimize_closure_dotted_args(sc, code, f, 0, num_args, sc->envir);
+	  if (optimize_op(code) == OP_CLOSURE_ANY_FX) return(goto_eval);
 	}
-
       break;
 
     case T_CLOSURE_STAR:
@@ -88868,7 +88876,27 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_FX: switch (op_check_closure_fx(sc)) {case goto_eval: goto EVAL; case goto_unopt: goto UNOPT; default: break;}
 	case HOP_CLOSURE_FX: op_closure_fx(sc); goto EVAL;
 
-	case OP_CLOSURE_ANY_FX: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, -1)) break;
+	case OP_CLOSURE_ANY_FX: 
+	  /* can't use closure_is_fine -- (lambda args 1) and (lambda (name . args) 1) are both arity -1 for the internal arity checkers! */
+	  /* if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, -1)) break; */
+	  if ((symbol_ctr(car(sc->code)) != 1) ||				\
+	      (unchecked_slot_value(local_slot(car(sc->code))) != opt1_lambda_unchecked(sc->code)))
+	    {
+	      s7_pointer f;
+	      f = lookup_unexamined(sc, car(sc->code));
+	      if ((f != opt1_lambda_unchecked(sc->code)) &&
+		  ((!f) ||
+		   ((typesflag(f) & (TYPE_MASK | T_SAFE_CLOSURE)) != FINE_UNSAFE_CLOSURE) ||
+		   (!is_symbol(closure_args(f)))))
+		{
+		  /* fprintf(stderr, "break on %s\n", display(f)); */
+		  sc->last_function = f;
+		  break;
+		}
+	      /* fprintf(stderr, "use new %s\n", display(f)); */
+	      set_opt1_lambda(sc->code, f);
+	    }
+	  /* else fprintf(stderr, "current %s is ok\n", display(sc->code)); */
 	case HOP_CLOSURE_ANY_FX: op_closure_any_fx(sc); goto BEGIN;
 
 	case OP_SAFE_OR_UNSAFE_CLOSURE_FP: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, integer(opt3_arglen(sc->code)))) break;
@@ -93962,7 +93990,7 @@ Pass this as the second argument to 'random' to get a repeatable random number s
 
 static s7_pointer big_random(s7_scheme *sc, s7_pointer args)
 {
-  #define H_random "(random num (state #f)) returns a random number between 0 and num (0 if num=0)."
+  #define H_random "(random num (state #f)) returns a random number of the same type as num between zero and num, equalling num only if num is zero"
   #define Q_random s7_make_signature(sc, 3, sc->is_number_symbol, sc->is_number_symbol, sc->is_random_state_symbol)
   s7_pointer num, state, x;
 
@@ -97372,7 +97400,7 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s new-ftp-file to that directory
  *
  * --------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.10  ubuntu 19.10? (times are equal, fc 31 is the old number)
+ *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.10    
  * --------------------------------------------------------------------------
  * tpeak         |      |      |      |  391 |  377 |  199 |  112 =   117
  * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  623 =   635
@@ -97385,15 +97413,15 @@ int main(int argc, char **argv)
  * lint          |      |      |      | 4041 | 2702 | 2120 | 2035 =  2076
  * tlet          |      |      |      |      | 4717 | 2959 | 2122 =  2150
  * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2203 =  2306
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2225 =  2284
+ * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2225 =  2284  2270
  * tread         |      |      |      |      | 2357 | 2336 | 2255 =  2370
  * tmisc         |      |      |      |      |      | 3087 | 2298 =  2277
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2393 =  2481
- * dup           |      |      |      |      | 20.8 | 5711 | 2558 =  2672
+ * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2393 =  2481  2473
+ * dup           |      |      |      |      | 20.8 | 5711 | 2558 =  2672  2678
  * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2601 =  2795
  * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2613 =  2643
  * titer         |      |      |      | 5971 | 4646 | 3587 | 2680 =  2919
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2753 =  2885
+ * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2753 =  2885  2881
  * tb            |      |      | 4727 | 4742 | 4735 | 3481 | 2728 =  2803
  * tset          |      |      |      |      | 10.0 | 6432 | 2922 =  3112
  * tsort         |      |      |      | 8584 | 4111 | 3327 | 2935 =  3043
@@ -97403,9 +97431,9 @@ int main(int argc, char **argv)
  * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 5949 =  6334
  * thash         |      |      |      |      |      | 10.3 | 6497 =  6808
  * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8 =  11.0
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.4 =  14.7
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 34.7 =  35.4
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.1 =  69.1
+ * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.4 =  14.7  15.4
+ * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 34.7 =  35.4  36.0
+ * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.1 =  69.1  70.2
  * lg            |      |      |      |211.0 |133.0 |112.7 |102.6 = 105.0
  * tbig          |      |      |      |      |246.9 |230.6 |177.7 = 178.7
  * --------------------------------------------------------------------------
@@ -97418,10 +97446,14 @@ int main(int argc, char **argv)
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * lambda arg ok if self-contained: op_lambda_unchecked -> fx_lambda but needs to be set in optimize_syntax? check_lambda_1 + false=opt (already opt'd)
  * opt* coverage tests t206 opt_i|d|p*
- * unknown* set safe_closure if unset
- *          change to use op_unopt[=goto unopt] for current false [but need clear_all_opts as well: OP_CLEAR_OPT?]
+ * unknown* change to use op_unopt[=goto unopt] for current false [but need clear_all_opts as well: OP_CLEAR_OPT?]
  *          true:eval, false:start
  *          lg [safe_]closure_a_p
  *    move op_thunk et al up or unknown* down
- * t221 in s7test -- safety warning? 
+ *    check op_unknown_fx -- op_closure_any_fp?
+ * safety warning for #(1,23 ...)? t221.scm
+ * if optimize_lambda can find the closure_let -> fx_tree_outer (usually sc->envir)
+ *    sc->f_let_id set in named_let/define_funchecked? noticed in check_recur as sc->envir id
+ *    are fx_tree_outer|outest protected against shadowing?
+ * (values) (values 1) etc for fxable -- hop_c... if c ok in context
  */

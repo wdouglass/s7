@@ -167,7 +167,7 @@ static Xen glmus_sound_set(const char *caller, int (*func)(const char *file, mus
 
 static Xen g_mus_sound_samples(Xen filename) 
 {
-  #define H_mus_sound_samples "(" S_mus_sound_samples " filename): samples (framples * channels) in sound file"
+  #define H_mus_sound_samples "(" S_mus_sound_samples " filename): samples (number-of-framples * number-of-channels) in sound file"
   return(glmus_sound(S_mus_sound_samples, mus_sound_samples, filename));
 }
 
@@ -180,7 +180,7 @@ static Xen g_mus_sound_set_samples(Xen filename, Xen val)
 
 Xen g_mus_sound_framples(Xen filename) 
 {
-  #define H_mus_sound_framples "(" S_mus_sound_framples " filename): framples (samples / channel) in sound file"
+  #define H_mus_sound_framples "(" S_mus_sound_framples " filename): framples (number-of-samples / number-of-channels) in sound file"
   return(glmus_sound(S_mus_sound_framples, mus_sound_framples, filename));
 }
 
