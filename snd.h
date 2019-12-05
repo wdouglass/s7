@@ -1,7 +1,7 @@
 #ifndef SND_H
 #define SND_H
 
-#include <mus-config.h>
+#include "mus-config.h"
 
 #include <ctype.h>
 #include <stddef.h>
@@ -55,7 +55,7 @@
 
 #include "snd-strings.h"
 
-#define SND_DATE "5-Dec-19"
+#define SND_DATE "6-Dec-19"
 #ifndef SND_VERSION
 #define SND_VERSION "20.0"
 #endif

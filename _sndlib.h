@@ -1,7 +1,7 @@
 #ifndef _SNDLIB_H
 #define _SNDLIB_H
 
-#include <mus-config.h>
+#include "mus-config.h"
 
 #ifndef _MSC_VER
   #include <unistd.h>

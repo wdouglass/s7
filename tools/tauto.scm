@@ -39,7 +39,8 @@
 			#i(1 2) (vector 1 '(3)) (let ((x 3)) (lambda (y) (+ x y))) abs 'a 'b one
 			(lambda args args) (lambda* ((a 3) (b 2)) (+ a b)) (lambda () 3)
 			(sublet () 'a 1) ;(rootlet)
-			*load-hook*  *error-hook* (random-state 123)
+			*load-hook*  *error-hook* 
+			(random-state 123)
 			quasiquote macroexpand begin let letrec* if case cond (call-with-exit (lambda (goto) goto))
 			(with-baffle (call/cc (lambda (cc) cc)))
 			(string #\a #\null #\b) #2d((1 2) (3 4)) (inlet 'a 2 'b 3)
@@ -180,7 +181,7 @@
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values
 		  symbol-table load throw error openlets coverlets
-		  global-environment current-environment make-rectangular hash-table* make-keyword ;morally-equal?
+		  make-rectangular hash-table*
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
