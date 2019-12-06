@@ -44,6 +44,7 @@
   "`(ok? ',tst (let () (define (_s7_) ,tst) (define (_call_) (_s7_))) ,expected)"
   "`(ok? ',tst (lambda () (let ((_s7_ #f)) (set! _s7_ ,tst))) ,expected)"
   "`(ok? ',tst (lambda () (let ((_s7_ ,tst)) _s7_)) ,expected)"
+  "`(ok? ',tst (lambda () (letrec ((_s7_ ,tst)) _s7_)) ,expected)"
   "`(ok? ',tst (catch #t (lambda () (lambda* ((!a! ,tst)) !a!)) (lambda any (lambda () 'error))) ,expected)"
   "`(ok? ',tst (lambda () (do ((!a! ,tst)) (#t !a!))) ,expected)"
   "`(ok? ',tst (lambda () (do ((__i__ 0 (+ __i__ 1))) ((= __i__ 1) ,expected) ,tst)) ,expected)"
