@@ -2980,8 +2980,6 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define let_set_dox_slot2(p, S)        do {(S_Let(p, L_DOX))->object.envr.edat.dox.dox2 = T_Slt(S); set_has_dox_slot2(p);} while (0)
 #define let_dox_slot2_unchecked(p)     T_Sld(C_Let(p, L_DOX)->object.envr.edat.dox.dox2)
 #define let_set_dox_slot2_unchecked(p, S) do {S_Let(p, L_DOX)->object.envr.edat.dox.dox2 = T_Sld(S); set_has_dox_slot2(p);} while (0)
-#define let_dox_code(p)                T_Pair((C_Let(p, L_DOX))->object.envr.edat.dox.dox1)
-#define let_set_dox_code(p, S)         (S_Let(p, L_DOX))->object.envr.edat.dox.dox1 = T_Pair(S)
 
 #define unique_name(p)                 (p)->object.unq.nm.name
 #define unique_name_length(p)          (p)->object.unq.len
@@ -73413,7 +73411,6 @@ static s7_pointer check_let(s7_scheme *sc)
       add_symbol_to_list(sc, y);
       set_local(y);
     }
-
   /* (let ('1) quote) -> 1 */
 
   if (is_not_null(x))                  /* (let* ((a 1) . b) a) */
@@ -73505,10 +73502,7 @@ static s7_pointer check_let(s7_scheme *sc)
 		  x = car(p);
 		  if (is_fxable(sc, cadr(x)))
 		    set_c_call(cdr(x), fx_choose(sc, cdr(x), sc->envir, let_symbol_is_safe));
-		}
-	    }
-	}
-    }
+		}}}}
 
   if (optimize_op(form) >= OP_LET_FX_OLD)
     {
@@ -73541,7 +73535,6 @@ static s7_pointer check_let(s7_scheme *sc)
 	  fx_tree(sc, init, s1, s2);
 	}
     }
-
   return(sc->code);
 }
 
@@ -73617,7 +73610,13 @@ static bool op_let1(s7_scheme *sc)
 {
   s7_pointer x, y, e;
   uint64_t id;
-
+  /* building a list, then reusing it below as the let/slots seems stupid, but if we make the let first, and
+   *   add slots, there are other problems.  The let/slot ids (and symbol_set_local) need to wait
+   *   until the args are evaluated, if an arg invokes call/cc, the let on the stack needs to be copied
+   *   including let_dox_code is it is used to save sc->code (there are 3 things that need to be protected),
+   *   (we win currently because copy_stack copies the list), and make-circular-iterator if called twice (s7test) 
+   *   hangs -- I can't see why!  Otherwise, the let/slots approach is slightly faster (less than 1% however).
+   */
   while (true)
     {
       sc->args = cons(sc, sc->value, sc->args);
@@ -73673,12 +73672,11 @@ static bool op_let(s7_scheme *sc)
   /* sc->code is everything after the let: (let ((a 1)) a) so sc->code is (((a 1)) a) */
   /*   car can be either a list or a symbol ("named let") */
   bool named_let;
+
   set_current_code(sc, sc->code);
   check_let(sc);
-  sc->args = sc->nil;
   sc->value = sc->code;
   named_let = is_symbol(car(sc->code));
-
   sc->code = (named_let) ? cadr(sc->code) : car(sc->code);
   if (is_null(sc->code))                    /* (let [name] () ...):  no bindings, so skip that step */
     {
@@ -73700,6 +73698,7 @@ static bool op_let(s7_scheme *sc)
       else sc->code = T_Pair(cdr(sc->code));
       return(true);
     }
+  sc->args = sc->nil;
   return(op_let1(sc));
 }
 
@@ -86566,6 +86565,10 @@ static void op_c_aa(s7_scheme *sc)
   sc->value = c_call(code)(sc, sc->args);
 }
 
+#if WITH_GCC
+static inline void op_c_s(s7_scheme *sc) __attribute__((always_inline));
+#endif
+
 static inline void op_c_s(s7_scheme *sc)
 {
   sc->args = list_1(sc, lookup(sc, cadr(sc->code)));
@@ -88917,77 +88920,25 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNKNOWN_AA:    sc->last_function = lookup_checked(sc, car(sc->code)); if (op_unknown_aa(sc)) goto EVAL;    continue;
 	case OP_UNKNOWN_FX:    sc->last_function = lookup_checked(sc, car(sc->code)); if (op_unknown_fx(sc)) goto EVAL;    continue;
 
-	case OP_IMPLICIT_VECTOR_REF_A:
-	  if (op_implicit_vector_ref_a(sc) == goto_start) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
+	case OP_IMPLICIT_VECTOR_REF_A:     if (op_implicit_vector_ref_a(sc) != goto_start)  {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_VECTOR_REF_AA:    if (op_implicit_vector_ref_aa(sc) != goto_start) {if (op_unknown_aa(sc)) goto EVAL;} continue;
+	case OP_IMPLICIT_STRING_REF_A:     if (op_implicit_string_ref_a(sc) != goto_start)  {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_HASH_TABLE_REF_A: if (!op_implicit_hash_table_ref_a(sc)) {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_CONTINUATION_A:   if (!op_implicit_continuation_a(sc))   {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_ITERATE:          if (!op_implicit_iterate(sc))          {if (op_unknown(sc)) goto EVAL;}    continue;
+	case OP_IMPLICIT_LET_REF_C:        if (!op_implicit_let_ref_c(sc))        {if ((has_fx(cdr(sc->code))) && (op_unknown_a(sc))) goto EVAL;} continue;
+	case OP_IMPLICIT_LET_REF_A:        if (!op_implicit_let_ref_a(sc))        {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_PAIR_REF_A:       if (!op_implicit_pair_ref_a(sc))       {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_C_OBJECT_REF_A:   if (!op_implicit_c_object_ref_a(sc))   {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_GOTO:             if (!op_implicit_goto(sc))             {if (op_unknown(sc)) goto EVAL;}    continue;
+	case OP_IMPLICIT_GOTO_A:           if (!op_implicit_goto_a(sc))           {if (op_unknown_a(sc)) goto EVAL;}  continue;
+	case OP_IMPLICIT_VECTOR_SET_3:     if (op_implicit_vector_set_3(sc)) goto EVAL; continue;
+	case OP_IMPLICIT_VECTOR_SET_4:     if (op_implicit_vector_set_4(sc)) goto EVAL; continue;
 
-	case OP_IMPLICIT_VECTOR_REF_AA:
-	  if (op_implicit_vector_ref_aa(sc) == goto_start) continue;
-	  if (op_unknown_aa(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_STRING_REF_A:
-	  if (op_implicit_string_ref_a(sc) == goto_start) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_HASH_TABLE_REF_A:
-	  if (op_implicit_hash_table_ref_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_CONTINUATION_A:
-	  if (op_implicit_continuation_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_ITERATE:
-	  if (op_implicit_iterate(sc)) continue;
-	  if (op_unknown(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_S7_LET_REF:
+	case OP_IMPLICIT_S7_LET_REF: 
 	  sc->value = g_s7_let_ref_fallback(sc, set_plist_2(sc, sc->s7_let, (is_keyword(cadr(sc->code))) ? keyword_symbol(cadr(sc->code)) : cadadr(sc->code)));
 	  continue;
 
-	case OP_IMPLICIT_LET_REF_C:
-	  if (op_implicit_let_ref_c(sc)) continue;
-	  if ((has_fx(cdr(sc->code))) && (op_unknown_a(sc))) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_LET_REF_A:
-	  if (op_implicit_let_ref_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_PAIR_REF_A:
-	  if (op_implicit_pair_ref_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_C_OBJECT_REF_A:
-	  if (op_implicit_c_object_ref_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_GOTO:
-	  if (op_implicit_goto(sc)) continue;
-	  if (op_unknown(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_GOTO_A:
-	  if (op_implicit_goto_a(sc)) continue;
-	  if (op_unknown_a(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_VECTOR_SET_3:  /* (set! (v i) x) */
-	  if (op_implicit_vector_set_3(sc)) goto EVAL;
-	  continue;
-
-	case OP_IMPLICIT_VECTOR_SET_4:  /* (set! (v i j) x) */
-	  if (op_implicit_vector_set_4(sc)) goto EVAL;
-	  continue;
 
 	case OP_UNOPT:
 #if UNOPT_PRINT && (0)
@@ -97266,46 +97217,46 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s new-ftp-file to that directory
  *
- * --------------------------------------------------------------------------
- *           12  |  13  |  14  |  15  |  16  |  17  |  18  | 19.10    
- * --------------------------------------------------------------------------
- * tpeak         |      |      |      |  391 |  377 |  199 |  112 =   117
- * tauto         |      |      | 1752 | 1689 | 1700 |  835 |  623 =   635
- * tref          |      |      | 2372 | 2125 | 1036 |  983 |  715 =   779
- * tshoot        |      |      |      |      |      | 1224 |  732 =   778
- * index    44.3 | 3291 | 1725 | 1276 | 1255 | 1168 | 1022 |  864 =   890
- * teq           |      |      | 6612 | 2777 | 1931 | 1539 | 1449 =  1544
- * tvect         |      |      |      |      |      | 5729 | 1617 =  1735
- * s7test   1721 | 1358 |  995 | 1194 | 2926 | 2110 | 1726 | 1677 =  1711
- * lint          |      |      |      | 4041 | 2702 | 2120 | 2035 =  2075
- * tlet          |      |      |      |      | 4717 | 2959 | 2122 =  2150
- * tform         |      |      | 6816 | 3714 | 2762 | 2362 | 2203 =  2304  2297
- * tcopy         |      |      | 13.6 | 3183 | 2974 | 2320 | 2225 =  2270
- * tread         |      |      |      |      | 2357 | 2336 | 2255 =  2370  [op_c_s ?]
- * tmisc         |      |      |      |      |      | 3087 | 2298 =  2275
- * tmat     8641 | 8458 |      | 7279 | 7248 | 7252 | 6823 | 2393 =  2481  2476
- * dup           |      |      |      |      | 20.8 | 5711 | 2558 =  2671
- * trclo         |      |      |      | 10.3 | 10.5 | 8758 | 2601 =  2795
- * fbench   4123 | 3869 | 3486 | 3609 | 3602 | 3637 | 3495 | 2613 =  2643
- * titer         |      |      |      | 5971 | 4646 | 3587 | 2680 =  2919
- * tmap          |      |      |  9.3 | 5279 | 3445 | 3015 | 2753 =  2881
- * tb            |      |      | 4727 | 4742 | 4735 | 3481 | 2728 =  2803
- * tset          |      |      |      |      | 10.0 | 6432 | 2922 =  3111
- * tsort         |      |      |      | 8584 | 4111 | 3327 | 2935 =  3043
- * tmac     8550 | 8396 | 7556 | 5606 | 5503 | 5404 | 3969 | 3140 =  3184  3193 [op_c_s]
- * tfft          |      | 17.1 | 17.3 | 19.2 | 19.3 | 4466 | 3727 =  3820
- * tclo          |      | 9502 | 10.0 | 9730 | 9729 | 6848 | 4680 =  4896
- * trec     35.0 | 29.3 | 24.8 | 25.5 | 24.9 | 25.6 | 20.0 | 5949 =  6334
- * thash         |      |      |      |      |      | 10.3 | 6497 =  6807
- * tgen          | 71.0 | 70.6 | 38.0 | 12.6 | 11.9 | 11.2 | 10.8 =  11.1
- * tall     90.0 | 43.0 | 14.5 | 12.7 | 17.9 | 18.8 | 17.1 | 14.4 =  15.4
- * calls   359.0 |275.0 | 54.0 | 34.7 | 43.7 | 40.4 | 38.4 | 34.7 =  36.1  35.9
- * sg            |      |      |      |139.0 | 85.9 | 78.0 | 68.1 =  70.2
- * lg            |      |      |      |211.0 |133.0 |112.7 |102.6 = 105.0
- * tbig          |      |      |      |      |246.9 |230.6 |177.7 = 178.7
- * --------------------------------------------------------------------------
+ * ------------------------------
+ *           18  |  19    
+ * ------------------------------
+ * tpeak     167 |  117
+ * tauto     748 |  635
+ * tshoot   1176 |  778
+ * tref     1093 |  779
+ * index     971 |  890
+ * teq      1617 | 1544
+ * s7test   1776 | 1711
+ * tvect    5115 | 1735
+ * lt       2278 | 2075
+ * tcopy    2434 | 2270
+ * tmisc    2852 | 2275
+ * tform    2472 | 2304  2297
+ * tread    2449 | 2370
+ * tmat     6072 | 2481  2476
+ * fbench   2974 | 2643
+ * dup      6333 | 2671
+ * trclo    7985 | 2795
+ * tb       3251 | 2803
+ * tmap     3238 | 2881
+ * titer    3962 | 2919
+ * tsort    4156 | 3043
+ * tset     6616 | 3111
+ * tmac     3391 | 3184
+ * tfft     4288 | 3820
+ * tlet     5409 | 4662
+ * tclo     6206 | 4896
+ * trec     17.8 | 6334
+ * thash    10.3 | 6807
+ * tgen     11.7 | 11.1
+ * tall     16.4 | 15.4
+ * calls    40.3 | 36.1  35.9
+ * sg       85.8 | 70.2
+ * lg      115.9 |105.0
+ * tbig    264.5 |178.7
+ * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * lambda arg ok if self-contained: op_lambda_unchecked -> fx_lambda but needs to be set in optimize_syntax? check_lambda_1 + false=opt (already opt'd)
  * opt* coverage tests t206 opt_i|d|p*
+ * reverse args? letrec-lambda? check closure->a
  */
