@@ -985,7 +985,7 @@ typedef struct s7_cell {
   } object;
 
 #if WITH_PROFILE
-  int32_t file_and_line;
+  uint64_t file_line_and_position;
 #endif
 #if S7_DEBUGGING
   int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line, opt1_line, opt2_line, opt3_line, gc_line, mv_line;
@@ -66741,6 +66741,16 @@ static void set_file_and_line_number(s7_scheme *sc, s7_pointer p)
     }
 }
 
+#define PROFILE_PRINT 0
+#if WITH_PROFILE
+#define profile_location(p)           p->file_line_and_position
+#define profile_set_location(p, N)    p->file_line_and_position = N
+#define remember_location(Port)       (uint64_t)(((port_file_number(Port) & 0xfff) << 20) | (port_line_number(Port)) | (port_position(Port) << 32))
+#define remembered_line_number(Line)  ((Line) & 0xfffff)
+#define remembered_file_number(Line)  ((Line >> 20) & 0xfff)
+#define remembered_position(Loc)      (Loc >> 32)
+#endif
+
 static int32_t read_atom(s7_scheme *sc, s7_pointer pt)
 {
   push_stack_no_let_no_code(sc, OP_READ_LIST, sc->args);
@@ -66749,7 +66759,7 @@ static int32_t read_atom(s7_scheme *sc, s7_pointer pt)
   sc->args = cons(sc, sc->value, sc->nil);
   set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
-  profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
+  profile_set_location(sc->args, remember_location(pt));
 #endif
   return(port_read_white_space(pt)(sc, pt));
 }
@@ -82744,15 +82754,10 @@ static void op_define_with_setter(s7_scheme *sc)
 
 /* -------------------------------- profile -------------------------------- */
 #if WITH_PROFILE
-#define profile_location(p)        p->file_and_line
-#define profile_set_location(p, N) p->file_and_line = N
-
-#define remember_location(Line, File) (((File) << 20) | (Line))
-#define remembered_line_number(Line)  ((Line) & 0xfffff)
 static s7_pointer remembered_file_name(s7_scheme *sc, s7_int line)
 {
   s7_int fnum;
-  fnum = line >> 20;
+  fnum = remembered_file_number(line);
   if ((fnum < 0) || (fnum > sc->file_names_top))
     return(sc->F);
   return(sc->file_names[fnum]);
@@ -82760,7 +82765,12 @@ static s7_pointer remembered_file_name(s7_scheme *sc, s7_int line)
 
 static void profile(s7_scheme *sc, s7_pointer expr)
 {
+  static uint64_t last_file_line_and_position = 0;
   /* I tried using SIGPROF and a tick counter below (in addition to the line counter), but the added info did not seem very useful. */
+
+  if (profile_location(expr) == last_file_line_and_position) return;
+  last_file_line_and_position = profile_location(expr);
+
   check_heap_size(sc, 32);
 
   if (is_null(sc->profile_info))
@@ -82768,12 +82778,18 @@ static void profile(s7_scheme *sc, s7_pointer expr)
       sc->profile_info = s7_make_hash_table(sc, 65536);
       s7_gc_protect_1(sc, sc->profile_info);
     }
+#if PROFILE_PRINT
+  fprintf(stderr, "%s[%d]: expr: %s %ld %u %u %u\n", __func__, __LINE__, display_80(expr), 
+	  profile_location(expr), 
+	  (uint32_t)remembered_file_number(profile_location(expr)),
+	  (uint32_t)remembered_line_number(profile_location(expr)),
+	  (uint32_t)remembered_position(profile_location(expr)));
+#endif
   if ((is_pair(expr)) &&
       (profile_location(expr) > 0))
     {
       s7_pointer val, key;
-      key = s7_make_integer(sc, profile_location(expr)); /* file + line */
-      /* sc->args = key;  */               /* GC protection?  (we're called at the top of the eval loop, so sc->args is free?) */
+      key = s7_make_integer(sc, profile_location(expr)); /* file + line + position */
       val = s7_hash_table_ref(sc, sc->profile_info, key);
       if (val == sc->F)
 	{
@@ -82784,20 +82800,26 @@ static void profile(s7_scheme *sc, s7_pointer expr)
 	  sc->short_print = true;
 	  env = find_closure_let(sc, sc->envir);
 
-#if S7_DEBUGGING
-	  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
 	  gc_protect_direct(sc, g_object_to_string(sc, set_plist_3(sc, expr, sc->T, small_int(120))));
 	  sc->stack_end[-4] = (is_let(env)) ? g_object_to_string(sc, set_plist_1(sc, funclet_function(env))) : sc->nil;
 
 	  s7_hash_table_set(sc, sc->profile_info, key,
 			    cons(sc, make_mutable_integer(sc, 1),
-				 cons(sc, sc->stack_end[-2], sc->stack_end[-4])));
+				 cons(sc, sc->stack_end[-2], sc->stack_end[-4]))); /* -2 = args, -4 = code, stack_end is one past op=-1 */
 	  sc->stack_end -= 4;
 	  sc->short_print = old_short_print;
+#if PROFILE_PRINT
+	  fprintf(stderr, " -> 1\n");
+#endif
 	}
       /* can't save the actual expr here -- it can be stepped on */
-      else integer(car(val))++;
+      else 
+	{
+	  integer(car(val))++;
+#if PROFILE_PRINT
+	  fprintf(stderr, " -> %ld\n", integer(car(val)));
+#endif
+	}
     }
 }
 
@@ -82830,10 +82852,6 @@ static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
   resize_stack(sc); /* we've already checked that resize_stack is needed */
   return(sc->F);
 }
-
-#if WITH_PROFILE
-  static s7_pointer profile_at_start = NULL;
-#endif
 
 #define closure_push_and_goto_eval(sc) \
 	 do {								\
@@ -86743,7 +86761,7 @@ static bool pop_read_list(s7_scheme *sc)
       sc->args = cons(sc, sc->value, sc->args);
       set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
-      profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
+      profile_set_location(sc->args, remember_location(sc->input_port));
 #endif
       return(true);
     }
@@ -88172,7 +88190,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       safe_print(fprintf(stderr, "%s (%d), code: %s\n", op_names[sc->cur_op], (int)(sc->cur_op), display_80(sc->code)));
 #endif
 #if WITH_PROFILE
-      profile_at_start = sc->code;
       profile(sc, sc->code);
 #endif
       /* it is only slightly faster to use labels as values (computed gotos) here. In my timing tests (June-2018), the best case speedup was in titer.scm
@@ -89797,7 +89814,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    sc->args = cons(sc, sc->value, sc->args);
 #if WITH_PROFILE
-	    profile_set_location(x, remember_location(port_line_number(sc->input_port), port_file_number(sc->input_port)));
+	    profile_set_location(sc->args, remember_location(sc->input_port));
 #endif
 	  }
 
@@ -89837,7 +89854,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      sc->args = cons(sc, sc->value, sc->nil);
 		      set_file_and_line_number(sc, sc->args);
 #if WITH_PROFILE
-		      profile_set_location(x, remember_location(port_line_number(pt), port_file_number(pt)));
+		      profile_set_location(sc->args, remember_location(pt));
 #endif
 		      c = port_read_white_space(pt)(sc, pt);
 		      goto READ_C;
@@ -97258,5 +97275,9 @@ int main(int argc, char **argv)
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * opt* coverage tests t206 opt_i|d|p*
- * reverse args? letrec-lambda? check closure->a
+ * letrec-lambda?, letrec* frames (like let*) and fx, check closure->a
+ * check profile testing s7test add-inheritor bug if profiling
+ *   if format with args to eval and profiling, we call obj->str while calling obj->str
+ *   perhaps hash/save the string when remembering?
+ * include pos in error?
  */

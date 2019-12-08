@@ -40,7 +40,7 @@ echo ' -------------------------------------------------------------------------
 echo ' ----                 basic configure test                                  ----- '
 echo ' -------------------------------------------------------------------------------- '
 
-./configure --quiet --with-motif CFLAGS="-O3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet --with-motif CFLAGS="-O3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  
 make
 echo ' '
 echo ' '
@@ -66,7 +66,7 @@ make sndinfo
 make sndplay
 make allclean
 
-./configure --quiet --with-motif CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -Wdeclaration-after-statement" LDFLAGS="-L/usr/X11R6/lib"
+./configure --quiet --with-motif CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -Wdeclaration-after-statement" 
 make allclean
 make
 echo ' '
@@ -82,7 +82,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 g++                                ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -Wextra -Wno-unused-parameter -Wno-implicit-fallthrough -Wno-clobbered -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CC=g++ CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -Wextra -Wno-unused-parameter -Wno-implicit-fallthrough -Wno-clobbered "  
 make
 ./snd --version
 ./snd -noinit --features "'clm"
@@ -96,7 +96,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 clang                                ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -Wextra -Wno-unused-parameter -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -Wextra -Wno-unused-parameter "  
 make
 ./snd --version
 ./snd -noinit --features "'clm"
@@ -105,7 +105,7 @@ make allclean
 rm -f snd
 rm -f config.cache
 
-./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -Wextra -Wno-unused-parameter -I/usr/X11R6/include" LDFLAGS="-L/usr/X11R6/lib" 
+./configure --quiet CC=clang CFLAGS="-Wall -Wno-array-bounds -Wno-parentheses -Wextra -Wno-unused-parameter "  
 make
 make allclean
 rm -f snd
@@ -117,7 +117,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-gui                                         ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --without-gui
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --without-gui
 make
 echo ' '
 echo ' '
@@ -133,7 +133,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-gui                                          ---  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DWITH_MAIN" --without-gui
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DWITH_MAIN" --without-gui
 make
 echo ' '
 echo ' '
@@ -149,7 +149,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-audio                                         ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --without-audio
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --without-audio
 make
 echo ' '
 echo ' '
@@ -165,7 +165,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-audio C++                                       ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --without-audio CC=g++
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --without-audio CC=g++
 make
 echo ' '
 echo ' '
@@ -179,9 +179,25 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui --with-oss                              ----  '
+echo ' -----                --without-gui --with-oss --with-s7-profiling|history                         ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --without-gui --with-oss
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui --with-oss --with-s7-profiling --with-s7-history
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'snd-nogui 'oss"
+
+make allclean
+rm -f snd
+rm -f config.cache
+
+echo ' '
+echo ' '
+echo ' -------------------------------------------------------------------------------- '
+echo ' -----                --without-gui --with-webserver --with-pure-s7                        ----  '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui --with-webserver --with-pure-s7
 make
 echo ' '
 echo ' '
@@ -211,7 +227,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 -without-gui --with-ladspa ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -I/usr/local/include" --without-gui --with-ladspa
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -I/usr/local/include" --without-gui --with-ladspa
 make
 echo ' '
 echo ' '
@@ -227,7 +243,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gtk                                             ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-O3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-gtk
+./configure --quiet  CFLAGS="-O3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-gtk
 make
 echo ' '
 echo ' '
@@ -244,7 +260,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 g++ --with-gtk --disable-deprecated                   ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-gtk --disable-deprecated
+./configure --quiet CC=g++ CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-gtk --disable-deprecated
 make allclean
 make
 ./snd --version
@@ -256,7 +272,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++ --with-gtk --std=c++11                             ---  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk CFLAGS="-std=c++11 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet CC=g++ --with-gtk CFLAGS="-std=c++11 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk"
@@ -267,7 +283,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++ --with-gtk --with-gsl                              ---  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk --with-gsl CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet CC=g++ --with-gtk --with-gsl CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk 'gsl"
@@ -278,7 +294,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth                                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --quiet --with-motif --with-forth
+./configure  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --quiet --with-motif --with-forth
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'snd-motif"
@@ -293,7 +309,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth  --with-motif --with-gl ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth  --with-motif --with-gl LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet --with-forth  --with-motif --with-gl  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'xm 'gl"
@@ -304,7 +320,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth --with-gtk       --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth --with-gtk  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet --with-forth --with-gtk   CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-gtk 'xg 'gl"
@@ -315,7 +331,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth --without-gui                              --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth --without-gui LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet --with-forth --without-gui  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-forth 'snd-nogui"
@@ -326,7 +342,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --without-extension-language                          ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet --without-extension-language
+./configure  CFLAGS="" --quiet --without-extension-language
 make
 echo ' '
 echo ' '
@@ -349,7 +365,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --without-extension-language --with-gl         ------  '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet --without-extension-language --with-motif --with-gl
+./configure  CFLAGS="" --quiet --without-extension-language --with-motif --with-gl
 make
 echo ' '
 echo ' '
@@ -359,7 +375,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-extension-language g++                      ----  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --without-extension-language  CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include"
+./configure --quiet --without-extension-language  CC=g++  CFLAGS=""
 make
 echo ' '
 echo ' '
@@ -372,7 +388,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                  --with-gtk                                            ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"  --with-gtk
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  --with-gtk
 make
 echo ' '
 echo ' '
@@ -385,7 +401,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-gtk  '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -D_FORTIFY_SOURCE=2" --with-gtk 
+./configure --quiet --disable-deprecated CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -D_FORTIFY_SOURCE=2" --with-gtk 
 make
 echo ' '
 echo ' '
@@ -400,7 +416,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gsl                           ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DS7_DEBUGGING" --with-motif --with-gsl
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-motif --with-gsl
 make
 echo ' '
 echo ' '
@@ -411,7 +427,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                --with-gmp                                              ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-gmp
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-gmp
 make
 echo ' '
 echo ' '
@@ -422,7 +438,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                WITH_PURE_S7  --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DWITH_PURE_S7=1"
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DWITH_PURE_S7=1"
 make
 echo ' '
 echo ' '
@@ -433,7 +449,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                  editres                              ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"  --with-motif --with-editres --disable-deprecated
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  --with-motif --with-editres --disable-deprecated
 make
 make allclean
 
@@ -442,7 +458,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++                                    ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --with-motif LDFLAGS="-L/usr/X11R6/lib" --quiet CC=g++  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --with-motif  --quiet CC=g++  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 
 make allclean
@@ -468,7 +484,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby                                            ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-ruby --with-motif 
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby --with-motif 
 make
 echo ' '
 echo ' '
@@ -483,7 +499,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 g++ --with-ruby                                        ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-ruby
+./configure --quiet CC=g++  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby
 make
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby"
@@ -492,7 +508,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby  --with-gl --with-alsa '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-motif --with-gl --with-alsa
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-ruby  --with-motif --with-gl --with-alsa
 make
 echo ' '
 echo ' '
@@ -506,7 +522,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-ruby --with-gtk                                 ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-ruby --with-gtk
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby --with-gtk
 make
 echo ' '
 echo ' '
@@ -528,7 +544,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-ruby  --with-gtk --without-gsl '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby  --with-gtk --without-gsl
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-ruby  --with-gtk --without-gsl
 make
 echo ' '
 echo ' '
@@ -539,7 +555,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-ruby  --with-gtk '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -D_FORTIFY_SOURCE=2" --with-ruby  --with-gtk
+./configure --quiet --disable-deprecated  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -D_FORTIFY_SOURCE=2" --with-ruby  --with-gtk
 make
 echo ' '
 echo ' '
@@ -553,7 +569,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-ruby --without-gui --without-fftw                --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --with-ruby --without-gui --without-fftw
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby --without-gui --without-fftw
 make
 echo ' '
 echo ' '
@@ -564,7 +580,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby --without-gui                             ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-ruby --without-gui
 make
 echo ' '
 echo ' '
@@ -575,7 +591,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++ --with-ruby --without-gui        ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -DS7_DEBUGGING" --with-ruby --without-gui 
+./configure --quiet CC=g++  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-ruby --without-gui 
 make
 echo ' '
 echo ' '
@@ -589,7 +605,7 @@ rm -f config.cache
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++                                                      --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-motif --with-ladspa CC=g++ LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include -I/usr/local/include"
+./configure --quiet --with-motif --with-ladspa CC=g++  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -I/usr/local/include"
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-s7 'snd-motif 'snd-ladspa 'sndlib"
@@ -614,7 +630,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                g++ --without-gui                                       ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --quiet CC=g++ --without-gui
+./configure  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --quiet CC=g++ --without-gui
 make
 ./snd --version
 ./snd -noinit --features "'clm 'snd-nogui 'snd-s7"
@@ -623,7 +639,7 @@ make allclean
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++ --without-extension-language                     ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --quiet CC=g++ --without-extension-language
+./configure  CFLAGS="" --quiet CC=g++ --without-extension-language
 make
 ./snd --version
 make allclean
@@ -633,7 +649,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                g++  --without-gsl --with-alsa '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --quiet CC=g++  --without-gsl --with-alsa
+./configure  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --quiet CC=g++  --without-gsl --with-alsa
 make
 ./snd --version
 ./snd -noinit --features "'clm 'alsa 'xm"
@@ -649,7 +665,7 @@ rm -f sndinfo
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                sndlib                                                 ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make sndinfo
 sndinfo oboe.snd
 sndinfo test.snd
@@ -660,7 +676,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --without-gui                                          ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include" --without-gui
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --without-gui
 make
 echo ' '
 echo ' '
@@ -678,7 +694,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                 -DXM_DISABLE_DEPRECATED              ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DXM_DISABLE_DEPRECATED -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet   CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DXM_DISABLE_DEPRECATED -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features "'clm 'xm"
@@ -689,7 +705,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                 --with-ruby -DXM_DISABLE_DEPRECATED   ---- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  --with-ruby LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DXM_DISABLE_DEPRECATED -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"
+./configure --quiet  --with-ruby  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -DXM_DISABLE_DEPRECATED -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
 make
 ./snd --version
 ./snd -noinit --features ":clm, :snd_ruby"
@@ -700,7 +716,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-gui --without-extension-language          ----- '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-gui --without-extension-language --quiet
+./configure  CFLAGS="" --without-gui --without-extension-language --quiet
 make
 ./snd --version
 make allclean
@@ -710,7 +726,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --without-extension-language  --with-gl '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-I/usr/X11R6/include" --without-extension-language  --with-motif --with-gl --quiet
+./configure  CFLAGS="" --without-extension-language  --with-motif --with-gl --quiet
 make
 ./snd --version
 make allclean
@@ -720,7 +736,7 @@ echo ' '
 echo ' -------------------------------------------------------------------------------- '
 echo ' -----                 --with-gl --with-gl2ps         ------ '
 echo ' -------------------------------------------------------------------------------- '
-./configure LDFLAGS="-L/usr/X11R6/lib" CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/X11R6/include"  --with-motif --with-gl --quiet --with-gl2ps --without-gsl
+./configure  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  --with-motif --with-gl --quiet --with-gl2ps --without-gsl
 make
 ./snd --version
 ./snd -noinit --features "'clm 'xm 'gl2ps"
