@@ -195,20 +195,6 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-gui --with-webserver --with-pure-s7                        ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --without-gui --with-webserver --with-pure-s7
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm 'snd-nogui 'oss"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --without-gui --with-gmp                              ----  '
 echo ' -------------------------------------------------------------------------------- '
 ./configure --quiet --without-gui --with-gmp --with-ladspa CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -I/usr/local/include"

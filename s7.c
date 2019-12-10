@@ -879,7 +879,7 @@ typedef struct s7_cell {
       s7_pointer unused_car, unused_cdr;
       uint64_t hash;
       const char *fstr;
-      uint32_t file, line;          /* line|file=pair_line|file, line also used in symbol_table (raw_len) */
+      uint64_t location;          /* line/file/postion, also used in symbol_table as raw_len */
     } sym_cons;
 
     struct {                        /* scheme functions */
@@ -1090,7 +1090,7 @@ struct s7_scheme {
   s7_pointer output_port;             /* current-output-port */
   s7_pointer error_port;              /* current-error-port */
   s7_pointer owlet;                   /* owlet */
-  s7_pointer error_type, error_data, error_code, error_line, error_file; /* owlet slots */
+  s7_pointer error_type, error_data, error_code, error_line, error_file, error_position; /* owlet slots */
   s7_pointer standard_input, standard_output, standard_error;
 
   s7_pointer sharp_readers;           /* the binding pair for the global *#readers* list */
@@ -1836,11 +1836,10 @@ static void init_types(void)
   static void set_s_hash_1(s7_pointer p, uint64_t x, const char *func, int32_t line);
   static const char *s_name_1(s7_pointer p, const char *func, int32_t line);
   static void set_s_name_1(s7_pointer p, const char *str, const char *func, int32_t line);
-  static uint32_t s_line_1(s7_pointer p, const char *func, int32_t line);
-  static void set_s_line_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
-  static void set_s_file_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line);
-  static uint32_t s_len_1(s7_pointer p, const char *func, int32_t line);
-  static void set_s_len_1(s7_pointer p, uint32_t x, const char *func, int32_t line);
+  static uint64_t s_location_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_location_1(s7_pointer p, uint64_t x, const char *func, int32_t line);
+  static uint64_t s_len_1(s7_pointer p, const char *func, int32_t line);
+  static void set_s_len_1(s7_pointer p, uint64_t x, const char *func, int32_t line);
   #define unchecked_type(p) ((p)->tf.type_field)
 #if WITH_GCC
   #define type(p) ({uint8_t _t_; _t_ = (p)->tf.type_field; if (((_t_ == T_FREE)) || (_t_ >= NUM_TYPES)) print_gc_info(p, __LINE__); _t_;})
@@ -2175,38 +2174,38 @@ static void init_types(void)
  *   We can't use a low bit (bit 7 for example), because collect_shared_info inspects the object's type.
  */
 
-#define T_LINE_NUMBER                  (1 << (TYPE_BITS + 10))
-#define has_line_number(p)             has_type_bit(T_Pair(p), T_LINE_NUMBER)
-#define set_has_line_number(p)         set_type_bit(T_Pair(p), T_LINE_NUMBER)
-/* pair in question has line/file info added during read, or the environment has function placement info
+#define T_LOCATION                     (1 << (TYPE_BITS + 10))
+#define has_location(p)                has_type_bit(T_Pair(p), T_LOCATION)
+#define set_has_location(p)            set_type_bit(T_Pair(p), T_LOCATION)
+/* pair in question has line/file/position info added during read, or the environment has function placement info
  *   this bit should not be in the first byte -- SYNTACTIC_PAIR ignores it.
  */
 
-#define T_LOADER_PORT                  T_LINE_NUMBER
+#define T_LOADER_PORT                  T_LOCATION
 #define is_loader_port(p)              has_type_bit(T_Prt(p), T_LOADER_PORT)
 #define set_loader_port(p)             set_type_bit(T_Prt(p), T_LOADER_PORT)
 #define clear_loader_port(p)           clear_type_bit(T_Prt(p), T_LOADER_PORT)
 /* to block random load-time reads from screwing up the load process, this bit marks a port used by the loader */
 
-#define T_HAS_SETTER                   T_LINE_NUMBER
+#define T_HAS_SETTER                   T_LOCATION
 #define symbol_has_setter(p)           has_type_bit(T_Sym(p), T_HAS_SETTER)
 #define symbol_set_has_setter(p)       set_type_bit(T_Sym(p), T_HAS_SETTER)
 #define slot_has_setter(p)             has_type_bit(T_Slt(p), T_HAS_SETTER)
 #define slot_set_has_setter(p)         set_type_bit(T_Slt(p), T_HAS_SETTER)
 /* marks a slot that has a setter or symbol that might have a setter */
 
-#define T_WITH_LET_LET                 T_LINE_NUMBER
+#define T_WITH_LET_LET                 T_LOCATION
 #define is_with_let_let(p)             has_type_bit(T_Let(p), T_WITH_LET_LET)
 #define set_with_let_let(p)            set_type_bit(T_Let(p), T_WITH_LET_LET)
 /* marks a let that is the argument to with-let */
 
-#define T_SIMPLE_DEFAULTS              T_LINE_NUMBER
+#define T_SIMPLE_DEFAULTS              T_LOCATION
 #define c_func_has_simple_defaults(p)  has_type_bit(T_Fst(p), T_SIMPLE_DEFAULTS)
 #define c_func_set_simple_defaults(p)  set_type_bit(T_Fst(p), T_SIMPLE_DEFAULTS)
 #define c_func_clear_simple_defaults(p) clear_type_bit(T_Fst(p), T_SIMPLE_DEFAULTS)
 /* flag c_func_star arg defaults that need GC protection */
 
-#define T_NO_SETTER                    T_LINE_NUMBER
+#define T_NO_SETTER                    T_LOCATION
 #define closure_no_setter(p)           has_type_bit(T_Clo(p), T_NO_SETTER)
 #define closure_set_no_setter(p)       set_type_bit(T_Clo(p), T_NO_SETTER)
 
@@ -2580,32 +2579,53 @@ static void init_types(void)
 #define is_unquoted_pair(p)            ((is_pair(p)) && (car(p) != sc->quote_symbol))
 #define is_quoted_symbol(p)            ((is_pair(p)) && (car(p) == sc->quote_symbol) && (is_symbol(cadr(p))))
 
+
+/* pair/profile line/file/position */
+#define PAIR_LINE_BITS       24
+#define PAIR_FILE_BITS       12
+#define PAIR_POSITION_BITS   28
+#define PAIR_LINE_OFFSET     0
+#define PAIR_FILE_OFFSET     PAIR_LINE_BITS
+#define PAIR_POSITION_OFFSET (PAIR_LINE_BITS + PAIR_FILE_BITS)
+#define PAIR_LINE_MASK       ((1 << PAIR_LINE_BITS) - 1)
+#define PAIR_FILE_MASK       ((1 << PAIR_FILE_BITS) - 1)
+#define PAIR_POSITION_MASK   ((1 << PAIR_POSITION_BITS) - 1)
+
+#define port_location(Pt) (((port_line_number(Pt) & PAIR_LINE_MASK) << PAIR_LINE_OFFSET) | \
+                           ((port_file_number(Pt) & PAIR_FILE_MASK) << PAIR_FILE_OFFSET) | \
+                           ((port_position(Pt) & PAIR_POSITION_MASK) << PAIR_POSITION_OFFSET))
+#define location_to_line(Loc)     ((Loc >> PAIR_LINE_OFFSET) & PAIR_LINE_MASK)
+#define location_to_file(Loc)     ((Loc >> PAIR_FILE_OFFSET) & PAIR_FILE_MASK)
+#define location_to_position(Loc) ((Loc >> PAIR_POSITION_OFFSET) & PAIR_POSITION_MASK)
+
+#define pair_line_number(p)            location_to_line(pair_location(p))
+#define pair_file(p)                   location_to_file(pair_location(p))
+#define pair_position(p)               location_to_position(pair_location(p))
+
 #if (!S7_DEBUGGING)
+#define pair_location(p)               (p)->object.sym_cons.location
+#define pair_set_location(p, X)        (p)->object.sym_cons.location = X
+#define pair_raw_hash(p)               (p)->object.sym_cons.hash
+#define pair_set_raw_hash(p, X)        (p)->object.sym_cons.hash = X
+#define pair_raw_len(p)                (p)->object.sym_cons.location
+#define pair_set_raw_len(p, X)         (p)->object.sym_cons.location = X
+#define pair_raw_name(p)               (p)->object.sym_cons.fstr
+#define pair_set_raw_name(p, X)        (p)->object.sym_cons.fstr = X
+/* opt1 == raw_hash, opt2 == raw_name, opt3 == line|ctr + len, but hash/name/len only apply to the symbol table so there's no collision */
+
 #define opt1(p, r)                     ((p)->object.cons.opt1)
 #define set_opt1(p, x, r)              (p)->object.cons.opt1 = x
 #define opt2(p, r)                     ((p)->object.cons.opt2)
 #define set_opt2(p, x, r)              (p)->object.cons.opt2 = (s7_pointer)(x)
 #define opt3(p, r)                     ((p)->object.cons.opt3)
-#define set_opt3(p, x, r)              do {(p)->object.cons.opt3 = x; clear_type_bit(p, T_LINE_NUMBER);} while (0)
+#define set_opt3(p, x, r)              do {(p)->object.cons.opt3 = x; clear_type_bit(p, T_LOCATION);} while (0)
 /* 29-Oct-18 this used to clear T_OPTIMIZED -- optimize_op was sharing opt3 with line info */
-
-#define pair_line_number(p)            (p)->object.sym_cons.line
-#define pair_set_line_number(p, X)     (p)->object.sym_cons.line = X
-#define pair_file(p)                   (p)->object.sym_cons.file
-#define pair_set_file(p, X)            (p)->object.sym_cons.file = X
-#define pair_raw_hash(p)               (p)->object.sym_cons.hash
-#define pair_set_raw_hash(p, X)        (p)->object.sym_cons.hash = X
-#define pair_raw_len(p)                (p)->object.sym_cons.line
-#define pair_set_raw_len(p, X)         (p)->object.sym_cons.line = X
-#define pair_raw_name(p)               (p)->object.sym_cons.fstr
-#define pair_set_raw_name(p, X)        (p)->object.sym_cons.fstr = X
-/* opt1 == raw_hash, opt2 == raw_name, opt3 == line|ctr + len, but hash/name/len only apply to the symbol table so there's no collision */
 
 #else
 
 #define S_NAME                         (1 << 25)
 #define S_HASH                         (1 << 26)
-#define S_LINE                         (1 << 27)
+#define S_LOCATION                     (1 << 27)
 #define S_LEN                          (1 << 28)
 
 /* these 3 fields (or 8 counting sym_cons) hold most of the varigated optimizer info, so they are used in many conflicting ways.
@@ -2657,7 +2677,7 @@ static void init_types(void)
 #define G_LET                          (1 << 17)  /* let or #f */
 /* #define G_CTR                          (1 << 30) */
 #define G_BYTE                         0x80000000 /* not (1LL < 31) ! */
-#define G_MASK                         (G_ARGLEN | G_SYM | G_AND | G_ANY | G_LET | G_BYTE | S_LINE | S_LEN | G_DIRECT)
+#define G_MASK                         (G_ARGLEN | G_SYM | G_AND | G_ANY | G_LET | G_BYTE | S_LOCATION | S_LEN | G_DIRECT)
 
 #define opt3_is_set(p)                 (((p)->debugger_bits & G_SET) != 0)
 #define set_opt3_is_set(p)             (p)->debugger_bits |= G_SET
@@ -2666,10 +2686,8 @@ static void init_types(void)
 #define opt3(p, Role)                  opt3_1(T_Pair(p), Role, __func__, __LINE__)
 #define set_opt3(p, x, Role)           set_opt3_1(T_Pair(p), x, Role, __func__, __LINE__)
 
-#define pair_line_number(p)            s_line_1(T_Pair(p), __func__, __LINE__)
-#define pair_set_line_number(p, X)     set_s_line_1(T_Pair(p), X, __func__, __LINE__)
-#define pair_file(p)                   (T_Pair(p))->object.sym_cons.file
-#define pair_set_file(p, X)            set_s_file_1(sc, T_Pair(p), X, __func__, __LINE__)
+#define pair_location(p)               s_location_1(T_Pair(p), __func__, __LINE__)
+#define pair_set_location(p, X)        set_s_location_1(T_Pair(p), X, __func__, __LINE__)
 #define pair_raw_hash(p)               s_hash_1(T_Pair(p), __func__, __LINE__)
 #define pair_set_raw_hash(p, X)        set_s_hash_1(T_Pair(p), X, __func__, __LINE__)
 #define pair_raw_len(p)                s_len_1(T_Pair(p), __func__, __LINE__)
@@ -2739,7 +2757,7 @@ static void init_types(void)
 #define set_opt3_byte(p, x)            set_opt3_byte_1(T_Pair(p), x,   G_BYTE, __func__, __LINE__)
 #else
 #define opt3_byte(P)                   T_Pair(P)->object.cons_ext.ce.opt_type /* op_if_is_type */
-#define set_opt3_byte(P, X)            do {T_Pair(P)->object.cons_ext.ce.opt_type = X; clear_type_bit(P, T_LINE_NUMBER);} while (0)
+#define set_opt3_byte(P, X)            do {T_Pair(P)->object.cons_ext.ce.opt_type = X; clear_type_bit(P, T_LOCATION);} while (0)
 #endif
 
 #define c_callee(f)                    ((s7_function)opt2(f, F_CALL))
@@ -5309,6 +5327,7 @@ static void mark_owlet(s7_scheme *sc)
   mark_slot(sc->error_code);
   mark_slot(sc->error_line);
   mark_slot(sc->error_file);
+  mark_slot(sc->error_position);
 #if WITH_HISTORY
   mark_slot(sc->error_history);
 #endif
@@ -6715,7 +6734,7 @@ static inline s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len,
   set_cdr(p, vector_element(sc->symbol_table, location));
   vector_element(sc->symbol_table, location) = p;
   pair_set_raw_hash(p, hash);
-  pair_set_raw_len(p, (uint32_t)len); /* symbol name length, so it ought to fit! */
+  pair_set_raw_len(p, (uint64_t)len); /* symbol name length, so it ought to fit! */
   pair_set_raw_name(p, string_value(str));
 
   return(x);
@@ -6734,14 +6753,14 @@ static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name
     {
       for (x = vector_element(sc->symbol_table, location); is_pair(x); x = cdr(x))
 	if ((hash == pair_raw_hash(x)) &&
-	    (len == pair_raw_len(x)))
+	    ((uint64_t)len == pair_raw_len(x)))
 	  return(car(x));
     }
   else
     {
       for (x = vector_element(sc->symbol_table, location); is_pair(x); x = cdr(x))
 	if ((hash == pair_raw_hash(x)) &&
-	    (len == pair_raw_len(x)) &&
+	    ((uint64_t)len == pair_raw_len(x)) &&
 	    (strings_are_equal_with_length(name, pair_raw_name(x), len))) /* length here because name might not be null-terminated */
 	  return(car(x));
     }
@@ -6997,7 +7016,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   set_cdr(stc, vector_element(sc->symbol_table, location));
   vector_element(sc->symbol_table, location) = stc;
   pair_set_raw_hash(stc, hash);
-  pair_set_raw_len(stc, (uint32_t)string_length(str));
+  pair_set_raw_len(stc, (uint64_t)string_length(str));
   pair_set_raw_name(stc, string_value(str));
 
   add_gensym(sc, x);
@@ -23837,7 +23856,7 @@ static s7_pointer g_pair_line_number(s7_scheme *sc, s7_pointer args)
   if (!is_pair(p))
     return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
 
-  if (has_line_number(p))
+  if (has_location(p))
     return(make_integer(sc, pair_line_number(p)));
   return(sc->F); /* was 0 21-Mar-17 */
 }
@@ -23846,7 +23865,7 @@ static s7_pointer pair_line_number_p_p(s7_scheme *sc, s7_pointer p)
 {
   if (!is_pair(p))
     return(method_or_bust_one_arg(sc, p, sc->pair_line_number_symbol, set_plist_1(sc, p), T_PAIR));
-  if (has_line_number(p))
+  if (has_location(p))
     return(make_integer(sc, pair_line_number(p)));
   return(sc->F);
 }
@@ -23865,7 +23884,7 @@ static s7_pointer g_pair_filename(s7_scheme *sc, s7_pointer args)
       check_method(sc, p, sc->pair_filename_symbol, args);
       return(simple_wrong_type_argument(sc, sc->pair_filename_symbol, p, T_PAIR));
     }
-  if (has_line_number(p))
+  if (has_location(p))
     return(sc->file_names[pair_file(p)]);
   return(sc->F);
 }
@@ -24914,7 +24933,6 @@ static port_functions input_string_functions_1 =
   {string_read_char, input_write_char, input_write_string, string_read_semicolon, terminated_string_read_white_space,
    string_read_name, string_read_sharp, string_read_line, input_display, close_input_string};
 
-
 static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int max_size, const char *caller)
 {
   s7_pointer port;
@@ -25025,10 +25043,11 @@ static int32_t remember_file_name(s7_scheme *sc, const char *file)
   if (sc->file_names_top >= sc->file_names_size)
     {
       int32_t old_size = 0;
+      /* what if file_names_size is greater than file_bits in pair|profile_file? */
       if (sc->file_names_size == 0)
 	{
 	  sc->file_names_size = INITIAL_FILE_NAMES_SIZE;
-	  sc->file_names = (s7_pointer *)calloc(sc->file_names_size, sizeof(s7_pointer));
+	  sc->file_names = (s7_pointer *)malloc(sc->file_names_size * sizeof(s7_pointer));
 	}
       else
 	{
@@ -30331,7 +30350,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   /* bit 9 */
 	   ((full_typ & T_COLLECTED) != 0) ?      " collected" : "",
 	   /* bit 10 */
-	   ((full_typ & T_LINE_NUMBER) != 0) ?    ((is_pair(obj)) ? " line-number" :
+	   ((full_typ & T_LOCATION) != 0) ?    ((is_pair(obj)) ? " line-number" :
 						   ((is_input_port(obj)) ? " loader-port" :
 						    ((is_let(obj)) ? " with-let" :
 						     ((is_any_procedure(obj)) ? " simple-defaults" :
@@ -30486,7 +30505,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_SETTER) != 0) &&
       (!is_slot(obj)) && (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_let(obj)))
     return(true);
-  if (((full_typ & T_LINE_NUMBER) != 0) &&
+  if (((full_typ & T_LOCATION) != 0) &&
       (!is_pair(obj)) && (!is_input_port(obj)) && (!is_let(obj)) && (!is_any_procedure(obj)) && (!is_symbol(obj)) && (!is_slot(obj)))
     return(true);
   if (((full_typ & T_MUTABLE) != 0) &&
@@ -30915,7 +30934,7 @@ static const char *opt3_role_name(uint32_t role)
   if (role == G_BYTE) return("opt3_byte");
   if (role == G_DIRECT) return("direct_opt3");
   if (role == S_LEN) return("s_len");
-  if (role == S_LINE) return("s_line");
+  if (role == S_LOCATION) return("s_location");
   if (role == S_HASH) return("s_hash");
   return("unknown");
 }
@@ -30953,7 +30972,7 @@ static char* show_debugger_bits(int64_t bits)
 	  ((bits & G_DIRECT) != 0) ? " opt3_direct" : "",
 	  ((bits & S_NAME) != 0) ? " raw-name" : "",
 	  ((bits & S_HASH) != 0) ? " raw-hash" : "",
-	  ((bits & S_LINE) != 0) ? " line" : "",
+	  ((bits & S_LOCATION) != 0) ? " location" : "",
 	  ((bits & S_LEN) != 0) ? " len" : "");
   return(bits_str);
 }
@@ -31140,7 +31159,7 @@ static void base_opt3(s7_pointer p, uint32_t role, const char *func, int32_t lin
 
 static void set_opt3_1(s7_pointer p, s7_pointer x, uint32_t role, const char *func, int32_t line)
 {
-  clear_type_bit(p, T_LINE_NUMBER);
+  clear_type_bit(p, T_LOCATION);
   p->object.cons.opt3 = x;
   base_opt3(p, role, func, line);
 }
@@ -31153,59 +31172,50 @@ static uint8_t opt3_byte_1(s7_pointer p, uint32_t role, const char *func, int32_
 
 static void set_opt3_byte_1(s7_pointer p, uint8_t x, uint32_t role, const char *func, int32_t line)
 {
-  clear_type_bit(p, T_LINE_NUMBER);
+  clear_type_bit(p, T_LOCATION);
   p->object.cons_ext.ce.opt_type = x;
   base_opt3(p, role, func, line);
 }
 
-/* S_LINE */
-static uint32_t s_line_1(s7_pointer p, const char *func, int32_t line)
+/* S_LOCATION */
+static uint64_t s_location_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) ||
-      ((p->debugger_bits & S_LINE) == 0) ||
-      (!has_line_number(p)))
+      ((p->debugger_bits & S_LOCATION) == 0) ||
+      (!has_location(p)))
     {
-      show_opt3_bits(p, func, line, (uint32_t)S_LINE);
+      show_opt3_bits(p, func, line, (uint32_t)S_LOCATION);
       if (cur_sc->stop_at_error) abort();
     }
-  return(p->object.sym_cons.line);
+  return(p->object.sym_cons.location);
+
 }
 
-static void set_s_line_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_location_1(s7_pointer p, uint64_t x, const char *func, int32_t line)
 {
-  p->object.sym_cons.line = x;
-  (p)->debugger_bits = (S_LINE | (p->debugger_bits & ~S_LEN)); /* turn on line, cancel len */
+  p->object.sym_cons.location = x;
+  (p)->debugger_bits = (S_LOCATION | (p->debugger_bits & ~S_LEN)); /* turn on line, cancel len */
   set_opt3_is_set(p);
 }
 
-static void set_s_file_1(s7_scheme *sc, s7_pointer p, uint32_t x, const char *func, int32_t line)
-{
-  p->object.sym_cons.file = x;
-  if ((int32_t)x > sc->file_names_top)
-    {
-      fprintf(stderr, "%s[%d]: pair_set_file_name to %u?\n", func, line, x);
-      if (cur_sc->stop_at_error) abort();
-    }
-}
-
-/* S_LEN (collides with S_LINE) */
-static uint32_t s_len_1(s7_pointer p, const char *func, int32_t line)
+/* S_LEN (collides with S_LOCATION) */
+static uint64_t s_len_1(s7_pointer p, const char *func, int32_t line)
 {
   if ((!opt3_is_set(p)) ||
       ((p->debugger_bits & S_LEN) == 0) ||
-      (has_line_number(p)))
+      (has_location(p)))
     {
       show_opt3_bits(p, func, line, (uint32_t)S_LEN);
       if (cur_sc->stop_at_error) abort();
     }
-  return(p->object.sym_cons.line);
+  return(p->object.sym_cons.location);
 }
 
-static void set_s_len_1(s7_pointer p, uint32_t x, const char *func, int32_t line)
+static void set_s_len_1(s7_pointer p, uint64_t x, const char *func, int32_t line)
 {
-  clear_type_bit(p, T_LINE_NUMBER);
-  p->object.sym_cons.line = x;
-  (p)->debugger_bits = (S_LEN | (p->debugger_bits & ~(S_LINE)));
+  clear_type_bit(p, T_LOCATION);
+  p->object.sym_cons.location = x;
+  (p)->debugger_bits = (S_LEN | (p->debugger_bits & ~(S_LOCATION)));
   set_opt3_is_set(p);
 }
 
@@ -48654,6 +48664,7 @@ static s7_pointer init_owlet(s7_scheme *sc)
   sc->error_code = make_slot_1(sc, e, make_symbol(sc, "error-code"), sc->F);  /* the code that s7 thinks triggered the error */
   sc->error_line = make_slot_1(sc, e, make_symbol(sc, "error-line"), make_permanent_integer_unchecked(0));  /* the line number of that code */
   sc->error_file = make_slot_1(sc, e, make_symbol(sc, "error-file"), sc->F);  /* the file name of that code */
+  sc->error_position = make_slot_1(sc, e, make_symbol(sc, "error-position"), make_permanent_integer_unchecked(0));  /* the file-byte position of that code */
 #if WITH_HISTORY
   sc->error_history = make_slot_1(sc, e, make_symbol(sc, "error-history"), sc->F); /* buffer of previous evaluations */
 #endif
@@ -49151,11 +49162,13 @@ static void fill_error_location(s7_scheme *sc)
   if (in_reader(sc))
     {
       integer(slot_value(sc->error_line)) = port_line_number(sc->input_port);
+      integer(slot_value(sc->error_position)) = port_position(sc->input_port);
       slot_set_value(sc->error_file, wrap_string(sc, port_filename(sc->input_port), port_filename_length(sc->input_port)));
     }
   else
     {
       integer(slot_value(sc->error_line)) = 0;
+      integer(slot_value(sc->error_position)) = 0;
       slot_set_value(sc->error_file, sc->F);
     }
 }
@@ -49204,11 +49217,12 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 
   if (is_pair(cur_code))
     {
-      int32_t line = -1, file;
-      if (has_line_number(cur_code))
+      int32_t line = -1, file, position;
+      if (has_location(cur_code))
 	{
 	  line = (int32_t)pair_line_number(cur_code); /* cast to int32_t (from uint32_t) for sc->last_error_line */
 	  file = (int32_t)pair_file(cur_code);
+	  position = (int32_t)pair_position(cur_code);
 	}
       else
 	{
@@ -49217,19 +49231,21 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  for (p = cur_code, sp = cur_code; is_pair(p); p = cdr(p), sp = cdr(sp))
 	    {
 	      if ((is_pair(car(p))) &&
-		  (has_line_number(car(p))))
+		  (has_location(car(p))))
 		{
 		  line = (int32_t)pair_line_number(car(p));
 		  file = (int32_t)pair_file(car(p));
+		  position = (int32_t)pair_position(car(p));
 		  break;
 		}
 	      p = cdr(p);
 	      if ((!is_pair(p)) || (p == sp)) break;
 	      if ((is_pair(car(p))) &&
-		  (has_line_number(car(p))))
+		  (has_location(car(p))))
 		{
 		  line = (int32_t)pair_line_number(car(p));
 		  file = (int32_t)pair_file(car(p));
+		  position = (int32_t)pair_position(car(p));
 		  break;
 		}
 	    }
@@ -49252,6 +49268,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	      (file <= sc->file_names_top))
 	    {
 	      integer(slot_value(sc->error_line)) = line;
+	      integer(slot_value(sc->error_position)) = position;
 	      slot_set_value(sc->error_file, sc->file_names[file]);
 	    }
 	  else fill_error_location(sc);
@@ -49345,9 +49362,9 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  format_to_port(sc, sc->error_port, ";    ~A\n",
 			 set_plist_1(sc, object_to_truncated_string(sc, cur_code, 40)),
 			 false, 8);
-	  format_to_port(sc, sc->error_port, ";    ~A, line ~D\n",
-			 set_plist_2(sc, slot_value(sc->error_file), slot_value(sc->error_line)),
-			 false, 17);
+	  format_to_port(sc, sc->error_port, ";    ~A, line ~D, position: ~D\n",
+			 set_plist_3(sc, slot_value(sc->error_file), slot_value(sc->error_line), slot_value(sc->error_position)),
+			 false, 31);
 	}
       else
 	{
@@ -49665,7 +49682,7 @@ static s7_pointer tree_descend(s7_scheme *sc, s7_pointer p, uint32_t line)
 {
   s7_pointer tp;
   if (!is_pair(p)) return(NULL);
-  if (has_line_number(p))
+  if (has_location(p))
     {
       uint32_t x;
       x = (uint32_t)pair_line_number(p);
@@ -49705,6 +49722,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
 	  (port_filename(pt)))
 	{
 	  integer(slot_value(sc->error_line)) = port_line_number(pt);
+	  integer(slot_value(sc->error_position)) = port_position(pt);
 	  slot_set_value(sc->error_file, wrap_string(sc, port_filename(pt), port_filename_length(pt)));
 	}
       result = s7_call(sc, sc->missing_close_paren_hook, sc->nil);
@@ -49717,7 +49735,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       s7_pointer p;
       p = tree_descend(sc, sc->args, 0);
       if ((p) && (is_pair(p)) &&
-	  (has_line_number(p)))
+	  (has_location(p)))
 	{
 	  s7_int msg_len, form_len;
 	  s7_pointer strp;
@@ -49727,7 +49745,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
 	  form_len = string_length(strp);
 	  msg_len = form_len + 128;
 	  syntax_msg = (char *)malloc(msg_len);
-	  snprintf(syntax_msg, msg_len, ";  current form awaiting a close paren starts around line %u: %s", pair_line_number(p), form);
+	  snprintf(syntax_msg, msg_len, ";  current form awaiting a close paren starts around line %u: %s", (uint32_t)pair_line_number(p), form);
 	}
     }
 
@@ -49852,6 +49870,7 @@ static bool call_begin_hook(s7_scheme *sc)
       slot_set_value(sc->error_data, sc->value); /* was sc->F but we now clobber this below */
       slot_set_value(sc->error_code, current_code(sc));
       integer(slot_value(sc->error_line)) = 0;
+      integer(slot_value(sc->error_position)) = 0;
       slot_set_value(sc->error_file, sc->F);
 #if WITH_HISTORY
       slot_set_value(sc->error_history, sc->F);
@@ -53394,13 +53413,6 @@ static s7_pointer fx_c_sa(s7_scheme *sc, s7_pointer arg)
   set_car(sc->t2_1, lookup(sc, car(a1)));
   return(c_call(arg)(sc, sc->t2_1));
 }
-
-#if 0
-static s7_pointer fx_c_sa(s7_scheme *sc, s7_pointer arg)
-{
-  /* a -> direct as well? why isn't this already happening? */
-}
-#endif
 
 static s7_pointer fx_c_as(s7_scheme *sc, s7_pointer arg)
 {
@@ -60519,6 +60531,7 @@ static s7_pointer opt_p_call_ff(opt_info *o)
   s7_scheme *sc;
   sc = o->sc;
 #if S7_DEBUGGING
+  if (sc != cur_sc) fprintf(stderr, "o->sc: %p, cur_sc: %p\n", sc, cur_sc);
   if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
 #endif
   gc_protect_direct(sc, o->v[11].fp(o->v[10].o1));
@@ -66731,24 +66744,18 @@ static void read_tok_default(s7_scheme *sc)
   /* check for op_read_list here and explicit pop_stack are slower */
 }
 
-static void set_file_and_line_number(s7_scheme *sc, s7_pointer p)
+static void pair_set_current_input_location(s7_scheme *sc, s7_pointer p)
 {
   if (sc->input_port != sc->standard_input) /* (port_file_number(sc->input_port) > 1) -- maybe 0 is legit? */
     {
-      pair_set_line_number(p, port_line_number(sc->input_port));
-      pair_set_file(p, port_file_number(sc->input_port));
-      set_has_line_number(p);	      /* sc->input_port above can't be nil(?) -- it falls back on stdin now */
+      pair_set_location(p, port_location(sc->input_port));
+      set_has_location(p);	      /* sc->input_port above can't be nil(?) -- it falls back on stdin now */
     }
 }
 
-#define PROFILE_PRINT 0
 #if WITH_PROFILE
 #define profile_location(p)           p->file_line_and_position
 #define profile_set_location(p, N)    p->file_line_and_position = N
-#define remember_location(Port)       (uint64_t)(((port_file_number(Port) & 0xfff) << 20) | (port_line_number(Port)) | (port_position(Port) << 32))
-#define remembered_line_number(Line)  ((Line) & 0xfffff)
-#define remembered_file_number(Line)  ((Line >> 20) & 0xfff)
-#define remembered_position(Loc)      (Loc >> 32)
 #endif
 
 static int32_t read_atom(s7_scheme *sc, s7_pointer pt)
@@ -66757,9 +66764,9 @@ static int32_t read_atom(s7_scheme *sc, s7_pointer pt)
   check_stack_size(sc);
   sc->value = port_read_name(pt)(sc, pt);
   sc->args = cons(sc, sc->value, sc->nil);
-  set_file_and_line_number(sc, sc->args);
+  pair_set_current_input_location(sc, sc->args);
 #if WITH_PROFILE
-  profile_set_location(sc->args, remember_location(pt));
+  profile_set_location(sc->args, port_location(pt));
 #endif
   return(port_read_white_space(pt)(sc, pt));
 }
@@ -66843,7 +66850,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	{
 	  /* isolated typo perhaps -- no pair to hold the position info, so make one. current_code(sc) is GC-protected, so this should be safe. */
 	  cur_code = cons(sc, sym, sc->nil);     /* the error will say "(sym)" which is not too misleading */
-	  set_file_and_line_number(sc, cur_code);
+	  pair_set_current_input_location(sc, cur_code);
 	}
 
 #if (!DISABLE_AUTOLOAD)
@@ -71310,13 +71317,13 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       if ((is_pair(cadr(expr))) &&
 	  (!is_checked(cadr(expr))))
 	{
-	  s7_pointer p;
+	  s7_pointer lp;
 	  set_checked(cadr(expr));
-	  for (p = cdadr(expr); is_pair(p); p = cdr(p))
+	  for (lp = cdadr(expr); is_pair(lp); lp = cdr(lp))
 	    {
-	      if ((is_pair(car(p))) &&
-		  (!is_checked(car(p))) &&
-		  (optimize_expression(sc, car(p), hop, e, body_export_ok) == OPT_OOPS))
+	      if ((is_pair(car(lp))) &&
+		  (!is_checked(car(lp))) &&
+		  (optimize_expression(sc, car(lp), hop, e, body_export_ok) == OPT_OOPS))
 		return(OPT_OOPS);
 	    }
 	}
@@ -74505,6 +74512,7 @@ static bool op_letrec1(s7_scheme *sc)
 
 static bool op_letrec_star_unchecked(s7_scheme *sc)
 {
+  s7_pointer slot;
   start_let(sc);
   /* get all local vars and set to #<undefined>
    * eval each member of values list and assign immediately, as in let*
@@ -74513,29 +74521,22 @@ static bool op_letrec_star_unchecked(s7_scheme *sc)
   sc->envir = new_frame_in_env(sc, sc->envir);
   if (is_pair(car(sc->code)))
     {
-      s7_pointer x, p, q;
+      s7_pointer x;
       for (x = car(sc->code); is_not_null(x); x = cdr(x))
 	{
-	  s7_pointer slot;
 	  slot = make_slot_1(sc, sc->envir, caar(x), sc->undefined);
-	  slot_set_expression(slot, cadar(x));
+	  slot_set_expression(slot, cdar(x));
 	}
-      /* these are reversed, and for letrec*, they need to be in order, so... (reverse_in_place on the slot list) */
-      p = let_slots(sc->envir);
-      x = slot_end(sc);
-      while (tis_slot(p))
+      let_set_slots(sc->envir, reverse_slots(sc, let_slots(sc->envir)));
+
+      for (slot = let_slots(sc->envir); tis_slot(slot) && (has_fx(slot_expression(slot))); slot = next_slot(slot))
+	slot_set_value(slot, fx_call(sc, slot_expression(slot)));
+      if (tis_slot(slot))
 	{
-	  q = next_slot(p);
-	  slot_set_next(p, x);
-	  x = p;
-	  p = q;
+	  push_stack(sc, OP_LETREC_STAR1, slot, sc->code);
+	  sc->code = car(slot_expression(slot));
+	  return(true);
 	}
-      let_set_slots(sc->envir, x);
-      sc->args = let_slots(sc->envir);
-      if (!(sc->args)) sc->args = sc->nil;
-      push_stack_direct(sc, OP_LETREC_STAR1, sc->args, sc->code);
-      sc->code = slot_expression(sc->args);
-      return(true);
     }
   sc->code = T_Pair(cdr(sc->code));
   return(false);
@@ -74546,11 +74547,13 @@ static bool op_letrec_star1(s7_scheme *sc)
   s7_pointer slot;
   slot = sc->args;
   slot_set_value(slot, sc->value);
-  slot = next_slot(slot);
+
+  for (slot = next_slot(slot); tis_slot(slot) && (has_fx(slot_expression(slot))); slot = next_slot(slot))
+    slot_set_value(slot, fx_call(sc, slot_expression(slot)));
   if (tis_slot(slot))
     {
       push_stack(sc, OP_LETREC_STAR1, slot, sc->code);
-      sc->code = slot_expression(slot);
+      sc->code = car(slot_expression(slot));
       return(true);
     }
 
@@ -82754,15 +82757,6 @@ static void op_define_with_setter(s7_scheme *sc)
 
 /* -------------------------------- profile -------------------------------- */
 #if WITH_PROFILE
-static s7_pointer remembered_file_name(s7_scheme *sc, s7_int line)
-{
-  s7_int fnum;
-  fnum = remembered_file_number(line);
-  if ((fnum < 0) || (fnum > sc->file_names_top))
-    return(sc->F);
-  return(sc->file_names[fnum]);
-}
-
 static void profile(s7_scheme *sc, s7_pointer expr)
 {
   static uint64_t last_file_line_and_position = 0;
@@ -82778,67 +82772,25 @@ static void profile(s7_scheme *sc, s7_pointer expr)
       sc->profile_info = s7_make_hash_table(sc, 65536);
       s7_gc_protect_1(sc, sc->profile_info);
     }
-#if PROFILE_PRINT
-  fprintf(stderr, "%s[%d]: expr: %s %ld %u %u %u\n", __func__, __LINE__, display_80(expr), 
-	  profile_location(expr), 
-	  (uint32_t)remembered_file_number(profile_location(expr)),
-	  (uint32_t)remembered_line_number(profile_location(expr)),
-	  (uint32_t)remembered_position(profile_location(expr)));
-#endif
   if ((is_pair(expr)) &&
       (profile_location(expr) > 0))
     {
       s7_pointer val, key;
-      key = s7_make_integer(sc, profile_location(expr)); /* file + line + position */
+      uint64_t location;
+      location = profile_location(expr);
+      key = s7_make_integer(sc, location); /* file + line + position */
       val = s7_hash_table_ref(sc, sc->profile_info, key);
       if (val == sc->F)
 	{
-	  bool old_short_print;
 	  s7_pointer env;
-
-	  old_short_print = sc->short_print;
-	  sc->short_print = true;
 	  env = find_closure_let(sc, sc->envir);
-
-	  gc_protect_direct(sc, g_object_to_string(sc, set_plist_3(sc, expr, sc->T, small_int(120))));
-	  sc->stack_end[-4] = (is_let(env)) ? g_object_to_string(sc, set_plist_1(sc, funclet_function(env))) : sc->nil;
-
 	  s7_hash_table_set(sc, sc->profile_info, key,
 			    cons(sc, make_mutable_integer(sc, 1),
-				 cons(sc, sc->stack_end[-2], sc->stack_end[-4]))); /* -2 = args, -4 = code, stack_end is one past op=-1 */
-	  sc->stack_end -= 4;
-	  sc->short_print = old_short_print;
-#if PROFILE_PRINT
-	  fprintf(stderr, " -> 1\n");
-#endif
+				 cons(sc, expr, (is_let(env)) ? funclet_function(env) : sc->nil)));      
 	}
       /* can't save the actual expr here -- it can be stepped on */
-      else 
-	{
-	  integer(car(val))++;
-#if PROFILE_PRINT
-	  fprintf(stderr, " -> %ld\n", integer(car(val)));
-#endif
-	}
+      else integer(car(val))++;
     }
-}
-
-static s7_pointer g_profile_line_number(s7_scheme *sc, s7_pointer args)
-{
-  #define H_profile_line_number "(profile-line-number obj) returns the line number at which the profiler read obj"
-  #define Q_profile_line_number s7_make_signature(sc, 2, sc->is_integer_symbol, sc->T)
-  if (is_t_integer(car(args)))
-    return(make_integer(sc, remembered_line_number(integer(car(args)))));
-  return(small_int(0));
-}
-
-static s7_pointer g_profile_filename(s7_scheme *sc, s7_pointer args)
-{
-  #define H_profile_filename "(profile-filename obj) returns the name of the file containing obj"
-  #define Q_profile_filename s7_make_signature(sc, 2, sc->is_string_symbol, sc->T)
-  if (is_t_integer(car(args)))
-    return(remembered_file_name(sc, integer(car(args))));
-  return(sc->F);
 }
 #endif
 
@@ -86759,9 +86711,9 @@ static bool pop_read_list(s7_scheme *sc)
   if (is_null(sc->args))
     {
       sc->args = cons(sc, sc->value, sc->args);
-      set_file_and_line_number(sc, sc->args);
+      pair_set_current_input_location(sc, sc->args);
 #if WITH_PROFILE
-      profile_set_location(sc->args, remember_location(sc->input_port));
+      profile_set_location(sc->args, port_location(sc->input_port));
 #endif
       return(true);
     }
@@ -89814,7 +89766,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  {
 	    sc->args = cons(sc, sc->value, sc->args);
 #if WITH_PROFILE
-	    profile_set_location(sc->args, remember_location(sc->input_port));
+	    profile_set_location(sc->args, port_location(sc->input_port));
 #endif
 	  }
 
@@ -89852,9 +89804,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		      check_stack_size(sc);
 		      sc->value = port_read_name(pt)(sc, pt);
 		      sc->args = cons(sc, sc->value, sc->nil);
-		      set_file_and_line_number(sc, sc->args);
+		      pair_set_current_input_location(sc, sc->args);
 #if WITH_PROFILE
-		      profile_set_location(sc->args, remember_location(pt));
+		      profile_set_location(sc->args, port_location(pt));
 #endif
 		      c = port_read_white_space(pt)(sc, pt);
 		      goto READ_C;
@@ -94367,7 +94319,7 @@ static s7_pointer sl_file_names(s7_scheme *sc)
   sc->w = sc->nil;
   for (i = 0; i <= sc->file_names_top; i++)
     sc->w = cons(sc, sc->file_names[i], sc->w);
-  p = sc->w;
+  p = safe_reverse_in_place(sc, sc->w);
   sc->w = sc->nil;
   return(p);
 }
@@ -94769,6 +94721,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->error_data) return("error_data");
   if (p == sc->error_code) return("error_code");
   if (p == sc->error_line) return("error_line");
+  if (p == sc->error_position) return("error_position");
   if (p == sc->error_file) return("error_file");
   if (p == sc->standard_input) return("standard_input");
   if (p == sc->standard_output) return("standard_output");
@@ -94970,7 +94923,7 @@ char *s7_decode_bt(s7_scheme *sc)
 					  strp = object_to_truncated_string(sc, p, 80);
 					  fprintf(stdout, "%s%s%s", BOLD_TEXT, string_value(strp), UNBOLD_TEXT);
 					  if ((is_pair(p)) &&
-					      (has_line_number(p)))
+					      (has_location(p)))
 					    {
 					      uint32_t line, file;
 					      line = pair_line_number(p);
@@ -95878,10 +95831,6 @@ s7_scheme *s7_init(void)
   sc->port_filename_symbol =         defun("port-filename",	port_filename,		0, 1, false);
   sc->pair_line_number_symbol =      defun("pair-line-number",  pair_line_number,	1, 0, false);
   sc->pair_filename_symbol =         defun("pair-filename",     pair_filename,	        1, 0, false);
-#if WITH_PROFILE
-                                     defun("profile-line-number", profile_line_number,	1, 0, false);
-                                     defun("profile-filename",    profile_filename,     1, 0, false);
-#endif
   sc->is_port_closed_symbol =        defun("port-closed?",	is_port_closed,		1, 0, false);
 
   sc->current_input_port_symbol =    defun("current-input-port",  current_input_port,  0, 0, false);
@@ -97033,6 +96982,10 @@ s7_scheme *s7_init(void)
                                     (set! ((funclet hook) 'body) lst)                                     \n\
                                     (error 'wrong-type-arg \"hook-functions must be a list of functions, each accepting one argument: ~S\" lst))))))");
 
+#if WITH_PROFILE
+  s7_eval_c_string(sc, "(define (profile-line-number loc) (logand loc #xffffff))");
+  s7_eval_c_string(sc, "(define (profile-filename loc) (list-ref (*s7* 'file-names) (logand (ash loc -24) #xfff)))");
+#endif
 
   /* -------- *unbound-variable-hook* -------- */
   sc->unbound_variable_hook = s7_eval_c_string(sc, "(make-hook 'variable)");
@@ -97241,18 +97194,18 @@ int main(int argc, char **argv)
  * tauto     748 |  635
  * tshoot   1176 |  778
  * tref     1093 |  779
- * index     971 |  890
+ * index     971 |  890   917
  * teq      1617 | 1544
  * s7test   1776 | 1711
  * tvect    5115 | 1735
  * lt       2278 | 2075
- * tcopy    2434 | 2270
+ * tcopy    2434 | 2263
  * tmisc    2852 | 2275
- * tform    2472 | 2304  2297
+ * tform    2472 | 2321
  * tread    2449 | 2370
- * tmat     6072 | 2481  2476
+ * tmat     6072 | 2485
  * fbench   2974 | 2643
- * dup      6333 | 2671
+ * dup      6333 | 2651
  * trclo    7985 | 2795
  * tb       3251 | 2803
  * tmap     3238 | 2881
@@ -97261,13 +97214,13 @@ int main(int argc, char **argv)
  * tset     6616 | 3111
  * tmac     3391 | 3184
  * tfft     4288 | 3820
- * tlet     5409 | 4662
+ * tlet     5409 | 4662  4642
  * tclo     6206 | 4896
  * trec     17.8 | 6334
  * thash    10.3 | 6807
  * tgen     11.7 | 11.1
  * tall     16.4 | 15.4
- * calls    40.3 | 36.1  35.9
+ * calls    40.3 | 36.0
  * sg       85.8 | 70.2
  * lg      115.9 |105.0
  * tbig    264.5 |178.7
@@ -97275,9 +97228,8 @@ int main(int argc, char **argv)
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * opt* coverage tests t206 opt_i|d|p*
- * letrec-lambda?, letrec* frames (like let*) and fx, check closure->a
- * check profile testing s7test add-inheritor bug if profiling
- *   if format with args to eval and profiling, we call obj->str while calling obj->str
- *   perhaps hash/save the string when remembering?
- * include pos in error?
+ * t718: somehow sc != cur_sc?
+ * tshoot string_append opt_p_call_any|ff -> string_append_p_pp
+ *   tsort opt_p_call_ff: string|symbol tbig:make_float_vector make_vector_2 and hash_2
+ *   tbig opt_p_call_fs write_string et al [also b]
  */

@@ -28,12 +28,10 @@
 		(let ((file (profile-filename key))
 		      (line (profile-line-number key)))
 		  (if (> line 0)
-		      (format *stderr* "~A:~8T~A ~24T~A[~A]: ~48T~A~%" 
+		      (format *stderr* "~A:~8T~A ~20T~A[~A]: ~40T~A~%" 
 			      count 
-			      (if (string? func)
+			      (if (symbol? func)
 				  (format #f " ~A" func)
 				  "")
 			      file line
-			      (if (> (length expr) 60)
-				  (string-append (substring expr 0 56) " ...")
-				  expr)))))))))))
+			      (object->string expr #t 60)))))))))))
