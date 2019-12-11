@@ -545,7 +545,7 @@ typedef struct {
   int32_t (*read_white_space)(s7_scheme *sc, s7_pointer port);           /* internal skip white space reader */
   s7_pointer (*read_name)(s7_scheme *sc, s7_pointer pt);                 /* internal get-next-name reader */
   s7_pointer (*read_sharp)(s7_scheme *sc, s7_pointer pt);                /* internal get-next-sharp-constant reader */
-  s7_pointer (*read_line)(s7_scheme *sc, s7_pointer pt, bool eol_case, bool copied);  /* function to read a string up to \n */
+  s7_pointer (*read_line)(s7_scheme *sc, s7_pointer pt, bool eol_case);  /* function to read a string up to \n */
   void (*displayer)(s7_scheme *sc, const char *s, s7_pointer pt);
   void (*close_port)(s7_scheme *sc, s7_pointer p);                       /* close-in|output-port */
 } port_functions;
@@ -1304,7 +1304,7 @@ struct s7_scheme {
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
              list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2,
              format_f, format_allg_no_column, format_just_control_string, format_as_objstr,
-             memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, read_line_uncopied, simple_inlet,
+             memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, simple_inlet,
              lint_let_ref, lint_let_set, geq_2, add_i_random, is_defined_in_rootlet;
 
 #if (!WITH_GMP)
@@ -11412,10 +11412,10 @@ static inline s7_pointer make_simple_ratio(s7_scheme *sc, s7_int num, s7_int den
 #if (!WITH_PURE_S7) && (!WITH_GMP)
 static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
 {
-  /* this is tricky because a big int32_t can mess up when turned into a double: (truncate (exact->inexact most-positive-fixnum)) -> -9223372036854775808 */
+  /* this is tricky because a big int can mess up when turned into a double: (truncate (exact->inexact most-positive-fixnum)) -> -9223372036854775808 */
+  if (is_t_integer(x)) return(make_real(sc, (s7_double)(integer(x)))); 
   switch (type(x))
     {
-    case T_INTEGER: return(make_real(sc, (s7_double)(integer(x))));
     case T_RATIO:   return(make_real(sc, (s7_double)(fraction(x))));
     case T_REAL:
     case T_COMPLEX: return(x); /* apparently (exact->inexact 1+i) is not an error */
@@ -22940,9 +22940,7 @@ static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer c
       unstack(sc);
       return(s7_error(sc, sc->out_of_range_symbol,
 		      set_elist_4(sc, wrap_string(sc, "~S new string length, ~D, is larger than (*s7* 'max-string-length): ~D", 70),
-				  caller,
-				  wrap_integer1(sc, len),
-				  wrap_integer2(sc, sc->max_string_length))));
+				  caller, wrap_integer1(sc, len), wrap_integer2(sc, sc->max_string_length))));
     }
 
   newstr = make_empty_string(sc, len, 0);
@@ -22957,6 +22955,30 @@ static s7_pointer g_string_append(s7_scheme *sc, s7_pointer args)
 {
   return(g_string_append_1(sc, args, sc->string_append_symbol));
 }
+
+static s7_pointer string_append_p_pp(s7_scheme *sc, s7_pointer s1, s7_pointer s2)
+{
+  if ((is_string(s1)) && (is_string(s2)))
+    {
+      s7_int len, pos;
+      s7_pointer newstr;
+      pos = string_length(s1);
+      len = pos + string_length(s2);
+      if (len == 0) return(s1);
+      if (len > sc->max_string_length)
+	return(s7_error(sc, sc->out_of_range_symbol,
+			set_elist_4(sc, wrap_string(sc, "~S new string length, ~D, is larger than (*s7* 'max-string-length): ~D", 70),
+				    sc->string_append_symbol, wrap_integer1(sc, len), wrap_integer2(sc, sc->max_string_length))));
+      newstr = make_empty_string(sc, len, 0); /* len+1 0-terminated */
+      if (pos > 0)
+	memcpy(string_value(newstr), string_value(s1), pos);
+      if (string_length(s2) > 0)
+	memcpy((char *)(string_value(newstr) + pos), string_value(s2), string_length(s2));
+      return(newstr);
+    }
+  return(g_string_append_1(sc, list_2(sc, s1, s2), sc->string_append_symbol));
+}
+
 
 #if (!WITH_PURE_S7)
 /* -------------------------------- string-copy -------------------------------- */
@@ -24054,7 +24076,7 @@ static s7_pointer g_is_char_ready(s7_scheme *sc, s7_pointer args)
 
 /* -------- ports -------- */
 static int32_t closed_port_read_char(s7_scheme *sc, s7_pointer port);
-static s7_pointer closed_port_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied);
+static s7_pointer closed_port_read_line(s7_scheme *sc, s7_pointer port, bool with_eol);
 static void closed_port_write_char(s7_scheme *sc, uint8_t c, s7_pointer port);
 static void closed_port_write_string(s7_scheme *sc, const char *str, s7_int len, s7_pointer port);
 static void closed_port_display(s7_scheme *sc, const char *s, s7_pointer port);
@@ -24287,22 +24309,22 @@ static int32_t closed_port_read_char(s7_scheme *sc, s7_pointer port)
 
 /* -------- read line functions -------- */
 
-static s7_pointer output_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer output_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   return(simple_wrong_type_argument_with_type(sc, sc->read_line_symbol, port, an_input_port_string));
 }
 
-static s7_pointer closed_port_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer closed_port_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   return(simple_wrong_type_argument_with_type(sc, sc->read_line_symbol, port, an_open_port_string));
 }
 
-static s7_pointer function_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer function_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   return((*(port_input_function(port)))(sc, S7_READ_LINE, port));
 }
 
-static s7_pointer stdin_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer stdin_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   if (!sc->read_line_buf)
     {
@@ -24315,7 +24337,7 @@ static s7_pointer stdin_read_line(s7_scheme *sc, s7_pointer port, bool with_eol,
   return(make_string_with_length(sc, NULL, 0));
 }
 
-static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   char *buf;
   s7_int read_size, previous_size = 0;
@@ -24360,7 +24382,7 @@ static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, 
   return(eof_object);
 }
 
-static s7_pointer string_read_line(s7_scheme *sc, s7_pointer port, bool with_eol, bool copied)
+static s7_pointer string_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
   s7_int i, port_start;
   uint8_t *port_str, *cur, *start;
@@ -24375,18 +24397,14 @@ static s7_pointer string_read_line(s7_scheme *sc, s7_pointer port, bool with_eol
 	port_line_number(port)++;
 	i = cur - port_str;
 	port_position(port) = i + 1;
-	if (copied)
-	  return(make_string_with_length(sc, (const char *)start, ((with_eol) ? i + 1 : i) - port_start));
-	return(wrap_string(sc, (char *)start, ((with_eol) ? i + 1 : i) - port_start));
+	return(make_string_with_length(sc, (const char *)start, ((with_eol) ? i + 1 : i) - port_start));
       }
   i = port_data_size(port);
   port_position(port) = i;
   if (i <= port_start)         /* the < part can happen -- if not caught we try to create a string of length - 1 -> segfault */
     return(eof_object);
 
-  if (copied)
-    return(make_string_with_length(sc, (const char *)start, i - port_start));
-  return(wrap_string(sc, (char *)start, i - port_start));
+  return(make_string_with_length(sc, (const char *)start, i - port_start));
 }
 
 
@@ -24640,6 +24658,21 @@ static s7_pointer g_write_string(s7_scheme *sc, s7_pointer args)
   if (start == end)
     return(str);
   port_write_string(port)(sc, (char *)(string_value(str) + start), (end - start), port);
+  return(str);
+}
+
+static s7_pointer write_string_p_pp(s7_scheme *sc, s7_pointer str, s7_pointer port)
+{
+  if (!is_string(str))
+    return(method_or_bust(sc, str, sc->write_string_symbol, list_2(sc, str, port), T_STRING, 1));
+  if (!is_output_port(port))
+    {
+      if (port == sc->F)
+	return(str);
+      return(method_or_bust_with_type(sc, port, sc->write_string_symbol, list_2(sc, str, port), an_output_port_string, 2));
+    }
+  if (string_length(str) > 0)
+    port_write_string(port)(sc, string_value(str), string_length(str), port);
   return(str);
 }
 
@@ -25855,26 +25888,21 @@ If 'with-eol' is not #f, read-line includes the trailing end-of-line character."
       port = input_port_if_not_loading(sc);
       if (!port) return(eof_object);
     }
-  return(port_read_line(port)(sc, port, with_eol, true));
-}
-
-static s7_pointer g_read_line_uncopied(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer port;
-  bool with_eol = false;
-  port = car(args);
-  if (!is_input_port(port))
-    return(g_read_line(sc, args));
-  if (is_not_null(cdr(args)))
-    with_eol = (cadr(args) != sc->F);
-  return(port_read_line(port)(sc, port, with_eol, false));
+  return(port_read_line(port)(sc, port, with_eol));
 }
 
 static s7_pointer read_line_p_pp(s7_scheme *sc, s7_pointer port, s7_pointer with_eol)
 {
   if (!is_input_port(port))
     return(method_or_bust_with_type(sc, port, sc->read_line_symbol, list_2(sc, port, with_eol), an_input_port_string, 1));
-  return(port_read_line(port)(sc, port, with_eol != sc->F, true));
+  return(port_read_line(port)(sc, port, with_eol != sc->F));
+}
+
+static s7_pointer read_line_p_p(s7_scheme *sc, s7_pointer port)
+{
+  if (!is_input_port(port))
+    return(method_or_bust_with_type(sc, port, sc->read_line_symbol, list_1(sc, port), an_input_port_string, 1));
+  return(port_read_line(port)(sc, port, false)); /* with_eol default is #f */
 }
 
 
@@ -51590,6 +51618,13 @@ static s7_pointer fx_cons_ts(s7_scheme *sc, s7_pointer arg)
   return(cons(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
+static s7_pointer fx_cons_tU(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
+  return(cons(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(outlet(sc->envir))))));
+}
+
 static s7_pointer fx_add_ss(s7_scheme *sc, s7_pointer arg)
 {
   return(add_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
@@ -54060,7 +54095,7 @@ static s7_pointer fx_safe_closure_a_to_vref(s7_scheme *sc, s7_pointer arg)
   return(vector_ref_p_pp(sc, fx_call(sc, cdr(arg)), opt3_any(cdr(arg))));
 }
 
-static s7_pointer fx_and_2_closure_s(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 */
+static s7_pointer fx_closure_s_and_2(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 */
 {
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
@@ -54074,7 +54109,7 @@ static s7_pointer fx_and_2_closure_s(s7_scheme *sc, s7_pointer code) /* safe_clo
   return(result);
 }
 
-static s7_pointer fx_and_pair_closure_s(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 with is_pair as first clause */
+static s7_pointer fx_closure_s_and_pair(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 with is_pair as first clause */
 {
   s7_pointer result;
   gc_protect_direct(sc, sc->envir);
@@ -54095,6 +54130,19 @@ static s7_pointer fx_safe_closure_a_a(s7_scheme *sc, s7_pointer code)
   gc_protect_direct(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), fx_call(sc, cdr(code)));
   result = fx_call(sc, closure_body(opt1_lambda(code)));
+  sc->envir = sc->stack_end[-2];
+  sc->stack_end -= 4;
+  return(result);
+}
+
+static s7_pointer fx_safe_closure_a_and_2(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer and_arg, result;
+  gc_protect_direct(sc, sc->envir);
+  sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), fx_call(sc, cdr(code)));
+  and_arg = cdar(closure_body(opt1_lambda(code)));
+  result = fx_call(sc, and_arg);
+  if (result != sc->F) result = fx_call(sc, cdr(and_arg));
   sc->envir = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
@@ -54841,8 +54889,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		    if ((caadr(body) == sc->is_pair_symbol) &&
 			(symbol_id(sc->is_pair_symbol) == 0) &&
 			(cadadr(body) == car(closure_args(opt1_lambda(arg)))))
-		      return(fx_and_pair_closure_s);       /* lint arg: (len>1? init), args: (x) body: (and (pair? x) (pair? (cdr x))) */
-		    return(fx_and_2_closure_s);
+		      return(fx_closure_s_and_pair);       /* lint arg: (len>1? init), args: (x) body: (and (pair? x) (pair? (cdr x))) */
+		    return(fx_closure_s_and_2);
 		  }
 		if (optimize_op(body) == HOP_SAFE_C_opSq_C)
 		  {
@@ -54856,6 +54904,11 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	      }
 	    return(fx_safe_closure_s_a);
 	  }
+
+	case HOP_SAFE_CLOSURE_A_A:
+	  if (c_callee(closure_body(opt1_lambda(arg))) == fx_and_2)
+	    return(fx_safe_closure_a_and_2);
+	  return(fx_safe_closure_a_a);
 
 	default:
 	  /* if ((!fx_function[optimize_op(arg)]) && (is_h_optimized(arg))) fprintf(stderr, "fx_choose %s %s\n", op_names[optimize_op(arg)], display(arg)); */
@@ -54952,6 +55005,7 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 		      if (caddr(p) == var2)
 			{
 			  if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
+			  if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
 			  if (c_callee(tree) == fx_c_ts_direct) return(with_c_call(tree, fx_c_tU_direct));
 #if (!WITH_GMP)
 			  if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
@@ -67501,12 +67555,7 @@ static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr)
 		{
 		  if (c_callee(arg) == g_symbol_to_string)
 		    set_c_function(arg, sc->symbol_to_string_uncopied);
-		  else
-		    {
-		      if ((c_callee(arg) == g_read_line) &&
-			  (is_pair(cdr(arg))))
-			set_c_function(arg, sc->read_line_uncopied);
-		    }}}}}
+		}}}}
   if ((pairs > 0) &&
       (pairs == substrs))
     {
@@ -67815,10 +67864,6 @@ static void init_choosers(s7_scheme *sc)
   f = set_function_chooser(sc, sc->tree_set_memq_symbol, tree_set_memq_chooser);
   sc->tree_set_memq_syms = make_function_with_class(sc, f, "tree-set-memq", g_tree_set_memq_1, 2, 0, false);
 
-  /* read-line */
-  sc->read_line_uncopied = s7_make_function(sc, "read-line", g_read_line_uncopied, 1, 1, false, NULL);
-  s7_function_set_class(sc->read_line_uncopied, slot_value(global_slot(sc->read_line_symbol)));
-
   /* eval-string */
   set_function_chooser(sc, sc->eval_string_symbol, eval_string_chooser);
 
@@ -67991,8 +68036,12 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_A:      return(OP_SAFE_C_opAq);
 	case OP_SAFE_C_AA:     return(OP_SAFE_C_opAAq);
 	case OP_SAFE_C_AAA:    return(OP_SAFE_C_opAAAq);
-	  /* deeper opA...q nestings are rare */
+
+	  /* safe_c_ca in lt and safe_closure_s_a a lot (and s|a_to_sc, and_2, safe_c_opssq
+	   *  c_ca and opsq_opsq c_opssq c_s_opssq c_opssq_s c_sss
+	   */
 	}
+      /* fprintf(stderr, "%s: %s\n", op_names[arg_op], display(e1)); */
       return(OP_SAFE_C_P); /* this splits out to A in optimize_func one_arg */
 
     case E_C_SP:
@@ -83564,6 +83613,27 @@ static inline void op_closure_fx(s7_scheme *sc)
   sc->code = car(sc->code);
 }
 
+static bool check_closure_any(s7_scheme *sc)
+{
+  /* can't use closure_is_fine -- (lambda args 1) and (lambda (name . args) 1) are both arity -1 for the internal arity checkers! */
+  if ((symbol_ctr(car(sc->code)) != 1) ||				\
+      (unchecked_slot_value(local_slot(car(sc->code))) != opt1_lambda_unchecked(sc->code)))
+    {
+      s7_pointer f;
+      f = lookup_unexamined(sc, car(sc->code));
+      if ((f != opt1_lambda_unchecked(sc->code)) &&
+	  ((!f) ||
+	   ((typesflag(f) & (TYPE_MASK | T_SAFE_CLOSURE)) != T_CLOSURE) ||
+	   (!is_symbol(closure_args(f)))))
+	{
+	  sc->last_function = f;
+	  return(false);
+	}
+      set_opt1_lambda(sc->code, f);
+    }
+  return(true);
+}
+
 static void op_closure_any_fx(s7_scheme *sc) /* for (lambda a ...) ? */
 {
   s7_pointer p, old_args;
@@ -84533,15 +84603,28 @@ static void op_tc_let_when_laa(s7_scheme *sc, bool when, s7_pointer code)
   if ((car(la) == slot_symbol(let_slots(outer_env))) &&
       (car(laa) == slot_symbol(next_slot(let_slots(outer_env)))))
     {
-      while (true)
+      if ((cdr(if_true) == p) && (!when))
 	{
-	  p = fx_call(sc, if_test);
-	  if (when) {if (p == sc->F) break;} else {if (p != sc->F) break;}
-	  for (p = if_true; is_pair(cdr(p)); p = cdr(p))
-	    fx_call(sc, p);
-	  sc->envir = outer_env;
-	  slot_set_value(let_slot, fx_call(sc, let_var));
-	  sc->envir = inner_env;
+	  while (fx_call(sc, if_test) == sc->F)
+	    {
+	      fx_call(sc, if_true);
+	      sc->envir = outer_env;
+	      slot_set_value(let_slot, fx_call(sc, let_var));
+	      sc->envir = inner_env;
+	    }
+	}
+      else
+	{
+	  while (true)
+	    {
+	      p = fx_call(sc, if_test);
+	      if (when) {if (p == sc->F) break;} else {if (p != sc->F) break;}
+	      for (p = if_true; is_pair(cdr(p)); p = cdr(p))
+		fx_call(sc, p);
+	      sc->envir = outer_env;
+	      slot_set_value(let_slot, fx_call(sc, let_var));
+	      sc->envir = inner_env;
+	    }
 	}
     }
   else
@@ -85151,7 +85234,7 @@ static s7_int oprec_i_if_a_a_opla_laq(s7_scheme *sc)
   integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);             /* slot1 = a2 */
   i2 = oprec_i_if_a_a_opla_laq(sc);                                        /* save la2 */
   integer(sc->rec_val1) = i1;                                              /* slot1 = a1 */
-  return(sc->rec_i_ii_f(oprec_i_if_a_a_opla_laq(sc), i2));                   /* call op(la1, la2) */
+  return(sc->rec_i_ii_f(oprec_i_if_a_a_opla_laq(sc), i2));                 /* call op(la1, la2) */
 }
 
 static s7_int oprec_i_if_a_a_opla_laq_0(s7_scheme *sc)
@@ -88737,27 +88820,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, integer(opt3_arglen(sc->code)))) {if (op_unknown_fx(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_FX: op_closure_fx(sc); goto EVAL;
 
-	case OP_CLOSURE_ANY_FX: 
-	  /* can't use closure_is_fine -- (lambda args 1) and (lambda (name . args) 1) are both arity -1 for the internal arity checkers! */
-	  /* if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, -1)) break; */
-	  if ((symbol_ctr(car(sc->code)) != 1) ||				\
-	      (unchecked_slot_value(local_slot(car(sc->code))) != opt1_lambda_unchecked(sc->code)))
-	    {
-	      s7_pointer f;
-	      f = lookup_unexamined(sc, car(sc->code));
-	      if ((f != opt1_lambda_unchecked(sc->code)) &&
-		  ((!f) ||
-		   ((typesflag(f) & (TYPE_MASK | T_SAFE_CLOSURE)) != FINE_UNSAFE_CLOSURE) ||
-		   (!is_symbol(closure_args(f)))))
-		{
-		  /* fprintf(stderr, "break on %s\n", display(f)); */
-		  sc->last_function = f;
-		  break;
-		}
-	      /* fprintf(stderr, "use new %s\n", display(f)); */
-	      set_opt1_lambda(sc->code, f);
-	    }
-	  /* else fprintf(stderr, "current %s is ok\n", display(sc->code)); */
+	case OP_CLOSURE_ANY_FX: if (!check_closure_any(sc)) break;
 	case HOP_CLOSURE_ANY_FX: op_closure_any_fx(sc); goto BEGIN;
 
 	case OP_SAFE_OR_UNSAFE_CLOSURE_FP: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, integer(opt3_arglen(sc->code)))) break;
@@ -96569,7 +96632,9 @@ s7_scheme *s7_init(void)
   s7_set_p_pp_function(slot_value(global_slot(sc->write_symbol)), write_p_pp);
   s7_set_p_p_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->write_string_symbol)), write_string_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->read_line_symbol)), read_line_p_pp);
+  s7_set_p_p_function(slot_value(global_slot(sc->read_line_symbol)), read_line_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->inlet_symbol)), inlet_p_pp);
   s7_set_i_7p_function(slot_value(global_slot(sc->port_line_number_symbol)), port_line_number_i_7p);
   s7_set_p_pp_function(slot_value(global_slot(sc->cons_symbol)), cons_p_pp);
@@ -96577,6 +96642,7 @@ s7_scheme *s7_init(void)
   s7_set_p_function(slot_value(global_slot(sc->open_output_string_symbol)), open_output_string_p);
   s7_set_p_ppi_function(slot_value(global_slot(sc->char_position_symbol)), char_position_p_ppi);
   s7_set_p_pp_function(slot_value(global_slot(sc->append_symbol)), append_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->string_append_symbol)), string_append_p_pp);
   s7_set_p_ppp_function(slot_value(global_slot(sc->append_symbol)), append_p_ppp);
   s7_set_p_function(slot_value(global_slot(sc->values_symbol)), values_p);
   s7_set_p_p_function(slot_value(global_slot(sc->values_symbol)), values_p_p);
@@ -97206,7 +97272,7 @@ int main(int argc, char **argv)
  * tmat     6072 | 2485
  * fbench   2974 | 2643
  * dup      6333 | 2651
- * trclo    7985 | 2795
+ * trclo    7985 | 2795  2791
  * tb       3251 | 2803
  * tmap     3238 | 2881
  * titer    3962 | 2919
@@ -97222,14 +97288,15 @@ int main(int argc, char **argv)
  * tall     16.4 | 15.4
  * calls    40.3 | 36.0
  * sg       85.8 | 70.2
- * lg      115.9 |105.0
+ * lg      115.9 |105.0 104.9
  * tbig    264.5 |178.7
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * opt* coverage tests t206 opt_i|d|p*
  * t718: somehow sc != cur_sc?
- * tshoot string_append opt_p_call_any|ff -> string_append_p_pp
- *   tsort opt_p_call_ff: string|symbol tbig:make_float_vector make_vector_2 and hash_2
- *   tbig opt_p_call_fs write_string et al [also b]
+ * combine write/display+newline? are there others? [as last in block? -- how to skip else -- mark newline as no-op?]
+ * perhaps not_and_2 if_and_2_a (lg) [saved about 25% in closure_a_and_2]
+ *   so expand high overhead cases
+ * let*a(a)
  */
