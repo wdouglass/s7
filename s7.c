@@ -299,10 +299,6 @@
   #define S7_DEBUGGING 0
 #endif
 
-#ifndef CYCLE_DEBUGGING
-  #define CYCLE_DEBUGGING 0
-#endif
-
 #undef DEBUGGING
 #define DEBUGGING typo!
 
@@ -31934,43 +31930,9 @@ static void init_display_functions(void)
   display_functions[T_SLOT] =         slot_to_port;
 }
 
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   int32_t ref;
-
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) base = &x;
-  else
-    {
-      if (&x > base) base = &x;
-      else
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 1000000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  if (port_data(port))
-		    {
-		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
-		      if (port_position(port) > 10000)
-			port_data(port)[10000] = '\0';
-		      else port_data(port)[port_position(port)] = '\0';
-		      fprintf(stderr, "%s\n", port_data(port));
-		    }
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
-
   ref = (is_collected(vr)) ? shared_ref(ci, vr) : 0;
   if (ref != 0)
     {
@@ -35693,14 +35655,9 @@ static s7_pointer g_assq(s7_scheme *sc, s7_pointer args)
    */
 }
 
-static s7_pointer g_assv(s7_scheme *sc, s7_pointer args)        /* g_assv is called by g_assoc below */
+static s7_pointer assv_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  s7_pointer x, y, z;
-  #define H_assv "(assv obj alist) returns the key-value pair associated (via eqv?) with the key obj in the association list alist"
-  #define Q_assv Q_assq
-
-  x = car(args);
-  y = cadr(args);
+  s7_pointer z;
   if (!is_pair(y))
     {
       if (is_null(y)) return(sc->F);
@@ -35726,6 +35683,13 @@ static s7_pointer g_assv(s7_scheme *sc, s7_pointer args)        /* g_assv is cal
       if (z == y) return(sc->F);
     }
   return(sc->F); /* not reached */
+}
+
+static s7_pointer g_assv(s7_scheme *sc, s7_pointer args)        /* g_assv is called by g_assoc below */
+{
+  #define H_assv "(assv obj alist) returns the key-value pair associated (via eqv?) with the key obj in the association list alist"
+  #define Q_assv Q_assq
+  return(assv_p_pp(sc, car(args), cadr(args)));
 }
 
 static s7_pointer g_is_eq(s7_scheme *sc, s7_pointer args);
@@ -35777,7 +35741,7 @@ If 'func' is a function of 2 arguments, it is used for the comparison instead of
 
 	      func = c_function_call(eq_func);
 	      if (func == g_is_eq) return(s7_assq(sc, car(args), x));
-	      if (func == g_is_eqv) return(g_assv(sc, args));
+	      if (func == g_is_eqv) return(assv_p_pp(sc, car(args), x));
 	      set_car(sc->t2_1, car(args));
 
 	      for (; is_pair(x); x = cdr(x))
@@ -36117,14 +36081,9 @@ static s7_pointer memv_number(s7_scheme *sc, s7_pointer obj, s7_pointer x)
   return(sc->F);
 }
 
-static s7_pointer g_memv(s7_scheme *sc, s7_pointer args)
+static s7_pointer memv_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  #define H_memv "(memv obj list) looks for obj in list and returns the list from that point if it is found, otherwise #f. memv uses eqv?"
-  #define Q_memv sc->pl_tl
-  s7_pointer x, y, z;
-
-  x = car(args);
-  y = cadr(args);
+  s7_pointer z;
   if (!is_pair(y))
     {
       if (is_null(y)) return(sc->F);
@@ -36150,6 +36109,15 @@ static s7_pointer g_memv(s7_scheme *sc, s7_pointer args)
     }
   return(sc->F); /* not reached */
 }
+
+
+static s7_pointer g_memv(s7_scheme *sc, s7_pointer args)
+{
+  #define H_memv "(memv obj list) looks for obj in list and returns the list from that point if it is found, otherwise #f. memv uses eqv?"
+  #define Q_memv sc->pl_tl
+  return(memv_p_pp(sc, car(args), cadr(args)));
+}
+
 
 static s7_pointer member(s7_scheme *sc, s7_pointer obj, s7_pointer x)
 {
@@ -71132,11 +71100,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 #endif
 
   op = (opcode_t)syntax_opcode(func);
-#if 0
-  fprintf(stderr, "op: %s\n", op_names[op]);
-  if ((is_slot(global_slot(car(expr)))) && (op != (opcode_t)symbol_syntax_op_checked(expr)))
-    fprintf(stderr, "%s != %s\n", op_names[op], op_names[(opcode_t)symbol_syntax_op_checked(expr)]);
-#endif
   /* pair_set_syntax_op(expr, op); */ /* much slower?? */
 
   sc->w = e;
@@ -84951,13 +84914,26 @@ static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, s7_pointer code)
   sc->rec_call = c_callee(caller);
 }
 
+/* direct call for rec_call is slightly faster but tricky in check_recur (or need code for both cases)
+ *   explicit call (cons etc) is faster also, but not enough to offset the repetitious code
+ */
 static s7_pointer oprec_if_a_a_opa_laq(s7_scheme *sc)
 {
   if (sc->rec_testf(sc, sc->rec_testp) != sc->F)
     return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
   slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
-  set_car(sc->t2_2, oprec_if_a_a_opa_laq(sc));
+
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F)
+    set_car(sc->t2_2, sc->rec_resf(sc, sc->rec_resp));
+  else
+    {
+      recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+      slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+      set_car(sc->t2_2, oprec_if_a_a_opa_laq(sc));
+      set_car(sc->t2_1, recur_pop(sc));
+      set_car(sc->t2_2, sc->rec_call(sc, sc->t2_1));
+    }
   set_car(sc->t2_1, recur_pop(sc));
   return(sc->rec_call(sc, sc->t2_1));
 }
@@ -84968,7 +84944,17 @@ static s7_pointer oprec_if_a_opa_laq_a(s7_scheme *sc)
     return(sc->rec_resf(sc, sc->rec_resp));
   recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
   slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
-  set_car(sc->t2_2, oprec_if_a_opa_laq_a(sc));
+
+  if (sc->rec_testf(sc, sc->rec_testp) == sc->F)
+    set_car(sc->t2_2, sc->rec_resf(sc, sc->rec_resp));
+  else
+    {
+      recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+      slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+      set_car(sc->t2_2, oprec_if_a_opa_laq_a(sc));
+      set_car(sc->t2_1, recur_pop(sc));
+      set_car(sc->t2_2, sc->rec_call(sc, sc->t2_1));
+    }
   set_car(sc->t2_1, recur_pop(sc));
   return(sc->rec_call(sc, sc->t2_1));
 }
@@ -85051,7 +85037,18 @@ static s7_pointer oprec_if_a_a_opa_laaq(s7_scheme *sc)
   recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
   slot_set_value(sc->rec_slot2, sc->rec_f3f(sc, sc->rec_f3p));
   slot_set_value(sc->rec_slot1, recur_pop(sc));
-  set_car(sc->t2_2, oprec_if_a_a_opa_laaq(sc));
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F)
+    set_car(sc->t2_2, sc->rec_resf(sc, sc->rec_resp));
+  else
+    {
+      recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+      recur_push(sc, sc->rec_f2f(sc, sc->rec_f2p));
+      slot_set_value(sc->rec_slot2, sc->rec_f3f(sc, sc->rec_f3p));
+      slot_set_value(sc->rec_slot1, recur_pop(sc));
+      set_car(sc->t2_2, oprec_if_a_a_opa_laaq(sc));
+      set_car(sc->t2_1, recur_pop(sc));
+      set_car(sc->t2_2, sc->rec_call(sc, sc->t2_1));
+    }
   set_car(sc->t2_1, recur_pop(sc));
   return(sc->rec_call(sc, sc->t2_1));
 }
@@ -88237,7 +88234,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_C_D: sc->value = d_call(sc, sc->code); continue; /* continue refers to the outer while loop -- unfortunate C ambiguity */
 
 	case OP_SAFE_C_S: if (!c_function_is_ok(sc, sc->code)) {if (op_unknown_g(sc)) goto EVAL; continue;}
-	  /* c_function_is_ok could save the lookup sc->last_function */
 	case HOP_SAFE_C_S: op_safe_c_s(sc); continue;
 
 	case OP_SAFE_C_SS: if (!c_function_is_ok(sc, sc->code)) break;
@@ -94172,7 +94168,7 @@ static s7_pointer kmg(s7_scheme *sc, s7_int bytes)
   return(cons(sc, make_integer(sc, bytes), block_to_string(sc, b, len)));
 }
 
-static s7_pointer memory_usage(s7_scheme *sc)               /* (for-each (lambda (f) (format *stderr* "~S~%" f)) (*s7* 'memory-usage)) */
+static s7_pointer memory_usage(s7_scheme *sc)
 {
   s7_int gc_loc;
   s7_pointer x, mu_let;
@@ -96831,7 +96827,9 @@ s7_scheme *s7_init(void)
   s7_set_p_ppp_function(slot_value(global_slot(sc->list_symbol)), list_p_ppp);
   s7_set_p_pp_function(slot_value(global_slot(sc->list_tail_symbol)), list_tail_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->assq_symbol)), assq_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->assv_symbol)), assv_p_pp);
   s7_set_p_pp_function(slot_value(global_slot(sc->memq_symbol)), memq_p_pp);
+  s7_set_p_pp_function(slot_value(global_slot(sc->memv_symbol)), memv_p_pp);
   s7_set_p_p_function(slot_value(global_slot(sc->tree_leaves_symbol)), tree_leaves_p_p);
   s7_set_p_p_function(slot_value(global_slot(sc->length_symbol)), length_p_p);
   s7_set_p_p_function(slot_value(global_slot(sc->pair_line_number_symbol)), pair_line_number_p_p);
@@ -97258,45 +97256,41 @@ int main(int argc, char **argv)
  * ------------------------------
  * tpeak     167 |  117
  * tauto     748 |  635
- * tshoot   1176 |  778
+ * tshoot   1176 |  777
  * tref     1093 |  779
- * index     971 |  890   917
+ * index     971 |  890
  * teq      1617 | 1544
  * s7test   1776 | 1711
  * tvect    5115 | 1735
- * lt       2278 | 2075
+ * lt       2278 | 2074
  * tcopy    2434 | 2263
  * tmisc    2852 | 2275
- * tform    2472 | 2321
- * tread    2449 | 2370
- * tmat     6072 | 2485
+ * tform    2472 | 2316
+ * tread    2449 | 2426
+ * tmat     6072 | 2479
  * fbench   2974 | 2643
- * dup      6333 | 2651
- * trclo    7985 | 2795  2791
- * tb       3251 | 2803
+ * dup      6333 | 2694
+ * trclo    7985 | 2791
+ * tb       3251 | 2800
  * tmap     3238 | 2881
  * titer    3962 | 2919
  * tsort    4156 | 3043
  * tset     6616 | 3111
  * tmac     3391 | 3184
  * tfft     4288 | 3820
- * tlet     5409 | 4662  4642
+ * tlet     5409 | 4642
  * tclo     6206 | 4896
- * trec     17.8 | 6334
+ * trec     17.8 | 6318
  * thash    10.3 | 6807
  * tgen     11.7 | 11.1
  * tall     16.4 | 15.4
  * calls    40.3 | 36.0
  * sg       85.8 | 70.2
- * lg      115.9 |105.0 104.9
+ * lg      115.9 |104.9
  * tbig    264.5 |178.7
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * opt* coverage tests t206 opt_i|d|p*
  * t718: somehow sc != cur_sc?
- * combine write/display+newline? are there others? [as last in block? -- how to skip else -- mark newline as no-op?]
- * perhaps not_and_2 if_and_2_a (lg) [saved about 25% in closure_a_and_2]
- *   so expand high overhead cases
- * let*a(a)
  */
