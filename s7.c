@@ -44060,14 +44060,14 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
       if (is_pair(cddr(args)))
 	{
 	  s7_pointer e, old_e;
-	  e = cadr(args);
+	  e = cadr(args);                /* (let ((x 1)) (set! (setter 'x (curlet)) (lambda (s v e) ...))) */
 	  func = caddr(args);
 	  if ((e == sc->rootlet) || (e == sc->nil))
 	    slot = global_slot(sym);
 	  else
 	    {
 	      if (!is_let(e))
-		return(s7_wrong_type_arg_error(sc, "set! symbol-setter", 2, e, "a let"));
+		return(s7_wrong_type_arg_error(sc, "set! setter", 2, e, "a let"));
 	      old_e = sc->envir;
 	      sc->envir = e;
 	      slot = symbol_to_slot(sc, sym);
@@ -44076,7 +44076,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	}
       else
 	{
-	  slot = symbol_to_slot(sc, sym);
+	  slot = symbol_to_slot(sc, sym); /* (set! (setter 'x) (lambda (s v) ...)) */
 	  func = cadr(args);
 	}
       if ((!is_any_procedure(func)) && /* disallow continuation/goto here */
@@ -44101,6 +44101,14 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	  slot_set_has_setter(slot);
 	  if (s7_is_aritable(sc, func, 3))
 	    set_has_let_arg(func);
+#if 0
+	  else
+	    {
+	      /* TODO: and not integer? etc c_function_has_bool_setter */
+	      if (!s7_is_aritable(sc, func, 2))
+		return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "set! setter function, ~A, should take 2 or 3 arguments", 54), func)));
+	    }
+#endif
 	  symbol_set_has_setter(sym);
 	}
       return(func);
@@ -44118,6 +44126,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
+      /* TODO: arity check: must accept args+1 here and below */
       closure_set_setter(p, setter);
       if (setter == sc->F)
 	closure_set_no_setter(p);
@@ -44134,6 +44143,7 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
       if ((is_any_closure(setter)) ||
 	  (is_any_macro(setter)))
 	add_setter(sc, p, setter);
+      /* TODO: do these need protected setters?  why does s7_set_setter below use them? */
       break;
 
     case T_C_MACRO:
@@ -44144,6 +44154,10 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
       break;
 
     case T_SLOT:
+      /* when does this happen? is this a symbol setter from the user's point of view? never called in s7test */
+#if S7_DEBUGGING
+      fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(args));
+#endif
       slot_set_setter(p, setter);
       slot_set_has_setter(p);
       break;
@@ -44190,8 +44204,8 @@ s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
   return(g_set_setter(sc, set_plist_2(sc, p, setter)));
 }
 
-/* (let () (define xxx 23) (define (hix) (set! xxx 24)) (hix) (set! (symbol-setter 'xxx) (lambda (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
- *    so set symbol-setter before use!
+/* (let () (define xxx 23) (define (hix) (set! xxx 24)) (hix) (set! (setter 'xxx) (lambda (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
+ *    so set setter before use!
  */
 
 static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer old_value)
@@ -44252,7 +44266,7 @@ static s7_pointer bind_symbol_with_setter(s7_scheme *sc, opcode_t op, s7_pointer
 	  new_value = c_function_call(func)(sc, sc->t2_1);
 	}
       else
-	{
+	{  /* TODO: what about let arg? */
 	  sc->args = list_2(sc, symbol, new_value);
 	  push_stack_direct(sc, op, sc->args, sc->code);
 	  sc->code = func;
@@ -53958,6 +53972,7 @@ static s7_pointer fx_or_2(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_or_s_2(s7_scheme *sc, s7_pointer arg)
 {
+  /* the "s" is looked up once here -- not obvious how to use fx_call anyway */
   s7_pointer x;
   set_car(sc->t1_1, lookup(sc, opt3_sym(cdr(arg)))); /* cadadr(arg); */
   x = c_call(cadr(arg))(sc, sc->t1_1);
@@ -54237,24 +54252,7 @@ static s7_p_ppp_t s7_p_ppp_function(s7_pointer f);
 static s7_p_dd_t s7_p_dd_function(s7_pointer f);
 static s7_p_pi_t s7_p_pi_function(s7_pointer f);
 
-#if ((!S7_DEBUGGING) || (1))
 #define is_global_and_has_func(P, Func) ((is_global(P)) && (Func(slot_value(global_slot(P)))))
-#else
-static bool report_func(s7_pointer p, void *f, int line) 
-{
-  const char *name;
-  if (f == (void *)s7_p_pp_function) name = "p_pp";
-  else if (f == (void *)s7_p_p_function) name = "p_p";
-  else if (f == (void *)s7_p_pi_function) name = "p_pi";
-  else if (f == (void *)s7_p_ppp_function) name = "p_ppp";
-  else if (f == (void *)s7_p_dd_function) name = "p_dd";
-  else if (f == (void *)s7_b_7pp_function) name = "b_7pp";
-  else name = "??";
-  fprintf(stderr, "%s %s %d\n", s7_object_to_c_string(cur_sc, p), name, line); 
-  return(false);
-}
-#define is_global_and_has_func(P, Func) ((is_global(P)) && ((Func(slot_value(global_slot(P)))) ? true : report_func(P, (void *)Func, __LINE__)))
-#endif
 
 static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, safe_sym_t *checker)
 {
@@ -71450,6 +71448,18 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
     case OP_AND:
       e = cons(sc, sc->key_if_symbol, e);
       break;
+#if 0
+    case OP_OR:
+      {
+	s7_pointer old_code;
+	old_code = sc->code;
+	sc->code = expr;
+	check_or(sc); /* throws eval_error if (or #f . 1) for example, but catches are not yet in force (we're reading) -- messes up s7test but is that unacceptable? */
+	sc->code = old_code;
+	e = cons(sc, sc->key_if_symbol, e);
+	break;
+      }
+#endif      
 
     default:
       break;
@@ -71535,7 +71545,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
 	      for (p = cdr(expr); is_pair(p); p = cdr(p))
 		set_c_call(p, fx_choose(sc, p, e, pair_symbol_is_safe));
-	      /* move this up and use fx_call? */
 
 	      if (op == OP_OR)
 		{
@@ -79036,6 +79045,8 @@ static s7_pointer check_do(s7_scheme *sc)
 		      (is_syntactic_symbol(caar(body))) &&
 		      (s7_is_integer(caddr(step_expr))) && (s7_integer(caddr(step_expr)) == 1))
 		    {
+		      /* fprintf(stderr, "%s[%d]: dotimes: %s %s\n", __func__, __LINE__, op_names[optimize_op(car(body))], display_80(car(body))); */
+
 		      pair_set_syntax_op(car(body), symbol_syntax_op_checked(car(body)));
 		      set_opt2_pair(code, caddr(caar(code)));
 		      pair_set_syntax_op(form, OP_DOTIMES_P);          /* dotimes_p: simple + syntax body + 1 expr */
@@ -79048,8 +79059,12 @@ static s7_pointer check_do(s7_scheme *sc)
 		      /* no permanent let here because apparently do_body_is_safe accepts recursive calls? */
 		      if ((!has_set) &&
 			  (c_function_class(opt1_cfunc(end)) == sc->num_eq_class))
-			pair_set_syntax_op(form, OP_SAFE_DOTIMES);   /* safe_dotimes: end is = */
-		      fx_tree(sc, body, car(v), NULL);
+			{
+			  pair_set_syntax_op(form, OP_SAFE_DOTIMES);   /* safe_dotimes: end is = */
+			  if (is_fxable(sc, car(body)))
+			    annotate_arg(sc, body, collect_variables(sc, vars, sc->nil));
+			}
+		      fx_tree(sc, body, car(v), NULL); /* ?? */
 		    }
 		}
 	      return(sc->nil);
@@ -81103,8 +81118,28 @@ static goto_t op_safe_dotimes(s7_scheme *sc)
 		  (opt_dotimes(sc, cddr(code), code, true)))
 		return(goto_safe_do_end_clauses);
 	      set_unsafe_do(code);
-	      /* see dotimes-data -- very little comes here that can be handled locally */
-	      push_stack(sc, OP_SAFE_DOTIMES_STEP_O, sc->args, code);
+
+	      if (has_fx(cddr(code))) /* this almost never happens and the func case below is only in timing tests */
+		{
+		  s7_int end;
+		  s7_pointer body, stepper;
+		  end = s7_integer(end_val);
+		  body = cddr(code);
+		  stepper = slot_value(sc->args);
+		  for (; integer(stepper) < end; integer(stepper)++)
+		    fx_call(sc, body);
+		  sc->value = sc->T; 
+		  sc->code = cdadr(code);
+		  return(goto_safe_do_end_clauses);
+		}
+#if 0
+	      if ((optimize_op(sc->code) == OP_SAFE_CLOSURE_S_TO_SC) &&
+		  (lookup_unexamined(sc, car(sc->code)) == opt1_lambda_unchecked(sc->code)))
+		  <as above except:>
+		  body = caddr(code);
+		    fx_safe_closure_s_to_sc(sc, body);
+#endif
+	      push_stack(sc, OP_SAFE_DOTIMES_STEP_O, sc->args, code); /* arg is local step var slot, code is do form - do, sc->code is the body */
 	      return(goto_eval);
 	    }
 
@@ -88008,9 +88043,7 @@ static bool op_unknown_all_s(s7_scheme *sc)
 	    return(fixup_unknown_op(code, f, hop + ((is_safe_closure(f)) ? OP_SAFE_CLOSURE_ALL_S : OP_CLOSURE_4S)));
 	  return(fixup_unknown_op(code, f, hop + ((is_safe_closure(f)) ? OP_SAFE_CLOSURE_ALL_S : OP_CLOSURE_ALL_S)));
 	}
-#if S7_DEBUGGING
-      if (is_symbol(closure_args(f))) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(f));
-#endif
+      /* if (is_symbol(closure_args(f))) closure_any in some form? this never happens */
       break;
 
     case T_CLOSURE_STAR:
@@ -95632,6 +95665,89 @@ static void init_opt_functions(s7_scheme *sc)
 #endif
 }
 
+static void init_features(s7_scheme *sc)
+{
+#if WITH_PURE_S7
+  s7_provide(sc, "pure-s7");
+#endif
+#if WITH_EXTRA_EXPONENT_MARKERS
+  s7_provide(sc, "dfls-exponents");
+#endif
+#if HAVE_OVERFLOW_CHECKS
+  s7_provide(sc, "overflow-checks");
+#endif
+#if WITH_SYSTEM_EXTRAS
+  s7_provide(sc, "system-extras");
+#endif
+#if WITH_IMMUTABLE_UNQUOTE
+  s7_provide(sc, "immutable-unquote");
+#endif
+#if S7_DEBUGGING
+  s7_provide(sc, "debugging");
+#endif
+#if WITH_PROFILE
+  s7_provide(sc, "profiling");
+#endif
+#if HAVE_COMPLEX_NUMBERS
+  s7_provide(sc, "complex-numbers");
+#endif
+#if WITH_HISTORY
+  s7_provide(sc, "history");
+#endif
+#if WITH_C_LOADER
+  s7_provide(sc, "dlopen");
+#endif
+#if (!DISABLE_AUTOLOAD)
+  s7_provide(sc, "autoload");
+#endif
+
+#ifdef __APPLE__
+  s7_provide(sc, "osx");
+#endif
+#ifdef __linux__
+  s7_provide(sc, "linux");
+#endif
+#ifdef __OpenBSD__
+  s7_provide(sc, "openbsd");
+#endif
+#ifdef __NetBSD__
+  s7_provide(sc, "netbsd");
+#endif
+#ifdef __FreeBSD__
+  s7_provide(sc, "freebsd");
+#endif
+#if MS_WINDOWS
+  s7_provide(sc, "windows");
+#endif
+#ifdef __bfin__
+  s7_provide(sc, "blackfin");
+#endif
+#ifdef __ANDROID__
+  s7_provide(sc, "android");
+#endif
+#ifdef __CYGWIN__
+  s7_provide(sc, "cygwin");
+#endif
+#ifdef __hpux
+  s7_provide(sc, "hpux");
+#endif
+#if defined(__sun) && defined(__SVR4)
+  s7_provide(sc, "solaris");
+#endif
+#ifdef __MINGW32__
+  s7_provide(sc, "mingw");
+#endif
+
+#ifdef __SUNPRO_C
+  s7_provide(sc, "sunpro_c");
+#endif
+#if (defined(__clang__))
+  s7_provide(sc, "clang");
+#endif
+#if (defined(__GNUC__))
+  s7_provide(sc, "gcc");
+#endif
+}
 
 static s7_pointer make_real_wrapper(void)
 {
@@ -96832,86 +96948,7 @@ s7_scheme *s7_init(void)
   s7_define_variable(sc, "nan.0", real_NaN);
   s7_define_variable(sc, "inf.0", real_infinity);
 
-#if WITH_PURE_S7
-  s7_provide(sc, "pure-s7");
-#endif
-#if WITH_EXTRA_EXPONENT_MARKERS
-  s7_provide(sc, "dfls-exponents");
-#endif
-#if HAVE_OVERFLOW_CHECKS
-  s7_provide(sc, "overflow-checks");
-#endif
-#if WITH_SYSTEM_EXTRAS
-  s7_provide(sc, "system-extras");
-#endif
-#if WITH_IMMUTABLE_UNQUOTE
-  s7_provide(sc, "immutable-unquote");
-#endif
-#if S7_DEBUGGING
-  s7_provide(sc, "debugging");
-#endif
-#if WITH_PROFILE
-  s7_provide(sc, "profiling");
-#endif
-#if HAVE_COMPLEX_NUMBERS
-  s7_provide(sc, "complex-numbers");
-#endif
-#if WITH_HISTORY
-  s7_provide(sc, "history");
-#endif
-#if WITH_C_LOADER
-  s7_provide(sc, "dlopen");
-#endif
-#if (!DISABLE_AUTOLOAD)
-  s7_provide(sc, "autoload");
-#endif
-
-#ifdef __APPLE__
-  s7_provide(sc, "osx");
-#endif
-#ifdef __linux__
-  s7_provide(sc, "linux");
-#endif
-#ifdef __OpenBSD__
-  s7_provide(sc, "openbsd");
-#endif
-#ifdef __NetBSD__
-  s7_provide(sc, "netbsd");
-#endif
-#ifdef __FreeBSD__
-  s7_provide(sc, "freebsd");
-#endif
-#if MS_WINDOWS
-  s7_provide(sc, "windows");
-#endif
-#ifdef __bfin__
-  s7_provide(sc, "blackfin");
-#endif
-#ifdef __ANDROID__
-  s7_provide(sc, "android");
-#endif
-#ifdef __CYGWIN__
-  s7_provide(sc, "cygwin");
-#endif
-#ifdef __hpux
-  s7_provide(sc, "hpux");
-#endif
-#if defined(__sun) && defined(__SVR4)
-  s7_provide(sc, "solaris");
-#endif
-#ifdef __MINGW32__
-  s7_provide(sc, "mingw");
-#endif
-
-#ifdef __SUNPRO_C
-  s7_provide(sc, "sunpro_c");
-#endif
-#if (defined(__clang__))
-  s7_provide(sc, "clang");
-#endif
-#if (defined(__GNUC__))
-  s7_provide(sc, "gcc");
-#endif
+  init_features(sc);
 
   sc->vector_set_function = slot_value(global_slot(sc->vector_set_symbol));
   set_setter(sc->vector_set_symbol);
@@ -97281,7 +97318,7 @@ int main(int argc, char **argv)
  * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm -Wl,-export-dynamic
  * in OSX:    gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm
  *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and "-fPIC")
- * (s7.c compile time 23-Sep-19 42.0 secs)
+ * (s7.c compile time 13-Dec-19 43.0 secs)
  */
 #endif
 
@@ -97331,6 +97368,22 @@ int main(int argc, char **argv)
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
  * opt* coverage tests t206 opt_i|d|p*
  * t718: somehow sc != cur_sc?
- * car/car et al not useful? are opt/uq's hit? [no opuq cases!][ca 7000 optq in lg][ca 100k car_car/30k cadr/no cdr but faster?]
- * assq_p_pp trick elsewhere (no if)
+ * optimize_expression|syntax extended to other syntax_a cases?
+ *   let_a_fx (begin_fx) including set! if it's a local variable and fx-following uses "p" for it
+ *
+ * doc for setter is incomplete? if a symbol, setter takes 2 args (symbol new-value)
+ *   and symbol is set external to the setter function, but if a function,
+ *   it takes 1 more arg than the function (last=value??) and calls set! itself??
+ *   this seems to be messed up; it can also take a let arg somehow -- make some canonical examples
+ *   see s7test 39034 -- we're missing error checks as well as documentation
+ *   s7|g_set_setter need more error checks
+ *   also it's possible to set setter of *features* (etc): (set! (setter '*features*) (lambda (s v) 32)) -> #<lambda (s v)>
+ *     but it has no effect?? and (setter '*features*): #f after provide??
+ *     at startup (setter '*features*) #<set-*features*> 
+ *     g_provide via c_provide ignores the setter 
+ *     (set! (*autoload* 'symbol) file-or-function?) is not documented
+ *     setter for outlet?  probably ignored
+ *     iterator have setters?  (setter iterator)=setter of iterator-sequence -- does that make any sense?
+ *     perhaps: in func/mac case also pass func/mac as well as args -- let arg needed only to disambiguate symbol vals?
+ *   see t229
  */
