@@ -445,8 +445,8 @@ enum {T_FREE = 0,
       T_BIG_INTEGER, T_BIG_RATIO, T_BIG_REAL, T_BIG_COMPLEX,         /* these four used only if WITH_GMP -- order matters */
       T_STRING, T_C_OBJECT, T_VECTOR, T_INT_VECTOR, T_FLOAT_VECTOR, T_BYTE_VECTOR,
       T_CATCH, T_DYNAMIC_WIND, T_HASH_TABLE, T_LET, T_ITERATOR,
-      T_STACK, T_COUNTER, T_SLOT, T_C_POINTER, T_OUTPUT_PORT, T_INPUT_PORT, T_RANDOM_STATE,
-      T_CONTINUATION, T_GOTO, T_BAFFLE,
+      T_STACK, T_COUNTER, T_SLOT, T_C_POINTER, T_OUTPUT_PORT, T_INPUT_PORT, T_RANDOM_STATE, T_BAFFLE,
+      T_CONTINUATION, T_GOTO, 
       T_CLOSURE, T_CLOSURE_STAR, T_MACRO, T_MACRO_STAR, T_BACRO, T_BACRO_STAR, T_C_MACRO,
       T_C_FUNCTION_STAR, T_C_FUNCTION, T_C_ANY_ARGS_FUNCTION, T_C_OPT_ARGS_FUNCTION, T_C_RST_ARGS_FUNCTION,
       NUM_TYPES};
@@ -457,7 +457,7 @@ static const char *s7_type_names[] =
   {"free", "pair", "nil", "unused", "undefined", "unspecified", "eof_object", "boolean", "character",
      "syntax", "symbol", "integer", "ratio", "real", "complex", "big_integer", "big_ratio", "big_real", "big_complex",
      "string", "c_object", "vector", "int_vector", "float_vector", "byte_vector", "catch", "dynamic_wind", "hash_table", "let",
-     "iterator", "stack", "counter", "slot", "c_pointer", "output_port", "input_port", "random_state", "continuation", "goto", "baffle",
+     "iterator", "stack", "counter", "slot", "c_pointer", "output_port", "input_port", "random_state", "baffle", "continuation", "goto", 
      "closure", "closure*", "c_macro", "macro", "macro*", "bacro", "bacro*", "c_function*", "c_function",
      "c_any_args_function", "c_opt_args_function", "c_rst_args_function"
    };
@@ -40482,6 +40482,10 @@ static s7_pointer vector_into_list(s7_pointer vect, s7_pointer lst)
   len = vector_length(vect);
   for (i = 0, p = lst; i < len; i++, p = cdr(p))
     set_car(p, elements[i]);
+
+  /* free_cell(cur_sc, vect) here requires sc arg, and free_cell is not right (error if debugging): need to remove from add_vector list etc
+   *   I guess sort might hit an error or sort func might call/cc, so we need a legit vector here.  requires liberate also -- too much trouble.
+   */
   return(lst);
 }
 
@@ -43786,6 +43790,30 @@ static bool is_aritable_b_7pp(s7_scheme *sc, s7_pointer f, s7_pointer i)
   return(g_is_aritable(sc, set_plist_2(sc, f, i)) != sc->F);
 }
 
+static int32_t arity_to_int(s7_scheme *sc, s7_pointer x)
+{
+  int32_t args;
+  switch (type(x))
+    {
+    case T_C_OPT_ARGS_FUNCTION: case T_C_RST_ARGS_FUNCTION: case T_C_FUNCTION: case T_C_ANY_ARGS_FUNCTION: case T_C_FUNCTION_STAR:
+      return(c_function_all_args(x));
+
+    case T_MACRO: case T_BACRO: case T_CLOSURE:
+      args = closure_arity_to_int(sc, x);
+      return((args < 0) ? MAX_ARITY : args);
+
+    case T_MACRO_STAR: case T_BACRO_STAR: case T_CLOSURE_STAR:
+      args = closure_star_arity_to_int(sc, x);
+      return((args < 0) ? MAX_ARITY : args);
+
+    case T_C_MACRO: return(c_macro_all_args(x));
+    case T_C_OBJECT: return(MAX_ARITY);
+      
+      /* do vectors et al make sense here? */
+    }
+  return(-1);
+}
+
 
 /* -------------------------------- sequence? -------------------------------- */
 static s7_pointer g_is_sequence(s7_scheme *sc, s7_pointer args)
@@ -44079,54 +44107,55 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	  slot = symbol_to_slot(sc, sym); /* (set! (setter 'x) (lambda (s v) ...)) */
 	  func = cadr(args);
 	}
-      if ((!is_any_procedure(func)) && /* disallow continuation/goto here */
-	  (func != sc->F))
-	return(s7_wrong_type_arg_error(sc, "set! setter", 3, func, "a function or #f"));
-
-      if (sym == sc->setter_symbol)
-	return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't set (setter setter) to ~S", 31), func)));
-
       if (!is_slot(slot))
 	return(sc->F);
 
-      if (slot == global_slot(sym))
+      if (func != sc->F)
 	{
-	  s7_set_setter(sc, sym, func); /* special GC protection for global vars */
-	  return(func);
+	  if (sym == sc->setter_symbol)
+	    return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't set (setter setter) to ~S", 31), func)));
+
+	  if (!is_any_procedure(func))   /* disallow continuation/goto here */
+	    return(s7_wrong_type_arg_error(sc, "set! setter", 3, func, "a function or #f"));
+
+	  if (s7_is_aritable(sc, func, 3))
+	    set_has_let_arg(func);
+	  else
+	    {
+	      if (!((s7_is_aritable(sc, func, 2)) ||
+		    ((is_c_function(func)) && (c_function_has_bool_setter(func)))))
+		return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "setter function, ~A, should take 2 or 3 arguments", 49), func)));
+	    }
 	}
 
-      slot_set_setter(slot, func);
+      if (slot == global_slot(sym))
+	s7_set_setter(sc, sym, func); /* special GC protection for global vars */
+      else slot_set_setter(slot, func); /* func might be #f */
       if (func != sc->F)
 	{
 	  slot_set_has_setter(slot);
-	  if (s7_is_aritable(sc, func, 3))
-	    set_has_let_arg(func);
-#if 0
-	  else
-	    {
-	      /* TODO: and not integer? etc c_function_has_bool_setter */
-	      if (!s7_is_aritable(sc, func, 2))
-		return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "set! setter function, ~A, should take 2 or 3 arguments", 54), func)));
-	    }
-#endif
 	  symbol_set_has_setter(sym);
 	}
       return(func);
     }
 
-  setter = cadr(args);
-  if ((setter != sc->F) &&
-      (!is_any_procedure(setter)))
-    return(s7_wrong_type_arg_error(sc, "set! setter", 2, setter, "a procedure or #f"));
   if (p == sc->s7_let)
     return(s7_wrong_type_arg_error(sc, "set! setter", 1, p, "something other than *s7*"));
+
+  setter = cadr(args);
+  if (setter != sc->F)
+    {
+      if (!is_any_procedure(setter))
+	return(s7_wrong_type_arg_error(sc, "set! setter", 2, setter, "a procedure or #f"));
+      if (arity_to_int(sc, setter) < 1)          /* we need at least an arg for the set! value */
+	return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "setter function, ~A, should take at least 1 argument", 52), setter)));
+    }
 
   switch (type(p))
     {
     case T_MACRO:   case T_MACRO_STAR:
     case T_BACRO:   case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
-      /* TODO: arity check: must accept args+1 here and below */
       closure_set_setter(p, setter);
       if (setter == sc->F)
 	closure_set_no_setter(p);
@@ -44143,7 +44172,6 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
       if ((is_any_closure(setter)) ||
 	  (is_any_macro(setter)))
 	add_setter(sc, p, setter);
-      /* TODO: do these need protected setters?  why does s7_set_setter below use them? */
       break;
 
     case T_C_MACRO:
@@ -44153,14 +44181,8 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	add_setter(sc, p, setter);
       break;
 
-    case T_SLOT:
-      /* when does this happen? is this a symbol setter from the user's point of view? never called in s7test */
-#if S7_DEBUGGING
-      fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(args));
-#endif
-      slot_set_setter(p, setter);
-      slot_set_has_setter(p);
-      break;
+    default:  /* (set! (setter 4) ...) or p==continuation etc */
+      return(s7_wrong_type_arg_error(sc, "set! setter", 1, p, "a normal procedure or a macro"));
     }
   return(setter);
 }
@@ -49191,7 +49213,8 @@ static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...) /* len = m
 
 static void fill_error_location(s7_scheme *sc)
 {
-  if (in_reader(sc))
+  /* fprintf(stderr, "%s[%d]: %sin reader\n", __func__, __LINE__, ((in_reader(sc)) || (is_loader_port(sc->input_port))) ? "" : "not "); */
+  if ((in_reader(sc)) || (is_loader_port(sc->input_port)))
     {
       integer(slot_value(sc->error_line)) = port_line_number(sc->input_port);
       integer(slot_value(sc->error_position)) = port_position(sc->input_port);
@@ -49260,6 +49283,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	{
 	  /* try to find a plausible line number! */
 	  s7_pointer p, sp;
+	  /* fprintf(stderr, "%d: cur_code no loc, check ahead\n", __LINE__); */
 	  for (p = cur_code, sp = cur_code; is_pair(p); p = cdr(p), sp = cdr(sp))
 	    {
 	      if ((is_pair(car(p))) &&
@@ -49281,7 +49305,9 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 		  break;
 		}
 	    }
+	  /* fprintf(stderr, "%s[%d]: %sline: %d %d, at: %s\n", __func__, __LINE__, (is_null(p)) ? "lost " : "", line, sc->last_error_line, display(p)); */
 	}
+
       if ((line > 0) &&
 	  (line != sc->last_error_line))
 	{
@@ -49290,7 +49316,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  if (file > sc->file_names_top)
 	    {
 	      char *s;
-	      fprintf(stderr, "line_number file: %d (top: %d), bits: %s\n", file, sc->file_names_top, s = describe_type_bits(sc, cur_code));
+	      fprintf(stderr, "%s[%d]: line_number file: %d (top: %d), bits: %s\n", __func__, __LINE__, file, sc->file_names_top, s = describe_type_bits(sc, cur_code));
 	      free(s);
 	      if (sc->stop_at_error) abort();
 	    }
@@ -49305,8 +49331,14 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	    }
 	  else fill_error_location(sc);
 	}
+      else
+	{
+	  /* fprintf(stderr, "%s[%d]: unset line??\n", __func__, __LINE__); */
+	  fill_error_location(sc);
+	}
     }
   else fill_error_location(sc);
+  
 
   { /* look for a catcher */
     int64_t i;
@@ -49326,7 +49358,11 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  }
       }
   }
-
+#if 0
+  fprintf(stderr, "%s[%d]: line: %u, pos: %ld\n", __func__, __LINE__, port_line_number(sc->input_port), port_position(sc->input_port));
+  fprintf(stderr, "%s[%d]: %s: %d\n", __func__, __LINE__, display(cur_code), has_location(cur_code) ? (int)pair_line_number(cur_code) : -1);
+  fprintf(stderr, "%s[%d]: line: %ld\n", __func__, __LINE__, integer(slot_value(sc->error_line)));
+#endif
   /* error not caught */
   /* (set! *error-hook* (list (lambda (hook) (apply format #t (hook 'args))))) */
 
@@ -72763,6 +72799,7 @@ static int32_t check_lambda_1(s7_scheme *sc, bool optl)
   /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
 
   form = sc->code;
+  /* set_current_code(sc, sc->code); */
   if ((sc->safety > NO_SAFETY) &&
       (tree_is_cyclic(sc, form)))
     s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "lambda: body is cyclic", 22));
@@ -75696,6 +75733,7 @@ static s7_pointer check_define(s7_scheme *sc)
   bool starred;
 
   form = sc->code;
+  set_current_code(sc, sc->code);
   sc->code = cdr(sc->code);
 
   starred = (sc->cur_op == OP_DEFINE_STAR);
@@ -97370,20 +97408,17 @@ int main(int argc, char **argv)
  * t718: somehow sc != cur_sc?
  * optimize_expression|syntax extended to other syntax_a cases?
  *   let_a_fx (begin_fx) including set! if it's a local variable and fx-following uses "p" for it
+ * perhaps make gc numbers *s7* accessible, also check heap-size -- overflow not an error I hope
+ * change require to use features, not a symbol defined in provide [local require/provide?]
  *
- * doc for setter is incomplete? if a symbol, setter takes 2 args (symbol new-value)
- *   and symbol is set external to the setter function, but if a function,
- *   it takes 1 more arg than the function (last=value??) and calls set! itself??
- *   this seems to be messed up; it can also take a let arg somehow -- make some canonical examples
- *   see s7test 39034 -- we're missing error checks as well as documentation
- *   s7|g_set_setter need more error checks
- *   also it's possible to set setter of *features* (etc): (set! (setter '*features*) (lambda (s v) 32)) -> #<lambda (s v)>
- *     but it has no effect?? and (setter '*features*): #f after provide??
- *     at startup (setter '*features*) #<set-*features*> 
- *     g_provide via c_provide ignores the setter 
- *     (set! (*autoload* 'symbol) file-or-function?) is not documented
- *     setter for outlet?  probably ignored
- *     iterator have setters?  (setter iterator)=setter of iterator-sequence -- does that make any sense?
- *     perhaps: in func/mac case also pass func/mac as well as args -- let arg needed only to disambiguate symbol vals?
- *   see t229
+ * doc for setter is incomplete: c-side and vector/hash setters
+ * (set! (*autoload* 'symbol) file-or-function?) is not documented
+ * iterators have setters?  (setter iterator)=setter of iterator-sequence -- does that make any sense? can it be set (same for string)
+ * tsig = sig+set timings
+ * append for set! -- if setter safe, call direct
+ * procedure-source for built-ins?
+ * free cell: check_define[75817]: not a pair, but a free cell (type: 0)
+ *   cell used once, from read_list, freed in collect_variables -- must be code of let 
+ * sc->code = cdr(.) should be fixed at least in check_define, or set_current_code?
+ *   96 of these? fx_c|s don't need protection
  */

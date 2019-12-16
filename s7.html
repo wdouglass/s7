@@ -1609,44 +1609,79 @@ to be evaluated in its definition environment:
 (<em class=def id="dilambda">dilambda</em> proc setter)
 </pre>
 
-<p>Each variable can have an associated setter.
-The setter is a function that is called before the variable is set.  The setter's arguments
-are the name of the variable (a symbol) and the new value.
-As a convenience, there's also
-a way to associate a function with its setter under one name (via dilambda),
-and you can use the built-in type checking functions such as integer? as a short-hand
-for a setter that insists the new value be an integer.  Coupled with the type arguments
-to make-vector and make-hash-table, the setter provides a way to statically type
-nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
+<p>There are several kinds of setters, reflecting the many ways that set! can be called.
+First are the symbol setters: 
 </p>
 
 <pre class="indented">
+&gt; (let ((x 1))
+    (set! (setter 'x) (lambda (name new-value) (* new-value 2)))
+    (set! x 2)
+    x)
+<em class="gray">4</em>
+</pre>
+
+<p>The setter is a function that is called before the variable is set. 
+It can take two or three arguments.  In the two argument case shown above,
+the first is the variable name (a symbol), and the second is the new-value.
+The variable is set to the value returned by the setter function.
+When s7 sees <code>(set! x 2)</code> above, it calls the setter which returns 4.
+So x is set to 4.  
+</p>
+<p>In some cases you need the environment that the variable lives in (to get its
+current value for example), so you can include that in the setter function parameter list:
+</p>
+
+<pre class="indented">
+&gt; (let ((x 1))
+    (set! (setter 'x) (lambda (name new-value enviroment) (* new-value 2)))
+    (set! x 2)
+    x)
+<em class="gray">4</em>
+</pre>
+
+<p>Since symbol setters are often implementing type restrictions, you can use
+the built-in type checking functions such as integer? as a short-hand
+for a setter that insists the new value be an integer:
+</p>
+
+<pre class="indented">
+&gt; (let ((x 1)) 
+    (set! (setter 'x) integer?)
+    (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+
+;;; use typed-let from stuff.scm to do the same thing:
+&gt; (typed-let ((x 3 integer?))
+    (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+</pre>
+
+<!-- TODO: C-side setters here -->
+
+<p>The second case is a function setter.  Almost any function or macro can
+have an associated setter that is invoked when the function is the target of set!.
+In this case, the setter function does the set! itself (unlike a symbol setter):
+<p>
+
+<pre class="indented">
 &gt; (setter cadr)
-<em class="gray">#f</em>
-&gt; (set! (setter cadr) 
+<em class="gray">#f</em>         ; by default cadr has no setter so (set! (cadr p) x) is an error
+&gt; (set! (setter cadr)  ; add a setter to cadr
         (lambda (lst val) 
           (set! (car (cdr lst)) val)))
 <em class="gray">#&lt;lambda (lst val)&gt;</em>
 &gt; (procedure-source (setter cadr))
 <em class="gray">(lambda (lst val) (set! (car (cdr lst)) val))</em>
 &gt; (let ((lst (list 1 2 3))) 
-    (set! (cadr lst) 4) 
+    (set! (cadr lst) 4)
     lst)
 <em class="gray">(1 4 3)</em>
-
-&gt; (let ((x 1)) 
-     (set! (setter 'x) integer?)
-     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
-
-;;; use typed-let from stuff.scm to do the same thing:
-&gt; (typed-let ((x 3 integer?))
-     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
 <p>In some cases, the setter needs to be a macro:
 </p>
+
 <pre class="indented">
 &gt; (set! (setter logbit?)
           (define-macro (m var index on) ; here we want to set "var", so we need a macro
@@ -1665,7 +1700,24 @@ nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 <em class="gray">30</em>
 </pre>
 
-<blockquote>
+<p>dilambda defines a function and its setter without having to set! the setter by hand:
+</p>
+
+<pre class="indented">
+&gt; (define f (let ((x 123))
+                 (dilambda (lambda () 
+                             x)
+		           (lambda (new-value) 
+                             (set! x new-value)))))
+<em class="gray">f</em>
+&gt; (f)
+<em class="gray">123</em> ; x = 123 
+&gt; (set! (f) 32)
+<em class="gray">32</em>  ; now x = 32
+&gt; (f)
+<em class="gray">32</em>
+</pre>
+</div>
 
 
 <div class="indented">
@@ -1724,15 +1776,18 @@ nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 </pre>	
 </div>
 
-<div class="indented">
 <p>I may remove dilambda and dilambda? someday; they are trivial:
 </p>
 <pre class="indented">
 (define (dilambda get set) (set! (setter get) set) get)
 (define dilambda? setter)
 </pre>
-</div>
 
+
+<!-- TODO: vector/hash setters -->
+
+
+<br>
 <div class="indented">
 <p>Speaking of INTERCAL, COME-FROM:
 </p>
