@@ -364,8 +364,8 @@
 ;;; --------------------------------------------------------------------------------
 ;;; get indexer.data
 
-(define-macro (provide sym) ; this picks up most of the (provide ...) statements for the autoloader
-  `(define (,(cadr sym)) ,sym))
+(define (provide sym) ; this picks up most of the (provide ...) statements for the autoloader
+  (set! *features* (cons sym *features*)))
 
 (define (load-files)
   (load "ws.scm")

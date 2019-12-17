@@ -1621,7 +1621,7 @@ First are the symbol setters:
 <em class="gray">4</em>
 </pre>
 
-<p>The setter is a function that is called before the variable is set. 
+<p>Here the setter is a function that is called before the variable is set. 
 It can take two or three arguments.  In the two argument case shown above,
 the first is the variable name (a symbol), and the second is the new-value.
 The variable is set to the value returned by the setter function.
@@ -1657,12 +1657,14 @@ for a setter that insists the new value be an integer:
 <em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
-<!-- TODO: C-side setters here -->
+<p>C-side symbol setters go through s7_set_setter. There is an example <a href="#notify">below</a>.
+</p>
+
 
 <p>The second case is a function setter.  Almost any function or macro can
 have an associated setter that is invoked when the function is the target of set!.
 In this case, the setter function does the set! itself (unlike a symbol setter):
-<p>
+</p>
 
 <pre class="indented">
 &gt; (setter cadr)
@@ -1717,7 +1719,6 @@ In this case, the setter function does the set! itself (unlike a symbol setter):
 &gt; (f)
 <em class="gray">32</em>
 </pre>
-</div>
 
 
 <div class="indented">
@@ -1778,16 +1779,34 @@ In this case, the setter function does the set! itself (unlike a symbol setter):
 
 <p>I may remove dilambda and dilambda? someday; they are trivial:
 </p>
+
 <pre class="indented">
 (define (dilambda get set) (set! (setter get) set) get)
 (define dilambda? setter)
 </pre>
 
+<p>When a function setter is called, <code>(set! (func ...) val)</code> is
+evaluated by s7 as <code>((setter func) ... val)</code>, so the setter function
+needs to handle both the inner arguments to the function and the new value.
+</p>
 
-<!-- TODO: vector/hash setters -->
+<pre class="indented">
+(let ((x 123))
+  (define (f a b) (+ x a b))
+  (set! (setter f) (lambda (a b val) (set! x val)))
+  (display (f 1 2)) (newline) ; "126"
+  (set! (f 1 2) 32)
+  (display (f 1 2)) (newline)) ; "35"
+</pre>
+
+<p>A third type of setter handles vector element type and hash-table key and value types.
+These are described under <a href="#typedvectors">typed vectors</a> and 
+<a href="#typedhash">typed hash-tables</a>.
+</p>
 
 
 <br>
+<blockquote>
 <div class="indented">
 <p>Speaking of INTERCAL, COME-FROM:
 </p>
@@ -2210,7 +2229,7 @@ s7_ints, s7_doubles, or unsigned bytes.
 (<em class=def id="subvectorposition">subvector-position</em> obj)
 </pre>
 
-<p>In addition to the dimension list mentioned above, make-vector accepts
+<p id="typedvectors">In addition to the dimension list mentioned above, make-vector accepts
 optional arguments giving the initial element and the element type. If the
 type is given, every attempt to set an element of the vector first calls
 the type function on the new value.  
@@ -2220,6 +2239,13 @@ If the type function is a closure (rather than a C-defined or built-in function)
 its name must be accessible; it can't be an anonymous lambda (the signature and
 error handlers need this name).
 </p>
+
+<pre class="indented">
+&gt; (define v (make-vector 3 'x symbol?)) ; initial element: 'x, elements must be symbols
+<em class="gray">#(x x x)</em>
+&gt; (vector-set! v 0 123)
+<em class="gray">error: vector-set! argument 3, 123, is an integer but should be a symbol?</em>
+</pre>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
 <code>(subvector original-vector new-dimensions (position 0))</code>:
@@ -2662,7 +2688,7 @@ and the iterative version beats both.
 </p>
 </div>
 
-<p>The third argument, typers, sets type checkers for the keys and values in the table,
+<p id="typedhash">The third argument, typers, sets type checkers for the keys and values in the table,
 much like the third argument to make-vector.
 It is a cons of the type functions,
 <code>(cons symbol? integer?)</code> for example. This says that all the keys must
