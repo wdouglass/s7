@@ -5533,6 +5533,9 @@ stack                         the current stack entries
 rootlet-size                  the number of globals
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
+gc-temps-size                 number of cells just allocated that are protected from the GC (256)
+gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
+gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap
 gc-protected-objects          vector of the objects permanently protected from the GC
 memory-usage                  a description of current memory allocations (sent to current-output-port)
 </pre>
@@ -5882,7 +5885,7 @@ Better ideas are always welcome!
 <li>omits string-copy, string-fill!, vector-fill!, vector-append
 <li>omits list-&gt;string, list-&gt;vector, string-&gt;list, vector-&gt;list, let-&gt;list
 <li>omits string-length and vector-length
-<li>omits cond-expand, multiple-values-bind|set!, call-with-values, defmacro(*)
+<li>omits cond-expand, multiple-values-bind|set!, call-with-values
 <li>omits unquote (the name)
 <li>omits d/f/s/l exponents
 <li>omits make-polar and make-rectangular (use complex)
