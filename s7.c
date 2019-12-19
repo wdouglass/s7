@@ -3343,6 +3343,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 
 static void set_print_name(s7_pointer p, const char *name, int32_t len)
 {
+  /* if no print name: teq +110 tread +30 tform +90 */
   if ((len < (PRINT_NAME_SIZE - 1)) &&
       (!is_mutable_number(p)))
     {
@@ -3405,6 +3406,7 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
 
 #ifndef NUM_SMALL_INTS
   #define NUM_SMALL_INTS 8192
+  /* 65536: tshoot -6, tvect -50, dup -26, trclo -27, tmap -48, tsort -14, tlet -16, trec -58, thash -40 */
 #endif
 static s7_pointer small_ints[NUM_SMALL_INTS];
 #define small_int(Val) small_ints[Val]
@@ -3881,7 +3883,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_C_A, HOP_SAFE_C_A, OP_SAFE_C_AA, HOP_SAFE_C_AA, OP_SAFE_C_CA, HOP_SAFE_C_CA, OP_SAFE_C_AC, HOP_SAFE_C_AC,
       OP_SAFE_C_AAA, HOP_SAFE_C_AAA, OP_SAFE_C_4A, HOP_SAFE_C_4A,
       OP_SAFE_C_FX, HOP_SAFE_C_FX, OP_SAFE_C_ALL_CA, HOP_SAFE_C_ALL_CA,
-      OP_SAFE_C_SSA, HOP_SAFE_C_SSA, OP_SAFE_C_SAS, HOP_SAFE_C_SAS,
+      OP_SAFE_C_SSA, HOP_SAFE_C_SSA, OP_SAFE_C_SAS, HOP_SAFE_C_SAS, OP_SAFE_C_SAA, HOP_SAFE_C_SAA,
       OP_SAFE_C_CSA, HOP_SAFE_C_CSA, OP_SAFE_C_SCA, HOP_SAFE_C_SCA,
       OP_SAFE_C_CAC, HOP_SAFE_C_CAC,                                  /* OP_SAFE_C_CCA, HOP_SAFE_C_CCA, */
       OP_SAFE_C_opAq, HOP_SAFE_C_opAq, OP_SAFE_C_opAAq, HOP_SAFE_C_opAAq, OP_SAFE_C_opAAAq, HOP_SAFE_C_opAAAq,
@@ -4124,7 +4126,7 @@ static const char* op_names[NUM_OPS] =
       "safe_c_a", "h_safe_c_a", "safe_c_aa", "h_safe_c_aa", "safe_c_ca", "h_safe_c_ca", "safe_c_ac", "h_safe_c_ac",
       "safe_c_aaa", "h_safe_c_aaa", "safe_c_4a", "h_safe_c_4a",
       "safe_c_fx", "h_safe_c_fx", "safe_c_all_ca", "h_safe_c_all_ca",
-      "safe_c_ssa", "h_safe_c_ssa", "safe_c_sas", "h_safe_c_sas",
+      "safe_c_ssa", "h_safe_c_ssa", "safe_c_sas", "h_safe_c_sas", "safe_c_saa", "h_safe_c_saa",
       "safe_c_csa", "h_safe_c_csa", "safe_c_sca", "h_safe_c_sca", "safe_c_cac", "h_safe_c_cac",
       "safe_c_opaq", "h_safe_c_opaq", "safe_c_opaaq", "h_safe_c_opaaq", "safe_c_opaaaq", "h_safe_c_opaaaq",
       "safe_c_s_opaq", "h_safe_c_s_opaq", "safe_c_opaq_s", "h_safe_c_opaq_s",
@@ -5955,7 +5957,9 @@ static int64_t gc(s7_scheme *sc)
 void s7_set_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
 
 #define GC_RESIZE_HEAP_BY_4_FRACTION 0.67
-
+/*   .5+.1: test -3?, dup +86, tmap +45, tsort -3, thash +305
+ *   .85+.7: dup -5
+ */
 static void resize_heap_to(s7_scheme *sc, int64_t size)
 {
   int64_t old_size, old_free, k;
@@ -6610,7 +6614,7 @@ static void resize_stack(s7_scheme *sc)
 
   if (show_stack_stats(sc))
     {
-      s7_warn(sc, 128, "stack grows to %u, %s\n", new_size, display_80(sc->code));
+      s7_warn(sc, 128, "stack grows to %u, %s\n", new_size, display_80(current_code(sc)));
       s7_show_let(sc);
     }
 }
@@ -53359,6 +53363,18 @@ static s7_pointer fx_not_a(s7_scheme *sc, s7_pointer arg)
   return((fx_call(sc, cdr(arg)) == sc->F) ? sc->T : sc->F);
 }
 
+static s7_pointer fx_c_saa(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  p = cddr(arg);
+  gc_protect_via_stack(sc, fx_call(sc, p));
+  set_car(sc->t3_3, fx_call(sc, cdr(p)));
+  set_car(sc->t3_1, lookup(sc, cadr(arg)));
+  set_car(sc->t3_2, sc->stack_end[-2]);
+  sc->stack_end -= 4;
+  return(c_call(arg)(sc, sc->t3_1));
+}
+
 static s7_pointer fx_c_ssa(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
@@ -70715,6 +70731,11 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 			    }
 			}
 		    }
+		}
+	      else
+		{
+		  if ((is_normal_symbol(arg1)) && (pairs == 2))
+		    set_optimize_op(expr, hop + OP_SAFE_C_SAA);
 		}
 	      choose_c_function(sc, expr, func, 3);
 	      return(OPT_T);
@@ -88348,6 +88369,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_AAA: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_AAA: sc->value = fx_c_aaa(sc, sc->code); continue;
 
+	case OP_SAFE_C_SAA: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_SAA: sc->value = fx_c_saa(sc, sc->code); continue;
+
 	case OP_SAFE_C_SSA: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SSA: sc->value = fx_c_ssa(sc, sc->code); continue;
 	case OP_SSA_DIRECT: sc->value = fx_c_ssa_direct(sc, sc->code); continue;
@@ -94305,6 +94329,15 @@ static s7_pointer memory_usage(s7_scheme *sc)
 			    make_symbol(sc, "keys"),    make_integer(sc, keys)));
       }
       make_slot_1(sc, mu_let, make_symbol(sc, "stack"), cons(sc, make_integer(sc, s7_stack_top(sc)), make_integer(sc, sc->stack_size)));
+      
+      len = sc->autoload_names_top * (sizeof(const char **) + sizeof(s7_int) + sizeof(bool));
+      for (i = 0; i < sc->autoload_names_loc; i++) len += sc->autoload_names_sizes[i];
+      make_slot_1(sc, mu_let, make_symbol(sc, "autoload"), make_integer(sc, len));
+
+      len = sc->strings->size + sc->vectors->size + sc->input_ports->size + sc->output_ports->size + sc->input_string_ports->size + 
+	    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->unknowns->size + 
+	    sc->lambdas->size + sc->multivectors->size + sc->weak_refs->size + sc->weak_hash_iterators->size + sc->lamlets->size;
+      make_slot_1(sc, mu_let, make_symbol(sc, "gc-lists"), cons(sc, make_integer(sc, len), make_integer(sc, len * sizeof(s7_pointer))));
 
       gp = sc->strings;
       for (len = 0, i = 0; i < (int32_t)(gp->loc); i++)
@@ -94402,7 +94435,8 @@ static s7_pointer memory_usage(s7_scheme *sc)
 	sc->w = sc->nil;
       }
     }
-
+  
+  /* perhaps shared|circle_info, opt_func data */
   s7_gc_unprotect_at(sc, gc_loc);
   return(mu_let);
 }
@@ -95129,6 +95163,7 @@ static void fx_function_init(void)
   fx_function[HOP_SAFE_C_CSA] = fx_c_csa;
   fx_function[HOP_SAFE_C_SCA] = fx_c_sca;
   fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
+  fx_function[HOP_SAFE_C_SAA] = fx_c_saa;
   fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
   fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
   fx_function[HOP_SAFE_C_FX] = fx_c_fx;
@@ -97163,7 +97198,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 883) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 885) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97318,28 +97353,28 @@ int main(int argc, char **argv)
  *           18  |  19    
  * ------------------------------
  * tpeak     167 |  117
- * tauto     748 |  637
- * tshoot   1176 |  779
+ * tauto     748 |  633
+ * tshoot   1176 |  777
  * tref     1093 |  779
  * index     971 |  890
  * teq      1617 | 1542
- * s7test   1776 | 1718
- * tvect    5115 | 1737
- * lt       2278 | 2074
- * tcopy    2434 | 2263
- * tmisc    2852 | 2281
+ * s7test   1776 | 1712
+ * tvect    5115 | 1735
+ * lt       2278 | 2073
+ * tcopy    2434 | 2273
+ * tmisc    2852 | 2283
  * tform    2472 | 2317
  * tread    2449 | 2426
  * tmat     6072 | 2479
  * fbench   2974 | 2643
- * dup      6333 | 2686
+ * dup      6333 | 2694
  * trclo    7985 | 2791
  * tb       3251 | 2799
- * tmap     3238 | 2887
+ * tmap     3238 | 2883
  * titer    3962 | 2919
  * tsort    4156 | 3043
- * tset     6616 | 3117  3083
- * tmac     3391 | 3187
+ * tset     6616 | 3083
+ * tmac     3391 | 3186
  * tfft     4288 | 3820
  * tlet     5409 | 4642
  * tclo     6206 | 4896
@@ -97347,8 +97382,8 @@ int main(int argc, char **argv)
  * thash    10.3 | 6807
  * tgen     11.7 | 11.1
  * tall     16.4 | 15.4
- * calls    40.3 | 36.1
- * sg       85.8 | 70.6
+ * calls    40.3 | 36.0
+ * sg       85.8 | 70.4
  * lg      115.9 |104.9
  * tbig    264.5 |178.7
  * -----------------------------
@@ -97362,4 +97397,5 @@ int main(int argc, char **argv)
  *   op: let_temp_init_2|done1, set1|2, set_from_setter|with_let_1|2
  * if (lambda...) as arg (to g_set_setter for example, op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it (why 3 times the same code set_setter/bind_setter/op_set1?)
+ * let+lambda -- not set safe?
  */

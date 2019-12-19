@@ -14,7 +14,7 @@
 	  (symbol-table))
 
 ;(define debugging (provided? 'debugging))
-
+;(when (provided? 'profiling) (load "profile.scm"))
 
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 
@@ -555,7 +555,7 @@
 (define-constant vvvf (immutable! (vector abs log sin)))
 
 (define-constant a1 (hash-table +nan.0 1))
-(define-constant a2 (inlet :a (hash-table 'b 1)))
+(define-constant a2 (immutable! (inlet :a (hash-table 'b 1))))
 (define-constant a3 (openlet (immutable! (inlet :a 1))))
 (define-constant a4 (subvector #i2d((1 2) (3 4)) 4))
 (define-constant a5 (subvector #i2d((1 2) (3 4)) '(4)))
@@ -734,13 +734,13 @@
 			  'string->byte-vector 'byte-vector->string
 
 			  ;'pp
-
+#|
 			  's7-catches 
 			  's7-stack-top 's7-stack 
 			  's7-symbol-table 
 			  's7-gc-protected-objects
 			  's7-stacktrace-defaults ; clobbered by reverse!
-
+|#
 			  ;'s7-set-print-length 
 			  's7-set-stacktrace-defaults
 			  ;'s7-set-default-rationalize-error
@@ -858,7 +858,7 @@
                                             #<eof>))))"
 
 		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown" "___lst"
-		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar"
+		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar" "#_+"
 		    "(provide 'pizza)" "(require pizza)"
 		    
 		    "(call-with-exit (lambda (goto) goto))"
@@ -904,7 +904,7 @@
 
 		    "(mock-number 0)" "(mock-number 1-i)" "(mock-number 4/3)" "(mock-number 2.0)"
 		    "(mock-string #\\h #\\o #\\h #\\o)"
-		    "(mock-pair '(2 3 4))"
+		    "(mock-pair 2 3 4)"
 		    "(mock-char #\\b)"
 		    "(mock-symbol 'c)"
 		    "(mock-vector 1 2 3 4)"
@@ -1038,6 +1038,8 @@
 	      (list "(begin (float-vector " "(apply float-vector (list ")
 	      (list "(begin (values " "(apply values (list ")
 	      (list "(begin (_tr1_ " "(begin (_tr2_ ")
+	      (list "(begin (let ((x 0)) (set! (setter 'x) integer?) " 
+		    "(begin (let ((x 0)) (set! (setter 'x) (lambda (s v) (if (integer? v) v (error \"setter ~A not integer\" v)))) ")
 
 	      (list "(begin (do ((i 0 (+ i 1))) ((= i 1)) " "(let ((__x__ 1)) (do ((i 0 (+ i __x__))) ((= i __x__)) ")
 
@@ -1047,6 +1049,9 @@
 	      
 	      (list "(begin (_iter_ " "(begin (_map_ ")
 	      (list "(begin (_cat1_ " "(begin (_cat2_ ")
+	      (list "(begin (let ((+ -)) " "(begin (let () (define + -) ")
+	      (list "(let ((+ -)) (let ((cons list)) " "(let ((cons list)) (let ((+ -)) ")
+	      (list "(begin (#_vector " "(begin ((with-let (unlet) vector) ")
 	      (list "(let-temporarily (((*s7* 'print-length) 3)) (begin " "(let-temporarily (((*s7* 'print-length) 3)) (begin ")
 	      ))
       
