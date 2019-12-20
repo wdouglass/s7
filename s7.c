@@ -44219,34 +44219,38 @@ s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
  *    so set setter before use!
  */
 
+static s7_pointer call_c_function_setter(s7_scheme *sc, s7_pointer func, s7_pointer symbol, s7_pointer new_value)
+{
+  if (has_let_arg(func))
+    {
+      set_car(sc->t3_1, symbol);
+      set_car(sc->t3_2, new_value);
+      set_car(sc->t3_3, sc->envir);
+      return(c_function_call(func)(sc, sc->t3_1));
+    }
+  set_car(sc->t2_1, symbol);
+  set_car(sc->t2_2, new_value);
+  return(c_function_call(func)(sc, sc->t2_1));
+}
+
 static s7_pointer call_setter(s7_scheme *sc, s7_pointer slot, s7_pointer new_value) /* see also op_set1 */
 {
-  s7_pointer func, args;
+  s7_pointer func;
 
   func = slot_setter(slot);
   if (!is_procedure_or_macro(func))
     return(new_value);
 
   if (is_c_function(func))
-    {
-      if (has_let_arg(func))
-	{
-	  set_car(sc->t3_1, slot_symbol(slot));
-	  set_car(sc->t3_2, new_value);
-	  set_car(sc->t3_3, sc->envir);
-	  return(c_function_call(func)(sc, sc->t3_1));
-	}
-      set_car(sc->t2_1, slot_symbol(slot));
-      set_car(sc->t2_2, new_value);
-      return(c_function_call(func)(sc, sc->t2_1));
-    }
+    return(call_c_function_setter(sc, func, slot_symbol(slot), new_value));
+
+  push_stack_direct(sc, OP_EVAL_DONE, sc->args, sc->code);
   if (has_let_arg(func))
-    args = list_3(sc, slot_symbol(slot), new_value, sc->envir);
-  else args = list_2(sc, slot_symbol(slot), new_value);
-  push_stack_no_let(sc, OP_GC_PROTECT, args, slot);
-  args = s7_apply_function(sc, func, args); /* we're called from let_set, so we can't push something and return to the eval loop */
-  unstack(sc);
-  return(args);
+    sc->args = list_3(sc, slot_symbol(slot), new_value, sc->envir);
+  else sc->args = list_2(sc, slot_symbol(slot), new_value);
+  sc->code = func;
+  eval(sc, OP_APPLY);
+  return(sc->value);
 }
 
 static s7_pointer bind_symbol_with_setter(s7_scheme *sc, opcode_t op, s7_pointer symbol, s7_pointer new_value)
@@ -44258,18 +44262,8 @@ static s7_pointer bind_symbol_with_setter(s7_scheme *sc, opcode_t op, s7_pointer
     return(new_value);
 
   if (is_c_function(func))
-    {
-      if (has_let_arg(func))
-	{
-	  set_car(sc->t3_1, symbol);
-	  set_car(sc->t3_2, new_value);
-	  set_car(sc->t3_3, sc->envir);
-	  return(c_function_call(func)(sc, sc->t3_1));
-	}
-      set_car(sc->t2_1, symbol);
-      set_car(sc->t2_2, new_value);
-      return(c_function_call(func)(sc, sc->t2_1));
-    }
+    return(call_c_function_setter(sc, func, symbol, new_value));
+
   if (has_let_arg(func))
     sc->args = list_3(sc, symbol, new_value, sc->envir);
   else sc->args = list_2(sc, symbol, new_value);
@@ -74803,7 +74797,7 @@ static goto_t op_let_temp_init2(s7_scheme *sc)
 	  (is_pair(new_value)))
 	{
 	  push_stack_direct(sc, OP_LET_TEMP_INIT2, sc->args, sc->code);
-	  sc->code = list_3(sc, sc->set_symbol, settee, new_value);
+	  sc->code = list_3(sc, sc->set_symbol, settee, new_value); /* (let-temporarily (((*s7* 'print-length) 32)) 123) */
 	  return(goto_top_no_pop);
 	}
       slot = symbol_to_slot(sc, settee);
@@ -74841,9 +74835,9 @@ static bool op_let_temp_done1(s7_scheme *sc)
 	  (symbol_has_setter(settee)))
 	{
 	  push_stack_direct(sc, OP_LET_TEMP_DONE1, sc->args, sc->code);
-	  if ((is_pair(sc->value)) || (is_symbol(sc->value)))
+	  if ((is_pair(sc->value)) || (is_symbol(sc->value)))            /* (let-temporarily ((*load-path* ())) 32) here: (set! *load-path* '(".")) */
 	    sc->code = list_3(sc, sc->set_symbol, settee, list_2(sc, sc->quote_symbol, sc->value));
-	  else sc->code = list_3(sc, sc->set_symbol, settee, sc->value);
+	  else sc->code = list_3(sc, sc->set_symbol, settee, sc->value); /* (let-temporarily (((*s7* 'safety) 1)) 32) here: (set! (*s7* 'safety) 0) */
 	  return(false);
 	}
       slot = symbol_to_slot(sc, settee);
@@ -76660,7 +76654,7 @@ static bool op_cond1(s7_scheme *sc)
 		  sc->cur_op = optimize_op(sc->code);
 		  return(true);
 		}
-	      else push_stack_no_args(sc, sc->begin_op, T_Pair(cdr(sc->code)));
+	      push_stack_no_args(sc, sc->begin_op, T_Pair(cdr(sc->code)));
 	      sc->code = car(sc->code);
 	      sc->cur_op = optimize_op(sc->code);
 	      return(true);
@@ -76933,7 +76927,7 @@ static inline s7_pointer check_set(s7_scheme *sc)
     {
       if (is_null(code))                                             /* (set!) */
 	eval_error(sc, "set!: not enough arguments: ~A", 30, form);
-      eval_error(sc, "set!: stray dot? ~A",19,  form);                   /* (set! . 1) */
+      eval_error(sc, "set!: stray dot? ~A",19,  form);               /* (set! . 1) */
     }
   if (!is_pair(cdr(code)))
     {
@@ -77523,21 +77517,7 @@ static s7_pointer op_set1(s7_scheme *sc)
 	  if (is_procedure_or_macro(func))
 	    {
 	      if (is_c_function(func))
-		{
-		  if (has_let_arg(func))
-		    {
-		      set_car(sc->t3_1, sc->code);
-		      set_car(sc->t3_2, sc->value);
-		      set_car(sc->t3_3, sc->envir);
-		      sc->value = c_function_call(func)(sc, sc->t3_1);
-		    }
-		  else
-		    {
-		      set_car(sc->t2_1, sc->code);
-		      set_car(sc->t2_2, sc->value);
-		      sc->value = c_function_call(func)(sc, sc->t2_1);
-		    }
-		}
+		sc->value = call_c_function_setter(sc, func, sc->code, sc->value);
 	      else
 		{
 		  if (has_let_arg(func))
@@ -77562,15 +77542,16 @@ static s7_pointer op_set1(s7_scheme *sc)
       slot_set_value(lx, sc->value);
       return(sc->value);
     }
-  else
-    {
-      if (has_let_set_fallback(sc->envir))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
-	return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));
-    }
+
+  if (has_let_set_fallback(sc->envir))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
+    return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));
+
   eval_type_error(sc, "set! ~A: unbound variable", 25, sc->code);
 }
 
-static s7_pointer op_set2(s7_scheme *sc)
+static goto_t set_implicit(s7_scheme *sc);
+
+static goto_t op_set2(s7_scheme *sc)
 {
   if (is_pair(sc->value))
     {
@@ -77585,47 +77566,39 @@ static s7_pointer op_set2(s7_scheme *sc)
        * the other args need to be evaluated (but not the list as if it were code):
        *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
        */
-
       if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
-	eval_error(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
+	eval_error_no_return(sc, sc->syntax_error_symbol, "set! target arguments are an improper list: ~A", 46, sc->args);
 
-      /* in all of these cases, we might need to GC protect the temporary lists */
+      if (is_multiple_value(sc->value)) /* this has to be at least 2 args, sc->args and sc->code make 2 more, so... */
+	eval_error_no_return(sc, sc->syntax_error_symbol, "set!: too many arguments: ~S", 28, 
+			     cons(sc, sc->set_symbol, s7_append(sc, multiple_value(sc->value), s7_append(sc, sc->args, sc->code))));
 
-      if (is_multiple_value(sc->value))
-	sc->code = cons(sc, sc->set_symbol, s7_append(sc, multiple_value(sc->value), s7_append(sc, sc->args, sc->code))); /* drop into OP_SET */
-      else
-	{
-	  if (sc->args != sc->nil)
-	    {
-	      push_op_stack(sc, sc->list_set_function);
-	      sc->code = s7_append(sc, cdr(sc->args), sc->code);
-	      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), sc->code);
-	      sc->code = car(sc->args);
-	    }
-	  else eval_error(sc, "list set!: not enough arguments: ~S", 35, sc->code);
-	  return(sc->code); /* goto EVAL; */
-	}
+      if (sc->args == sc->nil)
+	eval_error_no_return(sc, sc->syntax_error_symbol, "list set!: not enough arguments: ~S", 35, sc->code);
+
+      push_op_stack(sc, sc->list_set_function);
+      sc->code = s7_append(sc, cdr(sc->args), sc->code);
+      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), sc->code);
+      sc->code = car(sc->args);
+      return(goto_eval);
     }
-  else
+
+  if (is_any_vector(sc->value))
     {
-      if (is_any_vector(sc->value))
-	{
-	  /* (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
-	   * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
-	   */
-	  if (sc->args != sc->nil)
-	    {
-	      push_op_stack(sc, sc->vector_set_function);
-	      sc->code = s7_append(sc, cdr(sc->args), sc->code);
-	      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), sc->code);
-	      sc->code = car(sc->args);
-	    }
-	  else eval_error(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
-	  return(sc->code); /* goto EVAL; */
-	}
-      sc->code = cons_unchecked(sc, sc->set_symbol, cons_unchecked(sc, cons(sc, sc->value, sc->args), sc->code));
+      /* (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
+       * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
+       */
+      if (sc->args == sc->nil)
+	eval_error_no_return(sc, sc->syntax_error_symbol, "vector set!: not enough arguments: ~S", 37, sc->code);
+
+      push_op_stack(sc, sc->vector_set_function);
+      sc->code = s7_append(sc, cdr(sc->args), sc->code);
+      push_stack(sc, OP_EVAL_ARGS1, list_1(sc, sc->value), sc->code);
+      sc->code = car(sc->args);
+      return(goto_eval);
     }
-  return(NULL); /* i.e. goto SET1 */
+  sc->code = cons_unchecked(sc, sc->set_symbol, cons_unchecked(sc, cons(sc, sc->value, sc->args), sc->code)); /* (let ((x 32)) (set! ((curlet) 'x) 3) x) */
+  return(set_implicit(sc));
 }
 
 static void op_set_from_setter(s7_scheme *sc)
@@ -77662,6 +77635,7 @@ static bool op_set_with_let_1(s7_scheme *sc)
 	}
       sc->value = lookup_checked(sc, e);
       sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
+      /* (let* ((x (vector 1 2)) (lt (curlet))) (set! (with-let lt (x 0)) 32) x) here: (set! (x 0) 32) */
       return(false);
     }
   sc->code = e;                       /* 'e above, an expression we need to evaluate */
@@ -77684,9 +77658,9 @@ static bool op_set_with_let_2(s7_scheme *sc)
       sc->value = let_set_1(sc, sc->value, b, x);
       return(true);
     }
-  if ((is_symbol(x)) || (is_pair(x)))
+  if ((is_symbol(x)) || (is_pair(x)))                 /* (set! (with-let (inlet :v (vector 1 2)) (v 0)) 'a) */
     sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
-  else sc->code = cons(sc, sc->set_symbol, sc->args);
+  else sc->code = cons(sc, sc->set_symbol, sc->args); /* (set! (with-let (curlet) (*s7* 'print-length)) 16), x=16 b=(*s7* 'print-length) */
   return(false);
 }
 
@@ -89430,9 +89404,17 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SET_CONS:         op_set_cons(sc);         continue;
  	case OP_SET_SAFE:	  op_set_safe(sc);  	   continue;
 
-	case OP_SET2: if (op_set2(sc)) goto EVAL;
-	case OP_SET:  check_set(sc);
+	case OP_SET2: 
+	  switch (op_set2(sc))
+	    {
+	    case goto_eval:       goto EVAL;
+	    case goto_top_no_pop: goto TOP_NO_POP;
+	    case goto_start:      continue;
+	    case goto_apply:      goto APPLY;
+	    default:              goto EVAL_ARGS;
+	    }
 
+	case OP_SET:  check_set(sc);
 	case OP_SET_UNCHECKED:
 	  set_current_code(sc, sc->code);
 	  if (is_pair(cadr(sc->code)))             /* has setter */
@@ -94333,6 +94315,8 @@ static s7_pointer memory_usage(s7_scheme *sc)
       len = sc->autoload_names_top * (sizeof(const char **) + sizeof(s7_int) + sizeof(bool));
       for (i = 0; i < sc->autoload_names_loc; i++) len += sc->autoload_names_sizes[i];
       make_slot_1(sc, mu_let, make_symbol(sc, "autoload"), make_integer(sc, len));
+      
+      make_slot_1(sc, mu_let, make_symbol(sc, "circle_info"), make_integer(sc, sc->circle_info->size * (sizeof(s7_pointer) + sizeof(int32_t) + sizeof(bool))));
 
       len = sc->strings->size + sc->vectors->size + sc->input_ports->size + sc->output_ports->size + sc->input_string_ports->size + 
 	    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->unknowns->size + 
@@ -94436,7 +94420,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
       }
     }
   
-  /* perhaps shared|circle_info, opt_func data */
+  /* perhaps opt_func data */
   s7_gc_unprotect_at(sc, gc_loc);
   return(mu_let);
 }
@@ -97358,16 +97342,16 @@ int main(int argc, char **argv)
  * tref     1093 |  779
  * index     971 |  890
  * teq      1617 | 1542
- * s7test   1776 | 1712
+ * s7test   1776 | 1711
  * tvect    5115 | 1735
  * lt       2278 | 2073
  * tcopy    2434 | 2273
- * tmisc    2852 | 2283
- * tform    2472 | 2317
+ * tmisc    2852 | 2282
+ * tform    2472 | 2315
  * tread    2449 | 2426
  * tmat     6072 | 2479
  * fbench   2974 | 2643
- * dup      6333 | 2694
+ * dup      6333 | 2703
  * trclo    7985 | 2791
  * tb       3251 | 2799
  * tmap     3238 | 2883
@@ -97375,8 +97359,8 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043
  * tset     6616 | 3083
  * tmac     3391 | 3186
- * tfft     4288 | 3820
- * tlet     5409 | 4642
+ * tfft     4288 | 3819
+ * tlet     5409 | 4641
  * tclo     6206 | 4896
  * trec     17.8 | 6318
  * thash    10.3 | 6807
@@ -97392,10 +97376,14 @@ int main(int argc, char **argv)
  * t718: somehow sc != cur_sc?
  * optimize_expression|syntax extended to other syntax_a cases?
  *   let_a_fx (begin_fx) including set! if it's a local variable and fx-following uses "p" for it
+ *   set! in opt and fx is ok if not used elsewhere or known "p" case (implicit vector etc)
  * tsig = sig+set timings
- * append for set? -- if setter a safe closure, call direct without copied args (call_setter)
+ *   symbol|function|vector|hash setters, also via integer? etc, typed let, function sigs, built-in called via setter? macro: logbit?
+ *   set! -> cons and s7_append cases perhaps -> tmisc
+ * append for set? -- if setter a safe closure, call direct without copied args
  *   op: let_temp_init_2|done1, set1|2, set_from_setter|with_let_1|2
  * if (lambda...) as arg (to g_set_setter for example, op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
- *   could g_set_setter call it?  Then op_set1 needs to take advantage of it (why 3 times the same code set_setter/bind_setter/op_set1?)
- * let+lambda -- not set safe?
+ *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
+ * let+lambda -- not set safe either?
+ * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator/hash-ref/set/display/incr/equal -- lots of complication
  */
