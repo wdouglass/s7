@@ -4000,7 +4000,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SET_UNCHECKED, OP_SET_SYMBOL_C, OP_SET_SYMBOL_S, OP_SET_SYMBOL_P, OP_SET_SYMBOL_A,
       OP_SET_NORMAL, OP_SET_PAIR, OP_SET_DILAMBDA, OP_SET_DILAMBDA_P, OP_SET_DILAMBDA_P_1, OP_SET_DILAMBDA_SA_A,
       OP_SET_PAIR_A, OP_SET_PAIR_P, OP_SET_PAIR_ZA,
-      OP_SET_PAIR_P_1, OP_SET_FROM_SETTER, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
+      OP_SET_PAIR_P_1, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
       OP_INCREMENT_1, OP_DECREMENT_1, OP_SET_CONS,
       OP_INCREMENT_SS, OP_INCREMENT_SP, OP_INCREMENT_SA, OP_INCREMENT_SAA,
 
@@ -4238,7 +4238,7 @@ static const char* op_names[NUM_OPS] =
       "set_unchecked", "set_symbol_c", "set_symbol_s", "set_symbol_p", "set_symbol_a",
       "set_normal", "set_pair", "set_dilambda", "set_dilambda_p", "set_dilambda_p_1", "set_dilambda_sa_a",
       "set_pair_a", "set_pair_p", "set_pair_za",
-      "set_pair_p_1", "set_with_setter", "set_pws", "set_let_s", "set_let_fx", "set_safe",
+      "set_pair_p_1", "set_pws", "set_let_s", "set_let_fx", "set_safe",
       "increment_1", "decrement_1", "set_cons",
       "increment_ss", "increment_sp", "increment_sa", "increment_saa",
       "letrec_unchecked", "letrec*_unchecked", "cond_unchecked",
@@ -4564,19 +4564,10 @@ static s7_pointer method_or_bust_with_type_one_arg(s7_scheme *sc, s7_pointer obj
   return(simple_wrong_type_argument_with_type(sc, method, obj, typ));
 }
 
-#define eval_error_any(Sc, ErrType, ErrMsg, Len, Obj) return(s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj)))
-#define eval_error(Sc, ErrMsg, Len, Obj)              eval_error_any(Sc, Sc->syntax_error_symbol, ErrMsg, Len, Obj)
-#define eval_type_error(Sc, ErrMsg, Len, Obj)         eval_error_any(Sc, Sc->wrong_type_arg_symbol, ErrMsg, Len, Obj)
-#define eval_range_error(Sc, ErrMsg, Len, Obj)        eval_error_any(Sc, Sc->out_of_range_symbol, ErrMsg, Len, Obj)
-
-#define eval_error_no_return(Sc, ErrType, ErrMsg, Len, Obj) \
-  s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj))
-
-#define eval_error_with_caller(Sc, ErrMsg, Len, Caller, Obj)	\
-  return(s7_error(Sc, Sc->syntax_error_symbol, set_elist_3(Sc, wrap_string(Sc, ErrMsg, Len), Caller, Obj)))
-
-#define eval_error_with_caller2(Sc, ErrMsg, Len, Caller, Name, Obj)	\
-  return(s7_error(Sc, Sc->syntax_error_symbol, set_elist_4(Sc, wrap_string(Sc, ErrMsg, Len), Caller, Name, Obj)))
+#define eval_error_any(Sc, ErrType, ErrMsg, Len, Obj) s7_error(Sc, ErrType, set_elist_2(Sc, wrap_string(Sc, ErrMsg, Len), Obj))
+#define eval_error(Sc, ErrMsg, Len, Obj) eval_error_any(Sc, Sc->syntax_error_symbol, ErrMsg, Len, Obj)
+#define eval_error_with_caller(Sc, ErrMsg, Len, Caller, Obj) s7_error(Sc, Sc->syntax_error_symbol, set_elist_3(Sc, wrap_string(Sc, ErrMsg, Len), Caller, Obj))
+#define eval_error_with_caller2(Sc, ErrMsg, Len, Caller, Name, Obj) s7_error(Sc, Sc->syntax_error_symbol, set_elist_4(Sc, wrap_string(Sc, ErrMsg, Len), Caller, Name, Obj))
 
 
 /* -------------------------------- constants -------------------------------- */
@@ -35872,7 +35863,7 @@ static bool assoc_if(s7_scheme *sc)
   else push_stack_direct(sc, OP_ASSOC_IF1, sc->args, sc->code);
 
   if (!is_pair(car(opt1_fast(orig_args))))     /* (assoc 1 '((2 . 2) 3) =) -- we access caaadr below */
-    eval_type_error(sc, "assoc: second arg is not an alist: ~S", 37, orig_args);
+    eval_error_any(sc, sc->wrong_type_arg_symbol, "assoc: second arg is not an alist: ~S", 37, orig_args);
   /* not sure about this -- we could simply skip the entry both here and in g_assoc
    *   (assoc 1 '((2 . 2) 3)) -> #f
    *   (assoc 1 '((2 . 2) 3) =) -> error currently
@@ -39462,6 +39453,18 @@ static s7_pointer int_vector_set_p_ppp(s7_scheme *sc, s7_pointer v, s7_pointer i
 	return(method_or_bust(sc, index, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 2));
       if (!s7_is_integer(val))
 	return(method_or_bust(sc, index, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 2));
+#if WITH_GMP
+      {
+	s7_int i, ival;
+	i = s7_integer(index);
+	ival = s7_integer(val);
+	int_vector(v, i) = ival;
+      }
+#else
+#if S7_DEBUGGING
+      fprintf(stderr, "fell through %s[%d]\n", __func__, __LINE__);
+#endif
+#endif
     }
   return(val);
 }
@@ -40556,7 +40559,7 @@ static s7_pointer op_heapsort(s7_scheme *sc)
     {
       SORT_CALLS++;
       if (SORT_CALLS > SORT_STOP)
-	eval_range_error(sc, "sort! is caught in an infinite loop, comparison: ~S", 51, SORT_LESSP);
+	eval_error_any(sc, sc->out_of_range_symbol, "sort! is caught in an infinite loop, comparison: ~S", 51, SORT_LESSP);
     }
   j = 2 * k;
   SORT_J = j;
@@ -42205,6 +42208,7 @@ That is, (weak-hash-table 'a 1 'b 2) returns a new weak-hash-table with the two 
   s7_pointer table;
   table = g_hash_table(sc, args);
   set_weak_hash_table(table);
+  weak_hash_iters(table) = 0;
   return(table);
 }
 
@@ -43081,7 +43085,7 @@ static s7_pointer fallback_ref(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer fallback_set(s7_scheme *sc, s7_pointer args)
 {
-  eval_error(sc, "attempt to set ~S?", 18, car(args));
+  return(eval_error(sc, "attempt to set ~S?", 18, car(args)));
 }
 
 static s7_pointer fallback_length(s7_scheme *sc, s7_pointer obj)
@@ -43324,7 +43328,7 @@ static s7_pointer c_object_length(s7_scheme *sc, s7_pointer obj)
 {
   if (c_object_len(sc, obj))
     return((*(c_object_len(sc, obj)))(sc, set_clist_1(sc, obj)));
-  eval_error(sc, "attempt to get length of ~S?", 28, obj);
+  return(eval_error(sc, "attempt to get length of ~S?", 28, obj));
 }
 
 static s7_int c_object_length_to_int(s7_scheme *sc, s7_pointer obj)
@@ -43346,7 +43350,7 @@ static s7_pointer copy_c_object(s7_scheme *sc, s7_pointer args)
   check_method(sc, obj, sc->copy_symbol, args);
   if (c_object_copy(sc, obj))
     return((*(c_object_copy(sc, obj)))(sc, args));
-  eval_error(sc, "attempt to copy ~S?", 19, obj);
+  return(eval_error(sc, "attempt to copy ~S?", 19, obj));
 }
 
 static s7_pointer c_object_type_to_let(s7_scheme *sc, s7_pointer cobj)
@@ -67024,7 +67028,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	  (result != sc->unspecified))
 	return(result);
     }
-  eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sym);
+  return(eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sym));
 }
 
 static s7_pointer syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
@@ -72012,7 +72016,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 		  s7_pointer p;
 		  for (p = cdr(x); is_pair(p); p = cdr(p));
 		  if (!is_null(p))
-		    eval_error_no_return(sc, sc->syntax_error_symbol, "stray dot in function body: ~S", 30, code);
+		    eval_error(sc, "stray dot in function body: ~S", 30, code);
 		  return(OPT_OOPS);
 		}
 	    }
@@ -72027,7 +72031,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 	}
     }
   if (!is_list(x))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "stray dot in function body: ~S", 30, code);
+    eval_error(sc, "stray dot in function body: ~S", 30, code);
   return(OPT_F);
 }
 
@@ -72800,11 +72804,11 @@ static int32_t check_lambda_1(s7_scheme *sc, bool optl)
 
   code = cdr(sc->code);
   if (!is_pair(code))                                 /* (lambda) or (lambda . 1) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "lambda: no args? ~A", 19, sc->code);
+    eval_error(sc, "lambda: no args? ~A", 19, sc->code);
 
   body = cdr(code);
   if (!is_pair(body))                                 /* (lambda #f) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "lambda: no body? ~A", 19, sc->code);
+    eval_error(sc, "lambda: no body? ~A", 19, sc->code);
 
   /* in many cases, this is a no-op -- we already checked at define */
   check_lambda_args(sc, car(code), &arity);
@@ -72868,7 +72872,7 @@ static void check_lambda_star(s7_scheme *sc)
   sc->code = cdr(sc->code);
   if ((!is_pair(sc->code)) ||
       (!is_pair(cdr(sc->code))))                                          /* (lambda*) or (lambda* #f) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "lambda*: no args or no body? ~A", 31, form);
+    eval_error(sc, "lambda*: no args or no body? ~A", 31, form);
 
   set_car(sc->code, check_lambda_star_args(sc, car(sc->code), NULL));
 
@@ -74167,21 +74171,21 @@ static bool check_let_star(s7_scheme *sc)
   code = cdr(form);
 
   if (!is_pair(code))                           /* (let* . 1) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable list is messed up: ~A", 35, form);
+    eval_error(sc, "let* variable list is messed up: ~A", 35, form);
   if (!is_pair(cdr(code)))                      /* (let* ()) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "let* has no body: ~A", 20, form);
+    eval_error(sc, "let* has no body: ~A", 20, form);
 
   named_let = (is_symbol(car(code)));
 
   if (named_let)
     {
       if (!is_list(cadr(code)))                 /* (let* hi #t) */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable list is messed up: ~A", 35, form);
+	eval_error(sc, "let* variable list is messed up: ~A", 35, form);
       if (!is_pair(cddr(code)))                 /* (let* hi () . =>) or (let* hi () ) */
 	{
 	  if (is_null(cddr(code)))
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "named let* has no body: ~A", 26, form);
-	  else eval_error_no_return(sc, sc->syntax_error_symbol, "named let* stray dot? ~A", 24, form);
+	    eval_error(sc, "named let* has no body: ~A", 26, form);
+	  else eval_error(sc, "named let* stray dot? ~A", 24, form);
 	}
       if (is_constant_symbol(sc, car(code)))
 	s7_error(sc, sc->wrong_type_arg_symbol,
@@ -74191,7 +74195,7 @@ static bool check_let_star(s7_scheme *sc)
   else
     {
       if (!is_list(car(code)))                      /* (let* x ... ) */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable declaration value is missing: ~A", 46, form);
+	eval_error(sc, "let* variable declaration value is missing: ~A", 46, form);
     }
 
   for (vars = ((named_let) ? cadr(code) : car(code)); is_pair(vars); vars = cdr(vars))
@@ -74200,22 +74204,22 @@ static bool check_let_star(s7_scheme *sc)
       var_and_val = car(vars);
 
       if (!is_pair(var_and_val))                    /* (let* (3) ... */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable list is messed up? ~A", 35, var_and_val);
+	eval_error(sc, "let* variable list is messed up? ~A", 35, var_and_val);
 
       /* no check for repeated var (unlike lambda* and named let*) */
       if (!(is_pair(cdr(var_and_val))))             /* (let* ((x . 1))...) */
 	{
 	  if (is_null(cdr(var_and_val)))
-	    eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable declaration, but no value?: ~A", 44, var_and_val);
-	  else eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable declaration is not a proper list?: ~A", 51, var_and_val);
+	    eval_error(sc, "let* variable declaration, but no value?: ~A", 44, var_and_val);
+	  else eval_error(sc, "let* variable declaration is not a proper list?: ~A", 51, var_and_val);
 	}
       if (!is_null(cddr(var_and_val)))              /* (let* ((c 1 2)) ...) */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable declaration has more than one value?: ~A", 54, var_and_val);
+	eval_error(sc, "let* variable declaration has more than one value?: ~A", 54, var_and_val);
 
       var = car(var_and_val);
 
       if (!(is_symbol(var)))                        /* (let* ((3 1)) 1) */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "bad variable ~S in let*", 23, var);
+	eval_error(sc, "bad variable ~S in let*", 23, var);
 
       if (is_constant_symbol(sc, var))              /* (let* ((pi 3)) ...) */
 	s7_error(sc, sc->wrong_type_arg_symbol,
@@ -74228,10 +74232,10 @@ static bool check_let_star(s7_scheme *sc)
       set_local(var);
     }
   if (!is_null(vars))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "let* variable list is not a proper list?: ~A", 44, vars);
+    eval_error(sc, "let* variable list is not a proper list?: ~A", 44, vars);
 
   if (!s7_is_proper_list(sc, cdr(code)))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "stray dot in let* body: ~S", 26, cdr(code));
+    eval_error(sc, "stray dot in let* body: ~S", 26, cdr(code));
 
   for (vars = (named_let) ? cadr(code) : car(code); is_pair(vars); vars = cdr(vars))
     {
@@ -74792,17 +74796,18 @@ static goto_t op_let_temp_init2(s7_scheme *sc)
       new_value = car(cadddr(sc->args));
       cadddr(sc->args) = cdr(cadddr(sc->args));
       car(sc->args) = cdar(sc->args);
-      if ((!is_symbol(settee)) ||
-	  (symbol_has_setter(settee)) ||
-	  (is_pair(new_value)))
+      if ((!is_symbol(settee)) ||                /* (let-temporarily (((*s7* 'print-length) 32)) ...) */
+	  (symbol_has_setter(settee)) ||         /*                  ((*features* #f))... */
+	  (is_pair(new_value)))                  /*                  ((line-number (if (eq? caller top-level:) -1 line-number)))... */
 	{
 	  push_stack_direct(sc, OP_LET_TEMP_INIT2, sc->args, sc->code);
-	  sc->code = list_3(sc, sc->set_symbol, settee, new_value); /* (let-temporarily (((*s7* 'print-length) 32)) 123) */
+	  sc->code = list_3(sc, sc->set_symbol, settee, new_value); 
+	  /* fprintf(stderr, "%d %s\n", __LINE__, display(sc->code)); */
 	  return(goto_top_no_pop);
 	}
       slot = symbol_to_slot(sc, settee);
       if (!is_slot(slot))
-	eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
       if (is_immutable_slot(slot))
 	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
       if (is_symbol(new_value))
@@ -74838,7 +74843,7 @@ static bool op_let_temp_done1(s7_scheme *sc)
 	  if ((is_pair(sc->value)) || (is_symbol(sc->value)))            /* (let-temporarily ((*load-path* ())) 32) here: (set! *load-path* '(".")) */
 	    sc->code = list_3(sc, sc->set_symbol, settee, list_2(sc, sc->quote_symbol, sc->value));
 	  else sc->code = list_3(sc, sc->set_symbol, settee, sc->value); /* (let-temporarily (((*s7* 'safety) 1)) 32) here: (set! (*s7* 'safety) 0) */
-	  return(false);
+	  return(false); /* goto eval */
 	}
       slot = symbol_to_slot(sc, settee);
       if (is_immutable_slot(slot))
@@ -74849,7 +74854,7 @@ static bool op_let_temp_done1(s7_scheme *sc)
   sc->value = sc->code;
   if (is_multiple_value(sc->value))
     sc->value = splice_in_values(sc, multiple_value(sc->value));
-  return(true);
+  return(true); /* goto start */
 }
 
 static void op_let_temp_s7(s7_scheme *sc) /* all entries are of the form ((*s7* 'field) fx-able-value) */
@@ -74912,7 +74917,7 @@ static void op_let_temp_fx(s7_scheme *sc) /* all entries are of the form (symbol
       settee = car(var);
       slot = symbol_to_slot(sc, settee);
       if (!is_slot(slot))
-	eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
       if (is_immutable_slot(slot))
 	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
       push_stack(sc, OP_LET_TEMP_UNWIND, slot_value(slot), slot);
@@ -74939,7 +74944,7 @@ static void op_let_temp_fx_1(s7_scheme *sc) /* one entry */
   settee = car(var);
   slot = symbol_to_slot(sc, settee);
   if (!is_slot(slot))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
   if (is_immutable_slot(slot))
     immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
   push_stack(sc, OP_LET_TEMP_UNWIND, slot_value(slot), slot);
@@ -75042,7 +75047,7 @@ static bool check_and(s7_scheme *sc, s7_pointer expr)
     }
 
   if (is_not_null(p))                                    /* (and . 1) (and #t . 1) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "and: stray dot?: ~A", 19, expr);
+    eval_error(sc, "and: stray dot?: ~A", 19, expr);
 
   if ((c_callee(code)) &&
       (is_proper_list_1(sc, cdr(code))))
@@ -75155,7 +75160,7 @@ static bool check_or(s7_scheme *sc, s7_pointer expr)
       set_c_call_checked(p, callee);
     }
   if (is_not_null(p))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "or: stray dot?: ~A", 18, expr);
+    eval_error(sc, "or: stray dot?: ~A", 18, expr);
 
   if ((c_callee(code)) &&
       (is_proper_list_1(sc, cdr(code)))) /* list_1 of cdr so there are 2 exprs */
@@ -75664,7 +75669,7 @@ static bool op_begin(s7_scheme *sc)
   set_current_code(sc, form);
   sc->code = cdr(sc->code);
   if (!s7_is_proper_list(sc, sc->code))    /* proper list includes () */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "unexpected dot? ~A", 18, form);
+    eval_error(sc, "unexpected dot? ~A", 18, form);
   if (is_null(sc->code))                   /* (begin) -> () */
     {
       sc->value = sc->nil;
@@ -76088,10 +76093,10 @@ static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
   if ((!is_pair(sc->code)) ||
       (!is_pair(car(sc->code))) ||
       (!is_symbol(caar(sc->code))))
-    eval_error(sc, "define-macro: ~S does not look like a macro?", 44, sc->code);
+    return(eval_error(sc, "define-macro: ~S does not look like a macro?", 44, sc->code)); /* return here for callgrind */
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code));
+    eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code));
   sc->value = make_macro(sc, sc->cur_op);
   return(NULL);
 }
@@ -76116,7 +76121,7 @@ static bool op_define_macro(s7_scheme *sc)
     }
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_no_return_with_caller? */
+    eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_any_with_caller? */
   sc->value = make_macro(sc, sc->cur_op);
   return(true);
 }
@@ -76290,7 +76295,7 @@ static goto_t macroexpand(s7_scheme *sc)
       return(goto_start);
 
     default:
-      eval_error_no_return(sc, sc->syntax_error_symbol, "macroexpand argument is not a macro call: ~A", 44, sc->args);
+      eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->args);
     }
   return(fall_through); /* for the compiler */
 }
@@ -76304,9 +76309,9 @@ static goto_t op_macroexpand(s7_scheme *sc)
    */
   if ((!is_pair(sc->code)) ||
       (!is_pair(car(sc->code))))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "macroexpand argument is not a macro call: ~A", 44, sc->code);
+    eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->code);
   if (!is_null(cdr(sc->code)))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "macroexpand: too many arguments: ~A", 35, sc->code);
+    eval_error(sc, "macroexpand: too many arguments: ~A", 35, sc->code);
 
   if (is_pair(caar(sc->code)))                            /* (macroexpand ((symbol->value 'mac) (+ 1 2))) */
     {
@@ -76317,7 +76322,7 @@ static goto_t op_macroexpand(s7_scheme *sc)
 
   sc->args = copy_proper_list(sc, cdar(sc->code));               /* apply_lambda reuses args as slots, and these have not been copied yet */
   if (!is_symbol(caar(sc->code)))
-    eval_error_no_return(sc, sc->syntax_error_symbol, "macroexpand argument is not a macro call: ~A", 44, sc->code);
+    eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->code);
   sc->code = lookup_checked(sc, caar(sc->code));
   return(macroexpand(sc));
 }
@@ -76432,7 +76437,7 @@ static inline s7_pointer op_with_let_s(s7_scheme *sc)
   else
     {
       if (!is_let(e))
-	eval_type_error(sc, "with-let takes an environment argument: ~A", 42, e);
+	eval_error_any(sc, sc->wrong_type_arg_symbol, "with-let takes an environment argument: ~A", 42, e);
       set_with_let_let(e);
       let_id(e) = ++sc->let_number;
       sc->envir = e;
@@ -77330,12 +77335,12 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	  s7_int index;
 
 	  if (!is_t_integer(arg))
-	    eval_type_error(sc, "vector-set!: index must be an integer: ~S", 41, sc->code);
+	    eval_error_any(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
 	  index = integer(arg);
 	  if (index < 0)
-	    eval_range_error(sc, "vector-set!: index must not be negative: ~S", 43, sc->code);
+	    eval_error_any(sc, sc->out_of_range_symbol, "vector-set!: index must not be negative: ~S", 43, sc->code);
 	  if (index >= vector_length(obj))
-	    eval_range_error(sc, "vector-set!: index must be less than vector length: ~S", 54, sc->code);
+	    eval_error_any(sc, sc->out_of_range_symbol, "vector-set!: index must be less than vector length: ~S", 54, sc->code);
 	  if (is_immutable(obj))
 	    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->vector_set_symbol, obj));
 	  if (is_typed_vector(obj))
@@ -77361,12 +77366,12 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
       {
 	s7_int index;
 	if (!is_t_integer(arg))
-	  eval_type_error(sc, "index must be an integer: ~S", 28, sc->code);
+	  eval_error_any(sc, sc->wrong_type_arg_symbol, "index must be an integer: ~S", 28, sc->code);
 	index = integer(arg);
 	if (index < 0)
-	  eval_range_error(sc, "index must not be negative: ~S", 30, sc->code);
+	  eval_error_any(sc, sc->out_of_range_symbol, "index must not be negative: ~S", 30, sc->code);
 	if (index >= string_length(obj))
-	  eval_range_error(sc, "index must be less than sequence length: ~S", 43, sc->code);
+	  eval_error_any(sc, sc->out_of_range_symbol, "index must be less than sequence length: ~S", 43, sc->code);
 	if (is_immutable(obj))
 	  immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->string_set_symbol, obj));
 
@@ -77375,7 +77380,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	    string_value(obj)[index] = (char)s7_character(value);
 	    sc->value = value;
 	  }
-	else eval_type_error(sc, "(string-)set!: value must be a character: ~S", 44, sc->code);
+	else eval_error_any(sc, sc->wrong_type_arg_symbol, "(string-)set!: value must be a character: ~S", 44, sc->code);
       }
 #endif
       break;
@@ -77500,7 +77505,7 @@ static void op_set_safe(s7_scheme *sc)
   lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
   if (is_slot(lx))
     slot_set_value(lx, sc->value);
-  else eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sc->code);
+  else eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sc->code);
 }
 
 static s7_pointer op_set1(s7_scheme *sc)
@@ -77520,12 +77525,12 @@ static s7_pointer op_set1(s7_scheme *sc)
 		sc->value = call_c_function_setter(sc, func, sc->code, sc->value);
 	      else
 		{
+		  push_stack_direct(sc, OP_EVAL_DONE, sc->args, sc->code);
 		  if (has_let_arg(func))
 		    sc->args = list_3(sc, sc->code, sc->value, sc->envir);
 		  else sc->args = list_2(sc, sc->code, sc->value);
-		  push_stack(sc, OP_SET_FROM_SETTER, sc->args, lx); /* op, args, code */
 		  sc->code = func;
-		  return(NULL);
+		  eval(sc, OP_APPLY); /* sets sc->value, used below */
 		}
 	    }
 	}
@@ -77540,13 +77545,13 @@ static s7_pointer op_set1(s7_scheme *sc)
       if (is_immutable(lx))
 	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, lx));
       slot_set_value(lx, sc->value);
-      return(sc->value);
+      return(sc->value); /* goto START */
     }
 
   if (has_let_set_fallback(sc->envir))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
     return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));
 
-  eval_type_error(sc, "set! ~A: unbound variable", 25, sc->code);
+  return(eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, sc->code));
 }
 
 static goto_t set_implicit(s7_scheme *sc);
@@ -77567,14 +77572,14 @@ static goto_t op_set2(s7_scheme *sc)
        *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
        */
       if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "set! target arguments are an improper list: ~A", 46, sc->args);
+	eval_error(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
 
       if (is_multiple_value(sc->value)) /* this has to be at least 2 args, sc->args and sc->code make 2 more, so... */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "set!: too many arguments: ~S", 28, 
+	eval_error(sc, "set!: too many arguments: ~S", 28, 
 			     cons(sc, sc->set_symbol, s7_append(sc, multiple_value(sc->value), s7_append(sc, sc->args, sc->code))));
 
       if (sc->args == sc->nil)
-	eval_error_no_return(sc, sc->syntax_error_symbol, "list set!: not enough arguments: ~S", 35, sc->code);
+	eval_error(sc, "list set!: not enough arguments: ~S", 35, sc->code);
 
       push_op_stack(sc, sc->list_set_function);
       sc->code = s7_append(sc, cdr(sc->args), sc->code);
@@ -77589,7 +77594,7 @@ static goto_t op_set2(s7_scheme *sc)
        * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
        */
       if (sc->args == sc->nil)
-	eval_error_no_return(sc, sc->syntax_error_symbol, "vector set!: not enough arguments: ~S", 37, sc->code);
+	eval_error(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
 
       push_op_stack(sc, sc->vector_set_function);
       sc->code = s7_append(sc, cdr(sc->args), sc->code);
@@ -77599,13 +77604,6 @@ static goto_t op_set2(s7_scheme *sc)
     }
   sc->code = cons_unchecked(sc, sc->set_symbol, cons_unchecked(sc, cons(sc, sc->value, sc->args), sc->code)); /* (let ((x 32)) (set! ((curlet) 'x) 3) x) */
   return(set_implicit(sc));
-}
-
-static void op_set_from_setter(s7_scheme *sc)
-{
-  if (is_immutable(sc->code))
-    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, sc->code));
-  slot_set_value(sc->code, sc->value);
 }
 
 static bool op_set_with_let_1(s7_scheme *sc)
@@ -77636,13 +77634,13 @@ static bool op_set_with_let_1(s7_scheme *sc)
       sc->value = lookup_checked(sc, e);
       sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
       /* (let* ((x (vector 1 2)) (lt (curlet))) (set! (with-let lt (x 0)) 32) x) here: (set! (x 0) 32) */
-      return(false);
+      return(false); /* goto SET_WITH_LET */
     }
   sc->code = e;                       /* 'e above, an expression we need to evaluate */
   sc->args = list_2(sc, b, x);        /* can't reuse sc->args here via set-car! etc */
   push_stack_direct(sc, OP_SET_WITH_LET_2, sc->args, sc->code);
   sc->cur_op = optimize_op(sc->code);
-  return(true);
+  return(true); /* goto top_no_pop */
 }
 
 static bool op_set_with_let_2(s7_scheme *sc)
@@ -77656,12 +77654,12 @@ static bool op_set_with_let_2(s7_scheme *sc)
   if (is_symbol(b))   /* b is a symbol -- everything else is ready so call let-set! */
     {
       sc->value = let_set_1(sc, sc->value, b, x);
-      return(true);
+      return(true); /* goto START */
     }
   if ((is_symbol(x)) || (is_pair(x)))                 /* (set! (with-let (inlet :v (vector 1 2)) (v 0)) 'a) */
     sc->code = list_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
   else sc->code = cons(sc, sc->set_symbol, sc->args); /* (set! (with-let (curlet) (*s7* 'print-length)) 16), x=16 b=(*s7* 'print-length) */
-  return(false);
+  return(false); /* fall into SET_WITH_LET */
 }
 
 static bool op_set_normal(s7_scheme *sc)
@@ -77892,7 +77890,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx, s7_pointer form)
 		  if (is_symbol(index))
 		    index = lookup_checked(sc, index);
 		  if (!s7_is_integer(index))
-		    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
+		    eval_error_any(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
 		  car(pa) = index;
 		}
 	      car(pa) = cadr(sc->code);
@@ -77930,7 +77928,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer cx, s7_pointer form)
       if (is_symbol(index))
 	index = lookup_checked(sc, index);
       if (!s7_is_integer(index))
-	eval_error_no_return(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
+	eval_error_any(sc, sc->wrong_type_arg_symbol, "vector-set!: index must be an integer: ~S", 41, sc->code);
       ind = s7_integer(index);
       if ((ind < 0) ||
 	  (ind >= vector_length(cx)))
@@ -77988,7 +77986,7 @@ static goto_t set_implicit_string(s7_scheme *sc, s7_pointer cx)
       if (is_symbol(index))
 	index = lookup_checked(sc, index);
       if (!s7_is_integer(index))
-	eval_error_no_return(sc, sc->wrong_type_arg_symbol, "index must be an integer: ~S", 28, sc->code);
+	eval_error_any(sc, sc->wrong_type_arg_symbol, "index must be an integer: ~S", 28, sc->code);
       ind = s7_integer(index);
       if ((ind < 0) ||
 	  (ind >= string_length(cx)))
@@ -78007,7 +78005,7 @@ static goto_t set_implicit_string(s7_scheme *sc, s7_pointer cx)
 	      sc->value = val;
 	      return(goto_start);
 	    }
-	  eval_error_no_return(sc, sc->wrong_type_arg_symbol, "value must be a character: ~S", 29, sc->code);
+	  eval_error_any(sc, sc->wrong_type_arg_symbol, "value must be a character: ~S", 29, sc->code);
 	}
       push_op_stack(sc, sc->string_set_function);
       sc->args = list_2(sc, index, cx);
@@ -78419,7 +78417,7 @@ static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ..
 static void activate_let(s7_scheme *sc, s7_pointer e)
 {
   if (!is_let(e))                    /* (with-let . "hi") */
-    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "with-let takes an environment argument: ~A", 42, e);
+    eval_error_any(sc, sc->wrong_type_arg_symbol, "with-let takes an environment argument: ~A", 42, e);
   if (e == sc->rootlet)
     sc->envir = sc->nil;                             /* (with-let (rootlet) ...) */
   else
@@ -79589,7 +79587,7 @@ static goto_t op_dox(s7_scheme *sc)
 	      val = car(val);
 	      slot = symbol_to_slot(sc, cadr(body));
 	      if (slot == sc->undefined)
- 		eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, cadr(body));
+ 		eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, cadr(body));
 	      stepf = c_callee(slot_expression(stepper));
 	      stepa = car(slot_expression(stepper));
 	      while (true)
@@ -81366,7 +81364,7 @@ static goto_t op_do_init_1(s7_scheme *sc)
 static bool op_do_init(s7_scheme *sc)
 {
   if (is_multiple_value(sc->value))               /* (do ((i (values 1 2)))...) */
-    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "do: variable initial value can't be ~S", 38, cons(sc, sc->values_symbol, sc->value));
+    eval_error_any(sc, sc->wrong_type_arg_symbol, "do: variable initial value can't be ~S", 38, cons(sc, sc->values_symbol, sc->value));
   if (op_do_init_1(sc) == goto_eval) return(false);
   return(true);
 }
@@ -81714,7 +81712,7 @@ static inline void op_increment_by_1(s7_scheme *sc)  /* ([set!] ctr (+ ctr 1)) *
 
   y = symbol_to_slot(sc, cadr(sc->code));
   if (!is_slot(y))
-    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
+    eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
   val = slot_value(y);
   if (is_t_integer(val))
     sc->value = make_integer(sc, integer(val) + 1);
@@ -81752,7 +81750,7 @@ static void op_decrement_by_1(s7_scheme *sc)  /* ([set!] ctr (- ctr 1)) */
 
   y = symbol_to_slot(sc, cadr(sc->code));
   if (!is_slot(y))
-    eval_error_no_return(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
+    eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
   val = slot_value(y);
   if (is_t_integer(val))
     sc->value = make_integer(sc, integer(val) - 1); /* increment (set!) returns the new value in sc->value */
@@ -81879,7 +81877,7 @@ static void apply_syntax(s7_scheme *sc)                            /* -------- s
     {
       len = s7_list_length(sc, sc->args);
       if (len == 0)
-	eval_error_no_return(sc, sc->syntax_error_symbol, "attempt to evaluate a circular list: ~S", 39, sc->args);
+	eval_error(sc, "attempt to evaluate a circular list: ~S", 39, sc->args);
 
       if ((sc->safety > NO_SAFETY) &&
 	  (tree_is_cyclic(sc, sc->args)))
@@ -82246,7 +82244,7 @@ static inline goto_t lambda_star_default(s7_scheme *sc)
 		       */
 		      slot_set_value(z, s7_symbol_local_value(sc, val, outlet(sc->envir)));
 		      if (slot_value(z) == sc->undefined)
-			eval_error_no_return(sc, sc->syntax_error_symbol, "lambda* defaults: ~A is unbound", 31, slot_symbol(z));
+			eval_error(sc, "lambda* defaults: ~A is unbound", 31, slot_symbol(z));
 		    }
 		}
 	      else
@@ -82257,7 +82255,7 @@ static inline goto_t lambda_star_default(s7_scheme *sc)
 			{
 			  if ((!is_pair(cdr(val))) ||      /* (lambda* ((a (quote))) a) or (lambda* ((a (quote 1 1))) a) etc */
 			      (is_pair(cddr(val))))
-			    eval_error_no_return(sc, sc->syntax_error_symbol, "lambda* default: ~A is messed up", 32, val);
+			    eval_error(sc, "lambda* default: ~A is messed up", 32, val);
 			  slot_set_value(z, cadr(val));
 			}
 		      else
@@ -82674,7 +82672,7 @@ static goto_t op_define1(s7_scheme *sc)
    *   This happens when we reload a file that calls define-constant.
    */
   if (is_multiple_value(sc->value))                 /* (define x (values 1 2)) */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "define: more than one value: ~S", 31, sc->value);
+    eval_error(sc, "define: more than one value: ~S", 31, sc->value);
   if (is_constant_symbol(sc, sc->code))             /* (define pi 3) or (define (pi a) a) */
     {
       s7_pointer x;
@@ -82686,7 +82684,7 @@ static goto_t op_define1(s7_scheme *sc)
       if (!((is_slot(x)) &&
 	    (type(sc->value) == unchecked_type(slot_value(x))) &&
 	    (s7_is_equivalent(sc, sc->value, slot_value(x)))))    /* if value is unchanged, just ignore this (re)definition */
-	eval_error_no_return(sc, sc->syntax_error_symbol, "define: ~S is immutable", 23, sc->code);   /*   can't use s7_is_equal because value might be NaN, etc */
+	eval_error(sc, "define: ~S is immutable", 23, sc->code);   /*   can't use s7_is_equal because value might be NaN, etc */
     }
   if (symbol_has_setter(sc->code))
     {
@@ -82708,7 +82706,7 @@ static void op_define_with_setter(s7_scheme *sc)
 {
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
-    eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: let is immutable", 27, sc->code);
+    eval_error(sc, "define ~S: let is immutable", 27, sc->code);
 
   if ((is_any_closure(sc->value)) &&
       ((!(is_let(closure_let(sc->value)))) ||
@@ -82750,7 +82748,7 @@ static void op_define_with_setter(s7_scheme *sc)
 		if (slot_symbol(slot) == sc->code)
 		  {
 		    if (is_immutable(slot))
-		      eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, sc->code);
+		      eval_error(sc, "define ~S: but it is immutable", 30, sc->code);
 		    slot_set_value(slot, new_func);
 		    symbol_set_local(sc->code, sc->let_number, slot);
 		    set_local(sc->code);
@@ -82777,7 +82775,7 @@ static void op_define_with_setter(s7_scheme *sc)
 	      old_value = slot_value(global_slot(sc->code));
 	      if ((type(old_value) != type(new_func)) ||
 		  (!s7_is_equivalent(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
-		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, old_symbol);
+		eval_error(sc, "define ~S: but it is immutable", 30, old_symbol);
 	    }
 	  s7_make_slot(sc, sc->envir, sc->code, new_func);
 	}
@@ -82797,7 +82795,7 @@ static void op_define_with_setter(s7_scheme *sc)
 	      old_value = slot_value(lx);
 	      if ((type(old_value) != type(sc->value)) ||
 		  (!s7_is_equivalent(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
-		eval_error_no_return(sc, sc->syntax_error_symbol, "define ~S: but it is immutable", 30, old_symbol);
+		eval_error(sc, "define ~S: but it is immutable", 30, old_symbol);
 	    }
 	  slot_set_value_with_hook(lx, sc->value);
 	}
@@ -87319,7 +87317,7 @@ static bool unknown_unknown(s7_scheme *sc, s7_pointer code, opcode_t op)
 {
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
   set_optimize_op(code, op);
   return(true);
 }
@@ -87349,7 +87347,7 @@ static bool op_unknown(s7_scheme *sc)
 	  (is_slot(symbol_to_slot(sc, car(sc->code)))))
 	fprintf(stderr, "%s[%d]: weird: %s\n", __func__, __LINE__, display(sc->code));
 #endif
-      eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+      eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
     }
   /* perhaps set op to OP_CLEAR_OPTS and return(true) above */
       
@@ -87423,7 +87421,7 @@ static bool op_unknown(s7_scheme *sc)
     default:
       if ((is_symbol(car(code))) &&
 	  (!is_slot(symbol_to_slot(sc, car(code)))))
-	eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
     }
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s: %s %s [%s]\n", __func__, __LINE__, display(code), s7_type_names[type(f)], display(f));
@@ -87472,7 +87470,7 @@ static bool op_unknown_g(s7_scheme *sc)
   bool sym_case;
   f = sc->last_function;
   if (!f)
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -87623,7 +87621,7 @@ static bool op_unknown_g(s7_scheme *sc)
     }
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s_s|c: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -87636,7 +87634,7 @@ static bool op_unknown_a(s7_scheme *sc)
   s7_pointer code, f;
   f = sc->last_function;
   if (!f) 
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
 #endif
@@ -87736,7 +87734,7 @@ static bool op_unknown_a(s7_scheme *sc)
     }
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s_a: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -87785,7 +87783,7 @@ static bool op_unknown_gg(s7_scheme *sc)
   s7_pointer code, f;
   f = sc->last_function;
   if (!f)
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -87939,7 +87937,7 @@ static bool op_unknown_gg(s7_scheme *sc)
 
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
 
   annotate_args(sc, cdr(code), sc->envir);
 #if UNOPT_PRINT
@@ -87955,7 +87953,7 @@ static bool op_unknown_all_s(s7_scheme *sc)
 
   f = sc->last_function;
   if (!f)
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -87965,7 +87963,7 @@ static bool op_unknown_all_s(s7_scheme *sc)
   num_args = integer(opt3_arglen(code));
   for (arg = cdr(code); is_pair(arg); arg = cdr(arg))
     if (!is_slot(symbol_to_slot(sc, car(arg))))
-      eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(arg));
+      eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(arg));
 
   switch (type(f))
     {
@@ -88046,7 +88044,7 @@ static bool op_unknown_aa(s7_scheme *sc)
 
   f = sc->last_function;
   if (!f)
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
 #endif
@@ -88121,7 +88119,7 @@ static bool op_unknown_aa(s7_scheme *sc)
 
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: unopt: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -88136,7 +88134,7 @@ static bool op_unknown_fx(s7_scheme *sc)
 
   f = sc->last_function;
   if (!f)
-    eval_error_no_return(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -89428,8 +89426,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SET_NORMAL: if (op_set_normal(sc)) goto EVAL;
 	case OP_SET1:       if (op_set1(sc)) continue; goto APPLY;
-
-	case OP_SET_FROM_SETTER: op_set_from_setter(sc); continue;
 
 	case OP_SET_WITH_LET_1: if (op_set_with_let_1(sc)) goto TOP_NO_POP; goto SET_WITH_LET;
 	case OP_SET_WITH_LET_2: if (op_set_with_let_2(sc)) continue;
@@ -94419,8 +94415,6 @@ static s7_pointer memory_usage(s7_scheme *sc)
 	sc->w = sc->nil;
       }
     }
-  
-  /* perhaps opt_func data */
   s7_gc_unprotect_at(sc, gc_loc);
   return(mu_let);
 }
@@ -97182,7 +97176,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 885) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 884) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97344,29 +97338,29 @@ int main(int argc, char **argv)
  * teq      1617 | 1542
  * s7test   1776 | 1711
  * tvect    5115 | 1735
- * lt       2278 | 2073
+ * lt       2278 | 2072
  * tcopy    2434 | 2273
  * tmisc    2852 | 2282
- * tform    2472 | 2315
+ * tform    2472 | 2309
  * tread    2449 | 2426
- * tmat     6072 | 2479
+ * tmat     6072 | 2488
  * fbench   2974 | 2643
- * dup      6333 | 2703
+ * dup      6333 | 2729
  * trclo    7985 | 2791
  * tb       3251 | 2799
  * tmap     3238 | 2883
- * titer    3962 | 2919
+ * titer    3962 | 2911
  * tsort    4156 | 3043
  * tset     6616 | 3083
  * tmac     3391 | 3186
- * tfft     4288 | 3819
+ * tfft     4288 | 3816
  * tlet     5409 | 4641
  * tclo     6206 | 4896
  * trec     17.8 | 6318
  * thash    10.3 | 6807
  * tgen     11.7 | 11.1
  * tall     16.4 | 15.4
- * calls    40.3 | 36.0
+ * calls    40.3 | 35.9
  * sg       85.8 | 70.4
  * lg      115.9 |104.9
  * tbig    264.5 |178.7
@@ -97379,11 +97373,12 @@ int main(int argc, char **argv)
  *   set! in opt and fx is ok if not used elsewhere or known "p" case (implicit vector etc)
  * tsig = sig+set timings
  *   symbol|function|vector|hash setters, also via integer? etc, typed let, function sigs, built-in called via setter? macro: logbit?
- *   set! -> cons and s7_append cases perhaps -> tmisc
  * append for set? -- if setter a safe closure, call direct without copied args
- *   op: let_temp_init_2|done1, set1|2, set_from_setter|with_let_1|2
+ *   op: let_temp_init_2|done1, set_with_let_1|2 [77635|59], op_set1|2--can implicit_set be split?]
  * if (lambda...) as arg (to g_set_setter for example, op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
  * let+lambda -- not set safe either?
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator/hash-ref/set/display/incr/equal -- lots of complication
+ * could debugger catch changes to immutable objects?
+ * ow! needs to know when owlet is legit
  */
