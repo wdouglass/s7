@@ -4281,25 +4281,50 @@ The end-of-file object is #&lt;eof&gt;.
 When the read function encounters the constant #&lt;eof&gt; it returns #&lt;eof&gt;.
 This is neither inconsistent nor unusual: read returns either a form or
 #&lt;eof&gt;.  If read encounters a form that contains #&lt;eof&gt;, it returns a
-form containing #&lt;eof&gt;, just as with any other constant.  If it hits the end of
-the input while reading a form, it raises an error (e.g. "missing close paren").
-If it encounters
-#&lt;eof&gt; all by itself at the top level (this never happens),
-it returns that #&lt;eof&gt;.  
-Built-in #&lt;eof&gt; has lots of
-uses, and as far as I can see, no drawbacks.  For example,
-it is very common to call
-read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
-a case statement.  In s7, we can dispense with the extra if (and let), and include
-the #&lt;eof&gt; in the case statement: <code>(case (read-char) ((#&lt;eof&gt;) (quit-reading)) ((#\a)...))</code>.
-Another example: <code>(or (eof-object? x) (eqv x 24)...)</code> can be instead: <code>(memv x '(#&lt;eof&gt; 24 ...)</code>.
+form containing #&lt;eof&gt;, just as with any other constant.
 </p>
+
 <pre class="indented">
 &gt; (with-input-from-string "(or x #&lt;eof&gt;)" read)
 <em class="gray">(or x #&lt;eof&gt;)</em>
 &gt; (eof-object? (with-input-from-string "'#&lt;eof&gt;" read))
 <em class="gray">#f</em>
 </pre>
+
+<p>If read hits the end of
+the input while reading a form, it raises an error (e.g. "missing close paren").
+If it encounters
+#&lt;eof&gt; all by itself at the top level (this never happens),
+it returns that #&lt;eof&gt;.  But this is specific to read, not (for example) load:
+</p>
+<pre class="indented">
+;; say we have "t234.scm" with:
+(display "line 1") (newline)
+#&lt;eof&gt;
+(display "line 2") (newline)
+;; end of t234.scm
+
+&gt; (load "t234.scm")
+<em class="gray">line 1
+line 2</em>
+
+(with-input-from-file "t234.scm" 
+  (lambda () 
+    (do ((c (read) (read))) 
+	((eof-object? c)) 
+      (eval c))))
+<em class="gray">line 1</em>
+</pre>
+
+<p>
+Built-in #&lt;eof&gt; has lots of
+uses, and as far as I can see, no drawbacks.  For example,
+it is common to call
+read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
+a case statement.  In s7, we can dispense with the extra if (and let), and include
+the #&lt;eof&gt; in the case statement: <code>(case (read-char) ((#&lt;eof&gt;) (quit-reading)) ((#\a)...))</code>.
+Another example: <code>(or (eof-object? x) (eqv x 24)...)</code> can be instead: <code>(memv x '(#&lt;eof&gt; 24 ...)</code>.
+</p>
 </div>
 
 

@@ -10314,13 +10314,12 @@ static s7_int find_any_baffle(s7_scheme *sc)
   return(-1);
 }
 
-static s7_pointer check_with_baffle(s7_scheme *sc)
+static void check_with_baffle(s7_scheme *sc)
 {
   if (!s7_is_proper_list(sc, sc->code))
     eval_error(sc, "with-baffle: unexpected dot? ~A", 31, sc->code);
   if (!is_null(cdr(sc->code)))
     pair_set_syntax_op(sc->code, OP_WITH_BAFFLE_UNCHECKED);
-  return(sc->code);
 }
 
 static bool op_with_baffle_unchecked(s7_scheme *sc)
@@ -25480,7 +25479,7 @@ If the optional 'clear-port' is #t, the current string is flushed."
   return(make_string_with_length(sc, (const char *)port_data(p), port_position(p)));
 }
 
-static s7_pointer op_get_output_string(s7_scheme *sc)
+static void op_get_output_string(s7_scheme *sc)
 {
   s7_pointer port;
 
@@ -25490,8 +25489,8 @@ static s7_pointer op_get_output_string(s7_scheme *sc)
     simple_wrong_type_argument_with_type(sc, sc->with_output_to_string_symbol, port, wrap_string(sc, "an open string output port", 26));
 
   if (port_position(port) > sc->max_string_length)
-    return(s7_error(sc, sc->out_of_range_symbol,
-		    set_elist_2(sc, wrap_string(sc, "port-position ~D is greater than (*s7* 'max-string-length)", 58), s7_make_integer(sc, port_position(port)))));
+    s7_error(sc, sc->out_of_range_symbol,
+	     set_elist_2(sc, wrap_string(sc, "port-position ~D is greater than (*s7* 'max-string-length)", 58), s7_make_integer(sc, port_position(port))));
 
   if (port_position(port) >= port_data_size(port)) /* can the > part happen? */
     sc->value = block_to_string(sc, reallocate(sc, port_data_block(port), port_position(port) + 1), port_position(port));
@@ -25501,7 +25500,6 @@ static s7_pointer op_get_output_string(s7_scheme *sc)
   port_data_size(port) = 0;
   port_data_block(port) = NULL;
   port_needs_free(port) = false;
-  return(NULL);
 }
 
 
@@ -48722,7 +48720,7 @@ It has the additional local variables: error-type, error-data, error-code, error
   e = let_copy(sc, sc->owlet);
   gc_loc = s7_gc_protect_1(sc, e);
 
-  /* make sure the pairs/reals/strings/integers are copied: should be error-data, error-code, and possibly error-history */
+  /* make sure the pairs/reals/strings/integers are copied: should be error-data, error-code, and error-history */
   sc->gc_off = true;
 
   for (x = let_slots(e); tis_slot(x); x = next_slot(x))
@@ -72036,7 +72034,7 @@ static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 }
 
 
-static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity)
+static void check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity)
 {
   s7_pointer x;
   int32_t i;
@@ -72053,7 +72051,7 @@ static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *ari
 	set_local(args);
 
       if (arity) (*arity) = -1;
-      return(sc->F);
+      return;
     }
 
   for (i = 0, x = args; is_pair(x); i++, x = cdr(x))
@@ -72078,7 +72076,6 @@ static s7_pointer check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *ari
     }
 
   if (arity) (*arity) = i;
-  return(sc->F);
 }
 
 static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, s7_pointer body) /* checks closure*, macro*, and bacro* */
@@ -74449,7 +74446,7 @@ static void op_let_star2(s7_scheme *sc)
 
 
 /* -------------------------------- letrec, letrec* -------------------------------- */
-static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
+static void check_letrec(s7_scheme *sc, bool letrec)
 {
   s7_pointer x, caller, code;
   code = cdr(sc->code);
@@ -74476,8 +74473,8 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
 
       y = car(carx);
       if (is_constant_symbol(sc, y))
-	return(s7_error(sc, sc->wrong_type_arg_symbol,
-			set_elist_2(sc, wrap_string(sc, "can't bind an immutable object: ~S", 34), x)));
+	s7_error(sc, sc->wrong_type_arg_symbol,
+		 set_elist_2(sc, wrap_string(sc, "can't bind an immutable object: ~S", 34), x));
 
       if (!is_pair(cdr(carx)))                /* (letrec ((x . 1))...) */
 	{
@@ -74503,7 +74500,6 @@ static s7_pointer check_letrec(s7_scheme *sc, bool letrec)
       set_c_call(cdar(x), fx_choose(sc, cdar(x), sc->envir, let_symbol_is_safe_or_listed));
 
   pair_set_syntax_op(sc->code, (letrec) ? OP_LETREC_UNCHECKED : OP_LETREC_STAR_UNCHECKED);
-  return(sc->code);
 }
 
 static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer func_name, s7_pointer outer_env);
@@ -74650,7 +74646,7 @@ static bool op_letrec_star1(s7_scheme *sc)
 
 
 /* -------------------------------- let-temporarily -------------------------------- */
-static s7_pointer check_let_temporarily(s7_scheme *sc)
+static void check_let_temporarily(s7_scheme *sc)
 {
   s7_pointer x, form, code;
   bool all_fx, all_s7;
@@ -74678,11 +74674,11 @@ static s7_pointer check_let_temporarily(s7_scheme *sc)
       if (is_symbol(car(carx)))
 	{
 	  if (is_constant_symbol(sc, car(carx))) /* (let-temporarily ((pi 3)) ...) */
-	    return(s7_error(sc, sc->wrong_type_arg_symbol,
-			    set_elist_2(sc, wrap_string(sc, "can't bind an immutable object: ~S", 34), x)));
+	    s7_error(sc, sc->wrong_type_arg_symbol,
+		     set_elist_2(sc, wrap_string(sc, "can't bind an immutable object: ~S", 34), x));
 	  if (is_syntactic_symbol(car(carx)))    /* (let-temporarily ((if 3)) ...) */
-	    return(s7_error(sc, sc->wrong_type_arg_symbol,
-			    set_elist_2(sc, wrap_string(sc, "can't set! ~S", 13), car(carx))));
+	    s7_error(sc, sc->wrong_type_arg_symbol,
+		     set_elist_2(sc, wrap_string(sc, "can't set! ~S", 13), car(carx)));
 	}
       else
 	{
@@ -74741,7 +74737,6 @@ static s7_pointer check_let_temporarily(s7_scheme *sc)
 	    }
 	}
     }
-  return(form);
 }
 
 static void op_let_temp_unchecked(s7_scheme *sc)
@@ -75415,7 +75410,7 @@ static bool op_if1(s7_scheme *sc)
 
 
 /* -------------------------------- when -------------------------------- */
-static s7_pointer check_when(s7_scheme *sc)
+static void check_when(s7_scheme *sc)
 {
   s7_pointer form, code;
   form = sc->code;
@@ -75478,7 +75473,6 @@ static s7_pointer check_when(s7_scheme *sc)
     }
   push_stack_no_args(sc, OP_WHEN_PP, cdr(code));
   sc->code = car(code);
-  return(NULL);
 }
 
 static bool op_when_s(s7_scheme *sc)
@@ -75570,7 +75564,7 @@ static bool op_when_pp(s7_scheme *sc)
 
 
 /* -------------------------------- unless -------------------------------- */
-static s7_pointer check_unless(s7_scheme *sc)
+static void check_unless(s7_scheme *sc)
 {
   s7_pointer form, code;
   form = sc->code;
@@ -75611,7 +75605,6 @@ static s7_pointer check_unless(s7_scheme *sc)
     }
   push_stack_no_args(sc, OP_UNLESS_PP, cdr(code));
   sc->code = car(code);
-  return(NULL);
 }
 
 static bool op_unless_s(s7_scheme *sc)
@@ -75695,7 +75688,7 @@ static s7_pointer print_truncate(s7_scheme *sc, s7_pointer code)
   return(code);
 }
 
-static s7_pointer check_define(s7_scheme *sc)
+static void check_define(s7_scheme *sc)
 {
   s7_pointer func, caller, code;
   bool starred;
@@ -75728,8 +75721,8 @@ static s7_pointer check_define(s7_scheme *sc)
   if (!is_pair(car(code)))
     {
       if (is_not_null(cddr(code)))                                           /* (define var 1 . 2) */
-	return(s7_error(sc, sc->syntax_error_symbol,
-			set_elist_3(sc, wrap_string(sc, "~A: more than one value? ~A", 27), caller, print_truncate(sc, sc->code))));
+	s7_error(sc, sc->syntax_error_symbol,
+		 set_elist_3(sc, wrap_string(sc, "~A: more than one value? ~A", 27), caller, print_truncate(sc, sc->code)));
       if (starred)
 	eval_error(sc, "define* is restricted to functions: (define* ~{~S~^ ~})", 55, sc->code);
 
@@ -75792,7 +75785,6 @@ static s7_pointer check_define(s7_scheme *sc)
 	pair_set_syntax_op(sc->code, OP_DEFINE_STAR_UNCHECKED);
       else pair_set_syntax_op(sc->code, OP_DEFINE_CONSTANT_UNCHECKED);
     }
-  return(sc->code);
 }
 
 static bool op_define_unchecked(s7_scheme *sc)
@@ -76386,7 +76378,7 @@ static void op_finish_expansion(s7_scheme *sc)
 
 
 /* -------------------------------- with-let -------------------------------- */
-static s7_pointer check_with_let(s7_scheme *sc)
+static void check_with_let(s7_scheme *sc)
 {
   s7_pointer form;
   form = cdr(sc->code);
@@ -76405,8 +76397,6 @@ static s7_pointer check_with_let(s7_scheme *sc)
   if ((is_symbol(car(form))) &&
       (is_pair(cadr(form))))
     pair_set_syntax_op(sc->code, OP_WITH_LET_S);
-
-  return(form);
 }
 
 static bool op_with_let_unchecked(s7_scheme *sc)
@@ -76426,7 +76416,7 @@ static bool op_with_let_unchecked(s7_scheme *sc)
   return(true);
 }
 
-static inline s7_pointer op_with_let_s(s7_scheme *sc)
+static inline void op_with_let_s(s7_scheme *sc)
 {
   s7_pointer e;
   set_current_code(sc, sc->code);
@@ -76450,12 +76440,11 @@ static inline s7_pointer op_with_let_s(s7_scheme *sc)
       update_symbol_ids(sc, e);
     }
   sc->code = T_Pair(cdr(sc->code));
-  return(NULL);
 }
 
 
 /* -------------------------------- cond -------------------------------- */
-static s7_pointer check_cond(s7_scheme *sc)
+static void check_cond(s7_scheme *sc)
 {
   bool has_feed_to = false, result_fx = true;
   s7_pointer x, code, form;
@@ -76579,7 +76568,6 @@ static s7_pointer check_cond(s7_scheme *sc)
 	}
     }
   set_opt3_any(code, caar(code));
-  return(form);
 }
 
 static bool op_cond_unchecked(s7_scheme *sc)
@@ -76921,7 +76909,7 @@ static void set_dilambda_opt(s7_scheme *sc, s7_pointer form, opcode_t opt, s7_po
     }
 }
 
-static inline s7_pointer check_set(s7_scheme *sc)
+static inline void check_set(s7_scheme *sc)
 {
   s7_pointer form, code;
   form = sc->code;
@@ -77013,7 +77001,7 @@ static inline s7_pointer check_set(s7_scheme *sc)
 			      ((!is_c_function(obj)) && (!is_closure(obj))))
 			    {
 			      code = form;
-			      return(code);
+			      return;
 			    }
 
 			  annotate_arg(sc, cdr(code), sc->envir);
@@ -77067,7 +77055,7 @@ static inline s7_pointer check_set(s7_scheme *sc)
 			      pair_set_syntax_op(form, OP_SET_LET_FX);
 			      set_c_call(cdr(code), fx_choose(sc, cdr(code), sc->envir, let_symbol_is_safe));
 			    }}}}}}
-      return(form);
+      return;
     }
 
   pair_set_syntax_op(form, OP_SET_NORMAL);
@@ -77204,7 +77192,6 @@ static inline s7_pointer check_set(s7_scheme *sc)
 				      pair_set_syntax_op(form, OP_SET_CONS);
 				      set_opt2_sym(code, cadr(value));
 				    }}}}}}}}}
-  return(form);
 }
 
 static void op_set_symbol_c(s7_scheme *sc)
@@ -82846,12 +82833,11 @@ static void profile(s7_scheme *sc, s7_pointer expr)
 
 /* -------------------------------- eval -------------------------------- */
 
-static s7_pointer check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
+static void check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 {
   if (tree_is_cyclic(sc, code))
     eval_error(sc, "attempt to evaluate a circular list: ~A", 39, code);
   resize_stack(sc); /* we've already checked that resize_stack is needed */
-  return(sc->F);
 }
 
 #define closure_push_and_goto_eval(sc) \
@@ -94357,6 +94343,18 @@ static s7_pointer memory_usage(s7_scheme *sc)
 			    make_symbol(sc, "bvlen"), make_integer(sc, blen)));
       }
 
+      {
+	s7_int hlen = 0;
+	for (i = 0, gp = sc->hash_tables; i < gp->loc; i++)
+	  {
+	    s7_pointer v;
+	    v = gp->list[i];
+	    hlen += ((hash_table_mask(v) + 1) * sizeof(hash_entry_t *));
+	    hlen += (hash_table_entries(v) * sizeof(hash_entry_t));
+	  }
+	make_slot_1(sc, mu_let, make_symbol(sc, "hash-tables"), cons(sc, make_integer(sc, sc->hash_tables->loc), make_integer(sc, hlen)));
+      }
+
       gp = sc->input_ports;
       for (i = 0, len = 0; i < gp->loc; i++)
 	{
@@ -97375,10 +97373,11 @@ int main(int argc, char **argv)
  *   symbol|function|vector|hash setters, also via integer? etc, typed let, function sigs, built-in called via setter? macro: logbit?
  * append for set? -- if setter a safe closure, call direct without copied args
  *   op: let_temp_init_2|done1, set_with_let_1|2 [77635|59], op_set1|2--can implicit_set be split?]
- * if (lambda...) as arg (to g_set_setter for example, op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
+ * if (lambda...) as arg (to g_set_setter for example), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
  * let+lambda -- not set safe either?
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator/hash-ref/set/display/incr/equal -- lots of complication
- * could debugger catch changes to immutable objects?
- * ow! needs to know when owlet is legit
+ * add owlet set history checks, make sure gc hits all contents, check for odd-bits (0 use!) etc
+ *   should we gc_mark history1 and 2, not sc->error_history?  are they permament lists? yes maybe clear all cars #f of unused buffer
+ * fc31
  */
