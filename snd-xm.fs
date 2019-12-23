@@ -2,16 +2,16 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/26 22:36:46
-\ Changed: 17/12/02 03:01:37
+\ Changed: 19/12/23 15:07:35
 \
-\ @(#)snd-xm.fs	1.40 12/2/17
+\ @(#)snd-xm.fs	1.42 12/23/19
 
 \ Commentary:
 \
 \ Requires --with-motif|gtk
 \
-\ Tested with Snd 18.x
-\             Fth 1.3.x
+\ Tested with Snd 20.x
+\             Fth 1.4.x
 \             Motif 2.3.3 X11R6
 \             Gtk+ 3.0.12, Glib 2.28.8, Pango 1.28.4, Cairo 1.10.2
 \ 
@@ -72,6 +72,186 @@
 "X error" create-exception x-error
 
 require extensions
+
+\
+\ main-widgets
+\
+0 constant top-level-application
+1 constant top-level-shell
+2 constant main-pane-shell
+3 constant main-sound-pane
+4 constant listener-pane
+5 constant notebook-outer-pane
+
+\
+\ usage: top-level-shell main-widgets-ref { wid }
+\
+: main-widgets-ref { idx -- w }
+	main-widgets idx array-ref
+;
+
+\
+\ menu-widgets
+\
+0 constant top-menu-bar
+1 constant file-menu
+2 constant edit-menu
+3 constant view-menu
+4 constant options-menu
+5 constant help-menu
+
+: menu-widgets-ref { idx -- w }
+	menu-widgets idx array-ref
+;
+
+\
+\ sound-widgets
+\
+0 constant sw-main-pane
+1 constant sw-name-label
+2 constant sw-control-panel
+3 constant sw-minibuffer
+4 constant sw-play
+5 constant sw-filter-graph
+6 constant sw-unite
+7 constant sw-minibuffer-label
+8 constant sw-name-icon
+9 constant sw-sync
+
+: sound-widgets-ref { snd idx -- w }
+	snd sound-widgets idx array-ref
+;
+
+\
+\ channel-widgets
+\
+ 0 constant cw-graph
+ 1 constant cw-w
+ 2 constant cw-f
+ 3 constant cw-sx
+ 4 constant cw-sy
+ 5 constant cw-zx
+ 6 constant cw-zy
+ 7 constant cw-edhist
+ 8 constant cw-gsy
+ 9 constant cw-gzy
+10 constant cw-channel-main-pane
+
+: channel-widgets-ref { snd chn idx -- w }
+	snd chn channel-widgets idx array-ref
+;
+
+\
+\ dialog-widgets
+\
+ 0 constant dw-orientation-dialog
+ 1 constant dw-enved-dialog
+ 2 constant dw-transform-dialog
+ 3 constant dw-file-open-dialog
+ 4 constant dw-file-save-as-dialog
+ 5 constant dw-view-files-dialog
+ 6 constant dw-raw-data-dialog
+ 7 constant dw-new-file-dialog
+ 8 constant dw-file-mix-dialog
+ 9 constant dw-edit-header-dialog
+10 constant dw-find-dialog
+11 constant dw-help-dialog
+12 constant dw-mix-panel-dialog
+13 constant dw-print-dialog
+14 constant dw-region-dialog
+15 constant dw-info-dialog
+16 constant dw-extra-controls-dialog
+17 constant dw-save-selection-dialog
+18 constant dw-insert-file-dialog
+19 constant dw-save-region-dialog
+20 constant dw-preferences-dialog
+
+: dialog-widgets-ref { idx -- w }
+	dialog-widgets idx array-ref
+;
+
+'snd-motif provided? [if]	\ HAVE_MOTIF
+	\
+	\ dialog-ok-widget	( dialog -- child )
+	\ dialog-cancel-widget	( dialog -- child )
+	\ dialog-help-widget	( dialog -- child )
+	\
+	\ These words take a dialog widget and return the corresponding button
+	\ widgets.
+	\
+	'( "ok" "cancel" "help" ) let: ( button -- )
+		each { name }
+			"\
+	: dialog-%s-widget ( dialog -- child )
+		FXmDIALOG_%s_BUTTON FXmMessageBoxGetChild
+	;" '( name dup string-upcase ) string-format string-eval
+		end-each
+	;let
+
+	: xm-length ( lst -- lst len/2 )
+		dup length 2/
+	;
+
+	\
+	\ Some Motif convenience functions not found in snd/xm.c but in
+	\ include/Xm/*.h
+	\
+	\ It creates for example:
+	\
+	\ '( "Label" ) let: ... ;let ==>
+	\	FXmVaCreateManagedLabel ( parent name args -- w )
+	\
+	'( "ArrowButton"
+	   "ArrowButtonGadget"
+	   "BulletinBoard"
+	   "ButtonBox"
+	   "CascadeButton"
+	   "CascadeButtonGadget"
+	   "ColorSelector"
+	   "Column"
+	   "ComboBox"
+	   "Command"
+	   "Container"
+	   "DataField"
+	   "DrawingArea"
+	   "DrawnButton"
+	   "DropDown"
+	   "FileSelectionBox"
+	   "Form"
+	   "Frame"
+	   "Label"
+	   "LabelGadget"
+	   "List"
+	   "MainWindow"
+	   "MenuBar"
+	   "MessageBox"
+	   "Notebook"
+	   "PanedWindow"
+	   "PushButton"
+	   "PushButtonGadget"
+	   "RowColumn"
+	   "Scale"
+	   "ScrollBar"
+	   "ScrolledWindow"
+	   "ScrolledText"
+	   "SelectionBox"
+	   "Separator"
+	   "SeparatorGadget"
+	   "SimpleSpinBox"
+	   "SpinBox"
+	   "TabStack"
+	   "Text"
+	   "TextField"
+	   "ToggleButton"
+	   "ToggleButtonGadget" ) let: ( names -- )
+		each { name }
+			"\
+	: FXmVaCreateManaged%s ( parent name args -- w )
+		xm-length FXmCreate%s dup FXtManageChild drop
+	;" '( name dup ) string-format string-eval
+		end-each
+	;let
+[then]				\ HAVE_MOTIF
 
 \ ;;; -------- show-disk-space
 \ ;;;
@@ -159,7 +339,7 @@ previous
 
 	: host-name ( -- host )
 		doc" Return name of current machine."
-		main-widgets 0 array-ref
+		top-level-application main-widgets-ref
 		"WM_CLIENT_MACHINE" #f Fgdk_atom_intern
 		FGDK_TARGET_STRING 0 1024 0 Fgdk_property_get { val }
 		\ we get '( #t #( GdkAtom 0x3f ) 8 21 "pumpkin.fth-devel.net" )
@@ -173,16 +353,16 @@ previous
 	\ --- add our own pane to the overall Snd window (underneath the
 	\     listener in this case) ---
 
-	\ main-widgets 5 array-ref (without -notebook) and
-	\ main-widgets 2 array-ref
+	\ notebook-outer-pane main-widgets-ref (without -notebook) and
+	\ main-pane-shell main-widgets-ref
 	\ seem to be of type GTK_BOX [ms]
 
 	: add-main-pane <{ name
 	    :optional class-not-needed #f args-not-needed #f -- wid }>
 		FGTK_ORIENTATION_HORIZONTAL 0 Fgtk_box_new { pane }
-		main-widgets 5 array-ref { parent }
+		notebook-outer-pane main-widgets-ref { parent }
 		parent FGTK_IS_BOX unless
-			main-widgets 2 array-ref to parent
+			main-pane-shell main-widgets-ref to parent
 		then
 		parent FGTK_IS_BOX unless
 			'x-error
@@ -236,7 +416,7 @@ free space (for use with after-open-hook)."
 		previous-label unless
 			snd sound? if
 				#t to showing-disk-space
-				snd sound-widgets 10 array-ref { name-form }
+				snd 10 sound-widgets-ref { name-form }
 				snd file-name disk-kspace kmg { space }
 				space Fgtk_label_new { new-label }
 				name-form FGTK_BOX new-label #f #f 6
@@ -284,7 +464,7 @@ free space (for use with after-open-hook)."
 	;
 
 	: main-dpy ( -- dpy )
-		main-widgets 1 array-ref FXtDisplay
+		top-level-shell main-widgets-ref FXtDisplay
 	;
 
 	: load-font ( name -- fid|#f )
@@ -350,8 +530,8 @@ free space (for use with after-open-hook)."
 		end-each ( flag )
 	;
 
-	: main-widget-exists? ( name -- f )
-		main-widgets 1 array-ref swap widget-exists?
+	: main-widget-exists? { name -- f }
+		top-level-shell main-widgets-ref name widget-exists?
 	;
 
 	hide
@@ -397,7 +577,7 @@ free space (for use with after-open-hook)."
 
 	: host-name ( -- host )
 		doc" Return name of current machine."
-		main-widgets 1 array-ref { wid }
+		top-level-shell main-widgets-ref { wid }
 		wid FXtWindow { win }
 		main-dpy win main-dpy "WM_CLIENT_MACHINE" #f
 		    FXInternAtom 0 32 #f FXA_STRING FXGetWindowProperty { host }
@@ -415,7 +595,7 @@ free space (for use with after-open-hook)."
 	\   add-channel-pane value draw-widget
 
 	: add-channel-pane { snd chn name typ args -- wid }
-		name typ snd chn channel-widgets 7 array-ref
+		name typ snd chn cw-edhist channel-widgets-ref
 		    FXtParent FXtParent args FXtCreateManagedWidget
 	;
 
@@ -423,7 +603,7 @@ free space (for use with after-open-hook)."
 	\     in this case) ---
 
 	: add-sound-pane { snd name typ args -- wid }
-		name typ snd sound-widgets 0 array-ref args
+		name typ snd sw-main-pane sound-widgets-ref args
 		    undef FXtCreateManagedWidget
 	;
 
@@ -431,8 +611,8 @@ free space (for use with after-open-hook)."
 	\     listener in this case) ---
 
 	: add-main-pane { name class args -- wid }
-		main-widgets 5 array-ref dup unless
-			drop main-widgets 3 array-ref
+		notebook-outer-pane main-widgets-ref dup unless
+			drop main-sound-pane main-widgets-ref
 		then { parent }
 		name class parent args undef FXtCreateManagedWidget
 	;
@@ -440,7 +620,8 @@ free space (for use with after-open-hook)."
 	\ --- add a widget at the top of the listener ---
 
 	: add-listener-pane { name typ args -- wid }
-		main-widgets 1 array-ref "lisp-listener" find-child { listener }
+		top-level-shell main-widgets-ref
+		    "lisp-listener" find-child { listener }
 		listener FXtParent { listener-scroll }
 		listener-scroll FXtParent { listener-form }
 		listener-scroll FXtUnmanageChild drop
@@ -586,14 +767,14 @@ free space (for use with after-open-hook)."
 			       FXmNpaneMinimum      100
 			       FXmNbottomAttachment FXmATTACH_FORM )
 			    add-channel-pane { mark-box }
-			"Marks" FxmLabelWidgetClass mark-box
+			mark-box "Marks"
 			    #( FXmNbackground       highlight-color
 			       FXmNleftAttachment   FXmATTACH_FORM
 			       FXmNrightAttachment  FXmATTACH_FORM
 			       FXmNalignment        FXmALIGNMENT_CENTER
 			       FXmNtopAttachment    FXmATTACH_FORM )
-			    undef FXtCreateManagedWidget { mark-label }
-			"mark-scroller" FxmScrolledWindowWidgetClass mark-box
+			    FXmVaCreateManagedLabel { mark-label }
+			mark-box "mark-scroller"
 			    #( FXmNbackground       basic-color
 			       FXmNscrollingPolicy  FXmAUTOMATIC
 			       FXmNscrollBarDisplayPolicy FXmSTATIC
@@ -602,13 +783,13 @@ free space (for use with after-open-hook)."
 			       FXmNtopAttachment    FXmATTACH_WIDGET
 			       FXmNtopWidget        mark-label
 			       FXmNbottomAttachment FXmATTACH_FORM )
-			    undef FXtCreateManagedWidget { mark-scroller }
-			"mark-list" FxmRowColumnWidgetClass mark-scroller
+			    FXmVaCreateManagedScrolledWindow { mark-scroller }
+			mark-scroller "mark-list"
 			    #( FXmNorientation      FXmVERTICAL
 			       FXmNtopAttachment    FXmATTACH_FORM
 			       FXmNbottomAttachment FXmATTACH_FORM
 			       FXmNspacing          0 )
-			    undef FXtCreateManagedWidget { mlist }
+			    FXmVaCreateManagedRowColumn { mlist }
 			mark-scroller set-main-color-of-widget
 			mark-box #( FXmNpaneMinimum 1 ) FXtVaSetValues drop
 			snd chn #( snd chn mlist ) set-mark-list
@@ -737,17 +918,16 @@ free space (for use with after-open-hook)."
 			exit
 		then
 		#t to showing-disk-space
-		main-widgets 0 array-ref { app }
-		snd sound-widgets { widgets }
-		widgets 3 array-ref { minibuffer }
-		widgets 6 array-ref { unite-button }
-		widgets 9 array-ref { sync-button }
+		top-level-application main-widgets-ref { app }
+		snd sw-minibuffer sound-widgets-ref { minibuffer }
+		snd sw-unite      sound-widgets-ref { unite-button }
+		snd sw-sync       sound-widgets-ref { sync-button }
 		minibuffer FXtParent { name-form }
 		snd file-name disk-kspace kmg FXmStringCreateLocalized { str }
 		minibuffer FXtUnmanageChild drop
 		minibuffer #( FXmNrightAttachment FXmATTACH_NONE )
 		    FXtVaSetValues drop
-		"space" FxmLabelWidgetClass name-form
+		name-form "space"
 		    #( FXmNbackground      basic-color
 		       FXmNleftAttachment  FXmATTACH_NONE
 		       FXmNlabelString     str
@@ -759,7 +939,7 @@ free space (for use with after-open-hook)."
 			       sync-button
 		       then
 		       FXmNtopAttachment   FXmATTACH_FORM )
-		    undef FXtCreateManagedWidget { new-label }
+		    FXmVaCreateManagedLabel { new-label }
 		minibuffer
 		    #( FXmNrightWidget new-label
 		       FXmNrightAttachment FXmATTACH_WIDGET )

@@ -2,16 +2,16 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/10/21 18:22:57
-\ Changed: 17/12/02 03:04:44
+\ Changed: 19/12/23 15:11:22
 \
-\ @(#)xm-enved.fs	1.36 12/2/17
+\ @(#)xm-enved.fs	1.37 12/23/19
 
 \ Commentary:
 \
 \ Requires --with-motif|gtk
 \
-\ Tested with Snd 18.x
-\             Fth 1.3.x
+\ Tested with Snd 20.x
+\             Fth 1.4.x
 \             Motif 2.3.3 X11R6
 \             (Glib 2.28.8, Pango 1.28.4, Cairo 1.10.2)
 \
@@ -502,8 +502,7 @@ hide
 			args FXmNforeground array-push data-color
 			    array-push to args
 		then
-		name FxmDrawingAreaWidgetClass parent args undef
-		FXtCreateManagedWidget ( drawer )
+		parent name args FXmVaCreateManagedDrawingArea ( drawer )
 	;
   
 	: init-xenved-cbs { xe -- }

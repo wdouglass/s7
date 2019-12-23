@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/23 00:28:28
-\ Changed: 17/12/16 05:22:17
+\ Changed: 19/12/23 17:58:28
 \
-\ @(#)popup.fs	1.50 12/16/17
+\ @(#)popup.fs	1.52 12/23/19
 
 \ selection-popup-menu
 \ graph-popup-menu
@@ -69,9 +69,9 @@ hide
 : make-simple-popdown-menu { label popdown-labels parent cascade-cb -- }
 	parent label #( FXmNbackground highlight-color )
 	    undef FXmCreatePulldownMenu { top }
-	label FxmCascadeButtonWidgetClass parent
+	parent label
 	    #( FXmNbackground highlight-color FXmNsubMenuId top )
-	    undef FXtCreateManagedWidget { menu }
+	    FXmVaCreateManagedCascadeButton { menu }
 	#() { children }
 	nil { c }
 	popdown-labels proc? if
@@ -80,9 +80,9 @@ hide
 	else
 		\ else arrays of #( name proc ) lists
 		popdown-labels each { poplab }
-			poplab 0 array-ref FxmPushButtonWidgetClass top
+			top poplab 0 array-ref
 			    #( FXmNbackground highlight-color )
-			    undef FXtCreateManagedWidget to c
+			    FXmVaCreateManagedPushButton to c
 			c FXmNactivateCallback poplab 1 array-ref
 			    undef FXtAddCallback drop
 			children c array-push drop
@@ -132,9 +132,9 @@ hide
 	snds length { slen }
 	clen slen < if
 		slen clen ?do
-			"" FxmPushButtonWidgetClass menu
+			menu ""
 			    #( FXmNbackground highlight-color )
-			    undef FXtCreateManagedWidget { c }
+			    FXmVaCreateManagedPushButton { c }
 			c FXmNactivateCallback
 			    func cas-cb
 			    undef FXtAddCallback drop
@@ -154,19 +154,19 @@ hide
 	#f { widget }
 	#() { children }
 	with-one if
-		label FxmPushButtonWidgetClass parent
+		parent label
 		    #( FXmNbackground highlight-color )
-		    undef FXtCreateManagedWidget to widget
+		    FXmVaCreateManagedPushButton to widget
 		widget FXmNactivateCallback
 		    func collector collector-cb
 		    undef FXtAddCallback drop
 	then
 	parent label #( FXmNbackground highlight-color )
 	    undef FXmCreatePulldownMenu { menu }
-	label FxmCascadeButtonWidgetClass parent
+	parent label
 	    #( FXmNbackground highlight-color
 	       FXmNsubMenuId menu )
-	    undef FXtCreateManagedWidget { cas-wid }
+	    FXmVaCreateManagedCascadeButton { cas-wid }
 	cas-wid FXmNcascadingCallback
 	    func collector menu children popdown-cascade-cb
 	    undef FXtAddCallback drop
@@ -1301,9 +1301,9 @@ let: ( -- menu )
 	edhist-funcs each car { label }
 		nil { button }
 		wids nil? if
-			"wid" FxmPushButtonWidgetClass parent
+			parent "wid"
 			    #( FXmNbackground highlight-color )
-			    undef FXtCreateManagedWidget to button
+			    FXmVaCreateManagedPushButton to button
 			edhist-widgets button array-push to edhist-widgets
 			\ index (i) is context (c) in edhist-apply, see above
 			button FXmNactivateCallback
@@ -1446,7 +1446,7 @@ let: ( -- menu )
 	selected if
 		selected undef snd-help { help }
 		help if
-			selected help undef undef help-dialog
+			selected help info-dialog
 		then
 	then
 ;

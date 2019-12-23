@@ -443,7 +443,7 @@ enum {T_FREE = 0,
       T_CLOSURE, T_CLOSURE_STAR, T_MACRO, T_MACRO_STAR, T_BACRO, T_BACRO_STAR, T_C_MACRO,
       T_C_FUNCTION_STAR, T_C_FUNCTION, T_C_ANY_ARGS_FUNCTION, T_C_OPT_ARGS_FUNCTION, T_C_RST_ARGS_FUNCTION,
       NUM_TYPES};
-/* T_UNUSED, T_STACK, T_SLOT, T_BAFFLE, T_DYNAMIC_WIND, T_CATCH, T_GOTO, and T_COUNTER are internal */
+/* T_UNUSED, T_STACK, T_SLOT, T_DYNAMIC_WIND, T_CATCH, and T_COUNTER are internal */
 
 #if S7_DEBUGGING
 static const char *s7_type_names[] =
@@ -959,6 +959,7 @@ typedef struct s7_cell {
     struct {                        /* call-with-exit */
       uint64_t goto_loc, op_stack_loc;
       bool active;
+      s7_pointer name;
     } rexit;
 
     struct {                        /* catch */
@@ -1214,11 +1215,12 @@ struct s7_scheme {
              gc_symbol, gcd_symbol, gensym_symbol, geq_symbol, get_output_string_symbol, gt_symbol,
              hash_table_entries_symbol, hash_table_ref_symbol, hash_table_set_symbol, hash_table_symbol, help_symbol,
              imag_part_symbol, immutable_symbol, inexact_to_exact_symbol, inlet_symbol, int_vector_ref_symbol, int_vector_set_symbol, int_vector_symbol,
-             integer_decode_float_symbol, integer_to_char_symbol, is_aritable_symbol, is_boolean_symbol, is_byte_symbol, is_byte_vector_symbol,
+             integer_decode_float_symbol, integer_to_char_symbol, 
+             is_aritable_symbol, is_baffle_symbol, is_boolean_symbol, is_byte_symbol, is_byte_vector_symbol,
              is_c_object_symbol, c_object_type_symbol, is_c_pointer_symbol, is_char_alphabetic_symbol, is_char_lower_case_symbol, is_char_numeric_symbol,
              is_char_symbol, is_char_upper_case_symbol, is_char_whitespace_symbol, is_complex_symbol, is_constant_symbol,
              is_continuation_symbol, is_defined_symbol, is_dilambda_symbol, is_eof_object_symbol, is_eq_symbol, is_equal_symbol,
-             is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_gensym_symbol, is_hash_table_symbol, is_immutable_symbol,
+             is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_gensym_symbol, is_goto_symbol, is_hash_table_symbol, is_immutable_symbol,
              is_inexact_symbol, is_infinite_symbol, is_input_port_symbol, is_int_vector_symbol, is_integer_symbol, is_iterator_symbol,
              is_keyword_symbol, is_let_symbol, is_list_symbol, is_macro_symbol, is_equivalent_symbol, is_nan_symbol, is_negative_symbol,
              is_null_symbol, is_number_symbol, is_odd_symbol, is_openlet_symbol, is_output_port_symbol, is_pair_symbol,
@@ -3200,10 +3202,13 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define continuation_op_loc(p)         continuation_block(p)->nx.ix.i2
 #define continuation_op_size(p)        continuation_block(p)->ex.jx.i3
 #define continuation_key(p)            continuation_block(p)->ex.jx.i4
+#define continuation_name(p)           continuation_block(p)->dx.d_ptr
 
 #define call_exit_goto_loc(p)          (T_Got(p))->object.rexit.goto_loc
 #define call_exit_op_loc(p)            (T_Got(p))->object.rexit.op_stack_loc
 #define call_exit_active(p)            (T_Got(p))->object.rexit.active
+#define call_exit_name(p)              (T_Got(p))->object.rexit.name
+#define call_exit_set_name(p, Name)    (T_Got(p))->object.rexit.name = T_Sym(Name)
 
 #define temp_stack_top(p)              (T_Stk(p))->object.stk.top
 #define s7_stack_top(Sc)               ((Sc)->stack_end - (Sc)->stack_start)
@@ -10240,6 +10245,13 @@ static inline s7_pointer make_goto(s7_scheme *sc)
   return(x);
 }
 
+static s7_pointer g_is_goto(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_goto "(goto? obj) returns #t if obj is a call-with-exit exit function"
+  #define Q_is_goto sc->pl_bt
+  return(make_boolean(sc, is_goto(car(args))));
+}
+
 static s7_pointer copy_op_stack(s7_scheme *sc)
 {
   s7_pointer nv;
@@ -10267,8 +10279,9 @@ static s7_pointer copy_op_stack(s7_scheme *sc)
  *    checks the env chain for any such variable, saving the localmost.  Apply of a continuation
  *    looks for such a saved variable, if none, go ahead, else check the current env (before the
  *    jump) for that variable.  If none, error, else go ahead.  This is different from a delimited
- *    continuation which simply delimits the extent of the continuation (why not use lambda?) -- we want to block it
- *    from coming at us from some unknown place.
+ *    continuation which simply delimits the extent of the continuation -- we want to block it
+ *    from coming at us from some unknown place.  Perhaps this should be extended to make the
+ *    continuation-baffle a list of baffles, if nil = not baffled, but I've found no need for that.
  */
 
 static s7_pointer make_baffle(s7_scheme *sc)
@@ -10279,15 +10292,30 @@ static s7_pointer make_baffle(s7_scheme *sc)
   return(x);
 }
 
+static s7_pointer g_is_baffle(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_baffle "(baffle? obj) returns #t if obj is a baffle"
+  #define Q_is_baffle sc->pl_bt
+  return(make_boolean(sc, is_baffle(car(args))));
+}
+
 static bool find_baffle(s7_scheme *sc, s7_int key)
 {
-  /* search backwards through sc->envir for sc->baffle_symbol with key as value */
-  s7_pointer x, y;
-  for (x = sc->envir; is_let(x); x = outlet(x))
-    for (y = let_slots(x); tis_slot(y); y = next_slot(y))
-      if ((slot_symbol(y) == sc->baffle_symbol) &&
-	  (baffle_key(slot_value(y)) == key))
-	return(true);
+  /* search backwards through sc->envir for sc->baffle_symbol with (continuation_)key as its baffle_key value */
+  s7_pointer x;
+
+  for (x = sc->envir; symbol_id(sc->baffle_symbol) < let_id(x); x = outlet(x));
+  if ((let_id(x) == symbol_id(sc->baffle_symbol)) &&
+      (baffle_key(slot_value(local_slot(sc->baffle_symbol))) == key))
+    return(true);
+  for (; is_let(x); x = outlet(x))
+    {
+      s7_pointer y;
+      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
+	if ((slot_symbol(y) == sc->baffle_symbol) &&
+	    (baffle_key(slot_value(y)) == key))
+	  return(true);
+    }
 
   if ((is_slot(global_slot(sc->baffle_symbol))) &&
       (is_baffle(slot_value(global_slot(sc->baffle_symbol)))))
@@ -10296,9 +10324,11 @@ static bool find_baffle(s7_scheme *sc, s7_int key)
   return(false);
 }
 
+#define NOT_BAFFLED -1
+
 static s7_int find_any_baffle(s7_scheme *sc)
 {
-  /* search backwards through sc->envir for any sc->baffle_symbol */
+  /* search backwards through sc->envir for any sc->baffle_symbol -- called by s7_make_continuation to set continuation_key */
   if (sc->baffle_ctr > 0)
     {
       s7_pointer x, y;
@@ -10311,7 +10341,7 @@ static s7_int find_any_baffle(s7_scheme *sc)
 	  (is_baffle(slot_value(global_slot(sc->baffle_symbol)))))
 	return(baffle_key(slot_value(global_slot(sc->baffle_symbol))));
     }
-  return(-1);
+  return(NOT_BAFFLED);
 }
 
 static void check_with_baffle(s7_scheme *sc)
@@ -10359,6 +10389,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   continuation_op_loc(x) = (int32_t)(sc->op_stack_now - sc->op_stack);
   continuation_op_size(x) = sc->op_stack_size;
   continuation_key(x) = find_any_baffle(sc);
+  continuation_name(x) = sc->F;
   sc->temp8 = sc->nil;
 
   add_continuation(sc, x);
@@ -10485,8 +10516,8 @@ static bool call_with_current_continuation(s7_scheme *sc)
   c = sc->code;
 
   /* check for (baffle ...) blocking the current attempt to continue */
-  if ((continuation_key(c) >= 0) &&
-      (!(find_baffle(sc, continuation_key(c))))) /* should this raise an error? */
+  if ((continuation_key(c) != NOT_BAFFLED) &&
+      (!(find_baffle(sc, continuation_key(c)))))
     return(false);
 
   if (!check_for_dynamic_winds(sc, c))
@@ -10541,6 +10572,8 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
     return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "call/cc procedure, ~A, should take one argument", 47), p)));
 
   sc->w = s7_make_continuation(sc);
+  if ((is_any_closure(p)) && (is_pair(closure_args(p))) && (is_symbol(car(closure_args(p)))))
+    continuation_name(sc->w) = car(closure_args(p));
   push_stack(sc, OP_APPLY, list_1(sc, sc->w), p); /* apply function p to continuation sc->w */
   sc->w = sc->nil;
 
@@ -10552,11 +10585,13 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
  *   in a lambda form that is being exported.  See b-func in s7test for an example.
  */
 
-static void apply_continuation(s7_scheme *sc)
+static void apply_continuation(s7_scheme *sc) /* sc->code is the continuation */
 {
   if (!call_with_current_continuation(sc))
     s7_error(sc, sc->baffled_symbol,
-	     set_elist_1(sc, wrap_string(sc, "continuation can't jump into with-baffle", 40)));
+	     (is_symbol(continuation_name(sc->code))) ?
+  	       set_elist_2(sc, wrap_string(sc, "continuation ~S can't jump into with-baffle", 43), continuation_name(sc->code)) :
+	       set_elist_1(sc, wrap_string(sc, "continuation can't jump into with-baffle", 40)));
 }
 
 static bool op_implicit_continuation_a(s7_scheme *sc)
@@ -10698,6 +10733,9 @@ static s7_pointer g_call_with_exit(s7_scheme *sc, s7_pointer args)
     return(method_or_bust_with_type_one_arg(sc, p, sc->call_with_exit_symbol, args, a_procedure_string));
 
   x = make_goto(sc);
+  if ((is_any_closure(p)) && (is_pair(closure_args(p))) && (is_symbol(car(closure_args(p)))))
+    call_exit_set_name(x, car(closure_args(p)));
+  else call_exit_name(x) = sc->F;
   push_stack(sc, OP_DEACTIVATE_GOTO, x, p); /* this means call-with-exit is not tail-recursive */
   push_stack(sc, OP_APPLY, cons_unchecked(sc, x, sc->nil), p);
 
@@ -10733,8 +10771,9 @@ static s7_pointer op_call_with_exit(s7_scheme *sc)
 {
   s7_pointer go, args;
   set_current_code(sc, sc->code);
-  args = opt2_pair(sc->code);
+  args = opt2_pair(sc->code); 
   go = make_goto(sc);
+  call_exit_set_name(go, caar(args));
   push_stack_no_let_no_code(sc, OP_DEACTIVATE_GOTO, go); /* was also pushing code */
   new_frame_with_slot(sc, sc->envir, sc->envir, caar(args), go);
   sc->code = T_Pair(cdr(args));
@@ -30801,6 +30840,8 @@ static s7_pointer check_ref15(s7_pointer p, const char *func, int32_t line)
     }
   if (has_odd_bits(p))
     {char *s; fprintf(stderr, "odd bits: %s\n", s = describe_type_bits(cur_sc, p)); free(s);}
+  if ((p->uses <= 0) && (in_heap(p)))
+    fprintf(stderr, "%s[%d]: T_Pos: %p uses = %d, alloc_func: %s\n", func, line, p, p->uses, p->current_alloc_func);
   return(p);
 }
 
@@ -31691,12 +31732,24 @@ static void c_macro_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
 
 static void continuation_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  port_write_string(port)(sc, "#<continuation>", 15, port); /* how can a continuation be printed readably? */
+  if (is_symbol(continuation_name(obj)))
+    {
+      port_write_string(port)(sc, "#<continuation ", 15, port);
+      symbol_to_port(sc, continuation_name(obj), port, P_DISPLAY, ci);
+      port_write_character(port)(sc, '>', port);
+    }
+  else port_write_string(port)(sc, "#<continuation>", 15, port);
 }
 
 static void goto_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  port_write_string(port)(sc, "#<goto>", 7, port); /* same query as above */
+  if (is_symbol(call_exit_name(obj)))
+    {
+      port_write_string(port)(sc, "#<goto ", 7, port); 
+      symbol_to_port(sc, call_exit_name(obj), port, P_DISPLAY, ci);
+      port_write_character(port)(sc, '>', port);
+    }
+  else port_write_string(port)(sc, "#<goto>", 7, port);
 }
 
 static void catch_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -43856,6 +43909,8 @@ static s7_pointer b_is_boolean_setter(s7_scheme *sc, s7_pointer args)      {b_si
 static s7_pointer b_is_undefined_setter(s7_scheme *sc, s7_pointer args)    {b_simple_setter(sc, T_UNDEFINED, args);}
 static s7_pointer b_is_unspecified_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_UNSPECIFIED, args);}
 static s7_pointer b_is_c_object_setter(s7_scheme *sc, s7_pointer args)     {b_simple_setter(sc, T_C_OBJECT, args);}
+static s7_pointer b_is_baffle_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_BAFFLE, args);}
+static s7_pointer b_is_goto_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_GOTO, args);}
 
 #define b_setter(sc, typer, args, str, len)	\
   do {						\
@@ -47584,8 +47639,11 @@ static s7_pointer goto_to_let(s7_scheme *sc, s7_pointer obj)
       sc->active_symbol = make_symbol(sc, "active");
       sc->goto_symbol = make_symbol(sc, "goto?");
     }
-  return(g_local_inlet(sc, 6, sc->value_symbol, obj,
-		       sc->type_symbol, sc->goto_symbol,
+  if (is_symbol(call_exit_name(obj)))
+    return(g_local_inlet(sc, 8, sc->value_symbol, obj, sc->type_symbol, sc->goto_symbol, 
+			 sc->active_symbol, s7_make_boolean(sc, call_exit_active(obj)),
+			 make_symbol(sc, "name"), call_exit_name(obj)));
+  return(g_local_inlet(sc, 6, sc->value_symbol, obj, sc->type_symbol, sc->goto_symbol, 
 		       sc->active_symbol, s7_make_boolean(sc, call_exit_active(obj))));
 }
 
@@ -47661,6 +47719,9 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
       return(c_pointer_to_let(sc, obj));
 
     case T_CONTINUATION:
+      /* perhaps include the continuation-key */
+      if (is_symbol(continuation_name(obj)))
+	return(g_local_inlet(sc, 6, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol, make_symbol(sc, "name"), continuation_name(obj)));
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_continuation_symbol));
 
     case T_ITERATOR:
@@ -50502,9 +50563,9 @@ static void init_typers(s7_scheme *sc)
   sc->type_to_typers[T_C_POINTER] =           sc->is_c_pointer_symbol;
   sc->type_to_typers[T_OUTPUT_PORT] =         sc->is_output_port_symbol;
   sc->type_to_typers[T_INPUT_PORT] =          sc->is_input_port_symbol;
-  sc->type_to_typers[T_BAFFLE] =              sc->F;
+  sc->type_to_typers[T_BAFFLE] =              sc->is_baffle_symbol;
   sc->type_to_typers[T_RANDOM_STATE] =        sc->is_random_state_symbol;
-  sc->type_to_typers[T_GOTO] =                sc->F;                       /* (continuation? goto) -> #f -- we need a type indicator for this */
+  sc->type_to_typers[T_GOTO] =                sc->is_goto_symbol;
   sc->type_to_typers[T_CONTINUATION] =        sc->is_continuation_symbol;
   sc->type_to_typers[T_CLOSURE] =             sc->is_procedure_symbol;
   sc->type_to_typers[T_CLOSURE_STAR] =        sc->is_procedure_symbol;
@@ -96233,7 +96294,7 @@ s7_scheme *s7_init(void)
   #define H_define_expansion_star "(define-expansion* (mac args) ...) defines mac to be a read-time macro*."
   #define H_define_bacro      "(define-bacro (mac args) ...) defines mac to be a bacro."
   #define H_define_bacro_star "(define-bacro* (mac args) ...) defines mac to be a bacro with optional/keyword arguments."
-  #define H_with_baffle       "(with-baffle ...) evaluates its body in a context that is safe from outside interference."
+  #define H_with_baffle       "(with-baffle ...) evaluates its body in a context that blocks re-entry via call/cc."
   #define H_macroexpand       "(macroexpand macro-call) returns the result of the expansion phase of evaluating the macro call."
   #define H_with_let          "(with-let env ...) evaluates its body in the environment env."
   #define H_let_temporarily   "(let-temporarily ((var value)...) . body) sets each var to its new value, evals body, then returns each var to its original value."
@@ -96388,6 +96449,8 @@ s7_scheme *s7_init(void)
   sc->is_c_object_symbol =        b_defun("c-object?",	      is_c_object,	  0, T_C_OBJECT,     mark_vector_1,      false);
   sc->is_subvector_symbol =       b_defun("subvector?",	      is_subvector,	  0, T_FREE,         mark_vector_1,      false);
   sc->is_weak_hash_table_symbol = b_defun("weak-hash-table?", is_weak_hash_table, 0, T_FREE,         mark_vector_1,      false);
+  sc->is_baffle_symbol =          b_defun("baffle?",	      is_baffle,	  0, T_BAFFLE,       mark_vector_1,      true);
+  sc->is_goto_symbol =            b_defun("goto?",	      is_goto,	          0, T_GOTO,         mark_vector_1,      true);
 
   /* these are for signatures */
   sc->not_symbol = defun("not",	not, 1, 0, false);
@@ -97377,7 +97440,5 @@ int main(int argc, char **argv)
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
  * let+lambda -- not set safe either?
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator/hash-ref/set/display/incr/equal -- lots of complication
- * add owlet set history checks, make sure gc hits all contents, check for odd-bits (0 use!) etc
- *   should we gc_mark history1 and 2, not sc->error_history?  are they permament lists? yes maybe clear all cars #f of unused buffer
- * fc31
+ * lint check for unused return val? => pointless func/call if no side effects
  */

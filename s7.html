@@ -3519,13 +3519,10 @@ This is similar to trying to read from a closed input port.
 
 
 <p>The other side, so to speak, of call-with-exit, is <em class=def id="withbaffle">with-baffle</em>.
-Both limit the scope of a continuation.
 Sometimes we need a normal call/cc, but want to make sure it is active
 only within a given block of code.  
 Normally, if a continuation gets away, there's no telling when it might wreak havoc on us.
-Scheme code with call/cc becomes unpredictable, undebuggable, and completely
-unmaintainable.  
-with-baffle blocks all that &mdash; no continuation can jump into its body:
+with-baffle blocks that &mdash; no continuation can jump into its body:
 </p>
 
 <pre class="indented">

@@ -2,9 +2,9 @@
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 04/03/15 19:25:58
-\ Changed: 18/01/06 06:54:06
+\ Changed: 19/12/23 15:34:09
 \
-\ @(#)clm.fs	2.4 1/6/18
+\ @(#)clm.fs	2.5 12/23/19
 
 \ clm-print		( fmt :optional args -- )
 \ clm-message		( fmt :optional args -- )
@@ -345,7 +345,7 @@ set-current
 previous
 
 \ === Global User Variables (settable in ~/.snd_forth or ~/.fthrc) ===
-"fth 2018/01/06"	value *clm-version*
+"fth 2019/12/23"	value *clm-version*
 mus-lshort	value *clm-audio-format*
 #f		value *clm-comment*
 1.0		value *clm-decay-time*
@@ -1737,7 +1737,7 @@ hide
 		body-xt execute
 	then
 	*notehook* word? if
-		*clm-instruments* each { args }
+		*dac-instruments* each { args }
 			*notehook* args run-proc drop
 		end-each
 	then
