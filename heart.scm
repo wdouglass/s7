@@ -6,7 +6,10 @@
 (set! *clm-clipped* #f)
 (set! (with-inset-graph) #f)
 
-;;; tell Snd not to try to load the data file
+(when (not (= (length (script-args)) 2)) 
+  (error 'no-data "data file missing: snd heart.scm data"))
+
+;;; tell Snd not to try to load the data file (as scheme code)
 (set! (script-arg) (+ 1 (script-arg)))
 
 ;;; search for "...[<number>am|pm <number>/<number>...", put the two readings in a stereo file

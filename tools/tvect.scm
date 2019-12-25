@@ -2,6 +2,35 @@
 
 (set! (*s7* 'heap-size) (* 2 1024000))
 
+;;; --------------------------------
+
+(define (max+loc vect)
+  (let ((len (length vect))
+	(mx 0.0)
+	(loc 0))
+    (do ((i 0 (+ i 1)))
+	((= i len)
+	 (list mx loc))
+      (when (> (abs (vect i)) mx)
+	(set! mx (vect i))
+	(set! loc i)))))
+
+(define (test-max tests)
+  (let ((v (make-float-vector 1024)))
+    (do ((i 0 (+ i 1)))
+	((= i 1024))
+      (set! (v i) (- (random 100.0) 50.0)))
+
+    (display (max+loc v)) (newline)
+
+    (do ((i 0 (+ i 1)))
+	((= i tests))
+      (max+loc v))))
+
+(test-max 10000)
+
+;;; --------------------------------
+
 (define size 300000)
 (define size/10 (/ size 10))
 

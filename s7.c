@@ -540,13 +540,13 @@ typedef struct {
 } port_functions;
 
 typedef struct {
-  bool needs_free, needs_unprotect, is_closed;
+  bool needs_free, is_closed;
   port_type_t ptype;
   FILE *file;
   char *filename;
   block_t *filename_block;
   uint32_t line_number, file_number;
-  s7_int gc_loc, filename_length;
+  s7_int filename_length;
   block_t *block;
   s7_pointer orig_str;    /* GC protection for string port string */
   const port_functions *pf;
@@ -3124,8 +3124,6 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_set_closed(p, Val)        port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
 #define port_needs_free(p)             port_port(p)->needs_free
 #define port_next(p)                   port_block(p)->nx.next
-#define port_gc_loc(p)                 port_port(p)->gc_loc
-#define port_needs_unprotect(p)        port_port(p)->needs_unprotect
 #define port_original_input_string(p)  port_port(p)->orig_str
 #define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)         port_port(p)->input_function
@@ -4005,7 +4003,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SET_UNCHECKED, OP_SET_SYMBOL_C, OP_SET_SYMBOL_S, OP_SET_SYMBOL_P, OP_SET_SYMBOL_A,
       OP_SET_NORMAL, OP_SET_PAIR, OP_SET_DILAMBDA, OP_SET_DILAMBDA_P, OP_SET_DILAMBDA_P_1, OP_SET_DILAMBDA_SA_A,
       OP_SET_PAIR_A, OP_SET_PAIR_P, OP_SET_PAIR_ZA,
-      OP_SET_PAIR_P_1, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
+      OP_SET_PAIR_P_1, OP_SET_FROM_SETTER, OP_SET_PWS, OP_SET_LET_S, OP_SET_LET_FX, OP_SET_SAFE,
       OP_INCREMENT_1, OP_DECREMENT_1, OP_SET_CONS,
       OP_INCREMENT_SS, OP_INCREMENT_SP, OP_INCREMENT_SA, OP_INCREMENT_SAA,
 
@@ -4243,7 +4241,7 @@ static const char* op_names[NUM_OPS] =
       "set_unchecked", "set_symbol_c", "set_symbol_s", "set_symbol_p", "set_symbol_a",
       "set_normal", "set_pair", "set_dilambda", "set_dilambda_p", "set_dilambda_p_1", "set_dilambda_sa_a",
       "set_pair_a", "set_pair_p", "set_pair_za",
-      "set_pair_p_1", "set_pws", "set_let_s", "set_let_fx", "set_safe",
+      "set_pair_p_1", "set_from_setter", "set_pws", "set_let_s", "set_let_fx", "set_safe",
       "increment_1", "decrement_1", "set_cons",
       "increment_ss", "increment_sp", "increment_sa", "increment_saa",
       "letrec_unchecked", "letrec*_unchecked", "cond_unchecked",
@@ -4890,11 +4888,6 @@ static void process_input_string_port(s7_scheme *sc, s7_pointer s1)
     fprintf(stderr, "string input port needs data release\n");
 #endif
 
-  if (port_needs_unprotect(s1))
-    {
-      s7_gc_unprotect_at(sc, port_gc_loc(s1));
-      port_needs_unprotect(s1) = false;
-    }
   liberate(sc, port_block(s1));
 }
 
@@ -4920,15 +4913,6 @@ static void process_input_port(s7_scheme *sc, s7_pointer s1)
 	    {
 	      fclose(port_file(s1));
 	      port_file(s1) = NULL;
-	    }
-	}
-      else
-	{
-	  if ((is_string_port(s1)) &&
-	      (port_needs_unprotect(s1)))
-	    {
-	      s7_gc_unprotect_at(sc, port_gc_loc(s1));
-	      port_needs_unprotect(s1) = false;
 	    }
 	}
     }
@@ -5350,14 +5334,6 @@ static void mark_pair(s7_pointer p)
   } while ((is_pair(p)) && (!is_marked(p))); /* ((typeflag(p) & (TYPE_MASK | T_GC_MARK)) == T_PAIR) is much slower */
   gc_mark(p);
 }
-/* in snd-14 or so through 15.3, sc->temp_cell_2|3 were used for trailing args in eval, but that meant
- *   the !is_marked check below (which is intended to catch cyclic lists) caused cells to be missed;
- *   since sc->args could contain permanently marked cells, if these were passed to g_vector, for example, and
- *   make_vector_1 triggered a GC call, we needed to mark both the permanent (always marked) cell and its contents,
- *   and continue through the rest of the list.  But adding temp_cell_2|3 to sc->permanent_objects was not enough.
- *   Now I've already forgotten the rest of the story, and it was just an hour ago! -- the upshot is that temp_cell_2|3
- *   are not now used as arg list members.
- */
 
 static void mark_counter(s7_pointer p)
 {
@@ -8984,6 +8960,7 @@ static s7_pointer g_set_outlet(s7_scheme *sc, s7_pointer args)
   return(new_outer);
 }
 
+/* -------------------------------- symbol lookup -------------------------------- */
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol)
 {
   s7_pointer x;
@@ -24121,11 +24098,6 @@ static void close_input_string(s7_scheme *sc, s7_pointer p)
       liberate(sc, port_filename_block(p));
       port_filename(p) = NULL;
     }
-  if (port_needs_unprotect(p))
-    {
-      s7_gc_unprotect_at(sc, port_gc_loc(p));
-      port_needs_unprotect(p) = false;
-    }
   if (port_needs_free(p))
     free_port_data(sc, p);
 
@@ -24142,11 +24114,6 @@ static void close_simple_input_string(s7_scheme *sc, s7_pointer p)
   if (port_needs_free(p))
     fprintf(stderr, "%s: port needs free\n", __func__);
 #endif
-  if (port_needs_unprotect(p))
-    {
-      s7_gc_unprotect_at(sc, port_gc_loc(p));
-      port_needs_unprotect(p) = false;
-    }
   port_port(p)->pf = &closed_port_functions;
   port_set_closed(p, true);
   port_position(p) = 0;
@@ -25033,7 +25000,6 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
       port_data_size(port) = size;
       port_position(port) = 0;
       port_needs_free(port) = true;
-      port_needs_unprotect(port) = false;
       port_port(port)->pf = &input_string_functions_1;
     }
   else
@@ -25376,7 +25342,6 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_file_number(x) = 0;
   port_line_number(x) = 0;
   port_needs_free(x) = false;
-  port_needs_unprotect(x) = false;
 #if S7_DEBUGGING
   if (input_string[len] != '\0')
     {
@@ -25393,8 +25358,7 @@ static inline s7_pointer open_and_protect_input_string(s7_scheme *sc, s7_pointer
 {
   s7_pointer p;
   p = open_input_string(sc, string_value(str), string_length(str));
-  port_gc_loc(p) = s7_gc_protect_1(sc, str);
-  port_needs_unprotect(p) = true;
+  port_original_input_string(p) = str;
   return(p);
 }
 
@@ -30840,8 +30804,6 @@ static s7_pointer check_ref15(s7_pointer p, const char *func, int32_t line)
     }
   if (has_odd_bits(p))
     {char *s; fprintf(stderr, "odd bits: %s\n", s = describe_type_bits(cur_sc, p)); free(s);}
-  if ((p->uses <= 0) && (in_heap(p)))
-    fprintf(stderr, "%s[%d]: T_Pos: %p uses = %d, alloc_func: %s\n", func, line, p, p->uses, p->current_alloc_func);
   return(p);
 }
 
@@ -77572,13 +77534,14 @@ static s7_pointer op_set1(s7_scheme *sc)
 	      if (is_c_function(func))
 		sc->value = call_c_function_setter(sc, func, sc->code, sc->value);
 	      else
-		{
-		  push_stack_direct(sc, OP_EVAL_DONE, sc->args, sc->code);
+		{ 
+		  /* don't push OP_EVAL_DONE here and call eval(sc, OP_APPLY) below -- setter might hit an error */
+		  push_stack(sc, OP_SET_FROM_SETTER, sc->args, lx); /* op, args, code */
 		  if (has_let_arg(func))
 		    sc->args = list_3(sc, sc->code, sc->value, sc->envir);
 		  else sc->args = list_2(sc, sc->code, sc->value);
 		  sc->code = func;
-		  eval(sc, OP_APPLY); /* sets sc->value, used below */
+		  return(NULL);
 		}
 	    }
 	}
@@ -77600,6 +77563,13 @@ static s7_pointer op_set1(s7_scheme *sc)
     return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));
 
   return(eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, sc->code));
+}
+
+static void op_set_from_setter(s7_scheme *sc)
+{
+  if (is_immutable(sc->code))
+    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->set_symbol, sc->code));
+  slot_set_value(sc->code, sc->value);
 }
 
 static goto_t set_implicit(s7_scheme *sc);
@@ -80864,7 +80834,7 @@ static goto_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
     return(fall_through);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
-  if ((body_len <= 0) || (body_len >= 32)) return(fall_through);
+  if ((body_len <= 0) || (body_len >= 32)) {/* fprintf(stderr, "%s[%d]: len: %ld %s\n", __func__, __LINE__, body_len, display_80(scc)); */ return(fall_through);}
   let_star = (symbol_syntax_op_checked(let_code) == OP_LET_STAR);
   let_vars = cadr(let_code);
   set_safe_stepper(step_slot);
@@ -80889,6 +80859,7 @@ static goto_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
       if (!float_optimize(sc, expr))   /* each of these needs to set the associated variable */
 	{
 	  sc->envir = old_e;
+	  /* fprintf(stderr, "%s[%d]: not float var init: %s in %s\n", __func__, __LINE__, display(expr), display_80(scc)); return(fall_through); */
 	  return(fall_through);
 	}
       if (let_star)
@@ -80905,6 +80876,7 @@ static goto_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
       if (!float_optimize(sc, p))
 	{
 	  sc->envir = old_e;
+	  /* fprintf(stderr, "%s[%d]: not float opt: %s in %s\n", __func__, __LINE__, display(p), display_80(scc)); return(fall_through); */
 	  return(fall_through);
 	}
     }
@@ -82752,9 +82724,11 @@ static goto_t op_define1(s7_scheme *sc)
 
 static void op_define_with_setter(s7_scheme *sc)
 {
+  s7_pointer code;
+  code = sc->code;
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
-    eval_error(sc, "define ~S: let is immutable", 27, sc->code);
+    eval_error(sc, "define ~S: let is immutable", 27, code);
 
   if ((is_any_closure(sc->value)) &&
       ((!(is_let(closure_let(sc->value)))) ||
@@ -82762,7 +82736,7 @@ static void op_define_with_setter(s7_scheme *sc)
     {
       s7_pointer new_func, new_env;
       new_func = sc->value;
-      new_env = make_funclet(sc, new_func, sc->code, closure_let(new_func));
+      new_env = make_funclet(sc, new_func, code, closure_let(new_func));
       /* this should happen only if the closure* default values do not refer in any way to
        *   the enclosing environment (else we can accidentally shadow something that happens
        *   to share an argument name that is being used as a default value -- kinda dumb!).
@@ -82787,45 +82761,45 @@ static void op_define_with_setter(s7_scheme *sc)
       /* add the newly defined thing to the current environment */
       if (is_let(sc->envir))
 	{
-	  if (let_id(sc->envir) < symbol_id(sc->code)) /* we're adding a later-bound symbol to an old let (?) */
+	  if (let_id(sc->envir) < symbol_id(code)) /* we're adding a later-bound symbol to an old let (?) */
 	    {
 	      s7_pointer slot;
 	      sc->let_number++; /* dummy let, force symbol lookup */
 
 	      for (slot = let_slots(sc->envir); tis_slot(slot); slot = next_slot(slot))
-		if (slot_symbol(slot) == sc->code)
+		if (slot_symbol(slot) == code)
 		  {
 		    if (is_immutable(slot))
-		      eval_error(sc, "define ~S: but it is immutable", 30, sc->code);
+		      eval_error(sc, "define ~S: but it is immutable", 30, code);
 		    slot_set_value(slot, new_func);
-		    symbol_set_local(sc->code, sc->let_number, slot);
-		    set_local(sc->code);
+		    symbol_set_local(code, sc->let_number, slot);
+		    set_local(code);
 		    sc->value = new_func; /* probably not needed? */
 		    return;
 		  }
 	      new_cell_no_check(sc, slot, T_SLOT);
-	      slot_set_symbol(slot, sc->code);
+	      slot_set_symbol(slot, code);
 	      slot_set_value(slot, new_func);
-	      symbol_set_local(sc->code, sc->let_number, slot);
+	      symbol_set_local(code, sc->let_number, slot);
 	      slot_set_next(slot, let_slots(sc->envir));
 	      let_set_slots(sc->envir, slot);
 	    }
-	  else add_slot(sc->envir, sc->code, new_func);
-	  set_local(sc->code);
+	  else add_slot(sc->envir, code, new_func);
+	  set_local(code);
 	}
       else
 	{
-	  if ((is_slot(global_slot(sc->code))) &&
-	      (is_immutable(global_slot(sc->code))))
+	  if ((is_slot(global_slot(code))) &&
+	      (is_immutable(global_slot(code))))
 	    {
 	      s7_pointer old_value, old_symbol;
-	      old_symbol = sc->code;
-	      old_value = slot_value(global_slot(sc->code));
+	      old_symbol = code;
+	      old_value = slot_value(global_slot(code));
 	      if ((type(old_value) != type(new_func)) ||
 		  (!s7_is_equivalent(sc, old_value, new_func)))    /* if value is unchanged, just ignore this (re)definition */
 		eval_error(sc, "define ~S: but it is immutable", 30, old_symbol);
 	    }
-	  s7_make_slot(sc, sc->envir, sc->code, new_func);
+	  s7_make_slot(sc, sc->envir, code, new_func);
 	}
       sc->value = new_func; /* 25-Jul-14 so define returns the value not the name */
     }
@@ -82833,13 +82807,13 @@ static void op_define_with_setter(s7_scheme *sc)
     {
       s7_pointer lx;
       /* add the newly defined thing to the current environment */
-      lx = symbol_to_local_slot(sc, sc->code, sc->envir);
+      lx = symbol_to_local_slot(sc, code, sc->envir);
       if (is_slot(lx))
 	{
 	  if (is_immutable(lx))
 	    {
 	      s7_pointer old_value, old_symbol;
-	      old_symbol = sc->code;
+	      old_symbol = code;
 	      old_value = slot_value(lx);
 	      if ((type(old_value) != type(sc->value)) ||
 		  (!s7_is_equivalent(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
@@ -82847,7 +82821,7 @@ static void op_define_with_setter(s7_scheme *sc)
 	    }
 	  slot_set_value_with_hook(lx, sc->value);
 	}
-      else s7_make_slot(sc, sc->envir, sc->code, sc->value);
+      else s7_make_slot(sc, sc->envir, code, sc->value);
     }
 }
 
@@ -86373,11 +86347,11 @@ static void op_safe_c_sc(s7_scheme *sc)
 static void op_safe_c_ap(s7_scheme *sc)
 {
   s7_pointer val, code;
-  code = sc->code;
+  code = cdr(sc->code);
   check_stack_size(sc);
-  val = fx_call(sc, cdr(sc->code));
-  push_stack(sc, (opcode_t)opt1_any(cdr(sc->code)), val, code);
-  sc->code = caddr(code);
+  val = fx_call(sc, code);
+  push_stack(sc, (opcode_t)opt1_any(code), val, sc->code);
+  sc->code = cadr(code);
 }
 
 static void op_safe_c_pp(s7_scheme *sc)
@@ -86464,8 +86438,8 @@ static void op_safe_or_unsafe_c_fp(s7_scheme *sc) /* code: (func . args) where a
   s7_pointer p;
   check_stack_size(sc);
   sc->args = list_1(sc, sc->code);
-  sc->code = cdr(sc->code); /* args pre-eval */
-  for (p = sc->code; (is_pair(p)) && (has_fx(p)); p = cdr(p))
+  /* sc->code = cdr(sc->code); *//* args pre-eval */
+  for (p = cdr(sc->code); (is_pair(p)) && (has_fx(p)); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, p), sc->args); /* reversed before apply in OP_SAFE_OR_UNSAFE_C_FP_1 */
   /* there's always at least one non-fx arg (the "p" in "fp"), also lots of recurs here */
 #if S7_DEBUGGING
@@ -86507,8 +86481,8 @@ static void op_safe_or_unsafe_closure_fp(s7_scheme *sc)
   s7_pointer p;
   check_stack_size(sc);
   sc->args = list_1(sc, sc->code);
-  sc->code = cdr(sc->code);
-  for (p = sc->code; (is_pair(p)) && (has_fx(p)); p = cdr(p))
+  /* sc->code = cdr(sc->code); */
+  for (p = cdr(sc->code); (is_pair(p)) && (has_fx(p)); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, p), sc->args);
   push_stack(sc, ((intptr_t)((is_pair(cdr(p))) ? OP_SAFE_OR_UNSAFE_CLOSURE_FP_1 : OP_SAFE_OR_UNSAFE_CLOSURE_FP_2)), sc->args, cdr(p));
   sc->code = T_Pair(car(p));
@@ -87060,21 +87034,23 @@ static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
 
 static void eval_args_pair_car(s7_scheme *sc)
 {
+  s7_pointer code;
   if (sc->stack_end >= sc->stack_resize_trigger)
     check_for_cyclic_code(sc, sc->code);
 
+  code = cdr(sc->code);
   /* all 3 of these push_stacks can result in stack overflow, see above 64065 */
-  if (is_null(cdr(sc->code)))
+  if (is_null(code))
     push_stack_no_code(sc, OP_EVAL_ARGS2, sc->args);
   else
     {
-      if (!is_pair(cdr(sc->code)))            /* (= 0 '(1 . 2) . 3) */
+      if (!is_pair(code))            /* (= 0 '(1 . 2) . 3) */
 	improper_arglist_error(sc);
 
-      if ((is_null(cddr(sc->code))) &&
-	  (!is_pair(cadr(sc->code))))
-	push_stack(sc, OP_EVAL_ARGS3, sc->args, cadr(sc->code));
-      else push_stack(sc, OP_EVAL_ARGS4, sc->args, cdr(sc->code));
+      if ((is_null(cdr(code))) &&
+	  (!is_pair(car(code))))
+	push_stack(sc, OP_EVAL_ARGS3, sc->args, car(code));
+      else push_stack(sc, OP_EVAL_ARGS4, sc->args, code);
     }
   sc->code = car(sc->code);
 }
@@ -89448,6 +89424,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SET_SYMBOL_P:     op_set_symbol_p(sc);     goto EVAL;
 	case OP_SET_CONS:         op_set_cons(sc);         continue;
  	case OP_SET_SAFE:	  op_set_safe(sc);  	   continue;
+	case OP_SET_FROM_SETTER:  op_set_from_setter(sc);  continue;
 
 	case OP_SET2: 
 	  switch (op_set2(sc))
@@ -97223,13 +97200,8 @@ s7_scheme *s7_init(void)
 			 sc->let_ref_fallback_symbol, s7_make_function(sc, "s7-let-ref", g_s7_let_ref_fallback, 2, 0, false, "*s7* reader"),
 			 sc->let_set_fallback_symbol, s7_make_function(sc, "s7-let-set", g_s7_let_set_fallback, 3, 0, false, "*s7* writer")));
   sc->s7_let_symbol = s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
-
-  { /* make the two *s7* accessor fields immutable */
-    s7_pointer slot;
-    slot = let_slots(sc->s7_let);
-    set_immutable(slot);
-    set_immutable(next_slot(slot));
-  }
+  set_immutable(let_slots(sc->s7_let)); /* make the *s7* let-ref|set! fallbacks immutable */
+  set_immutable(next_slot(let_slots(sc->s7_let)));
 
 #if S7_DEBUGGING
   s7_define_function(sc, "report-missed-calls", g_report_missed_calls, 0, 0, false, NULL);
@@ -97237,7 +97209,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 884) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 885) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97398,15 +97370,15 @@ int main(int argc, char **argv)
  * index     971 |  890
  * teq      1617 | 1542
  * s7test   1776 | 1711
- * tvect    5115 | 1735
  * lt       2278 | 2072
- * tcopy    2434 | 2273
+ * tcopy    2434 | 2273  2264
  * tmisc    2852 | 2282
  * tform    2472 | 2309
- * tread    2449 | 2426
- * tmat     6072 | 2488
+ * tread    2449 | 2426  2406
+ * tmat     6072 | 2488  2480
+ * tvect    6189 | 2588  2576
  * fbench   2974 | 2643
- * dup      6333 | 2729
+ * dup      6333 | 2729  2713
  * trclo    7985 | 2791
  * tb       3251 | 2799
  * tmap     3238 | 2883
@@ -97424,11 +97396,10 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9
  * sg       85.8 | 70.4
  * lg      115.9 |104.9
- * tbig    264.5 |178.7
+ * tbig    264.5 |178.7 178.0
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * t718: somehow sc != cur_sc?
  * optimize_expression|syntax extended to other syntax_a cases?
  *   let_a_fx (begin_fx) including set! if it's a local variable and fx-following uses "p" for it
  *   set! in opt and fx is ok if not used elsewhere or known "p" case (implicit vector etc)
@@ -97439,6 +97410,6 @@ int main(int argc, char **argv)
  * if (lambda...) as arg (to g_set_setter for example), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
  * let+lambda -- not set safe either?
- * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator/hash-ref/set/display/incr/equal -- lots of complication
- * lint check for unused return val? => pointless func/call if no side effects
+ * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
+ * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  */

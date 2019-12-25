@@ -346,13 +346,13 @@ cp orig-snd-test.scm snd-test.scm
 mv tmp snd-test.scm
 
 # this hangs sometimes?
-echo ' '
-echo ' '
-./snd --version
-./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was snd-test at-random without-gui -------------------------------- '
+# echo ' '
+# echo ' '
+# ./snd --version
+# ./snd -l snd-test
+# echo ' '
+# echo ' '
+# echo ' -------------------------------- that was snd-test at-random without-gui -------------------------------- '
 echo ' '
 echo ' '
 
