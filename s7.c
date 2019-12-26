@@ -8495,7 +8495,8 @@ inline s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer symbol)
       return(wrong_type_argument_with_type(sc, sc->let_ref_symbol, 2, symbol, a_symbol_string));
     }
 
-  check_method_uncopied(sc, env, sc->let_ref_symbol, list_2(sc, env, symbol));
+  if (!is_global(sc->let_ref_symbol))
+    check_method_uncopied(sc, env, sc->let_ref_symbol, list_2(sc, env, symbol));
   /* a let-ref method is almost impossible to write without creating an infinite loop:
    *   any reference to the let will probably call let-ref somewhere, calling us again, and looping.
    *   This is not a problem in c-objects and funclets because c-object-ref and funclet-ref don't exist.
@@ -8694,7 +8695,8 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_point
       return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, a_symbol_string));
     }
 
-  check_method_uncopied(sc, env, sc->let_set_symbol, sc->w = list_3(sc, env, symbol, value));
+  if (!is_global(sc->let_set_symbol))
+    check_method_uncopied(sc, env, sc->let_set_symbol, sc->w = list_3(sc, env, symbol, value));
   return(let_set_1(sc, env, symbol, value));
 }
 
@@ -25178,7 +25180,7 @@ static port_functions stdout_functions =
 static port_functions stderr_functions =
   {output_read_char, stderr_write_char, stderr_write_string, NULL, NULL, NULL, NULL, output_read_line, stderr_display, close_stderr};
 
-static void make_standard_ports(s7_scheme *sc)
+static void init_standard_ports(s7_scheme *sc)
 {
   s7_pointer x;
 
@@ -42184,19 +42186,13 @@ That is, (hash-table 'a 1 'b 2) returns a new hash-table with the two key/value 
     return(s7_error(sc, sc->wrong_number_of_args_symbol,
 		    set_elist_2(sc, wrap_string(sc, "hash-table got an odd number of arguments: ~S", 45), args)));
   len /= 2;
-
   ht = s7_make_hash_table(sc, (len > sc->default_hash_table_length) ? len : sc->default_hash_table_length);
   if (len > 0)
     {
-      s7_int ht_loc;
       s7_pointer x, y;
-      ht_loc = s7_gc_protect_1(sc, ht); /* hash_table_set can cons (but only if ht=let??), so we need to protect this */
-
       for (x = args, y = cdr(args); is_pair(x); x = cddr(x), y = unchecked_cdr(cdr(y)))
 	if (car(y) != sc->F)
 	  hash_table_add(sc, ht, car(x), car(y));
-
-      s7_gc_unprotect_at(sc, ht_loc);
     }
   return(ht);
 }
@@ -45425,13 +45421,15 @@ static s7_pointer iter_length(s7_scheme *sc, s7_pointer lst) {return(s7_length(s
 
 static s7_pointer c_obj_length(s7_scheme *sc, s7_pointer lst)
 {
-  check_method_uncopied(sc, lst, sc->length_symbol, list_1(sc, lst));
+  if (!is_global(sc->length_symbol))
+    check_method_uncopied(sc, lst, sc->length_symbol, list_1(sc, lst));
   return(c_object_length(sc, lst));
 }
 
 static s7_pointer lt_length(s7_scheme *sc, s7_pointer lst)
 {
-  check_method_uncopied(sc, lst, sc->length_symbol, list_1(sc, lst));
+  if (!is_global(sc->length_symbol))
+    check_method_uncopied(sc, lst, sc->length_symbol, list_1(sc, lst));
   return(make_integer(sc, let_length(sc, lst)));
 }
 
@@ -52243,6 +52241,19 @@ static s7_pointer fx_c_scs_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_ppp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), opt1_con(cdr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
+static s7_pointer fx_c_tcu_direct(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, cadddr(arg));
+  return(((s7_p_ppp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), opt1_con(cdr(arg)), slot_value(next_slot(let_slots(sc->envir)))));
+}
+
+static s7_pointer fx_c_tcs_direct(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return(((s7_p_ppp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), opt1_con(cdr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
+}
+
 static s7_pointer fx_c_tcs(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
@@ -55187,6 +55198,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		}
 	      if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_ts));
 	      if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_ts));
+	      if (c_callee(tree) == fx_c_scs_direct) return(with_c_call(tree, (cadddr(p) == var2) ? fx_c_tcu_direct : fx_c_tcs_direct));
 	    }
 	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_ti));
 	  if (c_callee(tree) == fx_gt_ss) return(with_c_call(tree, (is_global(caddr(p))) ? fx_gt_tg : fx_gt_ts));
@@ -95105,7 +95117,7 @@ char *s7_decode_bt(s7_scheme *sc)
 
 /* -------------------------------- initialization -------------------------------- */
 
-static void fx_function_init(void)
+static void init_fx_function(void)
 {
   int32_t i;
   for (i = 0; i < NUM_OPS; i++)
@@ -95701,6 +95713,10 @@ static void init_opt_functions(s7_scheme *sc)
 
 static void init_features(s7_scheme *sc)
 {
+  s7_provide(sc, "s7");
+  s7_provide(sc, "s7-" S7_VERSION);
+  s7_provide(sc, "ratio");
+
 #if WITH_PURE_S7
   s7_provide(sc, "pure-s7");
 #endif
@@ -95835,404 +95851,9 @@ static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ)
   return(p);
 }
 
-#if (!MS_WINDOWS)
-static pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
-
-s7_scheme *s7_init(void)
+static void init_rootlet(s7_scheme *sc)
 {
-  int32_t i;
-  s7_scheme *sc;
   s7_pointer sym;
-  static bool already_inited = false;
-
-#if (!MS_WINDOWS)
-  setlocale(LC_NUMERIC, "C"); /* use decimal point in floats */
-  pthread_mutex_lock(&init_lock);
-#endif
-
-  if (!already_inited)
-    {
-      if (sizeof(void *) > sizeof(s7_int))
-	fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
-
-      init_types();
-      init_ctables();
-      init_mark_functions();
-      init_display_functions();
-      init_length_functions();
-      init_equals();
-      init_hash_maps();
-      init_pows();
-      init_int_limits();
-      init_small_ints();
-      init_uppers();
-      init_chars();
-      init_strings();
-      fx_function_init();
-      init_catchers();
-      already_inited = true;
-    }
-#if (!MS_WINDOWS)
-  pthread_mutex_unlock(&init_lock);
-#endif
-  sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
-  cur_sc = sc;                                    /* for gdb/debugging and clm optimizer */
-  sc->gc_off = true;                              /* sc->args and so on are not set yet, so a gc during init -> segfault */
-  sc->gc_stats = 0;
-  init_gc_caches(sc);
-  sc->permanent_cells = 0;
-  sc->alloc_pointer_k = ALLOC_POINTER_SIZE;
-  sc->alloc_pointer_cells = NULL;
-  sc->alloc_big_pointer_k = ALLOC_BIG_POINTER_SIZE;
-  sc->alloc_big_pointer_cells = NULL;
-  sc->alloc_function_k = ALLOC_FUNCTION_SIZE;
-  sc->alloc_function_cells = NULL;
-  sc->alloc_symbol_k = ALLOC_SYMBOL_SIZE;
-  sc->alloc_symbol_cells = NULL;
-  sc->num_to_str_size = -1;
-  sc->num_to_str = NULL;
-  init_block_lists(sc);
-  sc->alloc_string_k = ALLOC_STRING_SIZE;
-  sc->alloc_string_cells = NULL;
-
-  sc->longjmp_ok = false;
-  sc->setjmp_loc = NO_SET_JUMP;
-
-  if (sizeof(s7_int) == 4)
-    sc->max_vector_length = (1 << 24);
-  else sc->max_vector_length = (1LL << 32);
-  sc->max_string_length = 1073741824; /* 1 << 30 */
-  sc->max_format_length = 10000;
-  sc->max_list_length = 1073741824;
-  sc->max_vector_dimensions = 512;
-
-  sc->strbuf_size = INITIAL_STRBUF_SIZE;
-  sc->strbuf = (char *)calloc(sc->strbuf_size, 1);
-  sc->print_width = sc->max_string_length;
-  sc->short_print = false;
-  sc->in_with_let = false;
-  sc->object_out_locked = false;
-  sc->has_openlets = true;
-  sc->accept_all_keyword_arguments = false;
-
-  sc->initial_string_port_length = 128;
-  sc->format_depth = -1;
-  sc->singletons = (s7_pointer *)calloc(256, sizeof(s7_pointer));
-  sc->read_line_buf = NULL;
-  sc->read_line_buf_size = 0;
-  sc->last_error_line = -1;
-  sc->stop_at_error = true;
-
-  sc->nil =         make_unique(sc, "()",             T_NIL);
-  sc->unused =      make_unique(sc, "#<unused>",      T_UNUSED);
-  sc->T =           make_unique(sc, "#t",             T_BOOLEAN);
-  sc->F =           make_unique(sc, "#f",             T_BOOLEAN);
-  sc->undefined =   make_unique(sc, "#<undefined>",   T_UNDEFINED);
-  sc->unspecified = make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
-#if S7_DEBUGGING
-  sc->no_value =    make_unique(sc, "#<values>",      T_UNSPECIFIED);
-  init_tc_rec();
-#else
-  sc->no_value =    make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
-#endif
-
-  unique_car(sc->nil) = sc->unspecified;
-  unique_cdr(sc->nil) = sc->unspecified;
-  /* this is mixing two different s7_cell structs, cons and envr, but luckily envr has two initial s7_pointer fields, equivalent to car and cdr, so
-   *    let_id which is the same as opt1 is unaffected.  To get the names built-in, I'll append unique_name and unique_name_length fields to the envr struct.
-   */
-  let_id(sc->nil) = -1;
-  unique_cdr(sc->unspecified) = sc->unspecified;
-  unique_cdr(sc->undefined) = sc->undefined;
-  /* this way find_symbol of an undefined symbol returns #<undefined> not #<unspecified> */
-
-  sc->temp_cell_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-  sc->temp_cell = permanent_cons(sc, sc->temp_cell_1, sc->nil, T_PAIR | T_IMMUTABLE);
-  sc->temp_cell_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-
-  sc->t1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-
-  sc->t2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-  sc->t2_1 = permanent_cons(sc, sc->nil, sc->t2_2, T_PAIR | T_IMMUTABLE);
-  sc->z2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-  sc->z2_1 = permanent_cons(sc, sc->nil, sc->z2_2, T_PAIR | T_IMMUTABLE);
-
-  sc->t3_3 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-  sc->t3_2 = permanent_cons(sc, sc->nil, sc->t3_3, T_PAIR | T_IMMUTABLE);
-  sc->t3_1 = permanent_cons(sc, sc->nil, sc->t3_2, T_PAIR | T_IMMUTABLE);
-  sc->t4_1 = permanent_cons(sc, sc->nil, sc->t3_1, T_PAIR | T_IMMUTABLE);
-
-  sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-
-  sc->safe_lists[0] = sc->nil;
-  for (i = 1; i < NUM_SAFE_PRELISTS; i++)
-    sc->safe_lists[i] = permanent_list(sc, i);
-  for (i = NUM_SAFE_PRELISTS; i < NUM_SAFE_LISTS; i++)
-    sc->safe_lists[i] = sc->nil;
-  sc->current_safe_list = 0;
-
-  sc->input_port_stack_size = INPUT_PORT_STACK_INITIAL_SIZE;
-  sc->input_port_stack = (s7_pointer *)malloc(sc->input_port_stack_size * sizeof(s7_pointer));
-  sc->input_port_stack_loc = 0;
-
-  sc->code = sc->nil;
-#if WITH_HISTORY
-  sc->eval_history1 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
-  sc->eval_history2 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
-  sc->history_pairs = permanent_list(sc, DEFAULT_HISTORY_SIZE);
-  sc->history_sink = permanent_list(sc, 1);
-  cdr(sc->history_sink) = sc->history_sink;
-  {
-    s7_pointer p1, p2, p3;
-    for (p3 = sc->history_pairs; is_pair(cdr(p3)); p3 = cdr(p3)) set_car(p3, permanent_list(sc, 1));
-    set_car(p3, permanent_list(sc, 1));
-    set_cdr(p3, sc->history_pairs);
-    for (p1 = sc->eval_history1, p2 = sc->eval_history2; is_pair(cdr(p1)); p1 = cdr(p1), p2 = cdr(p2));
-    set_cdr(p1, sc->eval_history1);
-    set_cdr(p2, sc->eval_history2);
-    sc->cur_code = sc->eval_history1;
-    sc->using_history1 = true;
-  }
-#else
-  sc->cur_code = sc->F;
-#endif
-  sc->args = sc->nil;
-  sc->value = sc->nil;
-  sc->u = sc->nil;
-  sc->v = sc->nil;
-  sc->w = sc->nil;
-  sc->x = sc->nil;
-  sc->y = sc->nil;
-  sc->z = sc->nil;
-
-  sc->temp1 = sc->nil;
-  sc->temp2 = sc->nil;
-  sc->temp3 = sc->nil;
-  sc->temp4 = sc->nil;
-  sc->temp5 = sc->nil;
-  sc->temp6 = sc->nil;
-  sc->temp7 = sc->nil;
-  sc->temp8 = sc->nil;
-  sc->temp9 = sc->nil;
-  sc->temp10 = sc->nil;
-
-  sc->rec_p1 = sc->F;
-  sc->rec_p2 = sc->F;
-
-  sc->begin_hook = NULL;
-  sc->autoload_table = sc->nil;
-  sc->autoload_names = NULL;
-  sc->autoload_names_sizes = NULL;
-  sc->autoloaded_already = NULL;
-  sc->autoload_names_loc = 0;
-  sc->is_autoloading = true;
-  sc->rec_stack = NULL;
-
-  sc->heap_size = INITIAL_HEAP_SIZE;
-  if ((sc->heap_size % 32) != 0)
-    sc->heap_size = 32 * (int64_t)ceil((double)(sc->heap_size) / 32.0);
-  sc->heap = (s7_pointer *)malloc(sc->heap_size * sizeof(s7_pointer));
-  sc->free_heap = (s7_cell **)malloc(sc->heap_size * sizeof(s7_cell *));
-  sc->free_heap_top = (s7_cell **)(sc->free_heap + INITIAL_HEAP_SIZE);
-  sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
-  sc->previous_free_heap_top = sc->free_heap_top;
-  {
-    s7_cell *cells;
-    cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell)); /* calloc to make sure type=0 at start? (for gc/valgrind) */
-    for (i = 0; i < INITIAL_HEAP_SIZE; i++)       /* LOOP_4 here is slower! */
-      {
-	sc->heap[i] = &cells[i];
- 	sc->free_heap[i] = sc->heap[i];
-	i++;
-	sc->heap[i] = &cells[i];
- 	sc->free_heap[i] = sc->heap[i];
-     }
-    sc->heap_blocks = (heap_block_t *)malloc(sizeof(heap_block_t));
-    sc->heap_blocks->start = (intptr_t)cells;
-    sc->heap_blocks->end = (intptr_t)cells + (sc->heap_size * sizeof(s7_cell));
-    sc->heap_blocks->offset = 0;
-    sc->heap_blocks->next = NULL;
-  }
-  sc->gc_temps_size = GC_TEMPS_SIZE;
-  sc->gc_resize_heap_fraction = GC_RESIZE_HEAP_FRACTION;
-  sc->gc_resize_heap_by_4_fraction = GC_RESIZE_HEAP_BY_4_FRACTION;
-  sc->max_heap_size = (1LL << 62);
-  sc->max_port_data_size = (1LL << 62);
-#ifndef OUTPUT_PORT_DATA_SIZE
-  #define OUTPUT_PORT_DATA_SIZE 2048
-#endif
-  sc->output_port_data_size = OUTPUT_PORT_DATA_SIZE;
-
-  /* this has to precede s7_make_* allocations */
-  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
-  sc->protected_setters_loc = 0;
-  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-
-  sc->protected_objects_size = INITIAL_PROTECTED_OBJECTS_SIZE;
-  sc->gpofl = (s7_int *)malloc(INITIAL_PROTECTED_OBJECTS_SIZE * sizeof(s7_int));
-  sc->gpofl_loc = INITIAL_PROTECTED_OBJECTS_SIZE - 1;
-  sc->protected_objects = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
-  for (i = 0; i < INITIAL_PROTECTED_OBJECTS_SIZE; i++)
-    {
-      vector_element(sc->protected_objects, i) = sc->unused;
-      vector_element(sc->protected_setters, i) = sc->unused;
-      vector_element(sc->protected_setter_symbols, i) = sc->unused;
-      sc->gpofl[i] = i;
-    }
-
-  sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
-  sc->stack_start = vector_elements(sc->stack); /* stack type set below */
-  sc->stack_end = sc->stack_start;
-  sc->stack_size = INITIAL_STACK_SIZE;
-  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
-  set_type(sc->stack, T_STACK);
-  sc->max_stack_size = (1 << 30);
-  initialize_op_stack(sc);
-
-  /* keep the symbol table out of the heap */
-  sc->symbol_table = (s7_pointer)calloc(1, sizeof(s7_cell));
-  set_type(sc->symbol_table, T_VECTOR | T_UNHEAP);
-  vector_length(sc->symbol_table) = SYMBOL_TABLE_SIZE;
-  vector_elements(sc->symbol_table) = (s7_pointer *)malloc(SYMBOL_TABLE_SIZE * sizeof(s7_pointer));
-  vector_getter(sc->symbol_table) = default_vector_getter;
-  vector_setter(sc->symbol_table) = default_vector_setter;
-  s7_vector_fill(sc, sc->symbol_table, sc->nil);
-  {
-    opt_info *os;
-    os = (opt_info *)calloc(OPTS_SIZE, sizeof(opt_info));
-    for (i = 0; i < OPTS_SIZE; i++)
-      {
-	opt_info *o;
-	o = &os[i];
-	sc->opts[i] = o;
-	o->sc = sc;
-#if S7_DEBUGGING
-	o->loc = i;
-#endif
-      }
-  }
-
-  for (i = 0; i < NUM_TYPES; i++)
-    prepackaged_type_names[i] = s7_make_permanent_string(sc, (const char *)type_name_from_type(i, INDEFINITE_ARTICLE));
-
-#if WITH_MULTITHREAD_CHECKS
-  sc->lock_count = 0;
-  {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&sc->lock, &attr);
-  }
-#endif
-
-  sc->c_object_types = NULL;
-  sc->c_object_types_size = 0;
-  sc->num_c_object_types = 0;
-  sc->typnam = NULL;
-  sc->typnam_len = 0;
-  sc->default_rationalize_error = (s7_int_bits == 63) ? 1.0e-12 : 1.0e-6;
-  sc->hash_table_float_epsilon = 1.0e-12;
-  sc->equivalent_float_epsilon = 1.0e-15;
-  sc->float_format_precision = WRITE_REAL_PRECISION;
-  sc->default_hash_table_length = 8;
-  sc->gensym_counter = 0;
-  sc->capture_let_counter = 0;
-  sc->f_class = 0;
-  sc->add_class = 0;
-  sc->num_eq_class = 0;
-  sc->let_number = 0;
-  sc->format_column = 0;
-  sc->format_ports = NULL;
-  sc->file_names = NULL;
-  sc->file_names_size = 0;
-  sc->file_names_top = -1;
-  sc->s7_call_line = 0;
-  sc->s7_call_file = NULL;
-  sc->s7_call_name = NULL;
-  sc->safety = NO_SAFETY;
-  sc->print_length = DEFAULT_PRINT_LENGTH;
-  sc->history_size = DEFAULT_HISTORY_SIZE;
-  sc->true_history_size = DEFAULT_HISTORY_SIZE;
-  sc->profile_info = sc->nil;
-  sc->baffle_ctr = 0;
-  sc->syms_tag = 0;
-  sc->syms_tag2 = 0;
-  sc->class_name_symbol = make_symbol(sc, "class-name");
-  sc->circle_info = init_circle_info(sc);
-  sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
-  sc->num_fdats = 8;
-  sc->plist_1 = permanent_list(sc, 1);
-  sc->plist_2 = permanent_list(sc, 2);
-  sc->plist_2_2 = cdr(sc->plist_2);
-  sc->plist_3 = permanent_list(sc, 3);
-  sc->qlist_2 = permanent_list(sc, 2);
-  sc->qlist_3 = permanent_list(sc, 3);
-  sc->clist_1 = permanent_list(sc, 1);
-  sc->elist_1 = permanent_list(sc, 1);
-  sc->elist_2 = permanent_list(sc, 2);
-  sc->elist_3 = permanent_list(sc, 3);
-  sc->elist_4 = permanent_list(sc, 4);
-  sc->elist_5 = permanent_list(sc, 5);
-  sc->undefined_identifier_warnings = false;
-  sc->undefined_constant_warnings = false;
-  sc->wrap_only = make_wrap_only(sc);
-  sc->unentry = (hash_entry_t *)malloc(sizeof(hash_entry_t));
-  hash_entry_set_value(sc->unentry, sc->F);
-  sc->begin_op = OP_BEGIN1;
-  sc->geq_2 = NULL;
-#if (!WITH_GMP)
-  sc->seed_symbol = NULL;
-  sc->carry_symbol = NULL;
-#endif
-  sc->active_symbol = NULL;
-  sc->goto_symbol = NULL;
-  sc->data_symbol = NULL;
-  sc->weak_symbol = NULL;
-  sc->dimensions_symbol = NULL;
-  sc->info_symbol = NULL;
-  sc->c_type_symbol = NULL;
-  sc->at_end_symbol = NULL;
-  sc->sequence_symbol = NULL;
-  sc->position_symbol = NULL;
-  sc->entries_symbol = NULL;
-  sc->locked_symbol = NULL;
-  sc->function_symbol = NULL;
-  sc->open_symbol = NULL;
-  sc->alias_symbol = NULL;
-  sc->current_value_symbol = NULL;
-  sc->source_symbol = NULL;
-  sc->file_symbol = NULL;
-  sc->line_symbol = NULL;
-  sc->c_object_let_symbol = NULL;
-  sc->class_symbol = NULL;
-  sc->c_object_length_symbol = NULL;
-  sc->c_object_set_symbol = NULL;
-  sc->c_object_ref_symbol = NULL;
-  sc->c_object_copy_symbol = NULL;
-  sc->c_object_fill_symbol = NULL;
-  sc->c_object_reverse_symbol = NULL;
-  sc->c_object_to_list_symbol = NULL;
-  sc->c_object_to_string_symbol = NULL;
-  sc->closed_symbol = NULL;
-  sc->port_type_symbol = NULL;
-  sc->permanent_objects = NULL;
-  sc->permanent_lets = NULL;
-  sc->tree_pointers = NULL;
-  sc->tree_pointers_size = 0;
-  sc->tree_pointers_top = 0;
-
-  sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
-  set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
-  sc->rootlet_entries = 0;
-  for (i = 0; i < ROOTLET_SIZE; i++)
-    rootlet_element(sc->rootlet, i) = sc->nil;
-  sc->envir = sc->nil;
-  sc->shadow_rootlet = sc->nil;
-
-  init_wrappers(sc);
-  make_standard_ports(sc);
 
   #define H_quote             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
   #define H_if                "(if expr true-stuff optional-false-stuff) evaluates expr, then if it is true, evaluates true-stuff; otherwise, \
@@ -96922,6 +96543,8 @@ s7_scheme *s7_init(void)
   sc->tree_count_symbol =     defun("tree-count",    tree_count,     2, 1, false);
   sc->tree_is_cyclic_symbol = defun("tree-cyclic?",  tree_is_cyclic, 1, 0, false);
 
+  sc->quasiquote_symbol = s7_define_macro(sc, "quasiquote", g_quasiquote, 1, 0, false, H_quasiquote);
+
   /* -------- *features* -------- */
   sc->features_symbol = s7_define_variable_with_documentation(sc, "*features*", sc->nil, "list of currently available features ('complex-numbers, etc)");
   s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "#<set-*features*>", g_features_set, 2, 0, false, "*features* setter"));
@@ -96973,11 +96596,6 @@ s7_scheme *s7_init(void)
   sym = s7_define_variable_with_documentation(sc, "*#readers*", sc->nil, "list of current reader macros");
   sc->sharp_readers = global_slot(sym);
   s7_set_setter(sc, sym, s7_make_function(sc, "#<set-*#readers*>", g_sharp_readers_set, 2, 0, false, "*#readers* setter"));
-
-  /* *features* */
-  s7_provide(sc, "s7");
-  s7_provide(sc, "s7-" S7_VERSION);
-  s7_provide(sc, "ratio");
 
   sc->local_documentation_symbol = make_symbol(sc, "+documentation+");
   sc->local_signature_symbol =     make_symbol(sc, "+signature+");
@@ -97056,6 +96674,407 @@ s7_scheme *s7_init(void)
 			s7_make_function(sc, "#<set-port-position>", g_set_port_position, 2, 0, false, "port position setter"));
 
   sc->pi_symbol = s7_define_constant(sc, "pi", real_pi);
+}
+
+#if (!MS_WINDOWS)
+static pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+s7_scheme *s7_init(void)
+{
+  int32_t i;
+  s7_scheme *sc;
+  static bool already_inited = false;
+
+#if (!MS_WINDOWS)
+  setlocale(LC_NUMERIC, "C"); /* use decimal point in floats */
+  pthread_mutex_lock(&init_lock);
+#endif
+
+  if (!already_inited)
+    {
+      if (sizeof(void *) > sizeof(s7_int))
+	fprintf(stderr, "s7_int is too small: it has %d bytes, but void* has %d\n", (int)sizeof(s7_int), (int)sizeof(void *));
+
+      init_types();
+      init_ctables();
+      init_mark_functions();
+      init_display_functions();
+      init_length_functions();
+      init_equals();
+      init_hash_maps();
+      init_pows();
+      init_int_limits();
+      init_small_ints();
+      init_uppers();
+      init_chars();
+      init_strings();
+      init_fx_function();
+      init_catchers();
+      already_inited = true;
+    }
+#if (!MS_WINDOWS)
+  pthread_mutex_unlock(&init_lock);
+#endif
+  sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
+  cur_sc = sc;                                    /* for gdb/debugging and clm optimizer */
+  sc->gc_off = true;                              /* sc->args and so on are not set yet, so a gc during init -> segfault */
+  sc->gc_stats = 0;
+  init_gc_caches(sc);
+  sc->permanent_cells = 0;
+  sc->alloc_pointer_k = ALLOC_POINTER_SIZE;
+  sc->alloc_pointer_cells = NULL;
+  sc->alloc_big_pointer_k = ALLOC_BIG_POINTER_SIZE;
+  sc->alloc_big_pointer_cells = NULL;
+  sc->alloc_function_k = ALLOC_FUNCTION_SIZE;
+  sc->alloc_function_cells = NULL;
+  sc->alloc_symbol_k = ALLOC_SYMBOL_SIZE;
+  sc->alloc_symbol_cells = NULL;
+  sc->num_to_str_size = -1;
+  sc->num_to_str = NULL;
+  init_block_lists(sc);
+  sc->alloc_string_k = ALLOC_STRING_SIZE;
+  sc->alloc_string_cells = NULL;
+
+  sc->longjmp_ok = false;
+  sc->setjmp_loc = NO_SET_JUMP;
+
+  if (sizeof(s7_int) == 4)
+    sc->max_vector_length = (1 << 24);
+  else sc->max_vector_length = (1LL << 32);
+  sc->max_string_length = 1073741824; /* 1 << 30 */
+  sc->max_format_length = 10000;
+  sc->max_list_length = 1073741824;
+  sc->max_vector_dimensions = 512;
+
+  sc->strbuf_size = INITIAL_STRBUF_SIZE;
+  sc->strbuf = (char *)calloc(sc->strbuf_size, 1);
+  sc->print_width = sc->max_string_length;
+  sc->short_print = false;
+  sc->in_with_let = false;
+  sc->object_out_locked = false;
+  sc->has_openlets = true;
+  sc->accept_all_keyword_arguments = false;
+
+  sc->initial_string_port_length = 128;
+  sc->format_depth = -1;
+  sc->singletons = (s7_pointer *)calloc(256, sizeof(s7_pointer));
+  sc->read_line_buf = NULL;
+  sc->read_line_buf_size = 0;
+  sc->last_error_line = -1;
+  sc->stop_at_error = true;
+
+  sc->nil =         make_unique(sc, "()",             T_NIL);
+  sc->unused =      make_unique(sc, "#<unused>",      T_UNUSED);
+  sc->T =           make_unique(sc, "#t",             T_BOOLEAN);
+  sc->F =           make_unique(sc, "#f",             T_BOOLEAN);
+  sc->undefined =   make_unique(sc, "#<undefined>",   T_UNDEFINED);
+  sc->unspecified = make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
+#if S7_DEBUGGING
+  sc->no_value =    make_unique(sc, "#<values>",      T_UNSPECIFIED);
+  init_tc_rec();
+#else
+  sc->no_value =    make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
+#endif
+
+  unique_car(sc->nil) = sc->unspecified;
+  unique_cdr(sc->nil) = sc->unspecified;
+  /* this is mixing two different s7_cell structs, cons and envr, but luckily envr has two initial s7_pointer fields, equivalent to car and cdr, so
+   *    let_id which is the same as opt1 is unaffected.  To get the names built-in, I'll append unique_name and unique_name_length fields to the envr struct.
+   */
+  let_id(sc->nil) = -1;
+  unique_cdr(sc->unspecified) = sc->unspecified;
+  unique_cdr(sc->undefined) = sc->undefined;
+  /* this way find_symbol of an undefined symbol returns #<undefined> not #<unspecified> */
+
+  sc->temp_cell_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->temp_cell = permanent_cons(sc, sc->temp_cell_1, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->temp_cell_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+
+  sc->t1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+
+  sc->t2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->t2_1 = permanent_cons(sc, sc->nil, sc->t2_2, T_PAIR | T_IMMUTABLE);
+  sc->z2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->z2_1 = permanent_cons(sc, sc->nil, sc->z2_2, T_PAIR | T_IMMUTABLE);
+
+  sc->t3_3 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->t3_2 = permanent_cons(sc, sc->nil, sc->t3_3, T_PAIR | T_IMMUTABLE);
+  sc->t3_1 = permanent_cons(sc, sc->nil, sc->t3_2, T_PAIR | T_IMMUTABLE);
+  sc->t4_1 = permanent_cons(sc, sc->nil, sc->t3_1, T_PAIR | T_IMMUTABLE);
+
+  sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+
+  sc->safe_lists[0] = sc->nil;
+  for (i = 1; i < NUM_SAFE_PRELISTS; i++)
+    sc->safe_lists[i] = permanent_list(sc, i);
+  for (i = NUM_SAFE_PRELISTS; i < NUM_SAFE_LISTS; i++)
+    sc->safe_lists[i] = sc->nil;
+  sc->current_safe_list = 0;
+
+  sc->input_port_stack_size = INPUT_PORT_STACK_INITIAL_SIZE;
+  sc->input_port_stack = (s7_pointer *)malloc(sc->input_port_stack_size * sizeof(s7_pointer));
+  sc->input_port_stack_loc = 0;
+
+  sc->code = sc->nil;
+#if WITH_HISTORY
+  sc->eval_history1 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
+  sc->eval_history2 = permanent_list(sc, DEFAULT_HISTORY_SIZE);
+  sc->history_pairs = permanent_list(sc, DEFAULT_HISTORY_SIZE);
+  sc->history_sink = permanent_list(sc, 1);
+  cdr(sc->history_sink) = sc->history_sink;
+  {
+    s7_pointer p1, p2, p3;
+    for (p3 = sc->history_pairs; is_pair(cdr(p3)); p3 = cdr(p3)) set_car(p3, permanent_list(sc, 1));
+    set_car(p3, permanent_list(sc, 1));
+    set_cdr(p3, sc->history_pairs);
+    for (p1 = sc->eval_history1, p2 = sc->eval_history2; is_pair(cdr(p1)); p1 = cdr(p1), p2 = cdr(p2));
+    set_cdr(p1, sc->eval_history1);
+    set_cdr(p2, sc->eval_history2);
+    sc->cur_code = sc->eval_history1;
+    sc->using_history1 = true;
+  }
+#else
+  sc->cur_code = sc->F;
+#endif
+  sc->args = sc->nil;
+  sc->value = sc->nil;
+  sc->u = sc->nil;
+  sc->v = sc->nil;
+  sc->w = sc->nil;
+  sc->x = sc->nil;
+  sc->y = sc->nil;
+  sc->z = sc->nil;
+
+  sc->temp1 = sc->nil;
+  sc->temp2 = sc->nil;
+  sc->temp3 = sc->nil;
+  sc->temp4 = sc->nil;
+  sc->temp5 = sc->nil;
+  sc->temp6 = sc->nil;
+  sc->temp7 = sc->nil;
+  sc->temp8 = sc->nil;
+  sc->temp9 = sc->nil;
+  sc->temp10 = sc->nil;
+
+  sc->rec_p1 = sc->F;
+  sc->rec_p2 = sc->F;
+
+  sc->begin_hook = NULL;
+  sc->autoload_table = sc->nil;
+  sc->autoload_names = NULL;
+  sc->autoload_names_sizes = NULL;
+  sc->autoloaded_already = NULL;
+  sc->autoload_names_loc = 0;
+  sc->is_autoloading = true;
+  sc->rec_stack = NULL;
+
+  sc->heap_size = INITIAL_HEAP_SIZE;
+  if ((sc->heap_size % 32) != 0)
+    sc->heap_size = 32 * (int64_t)ceil((double)(sc->heap_size) / 32.0);
+  sc->heap = (s7_pointer *)malloc(sc->heap_size * sizeof(s7_pointer));
+  sc->free_heap = (s7_cell **)malloc(sc->heap_size * sizeof(s7_cell *));
+  sc->free_heap_top = (s7_cell **)(sc->free_heap + INITIAL_HEAP_SIZE);
+  sc->free_heap_trigger = (s7_cell **)(sc->free_heap + GC_TRIGGER_SIZE);
+  sc->previous_free_heap_top = sc->free_heap_top;
+  {
+    s7_cell *cells;
+    cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell)); /* calloc to make sure type=0 at start? (for gc/valgrind) */
+    for (i = 0; i < INITIAL_HEAP_SIZE; i++)       /* LOOP_4 here is slower! */
+      {
+	sc->heap[i] = &cells[i];
+ 	sc->free_heap[i] = sc->heap[i];
+	i++;
+	sc->heap[i] = &cells[i];
+ 	sc->free_heap[i] = sc->heap[i];
+     }
+    sc->heap_blocks = (heap_block_t *)malloc(sizeof(heap_block_t));
+    sc->heap_blocks->start = (intptr_t)cells;
+    sc->heap_blocks->end = (intptr_t)cells + (sc->heap_size * sizeof(s7_cell));
+    sc->heap_blocks->offset = 0;
+    sc->heap_blocks->next = NULL;
+  }
+  sc->gc_temps_size = GC_TEMPS_SIZE;
+  sc->gc_resize_heap_fraction = GC_RESIZE_HEAP_FRACTION;
+  sc->gc_resize_heap_by_4_fraction = GC_RESIZE_HEAP_BY_4_FRACTION;
+  sc->max_heap_size = (1LL << 62);
+  sc->max_port_data_size = (1LL << 62);
+#ifndef OUTPUT_PORT_DATA_SIZE
+  #define OUTPUT_PORT_DATA_SIZE 2048
+#endif
+  sc->output_port_data_size = OUTPUT_PORT_DATA_SIZE;
+
+  /* this has to precede s7_make_* allocations */
+  sc->protected_setters_size = INITIAL_PROTECTED_OBJECTS_SIZE;
+  sc->protected_setters_loc = 0;
+  sc->protected_setters = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+  sc->protected_setter_symbols = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+
+  sc->protected_objects_size = INITIAL_PROTECTED_OBJECTS_SIZE;
+  sc->gpofl = (s7_int *)malloc(INITIAL_PROTECTED_OBJECTS_SIZE * sizeof(s7_int));
+  sc->gpofl_loc = INITIAL_PROTECTED_OBJECTS_SIZE - 1;
+  sc->protected_objects = s7_make_vector(sc, INITIAL_PROTECTED_OBJECTS_SIZE);
+  for (i = 0; i < INITIAL_PROTECTED_OBJECTS_SIZE; i++)
+    {
+      vector_element(sc->protected_objects, i) = sc->unused;
+      vector_element(sc->protected_setters, i) = sc->unused;
+      vector_element(sc->protected_setter_symbols, i) = sc->unused;
+      sc->gpofl[i] = i;
+    }
+
+  sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
+  sc->stack_start = vector_elements(sc->stack); /* stack type set below */
+  sc->stack_end = sc->stack_start;
+  sc->stack_size = INITIAL_STACK_SIZE;
+  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
+  set_type(sc->stack, T_STACK);
+  sc->max_stack_size = (1 << 30);
+  initialize_op_stack(sc);
+
+  /* keep the symbol table out of the heap */
+  sc->symbol_table = (s7_pointer)calloc(1, sizeof(s7_cell));
+  set_type(sc->symbol_table, T_VECTOR | T_UNHEAP);
+  vector_length(sc->symbol_table) = SYMBOL_TABLE_SIZE;
+  vector_elements(sc->symbol_table) = (s7_pointer *)malloc(SYMBOL_TABLE_SIZE * sizeof(s7_pointer));
+  vector_getter(sc->symbol_table) = default_vector_getter;
+  vector_setter(sc->symbol_table) = default_vector_setter;
+  s7_vector_fill(sc, sc->symbol_table, sc->nil);
+  {
+    opt_info *os;
+    os = (opt_info *)calloc(OPTS_SIZE, sizeof(opt_info));
+    for (i = 0; i < OPTS_SIZE; i++)
+      {
+	opt_info *o;
+	o = &os[i];
+	sc->opts[i] = o;
+	o->sc = sc;
+#if S7_DEBUGGING
+	o->loc = i;
+#endif
+      }
+  }
+
+  for (i = 0; i < NUM_TYPES; i++)
+    prepackaged_type_names[i] = s7_make_permanent_string(sc, (const char *)type_name_from_type(i, INDEFINITE_ARTICLE));
+
+#if WITH_MULTITHREAD_CHECKS
+  sc->lock_count = 0;
+  {
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&sc->lock, &attr);
+  }
+#endif
+
+  sc->c_object_types = NULL;
+  sc->c_object_types_size = 0;
+  sc->num_c_object_types = 0;
+  sc->typnam = NULL;
+  sc->typnam_len = 0;
+  sc->default_rationalize_error = (s7_int_bits == 63) ? 1.0e-12 : 1.0e-6;
+  sc->hash_table_float_epsilon = 1.0e-12;
+  sc->equivalent_float_epsilon = 1.0e-15;
+  sc->float_format_precision = WRITE_REAL_PRECISION;
+  sc->default_hash_table_length = 8;
+  sc->gensym_counter = 0;
+  sc->capture_let_counter = 0;
+  sc->f_class = 0;
+  sc->add_class = 0;
+  sc->num_eq_class = 0;
+  sc->let_number = 0;
+  sc->format_column = 0;
+  sc->format_ports = NULL;
+  sc->file_names = NULL;
+  sc->file_names_size = 0;
+  sc->file_names_top = -1;
+  sc->s7_call_line = 0;
+  sc->s7_call_file = NULL;
+  sc->s7_call_name = NULL;
+  sc->safety = NO_SAFETY;
+  sc->print_length = DEFAULT_PRINT_LENGTH;
+  sc->history_size = DEFAULT_HISTORY_SIZE;
+  sc->true_history_size = DEFAULT_HISTORY_SIZE;
+  sc->profile_info = sc->nil;
+  sc->baffle_ctr = 0;
+  sc->syms_tag = 0;
+  sc->syms_tag2 = 0;
+  sc->class_name_symbol = make_symbol(sc, "class-name");
+  sc->circle_info = init_circle_info(sc);
+  sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
+  sc->num_fdats = 8;
+  sc->plist_1 = permanent_list(sc, 1);
+  sc->plist_2 = permanent_list(sc, 2);
+  sc->plist_2_2 = cdr(sc->plist_2);
+  sc->plist_3 = permanent_list(sc, 3);
+  sc->qlist_2 = permanent_list(sc, 2);
+  sc->qlist_3 = permanent_list(sc, 3);
+  sc->clist_1 = permanent_list(sc, 1);
+  sc->elist_1 = permanent_list(sc, 1);
+  sc->elist_2 = permanent_list(sc, 2);
+  sc->elist_3 = permanent_list(sc, 3);
+  sc->elist_4 = permanent_list(sc, 4);
+  sc->elist_5 = permanent_list(sc, 5);
+  sc->undefined_identifier_warnings = false;
+  sc->undefined_constant_warnings = false;
+  sc->wrap_only = make_wrap_only(sc);
+  sc->unentry = (hash_entry_t *)malloc(sizeof(hash_entry_t));
+  hash_entry_set_value(sc->unentry, sc->F);
+  sc->begin_op = OP_BEGIN1;
+  sc->geq_2 = NULL;
+#if (!WITH_GMP)
+  sc->seed_symbol = NULL;
+  sc->carry_symbol = NULL;
+#endif
+  sc->active_symbol = NULL;
+  sc->goto_symbol = NULL;
+  sc->data_symbol = NULL;
+  sc->weak_symbol = NULL;
+  sc->dimensions_symbol = NULL;
+  sc->info_symbol = NULL;
+  sc->c_type_symbol = NULL;
+  sc->at_end_symbol = NULL;
+  sc->sequence_symbol = NULL;
+  sc->position_symbol = NULL;
+  sc->entries_symbol = NULL;
+  sc->locked_symbol = NULL;
+  sc->function_symbol = NULL;
+  sc->open_symbol = NULL;
+  sc->alias_symbol = NULL;
+  sc->current_value_symbol = NULL;
+  sc->source_symbol = NULL;
+  sc->file_symbol = NULL;
+  sc->line_symbol = NULL;
+  sc->c_object_let_symbol = NULL;
+  sc->class_symbol = NULL;
+  sc->c_object_length_symbol = NULL;
+  sc->c_object_set_symbol = NULL;
+  sc->c_object_ref_symbol = NULL;
+  sc->c_object_copy_symbol = NULL;
+  sc->c_object_fill_symbol = NULL;
+  sc->c_object_reverse_symbol = NULL;
+  sc->c_object_to_list_symbol = NULL;
+  sc->c_object_to_string_symbol = NULL;
+  sc->closed_symbol = NULL;
+  sc->port_type_symbol = NULL;
+  sc->permanent_objects = NULL;
+  sc->permanent_lets = NULL;
+  sc->tree_pointers = NULL;
+  sc->tree_pointers_size = 0;
+  sc->tree_pointers_top = 0;
+
+  sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
+  set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
+  sc->rootlet_entries = 0;
+  for (i = 0; i < ROOTLET_SIZE; i++)
+    rootlet_element(sc->rootlet, i) = sc->nil;
+  sc->envir = sc->nil;
+  sc->shadow_rootlet = sc->nil;
+
+  init_wrappers(sc);
+  init_standard_ports(sc);
+  init_rootlet(sc);
+
   sc->objstr_max_len = s7_int_max;
 
   {
@@ -97093,8 +97112,6 @@ s7_scheme *s7_init(void)
   init_choosers(sc);
   init_typers(sc);
   init_opt_functions(sc);
-
-  sc->quasiquote_symbol = s7_define_macro(sc, "quasiquote", g_quasiquote, 1, 0, false, H_quasiquote);
 
 #if (!WITH_PURE_S7)
   s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");
@@ -97368,17 +97385,17 @@ int main(int argc, char **argv)
  * tshoot   1176 |  777
  * tref     1093 |  779
  * index     971 |  890
- * teq      1617 | 1542
+ * teq      1617 | 1543
  * s7test   1776 | 1711
  * lt       2278 | 2072
- * tcopy    2434 | 2273  2264
- * tmisc    2852 | 2282
+ * tcopy    2434 | 2264
+ * tmisc    2852 | 2284
  * tform    2472 | 2309
- * tread    2449 | 2426  2406
- * tmat     6072 | 2488  2480
- * tvect    6189 | 2588  2576
+ * tread    2449 | 2401
+ * tmat     6072 | 2478
+ * tvect    6189 | 2527
  * fbench   2974 | 2643
- * dup      6333 | 2729  2713
+ * dup      6333 | 2713
  * trclo    7985 | 2791
  * tb       3251 | 2799
  * tmap     3238 | 2883
@@ -97387,16 +97404,16 @@ int main(int argc, char **argv)
  * tset     6616 | 3083
  * tmac     3391 | 3186
  * tfft     4288 | 3816
- * tlet     5409 | 4641
+ * tlet     5409 | 4613
  * tclo     6206 | 4896
  * trec     17.8 | 6318
- * thash    10.3 | 6807
+ * thash    10.3 | 6805
  * tgen     11.7 | 11.1
  * tall     16.4 | 15.4
  * calls    40.3 | 35.9
  * sg       85.8 | 70.4
  * lg      115.9 |104.9
- * tbig    264.5 |178.7 178.0
+ * tbig    264.5 |178.0
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
@@ -97412,4 +97429,8 @@ int main(int argc, char **argv)
  * let+lambda -- not set safe either?
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
+ * s7_let_ref|set optimized (precheck symbol/keyword, maybe env/immutable, field existence)
+ * unsafe tc in 2 ops: init: setup outer, push 2, uexpr->eval [probably op_closure_aa_o=laa, let_one_p_new]
+ *                     2: value->inner, if expr, set outer, push 2, uexpr->eval
+ *   are there other cases? how to catch them? can this include op_safe_closure* (unrechecked)?
  */

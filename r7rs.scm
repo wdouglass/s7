@@ -41,7 +41,7 @@
   (if (null? args)
       (#_make-hash-table)
       (if (procedure? (car args))
-	  (#_make-hash-table (if (null? (cdr args)) 511 (cadr args)) (car args))
+	  (#_make-hash-table (if (null? (cdr args)) (*s7 'default-hash-table-length) (cadr args)) (car args))
 	  (apply #_make-hash-table args))))
 
 (define bytevector byte-vector)
@@ -51,7 +51,7 @@
 (define bytevector-set! byte-vector-set!)
 (define bytevector-copy! vector-copy!)
 (define string-copy! vector-copy!)
-(define (bytevector->list bv) (map values bv))
+(define (bytevector->list bv) (copy bv (make-list (length bv))))
 
 
 (define (boolean=? . args)
@@ -415,21 +415,23 @@
        (define-class ,new-type ,inherited   ; from stuff.scm
          (map (lambda (f) (if (pair? f) (car f) f)) ',fields))
        
-       (define (,? ,obj)    ; perhaps the define-class type predicate should use this 
-         (define (search-inherited ,obj type)
-	   (define (search-inheritors objs type)
-	     (and (pair? objs)
-		  (or (search-inherited (car objs) type)
-		      (search-inheritors (cdr objs) type))))
-	   (or (eq? (,obj 'class-name) type)
-	       (search-inheritors (,obj 'inherited) type)))
-         (and (let? ,obj)
-	      (search-inherited ,obj ',new-type)))
+       (define ,?    ; perhaps the define-class type predicate should use this 
+	 (let ()
+	   (define (search-inherited ,obj type)
+	     (define (search-inheritors objs type)
+	       (and (pair? objs)
+		    (or (search-inherited (car objs) type)
+			(search-inheritors (cdr objs) type))))
+	     (or (eq? (let-ref ,obj 'class-name) type)
+		 (search-inheritors (let-ref ,obj 'inherited) type)))
+	   (lambda (,obj)
+	     (and (let? ,obj)
+		  (search-inherited ,obj ',new-type)))))
        
        (define ,make 
          (let ((,new-obj (copy ,new-type)))
 	   ,@(map (lambda (slot)
-		    `(set! (,new-obj ',slot) ,slot))
+		    `(let-set! ,new-obj ',slot ,slot))
 		  (cdr make))
 	   ,new-obj))
        
@@ -440,18 +442,12 @@
 		  (values)
 		  (if (null? (cddr field))
 		      `(define (,(cadr field) ,obj)
-			 (if (not (,? ,obj)) 
-			     (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			 (,obj ',(car field)))
+			 (let-ref ,obj ',(car field)))
 		      `(begin
 			 (define (,(cadr field) ,obj)
-			   (if (not (,? ,obj)) 
-			       (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			   (,obj ',(car field)))
+			   (let-ref ,obj ',(car field)))
 			 (define (,(caddr field) ,obj val)
-			   (if (not (,? ,obj)) 
-			       (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			   (set! (,obj ',(car field)) val)))))))
+			   (let-set! ,obj ',(car field) val)))))))
 	  fields)
        ',new-type)))
 

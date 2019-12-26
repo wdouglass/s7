@@ -1388,22 +1388,22 @@ void check_features_list(const char *features)
 #endif
 
 #if HAVE_RUBY
-  /* provided? is defined in examp.rb */
+  /* provided? is defined in clm.rb */
   Xen_eval_C_string(mus_format("[%s].each do |f|\n\
                                   unless $LOADED_FEATURES.map do |ff| File.basename(ff) end.member?(f.to_s.tr(\"_\", \"-\"))\n\
-                                    $stderr.printf(\"~\\nno %%s!\\n\\n\", f.id2name)\n\
+                                    $stderr.printf(\"\\nno %%s!\\n\\n\", f.id2name)\n\
                                   end\n\
                                 end\n", features));
 #endif
 
 #if HAVE_FORTH
-  Xen_eval_C_string(mus_format("'( %s ) [each] dup \
-                                          provided? [if] \
-                                            drop \
-                                          [else] \
-                                            1 >list \"\\nno %%s!\\n\\n\" swap format .stderr \
-                                          [then] \
-                                        [end-each]\n", 
+  Xen_eval_C_string(mus_format("let: \
+                                  '( %s ) each { f }\
+                                    f provided? unless \
+                                      \"\\nno %%s!\\n\\n\" '( f ) fth-print \
+                                    then \
+                                  end-each \
+                                ;let", 
 			       features)); 
 #endif
   snd_exit(0);
