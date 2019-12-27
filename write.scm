@@ -478,9 +478,8 @@
 		     (for-each (lambda (field)
 				 (let ((symstr (object->string (car field))))
 				   (spaces port (+ column 2))
-				   (format port "'(~A . " symstr)
-				   (pretty-print-1 (cdr field) port (+ column 4 (length symstr)))
-				   (write-char #\) port)))
+				   (format port "'~A " symstr)
+				   (pretty-print-1 (cdr field) port (+ column 4 (length symstr)))))
 			       obj)
 		     (write-char #\) port))
 		    
@@ -492,9 +491,9 @@
 			   (display "(inlet" port)
 			   (for-each (lambda (field)
 				       (let ((symstr (symbol->string (car field))))
-					 (spaces port (+ column 5))
+					 (spaces port (+ column 2))
 					 (format port ":~A " symstr)
-					 (pretty-print-1 (cdr field) port (+ column 2 (length symstr)))))
+					 (pretty-print-1 (cdr field) port (+ column 4 (length symstr)))))
 				     obj)
 			   (write-char #\) port))))
 		    

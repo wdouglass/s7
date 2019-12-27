@@ -2389,6 +2389,10 @@ static void init_types(void)
 #define slot_has_pending_value(p)      has_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
 #define slot_clear_has_pending_value(p) clear_type_bit(T_Slt(p), T_HAS_PENDING_VALUE)
 
+#define T_FXIFIED                      T_GENSYM
+#define is_fxified(p)                  has_type_bit(T_Clo(p), T_FXIFIED)
+#define set_is_fxified(p)              set_type_bit(T_Clo(p), T_FXIFIED)
+
 #define T_HAS_METHODS                  (1 << (TYPE_BITS + 22))
 #define has_methods(p)                 has_type_bit(T_Pos(p), T_HAS_METHODS)
 #define has_active_methods(sc, p)      ((has_type_bit(T_Pos(p), T_HAS_METHODS)) && (sc->has_openlets))
@@ -17874,7 +17878,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     case T_INTEGER:
       switch (type(y))
 	{
-	case T_INTEGER: return(make_integer(sc, integer(x) * integer(y)));
+	case T_INTEGER: return(make_integer(sc, integer(x) * integer(y))); 
 	case T_RATIO:   return(g_multiply(sc, list_2(sc, x, y)));
 	case T_REAL:    return(make_real(sc, integer(x) * real(y)));
 	case T_COMPLEX: return(s7_make_complex(sc, integer(x) * real_part(y), integer(x) * imag_part(y)));
@@ -29074,8 +29078,11 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
 
 static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ignored)
 {
-  if ((use_write == P_READABLE) &&
-      (is_immutable_string(obj)))
+  bool immutable;
+  immutable = ((use_write == P_READABLE) &&
+	       (is_immutable_string(obj)) &&
+	       (string_length(obj) > 0));  /* (immutable "") looks dumb */
+  if (immutable)
     port_write_string(port)(sc, "(immutable! ", 12, port);
 
   if (string_length(obj) > 0)
@@ -29097,8 +29104,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 	      port_write_string(port)(sc, buf, nlen, port);
 	      port_write_string(port)(sc, character_name(c), character_name_length(c), port);
 	      port_write_character(port)(sc, ')', port);
-	      if ((use_write == P_READABLE) &&
-		  (is_immutable_string(obj)))
+	      if (immutable)
 		port_write_character(port)(sc, ')', port);
 	      return;
 	    }
@@ -29121,8 +29127,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
       if (use_write != P_DISPLAY)
 	port_write_string(port)(sc, "\"\"", 2, port);
     }
-  if ((use_write == P_READABLE) &&
-      (is_immutable_string(obj)))
+  if (immutable)
     port_write_character(port)(sc, ')', port);
 }
 
@@ -30400,7 +30405,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						      ((is_pair(obj)) ? " dotted" :
 						       ((is_any_vector(obj)) ? " subvector" :
 							((is_slot(obj)) ? " has-pending-value" :
-							 " ?21?"))))))) : "",
+							 ((is_any_closure(obj)) ? " fxified" :
+							  " ?21?")))))))) : "",
 	   /* bit 22 */
 	   ((full_typ & T_HAS_METHODS) != 0) ?    (((is_let(obj)) || (is_c_object(obj)) || (is_any_closure(obj)) ||
 						    (is_any_macro(obj)) || (is_c_pointer(obj))) ? " has-methods" : " ?22?") : "",
@@ -30504,7 +30510,7 @@ static bool has_odd_bits(s7_pointer obj)
       (!is_number(obj)) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_iterator(obj)) &&
       (!is_slot(obj)) && (!is_let(obj)) && (!is_pair(obj)))
     return(true);
-  if (((full_typ & T_GENSYM) != 0) && (!is_slot(obj)) &&
+  if (((full_typ & T_GENSYM) != 0) && (!is_slot(obj)) && (!is_any_closure(obj)) &&
       (!is_let(obj)) && (!is_symbol(obj)) && (!is_string(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)))
     return(true);
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) &&
@@ -32047,20 +32053,11 @@ static inline s7_pointer object_out(s7_scheme *sc, s7_pointer obj, s7_pointer st
   return(obj);
 }
 
-static s7_pointer open_format_port(s7_scheme *sc)
+static s7_pointer new_format_port(s7_scheme *sc)
 {
   s7_pointer x;
   s7_int len;
   block_t *block, *b;
-
-  if (sc->format_ports)
-    {
-      x = sc->format_ports;
-      sc->format_ports = (s7_pointer)(port_next(x));
-      port_position(x) = 0;
-      port_data(x)[0] = '\0';
-      return(x);
-    }
 
   len = FORMAT_PORT_LENGTH;
   x = alloc_pointer(sc);
@@ -32083,6 +32080,20 @@ static s7_pointer open_format_port(s7_scheme *sc)
   port_needs_free(x) = false;
   port_port(x)->pf = &output_string_functions;
   return(x);
+}
+
+static inline s7_pointer open_format_port(s7_scheme *sc)
+{
+  if (sc->format_ports)
+    {
+      s7_pointer x;
+      x = sc->format_ports;
+      sc->format_ports = (s7_pointer)(port_next(x));
+      port_position(x) = 0;
+      port_data(x)[0] = '\0';
+      return(x);
+    }
+  return(new_format_port(sc));
 }
 
 static void close_format_port(s7_scheme *sc, s7_pointer port)
@@ -32218,7 +32229,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	port_data(strport)[i] = (uint8_t)'.';
     }
 
-  if (out_len >= port_data_size(strport))
+  if (out_len >= port_data_size(strport)) /* this can happen (but only == I think) */
     res = block_to_string(sc, reallocate(sc, port_data_block(strport), out_len + 1), out_len);
   else res = block_to_string(sc, port_data_block(strport), out_len);
   restore_format_port(sc, strport);
@@ -44549,7 +44560,7 @@ static bool c_objects_are_equal(s7_scheme *sc, s7_pointer a, s7_pointer b, share
 
 #define check_equivalent_method(Sc, X, Y) \
   do {						 \
-      if (has_active_methods(sc, X))						\
+      if (has_active_methods(sc, X))					\
 	{								\
 	  s7_pointer equal_func;					\
 	  equal_func = find_method_with_let(Sc, X, Sc->is_equivalent_symbol); \
@@ -44751,8 +44762,11 @@ static bool let_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci
 static bool let_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
-  check_equivalent_method(sc, x, y);
-  check_equivalent_method(sc, y, x);
+  if (!is_global(sc->is_equivalent_symbol))
+    {
+      check_equivalent_method(sc, x, y);
+      check_equivalent_method(sc, y, x);
+    }
   return(let_equal_1(sc, x, y, ci, true));
 }
 
@@ -87573,8 +87587,11 @@ static bool op_unknown_g(s7_scheme *sc)
 	    {
 	      if (is_null(cdr(body)))
 		{
-		  if (is_fxable(sc, car(body)))
-		    fxify_closure_s(sc, f, code, sc->envir, sym_case, hop);
+		  if ((!is_fxified(f)) && (is_fxable(sc, car(body))))
+		    {
+		      fxify_closure_s(sc, f, code, sc->envir, sym_case, hop);
+		      set_is_fxified(f);
+		    }
 		  else
 		    {
 		      /* hop if is_constant(sc, car(code)) is not foolproof here (see t967.scm):
@@ -97385,15 +97402,14 @@ int main(int argc, char **argv)
  * tshoot   1176 |  777
  * tref     1093 |  779
  * index     971 |  890
- * teq      1617 | 1543
  * s7test   1776 | 1711
  * lt       2278 | 2072
  * tcopy    2434 | 2264
  * tmisc    2852 | 2284
- * tform    2472 | 2309
- * tread    2449 | 2401
+ * tform    2472 | 2289
+ * tread    2449 | 2394
  * tmat     6072 | 2478
- * tvect    6189 | 2527
+ * tvect    6189 | 2548
  * fbench   2974 | 2643
  * dup      6333 | 2713
  * trclo    7985 | 2791
@@ -97403,6 +97419,7 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043
  * tset     6616 | 3083
  * tmac     3391 | 3186
+ * teq      4081 | 3804
  * tfft     4288 | 3816
  * tlet     5409 | 4613
  * tclo     6206 | 4896
@@ -97420,8 +97437,6 @@ int main(int argc, char **argv)
  * optimize_expression|syntax extended to other syntax_a cases?
  *   let_a_fx (begin_fx) including set! if it's a local variable and fx-following uses "p" for it
  *   set! in opt and fx is ok if not used elsewhere or known "p" case (implicit vector etc)
- * tsig = sig+set timings
- *   symbol|function|vector|hash setters, also via integer? etc, typed let, function sigs, built-in called via setter? macro: logbit?
  * append for set? -- if setter a safe closure, call direct without copied args
  *   op: let_temp_init_2|done1, set_with_let_1|2 [77635|59], op_set1|2--can implicit_set be split?]
  * if (lambda...) as arg (to g_set_setter for example), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
