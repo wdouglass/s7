@@ -406,6 +406,54 @@
 
 
 ;; records
+#|
+;;; vector version which appears to be slightly slower (according to time, valgrind thinks it is faster) than the let version below
+(define-macro (define-record-type type make ? . fields)
+  (let* ((obj (gensym))
+	 (len (length fields))
+	 (positions (map (lambda (make-arg)
+			   (do ((i 1 (+ i 1))
+				(p fields (cdr p)))
+			       ((eq? make-arg (caar p))
+				i)))
+			 (cdr make))))
+    (format *stderr* "~S ~S ~S~%" obj len positions)
+    `(begin
+       (define ,type 
+	 (let ((v (make-vector (+ ,len 1))))
+	   (vector-set! v 0 ',type)
+	   v))
+       
+       (define (,? obj) 
+	 (and (vector? obj) 
+	      (eq? (vector-ref obj 0) ',type)))
+       
+       (define ,make 
+         (let ((,obj (copy ,type)))
+	   ,@(map (lambda (field position)
+		    `(vector-set! ,obj ,position ,field))
+		  (cdr make)
+		  positions)
+	   ,obj))
+       
+       ,@(map
+	  (let ((pos 0))
+	    (lambda (field)
+	      (set! pos (+ pos 1))
+	      (when (pair? field)
+		(if (null? (cdr field))
+		    (values)
+		    (if (null? (cddr field))
+			`(define (,(cadr field) ,obj)
+			   (vector-ref ,obj ,pos))
+			`(begin
+			   (define (,(cadr field) ,obj)
+			     (vector-ref ,obj ,pos))
+			   (define (,(caddr field) ,obj val)
+			     (vector-set! ,obj ,pos val))))))))
+	  fields)
+       ',type)))
+|#
 (define-macro (define-record-type type make ? . fields)
   (let ((new-type (if (pair? type) (car type) type))
 	(inherited (if (pair? type) (cdr type) ()))
@@ -453,5 +501,3 @@
 
 ;;; srfi 111:
 (define-record-type box-type (box value) box? (value unbox set-box!))
-
-

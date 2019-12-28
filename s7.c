@@ -1607,7 +1607,7 @@ static bool t_any_macro_p[NUM_TYPES], t_any_closure_p[NUM_TYPES], t_has_closure_
 static bool t_mappable_p[NUM_TYPES], t_sequence_p[NUM_TYPES], t_vector_p[NUM_TYPES];
 static bool t_procedure_p[NUM_TYPES], t_applicable_p[NUM_TYPES];
 #if S7_DEBUGGING
-static bool t_freeze_p[NUM_TYPES];
+static bool t_freeze_p[NUM_TYPES]; /* free_cell sanity check */
 #endif
 
 static void init_types(void)
@@ -7158,6 +7158,8 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
 
 
 /* -------- symbol sets -------- */
+#define SYMBOL_LIST_DEBUGGING 0
+#if (!SYMBOL_LIST_DEBUGGING)
 static inline s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
 {
   symbol_set_tag(sym, sc->syms_tag);
@@ -7176,6 +7178,37 @@ static inline void clear_symbol_list(s7_scheme *sc)
 }
 
 #define symbol_is_in_list(Sc, Sym) ((symbol_tag(Sym) == Sc->syms_tag) && (symbol_tag2(Sym) == Sc->syms_tag2))
+#else
+
+#define add_symbol_to_list(Sc, Sym) add_symbol_to_list_1(Sc, Sym, __func__, __LINE__)
+static s7_pointer add_symbol_to_list_1(s7_scheme *sc, s7_pointer sym, const char *func, int line)
+{
+  fprintf(stderr, "%s[%d]: add %s\n", func, line, display(sym));
+  symbol_set_tag(sym, sc->syms_tag);
+  symbol_set_tag2(sym, sc->syms_tag2);
+  return(sym);
+}
+
+#define clear_symbol_list(Sc) clear_symbol_list_1(Sc, __func__, __LINE__)
+static void clear_symbol_list_1(s7_scheme *sc, const char *func, int line)
+{
+  fprintf(stderr, "%s[%d]: clear symbols\n", func, line);
+  sc->syms_tag++;
+  if (sc->syms_tag == 0)
+    {
+      sc->syms_tag = 1; /* we're assuming (in let_equal) that this tag is not 0 */
+      sc->syms_tag2++;
+    }
+}
+
+#define symbol_is_in_list(Sc, Sym) symbol_is_in_list_1(Sc, Sym, __func__, __LINE__)
+static bool symbol_is_in_list_1(s7_scheme *sc, s7_pointer sym, const char *func, int line)
+{
+  fprintf(stderr, "%s[%d]: find %s\n", func, line, display(sym));
+  return((symbol_tag(sym) == sc->syms_tag) && (symbol_tag2(sym) == sc->syms_tag2));
+}
+
+#endif
 
 
 /* -------------------------------- environments -------------------------------- */
@@ -59495,7 +59528,8 @@ static bool opt_b_pp_sfo(opt_info *o) {return(o->v[3].b_pp_f(slot_value(o->v[1].
 static bool opt_b_7pp_sf(opt_info *o) {return(o->v[3].b_7pp_f(o->sc, slot_value(o->v[1].p), o->v[11].fp(o->v[10].o1)));}
 static bool opt_b_7pp_fs(opt_info *o) {return(o->v[3].b_7pp_f(o->sc, o->v[11].fp(o->v[10].o1), slot_value(o->v[1].p)));}
 static bool opt_b_7pp_ss(opt_info *o) {return(o->v[3].b_7pp_f(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));}
-static bool opt_lt_b_7pp_ss(opt_info *o) {return(lt_b_7pp(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));}
+static bool opt_b_7pp_ss_lt(opt_info *o)  {return(lt_b_7pp(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));}
+static bool opt_b_7pp_ss_gt(opt_info *o)  {return(gt_b_7pp(o->sc, slot_value(o->v[1].p), slot_value(o->v[2].p)));}
 static bool opt_b_7pp_sc(opt_info *o) {return(o->v[3].b_7pp_f(o->sc, slot_value(o->v[1].p), o->v[2].p));}
 static bool opt_b_7pp_sfo(opt_info *o) {return(o->v[3].b_7pp_f(o->sc, slot_value(o->v[1].p), o->v[4].p_p_f(o->sc, slot_value(o->v[2].p))));}
 static bool opt_is_equal_sfo(opt_info *o) {return(s7_is_equal(o->sc, slot_value(o->v[1].p), o->v[4].p_p_f(o->sc, slot_value(o->v[2].p))));}
@@ -59573,7 +59607,9 @@ static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
       if ((opc->v[1].p) &&
 	  (opc->v[2].p))
 	{
-	  opc->v[0].fb = (bpf_case) ? opt_b_pp_ss : ((opc->v[3].b_7pp_f == lt_b_7pp) ? opt_lt_b_7pp_ss : opt_b_7pp_ss);
+	  s7_b_7pp_t b7f;
+	  if (!bpf_case) b7f = opc->v[3].b_7pp_f;
+	  opc->v[0].fb = (bpf_case) ? opt_b_pp_ss : ((b7f == lt_b_7pp) ? opt_b_7pp_ss_lt : ((b7f == gt_b_7pp) ? opt_b_7pp_ss_gt : opt_b_7pp_ss));
 	  return(oo_set_type_2(opc, 1, 2, OO_P, OO_P));
 	}
     }
@@ -59689,6 +59725,7 @@ static bool opt_b_dd_sc_eq(opt_info *o) {return(real(slot_value(o->v[1].p)) == o
 
 static bool opt_b_dd_sf(opt_info *o) {return(o->v[3].b_dd_f(real(slot_value(o->v[1].p)), o->v[11].fd(o->v[10].o1)));}
 static bool opt_b_dd_fs(opt_info *o) {return(o->v[3].b_dd_f(o->v[11].fd(o->v[10].o1), real(slot_value(o->v[1].p))));}
+static bool opt_b_dd_fs_gt(opt_info *o) {return(o->v[11].fd(o->v[10].o1) > real(slot_value(o->v[1].p)));}
 static bool opt_b_dd_fc(opt_info *o) {return(o->v[3].b_dd_f(o->v[11].fd(o->v[10].o1), o->v[1].x));}
 
 static bool opt_b_dd_ff(opt_info *o)
@@ -59739,7 +59776,7 @@ static bool b_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	  if (is_symbol(arg2))
 	    {
 	      opc->v[1].p = symbol_to_slot(sc, arg2);
-	      opc->v[0].fb = opt_b_dd_fs;
+	      opc->v[0].fb = (bif == gt_b_dd) ? opt_b_dd_fs_gt : opt_b_dd_fs;
 	      return(oo_set_type_1(opc, 1, OO_D));
 	    }
 	  if (is_real(arg2))
@@ -59942,13 +59979,11 @@ static bool opt_b_or_and(s7_scheme *sc, s7_pointer car_x, int32_t len, int32_t i
 	    {
 	      opc->v[10].o1 = o2;
 	      opc->v[11].fb = o2->v[0].fb;
-	      if ((o1->v[0].fb == opt_b_dd_ss) ||
-		  (o1->v[0].fb == opt_b_dd_ss_lt) || (o1->v[0].fb == opt_b_dd_ss_gt) ||
+	      if ((o1->v[0].fb == opt_b_dd_ss) || (o1->v[0].fb == opt_b_dd_ss_lt) || (o1->v[0].fb == opt_b_dd_ss_gt) ||
 		  (o1->v[0].fb == opt_b_ii_ss) ||
 		  (o1->v[0].fb == opt_b_ii_ss_lt) || (o1->v[0].fb == opt_b_ii_ss_gt) || (o1->v[0].fb == opt_b_ii_ss_leq) || (o1->v[0].fb == opt_b_ii_ss_geq) ||
 		  (o1->v[0].fb == opt_b_pp_ss) ||
-		  (o1->v[0].fb == opt_b_7pp_ss) ||
-		  (o1->v[0].fb == opt_lt_b_7pp_ss))
+		  (o1->v[0].fb == opt_b_7pp_ss) || (o1->v[0].fb == opt_b_7pp_ss_lt) || (o1->v[0].fb == opt_b_7pp_ss_gt))
 		{
 		  opc->v[5].fb = o1->v[0].fb;
 		  opc->v[0].fb = (is_and) ? opt_and_bb1 : opt_or_bb1;
@@ -60766,6 +60801,7 @@ static bool p_call_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_poi
 
 static s7_pointer opt_p_pip_ssf(opt_info *o) {return(o->v[3].p_pip_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[5].fp(o->v[4].o1)));}
 static s7_pointer opt_p_pip_sss(opt_info *o) {return(o->v[4].p_pip_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), slot_value(o->v[3].p)));}
+static s7_pointer opt_p_pip_sss_vset(opt_info *o) {return(vector_set_p_pip_unchecked(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), slot_value(o->v[3].p)));}
 static s7_pointer opt_p_pip_ssc(opt_info *o) {return(o->v[3].p_pip_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[4].p));}
 static s7_pointer opt_p_pip_c(opt_info *o) {return(o->v[3].p_pip_f(o->sc, slot_value(o->v[1].p), integer(slot_value(o->v[2].p)), o->v[5].p_p_f(o->sc, o->v[4].p)));}
 
@@ -60953,7 +60989,7 @@ static bool p_pip_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		{
 		  opc->v[4].p_pip_f = opc->v[3].p_pip_f;
 		  opc->v[3].p = val_slot;
-		  opc->v[0].fp = opt_p_pip_sss;
+		  opc->v[0].fp = (opc->v[4].p_pip_f == vector_set_p_pip_unchecked) ? opt_p_pip_sss_vset : opt_p_pip_sss;
 		  return(oo_set_type_3(opc, 1, 2, 3, op2, OO_I, OO_P));
 		}
 	    }
@@ -69705,6 +69741,11 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
   if ((symbol_is_in_list(sc, symbol)) &&
       (let_memq(symbol, e)))   /* it's probably a local variable reference */
     return(sc->nil);
+#if SYMBOL_LIST_DEBUGGING
+  /* this still happens for fwalk and report-reouble in lint.scm */
+  if ((!symbol_is_in_list(sc, symbol)) && (let_memq(symbol, e)))
+    fprintf(stderr, "%s%s in %s%s\n", BOLD_TEXT, display(symbol), display(e), UNBOLD_TEXT);
+#endif
 
   if (is_global(symbol))
     return(global_slot(symbol));
@@ -69805,7 +69846,12 @@ static bool safe_c_aa_to_ca(s7_scheme *sc, s7_pointer arg, int hop)
   return(false);
 }
 
+#if SYMBOL_LIST_DEBUGGING
+static int32_t check_lambda_1_1(s7_scheme *sc, bool optl, const char *func, int line);
+#define check_lambda_1(sc, op) check_lambda_1_1(sc, op, __func__, __LINE__)
+#else
 static int32_t check_lambda_1(s7_scheme *sc, bool optl);
+#endif
 
 static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -70329,12 +70375,18 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      if ((is_pair(arg1)) &&
 		  (car(arg1) == sc->lambda_symbol))
 		{
-		  s7_pointer code;
+		  s7_pointer code, p;
 		  annotate_arg(sc, cddr(expr), e);
 		  set_unsafe_optimize_op(expr, hop + OP_C_FA);
 		  code = sc->code;
 		  sc->code = arg1;               /* cadr(expr) */
-		  check_lambda_1(sc, true);
+		  check_lambda_1(sc, true);      /* this changes symbol_list */
+
+		  clear_symbol_list(sc);         /* so restore it */
+		  for (p = e; is_pair(p); p = cdr(p))
+		    if (is_normal_symbol(car(p)))
+		      add_symbol_to_list(sc, car(p));
+
 		  sc->code = code;
 		  choose_c_function(sc, expr, func, 2);
 		  if (((c_callee(expr) == g_for_each) || (c_callee(expr) == g_map)) &&
@@ -72712,13 +72764,18 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
+#if SYMBOL_LIST_DEBUGGING
+#define optimize_lambda(sc, un, fu, ar, bo) optimize_lambda_1(sc, un, fu, ar, bo, __func__, __LINE__)
+static void optimize_lambda_1(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body, const char *f, int line)
+#else
 static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
+#endif
 {
   s7_int len;
 
   len = s7_list_length(sc, body);
-#if OPTIMIZE_PRINT
-  fprintf(stderr, "%s[%d]: %s %s %ld\n", __func__, __LINE__, display(func), display(args), len);
+#if OPTIMIZE_PRINT || (SYMBOL_LIST_DEBUGGING)
+  fprintf(stderr, "%s[%d] from %s[%d]: %s %s %ld\n", __func__, __LINE__, f, line, display(func), display(args), len);
 #endif
 
   if (len < 0)                /* (define (hi) 1 . 2) */
@@ -72835,14 +72892,20 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
     }
 }
 
+#if SYMBOL_LIST_DEBUGGING
+static int32_t check_lambda_1_1(s7_scheme *sc, bool optl, const char *caller, int line)
+#else
 static int32_t check_lambda_1(s7_scheme *sc, bool optl)
+#endif
 {
   /* sc->code is a lambda form: (lambda (a b) (+ a b)) */
   /* this includes unevaluated symbols (direct symbol table refs) in macro arg list */
   s7_pointer code, body;
   int32_t arity = 0;
 
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
+#if SYMBOL_LIST_DEBUGGING
+  fprintf(stderr, "%s[%d] from %s[%d]: %s\n", __func__, __LINE__, caller, line, display(sc->code));
+#endif
 
   if ((sc->safety > NO_SAFETY) &&
       (tree_is_cyclic(sc, sc->code)))
@@ -72858,7 +72921,7 @@ static int32_t check_lambda_1(s7_scheme *sc, bool optl)
 
   /* in many cases, this is a no-op -- we already checked at define */
   check_lambda_args(sc, car(code), &arity);
-  clear_symbol_list(sc);
+  /* clear_symbol_list(sc); */ /* not used in check_lambda_args and clobbers optimize_expression find_uncomplicated_symbol check */
 
   /* look for (define f (let (...) (lambda ...))) and treat as equivalent to (define (f ...)...)
    *   one problem the hop=0 fixes is that safe closures assume the old frame exists, so we need to check for define below
@@ -85347,7 +85410,17 @@ static s7_double oprec_d_if_a_a_opla_laq(s7_scheme *sc)
     return(sc->rec_result_o->v[0].fd(sc->rec_result_o));
   x1 = sc->rec_a1_o->v[0].fd(sc->rec_a1_o);
   real(sc->rec_val1) = sc->rec_a2_o->v[0].fd(sc->rec_a2_o);
-  x2 = oprec_d_if_a_a_opla_laq(sc);
+  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))
+    x2 = sc->rec_result_o->v[0].fd(sc->rec_result_o);
+  else
+    {
+      s7_double x3;
+      x2 = sc->rec_a1_o->v[0].fd(sc->rec_a1_o);
+      real(sc->rec_val1) = sc->rec_a2_o->v[0].fd(sc->rec_a2_o);
+      x3 = oprec_d_if_a_a_opla_laq(sc);
+      real(sc->rec_val1) = x2;
+      x2 = sc->rec_d_dd_f(oprec_d_if_a_a_opla_laq(sc), x3);
+    }
   real(sc->rec_val1) = x1;
   return(sc->rec_d_dd_f(oprec_d_if_a_a_opla_laq(sc), x2));
 }
@@ -97408,8 +97481,8 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284
  * tform    2472 | 2289
  * tread    2449 | 2394
+ * tvect    6189 | 2548  2457
  * tmat     6072 | 2478
- * tvect    6189 | 2548
  * fbench   2974 | 2643
  * dup      6333 | 2713
  * trclo    7985 | 2791
@@ -97444,8 +97517,8 @@ int main(int argc, char **argv)
  * let+lambda -- not set safe either?
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
- * s7_let_ref|set optimized (precheck symbol/keyword, maybe env/immutable, field existence)
  * unsafe tc in 2 ops: init: setup outer, push 2, uexpr->eval [probably op_closure_aa_o=laa, let_one_p_new]
  *                     2: value->inner, if expr, set outer, push 2, uexpr->eval
  *   are there other cases? how to catch them? can this include op_safe_closure* (unrechecked)?
+ * split out vector cases in equals and (ci) check at top: t_structure_p
  */
