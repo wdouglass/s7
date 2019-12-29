@@ -227,7 +227,7 @@ static s7_pointer g_colorizer_colors(s7_scheme *sc, s7_pointer args)
   if (s7_is_pair(p)) {syntax_tag =        gtk_text_buffer_create_tag(listener_buffer, NULL, "foreground", s7_string(s7_car(p)), NULL); p = s7_cdr(p);}
   if (s7_is_pair(p)) {macro_tag =         gtk_text_buffer_create_tag(listener_buffer, NULL, "foreground", s7_string(s7_car(p)), NULL); p = s7_cdr(p);}
   if (s7_is_pair(p)) {procedure_tag =     gtk_text_buffer_create_tag(listener_buffer, NULL, "foreground", s7_string(s7_car(p)), NULL); p = s7_cdr(p);}
-  if (s7_is_pair(p)) {undefined_tag =     gtk_text_buffer_create_tag(listener_buffer, NULL, "foreground", s7_string(s7_car(p)), NULL); p = s7_cdr(p);}
+  if (s7_is_pair(p)) {undefined_tag =     gtk_text_buffer_create_tag(listener_buffer, NULL, "foreground", s7_string(s7_car(p)), NULL); /* p = s7_cdr(p); */}
 
   return(s7_t(sc));
 }

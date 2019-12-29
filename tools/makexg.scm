@@ -2206,10 +2206,12 @@
 				    (deref-element-type arg))
 			       (hay "  }~%"))))
 		     (let ((checker (or (hash-table-ref c->s7-checker (no-stars argtype)) 's7_is_c_pointer_of_type)))
-		       (hay (if (> cargs 1)
+		       (hay (if (> cargs 1) 
 				(if (member argtype '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?)
 				    "  /* ~A = s7_car(_p); */ _p = s7_cdr(_p);~%"
-				    "  ~A = s7_car(_p); _p = s7_cdr(_p);~%")
+				    (if (< ctr (- cargs refargs))
+					"  ~A = s7_car(_p); _p = s7_cdr(_p);~%"
+				        "  ~A = s7_car(_p);~%"))
 				"  ~A = s7_car(args);~%")
 			    argname)
 		       (if (null-arg? arg)

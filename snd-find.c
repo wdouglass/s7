@@ -48,7 +48,7 @@ static mus_long_t channel_find_backward(chan_info *cp)
   bool reported = false;
   mus_long_t i, start, passes;
   snd_fd *sf = NULL;
-  Xen res = Xen_false;
+  Xen res;
 
   start = cursor_sample(cp) - 1;
   if (start < 0)

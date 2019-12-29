@@ -1003,7 +1003,7 @@ static bool find_open_paren(glistener *g, int parens, int pos, int *highlight_po
 		  return(false);                /* no matching double-quote so we're probably in a string */
 		}
 	      gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
-	      last_c = '\"';
+	      c = '\"';
 	    }
 	  else
 	    {
@@ -1027,7 +1027,7 @@ static bool find_open_paren(glistener *g, int parens, int pos, int *highlight_po
 			{
 			  ppos = find_open_block_comment(g, gtk_text_iter_get_offset(&scan), limit);
 			  gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
-			  last_c = '#';
+			  c = '#';
 			}
 		      else
 			{
@@ -1064,7 +1064,7 @@ static bool find_close_paren(glistener *g, int parens, int pos, int *highlight_p
 {
   GtkTextIter scan;
   int ppos;
-  gunichar c = 0, prev_c = 0;
+  gunichar c = 0, prev_c;
 
   gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, pos);  
   while (gtk_text_iter_compare(&scan, limit) < 0)
@@ -1080,7 +1080,7 @@ static bool find_close_paren(glistener *g, int parens, int pos, int *highlight_p
 		{
 		  gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
 		}
-	      prev_c = '\"';
+	      c = '\"';
 	    }
 	  else
 	    {

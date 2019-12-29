@@ -5797,7 +5797,7 @@ static char *describe_filtered_comb(mus_any *ptr)
   int len;
   comb_str = describe_comb(ptr);
   filter_str = mus_describe(((dly *)ptr)->filt);
-  len = strlen(comb_str) + strlen(filter_str) + 64;
+  len = strlen(comb_str) + ((filter_str) ? strlen(filter_str) : 0) + 64;
   res = (char *)malloc(len * sizeof(char));
   if (filter_str)
     snprintf(res, len, "%s, filter: [%s]", comb_str, filter_str);
@@ -9745,7 +9745,7 @@ static void canonicalize_env(seg *e, const mus_float_t *data, int pts, mus_long_
 
 static mus_float_t *fixup_exp_env(seg *e, const mus_float_t *data, int pts, mus_float_t offset, mus_float_t scaler, mus_float_t base)
 {
-  mus_float_t min_y, max_y, val = 0.0, tmp = 0.0, b1;
+  mus_float_t min_y, max_y, val = 0.0, tmp, b1;
   int len, i;
   bool flat;
   mus_float_t *result = NULL;
@@ -9914,7 +9914,6 @@ static mus_any *seg_copy(mus_any *ptr)
       mus_long_t *l;
       int bytes;
 
-      bytes = p->size * sizeof(mus_float_t);
       r = e->rates;
       mus_copy_floats(r, p->rates, p->size);
 

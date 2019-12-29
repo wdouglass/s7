@@ -6283,7 +6283,7 @@ static void ripple_mixes_1(chan_info *cp, mus_long_t beg, mus_long_t len, mus_lo
       (cp->edit_ctr > 0))
     {
       ed_list *ed;
-      int i, low_id = 0, high_id = 0, size = 0; /* low_id confuses the compiler, but it will always get set below (current_states starts NULL etc) */
+      int i, low_id = 0, high_id, size = 0; /* low_id confuses the compiler, but it will always get set below (current_states starts NULL etc) */
       mix_state **current_states = NULL;
 
       ed = cp->edits[cp->edit_ctr];
@@ -7831,7 +7831,7 @@ mus_float_t channel_local_maxamp(chan_info *cp, mus_long_t beg, mus_long_t num, 
   /* fprintf(stderr, "use %f %" print_mus_long "\n", ymax, mpos); */
   if ((edpos == 0) &&
       (beg == 0) &&
-      (num = cp->edits[0]->samples))
+      (num == cp->edits[0]->samples)) /* was = ? 29-Dec-19 */
     mus_sound_channel_set_maxamp(cp->sound->filename, cp->chan, ymax, mpos);
   
   if (maxpos) (*maxpos) = mpos;

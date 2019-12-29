@@ -20384,9 +20384,14 @@ static bool geq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
 static s7_pointer geq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, geq_b_pi(sc, p1, p2)));}
 #else
 static s7_pointer big_less(s7_scheme *sc, s7_pointer args);
+static s7_pointer big_greater(s7_scheme *sc, s7_pointer args);
 static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   return(big_less(sc, set_plist_2(sc, x, y)) != sc->F);
+}
+static bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
+{
+  return(big_greater(sc, set_plist_2(sc, x, y)) != sc->F);
 }
 #endif
 /* end (!WITH_GMP) */
@@ -55245,7 +55250,6 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		}
 	      if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_ts));
 	      if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_ts));
-	      if (c_callee(tree) == fx_c_scs_direct) return(with_c_call(tree, (cadddr(p) == var2) ? fx_c_tcu_direct : fx_c_tcs_direct));
 	    }
 	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_ti));
 	  if (c_callee(tree) == fx_gt_ss) return(with_c_call(tree, (is_global(caddr(p))) ? fx_gt_tg : fx_gt_ts));
@@ -55254,6 +55258,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_cons_ss) return(with_c_call(tree, fx_cons_ts));
 	  if ((c_callee(tree) == fx_c_s_car_s) && (cadaddr(p) == var2)) return(with_c_call(tree, fx_c_t_car_u));
 	  if (c_callee(tree) == fx_lint_let_ref) return(with_c_call(tree, fx_lint_let_ref_t));
+	  if (c_callee(tree) == fx_c_scs_direct) return(with_c_call(tree, (cadddr(p) == var2) ? fx_c_tcu_direct : fx_c_tcs_direct));
 	}
       else
 	{
@@ -59608,7 +59613,7 @@ static bool b_pp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	  (opc->v[2].p))
 	{
 	  s7_b_7pp_t b7f;
-	  if (!bpf_case) b7f = opc->v[3].b_7pp_f;
+	  if (!bpf_case) b7f = opc->v[3].b_7pp_f; else b7f = NULL; /* make cppcheck happy? */
 	  opc->v[0].fb = (bpf_case) ? opt_b_pp_ss : ((b7f == lt_b_7pp) ? opt_b_7pp_ss_lt : ((b7f == gt_b_7pp) ? opt_b_7pp_ss_gt : opt_b_7pp_ss));
 	  return(oo_set_type_2(opc, 1, 2, OO_P, OO_P));
 	}
@@ -67950,7 +67955,7 @@ static void init_choosers(s7_scheme *sc)
   sc->hash_table_ref_2 = make_function_with_class(sc, f, "hash-table-ref", g_hash_table_ref_2, 2, 0, false);
 
   /* hash-table-set! */
-  f = set_function_chooser(sc, sc->hash_table_set_symbol, hash_table_set_chooser);
+  set_function_chooser(sc, sc->hash_table_set_symbol, hash_table_set_chooser);
 
   /* hash-table */
   f = set_function_chooser(sc, sc->hash_table_symbol, hash_table_chooser);
@@ -77111,10 +77116,7 @@ static inline void check_set(s7_scheme *sc)
 			  if (((is_c_function(obj)) && (car(inner) != make_symbol(sc, c_function_name(obj)))) ||
 			      ((is_closure(obj)) && (car(inner) != closure_name(sc, obj))) ||
 			      ((!is_c_function(obj)) && (!is_closure(obj))))
-			    {
-			      code = form;
-			      return;
-			    }
+			    return;
 
 			  annotate_arg(sc, cdr(code), sc->envir);
 			  pair_set_syntax_op(form, OP_SET_PAIR_ZA);
@@ -97481,7 +97483,7 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284
  * tform    2472 | 2289
  * tread    2449 | 2394
- * tvect    6189 | 2548  2457
+ * tvect    6189 | 2548  2434
  * tmat     6072 | 2478
  * fbench   2974 | 2643
  * dup      6333 | 2713
@@ -97520,5 +97522,6 @@ int main(int argc, char **argv)
  * unsafe tc in 2 ops: init: setup outer, push 2, uexpr->eval [probably op_closure_aa_o=laa, let_one_p_new]
  *                     2: value->inner, if expr, set outer, push 2, uexpr->eval
  *   are there other cases? how to catch them? can this include op_safe_closure* (unrechecked)?
- * split out vector cases in equals and (ci) check at top: t_structure_p
+ * split out vector cases in equals and (ci) check at top: t_structure_p (make teq more comprehensive)
+ * multi|subvector exs
  */

@@ -1878,7 +1878,6 @@ void make_partial_graph(chan_info *cp, mus_long_t beg, mus_long_t end)
 
 Xen make_graph_data(chan_info *cp, int edit_pos, mus_long_t losamp, mus_long_t hisamp)
 {
-  int j = 0;
   mus_long_t samps, ioff;
   axis_info *ap;
   mus_float_t samples_per_pixel, xf;
@@ -1921,6 +1920,7 @@ Xen make_graph_data(chan_info *cp, int edit_pos, mus_long_t losamp, mus_long_t h
 	  double step, xk;
 	  mus_float_t ymin, ymax;
 	  peak_env_info *ep;
+	  int j;
 
 	  data_size = pixels + 1;
 	  data = (mus_float_t *)calloc(data_size, sizeof(mus_float_t));
@@ -1959,6 +1959,7 @@ Xen make_graph_data(chan_info *cp, int edit_pos, mus_long_t losamp, mus_long_t h
       else
 	{
 	  mus_float_t ymin, ymax;
+	  int j;
 
 	  data_size = pixels + 1;
 	  sf = init_sample_read_any(losamp, cp, READ_FORWARD, edit_pos);
@@ -9311,9 +9312,8 @@ If 'data' is a list of numbers, it is treated as an envelope."
 
   chan_info *cp;
   lisp_grf *lg;
-  Xen data = Xen_undefined;
   char *label = NULL;
-  int i, len = 0, graphs;
+  int i, len, graphs;
   bool need_update = false;
   mus_float_t ymin = 32768.0, ymax = -32768.0, val;
   double nominal_x0 = 0.0, nominal_x1 = 1.0;
@@ -9490,6 +9490,8 @@ If 'data' is a list of numbers, it is treated as an envelope."
       for (graph = 0; graph < graphs; graph++)
 	{
 	  vct *v = NULL;
+	  Xen data;
+
 	  if (Xen_is_list(ldata))
 	    data = Xen_list_ref(ldata, graph);
 	  else data = ldata;

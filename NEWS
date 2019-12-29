@@ -1,8 +1,10 @@
-Snd 19.9:
+Snd 20.0:
 
-Mike fixed an audio problem in the openbsd support.
-Juan Reyes updated leslie.ins and leslie.cms.
+Snd: Mike improved several Forth scripts.
 
-checked: sbcl 1.5.8, FC 31
+s7: added baffle? and goto?
 
-Thanks!: Michael Scholz, Lassi Kortela, David O'Toole, Juan Reyes
+checked: sbcl 1.5.9, 2.0.0, Ubuntu 19.10
+
+Thanks!: Kjetil Matheussen, Tito Latini, Matti Koskinen, David O'Toole, 
+         Michael Edwards, Mike Scholz.

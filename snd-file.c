@@ -334,8 +334,8 @@ static void load_dir(DIR *dpos, dir_info *dp, bool (*filter)(const char *filenam
     {
 #if defined(PATH_MAX)
       path_max = PATH_MAX;
-#endif
       if (path_max < 1024) 
+#endif
 	path_max = 1024;
     }
 
