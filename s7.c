@@ -7158,8 +7158,6 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
 
 
 /* -------- symbol sets -------- */
-#define SYMBOL_LIST_DEBUGGING 0
-#if (!SYMBOL_LIST_DEBUGGING)
 static inline s7_pointer add_symbol_to_list(s7_scheme *sc, s7_pointer sym)
 {
   symbol_set_tag(sym, sc->syms_tag);
@@ -7178,37 +7176,6 @@ static inline void clear_symbol_list(s7_scheme *sc)
 }
 
 #define symbol_is_in_list(Sc, Sym) ((symbol_tag(Sym) == Sc->syms_tag) && (symbol_tag2(Sym) == Sc->syms_tag2))
-#else
-
-#define add_symbol_to_list(Sc, Sym) add_symbol_to_list_1(Sc, Sym, __func__, __LINE__)
-static s7_pointer add_symbol_to_list_1(s7_scheme *sc, s7_pointer sym, const char *func, int line)
-{
-  fprintf(stderr, "%s[%d]: add %s\n", func, line, display(sym));
-  symbol_set_tag(sym, sc->syms_tag);
-  symbol_set_tag2(sym, sc->syms_tag2);
-  return(sym);
-}
-
-#define clear_symbol_list(Sc) clear_symbol_list_1(Sc, __func__, __LINE__)
-static void clear_symbol_list_1(s7_scheme *sc, const char *func, int line)
-{
-  fprintf(stderr, "%s[%d]: clear symbols\n", func, line);
-  sc->syms_tag++;
-  if (sc->syms_tag == 0)
-    {
-      sc->syms_tag = 1; /* we're assuming (in let_equal) that this tag is not 0 */
-      sc->syms_tag2++;
-    }
-}
-
-#define symbol_is_in_list(Sc, Sym) symbol_is_in_list_1(Sc, Sym, __func__, __LINE__)
-static bool symbol_is_in_list_1(s7_scheme *sc, s7_pointer sym, const char *func, int line)
-{
-  fprintf(stderr, "%s[%d]: find %s\n", func, line, display(sym));
-  return((symbol_tag(sym) == sc->syms_tag) && (symbol_tag2(sym) == sc->syms_tag2));
-}
-
-#endif
 
 
 /* -------------------------------- environments -------------------------------- */
@@ -69746,8 +69713,7 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
   if ((symbol_is_in_list(sc, symbol)) &&
       (let_memq(symbol, e)))   /* it's probably a local variable reference */
     return(sc->nil);
-#if SYMBOL_LIST_DEBUGGING
-  /* this still happens for fwalk and report-reouble in lint.scm */
+#if S7_DEBUGGING
   if ((!symbol_is_in_list(sc, symbol)) && (let_memq(symbol, e)))
     fprintf(stderr, "%s%s in %s%s\n", BOLD_TEXT, display(symbol), display(e), UNBOLD_TEXT);
 #endif
@@ -69851,12 +69817,7 @@ static bool safe_c_aa_to_ca(s7_scheme *sc, s7_pointer arg, int hop)
   return(false);
 }
 
-#if SYMBOL_LIST_DEBUGGING
-static int32_t check_lambda_1_1(s7_scheme *sc, bool optl, const char *func, int line);
-#define check_lambda_1(sc, op) check_lambda_1_1(sc, op, __func__, __LINE__)
-#else
 static int32_t check_lambda_1(s7_scheme *sc, bool optl);
-#endif
 
 static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -70522,13 +70483,19 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  (is_fxable(sc, arg2)) &&
 	  (is_null(cdr(closure_body(func)))))
 	{
-	  s7_pointer code;
+	  s7_pointer code, p;
 	  annotate_arg(sc, cddr(expr), e);
 	  set_opt3_pair(expr, cdr(arg1));
 	  set_unsafe_optimize_op(expr, hop + OP_CLOSURE_FA);
 	  code = sc->code;
 	  sc->code = arg1;
 	  check_lambda_1(sc, false);
+
+	  clear_symbol_list(sc);
+	  for (p = e; is_pair(p); p = cdr(p))
+	    if (is_normal_symbol(car(p)))
+	      add_symbol_to_list(sc, car(p));
+
 	  /* check_lambda calls optimize_lambda if define in progress, else just optimize on the body */
 	  clear_safe_closure_body(cdr(sc->code)); /* otherwise we need to fixup the local let for the optimizer -- what is this about? */
 	  sc->code = code;
@@ -72769,17 +72736,12 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
-#if SYMBOL_LIST_DEBUGGING
-#define optimize_lambda(sc, un, fu, ar, bo) optimize_lambda_1(sc, un, fu, ar, bo, __func__, __LINE__)
-static void optimize_lambda_1(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body, const char *f, int line)
-#else
 static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
-#endif
 {
   s7_int len;
 
   len = s7_list_length(sc, body);
-#if OPTIMIZE_PRINT || (SYMBOL_LIST_DEBUGGING)
+#if OPTIMIZE_PRINT
   fprintf(stderr, "%s[%d] from %s[%d]: %s %s %ld\n", __func__, __LINE__, f, line, display(func), display(args), len);
 #endif
 
@@ -72897,20 +72859,14 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
     }
 }
 
-#if SYMBOL_LIST_DEBUGGING
-static int32_t check_lambda_1_1(s7_scheme *sc, bool optl, const char *caller, int line)
-#else
 static int32_t check_lambda_1(s7_scheme *sc, bool optl)
-#endif
 {
   /* sc->code is a lambda form: (lambda (a b) (+ a b)) */
   /* this includes unevaluated symbols (direct symbol table refs) in macro arg list */
   s7_pointer code, body;
   int32_t arity = 0;
 
-#if SYMBOL_LIST_DEBUGGING
-  fprintf(stderr, "%s[%d] from %s[%d]: %s\n", __func__, __LINE__, caller, line, display(sc->code));
-#endif
+  /* fprintf(stderr, "%s[%d] from %s[%d]: %s\n", __func__, __LINE__, caller, line, display(sc->code)); */
 
   if ((sc->safety > NO_SAFETY) &&
       (tree_is_cyclic(sc, sc->code)))
@@ -84002,7 +83958,7 @@ static void op_tc_and_a_or_a_laa(s7_scheme *sc, s7_pointer code)
       if (p == sc->F) {sc->value = p; return;}
       p = fx_call(sc, fx_or);
       if (p != sc->F) {sc->value = p; return;}
-      sc->rec_p1 = fx_call(sc, fx_la);
+      sc->rec_p1 = fx_call(sc, fx_la); /* TODO: are we assuming fx_laa called next does not use rec_p1? */
       slot_set_value(laa_slot, fx_call(sc, fx_laa));
       slot_set_value(la_slot, sc->rec_p1);
     }
@@ -97470,42 +97426,42 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s new-ftp-file to that directory
  *
  * ------------------------------
- *           18  |  19    
+ *           18  |  19  |  20.0
  * ------------------------------
- * tpeak     167 |  117
- * tauto     748 |  633
- * tshoot   1176 |  777
- * tref     1093 |  779
- * index     971 |  890
- * s7test   1776 | 1711
- * lt       2278 | 2072
- * tcopy    2434 | 2264
- * tmisc    2852 | 2284
- * tform    2472 | 2289
- * tread    2449 | 2394
- * tvect    6189 | 2548  2434
- * tmat     6072 | 2478
- * fbench   2974 | 2643
- * dup      6333 | 2713
- * trclo    7985 | 2791
- * tb       3251 | 2799
- * tmap     3238 | 2883
- * titer    3962 | 2911
- * tsort    4156 | 3043
- * tset     6616 | 3083
- * tmac     3391 | 3186
- * teq      4081 | 3804
- * tfft     4288 | 3816
- * tlet     5409 | 4613
- * tclo     6206 | 4896
- * trec     17.8 | 6318
- * thash    10.3 | 6805
- * tgen     11.7 | 11.1
- * tall     16.4 | 15.4
- * calls    40.3 | 35.9
- * sg       85.8 | 70.4
- * lg      115.9 |104.9
- * tbig    264.5 |178.0
+ * tpeak     167 |  117 |
+ * tauto     748 |  633 |
+ * tshoot   1176 |  777 |
+ * tref     1093 |  779 |
+ * index     971 |  889 |
+ * s7test   1776 | 1711 |
+ * lt       2278 | 2072 |
+ * tcopy    2434 | 2264 |
+ * tmisc    2852 | 2284 |
+ * tform    2472 | 2289 |
+ * tread    2449 | 2394 |
+ * tvect    6189 | 2430 |
+ * tmat     6072 | 2478 |
+ * fbench   2974 | 2643 |
+ * dup      6333 | 2669 |
+ * trclo    7985 | 2791 |
+ * tb       3251 | 2799 |
+ * tmap     3238 | 2883 |
+ * titer    3962 | 2911 |
+ * tsort    4156 | 3043 |
+ * tset     6616 | 3083 |
+ * tmac     3391 | 3186 |
+ * teq      4081 | 3804 |
+ * tfft     4288 | 3816 |
+ * tlet     5409 | 4613 |
+ * tclo     6206 | 4896 |
+ * trec     17.8 | 6318 |
+ * thash    10.3 | 6805 |
+ * tgen     11.7 | 11.0 |
+ * tall     16.4 | 15.4 |
+ * calls    40.3 | 35.9 |
+ * sg       85.8 | 70.4 |
+ * lg      115.9 |104.9 |
+ * tbig    264.5 |178.0 |
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
@@ -97516,12 +97472,14 @@ int main(int argc, char **argv)
  *   op: let_temp_init_2|done1, set_with_let_1|2 [77635|59], op_set1|2--can implicit_set be split?]
  * if (lambda...) as arg (to g_set_setter for example), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
- * let+lambda -- not set safe either?
+ * let+lambda -- not set safe either? (check symbol_list collision)
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  * unsafe tc in 2 ops: init: setup outer, push 2, uexpr->eval [probably op_closure_aa_o=laa, let_one_p_new]
  *                     2: value->inner, if expr, set outer, push 2, uexpr->eval
- *   are there other cases? how to catch them? can this include op_safe_closure* (unrechecked)?
+ *   are there other cases? can this include op_safe_closure* (unrechecked)?
  * split out vector cases in equals and (ci) check at top: t_structure_p (make teq more comprehensive)
- * multi|subvector exs
+ * is rec_p1 protected against fx_call->op_tc* using rec_p1?
+ * alloc opt_func via block (need sizeof(opt_funcs) * #funcs) add_opt_func 55522 memory-usage entry, alloc_permanent_function 42527
+ * s7_function for c_object_t equal (parallel case + evenetual deprecation of current)
  */
