@@ -569,14 +569,16 @@
 	  (format p "~%  /* double optimizer connections */~%")
 	  (for-each
 	   (lambda (f)
-	     (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f)))
+	     (unless (defined? (symbol (cadr f)) (rootlet))
+	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   double-funcs))
 	
 	(when (pair? int-funcs)
 	  (format p "~%  /* int optimizer connections */~%")
 	  (for-each
 	   (lambda (f)
-	     (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f)))
+	     (unless (defined? (symbol (cadr f)) (rootlet))
+	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   int-funcs))
 	
 	(format p "}~%")

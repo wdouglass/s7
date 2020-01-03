@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.11"
-#define S7_DATE "2020-1-2"
+#define S7_VERSION "8.12"
+#define S7_DATE "2020-1-3"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -599,19 +599,21 @@ s7_pointer s7_c_object_let(s7_pointer obj);
 s7_pointer s7_c_object_set_let(s7_scheme *sc, s7_pointer obj, s7_pointer e);
 
 s7_int s7_make_c_type(s7_scheme *sc, const char *name);
-void s7_c_type_set_free     (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
-void s7_c_type_set_equal    (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2));
-void s7_c_type_set_mark     (s7_scheme *sc, s7_int tag, void (*mark)(void *value));
-void s7_c_type_set_ref      (s7_scheme *sc, s7_int tag, s7_pointer (*ref)      (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_set      (s7_scheme *sc, s7_int tag, s7_pointer (*set)      (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_length   (s7_scheme *sc, s7_int tag, s7_pointer (*length)   (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_copy     (s7_scheme *sc, s7_int tag, s7_pointer (*copy)     (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_fill     (s7_scheme *sc, s7_int tag, s7_pointer (*fill)     (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_reverse  (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)  (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_to_list  (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)  (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_getter   (s7_scheme *sc, s7_int tag, s7_pointer getter);
-void s7_c_type_set_setter   (s7_scheme *sc, s7_int tag, s7_pointer setter);
+void s7_c_type_set_free      (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
+void s7_c_type_set_equal     (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2)); /* old style */
+void s7_c_type_set_mark      (s7_scheme *sc, s7_int tag, void (*mark)(void *value));
+void s7_c_type_set_equality  (s7_scheme *sc, s7_int tag, s7_pointer (*equality)  (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_equivalent(s7_scheme *sc, s7_int tag, s7_pointer (*equivalent)(s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_ref       (s7_scheme *sc, s7_int tag, s7_pointer (*ref)       (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_set       (s7_scheme *sc, s7_int tag, s7_pointer (*set)       (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_length    (s7_scheme *sc, s7_int tag, s7_pointer (*length)    (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_copy      (s7_scheme *sc, s7_int tag, s7_pointer (*copy)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_fill      (s7_scheme *sc, s7_int tag, s7_pointer (*fill)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_reverse   (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)   (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_list   (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)   (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_string (s7_scheme *sc, s7_int tag, s7_pointer (*to_string) (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_getter    (s7_scheme *sc, s7_int tag, s7_pointer getter);
+void s7_c_type_set_setter    (s7_scheme *sc, s7_int tag, s7_pointer setter);
 /* if a c-object might participate in a cyclic structure, and you want to check its equality to another such object
  *   or get a readable string representing that object, you need to implement the "to_list" and "set" cases above,
  *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
@@ -859,6 +861,8 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 2-Jan:     s7_c_type_set_equality and s7_c_type_set_equivalent.
+ * --------
  * 2-Nov:     s7_repl.
  * 30-Oct:    change S7_DATE format, and start updating it to reflect s7.c.
  * 30-Jul:    define-expansion*.
