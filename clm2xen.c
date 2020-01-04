@@ -1339,9 +1339,16 @@ static s7_pointer mus_generator_to_string(s7_scheme *sc, s7_pointer args)
   return(s7_make_string(sc, mus_describe(((mus_xen *)s7_c_object_value(g))->gen)));
 }
 
-static bool s7_equalp_mus_xen(void *val1, void *val2)
+static s7_pointer s7_mus_xen_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return(mus_equalp(((mus_xen *)val1)->gen, ((mus_xen *)val2)->gen));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+
+  if (s7_c_object_type(p2) == mus_xen_tag)
+    return(s7_make_boolean(sc, mus_equalp(((mus_xen *)s7_c_object_value(p1))->gen, ((mus_xen *)s7_c_object_value(p2))->gen)));
+  return(s7_f(sc));
 }
 #endif
 
@@ -12877,7 +12884,7 @@ static void mus_xen_init(void)
 #if HAVE_SCHEME
   mus_xen_tag = s7_make_c_type(s7, "<generator>");
   s7_c_type_set_free(s7, mus_xen_tag, free_mus_xen);
-  s7_c_type_set_equal(s7, mus_xen_tag, s7_equalp_mus_xen);
+  s7_c_type_set_is_equal(s7, mus_xen_tag, s7_mus_xen_is_equal);
   s7_c_type_set_mark(s7, mus_xen_tag, mark_mus_xen);
   s7_c_type_set_ref(s7, mus_xen_tag, mus_xen_apply);
   s7_c_type_set_length(s7, mus_xen_tag, s7_mus_length);

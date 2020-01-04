@@ -6724,9 +6724,9 @@ snd_fd *xen_to_sampler(Xen obj) {if (is_sampler(obj)) return((snd_fd *)Xen_objec
 
 
 #if HAVE_SCHEME
-static bool s7_equalp_sf(void *s1, void *s2)
+static s7_pointer s7_sf_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return(s1 == s2);
+  return(s7_make_boolean(sc, s7_car(args) == s7_cadr(args)));
 }
 
 static s7_pointer length_sf(s7_scheme *sc, s7_pointer args)
@@ -9149,7 +9149,7 @@ void g_init_edits(void)
 
   sf_tag = s7_make_c_type(s7, "<sampler>");
   s7_c_type_set_free(s7, sf_tag, free_sf);
-  s7_c_type_set_equal(s7, sf_tag, s7_equalp_sf);
+  s7_c_type_set_is_equal(s7, sf_tag, s7_sf_is_equal);
   s7_c_type_set_ref(s7, sf_tag, s7_read_sample);
   s7_c_type_set_length(s7, sf_tag, length_sf);
   s7_c_type_set_to_string(s7, sf_tag, g_sampler_to_string);

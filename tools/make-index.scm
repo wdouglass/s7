@@ -1343,6 +1343,7 @@
 		     
 		     ((#\&) 
 		      (if (and (not in-comment)
+			       (< i (- len 1))
 			       (case (string-ref line (+ i 1))
 				 ((#\g) (not (string=? "&gt;" (substring line i (min len (+ i 4))))))
 				 ((#\l) (not (or (string=? "&lt;" (substring line i (min len (+ i 4))))

@@ -7239,6 +7239,8 @@ typedef struct {
   s7_pointer data;
 } dax;
 
+static int dax_type_tag = 0;
+
 static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
@@ -7248,7 +7250,7 @@ static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
   data_str = s7_object_to_c_string(sc, o-&gt;data);
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
-  snprintf(str, data_str_len + 32, \"&lt;dax %.3f %s&gt;\", o-&gt;x, data_str);
+  snprintf(str, data_str_len + 32, "&lt;dax %.3f %s&gt;", o-&gt;x, data_str);
   free(data_str);
   result = s7_make_string(sc, str);
   free(str);
@@ -7260,18 +7262,11 @@ static void free_dax(void *val)
   if (val) free(val);
 }
 
-static bool equal_dax(void *val1, void *val2)
-{
-  return(val1 == val2);
-}
-
 static void mark_dax(void *val)
 {
   dax *o = (dax *)val;
   if (o) s7_mark(o-&gt;data);
 }
-
-static int dax_type_tag = 0;
 
 static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
 {
@@ -7321,6 +7316,24 @@ static s7_pointer set_dax_data(s7_scheme *sc, s7_pointer args)
   return(o-&gt;data);
 }
 
+static s7_pointer equal_dax(s7_scheme *sc, s7_pointer args) 
+{
+  s7_pointer p1, p2;
+  dax *d1, *d2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) 
+    return(s7_t(sc));
+  if ((!s7_is_c_object(p2)) ||
+      (s7_c_object_type(p2) != dax_type_tag))
+    return(s7_f(sc));
+  d1 = (dax *)s7_c_object_value(p1);
+  d2 = (dax *)s7_c_object_value(p2);
+  return(s7_make_boolean(sc,
+			 (d1-&gt;x == d2-&gt;x) &amp;&amp;
+			 (s7_is_equal(sc, d1-&gt;data, d2-&gt;data))));
+}
+
 int main(int argc, char **argv)
 {
   s7_scheme *s7;
@@ -7333,9 +7346,9 @@ int main(int argc, char **argv)
 
   dax_type_tag = <em class=red>s7_make_c_type</em>(s7, "dax");
   s7_c_type_set_free(s7, dax_type_tag, free_dax);
-  s7_c_type_set_equal(s7, dax_type_tag, equal_dax);
+  s7_c_type_set_is_equal(s7, dax_type_tag, equal_dax);
   s7_c_type_set_mark(s7, dax_type_tag, mark_dax);
-  s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
+  s7_c_type_set_to_string(s7, dax_type_tag, dax_to_string);
   
   s7_define_function(s7, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");
   s7_define_function(s7, "dax?", is_dax, 1, 0, false, "(dax? anything) returns #t if its argument is a dax object");
@@ -7359,7 +7372,9 @@ int main(int argc, char **argv)
     }
 }
 
-/*
+/* (in Linux);
+ *    gcc dax.c -o dax -I. -O2 -g s7.o -ldl -lm -Wl,-export-dynamic
+ *    dax
  *    &gt; *listener-prompt*
  *    <em class="gray">"&gt;"</em>
  *    &gt; (set! *listener-prompt* ":")
@@ -8515,7 +8530,7 @@ static void evaluator(glistener *g, const char *text)
   
   result = s7_eval_c_string(s7, text);
   errmsg = s7_get_output_string(s7, s7_current_error_port(s7));
-  if ((errmsg) && (*errmsg))
+  if ((errmsg) &amp;&amp; (*errmsg))
     {
       msg = (char *)calloc(strlen(errmsg) + 1, sizeof(char));
       strcpy(msg, errmsg);

@@ -74,6 +74,8 @@ typedef struct {
   s7_pointer data;
 } dax;
 
+static s7_int dax_type_tag = 0;
+
 static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
@@ -95,18 +97,11 @@ static void free_dax(void *val)
   if (val) free(val);
 }
 
-static bool equal_dax(void *val1, void *val2)
-{
-  return(val1 == val2);
-}
-
 static void mark_dax(void *val)
 {
   dax *o = (dax *)val;
   if (o) s7_mark(o->data);
 }
-
-static s7_int dax_type_tag = 0;
 
 static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
 {
@@ -154,6 +149,35 @@ static s7_pointer set_dax_data(s7_scheme *sc, s7_pointer args)
   o = (dax *)s7_c_object_value(s7_car(args));
   o->data = s7_car(s7_cdr(args));
   return(o->data);
+}
+
+static bool equal_dax(void *val1, void *val2) /* this is the old form of equal? */
+{
+  dax *d1, *d2;
+  if (val1 == val2) 
+    return(true);
+  d1 = (dax *)val1;
+  d2 = (dax *)val2;
+  return((d1->x == d2->x) &&
+	 (d1->data == d2->data));  /* we want s7_is_equal here, but the interpreter is not passed to us */
+}
+
+static s7_pointer equality_dax(s7_scheme *sc, s7_pointer args) /* this is the new form of equal? */
+{
+  s7_pointer p1, p2;
+  dax *d1, *d2;
+  p1 = s7_car(args);      /* we know this is a dax object */
+  p2 = s7_cadr(args);
+  if (p1 == p2) 
+    return(s7_t(sc));
+  if ((!s7_is_c_object(p2)) ||
+      (s7_c_object_type(p2) != dax_type_tag))
+    return(s7_f(sc));
+  d1 = (dax *)s7_c_object_value(p1);
+  d2 = (dax *)s7_c_object_value(p2);
+  return(s7_make_boolean(sc,       /* here we can call s7_is_equal */
+			 (d1->x == d2->x) &&
+			 (s7_is_equal(sc, d1->data, d2->data))));
 }
 
 static s7_pointer plus(s7_scheme *sc, s7_pointer args)
@@ -256,9 +280,56 @@ static void g_block_free(void *value)
   free(g);
 }
 
-static bool g_block_is_equal(void *val1, void *val2)
+static bool g_blocks_are_eql(void *val1, void *val2)
 {
-  return(val1 == val2);
+  s7_int i, len;
+  g_block *b1 = (g_block *)val1;
+  g_block *b2 = (g_block *)val2;
+  if (val1 == val2) return(true);
+  len = b1->size;
+  if (len != b2->size) return(false);
+  for (i = 0; i < len; i++)
+    if (b1->data[i] != b2->data[i])
+      return(false);
+  return(true);
+}
+
+static s7_pointer g_blocks_are_equal(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, g_blocks_are_eql((void *)s7_c_object_value(s7_car(args)), (void *)s7_c_object_value(s7_cadr(args)))));
+}
+
+static s7_pointer g_blocks_are_equivalent(s7_scheme *sc, s7_pointer args)
+{
+  #define g_blocks_are_equivalent_help "(equivalent? block1 block2)"
+  s7_pointer v1, v2, arg1, arg2;
+  g_block *g1, *g2;
+  bool result;
+  uint32_t gc1, gc2;
+  size_t len;
+  arg1 = s7_car(args);
+  arg2 = s7_cadr(args);
+  if (!s7_is_c_object(arg2))
+    return(s7_f(sc));
+  if (arg1 == arg2)
+    return(s7_make_boolean(sc, true));
+  if (s7_is_let(arg1))             /* (block-let (block)) */
+    return(s7_make_boolean(sc, false));    /* checked == above */
+  g1 = (g_block *)s7_c_object_value(arg1);
+  if (s7_c_object_type(arg2) != g_block_type)
+    return(s7_make_boolean(sc, false));
+  g2 = (g_block *)s7_c_object_value(arg2);
+  len = g1->size;
+  if (len != g2->size)
+    return(s7_make_boolean(sc, false));
+  v1 = s7_make_float_vector_wrapper(sc, len, g1->data, 1, NULL, false);
+  gc1 = s7_gc_protect(sc, v1);
+  v2 = s7_make_float_vector_wrapper(sc, len, g2->data, 1, NULL, false);
+  gc2 = s7_gc_protect(sc, v2);
+  result = s7_is_equivalent(sc, v1, v2);
+  s7_gc_unprotect_at(sc, gc1);
+  s7_gc_unprotect_at(sc, gc2);
+  return(s7_make_boolean(sc, result));
 }
 
 static void g_block_mark(void *val)
@@ -1089,6 +1160,7 @@ int main(int argc, char **argv)
   dax_type_tag = s7_make_c_type(sc, "dax");
   s7_c_type_set_free(sc, dax_type_tag, free_dax);
   s7_c_type_set_equal(sc, dax_type_tag, equal_dax);
+  s7_c_type_set_is_equal(sc, dax_type_tag, equality_dax);
   s7_c_type_set_mark(sc, dax_type_tag, mark_dax);
   s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
 
@@ -1658,7 +1730,9 @@ int main(int argc, char **argv)
 
   g_block_type = s7_make_c_type(sc, "<block>");
   s7_c_type_set_free(sc, g_block_type, g_block_free);
-  s7_c_type_set_equal(sc, g_block_type, g_block_is_equal);
+  s7_c_type_set_equal(sc, g_block_type, g_blocks_are_eql);
+  s7_c_type_set_is_equal(sc, g_block_type, g_blocks_are_equal);
+  s7_c_type_set_is_equivalent(sc, g_block_type, g_blocks_are_equivalent);
   s7_c_type_set_mark(sc, g_block_type, g_block_mark);
   s7_c_type_set_ref(sc, g_block_type, g_block_ref);
   s7_c_type_set_set(sc, g_block_type, g_block_set);
@@ -1837,13 +1911,6 @@ int main(int argc, char **argv)
     if ((!str) || (strcmp(str, "(* 3 (+ 1 2))") != 0))
       fprintf(stderr, "pretty_print: \"%s\"\n", str);
   }
-#if 0
-  {
-    int i;
-    for (i = 0; i < 1000000; i++)
-      s7_eval_c_string(sc, "(let ((a 1)) (+ a 1))");
-  }
-#endif
   return(0);
 }
 

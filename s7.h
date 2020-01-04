@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.12"
-#define S7_DATE "2020-1-3"
+#define S7_DATE "2020-1-6"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -602,8 +602,8 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name);
 void s7_c_type_set_free      (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
 void s7_c_type_set_equal     (s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2)); /* old style */
 void s7_c_type_set_mark      (s7_scheme *sc, s7_int tag, void (*mark)(void *value));
-void s7_c_type_set_equality  (s7_scheme *sc, s7_int tag, s7_pointer (*equality)  (s7_scheme *sc, s7_pointer args));
-void s7_c_type_set_equivalent(s7_scheme *sc, s7_int tag, s7_pointer (*equivalent)(s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_is_equal  (s7_scheme *sc, s7_int tag, s7_pointer (*is_equal)  (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_is_equivalent(s7_scheme *sc, s7_int tag, s7_pointer (*is_equivalent)(s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_ref       (s7_scheme *sc, s7_int tag, s7_pointer (*ref)       (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_set       (s7_scheme *sc, s7_int tag, s7_pointer (*set)       (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_length    (s7_scheme *sc, s7_int tag, s7_pointer (*length)    (s7_scheme *sc, s7_pointer args));
@@ -614,29 +614,27 @@ void s7_c_type_set_to_list   (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)  
 void s7_c_type_set_to_string (s7_scheme *sc, s7_int tag, s7_pointer (*to_string) (s7_scheme *sc, s7_pointer args));
 void s7_c_type_set_getter    (s7_scheme *sc, s7_int tag, s7_pointer getter);
 void s7_c_type_set_setter    (s7_scheme *sc, s7_int tag, s7_pointer setter);
-/* if a c-object might participate in a cyclic structure, and you want to check its equality to another such object
- *   or get a readable string representing that object, you need to implement the "to_list" and "set" cases above,
- *   and make the type name a function that can recreate the object.  See the <cycle> object in s7test.scm.
- *   For the copy function, either the first or second argument can be a c-object of the given type.
- */
+/* For the copy function, either the first or second argument can be a c-object of the given type. */
 
   /* These functions create a new Scheme object type.  There is a simple example in s7.html.
    *
    * s7_make_c_type creates a new C-based type for Scheme:
-   *   free:    the function called when an object of this type is about to be garbage collected
-   *   mark:    called during the GC mark pass -- you should call s7_mark
-   *            on any embedded s7_pointer associated with the object to protect if from the GC.
-   *   equal:   compare two objects of this type; (equal? obj1 obj2)
-   *   ref:     a function that is called whenever an object of this type
-   *            occurs in the function position (at the car of a list; the rest of the list
-   *            is passed to the ref function as the arguments: (obj ...))
-   *   set:     a function that is called whenever an object of this type occurs as
-   *            the target of a generalized set! (set! (obj ...) val)
-   *   length:  the function called when the object is asked what its length is.
-   *   copy:    the function called when a copy of the object is needed.
-   *   fill:    the function called to fill the object with some value.
-   *   reverse: similarly...
-   *   to_string: object->string for an object of this type
+   *   free:       the function called when an object of this type is about to be garbage collected
+   *   mark:       called during the GC mark pass -- you should call s7_mark
+   *               on any embedded s7_pointer associated with the object to protect if from the GC.
+   *   equal:      compare two objects of this type; (equal? obj1 obj2) -- this is the old form
+   *   equality:   compare objects as in equal? -- this is the new form of equal?
+   *   equivalent: compare objects as in equivalent?
+   *   ref:        a function that is called whenever an object of this type
+   *               occurs in the function position (at the car of a list; the rest of the list
+   *               is passed to the ref function as the arguments: (obj ...))
+   *   set:        a function that is called whenever an object of this type occurs as
+   *               the target of a generalized set! (set! (obj ...) val)
+   *   length:     the function called when the object is asked what its length is.
+   *   copy:       the function called when a copy of the object is needed.
+   *   fill:       the function called to fill the object with some value.
+   *   reverse:    similarly...
+   *   to_string:  object->string for an object of this type
    *   getter/setter: these help the optimizer handle applicable c-objects (see s7test.scm for an example)
    *
    * s7_is_c_object returns true if 'p' is a c_object
@@ -861,7 +859,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
- * 2-Jan:     s7_c_type_set_equality and s7_c_type_set_equivalent.
+ * 2-Jan:     s7_c_type_set_is_equal and s7_c_type_set_is_equivalent.
  * --------
  * 2-Nov:     s7_repl.
  * 30-Oct:    change S7_DATE format, and start updating it to reflect s7.c.

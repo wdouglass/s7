@@ -1485,10 +1485,15 @@ Xen new_xen_region(int n)
 
 
 #if HAVE_SCHEME
-static bool s7_xen_region_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_region_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_region *)obj1)->n == ((xen_region *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_region_tag)
+    return(s7_make_boolean(sc, (((xen_region *)s7_c_object_value(p1))->n == ((xen_region *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
 
 static Xen s7_xen_region_length(s7_scheme *sc, Xen args)
@@ -1503,7 +1508,7 @@ static void init_xen_region(void)
 #if HAVE_SCHEME
   xen_region_tag = s7_make_c_type(s7, "<region>");
   s7_c_type_set_free(s7, xen_region_tag, free_xen_region);
-  s7_c_type_set_equal(s7, xen_region_tag, s7_xen_region_equalp);
+  s7_c_type_set_is_equal(s7, xen_region_tag, s7_xen_region_is_equal);
   s7_c_type_set_length(s7, xen_region_tag, s7_xen_region_length);
   s7_c_type_set_to_string(s7, xen_region_tag, g_xen_region_to_string);
 #else

@@ -2215,10 +2215,15 @@ Xen new_xen_sound(int n)
 
 
 #if HAVE_SCHEME
-static bool s7_xen_sound_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_sound_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_sound *)obj1)->n == ((xen_sound *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_sound_tag)
+    return(s7_make_boolean(sc, (((xen_sound *)s7_c_object_value(p1))->n == ((xen_sound *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
 
 
@@ -2315,7 +2320,7 @@ static void init_xen_sound(void)
 #if HAVE_SCHEME
   xen_sound_tag = s7_make_c_type(s7, "<sound>");
   s7_c_type_set_free(s7, xen_sound_tag, free_xen_sound);
-  s7_c_type_set_equal(s7, xen_sound_tag, s7_xen_sound_equalp);
+  s7_c_type_set_is_equal(s7, xen_sound_tag, s7_xen_sound_is_equal);
   s7_c_type_set_length(s7, xen_sound_tag, s7_xen_sound_length);
   s7_c_type_set_copy(s7, xen_sound_tag, s7_xen_sound_copy);
   s7_c_type_set_fill(s7, xen_sound_tag, s7_xen_sound_fill);

@@ -373,9 +373,9 @@ static void xm_obj_free(void *val)
   free(val);
 }
 
-static bool s7_equalp_xm(void *x1, void *x2)
+static s7_pointer s7_xm_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return(x1 == x2);
+  return(s7_make_boolean(sc, s7_car(args) == s7_cadr(args)));
 }
 #endif
 
@@ -389,7 +389,7 @@ static void define_xm_obj(void)
 #if HAVE_SCHEME
   xm_obj_tag = s7_make_c_type(s7, "<XmObj>");
   s7_c_type_set_free(s7, xm_obj_tag, xm_obj_free);
-  s7_c_type_set_equal(s7, xm_obj_tag, s7_equalp_xm);
+  s7_c_type_set_is_equal(s7, xm_obj_tag, s7_xm_is_equal);
 #else
   xm_obj_tag = Xen_make_object_type("XmObj", sizeof(void *));
 #endif

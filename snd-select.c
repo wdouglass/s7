@@ -982,13 +982,16 @@ static Xen s7_xen_selection_length(s7_scheme *sc, Xen args)
   return(g_selection_framples(Xen_undefined, Xen_undefined));
 }
 
-
-static bool s7_xen_selection_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_selection_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_selection *)obj1)->n == ((xen_selection *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_selection_tag)
+    return(s7_make_boolean(sc, (((xen_selection *)s7_c_object_value(p1))->n == ((xen_selection *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
-
 
 static Xen s7_xen_selection_copy(s7_scheme *sc, Xen args)
 {
@@ -1050,7 +1053,7 @@ static void init_xen_selection(void)
 #if HAVE_SCHEME
   xen_selection_tag = s7_make_c_type(s7, "<selection>");
   s7_c_type_set_free(s7, xen_selection_tag, free_xen_selection);
-  s7_c_type_set_equal(s7, xen_selection_tag, s7_xen_selection_equalp);
+  s7_c_type_set_is_equal(s7, xen_selection_tag, s7_xen_selection_is_equal);
   s7_c_type_set_length(s7, xen_selection_tag, s7_xen_selection_length);
   s7_c_type_set_copy(s7, xen_selection_tag, s7_xen_selection_copy);
   s7_c_type_set_fill(s7, xen_selection_tag, s7_xen_selection_fill);

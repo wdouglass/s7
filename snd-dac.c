@@ -2758,10 +2758,15 @@ static Xen new_xen_player(int n)
 
 
 #if HAVE_SCHEME
-static bool s7_xen_player_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_player_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_player *)obj1)->n == ((xen_player *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_player_tag)
+    return(s7_make_boolean(sc, (((xen_player *)s7_c_object_value(p1))->n == ((xen_player *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
 
 static s7_pointer s7_xen_player_length(s7_scheme *sc, s7_pointer args)
@@ -2780,7 +2785,7 @@ static void init_xen_player(void)
 #if HAVE_SCHEME
   xen_player_tag = s7_make_c_type(s7, "<player>");
   s7_c_type_set_free(s7, xen_player_tag, free_xen_player);
-  s7_c_type_set_equal(s7, xen_player_tag, s7_xen_player_equalp);
+  s7_c_type_set_is_equal(s7, xen_player_tag, s7_xen_player_is_equal);
   s7_c_type_set_length(s7, xen_player_tag, s7_xen_player_length);
   s7_c_type_set_to_string(s7, xen_player_tag, g_xen_player_to_string);
 #else

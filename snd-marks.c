@@ -2093,12 +2093,16 @@ Xen new_xen_mark(int n)
 
 
 #if HAVE_SCHEME
-static bool s7_xen_mark_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_mark_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_mark *)obj1)->n == ((xen_mark *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_mark_tag)
+    return(s7_make_boolean(sc, (((xen_mark *)s7_c_object_value(p1))->n == ((xen_mark *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
-
 
 static Xen s7_xen_mark_copy(s7_scheme *sc, s7_pointer args)
 {
@@ -2130,7 +2134,7 @@ static void init_xen_mark(void)
   s7_gc_protect(s7, g_mark_methods);
   xen_mark_tag = s7_make_c_type(s7, "<mark>");
   s7_c_type_set_free(s7, xen_mark_tag, free_xen_mark);
-  s7_c_type_set_equal(s7, xen_mark_tag, s7_xen_mark_equalp);
+  s7_c_type_set_is_equal(s7, xen_mark_tag, s7_xen_mark_is_equal);
   s7_c_type_set_copy(s7, xen_mark_tag, s7_xen_mark_copy);
   s7_c_type_set_to_string(s7, xen_mark_tag, g_xen_mark_to_string);
 #else

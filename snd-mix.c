@@ -2779,7 +2779,7 @@ static s7_pointer g_mix_sampler_methods = NULL;
 static s7_pointer mix_to_let_func = NULL;
 static s7_pointer mix_sampler_to_let_func = NULL;
 #else
-
+/* !HAVE_SCHEME */
 static bool xen_mix_equalp(xen_mix *v1, xen_mix *v2) 
 {
   return((v1 == v2) ||
@@ -2830,10 +2830,15 @@ static Xen s7_xen_mix_length(s7_scheme *sc, s7_pointer args)
 }
 
 
-static bool s7_xen_mix_equalp(void *obj1, void *obj2)
+static s7_pointer s7_xen_mix_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return((obj1 == obj2) ||
-	 (((xen_mix *)obj1)->n == ((xen_mix *)obj2)->n));
+  s7_pointer p1, p2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) return(s7_t(sc));
+  if (s7_c_object_type(p2) == xen_mix_tag)
+    return(s7_make_boolean(sc, (((xen_mix *)s7_c_object_value(p1))->n == ((xen_mix *)s7_c_object_value(p2))->n)));
+  return(s7_f(sc));
 }
 
 
@@ -2853,7 +2858,7 @@ static void init_xen_mix(void)
   s7_gc_protect(s7, g_mix_methods);
   xen_mix_tag = s7_make_c_type(s7, "<mix>");
   s7_c_type_set_free(s7, xen_mix_tag, free_xen_mix);
-  s7_c_type_set_equal(s7, xen_mix_tag, s7_xen_mix_equalp);
+  s7_c_type_set_is_equal(s7, xen_mix_tag, s7_xen_mix_is_equal);
   s7_c_type_set_length(s7, xen_mix_tag, s7_xen_mix_length);
   s7_c_type_set_copy(s7, xen_mix_tag, s7_xen_mix_copy);
   s7_c_type_set_to_string(s7, xen_mix_tag, g_xen_mix_to_string);
@@ -3757,9 +3762,9 @@ static void mf_free(mix_fd *fd)
 Xen_wrap_free(mix_fd, free_mf, mf_free)
 
 #if HAVE_SCHEME
-static bool s7_equalp_mf(void *m1, void *m2)
+static s7_pointer s7_mf_is_equal(s7_scheme *sc, s7_pointer args)
 {
-  return(m1 == m2);
+  return(s7_make_boolean(sc, s7_car(args) == s7_cadr(args)));
 }
 
 static s7_pointer g_mix_sampler_to_string(s7_scheme *sc, s7_pointer args)
@@ -4270,7 +4275,7 @@ void g_init_mix(void)
   s7_gc_protect(s7, g_mix_sampler_methods);
   mf_tag = s7_make_c_type(s7, "<mix-sampler>");
   s7_c_type_set_free(s7, mf_tag, free_mf);
-  s7_c_type_set_equal(s7, mf_tag, s7_equalp_mf);
+  s7_c_type_set_is_equal(s7, mf_tag, s7_mf_is_equal);
   s7_c_type_set_ref(s7, mf_tag, s7_read_mix_sample);
   s7_c_type_set_to_string(s7, mf_tag, g_mix_sampler_to_string);
 #else
