@@ -9012,16 +9012,12 @@ static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol)
   return(global_slot(symbol));
 }
 
-#if WITH_GCC && S7_DEBUGGING
-static s7_pointer lookup_1(s7_scheme *sc, s7_pointer symbol)
-#else
-static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_checked includes the unbound_variable call */
-#endif
+static inline s7_pointer lookup_from(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
 {
   s7_pointer x;
-  if (let_id(sc->envir) == symbol_id(symbol))
+  if (let_id(e) == symbol_id(symbol))
     return(slot_value(local_slot(symbol)));
-  for (x = sc->envir; symbol_id(symbol) < let_id(x); x = outlet(x));
+  for (x = e; symbol_id(symbol) < let_id(x); x = outlet(x));
   if (let_id(x) == symbol_id(symbol))
     return(slot_value(local_slot(symbol)));
   for (; is_let(x); x = outlet(x))
@@ -9040,24 +9036,13 @@ static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_chec
 #endif
 }
 
-static s7_pointer lookup_from(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
+#if WITH_GCC && S7_DEBUGGING
+static s7_pointer lookup_1(s7_scheme *sc, s7_pointer symbol)
+#else
+static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_checked includes the unbound_variable call */
+#endif
 {
-  s7_pointer x;
-  if (let_id(e) == symbol_id(symbol))
-    return(slot_value(local_slot(symbol)));
-  for (x = e; symbol_id(symbol) < let_id(x); x = outlet(x));
-  if (let_id(x) == symbol_id(symbol))
-    return(slot_value(local_slot(symbol)));
-  for (; is_let(x); x = outlet(x))
-    {
-      s7_pointer y;
-      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
-	if (slot_symbol(y) == symbol)
-	  return(slot_value(y));
-    }
-  x = global_slot(symbol);
-  if (is_slot(x)) return(slot_value(x));
-  return(NULL);
+  return(lookup_from(sc, symbol, sc->envir));
 }
 
 s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol)
@@ -45076,6 +45061,7 @@ static bool float_vector_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
 
 static bool vector_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
+  /* if this is split like vector_equal above, remember it is called by iterator_equal_1 below */
   s7_int i, len;
   shared_info *nci = ci;
 
@@ -45167,7 +45153,11 @@ static bool iterator_equal_1(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_i
       return((is_any_vector(y_seq)) &&
 	     (iterator_position(x) == iterator_position(y)) &&
 	     (iterator_length(x) == iterator_length(y)) &&
-	     ((equivalent) ? (vector_equivalent(sc, x_seq, y_seq, ci)) : (vector_equal(sc, x_seq, y_seq, ci))));
+	     ((equivalent) ? (vector_equivalent(sc, x_seq, y_seq, ci)) : 
+	      ((is_normal_vector(x_seq)) ? (vector_equal(sc, x_seq, y_seq, ci)) :
+	       ((is_float_vector(x_seq)) ? (float_vector_equal(sc, x_seq, y_seq, ci)) :
+		((is_int_vector(x_seq)) ? (int_vector_equal(sc, x_seq, y_seq, ci)) :
+		 (byte_vector_equal(sc, x_seq, y_seq, ci)))))));
 
       /* iterator_next is a function (pair_iterate, iterator_finished etc) */
     case T_PAIR:
@@ -69855,13 +69845,10 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
   if ((symbol_is_in_list(sc, symbol)) &&
       (let_memq(symbol, e)))   /* it's probably a local variable reference */
     return(sc->nil);
-#if S7_DEBUGGING
-  if ((!symbol_is_in_list(sc, symbol)) && (let_memq(symbol, e)))
-    {
-      fprintf(stderr, "%s%s in %s%s perhaps in %s\n", BOLD_TEXT, display(symbol), display(e), UNBOLD_TEXT, display(sc->code));
-      if (sc->stop_at_error) abort();
-    }
-#endif
+  /* ((!symbol_is_in_list(sc, symbol)) && (let_memq(symbol, e))) can happen if there's an intervening lambda:
+   *   (let loop () (with-let (for-each (lambda (a) a) (list))) (loop))
+   * loses 'loop (it's not in symbol_list when recursive call is encountered)
+   */
 
   if (is_global(symbol))
     return(global_slot(symbol));
@@ -84984,6 +84971,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		    }
 		  else goto TC_LET_COND_DONE;
 		}}}}
+
   let_set_has_pending_value(outer_env);
   while (true)
     {
@@ -84995,15 +84983,16 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 	      result = cdar(p);
 	      if (has_tc(result))
 		{
-		  result = cdar(result);
-		  if (is_pair(result))
-		    {
-		      s7_pointer slot, arg;
-		      for (slot = slots, arg = result; is_pair(arg); slot = next_slot(slot), arg = cdr(arg))
-			slot_simply_set_pending_value(slot, fx_call(sc, arg));
-		      for (slot = slots; tis_slot(slot); slot = next_slot(slot))
-			slot_set_value(slot, slot_pending_value(slot));
-		    }
+		  s7_pointer slot, arg;
+#if S7_DEBUGGING
+		  if (!is_pair(cdar(result)))
+		    fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(result));
+#endif
+		  for (slot = slots, arg = cdar(result); is_pair(arg); slot = next_slot(slot), arg = cdr(arg))
+		    slot_simply_set_pending_value(slot, fx_call(sc, arg));
+		  for (slot = slots; tis_slot(slot); slot = next_slot(slot)) /* using two swapping frames instead is slightly slower */
+		    slot_set_value(slot, slot_pending_value(slot));
+
 		  sc->envir = outer_env;
 		  slot_set_value(let_slot, fx_call(sc, let_var));
 		  sc->envir = inner_env;
@@ -97635,11 +97624,11 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284 | 2285
  * tform    2472 | 2289 | 2278
  * tread    2449 | 2394 | 2392
- * tvect    6189 | 2430 | 2481
+ * tvect    6189 | 2430 | 2481  2467
  * tmat     6072 | 2478 | 2479
- * dup      6333 | 2669 | 2591
+ * dup      6333 | 2669 | 2591  2573
  * fbench   2974 | 2643 | 2643
- * trclo    7985 | 2791 | 2719
+ * trclo    7985 | 2791 | 2719  2714
  * tb       3251 | 2799 | 2791
  * tmap     3238 | 2883 | 2882
  * titer    3962 | 2911 | 2911
@@ -97671,11 +97660,9 @@ int main(int argc, char **argv)
  * let+lambda -- not set safe either? (check symbol_list collision)
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
- * split out (ci) check at top: t_structure_p (make teq more comprehensive)
+ * split out equal (ci) check at top: t_structure_p (make teq more comprehensive)
  * possibly split implicit vector accessors [fv: ref/mat/map, iv: ref/sort]
- * fx_c_ss_direct: memq/assq, sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
- * named-let t725 not in list at inner call
- * equal? *vect {}
- * two slot lists to avoid pending (op_tc*)
- * lookup via lookup_from
+ * fx_c_ss_direct: memq/assq [splits out to ts|gt|st_direct], sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
+ * named-let t725 not in list at inner call (2x) -- 69846 has example
+ * let_cond: could see fx_add_s1 or fx_if_s_aa where s=var3|4 and use fx_add_v1 fx_if_w_aa?
  */
