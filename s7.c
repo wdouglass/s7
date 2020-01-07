@@ -1113,6 +1113,7 @@ struct s7_scheme {
   s7_int (*rec_fi6)(opt_info *o);
   bool (*rec_fb1)(opt_info *o);
   bool (*rec_fb2)(opt_info *o);
+  s7_p_p_t ppt_f;
 
   opt_info *rec_test_o, *rec_result_o, *rec_a1_o, *rec_a2_o, *rec_a3_o, *rec_a4_o, *rec_a5_o, *rec_a6_o;
   s7_i_ii_t rec_i_ii_f;
@@ -3436,7 +3437,7 @@ static s7_pointer small_int(s7_int n)
 #define is_small(n) ((n & ~(NUM_SMALL_INTS - 1)) == 0)
 
 static s7_pointer real_zero, real_NaN, real_pi, real_one, arity_not_set, max_arity, real_infinity, real_minus_infinity, 
-  small_zero, small_one, small_two, minus_one, minus_two, mostfix, leastfix;
+  small_zero, small_one, small_two, small_three, minus_one, minus_two, mostfix, leastfix;
 
 static void init_small_ints(void)
 {
@@ -3479,6 +3480,7 @@ static void init_small_ints(void)
   small_zero = small_ints[0];  
   small_one = small_ints[1];  
   small_two = small_ints[2];
+  small_three = small_ints[3];
 
   mostfix = make_permanent_integer_unchecked(s7_int_max);
   leastfix = make_permanent_integer_unchecked(s7_int_min);
@@ -6034,6 +6036,7 @@ static void try_to_call_gc(s7_scheme *sc)
   if (sc->gc_off)
     {
       /* we can't just return here!  Someone needs a new cell, and once the heap free list is exhausted, segfault */
+      /* fprintf(stderr, "gc is off, but we need heap space: %ld %ld\n", sc->heap_size, (int64_t)(sc->free_heap_top - sc->free_heap)); */
       resize_heap(sc);
     }
   else
@@ -10183,20 +10186,10 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
   s7_pointer new_v;
   s7_pointer *nv, *ov;
 
-  /* stacks can grow temporarily, so sc->stack_size grows, but we don't normally need all that
-   *   leftover space here, so choose the original stack size if it's smaller.
-   */
   len = vector_length(old_v);
-  if (len > CC_INITIAL_STACK_SIZE)
-    {
-      if (top < (CC_INITIAL_STACK_SIZE / 4))
-	len = CC_INITIAL_STACK_SIZE;
-    }
-  else
-    {
-      if (len < CC_INITIAL_STACK_SIZE)
-	len = CC_INITIAL_STACK_SIZE;
-    }
+  /* stacks can grow temporarily, so sc->stack_size grows, but we don't normally need all that leftover space here */
+  if (top < (CC_INITIAL_STACK_SIZE / 3))
+    len = CC_INITIAL_STACK_SIZE;
 
   if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8))
     {
@@ -10215,10 +10208,9 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
   temp_stack_top(new_v) = top;
   nv = stack_elements(new_v);
   ov = stack_elements(old_v);
-  if (len > 0)
-    memcpy((void *)nv, (void *)ov, ((len > vector_length(old_v)) ? vector_length(old_v) : len) * sizeof(s7_pointer));
-  s7_gc_on(sc, false);
+  memcpy((void *)nv, (void *)ov, len * sizeof(s7_pointer)); /* len, not top, to get filler (sc->nil) */
 
+  s7_gc_on(sc, false);
   for (i = 2; i < top; i += 4)
     {
       s7_pointer p;
@@ -32230,7 +32222,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
 	      return(method_or_bust(sc, arg, sc->object_to_string_symbol, args, T_INTEGER, 3));
 	    }
 	  if (s7_integer(arg) < 0)
-	    return(out_of_range(sc, sc->object_to_string_symbol, small_int(3), arg, a_non_negative_integer_string));
+	    return(out_of_range(sc, sc->object_to_string_symbol, small_three, arg, a_non_negative_integer_string));
 	  pending_max = s7_integer(arg);
 	}
     }
@@ -32252,7 +32244,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
     {
       s7_int i;
       if (choice == P_READABLE)  /* (object->string #r(1 2 3) :readable 4) */
-	return(out_of_range(sc, sc->object_to_string_symbol, small_int(3), make_integer(sc, out_len), wrap_string(sc, "the readable string is too long", 31)));
+	return(out_of_range(sc, sc->object_to_string_symbol, small_three, make_integer(sc, out_len), wrap_string(sc, "the readable string is too long", 31)));
 
       out_len = pending_max;
       if (out_len < 3)
@@ -37922,7 +37914,7 @@ a vector that points to the same elements as the original-vector but with differ
       offset = s7_integer(off);
       if ((offset < 0) ||
 	  (offset >= orig_len))  /* we need this if, for example, offset == 9223372036854775807 */
-	return(out_of_range(sc, sc->subvector_symbol, small_int(3), off, (offset < 0) ? its_negative_string : its_too_large_string));
+	return(out_of_range(sc, sc->subvector_symbol, small_three, off, (offset < 0) ? its_negative_string : its_too_large_string));
     }
 
   dims = cadr(args);
@@ -39231,7 +39223,7 @@ static s7_double float_vector_ref_d_7pii(s7_scheme *sc, s7_pointer v, s7_int i1,
     {
       if ((i2 >= 0) && (i2 < vector_dimension(v, 1)))
 	return(float_vector(v, i2 + (i1 * vector_offset(v, 0))));
-      out_of_range(sc, sc->float_vector_ref_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->float_vector_ref_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->float_vector_ref_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -39356,7 +39348,7 @@ static s7_double float_vector_set_d_7piid(s7_scheme *sc, s7_pointer v, s7_int i1
 	  float_vector(v, i2 + (i1 * vector_offset(v, 0))) = x;
 	  return(x);
 	}
-      out_of_range(sc, sc->float_vector_set_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->float_vector_set_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->float_vector_set_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(x);
@@ -39394,7 +39386,7 @@ static s7_int int_vector_ref_i_7pii(s7_scheme *sc, s7_pointer v, s7_int i1, s7_i
     {
       if ((i2 >= 0) && (i2 < vector_dimension(v, 1)))
 	return(int_vector(v, i2 + (i1 * vector_offset(v, 0))));
-      out_of_range(sc, sc->int_vector_ref_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->int_vector_ref_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->int_vector_ref_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -39410,7 +39402,7 @@ static s7_int int_vector_ref_i_7piii(s7_scheme *sc, s7_pointer v, s7_int i1, s7_
 	    return(int_vector(v, i3 + (i2 * vector_offset(v, 1)) + (i1 * vector_offset(v, 0))));
 	  out_of_range(sc, sc->int_vector_ref_symbol, small_int(4), wrap_integer1(sc, i3), (i3 < 0) ? its_negative_string : its_too_large_string);
 	}
-      out_of_range(sc, sc->int_vector_ref_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->int_vector_ref_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->int_vector_ref_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -39495,7 +39487,7 @@ static s7_int int_vector_set_i_7piii(s7_scheme *sc, s7_pointer v, s7_int i1, s7_
 	  int_vector(v, i2 + (i1 * vector_offset(v, 0))) = i3;
 	  return(i3);
 	}
-      out_of_range(sc, sc->int_vector_set_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->int_vector_set_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->int_vector_set_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -39602,7 +39594,7 @@ static s7_int byte_vector_ref_i_7pii(s7_scheme *sc, s7_pointer v, s7_int i1, s7_
     {
       if ((i2 >= 0) && (i2 < vector_dimension(v, 1)))
 	return((s7_int)byte_vector(v, i2 + (i1 * vector_offset(v, 0))));
-      out_of_range(sc, sc->byte_vector_ref_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->byte_vector_ref_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->byte_vector_ref_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -39698,7 +39690,7 @@ static s7_int byte_vector_set_i_7piii(s7_scheme *sc, s7_pointer v, s7_int i1, s7
 	  byte_vector(v, i2 + (i1 * vector_offset(v, 0))) = i3;
 	  return(i3);
 	}
-      out_of_range(sc, sc->int_vector_set_symbol, small_int(3), wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
+      out_of_range(sc, sc->int_vector_set_symbol, small_three, wrap_integer1(sc, i2), (i2 < 0) ? its_negative_string : its_too_large_string);
     }
   out_of_range(sc, sc->int_vector_set_symbol, small_two, wrap_integer1(sc, i1), (i1 < 0) ? its_negative_string : its_too_large_string);
   return(0);
@@ -40435,7 +40427,6 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 */
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
 	elements = s7_vector_elements(vec);
-
 	for (i = 0; i < len; i++)
 	  elements[i] = vector_getter(data)(sc, data, i);
 
@@ -69824,17 +69815,6 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
-static bool let_memq(s7_pointer symbol, s7_pointer symbols)
-{
-  s7_pointer x;
-  for (x = symbols; is_pair(x); x = cdr(x))
-    {
-      if (car(x) == symbol)
-	return(true);
-    }
-  return(false);
-}
-
 static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
 {
   s7_pointer x;
@@ -69843,9 +69823,9 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
   fprintf(stderr, "  find %s in %s (in list: %d)\n", display(symbol), display(e), symbol_is_in_list(sc, symbol));
 #endif
   if ((symbol_is_in_list(sc, symbol)) &&
-      (let_memq(symbol, e)))   /* it's probably a local variable reference */
+      (direct_memq(symbol, e)))   /* it's probably a local variable reference */
     return(sc->nil);
-  /* ((!symbol_is_in_list(sc, symbol)) && (let_memq(symbol, e))) can happen if there's an intervening lambda:
+  /* ((!symbol_is_in_list(sc, symbol)) && (direct_memq(symbol, e))) can happen if there's an intervening lambda:
    *   (let loop () (with-let (for-each (lambda (a) a) (list))) (loop))
    * loses 'loop (it's not in symbol_list when recursive call is encountered)
    */
@@ -70744,7 +70724,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  (s7_is_aritable(sc, func, 3)))
 	{
 	  annotate_args(sc, cdr(expr), e);
-	  set_opt3_arglen(expr, small_int(3));
+	  set_opt3_arglen(expr, small_three);
 	  if (is_c_function(func))
 	    {
 	      set_safe_optimize_op(expr, hop + ((is_safe_procedure(func)) ? OP_SAFE_C_AAA : OP_C_FX));
@@ -70904,7 +70884,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		    }
 		}
 	      annotate_args(sc, cdr(expr), e);
-	      set_opt3_arglen(expr, small_int(3));
+	      set_opt3_arglen(expr, small_three);
 	      set_optimize_op(expr, hop + OP_SAFE_C_AAA);
 
 	      if (pairs == 1)
@@ -70966,7 +70946,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	      else
 		{
 		  annotate_args(sc, cdr(expr), e);
-		  set_opt3_arglen(expr, small_int(3));
+		  set_opt3_arglen(expr, small_three);
 		  set_optimize_op(expr, hop + OP_C_FX);
 		}
 	      choose_c_function(sc, expr, func, 3);
@@ -71070,7 +71050,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  s7_pointer body;
 	  body = closure_body(func);
 	  set_opt1_lambda(expr, func);
-	  set_opt3_arglen(expr, small_int(3));
+	  set_opt3_arglen(expr, small_three);
 
 	  if (is_safe_closure(func))
 	    {
@@ -71103,7 +71083,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  set_unsafely_optimized(expr);
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt1_lambda(expr, func);
-	  set_opt3_arglen(expr, small_int(3));
+	  set_opt3_arglen(expr, small_three);
 	  return(OPT_F);
 	}
       return(set_safe_or_unsafe_closure_fp(sc, func, expr, e, 3, hop + OP_SAFE_OR_UNSAFE_CLOSURE_3P));
@@ -71121,7 +71101,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  set_unsafe_optimize_op(expr, hop + ((is_safe_closure(func) ? OP_SAFE_CLOSURE_STAR_FX : OP_CLOSURE_STAR_FX)));
 	  annotate_args(sc, cdr(expr), e);
 	  set_opt1_lambda(expr, func);
-	  set_opt3_arglen(expr, small_int(3));
+	  set_opt3_arglen(expr, small_three);
 	  return(OPT_F);
 	}
     }
@@ -71131,7 +71111,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
     {
       set_safe_optimize_op(expr, hop + OP_SAFE_C_FUNCTION_STAR_FX);
       annotate_args(sc, cdr(expr), e);
-      set_opt3_arglen(expr, small_int(3));
+      set_opt3_arglen(expr, small_three);
       set_c_function(expr, func);
       return(OPT_T);
     }
@@ -84917,9 +84897,12 @@ static s7_pointer fx_tc_let_unless_laa(s7_scheme *sc, s7_pointer arg)
   return(sc->value);
 }
 
+static s7_pointer wrap_ppt(s7_scheme *sc, s7_pointer p) {return(sc->ppt_f(sc, p));}
+
 static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer outer_env, inner_env, let_var, let_slot, cond_body, slots, result;
+  s7_function letf;
   /* code here == body in check_tc */
   let_var = caadr(code);
   outer_env = sc->envir;
@@ -84928,6 +84911,17 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
   push_stack_no_let_no_code(sc, OP_GC_PROTECT, inner_env);
   let_slot = let_slots(sc->envir);
   let_var = cdr(let_var);
+  letf = c_call(let_var);
+  let_var = car(let_var);
+
+  if ((letf == fx_c_s_direct) &&                       /* an experiment */
+      (symbol_id(cadr(let_var)) != let_id(outer_env))) /* i.e. not an argument to the recursive function, and not set! (safe closure body) */
+    {
+      sc->ppt_f = (s7_p_p_t)opt2_direct(cdr(let_var));
+      let_var = lookup(sc, cadr(let_var));
+      letf = wrap_ppt;
+    }
+
   cond_body = cdaddr(code);
   slots = let_slots(outer_env);
   /* in the named let no-var case slots may contain the let name (it's the funclet) */
@@ -84945,7 +84939,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		  if (has_tc(result))
 		    {
 		      sc->envir = outer_env;
-		      slot_set_value(let_slot, fx_call(sc, let_var));
+		      slot_set_value(let_slot, letf(sc, let_var));
 		      sc->envir = inner_env;
 		      break;
 		    }
@@ -84965,7 +84959,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		    {
 		      slot_set_value(slots, fx_call(sc, cdar(result))); /* arg to recursion */
 		      sc->envir = outer_env;
-		      slot_set_value(let_slot, fx_call(sc, let_var));   /* inner let var */
+		      slot_set_value(let_slot, letf(sc, let_var));   /* inner let var */
 		      sc->envir = inner_env;
 		      break;
 		    }
@@ -84994,7 +84988,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		    slot_set_value(slot, slot_pending_value(slot));
 
 		  sc->envir = outer_env;
-		  slot_set_value(let_slot, fx_call(sc, let_var));
+		  slot_set_value(let_slot, letf(sc, let_var));
 		  sc->envir = inner_env;
 		  break;
 		}
@@ -87837,7 +87831,7 @@ static bool op_unknown_g(s7_scheme *sc)
       return(fixup_unknown_op(code, f, OP_IMPLICIT_GOTO_A));
 
     case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR: case T_BYTE_VECTOR:
-      if ((sym_case) ||
+      if ((sym_case) ||                    /* (v i) */
 	  (is_t_integer(cadr(code))))      /* (v 4/3) */
 	{
 	  annotate_arg(sc, cdr(code), sc->envir);
@@ -96131,7 +96125,7 @@ static void init_rootlet(s7_scheme *sc)
   #define H_let_temporarily   "(let-temporarily ((var value)...) . body) sets each var to its new value, evals body, then returns each var to its original value."
 
   sc->quote_symbol =             syntax(sc, "quote",                   OP_QUOTE,             small_one,  small_one,    H_quote);
-  sc->if_symbol =                syntax(sc, "if",                      OP_IF,                small_two,  small_int(3), H_if);
+  sc->if_symbol =                syntax(sc, "if",                      OP_IF,                small_two,  small_three,  H_if);
   sc->when_symbol =              syntax(sc, "when",                    OP_WHEN,              small_two,  max_arity,    H_when);
   sc->unless_symbol =            syntax(sc, "unless",                  OP_UNLESS,            small_two,  max_arity,    H_unless);
   sc->begin_symbol =             syntax(sc, "begin",                   OP_BEGIN,             small_zero, max_arity,    H_begin);      /* (begin) is () */
@@ -96823,7 +96817,7 @@ static void init_rootlet(s7_scheme *sc)
   s7_autoload(sc, make_symbol(sc, "libutf8proc.scm"), s7_make_permanent_string(sc, "libutf8proc.scm"));
 
   sc->require_symbol = s7_define_macro(sc, "require", g_require, 1, 0, true, H_require);
-  sc->stacktrace_defaults = s7_list(sc, 5, small_int(3), small_int(45), small_int(80), small_int(45), sc->T);
+  sc->stacktrace_defaults = s7_list(sc, 5, small_three, small_int(45), small_int(80), small_int(45), sc->T);
 
   /* -------- *#readers* -------- */
   sym = s7_define_variable_with_documentation(sc, "*#readers*", sc->nil, "list of current reader macros");
@@ -97155,7 +97149,7 @@ s7_scheme *s7_init(void)
       sc->gpofl[i] = i;
     }
 
-  sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE);
+  sc->stack = s7_make_vector(sc, INITIAL_STACK_SIZE); /* this fills it with sc->nil */
   sc->stack_start = vector_elements(sc->stack); /* stack type set below */
   sc->stack_end = sc->stack_start;
   sc->stack_size = INITIAL_STACK_SIZE;
@@ -97628,8 +97622,8 @@ int main(int argc, char **argv)
  * tmat     6072 | 2478 | 2479
  * dup      6333 | 2669 | 2591  2573
  * fbench   2974 | 2643 | 2643
- * trclo    7985 | 2791 | 2719  2714
- * tb       3251 | 2799 | 2791
+ * trclo    7985 | 2791 | 2719  2716
+ * tb       3251 | 2799 | 2791  2787
  * tmap     3238 | 2883 | 2882
  * titer    3962 | 2911 | 2911
  * tsort    4156 | 3043 | 3045
@@ -97661,8 +97655,6 @@ int main(int argc, char **argv)
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  * split out equal (ci) check at top: t_structure_p (make teq more comprehensive)
- * possibly split implicit vector accessors [fv: ref/mat/map, iv: ref/sort]
  * fx_c_ss_direct: memq/assq [splits out to ts|gt|st_direct], sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
  * named-let t725 not in list at inner call (2x) -- 69846 has example
- * let_cond: could see fx_add_s1 or fx_if_s_aa where s=var3|4 and use fx_add_v1 fx_if_w_aa?
  */
