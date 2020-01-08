@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.12"
-#define S7_DATE "2020-1-8"
+#define S7_DATE "2020-1-9"
 
 #include <stdint.h>           /* for int64_t */
 

@@ -860,10 +860,7 @@ typedef struct s7_cell {
 
     struct {                         /* pairs */
       s7_pointer car, cdr, opt1, opt2;
-      union {
-	uint8_t opt_type;
-	int32_t ctr;
-      } ce;
+      uint8_t opt_type;
     } cons_ext;
 
     struct {                         /* special purpose pairs (symbol-table etc) */
@@ -2757,8 +2754,8 @@ static void init_types(void)
 #define opt3_byte(p)                   opt3_byte_1(T_Pair(p),          G_BYTE, __func__, __LINE__)
 #define set_opt3_byte(p, x)            set_opt3_byte_1(T_Pair(p), x,   G_BYTE, __func__, __LINE__)
 #else
-#define opt3_byte(P)                   T_Pair(P)->object.cons_ext.ce.opt_type /* op_if_is_type */
-#define set_opt3_byte(P, X)            do {T_Pair(P)->object.cons_ext.ce.opt_type = X; clear_type_bit(P, T_LOCATION);} while (0)
+#define opt3_byte(P)                   T_Pair(P)->object.cons_ext.opt_type /* op_if_is_type */
+#define set_opt3_byte(P, X)            do {T_Pair(P)->object.cons_ext.opt_type = X; clear_type_bit(P, T_LOCATION);} while (0)
 #endif
 
 #define c_callee(f)                    ((s7_function)opt2(f, F_CALL))
@@ -3993,7 +3990,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
 
       OP_READ_INTERNAL, OP_EVAL,
       OP_EVAL_ARGS, OP_EVAL_ARGS1, OP_EVAL_ARGS2, OP_EVAL_ARGS3, OP_EVAL_ARGS4, OP_EVAL_ARGS5,
-      OP_APPLY, OP_EVAL_MACRO, OP_LAMBDA, OP_QUOTE, OP_MACROEXPAND,
+      OP_APPLY, OP_EVAL_MACRO, OP_LAMBDA, OP_QUOTE, OP_QUOTE_UNCHECKED, OP_MACROEXPAND,
       OP_DEFINE, OP_DEFINE1, OP_BEGIN, OP_BEGIN0, OP_BEGIN1, OP_BEGIN_UNCHECKED,
       OP_BEGIN_1, OP_BEGIN_1_UNCHECKED, OP_BEGIN_2_UNCHECKED,
       OP_IF, OP_IF1, OP_WHEN, OP_UNLESS, OP_SET, OP_SET1, OP_SET2,
@@ -4233,7 +4230,7 @@ static const char* op_names[NUM_OPS] =
 
       "read_internal", "eval",
       "eval_args", "eval_args1", "eval_args2", "eval_args3", "eval_args4", "eval_args5",
-      "apply", "eval_macro", "lambda", "quote", "macroexpand",
+      "apply", "eval_macro", "lambda", "quote", "quote_unchecked", "macroexpand",
       "define", "define1", "begin", "begin0", "begin1", "begin_unchecked",
       "begin_1", "begin_1_unchecked", "begin_2_unchecked",
       "if", "if1", "when", "unless", "set", "set1", "set2",
@@ -7235,11 +7232,11 @@ static inline s7_pointer make_simple_let(s7_scheme *sc) /* called only in op_let
 }
 
 /* in all these macros, symbol_set_local should follow slot_set_value so that we can evaluate the slot's value in its old state. */
-#define add_slot(Frame, Symbol, Value)			\
+#define add_slot(Sc, Frame, Symbol, Value)			\
   do {							\
     s7_pointer _slot_, _sym_, _val_;			\
     _sym_ = Symbol; _val_ = Value;			\
-    new_cell_no_check(sc, _slot_, T_SLOT);		\
+    new_cell_no_check(Sc, _slot_, T_SLOT);		\
     slot_set_symbol(_slot_, _sym_);			\
     slot_set_value(_slot_, _val_);			\
     symbol_set_local(_sym_, let_id(Frame), _slot_);	\
@@ -7247,11 +7244,37 @@ static inline s7_pointer make_simple_let(s7_scheme *sc) /* called only in op_let
     let_set_slots(Frame, _slot_);	                \
   } while (0)
 
-#define add_slot_at_end(Id, Last_Slot, Symbol, Value)	\
+#define add_slot_checked(Sc, Frame, Symbol, Value)			\
   do {							\
     s7_pointer _slot_, _sym_, _val_;			\
     _sym_ = Symbol; _val_ = Value;			\
-    new_cell_no_check(sc, _slot_, T_SLOT);		\
+    new_cell(Sc, _slot_, T_SLOT);		\
+    slot_set_symbol(_slot_, _sym_);			\
+    slot_set_value(_slot_, _val_);			\
+    symbol_set_local(_sym_, let_id(Frame), _slot_);	\
+    slot_set_next(_slot_, let_slots(Frame));		\
+    let_set_slots(Frame, _slot_);	                \
+  } while (0)
+
+#define add_slot_checked_with_id(Sc, Frame, Symbol, Value)			\
+  do {							\
+    s7_pointer _slot_, _sym_, _val_;			\
+    _sym_ = Symbol; _val_ = Value;			\
+    new_cell(Sc, _slot_, T_SLOT);		\
+    slot_set_symbol(_slot_, _sym_);			\
+    slot_set_value(_slot_, _val_);			\
+    set_local(_sym_);					\
+    if (let_id(Frame) >= symbol_id(_sym_))		\
+      symbol_set_local(_sym_, let_id(Frame), _slot_);	\
+    slot_set_next(_slot_, let_slots(Frame));		\
+    let_set_slots(Frame, _slot_);	                \
+  } while (0)
+
+#define add_slot_at_end(Sc, Id, Last_Slot, Symbol, Value)	\
+  do {							\
+    s7_pointer _slot_, _sym_, _val_;			\
+    _sym_ = Symbol; _val_ = Value;			\
+    new_cell_no_check(Sc, _slot_, T_SLOT);		\
     slot_set_symbol(_slot_, _sym_);			\
     slot_set_next(_slot_, slot_end(sc));                \
     slot_set_value(_slot_, _val_);			\
@@ -8212,7 +8235,8 @@ static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_
 	    return(wrong_type_argument_with_type(sc, caller, 2, sym, wrap_string(sc, "a non-syntactic name", 20)));
 
 	  /* here we know new_e is a let and is not rootlet */
-	  make_slot_1(sc, new_e, sym, val);
+	  /* make_slot_1(sc, new_e, sym, val); *//* add_slot without let_id check or is it set_local will not work here */
+	  add_slot_checked_with_id(sc, new_e, sym, val); 
 	  if (sym == sc->let_ref_fallback_symbol)
 	    set_has_let_ref_fallback(new_e);
 	  else
@@ -31193,13 +31217,13 @@ static void set_opt3_1(s7_pointer p, s7_pointer x, uint32_t role, const char *fu
 static uint8_t opt3_byte_1(s7_pointer p, uint32_t role, const char *func, int32_t line)
 {
   check_opt3_bits(p, role, func, line);
-  return(p->object.cons_ext.ce.opt_type);
+  return(p->object.cons_ext.opt_type);
 }
 
 static void set_opt3_byte_1(s7_pointer p, uint8_t x, uint32_t role, const char *func, int32_t line)
 {
   clear_type_bit(p, T_LOCATION);
-  p->object.cons_ext.ce.opt_type = x;
+  p->object.cons_ext.opt_type = x;
   base_opt3(p, role, func, line);
 }
 
@@ -63940,7 +63964,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	  if (symbol_is_in_list(sc, sym))
 	    eval_error(sc, "duplicate identifier in do: ~A", 30, var);
 	  add_symbol_to_list(sc, sym);
-	  add_slot(frame, sym, sc->undefined);
+	  add_slot(sc, frame, sym, sc->undefined);
 	}
       else return(return_false(sc, car_x, __func__, __LINE__));
     }
@@ -73858,7 +73882,8 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
     {
       sc->envir = new_frame_in_env(sc, sc->envir);
       sc->x = make_closure(sc, sc->w, body, T_CLOSURE | T_COPY_ARGS, n);
-      make_slot_1(sc, sc->envir, car(sc->code), sc->x); /* let_name */
+      /* make_slot_1(sc, sc->envir, car(sc->code), sc->x); */ /* let_name */
+      add_slot(sc, sc->envir, car(sc->code), sc->x);
       sc->envir = new_frame_in_env(sc, sc->envir);
 
       for (x = sc->w; is_not_null(args); x = cdr(x)) /* reuse the value cells as the new frame slots */
@@ -74267,7 +74292,7 @@ static void op_let_fx_new(s7_scheme *sc)
       s7_pointer arg;
       arg = cdar(p);
       sc->value = fx_call(sc, arg);
-      add_slot(frame, caar(p), sc->value);
+      add_slot(sc, frame, caar(p), sc->value);
     }
   sc->let_number++;
   sc->envir = frame;
@@ -74325,7 +74350,7 @@ static void op_let_fx_3_new(s7_scheme *sc) /* 3 vars, 1 expr in body */
   a2 = cadar(sc->code);
   a3 = caddar(sc->code);
   new_frame_with_two_slots(sc, sc->envir, sc->envir, car(a1), fx_call(sc, cdr(a1)), car(a2), fx_call(sc, cdr(a2)));
-  add_slot(sc->envir, car(a3), fx_call(sc, cdr(a3)));
+  add_slot(sc, sc->envir, car(a3), fx_call(sc, cdr(a3)));
   sc->code = cadr(sc->code);
 }
 
@@ -74585,7 +74610,14 @@ static void op_let_star_fx(s7_scheme *sc)
       s7_pointer val;
       val = fx_call(sc, cdar(p)); /* eval in outer env */
       if (let_counter == sc->capture_let_counter)
-	make_slot_1(sc, sc->envir, caar(p), val);
+	/* make_slot_1(sc, sc->envir, caar(p), val); */
+	{
+#if S7_DEBUGGING
+	  if (let_id(sc->envir) < symbol_id(caar(p)))
+	    fprintf(stderr, "inversion for %s: %ld %ld\n", display(caar(p)), let_id(sc->envir), symbol_id(caar(p)));
+#endif
+	  add_slot_checked(sc, sc->envir, caar(p), val);
+	}
       else
 	{
 	  new_frame_with_slot(sc, sc->envir, sc->envir, caar(p), val);
@@ -75194,6 +75226,8 @@ static inline s7_pointer check_quote(s7_scheme *sc, s7_pointer code)
     }
   if (is_not_null(cddr(code)))             /* (quote . (1 2)) or (quote 1 1) */
     eval_error(sc, "quote: too many arguments ~A", 28, code);
+  
+  pair_set_syntax_op(code, OP_QUOTE_UNCHECKED);
   return(cadr(code));
 
   /* I think a quoted list in another list can be applied to a function, come here and
@@ -76049,12 +76083,12 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 	      let_set_slots(new_env, last_slot);
 	      symbol_set_local(car(arg), let_id(new_env), last_slot);
 	      for (arg = cdr(arg); is_pair(arg); arg = cdr(arg))
-		add_slot_at_end(let_id(new_env), last_slot, car(arg), sc->nil);
+		add_slot_at_end(sc, let_id(new_env), last_slot, car(arg), sc->nil);
 	    }
 	  if (is_symbol(arg))
 	    {
 	      if (last_slot)
-		add_slot_at_end(let_id(new_env), last_slot, arg, sc->nil);
+		add_slot_at_end(sc, let_id(new_env), last_slot, arg, sc->nil);
 	      else
 		{
 		  last_slot = make_slot(sc, arg, sc->nil);
@@ -76199,7 +76233,6 @@ static inline void define_funchecked(s7_scheme *sc)
   if (let_id(sc->envir) < symbol_id(sc->value))
     sc->let_number++; /* dummy let, force symbol lookup */
 
-  /* add_slot(sc->envir, sc->value, new_func); but with local id */
   new_cell_no_check(sc, slot, T_SLOT);
   slot_set_symbol(slot, sc->value);
   slot_set_value(slot, new_func);
@@ -76217,11 +76250,11 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
   caller = sc->define_macro_symbol;
   switch (op)
     {
-    case OP_DEFINE_MACRO:          caller = sc->define_macro_symbol;      break;
-    case OP_DEFINE_MACRO_STAR:     caller = sc->define_macro_star_symbol; break;
-    case OP_DEFINE_BACRO:          caller = sc->define_bacro_symbol;      break;
-    case OP_DEFINE_BACRO_STAR:     caller = sc->define_bacro_star_symbol; break;
-    case OP_DEFINE_EXPANSION:      caller = sc->define_expansion_symbol;  break;
+    case OP_DEFINE_MACRO:          caller = sc->define_macro_symbol;           break;
+    case OP_DEFINE_MACRO_STAR:     caller = sc->define_macro_star_symbol;      break;
+    case OP_DEFINE_BACRO:          caller = sc->define_bacro_symbol;           break;
+    case OP_DEFINE_BACRO_STAR:     caller = sc->define_bacro_star_symbol;      break;
+    case OP_DEFINE_EXPANSION:      caller = sc->define_expansion_symbol;       break;
     case OP_DEFINE_EXPANSION_STAR: caller = sc->define_expansion_star_symbol;  break;
     }
 
@@ -79458,7 +79491,7 @@ static bool op_dox_init(s7_scheme *sc)
   sc->temp10 = frame;
   for (vars = car(sc->code); is_pair(vars); vars = cdr(vars))
     {
-      add_slot(frame, caar(vars), fx_call(sc, cdar(vars)));
+      add_slot(sc, frame, caar(vars), fx_call(sc, cdar(vars)));
       if (is_pair(cddar(vars)))
 	slot_set_expression(let_slots(frame), cddar(vars));
       else slot_just_set_expression(let_slots(frame), sc->nil);
@@ -79993,7 +80026,7 @@ static void op_dox_pending_no_body(s7_scheme *sc)
   sc->temp10 = frame;
   for (vars = car(sc->code); is_pair(vars); vars = cdr(vars))
     {
-      add_slot(frame, caar(vars), fx_call(sc, cdar(vars)));
+      add_slot(sc, frame, caar(vars), fx_call(sc, cdar(vars)));
       if (is_pair(cddar(vars)))
 	slot_set_expression(let_slots(frame), cddar(vars));
       else
@@ -80148,7 +80181,7 @@ static void op_do_no_body_fx_vars(s7_scheme *sc)
   sc->temp10 = frame;
   for (vars = car(sc->code); is_pair(vars); vars = cdr(vars))
     {
-      add_slot(frame, caar(vars), fx_call(sc, cdar(vars)));
+      add_slot(sc, frame, caar(vars), fx_call(sc, cdar(vars)));
       if (is_pair(cddar(vars)))
 	{
 	  slot_set_expression(let_slots(frame), cddar(vars));
@@ -82529,7 +82562,7 @@ static bool apply_unsafe_closure_star_1(s7_scheme *sc)
 	    slot = make_slot_1(sc, sc->envir, car(car_z), val);
 	  else
 	    {
-	      add_slot(sc->envir, car(car_z), sc->undefined);
+	      add_slot(sc, sc->envir, car(car_z), sc->undefined);
 	      slot = let_slots(sc->envir);
 	      slot_set_expression(slot, val);
 	    }
@@ -82539,7 +82572,8 @@ static bool apply_unsafe_closure_star_1(s7_scheme *sc)
       else
 	{
 	  if (!is_keyword(car_z))
-	    make_slot_1(sc, sc->envir, car_z, sc->F);
+	    /* make_slot_1(sc, sc->envir, car_z, sc->F); */
+	    add_slot(sc, sc->envir, car_z, sc->F);
 	  else
 	    {
 	      if (car_z == sc->key_rest_symbol) /* else it's :allow-other-keys? */
@@ -82813,8 +82847,8 @@ static void closure_star_a(s7_scheme *sc, s7_pointer code)
 	  s7_pointer par;
 	  par = car(p);
 	  if (is_pair(par))
-	    add_slot_at_end(id, last_slot, car(par), (is_pair(cadr(par))) ? cadadr(par) : cadr(par)); /* possible quoted list as default value */
-	  else add_slot_at_end(id, last_slot, par, sc->F);
+	    add_slot_at_end(sc, id, last_slot, car(par), (is_pair(cadr(par))) ? cadadr(par) : cadr(par)); /* possible quoted list as default value */
+	  else add_slot_at_end(sc, id, last_slot, par, sc->F);
 	}
     }
   sc->code = T_Pair(closure_body(func));
@@ -82944,7 +82978,7 @@ static void op_define_with_setter(s7_scheme *sc)
 	      slot_set_next(slot, let_slots(sc->envir));
 	      let_set_slots(sc->envir, slot);
 	    }
-	  else add_slot(sc->envir, code, new_func);
+	  else add_slot(sc, sc->envir, code, new_func);
 	  set_local(code);
 	}
       else
@@ -83350,7 +83384,7 @@ static void new_frame_with_three_slots(s7_scheme *sc, s7_pointer func, s7_pointe
   /* may need gc protection here */
   new_frame_with_two_slots(sc, closure_let(func), sc->envir, car(closure_args(func)), val1, cadr(closure_args(func)), val2);
   last_slot = next_slot(let_slots(sc->envir));
-  add_slot_at_end(let_id(sc->envir), last_slot, caddr(closure_args(func)), val3);
+  add_slot_at_end(sc, let_id(sc->envir), last_slot, caddr(closure_args(func)), val3);
 }
 
 static void op_safe_or_unsafe_closure_3p(s7_scheme *sc)
@@ -83573,12 +83607,12 @@ static void op_closure_3s_1(s7_scheme *sc) /* inline here (and always_inline) ma
   sc->z = e;
   id = let_id(e);
   p = closure_args(sc->code);
-  add_slot(e, car(p), lookup(sc, car(args)));
+  add_slot(sc, e, car(p), lookup(sc, car(args)));
   last_slot = let_slots(e);
   p = cdr(p);
   args = cdr(args);
-  add_slot_at_end(id, last_slot, car(p), lookup(sc, car(args)));
-  add_slot_at_end(id, last_slot, cadr(p), lookup(sc, cadr(args)));
+  add_slot_at_end(sc, id, last_slot, car(p), lookup(sc, car(args)));
+  add_slot_at_end(sc, id, last_slot, cadr(p), lookup(sc, cadr(args)));
 
   sc->envir = e;
   sc->z = sc->nil;
@@ -83605,15 +83639,15 @@ static void op_closure_4s_1(s7_scheme *sc)
   sc->z = e;
   id = let_id(e);
   p = closure_args(sc->code);
-  add_slot(e, car(p), lookup(sc, car(args)));
+  add_slot(sc, e, car(p), lookup(sc, car(args)));
   last_slot = let_slots(e);
   p = cdr(p);
   args = cdr(args);
-  add_slot_at_end(id, last_slot, car(p), lookup(sc, car(args)));
+  add_slot_at_end(sc, id, last_slot, car(p), lookup(sc, car(args)));
   p = cdr(p);
   args = cdr(args);
-  add_slot_at_end(id, last_slot, car(p), lookup(sc, car(args)));
-  add_slot_at_end(id, last_slot, cadr(p), lookup(sc, cadr(args)));
+  add_slot_at_end(sc, id, last_slot, car(p), lookup(sc, car(args)));
+  add_slot_at_end(sc, id, last_slot, cadr(p), lookup(sc, cadr(args)));
 
   sc->envir = e;
   sc->z = sc->nil;
@@ -83757,10 +83791,10 @@ static inline void op_closure_all_s(s7_scheme *sc)
   id = let_id(e);
 
   p = closure_args(sc->code);
-  add_slot(e, car(p), lookup(sc, car(args)));
+  add_slot(sc, e, car(p), lookup(sc, car(args)));
   last_slot = let_slots(e);
   for (p = cdr(p), args = cdr(args); is_pair(p); p = cdr(p), args = cdr(args))
-    add_slot_at_end(id, last_slot, car(p), lookup(sc, car(args))); /* main such call in lt (fx_s is 1/2, this is 1/5 of all calls) */
+    add_slot_at_end(sc, id, last_slot, car(p), lookup(sc, car(args))); /* main such call in lt (fx_s is 1/2, this is 1/5 of all calls) */
 
   sc->envir = e;
   sc->z = sc->nil;
@@ -83784,7 +83818,7 @@ static inline void op_closure_fx(s7_scheme *sc)
   let_set_slots(e, last_slot);
   symbol_set_local(car(p), let_id(e), last_slot);
   for (p = cdr(p), args = cdr(args); is_pair(p); p = cdr(p), args = cdr(args))
-    add_slot_at_end(let_id(e), last_slot, car(p), fx_call(sc, args));
+    add_slot_at_end(sc, let_id(e), last_slot, car(p), fx_call(sc, args));
   /* ssfx is a common pattern; hits 5m/23m in lg, but it's not faster (maybe lookup's fault) */
   sc->envir = e;
   sc->z = sc->nil;
@@ -86755,7 +86789,7 @@ static void op_safe_or_unsafe_closure_fp_1(s7_scheme *sc)
       let_set_slots(e, last_slot);
       symbol_set_local(car(p), let_id(e), last_slot);
       for (p = cdr(p), z = cdr(sc->args); is_pair(p); p = cdr(p), z = cdr(z))
-	add_slot_at_end(let_id(e), last_slot, car(p), car(z)); /* sets last_slot */
+	add_slot_at_end(sc, let_id(e), last_slot, car(p), car(z)); /* sets last_slot */
       sc->envir = e;
       sc->z = sc->nil;
       if (is_pair(p))
@@ -89595,6 +89629,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_EVAL_STRING: op_eval_string(sc); goto EVAL;
 
 	case OP_QUOTE: sc->value = check_quote(sc, sc->code); continue;
+	case OP_QUOTE_UNCHECKED: sc->value = cadr(sc->code); continue;
 
 	case OP_DEFINE_FUNCHECKED: define_funchecked(sc);   continue;
 	case OP_DEFINE_CONSTANT1:  op_define_constant1(sc); continue;
@@ -97453,7 +97488,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 885) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 886) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97608,31 +97643,31 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0
  * ------------------------------
  * tpeak     167 |  117 |  117
- * tauto     748 |  633 |  633
+ * tauto     748 |  633 |  631
  * tshoot   1176 |  777 |  777
  * tref     1093 |  779 |  779
- * index     971 |  889 |  889
+ * index     971 |  889 |  881
  * s7test   1776 | 1711 | 1709
- * lt       2278 | 2072 | 2072
+ * lt       2278 | 2072 | 2071
  * tcopy    2434 | 2264 | 2264
+ * tform    2472 | 2289 | 2272
  * tmisc    2852 | 2284 | 2285
- * tform    2472 | 2289 | 2278
- * tread    2449 | 2394 | 2392
- * tvect    6189 | 2430 | 2481  2467
+ * tread    2449 | 2394 | 2389  2386
+ * tvect    6189 | 2430 | 2481
  * tmat     6072 | 2478 | 2479
- * dup      6333 | 2669 | 2591  2573
+ * dup      6333 | 2669 | 2557
  * fbench   2974 | 2643 | 2643
- * trclo    7985 | 2791 | 2719  2716
- * tb       3251 | 2799 | 2791  2787
+ * trclo    7985 | 2791 | 2716
+ * tb       3251 | 2799 | 2783
  * tmap     3238 | 2883 | 2882
- * titer    3962 | 2911 | 2911
+ * titer    3962 | 2911 | 2911  2880
  * tsort    4156 | 3043 | 3045
- * tset     6616 | 3083 | 3083
- * tmac     3391 | 3186 | 3186
+ * tset     6616 | 3083 | 3082
+ * tmac     3391 | 3186 | 3186  3183
  * teq      4081 | 3804 | 3791
  * tfft     4288 | 3816 | 3816
- * tlet     5409 | 4613 | 4602
- * tclo     6206 | 4896 | 4896
+ * tlet     5409 | 4613 | 4599
+ * tclo     6206 | 4896 | 4865
  * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6805
  * tgen     11.7 | 11.0 | 11.0
@@ -97640,7 +97675,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.9
  * sg       85.8 | 70.4 | 70.4
  * lg      115.9 |104.9 |104.8
- * tbig    264.5 |178.0 |177.3
+ * tbig    264.5 |178.0 |175.9
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
@@ -97657,4 +97692,7 @@ int main(int argc, char **argv)
  * split out equal (ci) check at top: t_structure_p (make teq more comprehensive)
  * fx_c_ss_direct: memq/assq [splits out to ts|gt|st_direct], sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
  * named-let t725 not in list at inner call (2x) -- 69846 has example
+ * (throw #t 5) to repl -- apparently hung?
+ * guard choice t243
+ * local quote -> f_q? 
  */
