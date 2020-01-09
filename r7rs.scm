@@ -144,6 +144,27 @@
   `(let ((,(car results) (catch #t (lambda () ,@body) (lambda args (car args)))))
      (cond ,@(cdr results))))
 
+#|
+;;; maybe these are closer to what r7rs intends?
+(define (raise . args)
+  (apply throw #t args))
+
+(define-macro (guard results . body)
+  `(let ((,(car results) 
+	  (catch #t 
+	    (lambda () 
+	      ,@body) 
+	    (lambda (type info)
+	      (if (pair? (*s7* 'catches))
+		  (lambda () (apply throw type info))
+		  (car info))))))
+     (cond ,@(cdr results)
+	   (else 
+	    (if (procedure? ,(car results)) 
+		(,(car results))
+		,(car results))))))
+|#
+
 (define (read-error? obj) (eq? (car obj) 'read-error))
 (define (file-error? obj) (eq? (car obj) 'io-error))
 (define (error-message obj) (apply format #f (cadr obj)))
@@ -417,7 +438,6 @@
 			       ((eq? make-arg (caar p))
 				i)))
 			 (cdr make))))
-    (format *stderr* "~S ~S ~S~%" obj len positions)
     `(begin
        (define ,type 
 	 (let ((v (make-vector (+ ,len 1))))
@@ -454,6 +474,8 @@
 	  fields)
        ',type)))
 |#
+#|
+;;; more than r7rs desires I think:
 (define-macro (define-record-type type make ? . fields)
   (let ((new-type (if (pair? type) (car type) type))
 	(inherited (if (pair? type) (cdr type) ()))
@@ -498,6 +520,73 @@
 			   (let-set! ,obj ',(car field) val)))))))
 	  fields)
        ',new-type)))
+|#
+;;; simpler let form:
+(define-macro (define-record-type type make ? . fields)
+  (let ((obj (gensym))
+	(args (map (lambda (field)
+		     (values (list 'quote (car field))
+			     (let ((par (memq (car field) (cdr make))))
+			       (if (pair? par) (car par) #f))))
+		   fields)))
+    `(begin
+       (define (,? ,obj)
+	 (and (let? ,obj)
+	      (eq? (let-ref ,obj 'type) ',type)))
+       
+       (define ,make 
+         (inlet 'type ',type ,@args))
+
+       ,@(map
+	  (lambda (field)
+	    (when (pair? field)
+	      (if (null? (cdr field))
+		  (values)
+		  (if (null? (cddr field))
+		      `(define (,(cadr field) ,obj)
+			 (let-ref ,obj ',(car field)))
+		      `(begin
+			 (define (,(cadr field) ,obj)
+			   (let-ref ,obj ',(car field)))
+			 (define (,(caddr field) ,obj val)
+			   (let-set! ,obj ',(car field) val)))))))
+	  fields)
+       ',type)))
+
+#|
+;;; vector form is slower:
+(define-macro (define-record-type type make ? . fields)
+  (let* ((obj (gensym))
+	 (args (map (lambda (field)
+		      (let ((par (memq (car field) (cdr make))))
+			(if (pair? par) (car par) #f)))
+		    fields)))
+    `(begin
+       (define (,? obj) 
+	 (and (vector? obj) 
+	      (eq? (vector-ref obj 0) ',type)))
+       
+       (define ,make 
+	 (vector ',type ,@args))
+       
+       ,@(map
+	  (let ((pos 0))
+	    (lambda (field)
+	      (set! pos (+ pos 1))
+	      (when (pair? field)
+		(if (null? (cdr field))
+		    (values)
+		    (if (null? (cddr field))
+			`(define (,(cadr field) ,obj)
+			   (vector-ref ,obj ,pos))
+			`(begin
+			   (define (,(cadr field) ,obj)
+			     (vector-ref ,obj ,pos))
+			   (define (,(caddr field) ,obj val)
+			     (vector-set! ,obj ,pos val))))))))
+	  fields)
+       ',type)))
+|#
 
 ;;; srfi 111:
 (define-record-type box-type (box value) box? (value unbox set-box!))

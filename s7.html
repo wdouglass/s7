@@ -5606,6 +5606,15 @@ The defaults are '(3 45 80 45 #t).
 <p>(Ideally we'd only redisplay the changed fields).
 </p>
 
+<p>The standard time macro:</p>
+<pre class="indented">
+(define-macro (time expr) 
+  `(let ((start (*s7* 'cpu-time)))
+     (let ((res (list ,expr))) ; expr might return multiple values
+       (list (car res)
+	     (- (*s7* 'cpu-time) start)))))
+</pre>
+
 
 <div class="separator"></div>
 <pre class="indented">
@@ -6416,7 +6425,7 @@ s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
 (define (current-second) (floor (*s7* 'cpu-time)))
 </pre>
 <p>
-If you want to run gcbench, add the define-record-type macro from r7rs.scm, and load stuff.scm (for define-class).
+If you want to run gcbench, add the define-record-type macro from r7rs.scm.
 Here are the diffs for the bench script:
 </p>
 <pre>
