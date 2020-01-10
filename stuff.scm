@@ -878,7 +878,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   ;; The exponent of the largest power of 2 which divides the given number.
   (- (integer-length (logand n (- n))) 1))
 
-(define (lognand . ints) 
+(define (lognand . ints)  ; viewed as (not (and ...))
   (lognot (apply logand ints)))
 
 (define (lognor . ints) 

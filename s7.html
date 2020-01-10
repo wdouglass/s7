@@ -5601,7 +5601,7 @@ The defaults are '(3 45 80 45 #t).
 <pre class="indented">
 (format *stderr* "~C[~D;~DH" #\escape 0 0)
 (format *stderr* "~C[J" #\escape)
-(display (with-output-to-string (lambda() (*s7* 'memory-usage))))
+(display (with-output-to-string (lambda() (<em class="red">*s7* 'memory-usage</em>))))
 </pre>
 <p>(Ideally we'd only redisplay the changed fields).
 </p>
@@ -5609,10 +5609,21 @@ The defaults are '(3 45 80 45 #t).
 <p>The standard time macro:</p>
 <pre class="indented">
 (define-macro (time expr) 
-  `(let ((start (*s7* 'cpu-time)))
+  `(let ((start (<em class="red">*s7* 'cpu-time</em>)))
      (let ((res (list ,expr))) ; expr might return multiple values
        (list (car res)
-	     (- (*s7* 'cpu-time) start)))))
+	     (- (<em class="red">*s7* 'cpu-time</em>) start)))))
+</pre>
+
+<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):
+<pre class="indented">
+(define log10 (log (bignum "10")))
+(define bignum-precision (dilambda (lambda () 
+				     (<em class="red">*s7* 'bignum-precision</em>)) 
+				   (lambda (val)
+				     (set! (<em class="red">*s7* 'bignum-precision</em>) val)
+				     (set! log10 (log (bignum "10")))
+				     val)))
 </pre>
 
 

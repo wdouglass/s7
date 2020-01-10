@@ -427,53 +427,40 @@
 
 
 ;; records
-#|
-;;; vector version which appears to be slightly slower (according to time, valgrind thinks it is faster) than the let version below
 (define-macro (define-record-type type make ? . fields)
-  (let* ((obj (gensym))
-	 (len (length fields))
-	 (positions (map (lambda (make-arg)
-			   (do ((i 1 (+ i 1))
-				(p fields (cdr p)))
-			       ((eq? make-arg (caar p))
-				i)))
-			 (cdr make))))
+  (let ((obj (gensym))
+	(args (map (lambda (field)
+		     (values (list 'quote (car field))
+			     (let ((par (memq (car field) (cdr make))))
+			       (if (pair? par) (car par) #f))))
+		   fields)))
     `(begin
-       (define ,type 
-	 (let ((v (make-vector (+ ,len 1))))
-	   (vector-set! v 0 ',type)
-	   v))
-       
-       (define (,? obj) 
-	 (and (vector? obj) 
-	      (eq? (vector-ref obj 0) ',type)))
+       (define (,? ,obj)
+	 (and (let? ,obj)
+	      (eq? (let-ref ,obj 'type) ',type)))
        
        (define ,make 
-         (let ((,obj (copy ,type)))
-	   ,@(map (lambda (field position)
-		    `(vector-set! ,obj ,position ,field))
-		  (cdr make)
-		  positions)
-	   ,obj))
-       
+         (inlet 'type ',type ,@args))
+
        ,@(map
-	  (let ((pos 0))
-	    (lambda (field)
-	      (set! pos (+ pos 1))
-	      (when (pair? field)
-		(if (null? (cdr field))
-		    (values)
-		    (if (null? (cddr field))
-			`(define (,(cadr field) ,obj)
-			   (vector-ref ,obj ,pos))
-			`(begin
-			   (define (,(cadr field) ,obj)
-			     (vector-ref ,obj ,pos))
-			   (define (,(caddr field) ,obj val)
-			     (vector-set! ,obj ,pos val))))))))
+	  (lambda (field)
+	    (when (pair? field)
+	      (if (null? (cdr field))
+		  (values)
+		  (if (null? (cddr field))
+		      `(define (,(cadr field) ,obj)
+			 (let-ref ,obj ',(car field)))
+		      `(begin
+			 (define (,(cadr field) ,obj)
+			   (let-ref ,obj ',(car field)))
+			 (define (,(caddr field) ,obj val)
+			   (let-set! ,obj ',(car field) val)))))))
 	  fields)
        ',type)))
-|#
+
+;;; srfi 111:
+(define-record-type box-type (box value) box? (value unbox set-box!))
+
 #|
 ;;; more than r7rs desires I think:
 (define-macro (define-record-type type make ? . fields)
@@ -520,40 +507,7 @@
 			   (let-set! ,obj ',(car field) val)))))))
 	  fields)
        ',new-type)))
-|#
-;;; simpler let form:
-(define-macro (define-record-type type make ? . fields)
-  (let ((obj (gensym))
-	(args (map (lambda (field)
-		     (values (list 'quote (car field))
-			     (let ((par (memq (car field) (cdr make))))
-			       (if (pair? par) (car par) #f))))
-		   fields)))
-    `(begin
-       (define (,? ,obj)
-	 (and (let? ,obj)
-	      (eq? (let-ref ,obj 'type) ',type)))
-       
-       (define ,make 
-         (inlet 'type ',type ,@args))
 
-       ,@(map
-	  (lambda (field)
-	    (when (pair? field)
-	      (if (null? (cdr field))
-		  (values)
-		  (if (null? (cddr field))
-		      `(define (,(cadr field) ,obj)
-			 (let-ref ,obj ',(car field)))
-		      `(begin
-			 (define (,(cadr field) ,obj)
-			   (let-ref ,obj ',(car field)))
-			 (define (,(caddr field) ,obj val)
-			   (let-set! ,obj ',(car field) val)))))))
-	  fields)
-       ',type)))
-
-#|
 ;;; vector form is slower:
 (define-macro (define-record-type type make ? . fields)
   (let* ((obj (gensym))
@@ -587,6 +541,3 @@
 	  fields)
        ',type)))
 |#
-
-;;; srfi 111:
-(define-record-type box-type (box value) box? (value unbox set-box!))
