@@ -612,6 +612,8 @@ typedef struct {
   s7_pointer (*fill)       (s7_scheme *sc, s7_pointer args);
   s7_pointer (*to_list)    (s7_scheme *sc, s7_pointer args);
   s7_pointer (*to_string)  (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*gc_mark)    (s7_scheme *sc, s7_pointer args);
+  s7_pointer (*gc_free)    (s7_scheme *sc, s7_pointer args);
 } c_object_t;
 
 
@@ -946,7 +948,7 @@ typedef struct s7_cell {
       s7_int type;
       void *value;                  /*  the value the caller associates with the c_object */
       s7_pointer e;                 /*   the method list, if any (openlet) */
-      void (*mark)(void *val);
+      s7_scheme *sc;
     } c_obj;
 
     struct {                        /* continuations */
@@ -1888,7 +1890,7 @@ static void init_types(void)
   #define T_Lst(P) check_ref2(P, T_PAIR, T_NIL,      __func__, __LINE__, "gc", NULL)
   #define T_Str(P) check_ref(P, T_STRING,            __func__, __LINE__, "sweep", NULL)
   #define T_BVc(P) check_ref(P, T_BYTE_VECTOR,       __func__, __LINE__, "sweep", NULL)
-  #define T_Obj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", NULL)
+  #define T_Obj(P) check_ref(P, T_C_OBJECT,          __func__, __LINE__, "sweep", "s7_c_object_value")
   #define T_Hsh(P) check_ref(P, T_HASH_TABLE,        __func__, __LINE__, "sweep", "free_hash_table")
   #define T_Itr(P) check_ref(P, T_ITERATOR,          __func__, __LINE__, "sweep", "process_iterator")
   #define T_Con(P) check_ref(P, T_CONTINUATION,      __func__, __LINE__, "sweep", "process_continuation")
@@ -3273,10 +3275,13 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define c_object_type(p)               (T_Obj(p))->object.c_obj.type
 #define c_object_let(p)                T_Lid((T_Obj(p))->object.c_obj.e)
 #define c_object_set_let(p, L)         (T_Obj(p))->object.c_obj.e = T_Lid(L)
-#define c_object_mark(p)               (T_Obj(p))->object.c_obj.mark
+#define c_object_s7(p)                 (T_Obj(p))->object.c_obj.sc
 
 #define c_object_info(Sc, p)           Sc->c_object_types[c_object_type(T_Obj(p))]
 #define c_object_free(Sc, p)           c_object_info(Sc, p)->free
+#define c_object_mark(Sc, p)           c_object_info(Sc, p)->mark
+#define c_object_gc_mark(Sc, p)        c_object_info(Sc, p)->gc_mark
+#define c_object_gc_free(Sc, p)        c_object_info(Sc, p)->gc_free
 #define c_object_ref(Sc, p)            c_object_info(Sc, p)->ref
 #define c_object_getf(Sc, p)           c_object_info(Sc, p)->getter
 #define c_object_set(Sc, p)            c_object_info(Sc, p)->set
@@ -5005,7 +5010,7 @@ static void sweep(s7_scheme *sc)
   process_gc_list(free(unknown_name(s1)))
 
   gp = sc->c_objects;
-  process_gc_list((*(c_object_free(sc, s1)))(c_object_value(s1)))
+  process_gc_list((c_object_gc_free(sc, s1)) ? (*(c_object_gc_free(sc, s1)))(sc, s1) : (*(c_object_free(sc, s1)))(c_object_value(s1)))
 
   gp = sc->lambdas;
   process_gc_list(liberate(sc, c_function_block(s1)))
@@ -5464,7 +5469,9 @@ static void mark_int_or_float_vector_possibly_shared(s7_pointer p)
 static void mark_c_object(s7_pointer p)
 {
   set_mark(p);
-  (*(c_object_mark(p)))(c_object_value(p));
+  if (c_object_gc_mark(c_object_s7(p), p))
+    (*(c_object_gc_mark(c_object_s7(p), p)))(c_object_s7(p), p);
+  else (*(c_object_mark(c_object_s7(p), p)))(c_object_value(p));
 }
 
 static void mark_catch(s7_pointer p)
@@ -40455,23 +40462,32 @@ static s7_pointer g_sort(s7_scheme *sc, s7_pointer args)
 	 *   get/set macro in eval is SORT_DATA(k) then s7_vector_to_list if pair at start (sort_*_end)
 	 */
 	vec = make_vector_1(sc, len, FILLED, T_VECTOR);
-	add_vector(sc, vec);
-	/* we need this vector prefilled because vector_getter below makes reals/int, causing possible GC
-	 *   at any time during that loop, and the GC mark process expects the vector to have an s7_pointer
-	 *   at every element.
+	/* we need this vector prefilled because make_real|integer below can cause a GC at any time during that loop, 
+	 *   and the GC mark process expects the vector to have an s7_pointer at every element.
 	 */
+	add_vector(sc, vec);
 	push_stack_no_let_no_code(sc, OP_GC_PROTECT, vec);
 	elements = s7_vector_elements(vec);
-	for (i = 0; i < len; i++)
-	  elements[i] = vector_getter(data)(sc, data, i);
+
+	if (is_float_vector(data))
+	  for (i = 0; i < len; i++)
+	    elements[i] = make_real(sc, float_vector(data, i));
+	else
+	  for (i = 0; i < len; i++)
+	    elements[i] = make_integer(sc, int_vector(data, i));
 
 	if (sort_func)
 	  {
 	    sc->v = vec;
 	    local_qsort_r((void *)elements, len, sizeof(s7_pointer), sort_func, (void *)sc);
 
-	    for (i = 0; i < len; i++)
-	      vector_setter(data)(sc, data, i, elements[i]); /* data is not a typed vector */
+	    if (is_float_vector(data))
+	      for (i = 0; i < len; i++)
+		float_vector(data, i) = real(elements[i]);
+	    else
+	      for (i = 0; i < len; i++)
+		int_vector(data, i) = integer(elements[i]);
+
 	    sc->v = sc->nil;
 	    unstack(sc);
 	    return(data);
@@ -43253,11 +43269,7 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
   sc->c_object_types[tag]->scheme_name = s7_make_permanent_string(sc, name);
   sc->c_object_types[tag]->getter = sc->F;
   sc->c_object_types[tag]->setter = sc->F;
-
   sc->c_object_types[tag]->free = fallback_free;
-#if (!DISABLE_DEPRECATED)
-  sc->c_object_types[tag]->print = NULL;
-#endif
   sc->c_object_types[tag]->eql = NULL;
   sc->c_object_types[tag]->equal = NULL;
   sc->c_object_types[tag]->equivalent = NULL;
@@ -43271,7 +43283,11 @@ s7_int s7_make_c_type(s7_scheme *sc, const char *name)
   sc->c_object_types[tag]->fill = NULL;
   sc->c_object_types[tag]->to_list = NULL;
   sc->c_object_types[tag]->to_string = NULL;
-
+  sc->c_object_types[tag]->gc_mark = NULL;
+  sc->c_object_types[tag]->gc_free = NULL;
+#if (!DISABLE_DEPRECATED)
+  sc->c_object_types[tag]->print = NULL;
+#endif
   return(tag);
 }
 
@@ -43280,9 +43296,24 @@ void s7_c_type_set_free(s7_scheme *sc, s7_int tag, void (*gc_free)(void *value))
   sc->c_object_types[tag]->free = gc_free;
 }
 
+void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*mark)(void *value))
+{
+  sc->c_object_types[tag]->mark = mark;
+}
+
 void s7_c_type_set_equal(s7_scheme *sc, s7_int tag, bool (*equal)(void *value1, void *value2))
 {
   sc->c_object_types[tag]->eql = equal;
+}
+
+void s7_c_type_set_gc_free(s7_scheme *sc, s7_int tag, s7_pointer (*gc_free)(s7_scheme *sc, s7_pointer obj))
+{
+  sc->c_object_types[tag]->gc_free = gc_free;
+}
+
+void s7_c_type_set_gc_mark(s7_scheme *sc, s7_int tag, s7_pointer (*gc_mark)(s7_scheme *sc, s7_pointer obj))
+{
+  sc->c_object_types[tag]->gc_mark = gc_mark;
 }
 
 void s7_c_type_set_is_equal(s7_scheme *sc, s7_int tag, s7_pointer (*is_equal)(s7_scheme *sc, s7_pointer args))
@@ -43293,11 +43324,6 @@ void s7_c_type_set_is_equal(s7_scheme *sc, s7_int tag, s7_pointer (*is_equal)(s7
 void s7_c_type_set_is_equivalent(s7_scheme *sc, s7_int tag, s7_pointer (*is_equivalent)(s7_scheme *sc, s7_pointer args))
 {
   sc->c_object_types[tag]->equivalent = is_equivalent;
-}
-
-void s7_c_type_set_mark(s7_scheme *sc, s7_int tag, void (*mark)(void *value))
-{
-  sc->c_object_types[tag]->mark = mark;
 }
 
 void s7_c_type_set_ref(s7_scheme *sc, s7_int tag, s7_pointer (*ref)(s7_scheme *sc, s7_pointer args))
@@ -43404,7 +43430,7 @@ s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7
   c_object_type(x) = type;
   c_object_value(x) = value;
   c_object_set_let(x, (let == sc->rootlet) ? sc->nil : let);
-  c_object_mark(x) = sc->c_object_types[type]->mark;
+  c_object_s7(x) = sc;
   add_c_object(sc, x);
   return(x);
 }
@@ -68802,14 +68828,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_Z_LA);
 		  annotate_arg(sc, cdr(false_p), args);  /* arg */
-		  if (is_fxable(sc, true_p))
-		    {
-		      annotate_arg(sc, cddr(body), args);    /* result */
-		      fx_tree(sc, cdr(body), car(args), NULL);
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, true_p)) return(false);
+		  annotate_arg(sc, cddr(body), args);    /* result */
+		  fx_tree(sc, cdr(body), car(args), NULL);
+		  set_optimized(body);
+		  return(true);
 		}
 	      if ((is_proper_list_2(sc, true_p)) &&
 		  (car(true_p) == name) &&
@@ -68817,14 +68840,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_LA_Z);
 		  annotate_arg(sc, cdr(true_p), args);   /* arg */
-		  if (is_fxable(sc, false_p))
-		    {
-		      annotate_arg(sc, cdddr(body), args);    /* result */
-		      fx_tree(sc, cdr(body), car(args), NULL);
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, false_p)) return(false);
+		  annotate_arg(sc, cdddr(body), args);    /* result */
+		  fx_tree(sc, cdr(body), car(args), NULL);
+		  set_optimized(body);
+		  return(true);
 		}
 	    }
 
@@ -68837,14 +68857,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_Z_LAA);
 		  annotate_args(sc, cdr(false_p), args);
-		  if (is_fxable(sc, true_p))
-		    {
-		      annotate_arg(sc, cddr(body), args);
-		      fx_tree(sc, cdr(body), car(args), cadr(args));
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, true_p)) return(false);
+		  annotate_arg(sc, cddr(body), args);
+		  fx_tree(sc, cdr(body), car(args), cadr(args));
+		  set_optimized(body);
+		  return(true);
 		}
 	      if ((is_proper_list_3(sc, true_p)) &&
 		  (car(true_p) == name) &&
@@ -68853,14 +68870,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_LAA_Z);
 		  annotate_args(sc, cdr(true_p), args);
-		  if (is_fxable(sc, false_p))
-		    {
-		      annotate_arg(sc, cdddr(body), args);
-		      fx_tree(sc, cdr(body), car(args), cadr(args));
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, false_p)) return(false);
+		  annotate_arg(sc, cdddr(body), args);
+		  fx_tree(sc, cdr(body), car(args), cadr(args));
+		  set_optimized(body);
+		  return(true);
 		}
 	    }
 
@@ -68872,14 +68886,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_Z_L3A);
 		  annotate_args(sc, cdr(false_p), args);
-		  if (is_fxable(sc, true_p))
-		    {
-		      annotate_arg(sc, cddr(body), args);
-		      fx_tree(sc, cdr(body), car(args), cadr(args));
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, true_p)) return(false);
+		  annotate_arg(sc, cddr(body), args);
+		  fx_tree(sc, cdr(body), car(args), cadr(args));
+		  set_optimized(body);
+		  return(true);
 		}
 	      if ((is_proper_list_4(sc, true_p)) &&
 		  (car(true_p) == name) &&
@@ -68887,14 +68898,11 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		{
 		  set_optimize_op(body, OP_TC_IF_A_L3A_Z);
 		  annotate_args(sc, cdr(true_p), args);
-		  if (is_fxable(sc, false_p))
-		    {
-		      annotate_arg(sc, cdddr(body), args);
-		      fx_tree(sc, cdr(body), car(args), cadr(args));
-		      set_optimized(body);
-		      return(true);
-		    }
-		  return(false);
+		  if (!is_fxable(sc, false_p)) return(false);
+		  annotate_arg(sc, cdddr(body), args);
+		  fx_tree(sc, cdr(body), car(args), cadr(args));
+		  set_optimized(body);
+		  return(true);
 		}
 	    }
 
@@ -68992,16 +69000,13 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		      annotate_arg(sc, cdaadr(body), args);
 		      annotate_arg(sc, cdr(let_body), args); /* test_expr */
 		      annotate_args(sc, cdr(laa), args);
-		      if (is_fxable(sc, caddr(let_body)))
-			{
-			  annotate_arg(sc, cddr(let_body), args);
-			  fx_tree(sc, cdaadr(body), car(args), cadr(args)); /* these are references to the outer env */
-			  fx_tree(sc, cdr(let_body), car(caadr(body)), NULL);
-			  fx_tree_outer(sc, cdr(let_body), car(args), cadr(args));
-			  set_optimized(body);
-			  return(true);
-			}
-		      return(false);
+		      if (!is_fxable(sc, caddr(let_body))) return(false);
+		      annotate_arg(sc, cddr(let_body), args);
+		      fx_tree(sc, cdaadr(body), car(args), cadr(args)); /* these are references to the outer env */
+		      fx_tree(sc, cdr(let_body), car(caadr(body)), NULL);
+		      fx_tree_outer(sc, cdr(let_body), car(args), cadr(args));
+		      set_optimized(body);
+		      return(true);
 		    }
 		}
 	      else
@@ -73052,6 +73057,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 			{
 			  if (check_tc(sc, func, nvars, args, car(body)))
 			    set_safe_closure_body(body);
+			  /* if not check_tc, car(body) is either not a tc op or it is not optimized so that is_fxable will return false */
 			}
 		      if ((sc->got_rec) &&
 			  (!is_tc_op(optimize_op(car(body)))) &&
@@ -95495,6 +95501,7 @@ static void init_fx_function(void)
   fx_function[OP_AND_N] = fx_and_n;
   fx_function[OP_LET_TEMP_A_A] = fx_let_temp_a_a;
 
+  /* these are ok even if a "z" branch is taken -- in that case the body does not have the is_optimized bit, so is_fxable returns false */
   fx_function[OP_TC_AND_A_OR_A_LA] = fx_tc_and_a_or_a_la;
   fx_function[OP_TC_OR_A_AND_A_LA] = fx_tc_or_a_and_a_la;
   fx_function[OP_TC_OR_A_A_AND_A_A_LA] = fx_tc_or_a_a_and_a_a_la;
@@ -97645,21 +97652,21 @@ int main(int argc, char **argv)
  * tshoot   1176 |  777 |  777
  * tref     1093 |  779 |  779
  * index     971 |  889 |  881
- * s7test   1776 | 1711 | 1707
+ * s7test   1776 | 1711 | 1705
  * lt       2278 | 2072 | 2069
  * tcopy    2434 | 2264 | 2263
  * tform    2472 | 2289 | 2272
  * tmisc    2852 | 2284 | 2277
- * tread    2449 | 2394 | 2382
+ * tread    2449 | 2394 | 2380
  * tvect    6189 | 2430 | 2451
  * tmat     6072 | 2478 | 2468
- * dup      6333 | 2669 | 2471
+ * dup      6333 | 2669 | 2469
  * fbench   2974 | 2643 | 2643
  * trclo    7985 | 2791 | 2716
  * tb       3251 | 2799 | 2780
- * tmap     3238 | 2883 | 2881
+ * tmap     3238 | 2883 | 2881  2874
  * titer    3962 | 2911 | 2884
- * tsort    4156 | 3043 | 3045
+ * tsort    4156 | 3043 | 3045  3030
  * tset     6616 | 3083 | 3089
  * tmac     3391 | 3186 | 3179
  * teq      4081 | 3804 | 3791
@@ -97669,7 +97676,7 @@ int main(int argc, char **argv)
  * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6799
  * tgen     11.7 | 11.0 | 11.0
- * tall     16.4 | 15.4 | 15.4
+ * tall     16.4 | 15.4 | 15.3
  * calls    40.3 | 35.9 | 35.9
  * sg       85.8 | 70.4 | 70.4
  * lg      115.9 |104.9 |104.7
@@ -97691,5 +97698,11 @@ int main(int argc, char **argv)
  * fx_c_ss_direct: memq/assq [splits out to ts|gt|st_direct], sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
  * named-let t725 not in list at inner call (2x) -- 69846 has example
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
- * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation
+ * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation, move opt_l tree to check_l/check_(named)let
+ * op_if(cond)_a_a_opz_la -- if_a_a_cpp, p's are closure_a[_o] so of the form void|bool op_*(sc)
+ *   l1->l2->l1 could explicitly call the associated op_recur cases
+ * (begin fxable...) -> op+fx, why not fx (let ((z (+ x 1))) z)? let_a_a|fx* etc
+ *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
+ *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx
+ * new gc_free/mark in Snd and s7.html
  */
