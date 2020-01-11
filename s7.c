@@ -5010,7 +5010,7 @@ static void sweep(s7_scheme *sc)
   process_gc_list(free(unknown_name(s1)))
 
   gp = sc->c_objects;
-  process_gc_list((c_object_gc_free(sc, s1)) ? (*(c_object_gc_free(sc, s1)))(sc, s1) : (*(c_object_free(sc, s1)))(c_object_value(s1)))
+  process_gc_list((c_object_gc_free(sc, s1)) ? (void)(*(c_object_gc_free(sc, s1)))(sc, s1) : (void)(*(c_object_free(sc, s1)))(c_object_value(s1)))
 
   gp = sc->lambdas;
   process_gc_list(liberate(sc, c_function_block(s1)))
