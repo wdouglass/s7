@@ -1502,7 +1502,7 @@ static inline char *alloc_permanent_string(s7_scheme *sc, size_t len)
 
   len = (len + 7) & (~7);            /* 8-byte aligned -- more than half the time, len is already 8-byte aligned */
   next_k = sc->alloc_string_k + len;
-  if (next_k > ALLOC_STRING_SIZE)    /* was >= */
+  if (next_k > ALLOC_STRING_SIZE)
     {
       if (len >= ALLOC_MAX_STRING)
 	{
@@ -1514,7 +1514,7 @@ static inline char *alloc_permanent_string(s7_scheme *sc, size_t len)
 #if S7_DEBUGGING
       permanent_string_len += ALLOC_STRING_SIZE;
 #endif
-      sc->alloc_string_cells = (char *)malloc(ALLOC_STRING_SIZE);
+      sc->alloc_string_cells = (char *)malloc(ALLOC_STRING_SIZE); /* get a new block */
       sc->alloc_string_k = 0;
       next_k = len;
     }
@@ -6148,7 +6148,10 @@ static s7_big_cell *alloc_big_pointer(s7_scheme *sc, int64_t loc)
       sc->alloc_big_pointer_k = 0;
     }
   p = (&(sc->alloc_big_pointer_cells[sc->alloc_big_pointer_k++]));
-  p->big_hloc = loc;
+  p->big_hloc = loc; 
+  /* needed if this new pointer is itself petrified later -- it's not from one of the heap blocks, 
+   *   but it's in the heap, and we'll need to know where it is in the heap to replace it
+   */
   return(p);
 }
 
@@ -6218,35 +6221,6 @@ static int64_t heap_location(s7_scheme *sc, s7_pointer p)
 }
 
 #if S7_DEBUGGING
-static void check_heap_location(s7_scheme *sc, s7_pointer x, int64_t loc, const char *func, int line)
-{
-  if ((in_heap(x)) && ((loc < 0) || (loc > sc->heap_size) || (sc->heap[loc] != x)))
-    {
-      s7_int i;
-      char *s;
-      heap_block_t *hp;
-      fprintf(stderr, "%s[%d]: sc->heap[%" print_s7_int "] (%p) is not %p\n", func, line, loc, ((loc >= 0) && (loc < sc->heap_size)) ? sc->heap[loc] : NULL, x);
-      for (i = 0; i < sc->heap_size; i++)
-	if (sc->heap[i] == x)
-	  break;
-      if (i < sc->heap_size)
-	fprintf(stderr, "  correct location: %" print_s7_int "\n", i);
-      else fprintf(stderr, "  %p is not in the heap\n", x);
-      fprintf(stderr, "  bits: %s\n", s = describe_type_bits(sc, x));
-      free(s);
-      fprintf(stderr, "blocks (x is %p, big_hloc: %" print_s7_int "):\n", x, ((s7_big_pointer)x)->big_hloc);
-      for (hp = sc->heap_blocks; hp; hp = hp->next)
-	{
-	  fprintf(stderr, "  %" print_s7_int ": %" print_s7_int " to %" print_s7_int "\n", hp->offset, hp->start, hp->end);
-	  if (((intptr_t)x >= hp->start) && ((intptr_t)x < hp->end))
-	    fprintf(stderr, "   (found it here: %" print_s7_int "\n", hp->offset + (((intptr_t)x - hp->start) / sizeof(s7_cell)));
-	}
-      abort();
-    }
-}
-#endif
-
-#if S7_DEBUGGING
 static int petrified_pointers = 0;
 #endif
 
@@ -6256,7 +6230,6 @@ static inline s7_pointer petrify(s7_scheme *sc, s7_pointer x)
   int64_t loc;
   loc = heap_location(sc, x);
 #if S7_DEBUGGING
-  check_heap_location(sc, x, loc, __func__, __LINE__);
   petrified_pointers++;
 #endif
   p = (s7_pointer)alloc_big_pointer(sc, loc);
@@ -6308,7 +6281,6 @@ static inline void s7_remove_from_heap(s7_scheme *sc, s7_pointer x)
 	  int64_t loc;
 	  loc = heap_location(sc, x);
 #if S7_DEBUGGING
-	  check_heap_location(sc, x, loc, __func__, __LINE__);
 	  petrified_pointers++;
 #endif
 	  sc->heap[loc] = (s7_pointer)alloc_big_pointer(sc, loc);
@@ -30353,10 +30325,6 @@ bool s7_is_valid(s7_scheme *sc, s7_pointer arg)
 	      loc = heap_location(sc, arg);
 	      if ((loc >= 0) && (loc < sc->heap_size))
 		result = (sc->heap[loc] == arg);
-#if S7_DEBUGGING
-	      if (!result)
-		check_heap_location(sc, arg, loc, __func__, __LINE__);
-#endif
 	    }
 	}
 #if TRAP_SEGFAULT
@@ -75957,28 +75925,27 @@ static bool op_unless_pp(s7_scheme *sc)
   return(true);
 }
 
-
+/* -------------------------------- begin -------------------------------- */
 /* check_begin in effect */
-static bool op_begin(s7_scheme *sc)
+static bool op_begin(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer form;
-  form = sc->code;
-  set_current_code(sc, form);
-  sc->code = cdr(sc->code);
-  if (!s7_is_proper_list(sc, sc->code))    /* proper list includes () */
-    eval_error(sc, "unexpected dot? ~A", 18, form);
-  if (is_null(sc->code))                   /* (begin) -> () */
+  set_current_code(sc, code);
+  form = cdr(code);
+  if (!s7_is_proper_list(sc, form))    /* proper list includes () */
+    eval_error(sc, "unexpected dot? ~A", 18, code);
+  if (is_null(form))                   /* (begin) -> () */
     {
       sc->value = sc->nil;
       return(true);
     }
-  if (is_null(cdr(sc->code)))
-    pair_set_syntax_op(form, OP_BEGIN_1_UNCHECKED);
+  if (is_null(cdr(form)))
+    pair_set_syntax_op(code, OP_BEGIN_1_UNCHECKED);
   else
     {
-      if (is_null(cddr(sc->code)))
-	pair_set_syntax_op(form, OP_BEGIN_2_UNCHECKED);
-      else pair_set_syntax_op(form, OP_BEGIN_UNCHECKED);
+      if (is_null(cddr(form)))
+	pair_set_syntax_op(code, OP_BEGIN_2_UNCHECKED);
+      else pair_set_syntax_op(code, OP_BEGIN_UNCHECKED);
     }
   return(false);
 }
@@ -89610,7 +89577,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto BEGIN;
 
 	case OP_BEGIN:
-	  if (op_begin(sc)) continue;
+	  if (op_begin(sc, sc->code)) continue; 
+	  sc->code = cdr(sc->code);
 
 	case OP_BEGIN0:
 	  if ((sc->begin_hook) && (call_begin_hook(sc))) return(sc->F);
@@ -97703,6 +97671,7 @@ int main(int argc, char **argv)
  *   l1->l2->l1 could explicitly call the associated op_recur cases
  * (begin fxable...) -> op+fx, why not fx (let ((z (+ x 1))) z)? let_a_a|fx* etc
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
- *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx
- * new gc_free/mark in Snd and s7.html
+ *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
+ * in Snd block malloc in clm2xen? mallocate? -- why free currently: strings
+ * (*s7* 'debug) perhaps and make sure line info is saved -- how to save more history without affecting performance?
  */

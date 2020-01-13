@@ -2728,10 +2728,19 @@ bool xen_is_mix(Xen obj)
   return(Xen_c_object_is_type(obj, xen_mix_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_mix_free(xen_mix *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_mix, free_xen_mix, xen_mix_free)
+#else
+static s7_pointer s7_xen_mix_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_mix *v;
+  v = (xen_mix *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 
 static char *xen_mix_to_string(xen_mix *v)
@@ -2857,7 +2866,7 @@ static void init_xen_mix(void)
   g_mix_methods = s7_openlet(s7, s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "object->let"), mix_to_let_func)));
   s7_gc_protect(s7, g_mix_methods);
   xen_mix_tag = s7_make_c_type(s7, "<mix>");
-  s7_c_type_set_free(s7, xen_mix_tag, free_xen_mix);
+  s7_c_type_set_gc_free(s7, xen_mix_tag, s7_xen_mix_free);
   s7_c_type_set_is_equal(s7, xen_mix_tag, s7_xen_mix_is_equal);
   s7_c_type_set_length(s7, xen_mix_tag, s7_xen_mix_length);
   s7_c_type_set_copy(s7, xen_mix_tag, s7_xen_mix_copy);
@@ -3758,10 +3767,16 @@ static void mf_free(mix_fd *fd)
     }
 }
 
-
+#if (!HAVE_SCHEME)
 Xen_wrap_free(mix_fd, free_mf, mf_free)
 
-#if HAVE_SCHEME
+#else
+static s7_pointer s7_mf_free(s7_scheme *sc, s7_pointer obj)
+{
+  mf_free((mix_fd *)s7_c_object_value(obj));
+  return(NULL);
+}
+
 static s7_pointer s7_mf_is_equal(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_boolean(sc, s7_car(args) == s7_cadr(args)));
@@ -4274,7 +4289,7 @@ void g_init_mix(void)
   g_mix_sampler_methods = s7_openlet(s7, s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "object->let"), mix_sampler_to_let_func)));
   s7_gc_protect(s7, g_mix_sampler_methods);
   mf_tag = s7_make_c_type(s7, "<mix-sampler>");
-  s7_c_type_set_free(s7, mf_tag, free_mf);
+  s7_c_type_set_gc_free(s7, mf_tag, s7_mf_free);
   s7_c_type_set_is_equal(s7, mf_tag, s7_mf_is_equal);
   s7_c_type_set_ref(s7, mf_tag, s7_read_mix_sample);
   s7_c_type_set_to_string(s7, mf_tag, g_mix_sampler_to_string);

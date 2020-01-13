@@ -892,10 +892,19 @@ bool xen_is_selection(Xen obj)
   return(Xen_c_object_is_type(obj, xen_selection_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_selection_free(xen_selection *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_selection, free_xen_selection, xen_selection_free)
+#else
+static s7_pointer s7_xen_selection_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_selection *v;
+  v = (xen_selection *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 
 static char *xen_selection_to_string(xen_selection *v)
@@ -1052,7 +1061,7 @@ static void init_xen_selection(void)
 {
 #if HAVE_SCHEME
   xen_selection_tag = s7_make_c_type(s7, "<selection>");
-  s7_c_type_set_free(s7, xen_selection_tag, free_xen_selection);
+  s7_c_type_set_gc_free(s7, xen_selection_tag, s7_xen_selection_free);
   s7_c_type_set_is_equal(s7, xen_selection_tag, s7_xen_selection_is_equal);
   s7_c_type_set_length(s7, xen_selection_tag, s7_xen_selection_length);
   s7_c_type_set_copy(s7, xen_selection_tag, s7_xen_selection_copy);

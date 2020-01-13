@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.13"
-#define S7_DATE "2020-1-13"
+#define S7_DATE "2020-1-14"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -577,10 +577,10 @@ s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */
 s7_pointer s7_type_of(s7_scheme *sc, s7_pointer arg);          /* (type-of arg) */
 
 
-s7_int s7_print_length(s7_scheme *sc);                                                /* value of (*s7* 'print-length) */
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);                            /* sets (*s7* 'print-length), returns old value */
-s7_int s7_float_format_precision(s7_scheme *sc);                                      /* value of (*s7* 'float-format-precision) */
-s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len);                  /* sets (*s7* 'float-format-precision), returns old value */
+s7_int s7_print_length(s7_scheme *sc);                         /* value of (*s7* 'print-length) */
+s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);     /* sets (*s7* 'print-length), returns old value */
+s7_int s7_float_format_precision(s7_scheme *sc);               /* value of (*s7* 'float-format-precision) */
+s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* sets (*s7* 'float-format-precision), returns old value */
 
 
 
@@ -599,7 +599,7 @@ s7_pointer s7_c_object_let(s7_pointer obj);
 s7_pointer s7_c_object_set_let(s7_scheme *sc, s7_pointer obj, s7_pointer e);
 /* the "let" in s7_make_c_object_with_let and s7_c_object_set_let needs to be GC protected by marking it in the c_object's mark function */
 
-s7_int s7_make_c_type(s7_scheme *sc, const char *name);
+s7_int s7_make_c_type(s7_scheme *sc, const char *name);     /* create a new c_object type */
 
 /* old style free/mark/equal */
 void s7_c_type_set_free         (s7_scheme *sc, s7_int tag, void (*gc_free)(void *value));
@@ -626,7 +626,9 @@ void s7_c_type_set_setter       (s7_scheme *sc, s7_int tag, s7_pointer setter);
 
   /* These functions create a new Scheme object type.  There is a simple example in s7.html.
    *
-   * s7_make_c_type creates a new C-based type for Scheme:
+   * s7_make_c_type creates a new C-based type for Scheme.  It returns an s7_int "tag" used to indentify this type elsewhere.
+   *   The functions associated with this type are set via s7_c_type_set*:
+   *
    *   free:          the function called when an object of this type is about to be garbage collected
    *   mark:          called during the GC mark pass -- you should call s7_mark
    *                  on any embedded s7_pointer associated with the object (including its "let") to protect if from the GC.
@@ -860,6 +862,14 @@ typedef s7_double s7_Double;
 #define s7_mark_object        s7_mark
 #define s7_UNSPECIFIED(Sc)    s7_unspecified(Sc)
 #define s7_NIL(Sc)            s7_nil(Sc)
+s7_int s7_new_type_1(s7_scheme *sc,
+		     const char *name,
+		     char *(*print)(s7_scheme *sc, void *value),
+		     void (*gc_free)(void *value),
+		     bool (*equal)(void *val1, void *val2),
+		     void (*mark)(void *val),
+		     s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), 
+		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
 #endif
 

@@ -544,5 +544,5 @@ symbol: 'e4 for example.  If 'pythagorean', the frequency calculation uses small
 (define snd-warning display)
 (define snd-display (lambda args (apply format (append (list #t) (cdr args)))))
 (define (snd-error str) (error 'mus-error str))
-(define snd-tempnam tmpnam)
+(define snd-tempnam sndlib-tmpnam)
 

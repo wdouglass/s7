@@ -1403,10 +1403,19 @@ bool xen_is_region(Xen obj)
   return(Xen_c_object_is_type(obj, xen_region_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_region_free(xen_region *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_region, free_xen_region, xen_region_free)
+#else
+static s7_pointer s7_xen_region_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_region *v;
+  v = (xen_region *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 
 static char *xen_region_to_string(xen_region *v)
@@ -1507,7 +1516,7 @@ static void init_xen_region(void)
 {
 #if HAVE_SCHEME
   xen_region_tag = s7_make_c_type(s7, "<region>");
-  s7_c_type_set_free(s7, xen_region_tag, free_xen_region);
+  s7_c_type_set_gc_free(s7, xen_region_tag, s7_xen_region_free);
   s7_c_type_set_is_equal(s7, xen_region_tag, s7_xen_region_is_equal);
   s7_c_type_set_length(s7, xen_region_tag, s7_xen_region_length);
   s7_c_type_set_to_string(s7, xen_region_tag, g_xen_region_to_string);

@@ -17,6 +17,8 @@
 
 /* HISTORY: 
  *
+ *   12-Jan-08: use s7_set_c_type_gc_free
+ *   --------
  *   27-Jul-17: updated Init_libxm to pass s7 pointer in scheme.
  *   --------
  *   27-Dec-16: changed XmNuserData type (in XtGetValues) to long long int.
@@ -368,9 +370,10 @@ static void xm_obj_free(Xen obj)
 #endif
 
 #if HAVE_SCHEME
-static void xm_obj_free(void *val)
+static s7_pointer xm_obj_free(s7_scheme *sc, s7_pointer obj)
 {
-  free(val);
+  free(s7_c_object_value(obj));
+  return(NULL);
 }
 
 static s7_pointer s7_xm_is_equal(s7_scheme *sc, s7_pointer args)
@@ -388,7 +391,7 @@ static void define_xm_obj(void)
 {
 #if HAVE_SCHEME
   xm_obj_tag = s7_make_c_type(s7, "<XmObj>");
-  s7_c_type_set_free(s7, xm_obj_tag, xm_obj_free);
+  s7_c_type_set_gc_free(s7, xm_obj_tag, xm_obj_free);
   s7_c_type_set_is_equal(s7, xm_obj_tag, s7_xm_is_equal);
 #else
   xm_obj_tag = Xen_make_object_type("XmObj", sizeof(void *));

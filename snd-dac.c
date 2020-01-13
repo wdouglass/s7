@@ -2675,10 +2675,19 @@ bool xen_is_player(Xen obj)
 }
 
 
+#if (!HAVE_SCHEME)
 static void xen_player_free(xen_player *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_player, free_xen_player, xen_player_free)
-
+#else
+static s7_pointer s7_xen_player_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_player *v;
+  v = (xen_player *)s7_c_object_value(obj);
+  if (v) free(v);  /* can it be NULL? */
+  return(NULL);
+}
+#endif
 
 static char *xen_player_to_string(xen_player *v)
 {
@@ -2784,7 +2793,7 @@ static void init_xen_player(void)
 {
 #if HAVE_SCHEME
   xen_player_tag = s7_make_c_type(s7, "<player>");
-  s7_c_type_set_free(s7, xen_player_tag, free_xen_player);
+  s7_c_type_set_gc_free(s7, xen_player_tag, s7_xen_player_free);
   s7_c_type_set_is_equal(s7, xen_player_tag, s7_xen_player_is_equal);
   s7_c_type_set_length(s7, xen_player_tag, s7_xen_player_length);
   s7_c_type_set_to_string(s7, xen_player_tag, g_xen_player_to_string);

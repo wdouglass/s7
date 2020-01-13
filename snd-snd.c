@@ -2133,10 +2133,19 @@ bool xen_is_sound(Xen obj)
   return(Xen_c_object_is_type(obj, xen_sound_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_sound_free(xen_sound *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_sound, free_xen_sound, xen_sound_free)
+#else
+static s7_pointer s7_xen_sound_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_sound *v;
+  v = (xen_sound *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 
 static char *xen_sound_to_string(xen_sound *v)
@@ -2319,7 +2328,7 @@ static void init_xen_sound(void)
 {
 #if HAVE_SCHEME
   xen_sound_tag = s7_make_c_type(s7, "<sound>");
-  s7_c_type_set_free(s7, xen_sound_tag, free_xen_sound);
+  s7_c_type_set_gc_free(s7, xen_sound_tag, s7_xen_sound_free);
   s7_c_type_set_is_equal(s7, xen_sound_tag, s7_xen_sound_is_equal);
   s7_c_type_set_length(s7, xen_sound_tag, s7_xen_sound_length);
   s7_c_type_set_copy(s7, xen_sound_tag, s7_xen_sound_copy);

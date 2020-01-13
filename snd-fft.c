@@ -2123,11 +2123,19 @@ bool xen_is_transform(Xen obj)
   return(Xen_c_object_is_type(obj, xen_transform_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_transform_free(xen_transform *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_transform, free_xen_transform, xen_transform_free)
-
+#else
+static s7_pointer s7_xen_transform_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_transform *v;
+  v = (xen_transform *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 static char *xen_transform_to_string(xen_transform *v)
 {
@@ -2229,7 +2237,7 @@ static void init_xen_transform(void)
 {
 #if HAVE_SCHEME
   xen_transform_tag = s7_make_c_type(s7, "<transform>");
-  s7_c_type_set_free(s7, xen_transform_tag, free_xen_transform);
+  s7_c_type_set_gc_free(s7, xen_transform_tag, s7_xen_transform_free);
   s7_c_type_set_is_equal(s7, xen_transform_tag, s7_xen_transform_is_equal);
   s7_c_type_set_length(s7, xen_transform_tag, s7_xen_transform_length);
   s7_c_type_set_to_string(s7, xen_transform_tag, g_xen_transform_to_string);

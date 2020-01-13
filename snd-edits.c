@@ -6901,10 +6901,16 @@ static void sf_free(snd_fd *fd)
     }
 }
 
-
+#if (!HAVE_SCHEME)
 Xen_wrap_free(snd_fd, free_sf, sf_free)
 /* sf_free is original, free_sf is wrapped form */
-
+#else
+static s7_pointer s7_sf_free(s7_scheme *sc, s7_pointer obj)
+{
+  sf_free((snd_fd *)s7_c_object_value(obj));
+  return(NULL);
+}
+#endif
 
 static Xen g_sampler_at_end(Xen obj) 
 {
@@ -9148,7 +9154,7 @@ void g_init_edits(void)
   pl_fx = s7_make_signature(s7, 2, f, smp);
 
   sf_tag = s7_make_c_type(s7, "<sampler>");
-  s7_c_type_set_free(s7, sf_tag, free_sf);
+  s7_c_type_set_gc_free(s7, sf_tag, s7_sf_free);
   s7_c_type_set_is_equal(s7, sf_tag, s7_sf_is_equal);
   s7_c_type_set_ref(s7, sf_tag, s7_read_sample);
   s7_c_type_set_length(s7, sf_tag, length_sf);

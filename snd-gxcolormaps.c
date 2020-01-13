@@ -903,11 +903,19 @@ static bool xen_is_colormap(Xen obj)
   return(Xen_c_object_is_type(obj, xen_colormap_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_colormap_free(xen_colormap *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_colormap, free_xen_colormap, xen_colormap_free)
-
+#else
+static s7_pointer s7_xen_colormap_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_colormap *v;
+  v = (xen_colormap *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 static char *xen_colormap_to_string(xen_colormap *v)
 {
@@ -979,7 +987,7 @@ static Xen new_xen_colormap(int n)
     return(Xen_false);
 
   mx = xen_colormap_make(n);
-  return(Xen_make_object(xen_colormap_tag, mx, 0, free_xen_colormap));
+  return(Xen_make_object(xen_colormap_tag, mx, 0, free_xen_colormap)); /* last 2 args ignored in s7 */
 }
 
 #define C_int_to_Xen_colormap(Val) new_xen_colormap(Val)
@@ -1020,7 +1028,7 @@ static void init_xen_colormap(void)
 {
 #if HAVE_SCHEME
   xen_colormap_tag = s7_make_c_type(s7, "<colormap>");
-  s7_c_type_set_free(s7, xen_colormap_tag, free_xen_colormap);
+  s7_c_type_set_gc_free(s7, xen_colormap_tag, s7_xen_colormap_free);
   s7_c_type_set_is_equal(s7, xen_colormap_tag, s7_xen_colormap_is_equal);
   s7_c_type_set_length(s7, xen_colormap_tag, s7_xen_colormap_length);
   s7_c_type_set_ref(s7, xen_colormap_tag, s7_colormap_apply);

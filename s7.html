@@ -7277,15 +7277,18 @@ static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
   return(result);
 }
 
-static void free_dax(void *val)
+static s7_pointer free_dax(s7_scheme *sc, s7_pointer obj)
 {
-  if (val) free(val);
+  free(s7_c_object_value(obj));
+  return(NULL);
 }
 
-static void mark_dax(void *val)
+static s7_pointer mark_dax(s7_scheme *sc, s7_pointer obj)
 {
-  dax *o = (dax *)val;
-  if (o) s7_mark(o-&gt;data);
+  dax *o;
+  o = (dax *)s7_c_object_value(obj);
+  s7_mark(o->data);
+  return(NULL);
 }
 
 static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
@@ -7336,7 +7339,7 @@ static s7_pointer set_dax_data(s7_scheme *sc, s7_pointer args)
   return(o-&gt;data);
 }
 
-static s7_pointer equal_dax(s7_scheme *sc, s7_pointer args) 
+static s7_pointer dax_is_equal(s7_scheme *sc, s7_pointer args) 
 {
   s7_pointer p1, p2;
   dax *d1, *d2;
@@ -7365,9 +7368,9 @@ int main(int argc, char **argv)
   s7_define_variable(s7, "*listener-prompt*", s7_make_string(s7, "&gt;"));
 
   dax_type_tag = <em class=red>s7_make_c_type</em>(s7, "dax");
-  s7_c_type_set_free(s7, dax_type_tag, free_dax);
-  s7_c_type_set_is_equal(s7, dax_type_tag, equal_dax);
-  s7_c_type_set_mark(s7, dax_type_tag, mark_dax);
+  s7_c_type_set_gc_free(s7, dax_type_tag, free_dax);
+  s7_c_type_set_gc_mark(s7, dax_type_tag, mark_dax);
+  s7_c_type_set_is_equal(s7, dax_type_tag, dax_is_equal);
   s7_c_type_set_to_string(s7, dax_type_tag, dax_to_string);
   
   s7_define_function(s7, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");

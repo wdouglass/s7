@@ -984,6 +984,17 @@ static Xen g_mus_max_table_size(void)
 
 #if HAVE_SCHEME
   static s7_pointer mus_max_table_size_symbol;
+
+static Xen g_sndlib_tempnam(void)  /* for sndlib-ws.scm outside Snd */
+{
+  #define H_sndlib_tempnam "(sndlib-tempnam): return a new temp file name using " S_temp_dir "."
+  char *tmp;
+  Xen res;
+  tmp = snd_tempnam();
+  res = C_string_to_Xen_string(tmp);
+  free(tmp);
+  return(res);
+}
 #endif
 
 static Xen g_mus_set_max_table_size(Xen val)
@@ -1080,6 +1091,7 @@ Xen_wrap_no_args(g_mus_sound_path_w, g_mus_sound_path)
 Xen_wrap_1_arg(g_mus_set_sound_path_w, g_mus_set_sound_path)
 
 #if HAVE_SCHEME
+  Xen_wrap_no_args(g_sndlib_tempnam_w, g_sndlib_tempnam)
   static s7_pointer acc_mus_max_table_size(s7_scheme *sc, s7_pointer args) {return(g_mus_set_max_table_size(s7_cadr(args)));}  
   static s7_pointer acc_mus_max_malloc(s7_scheme *sc, s7_pointer args) {return(g_mus_set_max_malloc(s7_cadr(args)));}  
   static s7_pointer acc_mus_sound_path(s7_scheme *sc, s7_pointer args) {return(g_mus_set_sound_path(s7_cadr(args)));}  
@@ -1089,7 +1101,7 @@ Xen_wrap_1_arg(g_mus_set_sound_path_w, g_mus_set_sound_path)
 void mus_sndlib_xen_initialize(void)
 {
 #if HAVE_SCHEME
-  s7_pointer pl_is, pl_isi, pl_si, pl_ss, pl_ps, pl_psp, pl_i, pl_bii, pl_p, pl_rs, pl_bi, pl_bib, pl_b, pl_ls;
+  s7_pointer pl_is, pl_isi, pl_si, pl_s, pl_ss, pl_ps, pl_psp, pl_i, pl_bii, pl_p, pl_rs, pl_bi, pl_bib, pl_b, pl_ls;
   s7_pointer pl_l, pl_isfiii, pl_fsiiif, pl_bs, pl_ts, pl_sh, pl_bhi;
 #endif
 
@@ -1160,6 +1172,7 @@ void mus_sndlib_xen_initialize(void)
     f = s7_make_symbol(s7, "float-vector?");
     h = s7_make_symbol(s7, "mus_header_t?");
     t = s7_t(s7);
+    pl_s = s7_make_signature(s7, 1, s);
     pl_is = s7_make_signature(s7, 2, i, s);
     pl_isi = s7_make_signature(s7, 3, i, s, i);
     pl_si = s7_make_signature(s7, 2, s, i);
@@ -1224,6 +1237,7 @@ void mus_sndlib_xen_initialize(void)
   Xen_define_typed_procedure(S_array_to_file,            g_array_to_file_w,              5, 0, 0, H_array_to_file,             pl_isfiii);
   Xen_define_typed_procedure(S_file_to_array,            g_file_to_array_w,              5, 0, 0, H_file_to_array,             pl_fsiiif);
 
+  Xen_define_typed_procedure("sndlib-tempnam",           g_sndlib_tempnam_w,             0, 0, 0, H_sndlib_tempnam,            pl_s);
   Xen_define_typed_procedure(S_mus_sound_preload,        g_mus_sound_preload_w,          1, 0, 0, H_mus_sound_preload,         pl_ss);
 
   Xen_define_typed_dilambda(S_mus_header_raw_defaults, g_mus_header_raw_defaults_w, H_mus_header_raw_defaults,

@@ -1283,18 +1283,21 @@ static Xen g_is_mus_generator(Xen obj)
 
 
 #if HAVE_SCHEME
-static Xen_object_mark_t mark_mus_xen(void *obj) 
+static s7_pointer s7_mus_xen_mark(s7_scheme *sc, s7_pointer obj)
 #else
 static Xen_object_mark_t mark_mus_xen(Xen obj) 
 #endif
 {
   mus_xen *ms;
-#if HAVE_RUBY || HAVE_SCHEME
-  /* rb_gc_mark and scheme_mark_object pass us the actual value, not the Xen wrapper */
+#if HAVE_RUBY
+  /* rb_gc_mark passes us the actual value, not the Xen wrapper */
   ms = (mus_xen *)obj;
 #endif
 #if HAVE_FORTH
   ms = Xen_to_mus_xen(obj);
+#endif
+#if HAVE_SCHEME
+  ms = (mus_xen *)s7_c_object_value(obj);
 #endif
   if (ms->vcts) 
     {
@@ -1305,7 +1308,7 @@ static Xen_object_mark_t mark_mus_xen(Xen obj)
 	if (Xen_is_bound(ms->vcts[i]))
 	  xen_gc_mark(ms->vcts[i]);
     }
-#if HAVE_RUBY
+#if HAVE_RUBY || HAVE_SCHEME
   return(NULL);
 #endif
 #if (!HAVE_EXTENSION_LANGUAGE)
@@ -1314,6 +1317,7 @@ static Xen_object_mark_t mark_mus_xen(Xen obj)
 }
 
 
+#if (!HAVE_SCHEME)
 static void mus_xen_free(mus_xen *ms)
 {
   mus_free(ms->gen);
@@ -1323,8 +1327,18 @@ static void mus_xen_free(mus_xen *ms)
 
 Xen_wrap_free(mus_xen, free_mus_xen, mus_xen_free)
 
+#else
 
-#if HAVE_SCHEME
+static s7_pointer s7_mus_xen_free(s7_scheme *sc, s7_pointer obj)
+{
+  mus_xen *ms;
+  ms = (mus_xen *)s7_c_object_value(obj);
+  mus_free(ms->gen);
+  ms->gen = NULL;
+  mx_free(ms);  
+  return(NULL);
+}
+
 static s7_pointer mus_generator_to_string(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer g;
@@ -12883,9 +12897,9 @@ static void mus_xen_init(void)
 
 #if HAVE_SCHEME
   mus_xen_tag = s7_make_c_type(s7, "<generator>");
-  s7_c_type_set_free(s7, mus_xen_tag, free_mus_xen);
+  s7_c_type_set_gc_free(s7, mus_xen_tag, s7_mus_xen_free);
   s7_c_type_set_is_equal(s7, mus_xen_tag, s7_mus_xen_is_equal);
-  s7_c_type_set_mark(s7, mus_xen_tag, mark_mus_xen);
+  s7_c_type_set_gc_mark(s7, mus_xen_tag, s7_mus_xen_mark);
   s7_c_type_set_ref(s7, mus_xen_tag, mus_xen_apply);
   s7_c_type_set_length(s7, mus_xen_tag, s7_mus_length);
   s7_c_type_set_copy(s7, mus_xen_tag, s7_mus_copy);

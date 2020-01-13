@@ -1999,11 +1999,19 @@ bool xen_is_mark(Xen obj)
   return(Xen_c_object_is_type(obj, xen_mark_tag));
 }
 
-
+#if (!HAVE_SCHEME)
 static void xen_mark_free(xen_mark *v) {if (v) free(v);}
 
 Xen_wrap_free(xen_mark, free_xen_mark, xen_mark_free)
-
+#else
+static s7_pointer s7_xen_mark_free(s7_scheme *sc, s7_pointer obj)
+{
+  xen_mark *v;
+  v = (xen_mark *)s7_c_object_value(obj);
+  if (v) free(v);
+  return(NULL);
+}
+#endif
 
 static char *xen_mark_to_string(xen_mark *v)
 {
@@ -2082,7 +2090,7 @@ Xen new_xen_mark(int n)
 #if HAVE_SCHEME
   {
     s7_pointer m;
-    m = Xen_make_object(xen_mark_tag, mx, 0, free_xen_mark);
+    m = Xen_make_object(xen_mark_tag, mx, 0, free_xen_mark); /* last 2 args ignored */
     s7_c_object_set_let(s7, m, g_mark_methods);
     return(m);
   }
@@ -2133,7 +2141,7 @@ static void init_xen_mark(void)
   g_mark_methods = s7_openlet(s7, s7_inlet(s7, s7_list(s7, 2, s7_make_symbol(s7, "object->let"), mark_to_let_func)));
   s7_gc_protect(s7, g_mark_methods);
   xen_mark_tag = s7_make_c_type(s7, "<mark>");
-  s7_c_type_set_free(s7, xen_mark_tag, free_xen_mark);
+  s7_c_type_set_gc_free(s7, xen_mark_tag, s7_xen_mark_free);
   s7_c_type_set_is_equal(s7, xen_mark_tag, s7_xen_mark_is_equal);
   s7_c_type_set_copy(s7, xen_mark_tag, s7_xen_mark_copy);
   s7_c_type_set_to_string(s7, xen_mark_tag, g_xen_mark_to_string);
