@@ -19965,7 +19965,7 @@ static inline bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer lt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, lt_b_7pp(sc, p1, p2)));}
+static inline s7_pointer lt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, lt_b_7pp(sc, p1, p2)));}
 static s7_pointer g_less_2(s7_scheme *sc, s7_pointer args) {return(lt_p_pp(sc, car(args), cadr(args)));}
 
 static bool ratio_leq_pi(s7_pointer x, s7_int y)
@@ -20058,7 +20058,7 @@ static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer leq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, leq_b_7pp(sc, p1, p2)));}
+static inline s7_pointer leq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, leq_b_7pp(sc, p1, p2)));}
 static s7_pointer g_leq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, leq_b_7pp(sc, car(args), cadr(args))));}
 
 static s7_pointer g_greater_xi(s7_scheme *sc, s7_pointer args)
@@ -20186,7 +20186,7 @@ static inline bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer gt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, gt_b_7pp(sc, p1, p2)));}
+static inline s7_pointer gt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, gt_b_7pp(sc, p1, p2)));}
 
 static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args)
 {
@@ -20308,7 +20308,7 @@ static inline bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
   return(true);
 }
 
-static s7_pointer geq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, geq_b_7pp(sc, p1, p2)));}
+static inline s7_pointer geq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, geq_b_7pp(sc, p1, p2)));}
 static s7_pointer g_geq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, geq_b_7pp(sc, car(args), cadr(args))));}
 
 static s7_pointer g_geq_xf(s7_scheme *sc, s7_pointer args)
@@ -35996,6 +35996,14 @@ static s7_pointer memq_2_p_pp(s7_scheme *sc, s7_pointer obj, s7_pointer x)
   return(sc->F);
 }
 
+static s7_pointer memq_3_p_pp(s7_scheme *sc, s7_pointer obj, s7_pointer x)
+{
+  if (obj == car(x)) return(x);
+  if (obj == cadr(x)) return(cdr(x));
+  if (obj == caddr(x)) return(cddr(x));
+  return(sc->F);
+}
+
 static s7_pointer g_memq_3(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer x, obj;
@@ -49649,10 +49657,18 @@ static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args)
    *    (apply '+ (list 1 2))) -> ;attempt to apply + to (1 2)?
    */
 #if 0
+  g_format(sc, s7_list(sc, 6, sc->T, 
+		       wrap_string(sc, "\n--------\nattempt to apply ~A ~S to ~S in ~S?\n", 46),
+		       type_name_string(sc, obj), 
+		       obj, args, current_code(sc)));
+
   fprintf(stderr, "code: %s, cur_code: %s\n", display(sc->code), display(sc->cur_code));
   fprintf(stderr, "stack code: %s, args: %s\n", display(stack_code(sc->stack, s7_stack_top(sc) - 1)), display(stack_args(sc->stack, s7_stack_top(sc) - 1)));
   /* for op_do, args has useful info on original code
+   *   stack code has useful context, better? prev in history
    */
+  fprintf(stderr, "obj: %s, args: %s, sc->code: %s, current_code: %s, type: %s\n",
+	  display(obj), display(args), display(sc->code), display(current_code(sc)), s7_type_names[type(obj)]);
 #endif
   if (is_null(obj))
     return(s7_error(sc, sc->syntax_error_symbol,
@@ -51638,6 +51654,12 @@ static s7_pointer fx_c_sc_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));
 }
 
+static s7_pointer fx_c_sc_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+static s7_pointer fx_c_sc_memq_2(s7_scheme *sc, s7_pointer arg) {return(memq_2_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+static s7_pointer fx_c_sc_memq_3(s7_scheme *sc, s7_pointer arg) {return(memq_3_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+static s7_pointer fx_c_sc_lt(s7_scheme *sc, s7_pointer arg) {return(lt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+static s7_pointer fx_c_sc_gt(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+
 static s7_pointer fx_c_tc_direct(s7_scheme *sc, s7_pointer arg)
 {
   check_let_slots(sc, __func__, arg, cadr(arg));
@@ -51710,6 +51732,9 @@ static s7_pointer fx_c_ss_direct(s7_scheme *sc, s7_pointer arg)
 {
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
 }
+
+static s7_pointer fx_c_ss_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_c_ss_assq(s7_scheme *sc, s7_pointer arg) {return(assq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_c_ts_direct(s7_scheme *sc, s7_pointer arg)
 {
@@ -51994,8 +52019,7 @@ static s7_pointer fx_gt_tT(s7_scheme *sc, s7_pointer arg)
   check_outer_let_slots(sc, __func__, arg, caddr(arg));
   p1 = slot_value(let_slots(sc->envir));
   p2 = slot_value(let_slots(outlet(sc->envir)));
-  if ((is_t_integer(p1)) && (is_t_integer(p2)))
-    return(make_boolean(sc, p1 > p2));
+  if ((is_t_integer(p1)) && (is_t_integer(p2))) return(make_boolean(sc, p1 > p2));
   return(gt_p_pp(sc, p1, p2));
 }
 
@@ -52011,11 +52035,16 @@ static s7_pointer fx_gt_ti(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   check_let_slots(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
-  if (is_t_integer(x))
-    return(make_boolean(sc, integer(x) > integer(opt2_con(cdr(arg)))));
-  set_car(sc->t2_1, x);
-  set_car(sc->t2_2, opt2_con(cdr(arg)));
-  return(g_greater_xi(sc, sc->t2_1));
+  if (is_t_integer(x)) return(make_boolean(sc, integer(x) > integer(opt2_con(cdr(arg)))));
+  return(g_greater_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
+}
+
+static s7_pointer fx_gt_si(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  x = lookup(sc, cadr(arg));
+  if (is_t_integer(x)) return(make_boolean(sc, integer(x) > integer(opt2_con(cdr(arg)))));
+  return(g_greater_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
 }
 
 static s7_pointer fx_leq_ss(s7_scheme *sc, s7_pointer arg)
@@ -52035,11 +52064,8 @@ static s7_pointer fx_leq_ti(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   check_let_slots(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
-  if (is_t_integer(x))
-    return(make_boolean(sc, integer(x) <= integer(opt2_con(cdr(arg)))));
-  set_car(sc->t2_1, x);
-  set_car(sc->t2_2, opt2_con(cdr(arg)));
-  return(g_leq_xi(sc, sc->t2_1));
+  if (is_t_integer(x)) return(make_boolean(sc, integer(x) <= integer(opt2_con(cdr(arg)))));
+  return(g_leq_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
 }
 
 static s7_pointer fx_lt_ss(s7_scheme *sc, s7_pointer arg)
@@ -52098,6 +52124,14 @@ static s7_pointer fx_lt_ti(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   check_let_slots(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
+  if (is_t_integer(x)) return(make_boolean(sc, integer(x) < integer(opt2_con(cdr(arg)))));
+  return(g_less_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
+}
+
+static s7_pointer fx_lt_si(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  x = lookup(sc, cadr(arg));
   if (is_t_integer(x)) return(make_boolean(sc, integer(x) < integer(opt2_con(cdr(arg)))));
   return(g_less_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
 }
@@ -54578,6 +54612,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 
 	  if (is_global_and_has_func(car(arg), s7_p_pp_function))
 	    {
+	      if (car(arg) == sc->assq_symbol) return(fx_c_ss_assq);
+	      if (car(arg) == sc->memq_symbol) return(fx_c_ss_memq);
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      return(fx_c_ss_direct);
 	    }
@@ -54835,6 +54871,14 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    if (is_global_and_has_func(car(arg), s7_p_pp_function))
 #endif
 	    {
+	      if (car(arg) == sc->memq_symbol) 
+		{
+		  if (c_callee(arg) == g_memq_2) return(fx_c_sc_memq_2);
+		  if (safe_list_length(caddr(arg)) == 3) return(fx_c_sc_memq_3);
+		  return(fx_c_sc_memq);
+		}
+	      if (car(arg) == sc->lt_symbol) return((is_t_integer(caddr(arg))) ? fx_lt_si : fx_c_sc_lt);
+	      if (car(arg) == sc->gt_symbol) return((is_t_integer(caddr(arg))) ? fx_gt_si : fx_c_sc_gt);
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      return(fx_c_sc_direct);
 	    }
@@ -55303,6 +55347,8 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_subtract_sf) return(with_c_call(tree, fx_subtract_tf));
 	  if ((c_callee(tree) == fx_multiply_ss) && (is_pair(cddr(p))) && (caddr(p) == var2)) return(with_c_call(tree, fx_multiply_tu));
 	  if (c_callee(tree) == fx_add_sf) return(with_c_call(tree, fx_add_tf));
+	  if (c_callee(tree) == fx_lt_si) return(with_c_call(tree, fx_lt_ti));
+	  if (c_callee(tree) == fx_gt_si) return(with_c_call(tree, fx_gt_ti));
 #endif
 	  if ((c_callee(tree) == fx_c_sc) || (c_callee(tree) == fx_c_sc_direct))
 	    {
@@ -72211,6 +72257,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	    return(OPT_OOPS);
 	}
 
+      /* TODO: move to check_if? */
       if ((is_proper_list_1(sc, cdr(expr))) &&
 	  (is_pair(car_expr)) &&
 	  (car(car_expr) == sc->if_symbol) &&
@@ -96885,10 +96932,7 @@ static void init_rootlet(s7_scheme *sc)
   set_setter(sc->set_current_error_port_symbol);
   s7_function_set_setter(sc, "current-error-port",  "set-current-error-port");
   /* despite the similar names, current-error-port is different from the other two, and a setter is needed
-   *    in scheme because error and warn send output to it by default.  It is not a "dynamic variable" unlike
-   *    the other two.  In the input/output cases, setting the port can only cause confusion.
-   *    current-error-port should simply be an s7 variable with a name like *error-port* and an setter to
-   *    ensure its new value, if any, is an output port.
+   *    in scheme because error and warn send output to it by default.  It is not a "dynamic variable".
    */
 
   s7_function_set_setter(sc, "car",              "set-car!");
@@ -97621,25 +97665,25 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779
  * index     971 |  889 |  881
  * s7test   1776 | 1711 | 1705
- * lt       2278 | 2072 | 2069
+ * lt       2278 | 2072 | 2067
  * tcopy    2434 | 2264 | 2263
  * tform    2472 | 2289 | 2272
  * tmisc    2852 | 2284 | 2277
- * tread    2449 | 2394 | 2380
- * tvect    6189 | 2430 | 2451
+ * tread    2449 | 2394 | 2379
+ * tvect    6189 | 2430 | 2450
  * tmat     6072 | 2478 | 2468
- * dup      6333 | 2669 | 2469
- * fbench   2974 | 2643 | 2643
+ * dup      6333 | 2669 | 2465
+ * fbench   2974 | 2643 | 2631
  * trclo    7985 | 2791 | 2716
  * tb       3251 | 2799 | 2780
- * tmap     3238 | 2883 | 2881  2874
+ * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
- * tsort    4156 | 3043 | 3045  3030
+ * tsort    4156 | 3043 | 3031
  * tset     6616 | 3083 | 3089
  * tmac     3391 | 3186 | 3179
  * teq      4081 | 3804 | 3791
  * tfft     4288 | 3816 | 3809
- * tlet     5409 | 4613 | 4571
+ * tlet     5409 | 4613 | 4574
  * tclo     6206 | 4896 | 4865
  * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6799
@@ -97663,15 +97707,15 @@ int main(int argc, char **argv)
  * int hash incr -- set immutable if read etc: perhaps use s7_int in hash_entry? iterator[cons case is safe]/hash-ref/set/display/incr/equal -- lots of complication
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  * split out equal (ci) check at top: t_structure_p (make teq more comprehensive)
- * fx_c_ss_direct: memq/assq [splits out to ts|gt|st_direct], sc: lt/gt/quotient/memq, fx_if_s_cc (s=2outT)
  * named-let t725 not in list at inner call (2x) -- 69846 has example
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
- * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation, move opt_l tree to check_l/check_(named)let
+ * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation [maybe move opt_l tree to check_l/check_(named)let]
  * op_if(cond)_a_a_opz_la -- if_a_a_cpp, p's are closure_a[_o] so of the form void|bool op_*(sc)
  *   l1->l2->l1 could explicitly call the associated op_recur cases
  * (begin fxable...) -> op+fx, why not fx (let ((z (+ x 1))) z)? let_a_a|fx* etc
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
- * in Snd block malloc in clm2xen? mallocate? -- why free currently: strings
+ *   why special code in syn_opt? call check*
  * (*s7* 'debug) perhaps and make sure line info is saved -- how to save more history without affecting performance?
+ *   need the enclosing code, perhaps curlet contents?
  */

@@ -152,6 +152,8 @@ no run-time init files, and no configuration scripts.
 It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
 A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
+Woody Douglass has a github site: <a href=https://github.com/wdouglass/s7>s7</a>.  I use svn at sourceforge (the Snd project):
+<a href=https://sourceforge.net/p/snd/svn1/>Snd</a>.
 </p>
 
 <p>
@@ -4382,6 +4384,10 @@ the dumb "lambda".  Here are more useful examples:
 	  :newline (lambda (p)           (logit (p 'name) (string #\newline)))
 	  :close-output-port (lambda (p) #f)
 	  :flush-output-port (lambda (p) #f))))
+
+(let ((p (open-output-log "logit.data")))
+  (format p "this is a test~%")
+  (format p "line: ~A~%" 2))
 </pre>
 </div>
 
