@@ -965,7 +965,7 @@
 	               (gsl_filter_rmedian_workspace* gsl_filter_rmedian_alloc (size_t))
 	               (void gsl_filter_rmedian_free (gsl_filter_rmedian_workspace*))
 	               (int gsl_filter_rmedian ((gsl_filter_end_t int) gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
-	               (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+;	               (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
 	               (gsl_filter_impulse_workspace* gsl_filter_impulse_alloc (size_t))
 	               (void gsl_filter_impulse_free (gsl_filter_impulse_workspace*))
 	               (int gsl_filter_impulse ((gsl_filter_end_t int) (gsl_filter_scale_t int) double gsl_vector* gsl_vector* gsl_vector* gsl_vector* size_t*

@@ -53,21 +53,24 @@
 
   (define (with-mock-wrapper* func)
     (lambda args
-      (let* ((unknown-openlets #f)
-	     (new-args (map (lambda (arg)
-			      (if (mock? arg)
-				  (arg 'value)
-				  (begin
-				    (if (and (openlet? arg)
-					     (not (procedure? arg))
-					     (not (macro? arg))
-					     (not (c-pointer? arg)))
-					(set! unknown-openlets #t))
-				    arg)))
-			    args)))
+      (let ((unknown-openlets #f)
+	    (new-args ()))
+	(for-each (lambda (arg) ; not map here because (values) should not be ignored: (+ (mock-number 4/3) (values))
+		    (set! new-args
+			  (cons (if (mock? arg)
+				    (arg 'value)
+				    (begin
+				      (if (and (openlet? arg)
+					       (not (procedure? arg))
+					       (not (macro? arg))
+					       (not (c-pointer? arg)))
+					  (set! unknown-openlets #t))
+				      arg))
+				new-args)))
+		  args)
 	(if unknown-openlets
-	    (apply func new-args)
-	    (dynamic-wind coverlets (lambda () (apply func new-args)) openlets)))))
+	    (apply func (reverse new-args))
+	    (dynamic-wind coverlets (lambda () (apply func (reverse new-args))) openlets)))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the

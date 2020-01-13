@@ -1003,7 +1003,7 @@ static bool find_open_paren(glistener *g, int parens, int pos, int *highlight_po
 		  return(false);                /* no matching double-quote so we're probably in a string */
 		}
 	      gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
-	      last_c = '\"';
+	      c = '\"';
 	    }
 	  else
 	    {
@@ -1027,7 +1027,7 @@ static bool find_open_paren(glistener *g, int parens, int pos, int *highlight_po
 			{
 			  ppos = find_open_block_comment(g, gtk_text_iter_get_offset(&scan), limit);
 			  gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
-			  last_c = '#';
+			  c = '#';
 			}
 		      else
 			{
@@ -1064,7 +1064,7 @@ static bool find_close_paren(glistener *g, int parens, int pos, int *highlight_p
 {
   GtkTextIter scan;
   int ppos;
-  gunichar c = 0, prev_c = 0;
+  gunichar c = 0, prev_c;
 
   gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, pos);  
   while (gtk_text_iter_compare(&scan, limit) < 0)
@@ -1080,7 +1080,7 @@ static bool find_close_paren(glistener *g, int parens, int pos, int *highlight_p
 		{
 		  gtk_text_buffer_get_iter_at_offset(g->buffer, &scan, ppos);
 		}
-	      prev_c = '\"';
+	      c = '\"';
 	    }
 	  else
 	    {
@@ -1491,17 +1491,17 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 
-  /* right-arrow end of line */
-  gtk_binding_entry_remove(set, GDK_KEY_Right, (GdkModifierType)0);
+  /* right-arrow forward char */
+  gtk_binding_entry_remove(set, GDK_KEY_Right, (GdkModifierType)0); 
   gtk_binding_entry_add_signal(set, GDK_KEY_Right, (GdkModifierType)0, "move_cursor", 3,
-			       G_TYPE_ENUM, GTK_MOVEMENT_DISPLAY_LINE_ENDS,
+			       G_TYPE_ENUM, GTK_MOVEMENT_VISUAL_POSITIONS,
 			       G_TYPE_INT, 1,
 			       G_TYPE_BOOLEAN, false);
 
-  /* left-arrow start of line */
-  gtk_binding_entry_remove(set, GDK_KEY_Left, (GdkModifierType)0);
+  /* left-arrow back char */
+  gtk_binding_entry_remove(set, GDK_KEY_Left, (GdkModifierType)0); 
   gtk_binding_entry_add_signal(set, GDK_KEY_Left, (GdkModifierType)0, "move_cursor", 3,
-			       G_TYPE_ENUM, GTK_MOVEMENT_DISPLAY_LINE_ENDS,
+			       G_TYPE_ENUM, GTK_MOVEMENT_VISUAL_POSITIONS,
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 

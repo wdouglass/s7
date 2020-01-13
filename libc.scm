@@ -218,6 +218,7 @@
 	   (int strcasecmp (char* char*))
 	   (int strncasecmp (char* char* size_t))
 	   
+#|
 	   (reader-cond 
 	    ((provided? 'linux)
 	     ;; -------- semaphore.h --------
@@ -228,6 +229,8 @@
 	     (int sem_unlink (char*))
 	     (int sem_wait (sem_t*))
 	     (int sem_post (sem_t*))))
+	   ;; not in clang??
+|#
 	   
 	   ;; -------- stdio.h --------
 	   (C-macro (int (_IOFBF _IOLBF _IONBF BUFSIZ EOF L_tmpnam TMP_MAX FILENAME_MAX L_ctermid L_cuserid FOPEN_MAX IOV_MAX)))

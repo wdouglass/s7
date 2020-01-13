@@ -3,6 +3,16 @@
 ;;; reimplementation of code formerly in stuff.scm
 
 (provide 'reactive.scm)
+;(set! (*s7* 'gc-stats) #t)
+
+(define (symbol->let symbol env)
+  ;(format *stderr* "symbol->let ~S~%" symbol)
+  ;; return let in which symbol lives (not necessarily curlet)
+  (if (defined? symbol env #t)
+      env	
+      (if (eq? env (rootlet))
+	  #<undefined>
+	  (symbol->let symbol (outlet env)))))
 
 (define (gather-symbols expr ce lst ignore)
   ;; collect settable variables in expr
@@ -10,13 +20,7 @@
 	 (if (or (memq expr lst)
 		 (memq expr ignore)
 		 (procedure? (symbol->value expr ce))
-		 (eq? (let symbol->let ((sym expr)
-					(ce ce))
-			(if (defined? sym ce #t)
-			    ce
-			    (and (not (eq? ce (rootlet)))
-				 (symbol->let sym (outlet ce)))))
-		      (rootlet)))
+		 (eq? (symbol->let expr ce) (rootlet)))
 	     lst
 	     (cons expr lst)))
 
@@ -51,21 +55,15 @@
 (define slot-expr-env c-pointer-weak2)
 (define (slot symbol expr env expr-env) (c-pointer 0 symbol expr env expr-env))
 
-(define (symbol->let symbol env)
-  ;; return let in which symbol lives (not necessarily curlet)
-  (if (not (let? env))
-      #<undefined>
-      (if (defined? symbol env)
-	  env
-	  (symbol->let symbol (outlet env)))))
-
 (define (setter-update cp)            ; cp: (slot var expr env expr-env)
   ;; when var set, all other vars dependent on it need to be set also, watching out for GC'd followers
-  (when (and (let? (slot-env cp))                  ; when slot-env is GC'd, the c-pointer field is set to #f (by the GC)
-	     (let? (slot-expr-env cp)))
-    (let-set! (slot-env cp) 
-	      (slot-symbol cp)
-	      (eval (slot-expr cp) (slot-expr-env cp)))))
+  (when (and (let? (slot-env cp))
+	     (let? (slot-expr-env cp)))     ; when slot-env is GC'd, the c-pointer field is set to #f (by the GC)
+    (let ((val (eval (slot-expr cp) (slot-expr-env cp))))
+      (when (let? (slot-env cp))      ; same as above, but eval may trigger gc
+	(let-set! (slot-env cp)
+		  (slot-symbol cp)
+		  val)))))
 
 
 (define (slot-equal? cp1 cp2)
@@ -87,34 +85,50 @@
 	(setters setters)
 	(cp (slot var expr env expr-env)))
     (lambda (sym val)
+      ;(format *stderr* "make-setter ~S ~S~%" sym val)
       (let-temporarily (((setter (slot-symbol cp) (slot-env cp)) #f))
+			 ;(setter (c-pointer-type cp) (c-pointer-weak1 cp)) #f))
 	(let-set! (slot-env cp) (slot-symbol cp) val) ; set new value without retriggering the setter
 	(for-each setter-update followers)            ; set any variables dependent on var
 	val))))
 
+(define (update-setters setters cp e)
+  ;; add the slot to the followers setter list of each variable in expr
+  (for-each (lambda (s)
+	      (unless (and (setter s e)
+			   (defined? 'followers (funclet (setter s e))))
+		(set! (setter s e) (make-setter s e)))
+	      (let ((setter-followers (let-ref (funclet (setter s e)) 'followers)))
+		(unless (member cp setter-followers slot-equal?)
+		  (let-set! (funclet (setter s e))
+			    'followers
+			    (cons cp setter-followers)))))
+	    setters))
 
-(define-bacro (reactive-set! place value)             ; or maybe macro* with trailing arg: (e (outlet (curlet)))??
+(define (clean-up-setter old-setter old-followers lt place e)
+  ;; if previous set expr, remove it from setters' followers lists
+  (when (and old-setter
+	     (defined? 'followers (funclet old-setter))
+	     (defined? 'setters (funclet old-setter)))
+    (set! old-followers ((funclet old-setter) 'followers))
+    (for-each (lambda (s)
+		(when (and (setter s e)
+			   (defined? 'followers (funclet (setter s e))))
+		  (let ((setter-followers (let-ref (funclet (setter s e)) 'followers)))
+		    (let-set! (funclet (setter s e))
+			      'followers 
+			      (setter-remove (slot place 0 lt e) setter-followers)))))
+	      (let-ref (funclet old-setter) 'setters)))
+  old-followers)
+
+(define-bacro (reactive-set! place value)
   (with-let (inlet 'place place                       ; with-let here gives us control over the names
 		   'value value 
 		   'e (outlet (curlet)))              ; the run-time (calling) environment
     `(let ((old-followers ())
 	   (old-setter (setter ',place))
 	   (lt (symbol->let ',place ,e)))
-
-       ;; if previous set expr, remove it from setters' followers lists
-       (when (and old-setter
-		  (defined? 'followers (funclet old-setter))
-		  (defined? 'setters (funclet old-setter)))
-	 (set! old-followers ((funclet old-setter) 'followers))
-	 (for-each (lambda (s)
-		     (when (and (setter s)
-				(defined? 'followers (funclet (setter s))))
-		       (let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
-			 (let-set! (funclet (setter s))
-				   'followers 
-				   (setter-remove (slot ',place 0 lt ,e) setter-followers)))))
-		   (let-ref (funclet old-setter) 'setters)))
-
+       (set! old-followers (clean-up-setter old-setter old-followers lt ',place ,e))
        ;; set up new setter
        (let ((setters (gather-symbols ',value ,e () ())))
 	 (when (pair? setters)
@@ -122,19 +136,9 @@
 	     (let ((cp (slot ',place expr lt ,e)))
 	       (set! (setter ',place lt)
 		     (make-setter ',place lt old-followers setters expr ,e))
-       
-	       ;; add the slot to the followers setter list of each variable in expr
-	       (for-each (lambda (s)
-			   (unless (and (setter s)
-					(defined? 'followers (funclet (setter s))))
-			     (set! (setter s) (make-setter s (symbol->let s ,e))))
-			   (let ((setter-followers (let-ref (funclet (setter s)) 'followers)))
-			     (unless (member cp setter-followers slot-equal?)
-			       (let-set! (funclet (setter s))
-					 'followers
-					 (cons cp setter-followers)))))
-			 setters)))))
+	       (update-setters setters cp ,e)))))
        (set! ,place ,value))))
+
 
 
 ;; --------------------------------------------------------------------------------

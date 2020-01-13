@@ -878,7 +878,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   ;; The exponent of the largest power of 2 which divides the given number.
   (- (integer-length (logand n (- n))) 1))
 
-(define (lognand . ints) 
+(define (lognand . ints)  ; viewed as (not (and ...))
   (lognot (apply logand ints)))
 
 (define (lognor . ints) 
@@ -1146,7 +1146,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 
 ;;; ----------------
-(define (clamp minimum x maximum)
+(define (clamp minimum x maximum) ; if min>max maybe an error? (clamp 3 2 1) -> 1
   (min maximum (max x minimum)))
 
 (define (1- x) (- x 1))
@@ -1422,9 +1422,29 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			 (cdr binding)))))
        ap-env))))
 
+#|
+(define* (apropos->list name (e (rootlet)))
+  (let ((ap-name (if (string? name) 
+		     name 
+		     (if (symbol? name) 
+			 (symbol->string name)
+			 (error 'wrong-type-arg "apropos->let argument 1 should be a string or a symbol")))))
+    (map (lambda (binding)
+	   (if (and (pair? binding)
+		    (string-position ap-name (symbol->string (car binding))))
+	       (if (procedure? (cdr binding))
+		   (cons (car binding) (documentation (cdr binding)))
+		   binding)
+	       (values)))
+	 (if (let? e) 
+	     e 
+	     (error 'wrong-type-arg "apropos argument 2 should be an environment")))))
+|#
+
+
 ;;; --------------------------------------------------------------------------------
 
-(define (*s7*->list) 
+(define (*s7*->list) ;(let->list *s7*) but not using keywords
   (list 
    :print-length                  (*s7* 'print-length)
    :safety                        (*s7* 'safety)
@@ -1436,12 +1456,16 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :gc-freed                      (*s7* 'gc-freed)
    :gc-protected-objects          (*s7* 'gc-protected-objects)
    :gc-stats                      (*s7* 'gc-stats)
+   :gc-temps-size                 (*s7* 'gc-temps-size)
+   :gc-resize-heap-fraction       (*s7* 'gc-resize-heap-fraction)
+   :gc-resize-heap-by-4-fraction  (*s7* 'gc-resize-heap-by-4-fraction)
    :max-string-length             (*s7* 'max-string-length)
    :max-list-length               (*s7* 'max-list-length)
    :max-vector-length             (*s7* 'max-vector-length)
    :max-vector-dimensions         (*s7* 'max-vector-dimensions)
    :default-hash-table-length     (*s7* 'default-hash-table-length)
    :initial-string-port-length    (*s7* 'initial-string-port-length)
+   :output-port-data-size         (*s7* 'output-port-data-size)
    :default-rationalize-error     (*s7* 'default-rationalize-error)
    :default-random-state          (*s7* 'default-random-state)
    :equivalent-float-epsilon      (*s7* 'equivalent-float-epsilon)
@@ -1462,7 +1486,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :catches                       (*s7* 'catches)
    :history-size                  (*s7* 'history-size)
    :history-enabled               (*s7* 'history-enabled)
-   :history                       (*s7* 'history)))
+   :history                       (*s7* 'history)
+   :most-positive-fixnum          (*s7* 'most-positive-fixnum)
+   :most-negative-fixnum          (*s7* 'most-negative-fixnum)))
 
 
 
@@ -1624,7 +1650,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		  (cond ((symbol? tree)
 			 (let ((val (symbol->value tree)))
 			   ;; don't accept any symbol with an accessor
-			   (if (or (setter tree)
+			   (if (or ;(setter val)
+				   (setter tree)
 				   (memq tree '(*s7* unquote abort))
 				   (let? val))  ; not sure about this
 			       (quit #f))

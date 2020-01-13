@@ -92,54 +92,55 @@
 		     (string=? (vector-ref histbuf i) line))
 		 (and (< i histsize) i))))
 	  
-	  (define history-size (dilambda
-				(lambda ()
-				  histsize)
-				(lambda (new-size)
-				  (unless (= new-size histsize)
-				    (if (<= new-size 0)
-					(error 'out-of-range "new history buffer size must be positive")
-					(let ((new-hist (make-vector new-size ""))
-					      (new-end (min (- new-size 1) histpos)))
-					  (let loop ((oldpos histpos)
-						     (newpos new-end))
-					    (set! (new-hist newpos) (histbuf oldpos))
-					    (set! newpos (- (if (zero? newpos) new-size newpos) 1))
-					    (unless (= newpos new-end)
-					      (set! oldpos (- (if (zero? oldpos) histsize oldpos) 1))
-					      (unless (= oldpos histpos)
-						(loop oldpos newpos))))
-					  (set! histsize new-size)
-					  (set! histpos new-end)
-					  (set! histbuf new-hist)
-					  new-size))))))
+	  (define history-size 
+	    (dilambda
+	     (lambda ()
+	       histsize)
+	     (lambda (new-size)
+	       (unless (= new-size histsize)
+		 (if (<= new-size 0)
+		     (error 'out-of-range "new history buffer size must be positive")
+		     (let ((new-hist (make-vector new-size ""))
+			   (new-end (min (- new-size 1) histpos)))
+		       (let loop ((oldpos histpos)
+				  (newpos new-end))
+			 (set! (new-hist newpos) (histbuf oldpos))
+			 (set! newpos (- (if (zero? newpos) new-size newpos) 1))
+			 (unless (= newpos new-end)
+			   (set! oldpos (- (if (zero? oldpos) histsize oldpos) 1))
+			   (unless (= oldpos histpos)
+			     (loop oldpos newpos))))
+		       (set! histsize new-size)
+		       (set! histpos new-end)
+		       (set! histbuf new-hist)
+		       new-size))))))
+	  
+	  (define (history back)
+	    (let ((i (+ histpos back)))
+	      (copy (histbuf (if (< i 0)
+				 (+ histsize i)
+				 (if (>= i histsize)
+				     (- i histsize)
+				     i))))))
 
-	  (define history (dilambda 
-			   (lambda (back)
-			     (let ((i (+ histpos back)))
-			       (copy (histbuf (if (< i 0)
-						  (+ histsize i)
-						  (if (>= i histsize)
-						      (- i histsize)
-						      i))))))
-			   (lambda (new-line)
-			     (let ((pos (history-member new-line)))
-			       (when (integer? pos)                   ; remove the earlier case, circularly compress the buffer
-				 (when (>= pos histpos)
-				   (do ((i pos (+ i 1)))
-				       ((>= i (- histsize 1)))
-				     (set! (histbuf i) (histbuf (+ i 1))))
-				   (set! (histbuf (- histsize 1)) (histbuf 0))
-				   (set! pos 0))
-				 (do ((i pos (+ i 1)))
-				     ((>= i (- histpos 1)))
-				   (set! (histbuf i) (histbuf (+ i 1))))
-				 (set! histpos (- histpos 1))))
-
-			     (set! (histbuf histpos) (copy new-line))
-			     (set! histpos (+ histpos 1))
-			     (if (= histpos histsize)
-				 (set! histpos 0)))))
+	  (define (set-history! new-line)
+	    (let ((pos (history-member new-line)))
+	      (when (integer? pos)                   ; remove the earlier case, circularly compress the buffer
+		(when (>= pos histpos)
+		  (do ((i pos (+ i 1)))
+		      ((>= i (- histsize 1)))
+		    (set! (histbuf i) (histbuf (+ i 1))))
+		  (set! (histbuf (- histsize 1)) (histbuf 0))
+		  (set! pos 0))
+		(do ((i pos (+ i 1)))
+		    ((>= i (- histpos 1)))
+		  (set! (histbuf i) (histbuf (+ i 1))))
+		(set! histpos (- histpos 1))))
+	    
+	    (set! (histbuf histpos) (copy new-line))
+	    (set! histpos (+ histpos 1))
+	    (if (= histpos histsize)
+		(set! histpos 0)))
 	  
 	  (define (history-help)
 	    (set! (*repl* 'helpers)
@@ -390,20 +391,20 @@
 		     (terminal-fd (fileno stdin)))
 		(format *stderr* "~C[6n" #\escape)
 		(do ((b (read terminal-fd cc 1) (read terminal-fd cc 1)))
-		    ((char=? (c 0) #\escape)))
+		    ((char=? (string-ref c 0) #\escape)))
 		(read terminal-fd cc 1) 
-		(and (char=? (c 0) #\[)
+		(and (char=? (string-ref c 0) #\[)
 		     (let ((y 0)
 			   (x 0))
 		       (do ((b (read terminal-fd cc 1) (read terminal-fd cc 1)))
-			   ((not (char-numeric? (c 0))))
-			 (set! y (- (+ (* 10 y) (char->integer (c 0))) (char->integer #\0))))
-		       (and (char=? (c 0) #\;)
+			   ((not (char-numeric? (string-ref c 0))))
+			 (set! y (- (+ (* 10 y) (char->integer (string-ref c 0))) (char->integer #\0))))
+		       (and (char=? (string-ref c 0) #\;)
 			    (do ((b (read terminal-fd cc 1) (read terminal-fd cc 1)))
-				((not (char-numeric? (c 0)))
-				 (and (char=? (c 0) #\R)
+				((not (char-numeric? (string-ref c 0)))
+				 (and (char=? (string-ref c 0) #\R)
 				      (cons x y)))
-			      (set! x (- (+ (* 10 x) (char->integer (c 0))) (char->integer #\0)))))))))
+			      (set! x (- (+ (* 10 x) (char->integer (string-ref c 0))) (char->integer #\0)))))))))
 	    
 	    (define (cursor-bounds)
 	      (let ((coords (cursor-coords)))
@@ -885,14 +886,14 @@
 			     
 			     ;; we want to add cur-line (copied) to the history buffer
 			     ;;   unless it is an on-going edit (missing close paren)
-			     (catch 'string-read-error
+			     (catch 'string-read-error ; this matches (throw #t 5) -- is this correct?
 			       
 			       (lambda ()
 				 (set! cursor-pos len)
 				 (if (or (= chars 1)
 					 (not (= input-fd terminal-fd)))
 				     (display-lines))
-				 (set! (history) cur-line)
+				 (set-history! cur-line)
 				 (set! m-p-pos 0)
 				 
 				 (with-repl-let
@@ -909,15 +910,18 @@
 							    (cons 'values args)
 							    (car args))))
 						  (eval form (*repl* 'top-level-let)))))
-					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))
 					(if unbound-case
 					    (set! unbound-case #f)
-					    (format *stderr* "~S~%" val)))))))
+					    (format *stderr* "~S~%" val))
+					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet)))))))
 			       
 			       (lambda (type info)
-				 (pop-history)               ; remove last history entry
-				 (append-newline)
-				 (return))))
+				 (if (eq? type 'string-read-error)
+				     (begin
+				       (pop-history)               ; remove last history entry
+				       (append-newline)
+				       (return))
+				     (apply throw type info)))))   ; re-raise error
 			   
 			   (lambda (type info)
 			     (with-let (unlet)
@@ -990,7 +994,7 @@
 		(let ((old-index m-p-pos))
 		  (when (and (zero? m-p-pos) 
 			     (> (length cur-line) 0))
-		    (set! (history) cur-line)
+		    (set-history! cur-line)
 		    (set! m-p-pos -1))
 		  (set! m-p-pos (max (- m-p-pos 1) (- histsize)))
 		  (if (positive? (length (history m-p-pos)))
@@ -1367,8 +1371,6 @@
       (inlet 'object->string (lambda args
 			       (system ((*repl* 'repl-let) 'cur-line) #t))))))
 ;; (make-command ls)
-|#
-
 
 (define-macro (time expr)
   (let ((start (gensym)))
@@ -1377,9 +1379,14 @@
        (let ((end ((*libc* 'gettimeofday))))
 	 (+ (- (car end) (car ,start)) ; seconds
 	    (* 0.000001 (- (cadr end) (cadr ,start))))))))
+|#
 
+(define-macro (time expr) 
+  `(let ((start (*s7* 'cpu-time)))
+     ,expr 
+     (- (*s7* 'cpu-time) start)))
 
-(define apropos 
+(define apropos ; this misses syntax names (they aren't in rootlet)
   (let ((levenshtein 
 	 (lambda (s1 s2)
 	   (let ((L1 (length s1))
@@ -1425,7 +1432,8 @@
     
     (lambda* (name (e (*repl* 'top-level-let)))
       (let ((ap-name (if (string? name) name 
-			 (if (symbol? name) (symbol->string name)
+			 (if (symbol? name) 
+			     (symbol->string name)
 			     (error 'wrong-type-arg "apropos argument 1 should be a string or a symbol"))))
 	    (ap-env (if (let? e) e 
 			(error 'wrong-type-arg "apropos argument 2 should be an environment"))))

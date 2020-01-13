@@ -208,7 +208,11 @@
 
   (set! c-define-output-file-counter (+ c-define-output-file-counter 1))
 
-  (let ((file-name (string-append *cload-directory* (or output-name (format #f "temp-s7-output-~D" c-define-output-file-counter)))))
+  (let ((file-name (string-append *cload-directory* 
+				  (if (and (> (length *cload-directory*) 0)
+					   (not (char=? (string-ref *cload-directory* (- (length *cload-directory*) 1)) #\/)))
+				      "/" "")
+				  (or output-name (format #f "temp-s7-output-~D" c-define-output-file-counter)))))
     (let ((c-file-name (string-append file-name ".c"))
 	  (o-file-name (string-append file-name ".o"))
 	  (so-file-name (string-append file-name ".so"))
@@ -565,14 +569,16 @@
 	  (format p "~%  /* double optimizer connections */~%")
 	  (for-each
 	   (lambda (f)
-	     (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f)))
+	     (unless (defined? (symbol (cadr f)) (rootlet))
+	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   double-funcs))
 	
 	(when (pair? int-funcs)
 	  (format p "~%  /* int optimizer connections */~%")
 	  (for-each
 	   (lambda (f)
-	     (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f)))
+	     (unless (defined? (symbol (cadr f)) (rootlet))
+	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   int-funcs))
 	
 	(format p "}~%")

@@ -1,6 +1,6 @@
 ;;; r7rs compatibility
 
-(require cload.scm libc.scm stuff.scm)
+(require libc.scm stuff.scm)
 (provide 'r7rs.scm)
 
 
@@ -41,7 +41,7 @@
   (if (null? args)
       (#_make-hash-table)
       (if (procedure? (car args))
-	  (#_make-hash-table (if (null? (cdr args)) 511 (cadr args)) (car args))
+	  (#_make-hash-table (if (null? (cdr args)) (*s7 'default-hash-table-length) (cadr args)) (car args))
 	  (apply #_make-hash-table args))))
 
 (define bytevector byte-vector)
@@ -51,7 +51,7 @@
 (define bytevector-set! byte-vector-set!)
 (define bytevector-copy! vector-copy!)
 (define string-copy! vector-copy!)
-(define (bytevector->list bv) (map values bv))
+(define (bytevector->list bv) (copy bv (make-list (length bv))))
 
 
 (define (boolean=? . args)
@@ -97,8 +97,8 @@
 (define (call-with-port port proc) ((if (input-port? port) call-with-input-file call-with-output-file) port proc))
 
 
-(define (bytevector-u8-ref b k) (b k))
-(define (bytevector-u8-set! b k c) (set! (b k) c))
+(define bytevector-u8-ref byte-vector-ref)
+(define bytevector-u8-set! byte-vector-set!)
 (define bytevector-u8 (dilambda (lambda (b k) (b k)) (lambda (b k c) (set! (b k) c))))
 (define bytevector-length length)
 (define bytevector-copy vector-copy!)
@@ -122,8 +122,14 @@
 (define write-u8 write-byte) 
 (define u8-ready? char-ready?) 
 (define peek-u8 peek-char)
-(define* (utf8->string v (start 0) end) (substring v start (or end (length v))))
-(define* (string->utf8 s (start 0) end) (string->byte-vector (utf8->string s start end)))
+(define* (utf8->string v (start 0) end) 
+  (if (string? v)
+      v
+      (substring (byte-vector->string v) start (or end (length v)))))
+(define* (string->utf8 s (start 0) end) 
+  (if (byte-vector? s)
+      s
+      (string->byte-vector (utf8->string s start end))))
 (define write-simple write)
 
 (define (eof-object) #<eof>)
@@ -137,6 +143,27 @@
 (define-macro (guard results . body)
   `(let ((,(car results) (catch #t (lambda () ,@body) (lambda args (car args)))))
      (cond ,@(cdr results))))
+
+#|
+;;; maybe these are closer to what r7rs intends?
+(define (raise . args)
+  (apply throw #t args))
+
+(define-macro (guard results . body)
+  `(let ((,(car results) 
+	  (catch #t 
+	    (lambda () 
+	      ,@body) 
+	    (lambda (type info)
+	      (if (pair? (*s7* 'catches))
+		  (lambda () (apply throw type info))
+		  (car info))))))
+     (cond ,@(cdr results)
+	   (else 
+	    (if (procedure? ,(car results)) 
+		(,(car results))
+		,(car results))))))
+|#
 
 (define (read-error? obj) (eq? (car obj) 'read-error))
 (define (file-error? obj) (eq? (car obj) 'io-error))
@@ -356,29 +383,9 @@
 ;; and why no euclidean-rationalize or exact-integer-expt?
 ;;   (imagine what will happen when r8rs stumbles on the zoo of continued fraction algorithms!)
 
-(let ((e (curlet)))
-  (c-define 
-    '((in-C "static int g_time(void) {return((int)time(NULL));} \n\
-             static struct timeval overall_start_time;  \n\
-             static bool time_set_up = false;           \n\
-             static double get_internal_real_time(void) \n\
-             {                                          \n\
-               struct timezone z0;                      \n\
-               struct timeval t0;                       \n\
-               double secs;                             \n\
-               if (!time_set_up) {gettimeofday(&overall_start_time, &z0); time_set_up = true;} \n\
-               gettimeofday(&t0, &z0);                  \n\
-               secs = difftime(t0.tv_sec, overall_start_time.tv_sec);\n\
-               return(secs + 0.000001 * (t0.tv_usec - overall_start_time.tv_usec)); \n\
-             }")
-      (double get_internal_real_time (void))
-      (int g_time (void)))
-    "" '("time.h" "sys/time.h"))
-  (varlet e 
-    (cons 'jiffies-per-second (lambda () 1000))
-    (cons 'current-jiffy (lambda () (round (* (get_internal_real_time) 1000.0))))
-    (cons 'current-second g_time)))
-
+(define (jiffies-per-second) 1000)
+(define (current-jiffy) (round (* (jiffies-per-second) (*s7* 'cpu-time))))
+(define (current-second) (floor (*s7* 'cpu-time)))
 
 (define (get-environment-variable x)
   (let ((val ((*libc* 'getenv) x)))
@@ -421,6 +428,42 @@
 
 ;; records
 (define-macro (define-record-type type make ? . fields)
+  (let ((obj (gensym))
+	(args (map (lambda (field)
+		     (values (list 'quote (car field))
+			     (let ((par (memq (car field) (cdr make))))
+			       (if (pair? par) (car par) #f))))
+		   fields)))
+    `(begin
+       (define (,? ,obj)
+	 (and (let? ,obj)
+	      (eq? (let-ref ,obj 'type) ',type)))
+       
+       (define ,make 
+         (inlet 'type ',type ,@args))
+
+       ,@(map
+	  (lambda (field)
+	    (when (pair? field)
+	      (if (null? (cdr field))
+		  (values)
+		  (if (null? (cddr field))
+		      `(define (,(cadr field) ,obj)
+			 (let-ref ,obj ',(car field)))
+		      `(begin
+			 (define (,(cadr field) ,obj)
+			   (let-ref ,obj ',(car field)))
+			 (define (,(caddr field) ,obj val)
+			   (let-set! ,obj ',(car field) val)))))))
+	  fields)
+       ',type)))
+
+;;; srfi 111:
+(define-record-type box-type (box value) box? (value unbox set-box!))
+
+#|
+;;; more than r7rs desires I think:
+(define-macro (define-record-type type make ? . fields)
   (let ((new-type (if (pair? type) (car type) type))
 	(inherited (if (pair? type) (cdr type) ()))
 	(obj (gensym))
@@ -429,21 +472,23 @@
        (define-class ,new-type ,inherited   ; from stuff.scm
          (map (lambda (f) (if (pair? f) (car f) f)) ',fields))
        
-       (define (,? ,obj)    ; perhaps the define-class type predicate should use this 
-         (define (search-inherited ,obj type)
-	   (define (search-inheritors objs type)
-	     (and (pair? objs)
-		  (or (search-inherited (car objs) type)
-		      (search-inheritors (cdr objs) type))))
-	   (or (eq? (,obj 'class-name) type)
-	       (search-inheritors (,obj 'inherited) type)))
-         (and (let? ,obj)
-	      (search-inherited ,obj ',new-type)))
+       (define ,?    ; perhaps the define-class type predicate should use this 
+	 (let ()
+	   (define (search-inherited ,obj type)
+	     (define (search-inheritors objs type)
+	       (and (pair? objs)
+		    (or (search-inherited (car objs) type)
+			(search-inheritors (cdr objs) type))))
+	     (or (eq? (let-ref ,obj 'class-name) type)
+		 (search-inheritors (let-ref ,obj 'inherited) type)))
+	   (lambda (,obj)
+	     (and (let? ,obj)
+		  (search-inherited ,obj ',new-type)))))
        
        (define ,make 
          (let ((,new-obj (copy ,new-type)))
 	   ,@(map (lambda (slot)
-		    `(set! (,new-obj ',slot) ,slot))
+		    `(let-set! ,new-obj ',slot ,slot))
 		  (cdr make))
 	   ,new-obj))
        
@@ -454,22 +499,45 @@
 		  (values)
 		  (if (null? (cddr field))
 		      `(define (,(cadr field) ,obj)
-			 (if (not (,? ,obj)) 
-			     (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			 (,obj ',(car field)))
+			 (let-ref ,obj ',(car field)))
 		      `(begin
 			 (define (,(cadr field) ,obj)
-			   (if (not (,? ,obj)) 
-			       (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			   (,obj ',(car field)))
+			   (let-ref ,obj ',(car field)))
 			 (define (,(caddr field) ,obj val)
-			   (if (not (,? ,obj)) 
-			       (error 'wrong-type-arg "~S should be a ~A" ,obj ',type))
-			   (set! (,obj ',(car field)) val)))))))
+			   (let-set! ,obj ',(car field) val)))))))
 	  fields)
        ',new-type)))
 
-;;; srfi 111:
-(define-record-type box-type (box value) box? (value unbox set-box!))
-
-
+;;; vector form is slower:
+(define-macro (define-record-type type make ? . fields)
+  (let* ((obj (gensym))
+	 (args (map (lambda (field)
+		      (let ((par (memq (car field) (cdr make))))
+			(if (pair? par) (car par) #f)))
+		    fields)))
+    `(begin
+       (define (,? obj) 
+	 (and (vector? obj) 
+	      (eq? (vector-ref obj 0) ',type)))
+       
+       (define ,make 
+	 (vector ',type ,@args))
+       
+       ,@(map
+	  (let ((pos 0))
+	    (lambda (field)
+	      (set! pos (+ pos 1))
+	      (when (pair? field)
+		(if (null? (cdr field))
+		    (values)
+		    (if (null? (cddr field))
+			`(define (,(cadr field) ,obj)
+			   (vector-ref ,obj ,pos))
+			`(begin
+			   (define (,(cadr field) ,obj)
+			     (vector-ref ,obj ,pos))
+			   (define (,(caddr field) ,obj val)
+			     (vector-set! ,obj ,pos val))))))))
+	  fields)
+       ',type)))
+|#

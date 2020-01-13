@@ -2,15 +2,13 @@
 ;;; (dups size file alloc-lines): 
 ;;;    find all matches of "size" successive lines in "file" ignoring empty lines and leading/trailing whitespace
 ;;;    "alloc-lines" is any number bigger than the number of lines in "file"
-;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which (we hope) has less than 91000 lines in all
-
-(set! (*s7* 'heap-size) (* 2 1024000))
+;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which (we wish) has less than 91000 lines in all
 
 (define dups 
   (let ((unique #f))
 
-    (define-constant (all-positive? start end)
-      (do ((j end (- j 1)))
+    (define-constant (all-positive? start len)
+      (do ((j (+ start len) (- j 1)))
 	  ((or (vector-ref unique j)
 	       (= j start))
 	   j)))
@@ -58,7 +56,7 @@
 	      
 	      (set! size (min size total-lines))
 	      (set! size-1 (- size 1))
-	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 80820
+	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 84201 2-jul-19
 
 	      ;; mark unmatchable strings
 	      (let ((sortv (make-vector total-lines)))
@@ -89,14 +87,14 @@
 		   (last-line (- total-lines size))
 		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
-		(let ((j (all-positive? i (+ i size-1))))   ; is a match possible?
+		(let ((j (all-positive? i size-1)))   ; is a match possible?
 		  (if (not (= j i))
 		      (set! i j)
 		      (let ((lenseq (subvector lens size i))
 			    (lineseq (subvector lines size i)))
 			(do ((k (+ i 1) (+ k 1)))
 			    ((>= k last-line))
-			  (let ((jk (all-positive? k (+ k size-1))))
+			  (let ((jk (all-positive? k size-1)))
 			    (if (not (= jk k))
 				(set! k jk)
 				(when (and (equal? lenseq (subvector lens size k))
@@ -122,10 +120,10 @@
 			(unless first
 			  (format *stderr* "~%")))))))))))))
 
-(dups 16 "s7.c" 93000)
-;(dups 6 "s7.c" 93000)
+(dups 16 "s7.c" 100000)
+;(dups 12 "s7.c" 100000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
-;(dups 1 "s7test.scm" 102000)
+;(dups 1 "s7test.scm" 105000)
 
 (exit)

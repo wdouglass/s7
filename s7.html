@@ -151,7 +151,7 @@ s7.h, that want only to disappear into someone else's source tree.  There are no
 no run-time init files, and no configuration scripts.
 It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
-A tarball is available: <a href="ftp://ccrma-ftp.stanford.edu/pub/Lisp/s7.tar.gz">s7 tarball</a>.
+A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
 </p>
 
 <p>
@@ -276,8 +276,7 @@ indented and on a sort of brownish background.
 The basic integer and real
 types are defined in s7.h, defaulting to int64_t and double.  
 A ratio consists of two integers, a complex number two reals.
-pi is predefined, as are
-most-positive-fixnum and most-negative-fixnum.
+pi is predefined.
 s7 can be built with multiprecision support 
 for all types,  using the gmp, mpfr, and mpc libraries (set WITH_GMP to 1 in s7.c).  
 If multiprecision arithmetic is
@@ -311,6 +310,9 @@ Its argument is a string representing the desired number:
 <em class="gray">1.12312312312312312312312312300000000009E0</em>
 </pre>
 
+<p>Currently the gmp code is not completely integrated into s7's optimizer, so the gmp version
+of s7 is much slower than the ordinary version.  I hope to fix this someday...
+</p>
 
 <blockquote> 
 <div class="indented">
@@ -380,7 +382,6 @@ s7 includes:
 
 <p>
 The random function can take any numeric argument, including 0.
-The following constants are predefined: pi, most-positive-fixnum, most-negative-fixnum.
 Other math-related differences between s7 and r5rs:
 </p>
 
@@ -771,6 +772,15 @@ to some true value.
 See s7test.scm for many examples.  
 </p>
 
+<p>Since named let* is a form of lambda*, the prohibition of repeated variable names makes it different
+from let*: <code>(let* ((a 1) (a 2)) a)</code> is 2, but <code>(let* loop ((a 1) (a 2)) a)</code> is an error.
+If let* and named let* agreed in this, we'd have an inconsistency with lambda*.  If all three allowed repeated
+variables, the decision as to which parameter is intended becomes messy: <code>((lambda* (a a) a) 2 :a 3)</code>,
+or <code>(let* loop ((a 1) (a 2)) (loop 2 :a 3))</code>.
+CL and standard scheme accept repeated variables in let*, so I think the current
+choice is the least surprising.
+</p>
+
 </div>
 
 
@@ -892,12 +902,14 @@ implement the standard old-time macros.
     `(let () (and ,@(map (lambda (v) `(define ,@v)) vars) (begin ,@body))))
 
 &gt; (define-macro (<em class=def id="trace">trace</em> f)
-    `(define ,f 
-       (apply lambda 'args 
-         `((format () "(~A ~{~A~^ ~}) -&gt; " ',',f args)
-           (let ((val (apply ,,f args))) 
-             (format () "~A~%" val) 
-             val)))))
+    (let ((old-f (gensym)))
+      `(define ,f 
+         (let ((,old-f ,f))
+	   (apply lambda 'args 
+		  `((format () "(~S ~{~S~^ ~}) -&gt; " ',',f args)
+		    (let ((val (apply ,,old-f args))) 
+		      (format () "~S~%" val) 
+		      val)))))))
 <em class="gray">trace</em>
 &gt; (trace abs)
 <em class="gray">abs</em>
@@ -905,6 +917,16 @@ implement the standard old-time macros.
 <em class="gray">(abs -1.5) -&gt; 1.5</em>
 <em class="gray">1.5</em>
 </pre>
+
+<!-- this also probably works:
+(define-macro (trace f)
+    `(define ,f 
+       (apply lambda 'args 
+         `((format () "(~A ~{~A~^ ~}) -> " ',',f args)
+           (let ((val (apply ,',f args))) 
+             (format () "~A~%" val) 
+             val)))))
+-->
 
 <p>macroexpand can help debug a macro.  I always forget that it
 wants an expression:
@@ -1227,7 +1249,7 @@ One long-winded way in s7 uses <a href="#unlet">unlet</a>:
 <em class="gray">5</em>
 </pre>
 
-<p>But this is hard to read, and it's not inconceivable that we might want all three
+<p>But this is hard to read, and we might want all three
 values of a symbol, the start-up value, the definition-time value, and the
 current value.  The latter can be accessed with the bare symbol, the definition-time
 value with unquote (','), and the start-up value with either unlet
@@ -1253,9 +1275,10 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
 <em class="gray">"hiho"</em>
 </pre>
 
-<p>#_&lt;name&gt; could be implemented via *#readers*:
+<blockquote>
+<div class="indented">
+<p>Conceptually, #_&lt;name&gt; could be implemented via *#readers*:
 </p>
-
 <pre class="indented">
 (set! *#readers*
   (cons (cons #\_ (lambda (str)
@@ -1263,6 +1286,21 @@ or #_&lt;name&gt;.  That is, #_+ is a reader macro for <code>(with-let (unlet) +
                       (string-&gt;symbol (substring str 1)))))
 	*#readers*))
 </pre>
+<p>but s7 doesn't let you change the meaning of #\_;  otherwise:
+</p>
+<pre class="indented">
+(set! *#readers* (list (cons #\_ (lambda (str) (string-&gt;symbol (substring str 1))))))
+</pre>
+<p>and now #_ provides no protection:
+</p>
+<pre>
+&gt; (let ((+ -)) (#_+ 1 2))
+<em class="gray">-1</em>
+</pre>
+<p>#t and #f (along with their stupid r7rs cousins #true and #false) are also not settable.
+</p>
+</div>
+</blockquote>
 
 <p>
 So, now we have only the variable capture problem ('a' has been captured in the preceding examples).
@@ -1288,7 +1326,9 @@ national debt.  gensym is the standard approach:
 <em class="gray">13</em>
 </pre>
 
-<p>But in s7, the simplest approach uses environments.  You have complete
+<p>I think syntax-rules and its friends try to conjure up gensyms automatically, but
+the real problem is not name collisions, but unspecified environments.
+In s7 we have first-class environments, so you have complete
 control over the environment at any point:
 </p>
 
@@ -1388,6 +1428,61 @@ to be evaluated in its definition environment:
 	  (mac-1 1))))
 </pre>
 
+<blockquote>
+<div class="indented">
+<p>Here are some variations on "unless", inspired by the wikipedia hygienic macro page:
+</p>
+<pre>
+(define-macro (my-unless condition . body)
+ `(with-let (inlet (unlet) :condition ,condition) ; here unlet protects body (format below)
+    (if (not condition) (begin ,@body))))
+
+(let ((not (lambda (x) x))
+      (begin 32)
+      (if +)
+      (format abs))
+  (my-unless #t (format #t "This should not be printed!\n"))
+  (my-unless #f (format #t "This should be printed!\n")))
+
+(set! format abs)
+(let ((not (lambda (x) x)))
+  (my-unless #t (format #t "This should not be printed!\n"))
+  (my-unless #f (format #t "This should be printed!\n")))
+
+(define (user-defined-operator x) (not x))
+
+(define-macro (my-unless-1 condition . body)
+ `(with-let (inlet (unlet) :condition ,condition)
+    (if (user-defined-operator condition) (begin ,@body))))
+
+(let ((user-defined-operator (lambda (x) x)))
+  (my-unless-1 #t (format #t "This should not be printed!\n"))
+  (my-unless-1 #f (format #t "This should be printed!\n")))
+
+(define my-unless-2
+  (let ((op1 (lambda (x) (not x))))
+    (define-macro (_ condition . body)
+      `(with-let (inlet (unlet) (funclet my-unless-2) :condition ,condition) 
+         ;; funclet above to get my-unless-2's version of op1
+	 (if (op1 condition) (begin ,@body))))))
+
+(let ((op1 (lambda (x) x)))
+  (my-unless-2 #t (format #t "This should not be printed!\n"))
+  (my-unless-2 #f (format #t "This should be printed!\n")))
+      
+(define my-unless-3
+  (let ((op1 (lambda (x) x)))
+    (define-macro (_ condition . body)
+      `(with-let (inlet (unlet) :condition ,condition :local-env (curlet)) 
+         ;; curlet to get run-time local version of op1
+	 (if ((with-let local-env op1) condition) (begin ,@body))))))
+
+(let ((op1 (lambda (x) (not x))))
+  (my-unless-3 #t (format #t "This should not be printed!\n"))
+  (my-unless-3 #f (format #t "This should be printed!\n")))
+</pre>
+</div>
+</blockquote>      
 
 <!--
 (define (tree-quote tree args)
@@ -1406,7 +1501,7 @@ to be evaluated in its definition environment:
     `(define-macro ,name-and-args
        (list 'with-let 
 	     (list 'inlet ,@(map (lambda (arg)
-				   (values (symbol->keyword arg) arg))
+				   (values (symbol-&gt;keyword arg) arg))
 				 args))
 	     ,@(tree-quote body args)))))
 
@@ -1416,6 +1511,47 @@ to be evaluated in its definition environment:
 ; (procedure-source mac)
 ; (lambda (a b) (list 'with-let (list 'inlet :a a :b b) (list-values '+ 'a 'b)))
 -->
+
+<blockquote>
+<div class="indented">
+<p>On the subject of *#readers*, say we have:
+</p>
+<pre>
+(set! *#readers* (list (cons #\o (lambda (str) 42))  ; #o... -&gt; 42
+                       (cons #\x (lambda (str) 3)))) ; #x... -&gt; 3
+</pre>
+<p>Now we load a file with:
+</p>
+<pre>
+(define (oct) #o123)
+
+(let-temporarily ((*#readers* ()))
+  (eval (with-input-from-string "(define (hex) #x123)" read)))
+
+(define-constant old-readers *#readers*)
+(set! *#readers* ())
+
+(define (oct1) #o123)
+(define (hex1) #x123)
+
+(set! *#readers* old-readers)
+
+(define (oct2) #o123)
+(define (hex2) #x123)
+</pre>
+<p>Now we evaluate these functions, and get:
+</p>
+<pre>
+(oct): 42   ; oct is not read-time hygienic so #o123 -&gt; 42
+(oct1): 83  ; oct1 is protected by the top-level set, #o123 -&gt; 83
+(oct2): 42  ; same as oct
+(hex): 291  ; hex is protected by let-temporarily + read
+(hex1): 291 ; hex1 is like oct1
+(hex2): 3   ; hex2 is like oct
+</pre>
+
+</div>
+</blockquote>
 
 
 <blockquote>
@@ -1473,44 +1609,81 @@ to be evaluated in its definition environment:
 (<em class=def id="dilambda">dilambda</em> proc setter)
 </pre>
 
-<p>Each variable can have an associated setter.
-The setter is a function that is called before the variable is set.  The setter's arguments
-are the name of the variable (a symbol) and the new value.
-As a convenience, there's also
-a way to associate a function with its setter under one name (via dilambda),
-and you can use the built-in type checking functions such as integer? as a short-hand
-for a setter that insists the new value be an integer.  Coupled with the type arguments
-to make-vector and make-hash-table, the setter provides a way to statically type
-nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
+<p>There are several kinds of setters, reflecting the many ways that set! can be called.
+First are the symbol setters: 
+</p>
+
+<pre class="indented">
+&gt; (let ((x 1))
+    (set! (setter 'x) (lambda (name new-value) (* new-value 2)))
+    (set! x 2)
+    x)
+<em class="gray">4</em>
+</pre>
+
+<p>Here the setter is a function that is called before the variable is set. 
+It can take two or three arguments.  In the two argument case shown above,
+the first is the variable name (a symbol), and the second is the new-value.
+The variable is set to the value returned by the setter function.
+When s7 sees <code>(set! x 2)</code> above, it calls the setter which returns 4.
+So x is set to 4.  
+</p>
+<p>In some cases you need the environment that the variable lives in (to get its
+current value for example), so you can include that in the setter function parameter list:
+</p>
+
+<pre class="indented">
+&gt; (let ((x 1))
+    (set! (setter 'x) (lambda (name new-value enviroment) (* new-value 2)))
+    (set! x 2)
+    x)
+<em class="gray">4</em>
+</pre>
+
+<p>Since symbol setters are often implementing type restrictions, you can use
+the built-in type checking functions such as integer? as a short-hand
+for a setter that insists the new value be an integer:
+</p>
+
+<pre class="indented">
+&gt; (let ((x 1)) 
+    (set! (setter 'x) integer?)
+    (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+
+;;; use typed-let from stuff.scm to do the same thing:
+&gt; (typed-let ((x 3 integer?))
+    (set! x 3.14))
+<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+</pre>
+
+<p>C-side symbol setters go through s7_set_setter. There is an example <a href="#notify">below</a>.
+</p>
+
+
+<p>The second case is a function setter.  Almost any function or macro can
+have an associated setter that is invoked when the function is the target of set!.
+In this case, the setter function does the set! itself (unlike a symbol setter):
 </p>
 
 <pre class="indented">
 &gt; (setter cadr)
-<em class="gray">#f</em>
-&gt; (set! (setter cadr) 
+<em class="gray">#f</em>         ; by default cadr has no setter so (set! (cadr p) x) is an error
+&gt; (set! (setter cadr)  ; add a setter to cadr
         (lambda (lst val) 
           (set! (car (cdr lst)) val)))
 <em class="gray">#&lt;lambda (lst val)&gt;</em>
 &gt; (procedure-source (setter cadr))
 <em class="gray">(lambda (lst val) (set! (car (cdr lst)) val))</em>
 &gt; (let ((lst (list 1 2 3))) 
-    (set! (cadr lst) 4) 
+    (set! (cadr lst) 4)
     lst)
 <em class="gray">(1 4 3)</em>
-
-&gt; (let ((x 1)) 
-     (set! (setter 'x) integer?)
-     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
-
-;;; use typed-let from stuff.scm to do the same thing:
-&gt; (typed-let ((x 3 integer?))
-     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
 <p>In some cases, the setter needs to be a macro:
 </p>
+
 <pre class="indented">
 &gt; (set! (setter logbit?)
           (define-macro (m var index on) ; here we want to set "var", so we need a macro
@@ -1529,7 +1702,23 @@ nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 <em class="gray">30</em>
 </pre>
 
-<blockquote>
+<p>dilambda defines a function and its setter without having to set! the setter by hand:
+</p>
+
+<pre class="indented">
+&gt; (define f (let ((x 123))
+                 (dilambda (lambda () 
+                             x)
+		           (lambda (new-value) 
+                             (set! x new-value)))))
+<em class="gray">f</em>
+&gt; (f)
+<em class="gray">123</em> ; x = 123 
+&gt; (set! (f) 32)
+<em class="gray">32</em>  ; now x = 32
+&gt; (f)
+<em class="gray">32</em>
+</pre>
 
 
 <div class="indented">
@@ -1588,15 +1777,36 @@ nearly all s7 variables.  See also "typed-let" and "the" in stuff.scm.
 </pre>	
 </div>
 
-<div class="indented">
 <p>I may remove dilambda and dilambda? someday; they are trivial:
 </p>
+
 <pre class="indented">
 (define (dilambda get set) (set! (setter get) set) get)
 (define dilambda? setter)
 </pre>
-</div>
 
+<p>When a function setter is called, <code>(set! (func ...) val)</code> is
+evaluated by s7 as <code>((setter func) ... val)</code>, so the setter function
+needs to handle both the inner arguments to the function and the new value.
+</p>
+
+<pre class="indented">
+(let ((x 123))
+  (define (f a b) (+ x a b))
+  (set! (setter f) (lambda (a b val) (set! x val)))
+  (display (f 1 2)) (newline) ; "126"
+  (set! (f 1 2) 32)
+  (display (f 1 2)) (newline)) ; "35"
+</pre>
+
+<p>A third type of setter handles vector element type and hash-table key and value types.
+These are described under <a href="#typedvectors">typed vectors</a> and 
+<a href="#typedhash">typed hash-tables</a>.
+</p>
+
+
+<br>
+<blockquote>
 <div class="indented">
 <p>Speaking of INTERCAL, COME-FROM:
 </p>
@@ -1700,8 +1910,8 @@ Here's a generic FFT:
 </p>
 
 <pre class="indented">
-(define* (cfft! data n (dir 1)) ; (complex data)
-  (if (not n) (set! n (length data)))
+(define* (cfft data n (dir 1)) ; complex data
+  (unless n (set! n (length data)))
   (do ((i 0 (+ i 1))
        (j 0))
       ((= i n))
@@ -1736,9 +1946,9 @@ Here's a generic FFT:
       (set! wc (* wc wpc))))
   data)
 
-&gt; (cfft! (list 0.0 1+i 0.0 0.0))
+&gt; (cfft (list 0.0 1+i 0.0 0.0))
 <em class="gray">(1+1i -1+1i -1-1i 1-1i)</em>
-&gt; (cfft! (vector 0.0 1+i 0.0 0.0))
+&gt; (cfft (vector 0.0 1+i 0.0 0.0))
 <em class="gray">#(1+1i -1+1i -1-1i 1-1i)</em>
 </pre>
 
@@ -1775,7 +1985,7 @@ evaluate their first argument, but set! does not (with a quibble; see below):
 </pre>
 
 <p>set! looks at its first argument to decide what to set.
-If it's a symbol, no problem.  If it's a list, set! looks at its car to see if it is
+If it's a symbol, no problem.  If it's a pair, set! looks at its car to see if it is
 some object that has a setter.  If the car is itself a list, set! evaluates the internal
 expression, and tries again.  So the second case above is the only one that won't work.
 And of course:
@@ -2019,13 +2229,23 @@ s7_ints, s7_doubles, or unsigned bytes.
 (<em class=def id="subvectorposition">subvector-position</em> obj)
 </pre>
 
-<p>In addition to the dimension list mentioned above, make-vector accepts
+<p id="typedvectors">In addition to the dimension list mentioned above, make-vector accepts
 optional arguments giving the initial element and the element type. If the
 type is given, every attempt to set an element of the vector first calls
-the type function on the new value.  Currently, the type function can only be a built-in
-type checking function such as integer? or symbol?.  If omitted (or set to #t),
+the type function on the new value.  
+If the type function is omitted (or set to #t),
 no type checking is performed.
+If the type function is a closure (rather than a C-defined or built-in function),
+its name must be accessible; it can't be an anonymous lambda (the signature and
+error handlers need this name).
 </p>
+
+<pre class="indented">
+&gt; (define v (make-vector 3 'x symbol?)) ; initial element: 'x, elements must be symbols
+<em class="gray">#(x x x)</em>
+&gt; (vector-set! v 0 123)
+<em class="gray">error: vector-set! argument 3, 123, is an integer but should be a symbol?</em>
+</pre>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
 <code>(subvector original-vector new-dimensions (position 0))</code>:
@@ -2468,8 +2688,9 @@ and the iterative version beats both.
 </p>
 </div>
 
-<p>The third argument, typers, sets type checkers for the keys and values in the table.
-It is a cons of the type functions (currently built-in functions only, as in vectors):
+<p id="typedhash">The third argument, typers, sets type checkers for the keys and values in the table,
+much like the third argument to make-vector.
+It is a cons of the type functions,
 <code>(cons symbol? integer?)</code> for example. This says that all the keys must
 be symbols and all the values integers.
 </p>
@@ -2496,7 +2717,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
 (<em class=def id="letref">let-ref</em> env sym)       get value of sym in env, same as (env sym)
-(<em class=def id="letset">let-set!</em> env sym val)  set value of sym in val to val, same as (set! (env sym) val)
+(<em class=def id="letset">let-set!</em> env sym val)  set value of sym in env to val, same as (set! (env sym) val)
 
 (<em class=def id="inlet">inlet</em> . bindings)       make a new environment with the given bindings
 (<em class=def id="sublet">sublet</em> env . bindings)  same as inlet, but the new environment is local to env
@@ -2745,7 +2966,7 @@ that those values can be clobbered).
 </p>
 
 <p>
-<code>(fill! lt &lt;undefined&gt;)</code> removes all bindings from the let lt.
+<code>(fill! lt #&lt;undefined&gt;)</code> removes all bindings from the let lt.
 </p>
 <blockquote>
 
@@ -2916,37 +3137,11 @@ and openlet? -&gt; methods?.
 <div class="indented">
 <p>let-ref and let-set! are problematic as methods.  It is very easy to get into an infinite
 loop, especially with let-ref since any reference to the let within the method body probably
-calls let-ref, which notices the let-ref method... One way around this is to call coverlet 
-on the let before doing anything, then at the end, call openlet:
+calls let-ref, which calls the let-ref method.  We used to recommend coverlet here, but
+even that is not enough, so not let-ref and let-set! are immutable; they can't be used
+as methods.
+Use let-ref-fallback and let-set-fallback instead, if possible.
 </p>
-<pre class="indented">
-&gt; (let ((hi (openlet 
-              (inlet 'a 1 
-		     'let-ref (lambda (obj val)
-				(<em class="red">coverlet</em> obj)
-				(let ((res (+ (obj val) 1)))
-				  (<em class="red">openlet</em> obj)
-				  res))))))
-  (hi 'a))
-<em class="gray">2</em>
-</pre>
-
-<p>Use let-ref-fallback and let-set-fallback instead, if possible.  A let-set!
-method can implement a copy-on-write let:
-</p>
-
-<pre class="indented">
-(define (cowlet . fields) ; copy-on-write let
-  (openlet (apply inlet 
-                  'let-set! (lambda (obj field val)
-                              (let ((new-obj (copy (coverlet obj))))
-                                (set! (new-obj field) val)
-                                (openlet obj)
-                                (openlet new-obj)))
-                  fields)))
-(let ((lt1 (cowlet 'a 1 'b 2)))
-  (set! (lt1 'b) 1)) ; this leaves lt1 unchanged, returns a new let with b=1
-</pre>
 
 </div>
 </blockquote>
@@ -3324,13 +3519,10 @@ This is similar to trying to read from a closed input port.
 
 
 <p>The other side, so to speak, of call-with-exit, is <em class=def id="withbaffle">with-baffle</em>.
-Both limit the scope of a continuation.
 Sometimes we need a normal call/cc, but want to make sure it is active
 only within a given block of code.  
 Normally, if a continuation gets away, there's no telling when it might wreak havoc on us.
-Scheme code with call/cc becomes unpredictable, undebuggable, and completely
-unmaintainable.  
-with-baffle blocks all that &mdash; no continuation can jump into its body:
+with-baffle blocks that &mdash; no continuation can jump into its body:
 </p>
 
 <pre class="indented">
@@ -3559,8 +3751,24 @@ a modern GUI leaves formatting decisions to a text or table widget.
 		`(set! ,obj (eval (read))))
 	      objs))))
 </pre>
+</div>
 
-
+<div class="indented">
+<p>format is a mess.  It is trying to cram two different choices into its first ("port") argument.
+Perhaps it should be split into format-&gt;string and format-&gt;port.  format-&gt;string has no
+port argument and returns a string.  format-&gt;port writes to its port argument (which must be an output
+port, not a boolean), and returns #f or maybe &lt;unspecified&gt;.  Then:
+</p>
+<pre>
+(format #f ...) -&gt; (format-&gt;string ...)
+(format () ...) -&gt; (format-&gt;port (current-output-port) ...)
+(format #t ...) -&gt; (display (format-&gt;string ...))
+(format port ...) -&gt; (display (format-&gt;string ...) port)
+</pre>
+<p>and the currently unavailable choice, format to port without creating a string:
+<code>(format-&gt;port port ...)</code>.
+</p>
+</div>
 <!--
 
 :(objects->string "int: " 32 ", string: " "hi")
@@ -3597,8 +3805,6 @@ a modern GUI leaves formatting decisions to a text or table widget.
 (1 2)
 
 -->
-
-</div>
 
 </blockquote>
 
@@ -4072,25 +4278,50 @@ The end-of-file object is #&lt;eof&gt;.
 When the read function encounters the constant #&lt;eof&gt; it returns #&lt;eof&gt;.
 This is neither inconsistent nor unusual: read returns either a form or
 #&lt;eof&gt;.  If read encounters a form that contains #&lt;eof&gt;, it returns a
-form containing #&lt;eof&gt;, just as with any other constant.  If it hits the end of
-the input while reading a form, it raises an error (e.g. "missing close paren").
-If it encounters
-#&lt;eof&gt; all by itself at the top level (this never happens),
-it returns that #&lt;eof&gt;.  Consider it a feature!  If you want a top level 
-#&lt;eof&gt; without stopping read, either quote it, or <code>(define *eof* #&lt;eof&gt;)</code> and use *eof* in the
-source: read will return the symbol *eof*.  Built-in #&lt;eof&gt; has lots of
-uses, and as far as I can see, no drawbacks.  For example,
-it is very common to call
-read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
-a case statement.  In s7, we can dispense with the extra if (and let), and include
-the #&lt;eof&gt; in the case statement: <code>(case (read-char) ((#&lt;eof&gt;) (quit-reading)) ((#\a)...))</code>.
+form containing #&lt;eof&gt;, just as with any other constant.
 </p>
+
 <pre class="indented">
 &gt; (with-input-from-string "(or x #&lt;eof&gt;)" read)
 <em class="gray">(or x #&lt;eof&gt;)</em>
 &gt; (eof-object? (with-input-from-string "'#&lt;eof&gt;" read))
 <em class="gray">#f</em>
 </pre>
+
+<p>If read hits the end of
+the input while reading a form, it raises an error (e.g. "missing close paren").
+If it encounters
+#&lt;eof&gt; all by itself at the top level (this never happens),
+it returns that #&lt;eof&gt;.  But this is specific to read, not (for example) load:
+</p>
+<pre class="indented">
+;; say we have "t234.scm" with:
+(display "line 1") (newline)
+#&lt;eof&gt;
+(display "line 2") (newline)
+;; end of t234.scm
+
+&gt; (load "t234.scm")
+<em class="gray">line 1
+line 2</em>
+
+(with-input-from-file "t234.scm" 
+  (lambda () 
+    (do ((c (read) (read))) 
+	((eof-object? c)) 
+      (eval c))))
+<em class="gray">line 1</em>
+</pre>
+
+<p>
+Built-in #&lt;eof&gt; has lots of
+uses, and as far as I can see, no drawbacks.  For example,
+it is common to call
+read (or one of its friends) in a loop which first checks for #&lt;eof&gt;, then falls into
+a case statement.  In s7, we can dispense with the extra if (and let), and include
+the #&lt;eof&gt; in the case statement: <code>(case (read-char) ((#&lt;eof&gt;) (quit-reading)) ((#\a)...))</code>.
+Another example: <code>(or (eof-object? x) (eqv x 24)...)</code> can be instead: <code>(memv x '(#&lt;eof&gt; 24 ...)</code>.
+</p>
 </div>
 
 
@@ -4765,8 +4996,8 @@ at startup *features* is:
 
 <pre class="indented">
 &gt; *features*
-<em class="gray">(snd-19.3 snd19 snd audio snd-s7 snd-motif gsl alsa xm clm6 clm sndlib linux 
-autoload dlopen history complex-numbers system-extras overflow-checks ratio s7-8.2 s7)</em>
+<em class="gray">(snd-20.0 snd20 snd audio snd-s7 snd-motif gsl alsa xm clm6 clm sndlib linux 
+autoload dlopen history complex-numbers system-extras overflow-checks ratio s7-8.11 s7)</em>
 &gt; (provided? 'gsl)
 <em class="gray">#t</em>
 </pre>
@@ -5147,10 +5378,11 @@ that method is invoked.
 <b><em class=def id="expansion">define-expansion</em></b> defines a macro that expands at read-time.
 It has the same syntax as
 define-macro, and (in normal use) the same result, but it is much faster because it expands only once.
-(See define-with-macros in s7test.scm for a way to expand macros in a function body at definition time).
+Similarly, <b>define-expansion*</b> defines a read-time macro*.
+(See also define-with-macros in s7test.scm for a way to expand macros in a function body at definition time).
 Since the reader knows almost nothing
 about the code it is reading, 
-you need to make sure the expansion is defined at the top level and that its name is unique!
+you need to make sure the expansion is defined at the top level and that its name is unique.
 The reader does know about global variables, so:
 </p>
 
@@ -5208,7 +5440,7 @@ You can do something similar with a normal macro, or make the indirection explic
 so if it does not see a list whose first element is a expansion name, it does
 not do anything special.  In the <code>(x a)</code> case above, the
 expansion happens when the code is evaluated, and the expansion result
-is simply returned, unevaluated.
+is simply returned, unevaluated.  
 </p>
 
 <p>You can also use macroexpand to cancel the evaluation of a macro's expansion:
@@ -5271,32 +5503,34 @@ profile.scm shows one way to sort and display this data. To clear the counts, <c
 
 
 <div class="separator"></div>
-<p id="s7env"><b>*s7*</b> is an environment that gives access to some of s7's internal
+<p id="s7env"><b>*s7*</b> is a let that gives access to some of s7's internal
 state: 
 </p>
 <pre class="indented">
 print-length                  number of elements to print of a non-string sequence
-max-string-length             max size arg to make-string and read-string
-max-format-length             max size arg ~N or the width and precision fields for floats in format
-max-list-length               max size arg to make-list
-max-port-data-size            max size of a port data buffer
-max-vector-length             max size arg to make-vector and make-hash-table
+max-string-length             maximum size arg to make-string and read-string
+max-format-length             maximum size arg to ~N or the width and precision fields for floats in format
+max-list-length               maximum size arg to make-list
+max-port-data-size            maximum size of a port data buffer
+max-vector-length             maximum size arg to make-vector and make-hash-table
 max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
-initial-string-port-length    128, initial size of a string port's buffer
+initial-string-port-length    128, initial size of a input string port's buffer
+output-port-data-size         2048, size of an output port's buffer
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 profile-info                  profiling data if s7 built WITH_PROFILE=1
+max-stack-size                maximum stack size
+stacktrace-defaults           stacktrace formatting info for error handler
 
-default-rationalize-error     1e-12 (settable)
-equivalent-float-epsilon      1e-15 (settable)
-hash-table-float-epsilon      1e-12 (settable, but currently limited to less than 1e-3).
+default-rationalize-error     1e-12
+equivalent-float-epsilon      1e-15
+hash-table-float-epsilon      1e-12 (currently limited to less than 1e-3).
 bignum-precision              bits for bignum floats (128)
 float-format-precision        digits to print for floats (16)
-default-random-state          the default arg for random (settable)
-
-cpu-time                      run time so far
-file-names                    currently loaded files (a list)
+default-random-state          the default arg for random
+most-positive-fixnum          if not using gmp, the most positive integer ("fixnum" comes from CL)
+most-negative-fixnum          as above, but negative
 
 safety                        0 (see below)
 undefined-identifier-warnings #f 
@@ -5304,23 +5538,27 @@ undefined-constant-warnings   #f
 accept-all-keyword-arguments  #f 
 autoloading?                  #t
 
+heap-size                     total cells currently available
+max-heap-size                 maximum heap size
+gc-stats                      #f (#t turns on printout of the GC activity)
+
+;; the rest are not settable
+cpu-time                      run time so far
+file-names                    currently loaded files (a list)
 history			      a circular buffer of recent eval entries stored backwards
 catches                       a list of the currently active catch tags
 c-types                       a list of c-object type names (from s7_make_c_type, etc)
 
 stack-top                     current stack location
 stack-size                    current stack size
-max-stack-size                max stack size (settable)
 stack                         the current stack entries
-stacktrace-defaults           stacktrace formatting info for error handler
-
 rootlet-size                  the number of globals
-heap-size                     total cells currently available (settable)
-max-heap-size                 max heap size (settable)
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
+gc-temps-size                 number of cells just allocated that are protected from the GC (256)
+gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
+gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap
 gc-protected-objects          vector of the objects permanently protected from the GC
-gc-stats                      #f (#t turns on printout of the GC activity)
 memory-usage                  a description of current memory allocations (sent to current-output-port)
 </pre>
 
@@ -5363,10 +5601,30 @@ The defaults are '(3 45 80 45 #t).
 <pre class="indented">
 (format *stderr* "~C[~D;~DH" #\escape 0 0)
 (format *stderr* "~C[J" #\escape)
-(display (with-output-to-string (lambda() (*s7* 'memory-usage))))
+(display (with-output-to-string (lambda() (<em class="red">*s7* 'memory-usage</em>))))
 </pre>
 <p>(Ideally we'd only redisplay the changed fields).
 </p>
+
+<p>The standard time macro:</p>
+<pre class="indented">
+(define-macro (time expr) 
+  `(let ((start (<em class="red">*s7* 'cpu-time</em>)))
+     (let ((res (list ,expr))) ; expr might return multiple values
+       (list (car res)
+	     (- (<em class="red">*s7* 'cpu-time</em>) start)))))
+</pre>
+
+<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):
+<pre class="indented">
+(define log10 (log (bignum "10")))
+(define bignum-precision (dilambda (lambda () 
+				     (<em class="red">*s7* 'bignum-precision</em>)) 
+				   (lambda (val)
+				     (set! (<em class="red">*s7* 'bignum-precision</em>) val)
+				     (set! log10 (log (bignum "10")))
+				     val)))
+</pre>
 
 
 <div class="separator"></div>
@@ -5583,16 +5841,14 @@ dilambda and dilambda? have been reduced to trivial conveniences, so perhaps the
 removed.
 </p>
 
-<p>There are several less-than-ideal names.  Perhaps s7 should use *pi*, *most-negative-fixnum*,
-*most-positive-fixnum* (*fixleast* and *fixmost*?) so that all the built-in variables and constants have the
-same kind of name (or +pi+ to show it is a constant?).  
+<p>There are several less-than-ideal names.  
 get-output-string should be current-output-string. write-char behaves like display, not write.
 provided? should be feature? or *features* should be *provisions*.
 list-ref, list-set!, and list-tail actually only apply to pairs.
 let-temporarily should be templet, or maybe set-temporarily.
 Finally, the CL-inspired "log*" names such as logand look very old-fashioned.  Standard scheme opts
-for the name "bitwise*"; why not "integerwise" or "bytevectorwise"?  The "wise" business is just noise.
-Perhaps <code>(define & logand) (define | logior) (define ~ lognot)</code> and so on, but ^ for logxor
+for the name "bitwise*"; why not "integerwise" or "bytevectorwise"?  The "wise" business is just noise; are they thinking of "The Hobbit"?
+<code>(define & logand) (define | logior) (define ~ lognot)</code>, but ^ for logxor
 (as in C) is not ideal; ^ should be expt.
 </p>
 
@@ -5650,8 +5906,7 @@ Better ideas are always welcome!
 <li>pi
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
-<li>nan.0 +nan.0 -nan.0 inf.0 +inf.0 -inf.0 (what crappy names! nan.0 is an inexact integer that is not a number?)
-<li>most-positive-fixnum most-negative-fixnum
+<li>+nan.0 -nan.0 +inf.0 -inf.0 (what crappy names! +nan.0 is an inexact integer that is not a number?)
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
@@ -5672,7 +5927,7 @@ Better ideas are always welcome!
 <li>omits string-copy, string-fill!, vector-fill!, vector-append
 <li>omits list-&gt;string, list-&gt;vector, string-&gt;list, vector-&gt;list, let-&gt;list
 <li>omits string-length and vector-length
-<li>omits cond-expand, multiple-values-bind|set!, call-with-values, defmacro(*)
+<li>omits cond-expand, multiple-values-bind|set!, call-with-values
 <li>omits unquote (the name)
 <li>omits d/f/s/l exponents
 <li>omits make-polar and make-rectangular (use complex)
@@ -5692,12 +5947,21 @@ This is consistent with, for example,
 <code>(eq? #f '#f)</code> which is also #t.
 The standard says "the empty list is a special object of its own type", so surely either choice is
 acceptable in that regard (but, sigh, the standard stupidly goes on to deny that () can evaluate to itself).
+(I'm told that "is an error" means "is not portable" in the standard's weasely abuse of English; if
+they mean "is not portable" why not say so?).
+Some of the confusion appears to be caused by the word "list".  I would describe the evaluator: "if it gets a
+constant (and () is a constant) it returns that constant; if a symbol, it returns the value
+associated with that symbol; if a pair, it looks at the pair's
+car to decide what to do".  It's kinda looney to insist on looking at the car of a list when you know () has no car!
+</p>
+
+<!--
 One place where the quote matters is in a case statement; the selector is
 evaluated but the key is not:
 </p>
 
 <pre class="indented">
-&gt; (case '() ((()) 2) (else 1))
+&gt; (case '() ((()) 2) (else 1)) ; in s7 this is the same as (case () ((()) 2) (else 1))
 <em class="gray">2</em>
 &gt; (case '() (('()) 2) (else 1)) ; (eqv? '() ''()) is #f
 <em class="gray">1</em>
@@ -5707,8 +5971,9 @@ evaluated but the key is not:
 &gt; (case '#f (('#f) 2) (else 1)) ; (eqv? '#f ''#f) is #f
 <em class="gray">1</em>
 </pre>
+-->
 
-<p>Similarly, vector constants do not have to be quoted.  A list constant is quoted
+<p>Similarly, in s7, vector constants do not have to be quoted.  A list constant is quoted
 to keep it from being evaluated, but
 #(1 2 3) is as unproblematic as "123" or 123. 
 </p>
@@ -6135,14 +6400,102 @@ so misleading that I feel guilty about it):
 (for-each do-loop (list 1000 1000000 10000000))
 </pre>
 
-<p>In s7, that takes 0.1 seconds on my home machine.  In tinyScheme, from
+<p>In s7, that takes 0.09 seconds on my home machine.  In tinyScheme, from
 whence we sprang, it takes 85 seconds.  In the chicken interpreter, 5.3
 seconds, and after compilation (using -O2) of the chicken compiler output,
 0.75 seconds.  So, s7 is comparable to chicken in speed, even though chicken
 is compiling to C. I think Guile 2.0.9 takes about 1 second.
 The equivalent in CL:
 clisp interpreted 9.3 seconds, compiled 0.85 seconds; sbcl 0.21 seconds.
+Similarly, s7 computes (fib 40) in 0.8 seconds, approximately the same as sbcl.
+Guile 2.2.3 takes 7 seconds.
 </p>
+
+<div class="separator"></div>
+<small>
+<p>
+s7's timing tests are in its tools directory.  The script
+valcall.scm runs them through callgrind.  The results
+can be found at the end of s7.c.
+If you're interested in the standard Scheme benchmarks, it
+is possible to add s7 to that package.  First, s7-prelude.scm
+and s7-postlude.scm need to be added to the benchmarks src directory.
+s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
+</p>
+<pre>
+(define (this-scheme-implementation-name) "s7")
+(define exact-integer? integer?)	
+(define (exact-integer-sqrt i) (let ((sq (floor (sqrt i)))) (values sq (- i (* sq sq)))))
+(define inexact exact-&gt;inexact)
+(define exact inexact-&gt;exact)
+(define (square x) (* x x))
+(define (vector-map f v) (copy v)) ; for quicksort.scm
+(define-macro (import . args) #f)
+(define (jiffies-per-second) 1000)
+(define (current-jiffy) (round (* (jiffies-per-second) (*s7* 'cpu-time))))
+(define (current-second) (floor (*s7* 'cpu-time)))
+</pre>
+<p>
+If you want to run gcbench, add the define-record-type macro from r7rs.scm.
+Here are the diffs for the bench script:
+</p>
+<pre>
+141a142
+&gt;     S7=${S7:-"/home/bil/motif-snd/repl"}
+187a189
+&gt;   s7               for s7
+406a409,421
+&gt; # Definitions specific to s7
+&gt; 
+&gt; s7_comp ()
+&gt; {
+&gt;     :
+&gt; }
+&gt; 
+&gt; s7_exec ()
+&gt; {
+&gt;     time ${S7} "$1" &lt; "$2"
+&gt; }
+&gt; 
+&gt; # -----------------------------------------------------------------------------
+940a957,966
+&gt; 
+&gt;         s7)    NAME='s7'
+&gt;                COMP=s7_comp
+&gt;                EXEC=s7_exec
+&gt;                COMPOPTS=""
+&gt;                EXTENSION="scm"
+&gt;                EXTENSIONCOMP="scm"
+&gt;                COMPCOMMANDS=""
+&gt;                EXECCOMMANDS=""
+&gt;                ;;
+</pre>
+<p>
+I call the standalone version of s7 "repl", so its path
+is /home/bil/motif-snd/repl.  To build repl, get s7.tar.gz
+from https://ccrma.stanford.edu/software/s7/s7.tar.gz,
+add the empty file mus-config.h to the tarball's contents,
+then (in Linux):
+</p>
+<pre>
+gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
+</pre>
+<p>For timing tests, I add "-fomit-frame-pointer -funroll-loops -march=native".
+mus-config.h normally has 
+</p>
+<pre>
+#define HAVE_COMPLEX_NUMBERS 1
+#define HAVE_COMPLEX_TRIG 1
+</pre>
+<p>
+but s7.c has defaults, so I think mus-config.h can be empty.
+Finally, go back to the benchmarks directory and
+</p>
+<pre>
+bench s7 all
+</pre>
+</small>
+
 </div>
 
 
@@ -6529,7 +6882,8 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {
@@ -6663,9 +7017,36 @@ int main(int argc, char **argv)
  *    now an-integer: 32
  *    (add1 2): 3
  */
-</pre></div>
+</pre>
 
-
+<p>In more complicated cases, it is probably easier use s7_eval_c_string_with_environment.
+As an example, say we want to have a C procedure that calls the pretty printer function pp
+in write.scm, returning a string to C.  We need to make sure pp is loaded, and catch
+any errors that come up.  And we need to pass the C-level s7 object to pp.  So...
+</p>
+<pre>
+static const char *pp(s7_scheme *sc, s7_pointer obj) /* (pp obj) */
+{
+  return(s7_string(
+          <em class=red>s7_eval_c_string_with_environment</em>(sc,
+            "(catch #t                         \
+               (lambda ()                      \
+                 (unless (defined? 'pp)        \
+                   (load \"write.scm\"))       \
+                 (<em class=red>pp</em> obj))                     \
+               (lambda (type info)             \
+                 (apply format #f info)))",
+	   <em class=red>s7_inlet</em>(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
+}
+</pre>
+<p>and now when we want a pretty-printed representation of something: pp(sc, obj);
+The s7_inlet call is creating a local environment with the object "obj" bound
+in scheme to the name "obj" so that (pp obj) will find the "obj" that actually
+lives in C.  You may need to give the full filename for write.scm, or add its path
+to the <a href="#loadpath">load-path list</a>.  In the latter case, <code>(require write.scm)</code> could
+replace <code>(unless (defined?...))</code>.
+</p>
+</div>
 
 
 
@@ -6878,6 +7259,8 @@ typedef struct {
   s7_pointer data;
 } dax;
 
+static int dax_type_tag = 0;
+
 static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
 {
   char *data_str, *str;
@@ -6887,30 +7270,26 @@ static s7_pointer dax_to_string(s7_scheme *sc, s7_pointer args)
   data_str = s7_object_to_c_string(sc, o-&gt;data);
   data_str_len = strlen(data_str);
   str = (char *)calloc(data_str_len + 32, sizeof(char));
-  snprintf(str, data_str_len + 32, \"&lt;dax %.3f %s&gt;\", o-&gt;x, data_str);
+  snprintf(str, data_str_len + 32, "&lt;dax %.3f %s&gt;", o-&gt;x, data_str);
   free(data_str);
   result = s7_make_string(sc, str);
   free(str);
   return(result);
 }
 
-static void free_dax(void *val)
+static s7_pointer free_dax(s7_scheme *sc, s7_pointer obj)
 {
-  if (val) free(val);
+  free(s7_c_object_value(obj));
+  return(NULL);
 }
 
-static bool equal_dax(void *val1, void *val2)
+static s7_pointer mark_dax(s7_scheme *sc, s7_pointer obj)
 {
-  return(val1 == val2);
+  dax *o;
+  o = (dax *)s7_c_object_value(obj);
+  s7_mark(o->data);
+  return(NULL);
 }
-
-static void mark_dax(void *val)
-{
-  dax *o = (dax *)val;
-  if (o) s7_mark(o-&gt;data);
-}
-
-static int dax_type_tag = 0;
 
 static s7_pointer make_dax(s7_scheme *sc, s7_pointer args)
 {
@@ -6960,6 +7339,24 @@ static s7_pointer set_dax_data(s7_scheme *sc, s7_pointer args)
   return(o-&gt;data);
 }
 
+static s7_pointer dax_is_equal(s7_scheme *sc, s7_pointer args) 
+{
+  s7_pointer p1, p2;
+  dax *d1, *d2;
+  p1 = s7_car(args);
+  p2 = s7_cadr(args);
+  if (p1 == p2) 
+    return(s7_t(sc));
+  if ((!s7_is_c_object(p2)) ||
+      (s7_c_object_type(p2) != dax_type_tag))
+    return(s7_f(sc));
+  d1 = (dax *)s7_c_object_value(p1);
+  d2 = (dax *)s7_c_object_value(p2);
+  return(s7_make_boolean(sc,
+			 (d1-&gt;x == d2-&gt;x) &amp;&amp;
+			 (s7_is_equal(sc, d1-&gt;data, d2-&gt;data))));
+}
+
 int main(int argc, char **argv)
 {
   s7_scheme *s7;
@@ -6971,10 +7368,10 @@ int main(int argc, char **argv)
   s7_define_variable(s7, "*listener-prompt*", s7_make_string(s7, "&gt;"));
 
   dax_type_tag = <em class=red>s7_make_c_type</em>(s7, "dax");
-  s7_c_type_set_free(s7, dax_type_tag, free_dax);
-  s7_c_type_set_equal(s7, dax_type_tag, equal_dax);
-  s7_c_type_set_mark(s7, dax_type_tag, mark_dax);
-  s7_c_type_set_to_string(sc, dax_type_tag, dax_to_string);
+  s7_c_type_set_gc_free(s7, dax_type_tag, free_dax);
+  s7_c_type_set_gc_mark(s7, dax_type_tag, mark_dax);
+  s7_c_type_set_is_equal(s7, dax_type_tag, dax_is_equal);
+  s7_c_type_set_to_string(s7, dax_type_tag, dax_to_string);
   
   s7_define_function(s7, "make-dax", make_dax, 2, 0, false, "(make-dax x data) makes a new dax");
   s7_define_function(s7, "dax?", is_dax, 1, 0, false, "(dax? anything) returns #t if its argument is a dax object");
@@ -6998,7 +7395,9 @@ int main(int argc, char **argv)
     }
 }
 
-/*
+/* (in Linux);
+ *    gcc dax.c -o dax -I. -O2 -g s7.o -ldl -lm -Wl,-export-dynamic
+ *    dax
  *    &gt; *listener-prompt*
  *    <em class="gray">"&gt;"</em>
  *    &gt; (set! *listener-prompt* ":")
@@ -7482,12 +7881,13 @@ int main(int argc, char **argv)
 
   s7_define_function(s7, "notify-C", scheme_set_notification, 2, 0, false, "called if notified-var is set!");
   s7_define_variable(s7, "notified-var", s7_make_integer(s7, 0));
-  <em class=red>s7_symbol_set_setter</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
+  <em class=red>s7_set_setter</em>(s7, s7_make_symbol(s7, "notified-var"), s7_name_to_value(s7, "notify-C"));
 
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {
@@ -7564,7 +7964,8 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(s7, argv[1]);
+      if (!s7_load(s7, argv[1]))
+        fprintf(stderr, "can't find %s\n", argv[1]);
     }
   else
     {
@@ -8152,7 +8553,7 @@ static void evaluator(glistener *g, const char *text)
   
   result = s7_eval_c_string(s7, text);
   errmsg = s7_get_output_string(s7, s7_current_error_port(s7));
-  if ((errmsg) && (*errmsg))
+  if ((errmsg) &amp;&amp; (*errmsg))
     {
       msg = (char *)calloc(strlen(errmsg) + 1, sizeof(char));
       strcpy(msg, errmsg);
@@ -8639,6 +9040,15 @@ ex1
 
 <p>See also r7rs.scm, libc.scm, libgsl.scm, libm.scm, libdl.scm, and libgdbm.scm.
 libutf8proc.scm exists, but I have not tested it at all.
+</p>
+
+<p>The default in the lib*.scm files is to use the C name as the Scheme name.
+This collides with (for example) the widespread use of "-", rather than "_" in Scheme, but
+I have found it much more straightforward to stick with one name.  In cases like
+libgsl and libgtk there are thousands of names, all documented at great length
+by the C name. Anyone who wants to use these functions has to start with the C name.
+If they are forced to fuss with some annoying Schemely translation of it, 
+the only sane response is: "forget it! I'll do it in C".
 </p>
 
 <div class="indented" id="libc">
