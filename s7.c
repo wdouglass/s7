@@ -51297,6 +51297,18 @@ static s7_pointer fx_c_t_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))));
 }
 
+static s7_pointer fx_cddr_t(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  return(cddr_p_p(sc, slot_value(let_slots(sc->envir))));
+}
+
+static s7_pointer fx_cddr_u(s7_scheme *sc, s7_pointer arg)
+{
+  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  return(cddr_p_p(sc, slot_value(next_slot(let_slots(sc->envir)))));
+}
+
 static s7_pointer fx_iterate_p_p(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer iter;
@@ -51655,7 +51667,6 @@ static s7_pointer fx_c_sc_direct(s7_scheme *sc, s7_pointer arg)
 }
 
 static s7_pointer fx_c_sc_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
-static s7_pointer fx_c_sc_memq_2(s7_scheme *sc, s7_pointer arg) {return(memq_2_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_memq_3(s7_scheme *sc, s7_pointer arg) {return(memq_3_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_lt(s7_scheme *sc, s7_pointer arg) {return(lt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_gt(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
@@ -51735,6 +51746,8 @@ static s7_pointer fx_c_ss_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ss_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 static s7_pointer fx_c_ss_assq(s7_scheme *sc, s7_pointer arg) {return(assq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_c_ss_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_c_ss_sref(s7_scheme *sc, s7_pointer arg) {return(string_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_c_ts_direct(s7_scheme *sc, s7_pointer arg)
 {
@@ -54614,6 +54627,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    {
 	      if (car(arg) == sc->assq_symbol) return(fx_c_ss_assq);
 	      if (car(arg) == sc->memq_symbol) return(fx_c_ss_memq);
+	      if (car(arg) == sc->vector_ref_symbol) return(fx_c_ss_vref);
+	      if (car(arg) == sc->string_ref_symbol) return(fx_c_ss_sref);
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      return(fx_c_ss_direct);
 	    }
@@ -54873,8 +54888,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	    {
 	      if (car(arg) == sc->memq_symbol) 
 		{
-		  if (c_callee(arg) == g_memq_2) return(fx_c_sc_memq_2);
-		  if (safe_list_length(caddr(arg)) == 3) return(fx_c_sc_memq_3);
+		  if ((is_pair(caddr(arg))) && (is_proper_list_3(sc, cadr(caddr(arg))))) return(fx_c_sc_memq_3);
 		  return(fx_c_sc_memq);
 		}
 	      if (car(arg) == sc->lt_symbol) return((is_t_integer(caddr(arg))) ? fx_lt_si : fx_c_sc_lt);
@@ -55338,7 +55352,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
       if (cadr(p) == var1)
 	{
 	  if (c_callee(tree) == fx_c_s) return(with_c_call(tree, fx_c_t));
-	  if (c_callee(tree) == fx_c_s_direct) return(with_c_call(tree, fx_c_t_direct));
+	  if (c_callee(tree) == fx_c_s_direct) return(with_c_call(tree, (opt2_direct(cdr(p)) == (s7_pointer)cddr_p_p) ? fx_cddr_t : fx_c_t_direct));
 	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_ts));
 	  if (c_callee(tree) == fx_c_ss_direct) return(with_c_call(tree, fx_c_ts_direct));
 	  if (c_callee(tree) == fx_c_scs) return(with_c_call(tree, fx_c_tcs));
@@ -55434,7 +55448,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  if (is_global_and_has_func(car(p), s7_p_p_function))
 		    {
 		      set_opt2_direct(cdr(p), (s7_pointer)(s7_p_p_function(slot_value(global_slot(car(p))))));
-		      return(with_c_call(tree, fx_c_u_direct));
+		      return(with_c_call(tree, (opt2_direct(cdr(p)) == (s7_pointer)cddr_p_p) ? fx_cddr_u : fx_c_u_direct));
 		    }
 		  return(with_c_call(tree, fx_c_u));
 		}
@@ -67513,17 +67527,17 @@ static s7_pointer hash_table_set_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
    {
      s7_pointer val;
      val = cadddr(expr);
-     if ((is_pair(val)) && (car(val) == sc->add_symbol) && (safe_list_length(val) == 3) &&
+     if ((is_pair(val)) && (car(val) == sc->add_symbol) && (is_proper_list_3(sc, val)) &&
 	 ((cadr(val) == small_one) || (caddr(val) == small_one)))
        {
 	 s7_pointer add1;
 	 add1 = (cadr(val) == small_one) ? caddr(val) : cadr(val);
-	 if ((is_pair(add1)) && (car(add1) == sc->or_symbol) && (safe_list_length(add1) == 3) &&
+	 if ((is_pair(add1)) && (car(add1) == sc->or_symbol) && (is_proper_list_3(sc, add1)) &&
 	     (caddr(add1) == small_zero))
 	   {
 	     s7_pointer or1;
 	     or1 = cadr(add1);
-	     if ((is_pair(or1)) && (car(or1) == sc->hash_table_ref_symbol) && (safe_list_length(or1) == 3) &&
+	     if ((is_pair(or1)) && (car(or1) == sc->hash_table_ref_symbol) && (is_proper_list_3(sc, or1)) &&
 		 (cadr(or1) == cadr(expr)) && (caddr(or1) == caddr(expr)))
 	       {
 		 /* (hash-table-set! counts p (+ (or (hash-table-ref counts p) 0) 1)) -- ssa_direct and hop_safe_c_ss */
@@ -69006,7 +69020,7 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		  s7_pointer laa;
 		  laa = cadddr(let_body);
 		  if ((car(laa) == name) &&
-		      (safe_list_length(laa) == 3) &&
+		      (is_proper_list_3(sc, laa)) &&
 		      (is_fxable(sc, cadr(laa))) &&
 		      (is_safe_fxable(sc, caddr(laa))))
 		    {
@@ -79006,7 +79020,7 @@ static bool preserves_type(s7_scheme *sc, uint32_t x)
 
 static s7_pointer simple_stepper(s7_scheme *sc, s7_pointer v)
 {
-  if ((safe_list_length(v) == 3) &&
+  if ((is_proper_list_3(sc, v)) &&
       (is_fxable(sc, cadr(v))))
     {
       s7_pointer step_expr;
@@ -79462,7 +79476,7 @@ static s7_pointer check_do(s7_scheme *sc)
 	if (is_safe_stepper_expr(step))
 	  {
 	    step = car(step);
-	    if ((is_pair(step)) && (safe_list_length(step) == 3))
+	    if ((is_pair(step)) && (is_proper_list_3(sc, step)))
 	      {
 		if ((car(step) == sc->add_symbol) &&
 		    (((cadr(step) == var) && (caddr(step) == small_one)) ||
@@ -97690,9 +97704,9 @@ int main(int argc, char **argv)
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
  * calls    40.3 | 35.9 | 35.9
- * sg       85.8 | 70.4 | 70.4
- * lg      115.9 |104.9 |104.7
- * tbig    264.5 |178.0 |175.9 177.2 (missing fx_tree as above?]
+ * sg       85.8 | 70.4 | 70.3
+ * lg      115.9 |104.9 |104.6
+ * tbig    264.5 |178.0 |177.2
  * -----------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
@@ -97718,4 +97732,5 @@ int main(int argc, char **argv)
  *   why special code in syn_opt? call check*
  * (*s7* 'debug) perhaps and make sure line info is saved -- how to save more history without affecting performance?
  *   need the enclosing code, perhaps curlet contents?
+ * [check: fx_c_ss_direct vref/string-ref fx_cddr_t|u]
  */
