@@ -11330,7 +11330,10 @@
 						   (truncated-list->string form)
 						   (if (eq? head '=)
 						       (format #f ", perhaps use (not (nan? ~A))" (cadr form)) ; len=3 above, so only cadr is possible
-						       ""))
+						       (if (and (eq? head 'eq?)   ; (eq? x x)
+								(eq? (cadr form) (caddr form)))
+							   ", isn't it always #t?"
+							   "")))
 				      (if (and (hash-table-ref repeated-args-table-2 head)
 					       (repeated-member? (cdr form) env))
 					  (lint-format "it looks odd to have repeated arguments in ~A" caller (truncated-list->string form))))

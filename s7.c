@@ -2428,6 +2428,10 @@ static void init_types(void)
 #define has_hash_value_type(p)         has_type1_bit(T_Hsh(p), T_HASH_VALUE_TYPE)
 #define set_has_hash_value_type(p)     set_type1_bit(T_Hsh(p), T_HASH_VALUE_TYPE)
 
+#define T_INT_OPTABLE                  T_SYMCONS
+#define is_int_optable(p)              has_type1_bit(T_Pair(p), T_INT_OPTABLE)
+#define set_is_int_optable(p)          set_type1_bit(T_Pair(p), T_INT_OPTABLE)
+
 /* symbol free here */
 #define T_FULL_HAS_LET_FILE            (1LL << (TYPE_BITS + BIT_ROOM + 25))
 #define T_HAS_LET_FILE                 (1 << 1)
@@ -2536,6 +2540,10 @@ static void init_types(void)
 #define T_SAFE_SETTER                  T_SIMPLE_ELEMENTS
 #define is_safe_setter(p)              has_type1_bit(T_Sym(p), T_SAFE_SETTER)
 #define set_safe_setter(p)             set_type1_bit(T_Sym(p), T_SAFE_SETTER)
+
+#define T_FLOAT_OPTABLE                T_SIMPLE_ELEMENTS
+#define is_float_optable(p)            has_type1_bit(T_Pair(p), T_FLOAT_OPTABLE)
+#define set_is_float_optable(p)        set_type1_bit(T_Pair(p), T_FLOAT_OPTABLE)
 
 #define T_FULL_CASE_KEY                (1LL << (TYPE_BITS + BIT_ROOM + 33))
 #define T_CASE_KEY                     (1 << 9)
@@ -17536,7 +17544,8 @@ static s7_double subtract_d_ddd(s7_double x1, s7_double x2, s7_double x3) {retur
 static s7_double subtract_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(x1 - x2 - x3 - x4);}
 
 #if (!WITH_GMP)
-static s7_pointer sub_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_real(sc, x1 - x2));}
+static s7_pointer subtract_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_real(sc, x1 - x2));}
+static s7_pointer subtract_p_ii(s7_scheme *sc, s7_int i1, s7_int i2) {return(make_integer(sc, i1 - i2));}
 
 static s7_pointer g_sub_xi(s7_scheme *sc, s7_pointer x, s7_int y)
 {
@@ -26961,6 +26970,7 @@ static s7_pointer op_eval_string(s7_scheme *sc)
   s7_close_input_port(sc, sc->input_port);
   pop_input_port(sc);
   sc->code = sc->value;
+  set_current_code(sc, sc->code);
   return(NULL);
 }
 
@@ -30386,7 +30396,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   /* bit 9 */
 	   ((full_typ & T_COLLECTED) != 0) ?      " collected" : "",
 	   /* bit 10 */
-	   ((full_typ & T_LOCATION) != 0) ?    ((is_pair(obj)) ? " line-number" :
+	   ((full_typ & T_LOCATION) != 0) ?       ((is_pair(obj)) ? " line-number" :
 						   ((is_input_port(obj)) ? " loader-port" :
 						    ((is_let(obj)) ? " with-let" :
 						     ((is_any_procedure(obj)) ? " simple-defaults" :
@@ -30456,7 +30466,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						   ((is_procedure(obj)) ? " has-let-arg" :
 						    ((is_let(obj)) ? " slots-set" :
 						     ((is_hash_table(obj)) ? " has-value-type" :
-						      " ?24?")))) : "",
+						      ((is_pair(obj)) ? " int-optable" :
+						       " ?24?"))))) : "",
 	   /* bit 25+16 */
 	   ((full_typ & T_FULL_HAS_LET_FILE) != 0) ? ((is_let(obj)) ? " has-let-file" :
 						      ((is_any_vector(obj)) ? " typed-vector" :
@@ -30489,8 +30500,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) ? ((is_normal_vector(obj)) ? " simple-elements" :
 							 ((is_hash_table(obj)) ? " simple-keys" :
 							  ((is_normal_symbol(obj)) ? " safe-setter" :
-							   ((typ >= T_C_MACRO) ? " function-simple-elements" :
-							    " 32?")))) : "",
+							   ((is_pair(obj)) ? " float-optable" :
+							    ((typ >= T_C_MACRO) ? " function-simple-elements" :
+							     " 32?"))))) : "",
 	   /* bit 33+16 */
 	   ((full_typ & T_FULL_CASE_KEY) != 0) ?  ((is_symbol(obj)) ? " case-key" : " ?33?") : "",
 
@@ -30524,7 +30536,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_MULTIPLE_VALUE) != 0) && (!is_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_GLOBAL) != 0) && (!is_pair(obj)) && (!is_symbol(obj)) && (!is_let(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_ITER_OK) != 0) && (!is_iterator(obj))) return(true);
-  if (((full_typ & T_FULL_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj)) && (!is_let(obj)) && (!is_hash_table(obj))) return(true);
+  if (((full_typ & T_FULL_SYMCONS) != 0) && (!is_symbol(obj)) && (!is_procedure(obj)) && (!is_let(obj)) && (!is_hash_table(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_LOCAL) != 0) && (!is_normal_symbol(obj)) && (!is_pair(obj))) return(true);
   if (((full_typ & T_COPY_ARGS) != 0) && (!is_pair(obj)) && (!is_any_macro(obj)) && (!is_any_closure(obj)) && (!is_c_function(obj))) return(true);
   if (((full_typ & T_UNSAFE) != 0) && (!is_symbol(obj)) && (!is_slot(obj)) && (!is_let(obj)) && (!is_pair(obj))) return(true);
@@ -30553,7 +30565,7 @@ static bool has_odd_bits(s7_pointer obj)
       (!is_let(obj)) && (!is_symbol(obj)) && (!is_string(obj)) && (!is_hash_table(obj)) && (!is_pair(obj)) && (!is_any_vector(obj)))
     return(true);
   if (((full_typ & T_FULL_SIMPLE_ELEMENTS) != 0) &&
-      ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_normal_symbol(obj)) && (unchecked_type(obj) < T_C_MACRO)))
+      ((!is_normal_vector(obj)) && (!is_hash_table(obj)) && (!is_normal_symbol(obj)) && (!is_pair(obj)) && (unchecked_type(obj) < T_C_MACRO)))
     return(true);
   if (((full_typ & T_CYCLIC) != 0) && (!is_simple_sequence(obj)) && (!t_structure_p[type(obj)]) && (!is_any_closure(obj)))
     return(true);
@@ -50509,6 +50521,7 @@ pass (rootlet):\n\
   returns 32"
   #define Q_eval s7_make_signature(sc, 3, sc->values_symbol, sc->T, sc->is_let_symbol)
 
+  set_current_code(sc, car(args));
   if (is_not_null(cdr(args)))
     {
       s7_pointer e;
@@ -53064,6 +53077,12 @@ static s7_pointer fx_c_optq_c_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_pp_t)opt3_direct(arg))(sc, ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))), opt2_con(cdr(arg))));
 }
 
+static s7_pointer fx_c_optq_i_direct(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, opt1_con(cdr(arg)));
+  return(((s7_p_ii_t)opt3_direct(arg))(sc, ((s7_i_7p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))), integer(opt2_con(cdr(arg)))));
+}
+
 static s7_pointer fx_memq_car_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, obj;
@@ -53509,6 +53528,14 @@ static s7_pointer fx_c_s_op_opsq_cq(s7_scheme *sc, s7_pointer code)
   set_car(sc->t2_2, c_call(args)(sc, sc->t2_1));
   set_car(sc->t2_1, lookup(sc, cadr(code)));
   return(c_call(code)(sc, sc->t2_1));
+}
+
+static s7_pointer fx_c_t_op_optq_iq_direct(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer tp;
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  tp = slot_value(let_slots(sc->envir));
+  return(((s7_p_pi_t)opt3_direct(arg))(sc, tp, ((s7_i_ii_t)opt3_direct(cddr(arg)))(((s7_i_7p_t)opt3_direct(cdr(arg)))(sc, tp), integer(opt2_con(cdr(arg))))));
 }
 
 static s7_pointer fx_c_s_op_s_opssqq(s7_scheme *sc, s7_pointer code)
@@ -54486,6 +54513,7 @@ static s7_p_pp_t s7_p_pp_function(s7_pointer f);
 static s7_p_ppp_t s7_p_ppp_function(s7_pointer f);
 static s7_p_dd_t s7_p_dd_function(s7_pointer f);
 static s7_p_pi_t s7_p_pi_function(s7_pointer f);
+static s7_p_ii_t s7_p_ii_function(s7_pointer f);
 
 #define is_global_and_has_func(P, Func) ((is_global(P)) && (Func(slot_value(global_slot(P)))))
 
@@ -55438,6 +55466,20 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if ((c_callee(tree) == fx_c_s_car_s) && (cadaddr(p) == var2)) return(with_c_call(tree, fx_c_t_car_u));
 	  if (c_callee(tree) == fx_lint_let_ref) return(with_c_call(tree, fx_lint_let_ref_t));
 	  if (c_callee(tree) == fx_c_scs_direct) return(with_c_call(tree, (cadddr(p) == var2) ? fx_c_tcu_direct : fx_c_tcs_direct));
+
+	  if ((c_callee(tree) == fx_c_s_op_opsq_cq) &&
+	      (cadadr(caddr(p)) == var1) &&
+	      (is_t_integer(caddr(caddr(p)))) &&
+	      (is_global_and_has_func(car(p), s7_p_pi_function)) &&
+	      (is_global_and_has_func(caaddr(p), s7_i_ii_function)) &&
+	      (is_global_and_has_func(caadr(caddr(p)), s7_i_7p_function)))
+	    {
+	      set_opt3_direct(p, (s7_pointer)(s7_p_pi_function(slot_value(global_slot(car(p))))));
+	      set_opt3_direct(cddr(p), (s7_pointer)(s7_i_ii_function(slot_value(global_slot(caaddr(p))))));
+	      set_opt3_direct(cdr(p), (s7_pointer)(s7_i_7p_function(slot_value(global_slot(caadr(caddr(p)))))));
+	      set_opt2_con(cdr(p), caddr(caddr(p)));
+	      set_c_call(tree, fx_c_t_op_optq_iq_direct);
+	    }
 	}
       else
 	{
@@ -55515,7 +55557,18 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 				      set_opt3_direct(cdr(p), (s7_pointer)(s7_p_p_function(slot_value(global_slot(caadr(p))))));
 				      set_c_call(tree, fx_c_optq_c_direct);
 				    }
-				  else set_c_call(tree, fx_c_optq_c);
+				  else
+				    {
+				      if ((is_t_integer(caddr(p))) &&
+					  (is_global_and_has_func(caadr(p), s7_i_7p_function)) &&
+					  (is_global_and_has_func(car(p), s7_p_ii_function)))
+					{
+					  set_opt3_direct(p, (s7_pointer)(s7_p_ii_function(slot_value(global_slot(car(p))))));
+					  set_opt3_direct(cdr(p), (s7_pointer)(s7_i_7p_function(slot_value(global_slot(caadr(p))))));
+					  set_c_call(tree, fx_c_optq_i_direct);
+					}
+				      else set_c_call(tree, fx_c_optq_c);
+				    }
 				}
 			      return(true);
 			    }
@@ -67167,6 +67220,11 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
   return(sc->nil);
 }
 
+static s7_pointer unbound_variable_error(s7_scheme *sc, s7_pointer sym)
+{
+  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "~S in ~S", 8), sym, current_code(sc))));
+}
+
 static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 {
   /* this always occurs in a context where we're trying to find anything, so I'll move a couple of those checks here */
@@ -67312,7 +67370,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	  (result != sc->unspecified))
 	return(result);
     }
-  return(eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sym));
+  return(unbound_variable_error(sc, sym));
 }
 
 static s7_pointer syntax(s7_scheme *sc, const char *name, opcode_t op, s7_pointer min_args, s7_pointer max_args, const char *doc)
@@ -75133,7 +75191,7 @@ static goto_t op_let_temp_init2(s7_scheme *sc)
 	}
       slot = symbol_to_slot(sc, settee);
       if (!is_slot(slot))
-	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+	unbound_variable_error(sc, settee);
       if (is_immutable_slot(slot))
 	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
       if (is_symbol(new_value))
@@ -75243,7 +75301,7 @@ static void op_let_temp_fx(s7_scheme *sc) /* all entries are of the form (symbol
       settee = car(var);
       slot = symbol_to_slot(sc, settee);
       if (!is_slot(slot))
-	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+	unbound_variable_error(sc, settee);
       if (is_immutable_slot(slot))
 	immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
       push_stack(sc, OP_LET_TEMP_UNWIND, slot_value(slot), slot);
@@ -75270,7 +75328,7 @@ static void op_let_temp_fx_1(s7_scheme *sc) /* one entry */
   settee = car(var);
   slot = symbol_to_slot(sc, settee);
   if (!is_slot(slot))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, settee);
+    unbound_variable_error(sc, settee);
   if (is_immutable_slot(slot))
     immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_temporarily_symbol, settee));
   push_stack(sc, OP_LET_TEMP_UNWIND, slot_value(slot), slot);
@@ -77820,7 +77878,7 @@ static void op_set_safe(s7_scheme *sc)
   lx = symbol_to_slot(sc, sc->code);   /* SET_CASE above looks for car(sc->code) */
   if (is_slot(lx))
     slot_set_value(lx, sc->value);
-  else eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, sc->code);
+  else unbound_variable_error(sc, sc->code);
 }
 
 static s7_pointer op_set1(s7_scheme *sc)
@@ -77867,7 +77925,7 @@ static s7_pointer op_set1(s7_scheme *sc)
   if (has_let_set_fallback(sc->envir))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
     return(call_let_set_fallback(sc, sc->envir, sc->code, sc->value));
 
-  return(eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, sc->code));
+  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "~S in (set! ~S ~S)", 18), sc->code, sc->code, sc->value)));
 }
 
 static void op_set_from_setter(s7_scheme *sc)
@@ -79559,20 +79617,48 @@ static bool has_safe_steppers(s7_scheme *sc, s7_pointer frame)
 		{
 		  if (is_t_integer(val))
 		    {
-		      sc->pc = 0;
-		      if (int_optimize(sc, step_expr))
+		      if (is_int_optable(step_expr))
 			set_safe_stepper(slot);
-		      else clear_safe_stepper(slot);
-		    }
+		      else
+			{
+			  if (no_int_opt(step_expr))
+			    clear_safe_stepper(slot);
+			  else
+			    {
+			      sc->pc = 0;
+			      if (int_optimize(sc, step_expr))
+				{
+				  set_safe_stepper(slot);
+				  set_is_int_optable(step_expr);
+				}
+			      else 
+				{
+				  clear_safe_stepper(slot);
+				  set_no_int_opt(step_expr);
+				}}}}
 		  else
 		    {
 		      if (is_real(val))
 			{
-			  sc->pc = 0;
-			  if (float_optimize(sc, step_expr))
+			  if (is_float_optable(step_expr))
 			    set_safe_stepper(slot);
-			  else clear_safe_stepper(slot);
-			}
+			  else
+			    {
+			      if (no_float_opt(step_expr))
+				clear_safe_stepper(slot);
+			      else
+				{
+				  sc->pc = 0;
+				  if (float_optimize(sc, step_expr))
+				    {
+				      set_safe_stepper(slot);
+				      set_is_float_optable(step_expr);
+				    }
+				  else 
+				    {
+				      clear_safe_stepper(slot);
+				      set_no_float_opt(step_expr);
+				    }}}}
 		      else set_safe_stepper(slot);  /* ?? shouldn't this check types ?? */
 		    }
 		}
@@ -79873,7 +79959,7 @@ static goto_t op_dox(s7_scheme *sc)
 	      val = car(val);
 	      slot = symbol_to_slot(sc, cadr(body));
 	      if (slot == sc->undefined)
- 		eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, cadr(body));
+		unbound_variable_error(sc, cadr(body));
 	      stepf = c_callee(slot_expression(stepper));
 	      stepa = car(slot_expression(stepper));
 	      do {
@@ -81976,7 +82062,7 @@ static inline void op_increment_by_1(s7_scheme *sc)  /* ([set!] ctr (+ ctr 1)) *
 
   y = symbol_to_slot(sc, cadr(sc->code));
   if (!is_slot(y))
-    eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
+    s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "~S in ~S", 8), cadr(sc->code), sc->code));
   val = slot_value(y);
   if (is_t_integer(val))
     sc->value = make_integer(sc, integer(val) + 1);
@@ -82014,7 +82100,7 @@ static void op_decrement_by_1(s7_scheme *sc)  /* ([set!] ctr (- ctr 1)) */
 
   y = symbol_to_slot(sc, cadr(sc->code));
   if (!is_slot(y))
-    eval_error_any(sc, sc->wrong_type_arg_symbol, "set! ~A: unbound variable", 25, cadr(sc->code));
+    s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "~S in ~S", 8), cadr(sc->code), sc->code));
   val = slot_value(y);
   if (is_t_integer(val))
     sc->value = make_integer(sc, integer(val) - 1); /* increment (set!) returns the new value in sc->value */
@@ -87639,7 +87725,7 @@ static bool unknown_unknown(s7_scheme *sc, s7_pointer code, opcode_t op)
 {
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    unbound_variable_error(sc, car(code));
   set_optimize_op(code, op);
   return(true);
 }
@@ -87669,7 +87755,7 @@ static bool op_unknown(s7_scheme *sc)
 	  (is_slot(symbol_to_slot(sc, car(sc->code)))))
 	fprintf(stderr, "%s[%d]: weird: %s\n", __func__, __LINE__, display(sc->code));
 #endif
-      eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+      unbound_variable_error(sc, car(sc->code));
     }
   /* perhaps set op to OP_CLEAR_OPTS and return(true) above */
 
@@ -87743,7 +87829,7 @@ static bool op_unknown(s7_scheme *sc)
     default:
       if ((is_symbol(car(code))) &&
 	  (!is_slot(symbol_to_slot(sc, car(code)))))
-	eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+	unbound_variable_error(sc, car(code));
     }
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s: %s %s [%s]\n", __func__, __LINE__, display(code), s7_type_names[type(f)], display(f));
@@ -87791,8 +87877,7 @@ static bool op_unknown_g(s7_scheme *sc)
   s7_pointer code, f;
   bool sym_case;
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -87946,7 +88031,7 @@ static bool op_unknown_g(s7_scheme *sc)
     }
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    unbound_variable_error(sc, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s_s|c: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -87958,8 +88043,7 @@ static bool op_unknown_a(s7_scheme *sc)
 {
   s7_pointer code, f;
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
 #endif
@@ -88059,7 +88143,7 @@ static bool op_unknown_a(s7_scheme *sc)
     }
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    unbound_variable_error(sc, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: op_s_a: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -88107,8 +88191,7 @@ static bool op_unknown_gg(s7_scheme *sc)
   bool s1, s2;
   s7_pointer code, f;
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -88262,7 +88345,7 @@ static bool op_unknown_gg(s7_scheme *sc)
 
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    unbound_variable_error(sc, car(code));
 
   annotate_args(sc, cdr(code), sc->envir);
 #if UNOPT_PRINT
@@ -88277,8 +88360,7 @@ static bool op_unknown_all_s(s7_scheme *sc)
   int32_t num_args;
 
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -88288,7 +88370,7 @@ static bool op_unknown_all_s(s7_scheme *sc)
   num_args = integer(opt3_arglen(code));
   for (arg = cdr(code); is_pair(arg); arg = cdr(arg))
     if (!is_slot(symbol_to_slot(sc, car(arg))))
-      eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(arg));
+      unbound_variable_error(sc, car(arg));
 
   switch (type(f))
     {
@@ -88368,8 +88450,7 @@ static bool op_unknown_aa(s7_scheme *sc)
   s7_pointer code, f;
 
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
 #endif
@@ -88444,7 +88525,7 @@ static bool op_unknown_aa(s7_scheme *sc)
 
   if ((is_symbol(car(code))) &&
       (!is_slot(symbol_to_slot(sc, car(code)))))
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(code));
+    unbound_variable_error(sc, car(code));
 
 #if UNOPT_PRINT
   fprintf(stderr, "%s[%d]: unopt: %s %s\n", __func__, __LINE__, display(code), s7_type_names[type(f)]);
@@ -88458,8 +88539,7 @@ static bool op_unknown_fx(s7_scheme *sc)
   int32_t num_args;
 
   f = sc->last_function;
-  if (!f)
-    eval_error_any(sc, sc->unbound_variable_symbol, "~A: unbound variable", 20, car(sc->code));
+  if (!f) unbound_variable_error(sc, car(sc->code));
 
 #if SHOW_EVAL_OPS
   fprintf(stderr, "%s %s\n", __func__, display(f));
@@ -95714,7 +95794,8 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_pp_function(slot_value(global_slot(sc->multiply_symbol)), multiply_p_pp);
   s7_set_p_dd_function(slot_value(global_slot(sc->multiply_symbol)), mul_p_dd);
   s7_set_p_dd_function(slot_value(global_slot(sc->add_symbol)), add_p_dd);
-  s7_set_p_dd_function(slot_value(global_slot(sc->subtract_symbol)), sub_p_dd);
+  s7_set_p_dd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_dd);
+  s7_set_p_ii_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_ii);
 #endif
   s7_set_p_d_function(slot_value(global_slot(sc->float_vector_symbol)), float_vector_p_d);
   s7_set_p_i_function(slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
@@ -97675,7 +97756,7 @@ int main(int argc, char **argv)
  * ------------------------------
  * tpeak     167 |  117 |  116
  * tauto     748 |  633 |  631
- * tshoot   1176 |  777 |  777
+ * tshoot   1176 |  777 |  777   761
  * tref     1093 |  779 |  779
  * index     971 |  889 |  881
  * s7test   1776 | 1711 | 1705
@@ -97685,18 +97766,18 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284 | 2277
  * tread    2449 | 2394 | 2379
  * tvect    6189 | 2430 | 2450
- * tmat     6072 | 2478 | 2468
+ * tmat     6072 | 2478 | 2468  2473? (has_safe_steppers change -- was 2474)
  * dup      6333 | 2669 | 2465
  * fbench   2974 | 2643 | 2631
  * trclo    7985 | 2791 | 2716
- * tb       3251 | 2799 | 2780
+ * tb       3251 | 2799 | 2780  2770
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
  * tset     6616 | 3083 | 3089
  * tmac     3391 | 3186 | 3179
  * teq      4081 | 3804 | 3791
- * tfft     4288 | 3816 | 3809
+ * tfft     4288 | 3816 | 3809  3789
  * tlet     5409 | 4613 | 4574
  * tclo     6206 | 4896 | 4865
  * trec     17.8 | 6318 | 6318
@@ -97732,5 +97813,8 @@ int main(int argc, char **argv)
  *   why special code in syn_opt? call check*
  * (*s7* 'debug) perhaps and make sure line info is saved -- how to save more history without affecting performance?
  *   need the enclosing code, perhaps curlet contents?
+ * t249 substr->temp etc: substring_p_pip? tref addition?
  * [check: fx_c_ss_direct vref/string-ref fx_cddr_t|u]
+ * has_safe_stepper is_int|float_optimizable (to avoid recalling int|float_optimize)
+ *   fx_c_ct_direct->cons?
  */
