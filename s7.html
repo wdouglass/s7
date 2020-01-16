@@ -2921,19 +2921,6 @@ keeps a circular buffer of the calls to that function:
 <em class="gray">#1=(#f #f #f #f #f #f (3 1 2) (7 3 4) . #1#)</em>
 </pre>
 
-<blockquote>
-<div class="indented">
-<p>I originally used a bunch of foolishly pompous names for the environment functions.
-Two are still available for backwards compatibility:
-</p>
-
-<pre class="indented">
-rootlet      global-environment
-curlet       current-environment
-</pre>
-</div>
-</blockquote>
-
 
 <p>It is possible in Scheme to redefine built-in functions such as car.
 To ensure that some code sees the original built-in function definitions,
@@ -5228,7 +5215,7 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
 (<em class=def id="symboltable">symbol-table</em>)
 (<em class=def id="symboltovalue">symbol-&gt;value</em> sym (env (curlet)))
 (<em class=def id="symboltodynamicvalue">symbol-&gt;dynamic-value</em> sym)
-(<em class=def id="definedp">defined?</em> sym (env (curlet)) ignore-global-env)
+(<em class=def id="definedp">defined?</em> sym (env (curlet)) ignore-rootlet)
 </pre>
 
 <p>
@@ -5241,7 +5228,7 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
      (define ,name ,value)))
 </pre>
 
-<p>If ignore-global-env is #t, the search is confined to the given environment.
+<p>If ignore-rootlet is #t, the search is confined to the given environment.
 <code>symbol-&gt;value</code> returns the value (lexically) bound to the symbol, whereas <code>symbol-&gt;dynamic-value</code>
 returns the value dynamically bound to it.
 </p>

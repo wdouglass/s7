@@ -306,5 +306,26 @@
   (newline))
 
 ;;; --------------------------------------------------------------------------------
+;;;
+;;; from Joe Marshall (not a "standard benchmark", but interesting)
+
+(let ()
+  (define (palindrome? string)
+    (or (< (string-length string) 2)
+	(and (char=? (string-ref string 0)
+		     (string-ref string (- (string-length string) 1)))
+	     (palindrome? (substring string 1 (- (string-length string) 1))))))
+
+  (define (pal-test)
+    (do ((i 0 (+ i 1)))
+	((= i 10000))
+      (palindrome? "abcdefgfedcba")
+      (palindrome? "abcdefxfedcba")
+      (palindrome? "")
+      (palindrome? "abcdefghedcba")))
+
+  (pal-test))
+
+;;; --------------------------------------------------------------------------------
 
 (exit)
