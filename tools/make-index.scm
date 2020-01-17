@@ -364,8 +364,8 @@
 ;;; --------------------------------------------------------------------------------
 ;;; get indexer.data
 
-(define (provide sym) ; this picks up most of the (provide ...) statements for the autoloader
-  (set! *features* (cons sym *features*)))
+(define-macro (provide sym) ; this picks up most of the (provide ...) statements for the autoloader
+  `(define (,(cadr sym)) ,sym)) ; (provide 'name) so car=quote, cadr=symbol
 
 (define (load-files)
   (load "ws.scm")
@@ -846,7 +846,7 @@
        (*libgsl* "libgsl.scm")))
     
     (apropos-1 (rootlet))
-    
+
     (let ((syms ())
 	  (size 0))
       (call-with-output-file "indexer.data"
@@ -1563,36 +1563,39 @@
 			   (format () "~A[~D]: <a href but no </a> for ~A\n" file linectr dline)
 			   (begin
 			     (set! epos (char-position #\" dline 1))
-			     (let ((cur-href #f))
-			       (if (char=? (string-ref dline 0) #\#)
-				   (set! cur-href (string-append file (substring dline 0 epos)))
-				   (begin
-				     (set! cur-href (substring dline 0 epos))
-				     (let ((pos (char-position #\# cur-href)))
-				       (unless (or pos
-						   (<= epos 5)
-						   (file-exists? cur-href)
-						   (string=? (substring cur-href 0 4) "ftp:")
-						   (string=? (substring cur-href 0 5) "http:")
-						   (string=? (substring cur-href 0 6) "https:"))
-					 (format () "~A[~D]: reference to missing file ~S\n" file linectr cur-href)))))
-			       
-			       ;; cur-href here is the full link: sndclm.html#make-filetosample for example
-			       ;;   it can also be a bare file name
-			       (let* ((name (let ((start (char-position #\# cur-href)))
-					      (and (number? start) 
-						   (string->symbol (substring cur-href (+ start 1))))))
-				      (data (and (symbol? name) 
-						 (hash-table-ref ids name))))
-				 (if name 
-				     (if (not data)
-					 (format () ";can't find id ~A\n" name)
-					 (hash-table-set! ids name (+ data 1))))))
+			     (if (not epos)
+				 (format () "~A[~D]: missing #\\ in ~A?" file linectr dline)
+				 (let ((cur-href #f))
+				   (if (char=? (string-ref dline 0) #\#)
+				       (set! cur-href (string-append file (substring dline 0 epos)))
+				       (begin
+					 (set! cur-href (substring dline 0 epos))
+					 (let ((pos (char-position #\# cur-href)))
+					   (unless (or pos
+						       (<= epos 5)
+						       (file-exists? cur-href)
+						       (string=? (substring cur-href 0 4) "ftp:")
+						       (string=? (substring cur-href 0 5) "http:")
+						       (string=? (substring cur-href 0 6) "https:"))
+					     (format () "~A[~D]: reference to missing file ~S\n" file linectr cur-href)))))
+				   
+				   ;; cur-href here is the full link: sndclm.html#make-filetosample for example
+				   ;;   it can also be a bare file name
+				   (let* ((name (let ((start (char-position #\# cur-href)))
+						  (and (number? start) 
+						       (string->symbol (substring cur-href (+ start 1))))))
+					  (data (and (symbol? name) 
+						     (hash-table-ref ids name))))
+				     (if name 
+					 (if (not data)
+					     (format () ";can't find id ~A\n" name)
+					     (hash-table-set! ids name (+ data 1)))))))
+
 			     (set! href (+ href 1))
 			     (set! dline (substring dline epos))
 			     (set! pos (string-position " href=" dline))
 			     (set! pos-len 7))))))))))))
-     files)
+     files) ; for-each far above
     ;; end file scan
     
     (format () "found ~D names and ~D references\n" name href)

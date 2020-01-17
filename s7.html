@@ -152,8 +152,8 @@ no run-time init files, and no configuration scripts.
 It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
 A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
-Woody Douglass has a github site: <a href=https://github.com/wdouglass/s7>s7</a>.  I use svn at sourceforge (the Snd project):
-<a href=https://sourceforge.net/p/snd/svn1/>Snd</a>.
+Woody Douglass has a github site: <a href="https://github.com/wdouglass/s7">s7</a>.  I use svn at sourceforge (the Snd project):
+<a href="https://sourceforge.net/p/snd/svn1/">Snd</a>.
 </p>
 
 <p>
@@ -5600,6 +5600,7 @@ The defaults are '(3 45 80 45 #t).
 </p>
 
 <p>The standard time macro:</p>
+
 <pre class="indented">
 (define-macro (time expr) 
   `(let ((start (<em class="red">*s7* 'cpu-time</em>)))
@@ -5608,7 +5609,8 @@ The defaults are '(3 45 80 45 #t).
 	     (- (<em class="red">*s7* 'cpu-time</em>) start)))))
 </pre>
 
-<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):
+<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):</p>
+
 <pre class="indented">
 (define log10 (log (bignum "10")))
 (define bignum-precision (dilambda (lambda () 
@@ -7280,7 +7282,7 @@ static s7_pointer mark_dax(s7_scheme *sc, s7_pointer obj)
 {
   dax *o;
   o = (dax *)s7_c_object_value(obj);
-  s7_mark(o->data);
+  s7_mark(o-&gt;data);
   return(NULL);
 }
 
