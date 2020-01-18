@@ -1448,6 +1448,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   (list 
    :print-length                  (*s7* 'print-length)
    :safety                        (*s7* 'safety)
+   :debug                         (*s7* 'debug)
    :cpu-time                      (*s7* 'cpu-time)
    :heap-size                     (*s7* 'heap-size)
    :free-heap-size                (*s7* 'free-heap-size)

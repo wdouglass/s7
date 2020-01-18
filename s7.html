@@ -5510,6 +5510,7 @@ max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
 initial-string-port-length    128, initial size of a input string port's buffer
 output-port-data-size         2048, size of an output port's buffer
+history			      a circular buffer of recent eval entries stored backwards (use set! to add an entry)
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 profile-info                  profiling data if s7 built WITH_PROFILE=1
@@ -5538,7 +5539,6 @@ gc-stats                      #f (#t turns on printout of the GC activity)
 ;; the rest are not settable
 cpu-time                      run time so far
 file-names                    currently loaded files (a list)
-history			      a circular buffer of recent eval entries stored backwards
 catches                       a list of the currently active catch tags
 c-types                       a list of c-object type names (from s7_make_c_type, etc)
 
