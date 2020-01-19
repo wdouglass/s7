@@ -1047,7 +1047,7 @@ struct s7_scheme {
   s7_double gc_resize_heap_fraction, gc_resize_heap_by_4_fraction;
 
 #if WITH_HISTORY
-  s7_pointer eval_history1, eval_history2, error_history, history_sink, history_pairs;
+  s7_pointer eval_history1, eval_history2, error_history, history_sink, history_pairs, old_cur_code;
   bool using_history1;
 #endif
 
@@ -1781,18 +1781,22 @@ static void init_types(void)
 #endif
 }
 
+void s7_show_history(s7_scheme *sc);
+
 #if WITH_HISTORY
-#define current_code(Sc)           car(Sc->cur_code)
+#define current_code(Sc)               car(Sc->cur_code)
 #if 1
-#define set_current_code(Sc, Code) do {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, T_Pos(Code));} while (0)
+#define set_current_code(Sc, Code)     do {Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, T_Pos(Code));} while (0)
 #else
-#define set_current_code(Sc, Code) do {fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(Code)); Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, T_Pos(Code));} while (0)
+#define set_current_code(Sc, Code)     do {if (sc->cur_code != sc->history_sink) fprintf(stderr, "%s[%d] %d: %s\n", __func__, __LINE__, (sc->cur_code == sc->history_sink) ? 0 : 1, display_80(Code)); Sc->cur_code = cdr(Sc->cur_code); set_car(Sc->cur_code, T_Pos(Code));} while (0)
 #endif
-#define mark_current_code(Sc)      do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < sc->history_size; i++, p = cdr(p)) gc_mark(car(p));} while (0)
+#define replace_current_code(Sc, Code) set_car(Sc->cur_code, T_Pos(Code))
+#define mark_current_code(Sc)          do {int32_t i; s7_pointer p; for (p = Sc->cur_code, i = 0; i < Sc->history_size; i++, p = cdr(p)) gc_mark(car(p));} while (0)
 #else
-#define current_code(Sc)           Sc->cur_code
-#define set_current_code(Sc, Code) Sc->cur_code = T_Pos(Code)
-#define mark_current_code(Sc)      gc_mark(Sc->cur_code)
+#define current_code(Sc)               Sc->cur_code
+#define set_current_code(Sc, Code)     Sc->cur_code = T_Pos(Code)
+#define replace_current_code(Sc, Code) Sc->cur_code = T_Pos(Code)
+#define mark_current_code(Sc)          gc_mark(Sc->cur_code)
 #endif
 
 #define typeflag(p)  ((p)->tf.flag)
@@ -5996,6 +6000,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
     {
       if (size > sc->heap_size)
 	while (sc->heap_size < size) sc->heap_size *= 2;
+      else return;
     }
   /* do not call new_cell here! */
 
@@ -9455,23 +9460,29 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   return(mac);
 }
 
+
+static s7_pointer add_trace(s7_scheme *sc, s7_pointer args, s7_pointer code)  /* ((set! (*s7* 'history) (<func-name> args)) ...) */
+{
+  return(cons(sc, list_3(sc, sc->set_symbol, 
+			 list_2(sc, sc->s7_let_symbol, list_2(sc, sc->quote_symbol, make_symbol(sc, "history"))), 
+			 cons(sc, sc->list_symbol, 
+			      cons(sc, 
+				   list_4(sc,            /* (if (pair? __func__) (car __func__) __func__) -- can be confused */
+					  sc->if_symbol, 
+					  list_2(sc, sc->is_pair_symbol, sc->__func___symbol),
+					  list_2(sc, sc->car_symbol, sc->__func___symbol),
+					  sc->__func___symbol),
+				   args))),
+	      code));
+}
+
 static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, uint64_t type, int32_t arity)
 {
   /* this is called (almost?) every time a lambda form is evaluated, or during letrec, etc */
   s7_pointer x;
   new_cell(sc, x, (type | closure_bits(code)));
-#if 0
-  if (sc->debug > 0)
-    {
-      /* code becomes (begin (set! (*s7* 'history) (name ,@args)) ,@body) */ 
-      code = cons(sc, sc->begin_symbol, 
-              cons(sc, list_3(sc, sc->set_symbol, 
-                                  list_2(sc, sc->s7_let_symbol, make_symbol(sc, "history")), 
-                                  cons(sc, sc->__func___symbol, args)),
-                       code));
-    }
-#endif
   closure_set_args(x, args);
+  if (sc->debug > 0) code = add_trace(sc, args, code);
   closure_set_body(x, code);
   if (is_pair(cdr(code))) set_closure_has_multiform(x); else set_closure_has_one_form(x);
   closure_set_let(x, sc->envir);
@@ -9481,11 +9492,11 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   return(x);
 }
 
-/* TODO: use make_closure here and make it always_inline */
 #define make_closure_with_let(Sc, X, Args, Code, Arity)	\
-  do {							\
+  do {									\
     new_cell(Sc, X, T_CLOSURE | T_COPY_ARGS | closure_bits(Code));	\
     closure_set_args(X, Args);						\
+    if (sc->debug > 0) Code = add_trace(Sc, Args, Code);		\
     closure_set_body(X, Code);				                \
     if (is_pair(cdr(Code))) set_closure_has_multiform(X); else set_closure_has_one_form(X);\
     closure_set_let(X, Sc->envir);						\
@@ -13601,7 +13612,8 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
     for ( ; (c = *p) != 0; ++p)
       {
 	/* what about embedded null? (string->number (string #\1 (integer->char 0) #\0))
-	 *   currently we stop and return 1, but Guile returns #f
+	 *   currently we stop and return 1, but Guile returns #f.
+	 *   this also means we can't use substring_to_temp if (string->number (substring...))
 	 */
 	if (!IS_DIGIT(c, current_radix))         /* moving this inside the switch statement was much slower */
 	  {
@@ -26180,11 +26192,11 @@ static block_t *search_load_path(s7_scheme *sc, const char *name)
       s7_pointer dir_names;
       /* linux: PATH_MAX: 4096, windows: MAX_PATH: unlimited?, Mac: 1016?, BSD: MAX_PATH_LENGTH: 1024 */
 #if MS_WINDOWS || defined(__linux__)
-      #define FILENAME_MAX 4096
+      #define S7_FILENAME_MAX 4096
 #else
-      #define FILENAME_MAX 1024
+      #define S7_FILENAME_MAX 1024
 #endif
-      b = mallocate(sc, FILENAME_MAX);
+      b = mallocate(sc, S7_FILENAME_MAX);
       filename = (char *)block_data(b);
 
       for (dir_names = lst; is_pair(dir_names); dir_names = cdr(dir_names))
@@ -26195,8 +26207,8 @@ static block_t *search_load_path(s7_scheme *sc, const char *name)
 	    {
 	      filename[0] = '\0';
 	      if (new_dir[strlen(new_dir) - 1] == '/')
-		catstrs(filename, FILENAME_MAX, new_dir, name, NULL);
-	      else catstrs(filename, FILENAME_MAX, new_dir, "/", name, NULL);
+		catstrs(filename, S7_FILENAME_MAX, new_dir, name, NULL);
+	      else catstrs(filename, S7_FILENAME_MAX, new_dir, "/", name, NULL);
 	      if (access(filename, F_OK) == 0)
 		return(b);
 	    }
@@ -30623,7 +30635,7 @@ void s7_show_let(s7_scheme *sc) /* debugging convenience */
 }
 
 #define safe_print(Code)			\
-  {						\
+  do {						\
     bool old_open, old_stop;			\
     old_open = sc->has_openlets;		\
     old_stop = sc->stop_at_error;		\
@@ -30632,16 +30644,23 @@ void s7_show_let(s7_scheme *sc) /* debugging convenience */
     Code;					\
     sc->stop_at_error = old_stop;		\
     sc->has_openlets = old_open;		\
-  }
+  } while (0)
 
 void s7_show_history(s7_scheme *sc)
 {
 #if WITH_HISTORY
   s7_pointer p;
   int32_t i, size;
-  size = sc->history_size;
-  for (i = 0, p = cdr(sc->cur_code); i < size; i++, p = cdr(p)) /* stepper "i" is not redundant */
-    safe_print(fprintf(stderr, "%s\n", display(car(p))));
+  if (sc->cur_code == sc->history_sink)
+    fprintf(stderr, "history diabled\n");
+  else
+    {
+      size = sc->history_size;
+      fprintf(stderr, "history:\n");
+      for (i = 0, p = cdr(sc->cur_code); i < size; i++, p = cdr(p)) /* stepper "i" is not redundant */
+	safe_print(fprintf(stderr, "%d: %s\n", i, display_80(car(p))));
+      fprintf(stderr, "\n");
+    }
 #else
   fprintf(stderr, "%s\n", display(sc->cur_code));
 #endif
@@ -48267,6 +48286,10 @@ s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry)
 
 s7_pointer s7_history(s7_scheme *sc)
 {
+#if WITH_HISTORY
+  if (sc->cur_code == sc->history_sink)
+    return(sc->old_cur_code);
+#endif
   return(sc->cur_code);
 }
 
@@ -48282,9 +48305,16 @@ bool s7_history_enabled(s7_scheme *sc)
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled)
 {
 #if WITH_HISTORY
-  if (enabled)
-    sc->cur_code = (sc->using_history1) ? sc->eval_history1 : sc->eval_history2;
-  else sc->cur_code = sc->history_sink;
+  if (enabled) /* this needs to restore the old cur_code (saving its position in the history_buffer) */
+    sc->cur_code = sc->old_cur_code;
+  else 
+    {
+      if (sc->cur_code != sc->history_sink)
+	{
+	  sc->old_cur_code = sc->cur_code;
+	  sc->cur_code = sc->history_sink;
+	}
+    }
   return(enabled);
 #else
   return(false);
@@ -48836,16 +48866,7 @@ static void op_c_catch_all(s7_scheme *sc)
   catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
   catch_all_set_op_loc(sc->envir, sc->op_stack_now - sc->op_stack);
   push_stack(sc, OP_CATCH_ALL, opt2_con(sc->code), sc->code);
-  sc->code = T_Pair(opt1_pair(cdr(sc->code)));       /* the body of the first lambda */
-}
-
-static void op_c_catch_all_o(s7_scheme *sc)
-{
-  new_frame(sc, sc->envir, sc->envir);               /* frame is needed even if no definers because we're setting the dox1/2 slots */
-  catch_all_set_goto_loc(sc->envir, s7_stack_top(sc));
-  catch_all_set_op_loc(sc->envir, sc->op_stack_now - sc->op_stack);
-  push_stack(sc, OP_CATCH_ALL, opt2_con(sc->code), sc->code);
-  sc->code = opt1_pair(cdr(sc->code));
+  sc->code = T_Pair(opt1_pair(cdr(sc->code)));       /* the body of the first lambda (or car of it if catch_all_o) */
 }
 
 static void op_c_catch_all_fx(s7_scheme *sc)
@@ -49408,11 +49429,14 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
   if ((unchecked_type(sc->envir) != T_LET) &&
       (sc->envir != sc->nil))
     sc->envir = sc->nil;          /* in the reader, the sc->envir stack entry is mostly ignored, so it can be (and usually is) garbage */
-
   set_outlet(sc->owlet, sc->envir);
 
   cur_code = current_code(sc);
   slot_set_value(sc->error_code, cur_code);
+
+#if 0
+  fprintf(stderr, "code: %s, cur_code: %s, let: %s\n", display(sc->code), display(cur_code), display(sc->envir));
+#endif
 
 #if WITH_HISTORY
   slot_set_value(sc->error_history, sc->cur_code);
@@ -50565,7 +50589,6 @@ pass (rootlet):\n\
      if (is_optimized(sc->code))
        clear_all_optimizations(sc, sc->code);
    }
-
   set_current_code(sc, sc->code);
   if (s7_stack_top(sc) < 12)
     push_stack_op(sc, OP_BARRIER);
@@ -68292,6 +68315,7 @@ static void init_choosers(s7_scheme *sc)
   set_function_chooser(sc, sc->string_to_keyword_symbol, string_substring_chooser);
   set_function_chooser(sc, sc->string_downcase_symbol, string_substring_chooser);
   set_function_chooser(sc, sc->string_upcase_symbol, string_substring_chooser);
+  /* if the function assumes a null-terminated string, substring needs to return a copy */
 #if (!WITH_PURE_S7)
   set_function_chooser(sc, sc->string_length_symbol, string_substring_chooser);
   set_function_chooser(sc, sc->string_copy_symbol, string_substring_chooser);
@@ -68967,7 +68991,8 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		  annotate_arg(sc, cdr(orx), args);
 		  if (len == 4) annotate_arg(sc, cddr(orx), args);
 		  annotate_args(sc, cdr(tc), args);
-		  if ((c_callee(cdr(tc)) == fx_c_sca) && (c_callee(cadr(tc)) == g_substring)) set_c_call(cadr(tc), g_substring_to_temp); /* an experiment */
+		  /* if ((c_callee(cdr(tc)) == fx_c_sca) && (c_callee(cadr(tc)) == g_substring)) set_c_call(cadr(tc), g_substring_to_temp); */
+		  /*   for that to be safe we need to be sure nothing in the body looks for null-termination (e.g.. string->number) */
 		  fx_tree(sc, cdr(body), car(args), (vars == 1) ? NULL : cadr(args));
 		  return(true);
 		}
@@ -74312,40 +74337,37 @@ static bool op_let(s7_scheme *sc)
 
 static bool op_let_unchecked(s7_scheme *sc)     /* not named, but has vars */
 {
-  s7_pointer x;
-  sc->code = cdr(sc->code);
-  sc->args = cons(sc, sc->code, sc->nil);
-  sc->code = car(sc->code);
-  x = cdar(sc->code);
+  s7_pointer x, code;
+  sc->args = cons(sc, cdr(sc->code), sc->nil);
+  code = cadr(sc->code);
+  x = cdar(code);
   if (has_fx(x))
     sc->value = fx_call(sc, x);
   else
     {
-      push_stack(sc, OP_LET1, sc->args, cdr(sc->code));
+      push_stack(sc, OP_LET1, sc->args, cdr(code));
       sc->code = car(x);
       return(false); /* goto EVAL */
     }
-  sc->code = cdr(sc->code);
+  sc->code = cdr(code);
   return(op_let1(sc));
 }
 
 static bool op_named_let(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
   sc->args = sc->nil;
-  sc->value = sc->code;
-  sc->code = cadr(sc->code);
+  sc->value = cdr(sc->code);
+  sc->code = cadr(sc->value);
   return(op_let1(sc));
 }
 
 static void op_named_let_no_vars(s7_scheme *sc)
 {
   s7_pointer body;
-  sc->code = cdr(sc->code);
   new_frame(sc, sc->envir, sc->envir);
-  body = cddr(sc->code);
+  body = cdddr(sc->code);
   sc->args = make_closure(sc, sc->nil, body, T_CLOSURE | T_COPY_ARGS, 0);  /* sc->args is a temp here */
-  make_slot_2(sc, sc->envir, car(sc->code), sc->args);
+  make_slot_2(sc, sc->envir, cadr(sc->code), sc->args);
   sc->code = T_Pair(body);
 }
 
@@ -74586,10 +74608,9 @@ static void op_let_opassq_e_new(s7_scheme *sc)
 static void op_let_fx_new(s7_scheme *sc)
 {
   s7_pointer p, frame;
-  sc->code = cdr(sc->code);
   frame = make_simple_let(sc);
   sc->args = frame;
-  for (p = car(sc->code); is_pair(p); p = cdr(p))
+  for (p = cadr(sc->code); is_pair(p); p = cdr(p))
     {
       s7_pointer arg;
       arg = cdar(p);
@@ -74598,20 +74619,19 @@ static void op_let_fx_new(s7_scheme *sc)
     }
   sc->let_number++;
   sc->envir = frame;
-  sc->code = T_Pair(cdr(sc->code));
+  sc->code = T_Pair(cddr(sc->code));
 }
 
 static void op_let_fx_old(s7_scheme *sc)
 {
   s7_pointer p, frame, slot;
   uint64_t id;
-  sc->code = cdr(sc->code);
-  frame = opt3_let(sc->code);
+  frame = opt3_let(cdr(sc->code));
   sc->args = frame;
   id = ++sc->let_number;
   let_set_id(frame, id);
 
-  for (p = car(sc->code), slot = let_slots(frame); is_pair(p); p = cdr(p), slot = next_slot(slot))
+  for (p = cadr(sc->code), slot = let_slots(frame); is_pair(p); p = cdr(p), slot = next_slot(slot))
     {
       /* GC protected because it's a permanent let? or perhaps use sc->args? */
       slot_set_value(slot, fx_call(sc, cdar(p)));
@@ -74619,7 +74639,7 @@ static void op_let_fx_old(s7_scheme *sc)
     }
   set_outlet(frame, sc->envir);
   sc->envir = frame;
-  sc->code = T_Pair(cdr(sc->code));
+  sc->code = T_Pair(cddr(sc->code));
 }
 
 static void op_let_fx_2_new(s7_scheme *sc) /* 2 vars, 1 expr in body */
@@ -83282,24 +83302,6 @@ static void check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
   resize_stack(sc); /* we've already checked that resize_stack is needed */
 }
 
-#define closure_push_and_goto_eval(sc) \
-	 do {								\
-	   sc->code = T_Pair(closure_body(sc->code));			\
-	   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));		\
-           /* set_current_code(sc, sc->code);*/				\
-	   sc->code = car(sc->code); 					\
-	   goto EVAL;							\
-	 } while (0)
-#define closure_goto_eval(sc) do {sc->code = car(closure_body(sc->code)); goto EVAL;} while (0)
-
-#define closure_push(sc) \
-	 do {								\
-	   sc->code = T_Pair(closure_body(sc->code));			\
-	   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));		\
-	   sc->code = car(sc->code);					\
-	 } while (0)
-
-
 static void op_thunk(s7_scheme *sc)
 {
   check_stack_size(sc);
@@ -83308,7 +83310,9 @@ static void op_thunk(s7_scheme *sc)
    */
   sc->code = opt1_lambda(sc->code);
   new_frame(sc, closure_let(sc->code), sc->envir);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_thunk_o(s7_scheme *sc)
@@ -83329,7 +83333,9 @@ static void op_safe_thunk(s7_scheme *sc) /* no frame needed */
 {
   sc->code = opt1_lambda(sc->code);
   sc->envir = closure_let(sc->code);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_thunk_o(s7_scheme *sc)
@@ -83383,13 +83389,15 @@ static void op_closure_c(s7_scheme *sc)
   sc->value = cadr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_closure_c_o(s7_scheme *sc)
 {
-  sc->value = cadr(sc->code);
   check_stack_size(sc);
+  sc->value = cadr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
   sc->code = car(closure_body(sc->code));
@@ -83413,12 +83421,12 @@ static inline void op_closure_a(s7_scheme *sc) __attribute__((always_inline));
 
 static inline void op_closure_a(s7_scheme *sc)
 {
-  s7_pointer code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(sc->code));
+  s7_pointer f;
   check_stack_size(sc);
-  sc->code = opt1_lambda(code);
-  new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
+  sc->value = fx_call(sc, cdr(sc->code));
+  f = opt1_lambda(sc->code);
+  new_frame_with_slot(sc, closure_let(f), sc->envir, car(closure_args(f)), sc->value);
+  sc->code = T_Pair(closure_body(f));
 }
 
 static void op_safe_closure_3s(s7_scheme *sc)
@@ -83462,7 +83470,9 @@ static void op_safe_closure_c(s7_scheme *sc)
   sc->value = cadr(sc->code);
   sc->code = opt1_lambda(sc->code);
   sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_c_a(s7_scheme *sc)
@@ -83488,7 +83498,9 @@ static void op_safe_closure_a(s7_scheme *sc)
   sc->value = fx_call(sc, cdr(sc->code));
   sc->code = opt1_lambda(code);
   sc->envir = old_frame_with_slot(sc, closure_let(sc->code), sc->value);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_a_o(s7_scheme *sc)
@@ -83719,7 +83731,9 @@ static void op_safe_closure_ss(s7_scheme *sc)
   sc->value = lookup(sc, cadr(sc->code));
   sc->code = opt1_lambda(sc->code);
   sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_ss_o(s7_scheme *sc)
@@ -83738,7 +83752,9 @@ static inline void op_closure_ss(s7_scheme *sc)
   check_stack_size(sc);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static inline void op_closure_ss_o(s7_scheme *sc)
@@ -83757,7 +83773,9 @@ static void op_safe_closure_sc(s7_scheme *sc)
   sc->value = lookup(sc, cadr(sc->code));
   sc->code = opt1_lambda(sc->code);
   sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_sc_o(s7_scheme *sc)
@@ -83776,7 +83794,9 @@ static void op_closure_sc(s7_scheme *sc)
   check_stack_size(sc);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_closure_sc_o(s7_scheme *sc)
@@ -83840,6 +83860,14 @@ static void op_closure_3s(s7_scheme *sc)
   sc->code = car(sc->code);
 }
 
+static void op_closure_3s_m(s7_scheme *sc)
+{
+  op_closure_3s_1(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
+}
+
 static void op_closure_4s_1(s7_scheme *sc)
 {
   s7_pointer e, p, args, last_slot;
@@ -83875,6 +83903,14 @@ static void op_closure_4s(s7_scheme *sc)
   sc->code = car(sc->code);
 }
 
+static void op_closure_4s_m(s7_scheme *sc)
+{
+  op_closure_4s_1(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
+}
+
 static void op_safe_closure_aa(s7_scheme *sc)
 {
   s7_pointer p;
@@ -83883,7 +83919,9 @@ static void op_safe_closure_aa(s7_scheme *sc)
   sc->value = fx_call(sc, p);
   sc->code = opt1_lambda(sc->code);
   sc->envir = old_frame_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_aa_o(s7_scheme *sc)
@@ -83906,7 +83944,9 @@ static void op_closure_aa(s7_scheme *sc)
   check_stack_size(sc);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  closure_push(sc);
+  sc->code = T_Pair(closure_body(sc->code));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_closure_aa_o(s7_scheme *sc)
@@ -89106,7 +89146,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_C_CATCH_ALL: op_c_catch_all(sc); goto BEGIN;
 
 	case OP_C_CATCH_ALL_O: if (!c_function_is_ok(sc, sc->code)) break;
-	case HOP_C_CATCH_ALL_O: op_c_catch_all_o(sc); goto EVAL;
+	case HOP_C_CATCH_ALL_O: op_c_catch_all(sc); goto EVAL;
 
 	case OP_C_CATCH_ALL_FX: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_C_CATCH_ALL_FX: op_c_catch_all_fx(sc); continue;
@@ -89197,10 +89237,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_P_1: op_safe_closure_p_1(sc); goto BEGIN;
 
 	case OP_CLOSURE_A: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_M, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_A: op_closure_a(sc); closure_push_and_goto_eval(sc);
+	case HOP_CLOSURE_A: op_closure_a(sc); push_stack_no_args(sc, sc->begin_op, cdr(sc->code)); sc->code = car(sc->code); goto EVAL;
 
 	case OP_CLOSURE_A_O: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_P, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_A_O: op_closure_a(sc); closure_goto_eval(sc);
+	case HOP_CLOSURE_A_O: op_closure_a(sc); sc->code = car(sc->code); goto EVAL;
 
 	case OP_SAFE_CLOSURE_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_M, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A: op_safe_closure_a(sc); goto EVAL;
@@ -89261,7 +89301,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_SS_A: sc->value = fx_safe_closure_ss_a(sc, sc->code); continue;
 
 	case OP_CLOSURE_3S_M: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_M, 3)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_3S_M: op_closure_3s_1(sc); closure_push(sc); goto EVAL;
+	case HOP_CLOSURE_3S_M: op_closure_3s_m(sc); goto EVAL;
 
 	case OP_CLOSURE_3S_O: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_P, 3)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_3S_O: op_closure_3s_1(sc); sc->code = car(closure_body(sc->code)); goto EVAL;
@@ -89270,7 +89310,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_CLOSURE_3S: op_closure_3s(sc); goto EVAL;
 
 	case OP_CLOSURE_4S_M: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_M, 4)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_4S_M: op_closure_4s_1(sc); closure_push(sc); goto EVAL;
+	case HOP_CLOSURE_4S_M: op_closure_4s_m(sc); goto EVAL;
 
 	case OP_CLOSURE_4S_O: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_P, 4)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_4S_O: op_closure_4s_1(sc); sc->code = car(closure_body(sc->code)); goto EVAL;
@@ -94953,7 +94993,7 @@ static s7_pointer sl_history(s7_scheme *sc)
   {
 #if WITH_HISTORY
     if (sc->cur_code == sc->history_sink) /* i.e. history is currently disabled */
-      return((sc->using_history1) ? sc->eval_history1 : sc->eval_history2);
+      return(sc->old_cur_code);
     return(sc->cur_code);
 #else
     return(sc->cur_code);
@@ -95184,20 +95224,17 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       {
 	s7_int iv;
 	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
-	if (iv > sc->heap_size) /* was heap_size * 2? */
+	if (iv > sc->heap_size)
 	  resize_heap_to(sc, iv);
 	return(val);
       }
 
-    case SL_HISTORY:        /* (set! (*s7* 'history) val) */
-#if WITH_HISTORY
-      set_car(sc->cur_code, val); /* replace the set! above */
-#else
-      set_current_code(sc, val);
-#endif
+    case SL_HISTORY:               /* (set! (*s7* 'history) val) */
+      /* fprintf(stderr, "%s[%d]: set: %s %d\n", __func__, __LINE__, display(val), sc->cur_code == sc->history_sink); */
+      replace_current_code(sc, val);
       return(val);
 
-    case SL_HISTORY_ENABLED:
+    case SL_HISTORY_ENABLED:       /* (set! (*s7* 'history-enabled) #f|#t) */
       if (s7_is_boolean(val))
 	return(s7_make_boolean(sc, s7_set_history_enabled(sc, s7_boolean(sc, val))));
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
@@ -97291,6 +97328,7 @@ s7_scheme *s7_init(void)
     set_cdr(p2, sc->eval_history2);
     sc->cur_code = sc->eval_history1;
     sc->using_history1 = true;
+    sc->old_cur_code = sc->cur_code;
   }
 #else
   sc->cur_code = sc->F;
@@ -97840,32 +97878,32 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0
  * ------------------------------
  * tpeak     167 |  117 |  116
- * tauto     748 |  633 |  636
+ * tauto     748 |  633 |  638
  * tref     1093 |  779 |  779
- * tshoot   1296 |  880 |  841   824
+ * tshoot   1296 |  880 |  841
  * index     939 | 1013 |  986
  * s7test   1776 | 1711 | 1705
  * lt       2278 | 2072 | 2066       2063
  * tcopy    2434 | 2264 | 2264
  * tform    2472 | 2289 | 2279
- * tmisc    2852 | 2284 | 2277       2267
+ * tmisc    2852 | 2284 | 2277       2266
  * tread    2449 | 2394 | 2382       2377
- * dup      6333 | 2669 | 2423       2408
- * tvect    6189 | 2430 | 2430
- * tmat     6072 | 2478 | 2469       2463
- * fbench   2974 | 2643 | 2631
- * trclo    7985 | 2791 | 2707  2671
- * tb       3251 | 2799 | 2769
+ * dup      6333 | 2669 | 2423       2410
+ * tvect    6189 | 2430 | 2430  2480
+ * tmat     6072 | 2478 | 2469       2464
+ * fbench   2974 | 2643 | 2628
+ * trclo    7985 | 2791 | 2671
+ * tb       3251 | 2799 | 2769       2765
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
- * tset     6616 | 3083 | 3123
+ * tset     6616 | 3083 | 3120
  * tmac     3391 | 3186 | 3179       3159
- * teq      4081 | 3804 | 3791
- * tfft     4288 | 3816 | 3789
- * tlet     5409 | 4613 | 4579
- * tclo     6206 | 4896 | 4866  4831
- * trec     17.8 | 6318 | 6318  6335 leq_ti -> leq_si! [fixed I think]
+ * teq      4081 | 3804 | 3794
+ * tfft     4288 | 3816 | 3788
+ * tlet     5409 | 4613 | 4575
+ * tclo     6206 | 4896 | 4829
+ * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6799
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
@@ -97894,11 +97932,8 @@ int main(int argc, char **argv)
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
- * substr no copy if tc/recur? arg + no (string-)set (or even safe-closure?) or any built-in besides set? that takes a string arg
- *   length [string-up|downcase string->keyword] string->number member?? char-position(caddr) reverse
- *   [string-copy string-length string->list] string-position??
- *   why does string->number give reader troubles?
- * fx_c_optq_i_direct where optq returns int (string-length) + sub or perhaps check
- * history: perhaps set current directly, and save as buffer entry at top?
- * perhaps inline op_c_catch_all (sg/auto)
+ * history: perhaps set current directly, and save as buffer entry at top? eval: set cur_code, elsewhere set buffer entry?
+ *   need s7_error show all incoming and check for cur_code unrelated to current error, but sc->code is worse
+ * __func__ -> lambda? or #<anonymous-lambda>?, dotted arglist -> add_trace: perhaps (test `(+ 1 ,#||#@(list 2 3)) 'error)
+ * debug.scm: trace-in and trace-out, maybe pp of let chain? mo expansions if debug?
  */
