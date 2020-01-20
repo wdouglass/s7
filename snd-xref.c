@@ -1758,7 +1758,7 @@ static const char *Reverb_urls[] = {
 
 #if HAVE_SCHEME
 
-static const char *snd_names[11812] = {
+static const char *snd_names[11818] = {
     "*clm-array-print-length*", "ws.scm",
     "*clm-channels*", "ws.scm",
     "*clm-clipped*", "ws.scm",
@@ -3952,6 +3952,7 @@ static const char *snd_names[11812] = {
     "dblsum", "generators.scm",
     "dblsum?", "generators.scm",
     "dc-block", "prc95.scm",
+    "debug.scm", "debug.scm",
     "defgenerator", "generators.scm",
     "define-class", "stuff.scm",
     "define-library", "r7rs.scm",
@@ -7503,6 +7504,7 @@ static const char *snd_names[11812] = {
     "tgamma", "libm.scm",
     "the", "stuff.scm",
     "third", "stuff.scm",
+    "time", "libc.scm",
     "time.make", "libc.scm",
     "times->samples", "ws.scm",
     "timespec.make", "libc.scm",
@@ -7514,6 +7516,7 @@ static const char *snd_names[11812] = {
     "touch-tone", "clm-ins.scm",
     "toupper", "libc.scm",
     "townsends-solitaire", "animals.scm",
+    "trace-in", "debug.scm",
     "transform-path", "dlocsig.scm",
     "translate-path", "dlocsig.scm",
     "transpose-mixes", "mix.scm",
@@ -7669,7 +7672,7 @@ static const char *snd_names[11812] = {
 
 static void autoload_info(s7_scheme *sc)
 {
-  s7_autoload_set_names(sc, snd_names, 5906);
+  s7_autoload_set_names(sc, snd_names, 5909);
 }
 #endif
 

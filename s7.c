@@ -46,6 +46,7 @@
  * reactive.scm has reactive-set and friends.
  * stuff.scm has some stuff.
  * profile.scm has code to display profile data.
+ * debug.scm has debugging aids.
  * timing tests are in the s7 tools directory
  *
  * s7.c is organized as follows:
@@ -1222,7 +1223,8 @@ struct s7_scheme {
              is_c_object_symbol, c_object_type_symbol, is_c_pointer_symbol, is_char_alphabetic_symbol, is_char_lower_case_symbol, is_char_numeric_symbol,
              is_char_symbol, is_char_upper_case_symbol, is_char_whitespace_symbol, is_complex_symbol, is_constant_symbol,
              is_continuation_symbol, is_defined_symbol, is_dilambda_symbol, is_eof_object_symbol, is_eq_symbol, is_equal_symbol,
-             is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_gensym_symbol, is_goto_symbol, is_hash_table_symbol, is_immutable_symbol,
+             is_eqv_symbol, is_even_symbol, is_exact_symbol, is_float_vector_symbol, is_funclet_symbol, 
+             is_gensym_symbol, is_goto_symbol, is_hash_table_symbol, is_immutable_symbol,
              is_inexact_symbol, is_infinite_symbol, is_input_port_symbol, is_int_vector_symbol, is_integer_symbol, is_iterator_symbol,
              is_keyword_symbol, is_let_symbol, is_list_symbol, is_macro_symbol, is_equivalent_symbol, is_nan_symbol, is_negative_symbol,
              is_null_symbol, is_number_symbol, is_odd_symbol, is_openlet_symbol, is_output_port_symbol, is_pair_symbol,
@@ -1282,7 +1284,7 @@ struct s7_scheme {
              baffled_symbol, __func___symbol, set_symbol, body_symbol, class_name_symbol, feed_to_symbol, format_error_symbol,
              wrong_number_of_args_symbol, read_error_symbol, string_read_error_symbol, syntax_error_symbol, division_by_zero_symbol,
              no_catch_symbol, io_error_symbol, invalid_escape_function_symbol, wrong_type_arg_symbol, out_of_range_symbol,
-             missing_method_symbol, unbound_variable_symbol, key_if_symbol, symbol_table_symbol;
+             missing_method_symbol, unbound_variable_symbol, key_if_symbol, symbol_table_symbol, trace_in_symbol;
 
   /* signatures of sequences used as applicable objects: ("hi" 1) */
   s7_pointer string_signature, vector_signature, float_vector_signature, int_vector_signature, byte_vector_signature,
@@ -7772,6 +7774,16 @@ static s7_pointer g_is_let(s7_scheme *sc, s7_pointer args)
 }
 
 
+/* -------------------------------- funclet? -------------------------------- */
+static s7_pointer g_is_funclet(s7_scheme *sc, s7_pointer args)
+{
+  #define H_is_funclet "(funclet? obj) returns #t if obj is a funclet (a function's environment)."
+  #define Q_is_funclet sc->pl_bt
+
+  check_boolean_method(sc, is_funclet, sc->is_funclet_symbol, args);
+}
+
+
 /* -------------------------------- unlet -------------------------------- */
 #define UNLET_ENTRIES 512 /* 397 if not --disable-deprecated etc */
 
@@ -9460,20 +9472,27 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   return(mac);
 }
 
-
-static s7_pointer add_trace(s7_scheme *sc, s7_pointer args, s7_pointer code)  /* ((set! (*s7* 'history) (<func-name> args)) ...) */
+#if S7_DEBUGGING
+#define unstack(sc) unstack_1(sc, __func__, __LINE__)
+static void unstack_1(s7_scheme *sc, const char *func, int line)
 {
-  return(cons(sc, list_3(sc, sc->set_symbol, 
-			 list_2(sc, sc->s7_let_symbol, list_2(sc, sc->quote_symbol, make_symbol(sc, "history"))), 
-			 cons(sc, sc->list_symbol, 
-			      cons(sc, 
-				   list_4(sc,            /* (if (pair? __func__) (car __func__) __func__) -- can be confused */
-					  sc->if_symbol, 
-					  list_2(sc, sc->is_pair_symbol, sc->__func___symbol),
-					  list_2(sc, sc->car_symbol, sc->__func___symbol),
-					  sc->__func___symbol),
-				   args))),
-	      code));
+  sc->stack_end -= 4;
+  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
+    {
+      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
+      fprintf(stderr, "    code: %s, args: %s\n", display(sc->code), display(sc->args));
+    }
+}
+#else
+#define unstack(sc) sc->stack_end -= 4
+#endif
+
+static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
+{
+  if ((is_pair(car(code))) && (caar(code) == sc->trace_in_symbol))
+    return(code);
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(code)); */
+  return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
 static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, uint64_t type, int32_t arity)
@@ -9482,12 +9501,23 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   s7_pointer x;
   new_cell(sc, x, (type | closure_bits(code)));
   closure_set_args(x, args);
-  if (sc->debug > 0) code = add_trace(sc, args, code);
-  closure_set_body(x, code);
-  if (is_pair(cdr(code))) set_closure_has_multiform(x); else set_closure_has_one_form(x);
   closure_set_let(x, sc->envir);
   closure_set_setter(x, sc->F);
   closure_set_arity(x, arity);
+  closure_set_body(x, code);           /* in case add_trace triggers GC, new func (x) needs some legit body for mark_closure */
+  if (sc->debug > 0) 
+    {
+      s7_gc_protect_via_stack(sc, x);  /* GC protect func during add_trace */
+      closure_set_body(x, add_trace(sc, code)); 
+      set_closure_has_multiform(x);
+      unstack(sc);
+    } 
+  else 
+    {
+      if (is_pair(cdr(code)))
+	set_closure_has_multiform(x); 
+      else set_closure_has_one_form(x);
+    }
   sc->capture_let_counter++;
   return(x);
 }
@@ -9496,12 +9526,23 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   do {									\
     new_cell(Sc, X, T_CLOSURE | T_COPY_ARGS | closure_bits(Code));	\
     closure_set_args(X, Args);						\
-    if (sc->debug > 0) Code = add_trace(Sc, Args, Code);		\
-    closure_set_body(X, Code);				                \
-    if (is_pair(cdr(Code))) set_closure_has_multiform(X); else set_closure_has_one_form(X);\
-    closure_set_let(X, Sc->envir);						\
+    closure_set_let(X, Sc->envir);					\
     closure_set_setter(X, Sc->F);					\
     closure_set_arity(X, Arity);					\
+    closure_set_body(X, Code);						\
+    if (sc->debug > 0)							\
+      {									\
+	s7_gc_protect_via_stack(sc, X);					\
+	closure_set_body(X, add_trace(Sc, Code));			\
+	set_closure_has_multiform(X);					\
+	unstack(sc);							\
+      }									\
+    else								\
+      {									\
+	if (is_pair(cdr(Code)))						\
+	  set_closure_has_multiform(X);					\
+	else set_closure_has_one_form(X);				\
+	}								\
     sc->capture_let_counter++;						\
   } while (0)
 
@@ -22938,21 +22979,6 @@ static s7_pointer string_set_unchecked(s7_scheme *sc, s7_pointer p1, s7_int i1, 
 
 
 /* -------------------------------- string-append -------------------------------- */
-#if S7_DEBUGGING
-#define unstack(sc) unstack_1(sc, __func__, __LINE__)
-static void unstack_1(s7_scheme *sc, const char *func, int line)
-{
-  sc->stack_end -= 4;
-  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
-    {
-      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
-      fprintf(stderr, "    code: %s, args: %s\n", display(sc->code), display(sc->args));
-    }
-}
-#else
-#define unstack(sc) sc->stack_end -= 4
-#endif
-
 static s7_pointer g_string_append_1(s7_scheme *sc, s7_pointer args, s7_pointer caller)
 {
   #define H_string_append "(string-append str1 ...) appends all its string arguments into one string"
@@ -82446,6 +82472,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
   s7_pointer x, z, e, sym, slot, last_slot;
   uint64_t id;
 
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
   e = sc->envir;
   id = let_id(e);
   last_slot = slot_end(sc);
@@ -95309,7 +95336,14 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_ROOTLET_SIZE:          return(sl_unsettable_error(sc, sym));
 
     case SL_DEBUG:
-      if (s7_is_integer(val)) {sc->debug = s7_integer(val); return(val);}
+      if (s7_is_integer(val)) 
+	{
+	  sc->debug = s7_integer(val);
+	  if ((sc->debug > 0) &&
+	      (!is_memq(make_symbol(sc, "debug.scm"), s7_symbol_value(sc, sc->features_symbol))))
+	    s7_load(sc, "debug.scm");
+	  return(val);
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
  
     case SL_SAFETY:
@@ -96596,6 +96630,7 @@ static void init_rootlet(s7_scheme *sc)
   set_local_slot(sc->unlet_symbol, global_slot(sc->unlet_symbol)); /* for set_locals */
   set_immutable(sc->unlet_symbol);
   /* unlet (and with-let) don't actually need to be immutable, but s7.html says they are... */
+  sc->is_funclet_symbol =            defun("funclet?",          is_funclet,             1, 0, false);
   sc->sublet_symbol =                defun("sublet",		sublet,			1, 0, true);
   sc->varlet_symbol =                unsafe_defun("varlet",	varlet,			1, 0, true);
   set_type_bit(sc->varlet_symbol, T_FULL_DEFINER);
@@ -97079,6 +97114,7 @@ static void init_rootlet(s7_scheme *sc)
   s7_autoload(sc, make_symbol(sc, "repl.scm"),        s7_make_permanent_string(sc, "repl.scm"));
   s7_autoload(sc, make_symbol(sc, "r7rs.scm"),        s7_make_permanent_string(sc, "r7rs.scm"));
   s7_autoload(sc, make_symbol(sc, "profile.scm"),     s7_make_permanent_string(sc, "profile.scm"));
+  s7_autoload(sc, make_symbol(sc, "debug.scm"),       s7_make_permanent_string(sc, "debug.scm"));
 
   s7_autoload(sc, make_symbol(sc, "libc.scm"),        s7_make_permanent_string(sc, "libc.scm"));
   s7_autoload(sc, make_symbol(sc, "libm.scm"),        s7_make_permanent_string(sc, "libm.scm"));
@@ -97497,6 +97533,7 @@ s7_scheme *s7_init(void)
   sc->syms_tag = 0;
   sc->syms_tag2 = 0;
   sc->class_name_symbol = make_symbol(sc, "class-name");
+  sc->trace_in_symbol = make_symbol(sc, "trace-in");
   sc->circle_info = init_circle_info(sc);
   sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
   sc->num_fdats = 8;
@@ -97889,7 +97926,7 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284 | 2277       2266
  * tread    2449 | 2394 | 2382       2377
  * dup      6333 | 2669 | 2423       2410
- * tvect    6189 | 2430 | 2430  2480
+ * tvect    6189 | 2430 | 2430  2480 -- why is this so inconsistent?
  * tmat     6072 | 2478 | 2469       2464
  * fbench   2974 | 2643 | 2628
  * trclo    7985 | 2791 | 2671
@@ -97933,7 +97970,6 @@ int main(int argc, char **argv)
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
  * history: perhaps set current directly, and save as buffer entry at top? eval: set cur_code, elsewhere set buffer entry?
- *   need s7_error show all incoming and check for cur_code unrelated to current error, but sc->code is worse
- * __func__ -> lambda? or #<anonymous-lambda>?, dotted arglist -> add_trace: perhaps (test `(+ 1 ,#||#@(list 2 3)) 'error)
- * debug.scm: trace-in and trace-out, maybe pp of let chain? mo expansions if debug?
+ * debug.scm: trace-in and trace-out, maybe pp of let chain? no expansions if debug? [trace methods?] check macros (save use somehow)
+ * g_is_funclet doc/test/debug use
  */

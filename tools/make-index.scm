@@ -455,6 +455,7 @@
   (load "stuff.scm")
   (load "mockery.scm")
 					;(load "repl.scm")
+  (load "debug.scm")
   (load "profile.scm"))
 
 (define (indexit)
