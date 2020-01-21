@@ -1211,7 +1211,7 @@ struct s7_scheme {
              char_position_symbol, char_to_integer_symbol, char_upcase_symbol, cload_directory_symbol, close_input_port_symbol,
              close_output_port_symbol, complex_symbol, cons_symbol, copy_symbol, cos_symbol, cosh_symbol, coverlet_symbol,
              curlet_symbol, current_error_port_symbol, current_input_port_symbol, current_output_port_symbol, cutlet_symbol, cyclic_sequences_symbol,
-             denominator_symbol, dilambda_symbol, display_symbol, divide_symbol, documentation_symbol, dynamic_wind_symbol,
+             denominator_symbol, dilambda_symbol, display_symbol, divide_symbol, documentation_symbol, dynamic_wind_symbol, dynamic_unwind_symbol,
              num_eq_symbol, error_symbol, eval_string_symbol, eval_symbol, exact_to_inexact_symbol, exit_symbol, exp_symbol, expt_symbol,
              features_symbol, fill_symbol, float_vector_ref_symbol, float_vector_set_symbol, float_vector_symbol, floor_symbol,
              flush_output_port_symbol, for_each_symbol, format_symbol, funclet_symbol,
@@ -1242,7 +1242,7 @@ struct s7_scheme {
              make_vector_symbol, map_symbol, max_symbol, member_symbol, memq_symbol, memv_symbol, min_symbol, modulo_symbol, multiply_symbol,
              newline_symbol, not_symbol, number_to_string_symbol, numerator_symbol,
              object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol,
-             open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
+             open_output_string_symbol, openlet_symbol, openlets_symbol, outlet_symbol, owlet_symbol,
              pair_filename_symbol, pair_line_number_symbol, peek_char_symbol, pi_symbol, port_filename_symbol, port_line_number_symbol,
              port_file_symbol, port_position_symbol, procedure_source_symbol, provide_symbol,
              quotient_symbol,
@@ -4031,7 +4031,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_READ_QUASIQUOTE, OP_READ_UNQUOTE, OP_READ_APPLY_VALUES,
       OP_READ_VECTOR, OP_READ_BYTE_VECTOR, OP_READ_INT_VECTOR, OP_READ_FLOAT_VECTOR, OP_READ_DONE,
       OP_LOAD_RETURN_IF_EOF, OP_LOAD_CLOSE_AND_POP_IF_EOF, OP_EVAL_DONE,
-      OP_CATCH, OP_DYNAMIC_WIND, OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
+      OP_CATCH, OP_DYNAMIC_WIND, OP_DYNAMIC_UNWIND, OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
       OP_DO, OP_DO_END, OP_DO_END1, OP_DO_STEP, OP_DO_STEP2, OP_DO_INIT,
       OP_DEFINE_STAR, OP_LAMBDA_STAR, OP_LAMBDA_STAR_DEFAULT, OP_ERROR_QUIT, OP_UNWIND_INPUT, OP_UNWIND_OUTPUT,
       OP_ERROR_HOOK_QUIT,
@@ -4270,7 +4270,7 @@ static const char* op_names[NUM_OPS] =
       "read_quasiquote", "read_unquote", "read_apply_values",
       "read_vector", "read_byte_vector", "read_int_vector", "read_float_vector", "read_done",
       "load_return_if_eof", "load_close_and_pop_if_eof", "eval_done",
-      "catch", "dynamic_wind", "define_constant", "define_constant1",
+      "catch", "dynamic_wind", "dynamic_unwind", "define_constant", "define_constant1",
       "do", "do_end", "do_end1", "do_step", "do_step2", "do_init",
       "define*", "lambda*", "lambda*_default", "error_quit", "unwind_input", "unwind_output",
       "error_hook_quit",
@@ -6411,9 +6411,9 @@ static void pop_stack(s7_scheme *sc)
    *   inline (as in named let) -- they actually don't make sense in these cases, but are ignored,
    *   and are carried around as GC protection in other cases.
    */
-  sc->code =  T_Pos(sc->stack_end[0]);
+  sc->code = T_Pos(sc->stack_end[0]);
   sc->envir = T_Lid(sc->stack_end[1]);
-  sc->args =  T_Pos(sc->stack_end[2]);
+  sc->args = T_Pos(sc->stack_end[2]);
   sc->cur_op = (opcode_t)(sc->stack_end[3]);
 
   if (sc->cur_op >= NUM_OPS)
@@ -6431,9 +6431,9 @@ static void pop_stack_no_op(s7_scheme *sc)
       fprintf(stderr, "%sstack underflow%s\n", BOLD_TEXT, UNBOLD_TEXT);
       if (sc->stop_at_error) abort();
     }
-  sc->code =  T_Pos(sc->stack_end[0]);
+  sc->code = T_Pos(sc->stack_end[0]);
   sc->envir = T_Lid(sc->stack_end[1]);
-  sc->args =  T_Pos(sc->stack_end[2]);
+  sc->args = T_Pos(sc->stack_end[2]);
 }
 
 static void push_stack(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer code)
@@ -7777,10 +7777,15 @@ static s7_pointer g_is_let(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- funclet? -------------------------------- */
 static s7_pointer g_is_funclet(s7_scheme *sc, s7_pointer args)
 {
+  s7_pointer lt;
   #define H_is_funclet "(funclet? obj) returns #t if obj is a funclet (a function's environment)."
   #define Q_is_funclet sc->pl_bt
-
-  check_boolean_method(sc, is_funclet, sc->is_funclet_symbol, args);
+  lt = car(args);
+  if ((is_let(lt)) && (is_funclet(lt)))
+    return(sc->T);
+  if (!has_active_methods(sc, lt))
+    return(sc->F);
+  return(apply_boolean_method(sc, lt, sc->is_funclet_symbol));
 }
 
 
@@ -7914,23 +7919,22 @@ static s7_pointer g_openlet(s7_scheme *sc, s7_pointer args)
 }
 
 
-/* -------------------------------- openlets/coverlets -------------------------------- */
+/* -------------------------------- openlets -------------------------------- */
 static s7_pointer g_openlets(s7_scheme *sc, s7_pointer args)
 {
-  #define H_openlets "(openlets) (re)activates any open let"
+  #define H_openlets "(openlets) returns (or sets) whether any lets are open"
   #define Q_openlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
-
-  sc->has_openlets = true;
-  return(sc->T);
+  return(make_boolean(sc, sc->has_openlets));
 }
 
-static s7_pointer g_coverlets(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_set_openlets(s7_scheme *sc, s7_pointer args)
 {
-  #define H_coverlets "(coverlets) deactivates any open let"
-  #define Q_coverlets s7_make_signature(sc, 1, sc->is_boolean_symbol)
-
-  sc->has_openlets = false;
-  return(sc->F);
+  s7_pointer open;
+  open = car(args);
+  if (s7_is_boolean(open))
+    sc->has_openlets = (open == sc->T);
+  else simple_wrong_type_argument(sc, sc->openlets_symbol, open, T_BOOLEAN);
+  return(open);
 }
 
 
@@ -8538,8 +8542,8 @@ static s7_pointer call_let_ref_fallback(s7_scheme *sc, s7_pointer env, s7_pointe
   push_stack_no_let(sc, OP_GC_PROTECT, sc->value, sc->code);
   p = s7_apply_function(sc, find_method(sc, env, sc->let_ref_fallback_symbol), set_qlist_2(sc, env, symbol));
   sc->stack_end -= 4;
-  sc->code =  T_Pos(sc->stack_end[0]);
-  sc->value =  T_Pos(sc->stack_end[2]);
+  sc->code = T_Pos(sc->stack_end[0]);
+  sc->value = T_Pos(sc->stack_end[2]);
   return(p);
 }
 
@@ -8549,8 +8553,8 @@ static s7_pointer call_let_set_fallback(s7_scheme *sc, s7_pointer env, s7_pointe
   push_stack_no_let(sc, OP_GC_PROTECT, sc->value, sc->code);
   p = s7_apply_function(sc, find_method(sc, env, sc->let_set_fallback_symbol), set_qlist_3(sc, env, symbol, value));
   sc->stack_end -= 4;
-  sc->code =  T_Pos(sc->stack_end[0]);
-  sc->value =  T_Pos(sc->stack_end[2]);
+  sc->code = T_Pos(sc->stack_end[0]);
+  sc->value = T_Pos(sc->stack_end[2]);
   return(p);
 }
 
@@ -10498,6 +10502,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
 
 static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code, s7_pointer let);
 static void let_temp_unwind(s7_scheme *sc, s7_pointer slot, s7_pointer new_value);
+static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e);
 
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
@@ -10550,6 +10555,11 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 		else let_temp_done(sc, stack_args(sc->stack, i), stack_code(sc->stack, i), stack_let(sc->stack, i));
 	      }
 	  }
+	  break;
+
+	case OP_DYNAMIC_UNWIND:
+	  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
+	  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i));
 	  break;
 
 	case OP_LET_TEMP_UNWIND:
@@ -10741,6 +10751,11 @@ static void call_with_exit(s7_scheme *sc)
 		    sc->code = dynamic_wind_out(lx);
 		    eval(sc, OP_APPLY);
 		  }}}
+	  break;
+
+	case OP_DYNAMIC_UNWIND:
+	  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
+	  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i));
 	  break;
 
 	case OP_EVAL_STRING:
@@ -19329,7 +19344,7 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 		    if (n1 >= n2) goto NOT_LESS;
 		  }
 #else
-		if ((n1 * d2) >=  (n2 * d1)) goto NOT_LESS;
+		if ((n1 * d2) >= (n2 * d1)) goto NOT_LESS;
 #endif
 	      }
 	  }
@@ -19676,7 +19691,7 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 		    if (n1 <= n2) goto NOT_GREATER;
 		  }
 #else
-		if ((n1 * d2) <=  (n2 * d1)) goto NOT_GREATER;
+		if ((n1 * d2) <= (n2 * d1)) goto NOT_GREATER;
 #endif
 	      }
 	  }
@@ -48783,6 +48798,64 @@ s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_p
 }
 
 
+/* -------------------------------- dynamic-unwind -------------------------------- */
+static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e)
+{
+  s7_pointer res;
+  if (is_multiple_value(sc->value))
+    {
+      s7_pointer old_value;
+      old_value = sc->value;
+      clear_multiple_value(old_value);
+      /* fprintf(stderr, "%s[%d]: mv: %s\n", __func__, __LINE__, display(old_value)); */
+      res = s7_apply_function(sc, func, set_plist_2(sc, e, set_qlist_2(sc, sc->apply_values_symbol, old_value)));
+      set_multiple_value(old_value);
+      sc->value = old_value;
+    }
+  else res = s7_apply_function(sc, func, set_plist_2(sc, e, sc->value)); /* s7_apply_function returns sc->value */
+  return(res);
+}
+
+static void swap_stack(s7_scheme *sc, opcode_t new_op, s7_pointer new_code, s7_pointer new_args)
+{
+  s7_pointer code, args, e;
+  opcode_t op;
+
+  sc->stack_end -= 4;
+  code = sc->stack_end[0];
+  e = sc->stack_end[1];
+  args = sc->stack_end[2];
+  op = (opcode_t)(sc->stack_end[3]); /* this should be begin1 */
+#if S7_DEBUGGING
+  if (op != OP_BEGIN1) fprintf(stderr, "swap %s\n", op_names[op]);
+#endif
+  push_stack(sc, new_op, new_args, new_code);
+
+  sc->stack_end[0] = code;
+  sc->stack_end[1] = e;
+  sc->stack_end[2] = args;
+  sc->stack_end[3] = (s7_pointer)op;
+  sc->stack_end += 4;
+}
+
+static s7_pointer g_dynamic_unwind(s7_scheme *sc, s7_pointer args)
+{
+  #define H_dynamic_unwind "(dynamic-unwind func arg) pushes func and arg on the stack, then (func arg) is called when the stack unwinds."
+  #define Q_dynamic_unwind s7_make_signature(sc, 3, sc->is_procedure_symbol, sc->is_procedure_symbol, sc->T)
+
+  check_stack_size(sc);
+  swap_stack(sc, OP_DYNAMIC_UNWIND, car(args), cadr(args));
+  return(cadr(args));
+}
+
+s7_pointer s7_dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer arg)
+{
+  check_stack_size(sc);
+  swap_stack(sc, OP_DYNAMIC_UNWIND, func, arg);
+  return(func);
+}
+
+
 /* -------------------------------- catch -------------------------------- */
 static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
 {
@@ -49240,7 +49313,7 @@ static bool catch_1_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointe
   return(false);
 }
 
-static bool catch_dw_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
+static bool catch_dynamic_wind_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
 {
   s7_pointer x;
   x = stack_code(sc->stack, i);
@@ -49333,6 +49406,16 @@ static bool catch_let_temp_s7_unwind_function(s7_scheme *sc, s7_int i, s7_pointe
   return(false);
 }
 
+static bool catch_dynamic_unwind_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
+{
+  /* if func has an error, s7_error will call it as it unwinds the stack -- an infinite loop.
+   *   So, cancel out the unwind first.
+   */
+  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
+  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i)); 
+  return(false);
+}
+
 typedef bool (*catch_function)(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook);
 static catch_function catchers[NUM_OPS];
 
@@ -49344,7 +49427,8 @@ static void init_catchers(void)
   catchers[OP_CATCH_2] =            catch_2_function;
   catchers[OP_CATCH_1] =            catch_1_function;
   catchers[OP_CATCH] =              catch_1_function;
-  catchers[OP_DYNAMIC_WIND] =       catch_dw_function;
+  catchers[OP_DYNAMIC_WIND] =       catch_dynamic_wind_function;
+  catchers[OP_DYNAMIC_UNWIND] =     catch_dynamic_unwind_function;
   catchers[OP_GET_OUTPUT_STRING] =  catch_out_function;
   catchers[OP_UNWIND_OUTPUT] =      catch_out_function;
   catchers[OP_UNWIND_INPUT] =       catch_in_function;
@@ -65277,7 +65361,7 @@ static s7_function s7_optimize_1(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if ((!is_pair(expr)) || (no_cell_opt(expr)))
+  if ((!is_pair(expr)) || (no_cell_opt(expr)) || (sc->debug > 1))
     return(NULL);
 
   if (setjmp(sc->opt_exit) == 0)
@@ -66134,7 +66218,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
   s7_pointer x;
   top = s7_stack_top(sc) - 1; /* stack_end - stack_start if negative, we're in big trouble */
 #if SHOW_EVAL_OPS
-  safe_print(fprintf(stderr, "splice %s %s\n", op_names[stack_op(sc->stack, top)], display_80(sc->args)));
+  safe_print(fprintf(stderr, "%s[%d]: splice %s %s\n", __func__, __LINE__, op_names[stack_op(sc->stack, top)], display_80(args)));
 #endif
 
   switch (stack_op(sc->stack, top))
@@ -66312,6 +66396,18 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_COND1: case OP_COND1_SIMPLE:
       return(car(args));
 
+    case OP_DYNAMIC_UNWIND:
+      {
+	s7_pointer old_value;
+	old_value = sc->value;
+	clear_multiple_value(args);
+	dynamic_unwind(sc, stack_code(sc->stack, top), stack_args(sc->stack, top));
+	sc->value = old_value;
+	set_multiple_value(args);
+	sc->stack_end -= 4;
+	return(splice_in_values(sc, args));
+      }
+
     case OP_BARRIER:
       pop_stack(sc);
       return(splice_in_values(sc, args));
@@ -66352,7 +66448,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       return(car(x));              /* sc->value from OP_READ_LIST point of view */
 
     default:
-      /* fprintf(stderr, "splice on: %s\n", op_names[stack_op(sc->stack, top)]); */
+      /* fprintf(stderr, "%s[%d]: splice on: %s\n", __func__, __LINE__, op_names[stack_op(sc->stack, top)]); */
       break;
     }
 
@@ -90394,6 +90490,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_UNWIND_OUTPUT: op_unwind_output(sc); continue;
 	case OP_UNWIND_INPUT:  op_unwind_input(sc); continue;
+	case OP_DYNAMIC_UNWIND: dynamic_unwind(sc, sc->code, sc->args); continue;
 	case OP_DYNAMIC_WIND: if (op_dynamic_wind(sc) == goto_apply) goto APPLY; continue;
 	case OP_DEACTIVATE_GOTO: call_exit_active(sc->args) = false; continue; /* deactivate the exiter */
 
@@ -96640,8 +96737,8 @@ static void init_rootlet(s7_scheme *sc)
   sc->owlet_symbol =                 defun("owlet",		owlet,			0, 0, false);
   sc->coverlet_symbol =              defun("coverlet",		coverlet,		1, 0, false);
   sc->openlet_symbol =               defun("openlet",		openlet,		1, 0, false);
-                                     defun("coverlets",		coverlets,		0, 0, false);
-                                     defun("openlets",		openlets,		0, 0, false);
+  sc->openlets_symbol = make_symbol(sc, "openlets");
+  s7_typed_dilambda(sc, "openlets", g_openlets, 0, 0, g_set_openlets, 1, 1, H_openlets, Q_openlets, NULL);
   sc->let_ref_symbol =               defun("let-ref",		let_ref,		2, 0, false);
   set_immutable(sc->let_ref_symbol);  /* 16-Sep-19 */
   sc->let_set_symbol =               defun("let-set!",		let_set,		3, 0, false);
@@ -97005,6 +97102,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->for_each_symbol =              unsafe_defun("for-each",	for_each,		2, 0, true);
   sc->map_symbol =                   unsafe_defun("map",	map,			2, 0, true);
   sc->dynamic_wind_symbol =          unsafe_defun("dynamic-wind", dynamic_wind,	        3, 0, false);
+  sc->dynamic_unwind_symbol =        unsafe_defun("dynamic-unwind", dynamic_unwind,     2, 0, false);
   /* sc->values_symbol = */          unsafe_defun("values",	values,			0, 0, true); /* not safe because it assumes caller is on the stack */
   sc->catch_symbol =                 unsafe_defun("catch",	catch,			3, 0, false);
   sc->throw_symbol =                 unsafe_defun("throw",	throw,			1, 0, true);
@@ -97760,7 +97858,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 886) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 887) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -97920,33 +98018,33 @@ int main(int argc, char **argv)
  * tshoot   1296 |  880 |  841
  * index     939 | 1013 |  986
  * s7test   1776 | 1711 | 1705
- * lt       2278 | 2072 | 2066       2063
+ * lt       2278 | 2072 | 2066
  * tcopy    2434 | 2264 | 2264
  * tform    2472 | 2289 | 2279
- * tmisc    2852 | 2284 | 2277       2266
- * tread    2449 | 2394 | 2382       2377
- * dup      6333 | 2669 | 2423       2410
- * tvect    6189 | 2430 | 2430  2480 -- why is this so inconsistent?
- * tmat     6072 | 2478 | 2469       2464
+ * tmisc    2852 | 2284 | 2271
+ * tread    2449 | 2394 | 2379
+ * dup      6333 | 2669 | 2414
+ * tvect    6189 | 2430 | 2448 -- why is this so inconsistent?
+ * tmat     6072 | 2478 | 2469
  * fbench   2974 | 2643 | 2628
- * trclo    7985 | 2791 | 2671
- * tb       3251 | 2799 | 2769       2765
+ * trclo    7985 | 2791 | 2670
+ * tb       3251 | 2799 | 2767
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
  * tset     6616 | 3083 | 3120
- * tmac     3391 | 3186 | 3179       3159
- * teq      4081 | 3804 | 3794
+ * tmac     3391 | 3186 | 3178
+ * teq      4081 | 3804 | 3800
  * tfft     4288 | 3816 | 3788
- * tlet     5409 | 4613 | 4575
+ * tlet     5409 | 4613 | 4580
  * tclo     6206 | 4896 | 4829
  * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6799
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
  * calls    40.3 | 35.9 | 35.9
- * sg       85.8 | 70.4 | 70.3
- * lg      115.9 |104.9 |104.5      104.3
+ * sg       85.8 | 70.4 | 70.3  70.6
+ * lg      115.9 |104.9 |104.4
  * tbig    264.5 |178.0 |177.2
  * -----------------------------
  *
@@ -97969,7 +98067,10 @@ int main(int argc, char **argv)
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
- * history: perhaps set current directly, and save as buffer entry at top? eval: set cur_code, elsewhere set buffer entry?
- * debug.scm: trace-in and trace-out, maybe pp of let chain? no expansions if debug? [trace methods?] check macros (save use somehow)
- * g_is_funclet doc/test/debug use
+ * debug.scm: no expansions if debug? check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
+ *   better categorization than #<lambda> (method, for-each, etc), C-style stack (also from s7_error)
+ *   add built-ins (locations?), implicit refs?, perhaps syntax?
+ *   explicit C-side s7_trace_in [swap_stack?], redirect output (currently *stderr* built-in: *debug-port*?
+ * apply (if not from op_apply=begin) -> history, also FFI calls (s7_call/apply_function)
+ * funclet? doc, dynamic-unwind doc/test, (*s7* 'debug) doc/tests [t101 if printout can be squelched]
  */

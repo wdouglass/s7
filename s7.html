@@ -2734,8 +2734,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
-(<em class=def id="openlets">openlets</em>)               (re)activate all methods (these two are experimental)
-(<em class=def id="coverlets">coverlets</em> env)          deactivate all methods
+(<em class=def id="openlets">openlets</em>)               get/set whether any let is open
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
@@ -5513,6 +5512,7 @@ output-port-data-size         2048, size of an output port's buffer
 history			      a circular buffer of recent eval entries stored backwards (use set! to add an entry)
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
+debug                         determines debugging level (see debug.scm), default=0
 profile-info                  profiling data if s7 built WITH_PROFILE=1
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler

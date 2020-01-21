@@ -29,21 +29,15 @@
   (define (with-mock-wrapper func)
     (lambda (obj)
       (cond ((mock? obj)
-	     (dynamic-wind
-		 coverlets
-		 (lambda ()
-		   (func (obj 'value)))
-		 openlets))
+	     (let-temporarily (((openlets) #f))
+	       (func (obj 'value))))
 
 	    ((not (openlet? obj))
 	     (func obj))
 
 	    ((procedure? obj) ; TODO: and c-pointer? c-object?
-	     (dynamic-wind
-		 coverlets
-		 (lambda ()
-		   (func obj))
-		 openlets))
+	     (let-temporarily (((openlets) #f))
+	       (func obj)))
 
 	    (else
 	     (let ((func-name (string->symbol (object->string func))))
@@ -70,7 +64,7 @@
 		  args)
 	(if unknown-openlets
 	    (apply func (reverse new-args))
-	    (dynamic-wind coverlets (lambda () (apply func (reverse new-args))) openlets)))))
+	    (let-temporarily (((openlets) #f)) (apply func (reverse new-args)))))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
