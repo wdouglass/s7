@@ -65361,7 +65361,9 @@ static s7_function s7_optimize_1(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
-  if ((!is_pair(expr)) || (no_cell_opt(expr)) || (sc->debug > 1))
+  /* fprintf(stderr, "%s[%d]: debug: %ld, %s\n", __func__, __LINE__, sc->debug, display_80(expr)); */
+
+  if ((!is_pair(expr)) || (no_cell_opt(expr)) || (sc->debug != 0))
     return(NULL);
 
   if (setjmp(sc->opt_exit) == 0)
@@ -95436,6 +95438,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (s7_is_integer(val)) 
 	{
 	  sc->debug = s7_integer(val);
+	  /* fprintf(stderr, "%s[%d]: debug = %ld\n", __func__, __LINE__, sc->debug); */
 	  if ((sc->debug > 0) &&
 	      (!is_memq(make_symbol(sc, "debug.scm"), s7_symbol_value(sc, sc->features_symbol))))
 	    s7_load(sc, "debug.scm");
@@ -98068,9 +98071,12 @@ int main(int argc, char **argv)
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
  * debug.scm: no expansions if debug? check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
- *   better categorization than #<lambda> (method, for-each, etc), C-style stack (also from s7_error)
- *   add built-ins (locations?), implicit refs?, perhaps syntax?
- *   explicit C-side s7_trace_in [swap_stack?], redirect output (currently *stderr* built-in: *debug-port*?
+ *   better categorization than #<lambda> (method, for-each, etc)
+ *   C-style stack (also from s7_error): vector indexed by depth
+ *   add built-ins (locations?), implicit refs -> closure as below?
+ *   explicit C-side s7_trace_in (need redefinition as closure? or pass current args, but trace-out?]
+ *       (func args) -> (lambda args (trace-out (lambda () (trace-in (outlet (curlet))) (apply #_func args)) (curlet)))?
+ *   bugs: lambda* + rest arg? (s7test 9811 assoc)
  * apply (if not from op_apply=begin) -> history, also FFI calls (s7_call/apply_function)
  * funclet? doc, dynamic-unwind doc/test, (*s7* 'debug) doc/tests [t101 if printout can be squelched]
  */
