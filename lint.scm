@@ -10251,7 +10251,7 @@
 				      '(print-length safety cpu-time heap-size max-heap-size free-heap-size gc-freed max-string-length max-list-length 
 				        max-vector-length max-vector-dimensions default-hash-table-length initial-string-port-length memory-usage
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults history-enabled
-					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error 
+					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error debug
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
 					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length
 					most-positive-fixnum most-negative-fixnum output-port-data-size accept-all-keyword-arguments

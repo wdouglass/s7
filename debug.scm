@@ -25,13 +25,13 @@
 			       (if (or (pair? (cdr x))
 				       (and (symbol? (cdr x))
 					    (not (keyword? (cdr x)))))
-				   (list 'quote (cdr x))
+				   (list 'quote (cdr x)) 
 				   (cdr x)))
 			     e))))
 	    
-	    (let ((outer-call #f)           ; look for the expression that called this function
-		  (callee (if (pair? func) (car func) func)))
-	      (let ((history (*s7* 'history)))
+	    (let ((outer-call #f))           ; look for the expression that called this function
+	      (let ((callee (if (pair? func) (car func) func))
+		    (history (*s7* 'history)))
 		(do ((call (cdr history) (cdr call)))
 		    ((eq? call history))
 		  (when (and (pair? (car call))
@@ -45,11 +45,11 @@
 			args))
 	      (if (pair? func)
 		  (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
-	      (if (and (pair? outer-call)
+	      (if (and (pair? outer-call) 
 		       (pair-line-number outer-call))
 		  (format *debug-port* "~A called from ~A[~D]" 
 			  (if (pair? func) "" "    ;")
-			  (pair-filename outer-call) 
+			  (pair-filename outer-call)
 			  (pair-line-number outer-call)))
 	      (newline *debug-port*))))
 
@@ -58,7 +58,6 @@
 	  (dynamic-unwind trace-out e)))
       )))
 
-;;; outer-call line-number from internal lists if possible
 #|
 (define (set-debug-port new-port)
   (let ((old-port ((funclet trace-in) '*debug-port)))

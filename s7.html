@@ -2715,6 +2715,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="rootlet">rootlet</em>)               the top-level (global) environment
 (<em class=def id="curlet">curlet</em>)                the current (innermost) environment
 (<em class=def id="funclet">funclet</em> proc)          the environment at the time when proc was defined
+(<em class=def id="isfunclet">funclet?</em> env)        #t if env is a funclet
 (owlet)                 the environment at the point of the last error
 (<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
@@ -5578,6 +5579,14 @@ Use the standard environment syntax to access these fields:
    bignum int to s7_int conversion checks
 2: vector, string, and pair constants are immutable (but checks for this are currently sparse)
 </pre>
+
+<p>The debug variable controls where debug.scm is active.  If it is (debug &gt; 0), it inserts
+trace calls in functions and so on.  It uses <em class=def id="dynamicunwind">dynamic-unwind</em>
+to establish a catcher for the return value.  <code>(dynamic-unwind function arg)</code> causes
+<code>function</code> to be called after the traced function has returned, passing it <code>arg</code>
+and the returned value.
+</p>
+
 
 <p><code>(*s7* 'stacktrace-defaults)</code> is a list of four integers and a boolean that tell the error
 handler how to format stacktrace information.  The four integers are: 

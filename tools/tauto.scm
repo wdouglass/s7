@@ -176,7 +176,7 @@
 		  (and (pair? (car lst))
 		       (apply lambda '(x) (list (list 'or (list (caar lst) 'x) (list (cadar lst) 'x)))))))))
 
-(define baddies '(exit emergency-exit abort autotest s7-optimize
+(define baddies '(exit emergency-exit abort autotest s7-optimize dynamic-unwind
 		  all delete-file system set-cdr! stacktrace test-sym
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values

@@ -65,7 +65,7 @@
   "`(ok? ',tst (lambda () (dynamic-wind (lambda () #f) (lambda () ,tst) (lambda () #f))) ,expected)"
   "`(ok? ',tst (lambda () (caadr (catch 'receive (lambda () (throw 'receive ,tst)) (lambda any any)))) ,expected)"
   "`(ok? ',tst (lambda () (stacktrace (- (random 100) 50) (- (random 100) 50) (- (random 100) 50) (- (random 100) 50) (> (random 100) 50)) ,tst) ,expected)"
-  "`(ok? ',tst (lambda () (let ((__val__ (s7-optimize '(,tst)))) (if (eq? __val__ #<undefined>) ,tst __val__)))	,expected)"
+  "`(ok? ',tst (lambda () (let ((__val__ (s7-optimize '(,tst)))) (if (eq? __val__ #<undefined>) ,tst __val__))) ,expected)"
   "`(ok? ',tst (lambda () (let ((!x 0)) (set! (setter '!x) (lambda (_A _B) ,tst)) (set! !x 1))) ,expected)"
   "`(ok? ',tst (lambda () (define* (fgh1 (!x ,tst)) !x) (fgh1)) ,expected)"
   "`(ok? ',tst (lambda () (define !f (let ((!x ,tst)) (lambda () !x))) (!f)) ,expected)"
@@ -80,6 +80,22 @@
   ;; these are ok: "`(ok? ',tst (lambda () (define-macro (!m x) `(values ,x)) (!m ,tst)) ,expected)"
   ;;               "`(ok? ',tst (lambda () (let ((!x 0)) (let-temporarily ((!x ,tst)) !x))) ,expected)"
   ))
+
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(set! (*s7* 'debug) 1)~%(set! ((funclet trace-in) '*debug-port*) #f)~%")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: debug=1~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
+
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(set! (*s7* 'debug) 2)~%(set! ((funclet trace-in) '*debug-port*) #f)~%")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: debug=2~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
 
 #|
 ;; this quits at the quoted circular list (car '#1= (2 . #1#))

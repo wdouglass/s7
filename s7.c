@@ -65361,8 +65361,6 @@ static s7_function s7_optimize_1(s7_scheme *sc, s7_pointer expr, bool nr)
 #if WITH_GMP
   return(NULL);
 #endif
-  /* fprintf(stderr, "%s[%d]: debug: %ld, %s\n", __func__, __LINE__, sc->debug, display_80(expr)); */
-
   if ((!is_pair(expr)) || (no_cell_opt(expr)) || (sc->debug != 0))
     return(NULL);
 
@@ -76433,11 +76431,10 @@ static bool op_define_unchecked(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
 
-  if (sc->cur_op == OP_DEFINE_STAR_UNCHECKED) /* sc->cur_op changed above if define* */
+  if ((sc->cur_op == OP_DEFINE_STAR_UNCHECKED) && /* sc->cur_op changed above if define* */
+      (is_pair(cdar(sc->code))))
     {
-      uint64_t typ;
-      if (is_pair(cdar(sc->code))) typ = T_CLOSURE_STAR | closure_bits(cdr(sc->code)); else typ = T_CLOSURE;
-      sc->value = make_closure(sc, cdar(sc->code), cdr(sc->code), typ, CLOSURE_ARITY_NOT_SET);
+      sc->value = make_closure(sc, cdar(sc->code), cdr(sc->code), T_CLOSURE_STAR, CLOSURE_ARITY_NOT_SET);
       sc->code = caar(sc->code);
       return(false);
     }
@@ -82615,13 +82612,17 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
 static void op_lambda_star(s7_scheme *sc)
 {
   check_lambda_star(sc);
-  sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (!is_pair(car(sc->code))) ? T_CLOSURE : T_CLOSURE_STAR, CLOSURE_ARITY_NOT_SET);
+  if (!is_pair(car(sc->code)))
+    sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (is_symbol(car(sc->code))) ? (T_CLOSURE | T_COPY_ARGS) : T_CLOSURE, CLOSURE_ARITY_NOT_SET);
+  else sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (!arglist_has_rest(sc, car(sc->code))) ? T_CLOSURE_STAR : (T_CLOSURE_STAR | T_COPY_ARGS), CLOSURE_ARITY_NOT_SET);
 }
 
 static void op_lambda_star_unchecked(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
-  sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (!is_pair(car(sc->code))) ? T_CLOSURE : T_CLOSURE_STAR, CLOSURE_ARITY_NOT_SET);
+  if (!is_pair(car(sc->code)))
+    sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (is_symbol(car(sc->code))) ? (T_CLOSURE | T_COPY_ARGS) : T_CLOSURE, CLOSURE_ARITY_NOT_SET);
+  else sc->value = make_closure(sc, car(sc->code), cdr(sc->code), (!arglist_has_rest(sc, car(sc->code))) ? T_CLOSURE_STAR : (T_CLOSURE_STAR | T_COPY_ARGS), CLOSURE_ARITY_NOT_SET);
 }
 
 static s7_pointer star_set(s7_scheme *sc, s7_pointer slot, s7_pointer val, bool check_rest)
@@ -98071,12 +98072,6 @@ int main(int argc, char **argv)
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
  * debug.scm: no expansions if debug? check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
- *   better categorization than #<lambda> (method, for-each, etc)
+ *   better categorization than #<lambda> (lambda* method, for-each, etc) [closure*? = arity has opt args (car=0) cdr=length(funclet(f))]
  *   C-style stack (also from s7_error): vector indexed by depth
- *   add built-ins (locations?), implicit refs -> closure as below?
- *   explicit C-side s7_trace_in (need redefinition as closure? or pass current args, but trace-out?]
- *       (func args) -> (lambda args (trace-out (lambda () (trace-in (outlet (curlet))) (apply #_func args)) (curlet)))?
- *   bugs: lambda* + rest arg? (s7test 9811 assoc)
- * apply (if not from op_apply=begin) -> history, also FFI calls (s7_call/apply_function)
- * funclet? doc, dynamic-unwind doc/test, (*s7* 'debug) doc/tests [t101 if printout can be squelched]
  */

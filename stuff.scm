@@ -1630,7 +1630,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		       #_current-output-port #_current-error-port #_current-input-port
 		       #_set-current-output-port #_set-current-error-port #_set-current-input-port
 		       #_varlet #_cutlet #_rootlet #_curlet #_owlet #_outlet #_funclet
-		       #_exit #_emergency-exit
+		       #_exit #_emergency-exit #_dynamic_unwind
 		       (reader-cond
 			((provided? 'system-extras)
 			 #_getenv #_system #_delete-file #_directory->list #_directory? #_file-exists? #_file-mtime))
