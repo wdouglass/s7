@@ -9460,7 +9460,7 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
     slot_set_value_with_hook(cx, mac);
   else s7_make_slot(sc, sc->envir, sc->code, mac); /* was current but we've checked immutable already */
 
-  clear_symbol_list(sc); /* tracks names local to this macro */
+  /* clear_symbol_list(sc); *//* tracks names local to this macro */
   if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
     clear_all_optimizations(sc, body);
 
@@ -9495,7 +9495,7 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
 {
   if ((is_pair(car(code))) && (caar(code) == sc->trace_in_symbol))
     return(code);
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(code)); */
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(code)); */
   return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
@@ -76429,21 +76429,41 @@ static void check_define(s7_scheme *sc)
 
 static bool op_define_unchecked(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
+  s7_pointer code, locp;
+  code = cdr(sc->code);
+
+  if ((is_pair(car(code))) && (has_location(car(code))))
+    locp = car(code);
+  else
+    {
+      for (locp = cdr(code); is_pair(locp); locp = cdr(locp))
+	if ((is_pair(car(locp))) && (has_location(car(locp))))
+	  {
+	    locp = car(locp);
+	    break;
+	  }
+      /* if (is_null(locp)) fprintf(stderr, "perhaps %s -> %d\n", display_80(sc->code), port_line_number(sc->input_port)); */
+    }
 
   if ((sc->cur_op == OP_DEFINE_STAR_UNCHECKED) && /* sc->cur_op changed above if define* */
-      (is_pair(cdar(sc->code))))
+      (is_pair(cdar(code))))
     {
-      sc->value = make_closure(sc, cdar(sc->code), cdr(sc->code), T_CLOSURE_STAR, CLOSURE_ARITY_NOT_SET);
-      sc->code = caar(sc->code);
+      sc->value = make_closure(sc, cdar(code), cdr(code), T_CLOSURE_STAR, CLOSURE_ARITY_NOT_SET);
+      /* closure_body may not be cdr(code) after make_closure (add_trace) */
+      if ((is_pair(locp)) && (has_location(locp)))
+	{
+	  pair_set_location(closure_body(sc->value), pair_location(locp));
+	  set_has_location(closure_body(sc->value));
+	}
+      sc->code = caar(code);
       return(false);
     }
 
-  if (!is_pair(car(sc->code)))
+  if (!is_pair(car(code)))
     {
       s7_pointer x;
-      x = car(sc->code);
-      sc->code = cadr(sc->code);
+      x = car(code);
+      sc->code = cadr(code);
       if (is_pair(sc->code))
 	{
 	  push_stack(sc, OP_DEFINE1, sc->nil, x);
@@ -76464,10 +76484,15 @@ static bool op_define_unchecked(s7_scheme *sc)
        *   us back to the previous case).  We also can't re-use opt2(sc->code) because opt2
        *   is not cleared in the gc.
        */
-      args = cdar(sc->code);
-      make_closure_with_let(sc, x, args, cdr(sc->code), (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET);
+      args = cdar(code);
+      make_closure_with_let(sc, x, args, cdr(code), (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET);
+      if ((is_pair(locp)) && (has_location(locp)))
+	{
+	  pair_set_location(closure_body(x), pair_location(locp)); 
+	  set_has_location(closure_body(x));
+	}
       sc->value = T_Pos(x);
-      sc->code = caar(sc->code);
+      sc->code = caar(code);
     }
   return(false);
 }
@@ -83300,8 +83325,16 @@ static void op_define_with_setter(s7_scheme *sc)
 	  (port_file(sc->input_port) != stdin))
 	{
 	  /* unbound_variable will be called if __func__ is encountered, and will return this info as if __func__ had some meaning */
-	  let_set_file(new_env, port_file_number(sc->input_port));
-	  let_set_line(new_env, port_line_number(sc->input_port));
+	  if (has_location(closure_body(new_func)))
+	    {
+	      let_set_file(new_env, pair_file(closure_body(new_func)));
+	      let_set_line(new_env, pair_line_number(closure_body(new_func)));
+	    }
+	  else
+	    {
+	      let_set_file(new_env, port_file_number(sc->input_port));
+	      let_set_line(new_env, port_line_number(sc->input_port));
+	    }
 	  set_has_let_file(new_env);
 	}
       else
@@ -95505,7 +95538,7 @@ static const char *decoded_name(s7_scheme *sc, s7_pointer p)
   if (p == sc->code) return("code");
   if (p == sc->cur_code) return("cur_code");
   if (p == sc->envir) return("envir");
-  if (p == sc->nil) return("nil");
+  if (p == sc->nil) return("()");
   if (p == sc->T) return("T");
   if (p == sc->F) return("F");
   if (p == eof_object) return("eof_object");
@@ -98041,14 +98074,14 @@ int main(int argc, char **argv)
  * teq      4081 | 3804 | 3800
  * tfft     4288 | 3816 | 3788
  * tlet     5409 | 4613 | 4580
- * tclo     6206 | 4896 | 4829
+ * tclo     6206 | 4896 | 4829  4807
  * trec     17.8 | 6318 | 6318
  * thash    10.3 | 6805 | 6799
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
- * calls    40.3 | 35.9 | 35.9
+ * calls    40.3 | 35.9 | 35.9  35.7
  * sg       85.8 | 70.4 | 70.3  70.6
- * lg      115.9 |104.9 |104.4
+ * lg      115.9 |104.9 |104.4  104.6 (op_map_2 as with others)
  * tbig    264.5 |178.0 |177.2
  * -----------------------------
  *
@@ -98071,7 +98104,9 @@ int main(int argc, char **argv)
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
- * debug.scm: no expansions if debug? check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
- *   better categorization than #<lambda> (lambda* method, for-each, etc) [closure*? = arity has opt args (car=0) cdr=length(funclet(f))]
+ * debug.scm: check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
  *   C-style stack (also from s7_error): vector indexed by depth
+ * lint let-temp changes
+ * inline op_map_2?
+ * format-max changes -> *debug-max-spaces* 2 s7test
  */
