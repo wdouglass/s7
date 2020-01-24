@@ -6,6 +6,9 @@
 (provide 'repl.scm)
 (require libc.scm)
 
+(define old-debug (*s7* 'debug))
+(set! (*s7* 'debug) 0)
+
 (unless (defined? '*repl*)
   (define *repl*                    ; environment that holds the REPL functions
     (let ((prompt #f)               ; function to get/set prompt
@@ -850,15 +853,15 @@
 				 (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr)))
 				   (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
 				     (newline *stderr*)
-				     (let ((val ((lambda args
-						   (if (or (null? args)   ; try to trap (values) -> #<unspecified>
-							   (and (unspecified? (car args))
-								(null? (cdr args))))
-						       #<unspecified>
-						       (if (pair? (cdr args))
-							   (cons 'values args)
-							   (car args))))
-						 (new-eval form (*repl* 'top-level-let)))))
+				     (let ((val (list (new-eval form (*repl* 'top-level-let))))) ; list, not lambda -- confuses trace!
+				       (if (or (null? val)   ; try to trap (values) -> #<unspecified>
+					       (and (unspecified? (car val))
+						    (null? (cdr val))))
+					   (set! val #<unspecified>)
+					   (set! val (if (pair? (cdr val))
+							 (cons 'values val)
+							 (car val))))
+						 
 				       (if unbound-case
 					   (set! unbound-case #f)
 					   (format *stderr* "~S~%" val))
@@ -888,6 +891,7 @@
 			 
 			 (push-line (copy cur-line))
 			 (new-prompt))))))
+
 	    
 	    ;; -------- escaped (Meta/Alt/arrow) keys
 	    (set! (keymap-functions Escape) 
@@ -1052,9 +1056,10 @@
 		
 		(varlet (*repl* 'top-level-let) 
 		  :exit (let ((+documentation+ "(exit) resets the repl tty and exits the repl"))
-			  (lambda ()
-			    (newline *stderr*)
-			    (tty-reset))))
+			  (let-temporarily (((*s7* 'debug) 0))
+			    (lambda ()
+			      (newline *stderr*)
+			      (tty-reset)))))
 		
 		;; a "normal" terminal -- hopefully it accepts vt100 codes
 		(let ((buf (termios.make)))
@@ -1063,6 +1068,7 @@
 			  (let* ((c (make-string read-size #\null)) 
 				 (cc (string->c-pointer c))
 				 (ctr 0))
+			    (let-temporarily (((*s7* 'debug) 0))
 			    (lambda ()
 			      (call-with-exit
 			       (lambda (return)
@@ -1168,7 +1174,7 @@
 				 (let ((result (c ctr)))
 				   (set! ctr (+ ctr 1))
 				   result)))))))
-		  
+
 		  (set! input-fd (if (not file) 
 				     terminal-fd
 				     (open file O_RDONLY 0)))
@@ -1209,8 +1215,8 @@
 			(apply format *stderr* info)
 			(format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
 			(set! chars 0)
-			(new-prompt)))))))
-	    
+			(new-prompt))))))))
+
 	    (define* (run file)
 	      (do ((i 0 (+ i 1)))
 		  ((= i (*s7* 'history-size)))
@@ -1265,6 +1271,7 @@
       (curlet))))
 
 ;; ((*repl* 'run))
+(set! (*s7* 'debug) old-debug)
 
 
 ;;; --------------------------------------------------------------------------------

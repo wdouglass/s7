@@ -9406,6 +9406,29 @@ static void clear_all_optimizations(s7_scheme *sc, s7_pointer p)
     }
 }
 
+#if S7_DEBUGGING
+#define unstack(sc) unstack_1(sc, __func__, __LINE__)
+static void unstack_1(s7_scheme *sc, const char *func, int line)
+{
+  sc->stack_end -= 4;
+  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
+    {
+      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
+      fprintf(stderr, "    code: %s, args: %s\n", display(sc->code), display(sc->args));
+    }
+}
+#else
+#define unstack(sc) sc->stack_end -= 4
+#endif
+
+static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
+{
+  if ((is_pair(car(code))) && (caar(code) == sc->trace_in_symbol))
+    return(code);
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(code)); */
+  return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
+}
+
 static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 {
   s7_pointer cx, mac, body;
@@ -9473,30 +9496,15 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
     set_is_definer(sc->code);
 
   sc->temp6 = sc->nil;
-  return(mac);
-}
 
-#if S7_DEBUGGING
-#define unstack(sc) unstack_1(sc, __func__, __LINE__)
-static void unstack_1(s7_scheme *sc, const char *func, int line)
-{
-  sc->stack_end -= 4;
-  if (((opcode_t)sc->stack_end[3]) != OP_GC_PROTECT)
+  if (sc->debug > 0) 
     {
-      fprintf(stderr, "%s%s[%d]: popped %s?%s\n", BOLD_TEXT, func, line, op_names[(opcode_t)sc->stack_end[3]], UNBOLD_TEXT);
-      fprintf(stderr, "    code: %s, args: %s\n", display(sc->code), display(sc->args));
-    }
-}
-#else
-#define unstack(sc) sc->stack_end -= 4
-#endif
+      s7_gc_protect_via_stack(sc, mac);  /* GC protect func during add_trace */
+      closure_set_body(mac, add_trace(sc, body));
+      unstack(sc);
+    } 
 
-static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
-{
-  if ((is_pair(car(code))) && (caar(code) == sc->trace_in_symbol))
-    return(code);
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(code)); */
-  return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
+  return(mac);
 }
 
 static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, uint64_t type, int32_t arity)
@@ -32928,12 +32936,46 @@ static bool s7_is_one_or_big_one(s7_pointer p);
 
 static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj);
 
+#define CYCLE_DEBUGGING 1
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *str, s7_pointer args,
 				   s7_pointer *next_arg, bool with_result, bool columnized, s7_int len, s7_pointer orig_str)
 {
   s7_int i, str_len;
   format_data *fdat;
   s7_pointer deferred_port;
+
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  if (port_data(port))
+		    {
+		      fprintf(stderr, "   port contents (%ld bytes): \n", (long)port_position(port)); /* gcc and clang disagree about the %ld/%lld business here */
+		      if (port_position(port) > 10000)
+			port_data(port)[10000] = '\0';
+		      else port_data(port)[port_position(port)] = '\0';
+		      fprintf(stderr, "%s\n", port_data(port));
+		    }
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
 
   if (len <= 0)
     {
@@ -54164,9 +54206,7 @@ static s7_pointer fx_c_s_opaaaq(s7_scheme *sc, s7_pointer code)
 static s7_pointer fx_c_4a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer res;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
+  check_stack_size(sc); /* t101 + s7test + debug=2 */
   res = cdr(code);
   gc_protect_via_stack(sc, fx_call(sc, res));
   sc->stack_end[-4] = fx_call(sc, cdr(res));
@@ -98104,9 +98144,11 @@ int main(int argc, char **argv)
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
- * debug.scm: check macros (save use somehow), various choices (trace function|variable) (trace-if func) etc
- *   C-style stack (also from s7_error): vector indexed by depth
- * lint let-temp changes
+ * debug.scm:
+ *   how to find macro name? find_closure->macro_to_port?
+ *   ow! truncated output, include debug if possible (also s7_error)
+ *   step via begin_hook? needs *begin-hook* in scheme I think
+ *      a thunk, return value ignored? but should it be a s7-style hook?
  * inline op_map_2?
- * format-max changes -> *debug-max-spaces* 2 s7test
+ * t718
  */
