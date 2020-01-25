@@ -2477,6 +2477,11 @@ void s7_show_history(s7_scheme *sc);
 #define set_is_definer(p)              set_type1_bit(T_Sym(p), T_DEFINER)
 /* this marks "definers" like define and define-macro */
 
+#define T_MACLET                       T_DEFINER
+#define is_maclet(p)                   has_type1_bit(T_Let(p), T_MACLET)
+#define set_maclet(p)                  set_type1_bit(T_Let(p), T_MACLET)
+/* this marks a maclet */
+
 #define T_HAS_FX                       T_DEFINER
 #define set_has_fx(p)                  set_type1_bit(T_Pair(p), T_HAS_FX)
 #define has_fx(p)                      has_type1_bit(T_Pair(p), T_HAS_FX)
@@ -3869,7 +3874,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
 static s7_pointer find_method(s7_scheme *sc, s7_pointer env, s7_pointer symbol);
 static s7_pointer find_method_with_let(s7_scheme *sc, s7_pointer env, s7_pointer symbol);
 static s7_pointer find_let(s7_scheme *sc, s7_pointer obj);
-static bool call_begin_hook(s7_scheme *sc);
 static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
 static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc);
 
@@ -7781,7 +7785,7 @@ static s7_pointer g_is_funclet(s7_scheme *sc, s7_pointer args)
   #define H_is_funclet "(funclet? obj) returns #t if obj is a funclet (a function's environment)."
   #define Q_is_funclet sc->pl_bt
   lt = car(args);
-  if ((is_let(lt)) && (is_funclet(lt)))
+  if ((is_let(lt)) && ((is_funclet(lt)) || (is_maclet(lt))))
     return(sc->T);
   if (!has_active_methods(sc, lt))
     return(sc->F);
@@ -9483,6 +9487,8 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
     slot_set_value_with_hook(cx, mac);
   else s7_make_slot(sc, sc->envir, sc->code, mac); /* was current but we've checked immutable already */
 
+  /* fprintf(stderr, "%s[%d]: %s %s from %s[%d]\n", __func__, __LINE__, display(sc->code), display(sc->envir), sc->envir->current_alloc_func, sc->envir->current_alloc_line); */
+
   /* clear_symbol_list(sc); *//* tracks names local to this macro */
   if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
     clear_all_optimizations(sc, body);
@@ -9501,8 +9507,11 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
     {
       s7_gc_protect_via_stack(sc, mac);  /* GC protect func during add_trace */
       closure_set_body(mac, add_trace(sc, body));
+      /* set_opt3_sym(closure_body(mac), sc->code); */
+      /* fprintf(stderr, "%s[%d]: set opt3 %s %s\n", __func__, __LINE__, display(opt3_sym(closure_body(mac))), display(closure_body(mac))); */
       unstack(sc);
-    } 
+    }
+  set_opt3_sym(closure_body(mac), sc->code);
 
   return(mac);
 }
@@ -9740,6 +9749,8 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
   s7_pointer x, body;
 
   body = copy_body(sc, closure_body(fnc));
+  if (is_any_macro(fnc))
+    set_opt3_sym(body, opt3_sym(closure_body(fnc)));
   new_cell(sc, x, typeflag(fnc) & (~T_COLLECTED)); /* I'm paranoid about that is_collected bit */
   closure_set_args(x, closure_args(fnc));
   closure_set_body(x, body);
@@ -30131,7 +30142,7 @@ static s7_pointer find_closure(s7_scheme *sc, s7_pointer closure, s7_pointer cur
   s7_pointer e, y;
   for (e = cur_env; is_let(e); e = outlet(e))
     {
-      if (is_funclet(e))
+      if ((is_funclet(e)) || (is_maclet(e)))
 	{
 	  s7_pointer sym, f;
 	  sym = funclet_function(e);
@@ -30561,7 +30572,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						    ((is_slot(obj)) ? " slot-defaults" :
 						     ((is_iterator(obj)) ? " weak-hash-iterator" :
 						      ((is_hash_table(obj)) ? " has-key-type" :
-						       " ?26?"))))) : "",
+						       ((is_let(obj)) ? " maclet" :
+							" ?26?")))))) : "",
 	   /* bit 27+16 */
 	   ((full_typ & T_FULL_BINDER) != 0) ?    ((is_pair(obj)) ? " tree-collected" :
 						   ((is_hash_table(obj)) ? " simple-values" :
@@ -30623,7 +30635,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_DONT_EVAL_ARGS) != 0) && (!is_any_macro(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_FULL_DEFINER) != 0) &&
-      (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj)) && (!is_hash_table(obj))) return(true);
+      (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj)) && (!is_hash_table(obj)) && (!is_let(obj))) return(true);
   if (((full_typ & T_FULL_HAS_LET_FILE) != 0) &&
       (!is_let(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)) && (!is_pair(obj)) && (!is_closure_star(obj)))
     return(true);
@@ -32936,7 +32948,7 @@ static bool s7_is_one_or_big_one(s7_pointer p);
 
 static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj);
 
-#define CYCLE_DEBUGGING 1
+#define CYCLE_DEBUGGING 0
 #if CYCLE_DEBUGGING
 static char *base = NULL, *min_char = NULL;
 #endif
@@ -47979,7 +47991,7 @@ static s7_pointer stacktrace_find_caller(s7_scheme *sc, s7_pointer e)
 {
   if ((is_let(e)) && (e != sc->rootlet))
     {
-      if (is_funclet(e))
+      if ((is_funclet(e)) || (is_maclet(e)))
 	return(funclet_function(e));
       return(stacktrace_find_caller(sc, outlet(e)));
     }
@@ -67539,7 +67551,7 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
 {
   s7_pointer e;
   for (e = cur_env; is_let(e); e = outlet(e))
-    if (is_funclet(e))
+    if ((is_funclet(e)) || (is_maclet(e)))
       return(e);
   return(sc->nil);
 }
@@ -74323,6 +74335,7 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
       s1 = let_slots(sc->envir);
       if (tis_slot(next_slot(s1))) s2 = slot_symbol(next_slot(s1));
       s1 = slot_symbol(s1);
+      /* fprintf(stderr, "%s[%d]: fx_tree %s\n", __func__, __LINE__, display(code)); */
       for (p = car(code); is_pair(p); p = cdr(p))
 	{
 	  s7_pointer init;
@@ -74330,6 +74343,7 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
 	  fx_tree(sc, init, s1, s2);
 	}
     }
+
   return(code);
 }
 
@@ -76791,6 +76805,7 @@ static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code));
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
   sc->value = make_macro(sc, sc->cur_op);
   return(NULL);
 }
@@ -76815,6 +76830,7 @@ static bool op_define_macro(s7_scheme *sc)
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_any_with_caller? */
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
   sc->value = make_macro(sc, sc->cur_op);
   return(true);
 }
@@ -76831,6 +76847,7 @@ static bool op_macro_d(s7_scheme *sc)
   sc->code = sc->value;                       /* the macro */
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir);
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), display(sc->args)); */
   return(false);
 }
 
@@ -77032,6 +77049,7 @@ static void op_eval_macro(s7_scheme *sc) /* after (scheme-side) macroexpansion, 
    * (hi 2)
    * here with value: (+ 2 1)
    */
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->value)); */
   if (is_multiple_value(sc->value))
     {
       /* a normal macro's result is evaluated (below) and its value replaces the macro invocation,
@@ -82632,7 +82650,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
   s7_pointer x, z, e, sym, slot, last_slot;
   uint64_t id;
 
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
+  /* fprintf(stderr, "%s[%d]: %s %s %ld\n", __func__, __LINE__, display(sc->code), display(sc->envir), let_id(sc->envir)); */
   e = sc->envir;
   id = let_id(e);
   last_slot = slot_end(sc);
@@ -82664,6 +82682,7 @@ static void apply_lambda(s7_scheme *sc)                            /* -------- n
       sym = x;
       slot = make_slot(sc, sym, z);
       symbol_set_local_slot(sym, id, slot);
+      /* fprintf(stderr, "%s %ld\n", display(sym), symbol_id(sym)); */
       if (tis_slot(last_slot))
 	slot_set_next(last_slot, slot);
       else let_set_slots(e, slot);
@@ -83048,20 +83067,27 @@ static void apply_macro_star_1(s7_scheme *sc)
 static void apply_macro(s7_scheme *sc)
 {
   /* this is not from the reader, so treat expansions here as normal macros */
+  /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(sc->code), display(closure_let(sc->code)), display(opt3_sym(closure_body(sc->code)))); */
   push_stack_op_let(sc, OP_EVAL_MACRO);
-  new_frame(sc, closure_let(sc->code), sc->envir);
+  new_frame(sc, closure_let(sc->code), sc->envir); /* closure_let -> sc->envir, sc->code is the macro */
+  set_maclet(sc->envir);
+  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
 }
 
 static void apply_bacro(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);       /* like let* -- we'll be adding macro args, so might as well sequester things here */
+  set_maclet(sc->envir);
+  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
 }
 
 static void apply_macro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir);
+  set_maclet(sc->envir);
+  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
   apply_macro_star_1(sc);
 }
 
@@ -83069,7 +83095,9 @@ static void apply_bacro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);
-  apply_macro_star_1(sc);
+  set_maclet(sc->envir);
+  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
+ apply_macro_star_1(sc);
 }
 
 static void apply_closure(s7_scheme *sc)
@@ -83348,12 +83376,14 @@ static void op_define_with_setter(s7_scheme *sc)
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define ~S: let is immutable", 27, code);
 
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->value)); */
   if ((is_any_closure(sc->value)) &&
       ((!(is_let(closure_let(sc->value)))) ||
        (!(is_funclet(closure_let(sc->value))))))  /* otherwise it's (define f2 f1) or something similar */
     {
       s7_pointer new_func, new_env;
       new_func = sc->value;
+      /* fprintf(stderr, "new funclet\n"); */
       new_env = make_funclet(sc, new_func, code, closure_let(new_func));
       /* this should happen only if the closure* default values do not refer in any way to
        *   the enclosing environment (else we can accidentally shadow something that happens
@@ -83432,6 +83462,7 @@ static void op_define_with_setter(s7_scheme *sc)
   else
     {
       s7_pointer lx;
+      /* fprintf(stderr, "%s[%d]: old let\n", __func__, __LINE__); */
       /* add the newly defined thing to the current environment */
       lx = symbol_to_local_slot(sc, code, sc->envir);
       if (is_slot(lx))
@@ -90028,7 +90059,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 
 	case OP_BEGIN_UNCHECKED:
-	  /* set_current_code(sc, sc->code); */
+	  set_current_code(sc, sc->code);
 	  sc->code = cdr(sc->code);
 	  goto BEGIN;
 
@@ -90037,7 +90068,12 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = cdr(sc->code);
 
 	case OP_BEGIN0:
-	  if ((sc->begin_hook) && (call_begin_hook(sc))) return(sc->F);
+	  if (sc->begin_hook)
+	    {
+	      set_current_code(sc, sc->code);
+	      if (call_begin_hook(sc)) 
+		return(sc->F);
+	    }
 	case OP_BEGIN1:
 	  goto BEGIN;
 
@@ -95210,10 +95246,10 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_CATCHES:                       return(active_catches(sc));
     case SL_CPU_TIME:                      return(s7_make_real(sc, (double)clock() / (double)CLOCKS_PER_SEC));
     case SL_C_TYPES:                       return(sl_c_types(sc));
+    case SL_DEBUG:                         return(s7_make_integer(sc, sc->debug));
     case SL_DEFAULT_HASH_TABLE_LENGTH:     return(s7_make_integer(sc, sc->default_hash_table_length));
     case SL_DEFAULT_RANDOM_STATE:          return(sc->default_rng);
     case SL_DEFAULT_RATIONALIZE_ERROR:     return(make_real(sc, sc->default_rationalize_error));
-    case SL_DEBUG:                         return(s7_make_integer(sc, sc->debug));
     case SL_EQUIVALENT_FLOAT_EPSILON:      return(s7_make_real(sc, sc->equivalent_float_epsilon));
     case SL_FILE_NAMES:                    return(sl_file_names(sc));
     case SL_FLOAT_FORMAT_PRECISION:        return(s7_make_integer(sc, sc->float_format_precision));
@@ -95370,6 +95406,18 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_CPU_TIME: return(sl_unsettable_error(sc, sym));
     case SL_C_TYPES:  return(sl_unsettable_error(sc, sym));
 
+    case SL_DEBUG:
+      if (s7_is_integer(val)) 
+	{
+	  sc->debug = s7_integer(val);
+	  /* fprintf(stderr, "%s[%d]: debug = %ld\n", __func__, __LINE__, sc->debug); */
+	  if ((sc->debug > 0) &&
+	      (!is_memq(make_symbol(sc, "debug.scm"), s7_symbol_value(sc, sc->features_symbol))))
+	    s7_load(sc, "debug.scm");
+	  return(val);
+	}
+      return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+ 
     case SL_DEFAULT_HASH_TABLE_LENGTH:
       sc->default_hash_table_length = s7_integer(sl_integer_gt_0(sc, sym, val));
       return(val);
@@ -95508,18 +95556,6 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_PROFILE_INFO:          return(sl_unsettable_error(sc, sym));
     case SL_ROOTLET_SIZE:          return(sl_unsettable_error(sc, sym));
 
-    case SL_DEBUG:
-      if (s7_is_integer(val)) 
-	{
-	  sc->debug = s7_integer(val);
-	  /* fprintf(stderr, "%s[%d]: debug = %ld\n", __func__, __LINE__, sc->debug); */
-	  if ((sc->debug > 0) &&
-	      (!is_memq(make_symbol(sc, "debug.scm"), s7_symbol_value(sc, sc->features_symbol))))
-	    s7_load(sc, "debug.scm");
-	  return(val);
-	}
-      return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
- 
     case SL_SAFETY:
       if (s7_is_integer(val))
 	{
@@ -98093,15 +98129,15 @@ int main(int argc, char **argv)
  * tauto     748 |  633 |  638
  * tref     1093 |  779 |  779
  * tshoot   1296 |  880 |  841
- * index     939 | 1013 |  986
- * s7test   1776 | 1711 | 1705
- * lt       2278 | 2072 | 2066
- * tcopy    2434 | 2264 | 2264
- * tform    2472 | 2289 | 2279
- * tmisc    2852 | 2284 | 2271
+ * index     939 | 1013 |  989
+ * s7test   1776 | 1711 | 1691
+ * lt       2278 | 2072 | 2069
+ * tcopy    2434 | 2264 | 2277
+ * tform    2472 | 2289 | 2279  2298
+ * tmisc    2852 | 2284 | 2268
  * tread    2449 | 2394 | 2379
  * dup      6333 | 2669 | 2414
- * tvect    6189 | 2430 | 2448 -- why is this so inconsistent?
+ * tvect    6189 | 2430 | 2448
  * tmat     6072 | 2478 | 2469
  * fbench   2974 | 2643 | 2628
  * trclo    7985 | 2791 | 2670
@@ -98110,18 +98146,18 @@ int main(int argc, char **argv)
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
  * tset     6616 | 3083 | 3120
- * tmac     3391 | 3186 | 3178
- * teq      4081 | 3804 | 3800
+ * tmac     3391 | 3186 | 3174
+ * teq      4081 | 3804 | 3803
  * tfft     4288 | 3816 | 3788
  * tlet     5409 | 4613 | 4580
- * tclo     6206 | 4896 | 4829  4807
+ * tclo     6206 | 4896 | 4811
  * trec     17.8 | 6318 | 6318
- * thash    10.3 | 6805 | 6799
+ * thash    10.3 | 6805 | 6798
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
- * calls    40.3 | 35.9 | 35.9  35.7
- * sg       85.8 | 70.4 | 70.3  70.6
- * lg      115.9 |104.9 |104.4  104.6 (op_map_2 as with others)
+ * calls    40.3 | 35.9 | 35.9
+ * sg       85.8 | 70.4 | 70.6
+ * lg      115.9 |104.9 |104.6
  * tbig    264.5 |178.0 |177.2
  * -----------------------------
  *
@@ -98144,11 +98180,6 @@ int main(int argc, char **argv)
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
- * debug.scm:
- *   how to find macro name? find_closure->macro_to_port?
- *   ow! truncated output, include debug if possible (also s7_error)
- *   step via begin_hook? needs *begin-hook* in scheme I think
- *      a thunk, return value ignored? but should it be a s7-style hook?
  * inline op_map_2?
- * t718
+ * doc debug.scm, combine set_funclet->new_frame?
  */

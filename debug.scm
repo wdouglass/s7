@@ -58,45 +58,53 @@
       (lambda (e)                   ; trace-in, report function call
 	(let-temporarily (((*s7* 'history-enabled) #f))
 
-	  (let ((func (if (funclet? e) 
-			  (with-let e __func__) 
-			  (if (funclet? (outlet e))
-			      (with-let (outlet e) __func__)
-			      #<lambda>)))
-		(args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
-			(map (lambda (x) 
-			       (if (or (pair? (cdr x))
-				       (and (symbol? (cdr x))
-					    (not (keyword? (cdr x)))))
-				   (list 'quote (cdr x)) 
+	  (let* ((func (if (funclet? e) 
+			   (with-let e __func__) 
+			   (and (funclet? (outlet e))
+				(with-let (outlet e) __func__))))
+		 (funcname (if (pair? func) 
+			       (car func)
+			       (if (symbol? func)
+				   func
+				   #<lambda>)))
+		 (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
+			 (map (lambda (x) 
+				(if (and (or (pair? (cdr x))
+					     (and (symbol? (cdr x))
+						  (not (keyword? (cdr x)))))
+					 (or (not func)
+					     (not (macro? (symbol->value funcname e)))))
+				   (list 'quote (cdr x))
 				   (cdr x)))
-			     e))))
-		(let ((call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
-			      (format #f "(~S~{~^ ~S~})" 
-				      (if (pair? func) (car func) func)
-				      args))))
+			     e)))
 
-		  (cond (*debug-function*
-			 (*debug-function* func args e))
+		 (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
+			 (format #f "(~S~{~^ ~S~})" 
+				 funcname
+				 args))))
 
-			((memq (if (pair? func) (car func) func) *debug-breaks*)
-			 (require repl.scm)
-			 (drop-into-repl call e))
+	    (when (or func (> (*s7* 'debug) 2))
+	      (cond (*debug-function*
+		     (*debug-function* func args e))
+			  
+		    ((memq funcname *debug-breaks*)
+		     (require repl.scm)
+		     (drop-into-repl call e))
+			  
+		    (else
+		     (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
+		     (if (pair? func)
+			 (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
+		     (if (and (> (port-line-number) 0)
+			      (not (string=? (port-filename) "*stdin*")))
+			 (format *debug-port* "~A called from ~A[~D]"
+				 (if (pair? func) "" "    ;")
+				 (port-filename)
+				 (port-line-number)))
+		     (newline *debug-port*))))
 
-			(else
-			 (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
-			 (if (pair? func)
-			     (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
-			 (if (and (> (port-line-number) 0)
-				  (not (string=? (port-filename) "*stdin*")))
-			     (format *debug-port* "~A called from ~A[~D]"
-				     (if (pair? func) "" "    ;")
-				     (port-filename)
-				     (port-line-number)))
-			 (newline *debug-port*)))
-
-		  (if *debug-stack*
-		      (vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) (/ *debug-spaces* 2))) call)))))
+	    (if *debug-stack*
+		(vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) (/ *debug-spaces* 2))) call))))
 
 	(when (> (*s7* 'debug) 1)  ; report value returned, this needs to be at the top level in this function
 	  (set! *debug-spaces* (+ *debug-spaces* 2))
@@ -105,6 +113,8 @@
 	))))
 
 #|
+;; debug=1 trace named function entry, debug=2 add return value, debug=3 add unnamed functions
+
 ;; set the output port:
 (set! ((funclet trace-in) '*debug-port*) new-port)
 
@@ -139,7 +149,7 @@
     (let-temporarily ((((funclet trace-in) '*debug-port*) port))
       ...)))
 
-;; (trace func) -- trace func (debug=0)
+;; (trace func) -- trace one function (debug=0)
 (define-macro (trace func)
   ;; to get the return value: (let-temporarily (((*s7* 'debug) 2)) (func))
   (require debug.scm)
@@ -154,19 +164,34 @@
 ;;; --------
 ;;; TODO:
 
-;; some way to trace just top-level functions etc
-;; use of exisiting repl (we're assuming repl.scm above, but Snd has 2 others etc)
-;; show stack (of outlets) and move around in it in repl
-;; show error (if any)
-  
+;; use existing repl (we're assuming repl.scm above, but Snd has 2 others etc)
+;;   this requires set-prompt at least, and the hello/goodbye message
+;;   in Snd I think that's all: just set prompt, how to see C-q=play current channel?
+;;      maybe (go)?
+;;   also need to set *debug-port*, but how to write to the listener in Snd scheme?
+;;   *listener-port* in Snd, using append_listener_text (snd-glistener.c and glistener.c: glistener_append_text)
+;;      and append_listener_text snd-motif.c, put soft port in snd-listener.c, or glistener.c and export?
+;;   also how to set Snd eval environment (for break)?
+;;      g_set_top_level_let in snd-glistener|motif = (top-level-let) in scheme
+
+  (define *listener-port* (openlet 
+   (inlet 
+	  :format (lambda (p str . args) (listener-write (apply format #f str args)))
+	  :write (lambda (obj p)         (listener-write (object->string obj #t)))
+	  :display (lambda (obj p)       (listener-write (object->string obj #f)))
+	  :write-string (lambda (str p)  (listener-write str))
+	  :write-char (lambda (ch p)     (listener-write (string ch)))
+	  :newline (lambda (p)           (listener-write (string #\newline)))
+	  :close-output-port (lambda (p) #f)
+	  :flush-output-port (lambda (p) #f))))
+   so Snd needs listener-write=append_listener_text + this in eval_c_string + break-out=go?
+
 ;; step: save old begin_hook, set to drop into repl as above, restore on exiting stepper (CM-q?)
+;;   no way to get the true current code? cur_code is set just before the begin_hook call, but we don't see it in time!
+;;   how to use begin_hook from scheme?
 
-;; to watch var, (set! (setter var) (lambda (s v) (format... "~S set! to ~S" s v))) -- but need position info -- perhaps setter -> cur_code?
-;;   would need scheme access to current_code(sc)? but even that is unreliable
+;; to watch var, (set! (setter var) (lambda (s v) (format... "~S set! to ~S" s v))) -- but need position info
+;;   perhaps e could have code/file/line but this needs to be limited, and scheme-accessible
 
-;; truncated: (let ((str (format...))) (if (< (length str) width) str (append (substring str 0 width) "...")))
-;;   maybe add ~N to ~A ~S in format
-
-;; object->let?
-;; show source?
+;; (trace abs) = trace above, but use #_ form if in unlet, or save before set, also trace needs to be a no-op if func already tracing
 |#

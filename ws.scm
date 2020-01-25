@@ -729,7 +729,7 @@ symbol: 'e4 for example.  If 'pythagorean', the frequency calculation uses small
 				 (not (char=? (name 1) #\n))
 				 (name 1)))
 		 (octave (if octave-char (- (char->integer octave-char) (char->integer #\0)) last-octave))
-		 (base-pitch (let ((base (modulo (- (+ (char->integer (name 0)) 5) (char->integer #\a)) 7)) ; c-based (diatonic) octaves	   
+		 (base-pitch (let ((base (modulo (- (+ (char->integer (name 0)) 5) (char->integer #\a)) 7)) ; c-based (diatonic) octaves
 				   (sign (case sign-char ((#f) 0) ((#\f) -1) (else 1))))
 			       (+ sign (case base ((0)) ((1) 2) ((2) 4) ((3) 5) ((4) 7) ((5) 9) ((6) 11)))))
 		 (et-pitch (+ base-pitch (* 12 octave))))
@@ -753,65 +753,63 @@ symbol: 'e4 for example.  If 'pythagorean', the frequency calculation uses small
 ;;; (defgenerator osc a b)
 ;;; (defgenerator (osc :methods (list (cons 'mus-frequency (lambda (obj) 100.0)))) a b)
 
-(define-macro (defgenerator struct-name . fields)
-
-  (define (list->bindings lst)
-    (let ((nlst (make-list (* (length lst) 2))))
-      (do ((old lst (cdr old))
-	   (nsym nlst (cddr nsym)))
-	  ((null? old) nlst)
-	(if (pair? (car old))
-	    (begin
-	      (list-set! nsym 1 (caar old))
-	      (list-set! nsym 0 (list 'quote (caar old))))
-	    (begin
-	      (list-set! nsym 1 (car old))
-	      (list-set! nsym 0 (list 'quote (car old))))))))
-
-  (let* ((sname (let ((name (if (pair? struct-name) 
-				(car struct-name) 
-				struct-name)))
-		  (if (string? name) 
-		      name 
-		      (symbol->string name))))
-	 (wrapper (let ((wrap (and (pair? struct-name)
-				   (or (and (> (length struct-name) 2)
-					    (eq? (struct-name 1) :make-wrapper)
-					    (struct-name 2))
-				       (and (= (length struct-name) 5)
-					    (eq? (struct-name 3) :make-wrapper)
-					    (struct-name 4))))))
-		    (or wrap (lambda (gen) gen))))
-	 (methods (and (pair? struct-name)
-		       (or (and (> (length struct-name) 2)
-				(eq? (struct-name 1) :methods)
-				(struct-name 2))
-			   (and (= (length struct-name) 5)
-				(eq? (struct-name 3) :methods)
-				(struct-name 4))))))
-    `(begin 
-       (define ,(symbol sname "?") #f)
-       (define ,(symbol "make-" sname) #f)
-
-       (let ((gen-type ',(symbol "+" sname "+"))
-	     (gen-methods (and ,methods (apply inlet ,methods))))
-	 
-	 (set! ,(symbol sname "?")
-	       (lambda (obj)
-		 (and (let? obj)
-		      (eq? (obj 'mus-generator-type) gen-type))))
-
-	 (set! ,(symbol "make-" sname)
-	       (lambda* ,(map (lambda (n) 
-				(if (pair? n) n (list n 0.0)))
-			      fields)
-  	         (,wrapper 
-		  (openlet
-		   ,(if methods
-		       `(sublet gen-methods
-			  ,@(list->bindings (reverse fields)) 'mus-generator-type gen-type)
-		       `(inlet 'mus-generator-type gen-type ,@(list->bindings fields)))))))))))
-
+(define defgenerator
+  (let ((list->bindings (lambda (lst)
+			  (let ((nlst (make-list (* (length lst) 2))))
+			    (do ((old lst (cdr old))
+				 (nsym nlst (cddr nsym)))
+				((null? old) nlst)
+			      (if (pair? (car old))
+				  (begin
+				    (list-set! nsym 1 (caar old))
+				    (list-set! nsym 0 (list 'quote (caar old))))
+				  (begin
+				    (list-set! nsym 1 (car old))
+				    (list-set! nsym 0 (list 'quote (car old))))))))))
+    (define-macro (defgenerator struct-name . fields)
+      (let* ((sname (let ((name (if (pair? struct-name) 
+				    (car struct-name) 
+				    struct-name)))
+		      (if (string? name) 
+			  name 
+			  (symbol->string name))))
+	     (wrapper (let ((wrap (and (pair? struct-name)
+				       (or (and (> (length struct-name) 2)
+						(eq? (struct-name 1) :make-wrapper)
+						(struct-name 2))
+					   (and (= (length struct-name) 5)
+						(eq? (struct-name 3) :make-wrapper)
+						(struct-name 4))))))
+			(or wrap (lambda (gen) gen))))
+	     (methods (and (pair? struct-name)
+			   (or (and (> (length struct-name) 2)
+				    (eq? (struct-name 1) :methods)
+				    (struct-name 2))
+			       (and (= (length struct-name) 5)
+				    (eq? (struct-name 3) :methods)
+				    (struct-name 4))))))
+	`(begin 
+	   (define ,(symbol sname "?") #f)
+	   (define ,(symbol "make-" sname) #f)
+	   
+	   (let ((gen-type ',(symbol "+" sname "+"))
+		 (gen-methods (and ,methods (apply inlet ,methods))))
+	     
+	     (set! ,(symbol sname "?")
+		   (lambda (obj)
+		     (and (let? obj)
+			  (eq? (obj 'mus-generator-type) gen-type))))
+	     
+	     (set! ,(symbol "make-" sname)
+		   (lambda* ,(map (lambda (n) 
+				    (if (pair? n) n (list n 0.0)))
+				  fields)
+		     (,wrapper 
+		      (openlet
+		       ,(if methods
+			    `(sublet gen-methods
+			       ,@(list->bindings (reverse fields)) 'mus-generator-type gen-type)
+			    `(inlet 'mus-generator-type gen-type ,@(list->bindings fields)))))))))))))
 
 
 ;;; -------- clm-display-globals --------
