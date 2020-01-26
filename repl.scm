@@ -1276,6 +1276,30 @@
 
 ;;; --------------------------------------------------------------------------------
 
+(define (drop-into-repl call e)
+  (let ((C-q (integer->char 17)))      ; C-q to exit repl
+    (let-temporarily ((((*repl* 'keymap) C-q) (let-temporarily (((*s7* 'debug) 0)) 
+						(lambda (c) 
+						  (set! ((*repl* 'repl-let) 'all-done) #t))))
+		      ((*repl* 'top-level-let) e)
+		      ((*repl* 'prompt) (let-temporarily (((*s7* 'debug) 0)) 
+					  (lambda (num) 
+					    (with-let (*repl* 'repl-let)
+					      (set! prompt-string "break> ") 
+					      (set! prompt-length (length prompt-string)))))))
+      (with-let (*repl* 'repl-let)
+	(set! cur-line "")
+	(set! red-par-pos #f)
+	(set! cursor-pos 0)
+	(set! prompt-string "break> ") 
+	(set! prompt-length (length prompt-string)))
+      (format *stderr* "break: ~A, C-q to exit break~%" call)
+      ((*repl* 'run)))))
+
+(define (debug.scm-init)
+  (set! ((funclet trace-in) '*debug-repl*) drop-into-repl))
+
+
 (autoload 'lint "lint.scm")
 (autoload 'pretty-print "write.scm")
 (autoload '*libm* "libm.scm")

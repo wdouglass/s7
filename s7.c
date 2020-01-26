@@ -2620,7 +2620,7 @@ void s7_show_history(s7_scheme *sc);
 #define location_to_position(Loc) ((Loc >> PAIR_POSITION_OFFSET) & PAIR_POSITION_MASK)
 
 #define pair_line_number(p)            location_to_line(pair_location(p))
-#define pair_file(p)                   location_to_file(pair_location(p))
+#define pair_file_number(p)            location_to_file(pair_location(p))
 #define pair_position(p)               location_to_position(pair_location(p))
 
 #if (!S7_DEBUGGING)
@@ -2774,6 +2774,9 @@ void s7_show_history(s7_scheme *sc);
 #define set_opt3_lamlet(P, X)          set_opt3(P, T_Pos(X),        G_LET)
 #define opt3_direct(P)                 opt3(P,                      G_DIRECT)
 #define set_opt3_direct(P, X)          set_opt3(P, (s7_pointer)(X), G_DIRECT)
+
+#define pair_macro(P)                  opt2_sym(P)
+#define set_pair_macro(P, Name)        set_opt2_sym(P, Name)
 
 #if S7_DEBUGGING
 #define opt3_byte(p)                   opt3_byte_1(T_Pair(p),          G_BYTE, __func__, __LINE__)
@@ -9435,7 +9438,7 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
 
 static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 {
-  s7_pointer cx, mac, body;
+  s7_pointer cx, mac, body, mac_name;
   uint64_t typ;
 
   if (op == OP_DEFINE_MACRO)
@@ -9477,17 +9480,17 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   closure_set_arity(mac, CLOSURE_ARITY_NOT_SET);
   sc->capture_let_counter++;
 
-  sc->code = caar(sc->code);
+  mac_name = caar(sc->code);
   if (((op == OP_DEFINE_EXPANSION) || (op == OP_DEFINE_EXPANSION_STAR)) &&
       (!is_let(sc->envir)))
-    set_type(sc->code, T_EXPANSION | T_SYMBOL | (typeflag(sc->code) & T_UNHEAP)); /* see comment under READ_TOK */
+    set_type(mac_name, T_EXPANSION | T_SYMBOL | (typeflag(mac_name) & T_UNHEAP)); /* see comment under READ_TOK */
   /* symbol? macro name has already been checked, find name in environment, and define it */
-  cx = symbol_to_local_slot(sc, sc->code, sc->envir);
+  cx = symbol_to_local_slot(sc, mac_name, sc->envir);
   if (is_slot(cx))
     slot_set_value_with_hook(cx, mac);
-  else s7_make_slot(sc, sc->envir, sc->code, mac); /* was current but we've checked immutable already */
+  else s7_make_slot(sc, sc->envir, mac_name, mac); /* was current but we've checked immutable already */
 
-  /* fprintf(stderr, "%s[%d]: %s %s from %s[%d]\n", __func__, __LINE__, display(sc->code), display(sc->envir), sc->envir->current_alloc_func, sc->envir->current_alloc_line); */
+  /* fprintf(stderr, "%s[%d]: %s %s from %s[%d]\n", __func__, __LINE__, display(mac_name), display(sc->envir), sc->envir->current_alloc_func, sc->envir->current_alloc_line); */
 
   /* clear_symbol_list(sc); *//* tracks names local to this macro */
   if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
@@ -9499,20 +9502,24 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
       (caadar(body) == sc->quote_symbol) &&
       (is_symbol(cadr(cadar(body)))) &&
       (is_definer(cadr(cadar(body)))))
-    set_is_definer(sc->code);
+    set_is_definer(mac_name);
 
   sc->temp6 = sc->nil;
-
   if (sc->debug > 0) 
     {
       s7_gc_protect_via_stack(sc, mac);  /* GC protect func during add_trace */
       closure_set_body(mac, add_trace(sc, body));
-      /* set_opt3_sym(closure_body(mac), sc->code); */
-      /* fprintf(stderr, "%s[%d]: set opt3 %s %s\n", __func__, __LINE__, display(opt3_sym(closure_body(mac))), display(closure_body(mac))); */
+      
+      /* TODO: move file/line[opt3] to new closure_body, use opt2 for name? set_location also */
       unstack(sc);
     }
-  set_opt3_sym(closure_body(mac), sc->code);
-
+  set_pair_macro(closure_body(mac), mac_name);
+  if (has_location(car(sc->code)))
+    {
+      pair_set_location(closure_body(mac), pair_location(car(sc->code)));
+      set_has_location(closure_body(mac));
+    }
+  /* passed to maclet in apply_macro et al, copied in copy_closure */
   return(mac);
 }
 
@@ -9750,7 +9757,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
 
   body = copy_body(sc, closure_body(fnc));
   if (is_any_macro(fnc))
-    set_opt3_sym(body, opt3_sym(closure_body(fnc)));
+    set_pair_macro(body, pair_macro(closure_body(fnc)));
   new_cell(sc, x, typeflag(fnc) & (~T_COLLECTED)); /* I'm paranoid about that is_collected bit */
   closure_set_args(x, closure_args(fnc));
   closure_set_body(x, body);
@@ -12973,8 +12980,11 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
   if (hook_has_functions(sc->read_error_hook))  /* check *read-error-hook* */
     {
       s7_pointer result;
+      bool old_history_enabled;
+      old_history_enabled = s7_set_history_enabled(sc, false);
       /* see sc->error_hook for a more robust way to handle this */
       result = s7_call(sc, sc->read_error_hook, list_2(sc, sc->T, s7_make_string_wrapper(sc, name)));
+      s7_set_history_enabled(sc, old_history_enabled);
       if (result != sc->unspecified)
 	return(result);
     }
@@ -24036,7 +24046,7 @@ static s7_pointer g_pair_filename(s7_scheme *sc, s7_pointer args)
       return(simple_wrong_type_argument(sc, sc->pair_filename_symbol, p, T_PAIR));
     }
   if (has_location(p))
-    return(sc->file_names[pair_file(p)]);
+    return(sc->file_names[pair_file_number(p)]);
   return(sc->F);
 }
 
@@ -32948,46 +32958,12 @@ static bool s7_is_one_or_big_one(s7_pointer p);
 
 static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj);
 
-#define CYCLE_DEBUGGING 0
-#if CYCLE_DEBUGGING
-static char *base = NULL, *min_char = NULL;
-#endif
-
 static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *str, s7_pointer args,
 				   s7_pointer *next_arg, bool with_result, bool columnized, s7_int len, s7_pointer orig_str)
 {
   s7_int i, str_len;
   format_data *fdat;
   s7_pointer deferred_port;
-
-#if CYCLE_DEBUGGING
-  char x;
-  if (!base) base = &x; 
-  else 
-    {
-      if (&x > base) base = &x; 
-      else 
-	{
-	  if ((!min_char) || (&x < min_char))
-	    {
-	      min_char = &x;
-	      if ((base - min_char) > 100000)
-		{
-		  fprintf(stderr, "infinite recursion?\n");
-		  if (port_data(port))
-		    {
-		      fprintf(stderr, "   port contents (%ld bytes): \n", (long)port_position(port)); /* gcc and clang disagree about the %ld/%lld business here */
-		      if (port_position(port) > 10000)
-			port_data(port)[10000] = '\0';
-		      else port_data(port)[port_position(port)] = '\0';
-		      fprintf(stderr, "%s\n", port_data(port));
-		    }
-		  abort();
-		}
-	    }
-	}
-    }
-#endif
 
   if (len <= 0)
     {
@@ -33018,7 +32994,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 
   for (i = 0; i < str_len - 1; i++)
     {
-      if ((uint8_t)(str[i]) == (uint8_t)'~') /* what does MS C want? */
+      if ((uint8_t)(str[i]) == (uint8_t)'~')
 	{
 	  use_write_t use_write;
 	  switch (str[i + 1])
@@ -33051,7 +33027,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 	      i++;
 	      break;
 
-	    case '\n':                          /* -------- trim white-space -------- */
+	    case '\n':                          /* -------- trim white-space --------  so (format #f "hiho~\n") -> "hiho"! */
 	      for (i = i + 2; i <str_len - 1; i++)
 		if (!(white_space[(uint8_t)(str[i])]))
 		  {
@@ -48400,6 +48376,8 @@ bool s7_history_enabled(s7_scheme *sc)
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled)
 {
 #if WITH_HISTORY
+  bool old_enabled;
+  old_enabled = (sc->cur_code == sc->history_sink);
   if (enabled) /* this needs to restore the old cur_code (saving its position in the history_buffer) */
     sc->cur_code = sc->old_cur_code;
   else 
@@ -48410,7 +48388,7 @@ bool s7_set_history_enabled(s7_scheme *sc, bool enabled)
 	  sc->cur_code = sc->history_sink;
 	}
     }
-  return(enabled);
+  return(old_enabled);
 #else
   return(false);
 #endif
@@ -49617,7 +49595,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
       if (has_location(cur_code))
 	{
 	  line = (int32_t)pair_line_number(cur_code); /* cast to int32_t (from uint32_t) for sc->last_error_line */
-	  file = (int32_t)pair_file(cur_code);
+	  file = (int32_t)pair_file_number(cur_code);
 	  position = (int32_t)pair_position(cur_code);
 	}
       else
@@ -49631,7 +49609,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 		  (has_location(car(p))))
 		{
 		  line = (int32_t)pair_line_number(car(p));
-		  file = (int32_t)pair_file(car(p));
+		  file = (int32_t)pair_file_number(car(p));
 		  position = (int32_t)pair_position(car(p));
 		  break;
 		}
@@ -49641,7 +49619,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 		  (has_location(car(p))))
 		{
 		  line = (int32_t)pair_line_number(car(p));
-		  file = (int32_t)pair_file(car(p));
+		  file = (int32_t)pair_file_number(car(p));
 		  position = (int32_t)pair_position(car(p));
 		  break;
 		}
@@ -50392,6 +50370,7 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
   }
 #endif
 
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(fnc), display_80(args)); */
   /* set_current_code(sc, history_cons(sc, fnc, args)); */
   if (is_c_function(fnc))
     return(c_function_call(fnc)(sc, args));
@@ -50658,8 +50637,6 @@ static s7_pointer set_c_function_star_defaults(s7_scheme *sc, int32_t num)
 s7_pointer s7_apply_function_star(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 {
   TRACK(sc);
-  /* set_current_code(sc, history_cons(sc, fnc, args)); */
-
   if (is_c_function_star(fnc))
     {
       sc->w = sc->args;
@@ -67558,7 +67535,9 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
 
 static s7_pointer unbound_variable_error(s7_scheme *sc, s7_pointer sym)
 {
-  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S in ~S", 25), sym, current_code(sc))));
+  if (s7_tree_memq(sc, sym, current_code(sc)))
+    return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S in ~S", 25), sym, current_code(sc))));
+  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_2(sc, wrap_string(sc, "unbound variable ~S", 19), sym)));
 }
 
 static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
@@ -67684,12 +67663,15 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	    {
 	      /* (let () (set! (hook-functions *unbound-variable-hook*) (list (lambda (v) _asdf_))) _asdf_) */
 	      s7_pointer old_hook;
+	      bool old_history_enabled;
 
+	      old_history_enabled = s7_set_history_enabled(sc, false);
 	      old_hook = sc->unbound_variable_hook;
 	      set_car(sc->z2_1, old_hook);
 	      sc->unbound_variable_hook = sc->error_hook;      /* avoid the infinite loop mentioned above -- error_hook might be () or #f if we're in error-hook now */
 	      result = s7_call(sc, old_hook, list_1(sc, sym)); /* not s7_apply_function */
 	      sc->unbound_variable_hook = old_hook;
+	      s7_set_history_enabled(sc, old_history_enabled);
 	    }
 	}
 
@@ -83064,30 +83046,39 @@ static void apply_macro_star_1(s7_scheme *sc)
   sc->code = T_Pair(closure_body(sc->code));
 }
 
+static void transfer_macro_info(s7_scheme *sc, s7_pointer body)
+{
+  set_maclet(sc->envir);
+  funclet_set_function(sc->envir, pair_macro(body));
+  if (has_location(body))
+    {
+      let_set_file(sc->envir, pair_file_number(body));
+      let_set_line(sc->envir, pair_line_number(body));
+      set_has_let_file(sc->envir);
+    }
+}
+
 static void apply_macro(s7_scheme *sc)
 {
   /* this is not from the reader, so treat expansions here as normal macros */
-  /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(sc->code), display(closure_let(sc->code)), display(opt3_sym(closure_body(sc->code)))); */
+  /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(sc->code), display(closure_let(sc->code)), display(pair_macro(closure_body(sc->code)))); */
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir); /* closure_let -> sc->envir, sc->code is the macro */
-  set_maclet(sc->envir);
-  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
+  transfer_macro_info(sc, closure_body(sc->code));
 }
 
 static void apply_bacro(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);       /* like let* -- we'll be adding macro args, so might as well sequester things here */
-  set_maclet(sc->envir);
-  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
+  transfer_macro_info(sc, closure_body(sc->code));
 }
 
 static void apply_macro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir);
-  set_maclet(sc->envir);
-  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
+  transfer_macro_info(sc, closure_body(sc->code));
   apply_macro_star_1(sc);
 }
 
@@ -83095,9 +83086,8 @@ static void apply_bacro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);
-  set_maclet(sc->envir);
-  funclet_set_function(sc->envir, opt3_sym(closure_body(sc->code)));
- apply_macro_star_1(sc);
+  transfer_macro_info(sc, closure_body(sc->code));
+  apply_macro_star_1(sc);
 }
 
 static void apply_closure(s7_scheme *sc)
@@ -83397,7 +83387,7 @@ static void op_define_with_setter(s7_scheme *sc)
 	  /* unbound_variable will be called if __func__ is encountered, and will return this info as if __func__ had some meaning */
 	  if (has_location(closure_body(new_func)))
 	    {
-	      let_set_file(new_env, pair_file(closure_body(new_func)));
+	      let_set_file(new_env, pair_file_number(closure_body(new_func)));
 	      let_set_line(new_env, pair_line_number(closure_body(new_func)));
 	    }
 	  else
@@ -95840,7 +95830,7 @@ char *s7_decode_bt(s7_scheme *sc)
 					    {
 					      uint32_t line, file;
 					      line = pair_line_number(p);
-					      file = pair_file(p);
+					      file = pair_file_number(p);
 					      if (line > 0)
 						fprintf(stdout, " %s(%s[%u])%s",
 							BOLD_TEXT, string_value(sc->file_names[file]), line, UNBOLD_TEXT);
@@ -97289,6 +97279,7 @@ static void init_rootlet(s7_scheme *sc)
 
   sc->quasiquote_symbol = s7_define_macro(sc, "quasiquote", g_quasiquote, 1, 0, false, H_quasiquote);
 
+
   /* -------- *features* -------- */
   sc->features_symbol = s7_define_variable_with_documentation(sc, "*features*", sc->nil, "list of currently available features ('complex-numbers, etc)");
   s7_set_setter(sc, sc->features_symbol, s7_make_function(sc, "#<set-*features*>", g_features_set, 2, 0, false, "*features* setter"));
@@ -97858,6 +97849,7 @@ s7_scheme *s7_init(void)
   init_typers(sc);
   init_opt_functions(sc);
 
+  s7_set_history_enabled(sc, false);
 #if (!WITH_PURE_S7)
   s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");
   /* (call-with-values (lambda () (values 1 2 3)) +) */
@@ -97964,6 +97956,8 @@ s7_scheme *s7_init(void)
   sc->s7_let_symbol = s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
   set_immutable(let_slots(sc->s7_let)); /* make the *s7* let-ref|set! fallbacks immutable */
   set_immutable(next_slot(let_slots(sc->s7_let)));
+
+  s7_set_history_enabled(sc, true);
 
 #if S7_DEBUGGING
   s7_define_function(sc, "report-missed-calls", g_report_missed_calls, 0, 0, false, NULL);
@@ -98181,5 +98175,5 @@ int main(int argc, char **argv)
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
  * inline op_map_2?
- * doc debug.scm, combine set_funclet->new_frame?
+ * doc debug.scm
  */

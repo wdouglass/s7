@@ -8,46 +8,33 @@
 	  (*debug-port* *stderr*)
 	  (*debug-stack* #f)
 	  (*debug-function* #f)
-	  (*debug-breaks* ()))
+	  (*debug-breaks* ())
+	  (*debug-repl* (lambda (call e) #f)))
       
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
       (set! (setter '*debug-breaks*) list?)
-      (set! (setter '*debug-port*) (lambda (s v) 
-				     (if (or (output-port? v) (not v))
-					 v 
-					 (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
-      (set! (setter '*debug-stack*) (lambda (s v) 
-				      (if (or (vector? v) (not v)) 
-					  v 
-					  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
-      (set! (setter '*debug-function*) (lambda (s v)
-					 (if (or (not v)
-						 (and (procedure? v)
-						      (= (car (arity v)) 3)))
-					     v
-					     (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
-      
-      (define (drop-into-repl call e)
-	(let ((C-q (integer->char 17)))      ; C-q to exit repl
-	  (let-temporarily ((((*repl* 'keymap) C-q) (let-temporarily (((*s7* 'debug) 0)) 
-						      (lambda (c) 
-							(set! ((*repl* 'repl-let) 'all-done) #t))))
-			    ((*repl* 'top-level-let) e)
-			    ((*repl* 'prompt) (let-temporarily (((*s7* 'debug) 0)) 
-						(lambda (num) 
-						  (with-let (*repl* 'repl-let)
-						    (set! prompt-string "break> ") 
-						    (set! prompt-length (length prompt-string)))))))
-	    (with-let (*repl* 'repl-let)
-	      (set! cur-line "")
-	      (set! red-par-pos #f)
-	      (set! cursor-pos 0)
-	      (set! prompt-string "break> ") 
-	      (set! prompt-length (length prompt-string)))
-	    (format *debug-port* "break: ~A, C-q to exit break~%" call)
-	    ((*repl* 'run)))))
 
+      (set! (setter '*debug-port*) 
+	    (lambda (s v) 
+	      (if (or (output-port? v) (not v))
+		  v 
+		  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
+
+      (set! (setter '*debug-stack*) 
+	    (lambda (s v) 
+	      (if (or (vector? v) (not v)) 
+		  v 
+		  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
+
+      (set! (setter '*debug-function*) 
+	    (lambda (s v)
+	      (if (or (not v)
+		      (and (procedure? v)
+			   (= (car (arity v)) 3)))
+		  v
+		  (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
+      
       (define (trace-out e val)     ; report value returned if debug>1
 	(let-temporarily (((*s7* 'history-enabled) #f))
 	  (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
@@ -69,27 +56,30 @@
 				   #<lambda>)))
 		 (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
 			 (map (lambda (x) 
-				(if (and (or (pair? (cdr x))
-					     (and (symbol? (cdr x))
-						  (not (keyword? (cdr x)))))
-					 (or (not func)
-					     (not (macro? (symbol->value funcname e)))))
-				   (list 'quote (cdr x))
-				   (cdr x)))
+				(if (and (symbol? funcname)
+					 (pair? (cdr x))
+					 (equal? (arity (symbol->value funcname e)) (cons 0 536870912)))
+				    (apply values (cdr x))
+				    (if (and (or (pair? (cdr x))
+						 (and (symbol? (cdr x))
+						      (not (keyword? (cdr x)))))
+					     (or (not func)
+						 (not (macro? (symbol->value funcname e)))))
+					(list 'quote (cdr x))
+					(cdr x))))
 			     e)))
 
 		 (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
 			 (format #f "(~S~{~^ ~S~})" 
 				 funcname
 				 args))))
-
+	    
 	    (when (or func (> (*s7* 'debug) 2))
 	      (cond (*debug-function*
 		     (*debug-function* func args e))
 			  
 		    ((memq funcname *debug-breaks*)
-		     (require repl.scm)
-		     (drop-into-repl call e))
+		     (*debug-repl* call e))
 			  
 		    (else
 		     (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
@@ -111,6 +101,9 @@
 	  (dynamic-unwind trace-out e))
 
 	))))
+
+(when (defined? 'debug.scm-init)
+  ((symbol->value 'debug.scm-init)))
 
 #|
 ;; debug=1 trace named function entry, debug=2 add return value, debug=3 add unnamed functions
@@ -152,46 +145,53 @@
 ;; (trace func) -- trace one function (debug=0)
 (define-macro (trace func)
   ;; to get the return value: (let-temporarily (((*s7* 'debug) 2)) (func))
-  (require debug.scm)
-  (let* ((source (procedure-source func))
-         (new-source (cons (car source) 
-			   (cons (cadr source)
-				 (cons '(trace-in (curlet))
-				       (cddr source))))))
-    `(set! ,func ,new-source)))
+  (let ((source (procedure-source func)))
+    (if (pair? source)
+	(unless (and (pair? (car source))
+		     (eq? (caar source) 'trace-in))
+	  (let ((new-source (cons (car source) 
+				  (cons (cadr source)
+					(cons '(trace-in (curlet))
+					      (cddr source))))))
+	    `(set! ,func ,new-source)))
+	(let ((old-func (gensym)))
+	  `(define ,func 
+	     (let ((,old-func ,func))
+	       (lambda args 
+		 (trace-in (curlet))
+		 (apply ,old-func args))))))))
+
+;; watch var (notification if var set!)
+(define-macro (watch var)
+  `(set! (setter ',var) 
+      (lambda (s v e)
+	(format *stderr* "~S set! to ~S~A~%" s v 
+          (let ((func (with-let e __func__)))
+            (if (eq? func #<undefined>) "" (format #f ", ~S" func))))
+	v)))
+
 
 
 ;;; --------
 ;;; TODO:
 
-;; use existing repl (we're assuming repl.scm above, but Snd has 2 others etc)
+;; tie into Snd repl
 ;;   this requires set-prompt at least, and the hello/goodbye message
 ;;   in Snd I think that's all: just set prompt, how to see C-q=play current channel?
-;;      maybe (go)?
-;;   also need to set *debug-port*, but how to write to the listener in Snd scheme?
-;;   *listener-port* in Snd, using append_listener_text (snd-glistener.c and glistener.c: glistener_append_text)
-;;      and append_listener_text snd-motif.c, put soft port in snd-listener.c, or glistener.c and export?
+;;      maybe (go)? (break-out)?
 ;;   also how to set Snd eval environment (for break)?
 ;;      g_set_top_level_let in snd-glistener|motif = (top-level-let) in scheme
-
-  (define *listener-port* (openlet 
-   (inlet 
-	  :format (lambda (p str . args) (listener-write (apply format #f str args)))
-	  :write (lambda (obj p)         (listener-write (object->string obj #t)))
-	  :display (lambda (obj p)       (listener-write (object->string obj #f)))
-	  :write-string (lambda (str p)  (listener-write str))
-	  :write-char (lambda (ch p)     (listener-write (string ch)))
-	  :newline (lambda (p)           (listener-write (string #\newline)))
-	  :close-output-port (lambda (p) #f)
-	  :flush-output-port (lambda (p) #f))))
-   so Snd needs listener-write=append_listener_text + this in eval_c_string + break-out=go?
+;;   so Snd break-out=go?
+;;   see debug.scm-init repl.scm -- need Snd version
 
 ;; step: save old begin_hook, set to drop into repl as above, restore on exiting stepper (CM-q?)
 ;;   no way to get the true current code? cur_code is set just before the begin_hook call, but we don't see it in time!
-;;   how to use begin_hook from scheme?
+;;   how to use begin_hook from scheme? (isn't sc->code correct at that point? or cur_code I think if called in C)
+;;   so *begin-hook* would grab sc->code, call hook funcs with that arg, drop into debug-repl until next step
+;;   void debug_begin_hook(s7_scheme *sc, bool *res)
+;;     s7_pointer call = sc->code; /* or current_code(sc) perhaps */
+;;     call hook code
+;;     return(true); I think
 
-;; to watch var, (set! (setter var) (lambda (s v) (format... "~S set! to ~S" s v))) -- but need position info
-;;   perhaps e could have code/file/line but this needs to be limited, and scheme-accessible
-
-;; (trace abs) = trace above, but use #_ form if in unlet, or save before set, also trace needs to be a no-op if func already tracing
+;; break-if via *debug_function*
 |#

@@ -267,6 +267,7 @@ indented and on a sort of brownish background.
            <li><a href="#libgdbm">libgdbm</a>
       </ul>
       <li><a href="#schemerepl">repl.scm</a>
+      <li><a href="#debug">debug.scm</a>
       <li><a href="#lint">lint.scm</a>
   </ul>
 </ul>
@@ -1640,6 +1641,14 @@ current value for example), so you can include that in the setter function param
     (set! x 2)
     x)
 <em class="gray">4</em>
+
+(define-macro (watch var) ; notification if 'var is set!
+  `(set! (setter ',var) 
+      (lambda (s v e)
+	(format *stderr* "~S set! to ~S~A~%" s v 
+                (let ((func (with-let e __func__)))
+                  (if (eq? func #&lt;undefined&gt;) "" (format #f ", ~S" func))))
+	v)))
 </pre>
 
 <p>Since symbol setters are often implementing type restrictions, you can use
@@ -9349,6 +9358,13 @@ not tested:
 (load "/home/bil/test/libxm/libxm.so" (inlet 'init_func 'Init_libxm))
 
 -->
+
+<div class="header" id="debug"><h4>debug.scm</h4></div>
+
+<p>debug.scm has various debugging aids, including trace, break, and a C-style stacktrace.
+It is work-in-progress.
+</p>
+
 
 
 <div class="header" id="lint"><h4>lint.scm</h4></div>

@@ -23322,9 +23322,6 @@ static void listener_return(widget_t w, int last_prompt)
 	     *   we have to use gdk threads, and that means either wrapping every gtk section thoughout Snd in
 	     *   gdk_thread_enter/leave, or expecting the caller to do that in every expression he types in the listener.
 	     *
-	     * Using clone_s7 code in s7 for CL-like stack-groups is much trickier
-	     *   than I thought -- it's basically importing all the pthread GC and alloc stuff into the main s7.
-	     *
 	     * So... set begin_hook to a func that calls gtk_main_iteration or check_for_event;
 	     *   if C-g, the begin_hook func returns true, and s7 calls s7_quit, and C_g_typed is true here.
 	     *   Otherwise, I think anything is safe because we're only looking at the block start, and
