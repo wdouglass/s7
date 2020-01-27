@@ -4372,14 +4372,15 @@ the dumb "lambda".  Here are more useful examples:
       (close-output-port p)))
   (openlet 
    (inlet :name name
-	  :format (lambda (p str . args) (logit (p 'name) (apply format #f str args)))
+	  :format (lambda (p str . args) (logit (p 'name) (apply #_format #f str args)))))))
 	  :write (lambda (obj p)         (logit (p 'name) (object-&gt;string obj #t)))
 	  :display (lambda (obj p)       (logit (p 'name) (object-&gt;string obj #f)))
 	  :write-string (lambda (str p)  (logit (p 'name) str))
 	  :write-char (lambda (ch p)     (logit (p 'name) (string ch)))
 	  :newline (lambda (p)           (logit (p 'name) (string #\newline)))
+	  :output-port? (lambda (p) #t)
 	  :close-output-port (lambda (p) #f)
-	  :flush-output-port (lambda (p) #f))))
+	  :flush-output-port (lambda (p) #f)
 
 (let ((p (open-output-log "logit.data")))
   (format p "this is a test~%")

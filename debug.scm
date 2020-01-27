@@ -9,7 +9,8 @@
 	  (*debug-stack* #f)
 	  (*debug-function* #f)
 	  (*debug-breaks* ())
-	  (*debug-repl* (lambda (call e) #f)))
+	  (*debug-repl* (lambda (call e) #f))
+	  (report-return #f))
       
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
@@ -35,11 +36,11 @@
 		  v
 		  (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
       
-      (define (trace-out e val)     ; report value returned if debug>1
+      (define (trace-out e val)     ; report value returned
 	(let-temporarily (((*s7* 'history-enabled) #f))
 	  (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
-	  (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
-	    (format *debug-port* "~NC  -> ~S~%" (min *debug-spaces* *debug-max-spaces*) #\space val))
+	  ;(let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
+	    (format *debug-port* "~NC  -> ~S~%" (min *debug-spaces* *debug-max-spaces*) #\space val);)
 	  val))
 
       (lambda (e)                   ; trace-in, report function call
@@ -74,7 +75,11 @@
 				 funcname
 				 args))))
 	    
-	    (when (or func (> (*s7* 'debug) 2))
+	    (if *debug-stack*
+		(vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) (/ *debug-spaces* 2))) call))
+	    
+	    (set! report-return (or func (> (*s7* 'debug) 2)))
+	    (when report-return
 	      (cond (*debug-function*
 		     (*debug-function* func args e))
 			  
@@ -91,56 +96,31 @@
 				 (if (pair? func) "" "    ;")
 				 (port-filename)
 				 (port-line-number)))
-		     (newline *debug-port*))))
+		     (newline *debug-port*)))
+	      (set! *debug-spaces* (+ *debug-spaces* 2)))))
 
-	    (if *debug-stack*
-		(vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) (/ *debug-spaces* 2))) call))))
+	;; report value returned -- this needs to be at the top level in this function
+	(when report-return
+	  (dynamic-unwind trace-out e)))
 
-	(when (> (*s7* 'debug) 1)  ; report value returned, this needs to be at the top level in this function
-	  (set! *debug-spaces* (+ *debug-spaces* 2))
-	  (dynamic-unwind trace-out e))
+      )))
 
-	))))
+(define* (step (n 1))
+  (set! (*s7* 'step-function) 
+	(lambda (code) 
+	  (format *debug-port* "step: ~S~%" code) 
+	  (*debug-repl* code (curlet))))
+  (set! (*s7* 'stepping) n)
+  (set! ((*repl* 'repl-let) 'all-done) #t)) ; TODO: need this for each repl
 
-(when (defined? 'debug.scm-init)
-  ((symbol->value 'debug.scm-init)))
 
-#|
-;; debug=1 trace named function entry, debug=2 add return value, debug=3 add unnamed functions
+(define-macro (break func)
+  `(set! ((funclet trace-in) '*debug-breaks*) (cons ',func ((funclet trace-in) '*debug-breaks*))))
 
-;; set the output port:
-(set! ((funclet trace-in) '*debug-port*) new-port)
+(define (clear-breaks)
+  ;; turn off all breaks
+  (set! ((funclet trace-in) '*debug-breaks*) ()))
 
-;; turn on the stack:
-(set! ((funclet trace-in) '*debug-stack*) (make-vector 64 #f))
-
-;; turn off the stack:
-(set! ((funclet trace-in) '*debug-stack*) #f)
-
-;; display the stack:
-(let ((stack ((funclet trace-in) '*debug-stack*)))
-  (when stack
-    (do ((i 0 (+ i ))) 
-        ((or (= i (length stack))
-             (>= i (/ *debug-spaces 2))
-             (not (string? (vector-ref stack i)))))
-      (display (vector-ref stack i))
-      (newline))))
-
-;; trace with a function to call at the trace point (passed func+loc? args? curlet), rather than trace-in's code
-(set! ((funclet trace-in) '*debug-function*) (lambda (func args e) ...))
-
-;; add a function to the break-list (function is a symbol here)
-(set! ((funclet trace-in) '*debug-breaks*) (cons function ((funclet trace-in) '*debug-breaks*)))
-
-;; turn off all breaks
-(set! ((funclet trace-in) '*debug-breaks*) ())
-
-;; log trace info
-(call-with-output-file "test.log"
-  (lambda (port)
-    (let-temporarily ((((funclet trace-in) '*debug-port*) port))
-      ...)))
 
 ;; (trace func) -- trace one function (debug=0)
 (define-macro (trace func)
@@ -161,15 +141,53 @@
 		 (trace-in (curlet))
 		 (apply ,old-func args))))))))
 
+
 ;; watch var (notification if var set!)
 (define-macro (watch var)
   `(set! (setter ',var) 
       (lambda (s v e)
 	(format *stderr* "~S set! to ~S~A~%" s v 
-          (let ((func (with-let e __func__)))
-            (if (eq? func #<undefined>) "" (format #f ", ~S" func))))
+                (let ((func (with-let e __func__)))
+                  (if (eq? func #<undefined>) "" (format #f ", ~S" func))))
 	v)))
 
+
+(define (set-debug-port new-port)
+  (set! ((funclet trace-in) '*debug-port*) new-port))
+
+
+(when (defined? 'debug.scm-init)
+  ((symbol->value 'debug.scm-init)))
+
+
+
+#|
+;; debug=1 trace every named function or macro entry, debug=3 also trace unnamed functions
+
+;; turn on the stack:
+(set! ((funclet trace-in) '*debug-stack*) (make-vector 64 #f))
+
+;; turn off the stack:
+(set! ((funclet trace-in) '*debug-stack*) #f)
+
+;; display the stack:
+(let ((stack ((funclet trace-in) '*debug-stack*)))
+  (when stack
+    (do ((i 0 (+ i ))) 
+        ((or (= i (length stack))
+             (>= i (/ *debug-spaces 2))
+             (not (string? (vector-ref stack i)))))
+      (display (vector-ref stack i))
+      (newline))))
+
+;; trace with a function to call at the trace point (passed func+loc? args? curlet), rather than trace-in's code
+(set! ((funclet trace-in) '*debug-function*) (lambda (func args e) ...))
+
+;; log trace info
+(call-with-output-file "test.log"
+  (lambda (port)
+    (let-temporarily ((((funclet trace-in) '*debug-port*) port))
+      ...)))
 
 
 ;;; --------
@@ -182,16 +200,14 @@
 ;;   also how to set Snd eval environment (for break)?
 ;;      g_set_top_level_let in snd-glistener|motif = (top-level-let) in scheme
 ;;   so Snd break-out=go?
-;;   see debug.scm-init repl.scm -- need Snd version
 
-;; step: save old begin_hook, set to drop into repl as above, restore on exiting stepper (CM-q?)
-;;   no way to get the true current code? cur_code is set just before the begin_hook call, but we don't see it in time!
-;;   how to use begin_hook from scheme? (isn't sc->code correct at that point? or cur_code I think if called in C)
-;;   so *begin-hook* would grab sc->code, call hook funcs with that arg, drop into debug-repl until next step
-;;   void debug_begin_hook(s7_scheme *sc, bool *res)
-;;     s7_pointer call = sc->code; /* or current_code(sc) perhaps */
-;;     call hook code
-;;     return(true); I think
+;; step doesn't connect yet, or maybe my test didn't hit begin_hook
+;; (frame n): move outlet n-from-bottom, set as curlet (but remember the starting curlet!)
+
+;;   (continue): (set! stepping 0) or break
+;;      but while in repl, eval should turn off the step and break 
 
 ;; break-if via *debug_function*
+;; how to omit (let-temp debug 0) from history: if enabled changes to 0, look for let-temp preceding and backup cur_code?
+;; (untrace) -- if debug<0?
 |#

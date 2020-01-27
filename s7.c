@@ -316,7 +316,9 @@
 #else
   /* in Snd these are in mus-config.h */
   #ifndef MUS_CONFIG_H_LOADED
-    #define snprintf _snprintf
+    #if _MSC_VER < 1900
+      #define snprintf _snprintf
+    #endif
     #if _MSC_VER > 1200
       #define _CRT_SECURE_NO_DEPRECATE 1
       #define _CRT_NONSTDC_NO_DEPRECATE 1
@@ -1149,7 +1151,10 @@ struct s7_scheme {
   int32_t setjmp_loc;
 
   void (*begin_hook)(s7_scheme *sc, bool *val);
+  void (*old_begin_hook)(s7_scheme *sc, bool *val);
   opcode_t begin_op;
+  s7_int stepping;
+  s7_pointer step_function;
 
   s7_int current_line, s7_call_line, safety, debug;
   const char *current_file, *s7_call_file, *s7_call_name;
@@ -32863,7 +32868,10 @@ static bool format_method(s7_scheme *sc, const char *str, format_data *fdat, s7_
   ctrl_str[0] = '~';
   ctrl_str[1] = str[0];
   ctrl_str[2] = '\0';
-  s7_apply_function(sc, func, list_3(sc, port, s7_make_string_wrapper(sc, ctrl_str), obj));
+
+  if (port == obj)    /* a problem! we need the openlet port for format, but that's an infinite loop when it calls format again as obj */
+    s7_apply_function(sc, func, list_3(sc, port, s7_make_string_wrapper(sc, ctrl_str), s7_make_string_wrapper(sc, "#<format port>")));
+  else s7_apply_function(sc, func, list_3(sc, port, s7_make_string_wrapper(sc, ctrl_str), obj));
 
   fdat->args = cdr(fdat->args);
   fdat->ctr++;
@@ -32958,12 +32966,46 @@ static bool s7_is_one_or_big_one(s7_pointer p);
 
 static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj);
 
+#define CYCLE_DEBUGGING S7_DEBUGGING 
+#if CYCLE_DEBUGGING
+static char *base = NULL, *min_char = NULL;
+#endif
+
 static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *str, s7_pointer args,
 				   s7_pointer *next_arg, bool with_result, bool columnized, s7_int len, s7_pointer orig_str)
 {
   s7_int i, str_len;
   format_data *fdat;
   s7_pointer deferred_port;
+
+#if CYCLE_DEBUGGING
+  char x;
+  if (!base) base = &x; 
+  else 
+    {
+      if (&x > base) base = &x; 
+      else 
+	{
+	  if ((!min_char) || (&x < min_char))
+	    {
+	      min_char = &x;
+	      if ((base - min_char) > 100000)
+		{
+		  fprintf(stderr, "infinite recursion?\n");
+		  if ((is_output_port(port)) && (port_data(port))) /* port might be boolean?? */
+		    {
+		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
+		      if (port_position(port) > 10000)
+			port_data(port)[10000] = '\0';
+		      else port_data(port)[port_position(port)] = '\0';
+		      fprintf(stderr, "%s\n", port_data(port));
+		    }
+		  abort();
+		}
+	    }
+	}
+    }
+#endif
 
   if (len <= 0)
     {
@@ -46907,7 +46949,11 @@ static s7_pointer pair_fill(s7_scheme *sc, s7_pointer args)
   s7_int i, start = 0, end, len;
 
   obj = car(args);
-  if (is_immutable_pair(obj))
+#if WITH_HISTORY
+  if ((is_immutable_pair(obj)) && (obj != sc->eval_history1) && (obj != sc->eval_history2))
+#else
+    if (is_immutable_pair(obj))
+#endif
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->fill_symbol, obj)));
   if (obj == slot_value(global_slot(sc->features_symbol)))
     return(s7_error(sc, sc->error_symbol, set_elist_1(sc, wrap_string(sc, "can't fill! *features*", 22))));
@@ -48614,7 +48660,6 @@ static s7_pointer type_name_string(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg_n, s7_pointer arg, s7_pointer typnam, s7_pointer descr)
 {
-  /* info list is '(format_string caller arg_n arg type_name descr) */
   s7_pointer p;
   p = cdr(sc->wrong_type_arg_info);  /* info list is '(format_string caller arg_n arg type_name descr) */
   set_car(p, caller);  p = cdr(p);
@@ -49576,9 +49621,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
   cur_code = current_code(sc);
   slot_set_value(sc->error_code, cur_code);
 
-#if 0
-  fprintf(stderr, "code: %s, cur_code: %s, let: %s\n", display(sc->code), display(cur_code), display(sc->envir));
-#endif
+  /* fprintf(stderr, "code: %s, cur_code: %s, let: %s\n", display(sc->code), display(cur_code), display(sc->envir)); */
 
 #if WITH_HISTORY
   slot_set_value(sc->error_history, sc->cur_code);
@@ -49586,6 +49629,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
     {
       sc->cur_code = (sc->using_history1) ? sc->eval_history2 : sc->eval_history1;
       sc->using_history1 = (!sc->using_history1);
+      pair_fill(sc, set_plist_2(sc, sc->cur_code, sc->nil));
     }
 #endif
 
@@ -49718,6 +49762,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
        *   else assume car(info) is a format control string, and cdr(info) are its args
        * if at all possible, get some indication of where we are!
        */
+
       if ((!is_pair(info)) ||
 	  (!is_string(car(info))))
 	format_to_port(sc, sc->error_port, "\n;~S ~S", set_plist_2(sc, type, info), false, 7);
@@ -50253,7 +50298,15 @@ static bool call_begin_hook(s7_scheme *sc)
    *   So, in the new form (26-Jun-13), the value is passed directly into an s7 variable
    *   that I hope can't be optimized out of existence.
    */
+
+  /* cm/src/Scheme.cpp, used in Snd (listener looking for C-g I think)
+   *   originally this facility was aimed at interrupting infinite loops, and the expected usage was:
+   *     set begin_hook
+   *     eval-string(...)
+   *     unset begin_hook
+   */
   opcode_t op;
+  s7_pointer cur_code;
   op = sc->cur_op;
 
   push_stack_direct(sc, OP_BARRIER, sc->args, sc->code);
@@ -50263,10 +50316,21 @@ static bool call_begin_hook(s7_scheme *sc)
       /* set (owlet) in case we were interrupted and need to see why something was hung */
       slot_set_value(sc->error_type, sc->F);
       slot_set_value(sc->error_data, sc->value); /* was sc->F but we now clobber this below */
-      slot_set_value(sc->error_code, current_code(sc));
-      integer(slot_value(sc->error_line)) = 0;
-      integer(slot_value(sc->error_position)) = 0;
-      slot_set_value(sc->error_file, sc->F);
+      cur_code = current_code(sc);
+      slot_set_value(sc->error_code, cur_code);
+
+      if (has_location(cur_code))
+	{
+	  integer(slot_value(sc->error_line)) = (s7_int)pair_line_number(cur_code);
+	  slot_set_value(sc->error_file, sc->file_names[pair_file_number(cur_code)]);
+	  integer(slot_value(sc->error_position)) = (s7_int)pair_position(cur_code);
+	}
+      else
+	{
+	  integer(slot_value(sc->error_line)) = 0;
+	  integer(slot_value(sc->error_position)) = 0;
+	  slot_set_value(sc->error_file, sc->F);
+	}
 #if WITH_HISTORY
       slot_set_value(sc->error_history, sc->F);
 #endif
@@ -50274,14 +50338,29 @@ static bool call_begin_hook(s7_scheme *sc)
 
       sc->value = make_symbol(sc, "begin-hook-interrupt");
       /* otherwise the evaluator returns whatever random thing is in sc->value (normally #<closure>)
-       *   which makes debugging unnecessarily difficult.
+       *   which makes debugging unnecessarily difficult. ?? why not return something useful? make return s7_pointer*, not bool*
        */
-      s7_quit(sc);     /* don't call gc here -- perhaps at restart somehow? */
+      s7_quit(sc);     /* don't call gc here -- eval_c_string is the context -- allows interrupt of infinite loop */
       return(true);
     }
   pop_stack_no_op(sc);
   sc->cur_op = op;         /* for better error handling.  otherwise we get "barrier" as the offending function name in eval_error */
   return(false);
+}
+
+static void step_begin_hook(s7_scheme *sc, bool *result)
+{
+  if (sc->stepping > 0)
+    {
+      sc->stepping--;
+      if (sc->stepping == 0)
+	{
+	  sc->begin_hook = sc->old_begin_hook;
+	  s7_apply_function(sc, sc->step_function, set_plist_1(sc, sc->cur_code));
+	}
+    }
+  else sc->begin_hook = sc->old_begin_hook;
+  *result = false;
 }
 
 
@@ -94861,7 +94940,8 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
 	      SL_HISTORY_SIZE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
 	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_OUTPUT_PORT_DATA_SIZE, SL_DEBUG,
-	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION,
+	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION, 
+	      SL_STEPPING, SL_STEP_FUNCTION, 
 	      SL_NUM_FIELDS} s7_let_field_t;
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
@@ -94875,7 +94955,8 @@ static const char *s7_let_field_names[SL_NUM_FIELDS] =
    "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
    "history-size", "profile-info", "autoloading?", "accept-all-keyword-arguments",
    "most-positive-fixnum", "most-negative-fixnum", "output-port-data-size", "debug",
-   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction"};
+   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction", 
+   "stepping", "step-function"};
 
 static s7_int s7_let_length(void) {return(SL_NUM_FIELDS - 1);}
 
@@ -94939,6 +95020,8 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "stack-size",                    SL_STACK_SIZE);
   s7_let_add_field(sc, "stack-top",                     SL_STACK_TOP);
   s7_let_add_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
+  s7_let_add_field(sc, "step-function",                 SL_STEP_FUNCTION);
+  s7_let_add_field(sc, "stepping",                      SL_STEPPING);
   s7_let_add_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
   s7_let_add_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
 }
@@ -95276,6 +95359,8 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_STACKTRACE_DEFAULTS:           return(sc->stacktrace_defaults);
     case SL_STACK_SIZE:                    return(s7_make_integer(sc, sc->stack_size));
     case SL_STACK_TOP:                     return(s7_make_integer(sc, (sc->stack_end - sc->stack_start) / 4));
+    case SL_STEP_FUNCTION:                 return(sc->step_function);
+    case SL_STEPPING:                      return(s7_make_integer(sc, sc->stepping));
     case SL_UNDEFINED_CONSTANT_WARNINGS:   return(s7_make_boolean(sc, sc->undefined_constant_warnings));
     case SL_UNDEFINED_IDENTIFIER_WARNINGS: return(s7_make_boolean(sc, sc->undefined_identifier_warnings));
     default:
@@ -95577,6 +95662,25 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_STACK:
     case SL_STACK_SIZE:
     case SL_STACK_TOP:  return(sl_unsettable_error(sc, sym));
+
+    case SL_STEP_FUNCTION:
+      sc->step_function = val;
+      return(val);
+
+    case SL_STEPPING:
+      if (s7_is_integer(val))
+	{
+	  sc->stepping = integer(val);
+	  if (sc->stepping > 0) 
+	    {
+	      if (sc->begin_hook != step_begin_hook)
+		sc->old_begin_hook = sc->begin_hook;
+	      sc->begin_hook = step_begin_hook;
+	    } 
+	  else sc->begin_hook = sc->old_begin_hook;
+	}
+      else return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
+      return(val);
 
     case SL_UNDEFINED_CONSTANT_WARNINGS:
       if (s7_is_boolean(val)) {sc->undefined_constant_warnings = s7_boolean(sc, val); return(val);}

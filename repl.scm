@@ -1218,9 +1218,7 @@
 			(new-prompt))))))))
 
 	    (define* (run file)
-	      (do ((i 0 (+ i 1)))
-		  ((= i (*s7* 'history-size)))
-		(set! (*s7* 'history) #f))
+	      ;(when (*s7* 'history-enabled) (fill! (*s7* 'history) ()))
 	      (let-temporarily (((*s7* 'history-enabled) #f))
 		;; check for dumb terminal
 		(if (or (zero? (isatty terminal-fd))        ; not a terminal -- input from pipe probably

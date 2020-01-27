@@ -333,15 +333,28 @@ If it returns true, Snd assumes you've dealt the text yourself, and does not try
   s7_set_setter(s7, ss->stdin_prompt_symbol, s7_make_function(s7, "[acc-" S_stdin_prompt "]", acc_stdin_prompt, 2, 0, false, "accessor"));
 
   s7_eval_c_string(s7, 
-    "(define *listener-port* \
-       (openlet (inlet       \
-	  :format (lambda (p str . args) (listener-write-string (apply format #f str args))) \
+   "(define *listener-port* \
+       (openlet (inlet							\
+	  :format (lambda (p str . args)				\
+                    (listener-write-string				\
+                      (apply #_format #f str				\
+                        (map (lambda (x)				\
+                               (if (eq? x *listener-port*) '*listener-port* x))	\
+                              args))))					\
 	  :write (lambda (obj p)         (listener-write-string (object->string obj #t)))    \
 	  :display (lambda (obj p)       (listener-write-string (object->string obj #f)))    \
 	  :write-string (lambda (str p)  (listener-write-string str))                        \
 	  :write-char (lambda (ch p)     (listener-write-string (string ch)))                \
 	  :newline (lambda (p)           (listener-write-string (string #\\newline)))        \
+          :output-port? (lambda (p) #t)					                     \
+          :port-closed? (lambda (p) #f)					                     \
 	  :close-output-port (lambda (p) #f)                                                 \
 	  :flush-output-port (lambda (p) #f))))");
+
+  s7_eval_c_string(s7,
+    "(define (debug.scm-init)                   \
+       (set! ((funclet trace-in) '*debug-port*) *listener-port*) \
+       ;(set! ((funclet trace-in) '*debug-repl*) drop-into-repl)\n \
+       )");
 #endif  
 }
