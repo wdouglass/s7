@@ -2957,6 +2957,20 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   Xen_define_constant("RTLD_GLOBAL", RTLD_GLOBAL, "dlopen flag");
 #endif
 
+#if HAVE_SCHEME
+  s7_eval_c_string(s7,
+    "(define debug.scm-init                   \
+       (let ((old-let (top-level-let)))       \
+         (lambda ()                           \
+           (set! ((funclet trace-in) '*debug-port*) *listener-port*) \
+           (set! ((funclet trace-in) '*debug-start-output*) newline) \
+           (set! ((funclet trace-in) '*debug-end-output*) (lambda (p) #f)) \
+           (set! ((funclet trace-in) '*debug-repl*) \
+                  (lambda (call e)                  \
+                    (set! (top-level-let) e)        \
+                    (set! listener-prompt \"break>\"))))))");
+#endif
+
 #if HAVE_LADSPA && HAVE_EXTENSION_LANGUAGE
   g_ladspa_to_snd();
 #endif

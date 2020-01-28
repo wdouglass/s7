@@ -242,13 +242,15 @@ static Xen g_snd_completion(Xen text)
 }
 
 
-static Xen g_listener_write_string(Xen text)
+#if HAVE_SCHEME
+static void (listener_write)(s7_scheme *sc, uint8_t c, s7_pointer port)
 {
-  Xen_check_type(Xen_is_string(text), text, 1, "snd-completion", "a string"); 
-  listener_append(Xen_string_to_C_string(text));
-  return(text);
+  char buf[2];
+  buf[0] = c;
+  buf[1] = '\0';
+  listener_append(buf);
 }
-
+#endif
 
 static Xen g_listener_colorized(void) 
 {
@@ -279,7 +281,6 @@ Xen_wrap_1_arg(g_set_listener_prompt_w, g_set_listener_prompt)
 Xen_wrap_no_args(g_stdin_prompt_w, g_stdin_prompt)
 Xen_wrap_1_arg(g_set_stdin_prompt_w, g_set_stdin_prompt)
 Xen_wrap_1_arg(g_snd_completion_w, g_snd_completion)
-Xen_wrap_1_arg(g_listener_write_string_w, g_listener_write_string)
 Xen_wrap_no_args(g_listener_colorized_w, g_listener_colorized)
 Xen_wrap_1_arg(g_listener_set_colorized_w, g_listener_set_colorized)
 
@@ -320,7 +321,6 @@ If it returns true, Snd assumes you've dealt the text yourself, and does not try
   read_hook = Xen_define_hook(S_read_hook, "(make-hook 'text)", 1, H_read_hook);
 
   Xen_define_typed_procedure("snd-completion", g_snd_completion_w, 1, 0, 0, "return completion of arg", plc_s);
-  Xen_define_typed_procedure("listener-write-string", g_listener_write_string_w, 1, 0, 0, "write string to listener", plc_s);
 
 #if HAVE_SCHEME
 #if USE_GTK
@@ -332,29 +332,6 @@ If it returns true, Snd assumes you've dealt the text yourself, and does not try
   s7_set_documentation(s7, ss->stdin_prompt_symbol, "*stdin-prompt*: the current stdin prompt string");
   s7_set_setter(s7, ss->stdin_prompt_symbol, s7_make_function(s7, "[acc-" S_stdin_prompt "]", acc_stdin_prompt, 2, 0, false, "accessor"));
 
-  s7_eval_c_string(s7, 
-   "(define *listener-port* \
-       (openlet (inlet							\
-	  :format (lambda (p str . args)				\
-                    (listener-write-string				\
-                      (apply #_format #f str				\
-                        (map (lambda (x)				\
-                               (if (eq? x *listener-port*) '*listener-port* x))	\
-                              args))))					\
-	  :write (lambda (obj p)         (listener-write-string (object->string obj #t)))    \
-	  :display (lambda (obj p)       (listener-write-string (object->string obj #f)))    \
-	  :write-string (lambda (str p)  (listener-write-string str))                        \
-	  :write-char (lambda (ch p)     (listener-write-string (string ch)))                \
-	  :newline (lambda (p)           (listener-write-string (string #\\newline)))        \
-          :output-port? (lambda (p) #t)					                     \
-          :port-closed? (lambda (p) #f)					                     \
-	  :close-output-port (lambda (p) #f)                                                 \
-	  :flush-output-port (lambda (p) #f))))");
-
-  s7_eval_c_string(s7,
-    "(define (debug.scm-init)                   \
-       (set! ((funclet trace-in) '*debug-port*) *listener-port*) \
-       ;(set! ((funclet trace-in) '*debug-repl*) drop-into-repl)\n \
-       )");
+  s7_define_variable_with_documentation(s7, "*listener-port*", s7_open_output_function(s7, listener_write), "port to write to Snd's listener");
 #endif  
 }

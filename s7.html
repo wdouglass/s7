@@ -4372,7 +4372,7 @@ the dumb "lambda".  Here are more useful examples:
       (close-output-port p)))
   (openlet 
    (inlet :name name
-	  :format (lambda (p str . args) (logit (p 'name) (apply #_format #f str args)))))))
+	  :format (lambda (p str . args) (logit (p 'name) (apply format #f str args)))))))
 	  :write (lambda (obj p)         (logit (p 'name) (object-&gt;string obj #t)))
 	  :display (lambda (obj p)       (logit (p 'name) (object-&gt;string obj #f)))
 	  :write-string (lambda (str p)  (logit (p 'name) str))
@@ -5524,6 +5524,7 @@ history			      a circular buffer of recent eval entries stored backwards (use s
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
+  stepping and step-function  these are internal fields for the debugger in debug.scm
 profile-info                  profiling data if s7 built WITH_PROFILE=1
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler
@@ -7496,8 +7497,32 @@ int main(int argc, char **argv)
  *    a                             ; here I typed "a" in the shell
  *    <em class="gray">[#] [\] [a] </em>
  */
-</pre></div>
+</pre>
+</div>
 
+<p>In Snd, we want debug.scm (*debug-port*) output to go to the Snd listener text widget.  The Snd function listener_append
+adds a string to that widget's text, so we define:
+</p>
+<pre class="indented">
+static void (listener_write)(s7_scheme *sc, uint8_t c, s7_pointer port)
+{
+  char buf[2];
+  buf[0] = c;
+  buf[1] = '\0';
+  listener_append(buf);
+}
+</pre>
+<p>
+Then we define a Scheme-side variable, *listener-port*, to be a function port:
+</p>
+<pre class="indented">
+s7_define_variable_with_documentation(s7, "*listener-port*", 
+  s7_open_output_function(s7, listener_write), "port to write to Snd's listener");
+</pre>
+<p>
+And tie it into *debug-port* via
+<code>(set! ((funclet trace-in) '*debug-port*) *listener-port*)</code>.
+</p>
 
 
 
@@ -9362,8 +9387,8 @@ not tested:
 
 <div class="header" id="debug"><h4>debug.scm</h4></div>
 
-<p>debug.scm has various debugging aids, including trace, break, and a C-style stacktrace.
-It is work-in-progress.
+<p>debug.scm has various debugging aids, including trace, break, step, and a C-style stacktrace.
+
 </p>
 
 
