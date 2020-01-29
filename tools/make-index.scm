@@ -754,6 +754,13 @@
        (define-library "r7rs.scm")
        (define-record-type "r7rs.scm")
        (define-values "r7rs.scm")
+
+       (trace "debug.scm")
+       (untrace "debug.scm")
+       (break "debug.scm")
+       (unbreak "debug.scm")
+       (watch "debug.scm")
+       (unwatch "debug.scm")
        
        (c?r "stuff.scm")
        (do* "stuff.scm")

@@ -1302,6 +1302,13 @@
 (autoload 'pretty-print "write.scm")
 (autoload '*libm* "libm.scm")
 (autoload '*libgsl* "libgsl.scm")
+(autoload 'trace "debug.scm")
+(autoload 'untrace "debug.scm")
+(autoload 'break "debug.scm")
+(autoload 'unbreak "debug.scm")
+(autoload 'watch "debug.scm")
+(autoload 'unwatch "debug.scm")
+(autoload 'ow! "stuff.scm")
 
 #|
 (define pwd

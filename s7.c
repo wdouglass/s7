@@ -1153,8 +1153,6 @@ struct s7_scheme {
   void (*begin_hook)(s7_scheme *sc, bool *val);
   void (*old_begin_hook)(s7_scheme *sc, bool *val);
   opcode_t begin_op;
-  s7_int stepping;
-  s7_pointer step_function;
 
   s7_int current_line, s7_call_line, safety, debug;
   const char *current_file, *s7_call_file, *s7_call_name;
@@ -10984,14 +10982,18 @@ static bool op_implicit_goto_a(s7_scheme *sc)
 #endif
 
 #ifndef HAVE_OVERFLOW_CHECKS
-#if ((defined(__clang__) && (!POINTER_32) && ((__clang_major__ > 3) || (__clang_major__ == 3 && __clang_minor__ >= 4))) || (defined(__GNUC__) && __GNUC__ >= 5))
-  #define HAVE_OVERFLOW_CHECKS 1
-#else
-  #define HAVE_OVERFLOW_CHECKS 0
-  #if (!WITH_GMP)
-    #warning "no arithmetic overflow checks in this version of s7"
+  #if ((defined(__clang__) && (!POINTER_32) && ((__clang_major__ > 3) || (__clang_major__ == 3 && __clang_minor__ >= 4))) || (defined(__GNUC__) && __GNUC__ >= 5))
+    #define HAVE_OVERFLOW_CHECKS 1
+  #else
+    #define HAVE_OVERFLOW_CHECKS 0
+    #if (!WITH_GMP)
+      #ifdef _MSC_VER
+        #pragma message("no arithmetic overflow checks in this version of s7")
+      #else
+        #warning "no arithmetic overflow checks in this version of s7"
+      #endif
+    #endif
   #endif
-#endif
 #endif
 
 #if (defined(__clang__) && (!POINTER_32) && ((__clang_major__ > 3) || (__clang_major__ == 3 && __clang_minor__ >= 4)))
@@ -50346,21 +50348,6 @@ static bool call_begin_hook(s7_scheme *sc)
   return(false);
 }
 
-static void step_begin_hook(s7_scheme *sc, bool *result)
-{
-  if (sc->stepping > 0)
-    {
-      sc->stepping--;
-      if (sc->stepping == 0)
-	{
-	  sc->begin_hook = sc->old_begin_hook;
-	  s7_apply_function(sc, sc->step_function, set_plist_1(sc, sc->cur_code));
-	}
-    }
-  else sc->begin_hook = sc->old_begin_hook;
-  *result = false;
-}
-
 
 /* -------------------------------- apply -------------------------------- */
 static s7_pointer apply_list_star(s7_scheme *sc, s7_pointer d)
@@ -67610,8 +67597,73 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
   return(sc->nil);
 }
 
+#define WITH_LEVEN 0
+#if WITH_LEVEN
+static int levenshtein(const char *s1, int l1, const char *s2, int l2)
+{
+  /* taken with bug fixes from "The Ruby Way" by Hal Fulton, SAMS Pubs */
+  int i, j, val;
+  int **distance;
+
+  if (!s1) return(l2);
+  if (!s2) return(l1);
+
+  distance = (int **)calloc(l2 + 1, sizeof(int *));
+  for (i = 0; i <= l2; i++) distance[i] = (int *)calloc(l1 + 1, sizeof(int));
+  for (j = 0; j <= l1; j++) distance[0][j] = j;
+  for (i = 0; i <= l2; i++) distance[i][0] = i;
+  for (i = 1; i <= l2; i++)
+    for (j = 1; j <= l1; j++)
+      {
+	int c1, c2, c3;
+	c1 = distance[i][j - 1] + 1;
+	c2 = distance[i - 1][j] + 1;
+	c3 = distance[i - 1][j - 1] + ((s2[i - 1] == s1[j - 1]) ? 0 : 1);
+	if (c1 > c2) c1 = c2;
+	if (c1 > c3) c1 = c3;
+	distance[i][j] = c1;
+      }
+  val = distance[l2][l1];
+  for (i = 0; i <= l2; i++) free(distance[i]);
+  free(distance);
+  return(val);
+}
+#endif
+
 static s7_pointer unbound_variable_error(s7_scheme *sc, s7_pointer sym)
 {
+#if WITH_LEVEN
+  /* scan the outlets for something close, I usually get entire portions reversed: copy-* for *-copy etc
+   *   maybe include rootlet
+   */
+  int32_t min_diff = 1000, sym_len;
+  s7_pointer min_sym = NULL, e, slot;
+  const char *sym_name;
+  sym_name = symbol_name(sym);
+  sym_len = symbol_name_length(sym);
+  for (e = sc->envir; is_let(e); e = outlet(e))
+    for (slot = let_slots(e); tis_slot(slot); slot = next_slot(slot))
+      {
+	int32_t diff;
+	s7_pointer cur_sym;
+	cur_sym = slot_symbol(slot);
+	diff = levenshtein(sym_name, sym_len, symbol_name(cur_sym), symbol_name_length(cur_sym));
+	if (diff < min_diff)
+	  {
+	    min_diff = diff;
+	    min_sym = cur_sym;
+	  }
+      }
+  fprintf(stderr, "%s: min: %d, sym: %s %s\n", display(sym), min_diff, (min_sym) ? display(min_sym) : "none", display_80(sc->code));
+  if ((min_sym) && (min_diff < (int32_t)floor(log(sym_len) / log(2.0)))) /* (ash 1 (- (integer-length sym_len) 1)) perhaps */
+    {
+      fprintf(stderr, "  -> %s\n", display(min_sym));
+      if (s7_tree_memq(sc, sym, current_code(sc)))
+	return(s7_error(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "unbound variable ~S in ~S, perhaps ~S?", 38), sym, current_code(sc), min_sym)));
+      return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S, perhaps ~S?", 32), sym, min_sym)));
+    }
+#endif
+
   if (s7_tree_memq(sc, sym, current_code(sc)))
     return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S in ~S", 25), sym, current_code(sc))));
   return(s7_error(sc, sc->unbound_variable_symbol, set_elist_2(sc, wrap_string(sc, "unbound variable ~S", 19), sym)));
@@ -79495,7 +79547,7 @@ static s7_pointer fxify_step_exprs(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer p, e, vars;
   vars = car(code);
-  e = collect_variables(sc, vars, sc->nil);
+  e = collect_variables(sc, vars, sc->nil); /* only valid in step exprs, not in inits */
 
   for (p = vars; is_pair(p); p = cdr(p))
     {
@@ -79504,7 +79556,7 @@ static s7_pointer fxify_step_exprs(s7_scheme *sc, s7_pointer code)
       expr = cdar(p);    /* init */
       if (is_pair(expr))
 	{
-	  callee = fx_choose(sc, expr, vars, do_symbol_is_safe);
+	  callee = fx_choose(sc, expr, sc->nil, do_symbol_is_safe); /* not vars -- they aren't defined yet */
 	  if (callee) set_c_call_unchecked(expr, callee);
 	}
       expr = cddar(p);   /* step */
@@ -94939,7 +94991,6 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_HISTORY_SIZE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
 	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_OUTPUT_PORT_DATA_SIZE, SL_DEBUG,
 	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION, 
-	      SL_STEPPING, SL_STEP_FUNCTION, 
 	      SL_NUM_FIELDS} s7_let_field_t;
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
@@ -94953,8 +95004,7 @@ static const char *s7_let_field_names[SL_NUM_FIELDS] =
    "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
    "history-size", "profile-info", "autoloading?", "accept-all-keyword-arguments",
    "most-positive-fixnum", "most-negative-fixnum", "output-port-data-size", "debug",
-   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction", 
-   "stepping", "step-function"};
+   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction"};
 
 static s7_int s7_let_length(void) {return(SL_NUM_FIELDS - 1);}
 
@@ -95018,8 +95068,6 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "stack-size",                    SL_STACK_SIZE);
   s7_let_add_field(sc, "stack-top",                     SL_STACK_TOP);
   s7_let_add_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
-  s7_let_add_field(sc, "step-function",                 SL_STEP_FUNCTION);
-  s7_let_add_field(sc, "stepping",                      SL_STEPPING);
   s7_let_add_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
   s7_let_add_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
 }
@@ -95296,12 +95344,38 @@ static s7_pointer sl_int_fixup(s7_scheme *sc, s7_pointer val)
 #endif
 }
 
+#if WITH_HISTORY
+static s7_pointer cull_history(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer p;
+  for (p = code; is_pair(p); p = cdr(p))
+    {
+      s7_pointer entry;
+      entry = car(p);
+      if (is_pair(entry))
+	{
+	  if (car(entry) == make_symbol(sc, "trace-in"))
+	    set_car(p, sc->nil);
+	  else
+	  if ((car(entry) == sc->eval_symbol) && (cadr(entry) == make_symbol(sc, "form")) && (caddr(entry) == make_symbol(sc, "e"))) 
+	    set_car(p, sc->nil);
+	  else
+	  if ((car(entry) == sc->let_temporarily_symbol) && (is_pair(cdr(entry))) && (is_pair(cadr(entry))) && (is_pair(caadr(entry))) &&
+	      (is_pair(caaadr(entry))) && (car(caaadr(entry)) == make_symbol(sc, "*s7*")) && (is_pair(cdr(caaadr(entry)))) &&
+	      (is_pair(cadr(caaadr(entry)))) && (caadr(caaadr(entry)) == sc->quote_symbol) && 
+	      ((cadadr(caaadr(entry)) == make_symbol(sc, "debug")) || (cadadr(caaadr(entry)) == make_symbol(sc, "history-enabled"))))
+	    set_car(p, sc->nil);
+	}
+      if (cdr(p) == code) break;
+    }
+  return(code);
+}
+#endif
+
 static s7_pointer sl_history(s7_scheme *sc)
   {
 #if WITH_HISTORY
-    if (sc->cur_code == sc->history_sink) /* i.e. history is currently disabled */
-      return(sc->old_cur_code);
-    return(sc->cur_code);
+    return(cull_history(sc, (sc->cur_code == sc->history_sink) ? sc->old_cur_code : sc->cur_code));
 #else
     return(sc->cur_code);
 #endif
@@ -95357,8 +95431,6 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_STACKTRACE_DEFAULTS:           return(sc->stacktrace_defaults);
     case SL_STACK_SIZE:                    return(s7_make_integer(sc, sc->stack_size));
     case SL_STACK_TOP:                     return(s7_make_integer(sc, (sc->stack_end - sc->stack_start) / 4));
-    case SL_STEP_FUNCTION:                 return(sc->step_function);
-    case SL_STEPPING:                      return(s7_make_integer(sc, sc->stepping));
     case SL_UNDEFINED_CONSTANT_WARNINGS:   return(s7_make_boolean(sc, sc->undefined_constant_warnings));
     case SL_UNDEFINED_IDENTIFIER_WARNINGS: return(s7_make_boolean(sc, sc->undefined_identifier_warnings));
     default:
@@ -95660,25 +95732,6 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_STACK:
     case SL_STACK_SIZE:
     case SL_STACK_TOP:  return(sl_unsettable_error(sc, sym));
-
-    case SL_STEP_FUNCTION:
-      sc->step_function = val;
-      return(val);
-
-    case SL_STEPPING:
-      if (s7_is_integer(val))
-	{
-	  sc->stepping = integer(val);
-	  if (sc->stepping > 0) 
-	    {
-	      if (sc->begin_hook != step_begin_hook)
-		sc->old_begin_hook = sc->begin_hook;
-	      sc->begin_hook = step_begin_hook;
-	    } 
-	  else sc->begin_hook = sc->old_begin_hook;
-	}
-      else return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
-      return(val);
 
     case SL_UNDEFINED_CONSTANT_WARNINGS:
       if (s7_is_boolean(val)) {sc->undefined_constant_warnings = s7_boolean(sc, val); return(val);}
@@ -98241,7 +98294,7 @@ int main(int argc, char **argv)
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
- * tset     6616 | 3083 | 3120  3153 fx_c_weak1_type_s
+ * tset     6616 | 3083 | 3120  3153 fx_c_weak1_type_s overhead
  * tmac     3391 | 3186 | 3174
  * teq      4081 | 3804 | 3803
  * tfft     4288 | 3816 | 3788

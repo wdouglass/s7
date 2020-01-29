@@ -5524,7 +5524,6 @@ history			      a circular buffer of recent eval entries stored backwards (use s
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
-  stepping and step-function  these are internal fields for the debugger in debug.scm
 profile-info                  profiling data if s7 built WITH_PROFILE=1
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler
@@ -9387,8 +9386,30 @@ not tested:
 
 <div class="header" id="debug"><h4>debug.scm</h4></div>
 
-<p>debug.scm has various debugging aids, including trace, break, step, and a C-style stacktrace.
+<p>debug.scm has various debugging aids, including trace, break, watch, and a C-style stacktrace.
+The *s7* field 'debug controls when these are active, and to what extent.
+</p>
 
+<p>(trace func) adds a tracepoint to the start of the function or macro func.
+(trace) adds such tracing to every subsequently defined function or macro.
+(untrace) turns off tracing; (untrace func) turns off tracing in func.
+Similarly (break func) places a breakpoint at the start of func,
+(unbreak func) removes it.  (unbreak) removes all breakpoints. These trace and breakpoints are active
+only if (*s7* 'debug) is positive.  If 'debug is 1, existing traces
+and breaks are active, but no new ones are added by s7.  If 'debug
+is 2, any subsequently defined (i.e. named) functions and macros
+include tracepoints; if it is 3, unnamed functions are also traced.
+If any tracing is enabled, you can get a C-style stacktrace by
+setting ((funclet trace-in) '*debug-stack*) to a vector, then
+call (debug-stack) to see the calls.
+</p>
+
+<p>When a breakpoint is encountered, you are placed in a repl at
+that point; type C-q to continue.  
+</p>
+
+<p>(watch var) sets var's setter to report whenever var is set!.
+(unwatch var) removes that setter.
 </p>
 
 

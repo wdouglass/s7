@@ -12,6 +12,7 @@
 	  (*debug-function* #f)
 	  (*debug-breaks* ())
 	  (*debug-repl* (lambda (call e) #f))
+	  (*debug-curlet* #f)
 	  (report-return #f))
       
       (set! (setter '*debug-spaces*) integer?)
@@ -69,8 +70,7 @@
 				    (if (and (or (pair? (cdr x))
 						 (and (symbol? (cdr x))
 						      (not (keyword? (cdr x)))))
-					     (or (not func)
-						 (not (macro? (symbol->value funcname e)))))
+					     (not (and func (macro? (symbol->value funcname e)))))
 					(list 'quote (cdr x))
 					(cdr x))))
 			     e)))
@@ -80,7 +80,9 @@
 				 funcname
 				 args))))
 	    
-	    (if *debug-stack*
+	    (set! *debug-curlet* e)
+
+	    (if (vector? *debug-stack*)
 		(vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) (/ *debug-spaces* 2))) call))
 	    
 	    (set! report-return (or func (> (*s7* 'debug) 2)))
@@ -112,100 +114,131 @@
       )))
 
 
-;;; -------- trace
-;; (trace func) -- trace one function (debug=0)
-(define-macro (trace func)
-  (let ((source (procedure-source func)))                           ; (lambda (x) (+ x 1))
-    (if (pair? source)
-	(unless (and (pair? (caddr source))
-		     (eq? (caaddr source) 'trace-in))
-	  (let ((new-source (cons (car source)                      ; lambda
-				  (cons (cadr source)               ; args
-					(cons '(trace-in (curlet))  ; (trace-in (curlet))
-					      (cddr source))))))    ; body
-	    `(define ,func ,new-source)))
-	(let ((old-func (gensym)))
-	  `(define ,func 
-	     (let ((,old-func ,func))
-	       (lambda args 
-		 (trace-in (curlet))
-		 (apply ,old-func args))))))))
+(define debug-port (dilambda 
+		    (lambda () 
+		      ((funclet trace-in) '*debug-port*))
+		    (lambda (new-port)
+		      (set! ((funclet trace-in) '*debug-port*) new-port))))
 
-(define-macro (untrace func)
-  (let ((source (procedure-source func)))
-    (if (pair? source)
-	(when (and (pair? (caddr source))
-		   (eq? (caaddr source) 'trace-in))
-	  (let ((new-source (cons (car source)
-				  (cons (cadr source)
-					(cdddr source)))))
-	    `(define ,func ,new-source)))
-	`(define ,func (with-let (unlet) ,func)))))
+
+;;; -------- trace
+(define-bacro* (trace (func :unset))
+  ;; a bacro because we can be called anywhere (repl top-level-let), we're being asked to trace something in that let probably,
+  ;;   but outlet(trace), if trace is a macro, is (rootlet) if (load "debug.scm"), so trace thinks func is undefined.
+  ;;   a macro might work if the entire body were returned, and a second quasiquote level used for the set!?
+  (cond ((eq? func :unset)           ; (trace)
+	 (set! (*s7* 'debug) 3))
+
+	((if (symbol? func)          ; (trace clamp)
+	     (not (defined? func))
+	     (not (and (pair? func)  ; (trace (*lint* 'remove-if)
+		       (pair? (cdr func))
+		       (pair? (cadr func))
+		       (eq? (caadr func) 'quote)
+		       (defined? (cadadr func) (symbol->value (car func))))))
+	 (error 'unbound-variable "~S is undefined\n" func))
+
+	((let ((func-val (eval func)))
+	   (not (or (procedure? func-val)
+		    (macro? func-val))))
+	 (error 'wrong-type-arg "~S is not a procedure or macro" func))
+
+	(else
+	 (let ((source (procedure-source (eval func))))                    ; (lambda (x) (+ x 1))
+	   (if (pair? source)
+	       (unless (and (pair? (caddr source))
+			    (eq? (caaddr source) 'trace-in))
+		 (let ((new-source (cons (car source)                      ; lambda
+					 (cons (cadr source)               ; args
+					       (cons '(trace-in (curlet))  ; (trace-in (curlet))
+						     (cddr source))))))    ; body
+		   `(set! ,func (let () 
+				  (define ,(if (symbol? func) func (cadadr func))
+				    ,new-source)))))
+	       ;; we need to use define to get the function name saved for __func__ later, but
+	       ;;   we also need to clobber the old definition (not just shadow it) so that existing calls
+	       ;;   will be traced.  So, define it in a let returning its new value, setting the current one.
+	       (let ((old-func (gensym)))
+		 `(set! ,func (let () 
+				(define ,(if (symbol? func) func (cadadr func))
+				  (let ((,old-func ,func))
+				    (lambda args 
+				      (trace-in (curlet))
+				      (apply ,old-func args))))))))))))
+
+(define-bacro* (untrace (func :unset))
+  (if (eq? func :unset)
+      (set! (*s7* 'debug) 0)
+      (let ((source (procedure-source (eval func))))
+	(if (pair? source)
+	    (when (and (pair? (caddr source))
+		       (eq? (caaddr source) 'trace-in))
+	      (let ((new-source (cons (car source)
+				      (cons (cadr source)
+					    (cdddr source)))))
+		`(set! ,func (let () 
+			       (define ,(if (symbol? func) func (cadadr func))
+				 ,new-source)))))
+	    `(set! ,func (let () 
+			   (define ,func (with-let (unlet)
+					   ,func))))))))
 
 
 ;;; -------- break
 (define-macro (break func)
-  `(begin
-     (trace ,func)
-     (set! ((funclet trace-in) '*debug-breaks*) (cons ',func ((funclet trace-in) '*debug-breaks*)))))
+  `(if (defined? ',func)
+       (begin
+	 (trace ,func)
+	 (set! ((funclet trace-in) '*debug-breaks*) (cons ',func ((funclet trace-in) '*debug-breaks*))))
+       (error 'unbound-variable "~S is undefined\n" ',func)))
 
-(define-macro (unbreak func)
-  `(set! ((funclet trace-in) '*debug-breaks*)
-	 (let remove ((lst ((funclet trace-in) '*debug-breaks*)) (new-lst ()))
-	   (if (null? lst)
-	       (reverse new-lst)
-	       (remove (cdr lst) 
-		       (if (eq? (car lst) ',func) 
-			   new-lst 
-			   (cons (car lst) new-lst)))))))
-
-(define (clear-breaks)
-  (set! ((funclet trace-in) '*debug-breaks*) ()))
+(define-macro* (unbreak (func :unset))
+  (if (eq? func :unset)
+      (set! ((funclet trace-in) '*debug-breaks*) ())
+      `(set! ((funclet trace-in) '*debug-breaks*)
+	     (let remove ((lst ((funclet trace-in) '*debug-breaks*)) (new-lst ()))
+	       (if (null? lst)
+		   (reverse new-lst)
+		   (remove (cdr lst) 
+			   (if (eq? (car lst) ',func) 
+			       new-lst 
+			       (cons (car lst) new-lst))))))))
 
 
 ;; -------- watch
 (define-macro (watch var)   ; notification if var set!
   `(set! (setter ',var) 
       (lambda (s v e)
-	(format *stderr* "~S set! to ~S~A~%" s v 
+	(format (debug-port) "~S set! to ~S~A~%" s v 
                 (let ((func (with-let e __func__)))
                   (if (eq? func #<undefined>) "" (format #f ", ~S" func))))
 	v)))
 
-
-(define (set-debug-port new-port)
-  (set! ((funclet trace-in) '*debug-port*) new-port))
-
-
-(define* (step (n 1))
-  (set! (*s7* 'step-function) 
-	(lambda (code) 
-	  (format ((funclet trace-in) '*debug-port*) "step: ~S~%" code)
-	  (((funclet trace-in) '*debug-repl*) code (curlet))))
-  (set! (*s7* 'stepping) n)
-  (set! ((*repl* 'repl-let) 'all-done) #t)) ; TODO: need this for each repl
+(define-macro (unwatch var)
+  `(set (setter ',var) #f))
 
 
 (define (debug-stack)
-  (let ((stack ((funclet trace-in) '*debug-stack*)))
+  (let ((stack ((funclet trace-in) '*debug-stack*))
+	(depth ((funclet trace-in) '*debug-spaces*)))
     (when stack
-      (let ((port ((funclet trace-in) '*debug-port*)))
-	(format port "stack:\n")
-	(do ((i 0 (+ i 1))) 
-	    ((or (= i (length stack))
-		 (>= i (/ ((funclet trace-in) '*debug-spaces*) 2))
-		 (not (string? (vector-ref stack i)))))
-	  (format port "  ~A~%" (vector-ref stack i)))
-	(newline port)))))
+      (format (debug-port) "~NCstack:\n" depth #\space)
+      (do ((i 0 (+ i 1))) 
+	  ((or (= i (length stack))
+	       (>= i (/ ((funclet trace-in) '*debug-spaces*) 2))
+	       (not (string? (vector-ref stack i)))))
+	(format (debug-port) "~NC~A~%" (+ depth 2) #\space (vector-ref stack i)))
+      (newline (debug-port)))))
 
 
-(when (defined? 'debug.scm-init)
-  ((symbol->value 'debug.scm-init)))
-
+(define (frame n)
+  (do ((p ((funclet trace-in) '*debug-curlet*) (outlet p))
+       (i 0 (+ i 1)))
+      ((or (= i n) (not (let? p)))
+       (format (debug-port) "~S~%" p))))
 
 #|
 ;; turn on the stack:
-
 (set! ((funclet trace-in) '*debug-stack*) (make-vector 64 #f))
 
 ;; turn off the stack:
@@ -234,41 +267,22 @@
 ;;; --------
 ;;; TODO:
 
-;; debug=0 trace-in off, =1 trace-in on (no additions), =2 trace-in named funcs, =3 trace-in all
+;; untrace, break, unbreak, watch, and unwatch need to accept (*lib* 'name) func names
+;;   also check dilambdas (protect setter) and (with-let l v) (not cadadr)
+;;   watch should notice pre-exisiting setter and incorporate it
 
-;; step does hit begin_hook but cur_code looks strange
+;; need repl indication of break depth
 
-;; (frame n): move outlet n-from-bottom, set as curlet (but remember the starting curlet!)
+;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
 
-;;   (continue): (set! stepping 0) or break
-;;      but while in repl, eval should turn off the step and break 
+;; unbound-var: check if len diff < cutoff (1-char name = no check) and first chars same, and include rootlet/syntax names, maybe transpose *-* and try again?
 
-;; tie into Snd repl
-;;   this requires set-prompt at least, and the hello/goodbye message
-;;      maybe (go)? (break-out)?
-;;   also how to set Snd eval environment (for break)?
-;;      g_set_top_level_let in snd-glistener|motif = (top-level-let) in scheme
-;; snd-glistener.c:  result = s7_eval_c_string_with_environment(s7, text, top_level_let);
-;; snd-motif.c:        form = s7_eval_c_string_with_environment(s7, str, top_level_let);
-;; snd-no-gui.c: ??
-;;   so in Snd we need to set top-level-let (it's a dilambda)
-;;   drop-into-repl sets (*repl* 'top-level-let
-;;   at that point:
-#4  0x00005555559f7776 in eval (sc=0x555555f81ee0, first_op=422) at s7.c:89091
-#5  0x00005555557f1747 in s7_eval (sc=0x555555f81ee0, code=0x555556704ac8, e=0x555555f85640) at s7.c:50764
-#6  0x00005555556fbca7 in s7_eval_c_string_with_environment (sc=0x555555f81ee0, str=0x55555675ef60 "(ga 3)", e=0x555555f85640) at s7.c:27008
-#7  0x0000555555c6f619 in listener_return (w=0x55555659ef00, last_prompt=149) at snd-motif.c:23349
-;; in repl.scm we set local all-done #t which causes repl run to exit (we called it in the trace-in debug-repl function)
->(break ga)
-(ga)
->(ga 3)  -> 4
-4
->(curlet)
-(inlet 'x 3)
-;; so it has already returned
+;; s7_error/ow! need to use sl_history not error-history, or perhaps cull_history
 
-;; how to omit (let-temp debug 0) from history: if enabled changes to 0, look for let-temp preceding and backup cur_code?
-
-;; unbound variable could look for close match in (curlet) via levenshtein
-;;   there's a version in snd-help.c and repl.scm
+;; s7test for debug.scm
+;; and s7.html all these cases, and how to tie into other code (repl.scm, Snd)
 |#
+
+
+(when (defined? 'debug.scm-init)
+  ((symbol->value 'debug.scm-init)))
