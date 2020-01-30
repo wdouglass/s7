@@ -7838,7 +7838,6 @@ static void save_unlet(s7_scheme *sc)
 	     *    make-hook hook-functions
 	     * if these initial_slot values are added to unlet, they need explicit GC protection.
 	     */
-	    /* (let ((begin +)) (with-let (unlet) (begin 1 2))) */
 #if S7_DEBUGGING
 	    if (k >= UNLET_ENTRIES)
 	      fprintf(stderr, "unlet overflow\n");
@@ -67597,73 +67596,8 @@ static s7_pointer find_closure_let(s7_scheme *sc, s7_pointer cur_env)
   return(sc->nil);
 }
 
-#define WITH_LEVEN 0
-#if WITH_LEVEN
-static int levenshtein(const char *s1, int l1, const char *s2, int l2)
-{
-  /* taken with bug fixes from "The Ruby Way" by Hal Fulton, SAMS Pubs */
-  int i, j, val;
-  int **distance;
-
-  if (!s1) return(l2);
-  if (!s2) return(l1);
-
-  distance = (int **)calloc(l2 + 1, sizeof(int *));
-  for (i = 0; i <= l2; i++) distance[i] = (int *)calloc(l1 + 1, sizeof(int));
-  for (j = 0; j <= l1; j++) distance[0][j] = j;
-  for (i = 0; i <= l2; i++) distance[i][0] = i;
-  for (i = 1; i <= l2; i++)
-    for (j = 1; j <= l1; j++)
-      {
-	int c1, c2, c3;
-	c1 = distance[i][j - 1] + 1;
-	c2 = distance[i - 1][j] + 1;
-	c3 = distance[i - 1][j - 1] + ((s2[i - 1] == s1[j - 1]) ? 0 : 1);
-	if (c1 > c2) c1 = c2;
-	if (c1 > c3) c1 = c3;
-	distance[i][j] = c1;
-      }
-  val = distance[l2][l1];
-  for (i = 0; i <= l2; i++) free(distance[i]);
-  free(distance);
-  return(val);
-}
-#endif
-
 static s7_pointer unbound_variable_error(s7_scheme *sc, s7_pointer sym)
 {
-#if WITH_LEVEN
-  /* scan the outlets for something close, I usually get entire portions reversed: copy-* for *-copy etc
-   *   maybe include rootlet
-   */
-  int32_t min_diff = 1000, sym_len;
-  s7_pointer min_sym = NULL, e, slot;
-  const char *sym_name;
-  sym_name = symbol_name(sym);
-  sym_len = symbol_name_length(sym);
-  for (e = sc->envir; is_let(e); e = outlet(e))
-    for (slot = let_slots(e); tis_slot(slot); slot = next_slot(slot))
-      {
-	int32_t diff;
-	s7_pointer cur_sym;
-	cur_sym = slot_symbol(slot);
-	diff = levenshtein(sym_name, sym_len, symbol_name(cur_sym), symbol_name_length(cur_sym));
-	if (diff < min_diff)
-	  {
-	    min_diff = diff;
-	    min_sym = cur_sym;
-	  }
-      }
-  fprintf(stderr, "%s: min: %d, sym: %s %s\n", display(sym), min_diff, (min_sym) ? display(min_sym) : "none", display_80(sc->code));
-  if ((min_sym) && (min_diff < (int32_t)floor(log(sym_len) / log(2.0)))) /* (ash 1 (- (integer-length sym_len) 1)) perhaps */
-    {
-      fprintf(stderr, "  -> %s\n", display(min_sym));
-      if (s7_tree_memq(sc, sym, current_code(sc)))
-	return(s7_error(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "unbound variable ~S in ~S, perhaps ~S?", 38), sym, current_code(sc), min_sym)));
-      return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S, perhaps ~S?", 32), sym, min_sym)));
-    }
-#endif
-
   if (s7_tree_memq(sc, sym, current_code(sc)))
     return(s7_error(sc, sc->unbound_variable_symbol, set_elist_3(sc, wrap_string(sc, "unbound variable ~S in ~S", 25), sym, current_code(sc))));
   return(s7_error(sc, sc->unbound_variable_symbol, set_elist_2(sc, wrap_string(sc, "unbound variable ~S", 19), sym)));
@@ -77025,7 +76959,7 @@ static goto_t op_expansion(s7_scheme *sc)
    *
    * run-time expansion and splicing into the code as in CL won't work in s7 because macros
    *   are first-class objects.  For example (define (f m) (m 1)), call it with a macro, say `(+ ,arg 1),
-   *   and in CL-style, you'd now have the body (+ ,arg 1) or maybe even 2, now call f with a function,
+   *   and in CL-style, you'd now have f with the body (+ 1 1) or maybe even 2, now call f with a function,
    *   or some other macro -- oops!
    */
 
