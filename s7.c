@@ -1202,7 +1202,7 @@ struct s7_scheme {
 
   s7_pointer abs_symbol, acos_symbol, acosh_symbol, add_symbol, angle_symbol, append_symbol, apply_symbol, apply_values_symbol, arity_symbol,
              ash_symbol, asin_symbol, asinh_symbol, assoc_symbol, assq_symbol, assv_symbol, atan_symbol, atanh_symbol, autoload_symbol, autoloader_symbol,
-             byte_vector_symbol, byte_vector_ref_symbol, byte_vector_set_symbol, byte_vector_to_string_symbol,
+             bacro_symbol, bacro_star_symbol, byte_vector_symbol, byte_vector_ref_symbol, byte_vector_set_symbol, byte_vector_to_string_symbol,
              c_pointer_symbol, c_pointer_info_symbol, c_pointer_to_list_symbol, c_pointer_type_symbol, c_pointer_weak1_symbol, c_pointer_weak2_symbol,
              caaaar_symbol, caaadr_symbol, caaar_symbol, caadar_symbol, caaddr_symbol, caadr_symbol,
              caar_symbol, cadaar_symbol, cadadr_symbol, cadar_symbol, caddar_symbol, cadddr_symbol, caddr_symbol, cadr_symbol,
@@ -1240,8 +1240,8 @@ struct s7_scheme {
              lcm_symbol, length_symbol, leq_symbol, let_ref_fallback_symbol, let_ref_symbol, let_set_fallback_symbol,
              let_set_symbol, let_temporarily_symbol, libraries_symbol, list_ref_symbol, list_set_symbol, list_symbol, list_tail_symbol, list_values_symbol,
              load_path_symbol, load_symbol, log_symbol, logand_symbol, logbit_symbol, logior_symbol, lognot_symbol, logxor_symbol, lt_symbol,
-             magnitude_symbol, make_byte_vector_symbol, make_float_vector_symbol, make_hash_table_symbol, make_weak_hash_table_symbol,
-             make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
+             macro_symbol, macro_star_symbol, magnitude_symbol, make_byte_vector_symbol, make_float_vector_symbol, make_hash_table_symbol, 
+             make_weak_hash_table_symbol, make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
              make_vector_symbol, map_symbol, max_symbol, member_symbol, memq_symbol, memv_symbol, min_symbol, modulo_symbol, multiply_symbol,
              newline_symbol, not_symbol, number_to_string_symbol, numerator_symbol,
              object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol,
@@ -1826,6 +1826,7 @@ void s7_show_history(s7_scheme *sc);
   static s7_pointer check_ref14(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_ref15(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_ref16(s7_pointer p, const char *func, int32_t line);
+  static s7_pointer check_ref17(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_nref(s7_pointer p, const char *func, int32_t line);
   static s7_pointer check_let_ref(s7_pointer p, uint64_t role, const char *func, int32_t line);
   static s7_pointer check_let_set(s7_pointer p, uint64_t role, const char *func, int32_t line);
@@ -1897,7 +1898,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Slt(P) check_ref(P, T_SLOT,              __func__, __LINE__, NULL, NULL)
   #define T_Sld(P) check_ref2(P, T_SLOT, T_UNDEFINED,__func__, __LINE__, NULL, NULL)
   #define T_Syn(P) check_ref(P, T_SYNTAX,            __func__, __LINE__, NULL, NULL)
-  #define T_Mac(P) check_ref(P, T_C_MACRO,           __func__, __LINE__, NULL, NULL)
+  #define T_CMac(P) check_ref(P, T_C_MACRO,          __func__, __LINE__, NULL, NULL)
   #define T_Let(P) check_ref(P, T_LET,               __func__, __LINE__, NULL, NULL)
   #define T_Ran(P) check_ref(P, T_RANDOM_STATE,      __func__, __LINE__, NULL, NULL)
   #define T_Lst(P) check_ref2(P, T_PAIR, T_NIL,      __func__, __LINE__, "gc", NULL)
@@ -1927,6 +1928,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Sln(P) check_ref12(P,                    __func__, __LINE__) /* slot or nil */
   #define T_Nmv(P) check_ref15(P,                    __func__, __LINE__) /* not multiple-value, not free */
   #define T_Lid(P) check_ref16(P,                    __func__, __LINE__) /* let/nil but not rootlet */
+  #define T_Mac(P) check_ref17(P,                    __func__, __LINE__) /* and non-C macro */
   #define T_Pos(P) check_nref(P,                     __func__, __LINE__) /* not free */
   #define T_Any(P) check_cell(P,                     __func__, __LINE__) /* any cell */
 
@@ -1979,6 +1981,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Seq(P)  P
   #define T_Met(P)  P
   #define T_Mac(P)  P
+  #define T_CMac(P) P
   #define T_Arg(P)  P
   #define T_App(P)  P
   #define T_Pos(P)  P
@@ -2352,6 +2355,10 @@ void s7_show_history(s7_scheme *sc);
 #define T_MAYBE_SAFE                   T_SAFE_STEPPER
 #define is_maybe_safe(p)               has_type_bit(T_Fnc(p), T_MAYBE_SAFE)
 #define set_maybe_safe(p)              set_type_bit(T_Fnc(p), T_MAYBE_SAFE)
+
+#define T_PAIR_MACRO                   T_SAFE_STEPPER
+#define has_pair_macro(p)              has_type_bit(T_Mac(p), T_PAIR_MACRO)
+#define set_has_pair_macro(p)          set_type_bit(T_Mac(p), T_PAIR_MACRO)
 
 #define T_HAS_LET_SET_FALLBACK         T_SAFE_STEPPER
 #define T_HAS_LET_REF_FALLBACK         T_MUTABLE
@@ -3210,12 +3217,12 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define c_function_opt_data(f)         c_function_data(f)->opt_data
 
 #define is_c_macro(p)                  (type(p) == T_C_MACRO)
-#define c_macro_data(f)                (T_Mac(f))->object.fnc.c_proc
-#define c_macro_call(f)                (T_Mac(f))->object.fnc.ff
+#define c_macro_data(f)                (T_CMac(f))->object.fnc.c_proc
+#define c_macro_call(f)                (T_CMac(f))->object.fnc.ff
 #define c_macro_name(f)                c_macro_data(f)->name
 #define c_macro_name_length(f)         c_macro_data(f)->name_length
-#define c_macro_required_args(f)       (T_Mac(f))->object.fnc.required_args
-#define c_macro_all_args(f)            (T_Mac(f))->object.fnc.all_args
+#define c_macro_required_args(f)       (T_CMac(f))->object.fnc.required_args
+#define c_macro_all_args(f)            (T_CMac(f))->object.fnc.all_args
 #define c_macro_setter(f)              T_Prc(c_macro_data(f)->setter)
 #define c_macro_set_setter(f, Val)     c_macro_data(f)->setter = T_Prc(Val)
 
@@ -4035,7 +4042,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_LET_TEMP_A_A,
       OP_COND, OP_COND1, OP_FEED_TO_1, OP_COND_SIMPLE, OP_COND1_SIMPLE, OP_COND_SIMPLE_O, OP_COND1_SIMPLE_O,
       OP_AND, OP_OR,
-      OP_DEFINE_MACRO, OP_DEFINE_MACRO_STAR, OP_DEFINE_EXPANSION, OP_DEFINE_EXPANSION_STAR,
+      OP_DEFINE_MACRO, OP_DEFINE_MACRO_STAR, OP_DEFINE_EXPANSION, OP_DEFINE_EXPANSION_STAR, OP_MACRO, OP_MACRO_STAR,
       OP_CASE,
       OP_READ_LIST, OP_READ_NEXT, OP_READ_DOT, OP_READ_QUOTE,
       OP_READ_QUASIQUOTE, OP_READ_UNQUOTE, OP_READ_APPLY_VALUES,
@@ -4050,7 +4057,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_FOR_EACH, OP_FOR_EACH_1, OP_FOR_EACH_2, OP_FOR_EACH_3,
       OP_MAP, OP_MAP_1, OP_MAP_2, OP_MAP_GATHER, OP_MAP_GATHER_1, OP_MAP_GATHER_2, OP_MAP_GATHER_3,
       OP_BARRIER, OP_DEACTIVATE_GOTO,
-      OP_DEFINE_BACRO, OP_DEFINE_BACRO_STAR,
+      OP_DEFINE_BACRO, OP_DEFINE_BACRO_STAR, OP_BACRO, OP_BACRO_STAR,
       OP_GET_OUTPUT_STRING,
       OP_SORT, OP_SORT1, OP_SORT2, OP_SORT3, OP_SORT_PAIR_END, OP_SORT_VECTOR_END, OP_SORT_STRING_END,
       OP_EVAL_STRING,
@@ -4275,7 +4282,7 @@ static const char* op_names[NUM_OPS] =
       "let_temp_a_a",
       "cond", "cond1", "feed_to_1", "cond_simple", "cond1_simple", "cond_simple_o", "cond1_simple_o",
       "and", "or",
-      "define_macro", "define_macro*", "define_expansion", "define_expansion*",
+      "define_macro", "define_macro*", "define_expansion", "define_expansion*", "macro", "macro*",
       "case", "read_list", "read_next", "read_dot", "read_quote",
       "read_quasiquote", "read_unquote", "read_apply_values",
       "read_vector", "read_byte_vector", "read_int_vector", "read_float_vector", "read_done",
@@ -4289,7 +4296,7 @@ static const char* op_names[NUM_OPS] =
       "for_each", "for_each_1", "for_each_2", "for_each_3",
       "map", "map_1", "map_2", "map_gather", "map_gather_1", "map_gather_2", "map_gather_3",
       "barrier", "deactivate_goto",
-      "define_bacro", "define_bacro*",
+      "define_bacro", "define_bacro*", "bacro", "bacro*",
       "get_output_string",
       "sort", "sort1", "sort2", "sort3", "sort_pair_end", "sort_vector_end", "sort_string_end",
       "eval_string",
@@ -9438,24 +9445,24 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
   return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
-static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
+static s7_pointer make_macro(s7_scheme *sc, opcode_t op, bool unnamed)
 {
-  s7_pointer cx, mac, body, mac_name;
+  s7_pointer cx, mac, body, mac_name = NULL;
   uint64_t typ;
 
-  if (op == OP_DEFINE_MACRO)
+  if ((op == OP_DEFINE_MACRO) || (op == OP_MACRO))
     typ = T_MACRO | T_DONT_EVAL_ARGS | T_COPY_ARGS;
   else
     {
-      if (op == OP_DEFINE_MACRO_STAR)
+      if ((op == OP_DEFINE_MACRO_STAR) || (op == OP_MACRO_STAR))
 	typ = T_MACRO_STAR | T_DONT_EVAL_ARGS | T_COPY_ARGS;
       else
 	{
-	  if (op == OP_DEFINE_BACRO)
+	  if ((op == OP_DEFINE_BACRO) || (op == OP_BACRO))
 	    typ = T_BACRO | T_DONT_EVAL_ARGS | T_COPY_ARGS;
 	  else
 	    {
-	      if (op == OP_DEFINE_BACRO_STAR)
+	      if ((op == OP_DEFINE_BACRO_STAR) || (op == OP_BACRO_STAR))
 		typ = T_BACRO_STAR | T_DONT_EVAL_ARGS | T_COPY_ARGS;
 	      else
 		{
@@ -9474,7 +9481,7 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
 
   new_cell_no_check(sc, mac, typ);
   sc->temp6 = mac;
-  closure_set_args(mac, cdar(sc->code));
+  closure_set_args(mac, (unnamed) ? car(sc->code) : cdar(sc->code));
   body = cdr(sc->code);
   closure_set_body(mac, body);
   closure_set_setter(mac, sc->F);
@@ -9482,19 +9489,19 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
   closure_set_arity(mac, CLOSURE_ARITY_NOT_SET);
   sc->capture_let_counter++;
 
-  mac_name = caar(sc->code);
-  if (((op == OP_DEFINE_EXPANSION) || (op == OP_DEFINE_EXPANSION_STAR)) &&
-      (!is_let(sc->envir)))
-    set_type(mac_name, T_EXPANSION | T_SYMBOL | (typeflag(mac_name) & T_UNHEAP)); /* see comment under READ_TOK */
-  /* symbol? macro name has already been checked, find name in environment, and define it */
-  cx = symbol_to_local_slot(sc, mac_name, sc->envir);
-  if (is_slot(cx))
-    slot_set_value_with_hook(cx, mac);
-  else s7_make_slot(sc, sc->envir, mac_name, mac); /* was current but we've checked immutable already */
-
-  /* fprintf(stderr, "%s[%d]: %s %s from %s[%d]\n", __func__, __LINE__, display(mac_name), display(sc->envir), sc->envir->current_alloc_func, sc->envir->current_alloc_line); */
-
-  /* clear_symbol_list(sc); *//* tracks names local to this macro */
+  if (!unnamed)
+    {
+      mac_name = caar(sc->code);
+      if (((op == OP_DEFINE_EXPANSION) || (op == OP_DEFINE_EXPANSION_STAR)) &&
+	  (!is_let(sc->envir)))
+	set_type(mac_name, T_EXPANSION | T_SYMBOL | (typeflag(mac_name) & T_UNHEAP)); /* see comment under READ_TOK */
+      /* symbol? macro name has already been checked, find name in environment, and define it */
+      cx = symbol_to_local_slot(sc, mac_name, sc->envir);
+      if (is_slot(cx))
+	slot_set_value_with_hook(cx, mac);
+      else s7_make_slot(sc, sc->envir, mac_name, mac); /* was current but we've checked immutable already */
+    }
+  
   if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
     clear_all_optimizations(sc, body);
 
@@ -9513,11 +9520,15 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op)
       closure_set_body(mac, add_trace(sc, body));
       unstack(sc);
     }
-  set_pair_macro(closure_body(mac), mac_name);
-  if (has_location(car(sc->code)))
+  if (!unnamed)
     {
-      pair_set_location(closure_body(mac), pair_location(car(sc->code)));
-      set_has_location(closure_body(mac));
+      set_pair_macro(closure_body(mac), mac_name);
+      set_has_pair_macro(mac);
+      if (has_location(car(sc->code)))
+	{
+	  pair_set_location(closure_body(mac), pair_location(car(sc->code)));
+	  set_has_location(closure_body(mac));
+	}
     }
   /* passed to maclet in apply_macro et al, copied in copy_closure */
   return(mac);
@@ -9757,7 +9768,10 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
 
   body = copy_body(sc, closure_body(fnc));
   if (is_any_macro(fnc))
-    set_pair_macro(body, pair_macro(closure_body(fnc)));
+    {
+      set_pair_macro(body, pair_macro(closure_body(fnc)));
+      set_has_pair_macro(fnc);
+    }
   new_cell(sc, x, typeflag(fnc) & (~T_COLLECTED)); /* I'm paranoid about that is_collected bit */
   closure_set_args(x, closure_args(fnc));
   closure_set_body(x, body);
@@ -30164,11 +30178,15 @@ static s7_pointer find_closure(s7_scheme *sc, s7_pointer closure, s7_pointer cur
 	  if (f == closure)
 	    return(sym);
 	}
-
       for (y = let_slots(e); tis_slot(y); y = next_slot(y))
 	if (slot_value(y) == closure)
 	  return(slot_symbol(y));
     }
+
+  if ((is_any_macro(closure)) && /* can't be a c_macro here */
+      (has_pair_macro(closure))) /* maybe macro never called, so no maclet exists */
+    return(pair_macro(closure_body(closure)));
+
   return(sc->nil);
 }
 
@@ -30546,7 +30564,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						     ((is_number(obj)) ? " print-name" :
 						      ((is_pair(obj)) ? " direct_opt" :
 						       ((is_hash_table(obj)) ? " weak-hash" :
-							" ?19?")))))) : "",
+							((is_any_macro(obj)) ? " pair-macro-set" :
+							 " ?19?"))))))) : "",
 	   /* bit 20, for c_function case see sc->apply */
 	   ((full_typ & T_COPY_ARGS) != 0) ?      (((is_pair(obj)) || (is_any_macro(obj)) || (is_any_closure(obj)) || (is_c_function(obj))) ? " copy-args" :
 						    " ?20?") : "",
@@ -30654,7 +30673,7 @@ static bool has_odd_bits(s7_pointer obj)
       (!is_let(obj)) && (!is_any_vector(obj)) && (!is_hash_table(obj)) && (!is_c_function(obj)) && (!is_slot(obj)) && (!is_pair(obj)) && (!is_closure_star(obj)))
     return(true);
   if (((full_typ & T_SAFE_STEPPER) != 0) &&
-      (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)))
+      (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_any_macro(obj)))
     return(true);
   if (((full_typ & T_SETTER) != 0) &&
       (!is_slot(obj)) && (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_let(obj)))
@@ -30987,6 +31006,15 @@ static s7_pointer check_ref16(s7_pointer p, const char *func, int32_t line)
     complain("%s%s[%d]: not a let or nil, but %s (%s)%s\n", p, func, line, typ);
   if (p == cur_sc->rootlet)
     fprintf(stderr, "T_Lid rootlet %s[%d]\n", func, line);
+  return(p);
+}
+
+static s7_pointer check_ref17(s7_pointer p, const char *func, int32_t line)
+{
+  uint8_t typ;
+  typ = unchecked_type(p);
+  if ((!is_any_macro(p)) || (is_c_macro(p)))
+    complain("%s%s[%d]: macro is %s (%s)%s?\n", p, func, line, typ);
   return(p);
 }
 
@@ -42835,6 +42863,24 @@ s7_pointer s7_closure_args(s7_scheme *sc, s7_pointer p)
 }
 
 /* -------------------------------- procedure-source -------------------------------- */
+static s7_pointer procedure_type_to_symbol(s7_scheme *sc, int32_t type)
+{
+  switch (type)
+    {
+    case T_CLOSURE:      return(sc->lambda_symbol);
+    case T_CLOSURE_STAR: return(sc->lambda_star_symbol);
+    case T_MACRO:        return(sc->macro_symbol);
+    case T_MACRO_STAR:   return(sc->macro_star_symbol);
+    case T_BACRO:        return(sc->bacro_symbol);
+    case T_BACRO_STAR:   return(sc->bacro_star_symbol);
+#if S7_DEBUGGING
+    default: 
+      fprintf(stderr, "%s[%d] wants %d symbol\n", __func__, __LINE__, type);
+#endif
+    }
+  return(sc->lambda_symbol);
+}
+
 static s7_pointer g_procedure_source(s7_scheme *sc, s7_pointer args)
 {
   /* make it look like a scheme-level lambda */
@@ -42862,9 +42908,7 @@ static s7_pointer g_procedure_source(s7_scheme *sc, s7_pointer args)
       /* perhaps if this function has been removed from the heap, it would be better to use copy_body (as in s7_copy)? */
       if (is_safe_closure_body(body))
 	clear_safe_closure_body(body);
-      return(append_in_place(sc,
-              list_2(sc, ((is_closure_star(p)) || (is_macro_star(p)) || (is_bacro_star(p))) ? sc->lambda_star_symbol : sc->lambda_symbol, closure_args(p)),
-              body));
+      return(append_in_place(sc, list_2(sc, procedure_type_to_symbol(sc, type(p)), closure_args(p)), body));
     }
 
   if (!is_procedure(p))
@@ -47840,8 +47884,7 @@ static s7_pointer closure_to_let(s7_scheme *sc, s7_pointer obj)
     s7_varlet(sc, let, sc->local_setter_symbol, closure_setter(obj));
 
   s7_varlet(sc, let, sc->source_symbol,
-	    append_in_place(sc, list_2(sc, (is_closure_star(obj)) ? sc->lambda_star_symbol : sc->lambda_symbol,
-				       closure_args(obj)),
+	    append_in_place(sc, list_2(sc, procedure_type_to_symbol(sc, type(obj)), closure_args(obj)),
 			    closure_body(obj)));
   s7_gc_unprotect_at(sc, gc_loc);
   return(let);
@@ -76787,10 +76830,9 @@ static inline void define_funchecked(s7_scheme *sc)
   sc->value = new_func;
 }
 
-static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
+static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op, bool unnamed)
 {
-  s7_pointer x, y, caller;
-  caller = sc->define_macro_symbol;
+  s7_pointer x = NULL, y, caller;
   switch (op)
     {
     case OP_DEFINE_MACRO:          caller = sc->define_macro_symbol;           break;
@@ -76799,43 +76841,60 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
     case OP_DEFINE_BACRO_STAR:     caller = sc->define_bacro_star_symbol;      break;
     case OP_DEFINE_EXPANSION:      caller = sc->define_expansion_symbol;       break;
     case OP_DEFINE_EXPANSION_STAR: caller = sc->define_expansion_star_symbol;  break;
+    case OP_MACRO:                 caller = sc->macro_symbol;                  break;
+    case OP_MACRO_STAR:            caller = sc->macro_star_symbol;             break;
+    case OP_BACRO:                 caller = sc->bacro_symbol;                  break;
+    case OP_BACRO_STAR:            caller = sc->bacro_star_symbol;             break;
+    default:
+#if S7_DEBUGGING
+      fprintf(stderr, "%s[%d]: got %s?\n", __func__, __LINE__, op_names[op]);
+#endif
+      caller = sc->define_macro_symbol;
     }
 
   if (!is_pair(sc->code))                                               /* (define-macro . 1) */
     eval_error_with_caller(sc, "~A name missing (stray dot?): ~A", 32, caller, sc->code);
-  if (!is_pair(car(sc->code)))                                          /* (define-macro a ...) */
-    return(wrong_type_argument_with_type(sc, caller, 1, car(sc->code), wrap_string(sc, "a list: (name ...)", 18)));
 
-  x = caar(sc->code);
-  if (!is_symbol(x))
-    eval_error_with_caller(sc, "~A: ~S is not a symbol?", 23, caller, x);
-  if (is_syntactic_symbol(x))
+  if (!unnamed) 
     {
-      if (sc->safety > NO_SAFETY)
-	s7_warn(sc, 128, "%s: syntactic keywords tend to behave badly if redefined\n", display(x));
-      set_local(x);
+      if (!is_pair(car(sc->code)))                                      /* (define-macro a ...) */
+	return(wrong_type_argument_with_type(sc, caller, 1, car(sc->code), wrap_string(sc, "a list: (name ...)", 18)));
+      x = caar(sc->code);
+      if (!is_symbol(x))
+	eval_error_with_caller(sc, "~A: ~S is not a symbol?", 23, caller, x);
+      if (is_syntactic_symbol(x))
+	{
+	  if (sc->safety > NO_SAFETY)
+	    s7_warn(sc, 128, "%s: syntactic keywords tend to behave badly if redefined\n", display(x));
+	  set_local(x);
+	}
+      if (is_constant_symbol(sc, x))
+	eval_error_with_caller(sc, "~A: ~S is constant", 18, caller, x);
     }
-  if (is_constant_symbol(sc, x))
-    eval_error_with_caller(sc, "~A: ~S is constant", 18, caller, x);
-
   if (!is_pair(cdr(sc->code)))                                        /* (define-macro (...)) */
     eval_error_with_caller(sc, "~A ~A, but no body?", 19, caller, x);
 
-  y = cdar(sc->code);                                                 /* the arglist */
+  y = (unnamed) ? car(sc->code) : cdar(sc->code);                     /* the arglist */
   if ((!is_list(y)) &&
       (!is_symbol(y)))
     return(s7_error(sc, sc->syntax_error_symbol,                      /* (define-macro (mac . 1) ...) */
-		    set_elist_3(sc, wrap_string(sc, "macro ~A argument list is ~S?", 29), x, y)));
+		    (unnamed) ? set_elist_2(sc, wrap_string(sc, "macro argument list is ~S?", 26), y) :
+		                set_elist_3(sc, wrap_string(sc, "macro ~A argument list is ~S?", 29), x, y)));
 
-  for ( ; is_pair(y); y = cdr(y))
-    if ((!is_symbol(car(y))) &&
-	((op == OP_DEFINE_MACRO) || (op == OP_DEFINE_BACRO) || (op == OP_DEFINE_EXPANSION)))
-      return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
-		      set_elist_3(sc, wrap_string(sc, "define-macro ~A parameter name is not a symbol: ~S", 49), x, y)));
-
-  if ((op == OP_DEFINE_MACRO_STAR) || (op == OP_DEFINE_BACRO_STAR) || (op == OP_DEFINE_EXPANSION_STAR))
-    set_cdar(sc->code, check_lambda_star_args(sc, cdar(sc->code), NULL));
-  else check_lambda_args(sc, cdar(sc->code), NULL);
+  if ((op == OP_DEFINE_MACRO) || (op == OP_DEFINE_BACRO) || (op == OP_DEFINE_EXPANSION) || (op == OP_MACRO) || (op == OP_BACRO))
+    {
+      for ( ; is_pair(y); y = cdr(y))
+	if (!is_symbol(car(y)))
+	  return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
+			  set_elist_4(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol: ~S", 42), caller, x, y)));
+      check_lambda_args(sc, (unnamed) ? car(sc->code) : cdar(sc->code), NULL);
+    }
+  else
+    {
+      if (unnamed)
+	set_car(sc->code, check_lambda_star_args(sc, car(sc->code), NULL));
+      else set_cdar(sc->code, check_lambda_star_args(sc, cdar(sc->code), NULL));
+    }
 
   return(sc->code);
 }
@@ -76851,14 +76910,14 @@ static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code));
   /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
-  sc->value = make_macro(sc, sc->cur_op);
+  sc->value = make_macro(sc, sc->cur_op, false);
   return(NULL);
 }
 
 static bool op_define_macro(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
-  check_define_macro(sc, sc->cur_op);
+  check_define_macro(sc, sc->cur_op, false);
   if (symbol_has_setter(caar(sc->code)))
     {
       s7_pointer x;
@@ -76876,7 +76935,15 @@ static bool op_define_macro(s7_scheme *sc)
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_any_with_caller? */
   /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
-  sc->value = make_macro(sc, sc->cur_op);
+  sc->value = make_macro(sc, sc->cur_op, false);
+  return(true);
+}
+
+static bool op_macro(s7_scheme *sc) /* (macro (x) `(+ ,x 1)) */ /* TODO: OP_MACRO_UNCHECKED */
+{
+  sc->code = cdr(sc->code);
+  check_define_macro(sc, sc->cur_op, true);
+  sc->value = make_macro(sc, sc->cur_op, true);
   return(true);
 }
 
@@ -77074,9 +77141,16 @@ static goto_t op_macroexpand(s7_scheme *sc)
       return(goto_eval);
     }
 
-  sc->args = copy_proper_list(sc, cdar(sc->code));               /* apply_lambda reuses args as slots, and these have not been copied yet */
+  sc->args = copy_proper_list(sc, cdar(sc->code));        /* apply_lambda reuses args as slots, and these have not been copied yet */
   if (!is_symbol(caar(sc->code)))
-    eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->code);
+    {
+      if (is_any_macro(caar(sc->code)))
+	{
+	  sc->code = caar(sc->code);
+	  return(macroexpand(sc));
+	}
+      eval_error(sc, "macroexpand argument is not a macro call: ~A", 44, sc->code);
+    }
   sc->code = lookup_checked(sc, caar(sc->code));
   return(macroexpand(sc));
 }
@@ -83109,10 +83183,15 @@ static void apply_macro_star_1(s7_scheme *sc)
   sc->code = T_Pair(closure_body(sc->code));
 }
 
-static void transfer_macro_info(s7_scheme *sc, s7_pointer body)
+static void transfer_macro_info(s7_scheme *sc, s7_pointer mac)
 {
-  set_maclet(sc->envir);
-  funclet_set_function(sc->envir, pair_macro(body));
+  s7_pointer body;
+  body = closure_body(mac);
+  if (has_pair_macro(mac))
+    {
+      set_maclet(sc->envir);
+      funclet_set_function(sc->envir, pair_macro(body));
+    }
   if (has_location(body))
     {
       let_set_file(sc->envir, pair_file_number(body));
@@ -83127,21 +83206,21 @@ static void apply_macro(s7_scheme *sc)
   /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(sc->code), display(closure_let(sc->code)), display(pair_macro(closure_body(sc->code)))); */
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir); /* closure_let -> sc->envir, sc->code is the macro */
-  transfer_macro_info(sc, closure_body(sc->code));
+  transfer_macro_info(sc, sc->code);
 }
 
 static void apply_bacro(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);       /* like let* -- we'll be adding macro args, so might as well sequester things here */
-  transfer_macro_info(sc, closure_body(sc->code));
+  transfer_macro_info(sc, sc->code);
 }
 
 static void apply_macro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir);
-  transfer_macro_info(sc, closure_body(sc->code));
+  transfer_macro_info(sc, sc->code);
   apply_macro_star_1(sc);
 }
 
@@ -83149,7 +83228,7 @@ static void apply_bacro_star(s7_scheme *sc)
 {
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, sc->envir, sc->envir);
-  transfer_macro_info(sc, closure_body(sc->code));
+  transfer_macro_info(sc, sc->code);
   apply_macro_star_1(sc);
 }
 
@@ -90584,6 +90663,13 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  if (op_define_macro(sc)) continue;
 	  goto APPLY;
 
+	case OP_MACRO:
+	case OP_BACRO:
+	case OP_MACRO_STAR:
+	case OP_BACRO_STAR:
+	  op_macro(sc);
+	  continue;
+
 	case OP_LAMBDA:                op_lambda(sc);                continue;
 	case OP_LAMBDA_UNCHECKED:      op_lambda_unchecked(sc);      continue;
 
@@ -96709,10 +96795,14 @@ static void init_rootlet(s7_scheme *sc)
   #define H_define_constant   "(define-constant var val) defines var to be a constant (it can't be set or bound), with the value val."
   #define H_define_macro      "(define-macro (mac args) ...) defines mac to be a macro."
   #define H_define_macro_star "(define-macro* (mac args) ...) defines mac to be a macro with optional/keyword arguments."
+  #define H_macro              "(macro args ...) defines an unnamed macro."
+  #define H_macro_star         "(macro* args ...) defines an unnamed macro with optional/keyword arguments."
   #define H_define_expansion  "(define-expansion (mac args) ...) defines mac to be a read-time macro."
   #define H_define_expansion_star "(define-expansion* (mac args) ...) defines mac to be a read-time macro*."
   #define H_define_bacro      "(define-bacro (mac args) ...) defines mac to be a bacro."
   #define H_define_bacro_star "(define-bacro* (mac args) ...) defines mac to be a bacro with optional/keyword arguments."
+  #define H_bacro             "(bacro args ...) defines an unnamed bacro."
+  #define H_bacro_star        "(bacro* args ...) defines an unnamed bacro with optional/keyword arguments."
   #define H_with_baffle       "(with-baffle ...) evaluates its body in a context that blocks re-entry via call/cc."
   #define H_macroexpand       "(macroexpand macro-call) returns the result of the expansion phase of evaluating the macro call."
   #define H_with_let          "(with-let env ...) evaluates its body in the environment env."
@@ -96746,6 +96836,10 @@ static void init_rootlet(s7_scheme *sc)
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                small_two,  max_arity,    H_do); /* 2 because body can be null */
   sc->lambda_symbol =            binder_syntax(sc, "lambda",           OP_LAMBDA,            small_two,  max_arity,    H_lambda);
   sc->lambda_star_symbol =       binder_syntax(sc, "lambda*",          OP_LAMBDA_STAR,       small_two,  max_arity,    H_lambda_star);
+  sc->macro_symbol =             binder_syntax(sc, "macro",            OP_MACRO,             small_two,  max_arity,    H_macro);
+  sc->macro_star_symbol =        binder_syntax(sc, "macro*",           OP_MACRO_STAR,        small_two,  max_arity,    H_macro_star);
+  sc->bacro_symbol =             binder_syntax(sc, "bacro",            OP_BACRO,             small_two,  max_arity,    H_bacro);
+  sc->bacro_star_symbol =        binder_syntax(sc, "bacro*",           OP_BACRO_STAR,        small_two,  max_arity,    H_bacro_star);
   sc->with_let_symbol =          binder_syntax(sc, "with-let",         OP_WITH_LET,          small_one,  max_arity,    H_with_let);
   sc->with_baffle_symbol =       binder_syntax(sc, "with-baffle",      OP_WITH_BAFFLE,       small_zero, max_arity,    H_with_baffle); /* (with-baffle) is () */
   /* with-baffle introduces a let: (inlet (symbol "(baffle)") #<baffle: 0>) */
@@ -98054,7 +98148,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 887) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 891) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 

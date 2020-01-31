@@ -56,11 +56,7 @@
 			   (with-let e __func__) 
 			   (and (funclet? (outlet e))
 				(with-let (outlet e) __func__))))
-		 (funcname (if (pair? func) 
-			       (car func)
-			       (if (symbol? func)
-				   func
-				   #<lambda>)))
+		 (funcname (if (pair? func) (car func) func))
 		 (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
 			 (map (lambda (x) 
 				(if (and (symbol? funcname)
@@ -77,7 +73,7 @@
 
 		 (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
 			 (format #f "(~S~{~^ ~S~})" 
-				 funcname
+				 (or funcname '<lambda>)
 				 args))))
 	    
 	    (set! *debug-curlet* e)
@@ -88,11 +84,13 @@
 			     call))
 	    
 	    (set! report-return (or func (> (*s7* 'debug) 2)))
+
 	    (when report-return
 	      (cond ((and *debug-function*
 			  (*debug-function* func call e))) ; if it returns #f, try rest of possibilities
 			  
-		    ((memq funcname *debug-breaks*)
+		    ((and funcname 
+			  (memq funcname *debug-breaks*))
 		     (*debug-repl* call e))
 			  
 		    (else
@@ -138,10 +136,11 @@
 			(macro? func-val)))
 	       (format (debug-port) "trace: ~S is not a procedure or macro" func)
 
-	       (let ((func-name (symbol (object->string func-val)))
+	       (let ((func-name (object->string func-val))
 		     ;; the name is usually a string internally, so this isn't as wasteful as it appears
-		     (source (procedure-source func-val))                       ; (lambda (x) (+ x 1))
-		     (setf (setter func-val)))
+		     (source (procedure-source func-val))                        ; (lambda (x) (+ x 1))
+		     (setf (setter func-val)))                                   ; preseve possible setter
+		 (set! func-name (if (char=? (func-name 0) #\#) '<lambda> (symbol func-name)))
 		 
 		 (if (pair? source)
 		     (unless (and (pair? (caddr source))
@@ -149,10 +148,11 @@
 		       (let ((new-source (cons (car source)                      ; lambda
 					       (cons (cadr source)               ; args
 						     (cons '(trace-in (curlet))  ; (trace-in (curlet))
-							   (cddr source))))))    ; body
+							   (cddr source)))))     ; body
+			     (out (outlet (funclet func-val))))                  ; preserve possible local closure
 			 (if setf
-			     `(set! ,func (dilambda (let () (define ,func-name ,new-source)) ,setf))
-			     `(set! ,func (let () (define ,func-name ,new-source))))))
+			     `(set! ,func (with-let ,out (dilambda (let () (define ,func-name ,new-source)) ,setf)))
+			     `(set! ,func (with-let ,out (let () (define ,func-name ,new-source)))))))
 		     ;; we need to use define to get the function name saved for __func__ later, but
 		     ;;   we also need to clobber the old definition (not just shadow it) so that existing calls
 		     ;;   will be traced.  So, use a redundant define in a let returning its new value, setting the current one.
@@ -206,15 +206,18 @@
 				   `(set! ,func ,orig-func)))
 			     (let ((new-source (cons (car source)
 						     (cons (cadr source)
-							   cdddr-source))))
+							   cdddr-source)))
+				   (out (outlet (funclet func-val))))
 			       (if setf
-				   `(set! ,func (dilambda (let () 
-							    (define ,func-name
-							      ,new-source))
-							  ,setf))
-				   `(set! ,func (let () 
-						  (define ,func-name
-						    ,new-source)))))))))))))
+				   `(set! ,func (with-let ,out
+						  (dilambda (let () 
+							      (define ,func-name
+								,new-source))
+							    ,setf)))
+				   `(set! ,func (with-let ,out
+						  (let () 
+						    (define ,func-name
+						      ,new-source))))))))))))))
 	(lambda (type info)
 	  (format (debug-port) "can't untrace ~S: ~S~%" func (apply format #f info))))))
 
@@ -344,9 +347,15 @@
 ;;       expansion name is missing and code is not fully expanded: * argument 2, (+ 2 1), is a pair but should be a number
 ;; macros also fail, same error [op_eval_macro and op_finish_expansion]
 ;; these seem to be ok if handled by s7, not by the trace macro?? but s7 does not annotate expansions itself 
-;; argh -- need define-macro above not define (also need to test define*/define-macro* and bacros)
-;; can a macro be part of dilambda? yes t264 -- add this to s7test
+;; need to test define*/define-macro* and bacros
 ;; expansion needs trace-in in the expanded code, whereas a macro is ok if precedes it
+
+;; see func8: trace displays (func8 1 2 3) as (func8 1 '(2 3))
+;; need t725-style tests of these macros
+;; t264 -> s7test [arity etc]
+;; trace mac should copy pair_macro at least, (define mac2 (macro ...)) should fixup the info?
+;; s7.html: macro et al, also index bacro?
+;; op_macro_unchecked?
 |#
 
 

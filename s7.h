@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.14"
-#define S7_DATE "2020-1-31"
+#define S7_VERSION "8.15"
+#define S7_DATE "2020-2-3"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -879,6 +879,7 @@ s7_int s7_new_type_1(s7_scheme *sc,
  * 
  *        s7 changes
  *
+ * 31-Jan:    macro(*) and bacro(*) -- unnamed macros like lambda(*) for functions.
  * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind, s7_dynamic_unwind.
  *            remove coverlets (openlets is now a dilambda).
  * 10-Jan:    s7_c_type_set_gc_free and s7_c_type_set_gc_mark.
