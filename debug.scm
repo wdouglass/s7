@@ -12,8 +12,7 @@
 	  (*debug-function* #f)
 	  (*debug-breaks* ())
 	  (*debug-repl* (lambda (call e) #f))
-	  (*debug-curlet* #f) ; currently just for the frame macro
-	  (report-return #f))
+	  (*debug-curlet* #f)) ; currently just for the frame macro
       
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
@@ -49,7 +48,7 @@
 	  (*debug-end-output* *debug-port*)
 	  val))
 
-      (lambda (e)                   ; trace-in, report function call
+      (lambda (e)                   ; trace-in: report function call and return value
 	(let-temporarily (((*s7* 'history-enabled) #f))
 
 	  (let* ((func (if (funclet? e) 
@@ -57,25 +56,29 @@
 			   (and (funclet? (outlet e))
 				(with-let (outlet e) __func__))))
 		 (funcname (if (pair? func) (car func) func))
+		 (func-arity (and (symbol? funcname) (arity (symbol->value funcname e))))
 		 (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
-			 (map (lambda (x) 
-				(if (and (symbol? funcname)
-					 (pair? (cdr x))
-					 (equal? (arity (symbol->value funcname e)) (cons 0 536870912)))
+			 (map (let ((n 0))
+				(lambda (x) 
+				  (set! n (+ n 1))
+				  (if (and (symbol? funcname)
+					   (pair? (cdr x))
+					   (= (cdr func-arity) 536870912)
+					   (> n (car func-arity)))
 				    (apply values (cdr x))
 				    (if (and (or (pair? (cdr x))
 						 (and (symbol? (cdr x))
 						      (not (keyword? (cdr x)))))
 					     (not (and func (macro? (symbol->value funcname e)))))
 					(list 'quote (cdr x))
-					(cdr x))))
+					(cdr x)))))
 			     e)))
 
 		 (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
 			 (format #f "(~S~{~^ ~S~})" 
-				 (or funcname '<lambda>)
+				 (or funcname '_)
 				 args))))
-	    
+
 	    (set! *debug-curlet* e)
 
 	    (if (vector? *debug-stack*)
@@ -83,33 +86,28 @@
 						       (/ *debug-spaces* 2)))
 			     call))
 	    
-	    (set! report-return (or func (> (*s7* 'debug) 2)))
+	    (cond ((and *debug-function*
+			(*debug-function* func call e))) ; if it returns #f, try rest of possibilities
+		  
+		  ((and funcname 
+			(memq funcname *debug-breaks*))
+		   (*debug-repl* call e))
+		  
+		  (else
+		   (*debug-start-output* *debug-port*)
+		   (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
+		   (if (pair? func)
+		       (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
+		   (if (and (> (port-line-number) 0)
+			    (not (string=? (port-filename) "*stdin*")))
+		       (format *debug-port* "~A called from ~A[~D]"
+			       (if (pair? func) "" "    ;")
+			       (port-filename)
+			       (port-line-number)))
+		   (newline *debug-port*)))
+	    (set! *debug-spaces* (+ *debug-spaces* 2))))
 
-	    (when report-return
-	      (cond ((and *debug-function*
-			  (*debug-function* func call e))) ; if it returns #f, try rest of possibilities
-			  
-		    ((and funcname 
-			  (memq funcname *debug-breaks*))
-		     (*debug-repl* call e))
-			  
-		    (else
-		     (*debug-start-output* *debug-port*)
-		     (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
-		     (if (pair? func)
-			 (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
-		     (if (and (> (port-line-number) 0)
-			      (not (string=? (port-filename) "*stdin*")))
-			 (format *debug-port* "~A called from ~A[~D]"
-				 (if (pair? func) "" "    ;")
-				 (port-filename)
-				 (port-line-number)))
-		     (newline *debug-port*)))
-	      (set! *debug-spaces* (+ *debug-spaces* 2)))))
-
-	;; report value returned -- this needs to be at the top level in this function
-	(when report-return
-	  (dynamic-unwind trace-out e)))
+	(dynamic-unwind trace-out e))
 
       )))
 
@@ -140,7 +138,7 @@
 		     ;; the name is usually a string internally, so this isn't as wasteful as it appears
 		     (source (procedure-source func-val))                        ; (lambda (x) (+ x 1))
 		     (setf (setter func-val)))                                   ; preseve possible setter
-		 (set! func-name (if (char=? (func-name 0) #\#) '<lambda> (symbol func-name)))
+		 (set! func-name (if (char=? (func-name 0) #\#) '_ (symbol func-name)))
 		 
 		 (if (pair? source)
 		     (unless (and (pair? (caddr source))
@@ -254,24 +252,34 @@
   (if (pair? var)
       `(with-let ,(car var) 
 	 (set! (setter ,(cadr var))
-	       (lambda (s v)
-		 (format (debug-port) "let-set! ~S to ~S~%" s v)
-		 v)))
+	       (let ((old-setter (setter ,(cadr var))))
+		 (lambda (s v e)
+		   (format (debug-port) "let-set! ~S to ~S~%" s v)
+		   (if old-setter 
+		       (if (eqv? (cdr (arity old-setter)) 2)
+			   (old-setter s v)
+			   (old-setter s v e))
+		       v)))))
       `(set! (setter ',var) 
-	     (lambda (s v e)
-	       (format (debug-port) "~S set! to ~S~A~%" s v
-		       (if (let? e) ; might be (rootlet) == ()
-			   (let ((func (with-let e __func__)))
-			     (if (eq? func #<undefined>) "" (format #f ", ~S" func)))
-			   ""))
-	       v))))
+	     (let ((old-setter (setter ',var)))
+	       (lambda (s v e)
+		 (format (debug-port) "~S set! to ~S~A~%" s v
+			 (if (let? e) ; might be (rootlet) == ()
+			     (let ((func (with-let e __func__)))
+			       (if (eq? func #<undefined>) "" (format #f ", ~S" func)))
+			     ""))
+		 (if old-setter 
+		     (if (eqv? (cdr (arity old-setter)) 2)
+			 (old-setter s v)
+			 (old-setter s v e))
+		     v))))))
 
 ;;; -------- unwatch
 (define-macro (unwatch var)
   (if (pair? var)
       `(with-let ,(car var) 
-	 (set! (setter ,(cadr var)) #f))
-      `(set! (setter ',var) #f)))
+	 (set! (setter ,(cadr var)) (with-let (funclet (setter ,(cadr var))) old-setter)))
+      `(set! (setter ',var) (with-let (funclet (setter ',var)) old-setter))))
 
 
 ;;; -------- stack
@@ -327,35 +335,21 @@
 ;;; TODO:
 
 ;; unbreak should undo trace if it added the trace?
-;; watch should notice pre-exisiting setter and incorporate it (as in trace/untrace)
-;; (watch (*s7* 'debug))? this is let-set-fallback for *s7* [can't trace/break these either]
-
-;; need repl indication of break depth: let *debug-repl* track this?
 
 ;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
-;; if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
+;;   if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
 
-;; s7_error/ow! need to use sl_history not error-history, or perhaps cull_history
+;; s7_error/ow! needs to cull owlet error-history
 
-;; s7test for debug.scm -- t253, or maybe just append here with a switch for testing
+;; s7test for debug.scm -- t253 via port-line-number? also t264
 ;; and s7.html all these cases, and how to tie into other code (repl.scm, Snd)
 
 ;; how to trace expansions?
-;;   if debug>3, expansion in eval could insert (if ((*s7* 'debug) > 0) (format (debug-port) "line ~D, ~S expanded to ~S" (port-line-number) etc)
-;;   op_expansion
-;;   or add this code to the expansion body as with a macro? currently if does, but then fails, (see t264)
-;;       expansion name is missing and code is not fully expanded: * argument 2, (+ 2 1), is a pair but should be a number
-;; macros also fail, same error [op_eval_macro and op_finish_expansion]
-;; these seem to be ok if handled by s7, not by the trace macro?? but s7 does not annotate expansions itself 
-;; need to test define*/define-macro* and bacros
-;; expansion needs trace-in in the expanded code, whereas a macro is ok if precedes it
+;;   if debug>3, expansion in eval could insert (if (> (*s7* 'debug) 0) (format (debug-port) "line ~D, ~S expanded to ~S" (port-line-number) etc)
+;;   expansion needs trace-in in the expanded code, whereas a macro is ok if precedes it
 
-;; see func8: trace displays (func8 1 2 3) as (func8 1 '(2 3))
-;; need t725-style tests of these macros
-;; t264 -> s7test [arity etc]
-;; trace mac should copy pair_macro at least, (define mac2 (macro ...)) should fixup the info?
-;; s7.html: macro et al, also index bacro?
-;; op_macro_unchecked?
+;; are all define line numbers off by 1?
+;; op_macro_unchecked? need timing test of macro/bacro to see if it matters
 |#
 
 

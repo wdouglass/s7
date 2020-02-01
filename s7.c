@@ -9767,7 +9767,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
   s7_pointer x, body;
 
   body = copy_body(sc, closure_body(fnc));
-  if (is_any_macro(fnc))
+  if ((is_any_macro(fnc)) && (has_pair_macro(fnc)))
     {
       set_pair_macro(body, pair_macro(closure_body(fnc)));
       set_has_pair_macro(fnc);
@@ -31881,14 +31881,14 @@ static void c_function_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
     }
   if (c_function_name_length(obj) > 0)
     port_write_string(port)(sc, c_function_name(obj), c_function_name_length(obj), port);
-  else port_write_string(port)(sc, "#<unnamed-c-function>", 21, port);
+  else port_write_string(port)(sc, "#<c-function>", 13, port);
 }
 
 static void c_macro_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
   if (c_macro_name_length(obj) > 0)
     port_write_string(port)(sc, c_macro_name(obj), c_macro_name_length(obj), port);
-  else port_write_string(port)(sc, "#<unnamed-c-macro>", 18, port);
+  else port_write_string(port)(sc, "#<c-macro>", 10, port);
 }
 
 static void continuation_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -42766,7 +42766,7 @@ static s7_pointer s7_lambda(s7_scheme *sc, s7_function f, s7_int required_args, 
   block_t *block;
   new_cell(sc, fnc, T_PAIR);  /* just a place-holder */
   block = mallocate(sc, sizeof(c_proc_t));
-  fnc = make_function(sc, "#<unnamed-c-function>", f, required_args, optional_args, rest_arg, NULL, fnc, (c_proc_t *)block_data(block));
+  fnc = make_function(sc, "#<c-function>", f, required_args, optional_args, rest_arg, NULL, fnc, (c_proc_t *)block_data(block));
   c_function_block(fnc) = block;
   add_lambda(sc, fnc);
   return(fnc);
@@ -70449,7 +70449,7 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
     return(sc->nil);
   /* ((!symbol_is_in_list(sc, symbol)) && (direct_memq(symbol, e))) can happen if there's an intervening lambda:
    *   (let loop () (with-let (for-each (lambda (a) a) (list))) (loop))
-   * loses 'loop (it's not in symbol_list when recursive call is encountered) -- tricky to fix
+   * misses 'loop (it's not in symbol_list when recursive call is encountered) -- tricky to fix
    */
 
   if (is_global(symbol))
@@ -72173,8 +72173,9 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	}
       break;
 
-    case OP_LAMBDA:
-    case OP_LAMBDA_STAR:
+    case OP_LAMBDA: case OP_LAMBDA_STAR:
+    case OP_MACRO: case OP_MACRO_STAR: 
+    case OP_BACRO: case OP_BACRO_STAR:
       vars = cadr(expr);
       if (is_null(vars))
 	e = cons(sc, sc->nil, e);
@@ -76830,72 +76831,96 @@ static inline void define_funchecked(s7_scheme *sc)
   sc->value = new_func;
 }
 
-static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op, bool unnamed)
+static s7_pointer cur_op_to_caller(s7_scheme *sc, opcode_t op)
 {
-  s7_pointer x = NULL, y, caller;
   switch (op)
     {
-    case OP_DEFINE_MACRO:          caller = sc->define_macro_symbol;           break;
-    case OP_DEFINE_MACRO_STAR:     caller = sc->define_macro_star_symbol;      break;
-    case OP_DEFINE_BACRO:          caller = sc->define_bacro_symbol;           break;
-    case OP_DEFINE_BACRO_STAR:     caller = sc->define_bacro_star_symbol;      break;
-    case OP_DEFINE_EXPANSION:      caller = sc->define_expansion_symbol;       break;
-    case OP_DEFINE_EXPANSION_STAR: caller = sc->define_expansion_star_symbol;  break;
-    case OP_MACRO:                 caller = sc->macro_symbol;                  break;
-    case OP_MACRO_STAR:            caller = sc->macro_star_symbol;             break;
-    case OP_BACRO:                 caller = sc->bacro_symbol;                  break;
-    case OP_BACRO_STAR:            caller = sc->bacro_star_symbol;             break;
-    default:
+    case OP_DEFINE_MACRO:          return(sc->define_macro_symbol);
+    case OP_DEFINE_MACRO_STAR:     return(sc->define_macro_star_symbol);
+    case OP_DEFINE_BACRO:          return(sc->define_bacro_symbol);
+    case OP_DEFINE_BACRO_STAR:     return(sc->define_bacro_star_symbol);
+    case OP_DEFINE_EXPANSION:      return(sc->define_expansion_symbol);
+    case OP_DEFINE_EXPANSION_STAR: return(sc->define_expansion_star_symbol);
+    case OP_MACRO:                 return(sc->macro_symbol);
+    case OP_MACRO_STAR:            return(sc->macro_star_symbol);
+    case OP_BACRO:                 return(sc->bacro_symbol);
+    case OP_BACRO_STAR:            return(sc->bacro_star_symbol);
 #if S7_DEBUGGING
+    default:
       fprintf(stderr, "%s[%d]: got %s?\n", __func__, __LINE__, op_names[op]);
 #endif
-      caller = sc->define_macro_symbol;
     }
+  return(sc->define_macro_symbol);
+}
+
+static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
+{
+  s7_pointer mac_name, args, caller;
+  caller = cur_op_to_caller(sc, op);
 
   if (!is_pair(sc->code))                                               /* (define-macro . 1) */
     eval_error_with_caller(sc, "~A name missing (stray dot?): ~A", 32, caller, sc->code);
+  if (!is_pair(car(sc->code)))                                      /* (define-macro a ...) */
+    return(wrong_type_argument_with_type(sc, caller, 1, car(sc->code), wrap_string(sc, "a list: (name ...)", 18)));
 
-  if (!unnamed) 
+  mac_name = caar(sc->code);
+  if (!is_symbol(mac_name))
+    eval_error_with_caller(sc, "~A: ~S is not a symbol?", 23, caller, mac_name);
+  if (is_syntactic_symbol(mac_name))
     {
-      if (!is_pair(car(sc->code)))                                      /* (define-macro a ...) */
-	return(wrong_type_argument_with_type(sc, caller, 1, car(sc->code), wrap_string(sc, "a list: (name ...)", 18)));
-      x = caar(sc->code);
-      if (!is_symbol(x))
-	eval_error_with_caller(sc, "~A: ~S is not a symbol?", 23, caller, x);
-      if (is_syntactic_symbol(x))
-	{
-	  if (sc->safety > NO_SAFETY)
-	    s7_warn(sc, 128, "%s: syntactic keywords tend to behave badly if redefined\n", display(x));
-	  set_local(x);
-	}
-      if (is_constant_symbol(sc, x))
-	eval_error_with_caller(sc, "~A: ~S is constant", 18, caller, x);
+      if (sc->safety > NO_SAFETY)
+	s7_warn(sc, 128, "%s: syntactic keywords tend to behave badly if redefined\n", display(mac_name));
+      set_local(mac_name);
     }
+  if (is_constant_symbol(sc, mac_name))
+    eval_error_with_caller(sc, "~A: ~S is constant", 18, caller, mac_name);
+  
   if (!is_pair(cdr(sc->code)))                                        /* (define-macro (...)) */
-    eval_error_with_caller(sc, "~A ~A, but no body?", 19, caller, x);
+    eval_error_with_caller(sc, "~A ~A, but no body?", 19, caller, mac_name);
 
-  y = (unnamed) ? car(sc->code) : cdar(sc->code);                     /* the arglist */
-  if ((!is_list(y)) &&
-      (!is_symbol(y)))
+  args = cdar(sc->code);
+  if ((!is_list(args)) &&
+      (!is_symbol(args)))
     return(s7_error(sc, sc->syntax_error_symbol,                      /* (define-macro (mac . 1) ...) */
-		    (unnamed) ? set_elist_2(sc, wrap_string(sc, "macro argument list is ~S?", 26), y) :
-		                set_elist_3(sc, wrap_string(sc, "macro ~A argument list is ~S?", 29), x, y)));
+		    set_elist_3(sc, wrap_string(sc, "macro ~A argument list is ~S?", 29), mac_name, args)));
 
-  if ((op == OP_DEFINE_MACRO) || (op == OP_DEFINE_BACRO) || (op == OP_DEFINE_EXPANSION) || (op == OP_MACRO) || (op == OP_BACRO))
+  if ((op == OP_DEFINE_MACRO) || (op == OP_DEFINE_BACRO) || (op == OP_DEFINE_EXPANSION))
     {
-      for ( ; is_pair(y); y = cdr(y))
-	if (!is_symbol(car(y)))
+      for ( ; is_pair(args); args = cdr(args))
+	if (!is_symbol(car(args)))
 	  return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
-			  set_elist_4(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol: ~S", 42), caller, x, y)));
-      check_lambda_args(sc, (unnamed) ? car(sc->code) : cdar(sc->code), NULL);
+			  set_elist_3(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol", 38), caller, car(args))));
+      check_lambda_args(sc, cdar(sc->code), NULL);
     }
-  else
-    {
-      if (unnamed)
-	set_car(sc->code, check_lambda_star_args(sc, car(sc->code), NULL));
-      else set_cdar(sc->code, check_lambda_star_args(sc, cdar(sc->code), NULL));
-    }
+  else set_cdar(sc->code, check_lambda_star_args(sc, cdar(sc->code), NULL));
+  return(sc->code);
+}
 
+static s7_pointer check_macro(s7_scheme *sc, opcode_t op)
+{
+  s7_pointer args, caller;
+  caller = cur_op_to_caller(sc, op);
+
+  if (!is_pair(sc->code))                                               /* (define-macro . 1) */
+    eval_error_with_caller(sc, "~A name missing (stray dot?): ~A", 32, caller, sc->code);
+  if (!is_pair(cdr(sc->code)))                                        /* (define-macro (...)) */
+    eval_error_with_caller(sc, "(~A ~A) has no body?", 20, caller, car(sc->code));
+
+  args = car(sc->code);
+  if ((!is_list(args)) &&
+      (!is_symbol(args)))
+    return(s7_error(sc, sc->syntax_error_symbol,                      /* (define-macro (mac . 1) ...) */
+		    set_elist_2(sc, wrap_string(sc, "macro argument list is ~S?", 26), args)));
+
+  if ((op == OP_MACRO) || (op == OP_BACRO))
+    {
+      for ( ; is_pair(args); args = cdr(args))
+	if (!is_symbol(car(args)))
+	  return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
+			  set_elist_3(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol", 38), caller, car(args))));
+      check_lambda_args(sc, car(sc->code), NULL);
+    }
+  else set_car(sc->code, check_lambda_star_args(sc, car(sc->code), NULL));
   return(sc->code);
 }
 
@@ -76917,7 +76942,7 @@ static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
 static bool op_define_macro(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
-  check_define_macro(sc, sc->cur_op, false);
+  check_define_macro(sc, sc->cur_op);
   if (symbol_has_setter(caar(sc->code)))
     {
       s7_pointer x;
@@ -76942,7 +76967,7 @@ static bool op_define_macro(s7_scheme *sc)
 static bool op_macro(s7_scheme *sc) /* (macro (x) `(+ ,x 1)) */ /* TODO: OP_MACRO_UNCHECKED */
 {
   sc->code = cdr(sc->code);
-  check_define_macro(sc, sc->cur_op, true);
+  check_macro(sc, sc->cur_op);
   sc->value = make_macro(sc, sc->cur_op, true);
   return(true);
 }
@@ -83500,6 +83525,32 @@ static goto_t op_define1(s7_scheme *sc)
   return(fall_through);
 }
 
+static void set_let_file_and_line(s7_scheme *sc, s7_pointer new_env, s7_pointer new_func)
+{
+  if ((port_filename(sc->input_port)) &&
+      (port_file(sc->input_port) != stdin))
+    {
+      /* unbound_variable will be called if __func__ is encountered, and will return this info as if __func__ had some meaning */
+      if (has_location(closure_body(new_func)))
+	{
+	  let_set_file(new_env, pair_file_number(closure_body(new_func)));
+	  let_set_line(new_env, pair_line_number(closure_body(new_func)));
+	}
+      else
+	{
+	  let_set_file(new_env, port_file_number(sc->input_port));
+	  let_set_line(new_env, port_line_number(sc->input_port));
+	}
+      set_has_let_file(new_env);
+    }
+  else
+    {
+      let_set_file(new_env, 0);
+      let_set_line(new_env, 0);
+      clear_has_let_file(new_env);
+    }
+}
+
 static void op_define_with_setter(s7_scheme *sc)
 {
   s7_pointer code;
@@ -83508,44 +83559,20 @@ static void op_define_with_setter(s7_scheme *sc)
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define ~S: let is immutable", 27, code);
 
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->value)); */
+  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), display(sc->value)); */
   if ((is_any_closure(sc->value)) &&
       ((!(is_let(closure_let(sc->value)))) ||
        (!(is_funclet(closure_let(sc->value))))))  /* otherwise it's (define f2 f1) or something similar */
     {
       s7_pointer new_func, new_env;
       new_func = sc->value;
-      /* fprintf(stderr, "new funclet\n"); */
       new_env = make_funclet(sc, new_func, code, closure_let(new_func));
       /* this should happen only if the closure* default values do not refer in any way to
        *   the enclosing environment (else we can accidentally shadow something that happens
        *   to share an argument name that is being used as a default value -- kinda dumb!).
        *   I think I'll check this before setting the safe_closure bit.
        */
-
-      if ((port_filename(sc->input_port)) &&
-	  (port_file(sc->input_port) != stdin))
-	{
-	  /* unbound_variable will be called if __func__ is encountered, and will return this info as if __func__ had some meaning */
-	  if (has_location(closure_body(new_func)))
-	    {
-	      let_set_file(new_env, pair_file_number(closure_body(new_func)));
-	      let_set_line(new_env, pair_line_number(closure_body(new_func)));
-	    }
-	  else
-	    {
-	      let_set_file(new_env, port_file_number(sc->input_port));
-	      let_set_line(new_env, port_line_number(sc->input_port));
-	    }
-	  set_has_let_file(new_env);
-	}
-      else
-	{
-	  let_set_file(new_env, 0);
-	  let_set_line(new_env, 0);
-	  clear_has_let_file(new_env);
-	}
-
+      set_let_file_and_line(sc, new_env, new_func);
       /* add the newly defined thing to the current environment */
       if (is_let(sc->envir))
 	{
@@ -83611,6 +83638,12 @@ static void op_define_with_setter(s7_scheme *sc)
 	  slot_set_value_with_hook(lx, sc->value);
 	}
       else s7_make_slot(sc, sc->envir, code, sc->value);
+
+      if ((is_any_macro(sc->value)) && (!is_c_macro(sc->value)))
+	{
+	  set_pair_macro(closure_body(sc->value), code);
+	  set_has_pair_macro(sc->value);
+	}
     }
 }
 
@@ -98307,22 +98340,22 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779
  * tshoot   1296 |  880 |  841
  * index     939 | 1013 |  989
- * s7test   1776 | 1711 | 1691
+ * s7test   1776 | 1711 | 1700
  * lt       2278 | 2072 | 2069
  * tcopy    2434 | 2264 | 2277
- * tform    2472 | 2289 | 2279  2298 [recur troubles]
+ * tform    2472 | 2289 | 2279  2302
  * tmisc    2852 | 2284 | 2268
  * tread    2449 | 2394 | 2379
  * dup      6333 | 2669 | 2414
  * tvect    6189 | 2430 | 2448
- * tmat     6072 | 2478 | 2469
+ * tmat     6072 | 2478 | 2478
  * fbench   2974 | 2643 | 2628
  * trclo    7985 | 2791 | 2670
  * tb       3251 | 2799 | 2767
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
- * tset     6616 | 3083 | 3120  3153 fx_c_weak1_type_s overhead
+ * tset     6616 | 3083 | 3120
  * tmac     3391 | 3186 | 3174
  * teq      4081 | 3804 | 3803
  * tfft     4288 | 3816 | 3788

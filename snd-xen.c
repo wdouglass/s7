@@ -2957,7 +2957,7 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   Xen_define_constant("RTLD_GLOBAL", RTLD_GLOBAL, "dlopen flag");
 #endif
 
-#if HAVE_SCHEME
+#if HAVE_SCHEME && (!USE_NO_GUI)
   s7_eval_c_string(s7,
     "(define debug.scm-init                   \
        (let ((old-let (top-level-let)))       \
