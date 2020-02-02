@@ -407,7 +407,6 @@ bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_na
    */
 
 s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish);
-s7_pointer s7_dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer arg);
 
 bool s7_is_immutable(s7_pointer p);
 s7_pointer s7_immutable(s7_pointer p);
@@ -880,7 +879,7 @@ s7_int s7_new_type_1(s7_scheme *sc,
  *        s7 changes
  *
  * 31-Jan:    macro(*) and bacro(*) -- unnamed macros like lambda(*) for functions.
- * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind, s7_dynamic_unwind.
+ * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind.
  *            remove coverlets (openlets is now a dilambda).
  * 10-Jan:    s7_c_type_set_gc_free and s7_c_type_set_gc_mark.
  * 2-Jan:     s7_c_type_set_is_equal and s7_c_type_set_is_equivalent.

@@ -236,6 +236,20 @@ void update_sound_label(snd_info *sp) {}
 
 void auto_update_restart(void) {}
 
+#if HAVE_SCHEME
+static s7_pointer top_level_let = NULL;
+static s7_pointer g_top_level_let(s7_scheme *sc, s7_pointer args)
+{
+  return(top_level_let);
+}
+
+static s7_pointer g_set_top_level_let(s7_scheme *sc, s7_pointer args)
+{
+  top_level_let = s7_car(args);
+  return(top_level_let);
+}
+#endif
+
 snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr)
 {
   snd_info *sp;
@@ -697,6 +711,11 @@ void snd_doit(int argc, char **argv)
 
   if ((ss->sounds) && (ss->sounds[0]) && ((ss->sounds[0])->inuse == SOUND_NORMAL))
     select_channel(ss->sounds[0], 0);
+
+#if HAVE_SCHEME
+  top_level_let = s7_nil(s7);
+  s7_define_variable(s7, "top-level-let", s7_dilambda(s7, "top-level-let", g_top_level_let, 0, 0, g_set_top_level_let, 1, 0, "listener environment"));
+#endif
 
 #if HAVE_SCHEME && (!defined(__sun)) && (!defined(_MSC_VER))
 

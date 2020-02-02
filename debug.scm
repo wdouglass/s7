@@ -49,67 +49,66 @@
 	  val))
 
       (lambda (e)                   ; trace-in: report function call and return value
-	(let-temporarily (((*s7* 'history-enabled) #f))
-
-	  (let* ((func (if (funclet? e) 
-			   (with-let e __func__) 
-			   (and (funclet? (outlet e))
-				(with-let (outlet e) __func__))))
-		 (funcname (if (pair? func) (car func) func))
-		 (func-arity (and (symbol? funcname) (arity (symbol->value funcname e))))
-		 (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
-			 (map (let ((n 0))
-				(lambda (x) 
-				  (set! n (+ n 1))
-				  (if (and (symbol? funcname)
-					   (pair? (cdr x))
-					   (= (cdr func-arity) 536870912)
-					   (> n (car func-arity)))
-				    (apply values (cdr x))
-				    (if (and (or (pair? (cdr x))
-						 (and (symbol? (cdr x))
-						      (not (keyword? (cdr x)))))
-					     (not (and func (macro? (symbol->value funcname e)))))
-					(list 'quote (cdr x))
-					(cdr x)))))
-			     e)))
-
-		 (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
-			 (format #f "(~S~{~^ ~S~})" 
-				 (or funcname '_)
-				 args))))
-
-	    (set! *debug-curlet* e)
-
-	    (if (vector? *debug-stack*)
-		(vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) 
-						       (/ *debug-spaces* 2)))
-			     call))
+	(when (> (*s7* 'debug) 0)
+	  (let-temporarily (((*s7* 'history-enabled) #f))
 	    
-	    (cond ((and *debug-function*
-			(*debug-function* func call e))) ; if it returns #f, try rest of possibilities
-		  
-		  ((and funcname 
-			(memq funcname *debug-breaks*))
-		   (*debug-repl* call e))
-		  
-		  (else
-		   (*debug-start-output* *debug-port*)
-		   (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
-		   (if (pair? func)
-		       (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
-		   (if (and (> (port-line-number) 0)
-			    (not (string=? (port-filename) "*stdin*")))
-		       (format *debug-port* "~A called from ~A[~D]"
-			       (if (pair? func) "" "    ;")
-			       (port-filename)
-			       (port-line-number)))
-		   (newline *debug-port*)))
-	    (set! *debug-spaces* (+ *debug-spaces* 2))))
-
-	(dynamic-unwind trace-out e))
-
-      )))
+	    (let* ((func (if (funclet? e) 
+			     (with-let e __func__) 
+			     (and (funclet? (outlet e))
+				  (with-let (outlet e) __func__))))
+		   (funcname (if (pair? func) (car func) func))
+		   (func-arity (and (symbol? funcname) (arity (symbol->value funcname e))))
+		   (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
+			   (map (let ((n 0))
+				  (lambda (x) 
+				    (set! n (+ n 1))
+				    (if (and (symbol? funcname)
+					     (pair? (cdr x))
+					     (= (cdr func-arity) 536870912)
+					     (> n (car func-arity)))
+					(apply values (cdr x))
+					(if (and (or (pair? (cdr x))
+						     (and (symbol? (cdr x))
+							  (not (keyword? (cdr x)))))
+						 (not (and func (macro? (symbol->value funcname e)))))
+					    (list 'quote (cdr x))
+					    (cdr x)))))
+				e)))
+		   
+		   (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
+			   (format #f "(~S~{~^ ~S~})" 
+				   (or funcname '_)
+				   args))))
+	      
+	      (set! *debug-curlet* e)
+	      
+	      (if (vector? *debug-stack*)
+		  (vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) 
+							 (/ *debug-spaces* 2)))
+			       call))
+	      
+	      (cond ((and *debug-function*
+			  (*debug-function* func call e))) ; if it returns #f, try rest of possibilities
+		    
+		    ((and funcname 
+			  (memq funcname *debug-breaks*))
+		     (*debug-repl* call e))
+		    
+		    (else
+		     (*debug-start-output* *debug-port*)
+		     (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
+		     (if (pair? func)
+			 (format *debug-port* "    ; ~S: ~A[~D]" (car func) (cadr func) (caddr func)))
+		     (if (and (> (port-line-number) 0)
+			      (not (string=? (port-filename) "*stdin*")))
+			 (format *debug-port* "~A called from ~A[~D]"
+				 (if (pair? func) "" "    ;")
+				 (port-filename)
+				 (port-line-number)))
+		     (newline *debug-port*)))
+	      (set! *debug-spaces* (+ *debug-spaces* 2))))
+	  
+	  (dynamic-unwind trace-out e))))))
 
 
 (define debug-port (dilambda 
@@ -334,24 +333,16 @@
 ;;; --------
 ;;; TODO:
 
-;; unbreak should undo trace if it added the trace?
+;; unbreak should undo trace if break added the trace?
 
 ;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
 ;;   if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
 
 ;; s7_error/ow! needs to cull owlet error-history
 
-;; s7test for debug.scm -- t253 via port-line-number? also t264
-;; and s7.html all these cases, and how to tie into other code (repl.scm, Snd)
-
-;; how to trace expansions?
-;;   if debug>3, expansion in eval could insert (if (> (*s7* 'debug) 0) (format (debug-port) "line ~D, ~S expanded to ~S" (port-line-number) etc)
-;;   expansion needs trace-in in the expanded code, whereas a macro is ok if precedes it
-
-;; are all define line numbers off by 1?
-;; op_macro_unchecked? need timing test of macro/bacro to see if it matters
+;; s7.html all these cases, and doc how to tie into other code (repl.scm, Snd)
 |#
 
 
-(when (defined? 'debug.scm-init)
+(when (defined? 'debug.scm-init) ; connect to the repl, if any
   ((symbol->value 'debug.scm-init)))

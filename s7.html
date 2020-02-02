@@ -903,38 +903,18 @@ another amusing lambda* case:
 implement the standard old-time macros.  
 The anonymous versions (analogous to lambda and lambda*) are
 macro, macro*, bacro, and bacro*.
+See s7test.scm for many examples of macros including such perennial favorites as
+loop, dotimes, do*, enum, pushnew, and defstruct.
 </p>
 
 <pre class="indented">
 &gt; (define-macro (and-let* vars . body)
-    `(let () (and ,@(map (lambda (v) `(define ,@v)) vars) (begin ,@body))))
-
-&gt; (define-macro (<em class=def id="trace">trace</em> f)
-    (let ((old-f (gensym)))
-      `(define ,f 
-         (let ((,old-f ,f))
-	   (apply lambda 'args 
-		  `((format () "(~S ~{~S~^ ~}) -&gt; " ',',f args)
-		    (let ((val (apply ,,old-f args))) 
-		      (format () "~S~%" val) 
-		      val)))))))
-<em class="gray">trace</em>
-&gt; (trace abs)
-<em class="gray">abs</em>
-&gt; (abs -1.5)
-<em class="gray">(abs -1.5) -&gt; 1.5</em>
-<em class="gray">1.5</em>
+    `(let () 
+       (and ,@(map (lambda (v) 
+                     `(define ,@v))
+                   vars)
+            (begin ,@body))))
 </pre>
-
-<!-- this also probably works:
-(define-macro (trace f)
-    `(define ,f 
-       (apply lambda 'args 
-         `((format () "(~A ~{~A~^ ~}) -> " ',',f args)
-           (let ((val (apply ,',f args))) 
-             (format () "~A~%" val) 
-             val)))))
--->
 
 <p>macroexpand can help debug a macro.  I always forget that it
 wants an expression:
@@ -1061,8 +1041,6 @@ keep track of which environment you want things to happen in.  Use with-let
 and gensym liberally.  
 stuff.scm has bacro-shaker which can find inadvertent name collisions,
 but it is flighty and easily confused.
-See s7test.scm for many examples of macros including such perennial favorites as
-loop, dotimes, do*, enum, pushnew, and defstruct.
 The calling environment itself is (outlet (curlet)) from within a bacro, so
 </p>
 
@@ -4127,88 +4105,8 @@ is similar, but its argument is a string.
 </pre>
 
 
-<blockquote>
-
-
-<div class="indented">
-
-<p>eval's environment argument is handy when implementing break and trace:
-</p>
-<pre>
-(define *breaklet* #f)
-(define *step-hook* (make-hook 'code 'e))
-
-(define-macro* (trace/break code . break-points)
-  (define (caller tree)
-    (if (pair? tree)
-	(cons 
-	 (if (pair? (car tree))
-	     (if (and (symbol? (caar tree))
-		      (procedure? (symbol-&gt;value (caar tree))))
-		 (if (member (car tree) break-points)
-		     `(__break__ ,(caller (car tree)))
-		     `(__call__ ,(caller (car tree))))
-		 (caller (car tree)))
-	     (car tree))
-	 (caller (cdr tree)))
-	tree))
-  `(call-with-exit (lambda (__top__) ,(caller code))))
-
-(define (go . args)
-  (and (let? *breaklet*)
-       (apply (*breaklet* 'go) args)))
-
-(define (clear-break)
-  (set! *breaklet* #f))
-
-(define-macro (__call__ code)
-  `(*step-hook* ',code (curlet)))
-
-(define-macro (__break__ code)
-  `(begin
-     (call/cc
-      (lambda (go)
-	(set! *breaklet* (curlet))
-	(__top__ (format #f "break at: ~A~%" ',code))))
-     ,code))
-
-(set! (hook-functions *step-hook*) 
-      (list (lambda (hook)
-	      (set! (hook 'result) (<em class=red>eval (hook 'code) (hook 'e)</em>)))))
-
-(set! ((funclet *step-hook*) 'end)
-      (list (lambda (hook)
-	      (define (uncaller tree)
-		(if (pair? tree)
-		    (cons 
-		     (if (and (pair? (car tree))
-			      (memq (caar tree) '(__call__ __break__)))
-			 (uncaller (cadar tree))
-			 (uncaller (car tree)))
-		     (uncaller (cdr tree)))
-		    tree))
-	      (format (current-output-port) ": ~A -&gt; ~A~40T~A~%" 
-		      (uncaller (hook 'code)) 
-		      (hook 'result)
-		      (if (and (not (eq? (hook 'e) (rootlet)))
-			       (not (defined? '__top__ (hook 'e))))
-			  (map values (hook 'e)) 
-			  "")))))
-
-;;; (trace/break (let ((a (+ 3 1)) (b 2)) (if (&gt; (* 2 a) b) 2 3)))
-;;; (trace/break (let ((a (+ 3 1)) (b 2)) (if (&gt; (* 2 a) b) 2 3)) (* 2 a))
-</pre>
-</div>
-
-</blockquote>
-
-
-
-
 
 <div class="header" id="IO"><h4>IO and other OS functions</h4></div>
-
-
 
 <p>Besides files, ports can also represent strings and functions.  The string port functions
 are:
@@ -5593,7 +5491,7 @@ Use the standard environment syntax to access these fields:
 2: vector, string, and pair constants are immutable (but checks for this are currently sparse)
 </pre>
 
-<p>The debug variable controls where debug.scm is active.  If it is (debug &gt; 0), it inserts
+<p>The debug variable controls where <a href="#debug">debug.scm</a> is active.  If it is (if debug &gt; 0), it inserts
 trace calls in functions and so on.  It uses <em class=def id="dynamicunwind">dynamic-unwind</em>
 to establish a catcher for the return value.  <code>(dynamic-unwind function arg)</code> causes
 <code>function</code> to be called after the traced function has returned, passing it <code>arg</code>
@@ -9396,6 +9294,43 @@ that point; type C-q to continue.
 <p>(watch var) sets var's setter to report whenever var is set!.
 (unwatch var) removes that setter.
 </p>
+
+<pre class="indented">
+&gt; (define (g1 x) (+ x 1))
+<em class="gray">g1</em>
+&gt; (trace g1) ; this loads debug.scm unless it's already loaded
+<em class="gray">g1</em>
+&gt; (g1 2)     ; but (*s7* 'debug) is 0, so no trace
+<em class="gray">3</em>
+&gt; (set! (*s7* 'debug) 1)
+<em class="gray">1</em>
+&gt; (g1 2)
+<em class="gray">(g1 2)
+  -> 3
+3</em>
+&gt; (break g1)
+<em class="gray">g1</em>
+&gt; (g1 3)
+<em class="gray">break: (g1 3), C-q to exit break</em>
+break> x       ; this is a repl started at the breakpoint
+<em class="gray">3</em>
+break>  -> 4   ; C-q typed to exit the break
+<em class="gray">4</em>
+&gt; (define var 1)
+<em class="gray">1</em>
+&gt; (watch var)
+<em class="gray">#&lt;lambda (s v ...)&gt;</em>  ; this is the new setter for 'var
+&gt; (set! var 3)
+<em class="gray">var set! to 3
+3</em>
+&gt; (define lt (inlet 'a 3))
+<em class="gray">(inlet 'a 3)</em>
+&gt; (watch (lt 'a))
+<em class="gray">#&lt;lambda (s v ...)&gt;</em>
+&gt; (set! (lt 'a) 12)
+<em class="gray">let-set! a to 12
+12</em>
+</pre>
 
 
 

@@ -3259,10 +3259,10 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define is_continuation(p)             (type(p) == T_CONTINUATION)
 #define is_goto(p)                     (type(p) == T_GOTO)
 #define is_macro(p)                    (type(p) == T_MACRO)
-/* #define is_bacro(p)                 (type(p) == T_BACRO) */
 #define is_macro_star(p)               (type(p) == T_MACRO_STAR)
 #define is_bacro_star(p)               (type(p) == T_BACRO_STAR)
 #define is_either_macro(p)             ((is_macro(p)) || (is_macro_star(p)))
+#define is_either_bacro(p)             ((type(p) == T_BACRO) || (type(p) == T_BACRO_STAR))
 
 #define is_closure(p)                  (type(p) == T_CLOSURE)
 #define is_closure_star(p)             (type(p) == T_CLOSURE_STAR)
@@ -9441,7 +9441,6 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
 {
   if ((is_pair(car(code))) && (caar(code) == sc->trace_in_symbol))
     return(code);
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(code)); */
   return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
@@ -9502,8 +9501,11 @@ static s7_pointer make_macro(s7_scheme *sc, opcode_t op, bool unnamed)
       else s7_make_slot(sc, sc->envir, mac_name, mac); /* was current but we've checked immutable already */
     }
   
-  if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
-    clear_all_optimizations(sc, body);
+  if (!is_either_bacro(mac))
+    {
+      if (optimize(sc, body, 1, collect_parameters(sc, closure_args(mac), sc->nil)) == OPT_OOPS)
+	clear_all_optimizations(sc, body);
+    }
 
   if ((is_pair(car(body))) &&        /* a desperate kludge -- need something better here! */
       (is_pair(cdar(body))) &&
@@ -10354,7 +10356,6 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
       p = ov[i];                               /* args */
       if (is_pair(p))                          /* args need not be a list (it can be a port or #f, etc) */
 	{
-	  /* fprintf(stderr, "op: %s, pair: %s\n", op_names[(opcode_t)(ov[i + 1])], display_80(p)); */
 	  if (is_null(cdr(p)))
 	    nv[i] = list_1(sc, car(p));
 	  else
@@ -48967,13 +48968,6 @@ static s7_pointer g_dynamic_unwind(s7_scheme *sc, s7_pointer args)
   return(cadr(args));
 }
 
-s7_pointer s7_dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer arg)
-{
-  check_stack_size(sc);
-  swap_stack(sc, OP_DYNAMIC_UNWIND, func, arg);
-  return(func);
-}
-
 
 /* -------------------------------- catch -------------------------------- */
 static s7_pointer g_catch(s7_scheme *sc, s7_pointer args)
@@ -69056,6 +69050,47 @@ static opt_t wrap_bad_args(s7_scheme *sc, s7_pointer func, s7_pointer expr, int3
   return(OPT_F);
 }
 
+static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
+{
+  s7_pointer x;
+  int64_t id;
+#if OPTIMIZE_PRINT
+  fprintf(stderr, "  find %s in %s (in list: %d)\n", display(symbol), display(e), symbol_is_in_list(sc, symbol));
+#endif
+  if ((symbol_is_in_list(sc, symbol)) &&
+      (direct_memq(symbol, e)))   /* it's probably a local variable reference */
+    return(sc->nil);
+  /* ((!symbol_is_in_list(sc, symbol)) && (direct_memq(symbol, e))) can happen if there's an intervening lambda:
+   *   (let loop () (with-let (for-each (lambda (a) a) (list))) (loop))
+   * misses 'loop (it's not in symbol_list when recursive call is encountered) -- tricky to fix
+   */
+
+  if (is_global(symbol))
+    return(global_slot(symbol));
+
+  /* see 59108 (OP_DEFINE_* in optimize_syntax) -- keyword version of name is used if a definition is
+   *   contingent on some run-time decision, so we're looking here for local defines that might not happen.
+   *   s7test.scm has a test case using acos.
+   */
+  if ((has_keyword(symbol)) &&
+      (symbol_is_in_list(sc, symbol_to_keyword(sc, symbol))))
+    return(sc->nil);
+
+  id = symbol_id(symbol);
+  for (x = sc->envir; id < let_id(x); x = outlet(x));
+  for (; is_let(x); x = outlet(x))
+    {
+      s7_pointer y;
+      if (let_id(x) == id)
+	return(local_slot(symbol));
+
+      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
+	if (slot_symbol(y) == symbol)
+	  return(y);
+    }
+  return(global_slot(symbol)); /* it's no longer global perhaps (local definition now inaccessible) */
+}
+
 static opt_t optimize_c_function_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer func,
 					 int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -70435,47 +70470,6 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 #endif
 
   return((is_optimized(expr)) ? OPT_T : OPT_F);
-}
-
-static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
-{
-  s7_pointer x;
-  int64_t id;
-#if OPTIMIZE_PRINT
-  fprintf(stderr, "  find %s in %s (in list: %d)\n", display(symbol), display(e), symbol_is_in_list(sc, symbol));
-#endif
-  if ((symbol_is_in_list(sc, symbol)) &&
-      (direct_memq(symbol, e)))   /* it's probably a local variable reference */
-    return(sc->nil);
-  /* ((!symbol_is_in_list(sc, symbol)) && (direct_memq(symbol, e))) can happen if there's an intervening lambda:
-   *   (let loop () (with-let (for-each (lambda (a) a) (list))) (loop))
-   * misses 'loop (it's not in symbol_list when recursive call is encountered) -- tricky to fix
-   */
-
-  if (is_global(symbol))
-    return(global_slot(symbol));
-
-  /* see 59108 (OP_DEFINE_* in optimize_syntax) -- keyword version of name is used if a definition is
-   *   contingent on some run-time decision, so we're looking here for local defines that might not happen.
-   *   s7test.scm has a test case using acos.
-   */
-  if ((has_keyword(symbol)) &&
-      (symbol_is_in_list(sc, symbol_to_keyword(sc, symbol))))
-    return(sc->nil);
-
-  id = symbol_id(symbol);
-  for (x = sc->envir; id < let_id(x); x = outlet(x));
-  for (; is_let(x); x = outlet(x))
-    {
-      s7_pointer y;
-      if (let_id(x) == id)
-	return(local_slot(symbol));
-
-      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
-	if (slot_symbol(y) == symbol)
-	  return(y);
-    }
-  return(global_slot(symbol)); /* it's no longer global perhaps (local definition now inaccessible) */
 }
 
 static bool unsafe_is_safe(s7_scheme *sc, s7_pointer f, s7_pointer e)
@@ -71970,6 +71964,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
   op = (opcode_t)syntax_opcode(func);
   /* pair_set_syntax_op(expr, op); */ /* much slower?? */
+  /* fprintf(stderr, "%s: %s\n", op_names[op], display_80(expr)); */
 
   sc->w = e;
   body = cdr(expr);
@@ -72111,8 +72106,11 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       e = cons(sc, sc->nil, e);
       break;
 
+    case OP_DEFINE_BACRO: case OP_DEFINE_BACRO_STAR:
+    case OP_BACRO:  case OP_BACRO_STAR:
+      return(OPT_F);
+
     case OP_DEFINE_MACRO:    case OP_DEFINE_MACRO_STAR:
-    case OP_DEFINE_BACRO:    case OP_DEFINE_BACRO_STAR:
     case OP_DEFINE_CONSTANT: case OP_DEFINE_EXPANSION: case OP_DEFINE_EXPANSION_STAR:
     case OP_DEFINE:          case OP_DEFINE_STAR:
       /* define adds a name to the incoming env (e), the added name is inserted into e after the first, so the caller
@@ -72174,8 +72172,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       break;
 
     case OP_LAMBDA: case OP_LAMBDA_STAR:
-    case OP_MACRO: case OP_MACRO_STAR: 
-    case OP_BACRO: case OP_BACRO_STAR:
+    case OP_MACRO:  case OP_MACRO_STAR: 
       vars = cadr(expr);
       if (is_null(vars))
 	e = cons(sc, sc->nil, e);
@@ -72478,6 +72475,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
   s7_pointer car_expr;
 #if OPTIMIZE_PRINT
   fprintf(stderr, "optimize_expression %s %d %s\n", display(expr), hop, display(e));
+  /* if ((car(expr) == sc->is_null_symbol) && (is_pair(cdr(expr))) && (cadr(expr) == make_symbol(sc, "i"))) abort(); */
 #endif
   set_checked(expr);
   car_expr = car(expr);
@@ -72494,7 +72492,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 
       slot = find_uncomplicated_symbol(sc, car_expr, e); /* local vars (recursive calls too??) are considered "complicated" */
 #if OPTIMIZE_PRINT
-      if (!is_slot(slot)) fprintf(stderr, "  %s is not simple\n", display(expr));
+      fprintf(stderr, "  %s is %ssimple\n", display(expr), (is_slot(slot)) ? "" : "not ");
 #endif
       if (is_slot(slot))
 	{
@@ -77006,6 +77004,23 @@ static bool op_macro_star_d(s7_scheme *sc)
   return(false);
 }
 
+static void transfer_macro_info(s7_scheme *sc, s7_pointer mac)
+{
+  s7_pointer body;
+  body = closure_body(mac);
+  if (has_pair_macro(mac))
+    {
+      set_maclet(sc->envir);
+      funclet_set_function(sc->envir, pair_macro(body));
+    }
+  if (has_location(body))
+    {
+      let_set_file(sc->envir, pair_file_number(body));
+      let_set_line(sc->envir, pair_line_number(body));
+      set_has_let_file(sc->envir);
+    }
+}
+
 static goto_t op_expansion(s7_scheme *sc)
 {
   int64_t loc;
@@ -77092,6 +77107,7 @@ static goto_t op_expansion(s7_scheme *sc)
 	  sc->args = copy_proper_list(sc, cdr(sc->value));
 	  push_stack_no_code(sc, OP_EXPANSION, sc->nil);
 	  new_frame(sc, closure_let(sc->code), sc->envir);
+	  transfer_macro_info(sc, sc->code);
 	  if (!is_macro_star(sc->code))
 	    return(goto_apply_lambda);
 	  apply_macro_star_1(sc);
@@ -83208,23 +83224,6 @@ static void apply_macro_star_1(s7_scheme *sc)
   sc->code = T_Pair(closure_body(sc->code));
 }
 
-static void transfer_macro_info(s7_scheme *sc, s7_pointer mac)
-{
-  s7_pointer body;
-  body = closure_body(mac);
-  if (has_pair_macro(mac))
-    {
-      set_maclet(sc->envir);
-      funclet_set_function(sc->envir, pair_macro(body));
-    }
-  if (has_location(body))
-    {
-      let_set_file(sc->envir, pair_file_number(body));
-      let_set_line(sc->envir, pair_line_number(body));
-      set_has_let_file(sc->envir);
-    }
-}
-
 static void apply_macro(s7_scheme *sc)
 {
   /* this is not from the reader, so treat expansions here as normal macros */
@@ -87334,7 +87333,6 @@ static void op_safe_or_unsafe_c_fp(s7_scheme *sc) /* code: (func . args) where a
   s7_pointer p;
   check_stack_size(sc);
   sc->args = list_1(sc, sc->code);
-  /* sc->code = cdr(sc->code); *//* args pre-eval */
   for (p = cdr(sc->code); (is_pair(p)) && (has_fx(p)); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, p), sc->args); /* reversed before apply in OP_SAFE_OR_UNSAFE_C_FP_1 */
   /* there's always at least one non-fx arg (the "p" in "fp"), also lots of recurs here */
@@ -87377,7 +87375,6 @@ static void op_safe_or_unsafe_closure_fp(s7_scheme *sc)
   s7_pointer p;
   check_stack_size(sc);
   sc->args = list_1(sc, sc->code);
-  /* sc->code = cdr(sc->code); */
   for (p = cdr(sc->code); (is_pair(p)) && (has_fx(p)); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, p), sc->args);
   push_stack(sc, ((intptr_t)((is_pair(cdr(p))) ? OP_SAFE_OR_UNSAFE_CLOSURE_FP_1 : OP_SAFE_OR_UNSAFE_CLOSURE_FP_2)), sc->args, cdr(p));
@@ -95401,24 +95398,17 @@ static s7_pointer sl_int_fixup(s7_scheme *sc, s7_pointer val)
 static s7_pointer cull_history(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer p;
+  clear_symbol_list(sc); /* make a list of words banned from the history */
+  add_symbol_to_list(sc, sc->s7_let_symbol);
+  add_symbol_to_list(sc, sc->eval_symbol);
+  add_symbol_to_list(sc, make_symbol(sc, "debug"));
+  add_symbol_to_list(sc, make_symbol(sc, "trace-in"));
+  add_symbol_to_list(sc, sc->dynamic_unwind_symbol);
+  add_symbol_to_list(sc, make_symbol(sc, "history-enabled"));
   for (p = code; is_pair(p); p = cdr(p))
     {
-      s7_pointer entry;
-      entry = car(p);
-      if (is_pair(entry))
-	{
-	  if (car(entry) == make_symbol(sc, "trace-in"))
-	    set_car(p, sc->nil);
-	  else
-	  if ((car(entry) == sc->eval_symbol) && (cadr(entry) == make_symbol(sc, "form")) && (caddr(entry) == make_symbol(sc, "e"))) 
-	    set_car(p, sc->nil);
-	  else
-	  if ((car(entry) == sc->let_temporarily_symbol) && (is_pair(cdr(entry))) && (is_pair(cadr(entry))) && (is_pair(caadr(entry))) &&
-	      (is_pair(caaadr(entry))) && (car(caaadr(entry)) == make_symbol(sc, "*s7*")) && (is_pair(cdr(caaadr(entry)))) &&
-	      (is_pair(cadr(caaadr(entry)))) && (caadr(caaadr(entry)) == sc->quote_symbol) && 
-	      ((cadadr(caaadr(entry)) == make_symbol(sc, "debug")) || (cadadr(caaadr(entry)) == make_symbol(sc, "history-enabled"))))
-	    set_car(p, sc->nil);
-	}
+      if (tree_set_memq(sc, car(p)))
+	set_car(p, sc->nil);
       if (cdr(p) == code) break;
     }
   return(code);
@@ -98356,7 +98346,7 @@ int main(int argc, char **argv)
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
  * tset     6616 | 3083 | 3120
- * tmac     3391 | 3186 | 3174
+ * tmac     3391 | 3186 | 3174 [4191 with f2d, check_lambda_args, eval, gc]
  * teq      4081 | 3804 | 3803
  * tfft     4288 | 3816 | 3788
  * tlet     5409 | 4613 | 4580
@@ -98382,7 +98372,6 @@ int main(int argc, char **argv)
  * let+lambda -- not set safe either?
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
- *   maybe ' = #_quote so only explicit quote counts: but (let ((quote -)) (quote 32)) -> 32, (let ('-) '32) -> 32
  * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation [maybe move opt_l tree to check_l/check_(named)let]
  * op_if(cond)_a_a_opz_la -- if_a_a_cpp, p's are closure_a[_o] so of the form void|bool op_*(sc)
  *   l1->l2->l1 could explicitly call the associated op_recur cases
